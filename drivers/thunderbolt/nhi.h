@@ -143,4 +143,21 @@ static inline int ring_tx(struct tb_ring *ring, struct ring_frame *frame)
 	return __ring_enqueue(ring, frame);
 }
 
+/*
+ * PCI IDs used in this driver from Win Ridge forward. There is no
+ * need for the PCI quirk anymore as we will use ICM also on Apple
+ * hardware.
+ */
+#define PCI_DEVICE_ID_INTEL_WIN_RIDGE_2C_NHI            0x157d
+#define PCI_DEVICE_ID_INTEL_WIN_RIDGE_2C_BRIDGE         0x157e
+#define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_NHI		0x15bf
+#define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE	0x15c0
+#define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_NHI	0x15d2
+#define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE	0x15d3
+#define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_NHI	0x15d9
+#define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE	0x15da
+#define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_USBONLY_NHI	0x15dc
+#define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_USBONLY_NHI	0x15dd
+#define PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_USBONLY_NHI	0x15de
+
 #endif

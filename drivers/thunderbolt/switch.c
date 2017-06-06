@@ -491,13 +491,22 @@ int tb_switch_configure(struct tb_switch *sw)
 		tb_sw_warn(sw, "unknown switch vendor id %#x\n",
 			   sw->config.vendor_id);
 
-	if (sw->config.device_id != PCI_DEVICE_ID_INTEL_LIGHT_RIDGE &&
-	    sw->config.device_id != PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C &&
-	    sw->config.device_id != PCI_DEVICE_ID_INTEL_PORT_RIDGE &&
-	    sw->config.device_id != PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE &&
-	    sw->config.device_id != PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE)
+	switch (sw->config.device_id) {
+	case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
+	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
+	case PCI_DEVICE_ID_INTEL_PORT_RIDGE:
+	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_4C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
+		break;
+
+	default:
 		tb_sw_warn(sw, "unsupported switch device id %#x\n",
 			   sw->config.device_id);
+	}
 
 	sw->config.enabled = 1;
 
