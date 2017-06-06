@@ -1270,10 +1270,10 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 		coda_set_gdi_regs(ctx);
 
 	/*
-	 * Copy headers at the beginning of the first frame for H.264 only.
-	 * In MPEG4 they are already copied by the coda.
+	 * Copy headers in front of the first frame and forced I frames for
+	 * H.264 only. In MPEG4 they are already copied by the CODA.
 	 */
-	if (src_buf->sequence == 0) {
+	if (src_buf->sequence == 0 || force_ipicture) {
 		pic_stream_buffer_addr =
 			vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0) +
 			ctx->vpu_header_size[0] +
@@ -1386,7 +1386,8 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	wr_ptr = coda_read(dev, CODA_REG_BIT_WR_PTR(ctx->reg_idx));
 
 	/* Calculate bytesused field */
-	if (dst_buf->sequence == 0) {
+	if (dst_buf->sequence == 0 ||
+	    src_buf->flags & V4L2_BUF_FLAG_KEYFRAME) {
 		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, wr_ptr - start_ptr +
 					ctx->vpu_header_size[0] +
 					ctx->vpu_header_size[1] +
