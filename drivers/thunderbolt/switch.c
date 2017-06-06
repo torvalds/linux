@@ -452,19 +452,26 @@ void tb_sw_set_unplugged(struct tb_switch *sw)
 int tb_switch_resume(struct tb_switch *sw)
 {
 	int i, err;
-	u64 uid;
 	tb_sw_info(sw, "resuming switch\n");
 
-	err = tb_drom_read_uid_only(sw, &uid);
-	if (err) {
-		tb_sw_warn(sw, "uid read failed\n");
-		return err;
-	}
-	if (sw != sw->tb->root_switch && sw->uid != uid) {
-		tb_sw_info(sw,
-			"changed while suspended (uid %#llx -> %#llx)\n",
-			sw->uid, uid);
-		return -ENODEV;
+	/*
+	 * Check for UID of the connected switches except for root
+	 * switch which we assume cannot be removed.
+	 */
+	if (tb_route(sw)) {
+		u64 uid;
+
+		err = tb_drom_read_uid_only(sw, &uid);
+		if (err) {
+			tb_sw_warn(sw, "uid read failed\n");
+			return err;
+		}
+		if (sw->uid != uid) {
+			tb_sw_info(sw,
+				"changed while suspended (uid %#llx -> %#llx)\n",
+				sw->uid, uid);
+			return -ENODEV;
+		}
 	}
 
 	/* upload configuration */
