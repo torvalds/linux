@@ -8,6 +8,10 @@
  *   Copyright (c) 2001-2007 Anton Altaparmakov
  *   Copyright (C) 2001,2002 Jakob Kemi <jakob.kemi@telia.com>
  *
+ *  WMI bus infrastructure by Andrew Lutomirski and Darren Hart:
+ *    Copyright (C) 2015 Andrew Lutomirski
+ *    Copyright (C) 2017 VMware, Inc. All Rights Reserved.
+ *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  *  This program is free software; you can redistribute it and/or modify
