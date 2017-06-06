@@ -87,13 +87,7 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, u64 pa,
 				void *p_data, unsigned int bytes);
 int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, u64 pa,
 				void *p_data, unsigned int bytes);
-bool intel_gvt_mmio_is_cmd_access(struct intel_gvt *gvt,
-				  unsigned int offset);
-bool intel_gvt_mmio_is_unalign(struct intel_gvt *gvt, unsigned int offset);
-void intel_gvt_mmio_set_accessed(struct intel_gvt *gvt, unsigned int offset);
-void intel_gvt_mmio_set_cmd_accessed(struct intel_gvt *gvt,
-				     unsigned int offset);
-bool intel_gvt_mmio_has_mode_mask(struct intel_gvt *gvt, unsigned int offset);
+
 int intel_vgpu_default_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 				 void *p_data, unsigned int bytes);
 int intel_vgpu_default_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,

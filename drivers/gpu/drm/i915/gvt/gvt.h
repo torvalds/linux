@@ -199,6 +199,21 @@ struct intel_gvt_fence {
 
 struct intel_gvt_mmio {
 	u8 *mmio_attribute;
+/* Register contains RO bits */
+#define F_RO		(1 << 0)
+/* Register contains graphics address */
+#define F_GMADR		(1 << 1)
+/* Mode mask registers with high 16 bits as the mask bits */
+#define F_MODE_MASK	(1 << 2)
+/* This reg can be accessed by GPU commands */
+#define F_CMD_ACCESS	(1 << 3)
+/* This reg has been accessed by a VM */
+#define F_ACCESSED	(1 << 4)
+/* This reg has been accessed through GPU commands */
+#define F_CMD_ACCESSED	(1 << 5)
+/* This reg could be accessed by unaligned address */
+#define F_UNALIGN	(1 << 6)
+
 	DECLARE_HASHTABLE(mmio_info_table, INTEL_GVT_MMIO_HASH_BITS);
 };
 
@@ -485,6 +500,69 @@ static inline void mmio_hw_access_pre(struct drm_i915_private *dev_priv)
 static inline void mmio_hw_access_post(struct drm_i915_private *dev_priv)
 {
 	intel_runtime_pm_put(dev_priv);
+}
+
+/**
+ * intel_gvt_mmio_set_accessed - mark a MMIO has been accessed
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ */
+static inline void intel_gvt_mmio_set_accessed(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	gvt->mmio.mmio_attribute[offset >> 2] |= F_ACCESSED;
+}
+
+/**
+ * intel_gvt_mmio_is_cmd_accessed - mark a MMIO could be accessed by command
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ */
+static inline bool intel_gvt_mmio_is_cmd_access(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_CMD_ACCESS;
+}
+
+/**
+ * intel_gvt_mmio_is_unalign - mark a MMIO could be accessed unaligned
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ */
+static inline bool intel_gvt_mmio_is_unalign(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_UNALIGN;
+}
+
+/**
+ * intel_gvt_mmio_set_cmd_accessed - mark a MMIO has been accessed by command
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ */
+static inline void intel_gvt_mmio_set_cmd_accessed(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	gvt->mmio.mmio_attribute[offset >> 2] |= F_CMD_ACCESSED;
+}
+
+/**
+ * intel_gvt_mmio_has_mode_mask - if a MMIO has a mode mask
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ * Returns:
+ * True if a MMIO has a mode mask in its higher 16 bits, false if it isn't.
+ *
+ */
+static inline bool intel_gvt_mmio_has_mode_mask(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_MODE_MASK;
 }
 
 #include "trace.h"
