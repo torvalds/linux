@@ -147,10 +147,10 @@ bool tb_pci_is_invalid(struct tb_pci_tunnel *tunnel)
 static int tb_pci_port_active(struct tb_port *port, bool active)
 {
 	u32 word = active ? 0x80000000 : 0x0;
-	int cap = tb_find_cap(port, TB_CFG_PORT, TB_CAP_PCIE);
-	if (cap <= 0) {
-		tb_port_warn(port, "TB_CAP_PCIE not found: %d\n", cap);
-		return cap ? cap : -ENXIO;
+	int cap = tb_port_find_cap(port, TB_PORT_CAP_ADAP);
+	if (cap < 0) {
+		tb_port_warn(port, "TB_PORT_CAP_ADAP not found: %d\n", cap);
+		return cap;
 	}
 	return tb_port_write(port, &word, TB_CFG_PORT, cap, 1);
 }

@@ -192,7 +192,7 @@ static int tb_init_port(struct tb_port *port)
 
 	/* Port 0 is the switch itself and has no PHY. */
 	if (port->config.type == TB_TYPE_PORT && port->port != 0) {
-		cap = tb_find_cap(port, TB_CFG_PORT, TB_CAP_PHY);
+		cap = tb_port_find_cap(port, TB_PORT_CAP_PHY);
 
 		if (cap > 0)
 			port->cap_phy = cap;
@@ -394,9 +394,9 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 		sw->ports[i].port = i;
 	}
 
-	cap = tb_find_cap(&sw->ports[0], TB_CFG_SWITCH, TB_CAP_PLUG_EVENTS);
+	cap = tb_switch_find_vse_cap(sw, TB_VSE_CAP_PLUG_EVENTS);
 	if (cap < 0) {
-		tb_sw_warn(sw, "cannot find TB_CAP_PLUG_EVENTS aborting\n");
+		tb_sw_warn(sw, "cannot find TB_VSE_CAP_PLUG_EVENTS aborting\n");
 		goto err;
 	}
 	sw->cap_plug_events = cap;
