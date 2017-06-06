@@ -436,11 +436,14 @@ static void calc_freesync_range(struct core_freesync *core_freesync,
 	}
 
 	/* Determine whether BTR can be supported */
-	if (max_frame_duration_in_ns >=
-			2 * min_frame_duration_in_ns)
-		core_freesync->map[index].caps->btr_supported = true;
-	else
-		core_freesync->map[index].caps->btr_supported = false;
+	//if (max_frame_duration_in_ns >=
+	//		2 * min_frame_duration_in_ns)
+	//	core_freesync->map[index].caps->btr_supported = true;
+	//else
+	//	core_freesync->map[index].caps->btr_supported = false;
+
+	/* Temp, keep btr disabled */
+	core_freesync->map[index].caps->btr_supported = false;
 
 	/* Cache the time variables */
 	state->time.max_render_time_in_us =
