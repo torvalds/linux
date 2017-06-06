@@ -3914,7 +3914,15 @@ static struct se_portal_group *ibmvscsis_make_tpg(struct se_wwn *wwn,
 {
 	struct ibmvscsis_tport *tport =
 		container_of(wwn, struct ibmvscsis_tport, tport_wwn);
+	u16 tpgt;
 	int rc;
+
+	if (strstr(name, "tpgt_") != name)
+		return ERR_PTR(-EINVAL);
+	rc = kstrtou16(name + 5, 0, &tpgt);
+	if (rc)
+		return ERR_PTR(rc);
+	tport->tport_tpgt = tpgt;
 
 	tport->releasing = false;
 
