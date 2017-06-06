@@ -57,6 +57,11 @@ struct fwnode_endpoint {
  * @get_parent: Return the parent of an fwnode.
  * @get_next_child_node: Return the next child node in an iteration.
  * @get_named_child_node: Return a child node with a given name.
+ * @graph_get_next_endpoint: Return an endpoint node in an iteration.
+ * @graph_get_remote_endpoint: Return the remote endpoint node of a local
+ *			       endpoint node.
+ * @graph_get_port_parent: Return the parent node of a port node.
+ * @graph_parse_endpoint: Parse endpoint for port and endpoint id.
  */
 struct fwnode_operations {
 	void (*get)(struct fwnode_handle *fwnode);
@@ -76,6 +81,15 @@ struct fwnode_operations {
 			       struct fwnode_handle *child);
 	struct fwnode_handle *
 	(*get_named_child_node)(struct fwnode_handle *fwnode, const char *name);
+	struct fwnode_handle *
+	(*graph_get_next_endpoint)(struct fwnode_handle *fwnode,
+				   struct fwnode_handle *prev);
+	struct fwnode_handle *
+	(*graph_get_remote_endpoint)(struct fwnode_handle *fwnode);
+	struct fwnode_handle *
+	(*graph_get_port_parent)(struct fwnode_handle *fwnode);
+	int (*graph_parse_endpoint)(struct fwnode_handle *fwnode,
+				    struct fwnode_endpoint *endpoint);
 };
 
 #define fwnode_has_op(fwnode, op)				\
