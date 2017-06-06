@@ -52,16 +52,16 @@ struct sunxi_sc_nmi_reg_offs {
 	u32 enable;
 };
 
-static struct sunxi_sc_nmi_reg_offs sun7i_reg_offs = {
-	.ctrl	= SUN7I_NMI_CTRL,
-	.pend	= SUN7I_NMI_PENDING,
-	.enable	= SUN7I_NMI_ENABLE,
-};
-
 static struct sunxi_sc_nmi_reg_offs sun6i_reg_offs = {
 	.ctrl	= SUN6I_NMI_CTRL,
 	.pend	= SUN6I_NMI_PENDING,
 	.enable	= SUN6I_NMI_ENABLE,
+};
+
+static struct sunxi_sc_nmi_reg_offs sun7i_reg_offs = {
+	.ctrl	= SUN7I_NMI_CTRL,
+	.pend	= SUN7I_NMI_PENDING,
+	.enable	= SUN7I_NMI_ENABLE,
 };
 
 static struct sunxi_sc_nmi_reg_offs sun9i_reg_offs = {
