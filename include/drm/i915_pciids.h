@@ -334,4 +334,14 @@
 	INTEL_KBL_GT3_IDS(info), \
 	INTEL_KBL_GT4_IDS(info)
 
+/* CNL U 2+2 */
+#define INTEL_CNL_U_GT2_IDS(info) \
+	INTEL_VGA_DEVICE(0x5A52, info), \
+	INTEL_VGA_DEVICE(0x5A5A, info), \
+	INTEL_VGA_DEVICE(0x5A42, info), \
+	INTEL_VGA_DEVICE(0x5A4A, info)
+
+#define INTEL_CNL_IDS(info) \
+	INTEL_CNL_U_GT2_IDS(info)
+
 #endif /* _I915_PCIIDS_H */
