@@ -37,7 +37,7 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /**
  * ufshcd_pci_suspend - suspend power management function
  * @pdev: pointer to PCI device handle
@@ -62,7 +62,9 @@ static int ufshcd_pci_resume(struct device *dev)
 {
 	return ufshcd_system_resume(dev_get_drvdata(dev));
 }
+#endif /* !CONFIG_PM_SLEEP */
 
+#ifdef CONFIG_PM
 static int ufshcd_pci_runtime_suspend(struct device *dev)
 {
 	return ufshcd_runtime_suspend(dev_get_drvdata(dev));
@@ -75,13 +77,7 @@ static int ufshcd_pci_runtime_idle(struct device *dev)
 {
 	return ufshcd_runtime_idle(dev_get_drvdata(dev));
 }
-#else /* !CONFIG_PM */
-#define ufshcd_pci_suspend	NULL
-#define ufshcd_pci_resume	NULL
-#define ufshcd_pci_runtime_suspend	NULL
-#define ufshcd_pci_runtime_resume	NULL
-#define ufshcd_pci_runtime_idle	NULL
-#endif /* CONFIG_PM */
+#endif /* !CONFIG_PM */
 
 /**
  * ufshcd_pci_shutdown - main function to put the controller in reset state
@@ -158,11 +154,11 @@ ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 static const struct dev_pm_ops ufshcd_pci_pm_ops = {
-	.suspend	= ufshcd_pci_suspend,
-	.resume		= ufshcd_pci_resume,
-	.runtime_suspend = ufshcd_pci_runtime_suspend,
-	.runtime_resume  = ufshcd_pci_runtime_resume,
-	.runtime_idle    = ufshcd_pci_runtime_idle,
+	SET_SYSTEM_SLEEP_PM_OPS(ufshcd_pci_suspend,
+				ufshcd_pci_resume)
+	SET_RUNTIME_PM_OPS(ufshcd_pci_runtime_suspend,
+			   ufshcd_pci_runtime_resume,
+			   ufshcd_pci_runtime_idle)
 };
 
 static const struct pci_device_id ufshcd_pci_tbl[] = {
