@@ -13,12 +13,16 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/crc4.h>
 #include <linux/device.h>
 #include <linux/fsi.h>
 #include <linux/idr.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "fsi-master.h"
+
+#define FSI_SLAVE_SIZE_23b		0x800000
 
 static DEFINE_IDA(master_ida);
 
@@ -90,11 +94,70 @@ static int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
 			addr, val, size);
 }
 
+static void fsi_slave_release(struct device *dev)
+{
+	struct fsi_slave *slave = to_fsi_slave(dev);
+
+	kfree(slave);
+}
+
 static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 {
-	/* todo: initialise slave device, perform engine scan */
+	struct fsi_slave *slave;
+	uint32_t chip_id;
+	uint8_t crc;
+	int rc;
 
-	return -ENODEV;
+	/* Currently, we only support single slaves on a link, and use the
+	 * full 23-bit address range
+	 */
+	if (id != 0)
+		return -EINVAL;
+
+	rc = fsi_master_read(master, link, id, 0, &chip_id, sizeof(chip_id));
+	if (rc) {
+		dev_dbg(&master->dev, "can't read slave %02x:%02x %d\n",
+				link, id, rc);
+		return -ENODEV;
+	}
+	chip_id = be32_to_cpu(chip_id);
+
+	crc = crc4(0, chip_id, 32);
+	if (crc) {
+		dev_warn(&master->dev, "slave %02x:%02x invalid chip id CRC!\n",
+				link, id);
+		return -EIO;
+	}
+
+	dev_info(&master->dev, "fsi: found chip %08x at %02x:%02x:%02x\n",
+			chip_id, master->idx, link, id);
+
+	/* We can communicate with a slave; create the slave device and
+	 * register.
+	 */
+	slave = kzalloc(sizeof(*slave), GFP_KERNEL);
+	if (!slave)
+		return -ENOMEM;
+
+	slave->master = master;
+	slave->dev.parent = &master->dev;
+	slave->dev.release = fsi_slave_release;
+	slave->link = link;
+	slave->id = id;
+	slave->size = FSI_SLAVE_SIZE_23b;
+
+	dev_set_name(&slave->dev, "slave@%02x:%02x", link, id);
+	rc = device_register(&slave->dev);
+	if (rc < 0) {
+		dev_warn(&master->dev, "failed to create slave device: %d\n",
+				rc);
+		put_device(&slave->dev);
+		return rc;
+	}
+
+	/* todo: perform engine scan */
+
+	return rc;
 }
 
 /* FSI master support */

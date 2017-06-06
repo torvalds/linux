@@ -6,6 +6,7 @@ menu "FSI support"
 
 config FSI
 	tristate "FSI support"
+	select CRC4
 	---help---
 	  FSI - the FRU Support Interface - is a simple bus for low-level
 	  access to POWER-based hardware.
