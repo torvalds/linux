@@ -4562,6 +4562,12 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 			this_len = sizeof(*extref) + this_name_len;
 		}
 
+		ret = btrfs_is_name_len_valid(eb, slot, name_ptr,
+					      this_name_len);
+		if (!ret) {
+			ret = -EIO;
+			goto out;
+		}
 		if (this_name_len > name_len) {
 			char *new_name;
 
