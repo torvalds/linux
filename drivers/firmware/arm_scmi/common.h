@@ -8,8 +8,40 @@
  */
 
 #include <linux/completion.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/scmi_protocol.h>
 #include <linux/types.h>
+
+#define PROTOCOL_REV_MINOR_BITS	16
+#define PROTOCOL_REV_MINOR_MASK	((1U << PROTOCOL_REV_MINOR_BITS) - 1)
+#define PROTOCOL_REV_MAJOR(x)	((x) >> PROTOCOL_REV_MINOR_BITS)
+#define PROTOCOL_REV_MINOR(x)	((x) & PROTOCOL_REV_MINOR_MASK)
+#define MAX_PROTOCOLS_IMP	16
+
+enum scmi_common_cmd {
+	PROTOCOL_VERSION = 0x0,
+	PROTOCOL_ATTRIBUTES = 0x1,
+	PROTOCOL_MESSAGE_ATTRIBUTES = 0x2,
+};
+
+/**
+ * struct scmi_msg_resp_prot_version - Response for a message
+ *
+ * @major_version: Major version of the ABI that firmware supports
+ * @minor_version: Minor version of the ABI that firmware supports
+ *
+ * In general, ABI version changes follow the rule that minor version increments
+ * are backward compatible. Major revision changes in ABI may not be
+ * backward compatible.
+ *
+ * Response to a generic message with message type SCMI_MSG_VERSION
+ */
+struct scmi_msg_resp_prot_version {
+	__le16 minor_version;
+	__le16 major_version;
+};
 
 /**
  * struct scmi_msg_hdr - Message(Tx/Rx) header
@@ -64,3 +96,8 @@ int scmi_one_xfer_init(const struct scmi_handle *h, u8 msg_id, u8 prot_id,
 		       size_t tx_size, size_t rx_size, struct scmi_xfer **p);
 int scmi_handle_put(const struct scmi_handle *handle);
 struct scmi_handle *scmi_handle_get(struct device *dev);
+int scmi_version_get(const struct scmi_handle *h, u8 protocol, u32 *version);
+void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
+				     u8 *prot_imp);
+
+int scmi_base_protocol_init(struct scmi_handle *h);

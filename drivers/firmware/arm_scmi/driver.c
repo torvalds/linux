@@ -94,21 +94,27 @@ struct scmi_desc {
  * @dev: Device pointer
  * @desc: SoC description for this instance
  * @handle: Instance of SCMI handle to send to clients
+ * @version: SCMI revision information containing protocol version,
+ *	implementation version and (sub-)vendor identification.
  * @cl: Mailbox Client
  * @tx_chan: Transmit mailbox channel
  * @tx_payload: Transmit mailbox channel payload area
  * @minfo: Message info
+ * @protocols_imp: list of protocols implemented, currently maximum of
+ *	MAX_PROTOCOLS_IMP elements allocated by the base protocol
  * @node: list head
  * @users: Number of users of this instance
  */
 struct scmi_info {
 	struct device *dev;
 	const struct scmi_desc *desc;
+	struct scmi_revision_info version;
 	struct scmi_handle handle;
 	struct mbox_client cl;
 	struct mbox_chan *tx_chan;
 	void __iomem *tx_payload;
 	struct scmi_xfers_info minfo;
+	u8 *protocols_imp;
 	struct list_head node;
 	int users;
 };
@@ -422,6 +428,45 @@ int scmi_one_xfer_init(const struct scmi_handle *handle, u8 msg_id, u8 prot_id,
 }
 
 /**
+ * scmi_version_get() - command to get the revision of the SCMI entity
+ *
+ * @handle: Handle to SCMI entity information
+ *
+ * Updates the SCMI information in the internal data structure.
+ *
+ * Return: 0 if all went fine, else return appropriate error.
+ */
+int scmi_version_get(const struct scmi_handle *handle, u8 protocol,
+		     u32 *version)
+{
+	int ret;
+	__le32 *rev_info;
+	struct scmi_xfer *t;
+
+	ret = scmi_one_xfer_init(handle, PROTOCOL_VERSION, protocol, 0,
+				 sizeof(*version), &t);
+	if (ret)
+		return ret;
+
+	ret = scmi_do_xfer(handle, t);
+	if (!ret) {
+		rev_info = t->rx.buf;
+		*version = le32_to_cpu(*rev_info);
+	}
+
+	scmi_one_xfer_put(handle, t);
+	return ret;
+}
+
+void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
+				     u8 *prot_imp)
+{
+	struct scmi_info *info = handle_to_scmi_info(handle);
+
+	info->protocols_imp = prot_imp;
+}
+
+/**
  * scmi_handle_get() - Get the  SCMI handle for a device
  *
  * @dev: pointer to device for which we want SCMI handle
@@ -649,10 +694,18 @@ static int scmi_probe(struct platform_device *pdev)
 
 	handle = &info->handle;
 	handle->dev = info->dev;
+	handle->version = &info->version;
 
 	ret = scmi_mbox_chan_setup(info);
 	if (ret)
 		return ret;
+
+	ret = scmi_base_protocol_init(handle);
+	if (ret) {
+		dev_err(dev, "unable to communicate with SCMI(%d)\n", ret);
+		scmi_mbox_free_channel(info);
+		return ret;
+	}
 
 	mutex_lock(&scmi_list_mutex);
 	list_add_tail(&info->node, &scmi_list);
