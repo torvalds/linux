@@ -2758,6 +2758,7 @@ static int merge_bio(struct extent_io_tree *tree, struct page *page,
 
 /*
  * @opf:	bio REQ_OP_* and REQ_* flags as one value
+ * @bio_ret:	must be valid pointer, newly allocated bio will be stored there
  */
 static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
 			      struct writeback_control *wbc,
@@ -2778,7 +2779,9 @@ static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
 	size_t page_size = min_t(size_t, size, PAGE_SIZE);
 	sector_t sector = offset >> 9;
 
-	if (bio_ret && *bio_ret) {
+	ASSERT(bio_ret);
+
+	if (*bio_ret) {
 		bio = *bio_ret;
 		if (old_compressed)
 			contig = bio->bi_iter.bi_sector == sector;
@@ -2813,10 +2816,7 @@ static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
 		wbc_account_io(wbc, page, page_size);
 	}
 
-	if (bio_ret)
-		*bio_ret = bio;
-	else
-		ret = submit_one_bio(bio, mirror_num, bio_flags);
+	*bio_ret = bio;
 
 	return ret;
 }
