@@ -33,15 +33,57 @@ struct scmi_revision_info {
 	char sub_vendor_id[SCMI_MAX_STR_SIZE];
 };
 
+struct scmi_handle;
+
+/**
+ * struct scmi_perf_ops - represents the various operations provided
+ *	by SCMI Performance Protocol
+ *
+ * @limits_set: sets limits on the performance level of a domain
+ * @limits_get: gets limits on the performance level of a domain
+ * @level_set: sets the performance level of a domain
+ * @level_get: gets the performance level of a domain
+ * @device_domain_id: gets the scmi domain id for a given device
+ * @get_transition_latency: gets the DVFS transition latency for a given device
+ * @add_opps_to_device: adds all the OPPs for a given device
+ * @freq_set: sets the frequency for a given device using sustained frequency
+ *	to sustained performance level mapping
+ * @freq_get: gets the frequency for a given device using sustained frequency
+ *	to sustained performance level mapping
+ */
+struct scmi_perf_ops {
+	int (*limits_set)(const struct scmi_handle *handle, u32 domain,
+			  u32 max_perf, u32 min_perf);
+	int (*limits_get)(const struct scmi_handle *handle, u32 domain,
+			  u32 *max_perf, u32 *min_perf);
+	int (*level_set)(const struct scmi_handle *handle, u32 domain,
+			 u32 level);
+	int (*level_get)(const struct scmi_handle *handle, u32 domain,
+			 u32 *level);
+	int (*device_domain_id)(struct device *dev);
+	int (*get_transition_latency)(const struct scmi_handle *handle,
+				      struct device *dev);
+	int (*add_opps_to_device)(const struct scmi_handle *handle,
+				  struct device *dev);
+	int (*freq_set)(const struct scmi_handle *handle, u32 domain,
+			unsigned long rate);
+	int (*freq_get)(const struct scmi_handle *handle, u32 domain,
+			unsigned long *rate);
+};
+
 /**
  * struct scmi_handle - Handle returned to ARM SCMI clients for usage.
  *
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
+ * @perf_ops: pointer to set of performance protocol operations
  */
 struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
+	struct scmi_perf_ops *perf_ops;
+	/* for protocol internal use */
+	void *perf_priv;
 };
 
 enum scmi_std_protocol {

@@ -19,6 +19,7 @@
 #define PROTOCOL_REV_MAJOR(x)	((x) >> PROTOCOL_REV_MINOR_BITS)
 #define PROTOCOL_REV_MINOR(x)	((x) & PROTOCOL_REV_MINOR_MASK)
 #define MAX_PROTOCOLS_IMP	16
+#define MAX_OPPS		16
 
 enum scmi_common_cmd {
 	PROTOCOL_VERSION = 0x0,
