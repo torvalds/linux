@@ -162,6 +162,7 @@ static void spk_serial_send_xchar(char ch)
 static void spk_serial_tiocmset(unsigned int set, unsigned int clear)
 {
 	int old = inb(speakup_info.port_tts + UART_MCR);
+
 	outb((old & ~clear) | set, speakup_info.port_tts + UART_MCR);
 }
 
