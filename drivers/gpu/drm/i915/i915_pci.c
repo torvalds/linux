@@ -208,7 +208,7 @@ static const struct intel_device_info intel_ironlake_d_info = {
 static const struct intel_device_info intel_ironlake_m_info = {
 	GEN5_FEATURES,
 	.platform = INTEL_IRONLAKE,
-	.is_mobile = 1,
+	.is_mobile = 1, .has_fbc = 1,
 };
 
 #define GEN6_FEATURES \
