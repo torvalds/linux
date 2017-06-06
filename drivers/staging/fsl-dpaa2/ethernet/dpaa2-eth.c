@@ -1162,8 +1162,8 @@ static int dpaa2_eth_set_addr(struct net_device *net_dev, void *addr)
 /** Fill in counters maintained by the GPP driver. These may be different from
  * the hardware counters obtained by ethtool.
  */
-void dpaa2_eth_get_stats(struct net_device *net_dev,
-			 struct rtnl_link_stats64 *stats)
+static void dpaa2_eth_get_stats(struct net_device *net_dev,
+				struct rtnl_link_stats64 *stats)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct rtnl_link_stats64 *percpu_stats;
@@ -1958,7 +1958,7 @@ static const struct dpaa2_eth_hash_fields hash_fields[] = {
 /* Set RX hash options
  * flags is a combination of RXH_ bits
  */
-int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
+static int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 {
 	struct device *dev = net_dev->dev.parent;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);

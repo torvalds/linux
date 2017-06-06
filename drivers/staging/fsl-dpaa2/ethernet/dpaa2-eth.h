@@ -339,8 +339,6 @@ struct dpaa2_eth_priv {
 extern const struct ethtool_ops dpaa2_ethtool_ops;
 extern const char dpaa2_eth_drv_version[];
 
-int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
-
 static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
 {
 	return priv->dpni_attrs.num_queues;
