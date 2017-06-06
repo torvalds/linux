@@ -504,33 +504,6 @@ nfp_net_rx_ring_init(struct nfp_net_rx_ring *rx_ring,
 }
 
 /**
- * nfp_net_vecs_init() - Assign IRQs and setup rvecs.
- * @nn:		NFP Network structure
- */
-static void nfp_net_vecs_init(struct nfp_net *nn)
-{
-	struct nfp_net_r_vector *r_vec;
-	int r;
-
-	nn->lsc_handler = nfp_net_irq_lsc;
-	nn->exn_handler = nfp_net_irq_exn;
-
-	for (r = 0; r < nn->max_r_vecs; r++) {
-		struct msix_entry *entry;
-
-		entry = &nn->irq_entries[NFP_NET_NON_Q_VECTORS + r];
-
-		r_vec = &nn->r_vecs[r];
-		r_vec->nfp_net = nn;
-		r_vec->handler = nfp_net_irq_rxtx;
-		r_vec->irq_entry = entry->entry;
-		r_vec->irq_vector = entry->vector;
-
-		cpumask_set_cpu(r, &r_vec->affinity_mask);
-	}
-}
-
-/**
  * nfp_net_aux_irq_request() - Request an auxiliary interrupt (LSC or EXN)
  * @nn:		NFP Network structure
  * @ctrl_offset: Control BAR offset where IRQ configuration should be written
@@ -1771,6 +1744,33 @@ static int nfp_net_poll(struct napi_struct *napi, int budget)
 
 /* Setup and Configuration
  */
+
+/**
+ * nfp_net_vecs_init() - Assign IRQs and setup rvecs.
+ * @nn:		NFP Network structure
+ */
+static void nfp_net_vecs_init(struct nfp_net *nn)
+{
+	struct nfp_net_r_vector *r_vec;
+	int r;
+
+	nn->lsc_handler = nfp_net_irq_lsc;
+	nn->exn_handler = nfp_net_irq_exn;
+
+	for (r = 0; r < nn->max_r_vecs; r++) {
+		struct msix_entry *entry;
+
+		entry = &nn->irq_entries[NFP_NET_NON_Q_VECTORS + r];
+
+		r_vec = &nn->r_vecs[r];
+		r_vec->nfp_net = nn;
+		r_vec->handler = nfp_net_irq_rxtx;
+		r_vec->irq_entry = entry->entry;
+		r_vec->irq_vector = entry->vector;
+
+		cpumask_set_cpu(r, &r_vec->affinity_mask);
+	}
+}
 
 /**
  * nfp_net_tx_ring_free() - Free resources allocated to a TX ring
