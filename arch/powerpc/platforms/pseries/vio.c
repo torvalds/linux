@@ -1537,6 +1537,7 @@ static ssize_t name_show(struct device *dev,
 {
 	return sprintf(buf, "%s\n", to_vio_dev(dev)->name);
 }
+static DEVICE_ATTR_RO(name);
 
 static ssize_t devspec_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1545,6 +1546,7 @@ static ssize_t devspec_show(struct device *dev,
 
 	return sprintf(buf, "%s\n", of_node_full_name(of_node));
 }
+static DEVICE_ATTR_RO(devspec);
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -1566,13 +1568,15 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "vio:T%sS%s\n", vio_dev->type, cp);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute vio_dev_attrs[] = {
-	__ATTR_RO(name),
-	__ATTR_RO(devspec),
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+static struct attribute *vio_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_devspec.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(vio_dev);
 
 void vio_unregister_device(struct vio_dev *viodev)
 {
@@ -1608,7 +1612,7 @@ static int vio_hotplug(struct device *dev, struct kobj_uevent_env *env)
 
 struct bus_type vio_bus_type = {
 	.name = "vio",
-	.dev_attrs = vio_dev_attrs,
+	.dev_groups = vio_dev_groups,
 	.uevent = vio_hotplug,
 	.match = vio_bus_match,
 	.probe = vio_bus_probe,
