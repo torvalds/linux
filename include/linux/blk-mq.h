@@ -263,6 +263,14 @@ int blk_mq_map_queues(struct blk_mq_tag_set *set);
 void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
 
 /*
+ * FIXME: this helper is just for working around mpt3sas.
+ */
+static inline void blk_mq_quiesce_queue_nowait(struct request_queue *q)
+{
+	blk_mq_stop_hw_queues(q);
+}
+
+/*
  * Driver command data is immediately after the request. So subtract request
  * size to get back to the original request, add request size to get the PDU.
  */
