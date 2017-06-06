@@ -30,4 +30,17 @@ void amdgpu_gfx_scratch_free(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se,
 		unsigned max_sh);
 
+/**
+ * amdgpu_gfx_create_bitmask - create a bitmask
+ *
+ * @bit_width: length of the mask
+ *
+ * create a variable length bit mask.
+ * Returns the bitmask.
+ */
+static inline u32 amdgpu_gfx_create_bitmask(u32 bit_width)
+{
+	return (u32)((1ULL << bit_width) - 1);
+}
+
 #endif
