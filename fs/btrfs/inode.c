@@ -8019,7 +8019,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
 	struct bio *bio;
 	int isector;
-	int read_mode = 0;
+	unsigned int read_mode = 0;
 	int segs;
 	int ret;
 
