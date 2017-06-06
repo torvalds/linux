@@ -792,13 +792,6 @@ int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
 
 
 /*
- *		Non SSI
- */
-static struct rsnd_mod_ops rsnd_ssi_non_ops = {
-	.name	= SSI_NAME,
-};
-
-/*
  *		ssi mod function
  */
 static void rsnd_ssi_connect(struct rsnd_mod *mod,
@@ -998,7 +991,6 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 			goto rsnd_ssi_probe_done;
 		}
 
-		ops = &rsnd_ssi_non_ops;
 		if (of_property_read_bool(np, "pio-transfer"))
 			ops = &rsnd_ssi_pio_ops;
 		else
