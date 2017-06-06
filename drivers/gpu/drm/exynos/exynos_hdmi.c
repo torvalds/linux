@@ -1486,8 +1486,6 @@ static void hdmi_enable(struct drm_encoder *encoder)
 static void hdmi_disable(struct drm_encoder *encoder)
 {
 	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
-	struct drm_crtc *crtc = encoder->crtc;
-	const struct drm_crtc_helper_funcs *funcs = NULL;
 
 	if (!hdata->powered)
 		return;
@@ -1498,16 +1496,11 @@ static void hdmi_disable(struct drm_encoder *encoder)
 	 * to disable TV Subsystem should be as following,
 	 *	VP -> Mixer -> HDMI
 	 *
-	 * Below codes will try to disable Mixer and VP(if used)
-	 * prior to disabling HDMI.
+	 * To achieve such sequence HDMI is disabled together with HDMI PHY, via
+	 * pipe clock callback.
 	 */
-	if (crtc)
-		funcs = crtc->helper_private;
-	if (funcs && funcs->disable)
-		(*funcs->disable)(crtc);
-
-	cec_notifier_set_phys_addr(hdata->notifier, CEC_PHYS_ADDR_INVALID);
 	cancel_delayed_work(&hdata->hotplug_work);
+	cec_notifier_set_phys_addr(hdata->notifier, CEC_PHYS_ADDR_INVALID);
 
 	hdmiphy_disable(hdata);
 }

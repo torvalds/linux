@@ -115,7 +115,6 @@ struct exynos_drm_plane_config {
  *
  * @enable: enable the device
  * @disable: disable the device
- * @commit: set current hw specific display mode to hw.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  * @atomic_check: validate state
@@ -130,9 +129,9 @@ struct exynos_drm_crtc;
 struct exynos_drm_crtc_ops {
 	void (*enable)(struct exynos_drm_crtc *crtc);
 	void (*disable)(struct exynos_drm_crtc *crtc);
-	void (*commit)(struct exynos_drm_crtc *crtc);
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
+	u32 (*get_vblank_counter)(struct exynos_drm_crtc *crtc);
 	int (*atomic_check)(struct exynos_drm_crtc *crtc,
 			    struct drm_crtc_state *state);
 	void (*atomic_begin)(struct exynos_drm_crtc *crtc);
@@ -153,24 +152,13 @@ struct exynos_drm_clk {
  *
  * @base: crtc object.
  * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
- * @pipe: a crtc index created at load() with a new crtc object creation
- *	and the crtc object would be set to private->crtc array
- *	to get a crtc object corresponding to this pipe from private->crtc
- *	array when irq interrupt occurred. the reason of using this pipe is that
- *	drm framework doesn't support multiple irq yet.
- *	we can refer to the crtc to current hardware interrupt occurred through
- *	this pipe value.
- * @enabled: if the crtc is enabled or not
- * @event: vblank event that is currently queued for flip
- * @wait_update: wait all pending planes updates to finish
- * @pending_update: number of pending plane updates in this crtc
  * @ops: pointer to callbacks for exynos drm specific functionality
  * @ctx: A pointer to the crtc's implementation specific context
+ * @pipe_clk: A pointer to the crtc's pipeline clock.
  */
 struct exynos_drm_crtc {
 	struct drm_crtc			base;
 	enum exynos_drm_output_type	type;
-	unsigned int			pipe;
 	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
 	struct exynos_drm_clk		*pipe_clk;
@@ -203,7 +191,6 @@ struct drm_exynos_file_private {
  *	otherwise default one.
  * @da_space_size: size of device address space.
  *	if 0 then default value is used for it.
- * @pipe: the pipe number for this crtc/manager.
  * @pending: the crtcs that have pending updates to finish
  * @lock: protect access to @pending
  * @wait: wait an atomic commit to finish
@@ -213,8 +200,6 @@ struct exynos_drm_private {
 
 	struct device *dma_dev;
 	void *mapping;
-
-	unsigned int pipe;
 
 	/* for atomic commit */
 	u32			pending;
