@@ -120,6 +120,19 @@ struct dpaa2_eth_swa {
 #define DPAA2_FD_FRC_FASWOV		0x0800
 #define DPAA2_FD_FRC_FAICFDV		0x0400
 
+/* Error bits in FD CTRL */
+#define DPAA2_FD_CTRL_UFD		0x00000004
+#define DPAA2_FD_CTRL_SBE		0x00000008
+#define DPAA2_FD_CTRL_FSE		0x00000010
+#define DPAA2_FD_CTRL_FAERR		0x00000020
+
+#define DPAA2_FD_RX_ERR_MASK		(DPAA2_FD_CTRL_SBE	| \
+					 DPAA2_FD_CTRL_FAERR)
+#define DPAA2_FD_TX_ERR_MASK		(DPAA2_FD_CTRL_UFD	| \
+					 DPAA2_FD_CTRL_SBE	| \
+					 DPAA2_FD_CTRL_FSE	| \
+					 DPAA2_FD_CTRL_FAERR)
+
 /* Annotation bits in FD CTRL */
 #define DPAA2_FD_CTRL_ASAL		0x00020000	/* ASAL = 128 */
 #define DPAA2_FD_CTRL_PTA		0x00800000
@@ -177,7 +190,7 @@ struct dpaa2_fas {
 /* L4 csum error */
 #define DPAA2_FAS_L4CE			0x00000001
 /* Possible errors on the ingress path */
-#define DPAA2_ETH_RX_ERR_MASK		(DPAA2_FAS_KSE		| \
+#define DPAA2_FAS_RX_ERR_MASK		(DPAA2_FAS_KSE		| \
 					 DPAA2_FAS_EOFHE	| \
 					 DPAA2_FAS_MNLE		| \
 					 DPAA2_FAS_TIDE		| \
@@ -191,7 +204,7 @@ struct dpaa2_fas {
 					 DPAA2_FAS_L3CE		| \
 					 DPAA2_FAS_L4CE)
 /* Tx errors */
-#define DPAA2_ETH_TXCONF_ERR_MASK	(DPAA2_FAS_KSE		| \
+#define DPAA2_FAS_TX_ERR_MASK		(DPAA2_FAS_KSE		| \
 					 DPAA2_FAS_EOFHE	| \
 					 DPAA2_FAS_MNLE		| \
 					 DPAA2_FAS_TIDE)

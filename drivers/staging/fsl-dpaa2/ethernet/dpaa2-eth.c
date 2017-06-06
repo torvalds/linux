@@ -534,7 +534,7 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 	 * buffer but before we free it. The caller function is responsible
 	 * for checking the status value.
 	 */
-	if (status && (dpaa2_fd_get_frc(fd) & DPAA2_FD_FRC_FASV))
+	if (status)
 		*status = le32_to_cpu(fas->status);
 
 	/* Free SGT buffer kmalloc'ed on tx */
@@ -638,6 +638,8 @@ static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
 	struct rtnl_link_stats64 *percpu_stats;
 	struct dpaa2_eth_drv_stats *percpu_extras;
 	u32 status = 0;
+	u32 fd_errors;
+	bool has_fas_errors = false;
 
 	/* Tracing point */
 	trace_dpaa2_tx_conf_fd(priv->net_dev, fd);
@@ -646,13 +648,31 @@ static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
 	percpu_extras->tx_conf_frames++;
 	percpu_extras->tx_conf_bytes += dpaa2_fd_get_len(fd);
 
-	free_tx_fd(priv, fd, &status);
-
-	if (unlikely(status & DPAA2_ETH_TXCONF_ERR_MASK)) {
-		percpu_stats = this_cpu_ptr(priv->percpu_stats);
-		/* Tx-conf logically pertains to the egress path. */
-		percpu_stats->tx_errors++;
+	/* Check frame errors in the FD field */
+	fd_errors = dpaa2_fd_get_ctrl(fd) & DPAA2_FD_TX_ERR_MASK;
+	if (unlikely(fd_errors)) {
+		/* We only check error bits in the FAS field if corresponding
+		 * FAERR bit is set in FD and the FAS field is marked as valid
+		 */
+		has_fas_errors = (fd_errors & DPAA2_FD_CTRL_FAERR) &&
+				 !!(dpaa2_fd_get_frc(fd) & DPAA2_FD_FRC_FASV);
+		if (net_ratelimit())
+			netdev_dbg(priv->net_dev, "TX frame FD error: %x08\n",
+				   fd_errors);
 	}
+
+	free_tx_fd(priv, fd, has_fas_errors ? &status : NULL);
+
+	if (likely(!fd_errors))
+		return;
+
+	percpu_stats = this_cpu_ptr(priv->percpu_stats);
+	/* Tx-conf logically pertains to the egress path. */
+	percpu_stats->tx_errors++;
+
+	if (has_fas_errors && net_ratelimit())
+		netdev_dbg(priv->net_dev, "TX frame FAS error: %x08\n",
+			   status & DPAA2_FAS_TX_ERR_MASK);
 }
 
 static int set_rx_csum(struct dpaa2_eth_priv *priv, bool enable)
@@ -2069,7 +2089,7 @@ static int bind_dpni(struct dpaa2_eth_priv *priv)
 		netdev_err(net_dev, "Failed to configure hashing\n");
 
 	/* Configure handling of error frames */
-	err_cfg.errors = DPAA2_ETH_RX_ERR_MASK;
+	err_cfg.errors = DPAA2_FAS_RX_ERR_MASK;
 	err_cfg.set_frame_annotation = 1;
 	err_cfg.error_action = DPNI_ERROR_ACTION_DISCARD;
 	err = dpni_set_errors_behavior(priv->mc_io, 0, priv->mc_token,
