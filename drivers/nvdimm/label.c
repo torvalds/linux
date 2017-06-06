@@ -326,7 +326,8 @@ static bool preamble_next(struct nvdimm_drvdata *ndd,
 			free, nslot);
 }
 
-static bool slot_valid(struct nd_namespace_label *nd_label, u32 slot)
+static bool slot_valid(struct nvdimm_drvdata *ndd,
+		struct nd_namespace_label *nd_label, u32 slot)
 {
 	/* check that we are written where we expect to be written */
 	if (slot != __le32_to_cpu(nd_label->slot))
@@ -336,6 +337,21 @@ static bool slot_valid(struct nd_namespace_label *nd_label, u32 slot)
 	if ((__le64_to_cpu(nd_label->dpa)
 				| __le64_to_cpu(nd_label->rawsize)) % SZ_4K)
 		return false;
+
+	/* check checksum */
+	if (namespace_label_has(ndd, checksum)) {
+		u64 sum, sum_save;
+
+		sum_save = __le64_to_cpu(nd_label->checksum);
+		nd_label->checksum = __cpu_to_le64(0);
+		sum = nd_fletcher64(nd_label, sizeof_namespace_label(ndd), 1);
+		nd_label->checksum = __cpu_to_le64(sum_save);
+		if (sum != sum_save) {
+			dev_dbg(ndd->dev, "%s fail checksum. slot: %d expect: %#llx\n",
+				__func__, slot, sum);
+			return false;
+		}
+	}
 
 	return true;
 }
@@ -359,7 +375,7 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 
 		nd_label = to_label(ndd, slot);
 
-		if (!slot_valid(nd_label, slot))
+		if (!slot_valid(ndd, nd_label, slot))
 			continue;
 
 		memcpy(label_uuid, nd_label->uuid, NSLABEL_UUID_LEN);
@@ -391,7 +407,7 @@ int nd_label_active_count(struct nvdimm_drvdata *ndd)
 
 		nd_label = to_label(ndd, slot);
 
-		if (!slot_valid(nd_label, slot)) {
+		if (!slot_valid(ndd, nd_label, slot)) {
 			u32 label_slot = __le32_to_cpu(nd_label->slot);
 			u64 size = __le64_to_cpu(nd_label->rawsize);
 			u64 dpa = __le64_to_cpu(nd_label->dpa);
@@ -419,7 +435,7 @@ struct nd_namespace_label *nd_label_active(struct nvdimm_drvdata *ndd, int n)
 		struct nd_namespace_label *nd_label;
 
 		nd_label = to_label(ndd, slot);
-		if (!slot_valid(nd_label, slot))
+		if (!slot_valid(ndd, nd_label, slot))
 			continue;
 
 		if (n-- == 0)
@@ -600,6 +616,13 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	nd_label->slot = __cpu_to_le32(slot);
 	if (namespace_label_has(ndd, type_guid))
 		guid_copy(&nd_label->type_guid, &nd_set->type_guid);
+	if (namespace_label_has(ndd, checksum)) {
+		u64 sum;
+
+		nd_label->checksum = __cpu_to_le64(0);
+		sum = nd_fletcher64(nd_label, sizeof_namespace_label(ndd), 1);
+		nd_label->checksum = __cpu_to_le64(sum);
+	}
 	nd_dbg_dpa(nd_region, ndd, res, "%s\n", __func__);
 
 	/* update label */
@@ -825,6 +848,14 @@ static int __blk_label_update(struct nd_region *nd_region,
 		nd_label->slot = __cpu_to_le32(slot);
 		if (namespace_label_has(ndd, type_guid))
 			guid_copy(&nd_label->type_guid, &nd_set->type_guid);
+		if (namespace_label_has(ndd, checksum)) {
+			u64 sum;
+
+			nd_label->checksum = __cpu_to_le64(0);
+			sum = nd_fletcher64(nd_label,
+					sizeof_namespace_label(ndd), 1);
+			nd_label->checksum = __cpu_to_le64(sum);
+		}
 
 		/* update label */
 		offset = nd_label_offset(ndd, nd_label);
