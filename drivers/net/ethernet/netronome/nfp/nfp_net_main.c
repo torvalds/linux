@@ -303,7 +303,8 @@ static void nfp_net_pf_free_vnics(struct nfp_pf *pf)
 }
 
 static struct nfp_net *
-nfp_net_pf_alloc_vnic(struct nfp_pf *pf, void __iomem *ctrl_bar,
+nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
+		      void __iomem *ctrl_bar,
 		      void __iomem *tx_bar, void __iomem *rx_bar,
 		      int stride, struct nfp_net_fw_version *fw_ver,
 		      unsigned int eth_id)
@@ -316,7 +317,7 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, void __iomem *ctrl_bar,
 	n_rx_rings = readl(ctrl_bar + NFP_NET_CFG_MAX_RXRINGS);
 
 	/* Allocate and initialise the vNIC */
-	nn = nfp_net_alloc(pf->pdev, n_tx_rings, n_rx_rings);
+	nn = nfp_net_alloc(pf->pdev, needs_netdev, n_tx_rings, n_rx_rings);
 	if (IS_ERR(nn))
 		return nn;
 
@@ -395,7 +396,7 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 		prev_tx_base = tgt_tx_base;
 		prev_rx_base = tgt_rx_base;
 
-		nn = nfp_net_pf_alloc_vnic(pf, ctrl_bar, tx_bar, rx_bar,
+		nn = nfp_net_pf_alloc_vnic(pf, true, ctrl_bar, tx_bar, rx_bar,
 					   stride, fw_ver, i);
 		if (IS_ERR(nn)) {
 			err = PTR_ERR(nn);
