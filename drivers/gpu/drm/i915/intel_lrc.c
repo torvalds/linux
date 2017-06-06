@@ -204,6 +204,7 @@
 
 #define GEN8_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x17
 #define GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x26
+#define GEN10_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x19
 
 /* Typical size of the average request (2 pipecontrols and a MI_BB) */
 #define EXECLISTS_REQUEST_SIZE 64 /* bytes */
@@ -1861,6 +1862,10 @@ static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
 	default:
 		MISSING_CASE(INTEL_GEN(engine->i915));
 		/* fall through */
+	case 10:
+		indirect_ctx_offset =
+			GEN10_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
+		break;
 	case 9:
 		indirect_ctx_offset =
 			GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
