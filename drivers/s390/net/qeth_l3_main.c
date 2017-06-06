@@ -2676,8 +2676,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	use_tso = skb_is_gso(skb) &&
 		  (qeth_get_ip_protocol(skb) == IPPROTO_TCP) && (ipv == 4);
 
-	if ((card->info.type == QETH_CARD_TYPE_IQD) &&
-	    !skb_is_nonlinear(skb)) {
+	if (card->info.type == QETH_CARD_TYPE_IQD) {
 		new_skb = skb;
 		data_offset = ETH_HLEN;
 		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
@@ -2690,12 +2689,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 					+ VLAN_HLEN);
 		if (!new_skb)
 			goto tx_drop;
-	}
 
-	if (card->info.type == QETH_CARD_TYPE_IQD) {
-		if (data_offset < 0)
-			skb_pull(new_skb, ETH_HLEN);
-	} else {
 		if (ipv == 4) {
 			skb_pull(new_skb, ETH_HLEN);
 		}
