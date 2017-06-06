@@ -149,6 +149,8 @@ struct event_return_value {
 #define ACER_WMID3_GDS_THREEG		(1<<6)	/* 3G */
 #define ACER_WMID3_GDS_WIMAX		(1<<7)	/* WiMAX */
 #define ACER_WMID3_GDS_BLUETOOTH	(1<<11)	/* BT */
+#define ACER_WMID3_GDS_RFBTN		(1<<14)	/* RF Button */
+
 #define ACER_WMID3_GDS_TOUCHPAD		(1<<1)	/* Touchpad */
 
 /* Hotkey Customized Setting and Acer Application Status.
@@ -221,6 +223,7 @@ struct hotkey_function_type_aa {
 #define ACER_CAP_BRIGHTNESS		(1<<3)
 #define ACER_CAP_THREEG			(1<<4)
 #define ACER_CAP_ACCEL			(1<<5)
+#define ACER_CAP_RFBTN			(1<<6)
 #define ACER_CAP_ANY			(0xFFFFFFFF)
 
 /*
@@ -1264,6 +1267,10 @@ static void __init type_aa_dmi_decode(const struct dmi_header *header, void *d)
 		interface->capability |= ACER_CAP_THREEG;
 	if (type_aa->commun_func_bitmap & ACER_WMID3_GDS_BLUETOOTH)
 		interface->capability |= ACER_CAP_BLUETOOTH;
+	if (type_aa->commun_func_bitmap & ACER_WMID3_GDS_RFBTN) {
+		interface->capability |= ACER_CAP_RFBTN;
+		commun_func_bitmap &= ~ACER_WMID3_GDS_RFBTN;
+	}
 
 	commun_fn_key_number = type_aa->commun_fn_key_number;
 }
