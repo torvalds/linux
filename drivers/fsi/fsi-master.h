@@ -19,6 +19,8 @@
 
 #include <linux/device.h>
 
+#define FSI_MASTER_FLAG_SWCLOCK		0x1
+
 struct fsi_master {
 	struct device	dev;
 	int		idx;

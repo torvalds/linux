@@ -49,6 +49,7 @@ static const int engine_page_size = 0x400;
 #define FSI_SMODE		0x0	/* R/W: Mode register */
 #define FSI_SISC		0x8	/* R/W: Interrupt condition */
 #define FSI_SSTAT		0x14	/* R  : Slave status */
+#define FSI_LLMODE		0x100	/* R/W: Link layer mode register */
 
 /*
  * SMODE fields
@@ -63,6 +64,11 @@ static const int engine_page_size = 0x400;
 #define FSI_SMODE_SD_MASK	0xf		/* Send delay mask */
 #define FSI_SMODE_LBCRR_SHIFT	8		/* Clk ratio shift */
 #define FSI_SMODE_LBCRR_MASK	0xf		/* Clk ratio mask */
+
+/*
+ * LLMODE fields
+ */
+#define FSI_LLMODE_ASYNC	0x1
 
 #define FSI_SLAVE_SIZE_23b		0x800000
 
@@ -557,8 +563,8 @@ static void fsi_slave_release(struct device *dev)
 
 static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 {
+	uint32_t chip_id, llmode;
 	struct fsi_slave *slave;
-	uint32_t chip_id;
 	uint8_t crc;
 	int rc;
 
@@ -592,6 +598,20 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 				"can't set smode on slave:%02x:%02x %d\n",
 				link, id, rc);
 		return -ENODEV;
+	}
+
+	/* If we're behind a master that doesn't provide a self-running bus
+	 * clock, put the slave into async mode
+	 */
+	if (master->flags & FSI_MASTER_FLAG_SWCLOCK) {
+		llmode = cpu_to_be32(FSI_LLMODE_ASYNC);
+		rc = fsi_master_write(master, link, id,
+				FSI_SLAVE_BASE + FSI_LLMODE,
+				&llmode, sizeof(llmode));
+		if (rc)
+			dev_warn(&master->dev,
+				"can't set llmode on slave:%02x:%02x %d\n",
+				link, id, rc);
 	}
 
 	/* We can communicate with a slave; create the slave device and
