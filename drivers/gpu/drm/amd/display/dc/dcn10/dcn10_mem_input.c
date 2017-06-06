@@ -821,11 +821,21 @@ bool mem_input_is_flip_pending(struct mem_input *mem_input)
 {
 	uint32_t update_pending = 0;
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dc_plane_address earliest_inuse_address;
 
 	REG_GET(DCSURF_FLIP_CONTROL,
 			SURFACE_UPDATE_PENDING, &update_pending);
 
+	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE,
+			SURFACE_EARLIEST_INUSE_ADDRESS, &earliest_inuse_address.grph.addr.low_part);
+
+	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE_HIGH,
+			SURFACE_EARLIEST_INUSE_ADDRESS_HIGH, &earliest_inuse_address.grph.addr.high_part);
+
 	if (update_pending)
+		return true;
+
+	if (earliest_inuse_address.grph.addr.quad_part != mem_input->request_address.grph.addr.quad_part)
 		return true;
 
 	mem_input->current_address = mem_input->request_address;
