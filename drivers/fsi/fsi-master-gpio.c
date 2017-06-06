@@ -61,6 +61,9 @@ struct fsi_master_gpio {
 	struct gpio_desc	*gpio_mux;	/* Mux control */
 };
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/fsi_master_gpio.h>
+
 #define to_fsi_master_gpio(m) container_of(m, struct fsi_master_gpio, master)
 
 struct fsi_gpio_msg {
@@ -126,6 +129,8 @@ static void serial_in(struct fsi_master_gpio *master, struct fsi_gpio_msg *msg,
 		msg->msg |= ~in_bit & 0x1;	/* Data is active low */
 	}
 	msg->bits += num_bits;
+
+	trace_fsi_master_gpio_in(master, num_bits, msg->msg);
 }
 
 static void serial_out(struct fsi_master_gpio *master,
@@ -136,6 +141,8 @@ static void serial_out(struct fsi_master_gpio *master,
 	uint64_t sda_mask = 0x1ULL << (cmd->bits - 1);
 	uint64_t last_bit = ~0;
 	int next_bit;
+
+	trace_fsi_master_gpio_out(master, cmd->bits, cmd->msg);
 
 	if (!cmd->bits) {
 		dev_warn(master->dev, "trying to output 0 bits\n");
@@ -457,6 +464,8 @@ static int fsi_master_gpio_break(struct fsi_master *_master, int link)
 
 	if (link != 0)
 		return -ENODEV;
+
+	trace_fsi_master_gpio_break(master);
 
 	set_sda_output(master, 1);
 	sda_out(master, 1);
