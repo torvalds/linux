@@ -1996,7 +1996,7 @@ static int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 		priv->rx_hash_fields |= hash_fields[i].rxnfc_field;
 	}
 
-	dma_mem = kzalloc(DPAA2_CLASSIFIER_DMA_SIZE, GFP_DMA | GFP_KERNEL);
+	dma_mem = kzalloc(DPAA2_CLASSIFIER_DMA_SIZE, GFP_KERNEL);
 	if (!dma_mem)
 		return -ENOMEM;
 
