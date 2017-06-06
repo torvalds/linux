@@ -44,6 +44,23 @@ struct intel_function {
 };
 
 /**
+ * struct intel_padgroup - Hardware pad group information
+ * @reg_num: GPI_IS register number
+ * @base: Starting pin of this group
+ * @size: Size of this group (maximum is 32).
+ * @padown_num: PAD_OWN register number (assigned by the core driver)
+ *
+ * If pad groups of a community are not the same size, use this structure
+ * to specify them.
+ */
+struct intel_padgroup {
+	unsigned reg_num;
+	unsigned base;
+	unsigned size;
+	unsigned padown_num;
+};
+
+/**
  * struct intel_community - Intel pin community description
  * @barno: MMIO BAR number where registers for this community reside
  * @padown_offset: Register offset of PAD_OWN register from @regs. If %0
@@ -56,13 +73,22 @@ struct intel_function {
  * @ie_offset: Register offset of GPI_IE from @regs.
  * @pin_base: Starting pin of pins in this community
  * @gpp_size: Maximum number of pads in each group, such as PADCFGLOCK,
- *            HOSTSW_OWN,  GPI_IS, GPI_IE, etc.
+ *            HOSTSW_OWN,  GPI_IS, GPI_IE, etc. Used when @gpps is %NULL.
+ * @gpp_num_padown_regs: Number of pad registers each pad group consumes at
+ *			 minimum. Use %0 if the number of registers can be
+ *			 determined by the size of the group.
  * @npins: Number of pins in this community
  * @features: Additional features supported by the hardware
+ * @gpps: Pad groups if the controller has variable size pad groups
+ * @ngpps: Number of pad groups in this community
  * @regs: Community specific common registers (reserved for core driver)
  * @pad_regs: Community specific pad registers (reserved for core driver)
- * @ngpps: Number of groups (hw groups) in this community (reserved for
- *         core driver)
+ *
+ * Most Intel GPIO host controllers this driver supports each pad group is
+ * of equal size (except the last one). In that case the driver can just
+ * fill in @gpp_size field and let the core driver to handle the rest. If
+ * the controller has pad groups of variable size the client driver can
+ * pass custom @gpps and @ngpps instead.
  */
 struct intel_community {
 	unsigned barno;
@@ -72,11 +98,14 @@ struct intel_community {
 	unsigned ie_offset;
 	unsigned pin_base;
 	unsigned gpp_size;
+	unsigned gpp_num_padown_regs;
 	size_t npins;
 	unsigned features;
+	const struct intel_padgroup *gpps;
+	size_t ngpps;
+	/* Reserved for the core driver */
 	void __iomem *regs;
 	void __iomem *pad_regs;
-	size_t ngpps;
 };
 
 /* Additional features supported by the hardware */
