@@ -22,6 +22,16 @@
 
 static DEFINE_IDA(master_ida);
 
+struct fsi_slave {
+	struct device		dev;
+	struct fsi_master	*master;
+	int			id;
+	int			link;
+	uint32_t		size;	/* size of slave address space */
+};
+
+#define to_fsi_slave(d) container_of(d, struct fsi_slave, dev)
+
 /* FSI master support */
 int fsi_master_register(struct fsi_master *master)
 {
