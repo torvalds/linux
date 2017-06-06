@@ -143,6 +143,22 @@ static inline int ring_tx(struct tb_ring *ring, struct ring_frame *frame)
 	return __ring_enqueue(ring, frame);
 }
 
+enum nhi_fw_mode {
+	NHI_FW_SAFE_MODE,
+	NHI_FW_AUTH_MODE,
+	NHI_FW_EP_MODE,
+	NHI_FW_CM_MODE,
+};
+
+enum nhi_mailbox_cmd {
+	NHI_MAILBOX_SAVE_DEVS = 0x05,
+	NHI_MAILBOX_DRV_UNLOADS = 0x07,
+	NHI_MAILBOX_ALLOW_ALL_DEVS = 0x23,
+};
+
+int nhi_mailbox_cmd(struct tb_nhi *nhi, enum nhi_mailbox_cmd cmd, u32 data);
+enum nhi_fw_mode nhi_mailbox_mode(struct tb_nhi *nhi);
+
 /*
  * PCI IDs used in this driver from Win Ridge forward. There is no
  * need for the PCI quirk anymore as we will use ICM also on Apple

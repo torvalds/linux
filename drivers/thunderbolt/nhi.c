@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/dmi.h>
+#include <linux/delay.h>
 
 #include "nhi.h"
 #include "nhi_regs.h"
@@ -27,6 +28,8 @@
  */
 #define MSIX_MIN_VECS		6
 #define MSIX_MAX_VECS		16
+
+#define NHI_MAILBOX_TIMEOUT	500 /* ms */
 
 static int ring_interrupt_index(struct tb_ring *ring)
 {
@@ -523,6 +526,61 @@ void ring_free(struct tb_ring *ring)
 	flush_work(&ring->work);
 	mutex_destroy(&ring->lock);
 	kfree(ring);
+}
+
+/**
+ * nhi_mailbox_cmd() - Send a command through NHI mailbox
+ * @nhi: Pointer to the NHI structure
+ * @cmd: Command to send
+ * @data: Data to be send with the command
+ *
+ * Sends mailbox command to the firmware running on NHI. Returns %0 in
+ * case of success and negative errno in case of failure.
+ */
+int nhi_mailbox_cmd(struct tb_nhi *nhi, enum nhi_mailbox_cmd cmd, u32 data)
+{
+	ktime_t timeout;
+	u32 val;
+
+	iowrite32(data, nhi->iobase + REG_INMAIL_DATA);
+
+	val = ioread32(nhi->iobase + REG_INMAIL_CMD);
+	val &= ~(REG_INMAIL_CMD_MASK | REG_INMAIL_ERROR);
+	val |= REG_INMAIL_OP_REQUEST | cmd;
+	iowrite32(val, nhi->iobase + REG_INMAIL_CMD);
+
+	timeout = ktime_add_ms(ktime_get(), NHI_MAILBOX_TIMEOUT);
+	do {
+		val = ioread32(nhi->iobase + REG_INMAIL_CMD);
+		if (!(val & REG_INMAIL_OP_REQUEST))
+			break;
+		usleep_range(10, 20);
+	} while (ktime_before(ktime_get(), timeout));
+
+	if (val & REG_INMAIL_OP_REQUEST)
+		return -ETIMEDOUT;
+	if (val & REG_INMAIL_ERROR)
+		return -EIO;
+
+	return 0;
+}
+
+/**
+ * nhi_mailbox_mode() - Return current firmware operation mode
+ * @nhi: Pointer to the NHI structure
+ *
+ * The function reads current firmware operation mode using NHI mailbox
+ * registers and returns it to the caller.
+ */
+enum nhi_fw_mode nhi_mailbox_mode(struct tb_nhi *nhi)
+{
+	u32 val;
+
+	val = ioread32(nhi->iobase + REG_OUTMAIL_CMD);
+	val &= REG_OUTMAIL_CMD_OPMODE_MASK;
+	val >>= REG_OUTMAIL_CMD_OPMODE_SHIFT;
+
+	return (enum nhi_fw_mode)val;
 }
 
 static void nhi_interrupt_work(struct work_struct *work)
