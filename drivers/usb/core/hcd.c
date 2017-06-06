@@ -1077,7 +1077,6 @@ static void usb_deregister_bus (struct usb_bus *bus)
 static int register_root_hub(struct usb_hcd *hcd)
 {
 	struct device *parent_dev = hcd->self.controller;
-	struct device *sysdev = hcd->self.sysdev;
 	struct usb_device *usb_dev = hcd->self.root_hub;
 	const int devnum = 1;
 	int retval;
@@ -1124,7 +1123,6 @@ static int register_root_hub(struct usb_hcd *hcd)
 		/* Did the HC die before the root hub was registered? */
 		if (HCD_DEAD(hcd))
 			usb_hc_died (hcd);	/* This time clean up */
-		usb_dev->dev.of_node = sysdev->of_node;
 	}
 	mutex_unlock(&usb_bus_idr_lock);
 
