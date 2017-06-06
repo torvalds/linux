@@ -297,12 +297,7 @@ struct dpaa2_eth_priv {
 	u8 num_channels;
 	struct dpaa2_eth_channel *channel[DPAA2_ETH_MAX_DPCONS];
 
-	int dpni_id;
 	struct dpni_attr dpni_attrs;
-	/* Insofar as the MC is concerned, we're using one layout on all 3 types
-	 * of buffers (Rx, Tx, Tx-Conf).
-	 */
-	struct dpni_buffer_layout buf_layout;
 	u16 tx_data_offset;
 
 	struct fsl_mc_device *dpbp_dev;

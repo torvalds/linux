@@ -1734,15 +1734,14 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 	struct device *dev = &ls_dev->dev;
 	struct dpaa2_eth_priv *priv;
 	struct net_device *net_dev;
+	struct dpni_buffer_layout buf_layout = {0};
 	int err;
 
 	net_dev = dev_get_drvdata(dev);
 	priv = netdev_priv(net_dev);
 
-	priv->dpni_id = ls_dev->obj_desc.id;
-
 	/* get a handle for the DPNI object */
-	err = dpni_open(priv->mc_io, 0, priv->dpni_id, &priv->mc_token);
+	err = dpni_open(priv->mc_io, 0, ls_dev->obj_desc.id, &priv->mc_token);
 	if (err) {
 		dev_err(dev, "dpni_open() failed\n");
 		goto err_open;
@@ -1766,35 +1765,35 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 
 	/* Configure buffer layouts */
 	/* rx buffer */
-	priv->buf_layout.pass_parser_result = true;
-	priv->buf_layout.pass_frame_status = true;
-	priv->buf_layout.private_data_size = DPAA2_ETH_SWA_SIZE;
-	priv->buf_layout.data_align = DPAA2_ETH_RX_BUF_ALIGN;
-	priv->buf_layout.options = DPNI_BUF_LAYOUT_OPT_PARSER_RESULT |
-				   DPNI_BUF_LAYOUT_OPT_FRAME_STATUS |
-				   DPNI_BUF_LAYOUT_OPT_PRIVATE_DATA_SIZE |
-				   DPNI_BUF_LAYOUT_OPT_DATA_ALIGN;
+	buf_layout.pass_parser_result = true;
+	buf_layout.pass_frame_status = true;
+	buf_layout.private_data_size = DPAA2_ETH_SWA_SIZE;
+	buf_layout.data_align = DPAA2_ETH_RX_BUF_ALIGN;
+	buf_layout.options = DPNI_BUF_LAYOUT_OPT_PARSER_RESULT |
+			     DPNI_BUF_LAYOUT_OPT_FRAME_STATUS |
+			     DPNI_BUF_LAYOUT_OPT_PRIVATE_DATA_SIZE |
+			     DPNI_BUF_LAYOUT_OPT_DATA_ALIGN;
 	err = dpni_set_buffer_layout(priv->mc_io, 0, priv->mc_token,
-				     DPNI_QUEUE_RX, &priv->buf_layout);
+				     DPNI_QUEUE_RX, &buf_layout);
 	if (err) {
 		dev_err(dev, "dpni_set_buffer_layout(RX) failed\n");
 		goto err_buf_layout;
 	}
 
 	/* tx buffer */
-	priv->buf_layout.options = DPNI_BUF_LAYOUT_OPT_FRAME_STATUS |
-				   DPNI_BUF_LAYOUT_OPT_PRIVATE_DATA_SIZE;
+	buf_layout.options = DPNI_BUF_LAYOUT_OPT_FRAME_STATUS |
+			     DPNI_BUF_LAYOUT_OPT_PRIVATE_DATA_SIZE;
 	err = dpni_set_buffer_layout(priv->mc_io, 0, priv->mc_token,
-				     DPNI_QUEUE_TX, &priv->buf_layout);
+				     DPNI_QUEUE_TX, &buf_layout);
 	if (err) {
 		dev_err(dev, "dpni_set_buffer_layout(TX) failed\n");
 		goto err_buf_layout;
 	}
 
 	/* tx-confirm buffer */
-	priv->buf_layout.options = DPNI_BUF_LAYOUT_OPT_FRAME_STATUS;
+	buf_layout.options = DPNI_BUF_LAYOUT_OPT_FRAME_STATUS;
 	err = dpni_set_buffer_layout(priv->mc_io, 0, priv->mc_token,
-				     DPNI_QUEUE_TX_CONFIRM, &priv->buf_layout);
+				     DPNI_QUEUE_TX_CONFIRM, &buf_layout);
 	if (err) {
 		dev_err(dev, "dpni_set_buffer_layout(TX_CONF) failed\n");
 		goto err_buf_layout;
