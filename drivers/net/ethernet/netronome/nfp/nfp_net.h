@@ -705,6 +705,7 @@ static inline void nn_pci_flush(struct nfp_net *nn)
  * either add to a pointer or to read the pointer value.
  */
 #define NFP_QCP_QUEUE_ADDR_SZ			0x800
+#define NFP_QCP_QUEUE_AREA_SZ			0x80000
 #define NFP_QCP_QUEUE_OFF(_x)			((_x) * NFP_QCP_QUEUE_ADDR_SZ)
 #define NFP_QCP_QUEUE_ADD_RPTR			0x0000
 #define NFP_QCP_QUEUE_ADD_WPTR			0x0004

@@ -63,8 +63,7 @@ struct nfp_nsp_identify;
  * @cpp:		Pointer to the CPP handle
  * @app:		Pointer to the APP handle
  * @data_vnic_bar:	Pointer to the CPP area for the data vNICs' BARs
- * @tx_area:		Pointer to the CPP area for the TX queues
- * @rx_area:		Pointer to the CPP area for the FL/RX queues
+ * @qc_area:		Pointer to the CPP area for the queues
  * @irq_entries:	Array of MSI-X entries for all vNICs
  * @limit_vfs:		Number of VFs supported by firmware (~0 for PCI limit)
  * @num_vfs:		Number of SR-IOV VFs enabled
@@ -88,8 +87,7 @@ struct nfp_pf {
 	struct nfp_app *app;
 
 	struct nfp_cpp_area *data_vnic_bar;
-	struct nfp_cpp_area *tx_area;
-	struct nfp_cpp_area *rx_area;
+	struct nfp_cpp_area *qc_area;
 
 	struct msix_entry *irq_entries;
 
