@@ -3347,6 +3347,28 @@ static void qeth_handle_send_error(struct qeth_card *card,
 		       (u16)qdio_err, (u8)sbalf15);
 }
 
+/**
+ * qeth_prep_flush_pack_buffer - Prepares flushing of a packing buffer.
+ * @queue: queue to check for packing buffer
+ *
+ * Returns number of buffers that were prepared for flush.
+ */
+static int qeth_prep_flush_pack_buffer(struct qeth_qdio_out_q *queue)
+{
+	struct qeth_qdio_out_buffer *buffer;
+
+	buffer = queue->bufs[queue->next_buf_to_fill];
+	if ((atomic_read(&buffer->state) == QETH_QDIO_BUF_EMPTY) &&
+	    (buffer->next_element_to_fill > 0)) {
+		/* it's a packing buffer */
+		atomic_set(&buffer->state, QETH_QDIO_BUF_PRIMED);
+		queue->next_buf_to_fill =
+			(queue->next_buf_to_fill + 1) % QDIO_MAX_BUFFERS_PER_Q;
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * Switched to packing state if the number of used buffers on a queue
  * reaches a certain limit.
@@ -3373,9 +3395,6 @@ static void qeth_switch_to_packing_if_needed(struct qeth_qdio_out_q *queue)
  */
 static int qeth_switch_to_nonpacking_if_needed(struct qeth_qdio_out_q *queue)
 {
-	struct qeth_qdio_out_buffer *buffer;
-	int flush_count = 0;
-
 	if (queue->do_pack) {
 		if (atomic_read(&queue->used_buffers)
 		    <= QETH_LOW_WATERMARK_PACK) {
@@ -3384,41 +3403,8 @@ static int qeth_switch_to_nonpacking_if_needed(struct qeth_qdio_out_q *queue)
 			if (queue->card->options.performance_stats)
 				queue->card->perf_stats.sc_p_dp++;
 			queue->do_pack = 0;
-			/* flush packing buffers */
-			buffer = queue->bufs[queue->next_buf_to_fill];
-			if ((atomic_read(&buffer->state) ==
-						QETH_QDIO_BUF_EMPTY) &&
-			    (buffer->next_element_to_fill > 0)) {
-				atomic_set(&buffer->state,
-					   QETH_QDIO_BUF_PRIMED);
-				flush_count++;
-				queue->next_buf_to_fill =
-					(queue->next_buf_to_fill + 1) %
-					QDIO_MAX_BUFFERS_PER_Q;
-			}
+			return qeth_prep_flush_pack_buffer(queue);
 		}
-	}
-	return flush_count;
-}
-
-
-/*
- * Called to flush a packing buffer if no more pci flags are on the queue.
- * Checks if there is a packing buffer and prepares it to be flushed.
- * In that case returns 1, otherwise zero.
- */
-static int qeth_flush_buffers_on_no_pci(struct qeth_qdio_out_q *queue)
-{
-	struct qeth_qdio_out_buffer *buffer;
-
-	buffer = queue->bufs[queue->next_buf_to_fill];
-	if ((atomic_read(&buffer->state) == QETH_QDIO_BUF_EMPTY) &&
-	   (buffer->next_element_to_fill > 0)) {
-		/* it's a packing buffer */
-		atomic_set(&buffer->state, QETH_QDIO_BUF_PRIMED);
-		queue->next_buf_to_fill =
-			(queue->next_buf_to_fill + 1) % QDIO_MAX_BUFFERS_PER_Q;
-		return 1;
 	}
 	return 0;
 }
@@ -3532,8 +3518,7 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 			flush_cnt += qeth_switch_to_nonpacking_if_needed(queue);
 			if (!flush_cnt &&
 			    !atomic_read(&queue->set_pci_flags_count))
-				flush_cnt +=
-					qeth_flush_buffers_on_no_pci(queue);
+				flush_cnt += qeth_prep_flush_pack_buffer(queue);
 			if (queue->card->options.performance_stats &&
 			    q_was_packing)
 				queue->card->perf_stats.bufs_sent_pack +=
@@ -4127,7 +4112,7 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 		 * flag out on the queue
 		 */
 		if (!flush_count && !atomic_read(&queue->set_pci_flags_count))
-			flush_count += qeth_flush_buffers_on_no_pci(queue);
+			flush_count += qeth_prep_flush_pack_buffer(queue);
 		if (flush_count)
 			qeth_flush_buffers(queue, start_index, flush_count);
 	}
