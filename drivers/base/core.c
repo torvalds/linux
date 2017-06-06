@@ -2884,3 +2884,19 @@ void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode)
 	else
 		dev->fwnode = fwnode;
 }
+
+/**
+ * device_set_of_node_from_dev - reuse device-tree node of another device
+ * @dev: device whose device-tree node is being set
+ * @dev2: device whose device-tree node is being reused
+ *
+ * Takes another reference to the new device-tree node after first dropping
+ * any reference held to the old node.
+ */
+void device_set_of_node_from_dev(struct device *dev, const struct device *dev2)
+{
+	of_node_put(dev->of_node);
+	dev->of_node = of_node_get(dev2->of_node);
+	dev->of_node_reused = true;
+}
+EXPORT_SYMBOL_GPL(device_set_of_node_from_dev);
