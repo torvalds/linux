@@ -420,7 +420,8 @@ static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)
 	list_for_each_entry(nn, &pf->vnics, vnic_list) {
 		unsigned int n;
 
-		n = DIV_ROUND_UP(irqs_left, vnics_left);
+		n = min(NFP_NET_NON_Q_VECTORS + nn->dp.num_r_vecs,
+			DIV_ROUND_UP(irqs_left, vnics_left));
 		nfp_net_irqs_assign(nn, &pf->irq_entries[num_irqs - irqs_left],
 				    n);
 		irqs_left -= n;
