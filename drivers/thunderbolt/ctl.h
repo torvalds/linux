@@ -8,6 +8,7 @@
 #define _TB_CFG
 
 #include "nhi.h"
+#include "tb_msgs.h"
 
 /* control channel */
 struct tb_ctl;
@@ -22,21 +23,6 @@ void tb_ctl_free(struct tb_ctl *ctl);
 /* configuration commands */
 
 #define TB_CFG_DEFAULT_TIMEOUT 5000 /* msec */
-
-enum tb_cfg_space {
-	TB_CFG_HOPS = 0,
-	TB_CFG_PORT = 1,
-	TB_CFG_SWITCH = 2,
-	TB_CFG_COUNTERS = 3,
-};
-
-enum tb_cfg_error {
-	TB_CFG_ERROR_PORT_NOT_CONNECTED = 0,
-	TB_CFG_ERROR_INVALID_CONFIG_SPACE = 2,
-	TB_CFG_ERROR_NO_SUCH_PORT = 4,
-	TB_CFG_ERROR_ACK_PLUG_EVENT = 7, /* send as reply to TB_CFG_PKG_EVENT */
-	TB_CFG_ERROR_LOOP = 8,
-};
 
 struct tb_cfg_result {
 	u64 response_route;
