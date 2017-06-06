@@ -23,6 +23,9 @@
 
 #include "fsi-master.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/fsi.h>
+
 #define FSI_SLAVE_CONF_NEXT_MASK	GENMASK(31, 31)
 #define FSI_SLAVE_CONF_SLOTS_MASK	GENMASK(23, 16)
 #define FSI_SLAVE_CONF_SLOTS_SHIFT	16
@@ -542,11 +545,16 @@ static int fsi_master_read(struct fsi_master *master, int link,
 {
 	int rc;
 
-	rc = fsi_check_access(addr, size);
-	if (rc)
-		return rc;
+	trace_fsi_master_read(master, link, slave_id, addr, size);
 
-	return master->read(master, link, slave_id, addr, val, size);
+	rc = fsi_check_access(addr, size);
+	if (!rc)
+		rc = master->read(master, link, slave_id, addr, val, size);
+
+	trace_fsi_master_rw_result(master, link, slave_id, addr, size,
+			false, val, rc);
+
+	return rc;
 }
 
 static int fsi_master_write(struct fsi_master *master, int link,
@@ -554,11 +562,16 @@ static int fsi_master_write(struct fsi_master *master, int link,
 {
 	int rc;
 
-	rc = fsi_check_access(addr, size);
-	if (rc)
-		return rc;
+	trace_fsi_master_write(master, link, slave_id, addr, size, val);
 
-	return master->write(master, link, slave_id, addr, val, size);
+	rc = fsi_check_access(addr, size);
+	if (!rc)
+		rc = master->write(master, link, slave_id, addr, val, size);
+
+	trace_fsi_master_rw_result(master, link, slave_id, addr, size,
+			true, val, rc);
+
+	return rc;
 }
 
 static int fsi_master_link_enable(struct fsi_master *master, int link)
@@ -574,6 +587,8 @@ static int fsi_master_link_enable(struct fsi_master *master, int link)
  */
 static int fsi_master_break(struct fsi_master *master, int link)
 {
+	trace_fsi_master_break(master, link);
+
 	if (master->send_break)
 		return master->send_break(master, link);
 
