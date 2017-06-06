@@ -117,8 +117,18 @@
 	status = "okay";
 };
 
-&hdmi_sound {
+&cdn_dp {
 	status = "okay";
+	extcon = <&fusb0>;
+	phys = <&tcphy0_dp>;
+};
+
+&hdmi_dp_sound {
+	status = "okay";
+};
+
+&dp_in_vopb {
+	status = "disabled";
 };
 
 &i2s2 {
