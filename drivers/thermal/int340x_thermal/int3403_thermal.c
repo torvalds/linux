@@ -238,8 +238,16 @@ static int int3403_add(struct platform_device *pdev)
 	status = acpi_evaluate_integer(priv->adev->handle, "PTYP",
 				       NULL, &priv->type);
 	if (ACPI_FAILURE(status)) {
-		result = -EINVAL;
-		goto err;
+		unsigned long long tmp;
+
+		status = acpi_evaluate_integer(priv->adev->handle, "_TMP",
+					       NULL, &tmp);
+		if (ACPI_FAILURE(status)) {
+			result = -EINVAL;
+			goto err;
+		} else {
+			priv->type = INT3403_TYPE_SENSOR;
+		}
 	}
 
 	platform_set_drvdata(pdev, priv);
