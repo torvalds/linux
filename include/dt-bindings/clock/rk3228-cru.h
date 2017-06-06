@@ -76,6 +76,7 @@
 /* dclk gates */
 #define DCLK_VOP		190
 #define DCLK_HDMI_PHY		191
+#define HDMIPHY			192
 
 /* aclk gates */
 #define ACLK_DMAC		194
