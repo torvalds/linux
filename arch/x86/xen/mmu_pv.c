@@ -1465,8 +1465,8 @@ static void xen_write_cr3(unsigned long cr3)
  * At the start of the day - when Xen launches a guest, it has already
  * built pagetables for the guest. We diligently look over them
  * in xen_setup_kernel_pagetable and graft as appropriate them in the
- * init_level4_pgt and its friends. Then when we are happy we load
- * the new init_level4_pgt - and continue on.
+ * init_top_pgt and its friends. Then when we are happy we load
+ * the new init_top_pgt - and continue on.
  *
  * The generic code starts (start_kernel) and 'init_mem_mapping' sets
  * up the rest of the pagetables. When it has completed it loads the cr3.
@@ -1909,12 +1909,12 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	pt_end = pt_base + xen_start_info->nr_pt_frames;
 
 	/* Zap identity mapping */
-	init_level4_pgt[0] = __pgd(0);
+	init_top_pgt[0] = __pgd(0);
 
 	/* Pre-constructed entries are in pfn, so convert to mfn */
 	/* L4[272] -> level3_ident_pgt  */
 	/* L4[511] -> level3_kernel_pgt */
-	convert_pfn_mfn(init_level4_pgt);
+	convert_pfn_mfn(init_top_pgt);
 
 	/* L3_i[0] -> level2_ident_pgt */
 	convert_pfn_mfn(level3_ident_pgt);
@@ -1945,10 +1945,10 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	/* Copy the initial P->M table mappings if necessary. */
 	i = pgd_index(xen_start_info->mfn_list);
 	if (i && i < pgd_index(__START_KERNEL_map))
-		init_level4_pgt[i] = ((pgd_t *)xen_start_info->pt_base)[i];
+		init_top_pgt[i] = ((pgd_t *)xen_start_info->pt_base)[i];
 
 	/* Make pagetable pieces RO */
-	set_page_prot(init_level4_pgt, PAGE_KERNEL_RO);
+	set_page_prot(init_top_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_ident_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_kernel_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_user_vsyscall, PAGE_KERNEL_RO);
@@ -1959,7 +1959,7 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 
 	/* Pin down new L4 */
 	pin_pagetable_pfn(MMUEXT_PIN_L4_TABLE,
-			  PFN_DOWN(__pa_symbol(init_level4_pgt)));
+			  PFN_DOWN(__pa_symbol(init_top_pgt)));
 
 	/* Unpin Xen-provided one */
 	pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(pgd)));
@@ -1969,7 +1969,7 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	 * attach it to, so make sure we just set kernel pgd.
 	 */
 	xen_mc_batch();
-	__xen_write_cr3(true, __pa(init_level4_pgt));
+	__xen_write_cr3(true, __pa(init_top_pgt));
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
 
 	/* We can't that easily rip out L3 and L2, as the Xen pagetables are
