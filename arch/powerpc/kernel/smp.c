@@ -33,6 +33,7 @@
 #include <linux/notifier.h>
 #include <linux/topology.h>
 #include <linux/profile.h>
+#include <linux/processor.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -767,8 +768,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 		smp_ops->give_timebase();
 
 	/* Wait until cpu puts itself in the online & active maps */
-	while (!cpu_online(cpu))
-		cpu_relax();
+	spin_until_cond(cpu_online(cpu));
 
 	return 0;
 }

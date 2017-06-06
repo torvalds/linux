@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/of.h>
+#include <linux/processor.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
 
@@ -184,8 +185,10 @@ static inline void native_lock_hpte(struct hash_pte *hptep)
 	while (1) {
 		if (!test_and_set_bit_lock(HPTE_LOCK_BIT, word))
 			break;
+		spin_begin();
 		while(test_bit(HPTE_LOCK_BIT, word))
-			cpu_relax();
+			spin_cpu_relax();
+		spin_end();
 	}
 }
 
