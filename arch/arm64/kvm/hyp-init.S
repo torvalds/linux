@@ -108,9 +108,10 @@ __do_hyp_init:
 
 	/*
 	 * Preserve all the RES1 bits while setting the default flags,
-	 * as well as the EE bit on BE.
+	 * as well as the EE bit on BE. Drop the A flag since the compiler
+	 * is allowed to generate unaligned accesses.
 	 */
-	ldr	x4, =(SCTLR_EL2_RES1 | SCTLR_ELx_FLAGS)
+	ldr	x4, =(SCTLR_EL2_RES1 | (SCTLR_ELx_FLAGS & ~SCTLR_ELx_A))
 CPU_BE(	orr	x4, x4, #SCTLR_ELx_EE)
 	msr	sctlr_el2, x4
 	isb
