@@ -50,15 +50,32 @@
 
 #include "nfp_net_ctrl.h"
 
-#define nn_err(nn, fmt, args...)  netdev_err((nn)->dp.netdev, fmt, ## args)
-#define nn_warn(nn, fmt, args...) netdev_warn((nn)->dp.netdev, fmt, ## args)
-#define nn_info(nn, fmt, args...) netdev_info((nn)->dp.netdev, fmt, ## args)
-#define nn_dbg(nn, fmt, args...)  netdev_dbg((nn)->dp.netdev, fmt, ## args)
+#define nn_pr(nn, lvl, fmt, args...)					\
+	({								\
+		struct nfp_net *__nn = (nn);				\
+									\
+		if (__nn->dp.netdev)					\
+			netdev_printk(lvl, __nn->dp.netdev, fmt, ## args); \
+		else							\
+			dev_printk(lvl, __nn->dp.dev, "ctrl: " fmt, ## args); \
+	})
+
+#define nn_err(nn, fmt, args...)	nn_pr(nn, KERN_ERR, fmt, ## args)
+#define nn_warn(nn, fmt, args...)	nn_pr(nn, KERN_WARNING, fmt, ## args)
+#define nn_info(nn, fmt, args...)	nn_pr(nn, KERN_INFO, fmt, ## args)
+#define nn_dbg(nn, fmt, args...)	nn_pr(nn, KERN_DEBUG, fmt, ## args)
+
 #define nn_dp_warn(dp, fmt, args...)					\
-	do {								\
-		if (unlikely(net_ratelimit()))				\
-			netdev_warn((dp)->netdev, fmt, ## args);	\
-	} while (0)
+	({								\
+		struct nfp_net_dp *__dp = (dp);				\
+									\
+		if (unlikely(net_ratelimit())) {			\
+			if (__dp->netdev)				\
+				netdev_warn(__dp->netdev, fmt, ## args); \
+			else						\
+				dev_warn(__dp->dev, fmt, ## args);	\
+		}							\
+	})
 
 /* Max time to wait for NFP to respond on updates (in seconds) */
 #define NFP_NET_POLL_TIMEOUT	5
