@@ -95,7 +95,16 @@ struct ring_desc {
 #define REG_RING_INTERRUPT_BASE	0x38200
 #define RING_INTERRUPT_REG_COUNT(nhi) ((31 + 2 * nhi->hop_count) / 32)
 
+/* Interrupt Vector Allocation */
+#define REG_INT_VEC_ALLOC_BASE	0x38c40
+#define REG_INT_VEC_ALLOC_BITS	4
+#define REG_INT_VEC_ALLOC_MASK	GENMASK(3, 0)
+#define REG_INT_VEC_ALLOC_REGS	(32 / REG_INT_VEC_ALLOC_BITS)
+
 /* The last 11 bits contain the number of hops supported by the NHI port. */
 #define REG_HOP_COUNT		0x39640
+
+#define REG_DMA_MISC			0x39864
+#define REG_DMA_MISC_INT_AUTO_CLEAR     BIT(2)
 
 #endif
