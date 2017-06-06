@@ -659,6 +659,7 @@ struct qeth_card_info {
 	int max_mtu;
 	int broadcast_capable;
 	int unique_id;
+	bool layer_enforced;
 	struct qeth_card_blkt blkt;
 	enum qeth_ipa_promisc_modes promisc_mode;
 	__u32 diagass_support;
@@ -696,6 +697,7 @@ struct qeth_osn_info {
 };
 
 enum qeth_discipline_id {
+	QETH_DISCIPLINE_UNDETERMINED = -1,
 	QETH_DISCIPLINE_LAYER3 = 0,
 	QETH_DISCIPLINE_LAYER2 = 1,
 };

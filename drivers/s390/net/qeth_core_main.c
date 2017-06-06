@@ -1723,6 +1723,25 @@ static void qeth_configure_unitaddr(struct qeth_card *card, char *prcd)
 			       (prcd[0x11] == _ascebc['M']));
 }
 
+/* Determine whether the device requires a specific layer discipline */
+static enum qeth_discipline_id qeth_enforce_discipline(struct qeth_card *card)
+{
+	if (card->info.type == QETH_CARD_TYPE_OSM ||
+	    card->info.type == QETH_CARD_TYPE_OSN) {
+		QETH_DBF_TEXT(SETUP, 3, "force l2");
+		return QETH_DISCIPLINE_LAYER2;
+	}
+
+	/* virtual HiperSocket is L3 only: */
+	if (card->info.guestlan && card->info.type == QETH_CARD_TYPE_IQD) {
+		QETH_DBF_TEXT(SETUP, 3, "force l3");
+		return QETH_DISCIPLINE_LAYER3;
+	}
+
+	QETH_DBF_TEXT(SETUP, 3, "force no");
+	return QETH_DISCIPLINE_UNDETERMINED;
+}
+
 static void qeth_configure_blkt_default(struct qeth_card *card, char *prcd)
 {
 	QETH_DBF_TEXT(SETUP, 2, "cfgblkt");
@@ -5485,6 +5504,7 @@ int qeth_core_load_discipline(struct qeth_card *card,
 		enum qeth_discipline_id discipline)
 {
 	int rc = 0;
+
 	mutex_lock(&qeth_mod_mutex);
 	switch (discipline) {
 	case QETH_DISCIPLINE_LAYER3:
@@ -5495,7 +5515,10 @@ int qeth_core_load_discipline(struct qeth_card *card,
 		card->discipline = try_then_request_module(
 			symbol_get(qeth_l2_discipline), "qeth_l2");
 		break;
+	default:
+		break;
 	}
+
 	if (!card->discipline) {
 		dev_err(&card->gdev->dev, "There is no kernel module to "
 			"support discipline %d\n", discipline);
@@ -5598,6 +5621,7 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	struct qeth_card *card;
 	struct device *dev;
 	int rc;
+	enum qeth_discipline_id enforced_disc;
 	unsigned long flags;
 	char dbf_name[DBF_NAME_LEN];
 
@@ -5645,10 +5669,15 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 		goto err_card;
 	}
 
-	switch (card->info.type) {
-	case QETH_CARD_TYPE_OSN:
-	case QETH_CARD_TYPE_OSM:
-		rc = qeth_core_load_discipline(card, QETH_DISCIPLINE_LAYER2);
+	qeth_determine_capabilities(card);
+	enforced_disc = qeth_enforce_discipline(card);
+	switch (enforced_disc) {
+	case QETH_DISCIPLINE_UNDETERMINED:
+		gdev->dev.type = &qeth_generic_devtype;
+		break;
+	default:
+		card->info.layer_enforced = true;
+		rc = qeth_core_load_discipline(card, enforced_disc);
 		if (rc)
 			goto err_card;
 
@@ -5659,16 +5688,11 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 		if (rc)
 			goto err_disc;
 		break;
-	default:
-		gdev->dev.type = &qeth_generic_devtype;
-		break;
 	}
 
 	write_lock_irqsave(&qeth_core_card_list.rwlock, flags);
 	list_add_tail(&card->list, &qeth_core_card_list.list);
 	write_unlock_irqrestore(&qeth_core_card_list.rwlock, flags);
-
-	qeth_determine_capabilities(card);
 	return 0;
 
 err_disc:
@@ -5705,7 +5729,7 @@ static int qeth_core_set_online(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 	int rc = 0;
-	int def_discipline;
+	enum qeth_discipline_id def_discipline;
 
 	if (!card->discipline) {
 		if (card->info.type == QETH_CARD_TYPE_IQD)
