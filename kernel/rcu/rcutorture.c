@@ -522,7 +522,7 @@ static void srcu_read_delay(struct torture_random_state *rrsp)
 
 	delay = torture_random(rrsp) %
 		(nrealreaders * 2 * longdelay * uspertick);
-	if (!delay)
+	if (!delay && in_task())
 		schedule_timeout_interruptible(longdelay);
 	else
 		rcu_read_delay(rrsp);
@@ -583,6 +583,7 @@ static struct rcu_torture_ops srcu_ops = {
 	.call		= srcu_torture_call,
 	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
+	.irq_capable	= 1,
 	.name		= "srcu"
 };
 
@@ -615,6 +616,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.call		= srcu_torture_call,
 	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
+	.irq_capable	= 1,
 	.name		= "srcud"
 };
 
