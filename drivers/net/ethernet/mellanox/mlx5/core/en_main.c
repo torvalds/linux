@@ -4428,32 +4428,27 @@ static void mlx5e_detach(struct mlx5_core_dev *mdev, void *vpriv)
 
 static void *mlx5e_add(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
-	struct mlx5e_rep_priv *rpriv = NULL;
-	void *priv;
-	int vport;
-	int err;
 	struct net_device *netdev;
+	void *rpriv = NULL;
+	void *priv;
+	int err;
 
 	err = mlx5e_check_required_hca_cap(mdev);
 	if (err)
 		return NULL;
 
 	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
-		rpriv = kzalloc(sizeof(*rpriv), GFP_KERNEL);
+		rpriv = mlx5e_alloc_nic_rep_priv(mdev);
 		if (!rpriv) {
-			mlx5_core_warn(mdev,
-				       "Not creating net device, Failed to alloc rep priv data\n");
+			mlx5_core_warn(mdev, "Failed to alloc NIC rep priv data\n");
 			return NULL;
 		}
-		rpriv->rep = &esw->offloads.vport_reps[0];
 	}
 
 	netdev = mlx5e_create_netdev(mdev, &mlx5e_nic_profile, rpriv);
 	if (!netdev) {
 		mlx5_core_err(mdev, "mlx5e_create_netdev failed\n");
-		goto err_unregister_reps;
+		goto err_free_rpriv;
 	}
 
 	priv = netdev_priv(netdev);
@@ -4474,14 +4469,9 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 
 err_detach:
 	mlx5e_detach(mdev, priv);
-
 err_destroy_netdev:
 	mlx5e_destroy_netdev(priv);
-
-err_unregister_reps:
-	for (vport = 1; vport < total_vfs; vport++)
-		mlx5_eswitch_unregister_vport_rep(esw, vport);
-
+err_free_rpriv:
 	kfree(rpriv);
 	return NULL;
 }
