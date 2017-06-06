@@ -5,11 +5,25 @@ Contact:	thunderbolt-software@lists.01.org
 Description:	This attribute contains id of this device extracted from
 		the device DROM.
 
+What:		/sys/bus/thunderbolt/devices/.../device_name
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute contains name of this device extracted from
+		the device DROM.
+
 What:		/sys/bus/thunderbolt/devices/.../vendor
 Date:		Sep 2017
 KernelVersion:	4.13
 Contact:	thunderbolt-software@lists.01.org
 Description:	This attribute contains vendor id of this device extracted
+		from the device DROM.
+
+What:		/sys/bus/thunderbolt/devices/.../vendor_name
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute contains vendor name of this device extracted
 		from the device DROM.
 
 What:		/sys/bus/thunderbolt/devices/.../unique_id

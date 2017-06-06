@@ -319,6 +319,15 @@ static ssize_t device_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(device);
 
+static ssize_t
+device_name_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+
+	return sprintf(buf, "%s\n", sw->device_name ? sw->device_name : "");
+}
+static DEVICE_ATTR_RO(device_name);
+
 static ssize_t vendor_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
@@ -327,6 +336,15 @@ static ssize_t vendor_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%#x\n", sw->vendor);
 }
 static DEVICE_ATTR_RO(vendor);
+
+static ssize_t
+vendor_name_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+
+	return sprintf(buf, "%s\n", sw->vendor_name ? sw->vendor_name : "");
+}
+static DEVICE_ATTR_RO(vendor_name);
 
 static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -339,7 +357,9 @@ static DEVICE_ATTR_RO(unique_id);
 
 static struct attribute *switch_attrs[] = {
 	&dev_attr_device.attr,
+	&dev_attr_device_name.attr,
 	&dev_attr_vendor.attr,
+	&dev_attr_vendor_name.attr,
 	&dev_attr_unique_id.attr,
 	NULL,
 };
@@ -358,6 +378,8 @@ static void tb_switch_release(struct device *dev)
 	struct tb_switch *sw = tb_to_switch(dev);
 
 	kfree(sw->uuid);
+	kfree(sw->device_name);
+	kfree(sw->vendor_name);
 	kfree(sw->ports);
 	kfree(sw->drom);
 	kfree(sw);

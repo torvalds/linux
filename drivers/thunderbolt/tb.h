@@ -23,6 +23,8 @@
  * @uuid: UUID of the switch (or %NULL if not supported)
  * @vendor: Vendor ID of the switch
  * @device: Device ID of the switch
+ * @vendor_name: Name of the vendor (or %NULL if not known)
+ * @device_name: Name of the device (or %NULL if not known)
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
  * @is_unplugged: The switch is going away
  * @drom: DROM of the switch (%NULL if not found)
@@ -36,6 +38,8 @@ struct tb_switch {
 	uuid_be *uuid;
 	u16 vendor;
 	u16 device;
+	const char *vendor_name;
+	const char *device_name;
 	int cap_plug_events;
 	bool is_unplugged;
 	u8 *drom;
