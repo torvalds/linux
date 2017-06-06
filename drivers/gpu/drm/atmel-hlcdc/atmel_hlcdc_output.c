@@ -59,8 +59,6 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev,
 		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_Unknown);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
-
-		return 0;
 	}
 
 	if (bridge) {
