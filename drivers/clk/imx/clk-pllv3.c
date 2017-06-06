@@ -453,7 +453,7 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 		ops = &clk_pllv3_enet_ops;
 		break;
 	case IMX_PLLV3_DDR_IMX7:
-		pll->power_bit = IMX7_ENET_PLL_POWER;
+		pll->power_bit = IMX7_DDR_PLL_POWER;
 		ops = &clk_pllv3_av_ops;
 		break;
 	default:
