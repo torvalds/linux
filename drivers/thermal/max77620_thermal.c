@@ -104,14 +104,20 @@ static int max77620_thermal_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pdev->dev.of_node = pdev->dev.parent->of_node;
-
 	mtherm->dev = &pdev->dev;
 	mtherm->rmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!mtherm->rmap) {
 		dev_err(&pdev->dev, "Failed to get parent regmap\n");
 		return -ENODEV;
 	}
+
+	/*
+	 * Drop any current reference to a device-tree node and get a
+	 * reference to the parent's node which will be balanced on reprobe or
+	 * on platform-device release.
+	 */
+	of_node_put(pdev->dev.of_node);
+	pdev->dev.of_node = of_node_get(pdev->dev.parent->of_node);
 
 	mtherm->tz_device = devm_thermal_zone_of_sensor_register(&pdev->dev, 0,
 				mtherm, &max77620_thermal_ops);
