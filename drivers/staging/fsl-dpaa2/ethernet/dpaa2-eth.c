@@ -2009,10 +2009,10 @@ static int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 	memset(&dist_cfg, 0, sizeof(dist_cfg));
 
 	/* Prepare for setting the rx dist */
-	dist_cfg.key_cfg_iova = dma_map_single(net_dev->dev.parent, dma_mem,
+	dist_cfg.key_cfg_iova = dma_map_single(dev, dma_mem,
 					       DPAA2_CLASSIFIER_DMA_SIZE,
 					       DMA_TO_DEVICE);
-	if (dma_mapping_error(net_dev->dev.parent, dist_cfg.key_cfg_iova)) {
+	if (dma_mapping_error(dev, dist_cfg.key_cfg_iova)) {
 		dev_err(dev, "DMA mapping failed\n");
 		err = -ENOMEM;
 		goto err_dma_map;
@@ -2022,7 +2022,7 @@ static int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 	dist_cfg.dist_mode = DPNI_DIST_MODE_HASH;
 
 	err = dpni_set_rx_tc_dist(priv->mc_io, 0, priv->mc_token, 0, &dist_cfg);
-	dma_unmap_single(net_dev->dev.parent, dist_cfg.key_cfg_iova,
+	dma_unmap_single(dev, dist_cfg.key_cfg_iova,
 			 DPAA2_CLASSIFIER_DMA_SIZE, DMA_TO_DEVICE);
 	if (err)
 		dev_err(dev, "dpni_set_rx_tc_dist() error %d\n", err);
