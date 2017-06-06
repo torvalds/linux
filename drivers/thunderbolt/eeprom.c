@@ -276,6 +276,9 @@ int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid)
 	if (res)
 		return res;
 
+	if (drom_offset == 0)
+		return -ENODEV;
+
 	/* read uid */
 	res = tb_eeprom_read_n(sw, drom_offset, data, 9);
 	if (res)
