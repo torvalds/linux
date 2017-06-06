@@ -956,31 +956,6 @@ static int qeth_l3_start_ipa_arp_processing(struct qeth_card *card)
 	return rc;
 }
 
-static int qeth_l3_start_ipa_ip_fragmentation(struct qeth_card *card)
-{
-	int rc;
-
-	QETH_CARD_TEXT(card, 3, "ipaipfrg");
-
-	if (!qeth_is_supported(card, IPA_IP_FRAGMENTATION)) {
-		dev_info(&card->gdev->dev,
-			"Hardware IP fragmentation not supported on %s\n",
-			QETH_CARD_IFNAME(card));
-		return  -EOPNOTSUPP;
-	}
-
-	rc = qeth_send_simple_setassparms(card, IPA_IP_FRAGMENTATION,
-					  IPA_CMD_ASS_START, 0);
-	if (rc) {
-		dev_warn(&card->gdev->dev,
-			"Starting IP fragmentation support for %s failed\n",
-			QETH_CARD_IFNAME(card));
-	} else
-		dev_info(&card->gdev->dev,
-			"Hardware IP fragmentation enabled \n");
-	return rc;
-}
-
 static int qeth_l3_start_ipa_source_mac(struct qeth_card *card)
 {
 	int rc;
@@ -1171,7 +1146,6 @@ static int qeth_l3_start_ipassists(struct qeth_card *card)
 	if (qeth_set_access_ctrl_online(card, 0))
 		return -EIO;
 	qeth_l3_start_ipa_arp_processing(card);	/* go on*/
-	qeth_l3_start_ipa_ip_fragmentation(card);	/* go on*/
 	qeth_l3_start_ipa_source_mac(card);	/* go on*/
 	qeth_l3_start_ipa_vlan(card);		/* go on*/
 	qeth_l3_start_ipa_multicast(card);		/* go on*/
