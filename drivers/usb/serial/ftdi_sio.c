@@ -1505,8 +1505,7 @@ static int set_serial_info(struct tty_struct *tty,
 	/* Do error checking and permission checking */
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		if (((new_serial.flags & ~ASYNC_USR_MASK) !=
-		     (priv->flags & ~ASYNC_USR_MASK))) {
+		if ((new_serial.flags ^ priv->flags) & ~ASYNC_USR_MASK) {
 			mutex_unlock(&priv->cfg_lock);
 			return -EPERM;
 		}
@@ -1530,8 +1529,7 @@ static int set_serial_info(struct tty_struct *tty,
 check_and_exit:
 	write_latency_timer(port);
 
-	if ((old_priv.flags & ASYNC_SPD_MASK) !=
-	     (priv->flags & ASYNC_SPD_MASK)) {
+	if ((priv->flags ^ old_priv.flags) & ASYNC_SPD_MASK) {
 		if ((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
 			tty->alt_speed = 57600;
 		else if ((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
@@ -1543,10 +1541,9 @@ check_and_exit:
 		else
 			tty->alt_speed = 0;
 	}
-	if (((old_priv.flags & ASYNC_SPD_MASK) !=
-	     (priv->flags & ASYNC_SPD_MASK)) ||
-	    (((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST) &&
-	     (old_priv.custom_divisor != priv->custom_divisor))) {
+	if ((priv->flags ^ old_priv.flags) & ASYNC_SPD_MASK ||
+			((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST &&
+			 priv->custom_divisor != old_priv.custom_divisor)) {
 		change_speed(tty, port);
 		mutex_unlock(&priv->cfg_lock);
 	}
