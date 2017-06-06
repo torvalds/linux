@@ -32,7 +32,25 @@ struct fsi_slave {
 
 #define to_fsi_slave(d) container_of(d, struct fsi_slave, dev)
 
+/* FSI slave support */
+static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
+{
+	/* todo: initialise slave device, perform engine scan */
+
+	return -ENODEV;
+}
+
 /* FSI master support */
+static int fsi_master_scan(struct fsi_master *master)
+{
+	int link;
+
+	for (link = 0; link < master->n_links; link++)
+		fsi_slave_init(master, link, 0);
+
+	return 0;
+}
+
 int fsi_master_register(struct fsi_master *master)
 {
 	int rc;
@@ -44,10 +62,13 @@ int fsi_master_register(struct fsi_master *master)
 	dev_set_name(&master->dev, "fsi%d", master->idx);
 
 	rc = device_register(&master->dev);
-	if (rc)
+	if (rc) {
 		ida_simple_remove(&master_ida, master->idx);
+		return rc;
+	}
 
-	return rc;
+	fsi_master_scan(master);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(fsi_master_register);
 
