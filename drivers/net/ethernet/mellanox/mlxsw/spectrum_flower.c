@@ -67,6 +67,10 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			err = mlxsw_sp_acl_rulei_act_drop(rulei);
 			if (err)
 				return err;
+		} else if (is_tcf_gact_trap(a)) {
+			err = mlxsw_sp_acl_rulei_act_trap(rulei);
+			if (err)
+				return err;
 		} else if (is_tcf_mirred_egress_redirect(a)) {
 			int ifindex = tcf_mirred_ifindex(a);
 			struct net_device *out_dev;
