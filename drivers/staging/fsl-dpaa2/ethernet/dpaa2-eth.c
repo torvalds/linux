@@ -2232,6 +2232,7 @@ static int netdev_init(struct net_device *net_dev)
 	struct device *dev = net_dev->dev.parent;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	u8 bcast_addr[ETH_ALEN];
+	u8 num_queues;
 	int err;
 
 	net_dev->netdev_ops = &dpaa2_eth_ops;
@@ -2256,6 +2257,19 @@ static int netdev_init(struct net_device *net_dev)
 	/* Set MTU limits */
 	net_dev->min_mtu = 68;
 	net_dev->max_mtu = DPAA2_ETH_MAX_MTU;
+
+	/* Set actual number of queues in the net device */
+	num_queues = dpaa2_eth_queue_count(priv);
+	err = netif_set_real_num_tx_queues(net_dev, num_queues);
+	if (err) {
+		dev_err(dev, "netif_set_real_num_tx_queues() failed\n");
+		return err;
+	}
+	err = netif_set_real_num_rx_queues(net_dev, num_queues);
+	if (err) {
+		dev_err(dev, "netif_set_real_num_rx_queues() failed\n");
+		return err;
+	}
 
 	/* Our .ndo_init will be called herein */
 	err = register_netdev(net_dev);
