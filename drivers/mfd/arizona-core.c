@@ -245,8 +245,7 @@ static int arizona_poll_reg(struct arizona *arizona,
 	int ret;
 
 	ret = regmap_read_poll_timeout(arizona->regmap,
-				       ARIZONA_INTERRUPT_RAW_STATUS_5, val,
-				       ((val & mask) == target),
+				       reg, val, ((val & mask) == target),
 				       ARIZONA_REG_POLL_DELAY_US,
 				       timeout_ms * 1000);
 	if (ret)
