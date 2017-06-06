@@ -398,7 +398,11 @@ static int intel_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 		value = readl(padcfg0);
 
 		value &= ~PADCFG0_PMODE_MASK;
-		value |= grp->mode << PADCFG0_PMODE_SHIFT;
+
+		if (grp->modes)
+			value |= grp->modes[i] << PADCFG0_PMODE_SHIFT;
+		else
+			value |= grp->mode << PADCFG0_PMODE_SHIFT;
 
 		writel(value, padcfg0);
 	}

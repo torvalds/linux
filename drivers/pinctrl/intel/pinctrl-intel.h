@@ -22,13 +22,16 @@ struct device;
  * @name: Name of the groups
  * @pins: All pins in this group
  * @npins: Number of pins in this groups
- * @mode: Native mode in which the group is muxed out @pins
+ * @mode: Native mode in which the group is muxed out @pins. Used if @modes
+ *        is %NULL.
+ * @modes: If not %NULL this will hold mode for each pin in @pins
  */
 struct intel_pingroup {
 	const char *name;
 	const unsigned *pins;
 	size_t npins;
 	unsigned short mode;
+	const unsigned *modes;
 };
 
 /**
@@ -112,12 +115,23 @@ struct intel_community {
 #define PINCTRL_FEATURE_DEBOUNCE	BIT(0)
 #define PINCTRL_FEATURE_1K_PD		BIT(1)
 
-#define PIN_GROUP(n, p, m)			\
-	{					\
-		.name = (n),			\
-		.pins = (p),			\
-		.npins = ARRAY_SIZE((p)),	\
-		.mode = (m),			\
+/**
+ * PIN_GROUP - Declare a pin group
+ * @n: Name of the group
+ * @p: An array of pins this group consists
+ * @m: Mode which the pins are put when this group is active. Can be either
+ *     a single integer or an array of integers in which case mode is per
+ *     pin.
+ */
+#define PIN_GROUP(n, p, m)					\
+	{							\
+		.name = (n),					\
+		.pins = (p),					\
+		.npins = ARRAY_SIZE((p)),			\
+		.mode = __builtin_choose_expr(			\
+			__builtin_constant_p((m)), (m), 0),	\
+		.modes = __builtin_choose_expr(			\
+			__builtin_constant_p((m)), NULL, (m)),	\
 	}
 
 #define FUNCTION(n, g)				\
