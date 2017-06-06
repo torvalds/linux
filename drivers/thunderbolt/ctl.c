@@ -520,6 +520,10 @@ err:
 void tb_ctl_free(struct tb_ctl *ctl)
 {
 	int i;
+
+	if (!ctl)
+		return;
+
 	if (ctl->rx)
 		ring_free(ctl->rx);
 	if (ctl->tx)
