@@ -2534,11 +2534,12 @@ static int dw_hdmi_detect_phy(struct dw_hdmi *hdmi)
 	phy_type = hdmi_readb(hdmi, HDMI_CONFIG2_ID);
 
 	/*
-	 * RK3328 phy_type is DW_HDMI_PHY_DWC_HDMI20_TX_PHY,
+	 * RK3228 and RK3328 phy_type is DW_HDMI_PHY_DWC_HDMI20_TX_PHY,
 	 * but it has a vedor phy.
 	 */
 	if (phy_type == DW_HDMI_PHY_VENDOR_PHY ||
-	    hdmi->dev_type == RK3328_HDMI) {
+	    hdmi->dev_type == RK3328_HDMI ||
+	    hdmi->dev_type == RK3228_HDMI) {
 		/* Vendor PHYs require support from the glue layer. */
 		if (!hdmi->plat_data->phy_ops || !hdmi->plat_data->phy_name) {
 			dev_err(hdmi->dev,
@@ -2674,6 +2675,9 @@ dw_hdmi_ctrl_write(struct file *file, const char __user *buf,
 	u32 reg, val;
 	char kbuf[25];
 
+	if (hdmi->dev_type == RK3228_HDMI)
+		return -EFAULT;
+
 	if (copy_from_user(kbuf, buf, count))
 		return -EFAULT;
 	if (sscanf(kbuf, "%x%x", &reg, &val) == -1)
@@ -2701,6 +2705,9 @@ static int dw_hdmi_phy_show(struct seq_file *s, void *v)
 {
 	struct dw_hdmi *hdmi = s->private;
 	u32 i, total, val;
+
+	if (hdmi->dev_type == RK3228_HDMI)
+		return 0;
 
 	seq_puts(s, "\n>>>hdmi_phy reg\n");
 	if (hdmi->dev_type != RK3328_HDMI)

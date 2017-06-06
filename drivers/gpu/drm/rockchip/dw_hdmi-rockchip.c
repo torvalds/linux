@@ -15,6 +15,7 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/regmap.h>
 #include <linux/pm_runtime.h>
+#include <linux/phy/phy.h>
 
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
@@ -25,6 +26,11 @@
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
+
+#define RK3228_GRF_SOC_CON2		0x0408
+#define RK3228_DDC_MASK_EN		((3 << 13) | (3 << (13 + 16)))
+#define RK3228_GRF_SOC_CON6		0x0418
+#define RK3228_IO_3V_DOMAIN		((7 << 4) | (7 << (4 + 16)))
 
 #define RK3288_GRF_SOC_CON6		0x025C
 #define RK3288_HDMI_LCDC_SEL		BIT(4)
@@ -54,6 +60,8 @@ struct rockchip_hdmi {
 	struct clk *hdmiphy_clk;
 	struct clk *hclk_vio;
 	struct clk_hw	hdmiphy_clkhw;
+
+	struct phy *phy;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -239,6 +247,11 @@ inno_dw_hdmi_phy_init(struct dw_hdmi *dw_hdmi, void *data,
 	const struct inno_phy_config *inno_phy_config = inno_phy_cfg;
 	u32 val, i, chipversion = 1;
 
+	if (hdmi->dev_type == RK3228_HDMI) {
+		phy_power_on(hdmi->phy);
+		return 0;
+	}
+
 	if (rockchip_get_cpu_version())
 		chipversion = 2;
 
@@ -336,6 +349,11 @@ static void inno_dw_hdmi_phy_disable(struct dw_hdmi *dw_hdmi, void *data)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 
+	if (hdmi->dev_type == RK3228_HDMI) {
+		phy_power_off(hdmi->phy);
+		return;
+	}
+
 	/* Power off driver */
 	inno_phy_writel(hdmi, 0xb2, 0);
 	/* Power off band gap */
@@ -351,6 +369,10 @@ inno_dw_hdmi_phy_read_hpd(struct dw_hdmi *dw_hdmi, void *data)
 	enum drm_connector_status status;
 
 	status = dw_hdmi_phy_read_hpd(dw_hdmi, data);
+
+	if (hdmi->dev_type == RK3228_HDMI)
+		return status;
+
 	if (status == connector_status_connected)
 		regmap_write(hdmi->regmap,
 			     RK3328_GRF_SOC_CON4,
@@ -992,6 +1014,13 @@ static const struct dw_hdmi_phy_ops inno_dw_hdmi_phy_ops = {
 	.write		= inno_dw_hdmi_phy_write,
 };
 
+static const struct dw_hdmi_plat_data rk3228_hdmi_drv_data = {
+	.mode_valid = dw_hdmi_rockchip_mode_valid,
+	.phy_ops    = &inno_dw_hdmi_phy_ops,
+	.phy_name   = "inno_dw_hdmi_phy",
+	.dev_type   = RK3228_HDMI,
+};
+
 static const struct dw_hdmi_plat_data rk3288_hdmi_drv_data = {
 	.mode_valid = dw_hdmi_rockchip_mode_valid,
 	.mpll_cfg   = rockchip_mpll_cfg,
@@ -1025,6 +1054,9 @@ static const struct dw_hdmi_plat_data rk3399_hdmi_drv_data = {
 };
 
 static const struct of_device_id dw_hdmi_rockchip_dt_ids[] = {
+	{ .compatible = "rockchip,rk3228-dw-hdmi",
+	  .data = &rk3228_hdmi_drv_data
+	},
 	{ .compatible = "rockchip,rk3288-dw-hdmi",
 	  .data = &rk3288_hdmi_drv_data
 	},
@@ -1103,6 +1135,18 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		if (ret < 0)
 			return ret;
 		inno_dw_hdmi_phy_clk_register(hdmi);
+	} else if (hdmi->dev_type == RK3228_HDMI) {
+		hdmi->phy = devm_phy_get(dev, "hdmi_phy");
+		if (IS_ERR(hdmi->phy)) {
+			ret = PTR_ERR(hdmi->phy);
+			dev_err(dev, "failed to get phy: %d\n", ret);
+			return ret;
+		}
+		plat_data->phy_data = hdmi;
+		regmap_write(hdmi->regmap, RK3228_GRF_SOC_CON2,
+			     RK3228_DDC_MASK_EN);
+		regmap_write(hdmi->regmap, RK3228_GRF_SOC_CON6,
+			     RK3228_IO_3V_DOMAIN);
 	}
 
 	drm_encoder_helper_add(encoder, &dw_hdmi_rockchip_encoder_helper_funcs);
