@@ -1648,7 +1648,7 @@ static int soc_tplg_dapm_complete(struct soc_tplg *tplg)
 	*/
 	if (!card || !card->instantiated) {
 		dev_warn(tplg->dev, "ASoC: Parent card not yet available,"
-				"Do not add new widgets now\n");
+			" widget card binding deferred\n");
 		return 0;
 	}
 
