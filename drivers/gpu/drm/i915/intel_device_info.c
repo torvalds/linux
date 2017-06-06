@@ -184,16 +184,15 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 				DIV_ROUND_UP(sseu->eu_total,
 					     sseu_subslice_total(sseu)) : 0;
 	/*
-	 * SKL supports slice power gating on devices with more than
+	 * SKL+ supports slice power gating on devices with more than
 	 * one slice, and supports EU power gating on devices with
-	 * more than one EU pair per subslice. BXT supports subslice
+	 * more than one EU pair per subslice. BXT+ supports subslice
 	 * power gating on devices with more than one subslice, and
 	 * supports EU power gating on devices with more than one EU
 	 * pair per subslice.
 	*/
 	sseu->has_slice_pg =
-		(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
-		hweight8(sseu->slice_mask) > 1;
+		!IS_GEN9_LP(dev_priv) && hweight8(sseu->slice_mask) > 1;
 	sseu->has_subslice_pg =
 		IS_GEN9_LP(dev_priv) && sseu_subslice_total(sseu) > 1;
 	sseu->has_eu_pg = sseu->eu_per_subslice > 2;
