@@ -3481,9 +3481,7 @@ static int write_dev_supers(struct btrfs_device *device,
  */
 static void btrfs_end_empty_barrier(struct bio *bio)
 {
-	if (bio->bi_private)
-		complete(bio->bi_private);
-	bio_put(bio);
+	complete(bio->bi_private);
 }
 
 /*
@@ -3493,26 +3491,20 @@ static void btrfs_end_empty_barrier(struct bio *bio)
 static void write_dev_flush(struct btrfs_device *device)
 {
 	struct request_queue *q = bdev_get_queue(device->bdev);
-	struct bio *bio;
+	struct bio *bio = device->flush_bio;
 
 	if (!test_bit(QUEUE_FLAG_WC, &q->queue_flags))
 		return;
 
-	/*
-	 * one reference for us, and we leave it for the
-	 * caller
-	 */
-	device->flush_bio = NULL;
-	bio = btrfs_io_bio_alloc(0);
+	bio_reset(bio);
 	bio->bi_end_io = btrfs_end_empty_barrier;
 	bio->bi_bdev = device->bdev;
 	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH;
 	init_completion(&device->flush_wait);
 	bio->bi_private = &device->flush_wait;
-	device->flush_bio = bio;
 
-	bio_get(bio);
-	btrfsic_submit_bio(bio);
+	submit_bio(bio);
+	device->flush_bio_sent = 1;
 }
 
 /*
@@ -3523,9 +3515,10 @@ static int wait_dev_flush(struct btrfs_device *device)
 	int ret = 0;
 	struct bio *bio = device->flush_bio;
 
-	if (!bio)
+	if (!device->flush_bio_sent)
 		return 0;
 
+	device->flush_bio_sent = 0;
 	wait_for_completion(&device->flush_wait);
 
 	if (bio->bi_error) {
@@ -3533,10 +3526,6 @@ static int wait_dev_flush(struct btrfs_device *device)
 		btrfs_dev_stat_inc_and_print(device,
 				BTRFS_DEV_STAT_FLUSH_ERRS);
 	}
-
-	/* drop the reference from the wait == 0 run */
-	bio_put(bio);
-	device->flush_bio = NULL;
 
 	return ret;
 }
