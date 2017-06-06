@@ -764,3 +764,93 @@ struct device_node *of_graph_get_remote_node(const struct device_node *node,
 	return remote;
 }
 EXPORT_SYMBOL(of_graph_get_remote_node);
+
+static void of_fwnode_get(struct fwnode_handle *fwnode)
+{
+	of_node_get(to_of_node(fwnode));
+}
+
+static void of_fwnode_put(struct fwnode_handle *fwnode)
+{
+	of_node_put(to_of_node(fwnode));
+}
+
+static bool of_fwnode_property_present(struct fwnode_handle *fwnode,
+				       const char *propname)
+{
+	return of_property_read_bool(to_of_node(fwnode), propname);
+}
+
+static int of_fwnode_property_read_int_array(struct fwnode_handle *fwnode,
+					     const char *propname,
+					     unsigned int elem_size, void *val,
+					     size_t nval)
+{
+	struct device_node *node = to_of_node(fwnode);
+
+	if (!val)
+		return of_property_count_elems_of_size(node, propname,
+						       elem_size);
+
+	switch (elem_size) {
+	case sizeof(u8):
+		return of_property_read_u8_array(node, propname, val, nval);
+	case sizeof(u16):
+		return of_property_read_u16_array(node, propname, val, nval);
+	case sizeof(u32):
+		return of_property_read_u32_array(node, propname, val, nval);
+	case sizeof(u64):
+		return of_property_read_u64_array(node, propname, val, nval);
+	}
+
+	return -ENXIO;
+}
+
+static int of_fwnode_property_read_string_array(struct fwnode_handle *fwnode,
+						const char *propname,
+						const char **val, size_t nval)
+{
+	struct device_node *node = to_of_node(fwnode);
+
+	return val ?
+		of_property_read_string_array(node, propname, val, nval) :
+		of_property_count_strings(node, propname);
+}
+
+static struct fwnode_handle *of_fwnode_get_parent(struct fwnode_handle *fwnode)
+{
+	return of_fwnode_handle(of_get_parent(to_of_node(fwnode)));
+}
+
+static struct fwnode_handle *
+of_fwnode_get_next_child_node(struct fwnode_handle *fwnode,
+			      struct fwnode_handle *child)
+{
+	return of_fwnode_handle(of_get_next_available_child(to_of_node(fwnode),
+							    to_of_node(child)));
+}
+
+static struct fwnode_handle *
+of_fwnode_get_named_child_node(struct fwnode_handle *fwnode,
+			       const char *childname)
+{
+	struct device_node *node = to_of_node(fwnode);
+	struct device_node *child;
+
+	for_each_available_child_of_node(node, child)
+		if (!of_node_cmp(child->name, childname))
+			return of_fwnode_handle(child);
+
+	return NULL;
+}
+
+const struct fwnode_operations of_fwnode_ops = {
+	.get = of_fwnode_get,
+	.put = of_fwnode_put,
+	.property_present = of_fwnode_property_present,
+	.property_read_int_array = of_fwnode_property_read_int_array,
+	.property_read_string_array = of_fwnode_property_read_string_array,
+	.get_parent = of_fwnode_get_parent,
+	.get_next_child_node = of_fwnode_get_next_child_node,
+	.get_named_child_node = of_fwnode_get_named_child_node,
+};

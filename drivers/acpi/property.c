@@ -57,6 +57,7 @@ static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 
 	dn->name = link->package.elements[0].string.pointer;
 	dn->fwnode.type = FWNODE_ACPI_DATA;
+	dn->fwnode.ops = &acpi_fwnode_ops;
 	dn->parent = parent;
 	INIT_LIST_HEAD(&dn->data.subnodes);
 
@@ -1119,3 +1120,70 @@ int acpi_graph_get_remote_endpoint(struct fwnode_handle *fwnode,
 
 	return 0;
 }
+
+static bool acpi_fwnode_property_present(struct fwnode_handle *fwnode,
+					 const char *propname)
+{
+	return !acpi_node_prop_get(fwnode, propname, NULL);
+}
+
+static int acpi_fwnode_property_read_int_array(struct fwnode_handle *fwnode,
+					       const char *propname,
+					       unsigned int elem_size,
+					       void *val, size_t nval)
+{
+	enum dev_prop_type type;
+
+	switch (elem_size) {
+	case sizeof(u8):
+		type = DEV_PROP_U8;
+		break;
+	case sizeof(u16):
+		type = DEV_PROP_U16;
+		break;
+	case sizeof(u32):
+		type = DEV_PROP_U32;
+		break;
+	case sizeof(u64):
+		type = DEV_PROP_U64;
+		break;
+	default:
+		return -ENXIO;
+	}
+
+	return acpi_node_prop_read(fwnode, propname, type, val, nval);
+}
+
+static int acpi_fwnode_property_read_string_array(struct fwnode_handle *fwnode,
+						  const char *propname,
+						  const char **val, size_t nval)
+{
+	return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
+				   val, nval);
+}
+
+static struct fwnode_handle *
+acpi_fwnode_get_named_child_node(struct fwnode_handle *fwnode,
+				 const char *childname)
+{
+	struct fwnode_handle *child;
+
+	/*
+	 * Find first matching named child node of this fwnode.
+	 * For ACPI this will be a data only sub-node.
+	 */
+	fwnode_for_each_child_node(fwnode, child)
+		if (acpi_data_node_match(child, childname))
+			return child;
+
+	return NULL;
+}
+
+const struct fwnode_operations acpi_fwnode_ops = {
+	.property_present = acpi_fwnode_property_present,
+	.property_read_int_array = acpi_fwnode_property_read_int_array,
+	.property_read_string_array = acpi_fwnode_property_read_string_array,
+	.get_parent = acpi_node_get_parent,
+	.get_next_child_node = acpi_get_next_subnode,
+	.get_named_child_node = acpi_fwnode_get_named_child_node,
+};
