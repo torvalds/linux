@@ -1486,6 +1486,14 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		r = set_vpa(vcpu, &vcpu->arch.dtl, addr, len);
 		break;
 	case KVM_REG_PPC_TB_OFFSET:
+		/*
+		 * POWER9 DD1 has an erratum where writing TBU40 causes
+		 * the timebase to lose ticks.  So we don't let the
+		 * timebase offset be changed on P9 DD1.  (It is
+		 * initialized to zero.)
+		 */
+		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+			break;
 		/* round up to multiple of 2^24 */
 		vcpu->arch.vcore->tb_offset =
 			ALIGN(set_reg_val(id, *val), 1UL << 24);
