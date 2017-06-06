@@ -24,6 +24,7 @@
 #include <linux/dma-buf.h>
 #include <linux/reservation.h>
 #include <linux/iommu.h>
+#include <linux/pagemap.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
@@ -432,6 +433,7 @@ int rockchip_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 static struct rockchip_gem_object *
 rockchip_gem_alloc_object(struct drm_device *drm, unsigned int size)
 {
+	struct address_space *mapping;
 	struct rockchip_gem_object *rk_obj;
 	struct drm_gem_object *obj;
 
@@ -444,6 +446,9 @@ rockchip_gem_alloc_object(struct drm_device *drm, unsigned int size)
 	obj = &rk_obj->base;
 
 	drm_gem_object_init(drm, obj, size);
+
+	mapping = file_inode(obj->filp)->i_mapping;
+	mapping_set_gfp_mask(mapping, mapping_gfp_mask(mapping) | __GFP_DMA32);
 
 	return rk_obj;
 }
