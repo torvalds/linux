@@ -222,7 +222,7 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync, struct dma_fence *fence,
 		      struct amdgpu_job *job);
-int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job);
+int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_pipe_sync);
 void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vmhub,
 			unsigned vmid);
 void amdgpu_vm_reset_all_ids(struct amdgpu_device *adev);

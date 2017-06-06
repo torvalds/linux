@@ -743,7 +743,7 @@ static bool amdgpu_vm_is_large_bar(struct amdgpu_device *adev)
  *
  * Emit a VM flush when it is necessary.
  */
-int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
+int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_pipe_sync)
 {
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->funcs->vmhub;
@@ -765,11 +765,14 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 		vm_flush_needed = true;
 	}
 
-	if (!vm_flush_needed && !gds_switch_needed)
+	if (!vm_flush_needed && !gds_switch_needed && !need_pipe_sync)
 		return 0;
 
 	if (ring->funcs->init_cond_exec)
 		patch_offset = amdgpu_ring_init_cond_exec(ring);
+
+	if (need_pipe_sync)
+		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (ring->funcs->emit_vm_flush && vm_flush_needed) {
 		struct dma_fence *fence;
