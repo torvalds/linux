@@ -1562,6 +1562,7 @@ static ssize_t tcmu_emulate_write_cache_store(struct config_item *item,
 {
 	struct se_dev_attrib *da = container_of(to_config_group(item),
 					struct se_dev_attrib, da_group);
+	struct tcmu_dev *udev = TCMU_DEV(da->da_dev);
 	int val;
 	int ret;
 
@@ -1570,6 +1571,17 @@ static ssize_t tcmu_emulate_write_cache_store(struct config_item *item,
 		return ret;
 
 	da->emulate_write_cache = val;
+
+	/* Check if device has been configured before */
+	if (tcmu_dev_configured(udev)) {
+		ret = tcmu_netlink_event(TCMU_CMD_RECONFIG_DEVICE,
+					 udev->uio_info.name,
+					 udev->uio_info.uio_dev->minor);
+		if (ret) {
+			pr_err("Unable to reconfigure device\n");
+			return ret;
+		}
+	}
 	return count;
 }
 CONFIGFS_ATTR(tcmu_, emulate_write_cache);
