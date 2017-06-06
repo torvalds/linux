@@ -551,7 +551,7 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 	dev_kfree_skb(skb);
 }
 
-static int dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
+static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct dpaa2_fd fd;
