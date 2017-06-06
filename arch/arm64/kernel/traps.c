@@ -435,7 +435,7 @@ int cpu_enable_cache_maint_trap(void *__unused)
 }
 
 #define __user_cache_maint(insn, address, res)			\
-	if (untagged_addr(address) >= user_addr_max())		\
+	if (address >= user_addr_max())				\
 		res = -EFAULT;					\
 	else							\
 		asm volatile (					\
@@ -458,7 +458,7 @@ static void user_cache_maint_handler(unsigned int esr, struct pt_regs *regs)
 	int crm = (esr & ESR_ELx_SYS64_ISS_CRM_MASK) >> ESR_ELx_SYS64_ISS_CRM_SHIFT;
 	int ret = 0;
 
-	address = (rt == 31) ? 0 : regs->regs[rt];
+	address = (rt == 31) ? 0 : untagged_addr(regs->regs[rt]);
 
 	switch (crm) {
 	case ESR_ELx_SYS64_ISS_CRM_DC_CVAU:	/* DC CVAU, gets promoted */
