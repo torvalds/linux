@@ -281,6 +281,8 @@ struct fwnode_handle *fwnode_graph_get_remote_port(
 	struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_graph_get_remote_endpoint(
 	struct fwnode_handle *fwnode);
+struct fwnode_handle *fwnode_graph_get_remote_node(struct fwnode_handle *fwnode,
+						   u32 port, u32 endpoint);
 
 int fwnode_graph_parse_endpoint(struct fwnode_handle *fwnode,
 				struct fwnode_endpoint *endpoint);
