@@ -488,7 +488,7 @@ parse:
 		goto err;
 	}
 
-	if (header->device_rom_revision > 1)
+	if (header->device_rom_revision > 2)
 		tb_sw_warn(sw, "drom device_rom_revision %#x unknown\n",
 			header->device_rom_revision);
 
