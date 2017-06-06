@@ -1510,6 +1510,7 @@ static int setup_dpio(struct dpaa2_eth_priv *priv)
 		if (!channel) {
 			dev_info(dev,
 				 "No affine channel for cpu %d and above\n", i);
+			err = -ENODEV;
 			goto err_alloc_ch;
 		}
 
@@ -1524,10 +1525,13 @@ static int setup_dpio(struct dpaa2_eth_priv *priv)
 		/* Register the new context */
 		err = dpaa2_io_service_register(NULL, nctx);
 		if (err) {
-			dev_info(dev, "No affine DPIO for cpu %d\n", i);
+			dev_dbg(dev, "No affine DPIO for cpu %d\n", i);
 			/* If no affine DPIO for this core, there's probably
-			 * none available for next cores either.
+			 * none available for next cores either. Signal we want
+			 * to retry later, in case the DPIO devices weren't
+			 * probed yet.
 			 */
+			err = -EPROBE_DEFER;
 			goto err_service_reg;
 		}
 
@@ -1565,7 +1569,7 @@ err_service_reg:
 err_alloc_ch:
 	if (cpumask_empty(&priv->dpio_cpumask)) {
 		dev_err(dev, "No cpu with an affine DPIO/DPCON\n");
-		return -ENODEV;
+		return err;
 	}
 
 	dev_info(dev, "Cores %*pbl available for processing ingress traffic\n",
