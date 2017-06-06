@@ -52,19 +52,19 @@ struct sunxi_sc_nmi_reg_offs {
 	u32 enable;
 };
 
-static struct sunxi_sc_nmi_reg_offs sun6i_reg_offs = {
+static const struct sunxi_sc_nmi_reg_offs sun6i_reg_offs __initconst = {
 	.ctrl	= SUN6I_NMI_CTRL,
 	.pend	= SUN6I_NMI_PENDING,
 	.enable	= SUN6I_NMI_ENABLE,
 };
 
-static struct sunxi_sc_nmi_reg_offs sun7i_reg_offs = {
+static const struct sunxi_sc_nmi_reg_offs sun7i_reg_offs __initconst = {
 	.ctrl	= SUN7I_NMI_CTRL,
 	.pend	= SUN7I_NMI_PENDING,
 	.enable	= SUN7I_NMI_ENABLE,
 };
 
-static struct sunxi_sc_nmi_reg_offs sun9i_reg_offs = {
+static const struct sunxi_sc_nmi_reg_offs sun9i_reg_offs __initconst = {
 	.ctrl	= SUN9I_NMI_CTRL,
 	.pend	= SUN9I_NMI_PENDING,
 	.enable	= SUN9I_NMI_ENABLE,
@@ -142,7 +142,7 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 }
 
 static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
-					struct sunxi_sc_nmi_reg_offs *reg_offs)
+					const struct sunxi_sc_nmi_reg_offs *reg_offs)
 {
 	struct irq_domain *domain;
 	struct irq_chip_generic *gc;
