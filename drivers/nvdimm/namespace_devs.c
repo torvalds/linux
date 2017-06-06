@@ -2065,12 +2065,20 @@ struct device *create_namespace_blk(struct nd_region *nd_region,
 	struct device *dev = NULL;
 	struct resource *res;
 
-	if (namespace_label_has(ndd, type_guid)
-			&& !guid_equal(&nd_set->type_guid,
-				&nd_label->type_guid)) {
-		dev_dbg(ndd->dev, "expect type_guid %pUb got %pUb\n",
-				nd_set->type_guid.b, nd_label->type_guid.b);
-		return ERR_PTR(-EAGAIN);
+	if (namespace_label_has(ndd, type_guid)) {
+		if (!guid_equal(&nd_set->type_guid, &nd_label->type_guid)) {
+			dev_dbg(ndd->dev, "expect type_guid %pUb got %pUb\n",
+					nd_set->type_guid.b,
+					nd_label->type_guid.b);
+			return ERR_PTR(-EAGAIN);
+		}
+
+		if (nd_label->isetcookie != __cpu_to_le64(nd_set->cookie2)) {
+			dev_dbg(ndd->dev, "expect cookie %#llx got %#llx\n",
+					nd_set->cookie2,
+					__le64_to_cpu(nd_label->isetcookie));
+			return ERR_PTR(-EAGAIN);
+		}
 	}
 
 	nsblk = kzalloc(sizeof(*nsblk), GFP_KERNEL);

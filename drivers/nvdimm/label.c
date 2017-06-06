@@ -787,7 +787,17 @@ static int __blk_label_update(struct nd_region *nd_region,
 		nd_label->flags = __cpu_to_le32(NSLABEL_FLAG_LOCAL);
 		nd_label->nlabel = __cpu_to_le16(0); /* N/A */
 		nd_label->position = __cpu_to_le16(0); /* N/A */
-		nd_label->isetcookie = __cpu_to_le64(0); /* N/A */
+
+		/*
+		 * Use the presence of the type_guid as a flag to
+		 * determine isetcookie usage for blk-aperture
+		 * namespaces.
+		 */
+		if (namespace_label_has(ndd, type_guid))
+			nd_label->isetcookie = __cpu_to_le64(nd_set->cookie2);
+		else
+			nd_label->isetcookie = __cpu_to_le64(0); /* N/A */
+
 		nd_label->dpa = __cpu_to_le64(res->start);
 		nd_label->rawsize = __cpu_to_le64(resource_size(res));
 		nd_label->lbasize = __cpu_to_le64(nsblk->lbasize);
