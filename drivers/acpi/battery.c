@@ -776,7 +776,7 @@ static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 	if ((battery->state & ACPI_BATTERY_STATE_CRITICAL) ||
 	    (test_bit(ACPI_BATTERY_ALARM_PRESENT, &battery->flags) &&
             (battery->capacity_now <= battery->alarm)))
-		pm_wakeup_hard_event(&battery->device->dev);
+		pm_wakeup_event(&battery->device->dev, 0);
 
 	return result;
 }
