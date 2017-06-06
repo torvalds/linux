@@ -139,7 +139,6 @@ static int intel_th_remove(struct device *dev)
 
 static struct bus_type intel_th_bus = {
 	.name		= "intel_th",
-	.dev_attrs	= NULL,
 	.match		= intel_th_match,
 	.probe		= intel_th_probe,
 	.remove		= intel_th_remove,
