@@ -92,11 +92,22 @@ static void write_vreg(struct intel_vgpu *vgpu, unsigned int offset,
 	memcpy(&vgpu_vreg(vgpu, offset), p_data, bytes);
 }
 
+static struct intel_gvt_mmio_info *find_mmio_info(struct intel_gvt *gvt,
+						  unsigned int offset)
+{
+	struct intel_gvt_mmio_info *e;
+
+	hash_for_each_possible(gvt->mmio.mmio_info_table, e, node, offset) {
+		if (e->offset == offset)
+			return e;
+	}
+	return NULL;
+}
+
 static int new_mmio_info(struct intel_gvt *gvt,
 		u32 offset, u32 flags, u32 size,
 		u32 addr_mask, u32 ro_mask, u32 device,
-		int (*read)(struct intel_vgpu *, unsigned int, void *, unsigned int),
-		int (*write)(struct intel_vgpu *, unsigned int, void *, unsigned int))
+		gvt_mmio_func read, gvt_mmio_func write)
 {
 	struct intel_gvt_mmio_info *info, *p;
 	u32 start, end, i;
@@ -116,7 +127,7 @@ static int new_mmio_info(struct intel_gvt *gvt,
 			return -ENOMEM;
 
 		info->offset = i;
-		p = intel_gvt_find_mmio_info(gvt, info->offset);
+		p = find_mmio_info(gvt, info->offset);
 		if (p)
 			gvt_err("dup mmio definition offset %x\n",
 				info->offset);
@@ -1794,10 +1805,6 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(SPRSCALE(PIPE_C), D_ALL);
 	MMIO_D(SPRSURFLIVE(PIPE_C), D_ALL);
 
-	MMIO_F(LGC_PALETTE(PIPE_A, 0), 4 * 256, 0, 0, 0, D_ALL, NULL, NULL);
-	MMIO_F(LGC_PALETTE(PIPE_B, 0), 4 * 256, 0, 0, 0, D_ALL, NULL, NULL);
-	MMIO_F(LGC_PALETTE(PIPE_C, 0), 4 * 256, 0, 0, 0, D_ALL, NULL, NULL);
-
 	MMIO_D(HTOTAL(TRANSCODER_A), D_ALL);
 	MMIO_D(HBLANK(TRANSCODER_A), D_ALL);
 	MMIO_D(HSYNC(TRANSCODER_A), D_ALL);
@@ -2245,10 +2252,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_DH(GEN6_GDRST, D_ALL, NULL, gdrst_mmio_write);
 	MMIO_F(FENCE_REG_GEN6_LO(0), 0x80, 0, 0, 0, D_ALL, fence_mmio_read, fence_mmio_write);
-	MMIO_F(VGT_PVINFO_PAGE, VGT_PVINFO_SIZE, F_UNALIGN, 0, 0, D_ALL, pvinfo_mmio_read, pvinfo_mmio_write);
 	MMIO_DH(CPU_VGACNTRL, D_ALL, NULL, vga_control_mmio_write);
-
-	MMIO_F(MCHBAR_MIRROR_BASE_SNB, 0x40000, 0, 0, 0, D_ALL, NULL, NULL);
 
 	MMIO_D(TILECTL, D_ALL);
 
@@ -2778,7 +2782,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0x72380, D_SKL_PLUS);
 	MMIO_D(0x7039c, D_SKL_PLUS);
 
-	MMIO_F(0x80000, 0x3000, 0, 0, 0, D_SKL_PLUS, NULL, NULL);
 	MMIO_D(0x8f074, D_SKL | D_KBL);
 	MMIO_D(0x8f004, D_SKL | D_KBL);
 	MMIO_D(0x8f034, D_SKL | D_KBL);
@@ -2852,26 +2855,36 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	return 0;
 }
 
-/**
- * intel_gvt_find_mmio_info - find MMIO information entry by aligned offset
- * @gvt: GVT device
- * @offset: register offset
- *
- * This function is used to find the MMIO information entry from hash table
- *
- * Returns:
- * pointer to MMIO information entry, NULL if not exists
- */
-struct intel_gvt_mmio_info *intel_gvt_find_mmio_info(struct intel_gvt *gvt,
-	unsigned int offset)
+/* Special MMIO blocks. */
+static struct gvt_mmio_block {
+	unsigned int device;
+	i915_reg_t   offset;
+	unsigned int size;
+	gvt_mmio_func read;
+	gvt_mmio_func write;
+} gvt_mmio_blocks[] = {
+	{D_SKL_PLUS, _MMIO(CSR_MMIO_START_RANGE), 0x3000, NULL, NULL},
+	{D_ALL, _MMIO(MCHBAR_MIRROR_BASE_SNB), 0x40000, NULL, NULL},
+	{D_ALL, _MMIO(VGT_PVINFO_PAGE), VGT_PVINFO_SIZE,
+		pvinfo_mmio_read, pvinfo_mmio_write},
+	{D_ALL, LGC_PALETTE(PIPE_A, 0), 1024, NULL, NULL},
+	{D_ALL, LGC_PALETTE(PIPE_B, 0), 1024, NULL, NULL},
+	{D_ALL, LGC_PALETTE(PIPE_C, 0), 1024, NULL, NULL},
+};
+
+static struct gvt_mmio_block *find_mmio_block(struct intel_gvt *gvt,
+					      unsigned int offset)
 {
-	struct intel_gvt_mmio_info *e;
+	unsigned long device = intel_gvt_get_device_type(gvt);
+	struct gvt_mmio_block *block = gvt_mmio_blocks;
+	int i;
 
-	WARN_ON(!IS_ALIGNED(offset, 4));
-
-	hash_for_each_possible(gvt->mmio.mmio_info_table, e, node, offset) {
-		if (e->offset == offset)
-			return e;
+	for (i = 0; i < ARRAY_SIZE(gvt_mmio_blocks); i++, block++) {
+		if (!(device & block->device))
+			continue;
+		if (offset >= INTEL_GVT_MMIO_OFFSET(block->offset) &&
+		    offset < INTEL_GVT_MMIO_OFFSET(block->offset) + block->size)
+			return block;
 	}
 	return NULL;
 }
@@ -3055,4 +3068,95 @@ bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
 					  unsigned int offset)
 {
 	return in_whitelist(offset);
+}
+
+/**
+ * intel_vgpu_mmio_reg_rw - emulate tracked mmio registers
+ * @vgpu: a vGPU
+ * @offset: register offset
+ * @pdata: data buffer
+ * @bytes: data length
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
+			   void *pdata, unsigned int bytes, bool is_read)
+{
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct intel_gvt_mmio_info *mmio_info;
+	struct gvt_mmio_block *mmio_block;
+	gvt_mmio_func func;
+	int ret;
+
+	if (WARN_ON(bytes > 4))
+		return -EINVAL;
+
+	/*
+	 * Handle special MMIO blocks.
+	 */
+	mmio_block = find_mmio_block(gvt, offset);
+	if (mmio_block) {
+		func = is_read ? mmio_block->read : mmio_block->write;
+		if (func)
+			return func(vgpu, offset, pdata, bytes);
+		goto default_rw;
+	}
+
+	/*
+	 * Normal tracked MMIOs.
+	 */
+	mmio_info = find_mmio_info(gvt, offset);
+	if (!mmio_info) {
+		if (!vgpu->mmio.disable_warn_untrack)
+			gvt_vgpu_err("untracked MMIO %08x len %d\n",
+				     offset, bytes);
+		goto default_rw;
+	}
+
+	if (WARN_ON(bytes > mmio_info->size))
+		return -EINVAL;
+
+	if (is_read)
+		return mmio_info->read(vgpu, offset, pdata, bytes);
+	else {
+		u64 ro_mask = mmio_info->ro_mask;
+		u32 old_vreg = 0, old_sreg = 0;
+		u64 data = 0;
+
+		if (intel_gvt_mmio_has_mode_mask(gvt, mmio_info->offset)) {
+			old_vreg = vgpu_vreg(vgpu, offset);
+			old_sreg = vgpu_sreg(vgpu, offset);
+		}
+
+		if (likely(!ro_mask))
+			ret = mmio_info->write(vgpu, offset, pdata, bytes);
+		else if (!~ro_mask) {
+			gvt_vgpu_err("try to write RO reg %x\n", offset);
+			return 0;
+		} else {
+			/* keep the RO bits in the virtual register */
+			memcpy(&data, pdata, bytes);
+			data &= ~ro_mask;
+			data |= vgpu_vreg(vgpu, offset) & ro_mask;
+			ret = mmio_info->write(vgpu, offset, &data, bytes);
+		}
+
+		/* higher 16bits of mode ctl regs are mask bits for change */
+		if (intel_gvt_mmio_has_mode_mask(gvt, mmio_info->offset)) {
+			u32 mask = vgpu_vreg(vgpu, offset) >> 16;
+
+			vgpu_vreg(vgpu, offset) = (old_vreg & ~mask)
+					| (vgpu_vreg(vgpu, offset) & mask);
+			vgpu_sreg(vgpu, offset) = (old_sreg & ~mask)
+					| (vgpu_sreg(vgpu, offset) & mask);
+		}
+	}
+
+	return ret;
+
+default_rw:
+	return is_read ?
+		intel_vgpu_default_mmio_read(vgpu, offset, pdata, bytes) :
+		intel_vgpu_default_mmio_write(vgpu, offset, pdata, bytes);
 }
