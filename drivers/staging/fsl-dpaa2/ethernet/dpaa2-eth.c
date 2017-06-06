@@ -227,6 +227,7 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	struct dpaa2_eth_drv_stats *percpu_extras;
 	struct device *dev = priv->net_dev->dev.parent;
 	struct dpaa2_fas *fas;
+	void *buf_data;
 	u32 status = 0;
 
 	/* Tracing point */
@@ -235,8 +236,10 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
 	dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE, DMA_FROM_DEVICE);
 
-	prefetch(vaddr + priv->buf_layout.private_data_size);
-	prefetch(vaddr + dpaa2_fd_get_offset(fd));
+	fas = dpaa2_get_fas(vaddr);
+	prefetch(fas);
+	buf_data = vaddr + dpaa2_fd_get_offset(fd);
+	prefetch(buf_data);
 
 	percpu_stats = this_cpu_ptr(priv->percpu_stats);
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
@@ -244,9 +247,7 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	if (fd_format == dpaa2_fd_single) {
 		skb = build_linear_skb(priv, ch, fd, vaddr);
 	} else if (fd_format == dpaa2_fd_sg) {
-		struct dpaa2_sg_entry *sgt =
-				vaddr + dpaa2_fd_get_offset(fd);
-		skb = build_frag_skb(priv, ch, sgt);
+		skb = build_frag_skb(priv, ch, buf_data);
 		skb_free_frag(vaddr);
 		percpu_extras->rx_sg_frames++;
 		percpu_extras->rx_sg_bytes += dpaa2_fd_get_len(fd);
@@ -262,8 +263,6 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 
 	/* Check if we need to validate the L4 csum */
 	if (likely(dpaa2_fd_get_frc(fd) & DPAA2_FD_FRC_FASV)) {
-		fas = (struct dpaa2_fas *)
-				(vaddr + priv->buf_layout.private_data_size);
 		status = le32_to_cpu(fas->status);
 		validate_rx_csum(priv, status, skb);
 	}
@@ -327,7 +326,6 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 {
 	struct device *dev = priv->net_dev->dev.parent;
 	void *sgt_buf = NULL;
-	void *hwa;
 	dma_addr_t addr;
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	struct dpaa2_sg_entry *sgt;
@@ -337,6 +335,7 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 	int num_sg;
 	int num_dma_bufs;
 	struct dpaa2_eth_swa *swa;
+	struct dpaa2_fas *fas;
 
 	/* Create and map scatterlist.
 	 * We don't advertise NETIF_F_FRAGLIST, so skb_to_sgvec() will not have
@@ -373,8 +372,8 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 	 * on TX confirmation. We are clearing FAS (Frame Annotation Status)
 	 * field from the hardware annotation area
 	 */
-	hwa = sgt_buf + priv->buf_layout.private_data_size;
-	memset(hwa + DPAA2_FAS_OFFSET, 0, DPAA2_FAS_SIZE);
+	fas = dpaa2_get_fas(sgt_buf);
+	memset(fas, 0, DPAA2_FAS_SIZE);
 
 	sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
 
@@ -433,7 +432,7 @@ static int build_single_fd(struct dpaa2_eth_priv *priv,
 {
 	struct device *dev = priv->net_dev->dev.parent;
 	u8 *buffer_start;
-	void *hwa;
+	struct dpaa2_fas *fas;
 	struct sk_buff **skbh;
 	dma_addr_t addr;
 
@@ -446,8 +445,8 @@ static int build_single_fd(struct dpaa2_eth_priv *priv,
 	 * on TX confirmation. We are clearing FAS (Frame Annotation Status)
 	 * field from the hardware annotation area
 	 */
-	hwa = buffer_start + priv->buf_layout.private_data_size;
-	memset(hwa + DPAA2_FAS_OFFSET, 0, DPAA2_FAS_SIZE);
+	fas = dpaa2_get_fas(buffer_start);
+	memset(fas, 0, DPAA2_FAS_SIZE);
 
 	/* Store a backpointer to the skb at the beginning of the buffer
 	 * (in the private data area) such that we can release it
@@ -498,6 +497,7 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 
 	fd_addr = dpaa2_fd_get_addr(fd);
 	skbh = dpaa2_iova_to_virt(priv->iommu_domain, fd_addr);
+	fas = dpaa2_get_fas(skbh);
 
 	if (fd_format == dpaa2_fd_single) {
 		skb = *skbh;
@@ -534,11 +534,8 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 	 * buffer but before we free it. The caller function is responsible
 	 * for checking the status value.
 	 */
-	if (status && (dpaa2_fd_get_frc(fd) & DPAA2_FD_FRC_FASV)) {
-		fas = (struct dpaa2_fas *)
-			((void *)skbh + priv->buf_layout.private_data_size);
+	if (status && (dpaa2_fd_get_frc(fd) & DPAA2_FD_FRC_FASV))
 		*status = le32_to_cpu(fas->status);
-	}
 
 	/* Free SGT buffer kmalloc'ed on tx */
 	if (fd_format != dpaa2_fd_single)

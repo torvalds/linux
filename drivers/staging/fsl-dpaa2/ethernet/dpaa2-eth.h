@@ -139,6 +139,12 @@ struct dpaa2_fas {
 #define DPAA2_FAS_OFFSET		0
 #define DPAA2_FAS_SIZE			(sizeof(struct dpaa2_fas))
 
+/* Accessors for the hardware annotation fields that we use */
+#define dpaa2_get_hwa(buf_addr) \
+	((void *)(buf_addr) + DPAA2_ETH_SWA_SIZE)
+#define dpaa2_get_fas(buf_addr) \
+	(struct dpaa2_fas *)(dpaa2_get_hwa(buf_addr) + DPAA2_FAS_OFFSET)
+
 /* Error and status bits in the frame annotation status word */
 /* Debug frame, otherwise supposed to be discarded */
 #define DPAA2_FAS_DISC			0x80000000
