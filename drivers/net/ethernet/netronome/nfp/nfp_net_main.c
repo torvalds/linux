@@ -277,8 +277,7 @@ static void nfp_net_pf_free_vnics(struct nfp_pf *pf)
 static struct nfp_net *
 nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 		      void __iomem *ctrl_bar, void __iomem *qc_bar,
-		      int stride, struct nfp_net_fw_version *fw_ver,
-		      unsigned int eth_id)
+		      int stride, unsigned int eth_id)
 {
 	u32 tx_base, rx_base, n_tx_rings, n_rx_rings;
 	struct nfp_net *nn;
@@ -295,7 +294,7 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 		return nn;
 
 	nn->app = pf->app;
-	nn->fw_ver = *fw_ver;
+	nfp_net_get_fw_version(&nn->fw_ver, ctrl_bar);
 	nn->dp.ctrl_bar = ctrl_bar;
 	nn->tx_bar = qc_bar + tx_base * NFP_QCP_QUEUE_ADDR_SZ;
 	nn->rx_bar = qc_bar + rx_base * NFP_QCP_QUEUE_ADDR_SZ;
@@ -350,8 +349,7 @@ err_dfs_clean:
 
 static int
 nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
-		       void __iomem *qc_bar, int stride,
-		       struct nfp_net_fw_version *fw_ver)
+		       void __iomem *qc_bar, int stride)
 {
 	struct nfp_net *nn;
 	unsigned int i;
@@ -359,7 +357,7 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 
 	for (i = 0; i < pf->max_data_vnics; i++) {
 		nn = nfp_net_pf_alloc_vnic(pf, true, ctrl_bar, qc_bar,
-					   stride, fw_ver, i);
+					   stride, i);
 		if (IS_ERR(nn)) {
 			err = PTR_ERR(nn);
 			goto err_free_prev;
@@ -395,15 +393,14 @@ static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 
 static int
 nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
-		       void __iomem *ctrl_bar, void __iomem *qc_bar, int stride,
-		       struct nfp_net_fw_version *fw_ver)
+		       void __iomem *ctrl_bar, void __iomem *qc_bar, int stride)
 {
 	unsigned int id, wanted_irqs, num_irqs, vnics_left, irqs_left;
 	struct nfp_net *nn;
 	int err;
 
 	/* Allocate the vnics and do basic init */
-	err = nfp_net_pf_alloc_vnics(pf, ctrl_bar, qc_bar, stride, fw_ver);
+	err = nfp_net_pf_alloc_vnics(pf, ctrl_bar, qc_bar, stride);
 	if (err)
 		return err;
 
@@ -694,7 +691,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
-	err = nfp_net_pf_spawn_vnics(pf, ctrl_bar, qc_bar, stride, &fw_ver);
+	err = nfp_net_pf_spawn_vnics(pf, ctrl_bar, qc_bar, stride);
 	if (err)
 		goto err_clean_ddir;
 
