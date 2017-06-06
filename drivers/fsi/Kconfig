@@ -10,4 +10,16 @@ config FSI
 	---help---
 	  FSI - the FRU Support Interface - is a simple bus for low-level
 	  access to POWER-based hardware.
+
+if FSI
+
+config FSI_MASTER_GPIO
+	tristate "GPIO-based FSI master"
+	depends on GPIOLIB
+	select CRC4
+	---help---
+	This option enables a FSI master driver using GPIO lines.
+
+endif
+
 endmenu
