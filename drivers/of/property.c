@@ -844,6 +844,54 @@ of_fwnode_get_named_child_node(struct fwnode_handle *fwnode,
 	return NULL;
 }
 
+static struct fwnode_handle *
+of_fwnode_graph_get_next_endpoint(struct fwnode_handle *fwnode,
+				  struct fwnode_handle *prev)
+{
+	return of_fwnode_handle(of_graph_get_next_endpoint(to_of_node(fwnode),
+							   to_of_node(prev)));
+}
+
+static struct fwnode_handle *
+of_fwnode_graph_get_remote_endpoint(struct fwnode_handle *fwnode)
+{
+	return of_fwnode_handle(of_parse_phandle(to_of_node(fwnode),
+						 "remote-endpoint", 0));
+}
+
+static struct fwnode_handle *
+of_fwnode_graph_get_port_parent(struct fwnode_handle *fwnode)
+{
+	struct device_node *np;
+
+	/* Get the parent of the port */
+	np = of_get_next_parent(to_of_node(fwnode));
+	if (!np)
+		return NULL;
+
+	/* Is this the "ports" node? If not, it's the port parent. */
+	if (of_node_cmp(np->name, "ports"))
+		return of_fwnode_handle(np);
+
+	return of_fwnode_handle(of_get_next_parent(np));
+}
+
+static int of_fwnode_graph_parse_endpoint(struct fwnode_handle *fwnode,
+					  struct fwnode_endpoint *endpoint)
+{
+	struct device_node *node = to_of_node(fwnode);
+	struct device_node *port_node = of_get_parent(node);
+
+	endpoint->local_fwnode = fwnode;
+
+	of_property_read_u32(port_node, "reg", &endpoint->port);
+	of_property_read_u32(node, "reg", &endpoint->id);
+
+	of_node_put(port_node);
+
+	return 0;
+}
+
 const struct fwnode_operations of_fwnode_ops = {
 	.get = of_fwnode_get,
 	.put = of_fwnode_put,
@@ -853,4 +901,8 @@ const struct fwnode_operations of_fwnode_ops = {
 	.get_parent = of_fwnode_get_parent,
 	.get_next_child_node = of_fwnode_get_next_child_node,
 	.get_named_child_node = of_fwnode_get_named_child_node,
+	.graph_get_next_endpoint = of_fwnode_graph_get_next_endpoint,
+	.graph_get_remote_endpoint = of_fwnode_graph_get_remote_endpoint,
+	.graph_get_port_parent = of_fwnode_graph_get_port_parent,
+	.graph_parse_endpoint = of_fwnode_graph_parse_endpoint,
 };
