@@ -391,18 +391,10 @@ static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 	nfp_app_vnic_clean(pf->app, nn);
 }
 
-static int
-nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
-		       void __iomem *ctrl_bar, void __iomem *qc_bar, int stride)
+static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)
 {
-	unsigned int id, wanted_irqs, num_irqs, vnics_left, irqs_left;
+	unsigned int wanted_irqs, num_irqs, vnics_left, irqs_left;
 	struct nfp_net *nn;
-	int err;
-
-	/* Allocate the vnics and do basic init */
-	err = nfp_net_pf_alloc_vnics(pf, ctrl_bar, qc_bar, stride);
-	if (err)
-		return err;
 
 	/* Get MSI-X vectors */
 	wanted_irqs = 0;
@@ -410,18 +402,16 @@ nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
 		wanted_irqs += NFP_NET_NON_Q_VECTORS + nn->dp.num_r_vecs;
 	pf->irq_entries = kcalloc(wanted_irqs, sizeof(*pf->irq_entries),
 				  GFP_KERNEL);
-	if (!pf->irq_entries) {
-		err = -ENOMEM;
-		goto err_nn_free;
-	}
+	if (!pf->irq_entries)
+		return -ENOMEM;
 
 	num_irqs = nfp_net_irqs_alloc(pf->pdev, pf->irq_entries,
 				      NFP_NET_MIN_VNIC_IRQS * pf->num_vnics,
 				      wanted_irqs);
 	if (!num_irqs) {
-		nn_warn(nn, "Unable to allocate MSI-X Vectors. Exiting\n");
-		err = -ENOMEM;
-		goto err_vec_free;
+		nfp_warn(pf->cpp, "Unable to allocate MSI-X vectors\n");
+		kfree(pf->irq_entries);
+		return -ENOMEM;
 	}
 
 	/* Distribute IRQs to vNICs */
@@ -436,6 +426,21 @@ nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
 		irqs_left -= n;
 		vnics_left--;
 	}
+
+	return 0;
+}
+
+static void nfp_net_pf_free_irqs(struct nfp_pf *pf)
+{
+	nfp_net_irqs_disable(pf->pdev);
+	kfree(pf->irq_entries);
+}
+
+static int nfp_net_pf_init_vnics(struct nfp_pf *pf)
+{
+	struct nfp_net *nn;
+	unsigned int id;
+	int err;
 
 	/* Finish vNIC init and register */
 	id = 0;
@@ -452,11 +457,6 @@ nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
 err_prev_deinit:
 	list_for_each_entry_continue_reverse(nn, &pf->vnics, vnic_list)
 		nfp_net_pf_clean_vnic(pf, nn);
-	nfp_net_irqs_disable(pf->pdev);
-err_vec_free:
-	kfree(pf->irq_entries);
-err_nn_free:
-	nfp_net_pf_free_vnics(pf);
 	return err;
 }
 
@@ -489,8 +489,7 @@ static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
 {
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 
-	nfp_net_irqs_disable(pf->pdev);
-	kfree(pf->irq_entries);
+	nfp_net_pf_free_irqs(pf);
 
 	nfp_net_pf_app_clean(pf);
 
@@ -691,14 +690,27 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
-	err = nfp_net_pf_spawn_vnics(pf, ctrl_bar, qc_bar, stride);
+	/* Allocate the vnics and do basic init */
+	err = nfp_net_pf_alloc_vnics(pf, ctrl_bar, qc_bar, stride);
 	if (err)
 		goto err_clean_ddir;
+
+	err = nfp_net_pf_alloc_irqs(pf);
+	if (err)
+		goto err_free_vnics;
+
+	err = nfp_net_pf_init_vnics(pf);
+	if (err)
+		goto err_free_irqs;
 
 	mutex_unlock(&pf->lock);
 
 	return 0;
 
+err_free_irqs:
+	nfp_net_pf_free_irqs(pf);
+err_free_vnics:
+	nfp_net_pf_free_vnics(pf);
 err_clean_ddir:
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 	nfp_net_pf_app_clean(pf);
