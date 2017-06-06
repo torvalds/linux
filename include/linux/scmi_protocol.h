@@ -113,10 +113,36 @@ struct scmi_perf_ops {
 };
 
 /**
+ * struct scmi_power_ops - represents the various operations provided
+ *	by SCMI Power Protocol
+ *
+ * @num_domains_get: get the count of power domains provided by SCMI
+ * @name_get: gets the name of a power domain
+ * @state_set: sets the power state of a power domain
+ * @state_get: gets the power state of a power domain
+ */
+struct scmi_power_ops {
+	int (*num_domains_get)(const struct scmi_handle *handle);
+	char *(*name_get)(const struct scmi_handle *handle, u32 domain);
+#define SCMI_POWER_STATE_TYPE_SHIFT	30
+#define SCMI_POWER_STATE_ID_MASK	(BIT(28) - 1)
+#define SCMI_POWER_STATE_PARAM(type, id) \
+	((((type) & BIT(0)) << SCMI_POWER_STATE_TYPE_SHIFT) | \
+		((id) & SCMI_POWER_STATE_ID_MASK))
+#define SCMI_POWER_STATE_GENERIC_ON	SCMI_POWER_STATE_PARAM(0, 0)
+#define SCMI_POWER_STATE_GENERIC_OFF	SCMI_POWER_STATE_PARAM(1, 0)
+	int (*state_set)(const struct scmi_handle *handle, u32 domain,
+			 u32 state);
+	int (*state_get)(const struct scmi_handle *handle, u32 domain,
+			 u32 *state);
+};
+
+/**
  * struct scmi_handle - Handle returned to ARM SCMI clients for usage.
  *
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
+ * @power_ops: pointer to set of power protocol operations
  * @perf_ops: pointer to set of performance protocol operations
  * @clk_ops: pointer to set of clock protocol operations
  */
@@ -125,9 +151,11 @@ struct scmi_handle {
 	struct scmi_revision_info *version;
 	struct scmi_perf_ops *perf_ops;
 	struct scmi_clk_ops *clk_ops;
+	struct scmi_power_ops *power_ops;
 	/* for protocol internal use */
 	void *perf_priv;
 	void *clk_priv;
+	void *power_priv;
 };
 
 enum scmi_std_protocol {
