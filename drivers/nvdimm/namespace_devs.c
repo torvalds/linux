@@ -1639,6 +1639,8 @@ static bool has_uuid_at_pos(struct nd_region *nd_region, u8 *uuid,
 
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nd_interleave_set *nd_set = nd_region->nd_set;
+		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 		struct nd_label_ent *label_ent;
 		bool found_uuid = false;
 
@@ -1659,8 +1661,17 @@ static bool has_uuid_at_pos(struct nd_region *nd_region, u8 *uuid,
 			if (memcmp(nd_label->uuid, uuid, NSLABEL_UUID_LEN) != 0)
 				continue;
 
+			if (namespace_label_has(ndd, type_guid)
+					&& !guid_equal(&nd_set->type_guid,
+						&nd_label->type_guid)) {
+				dev_dbg(ndd->dev, "expect type_guid %pUb got %pUb\n",
+						nd_set->type_guid.b,
+						nd_label->type_guid.b);
+				continue;
+			}
+
 			if (found_uuid) {
-				dev_dbg(to_ndd(nd_mapping)->dev,
+				dev_dbg(ndd->dev,
 						"%s duplicate entry for uuid\n",
 						__func__);
 				return false;
@@ -2047,11 +2058,20 @@ struct device *create_namespace_blk(struct nd_region *nd_region,
 {
 
 	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
+	struct nd_interleave_set *nd_set = nd_region->nd_set;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_namespace_blk *nsblk;
 	char name[NSLABEL_NAME_LEN];
 	struct device *dev = NULL;
 	struct resource *res;
+
+	if (namespace_label_has(ndd, type_guid)
+			&& !guid_equal(&nd_set->type_guid,
+				&nd_label->type_guid)) {
+		dev_dbg(ndd->dev, "expect type_guid %pUb got %pUb\n",
+				nd_set->type_guid.b, nd_label->type_guid.b);
+		return ERR_PTR(-EAGAIN);
+	}
 
 	nsblk = kzalloc(sizeof(*nsblk), GFP_KERNEL);
 	if (!nsblk)
@@ -2144,31 +2164,30 @@ static struct device **scan_labels(struct nd_region *nd_region)
 		kfree(devs);
 		devs = __devs;
 
-		if (is_nd_blk(&nd_region->dev)) {
+		if (is_nd_blk(&nd_region->dev))
 			dev = create_namespace_blk(nd_region, nd_label, count);
-			if (IS_ERR(dev))
-				goto err;
-			devs[count++] = dev;
-		} else {
+		else {
 			struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 			struct nd_namespace_index *nsindex;
 
 			nsindex = to_namespace_index(ndd, ndd->ns_current);
 			dev = create_namespace_pmem(nd_region, nsindex, nd_label);
-			if (IS_ERR(dev)) {
-				switch (PTR_ERR(dev)) {
-				case -EAGAIN:
-					/* skip invalid labels */
-					continue;
-				case -ENODEV:
-					/* fallthrough to seed creation */
-					break;
-				default:
-					goto err;
-				}
-			} else
-				devs[count++] = dev;
 		}
+
+		if (IS_ERR(dev)) {
+			switch (PTR_ERR(dev)) {
+			case -EAGAIN:
+				/* skip invalid labels */
+				continue;
+			case -ENODEV:
+				/* fallthrough to seed creation */
+				break;
+			default:
+				goto err;
+			}
+		} else
+			devs[count++] = dev;
+
 	}
 
 	dev_dbg(&nd_region->dev, "%s: discovered %d %s namespace%s\n",

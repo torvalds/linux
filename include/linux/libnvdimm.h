@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 #include <linux/types.h>
+#include <linux/uuid.h>
 
 enum {
 	/* when a dimm supports both PMEM and BLK access a label is required */
@@ -77,6 +78,8 @@ struct nd_interleave_set {
 	u64 cookie2;
 	/* compatibility with initial buggy Linux implementation */
 	u64 altcookie;
+
+	guid_t type_guid;
 };
 
 struct nd_mapping_desc {

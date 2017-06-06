@@ -553,6 +553,7 @@ static int __pmem_label_update(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, struct nd_namespace_pmem *nspm,
 		int pos)
 {
+	struct nd_interleave_set *nd_set = nd_region->nd_set;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_label_ent *label_ent, *victim = NULL;
 	struct nd_namespace_label *nd_label;
@@ -597,6 +598,8 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	nd_label->rawsize = __cpu_to_le64(resource_size(res));
 	nd_label->dpa = __cpu_to_le64(res->start);
 	nd_label->slot = __cpu_to_le32(slot);
+	if (namespace_label_has(ndd, type_guid))
+		guid_copy(&nd_label->type_guid, &nd_set->type_guid);
 	nd_dbg_dpa(nd_region, ndd, res, "%s\n", __func__);
 
 	/* update label */
@@ -684,6 +687,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 		int num_labels)
 {
 	int i, alloc, victims, nfree, old_num_resources, nlabel, rc = -ENXIO;
+	struct nd_interleave_set *nd_set = nd_region->nd_set;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_namespace_label *nd_label;
 	struct nd_label_ent *label_ent, *e;
@@ -788,6 +792,8 @@ static int __blk_label_update(struct nd_region *nd_region,
 		nd_label->rawsize = __cpu_to_le64(resource_size(res));
 		nd_label->lbasize = __cpu_to_le64(nsblk->lbasize);
 		nd_label->slot = __cpu_to_le32(slot);
+		if (namespace_label_has(ndd, type_guid))
+			guid_copy(&nd_label->type_guid, &nd_set->type_guid);
 
 		/* update label */
 		offset = nd_label_offset(ndd, nd_label);
