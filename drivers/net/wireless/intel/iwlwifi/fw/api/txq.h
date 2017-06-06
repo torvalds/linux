@@ -112,7 +112,7 @@ enum iwl_mvm_tx_fifo {
 };
 
 /**
- * iwl_tx_queue_cfg_actions - TXQ config options
+ * enum iwl_tx_queue_cfg_actions - TXQ config options
  * @TX_QUEUE_CFG_ENABLE_QUEUE: enable a queue
  * @TX_QUEUE_CFG_TFD_SHORT_FORMAT: use short TFD format
  */
@@ -145,6 +145,7 @@ struct iwl_tx_queue_cfg_cmd {
  * @queue_number: queue number assigned to this RA -TID
  * @flags: set on failure
  * @write_pointer: initial value for write pointer
+ * @reserved: reserved
  */
 struct iwl_tx_queue_cfg_rsp {
 	__le16 queue_number;

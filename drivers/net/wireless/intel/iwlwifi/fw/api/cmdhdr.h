@@ -112,15 +112,24 @@ static inline u32 iwl_cmd_id(u8 opcode, u8 groupid, u8 version)
 #define IWL_ALWAYS_LONG_GROUP	1
 
 /**
- * struct iwl_cmd_header
+ * struct iwl_cmd_header - (short) command header format
  *
  * This header format appears in the beginning of each command sent from the
  * driver, and each response/notification received from uCode.
  */
 struct iwl_cmd_header {
-	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
+	/**
+	 * @cmd: Command ID: REPLY_RXON, etc.
+	 */
+	u8 cmd;
+	/**
+	 * @group_id: group ID, for commands with groups
+	 */
 	u8 group_id;
-	/*
+	/**
+	 * @sequence:
+	 * Sequence number for the command.
+	 *
 	 * The driver sets up the sequence number to values of its choosing.
 	 * uCode does not use this value, but passes it back to the driver
 	 * when sending the response to each driver-originated command, so
@@ -150,6 +159,13 @@ struct iwl_cmd_header {
  * driver, and each response/notification received from uCode.
  * this is the wide version that contains more information about the command
  * like length, version and command type
+ *
+ * @cmd: command ID, like in &struct iwl_cmd_header
+ * @group_id: group ID, like in &struct iwl_cmd_header
+ * @sequence: sequence, like in &struct iwl_cmd_header
+ * @length: length of the command
+ * @reserved: reserved
+ * @version: command version
  */
 struct iwl_cmd_header_wide {
 	u8 cmd;
