@@ -139,7 +139,7 @@ static void start_serial_interrupt(int irq)
 	     speakup_info.port_tts + UART_MCR);
 	/* Turn on Interrupts */
 	outb(UART_IER_MSI | UART_IER_RLSI | UART_IER_RDI,
-			speakup_info.port_tts + UART_IER);
+	     speakup_info.port_tts + UART_IER);
 	inb(speakup_info.port_tts + UART_LSR);
 	inb(speakup_info.port_tts + UART_RX);
 	inb(speakup_info.port_tts + UART_IIR);
