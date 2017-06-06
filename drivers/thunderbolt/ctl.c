@@ -54,17 +54,6 @@ struct tb_ctl {
 
 /* utility functions */
 
-static struct tb_cfg_header make_header(u64 route)
-{
-	struct tb_cfg_header header = {
-		.route_hi = route >> 32,
-		.route_lo = route,
-	};
-	/* check for overflow, route_hi is not 32 bits! */
-	WARN_ON(tb_cfg_get_route(&header) != route);
-	return header;
-}
-
 static int check_header(struct ctl_pkg *pkg, u32 len, enum tb_cfg_pkg_type type,
 			u64 route)
 {
@@ -501,7 +490,7 @@ int tb_cfg_error(struct tb_ctl *ctl, u64 route, u32 port,
 		 enum tb_cfg_error error)
 {
 	struct cfg_error_pkg pkg = {
-		.header = make_header(route),
+		.header = tb_cfg_make_header(route),
 		.port = port,
 		.error = error,
 	};
@@ -520,7 +509,7 @@ struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route,
 				  int timeout_msec)
 {
 	int err;
-	struct cfg_reset_pkg request = { .header = make_header(route) };
+	struct cfg_reset_pkg request = { .header = tb_cfg_make_header(route) };
 	struct tb_cfg_header reply;
 
 	err = tb_ctl_tx(ctl, &request, sizeof(request), TB_CFG_PKG_RESET);
@@ -542,7 +531,7 @@ struct tb_cfg_result tb_cfg_read_raw(struct tb_ctl *ctl, void *buffer,
 {
 	struct tb_cfg_result res = { 0 };
 	struct cfg_read_pkg request = {
-		.header = make_header(route),
+		.header = tb_cfg_make_header(route),
 		.addr = {
 			.port = port,
 			.space = space,
@@ -579,7 +568,7 @@ struct tb_cfg_result tb_cfg_write_raw(struct tb_ctl *ctl, const void *buffer,
 {
 	struct tb_cfg_result res = { 0 };
 	struct cfg_write_pkg request = {
-		.header = make_header(route),
+		.header = tb_cfg_make_header(route),
 		.addr = {
 			.port = port,
 			.space = space,

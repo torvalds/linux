@@ -43,6 +43,17 @@ static inline u64 tb_cfg_get_route(const struct tb_cfg_header *header)
 	return (u64) header->route_hi << 32 | header->route_lo;
 }
 
+static inline struct tb_cfg_header tb_cfg_make_header(u64 route)
+{
+	struct tb_cfg_header header = {
+		.route_hi = route >> 32,
+		.route_lo = route,
+	};
+	/* check for overflow, route_hi is not 32 bits! */
+	WARN_ON(tb_cfg_get_route(&header) != route);
+	return header;
+}
+
 int tb_cfg_error(struct tb_ctl *ctl, u64 route, u32 port,
 		 enum tb_cfg_error error);
 struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route,
