@@ -1309,7 +1309,8 @@ out:
 EXPORT_SYMBOL(xfrm_state_add);
 
 #ifdef CONFIG_XFRM_MIGRATE
-static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig)
+static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig,
+					   struct xfrm_encap_tmpl *encap)
 {
 	struct net *net = xs_net(orig);
 	struct xfrm_state *x = xfrm_state_alloc(net);
@@ -1351,8 +1352,14 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig)
 	}
 	x->props.calgo = orig->props.calgo;
 
-	if (orig->encap) {
-		x->encap = kmemdup(orig->encap, sizeof(*x->encap), GFP_KERNEL);
+	if (encap || orig->encap) {
+		if (encap)
+			x->encap = kmemdup(encap, sizeof(*x->encap),
+					GFP_KERNEL);
+		else
+			x->encap = kmemdup(orig->encap, sizeof(*x->encap),
+					GFP_KERNEL);
+
 		if (!x->encap)
 			goto error;
 	}
@@ -1440,11 +1447,12 @@ struct xfrm_state *xfrm_migrate_state_find(struct xfrm_migrate *m, struct net *n
 EXPORT_SYMBOL(xfrm_migrate_state_find);
 
 struct xfrm_state *xfrm_state_migrate(struct xfrm_state *x,
-				      struct xfrm_migrate *m)
+				      struct xfrm_migrate *m,
+				      struct xfrm_encap_tmpl *encap)
 {
 	struct xfrm_state *xc;
 
-	xc = xfrm_state_clone(x);
+	xc = xfrm_state_clone(x, encap);
 	if (!xc)
 		return NULL;
 
