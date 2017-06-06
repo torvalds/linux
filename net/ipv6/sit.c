@@ -692,7 +692,6 @@ static int ipip6_rcv(struct sk_buff *skb)
 
 		if (iptunnel_pull_header(skb, 0, htons(ETH_P_IPV6)))
 			goto out;
-		iph = ip_hdr(skb);
 
 		err = IP_ECN_decapsulate(iph, skb);
 		if (unlikely(err)) {
