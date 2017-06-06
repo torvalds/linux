@@ -105,9 +105,9 @@ static inline void set_fs(mm_segment_t fs)
 })
 
 /*
- * When dealing with data aborts or instruction traps we may end up with
- * a tagged userland pointer. Clear the tag to get a sane pointer to pass
- * on to access_ok(), for instance.
+ * When dealing with data aborts, watchpoints, or instruction traps we may end
+ * up with a tagged userland pointer. Clear the tag to get a sane pointer to
+ * pass on to access_ok(), for instance.
  */
 #define untagged_addr(addr)		sign_extend64(addr, 55)
 
