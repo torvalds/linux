@@ -28,6 +28,8 @@ struct snd_soc_component;
 struct snd_soc_tplg_pcm_fe;
 struct snd_soc_dapm_context;
 struct snd_soc_card;
+struct snd_kcontrol_new;
+struct snd_soc_dai_link;
 
 /* object scan be loaded and unloaded in groups with identfying indexes */
 #define SND_SOC_TPLG_INDEX_ALL	0	/* ID that matches all FW objects */
