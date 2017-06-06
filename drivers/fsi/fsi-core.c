@@ -71,6 +71,7 @@ struct fsi_slave {
 	uint32_t		size;	/* size of slave address space */
 };
 
+#define to_fsi_master(d) container_of(d, struct fsi_master, dev)
 #define to_fsi_slave(d) container_of(d, struct fsi_slave, dev)
 
 static int fsi_master_read(struct fsi_master *master, int link,
@@ -488,6 +489,40 @@ static int fsi_master_scan(struct fsi_master *master)
 	return 0;
 }
 
+static int fsi_slave_remove_device(struct device *dev, void *arg)
+{
+	device_unregister(dev);
+	return 0;
+}
+
+static int fsi_master_remove_slave(struct device *dev, void *arg)
+{
+	device_for_each_child(dev, NULL, fsi_slave_remove_device);
+	device_unregister(dev);
+	return 0;
+}
+
+static void fsi_master_unscan(struct fsi_master *master)
+{
+	device_for_each_child(&master->dev, NULL, fsi_master_remove_slave);
+}
+
+static ssize_t master_rescan_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct fsi_master *master = to_fsi_master(dev);
+	int rc;
+
+	fsi_master_unscan(master);
+	rc = fsi_master_scan(master);
+	if (rc < 0)
+		return rc;
+
+	return count;
+}
+
+static DEVICE_ATTR(rescan, 0200, NULL, master_rescan_store);
+
 int fsi_master_register(struct fsi_master *master)
 {
 	int rc;
@@ -504,7 +539,15 @@ int fsi_master_register(struct fsi_master *master)
 		return rc;
 	}
 
+	rc = device_create_file(&master->dev, &dev_attr_rescan);
+	if (rc) {
+		device_unregister(&master->dev);
+		ida_simple_remove(&master_ida, master->idx);
+		return rc;
+	}
+
 	fsi_master_scan(master);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fsi_master_register);
@@ -516,6 +559,7 @@ void fsi_master_unregister(struct fsi_master *master)
 		master->idx = -1;
 	}
 
+	fsi_master_unscan(master);
 	device_unregister(&master->dev);
 }
 EXPORT_SYMBOL_GPL(fsi_master_unregister);
