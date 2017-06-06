@@ -1049,3 +1049,14 @@ void qeth_l3_remove_device_attributes(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_rxip_group);
 }
+
+const struct attribute_group *qeth_l3_attr_groups[] = {
+	&qeth_device_attr_group,
+	&qeth_device_blkt_group,
+	/* l3 specific, see l3_{create,remove}_device_attributes(): */
+	&qeth_l3_device_attr_group,
+	&qeth_device_ipato_group,
+	&qeth_device_vipa_group,
+	&qeth_device_rxip_group,
+NULL,
+};
