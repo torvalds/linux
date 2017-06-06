@@ -1059,8 +1059,13 @@ struct boot_params *efi_main(struct efi_config *c,
 	desc->p = 1;
 	desc->limit = 0xf;
 	desc->avl = 0;
-	desc->l = 0;
-	desc->d = SEG_OP_SIZE_32BIT;
+	if (IS_ENABLED(CONFIG_X86_64)) {
+		desc->l = 1;
+		desc->d = 0;
+	} else {
+		desc->l = 0;
+		desc->d = SEG_OP_SIZE_32BIT;
+	}
 	desc->g = SEG_GRANULARITY_4KB;
 	desc->base2 = 0x00;
 	desc++;
