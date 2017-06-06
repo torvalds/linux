@@ -896,4 +896,5 @@ static void fsi_exit(void)
 module_init(fsi_init);
 module_exit(fsi_exit);
 module_param(discard_errors, int, 0664);
+MODULE_LICENSE("GPL");
 MODULE_PARM_DESC(discard_errors, "Don't invoke error handling on bus accesses");
