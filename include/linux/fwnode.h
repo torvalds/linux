@@ -66,6 +66,7 @@ struct fwnode_endpoint {
 struct fwnode_operations {
 	void (*get)(struct fwnode_handle *fwnode);
 	void (*put)(struct fwnode_handle *fwnode);
+	bool (*device_is_available)(struct fwnode_handle *fwnode);
 	bool (*property_present)(struct fwnode_handle *fwnode,
 				 const char *propname);
 	int (*property_read_int_array)(struct fwnode_handle *fwnode,

@@ -1022,6 +1022,16 @@ void fwnode_handle_put(struct fwnode_handle *fwnode)
 EXPORT_SYMBOL_GPL(fwnode_handle_put);
 
 /**
+ * fwnode_device_is_available - check if a device is available for use
+ * @fwnode: Pointer to the fwnode of the device.
+ */
+bool fwnode_device_is_available(struct fwnode_handle *fwnode)
+{
+	return fwnode_call_int_op(fwnode, device_is_available);
+}
+EXPORT_SYMBOL_GPL(fwnode_device_is_available);
+
+/**
  * device_get_child_node_count - return the number of child nodes for device
  * @dev: Device to cound the child nodes for
  */

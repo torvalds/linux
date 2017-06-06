@@ -775,6 +775,11 @@ static void of_fwnode_put(struct fwnode_handle *fwnode)
 	of_node_put(to_of_node(fwnode));
 }
 
+static bool of_fwnode_device_is_available(struct fwnode_handle *fwnode)
+{
+	return of_device_is_available(to_of_node(fwnode));
+}
+
 static bool of_fwnode_property_present(struct fwnode_handle *fwnode,
 				       const char *propname)
 {
@@ -895,6 +900,7 @@ static int of_fwnode_graph_parse_endpoint(struct fwnode_handle *fwnode,
 const struct fwnode_operations of_fwnode_ops = {
 	.get = of_fwnode_get,
 	.put = of_fwnode_put,
+	.device_is_available = of_fwnode_device_is_available,
 	.property_present = of_fwnode_property_present,
 	.property_read_int_array = of_fwnode_property_read_int_array,
 	.property_read_string_array = of_fwnode_property_read_string_array,

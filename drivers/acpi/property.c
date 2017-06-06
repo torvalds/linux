@@ -1121,6 +1121,14 @@ int acpi_graph_get_remote_endpoint(struct fwnode_handle *fwnode,
 	return 0;
 }
 
+static bool acpi_fwnode_device_is_available(struct fwnode_handle *fwnode)
+{
+	if (!is_acpi_device_node(fwnode))
+		return false;
+
+	return acpi_device_is_present(to_acpi_device_node(fwnode));
+}
+
 static bool acpi_fwnode_property_present(struct fwnode_handle *fwnode,
 					 const char *propname)
 {
@@ -1216,6 +1224,7 @@ static int acpi_fwnode_graph_parse_endpoint(struct fwnode_handle *fwnode,
 }
 
 const struct fwnode_operations acpi_fwnode_ops = {
+	.device_is_available = acpi_fwnode_device_is_available,
 	.property_present = acpi_fwnode_property_present,
 	.property_read_int_array = acpi_fwnode_property_read_int_array,
 	.property_read_string_array = acpi_fwnode_property_read_string_array,
