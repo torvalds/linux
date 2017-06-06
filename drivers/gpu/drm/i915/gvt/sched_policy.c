@@ -129,9 +129,13 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	struct vgpu_sched_data *vgpu_data;
 	ktime_t cur_time;
 
-	/* no target to schedule */
-	if (!scheduler->next_vgpu)
+	/* no need to schedule if next_vgpu is the same with current_vgpu,
+	 * let scheduler chose next_vgpu again by setting it to NULL.
+	 */
+	if (scheduler->next_vgpu == scheduler->current_vgpu) {
+		scheduler->next_vgpu = NULL;
 		return;
+	}
 
 	/*
 	 * after the flag is set, workload dispatch thread will

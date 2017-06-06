@@ -93,7 +93,7 @@ struct smc_buf_desc {
 	u64			dma_addr[SMC_LINKS_PER_LGR_MAX];
 						/* mapped address of buffer */
 	void			*cpu_addr;	/* virtual address of buffer */
-	struct ib_mr		*mr_rx[SMC_LINKS_PER_LGR_MAX];
+	u32			rkey[SMC_LINKS_PER_LGR_MAX];
 						/* for rmb only:
 						 * rkey provided to peer
 						 */

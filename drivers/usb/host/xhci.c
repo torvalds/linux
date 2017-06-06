@@ -359,9 +359,10 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 		/* fall back to msi*/
 		ret = xhci_setup_msi(xhci);
 
-	if (!ret)
-		/* hcd->irq is 0, we have MSI */
+	if (!ret) {
+		hcd->msi_enabled = 1;
 		return 0;
+	}
 
 	if (!pdev->irq) {
 		xhci_err(xhci, "No msi-x/msi found and no IRQ in BIOS\n");
@@ -1763,7 +1764,7 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 
 	switch (*cmd_status) {
 	case COMP_COMMAND_ABORTED:
-	case COMP_STOPPED:
+	case COMP_COMMAND_RING_STOPPED:
 		xhci_warn(xhci, "Timeout while waiting for configure endpoint command\n");
 		ret = -ETIME;
 		break;
@@ -1813,7 +1814,7 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 
 	switch (*cmd_status) {
 	case COMP_COMMAND_ABORTED:
-	case COMP_STOPPED:
+	case COMP_COMMAND_RING_STOPPED:
 		xhci_warn(xhci, "Timeout while waiting for evaluate context command\n");
 		ret = -ETIME;
 		break;
@@ -3432,7 +3433,7 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 	ret = reset_device_cmd->status;
 	switch (ret) {
 	case COMP_COMMAND_ABORTED:
-	case COMP_STOPPED:
+	case COMP_COMMAND_RING_STOPPED:
 		xhci_warn(xhci, "Timeout waiting for reset device command\n");
 		ret = -ETIME;
 		goto command_cleanup;
@@ -3817,7 +3818,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	 */
 	switch (command->status) {
 	case COMP_COMMAND_ABORTED:
-	case COMP_STOPPED:
+	case COMP_COMMAND_RING_STOPPED:
 		xhci_warn(xhci, "Timeout while waiting for setup device command\n");
 		ret = -ETIME;
 		break;

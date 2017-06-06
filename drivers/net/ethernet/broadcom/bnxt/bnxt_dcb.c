@@ -553,8 +553,10 @@ static u8 bnxt_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	if ((mode & DCB_CAP_DCBX_VER_CEE) || !(mode & DCB_CAP_DCBX_VER_IEEE))
 		return 1;
 
-	if ((mode & DCB_CAP_DCBX_HOST) && BNXT_VF(bp))
-		return 1;
+	if (mode & DCB_CAP_DCBX_HOST) {
+		if (BNXT_VF(bp) || (bp->flags & BNXT_FLAG_FW_LLDP_AGENT))
+			return 1;
+	}
 
 	if (mode == bp->dcbx_cap)
 		return 0;

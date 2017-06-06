@@ -899,8 +899,7 @@ static size_t rtnl_port_size(const struct net_device *dev,
 static size_t rtnl_xdp_size(void)
 {
 	size_t xdp_size = nla_total_size(0) +	/* nest IFLA_XDP */
-			  nla_total_size(1) +	/* XDP_ATTACHED */
-			  nla_total_size(4);	/* XDP_FLAGS */
+			  nla_total_size(1);	/* XDP_ATTACHED */
 
 	return xdp_size;
 }
@@ -1247,37 +1246,34 @@ static int rtnl_fill_link_ifmap(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
+static u8 rtnl_xdp_attached_mode(struct net_device *dev)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	ASSERT_RTNL();
+
+	if (rcu_access_pointer(dev->xdp_prog))
+		return XDP_ATTACHED_SKB;
+	if (ops->ndo_xdp && __dev_xdp_attached(dev, ops->ndo_xdp))
+		return XDP_ATTACHED_DRV;
+
+	return XDP_ATTACHED_NONE;
+}
+
 static int rtnl_xdp_fill(struct sk_buff *skb, struct net_device *dev)
 {
 	struct nlattr *xdp;
-	u32 xdp_flags = 0;
-	u8 val = 0;
 	int err;
 
 	xdp = nla_nest_start(skb, IFLA_XDP);
 	if (!xdp)
 		return -EMSGSIZE;
-	if (rcu_access_pointer(dev->xdp_prog)) {
-		xdp_flags = XDP_FLAGS_SKB_MODE;
-		val = 1;
-	} else if (dev->netdev_ops->ndo_xdp) {
-		struct netdev_xdp xdp_op = {};
 
-		xdp_op.command = XDP_QUERY_PROG;
-		err = dev->netdev_ops->ndo_xdp(dev, &xdp_op);
-		if (err)
-			goto err_cancel;
-		val = xdp_op.prog_attached;
-	}
-	err = nla_put_u8(skb, IFLA_XDP_ATTACHED, val);
+	err = nla_put_u8(skb, IFLA_XDP_ATTACHED,
+			 rtnl_xdp_attached_mode(dev));
 	if (err)
 		goto err_cancel;
 
-	if (xdp_flags) {
-		err = nla_put_u32(skb, IFLA_XDP_FLAGS, xdp_flags);
-		if (err)
-			goto err_cancel;
-	}
 	nla_nest_end(skb, xdp);
 	return 0;
 
@@ -1631,13 +1627,13 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 					       cb->nlh->nlmsg_seq, 0,
 					       flags,
 					       ext_filter_mask);
-			/* If we ran out of room on the first message,
-			 * we're in trouble
-			 */
-			WARN_ON((err == -EMSGSIZE) && (skb->len == 0));
 
-			if (err < 0)
-				goto out;
+			if (err < 0) {
+				if (likely(skb->len))
+					goto out;
+
+				goto out_err;
+			}
 
 			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 cont:
@@ -1645,10 +1641,12 @@ cont:
 		}
 	}
 out:
+	err = skb->len;
+out_err:
 	cb->args[1] = idx;
 	cb->args[0] = h;
 
-	return skb->len;
+	return err;
 }
 
 int rtnl_nla_parse_ifla(struct nlattr **tb, const struct nlattr *head, int len,
@@ -2196,6 +2194,11 @@ static int do_setlink(const struct sk_buff *skb,
 		if (xdp[IFLA_XDP_FLAGS]) {
 			xdp_flags = nla_get_u32(xdp[IFLA_XDP_FLAGS]);
 			if (xdp_flags & ~XDP_FLAGS_MASK) {
+				err = -EINVAL;
+				goto errout;
+			}
+			if ((xdp_flags & XDP_FLAGS_SKB_MODE) &&
+			    (xdp_flags & XDP_FLAGS_DRV_MODE)) {
 				err = -EINVAL;
 				goto errout;
 			}
@@ -3452,8 +3455,12 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 				err = br_dev->netdev_ops->ndo_bridge_getlink(
 						skb, portid, seq, dev,
 						filter_mask, NLM_F_MULTI);
-				if (err < 0 && err != -EOPNOTSUPP)
-					break;
+				if (err < 0 && err != -EOPNOTSUPP) {
+					if (likely(skb->len))
+						break;
+
+					goto out_err;
+				}
 			}
 			idx++;
 		}
@@ -3464,16 +3471,22 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 							      seq, dev,
 							      filter_mask,
 							      NLM_F_MULTI);
-				if (err < 0 && err != -EOPNOTSUPP)
-					break;
+				if (err < 0 && err != -EOPNOTSUPP) {
+					if (likely(skb->len))
+						break;
+
+					goto out_err;
+				}
 			}
 			idx++;
 		}
 	}
+	err = skb->len;
+out_err:
 	rcu_read_unlock();
 	cb->args[0] = idx;
 
-	return skb->len;
+	return err;
 }
 
 static inline size_t bridge_nlmsg_size(void)

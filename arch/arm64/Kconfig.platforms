@@ -106,8 +106,13 @@ config ARCH_MVEBU
 	select ARMADA_AP806_SYSCON
 	select ARMADA_CP110_SYSCON
 	select ARMADA_37XX_CLK
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
 	select MVEBU_ODMI
 	select MVEBU_PIC
+	select OF_GPIO
+	select PINCTRL
+	select PINCTRL_ARMADA_37XX
 	help
 	  This enables support for Marvell EBU familly, including:
 	   - Armada 3700 SoC Family
