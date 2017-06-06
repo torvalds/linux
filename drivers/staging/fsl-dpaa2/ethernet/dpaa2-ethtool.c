@@ -94,7 +94,7 @@ dpaa2_eth_get_link_ksettings(struct net_device *net_dev,
 
 	err = dpni_get_link_state(priv->mc_io, 0, priv->mc_token, &state);
 	if (err) {
-		netdev_err(net_dev, "ERROR %d getting link state", err);
+		netdev_err(net_dev, "ERROR %d getting link state\n", err);
 		goto out;
 	}
 
@@ -147,7 +147,7 @@ dpaa2_eth_set_link_ksettings(struct net_device *net_dev,
 		/* ethtool will be loud enough if we return an error; no point
 		 * in putting our own error message on the console by default
 		 */
-		netdev_dbg(net_dev, "ERROR %d setting link cfg", err);
+		netdev_dbg(net_dev, "ERROR %d setting link cfg\n", err);
 
 	return err;
 }
@@ -206,7 +206,7 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 		err = dpni_get_statistics(priv->mc_io, 0, priv->mc_token,
 					  j, &dpni_stats);
 		if (err != 0)
-			netdev_warn(net_dev, "dpni_get_stats(%d) failed", j);
+			netdev_warn(net_dev, "dpni_get_stats(%d) failed\n", j);
 		switch (j) {
 		case 0:
 			num_cnt = sizeof(dpni_stats.page_0) / sizeof(u64);

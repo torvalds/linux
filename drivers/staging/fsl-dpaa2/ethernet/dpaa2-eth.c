@@ -975,7 +975,7 @@ static int link_state_update(struct dpaa2_eth_priv *priv)
 		netif_carrier_off(priv->net_dev);
 	}
 
-	netdev_info(priv->net_dev, "Link Event: state %s",
+	netdev_info(priv->net_dev, "Link Event: state %s\n",
 		    state.up ? "up" : "down");
 
 	return 0;
@@ -1806,7 +1806,7 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 	}
 
 	if ((priv->tx_data_offset % 64) != 0)
-		dev_warn(dev, "Tx data offset (%d) not a multiple of 64B",
+		dev_warn(dev, "Tx data offset (%d) not a multiple of 64B\n",
 			 priv->tx_data_offset);
 
 	/* Accommodate software annotation space (SWA) */
@@ -2002,7 +2002,7 @@ static int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 
 	err = dpni_prepare_key_cfg(&cls_cfg, dma_mem);
 	if (err) {
-		dev_err(dev, "dpni_prepare_key_cfg error %d", err);
+		dev_err(dev, "dpni_prepare_key_cfg error %d\n", err);
 		goto err_prep_key;
 	}
 
@@ -2261,7 +2261,7 @@ static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 	err = dpni_get_irq_status(dpni_dev->mc_io, 0, dpni_dev->mc_handle,
 				  DPNI_IRQ_INDEX, &status);
 	if (unlikely(err)) {
-		netdev_err(net_dev, "Can't get irq status (err %d)", err);
+		netdev_err(net_dev, "Can't get irq status (err %d)\n", err);
 		clear = 0xffffffff;
 		goto out;
 	}
@@ -2295,21 +2295,21 @@ static int setup_irqs(struct fsl_mc_device *ls_dev)
 					IRQF_NO_SUSPEND | IRQF_ONESHOT,
 					dev_name(&ls_dev->dev), &ls_dev->dev);
 	if (err < 0) {
-		dev_err(&ls_dev->dev, "devm_request_threaded_irq(): %d", err);
+		dev_err(&ls_dev->dev, "devm_request_threaded_irq(): %d\n", err);
 		goto free_mc_irq;
 	}
 
 	err = dpni_set_irq_mask(ls_dev->mc_io, 0, ls_dev->mc_handle,
 				DPNI_IRQ_INDEX, DPNI_IRQ_EVENT_LINK_CHANGED);
 	if (err < 0) {
-		dev_err(&ls_dev->dev, "dpni_set_irq_mask(): %d", err);
+		dev_err(&ls_dev->dev, "dpni_set_irq_mask(): %d\n", err);
 		goto free_irq;
 	}
 
 	err = dpni_set_irq_enable(ls_dev->mc_io, 0, ls_dev->mc_handle,
 				  DPNI_IRQ_INDEX, 1);
 	if (err < 0) {
-		dev_err(&ls_dev->dev, "dpni_set_irq_enable(): %d", err);
+		dev_err(&ls_dev->dev, "dpni_set_irq_enable(): %d\n", err);
 		goto free_irq;
 	}
 
