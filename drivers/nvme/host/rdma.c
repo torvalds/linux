@@ -88,7 +88,7 @@ enum nvme_rdma_queue_flags {
 
 struct nvme_rdma_queue {
 	struct nvme_rdma_qe	*rsp_ring;
-	u8			sig_count;
+	atomic_t		sig_count;
 	int			queue_size;
 	size_t			cmnd_capsule_len;
 	struct nvme_rdma_ctrl	*ctrl;
@@ -555,6 +555,7 @@ static int nvme_rdma_init_queue(struct nvme_rdma_ctrl *ctrl,
 		queue->cmnd_capsule_len = sizeof(struct nvme_command);
 
 	queue->queue_size = queue_size;
+	atomic_set(&queue->sig_count, 0);
 
 	queue->cm_id = rdma_create_id(&init_net, nvme_rdma_cm_handler, queue,
 			RDMA_PS_TCP, IB_QPT_RC);
@@ -1011,17 +1012,16 @@ static void nvme_rdma_send_done(struct ib_cq *cq, struct ib_wc *wc)
 		nvme_rdma_wr_error(cq, wc, "SEND");
 }
 
-static inline int nvme_rdma_queue_sig_limit(struct nvme_rdma_queue *queue)
+/*
+ * We want to signal completion at least every queue depth/2.  This returns the
+ * largest power of two that is not above half of (queue size + 1) to optimize
+ * (avoid divisions).
+ */
+static inline bool nvme_rdma_queue_sig_limit(struct nvme_rdma_queue *queue)
 {
-	int sig_limit;
+	int limit = 1 << ilog2((queue->queue_size + 1) / 2);
 
-	/*
-	 * We signal completion every queue depth/2 and also handle the
-	 * degenerated case of a  device with queue_depth=1, where we
-	 * would need to signal every message.
-	 */
-	sig_limit = max(queue->queue_size / 2, 1);
-	return (++queue->sig_count % sig_limit) == 0;
+	return (atomic_inc_return(&queue->sig_count) & (limit - 1)) == 0;
 }
 
 static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
