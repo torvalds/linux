@@ -405,7 +405,14 @@ struct nfp_net_rx_ring {
  */
 struct nfp_net_r_vector {
 	struct nfp_net *nfp_net;
-	struct napi_struct napi;
+	union {
+		struct napi_struct napi;
+		struct {
+			struct tasklet_struct tasklet;
+			struct sk_buff_head queue;
+			struct spinlock lock;
+		};
+	};
 
 	struct nfp_net_tx_ring *tx_ring;
 	struct nfp_net_rx_ring *rx_ring;
@@ -816,6 +823,11 @@ static inline bool nfp_net_running(struct nfp_net *nn)
 	return nn->dp.ctrl & NFP_NET_CFG_CTRL_ENABLE;
 }
 
+static inline const char *nfp_net_name(struct nfp_net *nn)
+{
+	return nn->dp.netdev ? nn->dp.netdev->name : "ctrl";
+}
+
 /* Globals */
 extern const char nfp_driver_version[];
 
@@ -837,6 +849,9 @@ void nfp_net_free(struct nfp_net *nn);
 
 int nfp_net_init(struct nfp_net *nn);
 void nfp_net_clean(struct nfp_net *nn);
+
+int nfp_ctrl_open(struct nfp_net *nn);
+void nfp_ctrl_close(struct nfp_net *nn);
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev);
 void nfp_net_info(struct nfp_net *nn);

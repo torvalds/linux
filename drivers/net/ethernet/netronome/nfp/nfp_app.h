@@ -38,6 +38,7 @@ struct bpf_prog;
 struct net_device;
 struct pci_dev;
 struct tc_to_netdev;
+struct sk_buff;
 struct nfp_app;
 struct nfp_cpp;
 struct nfp_pf;
@@ -55,6 +56,7 @@ extern const struct nfp_app_type app_bpf;
  * struct nfp_app_type - application definition
  * @id:		application ID
  * @name:	application name
+ * @ctrl_has_meta:  control messages have prepend of type:5/port:CTRL
  *
  * Callbacks
  * @init:	perform basic app checks
@@ -68,6 +70,8 @@ extern const struct nfp_app_type app_bpf;
 struct nfp_app_type {
 	enum nfp_app_id id;
 	const char *name;
+
+	bool ctrl_has_meta;
 
 	int (*init)(struct nfp_app *app);
 
@@ -99,6 +103,8 @@ struct nfp_app {
 	const struct nfp_app_type *type;
 };
 
+bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
+
 static inline int nfp_app_init(struct nfp_app *app)
 {
 	if (!app->type->init)
@@ -123,6 +129,11 @@ static inline const char *nfp_app_name(struct nfp_app *app)
 	if (!app)
 		return "";
 	return app->type->name;
+}
+
+static inline bool nfp_app_ctrl_has_meta(struct nfp_app *app)
+{
+	return app->type->ctrl_has_meta;
 }
 
 static inline const char *nfp_app_extra_cap(struct nfp_app *app,
