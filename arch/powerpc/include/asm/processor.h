@@ -428,6 +428,26 @@ static inline unsigned long __pack_fe01(unsigned int fpmode)
 
 #ifdef CONFIG_PPC64
 #define cpu_relax()	do { HMT_low(); HMT_medium(); barrier(); } while (0)
+
+#define spin_begin()	HMT_low()
+
+#define spin_cpu_relax()	barrier()
+
+#define spin_cpu_yield()	spin_cpu_relax()
+
+#define spin_end()	HMT_medium()
+
+#define spin_until_cond(cond)					\
+do {								\
+	if (unlikely(!(cond))) {				\
+		spin_begin();					\
+		do {						\
+			spin_cpu_relax();			\
+		} while (!(cond));				\
+		spin_end();					\
+	}							\
+} while (0)
+
 #else
 #define cpu_relax()	barrier()
 #endif
