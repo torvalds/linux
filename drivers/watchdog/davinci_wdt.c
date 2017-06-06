@@ -202,8 +202,10 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 		return PTR_ERR(davinci_wdt->base);
 
 	ret = watchdog_register_device(wdd);
-	if (ret < 0)
+	if (ret < 0) {
+		clk_disable_unprepare(davinci_wdt->clk);
 		dev_err(dev, "cannot register watchdog device\n");
+	}
 
 	return ret;
 }
