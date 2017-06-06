@@ -5934,7 +5934,7 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 		ctx->pos = found_key.offset;
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
-		if (verify_dir_item(fs_info, leaf, di))
+		if (verify_dir_item(fs_info, leaf, slot, di))
 			goto next;
 
 		name_len = btrfs_dir_name_len(leaf, di);
