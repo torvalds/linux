@@ -805,6 +805,17 @@ static inline u32 nfp_qcp_wr_ptr_read(u8 __iomem *q)
 	return _nfp_qcp_read(q, NFP_QCP_WRITE_PTR);
 }
 
+static inline bool nfp_net_is_data_vnic(struct nfp_net *nn)
+{
+	WARN_ON_ONCE(!nn->dp.netdev && nn->port);
+	return !!nn->dp.netdev;
+}
+
+static inline bool nfp_net_running(struct nfp_net *nn)
+{
+	return nn->dp.ctrl & NFP_NET_CFG_CTRL_ENABLE;
+}
+
 /* Globals */
 extern const char nfp_driver_version[];
 
