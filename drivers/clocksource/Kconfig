@@ -108,6 +108,7 @@ config SUN4I_TIMER
 	depends on GENERIC_CLOCKEVENTS
 	depends on HAS_IOMEM
 	select CLKSRC_MMIO
+	select TIMER_OF
 	help
 	  Enables support for the Sun4i timer.
 
