@@ -972,7 +972,20 @@ static void binder_wakeup_poll_threads_ilocked(struct binder_proc *proc,
 	}
 }
 
-static void binder_wakeup_proc_ilocked(struct binder_proc *proc, bool sync)
+/**
+ * binder_select_thread_ilocked() - selects a thread for doing proc work.
+ * @proc:	process to select a thread from
+ *
+ * Note that calling this function moves the thread off the waiting_threads
+ * list, so it can only be woken up by the caller of this function, or a
+ * signal. Therefore, callers *should* always wake up the thread this function
+ * returns.
+ *
+ * Return:	If there's a thread currently waiting for process work,
+ *		returns that thread. Otherwise returns NULL.
+ */
+static struct binder_thread *
+binder_select_thread_ilocked(struct binder_proc *proc)
 {
 	struct binder_thread *thread;
 
@@ -981,8 +994,35 @@ static void binder_wakeup_proc_ilocked(struct binder_proc *proc, bool sync)
 					  struct binder_thread,
 					  waiting_thread_node);
 
-	if (thread) {
+	if (thread)
 		list_del_init(&thread->waiting_thread_node);
+
+	return thread;
+}
+
+/**
+ * binder_wakeup_thread_ilocked() - wakes up a thread for doing proc work.
+ * @proc:	process to wake up a thread in
+ * @thread:	specific thread to wake-up (may be NULL)
+ * @sync:	whether to do a synchronous wake-up
+ *
+ * This function wakes up a thread in the @proc process.
+ * The caller may provide a specific thread to wake-up in
+ * the @thread parameter. If @thread is NULL, this function
+ * will wake up threads that have called poll().
+ *
+ * Note that for this function to work as expected, callers
+ * should first call binder_select_thread() to find a thread
+ * to handle the work (if they don't have a thread already),
+ * and pass the result into the @thread parameter.
+ */
+static void binder_wakeup_thread_ilocked(struct binder_proc *proc,
+					 struct binder_thread *thread,
+					 bool sync)
+{
+	BUG_ON(!spin_is_locked(&proc->inner_lock));
+
+	if (thread) {
 		if (sync)
 			wake_up_interruptible_sync(&thread->wait);
 		else
@@ -1004,6 +1044,13 @@ static void binder_wakeup_proc_ilocked(struct binder_proc *proc, bool sync)
 	 *    work currently.
 	 */
 	binder_wakeup_poll_threads_ilocked(proc, sync);
+}
+
+static void binder_wakeup_proc_ilocked(struct binder_proc *proc)
+{
+	struct binder_thread *thread = binder_select_thread_ilocked(proc);
+
+	binder_wakeup_thread_ilocked(proc, thread, /* sync = */false);
 }
 
 static void binder_set_nice(long nice)
@@ -1225,7 +1272,7 @@ static bool binder_dec_node_nilocked(struct binder_node *node,
 	if (proc && (node->has_strong_ref || node->has_weak_ref)) {
 		if (list_empty(&node->work.entry)) {
 			binder_enqueue_work_ilocked(&node->work, &proc->todo);
-			binder_wakeup_proc_ilocked(proc, false);
+			binder_wakeup_proc_ilocked(proc);
 		}
 	} else {
 		if (hlist_empty(&node->refs) && !node->local_strong_refs &&
@@ -2471,6 +2518,73 @@ static int binder_fixup_parent(struct binder_transaction *t,
 	return 0;
 }
 
+/**
+ * binder_proc_transaction() - sends a transaction to a process and wakes it up
+ * @t:		transaction to send
+ * @proc:	process to send the transaction to
+ * @thread:	thread in @proc to send the transaction to (may be NULL)
+ *
+ * This function queues a transaction to the specified process. It will try
+ * to find a thread in the target process to handle the transaction and
+ * wake it up. If no thread is found, the work is queued to the proc
+ * waitqueue.
+ *
+ * If the @thread parameter is not NULL, the transaction is always queued
+ * to the waitlist of that specific thread.
+ *
+ * Return:	true if the transactions was successfully queued
+ *		false if the target process or thread is dead
+ */
+static bool binder_proc_transaction(struct binder_transaction *t,
+				    struct binder_proc *proc,
+				    struct binder_thread *thread)
+{
+	struct list_head *target_list = NULL;
+	struct binder_node *node = t->buffer->target_node;
+	bool oneway = !!(t->flags & TF_ONE_WAY);
+	bool wakeup = true;
+
+	BUG_ON(!node);
+	binder_node_lock(node);
+	if (oneway) {
+		BUG_ON(thread);
+		if (node->has_async_transaction) {
+			target_list = &node->async_todo;
+			wakeup = false;
+		} else {
+			node->has_async_transaction = 1;
+		}
+	}
+
+	binder_inner_proc_lock(proc);
+
+	if (proc->is_dead || (thread && thread->is_dead)) {
+		binder_inner_proc_unlock(proc);
+		binder_node_unlock(node);
+		return false;
+	}
+
+	if (!thread && !target_list)
+		thread = binder_select_thread_ilocked(proc);
+
+	if (thread)
+		target_list = &thread->todo;
+	else if (!target_list)
+		target_list = &proc->todo;
+	else
+		BUG_ON(target_list != &node->async_todo);
+
+	binder_enqueue_work_ilocked(&t->work, target_list);
+
+	if (wakeup)
+		binder_wakeup_thread_ilocked(proc, thread, !oneway /* sync */);
+
+	binder_inner_proc_unlock(proc);
+	binder_node_unlock(node);
+
+	return true;
+}
+
 static void binder_transaction(struct binder_proc *proc,
 			       struct binder_thread *thread,
 			       struct binder_transaction_data *tr, int reply,
@@ -2485,7 +2599,6 @@ static void binder_transaction(struct binder_proc *proc,
 	struct binder_proc *target_proc = NULL;
 	struct binder_thread *target_thread = NULL;
 	struct binder_node *target_node = NULL;
-	struct list_head *target_list;
 	struct binder_transaction *in_reply_to = NULL;
 	struct binder_transaction_log_entry *e;
 	uint32_t return_error = 0;
@@ -2495,7 +2608,6 @@ static void binder_transaction(struct binder_proc *proc,
 	binder_size_t last_fixup_min_off = 0;
 	struct binder_context *context = proc->context;
 	int t_debug_id = atomic_inc_return(&binder_last_id);
-	bool wakeup_for_proc_work = false;
 
 	e = binder_transaction_log_add(&binder_transaction_log);
 	e->debug_id = t_debug_id;
@@ -2656,13 +2768,8 @@ static void binder_transaction(struct binder_proc *proc,
 		}
 		binder_inner_proc_unlock(proc);
 	}
-	if (target_thread) {
+	if (target_thread)
 		e->to_thread = target_thread->pid;
-		target_list = &target_thread->todo;
-	} else {
-		target_list = &target_proc->todo;
-		wakeup_for_proc_work = true;
-	}
 	e->to_proc = target_proc->pid;
 
 	/* TODO: reuse incoming transaction for reply */
@@ -2941,8 +3048,9 @@ static void binder_transaction(struct binder_proc *proc,
 		}
 		BUG_ON(t->buffer->async_transaction != 0);
 		binder_pop_transaction_ilocked(target_thread, in_reply_to);
-		binder_enqueue_work_ilocked(&t->work, target_list);
+		binder_enqueue_work_ilocked(&t->work, &target_thread->todo);
 		binder_inner_proc_unlock(target_proc);
+		wake_up_interruptible_sync(&target_thread->wait);
 		binder_free_transaction(in_reply_to);
 	} else if (!(t->flags & TF_ONE_WAY)) {
 		BUG_ON(t->buffer->async_transaction != 0);
@@ -2951,49 +3059,17 @@ static void binder_transaction(struct binder_proc *proc,
 		t->from_parent = thread->transaction_stack;
 		thread->transaction_stack = t;
 		binder_inner_proc_unlock(proc);
-		binder_inner_proc_lock(target_proc);
-		if (target_proc->is_dead ||
-				(target_thread && target_thread->is_dead)) {
-			binder_inner_proc_unlock(target_proc);
+		if (!binder_proc_transaction(t, target_proc, target_thread)) {
 			binder_inner_proc_lock(proc);
 			binder_pop_transaction_ilocked(thread, t);
 			binder_inner_proc_unlock(proc);
 			goto err_dead_proc_or_thread;
 		}
-		binder_enqueue_work_ilocked(&t->work, target_list);
-		binder_inner_proc_unlock(target_proc);
 	} else {
 		BUG_ON(target_node == NULL);
 		BUG_ON(t->buffer->async_transaction != 1);
-		binder_node_lock(target_node);
-		if (target_node->has_async_transaction) {
-			target_list = &target_node->async_todo;
-			wakeup_for_proc_work = false;
-		} else
-			target_node->has_async_transaction = 1;
-		/*
-		 * Test/set of has_async_transaction
-		 * must be atomic with enqueue on
-		 * async_todo
-		 */
-		binder_inner_proc_lock(target_proc);
-		if (target_proc->is_dead ||
-				(target_thread && target_thread->is_dead)) {
-			binder_inner_proc_unlock(target_proc);
-			binder_node_unlock(target_node);
+		if (!binder_proc_transaction(t, target_proc, NULL))
 			goto err_dead_proc_or_thread;
-		}
-		binder_enqueue_work_ilocked(&t->work, target_list);
-		binder_inner_proc_unlock(target_proc);
-		binder_node_unlock(target_node);
-	}
-	if (target_thread) {
-		wake_up_interruptible_sync(&target_thread->wait);
-	} else if (wakeup_for_proc_work) {
-		binder_inner_proc_lock(target_proc);
-		binder_wakeup_proc_ilocked(target_proc,
-					   !(tr->flags & TF_ONE_WAY));
-		binder_inner_proc_unlock(target_proc);
 	}
 	if (target_thread)
 		binder_thread_dec_tmpref(target_thread);
@@ -3438,8 +3514,7 @@ static int binder_thread_write(struct binder_proc *proc,
 							&ref->death->work,
 							&proc->todo);
 						binder_wakeup_proc_ilocked(
-							proc,
-							false);
+							proc);
 						binder_inner_proc_unlock(proc);
 					}
 				}
@@ -3476,8 +3551,7 @@ static int binder_thread_write(struct binder_proc *proc,
 								&death->work,
 								&proc->todo);
 						binder_wakeup_proc_ilocked(
-								proc,
-								false);
+								proc);
 					}
 				} else {
 					BUG_ON(death->work.type != BINDER_WORK_DEAD_BINDER);
@@ -3532,8 +3606,7 @@ static int binder_thread_write(struct binder_proc *proc,
 					binder_enqueue_work_ilocked(
 							&death->work,
 							&proc->todo);
-					binder_wakeup_proc_ilocked(
-							proc, false);
+					binder_wakeup_proc_ilocked(proc);
 				}
 			}
 			binder_inner_proc_unlock(proc);
@@ -4251,7 +4324,7 @@ static int binder_ioctl_write_read(struct file *filp,
 		trace_binder_read_done(ret);
 		binder_inner_proc_lock(proc);
 		if (!binder_worklist_empty_ilocked(&proc->todo))
-			binder_wakeup_proc_ilocked(proc, false);
+			binder_wakeup_proc_ilocked(proc);
 		binder_inner_proc_unlock(proc);
 		if (ret < 0) {
 			if (copy_to_user(ubuf, &bwr, sizeof(bwr)))
@@ -4621,7 +4694,7 @@ static int binder_node_release(struct binder_node *node, int refs)
 		ref->death->work.type = BINDER_WORK_DEAD_BINDER;
 		binder_enqueue_work_ilocked(&ref->death->work,
 					    &ref->proc->todo);
-		binder_wakeup_proc_ilocked(ref->proc, false);
+		binder_wakeup_proc_ilocked(ref->proc);
 		binder_inner_proc_unlock(ref->proc);
 	}
 
