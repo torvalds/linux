@@ -37,6 +37,41 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 
+static int ufs_intel_disable_lcc(struct ufs_hba *hba)
+{
+	u32 attr = UIC_ARG_MIB(PA_LOCAL_TX_LCC_ENABLE);
+	u32 lcc_enable = 0;
+
+	ufshcd_dme_get(hba, attr, &lcc_enable);
+	if (lcc_enable)
+		ufshcd_dme_set(hba, attr, 0);
+
+	return 0;
+}
+
+static int ufs_intel_link_startup_notify(struct ufs_hba *hba,
+					 enum ufs_notify_change_status status)
+{
+	int err = 0;
+
+	switch (status) {
+	case PRE_CHANGE:
+		err = ufs_intel_disable_lcc(hba);
+		break;
+	case POST_CHANGE:
+		break;
+	default:
+		break;
+	}
+
+	return err;
+}
+
+static struct ufs_hba_variant_ops ufs_intel_cnl_hba_vops = {
+	.name                   = "intel-pci",
+	.link_startup_notify	= ufs_intel_link_startup_notify,
+};
+
 #ifdef CONFIG_PM_SLEEP
 /**
  * ufshcd_pci_suspend - suspend power management function
@@ -139,6 +174,8 @@ ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 	}
 
+	hba->vops = (struct ufs_hba_variant_ops *)id->driver_data;
+
 	err = ufshcd_init(hba, mmio_base, pdev->irq);
 	if (err) {
 		dev_err(&pdev->dev, "Initialization failed\n");
@@ -163,6 +200,7 @@ static const struct dev_pm_ops ufshcd_pci_pm_ops = {
 
 static const struct pci_device_id ufshcd_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SAMSUNG, 0xC00C, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VDEVICE(INTEL, 0x9DFA), (kernel_ulong_t)&ufs_intel_cnl_hba_vops },
 	{ }	/* terminate list */
 };
 
