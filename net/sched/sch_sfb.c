@@ -266,6 +266,7 @@ static bool sfb_classify(struct sk_buff *skb, struct tcf_proto *fl,
 		switch (result) {
 		case TC_ACT_STOLEN:
 		case TC_ACT_QUEUED:
+		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
 			return false;

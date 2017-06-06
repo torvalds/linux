@@ -52,6 +52,7 @@ multiq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 	switch (err) {
 	case TC_ACT_STOLEN:
 	case TC_ACT_QUEUED:
+	case TC_ACT_TRAP:
 		*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 	case TC_ACT_SHOT:
 		return NULL;
