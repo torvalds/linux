@@ -2202,43 +2202,41 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 	struct pi_desc old, new;
 	unsigned int dest;
 
-	if (!kvm_arch_has_assigned_device(vcpu->kvm) ||
-		!irq_remapping_cap(IRQ_POSTING_CAP)  ||
-		!kvm_vcpu_apicv_active(vcpu))
+	/*
+	 * In case of hot-plug or hot-unplug, we may have to undo
+	 * vmx_vcpu_pi_put even if there is no assigned device.  And we
+	 * always keep PI.NDST up to date for simplicity: it makes the
+	 * code easier, and CPU migration is not a fast path.
+	 */
+	if (!pi_test_sn(pi_desc) && vcpu->cpu == cpu)
 		return;
 
+	/*
+	 * First handle the simple case where no cmpxchg is necessary; just
+	 * allow posting non-urgent interrupts.
+	 *
+	 * If the 'nv' field is POSTED_INTR_WAKEUP_VECTOR, do not change
+	 * PI.NDST: pi_post_block will do it for us and the wakeup_handler
+	 * expects the VCPU to be on the blocked_vcpu_list that matches
+	 * PI.NDST.
+	 */
+	if (pi_desc->nv == POSTED_INTR_WAKEUP_VECTOR ||
+	    vcpu->cpu == cpu) {
+		pi_clear_sn(pi_desc);
+		return;
+	}
+
+	/* The full case.  */
 	do {
 		old.control = new.control = pi_desc->control;
 
-		/*
-		 * If 'nv' field is POSTED_INTR_WAKEUP_VECTOR, there
-		 * are two possible cases:
-		 * 1. After running 'pre_block', context switch
-		 *    happened. For this case, 'sn' was set in
-		 *    vmx_vcpu_put(), so we need to clear it here.
-		 * 2. After running 'pre_block', we were blocked,
-		 *    and woken up by some other guy. For this case,
-		 *    we don't need to do anything, 'pi_post_block'
-		 *    will do everything for us. However, we cannot
-		 *    check whether it is case #1 or case #2 here
-		 *    (maybe, not needed), so we also clear sn here,
-		 *    I think it is not a big deal.
-		 */
-		if (pi_desc->nv != POSTED_INTR_WAKEUP_VECTOR) {
-			if (vcpu->cpu != cpu) {
-				dest = cpu_physical_id(cpu);
+		dest = cpu_physical_id(cpu);
 
-				if (x2apic_enabled())
-					new.ndst = dest;
-				else
-					new.ndst = (dest << 8) & 0xFF00;
-			}
+		if (x2apic_enabled())
+			new.ndst = dest;
+		else
+			new.ndst = (dest << 8) & 0xFF00;
 
-			/* set 'NV' to 'notification vector' */
-			new.nv = POSTED_INTR_VECTOR;
-		}
-
-		/* Allow posting non-urgent interrupts */
 		new.sn = 0;
 	} while (cmpxchg(&pi_desc->control, old.control,
 			new.control) != old.control);
@@ -9592,6 +9590,13 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	vmx->msr_ia32_feature_control_valid_bits = FEATURE_CONTROL_LOCKED;
 
+	/*
+	 * Enforce invariant: pi_desc.nv is always either POSTED_INTR_VECTOR
+	 * or POSTED_INTR_WAKEUP_VECTOR.
+	 */
+	vmx->pi_desc.nv = POSTED_INTR_VECTOR;
+	vmx->pi_desc.sn = 1;
+
 	return &vmx->vcpu;
 
 free_vmcs:
@@ -11722,9 +11727,6 @@ static void __pi_post_block(struct kvm_vcpu *vcpu)
 			new.ndst = dest;
 		else
 			new.ndst = (dest << 8) & 0xFF00;
-
-		/* Allow posting non-urgent interrupts */
-		new.sn = 0;
 
 		/* set 'NV' to 'notification vector' */
 		new.nv = POSTED_INTR_VECTOR;
