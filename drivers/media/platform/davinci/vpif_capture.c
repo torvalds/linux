@@ -936,21 +936,6 @@ static int vpif_try_fmt_vid_cap(struct file *file, void *priv,
 	struct channel_obj *ch = video_get_drvdata(vdev);
 	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
 	struct common_obj *common = &(ch->common[VPIF_VIDEO_INDEX]);
-	struct vpif_params *vpif_params = &ch->vpifparams;
-
-	/*
-	 * to supress v4l-compliance warnings silently correct
-	 * the pixelformat
-	 */
-	if (vpif_params->iface.if_type == VPIF_IF_RAW_BAYER) {
-		if (pixfmt->pixelformat != V4L2_PIX_FMT_SBGGR8)
-			pixfmt->pixelformat = V4L2_PIX_FMT_SBGGR8;
-	} else {
-		if (pixfmt->pixelformat != V4L2_PIX_FMT_NV16)
-			pixfmt->pixelformat = V4L2_PIX_FMT_NV16;
-	}
-
-	common->fmt.fmt.pix.pixelformat = pixfmt->pixelformat;
 
 	vpif_update_std_info(ch);
 
