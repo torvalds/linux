@@ -35,7 +35,7 @@ struct tb_ctl {
 	DECLARE_KFIFO(response_fifo, struct ctl_pkg*, 16);
 	struct completion response_ready;
 
-	hotplug_cb callback;
+	event_cb callback;
 	void *callback_data;
 };
 
@@ -51,6 +51,9 @@ struct tb_ctl {
 
 #define tb_ctl_info(ctl, format, arg...) \
 	dev_info(&(ctl)->nhi->pdev->dev, format, ## arg)
+
+#define tb_ctl_dbg(ctl, format, arg...) \
+	dev_dbg(&(ctl)->nhi->pdev->dev, format, ## arg)
 
 /* utility functions */
 
@@ -272,24 +275,12 @@ static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 }
 
 /**
- * tb_ctl_handle_plug_event() - acknowledge a plug event, invoke ctl->callback
+ * tb_ctl_handle_event() - acknowledge a plug event, invoke ctl->callback
  */
-static void tb_ctl_handle_plug_event(struct tb_ctl *ctl,
-				     struct ctl_pkg *response)
+static void tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
+				struct ctl_pkg *pkg, size_t size)
 {
-	struct cfg_event_pkg *pkg = response->buffer;
-	u64 route = tb_cfg_get_route(&pkg->header);
-
-	if (check_header(response, sizeof(*pkg), TB_CFG_PKG_EVENT, route)) {
-		tb_ctl_warn(ctl, "malformed TB_CFG_PKG_EVENT\n");
-		return;
-	}
-
-	if (tb_cfg_error(ctl, route, pkg->port, TB_CFG_ERROR_ACK_PLUG_EVENT))
-		tb_ctl_warn(ctl, "could not ack plug event on %llx:%x\n",
-			    route, pkg->port);
-	WARN(pkg->zero, "pkg->zero is %#x\n", pkg->zero);
-	ctl->callback(ctl->callback_data, route, pkg->port, pkg->unplug);
+	ctl->callback(ctl->callback_data, type, pkg->buffer, size);
 }
 
 static void tb_ctl_rx_submit(struct ctl_pkg *pkg)
@@ -302,10 +293,29 @@ static void tb_ctl_rx_submit(struct ctl_pkg *pkg)
 					     */
 }
 
+static int tb_async_error(const struct ctl_pkg *pkg)
+{
+	const struct cfg_error_pkg *error = (const struct cfg_error_pkg *)pkg;
+
+	if (pkg->frame.eof != TB_CFG_PKG_ERROR)
+		return false;
+
+	switch (error->error) {
+	case TB_CFG_ERROR_LINK_ERROR:
+	case TB_CFG_ERROR_HEC_ERROR_DETECTED:
+	case TB_CFG_ERROR_FLOW_CONTROL_ERROR:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
 static void tb_ctl_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 			       bool canceled)
 {
 	struct ctl_pkg *pkg = container_of(frame, typeof(*pkg), frame);
+	__be32 crc32;
 
 	if (canceled)
 		return; /*
@@ -320,18 +330,42 @@ static void tb_ctl_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 	}
 
 	frame->size -= 4; /* remove checksum */
-	if (*(__be32 *) (pkg->buffer + frame->size)
-			!= tb_crc(pkg->buffer, frame->size)) {
-		tb_ctl_err(pkg->ctl,
-			   "RX: checksum mismatch, dropping packet\n");
-		goto rx;
-	}
+	crc32 = tb_crc(pkg->buffer, frame->size);
 	be32_to_cpu_array(pkg->buffer, pkg->buffer, frame->size / 4);
 
-	if (frame->eof == TB_CFG_PKG_EVENT) {
-		tb_ctl_handle_plug_event(pkg->ctl, pkg);
+	switch (frame->eof) {
+	case TB_CFG_PKG_READ:
+	case TB_CFG_PKG_WRITE:
+	case TB_CFG_PKG_ERROR:
+	case TB_CFG_PKG_OVERRIDE:
+	case TB_CFG_PKG_RESET:
+		if (*(__be32 *)(pkg->buffer + frame->size) != crc32) {
+			tb_ctl_err(pkg->ctl,
+				   "RX: checksum mismatch, dropping packet\n");
+			goto rx;
+		}
+		if (tb_async_error(pkg)) {
+			tb_ctl_handle_event(pkg->ctl, frame->eof,
+					    pkg, frame->size);
+			goto rx;
+		}
+		break;
+
+	case TB_CFG_PKG_EVENT:
+		if (*(__be32 *)(pkg->buffer + frame->size) != crc32) {
+			tb_ctl_err(pkg->ctl,
+				   "RX: checksum mismatch, dropping packet\n");
+			goto rx;
+		}
+		tb_ctl_handle_event(pkg->ctl, frame->eof, pkg, frame->size);
+		goto rx;
+
+	default:
+		tb_ctl_dbg(pkg->ctl, "RX: unknown package %#x, dropping\n",
+			   frame->eof);
 		goto rx;
 	}
+
 	if (!kfifo_put(&pkg->ctl->response_fifo, pkg)) {
 		tb_ctl_err(pkg->ctl, "RX: fifo is full\n");
 		goto rx;
@@ -379,7 +413,7 @@ static struct tb_cfg_result tb_ctl_rx(struct tb_ctl *ctl, void *buffer,
  *
  * Return: Returns a pointer on success or NULL on failure.
  */
-struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, hotplug_cb cb, void *cb_data)
+struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, event_cb cb, void *cb_data)
 {
 	int i;
 	struct tb_ctl *ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);

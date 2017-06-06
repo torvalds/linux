@@ -118,14 +118,15 @@ struct tb_path {
  * @stop: Stops the domain
  * @suspend_noirq: Connection manager specific suspend_noirq
  * @resume_noirq: Connection manager specific resume_noirq
- * @hotplug: Handle hotplug event
+ * @handle_event: Handle thunderbolt event
  */
 struct tb_cm_ops {
 	int (*start)(struct tb *tb);
 	void (*stop)(struct tb *tb);
 	int (*suspend_noirq)(struct tb *tb);
 	int (*resume_noirq)(struct tb *tb);
-	hotplug_cb hotplug;
+	void (*handle_event)(struct tb *tb, enum tb_cfg_pkg_type,
+			     const void *buf, size_t size);
 };
 
 /**

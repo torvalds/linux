@@ -95,6 +95,19 @@ err_free:
 	return NULL;
 }
 
+static void tb_domain_event_cb(void *data, enum tb_cfg_pkg_type type,
+			       const void *buf, size_t size)
+{
+	struct tb *tb = data;
+
+	if (!tb->cm_ops->handle_event) {
+		tb_warn(tb, "domain does not have event handler\n");
+		return;
+	}
+
+	tb->cm_ops->handle_event(tb, type, buf, size);
+}
+
 /**
  * tb_domain_add() - Add domain to the system
  * @tb: Domain to add
@@ -115,7 +128,7 @@ int tb_domain_add(struct tb *tb)
 
 	mutex_lock(&tb->lock);
 
-	tb->ctl = tb_ctl_alloc(tb->nhi, tb->cm_ops->hotplug, tb);
+	tb->ctl = tb_ctl_alloc(tb->nhi, tb_domain_event_cb, tb);
 	if (!tb->ctl) {
 		ret = -ENOMEM;
 		goto err_unlock;

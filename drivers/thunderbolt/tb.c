@@ -311,18 +311,34 @@ out:
  *
  * Delegates to tb_handle_hotplug.
  */
-static void tb_schedule_hotplug_handler(void *data, u64 route, u8 port,
-					bool unplug)
+static void tb_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
+			    const void *buf, size_t size)
 {
-	struct tb *tb = data;
-	struct tb_hotplug_event *ev = kmalloc(sizeof(*ev), GFP_KERNEL);
+	const struct cfg_event_pkg *pkg = buf;
+	struct tb_hotplug_event *ev;
+	u64 route;
+
+	if (type != TB_CFG_PKG_EVENT) {
+		tb_warn(tb, "unexpected event %#x, ignoring\n", type);
+		return;
+	}
+
+	route = tb_cfg_get_route(&pkg->header);
+
+	if (tb_cfg_error(tb->ctl, route, pkg->port,
+			 TB_CFG_ERROR_ACK_PLUG_EVENT)) {
+		tb_warn(tb, "could not ack plug event on %llx:%x\n", route,
+			pkg->port);
+	}
+
+	ev = kmalloc(sizeof(*ev), GFP_KERNEL);
 	if (!ev)
 		return;
 	INIT_WORK(&ev->work, tb_handle_hotplug);
 	ev->tb = tb;
 	ev->route = route;
-	ev->port = port;
-	ev->unplug = unplug;
+	ev->port = pkg->port;
+	ev->unplug = pkg->unplug;
 	queue_work(tb->wq, &ev->work);
 }
 
@@ -419,7 +435,7 @@ static const struct tb_cm_ops tb_cm_ops = {
 	.stop = tb_stop,
 	.suspend_noirq = tb_suspend_noirq,
 	.resume_noirq = tb_resume_noirq,
-	.hotplug = tb_schedule_hotplug_handler,
+	.handle_event = tb_handle_event,
 };
 
 struct tb *tb_probe(struct tb_nhi *nhi)
