@@ -131,9 +131,7 @@ static int new_mmio_info(struct intel_gvt *gvt,
 		if (p)
 			gvt_err("dup mmio definition offset %x\n",
 				info->offset);
-		info->size = size;
-		info->length = (i + 4) < end ? 4 : (end - i);
-		info->addr_mask = addr_mask;
+
 		info->ro_mask = ro_mask;
 		info->device = device;
 		info->read = read ? read : intel_vgpu_default_mmio_read;
@@ -3113,9 +3111,6 @@ int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 				     offset, bytes);
 		goto default_rw;
 	}
-
-	if (WARN_ON(bytes > mmio_info->size))
-		return -EINVAL;
 
 	if (is_read)
 		return mmio_info->read(vgpu, offset, pdata, bytes);
