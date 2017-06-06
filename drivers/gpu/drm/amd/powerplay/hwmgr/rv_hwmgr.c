@@ -656,6 +656,16 @@ static int rv_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 		pinfo->vdd_dep_on_phyclk = NULL;
 	}
 
+	if (NULL != hwmgr->dyn_state.vddc_dep_on_dal_pwrl) {
+		kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
+		hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
+	}
+
+	if (NULL != hwmgr->dyn_state.vq_budgeting_table) {
+		kfree(hwmgr->dyn_state.vq_budgeting_table);
+		hwmgr->dyn_state.vq_budgeting_table = NULL;
+	}
+
 	kfree(hwmgr->backend);
 	hwmgr->backend = NULL;
 
