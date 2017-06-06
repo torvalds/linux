@@ -10,10 +10,12 @@
  */
 
 #include <linux/ftrace.h>
+#include <linux/module.h>
 #include <linux/swab.h>
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
+#include <asm/debug-monitors.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
 
@@ -69,7 +71,56 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long pc = rec->ip;
+	long offset = (long)pc - (long)addr;
 	u32 old, new;
+
+	if (IS_ENABLED(CONFIG_ARM64_MODULE_PLTS) &&
+	    (offset < -SZ_128M || offset >= SZ_128M)) {
+		unsigned long *trampoline;
+		struct module *mod;
+
+		/*
+		 * On kernels that support module PLTs, the offset between the
+		 * branch instruction and its target may legally exceed the
+		 * range of an ordinary relative 'bl' opcode. In this case, we
+		 * need to branch via a trampoline in the module.
+		 *
+		 * NOTE: __module_text_address() must be called with preemption
+		 * disabled, but we can rely on ftrace_lock to ensure that 'mod'
+		 * retains its validity throughout the remainder of this code.
+		 */
+		preempt_disable();
+		mod = __module_text_address(pc);
+		preempt_enable();
+
+		if (WARN_ON(!mod))
+			return -EINVAL;
+
+		/*
+		 * There is only one ftrace trampoline per module. For now,
+		 * this is not a problem since on arm64, all dynamic ftrace
+		 * invocations are routed via ftrace_caller(). This will need
+		 * to be revisited if support for multiple ftrace entry points
+		 * is added in the future, but for now, the pr_err() below
+		 * deals with a theoretical issue only.
+		 */
+		trampoline = (unsigned long *)mod->arch.ftrace_trampoline;
+		if (trampoline[0] != addr) {
+			if (trampoline[0] != 0) {
+				pr_err("ftrace: far branches to multiple entry points unsupported inside a single module\n");
+				return -EINVAL;
+			}
+
+			/* point the trampoline to our ftrace entry point */
+			module_disable_ro(mod);
+			trampoline[0] = addr;
+			module_enable_ro(mod, true);
+
+			/* update trampoline before patching in the branch */
+			smp_wmb();
+		}
+		addr = (unsigned long)&trampoline[1];
+	}
 
 	old = aarch64_insn_gen_nop();
 	new = aarch64_insn_gen_branch_imm(pc, addr, AARCH64_INSN_BRANCH_LINK);

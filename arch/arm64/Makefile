@@ -70,6 +70,9 @@ endif
 
 ifeq ($(CONFIG_ARM64_MODULE_PLTS),y)
 KBUILD_LDFLAGS_MODULE	+= -T $(srctree)/arch/arm64/kernel/module.lds
+ifeq ($(CONFIG_DYNAMIC_FTRACE),y)
+KBUILD_LDFLAGS_MODULE	+= $(objtree)/arch/arm64/kernel/ftrace-mod.o
+endif
 endif
 
 # Default value
