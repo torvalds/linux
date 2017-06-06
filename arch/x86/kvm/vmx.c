@@ -11710,10 +11710,11 @@ static void __pi_post_block(struct kvm_vcpu *vcpu)
 	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
 	struct pi_desc old, new;
 	unsigned int dest;
-	unsigned long flags;
 
 	do {
 		old.control = new.control = pi_desc->control;
+		WARN(old.nv != POSTED_INTR_WAKEUP_VECTOR,
+		     "Wakeup handler not enabled while the VCPU is blocked\n");
 
 		dest = cpu_physical_id(vcpu->cpu);
 
@@ -11730,14 +11731,10 @@ static void __pi_post_block(struct kvm_vcpu *vcpu)
 	} while (cmpxchg(&pi_desc->control, old.control,
 			new.control) != old.control);
 
-	if(vcpu->pre_pcpu != -1) {
-		spin_lock_irqsave(
-			&per_cpu(blocked_vcpu_on_cpu_lock,
-			vcpu->pre_pcpu), flags);
+	if (!WARN_ON_ONCE(vcpu->pre_pcpu == -1)) {
+		spin_lock(&per_cpu(blocked_vcpu_on_cpu_lock, vcpu->pre_pcpu));
 		list_del(&vcpu->blocked_vcpu_list);
-		spin_unlock_irqrestore(
-			&per_cpu(blocked_vcpu_on_cpu_lock,
-			vcpu->pre_pcpu), flags);
+		spin_unlock(&per_cpu(blocked_vcpu_on_cpu_lock, vcpu->pre_pcpu));
 		vcpu->pre_pcpu = -1;
 	}
 }
@@ -11757,7 +11754,6 @@ static void __pi_post_block(struct kvm_vcpu *vcpu)
  */
 static int pi_pre_block(struct kvm_vcpu *vcpu)
 {
-	unsigned long flags;
 	unsigned int dest;
 	struct pi_desc old, new;
 	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
@@ -11767,33 +11763,19 @@ static int pi_pre_block(struct kvm_vcpu *vcpu)
 		!kvm_vcpu_apicv_active(vcpu))
 		return 0;
 
-	vcpu->pre_pcpu = vcpu->cpu;
-	spin_lock_irqsave(&per_cpu(blocked_vcpu_on_cpu_lock,
-			  vcpu->pre_pcpu), flags);
-	list_add_tail(&vcpu->blocked_vcpu_list,
-		      &per_cpu(blocked_vcpu_on_cpu,
-		      vcpu->pre_pcpu));
-	spin_unlock_irqrestore(&per_cpu(blocked_vcpu_on_cpu_lock,
-			       vcpu->pre_pcpu), flags);
+	WARN_ON(irqs_disabled());
+	local_irq_disable();
+	if (!WARN_ON_ONCE(vcpu->pre_pcpu != -1)) {
+		vcpu->pre_pcpu = vcpu->cpu;
+		spin_lock(&per_cpu(blocked_vcpu_on_cpu_lock, vcpu->pre_pcpu));
+		list_add_tail(&vcpu->blocked_vcpu_list,
+			      &per_cpu(blocked_vcpu_on_cpu,
+				       vcpu->pre_pcpu));
+		spin_unlock(&per_cpu(blocked_vcpu_on_cpu_lock, vcpu->pre_pcpu));
+	}
 
 	do {
 		old.control = new.control = pi_desc->control;
-
-		/*
-		 * We should not block the vCPU if
-		 * an interrupt is posted for it.
-		 */
-		if (pi_test_on(pi_desc) == 1) {
-			spin_lock_irqsave(&per_cpu(blocked_vcpu_on_cpu_lock,
-					  vcpu->pre_pcpu), flags);
-			list_del(&vcpu->blocked_vcpu_list);
-			spin_unlock_irqrestore(
-					&per_cpu(blocked_vcpu_on_cpu_lock,
-					vcpu->pre_pcpu), flags);
-			vcpu->pre_pcpu = -1;
-
-			return 1;
-		}
 
 		WARN((pi_desc->sn == 1),
 		     "Warning: SN field of posted-interrupts "
@@ -11819,7 +11801,12 @@ static int pi_pre_block(struct kvm_vcpu *vcpu)
 	} while (cmpxchg(&pi_desc->control, old.control,
 			new.control) != old.control);
 
-	return 0;
+	/* We should not block the vCPU if an interrupt is posted for it.  */
+	if (pi_test_on(pi_desc) == 1)
+		__pi_post_block(vcpu);
+
+	local_irq_enable();
+	return (vcpu->pre_pcpu == -1);
 }
 
 static int vmx_pre_block(struct kvm_vcpu *vcpu)
@@ -11835,12 +11822,13 @@ static int vmx_pre_block(struct kvm_vcpu *vcpu)
 
 static void pi_post_block(struct kvm_vcpu *vcpu)
 {
-	if (!kvm_arch_has_assigned_device(vcpu->kvm) ||
-		!irq_remapping_cap(IRQ_POSTING_CAP)  ||
-		!kvm_vcpu_apicv_active(vcpu))
+	if (vcpu->pre_pcpu == -1)
 		return;
 
+	WARN_ON(irqs_disabled());
+	local_irq_disable();
 	__pi_post_block(vcpu);
+	local_irq_enable();
 }
 
 static void vmx_post_block(struct kvm_vcpu *vcpu)
