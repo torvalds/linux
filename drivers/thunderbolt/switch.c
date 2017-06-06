@@ -535,8 +535,11 @@ int tb_switch_add(struct tb_switch *sw)
 	int i, ret;
 
 	/* read drom */
-	if (tb_drom_read(sw))
-		tb_sw_warn(sw, "tb_eeprom_read_rom failed, continuing\n");
+	ret = tb_drom_read(sw);
+	if (ret) {
+		tb_sw_warn(sw, "tb_eeprom_read_rom failed\n");
+		return ret;
+	}
 	tb_sw_info(sw, "uid: %#llx\n", sw->uid);
 
 	tb_switch_set_uuid(sw);
