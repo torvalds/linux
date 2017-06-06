@@ -783,7 +783,7 @@ static void add_pinned_bytes(struct btrfs_fs_info *fs_info, s64 num_bytes,
 	}
 
 	space_info = __find_space_info(fs_info, flags);
-	BUG_ON(!space_info); /* Logic bug */
+	ASSERT(space_info);
 	percpu_counter_add(&space_info->total_bytes_pinned, num_bytes);
 }
 
