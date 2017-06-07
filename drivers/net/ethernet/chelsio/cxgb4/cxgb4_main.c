@@ -1093,10 +1093,12 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data)
 		 * This is equivalent to 4 TIDs. With CLIP enabled it
 		 * needs 2 TIDs.
 		 */
-		if (family == PF_INET)
-			t->stids_in_use++;
-		else
+		if (family == PF_INET6) {
 			t->stids_in_use += 2;
+			t->v6_stids_in_use += 2;
+		} else {
+			t->stids_in_use++;
+		}
 	}
 	spin_unlock_bh(&t->stid_lock);
 	return stid;
@@ -1150,13 +1152,16 @@ void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family)
 		bitmap_release_region(t->stid_bmap, stid, 1);
 	t->stid_tab[stid].data = NULL;
 	if (stid < t->nstids) {
-		if (family == PF_INET)
-			t->stids_in_use--;
-		else
+		if (family == PF_INET6) {
 			t->stids_in_use -= 2;
+			t->v6_stids_in_use -= 2;
+		} else {
+			t->stids_in_use--;
+		}
 	} else {
 		t->sftids_in_use--;
 	}
+
 	spin_unlock_bh(&t->stid_lock);
 }
 EXPORT_SYMBOL(cxgb4_free_stid);
@@ -1232,7 +1237,8 @@ static void process_tid_release_list(struct work_struct *work)
  * Release a TID and inform HW.  If we are unable to allocate the release
  * message we defer to a work queue.
  */
-void cxgb4_remove_tid(struct tid_info *t, unsigned int chan, unsigned int tid)
+void cxgb4_remove_tid(struct tid_info *t, unsigned int chan, unsigned int tid,
+		      unsigned short family)
 {
 	struct sk_buff *skb;
 	struct adapter *adap = container_of(t, struct adapter, tids);
@@ -1241,10 +1247,18 @@ void cxgb4_remove_tid(struct tid_info *t, unsigned int chan, unsigned int tid)
 
 	if (t->tid_tab[tid]) {
 		t->tid_tab[tid] = NULL;
-		if (t->hash_base && (tid >= t->hash_base))
-			atomic_dec(&t->hash_tids_in_use);
-		else
-			atomic_dec(&t->tids_in_use);
+		atomic_dec(&t->conns_in_use);
+		if (t->hash_base && (tid >= t->hash_base)) {
+			if (family == AF_INET6)
+				atomic_sub(2, &t->hash_tids_in_use);
+			else
+				atomic_dec(&t->hash_tids_in_use);
+		} else {
+			if (family == AF_INET6)
+				atomic_sub(2, &t->tids_in_use);
+			else
+				atomic_dec(&t->tids_in_use);
+		}
 	}
 
 	skb = alloc_skb(sizeof(struct cpl_tid_release), GFP_ATOMIC);
@@ -1292,10 +1306,12 @@ static int tid_init(struct tid_info *t)
 	spin_lock_init(&t->ftid_lock);
 
 	t->stids_in_use = 0;
+	t->v6_stids_in_use = 0;
 	t->sftids_in_use = 0;
 	t->afree = NULL;
 	t->atids_in_use = 0;
 	atomic_set(&t->tids_in_use, 0);
+	atomic_set(&t->conns_in_use, 0);
 	atomic_set(&t->hash_tids_in_use, 0);
 
 	/* Setup the free list for atid_tab and clear the stid bitmap. */

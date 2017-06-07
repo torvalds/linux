@@ -752,7 +752,8 @@ void _cxgbit_free_csk(struct kref *kref)
 				   &sin6->sin6_addr.s6_addr, 1);
 	}
 
-	cxgb4_remove_tid(csk->com.cdev->lldi.tids, 0, csk->tid);
+	cxgb4_remove_tid(csk->com.cdev->lldi.tids, 0, csk->tid,
+			 csk->com.local_addr.ss_family);
 	dst_release(csk->dst);
 	cxgb4_l2t_release(csk->l2t);
 
@@ -1313,8 +1314,7 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 	spin_lock(&cdev->cskq.lock);
 	list_add_tail(&csk->list, &cdev->cskq.list);
 	spin_unlock(&cdev->cskq.lock);
-
-	cxgb4_insert_tid(t, csk, tid);
+	cxgb4_insert_tid(t, csk, tid, csk->com.local_addr.ss_family);
 	cxgbit_pass_accept_rpl(csk, req);
 	goto rel_skb;
 
