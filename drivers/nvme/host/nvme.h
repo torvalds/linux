@@ -196,6 +196,7 @@ struct nvme_ns {
 
 	u8 eui[8];
 	u8 nguid[16];
+	uuid_t uuid;
 
 	unsigned ns_id;
 	int lba_shift;

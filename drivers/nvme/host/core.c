@@ -638,6 +638,77 @@ int nvme_identify_ctrl(struct nvme_ctrl *dev, struct nvme_id_ctrl **id)
 	return error;
 }
 
+static int nvme_identify_ns_descs(struct nvme_ns *ns, unsigned nsid)
+{
+	struct nvme_command c = { };
+	int status;
+	void *data;
+	int pos;
+	int len;
+
+	c.identify.opcode = nvme_admin_identify;
+	c.identify.nsid = cpu_to_le32(nsid);
+	c.identify.cns = NVME_ID_CNS_NS_DESC_LIST;
+
+	data = kzalloc(NVME_IDENTIFY_DATA_SIZE, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	status = nvme_submit_sync_cmd(ns->ctrl->admin_q, &c, data,
+				      NVME_IDENTIFY_DATA_SIZE);
+	if (status)
+		goto free_data;
+
+	for (pos = 0; pos < NVME_IDENTIFY_DATA_SIZE; pos += len) {
+		struct nvme_ns_id_desc *cur = data + pos;
+
+		if (cur->nidl == 0)
+			break;
+
+		switch (cur->nidt) {
+		case NVME_NIDT_EUI64:
+			if (cur->nidl != NVME_NIDT_EUI64_LEN) {
+				dev_warn(ns->ctrl->device,
+					 "ctrl returned bogus length: %d for NVME_NIDT_EUI64\n",
+					 cur->nidl);
+				goto free_data;
+			}
+			len = NVME_NIDT_EUI64_LEN;
+			memcpy(ns->eui, data + pos + sizeof(*cur), len);
+			break;
+		case NVME_NIDT_NGUID:
+			if (cur->nidl != NVME_NIDT_NGUID_LEN) {
+				dev_warn(ns->ctrl->device,
+					 "ctrl returned bogus length: %d for NVME_NIDT_NGUID\n",
+					 cur->nidl);
+				goto free_data;
+			}
+			len = NVME_NIDT_NGUID_LEN;
+			memcpy(ns->nguid, data + pos + sizeof(*cur), len);
+			break;
+		case NVME_NIDT_UUID:
+			if (cur->nidl != NVME_NIDT_UUID_LEN) {
+				dev_warn(ns->ctrl->device,
+					 "ctrl returned bogus length: %d for NVME_NIDT_UUID\n",
+					 cur->nidl);
+				goto free_data;
+			}
+			len = NVME_NIDT_UUID_LEN;
+			uuid_copy(&ns->uuid, data + pos + sizeof(*cur));
+			break;
+		default:
+			/* Skip unnkown types */
+			len = cur->nidl;
+			break;
+		}
+
+		len += sizeof(*cur);
+	}
+free_data:
+	kfree(data);
+	return status;
+}
+
 static int nvme_identify_ns_list(struct nvme_ctrl *dev, unsigned nsid, __le32 *ns_list)
 {
 	struct nvme_command c = { };
@@ -1012,6 +1083,14 @@ static int nvme_revalidate_ns(struct nvme_ns *ns, struct nvme_id_ns **id)
 		memcpy(ns->eui, (*id)->eui64, sizeof(ns->eui));
 	if (ns->ctrl->vs >= NVME_VS(1, 2, 0))
 		memcpy(ns->nguid, (*id)->nguid, sizeof(ns->nguid));
+	if (ns->ctrl->vs >= NVME_VS(1, 3, 0)) {
+		 /* Don't treat error as fatal we potentially
+		  * already have a NGUID or EUI-64
+		  */
+		if (nvme_identify_ns_descs(ns, ns->ns_id))
+			dev_warn(ns->ctrl->device,
+				 "%s: Identify Descriptors failed\n", __func__);
+	}
 
 	return 0;
 }
