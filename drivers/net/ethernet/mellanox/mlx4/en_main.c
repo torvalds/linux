@@ -46,11 +46,11 @@
 MODULE_AUTHOR("Liran Liss, Yevgeny Petrilin");
 MODULE_DESCRIPTION("Mellanox ConnectX HCA Ethernet driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION " ("DRV_RELDATE")");
+MODULE_VERSION(DRV_VERSION);
 
 static const char mlx4_en_version[] =
 	DRV_NAME ": Mellanox ConnectX HCA Ethernet driver v"
-	DRV_VERSION " (" DRV_RELDATE ")\n";
+	DRV_VERSION "\n";
 
 #define MLX4_EN_PARM_INT(X, def_val, desc) \
 	static unsigned int X = def_val;\
