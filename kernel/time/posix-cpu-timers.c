@@ -1226,9 +1226,10 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 }
 
 static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
-			    struct timespec64 *rqtp, struct itimerspec64 *it)
+			    struct timespec64 *rqtp)
 {
 	struct k_itimer timer;
+	struct itimerspec64 it;
 	int error;
 
 	/*
@@ -1242,12 +1243,14 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 	timer.it_process = current;
 	if (!error) {
 		static struct itimerspec64 zero_it;
+		struct restart_block *restart = &current->restart_block;
+		struct timespec __user *rmtp;
 
-		memset(it, 0, sizeof *it);
-		it->it_value = *rqtp;
+		memset(&it, 0, sizeof it);
+		it.it_value = *rqtp;
 
 		spin_lock_irq(&timer.it_lock);
-		error = posix_cpu_timer_set(&timer, flags, it, NULL);
+		error = posix_cpu_timer_set(&timer, flags, &it, NULL);
 		if (error) {
 			spin_unlock_irq(&timer.it_lock);
 			return error;
@@ -1277,7 +1280,7 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		 * We were interrupted by a signal.
 		 */
 		*rqtp = ns_to_timespec64(timer.it.cpu.expires);
-		error = posix_cpu_timer_set(&timer, 0, &zero_it, it);
+		error = posix_cpu_timer_set(&timer, 0, &zero_it, &it);
 		if (!error) {
 			/*
 			 * Timer is now unarmed, deletion can not fail.
@@ -1297,7 +1300,7 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 			spin_unlock_irq(&timer.it_lock);
 		}
 
-		if ((it->it_value.tv_sec | it->it_value.tv_nsec) == 0) {
+		if ((it.it_value.tv_sec | it.it_value.tv_nsec) == 0) {
 			/*
 			 * It actually did fire already.
 			 */
@@ -1305,6 +1308,18 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		}
 
 		error = -ERESTART_RESTARTBLOCK;
+		/*
+		 * Report back to the user the time still remaining.
+		 */
+		rmtp = restart->nanosleep.rmtp;
+		if (rmtp) {
+			struct timespec ts;
+
+			ts = timespec64_to_timespec(it.it_value);
+			if (copy_to_user(rmtp, &ts, sizeof(*rmtp)))
+				return -EFAULT;
+		}
+		restart->nanosleep.expires = timespec64_to_ns(rqtp);
 	}
 
 	return error;
@@ -1316,9 +1331,12 @@ static int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 			    struct timespec64 *rqtp, struct timespec __user *rmtp)
 {
 	struct restart_block *restart_block = &current->restart_block;
-	struct itimerspec64 it;
-	struct timespec ts;
 	int error;
+
+	if (flags & TIMER_ABSTIME)
+		rmtp = NULL;
+
+	restart_block->nanosleep.rmtp = rmtp;
 
 	/*
 	 * Diagnose required errors first.
@@ -1328,23 +1346,15 @@ static int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 	     CPUCLOCK_PID(which_clock) == task_pid_vnr(current)))
 		return -EINVAL;
 
-	error = do_cpu_nanosleep(which_clock, flags, rqtp, &it);
+	error = do_cpu_nanosleep(which_clock, flags, rqtp);
 
 	if (error == -ERESTART_RESTARTBLOCK) {
 
 		if (flags & TIMER_ABSTIME)
 			return -ERESTARTNOHAND;
-		/*
-		 * Report back to the user the time still remaining.
-		 */
-		ts = timespec64_to_timespec(it.it_value);
-		if (rmtp && copy_to_user(rmtp, &ts, sizeof(*rmtp)))
-			return -EFAULT;
 
 		restart_block->fn = posix_cpu_nsleep_restart;
 		restart_block->nanosleep.clockid = which_clock;
-		restart_block->nanosleep.rmtp = rmtp;
-		restart_block->nanosleep.expires = timespec64_to_ns(rqtp);
 	}
 	return error;
 }
@@ -1352,28 +1362,11 @@ static int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 static long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 {
 	clockid_t which_clock = restart_block->nanosleep.clockid;
-	struct itimerspec64 it;
 	struct timespec64 t;
-	struct timespec tmp;
-	int error;
 
 	t = ns_to_timespec64(restart_block->nanosleep.expires);
 
-	error = do_cpu_nanosleep(which_clock, TIMER_ABSTIME, &t, &it);
-
-	if (error == -ERESTART_RESTARTBLOCK) {
-		struct timespec __user *rmtp = restart_block->nanosleep.rmtp;
-		/*
-		 * Report back to the user the time still remaining.
-		 */
-		 tmp = timespec64_to_timespec(it.it_value);
-		if (rmtp && copy_to_user(rmtp, &tmp, sizeof(*rmtp)))
-			return -EFAULT;
-
-		restart_block->nanosleep.expires = timespec64_to_ns(&t);
-	}
-	return error;
-
+	return do_cpu_nanosleep(which_clock, TIMER_ABSTIME, &t);
 }
 
 #define PROCESS_CLOCK	MAKE_PROCESS_CPUCLOCK(0, CPUCLOCK_SCHED)
