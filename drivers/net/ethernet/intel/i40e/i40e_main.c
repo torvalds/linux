@@ -3588,14 +3588,24 @@ static void i40e_vsi_disable_irq(struct i40e_vsi *vsi)
 	int base = vsi->base_vector;
 	int i;
 
+	/* disable interrupt causation from each queue */
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
-		wr32(hw, I40E_QINT_TQCTL(vsi->tx_rings[i]->reg_idx), 0);
-		wr32(hw, I40E_QINT_RQCTL(vsi->rx_rings[i]->reg_idx), 0);
+		u32 val;
+
+		val = rd32(hw, I40E_QINT_TQCTL(vsi->tx_rings[i]->reg_idx));
+		val &= ~I40E_QINT_TQCTL_CAUSE_ENA_MASK;
+		wr32(hw, I40E_QINT_TQCTL(vsi->tx_rings[i]->reg_idx), val);
+
+		val = rd32(hw, I40E_QINT_RQCTL(vsi->rx_rings[i]->reg_idx));
+		val &= ~I40E_QINT_RQCTL_CAUSE_ENA_MASK;
+		wr32(hw, I40E_QINT_RQCTL(vsi->rx_rings[i]->reg_idx), val);
+
 		if (!i40e_enabled_xdp_vsi(vsi))
 			continue;
 		wr32(hw, I40E_QINT_TQCTL(vsi->xdp_rings[i]->reg_idx), 0);
 	}
 
+	/* disable each interrupt */
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
 		for (i = vsi->base_vector;
 		     i < (vsi->num_q_vectors + vsi->base_vector); i++)
