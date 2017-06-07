@@ -665,6 +665,8 @@ struct nvme_identify {
 	__u32			rsvd11[5];
 };
 
+#define NVME_IDENTIFY_DATA_SIZE 4096
+
 struct nvme_features {
 	__u8			opcode;
 	__u8			flags;
