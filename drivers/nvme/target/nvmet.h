@@ -47,6 +47,7 @@ struct nvmet_ns {
 	u32			blksize_shift;
 	loff_t			size;
 	u8			nguid[16];
+	uuid_t			uuid;
 
 	bool			enabled;
 	struct nvmet_subsys	*subsys;

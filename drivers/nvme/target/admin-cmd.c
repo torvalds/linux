@@ -367,6 +367,64 @@ out:
 	nvmet_req_complete(req, status);
 }
 
+static u16 nvmet_copy_ns_identifier(struct nvmet_req *req, u8 type, u8 len,
+				    void *id, off_t *off)
+{
+	struct nvme_ns_id_desc desc = {
+		.nidt = type,
+		.nidl = len,
+	};
+	u16 status;
+
+	status = nvmet_copy_to_sgl(req, *off, &desc, sizeof(desc));
+	if (status)
+		return status;
+	*off += sizeof(desc);
+
+	status = nvmet_copy_to_sgl(req, *off, id, len);
+	if (status)
+		return status;
+	*off += len;
+
+	return 0;
+}
+
+static void nvmet_execute_identify_desclist(struct nvmet_req *req)
+{
+	struct nvmet_ns *ns;
+	u16 status = 0;
+	off_t off = 0;
+
+	ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->identify.nsid);
+	if (!ns) {
+		status = NVME_SC_INVALID_NS | NVME_SC_DNR;
+		goto out;
+	}
+
+	if (memchr_inv(&ns->uuid, 0, sizeof(ns->uuid))) {
+		status = nvmet_copy_ns_identifier(req, NVME_NIDT_UUID,
+						  NVME_NIDT_UUID_LEN,
+						  &ns->uuid, &off);
+		if (status)
+			goto out_put_ns;
+	}
+	if (memchr_inv(ns->nguid, 0, sizeof(ns->nguid))) {
+		status = nvmet_copy_ns_identifier(req, NVME_NIDT_NGUID,
+						  NVME_NIDT_NGUID_LEN,
+						  &ns->nguid, &off);
+		if (status)
+			goto out_put_ns;
+	}
+
+	if (sg_zero_buffer(req->sg, req->sg_cnt, NVME_IDENTIFY_DATA_SIZE - off,
+			off) != NVME_IDENTIFY_DATA_SIZE - off)
+		status = NVME_SC_INTERNAL | NVME_SC_DNR;
+out_put_ns:
+	nvmet_put_namespace(ns);
+out:
+	nvmet_req_complete(req, status);
+}
+
 /*
  * A "mimimum viable" abort implementation: the command is mandatory in the
  * spec, but we are not required to do any useful work.  We couldn't really
@@ -514,6 +572,9 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 			return 0;
 		case NVME_ID_CNS_NS_ACTIVE_LIST:
 			req->execute = nvmet_execute_identify_nslist;
+			return 0;
+		case NVME_ID_CNS_NS_DESC_LIST:
+			req->execute = nvmet_execute_identify_desclist;
 			return 0;
 		}
 		break;
