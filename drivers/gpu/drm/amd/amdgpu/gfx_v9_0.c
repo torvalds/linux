@@ -969,107 +969,6 @@ static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gfx_v9_0_kiq_fini(struct amdgpu_device *adev)
-{
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
-
-	amdgpu_bo_free_kernel(&kiq->eop_obj, &kiq->eop_gpu_addr, NULL);
-}
-
-static int gfx_v9_0_kiq_init(struct amdgpu_device *adev)
-{
-	int r;
-	u32 *hpd;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
-
-	r = amdgpu_bo_create_kernel(adev, GFX9_MEC_HPD_SIZE, PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_GTT, &kiq->eop_obj,
-				    &kiq->eop_gpu_addr, (void **)&hpd);
-	if (r) {
-		dev_warn(adev->dev, "failed to create KIQ bo (%d).\n", r);
-		return r;
-	}
-
-	memset(hpd, 0, GFX9_MEC_HPD_SIZE);
-
-	r = amdgpu_bo_reserve(kiq->eop_obj, true);
-	if (unlikely(r != 0))
-		dev_warn(adev->dev, "(%d) reserve kiq eop bo failed\n", r);
-	amdgpu_bo_kunmap(kiq->eop_obj);
-	amdgpu_bo_unreserve(kiq->eop_obj);
-
-	return 0;
-}
-
-static int gfx_v9_0_kiq_acquire(struct amdgpu_device *adev,
-				 struct amdgpu_ring *ring)
-{
-	int queue_bit;
-	int mec, pipe, queue;
-
-	queue_bit = adev->gfx.mec.num_mec
-		    * adev->gfx.mec.num_pipe_per_mec
-		    * adev->gfx.mec.num_queue_per_pipe;
-
-	while (queue_bit-- >= 0) {
-		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
-			continue;
-
-		amdgpu_gfx_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
-
-		/* Using pipes 2/3 from MEC 2 seems cause problems */
-		if (mec == 1 && pipe > 1)
-			continue;
-
-		ring->me = mec + 1;
-		ring->pipe = pipe;
-		ring->queue = queue;
-
-		return 0;
-	}
-
-	dev_err(adev->dev, "Failed to find a queue for KIQ\n");
-	return -EINVAL;
-}
-
-static int gfx_v9_0_kiq_init_ring(struct amdgpu_device *adev,
-				  struct amdgpu_ring *ring,
-				  struct amdgpu_irq_src *irq)
-{
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
-	int r = 0;
-
-	mutex_init(&kiq->ring_mutex);
-
-	r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
-	if (r)
-		return r;
-
-	ring->adev = NULL;
-	ring->ring_obj = NULL;
-	ring->use_doorbell = true;
-	ring->doorbell_index = AMDGPU_DOORBELL_KIQ;
-
-	r = gfx_v9_0_kiq_acquire(adev, ring);
-	if (r)
-		return r;
-
-	ring->eop_gpu_addr = kiq->eop_gpu_addr;
-	sprintf(ring->name, "kiq %d.%d.%d", ring->me, ring->pipe, ring->queue);
-	r = amdgpu_ring_init(adev, ring, 1024,
-			     irq, AMDGPU_CP_KIQ_IRQ_DRIVER0);
-	if (r)
-		dev_warn(adev->dev, "(%d) failed to init kiq ring\n", r);
-
-	return r;
-}
-static void gfx_v9_0_kiq_free_ring(struct amdgpu_ring *ring,
-				   struct amdgpu_irq_src *irq)
-{
-	amdgpu_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
-	amdgpu_ring_fini(ring);
-}
-
 /* create MQD for each compute queue */
 static int gfx_v9_0_compute_mqd_sw_init(struct amdgpu_device *adev)
 {
@@ -1570,14 +1469,14 @@ static int gfx_v9_0_sw_init(void *handle)
 		}
 	}
 
-	r = gfx_v9_0_kiq_init(adev);
+	r = amdgpu_gfx_kiq_init(adev, GFX9_MEC_HPD_SIZE);
 	if (r) {
 		DRM_ERROR("Failed to init KIQ BOs!\n");
 		return r;
 	}
 
 	kiq = &adev->gfx.kiq;
-	r = gfx_v9_0_kiq_init_ring(adev, &kiq->ring, &kiq->irq);
+	r = amdgpu_gfx_kiq_init_ring(adev, &kiq->ring, &kiq->irq);
 	if (r)
 		return r;
 
@@ -1632,8 +1531,8 @@ static int gfx_v9_0_sw_fini(void *handle)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
 	gfx_v9_0_compute_mqd_sw_fini(adev);
-	gfx_v9_0_kiq_free_ring(&adev->gfx.kiq.ring, &adev->gfx.kiq.irq);
-	gfx_v9_0_kiq_fini(adev);
+	amdgpu_gfx_kiq_free_ring(&adev->gfx.kiq.ring, &adev->gfx.kiq.irq);
+	amdgpu_gfx_kiq_fini(adev);
 
 	gfx_v9_0_mec_fini(adev);
 	gfx_v9_0_ngg_fini(adev);
