@@ -243,7 +243,7 @@ bool cookie_timestamp_decode(const struct net *net,
 		return true;
 	}
 
-	if (!sysctl_tcp_timestamps)
+	if (!net->ipv4.sysctl_tcp_timestamps)
 		return false;
 
 	tcp_opt->sack_ok = (options & TS_OPT_SACK) ? TCP_SACK_SEEN : 0;
@@ -316,7 +316,9 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	tcp_parse_options(sock_net(sk), skb, &tcp_opt, 0, NULL);
 
 	if (tcp_opt.saw_tstamp && tcp_opt.rcv_tsecr) {
-		tsoff = secure_tcp_ts_off(ip_hdr(skb)->daddr, ip_hdr(skb)->saddr);
+		tsoff = secure_tcp_ts_off(sock_net(sk),
+					  ip_hdr(skb)->daddr,
+					  ip_hdr(skb)->saddr);
 		tcp_opt.rcv_tsecr -= tsoff;
 	}
 
