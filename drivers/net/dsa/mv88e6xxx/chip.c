@@ -1274,7 +1274,7 @@ mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 }
 
 static int _mv88e6xxx_port_vlan_add(struct mv88e6xxx_chip *chip, int port,
-				    u16 vid, bool untagged)
+				    u16 vid, u8 member)
 {
 	struct mv88e6xxx_vtu_entry vlan;
 	int err;
@@ -1283,9 +1283,7 @@ static int _mv88e6xxx_port_vlan_add(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	vlan.member[port] = untagged ?
-		GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED :
-		GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED;
+	vlan.member[port] = member;
 
 	return mv88e6xxx_vtu_loadpurge(chip, &vlan);
 }
@@ -1297,15 +1295,23 @@ static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+	u8 member;
 	u16 vid;
 
 	if (!chip->info->max_vid)
 		return;
 
+	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
+		member = GLOBAL_VTU_DATA_MEMBER_TAG_UNMODIFIED;
+	else if (untagged)
+		member = GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED;
+	else
+		member = GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED;
+
 	mutex_lock(&chip->reg_lock);
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid)
-		if (_mv88e6xxx_port_vlan_add(chip, port, vid, untagged))
+		if (_mv88e6xxx_port_vlan_add(chip, port, vid, member))
 			netdev_err(ds->ports[port].netdev,
 				   "failed to add VLAN %d%c\n",
 				   vid, untagged ? 'u' : 't');
