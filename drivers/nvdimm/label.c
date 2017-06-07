@@ -222,9 +222,10 @@ int nd_label_validate(struct nvdimm_drvdata *ndd)
 	 * need to know the size of the labels, and we can't trust the
 	 * size of the labels until we validate the index blocks.
 	 * Resolve this dependency loop by probing for known label
-	 * sizes.
+	 * sizes, but default to v1.2 256-byte namespace labels if
+	 * discovery fails.
 	 */
-	int label_size[] = { 256, 128 };
+	int label_size[] = { 128, 256 };
 	int i, rc;
 
 	for (i = 0; i < ARRAY_SIZE(label_size); i++) {
@@ -532,7 +533,10 @@ static int nd_label_write_index(struct nvdimm_drvdata *ndd, int index, u32 seq,
 	nsindex->labeloff = __cpu_to_le64(offset);
 	nsindex->nslot = __cpu_to_le32(nslot);
 	nsindex->major = __cpu_to_le16(1);
-	nsindex->minor = __cpu_to_le16(1);
+	if (sizeof_namespace_label(ndd) < 256)
+		nsindex->minor = __cpu_to_le16(1);
+	else
+		nsindex->minor = __cpu_to_le16(2);
 	nsindex->checksum = __cpu_to_le64(0);
 	if (flags & ND_NSINDEX_INIT) {
 		unsigned long *free = (unsigned long *) nsindex->free;
