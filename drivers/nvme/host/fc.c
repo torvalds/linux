@@ -214,7 +214,6 @@ static LIST_HEAD(nvme_fc_lport_list);
 static DEFINE_IDA(nvme_fc_local_port_cnt);
 static DEFINE_IDA(nvme_fc_ctrl_cnt);
 
-static struct workqueue_struct *nvme_fc_wq;
 
 
 
@@ -1775,7 +1774,7 @@ nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 		return;
 	}
 
-	if (!queue_work(nvme_fc_wq, &ctrl->reset_work))
+	if (!queue_work(nvme_wq, &ctrl->reset_work))
 		dev_err(ctrl->ctrl.device,
 			"NVME-FC{%d}: error_recovery: Failed to schedule "
 			"reset work\n", ctrl->cnum);
@@ -2555,7 +2554,7 @@ __nvme_fc_schedule_delete_work(struct nvme_fc_ctrl *ctrl)
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
 		return true;
 
-	if (!queue_work(nvme_fc_wq, &ctrl->delete_work))
+	if (!queue_work(nvme_wq, &ctrl->delete_work))
 		return true;
 
 	return false;
@@ -2582,7 +2581,7 @@ nvme_fc_del_nvme_ctrl(struct nvme_ctrl *nctrl)
 	ret = __nvme_fc_del_ctrl(ctrl);
 
 	if (!ret)
-		flush_workqueue(nvme_fc_wq);
+		flush_workqueue(nvme_wq);
 
 	nvme_put_ctrl(&ctrl->ctrl);
 
@@ -2607,7 +2606,7 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 		dev_info(ctrl->ctrl.device,
 			"NVME-FC{%d}: Reconnect attempt in %d seconds.\n",
 			ctrl->cnum, ctrl->ctrl.opts->reconnect_delay);
-		queue_delayed_work(nvme_fc_wq, &ctrl->connect_work,
+		queue_delayed_work(nvme_wq, &ctrl->connect_work,
 				ctrl->ctrl.opts->reconnect_delay * HZ);
 	} else {
 		dev_warn(ctrl->ctrl.device,
@@ -2651,7 +2650,7 @@ nvme_fc_reset_nvme_ctrl(struct nvme_ctrl *nctrl)
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RESETTING))
 		return -EBUSY;
 
-	if (!queue_work(nvme_fc_wq, &ctrl->reset_work))
+	if (!queue_work(nvme_wq, &ctrl->reset_work))
 		return -EBUSY;
 
 	flush_work(&ctrl->reset_work);
@@ -2966,20 +2965,7 @@ static struct nvmf_transport_ops nvme_fc_transport = {
 
 static int __init nvme_fc_init_module(void)
 {
-	int ret;
-
-	nvme_fc_wq = create_workqueue("nvme_fc_wq");
-	if (!nvme_fc_wq)
-		return -ENOMEM;
-
-	ret = nvmf_register_transport(&nvme_fc_transport);
-	if (ret)
-		goto err;
-
-	return 0;
-err:
-	destroy_workqueue(nvme_fc_wq);
-	return ret;
+	return nvmf_register_transport(&nvme_fc_transport);
 }
 
 static void __exit nvme_fc_exit_module(void)
@@ -2989,8 +2975,6 @@ static void __exit nvme_fc_exit_module(void)
 		pr_warn("%s: localport list not empty\n", __func__);
 
 	nvmf_unregister_transport(&nvme_fc_transport);
-
-	destroy_workqueue(nvme_fc_wq);
 
 	ida_destroy(&nvme_fc_local_port_cnt);
 	ida_destroy(&nvme_fc_ctrl_cnt);

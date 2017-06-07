@@ -150,7 +150,7 @@ nvme_loop_timeout(struct request *rq, bool reserved)
 	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(rq);
 
 	/* queue error recovery */
-	schedule_work(&iod->queue->ctrl->reset_work);
+	queue_work(nvme_wq, &iod->queue->ctrl->reset_work);
 
 	/* fail with DNR on admin cmd timeout */
 	nvme_req(rq)->status = NVME_SC_ABORT_REQ | NVME_SC_DNR;
@@ -465,7 +465,7 @@ static int __nvme_loop_del_ctrl(struct nvme_loop_ctrl *ctrl)
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
 		return -EBUSY;
 
-	if (!schedule_work(&ctrl->delete_work))
+	if (!queue_work(nvme_wq, &ctrl->delete_work))
 		return -EBUSY;
 
 	return 0;
@@ -545,7 +545,7 @@ static int nvme_loop_reset_ctrl(struct nvme_ctrl *nctrl)
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RESETTING))
 		return -EBUSY;
 
-	if (!schedule_work(&ctrl->reset_work))
+	if (!queue_work(nvme_wq, &ctrl->reset_work))
 		return -EBUSY;
 
 	flush_work(&ctrl->reset_work);
@@ -762,7 +762,7 @@ static void __exit nvme_loop_cleanup_module(void)
 		__nvme_loop_del_ctrl(ctrl);
 	mutex_unlock(&nvme_loop_ctrl_mutex);
 
-	flush_scheduled_work();
+	flush_workqueue(nvme_wq);
 }
 
 module_init(nvme_loop_init_module);

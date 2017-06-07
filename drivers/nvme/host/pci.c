@@ -71,8 +71,6 @@ module_param(max_host_mem_size_mb, uint, 0444);
 MODULE_PARM_DESC(max_host_mem_size_mb,
 	"Maximum Host Memory Buffer (HMB) size per controller (in MiB)");
 
-static struct workqueue_struct *nvme_workq;
-
 struct nvme_dev;
 struct nvme_queue;
 
@@ -2190,7 +2188,7 @@ static int nvme_reset(struct nvme_dev *dev)
 		return -ENODEV;
 	if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_RESETTING))
 		return -EBUSY;
-	if (!queue_work(nvme_workq, &dev->reset_work))
+	if (!queue_work(nvme_wq, &dev->reset_work))
 		return -EBUSY;
 	return 0;
 }
@@ -2318,7 +2316,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_RESETTING);
 	dev_info(dev->ctrl.device, "pci function %s\n", dev_name(&pdev->dev));
 
-	queue_work(nvme_workq, &dev->reset_work);
+	queue_work(nvme_wq, &dev->reset_work);
 	return 0;
 
  release_pools:
@@ -2506,22 +2504,12 @@ static struct pci_driver nvme_driver = {
 
 static int __init nvme_init(void)
 {
-	int result;
-
-	nvme_workq = alloc_workqueue("nvme", WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
-	if (!nvme_workq)
-		return -ENOMEM;
-
-	result = pci_register_driver(&nvme_driver);
-	if (result)
-		destroy_workqueue(nvme_workq);
-	return result;
+	return pci_register_driver(&nvme_driver);
 }
 
 static void __exit nvme_exit(void)
 {
 	pci_unregister_driver(&nvme_driver);
-	destroy_workqueue(nvme_workq);
 	_nvme_check_size();
 }
 

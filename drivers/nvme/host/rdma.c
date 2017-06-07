@@ -140,8 +140,6 @@ static DEFINE_MUTEX(device_list_mutex);
 static LIST_HEAD(nvme_rdma_ctrl_list);
 static DEFINE_MUTEX(nvme_rdma_ctrl_mutex);
 
-static struct workqueue_struct *nvme_rdma_wq;
-
 /*
  * Disabling this option makes small I/O goes faster, but is fundamentally
  * unsafe.  With it turned off we will have to register a global rkey that
@@ -712,11 +710,11 @@ static void nvme_rdma_reconnect_or_remove(struct nvme_rdma_ctrl *ctrl)
 	if (nvmf_should_reconnect(&ctrl->ctrl)) {
 		dev_info(ctrl->ctrl.device, "Reconnecting in %d seconds...\n",
 			ctrl->ctrl.opts->reconnect_delay);
-		queue_delayed_work(nvme_rdma_wq, &ctrl->reconnect_work,
+		queue_delayed_work(nvme_wq, &ctrl->reconnect_work,
 				ctrl->ctrl.opts->reconnect_delay * HZ);
 	} else {
 		dev_info(ctrl->ctrl.device, "Removing controller...\n");
-		queue_work(nvme_rdma_wq, &ctrl->delete_work);
+		queue_work(nvme_wq, &ctrl->delete_work);
 	}
 }
 
@@ -825,7 +823,7 @@ static void nvme_rdma_error_recovery(struct nvme_rdma_ctrl *ctrl)
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RECONNECTING))
 		return;
 
-	queue_work(nvme_rdma_wq, &ctrl->err_work);
+	queue_work(nvme_wq, &ctrl->err_work);
 }
 
 static void nvme_rdma_wr_error(struct ib_cq *cq, struct ib_wc *wc,
@@ -1692,7 +1690,7 @@ static int __nvme_rdma_del_ctrl(struct nvme_rdma_ctrl *ctrl)
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
 		return -EBUSY;
 
-	if (!queue_work(nvme_rdma_wq, &ctrl->delete_work))
+	if (!queue_work(nvme_wq, &ctrl->delete_work))
 		return -EBUSY;
 
 	return 0;
@@ -1768,7 +1766,7 @@ static void nvme_rdma_reset_ctrl_work(struct work_struct *work)
 del_dead_ctrl:
 	/* Deleting this dead controller... */
 	dev_warn(ctrl->ctrl.device, "Removing after reset failure\n");
-	WARN_ON(!queue_work(nvme_rdma_wq, &ctrl->delete_work));
+	WARN_ON(!queue_work(nvme_wq, &ctrl->delete_work));
 }
 
 static int nvme_rdma_reset_ctrl(struct nvme_ctrl *nctrl)
@@ -1778,7 +1776,7 @@ static int nvme_rdma_reset_ctrl(struct nvme_ctrl *nctrl)
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RESETTING))
 		return -EBUSY;
 
-	if (!queue_work(nvme_rdma_wq, &ctrl->reset_work))
+	if (!queue_work(nvme_wq, &ctrl->reset_work))
 		return -EBUSY;
 
 	flush_work(&ctrl->reset_work);
@@ -2015,7 +2013,7 @@ static void nvme_rdma_remove_one(struct ib_device *ib_device, void *client_data)
 	}
 	mutex_unlock(&nvme_rdma_ctrl_mutex);
 
-	flush_workqueue(nvme_rdma_wq);
+	flush_workqueue(nvme_wq);
 }
 
 static struct ib_client nvme_rdma_ib_client = {
@@ -2028,13 +2026,9 @@ static int __init nvme_rdma_init_module(void)
 {
 	int ret;
 
-	nvme_rdma_wq = create_workqueue("nvme_rdma_wq");
-	if (!nvme_rdma_wq)
-		return -ENOMEM;
-
 	ret = ib_register_client(&nvme_rdma_ib_client);
 	if (ret)
-		goto err_destroy_wq;
+		return ret;
 
 	ret = nvmf_register_transport(&nvme_rdma_transport);
 	if (ret)
@@ -2044,8 +2038,6 @@ static int __init nvme_rdma_init_module(void)
 
 err_unreg_client:
 	ib_unregister_client(&nvme_rdma_ib_client);
-err_destroy_wq:
-	destroy_workqueue(nvme_rdma_wq);
 	return ret;
 }
 
@@ -2053,7 +2045,6 @@ static void __exit nvme_rdma_cleanup_module(void)
 {
 	nvmf_unregister_transport(&nvme_rdma_transport);
 	ib_unregister_client(&nvme_rdma_ib_client);
-	destroy_workqueue(nvme_rdma_wq);
 }
 
 module_init(nvme_rdma_init_module);

@@ -65,6 +65,9 @@ static bool force_apst;
 module_param(force_apst, bool, 0644);
 MODULE_PARM_DESC(force_apst, "allow APST for newly enumerated devices even if quirked off");
 
+struct workqueue_struct *nvme_wq;
+EXPORT_SYMBOL_GPL(nvme_wq);
+
 static LIST_HEAD(nvme_ctrl_list);
 static DEFINE_SPINLOCK(dev_list_lock);
 
@@ -2538,10 +2541,15 @@ int __init nvme_core_init(void)
 {
 	int result;
 
+	nvme_wq = alloc_workqueue("nvme-wq",
+			WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_SYSFS, 0);
+	if (!nvme_wq)
+		return -ENOMEM;
+
 	result = __register_chrdev(nvme_char_major, 0, NVME_MINORS, "nvme",
 							&nvme_dev_fops);
 	if (result < 0)
-		return result;
+		goto destroy_wq;
 	else if (result > 0)
 		nvme_char_major = result;
 
@@ -2553,8 +2561,10 @@ int __init nvme_core_init(void)
 
 	return 0;
 
- unregister_chrdev:
+unregister_chrdev:
 	__unregister_chrdev(nvme_char_major, 0, NVME_MINORS, "nvme");
+destroy_wq:
+	destroy_workqueue(nvme_wq);
 	return result;
 }
 
@@ -2562,6 +2572,7 @@ void nvme_core_exit(void)
 {
 	class_destroy(nvme_class);
 	__unregister_chrdev(nvme_char_major, 0, NVME_MINORS, "nvme");
+	destroy_workqueue(nvme_wq);
 }
 
 MODULE_LICENSE("GPL");
