@@ -124,6 +124,16 @@
 		clocks = <&rcc 0 STM32F4_AHB1_CLOCK(OTGHSULPI)>;
 		clock-names = "main_clk";
 	};
+
+	panel_rgb: panel-rgb {
+		compatible = "ampire,am-480272h3tmqw-t01h";
+		status = "okay";
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&ltdc_out_rgb>;
+			};
+		};
+	};
 };
 
 &adc {
@@ -145,6 +155,19 @@
 	pinctrl-0 = <&i2c1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+
+&ltdc {
+	status = "okay";
+	pinctrl-0 = <&ltdc_pins>;
+	pinctrl-names = "default";
+	dma-ranges;
+
+	port {
+		ltdc_out_rgb: endpoint {
+			remote-endpoint = <&panel_in_rgb>;
+		};
+	};
 };
 
 &mac {
