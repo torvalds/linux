@@ -69,13 +69,8 @@ static void phy_mdio_device_remove(struct mdio_device *mdiodev)
 	phy_device_remove(phydev);
 }
 
-enum genphy_driver {
-	GENPHY_DRV_1G,
-	GENPHY_DRV_10G,
-	GENPHY_DRV_MAX
-};
-
-static struct phy_driver genphy_driver[GENPHY_DRV_MAX];
+static struct phy_driver genphy_driver;
+extern struct phy_driver genphy_10g_driver;
 
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
@@ -928,11 +923,9 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 */
 	if (!d->driver) {
 		if (phydev->is_c45)
-			d->driver =
-				&genphy_driver[GENPHY_DRV_10G].mdiodrv.driver;
+			d->driver = &genphy_10g_driver.mdiodrv.driver;
 		else
-			d->driver =
-				&genphy_driver[GENPHY_DRV_1G].mdiodrv.driver;
+			d->driver = &genphy_driver.mdiodrv.driver;
 
 		using_genphy = true;
 	}
@@ -1069,7 +1062,6 @@ void phy_detach(struct phy_device *phydev)
 	struct net_device *dev = phydev->attached_dev;
 	struct module *ndev_owner = dev->dev.parent->driver->owner;
 	struct mii_bus *bus;
-	int i;
 
 	if (phydev->sysfs_links) {
 		sysfs_remove_link(&dev->dev.kobj, "phydev");
@@ -1088,13 +1080,9 @@ void phy_detach(struct phy_device *phydev)
 	 * from the generic driver so that there's a chance a
 	 * real driver could be loaded
 	 */
-	for (i = 0; i < ARRAY_SIZE(genphy_driver); i++) {
-		if (phydev->mdio.dev.driver ==
-		    &genphy_driver[i].mdiodrv.driver) {
-			device_release_driver(&phydev->mdio.dev);
-			break;
-		}
-	}
+	if (phydev->mdio.dev.driver == &genphy_10g_driver.mdiodrv.driver ||
+	    phydev->mdio.dev.driver == &genphy_driver.mdiodrv.driver)
+		device_release_driver(&phydev->mdio.dev);
 
 	/*
 	 * The phydev might go away on the put_device() below, so avoid
@@ -1368,11 +1356,6 @@ int genphy_aneg_done(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_aneg_done);
 
-static int gen10g_config_aneg(struct phy_device *phydev)
-{
-	return 0;
-}
-
 /**
  * genphy_update_link - update link status in @phydev
  * @phydev: target phy_device struct
@@ -1506,33 +1489,6 @@ int genphy_read_status(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_read_status);
 
-static int gen10g_read_status(struct phy_device *phydev)
-{
-	int devad, reg;
-	u32 mmd_mask = phydev->c45_ids.devices_in_package;
-
-	phydev->link = 1;
-
-	/* For now just lie and say it's 10G all the time */
-	phydev->speed = SPEED_10000;
-	phydev->duplex = DUPLEX_FULL;
-
-	for (devad = 0; mmd_mask; devad++, mmd_mask = mmd_mask >> 1) {
-		if (!(mmd_mask & 1))
-			continue;
-
-		/* Read twice because link state is latched and a
-		 * read moves the current state into the register
-		 */
-		phy_read_mmd(phydev, devad, MDIO_STAT1);
-		reg = phy_read_mmd(phydev, devad, MDIO_STAT1);
-		if (reg < 0 || !(reg & MDIO_STAT1_LSTATUS))
-			phydev->link = 0;
-	}
-
-	return 0;
-}
-
 /**
  * genphy_soft_reset - software reset the PHY via BMCR_RESET bit
  * @phydev: target phy_device struct
@@ -1598,21 +1554,6 @@ int genphy_config_init(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_config_init);
 
-static int gen10g_soft_reset(struct phy_device *phydev)
-{
-	/* Do nothing for now */
-	return 0;
-}
-
-static int gen10g_config_init(struct phy_device *phydev)
-{
-	/* Temporarily just say we support everything */
-	phydev->supported = SUPPORTED_10000baseT_Full;
-	phydev->advertising = SUPPORTED_10000baseT_Full;
-
-	return 0;
-}
-
 int genphy_suspend(struct phy_device *phydev)
 {
 	int value;
@@ -1628,11 +1569,6 @@ int genphy_suspend(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_suspend);
 
-static int gen10g_suspend(struct phy_device *phydev)
-{
-	return 0;
-}
-
 int genphy_resume(struct phy_device *phydev)
 {
 	int value;
@@ -1647,11 +1583,6 @@ int genphy_resume(struct phy_device *phydev)
 	return 0;
 }
 EXPORT_SYMBOL(genphy_resume);
-
-static int gen10g_resume(struct phy_device *phydev)
-{
-	return 0;
-}
 
 static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
 {
@@ -1884,8 +1815,7 @@ void phy_drivers_unregister(struct phy_driver *drv, int n)
 }
 EXPORT_SYMBOL(phy_drivers_unregister);
 
-static struct phy_driver genphy_driver[] = {
-{
+static struct phy_driver genphy_driver = {
 	.phy_id		= 0xffffffff,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Generic PHY",
@@ -1899,18 +1829,7 @@ static struct phy_driver genphy_driver[] = {
 	.read_status	= genphy_read_status,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
-}, {
-	.phy_id         = 0xffffffff,
-	.phy_id_mask    = 0xffffffff,
-	.name           = "Generic 10G PHY",
-	.soft_reset	= gen10g_soft_reset,
-	.config_init    = gen10g_config_init,
-	.features       = 0,
-	.config_aneg    = gen10g_config_aneg,
-	.read_status    = gen10g_read_status,
-	.suspend        = gen10g_suspend,
-	.resume         = gen10g_resume,
-} };
+};
 
 static int __init phy_init(void)
 {
@@ -1920,18 +1839,24 @@ static int __init phy_init(void)
 	if (rc)
 		return rc;
 
-	rc = phy_drivers_register(genphy_driver,
-				  ARRAY_SIZE(genphy_driver), THIS_MODULE);
+	rc = phy_driver_register(&genphy_10g_driver, THIS_MODULE);
 	if (rc)
+		goto err_10g;
+
+	rc = phy_driver_register(&genphy_driver, THIS_MODULE);
+	if (rc) {
+		phy_driver_unregister(&genphy_10g_driver);
+err_10g:
 		mdio_bus_exit();
+	}
 
 	return rc;
 }
 
 static void __exit phy_exit(void)
 {
-	phy_drivers_unregister(genphy_driver,
-			       ARRAY_SIZE(genphy_driver));
+	phy_driver_unregister(&genphy_10g_driver);
+	phy_driver_unregister(&genphy_driver);
 	mdio_bus_exit();
 }
 

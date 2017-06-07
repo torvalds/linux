@@ -32,5 +32,5 @@ Description:
 		<empty> (not available), mii, gmii, sgmii, tbi, rev-mii,
 		rmii, rgmii, rgmii-id, rgmii-rxid, rgmii-txid, rtbi, smii
 		xgmii, moca, qsgmii, trgmii, 1000base-x, 2500base-x, rxaui,
-		unknown
+		xaui, 10gbase-kr, unknown
 

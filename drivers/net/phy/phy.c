@@ -149,6 +149,25 @@ static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
 	return 0;
 }
 
+/**
+ * phy_restart_aneg - restart auto-negotiation
+ * @phydev: target phy_device struct
+ *
+ * Restart the autonegotiation on @phydev.  Returns >= 0 on success or
+ * negative errno on error.
+ */
+int phy_restart_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	if (phydev->is_c45 && !(phydev->c45_ids.devices_in_package & BIT(0)))
+		ret = genphy_c45_restart_aneg(phydev);
+	else
+		ret = genphy_restart_aneg(phydev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_restart_aneg);
 
 /**
  * phy_aneg_done - return auto-negotiation status
@@ -162,6 +181,12 @@ int phy_aneg_done(struct phy_device *phydev)
 {
 	if (phydev->drv && phydev->drv->aneg_done)
 		return phydev->drv->aneg_done(phydev);
+
+	/* Avoid genphy_aneg_done() if the Clause 45 PHY does not
+	 * implement Clause 22 registers
+	 */
+	if (phydev->is_c45 && !(phydev->c45_ids.devices_in_package & BIT(0)))
+		return -EINVAL;
 
 	return genphy_aneg_done(phydev);
 }
@@ -1391,7 +1416,7 @@ int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 		/* Restart autonegotiation so the new modes get sent to the
 		 * link partner.
 		 */
-		ret = genphy_restart_aneg(phydev);
+		ret = phy_restart_aneg(phydev);
 		if (ret < 0)
 			return ret;
 	}
@@ -1450,6 +1475,6 @@ int phy_ethtool_nway_reset(struct net_device *ndev)
 	if (!phydev->drv)
 		return -EIO;
 
-	return genphy_restart_aneg(phydev);
+	return phy_restart_aneg(phydev);
 }
 EXPORT_SYMBOL(phy_ethtool_nway_reset);
