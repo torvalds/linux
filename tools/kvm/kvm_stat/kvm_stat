@@ -1142,14 +1142,12 @@ class Tui(object):
                 if char == 'x':
                     self.refresh_header()
                     self.update_drilldown()
-                    sleeptime = DELAY_INITIAL
                 if char == 'q':
                     break
                 if char == 'c':
                     self.stats.fields_filter = DEFAULT_REGEX
                     self.refresh_header(0)
                     self.update_pid(0)
-                    sleeptime = DELAY_INITIAL
                 if char == 'f':
                     self.show_filter_selection()
                     sleeptime = DELAY_INITIAL
@@ -1162,7 +1160,6 @@ class Tui(object):
                 if char == 'r':
                     self.refresh_header()
                     self.stats.reset()
-                    sleeptime = DELAY_INITIAL
             except KeyboardInterrupt:
                 break
             except curses.error:
