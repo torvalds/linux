@@ -361,6 +361,7 @@ struct dc_surface_status {
 	struct dc_plane_address requested_address;
 	struct dc_plane_address current_address;
 	bool is_flip_pending;
+	bool is_right_eye;
 };
 
 /*
@@ -476,7 +477,7 @@ struct dc_stream {
 	const struct dc_transfer_func *out_transfer_func;
 	struct colorspace_transform gamut_remap_matrix;
 	struct csc_transform csc_color_matrix;
-
+	enum view_3d_format view_format;
 	/* TODO: custom INFO packets */
 	/* TODO: ABM info (DMCU) */
 	/* TODO: PSR info */
@@ -591,6 +592,15 @@ bool dc_commit_streams(
 		struct dc *dc,
 		const struct dc_stream *streams[],
 		uint8_t stream_count);
+/*
+ * Enable stereo when commit_streams is not required,
+ * for example, frame alternate.
+ */
+bool dc_enable_stereo(
+	struct dc *dc,
+	struct validate_context *context,
+	const struct dc_stream *streams[],
+	uint8_t stream_count);
 
 /**
  * Create a new default stream for the requested sink
@@ -777,6 +787,14 @@ struct dc_container_id {
 	unsigned short productCode;
 };
 
+struct stereo_3d_features {
+	bool supported			;
+	bool allTimings			;
+	bool cloneMode			;
+	bool scaling			;
+	bool singleFrameSWPacked;
+};
+
 /*
  * The sink structure contains EDID and other display device properties
  */
@@ -788,6 +806,7 @@ struct dc_sink {
 	uint32_t dongle_max_pix_clk;
 	bool converter_disable_audio;
 	void *priv;
+	struct stereo_3d_features features_3d[TIMING_3D_FORMAT_MAX];
 };
 
 void dc_sink_retain(const struct dc_sink *sink);

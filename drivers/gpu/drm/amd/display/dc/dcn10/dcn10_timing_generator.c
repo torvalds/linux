@@ -78,112 +78,22 @@ static void dcn10_program_global_sync(
 			VREADY_OFFSET, tg->dlg_otg_param.vready_offset);
 }
 
-struct crtc_stereo_flags {
-	uint8_t PROGRAM_STEREO         :1;
-	uint8_t PROGRAM_POLARITY       :1;
-	uint8_t RIGHT_EYE_POLARITY     :1;
-	uint8_t FRAME_PACKED           :1;
-	uint8_t DISABLE_STEREO_DP_SYNC :1;
-};
-
-static void dcn10_enable_stereo(struct timing_generator *tg,
-		const struct crtc_stereo_flags *flags,
-		const struct dc_crtc_timing *timing)
-{
-	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
-
-	uint32_t active_width = timing->h_addressable;
-	uint32_t space1_size = timing->v_total - timing->v_addressable;
-
-	if (flags) {
-		uint32_t stereo_en = flags->FRAME_PACKED == 0 ? 1 : 0;
-
-		if (flags->PROGRAM_STEREO)
-			REG_UPDATE_3(OTG_STEREO_CONTROL,
-					OTG_STEREO_EN, stereo_en,
-					OTG_STEREO_SYNC_OUTPUT_LINE_NUM, 0,
-					OTG_STEREO_SYNC_OUTPUT_POLARITY, 0);
-
-		if (flags->PROGRAM_POLARITY)
-			REG_UPDATE(OTG_STEREO_CONTROL,
-					OTG_STEREO_EYE_FLAG_POLARITY,
-					flags->RIGHT_EYE_POLARITY == 0 ? 0:1);
-
-		if (flags->DISABLE_STEREO_DP_SYNC)
-			REG_UPDATE(OTG_STEREO_CONTROL,
-					OTG_DISABLE_STEREOSYNC_OUTPUT_FOR_DP, 1);
-
-		if (flags->PROGRAM_STEREO && flags->FRAME_PACKED)
-			REG_UPDATE_3(OTG_3D_STRUCTURE_CONTROL,
-					OTG_3D_STRUCTURE_EN, 1,
-					OTG_3D_STRUCTURE_V_UPDATE_MODE, 1,
-					OTG_3D_STRUCTURE_STEREO_SEL_OVR, 1);
-
-	}
-
-	REG_UPDATE(OPPBUF_CONTROL,
-			OPPBUF_ACTIVE_WIDTH, active_width);
-
-	REG_UPDATE(OPPBUF_3D_PARAMETERS_0,
-			OPPBUF_3D_VACT_SPACE1_SIZE, space1_size);
-
-	return;
-}
-
 static void dcn10_disable_stereo(struct timing_generator *tg)
 {
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
 
 	REG_SET(OTG_STEREO_CONTROL, 0,
-			OTG_STEREO_EN, 0);
+		OTG_STEREO_EN, 0);
 
 	REG_SET_3(OTG_3D_STRUCTURE_CONTROL, 0,
-			OTG_3D_STRUCTURE_EN, 0,
-			OTG_3D_STRUCTURE_V_UPDATE_MODE, 0,
-			OTG_3D_STRUCTURE_STEREO_SEL_OVR, 0);
+		OTG_3D_STRUCTURE_EN, 0,
+		OTG_3D_STRUCTURE_V_UPDATE_MODE, 0,
+		OTG_3D_STRUCTURE_STEREO_SEL_OVR, 0);
 
 	REG_UPDATE(OPPBUF_CONTROL,
-			OPPBUF_ACTIVE_WIDTH, 0);
+		OPPBUF_ACTIVE_WIDTH, 0);
 	REG_UPDATE(OPPBUF_3D_PARAMETERS_0,
-			OPPBUF_3D_VACT_SPACE1_SIZE, 0);
-	return;
-}
-
-static bool is_frame_alternate_stereo(enum dc_timing_3d_format fmt)
-{
-	bool ret = false;
-	if (fmt == TIMING_3D_FORMAT_FRAME_ALTERNATE ||
-		fmt == TIMING_3D_FORMAT_INBAND_FA ||
-		fmt == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
-		fmt == TIMING_3D_FORMAT_SIDEBAND_FA)
-		ret = true;
-	return ret;
-}
-
-static void dcn10_do_stereo(struct timing_generator *tg,
-		const struct dc_crtc_timing *dc_crtc_timing)
-{
-	struct crtc_stereo_flags stereo_flags = {0};
-	if (dc_crtc_timing->timing_3d_format == TIMING_3D_FORMAT_NONE ||
-		dc_crtc_timing->timing_3d_format == TIMING_3D_FORMAT_SIDE_BY_SIDE ||
-		dc_crtc_timing->timing_3d_format == TIMING_3D_FORMAT_TOP_AND_BOTTOM)
-		dcn10_disable_stereo(tg);
-	else {
-		stereo_flags.PROGRAM_STEREO = 1;
-		stereo_flags.PROGRAM_POLARITY = 1;
-		stereo_flags.DISABLE_STEREO_DP_SYNC = 0;
-		stereo_flags.RIGHT_EYE_POLARITY =
-				dc_crtc_timing->flags.RIGHT_EYE_3D_POLARITY;
-		if (dc_crtc_timing->timing_3d_format ==
-				TIMING_3D_FORMAT_HW_FRAME_PACKING)
-			stereo_flags.FRAME_PACKED = 1;
-
-		if (is_frame_alternate_stereo(
-				dc_crtc_timing->timing_3d_format) ||
-				dc_crtc_timing->timing_3d_format ==
-					TIMING_3D_FORMAT_HW_FRAME_PACKING)
-			dcn10_enable_stereo(tg, &stereo_flags, dc_crtc_timing);
-	}
+		OPPBUF_3D_VACT_SPACE1_SIZE, 0);
 }
 
 /**
@@ -361,9 +271,8 @@ static void tg_program_timing_generator(
 	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_BY2, h_div_2);
 
-	/* Enable crtc stereo frame pack tested... todo more
-	 */
-	dcn10_do_stereo(tg, &patched_crtc_timing);
+	dcn10_disable_stereo( tg);
+
 }
 
 /** tg_program_blanking
@@ -605,7 +514,8 @@ static bool tg_validate_timing(
 		timing->timing_3d_format != TIMING_3D_FORMAT_HW_FRAME_PACKING &&
 		timing->timing_3d_format != TIMING_3D_FORMAT_TOP_AND_BOTTOM &&
 		timing->timing_3d_format != TIMING_3D_FORMAT_SIDE_BY_SIDE &&
-		timing->timing_3d_format != TIMING_3D_FORMAT_FRAME_ALTERNATE)
+		timing->timing_3d_format != TIMING_3D_FORMAT_FRAME_ALTERNATE &&
+		timing->timing_3d_format != TIMING_3D_FORMAT_INBAND_FA)
 		return false;
 
 	/* Temporarily blocking interlacing mode until it's supported */
@@ -1145,6 +1055,76 @@ void dcn10_timing_generator_get_crtc_scanoutpos(
 	*v_position = position.vertical_count;
 }
 
+
+
+static void dcn10_enable_stereo(struct timing_generator *tg,
+	const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags)
+{
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+
+	uint32_t active_width = timing->h_addressable;
+	uint32_t space1_size = timing->v_total - timing->v_addressable;
+
+	if (flags) {
+		uint32_t stereo_en;
+		stereo_en = flags->FRAME_PACKED == 0 ? 1 : 0;
+
+		if (flags->PROGRAM_STEREO)
+			REG_UPDATE_3(OTG_STEREO_CONTROL,
+				OTG_STEREO_EN, stereo_en,
+				OTG_STEREO_SYNC_OUTPUT_LINE_NUM, 0,
+				OTG_STEREO_SYNC_OUTPUT_POLARITY, 0);
+
+		if (flags->PROGRAM_POLARITY)
+			REG_UPDATE(OTG_STEREO_CONTROL,
+				OTG_STEREO_EYE_FLAG_POLARITY,
+				flags->RIGHT_EYE_POLARITY == 0 ? 0 : 1);
+
+		if (flags->DISABLE_STEREO_DP_SYNC)
+			REG_UPDATE(OTG_STEREO_CONTROL,
+				OTG_DISABLE_STEREOSYNC_OUTPUT_FOR_DP, 1);
+
+		if (flags->PROGRAM_STEREO && flags->FRAME_PACKED)
+			REG_UPDATE_3(OTG_3D_STRUCTURE_CONTROL,
+				OTG_3D_STRUCTURE_EN, 1,
+				OTG_3D_STRUCTURE_V_UPDATE_MODE, 1,
+				OTG_3D_STRUCTURE_STEREO_SEL_OVR, 1);
+
+	}
+
+	REG_UPDATE(OPPBUF_CONTROL,
+		OPPBUF_ACTIVE_WIDTH, active_width);
+
+	REG_UPDATE(OPPBUF_3D_PARAMETERS_0,
+		OPPBUF_3D_VACT_SPACE1_SIZE, space1_size);
+}
+
+static void dcn10_program_stereo(struct timing_generator *tg,
+	const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags)
+{
+	if (flags->PROGRAM_STEREO)
+		dcn10_enable_stereo(tg, timing, flags);
+	else
+		dcn10_disable_stereo(tg);
+}
+
+
+static bool dcn10_is_stereo_left_eye(struct timing_generator *tg)
+{
+	bool ret = false;
+	uint32_t left_eye = 0;
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+
+	REG_GET(OTG_STEREO_STATUS,
+		OTG_STEREO_CURRENT_EYE, &left_eye);
+	if (left_eye == 1)
+		ret = true;
+	else
+		ret = false;
+
+	return ret;
+}
+
 static struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = tg_validate_timing,
 		.program_timing = tg_program_timing,
@@ -1183,7 +1163,9 @@ static struct timing_generator_funcs dcn10_tg_funcs = {
 		.enable_optc_clock = enable_optc_clock,
 		.set_drr = dcn10_timing_generator_set_drr,
 		.set_static_screen_control = set_static_screen_control,
-		.set_test_pattern = dcn10_timing_generator_set_test_pattern
+		.set_test_pattern = dcn10_timing_generator_set_test_pattern,
+		.program_stereo = dcn10_program_stereo,
+		.is_stereo_left_eye = dcn10_is_stereo_left_eye
 };
 
 void dcn10_timing_generator_init(struct dcn10_timing_generator *tgn10)

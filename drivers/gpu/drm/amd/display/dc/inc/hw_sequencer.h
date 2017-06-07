@@ -143,6 +143,10 @@ struct hw_sequencer_funcs {
 			struct pipe_ctx *pipe_ctx,
 			struct validate_context *context,
 			struct core_dc *dc);
+
+	void (*setup_stereo)(
+			struct pipe_ctx *pipe_ctx,
+			struct core_dc *dc);
 };
 
 void color_space_to_black_color(

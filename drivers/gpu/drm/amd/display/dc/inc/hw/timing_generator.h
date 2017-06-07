@@ -100,6 +100,15 @@ struct _dlg_otg_param {
 	enum signal_type signal;
 };
 #endif
+
+struct crtc_stereo_flags {
+	uint8_t PROGRAM_STEREO         : 1;
+	uint8_t PROGRAM_POLARITY       : 1;
+	uint8_t RIGHT_EYE_POLARITY     : 1;
+	uint8_t FRAME_PACKED           : 1;
+	uint8_t DISABLE_STEREO_DP_SYNC : 1;
+};
+
 struct timing_generator {
 	const struct timing_generator_funcs *funcs;
 	struct dc_bios *bp;
@@ -171,6 +180,9 @@ struct timing_generator_funcs {
 	void (*program_global_sync)(struct timing_generator *tg);
 	void (*enable_optc_clock)(struct timing_generator *tg, bool enable);
 #endif
+	void (*program_stereo)(struct timing_generator *tg,
+		const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags);
+	bool (*is_stereo_left_eye)(struct timing_generator *tg);
 };
 
 #endif
