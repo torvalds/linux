@@ -446,6 +446,10 @@ struct bufdesc_ex {
 #define FEC_QUIRK_HAS_COALESCE		(1 << 13)
 /* Interrupt doesn't wake CPU from deep idle */
 #define FEC_QUIRK_ERR006687		(1 << 14)
+/* The MIB counters should be cleared and enabled during
+ * initialisation.
+ */
+#define FEC_QUIRK_MIB_CLEAR		(1 << 15)
 
 struct bufdesc_prop {
 	int qid;
