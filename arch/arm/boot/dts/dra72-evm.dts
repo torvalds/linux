@@ -54,6 +54,10 @@
 	phy-mode = "rgmii";
 };
 
+&mmc1 {
+	vqmmc-supply = <&ldo1_reg>;
+};
+
 &mmc2 {
 	vmmc-supply = <&evm_1v8_sw>;
 };
