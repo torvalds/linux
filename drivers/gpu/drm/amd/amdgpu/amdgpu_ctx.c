@@ -72,6 +72,8 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	}
 
 	ctx->reset_counter = atomic_read(&adev->gpu_reset_counter);
+	ctx->init_priority = priority;
+	ctx->override_priority = AMD_SCHED_PRIORITY_UNSET;
 
 	/* create context entity for each ring */
 	for (i = 0; i < adev->num_rings; i++) {
@@ -360,6 +362,33 @@ struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 	spin_unlock(&ctx->ring_lock);
 
 	return fence;
+}
+
+void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx,
+				  enum amd_sched_priority priority)
+{
+	int i;
+	struct amdgpu_device *adev = ctx->adev;
+	struct amd_sched_rq *rq;
+	struct amd_sched_entity *entity;
+	struct amdgpu_ring *ring;
+	enum amd_sched_priority ctx_prio;
+
+	ctx->override_priority = priority;
+
+	ctx_prio = (ctx->override_priority == AMD_SCHED_PRIORITY_UNSET) ?
+			ctx->init_priority : ctx->override_priority;
+
+	for (i = 0; i < adev->num_rings; i++) {
+		ring = adev->rings[i];
+		entity = &ctx->rings[i].entity;
+		rq = &ring->sched.sched_rq[ctx_prio];
+
+		if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
+			continue;
+
+		amd_sched_entity_set_rq(entity, rq);
+	}
 }
 
 void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr)
