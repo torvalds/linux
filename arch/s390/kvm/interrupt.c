@@ -1876,6 +1876,28 @@ out:
 	return ret < 0 ? ret : n;
 }
 
+static int flic_ais_mode_get_all(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_s390_float_interrupt *fi = &kvm->arch.float_int;
+	struct kvm_s390_ais_all ais;
+
+	if (attr->attr < sizeof(ais))
+		return -EINVAL;
+
+	if (!test_kvm_facility(kvm, 72))
+		return -ENOTSUPP;
+
+	mutex_lock(&fi->ais_lock);
+	ais.simm = fi->simm;
+	ais.nimm = fi->nimm;
+	mutex_unlock(&fi->ais_lock);
+
+	if (copy_to_user((void __user *)attr->addr, &ais, sizeof(ais)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int flic_get_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	int r;
@@ -1884,6 +1906,9 @@ static int flic_get_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	case KVM_DEV_FLIC_GET_ALL_IRQS:
 		r = get_all_floating_irqs(dev->kvm, (u8 __user *) attr->addr,
 					  attr->attr);
+		break;
+	case KVM_DEV_FLIC_AISM_ALL:
+		r = flic_ais_mode_get_all(dev->kvm, attr);
 		break;
 	default:
 		r = -EINVAL;
@@ -2235,6 +2260,25 @@ static int flic_inject_airq(struct kvm *kvm, struct kvm_device_attr *attr)
 	return kvm_s390_inject_airq(kvm, adapter);
 }
 
+static int flic_ais_mode_set_all(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_s390_float_interrupt *fi = &kvm->arch.float_int;
+	struct kvm_s390_ais_all ais;
+
+	if (!test_kvm_facility(kvm, 72))
+		return -ENOTSUPP;
+
+	if (copy_from_user(&ais, (void __user *)attr->addr, sizeof(ais)))
+		return -EFAULT;
+
+	mutex_lock(&fi->ais_lock);
+	fi->simm = ais.simm;
+	fi->nimm = ais.nimm;
+	mutex_unlock(&fi->ais_lock);
+
+	return 0;
+}
+
 static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	int r = 0;
@@ -2277,6 +2321,9 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	case KVM_DEV_FLIC_AIRQ_INJECT:
 		r = flic_inject_airq(dev->kvm, attr);
 		break;
+	case KVM_DEV_FLIC_AISM_ALL:
+		r = flic_ais_mode_set_all(dev->kvm, attr);
+		break;
 	default:
 		r = -EINVAL;
 	}
@@ -2298,6 +2345,7 @@ static int flic_has_attr(struct kvm_device *dev,
 	case KVM_DEV_FLIC_CLEAR_IO_IRQ:
 	case KVM_DEV_FLIC_AISM:
 	case KVM_DEV_FLIC_AIRQ_INJECT:
+	case KVM_DEV_FLIC_AISM_ALL:
 		return 0;
 	}
 	return -ENXIO;

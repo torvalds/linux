@@ -28,6 +28,7 @@
 #define KVM_DEV_FLIC_CLEAR_IO_IRQ	8
 #define KVM_DEV_FLIC_AISM		9
 #define KVM_DEV_FLIC_AIRQ_INJECT	10
+#define KVM_DEV_FLIC_AISM_ALL		11
 /*
  * We can have up to 4*64k pending subchannels + 8 adapter interrupts,
  * as well as up  to ASYNC_PF_PER_VCPU*KVM_MAX_VCPUS pfault done interrupts.
@@ -51,6 +52,11 @@ struct kvm_s390_io_adapter {
 struct kvm_s390_ais_req {
 	__u8 isc;
 	__u16 mode;
+};
+
+struct kvm_s390_ais_all {
+	__u8 simm;
+	__u8 nimm;
 };
 
 #define KVM_S390_IO_ADAPTER_MASK 1
