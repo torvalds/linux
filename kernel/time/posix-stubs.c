@@ -42,6 +42,7 @@ SYS_NI(setitimer);
 SYS_NI(alarm);
 #endif
 COMPAT_SYS_NI(clock_adjtime);
+COMPAT_SYS_NI(timer_settime);
 
 /*
  * We preserve minimal support for CLOCK_REALTIME and CLOCK_MONOTONIC
