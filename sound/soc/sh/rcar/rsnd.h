@@ -598,6 +598,7 @@ struct rsnd_kctrl_cfg {
 	unsigned int size;
 	u32 *val;
 	const char * const *texts;
+	int (*accept)(struct rsnd_dai_stream *io);
 	void (*update)(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
 	struct rsnd_dai_stream *io;
 	struct snd_card *card;
@@ -615,12 +616,15 @@ struct rsnd_kctrl_cfg_s {
 	u32 val;
 };
 
+int rsnd_kctrl_accept_anytime(struct rsnd_dai_stream *io);
+int rsnd_kctrl_accept_runtime(struct rsnd_dai_stream *io);
 struct rsnd_kctrl_cfg *rsnd_kctrl_init_m(struct rsnd_kctrl_cfg_m *cfg);
 struct rsnd_kctrl_cfg *rsnd_kctrl_init_s(struct rsnd_kctrl_cfg_s *cfg);
 int rsnd_kctrl_new(struct rsnd_mod *mod,
 		   struct rsnd_dai_stream *io,
 		   struct snd_soc_pcm_runtime *rtd,
 		   const unsigned char *name,
+		   int (*accept)(struct rsnd_dai_stream *io),
 		   void (*update)(struct rsnd_dai_stream *io,
 				  struct rsnd_mod *mod),
 		   struct rsnd_kctrl_cfg *cfg,
@@ -628,16 +632,16 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 		   int size,
 		   u32 max);
 
-#define rsnd_kctrl_new_m(mod, io, rtd, name, update, cfg, size, max) \
-	rsnd_kctrl_new(mod, io, rtd, name, update, rsnd_kctrl_init_m(cfg), \
+#define rsnd_kctrl_new_m(mod, io, rtd, name, accept, update, cfg, size, max) \
+	rsnd_kctrl_new(mod, io, rtd, name, accept, update, rsnd_kctrl_init_m(cfg), \
 		       NULL, size, max)
 
-#define rsnd_kctrl_new_s(mod, io, rtd, name, update, cfg, max)	\
-	rsnd_kctrl_new(mod, io, rtd, name, update, rsnd_kctrl_init_s(cfg), \
+#define rsnd_kctrl_new_s(mod, io, rtd, name, accept, update, cfg, max)	\
+	rsnd_kctrl_new(mod, io, rtd, name, accept, update, rsnd_kctrl_init_s(cfg), \
 		       NULL, 1, max)
 
-#define rsnd_kctrl_new_e(mod, io, rtd, name, update, cfg, texts)	\
-	rsnd_kctrl_new(mod, io, rtd, name, update, rsnd_kctrl_init_s(cfg), \
+#define rsnd_kctrl_new_e(mod, io, rtd, name, accept, update, cfg, texts)	\
+	rsnd_kctrl_new(mod, io, rtd, name, accept, update, rsnd_kctrl_init_s(cfg), \
 		       texts, 1, ARRAY_SIZE(texts))
 
 /*

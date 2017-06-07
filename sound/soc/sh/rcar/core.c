@@ -1065,6 +1065,9 @@ static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 	struct rsnd_kctrl_cfg *cfg = kcontrol_to_cfg(kctrl);
 	int i, change = 0;
 
+	if (!cfg->accept(cfg->io))
+		return 0;
+
 	for (i = 0; i < cfg->size; i++) {
 		if (cfg->texts) {
 			change |= (uc->value.enumerated.item[i] != cfg->val[i]);
@@ -1079,6 +1082,18 @@ static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 		cfg->update(cfg->io, mod);
 
 	return change;
+}
+
+int rsnd_kctrl_accept_anytime(struct rsnd_dai_stream *io)
+{
+	return 1;
+}
+
+int rsnd_kctrl_accept_runtime(struct rsnd_dai_stream *io)
+{
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+
+	return !!runtime;
 }
 
 struct rsnd_kctrl_cfg *rsnd_kctrl_init_m(struct rsnd_kctrl_cfg_m *cfg)
@@ -1099,6 +1114,7 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 		   struct rsnd_dai_stream *io,
 		   struct snd_soc_pcm_runtime *rtd,
 		   const unsigned char *name,
+		   int (*accept)(struct rsnd_dai_stream *io),
 		   void (*update)(struct rsnd_dai_stream *io,
 				  struct rsnd_mod *mod),
 		   struct rsnd_kctrl_cfg *cfg,
@@ -1133,6 +1149,7 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 	cfg->texts	= texts;
 	cfg->max	= max;
 	cfg->size	= size;
+	cfg->accept	= accept;
 	cfg->update	= update;
 	cfg->card	= card;
 	cfg->kctrl	= kctrl;
