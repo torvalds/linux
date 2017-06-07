@@ -111,6 +111,8 @@ struct qrtr_node {
 	struct list_head item;
 };
 
+static int qrtr_local_enqueue(struct qrtr_node *node, struct sk_buff *skb);
+
 /* Release node resources and free the node.
  *
  * Do not call directly, use qrtr_node_release.  To be used with
@@ -291,6 +293,25 @@ static struct sk_buff *qrtr_alloc_resume_tx(u32 src_node,
 	return skb;
 }
 
+/* Allocate and construct a BYE message to signal remote termination */
+static struct sk_buff *qrtr_alloc_local_bye(u32 src_node)
+{
+	const int pkt_len = 20;
+	struct sk_buff *skb;
+	__le32 *buf;
+
+	skb = qrtr_alloc_ctrl_packet(QRTR_TYPE_BYE, pkt_len,
+				     src_node, qrtr_local_nid);
+	if (!skb)
+		return NULL;
+
+	buf = (__le32 *)skb_put(skb, pkt_len);
+	memset(buf, 0, pkt_len);
+	buf[0] = cpu_to_le32(QRTR_TYPE_BYE);
+
+	return skb;
+}
+
 static struct qrtr_sock *qrtr_port_lookup(int port);
 static void qrtr_port_put(struct qrtr_sock *ipc);
 
@@ -382,10 +403,16 @@ EXPORT_SYMBOL_GPL(qrtr_endpoint_register);
 void qrtr_endpoint_unregister(struct qrtr_endpoint *ep)
 {
 	struct qrtr_node *node = ep->node;
+	struct sk_buff *skb;
 
 	mutex_lock(&node->ep_lock);
 	node->ep = NULL;
 	mutex_unlock(&node->ep_lock);
+
+	/* Notify the local controller about the event */
+	skb = qrtr_alloc_local_bye(node->nid);
+	if (skb)
+		qrtr_local_enqueue(NULL, skb);
 
 	qrtr_node_release(node);
 	ep->node = NULL;
