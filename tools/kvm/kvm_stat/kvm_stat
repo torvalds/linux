@@ -844,8 +844,7 @@ class Stats(object):
                 self.values[key] = (newval, newdelta)
         return self.values
 
-DELAY_INITIAL = 0.25
-DELAY_REGULAR = 3.0
+DELAY_DEFAULT = 3.0
 MAX_GUEST_NAME_LEN = 48
 MAX_REGEX_LEN = 44
 DEFAULT_REGEX = r'^[^\(]*$'
@@ -856,6 +855,8 @@ class Tui(object):
     def __init__(self, stats):
         self.stats = stats
         self.screen = None
+        self._delay_initial = 0.25
+        self._delay_regular = DELAY_DEFAULT
 
     def __enter__(self):
         """Initialises curses for later use.  Based on curses.wrapper
@@ -1027,6 +1028,7 @@ class Tui(object):
                '   p     filter by PID',
                '   q     quit',
                '   r     reset stats',
+               '   s     set update interval',
                '   x     toggle reporting of stats for individual child trace'
                ' events',
                'Any other key refreshes statistics immediately')
@@ -1106,9 +1108,40 @@ class Tui(object):
                 self.refresh_header(pid)
                 self.update_pid(pid)
                 break
-
             except ValueError:
                 msg = '"' + str(pid) + '": Not a valid pid'
+
+    def show_set_update_interval(self):
+        """Draws update interval selection mask."""
+        msg = ''
+        while True:
+            self.screen.erase()
+            self.screen.addstr(0, 0, 'Set update interval (defaults to %fs).' %
+                               DELAY_DEFAULT, curses.A_BOLD)
+            self.screen.addstr(4, 0, msg)
+            self.screen.addstr(2, 0, 'Change delay from %.1fs to ' %
+                               self._delay_regular)
+            curses.echo()
+            val = self.screen.getstr()
+            curses.noecho()
+
+            try:
+                if len(val) > 0:
+                    delay = float(val)
+                    if delay < 0.1:
+                        msg = '"' + str(val) + '": Value must be >=0.1'
+                        continue
+                    if delay > 25.5:
+                        msg = '"' + str(val) + '": Value must be <=25.5'
+                        continue
+                else:
+                    delay = DELAY_DEFAULT
+                self._delay_regular = delay
+                break
+
+            except ValueError:
+                msg = '"' + str(val) + '": Invalid value'
+        self.refresh_header()
 
     def show_vm_selection_by_guest_name(self):
         """Draws guest selection mask.
@@ -1156,14 +1189,14 @@ class Tui(object):
 
     def show_stats(self):
         """Refreshes the screen and processes user input."""
-        sleeptime = DELAY_INITIAL
+        sleeptime = self._delay_initial
         self.refresh_header()
         start = 0.0  # result based on init value never appears on screen
         while True:
             self.refresh_body(time.time() - start)
             curses.halfdelay(int(sleeptime * 10))
             start = time.time()
-            sleeptime = DELAY_REGULAR
+            sleeptime = self._delay_regular
             try:
                 char = self.screen.getkey()
                 if char == 'c':
@@ -1174,23 +1207,28 @@ class Tui(object):
                     curses.curs_set(1)
                     self.show_filter_selection()
                     curses.curs_set(0)
-                    sleeptime = DELAY_INITIAL
+                    sleeptime = self._delay_initial
                 if char == 'g':
                     curses.curs_set(1)
                     self.show_vm_selection_by_guest_name()
                     curses.curs_set(0)
-                    sleeptime = DELAY_INITIAL
+                    sleeptime = self._delay_initial
                 if char == 'h':
                     self.show_help_interactive()
                 if char == 'p':
                     curses.curs_set(1)
                     self.show_vm_selection_by_pid()
                     curses.curs_set(0)
-                    sleeptime = DELAY_INITIAL
+                    sleeptime = self._delay_initial
                 if char == 'q':
                     break
                 if char == 'r':
                     self.stats.reset()
+                if char == 's':
+                    curses.curs_set(1)
+                    self.show_set_update_interval()
+                    curses.curs_set(0)
+                    sleeptime = self._delay_initial
                 if char == 'x':
                     self.update_drilldown()
             except KeyboardInterrupt:
@@ -1267,6 +1305,7 @@ Interactive Commands:
    p     filter by PID
    q     quit
    r     reset stats
+   s     set update interval
    x     toggle reporting of stats for individual child trace events
 Press any other key to refresh statistics immediately.
 """

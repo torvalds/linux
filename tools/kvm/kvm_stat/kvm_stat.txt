@@ -43,6 +43,8 @@ INTERACTIVE COMMANDS
 
 *r*::	reset stats
 
+*s*::   set update interval
+
 *x*::	toggle reporting of stats for child trace events
 
 Press any other key to refresh statistics immediately.
