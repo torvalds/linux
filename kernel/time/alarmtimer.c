@@ -688,8 +688,10 @@ static enum alarmtimer_restart alarmtimer_nsleep_wakeup(struct alarm *alarm,
  *
  * Sets the alarm timer and sleeps until it is fired or interrupted.
  */
-static int alarmtimer_do_nsleep(struct alarm *alarm, ktime_t absexp)
+static int alarmtimer_do_nsleep(struct alarm *alarm, ktime_t absexp,
+				enum alarmtimer_type type)
 {
+	struct timespec __user *rmtp;
 	alarm->data = (void *)current;
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -702,36 +704,26 @@ static int alarmtimer_do_nsleep(struct alarm *alarm, ktime_t absexp)
 
 	__set_current_state(TASK_RUNNING);
 
-	return (alarm->data == NULL);
-}
-
-
-/**
- * update_rmtp - Update remaining timespec value
- * @exp: expiration time
- * @type: timer type
- * @rmtp: user pointer to remaining timepsec value
- *
- * Helper function that fills in rmtp value with time between
- * now and the exp value
- */
-static int update_rmtp(ktime_t exp, enum  alarmtimer_type type,
-			struct timespec __user *rmtp)
-{
-	struct timespec rmt;
-	ktime_t rem;
-
-	rem = ktime_sub(exp, alarm_bases[type].gettime());
-
-	if (rem <= 0)
+	if (!alarm->data)
 		return 0;
-	rmt = ktime_to_timespec(rem);
 
-	if (copy_to_user(rmtp, &rmt, sizeof(*rmtp)))
-		return -EFAULT;
+	if (freezing(current))
+		alarmtimer_freezerset(absexp, type);
+	rmtp = current->restart_block.nanosleep.rmtp;
+	if (rmtp) {
+		struct timespec rmt;
+		ktime_t rem;
 
-	return 1;
+		rem = ktime_sub(absexp, alarm_bases[type].gettime());
 
+		if (rem <= 0)
+			return 0;
+		rmt = ktime_to_timespec(rem);
+
+		if (copy_to_user(rmtp, &rmt, sizeof(*rmtp)))
+			return -EFAULT;
+	}
+	return -ERESTART_RESTARTBLOCK;
 }
 
 /**
@@ -743,32 +735,12 @@ static int update_rmtp(ktime_t exp, enum  alarmtimer_type type,
 static long __sched alarm_timer_nsleep_restart(struct restart_block *restart)
 {
 	enum  alarmtimer_type type = restart->nanosleep.clockid;
-	ktime_t exp;
-	struct timespec __user  *rmtp;
+	ktime_t exp = restart->nanosleep.expires;
 	struct alarm alarm;
-	int ret = 0;
 
-	exp = restart->nanosleep.expires;
 	alarm_init(&alarm, type, alarmtimer_nsleep_wakeup);
 
-	if (alarmtimer_do_nsleep(&alarm, exp))
-		goto out;
-
-	if (freezing(current))
-		alarmtimer_freezerset(exp, type);
-
-	rmtp = restart->nanosleep.rmtp;
-	if (rmtp) {
-		ret = update_rmtp(exp, type, rmtp);
-		if (ret <= 0)
-			goto out;
-	}
-
-
-	/* The other values in restart are already filled in */
-	ret = -ERESTART_RESTARTBLOCK;
-out:
-	return ret;
+	return alarmtimer_do_nsleep(&alarm, exp, type);
 }
 
 /**
@@ -785,10 +757,15 @@ static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
 			      struct timespec __user *rmtp)
 {
 	enum  alarmtimer_type type = clock2alarm(which_clock);
-	struct restart_block *restart;
+	struct restart_block *restart = &current->restart_block;
 	struct alarm alarm;
 	ktime_t exp;
 	int ret = 0;
+
+	if (flags & TIMER_ABSTIME)
+		rmtp = NULL;
+
+	restart->nanosleep.rmtp = rmtp;
 
 	if (!alarmtimer_get_rtcdev())
 		return -ENOTSUPP;
@@ -808,32 +785,17 @@ static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
 		exp = ktime_add(now, exp);
 	}
 
-	if (alarmtimer_do_nsleep(&alarm, exp))
-		goto out;
-
-	if (freezing(current))
-		alarmtimer_freezerset(exp, type);
+	ret = alarmtimer_do_nsleep(&alarm, exp, type);
+	if (ret != -ERESTART_RESTARTBLOCK)
+		return ret;
 
 	/* abs timers don't set remaining time or restart */
-	if (flags == TIMER_ABSTIME) {
-		ret = -ERESTARTNOHAND;
-		goto out;
-	}
+	if (flags == TIMER_ABSTIME)
+		return -ERESTARTNOHAND;
 
-	if (rmtp) {
-		ret = update_rmtp(exp, type, rmtp);
-		if (ret <= 0)
-			goto out;
-	}
-
-	restart = &current->restart_block;
 	restart->fn = alarm_timer_nsleep_restart;
 	restart->nanosleep.clockid = type;
 	restart->nanosleep.expires = exp;
-	restart->nanosleep.rmtp = rmtp;
-	ret = -ERESTART_RESTARTBLOCK;
-
-out:
 	return ret;
 }
 
