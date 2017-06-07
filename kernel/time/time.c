@@ -100,6 +100,47 @@ SYSCALL_DEFINE1(stime, time_t __user *, tptr)
 
 #endif /* __ARCH_WANT_SYS_TIME */
 
+#ifdef CONFIG_COMPAT
+#ifdef __ARCH_WANT_COMPAT_SYS_TIME
+
+/* compat_time_t is a 32 bit "long" and needs to get converted. */
+COMPAT_SYSCALL_DEFINE1(time, compat_time_t __user *, tloc)
+{
+	struct timeval tv;
+	compat_time_t i;
+
+	do_gettimeofday(&tv);
+	i = tv.tv_sec;
+
+	if (tloc) {
+		if (put_user(i,tloc))
+			return -EFAULT;
+	}
+	force_successful_syscall_return();
+	return i;
+}
+
+COMPAT_SYSCALL_DEFINE1(stime, compat_time_t __user *, tptr)
+{
+	struct timespec tv;
+	int err;
+
+	if (get_user(tv.tv_sec, tptr))
+		return -EFAULT;
+
+	tv.tv_nsec = 0;
+
+	err = security_settime(&tv, NULL);
+	if (err)
+		return err;
+
+	do_settimeofday(&tv);
+	return 0;
+}
+
+#endif /* __ARCH_WANT_COMPAT_SYS_TIME */
+#endif
+
 SYSCALL_DEFINE2(gettimeofday, struct timeval __user *, tv,
 		struct timezone __user *, tz)
 {

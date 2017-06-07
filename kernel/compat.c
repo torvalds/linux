@@ -739,46 +739,6 @@ COMPAT_SYSCALL_DEFINE4(rt_sigtimedwait, compat_sigset_t __user *, uthese,
 	return ret;
 }
 
-#ifdef __ARCH_WANT_COMPAT_SYS_TIME
-
-/* compat_time_t is a 32 bit "long" and needs to get converted. */
-
-COMPAT_SYSCALL_DEFINE1(time, compat_time_t __user *, tloc)
-{
-	compat_time_t i;
-	struct timeval tv;
-
-	do_gettimeofday(&tv);
-	i = tv.tv_sec;
-
-	if (tloc) {
-		if (put_user(i,tloc))
-			return -EFAULT;
-	}
-	force_successful_syscall_return();
-	return i;
-}
-
-COMPAT_SYSCALL_DEFINE1(stime, compat_time_t __user *, tptr)
-{
-	struct timespec tv;
-	int err;
-
-	if (get_user(tv.tv_sec, tptr))
-		return -EFAULT;
-
-	tv.tv_nsec = 0;
-
-	err = security_settime(&tv, NULL);
-	if (err)
-		return err;
-
-	do_settimeofday(&tv);
-	return 0;
-}
-
-#endif /* __ARCH_WANT_COMPAT_SYS_TIME */
-
 #ifdef CONFIG_NUMA
 COMPAT_SYSCALL_DEFINE6(move_pages, pid_t, pid, compat_ulong_t, nr_pages,
 		       compat_uptr_t __user *, pages32,
