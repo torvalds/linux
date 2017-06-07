@@ -929,7 +929,7 @@ class Tui(object):
         return self
 
     def __exit__(self, *exception):
-        """Resets the terminal to its normal state.  Based on curses.wrappre
+        """Resets the terminal to its normal state.  Based on curses.wrapper
            implementation from the Python standard library."""
         if self.screen:
             self.screen.keypad(0)
