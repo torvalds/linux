@@ -166,8 +166,8 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 		       struct v4l2_subdev_format *sdformat)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
+	struct v4l2_mbus_framefmt *fmt, *infmt;
 	const struct imx_media_pixfmt *cc;
-	struct v4l2_mbus_framefmt *fmt;
 	int ret = 0;
 	u32 code;
 
@@ -180,6 +180,8 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 		ret = -EBUSY;
 		goto out;
 	}
+
+	infmt = __prp_get_fmt(priv, cfg, PRP_SINK_PAD, sdformat->which);
 
 	switch (sdformat->pad) {
 	case PRP_SINK_PAD:
@@ -194,12 +196,14 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 			cc = imx_media_find_ipu_format(code, CS_SEL_ANY);
 			sdformat->format.code = cc->codes[0];
 		}
+
+		imx_media_fill_default_mbus_fields(&sdformat->format, infmt,
+						   true);
 		break;
 	case PRP_SRC_PAD_PRPENC:
 	case PRP_SRC_PAD_PRPVF:
 		/* Output pads mirror input pad */
-		fmt = __prp_get_fmt(priv, cfg, PRP_SINK_PAD, sdformat->which);
-		sdformat->format = *fmt;
+		sdformat->format = *infmt;
 		break;
 	}
 

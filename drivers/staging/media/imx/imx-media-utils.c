@@ -464,6 +464,68 @@ int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 }
 EXPORT_SYMBOL_GPL(imx_media_init_mbus_fmt);
 
+/*
+ * Check whether the field and colorimetry parameters in tryfmt are
+ * uninitialized, and if so fill them with the values from fmt,
+ * or if tryfmt->colorspace has been initialized, all the default
+ * colorimetry params can be derived from tryfmt->colorspace.
+ *
+ * tryfmt->code must be set on entry.
+ *
+ * If this format is destined to be routed through the Image Converter,
+ * quantization and Y`CbCr encoding must be fixed. The IC expects and
+ * produces fixed quantization and Y`CbCr encoding at its input and output
+ * (full range for RGB, limited range for YUV, and V4L2_YCBCR_ENC_601).
+ */
+void imx_media_fill_default_mbus_fields(struct v4l2_mbus_framefmt *tryfmt,
+					struct v4l2_mbus_framefmt *fmt,
+					bool ic_route)
+{
+	const struct imx_media_pixfmt *cc;
+	bool is_rgb = false;
+
+	cc = imx_media_find_mbus_format(tryfmt->code, CS_SEL_ANY, true);
+	if (!cc)
+		cc = imx_media_find_ipu_format(tryfmt->code, CS_SEL_ANY);
+	if (cc && cc->cs != IPUV3_COLORSPACE_YUV)
+		is_rgb = true;
+
+	/* fill field if necessary */
+	if (tryfmt->field == V4L2_FIELD_ANY)
+		tryfmt->field = fmt->field;
+
+	/* fill colorimetry if necessary */
+	if (tryfmt->colorspace == V4L2_COLORSPACE_DEFAULT) {
+		tryfmt->colorspace = fmt->colorspace;
+		tryfmt->xfer_func = fmt->xfer_func;
+		tryfmt->ycbcr_enc = fmt->ycbcr_enc;
+		tryfmt->quantization = fmt->quantization;
+	} else {
+		if (tryfmt->xfer_func == V4L2_XFER_FUNC_DEFAULT) {
+			tryfmt->xfer_func =
+				V4L2_MAP_XFER_FUNC_DEFAULT(tryfmt->colorspace);
+		}
+		if (tryfmt->ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT) {
+			tryfmt->ycbcr_enc =
+				V4L2_MAP_YCBCR_ENC_DEFAULT(tryfmt->colorspace);
+		}
+		if (tryfmt->quantization == V4L2_QUANTIZATION_DEFAULT) {
+			tryfmt->quantization =
+				V4L2_MAP_QUANTIZATION_DEFAULT(
+					is_rgb, tryfmt->colorspace,
+					tryfmt->ycbcr_enc);
+		}
+	}
+
+	if (ic_route) {
+		tryfmt->quantization = is_rgb ?
+			V4L2_QUANTIZATION_FULL_RANGE :
+			V4L2_QUANTIZATION_LIM_RANGE;
+		tryfmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
+	}
+}
+EXPORT_SYMBOL_GPL(imx_media_fill_default_mbus_fields);
+
 int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 				  struct v4l2_mbus_framefmt *mbus,
 				  const struct imx_media_pixfmt *cc)

@@ -805,6 +805,8 @@ static void prp_try_fmt(struct prp_priv *priv,
 			struct v4l2_subdev_format *sdformat,
 			const struct imx_media_pixfmt **cc)
 {
+	struct v4l2_mbus_framefmt *infmt;
+
 	*cc = imx_media_find_ipu_format(sdformat->format.code, CS_SEL_ANY);
 	if (!*cc) {
 		u32 code;
@@ -814,22 +816,29 @@ static void prp_try_fmt(struct prp_priv *priv,
 		sdformat->format.code = (*cc)->codes[0];
 	}
 
-	if (sdformat->pad == PRPENCVF_SRC_PAD) {
-		struct v4l2_mbus_framefmt *infmt =
-			__prp_get_fmt(priv, cfg, PRPENCVF_SINK_PAD,
-				      sdformat->which);
+	infmt = __prp_get_fmt(priv, cfg, PRPENCVF_SINK_PAD, sdformat->which);
 
+	if (sdformat->pad == PRPENCVF_SRC_PAD) {
 		if (sdformat->format.field != V4L2_FIELD_NONE)
 			sdformat->format.field = infmt->field;
 
 		prp_bound_align_output(&sdformat->format, infmt,
 				       priv->rot_mode);
+
+		/* propagate colorimetry from sink */
+		sdformat->format.colorspace = infmt->colorspace;
+		sdformat->format.xfer_func = infmt->xfer_func;
+		sdformat->format.quantization = infmt->quantization;
+		sdformat->format.ycbcr_enc = infmt->ycbcr_enc;
 	} else {
 		v4l_bound_align_image(&sdformat->format.width,
 				      MIN_W_SINK, MAX_W_SINK, W_ALIGN_SINK,
 				      &sdformat->format.height,
 				      MIN_H_SINK, MAX_H_SINK, H_ALIGN_SINK,
 				      S_ALIGN);
+
+		imx_media_fill_default_mbus_fields(&sdformat->format, infmt,
+						   true);
 	}
 }
 

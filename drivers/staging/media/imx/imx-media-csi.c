@@ -1244,11 +1244,11 @@ static void csi_try_fmt(struct csi_priv *priv,
 	struct v4l2_mbus_framefmt *infmt;
 	u32 code;
 
+	infmt = __csi_get_fmt(priv, cfg, CSI_SINK_PAD, sdformat->which);
+
 	switch (sdformat->pad) {
 	case CSI_SRC_PAD_DIRECT:
 	case CSI_SRC_PAD_IDMAC:
-		infmt = __csi_get_fmt(priv, cfg, CSI_SINK_PAD,
-				      sdformat->which);
 		incc = imx_media_find_mbus_format(infmt->code,
 						  CS_SEL_ANY, true);
 
@@ -1284,6 +1284,12 @@ static void csi_try_fmt(struct csi_priv *priv,
 			sdformat->format.field =  (infmt->height == 480) ?
 				V4L2_FIELD_SEQ_TB : V4L2_FIELD_SEQ_BT;
 		}
+
+		/* propagate colorimetry from sink */
+		sdformat->format.colorspace = infmt->colorspace;
+		sdformat->format.xfer_func = infmt->xfer_func;
+		sdformat->format.quantization = infmt->quantization;
+		sdformat->format.ycbcr_enc = infmt->ycbcr_enc;
 		break;
 	case CSI_SINK_PAD:
 		v4l_bound_align_image(&sdformat->format.width, MIN_W, MAX_W,
@@ -1310,6 +1316,10 @@ static void csi_try_fmt(struct csi_priv *priv,
 							CS_SEL_ANY, false);
 			sdformat->format.code = (*cc)->codes[0];
 		}
+
+		imx_media_fill_default_mbus_fields(
+			&sdformat->format, infmt,
+			priv->active_output_pad == CSI_SRC_PAD_DIRECT);
 		break;
 	}
 }

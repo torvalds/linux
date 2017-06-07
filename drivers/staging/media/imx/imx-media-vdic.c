@@ -603,10 +603,11 @@ static void vdic_try_fmt(struct vdic_priv *priv,
 		sdformat->format.code = (*cc)->codes[0];
 	}
 
+	infmt = __vdic_get_fmt(priv, cfg, priv->active_input_pad,
+			       sdformat->which);
+
 	switch (sdformat->pad) {
 	case VDIC_SRC_PAD_DIRECT:
-		infmt = __vdic_get_fmt(priv, cfg, priv->active_input_pad,
-				       sdformat->which);
 		sdformat->format = *infmt;
 		/* output is always progressive! */
 		sdformat->format.field = V4L2_FIELD_NONE;
@@ -617,6 +618,9 @@ static void vdic_try_fmt(struct vdic_priv *priv,
 				      MIN_W, MAX_W_VDIC, W_ALIGN,
 				      &sdformat->format.height,
 				      MIN_H, MAX_H_VDIC, H_ALIGN, S_ALIGN);
+
+		imx_media_fill_default_mbus_fields(&sdformat->format, infmt,
+						   true);
 
 		/* input must be interlaced! Choose SEQ_TB if not */
 		if (!V4L2_FIELD_HAS_BOTH(sdformat->format.field))
