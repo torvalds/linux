@@ -56,7 +56,7 @@ MODULE_PARM_DESC(max_retries, "max number of retries a command may have");
 static int nvme_char_major;
 module_param(nvme_char_major, int, 0);
 
-static unsigned long default_ps_max_latency_us = 25000;
+static unsigned long default_ps_max_latency_us = 100000;
 module_param(default_ps_max_latency_us, ulong, 0644);
 MODULE_PARM_DESC(default_ps_max_latency_us,
 		 "max power saving latency for new devices; use PM QOS to change per device");
