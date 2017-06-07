@@ -548,7 +548,6 @@ struct hid_device {							/* device report descriptor */
 	void *hiddev;							/* The hiddev structure */
 	void *hidraw;
 
-	int open;							/* is the device open by anyone? */
 	char name[128];							/* Device name */
 	char phys[64];							/* Device physical location */
 	char uniq[64];							/* Device unique identifier (serial #) */
