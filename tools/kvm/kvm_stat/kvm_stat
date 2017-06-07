@@ -295,121 +295,6 @@ class ArchS390(Arch):
 ARCH = Arch.get_arch()
 
 
-def is_field_wanted(fields_filter, field):
-    """Indicate whether field is valid according to fields_filter."""
-    if not fields_filter:
-        return True
-    return re.match(fields_filter, field) is not None
-
-
-def walkdir(path):
-    """Returns os.walk() data for specified directory.
-
-    As it is only a wrapper it returns the same 3-tuple of (dirpath,
-    dirnames, filenames).
-    """
-    return next(os.walk(path))
-
-
-def parse_int_list(list_string):
-    """Returns an int list from a string of comma separated integers and
-    integer ranges."""
-    integers = []
-    members = list_string.split(',')
-
-    for member in members:
-        if '-' not in member:
-            integers.append(int(member))
-        else:
-            int_range = member.split('-')
-            integers.extend(range(int(int_range[0]),
-                                  int(int_range[1]) + 1))
-
-    return integers
-
-
-def get_pid_from_gname(gname):
-    """Fuzzy function to convert guest name to QEMU process pid.
-
-    Returns a list of potential pids, can be empty if no match found.
-    Throws an exception on processing errors.
-
-    """
-    pids = []
-    try:
-        child = subprocess.Popen(['ps', '-A', '--format', 'pid,args'],
-                                 stdout=subprocess.PIPE)
-    except:
-        raise Exception
-    for line in child.stdout:
-        line = line.lstrip().split(' ', 1)
-        # perform a sanity check before calling the more expensive
-        # function to possibly extract the guest name
-        if ' -name ' in line[1] and gname == get_gname_from_pid(line[0]):
-            pids.append(int(line[0]))
-    child.stdout.close()
-
-    return pids
-
-
-def get_gname_from_pid(pid):
-    """Returns the guest name for a QEMU process pid.
-
-    Extracts the guest name from the QEMU comma line by processing the '-name'
-    option. Will also handle names specified out of sequence.
-
-    """
-    name = ''
-    try:
-        line = open('/proc/{}/cmdline'.format(pid), 'rb').read().split('\0')
-        parms = line[line.index('-name') + 1].split(',')
-        while '' in parms:
-            # commas are escaped (i.e. ',,'), hence e.g. 'foo,bar' results in
-            # ['foo', '', 'bar'], which we revert here
-            idx = parms.index('')
-            parms[idx - 1] += ',' + parms[idx + 1]
-            del parms[idx:idx+2]
-        # the '-name' switch allows for two ways to specify the guest name,
-        # where the plain name overrides the name specified via 'guest='
-        for arg in parms:
-            if '=' not in arg:
-                name = arg
-                break
-            if arg[:6] == 'guest=':
-                name = arg[6:]
-    except (ValueError, IOError, IndexError):
-        pass
-
-    return name
-
-
-def get_online_cpus():
-    """Returns a list of cpu id integers."""
-    with open('/sys/devices/system/cpu/online') as cpu_list:
-        cpu_string = cpu_list.readline()
-        return parse_int_list(cpu_string)
-
-
-def get_filters():
-    """Returns a dict of trace events, their filter ids and
-    the values that can be filtered.
-
-    Trace events can be filtered for special values by setting a
-    filter string via an ioctl. The string normally has the format
-    identifier==value. For each filter a new event will be created, to
-    be able to distinguish the events.
-
-    """
-    filters = {}
-    filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
-    if ARCH.exit_reasons:
-        filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
-    return filters
-
-libc = ctypes.CDLL('libc.so.6', use_errno=True)
-syscall = libc.syscall
-
-
 class perf_event_attr(ctypes.Structure):
     """Struct that holds the necessary data to set up a trace event.
 
@@ -438,25 +323,6 @@ class perf_event_attr(ctypes.Structure):
         self.size = ctypes.sizeof(self)
         self.read_format = PERF_FORMAT_GROUP
 
-
-def perf_event_open(attr, pid, cpu, group_fd, flags):
-    """Wrapper for the sys_perf_evt_open() syscall.
-
-    Used to set up performance events, returns a file descriptor or -1
-    on error.
-
-    Attributes are:
-    - syscall number
-    - struct perf_event_attr *
-    - pid or -1 to monitor all pids
-    - cpu number or -1 to monitor all cpus
-    - The file descriptor of the group leader or -1 to create a group.
-    - flags
-
-    """
-    return syscall(ARCH.sc_perf_evt_open, ctypes.pointer(attr),
-                   ctypes.c_int(pid), ctypes.c_int(cpu),
-                   ctypes.c_int(group_fd), ctypes.c_long(flags))
 
 PERF_TYPE_TRACEPOINT = 2
 PERF_FORMAT_GROUP = 1 << 3
@@ -502,6 +368,8 @@ class Event(object):
     """Represents a performance event and manages its life cycle."""
     def __init__(self, name, group, trace_cpu, trace_pid, trace_point,
                  trace_filter, trace_set='kvm'):
+        self.libc = ctypes.CDLL('libc.so.6', use_errno=True)
+        self.syscall = self.libc.syscall
         self.name = name
         self.fd = None
         self.setup_event(group, trace_cpu, trace_pid, trace_point,
@@ -517,6 +385,25 @@ class Event(object):
         """
         if self.fd:
             os.close(self.fd)
+
+    def perf_event_open(self, attr, pid, cpu, group_fd, flags):
+        """Wrapper for the sys_perf_evt_open() syscall.
+
+        Used to set up performance events, returns a file descriptor or -1
+        on error.
+
+        Attributes are:
+        - syscall number
+        - struct perf_event_attr *
+        - pid or -1 to monitor all pids
+        - cpu number or -1 to monitor all cpus
+        - The file descriptor of the group leader or -1 to create a group.
+        - flags
+
+        """
+        return self.syscall(ARCH.sc_perf_evt_open, ctypes.pointer(attr),
+                            ctypes.c_int(pid), ctypes.c_int(cpu),
+                            ctypes.c_int(group_fd), ctypes.c_long(flags))
 
     def setup_event_attribute(self, trace_set, trace_point):
         """Returns an initialized ctype perf_event_attr struct."""
@@ -546,8 +433,8 @@ class Event(object):
         if group.events:
             group_leader = group.events[0].fd
 
-        fd = perf_event_open(event_attr, trace_pid,
-                             trace_cpu, group_leader, 0)
+        fd = self.perf_event_open(event_attr, trace_pid,
+                                  trace_cpu, group_leader, 0)
         if fd == -1:
             err = ctypes.get_errno()
             raise OSError(err, os.strerror(err),
@@ -582,7 +469,26 @@ class Event(object):
         fcntl.ioctl(self.fd, ARCH.ioctl_numbers['RESET'], 0)
 
 
-class TracepointProvider(object):
+class Provider(object):
+    """Encapsulates functionalities used by all providers."""
+    @staticmethod
+    def is_field_wanted(fields_filter, field):
+        """Indicate whether field is valid according to fields_filter."""
+        if not fields_filter:
+            return True
+        return re.match(fields_filter, field) is not None
+
+    @staticmethod
+    def walkdir(path):
+        """Returns os.walk() data for specified directory.
+
+        As it is only a wrapper it returns the same 3-tuple of (dirpath,
+        dirnames, filenames).
+        """
+        return next(os.walk(path))
+
+
+class TracepointProvider(Provider):
     """Data provider for the stats class.
 
     Manages the events/groups from which it acquires its data.
@@ -590,9 +496,26 @@ class TracepointProvider(object):
     """
     def __init__(self, pid, fields_filter):
         self.group_leaders = []
-        self.filters = get_filters()
+        self.filters = self.get_filters()
         self.update_fields(fields_filter)
         self.pid = pid
+
+    @staticmethod
+    def get_filters():
+        """Returns a dict of trace events, their filter ids and
+        the values that can be filtered.
+
+        Trace events can be filtered for special values by setting a
+        filter string via an ioctl. The string normally has the format
+        identifier==value. For each filter a new event will be created, to
+        be able to distinguish the events.
+
+        """
+        filters = {}
+        filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
+        if ARCH.exit_reasons:
+            filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
+        return filters
 
     def get_available_fields(self):
         """Returns a list of available event's of format 'event name(filter
@@ -610,7 +533,7 @@ class TracepointProvider(object):
 
         """
         path = os.path.join(PATH_DEBUGFS_TRACING, 'events', 'kvm')
-        fields = walkdir(path)[1]
+        fields = self.walkdir(path)[1]
         extra = []
         for field in fields:
             if field in self.filters:
@@ -623,7 +546,30 @@ class TracepointProvider(object):
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
         self._fields = [field for field in self.get_available_fields()
-                        if is_field_wanted(fields_filter, field)]
+                        if self.is_field_wanted(fields_filter, field)]
+
+    @staticmethod
+    def get_online_cpus():
+        """Returns a list of cpu id integers."""
+        def parse_int_list(list_string):
+            """Returns an int list from a string of comma separated integers and
+            integer ranges."""
+            integers = []
+            members = list_string.split(',')
+
+            for member in members:
+                if '-' not in member:
+                    integers.append(int(member))
+                else:
+                    int_range = member.split('-')
+                    integers.extend(range(int(int_range[0]),
+                                          int(int_range[1]) + 1))
+
+            return integers
+
+        with open('/sys/devices/system/cpu/online') as cpu_list:
+            cpu_string = cpu_list.readline()
+            return parse_int_list(cpu_string)
 
     def setup_traces(self):
         """Creates all event and group objects needed to be able to retrieve
@@ -633,9 +579,9 @@ class TracepointProvider(object):
             # Fetch list of all threads of the monitored pid, as qemu
             # starts a thread for each vcpu.
             path = os.path.join('/proc', str(self._pid), 'task')
-            groupids = walkdir(path)[1]
+            groupids = self.walkdir(path)[1]
         else:
-            groupids = get_online_cpus()
+            groupids = self.get_online_cpus()
 
         # The constant is needed as a buffer for python libs, std
         # streams and other files that the script opens.
@@ -732,7 +678,7 @@ class TracepointProvider(object):
                 event.reset()
 
 
-class DebugfsProvider(object):
+class DebugfsProvider(Provider):
     """Provides data from the files that KVM creates in the kvm debugfs
     folder."""
     def __init__(self, pid, fields_filter):
@@ -748,12 +694,12 @@ class DebugfsProvider(object):
         The fields are all available KVM debugfs files
 
         """
-        return walkdir(PATH_DEBUGFS_KVM)[2]
+        return self.walkdir(PATH_DEBUGFS_KVM)[2]
 
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
         self._fields = [field for field in self.get_available_fields()
-                        if is_field_wanted(fields_filter, field)]
+                        if self.is_field_wanted(fields_filter, field)]
 
     @property
     def fields(self):
@@ -772,7 +718,7 @@ class DebugfsProvider(object):
     def pid(self, pid):
         self._pid = pid
         if pid != 0:
-            vms = walkdir(PATH_DEBUGFS_KVM)[1]
+            vms = self.walkdir(PATH_DEBUGFS_KVM)[1]
             if len(vms) == 0:
                 self.do_read = False
 
@@ -834,10 +780,22 @@ class Stats(object):
 
     """
     def __init__(self, options):
-        self.providers = get_providers(options)
+        self.providers = self.get_providers(options)
         self._pid_filter = options.pid
         self._fields_filter = options.fields
         self.values = {}
+
+    @staticmethod
+    def get_providers(options):
+        """Returns a list of data providers depending on the passed options."""
+        providers = []
+
+        if options.debugfs:
+            providers.append(DebugfsProvider(options.pid, options.fields))
+        if options.tracepoints or not providers:
+            providers.append(TracepointProvider(options.pid, options.fields))
+
+        return providers
 
     def update_provider_filters(self):
         """Propagates fields filters to providers."""
@@ -933,6 +891,63 @@ class Tui(object):
             curses.nocbreak()
             curses.endwin()
 
+    @staticmethod
+    def get_pid_from_gname(gname):
+        """Fuzzy function to convert guest name to QEMU process pid.
+
+        Returns a list of potential pids, can be empty if no match found.
+        Throws an exception on processing errors.
+
+        """
+        pids = []
+        try:
+            child = subprocess.Popen(['ps', '-A', '--format', 'pid,args'],
+                                     stdout=subprocess.PIPE)
+        except:
+            raise Exception
+        for line in child.stdout:
+            line = line.lstrip().split(' ', 1)
+            # perform a sanity check before calling the more expensive
+            # function to possibly extract the guest name
+            if (' -name ' in line[1] and
+                    gname == self.get_gname_from_pid(line[0])):
+                pids.append(int(line[0]))
+        child.stdout.close()
+
+        return pids
+
+    @staticmethod
+    def get_gname_from_pid(pid):
+        """Returns the guest name for a QEMU process pid.
+
+        Extracts the guest name from the QEMU comma line by processing the
+        '-name' option. Will also handle names specified out of sequence.
+
+        """
+        name = ''
+        try:
+            line = open('/proc/{}/cmdline'
+                        .format(pid), 'rb').read().split('\0')
+            parms = line[line.index('-name') + 1].split(',')
+            while '' in parms:
+                # commas are escaped (i.e. ',,'), hence e.g. 'foo,bar' results
+                # in # ['foo', '', 'bar'], which we revert here
+                idx = parms.index('')
+                parms[idx - 1] += ',' + parms[idx + 1]
+                del parms[idx:idx+2]
+            # the '-name' switch allows for two ways to specify the guest name,
+            # where the plain name overrides the name specified via 'guest='
+            for arg in parms:
+                if '=' not in arg:
+                    name = arg
+                    break
+                if arg[:6] == 'guest=':
+                    name = arg[6:]
+        except (ValueError, IOError, IndexError):
+            pass
+
+        return name
+
     def update_drilldown(self):
         """Sets or removes a filter that only allows fields without braces."""
         if not self.stats.fields_filter:
@@ -950,7 +965,7 @@ class Tui(object):
         if pid is None:
             pid = self.stats.pid_filter
         self.screen.erase()
-        gname = get_gname_from_pid(pid)
+        gname = self.get_gname_from_pid(pid)
         if gname:
             gname = ('({})'.format(gname[:MAX_GUEST_NAME_LEN] + '...'
                                    if len(gname) > MAX_GUEST_NAME_LEN
@@ -1096,7 +1111,7 @@ class Tui(object):
             else:
                 pids = []
                 try:
-                    pids = get_pid_from_gname(gname)
+                    pids = self.get_pid_from_gname(gname)
                 except:
                     msg = '"' + gname + '": Internal error while searching, ' \
                           'use pid filter instead'
@@ -1229,7 +1244,7 @@ Press any other key to refresh statistics immediately.
 
     def cb_guest_to_pid(option, opt, val, parser):
         try:
-            pids = get_pid_from_gname(val)
+            pids = Tui.get_pid_from_gname(val)
         except:
             raise optparse.OptionValueError('Error while searching for guest '
                                             '"{}", use "-p" to specify a pid '
@@ -1292,18 +1307,6 @@ Press any other key to refresh statistics immediately.
                          )
     (options, _) = optparser.parse_args(sys.argv)
     return options
-
-
-def get_providers(options):
-    """Returns a list of data providers depending on the passed options."""
-    providers = []
-
-    if options.debugfs:
-        providers.append(DebugfsProvider(options.pid, options.fields))
-    if options.tracepoints or not providers:
-        providers.append(TracepointProvider(options.pid, options.fields))
-
-    return providers
 
 
 def check_access(options):
