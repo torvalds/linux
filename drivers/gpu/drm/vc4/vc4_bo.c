@@ -91,8 +91,7 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 	vc4->bo_stats.num_allocated--;
 	vc4->bo_stats.size_allocated -= obj->size;
 
-	if (bo->resv == &bo->_resv)
-		reservation_object_fini(bo->resv);
+	reservation_object_fini(&bo->_resv);
 
 	drm_gem_cma_free_object(obj);
 }
@@ -212,6 +211,8 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	vc4->bo_stats.num_allocated++;
 	vc4->bo_stats.size_allocated += size;
 	mutex_unlock(&vc4->bo_lock);
+	bo->resv = &bo->_resv;
+	reservation_object_init(bo->resv);
 
 	return &bo->base.base;
 }
@@ -250,12 +251,7 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 			return ERR_PTR(-ENOMEM);
 		}
 	}
-	bo = to_vc4_bo(&cma_obj->base);
-
-	bo->resv = &bo->_resv;
-	reservation_object_init(bo->resv);
-
-	return bo;
+	return to_vc4_bo(&cma_obj->base);
 }
 
 int vc4_dumb_create(struct drm_file *file_priv,
