@@ -446,14 +446,14 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 
 			ovl_path_upper(dentry, &upperpath);
 			realfile = ovl_path_open(&upperpath, O_RDONLY);
-			smp_mb__before_spinlock();
+
 			inode_lock(inode);
 			if (!od->upperfile) {
 				if (IS_ERR(realfile)) {
 					inode_unlock(inode);
 					return PTR_ERR(realfile);
 				}
-				od->upperfile = realfile;
+				smp_store_release(&od->upperfile, realfile);
 			} else {
 				/* somebody has beaten us to it */
 				if (!IS_ERR(realfile))
