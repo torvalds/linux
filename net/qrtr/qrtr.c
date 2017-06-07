@@ -245,14 +245,11 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 }
 EXPORT_SYMBOL_GPL(qrtr_endpoint_post);
 
-/* Allocate and construct a resume-tx packet. */
-static struct sk_buff *qrtr_alloc_resume_tx(u32 src_node,
-					    u32 dst_node, u32 port)
+static struct sk_buff *qrtr_alloc_ctrl_packet(u32 type, size_t pkt_len,
+					      u32 src_node, u32 dst_node)
 {
-	const int pkt_len = 20;
 	struct qrtr_hdr *hdr;
 	struct sk_buff *skb;
-	__le32 *buf;
 
 	skb = alloc_skb(QRTR_HDR_SIZE + pkt_len, GFP_KERNEL);
 	if (!skb)
@@ -261,13 +258,29 @@ static struct sk_buff *qrtr_alloc_resume_tx(u32 src_node,
 
 	hdr = (struct qrtr_hdr *)skb_put(skb, QRTR_HDR_SIZE);
 	hdr->version = cpu_to_le32(QRTR_PROTO_VER);
-	hdr->type = cpu_to_le32(QRTR_TYPE_RESUME_TX);
+	hdr->type = cpu_to_le32(type);
 	hdr->src_node_id = cpu_to_le32(src_node);
 	hdr->src_port_id = cpu_to_le32(QRTR_PORT_CTRL);
 	hdr->confirm_rx = cpu_to_le32(0);
 	hdr->size = cpu_to_le32(pkt_len);
 	hdr->dst_node_id = cpu_to_le32(dst_node);
 	hdr->dst_port_id = cpu_to_le32(QRTR_PORT_CTRL);
+
+	return skb;
+}
+
+/* Allocate and construct a resume-tx packet. */
+static struct sk_buff *qrtr_alloc_resume_tx(u32 src_node,
+					    u32 dst_node, u32 port)
+{
+	const int pkt_len = 20;
+	struct sk_buff *skb;
+	__le32 *buf;
+
+	skb = qrtr_alloc_ctrl_packet(QRTR_TYPE_RESUME_TX, pkt_len,
+				     src_node, dst_node);
+	if (!skb)
+		return NULL;
 
 	buf = (__le32 *)skb_put(skb, pkt_len);
 	memset(buf, 0, pkt_len);
