@@ -353,6 +353,8 @@ struct binder_error {
  *                        and by @lock)
  * @has_async_transaction: async transaction to node in progress
  *                        (protected by @lock)
+ * @sched_policy:         minimum scheduling policy for node
+ *                        (invariant after initialized)
  * @accept_fds:           file descriptor operations supported for node
  *                        (invariant after initialized)
  * @min_priority:         minimum scheduling priority
@@ -392,6 +394,7 @@ struct binder_node {
 		/*
 		 * invariant after initialization
 		 */
+		u8 sched_policy:2;
 		u8 accept_fds:1;
 		u8 min_priority;
 	};
@@ -1208,6 +1211,7 @@ static struct binder_node *binder_init_node_ilocked(
 	binder_uintptr_t ptr = fp ? fp->binder : 0;
 	binder_uintptr_t cookie = fp ? fp->cookie : 0;
 	__u32 flags = fp ? fp->flags : 0;
+	s8 priority;
 
 	BUG_ON(!spin_is_locked(&proc->inner_lock));
 	while (*p) {
@@ -1239,8 +1243,10 @@ static struct binder_node *binder_init_node_ilocked(
 	node->ptr = ptr;
 	node->cookie = cookie;
 	node->work.type = BINDER_WORK_NODE;
-	node->min_priority = NICE_TO_PRIO(
-			flags & FLAT_BINDER_FLAG_PRIORITY_MASK);
+	priority = flags & FLAT_BINDER_FLAG_PRIORITY_MASK;
+	node->sched_policy = (flags & FLAT_BINDER_FLAG_PRIORITY_MASK) >>
+		FLAT_BINDER_FLAG_SCHED_POLICY_SHIFT;
+	node->min_priority = to_kernel_prio(node->sched_policy, priority);
 	node->accept_fds = !!(flags & FLAT_BINDER_FLAG_ACCEPTS_FDS);
 	spin_lock_init(&node->lock);
 	INIT_LIST_HEAD(&node->work.entry);
@@ -4052,8 +4058,17 @@ retry:
 			tr.cookie =  target_node->cookie;
 			t->saved_priority.sched_policy = current->policy;
 			t->saved_priority.prio = current->normal_prio;
-			if (target_node->min_priority < t->priority.prio) {
-				prio.sched_policy = SCHED_NORMAL;
+			if (target_node->min_priority < t->priority.prio ||
+			    (target_node->min_priority == t->priority.prio &&
+			     target_node->sched_policy == SCHED_FIFO)) {
+				/*
+				 * In case the minimum priority on the node is
+				 * higher (lower value), use that priority. If
+				 * the priority is the same, but the node uses
+				 * SCHED_FIFO, prefer SCHED_FIFO, since it can
+				 * run unbounded, unlike SCHED_RR.
+				 */
+				prio.sched_policy = target_node->sched_policy;
 				prio.prio = target_node->min_priority;
 			}
 			binder_set_priority(current, prio);
@@ -5092,8 +5107,9 @@ static void print_binder_node_nilocked(struct seq_file *m,
 	hlist_for_each_entry(ref, &node->refs, node_entry)
 		count++;
 
-	seq_printf(m, "  node %d: u%016llx c%016llx hs %d hw %d ls %d lw %d is %d iw %d tr %d",
+	seq_printf(m, "  node %d: u%016llx c%016llx pri %d:%d hs %d hw %d ls %d lw %d is %d iw %d tr %d",
 		   node->debug_id, (u64)node->ptr, (u64)node->cookie,
+		   node->sched_policy, node->min_priority,
 		   node->has_strong_ref, node->has_weak_ref,
 		   node->local_strong_refs, node->local_weak_refs,
 		   node->internal_strong_refs, count, node->tmp_refs);
