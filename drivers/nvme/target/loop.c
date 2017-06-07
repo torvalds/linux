@@ -558,7 +558,7 @@ static int nvme_loop_reset_ctrl(struct nvme_ctrl *nctrl)
 static const struct nvme_ctrl_ops nvme_loop_ctrl_ops = {
 	.name			= "loop",
 	.module			= THIS_MODULE,
-	.is_fabrics		= true,
+	.flags			= NVME_F_FABRICS,
 	.reg_read32		= nvmf_reg_read32,
 	.reg_read64		= nvmf_reg_read64,
 	.reg_write32		= nvmf_reg_write32,

@@ -61,8 +61,6 @@ void smc_ib_dealloc_protection_domain(struct smc_link *lnk);
 int smc_ib_create_protection_domain(struct smc_link *lnk);
 void smc_ib_destroy_queue_pair(struct smc_link *lnk);
 int smc_ib_create_queue_pair(struct smc_link *lnk);
-int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
-			     struct ib_mr **mr);
 int smc_ib_ready_link(struct smc_link *lnk);
 int smc_ib_modify_qp_rts(struct smc_link *lnk);
 int smc_ib_modify_qp_reset(struct smc_link *lnk);

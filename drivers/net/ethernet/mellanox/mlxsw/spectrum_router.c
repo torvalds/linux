@@ -206,6 +206,9 @@ void mlxsw_sp_rif_counter_free(struct mlxsw_sp *mlxsw_sp,
 {
 	unsigned int *p_counter_index;
 
+	if (!mlxsw_sp_rif_counter_valid_get(rif, dir))
+		return;
+
 	p_counter_index = mlxsw_sp_rif_p_counter_get(rif, dir);
 	if (WARN_ON(!p_counter_index))
 		return;

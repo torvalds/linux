@@ -1272,7 +1272,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 
 }
 
-static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu, int index)
+static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
+				       unsigned int index)
 {
 	u64 *avic_physical_id_table;
 	struct kvm_arch *vm_data = &vcpu->kvm->arch;

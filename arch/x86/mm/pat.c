@@ -65,9 +65,11 @@ static int __init nopat(char *str)
 }
 early_param("nopat", nopat);
 
+static bool __read_mostly __pat_initialized = false;
+
 bool pat_enabled(void)
 {
-	return !!__pat_enabled;
+	return __pat_initialized;
 }
 EXPORT_SYMBOL_GPL(pat_enabled);
 
@@ -225,13 +227,14 @@ static void pat_bsp_init(u64 pat)
 	}
 
 	wrmsrl(MSR_IA32_CR_PAT, pat);
+	__pat_initialized = true;
 
 	__init_cache_modes(pat);
 }
 
 static void pat_ap_init(u64 pat)
 {
-	if (!boot_cpu_has(X86_FEATURE_PAT)) {
+	if (!this_cpu_has(X86_FEATURE_PAT)) {
 		/*
 		 * If this happens we are on a secondary CPU, but switched to
 		 * PAT on the boot CPU. We have no way to undo PAT.
@@ -306,7 +309,7 @@ void pat_init(void)
 	u64 pat;
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
-	if (!pat_enabled()) {
+	if (!__pat_enabled) {
 		init_cache_modes();
 		return;
 	}

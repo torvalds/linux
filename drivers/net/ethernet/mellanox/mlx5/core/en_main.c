@@ -2976,7 +2976,7 @@ static int mlx5e_setup_tc(struct net_device *netdev, u8 tc)
 	new_channels.params = priv->channels.params;
 	new_channels.params.num_tc = tc ? tc : 1;
 
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
 		goto out;
 	}
