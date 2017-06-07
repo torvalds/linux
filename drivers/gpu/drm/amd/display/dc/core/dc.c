@@ -1379,8 +1379,10 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		if (!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
 			BREAK_TO_DEBUGGER();
 			goto fail;
-		} else
+		} else {
 			core_dc->hwss.set_bandwidth(core_dc, context, false);
+			context_clock_trace(dc, context);
+		}
 	}
 
 	if (!surface_count)  /* reset */

@@ -32,6 +32,7 @@ struct dc_context;
 struct dc_link;
 struct dc_surface_update;
 struct resource_context;
+struct validate_context;
 
 /*
  *
@@ -90,6 +91,9 @@ void context_timing_trace(
 		const struct dc *dc,
 		struct resource_context *res_ctx);
 
+void context_clock_trace(
+		const struct dc *dc,
+		struct validate_context *context);
 
 /* Any function which is empty or have incomplete implementation should be
  * marked by this macro.

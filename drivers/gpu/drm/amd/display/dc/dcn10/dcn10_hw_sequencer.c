@@ -1412,6 +1412,128 @@ static void dcn10_enable_timing_synchronization(
 	DC_SYNC_INFO("Sync complete\n");
 }
 
+static void print_rq_dlg_ttu(
+		struct core_dc *core_dc,
+		struct pipe_ctx *pipe_ctx)
+{
+	dm_logger_write(core_dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"\n============== DML TTU Output parameters [%d] ==============\n"
+			"qos_level_low_wm: %d, \n"
+			"qos_level_high_wm: %d, \n"
+			"min_ttu_vblank: %d, \n"
+			"qos_level_flip: %d, \n"
+			"refcyc_per_req_delivery_l: %d, \n"
+			"qos_level_fixed_l: %d, \n"
+			"qos_ramp_disable_l: %d, \n"
+			"refcyc_per_req_delivery_pre_l: %d, \n"
+			"refcyc_per_req_delivery_c: %d, \n"
+			"qos_level_fixed_c: %d, \n"
+			"qos_ramp_disable_c: %d, \n"
+			"refcyc_per_req_delivery_pre_c: %d\n"
+			"=============================================================\n",
+			pipe_ctx->pipe_idx,
+			pipe_ctx->ttu_regs.qos_level_low_wm,
+			pipe_ctx->ttu_regs.qos_level_high_wm,
+			pipe_ctx->ttu_regs.min_ttu_vblank,
+			pipe_ctx->ttu_regs.qos_level_flip,
+			pipe_ctx->ttu_regs.refcyc_per_req_delivery_l,
+			pipe_ctx->ttu_regs.qos_level_fixed_l,
+			pipe_ctx->ttu_regs.qos_ramp_disable_l,
+			pipe_ctx->ttu_regs.refcyc_per_req_delivery_pre_l,
+			pipe_ctx->ttu_regs.refcyc_per_req_delivery_c,
+			pipe_ctx->ttu_regs.qos_level_fixed_c,
+			pipe_ctx->ttu_regs.qos_ramp_disable_c,
+			pipe_ctx->ttu_regs.refcyc_per_req_delivery_pre_c
+			);
+
+	dm_logger_write(core_dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"\n============== DML DLG Output parameters [%d] ==============\n"
+			"refcyc_h_blank_end: %d, \n"
+			"dlg_vblank_end: %d, \n"
+			"min_dst_y_next_start: %d, \n"
+			"refcyc_per_htotal: %d, \n"
+			"refcyc_x_after_scaler: %d, \n"
+			"dst_y_after_scaler: %d, \n"
+			"dst_y_prefetch: %d, \n"
+			"dst_y_per_vm_vblank: %d, \n"
+			"dst_y_per_row_vblank: %d, \n"
+			"ref_freq_to_pix_freq: %d, \n"
+			"vratio_prefetch: %d, \n"
+			"refcyc_per_pte_group_vblank_l: %d, \n"
+			"refcyc_per_meta_chunk_vblank_l: %d, \n"
+			"dst_y_per_pte_row_nom_l: %d, \n"
+			"refcyc_per_pte_group_nom_l: %d, \n",
+			pipe_ctx->pipe_idx,
+			pipe_ctx->dlg_regs.refcyc_h_blank_end,
+			pipe_ctx->dlg_regs.dlg_vblank_end,
+			pipe_ctx->dlg_regs.min_dst_y_next_start,
+			pipe_ctx->dlg_regs.refcyc_per_htotal,
+			pipe_ctx->dlg_regs.refcyc_x_after_scaler,
+			pipe_ctx->dlg_regs.dst_y_after_scaler,
+			pipe_ctx->dlg_regs.dst_y_prefetch,
+			pipe_ctx->dlg_regs.dst_y_per_vm_vblank,
+			pipe_ctx->dlg_regs.dst_y_per_row_vblank,
+			pipe_ctx->dlg_regs.ref_freq_to_pix_freq,
+			pipe_ctx->dlg_regs.vratio_prefetch,
+			pipe_ctx->dlg_regs.refcyc_per_pte_group_vblank_l,
+			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_vblank_l,
+			pipe_ctx->dlg_regs.dst_y_per_pte_row_nom_l,
+			pipe_ctx->dlg_regs.refcyc_per_pte_group_nom_l
+			);
+
+	dm_logger_write(core_dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"\ndst_y_per_meta_row_nom_l: %d, \n"
+			"refcyc_per_meta_chunk_nom_l: %d, \n"
+			"refcyc_per_line_delivery_pre_l: %d, \n"
+			"refcyc_per_line_delivery_l: %d, \n"
+			"vratio_prefetch_c: %d, \n"
+			"refcyc_per_pte_group_vblank_c: %d, \n"
+			"refcyc_per_meta_chunk_vblank_c: %d, \n"
+			"dst_y_per_pte_row_nom_c: %d, \n"
+			"refcyc_per_pte_group_nom_c: %d, \n"
+			"dst_y_per_meta_row_nom_c: %d, \n"
+			"refcyc_per_meta_chunk_nom_c: %d, \n"
+			"refcyc_per_line_delivery_pre_c: %d, \n"
+			"refcyc_per_line_delivery_c: %d \n"
+			"========================================================\n",
+			pipe_ctx->dlg_regs.dst_y_per_meta_row_nom_l,
+			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_nom_l,
+			pipe_ctx->dlg_regs.refcyc_per_line_delivery_pre_l,
+			pipe_ctx->dlg_regs.refcyc_per_line_delivery_l,
+			pipe_ctx->dlg_regs.vratio_prefetch_c,
+			pipe_ctx->dlg_regs.refcyc_per_pte_group_vblank_c,
+			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_vblank_c,
+			pipe_ctx->dlg_regs.dst_y_per_pte_row_nom_c,
+			pipe_ctx->dlg_regs.refcyc_per_pte_group_nom_c,
+			pipe_ctx->dlg_regs.dst_y_per_meta_row_nom_c,
+			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_nom_c,
+			pipe_ctx->dlg_regs.refcyc_per_line_delivery_pre_c,
+			pipe_ctx->dlg_regs.refcyc_per_line_delivery_c
+			);
+
+	dm_logger_write(core_dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"\n============== DML RQ Output parameters [%d] ==============\n"
+			"chunk_size: %d \n"
+			"min_chunk_size: %d \n"
+			"meta_chunk_size: %d \n"
+			"min_meta_chunk_size: %d \n"
+			"dpte_group_size: %d \n"
+			"mpte_group_size: %d \n"
+			"swath_height: %d \n"
+			"pte_row_height_linear: %d \n"
+			"========================================================\n",
+			pipe_ctx->pipe_idx,
+			pipe_ctx->rq_regs.rq_regs_l.chunk_size,
+			pipe_ctx->rq_regs.rq_regs_l.min_chunk_size,
+			pipe_ctx->rq_regs.rq_regs_l.meta_chunk_size,
+			pipe_ctx->rq_regs.rq_regs_l.min_meta_chunk_size,
+			pipe_ctx->rq_regs.rq_regs_l.dpte_group_size,
+			pipe_ctx->rq_regs.rq_regs_l.mpte_group_size,
+			pipe_ctx->rq_regs.rq_regs_l.swath_height,
+			pipe_ctx->rq_regs.rq_regs_l.pte_row_height_linear
+			);
+}
+
 static void dcn10_power_on_fe(
 	struct core_dc *dc,
 	struct pipe_ctx *pipe_ctx,
@@ -1419,57 +1541,52 @@ static void dcn10_power_on_fe(
 {
 	struct dc_surface *dc_surface = &pipe_ctx->surface->public;
 
-	/* power up DCHUP and DPP from pseudo code pipe_move.c */
-	 /*TODO: function: power_on_plane. If already power up, skip
-	 */
-	{
-		power_on_plane(dc->ctx,
-			pipe_ctx->pipe_idx, pipe_ctx->tg->inst);
+	power_on_plane(dc->ctx,
+		pipe_ctx->pipe_idx, pipe_ctx->tg->inst);
 
-		/* enable DCFCLK current DCHUB */
-		enable_dcfclk(dc->ctx,
+	/* enable DCFCLK current DCHUB */
+	enable_dcfclk(dc->ctx,
+			pipe_ctx->pipe_idx,
+			pipe_ctx->pix_clk_params.requested_pix_clk,
+			context->bw.dcn.calc_clk.dppclk_div);
+	dc->current_context->bw.dcn.cur_clk.dppclk_div =
+			context->bw.dcn.calc_clk.dppclk_div;
+	context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
+
+	if (dc_surface) {
+		dm_logger_write(dc->ctx->logger, LOG_DC,
+				"Pipe:%d 0x%x: addr hi:0x%x, "
+				"addr low:0x%x, "
+				"src: %d, %d, %d,"
+				" %d; dst: %d, %d, %d, %d;\n",
 				pipe_ctx->pipe_idx,
-				pipe_ctx->pix_clk_params.requested_pix_clk,
-				context->bw.dcn.calc_clk.dppclk_div);
-		dc->current_context->bw.dcn.cur_clk.dppclk_div =
-				context->bw.dcn.calc_clk.dppclk_div;
-		context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
+				dc_surface,
+				dc_surface->address.grph.addr.high_part,
+				dc_surface->address.grph.addr.low_part,
+				dc_surface->src_rect.x,
+				dc_surface->src_rect.y,
+				dc_surface->src_rect.width,
+				dc_surface->src_rect.height,
+				dc_surface->dst_rect.x,
+				dc_surface->dst_rect.y,
+				dc_surface->dst_rect.width,
+				dc_surface->dst_rect.height);
 
-		if (dc_surface) {
-			dm_logger_write(dc->ctx->logger, LOG_DC,
-					"Pipe:%d 0x%x: addr hi:0x%x, "
-					"addr low:0x%x, "
-					"src: %d, %d, %d,"
-					" %d; dst: %d, %d, %d, %d;\n",
-					pipe_ctx->pipe_idx,
-					dc_surface,
-					dc_surface->address.grph.addr.high_part,
-					dc_surface->address.grph.addr.low_part,
-					dc_surface->src_rect.x,
-					dc_surface->src_rect.y,
-					dc_surface->src_rect.width,
-					dc_surface->src_rect.height,
-					dc_surface->dst_rect.x,
-					dc_surface->dst_rect.y,
-					dc_surface->dst_rect.width,
-					dc_surface->dst_rect.height);
-
-			dm_logger_write(dc->ctx->logger, LOG_HW_SET_MODE,
-					"Pipe %d: width, height, x, y\n"
-					"viewport:%d, %d, %d, %d\n"
-					"recout:  %d, %d, %d, %d\n",
-					pipe_ctx->pipe_idx,
-					pipe_ctx->scl_data.viewport.width,
-					pipe_ctx->scl_data.viewport.height,
-					pipe_ctx->scl_data.viewport.x,
-					pipe_ctx->scl_data.viewport.y,
-					pipe_ctx->scl_data.recout.width,
-					pipe_ctx->scl_data.recout.height,
-					pipe_ctx->scl_data.recout.x,
-					pipe_ctx->scl_data.recout.y);
-		}
+		dm_logger_write(dc->ctx->logger, LOG_HW_SET_MODE,
+				"Pipe %d: width, height, x, y\n"
+				"viewport:%d, %d, %d, %d\n"
+				"recout:  %d, %d, %d, %d\n",
+				pipe_ctx->pipe_idx,
+				pipe_ctx->scl_data.viewport.width,
+				pipe_ctx->scl_data.viewport.height,
+				pipe_ctx->scl_data.viewport.x,
+				pipe_ctx->scl_data.viewport.y,
+				pipe_ctx->scl_data.recout.width,
+				pipe_ctx->scl_data.recout.height,
+				pipe_ctx->scl_data.recout.x,
+				pipe_ctx->scl_data.recout.y);
+		print_rq_dlg_ttu(dc, pipe_ctx);
 	}
-
 }
 
 static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
@@ -1742,6 +1859,53 @@ static void dcn10_apply_ctx_for_surface(
 			program_all_pipe_in_tree(dc, pipe_ctx, context);
 		}
 	}
+
+	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"\n============== Watermark parameters ==============\n"
+			"a.urgent_ns: %d \n"
+			"a.cstate_enter_plus_exit: %d \n"
+			"a.cstate_exit: %d \n"
+			"a.pstate_change: %d \n"
+			"a.pte_meta_urgent: %d \n"
+			"b.urgent_ns: %d \n"
+			"b.cstate_enter_plus_exit: %d \n"
+			"b.cstate_exit: %d \n"
+			"b.pstate_change: %d \n"
+			"b.pte_meta_urgent: %d \n",
+			context->bw.dcn.watermarks.a.urgent_ns,
+			context->bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns,
+			context->bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns,
+			context->bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns,
+			context->bw.dcn.watermarks.a.pte_meta_urgent_ns,
+			context->bw.dcn.watermarks.b.urgent_ns,
+			context->bw.dcn.watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns,
+			context->bw.dcn.watermarks.b.cstate_pstate.cstate_exit_ns,
+			context->bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns,
+			context->bw.dcn.watermarks.b.pte_meta_urgent_ns
+			);
+	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"\nc.urgent_ns: %d \n"
+			"c.cstate_enter_plus_exit: %d \n"
+			"c.cstate_exit: %d \n"
+			"c.pstate_change: %d \n"
+			"c.pte_meta_urgent: %d \n"
+			"d.urgent_ns: %d \n"
+			"d.cstate_enter_plus_exit: %d \n"
+			"d.cstate_exit: %d \n"
+			"d.pstate_change: %d \n"
+			"d.pte_meta_urgent: %d \n"
+			"========================================================\n",
+			context->bw.dcn.watermarks.c.urgent_ns,
+			context->bw.dcn.watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns,
+			context->bw.dcn.watermarks.c.cstate_pstate.cstate_exit_ns,
+			context->bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns,
+			context->bw.dcn.watermarks.c.pte_meta_urgent_ns,
+			context->bw.dcn.watermarks.d.urgent_ns,
+			context->bw.dcn.watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns,
+			context->bw.dcn.watermarks.d.cstate_pstate.cstate_exit_ns,
+			context->bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns,
+			context->bw.dcn.watermarks.d.pte_meta_urgent_ns
+			);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];

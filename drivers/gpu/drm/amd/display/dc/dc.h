@@ -160,6 +160,7 @@ struct dc_debug {
 	bool max_disp_clk;
 	bool surface_trace;
 	bool timing_trace;
+	bool clock_trace;
 	bool validation_trace;
 	bool disable_stutter;
 	bool disable_dcc;
