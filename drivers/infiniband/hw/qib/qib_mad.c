@@ -874,8 +874,6 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 		ib_dispatch_event(&event);
 	}
 
-	ret = subn_get_portinfo(smp, ibdev, port);
-
 	/* restore re-reg bit per o14-12.2.1 */
 	pip->clientrereg_resv_subnetto |= clientrereg;
 
