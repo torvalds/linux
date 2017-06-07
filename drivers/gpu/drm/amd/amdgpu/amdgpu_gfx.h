@@ -45,4 +45,34 @@ static inline u32 amdgpu_gfx_create_bitmask(u32 bit_width)
 	return (u32)((1ULL << bit_width) - 1);
 }
 
+static inline int amdgpu_gfx_queue_to_bit(struct amdgpu_device *adev,
+					  int mec, int pipe, int queue)
+{
+	int bit = 0;
+
+	bit += mec * adev->gfx.mec.num_pipe_per_mec
+		* adev->gfx.mec.num_queue_per_pipe;
+	bit += pipe * adev->gfx.mec.num_queue_per_pipe;
+	bit += queue;
+
+	return bit;
+}
+
+static inline void amdgpu_gfx_bit_to_queue(struct amdgpu_device *adev, int bit,
+					   int *mec, int *pipe, int *queue)
+{
+	*queue = bit % adev->gfx.mec.num_queue_per_pipe;
+	*pipe = (bit / adev->gfx.mec.num_queue_per_pipe)
+		% adev->gfx.mec.num_pipe_per_mec;
+	*mec = (bit / adev->gfx.mec.num_queue_per_pipe)
+	       / adev->gfx.mec.num_pipe_per_mec;
+
+}
+static inline bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev,
+						   int mec, int pipe, int queue)
+{
+	return test_bit(amdgpu_gfx_queue_to_bit(adev, mec, pipe, queue),
+			adev->gfx.mec.queue_bitmap);
+}
+
 #endif

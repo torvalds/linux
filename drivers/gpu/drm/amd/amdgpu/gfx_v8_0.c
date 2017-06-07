@@ -1393,7 +1393,7 @@ static int gfx_v8_0_kiq_acquire(struct amdgpu_device *adev,
 		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
 			continue;
 
-		amdgpu_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
+		amdgpu_gfx_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
 
 		/* Using pipes 2/3 from MEC 2 seems cause problems */
 		if (mec == 1 && pipe > 1)
@@ -2178,7 +2178,7 @@ static int gfx_v8_0_sw_init(void *handle)
 	for (i = 0; i < adev->gfx.mec.num_mec; ++i) {
 		for (j = 0; j < adev->gfx.mec.num_queue_per_pipe; j++) {
 			for (k = 0; k < adev->gfx.mec.num_pipe_per_mec; k++) {
-				if (!amdgpu_is_mec_queue_enabled(adev, i, k, j))
+				if (!amdgpu_gfx_is_mec_queue_enabled(adev, i, k, j))
 					continue;
 
 				r = gfx_v8_0_compute_ring_init(adev,

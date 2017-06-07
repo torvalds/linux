@@ -24,6 +24,7 @@
 #include "amd_shared.h"
 #include <drm/drmP.h>
 #include "amdgpu.h"
+#include "amdgpu_gfx.h"
 #include <linux/module.h>
 
 const struct kfd2kgd_calls *kfd2kgd;
@@ -113,10 +114,10 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 
 		/* remove the KIQ bit as well */
 		if (adev->gfx.kiq.ring.ready)
-			clear_bit(amdgpu_queue_to_bit(adev,
-						      adev->gfx.kiq.ring.me - 1,
-						      adev->gfx.kiq.ring.pipe,
-						      adev->gfx.kiq.ring.queue),
+			clear_bit(amdgpu_gfx_queue_to_bit(adev,
+							  adev->gfx.kiq.ring.me - 1,
+							  adev->gfx.kiq.ring.pipe,
+							  adev->gfx.kiq.ring.queue),
 				  gpu_resources.queue_bitmap);
 
 		/* According to linux/bitmap.h we shouldn't use bitmap_clear if
