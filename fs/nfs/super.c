@@ -879,7 +879,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 	if (nfss->options & NFS_OPTION_FSCACHE) {
 		seq_printf(m, "\n\tfsc:\t");
 		for (i = 0; i < __NFSIOS_FSCACHEMAX; i++)
-			seq_printf(m, "%Lu ", totals.bytes[i]);
+			seq_printf(m, "%Lu ", totals.fscache[i]);
 	}
 #endif
 	seq_printf(m, "\n");
