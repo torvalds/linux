@@ -243,7 +243,7 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8         outer_first_prio[0x1];
 	u8         outer_first_cfi[0x1];
 	u8         outer_first_vid[0x1];
-	u8         reserved_at_7[0x1];
+	u8         outer_ipv4_ttl[0x1];
 	u8         outer_second_prio[0x1];
 	u8         outer_second_cfi[0x1];
 	u8         outer_second_vid[0x1];
@@ -380,7 +380,8 @@ struct mlx5_ifc_fte_match_set_lyr_2_4_bits {
 	u8         tcp_sport[0x10];
 	u8         tcp_dport[0x10];
 
-	u8         reserved_at_c0[0x20];
+	u8         reserved_at_c0[0x18];
+	u8         ttl_hoplimit[0x8];
 
 	u8         udp_sport[0x10];
 	u8         udp_dport[0x10];

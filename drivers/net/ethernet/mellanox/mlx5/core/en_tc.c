@@ -904,11 +904,16 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_dscp, mask->tos >> 2);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_dscp, key->tos  >> 2);
 
-		if (mask->tos)
-			*min_inline = MLX5_INLINE_MODE_IP;
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ttl_hoplimit, mask->ttl);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ttl_hoplimit, key->ttl);
 
-		if (mask->ttl) /* currently not supported */
+		if (mask->ttl &&
+		    !MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev,
+						ft_field_support.outer_ipv4_ttl))
 			return -EOPNOTSUPP;
+
+		if (mask->tos || mask->ttl)
+			*min_inline = MLX5_INLINE_MODE_IP;
 	}
 
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_PORTS)) {
