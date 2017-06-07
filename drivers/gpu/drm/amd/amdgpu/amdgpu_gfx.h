@@ -30,6 +30,8 @@ void amdgpu_gfx_scratch_free(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se,
 		unsigned max_sh);
 
+void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev);
+
 /**
  * amdgpu_gfx_create_bitmask - create a bitmask
  *

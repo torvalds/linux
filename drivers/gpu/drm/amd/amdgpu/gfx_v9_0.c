@@ -857,43 +857,6 @@ static void gfx_v9_0_mec_fini(struct amdgpu_device *adev)
 	}
 }
 
-static void gfx_v9_0_compute_queue_acquire(struct amdgpu_device *adev)
-{
-	int i, queue, pipe, mec;
-
-	/* policy for amdgpu compute queue ownership */
-	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
-		queue = i % adev->gfx.mec.num_queue_per_pipe;
-		pipe = (i / adev->gfx.mec.num_queue_per_pipe)
-			% adev->gfx.mec.num_pipe_per_mec;
-		mec = (i / adev->gfx.mec.num_queue_per_pipe)
-			/ adev->gfx.mec.num_pipe_per_mec;
-
-		/* we've run out of HW */
-		if (mec >= adev->gfx.mec.num_mec)
-			break;
-
-		if (adev->gfx.mec.num_mec > 1) {
-			/* policy: amdgpu owns the first two queues of the first MEC */
-			if (mec == 0 && queue < 2)
-				set_bit(i, adev->gfx.mec.queue_bitmap);
-		} else {
-			/* policy: amdgpu owns all queues in the first pipe */
-			if (mec == 0 && pipe == 0)
-				set_bit(i, adev->gfx.mec.queue_bitmap);
-		}
-	}
-
-	/* update the number of active compute rings */
-	adev->gfx.num_compute_rings =
-		bitmap_weight(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
-
-	/* If you hit this case and edited the policy, you probably just
-	 * need to increase AMDGPU_MAX_COMPUTE_RINGS */
-	if (WARN_ON(adev->gfx.num_compute_rings > AMDGPU_MAX_COMPUTE_RINGS))
-		adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
-}
-
 static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 {
 	int r;
@@ -920,7 +883,7 @@ static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 	adev->gfx.mec.num_queue_per_pipe = 8;
 
 	/* take ownership of the relevant compute queues */
-	gfx_v9_0_compute_queue_acquire(adev);
+	amdgpu_gfx_compute_queue_acquire(adev);
 	mec_hpd_size = adev->gfx.num_compute_rings * GFX9_MEC_HPD_SIZE;
 
 	if (adev->gfx.mec.hpd_eop_obj == NULL) {
