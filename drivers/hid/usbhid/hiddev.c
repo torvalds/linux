@@ -237,7 +237,7 @@ static int hiddev_release(struct inode * inode, struct file * file)
 	mutex_lock(&list->hiddev->existancelock);
 	if (!--list->hiddev->open) {
 		if (list->hiddev->exist) {
-			usbhid_close(list->hiddev->hid);
+			hid_hw_close(list->hiddev->hid);
 			usbhid_put_power(list->hiddev->hid);
 		} else {
 			mutex_unlock(&list->hiddev->existancelock);
@@ -282,11 +282,9 @@ static int hiddev_open(struct inode *inode, struct file *file)
 	 */
 	if (list->hiddev->exist) {
 		if (!list->hiddev->open++) {
-			res = usbhid_open(hiddev->hid);
-			if (res < 0) {
-				res = -EIO;
+			res = hid_hw_open(hiddev->hid);
+			if (res < 0)
 				goto bail;
-			}
 		}
 	} else {
 		res = -ENODEV;
@@ -306,10 +304,14 @@ static int hiddev_open(struct inode *inode, struct file *file)
 				res = -EIO;
 				goto bail_unlock;
 			}
-			usbhid_open(hid);
+			res = hid_hw_open(hid);
+			if (res < 0)
+				goto bail_put_power;
 		}
 	mutex_unlock(&hiddev->existancelock);
 	return 0;
+bail_put_power:
+	usbhid_put_power(hid);
 bail_unlock:
 	mutex_unlock(&hiddev->existancelock);
 bail:
@@ -935,7 +937,7 @@ void hiddev_disconnect(struct hid_device *hid)
 
 	if (hiddev->open) {
 		mutex_unlock(&hiddev->existancelock);
-		usbhid_close(hiddev->hid);
+		hid_hw_close(hiddev->hid);
 		wake_up_interruptible(&hiddev->wait);
 	} else {
 		mutex_unlock(&hiddev->existancelock);
