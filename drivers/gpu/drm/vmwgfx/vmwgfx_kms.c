@@ -274,108 +274,6 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 }
 
 
-
-/**
- * vmw_du_cursor_plane_update() - Update cursor image and location
- *
- * @plane: plane object to update
- * @crtc: owning CRTC of @plane
- * @fb: framebuffer to flip onto plane
- * @crtc_x: x offset of plane on crtc
- * @crtc_y: y offset of plane on crtc
- * @crtc_w: width of plane rectangle on crtc
- * @crtc_h: height of plane rectangle on crtc
- * @src_x: Not used
- * @src_y: Not used
- * @src_w: Not used
- * @src_h: Not used
- *
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
-int vmw_du_cursor_plane_update(struct drm_plane *plane,
-			       struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb,
-			       int crtc_x, int crtc_y,
-			       unsigned int crtc_w,
-			       unsigned int crtc_h,
-			       uint32_t src_x, uint32_t src_y,
-			       uint32_t src_w, uint32_t src_h)
-{
-	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
-	struct vmw_surface *surface = NULL;
-	struct vmw_dma_buffer *dmabuf = NULL;
-	s32 hotspot_x, hotspot_y;
-	int ret;
-
-	hotspot_x = du->hotspot_x + fb->hot_x;
-	hotspot_y = du->hotspot_y + fb->hot_y;
-
-	/* A lot of the code assumes this */
-	if (crtc_w != 64 || crtc_h != 64) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (vmw_framebuffer_to_vfb(fb)->dmabuf)
-		dmabuf = vmw_framebuffer_to_vfbd(fb)->buffer;
-	else
-		surface = vmw_framebuffer_to_vfbs(fb)->surface;
-
-	if (surface && !surface->snooper.image) {
-		DRM_ERROR("surface not suitable for cursor\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* setup new image */
-	ret = 0;
-	if (surface) {
-		/* vmw_user_surface_lookup takes one reference */
-		du->cursor_surface = surface;
-
-		du->cursor_age = du->cursor_surface->snooper.age;
-
-		ret = vmw_cursor_update_image(dev_priv, surface->snooper.image,
-					      64, 64, hotspot_x, hotspot_y);
-	} else if (dmabuf) {
-		/* vmw_user_surface_lookup takes one reference */
-		du->cursor_dmabuf = dmabuf;
-
-		ret = vmw_cursor_update_dmabuf(dev_priv, dmabuf, crtc_w, crtc_h,
-					       hotspot_x, hotspot_y);
-	} else {
-		vmw_cursor_update_position(dev_priv, false, 0, 0);
-		goto out;
-	}
-
-	if (!ret) {
-		du->cursor_x = crtc_x + du->set_gui_x;
-		du->cursor_y = crtc_y + du->set_gui_y;
-
-		vmw_cursor_update_position(dev_priv, true,
-					   du->cursor_x + hotspot_x,
-					   du->cursor_y + hotspot_y);
-	}
-
-out:
-	return ret;
-}
-
-
-int vmw_du_cursor_plane_disable(struct drm_plane *plane)
-{
-	if (plane->fb) {
-		drm_framebuffer_unreference(plane->fb);
-		plane->fb = NULL;
-	}
-
-	return -EINVAL;
-}
-
-
 void vmw_du_cursor_plane_destroy(struct drm_plane *plane)
 {
 	vmw_cursor_update_position(plane->dev->dev_private, false, 0, 0);
@@ -469,18 +367,6 @@ vmw_du_cursor_plane_prepare_fb(struct drm_plane *plane,
 	}
 
 	return 0;
-}
-
-
-void
-vmw_du_cursor_plane_atomic_disable(struct drm_plane *plane,
-				   struct drm_plane_state *old_state)
-{
-	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
-	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-
-	drm_atomic_set_fb_for_plane(plane->state, NULL);
-	vmw_cursor_update_position(dev_priv, false, 0, 0);
 }
 
 
