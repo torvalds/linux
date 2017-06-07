@@ -859,7 +859,8 @@ err1:
 }
 
 
-static void gfx_v8_0_free_microcode(struct amdgpu_device *adev) {
+static void gfx_v8_0_free_microcode(struct amdgpu_device *adev)
+{
 	release_firmware(adev->gfx.pfp_fw);
 	adev->gfx.pfp_fw = NULL;
 	release_firmware(adev->gfx.me_fw);
