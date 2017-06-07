@@ -110,6 +110,48 @@ struct igmpmsg {
 	struct in_addr im_src,im_dst;
 };
 
+/* ipmr netlink table attributes */
+enum {
+	IPMRA_TABLE_UNSPEC,
+	IPMRA_TABLE_ID,
+	IPMRA_TABLE_CACHE_RES_QUEUE_LEN,
+	IPMRA_TABLE_MROUTE_REG_VIF_NUM,
+	IPMRA_TABLE_MROUTE_DO_ASSERT,
+	IPMRA_TABLE_MROUTE_DO_PIM,
+	IPMRA_TABLE_VIFS,
+	__IPMRA_TABLE_MAX
+};
+#define IPMRA_TABLE_MAX (__IPMRA_TABLE_MAX - 1)
+
+/* ipmr netlink vif attribute format
+ * [ IPMRA_TABLE_VIFS ] - nested attribute
+ *   [ IPMRA_VIF ] - nested attribute
+ *     [ IPMRA_VIFA_xxx ]
+ */
+enum {
+	IPMRA_VIF_UNSPEC,
+	IPMRA_VIF,
+	__IPMRA_VIF_MAX
+};
+#define IPMRA_VIF_MAX (__IPMRA_VIF_MAX - 1)
+
+/* vif-specific attributes */
+enum {
+	IPMRA_VIFA_UNSPEC,
+	IPMRA_VIFA_IFINDEX,
+	IPMRA_VIFA_VIF_ID,
+	IPMRA_VIFA_FLAGS,
+	IPMRA_VIFA_BYTES_IN,
+	IPMRA_VIFA_BYTES_OUT,
+	IPMRA_VIFA_PACKETS_IN,
+	IPMRA_VIFA_PACKETS_OUT,
+	IPMRA_VIFA_LOCAL_ADDR,
+	IPMRA_VIFA_REMOTE_ADDR,
+	IPMRA_VIFA_PAD,
+	__IPMRA_VIFA_MAX
+};
+#define IPMRA_VIFA_MAX (__IPMRA_VIFA_MAX - 1)
+
 /* That's all usermode folks */
 
 #define MFC_ASSERT_THRESH (3*HZ)		/* Maximal freq. of asserts */
