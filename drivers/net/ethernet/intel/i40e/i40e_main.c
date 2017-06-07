@@ -3684,10 +3684,10 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		pf->sw_int_count++;
 
 	if ((pf->flags & I40E_FLAG_IWARP_ENABLED) &&
-	    (ena_mask & I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK)) {
+	    (icr0 & I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK)) {
 		ena_mask &= ~I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK;
-		icr0 &= ~I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK;
 		dev_dbg(&pf->pdev->dev, "cleared PE_CRITERR\n");
+		set_bit(__I40E_CORE_RESET_REQUESTED, pf->state);
 	}
 
 	/* only q0 is used in MSI/Legacy mode, and none are used in MSIX */
