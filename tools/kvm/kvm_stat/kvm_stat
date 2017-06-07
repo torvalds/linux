@@ -981,8 +981,8 @@ class Tui(object):
             if len(regex) > MAX_REGEX_LEN:
                 regex = regex[:MAX_REGEX_LEN] + '...'
             self.screen.addstr(1, 17, 'regex filter: {0}'.format(regex))
-        self.screen.addstr(2, 1, '%-40s %10s%7s %7s' %
-                           ('Event', 'Total', '%Total', 'Current'),
+        self.screen.addstr(2, 1, '%-40s %10s%7s %8s' %
+                           ('Event', 'Total', '%Total', 'CurAvg/s'),
                            curses.A_STANDOUT)
         self.screen.addstr(4, 1, 'Collecting data...')
         self.screen.refresh()
@@ -1010,7 +1010,7 @@ class Tui(object):
                 break
             if values[0] is not None:
                 cur = int(round(values[1] / sleeptime)) if values[1] else ''
-                self.screen.addstr(row, 1, '%-40s %10d%7.1f %7s' %
+                self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' %
                                    (key, values[0], values[0] * 100 / total,
                                     cur))
             row += 1
