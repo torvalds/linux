@@ -690,11 +690,8 @@ void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 }
 
 /* Get the time remaining on a POSIX.1b interval timer. */
-SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
-		struct itimerspec __user *, setting)
+static int do_timer_gettime(timer_t timer_id,  struct itimerspec64 *setting)
 {
-	struct itimerspec64 cur_setting64;
-	struct itimerspec cur_setting;
 	struct k_itimer *timr;
 	const struct k_clock *kc;
 	unsigned long flags;
@@ -704,21 +701,49 @@ SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 	if (!timr)
 		return -EINVAL;
 
-	memset(&cur_setting64, 0, sizeof(cur_setting64));
+	memset(setting, 0, sizeof(*setting));
 	kc = timr->kclock;
 	if (WARN_ON_ONCE(!kc || !kc->timer_get))
 		ret = -EINVAL;
 	else
-		kc->timer_get(timr, &cur_setting64);
+		kc->timer_get(timr, setting);
 
 	unlock_timer(timr, flags);
-
-	cur_setting = itimerspec64_to_itimerspec(&cur_setting64);
-	if (!ret && copy_to_user(setting, &cur_setting, sizeof (cur_setting)))
-		return -EFAULT;
-
 	return ret;
 }
+
+/* Get the time remaining on a POSIX.1b interval timer. */
+SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
+		struct itimerspec __user *, setting)
+{
+	struct itimerspec64 cur_setting64;
+
+	int ret = do_timer_gettime(timer_id, &cur_setting64);
+	if (!ret) {
+		struct itimerspec cur_setting;
+		cur_setting = itimerspec64_to_itimerspec(&cur_setting64);
+		if (copy_to_user(setting, &cur_setting, sizeof (cur_setting)))
+			ret = -EFAULT;
+	}
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
+		       struct compat_itimerspec __user *, setting)
+{
+	struct itimerspec64 cur_setting64;
+
+	int ret = do_timer_gettime(timer_id, &cur_setting64);
+	if (!ret) {
+		struct itimerspec cur_setting;
+		cur_setting = itimerspec64_to_itimerspec(&cur_setting64);
+		if (put_compat_itimerspec(setting, &cur_setting))
+			ret = -EFAULT;
+	}
+	return ret;
+}
+#endif
 
 /*
  * Get the number of overruns of a POSIX.1b interval timer.  This is to

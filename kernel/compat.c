@@ -635,23 +635,6 @@ COMPAT_SYSCALL_DEFINE3(timer_create, clockid_t, which_clock,
 	return sys_timer_create(which_clock, event, created_timer_id);
 }
 
-COMPAT_SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
-		       struct compat_itimerspec __user *, setting)
-{
-	long err;
-	mm_segment_t oldfs;
-	struct itimerspec ts;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	err = sys_timer_gettime(timer_id,
-				(struct itimerspec __user *) &ts);
-	set_fs(oldfs);
-	if (!err && put_compat_itimerspec(setting, &ts))
-		return -EFAULT;
-	return err;
-}
-
 COMPAT_SYSCALL_DEFINE2(clock_settime, clockid_t, which_clock,
 		       struct compat_timespec __user *, tp)
 {
