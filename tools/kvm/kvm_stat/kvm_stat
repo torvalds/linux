@@ -1140,7 +1140,6 @@ class Tui(object):
             try:
                 char = self.screen.getkey()
                 if char == 'x':
-                    self.refresh_header()
                     self.update_drilldown()
                 if char == 'q':
                     break
@@ -1158,7 +1157,6 @@ class Tui(object):
                     self.show_vm_selection_by_pid()
                     sleeptime = DELAY_INITIAL
                 if char == 'r':
-                    self.refresh_header()
                     self.stats.reset()
             except KeyboardInterrupt:
                 break
