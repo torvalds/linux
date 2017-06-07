@@ -598,57 +598,6 @@ COMPAT_SYSCALL_DEFINE3(timer_create, clockid_t, which_clock,
 	return sys_timer_create(which_clock, event, created_timer_id);
 }
 
-COMPAT_SYSCALL_DEFINE2(clock_settime, clockid_t, which_clock,
-		       struct compat_timespec __user *, tp)
-{
-	long err;
-	mm_segment_t oldfs;
-	struct timespec ts;
-
-	if (compat_get_timespec(&ts, tp))
-		return -EFAULT;
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	err = sys_clock_settime(which_clock,
-				(struct timespec __user *) &ts);
-	set_fs(oldfs);
-	return err;
-}
-
-COMPAT_SYSCALL_DEFINE2(clock_gettime, clockid_t, which_clock,
-		       struct compat_timespec __user *, tp)
-{
-	long err;
-	mm_segment_t oldfs;
-	struct timespec ts;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	err = sys_clock_gettime(which_clock,
-				(struct timespec __user *) &ts);
-	set_fs(oldfs);
-	if (!err && compat_put_timespec(&ts, tp))
-		return -EFAULT;
-	return err;
-}
-
-COMPAT_SYSCALL_DEFINE2(clock_getres, clockid_t, which_clock,
-		       struct compat_timespec __user *, tp)
-{
-	long err;
-	mm_segment_t oldfs;
-	struct timespec ts;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	err = sys_clock_getres(which_clock,
-			       (struct timespec __user *) &ts);
-	set_fs(oldfs);
-	if (!err && tp && compat_put_timespec(&ts, tp))
-		return -EFAULT;
-	return err;
-}
-
 /*
  * We currently only need the following fields from the sigevent
  * structure: sigev_value, sigev_signo, sig_notify and (sometimes
