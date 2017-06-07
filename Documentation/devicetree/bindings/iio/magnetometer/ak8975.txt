@@ -28,3 +28,14 @@ ak8975@0c {
                        "0",                   /* y2 */
                        "0.984807753012208";   /* z2 */
 };
+
+Valid compatible strings:
+
+- asahi-kasei,ak8975
+- ak8975
+- asahi-kasei,ak8963
+- ak8963
+- asahi-kasei,ak09911
+- ak09911
+- asahi-kasei,ak09912
+- ak09912
