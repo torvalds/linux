@@ -794,11 +794,74 @@ MODULE_PARM_DESC(poll_interval,
 static inline int bq27xxx_read(struct bq27xxx_device_info *di, int reg_index,
 			       bool single)
 {
-	/* Reports EINVAL for invalid/missing registers */
+	int ret;
+
 	if (!di || di->regs[reg_index] == INVALID_REG_ADDR)
 		return -EINVAL;
 
-	return di->bus.read(di, di->regs[reg_index], single);
+	ret = di->bus.read(di, di->regs[reg_index], single);
+	if (ret < 0)
+		dev_dbg(di->dev, "failed to read register 0x%02x (index %d)\n",
+			di->regs[reg_index], reg_index);
+
+	return ret;
+}
+
+static inline int bq27xxx_write(struct bq27xxx_device_info *di, int reg_index,
+				u16 value, bool single)
+{
+	int ret;
+
+	if (!di || di->regs[reg_index] == INVALID_REG_ADDR)
+		return -EINVAL;
+
+	if (!di->bus.write)
+		return -EPERM;
+
+	ret = di->bus.write(di, di->regs[reg_index], value, single);
+	if (ret < 0)
+		dev_dbg(di->dev, "failed to write register 0x%02x (index %d)\n",
+			di->regs[reg_index], reg_index);
+
+	return ret;
+}
+
+static inline int bq27xxx_read_block(struct bq27xxx_device_info *di, int reg_index,
+				     u8 *data, int len)
+{
+	int ret;
+
+	if (!di || di->regs[reg_index] == INVALID_REG_ADDR)
+		return -EINVAL;
+
+	if (!di->bus.read_bulk)
+		return -EPERM;
+
+	ret = di->bus.read_bulk(di, di->regs[reg_index], data, len);
+	if (ret < 0)
+		dev_dbg(di->dev, "failed to read_bulk register 0x%02x (index %d)\n",
+			di->regs[reg_index], reg_index);
+
+	return ret;
+}
+
+static inline int bq27xxx_write_block(struct bq27xxx_device_info *di, int reg_index,
+				      u8 *data, int len)
+{
+	int ret;
+
+	if (!di || di->regs[reg_index] == INVALID_REG_ADDR)
+		return -EINVAL;
+
+	if (!di->bus.write_bulk)
+		return -EPERM;
+
+	ret = di->bus.write_bulk(di, di->regs[reg_index], data, len);
+	if (ret < 0)
+		dev_dbg(di->dev, "failed to write_bulk register 0x%02x (index %d)\n",
+			di->regs[reg_index], reg_index);
+
+	return ret;
 }
 
 /*
