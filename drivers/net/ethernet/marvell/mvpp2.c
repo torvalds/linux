@@ -4186,8 +4186,6 @@ static void mvpp22_port_mii_set(struct mvpp2_port *port)
 {
 	u32 val;
 
-	return;
-
 	/* Only GOP port 0 has an XLG MAC */
 	if (port->gop_id == 0) {
 		val = readl(port->base + MVPP22_XLG_CTRL3_REG);
