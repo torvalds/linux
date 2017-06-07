@@ -531,23 +531,44 @@ static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
  */
 static inline bool mm_tlb_flush_pending(struct mm_struct *mm)
 {
-	barrier();
+	/*
+	 * Must be called with PTL held; such that our PTL acquire will have
+	 * observed the store from set_tlb_flush_pending().
+	 */
 	return mm->tlb_flush_pending;
 }
 static inline void set_tlb_flush_pending(struct mm_struct *mm)
 {
 	mm->tlb_flush_pending = true;
-
 	/*
-	 * Guarantee that the tlb_flush_pending store does not leak into the
-	 * critical section updating the page tables
+	 * The only time this value is relevant is when there are indeed pages
+	 * to flush. And we'll only flush pages after changing them, which
+	 * requires the PTL.
+	 *
+	 * So the ordering here is:
+	 *
+	 *	mm->tlb_flush_pending = true;
+	 *	spin_lock(&ptl);
+	 *	...
+	 *	set_pte_at();
+	 *	spin_unlock(&ptl);
+	 *
+	 *				spin_lock(&ptl)
+	 *				mm_tlb_flush_pending();
+	 *				....
+	 *				spin_unlock(&ptl);
+	 *
+	 *	flush_tlb_range();
+	 *	mm->tlb_flush_pending = false;
+	 *
+	 * So the =true store is constrained by the PTL unlock, and the =false
+	 * store is constrained by the TLB invalidate.
 	 */
-	smp_mb__before_spinlock();
 }
 /* Clearing is done after a TLB flush, which also provides a barrier. */
 static inline void clear_tlb_flush_pending(struct mm_struct *mm)
 {
-	barrier();
+	/* see set_tlb_flush_pending */
 	mm->tlb_flush_pending = false;
 }
 #else
