@@ -982,7 +982,8 @@ class Tui(object):
                 regex = regex[:MAX_REGEX_LEN] + '...'
             self.screen.addstr(1, 17, 'regex filter: {0}'.format(regex))
         self.screen.addstr(2, 1, '%-40s %10s%7s %7s' %
-                           ('Event', 'Total', '%Total', 'Current'))
+                           ('Event', 'Total', '%Total', 'Current'),
+                           curses.A_STANDOUT)
         self.screen.addstr(4, 1, 'Collecting data...')
         self.screen.refresh()
 
