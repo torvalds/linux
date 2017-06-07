@@ -276,7 +276,7 @@ extern int sysctl_tcp_pacing_ca_ratio;
 
 extern atomic_long_t tcp_memory_allocated;
 extern struct percpu_counter tcp_sockets_allocated;
-extern int tcp_memory_pressure;
+extern unsigned long tcp_memory_pressure;
 
 /* optimized version of sk_under_memory_pressure() for TCP sockets */
 static inline bool tcp_under_memory_pressure(const struct sock *sk)
@@ -1320,6 +1320,7 @@ extern void tcp_openreq_init_rwin(struct request_sock *req,
 				  const struct dst_entry *dst);
 
 void tcp_enter_memory_pressure(struct sock *sk);
+void tcp_leave_memory_pressure(struct sock *sk);
 
 static inline int keepalive_intvl_when(const struct tcp_sock *tp)
 {
