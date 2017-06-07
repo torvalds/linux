@@ -327,6 +327,7 @@ calls, to invoke certain actions and to report certain conditions.  These are:
 	RXRPC_ACCEPT		s-- n/a		Accept new call
 	RXRPC_EXCLUSIVE_CALL	s-- n/a		Make an exclusive client call
 	RXRPC_UPGRADE_SERVICE	s-- n/a		Client call can be upgraded
+	RXRPC_TX_LENGTH		s-- data len	Total length of Tx data
 
 	(SRT = usable in Sendmsg / delivered by Recvmsg / Terminal message)
 
@@ -405,6 +406,19 @@ calls, to invoke certain actions and to report certain conditions.  These are:
      thereof) of the server, the service ID returned should be used for all
      future communication to that server and RXRPC_UPGRADE_SERVICE should no
      longer be set.
+
+ (*) RXRPC_TX_LENGTH
+
+     This is used to inform the kernel of the total amount of data that is
+     going to be transmitted by a call (whether in a client request or a
+     service response).  If given, it allows the kernel to encrypt from the
+     userspace buffer directly to the packet buffers, rather than copying into
+     the buffer and then encrypting in place.  This may only be given with the
+     first sendmsg() providing data for a call.  EMSGSIZE will be generated if
+     the amount of data actually given is different.
+
+     This takes a parameter of __s64 type that indicates how much will be
+     transmitted.  This may not be less than zero.
 
 The symbol RXRPC__SUPPORTED is defined as one more than the highest control
 message type supported.  At run time this can be queried by means of the
@@ -576,6 +590,9 @@ A client would issue an operation by:
 
      MSG_MORE should be set in msghdr::msg_flags on all but the last part of
      the request.  Multiple requests may be made simultaneously.
+
+     An RXRPC_TX_LENGTH control message can also be specified on the first
+     sendmsg() call.
 
      If a call is intended to go to a destination other than the default
      specified through connect(), then msghdr::msg_name should be set on the
@@ -764,6 +781,7 @@ The kernel interface functions are as follows:
 				struct sockaddr_rxrpc *srx,
 				struct key *key,
 				unsigned long user_call_ID,
+				s64 tx_total_len,
 				gfp_t gfp);
 
      This allocates the infrastructure to make a new RxRPC call and assigns
@@ -779,6 +797,11 @@ The kernel interface functions are as follows:
      The user_call_ID is equivalent to that supplied to sendmsg() in the
      control data buffer.  It is entirely feasible to use this to point to a
      kernel data structure.
+
+     tx_total_len is the amount of data the caller is intending to transmit
+     with this call (or -1 if unknown at this point).  Setting the data size
+     allows the kernel to encrypt directly to the packet buffers, thereby
+     saving a copy.  The value may not be less than -1.
 
      If this function is successful, an opaque reference to the RxRPC call is
      returned.  The caller now holds a reference on this and it must be
@@ -930,6 +953,17 @@ The kernel interface functions are as follows:
 				   struct sockaddr_rxrpc *_srx);
 
      This is used to find the remote peer address of a call.
+
+ (*) Set the total transmit data size on a call.
+
+	void rxrpc_kernel_set_tx_length(struct socket *sock,
+					struct rxrpc_call *call,
+					s64 tx_total_len);
+
+     This sets the amount of data that the caller is intending to transmit on a
+     call.  It's intended to be used for setting the reply size as the request
+     size should be set when the call is begun.  tx_total_len may not be less
+     than zero.
 
 
 =======================

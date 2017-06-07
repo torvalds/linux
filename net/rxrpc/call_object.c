@@ -127,6 +127,7 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	rwlock_init(&call->state_lock);
 	atomic_set(&call->usage, 1);
 	call->debug_id = atomic_inc_return(&rxrpc_debug_id);
+	call->tx_total_len = -1;
 
 	memset(&call->sock_node, 0xed, sizeof(call->sock_node));
 
@@ -201,6 +202,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 					 struct rxrpc_conn_parameters *cp,
 					 struct sockaddr_rxrpc *srx,
 					 unsigned long user_call_ID,
+					 s64 tx_total_len,
 					 gfp_t gfp)
 	__releases(&rx->sk.sk_lock.slock)
 {
@@ -219,6 +221,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 		return call;
 	}
 
+	call->tx_total_len = tx_total_len;
 	trace_rxrpc_call(call, rxrpc_call_new_client, atomic_read(&call->usage),
 			 here, (const void *)user_call_ID);
 

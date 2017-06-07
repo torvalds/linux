@@ -262,6 +262,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * @srx: The address of the peer to contact
  * @key: The security context to use (defaults to socket setting)
  * @user_call_ID: The ID to use
+ * @tx_total_len: Total length of data to transmit during the call (or -1)
  * @gfp: The allocation constraints
  * @notify_rx: Where to send notifications instead of socket queue
  *
@@ -276,6 +277,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   struct sockaddr_rxrpc *srx,
 					   struct key *key,
 					   unsigned long user_call_ID,
+					   s64 tx_total_len,
 					   gfp_t gfp,
 					   rxrpc_notify_rx_t notify_rx)
 {
@@ -303,7 +305,8 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	cp.security_level	= 0;
 	cp.exclusive		= false;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, gfp);
+	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, tx_total_len,
+				     gfp);
 	/* The socket has been unlocked. */
 	if (!IS_ERR(call))
 		call->notify_rx = notify_rx;

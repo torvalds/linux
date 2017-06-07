@@ -29,6 +29,7 @@ enum rxrpc_command {
 };
 
 struct rxrpc_send_params {
+	s64			tx_total_len;	/* Total Tx data length (if send data) */
 	unsigned long		user_call_ID;	/* User's call ID */
 	u32			abort_code;	/* Abort code to Tx (if abort) */
 	enum rxrpc_command	command : 8;	/* The command to implement */
@@ -207,6 +208,13 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 	more = msg->msg_flags & MSG_MORE;
 
+	if (call->tx_total_len != -1) {
+		if (len > call->tx_total_len)
+			return -EMSGSIZE;
+		if (!more && len != call->tx_total_len)
+			return -EMSGSIZE;
+	}
+
 	skb = call->tx_pending;
 	call->tx_pending = NULL;
 	rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
@@ -299,6 +307,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			sp->remain -= copy;
 			skb->mark += copy;
 			copied += copy;
+			if (call->tx_total_len != -1)
+				call->tx_total_len -= copy;
 		}
 
 		/* check for the far side aborting the call or a network error
@@ -436,12 +446,22 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg, struct rxrpc_send_params *p)
 				return -EINVAL;
 			break;
 
+		case RXRPC_TX_LENGTH:
+			if (p->tx_total_len != -1 || len != sizeof(__s64))
+				return -EINVAL;
+			p->tx_total_len = *(__s64 *)CMSG_DATA(cmsg);
+			if (p->tx_total_len < 0)
+				return -EINVAL;
+			break;
+
 		default:
 			return -EINVAL;
 		}
 	}
 
 	if (!got_user_ID)
+		return -EINVAL;
+	if (p->tx_total_len != -1 && p->command != RXRPC_CMD_SEND_DATA)
 		return -EINVAL;
 	_leave(" = 0");
 	return 0;
@@ -481,7 +501,8 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	cp.exclusive		= rx->exclusive | p->exclusive;
 	cp.upgrade		= p->upgrade;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, p->user_call_ID, GFP_KERNEL);
+	call = rxrpc_new_client_call(rx, &cp, srx, p->user_call_ID,
+				     p->tx_total_len, GFP_KERNEL);
 	/* The socket is now unlocked */
 
 	_leave(" = %p\n", call);
@@ -501,6 +522,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	int ret;
 
 	struct rxrpc_send_params p = {
+		.tx_total_len	= -1,
 		.user_call_ID	= 0,
 		.abort_code	= 0,
 		.command	= RXRPC_CMD_SEND_DATA,
@@ -554,6 +576,15 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		if (ret < 0) {
 			ret = -ERESTARTSYS;
 			goto error_put;
+		}
+
+		if (p.tx_total_len != -1) {
+			ret = -EINVAL;
+			if (call->tx_total_len != -1 ||
+			    call->tx_pending ||
+			    call->tx_top != 0)
+				goto error_put;
+			call->tx_total_len = p.tx_total_len;
 		}
 	}
 
@@ -672,5 +703,24 @@ bool rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
 	mutex_unlock(&call->user_mutex);
 	return aborted;
 }
-
 EXPORT_SYMBOL(rxrpc_kernel_abort_call);
+
+/**
+ * rxrpc_kernel_set_tx_length - Set the total Tx length on a call
+ * @sock: The socket the call is on
+ * @call: The call to be informed
+ * @tx_total_len: The amount of data to be transmitted for this call
+ *
+ * Allow a kernel service to set the total transmit length on a call.  This
+ * allows buffer-to-packet encrypt-and-copy to be performed.
+ *
+ * This function is primarily for use for setting the reply length since the
+ * request length can be set when beginning the call.
+ */
+void rxrpc_kernel_set_tx_length(struct socket *sock, struct rxrpc_call *call,
+				s64 tx_total_len)
+{
+	WARN_ON(call->tx_total_len != -1);
+	call->tx_total_len = tx_total_len;
+}
+EXPORT_SYMBOL(rxrpc_kernel_set_tx_length);

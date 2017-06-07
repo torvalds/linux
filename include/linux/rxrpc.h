@@ -57,6 +57,7 @@ enum rxrpc_cmsg_type {
 	RXRPC_ACCEPT		= 9,	/* s-: [Service] accept request */
 	RXRPC_EXCLUSIVE_CALL	= 10,	/* s-: Call should be on exclusive connection */
 	RXRPC_UPGRADE_SERVICE	= 11,	/* s-: Request service upgrade for client call */
+	RXRPC_TX_LENGTH		= 12,	/* s-: Total length of Tx data */
 	RXRPC__SUPPORTED
 };
 
