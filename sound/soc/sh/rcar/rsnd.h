@@ -432,10 +432,6 @@ struct rsnd_dai_stream {
 	struct rsnd_mod *mod[RSND_MOD_MAX];
 	struct rsnd_dai *rdai;
 	u32 parent_ssi_status;
-	int byte_pos;
-	int period_pos;
-	int byte_per_period;
-	int next_period_byte;
 };
 #define rsnd_io_to_mod(io, i)	((i) < RSND_MOD_MAX ? (io)->mod[(i)] : NULL)
 #define rsnd_io_to_mod_ssi(io)	rsnd_io_to_mod((io), RSND_MOD_SSI)
@@ -480,9 +476,7 @@ struct rsnd_dai {
 
 struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id);
 
-bool rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
 void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io);
-int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
 int rsnd_dai_connect(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
 		     enum rsnd_mod_type type);
