@@ -529,6 +529,12 @@ fail:
 }
 EXPORT_SYMBOL_GPL(nvmet_req_init);
 
+void nvmet_req_uninit(struct nvmet_req *req)
+{
+	percpu_ref_put(&req->sq->ref);
+}
+EXPORT_SYMBOL_GPL(nvmet_req_uninit);
+
 static inline bool nvmet_cc_en(u32 cc)
 {
 	return cc & 0x1;

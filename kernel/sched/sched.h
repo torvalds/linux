@@ -1467,6 +1467,8 @@ static inline struct cpuidle_state *idle_get_state(struct rq *rq)
 }
 #endif
 
+extern void schedule_idle(void);
+
 extern void sysrq_sched_debug_show(void);
 extern void sched_init_granularity(void);
 extern void update_max_interval(void);

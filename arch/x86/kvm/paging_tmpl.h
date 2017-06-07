@@ -283,11 +283,13 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	pt_element_t pte;
 	pt_element_t __user *uninitialized_var(ptep_user);
 	gfn_t table_gfn;
-	unsigned index, pt_access, pte_access, accessed_dirty, pte_pkey;
+	u64 pt_access, pte_access;
+	unsigned index, accessed_dirty, pte_pkey;
 	unsigned nested_access;
 	gpa_t pte_gpa;
 	bool have_ad;
 	int offset;
+	u64 walk_nx_mask = 0;
 	const int write_fault = access & PFERR_WRITE_MASK;
 	const int user_fault  = access & PFERR_USER_MASK;
 	const int fetch_fault = access & PFERR_FETCH_MASK;
@@ -302,6 +304,7 @@ retry_walk:
 	have_ad       = PT_HAVE_ACCESSED_DIRTY(mmu);
 
 #if PTTYPE == 64
+	walk_nx_mask = 1ULL << PT64_NX_SHIFT;
 	if (walker->level == PT32E_ROOT_LEVEL) {
 		pte = mmu->get_pdptr(vcpu, (addr >> 30) & 3);
 		trace_kvm_mmu_paging_element(pte, walker->level);
@@ -313,8 +316,6 @@ retry_walk:
 	walker->max_level = walker->level;
 	ASSERT(!(is_long_mode(vcpu) && !is_pae(vcpu)));
 
-	accessed_dirty = have_ad ? PT_GUEST_ACCESSED_MASK : 0;
-
 	/*
 	 * FIXME: on Intel processors, loads of the PDPTE registers for PAE paging
 	 * by the MOV to CR instruction are treated as reads and do not cause the
@@ -322,14 +323,14 @@ retry_walk:
 	 */
 	nested_access = (have_ad ? PFERR_WRITE_MASK : 0) | PFERR_USER_MASK;
 
-	pt_access = pte_access = ACC_ALL;
+	pte_access = ~0;
 	++walker->level;
 
 	do {
 		gfn_t real_gfn;
 		unsigned long host_addr;
 
-		pt_access &= pte_access;
+		pt_access = pte_access;
 		--walker->level;
 
 		index = PT_INDEX(addr, walker->level);
@@ -371,6 +372,12 @@ retry_walk:
 
 		trace_kvm_mmu_paging_element(pte, walker->level);
 
+		/*
+		 * Inverting the NX it lets us AND it like other
+		 * permission bits.
+		 */
+		pte_access = pt_access & (pte ^ walk_nx_mask);
+
 		if (unlikely(!FNAME(is_present_gpte)(pte)))
 			goto error;
 
@@ -379,14 +386,16 @@ retry_walk:
 			goto error;
 		}
 
-		accessed_dirty &= pte;
-		pte_access = pt_access & FNAME(gpte_access)(vcpu, pte);
-
 		walker->ptes[walker->level - 1] = pte;
 	} while (!is_last_gpte(mmu, walker->level, pte));
 
 	pte_pkey = FNAME(gpte_pkeys)(vcpu, pte);
-	errcode = permission_fault(vcpu, mmu, pte_access, pte_pkey, access);
+	accessed_dirty = have_ad ? pte_access & PT_GUEST_ACCESSED_MASK : 0;
+
+	/* Convert to ACC_*_MASK flags for struct guest_walker.  */
+	walker->pt_access = FNAME(gpte_access)(vcpu, pt_access ^ walk_nx_mask);
+	walker->pte_access = FNAME(gpte_access)(vcpu, pte_access ^ walk_nx_mask);
+	errcode = permission_fault(vcpu, mmu, walker->pte_access, pte_pkey, access);
 	if (unlikely(errcode))
 		goto error;
 
@@ -403,7 +412,7 @@ retry_walk:
 	walker->gfn = real_gpa >> PAGE_SHIFT;
 
 	if (!write_fault)
-		FNAME(protect_clean_gpte)(mmu, &pte_access, pte);
+		FNAME(protect_clean_gpte)(mmu, &walker->pte_access, pte);
 	else
 		/*
 		 * On a write fault, fold the dirty bit into accessed_dirty.
@@ -421,10 +430,8 @@ retry_walk:
 			goto retry_walk;
 	}
 
-	walker->pt_access = pt_access;
-	walker->pte_access = pte_access;
 	pgprintk("%s: pte %llx pte_access %x pt_access %x\n",
-		 __func__, (u64)pte, pte_access, pt_access);
+		 __func__, (u64)pte, walker->pte_access, walker->pt_access);
 	return 1;
 
 error:
@@ -452,7 +459,7 @@ error:
 	 */
 	if (!(errcode & PFERR_RSVD_MASK)) {
 		vcpu->arch.exit_qualification &= 0x187;
-		vcpu->arch.exit_qualification |= ((pt_access & pte) & 0x7) << 3;
+		vcpu->arch.exit_qualification |= (pte_access & 0x7) << 3;
 	}
 #endif
 	walker->fault.address = addr;

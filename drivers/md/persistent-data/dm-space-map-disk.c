@@ -142,10 +142,23 @@ static int sm_disk_inc_block(struct dm_space_map *sm, dm_block_t b)
 
 static int sm_disk_dec_block(struct dm_space_map *sm, dm_block_t b)
 {
+	int r;
+	uint32_t old_count;
 	enum allocation_event ev;
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
 
-	return sm_ll_dec(&smd->ll, b, &ev);
+	r = sm_ll_dec(&smd->ll, b, &ev);
+	if (!r && (ev == SM_FREE)) {
+		/*
+		 * It's only free if it's also free in the last
+		 * transaction.
+		 */
+		r = sm_ll_lookup(&smd->old_ll, b, &old_count);
+		if (!r && !old_count)
+			smd->nr_allocated_this_transaction--;
+	}
+
+	return r;
 }
 
 static int sm_disk_new_block(struct dm_space_map *sm, dm_block_t *b)

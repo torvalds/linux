@@ -117,6 +117,28 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 	return sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 }
 
+int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
+		       size_t insns_cnt, int strict_alignment,
+		       const char *license, __u32 kern_version,
+		       char *log_buf, size_t log_buf_sz)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.prog_type = type;
+	attr.insn_cnt = (__u32)insns_cnt;
+	attr.insns = ptr_to_u64(insns);
+	attr.license = ptr_to_u64(license);
+	attr.log_buf = ptr_to_u64(log_buf);
+	attr.log_size = log_buf_sz;
+	attr.log_level = 2;
+	log_buf[0] = 0;
+	attr.kern_version = kern_version;
+	attr.prog_flags = strict_alignment ? BPF_F_STRICT_ALIGNMENT : 0;
+
+	return sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
+}
+
 int bpf_map_update_elem(int fd, const void *key, const void *value,
 			__u64 flags)
 {

@@ -319,10 +319,10 @@ do {									\
 #define __get_user_asm_u64(x, ptr, retval, errret)			\
 ({									\
 	__typeof__(ptr) __ptr = (ptr);					\
-	asm volatile(ASM_STAC "\n"					\
+	asm volatile("\n"					\
 		     "1:	movl %2,%%eax\n"			\
 		     "2:	movl %3,%%edx\n"			\
-		     "3: " ASM_CLAC "\n"				\
+		     "3:\n"				\
 		     ".section .fixup,\"ax\"\n"				\
 		     "4:	mov %4,%0\n"				\
 		     "	xorl %%eax,%%eax\n"				\
@@ -331,7 +331,7 @@ do {									\
 		     ".previous\n"					\
 		     _ASM_EXTABLE(1b, 4b)				\
 		     _ASM_EXTABLE(2b, 4b)				\
-		     : "=r" (retval), "=A"(x)				\
+		     : "=r" (retval), "=&A"(x)				\
 		     : "m" (__m(__ptr)), "m" __m(((u32 *)(__ptr)) + 1),	\
 		       "i" (errret), "0" (retval));			\
 })
@@ -703,14 +703,15 @@ extern struct movsl_mask {
 #define unsafe_put_user(x, ptr, err_label)					\
 do {										\
 	int __pu_err;								\
-	__put_user_size((x), (ptr), sizeof(*(ptr)), __pu_err, -EFAULT);		\
+	__typeof__(*(ptr)) __pu_val = (x);					\
+	__put_user_size(__pu_val, (ptr), sizeof(*(ptr)), __pu_err, -EFAULT);	\
 	if (unlikely(__pu_err)) goto err_label;					\
 } while (0)
 
 #define unsafe_get_user(x, ptr, err_label)					\
 do {										\
 	int __gu_err;								\
-	unsigned long __gu_val;							\
+	__inttype(*(ptr)) __gu_val;						\
 	__get_user_size(__gu_val, (ptr), sizeof(*(ptr)), __gu_err, -EFAULT);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
 	if (unlikely(__gu_err)) goto err_label;					\

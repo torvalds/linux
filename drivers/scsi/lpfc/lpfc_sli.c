@@ -4204,13 +4204,16 @@ lpfc_sli_brdreset(struct lpfc_hba *phba)
 	/* Reset HBA */
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"0325 Reset HBA Data: x%x x%x\n",
-			phba->pport->port_state, psli->sli_flag);
+			(phba->pport) ? phba->pport->port_state : 0,
+			psli->sli_flag);
 
 	/* perform board reset */
 	phba->fc_eventTag = 0;
 	phba->link_events = 0;
-	phba->pport->fc_myDID = 0;
-	phba->pport->fc_prevDID = 0;
+	if (phba->pport) {
+		phba->pport->fc_myDID = 0;
+		phba->pport->fc_prevDID = 0;
+	}
 
 	/* Turn off parity checking and serr during the physical reset */
 	pci_read_config_word(phba->pcidev, PCI_COMMAND, &cfg_value);
@@ -4336,7 +4339,8 @@ lpfc_sli_brdrestart_s3(struct lpfc_hba *phba)
 	/* Restart HBA */
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"0337 Restart HBA Data: x%x x%x\n",
-			phba->pport->port_state, psli->sli_flag);
+			(phba->pport) ? phba->pport->port_state : 0,
+			psli->sli_flag);
 
 	word0 = 0;
 	mb = (MAILBOX_t *) &word0;
@@ -4350,7 +4354,7 @@ lpfc_sli_brdrestart_s3(struct lpfc_hba *phba)
 	readl(to_slim); /* flush */
 
 	/* Only skip post after fc_ffinit is completed */
-	if (phba->pport->port_state)
+	if (phba->pport && phba->pport->port_state)
 		word0 = 1;	/* This is really setting up word1 */
 	else
 		word0 = 0;	/* This is really setting up word1 */
@@ -4359,7 +4363,8 @@ lpfc_sli_brdrestart_s3(struct lpfc_hba *phba)
 	readl(to_slim); /* flush */
 
 	lpfc_sli_brdreset(phba);
-	phba->pport->stopped = 0;
+	if (phba->pport)
+		phba->pport->stopped = 0;
 	phba->link_state = LPFC_INIT_START;
 	phba->hba_flag = 0;
 	spin_unlock_irq(&phba->hbalock);
@@ -4446,7 +4451,7 @@ lpfc_sli_brdrestart(struct lpfc_hba *phba)
  * iteration, the function will restart the HBA again. The function returns
  * zero if HBA successfully restarted else returns negative error code.
  **/
-static int
+int
 lpfc_sli_chipset_init(struct lpfc_hba *phba)
 {
 	uint32_t status, i = 0;
