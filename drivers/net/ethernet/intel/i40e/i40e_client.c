@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+ * Copyright(c) 2013 - 2017 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -273,8 +273,8 @@ int i40e_vf_client_capable(struct i40e_pf *pf, u32 vf_id)
 	if (!cdev || !cdev->client)
 		goto out;
 	if (!cdev->client->ops || !cdev->client->ops->vf_capable) {
-		dev_info(&pf->pdev->dev,
-			 "Cannot locate client instance VF capability routine\n");
+		dev_dbg(&pf->pdev->dev,
+			"Cannot locate client instance VF capability routine\n");
 		goto out;
 	}
 	if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state))
