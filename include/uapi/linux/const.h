@@ -8,7 +8,7 @@
  * 'UL' and other type specifiers unilaterally.  We
  * use the following macros to deal with this.
  *
- * Similarly, _AT() will cast an expression with a type in C, but
+ * Similarly, _AT() will cast an exception with a type in C, but
  * leave it unchanged in asm.
  */
 
