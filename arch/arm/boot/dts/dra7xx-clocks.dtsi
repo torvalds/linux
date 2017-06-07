@@ -338,6 +338,8 @@
 		compatible = "ti,omap4-dpll-clock";
 		clocks = <&sys_clkin1>, <&dpll_dsp_byp_mux>;
 		reg = <0x0234>, <0x0238>, <0x0240>, <0x023c>;
+		assigned-clocks = <&dpll_dsp_ck>;
+		assigned-clock-rates = <600000000>;
 	};
 
 	dpll_dsp_m2_ck: dpll_dsp_m2_ck@244 {
@@ -349,6 +351,8 @@
 		reg = <0x0244>;
 		ti,index-starts-at-one;
 		ti,invert-autoidle-bit;
+		assigned-clocks = <&dpll_dsp_m2_ck>;
+		assigned-clock-rates = <600000000>;
 	};
 
 	iva_dpll_hs_clk_div: iva_dpll_hs_clk_div {
@@ -659,6 +663,8 @@
 		reg = <0x0248>;
 		ti,index-starts-at-one;
 		ti,invert-autoidle-bit;
+		assigned-clocks = <&dpll_dsp_m3x2_ck>;
+		assigned-clock-rates = <400000000>;
 	};
 
 	dpll_gmac_x2_ck: dpll_gmac_x2_ck {
