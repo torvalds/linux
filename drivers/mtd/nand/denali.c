@@ -337,36 +337,6 @@ static void get_samsung_nand_para(struct denali_nand_info *denali,
 	}
 }
 
-static void get_toshiba_nand_para(struct denali_nand_info *denali)
-{
-	/*
-	 * Workaround to fix a controller bug which reports a wrong
-	 * spare area size for some kind of Toshiba NAND device
-	 */
-	if ((ioread32(denali->flash_reg + DEVICE_MAIN_AREA_SIZE) == 4096) &&
-		(ioread32(denali->flash_reg + DEVICE_SPARE_AREA_SIZE) == 64))
-		iowrite32(216, denali->flash_reg + DEVICE_SPARE_AREA_SIZE);
-}
-
-static void get_hynix_nand_para(struct denali_nand_info *denali,
-							uint8_t device_id)
-{
-	switch (device_id) {
-	case 0xD5: /* Hynix H27UAG8T2A, H27UBG8U5A or H27UCG8VFA */
-	case 0xD7: /* Hynix H27UDG8VEM, H27UCG8UDM or H27UCG8V5A */
-		iowrite32(128, denali->flash_reg + PAGES_PER_BLOCK);
-		iowrite32(4096, denali->flash_reg + DEVICE_MAIN_AREA_SIZE);
-		iowrite32(224, denali->flash_reg + DEVICE_SPARE_AREA_SIZE);
-		iowrite32(0, denali->flash_reg + DEVICE_WIDTH);
-		break;
-	default:
-		dev_warn(denali->dev,
-			 "Unknown Hynix NAND (Device ID: 0x%x).\n"
-			 "Will use default parameter values instead.\n",
-			 device_id);
-	}
-}
-
 /*
  * determines how many NAND chips are connected to the controller. Note for
  * Intel CE4100 devices we don't support more than one device.
@@ -453,10 +423,6 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 			return FAIL;
 	} else if (maf_id == 0xEC) { /* Samsung NAND */
 		get_samsung_nand_para(denali, device_id);
-	} else if (maf_id == 0x98) { /* Toshiba NAND */
-		get_toshiba_nand_para(denali);
-	} else if (maf_id == 0xAD) { /* Hynix NAND */
-		get_hynix_nand_para(denali, device_id);
 	}
 
 	dev_info(denali->dev,
@@ -1624,6 +1590,12 @@ int denali_init(struct denali_nand_info *denali)
 		chip->ecc.size, chip->ecc.strength, chip->ecc.bytes);
 
 	iowrite32(chip->ecc.strength, denali->flash_reg + ECC_CORRECTION);
+	iowrite32(mtd->erasesize / mtd->writesize,
+		  denali->flash_reg + PAGES_PER_BLOCK);
+	iowrite32(chip->options & NAND_BUSWIDTH_16 ? 1 : 0,
+		  denali->flash_reg + DEVICE_WIDTH);
+	iowrite32(mtd->writesize, denali->flash_reg + DEVICE_MAIN_AREA_SIZE);
+	iowrite32(mtd->oobsize, denali->flash_reg + DEVICE_SPARE_AREA_SIZE);
 
 	iowrite32(chip->ecc.size, denali->flash_reg + CFG_DATA_BLOCK_SIZE);
 	iowrite32(chip->ecc.size, denali->flash_reg + CFG_LAST_DATA_BLOCK_SIZE);
