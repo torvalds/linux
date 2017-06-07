@@ -1140,7 +1140,8 @@ static int prp_s_stream(struct v4l2_subdev *sd, int enable)
 
 update_count:
 	priv->stream_count += enable ? 1 : -1;
-	WARN_ON(priv->stream_count < 0);
+	if (priv->stream_count < 0)
+		priv->stream_count = 0;
 out:
 	mutex_unlock(&priv->lock);
 	return ret;

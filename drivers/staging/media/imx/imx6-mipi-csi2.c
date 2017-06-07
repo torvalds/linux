@@ -397,7 +397,8 @@ static int csi2_s_stream(struct v4l2_subdev *sd, int enable)
 
 update_count:
 	csi2->stream_count += enable ? 1 : -1;
-	WARN_ON(csi2->stream_count < 0);
+	if (csi2->stream_count < 0)
+		csi2->stream_count = 0;
 out:
 	mutex_unlock(&csi2->lock);
 	return ret;
