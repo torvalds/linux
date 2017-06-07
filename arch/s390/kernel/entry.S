@@ -52,7 +52,7 @@ _TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		   _TIF_SYSCALL_TRACEPOINT)
 _CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE_PRIMARY | \
 		   _CIF_ASCE_SECONDARY | _CIF_FPU)
-_PIF_WORK	= (_PIF_PER_TRAP)
+_PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 
 #define BASED(name) name-cleanup_critical(%r13)
 
@@ -334,6 +334,8 @@ ENTRY(system_call)
 	jo	.Lsysc_mcck_pending
 	TSTMSK	__TI_flags(%r12),_TIF_NEED_RESCHED
 	jo	.Lsysc_reschedule
+	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL_RESTART
+	jo	.Lsysc_syscall_restart
 #ifdef CONFIG_UPROBES
 	TSTMSK	__TI_flags(%r12),_TIF_UPROBE
 	jo	.Lsysc_uprobe_notify
@@ -347,6 +349,8 @@ ENTRY(system_call)
 	jo	.Lsysc_patch_pending	# handle live patching just before
 					# signals and possible syscall restart
 #endif
+	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL_RESTART
+	jo	.Lsysc_syscall_restart
 	TSTMSK	__TI_flags(%r12),_TIF_SIGPENDING
 	jo	.Lsysc_sigpending
 	TSTMSK	__TI_flags(%r12),_TIF_NOTIFY_RESUME
@@ -446,6 +450,15 @@ ENTRY(system_call)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	larl	%r14,.Lsysc_return
 	jg	do_per_trap
+
+#
+# _PIF_SYSCALL_RESTART is set, repeat the current system call
+#
+.Lsysc_syscall_restart:
+	ni	__PT_FLAGS+7(%r11),255-_PIF_SYSCALL_RESTART
+	lmg	%r1,%r7,__PT_R1(%r11)	# load svc arguments
+	lg	%r2,__PT_ORIG_GPR2(%r11)
+	j	.Lsysc_do_svc
 
 #
 # call tracehook_report_syscall_entry/tracehook_report_syscall_exit before
