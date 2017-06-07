@@ -1077,10 +1077,10 @@ static void vxlan_sock_release(struct vxlan_dev *vxlan)
 #if IS_ENABLED(CONFIG_IPV6)
 	struct vxlan_sock *sock6 = rtnl_dereference(vxlan->vn6_sock);
 
-	rcu_assign_pointer(vxlan->vn6_sock, NULL);
+	RCU_INIT_POINTER(vxlan->vn6_sock, NULL);
 #endif
 
-	rcu_assign_pointer(vxlan->vn4_sock, NULL);
+	RCU_INIT_POINTER(vxlan->vn4_sock, NULL);
 	synchronize_net();
 
 	vxlan_vs_del_dev(vxlan);
