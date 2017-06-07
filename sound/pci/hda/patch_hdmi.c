@@ -2782,21 +2782,21 @@ static int nvhdmi_7x_init_8ch(struct hda_codec *codec)
 	return 0;
 }
 
-static unsigned int channels_2_6_8[] = {
+static const unsigned int channels_2_6_8[] = {
 	2, 6, 8
 };
 
-static unsigned int channels_2_8[] = {
+static const unsigned int channels_2_8[] = {
 	2, 8
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_2_6_8_channels = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_2_6_8_channels = {
 	.count = ARRAY_SIZE(channels_2_6_8),
 	.list = channels_2_6_8,
 	.mask = 0,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_2_8_channels = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_2_8_channels = {
 	.count = ARRAY_SIZE(channels_2_8),
 	.list = channels_2_8,
 	.mask = 0,
@@ -2807,7 +2807,7 @@ static int simple_playback_pcm_open(struct hda_pcm_stream *hinfo,
 				    struct snd_pcm_substream *substream)
 {
 	struct hdmi_spec *spec = codec->spec;
-	struct snd_pcm_hw_constraint_list *hw_constraints_channels = NULL;
+	const struct snd_pcm_hw_constraint_list *hw_constraints_channels = NULL;
 
 	switch (codec->preset->vendor_id) {
 	case 0x10de0002:
