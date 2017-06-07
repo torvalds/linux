@@ -1043,7 +1043,10 @@ SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock,
 static int common_nsleep(const clockid_t which_clock, int flags,
 			 struct timespec64 *tsave, struct timespec __user *rmtp)
 {
-	return hrtimer_nanosleep(tsave, rmtp, flags & TIMER_ABSTIME ?
+	if (flags & TIMER_ABSTIME)
+		rmtp = NULL;
+	current->restart_block.nanosleep.rmtp = rmtp;
+	return hrtimer_nanosleep(tsave, flags & TIMER_ABSTIME ?
 				 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
 				 which_clock);
 }

@@ -253,9 +253,9 @@ COMPAT_SYSCALL_DEFINE2(nanosleep, struct compat_timespec __user *, rqtp,
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	ret = hrtimer_nanosleep(&tu64,
-				rmtp ? (struct timespec __user *)&rmt : NULL,
-				HRTIMER_MODE_REL, CLOCK_MONOTONIC);
+	current->restart_block.nanosleep.rmtp =
+				rmtp ? (struct timespec __user *)&rmt : NULL;
+	ret = hrtimer_nanosleep(&tu64, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 	set_fs(oldfs);
 
 	/*

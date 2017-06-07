@@ -1503,10 +1503,11 @@ out:
 	return ret;
 }
 
-long hrtimer_nanosleep(struct timespec64 *rqtp, struct timespec __user *rmtp,
+long hrtimer_nanosleep(struct timespec64 *rqtp,
 		       const enum hrtimer_mode mode, const clockid_t clockid)
 {
-	struct restart_block *restart;
+	struct restart_block *restart = &current->restart_block;
+	struct timespec __user *rmtp;
 	struct hrtimer_sleeper t;
 	int ret = 0;
 	u64 slack;
@@ -1526,16 +1527,15 @@ long hrtimer_nanosleep(struct timespec64 *rqtp, struct timespec __user *rmtp,
 		goto out;
 	}
 
+	rmtp = restart->nanosleep.rmtp;
 	if (rmtp) {
 		ret = update_rmtp(&t.timer, rmtp);
 		if (ret <= 0)
 			goto out;
 	}
 
-	restart = &current->restart_block;
 	restart->fn = hrtimer_nanosleep_restart;
 	restart->nanosleep.clockid = t.timer.base->clockid;
-	restart->nanosleep.rmtp = rmtp;
 	restart->nanosleep.expires = hrtimer_get_expires_tv64(&t.timer);
 
 	ret = -ERESTART_RESTARTBLOCK;
@@ -1557,7 +1557,8 @@ SYSCALL_DEFINE2(nanosleep, struct timespec __user *, rqtp,
 	if (!timespec64_valid(&tu64))
 		return -EINVAL;
 
-	return hrtimer_nanosleep(&tu64, rmtp, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
+	current->restart_block.nanosleep.rmtp = rmtp;
+	return hrtimer_nanosleep(&tu64, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 }
 
 /*

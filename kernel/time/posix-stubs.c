@@ -115,7 +115,10 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 		t64 = timespec_to_timespec64(t);
 		if (!timespec64_valid(&t64))
 			return -EINVAL;
-		return hrtimer_nanosleep(&t64, rmtp, flags & TIMER_ABSTIME ?
+		if (flags & TIMER_ABSTIME)
+			rmtp = NULL;
+		current->restart_block.nanosleep.rmtp = rmtp;
+		return hrtimer_nanosleep(&t64, flags & TIMER_ABSTIME ?
 					 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
 					 which_clock);
 	default:
