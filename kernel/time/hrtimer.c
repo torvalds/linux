@@ -1496,7 +1496,7 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 	return -ERESTART_RESTARTBLOCK;
 }
 
-long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
+static long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
 {
 	struct hrtimer_sleeper t;
 	int ret;
