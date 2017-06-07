@@ -872,6 +872,7 @@ static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+	case CHIP_RAVEN:
 		adev->gfx.mec.num_mec = 2;
 		break;
 	default:
