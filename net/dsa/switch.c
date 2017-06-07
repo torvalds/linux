@@ -166,6 +166,9 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 	bitmap_zero(members, ds->num_ports);
 	if (ds->index == info->sw_index)
 		set_bit(info->port, members);
+	for (port = 0; port < ds->num_ports; port++)
+		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
+			set_bit(port, members);
 
 	if (switchdev_trans_ph_prepare(trans)) {
 		if (!ds->ops->port_vlan_prepare || !ds->ops->port_vlan_add)
