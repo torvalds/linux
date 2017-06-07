@@ -97,7 +97,10 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 
 		break;
 	case ixgbe_media_type_backplane:
-		supported = true;
+		if (hw->device_id == IXGBE_DEV_ID_X550EM_X_XFI)
+			supported = false;
+		else
+			supported = true;
 		break;
 	case ixgbe_media_type_copper:
 		/* only some copper devices support flow control autoneg */

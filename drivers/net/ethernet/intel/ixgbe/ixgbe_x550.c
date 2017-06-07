@@ -2843,7 +2843,7 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 {
 	bool pause, asm_dir;
 	u32 reg_val;
-	s32 rc;
+	s32 rc = 0;
 
 	/* Validate the requested mode */
 	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {
@@ -2886,32 +2886,37 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 		return IXGBE_ERR_CONFIG;
 	}
 
-	if (hw->device_id != IXGBE_DEV_ID_X550EM_X_KR &&
-	    hw->device_id != IXGBE_DEV_ID_X550EM_A_KR &&
-	    hw->device_id != IXGBE_DEV_ID_X550EM_A_KR_L)
-		return 0;
+	switch (hw->device_id) {
+	case IXGBE_DEV_ID_X550EM_X_KR:
+	case IXGBE_DEV_ID_X550EM_A_KR:
+	case IXGBE_DEV_ID_X550EM_A_KR_L:
+		rc = hw->mac.ops.read_iosf_sb_reg(hw,
+					    IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
+					    IXGBE_SB_IOSF_TARGET_KR_PHY,
+					    &reg_val);
+		if (rc)
+			return rc;
 
-	rc = hw->mac.ops.read_iosf_sb_reg(hw,
-					  IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
-					  IXGBE_SB_IOSF_TARGET_KR_PHY,
-					  &reg_val);
-	if (rc)
-		return rc;
+		reg_val &= ~(IXGBE_KRM_AN_CNTL_1_SYM_PAUSE |
+			     IXGBE_KRM_AN_CNTL_1_ASM_PAUSE);
+		if (pause)
+			reg_val |= IXGBE_KRM_AN_CNTL_1_SYM_PAUSE;
+		if (asm_dir)
+			reg_val |= IXGBE_KRM_AN_CNTL_1_ASM_PAUSE;
+		rc = hw->mac.ops.write_iosf_sb_reg(hw,
+					    IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
+					    IXGBE_SB_IOSF_TARGET_KR_PHY,
+					    reg_val);
 
-	reg_val &= ~(IXGBE_KRM_AN_CNTL_1_SYM_PAUSE |
-		     IXGBE_KRM_AN_CNTL_1_ASM_PAUSE);
-	if (pause)
-		reg_val |= IXGBE_KRM_AN_CNTL_1_SYM_PAUSE;
-	if (asm_dir)
-		reg_val |= IXGBE_KRM_AN_CNTL_1_ASM_PAUSE;
-	rc = hw->mac.ops.write_iosf_sb_reg(hw,
-					   IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
-					   IXGBE_SB_IOSF_TARGET_KR_PHY,
-					   reg_val);
-
-	/* This device does not fully support AN. */
-	hw->fc.disable_fc_autoneg = true;
-
+		/* This device does not fully support AN. */
+		hw->fc.disable_fc_autoneg = true;
+		break;
+	case IXGBE_DEV_ID_X550EM_X_XFI:
+		hw->fc.disable_fc_autoneg = true;
+		break;
+	default:
+		break;
+	}
 	return rc;
 }
 
