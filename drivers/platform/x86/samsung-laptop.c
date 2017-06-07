@@ -1446,9 +1446,9 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	const struct sabi_config *config = NULL;
 	const struct sabi_commands *commands;
 	unsigned int ifaceP;
+	int loca = 0xffff;
 	int ret = 0;
 	int i;
-	int loca;
 
 	samsung->f0000_segment = ioremap_nocache(0xf0000, 0xffff);
 	if (!samsung->f0000_segment) {
