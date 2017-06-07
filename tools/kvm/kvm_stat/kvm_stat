@@ -1066,7 +1066,6 @@ class Tui(object):
 
             except ValueError:
                 msg = '"' + str(pid) + '": Not a valid pid'
-                continue
 
     def show_vm_selection_by_guest_name(self):
         """Draws guest selection mask.
