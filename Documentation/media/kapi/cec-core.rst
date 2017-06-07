@@ -307,6 +307,14 @@ to another valid physical address, then this function will first set the
 address to CEC_PHYS_ADDR_INVALID before enabling the new physical address.
 
 .. c:function::
+	void cec_s_phys_addr_from_edid(struct cec_adapter *adap,
+				       const struct edid *edid);
+
+A helper function that extracts the physical address from the edid struct
+and calls cec_s_phys_addr() with that address, or CEC_PHYS_ADDR_INVALID
+if the EDID did not contain a physical address or edid was a NULL pointer.
+
+.. c:function::
 	int cec_s_log_addrs(struct cec_adapter *adap,
 			    struct cec_log_addrs *log_addrs, bool block);
 
