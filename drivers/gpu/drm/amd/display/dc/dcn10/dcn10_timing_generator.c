@@ -449,7 +449,7 @@ static void enable_optc_clock(struct timing_generator *tg, bool enable)
 
 		REG_WAIT(OPTC_INPUT_CLOCK_CONTROL,
 				OPTC_INPUT_CLK_ON, 1,
-				20000, 200000);
+				2000, 500);
 
 		/* Enable clock */
 		REG_UPDATE(OTG_CLOCK_CONTROL,
@@ -457,7 +457,7 @@ static void enable_optc_clock(struct timing_generator *tg, bool enable)
 
 		REG_WAIT(OTG_CLOCK_CONTROL,
 				OTG_CLOCK_ON, 1,
-				20000, 200000);
+				2000, 500);
 	} else  {
 		REG_UPDATE_2(OTG_CLOCK_CONTROL,
 				OTG_CLOCK_GATE_DIS, 0,
@@ -465,7 +465,7 @@ static void enable_optc_clock(struct timing_generator *tg, bool enable)
 
 		REG_WAIT(OTG_CLOCK_CONTROL,
 				OTG_CLOCK_ON, 0,
-				20000, 200000);
+				2000, 500);
 
 		REG_UPDATE_2(OPTC_INPUT_CLOCK_CONTROL,
 				OPTC_INPUT_CLK_GATE_DIS, 0,
@@ -473,7 +473,7 @@ static void enable_optc_clock(struct timing_generator *tg, bool enable)
 
 		REG_WAIT(OPTC_INPUT_CLOCK_CONTROL,
 				OPTC_INPUT_CLK_ON, 0,
-				20000, 200000);
+				2000, 500);
 	}
 }
 
