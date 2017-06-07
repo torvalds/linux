@@ -1018,6 +1018,30 @@ class Tui(object):
             self.screen.addstr(4, 1, 'No matching events reported yet')
         self.screen.refresh()
 
+    def show_help_interactive(self):
+        """Display help with list of interactive commands"""
+        msg = ('   c     clear filter',
+               '   f     filter by regular expression',
+               '   g     filter by guest name',
+               '   h     display interactive commands reference',
+               '   p     filter by PID',
+               '   q     quit',
+               '   r     reset stats',
+               '   x     toggle reporting of stats for individual child trace'
+               ' events',
+               'Any other key refreshes statistics immediately')
+        curses.cbreak()
+        self.screen.erase()
+        self.screen.addstr(0, 0, "Interactive commands reference",
+                           curses.A_BOLD)
+        self.screen.addstr(2, 0, "Press any key to exit", curses.A_STANDOUT)
+        row = 4
+        for line in msg:
+            self.screen.addstr(row, 0, line)
+            row += 1
+        self.screen.getkey()
+        self.refresh_header()
+
     def show_filter_selection(self):
         """Draws filter selection mask.
 
@@ -1142,10 +1166,6 @@ class Tui(object):
             sleeptime = DELAY_REGULAR
             try:
                 char = self.screen.getkey()
-                if char == 'x':
-                    self.update_drilldown()
-                if char == 'q':
-                    break
                 if char == 'c':
                     self.stats.fields_filter = DEFAULT_REGEX
                     self.refresh_header(0)
@@ -1160,13 +1180,19 @@ class Tui(object):
                     self.show_vm_selection_by_guest_name()
                     curses.curs_set(0)
                     sleeptime = DELAY_INITIAL
+                if char == 'h':
+                    self.show_help_interactive()
                 if char == 'p':
                     curses.curs_set(1)
                     self.show_vm_selection_by_pid()
                     curses.curs_set(0)
                     sleeptime = DELAY_INITIAL
+                if char == 'q':
+                    break
                 if char == 'r':
                     self.stats.reset()
+                if char == 'x':
+                    self.update_drilldown()
             except KeyboardInterrupt:
                 break
             except curses.error:
@@ -1237,10 +1263,11 @@ Interactive Commands:
    c     clear filter
    f     filter by regular expression
    g     filter by guest name
+   h     display interactive commands reference
    p     filter by PID
    q     quit
-   x     toggle reporting of stats for individual child trace events
    r     reset stats
+   x     toggle reporting of stats for individual child trace events
 Press any other key to refresh statistics immediately.
 """
 

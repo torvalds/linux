@@ -35,6 +35,8 @@ INTERACTIVE COMMANDS
 
 *g*::	filter by guest name
 
+*h*::	display interactive commands reference
+
 *p*::	filter by PID
 
 *q*::	quit
