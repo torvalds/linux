@@ -8438,7 +8438,7 @@ T:	git git://git.monstr.eu/linux-2.6-microblaze.git
 S:	Supported
 F:	arch/microblaze/
 
-MICROCHIP / ATMEL AT91 / AT32 SERIAL DRIVER
+MICROCHIP / ATMEL AT91 SERIAL DRIVER
 M:	Richard Genoud <richard.genoud@gmail.com>
 S:	Maintained
 F:	drivers/tty/serial/atmel_serial.c
