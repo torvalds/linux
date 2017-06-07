@@ -151,6 +151,19 @@
 					bias-disable;
 				};
 			};
+
+			usart2_pins: usart2@0 {
+				pins1 {
+					pinmux = <STM32H7_PD5_FUNC_USART2_TX>;
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+				pins2 {
+					pinmux = <STM32H7_PD6_FUNC_USART2_RX>;
+					bias-disable;
+				};
+			};
 		};
 	};
 };
