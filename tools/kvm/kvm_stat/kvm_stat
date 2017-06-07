@@ -295,6 +295,13 @@ class ArchS390(Arch):
 ARCH = Arch.get_arch()
 
 
+def is_field_wanted(fields_filter, field):
+    """Indicate whether field is valid according to fields_filter."""
+    if not fields_filter:
+        return True
+    return re.match(fields_filter, field) is not None
+
+
 def walkdir(path):
     """Returns os.walk() data for specified directory.
 
@@ -581,11 +588,11 @@ class TracepointProvider(object):
     Manages the events/groups from which it acquires its data.
 
     """
-    def __init__(self):
+    def __init__(self, pid, fields_filter):
         self.group_leaders = []
         self.filters = get_filters()
-        self._fields = self.get_available_fields()
-        self._pid = 0
+        self.update_fields(fields_filter)
+        self.pid = pid
 
     def get_available_fields(self):
         """Returns a list of available event's of format 'event name(filter
@@ -612,6 +619,11 @@ class TracepointProvider(object):
                     extra.append(field + '(' + name + ')')
         fields += extra
         return fields
+
+    def update_fields(self, fields_filter):
+        """Refresh fields, applying fields_filter"""
+        self._fields = [field for field in self.get_available_fields()
+                        if is_field_wanted(fields_filter, field)]
 
     def setup_traces(self):
         """Creates all event and group objects needed to be able to retrieve
@@ -723,13 +735,12 @@ class TracepointProvider(object):
 class DebugfsProvider(object):
     """Provides data from the files that KVM creates in the kvm debugfs
     folder."""
-    def __init__(self):
-        self._fields = self.get_available_fields()
+    def __init__(self, pid, fields_filter):
+        self.update_fields(fields_filter)
         self._baseline = {}
-        self._pid = 0
         self.do_read = True
         self.paths = []
-        self.reset()
+        self.pid = pid
 
     def get_available_fields(self):
         """"Returns a list of available fields.
@@ -738,6 +749,11 @@ class DebugfsProvider(object):
 
         """
         return walkdir(PATH_DEBUGFS_KVM)[2]
+
+    def update_fields(self, fields_filter):
+        """Refresh fields, applying fields_filter"""
+        self._fields = [field for field in self.get_available_fields()
+                        if is_field_wanted(fields_filter, field)]
 
     @property
     def fields(self):
@@ -754,9 +770,8 @@ class DebugfsProvider(object):
 
     @pid.setter
     def pid(self, pid):
+        self._pid = pid
         if pid != 0:
-            self._pid = pid
-
             vms = walkdir(PATH_DEBUGFS_KVM)[1]
             if len(vms) == 0:
                 self.do_read = False
@@ -818,33 +833,19 @@ class Stats(object):
     provider data.
 
     """
-    def __init__(self, providers, pid, fields=None):
-        self.providers = providers
-        self._pid_filter = pid
-        self._fields_filter = fields
+    def __init__(self, options):
+        self.providers = get_providers(options)
+        self._pid_filter = options.pid
+        self._fields_filter = options.fields
         self.values = {}
-        self.update_provider_pid()
-        self.update_provider_filters()
 
     def update_provider_filters(self):
         """Propagates fields filters to providers."""
-        def wanted(key):
-            if not self._fields_filter:
-                return True
-            return re.match(self._fields_filter, key) is not None
-
         # As we reset the counters when updating the fields we can
         # also clear the cache of old values.
         self.values = {}
         for provider in self.providers:
-            provider_fields = [key for key in provider.get_available_fields()
-                               if wanted(key)]
-            provider.fields = provider_fields
-
-    def update_provider_pid(self):
-        """Propagates pid filters to providers."""
-        for provider in self.providers:
-            provider.pid = self._pid_filter
+            provider.update_fields(self._fields_filter)
 
     def reset(self):
         self.values = {}
@@ -870,7 +871,8 @@ class Stats(object):
         if pid != self._pid_filter:
             self._pid_filter = pid
             self.values = {}
-            self.update_provider_pid()
+            for provider in self.providers:
+                provider.pid = self._pid_filter
 
     def get(self):
         """Returns a dict with field -> (value, delta to last value) of all
@@ -896,7 +898,6 @@ class Tui(object):
     def __init__(self, stats):
         self.stats = stats
         self.screen = None
-        self.update_drilldown()
 
     def __enter__(self):
         """Initialises curses for later use.  Based on curses.wrapper
@@ -1270,7 +1271,7 @@ Press any other key to refresh statistics immediately.
                          )
     optparser.add_option('-f', '--fields',
                          action='store',
-                         default=None,
+                         default=DEFAULT_REGEX,
                          dest='fields',
                          help='fields to display (regex)',
                          )
@@ -1297,12 +1298,10 @@ def get_providers(options):
     """Returns a list of data providers depending on the passed options."""
     providers = []
 
-    if options.tracepoints:
-        providers.append(TracepointProvider())
     if options.debugfs:
-        providers.append(DebugfsProvider())
-    if len(providers) == 0:
-        providers.append(TracepointProvider())
+        providers.append(DebugfsProvider(options.pid, options.fields))
+    if options.tracepoints or not providers:
+        providers.append(TracepointProvider(options.pid, options.fields))
 
     return providers
 
@@ -1347,8 +1346,7 @@ def main():
         sys.stderr.write('Did you use a (unsupported) tid instead of a pid?\n')
         sys.exit('Specified pid does not exist.')
 
-    providers = get_providers(options)
-    stats = Stats(providers, options.pid, fields=options.fields)
+    stats = Stats(options)
 
     if options.log:
         log(stats)
