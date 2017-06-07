@@ -21,6 +21,7 @@
 #include <linux/linkage.h>
 #include <linux/irqchip/arm-gic-v3.h>
 
+#include <asm-generic/export.h>
 #include <asm/assembler.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
@@ -51,6 +52,7 @@ ENTRY(__hyp_stub_vectors)
 	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
 	ventry	el1_error_invalid		// Error 32-bit EL1
 ENDPROC(__hyp_stub_vectors)
+EXPORT_SYMBOL_GPL(__hyp_stub_vectors)
 
 	.align 11
 
