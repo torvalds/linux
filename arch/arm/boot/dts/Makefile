@@ -794,7 +794,8 @@ dtb-$(CONFIG_ARCH_STM32)+= \
 	stm32f769-disco.dtb \
 	stm32429i-eval.dtb \
 	stm32746g-eval.dtb \
-	stm32h743i-eval.dtb
+	stm32h743i-eval.dtb \
+	stm32h743i-disco.dtb
 dtb-$(CONFIG_MACH_SUN4I) += \
 	sun4i-a10-a1000.dtb \
 	sun4i-a10-ba10-tvbox.dtb \
