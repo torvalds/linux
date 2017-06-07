@@ -1343,6 +1343,9 @@ static int init_one(struct pci_dev *pdev,
 	mutex_init(&dev->pci_status_mutex);
 	mutex_init(&dev->intf_state_mutex);
 
+	INIT_LIST_HEAD(&priv->waiting_events_list);
+	priv->is_accum_events = false;
+
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	err = init_srcu_struct(&priv->pfault_srcu);
 	if (err) {
