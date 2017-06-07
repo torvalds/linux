@@ -252,6 +252,17 @@ static void ak4613_dai_shutdown(struct snd_pcm_substream *substream,
 	mutex_unlock(&priv->lock);
 }
 
+static int ak4613_dai_startup(struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct ak4613_priv *priv = snd_soc_codec_get_drvdata(codec);
+
+	priv->cnt++;
+
+	return 0;
+}
+
 static int ak4613_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
@@ -349,7 +360,6 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	if ((priv->iface == NULL) ||
 	    (priv->iface == iface)) {
 		priv->iface = iface;
-		priv->cnt++;
 		ret = 0;
 	}
 	mutex_unlock(&priv->lock);
@@ -398,6 +408,7 @@ static int ak4613_set_bias_level(struct snd_soc_codec *codec,
 }
 
 static const struct snd_soc_dai_ops ak4613_dai_ops = {
+	.startup	= ak4613_dai_startup,
 	.shutdown	= ak4613_dai_shutdown,
 	.set_fmt	= ak4613_dai_set_fmt,
 	.hw_params	= ak4613_dai_hw_params,
