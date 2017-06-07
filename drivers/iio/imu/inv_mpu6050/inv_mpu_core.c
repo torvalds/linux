@@ -651,7 +651,8 @@ static ssize_t inv_attr_show(struct device *dev, struct device_attribute *attr,
 	case ATTR_ACCL_MATRIX:
 		m = st->plat_data.orientation;
 
-		return sprintf(buf, "%d, %d, %d; %d, %d, %d; %d, %d, %d\n",
+		return scnprintf(buf, PAGE_SIZE,
+			"%d, %d, %d; %d, %d, %d; %d, %d, %d\n",
 			m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8]);
 	default:
 		return -EINVAL;
