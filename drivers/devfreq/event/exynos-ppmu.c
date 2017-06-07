@@ -44,7 +44,7 @@ struct exynos_ppmu {
 	{ "ppmu-event2-"#name, PPMU_PMNCNT2 },	\
 	{ "ppmu-event3-"#name, PPMU_PMNCNT3 }
 
-struct __exynos_ppmu_events {
+static struct __exynos_ppmu_events {
 	char *name;
 	int id;
 } ppmu_events[] = {
