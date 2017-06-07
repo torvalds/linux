@@ -595,7 +595,7 @@ static int br_afspec(struct net_bridge *br,
 		err = 0;
 		switch (nla_type(attr)) {
 		case IFLA_BRIDGE_VLAN_TUNNEL_INFO:
-			if (!(p->flags & BR_VLAN_TUNNEL))
+			if (!p || !(p->flags & BR_VLAN_TUNNEL))
 				return -EINVAL;
 			err = br_parse_vlan_tunnel_info(attr, &tinfo_curr);
 			if (err)

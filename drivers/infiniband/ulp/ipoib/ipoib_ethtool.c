@@ -178,7 +178,7 @@ static inline int ib_speed_enum_to_int(int speed)
 static int ipoib_get_link_ksettings(struct net_device *netdev,
 				    struct ethtool_link_ksettings *cmd)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(netdev);
+	struct ipoib_dev_priv *priv = ipoib_priv(netdev);
 	struct ib_port_attr attr;
 	int ret, speed, width;
 

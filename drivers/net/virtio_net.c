@@ -869,7 +869,7 @@ static unsigned int get_mergeable_buf_len(struct receive_queue *rq,
 	unsigned int len;
 
 	len = hdr_len + clamp_t(unsigned int, ewma_pkt_len_read(avg_pkt_len),
-				rq->min_buf_len - hdr_len, PAGE_SIZE - hdr_len);
+				rq->min_buf_len, PAGE_SIZE - hdr_len);
 	return ALIGN(len, L1_CACHE_BYTES);
 }
 
@@ -2149,7 +2149,8 @@ static unsigned int mergeable_min_buf_len(struct virtnet_info *vi, struct virtqu
 	unsigned int buf_len = hdr_len + ETH_HLEN + VLAN_HLEN + packet_len;
 	unsigned int min_buf_len = DIV_ROUND_UP(buf_len, rq_size);
 
-	return max(min_buf_len, hdr_len);
+	return max(max(min_buf_len, hdr_len) - hdr_len,
+		   (unsigned int)GOOD_PACKET_LEN);
 }
 
 static int virtnet_find_vqs(struct virtnet_info *vi)

@@ -969,7 +969,7 @@ struct tcp_congestion_ops {
 	void (*cwnd_event)(struct sock *sk, enum tcp_ca_event ev);
 	/* call when ack arrives (optional) */
 	void (*in_ack_event)(struct sock *sk, u32 flags);
-	/* new value of cwnd after loss (optional) */
+	/* new value of cwnd after loss (required) */
 	u32  (*undo_cwnd)(struct sock *sk);
 	/* hook for packet ack accounting (optional) */
 	void (*pkts_acked)(struct sock *sk, const struct ack_sample *sample);

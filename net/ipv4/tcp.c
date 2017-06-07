@@ -2381,9 +2381,10 @@ static int tcp_repair_set_window(struct tcp_sock *tp, char __user *optbuf, int l
 	return 0;
 }
 
-static int tcp_repair_options_est(struct tcp_sock *tp,
+static int tcp_repair_options_est(struct sock *sk,
 		struct tcp_repair_opt __user *optbuf, unsigned int len)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_repair_opt opt;
 
 	while (len >= sizeof(opt)) {
@@ -2396,6 +2397,7 @@ static int tcp_repair_options_est(struct tcp_sock *tp,
 		switch (opt.opt_code) {
 		case TCPOPT_MSS:
 			tp->rx_opt.mss_clamp = opt.opt_val;
+			tcp_mtup_init(sk);
 			break;
 		case TCPOPT_WINDOW:
 			{
@@ -2556,7 +2558,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		if (!tp->repair)
 			err = -EINVAL;
 		else if (sk->sk_state == TCP_ESTABLISHED)
-			err = tcp_repair_options_est(tp,
+			err = tcp_repair_options_est(sk,
 					(struct tcp_repair_opt __user *)optval,
 					optlen);
 		else

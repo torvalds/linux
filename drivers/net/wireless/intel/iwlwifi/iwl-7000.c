@@ -79,8 +79,8 @@
 /* Lowest firmware API version supported */
 #define IWL7260_UCODE_API_MIN	17
 #define IWL7265_UCODE_API_MIN	17
-#define IWL7265D_UCODE_API_MIN	17
-#define IWL3168_UCODE_API_MIN	20
+#define IWL7265D_UCODE_API_MIN	22
+#define IWL3168_UCODE_API_MIN	22
 
 /* NVM versions */
 #define IWL7260_NVM_VERSION		0x0a1d

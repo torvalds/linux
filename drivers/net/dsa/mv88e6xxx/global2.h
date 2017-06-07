@@ -217,13 +217,13 @@ static inline int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 	return -EOPNOTSUPP;
 }
 
-int mv88e6xxx_g2_pvt_write(struct mv88e6xxx_chip *chip, int src_dev,
-			   int src_port, u16 data)
+static inline int mv88e6xxx_g2_pvt_write(struct mv88e6xxx_chip *chip,
+					 int src_dev, int src_port, u16 data)
 {
 	return -EOPNOTSUPP;
 }
 
-int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip)
+static inline int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip)
 {
 	return -EOPNOTSUPP;
 }

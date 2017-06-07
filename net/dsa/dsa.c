@@ -228,6 +228,53 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+int dsa_switch_suspend(struct dsa_switch *ds)
+{
+	int i, ret = 0;
+
+	/* Suspend slave network devices */
+	for (i = 0; i < ds->num_ports; i++) {
+		if (!dsa_is_port_initialized(ds, i))
+			continue;
+
+		ret = dsa_slave_suspend(ds->ports[i].netdev);
+		if (ret)
+			return ret;
+	}
+
+	if (ds->ops->suspend)
+		ret = ds->ops->suspend(ds);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dsa_switch_suspend);
+
+int dsa_switch_resume(struct dsa_switch *ds)
+{
+	int i, ret = 0;
+
+	if (ds->ops->resume)
+		ret = ds->ops->resume(ds);
+
+	if (ret)
+		return ret;
+
+	/* Resume slave network devices */
+	for (i = 0; i < ds->num_ports; i++) {
+		if (!dsa_is_port_initialized(ds, i))
+			continue;
+
+		ret = dsa_slave_resume(ds->ports[i].netdev);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dsa_switch_resume);
+#endif
+
 static struct packet_type dsa_pack_type __read_mostly = {
 	.type	= cpu_to_be16(ETH_P_XDSA),
 	.func	= dsa_switch_rcv,

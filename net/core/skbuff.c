@@ -3799,8 +3799,11 @@ struct sk_buff *sock_dequeue_err_skb(struct sock *sk)
 
 	spin_lock_irqsave(&q->lock, flags);
 	skb = __skb_dequeue(q);
-	if (skb && (skb_next = skb_peek(q)))
+	if (skb && (skb_next = skb_peek(q))) {
 		icmp_next = is_icmp_err_skb(skb_next);
+		if (icmp_next)
+			sk->sk_err = SKB_EXT_ERR(skb_next)->ee.ee_origin;
+	}
 	spin_unlock_irqrestore(&q->lock, flags);
 
 	if (is_icmp_err_skb(skb) && !icmp_next)
