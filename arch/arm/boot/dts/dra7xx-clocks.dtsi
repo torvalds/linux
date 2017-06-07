@@ -414,6 +414,8 @@
 		compatible = "ti,omap4-dpll-clock";
 		clocks = <&sys_clkin1>, <&dpll_gpu_byp_mux>;
 		reg = <0x02d8>, <0x02dc>, <0x02e4>, <0x02e0>;
+		assigned-clocks = <&dpll_gpu_ck>;
+		assigned-clock-rates = <1277000000>;
 	};
 
 	dpll_gpu_m2_ck: dpll_gpu_m2_ck@2e8 {
@@ -425,6 +427,8 @@
 		reg = <0x02e8>;
 		ti,index-starts-at-one;
 		ti,invert-autoidle-bit;
+		assigned-clocks = <&dpll_gpu_m2_ck>;
+		assigned-clock-rates = <425666667>;
 	};
 
 	dpll_core_m2_ck: dpll_core_m2_ck@130 {
@@ -1760,6 +1764,8 @@
 		clocks = <&dpll_core_h14x2_ck>, <&dpll_per_h14x2_ck>, <&dpll_gpu_m2_ck>;
 		ti,bit-shift = <24>;
 		reg = <0x1220>;
+		assigned-clocks = <&gpu_core_gclk_mux>;
+		assigned-clock-parents = <&dpll_gpu_m2_ck>;
 	};
 
 	gpu_hyd_gclk_mux: gpu_hyd_gclk_mux@1220 {
@@ -1768,6 +1774,8 @@
 		clocks = <&dpll_core_h14x2_ck>, <&dpll_per_h14x2_ck>, <&dpll_gpu_m2_ck>;
 		ti,bit-shift = <26>;
 		reg = <0x1220>;
+		assigned-clocks = <&gpu_hyd_gclk_mux>;
+		assigned-clock-parents = <&dpll_gpu_m2_ck>;
 	};
 
 	l3instr_ts_gclk_div: l3instr_ts_gclk_div@e50 {
