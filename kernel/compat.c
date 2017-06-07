@@ -217,65 +217,28 @@ int compat_convert_timespec(struct timespec __user **kts,
 	return 0;
 }
 
-static inline long get_compat_itimerval(struct itimerval *o,
-		struct compat_itimerval __user *i)
+int get_compat_itimerval(struct itimerval *o, const struct compat_itimerval __user *i)
 {
-	return (!access_ok(VERIFY_READ, i, sizeof(*i)) ||
-		(__get_user(o->it_interval.tv_sec, &i->it_interval.tv_sec) |
-		 __get_user(o->it_interval.tv_usec, &i->it_interval.tv_usec) |
-		 __get_user(o->it_value.tv_sec, &i->it_value.tv_sec) |
-		 __get_user(o->it_value.tv_usec, &i->it_value.tv_usec)));
-}
+	struct compat_itimerval v32;
 
-static inline long put_compat_itimerval(struct compat_itimerval __user *o,
-		struct itimerval *i)
-{
-	return (!access_ok(VERIFY_WRITE, o, sizeof(*o)) ||
-		(__put_user(i->it_interval.tv_sec, &o->it_interval.tv_sec) |
-		 __put_user(i->it_interval.tv_usec, &o->it_interval.tv_usec) |
-		 __put_user(i->it_value.tv_sec, &o->it_value.tv_sec) |
-		 __put_user(i->it_value.tv_usec, &o->it_value.tv_usec)));
-}
-
-asmlinkage long sys_ni_posix_timers(void);
-
-COMPAT_SYSCALL_DEFINE2(getitimer, int, which,
-		struct compat_itimerval __user *, it)
-{
-	struct itimerval kit;
-	int error;
-
-	if (!IS_ENABLED(CONFIG_POSIX_TIMERS))
-		return sys_ni_posix_timers();
-
-	error = do_getitimer(which, &kit);
-	if (!error && put_compat_itimerval(it, &kit))
-		error = -EFAULT;
-	return error;
-}
-
-COMPAT_SYSCALL_DEFINE3(setitimer, int, which,
-		struct compat_itimerval __user *, in,
-		struct compat_itimerval __user *, out)
-{
-	struct itimerval kin, kout;
-	int error;
-
-	if (!IS_ENABLED(CONFIG_POSIX_TIMERS))
-		return sys_ni_posix_timers();
-
-	if (in) {
-		if (get_compat_itimerval(&kin, in))
-			return -EFAULT;
-	} else
-		memset(&kin, 0, sizeof(kin));
-
-	error = do_setitimer(which, &kin, out ? &kout : NULL);
-	if (error || !out)
-		return error;
-	if (put_compat_itimerval(out, &kout))
+	if (copy_from_user(&v32, i, sizeof(struct compat_itimerval)))
 		return -EFAULT;
+	o->it_interval.tv_sec = v32.it_interval.tv_sec;
+	o->it_interval.tv_usec = v32.it_interval.tv_usec;
+	o->it_value.tv_sec = v32.it_value.tv_sec;
+	o->it_value.tv_usec = v32.it_value.tv_usec;
 	return 0;
+}
+
+int put_compat_itimerval(struct compat_itimerval __user *o, const struct itimerval *i)
+{
+	struct compat_itimerval v32;
+
+	v32.it_interval.tv_sec = i->it_interval.tv_sec;
+	v32.it_interval.tv_usec = i->it_interval.tv_usec;
+	v32.it_value.tv_sec = i->it_value.tv_sec;
+	v32.it_value.tv_usec = i->it_value.tv_usec;
+	return copy_to_user(o, &v32, sizeof(struct compat_itimerval)) ? -EFAULT : 0;
 }
 
 static compat_clock_t clock_t_to_compat_clock_t(clock_t x)

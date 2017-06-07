@@ -94,6 +94,10 @@ struct compat_itimerval {
 	struct compat_timeval	it_value;
 };
 
+struct itimerval;
+int get_compat_itimerval(struct itimerval *, const struct compat_itimerval __user *);
+int put_compat_itimerval(struct compat_itimerval __user *, const struct itimerval *);
+
 struct compat_tms {
 	compat_clock_t		tms_utime;
 	compat_clock_t		tms_stime;

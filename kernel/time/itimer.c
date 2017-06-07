@@ -15,6 +15,7 @@
 #include <linux/posix-timers.h>
 #include <linux/hrtimer.h>
 #include <trace/events/timer.h>
+#include <linux/compat.h>
 
 #include <linux/uaccess.h>
 
@@ -115,6 +116,19 @@ SYSCALL_DEFINE2(getitimer, int, which, struct itimerval __user *, value)
 	}
 	return error;
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE2(getitimer, int, which,
+		       struct compat_itimerval __user *, it)
+{
+	struct itimerval kit;
+	int error = do_getitimer(which, &kit);
+
+	if (!error && put_compat_itimerval(it, &kit))
+		error = -EFAULT;
+	return error;
+}
+#endif
 
 
 /*
@@ -294,3 +308,27 @@ SYSCALL_DEFINE3(setitimer, int, which, struct itimerval __user *, value,
 		return -EFAULT;
 	return 0;
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE3(setitimer, int, which,
+		       struct compat_itimerval __user *, in,
+		       struct compat_itimerval __user *, out)
+{
+	struct itimerval kin, kout;
+	int error;
+
+	if (in) {
+		if (get_compat_itimerval(&kin, in))
+			return -EFAULT;
+	} else {
+		memset(&kin, 0, sizeof(kin));
+	}
+
+	error = do_setitimer(which, &kin, out ? &kout : NULL);
+	if (error || !out)
+		return error;
+	if (put_compat_itimerval(out, &kout))
+		return -EFAULT;
+	return 0;
+}
+#endif
