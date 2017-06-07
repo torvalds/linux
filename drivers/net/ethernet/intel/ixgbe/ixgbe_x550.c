@@ -2404,17 +2404,30 @@ static s32 ixgbe_enable_lasi_ext_t_x550em(struct ixgbe_hw *hw)
 	status = ixgbe_get_lasi_ext_t_x550em(hw, &lsc);
 
 	/* Enable link status change alarm */
-	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK,
-				      MDIO_MMD_AN, &reg);
-	if (status)
-		return status;
 
-	reg |= IXGBE_MDIO_PMA_TX_VEN_LASI_INT_EN;
+	/* Enable the LASI interrupts on X552 devices to receive notifications
+	 * of the link configurations of the external PHY and correspondingly
+	 * support the configuration of the internal iXFI link, since iXFI does
+	 * not support auto-negotiation. This is not required for X553 devices
+	 * having KR support, which performs auto-negotiations and which is used
+	 * as the internal link to the external PHY. Hence adding a check here
+	 * to avoid enabling LASI interrupts for X553 devices.
+	 */
+	if (hw->mac.type != ixgbe_mac_x550em_a) {
+		status = hw->phy.ops.read_reg(hw,
+					    IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK,
+					    MDIO_MMD_AN, &reg);
+		if (status)
+			return status;
 
-	status = hw->phy.ops.write_reg(hw, IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK,
-				       MDIO_MMD_AN, reg);
-	if (status)
-		return status;
+		reg |= IXGBE_MDIO_PMA_TX_VEN_LASI_INT_EN;
+
+		status = hw->phy.ops.write_reg(hw,
+					    IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK,
+					    MDIO_MMD_AN, reg);
+		if (status)
+			return status;
+	}
 
 	/* Enable high temperature failure and global fault alarms */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_INT_MASK,
