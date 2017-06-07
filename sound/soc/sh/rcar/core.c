@@ -343,6 +343,57 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 		return 0x76543210;
 }
 
+u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod)
+{
+	enum rsnd_mod_type playback_mods[] = {
+		RSND_MOD_SRC,
+		RSND_MOD_CMD,
+		RSND_MOD_SSIU,
+	};
+	enum rsnd_mod_type capture_mods[] = {
+		RSND_MOD_CMD,
+		RSND_MOD_SRC,
+		RSND_MOD_SSIU,
+	};
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_mod *tmod = NULL;
+	enum rsnd_mod_type *mods =
+		rsnd_io_is_play(io) ?
+		playback_mods : capture_mods;
+	int i;
+
+	/*
+	 * This is needed for 24bit data
+	 * We need to shift 8bit
+	 *
+	 * Linux 24bit data is located as 0x00******
+	 * HW    24bit data is located as 0x******00
+	 *
+	 */
+	switch (runtime->sample_bits) {
+	case 16:
+		return 0;
+	case 32:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(playback_mods); i++) {
+		tmod = rsnd_io_to_mod(io, mods[i]);
+		if (tmod)
+			break;
+	}
+
+	if (tmod != mod)
+		return 0;
+
+	if (rsnd_io_is_play(io))
+		return  (0 << 20) | /* shift to Left */
+			(8 << 16);  /* 8bit */
+	else
+		return  (1 << 20) | /* shift to Right */
+			(8 << 16);  /* 8bit */
+}
+
 /*
  *	rsnd_dai functions
  */

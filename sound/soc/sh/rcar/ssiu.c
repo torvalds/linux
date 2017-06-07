@@ -145,7 +145,8 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			       (rsnd_io_is_play(io) ?
 				rsnd_runtime_channel_after_ctu(io) :
 				rsnd_runtime_channel_original(io)));
-		rsnd_mod_write(mod, SSI_BUSIF_MODE,  1);
+		rsnd_mod_write(mod, SSI_BUSIF_MODE,
+			       rsnd_get_busif_shift(io, mod) | 1);
 		rsnd_mod_write(mod, SSI_BUSIF_DALIGN,
 			       rsnd_get_dalign(mod, io));
 	}

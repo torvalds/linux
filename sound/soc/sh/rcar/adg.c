@@ -510,7 +510,8 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 				rbga = rbgx;
 				adg->rbga_rate_for_441khz = rate / div;
 				ckr |= brg_table[i] << 20;
-				if (req_441kHz_rate)
+				if (req_441kHz_rate &&
+				    !(adg_mode_flags(adg) & AUDIO_OUT_48))
 					parent_clk_name = __clk_get_name(clk);
 			}
 		}
@@ -525,7 +526,8 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 				rbgb = rbgx;
 				adg->rbgb_rate_for_48khz = rate / div;
 				ckr |= brg_table[i] << 16;
-				if (req_48kHz_rate)
+				if (req_48kHz_rate &&
+				    (adg_mode_flags(adg) & AUDIO_OUT_48))
 					parent_clk_name = __clk_get_name(clk);
 			}
 		}
