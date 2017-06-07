@@ -173,6 +173,7 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	struct platform_device *hdmi_dev;
 	struct resource *res;
 	struct s5p_cec_dev *cec;
+	bool needs_hpd = of_property_read_bool(pdev->dev.of_node, "needs-hpd");
 	int ret;
 
 	np = of_parse_phandle(pdev->dev.of_node, "hdmi-phandle", 0);
@@ -221,7 +222,8 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	cec->adap = cec_allocate_adapter(&s5p_cec_adap_ops, cec,
 		CEC_NAME,
 		CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC, 1);
+		CEC_CAP_PASSTHROUGH | CEC_CAP_RC |
+		(needs_hpd ? CEC_CAP_NEEDS_HPD : 0), 1);
 	ret = PTR_ERR_OR_ZERO(cec->adap);
 	if (ret)
 		return ret;
