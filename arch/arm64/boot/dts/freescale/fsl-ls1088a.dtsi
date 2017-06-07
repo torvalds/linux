@@ -360,9 +360,9 @@
 		};
 
 		sata: sata@3200000 {
-			compatible = "fsl,ls1088a-ahci", "fsl,ls1043a-ahci";
+			compatible = "fsl,ls1088a-ahci";
 			reg = <0x0 0x3200000 0x0 0x10000>,
-				<0x0 0x20140520 0x0 0x4>;
+				<0x7 0x100520 0x0 0x4>;
 			reg-names = "ahci", "sata-ecc";
 			interrupts = <0 133 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen 4 3>;
