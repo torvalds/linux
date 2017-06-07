@@ -753,19 +753,13 @@ static long __sched alarm_timer_nsleep_restart(struct restart_block *restart)
  * Handles clock_nanosleep calls against _ALARM clockids
  */
 static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
-			      struct timespec64 *tsreq,
-			      struct timespec __user *rmtp)
+			      struct timespec64 *tsreq)
 {
 	enum  alarmtimer_type type = clock2alarm(which_clock);
 	struct restart_block *restart = &current->restart_block;
 	struct alarm alarm;
 	ktime_t exp;
 	int ret = 0;
-
-	if (flags & TIMER_ABSTIME)
-		rmtp = NULL;
-
-	restart->nanosleep.rmtp = rmtp;
 
 	if (!alarmtimer_get_rtcdev())
 		return -ENOTSUPP;

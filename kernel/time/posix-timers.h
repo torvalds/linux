@@ -10,7 +10,7 @@ struct k_clock {
 	int	(*clock_adj)(const clockid_t which_clock, struct timex *tx);
 	int	(*timer_create)(struct k_itimer *timer);
 	int	(*nsleep)(const clockid_t which_clock, int flags,
-			  struct timespec64 *, struct timespec __user *);
+			  struct timespec64 *);
 	long	(*nsleep_restart)(struct restart_block *restart_block);
 	int	(*timer_set)(struct k_itimer *timr, int flags,
 			     struct itimerspec64 *new_setting,
