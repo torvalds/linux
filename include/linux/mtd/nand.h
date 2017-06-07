@@ -505,6 +505,20 @@ struct nand_ecc_caps {
 	int (*calc_ecc_bytes)(int step_size, int strength);
 };
 
+/* a shorthand to generate struct nand_ecc_caps with only one ECC stepsize */
+#define NAND_ECC_CAPS_SINGLE(__name, __calc, __step, ...)	\
+static const int __name##_strengths[] = { __VA_ARGS__ };	\
+static const struct nand_ecc_step_info __name##_stepinfo = {	\
+	.stepsize = __step,					\
+	.strengths = __name##_strengths,			\
+	.nstrengths = ARRAY_SIZE(__name##_strengths),		\
+};								\
+static const struct nand_ecc_caps __name = {			\
+	.stepinfos = &__name##_stepinfo,			\
+	.nstepinfos = 1,					\
+	.calc_ecc_bytes = __calc,				\
+}
+
 /**
  * struct nand_ecc_ctrl - Control structure for ECC
  * @mode:	ECC mode
