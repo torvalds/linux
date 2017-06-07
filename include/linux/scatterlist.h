@@ -278,6 +278,8 @@ size_t sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
 			    const void *buf, size_t buflen, off_t skip);
 size_t sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 			  void *buf, size_t buflen, off_t skip);
+size_t sg_zero_buffer(struct scatterlist *sgl, unsigned int nents,
+		       size_t buflen, off_t skip);
 
 /*
  * Maximum number of entries that will be allocated in one piece, if
