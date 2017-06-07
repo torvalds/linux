@@ -55,14 +55,6 @@ Description:
 		Indicates the maximum USB speed supported by this port.
 Users:
 
-What:		/sys/class/udc/<udc>/maximum_speed
-Date:		June 2011
-KernelVersion:	3.1
-Contact:	Felipe Balbi <balbi@kernel.org>
-Description:
-		Indicates the maximum USB speed supported by this port.
-Users:
-
 What:		/sys/class/udc/<udc>/soft_connect
 Date:		June 2011
 KernelVersion:	3.1
