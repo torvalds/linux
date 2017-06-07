@@ -49,6 +49,17 @@ struct usb_interface *usbhid_find_interface(int minor);
 #define HID_KEYS_PRESSED	10
 #define HID_NO_BANDWIDTH	11
 #define HID_RESUME_RUNNING	12
+/*
+ * The device is opened, meaning there is a client that is interested
+ * in data coming from the device.
+ */
+#define HID_OPENED		13
+/*
+ * We are polling input endpoint by [re]submitting IN URB, because
+ * either HID device is opened or ALWAYS POLL quirk is set for the
+ * device.
+ */
+#define HID_IN_POLLING		14
 
 /*
  * USB-specific HID struct, to be pointed to
