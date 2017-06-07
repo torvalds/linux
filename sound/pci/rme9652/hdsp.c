@@ -4270,17 +4270,17 @@ static struct snd_pcm_hardware snd_hdsp_capture_subinfo =
 	.fifo_size =		0
 };
 
-static unsigned int hdsp_period_sizes[] = { 64, 128, 256, 512, 1024, 2048, 4096, 8192 };
+static const unsigned int hdsp_period_sizes[] = { 64, 128, 256, 512, 1024, 2048, 4096, 8192 };
 
-static struct snd_pcm_hw_constraint_list hdsp_hw_constraints_period_sizes = {
+static const struct snd_pcm_hw_constraint_list hdsp_hw_constraints_period_sizes = {
 	.count = ARRAY_SIZE(hdsp_period_sizes),
 	.list = hdsp_period_sizes,
 	.mask = 0
 };
 
-static unsigned int hdsp_9632_sample_rates[] = { 32000, 44100, 48000, 64000, 88200, 96000, 128000, 176400, 192000 };
+static const unsigned int hdsp_9632_sample_rates[] = { 32000, 44100, 48000, 64000, 88200, 96000, 128000, 176400, 192000 };
 
-static struct snd_pcm_hw_constraint_list hdsp_hw_constraints_9632_sample_rates = {
+static const struct snd_pcm_hw_constraint_list hdsp_hw_constraints_9632_sample_rates = {
 	.count = ARRAY_SIZE(hdsp_9632_sample_rates),
 	.list = hdsp_9632_sample_rates,
 	.mask = 0
