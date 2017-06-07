@@ -2711,6 +2711,12 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	u8 flow_pctype = 0;
 	u64 i_set, i_setc;
 
+	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
+		dev_err(&pf->pdev->dev,
+			"Change of RSS hash input set is not supported when MFP mode is enabled\n");
+		return -EOPNOTSUPP;
+	}
+
 	/* RSS does not support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
