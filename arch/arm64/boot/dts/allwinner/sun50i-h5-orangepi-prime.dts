@@ -53,13 +53,6 @@
 	model = "Xunlong Orange Pi Prime";
 	compatible = "xunlong,orangepi-prime", "allwinner,sun50i-h5";
 
-	reg_vcc3v3: vcc3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
 	aliases {
 		serial0 = &uart0;
 	};
@@ -91,6 +84,13 @@
 			linux,code = <BTN_0>;
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
 		};
+	};
+
+	reg_vcc3v3: vcc3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	reg_usb0_vbus: usb0-vbus {

@@ -49,13 +49,6 @@
 	model = "FriendlyARM NanoPi NEO 2";
 	compatible = "friendlyarm,nanopi-neo2", "allwinner,sun50i-h5";
 
-	reg_vcc3v3: vcc3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
 	aliases {
 		serial0 = &uart0;
 	};
@@ -77,6 +70,13 @@
 			label = "nanopi:blue:status";
 			gpios = <&pio 0 10 GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	reg_vcc3v3: vcc3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	reg_usb0_vbus: usb0-vbus {
