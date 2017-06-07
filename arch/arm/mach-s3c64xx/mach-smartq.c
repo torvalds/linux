@@ -9,6 +9,8 @@
  *
  */
 
+//智器SmartQ系列的参数定义
+
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/gpio.h>
