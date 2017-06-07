@@ -721,15 +721,7 @@ static int alarmtimer_do_nsleep(struct alarm *alarm, ktime_t absexp,
 			return 0;
 		rmt = ktime_to_timespec(rem);
 
-#ifdef CONFIG_COMPAT
-		if (restart->nanosleep.type == TT_COMPAT) {
-			if (compat_put_timespec(&rmt,
-						restart->nanosleep.compat_rmtp))
-				return -EFAULT;
-		} else
-#endif
-		if (copy_to_user(restart->nanosleep.rmtp, &rmt, sizeof(rmt)))
-			return -EFAULT;
+		return nanosleep_copyout(restart, &rmt);
 	}
 	return -ERESTART_RESTARTBLOCK;
 }

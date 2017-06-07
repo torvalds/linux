@@ -1440,6 +1440,25 @@ void hrtimer_init_sleeper(struct hrtimer_sleeper *sl, struct task_struct *task)
 }
 EXPORT_SYMBOL_GPL(hrtimer_init_sleeper);
 
+int nanosleep_copyout(struct restart_block *restart, struct timespec *ts)
+{
+	switch(restart->nanosleep.type) {
+#ifdef CONFIG_COMPAT
+	case TT_COMPAT:
+		if (compat_put_timespec(ts, restart->nanosleep.compat_rmtp))
+			return -EFAULT;
+		break;
+#endif
+	case TT_NATIVE:
+		if (copy_to_user(restart->nanosleep.rmtp, ts, sizeof(struct timespec)))
+			return -EFAULT;
+		break;
+	default:
+		BUG();
+	}
+	return -ERESTART_RESTARTBLOCK;
+}
+
 static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mode)
 {
 	struct restart_block *restart;
@@ -1472,15 +1491,7 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 			return 0;
 		rmt = ktime_to_timespec(rem);
 
-#ifdef CONFIG_COMPAT
-		if (restart->nanosleep.type == TT_COMPAT) {
-			if (compat_put_timespec(&rmt,
-						restart->nanosleep.compat_rmtp))
-				return -EFAULT;
-		} else
-#endif
-		if (copy_to_user(restart->nanosleep.rmtp, &rmt, sizeof(rmt)))
-			return -EFAULT;
+		return nanosleep_copyout(restart, &rmt);
 	}
 	return -ERESTART_RESTARTBLOCK;
 }
