@@ -406,6 +406,10 @@ calls, to invoke certain actions and to report certain conditions.  These are:
      future communication to that server and RXRPC_UPGRADE_SERVICE should no
      longer be set.
 
+The symbol RXRPC__SUPPORTED is defined as one more than the highest control
+message type supported.  At run time this can be queried by means of the
+RXRPC_SUPPORTED_CMSG socket option (see below).
+
 
 ==============
 SOCKET OPTIONS
@@ -458,6 +462,11 @@ AF_RXRPC sockets support a few socket options at the SOL_RXRPC level:
      upgrade one bound service to the other if requested by the client.  optval
      must point to an array of two unsigned short ints.  The first is the
      service ID to upgrade from and the second the service ID to upgrade to.
+
+ (*) RXRPC_SUPPORTED_CMSG
+
+     This is a read-only option that writes an int into the buffer indicating
+     the highest control message type supported.
 
 
 ========

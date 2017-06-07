@@ -582,6 +582,34 @@ error:
 }
 
 /*
+ * Get socket options.
+ */
+static int rxrpc_getsockopt(struct socket *sock, int level, int optname,
+			    char __user *optval, int __user *_optlen)
+{
+	int optlen;
+	
+	if (level != SOL_RXRPC)
+		return -EOPNOTSUPP;
+
+	if (get_user(optlen, _optlen))
+		return -EFAULT;
+	
+	switch (optname) {
+	case RXRPC_SUPPORTED_CMSG:
+		if (optlen < sizeof(int))
+			return -ETOOSMALL;
+		if (put_user(RXRPC__SUPPORTED - 1, (int __user *)optval) ||
+		    put_user(sizeof(int), _optlen))
+			return -EFAULT;
+		return 0;
+		
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+/*
  * permit an RxRPC socket to be polled
  */
 static unsigned int rxrpc_poll(struct file *file, struct socket *sock,
@@ -784,7 +812,7 @@ static const struct proto_ops rxrpc_rpc_ops = {
 	.listen		= rxrpc_listen,
 	.shutdown	= rxrpc_shutdown,
 	.setsockopt	= rxrpc_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
+	.getsockopt	= rxrpc_getsockopt,
 	.sendmsg	= rxrpc_sendmsg,
 	.recvmsg	= rxrpc_recvmsg,
 	.mmap		= sock_no_mmap,
