@@ -91,3 +91,11 @@ Description:
 		'configured', and 'suspended'; however not all USB Device
 		Controllers support reporting all states.
 Users:
+
+What:		/sys/class/udc/<udc>/function
+Date:		June 2017
+KernelVersion:	4.13
+Contact:	Felipe Balbi <balbi@kernel.org>
+Description:
+		Prints out name of currently running USB Gadget Driver.
+Users:

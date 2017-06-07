@@ -1460,6 +1460,18 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(state);
 
+static ssize_t function_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
+	struct usb_gadget_driver *drv = udc->driver;
+
+	if (!drv || !drv->function)
+		return 0;
+	return scnprintf(buf, PAGE_SIZE, "%s\n", drv->function);
+}
+static DEVICE_ATTR_RO(function);
+
 #define USB_UDC_SPEED_ATTR(name, param)					\
 ssize_t name##_show(struct device *dev,					\
 		struct device_attribute *attr, char *buf)		\
@@ -1495,6 +1507,7 @@ static struct attribute *usb_udc_attrs[] = {
 	&dev_attr_srp.attr,
 	&dev_attr_soft_connect.attr,
 	&dev_attr_state.attr,
+	&dev_attr_function.attr,
 	&dev_attr_current_speed.attr,
 	&dev_attr_maximum_speed.attr,
 
