@@ -41,13 +41,13 @@
 
 #include "qib.h"
 
-#define BITS_PER_PAGE           (PAGE_SIZE*BITS_PER_BYTE)
-#define BITS_PER_PAGE_MASK      (BITS_PER_PAGE-1)
+#define RVT_BITS_PER_PAGE           (PAGE_SIZE*BITS_PER_BYTE)
+#define RVT_BITS_PER_PAGE_MASK      (RVT_BITS_PER_PAGE-1)
 
 static inline unsigned mk_qpn(struct qib_qpn_table *qpt,
 			      struct qpn_map *map, unsigned off)
 {
-	return (map - qpt->map) * BITS_PER_PAGE + off;
+	return (map - qpt->map) * RVT_BITS_PER_PAGE + off;
 }
 
 static inline unsigned find_next_offset(struct qib_qpn_table *qpt,
@@ -59,7 +59,7 @@ static inline unsigned find_next_offset(struct qib_qpn_table *qpt,
 		if (((off & qpt->mask) >> 1) >= n)
 			off = (off | qpt->mask) + 2;
 	} else
-		off = find_next_zero_bit(map->page, BITS_PER_PAGE, off);
+		off = find_next_zero_bit(map->page, RVT_BITS_PER_PAGE, off);
 	return off;
 }
 
@@ -147,8 +147,8 @@ static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
 		qpn = 2;
 	if (qpt->mask && ((qpn & qpt->mask) >> 1) >= dd->n_krcv_queues)
 		qpn = (qpn | qpt->mask) + 2;
-	offset = qpn & BITS_PER_PAGE_MASK;
-	map = &qpt->map[qpn / BITS_PER_PAGE];
+	offset = qpn & RVT_BITS_PER_PAGE_MASK;
+	map = &qpt->map[qpn / RVT_BITS_PER_PAGE];
 	max_scan = qpt->nmaps - !offset;
 	for (i = 0;;) {
 		if (unlikely(!map->page)) {
@@ -173,7 +173,7 @@ static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
 			 * We just need to be sure we don't loop
 			 * forever.
 			 */
-		} while (offset < BITS_PER_PAGE && qpn < QPN_MAX);
+		} while (offset < RVT_BITS_PER_PAGE && qpn < QPN_MAX);
 		/*
 		 * In order to keep the number of pages allocated to a
 		 * minimum, we scan the all existing pages before increasing
@@ -204,9 +204,9 @@ static void free_qpn(struct qib_qpn_table *qpt, u32 qpn)
 {
 	struct qpn_map *map;
 
-	map = qpt->map + qpn / BITS_PER_PAGE;
+	map = qpt->map + qpn / RVT_BITS_PER_PAGE;
 	if (map->page)
-		clear_bit(qpn & BITS_PER_PAGE_MASK, map->page);
+		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
 }
 
 static inline unsigned qpn_hash(struct qib_ibdev *dev, u32 qpn)

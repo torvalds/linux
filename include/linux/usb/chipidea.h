@@ -14,6 +14,7 @@ struct ci_hdrc;
  * struct ci_hdrc_cable - structure for external connector cable state tracking
  * @state: current state of the line
  * @changed: set to true when extcon event happen
+ * @enabled: set to true if we've enabled the vbus or id interrupt
  * @edev: device which generate events
  * @ci: driver state of the chipidea device
  * @nb: hold event notification callback
@@ -22,6 +23,7 @@ struct ci_hdrc;
 struct ci_hdrc_cable {
 	bool				state;
 	bool				changed;
+	bool				enabled;
 	struct extcon_dev		*edev;
 	struct ci_hdrc			*ci;
 	struct notifier_block		nb;

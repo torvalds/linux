@@ -80,9 +80,17 @@ static inline int ssu100_setdevice(struct usb_device *dev, u8 *data)
 
 static inline int ssu100_getdevice(struct usb_device *dev, u8 *data)
 {
-	return usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-			       QT_SET_GET_DEVICE, 0xc0, 0, 0,
-			       data, 3, 300);
+	int ret;
+
+	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
+			      QT_SET_GET_DEVICE, 0xc0, 0, 0,
+			      data, 3, 300);
+	if (ret < 3) {
+		if (ret >= 0)
+			ret = -EIO;
+	}
+
+	return ret;
 }
 
 static inline int ssu100_getregister(struct usb_device *dev,
@@ -90,10 +98,17 @@ static inline int ssu100_getregister(struct usb_device *dev,
 				     unsigned short reg,
 				     u8 *data)
 {
-	return usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-			       QT_SET_GET_REGISTER, 0xc0, reg,
-			       uart, data, sizeof(*data), 300);
+	int ret;
 
+	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
+			      QT_SET_GET_REGISTER, 0xc0, reg,
+			      uart, data, sizeof(*data), 300);
+	if (ret < sizeof(*data)) {
+		if (ret >= 0)
+			ret = -EIO;
+	}
+
+	return ret;
 }
 
 
@@ -289,8 +304,10 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 				 QT_OPEN_CLOSE_CHANNEL,
 				 QT_TRANSFER_IN, 0x01,
 				 0, data, 2, 300);
-	if (result < 0) {
+	if (result < 2) {
 		dev_dbg(&port->dev, "%s - open failed %i\n", __func__, result);
+		if (result >= 0)
+			result = -EIO;
 		kfree(data);
 		return result;
 	}

@@ -610,7 +610,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 		s = &dev->subdevices[i];
 		spriv = s->private;
 
-		if (now > spriv->next_time_min) {
+		if (time_after_eq(now, spriv->next_time_min)) {
 			struct jr3_pci_poll_delay sub_delay;
 
 			sub_delay = jr3_pci_poll_subdevice(s);
@@ -726,11 +726,12 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		s->insn_read	= jr3_pci_ai_insn_read;
 
 		spriv = jr3_pci_alloc_spriv(dev, s);
-		if (spriv) {
-			/* Channel specific range and maxdata */
-			s->range_table_list	= spriv->range_table_list;
-			s->maxdata_list		= spriv->maxdata_list;
-		}
+		if (!spriv)
+			return -ENOMEM;
+
+		/* Channel specific range and maxdata */
+		s->range_table_list	= spriv->range_table_list;
+		s->maxdata_list		= spriv->maxdata_list;
 	}
 
 	/*  Reset DSP card */

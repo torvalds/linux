@@ -148,26 +148,38 @@ int ext4_get_policy(struct inode *inode, struct ext4_encryption_policy *policy)
 int ext4_is_child_context_consistent_with_parent(struct inode *parent,
 						 struct inode *child)
 {
-	struct ext4_crypt_info *parent_ci, *child_ci;
+	const struct ext4_crypt_info *parent_ci, *child_ci;
+	struct ext4_encryption_context parent_ctx, child_ctx;
 	int res;
-
-	if ((parent == NULL) || (child == NULL)) {
-		pr_err("parent %p child %p\n", parent, child);
-		WARN_ON(1);	/* Should never happen */
-		return 0;
-	}
 
 	/* No restrictions on file types which are never encrypted */
 	if (!S_ISREG(child->i_mode) && !S_ISDIR(child->i_mode) &&
 	    !S_ISLNK(child->i_mode))
 		return 1;
 
-	/* no restrictions if the parent directory is not encrypted */
+	/* No restrictions if the parent directory is unencrypted */
 	if (!ext4_encrypted_inode(parent))
 		return 1;
-	/* if the child directory is not encrypted, this is always a problem */
+
+	/* Encrypted directories must not contain unencrypted files */
 	if (!ext4_encrypted_inode(child))
 		return 0;
+
+	/*
+	 * Both parent and child are encrypted, so verify they use the same
+	 * encryption policy.  Compare the fscrypt_info structs if the keys are
+	 * available, otherwise retrieve and compare the fscrypt_contexts.
+	 *
+	 * Note that the fscrypt_context retrieval will be required frequently
+	 * when accessing an encrypted directory tree without the key.
+	 * Performance-wise this is not a big deal because we already don't
+	 * really optimize for file access without the key (to the extent that
+	 * such access is even possible), given that any attempted access
+	 * already causes a fscrypt_context retrieval and keyring search.
+	 *
+	 * In any case, if an unexpected error occurs, fall back to "forbidden".
+	 */
+
 	res = ext4_get_encryption_info(parent);
 	if (res)
 		return 0;
@@ -176,17 +188,35 @@ int ext4_is_child_context_consistent_with_parent(struct inode *parent,
 		return 0;
 	parent_ci = EXT4_I(parent)->i_crypt_info;
 	child_ci = EXT4_I(child)->i_crypt_info;
-	if (!parent_ci && !child_ci)
-		return 1;
-	if (!parent_ci || !child_ci)
+	if (parent_ci && child_ci) {
+		return memcmp(parent_ci->ci_master_key, child_ci->ci_master_key,
+			      EXT4_KEY_DESCRIPTOR_SIZE) == 0 &&
+			(parent_ci->ci_data_mode == child_ci->ci_data_mode) &&
+			(parent_ci->ci_filename_mode ==
+			 child_ci->ci_filename_mode) &&
+			(parent_ci->ci_flags == child_ci->ci_flags);
+	}
+
+	res = ext4_xattr_get(parent, EXT4_XATTR_INDEX_ENCRYPTION,
+			     EXT4_XATTR_NAME_ENCRYPTION_CONTEXT,
+			     &parent_ctx, sizeof(parent_ctx));
+	if (res != sizeof(parent_ctx))
 		return 0;
 
-	return (memcmp(parent_ci->ci_master_key,
-		       child_ci->ci_master_key,
-		       EXT4_KEY_DESCRIPTOR_SIZE) == 0 &&
-		(parent_ci->ci_data_mode == child_ci->ci_data_mode) &&
-		(parent_ci->ci_filename_mode == child_ci->ci_filename_mode) &&
-		(parent_ci->ci_flags == child_ci->ci_flags));
+	res = ext4_xattr_get(child, EXT4_XATTR_INDEX_ENCRYPTION,
+			     EXT4_XATTR_NAME_ENCRYPTION_CONTEXT,
+			     &child_ctx, sizeof(child_ctx));
+	if (res != sizeof(child_ctx))
+		return 0;
+
+	return memcmp(parent_ctx.master_key_descriptor,
+		      child_ctx.master_key_descriptor,
+		      EXT4_KEY_DESCRIPTOR_SIZE) == 0 &&
+		(parent_ctx.contents_encryption_mode ==
+		 child_ctx.contents_encryption_mode) &&
+		(parent_ctx.filenames_encryption_mode ==
+		 child_ctx.filenames_encryption_mode) &&
+		(parent_ctx.flags == child_ctx.flags);
 }
 
 /**

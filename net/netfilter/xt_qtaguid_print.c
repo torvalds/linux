@@ -24,7 +24,7 @@
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/spinlock_types.h>
-
+#include <net/sock.h>
 
 #include "xt_qtaguid_internal.h"
 #include "xt_qtaguid_print.h"
@@ -237,10 +237,10 @@ char *pp_sock_tag(struct sock_tag *st)
 	tag_str = pp_tag_t(&st->tag);
 	res = kasprintf(GFP_ATOMIC, "sock_tag@%p{"
 			"sock_node=rb_node{...}, "
-			"sk=%p socket=%p (f_count=%lu), list=list_head{...}, "
+			"sk=%p (f_count=%d), list=list_head{...}, "
 			"pid=%u, tag=%s}",
-			st, st->sk, st->socket, atomic_long_read(
-				&st->socket->file->f_count),
+			st, st->sk, atomic_read(
+				&st->sk->sk_refcnt),
 			st->pid, tag_str);
 	_bug_on_err_or_null(res);
 	kfree(tag_str);

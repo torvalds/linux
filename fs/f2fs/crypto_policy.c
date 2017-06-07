@@ -141,25 +141,38 @@ int f2fs_get_policy(struct inode *inode, struct f2fs_encryption_policy *policy)
 int f2fs_is_child_context_consistent_with_parent(struct inode *parent,
 						struct inode *child)
 {
-	struct f2fs_crypt_info *parent_ci, *child_ci;
+	const struct f2fs_crypt_info *parent_ci, *child_ci;
+	struct f2fs_encryption_context parent_ctx, child_ctx;
 	int res;
-
-	if ((parent == NULL) || (child == NULL)) {
-		pr_err("parent %p child %p\n", parent, child);
-		BUG_ON(1);
-	}
 
 	/* No restrictions on file types which are never encrypted */
 	if (!S_ISREG(child->i_mode) && !S_ISDIR(child->i_mode) &&
 	    !S_ISLNK(child->i_mode))
 		return 1;
 
-	/* no restrictions if the parent directory is not encrypted */
+	/* No restrictions if the parent directory is unencrypted */
 	if (!f2fs_encrypted_inode(parent))
 		return 1;
-	/* if the child directory is not encrypted, this is always a problem */
+
+	/* Encrypted directories must not contain unencrypted files */
 	if (!f2fs_encrypted_inode(child))
 		return 0;
+
+	/*
+	 * Both parent and child are encrypted, so verify they use the same
+	 * encryption policy.  Compare the fscrypt_info structs if the keys are
+	 * available, otherwise retrieve and compare the fscrypt_contexts.
+	 *
+	 * Note that the fscrypt_context retrieval will be required frequently
+	 * when accessing an encrypted directory tree without the key.
+	 * Performance-wise this is not a big deal because we already don't
+	 * really optimize for file access without the key (to the extent that
+	 * such access is even possible), given that any attempted access
+	 * already causes a fscrypt_context retrieval and keyring search.
+	 *
+	 * In any case, if an unexpected error occurs, fall back to "forbidden".
+	 */
+
 	res = f2fs_get_encryption_info(parent);
 	if (res)
 		return 0;
@@ -168,17 +181,35 @@ int f2fs_is_child_context_consistent_with_parent(struct inode *parent,
 		return 0;
 	parent_ci = F2FS_I(parent)->i_crypt_info;
 	child_ci = F2FS_I(child)->i_crypt_info;
-	if (!parent_ci && !child_ci)
-		return 1;
-	if (!parent_ci || !child_ci)
+	if (parent_ci && child_ci) {
+		return memcmp(parent_ci->ci_master_key, child_ci->ci_master_key,
+			      F2FS_KEY_DESCRIPTOR_SIZE) == 0 &&
+			(parent_ci->ci_data_mode == child_ci->ci_data_mode) &&
+			(parent_ci->ci_filename_mode ==
+			 child_ci->ci_filename_mode) &&
+			(parent_ci->ci_flags == child_ci->ci_flags);
+	}
+
+	res = f2fs_getxattr(parent, F2FS_XATTR_INDEX_ENCRYPTION,
+			    F2FS_XATTR_NAME_ENCRYPTION_CONTEXT,
+			    &parent_ctx, sizeof(parent_ctx), NULL);
+	if (res != sizeof(parent_ctx))
 		return 0;
 
-	return (memcmp(parent_ci->ci_master_key,
-			child_ci->ci_master_key,
-			F2FS_KEY_DESCRIPTOR_SIZE) == 0 &&
-		(parent_ci->ci_data_mode == child_ci->ci_data_mode) &&
-		(parent_ci->ci_filename_mode == child_ci->ci_filename_mode) &&
-		(parent_ci->ci_flags == child_ci->ci_flags));
+	res = f2fs_getxattr(child, F2FS_XATTR_INDEX_ENCRYPTION,
+			    F2FS_XATTR_NAME_ENCRYPTION_CONTEXT,
+			    &child_ctx, sizeof(child_ctx), NULL);
+	if (res != sizeof(child_ctx))
+		return 0;
+
+	return memcmp(parent_ctx.master_key_descriptor,
+		      child_ctx.master_key_descriptor,
+		      F2FS_KEY_DESCRIPTOR_SIZE) == 0 &&
+		(parent_ctx.contents_encryption_mode ==
+		 child_ctx.contents_encryption_mode) &&
+		(parent_ctx.filenames_encryption_mode ==
+		 child_ctx.filenames_encryption_mode) &&
+		(parent_ctx.flags == child_ctx.flags);
 }
 
 /**

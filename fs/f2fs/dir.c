@@ -124,19 +124,29 @@ struct f2fs_dir_entry *find_target_dentry(struct f2fs_filename *fname,
 
 		de = &d->dentry[bit_pos];
 
-		/* encrypted case */
+		if (de->hash_code != namehash)
+			goto not_match;
+
 		de_name.name = d->filename[bit_pos];
 		de_name.len = le16_to_cpu(de->name_len);
 
-		/* show encrypted name */
-		if (fname->hash) {
-			if (de->hash_code == fname->hash)
-				goto found;
-		} else if (de_name.len == name->len &&
-			de->hash_code == namehash &&
-			!memcmp(de_name.name, name->name, name->len))
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+		if (unlikely(!name->name)) {
+			if (fname->usr_fname->name[0] == '_') {
+				if (de_name.len > 32 &&
+					!memcmp(de_name.name + ((de_name.len - 17) & ~15),
+						fname->crypto_buf.name + 8, 16))
+					goto found;
+				goto not_match;
+			}
+			name->name = fname->crypto_buf.name;
+			name->len = fname->crypto_buf.len;
+		}
+#endif
+		if (de_name.len == name->len &&
+				!memcmp(de_name.name, name->name, name->len))
 			goto found;
-
+not_match:
 		if (max_slots && max_len > *max_slots)
 			*max_slots = max_len;
 		max_len = 0;
@@ -170,7 +180,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	int max_slots;
 	f2fs_hash_t namehash;
 
-	namehash = f2fs_dentry_hash(&name);
+	namehash = f2fs_dentry_hash(&name, fname);
 
 	f2fs_bug_on(F2FS_I_SB(dir), level > MAX_DIR_HASH_DEPTH);
 
@@ -547,7 +557,7 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 
 	level = 0;
 	slots = GET_DENTRY_SLOTS(new_name.len);
-	dentry_hash = f2fs_dentry_hash(&new_name);
+	dentry_hash = f2fs_dentry_hash(&new_name, NULL);
 
 	current_depth = F2FS_I(dir)->i_current_depth;
 	if (F2FS_I(dir)->chash == dentry_hash) {

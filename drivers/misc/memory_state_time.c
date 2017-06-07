@@ -296,27 +296,31 @@ static int get_bw_buckets(struct device *dev)
 	struct device_node *node = dev->of_node;
 
 	of_property_read_u32(node, NUM_SOURCES, &num_sources);
-	if (of_find_property(node, BW_TBL, &lenb)) {
-		bandwidths = devm_kzalloc(dev,
-				sizeof(*bandwidths) * num_sources, GFP_KERNEL);
-		if (!bandwidths)
-			return -ENOMEM;
-		lenb /= sizeof(*bw_buckets);
-		bw_buckets = devm_kzalloc(dev, lenb * sizeof(*bw_buckets),
-				GFP_KERNEL);
-		if (!bw_buckets) {
-			devm_kfree(dev, bandwidths);
-			return -ENOMEM;
-		}
-		ret = of_property_read_u32_array(node, BW_TBL, bw_buckets,
-				lenb);
-		if (ret < 0) {
-			devm_kfree(dev, bandwidths);
-			devm_kfree(dev, bw_buckets);
-			pr_err("Unable to read bandwidth table from device tree.\n");
-			return ret;
-		}
+	if (!of_find_property(node, BW_TBL, &lenb)) {
+		pr_err("Missing %s property\n", BW_TBL);
+		return -ENODATA;
 	}
+
+	bandwidths = devm_kzalloc(dev,
+			sizeof(*bandwidths) * num_sources, GFP_KERNEL);
+	if (!bandwidths)
+		return -ENOMEM;
+	lenb /= sizeof(*bw_buckets);
+	bw_buckets = devm_kzalloc(dev, lenb * sizeof(*bw_buckets),
+			GFP_KERNEL);
+	if (!bw_buckets) {
+		devm_kfree(dev, bandwidths);
+		return -ENOMEM;
+	}
+	ret = of_property_read_u32_array(node, BW_TBL, bw_buckets,
+			lenb);
+	if (ret < 0) {
+		devm_kfree(dev, bandwidths);
+		devm_kfree(dev, bw_buckets);
+		pr_err("Unable to read bandwidth table from device tree.\n");
+		return ret;
+	}
+
 	curr_bw = 0;
 	num_buckets = lenb;
 	return 0;
@@ -332,22 +336,26 @@ static int freq_buckets_init(struct device *dev)
 	int ret, lenf;
 	struct device_node *node = dev->of_node;
 
-	if (of_find_property(node, FREQ_TBL, &lenf)) {
-		lenf /= sizeof(*freq_buckets);
-		freq_buckets = devm_kzalloc(dev, lenf * sizeof(*freq_buckets),
-				GFP_KERNEL);
-		if (!freq_buckets)
-			return -ENOMEM;
-		pr_debug("freqs found len %d\n", lenf);
-		ret = of_property_read_u32_array(node, FREQ_TBL, freq_buckets,
-				lenf);
-		if (ret < 0) {
-			devm_kfree(dev, freq_buckets);
-			pr_err("Unable to read frequency table from device tree.\n");
-			return ret;
-		}
-		pr_debug("ret freq %d\n", ret);
+	if (!of_find_property(node, FREQ_TBL, &lenf)) {
+		pr_err("Missing %s property\n", FREQ_TBL);
+		return -ENODATA;
 	}
+
+	lenf /= sizeof(*freq_buckets);
+	freq_buckets = devm_kzalloc(dev, lenf * sizeof(*freq_buckets),
+			GFP_KERNEL);
+	if (!freq_buckets)
+		return -ENOMEM;
+	pr_debug("freqs found len %d\n", lenf);
+	ret = of_property_read_u32_array(node, FREQ_TBL, freq_buckets,
+			lenf);
+	if (ret < 0) {
+		devm_kfree(dev, freq_buckets);
+		pr_err("Unable to read frequency table from device tree.\n");
+		return ret;
+	}
+	pr_debug("ret freq %d\n", ret);
+
 	num_freqs = lenf;
 	curr_freq = freq_buckets[LOWEST_FREQ];
 

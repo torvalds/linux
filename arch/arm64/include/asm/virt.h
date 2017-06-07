@@ -40,6 +40,7 @@
 #ifndef __ASSEMBLY__
 
 #include <asm/ptrace.h>
+#include <asm/sections.h>
 
 /*
  * __boot_cpu_mode records what mode CPUs were booted in.
@@ -76,9 +77,11 @@ static inline bool is_kernel_in_hyp_mode(void)
 	return el == CurrentEL_EL2;
 }
 
-/* The section containing the hypervisor text */
-extern char __hyp_text_start[];
-extern char __hyp_text_end[];
+#ifdef CONFIG_ARM64_VHE
+extern void verify_cpu_run_el(void);
+#else
+static inline void verify_cpu_run_el(void) {}
+#endif
 
 #endif /* __ASSEMBLY__ */
 

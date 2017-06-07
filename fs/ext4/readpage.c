@@ -318,7 +318,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 
 			if (ext4_encrypted_inode(inode) &&
 			    S_ISREG(inode->i_mode)) {
-				ctx = ext4_get_crypto_ctx(inode);
+				ctx = ext4_get_crypto_ctx(inode, GFP_NOFS);
 				if (IS_ERR(ctx))
 					goto set_error_page;
 			}

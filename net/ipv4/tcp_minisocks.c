@@ -547,6 +547,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 			newicsk->icsk_ack.last_seg_size = skb->len - newtp->tcp_header_len;
 		newtp->rx_opt.mss_clamp = req->mss;
 		tcp_ecn_openreq_child(newtp, req);
+		newtp->fastopen_req = NULL;
 		newtp->fastopen_rsk = NULL;
 		newtp->syn_data_acked = 0;
 		newtp->rack.mstamp.v64 = 0;

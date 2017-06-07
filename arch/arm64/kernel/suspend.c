@@ -5,6 +5,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
 #include <asm/debug-monitors.h>
+#include <asm/exec.h>
 #include <asm/pgtable.h>
 #include <asm/memory.h>
 #include <asm/mmu_context.h>
@@ -95,6 +96,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 		 */
 		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
 				CONFIG_ARM64_PAN));
+		uao_thread_switch(current);
 
 		/*
 		 * Restore HW breakpoint registers to sane values

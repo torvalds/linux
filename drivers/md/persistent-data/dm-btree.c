@@ -887,8 +887,12 @@ static int find_key(struct ro_spine *s, dm_block_t block, bool find_highest,
 		else
 			*result_key = le64_to_cpu(ro_node(s)->keys[0]);
 
-		if (next_block || flags & INTERNAL_NODE)
-			block = value64(ro_node(s), i);
+		if (next_block || flags & INTERNAL_NODE) {
+			if (find_highest)
+				block = value64(ro_node(s), i);
+			else
+				block = value64(ro_node(s), 0);
+		}
 
 	} while (flags & INTERNAL_NODE);
 

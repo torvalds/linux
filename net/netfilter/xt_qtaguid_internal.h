@@ -256,8 +256,6 @@ struct iface_stat_work {
 struct sock_tag {
 	struct rb_node sock_node;
 	struct sock *sk;  /* Only used as a number, never dereferenced */
-	/* The socket is needed for sockfd_put() */
-	struct socket *socket;
 	/* Used to associate with a given pid */
 	struct list_head list;   /* in proc_qtu_data.sock_tag_list */
 	pid_t pid;

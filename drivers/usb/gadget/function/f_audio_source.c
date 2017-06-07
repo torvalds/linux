@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/usb/audio.h>
 #include <linux/wait.h>
+#include <linux/pm_qos.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
@@ -268,6 +269,8 @@ struct audio_dev {
 	/* number of frames sent since start_time */
 	s64				frames_sent;
 	struct audio_source_config	*config;
+	/* for creating and issuing QoS requests */
+	struct pm_qos_request pm_qos;
 };
 
 static inline struct audio_dev *func_to_audio(struct usb_function *f)
@@ -740,6 +743,10 @@ static int audio_pcm_open(struct snd_pcm_substream *substream)
 	runtime->hw.channels_max = 2;
 
 	audio->substream = substream;
+
+	/* Add the QoS request and set the latency to 0 */
+	pm_qos_add_request(&audio->pm_qos, PM_QOS_CPU_DMA_LATENCY, 0);
+
 	return 0;
 }
 
@@ -749,6 +756,10 @@ static int audio_pcm_close(struct snd_pcm_substream *substream)
 	unsigned long flags;
 
 	spin_lock_irqsave(&audio->lock, flags);
+
+	/* Remove the QoS request */
+	pm_qos_remove_request(&audio->pm_qos);
+
 	audio->substream = NULL;
 	spin_unlock_irqrestore(&audio->lock, flags);
 
