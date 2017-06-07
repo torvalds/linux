@@ -257,7 +257,7 @@ bool cookie_timestamp_decode(const struct net *net,
 	tcp_opt->wscale_ok = 1;
 	tcp_opt->snd_wscale = options & TS_OPT_WSCALE_MASK;
 
-	return sysctl_tcp_window_scaling != 0;
+	return net->ipv4.sysctl_tcp_window_scaling != 0;
 }
 EXPORT_SYMBOL(cookie_timestamp_decode);
 
