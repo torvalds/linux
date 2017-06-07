@@ -398,10 +398,10 @@ snd_nm256_load_coefficient(struct nm256 *chip, int stream, int number)
 
 
 /* The actual rates supported by the card. */
-static unsigned int samplerates[8] = {
+static const unsigned int samplerates[8] = {
 	8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000,
 };
-static struct snd_pcm_hw_constraint_list constraints_rates = {
+static const struct snd_pcm_hw_constraint_list constraints_rates = {
 	.count = ARRAY_SIZE(samplerates), 
 	.list = samplerates,
 	.mask = 0,
