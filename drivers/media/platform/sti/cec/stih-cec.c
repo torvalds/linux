@@ -226,22 +226,21 @@ static int stih_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 static void stih_tx_done(struct stih_cec *cec, u32 status)
 {
 	if (status & CEC_TX_ERROR) {
-		cec_transmit_done(cec->adap, CEC_TX_STATUS_ERROR, 0, 0, 0, 1);
+		cec_transmit_attempt_done(cec->adap, CEC_TX_STATUS_ERROR);
 		return;
 	}
 
 	if (status & CEC_TX_ARB_ERROR) {
-		cec_transmit_done(cec->adap,
-				  CEC_TX_STATUS_ARB_LOST, 1, 0, 0, 0);
+		cec_transmit_attempt_done(cec->adap, CEC_TX_STATUS_ARB_LOST);
 		return;
 	}
 
 	if (!(status & CEC_TX_ACK_GET_STS)) {
-		cec_transmit_done(cec->adap, CEC_TX_STATUS_NACK, 0, 1, 0, 0);
+		cec_transmit_attempt_done(cec->adap, CEC_TX_STATUS_NACK);
 		return;
 	}
 
-	cec_transmit_done(cec->adap, CEC_TX_STATUS_OK, 0, 0, 0, 0);
+	cec_transmit_attempt_done(cec->adap, CEC_TX_STATUS_OK);
 }
 
 static void stih_rx_done(struct stih_cec *cec, u32 status)

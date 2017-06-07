@@ -98,16 +98,13 @@ static void rain_process_msg(struct rain *rain)
 
 	switch (stat) {
 	case 1:
-		cec_transmit_done(rain->adap, CEC_TX_STATUS_OK,
-				  0, 0, 0, 0);
+		cec_transmit_attempt_done(rain->adap, CEC_TX_STATUS_OK);
 		break;
 	case 2:
-		cec_transmit_done(rain->adap, CEC_TX_STATUS_NACK,
-				  0, 1, 0, 0);
+		cec_transmit_attempt_done(rain->adap, CEC_TX_STATUS_NACK);
 		break;
 	default:
-		cec_transmit_done(rain->adap, CEC_TX_STATUS_LOW_DRIVE,
-				  0, 0, 0, 1);
+		cec_transmit_attempt_done(rain->adap, CEC_TX_STATUS_LOW_DRIVE);
 		break;
 	}
 }
