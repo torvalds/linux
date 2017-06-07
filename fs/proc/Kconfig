@@ -13,7 +13,7 @@ config PROC_FS
 	  (there is a small number of Interrupt ReQuest lines in your computer
 	  that are used by the attached devices to gain the CPU's attention --
 	  often a source of trouble if two devices are mistakenly configured
-	  to use the same IRQ). The program procinfo to display some
+	  to use the same IRQ). The program procinfo can be used to display some
 	  information about your system gathered from the /proc file system.
 
 	  Before you can use the /proc file system, it has to be mounted,
