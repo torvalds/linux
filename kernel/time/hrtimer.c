@@ -51,6 +51,7 @@
 #include <linux/sched/debug.h>
 #include <linux/timer.h>
 #include <linux/freezer.h>
+#include <linux/compat.h>
 
 #include <linux/uaccess.h>
 
@@ -1441,7 +1442,8 @@ EXPORT_SYMBOL_GPL(hrtimer_init_sleeper);
 
 static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mode)
 {
-	struct timespec __user *rmtp;
+	struct restart_block *restart;
+
 	hrtimer_init_sleeper(t, current);
 
 	do {
@@ -1461,15 +1463,23 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 	if (!t->task)
 		return 0;
 
-	rmtp = current->restart_block.nanosleep.rmtp;
-	if (rmtp) {
-		struct timespec rmt;
+	restart = &current->restart_block;
+	if (restart->nanosleep.type != TT_NONE) {
 		ktime_t rem = hrtimer_expires_remaining(&t->timer);
+		struct timespec rmt;
+
 		if (rem <= 0)
 			return 0;
 		rmt = ktime_to_timespec(rem);
 
-		if (copy_to_user(rmtp, &rmt, sizeof(*rmtp)))
+#ifdef CONFIG_COMPAT
+		if (restart->nanosleep.type == TT_COMPAT) {
+			if (compat_put_timespec(&rmt,
+						restart->nanosleep.compat_rmtp))
+				return -EFAULT;
+		} else
+#endif
+		if (copy_to_user(restart->nanosleep.rmtp, &rmt, sizeof(rmt)))
 			return -EFAULT;
 	}
 	return -ERESTART_RESTARTBLOCK;
@@ -1535,9 +1545,31 @@ SYSCALL_DEFINE2(nanosleep, struct timespec __user *, rqtp,
 	if (!timespec64_valid(&tu64))
 		return -EINVAL;
 
+	current->restart_block.nanosleep.type = rmtp ? TT_NATIVE : TT_NONE;
 	current->restart_block.nanosleep.rmtp = rmtp;
 	return hrtimer_nanosleep(&tu64, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 }
+
+#ifdef CONFIG_COMPAT
+
+COMPAT_SYSCALL_DEFINE2(nanosleep, struct compat_timespec __user *, rqtp,
+		       struct compat_timespec __user *, rmtp)
+{
+	struct timespec64 tu64;
+	struct timespec tu;
+
+	if (compat_get_timespec(&tu, rqtp))
+		return -EFAULT;
+
+	tu64 = timespec_to_timespec64(tu);
+	if (!timespec64_valid(&tu64))
+		return -EINVAL;
+
+	current->restart_block.nanosleep.type = rmtp ? TT_COMPAT : TT_NONE;
+	current->restart_block.nanosleep.compat_rmtp = rmtp;
+	return hrtimer_nanosleep(&tu64, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
+}
+#endif
 
 /*
  * Functions related to boot-time initialization:

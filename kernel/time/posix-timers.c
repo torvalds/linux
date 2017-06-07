@@ -49,6 +49,7 @@
 #include <linux/workqueue.h>
 #include <linux/export.h>
 #include <linux/hashtable.h>
+#include <linux/compat.h>
 
 #include "timekeeping.h"
 #include "posix-timers.h"
@@ -1069,25 +1070,40 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
+	current->restart_block.nanosleep.type = rmtp ? TT_NATIVE : TT_NONE;
 	current->restart_block.nanosleep.rmtp = rmtp;
 
 	return kc->nsleep(which_clock, flags, &t64);
 }
 
-/*
- * This will restart clock_nanosleep. This is required only by
- * compat_clock_nanosleep_restart for now.
- */
-long clock_nanosleep_restart(struct restart_block *restart_block)
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE4(clock_nanosleep, clockid_t, which_clock, int, flags,
+		       struct compat_timespec __user *, rqtp,
+		       struct compat_timespec __user *, rmtp)
 {
-	clockid_t which_clock = restart_block->nanosleep.clockid;
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
+	struct timespec64 t64;
+	struct timespec t;
 
-	if (WARN_ON_ONCE(!kc || !kc->nsleep_restart))
+	if (!kc)
 		return -EINVAL;
+	if (!kc->nsleep)
+		return -ENANOSLEEP_NOTSUP;
 
-	return kc->nsleep_restart(restart_block);
+	if (compat_get_timespec(&t, rqtp))
+		return -EFAULT;
+
+	t64 = timespec_to_timespec64(t);
+	if (!timespec64_valid(&t64))
+		return -EINVAL;
+	if (flags & TIMER_ABSTIME)
+		rmtp = NULL;
+	current->restart_block.nanosleep.type = rmtp ? TT_COMPAT : TT_NONE;
+	current->restart_block.nanosleep.compat_rmtp = rmtp;
+
+	return kc->nsleep(which_clock, flags, &t64);
 }
+#endif
 
 static const struct k_clock clock_realtime = {
 	.clock_getres		= posix_get_hrtimer_res,
