@@ -227,6 +227,12 @@ int cec_transmit_msg(struct cec_adapter *adap, struct cec_msg *msg,
 /* Called by the adapter */
 void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 		       u8 nack_cnt, u8 low_drive_cnt, u8 error_cnt);
+/*
+ * Simplified version of cec_transmit_done for hardware that doesn't retry
+ * failed transmits. So this is always just one attempt in which case
+ * the status is sufficient.
+ */
+void cec_transmit_attempt_done(struct cec_adapter *adap, u8 status);
 void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg);
 
 /**
