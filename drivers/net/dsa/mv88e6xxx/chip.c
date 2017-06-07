@@ -1325,7 +1325,6 @@ static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 static int _mv88e6xxx_port_vlan_del(struct mv88e6xxx_chip *chip,
 				    int port, u16 vid)
 {
-	struct dsa_switch *ds = chip->ds;
 	struct mv88e6xxx_vtu_entry vlan;
 	int i, err;
 
@@ -1342,9 +1341,6 @@ static int _mv88e6xxx_port_vlan_del(struct mv88e6xxx_chip *chip,
 	/* keep the VLAN unless all ports are excluded */
 	vlan.valid = false;
 	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
-		if (dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i))
-			continue;
-
 		if (vlan.member[i] != GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER) {
 			vlan.valid = true;
 			break;
