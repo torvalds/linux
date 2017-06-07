@@ -2478,20 +2478,24 @@ static int emac_mii_bus_reset(struct mii_bus *bus)
 	return emac_reset(dev);
 }
 
+static int emac_mdio_phy_start_aneg(struct mii_phy *phy,
+				    struct phy_device *phy_dev)
+{
+	phy_dev->autoneg = phy->autoneg;
+	phy_dev->speed = phy->speed;
+	phy_dev->duplex = phy->duplex;
+	phy_dev->advertising = phy->advertising;
+	return phy_start_aneg(phy_dev);
+}
+
 static int emac_mdio_setup_aneg(struct mii_phy *phy, u32 advertise)
 {
 	struct net_device *ndev = phy->dev;
 	struct emac_instance *dev = netdev_priv(ndev);
 
-	dev->phy.autoneg = AUTONEG_ENABLE;
-	dev->phy.speed = SPEED_1000;
-	dev->phy.duplex = DUPLEX_FULL;
-	dev->phy.advertising = advertise;
 	phy->autoneg = AUTONEG_ENABLE;
-	phy->speed = dev->phy.speed;
-	phy->duplex = dev->phy.duplex;
 	phy->advertising = advertise;
-	return phy_start_aneg(dev->phy_dev);
+	return emac_mdio_phy_start_aneg(phy, dev->phy_dev);
 }
 
 static int emac_mdio_setup_forced(struct mii_phy *phy, int speed, int fd)
@@ -2499,13 +2503,10 @@ static int emac_mdio_setup_forced(struct mii_phy *phy, int speed, int fd)
 	struct net_device *ndev = phy->dev;
 	struct emac_instance *dev = netdev_priv(ndev);
 
-	dev->phy.autoneg =  AUTONEG_DISABLE;
-	dev->phy.speed = speed;
-	dev->phy.duplex = fd;
 	phy->autoneg = AUTONEG_DISABLE;
 	phy->speed = speed;
 	phy->duplex = fd;
-	return phy_start_aneg(dev->phy_dev);
+	return emac_mdio_phy_start_aneg(phy, dev->phy_dev);
 }
 
 static int emac_mdio_poll_link(struct mii_phy *phy)
@@ -2527,16 +2528,17 @@ static int emac_mdio_read_link(struct mii_phy *phy)
 {
 	struct net_device *ndev = phy->dev;
 	struct emac_instance *dev = netdev_priv(ndev);
+	struct phy_device *phy_dev = dev->phy_dev;
 	int res;
 
-	res = phy_read_status(dev->phy_dev);
+	res = phy_read_status(phy_dev);
 	if (res)
 		return res;
 
-	dev->phy.speed = phy->speed;
-	dev->phy.duplex = phy->duplex;
-	dev->phy.pause = phy->pause;
-	dev->phy.asym_pause = phy->asym_pause;
+	phy->speed = phy_dev->speed;
+	phy->duplex = phy_dev->duplex;
+	phy->pause = phy_dev->pause;
+	phy->asym_pause = phy_dev->asym_pause;
 	return 0;
 }
 
@@ -2546,13 +2548,6 @@ static int emac_mdio_init_phy(struct mii_phy *phy)
 	struct emac_instance *dev = netdev_priv(ndev);
 
 	phy_start(dev->phy_dev);
-	dev->phy.autoneg = phy->autoneg;
-	dev->phy.speed = phy->speed;
-	dev->phy.duplex = phy->duplex;
-	dev->phy.advertising = phy->advertising;
-	dev->phy.pause = phy->pause;
-	dev->phy.asym_pause = phy->asym_pause;
-
 	return phy_init_hw(dev->phy_dev);
 }
 
