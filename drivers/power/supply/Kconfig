@@ -198,6 +198,17 @@ config BATTERY_BQ27XXX_I2C
 	  Say Y here to enable support for batteries with BQ27xxx chips
 	  connected over an I2C bus.
 
+config BATTERY_BQ27XXX_DT_UPDATES_NVM
+	bool "BQ27xxx support for update of NVM/flash data memory"
+	depends on BATTERY_BQ27XXX_I2C
+	help
+	  Say Y here to enable devicetree monitored-battery config to update
+	  NVM/flash data memory. Only enable this option for devices with a
+	  fuel gauge mounted on the circuit board, and a battery that cannot
+	  easily be replaced with one of a different type. Not for
+	  general-purpose kernels, as this can cause misconfiguration of a
+	  smart battery with embedded NVM/flash.
+
 config BATTERY_DA9030
 	tristate "DA9030 battery driver"
 	depends on PMIC_DA903X
