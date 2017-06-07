@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <linux/skbuff.h>
 #include <linux/slab.h>
 
 #include "nfpcore/nfp_cpp.h"
@@ -41,6 +42,23 @@ static const struct nfp_app_type *apps[] = {
 	&app_nic,
 	&app_bpf,
 };
+
+struct sk_buff *nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size)
+{
+	struct sk_buff *skb;
+
+	if (nfp_app_ctrl_has_meta(app))
+		size += 8;
+
+	skb = alloc_skb(size, GFP_ATOMIC);
+	if (!skb)
+		return NULL;
+
+	if (nfp_app_ctrl_has_meta(app))
+		skb_reserve(skb, 8);
+
+	return skb;
+}
 
 struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id)
 {

@@ -161,7 +161,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 		dev_warn(&pdev->dev, "OBSOLETE Firmware detected - VF isolation not available\n");
 	} else {
 		switch (fw_ver.major) {
-		case 1 ... 4:
+		case 1 ... 5:
 			stride = 4;
 			tx_bar_no = NFP_NET_Q0_BAR;
 			rx_bar_no = tx_bar_no;
@@ -202,7 +202,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	rx_bar_off = NFP_PCIE_QUEUE(startq);
 
 	/* Allocate and initialise the netdev */
-	nn = nfp_net_alloc(pdev, max_tx_rings, max_rx_rings);
+	nn = nfp_net_alloc(pdev, true, max_tx_rings, max_rx_rings);
 	if (IS_ERR(nn)) {
 		err = PTR_ERR(nn);
 		goto err_ctrl_unmap;

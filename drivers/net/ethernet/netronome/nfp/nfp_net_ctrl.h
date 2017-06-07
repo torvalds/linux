@@ -71,7 +71,10 @@
 #define NFP_NET_META_FIELD_SIZE		4
 #define NFP_NET_META_HASH		1 /* next field carries hash type */
 #define NFP_NET_META_MARK		2
+#define NFP_NET_META_PORTID		5
 #define NFP_NET_META_CSUM		6 /* checksum complete type */
+
+#define	NFP_META_PORT_ID_CTRL		~0U
 
 /**
  * Hash type pre-pended when a RSS hash was computed

@@ -223,65 +223,37 @@ static int nfp_net_pf_get_app_id(struct nfp_pf *pf)
 					      NFP_APP_CORE_NIC);
 }
 
-static unsigned int
-nfp_net_pf_total_qcs(struct nfp_pf *pf, void __iomem *ctrl_bar,
-		     unsigned int stride, u32 start_off, u32 num_off)
+static u8 __iomem *
+nfp_net_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
+		     unsigned int min_size, struct nfp_cpp_area **area)
 {
-	unsigned int i, min_qc, max_qc;
-
-	min_qc = readl(ctrl_bar + start_off);
-	max_qc = min_qc;
-
-	for (i = 0; i < pf->max_data_vnics; i++) {
-		/* To make our lives simpler only accept configuration where
-		 * queues are allocated to PFs in order (queues of PFn all have
-		 * indexes lower than PFn+1).
-		 */
-		if (max_qc > readl(ctrl_bar + start_off))
-			return 0;
-
-		max_qc = readl(ctrl_bar + start_off);
-		max_qc += readl(ctrl_bar + num_off) * stride;
-		ctrl_bar += NFP_PF_CSR_SLICE_SIZE;
-	}
-
-	return max_qc - min_qc;
-}
-
-static u8 __iomem *nfp_net_pf_map_ctrl_bar(struct nfp_pf *pf)
-{
-	const struct nfp_rtsym *ctrl_sym;
-	u8 __iomem *ctrl_bar;
+	const struct nfp_rtsym *sym;
 	char pf_symbol[256];
+	u8 __iomem *mem;
 
-	snprintf(pf_symbol, sizeof(pf_symbol), "_pf%u_net_bar0",
+	snprintf(pf_symbol, sizeof(pf_symbol), sym_fmt,
 		 nfp_cppcore_pcie_unit(pf->cpp));
 
-	ctrl_sym = nfp_rtsym_lookup(pf->cpp, pf_symbol);
-	if (!ctrl_sym) {
-		dev_err(&pf->pdev->dev,
-			"Failed to find PF BAR0 symbol %s\n", pf_symbol);
-		return NULL;
+	sym = nfp_rtsym_lookup(pf->cpp, pf_symbol);
+	if (!sym) {
+		nfp_err(pf->cpp, "Failed to find PF symbol %s\n", pf_symbol);
+		return (u8 __iomem *)ERR_PTR(-ENOENT);
 	}
 
-	if (ctrl_sym->size < pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE) {
-		dev_err(&pf->pdev->dev,
-			"PF BAR0 too small to contain %d vNICs\n",
-			pf->max_data_vnics);
-		return NULL;
+	if (sym->size < min_size) {
+		nfp_err(pf->cpp, "PF symbol %s too small\n", pf_symbol);
+		return (u8 __iomem *)ERR_PTR(-EINVAL);
 	}
 
-	ctrl_bar = nfp_net_map_area(pf->cpp, "net.ctrl",
-				    ctrl_sym->domain, ctrl_sym->target,
-				    ctrl_sym->addr, ctrl_sym->size,
-				    &pf->data_vnic_bar);
-	if (IS_ERR(ctrl_bar)) {
-		dev_err(&pf->pdev->dev, "Failed to map PF BAR0: %ld\n",
-			PTR_ERR(ctrl_bar));
-		return NULL;
+	mem = nfp_net_map_area(pf->cpp, name, sym->domain, sym->target,
+			       sym->addr, sym->size, area);
+	if (IS_ERR(mem)) {
+		nfp_err(pf->cpp, "Failed to map PF symbol %s: %ld\n",
+			pf_symbol, PTR_ERR(mem));
+		return mem;
 	}
 
-	return ctrl_bar;
+	return mem;
 }
 
 static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
@@ -294,45 +266,47 @@ static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 
 static void nfp_net_pf_free_vnics(struct nfp_pf *pf)
 {
-	struct nfp_net *nn;
+	struct nfp_net *nn, *next;
 
-	while (!list_empty(&pf->vnics)) {
-		nn = list_first_entry(&pf->vnics, struct nfp_net, vnic_list);
-		nfp_net_pf_free_vnic(pf, nn);
-	}
+	list_for_each_entry_safe(nn, next, &pf->vnics, vnic_list)
+		if (nfp_net_is_data_vnic(nn))
+			nfp_net_pf_free_vnic(pf, nn);
 }
 
 static struct nfp_net *
-nfp_net_pf_alloc_vnic(struct nfp_pf *pf, void __iomem *ctrl_bar,
-		      void __iomem *tx_bar, void __iomem *rx_bar,
-		      int stride, struct nfp_net_fw_version *fw_ver,
-		      unsigned int eth_id)
+nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
+		      void __iomem *ctrl_bar, void __iomem *qc_bar,
+		      int stride, unsigned int eth_id)
 {
-	u32 n_tx_rings, n_rx_rings;
+	u32 tx_base, rx_base, n_tx_rings, n_rx_rings;
 	struct nfp_net *nn;
 	int err;
 
+	tx_base = readl(ctrl_bar + NFP_NET_CFG_START_TXQ);
+	rx_base = readl(ctrl_bar + NFP_NET_CFG_START_RXQ);
 	n_tx_rings = readl(ctrl_bar + NFP_NET_CFG_MAX_TXRINGS);
 	n_rx_rings = readl(ctrl_bar + NFP_NET_CFG_MAX_RXRINGS);
 
 	/* Allocate and initialise the vNIC */
-	nn = nfp_net_alloc(pf->pdev, n_tx_rings, n_rx_rings);
+	nn = nfp_net_alloc(pf->pdev, needs_netdev, n_tx_rings, n_rx_rings);
 	if (IS_ERR(nn))
 		return nn;
 
 	nn->app = pf->app;
-	nn->fw_ver = *fw_ver;
+	nfp_net_get_fw_version(&nn->fw_ver, ctrl_bar);
 	nn->dp.ctrl_bar = ctrl_bar;
-	nn->tx_bar = tx_bar;
-	nn->rx_bar = rx_bar;
+	nn->tx_bar = qc_bar + tx_base * NFP_QCP_QUEUE_ADDR_SZ;
+	nn->rx_bar = qc_bar + rx_base * NFP_QCP_QUEUE_ADDR_SZ;
 	nn->dp.is_vf = 0;
 	nn->stride_rx = stride;
 	nn->stride_tx = stride;
 
-	err = nfp_app_vnic_init(pf->app, nn, eth_id);
-	if (err) {
-		nfp_net_free(nn);
-		return ERR_PTR(err);
+	if (needs_netdev) {
+		err = nfp_app_vnic_init(pf->app, nn, eth_id);
+		if (err) {
+			nfp_net_free(nn);
+			return ERR_PTR(err);
+		}
 	}
 
 	pf->num_vnics++;
@@ -376,27 +350,15 @@ err_dfs_clean:
 
 static int
 nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
-		       void __iomem *tx_bar, void __iomem *rx_bar,
-		       int stride, struct nfp_net_fw_version *fw_ver)
+		       void __iomem *qc_bar, int stride)
 {
-	u32 prev_tx_base, prev_rx_base, tgt_tx_base, tgt_rx_base;
 	struct nfp_net *nn;
 	unsigned int i;
 	int err;
 
-	prev_tx_base = readl(ctrl_bar + NFP_NET_CFG_START_TXQ);
-	prev_rx_base = readl(ctrl_bar + NFP_NET_CFG_START_RXQ);
-
 	for (i = 0; i < pf->max_data_vnics; i++) {
-		tgt_tx_base = readl(ctrl_bar + NFP_NET_CFG_START_TXQ);
-		tgt_rx_base = readl(ctrl_bar + NFP_NET_CFG_START_RXQ);
-		tx_bar += (tgt_tx_base - prev_tx_base) * NFP_QCP_QUEUE_ADDR_SZ;
-		rx_bar += (tgt_rx_base - prev_rx_base) * NFP_QCP_QUEUE_ADDR_SZ;
-		prev_tx_base = tgt_tx_base;
-		prev_rx_base = tgt_rx_base;
-
-		nn = nfp_net_pf_alloc_vnic(pf, ctrl_bar, tx_bar, rx_bar,
-					   stride, fw_ver, i);
+		nn = nfp_net_pf_alloc_vnic(pf, true, ctrl_bar, qc_bar,
+					   stride, i);
 		if (IS_ERR(nn)) {
 			err = PTR_ERR(nn);
 			goto err_free_prev;
@@ -430,21 +392,10 @@ static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 	nfp_app_vnic_clean(pf->app, nn);
 }
 
-static int
-nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
-		       void __iomem *ctrl_bar, void __iomem *tx_bar,
-		       void __iomem *rx_bar, int stride,
-		       struct nfp_net_fw_version *fw_ver)
+static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)
 {
-	unsigned int id, wanted_irqs, num_irqs, vnics_left, irqs_left;
+	unsigned int wanted_irqs, num_irqs, vnics_left, irqs_left;
 	struct nfp_net *nn;
-	int err;
-
-	/* Allocate the vnics and do basic init */
-	err = nfp_net_pf_alloc_vnics(pf, ctrl_bar, tx_bar, rx_bar,
-				     stride, fw_ver);
-	if (err)
-		return err;
 
 	/* Get MSI-X vectors */
 	wanted_irqs = 0;
@@ -452,18 +403,16 @@ nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
 		wanted_irqs += NFP_NET_NON_Q_VECTORS + nn->dp.num_r_vecs;
 	pf->irq_entries = kcalloc(wanted_irqs, sizeof(*pf->irq_entries),
 				  GFP_KERNEL);
-	if (!pf->irq_entries) {
-		err = -ENOMEM;
-		goto err_nn_free;
-	}
+	if (!pf->irq_entries)
+		return -ENOMEM;
 
 	num_irqs = nfp_net_irqs_alloc(pf->pdev, pf->irq_entries,
 				      NFP_NET_MIN_VNIC_IRQS * pf->num_vnics,
 				      wanted_irqs);
 	if (!num_irqs) {
-		nn_warn(nn, "Unable to allocate MSI-X Vectors. Exiting\n");
-		err = -ENOMEM;
-		goto err_vec_free;
+		nfp_warn(pf->cpp, "Unable to allocate MSI-X vectors\n");
+		kfree(pf->irq_entries);
+		return -ENOMEM;
 	}
 
 	/* Distribute IRQs to vNICs */
@@ -472,16 +421,34 @@ nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
 	list_for_each_entry(nn, &pf->vnics, vnic_list) {
 		unsigned int n;
 
-		n = DIV_ROUND_UP(irqs_left, vnics_left);
+		n = min(NFP_NET_NON_Q_VECTORS + nn->dp.num_r_vecs,
+			DIV_ROUND_UP(irqs_left, vnics_left));
 		nfp_net_irqs_assign(nn, &pf->irq_entries[num_irqs - irqs_left],
 				    n);
 		irqs_left -= n;
 		vnics_left--;
 	}
 
+	return 0;
+}
+
+static void nfp_net_pf_free_irqs(struct nfp_pf *pf)
+{
+	nfp_net_irqs_disable(pf->pdev);
+	kfree(pf->irq_entries);
+}
+
+static int nfp_net_pf_init_vnics(struct nfp_pf *pf)
+{
+	struct nfp_net *nn;
+	unsigned int id;
+	int err;
+
 	/* Finish vNIC init and register */
 	id = 0;
 	list_for_each_entry(nn, &pf->vnics, vnic_list) {
+		if (!nfp_net_is_data_vnic(nn))
+			continue;
 		err = nfp_net_pf_init_vnic(pf, nn, id);
 		if (err)
 			goto err_prev_deinit;
@@ -493,17 +460,15 @@ nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
 
 err_prev_deinit:
 	list_for_each_entry_continue_reverse(nn, &pf->vnics, vnic_list)
-		nfp_net_pf_clean_vnic(pf, nn);
-	nfp_net_irqs_disable(pf->pdev);
-err_vec_free:
-	kfree(pf->irq_entries);
-err_nn_free:
-	nfp_net_pf_free_vnics(pf);
+		if (nfp_net_is_data_vnic(nn))
+			nfp_net_pf_clean_vnic(pf, nn);
 	return err;
 }
 
-static int nfp_net_pf_app_init(struct nfp_pf *pf)
+static int
+nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 {
+	u8 __iomem *ctrl_bar;
 	int err;
 
 	pf->app = nfp_app_alloc(pf, nfp_net_pf_get_app_id(pf));
@@ -514,8 +479,28 @@ static int nfp_net_pf_app_init(struct nfp_pf *pf)
 	if (err)
 		goto err_free;
 
+	if (!nfp_app_needs_ctrl_vnic(pf->app))
+		return 0;
+
+	ctrl_bar = nfp_net_pf_map_rtsym(pf, "net.ctrl", "_pf%u_net_ctrl_bar",
+					NFP_PF_CSR_SLICE_SIZE,
+					&pf->ctrl_vnic_bar);
+	if (IS_ERR(ctrl_bar)) {
+		err = PTR_ERR(ctrl_bar);
+		goto err_free;
+	}
+
+	pf->ctrl_vnic =	nfp_net_pf_alloc_vnic(pf, false, ctrl_bar, qc_bar,
+					      stride, 0);
+	if (IS_ERR(pf->ctrl_vnic)) {
+		err = PTR_ERR(pf->ctrl_vnic);
+		goto err_unmap;
+	}
+
 	return 0;
 
+err_unmap:
+	nfp_cpp_area_release_free(pf->ctrl_vnic_bar);
 err_free:
 	nfp_app_free(pf->app);
 	return err;
@@ -523,21 +508,79 @@ err_free:
 
 static void nfp_net_pf_app_clean(struct nfp_pf *pf)
 {
+	if (pf->ctrl_vnic) {
+		nfp_net_pf_free_vnic(pf, pf->ctrl_vnic);
+		nfp_cpp_area_release_free(pf->ctrl_vnic_bar);
+	}
 	nfp_app_free(pf->app);
 	pf->app = NULL;
 }
 
+static int nfp_net_pf_app_start_ctrl(struct nfp_pf *pf)
+{
+	int err;
+
+	if (!pf->ctrl_vnic)
+		return 0;
+	err = nfp_net_pf_init_vnic(pf, pf->ctrl_vnic, 0);
+	if (err)
+		return err;
+
+	err = nfp_ctrl_open(pf->ctrl_vnic);
+	if (err)
+		goto err_clean_ctrl;
+
+	return 0;
+
+err_clean_ctrl:
+	nfp_net_pf_clean_vnic(pf, pf->ctrl_vnic);
+	return err;
+}
+
+static void nfp_net_pf_app_stop_ctrl(struct nfp_pf *pf)
+{
+	if (!pf->ctrl_vnic)
+		return;
+	nfp_ctrl_close(pf->ctrl_vnic);
+	nfp_net_pf_clean_vnic(pf, pf->ctrl_vnic);
+}
+
+static int nfp_net_pf_app_start(struct nfp_pf *pf)
+{
+	int err;
+
+	err = nfp_net_pf_app_start_ctrl(pf);
+	if (err)
+		return err;
+
+	err = nfp_app_start(pf->app, pf->ctrl_vnic);
+	if (err)
+		goto err_ctrl_stop;
+
+	return 0;
+
+err_ctrl_stop:
+	nfp_net_pf_app_stop_ctrl(pf);
+	return err;
+}
+
+static void nfp_net_pf_app_stop(struct nfp_pf *pf)
+{
+	nfp_app_stop(pf->app);
+	nfp_net_pf_app_stop_ctrl(pf);
+}
+
 static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
 {
+	nfp_net_pf_app_stop(pf);
+	/* stop app first, to avoid double free of ctrl vNIC's ddir */
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 
-	nfp_net_irqs_disable(pf->pdev);
-	kfree(pf->irq_entries);
+	nfp_net_pf_free_irqs(pf);
 
 	nfp_net_pf_app_clean(pf);
 
-	nfp_cpp_area_release_free(pf->rx_area);
-	nfp_cpp_area_release_free(pf->tx_area);
+	nfp_cpp_area_release_free(pf->qc_area);
 	nfp_cpp_area_release_free(pf->data_vnic_bar);
 }
 
@@ -661,11 +704,9 @@ int nfp_net_refresh_eth_port(struct nfp_port *port)
  */
 int nfp_net_pci_probe(struct nfp_pf *pf)
 {
-	u8 __iomem *ctrl_bar, *tx_bar, *rx_bar;
-	u32 total_tx_qcs, total_rx_qcs;
 	struct nfp_net_fw_version fw_ver;
-	u32 tx_area_sz, rx_area_sz;
-	u32 start_q;
+	u8 __iomem *ctrl_bar, *qc_bar;
+	u32 ctrl_bar_sz;
 	int stride;
 	int err;
 
@@ -684,9 +725,13 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		goto err_unlock;
 	}
 
-	ctrl_bar = nfp_net_pf_map_ctrl_bar(pf);
-	if (!ctrl_bar) {
-		err = pf->fw_loaded ? -EINVAL : -EPROBE_DEFER;
+	ctrl_bar_sz = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
+	ctrl_bar = nfp_net_pf_map_rtsym(pf, "net.ctrl", "_pf%d_net_bar0",
+					ctrl_bar_sz, &pf->data_vnic_bar);
+	if (IS_ERR(ctrl_bar)) {
+		err = PTR_ERR(ctrl_bar);
+		if (!pf->fw_loaded && err == -ENOENT)
+			err = -EPROBE_DEFER;
 		goto err_unlock;
 	}
 
@@ -704,7 +749,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		nfp_warn(pf->cpp, "OBSOLETE Firmware detected - VF isolation not available\n");
 	} else {
 		switch (fw_ver.major) {
-		case 1 ... 4:
+		case 1 ... 5:
 			stride = 4;
 			break;
 		default:
@@ -716,67 +761,54 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		}
 	}
 
-	/* Find how many QC structs need to be mapped */
-	total_tx_qcs = nfp_net_pf_total_qcs(pf, ctrl_bar, stride,
-					    NFP_NET_CFG_START_TXQ,
-					    NFP_NET_CFG_MAX_TXRINGS);
-	total_rx_qcs = nfp_net_pf_total_qcs(pf, ctrl_bar, stride,
-					    NFP_NET_CFG_START_RXQ,
-					    NFP_NET_CFG_MAX_RXRINGS);
-	if (!total_tx_qcs || !total_rx_qcs) {
-		nfp_err(pf->cpp, "Invalid PF QC configuration [%d,%d]\n",
-			total_tx_qcs, total_rx_qcs);
-		err = -EINVAL;
+	/* Map queues */
+	qc_bar = nfp_net_map_area(pf->cpp, "net.qc", 0, 0,
+				  NFP_PCIE_QUEUE(0), NFP_QCP_QUEUE_AREA_SZ,
+				  &pf->qc_area);
+	if (IS_ERR(qc_bar)) {
+		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
+		err = PTR_ERR(qc_bar);
 		goto err_ctrl_unmap;
 	}
 
-	tx_area_sz = NFP_QCP_QUEUE_ADDR_SZ * total_tx_qcs;
-	rx_area_sz = NFP_QCP_QUEUE_ADDR_SZ * total_rx_qcs;
-
-	/* Map TX queues */
-	start_q = readl(ctrl_bar + NFP_NET_CFG_START_TXQ);
-	tx_bar = nfp_net_map_area(pf->cpp, "net.tx", 0, 0,
-				  NFP_PCIE_QUEUE(start_q),
-				  tx_area_sz, &pf->tx_area);
-	if (IS_ERR(tx_bar)) {
-		nfp_err(pf->cpp, "Failed to map TX area.\n");
-		err = PTR_ERR(tx_bar);
-		goto err_ctrl_unmap;
-	}
-
-	/* Map RX queues */
-	start_q = readl(ctrl_bar + NFP_NET_CFG_START_RXQ);
-	rx_bar = nfp_net_map_area(pf->cpp, "net.rx", 0, 0,
-				  NFP_PCIE_QUEUE(start_q),
-				  rx_area_sz, &pf->rx_area);
-	if (IS_ERR(rx_bar)) {
-		nfp_err(pf->cpp, "Failed to map RX area.\n");
-		err = PTR_ERR(rx_bar);
-		goto err_unmap_tx;
-	}
-
-	err = nfp_net_pf_app_init(pf);
+	err = nfp_net_pf_app_init(pf, qc_bar, stride);
 	if (err)
-		goto err_unmap_rx;
+		goto err_unmap_qc;
 
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
-	err = nfp_net_pf_spawn_vnics(pf, ctrl_bar, tx_bar, rx_bar,
-				     stride, &fw_ver);
+	/* Allocate the vnics and do basic init */
+	err = nfp_net_pf_alloc_vnics(pf, ctrl_bar, qc_bar, stride);
 	if (err)
 		goto err_clean_ddir;
+
+	err = nfp_net_pf_alloc_irqs(pf);
+	if (err)
+		goto err_free_vnics;
+
+	err = nfp_net_pf_app_start(pf);
+	if (err)
+		goto err_free_irqs;
+
+	err = nfp_net_pf_init_vnics(pf);
+	if (err)
+		goto err_stop_app;
 
 	mutex_unlock(&pf->lock);
 
 	return 0;
 
+err_stop_app:
+	nfp_net_pf_app_stop(pf);
+err_free_irqs:
+	nfp_net_pf_free_irqs(pf);
+err_free_vnics:
+	nfp_net_pf_free_vnics(pf);
 err_clean_ddir:
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 	nfp_net_pf_app_clean(pf);
-err_unmap_rx:
-	nfp_cpp_area_release_free(pf->rx_area);
-err_unmap_tx:
-	nfp_cpp_area_release_free(pf->tx_area);
+err_unmap_qc:
+	nfp_cpp_area_release_free(pf->qc_area);
 err_ctrl_unmap:
 	nfp_cpp_area_release_free(pf->data_vnic_bar);
 err_unlock:
@@ -793,7 +825,8 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 		goto out;
 
 	list_for_each_entry(nn, &pf->vnics, vnic_list)
-		nfp_net_pf_clean_vnic(pf, nn);
+		if (nfp_net_is_data_vnic(nn))
+			nfp_net_pf_clean_vnic(pf, nn);
 
 	nfp_net_pf_free_vnics(pf);
 

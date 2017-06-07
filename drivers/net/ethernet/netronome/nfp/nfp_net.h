@@ -50,15 +50,32 @@
 
 #include "nfp_net_ctrl.h"
 
-#define nn_err(nn, fmt, args...)  netdev_err((nn)->dp.netdev, fmt, ## args)
-#define nn_warn(nn, fmt, args...) netdev_warn((nn)->dp.netdev, fmt, ## args)
-#define nn_info(nn, fmt, args...) netdev_info((nn)->dp.netdev, fmt, ## args)
-#define nn_dbg(nn, fmt, args...)  netdev_dbg((nn)->dp.netdev, fmt, ## args)
+#define nn_pr(nn, lvl, fmt, args...)					\
+	({								\
+		struct nfp_net *__nn = (nn);				\
+									\
+		if (__nn->dp.netdev)					\
+			netdev_printk(lvl, __nn->dp.netdev, fmt, ## args); \
+		else							\
+			dev_printk(lvl, __nn->dp.dev, "ctrl: " fmt, ## args); \
+	})
+
+#define nn_err(nn, fmt, args...)	nn_pr(nn, KERN_ERR, fmt, ## args)
+#define nn_warn(nn, fmt, args...)	nn_pr(nn, KERN_WARNING, fmt, ## args)
+#define nn_info(nn, fmt, args...)	nn_pr(nn, KERN_INFO, fmt, ## args)
+#define nn_dbg(nn, fmt, args...)	nn_pr(nn, KERN_DEBUG, fmt, ## args)
+
 #define nn_dp_warn(dp, fmt, args...)					\
-	do {								\
-		if (unlikely(net_ratelimit()))				\
-			netdev_warn((dp)->netdev, fmt, ## args);	\
-	} while (0)
+	({								\
+		struct nfp_net_dp *__dp = (dp);				\
+									\
+		if (unlikely(net_ratelimit())) {			\
+			if (__dp->netdev)				\
+				netdev_warn(__dp->netdev, fmt, ## args); \
+			else						\
+				dev_warn(__dp->dev, fmt, ## args);	\
+		}							\
+	})
 
 /* Max time to wait for NFP to respond on updates (in seconds) */
 #define NFP_NET_POLL_TIMEOUT	5
@@ -388,7 +405,14 @@ struct nfp_net_rx_ring {
  */
 struct nfp_net_r_vector {
 	struct nfp_net *nfp_net;
-	struct napi_struct napi;
+	union {
+		struct napi_struct napi;
+		struct {
+			struct tasklet_struct tasklet;
+			struct sk_buff_head queue;
+			struct spinlock lock;
+		};
+	};
 
 	struct nfp_net_tx_ring *tx_ring;
 	struct nfp_net_rx_ring *rx_ring;
@@ -681,6 +705,7 @@ static inline void nn_pci_flush(struct nfp_net *nn)
  * either add to a pointer or to read the pointer value.
  */
 #define NFP_QCP_QUEUE_ADDR_SZ			0x800
+#define NFP_QCP_QUEUE_AREA_SZ			0x80000
 #define NFP_QCP_QUEUE_OFF(_x)			((_x) * NFP_QCP_QUEUE_ADDR_SZ)
 #define NFP_QCP_QUEUE_ADD_RPTR			0x0000
 #define NFP_QCP_QUEUE_ADD_WPTR			0x0004
@@ -788,6 +813,22 @@ static inline u32 nfp_qcp_wr_ptr_read(u8 __iomem *q)
 	return _nfp_qcp_read(q, NFP_QCP_WRITE_PTR);
 }
 
+static inline bool nfp_net_is_data_vnic(struct nfp_net *nn)
+{
+	WARN_ON_ONCE(!nn->dp.netdev && nn->port);
+	return !!nn->dp.netdev;
+}
+
+static inline bool nfp_net_running(struct nfp_net *nn)
+{
+	return nn->dp.ctrl & NFP_NET_CFG_CTRL_ENABLE;
+}
+
+static inline const char *nfp_net_name(struct nfp_net *nn)
+{
+	return nn->dp.netdev ? nn->dp.netdev->name : "ctrl";
+}
+
 /* Globals */
 extern const char nfp_driver_version[];
 
@@ -803,12 +844,15 @@ void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
 			    void __iomem *ctrl_bar);
 
 struct nfp_net *
-nfp_net_alloc(struct pci_dev *pdev,
+nfp_net_alloc(struct pci_dev *pdev, bool needs_netdev,
 	      unsigned int max_tx_rings, unsigned int max_rx_rings);
 void nfp_net_free(struct nfp_net *nn);
 
 int nfp_net_init(struct nfp_net *nn);
 void nfp_net_clean(struct nfp_net *nn);
+
+int nfp_ctrl_open(struct nfp_net *nn);
+void nfp_ctrl_close(struct nfp_net *nn);
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev);
 void nfp_net_info(struct nfp_net *nn);
