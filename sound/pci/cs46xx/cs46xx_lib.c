@@ -1482,9 +1482,9 @@ static struct snd_pcm_hardware snd_cs46xx_capture =
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 
-static unsigned int period_sizes[] = { 32, 64, 128, 256, 512, 1024, 2048 };
+static const unsigned int period_sizes[] = { 32, 64, 128, 256, 512, 1024, 2048 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_period_sizes = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_period_sizes = {
 	.count = ARRAY_SIZE(period_sizes),
 	.list = period_sizes,
 	.mask = 0
