@@ -451,7 +451,6 @@ int second_overflow(time64_t secs)
 		break;
 	}
 
-
 	/* Bump the maxerror field */
 	time_maxerror += MAXFREQ / NSEC_PER_USEC;
 	if (time_maxerror > NTP_PHASE_LIMIT) {
