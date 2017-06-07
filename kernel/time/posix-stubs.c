@@ -41,6 +41,7 @@ SYS_NI(setitimer);
 #ifdef __ARCH_WANT_SYS_ALARM
 SYS_NI(alarm);
 #endif
+COMPAT_SYS_NI(timer_create);
 COMPAT_SYS_NI(clock_adjtime);
 COMPAT_SYS_NI(timer_settime);
 COMPAT_SYS_NI(timer_gettime);

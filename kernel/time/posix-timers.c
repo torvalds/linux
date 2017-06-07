@@ -490,15 +490,12 @@ static int common_timer_create(struct k_itimer *new_timer)
 }
 
 /* Create a POSIX.1b interval timer. */
-
-SYSCALL_DEFINE3(timer_create, const clockid_t, which_clock,
-		struct sigevent __user *, timer_event_spec,
-		timer_t __user *, created_timer_id)
+static int do_timer_create(clockid_t which_clock, struct sigevent *event,
+			   timer_t __user *created_timer_id)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
 	struct k_itimer *new_timer;
 	int error, new_timer_id;
-	sigevent_t event;
 	int it_id_set = IT_ID_NOT_SET;
 
 	if (!kc)
@@ -523,29 +520,25 @@ SYSCALL_DEFINE3(timer_create, const clockid_t, which_clock,
 	new_timer->kclock = kc;
 	new_timer->it_overrun = -1;
 
-	if (timer_event_spec) {
-		if (copy_from_user(&event, timer_event_spec, sizeof (event))) {
-			error = -EFAULT;
-			goto out;
-		}
+	if (event) {
 		rcu_read_lock();
-		new_timer->it_pid = get_pid(good_sigevent(&event));
+		new_timer->it_pid = get_pid(good_sigevent(event));
 		rcu_read_unlock();
 		if (!new_timer->it_pid) {
 			error = -EINVAL;
 			goto out;
 		}
+		new_timer->it_sigev_notify     = event->sigev_notify;
+		new_timer->sigq->info.si_signo = event->sigev_signo;
+		new_timer->sigq->info.si_value = event->sigev_value;
 	} else {
-		memset(&event.sigev_value, 0, sizeof(event.sigev_value));
-		event.sigev_notify = SIGEV_SIGNAL;
-		event.sigev_signo = SIGALRM;
-		event.sigev_value.sival_int = new_timer->it_id;
+		new_timer->it_sigev_notify     = SIGEV_SIGNAL;
+		new_timer->sigq->info.si_signo = SIGALRM;
+		memset(&new_timer->sigq->info.si_value, 0, sizeof(sigval_t));
+		new_timer->sigq->info.si_value.sival_int = new_timer->it_id;
 		new_timer->it_pid = get_pid(task_tgid(current));
 	}
 
-	new_timer->it_sigev_notify     = event.sigev_notify;
-	new_timer->sigq->info.si_signo = event.sigev_signo;
-	new_timer->sigq->info.si_value = event.sigev_value;
 	new_timer->sigq->info.si_tid   = new_timer->it_id;
 	new_timer->sigq->info.si_code  = SI_TIMER;
 
@@ -575,6 +568,36 @@ out:
 	release_posix_timer(new_timer, it_id_set);
 	return error;
 }
+
+SYSCALL_DEFINE3(timer_create, const clockid_t, which_clock,
+		struct sigevent __user *, timer_event_spec,
+		timer_t __user *, created_timer_id)
+{
+	if (timer_event_spec) {
+		sigevent_t event;
+
+		if (copy_from_user(&event, timer_event_spec, sizeof (event)))
+			return -EFAULT;
+		return do_timer_create(which_clock, &event, created_timer_id);
+	}
+	return do_timer_create(which_clock, NULL, created_timer_id);
+}
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE3(timer_create, clockid_t, which_clock,
+		       struct compat_sigevent __user *, timer_event_spec,
+		       timer_t __user *, created_timer_id)
+{
+	if (timer_event_spec) {
+		sigevent_t event;
+
+		if (get_compat_sigevent(&event, timer_event_spec))
+			return -EFAULT;
+		return do_timer_create(which_clock, &event, created_timer_id);
+	}
+	return do_timer_create(which_clock, NULL, created_timer_id);
+}
+#endif
 
 /*
  * Locking issues: We need to protect the result of the id look up until
