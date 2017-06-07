@@ -671,9 +671,6 @@ class TracepointProvider(object):
 
             self.group_leaders.append(group)
 
-    def available_fields(self):
-        return self.get_available_fields()
-
     @property
     def fields(self):
         return self._fields
