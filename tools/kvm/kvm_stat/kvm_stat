@@ -894,15 +894,9 @@ class Tui(object):
             curses.nocbreak()
             curses.endwin()
 
-    @staticmethod
-    def get_pid_from_gname(gname):
-        """Fuzzy function to convert guest name to QEMU process pid.
-
-        Returns a list of potential pids, can be empty if no match found.
-        Throws an exception on processing errors.
-
-        """
-        pids = []
+    def get_all_gnames(self):
+        """Returns a list of (pid, gname) tuples of all running guests"""
+        res = []
         try:
             child = subprocess.Popen(['ps', '-A', '--format', 'pid,args'],
                                      stdout=subprocess.PIPE)
@@ -912,10 +906,39 @@ class Tui(object):
             line = line.lstrip().split(' ', 1)
             # perform a sanity check before calling the more expensive
             # function to possibly extract the guest name
-            if (' -name ' in line[1] and
-                    gname == self.get_gname_from_pid(line[0])):
-                pids.append(int(line[0]))
+            if ' -name ' in line[1]:
+                res.append((line[0], self.get_gname_from_pid(line[0])))
         child.stdout.close()
+
+        return res
+
+    def print_all_gnames(self, row):
+        """Print a list of all running guests along with their pids."""
+        self.screen.addstr(row, 2, '%8s  %-60s' %
+                           ('Pid', 'Guest Name (fuzzy list, might be '
+                            'inaccurate!)'),
+                           curses.A_UNDERLINE)
+        row += 1
+        try:
+            for line in self.get_all_gnames():
+                self.screen.addstr(row, 2, '%8s  %-60s' % (line[0], line[1]))
+                row += 1
+                if row >= self.screen.getmaxyx()[0]:
+                    break
+        except Exception:
+            self.screen.addstr(row + 1, 2, 'Not available')
+
+    def get_pid_from_gname(self, gname):
+        """Fuzzy function to convert guest name to QEMU process pid.
+
+        Returns a list of potential pids, can be empty if no match found.
+        Throws an exception on processing errors.
+
+        """
+        pids = []
+        for line in self.get_all_gnames():
+            if gname == line[1]:
+                pids.append(int(line[0]))
 
         return pids
 
@@ -1102,6 +1125,7 @@ class Tui(object):
                                'This might limit the shown data to the trace '
                                'statistics.')
             self.screen.addstr(5, 0, msg)
+            self.print_all_gnames(7)
 
             curses.echo()
             self.screen.addstr(3, 0, "Pid [0 or pid]: ")
@@ -1171,6 +1195,7 @@ class Tui(object):
                                'This might limit the shown data to the trace '
                                'statistics.')
             self.screen.addstr(5, 0, msg)
+            self.print_all_gnames()
             curses.echo()
             self.screen.addstr(3, 0, "Guest [ENTER or guest]: ")
             gname = self.screen.getstr()
