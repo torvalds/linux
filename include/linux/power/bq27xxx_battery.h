@@ -64,6 +64,7 @@ struct bq27xxx_device_info {
 	int id;
 	enum bq27xxx_chip chip;
 	const char *name;
+	u32 unseal_key;
 	struct bq27xxx_access_methods bus;
 	struct bq27xxx_reg_cache cache;
 	int charge_design_full;
