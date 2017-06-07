@@ -887,8 +887,6 @@ class Stats(object):
                 self.values[key] = (newval, newdelta)
         return self.values
 
-LABEL_WIDTH = 40
-NUMBER_WIDTH = 10
 DELAY_INITIAL = 0.25
 DELAY_REGULAR = 3.0
 MAX_GUEST_NAME_LEN = 48
@@ -970,13 +968,8 @@ class Tui(object):
             if len(regex) > MAX_REGEX_LEN:
                 regex = regex[:MAX_REGEX_LEN] + '...'
             self.screen.addstr(1, 17, 'regex filter: {0}'.format(regex))
-        self.screen.addstr(2, 1, 'Event')
-        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH -
-                           len('Total'), 'Total')
-        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 7 -
-                           len('%Total'), '%Total')
-        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 7 + 8 -
-                           len('Current'), 'Current')
+        self.screen.addstr(2, 1, '%-40s %10s%7s %7s' %
+                           ('Event', 'Total', '%Total', 'Current'))
         self.screen.addstr(4, 1, 'Collecting data...')
         self.screen.refresh()
 
@@ -1001,16 +994,11 @@ class Tui(object):
             values = stats[key]
             if not values[0] and not values[1]:
                 break
-            col = 1
-            self.screen.addstr(row, col, key)
-            col += LABEL_WIDTH
-            self.screen.addstr(row, col, '%10d' % (values[0],))
-            col += NUMBER_WIDTH
-            self.screen.addstr(row, col, '%7.1f' % (values[0] * 100 / total,))
-            col += 7
-            if values[1] is not None:
-                self.screen.addstr(row, col, '%8d' %
-                                   round(values[1] / sleeptime))
+            if values[0] is not None:
+                cur = int(round(values[1] / sleeptime)) if values[1] else ''
+                self.screen.addstr(row, 1, '%-40s %10d%7.1f %7s' %
+                                   (key, values[0], values[0] * 100 / total,
+                                    cur))
             row += 1
         self.screen.refresh()
 
