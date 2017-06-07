@@ -1981,10 +1981,7 @@ for each construct.  These operations all imply certain barriers:
      ACQUIRE operation has completed.
 
      Memory operations issued before the ACQUIRE may be completed after
-     the ACQUIRE operation has completed.  An smp_mb__before_spinlock(),
-     combined with a following ACQUIRE, orders prior stores against
-     subsequent loads and stores.  Note that this is weaker than smp_mb()!
-     The smp_mb__before_spinlock() primitive is free on many architectures.
+     the ACQUIRE operation has completed.
 
  (2) RELEASE operation implication:
 

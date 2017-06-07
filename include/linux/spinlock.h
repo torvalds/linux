@@ -118,19 +118,6 @@ do {								\
 #endif
 
 /*
- * Despite its name it doesn't necessarily has to be a full barrier.
- * It should only guarantee that a STORE before the critical section
- * can not be reordered with LOADs and STOREs inside this section.
- * spin_lock() is the one-way barrier, this LOAD can not escape out
- * of the region. So the default implementation simply ensures that
- * a STORE can not move into the critical section, smp_wmb() should
- * serialize it with another STORE done by spin_lock().
- */
-#ifndef smp_mb__before_spinlock
-#define smp_mb__before_spinlock()	smp_wmb()
-#endif
-
-/*
  * This barrier must provide two things:
  *
  *   - it must guarantee a STORE before the spin_lock() is ordered against a
