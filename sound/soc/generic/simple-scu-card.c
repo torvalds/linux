@@ -192,13 +192,13 @@ static int asoc_simple_card_dai_link_of(struct device_node *np,
 	return 0;
 }
 
-static int asoc_simple_card_parse_of(struct device_node *node,
-				     struct simple_card_data *priv)
+static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *np;
 	struct snd_soc_card *card = simple_priv_to_card(priv);
+	struct device_node *node = dev->of_node;
 	unsigned int daifmt = 0;
 	bool is_fe;
 	int ret, i;
@@ -281,7 +281,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	card->codec_conf	= &priv->codec_conf;
 	card->num_configs	= 1;
 
-	ret = asoc_simple_card_parse_of(np, priv);
+	ret = asoc_simple_card_parse_of(priv);
 	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "parse error %d\n", ret);
