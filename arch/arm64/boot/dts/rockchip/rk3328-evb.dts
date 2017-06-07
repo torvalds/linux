@@ -455,7 +455,6 @@
 };
 
 &usb20_otg {
-	dr_mode = "peripheral";
 	status = "okay";
 };
 
