@@ -580,7 +580,7 @@ static unsigned int tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 		opts->options |= OPTION_WSCALE;
 		remaining -= TCPOLEN_WSCALE_ALIGNED;
 	}
-	if (likely(sysctl_tcp_sack)) {
+	if (likely(sock_net(sk)->ipv4.sysctl_tcp_sack)) {
 		opts->options |= OPTION_SACK_ADVERTISE;
 		if (unlikely(!(OPTION_TS & opts->options)))
 			remaining -= TCPOLEN_SACKPERM_ALIGNED;

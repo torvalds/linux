@@ -239,7 +239,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 /* sysctl variables for tcp */
 extern int sysctl_tcp_timestamps;
 extern int sysctl_tcp_window_scaling;
-extern int sysctl_tcp_sack;
 extern int sysctl_tcp_fastopen;
 extern int sysctl_tcp_retrans_collapse;
 extern int sysctl_tcp_stdurg;
@@ -520,7 +519,8 @@ u32 __cookie_v4_init_sequence(const struct iphdr *iph, const struct tcphdr *th,
 			      u16 *mssp);
 __u32 cookie_v4_init_sequence(const struct sk_buff *skb, __u16 *mss);
 u64 cookie_init_timestamp(struct request_sock *req);
-bool cookie_timestamp_decode(struct tcp_options_received *opt);
+bool cookie_timestamp_decode(const struct net *net,
+			     struct tcp_options_received *opt);
 bool cookie_ecn_ok(const struct tcp_options_received *opt,
 		   const struct net *net, const struct dst_entry *dst);
 

@@ -170,7 +170,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		tcp_opt.rcv_tsecr -= tsoff;
 	}
 
-	if (!cookie_timestamp_decode(&tcp_opt))
+	if (!cookie_timestamp_decode(sock_net(sk), &tcp_opt))
 		goto out;
 
 	ret = NULL;
