@@ -26,6 +26,7 @@
 #include <asm/switch_to.h>
 #include <asm/ctl_reg.h>
 #include <asm/asm-offsets.h>
+#include <linux/kvm_host.h>
 
 struct mcck_struct {
 	unsigned int kill_task : 1;
@@ -275,6 +276,31 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 	return kill_task;
 }
 
+/*
+ * Backup the guest's machine check info to its description block
+ */
+static void notrace s390_backup_mcck_info(struct pt_regs *regs)
+{
+	struct mcck_volatile_info *mcck_backup;
+	struct sie_page *sie_page;
+
+	/* r14 contains the sie block, which was set in sie64a */
+	struct kvm_s390_sie_block *sie_block =
+			(struct kvm_s390_sie_block *) regs->gprs[14];
+
+	if (sie_block == NULL)
+		/* Something's seriously wrong, stop system. */
+		s390_handle_damage();
+
+	sie_page = container_of(sie_block, struct sie_page, sie_block);
+	mcck_backup = &sie_page->mcck_info;
+	mcck_backup->mcic = S390_lowcore.mcck_interruption_code &
+				~(MCCK_CODE_CP | MCCK_CODE_EXT_DAMAGE);
+	mcck_backup->ext_damage_code = S390_lowcore.external_damage_code;
+	mcck_backup->failing_storage_address
+			= S390_lowcore.failing_storage_address;
+}
+
 #define MAX_IPD_COUNT	29
 #define MAX_IPD_TIME	(5 * 60 * USEC_PER_SEC) /* 5 minutes */
 
@@ -355,6 +381,14 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		mcck->mcck_code = mci.val;
 		set_cpu_flag(CIF_MCCK_PENDING);
 	}
+
+	/*
+	 * Backup the machine check's info if it happens when the guest
+	 * is running.
+	 */
+	if (test_cpu_flag(CIF_MCCK_GUEST))
+		s390_backup_mcck_info(regs);
+
 	if (mci.cd) {
 		/* Timing facility damage */
 		s390_handle_damage();
