@@ -1013,6 +1013,8 @@ class Tui(object):
                                    (key, values[0], values[0] * 100 / total,
                                     cur))
             row += 1
+        if row == 3:
+            self.screen.addstr(4, 1, 'No matching events reported yet')
         self.screen.refresh()
 
     def show_filter_selection(self):
