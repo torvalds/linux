@@ -3538,9 +3538,17 @@ static int is_ancestor(struct btrfs_root *root,
 		       struct fs_path *fs_path)
 {
 	u64 ino = ino2;
+	bool free_path = false;
+	int ret = 0;
+
+	if (!fs_path) {
+		fs_path = fs_path_alloc();
+		if (!fs_path)
+			return -ENOMEM;
+		free_path = true;
+	}
 
 	while (ino > BTRFS_FIRST_FREE_OBJECTID) {
-		int ret;
 		u64 parent;
 		u64 parent_gen;
 
@@ -3549,13 +3557,18 @@ static int is_ancestor(struct btrfs_root *root,
 		if (ret < 0) {
 			if (ret == -ENOENT && ino == ino2)
 				ret = 0;
-			return ret;
+			goto out;
 		}
-		if (parent == ino1)
-			return parent_gen == ino1_gen ? 1 : 0;
+		if (parent == ino1) {
+			ret = parent_gen == ino1_gen ? 1 : 0;
+			goto out;
+		}
 		ino = parent;
 	}
-	return 0;
+ out:
+	if (free_path)
+		fs_path_free(fs_path);
+	return ret;
 }
 
 static int wait_for_parent_move(struct send_ctx *sctx,
@@ -3829,9 +3842,15 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 				 * might contain the pre-orphanization name of
 				 * ow_inode, which is no longer valid.
 				 */
-				fs_path_reset(valid_path);
-				ret = get_cur_path(sctx, sctx->cur_ino,
-					   sctx->cur_inode_gen, valid_path);
+				ret = is_ancestor(sctx->parent_root,
+						  ow_inode, ow_gen,
+						  sctx->cur_ino, NULL);
+				if (ret > 0) {
+					fs_path_reset(valid_path);
+					ret = get_cur_path(sctx, sctx->cur_ino,
+							   sctx->cur_inode_gen,
+							   valid_path);
+				}
 				if (ret < 0)
 					goto out;
 			} else {
