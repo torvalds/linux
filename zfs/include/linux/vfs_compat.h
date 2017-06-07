@@ -69,45 +69,115 @@ truncate_setsize(struct inode *ip, loff_t new)
 /*
  * 2.6.32 - 2.6.33, bdi_setup_and_register() is not available.
  * 2.6.34 - 3.19, bdi_setup_and_register() takes 3 arguments.
- * 4.0 - x.y, bdi_setup_and_register() takes 2 arguments.
+ * 4.0 - 4.11, bdi_setup_and_register() takes 2 arguments.
+ * 4.12 - x.y, super_setup_bdi_name() new interface.
  */
-#if defined(HAVE_2ARGS_BDI_SETUP_AND_REGISTER)
+#if defined(HAVE_SUPER_SETUP_BDI_NAME)
+extern atomic_long_t zfs_bdi_seq;
+
 static inline int
-zpl_bdi_setup_and_register(struct backing_dev_info *bdi, char *name)
+zpl_bdi_setup(struct super_block *sb, char *name)
 {
-	return (bdi_setup_and_register(bdi, name));
+	return super_setup_bdi_name(sb, "%.28s-%ld", name,
+		atomic_long_inc_return(&zfs_bdi_seq));
+}
+static inline void
+zpl_bdi_destroy(struct super_block *sb)
+{
+}
+#elif defined(HAVE_2ARGS_BDI_SETUP_AND_REGISTER)
+static inline int
+zpl_bdi_setup(struct super_block *sb, char *name)
+{
+	struct backing_dev_info *bdi;
+	int error;
+
+	bdi = kmem_zalloc(sizeof (struct backing_dev_info), KM_SLEEP);
+	error = bdi_setup_and_register(bdi, name);
+	if (error) {
+		kmem_free(bdi, sizeof (struct backing_dev_info));
+		return (error);
+	}
+
+	sb->s_bdi = bdi;
+
+	return (0);
+}
+static inline void
+zpl_bdi_destroy(struct super_block *sb)
+{
+	struct backing_dev_info *bdi = sb->s_bdi;
+
+	bdi_destroy(bdi);
+	kmem_free(bdi, sizeof (struct backing_dev_info));
+	sb->s_bdi = NULL;
 }
 #elif defined(HAVE_3ARGS_BDI_SETUP_AND_REGISTER)
 static inline int
-zpl_bdi_setup_and_register(struct backing_dev_info *bdi, char *name)
+zpl_bdi_setup(struct super_block *sb, char *name)
 {
-	return (bdi_setup_and_register(bdi, name, BDI_CAP_MAP_COPY));
+	struct backing_dev_info *bdi;
+	int error;
+
+	bdi = kmem_zalloc(sizeof (struct backing_dev_info), KM_SLEEP);
+	error = bdi_setup_and_register(bdi, name, BDI_CAP_MAP_COPY);
+	if (error) {
+		kmem_free(sb->s_bdi, sizeof (struct backing_dev_info));
+		return (error);
+	}
+
+	sb->s_bdi = bdi;
+
+	return (0);
+}
+static inline void
+zpl_bdi_destroy(struct super_block *sb)
+{
+	struct backing_dev_info *bdi = sb->s_bdi;
+
+	bdi_destroy(bdi);
+	kmem_free(bdi, sizeof (struct backing_dev_info));
+	sb->s_bdi = NULL;
 }
 #else
 extern atomic_long_t zfs_bdi_seq;
 
 static inline int
-zpl_bdi_setup_and_register(struct backing_dev_info *bdi, char *name)
+zpl_bdi_setup(struct super_block *sb, char *name)
 {
-	char tmp[32];
+	struct backing_dev_info *bdi;
 	int error;
 
+	bdi = kmem_zalloc(sizeof (struct backing_dev_info), KM_SLEEP);
 	bdi->name = name;
 	bdi->capabilities = BDI_CAP_MAP_COPY;
 
 	error = bdi_init(bdi);
-	if (error)
-		return (error);
-
-	sprintf(tmp, "%.28s%s", name, "-%d");
-	error = bdi_register(bdi, NULL, tmp,
-	    atomic_long_inc_return(&zfs_bdi_seq));
 	if (error) {
-		bdi_destroy(bdi);
+		kmem_free(bdi, sizeof (struct backing_dev_info));
 		return (error);
 	}
 
-	return (error);
+	error = bdi_register(bdi, NULL, "%.28s-%ld", name,
+	    atomic_long_inc_return(&zfs_bdi_seq));
+	if (error) {
+		bdi_destroy(bdi);
+		kmem_free(bdi, sizeof (struct backing_dev_info));
+		return (error);
+	}
+
+	sb->s_bdi = bdi;
+
+	return (0);
+}
+static inline void
+zpl_bdi_destroy(struct super_block *sb)
+{
+	struct backing_dev_info *bdi = sb->s_bdi;
+
+	bdi_destroy(bdi);
+	kmem_free(bdi, sizeof (struct backing_dev_info));
+	sb->s_bdi = NULL;
 }
 #endif
 
@@ -410,5 +480,16 @@ func(const struct path *path, struct kstat *stat, u32 request_mask,	\
 #error
 #endif
 
+/*
+ * 4.9 API change
+ * Preferred interface to get the current FS time.
+ */
+#if !defined(HAVE_CURRENT_TIME)
+static inline struct timespec
+current_time(struct inode *ip)
+{
+	return (timespec_trunc(current_kernel_time(), ip->i_sb->s_time_gran));
+}
+#endif
 
 #endif /* _ZFS_VFS_H */

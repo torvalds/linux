@@ -1403,12 +1403,12 @@ zfs_domount(struct super_block *sb, zfs_mntopts_t *zmo, int silent)
 	sb->s_time_gran = 1;
 	sb->s_blocksize = recordsize;
 	sb->s_blocksize_bits = ilog2(recordsize);
-	zsb->z_bdi.ra_pages = 0;
-	sb->s_bdi = &zsb->z_bdi;
 
-	error = -zpl_bdi_setup_and_register(&zsb->z_bdi, "zfs");
+	error = -zpl_bdi_setup(sb, "zfs");
 	if (error)
 		goto out;
+
+	sb->s_bdi->ra_pages = 0;
 
 	/* Set callback operations for the file system. */
 	sb->s_op = &zpl_super_operations;
@@ -1505,7 +1505,7 @@ zfs_umount(struct super_block *sb)
 	arc_remove_prune_callback(zsb->z_arc_prune);
 	VERIFY(zfs_sb_teardown(zsb, B_TRUE) == 0);
 	os = zsb->z_os;
-	bdi_destroy(sb->s_bdi);
+	zpl_bdi_destroy(sb);
 
 	/*
 	 * z_os will be NULL if there was an error in

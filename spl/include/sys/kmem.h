@@ -46,6 +46,8 @@ extern void strfree(char *str);
 
 #define	KM_PUBLIC_MASK	(KM_SLEEP | KM_NOSLEEP | KM_PUSHPAGE)
 
+static int spl_fstrans_check(void);
+
 /*
  * Convert a KM_* flags mask to its Linux GFP_* counterpart.  The conversion
  * function is context aware which means that KM_SLEEP allocations can be
@@ -60,7 +62,7 @@ kmem_flags_convert(int flags)
 		lflags |= GFP_ATOMIC | __GFP_NORETRY;
 	} else {
 		lflags |= GFP_KERNEL;
-		if ((current->flags & PF_FSTRANS))
+		if (spl_fstrans_check())
 			lflags &= ~(__GFP_IO|__GFP_FS);
 	}
 
@@ -78,16 +80,33 @@ typedef struct {
 	unsigned int saved_flags;
 } fstrans_cookie_t;
 
+/*
+ * Introduced in Linux 3.9, however this cannot be solely relied on before
+ * Linux 3.18 as it doesn't turn off __GFP_FS as it should.
+ */
 #ifdef PF_MEMALLOC_NOIO
-#define	SPL_FSTRANS (PF_FSTRANS|PF_MEMALLOC_NOIO)
+#define	__SPL_PF_MEMALLOC_NOIO (PF_MEMALLOC_NOIO)
 #else
-#define	SPL_FSTRANS (PF_FSTRANS)
+#define	__SPL_PF_MEMALLOC_NOIO (0)
 #endif
+
+/*
+ * PF_FSTRANS is removed from Linux 4.12
+ */
+#ifdef PF_FSTRANS
+#define	__SPL_PF_FSTRANS (PF_FSTRANS)
+#else
+#define	__SPL_PF_FSTRANS (0)
+#endif
+
+#define	SPL_FSTRANS (__SPL_PF_FSTRANS|__SPL_PF_MEMALLOC_NOIO)
 
 static inline fstrans_cookie_t
 spl_fstrans_mark(void)
 {
 	fstrans_cookie_t cookie;
+
+	BUILD_BUG_ON(SPL_FSTRANS == 0);
 
 	cookie.fstrans_thread = current;
 	cookie.saved_flags = current->flags & SPL_FSTRANS;
@@ -109,7 +128,17 @@ spl_fstrans_unmark(fstrans_cookie_t cookie)
 static inline int
 spl_fstrans_check(void)
 {
-	return (current->flags & PF_FSTRANS);
+	return (current->flags & SPL_FSTRANS);
+}
+
+/*
+ * specifically used to check PF_FSTRANS flag, cannot be relied on for
+ * checking spl_fstrans_mark().
+ */
+static inline int
+__spl_pf_fstrans_check(void)
+{
+	return (current->flags & __SPL_PF_FSTRANS);
 }
 
 #ifdef HAVE_ATOMIC64_T

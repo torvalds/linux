@@ -557,7 +557,7 @@ zpl_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 		return (-EMLINK);
 
 	crhold(cr);
-	ip->i_ctime = CURRENT_TIME_SEC;
+	ip->i_ctime = current_time(ip);
 	igrab(ip); /* Use ihold() if available */
 
 	cookie = spl_fstrans_mark();

@@ -748,6 +748,7 @@ typedef int fstrans_cookie_t;
 extern fstrans_cookie_t spl_fstrans_mark(void);
 extern void spl_fstrans_unmark(fstrans_cookie_t);
 extern int spl_fstrans_check(void);
+extern int __spl_pf_fstrans_check(void);
 
 #endif /* _KERNEL */
 #endif	/* _SYS_ZFS_CONTEXT_H */

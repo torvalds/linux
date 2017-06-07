@@ -103,8 +103,10 @@ static int
 zpl_root_getattr_impl(const struct path *path, struct kstat *stat,
     u32 request_mask, unsigned int query_flags)
 {
-	generic_fillattr(path->dentry->d_inode, stat);
-	stat->atime = CURRENT_TIME;
+	struct inode *ip = path->dentry->d_inode;
+
+	generic_fillattr(ip, stat);
+	stat->atime = current_time(ip);
 
 	return (0);
 }
@@ -377,14 +379,15 @@ static int
 zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
     u32 request_mask, unsigned int query_flags)
 {
-	zfs_sb_t *zsb = ITOZSB(path->dentry->d_inode);
+	struct inode *ip = path->dentry->d_inode;
+	zfs_sb_t *zsb = ITOZSB(ip);
 
 	ZFS_ENTER(zsb);
-	generic_fillattr(path->dentry->d_inode, stat);
+	generic_fillattr(ip, stat);
 
 	stat->nlink = stat->size = 2;
 	stat->ctime = stat->mtime = dmu_objset_snap_cmtime(zsb->z_os);
-	stat->atime = CURRENT_TIME;
+	stat->atime = current_time(ip);
 	ZFS_EXIT(zsb);
 
 	return (0);
@@ -522,7 +525,7 @@ zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
 	if (zsb->z_shares_dir == 0) {
 		generic_fillattr(path->dentry->d_inode, stat);
 		stat->nlink = stat->size = 2;
-		stat->atime = CURRENT_TIME;
+		stat->atime = current_time(ip);
 		ZFS_EXIT(zsb);
 		return (0);
 	}

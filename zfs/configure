@@ -22974,16 +22974,16 @@ fi
 
 
 
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 2 args" >&5
-$as_echo_n "checking whether bdi_setup_and_register() wants 2 args... " >&6; }
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether super_setup_bdi_name() exists" >&5
+$as_echo_n "checking whether super_setup_bdi_name() exists... " >&6; }
 
 
 
 cat confdefs.h - <<_ACEOF >conftest.c
 
 
-		#include <linux/backing-dev.h>
-		struct backing_dev_info bdi;
+		#include <linux/fs.h>
+		struct super_block sb;
 
 int
 main (void)
@@ -22991,7 +22991,7 @@ main (void)
 
 		char *name = "bdi";
 		int error __attribute__((unused)) =
-		    bdi_setup_and_register(&bdi, name);
+		    super_setup_bdi_name(&sb, name);
 
   ;
   return 0;
@@ -23036,8 +23036,8 @@ fi
 
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
-$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 2 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 2 args... " >&6; }
 
 
 
@@ -23052,9 +23052,8 @@ main (void)
 {
 
 			char *name = "bdi";
-			unsigned int cap = BDI_CAP_MAP_COPY;
 			int error __attribute__((unused)) =
-			    bdi_setup_and_register(&bdi, name, cap);
+			    bdi_setup_and_register(&bdi, name);
 
   ;
   return 0;
@@ -23099,6 +23098,113 @@ fi
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
+
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+				#include <linux/backing-dev.h>
+				struct backing_dev_info bdi;
+
+int
+main (void)
+{
+
+				char *name = "bdi";
+				unsigned int cap = BDI_CAP_MAP_COPY;
+				int error __attribute__((unused)) =
+				    bdi_setup_and_register(&bdi, name, cap);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  rc=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+ rc=1
+
+
+fi
+	rm -Rf build
+
+
+	if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+	else
+		if test "x$enable_linux_builtin" != xyes; then
+
+	grep -q -E '[[:space:]]bdi_setup_and_register[[:space:]]' \
+		$LINUX_OBJ/$LINUX_SYMBOLS 2>/dev/null
+	rc=$?
+	if test $rc -ne 0; then
+		export=0
+		for file in mm/backing-dev.c; do
+			grep -q -E "EXPORT_SYMBOL.*(bdi_setup_and_register)" \
+				"$LINUX/$file" 2>/dev/null
+			rc=$?
+			if test $rc -eq 0; then
+				export=1
+				break;
+			fi
+		done
+		if test $export -eq 0; then :
+			rc=1
+		else :
+			rc=0
+		fi
+	else :
+		rc=0
+	fi
+
+		fi
+		if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+		else :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+
+
+		fi
+	fi
+
 
 	else
 		if test "x$enable_linux_builtin" != xyes; then
@@ -23131,18 +23237,69 @@ $as_echo "no" >&6; }
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-
-		else :
-
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
 
 
-		fi
-	fi
 
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+				#include <linux/backing-dev.h>
+				struct backing_dev_info bdi;
+
+int
+main (void)
+{
+
+				char *name = "bdi";
+				unsigned int cap = BDI_CAP_MAP_COPY;
+				int error __attribute__((unused)) =
+				    bdi_setup_and_register(&bdi, name, cap);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  rc=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+ rc=1
+
+
+fi
+	rm -Rf build
+
+
+	if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 
 	else
 		if test "x$enable_linux_builtin" != xyes; then
@@ -23154,6 +23311,62 @@ $as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
 		export=0
 		for file in mm/backing-dev.c; do
 			grep -q -E "EXPORT_SYMBOL.*(bdi_setup_and_register)" \
+				"$LINUX/$file" 2>/dev/null
+			rc=$?
+			if test $rc -eq 0; then
+				export=1
+				break;
+			fi
+		done
+		if test $export -eq 0; then :
+			rc=1
+		else :
+			rc=0
+		fi
+	else :
+		rc=0
+	fi
+
+		fi
+		if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+		else :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+
+
+		fi
+	fi
+
+
+		else :
+
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_2ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+
+
+		fi
+	fi
+
+
+	else
+		if test "x$enable_linux_builtin" != xyes; then
+
+	grep -q -E '[[:space:]]super_setup_bdi_name[[:space:]]' \
+		$LINUX_OBJ/$LINUX_SYMBOLS 2>/dev/null
+	rc=$?
+	if test $rc -ne 0; then
+		export=0
+		for file in fs/super.c; do
+			grep -q -E "EXPORT_SYMBOL.*(super_setup_bdi_name)" \
 				"$LINUX/$file" 2>/dev/null
 			rc=$?
 			if test $rc -eq 0; then
@@ -23175,8 +23388,8 @@ $as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
 
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
-$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 2 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 2 args... " >&6; }
 
 
 
@@ -23191,9 +23404,8 @@ main (void)
 {
 
 			char *name = "bdi";
-			unsigned int cap = BDI_CAP_MAP_COPY;
 			int error __attribute__((unused)) =
-			    bdi_setup_and_register(&bdi, name, cap);
+			    bdi_setup_and_register(&bdi, name);
 
   ;
   return 0;
@@ -23238,6 +23450,113 @@ fi
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
+
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+				#include <linux/backing-dev.h>
+				struct backing_dev_info bdi;
+
+int
+main (void)
+{
+
+				char *name = "bdi";
+				unsigned int cap = BDI_CAP_MAP_COPY;
+				int error __attribute__((unused)) =
+				    bdi_setup_and_register(&bdi, name, cap);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  rc=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+ rc=1
+
+
+fi
+	rm -Rf build
+
+
+	if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+	else
+		if test "x$enable_linux_builtin" != xyes; then
+
+	grep -q -E '[[:space:]]bdi_setup_and_register[[:space:]]' \
+		$LINUX_OBJ/$LINUX_SYMBOLS 2>/dev/null
+	rc=$?
+	if test $rc -ne 0; then
+		export=0
+		for file in mm/backing-dev.c; do
+			grep -q -E "EXPORT_SYMBOL.*(bdi_setup_and_register)" \
+				"$LINUX/$file" 2>/dev/null
+			rc=$?
+			if test $rc -eq 0; then
+				export=1
+				break;
+			fi
+		done
+		if test $export -eq 0; then :
+			rc=1
+		else :
+			rc=0
+		fi
+	else :
+		rc=0
+	fi
+
+		fi
+		if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+		else :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+
+
+		fi
+	fi
+
 
 	else
 		if test "x$enable_linux_builtin" != xyes; then
@@ -23270,13 +23589,120 @@ $as_echo "no" >&6; }
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
+
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+				#include <linux/backing-dev.h>
+				struct backing_dev_info bdi;
+
+int
+main (void)
+{
+
+				char *name = "bdi";
+				unsigned int cap = BDI_CAP_MAP_COPY;
+				int error __attribute__((unused)) =
+				    bdi_setup_and_register(&bdi, name, cap);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  rc=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+ rc=1
+
+
+fi
+	rm -Rf build
+
+
+	if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+	else
+		if test "x$enable_linux_builtin" != xyes; then
+
+	grep -q -E '[[:space:]]bdi_setup_and_register[[:space:]]' \
+		$LINUX_OBJ/$LINUX_SYMBOLS 2>/dev/null
+	rc=$?
+	if test $rc -ne 0; then
+		export=0
+		for file in mm/backing-dev.c; do
+			grep -q -E "EXPORT_SYMBOL.*(bdi_setup_and_register)" \
+				"$LINUX/$file" 2>/dev/null
+			rc=$?
+			if test $rc -eq 0; then
+				export=1
+				break;
+			fi
+		done
+		if test $export -eq 0; then :
+			rc=1
+		else :
+			rc=0
+		fi
+	else :
+		rc=0
+	fi
+
+		fi
+		if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+		else :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+
+
+		fi
+	fi
+
 
 		else :
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
-$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+$as_echo "#define HAVE_2ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
 
 
 		fi
@@ -23288,7 +23714,7 @@ $as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
-$as_echo "#define HAVE_2ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+$as_echo "#define HAVE_SUPER_SETUP_BDI_NAME 1" >>confdefs.h
 
 
 		fi
@@ -24558,6 +24984,113 @@ $as_echo "no" >&6; }
 fi
 	rm -Rf build
 
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether current_time() exists" >&5
+$as_echo_n "checking whether current_time() exists... " >&6; }
+
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/fs.h>
+
+int
+main (void)
+{
+
+		struct inode ip;
+		struct timespec now __attribute__ ((unused));
+
+		now = current_time(&ip);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  rc=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+ rc=1
+
+
+fi
+	rm -Rf build
+
+
+	if test $rc -ne 0; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+	else
+		if test "x$enable_linux_builtin" != xyes; then
+
+	grep -q -E '[[:space:]]current_time[[:space:]]' \
+		$LINUX_OBJ/$LINUX_SYMBOLS 2>/dev/null
+	rc=$?
+	if test $rc -ne 0; then
+		export=0
+		for file in fs/inode.c; do
+			grep -q -E "EXPORT_SYMBOL.*(current_time)" \
+				"$LINUX/$file" 2>/dev/null
+			rc=$?
+			if test $rc -eq 0; then
+				export=1
+				break;
+			fi
+		done
+		if test $export -eq 0; then :
+			rc=1
+		else :
+			rc=0
+		fi
+	else :
+		rc=0
+	fi
+
+		fi
+		if test $rc -ne 0; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+		else :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_CURRENT_TIME 1" >>confdefs.h
+
+
+		fi
+	fi
 
 
 
@@ -33998,16 +34531,16 @@ fi
 
 
 
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 2 args" >&5
-$as_echo_n "checking whether bdi_setup_and_register() wants 2 args... " >&6; }
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether super_setup_bdi_name() exists" >&5
+$as_echo_n "checking whether super_setup_bdi_name() exists... " >&6; }
 
 
 
 cat confdefs.h - <<_ACEOF >conftest.c
 
 
-		#include <linux/backing-dev.h>
-		struct backing_dev_info bdi;
+		#include <linux/fs.h>
+		struct super_block sb;
 
 int
 main (void)
@@ -34015,7 +34548,7 @@ main (void)
 
 		char *name = "bdi";
 		int error __attribute__((unused)) =
-		    bdi_setup_and_register(&bdi, name);
+		    super_setup_bdi_name(&sb, name);
 
   ;
   return 0;
@@ -34060,8 +34593,8 @@ fi
 
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
-$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 2 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 2 args... " >&6; }
 
 
 
@@ -34076,9 +34609,8 @@ main (void)
 {
 
 			char *name = "bdi";
-			unsigned int cap = BDI_CAP_MAP_COPY;
 			int error __attribute__((unused)) =
-			    bdi_setup_and_register(&bdi, name, cap);
+			    bdi_setup_and_register(&bdi, name);
 
   ;
   return 0;
@@ -34123,6 +34655,113 @@ fi
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
+
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+				#include <linux/backing-dev.h>
+				struct backing_dev_info bdi;
+
+int
+main (void)
+{
+
+				char *name = "bdi";
+				unsigned int cap = BDI_CAP_MAP_COPY;
+				int error __attribute__((unused)) =
+				    bdi_setup_and_register(&bdi, name, cap);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  rc=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+ rc=1
+
+
+fi
+	rm -Rf build
+
+
+	if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+	else
+		if test "x$enable_linux_builtin" != xyes; then
+
+	grep -q -E '[[:space:]]bdi_setup_and_register[[:space:]]' \
+		$LINUX_OBJ/$LINUX_SYMBOLS 2>/dev/null
+	rc=$?
+	if test $rc -ne 0; then
+		export=0
+		for file in mm/backing-dev.c; do
+			grep -q -E "EXPORT_SYMBOL.*(bdi_setup_and_register)" \
+				"$LINUX/$file" 2>/dev/null
+			rc=$?
+			if test $rc -eq 0; then
+				export=1
+				break;
+			fi
+		done
+		if test $export -eq 0; then :
+			rc=1
+		else :
+			rc=0
+		fi
+	else :
+		rc=0
+	fi
+
+		fi
+		if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+		else :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+
+
+		fi
+	fi
+
 
 	else
 		if test "x$enable_linux_builtin" != xyes; then
@@ -34155,18 +34794,69 @@ $as_echo "no" >&6; }
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-
-		else :
-
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
 
 
-		fi
-	fi
 
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+				#include <linux/backing-dev.h>
+				struct backing_dev_info bdi;
+
+int
+main (void)
+{
+
+				char *name = "bdi";
+				unsigned int cap = BDI_CAP_MAP_COPY;
+				int error __attribute__((unused)) =
+				    bdi_setup_and_register(&bdi, name, cap);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  rc=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+ rc=1
+
+
+fi
+	rm -Rf build
+
+
+	if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 
 	else
 		if test "x$enable_linux_builtin" != xyes; then
@@ -34178,6 +34868,62 @@ $as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
 		export=0
 		for file in mm/backing-dev.c; do
 			grep -q -E "EXPORT_SYMBOL.*(bdi_setup_and_register)" \
+				"$LINUX/$file" 2>/dev/null
+			rc=$?
+			if test $rc -eq 0; then
+				export=1
+				break;
+			fi
+		done
+		if test $export -eq 0; then :
+			rc=1
+		else :
+			rc=0
+		fi
+	else :
+		rc=0
+	fi
+
+		fi
+		if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+		else :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+
+
+		fi
+	fi
+
+
+		else :
+
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_2ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+
+
+		fi
+	fi
+
+
+	else
+		if test "x$enable_linux_builtin" != xyes; then
+
+	grep -q -E '[[:space:]]super_setup_bdi_name[[:space:]]' \
+		$LINUX_OBJ/$LINUX_SYMBOLS 2>/dev/null
+	rc=$?
+	if test $rc -ne 0; then
+		export=0
+		for file in fs/super.c; do
+			grep -q -E "EXPORT_SYMBOL.*(super_setup_bdi_name)" \
 				"$LINUX/$file" 2>/dev/null
 			rc=$?
 			if test $rc -eq 0; then
@@ -34199,8 +34945,8 @@ $as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
 
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
-$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 2 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 2 args... " >&6; }
 
 
 
@@ -34215,9 +34961,8 @@ main (void)
 {
 
 			char *name = "bdi";
-			unsigned int cap = BDI_CAP_MAP_COPY;
 			int error __attribute__((unused)) =
-			    bdi_setup_and_register(&bdi, name, cap);
+			    bdi_setup_and_register(&bdi, name);
 
   ;
   return 0;
@@ -34262,6 +35007,113 @@ fi
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
+
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+				#include <linux/backing-dev.h>
+				struct backing_dev_info bdi;
+
+int
+main (void)
+{
+
+				char *name = "bdi";
+				unsigned int cap = BDI_CAP_MAP_COPY;
+				int error __attribute__((unused)) =
+				    bdi_setup_and_register(&bdi, name, cap);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  rc=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+ rc=1
+
+
+fi
+	rm -Rf build
+
+
+	if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+	else
+		if test "x$enable_linux_builtin" != xyes; then
+
+	grep -q -E '[[:space:]]bdi_setup_and_register[[:space:]]' \
+		$LINUX_OBJ/$LINUX_SYMBOLS 2>/dev/null
+	rc=$?
+	if test $rc -ne 0; then
+		export=0
+		for file in mm/backing-dev.c; do
+			grep -q -E "EXPORT_SYMBOL.*(bdi_setup_and_register)" \
+				"$LINUX/$file" 2>/dev/null
+			rc=$?
+			if test $rc -eq 0; then
+				export=1
+				break;
+			fi
+		done
+		if test $export -eq 0; then :
+			rc=1
+		else :
+			rc=0
+		fi
+	else :
+		rc=0
+	fi
+
+		fi
+		if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+		else :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+
+
+		fi
+	fi
+
 
 	else
 		if test "x$enable_linux_builtin" != xyes; then
@@ -34294,13 +35146,120 @@ $as_echo "no" >&6; }
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bdi_setup_and_register() wants 3 args" >&5
+$as_echo_n "checking whether bdi_setup_and_register() wants 3 args... " >&6; }
+
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+				#include <linux/backing-dev.h>
+				struct backing_dev_info bdi;
+
+int
+main (void)
+{
+
+				char *name = "bdi";
+				unsigned int cap = BDI_CAP_MAP_COPY;
+				int error __attribute__((unused)) =
+				    bdi_setup_and_register(&bdi, name, cap);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  rc=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+ rc=1
+
+
+fi
+	rm -Rf build
+
+
+	if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+	else
+		if test "x$enable_linux_builtin" != xyes; then
+
+	grep -q -E '[[:space:]]bdi_setup_and_register[[:space:]]' \
+		$LINUX_OBJ/$LINUX_SYMBOLS 2>/dev/null
+	rc=$?
+	if test $rc -ne 0; then
+		export=0
+		for file in mm/backing-dev.c; do
+			grep -q -E "EXPORT_SYMBOL.*(bdi_setup_and_register)" \
+				"$LINUX/$file" 2>/dev/null
+			rc=$?
+			if test $rc -eq 0; then
+				export=1
+				break;
+			fi
+		done
+		if test $export -eq 0; then :
+			rc=1
+		else :
+			rc=0
+		fi
+	else :
+		rc=0
+	fi
+
+		fi
+		if test $rc -ne 0; then :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+		else :
+
+				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+
+
+		fi
+	fi
+
 
 		else :
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
-$as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+$as_echo "#define HAVE_2ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
 
 
 		fi
@@ -34312,7 +35271,7 @@ $as_echo "#define HAVE_3ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
-$as_echo "#define HAVE_2ARGS_BDI_SETUP_AND_REGISTER 1" >>confdefs.h
+$as_echo "#define HAVE_SUPER_SETUP_BDI_NAME 1" >>confdefs.h
 
 
 		fi
@@ -35582,6 +36541,113 @@ $as_echo "no" >&6; }
 fi
 	rm -Rf build
 
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether current_time() exists" >&5
+$as_echo_n "checking whether current_time() exists... " >&6; }
+
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/fs.h>
+
+int
+main (void)
+{
+
+		struct inode ip;
+		struct timespec now __attribute__ ((unused));
+
+		now = current_time(&ip);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  rc=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+ rc=1
+
+
+fi
+	rm -Rf build
+
+
+	if test $rc -ne 0; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+	else
+		if test "x$enable_linux_builtin" != xyes; then
+
+	grep -q -E '[[:space:]]current_time[[:space:]]' \
+		$LINUX_OBJ/$LINUX_SYMBOLS 2>/dev/null
+	rc=$?
+	if test $rc -ne 0; then
+		export=0
+		for file in fs/inode.c; do
+			grep -q -E "EXPORT_SYMBOL.*(current_time)" \
+				"$LINUX/$file" 2>/dev/null
+			rc=$?
+			if test $rc -eq 0; then
+				export=1
+				break;
+			fi
+		done
+		if test $export -eq 0; then :
+			rc=1
+		else :
+			rc=0
+		fi
+	else :
+		rc=0
+	fi
+
+		fi
+		if test $rc -ne 0; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+		else :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_CURRENT_TIME 1" >>confdefs.h
+
+
+		fi
+	fi
 
 
 

@@ -129,6 +129,9 @@
 /* current->bio_tail exists */
 #undef HAVE_CURRENT_BIO_TAIL
 
+/* current_time() exists */
+#undef HAVE_CURRENT_TIME
+
 /* DECLARE_EVENT_CLASS() is available */
 #undef HAVE_DECLARE_EVENT_CLASS
 
@@ -371,6 +374,9 @@
 
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
+
+/* super_setup_bdi_name() exits */
+#undef HAVE_SUPER_SETUP_BDI_NAME
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
