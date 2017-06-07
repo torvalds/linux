@@ -157,6 +157,11 @@
 	status = "okay";
 };
 
+&iwdg {
+	status = "okay";
+	timeout-sec = <32>;
+};
+
 &ltdc {
 	status = "okay";
 	pinctrl-0 = <&ltdc_pins>;
