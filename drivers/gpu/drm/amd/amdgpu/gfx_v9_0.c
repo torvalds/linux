@@ -1054,7 +1054,6 @@ static int gfx_v9_0_kiq_init_ring(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
-	ring->queue = 0;
 	ring->eop_gpu_addr = kiq->eop_gpu_addr;
 	sprintf(ring->name, "kiq %d.%d.%d", ring->me, ring->pipe, ring->queue);
 	r = amdgpu_ring_init(adev, ring, 1024,
