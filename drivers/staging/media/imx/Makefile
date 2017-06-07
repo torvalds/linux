@@ -3,3 +3,4 @@ imx-media-common-objs := imx-media-utils.o imx-media-fim.o
 
 obj-$(CONFIG_VIDEO_IMX_MEDIA) += imx-media.o
 obj-$(CONFIG_VIDEO_IMX_MEDIA) += imx-media-common.o
+obj-$(CONFIG_VIDEO_IMX_MEDIA) += imx-media-capture.o
