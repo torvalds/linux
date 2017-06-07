@@ -1148,13 +1148,19 @@ class Tui(object):
                     self.refresh_header(0)
                     self.update_pid(0)
                 if char == 'f':
+                    curses.curs_set(1)
                     self.show_filter_selection()
+                    curses.curs_set(0)
                     sleeptime = DELAY_INITIAL
                 if char == 'g':
+                    curses.curs_set(1)
                     self.show_vm_selection_by_guest_name()
+                    curses.curs_set(0)
                     sleeptime = DELAY_INITIAL
                 if char == 'p':
+                    curses.curs_set(1)
                     self.show_vm_selection_by_pid()
+                    curses.curs_set(0)
                     sleeptime = DELAY_INITIAL
                 if char == 'r':
                     self.stats.reset()
