@@ -25,6 +25,7 @@
 #include <asm/crw.h>
 #include <asm/switch_to.h>
 #include <asm/ctl_reg.h>
+#include <asm/asm-offsets.h>
 
 struct mcck_struct {
 	unsigned int kill_task : 1;
@@ -280,6 +281,8 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 #define ED_STP_ISLAND	6	/* External damage STP island check */
 #define ED_STP_SYNC	7	/* External damage STP sync check */
 
+#define MCCK_CODE_NO_GUEST	(MCCK_CODE_CP | MCCK_CODE_EXT_DAMAGE)
+
 /*
  * machine check handler.
  */
@@ -291,6 +294,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	struct mcck_struct *mcck;
 	unsigned long long tmp;
 	union mci mci;
+	unsigned long mcck_dam_code;
 
 	nmi_enter();
 	inc_irq_stat(NMI_NMI);
@@ -301,7 +305,13 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		/* System damage -> stopping machine */
 		s390_handle_damage();
 	}
-	if (mci.pd) {
+
+	/*
+	 * Reinject the instruction processing damages' machine checks
+	 * including Delayed Access Exception into the guest
+	 * instead of damaging the host if they happen in the guest.
+	 */
+	if (mci.pd && !test_cpu_flag(CIF_MCCK_GUEST)) {
 		if (mci.b) {
 			/* Processing backup -> verify if we can survive this */
 			u64 z_mcic, o_mcic, t_mcic;
@@ -358,15 +368,22 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		if (mcck->stp_queue)
 			set_cpu_flag(CIF_MCCK_PENDING);
 	}
-	if (mci.se)
-		/* Storage error uncorrected */
-		s390_handle_damage();
-	if (mci.ke)
-		/* Storage key-error uncorrected */
-		s390_handle_damage();
-	if (mci.ds && mci.fa)
-		/* Storage degradation */
-		s390_handle_damage();
+
+	/*
+	 * Reinject storage related machine checks into the guest if they
+	 * happen when the guest is running.
+	 */
+	if (!test_cpu_flag(CIF_MCCK_GUEST)) {
+		if (mci.se)
+			/* Storage error uncorrected */
+			s390_handle_damage();
+		if (mci.ke)
+			/* Storage key-error uncorrected */
+			s390_handle_damage();
+		if (mci.ds && mci.fa)
+			/* Storage degradation */
+			s390_handle_damage();
+	}
 	if (mci.cp) {
 		/* Channel report word pending */
 		mcck->channel_report = 1;
@@ -377,6 +394,19 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		mcck->warning = 1;
 		set_cpu_flag(CIF_MCCK_PENDING);
 	}
+
+	/*
+	 * If there are only Channel Report Pending and External Damage
+	 * machine checks, they will not be reinjected into the guest
+	 * because they refer to host conditions only.
+	 */
+	mcck_dam_code = (mci.val & MCIC_SUBCLASS_MASK);
+	if (test_cpu_flag(CIF_MCCK_GUEST) &&
+	(mcck_dam_code & MCCK_CODE_NO_GUEST) != mcck_dam_code) {
+		/* Set exit reason code for host's later handling */
+		*((long *)(regs->gprs[15] + __SF_SIE_REASON)) = -EINTR;
+	}
+	clear_cpu_flag(CIF_MCCK_GUEST);
 	nmi_exit();
 }
 
