@@ -968,12 +968,14 @@ static int rsnd_hw_params(struct snd_pcm_substream *substream,
 
 static snd_pcm_uframes_t rsnd_pointer(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
+	snd_pcm_uframes_t pointer = 0;
 
-	return bytes_to_frames(runtime, io->byte_pos);
+	rsnd_dai_call(pointer, io, &pointer);
+
+	return pointer;
 }
 
 static struct snd_pcm_ops rsnd_pcm_ops = {

@@ -685,6 +685,17 @@ static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
 	return ret;
 }
 
+static int rsnd_ssi_pointer(struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io,
+			    snd_pcm_uframes_t *pointer)
+{
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+
+	*pointer = bytes_to_frames(runtime, io->byte_pos);
+
+	return 0;
+}
+
 static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.name	= SSI_NAME,
 	.probe	= rsnd_ssi_common_probe,
@@ -693,6 +704,7 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.start	= rsnd_ssi_start,
 	.stop	= rsnd_ssi_stop,
 	.irq	= rsnd_ssi_irq,
+	.pointer= rsnd_ssi_pointer,
 	.pcm_new = rsnd_ssi_pcm_new,
 	.hw_params = rsnd_ssi_hw_params,
 };
