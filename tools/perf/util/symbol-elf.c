@@ -649,10 +649,7 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 	    type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
 		return -1;
 
-	if (type == DSO_BINARY_TYPE__BUILD_ID_CACHE)
-		name = dso->long_name;
-
-	if (kmod_path__parse_ext(&m, name) || !m.comp)
+	if (kmod_path__parse_ext(&m, dso->long_name) || !m.comp)
 		return -1;
 
 	fd = mkstemp(tmpbuf);

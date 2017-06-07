@@ -259,6 +259,9 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 #define kmod_path__parse_name(__m, __p) __kmod_path__parse(__m, __p, true , false)
 #define kmod_path__parse_ext(__m, __p)  __kmod_path__parse(__m, __p, false, true)
 
+void dso__set_module_info(struct dso *dso, struct kmod_path *m,
+			  struct machine *machine);
+
 /*
  * The dso__data_* external interface provides following functions:
  *   dso__data_get_fd
