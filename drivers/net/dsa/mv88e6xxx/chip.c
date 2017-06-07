@@ -1159,11 +1159,10 @@ static int mv88e6xxx_vtu_get(struct mv88e6xxx_chip *chip, u16 vid,
 		entry->valid = true;
 		entry->vid = vid;
 
-		/* Include only CPU and DSA ports */
+		/* Exclude all ports */
 		for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
-			entry->member[i] = dsa_is_normal_port(chip->ds, i) ?
-				GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER :
-				GLOBAL_VTU_DATA_MEMBER_TAG_UNMODIFIED;
+			entry->member[i] =
+				GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 
 		return mv88e6xxx_atu_new(chip, &entry->fid);
 	}
