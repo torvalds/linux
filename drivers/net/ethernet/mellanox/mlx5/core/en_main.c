@@ -3718,7 +3718,7 @@ static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	if (!MLX5_CAP_ETH(mdev, self_lb_en_modifiable))
 		mlx5_core_warn(mdev, "Self loop back prevention is not supported\n");
 	if (!MLX5_CAP_GEN(mdev, cq_moderation))
-		mlx5_core_warn(mdev, "CQ modiration is not supported\n");
+		mlx5_core_warn(mdev, "CQ moderation is not supported\n");
 
 	return 0;
 }
