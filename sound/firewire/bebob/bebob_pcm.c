@@ -355,6 +355,20 @@ pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 	return amdtp_stream_pcm_pointer(&bebob->rx_stream);
 }
 
+static int pcm_capture_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_bebob *bebob = substream->private_data;
+
+	return amdtp_stream_pcm_ack(&bebob->tx_stream);
+}
+
+static int pcm_playback_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_bebob *bebob = substream->private_data;
+
+	return amdtp_stream_pcm_ack(&bebob->rx_stream);
+}
+
 int snd_bebob_create_pcm_devices(struct snd_bebob *bebob)
 {
 	static const struct snd_pcm_ops capture_ops = {
@@ -366,6 +380,7 @@ int snd_bebob_create_pcm_devices(struct snd_bebob *bebob)
 		.prepare	= pcm_capture_prepare,
 		.trigger	= pcm_capture_trigger,
 		.pointer	= pcm_capture_pointer,
+		.ack		= pcm_capture_ack,
 		.page		= snd_pcm_lib_get_vmalloc_page,
 	};
 	static const struct snd_pcm_ops playback_ops = {
@@ -377,6 +392,7 @@ int snd_bebob_create_pcm_devices(struct snd_bebob *bebob)
 		.prepare	= pcm_playback_prepare,
 		.trigger	= pcm_playback_trigger,
 		.pointer	= pcm_playback_pointer,
+		.ack		= pcm_playback_ack,
 		.page		= snd_pcm_lib_get_vmalloc_page,
 		.mmap		= snd_pcm_lib_mmap_vmalloc,
 	};

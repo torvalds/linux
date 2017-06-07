@@ -356,6 +356,20 @@ static snd_pcm_uframes_t playback_pointer(struct snd_pcm_substream *substream)
 	return amdtp_stream_pcm_pointer(&motu->rx_stream);
 }
 
+static int capture_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_motu *motu = substream->private_data;
+
+	return amdtp_stream_pcm_ack(&motu->tx_stream);
+}
+
+static int playback_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_motu *motu = substream->private_data;
+
+	return amdtp_stream_pcm_ack(&motu->rx_stream);
+}
+
 int snd_motu_create_pcm_devices(struct snd_motu *motu)
 {
 	static struct snd_pcm_ops capture_ops = {
@@ -367,6 +381,7 @@ int snd_motu_create_pcm_devices(struct snd_motu *motu)
 		.prepare   = capture_prepare,
 		.trigger   = capture_trigger,
 		.pointer   = capture_pointer,
+		.ack       = capture_ack,
 		.page      = snd_pcm_lib_get_vmalloc_page,
 		.mmap      = snd_pcm_lib_mmap_vmalloc,
 	};
@@ -379,6 +394,7 @@ int snd_motu_create_pcm_devices(struct snd_motu *motu)
 		.prepare   = playback_prepare,
 		.trigger   = playback_trigger,
 		.pointer   = playback_pointer,
+		.ack       = playback_ack,
 		.page      = snd_pcm_lib_get_vmalloc_page,
 		.mmap      = snd_pcm_lib_mmap_vmalloc,
 	};

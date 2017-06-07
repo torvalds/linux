@@ -929,6 +929,25 @@ unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s)
 EXPORT_SYMBOL(amdtp_stream_pcm_pointer);
 
 /**
+ * amdtp_stream_pcm_ack - acknowledge queued PCM frames
+ * @s: the AMDTP stream that transfers the PCM frames
+ *
+ * Returns zero always.
+ */
+int amdtp_stream_pcm_ack(struct amdtp_stream *s)
+{
+	/*
+	 * Process isochronous packets for recent isochronous cycle to handle
+	 * queued PCM frames.
+	 */
+	if (amdtp_stream_running(s))
+		fw_iso_context_flush_completions(s->context);
+
+	return 0;
+}
+EXPORT_SYMBOL(amdtp_stream_pcm_ack);
+
+/**
  * amdtp_stream_update - update the stream after a bus reset
  * @s: the AMDTP stream
  */
