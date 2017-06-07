@@ -128,6 +128,10 @@ struct compat_timex {
 	compat_int_t:32; compat_int_t:32; compat_int_t:32;
 };
 
+struct timex;
+int compat_get_timex(struct timex *, const struct compat_timex __user *);
+int compat_put_timex(struct compat_timex __user *, const struct timex *);
+
 #define _COMPAT_NSIG_WORDS	(_COMPAT_NSIG / _COMPAT_NSIG_BPW)
 
 typedef struct {

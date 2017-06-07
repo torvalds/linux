@@ -30,60 +30,64 @@
 
 #include <linux/uaccess.h>
 
-static int compat_get_timex(struct timex *txc, struct compat_timex __user *utp)
+int compat_get_timex(struct timex *txc, const struct compat_timex __user *utp)
 {
-	memset(txc, 0, sizeof(struct timex));
+	struct compat_timex tx32;
 
-	if (!access_ok(VERIFY_READ, utp, sizeof(struct compat_timex)) ||
-			__get_user(txc->modes, &utp->modes) ||
-			__get_user(txc->offset, &utp->offset) ||
-			__get_user(txc->freq, &utp->freq) ||
-			__get_user(txc->maxerror, &utp->maxerror) ||
-			__get_user(txc->esterror, &utp->esterror) ||
-			__get_user(txc->status, &utp->status) ||
-			__get_user(txc->constant, &utp->constant) ||
-			__get_user(txc->precision, &utp->precision) ||
-			__get_user(txc->tolerance, &utp->tolerance) ||
-			__get_user(txc->time.tv_sec, &utp->time.tv_sec) ||
-			__get_user(txc->time.tv_usec, &utp->time.tv_usec) ||
-			__get_user(txc->tick, &utp->tick) ||
-			__get_user(txc->ppsfreq, &utp->ppsfreq) ||
-			__get_user(txc->jitter, &utp->jitter) ||
-			__get_user(txc->shift, &utp->shift) ||
-			__get_user(txc->stabil, &utp->stabil) ||
-			__get_user(txc->jitcnt, &utp->jitcnt) ||
-			__get_user(txc->calcnt, &utp->calcnt) ||
-			__get_user(txc->errcnt, &utp->errcnt) ||
-			__get_user(txc->stbcnt, &utp->stbcnt))
+	if (copy_from_user(&tx32, utp, sizeof(struct compat_timex)))
 		return -EFAULT;
+
+	txc->modes = tx32.modes;
+	txc->offset = tx32.offset;
+	txc->freq = tx32.freq;
+	txc->maxerror = tx32.maxerror;
+	txc->esterror = tx32.esterror;
+	txc->status = tx32.status;
+	txc->constant = tx32.constant;
+	txc->precision = tx32.precision;
+	txc->tolerance = tx32.tolerance;
+	txc->time.tv_sec = tx32.time.tv_sec;
+	txc->time.tv_usec = tx32.time.tv_usec;
+	txc->tick = tx32.tick;
+	txc->ppsfreq = tx32.ppsfreq;
+	txc->jitter = tx32.jitter;
+	txc->shift = tx32.shift;
+	txc->stabil = tx32.stabil;
+	txc->jitcnt = tx32.jitcnt;
+	txc->calcnt = tx32.calcnt;
+	txc->errcnt = tx32.errcnt;
+	txc->stbcnt = tx32.stbcnt;
 
 	return 0;
 }
 
-static int compat_put_timex(struct compat_timex __user *utp, struct timex *txc)
+int compat_put_timex(struct compat_timex __user *utp, const struct timex *txc)
 {
-	if (!access_ok(VERIFY_WRITE, utp, sizeof(struct compat_timex)) ||
-			__put_user(txc->modes, &utp->modes) ||
-			__put_user(txc->offset, &utp->offset) ||
-			__put_user(txc->freq, &utp->freq) ||
-			__put_user(txc->maxerror, &utp->maxerror) ||
-			__put_user(txc->esterror, &utp->esterror) ||
-			__put_user(txc->status, &utp->status) ||
-			__put_user(txc->constant, &utp->constant) ||
-			__put_user(txc->precision, &utp->precision) ||
-			__put_user(txc->tolerance, &utp->tolerance) ||
-			__put_user(txc->time.tv_sec, &utp->time.tv_sec) ||
-			__put_user(txc->time.tv_usec, &utp->time.tv_usec) ||
-			__put_user(txc->tick, &utp->tick) ||
-			__put_user(txc->ppsfreq, &utp->ppsfreq) ||
-			__put_user(txc->jitter, &utp->jitter) ||
-			__put_user(txc->shift, &utp->shift) ||
-			__put_user(txc->stabil, &utp->stabil) ||
-			__put_user(txc->jitcnt, &utp->jitcnt) ||
-			__put_user(txc->calcnt, &utp->calcnt) ||
-			__put_user(txc->errcnt, &utp->errcnt) ||
-			__put_user(txc->stbcnt, &utp->stbcnt) ||
-			__put_user(txc->tai, &utp->tai))
+	struct compat_timex tx32;
+
+	memset(&tx32, 0, sizeof(struct compat_timex));
+	tx32.modes = txc->modes;
+	tx32.offset = txc->offset;
+	tx32.freq = txc->freq;
+	tx32.maxerror = txc->maxerror;
+	tx32.esterror = txc->esterror;
+	tx32.status = txc->status;
+	tx32.constant = txc->constant;
+	tx32.precision = txc->precision;
+	tx32.tolerance = txc->tolerance;
+	tx32.time.tv_sec = txc->time.tv_sec;
+	tx32.time.tv_usec = txc->time.tv_usec;
+	tx32.tick = txc->tick;
+	tx32.ppsfreq = txc->ppsfreq;
+	tx32.jitter = txc->jitter;
+	tx32.shift = txc->shift;
+	tx32.stabil = txc->stabil;
+	tx32.jitcnt = txc->jitcnt;
+	tx32.calcnt = txc->calcnt;
+	tx32.errcnt = txc->errcnt;
+	tx32.stbcnt = txc->stbcnt;
+	tx32.tai = txc->tai;
+	if (copy_to_user(utp, &tx32, sizeof(struct compat_timex)))
 		return -EFAULT;
 	return 0;
 }
@@ -705,29 +709,6 @@ COMPAT_SYSCALL_DEFINE2(clock_gettime, clockid_t, which_clock,
 	return err;
 }
 
-COMPAT_SYSCALL_DEFINE2(clock_adjtime, clockid_t, which_clock,
-		       struct compat_timex __user *, utp)
-{
-	struct timex txc;
-	mm_segment_t oldfs;
-	int err, ret;
-
-	err = compat_get_timex(&txc, utp);
-	if (err)
-		return err;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	ret = sys_clock_adjtime(which_clock, (struct timex __user *) &txc);
-	set_fs(oldfs);
-
-	err = compat_put_timex(utp, &txc);
-	if (err)
-		return err;
-
-	return ret;
-}
-
 COMPAT_SYSCALL_DEFINE2(clock_getres, clockid_t, which_clock,
 		       struct compat_timespec __user *, tp)
 {
@@ -943,24 +924,6 @@ COMPAT_SYSCALL_DEFINE1(stime, compat_time_t __user *, tptr)
 }
 
 #endif /* __ARCH_WANT_COMPAT_SYS_TIME */
-
-COMPAT_SYSCALL_DEFINE1(adjtimex, struct compat_timex __user *, utp)
-{
-	struct timex txc;
-	int err, ret;
-
-	err = compat_get_timex(&txc, utp);
-	if (err)
-		return err;
-
-	ret = do_adjtimex(&txc);
-
-	err = compat_put_timex(utp, &txc);
-	if (err)
-		return err;
-
-	return ret;
-}
 
 #ifdef CONFIG_NUMA
 COMPAT_SYSCALL_DEFINE6(move_pages, pid_t, pid, compat_ulong_t, nr_pages,

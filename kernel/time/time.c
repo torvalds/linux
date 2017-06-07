@@ -39,6 +39,7 @@
 #include <linux/ptrace.h>
 
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 #include <asm/unistd.h>
 
 #include <generated/timeconst.h>
@@ -224,11 +225,32 @@ SYSCALL_DEFINE1(adjtimex, struct timex __user *, txc_p)
 	 * structure. But bear in mind that the structures
 	 * may change
 	 */
-	if(copy_from_user(&txc, txc_p, sizeof(struct timex)))
+	if (copy_from_user(&txc, txc_p, sizeof(struct timex)))
 		return -EFAULT;
 	ret = do_adjtimex(&txc);
 	return copy_to_user(txc_p, &txc, sizeof(struct timex)) ? -EFAULT : ret;
 }
+
+#ifdef CONFIG_COMPAT
+
+COMPAT_SYSCALL_DEFINE1(adjtimex, struct compat_timex __user *, utp)
+{
+	struct timex txc;
+	int err, ret;
+
+	err = compat_get_timex(&txc, utp);
+	if (err)
+		return err;
+
+	ret = do_adjtimex(&txc);
+
+	err = compat_put_timex(utp, &txc);
+	if (err)
+		return err;
+
+	return ret;
+}
+#endif
 
 /*
  * Convert jiffies to milliseconds and back.

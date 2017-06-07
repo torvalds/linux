@@ -28,6 +28,7 @@ asmlinkage long sys_ni_posix_timers(void)
 }
 
 #define SYS_NI(name)  SYSCALL_ALIAS(sys_##name, sys_ni_posix_timers)
+#define COMPAT_SYS_NI(name)  SYSCALL_ALIAS(compat_sys_##name, sys_ni_posix_timers)
 
 SYS_NI(timer_create);
 SYS_NI(timer_gettime);
@@ -40,6 +41,7 @@ SYS_NI(setitimer);
 #ifdef __ARCH_WANT_SYS_ALARM
 SYS_NI(alarm);
 #endif
+COMPAT_SYS_NI(clock_adjtime);
 
 /*
  * We preserve minimal support for CLOCK_REALTIME and CLOCK_MONOTONIC
