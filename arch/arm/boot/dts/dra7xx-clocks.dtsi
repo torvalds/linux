@@ -791,6 +791,8 @@
 		clocks = <&dpll_abe_m2x2_ck>, <&dpll_core_h22x2_ck>;
 		ti,bit-shift = <24>;
 		reg = <0x0520>;
+		assigned-clocks = <&ipu1_gfclk_mux>;
+		assigned-clock-parents = <&dpll_core_h22x2_ck>;
 	};
 
 	mcasp1_ahclkr_mux: mcasp1_ahclkr_mux@550 {
