@@ -28,6 +28,10 @@ Optional properties:
  - enable-gpios : GPIO signal controlling enabling of BT. Active high.
  - vio-supply : Vio input supply (1.8V)
  - vbat-supply : Vbat input supply (2.9-4.8V)
+ - clocks : Must contain an entry, for each entry in clock-names.
+   See ../clocks/clock-bindings.txt for details.
+ - clock-names : Must include the following entry:
+   "ext_clock" (External clock provided to the TI combo chip).
 
 Example:
 
@@ -37,5 +41,7 @@ Example:
 	bluetooth {
 		compatible = "ti,wl1835-st";
 		enable-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		clocks = <&clk32k_wl18xx>;
+		clock-names = "ext_clock";
 	};
 };
