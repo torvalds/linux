@@ -70,8 +70,6 @@ MODULE_PARM_DESC(quirks, "Add/modify USB HID quirks by specifying "
 /*
  * Input submission and I/O error handler.
  */
-static DEFINE_MUTEX(hid_open_mut);
-
 static void hid_io_error(struct hid_device *hid);
 static int hid_submit_out(struct hid_device *hid);
 static int hid_submit_ctrl(struct hid_device *hid);
@@ -680,50 +678,48 @@ static int hid_get_class_descriptor(struct usb_device *dev, int ifnum,
 static int usbhid_open(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
-	int res = 0;
+	int res;
 
-	mutex_lock(&hid_open_mut);
-	if (!hid->open++) {
-		res = usb_autopm_get_interface(usbhid->intf);
-		/* the device must be awake to reliably request remote wakeup */
-		if (res < 0) {
-			hid->open--;
-			res = -EIO;
-			goto done;
-		}
-		usbhid->intf->needs_remote_wakeup = 1;
-		set_bit(HID_OPENED, &usbhid->iofl);
-		set_bit(HID_IN_POLLING, &usbhid->iofl);
-		set_bit(HID_RESUME_RUNNING, &usbhid->iofl);
-		res = hid_start_in(hid);
-		if (res) {
-			if (res != -ENOSPC) {
-				hid_io_error(hid);
-				res = 0;
-			} else {
-				/* no use opening if resources are insufficient */
-				hid->open--;
-				clear_bit(HID_OPENED, &usbhid->iofl);
-				if (!(hid->quirks & HID_QUIRK_ALWAYS_POLL))
-					clear_bit(HID_IN_POLLING, &usbhid->iofl);
-				res = -EBUSY;
-				usbhid->intf->needs_remote_wakeup = 0;
-			}
-		}
-		usb_autopm_put_interface(usbhid->intf);
+	if (hid->quirks & HID_QUIRK_ALWAYS_POLL)
+		return 0;
 
-		/*
-		 * In case events are generated while nobody was listening,
-		 * some are released when the device is re-opened.
-		 * Wait 50 msec for the queue to empty before allowing events
-		 * to go through hid.
-		 */
-		if (res == 0 && !(hid->quirks & HID_QUIRK_ALWAYS_POLL))
-			msleep(50);
-		clear_bit(HID_RESUME_RUNNING, &usbhid->iofl);
+	res = usb_autopm_get_interface(usbhid->intf);
+	/* the device must be awake to reliably request remote wakeup */
+	if (res < 0)
+		return -EIO;
+
+	usbhid->intf->needs_remote_wakeup = 1;
+
+	set_bit(HID_RESUME_RUNNING, &usbhid->iofl);
+	set_bit(HID_OPENED, &usbhid->iofl);
+	set_bit(HID_IN_POLLING, &usbhid->iofl);
+
+	res = hid_start_in(hid);
+	if (res) {
+		if (res != -ENOSPC) {
+			hid_io_error(hid);
+			res = 0;
+		} else {
+			/* no use opening if resources are insufficient */
+			res = -EBUSY;
+			clear_bit(HID_OPENED, &usbhid->iofl);
+			clear_bit(HID_IN_POLLING, &usbhid->iofl);
+			usbhid->intf->needs_remote_wakeup = 0;
+		}
 	}
-done:
-	mutex_unlock(&hid_open_mut);
+
+	usb_autopm_put_interface(usbhid->intf);
+
+	/*
+	 * In case events are generated while nobody was listening,
+	 * some are released when the device is re-opened.
+	 * Wait 50 msec for the queue to empty before allowing events
+	 * to go through hid.
+	 */
+	if (res == 0)
+		msleep(50);
+
+	clear_bit(HID_RESUME_RUNNING, &usbhid->iofl);
 	return res;
 }
 
@@ -731,27 +727,22 @@ static void usbhid_close(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 
-	mutex_lock(&hid_open_mut);
+	if (hid->quirks & HID_QUIRK_ALWAYS_POLL)
+		return;
 
-	/* protecting hid->open to make sure we don't restart
-	 * data acquistion due to a resumption we no longer
-	 * care about
+	/*
+	 * Make sure we don't restart data acquisition due to
+	 * a resumption we no longer care about by avoiding racing
+	 * with hid_start_in().
 	 */
 	spin_lock_irq(&usbhid->lock);
-	if (!--hid->open) {
-		if (!(hid->quirks & HID_QUIRK_ALWAYS_POLL))
-			clear_bit(HID_IN_POLLING, &usbhid->iofl);
-		clear_bit(HID_OPENED, &usbhid->iofl);
-		spin_unlock_irq(&usbhid->lock);
-		hid_cancel_delayed_stuff(usbhid);
-		if (!(hid->quirks & HID_QUIRK_ALWAYS_POLL)) {
-			usb_kill_urb(usbhid->urbin);
-			usbhid->intf->needs_remote_wakeup = 0;
-		}
-	} else {
-		spin_unlock_irq(&usbhid->lock);
-	}
-	mutex_unlock(&hid_open_mut);
+	clear_bit(HID_IN_POLLING, &usbhid->iofl);
+	clear_bit(HID_OPENED, &usbhid->iofl);
+	spin_unlock_irq(&usbhid->lock);
+
+	hid_cancel_delayed_stuff(usbhid);
+	usb_kill_urb(usbhid->urbin);
+	usbhid->intf->needs_remote_wakeup = 0;
 }
 
 /*
