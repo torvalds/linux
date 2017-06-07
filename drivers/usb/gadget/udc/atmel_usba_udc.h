@@ -43,13 +43,8 @@
 #define USBA_REMOTE_WAKE_UP			(1 << 10)
 #define USBA_PULLD_DIS				(1 << 11)
 
-#if defined(CONFIG_AVR32)
-#define USBA_ENABLE_MASK			USBA_EN_USBA
-#define USBA_DISABLE_MASK			0
-#elif defined(CONFIG_ARCH_AT91)
 #define USBA_ENABLE_MASK			(USBA_EN_USBA | USBA_PULLD_DIS)
 #define USBA_DISABLE_MASK			USBA_DETACH
-#endif /* CONFIG_ARCH_AT91 */
 
 /* Bitfields in FNUM */
 #define USBA_MICRO_FRAME_NUM_OFFSET		0
@@ -191,15 +186,9 @@
 	 | USBA_BF(name, value))
 
 /* Register access macros */
-#ifdef CONFIG_AVR32
-#define usba_io_readl	__raw_readl
-#define usba_io_writel	__raw_writel
-#define usba_io_writew	__raw_writew
-#else
 #define usba_io_readl	readl_relaxed
 #define usba_io_writel	writel_relaxed
 #define usba_io_writew	writew_relaxed
-#endif
 
 #define usba_readl(udc, reg)					\
 	usba_io_readl((udc)->regs + USBA_##reg)
