@@ -530,6 +530,26 @@ static int qrtr_port_assign(struct qrtr_sock *ipc, int *port)
 	return 0;
 }
 
+/* Reset all non-control ports */
+static void qrtr_reset_ports(void)
+{
+	struct qrtr_sock *ipc;
+	int id;
+
+	mutex_lock(&qrtr_port_lock);
+	idr_for_each_entry(&qrtr_ports, ipc, id) {
+		/* Don't reset control port */
+		if (id == 0)
+			continue;
+
+		sock_hold(&ipc->sk);
+		ipc->sk.sk_err = ENETRESET;
+		wake_up_interruptible(sk_sleep(&ipc->sk));
+		sock_put(&ipc->sk);
+	}
+	mutex_unlock(&qrtr_port_lock);
+}
+
 /* Bind socket to address.
  *
  * Socket should be locked upon call.
@@ -557,6 +577,10 @@ static int __qrtr_bind(struct socket *sock,
 	ipc->us.sq_port = port;
 
 	sock_reset_flag(sk, SOCK_ZAPPED);
+
+	/* Notify all open ports about the new controller */
+	if (port == QRTR_PORT_CTRL)
+		qrtr_reset_ports();
 
 	return 0;
 }
