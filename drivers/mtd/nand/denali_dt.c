@@ -32,10 +32,14 @@ struct denali_dt {
 struct denali_dt_data {
 	unsigned int revision;
 	unsigned int caps;
+	const struct nand_ecc_caps *ecc_caps;
 };
 
+NAND_ECC_CAPS_SINGLE(denali_socfpga_ecc_caps, denali_calc_ecc_bytes,
+		     512, 8, 15);
 static const struct denali_dt_data denali_socfpga_data = {
 	.caps = DENALI_CAP_HW_ECC_FIXUP,
+	.ecc_caps = &denali_socfpga_ecc_caps,
 };
 
 static const struct of_device_id denali_nand_dt_ids[] = {
@@ -64,6 +68,7 @@ static int denali_dt_probe(struct platform_device *pdev)
 	if (data) {
 		denali->revision = data->revision;
 		denali->caps = data->caps;
+		denali->ecc_caps = data->ecc_caps;
 	}
 
 	denali->platform = DT;

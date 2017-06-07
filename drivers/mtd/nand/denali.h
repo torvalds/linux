@@ -259,6 +259,14 @@
 #define     ECC_COR_INFO__MAX_ERRORS			GENMASK(6, 0)
 #define     ECC_COR_INFO__UNCOR_ERR			BIT(7)
 
+#define CFG_DATA_BLOCK_SIZE			0x6b0
+
+#define CFG_LAST_DATA_BLOCK_SIZE		0x6c0
+
+#define CFG_NUM_DATA_BLOCKS			0x6d0
+
+#define CFG_META_DATA_SIZE			0x6e0
+
 #define DMA_ENABLE				0x700
 #define     DMA_ENABLE__FLAG				BIT(0)
 
@@ -301,8 +309,6 @@
 #define MODE_10    0x08000000
 #define MODE_11    0x0C000000
 
-#define ECC_SECTOR_SIZE     512
-
 struct nand_buf {
 	int head;
 	int tail;
@@ -337,11 +343,13 @@ struct denali_nand_info {
 	int max_banks;
 	unsigned int revision;
 	unsigned int caps;
+	const struct nand_ecc_caps *ecc_caps;
 };
 
 #define DENALI_CAP_HW_ECC_FIXUP			BIT(0)
 #define DENALI_CAP_DMA_64BIT			BIT(1)
 
+int denali_calc_ecc_bytes(int step_size, int strength);
 extern int denali_init(struct denali_nand_info *denali);
 extern void denali_remove(struct denali_nand_info *denali);
 
