@@ -1387,25 +1387,6 @@ static int gfx_v8_0_mec_init(struct amdgpu_device *adev)
 
 	bitmap_zero(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 
-	switch (adev->asic_type) {
-	case CHIP_FIJI:
-	case CHIP_TONGA:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-	case CHIP_POLARIS10:
-	case CHIP_CARRIZO:
-		adev->gfx.mec.num_mec = 2;
-		break;
-	case CHIP_TOPAZ:
-	case CHIP_STONEY:
-	default:
-		adev->gfx.mec.num_mec = 1;
-		break;
-	}
-
-	adev->gfx.mec.num_pipe_per_mec = 4;
-	adev->gfx.mec.num_queue_per_pipe = 8;
-
 	/* take ownership of the relevant compute queues */
 	amdgpu_gfx_compute_queue_acquire(adev);
 
@@ -2008,6 +1989,25 @@ static int gfx_v8_0_sw_init(void *handle)
 	struct amdgpu_ring *ring;
 	struct amdgpu_kiq *kiq;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (adev->asic_type) {
+	case CHIP_FIJI:
+	case CHIP_TONGA:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_POLARIS10:
+	case CHIP_CARRIZO:
+		adev->gfx.mec.num_mec = 2;
+		break;
+	case CHIP_TOPAZ:
+	case CHIP_STONEY:
+	default:
+		adev->gfx.mec.num_mec = 1;
+		break;
+	}
+
+	adev->gfx.mec.num_pipe_per_mec = 4;
+	adev->gfx.mec.num_queue_per_pipe = 8;
 
 	/* KIQ event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 178, &adev->gfx.kiq.irq);

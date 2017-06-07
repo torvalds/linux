@@ -2817,21 +2817,6 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 
 	bitmap_zero(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 
-	switch (adev->asic_type) {
-	case CHIP_KAVERI:
-		adev->gfx.mec.num_mec = 2;
-		break;
-	case CHIP_BONAIRE:
-	case CHIP_HAWAII:
-	case CHIP_KABINI:
-	case CHIP_MULLINS:
-	default:
-		adev->gfx.mec.num_mec = 1;
-		break;
-	}
-	adev->gfx.mec.num_pipe_per_mec = 4;
-	adev->gfx.mec.num_queue_per_pipe = 8;
-
 	/* take ownership of the relevant compute queues */
 	amdgpu_gfx_compute_queue_acquire(adev);
 
@@ -4722,6 +4707,21 @@ static int gfx_v7_0_sw_init(void *handle)
 	struct amdgpu_ring *ring;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i, j, k, r, ring_id;
+
+	switch (adev->asic_type) {
+	case CHIP_KAVERI:
+		adev->gfx.mec.num_mec = 2;
+		break;
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+	default:
+		adev->gfx.mec.num_mec = 1;
+		break;
+	}
+	adev->gfx.mec.num_pipe_per_mec = 4;
+	adev->gfx.mec.num_queue_per_pipe = 8;
 
 	/* EOP Event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);

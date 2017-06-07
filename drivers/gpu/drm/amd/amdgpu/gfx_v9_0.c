@@ -870,19 +870,6 @@ static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 
 	bitmap_zero(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
-	case CHIP_RAVEN:
-		adev->gfx.mec.num_mec = 2;
-		break;
-	default:
-		adev->gfx.mec.num_mec = 1;
-		break;
-	}
-
-	adev->gfx.mec.num_pipe_per_mec = 4;
-	adev->gfx.mec.num_queue_per_pipe = 8;
-
 	/* take ownership of the relevant compute queues */
 	amdgpu_gfx_compute_queue_acquire(adev);
 	mec_hpd_size = adev->gfx.num_compute_rings * GFX9_MEC_HPD_SIZE;
@@ -1392,6 +1379,19 @@ static int gfx_v9_0_sw_init(void *handle)
 	struct amdgpu_ring *ring;
 	struct amdgpu_kiq *kiq;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+	case CHIP_RAVEN:
+		adev->gfx.mec.num_mec = 2;
+		break;
+	default:
+		adev->gfx.mec.num_mec = 1;
+		break;
+	}
+
+	adev->gfx.mec.num_pipe_per_mec = 4;
+	adev->gfx.mec.num_queue_per_pipe = 8;
 
 	/* KIQ event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_GRBM_CP, 178, &adev->gfx.kiq.irq);
