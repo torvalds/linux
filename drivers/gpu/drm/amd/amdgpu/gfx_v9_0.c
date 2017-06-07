@@ -956,67 +956,6 @@ static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-/* create MQD for each compute queue */
-static int gfx_v9_0_compute_mqd_sw_init(struct amdgpu_device *adev)
-{
-	struct amdgpu_ring *ring = NULL;
-	int r, i;
-
-	/* create MQD for KIQ */
-	ring = &adev->gfx.kiq.ring;
-	if (!ring->mqd_obj) {
-		r = amdgpu_bo_create_kernel(adev, sizeof(struct v9_mqd), PAGE_SIZE,
-					    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
-					    &ring->mqd_gpu_addr, (void **)&ring->mqd_ptr);
-		if (r) {
-			dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
-			return r;
-		}
-
-		/* prepare MQD backup */
-		adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS] = kmalloc(sizeof(struct v9_mqd), GFP_KERNEL);
-		if (!adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS])
-			dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
-	}
-
-	/* create MQD for each KCQ */
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		ring = &adev->gfx.compute_ring[i];
-		if (!ring->mqd_obj) {
-			r = amdgpu_bo_create_kernel(adev, sizeof(struct v9_mqd), PAGE_SIZE,
-						    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
-						    &ring->mqd_gpu_addr, (void **)&ring->mqd_ptr);
-			if (r) {
-				dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
-				return r;
-			}
-
-			/* prepare MQD backup */
-			adev->gfx.mec.mqd_backup[i] = kmalloc(sizeof(struct v9_mqd), GFP_KERNEL);
-			if (!adev->gfx.mec.mqd_backup[i])
-				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
-		}
-	}
-
-	return 0;
-}
-
-static void gfx_v9_0_compute_mqd_sw_fini(struct amdgpu_device *adev)
-{
-	struct amdgpu_ring *ring = NULL;
-	int i;
-
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		ring = &adev->gfx.compute_ring[i];
-		kfree(adev->gfx.mec.mqd_backup[i]);
-		amdgpu_bo_free_kernel(&ring->mqd_obj, &ring->mqd_gpu_addr, (void **)&ring->mqd_ptr);
-	}
-
-	ring = &adev->gfx.kiq.ring;
-	kfree(adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS]);
-	amdgpu_bo_free_kernel(&ring->mqd_obj, &ring->mqd_gpu_addr, (void **)&ring->mqd_ptr);
-}
-
 static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t address)
 {
 	WREG32_SOC15(GC, 0, mmSQ_IND_INDEX,
@@ -1481,7 +1420,7 @@ static int gfx_v9_0_sw_init(void *handle)
 		return r;
 
 	/* create MQD for all compute queues as wel as KIQ for SRIOV case */
-	r = gfx_v9_0_compute_mqd_sw_init(adev);
+	r = amdgpu_gfx_compute_mqd_sw_init(adev, sizeof(struct v9_mqd));
 	if (r)
 		return r;
 
@@ -1530,7 +1469,7 @@ static int gfx_v9_0_sw_fini(void *handle)
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
-	gfx_v9_0_compute_mqd_sw_fini(adev);
+	amdgpu_gfx_compute_mqd_sw_fini(adev);
 	amdgpu_gfx_kiq_free_ring(&adev->gfx.kiq.ring, &adev->gfx.kiq.irq);
 	amdgpu_gfx_kiq_fini(adev);
 

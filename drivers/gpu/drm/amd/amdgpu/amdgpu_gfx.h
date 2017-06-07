@@ -43,6 +43,10 @@ void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev);
 int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
 			unsigned hpd_size);
 
+int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
+				   unsigned mqd_size);
+void amdgpu_gfx_compute_mqd_sw_fini(struct amdgpu_device *adev);
+
 /**
  * amdgpu_gfx_create_bitmask - create a bitmask
  *
