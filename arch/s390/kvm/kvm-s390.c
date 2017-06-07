@@ -3041,6 +3041,9 @@ static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 
 static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 {
+	struct mcck_volatile_info *mcck_info;
+	struct sie_page *sie_page;
+
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
 	trace_kvm_s390_sie_exit(vcpu, vcpu->arch.sie_block->icptcode);
@@ -3050,6 +3053,15 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 
 	vcpu->run->s.regs.gprs[14] = vcpu->arch.sie_block->gg14;
 	vcpu->run->s.regs.gprs[15] = vcpu->arch.sie_block->gg15;
+
+	if (exit_reason == -EINTR) {
+		VCPU_EVENT(vcpu, 3, "%s", "machine check");
+		sie_page = container_of(vcpu->arch.sie_block,
+					struct sie_page, sie_block);
+		mcck_info = &sie_page->mcck_info;
+		kvm_s390_reinject_machine_check(vcpu, mcck_info);
+		return 0;
+	}
 
 	if (vcpu->arch.sie_block->icptcode > 0) {
 		int rc = kvm_handle_sie_intercept(vcpu);

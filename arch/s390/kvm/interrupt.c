@@ -251,8 +251,13 @@ static unsigned long deliverable_irqs(struct kvm_vcpu *vcpu)
 		__clear_bit(IRQ_PEND_EXT_SERVICE, &active_mask);
 	if (psw_mchk_disabled(vcpu))
 		active_mask &= ~IRQ_PEND_MCHK_MASK;
+	/*
+	 * Check both floating and local interrupt's cr14 because
+	 * bit IRQ_PEND_MCHK_REP could be set in both cases.
+	 */
 	if (!(vcpu->arch.sie_block->gcr[14] &
-	      vcpu->kvm->arch.float_int.mchk.cr14))
+	   (vcpu->kvm->arch.float_int.mchk.cr14 |
+	   vcpu->arch.local_int.irq.mchk.cr14)))
 		__clear_bit(IRQ_PEND_MCHK_REP, &active_mask);
 
 	/*
@@ -2461,6 +2466,42 @@ static int set_adapter_int(struct kvm_kernel_irq_routing_entry *e,
 			ret = 1;
 	}
 	return ret;
+}
+
+/*
+ * Inject the machine check to the guest.
+ */
+void kvm_s390_reinject_machine_check(struct kvm_vcpu *vcpu,
+				     struct mcck_volatile_info *mcck_info)
+{
+	struct kvm_s390_interrupt_info inti;
+	struct kvm_s390_irq irq;
+	struct kvm_s390_mchk_info *mchk;
+	union mci mci;
+	__u64 cr14 = 0;         /* upper bits are not used */
+
+	mci.val = mcck_info->mcic;
+	if (mci.sr)
+		cr14 |= MCCK_CR14_RECOVERY_SUB_MASK;
+	if (mci.dg)
+		cr14 |= MCCK_CR14_DEGRAD_SUB_MASK;
+	if (mci.w)
+		cr14 |= MCCK_CR14_WARN_SUB_MASK;
+
+	mchk = mci.ck ? &inti.mchk : &irq.u.mchk;
+	mchk->cr14 = cr14;
+	mchk->mcic = mcck_info->mcic;
+	mchk->ext_damage_code = mcck_info->ext_damage_code;
+	mchk->failing_storage_address = mcck_info->failing_storage_address;
+	if (mci.ck) {
+		/* Inject the floating machine check */
+		inti.type = KVM_S390_MCHK;
+		WARN_ON_ONCE(__inject_vm(vcpu->kvm, &inti));
+	} else {
+		/* Inject the machine check to specified vcpu */
+		irq.type = KVM_S390_MCHK;
+		WARN_ON_ONCE(kvm_s390_inject_vcpu(vcpu, &irq));
+	}
 }
 
 int kvm_set_routing_entry(struct kvm *kvm,
