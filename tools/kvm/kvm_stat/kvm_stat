@@ -1009,7 +1009,8 @@ class Tui(object):
             self.screen.addstr(row, col, '%7.1f' % (values[0] * 100 / total,))
             col += 7
             if values[1] is not None:
-                self.screen.addstr(row, col, '%8d' % (values[1] / sleeptime,))
+                self.screen.addstr(row, col, '%8d' %
+                                   round(values[1] / sleeptime))
             row += 1
         self.screen.refresh()
 
@@ -1130,9 +1131,11 @@ class Tui(object):
         """Refreshes the screen and processes user input."""
         sleeptime = DELAY_INITIAL
         self.refresh_header()
+        start = 0.0  # result based on init value never appears on screen
         while True:
-            self.refresh_body(sleeptime)
+            self.refresh_body(time.time() - start)
             curses.halfdelay(int(sleeptime * 10))
+            start = time.time()
             sleeptime = DELAY_REGULAR
             try:
                 char = self.screen.getkey()
