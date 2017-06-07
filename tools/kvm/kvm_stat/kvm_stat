@@ -848,6 +848,7 @@ DELAY_DEFAULT = 3.0
 MAX_GUEST_NAME_LEN = 48
 MAX_REGEX_LEN = 44
 DEFAULT_REGEX = r'^[^\(]*$'
+SORT_DEFAULT = 0
 
 
 class Tui(object):
@@ -857,6 +858,7 @@ class Tui(object):
         self.screen = None
         self._delay_initial = 0.25
         self._delay_regular = DELAY_DEFAULT
+        self._sorting = SORT_DEFAULT
 
     def __enter__(self):
         """Initialises curses for later use.  Based on curses.wrapper
@@ -994,14 +996,23 @@ class Tui(object):
         self.screen.clrtobot()
         stats = self.stats.get()
 
-        def sortkey(x):
+        def sortCurAvg(x):
+            # sort by current events if available
             if stats[x][1]:
                 return (-stats[x][1], -stats[x][0])
             else:
                 return (0, -stats[x][0])
+
+        def sortTotal(x):
+            # sort by totals
+            return (0, -stats[x][0])
         total = 0.
         for val in stats.values():
             total += val[0]
+        if self._sorting == SORT_DEFAULT:
+            sortkey = sortCurAvg
+        else:
+            sortkey = sortTotal
         for key in sorted(stats.keys(), key=sortkey):
 
             if row >= self.screen.getmaxyx()[0]:
@@ -1025,6 +1036,7 @@ class Tui(object):
                '   f     filter by regular expression',
                '   g     filter by guest name',
                '   h     display interactive commands reference',
+               '   o     toggle sorting order (Total vs CurAvg/s)',
                '   p     filter by PID',
                '   q     quit',
                '   r     reset stats',
@@ -1215,6 +1227,8 @@ class Tui(object):
                     sleeptime = self._delay_initial
                 if char == 'h':
                     self.show_help_interactive()
+                if char == 'o':
+                    self._sorting = not self._sorting
                 if char == 'p':
                     curses.curs_set(1)
                     self.show_vm_selection_by_pid()
@@ -1302,6 +1316,7 @@ Interactive Commands:
    f     filter by regular expression
    g     filter by guest name
    h     display interactive commands reference
+   o     toggle sorting order (Total vs CurAvg/s)
    p     filter by PID
    q     quit
    r     reset stats

@@ -37,6 +37,8 @@ INTERACTIVE COMMANDS
 
 *h*::	display interactive commands reference
 
+*o*::   toggle sorting order (Total vs CurAvg/s)
+
 *p*::	filter by PID
 
 *q*::	quit
