@@ -386,7 +386,7 @@ u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
 	if (ixgbe_removed(reg_addr))
 		return IXGBE_FAILED_READ_REG;
 	if (unlikely(hw->phy.nw_mng_if_sel &
-		     IXGBE_NW_MNG_IF_SEL_ENABLE_10_100M)) {
+		     IXGBE_NW_MNG_IF_SEL_SGMII_ENABLE)) {
 		struct ixgbe_adapter *adapter;
 		int i;
 

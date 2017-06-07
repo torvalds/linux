@@ -1555,8 +1555,13 @@ static s32 ixgbe_restart_an_internal_phy_x550em(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 {
+	struct ixgbe_mac_info *mac = &hw->mac;
 	s32 status;
 	u32 reg_val;
+
+	/* iXFI is only supported with X552 */
+	if (mac->type != ixgbe_mac_X550EM_x)
+		return IXGBE_ERR_LINK_SETUP;
 
 	/* Disable AN and force speed to 10G Serial. */
 	status = ixgbe_read_iosf_sb_reg_x550(hw,
@@ -1874,8 +1879,10 @@ static s32 ixgbe_setup_mac_link_t_X550em(struct ixgbe_hw *hw,
 	else
 		force_speed = IXGBE_LINK_SPEED_1GB_FULL;
 
-	/* If internal link mode is XFI, then setup XFI internal link. */
-	if (!(hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE)) {
+	/* If X552 and internal link mode is XFI, then setup XFI internal link.
+	 */
+	if (hw->mac.type == ixgbe_mac_X550EM_x &&
+	    !(hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE)) {
 		status = ixgbe_setup_ixfi_x550em(hw, &force_speed);
 
 		if (status)
@@ -2628,7 +2635,8 @@ static s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_copper)
 		return IXGBE_ERR_CONFIG;
 
-	if (hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE) {
+	if (!(hw->mac.type == ixgbe_mac_X550EM_x &&
+	      !(hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE))) {
 		speed = IXGBE_LINK_SPEED_10GB_FULL |
 			IXGBE_LINK_SPEED_1GB_FULL;
 		return ixgbe_setup_kr_speed_x550em(hw, speed);
