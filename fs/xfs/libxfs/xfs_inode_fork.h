@@ -152,6 +152,7 @@ void		xfs_init_local_fork(struct xfs_inode *, int, const void *, int);
 
 struct xfs_bmbt_rec_host *
 		xfs_iext_get_ext(struct xfs_ifork *, xfs_extnum_t);
+xfs_extnum_t	xfs_iext_count(struct xfs_ifork *);
 void		xfs_iext_insert(struct xfs_inode *, xfs_extnum_t, xfs_extnum_t,
 				struct xfs_bmbt_irec *, int);
 void		xfs_iext_add(struct xfs_ifork *, xfs_extnum_t, int);
@@ -180,6 +181,12 @@ void		xfs_iext_irec_compact(struct xfs_ifork *);
 void		xfs_iext_irec_compact_pages(struct xfs_ifork *);
 void		xfs_iext_irec_compact_full(struct xfs_ifork *);
 void		xfs_iext_irec_update_extoffs(struct xfs_ifork *, int, int);
+
+bool		xfs_iext_lookup_extent(struct xfs_inode *ip,
+			struct xfs_ifork *ifp, xfs_fileoff_t bno,
+			xfs_extnum_t *idxp, struct xfs_bmbt_irec *gotp);
+bool		xfs_iext_get_extent(struct xfs_ifork *ifp, xfs_extnum_t idx,
+			struct xfs_bmbt_irec *gotp);
 
 extern struct kmem_zone	*xfs_ifork_zone;
 

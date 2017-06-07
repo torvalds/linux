@@ -28,13 +28,14 @@
 
 #include <linux/dma_remapping.h>
 #include <linux/reservation.h>
+#include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
-#include "i915_gem_dmabuf.h"
+#include "i915_gem_clflush.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
@@ -185,7 +186,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		 * from the (obj, vm) we don't run the risk of creating
 		 * duplicated vmas for the same vm.
 		 */
-		vma = i915_gem_obj_lookup_or_create_vma(obj, vm, NULL);
+		vma = i915_vma_instance(obj, vm, NULL);
 		if (unlikely(IS_ERR(vma))) {
 			DRM_DEBUG("Failed to lookup VMA\n");
 			ret = PTR_ERR(vma);
@@ -275,6 +276,7 @@ static void eb_destroy(struct eb_vmas *eb)
 				       exec_list);
 		list_del_init(&vma->exec_list);
 		i915_gem_execbuffer_unreserve_vma(vma);
+		vma->exec_entry = NULL;
 		i915_vma_put(vma);
 	}
 	kfree(eb);
@@ -288,7 +290,7 @@ static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 	if (DBG_USE_CPU_RELOC)
 		return DBG_USE_CPU_RELOC > 0;
 
-	return (HAS_LLC(obj->base.dev) ||
+	return (HAS_LLC(to_i915(obj->base.dev)) ||
 		obj->base.write_domain == I915_GEM_DOMAIN_CPU ||
 		obj->cache_level != I915_CACHE_NONE);
 }
@@ -332,7 +334,8 @@ static void reloc_cache_init(struct reloc_cache *cache,
 	cache->page = -1;
 	cache->vaddr = 0;
 	cache->i915 = i915;
-	cache->use_64bit_reloc = INTEL_GEN(cache->i915) >= 8;
+	/* Must be a variable in the struct to allow GCC to unroll. */
+	cache->use_64bit_reloc = HAS_64BIT_RELOC(i915);
 	cache->node.allocated = false;
 }
 
@@ -370,8 +373,7 @@ static void reloc_cache_fini(struct reloc_cache *cache)
 
 			ggtt->base.clear_range(&ggtt->base,
 					       cache->node.start,
-					       cache->node.size,
-					       true);
+					       cache->node.size);
 			drm_mm_remove_node(&cache->node);
 		} else {
 			i915_vma_unpin((struct i915_vma *)cache->node.mm);
@@ -419,17 +421,8 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 	unsigned long offset;
 	void *vaddr;
 
-	if (cache->node.allocated) {
-		wmb();
-		ggtt->base.insert_page(&ggtt->base,
-				       i915_gem_object_get_dma_address(obj, page),
-				       cache->node.start, I915_CACHE_NONE, 0);
-		cache->page = page;
-		return unmask_page(cache->vaddr);
-	}
-
 	if (cache->vaddr) {
-		io_mapping_unmap_atomic(unmask_page(cache->vaddr));
+		io_mapping_unmap_atomic((void __force __iomem *) unmask_page(cache->vaddr));
 	} else {
 		struct i915_vma *vma;
 		int ret;
@@ -445,12 +438,11 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 					       PIN_MAPPABLE | PIN_NONBLOCK);
 		if (IS_ERR(vma)) {
 			memset(&cache->node, 0, sizeof(cache->node));
-			ret = drm_mm_insert_node_in_range_generic
+			ret = drm_mm_insert_node_in_range
 				(&ggtt->base.mm, &cache->node,
-				 4096, 0, 0,
+				 PAGE_SIZE, 0, I915_COLOR_UNEVICTABLE,
 				 0, ggtt->mappable_end,
-				 DRM_MM_SEARCH_DEFAULT,
-				 DRM_MM_CREATE_DEFAULT);
+				 DRM_MM_INSERT_LOW);
 			if (ret) /* no inactive aperture space, use cpu reloc */
 				return NULL;
 		} else {
@@ -467,6 +459,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 
 	offset = cache->node.start;
 	if (cache->node.allocated) {
+		wmb();
 		ggtt->base.insert_page(&ggtt->base,
 				       i915_gem_object_get_dma_address(obj, page),
 				       offset, I915_CACHE_NONE, 0);
@@ -474,7 +467,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 		offset += page << PAGE_SHIFT;
 	}
 
-	vaddr = io_mapping_map_atomic_wc(&cache->i915->ggtt.mappable, offset);
+	vaddr = (void __force *) io_mapping_map_atomic_wc(&cache->i915->ggtt.mappable, offset);
 	cache->page = page;
 	cache->vaddr = (unsigned long)vaddr;
 
@@ -552,27 +545,13 @@ repeat:
 	return 0;
 }
 
-static bool object_is_idle(struct drm_i915_gem_object *obj)
-{
-	unsigned long active = i915_gem_object_get_active(obj);
-	int idx;
-
-	for_each_active(active, idx) {
-		if (!i915_gem_active_is_idle(&obj->last_read[idx],
-					     &obj->base.dev->struct_mutex))
-			return false;
-	}
-
-	return true;
-}
-
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_vmas *eb,
 				   struct drm_i915_gem_relocation_entry *reloc,
 				   struct reloc_cache *cache)
 {
-	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct drm_gem_object *target_obj;
 	struct drm_i915_gem_object *target_i915_obj;
 	struct i915_vma *target_vma;
@@ -591,7 +570,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	/* Sandybridge PPGTT errata: We need a global gtt mapping for MI and
 	 * pipe_control writes because the gpu doesn't properly redirect them
 	 * through the ppgtt for non_secure batchbuffers. */
-	if (unlikely(IS_GEN6(dev) &&
+	if (unlikely(IS_GEN6(dev_priv) &&
 	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION)) {
 		ret = i915_vma_bind(target_vma, target_i915_obj->cache_level,
 				    PIN_GLOBAL);
@@ -649,10 +628,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		return -EINVAL;
 	}
 
-	/* We can't wait for rendering with pagefaults disabled */
-	if (pagefault_disabled() && !object_is_idle(obj))
-		return -EFAULT;
-
 	ret = relocate_entry(obj, reloc, cache, target_offset);
 	if (ret)
 		return ret;
@@ -679,12 +654,23 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 	remain = entry->relocation_count;
 	while (remain) {
 		struct drm_i915_gem_relocation_entry *r = stack_reloc;
-		int count = remain;
-		if (count > ARRAY_SIZE(stack_reloc))
-			count = ARRAY_SIZE(stack_reloc);
+		unsigned long unwritten;
+		unsigned int count;
+
+		count = min_t(unsigned int, remain, ARRAY_SIZE(stack_reloc));
 		remain -= count;
 
-		if (__copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0]))) {
+		/* This is the fast path and we cannot handle a pagefault
+		 * whilst holding the struct mutex lest the user pass in the
+		 * relocations contained within a mmaped bo. For in such a case
+		 * we, the page fault handler would call i915_gem_fault() and
+		 * we would try to acquire the struct mutex again. Obviously
+		 * this is bad and so lockdep complains vehemently.
+		 */
+		pagefault_disable();
+		unwritten = __copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0]));
+		pagefault_enable();
+		if (unlikely(unwritten)) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -696,11 +682,26 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 			if (ret)
 				goto out;
 
-			if (r->presumed_offset != offset &&
-			    __put_user(r->presumed_offset,
-				       &user_relocs->presumed_offset)) {
-				ret = -EFAULT;
-				goto out;
+			if (r->presumed_offset != offset) {
+				pagefault_disable();
+				unwritten = __put_user(r->presumed_offset,
+						       &user_relocs->presumed_offset);
+				pagefault_enable();
+				if (unlikely(unwritten)) {
+					/* Note that reporting an error now
+					 * leaves everything in an inconsistent
+					 * state as we have *already* changed
+					 * the relocation value inside the
+					 * object. As we have not changed the
+					 * reloc.presumed_offset or will not
+					 * change the execobject.offset, on the
+					 * call we may not rewrite the value
+					 * inside the object, leaving it
+					 * dangling and causing a GPU hang.
+					 */
+					ret = -EFAULT;
+					goto out;
+				}
 			}
 
 			user_relocs++;
@@ -740,20 +741,11 @@ i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 	struct i915_vma *vma;
 	int ret = 0;
 
-	/* This is the fast path and we cannot handle a pagefault whilst
-	 * holding the struct mutex lest the user pass in the relocations
-	 * contained within a mmaped bo. For in such a case we, the page
-	 * fault handler would call i915_gem_fault() and we would try to
-	 * acquire the struct mutex again. Obviously this is bad and so
-	 * lockdep complains vehemently.
-	 */
-	pagefault_disable();
 	list_for_each_entry(vma, &eb->vmas, exec_list) {
 		ret = i915_gem_execbuffer_relocate_vma(vma, eb);
 		if (ret)
 			break;
 	}
-	pagefault_enable();
 
 	return ret;
 }
@@ -843,7 +835,7 @@ need_reloc_mappable(struct i915_vma *vma)
 		return false;
 
 	/* See also use_cpu_reloc() */
-	if (HAS_LLC(vma->obj->base.dev))
+	if (HAS_LLC(to_i915(vma->obj->base.dev)))
 		return false;
 
 	if (vma->obj->base.write_domain == I915_GEM_DOMAIN_CPU)
@@ -860,8 +852,7 @@ eb_vma_misplaced(struct i915_vma *vma)
 	WARN_ON(entry->flags & __EXEC_OBJECT_NEEDS_MAP &&
 		!i915_vma_is_ggtt(vma));
 
-	if (entry->alignment &&
-	    vma->node.start & (entry->alignment - 1))
+	if (entry->alignment && !IS_ALIGNED(vma->node.start, entry->alignment))
 		return true;
 
 	if (vma->node.size < entry->pad_to_size)
@@ -899,6 +890,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *engine,
 	struct list_head ordered_vmas;
 	struct list_head pinned_vmas;
 	bool has_fenced_gpu_access = INTEL_GEN(engine->i915) < 4;
+	bool needs_unfenced_map = INTEL_INFO(engine->i915)->unfenced_needs_alignment;
 	int retry;
 
 	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
@@ -919,7 +911,8 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *engine,
 		if (!has_fenced_gpu_access)
 			entry->flags &= ~EXEC_OBJECT_NEEDS_FENCE;
 		need_fence =
-			entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
+			(entry->flags & EXEC_OBJECT_NEEDS_FENCE ||
+			 needs_unfenced_map) &&
 			i915_gem_object_is_tiled(obj);
 		need_mappable = need_fence || need_reloc_mappable(vma);
 
@@ -1111,47 +1104,28 @@ err:
 	return ret;
 }
 
-static unsigned int eb_other_engines(struct drm_i915_gem_request *req)
-{
-	unsigned int mask;
-
-	mask = ~intel_engine_flag(req->engine) & I915_BO_ACTIVE_MASK;
-	mask <<= I915_BO_ACTIVE_SHIFT;
-
-	return mask;
-}
-
 static int
 i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 				struct list_head *vmas)
 {
-	const unsigned int other_rings = eb_other_engines(req);
 	struct i915_vma *vma;
 	int ret;
 
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
-		struct reservation_object *resv;
 
-		if (obj->flags & other_rings) {
-			ret = i915_gem_request_await_object
-				(req, obj, obj->base.pending_write_domain);
-			if (ret)
-				return ret;
+		if (vma->exec_entry->flags & EXEC_OBJECT_ASYNC)
+			continue;
+
+		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU) {
+			i915_gem_clflush_object(obj, 0);
+			obj->base.write_domain = 0;
 		}
 
-		resv = i915_gem_object_get_dmabuf_resv(obj);
-		if (resv) {
-			ret = i915_sw_fence_await_reservation
-				(&req->submit, resv, &i915_fence_ops,
-				 obj->base.pending_write_domain, 10*HZ,
-				 GFP_KERNEL | __GFP_NOWARN);
-			if (ret < 0)
-				return ret;
-		}
-
-		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
-			i915_gem_clflush_object(obj, false);
+		ret = i915_gem_request_await_object
+			(req, obj, obj->base.pending_write_domain);
+		if (ret)
+			return ret;
 	}
 
 	/* Unconditionally flush any chipset caches (for streaming writes). */
@@ -1215,13 +1189,13 @@ validate_exec_list(struct drm_device *dev,
 			if (exec[i].offset !=
 			    gen8_canonical_addr(exec[i].offset & PAGE_MASK))
 				return -EINVAL;
-
-			/* From drm_mm perspective address space is continuous,
-			 * so from this point we're always using non-canonical
-			 * form internally.
-			 */
-			exec[i].offset = gen8_noncanonical_addr(exec[i].offset);
 		}
+
+		/* From drm_mm perspective address space is continuous,
+		 * so from this point we're always using non-canonical
+		 * form internally.
+		 */
+		exec[i].offset = gen8_noncanonical_addr(exec[i].offset);
 
 		if (exec[i].alignment && !is_power_of_2(exec[i].alignment))
 			return -EINVAL;
@@ -1266,14 +1240,12 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 			  struct intel_engine_cs *engine, const u32 ctx_id)
 {
 	struct i915_gem_context *ctx;
-	struct i915_ctx_hang_stats *hs;
 
 	ctx = i915_gem_context_lookup(file->driver_priv, ctx_id);
 	if (IS_ERR(ctx))
 		return ctx;
 
-	hs = &ctx->hang_stats;
-	if (hs->banned) {
+	if (i915_gem_context_is_banned(ctx)) {
 		DRM_DEBUG("Context %u tried to submit while banned\n", ctx_id);
 		return ERR_PTR(-EIO);
 	}
@@ -1294,9 +1266,8 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	const unsigned int idx = req->engine->id;
 
+	lockdep_assert_held(&req->i915->drm.struct_mutex);
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-
-	obj->dirty = 1; /* be paranoid  */
 
 	/* Add a reference if we're newly entering the active list.
 	 * The order in which we add operations to the retirement queue is
@@ -1305,15 +1276,15 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	if (!i915_gem_object_is_active(obj))
-		i915_gem_object_get(obj);
-	i915_gem_object_set_active(obj, idx);
-	i915_gem_active_set(&obj->last_read[idx], req);
+	if (!i915_vma_is_active(vma))
+		obj->active_count++;
+	i915_vma_set_active(vma, idx);
+	i915_gem_active_set(&vma->last_read[idx], req);
+	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 
 	if (flags & EXEC_OBJECT_WRITE) {
-		i915_gem_active_set(&obj->last_write, req);
-
-		intel_fb_obj_invalidate(obj, ORIGIN_CS);
+		if (intel_fb_obj_invalidate(obj, ORIGIN_CS))
+			i915_gem_active_set(&obj->frontbuffer_write, req);
 
 		/* update for the implicit flush after a batch */
 		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
@@ -1323,32 +1294,24 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
 		i915_gem_active_set(&vma->last_fence, req);
-
-	i915_vma_set_active(vma, idx);
-	i915_gem_active_set(&vma->last_read[idx], req);
-	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 }
 
 static void eb_export_fence(struct drm_i915_gem_object *obj,
 			    struct drm_i915_gem_request *req,
 			    unsigned int flags)
 {
-	struct reservation_object *resv;
-
-	resv = i915_gem_object_get_dmabuf_resv(obj);
-	if (!resv)
-		return;
+	struct reservation_object *resv = obj->resv;
 
 	/* Ignore errors from failing to allocate the new fence, we can't
 	 * handle an error right now. Worst case should be missed
 	 * synchronisation leading to rendering corruption.
 	 */
-	ww_mutex_lock(&resv->lock, NULL);
+	reservation_object_lock(resv, NULL);
 	if (flags & EXEC_OBJECT_WRITE)
 		reservation_object_add_excl_fence(resv, &req->fence);
 	else if (reservation_object_reserve_shared(resv) == 0)
 		reservation_object_add_shared_fence(resv, &req->fence);
-	ww_mutex_unlock(&resv->lock);
+	reservation_object_unlock(resv);
 }
 
 static void
@@ -1359,8 +1322,6 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
-		u32 old_read = obj->base.read_domains;
-		u32 old_write = obj->base.write_domain;
 
 		obj->base.write_domain = obj->base.pending_write_domain;
 		if (obj->base.write_domain)
@@ -1371,32 +1332,31 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 
 		i915_vma_move_to_active(vma, req, vma->exec_entry->flags);
 		eb_export_fence(obj, req, vma->exec_entry->flags);
-		trace_i915_gem_object_change_domain(obj, old_read, old_write);
 	}
 }
 
 static int
 i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 {
-	struct intel_ring *ring = req->ring;
-	int ret, i;
+	u32 *cs;
+	int i;
 
 	if (!IS_GEN7(req->i915) || req->engine->id != RCS) {
 		DRM_DEBUG("sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
 
-	ret = intel_ring_begin(req, 4 * 3);
-	if (ret)
-		return ret;
+	cs = intel_ring_begin(req, 4 * 3);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
 
 	for (i = 0; i < 4; i++) {
-		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit_reg(ring, GEN7_SO_WRITE_OFFSET(i));
-		intel_ring_emit(ring, 0);
+		*cs++ = MI_LOAD_REGISTER_IMM(1);
+		*cs++ = i915_mmio_reg_offset(GEN7_SO_WRITE_OFFSET(i));
+		*cs++ = 0;
 	}
 
-	intel_ring_advance(ring);
+	intel_ring_advance(req, cs);
 
 	return 0;
 }
@@ -1449,15 +1409,20 @@ out:
 	return vma;
 }
 
+static void
+add_to_client(struct drm_i915_gem_request *req,
+	      struct drm_file *file)
+{
+	req->file_priv = file->driver_priv;
+	list_add_tail(&req->client_link, &req->file_priv->mm.request_list);
+}
+
 static int
 execbuf_submit(struct i915_execbuffer_params *params,
 	       struct drm_i915_gem_execbuffer2 *args,
 	       struct list_head *vmas)
 {
-	struct drm_i915_private *dev_priv = params->request->i915;
 	u64 exec_start, exec_len;
-	int instp_mode;
-	u32 instp_mask;
 	int ret;
 
 	ret = i915_gem_execbuffer_move_to_gpu(params->request, vmas);
@@ -1468,54 +1433,9 @@ execbuf_submit(struct i915_execbuffer_params *params,
 	if (ret)
 		return ret;
 
-	instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
-	instp_mask = I915_EXEC_CONSTANTS_MASK;
-	switch (instp_mode) {
-	case I915_EXEC_CONSTANTS_REL_GENERAL:
-	case I915_EXEC_CONSTANTS_ABSOLUTE:
-	case I915_EXEC_CONSTANTS_REL_SURFACE:
-		if (instp_mode != 0 && params->engine->id != RCS) {
-			DRM_DEBUG("non-0 rel constants mode on non-RCS\n");
-			return -EINVAL;
-		}
-
-		if (instp_mode != dev_priv->relative_constants_mode) {
-			if (INTEL_INFO(dev_priv)->gen < 4) {
-				DRM_DEBUG("no rel constants on pre-gen4\n");
-				return -EINVAL;
-			}
-
-			if (INTEL_INFO(dev_priv)->gen > 5 &&
-			    instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
-				DRM_DEBUG("rel surface constants mode invalid on gen5+\n");
-				return -EINVAL;
-			}
-
-			/* The HW changed the meaning on this bit on gen6 */
-			if (INTEL_INFO(dev_priv)->gen >= 6)
-				instp_mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
-		}
-		break;
-	default:
-		DRM_DEBUG("execbuf with unknown constants: %d\n", instp_mode);
+	if (args->flags & I915_EXEC_CONSTANTS_MASK) {
+		DRM_DEBUG("I915_EXEC_CONSTANTS_* unsupported\n");
 		return -EINVAL;
-	}
-
-	if (params->engine->id == RCS &&
-	    instp_mode != dev_priv->relative_constants_mode) {
-		struct intel_ring *ring = params->request->ring;
-
-		ret = intel_ring_begin(params->request, 4);
-		if (ret)
-			return ret;
-
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit_reg(ring, INSTPM);
-		intel_ring_emit(ring, instp_mask << 16 | instp_mode);
-		intel_ring_advance(ring);
-
-		dev_priv->relative_constants_mode = instp_mode;
 	}
 
 	if (args->flags & I915_EXEC_GEN7_SOL_RESET) {
@@ -1536,8 +1456,6 @@ execbuf_submit(struct i915_execbuffer_params *params,
 					    params->dispatch_flags);
 	if (ret)
 		return ret;
-
-	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, params->request);
 
@@ -1607,12 +1525,12 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 			return NULL;
 		}
 
-		engine = &dev_priv->engine[_VCS(bsd_idx)];
+		engine = dev_priv->engine[_VCS(bsd_idx)];
 	} else {
-		engine = &dev_priv->engine[user_ring_map[user_ring_id]];
+		engine = dev_priv->engine[user_ring_map[user_ring_id]];
 	}
 
-	if (!intel_engine_initialized(engine)) {
+	if (!engine) {
 		DRM_DEBUG("execbuf with invalid ring: %u\n", user_ring_id);
 		return NULL;
 	}
@@ -1637,6 +1555,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct i915_execbuffer_params *params = &params_master;
 	const u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u32 dispatch_flags;
+	struct dma_fence *in_fence = NULL;
+	struct sync_file *out_fence = NULL;
+	int out_fence_fd = -1;
 	int ret;
 	bool need_relocs;
 
@@ -1667,7 +1588,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & I915_EXEC_RESOURCE_STREAMER) {
-		if (!HAS_RESOURCE_STREAMER(dev)) {
+		if (!HAS_RESOURCE_STREAMER(dev_priv)) {
 			DRM_DEBUG("RS is only allowed for Haswell, Gen8 and above\n");
 			return -EINVAL;
 		}
@@ -1678,6 +1599,20 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		}
 
 		dispatch_flags |= I915_DISPATCH_RS;
+	}
+
+	if (args->flags & I915_EXEC_FENCE_IN) {
+		in_fence = sync_file_get_fence(lower_32_bits(args->rsvd2));
+		if (!in_fence)
+			return -EINVAL;
+	}
+
+	if (args->flags & I915_EXEC_FENCE_OUT) {
+		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
+		if (out_fence_fd < 0) {
+			ret = out_fence_fd;
+			goto err_in_fence;
+		}
 	}
 
 	/* Take a local wakeref for preparing to dispatch the execbuf as
@@ -1759,7 +1694,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	params->args_batch_start_offset = args->batch_start_offset;
-	if (intel_engine_needs_cmd_parser(engine) && args->batch_len) {
+	if (engine->needs_cmd_parser && args->batch_len) {
 		struct i915_vma *vma;
 
 		vma = i915_gem_execbuffer_parse(engine, &shadow_exec_entry,
@@ -1824,6 +1759,21 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto err_batch_unpin;
 	}
 
+	if (in_fence) {
+		ret = i915_gem_request_await_dma_fence(params->request,
+						       in_fence);
+		if (ret < 0)
+			goto err_request;
+	}
+
+	if (out_fence_fd != -1) {
+		out_fence = sync_file_create(&params->request->fence);
+		if (!out_fence) {
+			ret = -ENOMEM;
+			goto err_request;
+		}
+	}
+
 	/* Whilst this request exists, batch_obj will be on the
 	 * active_list, and so will hold the active reference. Only when this
 	 * request is retired will the the batch_obj be moved onto the
@@ -1831,10 +1781,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * to explicitly hold another reference here.
 	 */
 	params->request->batch = params->batch;
-
-	ret = i915_gem_request_add_to_client(params->request, file);
-	if (ret)
-		goto err_request;
 
 	/*
 	 * Save assorted stuff away to pass through to *_submission().
@@ -1848,9 +1794,23 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	params->dispatch_flags          = dispatch_flags;
 	params->ctx                     = ctx;
 
+	trace_i915_gem_request_queue(params->request, dispatch_flags);
+
 	ret = execbuf_submit(params, args, &eb->vmas);
 err_request:
 	__i915_add_request(params->request, ret == 0);
+	add_to_client(params->request, file);
+
+	if (out_fence) {
+		if (ret == 0) {
+			fd_install(out_fence_fd, out_fence->file);
+			args->rsvd2 &= GENMASK_ULL(0, 31); /* keep in-fence */
+			args->rsvd2 |= (u64)out_fence_fd << 32;
+			out_fence_fd = -1;
+		} else {
+			fput(out_fence->file);
+		}
+	}
 
 err_batch_unpin:
 	/*
@@ -1872,6 +1832,10 @@ pre_mutex_err:
 	/* intel_gpu_busy should also get a ref, so it will free when the device
 	 * is really idle. */
 	intel_runtime_pm_put(dev_priv);
+	if (out_fence_fd != -1)
+		put_unused_fd(out_fence_fd);
+err_in_fence:
+	dma_fence_put(in_fence);
 	return ret;
 }
 
@@ -1921,7 +1885,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		exec2_list[i].relocs_ptr = exec_list[i].relocs_ptr;
 		exec2_list[i].alignment = exec_list[i].alignment;
 		exec2_list[i].offset = exec_list[i].offset;
-		if (INTEL_INFO(dev)->gen < 4)
+		if (INTEL_GEN(to_i915(dev)) < 4)
 			exec2_list[i].flags = EXEC_OBJECT_NEEDS_FENCE;
 		else
 			exec2_list[i].flags = 0;
@@ -1976,11 +1940,6 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 	if (args->buffer_count < 1 ||
 	    args->buffer_count > UINT_MAX / sizeof(*exec2_list)) {
 		DRM_DEBUG("execbuf2 with %d buffers\n", args->buffer_count);
-		return -EINVAL;
-	}
-
-	if (args->rsvd2 != 0) {
-		DRM_DEBUG("dirty rvsd2 field\n");
 		return -EINVAL;
 	}
 

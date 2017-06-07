@@ -18,3 +18,9 @@ driver implementation may support the following properties:
    host bridges in the system, otherwise potentially conflicting domain numbers
    may be assigned to root buses behind different host bridges.  The domain
    number for each host bridge in the system must be unique.
+- max-link-speed:
+   If present this property specifies PCI gen for link capability.  Host
+   drivers could add this as a strategy to avoid unnecessary operation for
+   unsupported link speed, for instance, trying to do training for
+   unsupported link speed, etc.  Must be '4' for gen4, '3' for gen3, '2'
+   for gen2, and '1' for gen1. Any other values are invalid.

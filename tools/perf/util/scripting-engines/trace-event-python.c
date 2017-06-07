@@ -21,6 +21,7 @@
 
 #include <Python.h>
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,6 +46,7 @@
 #include "../call-path.h"
 #include "thread_map.h"
 #include "cpumap.h"
+#include "print_binary.h"
 #include "stat.h"
 
 PyMODINIT_FUNC initperf_trace_context(void);
@@ -236,6 +238,7 @@ static void define_event_symbols(struct event_format *event,
 			      cur_field_name);
 		break;
 	case PRINT_HEX:
+	case PRINT_HEX_STR:
 		define_event_symbols(event, ev_name, args->hex.field);
 		define_event_symbols(event, ev_name, args->hex.size);
 		break;
@@ -368,10 +371,10 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 		if (node->map) {
 			struct map *map = node->map;
 			const char *dsoname = "[unknown]";
-			if (map && map->dso && (map->dso->name || map->dso->long_name)) {
+			if (map && map->dso) {
 				if (symbol_conf.show_kernel_path && map->dso->long_name)
 					dsoname = map->dso->long_name;
-				else if (map->dso->name)
+				else
 					dsoname = map->dso->name;
 			}
 			pydict_set_item_string_decref(pyelem, "dso",

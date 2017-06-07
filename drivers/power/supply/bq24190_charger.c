@@ -11,15 +11,14 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/extcon.h>
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
+#include <linux/workqueue.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
-
-#include <linux/power/bq24190_charger.h>
-
 
 #define	BQ24190_MANUFACTURER	"Texas Instruments"
 
@@ -39,6 +38,9 @@
 #define BQ24190_REG_POC_WDT_RESET_SHIFT		6
 #define BQ24190_REG_POC_CHG_CONFIG_MASK		(BIT(5) | BIT(4))
 #define BQ24190_REG_POC_CHG_CONFIG_SHIFT	4
+#define BQ24190_REG_POC_CHG_CONFIG_DISABLE		0x0
+#define BQ24190_REG_POC_CHG_CONFIG_CHARGE		0x1
+#define BQ24190_REG_POC_CHG_CONFIG_OTG			0x2
 #define BQ24190_REG_POC_SYS_MIN_MASK		(BIT(3) | BIT(2) | BIT(1))
 #define BQ24190_REG_POC_SYS_MIN_SHIFT		1
 #define BQ24190_REG_POC_BOOST_LIM_MASK		BIT(0)
@@ -144,25 +146,20 @@
  * so the first read after a fault returns the latched value and subsequent
  * reads return the current value.  In order to return the fault status
  * to the user, have the interrupt handler save the reg's value and retrieve
- * it in the appropriate health/status routine.  Each routine has its own
- * flag indicating whether it should use the value stored by the last run
- * of the interrupt handler or do an actual reg read.  That way each routine
- * can report back whatever fault may have occured.
+ * it in the appropriate health/status routine.
  */
 struct bq24190_dev_info {
 	struct i2c_client		*client;
 	struct device			*dev;
 	struct power_supply		*charger;
 	struct power_supply		*battery;
+	struct extcon_dev		*extcon;
+	struct notifier_block		extcon_nb;
+	struct delayed_work		extcon_work;
 	char				model_name[I2C_NAME_SIZE];
-	kernel_ulong_t			model;
-	unsigned int			gpio_int;
-	unsigned int			irq;
+	bool				initialized;
+	bool				irq_event;
 	struct mutex			f_reg_lock;
-	bool				first_time;
-	bool				charger_health_valid;
-	bool				battery_health_valid;
-	bool				battery_status_valid;
 	u8				f_reg;
 	u8				ss_reg;
 	u8				watchdog;
@@ -175,6 +172,12 @@ struct bq24190_dev_info {
  * number at that index in the array is the real-world value that it
  * represents.
  */
+
+/* REG00[2:0] (IINLIM) in uAh */
+static const int bq24190_isc_iinlim_values[] = {
+	 100000,  150000,  500000,  900000, 1200000, 1500000, 2000000, 3000000
+};
+
 /* REG02[7:2] (ICHG) in uAh */
 static const int bq24190_ccc_ichg_values[] = {
 	 512000,  576000,  640000,  704000,  768000,  832000,  896000,  960000,
@@ -199,7 +202,7 @@ static const int bq24190_cvc_vreg_values[] = {
 	4400000
 };
 
-/* REG06[1:0] (TREG) in tenths of degrees Celcius */
+/* REG06[1:0] (TREG) in tenths of degrees Celsius */
 static const int bq24190_ictrc_treg_values[] = {
 	600, 800, 1000, 1200
 };
@@ -425,6 +428,7 @@ static ssize_t bq24190_sysfs_show(struct device *dev,
 	struct power_supply *psy = dev_get_drvdata(dev);
 	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	struct bq24190_sysfs_field_info *info;
+	ssize_t count;
 	int ret;
 	u8 v;
 
@@ -432,11 +436,20 @@ static ssize_t bq24190_sysfs_show(struct device *dev,
 	if (!info)
 		return -EINVAL;
 
-	ret = bq24190_read_mask(bdi, info->reg, info->mask, info->shift, &v);
-	if (ret)
+	ret = pm_runtime_get_sync(bdi->dev);
+	if (ret < 0)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%hhx\n", v);
+	ret = bq24190_read_mask(bdi, info->reg, info->mask, info->shift, &v);
+	if (ret)
+		count = ret;
+	else
+		count = scnprintf(buf, PAGE_SIZE, "%hhx\n", v);
+
+	pm_runtime_mark_last_busy(bdi->dev);
+	pm_runtime_put_autosuspend(bdi->dev);
+
+	return count;
 }
 
 static ssize_t bq24190_sysfs_store(struct device *dev,
@@ -456,9 +469,16 @@ static ssize_t bq24190_sysfs_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
+	ret = pm_runtime_get_sync(bdi->dev);
+	if (ret < 0)
+		return ret;
+
 	ret = bq24190_write_mask(bdi, info->reg, info->mask, info->shift, v);
 	if (ret)
-		return ret;
+		count = ret;
+
+	pm_runtime_mark_last_busy(bdi->dev);
+	pm_runtime_put_autosuspend(bdi->dev);
 
 	return count;
 }
@@ -513,6 +533,9 @@ static int bq24190_register_reset(struct bq24190_dev_info *bdi)
 	int ret, limit = 100;
 	u8 v;
 
+	if (device_property_read_bool(bdi->dev, "disable-reset"))
+		return 0;
+
 	/* Reset the registers */
 	ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
 			BQ24190_REG_POC_RESET_MASK,
@@ -530,16 +553,13 @@ static int bq24190_register_reset(struct bq24190_dev_info *bdi)
 		if (ret < 0)
 			return ret;
 
-		if (!v)
-			break;
+		if (v == 0)
+			return 0;
 
-		udelay(10);
+		usleep_range(100, 200);
 	} while (--limit);
 
-	if (!limit)
-		return -EIO;
-
-	return 0;
+	return -EIO;
 }
 
 /* Charger power supply property routines */
@@ -636,38 +656,31 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 		union power_supply_propval *val)
 {
 	u8 v;
-	int health, ret;
+	int health;
 
 	mutex_lock(&bdi->f_reg_lock);
+	v = bdi->f_reg;
+	mutex_unlock(&bdi->f_reg_lock);
 
-	if (bdi->charger_health_valid) {
-		v = bdi->f_reg;
-		bdi->charger_health_valid = false;
-		mutex_unlock(&bdi->f_reg_lock);
-	} else {
-		mutex_unlock(&bdi->f_reg_lock);
-
-		ret = bq24190_read(bdi, BQ24190_REG_F, &v);
-		if (ret < 0)
-			return ret;
-	}
-
-	if (v & BQ24190_REG_F_BOOST_FAULT_MASK) {
-		/*
-		 * This could be over-current or over-voltage but there's
-		 * no way to tell which.  Return 'OVERVOLTAGE' since there
-		 * isn't an 'OVERCURRENT' value defined that we can return
-		 * even if it was over-current.
-		 */
-		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
-	} else {
-		v &= BQ24190_REG_F_CHRG_FAULT_MASK;
-		v >>= BQ24190_REG_F_CHRG_FAULT_SHIFT;
-
-		switch (v) {
-		case 0x0: /* Normal */
-			health = POWER_SUPPLY_HEALTH_GOOD;
+	if (v & BQ24190_REG_F_NTC_FAULT_MASK) {
+		switch (v >> BQ24190_REG_F_NTC_FAULT_SHIFT & 0x7) {
+		case 0x1: /* TS1  Cold */
+		case 0x3: /* TS2  Cold */
+		case 0x5: /* Both Cold */
+			health = POWER_SUPPLY_HEALTH_COLD;
 			break;
+		case 0x2: /* TS1  Hot */
+		case 0x4: /* TS2  Hot */
+		case 0x6: /* Both Hot */
+			health = POWER_SUPPLY_HEALTH_OVERHEAT;
+			break;
+		default:
+			health = POWER_SUPPLY_HEALTH_UNKNOWN;
+		}
+	} else if (v & BQ24190_REG_F_BAT_FAULT_MASK) {
+		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+	} else if (v & BQ24190_REG_F_CHRG_FAULT_MASK) {
+		switch (v >> BQ24190_REG_F_CHRG_FAULT_SHIFT & 0x3) {
 		case 0x1: /* Input Fault (VBUS OVP or VBAT<VBUS<3.8V) */
 			/*
 			 * This could be over-voltage or under-voltage
@@ -684,9 +697,19 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 		case 0x3: /* Charge Safety Timer Expiration */
 			health = POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE;
 			break;
-		default:
-			health = POWER_SUPPLY_HEALTH_UNKNOWN;
+		default:  /* prevent compiler warning */
+			health = -1;
 		}
+	} else if (v & BQ24190_REG_F_BOOST_FAULT_MASK) {
+		/*
+		 * This could be over-current or over-voltage but there's
+		 * no way to tell which.  Return 'OVERVOLTAGE' since there
+		 * isn't an 'OVERCURRENT' value defined that we can return
+		 * even if it was over-current.
+		 */
+		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+	} else {
+		health = POWER_SUPPLY_HEALTH_GOOD;
 	}
 
 	val->intval = health;
@@ -697,17 +720,57 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 static int bq24190_charger_get_online(struct bq24190_dev_info *bdi,
 		union power_supply_propval *val)
 {
-	u8 v;
+	u8 pg_stat, batfet_disable;
 	int ret;
 
 	ret = bq24190_read_mask(bdi, BQ24190_REG_SS,
 			BQ24190_REG_SS_PG_STAT_MASK,
-			BQ24190_REG_SS_PG_STAT_SHIFT, &v);
+			BQ24190_REG_SS_PG_STAT_SHIFT, &pg_stat);
 	if (ret < 0)
 		return ret;
 
-	val->intval = v;
+	ret = bq24190_read_mask(bdi, BQ24190_REG_MOC,
+			BQ24190_REG_MOC_BATFET_DISABLE_MASK,
+			BQ24190_REG_MOC_BATFET_DISABLE_SHIFT, &batfet_disable);
+	if (ret < 0)
+		return ret;
+
+	val->intval = pg_stat && !batfet_disable;
+
 	return 0;
+}
+
+static int bq24190_battery_set_online(struct bq24190_dev_info *bdi,
+				      const union power_supply_propval *val);
+static int bq24190_battery_get_status(struct bq24190_dev_info *bdi,
+				      union power_supply_propval *val);
+static int bq24190_battery_get_temp_alert_max(struct bq24190_dev_info *bdi,
+					      union power_supply_propval *val);
+static int bq24190_battery_set_temp_alert_max(struct bq24190_dev_info *bdi,
+					      const union power_supply_propval *val);
+
+static int bq24190_charger_set_online(struct bq24190_dev_info *bdi,
+				      const union power_supply_propval *val)
+{
+	return bq24190_battery_set_online(bdi, val);
+}
+
+static int bq24190_charger_get_status(struct bq24190_dev_info *bdi,
+				      union power_supply_propval *val)
+{
+	return bq24190_battery_get_status(bdi, val);
+}
+
+static int bq24190_charger_get_temp_alert_max(struct bq24190_dev_info *bdi,
+					      union power_supply_propval *val)
+{
+	return bq24190_battery_get_temp_alert_max(bdi, val);
+}
+
+static int bq24190_charger_set_temp_alert_max(struct bq24190_dev_info *bdi,
+					      const union power_supply_propval *val)
+{
+	return bq24190_battery_set_temp_alert_max(bdi, val);
 }
 
 static int bq24190_charger_get_current(struct bq24190_dev_info *bdi,
@@ -810,7 +873,9 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
-	pm_runtime_get_sync(bdi->dev);
+	ret = pm_runtime_get_sync(bdi->dev);
+	if (ret < 0)
+		return ret;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
@@ -821,6 +886,12 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
 		ret = bq24190_charger_get_online(bdi, val);
+		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		ret = bq24190_charger_get_status(bdi, val);
+		break;
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
+		ret =  bq24190_charger_get_temp_alert_max(bdi, val);
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 		ret = bq24190_charger_get_current(bdi, val);
@@ -850,7 +921,9 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 		ret = -ENODATA;
 	}
 
-	pm_runtime_put_sync(bdi->dev);
+	pm_runtime_mark_last_busy(bdi->dev);
+	pm_runtime_put_autosuspend(bdi->dev);
+
 	return ret;
 }
 
@@ -863,9 +936,17 @@ static int bq24190_charger_set_property(struct power_supply *psy,
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
-	pm_runtime_get_sync(bdi->dev);
+	ret = pm_runtime_get_sync(bdi->dev);
+	if (ret < 0)
+		return ret;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		ret = bq24190_charger_set_online(bdi, val);
+		break;
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
+		ret = bq24190_charger_set_temp_alert_max(bdi, val);
+		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		ret = bq24190_charger_set_charge_type(bdi, val);
 		break;
@@ -879,7 +960,9 @@ static int bq24190_charger_set_property(struct power_supply *psy,
 		ret = -EINVAL;
 	}
 
-	pm_runtime_put_sync(bdi->dev);
+	pm_runtime_mark_last_busy(bdi->dev);
+	pm_runtime_put_autosuspend(bdi->dev);
+
 	return ret;
 }
 
@@ -889,6 +972,8 @@ static int bq24190_charger_property_is_writeable(struct power_supply *psy,
 	int ret;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
@@ -905,6 +990,8 @@ static enum power_supply_property bq24190_charger_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_TEMP_ALERT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
@@ -937,18 +1024,8 @@ static int bq24190_battery_get_status(struct bq24190_dev_info *bdi,
 	int status, ret;
 
 	mutex_lock(&bdi->f_reg_lock);
-
-	if (bdi->battery_status_valid) {
-		chrg_fault = bdi->f_reg;
-		bdi->battery_status_valid = false;
-		mutex_unlock(&bdi->f_reg_lock);
-	} else {
-		mutex_unlock(&bdi->f_reg_lock);
-
-		ret = bq24190_read(bdi, BQ24190_REG_F, &chrg_fault);
-		if (ret < 0)
-			return ret;
-	}
+	chrg_fault = bdi->f_reg;
+	mutex_unlock(&bdi->f_reg_lock);
 
 	chrg_fault &= BQ24190_REG_F_CHRG_FAULT_MASK;
 	chrg_fault >>= BQ24190_REG_F_CHRG_FAULT_SHIFT;
@@ -996,21 +1073,11 @@ static int bq24190_battery_get_health(struct bq24190_dev_info *bdi,
 		union power_supply_propval *val)
 {
 	u8 v;
-	int health, ret;
+	int health;
 
 	mutex_lock(&bdi->f_reg_lock);
-
-	if (bdi->battery_health_valid) {
-		v = bdi->f_reg;
-		bdi->battery_health_valid = false;
-		mutex_unlock(&bdi->f_reg_lock);
-	} else {
-		mutex_unlock(&bdi->f_reg_lock);
-
-		ret = bq24190_read(bdi, BQ24190_REG_F, &v);
-		if (ret < 0)
-			return ret;
-	}
+	v = bdi->f_reg;
+	mutex_unlock(&bdi->f_reg_lock);
 
 	if (v & BQ24190_REG_F_BAT_FAULT_MASK) {
 		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
@@ -1098,9 +1165,12 @@ static int bq24190_battery_get_property(struct power_supply *psy,
 	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
+	dev_warn(bdi->dev, "warning: /sys/class/power_supply/bq24190-battery is deprecated\n");
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
-	pm_runtime_get_sync(bdi->dev);
+	ret = pm_runtime_get_sync(bdi->dev);
+	if (ret < 0)
+		return ret;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -1128,7 +1198,9 @@ static int bq24190_battery_get_property(struct power_supply *psy,
 		ret = -ENODATA;
 	}
 
-	pm_runtime_put_sync(bdi->dev);
+	pm_runtime_mark_last_busy(bdi->dev);
+	pm_runtime_put_autosuspend(bdi->dev);
+
 	return ret;
 }
 
@@ -1139,9 +1211,12 @@ static int bq24190_battery_set_property(struct power_supply *psy,
 	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
+	dev_warn(bdi->dev, "warning: /sys/class/power_supply/bq24190-battery is deprecated\n");
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
-	pm_runtime_put_sync(bdi->dev);
+	ret = pm_runtime_get_sync(bdi->dev);
+	if (ret < 0)
+		return ret;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -1154,7 +1229,9 @@ static int bq24190_battery_set_property(struct power_supply *psy,
 		ret = -EINVAL;
 	}
 
-	pm_runtime_put_sync(bdi->dev);
+	pm_runtime_mark_last_busy(bdi->dev);
+	pm_runtime_put_autosuspend(bdi->dev);
+
 	return ret;
 }
 
@@ -1194,19 +1271,50 @@ static const struct power_supply_desc bq24190_battery_desc = {
 	.property_is_writeable	= bq24190_battery_property_is_writeable,
 };
 
-static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
+static void bq24190_check_status(struct bq24190_dev_info *bdi)
 {
-	struct bq24190_dev_info *bdi = data;
-	bool alert_userspace = false;
+	const u8 battery_mask_ss = BQ24190_REG_SS_CHRG_STAT_MASK;
+	const u8 battery_mask_f = BQ24190_REG_F_BAT_FAULT_MASK
+				| BQ24190_REG_F_NTC_FAULT_MASK;
+	bool alert_charger = false, alert_battery = false;
 	u8 ss_reg = 0, f_reg = 0;
-	int ret;
-
-	pm_runtime_get_sync(bdi->dev);
+	int i, ret;
 
 	ret = bq24190_read(bdi, BQ24190_REG_SS, &ss_reg);
 	if (ret < 0) {
 		dev_err(bdi->dev, "Can't read SS reg: %d\n", ret);
-		goto out;
+		return;
+	}
+
+	i = 0;
+	do {
+		ret = bq24190_read(bdi, BQ24190_REG_F, &f_reg);
+		if (ret < 0) {
+			dev_err(bdi->dev, "Can't read F reg: %d\n", ret);
+			return;
+		}
+	} while (f_reg && ++i < 2);
+
+	/* ignore over/under voltage fault after disconnect */
+	if (f_reg == (1 << BQ24190_REG_F_CHRG_FAULT_SHIFT) &&
+	    !(ss_reg & BQ24190_REG_SS_PG_STAT_MASK))
+		f_reg = 0;
+
+	if (f_reg != bdi->f_reg) {
+		dev_warn(bdi->dev,
+			"Fault: boost %d, charge %d, battery %d, ntc %d\n",
+			!!(f_reg & BQ24190_REG_F_BOOST_FAULT_MASK),
+			!!(f_reg & BQ24190_REG_F_CHRG_FAULT_MASK),
+			!!(f_reg & BQ24190_REG_F_BAT_FAULT_MASK),
+			!!(f_reg & BQ24190_REG_F_NTC_FAULT_MASK));
+
+		mutex_lock(&bdi->f_reg_lock);
+		if ((bdi->f_reg & battery_mask_f) != (f_reg & battery_mask_f))
+			alert_battery = true;
+		if ((bdi->f_reg & ~battery_mask_f) != (f_reg & ~battery_mask_f))
+			alert_charger = true;
+		bdi->f_reg = f_reg;
+		mutex_unlock(&bdi->f_reg_lock);
 	}
 
 	if (ss_reg != bdi->ss_reg) {
@@ -1225,54 +1333,108 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 					ret);
 		}
 
+		if ((bdi->ss_reg & battery_mask_ss) != (ss_reg & battery_mask_ss))
+			alert_battery = true;
+		if ((bdi->ss_reg & ~battery_mask_ss) != (ss_reg & ~battery_mask_ss))
+			alert_charger = true;
 		bdi->ss_reg = ss_reg;
-		alert_userspace = true;
 	}
 
-	mutex_lock(&bdi->f_reg_lock);
-
-	ret = bq24190_read(bdi, BQ24190_REG_F, &f_reg);
-	if (ret < 0) {
-		mutex_unlock(&bdi->f_reg_lock);
-		dev_err(bdi->dev, "Can't read F reg: %d\n", ret);
-		goto out;
-	}
-
-	if (f_reg != bdi->f_reg) {
-		bdi->f_reg = f_reg;
-		bdi->charger_health_valid = true;
-		bdi->battery_health_valid = true;
-		bdi->battery_status_valid = true;
-
-		alert_userspace = true;
-	}
-
-	mutex_unlock(&bdi->f_reg_lock);
-
-	/*
-	 * Sometimes bq24190 gives a steady trickle of interrupts even
-	 * though the watchdog timer is turned off and neither the STATUS
-	 * nor FAULT registers have changed.  Weed out these sprurious
-	 * interrupts so userspace isn't alerted for no reason.
-	 * In addition, the chip always generates an interrupt after
-	 * register reset so we should ignore that one (the very first
-	 * interrupt received).
-	 */
-	if (alert_userspace) {
-		if (!bdi->first_time) {
-			power_supply_changed(bdi->charger);
-			power_supply_changed(bdi->battery);
-		} else {
-			bdi->first_time = false;
-		}
-	}
-
-out:
-	pm_runtime_put_sync(bdi->dev);
+	if (alert_charger || alert_battery)
+		power_supply_changed(bdi->charger);
+	if (alert_battery && bdi->battery)
+		power_supply_changed(bdi->battery);
 
 	dev_dbg(bdi->dev, "ss_reg: 0x%02x, f_reg: 0x%02x\n", ss_reg, f_reg);
+}
+
+static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
+{
+	struct bq24190_dev_info *bdi = data;
+	int error;
+
+	bdi->irq_event = true;
+	error = pm_runtime_get_sync(bdi->dev);
+	if (error < 0) {
+		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
+		pm_runtime_put_noidle(bdi->dev);
+		return IRQ_NONE;
+	}
+	bq24190_check_status(bdi);
+	pm_runtime_mark_last_busy(bdi->dev);
+	pm_runtime_put_autosuspend(bdi->dev);
+	bdi->irq_event = false;
 
 	return IRQ_HANDLED;
+}
+
+static void bq24190_extcon_work(struct work_struct *work)
+{
+	struct bq24190_dev_info *bdi =
+		container_of(work, struct bq24190_dev_info, extcon_work.work);
+	int error, iinlim = 0;
+	u8 v;
+
+	error = pm_runtime_get_sync(bdi->dev);
+	if (error < 0) {
+		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
+		pm_runtime_put_noidle(bdi->dev);
+		return;
+	}
+
+	if      (extcon_get_state(bdi->extcon, EXTCON_CHG_USB_SDP) == 1)
+		iinlim =  500000;
+	else if (extcon_get_state(bdi->extcon, EXTCON_CHG_USB_CDP) == 1 ||
+		 extcon_get_state(bdi->extcon, EXTCON_CHG_USB_ACA) == 1)
+		iinlim = 1500000;
+	else if (extcon_get_state(bdi->extcon, EXTCON_CHG_USB_DCP) == 1)
+		iinlim = 2000000;
+
+	if (iinlim) {
+		error = bq24190_set_field_val(bdi, BQ24190_REG_ISC,
+					      BQ24190_REG_ISC_IINLIM_MASK,
+					      BQ24190_REG_ISC_IINLIM_SHIFT,
+					      bq24190_isc_iinlim_values,
+					      ARRAY_SIZE(bq24190_isc_iinlim_values),
+					      iinlim);
+		if (error < 0)
+			dev_err(bdi->dev, "Can't set IINLIM: %d\n", error);
+	}
+
+	/* if no charger found and in USB host mode, set OTG 5V boost, else normal */
+	if (!iinlim && extcon_get_state(bdi->extcon, EXTCON_USB_HOST) == 1)
+		v = BQ24190_REG_POC_CHG_CONFIG_OTG;
+	else
+		v = BQ24190_REG_POC_CHG_CONFIG_CHARGE;
+
+	error = bq24190_write_mask(bdi, BQ24190_REG_POC,
+				   BQ24190_REG_POC_CHG_CONFIG_MASK,
+				   BQ24190_REG_POC_CHG_CONFIG_SHIFT,
+				   v);
+	if (error < 0)
+		dev_err(bdi->dev, "Can't set CHG_CONFIG: %d\n", error);
+
+	pm_runtime_mark_last_busy(bdi->dev);
+	pm_runtime_put_autosuspend(bdi->dev);
+}
+
+static int bq24190_extcon_event(struct notifier_block *nb, unsigned long event,
+				void *param)
+{
+	struct bq24190_dev_info *bdi =
+		container_of(nb, struct bq24190_dev_info, extcon_nb);
+
+	/*
+	 * The Power-Good detection may take up to 220ms, sometimes
+	 * the external charger detection is quicker, and the bq24190 will
+	 * reset to iinlim based on its own charger detection (which is not
+	 * hooked up when using external charger detection) resulting in
+	 * a too low default 500mA iinlim. Delay applying the extcon value
+	 * for 300ms to avoid this.
+	 */
+	queue_delayed_work(system_wq, &bdi->extcon_work, msecs_to_jiffies(300));
+
+	return NOTIFY_OK;
 }
 
 static int bq24190_hw_init(struct bq24190_dev_info *bdi)
@@ -1280,73 +1442,29 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
 	u8 v;
 	int ret;
 
-	pm_runtime_get_sync(bdi->dev);
-
 	/* First check that the device really is what its supposed to be */
 	ret = bq24190_read_mask(bdi, BQ24190_REG_VPRS,
 			BQ24190_REG_VPRS_PN_MASK,
 			BQ24190_REG_VPRS_PN_SHIFT,
 			&v);
 	if (ret < 0)
-		goto out;
+		return ret;
 
-	if (v != bdi->model) {
-		ret = -ENODEV;
-		goto out;
+	if (v != BQ24190_REG_VPRS_PN_24190 &&
+	    v != BQ24190_REG_VPRS_PN_24192I) {
+		dev_err(bdi->dev, "Error unknown model: 0x%02x\n", v);
+		return -ENODEV;
 	}
 
 	ret = bq24190_register_reset(bdi);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	ret = bq24190_set_mode_host(bdi);
-out:
-	pm_runtime_put_sync(bdi->dev);
-	return ret;
-}
-
-#ifdef CONFIG_OF
-static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
-{
-	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
-	if (bdi->irq <= 0)
-		return -1;
-
-	return 0;
-}
-#else
-static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
-{
-	return -1;
-}
-#endif
-
-static int bq24190_setup_pdata(struct bq24190_dev_info *bdi,
-		struct bq24190_platform_data *pdata)
-{
-	int ret;
-
-	if (!gpio_is_valid(pdata->gpio_int))
-		return -1;
-
-	ret = gpio_request(pdata->gpio_int, dev_name(bdi->dev));
 	if (ret < 0)
-		return -1;
+		return ret;
 
-	ret = gpio_direction_input(pdata->gpio_int);
-	if (ret < 0)
-		goto out;
-
-	bdi->irq = gpio_to_irq(pdata->gpio_int);
-	if (!bdi->irq)
-		goto out;
-
-	bdi->gpio_int = pdata->gpio_int;
-	return 0;
-
-out:
-	gpio_free(pdata->gpio_int);
-	return -1;
+	return bq24190_read(bdi, BQ24190_REG_SS, &bdi->ss_reg);
 }
 
 static int bq24190_probe(struct i2c_client *client,
@@ -1354,9 +1472,9 @@ static int bq24190_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct device *dev = &client->dev;
-	struct bq24190_platform_data *pdata = client->dev.platform_data;
 	struct power_supply_config charger_cfg = {}, battery_cfg = {};
 	struct bq24190_dev_info *bdi;
+	const char *name;
 	int ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
@@ -1372,42 +1490,50 @@ static int bq24190_probe(struct i2c_client *client,
 
 	bdi->client = client;
 	bdi->dev = dev;
-	bdi->model = id->driver_data;
 	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
 	mutex_init(&bdi->f_reg_lock);
-	bdi->first_time = true;
-	bdi->charger_health_valid = false;
-	bdi->battery_health_valid = false;
-	bdi->battery_status_valid = false;
+	bdi->f_reg = 0;
+	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK; /* impossible state */
 
 	i2c_set_clientdata(client, bdi);
 
-	if (dev->of_node)
-		ret = bq24190_setup_dt(bdi);
-	else
-		ret = bq24190_setup_pdata(bdi, pdata);
-
-	if (ret) {
+	if (!client->irq) {
 		dev_err(dev, "Can't get irq info\n");
 		return -EINVAL;
 	}
 
-	ret = devm_request_threaded_irq(dev, bdi->irq, NULL,
-			bq24190_irq_handler_thread,
-			IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-			"bq24190-charger", bdi);
-	if (ret < 0) {
-		dev_err(dev, "Can't set up irq handler\n");
-		goto out1;
+	/*
+	 * Devicetree platforms should get extcon via phandle (not yet supported).
+	 * On ACPI platforms, extcon clients may invoke us with:
+	 * struct property_entry pe[] =
+	 *   { PROPERTY_ENTRY_STRING("extcon-name", client_name), ... };
+	 * struct i2c_board_info bi =
+	 *   { .type = "bq24190", .addr = 0x6b, .properties = pe, .irq = irq };
+	 * struct i2c_adapter ad = { ... };
+	 * i2c_add_adapter(&ad);
+	 * i2c_new_device(&ad, &bi);
+	 */
+	if (device_property_read_string(dev, "extcon-name", &name) == 0) {
+		bdi->extcon = extcon_get_extcon_dev(name);
+		if (!bdi->extcon)
+			return -EPROBE_DEFER;
+
+		dev_info(bdi->dev, "using extcon device %s\n", name);
 	}
 
 	pm_runtime_enable(dev);
-	pm_runtime_resume(dev);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, 600);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "pm_runtime_get failed: %i\n", ret);
+		goto out_pmrt;
+	}
 
 	ret = bq24190_hw_init(bdi);
 	if (ret < 0) {
 		dev_err(dev, "Hardware init failed\n");
-		goto out2;
+		goto out_pmrt;
 	}
 
 	charger_cfg.drv_data = bdi;
@@ -1418,101 +1544,191 @@ static int bq24190_probe(struct i2c_client *client,
 	if (IS_ERR(bdi->charger)) {
 		dev_err(dev, "Can't register charger\n");
 		ret = PTR_ERR(bdi->charger);
-		goto out2;
+		goto out_pmrt;
 	}
 
-	battery_cfg.drv_data = bdi;
-	bdi->battery = power_supply_register(dev, &bq24190_battery_desc,
-						&battery_cfg);
-	if (IS_ERR(bdi->battery)) {
-		dev_err(dev, "Can't register battery\n");
-		ret = PTR_ERR(bdi->battery);
-		goto out3;
+	/* the battery class is deprecated and will be removed. */
+	/* in the interim, this property hides it.              */
+	if (!device_property_read_bool(dev, "omit-battery-class")) {
+		battery_cfg.drv_data = bdi;
+		bdi->battery = power_supply_register(dev, &bq24190_battery_desc,
+						     &battery_cfg);
+		if (IS_ERR(bdi->battery)) {
+			dev_err(dev, "Can't register battery\n");
+			ret = PTR_ERR(bdi->battery);
+			goto out_charger;
+		}
 	}
 
 	ret = bq24190_sysfs_create_group(bdi);
 	if (ret) {
 		dev_err(dev, "Can't create sysfs entries\n");
-		goto out4;
+		goto out_charger;
 	}
+
+	bdi->initialized = true;
+
+	ret = devm_request_threaded_irq(dev, client->irq, NULL,
+			bq24190_irq_handler_thread,
+			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			"bq24190-charger", bdi);
+	if (ret < 0) {
+		dev_err(dev, "Can't set up irq handler\n");
+		goto out_sysfs;
+	}
+
+	if (bdi->extcon) {
+		INIT_DELAYED_WORK(&bdi->extcon_work, bq24190_extcon_work);
+		bdi->extcon_nb.notifier_call = bq24190_extcon_event;
+		ret = devm_extcon_register_notifier_all(dev, bdi->extcon,
+							&bdi->extcon_nb);
+		if (ret) {
+			dev_err(dev, "Can't register extcon\n");
+			goto out_sysfs;
+		}
+
+		/* Sync initial cable state */
+		queue_delayed_work(system_wq, &bdi->extcon_work, 0);
+	}
+
+	enable_irq_wake(client->irq);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
-out4:
-	power_supply_unregister(bdi->battery);
-out3:
-	power_supply_unregister(bdi->charger);
-out2:
-	pm_runtime_disable(dev);
-out1:
-	if (bdi->gpio_int)
-		gpio_free(bdi->gpio_int);
+out_sysfs:
+	bq24190_sysfs_remove_group(bdi);
 
+out_charger:
+	if (!IS_ERR_OR_NULL(bdi->battery))
+		power_supply_unregister(bdi->battery);
+	power_supply_unregister(bdi->charger);
+
+out_pmrt:
+	pm_runtime_put_sync(dev);
+	pm_runtime_dont_use_autosuspend(dev);
+	pm_runtime_disable(dev);
 	return ret;
 }
 
 static int bq24190_remove(struct i2c_client *client)
 {
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
+	int error;
 
-	pm_runtime_get_sync(bdi->dev);
+	error = pm_runtime_get_sync(bdi->dev);
+	if (error < 0) {
+		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
+		pm_runtime_put_noidle(bdi->dev);
+	}
+
 	bq24190_register_reset(bdi);
-	pm_runtime_put_sync(bdi->dev);
-
 	bq24190_sysfs_remove_group(bdi);
-	power_supply_unregister(bdi->battery);
+	if (bdi->battery)
+		power_supply_unregister(bdi->battery);
 	power_supply_unregister(bdi->charger);
+	if (error >= 0)
+		pm_runtime_put_sync(bdi->dev);
+	pm_runtime_dont_use_autosuspend(bdi->dev);
 	pm_runtime_disable(bdi->dev);
 
-	if (bdi->gpio_int)
-		gpio_free(bdi->gpio_int);
-
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int bq24190_pm_suspend(struct device *dev)
+static __maybe_unused int bq24190_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
 
-	pm_runtime_get_sync(bdi->dev);
-	bq24190_register_reset(bdi);
-	pm_runtime_put_sync(bdi->dev);
+	if (!bdi->initialized)
+		return 0;
+
+	dev_dbg(bdi->dev, "%s\n", __func__);
 
 	return 0;
 }
 
-static int bq24190_pm_resume(struct device *dev)
+static __maybe_unused int bq24190_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
 
-	bdi->charger_health_valid = false;
-	bdi->battery_health_valid = false;
-	bdi->battery_status_valid = false;
+	if (!bdi->initialized)
+		return 0;
 
-	pm_runtime_get_sync(bdi->dev);
+	if (!bdi->irq_event) {
+		dev_dbg(bdi->dev, "checking events on possible wakeirq\n");
+		bq24190_check_status(bdi);
+	}
+
+	return 0;
+}
+
+static __maybe_unused int bq24190_pm_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
+	int error;
+
+	error = pm_runtime_get_sync(bdi->dev);
+	if (error < 0) {
+		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
+		pm_runtime_put_noidle(bdi->dev);
+	}
+
 	bq24190_register_reset(bdi);
-	pm_runtime_put_sync(bdi->dev);
+
+	if (error >= 0) {
+		pm_runtime_mark_last_busy(bdi->dev);
+		pm_runtime_put_autosuspend(bdi->dev);
+	}
+
+	return 0;
+}
+
+static __maybe_unused int bq24190_pm_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
+	int error;
+
+	bdi->f_reg = 0;
+	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK; /* impossible state */
+
+	error = pm_runtime_get_sync(bdi->dev);
+	if (error < 0) {
+		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
+		pm_runtime_put_noidle(bdi->dev);
+	}
+
+	bq24190_register_reset(bdi);
+	bq24190_set_mode_host(bdi);
+	bq24190_read(bdi, BQ24190_REG_SS, &bdi->ss_reg);
+
+	if (error >= 0) {
+		pm_runtime_mark_last_busy(bdi->dev);
+		pm_runtime_put_autosuspend(bdi->dev);
+	}
 
 	/* Things may have changed while suspended so alert upper layer */
 	power_supply_changed(bdi->charger);
-	power_supply_changed(bdi->battery);
+	if (bdi->battery)
+		power_supply_changed(bdi->battery);
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(bq24190_pm_ops, bq24190_pm_suspend, bq24190_pm_resume);
+static const struct dev_pm_ops bq24190_pm_ops = {
+	SET_RUNTIME_PM_OPS(bq24190_runtime_suspend, bq24190_runtime_resume,
+			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(bq24190_pm_suspend, bq24190_pm_resume)
+};
 
-/*
- * Only support the bq24190 right now.  The bq24192, bq24192i, and bq24193
- * are similar but not identical so the driver needs to be extended to
- * support them.
- */
 static const struct i2c_device_id bq24190_i2c_ids[] = {
-	{ "bq24190", BQ24190_REG_VPRS_PN_24190 },
+	{ "bq24190" },
+	{ "bq24192i" },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, bq24190_i2c_ids);

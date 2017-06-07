@@ -204,6 +204,7 @@ static __always_inline __pure bool _static_cpu_has(u16 bit)
 
 #define static_cpu_has_bug(bit)		static_cpu_has((bit))
 #define boot_cpu_has_bug(bit)		cpu_has_bug(&boot_cpu_data, (bit))
+#define boot_cpu_set_bug(bit)		set_cpu_cap(&boot_cpu_data, (bit))
 
 #define MAX_CPU_FEATURES		(NCAPINTS * 32)
 #define cpu_have_feature		boot_cpu_has

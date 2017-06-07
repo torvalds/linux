@@ -224,7 +224,8 @@ struct usb_ctrlrequest {
  * through the Linux-USB APIs, they are not converted to cpu byte
  * order; it is the responsibility of the client code to do this.
  * The single exception is when device and configuration descriptors (but
- * not other descriptors) are read from usbfs (i.e. /proc/bus/usb/BBB/DDD);
+ * not other descriptors) are read from character devices
+ * (i.e. /dev/bus/usb/BBB/DDD);
  * in this case the fields are converted to host endianness by the kernel.
  */
 
@@ -422,6 +423,12 @@ struct usb_endpoint_descriptor {
 #define USB_ENDPOINT_XFER_BULK		2
 #define USB_ENDPOINT_XFER_INT		3
 #define USB_ENDPOINT_MAX_ADJUSTABLE	0x80
+
+#define USB_ENDPOINT_MAXP_MASK	0x07ff
+#define USB_EP_MAXP_MULT_SHIFT	11
+#define USB_EP_MAXP_MULT_MASK	(3 << USB_EP_MAXP_MULT_SHIFT)
+#define USB_EP_MAXP_MULT(m) \
+	(((m) & USB_EP_MAXP_MULT_MASK) >> USB_EP_MAXP_MULT_SHIFT)
 
 /* The USB 3.0 spec redefines bits 5:4 of bmAttributes as interrupt ep type. */
 #define USB_ENDPOINT_INTRTYPE		0x30
@@ -623,11 +630,25 @@ static inline int usb_endpoint_is_isoc_out(
  * usb_endpoint_maxp - get endpoint's max packet size
  * @epd: endpoint to be checked
  *
- * Returns @epd's max packet
+ * Returns @epd's max packet bits [10:0]
  */
 static inline int usb_endpoint_maxp(const struct usb_endpoint_descriptor *epd)
 {
-	return __le16_to_cpu(epd->wMaxPacketSize);
+	return __le16_to_cpu(epd->wMaxPacketSize) & USB_ENDPOINT_MAXP_MASK;
+}
+
+/**
+ * usb_endpoint_maxp_mult - get endpoint's transactional opportunities
+ * @epd: endpoint to be checked
+ *
+ * Return @epd's wMaxPacketSize[12:11] + 1
+ */
+static inline int
+usb_endpoint_maxp_mult(const struct usb_endpoint_descriptor *epd)
+{
+	int maxp = __le16_to_cpu(epd->wMaxPacketSize);
+
+	return USB_EP_MAXP_MULT(maxp) + 1;
 }
 
 static inline int usb_endpoint_interrupt_type(

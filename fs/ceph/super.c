@@ -137,6 +137,8 @@ enum {
 	Opt_nofscache,
 	Opt_poolperm,
 	Opt_nopoolperm,
+	Opt_require_active_mds,
+	Opt_norequire_active_mds,
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	Opt_acl,
 #endif
@@ -171,6 +173,8 @@ static match_table_t fsopt_tokens = {
 	{Opt_nofscache, "nofsc"},
 	{Opt_poolperm, "poolperm"},
 	{Opt_nopoolperm, "nopoolperm"},
+	{Opt_require_active_mds, "require_active_mds"},
+	{Opt_norequire_active_mds, "norequire_active_mds"},
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	{Opt_acl, "acl"},
 #endif
@@ -286,6 +290,12 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 	case Opt_nopoolperm:
 		fsopt->flags |= CEPH_MOUNT_OPT_NOPOOLPERM;
+		break;
+	case Opt_require_active_mds:
+		fsopt->flags &= ~CEPH_MOUNT_OPT_MOUNTWAIT;
+		break;
+	case Opt_norequire_active_mds:
+		fsopt->flags |= CEPH_MOUNT_OPT_MOUNTWAIT;
 		break;
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	case Opt_acl:
@@ -534,10 +544,6 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 					struct ceph_options *opt)
 {
 	struct ceph_fs_client *fsc;
-	const u64 supported_features =
-		CEPH_FEATURE_FLOCK | CEPH_FEATURE_DIRLAYOUTHASH |
-		CEPH_FEATURE_MDSENC | CEPH_FEATURE_MDS_INLINE_DATA;
-	const u64 required_features = 0;
 	int page_count;
 	size_t size;
 	int err = -ENOMEM;
@@ -546,8 +552,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	if (!fsc)
 		return ERR_PTR(-ENOMEM);
 
-	fsc->client = ceph_create_client(opt, fsc, supported_features,
-					 required_features);
+	fsc->client = ceph_create_client(opt, fsc);
 	if (IS_ERR(fsc->client)) {
 		err = PTR_ERR(fsc->client);
 		goto fail;
@@ -569,10 +574,6 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 
 	atomic_long_set(&fsc->writeback_count, 0);
 
-	err = bdi_init(&fsc->backing_dev_info);
-	if (err < 0)
-		goto fail_client;
-
 	err = -ENOMEM;
 	/*
 	 * The number of concurrent works can be high but they don't need
@@ -580,7 +581,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	 */
 	fsc->wb_wq = alloc_workqueue("ceph-writeback", 0, 1);
 	if (fsc->wb_wq == NULL)
-		goto fail_bdi;
+		goto fail_client;
 	fsc->pg_inv_wq = alloc_workqueue("ceph-pg-invalid", 0, 1);
 	if (fsc->pg_inv_wq == NULL)
 		goto fail_wb_wq;
@@ -614,8 +615,6 @@ fail_pg_inv_wq:
 	destroy_workqueue(fsc->pg_inv_wq);
 fail_wb_wq:
 	destroy_workqueue(fsc->wb_wq);
-fail_bdi:
-	bdi_destroy(&fsc->backing_dev_info);
 fail_client:
 	ceph_destroy_client(fsc->client);
 fail:
@@ -632,8 +631,6 @@ static void destroy_fs_client(struct ceph_fs_client *fsc)
 	destroy_workqueue(fsc->wb_wq);
 	destroy_workqueue(fsc->pg_inv_wq);
 	destroy_workqueue(fsc->trunc_wq);
-
-	bdi_destroy(&fsc->backing_dev_info);
 
 	mempool_destroy(fsc->wb_pagevec_pool);
 
@@ -747,7 +744,6 @@ static const struct super_operations ceph_super_ops = {
 	.destroy_inode	= ceph_destroy_inode,
 	.write_inode    = ceph_write_inode,
 	.drop_inode	= ceph_drop_inode,
-	.evict_inode	= ceph_evict_inode,
 	.sync_fs        = ceph_sync_fs,
 	.put_super	= ceph_put_super,
 	.show_options   = ceph_show_options,
@@ -795,7 +791,6 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 			root = ERR_PTR(-ENOMEM);
 			goto out;
 		}
-		ceph_init_dentry(root);
 		dout("open_root_inode success, root dentry is %p\n", root);
 	} else {
 		root = ERR_PTR(err);
@@ -879,6 +874,7 @@ static int ceph_set_super(struct super_block *s, void *data)
 	fsc->sb = s;
 
 	s->s_op = &ceph_super_ops;
+	s->s_d_op = &ceph_dentry_ops;
 	s->s_export_op = &ceph_export_ops;
 
 	s->s_time_gran = 1000;  /* 1000 ns == 1 us */
@@ -928,25 +924,32 @@ static int ceph_compare_super(struct super_block *sb, void *data)
  */
 static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
 
-static int ceph_register_bdi(struct super_block *sb,
-			     struct ceph_fs_client *fsc)
+static int ceph_setup_bdi(struct super_block *sb, struct ceph_fs_client *fsc)
 {
 	int err;
 
+	err = super_setup_bdi_name(sb, "ceph-%ld",
+				   atomic_long_inc_return(&bdi_seq));
+	if (err)
+		return err;
+
 	/* set ra_pages based on rasize mount option? */
 	if (fsc->mount_options->rasize >= PAGE_SIZE)
-		fsc->backing_dev_info.ra_pages =
+		sb->s_bdi->ra_pages =
 			(fsc->mount_options->rasize + PAGE_SIZE - 1)
 			>> PAGE_SHIFT;
 	else
-		fsc->backing_dev_info.ra_pages =
-			VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
+		sb->s_bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
 
-	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%ld",
-			   atomic_long_inc_return(&bdi_seq));
-	if (!err)
-		sb->s_bdi = &fsc->backing_dev_info;
-	return err;
+	if (fsc->mount_options->rsize > fsc->mount_options->rasize &&
+	    fsc->mount_options->rsize >= PAGE_SIZE)
+		sb->s_bdi->io_pages =
+			(fsc->mount_options->rsize + PAGE_SIZE - 1)
+			>> PAGE_SHIFT;
+	else if (fsc->mount_options->rsize == 0)
+		sb->s_bdi->io_pages = ULONG_MAX;
+
+	return 0;
 }
 
 static struct dentry *ceph_mount(struct file_system_type *fs_type,
@@ -1001,7 +1004,7 @@ static struct dentry *ceph_mount(struct file_system_type *fs_type,
 		dout("get_sb got existing client %p\n", fsc);
 	} else {
 		dout("get_sb using new client %p\n", fsc);
-		err = ceph_register_bdi(sb, fsc);
+		err = ceph_setup_bdi(sb, fsc);
 		if (err < 0) {
 			res = ERR_PTR(err);
 			goto out_splat;

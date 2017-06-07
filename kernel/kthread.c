@@ -5,7 +5,9 @@
  * even if we're invoked from userspace (think modprobe, hotplug cpu,
  * etc.).
  */
+#include <uapi/linux/sched/types.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/kthread.h>
 #include <linux/completion.h>
 #include <linux/err.h>
@@ -18,6 +20,7 @@
 #include <linux/freezer.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
+#include <linux/cgroup.h>
 #include <trace/events/sched.h>
 
 static DEFINE_SPINLOCK(kthread_create_lock);
@@ -223,6 +226,7 @@ static int kthread(void *_create)
 
 	ret = -EINTR;
 	if (!test_bit(KTHREAD_SHOULD_STOP, &self->flags)) {
+		cgroup_kthread_ready();
 		__kthread_parkme(self);
 		ret = threadfn(data);
 	}
@@ -261,7 +265,8 @@ static void create_kthread(struct kthread_create_info *create)
 	}
 }
 
-static struct task_struct *__kthread_create_on_node(int (*threadfn)(void *data),
+static __printf(4, 0)
+struct task_struct *__kthread_create_on_node(int (*threadfn)(void *data),
 						    void *data, int node,
 						    const char namefmt[],
 						    va_list args)
@@ -535,6 +540,7 @@ int kthreadd(void *unused)
 	set_mems_allowed(node_states[N_MEMORY]);
 
 	current->flags |= PF_NOFREEZE;
+	cgroup_init_kthreadd();
 
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -635,7 +641,7 @@ repeat:
 }
 EXPORT_SYMBOL_GPL(kthread_worker_fn);
 
-static struct kthread_worker *
+static __printf(3, 0) struct kthread_worker *
 __kthread_create_worker(int cpu, unsigned int flags,
 			const char namefmt[], va_list args)
 {
@@ -849,7 +855,6 @@ void __kthread_queue_delayed_work(struct kthread_worker *worker,
 
 	list_add(&work->node, &worker->delayed_work_list);
 	work->worker = worker;
-	timer_stats_timer_set_start_info(&dwork->timer);
 	timer->expires = jiffies + delay;
 	add_timer(timer);
 }

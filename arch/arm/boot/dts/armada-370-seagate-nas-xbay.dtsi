@@ -23,7 +23,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x20000000>; /* 512 MB */
 	};
@@ -31,15 +31,6 @@
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
 			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
-
-		pcie-controller {
-			status = "okay";
-
-			/* USB 3.0 bridge ASM1042A */
-			pcie@2,0 {
-				status = "okay";
-			};
-		};
 
 		internal-regs {
 			serial@12000 {
@@ -49,15 +40,6 @@
 			sata@a0000 {
 				nr-ports = <2>;
 				status = "okay";
-			};
-
-			mdio {
-				pinctrl-0 = <&mdio_pins>;
-				pinctrl-names = "default";
-
-				phy0: ethernet-phy@0 {
-					reg = <0>;
-				};
 			};
 
 			ethernet@70000 {
@@ -159,19 +141,19 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		button@1 {
+		power {
 			label = "Power button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 			debounce-interval = <100>;
 		};
-		button@2 {
+		backup {
 			label = "Backup button";
 			linux,code = <KEY_OPTION>;
 			gpios = <&gpio0 31 GPIO_ACTIVE_LOW>;
 			debounce-interval = <100>;
 		};
-		button@3 {
+		reset {
 			label = "Reset Button";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
@@ -205,6 +187,25 @@
 	gpio_poweroff {
 		compatible = "gpio-poweroff";
 		gpios = <&gpio1 30 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/* USB 3.0 bridge ASM1042A */
+	pcie@2,0 {
+		status = "okay";
+	};
+};
+
+
+&mdio {
+	pinctrl-0 = <&mdio_pins>;
+	pinctrl-names = "default";
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
 	};
 };
 

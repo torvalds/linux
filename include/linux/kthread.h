@@ -175,7 +175,7 @@ __printf(2, 3)
 struct kthread_worker *
 kthread_create_worker(unsigned int flags, const char namefmt[], ...);
 
-struct kthread_worker *
+__printf(3, 4) struct kthread_worker *
 kthread_create_worker_on_cpu(int cpu, unsigned int flags,
 			     const char namefmt[], ...);
 

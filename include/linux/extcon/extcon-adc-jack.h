@@ -59,7 +59,7 @@ struct adc_jack_pdata {
 	const char *name;
 	const char *consumer_channel;
 
-	const enum extcon *cable_names;
+	const unsigned int *cable_names;
 
 	/* The last entry's state should be 0 */
 	struct adc_jack_cond *adc_conditions;

@@ -488,12 +488,13 @@ static void mdacon_cursor(struct vc_data *c, int mode)
 	}
 }
 
-static int mdacon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
+static bool mdacon_scroll(struct vc_data *c, unsigned int t, unsigned int b,
+		enum con_scroll dir, unsigned int lines)
 {
 	u16 eattr = mda_convert_attr(c->vc_video_erase_char);
 
 	if (!lines)
-		return 0;
+		return false;
 
 	if (lines > c->vc_rows)   /* maximum realistic size */
 		lines = c->vc_rows;
@@ -514,7 +515,7 @@ static int mdacon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 		break;
 	}
 
-	return 0;
+	return false;
 }
 
 

@@ -1,4 +1,5 @@
-/* Copyright 2013-2014 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * I/O services to send MC commands to the MC hardware
  *
@@ -12,7 +13,6 @@
  *     * Neither the name of the above-listed copyright holders nor the
  *       names of any contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
- *
  *
  * ALTERNATIVELY, this software may be distributed under the terms of the
  * GNU General Public License ("GPL") as published by the Free Software
@@ -67,7 +67,7 @@ static u16 mc_cmd_hdr_read_cmdid(struct mc_command *cmd)
 	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
 	u16 cmd_id = le16_to_cpu(hdr->cmd_id);
 
-	return (cmd_id & MC_CMD_HDR_CMDID_MASK) >> MC_CMD_HDR_CMDID_SHIFT;
+	return cmd_id;
 }
 
 static int mc_status_to_error(enum mc_cmd_status status)
@@ -200,7 +200,7 @@ static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
 
 		if (time_after_eq(jiffies, jiffies_until_timeout)) {
 			dev_dbg(mc_io->dev,
-				"MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
+				"MC command timed out (portal: %#llx, dprc handle: %#x, command: %#x)\n",
 				 mc_io->portal_phys_addr,
 				 (unsigned int)mc_cmd_hdr_read_token(cmd),
 				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
@@ -240,7 +240,7 @@ static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
 		timeout_usecs -= MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS;
 		if (timeout_usecs == 0) {
 			dev_dbg(mc_io->dev,
-				"MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
+				"MC command timed out (portal: %#llx, dprc handle: %#x, command: %#x)\n",
 				 mc_io->portal_phys_addr,
 				 (unsigned int)mc_cmd_hdr_read_token(cmd),
 				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
@@ -294,7 +294,7 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 
 	if (status != MC_CMD_STATUS_OK) {
 		dev_dbg(mc_io->dev,
-			"MC command failed: portal: %#llx, obj handle: %#x, command: %#x, status: %s (%#x)\n",
+			"MC command failed: portal: %#llx, dprc handle: %#x, command: %#x, status: %s (%#x)\n",
 			 mc_io->portal_phys_addr,
 			 (unsigned int)mc_cmd_hdr_read_token(cmd),
 			 (unsigned int)mc_cmd_hdr_read_cmdid(cmd),

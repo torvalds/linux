@@ -160,8 +160,6 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->psc.wo_wlan_mode = WAKE_ON_MAGIC_PACKET |
 				    WAKE_ON_PATTERN_MATCH;
 
-	/* for debug level */
-	rtlpriv->dbg.global_debuglevel = rtlpriv->cfg->mod_params->debug;
 	/* for LPS & IPS */
 	rtlpriv->psc.inactiveps = rtlpriv->cfg->mod_params->inactiveps;
 	rtlpriv->psc.swctrl_lps = rtlpriv->cfg->mod_params->swctrl_lps;
@@ -192,14 +190,12 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	/* for firmware buf */
 	rtlpriv->rtlhal.pfirmware = vzalloc(0x8000);
 	if (!rtlpriv->rtlhal.pfirmware) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't alloc buffer for fw.\n");
+		pr_err("Can't alloc buffer for fw.\n");
 		return 1;
 	}
 	rtlpriv->rtlhal.wowlan_firmware = vzalloc(0x8000);
 	if (!rtlpriv->rtlhal.wowlan_firmware) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't alloc buffer for wowlan fw.\n");
+		pr_err("Can't alloc buffer for wowlan fw.\n");
 		return 1;
 	}
 
@@ -207,7 +203,7 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 		fw_name = "rtlwifi/rtl8812aefw.bin";
 		wowlan_fw_name = "rtlwifi/rtl8812aefw_wowlan.bin";
 	} else {
-		fw_name = "rtlwifi/rtl8821aefw.bin";
+		fw_name = "rtlwifi/rtl8821aefw_29.bin";
 		wowlan_fw_name = "rtlwifi/rtl8821aefw_wowlan.bin";
 	}
 
@@ -218,9 +214,16 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Failed to request normal firmware!\n");
-		return 1;
+		/* Failed to get firmware. Check if old version available */
+		fw_name = "rtlwifi/rtl8821aefw.bin";
+		pr_info("Using firmware %s\n", fw_name);
+		err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
+					      rtlpriv->io.dev, GFP_KERNEL, hw,
+					      rtl_fw_cb);
+		if (err) {
+			pr_err("Failed to request normal firmware!\n");
+			return 1;
+		}
 	}
 	/*load wowlan firmware*/
 	pr_info("Using firmware %s\n", wowlan_fw_name);
@@ -229,8 +232,7 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_wowlan_fw_cb);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Failed to request wowlan firmware!\n");
+		pr_err("Failed to request wowlan firmware!\n");
 		return 1;
 	}
 	return 0;
@@ -303,6 +305,7 @@ static struct rtl_hal_ops rtl8821ae_hal_ops = {
 	.fill_h2c_cmd = rtl8821ae_fill_h2c_cmd,
 	.get_btc_status = rtl8821ae_get_btc_status,
 	.rx_command_packet = rtl8821ae_rx_command_packet,
+	.c2h_content_parsing = rtl8821ae_c2h_content_parsing,
 	.add_wowlan_pattern = rtl8821ae_add_wowlan_pattern,
 };
 
@@ -313,7 +316,8 @@ static struct rtl_mod_params rtl8821ae_mod_params = {
 	.fwctrl_lps = true,
 	.msi_support = true,
 	.int_clear = true,
-	.debug = DBG_EMERG,
+	.debug_level = 0,
+	.debug_mask = 0,
 	.disable_watchdog = 0,
 };
 
@@ -432,9 +436,11 @@ MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 8821ae 802.11ac PCI wireless");
 MODULE_FIRMWARE("rtlwifi/rtl8821aefw.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8821aefw_29.bin");
 
 module_param_named(swenc, rtl8821ae_mod_params.sw_crypto, bool, 0444);
-module_param_named(debug, rtl8821ae_mod_params.debug, int, 0444);
+module_param_named(debug_level, rtl8821ae_mod_params.debug_level, int, 0644);
+module_param_named(debug_mask, rtl8821ae_mod_params.debug_mask, ullong, 0644);
 module_param_named(ips, rtl8821ae_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl8821ae_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl8821ae_mod_params.fwctrl_lps, bool, 0444);
@@ -447,7 +453,8 @@ MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 1)\n");
-MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
+MODULE_PARM_DESC(debug_level, "Set debug level (0-5) (default 0)");
+MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
 MODULE_PARM_DESC(disable_watchdog, "Set to 1 to disable the watchdog (default 0)\n");
 MODULE_PARM_DESC(int_clear, "Set to 0 to disable interrupt clear before set (default 1)\n");
 

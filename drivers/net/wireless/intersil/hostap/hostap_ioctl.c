@@ -2,7 +2,7 @@
 
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <linux/module.h>

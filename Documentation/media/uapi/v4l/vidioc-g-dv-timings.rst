@@ -146,8 +146,20 @@ EBUSY
       - ``flags``
       - Several flags giving more information about the format. See
 	:ref:`dv-bt-flags` for a description of the flags.
-    * - __u32
-      - ``reserved[14]``
+    * - struct :c:type:`v4l2_fract`
+      - ``picture_aspect``
+      - The picture aspect if the pixels are not square. Only valid if the
+        ``V4L2_DV_FL_HAS_PICTURE_ASPECT`` flag is set.
+    * - __u8
+      - ``cea861_vic``
+      - The Video Identification Code according to the CEA-861 standard.
+        Only valid if the ``V4L2_DV_FL_HAS_CEA861_VIC`` flag is set.
+    * - __u8
+      - ``hdmi_vic``
+      - The Video Identification Code according to the HDMI standard.
+        Only valid if the ``V4L2_DV_FL_HAS_HDMI_VIC`` flag is set.
+    * - __u8
+      - ``reserved[46]``
       - Reserved for future extensions. Drivers and applications must set
 	the array to zero.
 
@@ -270,3 +282,14 @@ EBUSY
       - Some formats like SMPTE-125M have an interlaced signal with a odd
 	total height. For these formats, if this flag is set, the first
 	field has the extra line. Else, it is the second field.
+    * - ``V4L2_DV_FL_HAS_PICTURE_ASPECT``
+      - If set, then the picture_aspect field is valid. Otherwise assume that
+        the pixels are square, so the picture aspect ratio is the same as the
+	width to height ratio.
+    * - ``V4L2_DV_FL_HAS_CEA861_VIC``
+      - If set, then the cea861_vic field is valid and contains the Video
+        Identification Code as per the CEA-861 standard.
+    * - ``V4L2_DV_FL_HAS_HDMI_VIC``
+      - If set, then the hdmi_vic field is valid and contains the Video
+        Identification Code as per the HDMI standard (HDMI Vendor Specific
+	InfoFrame).

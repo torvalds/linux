@@ -170,6 +170,7 @@ static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.update_plane = vidi_update_plane,
+	.atomic_flush = exynos_crtc_handle_event,
 };
 
 static void vidi_fake_vblank_timer(unsigned long arg)
@@ -359,7 +360,6 @@ static int vidi_create_connector(struct drm_encoder *encoder)
 	}
 
 	drm_connector_helper_add(connector, &vidi_connector_helper_funcs);
-	drm_connector_register(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return 0;

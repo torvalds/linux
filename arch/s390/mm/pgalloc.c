@@ -95,7 +95,6 @@ int crst_table_upgrade(struct mm_struct *mm)
 	mm->context.asce_limit = 1UL << 53;
 	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 			   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;
-	mm->task_size = mm->context.asce_limit;
 	spin_unlock_bh(&mm->page_table_lock);
 
 	on_each_cpu(__crst_table_upgrade, mm, 0);
@@ -119,7 +118,6 @@ void crst_table_downgrade(struct mm_struct *mm)
 	mm->context.asce_limit = 1UL << 31;
 	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 			   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
-	mm->task_size = mm->context.asce_limit;
 	crst_table_free(mm, (unsigned long *) pgd);
 
 	if (current->active_mm == mm)
@@ -144,7 +142,7 @@ struct page *page_table_alloc_pgste(struct mm_struct *mm)
 	struct page *page;
 	unsigned long *table;
 
-	page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
+	page = alloc_page(GFP_KERNEL);
 	if (page) {
 		table = (unsigned long *) page_to_phys(page);
 		clear_table(table, _PAGE_INVALID, PAGE_SIZE/2);

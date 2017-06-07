@@ -99,6 +99,7 @@ int __must_check percpu_ref_init(struct percpu_ref *ref,
 void percpu_ref_exit(struct percpu_ref *ref);
 void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_switch);
+void percpu_ref_switch_to_atomic_sync(struct percpu_ref *ref);
 void percpu_ref_switch_to_percpu(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill);
@@ -204,7 +205,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
 static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 {
 	unsigned long __percpu *percpu_count;
-	int ret;
+	bool ret;
 
 	rcu_read_lock_sched();
 
@@ -238,7 +239,7 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 {
 	unsigned long __percpu *percpu_count;
-	int ret = false;
+	bool ret = false;
 
 	rcu_read_lock_sched();
 

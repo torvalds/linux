@@ -203,7 +203,7 @@ enum {
 
 	/* IPSR6 */
 	FN_AUDIO_CLKB, FN_STP_OPWM_0_B, FN_MSIOF1_SCK_B,
-	FN_SCIF_CLK, FN_BPFCLK_E,
+	FN_SCIF_CLK, FN_DVC_MUTE, FN_BPFCLK_E,
 	FN_AUDIO_CLKC, FN_SCIFB0_SCK_C, FN_MSIOF1_SYNC_B, FN_RX2,
 	FN_SCIFA2_RXD, FN_FMIN_E,
 	FN_AUDIO_CLKOUT, FN_MSIOF1_SS1_B, FN_TX2, FN_SCIFA2_TXD,
@@ -573,7 +573,7 @@ enum {
 
 	/* IPSR6 */
 	AUDIO_CLKB_MARK, STP_OPWM_0_B_MARK, MSIOF1_SCK_B_MARK,
-	SCIF_CLK_MARK, BPFCLK_E_MARK,
+	SCIF_CLK_MARK, DVC_MUTE_MARK, BPFCLK_E_MARK,
 	AUDIO_CLKC_MARK, SCIFB0_SCK_C_MARK, MSIOF1_SYNC_B_MARK, RX2_MARK,
 	SCIFA2_RXD_MARK, FMIN_E_MARK,
 	AUDIO_CLKOUT_MARK, MSIOF1_SS1_B_MARK, TX2_MARK, SCIFA2_TXD_MARK,
@@ -1010,14 +1010,17 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP4_12_10, SCL2, SEL_IIC2_0),
 	PINMUX_IPSR_MSEL(IP4_12_10, GPS_CLK_B, SEL_GPS_1),
 	PINMUX_IPSR_MSEL(IP4_12_10, GLO_Q0_D, SEL_GPS_3),
+	PINMUX_IPSR_MSEL(IP4_12_10, HSCK1_E, SEL_HSCIF1_4),
 	PINMUX_IPSR_GPSR(IP4_15_13, SSI_WS2),
 	PINMUX_IPSR_MSEL(IP4_15_13, SDA2, SEL_IIC2_0),
 	PINMUX_IPSR_MSEL(IP4_15_13, GPS_SIGN_B, SEL_GPS_1),
 	PINMUX_IPSR_MSEL(IP4_15_13, RX2_E, SEL_SCIF2_4),
 	PINMUX_IPSR_MSEL(IP4_15_13, GLO_Q1_D, SEL_GPS_3),
+	PINMUX_IPSR_MSEL(IP4_15_13, HCTS1_N_E, SEL_HSCIF1_4),
 	PINMUX_IPSR_GPSR(IP4_18_16, SSI_SDATA2),
 	PINMUX_IPSR_MSEL(IP4_18_16, GPS_MAG_B, SEL_GPS_1),
 	PINMUX_IPSR_MSEL(IP4_18_16, TX2_E, SEL_SCIF2_4),
+	PINMUX_IPSR_MSEL(IP4_18_16, HRTS1_N_E, SEL_HSCIF1_4),
 	PINMUX_IPSR_GPSR(IP4_19, SSI_SCK34),
 	PINMUX_IPSR_GPSR(IP4_20, SSI_WS34),
 	PINMUX_IPSR_GPSR(IP4_21, SSI_SDATA3),
@@ -1090,6 +1093,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP6_2_0, STP_OPWM_0_B, SEL_SSP_1),
 	PINMUX_IPSR_MSEL(IP6_2_0, MSIOF1_SCK_B, SEL_SOF1_1),
 	PINMUX_IPSR_MSEL(IP6_2_0, SCIF_CLK, SEL_SCIF_0),
+	PINMUX_IPSR_GPSR(IP6_2_0, DVC_MUTE),
 	PINMUX_IPSR_MSEL(IP6_2_0, BPFCLK_E, SEL_FM_4),
 	PINMUX_IPSR_GPSR(IP6_5_3, AUDIO_CLKC),
 	PINMUX_IPSR_MSEL(IP6_5_3, SCIFB0_SCK_C, SEL_SCIFB_2),
@@ -1099,7 +1103,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP6_5_3, FMIN_E, SEL_FM_4),
 	PINMUX_IPSR_GPSR(IP6_7_6, AUDIO_CLKOUT),
 	PINMUX_IPSR_MSEL(IP6_7_6, MSIOF1_SS1_B, SEL_SOF1_1),
-	PINMUX_IPSR_MSEL(IP6_5_3, TX2, SEL_SCIF2_0),
+	PINMUX_IPSR_MSEL(IP6_7_6, TX2, SEL_SCIF2_0),
 	PINMUX_IPSR_MSEL(IP6_7_6, SCIFA2_TXD, SEL_SCIFA2_0),
 	PINMUX_IPSR_GPSR(IP6_9_8, IRQ0),
 	PINMUX_IPSR_MSEL(IP6_9_8, SCIFB1_RXD_D, SEL_SCIFB1_3),
@@ -1689,6 +1693,72 @@ static const u16 pinmux_data[] = {
 
 static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
+};
+
+/* - ADI -------------------------------------------------------------------- */
+static const unsigned int adi_common_pins[] = {
+	/* ADIDATA, ADICS/SAMP, ADICLK */
+	RCAR_GP_PIN(6, 24), RCAR_GP_PIN(6, 25), RCAR_GP_PIN(6, 26),
+};
+static const unsigned int adi_common_mux[] = {
+	/* ADIDATA, ADICS/SAMP, ADICLK */
+	ADIDATA_MARK, ADICS_SAMP_MARK, ADICLK_MARK,
+};
+static const unsigned int adi_chsel0_pins[] = {
+	/* ADICHS 0 */
+	RCAR_GP_PIN(6, 27),
+};
+static const unsigned int adi_chsel0_mux[] = {
+	/* ADICHS 0 */
+	ADICHS0_MARK,
+};
+static const unsigned int adi_chsel1_pins[] = {
+	/* ADICHS 1 */
+	RCAR_GP_PIN(6, 28),
+};
+static const unsigned int adi_chsel1_mux[] = {
+	/* ADICHS 1 */
+	ADICHS1_MARK,
+};
+static const unsigned int adi_chsel2_pins[] = {
+	/* ADICHS 2 */
+	RCAR_GP_PIN(6, 29),
+};
+static const unsigned int adi_chsel2_mux[] = {
+	/* ADICHS 2 */
+	ADICHS2_MARK,
+};
+static const unsigned int adi_common_b_pins[] = {
+	/* ADIDATA B, ADICS/SAMP B, ADICLK B */
+	RCAR_GP_PIN(5, 25), RCAR_GP_PIN(5, 26), RCAR_GP_PIN(5, 27),
+};
+static const unsigned int adi_common_b_mux[] = {
+	/* ADIDATA B, ADICS/SAMP B, ADICLK B */
+	ADIDATA_B_MARK, ADICS_SAMP_B_MARK, ADICLK_B_MARK,
+};
+static const unsigned int adi_chsel0_b_pins[] = {
+	/* ADICHS B 0 */
+	RCAR_GP_PIN(5, 28),
+};
+static const unsigned int adi_chsel0_b_mux[] = {
+	/* ADICHS B 0 */
+	ADICHS0_B_MARK,
+};
+static const unsigned int adi_chsel1_b_pins[] = {
+	/* ADICHS B 1 */
+	RCAR_GP_PIN(5, 29),
+};
+static const unsigned int adi_chsel1_b_mux[] = {
+	/* ADICHS B 1 */
+	ADICHS1_B_MARK,
+};
+static const unsigned int adi_chsel2_b_pins[] = {
+	/* ADICHS B 2 */
+	RCAR_GP_PIN(5, 30),
+};
+static const unsigned int adi_chsel2_b_mux[] = {
+	/* ADICHS B 2 */
+	ADICHS2_B_MARK,
 };
 
 /* - Audio Clock ------------------------------------------------------------ */
@@ -4343,6 +4413,14 @@ static const unsigned int vin2_clk_mux[] = {
 };
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
+	SH_PFC_PIN_GROUP(adi_common),
+	SH_PFC_PIN_GROUP(adi_chsel0),
+	SH_PFC_PIN_GROUP(adi_chsel1),
+	SH_PFC_PIN_GROUP(adi_chsel2),
+	SH_PFC_PIN_GROUP(adi_common_b),
+	SH_PFC_PIN_GROUP(adi_chsel0_b),
+	SH_PFC_PIN_GROUP(adi_chsel1_b),
+	SH_PFC_PIN_GROUP(adi_chsel2_b),
 	SH_PFC_PIN_GROUP(audio_clk_a),
 	SH_PFC_PIN_GROUP(audio_clk_b),
 	SH_PFC_PIN_GROUP(audio_clk_b_b),
@@ -4685,6 +4763,17 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(vin2_field),
 	SH_PFC_PIN_GROUP(vin2_clkenb),
 	SH_PFC_PIN_GROUP(vin2_clk),
+};
+
+static const char * const adi_groups[] = {
+	"adi_common",
+	"adi_chsel0",
+	"adi_chsel1",
+	"adi_chsel2",
+	"adi_common_b",
+	"adi_chsel0_b",
+	"adi_chsel1_b",
+	"adi_chsel2_b",
 };
 
 static const char * const audio_clk_groups[] = {
@@ -5192,6 +5281,7 @@ static const char * const vin2_groups[] = {
 };
 
 static const struct sh_pfc_function pinmux_functions[] = {
+	SH_PFC_FUNCTION(adi),
 	SH_PFC_FUNCTION(audio_clk),
 	SH_PFC_FUNCTION(avb),
 	SH_PFC_FUNCTION(can0),
@@ -5621,7 +5711,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	},
 	{ PINMUX_CFG_REG_VAR("IPSR2", 0xE6060028, 32,
 			     2, 3, 2, 2, 2, 2, 3, 3, 3, 3, 2, 2, 3) {
-		/* IP2_31_20 [2] */
+		/* IP2_31_30 [2] */
 		0, 0, 0, 0,
 		/* IP2_29_27 [3] */
 		FN_EX_CS3_N, FN_ATADIR0_N, FN_MSIOF2_TXD,
@@ -5641,7 +5731,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* IP2_15_13 [3] */
 		FN_A24, FN_DREQ2, FN_IO3, FN_TX1, FN_SCIFA1_TXD,
 		0, 0, 0,
-		/* IP2_12_0 [3] */
+		/* IP2_12_10 [3] */
 		FN_A23, FN_IO2, FN_BPFCLK_B, FN_RX0, FN_SCIFA0_RXD,
 		0, 0, 0,
 		/* IP2_9_7 [3] */
@@ -5810,7 +5900,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0,
 		/* IP6_2_0 [3] */
 		FN_AUDIO_CLKB, FN_STP_OPWM_0_B, FN_MSIOF1_SCK_B,
-		FN_SCIF_CLK, 0, FN_BPFCLK_E,
+		FN_SCIF_CLK, FN_DVC_MUTE, FN_BPFCLK_E,
 		0, 0, }
 	},
 	{ PINMUX_CFG_REG_VAR("IPSR7", 0xE606003C, 32,
@@ -5952,7 +6042,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* IP10_24_22 [3] */
 		FN_VI0_R1, FN_VI2_DATA2, FN_GLO_I1_B, FN_TS_SCK0_C, FN_ATAG1_N,
 		0, 0, 0,
-		/* IP10_21_29 [3] */
+		/* IP10_21_19 [3] */
 		FN_VI0_R0, FN_VI2_DATA1, FN_GLO_I0_B,
 		FN_TS_SDATA0_C, FN_ATACS11_N,
 		0, 0, 0,
@@ -6455,6 +6545,7 @@ const struct sh_pfc_soc_info r8a7791_pinmux_info = {
 #ifdef CONFIG_PINCTRL_PFC_R8A7793
 const struct sh_pfc_soc_info r8a7793_pinmux_info = {
 	.name = "r8a77930_pfc",
+	.ops = &r8a7791_pinmux_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },

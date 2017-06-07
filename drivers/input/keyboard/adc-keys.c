@@ -148,8 +148,6 @@ static int adc_keys_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	platform_set_drvdata(pdev, st);
-
 	poll_dev = devm_input_allocate_polled_device(dev);
 	if (!poll_dev) {
 		dev_err(dev, "failed to allocate input device\n");

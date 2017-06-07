@@ -62,8 +62,8 @@ struct screen_info screen_info __section(.data);
 int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 {
 	pteval_t prot_val = create_mapping_protection(md);
-	bool allow_block_mappings = (md->type != EFI_RUNTIME_SERVICES_CODE &&
-				     md->type != EFI_RUNTIME_SERVICES_DATA);
+	bool page_mappings_only = (md->type == EFI_RUNTIME_SERVICES_CODE ||
+				   md->type == EFI_RUNTIME_SERVICES_DATA);
 
 	if (!PAGE_ALIGNED(md->phys_addr) ||
 	    !PAGE_ALIGNED(md->num_pages << EFI_PAGE_SHIFT)) {
@@ -76,12 +76,12 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 		 * from the MMU routines. So avoid block mappings altogether in
 		 * that case.
 		 */
-		allow_block_mappings = false;
+		page_mappings_only = true;
 	}
 
 	create_pgd_mapping(mm, md->phys_addr, md->virt_addr,
 			   md->num_pages << EFI_PAGE_SHIFT,
-			   __pgprot(prot_val | PTE_NG), allow_block_mappings);
+			   __pgprot(prot_val | PTE_NG), page_mappings_only);
 	return 0;
 }
 

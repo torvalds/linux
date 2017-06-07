@@ -287,8 +287,13 @@ static int llog_client_read_header(const struct lu_env *env,
 		goto out;
 	}
 
-	memcpy(handle->lgh_hdr, hdr, sizeof(*hdr));
-	handle->lgh_last_idx = handle->lgh_hdr->llh_tail.lrt_index;
+	if (handle->lgh_hdr_size < hdr->llh_hdr.lrh_len) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	memcpy(handle->lgh_hdr, hdr, hdr->llh_hdr.lrh_len);
+	handle->lgh_last_idx = LLOG_HDR_TAIL(handle->lgh_hdr)->lrt_index;
 
 	/* sanity checks */
 	llh_hdr = &handle->lgh_hdr->llh_hdr;
@@ -296,9 +301,14 @@ static int llog_client_read_header(const struct lu_env *env,
 		CERROR("bad log header magic: %#x (expecting %#x)\n",
 		       llh_hdr->lrh_type, LLOG_HDR_MAGIC);
 		rc = -EIO;
-	} else if (llh_hdr->lrh_len != LLOG_CHUNK_SIZE) {
-		CERROR("incorrectly sized log header: %#x (expecting %#x)\n",
-		       llh_hdr->lrh_len, LLOG_CHUNK_SIZE);
+	} else if (llh_hdr->lrh_len !=
+		   LLOG_HDR_TAIL(handle->lgh_hdr)->lrt_len ||
+		   (llh_hdr->lrh_len & (llh_hdr->lrh_len - 1)) ||
+		   llh_hdr->lrh_len < LLOG_MIN_CHUNK_SIZE ||
+		   llh_hdr->lrh_len > handle->lgh_hdr_size) {
+		CERROR("incorrectly sized log header: %#x (expecting %#x) (power of two > 8192)\n",
+		       llh_hdr->lrh_len,
+		       LLOG_HDR_TAIL(handle->lgh_hdr)->lrt_len);
 		CERROR("you may need to re-run lconf --write_conf.\n");
 		rc = -EIO;
 	}

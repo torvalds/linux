@@ -187,6 +187,7 @@ nv30_gr = {
 		{ -1, -1, 0x038a, &nv04_gr_object }, /* ifc (nv30) */
 		{ -1, -1, 0x039e, &nv04_gr_object }, /* swzsurf (nv30) */
 		{ -1, -1, 0x0397, &nv04_gr_object }, /* rankine */
+		{ -1, -1, 0x0597, &nv04_gr_object }, /* kelvin */
 		{}
 	}
 };

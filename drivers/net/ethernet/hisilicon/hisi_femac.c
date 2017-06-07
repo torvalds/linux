@@ -330,7 +330,7 @@ static int hisi_femac_poll(struct napi_struct *napi, int budget)
 	} while (ints & DEF_INT_MASK);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		hisi_femac_irq_enable(priv, DEF_INT_MASK &
 					(~IRQ_INT_TX_PER_PACKET));
 	}
@@ -805,6 +805,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ndev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	priv = netdev_priv(ndev);
 	priv->dev = dev;
@@ -882,7 +883,6 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 	ndev->netdev_ops = &hisi_femac_netdev_ops;
 	ndev->ethtool_ops = &hisi_femac_ethtools_ops;
 	netif_napi_add(ndev, &priv->napi, hisi_femac_poll, FEMAC_POLL_WEIGHT);
-	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	hisi_femac_port_init(priv);
 

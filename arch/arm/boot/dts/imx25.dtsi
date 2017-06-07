@@ -9,10 +9,20 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include "skeleton.dtsi"
 #include "imx25-pinfunc.h"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; reg = <0 0>; };
+
 	aliases {
 		ethernet0 = &fec;
 		gpio0 = &gpio1;
@@ -41,12 +51,13 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm926ej-s";
 			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
@@ -81,6 +92,11 @@
 			#size-cells = <1>;
 			reg = <0x43f00000 0x100000>;
 			ranges;
+
+			aips1: bridge@43f00000 {
+				compatible = "fsl,imx25-aips";
+				reg = <0x43f00000 0x4000>;
+			};
 
 			i2c1: i2c@43f80000 {
 				#address-cells = <1>;
@@ -331,6 +347,11 @@
 			reg = <0x53f00000 0x100000>;
 			ranges;
 
+			aips2: bridge@53f00000 {
+				compatible = "fsl,imx25-aips";
+				reg = <0x53f00000 0x4000>;
+			};
+
 			clks: ccm@53f80000 {
 				compatible = "fsl,imx25-ccm";
 				reg = <0x53f80000 0x4000>;
@@ -533,6 +554,8 @@
 				clock-names = "ipg", "ahb", "per";
 				fsl,usbmisc = <&usbmisc 0>;
 				fsl,usbphy = <&usbphy0>;
+				phy_type = "utmi";
+				dr_mode = "otg";
 				status = "disabled";
 			};
 
@@ -558,7 +581,7 @@
 				reg = <0x53ffc000 0x4000>;
 				clocks = <&clks 81>;
 				clock-names = "ipg";
-				interrupts = <25>;
+				interrupts = <25 56>;
 			};
 		};
 

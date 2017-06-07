@@ -155,6 +155,7 @@ struct snd_compr {
 	struct mutex lock;
 	int device;
 #ifdef CONFIG_SND_VERBOSE_PROCFS
+	/* private: */
 	char id[64];
 	struct snd_info_entry *proc_root;
 	struct snd_info_entry *proc_info_entry;

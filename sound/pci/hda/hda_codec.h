@@ -256,6 +256,7 @@ struct hda_codec {
 	unsigned int dump_coef:1; /* dump processing coefs in codec proc file */
 	unsigned int power_save_node:1; /* advanced PM for each widget */
 	unsigned int auto_runtime_pm:1; /* enable automatic codec runtime pm */
+	unsigned int force_pin_prefix:1; /* Add location prefix */
 #ifdef CONFIG_PM
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;
@@ -347,8 +348,11 @@ int snd_hda_override_conn_list(struct hda_codec *codec, hda_nid_t nid, int nums,
 			  const hda_nid_t *list);
 int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
 			   hda_nid_t nid, int recursive);
+unsigned int snd_hda_get_num_devices(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_get_devices(struct hda_codec *codec, hda_nid_t nid,
 			u8 *dev_list, int max_devices);
+int snd_hda_get_dev_select(struct hda_codec *codec, hda_nid_t nid);
+int snd_hda_set_dev_select(struct hda_codec *codec, hda_nid_t nid, int dev_id);
 
 struct hda_verb {
 	hda_nid_t nid;

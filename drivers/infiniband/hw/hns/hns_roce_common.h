@@ -57,6 +57,32 @@
 #define roce_set_bit(origin, shift, val) \
 	roce_set_field((origin), (1ul << (shift)), (shift), (val))
 
+/*
+ * roce_hw_index_cmp_lt - Compare two hardware index values in hisilicon
+ *                        SOC, check if a is less than b.
+ * @a: hardware index value
+ * @b: hardware index value
+ * @bits: the number of bits of a and b, range: 0~31.
+ *
+ * Hardware index increases continuously till max value, and then restart
+ * from zero, again and again. Because the bits of reg field is often
+ * limited, the reg field can only hold the low bits of the hardware index
+ * in hisilicon SOC.
+ * In some scenes we need to compare two values(a,b) getted from two reg
+ * fields in this driver, for example:
+ * If a equals 0xfffe, b equals 0x1 and bits equals 16, we think b has
+ * incresed from 0xffff to 0x1 and a is less than b.
+ * If a equals 0xfffe, b equals 0x0xf001 and bits equals 16, we think a
+ * is bigger than b.
+ *
+ * Return true on a less than b, otherwise false.
+ */
+#define roce_hw_index_mask(bits)	((1ul << (bits)) - 1)
+#define roce_hw_index_shift(bits)	(32 - (bits))
+#define roce_hw_index_cmp_lt(a, b, bits) \
+	((int)((((a) - (b)) & roce_hw_index_mask(bits)) << \
+		roce_hw_index_shift(bits)) < 0)
+
 #define ROCEE_GLB_CFG_ROCEE_DB_SQ_MODE_S 3
 #define ROCEE_GLB_CFG_ROCEE_DB_OTH_MODE_S 4
 
@@ -245,15 +271,25 @@
 #define ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M   \
 	(((1UL << 28) - 1) << ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S)
 
+#define ROCEE_SDB_PTR_CMP_BITS 28
+
 #define ROCEE_SDB_INV_CNT_SDB_INV_CNT_S 0
 #define ROCEE_SDB_INV_CNT_SDB_INV_CNT_M   \
 	(((1UL << 16) - 1) << ROCEE_SDB_INV_CNT_SDB_INV_CNT_S)
 
+#define ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_S	0
+#define ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_M	\
+	(((1UL << 16) - 1) << ROCEE_SDB_RETRY_CNT_SDB_RETRY_CT_S)
+
+#define ROCEE_SDB_CNT_CMP_BITS 16
+
+#define ROCEE_TSP_BP_ST_QH_FIFO_ENTRY_S	20
+
+#define ROCEE_CNT_CLR_CE_CNT_CLR_CE_S 0
+
 /*************ROCEE_REG DEFINITION****************/
 #define ROCEE_VENDOR_ID_REG			0x0
 #define ROCEE_VENDOR_PART_ID_REG		0x4
-
-#define ROCEE_HW_VERSION_REG			0x8
 
 #define ROCEE_SYS_IMAGE_GUID_L_REG		0xC
 #define ROCEE_SYS_IMAGE_GUID_H_REG		0x10
@@ -318,7 +354,11 @@
 
 #define ROCEE_SDB_ISSUE_PTR_REG			0x758
 #define ROCEE_SDB_SEND_PTR_REG			0x75C
+#define ROCEE_CAEP_CQE_WCMD_EMPTY		0x850
+#define ROCEE_SCAEP_WR_CQE_CNT			0x8D0
 #define ROCEE_SDB_INV_CNT_REG			0x9A4
+#define ROCEE_SDB_RETRY_CNT_REG			0x9AC
+#define ROCEE_TSP_BP_ST_REG			0x9EC
 #define ROCEE_ECC_UCERR_ALM0_REG		0xB34
 #define ROCEE_ECC_CERR_ALM0_REG			0xB40
 

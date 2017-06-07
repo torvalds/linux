@@ -88,10 +88,6 @@ struct srp_rport {
  * @terminate_rport_io: Callback function for terminating all outstanding I/O
  *     requests for an rport.
  * @rport_delete: Callback function that deletes an rport.
- *
- * Fields that are only relevant for SRP target drivers:
- * @tsk_mgmt_response: Callback function for sending a task management response.
- * @it_nexus_response: Callback function for processing an IT nexus response.
  */
 struct srp_function_template {
 	/* for initiator drivers */
@@ -103,9 +99,6 @@ struct srp_function_template {
 	int (*reconnect)(struct srp_rport *rport);
 	void (*terminate_rport_io)(struct srp_rport *rport);
 	void (*rport_delete)(struct srp_rport *rport);
-	/* for target drivers */
-	int (* tsk_mgmt_response)(struct Scsi_Host *, u64, u64, int);
-	int (* it_nexus_response)(struct Scsi_Host *, u64, int);
 };
 
 extern struct scsi_transport_template *
@@ -124,6 +117,7 @@ extern int srp_reconnect_rport(struct srp_rport *rport);
 extern void srp_start_tl_fail_timers(struct srp_rport *rport);
 extern void srp_remove_host(struct Scsi_Host *);
 extern void srp_stop_rport_timers(struct srp_rport *rport);
+enum blk_eh_timer_return srp_timed_out(struct scsi_cmnd *scmd);
 
 /**
  * srp_chkready() - evaluate the transport layer state before I/O

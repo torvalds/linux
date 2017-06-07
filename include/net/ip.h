@@ -33,6 +33,8 @@
 #include <net/flow.h>
 #include <net/flow_dissector.h>
 
+#define IPV4_MAX_PMTU		65535U		/* RFC 2675, Section 5.1 */
+
 struct sock;
 
 struct inet_skb_parm {
@@ -263,10 +265,20 @@ static inline bool sysctl_dev_name_is_allowed(const char *name)
 	return strcmp(name, "default") != 0  && strcmp(name, "all") != 0;
 }
 
+static inline int inet_prot_sock(struct net *net)
+{
+	return net->ipv4.sysctl_ip_prot_sock;
+}
+
 #else
 static inline int inet_is_local_reserved_port(struct net *net, int port)
 {
 	return 0;
+}
+
+static inline int inet_prot_sock(struct net *net)
+{
+	return PROT_SOCK;
 }
 #endif
 

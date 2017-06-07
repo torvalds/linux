@@ -11,10 +11,11 @@
  *      - 0x68 if SDO is pulled to GND
  *      - 0x69 if SDO is pulled to VDDIO
  */
-#include <linux/module.h>
-#include <linux/i2c.h>
-#include <linux/regmap.h>
 #include <linux/acpi.h>
+#include <linux/i2c.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/regmap.h>
 
 #include "bmi160.h"
 
@@ -56,10 +57,19 @@ static const struct acpi_device_id bmi160_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, bmi160_acpi_match);
 
+#ifdef CONFIG_OF
+static const struct of_device_id bmi160_of_match[] = {
+	{ .compatible = "bosch,bmi160" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, bmi160_of_match);
+#endif
+
 static struct i2c_driver bmi160_i2c_driver = {
 	.driver = {
 		.name			= "bmi160_i2c",
 		.acpi_match_table	= ACPI_PTR(bmi160_acpi_match),
+		.of_match_table		= of_match_ptr(bmi160_of_match),
 	},
 	.probe		= bmi160_i2c_probe,
 	.remove		= bmi160_i2c_remove,

@@ -999,7 +999,7 @@ static DECLARE_TLV_DB_SCALE(in_tlv, -6300, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
 static DECLARE_TLV_DB_SCALE(out_tlv, -6400, 100, 0);
 
-static const char *wm2200_mixer_texts[] = {
+static const char * const wm2200_mixer_texts[] = {
 	"None",
 	"Tone Generator",
 	"AEC Loopback",
@@ -1033,7 +1033,7 @@ static const char *wm2200_mixer_texts[] = {
 	"DSP2.6",
 };
 
-static int wm2200_mixer_values[] = {
+static unsigned int wm2200_mixer_values[] = {
 	0x00,
 	0x04,   /* Tone */
 	0x08,   /* AEC */

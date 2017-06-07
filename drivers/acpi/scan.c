@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/acpi.h>
+#include <linux/acpi_iort.h>
 #include <linux/signal.h>
 #include <linux/kthread.h>
 #include <linux/dmi.h>
@@ -28,12 +29,6 @@ extern struct acpi_device *acpi_root;
 #define ACPI_IS_ROOT_DEVICE(device)    (!(device)->parent)
 
 #define INVALID_ACPI_HANDLE	((acpi_handle)empty_zero_page)
-
-/*
- * If set, devices will be hot-removed even if they cannot be put offline
- * gracefully (from the kernel's standpoint).
- */
-bool acpi_force_hot_remove;
 
 static const char *dummy_hid = "device";
 
@@ -169,9 +164,6 @@ static acpi_status acpi_bus_offline(acpi_handle handle, u32 lvl, void *data,
 			pn->put_online = false;
 		}
 		ret = device_offline(pn->dev);
-		if (acpi_force_hot_remove)
-			continue;
-
 		if (ret >= 0) {
 			pn->put_online = !ret;
 		} else {
@@ -240,11 +232,11 @@ static int acpi_scan_try_to_offline(struct acpi_device *device)
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
 				    NULL, acpi_bus_offline, (void *)true,
 				    (void **)&errdev);
-		if (!errdev || acpi_force_hot_remove)
+		if (!errdev)
 			acpi_bus_offline(handle, 0, (void *)true,
 					 (void **)&errdev);
 
-		if (errdev && !acpi_force_hot_remove) {
+		if (errdev) {
 			dev_warn(errdev, "Offline failed.\n");
 			acpi_bus_online(handle, 0, NULL, NULL);
 			acpi_walk_namespace(ACPI_TYPE_ANY, handle,
@@ -262,8 +254,7 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	unsigned long long sta;
 	acpi_status status;
 
-	if (device->handler && device->handler->hotplug.demand_offline
-	    && !acpi_force_hot_remove) {
+	if (device->handler && device->handler->hotplug.demand_offline) {
 		if (!acpi_scan_is_offline(device, true))
 			return -EBUSY;
 	} else {
@@ -1119,9 +1110,6 @@ acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found generic backlight "
 				  "support\n"));
 		*cap |= ACPI_VIDEO_BACKLIGHT;
-		if (!acpi_has_method(handle, "_BQC"))
-			printk(KERN_WARNING FW_BUG PREFIX "No _BQC method, "
-				"cannot determine initial brightness\n");
 		/* We have backlight support, no need to scan further */
 		return AE_CTRL_TERMINATE;
 	}
@@ -1369,6 +1357,43 @@ enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
 	else
 		return DEV_DMA_NON_COHERENT;
 }
+
+/**
+ * acpi_dma_configure - Set-up DMA configuration for the device.
+ * @dev: The pointer to the device
+ * @attr: device dma attributes
+ */
+int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr)
+{
+	const struct iommu_ops *iommu;
+	u64 size;
+
+	iort_set_dma_mask(dev);
+
+	iommu = iort_iommu_configure(dev);
+	if (IS_ERR(iommu))
+		return PTR_ERR(iommu);
+
+	size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
+	/*
+	 * Assume dma valid range starts at 0 and covers the whole
+	 * coherent_dma_mask.
+	 */
+	arch_setup_dma_ops(dev, 0, size, iommu, attr == DEV_DMA_COHERENT);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_dma_configure);
+
+/**
+ * acpi_dma_deconfigure - Tear-down DMA configuration for the device.
+ * @dev: The pointer to the device
+ */
+void acpi_dma_deconfigure(struct device *dev)
+{
+	arch_teardown_dma_ops(dev);
+}
+EXPORT_SYMBOL_GPL(acpi_dma_deconfigure);
 
 static void acpi_init_coherency(struct acpi_device *adev)
 {
@@ -1820,6 +1845,8 @@ static void acpi_bus_attach(struct acpi_device *device)
 			device->flags.power_manageable = 0;
 
 		device->flags.initialized = true;
+	} else if (device->flags.visited) {
+		goto ok;
 	}
 
 	ret = acpi_scan_attach_handler(device);
@@ -1827,14 +1854,19 @@ static void acpi_bus_attach(struct acpi_device *device)
 		return;
 
 	device->flags.match_driver = true;
-	if (!ret) {
-		ret = device_attach(&device->dev);
-		if (ret < 0)
-			return;
-
-		if (!ret && device->pnp.type.platform_id)
-			acpi_default_enumeration(device);
+	if (ret > 0) {
+		acpi_device_set_enumerated(device);
+		goto ok;
 	}
+
+	ret = device_attach(&device->dev);
+	if (ret < 0)
+		return;
+
+	if (device->pnp.type.platform_id)
+		acpi_default_enumeration(device);
+	else
+		acpi_device_set_enumerated(device);
 
  ok:
 	list_for_each_entry(child, &device->children, node)
@@ -2044,6 +2076,7 @@ int __init acpi_scan_init(void)
 		}
 	}
 
+	acpi_gpe_apply_masked_gpes();
 	acpi_update_all_gpes();
 	acpi_ec_ecdt_start();
 

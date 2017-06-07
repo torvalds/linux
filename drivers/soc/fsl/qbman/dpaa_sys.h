@@ -36,8 +36,10 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
+#include <linux/sched/signal.h>
 #include <linux/vmalloc.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/prefetch.h>
 #include <linux/genalloc.h>

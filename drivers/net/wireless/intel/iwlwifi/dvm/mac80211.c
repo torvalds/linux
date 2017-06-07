@@ -163,7 +163,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 				       REGULATORY_DISABLE_BEACON_HINTS;
 
 #ifdef CONFIG_PM_SLEEP
-	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
+	if (priv->fw->img[IWL_UCODE_WOWLAN].num_sec &&
 	    priv->trans->ops->d3_suspend &&
 	    priv->trans->ops->d3_resume &&
 	    device_can_wakeup(priv->trans->dev)) {
@@ -212,6 +212,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	hw->wiphy->hw_version = priv->trans->hw_id;
 
 	iwl_leds_init(priv);
+
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
@@ -1143,7 +1145,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	IWL_DEBUG_TX_QUEUES(priv, "wait transmit/flush all frames\n");
-	iwl_trans_wait_tx_queue_empty(priv->trans, scd_queues);
+	iwl_trans_wait_tx_queues_empty(priv->trans, scd_queues);
 done:
 	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");

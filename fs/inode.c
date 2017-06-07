@@ -119,7 +119,7 @@ static int no_open(struct inode *inode, struct file *file)
 }
 
 /**
- * inode_init_always - perform inode structure intialisation
+ * inode_init_always - perform inode structure initialisation
  * @sb: superblock inode belongs to
  * @inode: inode to initialise
  *
@@ -371,9 +371,6 @@ void inode_init_once(struct inode *inode)
 	INIT_LIST_HEAD(&inode->i_lru);
 	address_space_init_once(&inode->i_data);
 	i_size_ordered_init(inode);
-#ifdef CONFIG_FSNOTIFY
-	INIT_HLIST_HEAD(&inode->i_fsnotify_marks);
-#endif
 }
 EXPORT_SYMBOL(inode_init_once);
 
@@ -405,6 +402,8 @@ static void inode_lru_list_add(struct inode *inode)
 {
 	if (list_lru_add(&inode->i_sb->s_inode_lru, &inode->i_lru))
 		this_cpu_inc(nr_unused);
+	else
+		inode->i_state |= I_REFERENCED;
 }
 
 /*
@@ -1492,7 +1491,6 @@ static void iput_final(struct inode *inode)
 		drop = generic_drop_inode(inode);
 
 	if (!drop && (sb->s_flags & MS_ACTIVE)) {
-		inode->i_state |= I_REFERENCED;
 		inode_add_lru(inode);
 		spin_unlock(&inode->i_lock);
 		return;

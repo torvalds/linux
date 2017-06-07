@@ -336,7 +336,7 @@ in parallel by these functions.
 Conventions
 ===========
 First, Linus Torvalds's thoughts on C coding style can be found in the
-Documentation/CodingStyle file. 
+Documentation/process/coding-style.rst file.
 
 Next, there is a movement to "outlaw" typedefs introducing synonyms for 
 struct tags. Both can be still found in the SCSI subsystem, but

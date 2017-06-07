@@ -33,26 +33,23 @@
 			"04 16 2 7 6 3 2 1 7 7"
 
 static unsigned int bt = 6; /* VGL=Vci*4 , VGH=Vci*4 */
-module_param(bt, uint, 0);
+module_param(bt, uint, 0000);
 MODULE_PARM_DESC(bt, "Sets the factor used in the step-up circuits");
 
 static unsigned int vc = 0x03; /* Vci1=Vci*0.80 */
-module_param(vc, uint, 0);
-MODULE_PARM_DESC(vc,
-"Sets the ratio factor of Vci to generate the reference voltages Vci1");
+module_param(vc, uint, 0000);
+MODULE_PARM_DESC(vc, "Sets the ratio factor of Vci to generate the reference voltages Vci1");
 
 static unsigned int vrh = 0x0d; /* VREG1OUT=Vci*1.85 */
-module_param(vrh, uint, 0);
-MODULE_PARM_DESC(vrh,
-"Set the amplifying rate (1.6 ~ 1.9) of Vci applied to output the VREG1OUT");
+module_param(vrh, uint, 0000);
+MODULE_PARM_DESC(vrh, "Set the amplifying rate (1.6 ~ 1.9) of Vci applied to output the VREG1OUT");
 
 static unsigned int vdv = 0x12; /* VCOMH amplitude=VREG1OUT*0.98 */
-module_param(vdv, uint, 0);
-MODULE_PARM_DESC(vdv,
-"Select the factor of VREG1OUT to set the amplitude of Vcom");
+module_param(vdv, uint, 0000);
+MODULE_PARM_DESC(vdv, "Select the factor of VREG1OUT to set the amplitude of Vcom");
 
 static unsigned int vcm = 0x0a; /* VCOMH=VREG1OUT*0.735 */
-module_param(vcm, uint, 0);
+module_param(vcm, uint, 0000);
 MODULE_PARM_DESC(vcm, "Set the internal VcomH voltage");
 
 /*
@@ -129,7 +126,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x0013, 0x0000); /* VDV[4:0] for VCOM amplitude */
 	mdelay(200); /* Dis-charge capacitor power voltage */
 	write_reg(par, 0x0010, /* SAP, BT[3:0], AP, DSTB, SLP, STB */
-		(1 << 12) | (bt << 8) | (1 << 7) | (0x01 << 4));
+		BIT(12) | (bt << 8) | BIT(7) | BIT(4));
 	write_reg(par, 0x0011, 0x220 | vc); /* DC1[2:0], DC0[2:0], VC[2:0] */
 	mdelay(50); /* Delay 50ms */
 	write_reg(par, 0x0012, vrh); /* Internal reference voltage= Vci; */
@@ -218,7 +215,7 @@ static int set_var(struct fbtft_par *par)
  *  VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
  */
 #define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long mask[] = {
 		0x1f, 0x1f, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,

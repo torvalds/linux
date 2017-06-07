@@ -37,6 +37,7 @@
 #include <linux/freezer.h>
 #include <linux/namei.h>
 #include <linux/random.h>
+#include <linux/uuid.h>
 #include <linux/xattr.h>
 #include <net/ipv6.h>
 #include "cifsfs.h"
@@ -87,6 +88,7 @@ extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
 struct workqueue_struct	*cifsiod_wq;
+struct workqueue_struct	*cifsoplockd_wq;
 __u32 cifs_lock_secret;
 
 /*
@@ -138,7 +140,12 @@ cifs_read_super(struct super_block *sb)
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
 	sb->s_xattr = cifs_xattr_handlers;
-	sb->s_bdi = &cifs_sb->bdi;
+	rc = super_setup_bdi(sb);
+	if (rc)
+		goto out_no_root;
+	/* tune readahead according to rsize */
+	sb->s_bdi->ra_pages = cifs_sb->rsize / PAGE_SIZE;
+
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
 	sb->s_blocksize_bits = 14;	/* default 2**14 = CIFS_MAX_MSGSIZE */
 	inode = cifs_root_iget(sb);
@@ -615,7 +622,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 		return dget(sb->s_root);
 
 	full_path = cifs_build_path_to_root(vol, cifs_sb,
-					    cifs_sb_master_tcon(cifs_sb));
+				cifs_sb_master_tcon(cifs_sb), 0);
 	if (full_path == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -914,7 +921,6 @@ const struct inode_operations cifs_file_inode_ops = {
 };
 
 const struct inode_operations cifs_symlink_inode_ops = {
-	.readlink = generic_readlink,
 	.get_link = cifs_get_link,
 	.permission = cifs_permission,
 	.listxattr = cifs_listxattr,
@@ -973,6 +979,86 @@ out:
 	return rc;
 }
 
+ssize_t cifs_file_copychunk_range(unsigned int xid,
+				struct file *src_file, loff_t off,
+				struct file *dst_file, loff_t destoff,
+				size_t len, unsigned int flags)
+{
+	struct inode *src_inode = file_inode(src_file);
+	struct inode *target_inode = file_inode(dst_file);
+	struct cifsFileInfo *smb_file_src;
+	struct cifsFileInfo *smb_file_target;
+	struct cifs_tcon *src_tcon;
+	struct cifs_tcon *target_tcon;
+	ssize_t rc;
+
+	cifs_dbg(FYI, "copychunk range\n");
+
+	if (src_inode == target_inode) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (!src_file->private_data || !dst_file->private_data) {
+		rc = -EBADF;
+		cifs_dbg(VFS, "missing cifsFileInfo on copy range src file\n");
+		goto out;
+	}
+
+	rc = -EXDEV;
+	smb_file_target = dst_file->private_data;
+	smb_file_src = src_file->private_data;
+	src_tcon = tlink_tcon(smb_file_src->tlink);
+	target_tcon = tlink_tcon(smb_file_target->tlink);
+
+	if (src_tcon->ses != target_tcon->ses) {
+		cifs_dbg(VFS, "source and target of copy not on same server\n");
+		goto out;
+	}
+
+	/*
+	 * Note: cifs case is easier than btrfs since server responsible for
+	 * checks for proper open modes and file type and if it wants
+	 * server could even support copy of range where source = target
+	 */
+	lock_two_nondirectories(target_inode, src_inode);
+
+	cifs_dbg(FYI, "about to flush pages\n");
+	/* should we flush first and last page first */
+	truncate_inode_pages(&target_inode->i_data, 0);
+
+	if (target_tcon->ses->server->ops->copychunk_range)
+		rc = target_tcon->ses->server->ops->copychunk_range(xid,
+			smb_file_src, smb_file_target, off, len, destoff);
+	else
+		rc = -EOPNOTSUPP;
+
+	/* force revalidate of size and timestamps of target file now
+	 * that target is updated on the server
+	 */
+	CIFS_I(target_inode)->time = 0;
+	/* although unlocking in the reverse order from locking is not
+	 * strictly necessary here it is a little cleaner to be consistent
+	 */
+	unlock_two_nondirectories(src_inode, target_inode);
+
+out:
+	return rc;
+}
+
+static ssize_t cifs_copy_file_range(struct file *src_file, loff_t off,
+				struct file *dst_file, loff_t destoff,
+				size_t len, unsigned int flags)
+{
+	unsigned int xid = get_xid();
+	ssize_t rc;
+
+	rc = cifs_file_copychunk_range(xid, src_file, off, dst_file, destoff,
+					len, flags);
+	free_xid(xid);
+	return rc;
+}
+
 const struct file_operations cifs_file_ops = {
 	.read_iter = cifs_loose_read_iter,
 	.write_iter = cifs_file_write_iter,
@@ -985,6 +1071,7 @@ const struct file_operations cifs_file_ops = {
 	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
+	.copy_file_range = cifs_copy_file_range,
 	.clone_file_range = cifs_clone_file_range,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
@@ -1002,6 +1089,7 @@ const struct file_operations cifs_file_strict_ops = {
 	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
+	.copy_file_range = cifs_copy_file_range,
 	.clone_file_range = cifs_clone_file_range,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
@@ -1019,6 +1107,7 @@ const struct file_operations cifs_file_direct_ops = {
 	.mmap = cifs_file_mmap,
 	.splice_read = generic_file_splice_read,
 	.unlocked_ioctl  = cifs_ioctl,
+	.copy_file_range = cifs_copy_file_range,
 	.clone_file_range = cifs_clone_file_range,
 	.llseek = cifs_llseek,
 	.setlease = cifs_setlease,
@@ -1036,6 +1125,7 @@ const struct file_operations cifs_file_nobrl_ops = {
 	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
+	.copy_file_range = cifs_copy_file_range,
 	.clone_file_range = cifs_clone_file_range,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
@@ -1052,6 +1142,7 @@ const struct file_operations cifs_file_strict_nobrl_ops = {
 	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
+	.copy_file_range = cifs_copy_file_range,
 	.clone_file_range = cifs_clone_file_range,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
@@ -1068,6 +1159,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.mmap = cifs_file_mmap,
 	.splice_read = generic_file_splice_read,
 	.unlocked_ioctl  = cifs_ioctl,
+	.copy_file_range = cifs_copy_file_range,
 	.clone_file_range = cifs_clone_file_range,
 	.llseek = cifs_llseek,
 	.setlease = cifs_setlease,
@@ -1079,6 +1171,7 @@ const struct file_operations cifs_dir_ops = {
 	.release = cifs_closedir,
 	.read    = generic_read_dir,
 	.unlocked_ioctl  = cifs_ioctl,
+	.copy_file_range = cifs_copy_file_range,
 	.clone_file_range = cifs_clone_file_range,
 	.llseek = generic_file_llseek,
 };
@@ -1283,9 +1376,16 @@ init_cifs(void)
 		goto out_clean_proc;
 	}
 
+	cifsoplockd_wq = alloc_workqueue("cifsoplockd",
+					 WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+	if (!cifsoplockd_wq) {
+		rc = -ENOMEM;
+		goto out_destroy_cifsiod_wq;
+	}
+
 	rc = cifs_fscache_register();
 	if (rc)
-		goto out_destroy_wq;
+		goto out_destroy_cifsoplockd_wq;
 
 	rc = cifs_init_inodecache();
 	if (rc)
@@ -1333,7 +1433,9 @@ out_destroy_inodecache:
 	cifs_destroy_inodecache();
 out_unreg_fscache:
 	cifs_fscache_unregister();
-out_destroy_wq:
+out_destroy_cifsoplockd_wq:
+	destroy_workqueue(cifsoplockd_wq);
+out_destroy_cifsiod_wq:
 	destroy_workqueue(cifsiod_wq);
 out_clean_proc:
 	cifs_proc_clean();
@@ -1356,6 +1458,7 @@ exit_cifs(void)
 	cifs_destroy_mids();
 	cifs_destroy_inodecache();
 	cifs_fscache_unregister();
+	destroy_workqueue(cifsoplockd_wq);
 	destroy_workqueue(cifsiod_wq);
 	cifs_proc_clean();
 }
@@ -1366,5 +1469,19 @@ MODULE_DESCRIPTION
     ("VFS to access servers complying with the SNIA CIFS Specification "
      "e.g. Samba and Windows");
 MODULE_VERSION(CIFS_VERSION);
+MODULE_SOFTDEP("pre: arc4");
+MODULE_SOFTDEP("pre: des");
+MODULE_SOFTDEP("pre: ecb");
+MODULE_SOFTDEP("pre: hmac");
+MODULE_SOFTDEP("pre: md4");
+MODULE_SOFTDEP("pre: md5");
+MODULE_SOFTDEP("pre: nls");
+#ifdef CONFIG_CIFS_SMB2
+MODULE_SOFTDEP("pre: aes");
+MODULE_SOFTDEP("pre: cmac");
+MODULE_SOFTDEP("pre: sha256");
+MODULE_SOFTDEP("pre: aead2");
+MODULE_SOFTDEP("pre: ccm");
+#endif /* CONFIG_CIFS_SMB2 */
 module_init(init_cifs)
 module_exit(exit_cifs)

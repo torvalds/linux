@@ -19,6 +19,9 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/tick.h>

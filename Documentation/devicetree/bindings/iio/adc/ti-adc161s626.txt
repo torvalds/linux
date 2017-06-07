@@ -3,6 +3,7 @@
 Required properties:
  - compatible: Should be "ti,adc141s626" or "ti,adc161s626"
  - reg: spi chip select number for the device
+ - vdda-supply: supply voltage to VDDA pin
 
 Recommended properties:
  - spi-max-frequency: Definition as per
@@ -11,6 +12,7 @@ Recommended properties:
 Example:
 adc@0 {
 	compatible = "ti,adc161s626";
+	vdda-supply = <&vdda_fixed>;
 	reg = <0>;
 	spi-max-frequency = <4300000>;
 };

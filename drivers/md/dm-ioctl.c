@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/miscdevice.h>
+#include <linux/sched/mm.h>
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
@@ -17,7 +18,7 @@
 #include <linux/hdreg.h>
 #include <linux/compat.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define DM_MSG_PREFIX "ioctl"
 #define DM_DRIVER_EMAIL "dm-devel@redhat.com"
@@ -34,14 +35,6 @@ struct hash_cell {
 	char *uuid;
 	struct mapped_device *md;
 	struct dm_table *new_map;
-};
-
-/*
- * A dummy definition to make RCU happy.
- * struct dm_table should never be dereferenced in this file.
- */
-struct dm_table {
-	int undefined__;
 };
 
 struct vers_iter {
@@ -1267,7 +1260,7 @@ static int populate_table(struct dm_table *table,
 	return dm_table_complete(table);
 }
 
-static bool is_valid_type(unsigned cur, unsigned new)
+static bool is_valid_type(enum dm_queue_mode cur, enum dm_queue_mode new)
 {
 	if (cur == new ||
 	    (cur == DM_TYPE_BIO_BASED && new == DM_TYPE_DAX_BIO_BASED))
@@ -1697,7 +1690,8 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 {
 	struct dm_ioctl *dmi;
 	int secure_data;
-	const size_t minimum_data_size = sizeof(*param_kernel) - sizeof(param_kernel->data);
+	const size_t minimum_data_size = offsetof(struct dm_ioctl, data);
+	unsigned noio_flag;
 
 	if (copy_from_user(param_kernel, user, minimum_data_size))
 		return -EFAULT;
@@ -1716,19 +1710,14 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 	}
 
 	/*
-	 * Try to avoid low memory issues when a device is suspended.
+	 * Use __GFP_HIGH to avoid low memory issues when a device is
+	 * suspended and the ioctl is needed to resume it.
 	 * Use kmalloc() rather than vmalloc() when we can.
 	 */
 	dmi = NULL;
-	if (param_kernel->data_size <= KMALLOC_MAX_SIZE)
-		dmi = kmalloc(param_kernel->data_size, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
-
-	if (!dmi) {
-		unsigned noio_flag;
-		noio_flag = memalloc_noio_save();
-		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
-		memalloc_noio_restore(noio_flag);
-	}
+	noio_flag = memalloc_noio_save();
+	dmi = kvmalloc(param_kernel->data_size, GFP_KERNEL | __GFP_HIGH);
+	memalloc_noio_restore(noio_flag);
 
 	if (!dmi) {
 		if (secure_data && clear_user(user, param_kernel->data_size))
@@ -1777,12 +1766,12 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 	    cmd == DM_LIST_VERSIONS_CMD)
 		return 0;
 
-	if ((cmd == DM_DEV_CREATE_CMD)) {
+	if (cmd == DM_DEV_CREATE_CMD) {
 		if (!*param->name) {
 			DMWARN("name not supplied when creating device");
 			return -EINVAL;
 		}
-	} else if ((*param->uuid && *param->name)) {
+	} else if (*param->uuid && *param->name) {
 		DMWARN("only supply one of name or uuid, cmd(%u)", cmd);
 		return -EINVAL;
 	}
@@ -1847,7 +1836,7 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	if (r)
 		goto out;
 
-	param->data_size = sizeof(*param);
+	param->data_size = offsetof(struct dm_ioctl, data);
 	r = fn(param, input_param_size);
 
 	if (unlikely(param->flags & DM_BUFFER_FULL_FLAG) &&

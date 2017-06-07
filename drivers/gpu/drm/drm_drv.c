@@ -32,7 +32,10 @@
 #include <linux/moduleparam.h>
 #include <linux/mount.h>
 #include <linux/slab.h>
+
+#include <drm/drm_drv.h>
 #include <drm/drmP.h>
+
 #include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
@@ -218,7 +221,7 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	ret = drm_debugfs_init(minor, minor->index, drm_debugfs_root);
 	if (ret) {
 		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
-		return ret;
+		goto err_debugfs;
 	}
 
 	ret = device_add(minor->kdev);
@@ -257,10 +260,7 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 	drm_debugfs_cleanup(minor);
 }
 
-/**
- * drm_minor_acquire - Acquire a DRM minor
- * @minor_id: Minor ID of the DRM-minor
- *
+/*
  * Looks up the given minor-ID and returns the respective DRM-minor object. The
  * refence-count of the underlying device is increased so you must release this
  * object with drm_minor_release().
@@ -268,10 +268,6 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
  * As long as you hold this minor, it is guaranteed that the object and the
  * minor->dev pointer will stay valid! However, the device may get unplugged and
  * unregistered while you hold the minor.
- *
- * Returns:
- * Pointer to minor-object with increased device-refcount, or PTR_ERR on
- * failure.
  */
 struct drm_minor *drm_minor_acquire(unsigned int minor_id)
 {
@@ -294,12 +290,6 @@ struct drm_minor *drm_minor_acquire(unsigned int minor_id)
 	return minor;
 }
 
-/**
- * drm_minor_release - Release DRM minor
- * @minor: Pointer to DRM minor object
- *
- * Release a minor that was previously acquired via drm_minor_acquire().
- */
 void drm_minor_release(struct drm_minor *minor)
 {
 	drm_dev_unref(minor->dev);
@@ -308,17 +298,18 @@ void drm_minor_release(struct drm_minor *minor)
 /**
  * DOC: driver instance overview
  *
- * A device instance for a drm driver is represented by struct &drm_device. This
+ * A device instance for a drm driver is represented by &struct drm_device. This
  * is allocated with drm_dev_alloc(), usually from bus-specific ->probe()
  * callbacks implemented by the driver. The driver then needs to initialize all
  * the various subsystems for the drm device like memory management, vblank
  * handling, modesetting support and intial output configuration plus obviously
- * initialize all the corresponding hardware bits. Finally when everything is up
- * and running and ready for userspace the device instance can be published
- * using drm_dev_register().
+ * initialize all the corresponding hardware bits. An important part of this is
+ * also calling drm_dev_set_unique() to set the userspace-visible unique name of
+ * this device instance. Finally when everything is up and running and ready for
+ * userspace the device instance can be published using drm_dev_register().
  *
  * There is also deprecated support for initalizing device instances using
- * bus-specific helpers and the ->load() callback. But due to
+ * bus-specific helpers and the &drm_driver.load callback. But due to
  * backwards-compatibility needs the device instance have to be published too
  * early, which requires unpretty global locking to make safe and is therefore
  * only support for existing drivers not yet converted to the new scheme.
@@ -332,21 +323,9 @@ void drm_minor_release(struct drm_minor *minor)
  * historical baggage. Hence use the reference counting provided by
  * drm_dev_ref() and drm_dev_unref() only carefully.
  *
- * Also note that embedding of &drm_device is currently not (yet) supported (but
- * it would be easy to add). Drivers can store driver-private data in the
- * dev_priv field of &drm_device.
+ * It is recommended that drivers embed &struct drm_device into their own device
+ * structure, which is supported through drm_dev_init().
  */
-
-static int drm_dev_set_unique(struct drm_device *dev, const char *name)
-{
-	if (!name)
-		return -EINVAL;
-
-	kfree(dev->unique);
-	dev->unique = kstrdup(name, GFP_KERNEL);
-
-	return dev->unique ? 0 : -ENOMEM;
-}
 
 /**
  * drm_put_dev - Unregister and release a DRM device
@@ -482,7 +461,14 @@ static void drm_fs_inode_free(struct inode *inode)
  * Note that for purely virtual devices @parent can be NULL.
  *
  * Drivers that do not want to allocate their own device struct
- * embedding struct &drm_device can call drm_dev_alloc() instead.
+ * embedding &struct drm_device can call drm_dev_alloc() instead. For drivers
+ * that do embed &struct drm_device it must be placed first in the overall
+ * structure, and the overall structure must be allocated using kmalloc(): The
+ * drm core's release function unconditionally calls kfree() on the @dev pointer
+ * when the final reference is released. To override this behaviour, and so
+ * allow embedding of the drm_device inside the driver's device struct at an
+ * arbitrary offset, you must supply a &drm_driver.release callback and control
+ * the finalization explicitly.
  *
  * RETURNS:
  * 0 on success, or error code on failure.
@@ -515,12 +501,6 @@ int drm_dev_init(struct drm_device *dev,
 		ret = PTR_ERR(dev->anon_inode);
 		DRM_ERROR("Cannot allocate anonymous inode: %d\n", ret);
 		goto err_free;
-	}
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_minor_alloc(dev, DRM_MINOR_CONTROL);
-		if (ret)
-			goto err_minors;
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_RENDER)) {
@@ -568,9 +548,47 @@ err_minors:
 	drm_fs_inode_free(dev->anon_inode);
 err_free:
 	mutex_destroy(&dev->master_mutex);
+	mutex_destroy(&dev->ctxlist_mutex);
+	mutex_destroy(&dev->filelist_mutex);
+	mutex_destroy(&dev->struct_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(drm_dev_init);
+
+/**
+ * drm_dev_fini - Finalize a dead DRM device
+ * @dev: DRM device
+ *
+ * Finalize a dead DRM device. This is the converse to drm_dev_init() and
+ * frees up all data allocated by it. All driver private data should be
+ * finalized first. Note that this function does not free the @dev, that is
+ * left to the caller.
+ *
+ * The ref-count of @dev must be zero, and drm_dev_fini() should only be called
+ * from a &drm_driver.release callback.
+ */
+void drm_dev_fini(struct drm_device *dev)
+{
+	drm_vblank_cleanup(dev);
+
+	if (drm_core_check_feature(dev, DRIVER_GEM))
+		drm_gem_destroy(dev);
+
+	drm_legacy_ctxbitmap_cleanup(dev);
+	drm_ht_remove(&dev->map_hash);
+	drm_fs_inode_free(dev->anon_inode);
+
+	drm_minor_free(dev, DRM_MINOR_PRIMARY);
+	drm_minor_free(dev, DRM_MINOR_RENDER);
+	drm_minor_free(dev, DRM_MINOR_CONTROL);
+
+	mutex_destroy(&dev->master_mutex);
+	mutex_destroy(&dev->ctxlist_mutex);
+	mutex_destroy(&dev->filelist_mutex);
+	mutex_destroy(&dev->struct_mutex);
+	kfree(dev->unique);
+}
+EXPORT_SYMBOL(drm_dev_fini);
 
 /**
  * drm_dev_alloc - Allocate new DRM device
@@ -588,7 +606,7 @@ EXPORT_SYMBOL(drm_dev_init);
  *
  * Note that for purely virtual devices @parent can be NULL.
  *
- * Drivers that wish to subclass or embed struct &drm_device into their
+ * Drivers that wish to subclass or embed &struct drm_device into their
  * own struct should look at using drm_dev_init() instead.
  *
  * RETURNS:
@@ -618,20 +636,12 @@ static void drm_dev_release(struct kref *ref)
 {
 	struct drm_device *dev = container_of(ref, struct drm_device, ref);
 
-	if (drm_core_check_feature(dev, DRIVER_GEM))
-		drm_gem_destroy(dev);
-
-	drm_legacy_ctxbitmap_cleanup(dev);
-	drm_ht_remove(&dev->map_hash);
-	drm_fs_inode_free(dev->anon_inode);
-
-	drm_minor_free(dev, DRM_MINOR_PRIMARY);
-	drm_minor_free(dev, DRM_MINOR_RENDER);
-	drm_minor_free(dev, DRM_MINOR_CONTROL);
-
-	mutex_destroy(&dev->master_mutex);
-	kfree(dev->unique);
-	kfree(dev);
+	if (dev->driver->release) {
+		dev->driver->release(dev);
+	} else {
+		drm_dev_fini(dev);
+		kfree(dev);
+	}
 }
 
 /**
@@ -667,6 +677,62 @@ void drm_dev_unref(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_dev_unref);
 
+static int create_compat_control_link(struct drm_device *dev)
+{
+	struct drm_minor *minor;
+	char *name;
+	int ret;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return 0;
+
+	minor = *drm_minor_get_slot(dev, DRM_MINOR_PRIMARY);
+	if (!minor)
+		return 0;
+
+	/*
+	 * Some existing userspace out there uses the existing of the controlD*
+	 * sysfs files to figure out whether it's a modeset driver. It only does
+	 * readdir, hence a symlink is sufficient (and the least confusing
+	 * option). Otherwise controlD* is entirely unused.
+	 *
+	 * Old controlD chardev have been allocated in the range
+	 * 64-127.
+	 */
+	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index + 64);
+	if (!name)
+		return -ENOMEM;
+
+	ret = sysfs_create_link(minor->kdev->kobj.parent,
+				&minor->kdev->kobj,
+				name);
+
+	kfree(name);
+
+	return ret;
+}
+
+static void remove_compat_control_link(struct drm_device *dev)
+{
+	struct drm_minor *minor;
+	char *name;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
+	minor = *drm_minor_get_slot(dev, DRM_MINOR_PRIMARY);
+	if (!minor)
+		return;
+
+	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index);
+	if (!name)
+		return;
+
+	sysfs_remove_link(minor->kdev->kobj.parent, name);
+
+	kfree(name);
+}
+
 /**
  * drm_dev_register - Register DRM device
  * @dev: Device to register
@@ -679,9 +745,9 @@ EXPORT_SYMBOL(drm_dev_unref);
  * Never call this twice on any device!
  *
  * NOTE: To ensure backward compatibility with existing drivers method this
- * function calls the ->load() method after registering the device nodes,
- * creating race conditions. Usage of the ->load() methods is therefore
- * deprecated, drivers must perform all initialization before calling
+ * function calls the &drm_driver.load method after registering the device
+ * nodes, creating race conditions. Usage of the &drm_driver.load methods is
+ * therefore deprecated, drivers must perform all initialization before calling
  * drm_dev_register().
  *
  * RETURNS:
@@ -689,6 +755,7 @@ EXPORT_SYMBOL(drm_dev_unref);
  */
 int drm_dev_register(struct drm_device *dev, unsigned long flags)
 {
+	struct drm_driver *driver = dev->driver;
 	int ret;
 
 	mutex_lock(&drm_global_mutex);
@@ -705,6 +772,12 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_minors;
 
+	ret = create_compat_control_link(dev);
+	if (ret)
+		goto err_minors;
+
+	dev->registered = true;
+
 	if (dev->driver->load) {
 		ret = dev->driver->load(dev, flags);
 		if (ret)
@@ -715,9 +788,17 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 		drm_modeset_register_all(dev);
 
 	ret = 0;
+
+	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
+		 driver->name, driver->major, driver->minor,
+		 driver->patchlevel, driver->date,
+		 dev->dev ? dev_name(dev->dev) : "virtual device",
+		 dev->primary->index);
+
 	goto out_unlock;
 
 err_minors:
+	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
 	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
@@ -744,6 +825,8 @@ void drm_dev_unregister(struct drm_device *dev)
 
 	drm_lastclose(dev);
 
+	dev->registered = false;
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_modeset_unregister_all(dev);
 
@@ -753,16 +836,35 @@ void drm_dev_unregister(struct drm_device *dev)
 	if (dev->agp)
 		drm_pci_agp_destroy(dev);
 
-	drm_vblank_cleanup(dev);
-
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_legacy_rmmap(dev, r_list->map);
 
+	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
 	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 }
 EXPORT_SYMBOL(drm_dev_unregister);
+
+/**
+ * drm_dev_set_unique - Set the unique name of a DRM device
+ * @dev: device of which to set the unique name
+ * @name: unique name
+ *
+ * Sets the unique name of a DRM device using the specified string. Drivers
+ * can use this at driver probe time if the unique name of the devices they
+ * drive is static.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int drm_dev_set_unique(struct drm_device *dev, const char *name)
+{
+	kfree(dev->unique);
+	dev->unique = kstrdup(name, GFP_KERNEL);
+
+	return dev->unique ? 0 : -ENOMEM;
+}
+EXPORT_SYMBOL(drm_dev_set_unique);
 
 /*
  * DRM Core
@@ -859,7 +961,7 @@ static int __init drm_core_init(void)
 	if (ret < 0)
 		goto error;
 
-	DRM_INFO("Initialized\n");
+	DRM_DEBUG("Initialized\n");
 	return 0;
 
 error:

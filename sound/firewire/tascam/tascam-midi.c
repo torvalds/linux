@@ -18,9 +18,8 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 {
 	struct snd_tscm *tscm = substream->rmidi->private_data;
 
-	/* Initialize internal status. */
-	tscm->running_status[substream->number] = 0;
-	tscm->on_sysex[substream->number] = 0;
+	snd_fw_async_midi_port_init(&tscm->out_ports[substream->number]);
+
 	return 0;
 }
 
@@ -32,11 +31,14 @@ static int midi_capture_close(struct snd_rawmidi_substream *substream)
 
 static int midi_playback_close(struct snd_rawmidi_substream *substream)
 {
+	return 0;
+}
+
+static void midi_playback_drain(struct snd_rawmidi_substream *substream)
+{
 	struct snd_tscm *tscm = substream->rmidi->private_data;
 
 	snd_fw_async_midi_port_finish(&tscm->out_ports[substream->number]);
-
-	return 0;
 }
 
 static void midi_capture_trigger(struct snd_rawmidi_substream *substrm, int up)
@@ -68,20 +70,19 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 	spin_unlock_irqrestore(&tscm->lock, flags);
 }
 
-static struct snd_rawmidi_ops midi_capture_ops = {
-	.open		= midi_capture_open,
-	.close		= midi_capture_close,
-	.trigger	= midi_capture_trigger,
-};
-
-static struct snd_rawmidi_ops midi_playback_ops = {
-	.open		= midi_playback_open,
-	.close		= midi_playback_close,
-	.trigger	= midi_playback_trigger,
-};
-
 int snd_tscm_create_midi_devices(struct snd_tscm *tscm)
 {
+	static const struct snd_rawmidi_ops capture_ops = {
+		.open		= midi_capture_open,
+		.close		= midi_capture_close,
+		.trigger	= midi_capture_trigger,
+	};
+	static const struct snd_rawmidi_ops playback_ops = {
+		.open		= midi_playback_open,
+		.close		= midi_playback_close,
+		.drain		= midi_playback_drain,
+		.trigger	= midi_playback_trigger,
+	};
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_str *stream;
 	struct snd_rawmidi_substream *subs;
@@ -100,7 +101,7 @@ int snd_tscm_create_midi_devices(struct snd_tscm *tscm)
 
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_INPUT;
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT,
-			    &midi_capture_ops);
+			    &capture_ops);
 	stream = &rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT];
 
 	/* Set port names for MIDI input. */
@@ -116,7 +117,7 @@ int snd_tscm_create_midi_devices(struct snd_tscm *tscm)
 
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT;
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT,
-			    &midi_playback_ops);
+			    &playback_ops);
 	stream = &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT];
 
 	/* Set port names for MIDI ourput. */

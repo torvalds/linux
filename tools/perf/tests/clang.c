@@ -2,6 +2,7 @@
 #include "debug.h"
 #include "util.h"
 #include "c++/clang-c.h"
+#include <linux/kernel.h>
 
 static struct {
 	int (*func)(void);

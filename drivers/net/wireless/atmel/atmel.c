@@ -48,7 +48,7 @@
 #include <linux/timer.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -513,7 +513,7 @@ struct atmel_private {
 	} station_state;
 
 	int operating_mode, power_mode;
-	time_t last_qual;
+	unsigned long last_qual;
 	int beacons_this_sec;
 	int channel;
 	int reg_domain, config_reg_domain;

@@ -19,6 +19,7 @@
 #include <linux/clk-provider.h>
 #include <linux/ioport.h>
 #include <linux/of_address.h>
+#include <linux/of_graph.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
 
@@ -27,6 +28,7 @@
 #include "sun4i_backend.h"
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
+#include "sun4i_layer.h"
 #include "sun4i_tcon.h"
 
 static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
@@ -50,12 +52,11 @@ static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
-	struct sun4i_drv *drv = scrtc->drv;
 	struct drm_pending_vblank_event *event = crtc->state->event;
 
 	DRM_DEBUG_DRIVER("Committing plane changes\n");
 
-	sun4i_backend_commit(drv->backend);
+	sun4i_backend_commit(scrtc->backend);
 
 	if (event) {
 		crtc->state->event = NULL;
@@ -72,11 +73,10 @@ static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
 static void sun4i_crtc_disable(struct drm_crtc *crtc)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
-	struct sun4i_drv *drv = scrtc->drv;
 
 	DRM_DEBUG_DRIVER("Disabling the CRTC\n");
 
-	sun4i_tcon_disable(drv->tcon);
+	sun4i_tcon_disable(scrtc->tcon);
 
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irq(&crtc->dev->event_lock);
@@ -90,11 +90,10 @@ static void sun4i_crtc_disable(struct drm_crtc *crtc)
 static void sun4i_crtc_enable(struct drm_crtc *crtc)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
-	struct sun4i_drv *drv = scrtc->drv;
 
 	DRM_DEBUG_DRIVER("Enabling the CRTC\n");
 
-	sun4i_tcon_enable(drv->tcon);
+	sun4i_tcon_enable(scrtc->tcon);
 }
 
 static const struct drm_crtc_helper_funcs sun4i_crtc_helper_funcs = {
@@ -104,6 +103,26 @@ static const struct drm_crtc_helper_funcs sun4i_crtc_helper_funcs = {
 	.enable		= sun4i_crtc_enable,
 };
 
+static int sun4i_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
+
+	DRM_DEBUG_DRIVER("Enabling VBLANK on crtc %p\n", crtc);
+
+	sun4i_tcon_enable_vblank(scrtc->tcon, true);
+
+	return 0;
+}
+
+static void sun4i_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
+
+	DRM_DEBUG_DRIVER("Disabling VBLANK on crtc %p\n", crtc);
+
+	sun4i_tcon_enable_vblank(scrtc->tcon, false);
+}
+
 static const struct drm_crtc_funcs sun4i_crtc_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_crtc_destroy_state,
 	.atomic_duplicate_state	= drm_atomic_helper_crtc_duplicate_state,
@@ -111,30 +130,71 @@ static const struct drm_crtc_funcs sun4i_crtc_funcs = {
 	.page_flip		= drm_atomic_helper_page_flip,
 	.reset			= drm_atomic_helper_crtc_reset,
 	.set_config		= drm_atomic_helper_set_config,
+	.enable_vblank		= sun4i_crtc_enable_vblank,
+	.disable_vblank		= sun4i_crtc_disable_vblank,
 };
 
-struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
+struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm,
+				   struct sun4i_backend *backend,
+				   struct sun4i_tcon *tcon)
 {
-	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_crtc *scrtc;
-	int ret;
+	struct drm_plane *primary = NULL, *cursor = NULL;
+	int ret, i;
 
 	scrtc = devm_kzalloc(drm->dev, sizeof(*scrtc), GFP_KERNEL);
 	if (!scrtc)
+		return ERR_PTR(-ENOMEM);
+	scrtc->backend = backend;
+	scrtc->tcon = tcon;
+
+	/* Create our layers */
+	scrtc->layers = sun4i_layers_init(drm, scrtc->backend);
+	if (IS_ERR(scrtc->layers)) {
+		dev_err(drm->dev, "Couldn't create the planes\n");
 		return NULL;
-	scrtc->drv = drv;
+	}
+
+	/* find primary and cursor planes for drm_crtc_init_with_planes */
+	for (i = 0; scrtc->layers[i]; i++) {
+		struct sun4i_layer *layer = scrtc->layers[i];
+
+		switch (layer->plane.type) {
+		case DRM_PLANE_TYPE_PRIMARY:
+			primary = &layer->plane;
+			break;
+		case DRM_PLANE_TYPE_CURSOR:
+			cursor = &layer->plane;
+			break;
+		default:
+			break;
+		}
+	}
 
 	ret = drm_crtc_init_with_planes(drm, &scrtc->crtc,
-					drv->primary,
-					NULL,
+					primary,
+					cursor,
 					&sun4i_crtc_funcs,
 					NULL);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't init DRM CRTC\n");
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	drm_crtc_helper_add(&scrtc->crtc, &sun4i_crtc_helper_funcs);
+
+	/* Set crtc.port to output port node of the tcon */
+	scrtc->crtc.port = of_graph_get_port_by_id(scrtc->tcon->dev->of_node,
+						   1);
+
+	/* Set possible_crtcs to this crtc for overlay planes */
+	for (i = 0; scrtc->layers[i]; i++) {
+		uint32_t possible_crtcs = BIT(drm_crtc_index(&scrtc->crtc));
+		struct sun4i_layer *layer = scrtc->layers[i];
+
+		if (layer->plane.type == DRM_PLANE_TYPE_OVERLAY)
+			layer->plane.possible_crtcs = possible_crtcs;
+	}
 
 	return scrtc;
 }

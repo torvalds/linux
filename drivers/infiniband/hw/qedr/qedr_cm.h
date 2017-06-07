@@ -37,10 +37,9 @@
 
 #define QEDR_GSI_MAX_RECV_SGE	(1)	/* LL2 FW limitation */
 
-#define ETH_P_ROCE		(0x8915)
 #define QEDR_ROCE_V2_UDP_SPORT	(0000)
 
-static inline u32 qedr_get_ipv4_from_gid(u8 *gid)
+static inline u32 qedr_get_ipv4_from_gid(const u8 *gid)
 {
 	return *(u32 *)(void *)&gid[12];
 }

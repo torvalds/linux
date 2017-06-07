@@ -3,6 +3,7 @@ ccflags-$(CONFIG_USB_DWC2_VERBOSE)	+= -DVERBOSE_DEBUG
 
 obj-$(CONFIG_USB_DWC2)			+= dwc2.o
 dwc2-y					:= core.o core_intr.o platform.o
+dwc2-y					+= params.o
 
 ifneq ($(filter y,$(CONFIG_USB_DWC2_HOST) $(CONFIG_USB_DWC2_DUAL_ROLE)),)
 	dwc2-y				+= hcd.o hcd_intr.o

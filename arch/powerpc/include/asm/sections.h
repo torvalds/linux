@@ -6,6 +6,8 @@
 #include <linux/uaccess.h>
 #include <asm-generic/sections.h>
 
+extern char __head_end[];
+
 #ifdef __powerpc64__
 
 extern char __start_interrupts[];

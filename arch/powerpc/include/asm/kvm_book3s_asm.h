@@ -110,7 +110,9 @@ struct kvmppc_host_state {
 	u8 ptid;
 	struct kvm_vcpu *kvm_vcpu;
 	struct kvmppc_vcore *kvm_vcore;
-	unsigned long xics_phys;
+	void __iomem *xics_phys;
+	void __iomem *xive_tima_phys;
+	void __iomem *xive_tima_virt;
 	u32 saved_xirr;
 	u64 dabr;
 	u64 host_mmcr[7];	/* MMCR 0,1,A, SIAR, SDAR, MMCR2, SIER */

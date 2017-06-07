@@ -187,6 +187,7 @@ static const struct of_device_id mx25_tsadc_ids[] = {
 	{ .compatible = "fsl,imx25-tsadc" },
 	{ /* Sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mx25_tsadc_ids);
 
 static struct platform_driver mx25_tsadc_driver = {
 	.driver = {

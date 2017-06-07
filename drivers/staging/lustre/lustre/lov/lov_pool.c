@@ -81,7 +81,8 @@ static void lov_pool_putref_locked(struct pool_desc *pool)
  * Chapter 6.4.
  * Addison Wesley, 1973
  */
-static __u32 pool_hashfn(struct cfs_hash *hash_body, const void *key, unsigned mask)
+static __u32 pool_hashfn(struct cfs_hash *hash_body, const void *key,
+			 unsigned int mask)
 {
 	int i;
 	__u32 result;

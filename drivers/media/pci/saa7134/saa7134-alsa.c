@@ -10,10 +10,6 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include "saa7134.h"
@@ -813,8 +809,7 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 	int amux, err;
 
 	if (!saa7134) {
-		pr_err("BUG: saa7134 can't find device struct."
-				" Can't proceed with open\n");
+		pr_err("BUG: saa7134 can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 	dev = saa7134->dev;

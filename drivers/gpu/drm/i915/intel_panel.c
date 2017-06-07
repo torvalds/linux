@@ -48,7 +48,7 @@ intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 
 /**
  * intel_find_panel_downclock - find the reduced downclock for LVDS in EDID
- * @dev: drm device
+ * @dev_priv: i915 device instance
  * @fixed_mode : panel native mode
  * @connector: LVDS/eDP connector
  *
@@ -56,7 +56,7 @@ intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
  * Find the reduced downclock for LVDS/eDP in EDID.
  */
 struct drm_display_mode *
-intel_find_panel_downclock(struct drm_device *dev,
+intel_find_panel_downclock(struct drm_i915_private *dev_priv,
 			struct drm_display_mode *fixed_mode,
 			struct drm_connector *connector)
 {
@@ -94,7 +94,7 @@ intel_find_panel_downclock(struct drm_device *dev,
 	}
 
 	if (temp_downclock < fixed_mode->clock)
-		return drm_mode_duplicate(dev, tmp_mode);
+		return drm_mode_duplicate(&dev_priv->drm, tmp_mode);
 	else
 		return NULL;
 }
@@ -304,7 +304,7 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 			      struct intel_crtc_state *pipe_config,
 			      int fitting_mode)
 {
-	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
@@ -325,7 +325,7 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 		break;
 	case DRM_MODE_SCALE_ASPECT:
 		/* Scale but preserve the aspect ratio */
-		if (INTEL_INFO(dev)->gen >= 4)
+		if (INTEL_GEN(dev_priv) >= 4)
 			i965_scale_aspect(pipe_config, &pfit_control);
 		else
 			i9xx_scale_aspect(pipe_config, &pfit_control,
@@ -339,7 +339,7 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 		if (pipe_config->pipe_src_h != adjusted_mode->crtc_vdisplay ||
 		    pipe_config->pipe_src_w != adjusted_mode->crtc_hdisplay) {
 			pfit_control |= PFIT_ENABLE;
-			if (INTEL_INFO(dev)->gen >= 4)
+			if (INTEL_GEN(dev_priv) >= 4)
 				pfit_control |= PFIT_SCALING_AUTO;
 			else
 				pfit_control |= (VERT_AUTO_SCALE |
@@ -355,7 +355,7 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 
 	/* 965+ wants fuzzy fitting */
 	/* FIXME: handle multiple panels by failing gracefully */
-	if (INTEL_INFO(dev)->gen >= 4)
+	if (INTEL_GEN(dev_priv) >= 4)
 		pfit_control |= ((intel_crtc->pipe << PFIT_PIPE_SHIFT) |
 				 PFIT_FILTER_FUZZY);
 
@@ -366,7 +366,7 @@ out:
 	}
 
 	/* Make sure pre-965 set dither correctly for 18bpp panels. */
-	if (INTEL_INFO(dev)->gen < 4 && pipe_config->pipe_bpp == 18)
+	if (INTEL_GEN(dev_priv) < 4 && pipe_config->pipe_bpp == 18)
 		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
 	pipe_config->gmch_pfit.control = pfit_control;
@@ -375,10 +375,8 @@ out:
 }
 
 enum drm_connector_status
-intel_panel_detect(struct drm_device *dev)
+intel_panel_detect(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	/* Assume that the BIOS does not lie through the OpRegion... */
 	if (!i915.panel_ignore_lid && dev_priv->opregion.lid_state) {
 		return *dev_priv->opregion.lid_state & 0x1 ?
@@ -1039,10 +1037,7 @@ static void bxt_enable_backlight(struct intel_connector *connector)
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	u32 pwm_ctl, val;
 
-	/* To use 2nd set of backlight registers, utility pin has to be
-	 * enabled with PWM mode.
-	 * The field should only be changed when the utility pin is disabled
-	 */
+	/* Controller 1 uses the utility pin. */
 	if (panel->backlight.controller == 1) {
 		val = I915_READ(UTIL_PIN_CTL);
 		if (val & UTIL_PIN_ENABLE) {
@@ -1320,7 +1315,7 @@ static u32 i9xx_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	if (IS_PINEVIEW(dev_priv))
 		clock = KHz(dev_priv->rawclk_freq);
 	else
-		clock = KHz(dev_priv->cdclk_freq);
+		clock = KHz(dev_priv->cdclk.hw.cdclk);
 
 	return DIV_ROUND_CLOSEST(clock, pwm_freq_hz * 32);
 }
@@ -1332,14 +1327,13 @@ static u32 i9xx_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
  */
 static u32 i965_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 {
-	struct drm_device *dev = connector->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	int clock;
 
 	if (IS_G4X(dev_priv))
 		clock = KHz(dev_priv->rawclk_freq);
 	else
-		clock = KHz(dev_priv->cdclk_freq);
+		clock = KHz(dev_priv->cdclk.hw.cdclk);
 
 	return DIV_ROUND_CLOSEST(clock, pwm_freq_hz * 128);
 }
@@ -1608,19 +1602,11 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	struct intel_panel *panel = &connector->panel;
 	u32 pwm_ctl, val;
 
-	/*
-	 * For BXT hard coding the Backlight controller to 0.
-	 * TODO : Read the controller value from VBT and generalize
-	 */
-	panel->backlight.controller = 0;
+	panel->backlight.controller = dev_priv->vbt.backlight.controller;
 
 	pwm_ctl = I915_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
 
-	/* Keeping the check if controller 1 is to be programmed.
-	 * This will come into affect once the VBT parsing
-	 * is fixed for controller selection, and controller 1 is used
-	 * for a prticular display configuration.
-	 */
+	/* Controller 1 uses the utility pin. */
 	if (panel->backlight.controller == 1) {
 		val = I915_READ(UTIL_PIN_CTL);
 		panel->backlight.util_pin_active_low =
@@ -1722,7 +1708,7 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 
 	DRM_DEBUG_KMS("Connector %s backlight initialized, %s, brightness %u/%u\n",
 		      connector->name,
-		      panel->backlight.enabled ? "enabled" : "disabled",
+		      enableddisabled(panel->backlight.enabled),
 		      panel->backlight.level, panel->backlight.max);
 
 	return 0;
@@ -1756,7 +1742,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 	    intel_dsi_dcs_init_backlight_funcs(connector) == 0)
 		return;
 
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv)) {
 		panel->backlight.setup = bxt_setup_backlight;
 		panel->backlight.enable = bxt_enable_backlight;
 		panel->backlight.disable = bxt_disable_backlight;

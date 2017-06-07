@@ -15,10 +15,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include "af9015.h"
@@ -1455,7 +1451,7 @@ static const struct usb_device_id af9015_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_CONCEPTRONIC_CTVDIGRCU,
 		&af9015_props, "Conceptronic USB2.0 DVB-T CTVDIGRCU V3.0", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_MC810,
-		&af9015_props, "KWorld Digial MC-810", NULL) },
+		&af9015_props, "KWorld Digital MC-810", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KYE, USB_PID_GENIUS_TVGO_DVB_T03,
 		&af9015_props, "Genius TVGo DVB-T03", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_399U_2,

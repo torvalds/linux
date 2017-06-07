@@ -15,6 +15,8 @@
 #include <linux/gfp.h>
 #include <linux/errno.h>
 #include <linux/compat.h>
+#include <linux/mm_types.h>
+
 #include <asm/asm-offsets.h>
 #include <asm/facility.h>
 #include <asm/current.h>
@@ -35,7 +37,8 @@
 static int handle_ri(struct kvm_vcpu *vcpu)
 {
 	if (test_kvm_facility(vcpu->kvm, 64)) {
-		vcpu->arch.sie_block->ecb3 |= 0x01;
+		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: RI (lazy)");
+		vcpu->arch.sie_block->ecb3 |= ECB3_RI;
 		kvm_s390_retry_instr(vcpu);
 		return 0;
 	} else
@@ -50,11 +53,38 @@ int kvm_s390_handle_aa(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 }
 
+static int handle_gs(struct kvm_vcpu *vcpu)
+{
+	if (test_kvm_facility(vcpu->kvm, 133)) {
+		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: GS (lazy)");
+		preempt_disable();
+		__ctl_set_bit(2, 4);
+		current->thread.gs_cb = (struct gs_cb *)&vcpu->run->s.regs.gscb;
+		restore_gs_cb(current->thread.gs_cb);
+		preempt_enable();
+		vcpu->arch.sie_block->ecb |= ECB_GS;
+		vcpu->arch.sie_block->ecd |= ECD_HOSTREGMGMT;
+		vcpu->arch.gs_enabled = 1;
+		kvm_s390_retry_instr(vcpu);
+		return 0;
+	} else
+		return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
+}
+
+int kvm_s390_handle_e3(struct kvm_vcpu *vcpu)
+{
+	int code = vcpu->arch.sie_block->ipb & 0xff;
+
+	if (code == 0x49 || code == 0x4d)
+		return handle_gs(vcpu);
+	else
+		return -EOPNOTSUPP;
+}
 /* Handle SCK (SET CLOCK) interception */
 static int handle_set_clock(struct kvm_vcpu *vcpu)
 {
 	int rc;
-	ar_t ar;
+	u8 ar;
 	u64 op2, val;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
@@ -79,7 +109,7 @@ static int handle_set_prefix(struct kvm_vcpu *vcpu)
 	u64 operand2;
 	u32 address;
 	int rc;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_spx++;
 
@@ -117,7 +147,7 @@ static int handle_store_prefix(struct kvm_vcpu *vcpu)
 	u64 operand2;
 	u32 address;
 	int rc;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stpx++;
 
@@ -147,7 +177,7 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 	u16 vcpu_id = vcpu->vcpu_id;
 	u64 ga;
 	int rc;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stap++;
 
@@ -168,18 +198,25 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int __skey_check_enable(struct kvm_vcpu *vcpu)
+int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu)
 {
 	int rc = 0;
+	struct kvm_s390_sie_block *sie_block = vcpu->arch.sie_block;
 
 	trace_kvm_s390_skey_related_inst(vcpu);
-	if (!(vcpu->arch.sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)))
+	if (!(sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)) &&
+	    !(atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS))
 		return rc;
 
 	rc = s390_enable_skey();
 	VCPU_EVENT(vcpu, 3, "enabling storage keys for guest: %d", rc);
-	if (!rc)
-		vcpu->arch.sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE | ICTL_RRBE);
+	if (!rc) {
+		if (atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS)
+			atomic_andnot(CPUSTAT_KSS, &sie_block->cpuflags);
+		else
+			sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE |
+					     ICTL_RRBE);
+	}
 	return rc;
 }
 
@@ -188,7 +225,7 @@ static int try_handle_skey(struct kvm_vcpu *vcpu)
 	int rc;
 
 	vcpu->stat.instruction_storage_key++;
-	rc = __skey_check_enable(vcpu);
+	rc = kvm_s390_skey_check_enable(vcpu);
 	if (rc)
 		return rc;
 	if (sclp.has_skey) {
@@ -311,7 +348,7 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 		if (rc < 0)
 			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		start += PAGE_SIZE;
-	};
+	}
 
 	if (m3 & (SSKE_MC | SSKE_MR)) {
 		if (m3 & SSKE_MB) {
@@ -380,7 +417,7 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	u32 tpi_data[3];
 	int rc;
 	u64 addr;
-	ar_t ar;
+	u8 ar;
 
 	addr = kvm_s390_get_base_disp_s(vcpu, &ar);
 	if (addr & 3)
@@ -548,7 +585,7 @@ int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
 	psw_compat_t new_psw;
 	u64 addr;
 	int rc;
-	ar_t ar;
+	u8 ar;
 
 	if (gpsw->mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -575,7 +612,7 @@ static int handle_lpswe(struct kvm_vcpu *vcpu)
 	psw_t new_psw;
 	u64 addr;
 	int rc;
-	ar_t ar;
+	u8 ar;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -597,7 +634,7 @@ static int handle_stidp(struct kvm_vcpu *vcpu)
 	u64 stidp_data = vcpu->kvm->arch.model.cpuid;
 	u64 operand2;
 	int rc;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stidp++;
 
@@ -644,7 +681,7 @@ static void handle_stsi_3_2_2(struct kvm_vcpu *vcpu, struct sysinfo_3_2_2 *mem)
 	ASCEBC(mem->vm[0].cpi, 16);
 }
 
-static void insert_stsi_usr_data(struct kvm_vcpu *vcpu, u64 addr, ar_t ar,
+static void insert_stsi_usr_data(struct kvm_vcpu *vcpu, u64 addr, u8 ar,
 				 u8 fc, u8 sel1, u16 sel2)
 {
 	vcpu->run->exit_reason = KVM_EXIT_S390_STSI;
@@ -663,7 +700,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	unsigned long mem = 0;
 	u64 operand2;
 	int rc = 0;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stsi++;
 	VCPU_EVENT(vcpu, 3, "STSI: fc: %u sel1: %u sel2: %u", fc, sel1, sel2);
@@ -757,6 +794,7 @@ static const intercept_handler_t b2_handlers[256] = {
 	[0x3b] = handle_io_inst,
 	[0x3c] = handle_io_inst,
 	[0x50] = handle_ipte_interlock,
+	[0x56] = handle_sthyi,
 	[0x5f] = handle_io_inst,
 	[0x74] = handle_io_inst,
 	[0x76] = handle_io_inst,
@@ -885,7 +923,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		}
 
 		if (vcpu->run->s.regs.gprs[reg1] & PFMF_SK) {
-			int rc = __skey_check_enable(vcpu);
+			int rc = kvm_s390_skey_check_enable(vcpu);
 
 			if (rc)
 				return rc;
@@ -970,7 +1008,7 @@ int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu)
 	int reg, rc, nr_regs;
 	u32 ctl_array[16];
 	u64 ga;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_lctl++;
 
@@ -1009,7 +1047,7 @@ int kvm_s390_handle_stctl(struct kvm_vcpu *vcpu)
 	int reg, rc, nr_regs;
 	u32 ctl_array[16];
 	u64 ga;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stctl++;
 
@@ -1043,7 +1081,7 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 	int reg, rc, nr_regs;
 	u64 ctl_array[16];
 	u64 ga;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_lctlg++;
 
@@ -1081,7 +1119,7 @@ static int handle_stctg(struct kvm_vcpu *vcpu)
 	int reg, rc, nr_regs;
 	u64 ctl_array[16];
 	u64 ga;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stctg++;
 
@@ -1132,7 +1170,7 @@ static int handle_tprot(struct kvm_vcpu *vcpu)
 	unsigned long hva, gpa;
 	int ret = 0, cc = 0;
 	bool writable;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_tprot++;
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,7 @@
 #include "acparser.h"
 #include "acdispat.h"
 #include "amlcode.h"
+#include "acconvert.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psloop")
@@ -92,6 +93,10 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_arguments, walk_state);
 
+	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+			  "Get arguments for opcode [%s]\n",
+			  op->common.aml_op_name));
+
 	switch (op->common.aml_opcode) {
 	case AML_BYTE_OP:	/* AML_BYTEDATA_ARG */
 	case AML_WORD_OP:	/* AML_WORDDATA_ARG */
@@ -127,6 +132,21 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		while (GET_CURRENT_ARG_TYPE(walk_state->arg_types) &&
 		       !walk_state->arg_count) {
 			walk_state->aml = walk_state->parser_state.aml;
+
+			switch (op->common.aml_opcode) {
+			case AML_METHOD_OP:
+			case AML_BUFFER_OP:
+			case AML_PACKAGE_OP:
+			case AML_VARIABLE_PACKAGE_OP:
+			case AML_WHILE_OP:
+
+				break;
+
+			default:
+
+				ASL_CV_CAPTURE_COMMENTS(walk_state);
+				break;
+			}
 
 			status =
 			    acpi_ps_get_next_arg(walk_state,
@@ -250,7 +270,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 		case AML_BUFFER_OP:
 		case AML_PACKAGE_OP:
-		case AML_VAR_PACKAGE_OP:
+		case AML_VARIABLE_PACKAGE_OP:
 
 			if ((op->common.parent) &&
 			    (op->common.parent->common.aml_opcode ==
@@ -476,6 +496,8 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	/* Iterative parsing loop, while there is more AML to process: */
 
 	while ((parser_state->aml < parser_state->aml_end) || (op)) {
+		ASL_CV_CAPTURE_COMMENTS(walk_state);
+
 		aml_op_start = parser_state->aml;
 		if (!op) {
 			status =
@@ -511,6 +533,20 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		 * any args yet
 		 */
 		walk_state->arg_count = 0;
+
+		switch (op->common.aml_opcode) {
+		case AML_BYTE_OP:
+		case AML_WORD_OP:
+		case AML_DWORD_OP:
+		case AML_QWORD_OP:
+
+			break;
+
+		default:
+
+			ASL_CV_CAPTURE_COMMENTS(walk_state);
+			break;
+		}
 
 		/* Are there any arguments that must be processed? */
 

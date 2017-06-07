@@ -30,7 +30,7 @@
 #include <linux/if.h>
 #include <linux/hdlc.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "farsync.h"
 

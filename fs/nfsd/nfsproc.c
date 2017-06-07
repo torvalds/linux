@@ -204,18 +204,14 @@ nfsd_proc_write(struct svc_rqst *rqstp, struct nfsd_writeargs *argp,
 					struct nfsd_attrstat  *resp)
 {
 	__be32	nfserr;
-	int	stable = 1;
 	unsigned long cnt = argp->len;
 
 	dprintk("nfsd: WRITE    %s %d bytes at %d\n",
 		SVCFH_fmt(&argp->fh),
 		argp->len, argp->offset);
 
-	nfserr = nfsd_write(rqstp, fh_copy(&resp->fh, &argp->fh), NULL,
-				   argp->offset,
-				   rqstp->rq_vec, argp->vlen,
-			           &cnt,
-				   &stable);
+	nfserr = nfsd_write(rqstp, fh_copy(&resp->fh, &argp->fh), argp->offset,
+				rqstp->rq_vec, argp->vlen, &cnt, NFS_DATA_SYNC);
 	return nfsd_return_attrs(nfserr, resp);
 }
 
@@ -790,6 +786,7 @@ nfserrno (int errno)
 		{ nfserr_serverfault, -ESERVERFAULT },
 		{ nfserr_serverfault, -ENFILE },
 		{ nfserr_io, -EUCLEAN },
+		{ nfserr_perm, -ENOKEY },
 	};
 	int	i;
 

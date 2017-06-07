@@ -59,8 +59,6 @@ struct dst_entry {
 #define DST_XFRM_QUEUE		0x0100
 #define DST_METADATA		0x0200
 
-	unsigned short		pending_confirm;
-
 	short			error;
 
 	/* A non-zero value of dst->obsolete forces by-hand validation
@@ -78,6 +76,8 @@ struct dst_entry {
 #define DST_OBSOLETE_KILL	-2
 	unsigned short		header_len;	/* more space at head required */
 	unsigned short		trailer_len;	/* space to reserve at tail */
+	unsigned short		__pad3;
+
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			tclassid;
 #else
@@ -107,10 +107,16 @@ struct dst_entry {
 	};
 };
 
+struct dst_metrics {
+	u32		metrics[RTAX_MAX];
+	atomic_t	refcnt;
+};
+extern const struct dst_metrics dst_default_metrics;
+
 u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old);
-extern const u32 dst_default_metrics[];
 
 #define DST_METRICS_READ_ONLY		0x1UL
+#define DST_METRICS_REFCOUNTED		0x2UL
 #define DST_METRICS_FLAGS		0x3UL
 #define __DST_METRICS_PTR(Y)	\
 	((u32 *)((Y) & ~DST_METRICS_FLAGS))
@@ -440,28 +446,6 @@ static inline void dst_rcu_free(struct rcu_head *head)
 
 static inline void dst_confirm(struct dst_entry *dst)
 {
-	dst->pending_confirm = 1;
-}
-
-static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
-				   struct sk_buff *skb)
-{
-	const struct hh_cache *hh;
-
-	if (dst->pending_confirm) {
-		unsigned long now = jiffies;
-
-		dst->pending_confirm = 0;
-		/* avoid dirtying neighbour */
-		if (n->confirmed != now)
-			n->confirmed = now;
-	}
-
-	hh = &n->hh;
-	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
-		return neigh_hh_output(hh, skb);
-	else
-		return n->output(n, skb);
 }
 
 static inline struct neighbour *dst_neigh_lookup(const struct dst_entry *dst, const void *daddr)
@@ -475,6 +459,13 @@ static inline struct neighbour *dst_neigh_lookup_skb(const struct dst_entry *dst
 {
 	struct neighbour *n =  dst->ops->neigh_lookup(dst, skb, NULL);
 	return IS_ERR(n) ? NULL : n;
+}
+
+static inline void dst_confirm_neigh(const struct dst_entry *dst,
+				     const void *daddr)
+{
+	if (dst->ops->confirm_neigh)
+		dst->ops->confirm_neigh(dst, daddr);
 }
 
 static inline void dst_link_failure(struct sk_buff *skb)

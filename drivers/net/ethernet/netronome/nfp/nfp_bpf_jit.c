@@ -798,7 +798,7 @@ wrp_test_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	const struct bpf_insn *insn = &meta->insn;
 
 	if (insn->off < 0) /* TODO */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	wrp_test_reg_one(nfp_prog, insn->dst_reg * 2, alu_op,
 			 insn->src_reg * 2, br_mask, insn->off);
@@ -818,7 +818,7 @@ wrp_cmp_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	u32 tmp_reg;
 
 	if (insn->off < 0) /* TODO */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
 	if (!swap)
@@ -847,7 +847,7 @@ wrp_cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	u8 areg = insn->src_reg * 2, breg = insn->dst_reg * 2;
 
 	if (insn->off < 0) /* TODO */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (swap) {
 		areg ^= breg;
@@ -1132,7 +1132,7 @@ static int mem_ldx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		emit_alu(nfp_prog, reg_both(meta->insn.dst_reg * 2),
 			 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_LEN);
 	else
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	return 0;
 }
@@ -1143,7 +1143,7 @@ static int mem_ldx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	if (meta->insn.off != offsetof(struct xdp_md, data) &&
 	    meta->insn.off != offsetof(struct xdp_md, data_end))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, NFP_BPF_ABI_PKT);
 
@@ -1174,12 +1174,12 @@ static int mem_stx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	if (meta->insn.off == offsetof(struct sk_buff, mark))
 		return wrp_set_mark(nfp_prog, meta->insn.src_reg * 2);
 
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int mem_stx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int mem_stx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -1192,7 +1192,7 @@ static int mem_stx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int jump(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	if (meta->insn.off < 0) /* TODO */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	emit_br(nfp_prog, BR_UNC, meta->insn.off, 0);
 
 	return 0;
@@ -1206,7 +1206,7 @@ static int jeq_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	u32 tmp_reg;
 
 	if (insn->off < 0) /* TODO */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (imm & ~0U) {
 		tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
@@ -1245,7 +1245,7 @@ static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	u32 tmp_reg;
 
 	if (insn->off < 0) /* TODO */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (!imm) {
 		meta->skip = true;
@@ -1276,7 +1276,7 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	u32 tmp_reg;
 
 	if (insn->off < 0) /* TODO */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (!imm) {
 		emit_alu(nfp_prog, reg_none(), reg_a(insn->dst_reg * 2),
@@ -1302,7 +1302,7 @@ static int jeq_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	const struct bpf_insn *insn = &meta->insn;
 
 	if (insn->off < 0) /* TODO */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	emit_alu(nfp_prog, imm_a(nfp_prog), reg_a(insn->dst_reg * 2),
 		 ALU_OP_XOR, reg_b(insn->src_reg * 2));

@@ -37,7 +37,7 @@ config RAVB
 	select MII
 	select MDIO_BITBANG
 	select PHYLIB
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	help
 	  Renesas Ethernet AVB device driver.
 	  This driver supports the following SoCs:

@@ -70,10 +70,10 @@ static void amdgpu_bo_list_destroy(struct amdgpu_fpriv *fpriv, int id)
 	struct amdgpu_bo_list *list;
 
 	mutex_lock(&fpriv->bo_list_lock);
-	list = idr_find(&fpriv->bo_list_handles, id);
+	list = idr_remove(&fpriv->bo_list_handles, id);
 	if (list) {
+		/* Another user may have a reference to this list still */
 		mutex_lock(&list->lock);
-		idr_remove(&fpriv->bo_list_handles, id);
 		mutex_unlock(&list->lock);
 		amdgpu_bo_list_free(list);
 	}
@@ -237,7 +237,7 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	union drm_amdgpu_bo_list *args = data;
 	uint32_t handle = args->in.list_handle;
-	const void __user *uptr = (const void*)(long)args->in.bo_info_ptr;
+	const void __user *uptr = (const void*)(uintptr_t)args->in.bo_info_ptr;
 
 	struct drm_amdgpu_bo_list_entry *info;
 	struct amdgpu_bo_list *list;

@@ -202,7 +202,7 @@ static inline struct flowi *flowidn_to_flowi(struct flowidn *fldn)
 
 typedef unsigned long flow_compare_t;
 
-static inline size_t flow_key_size(u16 family)
+static inline unsigned int flow_key_size(u16 family)
 {
 	switch (family) {
 	case AF_INET:
@@ -246,6 +246,7 @@ struct flow_cache_object *flow_cache_lookup(struct net *net,
 					    void *ctx);
 int flow_cache_init(struct net *net);
 void flow_cache_fini(struct net *net);
+void flow_cache_hp_init(void);
 
 void flow_cache_flush(struct net *net);
 void flow_cache_flush_deferred(struct net *net);

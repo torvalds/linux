@@ -474,8 +474,8 @@ static int cx24117_firmware_ondemand(struct dvb_frontend *fe)
 			"%s: Waiting for firmware upload(2)...\n", __func__);
 		if (ret) {
 			dev_err(&state->priv->i2c->dev,
-				"%s: No firmware uploaded "
-				"(timeout or file not found?)\n", __func__);
+				"%s: No firmware uploaded (timeout or file not found?)\n",
+__func__);
 			return ret;
 		}
 
@@ -1164,7 +1164,7 @@ static void cx24117_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops cx24117_ops;
+static const struct dvb_frontend_ops cx24117_ops;
 
 struct dvb_frontend *cx24117_attach(const struct cx24117_config *config,
 	struct i2c_adapter *i2c)
@@ -1618,7 +1618,7 @@ static int cx24117_get_frontend(struct dvb_frontend *fe,
 	return 0;
 }
 
-static struct dvb_frontend_ops cx24117_ops = {
+static const struct dvb_frontend_ops cx24117_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name = "Conexant CX24117/CX24132",

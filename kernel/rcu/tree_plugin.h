@@ -27,7 +27,9 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/oom.h>
+#include <linux/sched/debug.h>
 #include <linux/smpboot.h>
+#include <uapi/linux/sched/types.h>
 #include "../time/tick-internal.h"
 
 #ifdef CONFIG_RCU_BOOST
@@ -670,7 +672,7 @@ void synchronize_rcu(void)
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
 			 "Illegal synchronize_rcu() in RCU read-side critical section");
-	if (!rcu_scheduler_active)
+	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE)
 		return;
 	if (rcu_gp_is_expedited())
 		synchronize_rcu_expedited();
@@ -1348,10 +1350,10 @@ static bool __maybe_unused rcu_try_advance_all_cbs(void)
 		 */
 		if ((rdp->completed != rnp->completed ||
 		     unlikely(READ_ONCE(rdp->gpwrap))) &&
-		    rdp->nxttail[RCU_DONE_TAIL] != rdp->nxttail[RCU_NEXT_TAIL])
+		    rcu_segcblist_pend_cbs(&rdp->cblist))
 			note_gp_changes(rsp, rdp);
 
-		if (cpu_has_callbacks_ready_to_invoke(rdp))
+		if (rcu_segcblist_ready_cbs(&rdp->cblist))
 			cbs_ready = true;
 	}
 	return cbs_ready;
@@ -1459,7 +1461,7 @@ static void rcu_prepare_for_idle(void)
 	rdtp->last_accelerate = jiffies;
 	for_each_rcu_flavor(rsp) {
 		rdp = this_cpu_ptr(rsp->rda);
-		if (!*rdp->nxttail[RCU_DONE_TAIL])
+		if (rcu_segcblist_pend_cbs(&rdp->cblist))
 			continue;
 		rnp = rdp->mynode;
 		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
@@ -1527,7 +1529,7 @@ static void rcu_oom_notify_cpu(void *unused)
 
 	for_each_rcu_flavor(rsp) {
 		rdp = raw_cpu_ptr(rsp->rda);
-		if (rdp->qlen_lazy != 0) {
+		if (rcu_segcblist_n_lazy_cbs(&rdp->cblist)) {
 			atomic_inc(&oom_callback_count);
 			rsp->call(&rdp->oom_head, rcu_oom_callback);
 		}
@@ -1643,7 +1645,7 @@ static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
 	       "o."[!!(rdp->grpmask & rdp->mynode->qsmaskinit)],
 	       "N."[!!(rdp->grpmask & rdp->mynode->qsmaskinitnext)],
 	       ticks_value, ticks_title,
-	       atomic_read(&rdtp->dynticks) & 0xfff,
+	       rcu_dynticks_snap(rdtp) & 0xfff,
 	       rdtp->dynticks_nesting, rdtp->dynticks_nmi_nesting,
 	       rdp->softirq_snap, kstat_softirqs_cpu(RCU_SOFTIRQ, cpu),
 	       READ_ONCE(rsp->n_force_qs) - rsp->n_force_qs_gpstart,
@@ -1707,7 +1709,7 @@ __setup("rcu_nocbs=", rcu_nocb_setup);
 
 static int __init parse_rcu_nocb_poll(char *arg)
 {
-	rcu_nocb_poll = 1;
+	rcu_nocb_poll = true;
 	return 0;
 }
 early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
@@ -1858,7 +1860,9 @@ static void __call_rcu_nocb_enqueue(struct rcu_data *rdp,
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 					    TPS("WakeEmpty"));
 		} else {
-			rdp->nocb_defer_wakeup = RCU_NOGP_WAKE;
+			WRITE_ONCE(rdp->nocb_defer_wakeup, RCU_NOGP_WAKE);
+			/* Store ->nocb_defer_wakeup before ->rcu_urgent_qs. */
+			smp_store_release(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs), true);
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 					    TPS("WakeEmptyIsDeferred"));
 		}
@@ -1870,7 +1874,9 @@ static void __call_rcu_nocb_enqueue(struct rcu_data *rdp,
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 					    TPS("WakeOvf"));
 		} else {
-			rdp->nocb_defer_wakeup = RCU_NOGP_WAKE_FORCE;
+			WRITE_ONCE(rdp->nocb_defer_wakeup, RCU_NOGP_WAKE_FORCE);
+			/* Store ->nocb_defer_wakeup before ->rcu_urgent_qs. */
+			smp_store_release(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs), true);
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 					    TPS("WakeOvfIsDeferred"));
 		}
@@ -1928,30 +1934,26 @@ static bool __maybe_unused rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
 						     struct rcu_data *rdp,
 						     unsigned long flags)
 {
-	long ql = rsp->qlen;
-	long qll = rsp->qlen_lazy;
+	long ql = rsp->orphan_done.len;
+	long qll = rsp->orphan_done.len_lazy;
 
 	/* If this is not a no-CBs CPU, tell the caller to do it the old way. */
 	if (!rcu_is_nocb_cpu(smp_processor_id()))
 		return false;
-	rsp->qlen = 0;
-	rsp->qlen_lazy = 0;
 
 	/* First, enqueue the donelist, if any.  This preserves CB ordering. */
-	if (rsp->orphan_donelist != NULL) {
-		__call_rcu_nocb_enqueue(rdp, rsp->orphan_donelist,
-					rsp->orphan_donetail, ql, qll, flags);
-		ql = qll = 0;
-		rsp->orphan_donelist = NULL;
-		rsp->orphan_donetail = &rsp->orphan_donelist;
+	if (rsp->orphan_done.head) {
+		__call_rcu_nocb_enqueue(rdp, rcu_cblist_head(&rsp->orphan_done),
+					rcu_cblist_tail(&rsp->orphan_done),
+					ql, qll, flags);
 	}
-	if (rsp->orphan_nxtlist != NULL) {
-		__call_rcu_nocb_enqueue(rdp, rsp->orphan_nxtlist,
-					rsp->orphan_nxttail, ql, qll, flags);
-		ql = qll = 0;
-		rsp->orphan_nxtlist = NULL;
-		rsp->orphan_nxttail = &rsp->orphan_nxtlist;
+	if (rsp->orphan_pend.head) {
+		__call_rcu_nocb_enqueue(rdp, rcu_cblist_head(&rsp->orphan_pend),
+					rcu_cblist_tail(&rsp->orphan_pend),
+					ql, qll, flags);
 	}
+	rcu_cblist_init(&rsp->orphan_done);
+	rcu_cblist_init(&rsp->orphan_pend);
 	return true;
 }
 
@@ -2366,8 +2368,9 @@ static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp)
 	}
 
 	/*
-	 * Each pass through this loop sets up one rcu_data structure and
-	 * spawns one rcu_nocb_kthread().
+	 * Each pass through this loop sets up one rcu_data structure.
+	 * Should the corresponding CPU come online in the future, then
+	 * we will spawn the needed set of rcu_nocb_kthread() kthreads.
 	 */
 	for_each_cpu(cpu, rcu_nocb_mask) {
 		rdp = per_cpu_ptr(rsp->rda, cpu);
@@ -2392,16 +2395,16 @@ static bool init_nocb_callback_list(struct rcu_data *rdp)
 		return false;
 
 	/* If there are early-boot callbacks, move them to nocb lists. */
-	if (rdp->nxtlist) {
-		rdp->nocb_head = rdp->nxtlist;
-		rdp->nocb_tail = rdp->nxttail[RCU_NEXT_TAIL];
-		atomic_long_set(&rdp->nocb_q_count, rdp->qlen);
-		atomic_long_set(&rdp->nocb_q_count_lazy, rdp->qlen_lazy);
-		rdp->nxtlist = NULL;
-		rdp->qlen = 0;
-		rdp->qlen_lazy = 0;
+	if (!rcu_segcblist_empty(&rdp->cblist)) {
+		rdp->nocb_head = rcu_segcblist_head(&rdp->cblist);
+		rdp->nocb_tail = rcu_segcblist_tail(&rdp->cblist);
+		atomic_long_set(&rdp->nocb_q_count,
+				rcu_segcblist_n_cbs(&rdp->cblist));
+		atomic_long_set(&rdp->nocb_q_count_lazy,
+				rcu_segcblist_n_lazy_cbs(&rdp->cblist));
+		rcu_segcblist_init(&rdp->cblist);
 	}
-	rdp->nxttail[RCU_NEXT_TAIL] = NULL;
+	rcu_segcblist_disable(&rdp->cblist);
 	return true;
 }
 

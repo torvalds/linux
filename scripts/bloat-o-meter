@@ -16,19 +16,22 @@ if len(sys.argv) != 3:
     sys.stderr.write("usage: %s file1 file2\n" % sys.argv[0])
     sys.exit(-1)
 
+re_NUMBER = re.compile(r'\.[0-9]+')
+
 def getsizes(file):
     sym = {}
-    for l in os.popen("nm --size-sort " + file).readlines():
-        size, type, name = l[:-1].split()
-        if type in "tTdDbBrR":
-            # strip generated symbols
-            if name.startswith("__mod_"): continue
-            if name.startswith("SyS_"): continue
-            if name.startswith("compat_SyS_"): continue
-            if name == "linux_banner": continue
-            # statics and some other optimizations adds random .NUMBER
-            name = re.sub(r'\.[0-9]+', '', name)
-            sym[name] = sym.get(name, 0) + int(size, 16)
+    with os.popen("nm --size-sort " + file) as f:
+        for line in f:
+            size, type, name = line.split()
+            if type in "tTdDbBrR":
+                # strip generated symbols
+                if name.startswith("__mod_"): continue
+                if name.startswith("SyS_"): continue
+                if name.startswith("compat_SyS_"): continue
+                if name == "linux_banner": continue
+                # statics and some other optimizations adds random .NUMBER
+                name = re_NUMBER.sub('', name)
+                sym[name] = sym.get(name, 0) + int(size, 16)
     return sym
 
 old = getsizes(sys.argv[1])

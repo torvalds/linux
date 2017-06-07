@@ -27,7 +27,7 @@
 #include <net/net_namespace.h>
 #include <net/iw_handler.h>
 #include <net/lib80211.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "hostap_wlan.h"
 #include "hostap_80211.h"

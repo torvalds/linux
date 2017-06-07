@@ -30,6 +30,7 @@
 #include <linux/cgroup.h>
 
 #include <trace/events/block.h>
+#include "blk.h"
 
 /*
  * Test patch to inline a certain number of bi_io_vec's inside the bio
@@ -270,11 +271,15 @@ static void bio_free(struct bio *bio)
 	}
 }
 
-void bio_init(struct bio *bio)
+void bio_init(struct bio *bio, struct bio_vec *table,
+	      unsigned short max_vecs)
 {
 	memset(bio, 0, sizeof(*bio));
 	atomic_set(&bio->__bi_remaining, 1);
 	atomic_set(&bio->__bi_cnt, 1);
+
+	bio->bi_io_vec = table;
+	bio->bi_max_vecs = max_vecs;
 }
 EXPORT_SYMBOL(bio_init);
 
@@ -372,10 +377,14 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
 	bio_list_init(&punt);
 	bio_list_init(&nopunt);
 
-	while ((bio = bio_list_pop(current->bio_list)))
+	while ((bio = bio_list_pop(&current->bio_list[0])))
 		bio_list_add(bio->bi_pool == bs ? &punt : &nopunt, bio);
+	current->bio_list[0] = nopunt;
 
-	*current->bio_list = nopunt;
+	bio_list_init(&nopunt);
+	while ((bio = bio_list_pop(&current->bio_list[1])))
+		bio_list_add(bio->bi_pool == bs ? &punt : &nopunt, bio);
+	current->bio_list[1] = nopunt;
 
 	spin_lock(&bs->rescue_lock);
 	bio_list_merge(&bs->rescue_list, &punt);
@@ -419,7 +428,8 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
  *   RETURNS:
  *   Pointer to new bio on success, NULL on failure.
  */
-struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
+struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
+			     struct bio_set *bs)
 {
 	gfp_t saved_gfp = gfp_mask;
 	unsigned front_pad;
@@ -462,7 +472,9 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 		 * we retry with the original gfp_flags.
 		 */
 
-		if (current->bio_list && !bio_list_empty(current->bio_list))
+		if (current->bio_list &&
+		    (!bio_list_empty(&current->bio_list[0]) ||
+		     !bio_list_empty(&current->bio_list[1])))
 			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
 
 		p = mempool_alloc(bs->bio_pool, gfp_mask);
@@ -480,7 +492,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 		return NULL;
 
 	bio = p + front_pad;
-	bio_init(bio);
+	bio_init(bio, NULL, 0);
 
 	if (nr_iovecs > inline_vecs) {
 		unsigned long idx = 0;
@@ -670,6 +682,7 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
+	case REQ_OP_WRITE_ZEROES:
 		break;
 	case REQ_OP_WRITE_SAME:
 		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
@@ -846,6 +859,55 @@ done:
 	return len;
 }
 EXPORT_SYMBOL(bio_add_page);
+
+/**
+ * bio_iov_iter_get_pages - pin user or kernel pages and add them to a bio
+ * @bio: bio to add pages to
+ * @iter: iov iterator describing the region to be mapped
+ *
+ * Pins as many pages from *iter and appends them to @bio's bvec array. The
+ * pages will have to be released using put_page() when done.
+ */
+int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+{
+	unsigned short nr_pages = bio->bi_max_vecs - bio->bi_vcnt;
+	struct bio_vec *bv = bio->bi_io_vec + bio->bi_vcnt;
+	struct page **pages = (struct page **)bv;
+	size_t offset, diff;
+	ssize_t size;
+
+	size = iov_iter_get_pages(iter, pages, LONG_MAX, nr_pages, &offset);
+	if (unlikely(size <= 0))
+		return size ? size : -EFAULT;
+	nr_pages = (size + offset + PAGE_SIZE - 1) / PAGE_SIZE;
+
+	/*
+	 * Deep magic below:  We need to walk the pinned pages backwards
+	 * because we are abusing the space allocated for the bio_vecs
+	 * for the page array.  Because the bio_vecs are larger than the
+	 * page pointers by definition this will always work.  But it also
+	 * means we can't use bio_add_page, so any changes to it's semantics
+	 * need to be reflected here as well.
+	 */
+	bio->bi_iter.bi_size += size;
+	bio->bi_vcnt += nr_pages;
+
+	diff = (nr_pages * PAGE_SIZE - offset) - size;
+	while (nr_pages--) {
+		bv[nr_pages].bv_page = pages[nr_pages];
+		bv[nr_pages].bv_len = PAGE_SIZE;
+		bv[nr_pages].bv_offset = 0;
+	}
+
+	bv[0].bv_offset += offset;
+	bv[0].bv_len -= offset;
+	if (diff)
+		bv[bio->bi_vcnt - 1].bv_len -= diff;
+
+	iov_iter_advance(iter, size);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bio_iov_iter_get_pages);
 
 struct submit_bio_ret {
 	struct completion event;
@@ -1173,9 +1235,6 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	if (!bio)
 		goto out_bmd;
 
-	if (iter->type & WRITE)
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-
 	ret = 0;
 
 	if (map_data) {
@@ -1340,16 +1399,10 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 
 	kfree(pages);
 
-	/*
-	 * set data direction, and check if mapped pages need bouncing
-	 */
-	if (iter->type & WRITE)
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-
 	bio_set_flag(bio, BIO_USER_MAPPED);
 
 	/*
-	 * subtle -- if __bio_map_user() ended up bouncing a bio,
+	 * subtle -- if bio_map_user_iov() ended up bouncing a bio,
 	 * it would normally disappear when its bi_end_io is run.
 	 * however, we need it for the unmap, so grab an extra
 	 * reference to it
@@ -1391,8 +1444,8 @@ static void __bio_unmap_user(struct bio *bio)
  *	bio_unmap_user	-	unmap a bio
  *	@bio:		the bio being unmapped
  *
- *	Unmap a bio previously mapped by bio_map_user(). Must be called with
- *	a process context.
+ *	Unmap a bio previously mapped by bio_map_user_iov(). Must be called from
+ *	process context.
  *
  *	bio_unmap_user() may sleep.
  */
@@ -1536,7 +1589,6 @@ struct bio *bio_copy_kern(struct request_queue *q, void *data, unsigned int len,
 		bio->bi_private = data;
 	} else {
 		bio->bi_end_io = bio_copy_kern_endio;
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 	}
 
 	return bio;
@@ -1739,6 +1791,11 @@ static inline bool bio_remaining_done(struct bio *bio)
  *   bio_endio() will end I/O on the whole bio. bio_endio() is the preferred
  *   way to end I/O on a bio. No one should call bi_end_io() directly on a
  *   bio unless they own it and thus know that it has an end_io function.
+ *
+ *   bio_endio() can be called several times on a bio that has been chained
+ *   using bio_chain().  The ->bi_end_io() function will only be called the
+ *   last time.  At this point the BLK_TA_COMPLETE tracing event will be
+ *   generated if BIO_TRACE_COMPLETION is set.
  **/
 void bio_endio(struct bio *bio)
 {
@@ -1759,6 +1816,13 @@ again:
 		goto again;
 	}
 
+	if (bio->bi_bdev && bio_flagged(bio, BIO_TRACE_COMPLETION)) {
+		trace_block_bio_complete(bdev_get_queue(bio->bi_bdev),
+					 bio, bio->bi_error);
+		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
+	}
+
+	blk_throtl_bio_endio(bio);
 	if (bio->bi_end_io)
 		bio->bi_end_io(bio);
 }
@@ -1786,15 +1850,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	BUG_ON(sectors <= 0);
 	BUG_ON(sectors >= bio_sectors(bio));
 
-	/*
-	 * Discards need a mutable bio_vec to accommodate the payload
-	 * required by the DSM TRIM and UNMAP commands.
-	 */
-	if (bio_op(bio) == REQ_OP_DISCARD || bio_op(bio) == REQ_OP_SECURE_ERASE)
-		split = bio_clone_bioset(bio, gfp, bs);
-	else
-		split = bio_clone_fast(bio, gfp, bs);
-
+	split = bio_clone_fast(bio, gfp, bs);
 	if (!split)
 		return NULL;
 
@@ -1804,6 +1860,9 @@ struct bio *bio_split(struct bio *bio, int sectors,
 		bio_integrity_trim(split, 0, sectors);
 
 	bio_advance(bio, split->bi_iter.bi_size);
+
+	if (bio_flagged(bio, BIO_TRACE_COMPLETION))
+		bio_set_flag(bio, BIO_TRACE_COMPLETION);
 
 	return split;
 }

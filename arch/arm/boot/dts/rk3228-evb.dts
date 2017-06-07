@@ -46,7 +46,7 @@
 	model = "Rockchip RK3228 Evaluation board";
 	compatible = "rockchip,rk3228-evb", "rockchip,rk3228";
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
 	};

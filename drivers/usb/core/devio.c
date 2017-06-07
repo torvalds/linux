@@ -36,6 +36,7 @@
 
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/signal.h>
 #include <linux/poll.h>
@@ -134,42 +135,35 @@ enum snoop_when {
 #define USB_DEVICE_DEV		MKDEV(USB_DEVICE_MAJOR, 0)
 
 /* Limit on the total amount of memory we can allocate for transfers */
-static unsigned usbfs_memory_mb = 16;
+static u32 usbfs_memory_mb = 16;
 module_param(usbfs_memory_mb, uint, 0644);
 MODULE_PARM_DESC(usbfs_memory_mb,
 		"maximum MB allowed for usbfs buffers (0 = no limit)");
 
-/* Hard limit, necessary to avoid arithmetic overflow */
-#define USBFS_XFER_MAX		(UINT_MAX / 2 - 1000000)
-
-static atomic_t usbfs_memory_usage;	/* Total memory currently allocated */
+static atomic64_t usbfs_memory_usage;	/* Total memory currently allocated */
 
 /* Check whether it's okay to allocate more memory for a transfer */
-static int usbfs_increase_memory_usage(unsigned amount)
+static int usbfs_increase_memory_usage(u64 amount)
 {
-	unsigned lim;
+	u64 lim;
 
-	/*
-	 * Convert usbfs_memory_mb to bytes, avoiding overflows.
-	 * 0 means use the hard limit (effectively unlimited).
-	 */
 	lim = ACCESS_ONCE(usbfs_memory_mb);
-	if (lim == 0 || lim > (USBFS_XFER_MAX >> 20))
-		lim = USBFS_XFER_MAX;
-	else
-		lim <<= 20;
+	lim <<= 20;
 
-	atomic_add(amount, &usbfs_memory_usage);
-	if (atomic_read(&usbfs_memory_usage) <= lim)
-		return 0;
-	atomic_sub(amount, &usbfs_memory_usage);
-	return -ENOMEM;
+	atomic64_add(amount, &usbfs_memory_usage);
+
+	if (lim > 0 && atomic64_read(&usbfs_memory_usage) > lim) {
+		atomic64_sub(amount, &usbfs_memory_usage);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 /* Memory for a transfer is being deallocated */
-static void usbfs_decrease_memory_usage(unsigned amount)
+static void usbfs_decrease_memory_usage(u64 amount)
 {
-	atomic_sub(amount, &usbfs_memory_usage);
+	atomic64_sub(amount, &usbfs_memory_usage);
 }
 
 static int connected(struct usb_dev_state *ps)
@@ -481,11 +475,11 @@ static void snoop_urb(struct usb_device *udev,
 
 	if (userurb) {		/* Async */
 		if (when == SUBMIT)
-			dev_info(&udev->dev, "userurb %p, ep%d %s-%s, "
+			dev_info(&udev->dev, "userurb %pK, ep%d %s-%s, "
 					"length %u\n",
 					userurb, ep, t, d, length);
 		else
-			dev_info(&udev->dev, "userurb %p, ep%d %s-%s, "
+			dev_info(&udev->dev, "userurb %pK, ep%d %s-%s, "
 					"actual_length %u status %d\n",
 					userurb, ep, t, d, length,
 					timeout_or_status);
@@ -1191,7 +1185,7 @@ static int proc_bulk(struct usb_dev_state *ps, void __user *arg)
 	if (!usb_maxpacket(dev, pipe, !(bulk.ep & USB_DIR_IN)))
 		return -EINVAL;
 	len1 = bulk.len;
-	if (len1 >= USBFS_XFER_MAX)
+	if (len1 >= (INT_MAX - sizeof(struct urb)))
 		return -EINVAL;
 	ret = usbfs_increase_memory_usage(len1 + sizeof(struct urb));
 	if (ret)
@@ -1584,10 +1578,6 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 		return -EINVAL;
 	}
 
-	if (uurb->buffer_length >= USBFS_XFER_MAX) {
-		ret = -EINVAL;
-		goto error;
-	}
 	if (uurb->buffer_length > 0 &&
 			!access_ok(is_in ? VERIFY_WRITE : VERIFY_READ,
 				uurb->buffer, uurb->buffer_length)) {
@@ -1905,7 +1895,7 @@ static int proc_reapurb(struct usb_dev_state *ps, void __user *arg)
 	if (as) {
 		int retval;
 
-		snoop(&ps->dev->dev, "reap %p\n", as->userurb);
+		snoop(&ps->dev->dev, "reap %pK\n", as->userurb);
 		retval = processcompl(as, (void __user * __user *)arg);
 		free_async(as);
 		return retval;
@@ -1922,7 +1912,7 @@ static int proc_reapurbnonblock(struct usb_dev_state *ps, void __user *arg)
 
 	as = async_getcompleted(ps);
 	if (as) {
-		snoop(&ps->dev->dev, "reap %p\n", as->userurb);
+		snoop(&ps->dev->dev, "reap %pK\n", as->userurb);
 		retval = processcompl(as, (void __user * __user *)arg);
 		free_async(as);
 	} else {
@@ -2053,7 +2043,7 @@ static int proc_reapurb_compat(struct usb_dev_state *ps, void __user *arg)
 	if (as) {
 		int retval;
 
-		snoop(&ps->dev->dev, "reap %p\n", as->userurb);
+		snoop(&ps->dev->dev, "reap %pK\n", as->userurb);
 		retval = processcompl_compat(as, (void __user * __user *)arg);
 		free_async(as);
 		return retval;
@@ -2070,7 +2060,7 @@ static int proc_reapurbnonblock_compat(struct usb_dev_state *ps, void __user *ar
 
 	as = async_getcompleted(ps);
 	if (as) {
-		snoop(&ps->dev->dev, "reap %p\n", as->userurb);
+		snoop(&ps->dev->dev, "reap %pK\n", as->userurb);
 		retval = processcompl_compat(as, (void __user * __user *)arg);
 		free_async(as);
 	} else {
@@ -2346,7 +2336,7 @@ static int proc_drop_privileges(struct usb_dev_state *ps, void __user *arg)
 	if (copy_from_user(&data, arg, sizeof(data)))
 		return -EFAULT;
 
-	/* This is an one way operation. Once privileges are
+	/* This is a one way operation. Once privileges are
 	 * dropped, you cannot regain them. You may however reissue
 	 * this ioctl to shrink the allowed interfaces mask.
 	 */
@@ -2499,7 +2489,7 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 #endif
 
 	case USBDEVFS_DISCARDURB:
-		snoop(&dev->dev, "%s: DISCARDURB %p\n", __func__, p);
+		snoop(&dev->dev, "%s: DISCARDURB %pK\n", __func__, p);
 		ret = proc_unlinkurb(ps, p);
 		break;
 

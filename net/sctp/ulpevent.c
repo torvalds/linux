@@ -854,6 +854,91 @@ struct sctp_ulpevent *sctp_ulpevent_make_sender_dry_event(
 	return event;
 }
 
+struct sctp_ulpevent *sctp_ulpevent_make_stream_reset_event(
+	const struct sctp_association *asoc, __u16 flags, __u16 stream_num,
+	__u16 *stream_list, gfp_t gfp)
+{
+	struct sctp_stream_reset_event *sreset;
+	struct sctp_ulpevent *event;
+	struct sk_buff *skb;
+	int length, i;
+
+	length = sizeof(struct sctp_stream_reset_event) + 2 * stream_num;
+	event = sctp_ulpevent_new(length, MSG_NOTIFICATION, gfp);
+	if (!event)
+		return NULL;
+
+	skb = sctp_event2skb(event);
+	sreset = (struct sctp_stream_reset_event *)skb_put(skb, length);
+
+	sreset->strreset_type = SCTP_STREAM_RESET_EVENT;
+	sreset->strreset_flags = flags;
+	sreset->strreset_length = length;
+	sctp_ulpevent_set_owner(event, asoc);
+	sreset->strreset_assoc_id = sctp_assoc2id(asoc);
+
+	for (i = 0; i < stream_num; i++)
+		sreset->strreset_stream_list[i] = ntohs(stream_list[i]);
+
+	return event;
+}
+
+struct sctp_ulpevent *sctp_ulpevent_make_assoc_reset_event(
+	const struct sctp_association *asoc, __u16 flags, __u32 local_tsn,
+	__u32 remote_tsn, gfp_t gfp)
+{
+	struct sctp_assoc_reset_event *areset;
+	struct sctp_ulpevent *event;
+	struct sk_buff *skb;
+
+	event = sctp_ulpevent_new(sizeof(struct sctp_assoc_reset_event),
+				  MSG_NOTIFICATION, gfp);
+	if (!event)
+		return NULL;
+
+	skb = sctp_event2skb(event);
+	areset = (struct sctp_assoc_reset_event *)
+		skb_put(skb, sizeof(struct sctp_assoc_reset_event));
+
+	areset->assocreset_type = SCTP_ASSOC_RESET_EVENT;
+	areset->assocreset_flags = flags;
+	areset->assocreset_length = sizeof(struct sctp_assoc_reset_event);
+	sctp_ulpevent_set_owner(event, asoc);
+	areset->assocreset_assoc_id = sctp_assoc2id(asoc);
+	areset->assocreset_local_tsn = local_tsn;
+	areset->assocreset_remote_tsn = remote_tsn;
+
+	return event;
+}
+
+struct sctp_ulpevent *sctp_ulpevent_make_stream_change_event(
+	const struct sctp_association *asoc, __u16 flags,
+	__u32 strchange_instrms, __u32 strchange_outstrms, gfp_t gfp)
+{
+	struct sctp_stream_change_event *schange;
+	struct sctp_ulpevent *event;
+	struct sk_buff *skb;
+
+	event = sctp_ulpevent_new(sizeof(struct sctp_stream_change_event),
+				  MSG_NOTIFICATION, gfp);
+	if (!event)
+		return NULL;
+
+	skb = sctp_event2skb(event);
+	schange = (struct sctp_stream_change_event *)
+		skb_put(skb, sizeof(struct sctp_stream_change_event));
+
+	schange->strchange_type = SCTP_STREAM_CHANGE_EVENT;
+	schange->strchange_flags = flags;
+	schange->strchange_length = sizeof(struct sctp_stream_change_event);
+	sctp_ulpevent_set_owner(event, asoc);
+	schange->strchange_assoc_id = sctp_assoc2id(asoc);
+	schange->strchange_instrms = strchange_instrms;
+	schange->strchange_outstrms = strchange_outstrms;
+
+	return event;
+}
+
 /* Return the notification type, assuming this is a notification
  * event.
  */

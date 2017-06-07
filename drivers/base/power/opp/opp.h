@@ -16,11 +16,11 @@
 
 #include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/limits.h>
 #include <linux/pm_opp.h>
-#include <linux/rculist.h>
-#include <linux/rcupdate.h>
+#include <linux/notifier.h>
 
 struct clk;
 struct regulator;
@@ -51,24 +51,18 @@ extern struct list_head opp_tables;
  * @node:	opp table node. The nodes are maintained throughout the lifetime
  *		of boot. It is expected only an optimal set of OPPs are
  *		added to the library by the SoC framework.
- *		RCU usage: opp table is traversed with RCU locks. node
- *		modification is possible realtime, hence the modifications
- *		are protected by the opp_table_lock for integrity.
  *		IMPORTANT: the opp nodes should be maintained in increasing
  *		order.
+ * @kref:	for reference count of the OPP.
  * @available:	true/false - marks if this OPP as available or not
  * @dynamic:	not-created from static DT entries.
  * @turbo:	true if turbo (boost) OPP
  * @suspend:	true if suspend OPP
  * @rate:	Frequency in hertz
- * @u_volt:	Target voltage in microvolts corresponding to this OPP
- * @u_volt_min:	Minimum voltage in microvolts corresponding to this OPP
- * @u_volt_max:	Maximum voltage in microvolts corresponding to this OPP
- * @u_amp:	Maximum current drawn by the device in microamperes
+ * @supplies:	Power supplies voltage/current values
  * @clock_latency_ns: Latency (in nanoseconds) of switching to this OPP's
  *		frequency from any other OPP's frequency.
  * @opp_table:	points back to the opp_table struct this opp belongs to
- * @rcu_head:	RCU callback head used for deferred freeing
  * @np:		OPP's device node.
  * @dentry:	debugfs dentry pointer (per opp)
  *
@@ -76,6 +70,7 @@ extern struct list_head opp_tables;
  */
 struct dev_pm_opp {
 	struct list_head node;
+	struct kref kref;
 
 	bool available;
 	bool dynamic;
@@ -83,14 +78,11 @@ struct dev_pm_opp {
 	bool suspend;
 	unsigned long rate;
 
-	unsigned long u_volt;
-	unsigned long u_volt_min;
-	unsigned long u_volt_max;
-	unsigned long u_amp;
+	struct dev_pm_opp_supply *supplies;
+
 	unsigned long clock_latency_ns;
 
 	struct opp_table *opp_table;
-	struct rcu_head rcu_head;
 
 	struct device_node *np;
 
@@ -103,7 +95,6 @@ struct dev_pm_opp {
  * struct opp_device - devices managed by 'struct opp_table'
  * @node:	list node
  * @dev:	device to which the struct object belongs
- * @rcu_head:	RCU callback head used for deferred freeing
  * @dentry:	debugfs dentry pointer (per device)
  *
  * This is an internal data structure maintaining the devices that are managed
@@ -112,7 +103,6 @@ struct dev_pm_opp {
 struct opp_device {
 	struct list_head node;
 	const struct device *dev;
-	struct rcu_head rcu_head;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
@@ -130,12 +120,11 @@ enum opp_table_access {
  * @node:	table node - contains the devices with OPPs that
  *		have been registered. Nodes once added are not modified in this
  *		table.
- *		RCU usage: nodes are not modified in the table of opp_table,
- *		however addition is possible and is secured by opp_table_lock
- * @srcu_head:	notifier head to notify the OPP availability changes.
- * @rcu_head:	RCU callback head used for deferred freeing
+ * @head:	notifier head to notify the OPP availability changes.
  * @dev_list:	list of devices that share these OPPs
  * @opp_list:	table of opps
+ * @kref:	for reference count of the table.
+ * @lock:	mutex protecting the opp_list.
  * @np:		struct device_node pointer for opp's DT node.
  * @clock_latency_ns_max: Max clock latency in nanoseconds.
  * @shared_opp: OPP is shared between multiple devices.
@@ -144,7 +133,10 @@ enum opp_table_access {
  * @supported_hw_count: Number of elements in supported_hw array.
  * @prop_name: A name to postfix to many DT properties, while parsing them.
  * @clk: Device's clock handle
- * @regulator: Supply regulator
+ * @regulators: Supply regulators
+ * @regulator_count: Number of power supply regulators
+ * @set_opp: Platform specific set_opp callback
+ * @set_opp_data: Data to be passed to set_opp callback
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
  * @dentry_name: Name of the real dentry.
  *
@@ -153,18 +145,15 @@ enum opp_table_access {
  * This is an internal data structure maintaining the link to opps attached to
  * a device. This structure is not meant to be shared to users as it is
  * meant for book keeping and private to OPP library.
- *
- * Because the opp structures can be used from both rcu and srcu readers, we
- * need to wait for the grace period of both of them before freeing any
- * resources. And so we have used kfree_rcu() from within call_srcu() handlers.
  */
 struct opp_table {
 	struct list_head node;
 
-	struct srcu_notifier_head srcu_head;
-	struct rcu_head rcu_head;
+	struct blocking_notifier_head head;
 	struct list_head dev_list;
 	struct list_head opp_list;
+	struct kref kref;
+	struct mutex lock;
 
 	struct device_node *np;
 	unsigned long clock_latency_ns_max;
@@ -179,7 +168,11 @@ struct opp_table {
 	unsigned int supported_hw_count;
 	const char *prop_name;
 	struct clk *clk;
-	struct regulator *regulator;
+	struct regulator **regulators;
+	unsigned int regulator_count;
+
+	int (*set_opp)(struct dev_pm_set_opp_data *data);
+	struct dev_pm_set_opp_data *set_opp_data;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
@@ -188,15 +181,17 @@ struct opp_table {
 };
 
 /* Routines internal to opp core */
+void _get_opp_table_kref(struct opp_table *opp_table);
 struct opp_table *_find_opp_table(struct device *dev);
 struct opp_device *_add_opp_dev(const struct device *dev, struct opp_table *opp_table);
-struct device_node *_of_get_opp_desc_node(struct device *dev);
-void _dev_pm_opp_remove_table(struct device *dev, bool remove_all);
-struct dev_pm_opp *_allocate_opp(struct device *dev, struct opp_table **opp_table);
+void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev, bool remove_all);
+void _dev_pm_opp_find_and_remove_table(struct device *dev, bool remove_all);
+struct dev_pm_opp *_opp_allocate(struct opp_table *opp_table);
+void _opp_free(struct dev_pm_opp *opp);
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table);
-void _opp_remove(struct opp_table *opp_table, struct dev_pm_opp *opp, bool notify);
-int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt, bool dynamic);
+int _opp_add_v1(struct opp_table *opp_table, struct device *dev, unsigned long freq, long u_volt, bool dynamic);
 void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, bool of);
+struct opp_table *_add_opp_table(struct device *dev);
 
 #ifdef CONFIG_OF
 void _of_init_opp_table(struct opp_table *opp_table, struct device *dev);

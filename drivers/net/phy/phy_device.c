@@ -908,6 +908,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	struct module *ndev_owner = dev->dev.parent->driver->owner;
 	struct mii_bus *bus = phydev->mdio.bus;
 	struct device *d = &phydev->mdio.dev;
+	bool using_genphy = false;
 	int err;
 
 	/* For Ethernet device drivers that register their own MDIO bus, we
@@ -933,12 +934,22 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 			d->driver =
 				&genphy_driver[GENPHY_DRV_1G].mdiodrv.driver;
 
+		using_genphy = true;
+	}
+
+	if (!try_module_get(d->driver->owner)) {
+		dev_err(&dev->dev, "failed to get the device driver module\n");
+		err = -EIO;
+		goto error_put_device;
+	}
+
+	if (using_genphy) {
 		err = d->driver->probe(d);
 		if (err >= 0)
 			err = device_bind_driver(d);
 
 		if (err)
-			goto error;
+			goto error_module_put;
 	}
 
 	if (phydev->attached_dev) {
@@ -975,7 +986,13 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	return err;
 
 error:
+	/* phy_detach() does all of the cleanup below */
 	phy_detach(phydev);
+	return err;
+
+error_module_put:
+	module_put(d->driver->owner);
+error_put_device:
 	put_device(d);
 	if (ndev_owner != bus->owner)
 		module_put(bus->owner);
@@ -1039,6 +1056,8 @@ void phy_detach(struct phy_device *phydev)
 
 	phy_led_triggers_unregister(phydev);
 
+	module_put(phydev->mdio.dev.driver->owner);
+
 	/* If the device had no specific driver before (i.e. - it
 	 * was using the generic driver), we unbind the device
 	 * from the generic driver so that there's a chance a
@@ -1075,7 +1094,7 @@ int phy_suspend(struct phy_device *phydev)
 	if (wol.wolopts)
 		return -EBUSY;
 
-	if (phydrv->suspend)
+	if (phydev->drv && phydrv->suspend)
 		ret = phydrv->suspend(phydev);
 
 	if (ret)
@@ -1092,7 +1111,7 @@ int phy_resume(struct phy_device *phydev)
 	struct phy_driver *phydrv = to_phy_driver(phydev->mdio.dev.driver);
 	int ret = 0;
 
-	if (phydrv->resume)
+	if (phydev->drv && phydrv->resume)
 		ret = phydrv->resume(phydev);
 
 	if (ret)
@@ -1187,8 +1206,8 @@ static int genphy_config_advert(struct phy_device *phydev)
  */
 static int genphy_config_eee_advert(struct phy_device *phydev)
 {
-	u32 broken = phydev->eee_broken_modes;
-	u32 old_adv, adv;
+	int broken = phydev->eee_broken_modes;
+	int old_adv, adv;
 
 	/* Nothing to disable */
 	if (!broken)
@@ -1198,7 +1217,7 @@ static int genphy_config_eee_advert(struct phy_device *phydev)
 	 * supported by the phy. If we read 0, EEE is not advertised
 	 * In both case, we don't need to continue
 	 */
-	adv = phy_read_mmd_indirect(phydev, MDIO_AN_EEE_ADV, MDIO_MMD_AN);
+	adv = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV);
 	if (adv <= 0)
 		return 0;
 
@@ -1209,7 +1228,7 @@ static int genphy_config_eee_advert(struct phy_device *phydev)
 	if (old_adv == adv)
 		return 0;
 
-	phy_write_mmd_indirect(phydev, MDIO_AN_EEE_ADV, MDIO_MMD_AN, adv);
+	phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, adv);
 
 	return 1;
 }
@@ -1665,7 +1684,7 @@ static void of_set_phy_supported(struct phy_device *phydev)
 static void of_set_phy_eee_broken(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;
-	u32 broken;
+	u32 broken = 0;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
 		return;
@@ -1673,8 +1692,20 @@ static void of_set_phy_eee_broken(struct phy_device *phydev)
 	if (!node)
 		return;
 
-	if (!of_property_read_u32(node, "eee-broken-modes", &broken))
-		phydev->eee_broken_modes = broken;
+	if (of_property_read_bool(node, "eee-broken-100tx"))
+		broken |= MDIO_EEE_100TX;
+	if (of_property_read_bool(node, "eee-broken-1000t"))
+		broken |= MDIO_EEE_1000T;
+	if (of_property_read_bool(node, "eee-broken-10gt"))
+		broken |= MDIO_EEE_10GT;
+	if (of_property_read_bool(node, "eee-broken-1000kx"))
+		broken |= MDIO_EEE_1000KX;
+	if (of_property_read_bool(node, "eee-broken-10gkx4"))
+		broken |= MDIO_EEE_10GKX4;
+	if (of_property_read_bool(node, "eee-broken-10gkr"))
+		broken |= MDIO_EEE_10GKR;
+
+	phydev->eee_broken_modes = broken;
 }
 
 /**
@@ -1753,11 +1784,13 @@ static int phy_remove(struct device *dev)
 {
 	struct phy_device *phydev = to_phy_device(dev);
 
+	cancel_delayed_work_sync(&phydev->state_queue);
+
 	mutex_lock(&phydev->lock);
 	phydev->state = PHY_DOWN;
 	mutex_unlock(&phydev->lock);
 
-	if (phydev->drv->remove)
+	if (phydev->drv && phydev->drv->remove)
 		phydev->drv->remove(phydev);
 	phydev->drv = NULL;
 
@@ -1831,7 +1864,7 @@ static struct phy_driver genphy_driver[] = {
 	.phy_id		= 0xffffffff,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Generic PHY",
-	.soft_reset	= genphy_soft_reset,
+	.soft_reset	= genphy_no_soft_reset,
 	.config_init	= genphy_config_init,
 	.features	= PHY_GBIT_FEATURES | SUPPORTED_MII |
 			  SUPPORTED_AUI | SUPPORTED_FIBRE |

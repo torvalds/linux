@@ -881,12 +881,14 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 		info = &geneve->info;
 	}
 
+	rcu_read_lock();
 #if IS_ENABLED(CONFIG_IPV6)
 	if (info->mode & IP_TUNNEL_INFO_IPV6)
 		err = geneve6_xmit_skb(skb, dev, geneve, info);
 	else
 #endif
 		err = geneve_xmit_skb(skb, dev, geneve, info);
+	rcu_read_unlock();
 
 	if (likely(!err))
 		return NETDEV_TX_OK;
@@ -1131,7 +1133,7 @@ static int geneve_configure(struct net *net, struct net_device *dev,
 
 	/* make enough headroom for basic scenario */
 	encap_len = GENEVE_BASE_HLEN + ETH_HLEN;
-	if (ip_tunnel_info_af(info) == AF_INET) {
+	if (!metadata && ip_tunnel_info_af(info) == AF_INET) {
 		encap_len += sizeof(struct iphdr);
 		dev->max_mtu -= sizeof(struct iphdr);
 	} else {
@@ -1242,7 +1244,7 @@ static int geneve_newlink(struct net *net, struct net_device *dev,
 		metadata = true;
 
 	if (data[IFLA_GENEVE_UDP_CSUM] &&
-	    !nla_get_u8(data[IFLA_GENEVE_UDP_CSUM]))
+	    nla_get_u8(data[IFLA_GENEVE_UDP_CSUM]))
 		info.key.tun_flags |= TUNNEL_CSUM;
 
 	if (data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX] &&
@@ -1291,7 +1293,7 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (nla_put_u32(skb, IFLA_GENEVE_ID, vni))
 		goto nla_put_failure;
 
-	if (ip_tunnel_info_af(info) == AF_INET) {
+	if (rtnl_dereference(geneve->sock4)) {
 		if (nla_put_in_addr(skb, IFLA_GENEVE_REMOTE,
 				    info->key.u.ipv4.dst))
 			goto nla_put_failure;
@@ -1300,8 +1302,10 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			       !!(info->key.tun_flags & TUNNEL_CSUM)))
 			goto nla_put_failure;
 
+	}
+
 #if IS_ENABLED(CONFIG_IPV6)
-	} else {
+	if (rtnl_dereference(geneve->sock6)) {
 		if (nla_put_in6_addr(skb, IFLA_GENEVE_REMOTE6,
 				     &info->key.u.ipv6.dst))
 			goto nla_put_failure;
@@ -1313,8 +1317,8 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 		if (nla_put_u8(skb, IFLA_GENEVE_UDP_ZERO_CSUM6_RX,
 			       !geneve->use_udp6_rx_checksums))
 			goto nla_put_failure;
-#endif
 	}
+#endif
 
 	if (nla_put_u8(skb, IFLA_GENEVE_TTL, info->key.ttl) ||
 	    nla_put_u8(skb, IFLA_GENEVE_TOS, info->key.tos) ||

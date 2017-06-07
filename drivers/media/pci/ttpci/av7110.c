@@ -19,11 +19,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  *
  *
  * the project's page is at https://linuxtv.org
@@ -100,8 +97,7 @@ MODULE_PARM_DESC(adac,"audio DAC type: 0 TI, 1 CRYSTAL, 2 MSP (use if autodetect
 module_param(hw_sections, int, 0444);
 MODULE_PARM_DESC(hw_sections, "0 use software section filter, 1 use hardware");
 module_param(rgb_on, int, 0444);
-MODULE_PARM_DESC(rgb_on, "For Siemens DVB-C cards only: Enable RGB control"
-		" signal on SCART pin 16 to switch SCART video mode from CVBS to RGB");
+MODULE_PARM_DESC(rgb_on, "For Siemens DVB-C cards only: Enable RGB control signal on SCART pin 16 to switch SCART video mode from CVBS to RGB");
 module_param(volume, int, 0444);
 MODULE_PARM_DESC(volume, "initial volume: default 255 (range 0-255)");
 module_param(budgetpatch, int, 0444);
@@ -444,21 +440,6 @@ static void debiirq(unsigned long cookie)
 
 	case DATA_COMMON_INTERFACE:
 		CI_handle(av7110, (u8 *)av7110->debi_virt, av7110->debilen);
-#if 0
-	{
-		int i;
-
-		printk("av7110%d: ", av7110->num);
-		printk("%02x ", *(u8 *)av7110->debi_virt);
-		printk("%02x ", *(1+(u8 *)av7110->debi_virt));
-		for (i = 2; i < av7110->debilen; i++)
-			printk("%02x ", (*(i+(unsigned char *)av7110->debi_virt)));
-		for (i = 2; i < av7110->debilen; i++)
-			printk("%c", chtrans(*(i+(unsigned char *)av7110->debi_virt)));
-
-		printk("\n");
-	}
-#endif
 		xfer = RX_BUFF;
 		break;
 
@@ -833,8 +814,7 @@ static int StartHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 
 	ret = av7110_fw_request(av7110, buf, 20, &handle, 1);
 	if (ret != 0 || handle >= 32) {
-		printk("dvb-ttpci: %s error  buf %04x %04x %04x %04x  "
-				"ret %d  handle %04x\n",
+		printk(KERN_ERR "dvb-ttpci: %s error  buf %04x %04x %04x %04x  ret %d  handle %04x\n",
 				__func__, buf[0], buf[1], buf[2], buf[3],
 				ret, handle);
 		dvbdmxfilter->hw_handle = 0xffff;
@@ -876,8 +856,7 @@ static int StopHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 	buf[2] = handle;
 	ret = av7110_fw_request(av7110, buf, 3, answ, 2);
 	if (ret != 0 || answ[1] != handle) {
-		printk("dvb-ttpci: %s error  cmd %04x %04x %04x  ret %x  "
-				"resp %04x %04x  pid %d\n",
+		printk(KERN_ERR "dvb-ttpci: %s error  cmd %04x %04x %04x  ret %x  resp %04x %04x  pid %d\n",
 				__func__, buf[0], buf[1], buf[2], ret,
 				answ[0], answ[1], dvbdmxfilter->feed->pid);
 		if (!ret)
@@ -1532,15 +1511,12 @@ static int get_firmware(struct av7110* av7110)
 	ret = request_firmware(&fw, "dvb-ttpci-01.fw", &av7110->dev->pci->dev);
 	if (ret) {
 		if (ret == -ENOENT) {
-			printk(KERN_ERR "dvb-ttpci: could not load firmware,"
-			       " file not found: dvb-ttpci-01.fw\n");
-			printk(KERN_ERR "dvb-ttpci: usually this should be in "
-			       "/usr/lib/hotplug/firmware or /lib/firmware\n");
-			printk(KERN_ERR "dvb-ttpci: and can be downloaded from"
-			       " https://linuxtv.org/download/dvb/firmware/\n");
+			printk(KERN_ERR "dvb-ttpci: could not load firmware, file not found: dvb-ttpci-01.fw\n");
+			printk(KERN_ERR "dvb-ttpci: usually this should be in /usr/lib/hotplug/firmware or /lib/firmware\n");
+			printk(KERN_ERR "dvb-ttpci: and can be downloaded from https://linuxtv.org/download/dvb/firmware/\n");
 		} else
-			printk(KERN_ERR "dvb-ttpci: cannot request firmware"
-			       " (error %i)\n", ret);
+			printk(KERN_ERR "dvb-ttpci: cannot request firmware (error %i)\n",
+			       ret);
 		return -EINVAL;
 	}
 
@@ -2700,8 +2676,9 @@ static int av7110_attach(struct saa7146_dev* dev,
 		goto err_stop_arm_9;
 
 	if (FW_VERSION(av7110->arm_app)<0x2501)
-		printk ("dvb-ttpci: Warning, firmware version 0x%04x is too old. "
-			"System might be unstable!\n", FW_VERSION(av7110->arm_app));
+		printk(KERN_WARNING
+		       "dvb-ttpci: Warning, firmware version 0x%04x is too old. System might be unstable!\n",
+		       FW_VERSION(av7110->arm_app));
 
 	thread = kthread_run(arm_thread, (void *) av7110, "arm_mon");
 	if (IS_ERR(thread)) {
@@ -2930,9 +2907,7 @@ static struct saa7146_extension av7110_extension_driver = {
 
 static int __init av7110_init(void)
 {
-	int retval;
-	retval = saa7146_register_extension(&av7110_extension_driver);
-	return retval;
+	return saa7146_register_extension(&av7110_extension_driver);
 }
 
 
@@ -2944,7 +2919,6 @@ static void __exit av7110_exit(void)
 module_init(av7110_init);
 module_exit(av7110_exit);
 
-MODULE_DESCRIPTION("driver for the SAA7146 based AV110 PCI DVB cards by "
-		   "Siemens, Technotrend, Hauppauge");
+MODULE_DESCRIPTION("driver for the SAA7146 based AV110 PCI DVB cards by Siemens, Technotrend, Hauppauge");
 MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, others");
 MODULE_LICENSE("GPL");

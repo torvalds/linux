@@ -20,17 +20,15 @@
 #include <linux/crc-ccitt.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/acpi.h>
-#include <linux/miscdevice.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
 #include <linux/firmware.h>
-#include <linux/platform_data/st21nfca.h>
+
 #include <asm/unaligned.h>
 
 #include <net/nfc/hci.h>
@@ -60,6 +58,7 @@
 #define IS_START_OF_FRAME(buf) (buf[0] == ST21NFCA_SOF_EOF && \
 				buf[1] == 0)
 
+#define ST21NFCA_HCI_DRIVER_NAME "st21nfca_hci"
 #define ST21NFCA_HCI_I2C_DRIVER_NAME "st21nfca_hci_i2c"
 
 #define ST21NFCA_GPIO_NAME_EN "enable"
@@ -68,9 +67,7 @@ struct st21nfca_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct nfc_hci_dev *hdev;
 
-	unsigned int gpio_ena;
-	unsigned int irq_polarity;
-
+	struct gpio_desc *gpiod_ena;
 	struct st21nfca_se_status se_status;
 
 	struct sk_buff *pending_skb;
@@ -151,7 +148,7 @@ static int st21nfca_hci_i2c_enable(void *phy_id)
 {
 	struct st21nfca_i2c_phy *phy = phy_id;
 
-	gpio_set_value(phy->gpio_ena, 1);
+	gpiod_set_value(phy->gpiod_ena, 1);
 	phy->powered = 1;
 	phy->run_mode = ST21NFCA_HCI_MODE;
 
@@ -164,7 +161,7 @@ static void st21nfca_hci_i2c_disable(void *phy_id)
 {
 	struct st21nfca_i2c_phy *phy = phy_id;
 
-	gpio_set_value(phy->gpio_ena, 0);
+	gpiod_set_value(phy->gpiod_ena, 0);
 
 	phy->powered = 0;
 }
@@ -507,33 +504,14 @@ static struct nfc_phy_ops i2c_phy_ops = {
 static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
-	struct gpio_desc *gpiod_ena;
 	struct device *dev = &client->dev;
-	u8 tmp;
 
 	/* Get EN GPIO from ACPI */
-	gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 1,
-					 GPIOD_OUT_LOW);
-	if (!IS_ERR(gpiod_ena)) {
+	phy->gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 1,
+					      GPIOD_OUT_LOW);
+	if (IS_ERR(phy->gpiod_ena)) {
 		nfc_err(dev, "Unable to get ENABLE GPIO\n");
-		return -ENODEV;
-	}
-
-	phy->gpio_ena = desc_to_gpio(gpiod_ena);
-
-	phy->irq_polarity = irq_get_trigger_type(client->irq);
-
-	phy->se_status.is_ese_present = false;
-	phy->se_status.is_uicc_present = false;
-
-	if (device_property_present(dev, "ese-present")) {
-		device_property_read_u8(dev, "ese-present", &tmp);
-		phy->se_status.is_ese_present = tmp;
-	}
-
-	if (device_property_present(dev, "uicc-present")) {
-		device_property_read_u8(dev, "uicc-present", &tmp);
-		phy->se_status.is_uicc_present = tmp;
+		return PTR_ERR(phy->gpiod_ena);
 	}
 
 	return 0;
@@ -542,69 +520,15 @@ static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 {
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
-	struct device_node *pp;
-	int gpio;
-	int r;
-
-	pp = client->dev.of_node;
-	if (!pp)
-		return -ENODEV;
+	struct device *dev = &client->dev;
 
 	/* Get GPIO from device tree */
-	gpio = of_get_named_gpio(pp, "enable-gpios", 0);
-	if (gpio < 0) {
-		nfc_err(&client->dev, "Failed to retrieve enable-gpios from device tree\n");
-		return gpio;
+	phy->gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 0,
+					      GPIOD_OUT_HIGH);
+	if (IS_ERR(phy->gpiod_ena)) {
+		nfc_err(dev, "Failed to request enable pin\n");
+		return PTR_ERR(phy->gpiod_ena);
 	}
-
-	/* GPIO request and configuration */
-	r = devm_gpio_request_one(&client->dev, gpio, GPIOF_OUT_INIT_HIGH,
-				  ST21NFCA_GPIO_NAME_EN);
-	if (r) {
-		nfc_err(&client->dev, "Failed to request enable pin\n");
-		return r;
-	}
-
-	phy->gpio_ena = gpio;
-
-	phy->irq_polarity = irq_get_trigger_type(client->irq);
-
-	phy->se_status.is_ese_present =
-				of_property_read_bool(pp, "ese-present");
-	phy->se_status.is_uicc_present =
-				of_property_read_bool(pp, "uicc-present");
-
-	return 0;
-}
-
-static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
-{
-	struct st21nfca_nfc_platform_data *pdata;
-	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
-	int r;
-
-	pdata = client->dev.platform_data;
-	if (pdata == NULL) {
-		nfc_err(&client->dev, "No platform data\n");
-		return -EINVAL;
-	}
-
-	/* store for later use */
-	phy->gpio_ena = pdata->gpio_ena;
-	phy->irq_polarity = pdata->irq_polarity;
-
-	if (phy->gpio_ena > 0) {
-		r = devm_gpio_request_one(&client->dev, phy->gpio_ena,
-					  GPIOF_OUT_INIT_HIGH,
-					  ST21NFCA_GPIO_NAME_EN);
-		if (r) {
-			pr_err("%s : ena gpio_request failed\n", __FILE__);
-			return r;
-		}
-	}
-
-	phy->se_status.is_ese_present = pdata->is_ese_present;
-	phy->se_status.is_uicc_present = pdata->is_uicc_present;
 
 	return 0;
 }
@@ -613,7 +537,6 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct st21nfca_i2c_phy *phy;
-	struct st21nfca_nfc_platform_data *pdata;
 	int r;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
@@ -639,17 +562,10 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 	mutex_init(&phy->phy_lock);
 	i2c_set_clientdata(client, phy);
 
-	pdata = client->dev.platform_data;
-	if (!pdata && client->dev.of_node) {
+	if (client->dev.of_node) {
 		r = st21nfca_hci_i2c_of_request_resources(client);
 		if (r) {
 			nfc_err(&client->dev, "No platform data\n");
-			return r;
-		}
-	} else if (pdata) {
-		r = st21nfca_hci_i2c_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev, "Cannot get platform resources\n");
 			return r;
 		}
 	} else if (ACPI_HANDLE(&client->dev)) {
@@ -663,6 +579,11 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
+	phy->se_status.is_ese_present =
+			device_property_read_bool(&client->dev, "ese-present");
+	phy->se_status.is_uicc_present =
+			device_property_read_bool(&client->dev, "uicc-present");
+
 	r = st21nfca_hci_platform_init(phy);
 	if (r < 0) {
 		nfc_err(&client->dev, "Unable to reboot st21nfca\n");
@@ -671,7 +592,7 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 
 	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 				st21nfca_hci_irq_thread_fn,
-				phy->irq_polarity | IRQF_ONESHOT,
+				IRQF_ONESHOT,
 				ST21NFCA_HCI_DRIVER_NAME, phy);
 	if (r < 0) {
 		nfc_err(&client->dev, "Unable to register IRQ handler\n");

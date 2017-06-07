@@ -36,6 +36,7 @@ static const struct pci_device_id pciidlist[] = {
 	{ PCI_VENDOR_ID_MATROX, 0x533, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EH },
 	{ PCI_VENDOR_ID_MATROX, 0x534, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_ER },
 	{ PCI_VENDOR_ID_MATROX, 0x536, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EW3 },
+	{ PCI_VENDOR_ID_MATROX, 0x538, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EH3 },
 	{0,}
 };
 
@@ -82,9 +83,7 @@ static const struct file_operations mgag200_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = mgag200_mmap,
 	.poll = drm_poll,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.read = drm_read,
 };
 

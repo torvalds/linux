@@ -435,10 +435,10 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->waitfunc = tmio_nand_wait;
 
 	/* Scan to find existence of the device */
-	if (nand_scan(mtd, 1)) {
-		retval = -ENODEV;
+	retval = nand_scan(mtd, 1);
+	if (retval)
 		goto err_irq;
-	}
+
 	/* Register the partitions */
 	retval = mtd_device_parse_register(mtd, NULL, NULL,
 					   data ? data->partition : NULL,

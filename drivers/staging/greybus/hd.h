@@ -37,13 +37,6 @@ struct gb_hd_driver {
 	int (*latency_tag_disable)(struct gb_host_device *hd, u16 cport_id);
 	int (*output)(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
 		      bool async);
-	int (*timesync_enable)(struct gb_host_device *hd, u8 count,
-			       u64 frame_time, u32 strobe_delay, u32 refclk);
-	int (*timesync_disable)(struct gb_host_device *hd);
-	int (*timesync_authoritative)(struct gb_host_device *hd,
-				      u64 *frame_time);
-	int (*timesync_get_last_event)(struct gb_host_device *hd,
-				       u64 *frame_time);
 };
 
 struct gb_host_device {

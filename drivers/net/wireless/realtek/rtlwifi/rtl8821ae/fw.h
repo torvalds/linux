@@ -229,6 +229,8 @@ enum rtl8821a_h2c_cmd {
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
 #define SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(__ph2ccmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+3, 0, 8, __val)
+#define SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(__ph2ccmd, __val)	\
+	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 4, 0, 8, __val)
 
 /* _MEDIA_STATUS_RPT_PARM_CMD1 */
 #define SET_H2CCMD_MSRRPT_PARM_OPMODE(__cmd, __value)	\
@@ -329,4 +331,7 @@ void rtl8821ae_set_fw_disconnect_decision_ctrl_cmd(struct ieee80211_hw *hw,
 void rtl8821ae_set_fw_global_info_cmd(struct ieee80211_hw *hw);
 void rtl8821ae_c2h_packet_handler(struct ieee80211_hw *hw,
 				  u8 *buffer, u8 length);
+void rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
+				   u8 c2h_cmd_id, u8 c2h_cmd_len,
+				   u8 *tmp_buf);
 #endif

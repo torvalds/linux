@@ -101,7 +101,7 @@ static unsigned int bcm7038_wdt_get_timeleft(struct watchdog_device *wdog)
 	return time_left / wdt->rate;
 }
 
-static struct watchdog_info bcm7038_wdt_info = {
+static const struct watchdog_info bcm7038_wdt_info = {
 	.identity	= "Broadcom BCM7038 Watchdog Timer",
 	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING |
 				WDIOF_MAGICCLOSE
@@ -216,6 +216,7 @@ static const struct of_device_id bcm7038_wdt_match[] = {
 	{ .compatible = "brcm,bcm7038-wdt" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, bcm7038_wdt_match);
 
 static struct platform_driver bcm7038_wdt_driver = {
 	.probe		= bcm7038_wdt_probe,

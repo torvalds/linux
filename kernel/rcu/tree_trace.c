@@ -41,11 +41,11 @@
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/prefetch.h>
 
 #define RCU_TREE_NONCORE
 #include "tree.h"
-
-DECLARE_PER_CPU_SHARED_ALIGNED(unsigned long, rcu_qs_ctr);
+#include "rcu.h"
 
 static int r_open(struct inode *inode, struct file *file,
 					const struct seq_operations *op)
@@ -121,26 +121,24 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   ulong2long(rdp->completed), ulong2long(rdp->gpnum),
 		   rdp->cpu_no_qs.b.norm,
-		   rdp->rcu_qs_ctr_snap == per_cpu(rcu_qs_ctr, rdp->cpu),
+		   rdp->rcu_qs_ctr_snap == per_cpu(rdp->dynticks->rcu_qs_ctr, rdp->cpu),
 		   rdp->core_needs_qs);
 	seq_printf(m, " dt=%d/%llx/%d df=%lu",
-		   atomic_read(&rdp->dynticks->dynticks),
+		   rcu_dynticks_snap(rdp->dynticks),
 		   rdp->dynticks->dynticks_nesting,
 		   rdp->dynticks->dynticks_nmi_nesting,
 		   rdp->dynticks_fqs);
 	seq_printf(m, " of=%lu", rdp->offline_fqs);
 	rcu_nocb_q_lengths(rdp, &ql, &qll);
-	qll += rdp->qlen_lazy;
-	ql += rdp->qlen;
+	qll += rcu_segcblist_n_lazy_cbs(&rdp->cblist);
+	ql += rcu_segcblist_n_cbs(&rdp->cblist);
 	seq_printf(m, " ql=%ld/%ld qs=%c%c%c%c",
 		   qll, ql,
-		   ".N"[rdp->nxttail[RCU_NEXT_READY_TAIL] !=
-			rdp->nxttail[RCU_NEXT_TAIL]],
-		   ".R"[rdp->nxttail[RCU_WAIT_TAIL] !=
-			rdp->nxttail[RCU_NEXT_READY_TAIL]],
-		   ".W"[rdp->nxttail[RCU_DONE_TAIL] !=
-			rdp->nxttail[RCU_WAIT_TAIL]],
-		   ".D"[&rdp->nxtlist != rdp->nxttail[RCU_DONE_TAIL]]);
+		   ".N"[!rcu_segcblist_segempty(&rdp->cblist, RCU_NEXT_TAIL)],
+		   ".R"[!rcu_segcblist_segempty(&rdp->cblist,
+						RCU_NEXT_READY_TAIL)],
+		   ".W"[!rcu_segcblist_segempty(&rdp->cblist, RCU_WAIT_TAIL)],
+		   ".D"[!rcu_segcblist_segempty(&rdp->cblist, RCU_DONE_TAIL)]);
 #ifdef CONFIG_RCU_BOOST
 	seq_printf(m, " kt=%d/%c ktl=%x",
 		   per_cpu(rcu_cpu_has_work, rdp->cpu),
@@ -194,9 +192,8 @@ static int show_rcuexp(struct seq_file *m, void *v)
 		s2 += atomic_long_read(&rdp->exp_workdone2);
 		s3 += atomic_long_read(&rdp->exp_workdone3);
 	}
-	seq_printf(m, "s=%lu wd0=%lu wd1=%lu wd2=%lu wd3=%lu n=%lu enq=%d sc=%lu\n",
+	seq_printf(m, "s=%lu wd0=%lu wd1=%lu wd2=%lu wd3=%lu enq=%d sc=%lu\n",
 		   rsp->expedited_sequence, s0, s1, s2, s3,
-		   atomic_long_read(&rsp->expedited_normal),
 		   atomic_read(&rsp->expedited_need_qs),
 		   rsp->expedited_sequence / 2);
 	return 0;
@@ -279,7 +276,9 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 	seq_printf(m, "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
 		   rsp->n_force_qs, rsp->n_force_qs_ngp,
 		   rsp->n_force_qs - rsp->n_force_qs_ngp,
-		   READ_ONCE(rsp->n_force_qs_lh), rsp->qlen_lazy, rsp->qlen);
+		   READ_ONCE(rsp->n_force_qs_lh),
+		   rsp->orphan_done.len_lazy,
+		   rsp->orphan_done.len);
 	for (rnp = &rsp->node[0]; rnp - &rsp->node[0] < rcu_num_nodes; rnp++) {
 		if (rnp->level != level) {
 			seq_puts(m, "\n");

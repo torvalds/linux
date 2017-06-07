@@ -60,9 +60,8 @@ static void pem_fini(struct pp_eventmgr *eventmgr)
 	pem_handle_event(eventmgr, AMD_PP_EVENT_UNINITIALIZE, &event_data);
 }
 
-int eventmgr_init(struct pp_instance *handle)
+int eventmgr_early_init(struct pp_instance *handle)
 {
-	int result = 0;
 	struct pp_eventmgr *eventmgr;
 
 	if (handle == NULL)
@@ -79,12 +78,6 @@ int eventmgr_init(struct pp_instance *handle)
 	eventmgr->pp_eventmgr_init = pem_init;
 	eventmgr->pp_eventmgr_fini = pem_fini;
 
-	return result;
-}
-
-int eventmgr_fini(struct pp_eventmgr *eventmgr)
-{
-	kfree(eventmgr);
 	return 0;
 }
 

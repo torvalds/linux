@@ -1384,6 +1384,8 @@ enum ethtool_link_mode_bit_indices {
 	ETHTOOL_LINK_MODE_10000baseLR_Full_BIT	= 44,
 	ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT	= 45,
 	ETHTOOL_LINK_MODE_10000baseER_Full_BIT	= 46,
+	ETHTOOL_LINK_MODE_2500baseT_Full_BIT	= 47,
+	ETHTOOL_LINK_MODE_5000baseT_Full_BIT	= 48,
 
 
 	/* Last allowed bit for __ETHTOOL_LINK_MODE_LEGACY_MASK is bit
@@ -1393,7 +1395,7 @@ enum ethtool_link_mode_bit_indices {
 	 */
 
 	__ETHTOOL_LINK_MODE_LAST
-	  = ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
+	  = ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
 };
 
 #define __ETHTOOL_LINK_MODE_LEGACY_MASK(base_name)	\
@@ -1485,12 +1487,14 @@ enum ethtool_link_mode_bit_indices {
  */
 
 /* The forced speed, in units of 1Mb. All values 0 to INT_MAX are legal. */
+/* Update drivers/net/phy/phy.c:phy_speed_to_str() when adding new values */
 #define SPEED_10		10
 #define SPEED_100		100
 #define SPEED_1000		1000
 #define SPEED_2500		2500
 #define SPEED_5000		5000
 #define SPEED_10000		10000
+#define SPEED_14000		14000
 #define SPEED_20000		20000
 #define SPEED_25000		25000
 #define SPEED_40000		40000

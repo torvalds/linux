@@ -21,6 +21,7 @@
  * Copyright (C) IBM Corporation, 2010-2011
  * Author:     Srikar Dronamraju
  */
+#define pr_fmt(fmt)	"trace_probe: " fmt
 
 #include "trace_probe.h"
 
@@ -647,7 +648,7 @@ ssize_t traceprobe_probes_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos,
 				int (*createfn)(int, char **))
 {
-	char *kbuf, *tmp;
+	char *kbuf, *buf, *tmp;
 	int ret = 0;
 	size_t done = 0;
 	size_t size;
@@ -667,27 +668,38 @@ ssize_t traceprobe_probes_write(struct file *file, const char __user *buffer,
 			goto out;
 		}
 		kbuf[size] = '\0';
-		tmp = strchr(kbuf, '\n');
+		buf = kbuf;
+		do {
+			tmp = strchr(buf, '\n');
+			if (tmp) {
+				*tmp = '\0';
+				size = tmp - buf + 1;
+			} else {
+				size = strlen(buf);
+				if (done + size < count) {
+					if (buf != kbuf)
+						break;
+					/* This can accept WRITE_BUFSIZE - 2 ('\n' + '\0') */
+					pr_warn("Line length is too long: Should be less than %d\n",
+						WRITE_BUFSIZE - 2);
+					ret = -EINVAL;
+					goto out;
+				}
+			}
+			done += size;
 
-		if (tmp) {
-			*tmp = '\0';
-			size = tmp - kbuf + 1;
-		} else if (done + size < count) {
-			pr_warn("Line length is too long: Should be less than %d\n",
-				WRITE_BUFSIZE);
-			ret = -EINVAL;
-			goto out;
-		}
-		done += size;
-		/* Remove comments */
-		tmp = strchr(kbuf, '#');
+			/* Remove comments */
+			tmp = strchr(buf, '#');
 
-		if (tmp)
-			*tmp = '\0';
+			if (tmp)
+				*tmp = '\0';
 
-		ret = traceprobe_command(kbuf, createfn);
-		if (ret)
-			goto out;
+			ret = traceprobe_command(buf, createfn);
+			if (ret)
+				goto out;
+			buf += size;
+
+		} while (done < count);
 	}
 	ret = done;
 

@@ -1,5 +1,6 @@
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
+#include <inttypes.h>
 #include <string.h>
 #include "map.h"
 #include "symbol.h"
@@ -168,7 +169,7 @@ next_pair:
 		err = -1;
 	}
 
-	if (!verbose)
+	if (verbose <= 0)
 		goto out;
 
 	header_printed = false;

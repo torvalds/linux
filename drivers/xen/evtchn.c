@@ -87,18 +87,6 @@ struct user_evtchn {
 	bool enabled;
 };
 
-static evtchn_port_t *evtchn_alloc_ring(unsigned int size)
-{
-	evtchn_port_t *ring;
-	size_t s = size * sizeof(*ring);
-
-	ring = kmalloc(s, GFP_KERNEL);
-	if (!ring)
-		ring = vmalloc(s);
-
-	return ring;
-}
-
 static void evtchn_free_ring(evtchn_port_t *ring)
 {
 	kvfree(ring);
@@ -125,7 +113,7 @@ static int add_evtchn(struct per_user_data *u, struct user_evtchn *evtchn)
 	while (*new) {
 		struct user_evtchn *this;
 
-		this = container_of(*new, struct user_evtchn, node);
+		this = rb_entry(*new, struct user_evtchn, node);
 
 		parent = *new;
 		if (this->port < evtchn->port)
@@ -157,7 +145,7 @@ static struct user_evtchn *find_evtchn(struct per_user_data *u, unsigned port)
 	while (node) {
 		struct user_evtchn *evtchn;
 
-		evtchn = container_of(node, struct user_evtchn, node);
+		evtchn = rb_entry(node, struct user_evtchn, node);
 
 		if (evtchn->port < port)
 			node = node->rb_left;
@@ -334,7 +322,7 @@ static int evtchn_resize_ring(struct per_user_data *u)
 	else
 		new_size = 2 * u->ring_size;
 
-	new_ring = evtchn_alloc_ring(new_size);
+	new_ring = kvmalloc(new_size * sizeof(*new_ring), GFP_KERNEL);
 	if (!new_ring)
 		return -ENOMEM;
 

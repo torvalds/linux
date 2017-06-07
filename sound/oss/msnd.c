@@ -32,7 +32,7 @@
 #include <linux/interrupt.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/spinlock.h>
 #include <asm/irq.h>
 #include "msnd.h"

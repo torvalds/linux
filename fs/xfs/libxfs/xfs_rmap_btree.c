@@ -484,6 +484,7 @@ xfs_rmapbt_init_cursor(
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
 	cur->bc_ops = &xfs_rmapbt_ops;
 	cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]);
+	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_rmap_2);
 
 	cur->bc_private.a.agbp = agbp;
 	cur->bc_private.a.agno = agno;
@@ -549,13 +550,14 @@ xfs_rmapbt_calc_size(
  */
 xfs_extlen_t
 xfs_rmapbt_max_size(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	xfs_agblock_t		agblocks)
 {
 	/* Bail out if we're uninitialized, which can happen in mkfs. */
 	if (mp->m_rmap_mxr[0] == 0)
 		return 0;
 
-	return xfs_rmapbt_calc_size(mp, mp->m_sb.sb_agblocks);
+	return xfs_rmapbt_calc_size(mp, agblocks);
 }
 
 /*
@@ -570,25 +572,24 @@ xfs_rmapbt_calc_reserves(
 {
 	struct xfs_buf		*agbp;
 	struct xfs_agf		*agf;
-	xfs_extlen_t		pool_len;
+	xfs_agblock_t		agblocks;
 	xfs_extlen_t		tree_len;
 	int			error;
 
 	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
 		return 0;
 
-	/* Reserve 1% of the AG or enough for 1 block per record. */
-	pool_len = max(mp->m_sb.sb_agblocks / 100, xfs_rmapbt_max_size(mp));
-	*ask += pool_len;
-
 	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agbp);
 	if (error)
 		return error;
 
 	agf = XFS_BUF_TO_AGF(agbp);
+	agblocks = be32_to_cpu(agf->agf_length);
 	tree_len = be32_to_cpu(agf->agf_rmap_blocks);
 	xfs_buf_relse(agbp);
 
+	/* Reserve 1% of the AG or enough for 1 block per record. */
+	*ask += max(agblocks / 100, xfs_rmapbt_max_size(mp, agblocks));
 	*used += tree_len;
 
 	return error;

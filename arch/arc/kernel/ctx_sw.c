@@ -16,6 +16,7 @@
 
 #include <asm/asm-offsets.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #ifdef CONFIG_ARC_PLAT_EZNPS
 #include <plat/ctop.h>
 #endif

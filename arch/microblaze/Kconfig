@@ -27,6 +27,7 @@ config MICROBLAZE
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_OPROFILE
 	select IRQ_DOMAIN
+	select XILINX_INTC
 	select MODULES_USE_ELF_RELA
 	select OF
 	select OF_EARLY_FLATTREE

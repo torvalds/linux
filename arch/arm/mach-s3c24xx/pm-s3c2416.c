@@ -48,7 +48,7 @@ static void s3c2416_pm_prepare(void)
 	 * correct address to resume from.
 	 */
 	__raw_writel(0x2BED, S3C2412_INFORM0);
-	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C2412_INFORM1);
+	__raw_writel(__pa_symbol(s3c_cpu_resume), S3C2412_INFORM1);
 }
 
 static int s3c2416_pm_add(struct device *dev, struct subsys_interface *sif)

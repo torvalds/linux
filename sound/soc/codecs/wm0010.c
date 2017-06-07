@@ -21,7 +21,6 @@
 #include <linux/firmware.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
-#include <linux/miscdevice.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mutex.h>

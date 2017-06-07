@@ -1,21 +1,18 @@
 #include "cache.h"
 #include "config.h"
+#include <poll.h>
 #include <stdio.h>
 #include <subcmd/help.h>
 #include "../builtin.h"
 #include "levenshtein.h"
 
 static int autocorrect;
-static struct cmdnames aliases;
 
 static int perf_unknown_cmd_config(const char *var, const char *value,
 				   void *cb __maybe_unused)
 {
 	if (!strcmp(var, "help.autocorrect"))
 		autocorrect = perf_config_int(var,value);
-	/* Also use aliases for command lookup */
-	if (!prefixcmp(var, "alias."))
-		add_cmdname(&aliases, var + 6, strlen(var + 6));
 
 	return 0;
 }
@@ -59,14 +56,12 @@ const char *help_unknown_cmd(const char *cmd)
 
 	memset(&main_cmds, 0, sizeof(main_cmds));
 	memset(&other_cmds, 0, sizeof(main_cmds));
-	memset(&aliases, 0, sizeof(aliases));
 
 	perf_config(perf_unknown_cmd_config, NULL);
 
 	load_command_list("perf-", &main_cmds, &other_cmds);
 
-	if (add_cmd_list(&main_cmds, &aliases) < 0 ||
-	    add_cmd_list(&main_cmds, &other_cmds) < 0) {
+	if (add_cmd_list(&main_cmds, &other_cmds) < 0) {
 		fprintf(stderr, "ERROR: Failed to allocate command list for unknown command.\n");
 		goto end;
 	}

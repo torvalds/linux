@@ -1,8 +1,5 @@
 /*
- *	w1.c
- *
  * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
- *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/delay.h>
@@ -36,7 +29,6 @@
 #include <linux/atomic.h>
 
 #include "w1.h"
-#include "w1_log.h"
 #include "w1_int.h"
 #include "w1_family.h"
 #include "w1_netlink.h"
@@ -763,6 +755,7 @@ int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 		dev_err(&dev->dev, "%s: Attaching %s failed.\n", __func__,
 			 sl->name);
 		w1_family_put(sl->family);
+		atomic_dec(&sl->master->refcnt);
 		kfree(sl);
 		return err;
 	}

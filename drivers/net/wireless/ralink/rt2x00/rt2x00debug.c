@@ -157,9 +157,10 @@ void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
 }
 
 void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
-			    enum rt2x00_dump_type type, struct sk_buff *skb)
+			    enum rt2x00_dump_type type, struct queue_entry *entry)
 {
 	struct rt2x00debug_intf *intf = rt2x00dev->debugfs_intf;
+	struct sk_buff *skb = entry->skb;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	struct sk_buff *skbcopy;
 	struct rt2x00dump_hdr *dump_hdr;
@@ -196,8 +197,8 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	dump_hdr->chip_rf = cpu_to_le16(rt2x00dev->chip.rf);
 	dump_hdr->chip_rev = cpu_to_le16(rt2x00dev->chip.rev);
 	dump_hdr->type = cpu_to_le16(type);
-	dump_hdr->queue_index = skbdesc->entry->queue->qid;
-	dump_hdr->entry_index = skbdesc->entry->entry_idx;
+	dump_hdr->queue_index = entry->queue->qid;
+	dump_hdr->entry_index = entry->entry_idx;
 	dump_hdr->timestamp_sec = cpu_to_le32(timestamp.tv_sec);
 	dump_hdr->timestamp_usec = cpu_to_le32(timestamp.tv_usec);
 

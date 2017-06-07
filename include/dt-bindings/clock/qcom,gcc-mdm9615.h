@@ -323,5 +323,7 @@
 #define CE3_H_CLK				305
 #define USB_HS1_SYSTEM_CLK_SRC			306
 #define USB_HS1_SYSTEM_CLK			307
+#define EBI2_CLK				308
+#define EBI2_AON_CLK				309
 
 #endif

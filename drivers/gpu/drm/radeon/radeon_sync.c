@@ -92,7 +92,7 @@ int radeon_sync_resv(struct radeon_device *rdev,
 		     bool shared)
 {
 	struct reservation_object_list *flist;
-	struct fence *f;
+	struct dma_fence *f;
 	struct radeon_fence *fence;
 	unsigned i;
 	int r = 0;
@@ -103,7 +103,7 @@ int radeon_sync_resv(struct radeon_device *rdev,
 	if (fence && fence->rdev == rdev)
 		radeon_sync_fence(sync, fence);
 	else if (f)
-		r = fence_wait(f, true);
+		r = dma_fence_wait(f, true);
 
 	flist = reservation_object_get_list(resv);
 	if (shared || !flist || r)
@@ -116,7 +116,7 @@ int radeon_sync_resv(struct radeon_device *rdev,
 		if (fence && fence->rdev == rdev)
 			radeon_sync_fence(sync, fence);
 		else
-			r = fence_wait(f, true);
+			r = dma_fence_wait(f, true);
 
 		if (r)
 			break;

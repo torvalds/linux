@@ -5,18 +5,12 @@
  * User space memory access functions
  */
 
-#ifdef __KERNEL__
-#include <linux/errno.h>
 #include <linux/compiler.h>
 #include <linux/string.h>
-#include <linux/thread_info.h>
 #include <asm/asi.h>
 #include <asm/spitfire.h>
 #include <asm-generic/uaccess-unaligned.h>
 #include <asm/extable_64.h>
-#endif
-
-#ifndef __ASSEMBLY__
 
 #include <asm/processor.h>
 
@@ -35,9 +29,6 @@
 
 #define KERNEL_DS   ((mm_segment_t) { ASI_P })
 #define USER_DS     ((mm_segment_t) { ASI_AIUS })	/* har har har */
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 #define get_fs() ((mm_segment_t){(current_thread_info()->current_ds)})
 #define get_ds() (KERNEL_DS)
@@ -185,39 +176,19 @@ __asm__ __volatile__(							\
 
 int __get_user_bad(void);
 
-unsigned long __must_check ___copy_from_user(void *to,
+unsigned long __must_check raw_copy_from_user(void *to,
 					     const void __user *from,
 					     unsigned long size);
-static inline unsigned long __must_check
-copy_from_user(void *to, const void __user *from, unsigned long size)
-{
-	check_object_size(to, size, false);
 
-	return ___copy_from_user(to, from, size);
-}
-#define __copy_from_user copy_from_user
-
-unsigned long __must_check ___copy_to_user(void __user *to,
+unsigned long __must_check raw_copy_to_user(void __user *to,
 					   const void *from,
 					   unsigned long size);
-static inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long size)
-{
-	check_object_size(from, size, true);
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
-	return ___copy_to_user(to, from, size);
-}
-#define __copy_to_user copy_to_user
-
-unsigned long __must_check ___copy_in_user(void __user *to,
+unsigned long __must_check raw_copy_in_user(void __user *to,
 					   const void __user *from,
 					   unsigned long size);
-static inline unsigned long __must_check
-copy_in_user(void __user *to, void __user *from, unsigned long size)
-{
-	return ___copy_in_user(to, from, size);
-}
-#define __copy_in_user copy_in_user
 
 unsigned long __must_check __clear_user(void __user *, unsigned long);
 
@@ -226,14 +197,9 @@ unsigned long __must_check __clear_user(void __user *, unsigned long);
 __must_check long strlen_user(const char __user *str);
 __must_check long strnlen_user(const char __user *str, long n);
 
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
 struct pt_regs;
 unsigned long compute_effective_address(struct pt_regs *,
 					unsigned int insn,
 					unsigned int rd);
-
-#endif  /* __ASSEMBLY__ */
 
 #endif /* _ASM_UACCESS_H */

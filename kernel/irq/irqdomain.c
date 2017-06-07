@@ -278,6 +278,31 @@ struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
 EXPORT_SYMBOL_GPL(irq_find_matching_fwspec);
 
 /**
+ * irq_domain_check_msi_remap - Check whether all MSI irq domains implement
+ * IRQ remapping
+ *
+ * Return: false if any MSI irq domain does not support IRQ remapping,
+ * true otherwise (including if there is no MSI irq domain)
+ */
+bool irq_domain_check_msi_remap(void)
+{
+	struct irq_domain *h;
+	bool ret = true;
+
+	mutex_lock(&irq_domain_mutex);
+	list_for_each_entry(h, &irq_domain_list, link) {
+		if (irq_domain_is_msi(h) &&
+		    !irq_domain_hierarchical_is_msi_remap(h)) {
+			ret = false;
+			break;
+		}
+	}
+	mutex_unlock(&irq_domain_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(irq_domain_check_msi_remap);
+
+/**
  * irq_set_default_host() - Set a "default" irq domain
  * @domain: default domain pointer
  *
@@ -1346,6 +1371,30 @@ void irq_domain_free_irqs_parent(struct irq_domain *domain,
 }
 EXPORT_SYMBOL_GPL(irq_domain_free_irqs_parent);
 
+static void __irq_domain_activate_irq(struct irq_data *irq_data)
+{
+	if (irq_data && irq_data->domain) {
+		struct irq_domain *domain = irq_data->domain;
+
+		if (irq_data->parent_data)
+			__irq_domain_activate_irq(irq_data->parent_data);
+		if (domain->ops->activate)
+			domain->ops->activate(domain, irq_data);
+	}
+}
+
+static void __irq_domain_deactivate_irq(struct irq_data *irq_data)
+{
+	if (irq_data && irq_data->domain) {
+		struct irq_domain *domain = irq_data->domain;
+
+		if (domain->ops->deactivate)
+			domain->ops->deactivate(domain, irq_data);
+		if (irq_data->parent_data)
+			__irq_domain_deactivate_irq(irq_data->parent_data);
+	}
+}
+
 /**
  * irq_domain_activate_irq - Call domain_ops->activate recursively to activate
  *			     interrupt
@@ -1356,13 +1405,9 @@ EXPORT_SYMBOL_GPL(irq_domain_free_irqs_parent);
  */
 void irq_domain_activate_irq(struct irq_data *irq_data)
 {
-	if (irq_data && irq_data->domain) {
-		struct irq_domain *domain = irq_data->domain;
-
-		if (irq_data->parent_data)
-			irq_domain_activate_irq(irq_data->parent_data);
-		if (domain->ops->activate)
-			domain->ops->activate(domain, irq_data);
+	if (!irqd_is_activated(irq_data)) {
+		__irq_domain_activate_irq(irq_data);
+		irqd_set_activated(irq_data);
 	}
 }
 
@@ -1376,13 +1421,9 @@ void irq_domain_activate_irq(struct irq_data *irq_data)
  */
 void irq_domain_deactivate_irq(struct irq_data *irq_data)
 {
-	if (irq_data && irq_data->domain) {
-		struct irq_domain *domain = irq_data->domain;
-
-		if (domain->ops->deactivate)
-			domain->ops->deactivate(domain, irq_data);
-		if (irq_data->parent_data)
-			irq_domain_deactivate_irq(irq_data->parent_data);
+	if (irqd_is_activated(irq_data)) {
+		__irq_domain_deactivate_irq(irq_data);
+		irqd_clr_activated(irq_data);
 	}
 }
 
@@ -1391,6 +1432,20 @@ static void irq_domain_check_hierarchy(struct irq_domain *domain)
 	/* Hierarchy irq_domains must implement callback alloc() */
 	if (domain->ops->alloc)
 		domain->flags |= IRQ_DOMAIN_FLAG_HIERARCHY;
+}
+
+/**
+ * irq_domain_hierarchical_is_msi_remap - Check if the domain or any
+ * parent has MSI remapping support
+ * @domain: domain pointer
+ */
+bool irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain)
+{
+	for (; domain; domain = domain->parent) {
+		if (irq_domain_is_msi_remap(domain))
+			return true;
+	}
+	return false;
 }
 #else	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
 /**

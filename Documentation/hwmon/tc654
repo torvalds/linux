@@ -1,0 +1,31 @@
+Kernel driver tc654
+===================
+
+Supported chips:
+  * Microchip TC654 and TC655
+    Prefix: 'tc654'
+    Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/20001734C.pdf
+
+Authors:
+        Chris Packham <chris.packham@alliedtelesis.co.nz>
+        Masahiko Iwamoto <iwamoto@allied-telesis.co.jp>
+
+Description
+-----------
+This driver implements support for the Microchip TC654 and TC655.
+
+The TC654 uses the 2-wire interface compatible with the SMBUS 2.0
+specification. The TC654 has two (2) inputs for measuring fan RPM and
+one (1) PWM output which can be used for fan control.
+
+Configuration Notes
+-------------------
+Ordinarily the pwm1_mode ABI is used for controlling the pwm output
+mode.  However, for this chip the output is always pwm, and the
+pwm1_mode determines if the pwm output is controlled via the pwm1 value
+or via the Vin analog input.
+
+
+Setting pwm1_mode to 1 will cause the pwm output to be driven based on
+the pwm1 value. Setting pwm1_mode to 0 will cause the pwm output to be
+driven based on the Vin input.

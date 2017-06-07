@@ -27,7 +27,7 @@
 #include <linux/timer.h>
 #include <linux/ieee80211.h>
 #include <uapi/linux/if_arp.h>
-#include <net/mac80211.h>
+#include <net/cfg80211.h>
 
 #define MWIFIEX_BSS_COEX_COUNT	     2
 #define MWIFIEX_MAX_BSS_NUM         (3)

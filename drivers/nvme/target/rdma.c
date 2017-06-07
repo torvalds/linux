@@ -438,6 +438,10 @@ static int nvmet_rdma_post_recv(struct nvmet_rdma_device *ndev,
 {
 	struct ib_recv_wr *bad_wr;
 
+	ib_dma_sync_single_for_device(ndev->device,
+		cmd->sge[0].addr, cmd->sge[0].length,
+		DMA_FROM_DEVICE);
+
 	if (ndev->srq)
 		return ib_post_srq_recv(ndev->srq, &cmd->wr, &bad_wr);
 	return ib_post_recv(cmd->queue->cm_id->qp, &cmd->wr, &bad_wr);
@@ -538,6 +542,11 @@ static void nvmet_rdma_queue_response(struct nvmet_req *req)
 		first_wr = &rsp->send_wr;
 
 	nvmet_rdma_post_recv(rsp->queue->dev, rsp->cmd);
+
+	ib_dma_sync_single_for_device(rsp->queue->dev->device,
+		rsp->send_sge.addr, rsp->send_sge.length,
+		DMA_TO_DEVICE);
+
 	if (ib_post_send(cm_id->qp, first_wr, &bad_wr)) {
 		pr_err("sending cmd response failed\n");
 		nvmet_rdma_release_rsp(rsp);
@@ -558,6 +567,7 @@ static void nvmet_rdma_read_data_done(struct ib_cq *cq, struct ib_wc *wc)
 	rsp->n_rdma = 0;
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+		nvmet_req_uninit(&rsp->req);
 		nvmet_rdma_release_rsp(rsp);
 		if (wc->status != IB_WC_WR_FLUSH_ERR) {
 			pr_info("RDMA READ for CQE 0x%p failed with status %s (%d).\n",
@@ -694,9 +704,12 @@ static void nvmet_rdma_handle_command(struct nvmet_rdma_queue *queue,
 {
 	u16 status;
 
-	cmd->queue = queue;
-	cmd->n_rdma = 0;
-	cmd->req.port = queue->port;
+	ib_dma_sync_single_for_cpu(queue->dev->device,
+		cmd->cmd->sge[0].addr, cmd->cmd->sge[0].length,
+		DMA_FROM_DEVICE);
+	ib_dma_sync_single_for_cpu(queue->dev->device,
+		cmd->send_sge.addr, cmd->send_sge.length,
+		DMA_TO_DEVICE);
 
 	if (!nvmet_req_init(&cmd->req, &queue->nvme_cq,
 			&queue->nvme_sq, &nvmet_rdma_ops))
@@ -743,9 +756,12 @@ static void nvmet_rdma_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	cmd->queue = queue;
 	rsp = nvmet_rdma_get_rsp(queue);
+	rsp->queue = queue;
 	rsp->cmd = cmd;
 	rsp->flags = 0;
 	rsp->req.cmd = cmd->nvme_cmd;
+	rsp->req.port = queue->port;
+	rsp->n_rdma = 0;
 
 	if (unlikely(queue->state != NVMET_RDMA_Q_LIVE)) {
 		unsigned long flags;
@@ -1024,6 +1040,9 @@ static int nvmet_rdma_cm_reject(struct rdma_cm_id *cm_id,
 {
 	struct nvme_rdma_cm_rej rej;
 
+	pr_debug("rejecting connect request: status %d (%s)\n",
+		 status, nvme_rdma_cm_msg(status));
+
 	rej.recfmt = cpu_to_le16(NVME_RDMA_CM_FMT_1_0);
 	rej.sts = cpu_to_le16(status);
 
@@ -1045,8 +1064,10 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	}
 
 	ret = nvmet_sq_init(&queue->nvme_sq);
-	if (ret)
+	if (ret) {
+		ret = NVME_RDMA_CM_NO_RSC;
 		goto out_free_queue;
+	}
 
 	ret = nvmet_rdma_parse_cm_connect_req(&event->param.conn, queue);
 	if (ret)
@@ -1072,7 +1093,7 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	queue->idx = ida_simple_get(&nvmet_rdma_queue_ida, 0, 0, GFP_KERNEL);
 	if (queue->idx < 0) {
 		ret = NVME_RDMA_CM_NO_RSC;
-		goto out_free_queue;
+		goto out_destroy_sq;
 	}
 
 	ret = nvmet_rdma_alloc_rsps(queue);
@@ -1129,7 +1150,8 @@ static void nvmet_rdma_qp_event(struct ib_event *event, void *priv)
 		rdma_notify(queue->cm_id, event->event);
 		break;
 	default:
-		pr_err("received unrecognized IB QP event %d\n", event->event);
+		pr_err("received IB QP event: %s (%d)\n",
+		       ib_event_msg(event->event), event->event);
 		break;
 	}
 }
@@ -1167,7 +1189,6 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 
 	ndev = nvmet_rdma_find_get_device(cm_id);
 	if (!ndev) {
-		pr_err("no client data!\n");
 		nvmet_rdma_cm_reject(cm_id, NVME_RDMA_CM_NO_RSC);
 		return -ECONNREFUSED;
 	}
@@ -1178,6 +1199,11 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 		goto put_device;
 	}
 	queue->port = cm_id->context;
+
+	if (queue->host_qid == 0) {
+		/* Let inflight controller teardown complete */
+		flush_scheduled_work();
+	}
 
 	ret = nvmet_rdma_cm_accept(cm_id, queue, &event->param.conn);
 	if (ret)
@@ -1370,6 +1396,9 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		ret = nvmet_rdma_device_removal(cm_id, queue);
 		break;
 	case RDMA_CM_EVENT_REJECTED:
+		pr_debug("Connection rejected: %s\n",
+			 rdma_reject_msg(cm_id, event->status));
+		/* FALLTHROUGH */
 	case RDMA_CM_EVENT_UNREACHABLE:
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		nvmet_rdma_queue_connect_fail(cm_id, queue);
@@ -1404,12 +1433,16 @@ restart:
 static int nvmet_rdma_add_port(struct nvmet_port *port)
 {
 	struct rdma_cm_id *cm_id;
-	struct sockaddr_in addr_in;
-	u16 port_in;
+	struct sockaddr_storage addr = { };
+	__kernel_sa_family_t af;
 	int ret;
 
 	switch (port->disc_addr.adrfam) {
 	case NVMF_ADDR_FAMILY_IP4:
+		af = AF_INET;
+		break;
+	case NVMF_ADDR_FAMILY_IP6:
+		af = AF_INET6;
 		break;
 	default:
 		pr_err("address family %d not supported\n",
@@ -1417,13 +1450,13 @@ static int nvmet_rdma_add_port(struct nvmet_port *port)
 		return -EINVAL;
 	}
 
-	ret = kstrtou16(port->disc_addr.trsvcid, 0, &port_in);
-	if (ret)
+	ret = inet_pton_with_scope(&init_net, af, port->disc_addr.traddr,
+			port->disc_addr.trsvcid, &addr);
+	if (ret) {
+		pr_err("malformed ip/port passed: %s:%s\n",
+			port->disc_addr.traddr, port->disc_addr.trsvcid);
 		return ret;
-
-	addr_in.sin_family = AF_INET;
-	addr_in.sin_addr.s_addr = in_aton(port->disc_addr.traddr);
-	addr_in.sin_port = htons(port_in);
+	}
 
 	cm_id = rdma_create_id(&init_net, nvmet_rdma_cm_handler, port,
 			RDMA_PS_TCP, IB_QPT_RC);
@@ -1432,20 +1465,32 @@ static int nvmet_rdma_add_port(struct nvmet_port *port)
 		return PTR_ERR(cm_id);
 	}
 
-	ret = rdma_bind_addr(cm_id, (struct sockaddr *)&addr_in);
+	/*
+	 * Allow both IPv4 and IPv6 sockets to bind a single port
+	 * at the same time.
+	 */
+	ret = rdma_set_afonly(cm_id, 1);
 	if (ret) {
-		pr_err("binding CM ID to %pISpc failed (%d)\n", &addr_in, ret);
+		pr_err("rdma_set_afonly failed (%d)\n", ret);
+		goto out_destroy_id;
+	}
+
+	ret = rdma_bind_addr(cm_id, (struct sockaddr *)&addr);
+	if (ret) {
+		pr_err("binding CM ID to %pISpcs failed (%d)\n",
+			(struct sockaddr *)&addr, ret);
 		goto out_destroy_id;
 	}
 
 	ret = rdma_listen(cm_id, 128);
 	if (ret) {
-		pr_err("listening to %pISpc failed (%d)\n", &addr_in, ret);
+		pr_err("listening to %pISpcs failed (%d)\n",
+			(struct sockaddr *)&addr, ret);
 		goto out_destroy_id;
 	}
 
-	pr_info("enabling port %d (%pISpc)\n",
-		le16_to_cpu(port->disc_addr.portid), &addr_in);
+	pr_info("enabling port %d (%pISpcs)\n",
+		le16_to_cpu(port->disc_addr.portid), (struct sockaddr *)&addr);
 	port->priv = cm_id;
 	return 0;
 

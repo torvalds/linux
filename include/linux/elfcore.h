@@ -3,6 +3,8 @@
 
 #include <linux/user.h>
 #include <linux/bug.h>
+#include <linux/sched/task_stack.h>
+
 #include <asm/elf.h>
 #include <uapi/linux/elfcore.h>
 

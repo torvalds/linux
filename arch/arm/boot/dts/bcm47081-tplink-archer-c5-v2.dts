@@ -1,0 +1,98 @@
+/*
+ * Copyright (C) 2017 Rafał Miłecki <rafal@milecki.pl>
+ *
+ * Licensed under the ISC license.
+ */
+
+/dts-v1/;
+
+#include "bcm47081.dtsi"
+
+/ {
+	compatible = "tplink,archer-c5-v2", "brcm,bcm47081", "brcm,bcm4708";
+	model = "TP-LINK Archer C5 V2";
+
+	chosen {
+		bootargs = "earlycon";
+	};
+
+	memory {
+		reg = <0x00000000 0x08000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		2ghz {
+			label = "bcm53xx:green:2ghz";
+			gpios = <&chipcommon 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		lan {
+			label = "bcm53xx:green:lan";
+			gpios = <&chipcommon 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		usb2-port1 {
+			label = "bcm53xx:green:usb2-port1";
+			gpios = <&chipcommon 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		power {
+			label = "bcm53xx:green:power";
+			gpios = <&chipcommon 4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		wan-green {
+			label = "bcm53xx:green:wan";
+			gpios = <&chipcommon 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		wps {
+			label = "bcm53xx:green:wps";
+			gpios = <&chipcommon 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		wan-amber {
+			label = "bcm53xx:amber:wan";
+			gpios = <&chipcommon 8 GPIO_ACTIVE_HIGH>;
+		};
+
+		5ghz {
+			label = "bcm53xx:green:5ghz";
+			gpios = <&chipcommon 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		usb2-port2 {
+			label = "bcm53xx:green:usb2-port2";
+			gpios = <&chipcommon 13 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rfkill {
+			label = "WiFi";
+			linux,code = <KEY_RFKILL>;
+			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
+		};
+
+		restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&spi_nor {
+	status = "okay";
+};
+
+&usb2 {
+	vcc-gpio = <&chipcommon 9 GPIO_ACTIVE_HIGH>;
+};

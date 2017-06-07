@@ -40,17 +40,15 @@
 #include "../include/lustre_fid.h"
 
 /* mdc_setattr does its own semaphore handling */
-static int mdc_reint(struct ptlrpc_request *request,
-		     struct mdc_rpc_lock *rpc_lock,
-		     int level)
+static int mdc_reint(struct ptlrpc_request *request, int level)
 {
 	int rc;
 
 	request->rq_send_state = level;
 
-	mdc_get_rpc_lock(rpc_lock, NULL);
+	mdc_get_mod_rpc_slot(request, NULL);
 	rc = ptlrpc_queue_wait(request);
-	mdc_put_rpc_lock(rpc_lock, NULL);
+	mdc_put_mod_rpc_slot(request, NULL);
 	if (rc)
 		CDEBUG(D_INFO, "error in handling %d\n", rc);
 	else if (!req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY))
@@ -68,7 +66,7 @@ int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 			    __u64 bits)
 {
 	struct ldlm_namespace *ns = exp->exp_obd->obd_namespace;
-	ldlm_policy_data_t policy = {};
+	union ldlm_policy_data policy = {};
 	struct ldlm_res_id res_id;
 	struct ldlm_resource *res;
 	int count;
@@ -99,13 +97,10 @@ int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 }
 
 int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
-		void *ea, size_t ealen, void *ea2, size_t ea2len,
-		struct ptlrpc_request **request, struct md_open_data **mod)
+		void *ea, size_t ealen, struct ptlrpc_request **request)
 {
 	LIST_HEAD(cancels);
 	struct ptlrpc_request *req;
-	struct mdc_rpc_lock *rpc_lock;
-	struct obd_device *obd = exp->exp_obd;
 	int count = 0, rc;
 	__u64 bits;
 
@@ -122,12 +117,9 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
-	if ((op_data->op_flags & (MF_SOM_CHANGE | MF_EPOCH_OPEN)) == 0)
-		req_capsule_set_size(&req->rq_pill, &RMF_MDT_EPOCH, RCL_CLIENT,
-				     0);
+	req_capsule_set_size(&req->rq_pill, &RMF_MDT_EPOCH, RCL_CLIENT, 0);
 	req_capsule_set_size(&req->rq_pill, &RMF_EADATA, RCL_CLIENT, ealen);
-	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_CLIENT,
-			     ea2len);
+	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_CLIENT, 0);
 
 	rc = mdc_prep_elc_req(exp, req, MDS_REINT, &cancels, count);
 	if (rc) {
@@ -135,63 +127,21 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 		return rc;
 	}
 
-	rpc_lock = obd->u.cli.cl_rpc_lock;
-
 	if (op_data->op_attr.ia_valid & (ATTR_MTIME | ATTR_CTIME))
 		CDEBUG(D_INODE, "setting mtime %ld, ctime %ld\n",
 		       LTIME_S(op_data->op_attr.ia_mtime),
 		       LTIME_S(op_data->op_attr.ia_ctime));
-	mdc_setattr_pack(req, op_data, ea, ealen, ea2, ea2len);
+	mdc_setattr_pack(req, op_data, ea, ealen);
 
 	ptlrpc_request_set_replen(req);
-	if (mod && (op_data->op_flags & MF_EPOCH_OPEN) &&
-	    req->rq_import->imp_replayable) {
-		LASSERT(!*mod);
 
-		*mod = obd_mod_alloc();
-		if (!*mod) {
-			DEBUG_REQ(D_ERROR, req, "Can't allocate md_open_data");
-		} else {
-			req->rq_replay = 1;
-			req->rq_cb_data = *mod;
-			(*mod)->mod_open_req = req;
-			req->rq_commit_cb = mdc_commit_open;
-			(*mod)->mod_is_create = true;
-			/**
-			 * Take an extra reference on \var mod, it protects \var
-			 * mod from being freed on eviction (commit callback is
-			 * called despite rq_replay flag).
-			 * Will be put on mdc_done_writing().
-			 */
-			obd_mod_get(*mod);
-		}
-	}
+	rc = mdc_reint(req, LUSTRE_IMP_FULL);
 
-	rc = mdc_reint(req, rpc_lock, LUSTRE_IMP_FULL);
-
-	/* Save the obtained info in the original RPC for the replay case. */
-	if (rc == 0 && (op_data->op_flags & MF_EPOCH_OPEN)) {
-		struct mdt_ioepoch *epoch;
-		struct mdt_body  *body;
-
-		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
-		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-		epoch->handle = body->mbo_handle;
-		epoch->ioepoch = body->mbo_ioepoch;
-		req->rq_replay_cb = mdc_replay_open;
-	/** bug 3633, open may be committed and estale answer is not error */
-	} else if (rc == -ESTALE && (op_data->op_flags & MF_SOM_CHANGE)) {
+	if (rc == -ERESTARTSYS)
 		rc = 0;
-	} else if (rc == -ERESTARTSYS) {
-		rc = 0;
-	}
+
 	*request = req;
-	if (rc && req->rq_commit_cb) {
-		/* Put an extra reference on \var mod on error case. */
-		if (mod && *mod)
-			obd_mod_put(*mod);
-		req->rq_commit_cb(req);
-	}
+
 	return rc;
 }
 
@@ -264,7 +214,7 @@ rebuild:
 	}
 	level = LUSTRE_IMP_FULL;
  resend:
-	rc = mdc_reint(req, exp->exp_obd->u.cli.cl_rpc_lock, level);
+	rc = mdc_reint(req, level);
 
 	/* Resend if we were told to. */
 	if (rc == -ERESTARTSYS) {
@@ -332,13 +282,11 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
 			     obd->u.cli.cl_default_mds_easize);
-	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_SERVER,
-			     obd->u.cli.cl_default_mds_cookiesize);
 	ptlrpc_request_set_replen(req);
 
 	*request = req;
 
-	rc = mdc_reint(req, obd->u.cli.cl_rpc_lock, LUSTRE_IMP_FULL);
+	rc = mdc_reint(req, LUSTRE_IMP_FULL);
 	if (rc == -ERESTARTSYS)
 		rc = 0;
 	return rc;
@@ -348,7 +296,6 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 	     struct ptlrpc_request **request)
 {
 	LIST_HEAD(cancels);
-	struct obd_device *obd = exp->exp_obd;
 	struct ptlrpc_request *req;
 	int count = 0, rc;
 
@@ -380,7 +327,7 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 	mdc_link_pack(req, op_data);
 	ptlrpc_request_set_replen(req);
 
-	rc = mdc_reint(req, obd->u.cli.cl_rpc_lock, LUSTRE_IMP_FULL);
+	rc = mdc_reint(req, LUSTRE_IMP_FULL);
 	*request = req;
 	if (rc == -ERESTARTSYS)
 		rc = 0;
@@ -419,7 +366,8 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 						 MDS_INODELOCK_FULL);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
-				   &RQF_MDS_REINT_RENAME);
+				   op_data->op_cli_flags & CLI_MIGRATE ?
+				   &RQF_MDS_REINT_MIGRATE : &RQF_MDS_REINT_RENAME);
 	if (!req) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
@@ -435,6 +383,23 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 		return rc;
 	}
 
+	if (op_data->op_cli_flags & CLI_MIGRATE && op_data->op_data) {
+		struct md_open_data *mod = op_data->op_data;
+
+		LASSERTF(mod->mod_open_req &&
+			 mod->mod_open_req->rq_type != LI_POISON,
+			 "POISONED open %p!\n", mod->mod_open_req);
+
+		DEBUG_REQ(D_HA, mod->mod_open_req, "matched open");
+		/*
+		 * We no longer want to preserve this open for replay even
+		 * though the open was committed. b=3632, b=3633
+		 */
+		spin_lock(&mod->mod_open_req->rq_lock);
+		mod->mod_open_req->rq_replay = 0;
+		spin_unlock(&mod->mod_open_req->rq_lock);
+	}
+
 	if (exp_connect_cancelset(exp) && req)
 		ldlm_cli_cancel_list(&cancels, count, req, 0);
 
@@ -442,11 +407,9 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
 			     obd->u.cli.cl_default_mds_easize);
-	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_SERVER,
-			     obd->u.cli.cl_default_mds_cookiesize);
 	ptlrpc_request_set_replen(req);
 
-	rc = mdc_reint(req, obd->u.cli.cl_rpc_lock, LUSTRE_IMP_FULL);
+	rc = mdc_reint(req, LUSTRE_IMP_FULL);
 	*request = req;
 	if (rc == -ERESTARTSYS)
 		rc = 0;

@@ -16,7 +16,7 @@ extern char reboot_command[];
  */
 extern unsigned char boot_cpu_id;
 
-extern unsigned long empty_zero_page;
+extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 extern int serial_console;
 static inline int con_is_present(void)
@@ -59,8 +59,11 @@ extern atomic_t dcpage_flushes;
 extern atomic_t dcpage_flushes_xcall;
 
 extern int sysctl_tsb_ratio;
-#endif
 
+#ifdef CONFIG_SERIAL_SUNHV
+void sunhv_migrate_hvcons_irq(int cpu);
+#endif
+#endif
 void sun_do_break(void);
 extern int stop_a_enabled;
 extern int scons_pwroff;

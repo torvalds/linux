@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -29,13 +29,17 @@
 #include "trace.h"
 
 static bool rtap_include_phy_info;
-module_param(rtap_include_phy_info, bool, S_IRUGO);
+module_param(rtap_include_phy_info, bool, 0444);
 MODULE_PARM_DESC(rtap_include_phy_info,
 		 " Include PHY info in the radiotap header, default - no");
 
 bool rx_align_2;
-module_param(rx_align_2, bool, S_IRUGO);
+module_param(rx_align_2, bool, 0444);
 MODULE_PARM_DESC(rx_align_2, " align Rx buffers on 4*n+2, default - no");
+
+bool rx_large_buf;
+module_param(rx_large_buf, bool, 0444);
+MODULE_PARM_DESC(rx_large_buf, " allocate 8KB RX buffers, default - no");
 
 static inline uint wil_rx_snaplen(void)
 {
@@ -112,7 +116,7 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 	size_t sz = vring->size * sizeof(vring->va[0]);
 	uint i;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "vring_alloc:\n");
 
 	BUILD_BUG_ON(sizeof(vring->va[0]) != 32);
 
@@ -123,15 +127,32 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 		vring->va = NULL;
 		return -ENOMEM;
 	}
+
 	/* vring->va should be aligned on its size rounded up to power of 2
-	 * This is granted by the dma_alloc_coherent
+	 * This is granted by the dma_alloc_coherent.
+	 *
+	 * HW has limitation that all vrings addresses must share the same
+	 * upper 16 msb bits part of 48 bits address. To workaround that,
+	 * if we are using 48 bit addresses switch to 32 bit allocation
+	 * before allocating vring memory.
+	 *
+	 * There's no check for the return value of dma_set_mask_and_coherent,
+	 * since we assume if we were able to set the mask during
+	 * initialization in this system it will not fail if we set it again
 	 */
+	if (wil->use_extended_dma_addr)
+		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+
 	vring->va = dma_alloc_coherent(dev, sz, &vring->pa, GFP_KERNEL);
 	if (!vring->va) {
 		kfree(vring->ctx);
 		vring->ctx = NULL;
 		return -ENOMEM;
 	}
+
+	if (wil->use_extended_dma_addr)
+		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
+
 	/* initially, all descriptors are SW owned
 	 * For Tx and Rx, ownership bit is at the same location, thus
 	 * we can use any
@@ -238,7 +259,7 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
 			       u32 i, int headroom)
 {
 	struct device *dev = wil_to_dev(wil);
-	unsigned int sz = mtu_max + ETH_HLEN + wil_rx_snaplen();
+	unsigned int sz = wil->rx_buf_len + ETH_HLEN + wil_rx_snaplen();
 	struct vring_rx_desc dd, *d = &dd;
 	volatile struct vring_rx_desc *_d = &vring->va[i].rx;
 	dma_addr_t pa;
@@ -338,7 +359,7 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 
 	if (skb_headroom(skb) < rtap_len &&
 	    pskb_expand_head(skb, rtap_len, 0, GFP_ATOMIC)) {
-		wil_err(wil, "Unable to expand headrom to %d\n", rtap_len);
+		wil_err(wil, "Unable to expand headroom to %d\n", rtap_len);
 		return;
 	}
 
@@ -402,7 +423,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	struct sk_buff *skb;
 	dma_addr_t pa;
 	unsigned int snaplen = wil_rx_snaplen();
-	unsigned int sz = mtu_max + ETH_HLEN + snaplen;
+	unsigned int sz = wil->rx_buf_len + ETH_HLEN + snaplen;
 	u16 dmalen;
 	u8 ftype;
 	int cid;
@@ -745,7 +766,7 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 		wil_err(wil, "Rx IRQ while Rx not yet initialized\n");
 		return;
 	}
-	wil_dbg_txrx(wil, "%s()\n", __func__);
+	wil_dbg_txrx(wil, "rx_handle\n");
 	while ((*quota > 0) && (NULL != (skb = wil_vring_reap_rx(wil, v)))) {
 		(*quota)--;
 
@@ -763,17 +784,33 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 	wil_rx_refill(wil, v->size);
 }
 
+static void wil_rx_buf_len_init(struct wil6210_priv *wil)
+{
+	wil->rx_buf_len = rx_large_buf ?
+		WIL_MAX_ETH_MTU : TXRX_BUF_LEN_DEFAULT - WIL_MAX_MPDU_OVERHEAD;
+	if (mtu_max > wil->rx_buf_len) {
+		/* do not allow RX buffers to be smaller than mtu_max, for
+		 * backward compatibility (mtu_max parameter was also used
+		 * to support receiving large packets)
+		 */
+		wil_info(wil, "Override RX buffer to mtu_max(%d)\n", mtu_max);
+		wil->rx_buf_len = mtu_max;
+	}
+}
+
 int wil_rx_init(struct wil6210_priv *wil, u16 size)
 {
 	struct vring *vring = &wil->vring_rx;
 	int rc;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "rx_init\n");
 
 	if (vring->va) {
 		wil_err(wil, "Rx ring already allocated\n");
 		return -EINVAL;
 	}
+
+	wil_rx_buf_len_init(wil);
 
 	vring->size = size;
 	rc = wil_vring_alloc(wil, vring);
@@ -799,7 +836,7 @@ void wil_rx_fini(struct wil6210_priv *wil)
 {
 	struct vring *vring = &wil->vring_rx;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "rx_fini\n");
 
 	if (vring->va)
 		wil_vring_free(wil, vring, 0);
@@ -851,7 +888,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	struct vring *vring = &wil->vring_tx[id];
 	struct vring_tx_data *txdata = &wil->vring_tx_data[id];
 
-	wil_dbg_misc(wil, "%s() max_mpdu_size %d\n", __func__,
+	wil_dbg_misc(wil, "vring_init_tx: max_mpdu_size %d\n",
 		     cmd.vring_cfg.tx_sw_ring.max_mpdu_size);
 	lockdep_assert_held(&wil->mutex);
 
@@ -931,7 +968,7 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size)
 	struct vring *vring = &wil->vring_tx[id];
 	struct vring_tx_data *txdata = &wil->vring_tx_data[id];
 
-	wil_dbg_misc(wil, "%s() max_mpdu_size %d\n", __func__,
+	wil_dbg_misc(wil, "vring_init_bcast: max_mpdu_size %d\n",
 		     cmd.vring_cfg.tx_sw_ring.max_mpdu_size);
 	lockdep_assert_held(&wil->mutex);
 
@@ -993,7 +1030,7 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 	if (!vring->va)
 		return;
 
-	wil_dbg_misc(wil, "%s() id=%d\n", __func__, id);
+	wil_dbg_misc(wil, "vring_fini_tx: id=%d\n", id);
 
 	spin_lock_bh(&txdata->lock);
 	txdata->dot1x_open = false;
@@ -1032,12 +1069,14 @@ static struct vring *wil_find_tx_ucast(struct wil6210_priv *wil,
 			struct vring *v = &wil->vring_tx[i];
 			struct vring_tx_data *txdata = &wil->vring_tx_data[i];
 
-			wil_dbg_txrx(wil, "%s(%pM) -> [%d]\n",
-				     __func__, eth->h_dest, i);
+			wil_dbg_txrx(wil, "find_tx_ucast: (%pM) -> [%d]\n",
+				     eth->h_dest, i);
 			if (v->va && txdata->enabled) {
 				return v;
 			} else {
-				wil_dbg_txrx(wil, "vring[%d] not valid\n", i);
+				wil_dbg_txrx(wil,
+					     "find_tx_ucast: vring[%d] not valid\n",
+					     i);
 				return NULL;
 			}
 		}
@@ -1191,17 +1230,6 @@ found:
 	}
 
 	return v;
-}
-
-static struct vring *wil_find_tx_bcast(struct wil6210_priv *wil,
-				       struct sk_buff *skb)
-{
-	struct wireless_dev *wdev = wil->wdev;
-
-	if (wdev->iftype != NL80211_IFTYPE_AP)
-		return wil_find_tx_bcast_2(wil, skb);
-
-	return wil_find_tx_bcast_1(wil, skb);
 }
 
 static int wil_tx_desc_map(struct vring_tx_desc *d, dma_addr_t pa, u32 len,
@@ -1373,8 +1401,8 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 	int gso_type;
 	int rc = -EINVAL;
 
-	wil_dbg_txrx(wil, "%s() %d bytes to vring %d\n",
-		     __func__, skb->len, vring_index);
+	wil_dbg_txrx(wil, "tx_vring_tso: %d bytes to vring %d\n", skb->len,
+		     vring_index);
 
 	if (unlikely(!txdata->enabled))
 		return -EINVAL;
@@ -1643,8 +1671,8 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	bool mcast = (vring_index == wil->bcast_vring);
 	uint len = skb_headlen(skb);
 
-	wil_dbg_txrx(wil, "%s() %d bytes to vring %d\n",
-		     __func__, skb->len, vring_index);
+	wil_dbg_txrx(wil, "tx_vring: %d bytes to vring %d\n", skb->len,
+		     vring_index);
 
 	if (unlikely(!txdata->enabled))
 		return -EINVAL;
@@ -1884,7 +1912,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	static bool pr_once_fw;
 	int rc;
 
-	wil_dbg_txrx(wil, "%s()\n", __func__);
+	wil_dbg_txrx(wil, "start_xmit\n");
 	if (unlikely(!test_bit(wil_status_fwready, wil->status))) {
 		if (!pr_once_fw) {
 			wil_err(wil, "FW not ready\n");
@@ -1903,12 +1931,26 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	pr_once_fw = false;
 
 	/* find vring */
-	if (wil->wdev->iftype == NL80211_IFTYPE_STATION) {
-		/* in STA mode (ESS), all to same VRING */
+	if (wil->wdev->iftype == NL80211_IFTYPE_STATION && !wil->pbss) {
+		/* in STA mode (ESS), all to same VRING (to AP) */
 		vring = wil_find_tx_vring_sta(wil, skb);
-	} else { /* direct communication, find matching VRING */
-		vring = bcast ? wil_find_tx_bcast(wil, skb) :
-				wil_find_tx_ucast(wil, skb);
+	} else if (bcast) {
+		if (wil->pbss)
+			/* in pbss, no bcast VRING - duplicate skb in
+			 * all stations VRINGs
+			 */
+			vring = wil_find_tx_bcast_2(wil, skb);
+		else if (wil->wdev->iftype == NL80211_IFTYPE_AP)
+			/* AP has a dedicated bcast VRING */
+			vring = wil_find_tx_bcast_1(wil, skb);
+		else
+			/* unexpected combination, fallback to duplicating
+			 * the skb in all stations VRINGs
+			 */
+			vring = wil_find_tx_bcast_2(wil, skb);
+	} else {
+		/* unicast, find specific VRING by dest. address */
+		vring = wil_find_tx_ucast(wil, skb);
 	}
 	if (unlikely(!vring)) {
 		wil_dbg_txrx(wil, "No Tx VRING found for %pM\n", eth->h_dest);
@@ -1982,7 +2024,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		return 0;
 	}
 
-	wil_dbg_txrx(wil, "%s(%d)\n", __func__, ringid);
+	wil_dbg_txrx(wil, "tx_complete: (%d)\n", ringid);
 
 	used_before_complete = wil_vring_used_tx(vring);
 

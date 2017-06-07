@@ -333,7 +333,7 @@ static int bfin_rtc_proc(struct device *dev, struct seq_file *seq)
 #undef yesno
 }
 
-static struct rtc_class_ops bfin_rtc_ops = {
+static const struct rtc_class_ops bfin_rtc_ops = {
 	.read_time     = bfin_rtc_read_time,
 	.set_time      = bfin_rtc_set_time,
 	.read_alarm    = bfin_rtc_read_alarm,

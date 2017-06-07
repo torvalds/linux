@@ -65,6 +65,9 @@ tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep, unsigned long address)
 		tlb->end = address + PAGE_SIZE;
 }
 
+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
+	tlb_remove_tlb_entry(tlb, ptep, address)
+
 /*
  * In the case of tlb vma handling, we can optimise these away in the
  * case where we're doing a full MM flush.  When we're doing a munmap,
@@ -115,16 +118,16 @@ static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
 	return __tlb_remove_page(tlb, page);
 }
 
-static inline bool __tlb_remove_pte_page(struct mmu_gather *tlb,
-					 struct page *page)
-{
-	return __tlb_remove_page(tlb, page);
-}
-
 static inline void tlb_remove_page_size(struct mmu_gather *tlb,
 					struct page *page, int page_size)
 {
 	return tlb_remove_page(tlb, page);
+}
+
+#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
+static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
+						     unsigned int page_size)
+{
 }
 
 #define pte_free_tlb(tlb, ptep, addr)	pte_free((tlb)->mm, ptep)

@@ -119,7 +119,7 @@ static int
 cfg_copy(struct hashlimit_cfg2 *to, void *from, int revision)
 {
 	if (revision == 1) {
-		struct hashlimit_cfg1 *cfg = (struct hashlimit_cfg1 *)from;
+		struct hashlimit_cfg1 *cfg = from;
 
 		to->mode = cfg->mode;
 		to->avg = cfg->avg;
@@ -463,23 +463,16 @@ static u32 xt_hashlimit_len_to_chunks(u32 len)
 /* Precision saver. */
 static u64 user2credits(u64 user, int revision)
 {
-	if (revision == 1) {
-		/* If multiplying would overflow... */
-		if (user > 0xFFFFFFFF / (HZ*CREDITS_PER_JIFFY_v1))
-			/* Divide first. */
-			return div64_u64(user, XT_HASHLIMIT_SCALE)
-				* HZ * CREDITS_PER_JIFFY_v1;
+	u64 scale = (revision == 1) ?
+		XT_HASHLIMIT_SCALE : XT_HASHLIMIT_SCALE_v2;
+	u64 cpj = (revision == 1) ?
+		CREDITS_PER_JIFFY_v1 : CREDITS_PER_JIFFY;
 
-		return div64_u64(user * HZ * CREDITS_PER_JIFFY_v1,
-				 XT_HASHLIMIT_SCALE);
-	} else {
-		if (user > 0xFFFFFFFFFFFFFFFFULL / (HZ*CREDITS_PER_JIFFY))
-			return div64_u64(user, XT_HASHLIMIT_SCALE_v2)
-				* HZ * CREDITS_PER_JIFFY;
+	/* Avoid overflow: divide the constant operands first */
+	if (scale >= HZ * cpj)
+		return div64_u64(user, div64_u64(scale, HZ * cpj));
 
-		return div64_u64(user * HZ * CREDITS_PER_JIFFY,
-				 XT_HASHLIMIT_SCALE_v2);
-	}
+	return user * div64_u64(HZ * cpj, scale);
 }
 
 static u32 user2credits_byte(u32 user)
@@ -838,6 +831,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 		.family         = NFPROTO_IPV4,
 		.match          = hashlimit_mt_v1,
 		.matchsize      = sizeof(struct xt_hashlimit_mtinfo1),
+		.usersize	= offsetof(struct xt_hashlimit_mtinfo1, hinfo),
 		.checkentry     = hashlimit_mt_check_v1,
 		.destroy        = hashlimit_mt_destroy_v1,
 		.me             = THIS_MODULE,
@@ -848,6 +842,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 		.family         = NFPROTO_IPV4,
 		.match          = hashlimit_mt,
 		.matchsize      = sizeof(struct xt_hashlimit_mtinfo2),
+		.usersize	= offsetof(struct xt_hashlimit_mtinfo2, hinfo),
 		.checkentry     = hashlimit_mt_check,
 		.destroy        = hashlimit_mt_destroy,
 		.me             = THIS_MODULE,
@@ -859,6 +854,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 		.family         = NFPROTO_IPV6,
 		.match          = hashlimit_mt_v1,
 		.matchsize      = sizeof(struct xt_hashlimit_mtinfo1),
+		.usersize	= offsetof(struct xt_hashlimit_mtinfo1, hinfo),
 		.checkentry     = hashlimit_mt_check_v1,
 		.destroy        = hashlimit_mt_destroy_v1,
 		.me             = THIS_MODULE,
@@ -869,6 +865,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 		.family         = NFPROTO_IPV6,
 		.match          = hashlimit_mt,
 		.matchsize      = sizeof(struct xt_hashlimit_mtinfo2),
+		.usersize	= offsetof(struct xt_hashlimit_mtinfo2, hinfo),
 		.checkentry     = hashlimit_mt_check,
 		.destroy        = hashlimit_mt_destroy,
 		.me             = THIS_MODULE,
@@ -898,7 +895,7 @@ static void *dl_seq_start(struct seq_file *s, loff_t *pos)
 static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
 	struct xt_hashlimit_htable *htable = s->private;
-	unsigned int *bucket = (unsigned int *)v;
+	unsigned int *bucket = v;
 
 	*pos = ++(*bucket);
 	if (*pos >= htable->cfg.size) {
@@ -912,7 +909,7 @@ static void dl_seq_stop(struct seq_file *s, void *v)
 	__releases(htable->lock)
 {
 	struct xt_hashlimit_htable *htable = s->private;
-	unsigned int *bucket = (unsigned int *)v;
+	unsigned int *bucket = v;
 
 	if (!IS_ERR(bucket))
 		kfree(bucket);
@@ -983,7 +980,7 @@ static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 static int dl_seq_show_v1(struct seq_file *s, void *v)
 {
 	struct xt_hashlimit_htable *htable = s->private;
-	unsigned int *bucket = (unsigned int *)v;
+	unsigned int *bucket = v;
 	struct dsthash_ent *ent;
 
 	if (!hlist_empty(&htable->hash[*bucket])) {
@@ -997,7 +994,7 @@ static int dl_seq_show_v1(struct seq_file *s, void *v)
 static int dl_seq_show(struct seq_file *s, void *v)
 {
 	struct xt_hashlimit_htable *htable = s->private;
-	unsigned int *bucket = (unsigned int *)v;
+	unsigned int *bucket = v;
 	struct dsthash_ent *ent;
 
 	if (!hlist_empty(&htable->hash[*bucket])) {

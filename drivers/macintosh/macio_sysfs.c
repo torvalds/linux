@@ -41,12 +41,7 @@ compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
 static ssize_t modalias_show (struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	int len = of_device_get_modalias(dev, buf, PAGE_SIZE - 2);
-
-	buf[len] = '\n';
-	buf[len+1] = 0;
-
-	return len+1;
+	return of_device_modalias(dev, buf, PAGE_SIZE);
 }
 
 static ssize_t devspec_show(struct device *dev,

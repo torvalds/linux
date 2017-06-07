@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/highmem.h>
+#include <linux/bio.h>
 
 #include <cluster/masklog.h>
 

@@ -792,15 +792,13 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
-	if (hw->mac.type == e1000_i350) {
+	if (hw->mac.type == e1000_i350)
 		lan_offset = NVM_82580_LAN_FUNC_OFFSET(hw->bus.func);
-		ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG
-					   + lan_offset, 1, &nvm_data);
-	 } else {
-		ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG,
-					   1, &nvm_data);
-	 }
+	else
+		lan_offset = 0;
 
+	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG + lan_offset,
+				   1, &nvm_data);
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");
 		goto out;
@@ -808,8 +806,7 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 
 	if ((nvm_data & NVM_WORD0F_PAUSE_MASK) == 0)
 		hw->fc.requested_mode = e1000_fc_none;
-	else if ((nvm_data & NVM_WORD0F_PAUSE_MASK) ==
-		 NVM_WORD0F_ASM_DIR)
+	else if ((nvm_data & NVM_WORD0F_PAUSE_MASK) == NVM_WORD0F_ASM_DIR)
 		hw->fc.requested_mode = e1000_fc_tx_pause;
 	else
 		hw->fc.requested_mode = e1000_fc_full;

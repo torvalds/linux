@@ -22,13 +22,6 @@
 
 #include "clock.h"
 
-/*
- * DPLL5_FREQ_FOR_USBHOST: USBHOST and USBTLL are the only clocks
- * that are sourced by DPLL5, and both of these require this clock
- * to be at 120 MHz for proper operation.
- */
-#define DPLL5_FREQ_FOR_USBHOST		120000000
-
 #define OMAP3430ES2_ST_DSS_IDLE_SHIFT			1
 #define OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT		5
 #define OMAP3430ES2_ST_SSI_IDLE_SHIFT			8
@@ -59,14 +52,13 @@
  * @idlest_reg and @idlest_bit.  No return value.
  */
 static void omap3430es2_clk_ssi_find_idlest(struct clk_hw_omap *clk,
-					    void __iomem **idlest_reg,
+					    struct clk_omap_reg *idlest_reg,
 					    u8 *idlest_bit,
 					    u8 *idlest_val)
 {
-	u32 r;
-
-	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
-	*idlest_reg = (__force void __iomem *)r;
+	memcpy(idlest_reg, &clk->enable_reg, sizeof(*idlest_reg));
+	idlest_reg->offset &= ~0xf0;
+	idlest_reg->offset |= 0x20;
 	*idlest_bit = OMAP3430ES2_ST_SSI_IDLE_SHIFT;
 	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }
@@ -92,15 +84,15 @@ const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_ssi_wait = {
  * default find_idlest code assumes that they are at the same
  * position.)  No return value.
  */
-static void omap3430es2_clk_dss_usbhost_find_idlest(struct clk_hw_omap *clk,
-						    void __iomem **idlest_reg,
-						    u8 *idlest_bit,
-						    u8 *idlest_val)
+static void
+omap3430es2_clk_dss_usbhost_find_idlest(struct clk_hw_omap *clk,
+					struct clk_omap_reg *idlest_reg,
+					u8 *idlest_bit, u8 *idlest_val)
 {
-	u32 r;
+	memcpy(idlest_reg, &clk->enable_reg, sizeof(*idlest_reg));
 
-	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
-	*idlest_reg = (__force void __iomem *)r;
+	idlest_reg->offset &= ~0xf0;
+	idlest_reg->offset |= 0x20;
 	/* USBHOST_IDLE has same shift */
 	*idlest_bit = OMAP3430ES2_ST_DSS_IDLE_SHIFT;
 	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
@@ -129,15 +121,15 @@ const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_dss_usbhost_wait = {
  * shift from the CM_{I,F}CLKEN bit.  Pass back the correct info via
  * @idlest_reg and @idlest_bit.  No return value.
  */
-static void omap3430es2_clk_hsotgusb_find_idlest(struct clk_hw_omap *clk,
-						 void __iomem **idlest_reg,
-						 u8 *idlest_bit,
-						 u8 *idlest_val)
+static void
+omap3430es2_clk_hsotgusb_find_idlest(struct clk_hw_omap *clk,
+				     struct clk_omap_reg *idlest_reg,
+				     u8 *idlest_bit,
+				     u8 *idlest_val)
 {
-	u32 r;
-
-	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
-	*idlest_reg = (__force void __iomem *)r;
+	memcpy(idlest_reg, &clk->enable_reg, sizeof(*idlest_reg));
+	idlest_reg->offset &= ~0xf0;
+	idlest_reg->offset |= 0x20;
 	*idlest_bit = OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT;
 	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }
@@ -161,11 +153,11 @@ const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_hsotgusb_wait = {
  * bit. A value of 1 indicates that clock is enabled.
  */
 static void am35xx_clk_find_idlest(struct clk_hw_omap *clk,
-				   void __iomem **idlest_reg,
+				   struct clk_omap_reg *idlest_reg,
 				   u8 *idlest_bit,
 				   u8 *idlest_val)
 {
-	*idlest_reg = (__force void __iomem *)(clk->enable_reg);
+	memcpy(idlest_reg, &clk->enable_reg, sizeof(*idlest_reg));
 	*idlest_bit = clk->enable_bit + AM35XX_IPSS_ICK_EN_ACK_OFFSET;
 	*idlest_val = AM35XX_IPSS_CLK_IDLEST_VAL;
 }
@@ -185,10 +177,10 @@ static void am35xx_clk_find_idlest(struct clk_hw_omap *clk,
  * avoid this issue, and remove the casts.  No return value.
  */
 static void am35xx_clk_find_companion(struct clk_hw_omap *clk,
-				      void __iomem **other_reg,
+				      struct clk_omap_reg *other_reg,
 				      u8 *other_bit)
 {
-	*other_reg = (__force void __iomem *)(clk->enable_reg);
+	memcpy(other_reg, &clk->enable_reg, sizeof(*other_reg));
 	if (clk->enable_bit & AM35XX_IPSS_ICK_MASK)
 		*other_bit = clk->enable_bit + AM35XX_IPSS_ICK_FCK_OFFSET;
 	else
@@ -212,14 +204,14 @@ const struct clk_hw_omap_ops clkhwops_am35xx_ipss_module_wait = {
  * and @idlest_bit.  No return value.
  */
 static void am35xx_clk_ipss_find_idlest(struct clk_hw_omap *clk,
-					void __iomem **idlest_reg,
+					struct clk_omap_reg *idlest_reg,
 					u8 *idlest_bit,
 					u8 *idlest_val)
 {
-	u32 r;
+	memcpy(idlest_reg, &clk->enable_reg, sizeof(*idlest_reg));
 
-	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
-	*idlest_reg = (__force void __iomem *)r;
+	idlest_reg->offset &= ~0xf0;
+	idlest_reg->offset |= 0x20;
 	*idlest_bit = AM35XX_ST_IPSS_SHIFT;
 	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }
@@ -546,14 +538,21 @@ void __init omap3_clk_lock_dpll5(void)
 	struct clk *dpll5_clk;
 	struct clk *dpll5_m2_clk;
 
+	/*
+	 * Errata sprz319f advisory 2.1 documents a USB host clock drift issue
+	 * that can be worked around using specially crafted dpll5 settings
+	 * with a dpll5_m2 divider set to 8. Set the dpll5 rate to 8x the USB
+	 * host clock rate, its .set_rate handler() will detect that frequency
+	 * and use the errata settings.
+	 */
 	dpll5_clk = clk_get(NULL, "dpll5_ck");
-	clk_set_rate(dpll5_clk, DPLL5_FREQ_FOR_USBHOST);
+	clk_set_rate(dpll5_clk, OMAP3_DPLL5_FREQ_FOR_USBHOST * 8);
 	clk_prepare_enable(dpll5_clk);
 
-	/* Program dpll5_m2_clk divider for no division */
+	/* Program dpll5_m2_clk divider */
 	dpll5_m2_clk = clk_get(NULL, "dpll5_m2_ck");
 	clk_prepare_enable(dpll5_m2_clk);
-	clk_set_rate(dpll5_m2_clk, DPLL5_FREQ_FOR_USBHOST);
+	clk_set_rate(dpll5_m2_clk, OMAP3_DPLL5_FREQ_FOR_USBHOST);
 
 	clk_disable_unprepare(dpll5_m2_clk);
 	clk_disable_unprepare(dpll5_clk);

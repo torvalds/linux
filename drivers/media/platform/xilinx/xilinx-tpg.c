@@ -460,21 +460,21 @@ static const struct v4l2_ctrl_ops xtpg_ctrl_ops = {
 	.s_ctrl	= xtpg_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops xtpg_core_ops = {
+static const struct v4l2_subdev_core_ops xtpg_core_ops = {
 };
 
-static struct v4l2_subdev_video_ops xtpg_video_ops = {
+static const struct v4l2_subdev_video_ops xtpg_video_ops = {
 	.s_stream = xtpg_s_stream,
 };
 
-static struct v4l2_subdev_pad_ops xtpg_pad_ops = {
+static const struct v4l2_subdev_pad_ops xtpg_pad_ops = {
 	.enum_mbus_code		= xvip_enum_mbus_code,
 	.enum_frame_size	= xtpg_enum_frame_size,
 	.get_fmt		= xtpg_get_format,
 	.set_fmt		= xtpg_set_format,
 };
 
-static struct v4l2_subdev_ops xtpg_ops = {
+static const struct v4l2_subdev_ops xtpg_ops = {
 	.core   = &xtpg_core_ops,
 	.video  = &xtpg_video_ops,
 	.pad    = &xtpg_pad_ops,

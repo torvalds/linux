@@ -157,18 +157,6 @@ struct skl_dfw_algo_data {
 	char params[0];
 } __packed;
 
-#define LIB_NAME_LENGTH	128
-#define HDA_MAX_LIB	16
-
-struct lib_info {
-	char name[LIB_NAME_LENGTH];
-} __packed;
-
-struct skl_dfw_manifest {
-	u32 lib_count;
-	struct lib_info lib[HDA_MAX_LIB];
-} __packed;
-
 enum skl_tkn_dir {
 	SKL_DIR_IN,
 	SKL_DIR_OUT

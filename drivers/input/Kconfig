@@ -94,7 +94,6 @@ comment "Userland interfaces"
 
 config INPUT_MOUSEDEV
 	tristate "Mouse interface"
-	default y
 	help
 	  Say Y here if you want your mouse to be accessible as char devices
 	  13:32+ - /dev/input/mouseX and 13:63 - /dev/input/mice as an
@@ -109,7 +108,6 @@ config INPUT_MOUSEDEV
 
 config INPUT_MOUSEDEV_PSAUX
 	bool "Provide legacy /dev/psaux device"
-	default y
 	depends on INPUT_MOUSEDEV
 	help
 	  Say Y here if you want your mouse also be accessible as char device
@@ -117,7 +115,6 @@ config INPUT_MOUSEDEV_PSAUX
 	  the same as the data from /dev/input/mice.
 
 	  If unsure, say Y.
-
 
 config INPUT_MOUSEDEV_SCREEN_X
 	int "Horizontal screen resolution"

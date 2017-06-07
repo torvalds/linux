@@ -28,7 +28,6 @@
 
 #define REG_SYS_FUNC_EN				0x0002
 #define REG_MCUFWDL				0x0080
-#define FW_8192C_START_ADDRESS			0x1000
 #define FW_8192C_PAGE_SIZE			4096
 #define FW_8723A_POLLING_TIMEOUT_COUNT		1000
 #define FW_8723B_POLLING_TIMEOUT_COUNT		6000
@@ -84,10 +83,6 @@ enum rtl8723be_cmd {
 void rtl8723ae_firmware_selfreset(struct ieee80211_hw *hw);
 void rtl8723be_firmware_selfreset(struct ieee80211_hw *hw);
 void rtl8723_enable_fw_download(struct ieee80211_hw *hw, bool enable);
-void rtl8723_fw_block_write(struct ieee80211_hw *hw,
-			    const u8 *buffer, u32 size);
-void rtl8723_fw_page_write(struct ieee80211_hw *hw,
-			   u32 page, const u8 *buffer, u32 size);
 void rtl8723_write_fw(struct ieee80211_hw *hw,
 		      enum version_8723e version,
 		      u8 *buffer, u32 size, u8 max_page);
@@ -95,6 +90,5 @@ int rtl8723_fw_free_to_go(struct ieee80211_hw *hw, bool is_8723be, int count);
 int rtl8723_download_fw(struct ieee80211_hw *hw, bool is_8723be, int count);
 bool rtl8723_cmd_send_packet(struct ieee80211_hw *hw,
 			     struct sk_buff *skb);
-void rtl8723_fill_dummy(u8 *pfwbuf, u32 *pfwlen);
 
 #endif

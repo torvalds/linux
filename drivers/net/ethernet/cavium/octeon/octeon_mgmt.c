@@ -501,7 +501,7 @@ static int octeon_mgmt_napi_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		/* We stopped because no more packets were available. */
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		octeon_mgmt_enable_rx_irq(p);
 	}
 	octeon_mgmt_update_rx_stats(netdev);
@@ -1469,6 +1469,12 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 	p->agl = (u64)devm_ioremap(&pdev->dev, p->agl_phys, p->agl_size);
 	p->agl_prt_ctl = (u64)devm_ioremap(&pdev->dev, p->agl_prt_ctl_phys,
 					   p->agl_prt_ctl_size);
+	if (!p->mix || !p->agl || !p->agl_prt_ctl) {
+		dev_err(&pdev->dev, "failed to map I/O memory\n");
+		result = -ENOMEM;
+		goto err;
+	}
+
 	spin_lock_init(&p->lock);
 
 	skb_queue_head_init(&p->tx_list);

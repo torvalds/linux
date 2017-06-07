@@ -31,7 +31,7 @@
 #include <linux/console.h>
 #include <linux/io.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/div64.h>
 
 #ifdef CONFIG_PM
@@ -1600,6 +1600,7 @@ static int sm501fb_start(struct sm501fb_info *info,
 	info->fbmem = ioremap(res->start, resource_size(res));
 	if (info->fbmem == NULL) {
 		dev_err(dev, "cannot remap framebuffer\n");
+		ret = -ENXIO;
 		goto err_mem_res;
 	}
 

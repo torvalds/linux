@@ -156,8 +156,8 @@ static unsigned int cy_isa_addresses[] = {
 static long maddr[NR_CARDS];
 static int irq[NR_CARDS];
 
-module_param_array(maddr, long, NULL, 0);
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(maddr, long, iomem, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 
 #endif				/* CONFIG_ISA */
 

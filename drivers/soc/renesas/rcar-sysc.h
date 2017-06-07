@@ -46,10 +46,13 @@ struct rcar_sysc_area {
  */
 
 struct rcar_sysc_info {
+	int (*init)(void);	/* Optional */
 	const struct rcar_sysc_area *areas;
 	unsigned int num_areas;
 };
 
+extern const struct rcar_sysc_info r8a7743_sysc_info;
+extern const struct rcar_sysc_info r8a7745_sysc_info;
 extern const struct rcar_sysc_info r8a7779_sysc_info;
 extern const struct rcar_sysc_info r8a7790_sysc_info;
 extern const struct rcar_sysc_info r8a7791_sysc_info;
@@ -57,4 +60,13 @@ extern const struct rcar_sysc_info r8a7792_sysc_info;
 extern const struct rcar_sysc_info r8a7794_sysc_info;
 extern const struct rcar_sysc_info r8a7795_sysc_info;
 extern const struct rcar_sysc_info r8a7796_sysc_info;
+
+
+    /*
+     * Helpers for fixing up power area tables depending on SoC revision
+     */
+
+extern void rcar_sysc_nullify(struct rcar_sysc_area *areas,
+			      unsigned int num_areas, u8 id);
+
 #endif /* __SOC_RENESAS_RCAR_SYSC_H__ */

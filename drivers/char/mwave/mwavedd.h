@@ -53,7 +53,7 @@
 #include "smapi.h"
 #include "mwavepub.h"
 #include <linux/ioctl.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/wait.h>
 
 extern int mwave_debug;

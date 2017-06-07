@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/nfc.h>
+#include <linux/sched/signal.h>
 
 #include "nfc.h"
 #include "llcp.h"
@@ -440,7 +441,7 @@ struct sock *nfc_llcp_accept_dequeue(struct sock *parent,
 }
 
 static int llcp_sock_accept(struct socket *sock, struct socket *newsock,
-			    int flags)
+			    int flags, bool kern)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct sock *sk = sock->sk, *new_sk;

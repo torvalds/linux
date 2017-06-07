@@ -18,11 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
  */
 
 #include <linux/spinlock.h>
@@ -78,17 +73,15 @@ struct nvt_chip {
 };
 
 struct nvt_dev {
-	struct pnp_dev *pdev;
 	struct rc_dev *rdev;
 
-	spinlock_t nvt_lock;
+	spinlock_t lock;
 
 	/* for rx */
 	u8 buf[RX_BUF_LEN];
 	unsigned int pkts;
 
 	struct {
-		spinlock_t lock;
 		u8 buf[TX_BUF_LEN];
 		unsigned int buf_count;
 		unsigned int cur_buf_num;

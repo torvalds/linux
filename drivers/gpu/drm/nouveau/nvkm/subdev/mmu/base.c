@@ -31,7 +31,7 @@ nvkm_vm_map_at(struct nvkm_vma *vma, u64 delta, struct nvkm_mem *node)
 {
 	struct nvkm_vm *vm = vma->vm;
 	struct nvkm_mmu *mmu = vm->mmu;
-	struct nvkm_mm_node *r;
+	struct nvkm_mm_node *r = node->mem;
 	int big = vma->node->type != mmu->func->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
@@ -41,7 +41,7 @@ nvkm_vm_map_at(struct nvkm_vma *vma, u64 delta, struct nvkm_mem *node)
 	u32 end, len;
 
 	delta = 0;
-	list_for_each_entry(r, &node->regions, rl_entry) {
+	while (r) {
 		u64 phys = (u64)r->offset << 12;
 		u32 num  = r->length >> bits;
 
@@ -65,7 +65,8 @@ nvkm_vm_map_at(struct nvkm_vma *vma, u64 delta, struct nvkm_mem *node)
 
 			delta += (u64)len << vma->node->type;
 		}
-	}
+		r = r->next;
+	};
 
 	mmu->func->flush(vm);
 }

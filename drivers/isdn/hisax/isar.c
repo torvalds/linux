@@ -1902,10 +1902,8 @@ void initisar(struct IsdnCardState *cs)
 	cs->bcs[1].BC_SetStack = setstack_isar;
 	cs->bcs[0].BC_Close = close_isarstate;
 	cs->bcs[1].BC_Close = close_isarstate;
-	cs->bcs[0].hw.isar.ftimer.function = (void *) ftimer_handler;
-	cs->bcs[0].hw.isar.ftimer.data = (long) &cs->bcs[0];
-	init_timer(&cs->bcs[0].hw.isar.ftimer);
-	cs->bcs[1].hw.isar.ftimer.function = (void *) ftimer_handler;
-	cs->bcs[1].hw.isar.ftimer.data = (long) &cs->bcs[1];
-	init_timer(&cs->bcs[1].hw.isar.ftimer);
+	setup_timer(&cs->bcs[0].hw.isar.ftimer, (void *)ftimer_handler,
+		    (long)&cs->bcs[0]);
+	setup_timer(&cs->bcs[1].hw.isar.ftimer, (void *)ftimer_handler,
+		    (long)&cs->bcs[1]);
 }

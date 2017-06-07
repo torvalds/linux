@@ -25,6 +25,7 @@
 #include "agp.h"
 #include "intel-agp.h"
 #include <drm/intel-gtt.h>
+#include <asm/set_memory.h>
 
 /*
  * If we have Intel graphics, we're not going to have anything other than
@@ -331,14 +332,6 @@ static void i810_write_entry(dma_addr_t addr, unsigned int entry,
 
 	writel_relaxed(addr | pte_flags, intel_private.gtt + entry);
 }
-
-static const struct aper_size_info_fixed intel_fake_agp_sizes[] = {
-	{32, 8192, 3},
-	{64, 16384, 4},
-	{128, 32768, 5},
-	{256, 65536, 6},
-	{512, 131072, 7},
-};
 
 static unsigned int intel_gtt_stolen_size(void)
 {
@@ -670,6 +663,14 @@ static int intel_gtt_init(void)
 }
 
 #if IS_ENABLED(CONFIG_AGP_INTEL)
+static const struct aper_size_info_fixed intel_fake_agp_sizes[] = {
+	{32, 8192, 3},
+	{64, 16384, 4},
+	{128, 32768, 5},
+	{256, 65536, 6},
+	{512, 131072, 7},
+};
+
 static int intel_fake_agp_fetch_size(void)
 {
 	int num_sizes = ARRAY_SIZE(intel_fake_agp_sizes);
@@ -1420,8 +1421,10 @@ int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 }
 EXPORT_SYMBOL(intel_gmch_probe);
 
-void intel_gtt_get(u64 *gtt_total, size_t *stolen_size,
-		   phys_addr_t *mappable_base, u64 *mappable_end)
+void intel_gtt_get(u64 *gtt_total,
+		   u32 *stolen_size,
+		   phys_addr_t *mappable_base,
+		   u64 *mappable_end)
 {
 	*gtt_total = intel_private.gtt_total_entries << PAGE_SHIFT;
 	*stolen_size = intel_private.stolen_size;

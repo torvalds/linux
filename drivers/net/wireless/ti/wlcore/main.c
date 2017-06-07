@@ -3202,6 +3202,21 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 			if (ret < 0)
 				goto out_sleep;
 		}
+
+		/*
+		 * If interface in AP mode and created with allmulticast then disable
+		 * the firmware filters so that all multicast packets are passed
+		 * This is mandatory for MDNS based discovery protocols 
+		 */
+ 		if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
+ 			if (*total & FIF_ALLMULTI) {
+				ret = wl1271_acx_group_address_tbl(wl, wlvif,
+							false,
+							NULL, 0);
+				if (ret < 0)
+					goto out_sleep;
+			}
+		}
 	}
 
 	/*
@@ -6113,6 +6128,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 			sizeof(struct ieee80211_header);
 
+	wl->hw->wiphy->max_sched_scan_reqs = 1;
 	wl->hw->wiphy->max_sched_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 		sizeof(struct ieee80211_header);
 
@@ -6120,7 +6136,6 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	wl->hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD |
 				WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-				WIPHY_FLAG_SUPPORTS_SCHED_SCAN |
 				WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 	wl->hw->wiphy->features |= NL80211_FEATURE_AP_SCAN;

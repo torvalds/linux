@@ -37,6 +37,8 @@ if ($#ARGV >= 1) {
 	}
 }
 
+my $dup_counter = 0;
+
 foreach my $file (@ARGV) {
 	open(my $f, '<', $file)
 	    or die "Cannot open $file: $!.\n";
@@ -57,6 +59,7 @@ foreach my $file (@ARGV) {
 		foreach my $filename (keys %includedfiles) {
 			if ($includedfiles{$filename} > 1) {
 				print "$file: $filename is included more than once.\n";
+				++$dup_counter;
 			}
 		}
 		next;
@@ -73,6 +76,7 @@ foreach my $file (@ARGV) {
 					if ($includedfiles{$filename} > 1) {
 						$includedfiles{$filename}--;
 						$dups++;
+						++$dup_counter;
 					} else {
 						print {$f} $_;
 					}
@@ -86,4 +90,8 @@ foreach my $file (@ARGV) {
 		print "$file: removed $dups duplicate includes\n";
 	}
 	close($f);
+}
+
+if ($dup_counter == 0) {
+	print "No duplicate includes found.\n";
 }

@@ -24,7 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/rtnetlink.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/net.h>
 
 /*
@@ -90,6 +90,7 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_GSO_UDP_TUNNEL_CSUM_BIT] = "tx-udp_tnl-csum-segmentation",
 	[NETIF_F_GSO_PARTIAL_BIT] =	 "tx-gso-partial",
 	[NETIF_F_GSO_SCTP_BIT] =	 "tx-sctp-segmentation",
+	[NETIF_F_GSO_ESP_BIT] =		 "tx-esp-segmentation",
 
 	[NETIF_F_FCOE_CRC_BIT] =         "tx-checksum-fcoe-crc",
 	[NETIF_F_SCTP_CRC_BIT] =        "tx-checksum-sctp",
@@ -102,14 +103,16 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_RXFCS_BIT] =            "rx-fcs",
 	[NETIF_F_RXALL_BIT] =            "rx-all",
 	[NETIF_F_HW_L2FW_DOFFLOAD_BIT] = "l2-fwd-offload",
-	[NETIF_F_BUSY_POLL_BIT] =        "busy-poll",
 	[NETIF_F_HW_TC_BIT] =		 "hw-tc-offload",
+	[NETIF_F_HW_ESP_BIT] =		 "esp-hw-offload",
+	[NETIF_F_HW_ESP_TX_CSUM_BIT] =	 "esp-tx-csum-hw-offload",
 };
 
 static const char
 rss_hash_func_strings[ETH_RSS_HASH_FUNCS_COUNT][ETH_GSTRING_LEN] = {
 	[ETH_RSS_HASH_TOP_BIT] =	"toeplitz",
 	[ETH_RSS_HASH_XOR_BIT] =	"xor",
+	[ETH_RSS_HASH_CRC32_BIT] =	"crc32",
 };
 
 static const char
@@ -1405,9 +1408,12 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	if (regs.len > reglen)
 		regs.len = reglen;
 
-	regbuf = vzalloc(reglen);
-	if (reglen && !regbuf)
-		return -ENOMEM;
+	regbuf = NULL;
+	if (reglen) {
+		regbuf = vzalloc(reglen);
+		if (!regbuf)
+			return -ENOMEM;
+	}
 
 	ops->get_regs(dev, &regs, regbuf);
 
@@ -1712,7 +1718,7 @@ static noinline_for_stack int ethtool_get_channels(struct net_device *dev,
 static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 						   void __user *useraddr)
 {
-	struct ethtool_channels channels, max;
+	struct ethtool_channels channels, max = { .cmd = ETHTOOL_GCHANNELS };
 	u32 max_rx_in_use = 0;
 
 	if (!dev->ethtool_ops->set_channels || !dev->ethtool_ops->get_channels)
@@ -1817,11 +1823,13 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 	ret = __ethtool_get_sset_count(dev, gstrings.string_set);
 	if (ret < 0)
 		return ret;
+	if (ret > S32_MAX / ETH_GSTRING_LEN)
+		return -ENOMEM;
+	WARN_ON_ONCE(!ret);
 
 	gstrings.len = ret;
-
-	data = kcalloc(gstrings.len, ETH_GSTRING_LEN, GFP_USER);
-	if (!data)
+	data = vzalloc(gstrings.len * ETH_GSTRING_LEN);
+	if (gstrings.len && !data)
 		return -ENOMEM;
 
 	__ethtool_get_strings(dev, gstrings.string_set, data);
@@ -1830,12 +1838,13 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 	if (copy_to_user(useraddr, &gstrings, sizeof(gstrings)))
 		goto out;
 	useraddr += sizeof(gstrings);
-	if (copy_to_user(useraddr, data, gstrings.len * ETH_GSTRING_LEN))
+	if (gstrings.len &&
+	    copy_to_user(useraddr, data, gstrings.len * ETH_GSTRING_LEN))
 		goto out;
 	ret = 0;
 
 out:
-	kfree(data);
+	vfree(data);
 	return ret;
 }
 
@@ -1912,14 +1921,15 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 	n_stats = ops->get_sset_count(dev, ETH_SS_STATS);
 	if (n_stats < 0)
 		return n_stats;
-	WARN_ON(n_stats == 0);
-
+	if (n_stats > S32_MAX / sizeof(u64))
+		return -ENOMEM;
+	WARN_ON_ONCE(!n_stats);
 	if (copy_from_user(&stats, useraddr, sizeof(stats)))
 		return -EFAULT;
 
 	stats.n_stats = n_stats;
-	data = kmalloc(n_stats * sizeof(u64), GFP_USER);
-	if (!data)
+	data = vzalloc(n_stats * sizeof(u64));
+	if (n_stats && !data)
 		return -ENOMEM;
 
 	ops->get_ethtool_stats(dev, &stats, data);
@@ -1928,12 +1938,12 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 	if (copy_to_user(useraddr, &stats, sizeof(stats)))
 		goto out;
 	useraddr += sizeof(stats);
-	if (copy_to_user(useraddr, data, stats.n_stats * sizeof(u64)))
+	if (n_stats && copy_to_user(useraddr, data, n_stats * sizeof(u64)))
 		goto out;
 	ret = 0;
 
  out:
-	kfree(data);
+	vfree(data);
 	return ret;
 }
 
@@ -1948,17 +1958,18 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 		return -EOPNOTSUPP;
 
 	n_stats = phy_get_sset_count(phydev);
-
 	if (n_stats < 0)
 		return n_stats;
-	WARN_ON(n_stats == 0);
+	if (n_stats > S32_MAX / sizeof(u64))
+		return -ENOMEM;
+	WARN_ON_ONCE(!n_stats);
 
 	if (copy_from_user(&stats, useraddr, sizeof(stats)))
 		return -EFAULT;
 
 	stats.n_stats = n_stats;
-	data = kmalloc_array(n_stats, sizeof(u64), GFP_USER);
-	if (!data)
+	data = vzalloc(n_stats * sizeof(u64));
+	if (n_stats && !data)
 		return -ENOMEM;
 
 	mutex_lock(&phydev->lock);
@@ -1969,12 +1980,12 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 	if (copy_to_user(useraddr, &stats, sizeof(stats)))
 		goto out;
 	useraddr += sizeof(stats);
-	if (copy_to_user(useraddr, data, stats.n_stats * sizeof(u64)))
+	if (n_stats && copy_to_user(useraddr, data, n_stats * sizeof(u64)))
 		goto out;
 	ret = 0;
 
  out:
-	kfree(data);
+	vfree(data);
 	return ret;
 }
 

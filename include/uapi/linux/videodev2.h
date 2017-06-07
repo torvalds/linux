@@ -143,6 +143,7 @@ enum v4l2_buf_type {
 	V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,
 	V4L2_BUF_TYPE_SDR_CAPTURE          = 11,
 	V4L2_BUF_TYPE_SDR_OUTPUT           = 12,
+	V4L2_BUF_TYPE_META_CAPTURE         = 13,
 	/* Deprecated, do not use */
 	V4L2_BUF_TYPE_PRIVATE              = 0x80,
 };
@@ -335,6 +336,19 @@ enum v4l2_ycbcr_encoding {
 };
 
 /*
+ * enum v4l2_hsv_encoding values should not collide with the ones from
+ * enum v4l2_ycbcr_encoding.
+ */
+enum v4l2_hsv_encoding {
+
+	/* Hue mapped to 0 - 179 */
+	V4L2_HSV_ENC_180		= 128,
+
+	/* Hue mapped to 0-255 */
+	V4L2_HSV_ENC_256		= 129,
+};
+
+/*
  * Determine how YCBCR_ENC_DEFAULT should map to a proper Y'CbCr encoding.
  * This depends on the colorspace.
  */
@@ -349,8 +363,7 @@ enum v4l2_quantization {
 	/*
 	 * The default for R'G'B' quantization is always full range, except
 	 * for the BT2020 colorspace. For Y'CbCr the quantization is always
-	 * limited range, except for COLORSPACE_JPEG, SRGB, ADOBERGB,
-	 * XV601 or XV709: those are full range.
+	 * limited range, except for COLORSPACE_JPEG: this is full range.
 	 */
 	V4L2_QUANTIZATION_DEFAULT     = 0,
 	V4L2_QUANTIZATION_FULL_RANGE  = 1,
@@ -362,11 +375,10 @@ enum v4l2_quantization {
  * This depends on whether the image is RGB or not, the colorspace and the
  * Y'CbCr encoding.
  */
-#define V4L2_MAP_QUANTIZATION_DEFAULT(is_rgb, colsp, ycbcr_enc) \
-	(((is_rgb) && (colsp) == V4L2_COLORSPACE_BT2020) ? V4L2_QUANTIZATION_LIM_RANGE : \
-	 (((is_rgb) || (ycbcr_enc) == V4L2_YCBCR_ENC_XV601 || \
-	  (ycbcr_enc) == V4L2_YCBCR_ENC_XV709 || (colsp) == V4L2_COLORSPACE_JPEG) || \
-	  (colsp) == V4L2_COLORSPACE_ADOBERGB || (colsp) == V4L2_COLORSPACE_SRGB ? \
+#define V4L2_MAP_QUANTIZATION_DEFAULT(is_rgb_or_hsv, colsp, ycbcr_enc) \
+	(((is_rgb_or_hsv) && (colsp) == V4L2_COLORSPACE_BT2020) ? \
+	 V4L2_QUANTIZATION_LIM_RANGE : \
+	 (((is_rgb_or_hsv) || (colsp) == V4L2_COLORSPACE_JPEG) ? \
 	 V4L2_QUANTIZATION_FULL_RANGE : V4L2_QUANTIZATION_LIM_RANGE))
 
 enum v4l2_priority {
@@ -440,6 +452,7 @@ struct v4l2_capability {
 #define V4L2_CAP_SDR_CAPTURE		0x00100000  /* Is a SDR capture device */
 #define V4L2_CAP_EXT_PIX_FORMAT		0x00200000  /* Supports the extended pixel format */
 #define V4L2_CAP_SDR_OUTPUT		0x00400000  /* Is a SDR output device */
+#define V4L2_CAP_META_CAPTURE		0x00800000  /* Is a metadata capture device */
 
 #define V4L2_CAP_READWRITE              0x01000000  /* read/write systemcalls */
 #define V4L2_CAP_ASYNCIO                0x02000000  /* async I/O */
@@ -462,7 +475,12 @@ struct v4l2_pix_format {
 	__u32			colorspace;	/* enum v4l2_colorspace */
 	__u32			priv;		/* private data, depends on pixelformat */
 	__u32			flags;		/* format flags (V4L2_PIX_FMT_FLAG_*) */
-	__u32			ycbcr_enc;	/* enum v4l2_ycbcr_encoding */
+	union {
+		/* enum v4l2_ycbcr_encoding */
+		__u32			ycbcr_enc;
+		/* enum v4l2_hsv_encoding */
+		__u32			hsv_enc;
+	};
 	__u32			quantization;	/* enum v4l2_quantization */
 	__u32			xfer_func;	/* enum v4l2_xfer_func */
 };
@@ -586,6 +604,13 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_SGRBG12 v4l2_fourcc('B', 'A', '1', '2') /* 12  GRGR.. BGBG.. */
 #define V4L2_PIX_FMT_SRGGB12 v4l2_fourcc('R', 'G', '1', '2') /* 12  RGRG.. GBGB.. */
 #define V4L2_PIX_FMT_SBGGR16 v4l2_fourcc('B', 'Y', 'R', '2') /* 16  BGBG.. GRGR.. */
+#define V4L2_PIX_FMT_SGBRG16 v4l2_fourcc('G', 'B', '1', '6') /* 16  GBGB.. RGRG.. */
+#define V4L2_PIX_FMT_SGRBG16 v4l2_fourcc('G', 'R', '1', '6') /* 16  GRGR.. BGBG.. */
+#define V4L2_PIX_FMT_SRGGB16 v4l2_fourcc('R', 'G', '1', '6') /* 16  RGRG.. GBGB.. */
+
+/* HSV formats */
+#define V4L2_PIX_FMT_HSV24 v4l2_fourcc('H', 'S', 'V', '3')
+#define V4L2_PIX_FMT_HSV32 v4l2_fourcc('H', 'S', 'V', '4')
 
 /* compressed formats */
 #define V4L2_PIX_FMT_MJPEG    v4l2_fourcc('M', 'J', 'P', 'G') /* Motion-JPEG   */
@@ -603,6 +628,7 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_VC1_ANNEX_G v4l2_fourcc('V', 'C', '1', 'G') /* SMPTE 421M Annex G compliant stream */
 #define V4L2_PIX_FMT_VC1_ANNEX_L v4l2_fourcc('V', 'C', '1', 'L') /* SMPTE 421M Annex L compliant stream */
 #define V4L2_PIX_FMT_VP8      v4l2_fourcc('V', 'P', '8', '0') /* VP8 */
+#define V4L2_PIX_FMT_VP9      v4l2_fourcc('V', 'P', '9', '0') /* VP9 */
 
 /*  Vendor-specific formats   */
 #define V4L2_PIX_FMT_CPIA1    v4l2_fourcc('C', 'P', 'I', 'A') /* cpia1 YUV */
@@ -634,6 +660,8 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_Y8I      v4l2_fourcc('Y', '8', 'I', ' ') /* Greyscale 8-bit L/R interleaved */
 #define V4L2_PIX_FMT_Y12I     v4l2_fourcc('Y', '1', '2', 'I') /* Greyscale 12-bit L/R interleaved */
 #define V4L2_PIX_FMT_Z16      v4l2_fourcc('Z', '1', '6', ' ') /* Depth data 16-bit */
+#define V4L2_PIX_FMT_MT21C    v4l2_fourcc('M', 'T', '2', '1') /* Mediatek compressed block mode  */
+#define V4L2_PIX_FMT_INZI     v4l2_fourcc('I', 'N', 'Z', 'I') /* Intel Planar Greyscale 10-bit and Depth 16-bit */
 
 /* SDR formats - used only for Software Defined Radio devices */
 #define V4L2_SDR_FMT_CU8          v4l2_fourcc('C', 'U', '0', '8') /* IQ u8 */
@@ -647,6 +675,10 @@ struct v4l2_pix_format {
 #define V4L2_TCH_FMT_DELTA_TD08	v4l2_fourcc('T', 'D', '0', '8') /* 8-bit signed deltas */
 #define V4L2_TCH_FMT_TU16	v4l2_fourcc('T', 'U', '1', '6') /* 16-bit unsigned touch data */
 #define V4L2_TCH_FMT_TU08	v4l2_fourcc('T', 'U', '0', '8') /* 8-bit unsigned touch data */
+
+/* Meta-data formats */
+#define V4L2_META_FMT_VSP1_HGO    v4l2_fourcc('V', 'S', 'P', 'H') /* R-Car VSP1 1-D Histogram */
+#define V4L2_META_FMT_VSP1_HGT    v4l2_fourcc('V', 'S', 'P', 'T') /* R-Car VSP1 2-D Histogram */
 
 /* priv field value to indicates that subsequent fields are valid. */
 #define V4L2_PIX_FMT_PRIV_MAGIC		0xfeedcafe
@@ -1229,6 +1261,9 @@ struct v4l2_standard {
  *		(aka field 2) of interlaced field formats
  * @standards:	Standards the timing belongs to
  * @flags:	Flags
+ * @picture_aspect: The picture aspect ratio (hor/vert).
+ * @cea861_vic:	VIC code as per the CEA-861 standard.
+ * @hdmi_vic:	VIC code as per the HDMI standard.
  * @reserved:	Reserved fields, must be zeroed.
  *
  * A note regarding vertical interlaced timings: height refers to the total
@@ -1258,7 +1293,10 @@ struct v4l2_bt_timings {
 	__u32	il_vbackporch;
 	__u32	standards;
 	__u32	flags;
-	__u32	reserved[14];
+	struct v4l2_fract picture_aspect;
+	__u8	cea861_vic;
+	__u8	hdmi_vic;
+	__u8	reserved[46];
 } __attribute__ ((packed));
 
 /* Interlaced or progressive format */
@@ -1278,39 +1316,66 @@ struct v4l2_bt_timings {
 
 /* Flags */
 
-/* CVT/GTF specific: timing uses reduced blanking (CVT) or the 'Secondary
-   GTF' curve (GTF). In both cases the horizontal and/or vertical blanking
-   intervals are reduced, allowing a higher resolution over the same
-   bandwidth. This is a read-only flag. */
+/*
+ * CVT/GTF specific: timing uses reduced blanking (CVT) or the 'Secondary
+ * GTF' curve (GTF). In both cases the horizontal and/or vertical blanking
+ * intervals are reduced, allowing a higher resolution over the same
+ * bandwidth. This is a read-only flag.
+ */
 #define V4L2_DV_FL_REDUCED_BLANKING		(1 << 0)
-/* CEA-861 specific: set for CEA-861 formats with a framerate of a multiple
-   of six. These formats can be optionally played at 1 / 1.001 speed.
-   This is a read-only flag. */
+/*
+ * CEA-861 specific: set for CEA-861 formats with a framerate of a multiple
+ * of six. These formats can be optionally played at 1 / 1.001 speed.
+ * This is a read-only flag.
+ */
 #define V4L2_DV_FL_CAN_REDUCE_FPS		(1 << 1)
-/* CEA-861 specific: only valid for video transmitters, the flag is cleared
-   by receivers.
-   If the framerate of the format is a multiple of six, then the pixelclock
-   used to set up the transmitter is divided by 1.001 to make it compatible
-   with 60 Hz based standards such as NTSC and PAL-M that use a framerate of
-   29.97 Hz. Otherwise this flag is cleared. If the transmitter can't generate
-   such frequencies, then the flag will also be cleared. */
+/*
+ * CEA-861 specific: only valid for video transmitters, the flag is cleared
+ * by receivers.
+ * If the framerate of the format is a multiple of six, then the pixelclock
+ * used to set up the transmitter is divided by 1.001 to make it compatible
+ * with 60 Hz based standards such as NTSC and PAL-M that use a framerate of
+ * 29.97 Hz. Otherwise this flag is cleared. If the transmitter can't generate
+ * such frequencies, then the flag will also be cleared.
+ */
 #define V4L2_DV_FL_REDUCED_FPS			(1 << 2)
-/* Specific to interlaced formats: if set, then field 1 is really one half-line
-   longer and field 2 is really one half-line shorter, so each field has
-   exactly the same number of half-lines. Whether half-lines can be detected
-   or used depends on the hardware. */
+/*
+ * Specific to interlaced formats: if set, then field 1 is really one half-line
+ * longer and field 2 is really one half-line shorter, so each field has
+ * exactly the same number of half-lines. Whether half-lines can be detected
+ * or used depends on the hardware.
+ */
 #define V4L2_DV_FL_HALF_LINE			(1 << 3)
-/* If set, then this is a Consumer Electronics (CE) video format. Such formats
+/*
+ * If set, then this is a Consumer Electronics (CE) video format. Such formats
  * differ from other formats (commonly called IT formats) in that if RGB
  * encoding is used then by default the RGB values use limited range (i.e.
  * use the range 16-235) as opposed to 0-255. All formats defined in CEA-861
- * except for the 640x480 format are CE formats. */
+ * except for the 640x480 format are CE formats.
+ */
 #define V4L2_DV_FL_IS_CE_VIDEO			(1 << 4)
 /* Some formats like SMPTE-125M have an interlaced signal with a odd
  * total height. For these formats, if this flag is set, the first
  * field has the extra line. If not, it is the second field.
  */
-#define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE		(1 << 5)
+#define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE	(1 << 5)
+/*
+ * If set, then the picture_aspect field is valid. Otherwise assume that the
+ * pixels are square, so the picture aspect ratio is the same as the width to
+ * height ratio.
+ */
+#define V4L2_DV_FL_HAS_PICTURE_ASPECT		(1 << 6)
+/*
+ * If set, then the cea861_vic field is valid and contains the Video
+ * Identification Code as per the CEA-861 standard.
+ */
+#define V4L2_DV_FL_HAS_CEA861_VIC		(1 << 7)
+/*
+ * If set, then the hdmi_vic field is valid and contains the Video
+ * Identification Code as per the HDMI standard (HDMI Vendor Specific
+ * InfoFrame).
+ */
+#define V4L2_DV_FL_HAS_HDMI_VIC			(1 << 8)
 
 /* A few useful defines to calculate the total blanking and frame sizes */
 #define V4L2_DV_BT_BLANKING_WIDTH(bt) \
@@ -1594,6 +1659,7 @@ struct v4l2_querymenu {
 #define V4L2_CTRL_FLAG_VOLATILE		0x0080
 #define V4L2_CTRL_FLAG_HAS_PAYLOAD	0x0100
 #define V4L2_CTRL_FLAG_EXECUTE_ON_WRITE	0x0200
+#define V4L2_CTRL_FLAG_MODIFY_LAYOUT	0x0400
 
 /*  Query flags, to be ORed with the control ID */
 #define V4L2_CTRL_FLAG_NEXT_CTRL	0x80000000
@@ -2006,7 +2072,10 @@ struct v4l2_pix_format_mplane {
 	struct v4l2_plane_pix_format	plane_fmt[VIDEO_MAX_PLANES];
 	__u8				num_planes;
 	__u8				flags;
-	__u8				ycbcr_enc;
+	 union {
+		__u8				ycbcr_enc;
+		__u8				hsv_enc;
+	};
 	__u8				quantization;
 	__u8				xfer_func;
 	__u8				reserved[7];
@@ -2021,6 +2090,16 @@ struct v4l2_sdr_format {
 	__u32				pixelformat;
 	__u32				buffersize;
 	__u8				reserved[24];
+} __attribute__ ((packed));
+
+/**
+ * struct v4l2_meta_format - metadata format definition
+ * @dataformat:		little endian four character code (fourcc)
+ * @buffersize:		maximum size in bytes required for data
+ */
+struct v4l2_meta_format {
+	__u32				dataformat;
+	__u32				buffersize;
 } __attribute__ ((packed));
 
 /**
@@ -2042,6 +2121,7 @@ struct v4l2_format {
 		struct v4l2_vbi_format		vbi;     /* V4L2_BUF_TYPE_VBI_CAPTURE */
 		struct v4l2_sliced_vbi_format	sliced;  /* V4L2_BUF_TYPE_SLICED_VBI_CAPTURE */
 		struct v4l2_sdr_format		sdr;     /* V4L2_BUF_TYPE_SDR_CAPTURE */
+		struct v4l2_meta_format		meta;    /* V4L2_BUF_TYPE_META_CAPTURE */
 		__u8	raw_data[200];                   /* user-defined */
 	} fmt;
 };

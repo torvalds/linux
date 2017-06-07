@@ -16,11 +16,11 @@
  *  GNU General Public License for more details.
  */
 
-#include <media/v4l2-device.h>
-
 #include "cx23885.h"
 #include "cx23885-ir.h"
 #include "cx23885-input.h"
+
+#include <media/v4l2-device.h>
 
 #define CX23885_IR_RX_FIFO_SERVICE_REQ		0
 #define CX23885_IR_RX_END_OF_RX_DETECTED	1

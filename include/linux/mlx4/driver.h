@@ -104,4 +104,14 @@ static inline u64 mlx4_mac_to_u64(u8 *addr)
 	return mac;
 }
 
+static inline void mlx4_u64_to_mac(u8 *addr, u64 mac)
+{
+	int i;
+
+	for (i = ETH_ALEN; i > 0; i--) {
+		addr[i - 1] = mac & 0xFF;
+		mac >>= 8;
+	}
+}
+
 #endif /* MLX4_DRIVER_H */

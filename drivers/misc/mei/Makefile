@@ -8,7 +8,6 @@ mei-objs += hbm.o
 mei-objs += interrupt.o
 mei-objs += client.o
 mei-objs += main.o
-mei-objs += amthif.o
 mei-objs += bus.o
 mei-objs += bus-fixup.o
 mei-$(CONFIG_DEBUG_FS) += debugfs.o

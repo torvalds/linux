@@ -45,8 +45,8 @@
 #include "ib.h"
 #include "ib_mr.h"
 
-unsigned int rds_ib_mr_1m_pool_size = RDS_MR_1M_POOL_SIZE;
-unsigned int rds_ib_mr_8k_pool_size = RDS_MR_8K_POOL_SIZE;
+static unsigned int rds_ib_mr_1m_pool_size = RDS_MR_1M_POOL_SIZE;
+static unsigned int rds_ib_mr_8k_pool_size = RDS_MR_8K_POOL_SIZE;
 unsigned int rds_ib_retry_count = RDS_IB_DEFAULT_RETRY_COUNT;
 
 module_param(rds_ib_mr_1m_pool_size, int, 0444);
@@ -111,6 +111,8 @@ static void rds_ib_dev_free(struct work_struct *work)
 		kfree(i_ipaddr);
 	}
 
+	kfree(rds_ibdev->vector_load);
+
 	kfree(rds_ibdev);
 }
 
@@ -158,6 +160,14 @@ static void rds_ib_add_one(struct ib_device *device)
 
 	rds_ibdev->max_initiator_depth = device->attrs.max_qp_init_rd_atom;
 	rds_ibdev->max_responder_resources = device->attrs.max_qp_rd_atom;
+
+	rds_ibdev->vector_load = kzalloc(sizeof(int) * device->num_comp_vectors,
+					 GFP_KERNEL);
+	if (!rds_ibdev->vector_load) {
+		pr_err("RDS/IB: %s failed to allocate vector memory\n",
+			__func__);
+		goto put_dev;
+	}
 
 	rds_ibdev->dev = device;
 	rds_ibdev->pd = ib_alloc_pd(device, 0);
@@ -428,16 +438,12 @@ int rds_ib_init(void)
 	if (ret)
 		goto out_sysctl;
 
-	ret = rds_trans_register(&rds_ib_transport);
-	if (ret)
-		goto out_recv;
+	rds_trans_register(&rds_ib_transport);
 
 	rds_info_register_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
 
 	goto out;
 
-out_recv:
-	rds_ib_recv_exit();
 out_sysctl:
 	rds_ib_sysctl_exit();
 out_ibreg:

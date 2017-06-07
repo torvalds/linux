@@ -135,8 +135,7 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 	u8 *buf;
 	if ((ret = request_firmware(&fw, bcm4500_firmware,
 					&d->udev->dev)) != 0) {
-		err("did not find the bcm4500 firmware file. (%s) "
-			"Please see linux/Documentation/dvb/ for more details on firmware-problems. (%d)",
+		err("did not find the bcm4500 firmware file. (%s) Please see linux/Documentation/dvb/ for more details on firmware-problems. (%d)",
 			bcm4500_firmware,ret);
 		return ret;
 	}
@@ -162,7 +161,7 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 			goto out_free;
 		}
 		if (buflen > 64) {
-			err("firmare chunk size bigger than 64 bytes.");
+			err("firmware chunk size bigger than 64 bytes.");
 			goto out_free;
 		}
 
@@ -279,7 +278,7 @@ static int gp8psk_fe_reload(void *priv)
 	return gp8psk_bcm4500_reload(d);
 }
 
-const struct gp8psk_fe_ops gp8psk_fe_ops = {
+static const struct gp8psk_fe_ops gp8psk_fe_ops = {
 	.in = gp8psk_fe_in,
 	.out = gp8psk_fe_out,
 	.reload = gp8psk_fe_reload,

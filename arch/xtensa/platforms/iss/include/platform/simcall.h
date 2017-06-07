@@ -6,6 +6,7 @@
  * for more details.
  *
  * Copyright (C) 2001 Tensilica Inc.
+ * Copyright (C) 2017 Cadence Design Systems Inc.
  */
 
 #ifndef _XTENSA_PLATFORM_ISS_SIMCALL_H
@@ -48,6 +49,10 @@
 #define SYS_select_one  29      /* not compitible select, one file descriptor at the time */
 #define SYS_bind        30
 #define SYS_ioctl	31
+
+#define SYS_iss_argc	1000	/* returns value of argc */
+#define SYS_iss_argv_size 1001	/* bytes needed for argv & arg strings */
+#define SYS_iss_set_argv 1002	/* saves argv & arg strings at given addr */
 
 /*
  * SYS_select_one specifiers
@@ -116,6 +121,21 @@ static inline int simc_poll(int fd)
 static inline int simc_lseek(int fd, uint32_t off, int whence)
 {
 	return __simc(SYS_lseek, fd, off, whence);
+}
+
+static inline int simc_argc(void)
+{
+	return __simc(SYS_iss_argc, 0, 0, 0);
+}
+
+static inline int simc_argv_size(void)
+{
+	return __simc(SYS_iss_argv_size, 0, 0, 0);
+}
+
+static inline void simc_argv(void *buf)
+{
+	__simc(SYS_iss_set_argv, (int)buf, 0, 0);
 }
 
 #endif /* _XTENSA_PLATFORM_ISS_SIMCALL_H */

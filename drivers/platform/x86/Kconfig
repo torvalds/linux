@@ -92,9 +92,8 @@ config ASUS_LAPTOP
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
 config DELL_SMBIOS
-	tristate "Dell SMBIOS Support"
-	depends on DCDBAS
-	default n
+	tristate
+	select DCDBAS
 	---help---
 	This module provides common functions for kernel modules using
 	Dell SMBIOS.
@@ -103,16 +102,15 @@ config DELL_SMBIOS
 
 config DELL_LAPTOP
 	tristate "Dell Laptop Extras"
-	depends on DELL_SMBIOS
 	depends on DMI
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL || RFKILL = n
 	depends on SERIO_I8042
+	select DELL_SMBIOS
 	select POWER_SUPPLY
 	select LEDS_CLASS
 	select NEW_LEDS
-	default n
 	---help---
 	This driver adds support for rfkill and backlight control to Dell
 	laptops (except for some models covered by the Compal driver).
@@ -123,7 +121,7 @@ config DELL_WMI
 	depends on DMI
 	depends on INPUT
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
-	depends on DELL_SMBIOS
+	select DELL_SMBIOS
 	select INPUT_SPARSEKMAP
 	---help---
 	  Say Y here if you want to support WMI-based hotkeys on Dell laptops.
@@ -142,6 +140,14 @@ config DELL_WMI_AIO
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi-aio.
+
+config DELL_WMI_LED
+	tristate "External LED on Dell Business Netbooks"
+	depends on LEDS_CLASS
+	depends on ACPI_WMI
+	help
+	  This adds support for the Latitude 2100 and similar
+	  notebooks that have an external LED.
 
 config DELL_SMO8800
 	tristate "Dell Latitude freefall driver (ACPI SMO88XX)"
@@ -176,7 +182,8 @@ config FUJITSU_LAPTOP
 	depends on INPUT
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
-	depends on LEDS_CLASS || LEDS_CLASS=n
+	select INPUT_SPARSEKMAP
+	select LEDS_CLASS
 	---help---
 	  This is a driver for laptops built by Fujitsu:
 
@@ -362,6 +369,18 @@ config IDEAPAD_LAPTOP
 	help
 	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
 	  rfkill switch, hotkey, fan control and backlight control.
+
+config SURFACE3_WMI
+	tristate "Surface 3 WMI Driver"
+	depends on ACPI_WMI
+	depends on DMI
+	depends on INPUT
+	depends on SPI
+	---help---
+	  Say Y here if you have a Surface 3.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called surface3-wmi.
 
 config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
@@ -762,6 +781,19 @@ config ACPI_CMPC
 	  keys as input device, backlight device, tablet and accelerometer
 	  devices.
 
+config INTEL_CHT_INT33FE
+	tristate "Intel Cherry Trail ACPI INT33FE Driver"
+	depends on X86 && ACPI && I2C
+	---help---
+	  This driver add support for the INT33FE ACPI device found on
+	  some Intel Cherry Trail devices.
+
+	  The INT33FE ACPI device has a CRS table with I2cSerialBusV2
+	  resources for 3 devices: Maxim MAX17047 Fuel Gauge Controller,
+	  FUSB302 USB Type-C Controller and PI3USB30532 USB switch.
+	  This driver instantiates i2c-clients for these, so that standard
+	  i2c drivers for these chips can bind to the them.
+
 config INTEL_HID_EVENT
 	tristate "INTEL HID Event"
 	depends on ACPI
@@ -803,13 +835,6 @@ config INTEL_SCU_IPC_UTIL
 	  The IPC Util driver provides an interface with the SCU enabling
 	  low level access for debug work and updating the firmware. Say
 	  N unless you will be doing this on an Intel MID platform.
-
-config GPIO_INTEL_PMIC
-	bool "Intel PMIC GPIO support"
-	depends on INTEL_SCU_IPC && GPIOLIB
-	---help---
-	  Say Y here to support GPIO via the SCU IPC interface
-	  on Intel MID platforms.
 
 config INTEL_MID_POWER_BUTTON
 	tristate "power button driver for Intel MID platforms"
@@ -1005,11 +1030,26 @@ config INTEL_PMC_IPC
 	The PMC is an ARC processor which defines IPC commands for communication
 	with other entities in the CPU.
 
+config INTEL_BXTWC_PMIC_TMU
+	tristate "Intel BXT Whiskey Cove TMU Driver"
+	depends on REGMAP
+	depends on INTEL_SOC_PMIC_BXTWC && INTEL_PMC_IPC
+	---help---
+	  Select this driver to use Intel BXT Whiskey Cove PMIC TMU feature.
+	  This driver enables the alarm wakeup functionality in the TMU unit
+	  of Whiskey Cove PMIC.
+
 config SURFACE_PRO3_BUTTON
 	tristate "Power/home/volume buttons driver for Microsoft Surface Pro 3/4 tablet"
 	depends on ACPI && INPUT
 	---help---
 	  This driver handles the power/home/volume buttons on the Microsoft Surface Pro 3/4 tablet.
+
+config SURFACE_3_BUTTON
+	tristate "Power/home/volume buttons driver for Microsoft Surface 3 tablet"
+	depends on ACPI && KEYBOARD_GPIO && I2C
+	---help---
+	  This driver handles the power/home/volume buttons on the Microsoft Surface 3 tablet.
 
 config INTEL_PUNIT_IPC
 	tristate "Intel P-Unit IPC Driver"
@@ -1027,4 +1067,52 @@ config INTEL_TELEMETRY
 	  used to get various SoC events and parameters
 	  directly via debugfs files. Various tools may use
 	  this interface for SoC state monitoring.
+
+config MLX_PLATFORM
+	tristate "Mellanox Technologies platform support"
+	depends on X86_64
+	---help---
+	  This option enables system support for the Mellanox Technologies
+	  platform. The Mellanox systems provide data center networking
+	  solutions based on Virtual Protocol Interconnect (VPI) technology
+	  enable seamless connectivity to 56/100Gb/s InfiniBand or 10/40/56GbE
+	  connection.
+
+	  If you have a Mellanox system, say Y or M here.
+
+config MLX_CPLD_PLATFORM
+	tristate "Mellanox platform hotplug driver support"
+	default n
+	select HWMON
+	select I2C
+	---help---
+	  This driver handles hot-plug events for the power suppliers, power
+	  cables and fans on the wide range Mellanox IB and Ethernet systems.
+
+config INTEL_TURBO_MAX_3
+	bool "Intel Turbo Boost Max Technology 3.0 enumeration driver"
+	depends on X86_64 && SCHED_MC_PRIO
+	---help---
+	  This driver reads maximum performance ratio of each CPU and set up
+	  the scheduler priority metrics. In this way scheduler can prefer
+	  CPU with higher performance to schedule tasks.
+	  This driver is only required when the system is not using Hardware
+	  P-States (HWP). In HWP mode, priority can be read from ACPI tables.
+
+config SILEAD_DMI
+	bool "Tablets with Silead touchscreens"
+	depends on ACPI && DMI && I2C=y && TOUCHSCREEN_SILEAD
+	---help---
+	  Certain ACPI based tablets with Silead touchscreens do not have
+	  enough data in ACPI tables for the touchscreen driver to handle
+	  the touchscreen properly, as OEMs expected the data to be baked
+	  into the tablet model specific version of the driver shipped
+	  with the OS-image for the device. This option supplies the missing
+	  information. Enable this for x86 tablets with Silead touchscreens.
+
 endif # X86_PLATFORM_DEVICES
+
+config PMC_ATOM
+       def_bool y
+       depends on PCI
+       select COMMON_CLK

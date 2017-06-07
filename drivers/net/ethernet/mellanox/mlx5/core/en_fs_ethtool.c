@@ -92,7 +92,7 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 	ns = mlx5_get_flow_namespace(priv->mdev,
 				     MLX5_FLOW_NAMESPACE_ETHTOOL);
 	if (!ns)
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	table_size = min_t(u32, BIT(MLX5_CAP_FLOWTABLE(priv->mdev,
 						       flow_table_properties_nic_receive.log_max_ft_size)),
@@ -237,9 +237,9 @@ static int set_flow_attrs(u32 *match_c, u32 *match_v,
 	if ((fs->flow_type & FLOW_EXT) &&
 	    (fs->m_ext.vlan_tci & cpu_to_be16(VLAN_VID_MASK))) {
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
-			 vlan_tag, 1);
+			 cvlan_tag, 1);
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
-			 vlan_tag, 1);
+			 cvlan_tag, 1);
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
 			 first_vid, 0xfff);
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
@@ -247,6 +247,7 @@ static int set_flow_attrs(u32 *match_c, u32 *match_v,
 	}
 	if (fs->flow_type & FLOW_MAC_EXT &&
 	    !is_zero_ether_addr(fs->m_ext.h_dest)) {
+		mask_spec(fs->m_ext.h_dest, fs->h_ext.h_dest, ETH_ALEN);
 		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4,
 					     outer_headers_c, dmac_47_16),
 				fs->m_ext.h_dest);
@@ -389,7 +390,7 @@ static int validate_flow(struct mlx5e_priv *priv,
 	if (fs->location >= MAX_NUM_OF_ETHTOOL_RULES)
 		return -EINVAL;
 
-	if (fs->ring_cookie >= priv->params.num_channels &&
+	if (fs->ring_cookie >= priv->channels.params.num_channels &&
 	    fs->ring_cookie != RX_CLS_FLOW_DISC)
 		return -EINVAL;
 
@@ -563,6 +564,7 @@ int mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv, struct ethtool_rxnfc *i
 	int idx = 0;
 	int err = 0;
 
+	info->data = MAX_NUM_OF_ETHTOOL_RULES;
 	while ((!err || err == -ENOENT) && idx < info->rule_cnt) {
 		err = mlx5e_ethtool_get_flow(priv, info, location);
 		if (!err)

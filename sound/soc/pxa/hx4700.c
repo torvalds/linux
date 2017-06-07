@@ -27,8 +27,6 @@
 #include <asm/mach-types.h>
 #include "pxa2xx-i2s.h"
 
-#include "../codecs/ak4641.h"
-
 static struct snd_soc_jack hs_jack;
 
 /* Headphones jack detection DAPM pin */
@@ -81,7 +79,7 @@ static int hx4700_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops hx4700_ops = {
+static const struct snd_soc_ops hx4700_ops = {
 	.hw_params = hx4700_hw_params,
 };
 

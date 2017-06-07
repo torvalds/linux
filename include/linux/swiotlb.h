@@ -9,7 +9,13 @@ struct device;
 struct page;
 struct scatterlist;
 
-extern int swiotlb_force;
+enum swiotlb_force {
+	SWIOTLB_NORMAL,		/* Default - depending on HW DMA mask etc. */
+	SWIOTLB_FORCE,		/* swiotlb=force */
+	SWIOTLB_NO_FORCE,	/* swiotlb=noforce */
+};
+
+extern enum swiotlb_force swiotlb_force;
 
 /*
  * Maximum allowable number of contiguous slabs to map,
@@ -44,11 +50,13 @@ enum dma_sync_target {
 extern phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
 					  dma_addr_t tbl_dma_addr,
 					  phys_addr_t phys, size_t size,
-					  enum dma_data_direction dir);
+					  enum dma_data_direction dir,
+					  unsigned long attrs);
 
 extern void swiotlb_tbl_unmap_single(struct device *hwdev,
 				     phys_addr_t tlb_addr,
-				     size_t size, enum dma_data_direction dir);
+				     size_t size, enum dma_data_direction dir,
+				     unsigned long attrs);
 
 extern void swiotlb_tbl_sync_single(struct device *hwdev,
 				    phys_addr_t tlb_addr,
@@ -71,14 +79,6 @@ extern dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 extern void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
 			       size_t size, enum dma_data_direction dir,
 			       unsigned long attrs);
-
-extern int
-swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg, int nents,
-	       enum dma_data_direction dir);
-
-extern void
-swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nents,
-		 enum dma_data_direction dir);
 
 extern int
 swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
@@ -114,11 +114,14 @@ swiotlb_dma_supported(struct device *hwdev, u64 mask);
 
 #ifdef CONFIG_SWIOTLB
 extern void __init swiotlb_free(void);
+unsigned int swiotlb_max_segment(void);
 #else
 static inline void swiotlb_free(void) { }
+static inline unsigned int swiotlb_max_segment(void) { return 0; }
 #endif
 
 extern void swiotlb_print_info(void);
 extern int is_swiotlb_buffer(phys_addr_t paddr);
+extern void swiotlb_set_max_segment(unsigned int);
 
 #endif /* __LINUX_SWIOTLB_H */

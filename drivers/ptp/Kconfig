@@ -6,7 +6,7 @@ menu "PTP clock support"
 
 config PTP_1588_CLOCK
 	tristate "PTP clock support"
-	depends on NET
+	depends on NET && POSIX_TIMERS
 	select PPS
 	select NET_PTP_CLASSIFY
 	help
@@ -28,7 +28,7 @@ config PTP_1588_CLOCK
 config PTP_1588_CLOCK_GIANFAR
 	tristate "Freescale eTSEC as PTP clock"
 	depends on GIANFAR
-	select PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK
 	default y
 	help
 	  This driver adds support for using the eTSEC as a PTP
@@ -42,7 +42,7 @@ config PTP_1588_CLOCK_GIANFAR
 config PTP_1588_CLOCK_IXP46X
 	tristate "Intel IXP46x as PTP clock"
 	depends on IXP4XX_ETH
-	select PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK
 	default y
 	help
 	  This driver adds support for using the IXP46X as a PTP
@@ -60,7 +60,7 @@ config DP83640_PHY
 	tristate "Driver for the National Semiconductor DP83640 PHYTER"
 	depends on NETWORK_PHY_TIMESTAMPING
 	depends on PHYLIB
-	select PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK
 	---help---
 	  Supports the DP83640 PHYTER with IEEE 1588 features.
 
@@ -76,7 +76,7 @@ config PTP_1588_CLOCK_PCH
 	tristate "Intel PCH EG20T as PTP clock"
 	depends on X86_32 || COMPILE_TEST
 	depends on HAS_IOMEM && NET
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	help
 	  This driver adds support for using the PCH EG20T as a PTP
 	  clock. The hardware supports time stamping of PTP packets
@@ -89,5 +89,17 @@ config PTP_1588_CLOCK_PCH
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_pch.
+
+config PTP_1588_CLOCK_KVM
+	tristate "KVM virtual PTP clock"
+	depends on PTP_1588_CLOCK
+	depends on KVM_GUEST && X86
+	default y
+	help
+	  This driver adds support for using kvm infrastructure as a PTP
+	  clock. This clock is only useful if you are using KVM guests.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_kvm.
 
 endmenu

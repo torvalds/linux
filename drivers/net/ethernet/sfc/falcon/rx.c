@@ -674,8 +674,7 @@ void __ef4_rx_packet(struct ef4_channel *channel)
 	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))
 		rx_buf->flags &= ~EF4_RX_PKT_CSUMMED;
 
-	if ((rx_buf->flags & EF4_RX_PKT_TCP) && !channel->type->receive_skb &&
-	    !ef4_channel_busy_polling(channel))
+	if ((rx_buf->flags & EF4_RX_PKT_TCP) && !channel->type->receive_skb)
 		ef4_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh);
 	else
 		ef4_rx_deliver(channel, eh, rx_buf, channel->rx_pkt_n_frags);

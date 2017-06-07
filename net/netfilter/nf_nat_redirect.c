@@ -101,11 +101,13 @@ nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
 		rcu_read_lock();
 		idev = __in6_dev_get(skb->dev);
 		if (idev != NULL) {
+			read_lock_bh(&idev->lock);
 			list_for_each_entry(ifa, &idev->addr_list, if_list) {
 				newdst = ifa->addr;
 				addr = true;
 				break;
 			}
+			read_unlock_bh(&idev->lock);
 		}
 		rcu_read_unlock();
 

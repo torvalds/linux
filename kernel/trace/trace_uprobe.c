@@ -17,12 +17,14 @@
  * Copyright (C) IBM Corporation, 2010-2012
  * Author:	Srikar Dronamraju <srikar@linux.vnet.ibm.com>
  */
+#define pr_fmt(fmt)	"trace_kprobe: " fmt
 
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/uprobes.h>
 #include <linux/namei.h>
 #include <linux/string.h>
+#include <linux/rculist.h>
 
 #include "trace_probe.h"
 
@@ -431,7 +433,8 @@ static int create_trace_uprobe(int argc, char **argv)
 		pr_info("Probe point is not specified.\n");
 		return -EINVAL;
 	}
-	arg = strchr(argv[1], ':');
+	/* Find the last occurrence, in case the path contains ':' too. */
+	arg = strrchr(argv[1], ':');
 	if (!arg) {
 		ret = -EINVAL;
 		goto fail_address_parse;

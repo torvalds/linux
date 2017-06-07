@@ -60,16 +60,8 @@ static DEFINE_SPINLOCK(zpci_domain_lock);
 static struct airq_iv *zpci_aisb_iv;
 static struct airq_iv *zpci_aibv[ZPCI_NR_DEVICES];
 
-/* Adapter interrupt definitions */
-static void zpci_irq_handler(struct airq_struct *airq);
-
-static struct airq_struct zpci_airq = {
-	.handler = zpci_irq_handler,
-	.isc = PCI_ISC,
-};
-
 #define ZPCI_IOMAP_ENTRIES						\
-	min(((unsigned long) CONFIG_PCI_NR_FUNCTIONS * PCI_BAR_COUNT),	\
+	min(((unsigned long) ZPCI_NR_DEVICES * PCI_BAR_COUNT / 2),	\
 	    ZPCI_IOMAP_MAX_ENTRIES)
 
 static DEFINE_SPINLOCK(zpci_iomap_lock);
@@ -180,7 +172,7 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 {
 	struct mod_pci_args args = { 0, 0, 0, 0 };
 
-	if (zdev->fmb)
+	if (zdev->fmb || sizeof(*zdev->fmb) < zdev->fmb_length)
 		return -EINVAL;
 
 	zdev->fmb = kmem_cache_zalloc(zdev_fmb_cache, GFP_KERNEL);
@@ -214,8 +206,6 @@ int zpci_fmb_disable_device(struct zpci_dev *zdev)
 	return rc;
 }
 
-#define ZPCI_PCIAS_CFGSPC	15
-
 static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
 {
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, ZPCI_PCIAS_CFGSPC, len);
@@ -224,8 +214,8 @@ static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
 
 	rc = zpci_load(&data, req, offset);
 	if (!rc) {
-		data = data << ((8 - len) * 8);
-		data = le64_to_cpu(data);
+		data = le64_to_cpu((__force __le64) data);
+		data >>= (8 - len) * 8;
 		*val = (u32) data;
 	} else
 		*val = 0xffffffff;
@@ -238,8 +228,8 @@ static int zpci_cfg_store(struct zpci_dev *zdev, int offset, u32 val, u8 len)
 	u64 data = val;
 	int rc;
 
-	data = cpu_to_le64(data);
-	data = data >> ((8 - len) * 8);
+	data <<= (8 - len) * 8;
+	data = (__force u64) cpu_to_le64(data);
 	rc = zpci_store(data, req, offset);
 	return rc;
 }
@@ -507,6 +497,11 @@ static void zpci_unmap_resources(struct pci_dev *pdev)
 	}
 }
 
+static struct airq_struct zpci_airq = {
+	.handler = zpci_irq_handler,
+	.isc = PCI_ISC,
+};
+
 static int __init zpci_irq_init(void)
 {
 	int rc;
@@ -641,7 +636,7 @@ int pcibios_add_device(struct pci_dev *pdev)
 	int i;
 
 	pdev->dev.groups = zpci_attr_groups;
-	pdev->dev.archdata.dma_ops = &s390_pci_dma_ops;
+	pdev->dev.dma_ops = &s390_pci_dma_ops;
 	zpci_map_resources(pdev);
 
 	for (i = 0; i < PCI_BAR_COUNT; i++) {
@@ -722,6 +717,11 @@ struct dev_pm_ops pcibios_pm_ops = {
 
 static int zpci_alloc_domain(struct zpci_dev *zdev)
 {
+	if (zpci_unique_uid) {
+		zdev->domain = (u16) zdev->uid;
+		return 0;
+	}
+
 	spin_lock(&zpci_domain_lock);
 	zdev->domain = find_first_zero_bit(zpci_domain, ZPCI_NR_DEVICES);
 	if (zdev->domain == ZPCI_NR_DEVICES) {
@@ -735,6 +735,9 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 
 static void zpci_free_domain(struct zpci_dev *zdev)
 {
+	if (zpci_unique_uid)
+		return;
+
 	spin_lock(&zpci_domain_lock);
 	clear_bit(zdev->domain, zpci_domain);
 	spin_unlock(&zpci_domain_lock);
@@ -862,11 +865,6 @@ int zpci_report_error(struct pci_dev *pdev,
 	return sclp_pci_report(report, zdev->fh, zdev->fid);
 }
 EXPORT_SYMBOL(zpci_report_error);
-
-static inline int barsize(u8 size)
-{
-	return (size) ? (1 << size) >> 10 : 0;
-}
 
 static int zpci_mem_init(void)
 {

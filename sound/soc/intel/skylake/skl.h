@@ -27,31 +27,13 @@
 
 #define SKL_SUSPEND_DELAY 2000
 
-/* Vendor Specific Registers */
-#define AZX_REG_VS_EM1			0x1000
-#define AZX_REG_VS_INRC			0x1004
-#define AZX_REG_VS_OUTRC		0x1008
-#define AZX_REG_VS_FIFOTRK		0x100C
-#define AZX_REG_VS_FIFOTRK2		0x1010
-#define AZX_REG_VS_EM2			0x1030
-#define AZX_REG_VS_EM3L			0x1038
-#define AZX_REG_VS_EM3U			0x103C
-#define AZX_REG_VS_EM4L			0x1040
-#define AZX_REG_VS_EM4U			0x1044
-#define AZX_REG_VS_LTRC			0x1048
-#define AZX_REG_VS_D0I3C		0x104A
-#define AZX_REG_VS_PCE			0x104B
-#define AZX_REG_VS_L2MAGC		0x1050
-#define AZX_REG_VS_L2LAHPT		0x1054
-#define AZX_REG_VS_SDXDPIB_XBASE	0x1084
-#define AZX_REG_VS_SDXDPIB_XINTERVAL	0x20
-#define AZX_REG_VS_SDXEFIFOS_XBASE	0x1094
-#define AZX_REG_VS_SDXEFIFOS_XINTERVAL	0x20
-
 #define AZX_PCIREG_PGCTL		0x44
 #define AZX_PGCTL_LSRMD_MASK		(1 << 4)
 #define AZX_PCIREG_CGCTL		0x48
 #define AZX_CGCTL_MISCBDCGE_MASK	(1 << 6)
+/* D0I3C Register fields */
+#define AZX_REG_VS_D0I3C_CIP      0x1 /* Command in progress */
+#define AZX_REG_VS_D0I3C_I3       0x4 /* D0i3 enable */
 
 struct skl_dsp_resource {
 	u32 max_mcps;
@@ -74,6 +56,7 @@ struct skl {
 
 	struct skl_dsp_resource resource;
 	struct list_head ppl_list;
+	struct list_head bind_list;
 
 	const char *fw_name;
 	char tplg_name[64];
@@ -115,14 +98,20 @@ int skl_platform_register(struct device *dev);
 struct nhlt_acpi_table *skl_nhlt_init(struct device *dev);
 void skl_nhlt_free(struct nhlt_acpi_table *addr);
 struct nhlt_specific_cfg *skl_get_ep_blob(struct skl *skl, u32 instance,
-			u8 link_type, u8 s_fmt, u8 no_ch, u32 s_rate, u8 dirn);
+					u8 link_type, u8 s_fmt, u8 no_ch,
+					u32 s_rate, u8 dirn, u8 dev_type);
 
 int skl_get_dmic_geo(struct skl *skl);
 int skl_nhlt_update_topology_bin(struct skl *skl);
 int skl_init_dsp(struct skl *skl);
 int skl_free_dsp(struct skl *skl);
+int skl_suspend_late_dsp(struct skl *skl);
 int skl_suspend_dsp(struct skl *skl);
 int skl_resume_dsp(struct skl *skl);
 void skl_cleanup_resources(struct skl *skl);
 const struct skl_dsp_ops *skl_get_dsp_ops(int pci_id);
+void skl_update_d0i3c(struct device *dev, bool enable);
+int skl_nhlt_create_sysfs(struct skl *skl);
+void skl_nhlt_remove_sysfs(struct skl *skl);
+
 #endif /* __SOUND_SOC_SKL_H */

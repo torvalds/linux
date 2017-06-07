@@ -5,6 +5,9 @@ config TRACE_IRQFLAGS_SUPPORT
 
 source "lib/Kconfig.debug"
 
+config EARLY_PRINTK_USB
+	bool
+
 config X86_VERBOSE_BOOTUP
 	bool "Enable verbose x86 bootup info messages"
 	default y
@@ -23,19 +26,20 @@ config EARLY_PRINTK
 	  This is useful for kernel debugging when your machine crashes very
 	  early before the console code is initialized. For normal operation
 	  it is not recommended because it looks ugly and doesn't cooperate
-	  with klogd/syslogd or the X server. You should normally N here,
+	  with klogd/syslogd or the X server. You should normally say N here,
 	  unless you want to debug such a crash.
 
 config EARLY_PRINTK_DBGP
 	bool "Early printk via EHCI debug port"
 	depends on EARLY_PRINTK && PCI
+	select EARLY_PRINTK_USB
 	---help---
 	  Write kernel log output directly into the EHCI debug port.
 
 	  This is useful for kernel debugging when your machine crashes very
 	  early before the console code is initialized. For normal operation
 	  it is not recommended because it looks ugly and doesn't cooperate
-	  with klogd/syslogd or the X server. You should normally N here,
+	  with klogd/syslogd or the X server. You should normally say N here,
 	  unless you want to debug such a crash. You need usb debug device.
 
 config EARLY_PRINTK_EFI
@@ -47,6 +51,25 @@ config EARLY_PRINTK_EFI
 
 	  This is useful for kernel debugging when your machine crashes very
 	  early before the console code is initialized.
+
+config EARLY_PRINTK_USB_XDBC
+	bool "Early printk via the xHCI debug port"
+	depends on EARLY_PRINTK && PCI
+	select EARLY_PRINTK_USB
+	---help---
+	  Write kernel log output directly into the xHCI debug port.
+
+	  One use for this feature is kernel debugging, for example when your
+	  machine crashes very early before the regular console code is
+	  initialized. Other uses include simpler, lockless logging instead of
+	  a full-blown printk console driver + klogd.
+
+	  For normal production environments this is normally not recommended,
+	  because it doesn't feed events into klogd/syslogd and doesn't try to
+	  print anything on the screen.
+
+	  You should normally say N here, unless you want to debug early
+	  crashes or need a very simple printk logging facility.
 
 config X86_PTDUMP_CORE
 	def_bool n
@@ -74,14 +97,6 @@ config EFI_PGT_DUMP
 	  issues with the mapping of the EFI runtime regions into that
 	  table.
 
-config DEBUG_RODATA_TEST
-	bool "Testcase for the marking rodata read-only"
-	default y
-	---help---
-	  This option enables a testcase for the setting rodata read-only
-	  as well as for the change_page_attr() infrastructure.
-	  If in doubt, say "N"
-
 config DEBUG_WX
 	bool "Warn on W+X mappings at boot"
 	select X86_PTDUMP_CORE
@@ -108,25 +123,6 @@ config DEBUG_WX
 	  once the kernel has booted up - it's a one time check.
 
 	  If in doubt, say "Y".
-
-config DEBUG_SET_MODULE_RONX
-	bool "Set loadable kernel module data as NX and text as RO"
-	depends on MODULES
-	---help---
-	  This option helps catch unintended modifications to loadable
-	  kernel module's text and read-only data. It also prevents execution
-	  of module data. Such protection may interfere with run-time code
-	  patching and dynamic kernel tracing - and they might also protect
-	  against certain classes of kernel exploits.
-	  If in doubt, say "N".
-
-config DEBUG_NX_TEST
-	tristate "Testcase for the NX non-executable stack feature"
-	depends on DEBUG_KERNEL && m
-	---help---
-	  This option enables a testcase for the CPU NX capability
-	  and the software setup of this feature.
-	  If in doubt, say "N"
 
 config DOUBLEFAULT
 	default y

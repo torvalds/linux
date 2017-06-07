@@ -21,13 +21,13 @@
  *
  */
 
+#include "pp_debug.h"
 #include "iceland_smc.h"
 #include "smu7_dyn_defaults.h"
 
 #include "smu7_hwmgr.h"
 #include "hardwaremanager.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "atombios.h"
 #include "pppcielanes.h"
@@ -122,7 +122,7 @@ static void iceland_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 		break;
 	default:
 		smu_data->power_tune_defaults = &defaults_iceland;
-		pr_warning("Unknown V.I. Device ID.\n");
+		pr_warn("Unknown V.I. Device ID.\n");
 		break;
 	}
 	return;
@@ -378,7 +378,7 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 			return -EINVAL);
 
 	if (NULL == hwmgr->dyn_state.cac_leakage_table) {
-		pr_warning("CAC Leakage Table does not exist, using vddc.\n");
+		pr_warn("CAC Leakage Table does not exist, using vddc.\n");
 		return 0;
 	}
 
@@ -394,7 +394,7 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 				*lo = hwmgr->dyn_state.cac_leakage_table->entries[v_index].Vddc * VOLTAGE_SCALE;
 				*hi = (uint16_t)(hwmgr->dyn_state.cac_leakage_table->entries[v_index].Leakage * VOLTAGE_SCALE);
 			} else {
-				pr_warning("Index from SCLK/VDDC Dependency Table exceeds the CAC Leakage Table index, using maximum index from CAC table.\n");
+				pr_warn("Index from SCLK/VDDC Dependency Table exceeds the CAC Leakage Table index, using maximum index from CAC table.\n");
 				*lo = hwmgr->dyn_state.cac_leakage_table->entries[hwmgr->dyn_state.cac_leakage_table->count - 1].Vddc * VOLTAGE_SCALE;
 				*hi = (uint16_t)(hwmgr->dyn_state.cac_leakage_table->entries[hwmgr->dyn_state.cac_leakage_table->count - 1].Leakage * VOLTAGE_SCALE);
 			}
@@ -414,7 +414,7 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 					*lo = hwmgr->dyn_state.cac_leakage_table->entries[v_index].Vddc * VOLTAGE_SCALE;
 					*hi = (uint16_t)(hwmgr->dyn_state.cac_leakage_table->entries[v_index].Leakage) * VOLTAGE_SCALE;
 				} else {
-					pr_warning("Index from SCLK/VDDC Dependency Table exceeds the CAC Leakage Table index in second look up, using maximum index from CAC table.");
+					pr_warn("Index from SCLK/VDDC Dependency Table exceeds the CAC Leakage Table index in second look up, using maximum index from CAC table.");
 					*lo = hwmgr->dyn_state.cac_leakage_table->entries[hwmgr->dyn_state.cac_leakage_table->count - 1].Vddc * VOLTAGE_SCALE;
 					*hi = (uint16_t)(hwmgr->dyn_state.cac_leakage_table->entries[hwmgr->dyn_state.cac_leakage_table->count - 1].Leakage * VOLTAGE_SCALE);
 				}
@@ -423,7 +423,7 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 		}
 
 		if (!vol_found)
-			pr_warning("Unable to get std_vddc from SCLK/VDDC Dependency Table, using vddc.\n");
+			pr_warn("Unable to get std_vddc from SCLK/VDDC Dependency Table, using vddc.\n");
 	}
 
 	return 0;
@@ -1545,7 +1545,7 @@ static int iceland_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.GraphicsBootLevel = 0;
-		printk(KERN_ERR "[ powerplay ] VBIOS did not find boot engine clock value \
+		pr_err("VBIOS did not find boot engine clock value \
 			in dependency table. Using Graphics DPM level 0!");
 		result = 0;
 	}
@@ -1556,7 +1556,7 @@ static int iceland_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.MemoryBootLevel = 0;
-		printk(KERN_ERR "[ powerplay ] VBIOS did not find boot engine clock value \
+		pr_err("VBIOS did not find boot engine clock value \
 			in dependency table. Using Memory DPM level 0!");
 		result = 0;
 	}
@@ -2006,6 +2006,12 @@ int iceland_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl))
 		return 0;
 
+	if (hwmgr->thermal_controller.fanInfo.bNoFan) {
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MicrocodeFanControl);
+		return 0;
+	}
+
 	if (0 == smu7_data->fan_table_start) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl);
 		return 0;
@@ -2140,7 +2146,7 @@ uint32_t iceland_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU71_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	printk("cant't get the offset of type %x member %x \n", type, member);
+	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2163,7 +2169,7 @@ uint32_t iceland_get_mac_definition(uint32_t value)
 		return SMU71_MAX_LEVELS_MVDD;
 	}
 
-	printk("cant't get the mac of %x \n", value);
+	pr_warn("can't get the mac of %x\n", value);
 	return 0;
 }
 

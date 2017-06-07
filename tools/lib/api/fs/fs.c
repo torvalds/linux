@@ -38,6 +38,10 @@
 #define HUGETLBFS_MAGIC        0x958458f6
 #endif
 
+#ifndef BPF_FS_MAGIC
+#define BPF_FS_MAGIC           0xcafe4a11
+#endif
+
 static const char * const sysfs__fs_known_mountpoints[] = {
 	"/sys",
 	0,
@@ -75,6 +79,11 @@ static const char * const hugetlbfs__known_mountpoints[] = {
 	0,
 };
 
+static const char * const bpf_fs__known_mountpoints[] = {
+	"/sys/fs/bpf",
+	0,
+};
+
 struct fs {
 	const char		*name;
 	const char * const	*mounts;
@@ -89,6 +98,7 @@ enum {
 	FS__DEBUGFS = 2,
 	FS__TRACEFS = 3,
 	FS__HUGETLBFS = 4,
+	FS__BPF_FS = 5,
 };
 
 #ifndef TRACEFS_MAGIC
@@ -120,6 +130,11 @@ static struct fs fs__entries[] = {
 		.name	= "hugetlbfs",
 		.mounts = hugetlbfs__known_mountpoints,
 		.magic	= HUGETLBFS_MAGIC,
+	},
+	[FS__BPF_FS] = {
+		.name	= "bpf",
+		.mounts = bpf_fs__known_mountpoints,
+		.magic	= BPF_FS_MAGIC,
 	},
 };
 
@@ -280,6 +295,7 @@ FS(procfs,  FS__PROCFS);
 FS(debugfs, FS__DEBUGFS);
 FS(tracefs, FS__TRACEFS);
 FS(hugetlbfs, FS__HUGETLBFS);
+FS(bpf_fs, FS__BPF_FS);
 
 int filename__read_int(const char *filename, int *value)
 {
@@ -423,6 +439,35 @@ int sysfs__read_str(const char *entry, char **buf, size_t *sizep)
 	return filename__read_str(path, buf, sizep);
 }
 
+int sysfs__read_bool(const char *entry, bool *value)
+{
+	char *buf;
+	size_t size;
+	int ret;
+
+	ret = sysfs__read_str(entry, &buf, &size);
+	if (ret < 0)
+		return ret;
+
+	switch (buf[0]) {
+	case '1':
+	case 'y':
+	case 'Y':
+		*value = true;
+		break;
+	case '0':
+	case 'n':
+	case 'N':
+		*value = false;
+		break;
+	default:
+		ret = -1;
+	}
+
+	free(buf);
+
+	return ret;
+}
 int sysctl__read_int(const char *sysctl, int *value)
 {
 	char path[PATH_MAX];

@@ -430,6 +430,7 @@ static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 		dmi_save_ident(dm, DMI_PRODUCT_VERSION, 6);
 		dmi_save_ident(dm, DMI_PRODUCT_SERIAL, 7);
 		dmi_save_uuid(dm, DMI_PRODUCT_UUID, 8);
+		dmi_save_ident(dm, DMI_PRODUCT_FAMILY, 26);
 		break;
 	case 2:		/* Base Board Information */
 		dmi_save_ident(dm, DMI_BOARD_VENDOR, 4);
@@ -560,7 +561,7 @@ static int __init dmi_present(const u8 *buf)
 					dmi_ver >> 16, (dmi_ver >> 8) & 0xFF);
 			}
 			dmi_format_ids(dmi_ids_string, sizeof(dmi_ids_string));
-			printk(KERN_DEBUG "DMI: %s\n", dmi_ids_string);
+			pr_info("DMI: %s\n", dmi_ids_string);
 			return 0;
 		}
 	}
@@ -588,7 +589,7 @@ static int __init dmi_smbios3_present(const u8 *buf)
 				dmi_ver >> 16, (dmi_ver >> 8) & 0xFF,
 				dmi_ver & 0xFF);
 			dmi_format_ids(dmi_ids_string, sizeof(dmi_ids_string));
-			pr_debug("DMI: %s\n", dmi_ids_string);
+			pr_info("DMI: %s\n", dmi_ids_string);
 			return 0;
 		}
 	}

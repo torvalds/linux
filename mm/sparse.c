@@ -248,10 +248,7 @@ static int __meminit sparse_init_one_section(struct mem_section *ms,
 
 unsigned long usemap_size(void)
 {
-	unsigned long size_bytes;
-	size_bytes = roundup(SECTION_BLOCKFLAGS_BITS, 8) / 8;
-	size_bytes = roundup(size_bytes, sizeof(unsigned long));
-	return size_bytes;
+	return BITS_TO_LONGS(SECTION_BLOCKFLAGS_BITS) * sizeof(unsigned long);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -662,12 +659,12 @@ static void free_map_bootmem(struct page *memmap)
 		>> PAGE_SHIFT;
 
 	for (i = 0; i < nr_pages; i++, page++) {
-		magic = (unsigned long) page->lru.next;
+		magic = (unsigned long) page->freelist;
 
 		BUG_ON(magic == NODE_INFO);
 
 		maps_section_nr = pfn_to_section_nr(page_to_pfn(page));
-		removing_section_nr = page->private;
+		removing_section_nr = page_private(page);
 
 		/*
 		 * When this function is called, the removing section is

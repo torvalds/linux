@@ -4,6 +4,7 @@
  * numa: Simulate NUMA-sensitive workload and measure their NUMA performance
  */
 
+#include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
 
@@ -30,6 +31,7 @@
 #include <sys/wait.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
+#include <linux/kernel.h>
 #include <linux/time64.h>
 
 #include <numa.h>
@@ -43,6 +45,7 @@
 /*
  * Debug printf:
  */
+#undef dprintf
 #define dprintf(x...) do { if (g && g->p.show_details >= 1) printf(x); } while (0)
 
 struct thread_data {
@@ -186,7 +189,8 @@ static const struct option options[] = {
 	OPT_INCR   ('d', "show_details"	, &p0.show_details,	"Show details"),
 	OPT_INCR   ('a', "all"		, &p0.run_all,		"Run all tests in the suite"),
 	OPT_INTEGER('H', "thp"		, &p0.thp,		"MADV_NOHUGEPAGE < 0 < MADV_HUGEPAGE"),
-	OPT_BOOLEAN('c', "show_convergence", &p0.show_convergence, "show convergence details"),
+	OPT_BOOLEAN('c', "show_convergence", &p0.show_convergence, "show convergence details, "
+		    "convergence is reached when each process (all its threads) is running on a single NUMA node."),
 	OPT_BOOLEAN('m', "measure_convergence",	&p0.measure_convergence, "measure convergence latency"),
 	OPT_BOOLEAN('q', "quiet"	, &p0.show_quiet,	"quiet mode"),
 	OPT_BOOLEAN('S', "serialize-startup", &p0.serialize_startup,"serialize thread startup"),
@@ -1573,13 +1577,13 @@ static int __bench_numa(const char *name)
 		"GB/sec,", "total-speed",	"GB/sec total speed");
 
 	if (g->p.show_details >= 2) {
-		char tname[32];
+		char tname[14 + 2 * 10 + 1];
 		struct thread_data *td;
 		for (p = 0; p < g->p.nr_proc; p++) {
 			for (t = 0; t < g->p.nr_threads; t++) {
-				memset(tname, 0, 32);
+				memset(tname, 0, sizeof(tname));
 				td = g->threads + p*g->p.nr_threads + t;
-				snprintf(tname, 32, "process%d:thread%d", p, t);
+				snprintf(tname, sizeof(tname), "process%d:thread%d", p, t);
 				print_res(tname, td->speed_gbs,
 					"GB/sec",	"thread-speed", "GB/sec/thread speed");
 				print_res(tname, td->system_time_ns / NSEC_PER_SEC,
@@ -1765,7 +1769,7 @@ static int bench_all(void)
 	return 0;
 }
 
-int bench_numa(int argc, const char **argv, const char *prefix __maybe_unused)
+int bench_numa(int argc, const char **argv)
 {
 	init_params(&p0, "main,", argc, argv);
 	argc = parse_options(argc, argv, options, bench_numa_usage, 0);

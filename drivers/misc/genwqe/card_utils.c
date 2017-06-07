@@ -740,13 +740,10 @@ int genwqe_read_softreset(struct genwqe_dev *cd)
 int genwqe_set_interrupt_capability(struct genwqe_dev *cd, int count)
 {
 	int rc;
-	struct pci_dev *pci_dev = cd->pci_dev;
 
-	rc = pci_enable_msi_range(pci_dev, 1, count);
+	rc = pci_alloc_irq_vectors(cd->pci_dev, 1, count, PCI_IRQ_MSI);
 	if (rc < 0)
 		return rc;
-
-	cd->flags |= GENWQE_FLAG_MSI_ENABLED;
 	return 0;
 }
 
@@ -756,12 +753,7 @@ int genwqe_set_interrupt_capability(struct genwqe_dev *cd, int count)
  */
 void genwqe_reset_interrupt_capability(struct genwqe_dev *cd)
 {
-	struct pci_dev *pci_dev = cd->pci_dev;
-
-	if (cd->flags & GENWQE_FLAG_MSI_ENABLED) {
-		pci_disable_msi(pci_dev);
-		cd->flags &= ~GENWQE_FLAG_MSI_ENABLED;
-	}
+	pci_free_irq_vectors(cd->pci_dev);
 }
 
 /**

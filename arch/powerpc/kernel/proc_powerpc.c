@@ -24,7 +24,7 @@
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
 #include <asm/rtas.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/prom.h>
 
 #ifdef CONFIG_PPC64

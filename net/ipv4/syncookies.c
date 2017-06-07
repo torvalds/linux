@@ -13,13 +13,14 @@
 #include <linux/tcp.h>
 #include <linux/slab.h>
 #include <linux/random.h>
-#include <linux/cryptohash.h>
+#include <linux/siphash.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
+#include <net/secure_seq.h>
 #include <net/tcp.h>
 #include <net/route.h>
 
-static u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS] __read_mostly;
+static siphash_key_t syncookie_secret[2] __read_mostly;
 
 #define COOKIEBITS 24	/* Upper bits store count */
 #define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)
@@ -48,24 +49,13 @@ static u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS] __read_mostly;
 #define TSBITS	6
 #define TSMASK	(((__u32)1 << TSBITS) - 1)
 
-static DEFINE_PER_CPU(__u32 [16 + 5 + SHA_WORKSPACE_WORDS], ipv4_cookie_scratch);
-
 static u32 cookie_hash(__be32 saddr, __be32 daddr, __be16 sport, __be16 dport,
 		       u32 count, int c)
 {
-	__u32 *tmp;
-
 	net_get_random_once(syncookie_secret, sizeof(syncookie_secret));
-
-	tmp  = this_cpu_ptr(ipv4_cookie_scratch);
-	memcpy(tmp + 4, syncookie_secret[c], sizeof(syncookie_secret[c]));
-	tmp[0] = (__force u32)saddr;
-	tmp[1] = (__force u32)daddr;
-	tmp[2] = ((__force u32)sport << 16) + (__force u32)dport;
-	tmp[3] = count;
-	sha_transform(tmp + 16, (__u8 *)tmp, tmp + 16 + 5);
-
-	return tmp[17];
+	return siphash_4u32((__force u32)saddr, (__force u32)daddr,
+			    (__force u32)sport << 16 | (__force u32)dport,
+			    count, &syncookie_secret[c]);
 }
 
 
@@ -214,7 +204,7 @@ EXPORT_SYMBOL_GPL(__cookie_v4_check);
 
 struct sock *tcp_get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 				 struct request_sock *req,
-				 struct dst_entry *dst)
+				 struct dst_entry *dst, u32 tsoff)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct sock *child;
@@ -224,6 +214,7 @@ struct sock *tcp_get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 						 NULL, &own_req);
 	if (child) {
 		atomic_set(&req->rsk_refcnt, 1);
+		tcp_sk(child)->tsoffset = tsoff;
 		sock_rps_save_rxhash(child, skb);
 		inet_csk_reqsk_queue_add(sk, req, child);
 	} else {
@@ -303,6 +294,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	struct rtable *rt;
 	__u8 rcv_wscale;
 	struct flowi4 fl4;
+	u32 tsoff = 0;
 
 	if (!sock_net(sk)->ipv4.sysctl_tcp_syncookies || !th->ack || th->rst)
 		goto out;
@@ -321,6 +313,11 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	/* check for timestamp cookie support */
 	memset(&tcp_opt, 0, sizeof(tcp_opt));
 	tcp_parse_options(skb, &tcp_opt, 0, NULL);
+
+	if (tcp_opt.saw_tstamp && tcp_opt.rcv_tsecr) {
+		tsoff = secure_tcp_ts_off(ip_hdr(skb)->daddr, ip_hdr(skb)->saddr);
+		tcp_opt.rcv_tsecr -= tsoff;
+	}
 
 	if (!cookie_timestamp_decode(&tcp_opt))
 		goto out;
@@ -392,7 +389,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	ireq->rcv_wscale  = rcv_wscale;
 	ireq->ecn_ok = cookie_ecn_ok(&tcp_opt, sock_net(sk), &rt->dst);
 
-	ret = tcp_get_cookie_sock(sk, skb, req, &rt->dst);
+	ret = tcp_get_cookie_sock(sk, skb, req, &rt->dst, tsoff);
 	/* ip_queue_xmit() depends on our flow being setup
 	 * Normal sockets get it right from inet_csk_route_child_sock()
 	 */

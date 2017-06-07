@@ -222,6 +222,8 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, 40); /* a little over 2 frames. */
 	pm_runtime_enable(dev);
 
 	return 0;

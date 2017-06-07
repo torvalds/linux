@@ -180,6 +180,10 @@ static ssize_t orangefs_devreq_read(struct file *file,
 		return -EINVAL;
 	}
 
+	/* Check for an empty list before locking. */
+	if (list_empty(&orangefs_request_list))
+		return -EAGAIN;
+
 restart:
 	/* Get next op (if any) from top of list. */
 	spin_lock(&orangefs_request_list_lock);
@@ -208,14 +212,19 @@ restart:
 				continue;
 			/*
 			 * Skip ops whose filesystem we don't know about unless
-			 * it is being mounted.
+			 * it is being mounted or unmounted.  It is possible for
+			 * a filesystem we don't know about to be unmounted if
+			 * it fails to mount in the kernel after userspace has
+			 * been sent the mount request.
 			 */
 			/* XXX: is there a better way to detect this? */
 			} else if (ret == -1 &&
 				   !(op->upcall.type ==
 					ORANGEFS_VFS_OP_FS_MOUNT ||
 				     op->upcall.type ==
-					ORANGEFS_VFS_OP_GETATTR)) {
+					ORANGEFS_VFS_OP_GETATTR ||
+				     op->upcall.type ==
+					ORANGEFS_VFS_OP_FS_UMOUNT)) {
 				gossip_debug(GOSSIP_DEV_DEBUG,
 				    "orangefs: skipping op tag %llu %s\n",
 				    llu(op->tag), get_opname_string(op));
@@ -355,7 +364,6 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		__u64 tag;
 	} head;
 	int total = ret = iov_iter_count(iter);
-	int n;
 	int downcall_size = sizeof(struct orangefs_downcall_s);
 	int head_size = sizeof(head);
 
@@ -372,8 +380,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		return -EFAULT;
 	}
      
-	n = copy_from_iter(&head, head_size, iter);
-	if (n < head_size) {
+	if (!copy_from_iter_full(&head, head_size, iter)) {
 		gossip_err("%s: failed to copy head.\n", __func__);
 		return -EFAULT;
 	}
@@ -402,13 +409,13 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	/* remove the op from the in progress hash table */
 	op = orangefs_devreq_remove_op(head.tag);
 	if (!op) {
-		gossip_err("WARNING: No one's waiting for tag %llu\n",
-			   llu(head.tag));
+		gossip_debug(GOSSIP_DEV_DEBUG,
+			     "%s: No one's waiting for tag %llu\n",
+			     __func__, llu(head.tag));
 		return ret;
 	}
 
-	n = copy_from_iter(&op->downcall, downcall_size, iter);
-	if (n != downcall_size) {
+	if (!copy_from_iter_full(&op->downcall, downcall_size, iter)) {
 		gossip_err("%s: failed to copy downcall.\n", __func__);
 		goto Efault;
 	}
@@ -462,10 +469,8 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		goto Enomem;
 	}
 	memset(op->downcall.trailer_buf, 0, op->downcall.trailer_size);
-	n = copy_from_iter(op->downcall.trailer_buf,
-			   op->downcall.trailer_size,
-			   iter);
-	if (n != op->downcall.trailer_size) {
+	if (!copy_from_iter_full(op->downcall.trailer_buf,
+			         op->downcall.trailer_size, iter)) {
 		gossip_err("%s: failed to copy trailer.\n", __func__);
 		vfree(op->downcall.trailer_buf);
 		goto Efault;

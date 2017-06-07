@@ -187,6 +187,7 @@ BUILD_CM_R_(config,		MIPS_CM_GCB_OFS + 0x00)
 BUILD_CM_RW(base,		MIPS_CM_GCB_OFS + 0x08)
 BUILD_CM_RW(access,		MIPS_CM_GCB_OFS + 0x20)
 BUILD_CM_R_(rev,		MIPS_CM_GCB_OFS + 0x30)
+BUILD_CM_RW(err_control,	MIPS_CM_GCB_OFS + 0x38)
 BUILD_CM_RW(error_mask,		MIPS_CM_GCB_OFS + 0x40)
 BUILD_CM_RW(error_cause,	MIPS_CM_GCB_OFS + 0x48)
 BUILD_CM_RW(error_addr,		MIPS_CM_GCB_OFS + 0x50)
@@ -265,6 +266,12 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_REV_CM2				CM_ENCODE_REV(6, 0)
 #define CM_REV_CM2_5				CM_ENCODE_REV(7, 0)
 #define CM_REV_CM3				CM_ENCODE_REV(8, 0)
+
+/* GCR_ERR_CONTROL register fields */
+#define CM_GCR_ERR_CONTROL_L2_ECC_EN_SHF	1
+#define CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK	(_ULCAST_(0x1) << 1)
+#define CM_GCR_ERR_CONTROL_L2_ECC_SUPPORT_SHF	0
+#define CM_GCR_ERR_CONTROL_L2_ECC_SUPPORT_MSK	(_ULCAST_(0x1) << 0)
 
 /* GCR_ERROR_CAUSE register fields */
 #define CM_GCR_ERROR_CAUSE_ERRTYPE_SHF		27

@@ -25,7 +25,7 @@
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
-
+#include <net/pkt_cls.h>
 
 struct multiq_sched_data {
 	u16 bands;
@@ -217,6 +217,8 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 				sch_tree_lock(sch);
 				old = q->queues[i];
 				q->queues[i] = child;
+				if (child != &noop_qdisc)
+					qdisc_hash_add(child, true);
 
 				if (old != &noop_qdisc) {
 					qdisc_tree_reduce_backlog(old,

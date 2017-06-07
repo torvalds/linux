@@ -20,6 +20,7 @@
 #include <linux/moduleparam.h>
 #include <linux/stringify.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
@@ -824,6 +825,7 @@ static int tg3_ape_event_lock(struct tg3 *tp, u32 timeout_us)
 	return timeout_us ? 0 : -EBUSY;
 }
 
+#ifdef CONFIG_TIGON3_HWMON
 static int tg3_ape_wait_for_event(struct tg3 *tp, u32 timeout_us)
 {
 	u32 i, apedata;
@@ -903,6 +905,7 @@ static int tg3_ape_scratchpad_read(struct tg3 *tp, u32 *data, u32 base_off,
 
 	return 0;
 }
+#endif
 
 static int tg3_ape_send_event(struct tg3 *tp, u32 event)
 {
@@ -8720,11 +8723,14 @@ static void tg3_free_consistent(struct tg3 *tp)
 	tg3_mem_rx_release(tp);
 	tg3_mem_tx_release(tp);
 
+	/* Protect tg3_get_stats64() from reading freed tp->hw_stats. */
+	tg3_full_lock(tp, 0);
 	if (tp->hw_stats) {
 		dma_free_coherent(&tp->pdev->dev, sizeof(struct tg3_hw_stats),
 				  tp->hw_stats, tp->stats_mapping);
 		tp->hw_stats = NULL;
 	}
+	tg3_full_unlock(tp);
 }
 
 /*
@@ -10740,6 +10746,7 @@ static int tg3_init_hw(struct tg3 *tp, bool reset_phy)
 	return tg3_reset_hw(tp, reset_phy);
 }
 
+#ifdef CONFIG_TIGON3_HWMON
 static void tg3_sd_scan_scratchpad(struct tg3 *tp, struct tg3_ocir *ocir)
 {
 	int i;
@@ -10822,6 +10829,10 @@ static void tg3_hwmon_open(struct tg3 *tp)
 		dev_err(&pdev->dev, "Cannot register hwmon device, aborting\n");
 	}
 }
+#else
+static inline void tg3_hwmon_close(struct tg3 *tp) { }
+static inline void tg3_hwmon_open(struct tg3 *tp) { }
+#endif /* CONFIG_TIGON3_HWMON */
 
 
 #define TG3_STAT_ADD32(PSTAT, REG) \
@@ -11717,10 +11728,6 @@ static int tg3_close(struct net_device *dev)
 	}
 
 	tg3_stop(tp);
-
-	/* Clear stats across close / open calls */
-	memset(&tp->net_stats_prev, 0, sizeof(tp->net_stats_prev));
-	memset(&tp->estats_prev, 0, sizeof(tp->estats_prev));
 
 	if (pci_device_is_present(tp->pdev)) {
 		tg3_power_down_prepare(tp);
@@ -14142,8 +14149,8 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.set_link_ksettings	= tg3_set_link_ksettings,
 };
 
-static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
-						struct rtnl_link_stats64 *stats)
+static void tg3_get_stats64(struct net_device *dev,
+			    struct rtnl_link_stats64 *stats)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
@@ -14151,13 +14158,11 @@ static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
 	if (!tp->hw_stats) {
 		*stats = tp->net_stats_prev;
 		spin_unlock_bh(&tp->lock);
-		return stats;
+		return;
 	}
 
 	tg3_get_nstats(tp, stats);
 	spin_unlock_bh(&tp->lock);
-
-	return stats;
 }
 
 static void tg3_set_rx_mode(struct net_device *dev)

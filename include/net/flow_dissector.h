@@ -41,6 +41,13 @@ struct flow_dissector_key_vlan {
 	u16	padding;
 };
 
+struct flow_dissector_key_mpls {
+	u32	mpls_ttl:8,
+		mpls_bos:1,
+		mpls_tc:3,
+		mpls_label:20;
+};
+
 struct flow_dissector_key_keyid {
 	__be32	keyid;
 };
@@ -86,6 +93,24 @@ struct flow_dissector_key_addrs {
 		struct flow_dissector_key_ipv6_addrs v6addrs;
 		struct flow_dissector_key_tipc_addrs tipcaddrs;
 	};
+};
+
+/**
+ * flow_dissector_key_arp:
+ *	@ports: Operation, source and target addresses for an ARP header
+ *              for Ethernet hardware addresses and IPv4 protocol addresses
+ *		sip: Sender IP address
+ *		tip: Target IP address
+ *		op:  Operation
+ *		sha: Sender hardware address
+ *		tpa: Target hardware address
+ */
+struct flow_dissector_key_arp {
+	__u32 sip;
+	__u32 tip;
+	__u8 op;
+	unsigned char sha[ETH_ALEN];
+	unsigned char tha[ETH_ALEN];
 };
 
 /**
@@ -141,6 +166,7 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_ICMP, /* struct flow_dissector_key_icmp */
 	FLOW_DISSECTOR_KEY_ETH_ADDRS, /* struct flow_dissector_key_eth_addrs */
 	FLOW_DISSECTOR_KEY_TIPC_ADDRS, /* struct flow_dissector_key_tipc_addrs */
+	FLOW_DISSECTOR_KEY_ARP, /* struct flow_dissector_key_arp */
 	FLOW_DISSECTOR_KEY_VLAN, /* struct flow_dissector_key_flow_vlan */
 	FLOW_DISSECTOR_KEY_FLOW_LABEL, /* struct flow_dissector_key_flow_tags */
 	FLOW_DISSECTOR_KEY_GRE_KEYID, /* struct flow_dissector_key_keyid */
@@ -150,6 +176,7 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS, /* struct flow_dissector_key_ipv6_addrs */
 	FLOW_DISSECTOR_KEY_ENC_CONTROL, /* struct flow_dissector_key_control */
 	FLOW_DISSECTOR_KEY_ENC_PORTS, /* struct flow_dissector_key_ports */
+	FLOW_DISSECTOR_KEY_MPLS, /* struct flow_dissector_key_mpls */
 
 	FLOW_DISSECTOR_KEY_MAX,
 };

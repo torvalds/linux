@@ -3,8 +3,10 @@
  *
  * Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  *	      Cornelia Huck (cornelia.huck@de.ibm.com)
+ *
+ * License: GPL
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -676,7 +678,6 @@ void ccw_device_get_schid(struct ccw_device *cdev, struct subchannel_id *schid)
 }
 EXPORT_SYMBOL_GPL(ccw_device_get_schid);
 
-MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(ccw_device_set_options_mask);
 EXPORT_SYMBOL(ccw_device_set_options);
 EXPORT_SYMBOL(ccw_device_clear_options);

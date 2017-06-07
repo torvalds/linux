@@ -361,6 +361,7 @@ static void set_status_attr(int id)
 	status->attr.attr.name = status->name;
 	status->attr.attr.mode = S_IRUGO;
 	status->attr.show = status_show;
+	sysfs_attr_init(&status->attr.attr);
 }
 
 static int init_status_attrs(void)

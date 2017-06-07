@@ -26,11 +26,11 @@ static inline bool is_bits_set(int value, int mask)
 }
 
 static int encx24j600_switch_bank(struct encx24j600_context *ctx,
-					 int bank)
+				  int bank)
 {
 	int ret = 0;
-
 	int bank_opcode = BANK_SELECT(bank);
+
 	ret = spi_write(ctx->spi, &bank_opcode, 1);
 	if (ret == 0)
 		ctx->bank = bank;
@@ -39,7 +39,7 @@ static int encx24j600_switch_bank(struct encx24j600_context *ctx,
 }
 
 static int encx24j600_cmdn(struct encx24j600_context *ctx, u8 opcode,
-			    const void *buf, size_t len)
+			   const void *buf, size_t len)
 {
 	struct spi_message m;
 	struct spi_transfer t[2] = { { .tx_buf = &opcode, .len = 1, },
@@ -54,12 +54,14 @@ static int encx24j600_cmdn(struct encx24j600_context *ctx, u8 opcode,
 static void regmap_lock_mutex(void *context)
 {
 	struct encx24j600_context *ctx = context;
+
 	mutex_lock(&ctx->mutex);
 }
 
 static void regmap_unlock_mutex(void *context)
 {
 	struct encx24j600_context *ctx = context;
+
 	mutex_unlock(&ctx->mutex);
 }
 
@@ -128,6 +130,7 @@ static int regmap_encx24j600_sfr_update(struct encx24j600_context *ctx,
 
 	if (reg < 0x80) {
 		int ret = 0;
+
 		cmd = banked_code | banked_reg;
 		if ((banked_reg < 0x16) && (ctx->bank != bank))
 			ret = encx24j600_switch_bank(ctx, bank);
@@ -174,6 +177,7 @@ static int regmap_encx24j600_sfr_write(void *context, u8 reg, u8 *val,
 				       size_t len)
 {
 	struct encx24j600_context *ctx = context;
+
 	return regmap_encx24j600_sfr_update(ctx, reg, val, len, WCRU, WCRCODE);
 }
 
@@ -228,9 +232,9 @@ int regmap_encx24j600_spi_write(void *context, u8 reg, const u8 *data,
 
 	if (reg < 0xc0)
 		return encx24j600_cmdn(ctx, reg, data, count);
-	else
-		/* SPI 1-byte command. Ignore data */
-		return spi_write(ctx->spi, &reg, 1);
+
+	/* SPI 1-byte command. Ignore data */
+	return spi_write(ctx->spi, &reg, 1);
 }
 EXPORT_SYMBOL_GPL(regmap_encx24j600_spi_write);
 
@@ -495,6 +499,7 @@ static struct regmap_config phycfg = {
 	.writeable_reg = encx24j600_phymap_writeable,
 	.volatile_reg = encx24j600_phymap_volatile,
 };
+
 static struct regmap_bus phymap_encx24j600 = {
 	.reg_write = regmap_encx24j600_phy_reg_write,
 	.reg_read = regmap_encx24j600_phy_reg_read,

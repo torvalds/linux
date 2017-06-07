@@ -20,10 +20,15 @@
 
 #include "util/debug.h"
 
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/string.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <regex.h>
+
+#include "sane_ctype.h"
 
 static int	kmem_slab;
 static int	kmem_page;
@@ -655,7 +660,6 @@ static const struct {
 	{ "__GFP_RECLAIM",		"R" },
 	{ "__GFP_DIRECT_RECLAIM",	"DR" },
 	{ "__GFP_KSWAPD_RECLAIM",	"KR" },
-	{ "__GFP_OTHER_NODE",		"ON" },
 };
 
 static size_t max_gfp_len;
@@ -965,6 +969,7 @@ static struct perf_tool perf_kmem = {
 	.comm		 = perf_event__process_comm,
 	.mmap		 = perf_event__process_mmap,
 	.mmap2		 = perf_event__process_mmap2,
+	.namespaces	 = perf_event__process_namespaces,
 	.ordered_events	 = true,
 };
 
@@ -1066,7 +1071,7 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 
 		data = rb_entry(next, struct page_stat, node);
 		sym = machine__find_kernel_function(machine, data->callsite, &map);
-		if (sym && sym->name)
+		if (sym)
 			caller = sym->name;
 		else
 			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
@@ -1108,7 +1113,7 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 
 		data = rb_entry(next, struct page_stat, node);
 		sym = machine__find_kernel_function(machine, data->callsite, &map);
-		if (sym && sym->name)
+		if (sym)
 			caller = sym->name;
 		else
 			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
@@ -1866,7 +1871,7 @@ static int __cmd_record(int argc, const char **argv)
 	for (j = 1; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];
 
-	return cmd_record(i, rec_argv, NULL);
+	return cmd_record(i, rec_argv);
 }
 
 static int kmem_config(const char *var, const char *value, void *cb __maybe_unused)
@@ -1885,7 +1890,7 @@ static int kmem_config(const char *var, const char *value, void *cb __maybe_unus
 	return 0;
 }
 
-int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_kmem(int argc, const char **argv)
 {
 	const char * const default_slab_sort = "frag,hit,bytes";
 	const char * const default_page_sort = "bytes,hit";
@@ -1921,10 +1926,12 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 	struct perf_session *session;
-	int ret = -1;
 	const char errmsg[] = "No %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
+	int ret = perf_config(kmem_config, NULL);
 
-	perf_config(kmem_config, NULL);
+	if (ret)
+		return ret;
+
 	argc = parse_options_subcommand(argc, argv, kmem_options,
 					kmem_subcommands, kmem_usage, 0);
 
@@ -1948,6 +1955,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	kmem_session = session = perf_session__new(&file, false, &perf_kmem);
 	if (session == NULL)
 		return -1;
+
+	ret = -1;
 
 	if (kmem_slab) {
 		if (!perf_evlist__find_tracepoint_by_name(session->evlist,

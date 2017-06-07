@@ -43,7 +43,6 @@
  */
 
 #define DRIVER_DESC "USB HID core driver"
-#define DRIVER_LICENSE "GPL"
 
 /*
  * Module parameters.
@@ -52,6 +51,10 @@
 static unsigned int hid_mousepoll_interval;
 module_param_named(mousepoll, hid_mousepoll_interval, uint, 0644);
 MODULE_PARM_DESC(mousepoll, "Polling interval of mice");
+
+static unsigned int hid_jspoll_interval;
+module_param_named(jspoll, hid_jspoll_interval, uint, 0644);
+MODULE_PARM_DESC(jspoll, "Polling interval of joysticks");
 
 static unsigned int ignoreled;
 module_param_named(ignoreled, ignoreled, uint, 0644);
@@ -754,11 +757,9 @@ void usbhid_init_reports(struct hid_device *hid)
 	struct hid_report_enum *report_enum;
 	int err, ret;
 
-	if (!(hid->quirks & HID_QUIRK_NO_INIT_INPUT_REPORTS)) {
-		report_enum = &hid->report_enum[HID_INPUT_REPORT];
-		list_for_each_entry(report, &report_enum->report_list, list)
-			usbhid_submit_report(hid, report, USB_DIR_IN);
-	}
+	report_enum = &hid->report_enum[HID_INPUT_REPORT];
+	list_for_each_entry(report, &report_enum->report_list, list)
+		usbhid_submit_report(hid, report, USB_DIR_IN);
 
 	report_enum = &hid->report_enum[HID_FEATURE_REPORT];
 	list_for_each_entry(report, &report_enum->report_list, list)
@@ -1005,10 +1006,9 @@ static int usbhid_parse(struct hid_device *hid)
 		return -EINVAL;
 	}
 
-	if (!(rdesc = kmalloc(rsize, GFP_KERNEL))) {
-		dbg_hid("couldn't allocate rdesc memory\n");
+	rdesc = kmalloc(rsize, GFP_KERNEL);
+	if (!rdesc)
 		return -ENOMEM;
-	}
 
 	hid_set_idle(dev, interface->desc.bInterfaceNumber, 0, 0);
 
@@ -1078,13 +1078,21 @@ static int usbhid_start(struct hid_device *hid)
 		if (hid->quirks & HID_QUIRK_FULLSPEED_INTERVAL &&
 		    dev->speed == USB_SPEED_HIGH) {
 			interval = fls(endpoint->bInterval*8);
-			printk(KERN_INFO "%s: Fixing fullspeed to highspeed interval: %d -> %d\n",
-			       hid->name, endpoint->bInterval, interval);
+			pr_info("%s: Fixing fullspeed to highspeed interval: %d -> %d\n",
+				hid->name, endpoint->bInterval, interval);
 		}
 
-		/* Change the polling interval of mice. */
-		if (hid->collection->usage == HID_GD_MOUSE && hid_mousepoll_interval > 0)
-			interval = hid_mousepoll_interval;
+		/* Change the polling interval of mice and joysticks. */
+		switch (hid->collection->usage) {
+		case HID_GD_MOUSE:
+			if (hid_mousepoll_interval > 0)
+				interval = hid_mousepoll_interval;
+			break;
+		case HID_GD_JOYSTICK:
+			if (hid_jspoll_interval > 0)
+				interval = hid_jspoll_interval;
+			break;
+		}
 
 		ret = -ENOMEM;
 		if (usb_endpoint_dir_in(endpoint)) {
@@ -1120,9 +1128,6 @@ static int usbhid_start(struct hid_device *hid)
 			     usbhid->ctrlbuf, 1, hid_ctrl, hid);
 	usbhid->urbctrl->transfer_dma = usbhid->ctrlbuf_dma;
 	usbhid->urbctrl->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-
-	if (!(hid->quirks & HID_QUIRK_NO_INIT_REPORTS))
-		usbhid_init_reports(hid);
 
 	set_bit(HID_STARTED, &usbhid->iofl);
 
@@ -1457,23 +1462,22 @@ static int hid_post_reset(struct usb_interface *intf)
 	 * the size of the HID report descriptor has not changed.
 	 */
 	rdesc = kmalloc(hid->dev_rsize, GFP_KERNEL);
-	if (!rdesc) {
-		dbg_hid("couldn't allocate rdesc memory (post_reset)\n");
-		return 1;
-	}
+	if (!rdesc)
+		return -ENOMEM;
+
 	status = hid_get_class_descriptor(dev,
 				interface->desc.bInterfaceNumber,
 				HID_DT_REPORT, rdesc, hid->dev_rsize);
 	if (status < 0) {
 		dbg_hid("reading report descriptor failed (post_reset)\n");
 		kfree(rdesc);
-		return 1;
+		return status;
 	}
 	status = memcmp(rdesc, hid->dev_rdesc, hid->dev_rsize);
 	kfree(rdesc);
 	if (status != 0) {
 		dbg_hid("report descriptor changed\n");
-		return 1;
+		return -EPERM;
 	}
 
 	/* No need to do another reset or clear a halted endpoint */
@@ -1638,7 +1642,7 @@ static int __init hid_init(void)
 	retval = usb_register(&hid_driver);
 	if (retval)
 		goto usb_register_fail;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
+	pr_info(KBUILD_MODNAME ": " DRIVER_DESC "\n");
 
 	return 0;
 usb_register_fail:
@@ -1660,4 +1664,4 @@ MODULE_AUTHOR("Andreas Gal");
 MODULE_AUTHOR("Vojtech Pavlik");
 MODULE_AUTHOR("Jiri Kosina");
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_LICENSE("GPL");

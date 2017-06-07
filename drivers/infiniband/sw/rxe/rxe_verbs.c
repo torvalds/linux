@@ -31,9 +31,12 @@
  * SOFTWARE.
  */
 
+#include <linux/dma-mapping.h>
+#include <net/addrconf.h>
 #include "rxe.h"
 #include "rxe_loc.h"
 #include "rxe_queue.h"
+#include "rxe_hw_counters.h"
 
 static int rxe_query_device(struct ib_device *dev,
 			    struct ib_device_attr *attr,
@@ -86,6 +89,7 @@ static int rxe_query_port(struct ib_device *dev,
 
 	port = &rxe->port;
 
+	/* *attr being zeroed by the caller, avoid zeroing it here */
 	*attr = port->attr;
 
 	mutex_lock(&rxe->usdev_lock);
@@ -168,7 +172,7 @@ static int rxe_query_pkey(struct ib_device *device,
 	struct rxe_port *port;
 
 	if (unlikely(port_num != 1)) {
-		dev_warn(device->dma_device, "invalid port_num = %d\n",
+		dev_warn(device->dev.parent, "invalid port_num = %d\n",
 			 port_num);
 		goto err1;
 	}
@@ -176,7 +180,7 @@ static int rxe_query_pkey(struct ib_device *device,
 	port = &rxe->port;
 
 	if (unlikely(index >= port->attr.pkey_tbl_len)) {
-		dev_warn(device->dma_device, "invalid index = %d\n",
+		dev_warn(device->dev.parent, "invalid index = %d\n",
 			 index);
 		goto err1;
 	}
@@ -234,7 +238,7 @@ static enum rdma_link_layer rxe_get_link_layer(struct ib_device *dev,
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 
-	return rxe->ifc_ops->link_layer(rxe, port_num);
+	return rxe_link_layer(rxe, port_num);
 }
 
 static struct ib_ucontext *rxe_alloc_ucontext(struct ib_device *dev,
@@ -261,13 +265,14 @@ static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
 	int err;
 	struct ib_port_attr attr;
 
-	err = rxe_query_port(dev, port_num, &attr);
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
+
+	err = ib_query_port(dev, port_num, &attr);
 	if (err)
 		return err;
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
 	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 
 	return 0;
@@ -292,22 +297,22 @@ static int rxe_dealloc_pd(struct ib_pd *ibpd)
 	return 0;
 }
 
-static int rxe_init_av(struct rxe_dev *rxe, struct ib_ah_attr *attr,
+static int rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 		       struct rxe_av *av)
 {
 	int err;
 	union ib_gid sgid;
 	struct ib_gid_attr sgid_attr;
 
-	err = ib_get_cached_gid(&rxe->ib_dev, attr->port_num,
-				attr->grh.sgid_index, &sgid,
+	err = ib_get_cached_gid(&rxe->ib_dev, rdma_ah_get_port_num(attr),
+				rdma_ah_read_grh(attr)->sgid_index, &sgid,
 				&sgid_attr);
 	if (err) {
 		pr_err("Failed to query sgid. err = %d\n", err);
 		return err;
 	}
 
-	err = rxe_av_from_attr(rxe, attr->port_num, av, attr);
+	err = rxe_av_from_attr(rxe, rdma_ah_get_port_num(attr), av, attr);
 	if (!err)
 		err = rxe_av_fill_ip_info(rxe, av, attr, &sgid_attr, &sgid);
 
@@ -316,7 +321,10 @@ static int rxe_init_av(struct rxe_dev *rxe, struct ib_ah_attr *attr,
 	return err;
 }
 
-static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
+static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
+				   struct rdma_ah_attr *attr,
+				   struct ib_udata *udata)
+
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
@@ -349,7 +357,7 @@ err1:
 	return ERR_PTR(err);
 }
 
-static int rxe_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
+static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibah->device);
@@ -366,11 +374,13 @@ static int rxe_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
 	return 0;
 }
 
-static int rxe_query_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
+static int rxe_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	struct rxe_dev *rxe = to_rdev(ibah->device);
 	struct rxe_ah *ah = to_rah(ibah);
 
+	memset(attr, 0, sizeof(*attr));
+	attr->type = ibah->type;
 	rxe_av_to_attr(rxe, &ah->av, attr);
 	return 0;
 }
@@ -564,7 +574,7 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 	if (udata) {
 		if (udata->inlen) {
 			err = -EINVAL;
-			goto err1;
+			goto err2;
 		}
 		qp->is_user = 1;
 	}
@@ -573,12 +583,13 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 
 	err = rxe_qp_from_init(rxe, qp, pd, init, udata, ibpd);
 	if (err)
-		goto err2;
+		goto err3;
 
 	return &qp->ibqp;
 
-err2:
+err3:
 	rxe_drop_index(qp);
+err2:
 	rxe_drop_ref(qp);
 err1:
 	return ERR_PTR(err);
@@ -1007,11 +1018,19 @@ static int rxe_peek_cq(struct ib_cq *ibcq, int wc_cnt)
 static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
+	unsigned long irq_flags;
+	int ret = 0;
 
+	spin_lock_irqsave(&cq->cq_lock, irq_flags);
 	if (cq->notify != IB_CQ_NEXT_COMP)
 		cq->notify = flags & IB_CQ_SOLICITED_MASK;
 
-	return 0;
+	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !queue_empty(cq->queue))
+		ret = 1;
+
+	spin_unlock_irqrestore(&cq->cq_lock, irq_flags);
+
+	return ret;
 }
 
 static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
@@ -1198,10 +1217,8 @@ static ssize_t rxe_show_parent(struct device *device,
 {
 	struct rxe_dev *rxe = container_of(device, struct rxe_dev,
 					   ib_dev.dev);
-	char *name;
 
-	name = rxe->ifc_ops->parent_name(rxe, 1);
-	return snprintf(buf, 16, "%s\n", name);
+	return snprintf(buf, 16, "%s\n", rxe_parent_name(rxe, 1));
 }
 
 static DEVICE_ATTR(parent, S_IRUGO, rxe_show_parent, NULL);
@@ -1222,11 +1239,12 @@ int rxe_register_device(struct rxe_dev *rxe)
 	dev->owner = THIS_MODULE;
 	dev->node_type = RDMA_NODE_IB_CA;
 	dev->phys_port_cnt = 1;
-	dev->num_comp_vectors = RXE_NUM_COMP_VECTORS;
-	dev->dma_device = rxe->ifc_ops->dma_device(rxe);
+	dev->num_comp_vectors = num_possible_cpus();
+	dev->dev.parent = rxe_dma_device(rxe);
 	dev->local_dma_lkey = 0;
-	dev->node_guid = rxe->ifc_ops->node_guid(rxe);
-	dev->dma_ops = &rxe_dma_mapping_ops;
+	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
+			    rxe->ndev->dev_addr);
+	dev->dev.dma_ops = &dma_virt_ops;
 
 	dev->uverbs_abi_ver = RXE_UVERBS_ABI_VERSION;
 	dev->uverbs_cmd_mask = BIT_ULL(IB_USER_VERBS_CMD_GET_CONTEXT)
@@ -1306,6 +1324,15 @@ int rxe_register_device(struct rxe_dev *rxe)
 	dev->map_mr_sg = rxe_map_mr_sg;
 	dev->attach_mcast = rxe_attach_mcast;
 	dev->detach_mcast = rxe_detach_mcast;
+	dev->get_hw_stats = rxe_ib_get_hw_stats;
+	dev->alloc_hw_stats = rxe_ib_alloc_hw_stats;
+
+	rxe->tfm = crypto_alloc_shash("crc32", 0, 0);
+	if (IS_ERR(rxe->tfm)) {
+		pr_err("failed to allocate crc algorithm err:%ld\n",
+		       PTR_ERR(rxe->tfm));
+		return PTR_ERR(rxe->tfm);
+	}
 
 	err = ib_register_device(dev, NULL);
 	if (err) {
@@ -1327,6 +1354,8 @@ int rxe_register_device(struct rxe_dev *rxe)
 err2:
 	ib_unregister_device(dev);
 err1:
+	crypto_free_shash(rxe->tfm);
+
 	return err;
 }
 

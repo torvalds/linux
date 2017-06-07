@@ -1504,9 +1504,7 @@ mv643xx_eth_get_link_ksettings_phy(struct mv643xx_eth_private *mp,
 	int err;
 	u32 supported, advertising;
 
-	err = phy_read_status(dev->phydev);
-	if (err == 0)
-		err = phy_ethtool_ksettings_get(dev->phydev, cmd);
+	err = phy_ethtool_ksettings_get(dev->phydev, cmd);
 
 	/*
 	 * The MAC does not support 1000baseT_Half.
@@ -2319,7 +2317,7 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		if (mp->oom)
 			mod_timer(&mp->rx_oom, jiffies + (HZ / 10));
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		wrlp(mp, INT_MASK, mp->int_mask);
 	}
 
@@ -2713,7 +2711,7 @@ static const struct of_device_id mv643xx_eth_shared_ids[] = {
 MODULE_DEVICE_TABLE(of, mv643xx_eth_shared_ids);
 #endif
 
-#if defined(CONFIG_OF) && !defined(CONFIG_MV64X60)
+#if defined(CONFIG_OF_IRQ) && !defined(CONFIG_MV64X60)
 #define mv643xx_eth_property(_np, _name, _v)				\
 	do {								\
 		u32 tmp;						\

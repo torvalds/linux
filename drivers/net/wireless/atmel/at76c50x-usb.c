@@ -2377,6 +2377,8 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	wiphy->hw_version = priv->board_type;
 
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
 		printk(KERN_ERR "cannot register mac80211 hw (status %d)!\n",

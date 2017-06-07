@@ -46,7 +46,7 @@ void usage(char progname[], int exit_status)
 	puts("\t-b offset          : Read value at byte_offset (in hex)");
 	puts("\t-w offset -v value : Write value at byte_offset");
 	puts("\t-h                 : Print this help\n\n");
-	puts("Offsets and values are in hexadecimal number sytem.");
+	puts("Offsets and values are in hexadecimal number system.");
 	puts("The offset and value must be between 0 and 0xff.");
 	exit(exit_status);
 }

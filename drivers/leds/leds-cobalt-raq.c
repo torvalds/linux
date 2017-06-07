@@ -115,8 +115,4 @@ static struct platform_driver cobalt_raq_led_driver = {
 	},
 };
 
-static int __init cobalt_raq_led_init(void)
-{
-	return platform_driver_register(&cobalt_raq_led_driver);
-}
-device_initcall(cobalt_raq_led_init);
+builtin_platform_driver(cobalt_raq_led_driver);

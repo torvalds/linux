@@ -407,7 +407,7 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	lockdep_assert_held(&priv->mutex);
 
 	/* No init ucode required? Curious, but maybe ok */
-	if (!priv->fw->img[IWL_UCODE_INIT].sec[0].len)
+	if (!priv->fw->img[IWL_UCODE_INIT].num_sec)
 		return 0;
 
 	iwl_init_notification_wait(&priv->notif_wait, &calib_wait,

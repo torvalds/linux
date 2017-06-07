@@ -116,16 +116,10 @@ static int nft_objref_map_init(const struct nft_ctx *ctx,
 	struct nft_set *set;
 	int err;
 
-	set = nf_tables_set_lookup(ctx->table, tb[NFTA_OBJREF_SET_NAME], genmask);
-	if (IS_ERR(set)) {
-		if (tb[NFTA_OBJREF_SET_ID]) {
-			set = nf_tables_set_lookup_byid(ctx->net,
-							tb[NFTA_OBJREF_SET_ID],
-							genmask);
-		}
-		if (IS_ERR(set))
-			return PTR_ERR(set);
-	}
+	set = nft_set_lookup(ctx->net, ctx->table, tb[NFTA_OBJREF_SET_NAME],
+			     tb[NFTA_OBJREF_SET_ID], genmask);
+	if (IS_ERR(set))
+		return PTR_ERR(set);
 
 	if (!(set->flags & NFT_SET_OBJECT))
 		return -EINVAL;
@@ -193,10 +187,12 @@ nft_objref_select_ops(const struct nft_ctx *ctx,
 }
 
 static const struct nla_policy nft_objref_policy[NFTA_OBJREF_MAX + 1] = {
-	[NFTA_OBJREF_IMM_NAME]	= { .type = NLA_STRING },
+	[NFTA_OBJREF_IMM_NAME]	= { .type = NLA_STRING,
+				    .len = NFT_OBJ_MAXNAMELEN - 1 },
 	[NFTA_OBJREF_IMM_TYPE]	= { .type = NLA_U32 },
 	[NFTA_OBJREF_SET_SREG]	= { .type = NLA_U32 },
-	[NFTA_OBJREF_SET_NAME]	= { .type = NLA_STRING },
+	[NFTA_OBJREF_SET_NAME]	= { .type = NLA_STRING,
+				    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_OBJREF_SET_ID]	= { .type = NLA_U32 },
 };
 

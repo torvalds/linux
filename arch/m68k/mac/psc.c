@@ -122,11 +122,6 @@ static void psc_irq(struct irq_desc *desc)
 	int irq_num;
 	unsigned char irq_bit, events;
 
-#ifdef DEBUG_IRQS
-	printk("psc_irq: irq %u pIFR = 0x%02X pIER = 0x%02X\n",
-		irq, (int) psc_read_byte(pIFR), (int) psc_read_byte(pIER));
-#endif
-
 	events = psc_read_byte(pIFR) & psc_read_byte(pIER) & 0xF;
 	if (!events)
 		return;
@@ -160,9 +155,6 @@ void psc_irq_enable(int irq) {
 	int irq_idx	= IRQ_IDX(irq);
 	int pIER	= pIERbase + (irq_src << 4);
 
-#ifdef DEBUG_IRQUSE
-	printk("psc_irq_enable(%d)\n", irq);
-#endif
 	psc_write_byte(pIER, (1 << irq_idx) | 0x80);
 }
 
@@ -171,8 +163,5 @@ void psc_irq_disable(int irq) {
 	int irq_idx	= IRQ_IDX(irq);
 	int pIER	= pIERbase + (irq_src << 4);
 
-#ifdef DEBUG_IRQUSE
-	printk("psc_irq_disable(%d)\n", irq);
-#endif
 	psc_write_byte(pIER, 1 << irq_idx);
 }

@@ -127,7 +127,7 @@ PNAME(mux_ddrphy_p)		= { "dpll_ddr", "gpll_ddr" };
 PNAME(mux_pll_src_3plls_p)	= { "apll", "dpll", "gpll" };
 PNAME(mux_timer_p)		= { "xin24m", "pclk_peri_src" };
 
-PNAME(mux_pll_src_apll_dpll_gpll_usb480m_p)	= { "apll", "dpll", "gpll" "usb480m" };
+PNAME(mux_pll_src_apll_dpll_gpll_usb480m_p)	= { "apll", "dpll", "gpll", "usb480m" };
 
 PNAME(mux_mmc_src_p)	= { "apll", "dpll", "gpll", "xin24m" };
 PNAME(mux_i2s_pre_p)	= { "i2s_src", "i2s_frac", "ext_i2s", "xin12m" };
@@ -449,6 +449,13 @@ static void __init rk3036_clk_init(struct device_node *np)
 		pr_err("%s: could not map cru region\n", __func__);
 		return;
 	}
+
+	/*
+	 * Make uart_pll_clk a child of the gpll, as all other sources are
+	 * not that usable / stable.
+	 */
+	writel_relaxed(HIWORD_UPDATE(0x2, 0x3, 10),
+		       reg_base + RK2928_CLKSEL_CON(13));
 
 	ctx = rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
 	if (IS_ERR(ctx)) {

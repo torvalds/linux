@@ -5,7 +5,7 @@
 config DVB_MAX_ADAPTERS
 	int "maximum number of DVB/ATSC adapters"
 	depends on DVB_CORE
-	default 8
+	default 16
 	range 1 255
 	help
 	  Maximum number of DVB/ATSC adapters. Increasing this number
@@ -13,7 +13,7 @@ config DVB_MAX_ADAPTERS
 	  if a much lower number of DVB/ATSC adapters is present.
 	  Only values in the range 4-32 are tested.
 
-	  If you are unsure about this, use the default value 8
+	  If you are unsure about this, use the default value 16
 
 config DVB_DYNAMIC_MINORS
 	bool "Dynamic DVB minor allocation"
@@ -25,5 +25,18 @@ config DVB_DYNAMIC_MINORS
 	  This means that you can have more than 4 of a single type
 	  of device (like demuxes and frontends) per adapter, but udev
 	  will be required to manage the device nodes.
+
+	  If you are unsure about this, say N here.
+
+config DVB_DEMUX_SECTION_LOSS_LOG
+	bool "Enable DVB demux section packet loss log"
+	depends on DVB_CORE
+	default n
+	help
+	  Enable extra log messages meant to detect packet loss
+	  inside the Kernel.
+
+	  Should not be enabled on normal cases, as logs can
+	  be very verbose.
 
 	  If you are unsure about this, say N here.

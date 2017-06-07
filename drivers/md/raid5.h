@@ -224,8 +224,16 @@ struct stripe_head {
 	spinlock_t		batch_lock; /* only header's lock is useful */
 	struct list_head	batch_list; /* protected by head's batch lock*/
 
-	struct r5l_io_unit	*log_io;
+	union {
+		struct r5l_io_unit	*log_io;
+		struct ppl_io_unit	*ppl_io;
+	};
+
 	struct list_head	log_list;
+	sector_t		log_start; /* first meta block on the journal */
+	struct list_head	r5c; /* for r5c_cache->stripe_in_journal */
+
+	struct page		*ppl_page; /* partial parity of this stripe */
 	/**
 	 * struct stripe_operations
 	 * @target - STRIPE_OP_COMPUTE_BLK target
@@ -264,15 +272,16 @@ struct stripe_head_state {
 	int syncing, expanding, expanded, replacing;
 	int locked, uptodate, to_read, to_write, failed, written;
 	int to_fill, compute, req_compute, non_overwrite;
+	int injournal, just_cached;
 	int failed_num[2];
 	int p_failed, q_failed;
 	int dec_preread_active;
 	unsigned long ops_request;
 
-	struct bio_list return_bi;
 	struct md_rdev *blocked_rdev;
 	int handle_bad_blocks;
 	int log_failed;
+	int waiting_extra_page;
 };
 
 /* Flags for struct r5dev.flags */
@@ -313,6 +322,16 @@ enum r5dev_flags {
 			 */
 	R5_Discard,	/* Discard the stripe */
 	R5_SkipCopy,	/* Don't copy data from bio to stripe cache */
+	R5_InJournal,	/* data being written is in the journal device.
+			 * if R5_InJournal is set for parity pd_idx, all the
+			 * data and parity being written are in the journal
+			 * device
+			 */
+	R5_OrigPageUPTDODATE,	/* with write back cache, we read old data into
+				 * dev->orig_page for prexor. When this flag is
+				 * set, orig_page contains latest data in the
+				 * raid disk.
+				 */
 };
 
 /*
@@ -345,7 +364,30 @@ enum {
 	STRIPE_BITMAP_PENDING,	/* Being added to bitmap, don't add
 				 * to batch yet.
 				 */
-	STRIPE_LOG_TRAPPED, /* trapped into log */
+	STRIPE_LOG_TRAPPED,	/* trapped into log (see raid5-cache.c)
+				 * this bit is used in two scenarios:
+				 *
+				 * 1. write-out phase
+				 *  set in first entry of r5l_write_stripe
+				 *  clear in second entry of r5l_write_stripe
+				 *  used to bypass logic in handle_stripe
+				 *
+				 * 2. caching phase
+				 *  set in r5c_try_caching_write()
+				 *  clear when journal write is done
+				 *  used to initiate r5c_cache_data()
+				 *  also used to bypass logic in handle_stripe
+				 */
+	STRIPE_R5C_CACHING,	/* the stripe is in caching phase
+				 * see more detail in the raid5-cache.c
+				 */
+	STRIPE_R5C_PARTIAL_STRIPE,	/* in r5c cache (to-be/being handled or
+					 * in conf->r5c_partial_stripe_list)
+					 */
+	STRIPE_R5C_FULL_STRIPE,	/* in r5c cache (to-be/being handled or
+				 * in conf->r5c_full_stripe_list)
+				 */
+	STRIPE_R5C_PREFLUSH,	/* need to flush journal device */
 };
 
 #define STRIPE_EXPAND_SYNC_FLAGS \
@@ -363,6 +405,7 @@ enum {
 	STRIPE_OP_BIODRAIN,
 	STRIPE_OP_RECONSTRUCT,
 	STRIPE_OP_CHECK,
+	STRIPE_OP_PARTIAL_PARITY,
 };
 
 /*
@@ -408,7 +451,41 @@ enum {
 
 struct disk_info {
 	struct md_rdev	*rdev, *replacement;
+	struct page	*extra_page; /* extra page to use in prexor */
 };
+
+/*
+ * Stripe cache
+ */
+
+#define NR_STRIPES		256
+#define STRIPE_SIZE		PAGE_SIZE
+#define STRIPE_SHIFT		(PAGE_SHIFT - 9)
+#define STRIPE_SECTORS		(STRIPE_SIZE>>9)
+#define	IO_THRESHOLD		1
+#define BYPASS_THRESHOLD	1
+#define NR_HASH			(PAGE_SIZE / sizeof(struct hlist_head))
+#define HASH_MASK		(NR_HASH - 1)
+#define MAX_STRIPE_BATCH	8
+
+/* bio's attached to a stripe+device for I/O are linked together in bi_sector
+ * order without overlap.  There may be several bio's per stripe+device, and
+ * a bio could span several devices.
+ * When walking this list for a particular stripe+device, we must never proceed
+ * beyond a bio that extends past this device, as the next bio might no longer
+ * be valid.
+ * This function is used to determine the 'next' bio in the list, given the
+ * sector of the current stripe+device
+ */
+static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
+{
+	int sectors = bio_sectors(bio);
+
+	if (bio->bi_iter.bi_sector + sectors < sector + STRIPE_SECTORS)
+		return bio->bi_next;
+	else
+		return NULL;
+}
 
 /* NOTE NR_STRIPE_HASH_LOCKS must remain below 64.
  * This is because we sometimes take all the spinlocks
@@ -427,9 +504,52 @@ struct r5worker {
 
 struct r5worker_group {
 	struct list_head handle_list;
+	struct list_head loprio_list;
 	struct r5conf *conf;
 	struct r5worker *workers;
 	int stripes_cnt;
+};
+
+/*
+ * r5c journal modes of the array: write-back or write-through.
+ * write-through mode has identical behavior as existing log only
+ * implementation.
+ */
+enum r5c_journal_mode {
+	R5C_JOURNAL_MODE_WRITE_THROUGH = 0,
+	R5C_JOURNAL_MODE_WRITE_BACK = 1,
+};
+
+enum r5_cache_state {
+	R5_INACTIVE_BLOCKED,	/* release of inactive stripes blocked,
+				 * waiting for 25% to be free
+				 */
+	R5_ALLOC_MORE,		/* It might help to allocate another
+				 * stripe.
+				 */
+	R5_DID_ALLOC,		/* A stripe was allocated, don't allocate
+				 * more until at least one has been
+				 * released.  This avoids flooding
+				 * the cache.
+				 */
+	R5C_LOG_TIGHT,		/* log device space tight, need to
+				 * prioritize stripes at last_checkpoint
+				 */
+	R5C_LOG_CRITICAL,	/* log device is running out of space,
+				 * only process stripes that are already
+				 * occupying the log
+				 */
+	R5C_EXTRA_PAGE_IN_USE,	/* a stripe is using disk_info.extra_page
+				 * for prexor
+				 */
+};
+
+#define PENDING_IO_MAX 512
+#define PENDING_IO_ONE_FLUSH 128
+struct r5pending_data {
+	struct list_head sibling;
+	sector_t sector; /* stripe sector */
+	struct bio_list bios;
 };
 
 struct r5conf {
@@ -469,10 +589,12 @@ struct r5conf {
 						  */
 
 	struct list_head	handle_list; /* stripes needing handling */
+	struct list_head	loprio_list; /* low priority stripes */
 	struct list_head	hold_list; /* preread ready stripes */
 	struct list_head	delayed_list; /* stripes that have plugged requests */
 	struct list_head	bitmap_list; /* stripes delaying awaiting bitmap update */
 	struct bio		*retry_read_aligned; /* currently retrying aligned bios   */
+	unsigned int		retry_read_offset; /* sector offset into retry_read_aligned */
 	struct bio		*retry_read_aligned_list; /* aligned bios retry list  */
 	atomic_t		preread_active_stripes; /* stripes with scheduled io */
 	atomic_t		active_aligned_reads;
@@ -481,9 +603,6 @@ struct r5conf {
 	int			bypass_threshold; /* preread nice */
 	int			skip_copy; /* Don't copy data from bio to stripe cache */
 	struct list_head	*last_hold; /* detect hold_list promotions */
-
-	/* bios to have bi_end_io called after metadata is synced */
-	struct bio_list		return_bi;
 
 	atomic_t		reshape_stripes; /* stripes with pending writes for reshape */
 	/* unfortunately we need two cache names as we temporarily have
@@ -519,27 +638,25 @@ struct r5conf {
 	 */
 	atomic_t		active_stripes;
 	struct list_head	inactive_list[NR_STRIPE_HASH_LOCKS];
+
+	atomic_t		r5c_cached_full_stripes;
+	struct list_head	r5c_full_stripe_list;
+	atomic_t		r5c_cached_partial_stripes;
+	struct list_head	r5c_partial_stripe_list;
+	atomic_t		r5c_flushing_full_stripes;
+	atomic_t		r5c_flushing_partial_stripes;
+
 	atomic_t		empty_inactive_list_nr;
 	struct llist_head	released_stripes;
 	wait_queue_head_t	wait_for_quiescent;
 	wait_queue_head_t	wait_for_stripe;
 	wait_queue_head_t	wait_for_overlap;
 	unsigned long		cache_state;
-#define R5_INACTIVE_BLOCKED	1	/* release of inactive stripes blocked,
-					 * waiting for 25% to be free
-					 */
-#define R5_ALLOC_MORE		2	/* It might help to allocate another
-					 * stripe.
-					 */
-#define R5_DID_ALLOC		4	/* A stripe was allocated, don't allocate
-					 * more until at least one has been
-					 * released.  This avoids flooding
-					 * the cache.
-					 */
 	struct shrinker		shrinker;
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
 	struct disk_info	*disks;
+	struct bio_set		*bio_split;
 
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.
@@ -550,6 +667,15 @@ struct r5conf {
 	int			group_cnt;
 	int			worker_cnt_per_group;
 	struct r5l_log		*log;
+	void			*log_private;
+
+	spinlock_t		pending_bios_lock;
+	bool			batch_bio_dispatch;
+	struct r5pending_data	*pending_data;
+	struct list_head	free_list;
+	struct list_head	pending_list;
+	int			pending_data_cnt;
+	struct r5pending_data	*next_pending_data;
 };
 
 
@@ -624,13 +750,6 @@ extern sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
 extern struct stripe_head *
 raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
 			int previous, int noblock, int noquiesce);
-extern int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev);
-extern void r5l_exit_log(struct r5l_log *log);
-extern int r5l_write_stripe(struct r5l_log *log, struct stripe_head *head_sh);
-extern void r5l_write_stripe_run(struct r5l_log *log);
-extern void r5l_flush_stripe_to_raid(struct r5l_log *log);
-extern void r5l_stripe_write_finished(struct stripe_head *sh);
-extern int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio);
-extern void r5l_quiesce(struct r5l_log *log, int state);
-extern bool r5l_log_disk_error(struct r5conf *conf);
+extern int raid5_calc_degraded(struct r5conf *conf);
+extern int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
 #endif

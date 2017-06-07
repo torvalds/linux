@@ -188,7 +188,7 @@ struct usb_ep_caps {
  * @caps:The structure describing types and directions supported by endoint.
  * @maxpacket:The maximum packet size used on this endpoint.  The initial
  *	value can sometimes be reduced (hardware allowing), according to
- *      the endpoint descriptor used to configure the endpoint.
+ *	the endpoint descriptor used to configure the endpoint.
  * @maxpacket_limit:The maximum packet size value which can be handled by this
  *	endpoint. It's set once by UDC driver when endpoint is initialized, and
  *	should not be changed. Should not be confused with maxpacket.
@@ -429,7 +429,9 @@ static inline struct usb_gadget *dev_to_usb_gadget(struct device *dev)
  */
 static inline size_t usb_ep_align(struct usb_ep *ep, size_t len)
 {
-	return round_up(len, (size_t)le16_to_cpu(ep->desc->wMaxPacketSize));
+	int max_packet_size = (size_t)usb_endpoint_maxp(ep->desc) & 0x7ff;
+
+	return round_up(len, max_packet_size);
 }
 
 /**

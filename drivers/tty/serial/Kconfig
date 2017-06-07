@@ -438,17 +438,27 @@ config SERIAL_MPSC_CONSOLE
 	  Say Y here if you want to support a serial console on a Marvell MPSC.
 
 config SERIAL_PXA
-	bool "PXA serial port support"
+	bool "PXA serial port support (DEPRECATED)"
 	depends on ARCH_PXA || ARCH_MMP
 	select SERIAL_CORE
+	select SERIAL_8250_PXA if SERIAL_8250=y
+	select SERIAL_PXA_NON8250 if !SERIAL_8250=y
 	help
 	  If you have a machine based on an Intel XScale PXA2xx CPU you
 	  can enable its onboard serial ports by enabling this option.
 
+	  Unless you have a specific need, you should use SERIAL_8250_PXA
+	  instead of this.
+
+config SERIAL_PXA_NON8250
+	bool
+	depends on !SERIAL_8250
+
 config SERIAL_PXA_CONSOLE
-	bool "Console on PXA serial port"
+	bool "Console on PXA serial port (DEPRECATED)"
 	depends on SERIAL_PXA
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_8250_CONSOLE if SERIAL_8250=y
 	help
 	  If you have enabled the serial port on the Intel XScale PXA
 	  CPU you can make it the console by answering Y to this option.
@@ -459,6 +469,9 @@ config SERIAL_PXA_CONSOLE
 	  "console=ttySA0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
+
+	  Unless you have a specific need, you should use SERIAL_8250_PXA
+	  and SERIAL_8250_CONSOLE instead of this.
 
 config SERIAL_SA1100
 	bool "SA1100 serial port support"
@@ -616,6 +629,15 @@ config SERIAL_UARTLITE_CONSOLE
 	  Say Y here if you wish to use a Xilinx uartlite as the system
 	  console (the system console is the device which receives all kernel
 	  messages and warnings and which allows logins in single user mode).
+
+config SERIAL_UARTLITE_NR_UARTS
+	int "Maximum number of uartlite serial ports"
+	depends on SERIAL_UARTLITE
+	range 1 256
+	default 1
+	help
+	  Set this to the number of uartlites in your system, or the number
+	  you think you might implement.
 
 config SERIAL_SUNCORE
 	bool
@@ -1148,6 +1170,7 @@ config SERIAL_LANTIQ
 	depends on LANTIQ
 	select SERIAL_CORE
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Support for console and UART on Lantiq SoCs.
 
@@ -1329,6 +1352,7 @@ config SERIAL_ALTERA_JTAGUART_CONSOLE
 	bool "Altera JTAG UART console support"
 	depends on SERIAL_ALTERA_JTAGUART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Altera JTAG UART port to be the system console.
 
@@ -1368,6 +1392,7 @@ config SERIAL_ALTERA_UART_CONSOLE
 	bool "Altera UART console support"
 	depends on SERIAL_ALTERA_UART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Altera UART port to be the system console.
 
@@ -1626,7 +1651,7 @@ config SERIAL_STM32
 	tristate "STMicroelectronics STM32 serial port support"
 	select SERIAL_CORE
 	depends on HAS_DMA
-	depends on ARM || COMPILE_TEST
+	depends on ARCH_STM32 || COMPILE_TEST
 	help
 	  This driver is for the on-chip Serial Controller on
 	  STMicroelectronics STM32 MCUs.

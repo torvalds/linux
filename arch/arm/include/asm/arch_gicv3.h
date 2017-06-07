@@ -22,6 +22,7 @@
 
 #include <linux/io.h>
 #include <asm/barrier.h>
+#include <asm/cacheflush.h>
 #include <asm/cp15.h>
 
 #define ICC_EOIR1			__ACCESS_CP15(c12, 0, c12, 1)
@@ -230,19 +231,14 @@ static inline void gic_write_bpr1(u32 val)
  * AArch32, since the syndrome register doesn't provide any information for
  * them.
  * Consequently, the following IO helpers use 32bit accesses.
- *
- * There are only two registers that need 64bit accesses in this driver:
- * - GICD_IROUTERn, contain the affinity values associated to each interrupt.
- *   The upper-word (aff3) will always be 0, so there is no need for a lock.
- * - GICR_TYPER is an ID register and doesn't need atomicity.
  */
-static inline void gic_write_irouter(u64 val, volatile void __iomem *addr)
+static inline void __gic_writeq_nonatomic(u64 val, volatile void __iomem *addr)
 {
 	writel_relaxed((u32)val, addr);
 	writel_relaxed((u32)(val >> 32), addr + 4);
 }
 
-static inline u64 gic_read_typer(const volatile void __iomem *addr)
+static inline u64 __gic_readq_nonatomic(const volatile void __iomem *addr)
 {
 	u64 val;
 
@@ -250,6 +246,50 @@ static inline u64 gic_read_typer(const volatile void __iomem *addr)
 	val |= (u64)readl_relaxed(addr + 4) << 32;
 	return val;
 }
+
+#define gic_flush_dcache_to_poc(a,l)    __cpuc_flush_dcache_area((a), (l))
+
+/*
+ *  GICD_IROUTERn, contain the affinity values associated to each interrupt.
+ *  The upper-word (aff3) will always be 0, so there is no need for a lock.
+ */
+#define gic_write_irouter(v, c)		__gic_writeq_nonatomic(v, c)
+
+/*
+ * GICR_TYPER is an ID register and doesn't need atomicity.
+ */
+#define gic_read_typer(c)		__gic_readq_nonatomic(c)
+
+/*
+ * GITS_BASER - hi and lo bits may be accessed independently.
+ */
+#define gits_read_baser(c)		__gic_readq_nonatomic(c)
+#define gits_write_baser(v, c)		__gic_writeq_nonatomic(v, c)
+
+/*
+ * GICR_PENDBASER and GICR_PROPBASE are changed with LPIs disabled, so they
+ * won't be being used during any updates and can be changed non-atomically
+ */
+#define gicr_read_propbaser(c)		__gic_readq_nonatomic(c)
+#define gicr_write_propbaser(v, c)	__gic_writeq_nonatomic(v, c)
+#define gicr_read_pendbaser(c)		__gic_readq_nonatomic(c)
+#define gicr_write_pendbaser(v, c)	__gic_writeq_nonatomic(v, c)
+
+/*
+ * GITS_TYPER is an ID register and doesn't need atomicity.
+ */
+#define gits_read_typer(c)		__gic_readq_nonatomic(c)
+
+/*
+ * GITS_CBASER - hi and lo bits may be accessed independently.
+ */
+#define gits_read_cbaser(c)		__gic_readq_nonatomic(c)
+#define gits_write_cbaser(v, c)		__gic_writeq_nonatomic(v, c)
+
+/*
+ * GITS_CWRITER - hi and lo bits may be accessed independently.
+ */
+#define gits_write_cwriter(v, c)	__gic_writeq_nonatomic(v, c)
 
 #endif /* !__ASSEMBLY__ */
 #endif /* !__ASM_ARCH_GICV3_H */

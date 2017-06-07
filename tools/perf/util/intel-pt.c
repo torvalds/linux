@@ -13,6 +13,7 @@
  *
  */
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <errno.h>
@@ -22,6 +23,7 @@
 #include "../perf.h"
 #include "session.h"
 #include "machine.h"
+#include "memswap.h"
 #include "sort.h"
 #include "tool.h"
 #include "event.h"
@@ -2159,7 +2161,9 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 
 	addr_filters__init(&pt->filts);
 
-	perf_config(intel_pt_perf_config, pt);
+	err = perf_config(intel_pt_perf_config, pt);
+	if (err)
+		goto err_free;
 
 	err = auxtrace_queues__init(&pt->queues);
 	if (err)

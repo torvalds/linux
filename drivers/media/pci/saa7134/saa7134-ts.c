@@ -14,10 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7134.h"
@@ -227,9 +223,8 @@ int saa7134_ts_init1(struct saa7134_dev *dev)
 	dev->ts.nr_packets = ts_nr_packets;
 
 	INIT_LIST_HEAD(&dev->ts_q.queue);
-	init_timer(&dev->ts_q.timeout);
-	dev->ts_q.timeout.function = saa7134_buffer_timeout;
-	dev->ts_q.timeout.data     = (unsigned long)(&dev->ts_q);
+	setup_timer(&dev->ts_q.timeout, saa7134_buffer_timeout,
+		    (unsigned long)(&dev->ts_q));
 	dev->ts_q.dev              = dev;
 	dev->ts_q.need_two         = 1;
 	dev->ts_started            = 0;

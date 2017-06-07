@@ -7,30 +7,35 @@ Description:
 		subsystem.
 
 What:		/sys/power/state
-Date:		May 2014
+Date:		November 2016
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/state file controls system sleep states.
 		Reading from this file returns the available sleep state
-		labels, which may be "mem", "standby", "freeze" and "disk"
-		(hibernation).  The meanings of the first three labels depend on
-		the relative_sleep_states command line argument as follows:
-		 1) relative_sleep_states = 1
-		    "mem", "standby", "freeze" represent non-hibernation sleep
-		    states from the deepest ("mem", always present) to the
-		    shallowest ("freeze").  "standby" and "freeze" may or may
-		    not be present depending on the capabilities of the
-		    platform.  "freeze" can only be present if "standby" is
-		    present.
-		 2) relative_sleep_states = 0 (default)
-		    "mem" - "suspend-to-RAM", present if supported.
-		    "standby" - "power-on suspend", present if supported.
-		    "freeze" - "suspend-to-idle", always present.
+		labels, which may be "mem" (suspend), "standby" (power-on
+		suspend), "freeze" (suspend-to-idle) and "disk" (hibernation).
 
-		Writing to this file one of these strings causes the system to
-		transition into the corresponding state, if available.  See
-		Documentation/power/states.txt for a description of what
-		"suspend-to-RAM", "power-on suspend" and "suspend-to-idle" mean.
+		Writing one of the above strings to this file causes the system
+		to transition into the corresponding state, if available.
+
+		See Documentation/power/states.txt for more information.
+
+What:		/sys/power/mem_sleep
+Date:		November 2016
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		The /sys/power/mem_sleep file controls the operating mode of
+		system suspend.  Reading from it returns the available modes
+		as "s2idle" (always present), "shallow" and "deep" (present if
+		supported).  The mode that will be used on subsequent attempts
+		to suspend the system (by writing "mem" to the /sys/power/state
+		file described above) is enclosed in square brackets.
+
+		Writing one of the above strings to this file causes the mode
+		represented by it to be used on subsequent attempts to suspend
+		the system.
+
+		See Documentation/power/states.txt for more information.
 
 What:		/sys/power/disk
 Date:		September 2006

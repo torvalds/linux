@@ -25,6 +25,7 @@
  */
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 #include <linux/mtd/partitions.h>
 #include <linux/platform_data/gpio-davinci.h>
 #include <linux/platform_data/i2c-davinci.h>
@@ -162,7 +163,8 @@ static struct davinci_mmc_config davinci_ntosd2_mmc_config = {
 	.wires		= 4,
 };
 
-#define HAS_ATA		IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710)
+#define HAS_ATA		(IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
+			 IS_ENABLED(CONFIG_PATA_BK3710))
 
 #define HAS_NAND	IS_ENABLED(CONFIG_MTD_NAND_DAVINCI)
 

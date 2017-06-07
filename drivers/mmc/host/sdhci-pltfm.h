@@ -106,7 +106,7 @@ extern unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host);
 
 static inline void *sdhci_pltfm_priv(struct sdhci_pltfm_host *host)
 {
-	return (void *)host->private;
+	return host->private;
 }
 
 extern const struct dev_pm_ops sdhci_pltfm_pmops;

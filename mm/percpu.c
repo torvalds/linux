@@ -43,7 +43,7 @@
  * Chunks can be determined from the address using the index field
  * in the page struct. The index field contains a pointer to the chunk.
  *
- * To use this allocator, arch code should do the followings.
+ * To use this allocator, arch code should do the following:
  *
  * - define __addr_to_pcpu_ptr() and __pcpu_ptr_to_addr() to translate
  *   regular address to percpu pointer and back if they need to be
@@ -886,7 +886,8 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 
 	size = ALIGN(size, 2);
 
-	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
+	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE ||
+		     !is_power_of_2(align))) {
 		WARN(true, "illegal size (%zu) or align (%zu) for percpu allocation\n",
 		     size, align);
 		return NULL;
@@ -1010,8 +1011,11 @@ area_found:
 		mutex_unlock(&pcpu_alloc_mutex);
 	}
 
-	if (chunk != pcpu_reserved_chunk)
+	if (chunk != pcpu_reserved_chunk) {
+		spin_lock_irqsave(&pcpu_lock, flags);
 		pcpu_nr_empty_pop_pages -= occ_pages;
+		spin_unlock_irqrestore(&pcpu_lock, flags);
+	}
 
 	if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_LOW)
 		pcpu_schedule_balance_work();
@@ -1280,6 +1284,31 @@ void free_percpu(void __percpu *ptr)
 }
 EXPORT_SYMBOL_GPL(free_percpu);
 
+bool __is_kernel_percpu_address(unsigned long addr, unsigned long *can_addr)
+{
+#ifdef CONFIG_SMP
+	const size_t static_size = __per_cpu_end - __per_cpu_start;
+	void __percpu *base = __addr_to_pcpu_ptr(pcpu_base_addr);
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu) {
+		void *start = per_cpu_ptr(base, cpu);
+		void *va = (void *)addr;
+
+		if (va >= start && va < start + static_size) {
+			if (can_addr) {
+				*can_addr = (unsigned long) (va - start);
+				*can_addr += (unsigned long)
+					per_cpu_ptr(base, get_boot_cpu_id());
+			}
+			return true;
+		}
+	}
+#endif
+	/* on UP, can't distinguish from other static vars, always false */
+	return false;
+}
+
 /**
  * is_kernel_percpu_address - test whether address is from static percpu area
  * @addr: address to test
@@ -1293,20 +1322,7 @@ EXPORT_SYMBOL_GPL(free_percpu);
  */
 bool is_kernel_percpu_address(unsigned long addr)
 {
-#ifdef CONFIG_SMP
-	const size_t static_size = __per_cpu_end - __per_cpu_start;
-	void __percpu *base = __addr_to_pcpu_ptr(pcpu_base_addr);
-	unsigned int cpu;
-
-	for_each_possible_cpu(cpu) {
-		void *start = per_cpu_ptr(base, cpu);
-
-		if ((void *)addr >= start && (void *)addr < start + static_size)
-			return true;
-        }
-#endif
-	/* on UP, can't distinguish from other static vars, always false */
-	return false;
+	return __is_kernel_percpu_address(addr, NULL);
 }
 
 /**
@@ -2093,6 +2109,8 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 	size_t pages_size;
 	struct page **pages;
 	int unit, i, j, rc;
+	int upa;
+	int nr_g0_units;
 
 	snprintf(psize_str, sizeof(psize_str), "%luK", PAGE_SIZE >> 10);
 
@@ -2100,7 +2118,12 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 	if (IS_ERR(ai))
 		return PTR_ERR(ai);
 	BUG_ON(ai->nr_groups != 1);
-	BUG_ON(ai->groups[0].nr_units != num_possible_cpus());
+	upa = ai->alloc_size/ai->unit_size;
+	nr_g0_units = roundup(num_possible_cpus(), upa);
+	if (unlikely(WARN_ON(ai->groups[0].nr_units != nr_g0_units))) {
+		pcpu_free_alloc_info(ai);
+		return -EINVAL;
+	}
 
 	unit_pages = ai->unit_size >> PAGE_SHIFT;
 
@@ -2111,21 +2134,22 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 
 	/* allocate pages */
 	j = 0;
-	for (unit = 0; unit < num_possible_cpus(); unit++)
+	for (unit = 0; unit < num_possible_cpus(); unit++) {
+		unsigned int cpu = ai->groups[0].cpu_map[unit];
 		for (i = 0; i < unit_pages; i++) {
-			unsigned int cpu = ai->groups[0].cpu_map[unit];
 			void *ptr;
 
 			ptr = alloc_fn(cpu, PAGE_SIZE, PAGE_SIZE);
 			if (!ptr) {
 				pr_warn("failed to allocate %s page for cpu%u\n",
-					psize_str, cpu);
+						psize_str, cpu);
 				goto enomem;
 			}
 			/* kmemleak tracks the percpu allocations separately */
 			kmemleak_free(ptr);
 			pages[j++] = virt_to_page(ptr);
 		}
+	}
 
 	/* allocate vm area, map the pages and copy static data */
 	vm.flags = VM_ALLOC;

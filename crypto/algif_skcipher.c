@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/net.h>
@@ -566,8 +567,10 @@ static int skcipher_recvmsg_async(struct socket *sock, struct msghdr *msg,
 			 * need to expand */
 			tmp = kcalloc(tx_nents * 2, sizeof(*tmp),
 				      GFP_KERNEL);
-			if (!tmp)
+			if (!tmp) {
+				err = -ENOMEM;
 				goto free;
+			}
 
 			sg_init_table(tmp, tx_nents * 2);
 			for (x = 0; x < tx_nents; x++)

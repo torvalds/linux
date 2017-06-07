@@ -28,7 +28,7 @@
 #include <linux/ptrace.h>
 #include <linux/gfp.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int compat_get_timex(struct timex *txc, struct compat_timex __user *utp)
 {
@@ -108,8 +108,8 @@ COMPAT_SYSCALL_DEFINE2(gettimeofday, struct compat_timeval __user *, tv,
 COMPAT_SYSCALL_DEFINE2(settimeofday, struct compat_timeval __user *, tv,
 		       struct timezone __user *, tz)
 {
+	struct timespec64 new_ts;
 	struct timeval user_tv;
-	struct timespec	new_ts;
 	struct timezone new_tz;
 
 	if (tv) {
@@ -123,7 +123,7 @@ COMPAT_SYSCALL_DEFINE2(settimeofday, struct compat_timeval __user *, tv,
 			return -EFAULT;
 	}
 
-	return do_sys_settimeofday(tv ? &new_ts : NULL, tz ? &new_tz : NULL);
+	return do_sys_settimeofday64(tv ? &new_ts : NULL, tz ? &new_tz : NULL);
 }
 
 static int __compat_get_timeval(struct timeval *tv, const struct compat_timeval __user *ctv)
@@ -240,18 +240,20 @@ COMPAT_SYSCALL_DEFINE2(nanosleep, struct compat_timespec __user *, rqtp,
 		       struct compat_timespec __user *, rmtp)
 {
 	struct timespec tu, rmt;
+	struct timespec64 tu64;
 	mm_segment_t oldfs;
 	long ret;
 
 	if (compat_get_timespec(&tu, rqtp))
 		return -EFAULT;
 
-	if (!timespec_valid(&tu))
+	tu64 = timespec_to_timespec64(tu);
+	if (!timespec64_valid(&tu64))
 		return -EINVAL;
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	ret = hrtimer_nanosleep(&tu,
+	ret = hrtimer_nanosleep(&tu64,
 				rmtp ? (struct timespec __user *)&rmt : NULL,
 				HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 	set_fs(oldfs);
@@ -307,11 +309,16 @@ static inline long put_compat_itimerval(struct compat_itimerval __user *o,
 		 __put_user(i->it_value.tv_usec, &o->it_value.tv_usec)));
 }
 
+asmlinkage long sys_ni_posix_timers(void);
+
 COMPAT_SYSCALL_DEFINE2(getitimer, int, which,
 		struct compat_itimerval __user *, it)
 {
 	struct itimerval kit;
 	int error;
+
+	if (!IS_ENABLED(CONFIG_POSIX_TIMERS))
+		return sys_ni_posix_timers();
 
 	error = do_getitimer(which, &kit);
 	if (!error && put_compat_itimerval(it, &kit))
@@ -325,6 +332,9 @@ COMPAT_SYSCALL_DEFINE3(setitimer, int, which,
 {
 	struct itimerval kin, kout;
 	int error;
+
+	if (!IS_ENABLED(CONFIG_POSIX_TIMERS))
+		return sys_ni_posix_timers();
 
 	if (in) {
 		if (get_compat_itimerval(&kin, in))

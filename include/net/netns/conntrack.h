@@ -69,19 +69,6 @@ struct nf_sctp_net {
 };
 #endif
 
-#ifdef CONFIG_NF_CT_PROTO_UDPLITE
-enum udplite_conntrack {
-	UDPLITE_CT_UNREPLIED,
-	UDPLITE_CT_REPLIED,
-	UDPLITE_CT_MAX
-};
-
-struct nf_udplite_net {
-	struct nf_proto_net pn;
-	unsigned int timeouts[UDPLITE_CT_MAX];
-};
-#endif
-
 struct nf_ip_net {
 	struct nf_generic_net   generic;
 	struct nf_tcp_net	tcp;
@@ -93,9 +80,6 @@ struct nf_ip_net {
 #endif
 #ifdef CONFIG_NF_CT_PROTO_SCTP
 	struct nf_sctp_net	sctp;
-#endif
-#ifdef CONFIG_NF_CT_PROTO_UDPLITE
-	struct nf_udplite_net	udplite;
 #endif
 };
 

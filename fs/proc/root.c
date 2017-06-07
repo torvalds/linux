@@ -6,7 +6,7 @@
  *  proc root directory handling functions
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/errno.h>
 #include <linux/time.h>
@@ -14,12 +14,14 @@
 #include <linux/stat.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/sched/stat.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/user_namespace.h>
 #include <linux/mount.h>
 #include <linux/pid_namespace.h>
 #include <linux/parser.h>
+#include <linux/cred.h>
 
 #include "internal.h"
 
@@ -58,7 +60,8 @@ int proc_parse_options(char *options, struct pid_namespace *pid)
 		case Opt_hidepid:
 			if (match_int(&args[0], &option))
 				return 0;
-			if (option < 0 || option > 2) {
+			if (option < HIDEPID_OFF ||
+			    option > HIDEPID_INVISIBLE) {
 				pr_err("proc: hidepid value must be between 0 and 2.\n");
 				return 0;
 			}
@@ -122,6 +125,7 @@ void __init proc_root_init(void)
 	int err;
 
 	proc_init_inodecache();
+	set_proc_pid_nlink();
 	err = register_filesystem(&proc_fs_type);
 	if (err)
 		return;
@@ -147,10 +151,10 @@ void __init proc_root_init(void)
 	proc_sys_init();
 }
 
-static int proc_root_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat
-)
+static int proc_root_getattr(const struct path *path, struct kstat *stat,
+			     u32 request_mask, unsigned int query_flags)
 {
-	generic_fillattr(d_inode(dentry), stat);
+	generic_fillattr(d_inode(path->dentry), stat);
 	stat->nlink = proc_root.nlink + nr_processes();
 	return 0;
 }

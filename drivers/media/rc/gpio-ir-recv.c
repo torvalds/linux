@@ -143,14 +143,13 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	if (!gpio_dev)
 		return -ENOMEM;
 
-	rcdev = rc_allocate_device();
+	rcdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rcdev) {
 		rc = -ENOMEM;
 		goto err_allocate_device;
 	}
 
 	rcdev->priv = gpio_dev;
-	rcdev->driver_type = RC_DRIVER_IR_RAW;
 	rcdev->input_name = GPIO_IR_DEVICE_NAME;
 	rcdev->input_phys = GPIO_IR_DEVICE_NAME "/input0";
 	rcdev->input_id.bustype = BUS_HOST;
@@ -159,13 +158,13 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	rcdev->input_id.version = 0x0100;
 	rcdev->dev.parent = &pdev->dev;
 	rcdev->driver_name = GPIO_IR_DRIVER_NAME;
-	rcdev->min_timeout = 0;
+	rcdev->min_timeout = 1;
 	rcdev->timeout = IR_DEFAULT_TIMEOUT;
 	rcdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	if (pdata->allowed_protos)
 		rcdev->allowed_protocols = pdata->allowed_protos;
 	else
-		rcdev->allowed_protocols = RC_BIT_ALL;
+		rcdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
 	rcdev->map_name = pdata->map_name ?: RC_MAP_EMPTY;
 
 	gpio_dev->rcdev = rcdev;

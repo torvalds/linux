@@ -9,7 +9,10 @@
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
 #include "../../util/config.h"
+#include <inttypes.h>
 #include <pthread.h>
+#include <linux/kernel.h>
+#include <sys/ttydefaults.h>
 
 struct disasm_line_samples {
 	double		percent;
@@ -215,7 +218,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			ui_browser__set_color(browser, color);
 		if (dl->ins.ops && dl->ins.ops->scnprintf) {
 			if (ins__is_jump(&dl->ins)) {
-				bool fwd = dl->ops.target.offset > (u64)dl->offset;
+				bool fwd = dl->ops.target.offset > dl->offset;
 
 				ui_browser__write_graph(browser, fwd ? SLSMG_DARROW_CHAR :
 								    SLSMG_UARROW_CHAR);
@@ -245,7 +248,8 @@ static bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sy
 {
 	if (!dl || !dl->ins.ops || !ins__is_jump(&dl->ins)
 	    || !disasm_line__has_offset(dl)
-	    || dl->ops.target.offset >= symbol__size(sym))
+	    || dl->ops.target.offset < 0
+	    || dl->ops.target.offset >= (s64)symbol__size(sym))
 		return false;
 
 	return true;

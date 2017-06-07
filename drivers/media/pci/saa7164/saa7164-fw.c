@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/firmware.h>
@@ -309,7 +305,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 					break;
 				}
 				if (err_flags & SAA_DEVICE_NO_IMAGE) {
-					printk(KERN_ERR "%s() no first image\n",
+					printk(KERN_ERR "%s() no second image\n",
 						__func__);
 					break;
 				}
@@ -421,12 +417,12 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 
 		ret = request_firmware(&fw, fwname, &dev->pci->dev);
 		if (ret) {
-			printk(KERN_ERR "%s() Upload failed. "
-				"(file not found?)\n", __func__);
+			printk(KERN_ERR "%s() Upload failed. (file not found?)\n",
+			       __func__);
 			return -ENOMEM;
 		}
 
-		printk(KERN_INFO "%s() firmware read %Zu bytes.\n",
+		printk(KERN_INFO "%s() firmware read %zu bytes.\n",
 			__func__, fw->size);
 
 		if (fw->size != fwlength) {
@@ -478,15 +474,13 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 				0x03) && (saa7164_readl(SAA_DATAREADY_FLAG_ACK)
 				== 0x00) && (version == 0x00)) {
 
-				dprintk(DBGLVL_FW, "BootLoader version in  "
-					"rom %d.%d.%d.%d\n",
+				dprintk(DBGLVL_FW, "BootLoader version in  rom %d.%d.%d.%d\n",
 					(bootloaderversion & 0x0000fc00) >> 10,
 					(bootloaderversion & 0x000003e0) >> 5,
 					(bootloaderversion & 0x0000001f),
 					(bootloaderversion & 0xffff0000) >> 16
 					);
-				dprintk(DBGLVL_FW, "BootLoader version "
-					"in file %d.%d.%d.%d\n",
+				dprintk(DBGLVL_FW, "BootLoader version in file %d.%d.%d.%d\n",
 					(boothdr->version & 0x0000fc00) >> 10,
 					(boothdr->version & 0x000003e0) >> 5,
 					(boothdr->version & 0x0000001f),

@@ -29,10 +29,10 @@ struct ccu_nkmp {
 	u32			enable;
 	u32			lock;
 
-	struct _ccu_mult	n;
-	struct _ccu_mult	k;
-	struct _ccu_div		m;
-	struct _ccu_div		p;
+	struct ccu_mult_internal	n;
+	struct ccu_mult_internal	k;
+	struct ccu_div_internal		m;
+	struct ccu_div_internal		p;
 
 	struct ccu_common	common;
 };

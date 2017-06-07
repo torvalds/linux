@@ -34,6 +34,9 @@
 #define PCI_DEVICE_ID_INTEL_APL_SD	0x5aca
 #define PCI_DEVICE_ID_INTEL_APL_EMMC	0x5acc
 #define PCI_DEVICE_ID_INTEL_APL_SDIO	0x5ad0
+#define PCI_DEVICE_ID_INTEL_GLK_SD	0x31ca
+#define PCI_DEVICE_ID_INTEL_GLK_EMMC	0x31cc
+#define PCI_DEVICE_ID_INTEL_GLK_SDIO	0x31d0
 
 /*
  * PCI registers
@@ -61,12 +64,20 @@ struct sdhci_pci_fixes {
 	int			(*probe) (struct sdhci_pci_chip *);
 
 	int			(*probe_slot) (struct sdhci_pci_slot *);
+	int			(*add_host) (struct sdhci_pci_slot *);
 	void			(*remove_slot) (struct sdhci_pci_slot *, int);
 
+#ifdef CONFIG_PM_SLEEP
 	int			(*suspend) (struct sdhci_pci_chip *);
 	int			(*resume) (struct sdhci_pci_chip *);
+#endif
+#ifdef CONFIG_PM
+	int			(*runtime_suspend) (struct sdhci_pci_chip *);
+	int			(*runtime_resume) (struct sdhci_pci_chip *);
+#endif
 
 	const struct sdhci_ops	*ops;
+	size_t			priv_size;
 };
 
 struct sdhci_pci_slot {
@@ -78,15 +89,11 @@ struct sdhci_pci_slot {
 	int			cd_gpio;
 	int			cd_irq;
 
-	char			*cd_con_id;
 	int			cd_idx;
 	bool			cd_override_level;
 
 	void (*hw_reset)(struct sdhci_host *host);
-	int (*select_drive_strength)(struct sdhci_host *host,
-				     struct mmc_card *card,
-				     unsigned int max_dtr, int host_drv,
-				     int card_drv, int *drv_type);
+	unsigned long		private[0] ____cacheline_aligned;
 };
 
 struct sdhci_pci_chip {
@@ -95,10 +102,21 @@ struct sdhci_pci_chip {
 	unsigned int		quirks;
 	unsigned int		quirks2;
 	bool			allow_runtime_pm;
+	bool			pm_retune;
+	bool			rpm_retune;
 	const struct sdhci_pci_fixes *fixes;
 
 	int			num_slots;	/* Slots on controller */
 	struct sdhci_pci_slot	*slots[MAX_SLOTS]; /* Pointers to host slots */
 };
+
+static inline void *sdhci_pci_priv(struct sdhci_pci_slot *slot)
+{
+	return (void *)slot->private;
+}
+
+#ifdef CONFIG_PM_SLEEP
+int sdhci_pci_resume_host(struct sdhci_pci_chip *chip);
+#endif
 
 #endif /* __SDHCI_PCI_H */

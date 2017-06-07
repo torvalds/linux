@@ -1,4 +1,3 @@
-
 #include "parse-events.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -6,8 +5,15 @@
 #include "tests.h"
 #include "debug.h"
 #include "util.h"
+#include <dirent.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <linux/kernel.h>
 #include <linux/hw_breakpoint.h>
 #include <api/fs/fs.h>
+#include <api/fs/tracing_path.h>
 
 #define PERF_TP_SAMPLE_TYPE (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | \
 			     PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD)
@@ -1779,15 +1785,14 @@ static int test_pmu_events(void)
 	}
 
 	while (!ret && (ent = readdir(dir))) {
-#define MAX_NAME 100
 		struct evlist_test e;
-		char name[MAX_NAME];
+		char name[2 * NAME_MAX + 1 + 12 + 3];
 
 		/* Names containing . are special and cannot be used directly */
 		if (strchr(ent->d_name, '.'))
 			continue;
 
-		snprintf(name, MAX_NAME, "cpu/event=%s/u", ent->d_name);
+		snprintf(name, sizeof(name), "cpu/event=%s/u", ent->d_name);
 
 		e.name  = name;
 		e.check = test__checkevent_pmu_events;
@@ -1795,11 +1800,10 @@ static int test_pmu_events(void)
 		ret = test_event(&e);
 		if (ret)
 			break;
-		snprintf(name, MAX_NAME, "%s:u,cpu/event=%s/u", ent->d_name, ent->d_name);
+		snprintf(name, sizeof(name), "%s:u,cpu/event=%s/u", ent->d_name, ent->d_name);
 		e.name  = name;
 		e.check = test__checkevent_pmu_events_mix;
 		ret = test_event(&e);
-#undef MAX_NAME
 	}
 
 	closedir(dir);
@@ -1810,7 +1814,7 @@ static void debug_warn(const char *warn, va_list params)
 {
 	char msg[1024];
 
-	if (!verbose)
+	if (verbose <= 0)
 		return;
 
 	vsnprintf(msg, sizeof(msg), warn, params);

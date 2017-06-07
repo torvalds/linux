@@ -19,7 +19,9 @@
  */
 
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/kdebug.h>

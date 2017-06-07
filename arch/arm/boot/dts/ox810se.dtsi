@@ -7,6 +7,8 @@
  */
 
 /include/ "skeleton.dtsi"
+#include <dt-bindings/clock/oxsemi,ox810se.h>
+#include <dt-bindings/reset/oxsemi,ox810se.h>
 
 / {
 	compatible = "oxsemi,ox810se";
@@ -242,7 +244,7 @@
 			       current-speed = <115200>;
 			       no-loopback-test;
 			       status = "disabled";
-			       resets = <&reset 17>;
+			       resets = <&reset RESET_UART1>;
 			};
 
 			uart1: serial@300000 {
@@ -256,7 +258,7 @@
 			       current-speed = <115200>;
 			       no-loopback-test;
 			       status = "disabled";
-			       resets = <&reset 18>;
+			       resets = <&reset RESET_UART2>;
 			};
 
 			uart2: serial@900000 {
@@ -270,7 +272,7 @@
 			       current-speed = <115200>;
 			       no-loopback-test;
 			       status = "disabled";
-			       resets = <&reset 22>;
+			       resets = <&reset RESET_UART3>;
 			};
 
 			uart3: serial@a00000 {
@@ -284,7 +286,7 @@
 			       current-speed = <115200>;
 			       no-loopback-test;
 			       status = "disabled";
-			       resets = <&reset 23>;
+			       resets = <&reset RESET_UART4>;
 			};
 		};
 

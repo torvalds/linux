@@ -10,7 +10,7 @@ Note that kcov does not aim to collect as much coverage as possible. It aims
 to collect more or less stable coverage that is function of syscall inputs.
 To achieve this goal it does not collect coverage in soft/hard interrupts
 and instrumentation of some inherently non-deterministic parts of kernel is
-disbled (e.g. scheduler, locking).
+disabled (e.g. scheduler, locking).
 
 Usage
 -----
@@ -24,7 +24,9 @@ Profiling data will only become accessible once debugfs has been mounted::
 
         mount -t debugfs none /sys/kernel/debug
 
-The following program demonstrates kcov usage from within a test program::
+The following program demonstrates kcov usage from within a test program:
+
+.. code-block:: c
 
     #include <stdio.h>
     #include <stddef.h>

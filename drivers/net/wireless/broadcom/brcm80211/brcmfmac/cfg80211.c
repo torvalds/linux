@@ -138,7 +138,6 @@ static struct ieee80211_rate __wl_rates[] = {
 	.band			= NL80211_BAND_2GHZ,		\
 	.center_freq		= (_freq),			\
 	.hw_value		= (_channel),			\
-	.flags			= IEEE80211_CHAN_DISABLED,	\
 	.max_antenna_gain	= 0,				\
 	.max_power		= 30,				\
 }
@@ -147,7 +146,6 @@ static struct ieee80211_rate __wl_rates[] = {
 	.band			= NL80211_BAND_5GHZ,		\
 	.center_freq		= 5000 + (5 * (_channel)),	\
 	.hw_value		= (_channel),			\
-	.flags			= IEEE80211_CHAN_DISABLED,	\
 	.max_antenna_gain	= 0,				\
 	.max_power		= 30,				\
 }
@@ -328,7 +326,7 @@ u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
  * triples, returning a pointer to the substring whose first element
  * matches tag
  */
-const struct brcmf_tlv *
+static const struct brcmf_tlv *
 brcmf_parse_tlvs(const void *buf, int buflen, uint key)
 {
 	const struct brcmf_tlv *elt = buf;
@@ -577,12 +575,11 @@ static int brcmf_cfg80211_request_ap_if(struct brcmf_if *ifp)
  *
  * @wiphy: wiphy device of new interface.
  * @name: name of the new interface.
- * @flags: not used.
  * @params: contains mac address for AP device.
  */
 static
 struct wireless_dev *brcmf_ap_add_vif(struct wiphy *wiphy, const char *name,
-				      u32 *flags, struct vif_params *params)
+				      struct vif_params *params)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
@@ -655,7 +652,6 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 						     const char *name,
 						     unsigned char name_assign_type,
 						     enum nl80211_iftype type,
-						     u32 *flags,
 						     struct vif_params *params)
 {
 	struct wireless_dev *wdev;
@@ -676,12 +672,12 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 	case NL80211_IFTYPE_MESH_POINT:
 		return ERR_PTR(-EOPNOTSUPP);
 	case NL80211_IFTYPE_AP:
-		wdev = brcmf_ap_add_vif(wiphy, name, flags, params);
+		wdev = brcmf_ap_add_vif(wiphy, name, params);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
 	case NL80211_IFTYPE_P2P_DEVICE:
-		wdev = brcmf_p2p_add_vif(wiphy, name, name_assign_type, type, flags, params);
+		wdev = brcmf_p2p_add_vif(wiphy, name, name_assign_type, type, params);
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	default:
@@ -766,7 +762,7 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 		brcmf_dbg(SCAN, "scheduled scan completed\n");
 		cfg->internal_escan = false;
 		if (!aborted)
-			cfg80211_sched_scan_results(cfg_to_wiphy(cfg));
+			cfg80211_sched_scan_results(cfg_to_wiphy(cfg), 0);
 	} else if (scan_request) {
 		struct cfg80211_scan_info info = {
 			.aborted = aborted,
@@ -860,7 +856,7 @@ int brcmf_cfg80211_del_iface(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 static s32
 brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
-			 enum nl80211_iftype type, u32 *flags,
+			 enum nl80211_iftype type,
 			 struct vif_params *params)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
@@ -3099,6 +3095,9 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 
 	status = e->status;
 
+	if (status == BRCMF_E_STATUS_ABORT)
+		goto exit;
+
 	if (!test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
 		brcmf_err("scan not ready, bsscfgidx=%d\n", ifp->bsscfgidx);
 		return -EPERM;
@@ -3215,7 +3214,7 @@ static int brcmf_internal_escan_add_info(struct cfg80211_scan_request *req,
 {
 	struct ieee80211_channel *chan;
 	enum nl80211_band band;
-	int freq;
+	int freq, i;
 
 	if (channel <= CH_MAX_2G_CHANNEL)
 		band = NL80211_BAND_2GHZ;
@@ -3230,10 +3229,22 @@ static int brcmf_internal_escan_add_info(struct cfg80211_scan_request *req,
 	if (!chan)
 		return -EINVAL;
 
-	req->channels[req->n_channels++] = chan;
-	memcpy(req->ssids[req->n_ssids].ssid, ssid, ssid_len);
-	req->ssids[req->n_ssids++].ssid_len = ssid_len;
+	for (i = 0; i < req->n_channels; i++) {
+		if (req->channels[i] == chan)
+			break;
+	}
+	if (i == req->n_channels)
+		req->channels[req->n_channels++] = chan;
 
+	for (i = 0; i < req->n_ssids; i++) {
+		if (req->ssids[i].ssid_len == ssid_len &&
+		    !memcmp(req->ssids[i].ssid, ssid, ssid_len))
+			break;
+	}
+	if (i == req->n_ssids) {
+		memcpy(req->ssids[req->n_ssids].ssid, ssid, ssid_len);
+		req->ssids[req->n_ssids++].ssid_len = ssid_len;
+	}
 	return 0;
 }
 
@@ -3299,6 +3310,7 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 	struct brcmf_pno_scanresults_le *pfn_result;
 	u32 result_count;
 	u32 status;
+	u32 datalen;
 
 	brcmf_dbg(SCAN, "Enter\n");
 
@@ -3325,6 +3337,14 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 		brcmf_err("FALSE PNO Event. (pfn_count == 0)\n");
 		goto out_err;
 	}
+
+	netinfo_start = brcmf_get_netinfo_array(pfn_result);
+	datalen = e->datalen - ((void *)netinfo_start - (void *)pfn_result);
+	if (datalen < result_count * sizeof(*netinfo)) {
+		brcmf_err("insufficient event data\n");
+		goto out_err;
+	}
+
 	request = brcmf_alloc_internal_escan_request(wiphy,
 						     result_count);
 	if (!request) {
@@ -3332,18 +3352,11 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 		goto out_err;
 	}
 
-	data += sizeof(struct brcmf_pno_scanresults_le);
-	netinfo_start = brcmf_get_netinfo_array(pfn_result);
-
 	for (i = 0; i < result_count; i++) {
 		netinfo = &netinfo_start[i];
-		if (!netinfo) {
-			brcmf_err("Invalid netinfo ptr. index: %d\n",
-				  i);
-			err = -EINVAL;
-			goto out_err;
-		}
 
+		if (netinfo->SSID_len > IEEE80211_MAX_SSID_LEN)
+			netinfo->SSID_len = IEEE80211_MAX_SSID_LEN;
 		brcmf_dbg(SCAN, "SSID:%.32s Channel:%d\n",
 			  netinfo->SSID, netinfo->channel);
 		err = brcmf_internal_escan_add_info(request,
@@ -3359,7 +3372,7 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 		goto free_req;
 
 out_err:
-	cfg80211_sched_scan_stopped(wiphy);
+	cfg80211_sched_scan_stopped(wiphy, 0);
 free_req:
 	kfree(request);
 	return err;
@@ -3392,7 +3405,7 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 }
 
 static int brcmf_cfg80211_sched_scan_stop(struct wiphy *wiphy,
-					  struct net_device *ndev)
+					  struct net_device *ndev, u64 reqid)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
@@ -3480,8 +3493,7 @@ brcmf_wowl_nd_results(struct brcmf_if *ifp, const struct brcmf_event_msg *e,
 		return -EINVAL;
 	}
 
-	data += sizeof(struct brcmf_pno_scanresults_le);
-	netinfo = (struct brcmf_pno_net_info_le *)data;
+	netinfo = brcmf_get_netinfo_array(pfn_result);
 	memcpy(cfg->wowl.nd->ssid.ssid, netinfo->SSID, netinfo->SSID_len);
 	cfg->wowl.nd->ssid.ssid_len = netinfo->SSID_len;
 	cfg->wowl.nd->n_channels = 1;
@@ -3595,7 +3607,7 @@ static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 				      cfg->wowl.pre_pmmode);
 		cfg->wowl.active = false;
 		if (cfg->wowl.nd_enabled) {
-			brcmf_cfg80211_sched_scan_stop(cfg->wiphy, ifp->ndev);
+			brcmf_cfg80211_sched_scan_stop(cfg->wiphy, ifp->ndev, 0);
 			brcmf_fweh_unregister(cfg->pub, BRCMF_E_PFN_NET_FOUND);
 			brcmf_fweh_register(cfg->pub, BRCMF_E_PFN_NET_FOUND,
 					    brcmf_notify_sched_scan_results);
@@ -3679,7 +3691,7 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 
 	/* Stop scheduled scan */
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_PNO))
-		brcmf_cfg80211_sched_scan_stop(wiphy, ndev);
+		brcmf_cfg80211_sched_scan_stop(wiphy, ndev, 0);
 
 	/* end any scanning */
 	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status))
@@ -3971,7 +3983,7 @@ brcmf_configure_wpaie(struct brcmf_if *ifp,
 			pval |= AES_ENABLED;
 			break;
 		default:
-			brcmf_err("Ivalid unicast security info\n");
+			brcmf_err("Invalid unicast security info\n");
 		}
 		offset++;
 	}
@@ -4015,7 +4027,7 @@ brcmf_configure_wpaie(struct brcmf_if *ifp,
 			wpa_auth |= WPA2_AUTH_1X_SHA256;
 			break;
 		default:
-			brcmf_err("Ivalid key mgmt info\n");
+			brcmf_err("Invalid key mgmt info\n");
 		}
 		offset++;
 	}
@@ -4878,7 +4890,7 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		kfree(af_params);
 	} else {
 		brcmf_dbg(TRACE, "Unhandled, fc=%04x!!\n", mgmt->frame_control);
-		brcmf_dbg_hex_dump(true, buf, len, "payload, len=%Zu\n", len);
+		brcmf_dbg_hex_dump(true, buf, len, "payload, len=%zu\n", len);
 	}
 
 exit:
@@ -5071,6 +5083,29 @@ static int brcmf_cfg80211_tdls_oper(struct wiphy *wiphy,
 	return ret;
 }
 
+static int
+brcmf_cfg80211_update_conn_params(struct wiphy *wiphy,
+				  struct net_device *ndev,
+				  struct cfg80211_connect_params *sme,
+				  u32 changed)
+{
+	struct brcmf_if *ifp;
+	int err;
+
+	if (!(changed & UPDATE_ASSOC_IES))
+		return 0;
+
+	ifp = netdev_priv(ndev);
+	err = brcmf_vif_set_mgmt_ie(ifp->vif, BRCMF_VNDR_IE_ASSOCREQ_FLAG,
+				    sme->ie, sme->ie_len);
+	if (err)
+		brcmf_err("Set Assoc REQ IE Failed\n");
+	else
+		brcmf_dbg(TRACE, "Applied Vndr IEs for Assoc request\n");
+
+	return err;
+}
+
 #ifdef CONFIG_PM
 static int
 brcmf_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *ndev,
@@ -5138,6 +5173,7 @@ static struct cfg80211_ops brcmf_cfg80211_ops = {
 	.crit_proto_start = brcmf_cfg80211_crit_proto_start,
 	.crit_proto_stop = brcmf_cfg80211_crit_proto_stop,
 	.tdls_oper = brcmf_cfg80211_tdls_oper,
+	.update_connect_params = brcmf_cfg80211_update_conn_params,
 };
 
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
@@ -5323,6 +5359,7 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 	struct ieee80211_supported_band *band;
 	struct brcmf_bss_info_le *bi;
 	struct brcmu_chan ch;
+	struct cfg80211_roam_info roam_info = {};
 	u32 freq;
 	s32 err = 0;
 	u8 *buf;
@@ -5361,9 +5398,15 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 
 done:
 	kfree(buf);
-	cfg80211_roamed(ndev, notify_channel, (u8 *)profile->bssid,
-			conn_info->req_ie, conn_info->req_ie_len,
-			conn_info->resp_ie, conn_info->resp_ie_len, GFP_KERNEL);
+
+	roam_info.channel = notify_channel;
+	roam_info.bssid = profile->bssid;
+	roam_info.req_ie = conn_info->req_ie;
+	roam_info.req_ie_len = conn_info->req_ie_len;
+	roam_info.resp_ie = conn_info->resp_ie;
+	roam_info.resp_ie_len = conn_info->resp_ie_len;
+
+	cfg80211_roamed(ndev, &roam_info, GFP_KERNEL);
 	brcmf_dbg(CONN, "Report roaming result\n");
 
 	set_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state);
@@ -5825,7 +5868,6 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 	u32 i, j;
 	u32 total;
 	u32 chaninfo;
-	u32 index;
 
 	pbuf = kzalloc(BRCMF_DCMD_MEDLEN, GFP_KERNEL);
 
@@ -5873,33 +5915,39 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 		    ch.bw == BRCMU_CHAN_BW_80)
 			continue;
 
-		channel = band->channels;
-		index = band->n_channels;
+		channel = NULL;
 		for (j = 0; j < band->n_channels; j++) {
-			if (channel[j].hw_value == ch.control_ch_num) {
-				index = j;
+			if (band->channels[j].hw_value == ch.control_ch_num) {
+				channel = &band->channels[j];
 				break;
 			}
 		}
-		channel[index].center_freq =
-			ieee80211_channel_to_frequency(ch.control_ch_num,
-						       band->band);
-		channel[index].hw_value = ch.control_ch_num;
+		if (!channel) {
+			/* It seems firmware supports some channel we never
+			 * considered. Something new in IEEE standard?
+			 */
+			brcmf_err("Ignoring unexpected firmware channel %d\n",
+				  ch.control_ch_num);
+			continue;
+		}
+
+		if (channel->orig_flags & IEEE80211_CHAN_DISABLED)
+			continue;
 
 		/* assuming the chanspecs order is HT20,
 		 * HT40 upper, HT40 lower, and VHT80.
 		 */
 		if (ch.bw == BRCMU_CHAN_BW_80) {
-			channel[index].flags &= ~IEEE80211_CHAN_NO_80MHZ;
+			channel->flags &= ~IEEE80211_CHAN_NO_80MHZ;
 		} else if (ch.bw == BRCMU_CHAN_BW_40) {
-			brcmf_update_bw40_channel_flag(&channel[index], &ch);
+			brcmf_update_bw40_channel_flag(channel, &ch);
 		} else {
 			/* enable the channel and disable other bandwidths
 			 * for now as mentioned order assure they are enabled
 			 * for subsequent chanspecs.
 			 */
-			channel[index].flags = IEEE80211_CHAN_NO_HT40 |
-					       IEEE80211_CHAN_NO_80MHZ;
+			channel->flags = IEEE80211_CHAN_NO_HT40 |
+					 IEEE80211_CHAN_NO_80MHZ;
 			ch.bw = BRCMU_CHAN_BW_20;
 			cfg->d11inf.encchspec(&ch);
 			chaninfo = ch.chspec;
@@ -5907,11 +5955,11 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 						       &chaninfo);
 			if (!err) {
 				if (chaninfo & WL_CHAN_RADAR)
-					channel[index].flags |=
+					channel->flags |=
 						(IEEE80211_CHAN_RADAR |
 						 IEEE80211_CHAN_NO_IR);
 				if (chaninfo & WL_CHAN_PASSIVE)
-					channel[index].flags |=
+					channel->flags |=
 						IEEE80211_CHAN_NO_IR;
 			}
 		}
@@ -6333,15 +6381,15 @@ err:
 static void brcmf_wiphy_pno_params(struct wiphy *wiphy)
 {
 	/* scheduled scan settings */
+	wiphy->max_sched_scan_reqs = 1;
 	wiphy->max_sched_scan_ssids = BRCMF_PNO_MAX_PFN_COUNT;
 	wiphy->max_match_sets = BRCMF_PNO_MAX_PFN_COUNT;
 	wiphy->max_sched_scan_ie_len = BRCMF_SCAN_IE_LEN_MAX;
 	wiphy->max_sched_scan_plan_interval = BRCMF_PNO_SCHED_SCAN_MAX_PERIOD;
-	wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
 }
 
 #ifdef CONFIG_PM
-static struct wiphy_wowlan_support brcmf_wowlan_support = {
+static const struct wiphy_wowlan_support brcmf_wowlan_support = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
 	.n_patterns = BRCMF_WOWL_MAXPATTERNS,
 	.pattern_max_len = BRCMF_WOWL_MAXPATTERNSIZE,
@@ -6354,19 +6402,29 @@ static void brcmf_wiphy_wowl_params(struct wiphy *wiphy, struct brcmf_if *ifp)
 {
 #ifdef CONFIG_PM
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct wiphy_wowlan_support *wowl;
+
+	wowl = kmemdup(&brcmf_wowlan_support, sizeof(brcmf_wowlan_support),
+		       GFP_KERNEL);
+	if (!wowl) {
+		brcmf_err("only support basic wowlan features\n");
+		wiphy->wowlan = &brcmf_wowlan_support;
+		return;
+	}
 
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_PNO)) {
 		if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_ND)) {
-			brcmf_wowlan_support.flags |= WIPHY_WOWLAN_NET_DETECT;
+			wowl->flags |= WIPHY_WOWLAN_NET_DETECT;
+			wowl->max_nd_match_sets = BRCMF_PNO_MAX_PFN_COUNT;
 			init_waitqueue_head(&cfg->wowl.nd_data_wait);
 		}
 	}
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_GTK)) {
-		brcmf_wowlan_support.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY;
-		brcmf_wowlan_support.flags |= WIPHY_WOWLAN_GTK_REKEY_FAILURE;
+		wowl->flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY;
+		wowl->flags |= WIPHY_WOWLAN_GTK_REKEY_FAILURE;
 	}
 
-	wiphy->wowlan = &brcmf_wowlan_support;
+	wiphy->wowlan = wowl;
 #endif
 }
 
@@ -6415,7 +6473,8 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 				    BIT(NL80211_BSS_SELECT_ATTR_BAND_PREF) |
 				    BIT(NL80211_BSS_SELECT_ATTR_RSSI_ADJUST);
 
-	wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT |
+	wiphy->flags |= WIPHY_FLAG_NETNS_OK |
+			WIPHY_FLAG_PS_ON_BY_DEFAULT |
 			WIPHY_FLAG_OFFCHAN_TX |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_TDLS))
@@ -6477,8 +6536,10 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 			wiphy->bands[NL80211_BAND_5GHZ] = band;
 		}
 	}
-	err = brcmf_setup_wiphybands(wiphy);
-	return err;
+
+	wiphy_read_of_freq_limits(wiphy);
+
+	return 0;
 }
 
 static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
@@ -6512,7 +6573,7 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 	if (err)
 		goto default_conf_out;
 	err = brcmf_cfg80211_change_iface(wdev->wiphy, ndev, wdev->iftype,
-					  NULL, NULL);
+					  NULL);
 	if (err)
 		goto default_conf_out;
 
@@ -6699,6 +6760,10 @@ static void brcmf_cfg80211_reg_notifier(struct wiphy *wiphy,
 	s32 err;
 	int i;
 
+	/* The country code gets set to "00" by default at boot, ignore */
+	if (req->alpha2[0] == '0' && req->alpha2[1] == '0')
+		return;
+
 	/* ignore non-ISO3166 country codes */
 	for (i = 0; i < sizeof(req->alpha2); i++)
 		if (req->alpha2[i] < 'A' || req->alpha2[i] > 'Z') {
@@ -6748,6 +6813,10 @@ static void brcmf_free_wiphy(struct wiphy *wiphy)
 		kfree(wiphy->bands[NL80211_BAND_5GHZ]->channels);
 		kfree(wiphy->bands[NL80211_BAND_5GHZ]);
 	}
+#if IS_ENABLED(CONFIG_PM)
+	if (wiphy->wowlan != &brcmf_wowlan_support)
+		kfree(wiphy->wowlan);
+#endif
 	wiphy_free(wiphy);
 }
 
@@ -6843,6 +6912,12 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		goto priv_out;
 	}
 
+	err = brcmf_setup_wiphybands(wiphy);
+	if (err) {
+		brcmf_err("Setting wiphy bands failed (%d)\n", err);
+		goto wiphy_unreg_out;
+	}
+
 	/* If cfg80211 didn't disable 40MHz HT CAP in wiphy_register(),
 	 * setup 40MHz in 2GHz band and enable OBSS scanning.
 	 */
@@ -6868,7 +6943,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 
 	err = brcmf_p2p_attach(cfg, p2pdev_forced);
 	if (err) {
-		brcmf_err("P2P initilisation failed (%d)\n", err);
+		brcmf_err("P2P initialisation failed (%d)\n", err);
 		goto wiphy_unreg_out;
 	}
 	err = brcmf_btcoex_attach(cfg);
@@ -6893,7 +6968,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	err = brcmf_fweh_activate_events(ifp);
 	if (err) {
 		brcmf_err("FWEH activation failed (%d)\n", err);
-		goto wiphy_unreg_out;
+		goto detach;
 	}
 
 	/* Fill in some of the advertised nl80211 supported features */
@@ -6908,6 +6983,9 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 
 	return cfg;
 
+detach:
+	brcmf_btcoex_detach(cfg);
+	brcmf_p2p_detach(&cfg->p2p);
 wiphy_unreg_out:
 	wiphy_unregister(cfg->wiphy);
 priv_out:

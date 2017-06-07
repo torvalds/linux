@@ -181,8 +181,7 @@ static int fsl_bman_probe(struct platform_device *pdev)
 			node->full_name);
 		return -ENXIO;
 	}
-	bm_ccsr_start = devm_ioremap(dev, res->start,
-				     res->end - res->start + 1);
+	bm_ccsr_start = devm_ioremap(dev, res->start, resource_size(res));
 	if (!bm_ccsr_start)
 		return -ENXIO;
 

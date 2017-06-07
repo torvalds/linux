@@ -20,7 +20,7 @@
 #include <linux/icmp.h>
 #include <net/ip.h>
 #include <net/compat.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/mutex.h>
 #include <linux/proc_fs.h>
 #include <linux/err.h>
@@ -382,7 +382,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 	   to 0 as we leave), and comefrom to save source hook bitmask */
 	for (hook = 0; hook < NF_INET_NUMHOOKS; hook++) {
 		unsigned int pos = newinfo->hook_entry[hook];
-		struct ipt_entry *e = (struct ipt_entry *)(entry0 + pos);
+		struct ipt_entry *e = entry0 + pos;
 
 		if (!(valid_hooks & (1 << hook)))
 			continue;
@@ -424,14 +424,12 @@ mark_source_chains(const struct xt_table_info *newinfo,
 					if (pos == oldpos)
 						goto next;
 
-					e = (struct ipt_entry *)
-						(entry0 + pos);
+					e = entry0 + pos;
 				} while (oldpos == pos + e->next_offset);
 
 				/* Move along one */
 				size = e->next_offset;
-				e = (struct ipt_entry *)
-					(entry0 + pos + size);
+				e = entry0 + pos + size;
 				if (pos + size >= newinfo->size)
 					return 0;
 				e->counters.pcnt = pos;
@@ -446,16 +444,14 @@ mark_source_chains(const struct xt_table_info *newinfo,
 					if (!xt_find_jump_offset(offsets, newpos,
 								 newinfo->number))
 						return 0;
-					e = (struct ipt_entry *)
-						(entry0 + newpos);
+					e = entry0 + newpos;
 				} else {
 					/* ... this is a fallthru */
 					newpos = pos + e->next_offset;
 					if (newpos >= newinfo->size)
 						return 0;
 				}
-				e = (struct ipt_entry *)
-					(entry0 + newpos);
+				e = entry0 + newpos;
 				e->counters.pcnt = pos;
 				pos = newpos;
 			}
@@ -826,10 +822,6 @@ copy_entries_to_user(unsigned int total_size,
 		return PTR_ERR(counters);
 
 	loc_cpu_entry = private->entries;
-	if (copy_to_user(userptr, loc_cpu_entry, total_size) != 0) {
-		ret = -EFAULT;
-		goto free_counters;
-	}
 
 	/* FIXME: use iterator macros --RR */
 	/* ... then go back and fix counters and names */
@@ -838,7 +830,11 @@ copy_entries_to_user(unsigned int total_size,
 		const struct xt_entry_match *m;
 		const struct xt_entry_target *t;
 
-		e = (struct ipt_entry *)(loc_cpu_entry + off);
+		e = loc_cpu_entry + off;
+		if (copy_to_user(userptr + off, e, sizeof(*e))) {
+			ret = -EFAULT;
+			goto free_counters;
+		}
 		if (copy_to_user(userptr + off
 				 + offsetof(struct ipt_entry, counters),
 				 &counters[num],
@@ -852,23 +848,14 @@ copy_entries_to_user(unsigned int total_size,
 		     i += m->u.match_size) {
 			m = (void *)e + i;
 
-			if (copy_to_user(userptr + off + i
-					 + offsetof(struct xt_entry_match,
-						    u.user.name),
-					 m->u.kernel.match->name,
-					 strlen(m->u.kernel.match->name)+1)
-			    != 0) {
+			if (xt_match_to_user(m, userptr + off + i)) {
 				ret = -EFAULT;
 				goto free_counters;
 			}
 		}
 
 		t = ipt_get_target_c(e);
-		if (copy_to_user(userptr + off + e->target_offset
-				 + offsetof(struct xt_entry_target,
-					    u.user.name),
-				 t->u.kernel.target->name,
-				 strlen(t->u.kernel.target->name)+1) != 0) {
+		if (xt_target_to_user(t, userptr + off + e->target_offset)) {
 			ret = -EFAULT;
 			goto free_counters;
 		}
@@ -1238,7 +1225,7 @@ compat_copy_entry_to_user(struct ipt_entry *e, void __user **dstptr,
 	int ret = 0;
 
 	origsize = *size;
-	ce = (struct compat_ipt_entry __user *)*dstptr;
+	ce = *dstptr;
 	if (copy_to_user(ce, e, sizeof(struct ipt_entry)) != 0 ||
 	    copy_to_user(&ce->counters, &counters[i],
 	    sizeof(counters[i])) != 0)
@@ -1375,7 +1362,7 @@ compat_copy_entry_from_user(struct compat_ipt_entry *e, void **dstptr,
 	struct xt_entry_match *ematch;
 
 	origsize = *size;
-	de = (struct ipt_entry *)*dstptr;
+	de = *dstptr;
 	memcpy(de, e, sizeof(struct ipt_entry));
 	memcpy(&de->counters, &e->counters, sizeof(e->counters));
 

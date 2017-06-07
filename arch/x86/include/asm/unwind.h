@@ -11,8 +11,12 @@ struct unwind_state {
 	unsigned long stack_mask;
 	struct task_struct *task;
 	int graph_idx;
+	bool error;
 #ifdef CONFIG_FRAME_POINTER
-	unsigned long *bp;
+	bool got_irq;
+	unsigned long *bp, *orig_sp;
+	struct pt_regs *regs;
+	unsigned long ip;
 #else
 	unsigned long *sp;
 #endif
@@ -39,6 +43,11 @@ void unwind_start(struct unwind_state *state, struct task_struct *task,
 	__unwind_start(state, task, regs, first_frame);
 }
 
+static inline bool unwind_error(struct unwind_state *state)
+{
+	return state->error;
+}
+
 #ifdef CONFIG_FRAME_POINTER
 
 static inline
@@ -47,13 +56,26 @@ unsigned long *unwind_get_return_address_ptr(struct unwind_state *state)
 	if (unwind_done(state))
 		return NULL;
 
-	return state->bp + 1;
+	return state->regs ? &state->regs->ip : state->bp + 1;
+}
+
+static inline struct pt_regs *unwind_get_entry_regs(struct unwind_state *state)
+{
+	if (unwind_done(state))
+		return NULL;
+
+	return state->regs;
 }
 
 #else /* !CONFIG_FRAME_POINTER */
 
 static inline
 unsigned long *unwind_get_return_address_ptr(struct unwind_state *state)
+{
+	return NULL;
+}
+
+static inline struct pt_regs *unwind_get_entry_regs(struct unwind_state *state)
 {
 	return NULL;
 }

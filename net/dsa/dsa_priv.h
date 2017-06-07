@@ -17,20 +17,17 @@
 
 struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
-	int (*rcv)(struct sk_buff *skb, struct net_device *dev,
-		   struct packet_type *pt, struct net_device *orig_dev);
+	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
+			       struct packet_type *pt,
+			       struct net_device *orig_dev);
 };
 
 struct dsa_slave_priv {
 	struct sk_buff *	(*xmit)(struct sk_buff *skb,
 					struct net_device *dev);
 
-	/*
-	 * Which switch this port is a part of, and the port index
-	 * for this port.
-	 */
-	struct dsa_switch	*parent;
-	u8			port;
+	/* DSA port data, such as switch, port index, etc. */
+	struct dsa_port		*dp;
 
 	/*
 	 * The phylib phy_device pointer for the PHY connected
@@ -42,20 +39,25 @@ struct dsa_slave_priv {
 	int			old_pause;
 	int			old_duplex;
 
-	struct net_device	*bridge_dev;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll		*netpoll;
 #endif
+
+	/* TC context */
+	struct list_head	mall_tc_list;
 };
 
 /* dsa.c */
-extern char dsa_driver_version[];
 int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
-		      struct device_node *port_dn, int port);
-void dsa_cpu_dsa_destroy(struct device_node *port_dn);
+		      struct dsa_port *dport, int port);
+void dsa_cpu_dsa_destroy(struct dsa_port *dport);
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 int dsa_cpu_port_ethtool_setup(struct dsa_switch *ds);
 void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds);
+
+/* legacy.c */
+int dsa_legacy_register(void);
+void dsa_legacy_unregister(void);
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
@@ -66,8 +68,12 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 void dsa_slave_destroy(struct net_device *slave_dev);
 int dsa_slave_suspend(struct net_device *slave_dev);
 int dsa_slave_resume(struct net_device *slave_dev);
-int dsa_slave_netdevice_event(struct notifier_block *unused,
-			      unsigned long event, void *ptr);
+int dsa_slave_register_notifier(void);
+void dsa_slave_unregister_notifier(void);
+
+/* switch.c */
+int dsa_switch_register_notifier(struct dsa_switch *ds);
+void dsa_switch_unregister_notifier(struct dsa_switch *ds);
 
 /* tag_dsa.c */
 extern const struct dsa_device_ops dsa_netdev_ops;
@@ -83,5 +89,11 @@ extern const struct dsa_device_ops brcm_netdev_ops;
 
 /* tag_qca.c */
 extern const struct dsa_device_ops qca_netdev_ops;
+
+/* tag_mtk.c */
+extern const struct dsa_device_ops mtk_netdev_ops;
+
+/* tag_lan9303.c */
+extern const struct dsa_device_ops lan9303_netdev_ops;
 
 #endif

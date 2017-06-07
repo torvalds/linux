@@ -1635,13 +1635,11 @@ init_isar(struct isar_hw *isar)
 	}
 	if (isar->version != 1)
 		return -EINVAL;
-	isar->ch[0].ftimer.function = &ftimer_handler;
-	isar->ch[0].ftimer.data = (long)&isar->ch[0];
-	init_timer(&isar->ch[0].ftimer);
+	setup_timer(&isar->ch[0].ftimer, &ftimer_handler,
+		    (long)&isar->ch[0]);
 	test_and_set_bit(FLG_INITIALIZED, &isar->ch[0].bch.Flags);
-	isar->ch[1].ftimer.function = &ftimer_handler;
-	isar->ch[1].ftimer.data = (long)&isar->ch[1];
-	init_timer(&isar->ch[1].ftimer);
+	setup_timer(&isar->ch[1].ftimer, &ftimer_handler,
+		    (long)&isar->ch[1]);
 	test_and_set_bit(FLG_INITIALIZED, &isar->ch[1].bch.Flags);
 	return 0;
 }

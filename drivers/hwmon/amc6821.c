@@ -188,8 +188,8 @@ static struct amc6821_data *amc6821_update_device(struct device *dev)
 			!data->valid) {
 
 		for (i = 0; i < TEMP_IDX_LEN; i++)
-			data->temp[i] = i2c_smbus_read_byte_data(client,
-				temp_reg[i]);
+			data->temp[i] = (int8_t)i2c_smbus_read_byte_data(
+				client, temp_reg[i]);
 
 		data->stat1 = i2c_smbus_read_byte_data(client,
 			AMC6821_REG_STAT1);

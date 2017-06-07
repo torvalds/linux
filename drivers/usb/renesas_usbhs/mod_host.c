@@ -577,7 +577,7 @@ static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 		upphub	= usbhsh_device_number(hpriv, parent);
 		hubport	= usbhsh_device_hubport(udev);
 
-		dev_dbg(dev, "%s connecte to Hub [%d:%d](%p)\n", __func__,
+		dev_dbg(dev, "%s connected to Hub [%d:%d](%p)\n", __func__,
 			upphub, hubport, parent);
 	}
 

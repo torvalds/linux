@@ -204,7 +204,6 @@ static inline void udp_lib_close(struct sock *sk, long timeout)
 }
 
 int udp_lib_get_port(struct sock *sk, unsigned short snum,
-		     int (*)(const struct sock *, const struct sock *, bool),
 		     unsigned int hash2_nulladdr);
 
 u32 udp_flow_hashrnd(void);
@@ -373,4 +372,5 @@ void udp_encap_enable(void);
 #if IS_ENABLED(CONFIG_IPV6)
 void udpv6_encap_enable(void);
 #endif
+
 #endif	/* _UDP_H */

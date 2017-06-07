@@ -54,7 +54,7 @@ define_machine(virtex) {
 	.probe			= virtex_probe,
 	.setup_arch		= xilinx_pci_init,
 	.init_IRQ		= xilinx_intc_init_tree,
-	.get_irq		= xilinx_intc_get_irq,
+	.get_irq		= xintc_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,
 	.restart		= ppc4xx_reset_system,
 };

@@ -334,25 +334,6 @@ __pci_mmap_make_offset(struct pci_dev *dev, struct vm_area_struct *vma,
 }
 
 /*
- * Set vm_page_prot of VMA, as appropriate for this architecture, for a pci
- * device mapping.
- */
-static __inline__ void
-__pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
-		      enum pci_mmap_state mmap_state, int write_combine)
-{
-	int prot = pgprot_val(vma->vm_page_prot);
-
-	/* Set to write-through */
-	prot = (prot & _PAGE_CA_MASK) | _PAGE_CA_WT;
-#if 0
-	if (!write_combine)
-		prot |= _PAGE_WRITETHRU;
-#endif
-	vma->vm_page_prot = __pgprot(prot);
-}
-
-/*
  * Perform the actual remap of the pages for a PCI device mapping, as
  * appropriate for this architecture.  The region in the process to map
  * is described by vm_start and vm_end members of VMA, the base physical
@@ -362,7 +343,8 @@ __pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
  *
  * Returns a negative error code on failure, zero on success.
  */
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
+int pci_mmap_page_range(struct pci_dev *dev, int bar,
+			struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state,
 			int write_combine)
 {
@@ -372,7 +354,7 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	if (ret < 0)
 		return ret;
 
-	__pci_mmap_set_pgprot(dev, vma, mmap_state, write_combine);
+	vma->vm_page_prot = pgprot_device(vma->vm_page_prot);
 
 	ret = io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			         vma->vm_end - vma->vm_start,vma->vm_page_prot);

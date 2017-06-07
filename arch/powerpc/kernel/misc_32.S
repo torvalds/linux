@@ -296,7 +296,7 @@ _GLOBAL(flush_instruction_cache)
 	lis	r3, KERNELBASE@h
 	iccci	0,r3
 #endif
-#elif CONFIG_FSL_BOOKE
+#elif defined(CONFIG_FSL_BOOKE)
 BEGIN_FTR_SECTION
 	mfspr   r3,SPRN_L1CSR0
 	ori     r3,r3,L1CSR0_CFI|L1CSR0_CLFC
@@ -614,7 +614,7 @@ _GLOBAL(start_secondary_resume)
 _GLOBAL(__main)
 	blr
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	/*
 	 * Must be relocatable PIC code callable as a C function.
 	 */

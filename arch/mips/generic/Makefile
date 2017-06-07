@@ -13,3 +13,4 @@ obj-y += irq.o
 obj-y += proc.o
 
 obj-$(CONFIG_LEGACY_BOARD_SEAD3)	+= board-sead3.o
+obj-$(CONFIG_KEXEC)			+= kexec.o

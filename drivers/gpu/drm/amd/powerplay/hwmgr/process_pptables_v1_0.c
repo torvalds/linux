@@ -20,13 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 
 #include "process_pptables_v1_0.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
-#include "pp_debug.h"
 #include "hwmgr.h"
 #include "cgs_common.h"
 #include "pptable_v1_0.h"
@@ -131,7 +131,7 @@ static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 /**
  * Private Function to get the PowerPlay Table Address.
  */
-const void *get_powerplay_table(struct pp_hwmgr *hwmgr)
+static const void *get_powerplay_table(struct pp_hwmgr *hwmgr)
 {
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
 
@@ -535,7 +535,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			printk(KERN_ERR "[ powerplay ] Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
 			Disregarding the excess entries... \n");
 
 		pcie_table->count = pcie_count;
@@ -577,7 +577,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			printk(KERN_ERR "[ powerplay ] Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
 			Disregarding the excess entries... \n");
 
 		pcie_table->count = pcie_count;
@@ -1049,7 +1049,7 @@ static int check_powerplay_tables(
 	return 0;
 }
 
-int pp_tables_v1_0_initialize(struct pp_hwmgr *hwmgr)
+static int pp_tables_v1_0_initialize(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 	const ATOM_Tonga_POWERPLAYTABLE *powerplay_table;
@@ -1100,7 +1100,7 @@ int pp_tables_v1_0_initialize(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-int pp_tables_v1_0_uninitialize(struct pp_hwmgr *hwmgr)
+static int pp_tables_v1_0_uninitialize(struct pp_hwmgr *hwmgr)
 {
 	struct phm_ppt_v1_information *pp_table_information =
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -1214,7 +1214,7 @@ static int ppt_get_num_of_vce_state_table_entries_v1_0(struct pp_hwmgr *hwmgr)
 }
 
 static int ppt_get_vce_state_table_entry_v1_0(struct pp_hwmgr *hwmgr, uint32_t i,
-		struct pp_vce_state *vce_state, void **clock_info, uint32_t *flag)
+		struct amd_vce_state *vce_state, void **clock_info, uint32_t *flag)
 {
 	const ATOM_Tonga_VCE_State_Record *vce_state_record;
 	ATOM_Tonga_SCLK_Dependency_Record *sclk_dep_record;
@@ -1318,7 +1318,7 @@ int get_powerplay_table_entry_v1_0(struct pp_hwmgr *hwmgr,
 
 	hwmgr->num_vce_state_tables = i = ppt_get_num_of_vce_state_table_entries_v1_0(hwmgr);
 
-	if ((i != 0) && (i <= PP_MAX_VCE_LEVELS)) {
+	if ((i != 0) && (i <= AMD_MAX_VCE_LEVELS)) {
 		for (j = 0; j < i; j++)
 			ppt_get_vce_state_table_entry_v1_0(hwmgr, j, &(hwmgr->vce_states[j]), NULL, &flags);
 	}

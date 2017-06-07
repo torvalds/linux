@@ -651,7 +651,7 @@ static int dma_fixed_dma_supported(struct device *dev, u64 mask)
 
 static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask);
 
-static struct dma_map_ops dma_iommu_fixed_ops = {
+static const struct dma_map_ops dma_iommu_fixed_ops = {
 	.alloc          = dma_fixed_alloc_coherent,
 	.free           = dma_fixed_free_coherent,
 	.map_sg         = dma_fixed_map_sg,
@@ -692,7 +692,7 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
 		return 0;
 
 	/* We use the PCI DMA ops */
-	dev->archdata.dma_ops = get_pci_dma_ops();
+	dev->dma_ops = get_pci_dma_ops();
 
 	cell_dma_dev_setup(dev);
 
@@ -1172,7 +1172,7 @@ __setup("iommu_fixed=", setup_iommu_fixed);
 
 static u64 cell_dma_get_required_mask(struct device *dev)
 {
-	struct dma_map_ops *dma_ops;
+	const struct dma_map_ops *dma_ops;
 
 	if (!dev->dma_mask)
 		return 0;

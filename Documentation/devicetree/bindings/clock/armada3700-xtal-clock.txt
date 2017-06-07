@@ -5,6 +5,7 @@ reading the gpio latch register.
 
 This node must be a subnode of the node exposing the register address
 of the GPIO block where the gpio latch is located.
+See Documentation/devicetree/bindings/pinctrl/marvell,armada-37xx-pinctrl.txt
 
 Required properties:
 - compatible : shall be one of the following:
@@ -16,9 +17,9 @@ Optional properties:
 	output names ("xtal")
 
 Example:
-gpio1: gpio@13800 {
-	compatible = "marvell,armada-3700-gpio", "syscon", "simple-mfd";
-	reg = <0x13800 0x1000>;
+pinctrl_nb: pinctrl-nb@13800 {
+	compatible = "armada3710-nb-pinctrl", "syscon", "simple-mfd";
+	reg = <0x13800 0x100>, <0x13C00 0x20>;
 
 	xtalclk: xtal-clk {
 		compatible = "marvell,armada-3700-xtal-clock";

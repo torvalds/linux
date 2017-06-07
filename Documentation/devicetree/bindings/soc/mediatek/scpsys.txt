@@ -9,17 +9,20 @@ domain control.
 
 The driver implements the Generic PM domain bindings described in
 power/power_domain.txt. It provides the power domains defined in
-include/dt-bindings/power/mt8173-power.h.
+include/dt-bindings/power/mt8173-power.h and mt2701-power.h.
 
 Required properties:
-- compatible: Must be "mediatek,mt8173-scpsys"
+- compatible: Should be one of:
+	- "mediatek,mt2701-scpsys"
+	- "mediatek,mt8173-scpsys"
 - #power-domain-cells: Must be 1
 - reg: Address range of the SCPSYS unit
 - infracfg: must contain a phandle to the infracfg controller
 - clock, clock-names: clocks according to the common clock binding.
-                      The clocks needed "mm", "mfg", "venc" and "venc_lt".
-		      These are the clocks which hardware needs to be enabled
-		      before enabling certain power domains.
+                      These are clocks which hardware needs to be
+                      enabled before enabling certain power domains.
+	Required clocks for MT2701: "mm", "mfg", "ethif"
+	Required clocks for MT8173: "mm", "mfg", "venc", "venc_lt"
 
 Optional properties:
 - vdec-supply: Power supply for the vdec power domain

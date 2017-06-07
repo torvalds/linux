@@ -13,10 +13,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -602,7 +598,7 @@ static void zl10353_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops zl10353_ops;
+static const struct dvb_frontend_ops zl10353_ops;
 
 struct dvb_frontend *zl10353_attach(const struct zl10353_config *config,
 				    struct i2c_adapter *i2c)
@@ -634,7 +630,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops zl10353_ops = {
+static const struct dvb_frontend_ops zl10353_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Zarlink ZL10353 DVB-T",

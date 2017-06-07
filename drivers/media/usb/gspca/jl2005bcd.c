@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define MODULE_NAME "jl2005bcd"
@@ -299,10 +295,7 @@ static int jl2005c_stream_start_cif_small(struct gspca_dev *gspca_dev)
 
 static int jl2005c_stop(struct gspca_dev *gspca_dev)
 {
-	int retval;
-
-	retval = jl2005c_write_reg(gspca_dev, 0x07, 0x00);
-	return retval;
+	return jl2005c_write_reg(gspca_dev, 0x07, 0x00);
 }
 
 /*

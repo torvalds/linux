@@ -3,6 +3,7 @@ config ATH10K
         depends on MAC80211 && HAS_DMA
 	select ATH_COMMON
 	select CRC32
+	select WANT_DEV_COREDUMP
         ---help---
           This module adds support for wireless adapters based on
           Atheros IEEE 802.11ac family of chipsets.

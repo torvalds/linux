@@ -9,6 +9,8 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/mm_types.h>
+
 #include <asm/tlb.h>
 
 #define D(x)

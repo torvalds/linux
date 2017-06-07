@@ -395,7 +395,6 @@ static int opal_recover_mce(struct pt_regs *regs,
 					struct machine_check_event *evt)
 {
 	int recovered = 0;
-	uint64_t ea = get_mce_fault_addr(evt);
 
 	if (!(regs->msr & MSR_RI)) {
 		/* If MSR_RI isn't set, we cannot recover */
@@ -404,25 +403,17 @@ static int opal_recover_mce(struct pt_regs *regs,
 	} else if (evt->disposition == MCE_DISPOSITION_RECOVERED) {
 		/* Platform corrected itself */
 		recovered = 1;
-	} else if (ea && !is_kernel_addr(ea)) {
+	} else if (evt->severity == MCE_SEV_FATAL) {
+		/* Fatal machine check */
+		pr_err("Machine check interrupt is fatal\n");
+		recovered = 0;
+	} else if ((evt->severity == MCE_SEV_ERROR_SYNC) &&
+			(user_mode(regs) && !is_global_init(current))) {
 		/*
-		 * Faulting address is not in kernel text. We should be fine.
-		 * We need to find which process uses this address.
 		 * For now, kill the task if we have received exception when
 		 * in userspace.
 		 *
 		 * TODO: Queue up this address for hwpoisioning later.
-		 */
-		if (user_mode(regs) && !is_global_init(current)) {
-			_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
-			recovered = 1;
-		} else
-			recovered = 0;
-	} else if (user_mode(regs) && !is_global_init(current) &&
-		evt->severity == MCE_SEV_ERROR_SYNC) {
-		/*
-		 * If we have received a synchronous error when in userspace
-		 * kill the task.
 		 */
 		_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
 		recovered = 1;
@@ -444,7 +435,7 @@ int opal_machine_check(struct pt_regs *regs)
 		       evt.version);
 		return 0;
 	}
-	machine_check_print_event_info(&evt);
+	machine_check_print_event_info(&evt, user_mode(regs));
 
 	if (opal_recover_mce(regs, &evt))
 		return 1;
@@ -604,6 +595,80 @@ static void opal_export_symmap(void)
 		pr_warn("Error %d creating OPAL symbols file\n", rc);
 }
 
+static ssize_t export_attr_read(struct file *fp, struct kobject *kobj,
+				struct bin_attribute *bin_attr, char *buf,
+				loff_t off, size_t count)
+{
+	return memory_read_from_buffer(buf, count, &off, bin_attr->private,
+				       bin_attr->size);
+}
+
+/*
+ * opal_export_attrs: creates a sysfs node for each property listed in
+ * the device-tree under /ibm,opal/firmware/exports/
+ * All new sysfs nodes are created under /opal/exports/.
+ * This allows for reserved memory regions (e.g. HDAT) to be read.
+ * The new sysfs nodes are only readable by root.
+ */
+static void opal_export_attrs(void)
+{
+	struct bin_attribute *attr;
+	struct device_node *np;
+	struct property *prop;
+	struct kobject *kobj;
+	u64 vals[2];
+	int rc;
+
+	np = of_find_node_by_path("/ibm,opal/firmware/exports");
+	if (!np)
+		return;
+
+	/* Create new 'exports' directory - /sys/firmware/opal/exports */
+	kobj = kobject_create_and_add("exports", opal_kobj);
+	if (!kobj) {
+		pr_warn("kobject_create_and_add() of exports failed\n");
+		return;
+	}
+
+	for_each_property_of_node(np, prop) {
+		if (!strcmp(prop->name, "name") || !strcmp(prop->name, "phandle"))
+			continue;
+
+		if (of_property_read_u64_array(np, prop->name, &vals[0], 2))
+			continue;
+
+		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+
+		if (attr == NULL) {
+			pr_warn("Failed kmalloc for bin_attribute!");
+			continue;
+		}
+
+		sysfs_bin_attr_init(attr);
+		attr->attr.name = kstrdup(prop->name, GFP_KERNEL);
+		attr->attr.mode = 0400;
+		attr->read = export_attr_read;
+		attr->private = __va(vals[0]);
+		attr->size = vals[1];
+
+		if (attr->attr.name == NULL) {
+			pr_warn("Failed kstrdup for bin_attribute attr.name");
+			kfree(attr);
+			continue;
+		}
+
+		rc = sysfs_create_bin_file(kobj, attr);
+		if (rc) {
+			pr_warn("Error %d creating OPAL sysfs exports/%s file\n",
+				 rc, prop->name);
+			kfree(attr->attr.name);
+			kfree(attr);
+		}
+	}
+
+	of_node_put(np);
+}
+
 static void __init opal_dump_region_init(void)
 {
 	void *addr;
@@ -632,21 +697,11 @@ static void __init opal_dump_region_init(void)
 			"rc = %d\n", rc);
 }
 
-static void opal_pdev_init(struct device_node *opal_node,
-		const char *compatible)
+static void opal_pdev_init(const char *compatible)
 {
 	struct device_node *np;
 
-	for_each_child_of_node(opal_node, np)
-		if (of_device_is_compatible(np, compatible))
-			of_platform_device_create(np, NULL, NULL);
-}
-
-static void opal_i2c_create_devs(void)
-{
-	struct device_node *np;
-
-	for_each_compatible_node(np, NULL, "ibm,opal-i2c")
+	for_each_compatible_node(np, NULL, compatible)
 		of_platform_device_create(np, NULL, NULL);
 }
 
@@ -718,7 +773,7 @@ static int __init opal_init(void)
 	opal_hmi_handler_init();
 
 	/* Create i2c platform devices */
-	opal_i2c_create_devs();
+	opal_pdev_init("ibm,opal-i2c");
 
 	/* Setup a heatbeat thread if requested by OPAL */
 	opal_init_heartbeat();
@@ -752,13 +807,16 @@ static int __init opal_init(void)
 		opal_msglog_sysfs_init();
 	}
 
+	/* Export all properties */
+	opal_export_attrs();
+
 	/* Initialize platform devices: IPMI backend, PRD & flash interface */
-	opal_pdev_init(opal_node, "ibm,opal-ipmi");
-	opal_pdev_init(opal_node, "ibm,opal-flash");
-	opal_pdev_init(opal_node, "ibm,opal-prd");
+	opal_pdev_init("ibm,opal-ipmi");
+	opal_pdev_init("ibm,opal-flash");
+	opal_pdev_init("ibm,opal-prd");
 
 	/* Initialise platform device: oppanel interface */
-	opal_pdev_init(opal_node, "ibm,opal-oppanel");
+	opal_pdev_init("ibm,opal-oppanel");
 
 	/* Initialise OPAL kmsg dumper for flushing console on panic */
 	opal_kmsg_init();
@@ -885,6 +943,17 @@ int opal_error_code(int rc)
 	}
 }
 
+void powernv_set_nmmu_ptcr(unsigned long ptcr)
+{
+	int rc;
+
+	if (firmware_has_feature(FW_FEATURE_OPAL)) {
+		rc = opal_nmmu_set_ptcr(-1UL, ptcr);
+		if (rc != OPAL_SUCCESS && rc != OPAL_UNSUPPORTED)
+			pr_warn("%s: Unable to set nest mmu ptcr\n", __func__);
+	}
+}
+
 EXPORT_SYMBOL_GPL(opal_poll_events);
 EXPORT_SYMBOL_GPL(opal_rtc_read);
 EXPORT_SYMBOL_GPL(opal_rtc_write);
@@ -896,3 +965,6 @@ EXPORT_SYMBOL_GPL(opal_leds_get_ind);
 EXPORT_SYMBOL_GPL(opal_leds_set_ind);
 /* Export this symbol for PowerNV Operator Panel class driver */
 EXPORT_SYMBOL_GPL(opal_write_oppanel_async);
+/* Export this for KVM */
+EXPORT_SYMBOL_GPL(opal_int_set_mfrr);
+EXPORT_SYMBOL_GPL(opal_int_eoi);

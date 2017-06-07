@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "../utils.h"
+#include "utils.h"
 
 #define MAX_LEN 8192
 #define MAX_OFFSET 16

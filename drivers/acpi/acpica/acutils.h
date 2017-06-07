@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -231,6 +231,8 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc);
 const char *acpi_ut_get_region_name(u8 space_id);
 
 const char *acpi_ut_get_event_name(u32 event_id);
+
+const char *acpi_ut_get_argument_type_name(u32 arg_type);
 
 char acpi_ut_hex_to_ascii_char(u64 integer, u32 position);
 

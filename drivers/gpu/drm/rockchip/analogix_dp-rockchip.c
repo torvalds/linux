@@ -417,7 +417,8 @@ static void rockchip_dp_unbind(struct device *dev, struct device *master,
 
 	rockchip_drm_psr_unregister(&dp->encoder);
 
-	return analogix_dp_unbind(dev, master, data);
+	analogix_dp_unbind(dev, master, data);
+	clk_disable_unprepare(dp->pclk);
 }
 
 static const struct component_ops rockchip_dp_component_ops = {
@@ -428,31 +429,13 @@ static const struct component_ops rockchip_dp_component_ops = {
 static int rockchip_dp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *panel_node, *port, *endpoint;
 	struct drm_panel *panel = NULL;
 	struct rockchip_dp_device *dp;
+	int ret;
 
-	port = of_graph_get_port_by_id(dev->of_node, 1);
-	if (port) {
-		endpoint = of_get_child_by_name(port, "endpoint");
-		of_node_put(port);
-		if (!endpoint) {
-			dev_err(dev, "no output endpoint found\n");
-			return -EINVAL;
-		}
-
-		panel_node = of_graph_get_remote_port_parent(endpoint);
-		of_node_put(endpoint);
-		if (!panel_node) {
-			dev_err(dev, "no output node found\n");
-			return -EINVAL;
-		}
-
-		panel = of_drm_find_panel(panel_node);
-		of_node_put(panel_node);
-		if (!panel)
-			return -EPROBE_DEFER;
-	}
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, NULL);
+	if (ret)
+		return ret;
 
 	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
 	if (!dp)
@@ -507,7 +490,7 @@ static const struct of_device_id rockchip_dp_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_dp_dt_ids);
 
-static struct platform_driver rockchip_dp_driver = {
+struct platform_driver rockchip_dp_driver = {
 	.probe = rockchip_dp_probe,
 	.remove = rockchip_dp_remove,
 	.driver = {
@@ -516,10 +499,3 @@ static struct platform_driver rockchip_dp_driver = {
 		   .of_match_table = of_match_ptr(rockchip_dp_dt_ids),
 	},
 };
-
-module_platform_driver(rockchip_dp_driver);
-
-MODULE_AUTHOR("Yakir Yang <ykk@rock-chips.com>");
-MODULE_AUTHOR("Jeff chen <jeff.chen@rock-chips.com>");
-MODULE_DESCRIPTION("Rockchip Specific Analogix-DP Driver Extension");
-MODULE_LICENSE("GPL v2");

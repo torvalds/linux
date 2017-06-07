@@ -5,6 +5,16 @@
 
 menu "Pressure sensors"
 
+config ABP060MG
+	tristate "Honeywell ABP pressure sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Honeywell ABP pressure
+	  sensors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called abp060mg.
+
 config BMP280
 	tristate "Bosch Sensortec BMP180/BMP280 pressure sensor I2C driver"
 	depends on (I2C || SPI_MASTER)
@@ -31,6 +41,16 @@ config BMP280_SPI
 	depends on BMP280
 	depends on SPI_MASTER
 	select REGMAP
+
+config IIO_CROS_EC_BARO
+	tristate "ChromeOS EC Barometer Sensor"
+	depends on IIO_CROS_EC_SENSORS_CORE
+	help
+	  Say yes here to build support for the Barometer sensor when
+	  presented by the ChromeOS EC Sensor hub.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cros_ec_baro.
 
 config HID_SENSOR_PRESS
 	depends on HID_SENSOR_HUB

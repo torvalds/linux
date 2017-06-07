@@ -21,6 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/bitops.h>
 
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_mmu.h"
 #include "etnaviv_iommu.h"
@@ -229,7 +230,7 @@ static void etnaviv_iommuv2_dump(struct iommu_domain *domain, void *buf)
 			memcpy(buf, etnaviv_domain->stlb_cpu[i], SZ_4K);
 }
 
-static struct etnaviv_iommu_ops etnaviv_iommu_ops = {
+static const struct etnaviv_iommu_ops etnaviv_iommu_ops = {
 	.ops = {
 		.domain_free = etnaviv_iommuv2_domain_free,
 		.map = etnaviv_iommuv2_map,
@@ -254,7 +255,8 @@ void etnaviv_iommuv2_restore(struct etnaviv_gpu *gpu)
 	prefetch = etnaviv_buffer_config_mmuv2(gpu,
 				(u32)etnaviv_domain->mtlb_dma,
 				(u32)etnaviv_domain->bad_page_dma);
-	etnaviv_gpu_start_fe(gpu, gpu->buffer->paddr, prefetch);
+	etnaviv_gpu_start_fe(gpu, (u32)etnaviv_cmdbuf_get_pa(gpu->buffer),
+			     prefetch);
 	etnaviv_gpu_wait_idle(gpu, 100);
 
 	gpu_write(gpu, VIVS_MMUv2_CONTROL, VIVS_MMUv2_CONTROL_ENABLE);

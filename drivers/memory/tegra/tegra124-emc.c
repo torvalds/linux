@@ -1115,10 +1115,9 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	}
 
 	mc = of_find_device_by_node(np);
+	of_node_put(np);
 	if (!mc)
 		return -ENOENT;
-
-	of_node_put(np);
 
 	emc->mc = platform_get_drvdata(mc);
 	if (!emc->mc)
@@ -1135,9 +1134,7 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	}
 
 	err = tegra_emc_load_timings_from_dt(emc, np);
-
 	of_node_put(np);
-
 	if (err)
 		return err;
 

@@ -26,7 +26,6 @@
 &cspi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_cspi>;
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio4 11 0>, <&gpio4 13 0>;
 	status = "okay";
 

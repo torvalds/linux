@@ -197,7 +197,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 	}
 }
 
-void xlp_wakeup_secondary_cpus()
+void xlp_wakeup_secondary_cpus(void)
 {
 	/*
 	 * In case of u-boot, the secondaries are in reset

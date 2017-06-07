@@ -145,7 +145,7 @@ static void xen_silent_inquire(int apicid)
 static int xen_cpu_present_to_apicid(int cpu)
 {
 	if (cpu_present(cpu))
-		return xen_get_apic_id(xen_apic_read(APIC_ID));
+		return cpu_data(cpu).apicid;
 	else
 		return BAD_APICID;
 }

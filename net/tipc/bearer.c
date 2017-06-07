@@ -431,7 +431,7 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 	memset(&b->bcast_addr, 0, sizeof(b->bcast_addr));
 	memcpy(b->bcast_addr.value, dev->broadcast, b->media->hwaddr_len);
 	b->bcast_addr.media_id = b->media->type_id;
-	b->bcast_addr.broadcast = 1;
+	b->bcast_addr.broadcast = TIPC_BROADCAST_SUPPORT;
 	b->mtu = dev->mtu;
 	b->media->raw2addr(b, &b->addr, (char *)dev->dev_addr);
 	rcu_assign_pointer(dev->tipc_ptr, b);
@@ -480,6 +480,19 @@ int tipc_l2_send_msg(struct net *net, struct sk_buff *skb,
 			dev->dev_addr, skb->len);
 	dev_queue_xmit(skb);
 	return 0;
+}
+
+bool tipc_bearer_bcast_support(struct net *net, u32 bearer_id)
+{
+	bool supp = false;
+	struct tipc_bearer *b;
+
+	rcu_read_lock();
+	b = bearer_get(net, bearer_id);
+	if (b)
+		supp = (b->bcast_addr.broadcast == TIPC_BROADCAST_SUPPORT);
+	rcu_read_unlock();
+	return supp;
 }
 
 int tipc_bearer_mtu(struct net *net, u32 bearer_id)
@@ -789,7 +802,7 @@ int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
 			       info->attrs[TIPC_NLA_BEARER],
-			       tipc_nl_bearer_policy);
+			       tipc_nl_bearer_policy, info->extack);
 	if (err)
 		return err;
 
@@ -838,7 +851,7 @@ int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
 			       info->attrs[TIPC_NLA_BEARER],
-			       tipc_nl_bearer_policy);
+			       tipc_nl_bearer_policy, info->extack);
 	if (err)
 		return err;
 
@@ -878,7 +891,7 @@ int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
 			       info->attrs[TIPC_NLA_BEARER],
-			       tipc_nl_bearer_policy);
+			       tipc_nl_bearer_policy, info->extack);
 	if (err)
 		return err;
 
@@ -926,7 +939,7 @@ int tipc_nl_bearer_add(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
 			       info->attrs[TIPC_NLA_BEARER],
-			       tipc_nl_bearer_policy);
+			       tipc_nl_bearer_policy, info->extack);
 	if (err)
 		return err;
 
@@ -969,7 +982,7 @@ int tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
 			       info->attrs[TIPC_NLA_BEARER],
-			       tipc_nl_bearer_policy);
+			       tipc_nl_bearer_policy, info->extack);
 	if (err)
 		return err;
 
@@ -1091,7 +1104,7 @@ int tipc_nl_media_get(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_MEDIA_MAX,
 			       info->attrs[TIPC_NLA_MEDIA],
-			       tipc_nl_media_policy);
+			       tipc_nl_media_policy, info->extack);
 	if (err)
 		return err;
 
@@ -1139,7 +1152,7 @@ int tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_MEDIA_MAX,
 			       info->attrs[TIPC_NLA_MEDIA],
-			       tipc_nl_media_policy);
+			       tipc_nl_media_policy, info->extack);
 
 	if (!attrs[TIPC_NLA_MEDIA_NAME])
 		return -EINVAL;

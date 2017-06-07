@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/clk-provider.h>
 
+#include "icst.h"
 #include "clk-icst.h"
 
 #define REALVIEW_SYS_OSC0_OFFSET             0x0C

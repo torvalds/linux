@@ -3109,7 +3109,7 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 	unsigned int val;
 
 	if (jack_insert) {
-		regmap_write(rt5645->regmap, RT5645_CHARGE_PUMP, 0x0006);
+		regmap_write(rt5645->regmap, RT5645_CHARGE_PUMP, 0x0e06);
 
 		/* for jack type detect */
 		snd_soc_dapm_force_enable_pin(dapm, "LDO2");
@@ -3542,11 +3542,22 @@ static const struct i2c_device_id rt5645_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5645_i2c_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id rt5645_of_match[] = {
+	{ .compatible = "realtek,rt5645", },
+	{ .compatible = "realtek,rt5650", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rt5645_of_match);
+#endif
+
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5645_acpi_match[] = {
 	{ "10EC5645", 0 },
+	{ "10EC5648", 0 },
 	{ "10EC5650", 0 },
 	{ "10EC5640", 0 },
+	{ "10EC3270", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
@@ -3658,8 +3669,14 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 						       GPIOD_IN);
 
 	if (IS_ERR(rt5645->gpiod_hp_det)) {
-		dev_err(&i2c->dev, "failed to initialize gpiod\n");
-		return PTR_ERR(rt5645->gpiod_hp_det);
+		dev_info(&i2c->dev, "failed to initialize gpiod\n");
+		ret = PTR_ERR(rt5645->gpiod_hp_det);
+		/*
+		 * Continue if optional gpiod is missing, bail for all other
+		 * errors, including -EPROBE_DEFER
+		 */
+		if (ret != -ENOENT)
+			return ret;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(rt5645->supplies); i++)
@@ -3833,6 +3850,9 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
+	regmap_update_bits(rt5645->regmap, RT5645_ADDA_CLK1,
+		RT5645_I2S_PD1_MASK, RT5645_I2S_PD1_2);
+
 	if (rt5645->pdata.jd_invert) {
 		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 			RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
@@ -3901,6 +3921,7 @@ static void rt5645_i2c_shutdown(struct i2c_client *i2c)
 static struct i2c_driver rt5645_i2c_driver = {
 	.driver = {
 		.name = "rt5645",
+		.of_match_table = of_match_ptr(rt5645_of_match),
 		.acpi_match_table = ACPI_PTR(rt5645_acpi_match),
 	},
 	.probe = rt5645_i2c_probe,

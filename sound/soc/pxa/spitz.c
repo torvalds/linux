@@ -156,7 +156,7 @@ static int spitz_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops spitz_ops = {
+static const struct snd_soc_ops spitz_ops = {
 	.startup = spitz_startup,
 	.hw_params = spitz_hw_params,
 };
@@ -230,8 +230,8 @@ static const struct snd_soc_dapm_route spitz_audio_map[] = {
 	{"Headset Jack", NULL, "ROUT1"},
 
 	/* ext speaker connected to LOUT2, ROUT2  */
-	{"Ext Spk", NULL , "ROUT2"},
-	{"Ext Spk", NULL , "LOUT2"},
+	{"Ext Spk", NULL, "ROUT2"},
+	{"Ext Spk", NULL, "LOUT2"},
 
 	/* mic is connected to input 1 - with bias */
 	{"LINPUT1", NULL, "Mic Bias"},
@@ -241,9 +241,9 @@ static const struct snd_soc_dapm_route spitz_audio_map[] = {
 	{"LINPUT1", NULL, "Line Jack"},
 };
 
-static const char *jack_function[] = {"Headphone", "Mic", "Line", "Headset",
-	"Off"};
-static const char *spk_function[] = {"On", "Off"};
+static const char * const jack_function[] = {"Headphone", "Mic", "Line",
+	"Headset", "Off"};
+static const char * const spk_function[] = {"On", "Off"};
 static const struct soc_enum spitz_enum[] = {
 	SOC_ENUM_SINGLE_EXT(5, jack_function),
 	SOC_ENUM_SINGLE_EXT(2, spk_function),

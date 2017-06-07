@@ -23,6 +23,10 @@ const char *trace_print_symbols_seq(struct trace_seq *p, unsigned long val,
 				    const struct trace_print_flags *symbol_array);
 
 #if BITS_PER_LONG == 32
+const char *trace_print_flags_seq_u64(struct trace_seq *p, const char *delim,
+		      unsigned long long flags,
+		      const struct trace_print_flags_u64 *flag_array);
+
 const char *trace_print_symbols_seq_u64(struct trace_seq *p,
 					unsigned long long val,
 					const struct trace_print_flags_u64
@@ -33,7 +37,8 @@ const char *trace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
 				    unsigned int bitmask_size);
 
 const char *trace_print_hex_seq(struct trace_seq *p,
-				const unsigned char *buf, int len);
+				const unsigned char *buf, int len,
+				bool concatenate);
 
 const char *trace_print_array_seq(struct trace_seq *p,
 				   const void *buf, int count,
@@ -133,16 +138,7 @@ enum print_line_t {
 	TRACE_TYPE_NO_CONSUME	= 3	/* Handled but ask to not consume */
 };
 
-/*
- * Several functions return TRACE_TYPE_PARTIAL_LINE if the trace_seq
- * overflowed, and TRACE_TYPE_HANDLED otherwise. This helper function
- * simplifies those functions and keeps them in sync.
- */
-static inline enum print_line_t trace_handle_return(struct trace_seq *s)
-{
-	return trace_seq_has_overflowed(s) ?
-		TRACE_TYPE_PARTIAL_LINE : TRACE_TYPE_HANDLED;
-}
+enum print_line_t trace_handle_return(struct trace_seq *s);
 
 void tracing_generic_entry_update(struct trace_entry *entry,
 				  unsigned long flags,

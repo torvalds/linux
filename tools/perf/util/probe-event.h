@@ -3,8 +3,6 @@
 
 #include <stdbool.h>
 #include "intlist.h"
-#include "strlist.h"
-#include "strfilter.h"
 
 /* Probe related configurations */
 struct probe_conf {
@@ -107,6 +105,8 @@ struct line_range {
 	struct intlist		*line_list;	/* Visible lines */
 };
 
+struct strlist;
+
 /* List of variables */
 struct variable_list {
 	struct probe_trace_point	point;	/* Actual probepoint */
@@ -153,6 +153,9 @@ int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int apply_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int show_probe_trace_events(struct perf_probe_event *pevs, int npevs);
 void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs);
+
+struct strfilter;
+
 int del_perf_probe_events(struct strfilter *filter);
 
 int show_perf_probe_event(const char *group, const char *event,

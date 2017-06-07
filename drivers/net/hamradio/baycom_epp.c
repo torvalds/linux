@@ -55,7 +55,7 @@
 #include <linux/jiffies.h>
 #include <linux/random.h>
 #include <net/ax25.h> 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* --------------------------------------------------------------------- */
 
@@ -299,7 +299,7 @@ static inline void baycom_int_freq(struct baycom_state *bc)
  *    eppconfig_path should be setable  via /proc/sys.
  */
 
-static char eppconfig_path[256] = "/usr/sbin/eppfpga";
+static char const eppconfig_path[] = "/usr/sbin/eppfpga";
 
 static char *envp[] = { "HOME=/", "TERM=linux", "PATH=/usr/bin:/bin", NULL };
 
@@ -308,8 +308,12 @@ static int eppconfig(struct baycom_state *bc)
 {
 	char modearg[256];
 	char portarg[16];
-        char *argv[] = { eppconfig_path, "-s", "-p", portarg, "-m", modearg,
-			 NULL };
+        char *argv[] = {
+		(char *)eppconfig_path,
+		"-s",
+		"-p", portarg,
+		"-m", modearg,
+		NULL };
 
 	/* set up arguments */
 	sprintf(modearg, "%sclk,%smodem,fclk=%d,bps=%d,divider=%d%s,extstat",
@@ -1172,7 +1176,7 @@ static int iobase[NR_PORTS] = { 0x378, };
 
 module_param_array(mode, charp, NULL, 0);
 MODULE_PARM_DESC(mode, "baycom operating mode");
-module_param_array(iobase, int, NULL, 0);
+module_param_hw_array(iobase, int, ioport, NULL, 0);
 MODULE_PARM_DESC(iobase, "baycom io base address");
 
 MODULE_AUTHOR("Thomas M. Sailer, sailer@ife.ee.ethz.ch, hb9jnx@hb9w.che.eu");

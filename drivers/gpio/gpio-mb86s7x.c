@@ -217,8 +217,4 @@ static struct platform_driver mb86s70_gpio_driver = {
 	.remove = mb86s70_gpio_remove,
 };
 
-static int __init mb86s70_gpio_init(void)
-{
-	return platform_driver_register(&mb86s70_gpio_driver);
-}
-device_initcall(mb86s70_gpio_init);
+builtin_platform_driver(mb86s70_gpio_driver);

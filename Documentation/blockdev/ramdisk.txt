@@ -14,7 +14,7 @@ Contents:
 
 The RAM disk driver is a way to use main system memory as a block device.  It
 is required for initrd, an initial filesystem used if you need to load modules
-in order to access the root filesystem (see Documentation/initrd.txt).  It can
+in order to access the root filesystem (see Documentation/admin-guide/initrd.rst).  It can
 also be used for a temporary filesystem for crypto work, since the contents
 are erased on reboot.
 

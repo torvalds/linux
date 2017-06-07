@@ -12,7 +12,7 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
@@ -3213,8 +3213,6 @@ get_serial_info(struct e100_serial * info,
 	 * should set them to something else than 0.
 	 */
 
-	if (!retinfo)
-		return -EFAULT;
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.type = info->type;
 	tmp.line = info->line;

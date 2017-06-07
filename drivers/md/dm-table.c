@@ -30,7 +30,7 @@
 
 struct dm_table {
 	struct mapped_device *md;
-	unsigned type;
+	enum dm_queue_mode type;
 
 	/* btree table */
 	unsigned int depth;
@@ -47,6 +47,7 @@ struct dm_table {
 	bool integrity_supported:1;
 	bool singleton:1;
 	bool all_blk_mq:1;
+	unsigned integrity_added:1;
 
 	/*
 	 * Indicates the rw permissions for the new logical
@@ -372,7 +373,7 @@ static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
  */
 dev_t dm_get_dev_t(const char *path)
 {
-	dev_t uninitialized_var(dev);
+	dev_t dev;
 	struct block_device *bdev;
 
 	bdev = lookup_bdev(path);
@@ -626,13 +627,13 @@ static int validate_hardware_logical_block_alignment(struct dm_table *table,
 
 	struct dm_target *uninitialized_var(ti);
 	struct queue_limits ti_limits;
-	unsigned i = 0;
+	unsigned i;
 
 	/*
 	 * Check each entry in the table in turn.
 	 */
-	while (i < dm_table_get_num_targets(table)) {
-		ti = dm_table_get_target(table, i++);
+	for (i = 0; i < dm_table_get_num_targets(table); i++) {
+		ti = dm_table_get_target(table, i);
 
 		blk_set_stacking_limits(&ti_limits);
 
@@ -724,6 +725,9 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		}
 		t->immutable_target_type = tgt->type;
 	}
+
+	if (dm_target_has_integrity(tgt->type))
+		t->integrity_added = 1;
 
 	tgt->table = t;
 	tgt->begin = start;
@@ -821,19 +825,19 @@ void dm_consume_args(struct dm_arg_set *as, unsigned num_args)
 }
 EXPORT_SYMBOL(dm_consume_args);
 
-static bool __table_type_bio_based(unsigned table_type)
+static bool __table_type_bio_based(enum dm_queue_mode table_type)
 {
 	return (table_type == DM_TYPE_BIO_BASED ||
 		table_type == DM_TYPE_DAX_BIO_BASED);
 }
 
-static bool __table_type_request_based(unsigned table_type)
+static bool __table_type_request_based(enum dm_queue_mode table_type)
 {
 	return (table_type == DM_TYPE_REQUEST_BASED ||
 		table_type == DM_TYPE_MQ_REQUEST_BASED);
 }
 
-void dm_table_set_type(struct dm_table *t, unsigned type)
+void dm_table_set_type(struct dm_table *t, enum dm_queue_mode type)
 {
 	t->type = type;
 }
@@ -850,11 +854,11 @@ static int device_supports_dax(struct dm_target *ti, struct dm_dev *dev,
 static bool dm_table_supports_dax(struct dm_table *t)
 {
 	struct dm_target *ti;
-	unsigned i = 0;
+	unsigned i;
 
 	/* Ensure that all targets support DAX. */
-	while (i < dm_table_get_num_targets(t)) {
-		ti = dm_table_get_target(t, i++);
+	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+		ti = dm_table_get_target(t, i);
 
 		if (!ti->type->direct_access)
 			return false;
@@ -871,11 +875,11 @@ static int dm_table_determine_type(struct dm_table *t)
 {
 	unsigned i;
 	unsigned bio_based = 0, request_based = 0, hybrid = 0;
-	bool verify_blk_mq = false;
+	unsigned sq_count = 0, mq_count = 0;
 	struct dm_target *tgt;
 	struct dm_dev_internal *dd;
 	struct list_head *devices = dm_table_get_devices(t);
-	unsigned live_md_type = dm_get_md_type(t->md);
+	enum dm_queue_mode live_md_type = dm_get_md_type(t->md);
 
 	if (t->type != DM_TYPE_NONE) {
 		/* target already set the table's type */
@@ -924,12 +928,6 @@ static int dm_table_determine_type(struct dm_table *t)
 
 	BUG_ON(!request_based); /* No targets in this table */
 
-	if (list_empty(devices) && __table_type_request_based(live_md_type)) {
-		/* inherit live MD type */
-		t->type = live_md_type;
-		return 0;
-	}
-
 	/*
 	 * The only way to establish DM_TYPE_MQ_REQUEST_BASED is by
 	 * having a compatible target use dm_table_set_type.
@@ -948,6 +946,19 @@ verify_rq_based:
 		return -EINVAL;
 	}
 
+	if (list_empty(devices)) {
+		int srcu_idx;
+		struct dm_table *live_table = dm_get_live_table(t->md, &srcu_idx);
+
+		/* inherit live table's type and all_blk_mq */
+		if (live_table) {
+			t->type = live_table->type;
+			t->all_blk_mq = live_table->all_blk_mq;
+		}
+		dm_put_live_table(t->md, srcu_idx);
+		return 0;
+	}
+
 	/* Non-request-stackable devices can't be used for request-based dm */
 	list_for_each_entry(dd, devices, list) {
 		struct request_queue *q = bdev_get_queue(dd->dm_dev->bdev);
@@ -959,25 +970,25 @@ verify_rq_based:
 		}
 
 		if (q->mq_ops)
-			verify_blk_mq = true;
+			mq_count++;
+		else
+			sq_count++;
 	}
+	if (sq_count && mq_count) {
+		DMERR("table load rejected: not all devices are blk-mq request-stackable");
+		return -EINVAL;
+	}
+	t->all_blk_mq = mq_count > 0;
 
-	if (verify_blk_mq) {
-		/* verify _all_ devices in the table are blk-mq devices */
-		list_for_each_entry(dd, devices, list)
-			if (!bdev_get_queue(dd->dm_dev->bdev)->mq_ops) {
-				DMERR("table load rejected: not all devices"
-				      " are blk-mq request-stackable");
-				return -EINVAL;
-			}
-
-		t->all_blk_mq = true;
+	if (t->type == DM_TYPE_MQ_REQUEST_BASED && !t->all_blk_mq) {
+		DMERR("table load rejected: all devices are not blk-mq request-stackable");
+		return -EINVAL;
 	}
 
 	return 0;
 }
 
-unsigned dm_table_get_type(struct dm_table *t)
+enum dm_queue_mode dm_table_get_type(struct dm_table *t)
 {
 	return t->type;
 }
@@ -999,11 +1010,11 @@ struct dm_target *dm_table_get_immutable_target(struct dm_table *t)
 
 struct dm_target *dm_table_get_wildcard_target(struct dm_table *t)
 {
-	struct dm_target *uninitialized_var(ti);
-	unsigned i = 0;
+	struct dm_target *ti;
+	unsigned i;
 
-	while (i < dm_table_get_num_targets(t)) {
-		ti = dm_table_get_target(t, i++);
+	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+		ti = dm_table_get_target(t, i);
 		if (dm_target_is_wildcard(ti->type))
 			return ti;
 	}
@@ -1028,7 +1039,7 @@ bool dm_table_all_blk_mq_devices(struct dm_table *t)
 
 static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *md)
 {
-	unsigned type = dm_table_get_type(t);
+	enum dm_queue_mode type = dm_table_get_type(t);
 	unsigned per_io_data_size = 0;
 	struct dm_target *tgt;
 	unsigned i;
@@ -1124,6 +1135,13 @@ static struct gendisk * dm_table_get_integrity_disk(struct dm_table *t)
 	struct list_head *devices = dm_table_get_devices(t);
 	struct dm_dev_internal *dd = NULL;
 	struct gendisk *prev_disk = NULL, *template_disk = NULL;
+	unsigned i;
+
+	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+		struct dm_target *ti = dm_table_get_target(t, i);
+		if (!dm_target_passes_integrity(ti->type))
+			goto no_integrity;
+	}
 
 	list_for_each_entry(dd, devices, list) {
 		template_disk = dd->dm_dev->bdev->bd_disk;
@@ -1160,6 +1178,10 @@ static int dm_table_register_integrity(struct dm_table *t)
 {
 	struct mapped_device *md = t->md;
 	struct gendisk *template_disk = NULL;
+
+	/* If target handles integrity itself do not register it here. */
+	if (t->integrity_added)
+		return 0;
 
 	template_disk = dm_table_get_integrity_disk(t);
 	if (!template_disk)
@@ -1306,15 +1328,16 @@ static int count_device(struct dm_target *ti, struct dm_dev *dev,
  */
 bool dm_table_has_no_data_devices(struct dm_table *table)
 {
-	struct dm_target *uninitialized_var(ti);
-	unsigned i = 0, num_devices = 0;
+	struct dm_target *ti;
+	unsigned i, num_devices;
 
-	while (i < dm_table_get_num_targets(table)) {
-		ti = dm_table_get_target(table, i++);
+	for (i = 0; i < dm_table_get_num_targets(table); i++) {
+		ti = dm_table_get_target(table, i);
 
 		if (!ti->type->iterate_devices)
 			return false;
 
+		num_devices = 0;
 		ti->type->iterate_devices(ti, count_device, &num_devices);
 		if (num_devices)
 			return false;
@@ -1329,16 +1352,16 @@ bool dm_table_has_no_data_devices(struct dm_table *table)
 int dm_calculate_queue_limits(struct dm_table *table,
 			      struct queue_limits *limits)
 {
-	struct dm_target *uninitialized_var(ti);
+	struct dm_target *ti;
 	struct queue_limits ti_limits;
-	unsigned i = 0;
+	unsigned i;
 
 	blk_set_stacking_limits(limits);
 
-	while (i < dm_table_get_num_targets(table)) {
+	for (i = 0; i < dm_table_get_num_targets(table); i++) {
 		blk_set_stacking_limits(&ti_limits);
 
-		ti = dm_table_get_target(table, i++);
+		ti = dm_table_get_target(table, i);
 
 		if (!ti->type->iterate_devices)
 			goto combine_limits;
@@ -1387,6 +1410,9 @@ static void dm_table_verify_integrity(struct dm_table *t)
 {
 	struct gendisk *template_disk = NULL;
 
+	if (t->integrity_added)
+		return;
+
 	if (t->integrity_supported) {
 		/*
 		 * Verify that the original integrity profile
@@ -1417,7 +1443,7 @@ static int device_flush_capable(struct dm_target *ti, struct dm_dev *dev,
 static bool dm_table_supports_flush(struct dm_table *t, unsigned long flush)
 {
 	struct dm_target *ti;
-	unsigned i = 0;
+	unsigned i;
 
 	/*
 	 * Require at least one underlying device to support flushes.
@@ -1425,8 +1451,8 @@ static bool dm_table_supports_flush(struct dm_table *t, unsigned long flush)
 	 * so we need to use iterate_devices here, which targets
 	 * supporting flushes must provide.
 	 */
-	while (i < dm_table_get_num_targets(t)) {
-		ti = dm_table_get_target(t, i++);
+	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+		ti = dm_table_get_target(t, i);
 
 		if (!ti->num_flush_bios)
 			continue;
@@ -1440,22 +1466,6 @@ static bool dm_table_supports_flush(struct dm_table *t, unsigned long flush)
 	}
 
 	return false;
-}
-
-static bool dm_table_discard_zeroes_data(struct dm_table *t)
-{
-	struct dm_target *ti;
-	unsigned i = 0;
-
-	/* Ensure that all targets supports discard_zeroes_data. */
-	while (i < dm_table_get_num_targets(t)) {
-		ti = dm_table_get_target(t, i++);
-
-		if (ti->discard_zeroes_data_unsupported)
-			return false;
-	}
-
-	return true;
 }
 
 static int device_is_nonrot(struct dm_target *ti, struct dm_dev *dev,
@@ -1486,10 +1496,10 @@ static bool dm_table_all_devices_attribute(struct dm_table *t,
 					   iterate_devices_callout_fn func)
 {
 	struct dm_target *ti;
-	unsigned i = 0;
+	unsigned i;
 
-	while (i < dm_table_get_num_targets(t)) {
-		ti = dm_table_get_target(t, i++);
+	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+		ti = dm_table_get_target(t, i);
 
 		if (!ti->type->iterate_devices ||
 		    !ti->type->iterate_devices(ti, func, NULL))
@@ -1510,10 +1520,10 @@ static int device_not_write_same_capable(struct dm_target *ti, struct dm_dev *de
 static bool dm_table_supports_write_same(struct dm_table *t)
 {
 	struct dm_target *ti;
-	unsigned i = 0;
+	unsigned i;
 
-	while (i < dm_table_get_num_targets(t)) {
-		ti = dm_table_get_target(t, i++);
+	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+		ti = dm_table_get_target(t, i);
 
 		if (!ti->num_write_same_bios)
 			return false;
@@ -1526,6 +1536,34 @@ static bool dm_table_supports_write_same(struct dm_table *t)
 	return true;
 }
 
+static int device_not_write_zeroes_capable(struct dm_target *ti, struct dm_dev *dev,
+					   sector_t start, sector_t len, void *data)
+{
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	return q && !q->limits.max_write_zeroes_sectors;
+}
+
+static bool dm_table_supports_write_zeroes(struct dm_table *t)
+{
+	struct dm_target *ti;
+	unsigned i = 0;
+
+	while (i < dm_table_get_num_targets(t)) {
+		ti = dm_table_get_target(t, i++);
+
+		if (!ti->num_write_zeroes_bios)
+			return false;
+
+		if (!ti->type->iterate_devices ||
+		    ti->type->iterate_devices(ti, device_not_write_zeroes_capable, NULL))
+			return false;
+	}
+
+	return true;
+}
+
+
 static int device_discard_capable(struct dm_target *ti, struct dm_dev *dev,
 				  sector_t start, sector_t len, void *data)
 {
@@ -1537,7 +1575,7 @@ static int device_discard_capable(struct dm_target *ti, struct dm_dev *dev,
 static bool dm_table_supports_discards(struct dm_table *t)
 {
 	struct dm_target *ti;
-	unsigned i = 0;
+	unsigned i;
 
 	/*
 	 * Unless any target used by the table set discards_supported,
@@ -1546,8 +1584,8 @@ static bool dm_table_supports_discards(struct dm_table *t)
 	 * so we need to use iterate_devices here, which targets
 	 * supporting discard selectively must provide.
 	 */
-	while (i < dm_table_get_num_targets(t)) {
-		ti = dm_table_get_target(t, i++);
+	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+		ti = dm_table_get_target(t, i);
 
 		if (!ti->num_discard_bios)
 			continue;
@@ -1585,9 +1623,6 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	}
 	blk_queue_write_cache(q, wc, fua);
 
-	if (!dm_table_discard_zeroes_data(t))
-		q->limits.discard_zeroes_data = 0;
-
 	/* Ensure that all underlying devices are non-rotational. */
 	if (dm_table_all_devices_attribute(t, device_is_nonrot))
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
@@ -1596,6 +1631,8 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 
 	if (!dm_table_supports_write_same(t))
 		q->limits.max_write_same_sectors = 0;
+	if (!dm_table_supports_write_zeroes(t))
+		q->limits.max_write_zeroes_sectors = 0;
 
 	if (dm_table_all_devices_attribute(t, queue_supports_sg_merge))
 		queue_flag_clear_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
@@ -1654,6 +1691,8 @@ static void suspend_targets(struct dm_table *t, enum suspend_mode mode)
 	int i = t->num_targets;
 	struct dm_target *ti = t->targets;
 
+	lockdep_assert_held(&t->md->suspend_lock);
+
 	while (i--) {
 		switch (mode) {
 		case PRESUSPEND:
@@ -1701,6 +1740,8 @@ int dm_table_resume_targets(struct dm_table *t)
 {
 	int i, r = 0;
 
+	lockdep_assert_held(&t->md->suspend_lock);
+
 	for (i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = t->targets + i;
 
@@ -1743,7 +1784,7 @@ int dm_table_any_congested(struct dm_table *t, int bdi_bits)
 		char b[BDEVNAME_SIZE];
 
 		if (likely(q))
-			r |= bdi_congested(&q->backing_dev_info, bdi_bits);
+			r |= bdi_congested(q->backing_dev_info, bdi_bits);
 		else
 			DMWARN_LIMIT("%s: any_congested: nonexistent device %s",
 				     dm_device_name(t->md),

@@ -87,7 +87,7 @@ static void dac_audio_reset(struct snd_sh_dac *chip)
 
 static void dac_audio_set_rate(struct snd_sh_dac *chip)
 {
-	chip->wakeups_per_second = ktime_set(0, 1000000000 / chip->rate);
+	chip->wakeups_per_second = 1000000000 / chip->rate;
 }
 
 

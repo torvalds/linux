@@ -3,6 +3,8 @@
 
 #include <linux/mtd/mtd.h>
 
+#define BCM47XXSFLASH_WINDOW_SZ			SZ_16M
+
 /* Used for ST flashes only. */
 #define OPCODE_ST_WREN		0x0006		/* Write Enable */
 #define OPCODE_ST_WRDIS		0x0004		/* Write Disable */
@@ -16,6 +18,7 @@
 #define OPCODE_ST_RES		0x03ab		/* Read Electronic Signature */
 #define OPCODE_ST_CSA		0x1000		/* Keep chip select asserted */
 #define OPCODE_ST_SSE		0x0220		/* Sub-sector Erase */
+#define OPCODE_ST_READ4B	0x6313		/* Read Data Bytes in 4Byte addressing mode */
 
 /* Used for Atmel flashes only. */
 #define OPCODE_AT_READ				0x07e8

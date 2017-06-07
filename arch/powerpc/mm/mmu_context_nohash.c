@@ -333,11 +333,6 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
 
 	mm->context.id = MMU_NO_CONTEXT;
 	mm->context.active = 0;
-
-#ifdef CONFIG_PPC_MM_SLICES
-	slice_set_user_psize(mm, mmu_virtual_psize);
-#endif
-
 	return 0;
 }
 

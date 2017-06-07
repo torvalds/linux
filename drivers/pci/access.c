@@ -1,7 +1,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/wait.h>
@@ -142,10 +142,22 @@ int pci_generic_config_write32(struct pci_bus *bus, unsigned int devfn,
 	if (size == 4) {
 		writel(val, addr);
 		return PCIBIOS_SUCCESSFUL;
-	} else {
-		mask = ~(((1 << (size * 8)) - 1) << ((where & 0x3) * 8));
 	}
 
+	/*
+	 * In general, hardware that supports only 32-bit writes on PCI is
+	 * not spec-compliant.  For example, software may perform a 16-bit
+	 * write.  If the hardware only supports 32-bit accesses, we must
+	 * do a 32-bit read, merge in the 16 bits we intend to write,
+	 * followed by a 32-bit write.  If the 16 bits we *don't* intend to
+	 * write happen to have any RW1C (write-one-to-clear) bits set, we
+	 * just inadvertently cleared something we shouldn't have.
+	 */
+	dev_warn_ratelimited(&bus->dev, "%d-byte config write to %04x:%02x:%02x.%d offset %#x may corrupt adjacent RW1C bits\n",
+			     size, pci_domain_nr(bus), bus->number,
+			     PCI_SLOT(devfn), PCI_FUNC(devfn), where);
+
+	mask = ~(((1 << (size * 8)) - 1) << ((where & 0x3) * 8));
 	tmp = readl(addr) & mask;
 	tmp |= val << ((where & 0x3) * 8);
 	writel(tmp, addr);
@@ -355,7 +367,7 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 static int pci_vpd_wait(struct pci_dev *dev)
 {
 	struct pci_vpd *vpd = dev->vpd;
-	unsigned long timeout = jiffies + msecs_to_jiffies(50);
+	unsigned long timeout = jiffies + msecs_to_jiffies(125);
 	unsigned long max_sleep = 16;
 	u16 status;
 	int ret;
@@ -617,7 +629,7 @@ void pci_vpd_release(struct pci_dev *dev)
  *
  * When access is locked, any userspace reads or writes to config
  * space and concurrent lock requests will sleep until access is
- * allowed via pci_cfg_access_unlocked again.
+ * allowed via pci_cfg_access_unlock() again.
  */
 void pci_cfg_access_lock(struct pci_dev *dev)
 {
@@ -672,8 +684,9 @@ void pci_cfg_access_unlock(struct pci_dev *dev)
 	WARN_ON(!dev->block_cfg_access);
 
 	dev->block_cfg_access = 0;
-	wake_up_all(&pci_cfg_wait);
 	raw_spin_unlock_irqrestore(&pci_lock, flags);
+
+	wake_up_all(&pci_cfg_wait);
 }
 EXPORT_SYMBOL_GPL(pci_cfg_access_unlock);
 
@@ -687,7 +700,8 @@ static bool pcie_downstream_port(const struct pci_dev *dev)
 	int type = pci_pcie_type(dev);
 
 	return type == PCI_EXP_TYPE_ROOT_PORT ||
-	       type == PCI_EXP_TYPE_DOWNSTREAM;
+	       type == PCI_EXP_TYPE_DOWNSTREAM ||
+	       type == PCI_EXP_TYPE_PCIE_BRIDGE;
 }
 
 bool pcie_cap_has_lnkctl(const struct pci_dev *dev)
@@ -877,3 +891,59 @@ int pcie_capability_clear_and_set_dword(struct pci_dev *dev, int pos,
 	return ret;
 }
 EXPORT_SYMBOL(pcie_capability_clear_and_set_dword);
+
+int pci_read_config_byte(const struct pci_dev *dev, int where, u8 *val)
+{
+	if (pci_dev_is_disconnected(dev)) {
+		*val = ~0;
+		return -ENODEV;
+	}
+	return pci_bus_read_config_byte(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_read_config_byte);
+
+int pci_read_config_word(const struct pci_dev *dev, int where, u16 *val)
+{
+	if (pci_dev_is_disconnected(dev)) {
+		*val = ~0;
+		return -ENODEV;
+	}
+	return pci_bus_read_config_word(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_read_config_word);
+
+int pci_read_config_dword(const struct pci_dev *dev, int where,
+					u32 *val)
+{
+	if (pci_dev_is_disconnected(dev)) {
+		*val = ~0;
+		return -ENODEV;
+	}
+	return pci_bus_read_config_dword(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_read_config_dword);
+
+int pci_write_config_byte(const struct pci_dev *dev, int where, u8 val)
+{
+	if (pci_dev_is_disconnected(dev))
+		return -ENODEV;
+	return pci_bus_write_config_byte(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_write_config_byte);
+
+int pci_write_config_word(const struct pci_dev *dev, int where, u16 val)
+{
+	if (pci_dev_is_disconnected(dev))
+		return -ENODEV;
+	return pci_bus_write_config_word(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_write_config_word);
+
+int pci_write_config_dword(const struct pci_dev *dev, int where,
+					 u32 val)
+{
+	if (pci_dev_is_disconnected(dev))
+		return -ENODEV;
+	return pci_bus_write_config_dword(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_write_config_dword);

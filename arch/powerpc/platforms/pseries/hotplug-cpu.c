@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/sched.h>	/* for idle_task_exit */
+#include <linux/sched/hotplug.h>
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/slab.h>

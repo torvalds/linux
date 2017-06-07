@@ -44,6 +44,8 @@ nv40_fifo_dma_engine(struct nvkm_engine *engine, u32 *reg, u32 *ctx)
 		*ctx = 0x38;
 		return true;
 	case NVKM_ENGINE_MPEG:
+		if (engine->subdev.device->chipset < 0x44)
+			return false;
 		*reg = 0x00330c;
 		*ctx = 0x54;
 		return true;

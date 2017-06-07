@@ -117,9 +117,6 @@ static const struct of_device_id of_device_ids[] = {
 	{
 		.compatible	= "fsl,qe",
 	},
-	{
-		.compatible    = "fsl,fman",
-	},
 	/* The following two are for the Freescale hypervisor */
 	{
 		.name		= "hypervisor",
@@ -160,6 +157,7 @@ static const char * const boards[] __initconst = {
 	"fsl,T1040RDB",
 	"fsl,T1042RDB",
 	"fsl,T1042RDB_PI",
+	"keymile,kmcent2",
 	"keymile,kmcoge4",
 	"varisys,CYRUS",
 	NULL
@@ -220,7 +218,7 @@ define_machine(corenet_generic) {
  *
  * Likewise, problems have been seen with kexec when coreint is enabled.
  */
-#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC)
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC_CORE)
 	.get_irq		= mpic_get_irq,
 #else
 	.get_irq		= mpic_get_coreint_irq,

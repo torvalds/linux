@@ -132,7 +132,7 @@ struct ath10k_p2p_noa_arg {
 static void ath10k_p2p_noa_update_vdev_iter(void *data, u8 *mac,
 					    struct ieee80211_vif *vif)
 {
-	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ath10k_vif *arvif = (void *)vif->drv_priv;
 	struct ath10k_p2p_noa_arg *arg = data;
 
 	if (arvif->vdev_id != arg->vdev_id)

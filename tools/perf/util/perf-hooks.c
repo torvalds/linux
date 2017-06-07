@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <setjmp.h>
 #include <linux/err.h>
+#include <linux/kernel.h>
 #include "util/util.h"
 #include "util/debug.h"
 #include "util/perf-hooks.h"

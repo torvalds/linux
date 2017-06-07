@@ -388,11 +388,11 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 
 	/* PSB requires the LVDS is on pipe B, MRST has only one pipe anyway */
 	if (!IS_MRST(dev) && gma_crtc->pipe == 0) {
-		printk(KERN_ERR "Can't support LVDS on pipe A\n");
+		pr_err("Can't support LVDS on pipe A\n");
 		return false;
 	}
 	if (IS_MRST(dev) && gma_crtc->pipe != 0) {
-		printk(KERN_ERR "Must use PIPE A\n");
+		pr_err("Must use PIPE A\n");
 		return false;
 	}
 	/* Should never happen!! */
@@ -400,8 +400,7 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			    head) {
 		if (tmp_encoder != encoder
 		    && tmp_encoder->crtc == encoder->crtc) {
-			printk(KERN_ERR "Can't enable LVDS and another "
-			       "encoder on the same pipe\n");
+			pr_err("Can't enable LVDS and another encoder on the same pipe\n");
 			return false;
 		}
 	}
@@ -497,19 +496,6 @@ static void psb_intel_lvds_mode_set(struct drm_encoder *encoder,
 		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
 	REG_WRITE(PFIT_CONTROL, pfit_control);
-}
-
-/*
- * Detect the LVDS connection.
- *
- * This always returns CONNECTOR_STATUS_CONNECTED.
- * This connector should only have
- * been set up if the LVDS was actually connected anyway.
- */
-static enum drm_connector_status psb_intel_lvds_detect(struct drm_connector
-						   *connector, bool force)
-{
-	return connector_status_connected;
 }
 
 /*
@@ -643,7 +629,6 @@ const struct drm_connector_helper_funcs
 
 const struct drm_connector_funcs psb_intel_lvds_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = psb_intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = psb_intel_lvds_set_property,
 	.destroy = psb_intel_lvds_destroy,
@@ -774,20 +759,23 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
 			mode_dev->panel_fixed_mode =
 			    drm_mode_duplicate(dev, scan);
+			DRM_DEBUG_KMS("Using mode from DDC\n");
 			goto out;	/* FIXME: check for quirks */
 		}
 	}
 
 	/* Failed to get EDID, what about VBT? do we need this? */
-	if (mode_dev->vbt_mode)
+	if (dev_priv->lfp_lvds_vbt_mode) {
 		mode_dev->panel_fixed_mode =
-		    drm_mode_duplicate(dev, mode_dev->vbt_mode);
+			drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
 
-	if (!mode_dev->panel_fixed_mode)
-		if (dev_priv->lfp_lvds_vbt_mode)
-			mode_dev->panel_fixed_mode =
-				drm_mode_duplicate(dev,
-					dev_priv->lfp_lvds_vbt_mode);
+		if (mode_dev->panel_fixed_mode) {
+			mode_dev->panel_fixed_mode->type |=
+				DRM_MODE_TYPE_PREFERRED;
+			DRM_DEBUG_KMS("Using mode from VBT\n");
+			goto out;
+		}
+	}
 
 	/*
 	 * If we didn't get EDID, try checking if the panel is already turned
@@ -804,6 +792,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (mode_dev->panel_fixed_mode) {
 			mode_dev->panel_fixed_mode->type |=
 			    DRM_MODE_TYPE_PREFERRED;
+			DRM_DEBUG_KMS("Using pre-programmed mode\n");
 			goto out;	/* FIXME: check for quirks */
 		}
 	}

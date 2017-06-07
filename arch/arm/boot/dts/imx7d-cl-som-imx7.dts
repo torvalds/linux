@@ -261,12 +261,6 @@
 		>;
 	};
 
-	pinctrl_usbotg1: usbotg1grp {
-		fsl,pins = <
-			MX7D_PAD_GPIO1_IO05__GPIO1_IO5		0x14 /* OTG PWREN */
-		>;
-	};
-
 	pinctrl_usdhc3: usdhc3grp {
 		fsl,pins = <
 			MX7D_PAD_SD3_CMD__SD3_CMD		0x59
@@ -280,6 +274,14 @@
 			MX7D_PAD_SD3_DATA6__SD3_DATA6		0x59
 			MX7D_PAD_SD3_DATA7__SD3_DATA7		0x59
 			MX7D_PAD_SD3_STROBE__SD3_STROBE		0x19
+		>;
+	};
+};
+
+&iomuxc_lpsr {
+	pinctrl_usbotg1: usbotg1grp {
+		fsl,pins = <
+			MX7D_PAD_LPSR_GPIO1_IO05__GPIO1_IO5	0x14 /* OTG PWREN */
 		>;
 	};
 };

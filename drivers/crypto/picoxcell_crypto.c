@@ -1616,32 +1616,17 @@ static const struct of_device_id spacc_of_id_table[] = {
 MODULE_DEVICE_TABLE(of, spacc_of_id_table);
 #endif /* CONFIG_OF */
 
-static bool spacc_is_compatible(struct platform_device *pdev,
-				const char *spacc_type)
-{
-	const struct platform_device_id *platid = platform_get_device_id(pdev);
-
-	if (platid && !strcmp(platid->name, spacc_type))
-		return true;
-
-#ifdef CONFIG_OF
-	if (of_device_is_compatible(pdev->dev.of_node, spacc_type))
-		return true;
-#endif /* CONFIG_OF */
-
-	return false;
-}
-
 static int spacc_probe(struct platform_device *pdev)
 {
 	int i, err, ret = -EINVAL;
 	struct resource *mem, *irq;
+	struct device_node *np = pdev->dev.of_node;
 	struct spacc_engine *engine = devm_kzalloc(&pdev->dev, sizeof(*engine),
 						   GFP_KERNEL);
 	if (!engine)
 		return -ENOMEM;
 
-	if (spacc_is_compatible(pdev, "picochip,spacc-ipsec")) {
+	if (of_device_is_compatible(np, "picochip,spacc-ipsec")) {
 		engine->max_ctxs	= SPACC_CRYPTO_IPSEC_MAX_CTXS;
 		engine->cipher_pg_sz	= SPACC_CRYPTO_IPSEC_CIPHER_PG_SZ;
 		engine->hash_pg_sz	= SPACC_CRYPTO_IPSEC_HASH_PG_SZ;
@@ -1650,7 +1635,7 @@ static int spacc_probe(struct platform_device *pdev)
 		engine->num_algs	= ARRAY_SIZE(ipsec_engine_algs);
 		engine->aeads		= ipsec_engine_aeads;
 		engine->num_aeads	= ARRAY_SIZE(ipsec_engine_aeads);
-	} else if (spacc_is_compatible(pdev, "picochip,spacc-l2")) {
+	} else if (of_device_is_compatible(np, "picochip,spacc-l2")) {
 		engine->max_ctxs	= SPACC_CRYPTO_L2_MAX_CTXS;
 		engine->cipher_pg_sz	= SPACC_CRYPTO_L2_CIPHER_PG_SZ;
 		engine->hash_pg_sz	= SPACC_CRYPTO_L2_HASH_PG_SZ;
@@ -1803,12 +1788,6 @@ static int spacc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id spacc_id_table[] = {
-	{ "picochip,spacc-ipsec", },
-	{ "picochip,spacc-l2", },
-	{ }
-};
-
 static struct platform_driver spacc_driver = {
 	.probe		= spacc_probe,
 	.remove		= spacc_remove,
@@ -1819,7 +1798,6 @@ static struct platform_driver spacc_driver = {
 #endif /* CONFIG_PM */
 		.of_match_table	= of_match_ptr(spacc_of_id_table),
 	},
-	.id_table	= spacc_id_table,
 };
 
 module_platform_driver(spacc_driver);

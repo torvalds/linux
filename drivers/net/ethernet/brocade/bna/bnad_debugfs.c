@@ -325,7 +325,7 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 		return PTR_ERR(kern_buf);
 
 	rc = sscanf(kern_buf, "%x:%x", &addr, &len);
-	if (rc < 2) {
+	if (rc < 2 || len > UINT_MAX >> 2) {
 		netdev_warn(bnad->netdev, "failed to read user buffer\n");
 		kfree(kern_buf);
 		return -EINVAL;

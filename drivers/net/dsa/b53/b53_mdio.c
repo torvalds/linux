@@ -375,18 +375,7 @@ static struct mdio_driver b53_mdio_driver = {
 		.of_match_table = b53_of_match,
 	},
 };
-
-static int __init b53_mdio_driver_register(void)
-{
-	return mdio_driver_register(&b53_mdio_driver);
-}
-module_init(b53_mdio_driver_register);
-
-static void __exit b53_mdio_driver_unregister(void)
-{
-	mdio_driver_unregister(&b53_mdio_driver);
-}
-module_exit(b53_mdio_driver_unregister);
+mdio_module_driver(b53_mdio_driver);
 
 MODULE_DESCRIPTION("B53 MDIO access driver");
 MODULE_LICENSE("Dual BSD/GPL");

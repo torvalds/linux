@@ -1,9 +1,12 @@
+#include <errno.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <string.h>
+#include <sys/param.h>
 
 #include "parse-events.h"
 #include "evlist.h"
@@ -15,6 +18,8 @@
 #include "thread.h"
 
 #include "tests.h"
+
+#include "sane_ctype.h"
 
 #define BUFSZ	1024
 #define READLEN	128
@@ -599,7 +604,7 @@ static int do_test_code_reading(bool try_kcore)
 				continue;
 			}
 
-			if (verbose) {
+			if (verbose > 0) {
 				char errbuf[512];
 				perf_evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
 				pr_debug("perf_evlist__open() failed!\n%s\n", errbuf);

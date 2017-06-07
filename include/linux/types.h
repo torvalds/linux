@@ -154,8 +154,8 @@ typedef u64 dma_addr_t;
 typedef u32 dma_addr_t;
 #endif
 
-typedef unsigned __bitwise__ gfp_t;
-typedef unsigned __bitwise__ fmode_t;
+typedef unsigned __bitwise gfp_t;
+typedef unsigned __bitwise fmode_t;
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 typedef u64 phys_addr_t;
@@ -209,7 +209,7 @@ struct ustat {
  * naturally due ABI requirements, but some architectures (like CRIS) have
  * weird ABI and we need to ask it explicitly.
  *
- * The alignment is required to guarantee that bits 0 and 1 of @next will be
+ * The alignment is required to guarantee that bit 0 of @next will be
  * clear under normal conditions -- as long as we use call_rcu(),
  * call_rcu_bh(), call_rcu_sched(), or call_srcu() to queue callback.
  *
@@ -227,9 +227,6 @@ struct callback_head {
 
 typedef void (*rcu_callback_t)(struct rcu_head *head);
 typedef void (*call_rcu_func_t)(struct rcu_head *head, rcu_callback_t func);
-
-/* clocksource cycle base type */
-typedef u64 cycle_t;
 
 #endif /*  __ASSEMBLY__ */
 #endif /* _LINUX_TYPES_H */

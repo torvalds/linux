@@ -14,6 +14,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
@@ -26,7 +27,7 @@
 
 #include <asm/processor.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <arch/system.h>
 
 #define DEBUG_SIG 0

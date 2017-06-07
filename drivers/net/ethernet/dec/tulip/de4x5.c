@@ -472,7 +472,7 @@
 #include <asm/dma.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #endif /* CONFIG_PPC_PMAC */
@@ -1015,7 +1015,7 @@ static int     compact_infoblock(struct net_device *dev, u_char count, u_char *p
 
 static int io=0x0;/* EDIT THIS LINE FOR YOUR CONFIGURATION IF NEEDED        */
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 module_param(de4x5_debug, int, 0);
 module_param(dec_only, int, 0);
 module_param(args, charp, 0);

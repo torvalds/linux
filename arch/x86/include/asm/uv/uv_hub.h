@@ -485,15 +485,17 @@ static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 
 	if (paddr < uv_hub_info->lowmem_remap_top)
 		paddr |= uv_hub_info->lowmem_remap_base;
-	paddr |= uv_hub_info->gnode_upper;
-	if (m_val)
+
+	if (m_val) {
+		paddr |= uv_hub_info->gnode_upper;
 		paddr = ((paddr << uv_hub_info->m_shift)
 						>> uv_hub_info->m_shift) |
 			((paddr >> uv_hub_info->m_val)
 						<< uv_hub_info->n_lshift);
-	else
+	} else {
 		paddr |= uv_soc_phys_ram_to_nasid(paddr)
 						<< uv_hub_info->gpa_shift;
+	}
 	return paddr;
 }
 
@@ -772,6 +774,7 @@ static inline int uv_num_possible_blades(void)
 
 /* Per Hub NMI support */
 extern void uv_nmi_setup(void);
+extern void uv_nmi_setup_hubless(void);
 
 /* BMC sets a bit this MMR non-zero before sending an NMI */
 #define UVH_NMI_MMR		UVH_SCRATCH5
@@ -799,6 +802,8 @@ struct uv_hub_nmi_s {
 	atomic_t	read_mmr_count;	/* count of MMR reads */
 	atomic_t	nmi_count;	/* count of true UV NMIs */
 	unsigned long	nmi_value;	/* last value read from NMI MMR */
+	bool		hub_present;	/* false means UV hubless system */
+	bool		pch_owner;	/* indicates this hub owns PCH */
 };
 
 struct uv_cpu_nmi_s {

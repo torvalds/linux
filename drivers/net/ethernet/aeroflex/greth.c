@@ -34,6 +34,7 @@
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/of_device.h>
+#include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
@@ -1008,7 +1009,7 @@ restart_txrx_poll:
 			spin_unlock_irqrestore(&greth->devlock, flags);
 			goto restart_txrx_poll;
 		} else {
-			__napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			spin_unlock_irqrestore(&greth->devlock, flags);
 		}
 	}
@@ -1454,11 +1455,10 @@ static int greth_of_probe(struct platform_device *ofdev)
 			break;
 	}
 	if (i == 6) {
-		const unsigned char *addr;
-		int len;
-		addr = of_get_property(ofdev->dev.of_node, "local-mac-address",
-					&len);
-		if (addr != NULL && len == 6) {
+		const u8 *addr;
+
+		addr = of_get_mac_address(ofdev->dev.of_node);
+		if (addr) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];
 		} else {

@@ -52,7 +52,7 @@ static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 	RCU_TRACE(.name = "rcu_bh")
 };
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SRCU)
 #include <linux/kernel_stat.h>
 
 int rcu_scheduler_active __read_mostly;
@@ -60,15 +60,21 @@ EXPORT_SYMBOL_GPL(rcu_scheduler_active);
 
 /*
  * During boot, we forgive RCU lockdep issues.  After this function is
- * invoked, we start taking RCU lockdep issues seriously.
+ * invoked, we start taking RCU lockdep issues seriously.  Note that unlike
+ * Tree RCU, Tiny RCU transitions directly from RCU_SCHEDULER_INACTIVE
+ * to RCU_SCHEDULER_RUNNING, skipping the RCU_SCHEDULER_INIT stage.
+ * The reason for this is that Tiny RCU does not need kthreads, so does
+ * not have to care about the fact that the scheduler is half-initialized
+ * at a certain phase of the boot process.  Unless SRCU is in the mix.
  */
 void __init rcu_scheduler_starting(void)
 {
 	WARN_ON(nr_context_switches() > 0);
-	rcu_scheduler_active = 1;
+	rcu_scheduler_active = IS_ENABLED(CONFIG_SRCU)
+		? RCU_SCHEDULER_INIT : RCU_SCHEDULER_RUNNING;
 }
 
-#endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#endif /* #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SRCU) */
 
 #ifdef CONFIG_RCU_TRACE
 
@@ -157,8 +163,8 @@ static void reset_cpu_stall_ticks(struct rcu_ctrlblk *rcp)
 
 static void check_cpu_stalls(void)
 {
-	RCU_TRACE(check_cpu_stall(&rcu_bh_ctrlblk));
-	RCU_TRACE(check_cpu_stall(&rcu_sched_ctrlblk));
+	RCU_TRACE(check_cpu_stall(&rcu_bh_ctrlblk);)
+	RCU_TRACE(check_cpu_stall(&rcu_sched_ctrlblk);)
 }
 
 #endif /* #ifdef CONFIG_RCU_TRACE */

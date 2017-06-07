@@ -70,12 +70,12 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL8000_UCODE_API_MAX	26
-#define IWL8265_UCODE_API_MAX	26
+#define IWL8000_UCODE_API_MAX	30
+#define IWL8265_UCODE_API_MAX	30
 
 /* Lowest firmware API version supported */
-#define IWL8000_UCODE_API_MIN	17
-#define IWL8265_UCODE_API_MIN	20
+#define IWL8000_UCODE_API_MIN	22
+#define IWL8265_UCODE_API_MIN	22
 
 /* NVM versions */
 #define IWL8000_NVM_VERSION		0x0a1d
@@ -91,7 +91,7 @@
 
 #define IWL8000_FW_PRE "iwlwifi-8000C-"
 #define IWL8000_MODULE_FIRMWARE(api) \
-	IWL8000_FW_PRE "-" __stringify(api) ".ucode"
+	IWL8000_FW_PRE __stringify(api) ".ucode"
 
 #define IWL8265_FW_PRE "iwlwifi-8265-"
 #define IWL8265_MODULE_FIRMWARE(api) \

@@ -69,10 +69,11 @@ static const struct of_device_id axp20x_i2c_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, axp20x_i2c_of_match);
 
-/*
- * This is useless for OF-enabled devices, but it is needed by I2C subsystem
- */
 static const struct i2c_device_id axp20x_i2c_id[] = {
+	{ "axp152", 0 },
+	{ "axp202", 0 },
+	{ "axp209", 0 },
+	{ "axp221", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, axp20x_i2c_id);

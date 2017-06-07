@@ -103,6 +103,35 @@ struct nft_regs {
 	};
 };
 
+/* Store/load an u16 or u8 integer to/from the u32 data register.
+ *
+ * Note, when using concatenations, register allocation happens at 32-bit
+ * level. So for store instruction, pad the rest part with zero to avoid
+ * garbage values.
+ */
+
+static inline void nft_reg_store16(u32 *dreg, u16 val)
+{
+	*dreg = 0;
+	*(u16 *)dreg = val;
+}
+
+static inline void nft_reg_store8(u32 *dreg, u8 val)
+{
+	*dreg = 0;
+	*(u8 *)dreg = val;
+}
+
+static inline u16 nft_reg_load16(u32 *sreg)
+{
+	return *(u16 *)sreg;
+}
+
+static inline u8 nft_reg_load8(u32 *sreg)
+{
+	return *(u8 *)sreg;
+}
+
 static inline void nft_data_copy(u32 *dst, const struct nft_data *src,
 				 unsigned int len)
 {
@@ -147,7 +176,7 @@ struct nft_data_desc {
 int nft_data_init(const struct nft_ctx *ctx,
 		  struct nft_data *data, unsigned int size,
 		  struct nft_data_desc *desc, const struct nlattr *nla);
-void nft_data_uninit(const struct nft_data *data, enum nft_data_types type);
+void nft_data_release(const struct nft_data *data, enum nft_data_types type);
 int nft_data_dump(struct sk_buff *skb, int attr, const struct nft_data *data,
 		  enum nft_data_types type, unsigned int len);
 
@@ -207,9 +236,9 @@ struct nft_set_iter {
 	unsigned int	skip;
 	int		err;
 	int		(*fn)(const struct nft_ctx *ctx,
-			      const struct nft_set *set,
+			      struct nft_set *set,
 			      const struct nft_set_iter *iter,
-			      const struct nft_set_elem *elem);
+			      struct nft_set_elem *elem);
 };
 
 /**
@@ -243,11 +272,13 @@ enum nft_set_class {
  *				  characteristics
  *
  *	@size: required memory
- *	@class: lookup performance class
+ *	@lookup: lookup performance class
+ *	@space: memory class
  */
 struct nft_set_estimate {
 	unsigned int		size;
-	enum nft_set_class	class;
+	enum nft_set_class	lookup;
+	enum nft_set_class	space;
 };
 
 struct nft_set_ext;
@@ -260,7 +291,7 @@ struct nft_expr;
  *	@insert: insert new element into set
  *	@activate: activate new element in the next generation
  *	@deactivate: lookup for element and deactivate it in the next generation
- *	@deactivate_one: deactivate element in the next generation
+ *	@flush: deactivate element in the next generation
  *	@remove: remove element from set
  *	@walk: iterate over all set elemeennts
  *	@privsize: function to return size of set private data
@@ -295,13 +326,14 @@ struct nft_set_ops {
 	void *				(*deactivate)(const struct net *net,
 						      const struct nft_set *set,
 						      const struct nft_set_elem *elem);
-	bool				(*deactivate_one)(const struct net *net,
-							  const struct nft_set *set,
-							  void *priv);
-	void				(*remove)(const struct nft_set *set,
+	bool				(*flush)(const struct net *net,
+						 const struct nft_set *set,
+						 void *priv);
+	void				(*remove)(const struct net *net,
+						  const struct nft_set *set,
 						  const struct nft_set_elem *elem);
 	void				(*walk)(const struct nft_ctx *ctx,
-						const struct nft_set *set,
+						struct nft_set *set,
 						struct nft_set_iter *iter);
 
 	unsigned int			(*privsize)(const struct nlattr * const nla[]);
@@ -381,10 +413,11 @@ static inline struct nft_set *nft_set_container_of(const void *priv)
 	return (void *)priv - offsetof(struct nft_set, data);
 }
 
-struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
-				     const struct nlattr *nla, u8 genmask);
-struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
-					  const struct nlattr *nla, u8 genmask);
+struct nft_set *nft_set_lookup(const struct net *net,
+			       const struct nft_table *table,
+			       const struct nlattr *nla_set_name,
+			       const struct nlattr *nla_set_id,
+			       u8 genmask);
 
 static inline unsigned long nft_set_gc_interval(const struct nft_set *set)
 {
@@ -878,6 +911,11 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 	return container_of(chain, struct nft_base_chain, chain);
 }
 
+static inline bool nft_is_base_chain(const struct nft_chain *chain)
+{
+	return chain->flags & NFT_BASE_CHAIN;
+}
+
 int __nft_release_basechain(struct nft_ctx *ctx);
 
 unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
@@ -984,9 +1022,9 @@ struct nft_object *nf_tables_obj_lookup(const struct nft_table *table,
 					const struct nlattr *nla, u32 objtype,
 					u8 genmask);
 
-int nft_obj_notify(struct net *net, struct nft_table *table,
-		   struct nft_object *obj, u32 portid, u32 seq,
-		   int event, int family, int report, gfp_t gfp);
+void nft_obj_notify(struct net *net, struct nft_table *table,
+		    struct nft_object *obj, u32 portid, u32 seq,
+		    int event, int family, int report, gfp_t gfp);
 
 /**
  *	struct nft_object_type - stateful object type
@@ -1012,7 +1050,8 @@ struct nft_object_type {
 	unsigned int			maxattr;
 	struct module			*owner;
 	const struct nla_policy		*policy;
-	int				(*init)(const struct nlattr * const tb[],
+	int				(*init)(const struct nft_ctx *ctx,
+						const struct nlattr *const tb[],
 						struct nft_object *obj);
 	void				(*destroy)(struct nft_object *obj);
 	int				(*dump)(struct sk_buff *skb,
@@ -1198,10 +1237,13 @@ struct nft_trans {
 
 struct nft_trans_rule {
 	struct nft_rule			*rule;
+	u32				rule_id;
 };
 
 #define nft_trans_rule(trans)	\
 	(((struct nft_trans_rule *)trans->data)->rule)
+#define nft_trans_rule_id(trans)	\
+	(((struct nft_trans_rule *)trans->data)->rule_id)
 
 struct nft_trans_set {
 	struct nft_set			*set;

@@ -49,9 +49,7 @@ static const struct file_operations i810_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
@@ -62,7 +60,6 @@ static struct drm_driver driver = {
 	.lastclose = i810_driver_lastclose,
 	.preclose = i810_driver_preclose,
 	.set_busid = drm_pci_set_busid,
-	.device_is_agp = i810_driver_device_is_agp,
 	.dma_quiescent = i810_driver_dma_quiescent,
 	.ioctls = i810_ioctls,
 	.fops = &i810_driver_fops,

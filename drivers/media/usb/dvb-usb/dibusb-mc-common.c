@@ -9,8 +9,9 @@
  * see Documentation/dvb/README.dvb-usb for more information
  */
 
-#include <linux/kconfig.h>
 #include "dibusb.h"
+
+MODULE_LICENSE("GPL");
 
 /* 3000MC/P stuff */
 // Config Adjacent channels  Perf -cal22

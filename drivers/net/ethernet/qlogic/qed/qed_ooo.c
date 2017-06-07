@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -17,6 +41,7 @@
 #include "qed_iscsi.h"
 #include "qed_ll2.h"
 #include "qed_ooo.h"
+#include "qed_cxt.h"
 
 static struct qed_ooo_archipelago
 *qed_ooo_seek_archipelago(struct qed_hwfn *p_hwfn,
@@ -24,15 +49,18 @@ static struct qed_ooo_archipelago
 			  *p_ooo_info,
 			  u32 cid)
 {
-	struct qed_ooo_archipelago *p_archipelago = NULL;
+	u32 idx = (cid & 0xffff) - p_ooo_info->cid_base;
+	struct qed_ooo_archipelago *p_archipelago;
 
-	list_for_each_entry(p_archipelago,
-			    &p_ooo_info->archipelagos_list, list_entry) {
-		if (p_archipelago->cid == cid)
-			return p_archipelago;
-	}
+	if (idx >= p_ooo_info->max_num_archipelagos)
+		return NULL;
 
-	return NULL;
+	p_archipelago = &p_ooo_info->p_archipelagos_mem[idx];
+
+	if (list_empty(&p_archipelago->isles_list))
+		return NULL;
+
+	return p_archipelago;
 }
 
 static struct qed_ooo_isle *qed_ooo_seek_isle(struct qed_hwfn *p_hwfn,
@@ -73,8 +101,8 @@ void qed_ooo_save_history_entry(struct qed_hwfn *p_hwfn,
 
 struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 {
+	u16 max_num_archipelagos = 0, cid_base;
 	struct qed_ooo_info *p_ooo_info;
-	u16 max_num_archipelagos = 0;
 	u16 max_num_isles = 0;
 	u32 i;
 
@@ -86,6 +114,7 @@ struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 
 	max_num_archipelagos = p_hwfn->pf_params.iscsi_pf_params.num_cons;
 	max_num_isles = QED_MAX_NUM_ISLES + max_num_archipelagos;
+	cid_base = (u16)qed_cxt_get_proto_cid_start(p_hwfn, PROTOCOLID_ISCSI);
 
 	if (!max_num_archipelagos) {
 		DP_NOTICE(p_hwfn,
@@ -97,11 +126,12 @@ struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 	if (!p_ooo_info)
 		return NULL;
 
+	p_ooo_info->cid_base = cid_base;
+	p_ooo_info->max_num_archipelagos = max_num_archipelagos;
+
 	INIT_LIST_HEAD(&p_ooo_info->free_buffers_list);
 	INIT_LIST_HEAD(&p_ooo_info->ready_buffers_list);
 	INIT_LIST_HEAD(&p_ooo_info->free_isles_list);
-	INIT_LIST_HEAD(&p_ooo_info->free_archipelagos_list);
-	INIT_LIST_HEAD(&p_ooo_info->archipelagos_list);
 
 	p_ooo_info->p_isles_mem = kcalloc(max_num_isles,
 					  sizeof(struct qed_ooo_isle),
@@ -122,11 +152,8 @@ struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 	if (!p_ooo_info->p_archipelagos_mem)
 		goto no_archipelagos_mem;
 
-	for (i = 0; i < max_num_archipelagos; i++) {
+	for (i = 0; i < max_num_archipelagos; i++)
 		INIT_LIST_HEAD(&p_ooo_info->p_archipelagos_mem[i].isles_list);
-		list_add_tail(&p_ooo_info->p_archipelagos_mem[i].list_entry,
-			      &p_ooo_info->free_archipelagos_list);
-	}
 
 	p_ooo_info->ooo_history.p_cqes =
 				kcalloc(QED_MAX_NUM_OOO_HISTORY_ENTRIES,
@@ -134,6 +161,8 @@ struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 					GFP_KERNEL);
 	if (!p_ooo_info->ooo_history.p_cqes)
 		goto no_history_mem;
+
+	p_ooo_info->ooo_history.num_of_cqes = QED_MAX_NUM_OOO_HISTORY_ENTRIES;
 
 	return p_ooo_info;
 
@@ -152,21 +181,9 @@ void qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
 	struct qed_ooo_archipelago *p_archipelago;
 	struct qed_ooo_buffer *p_buffer;
 	struct qed_ooo_isle *p_isle;
-	bool b_found = false;
 
-	if (list_empty(&p_ooo_info->archipelagos_list))
-		return;
-
-	list_for_each_entry(p_archipelago,
-			    &p_ooo_info->archipelagos_list, list_entry) {
-		if (p_archipelago->cid == cid) {
-			list_del(&p_archipelago->list_entry);
-			b_found = true;
-			break;
-		}
-	}
-
-	if (!b_found)
+	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
+	if (!p_archipelago)
 		return;
 
 	while (!list_empty(&p_archipelago->isles_list)) {
@@ -190,27 +207,21 @@ void qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
 		list_add_tail(&p_isle->list_entry,
 			      &p_ooo_info->free_isles_list);
 	}
-
-	list_add_tail(&p_archipelago->list_entry,
-		      &p_ooo_info->free_archipelagos_list);
 }
 
 void qed_ooo_release_all_isles(struct qed_hwfn *p_hwfn,
 			       struct qed_ooo_info *p_ooo_info)
 {
-	struct qed_ooo_archipelago *p_arch;
+	struct qed_ooo_archipelago *p_archipelago;
 	struct qed_ooo_buffer *p_buffer;
 	struct qed_ooo_isle *p_isle;
+	u32 i;
 
-	while (!list_empty(&p_ooo_info->archipelagos_list)) {
-		p_arch = list_first_entry(&p_ooo_info->archipelagos_list,
-					  struct qed_ooo_archipelago,
-					  list_entry);
+	for (i = 0; i < p_ooo_info->max_num_archipelagos; i++) {
+		p_archipelago = &(p_ooo_info->p_archipelagos_mem[i]);
 
-		list_del(&p_arch->list_entry);
-
-		while (!list_empty(&p_arch->isles_list)) {
-			p_isle = list_first_entry(&p_arch->isles_list,
+		while (!list_empty(&p_archipelago->isles_list)) {
+			p_isle = list_first_entry(&p_archipelago->isles_list,
 						  struct qed_ooo_isle,
 						  list_entry);
 
@@ -232,8 +243,6 @@ void qed_ooo_release_all_isles(struct qed_hwfn *p_hwfn,
 			list_add_tail(&p_isle->list_entry,
 				      &p_ooo_info->free_isles_list);
 		}
-		list_add_tail(&p_arch->list_entry,
-			      &p_ooo_info->free_archipelagos_list);
 	}
 	if (!list_empty(&p_ooo_info->ready_buffers_list))
 		list_splice_tail_init(&p_ooo_info->ready_buffers_list,
@@ -352,12 +361,6 @@ void qed_ooo_delete_isles(struct qed_hwfn *p_hwfn,
 		p_ooo_info->cur_isles_number--;
 		list_add(&p_isle->list_entry, &p_ooo_info->free_isles_list);
 	}
-
-	if (list_empty(&p_archipelago->isles_list)) {
-		list_del(&p_archipelago->list_entry);
-		list_add(&p_archipelago->list_entry,
-			 &p_ooo_info->free_archipelagos_list);
-	}
 }
 
 void qed_ooo_add_new_isle(struct qed_hwfn *p_hwfn,
@@ -400,28 +403,10 @@ void qed_ooo_add_new_isle(struct qed_hwfn *p_hwfn,
 		return;
 	}
 
-	if (!p_archipelago &&
-	    !list_empty(&p_ooo_info->free_archipelagos_list)) {
-		p_archipelago =
-		    list_first_entry(&p_ooo_info->free_archipelagos_list,
-				     struct qed_ooo_archipelago, list_entry);
+	if (!p_archipelago) {
+		u32 idx = (cid & 0xffff) - p_ooo_info->cid_base;
 
-		list_del(&p_archipelago->list_entry);
-		if (!list_empty(&p_archipelago->isles_list)) {
-			DP_NOTICE(p_hwfn,
-				  "Free OOO connection is not empty\n");
-			INIT_LIST_HEAD(&p_archipelago->isles_list);
-		}
-		p_archipelago->cid = cid;
-		list_add(&p_archipelago->list_entry,
-			 &p_ooo_info->archipelagos_list);
-	} else if (!p_archipelago) {
-		DP_NOTICE(p_hwfn, "No more free OOO connections\n");
-		list_add(&p_isle->list_entry,
-			 &p_ooo_info->free_isles_list);
-		list_add(&p_buffer->list_entry,
-			 &p_ooo_info->free_buffers_list);
-		return;
+		p_archipelago = &p_ooo_info->p_archipelagos_mem[idx];
 	}
 
 	list_add(&p_buffer->list_entry, &p_isle->buffers_list);
@@ -491,11 +476,6 @@ void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 	} else {
 		list_splice_tail_init(&p_right_isle->buffers_list,
 				      &p_ooo_info->ready_buffers_list);
-		if (list_empty(&p_archipelago->isles_list)) {
-			list_del(&p_archipelago->list_entry);
-			list_add(&p_archipelago->list_entry,
-				 &p_ooo_info->free_archipelagos_list);
-		}
 	}
 	list_add_tail(&p_right_isle->list_entry, &p_ooo_info->free_isles_list);
 }

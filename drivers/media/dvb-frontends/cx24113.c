@@ -15,10 +15,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/slab.h>
@@ -108,8 +104,8 @@ static int cx24113_writereg(struct cx24113_state *state, int reg, int data)
 		.flags = 0, .buf = buf, .len = 2 };
 	int err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
-		printk(KERN_DEBUG "%s: writereg error(err == %i, reg == 0x%02x,"
-			 " data == 0x%02x)\n", __func__, err, reg, data);
+		printk(KERN_DEBUG "%s: writereg error(err == %i, reg == 0x%02x, data == 0x%02x)\n",
+		       __func__, err, reg, data);
 		return err;
 	}
 
@@ -527,13 +523,12 @@ static int cx24113_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int cx24113_release(struct dvb_frontend *fe)
+static void cx24113_release(struct dvb_frontend *fe)
 {
 	struct cx24113_state *state = fe->tuner_priv;
 	dprintk("\n");
 	fe->tuner_priv = NULL;
 	kfree(state);
-	return 0;
 }
 
 static const struct dvb_tuner_ops cx24113_tuner_ops = {

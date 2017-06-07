@@ -37,7 +37,7 @@
 #include <linux/idr.h>
 #include <linux/completion.h>
 #include <linux/netdevice.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/inet.h>
@@ -45,6 +45,7 @@
 #include <linux/kref.h>
 #include <linux/timer.h>
 #include <linux/io.h>
+#include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
 
@@ -63,12 +64,11 @@
 #define DRV_NAME "iw_cxgb4"
 #define MOD DRV_NAME ":"
 
-extern int c4iw_debug;
-#define PDBG(fmt, args...) \
-do { \
-	if (c4iw_debug) \
-		printk(MOD fmt, ## args); \
-} while (0)
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include "t4.h"
 
@@ -107,6 +107,7 @@ struct c4iw_dev_ucontext {
 	struct list_head qpids;
 	struct list_head cqids;
 	struct mutex lock;
+	struct kref kref;
 };
 
 enum c4iw_rdev_flags {
@@ -183,6 +184,7 @@ struct c4iw_rdev {
 	atomic_t wr_log_idx;
 	struct wr_log_entry *wr_log;
 	int wr_log_size;
+	struct workqueue_struct *free_workq;
 };
 
 static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
@@ -228,15 +230,15 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 
 	ret = wait_for_completion_timeout(&wr_waitp->completion, C4IW_WR_TO);
 	if (!ret) {
-		PDBG("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
-		     func, pci_name(rdev->lldi.pdev), hwtid, qpid);
+		pr_debug("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
+			 func, pci_name(rdev->lldi.pdev), hwtid, qpid);
 		rdev->flags |= T4_FATAL_ERROR;
 		wr_waitp->ret = -EIO;
 	}
 out:
 	if (wr_waitp->ret)
-		PDBG("%s: FW reply %d tid %u qpid %u\n",
-		     pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
+		pr_debug("%s: FW reply %d tid %u qpid %u\n",
+			 pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
 	return wr_waitp->ret;
 }
 
@@ -480,8 +482,8 @@ struct c4iw_qp {
 	wait_queue_head_t wait;
 	struct timer_list timer;
 	int sq_sig_all;
-	struct completion rq_drained;
-	struct completion sq_drained;
+	struct work_struct free_work;
+	struct c4iw_ucontext *ucontext;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -495,11 +497,24 @@ struct c4iw_ucontext {
 	u32 key;
 	spinlock_t mmap_lock;
 	struct list_head mmaps;
+	struct kref kref;
 };
 
 static inline struct c4iw_ucontext *to_c4iw_ucontext(struct ib_ucontext *c)
 {
 	return container_of(c, struct c4iw_ucontext, ibucontext);
+}
+
+void _c4iw_free_ucontext(struct kref *kref);
+
+static inline void c4iw_put_ucontext(struct c4iw_ucontext *ucontext)
+{
+	kref_put(&ucontext->kref, _c4iw_free_ucontext);
+}
+
+static inline void c4iw_get_ucontext(struct c4iw_ucontext *ucontext)
+{
+	kref_get(&ucontext->kref);
 }
 
 struct c4iw_mm_entry {
@@ -522,8 +537,9 @@ static inline struct c4iw_mm_entry *remove_mmap(struct c4iw_ucontext *ucontext,
 		if (mm->key == key && mm->len == len) {
 			list_del_init(&mm->entry);
 			spin_unlock(&ucontext->mmap_lock);
-			PDBG("%s key 0x%x addr 0x%llx len %d\n", __func__,
-			     key, (unsigned long long) mm->addr, mm->len);
+			pr_debug("%s key 0x%x addr 0x%llx len %d\n",
+				 __func__, key,
+				 (unsigned long long)mm->addr, mm->len);
 			return mm;
 		}
 	}
@@ -535,8 +551,8 @@ static inline void insert_mmap(struct c4iw_ucontext *ucontext,
 			       struct c4iw_mm_entry *mm)
 {
 	spin_lock(&ucontext->mmap_lock);
-	PDBG("%s key 0x%x addr 0x%llx len %d\n", __func__,
-	     mm->key, (unsigned long long) mm->addr, mm->len);
+	pr_debug("%s key 0x%x addr 0x%llx len %d\n",
+		 __func__, mm->key, (unsigned long long)mm->addr, mm->len);
 	list_add_tail(&mm->entry, &ucontext->mmaps);
 	spin_unlock(&ucontext->mmap_lock);
 }
@@ -615,6 +631,8 @@ static inline int to_ib_qp_state(int c4iw_qp_state)
 	return IB_QPS_ERR;
 }
 
+#define C4IW_DRAIN_OPCODE FW_RI_SGE_EC_CR_RETURN
+
 static inline u32 c4iw_ib_to_tpt_access(int a)
 {
 	return (a & IB_ACCESS_REMOTE_WRITE ? FW_RI_MEM_ACCESS_REM_WRITE : 0) |
@@ -652,17 +670,19 @@ enum c4iw_mmid_state {
 #define MPA_V2_RDMA_READ_RTR            0x4000
 #define MPA_V2_IRD_ORD_MASK             0x3FFF
 
-#define c4iw_put_ep(ep) { \
-	PDBG("put_ep (via %s:%u) ep %p refcnt %d\n", __func__, __LINE__,  \
-	     ep, atomic_read(&((ep)->kref.refcount))); \
-	WARN_ON(atomic_read(&((ep)->kref.refcount)) < 1); \
-	kref_put(&((ep)->kref), _c4iw_free_ep); \
+#define c4iw_put_ep(ep) {						\
+	pr_debug("put_ep (via %s:%u) ep %p refcnt %d\n",		\
+		 __func__, __LINE__,					\
+		 ep, kref_read(&((ep)->kref)));				\
+	WARN_ON(kref_read(&((ep)->kref)) < 1);				\
+	kref_put(&((ep)->kref), _c4iw_free_ep);				\
 }
 
-#define c4iw_get_ep(ep) { \
-	PDBG("get_ep (via %s:%u) ep %p, refcnt %d\n", __func__, __LINE__, \
-	     ep, atomic_read(&((ep)->kref.refcount))); \
-	kref_get(&((ep)->kref));  \
+#define c4iw_get_ep(ep) {						\
+	pr_debug("get_ep (via %s:%u) ep %p, refcnt %d\n",		\
+		 __func__, __LINE__,					\
+		 ep, kref_read(&((ep)->kref)));				\
+	kref_get(&((ep)->kref));					\
 }
 void _c4iw_free_ep(struct kref *kref);
 
@@ -997,8 +1017,6 @@ extern int c4iw_wr_log;
 extern int db_fc_threshold;
 extern int db_coalescing_threshold;
 extern int use_dsgl;
-void c4iw_drain_rq(struct ib_qp *qp);
-void c4iw_drain_sq(struct ib_qp *qp);
 void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey);
 
 #endif

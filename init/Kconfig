@@ -521,15 +521,44 @@ config RCU_EXPERT
 
 config SRCU
 	bool
+	default y
 	help
 	  This option selects the sleepable version of RCU. This version
 	  permits arbitrary sleeping or blocking within RCU read-side critical
 	  sections.
 
+config CLASSIC_SRCU
+	bool "Use v4.11 classic SRCU implementation"
+	default n
+	depends on RCU_EXPERT && SRCU
+	help
+	  This option selects the traditional well-tested classic SRCU
+	  implementation from v4.11, as might be desired for enterprise
+	  Linux distributions.  Without this option, the shiny new
+	  Tiny SRCU and Tree SRCU implementations are used instead.
+	  At some point, it is hoped that Tiny SRCU and Tree SRCU
+	  will accumulate enough test time and confidence to allow
+	  Classic SRCU to be dropped entirely.
+
+	  Say Y if you need a rock-solid SRCU.
+
+	  Say N if you would like help test Tree SRCU.
+
+config TINY_SRCU
+	bool
+	default y if SRCU && TINY_RCU && !CLASSIC_SRCU
+	help
+	  This option selects the single-CPU non-preemptible version of SRCU.
+
+config TREE_SRCU
+	bool
+	default y if SRCU && !TINY_RCU && !CLASSIC_SRCU
+	help
+	  This option selects the full-fledged version of SRCU.
+
 config TASKS_RCU
 	bool
 	default n
-	depends on !UML
 	select SRCU
 	help
 	  This option enables a task-based RCU implementation that uses
@@ -543,6 +572,9 @@ config RCU_STALL_COMMON
 	  the TINY and TREE variants of RCU.  The purpose is to allow
 	  the tiny variants to disable RCU CPU stall warnings, while
 	  making these warnings mandatory for the tree variants.
+
+config RCU_NEED_SEGCBLIST
+	def_bool ( TREE_RCU || PREEMPT_RCU || TINY_SRCU || TREE_SRCU )
 
 config CONTEXT_TRACKING
        bool
@@ -613,11 +645,17 @@ config RCU_FANOUT_LEAF
 	  initialization.  These systems tend to run CPU-bound, and thus
 	  are not helped by synchronized interrupts, and thus tend to
 	  skew them, which reduces lock contention enough that large
-	  leaf-level fanouts work well.
+	  leaf-level fanouts work well.  That said, setting leaf-level
+	  fanout to a large number will likely cause problematic
+	  lock contention on the leaf-level rcu_node structures unless
+	  you boot with the skew_tick kernel parameter.
 
 	  Select a specific number if testing RCU itself.
 
-	  Select the maximum permissible value for large systems.
+	  Select the maximum permissible value for large systems, but
+	  please understand that you may also need to set the skew_tick
+	  kernel boot parameter to avoid contention on the rcu_node
+	  structure's locks.
 
 	  Take the default if unsure.
 
@@ -781,19 +819,6 @@ config RCU_NOCB_CPU_ALL
 
 endchoice
 
-config RCU_EXPEDITE_BOOT
-	bool
-	default n
-	help
-	  This option enables expedited grace periods at boot time,
-	  as if rcu_expedite_gp() had been invoked early in boot.
-	  The corresponding rcu_unexpedite_gp() is invoked from
-	  rcu_end_inkernel_boot(), which is intended to be invoked
-	  at the end of the kernel-only boot sequence, just before
-	  init is exec'ed.
-
-	  Accept the default if unsure.
-
 endmenu # "RCU Subsystem"
 
 config BUILD_BIN2C
@@ -875,17 +900,19 @@ config LOG_CPU_MAX_BUF_SHIFT
 		     13 =>   8 KB for each CPU
 		     12 =>   4 KB for each CPU
 
-config NMI_LOG_BUF_SHIFT
-	int "Temporary per-CPU NMI log buffer size (12 => 4KB, 13 => 8KB)"
+config PRINTK_SAFE_LOG_BUF_SHIFT
+	int "Temporary per-CPU printk log buffer size (12 => 4KB, 13 => 8KB)"
 	range 10 21
 	default 13
-	depends on PRINTK_NMI
+	depends on PRINTK
 	help
-	  Select the size of a per-CPU buffer where NMI messages are temporary
-	  stored. They are copied to the main log buffer in a safe context
-	  to avoid a deadlock. The value defines the size as a power of 2.
+	  Select the size of an alternate printk per-CPU buffer where messages
+	  printed from usafe contexts are temporary stored. One example would
+	  be NMI messages, another one - printk recursion. The messages are
+	  copied to the main log buffer in a safe context to avoid a deadlock.
+	  The value defines the size as a power of 2.
 
-	  NMI messages are rare and limited. The largest one is when
+	  Those messages are rare and limited. The largest one is when
 	  a backtrace is printed. It usually fits into 4KB. Select
 	  8KB if you want to be on the safe side.
 
@@ -1090,6 +1117,16 @@ config CGROUP_PIDS
 	  since the PIDs limit only affects a process's ability to fork, not to
 	  attach to a cgroup.
 
+config CGROUP_RDMA
+	bool "RDMA controller"
+	help
+	  Provides enforcement of RDMA resources defined by IB stack.
+	  It is fairly easy for consumers to exhaust RDMA resources, which
+	  can result into resource unavailability to other consumers.
+	  RDMA controller is designed to stop this from happening.
+	  Attaching processes with active RDMA resources to the cgroup
+	  hierarchy is allowed even if can cross the hierarchy's limit.
+
 config CGROUP_FREEZER
 	bool "Freezer controller"
 	help
@@ -1156,7 +1193,8 @@ config CGROUP_PERF
 
 config CGROUP_BPF
 	bool "Support for eBPF programs attached to cgroups"
-	depends on BPF_SYSCALL && SOCK_CGROUP_DATA
+	depends on BPF_SYSCALL
+	select SOCK_CGROUP_DATA
 	help
 	  Allow attaching eBPF programs to a cgroup using the bpf(2)
 	  syscall command BPF_PROG_ATTACH.
@@ -1174,6 +1212,10 @@ config CGROUP_DEBUG
 	  debugging information about the cgroups framework.
 
 	  Say N.
+
+config SOCK_CGROUP_DATA
+	bool
+	default n
 
 endif # CGROUPS
 
@@ -1318,7 +1360,7 @@ config BLK_DEV_INITRD
 	  boot loader (loadlin or lilo) and that is mounted as root
 	  before the normal boot procedure. It is typically used to
 	  load modules needed to mount the "real" root file system,
-	  etc. See <file:Documentation/initrd.txt> for details.
+	  etc. See <file:Documentation/admin-guide/initrd.rst> for details.
 
 	  If RAM disk support (BLK_DEV_RAM) is also included, this
 	  also enables initial RAM disk (initrd) support and adds
@@ -1456,6 +1498,23 @@ config SYSCTL_SYSCALL
 	  making your kernel marginally smaller.
 
 	  If unsure say N here.
+
+config POSIX_TIMERS
+	bool "Posix Clocks & timers" if EXPERT
+	default y
+	help
+	  This includes native support for POSIX timers to the kernel.
+	  Some embedded systems have no use for them and therefore they
+	  can be configured out to reduce the size of the kernel image.
+
+	  When this option is disabled, the following syscalls won't be
+	  available: timer_create, timer_gettime: timer_getoverrun,
+	  timer_settime, timer_delete, clock_adjtime, getitimer,
+	  setitimer, alarm. Furthermore, the clock_settime, clock_gettime,
+	  clock_getres and clock_nanosleep syscalls will be limited to
+	  CLOCK_REALTIME, CLOCK_MONOTONIC and CLOCK_BOOTTIME only.
+
+	  If unsure say y.
 
 config KALLSYMS
 	 bool "Load all symbols for debugging/ksymoops" if EXPERT
@@ -1698,6 +1757,13 @@ config PERF_USE_VMALLOC
 	help
 	  See tools/perf/design.txt for details
 
+config PC104
+	bool "PC/104 support"
+	help
+	  Expose PC/104 form factor device drivers and options available for
+	  selection and configuration. Enable this option if your target
+	  machine has a PC/104 bus.
+
 menu "Kernel Performance Events And Counters"
 
 config PERF_EVENTS
@@ -1763,6 +1829,20 @@ config SLUB_DEBUG
 	  result in significant savings in code size. This also disables
 	  SLUB sysfs support. /sys/slab will not exist and there will be
 	  no support for cache validation etc.
+
+config SLUB_MEMCG_SYSFS_ON
+	default n
+	bool "Enable memcg SLUB sysfs support by default" if EXPERT
+	depends on SLUB && SYSFS && MEMCG
+	help
+	  SLUB creates a directory under /sys/kernel/slab for each
+	  allocation cache to host info and debug files. If memory
+	  cgroup is enabled, each cache can have per memory cgroup
+	  caches. SLUB can create the same sysfs directories for these
+	  caches under /sys/kernel/slab/CACHE/cgroup but it can lead
+	  to a very high number of debug files being created. This is
+	  controlled by slub_memcg_sysfs boot parameter and this
+	  config option determines the parameter's default value.
 
 config COMPAT_BRK
 	bool "Disable heap randomization"
@@ -1964,6 +2044,10 @@ config MODVERSIONS
 	  to the modules to (hopefully) spot any changes which would
 	  make them incompatible with the kernel you are running.  If
 	  unsure, say N.
+
+config MODULE_REL_CRCS
+	bool
+	depends on MODVERSIONS
 
 config MODULE_SRCVERSION_ALL
 	bool "Source checksum for all modules"

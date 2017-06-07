@@ -20,13 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 
 #include "ppatomctrl.h"
 #include "atombios.h"
 #include "cgs_common.h"
-#include "pp_debug.h"
 #include "ppevvmath.h"
 
 #define MEM_ID_MASK           0xff000000
@@ -145,10 +145,10 @@ int atomctrl_initialize_mc_reg_table(
 				GetIndexIntoMasterTable(DATA, VRAM_Info), &size, &frev, &crev);
 
 	if (module_index >= vram_info->ucNumOfVRAMModule) {
-		printk(KERN_ERR "[ powerplay ] Invalid VramInfo table.");
+		pr_err("Invalid VramInfo table.");
 		result = -1;
 	} else if (vram_info->sHeader.ucTableFormatRevision < 2) {
-		printk(KERN_ERR "[ powerplay ] Invalid VramInfo table.");
+		pr_err("Invalid VramInfo table.");
 		result = -1;
 	}
 
@@ -688,7 +688,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM7), 1000);
 		break;
 	default:
-		printk(KERN_ERR "DPM Level not supported\n");
+		pr_err("DPM Level not supported\n");
 		fPowerDPMx = Convert_ULONG_ToFraction(1);
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM0), 1000);
 	}
@@ -1393,6 +1393,28 @@ int atomctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 	param->ucEnableGB_FUSE_TABLE_CKSON = profile->ucEnableGB_FUSE_TABLE_CKSON;
 	param->usPSM_Age_ComFactor = le16_to_cpu(profile->usPSM_Age_ComFactor);
 	param->ucEnableApplyAVFS_CKS_OFF_Voltage = profile->ucEnableApplyAVFS_CKS_OFF_Voltage;
+
+	return 0;
+}
+
+int  atomctrl_get_svi2_info(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
+				uint8_t *svd_gpio_id, uint8_t *svc_gpio_id,
+				uint16_t *load_line)
+{
+	ATOM_VOLTAGE_OBJECT_INFO_V3_1 *voltage_info =
+		(ATOM_VOLTAGE_OBJECT_INFO_V3_1 *)get_voltage_info_table(hwmgr->device);
+
+	const ATOM_VOLTAGE_OBJECT_V3 *voltage_object;
+
+	PP_ASSERT_WITH_CODE((NULL != voltage_info),
+			"Could not find Voltage Table in BIOS.", return -EINVAL);
+
+	voltage_object = atomctrl_lookup_voltage_type_v3
+		(voltage_info, voltage_type,  VOLTAGE_OBJ_SVID2);
+
+	*svd_gpio_id = voltage_object->asSVID2Obj.ucSVDGpioId;
+	*svc_gpio_id = voltage_object->asSVID2Obj.ucSVCGpioId;
+	*load_line = voltage_object->asSVID2Obj.usLoadLine_PSI;
 
 	return 0;
 }

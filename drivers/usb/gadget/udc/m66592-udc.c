@@ -637,7 +637,7 @@ static void init_controller(struct m66592 *m66592)
 			clock = M66592_XTAL48;
 			break;
 		default:
-			pr_warning("m66592-udc: xtal configuration error\n");
+			pr_warn("m66592-udc: xtal configuration error\n");
 			clock = 0;
 		}
 
@@ -649,7 +649,7 @@ static void init_controller(struct m66592 *m66592)
 			irq_sense = 0;
 			break;
 		default:
-			pr_warning("m66592-udc: irq trigger config error\n");
+			pr_warn("m66592-udc: irq trigger config error\n");
 			irq_sense = 0;
 		}
 
@@ -1436,7 +1436,7 @@ static void m66592_fifo_flush(struct usb_ep *_ep)
 	spin_unlock_irqrestore(&ep->m66592->lock, flags);
 }
 
-static struct usb_ep_ops m66592_ep_ops = {
+static const struct usb_ep_ops m66592_ep_ops = {
 	.enable		= m66592_enable,
 	.disable	= m66592_disable,
 

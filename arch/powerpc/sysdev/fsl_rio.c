@@ -80,10 +80,8 @@
 		"3:	li %1,-1\n"			\
 		"	li %0,%3\n"			\
 		"	b 2b\n"				\
-		".section __ex_table,\"a\"\n"		\
-			PPC_LONG_ALIGN "\n"		\
-			PPC_LONG "1b,3b\n"		\
-		".text"					\
+		".previous\n"				\
+		EX_TABLE(1b, 3b)			\
 		: "=r" (err), "=r" (x)			\
 		: "b" (addr), "i" (-EFAULT), "0" (err))
 
@@ -113,7 +111,7 @@ int fsl_rio_mcheck_exception(struct pt_regs *regs)
 			out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
 				 0);
 			regs->msr |= MSR_RI;
-			regs->nip = entry->fixup;
+			regs->nip = extable_fixup(entry);
 			return 1;
 		}
 	}

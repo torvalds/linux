@@ -22,6 +22,8 @@
 #include <linux/of_net.h>
 #include <linux/module.h>
 
+#define DEFAULT_GPIO_RESET_DELAY	10	/* in microseconds */
+
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
 MODULE_LICENSE("GPL");
 
@@ -147,6 +149,7 @@ EXPORT_SYMBOL(of_mdio_parse_addr);
  */
 static const struct of_device_id whitelist_phys[] = {
 	{ .compatible = "brcm,40nm-ephy" },
+	{ .compatible = "broadcom,bcm5241" },
 	{ .compatible = "marvell,88E1111", },
 	{ .compatible = "marvell,88e1116", },
 	{ .compatible = "marvell,88e1118", },
@@ -219,6 +222,11 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	mdio->phy_mask = ~0;
 
 	mdio->dev.of_node = np;
+
+	/* Get bus level PHY reset GPIO details */
+	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
+	of_property_read_u32(np, "reset-delay-us", &mdio->reset_delay_us);
+	mdio->num_reset_gpios = of_gpio_named_count(np, "reset-gpios");
 
 	/* Register the MDIO bus */
 	rc = mdiobus_register(mdio);

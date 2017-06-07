@@ -150,8 +150,7 @@ static int tmp103_probe(struct i2c_client *client,
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-#ifdef CONFIG_PM
-static int tmp103_suspend(struct device *dev)
+static int __maybe_unused tmp103_suspend(struct device *dev)
 {
 	struct regmap *regmap = dev_get_drvdata(dev);
 
@@ -159,7 +158,7 @@ static int tmp103_suspend(struct device *dev)
 				  TMP103_CONF_SD_MASK, 0);
 }
 
-static int tmp103_resume(struct device *dev)
+static int __maybe_unused tmp103_resume(struct device *dev)
 {
 	struct regmap *regmap = dev_get_drvdata(dev);
 
@@ -167,15 +166,7 @@ static int tmp103_resume(struct device *dev)
 				  TMP103_CONF_SD_MASK, TMP103_CONF_SD);
 }
 
-static const struct dev_pm_ops tmp103_dev_pm_ops = {
-	.suspend	= tmp103_suspend,
-	.resume		= tmp103_resume,
-};
-
-#define TMP103_DEV_PM_OPS (&tmp103_dev_pm_ops)
-#else
-#define	TMP103_DEV_PM_OPS NULL
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(tmp103_dev_pm_ops, tmp103_suspend, tmp103_resume);
 
 static const struct i2c_device_id tmp103_id[] = {
 	{ "tmp103", 0 },
@@ -183,10 +174,17 @@ static const struct i2c_device_id tmp103_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tmp103_id);
 
+static const struct of_device_id tmp103_of_match[] = {
+	{ .compatible = "ti,tmp103" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, tmp103_of_match);
+
 static struct i2c_driver tmp103_driver = {
 	.driver = {
 		.name	= "tmp103",
-		.pm	= TMP103_DEV_PM_OPS,
+		.of_match_table = of_match_ptr(tmp103_of_match),
+		.pm	= &tmp103_dev_pm_ops,
 	},
 	.probe		= tmp103_probe,
 	.id_table	= tmp103_id,

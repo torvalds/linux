@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_DEV_API_H
@@ -58,26 +82,63 @@ int qed_resc_alloc(struct qed_dev *cdev);
  */
 void qed_resc_setup(struct qed_dev *cdev);
 
+enum qed_override_force_load {
+	QED_OVERRIDE_FORCE_LOAD_NONE,
+	QED_OVERRIDE_FORCE_LOAD_ALWAYS,
+	QED_OVERRIDE_FORCE_LOAD_NEVER,
+};
+
+struct qed_drv_load_params {
+	/* Indicates whether the driver is running over a crash kernel.
+	 * As part of the load request, this will be used for providing the
+	 * driver role to the MFW.
+	 * In case of a crash kernel over PDA - this should be set to false.
+	 */
+	bool is_crash_kernel;
+
+	/* The timeout value that the MFW should use when locking the engine for
+	 * the driver load process.
+	 * A value of '0' means the default value, and '255' means no timeout.
+	 */
+	u8 mfw_timeout_val;
+#define QED_LOAD_REQ_LOCK_TO_DEFAULT    0
+#define QED_LOAD_REQ_LOCK_TO_NONE       255
+
+	/* Avoid engine reset when first PF loads on it */
+	bool avoid_eng_reset;
+
+	/* Allow overriding the default force load behavior */
+	enum qed_override_force_load override_force_load;
+};
+
+struct qed_hw_init_params {
+	/* Tunneling parameters */
+	struct qed_tunnel_info *p_tunn;
+
+	bool b_hw_start;
+
+	/* Interrupt mode [msix, inta, etc.] to use */
+	enum qed_int_mode int_mode;
+
+	/* NPAR tx switching to be used for vports for tx-switching */
+	bool allow_npar_tx_switch;
+
+	/* Binary fw data pointer in binary fw file */
+	const u8 *bin_fw_data;
+
+	/* Driver load parameters */
+	struct qed_drv_load_params *p_drv_load_params;
+};
+
 /**
  * @brief qed_hw_init -
  *
  * @param cdev
- * @param p_tunn
- * @param b_hw_start
- * @param int_mode - interrupt mode [msix, inta, etc.] to use.
- * @param allow_npar_tx_switch - npar tx switching to be used
- *	  for vports configured for tx-switching.
- * @param bin_fw_data - binary fw data pointer in binary fw file.
- *			Pass NULL if not using binary fw file.
+ * @param p_params
  *
  * @return int
  */
-int qed_hw_init(struct qed_dev *cdev,
-		struct qed_tunn_start_params *p_tunn,
-		bool b_hw_start,
-		enum qed_int_mode int_mode,
-		bool allow_npar_tx_switch,
-		const u8 *bin_fw_data);
+int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params);
 
 /**
  * @brief qed_hw_timers_stop_all - stop the timers HW block
@@ -104,26 +165,20 @@ int qed_hw_stop(struct qed_dev *cdev);
  *
  * @param cdev
  *
+ * @return int
  */
-void qed_hw_stop_fastpath(struct qed_dev *cdev);
+int qed_hw_stop_fastpath(struct qed_dev *cdev);
 
 /**
  * @brief qed_hw_start_fastpath -restart fastpath traffic,
  *		only if hw_stop_fastpath was called
  *
- * @param cdev
- *
- */
-void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn);
-
-/**
- * @brief qed_hw_reset -
- *
- * @param cdev
+ * @param p_hwfn
  *
  * @return int
  */
-int qed_hw_reset(struct qed_dev *cdev);
+int qed_hw_start_fastpath(struct qed_hwfn *p_hwfn);
+
 
 /**
  * @brief qed_hw_prepare -
@@ -329,6 +384,48 @@ int qed_llh_add_mac_filter(struct qed_hwfn *p_hwfn,
 void qed_llh_remove_mac_filter(struct qed_hwfn *p_hwfn,
 			       struct qed_ptt *p_ptt, u8 *p_filter);
 
+enum qed_llh_port_filter_type_t {
+	QED_LLH_FILTER_ETHERTYPE,
+	QED_LLH_FILTER_TCP_SRC_PORT,
+	QED_LLH_FILTER_TCP_DEST_PORT,
+	QED_LLH_FILTER_TCP_SRC_AND_DEST_PORT,
+	QED_LLH_FILTER_UDP_SRC_PORT,
+	QED_LLH_FILTER_UDP_DEST_PORT,
+	QED_LLH_FILTER_UDP_SRC_AND_DEST_PORT
+};
+
+/**
+ * @brief qed_llh_add_protocol_filter - configures a protocol filter in llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param source_port_or_eth_type - source port or ethertype to add
+ * @param dest_port - destination port to add
+ * @param type - type of filters and comparing
+ */
+int
+qed_llh_add_protocol_filter(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt,
+			    u16 source_port_or_eth_type,
+			    u16 dest_port,
+			    enum qed_llh_port_filter_type_t type);
+
+/**
+ * @brief qed_llh_remove_protocol_filter - remove a protocol filter in llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param source_port_or_eth_type - source port or ethertype to add
+ * @param dest_port - destination port to add
+ * @param type - type of filters and comparing
+ */
+void
+qed_llh_remove_protocol_filter(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt,
+			       u16 source_port_or_eth_type,
+			       u16 dest_port,
+			       enum qed_llh_port_filter_type_t type);
+
 /**
  * *@brief Cleanup of previous driver remains prior to load
  *
@@ -357,7 +454,7 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
  * @return int
  */
 int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 u16 coalesce, u8 qid, u16 sb_id);
+			 u16 coalesce, u16 qid, u16 sb_id);
 
 /**
  * @brief qed_set_txq_coalesce - Configure coalesce parameters for a Tx queue
@@ -374,5 +471,7 @@ int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
  * @return int
  */
 int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 u16 coalesce, u8 qid, u16 sb_id);
+			 u16 coalesce, u16 qid, u16 sb_id);
+
+const char *qed_hw_get_resc_name(enum qed_resources res_id);
 #endif

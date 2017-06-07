@@ -107,8 +107,8 @@ static struct g760a_data *g760a_update_client(struct device *dev)
 	return data;
 }
 
-static ssize_t show_fan(struct device *dev, struct device_attribute *da,
-			char *buf)
+static ssize_t fan1_input_show(struct device *dev,
+			       struct device_attribute *da, char *buf)
 {
 	struct g760a_data *data = g760a_update_client(dev);
 	unsigned int rpm = 0;
@@ -121,8 +121,8 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%d\n", rpm);
 }
 
-static ssize_t show_fan_alarm(struct device *dev, struct device_attribute *da,
-			      char *buf)
+static ssize_t fan1_alarm_show(struct device *dev,
+			       struct device_attribute *da, char *buf)
 {
 	struct g760a_data *data = g760a_update_client(dev);
 
@@ -131,16 +131,16 @@ static ssize_t show_fan_alarm(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%d\n", fan_alarm);
 }
 
-static ssize_t get_pwm(struct device *dev, struct device_attribute *da,
-		       char *buf)
+static ssize_t pwm1_show(struct device *dev, struct device_attribute *da,
+			 char *buf)
 {
 	struct g760a_data *data = g760a_update_client(dev);
 
 	return sprintf(buf, "%d\n", PWM_FROM_CNT(data->set_cnt));
 }
 
-static ssize_t set_pwm(struct device *dev, struct device_attribute *da,
-		       const char *buf, size_t count)
+static ssize_t pwm1_store(struct device *dev, struct device_attribute *da,
+			  const char *buf, size_t count)
 {
 	struct g760a_data *data = g760a_update_client(dev);
 	struct i2c_client *client = data->client;
@@ -157,9 +157,9 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *da,
 	return count;
 }
 
-static DEVICE_ATTR(pwm1, S_IWUSR | S_IRUGO, get_pwm, set_pwm);
-static DEVICE_ATTR(fan1_input, S_IRUGO, show_fan, NULL);
-static DEVICE_ATTR(fan1_alarm, S_IRUGO, show_fan_alarm, NULL);
+static DEVICE_ATTR_RW(pwm1);
+static DEVICE_ATTR_RO(fan1_input);
+static DEVICE_ATTR_RO(fan1_alarm);
 
 static struct attribute *g760a_attrs[] = {
 	&dev_attr_pwm1.attr,

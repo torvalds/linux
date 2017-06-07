@@ -200,11 +200,11 @@ static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 		set_nlink(inode, kn->dir.subdirs + 2);
 }
 
-int kernfs_iop_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		   struct kstat *stat)
+int kernfs_iop_getattr(const struct path *path, struct kstat *stat,
+		       u32 request_mask, unsigned int query_flags)
 {
-	struct kernfs_node *kn = dentry->d_fsdata;
-	struct inode *inode = d_inode(dentry);
+	struct kernfs_node *kn = path->dentry->d_fsdata;
+	struct inode *inode = d_inode(path->dentry);
 
 	mutex_lock(&kernfs_mutex);
 	kernfs_refresh_inode(kn, inode);
@@ -335,7 +335,7 @@ static int kernfs_xattr_set(const struct xattr_handler *handler,
 	return simple_xattr_set(&attrs->xattrs, name, value, size, flags);
 }
 
-const struct xattr_handler kernfs_trusted_xattr_handler = {
+static const struct xattr_handler kernfs_trusted_xattr_handler = {
 	.prefix = XATTR_TRUSTED_PREFIX,
 	.get = kernfs_xattr_get,
 	.set = kernfs_xattr_set,
@@ -372,7 +372,7 @@ static int kernfs_security_xattr_set(const struct xattr_handler *handler,
 	return error;
 }
 
-const struct xattr_handler kernfs_security_xattr_handler = {
+static const struct xattr_handler kernfs_security_xattr_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.get = kernfs_xattr_get,
 	.set = kernfs_security_xattr_set,

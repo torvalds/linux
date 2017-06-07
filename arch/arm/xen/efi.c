@@ -35,6 +35,6 @@ void __init xen_efi_runtime_setup(void)
 	efi.update_capsule           = xen_efi_update_capsule;
 	efi.query_capsule_caps       = xen_efi_query_capsule_caps;
 	efi.get_next_high_mono_count = xen_efi_get_next_high_mono_count;
-	efi.reset_system             = NULL; /* Functionality provided by Xen. */
+	efi.reset_system             = xen_efi_reset_system;
 }
 EXPORT_SYMBOL_GPL(xen_efi_runtime_setup);

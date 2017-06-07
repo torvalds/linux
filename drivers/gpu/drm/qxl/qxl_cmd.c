@@ -578,7 +578,7 @@ int qxl_hw_surface_dealloc(struct qxl_device *qdev,
 	return 0;
 }
 
-int qxl_update_surface(struct qxl_device *qdev, struct qxl_bo *surf)
+static int qxl_update_surface(struct qxl_device *qdev, struct qxl_bo *surf)
 {
 	struct qxl_rect rect;
 	int ret;

@@ -1,6 +1,7 @@
 #include "cpumap.h"
 #include "env.h"
 #include "util.h"
+#include <errno.h>
 
 struct perf_env perf_env;
 
@@ -66,7 +67,7 @@ int perf_env__read_cpu_topology_map(struct perf_env *env)
 		return 0;
 
 	if (env->nr_cpus_avail == 0)
-		env->nr_cpus_avail = sysconf(_SC_NPROCESSORS_CONF);
+		env->nr_cpus_avail = cpu__max_present_cpu();
 
 	nr_cpus = env->nr_cpus_avail;
 	if (nr_cpus == -1)

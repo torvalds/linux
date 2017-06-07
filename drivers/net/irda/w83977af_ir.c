@@ -517,9 +517,9 @@ static netdev_tx_t w83977af_hard_xmit(struct sk_buff *skb,
 
 		mtt = irda_get_mtt(skb);
 		pr_debug("%s: %ld, mtt=%d\n", __func__, jiffies, mtt);
-			if (mtt > 1000)
-				mdelay(mtt / 1000);
-			else if (mtt)
+		if (mtt > 1000)
+			mdelay(mtt / 1000);
+		else if (mtt)
 			udelay(mtt);
 
 		/* Enable DMA interrupt */
@@ -1263,9 +1263,9 @@ MODULE_LICENSE("GPL");
 
 module_param(qos_mtt_bits, int, 0);
 MODULE_PARM_DESC(qos_mtt_bits, "Mimimum Turn Time");
-module_param_array(io, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
 MODULE_PARM_DESC(io, "Base I/O addresses");
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 MODULE_PARM_DESC(irq, "IRQ lines");
 
 /*

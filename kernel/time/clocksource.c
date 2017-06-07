@@ -141,6 +141,10 @@ static void __clocksource_unstable(struct clocksource *cs)
 {
 	cs->flags &= ~(CLOCK_SOURCE_VALID_FOR_HRES | CLOCK_SOURCE_WATCHDOG);
 	cs->flags |= CLOCK_SOURCE_UNSTABLE;
+
+	if (cs->mark_unstable)
+		cs->mark_unstable(cs);
+
 	if (finished_booting)
 		schedule_work(&watchdog_work);
 }
@@ -170,7 +174,7 @@ void clocksource_mark_unstable(struct clocksource *cs)
 static void clocksource_watchdog(unsigned long data)
 {
 	struct clocksource *cs;
-	cycle_t csnow, wdnow, cslast, wdlast, delta;
+	u64 csnow, wdnow, cslast, wdlast, delta;
 	int64_t wd_nsec, cs_nsec;
 	int next_cpu, reset_pending;
 

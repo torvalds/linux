@@ -77,6 +77,11 @@ static const struct efx_sw_stat_desc efx_sw_stat_desc[] = {
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_tobe_disc),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_ip_hdr_chksum_err),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_tcp_udp_chksum_err),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_inner_ip_hdr_chksum_err),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_inner_tcp_udp_chksum_err),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_outer_ip_hdr_chksum_err),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_outer_tcp_udp_chksum_err),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_eth_crc_err),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_mcast_mismatch),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_frm_trunc),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_merge_events),
@@ -120,44 +125,53 @@ static int efx_ethtool_phys_id(struct net_device *net_dev,
 }
 
 /* This must be called with rtnl_lock held. */
-static int efx_ethtool_get_settings(struct net_device *net_dev,
-				    struct ethtool_cmd *ecmd)
+static int
+efx_ethtool_get_link_ksettings(struct net_device *net_dev,
+			       struct ethtool_link_ksettings *cmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_link_state *link_state = &efx->link_state;
+	u32 supported;
 
 	mutex_lock(&efx->mac_lock);
-	efx->phy_op->get_settings(efx, ecmd);
+	efx->phy_op->get_link_ksettings(efx, cmd);
 	mutex_unlock(&efx->mac_lock);
 
 	/* Both MACs support pause frames (bidirectional and respond-only) */
-	ecmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	ethtool_convert_link_mode_to_legacy_u32(&supported,
+						cmd->link_modes.supported);
+
+	supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
 
 	if (LOOPBACK_INTERNAL(efx)) {
-		ethtool_cmd_speed_set(ecmd, link_state->speed);
-		ecmd->duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
+		cmd->base.speed = link_state->speed;
+		cmd->base.duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
 	return 0;
 }
 
 /* This must be called with rtnl_lock held. */
-static int efx_ethtool_set_settings(struct net_device *net_dev,
-				    struct ethtool_cmd *ecmd)
+static int
+efx_ethtool_set_link_ksettings(struct net_device *net_dev,
+			       const struct ethtool_link_ksettings *cmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
 	/* GMAC does not support 1000Mbps HD */
-	if ((ethtool_cmd_speed(ecmd) == SPEED_1000) &&
-	    (ecmd->duplex != DUPLEX_FULL)) {
+	if ((cmd->base.speed == SPEED_1000) &&
+	    (cmd->base.duplex != DUPLEX_FULL)) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "rejecting unsupported 1000Mbps HD setting\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&efx->mac_lock);
-	rc = efx->phy_op->set_settings(efx, ecmd);
+	rc = efx->phy_op->set_link_ksettings(efx, cmd);
 	mutex_unlock(&efx->mac_lock);
 	return rc;
 }
@@ -966,6 +980,8 @@ efx_ethtool_get_rxnfc(struct net_device *net_dev,
 
 	case ETHTOOL_GRXFH: {
 		info->data = 0;
+		if (!efx->rss_active) /* No RSS */
+			return 0;
 		switch (info->flow_type) {
 		case UDP_V4_FLOW:
 			if (efx->rx_hash_udp_4tuple)
@@ -1267,15 +1283,29 @@ static u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 	return (efx->n_rx_channels == 1) ? 0 : ARRAY_SIZE(efx->rx_indir_table);
 }
 
+static u32 efx_ethtool_get_rxfh_key_size(struct net_device *net_dev)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	return efx->type->rx_hash_key_size;
+}
+
 static int efx_ethtool_get_rxfh(struct net_device *net_dev, u32 *indir, u8 *key,
 				u8 *hfunc)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	rc = efx->type->rx_pull_rss_config(efx);
+	if (rc)
+		return rc;
 
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP;
 	if (indir)
 		memcpy(indir, efx->rx_indir_table, sizeof(efx->rx_indir_table));
+	if (key)
+		memcpy(key, efx->rx_hash_key, efx->type->rx_hash_key_size);
 	return 0;
 }
 
@@ -1284,14 +1314,18 @@ static int efx_ethtool_set_rxfh(struct net_device *net_dev, const u32 *indir,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	/* We do not allow change in unsupported parameters */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	/* Hash function is Toeplitz, cannot be changed */
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
-	if (!indir)
+	if (!indir && !key)
 		return 0;
 
-	return efx->type->rx_push_rss_config(efx, true, indir);
+	if (!key)
+		key = efx->rx_hash_key;
+	if (!indir)
+		indir = efx->rx_indir_table;
+
+	return efx->type->rx_push_rss_config(efx, true, indir, key);
 }
 
 static int efx_ethtool_get_ts_info(struct net_device *net_dev,
@@ -1342,8 +1376,6 @@ static int efx_ethtool_get_module_info(struct net_device *net_dev,
 }
 
 const struct ethtool_ops efx_ethtool_ops = {
-	.get_settings		= efx_ethtool_get_settings,
-	.set_settings		= efx_ethtool_set_settings,
 	.get_drvinfo		= efx_ethtool_get_drvinfo,
 	.get_regs_len		= efx_ethtool_get_regs_len,
 	.get_regs		= efx_ethtool_get_regs,
@@ -1368,9 +1400,12 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_rxnfc		= efx_ethtool_get_rxnfc,
 	.set_rxnfc		= efx_ethtool_set_rxnfc,
 	.get_rxfh_indir_size	= efx_ethtool_get_rxfh_indir_size,
+	.get_rxfh_key_size	= efx_ethtool_get_rxfh_key_size,
 	.get_rxfh		= efx_ethtool_get_rxfh,
 	.set_rxfh		= efx_ethtool_set_rxfh,
 	.get_ts_info		= efx_ethtool_get_ts_info,
 	.get_module_info	= efx_ethtool_get_module_info,
 	.get_module_eeprom	= efx_ethtool_get_module_eeprom,
+	.get_link_ksettings	= efx_ethtool_get_link_ksettings,
+	.set_link_ksettings	= efx_ethtool_set_link_ksettings,
 };

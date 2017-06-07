@@ -62,21 +62,9 @@
 #define CFG_ENABLE_PM_MSG_FWD		BIT(1)
 #define CFG_ENABLE_INT_MSG_FWD		BIT(2)
 #define CFG_ENABLE_ERR_MSG_FWD		BIT(3)
-#define CFG_ENABLE_SLT_MSG_FWD		BIT(5)
-#define CFG_ENABLE_VEN_MSG_FWD		BIT(7)
-#define CFG_ENABLE_OTH_MSG_FWD		BIT(13)
-#define CFG_ENABLE_VEN_MSG_EN		BIT(14)
-#define CFG_ENABLE_VEN_MSG_VEN_INV	BIT(15)
-#define CFG_ENABLE_VEN_MSG_VEN_ID	GENMASK(31, 16)
 #define CFG_ENABLE_MSG_FILTER_MASK	(CFG_ENABLE_PM_MSG_FWD | \
 					CFG_ENABLE_INT_MSG_FWD | \
-					CFG_ENABLE_ERR_MSG_FWD | \
-					CFG_ENABLE_SLT_MSG_FWD | \
-					CFG_ENABLE_VEN_MSG_FWD | \
-					CFG_ENABLE_OTH_MSG_FWD | \
-					CFG_ENABLE_VEN_MSG_EN | \
-					CFG_ENABLE_VEN_MSG_VEN_INV | \
-					CFG_ENABLE_VEN_MSG_VEN_ID)
+					CFG_ENABLE_ERR_MSG_FWD)
 
 /* Misc interrupt status mask bits */
 #define MSGF_MISC_SR_RXMSG_AVAIL	BIT(0)
@@ -773,7 +761,7 @@ static int nwl_pcie_parse_dt(struct nwl_pcie *pcie,
 	pcie->phys_pcie_reg_base = res->start;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg");
-	pcie->ecam_base = devm_ioremap_resource(dev, res);
+	pcie->ecam_base = devm_pci_remap_cfg_resource(dev, res);
 	if (IS_ERR(pcie->ecam_base))
 		return PTR_ERR(pcie->ecam_base);
 	pcie->phys_ecam_base = res->start;

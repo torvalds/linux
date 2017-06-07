@@ -26,22 +26,22 @@
 #include <drm/drmP.h>
 #include "virtgpu_drv.h"
 
-static const char *virtio_get_driver_name(struct fence *f)
+static const char *virtio_get_driver_name(struct dma_fence *f)
 {
 	return "virtio_gpu";
 }
 
-static const char *virtio_get_timeline_name(struct fence *f)
+static const char *virtio_get_timeline_name(struct dma_fence *f)
 {
 	return "controlq";
 }
 
-static bool virtio_enable_signaling(struct fence *f)
+static bool virtio_enable_signaling(struct dma_fence *f)
 {
 	return true;
 }
 
-static bool virtio_signaled(struct fence *f)
+static bool virtio_signaled(struct dma_fence *f)
 {
 	struct virtio_gpu_fence *fence = to_virtio_fence(f);
 
@@ -50,26 +50,26 @@ static bool virtio_signaled(struct fence *f)
 	return false;
 }
 
-static void virtio_fence_value_str(struct fence *f, char *str, int size)
+static void virtio_fence_value_str(struct dma_fence *f, char *str, int size)
 {
 	struct virtio_gpu_fence *fence = to_virtio_fence(f);
 
 	snprintf(str, size, "%llu", fence->seq);
 }
 
-static void virtio_timeline_value_str(struct fence *f, char *str, int size)
+static void virtio_timeline_value_str(struct dma_fence *f, char *str, int size)
 {
 	struct virtio_gpu_fence *fence = to_virtio_fence(f);
 
 	snprintf(str, size, "%llu", (u64)atomic64_read(&fence->drv->last_seq));
 }
 
-static const struct fence_ops virtio_fence_ops = {
+static const struct dma_fence_ops virtio_fence_ops = {
 	.get_driver_name     = virtio_get_driver_name,
 	.get_timeline_name   = virtio_get_timeline_name,
 	.enable_signaling    = virtio_enable_signaling,
 	.signaled            = virtio_signaled,
-	.wait                = fence_default_wait,
+	.wait                = dma_fence_default_wait,
 	.fence_value_str     = virtio_fence_value_str,
 	.timeline_value_str  = virtio_timeline_value_str,
 };
@@ -88,9 +88,9 @@ int virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 	spin_lock_irqsave(&drv->lock, irq_flags);
 	(*fence)->drv = drv;
 	(*fence)->seq = ++drv->sync_seq;
-	fence_init(&(*fence)->f, &virtio_fence_ops, &drv->lock,
-		   drv->context, (*fence)->seq);
-	fence_get(&(*fence)->f);
+	dma_fence_init(&(*fence)->f, &virtio_fence_ops, &drv->lock,
+		       drv->context, (*fence)->seq);
+	dma_fence_get(&(*fence)->f);
 	list_add_tail(&(*fence)->node, &drv->fences);
 	spin_unlock_irqrestore(&drv->lock, irq_flags);
 
@@ -111,9 +111,9 @@ void virtio_gpu_fence_event_process(struct virtio_gpu_device *vgdev,
 	list_for_each_entry_safe(fence, tmp, &drv->fences, node) {
 		if (last_seq < fence->seq)
 			continue;
-		fence_signal_locked(&fence->f);
+		dma_fence_signal_locked(&fence->f);
 		list_del(&fence->node);
-		fence_put(&fence->f);
+		dma_fence_put(&fence->f);
 	}
 	spin_unlock_irqrestore(&drv->lock, irq_flags);
 }

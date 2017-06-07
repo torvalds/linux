@@ -127,7 +127,7 @@ static struct serial_state rs_table[1];
 
 #define NR_PORTS ARRAY_SIZE(rs_table)
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define serial_isroot()	(capable(CAP_SYS_ADMIN))
 
@@ -1012,8 +1012,6 @@ static int get_serial_info(struct tty_struct *tty, struct serial_state *state,
 {
 	struct serial_struct tmp;
    
-	if (!retinfo)
-		return -EFAULT;
 	memset(&tmp, 0, sizeof(tmp));
 	tty_lock(tty);
 	tmp.line = tty->index;

@@ -90,7 +90,7 @@ void __init plat_time_init(void)
 static void markeins_board_init(void);
 extern void markeins_irq_setup(void);
 
-static void inline __init markeins_sio_setup(void)
+static inline void __init markeins_sio_setup(void)
 {
 }
 

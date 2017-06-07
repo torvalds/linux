@@ -224,7 +224,7 @@ static u16 csi2_ctx_map_format(struct iss_csi2_device *csi2)
 		fmtidx = 3;
 		break;
 	default:
-		WARN(1, KERN_ERR "CSI2: pixel format %08x unsupported!\n",
+		WARN(1, "CSI2: pixel format %08x unsupported!\n",
 		     fmt->code);
 		return 0;
 	}
@@ -1268,7 +1268,7 @@ static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 	snprintf(name, sizeof(name), "CSI2%s", subname);
 	snprintf(sd->name, sizeof(sd->name), "OMAP4 ISS %s", name);
 
-	sd->grp_id = 1 << 16;	/* group ID for iss subdevs */
+	sd->grp_id = BIT(16);	/* group ID for iss subdevs */
 	v4l2_set_subdevdata(sd, csi2);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 

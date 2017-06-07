@@ -82,15 +82,8 @@ static int nrs_policy_ctl_locked(struct ptlrpc_nrs_policy *policy,
 
 static void nrs_policy_stop0(struct ptlrpc_nrs_policy *policy)
 {
-	struct ptlrpc_nrs *nrs = policy->pol_nrs;
-
-	if (policy->pol_desc->pd_ops->op_policy_stop) {
-		spin_unlock(&nrs->nrs_lock);
-
+	if (policy->pol_desc->pd_ops->op_policy_stop)
 		policy->pol_desc->pd_ops->op_policy_stop(policy);
-
-		spin_lock(&nrs->nrs_lock);
-	}
 
 	LASSERT(list_empty(&policy->pol_list_queued));
 	LASSERT(policy->pol_req_queued == 0 &&
@@ -616,6 +609,12 @@ static int nrs_policy_ctl(struct ptlrpc_nrs *nrs, char *name,
 	policy = nrs_policy_find_locked(nrs, name);
 	if (!policy) {
 		rc = -ENOENT;
+		goto out;
+	}
+
+	if (policy->pol_state != NRS_POL_STATE_STARTED &&
+	    policy->pol_state != NRS_POL_STATE_STOPPED) {
+		rc = -EAGAIN;
 		goto out;
 	}
 
@@ -1559,9 +1558,6 @@ int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
 out:
 	return rc;
 }
-
-/* ptlrpc/nrs_fifo.c */
-extern struct ptlrpc_nrs_pol_conf nrs_conf_fifo;
 
 /**
  * Adds all policies that ship with the ptlrpc module, to NRS core's list of

@@ -26,6 +26,11 @@
 #include "delayed-ref.h"
 #include "locking.h"
 
+enum merge_mode {
+	MERGE_IDENTICAL_KEYS = 1,
+	MERGE_IDENTICAL_PARENTS,
+};
+
 /* Just an arbitrary number so we can be sure this happened */
 #define BACKREF_FOUND_SHARED 6
 
@@ -533,7 +538,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 	 * slot==nritems. In that case, go to the next leaf before we continue.
 	 */
 	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
-		if (time_seq == (u64)-1)
+		if (time_seq == SEQ_LAST)
 			ret = btrfs_next_leaf(root, path);
 		else
 			ret = btrfs_next_old_leaf(root, path, time_seq);
@@ -577,7 +582,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 			eie = NULL;
 		}
 next:
-		if (time_seq == (u64)-1)
+		if (time_seq == SEQ_LAST)
 			ret = btrfs_next_item(root, path);
 		else
 			ret = btrfs_next_old_item(root, path, time_seq);
@@ -629,7 +634,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 
 	if (path->search_commit_root)
 		root_level = btrfs_header_level(root->commit_root);
-	else if (time_seq == (u64)-1)
+	else if (time_seq == SEQ_LAST)
 		root_level = btrfs_header_level(root->node);
 	else
 		root_level = btrfs_old_root_level(root, time_seq);
@@ -640,7 +645,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 	}
 
 	path->lowest_level = level;
-	if (time_seq == (u64)-1)
+	if (time_seq == SEQ_LAST)
 		ret = btrfs_search_slot(NULL, root, &ref->key_for_search, path,
 					0, 0);
 	else
@@ -788,8 +793,7 @@ static int __add_missing_keys(struct btrfs_fs_info *fs_info,
 		if (ref->key_for_search.type)
 			continue;
 		BUG_ON(!ref->wanted_disk_byte);
-		eb = read_tree_block(fs_info->tree_root, ref->wanted_disk_byte,
-				     0);
+		eb = read_tree_block(fs_info, ref->wanted_disk_byte, 0);
 		if (IS_ERR(eb)) {
 			return PTR_ERR(eb);
 		} else if (!extent_buffer_uptodate(eb)) {
@@ -810,14 +814,12 @@ static int __add_missing_keys(struct btrfs_fs_info *fs_info,
 /*
  * merge backrefs and adjust counts accordingly
  *
- * mode = 1: merge identical keys, if key is set
- *    FIXME: if we add more keys in __add_prelim_ref, we can merge more here.
- *           additionally, we could even add a key range for the blocks we
- *           looked into to merge even more (-> replace unresolved refs by those
- *           having a parent).
- * mode = 2: merge identical parents
+ *    FIXME: For MERGE_IDENTICAL_KEYS, if we add more keys in __add_prelim_ref
+ *           then we can merge more here. Additionally, we could even add a key
+ *           range for the blocks we looked into to merge even more (-> replace
+ *           unresolved refs by those having a parent).
  */
-static void __merge_refs(struct list_head *head, int mode)
+static void __merge_refs(struct list_head *head, enum merge_mode mode)
 {
 	struct __prelim_ref *pos1;
 
@@ -830,7 +832,7 @@ static void __merge_refs(struct list_head *head, int mode)
 
 			if (!ref_for_same_block(ref1, ref2))
 				continue;
-			if (mode == 1) {
+			if (mode == MERGE_IDENTICAL_KEYS) {
 				if (!ref1->parent && ref2->parent)
 					swap(ref1, ref2);
 			} else {
@@ -957,8 +959,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 /*
  * add all inline backrefs for bytenr to the list
  */
-static int __add_inline_refs(struct btrfs_fs_info *fs_info,
-			     struct btrfs_path *path, u64 bytenr,
+static int __add_inline_refs(struct btrfs_path *path, u64 bytenr,
 			     int *info_level, struct list_head *prefs,
 			     struct ref_root *ref_tree,
 			     u64 *total_refs, u64 inum)
@@ -1198,7 +1199,7 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
  *
  * NOTE: This can return values > 0
  *
- * If time_seq is set to (u64)-1, it will not search delayed_refs, and behave
+ * If time_seq is set to SEQ_LAST, it will not search delayed_refs, and behave
  * much like trans == NULL case, the difference only lies in it will not
  * commit root.
  * The special case is for qgroup to search roots in commit_transaction().
@@ -1245,7 +1246,7 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 		path->skip_locking = 1;
 	}
 
-	if (time_seq == (u64)-1)
+	if (time_seq == SEQ_LAST)
 		path->skip_locking = 1;
 
 	/*
@@ -1275,9 +1276,9 @@ again:
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	if (trans && likely(trans->type != __TRANS_DUMMY) &&
-	    time_seq != (u64)-1) {
+	    time_seq != SEQ_LAST) {
 #else
-	if (trans && time_seq != (u64)-1) {
+	if (trans && time_seq != SEQ_LAST) {
 #endif
 		/*
 		 * look if there are updates for this ref queued and lock the
@@ -1285,10 +1286,10 @@ again:
 		 */
 		delayed_refs = &trans->transaction->delayed_refs;
 		spin_lock(&delayed_refs->lock);
-		head = btrfs_find_delayed_ref_head(trans, bytenr);
+		head = btrfs_find_delayed_ref_head(delayed_refs, bytenr);
 		if (head) {
 			if (!mutex_trylock(&head->mutex)) {
-				atomic_inc(&head->node.refs);
+				refcount_inc(&head->node.refs);
 				spin_unlock(&delayed_refs->lock);
 
 				btrfs_release_path(path);
@@ -1355,7 +1356,7 @@ again:
 		if (key.objectid == bytenr &&
 		    (key.type == BTRFS_EXTENT_ITEM_KEY ||
 		     key.type == BTRFS_METADATA_ITEM_KEY)) {
-			ret = __add_inline_refs(fs_info, path, bytenr,
+			ret = __add_inline_refs(path, bytenr,
 						&info_level, &prefs,
 						ref_tree, &total_refs,
 						inum);
@@ -1376,7 +1377,7 @@ again:
 	if (ret)
 		goto out;
 
-	__merge_refs(&prefs, 1);
+	__merge_refs(&prefs, MERGE_IDENTICAL_KEYS);
 
 	ret = __resolve_indirect_refs(fs_info, path, time_seq, &prefs,
 				      extent_item_pos, total_refs,
@@ -1384,7 +1385,7 @@ again:
 	if (ret)
 		goto out;
 
-	__merge_refs(&prefs, 2);
+	__merge_refs(&prefs, MERGE_IDENTICAL_PARENTS);
 
 	while (!list_empty(&prefs)) {
 		ref = list_first_entry(&prefs, struct __prelim_ref, list);
@@ -1405,8 +1406,7 @@ again:
 			    ref->level == 0) {
 				struct extent_buffer *eb;
 
-				eb = read_tree_block(fs_info->extent_root,
-							   ref->parent, 0);
+				eb = read_tree_block(fs_info, ref->parent, 0);
 				if (IS_ERR(eb)) {
 					ret = PTR_ERR(eb);
 					goto out;
@@ -1829,7 +1829,7 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	}
 	btrfs_item_key_to_cpu(path->nodes[0], found_key, path->slots[0]);
 	if (found_key->type == BTRFS_METADATA_ITEM_KEY)
-		size = fs_info->extent_root->nodesize;
+		size = fs_info->nodesize;
 	else if (found_key->type == BTRFS_EXTENT_ITEM_KEY)
 		size = found_key->offset;
 
@@ -2058,7 +2058,7 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 out:
 	if (!search_commit_root) {
 		btrfs_put_tree_mod_seq(fs_info, &tree_mod_seq_elem);
-		btrfs_end_transaction(trans, fs_info->extent_root);
+		btrfs_end_transaction(trans);
 	} else {
 		up_read(&fs_info->commit_root_sem);
 	}

@@ -9,10 +9,13 @@
  *   Dick Fowles <fowles@inreach.com>
  *   Joe Mario <jmario@redhat.com>
  */
+#include <errno.h>
+#include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 #include <asm/bug.h>
+#include <sys/param.h>
 #include "util.h"
 #include "debug.h"
 #include "builtin.h"
@@ -24,11 +27,13 @@
 #include "tool.h"
 #include "data.h"
 #include "sort.h"
+#include "event.h"
 #include "evlist.h"
 #include "evsel.h"
 #include <asm/bug.h>
 #include "ui/browsers/hists.h"
 #include "evlist.h"
+#include "thread.h"
 
 struct c2c_hists {
 	struct hists		hists;
@@ -58,7 +63,7 @@ struct c2c_hist_entry {
 	struct hist_entry	he;
 };
 
-static char const *coalesce_default = "pid,tid,iaddr";
+static char const *coalesce_default = "pid,iaddr";
 
 struct perf_c2c {
 	struct perf_tool	tool;
@@ -208,7 +213,7 @@ static void compute_stats(struct c2c_hist_entry *c2c_he,
 static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel __maybe_unused,
+				struct perf_evsel *evsel,
 				struct machine *machine)
 {
 	struct c2c_hists *c2c_hists = &c2c.hists;
@@ -379,7 +384,7 @@ static int symbol_width(struct hists *hists, struct sort_entry *se)
 
 static int c2c_width(struct perf_hpp_fmt *fmt,
 		     struct perf_hpp *hpp __maybe_unused,
-		     struct hists *hists __maybe_unused)
+		     struct hists *hists)
 {
 	struct c2c_fmt *c2c_fmt;
 	struct c2c_dimension *dim;
@@ -1127,7 +1132,7 @@ MEAN_ENTRY(mean_lcl_entry,  lcl_hitm);
 MEAN_ENTRY(mean_load_entry, load);
 
 static int
-cpucnt_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
+cpucnt_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	     struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
@@ -1141,7 +1146,7 @@ cpucnt_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 }
 
 static int
-cl_idx_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
+cl_idx_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	     struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
@@ -1155,7 +1160,7 @@ cl_idx_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 }
 
 static int
-cl_idx_empty_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
+cl_idx_empty_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		   struct hist_entry *he)
 {
 	int width = c2c_width(fmt, hpp, he->hists);
@@ -1779,7 +1784,6 @@ static int c2c_hists__init(struct c2c_hists *hists,
 	return hpp_list__parse(&hists->list, NULL, sort);
 }
 
-__maybe_unused
 static int c2c_hists__reinit(struct c2c_hists *c2c_hists,
 			     const char *output,
 			     const char *sort)
@@ -2335,7 +2339,7 @@ out:
 
 static void perf_c2c_display(struct perf_session *session)
 {
-	if (c2c.use_stdio)
+	if (use_browser == 0)
 		perf_c2c__hists_fprintf(stdout, session);
 	else
 		perf_c2c__hists_browse(&c2c.hists.hists);
@@ -2477,6 +2481,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 		"mean_rmt,"
 		"mean_lcl,"
 		"mean_load,"
+		"tot_recs,"
 		"cpucnt,",
 		add_sym ? "symbol," : "",
 		add_dso ? "dso," : "",
@@ -2536,7 +2541,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	OPT_BOOLEAN(0, "stdio", &c2c.use_stdio, "Use the stdio interface"),
 #endif
 	OPT_BOOLEAN(0, "stats", &c2c.stats_only,
-		    "Use the stdio interface"),
+		    "Display only statistic tables (implies --stdio)"),
 	OPT_BOOLEAN(0, "full-symbols", &c2c.symbol_full,
 		    "Display full length of symbols"),
 	OPT_BOOLEAN(0, "no-source", &no_source,
@@ -2658,7 +2663,7 @@ out:
 	return err;
 }
 
-static int parse_record_events(const struct option *opt __maybe_unused,
+static int parse_record_events(const struct option *opt,
 			       const char *str, int unset __maybe_unused)
 {
 	bool *event_set = (bool *) opt->value;
@@ -2755,12 +2760,12 @@ static int perf_c2c__record(int argc, const char **argv)
 		pr_debug("\n");
 	}
 
-	ret = cmd_record(i, rec_argv, NULL);
+	ret = cmd_record(i, rec_argv);
 	free(rec_argv);
 	return ret;
 }
 
-int cmd_c2c(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_c2c(int argc, const char **argv)
 {
 	argc = parse_options(argc, argv, c2c_options, c2c_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);

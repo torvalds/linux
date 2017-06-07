@@ -41,6 +41,7 @@ struct caam_drv_private_jr {
 	struct device		*dev;
 	int ridx;
 	struct caam_job_ring __iomem *rregs;	/* JobR's register space */
+	struct tasklet_struct irqtask;
 	int irq;			/* One per queue */
 
 	/* Number of scatterlist crypt transforms active on the JobR */
@@ -65,7 +66,9 @@ struct caam_drv_private_jr {
 struct caam_drv_private {
 
 	struct device *dev;
-	struct platform_device **jrpdev; /* Alloc'ed array per sub-device */
+#ifdef CONFIG_CAAM_QI
+	struct device *qidev;
+#endif
 	struct platform_device *pdev;
 
 	/* Physical-presence section */
@@ -109,9 +112,30 @@ struct caam_drv_private {
 
 	struct debugfs_blob_wrapper ctl_kek_wrap, ctl_tkek_wrap, ctl_tdsk_wrap;
 	struct dentry *ctl_kek, *ctl_tkek, *ctl_tdsk;
+#ifdef CONFIG_CAAM_QI
+	struct dentry *qi_congested;
+#endif
 #endif
 };
 
 void caam_jr_algapi_init(struct device *dev);
 void caam_jr_algapi_remove(struct device *dev);
+
+#ifdef CONFIG_DEBUG_FS
+static int caam_debugfs_u64_get(void *data, u64 *val)
+{
+	*val = caam64_to_cpu(*(u64 *)data);
+	return 0;
+}
+
+static int caam_debugfs_u32_get(void *data, u64 *val)
+{
+	*val = caam32_to_cpu(*(u32 *)data);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u32_ro, caam_debugfs_u32_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u64_ro, caam_debugfs_u64_get, NULL, "%llu\n");
+#endif
+
 #endif /* INTERN_H */

@@ -65,7 +65,7 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw)
 {
 	/* Align requested size with padding so unlock_commit can
 	 * pad safely */
-	ndw = (ndw + ring->align_mask) & ~ring->align_mask;
+	ndw = (ndw + ring->funcs->align_mask) & ~ring->funcs->align_mask;
 
 	/* Make sure we aren't trying to allocate more space
 	 * than the maximum for one submission
@@ -94,7 +94,7 @@ void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 	int i;
 
 	for (i = 0; i < count; i++)
-		amdgpu_ring_write(ring, ring->nop);
+		amdgpu_ring_write(ring, ring->funcs->nop);
 }
 
 /** amdgpu_ring_generic_pad_ib - pad IB with NOP packets
@@ -106,8 +106,8 @@ void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  */
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 {
-	while (ib->length_dw & ring->align_mask)
-		ib->ptr[ib->length_dw++] = ring->nop;
+	while (ib->length_dw & ring->funcs->align_mask)
+		ib->ptr[ib->length_dw++] = ring->funcs->nop;
 }
 
 /**
@@ -125,8 +125,9 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 	uint32_t count;
 
 	/* We pad to match fetch size */
-	count = ring->align_mask + 1 - (ring->wptr & ring->align_mask);
-	count %= ring->align_mask + 1;
+	count = ring->funcs->align_mask + 1 -
+		(ring->wptr & ring->funcs->align_mask);
+	count %= ring->funcs->align_mask + 1;
 	ring->funcs->insert_nop(ring, count);
 
 	mb();
@@ -163,9 +164,8 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
  * Returns 0 on success, error on failure.
  */
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
-		     unsigned max_dw, u32 nop, u32 align_mask,
-		     struct amdgpu_irq_src *irq_src, unsigned irq_type,
-		     enum amdgpu_ring_type ring_type)
+		     unsigned max_dw, struct amdgpu_irq_src *irq_src,
+		     unsigned irq_type)
 {
 	int r;
 
@@ -182,16 +182,32 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 			return r;
 	}
 
-	r = amdgpu_wb_get(adev, &ring->rptr_offs);
-	if (r) {
-		dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
-		return r;
-	}
+	if (ring->funcs->support_64bit_ptrs) {
+		r = amdgpu_wb_get_64bit(adev, &ring->rptr_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
+			return r;
+		}
 
-	r = amdgpu_wb_get(adev, &ring->wptr_offs);
-	if (r) {
-		dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
-		return r;
+		r = amdgpu_wb_get_64bit(adev, &ring->wptr_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
+			return r;
+		}
+
+	} else {
+		r = amdgpu_wb_get(adev, &ring->rptr_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
+			return r;
+		}
+
+		r = amdgpu_wb_get(adev, &ring->wptr_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
+			return r;
+		}
+
 	}
 
 	r = amdgpu_wb_get(adev, &ring->fence_offs);
@@ -207,6 +223,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	}
 	ring->cond_exe_gpu_addr = adev->wb.gpu_addr + (ring->cond_exe_offs * 4);
 	ring->cond_exe_cpu_addr = &adev->wb.wb[ring->cond_exe_offs];
+	/* always set cond_exec_polling to CONTINUE */
+	*ring->cond_exe_cpu_addr = 1;
 
 	r = amdgpu_fence_driver_start_ring(ring, irq_src, irq_type);
 	if (r) {
@@ -216,10 +234,10 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 
 	ring->ring_size = roundup_pow_of_two(max_dw * 4 *
 					     amdgpu_sched_hw_submission);
-	ring->align_mask = align_mask;
-	ring->nop = nop;
-	ring->type = ring_type;
 
+	ring->buf_mask = (ring->ring_size / 4) - 1;
+	ring->ptr_mask = ring->funcs->support_64bit_ptrs ?
+		0xffffffffffffffff : ring->buf_mask;
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
 		r = amdgpu_bo_create_kernel(adev, ring->ring_size, PAGE_SIZE,
@@ -231,9 +249,9 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 			dev_err(adev->dev, "(%d) ring create failed\n", r);
 			return r;
 		}
-		memset((void *)ring->ring, 0, ring->ring_size);
+		amdgpu_ring_clear_ring(ring);
 	}
-	ring->ptr_mask = (ring->ring_size / 4) - 1;
+
 	ring->max_dw = max_dw;
 
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
@@ -254,10 +272,18 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
 	ring->ready = false;
 
-	amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
-	amdgpu_wb_free(ring->adev, ring->fence_offs);
-	amdgpu_wb_free(ring->adev, ring->rptr_offs);
-	amdgpu_wb_free(ring->adev, ring->wptr_offs);
+	if (ring->funcs->support_64bit_ptrs) {
+		amdgpu_wb_free_64bit(ring->adev, ring->cond_exe_offs);
+		amdgpu_wb_free_64bit(ring->adev, ring->fence_offs);
+		amdgpu_wb_free_64bit(ring->adev, ring->rptr_offs);
+		amdgpu_wb_free_64bit(ring->adev, ring->wptr_offs);
+	} else {
+		amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
+		amdgpu_wb_free(ring->adev, ring->fence_offs);
+		amdgpu_wb_free(ring->adev, ring->rptr_offs);
+		amdgpu_wb_free(ring->adev, ring->wptr_offs);
+	}
+
 
 	amdgpu_bo_free_kernel(&ring->ring_obj,
 			      &ring->gpu_addr,
@@ -283,7 +309,7 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_ring *ring = (struct amdgpu_ring*)f->f_inode->i_private;
+	struct amdgpu_ring *ring = file_inode(f)->i_private;
 	int r, i;
 	uint32_t value, result, early[3];
 
@@ -294,8 +320,8 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 
 	if (*pos < 12) {
 		early[0] = amdgpu_ring_get_rptr(ring);
-		early[1] = amdgpu_ring_get_wptr(ring);
-		early[2] = ring->wptr;
+		early[1] = amdgpu_ring_get_wptr(ring) & ring->buf_mask;
+		early[2] = ring->wptr & ring->buf_mask;
 		for (i = *pos / 4; i < 3 && size; i++) {
 			r = put_user(early[i], (uint32_t *)buf);
 			if (r)
@@ -310,7 +336,7 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 	while (size) {
 		if (*pos >= (ring->ring_size + 12))
 			return result;
-			
+
 		value = ring->ring[(*pos - 12)/4];
 		r = put_user(value, (uint32_t*)buf);
 		if (r)

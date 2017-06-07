@@ -84,7 +84,7 @@
 			the slower the port i/o.  In some cases, setting
 			this to zero will speed up the device. (default -1)
 
-	    major	You may use this parameter to overide the
+	    major	You may use this parameter to override the
 			default major number (97) that this driver
 			will use.  Be sure to change the device
 			name as well.
@@ -166,7 +166,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 module_param(verbose, int, 0644);
 module_param(major, int, 0);

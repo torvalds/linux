@@ -179,6 +179,7 @@ struct autofs_dev_ioctl {
 				 * including this struct */
 	__s32 ioctlfd;          /* automount command fd */
 
+	/* Command parameters */
 	union {
 		struct args_protover		protover;
 		struct args_protosubver		protosubver;

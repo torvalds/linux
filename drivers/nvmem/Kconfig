@@ -13,6 +13,17 @@ menuconfig NVMEM
 
 if NVMEM
 
+config NVMEM_IMX_IIM
+	tristate "i.MX IC Identification Module support"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  This is a driver for the IC Identification Module (IIM) available on
+	  i.MX SoCs, providing access to 4 Kbits of programmable
+	  eFuses.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-imx-iim.
+
 config NVMEM_IMX_OCOTP
 	tristate "i.MX6 On-Chip OTP Controller support"
 	depends on SOC_IMX6 || COMPILE_TEST
@@ -34,6 +45,16 @@ config NVMEM_LPC18XX_EEPROM
 	  NXP LPC185x/3x and LPC435x/3x/2x/1x devices.
 	  To compile this driver as a module, choose M here: the module
 	  will be called nvmem_lpc18xx_eeprom.
+
+config NVMEM_LPC18XX_OTP
+	tristate "NXP LPC18XX OTP Memory Support"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say Y here to include support for NXP LPC18xx OTP memory found on
+	  all LPC18xx and LPC43xx devices.
+	  To compile this driver as a module, choose M here: the module
+	  will be called nvmem_lpc18xx_otp.
 
 config NVMEM_MXS_OCOTP
 	tristate "Freescale MXS On-Chip OTP Memory Support"
@@ -79,6 +100,18 @@ config ROCKCHIP_EFUSE
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_rockchip_efuse.
+
+config NVMEM_BCM_OCOTP
+	tristate "Broadcom On-Chip OTP Controller support"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM
+	default ARCH_BCM_IPROC
+	help
+	  Say y here to enable read/write access to the Broadcom OTP
+	  controller.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-bcm-ocotp.
 
 config NVMEM_SUNXI_SID
 	tristate "Allwinner SoCs SID support"

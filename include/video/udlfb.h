@@ -92,6 +92,6 @@ struct dlfb_data {
 
 /* remove these once align.h patch is taken into kernel */
 #define DL_ALIGN_UP(x, a) ALIGN(x, a)
-#define DL_ALIGN_DOWN(x, a) ALIGN(x-(a-1), a)
+#define DL_ALIGN_DOWN(x, a) ALIGN_DOWN(x, a)
 
 #endif

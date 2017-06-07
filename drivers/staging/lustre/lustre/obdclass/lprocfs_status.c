@@ -100,9 +100,13 @@ static const char * const obd_connect_names[] = {
 	"lfsck",
 	"unknown",
 	"unlink_close",
-	"unknown",
+	"multi_mod_rpcs",
 	"dir_stripe",
-	"unknown",
+	"subtree",
+	"lock_ahead",
+	"bulk_mbits",
+	"compact_obdo",
+	"second_flags",
 	NULL
 };
 
@@ -127,7 +131,7 @@ EXPORT_SYMBOL(obd_connect_flags2str);
 static void obd_connect_data_seqprint(struct seq_file *m,
 				      struct obd_connect_data *ocd)
 {
-	int flags;
+	u64 flags;
 
 	LASSERT(ocd);
 	flags = ocd->ocd_connect_flags;
@@ -172,6 +176,9 @@ static void obd_connect_data_seqprint(struct seq_file *m,
 	if (flags & OBD_CONNECT_MAXBYTES)
 		seq_printf(m, "       max_object_bytes: %llx\n",
 			   ocd->ocd_maxbytes);
+	if (flags & OBD_CONNECT_MULTIMODRPCS)
+		seq_printf(m, "       max_mod_rpcs: %hu\n",
+			   ocd->ocd_maxmodrpcs);
 }
 
 int lprocfs_read_frac_helper(char *buffer, unsigned long count, long val,
@@ -396,9 +403,16 @@ int lprocfs_wr_uint(struct file *file, const char __user *buffer,
 	char dummy[MAX_STRING_SIZE + 1], *end;
 	unsigned long tmp;
 
-	dummy[MAX_STRING_SIZE] = '\0';
-	if (copy_from_user(dummy, buffer, MAX_STRING_SIZE))
+	if (count >= sizeof(dummy))
+		return -EINVAL;
+
+	if (count == 0)
+		return 0;
+
+	if (copy_from_user(dummy, buffer, count))
 		return -EFAULT;
+
+	dummy[count] = '\0';
 
 	tmp = simple_strtoul(dummy, &end, 0);
 	if (dummy == end)
@@ -583,6 +597,93 @@ int lprocfs_rd_conn_uuid(struct seq_file *m, void *data)
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_conn_uuid);
+
+/**
+ * Lock statistics structure for access, possibly only on this CPU.
+ *
+ * The statistics struct may be allocated with per-CPU structures for
+ * efficient concurrent update (usually only on server-wide stats), or
+ * as a single global struct (e.g. for per-client or per-job statistics),
+ * so the required locking depends on the type of structure allocated.
+ *
+ * For per-CPU statistics, pin the thread to the current cpuid so that
+ * will only access the statistics for that CPU.  If the stats structure
+ * for the current CPU has not been allocated (or previously freed),
+ * allocate it now.  The per-CPU statistics do not need locking since
+ * the thread is pinned to the CPU during update.
+ *
+ * For global statistics, lock the stats structure to prevent concurrent update.
+ *
+ * \param[in] stats    statistics structure to lock
+ * \param[in] opc      type of operation:
+ *                     LPROCFS_GET_SMP_ID: "lock" and return current CPU index
+ *                             for incrementing statistics for that CPU
+ *                     LPROCFS_GET_NUM_CPU: "lock" and return number of used
+ *                             CPU indices to iterate over all indices
+ * \param[out] flags   CPU interrupt saved state for IRQ-safe locking
+ *
+ * \retval cpuid of current thread or number of allocated structs
+ * \retval negative on error (only for opc LPROCFS_GET_SMP_ID + per-CPU stats)
+ */
+int lprocfs_stats_lock(struct lprocfs_stats *stats,
+		       enum lprocfs_stats_lock_ops opc,
+		       unsigned long *flags)
+{
+	if (stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) {
+		if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
+			spin_lock_irqsave(&stats->ls_lock, *flags);
+		else
+			spin_lock(&stats->ls_lock);
+		return opc == LPROCFS_GET_NUM_CPU ? 1 : 0;
+	}
+
+	switch (opc) {
+	case LPROCFS_GET_SMP_ID: {
+		unsigned int cpuid = get_cpu();
+
+		if (unlikely(!stats->ls_percpu[cpuid])) {
+			int rc = lprocfs_stats_alloc_one(stats, cpuid);
+
+			if (rc < 0) {
+				put_cpu();
+				return rc;
+			}
+		}
+		return cpuid;
+	}
+	case LPROCFS_GET_NUM_CPU:
+		return stats->ls_biggest_alloc_num;
+	default:
+		LBUG();
+	}
+}
+
+/**
+ * Unlock statistics structure after access.
+ *
+ * Unlock the lock acquired via lprocfs_stats_lock() for global statistics,
+ * or unpin this thread from the current cpuid for per-CPU statistics.
+ *
+ * This function must be called using the same arguments as used when calling
+ * lprocfs_stats_lock() so that the correct operation can be performed.
+ *
+ * \param[in] stats    statistics structure to unlock
+ * \param[in] opc      type of operation (current cpuid or number of structs)
+ * \param[in] flags    CPU interrupt saved state for IRQ-safe locking
+ */
+void lprocfs_stats_unlock(struct lprocfs_stats *stats,
+			  enum lprocfs_stats_lock_ops opc,
+			  unsigned long *flags)
+{
+	if (stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) {
+		if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
+			spin_unlock_irqrestore(&stats->ls_lock, *flags);
+		else
+			spin_unlock(&stats->ls_lock);
+	} else if (opc == LPROCFS_GET_SMP_ID) {
+		put_cpu();
+	}
+}
 
 /** add up per-cpu counters */
 void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
@@ -1132,6 +1233,30 @@ void lprocfs_free_stats(struct lprocfs_stats **statsh)
 }
 EXPORT_SYMBOL(lprocfs_free_stats);
 
+__u64 lprocfs_stats_collector(struct lprocfs_stats *stats, int idx,
+			      enum lprocfs_fields_flags field)
+{
+	unsigned int i;
+	unsigned int  num_cpu;
+	unsigned long flags     = 0;
+	__u64         ret       = 0;
+
+	LASSERT(stats);
+
+	num_cpu = lprocfs_stats_lock(stats, LPROCFS_GET_NUM_CPU, &flags);
+	for (i = 0; i < num_cpu; i++) {
+		if (!stats->ls_percpu[i])
+			continue;
+		ret += lprocfs_read_helper(
+				lprocfs_stats_counter_get(stats, i, idx),
+				&stats->ls_cnt_header[idx], stats->ls_flags,
+				field);
+	}
+	lprocfs_stats_unlock(stats, LPROCFS_GET_NUM_CPU, &flags);
+	return ret;
+}
+EXPORT_SYMBOL(lprocfs_stats_collector);
+
 void lprocfs_clear_stats(struct lprocfs_stats *stats)
 {
 	struct lprocfs_counter		*percpu_cntr;
@@ -1275,7 +1400,8 @@ int ldebugfs_register_stats(struct dentry *parent, const char *name,
 EXPORT_SYMBOL_GPL(ldebugfs_register_stats);
 
 void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
-			  unsigned conf, const char *name, const char *units)
+			  unsigned int conf, const char *name,
+			  const char *units)
 {
 	struct lprocfs_counter_header	*header;
 	struct lprocfs_counter		*percpu_cntr;

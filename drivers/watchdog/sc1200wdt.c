@@ -88,7 +88,7 @@ MODULE_PARM_DESC(isapnp,
 	"When set to 0 driver ISA PnP support will be disabled");
 #endif
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 MODULE_PARM_DESC(io, "io port");
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "range is 0-255 minutes, default is 1");

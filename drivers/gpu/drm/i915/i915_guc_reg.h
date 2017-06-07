@@ -61,17 +61,26 @@
 #define   DMA_ADDRESS_SPACE_GTT		  (8 << 16)
 #define DMA_COPY_SIZE			_MMIO(0xc310)
 #define DMA_CTRL			_MMIO(0xc314)
+#define   HUC_UKERNEL			  (1<<9)
 #define   UOS_MOVE			  (1<<4)
 #define   START_DMA			  (1<<0)
 #define DMA_GUC_WOPCM_OFFSET		_MMIO(0xc340)
+#define   HUC_LOADING_AGENT_VCR		  (0<<1)
+#define   HUC_LOADING_AGENT_GUC		  (1<<1)
 #define   GUC_WOPCM_OFFSET_VALUE	  0x80000	/* 512KB */
 #define GUC_MAX_IDLE_COUNT		_MMIO(0xC3E4)
+
+#define HUC_STATUS2             _MMIO(0xD3B0)
+#define   HUC_FW_VERIFIED       (1<<7)
 
 /* Defines WOPCM space available to GuC firmware */
 #define GUC_WOPCM_SIZE			_MMIO(0xc050)
 /* GuC addresses below GUC_WOPCM_TOP don't map through the GTT */
 #define   GUC_WOPCM_TOP			  (0x80 << 12)	/* 512KB */
 #define   BXT_GUC_WOPCM_RC6_RESERVED	  (0x10 << 12)	/* 64KB  */
+
+/* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
+#define GUC_GGTT_TOP			0xFEE00000
 
 #define GEN8_GT_PM_CONFIG		_MMIO(0x138140)
 #define GEN9LP_GT_PM_CONFIG		_MMIO(0x138140)
@@ -100,8 +109,8 @@
 				 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA	| \
 				 GUC_ENABLE_MIA_CLOCK_GATING)
 
-#define HOST2GUC_INTERRUPT		_MMIO(0xc4c8)
-#define   HOST2GUC_TRIGGER		  (1<<0)
+#define GUC_SEND_INTERRUPT		_MMIO(0xc4c8)
+#define   GUC_SEND_TRIGGER		  (1<<0)
 
 #define GEN8_DRBREGL(x)			_MMIO(0x1000 + (x) * 8)
 #define   GEN8_DRB_VALID		  (1<<0)

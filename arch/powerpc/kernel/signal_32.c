@@ -37,7 +37,7 @@
 #include <linux/binfmts.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
 #include <asm/sigcontext.h>

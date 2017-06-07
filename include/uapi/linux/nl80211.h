@@ -10,7 +10,7 @@
  * Copyright 2008, 2009 Luis R. Rodriguez <lrodriguez@atheros.com>
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
- * Copyright 2015	Intel Deutschland GmbH
+ * Copyright 2015-2017	Intel Deutschland GmbH
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -170,6 +170,42 @@
  * b) List of packet patterns which needs to be matched
  * c) Condition for coalescence. pattern 'match' or 'no match'
  * Multiple such rules can be created.
+ */
+
+/**
+ * DOC: FILS shared key authentication offload
+ *
+ * FILS shared key authentication offload can be advertized by drivers by
+ * setting @NL80211_EXT_FEATURE_FILS_SK_OFFLOAD flag. The drivers that support
+ * FILS shared key authentication offload should be able to construct the
+ * authentication and association frames for FILS shared key authentication and
+ * eventually do a key derivation as per IEEE 802.11ai. The below additional
+ * parameters should be given to driver in %NL80211_CMD_CONNECT.
+ *	%NL80211_ATTR_FILS_ERP_USERNAME - used to construct keyname_nai
+ *	%NL80211_ATTR_FILS_ERP_REALM - used to construct keyname_nai
+ *	%NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM - used to construct erp message
+ *	%NL80211_ATTR_FILS_ERP_RRK - used to generate the rIK and rMSK
+ * rIK should be used to generate an authentication tag on the ERP message and
+ * rMSK should be used to derive a PMKSA.
+ * rIK, rMSK should be generated and keyname_nai, sequence number should be used
+ * as specified in IETF RFC 6696.
+ *
+ * When FILS shared key authentication is completed, driver needs to provide the
+ * below additional parameters to userspace.
+ *	%NL80211_ATTR_FILS_KEK - used for key renewal
+ *	%NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM - used in further EAP-RP exchanges
+ *	%NL80211_ATTR_PMKID - used to identify the PMKSA used/generated
+ *	%Nl80211_ATTR_PMK - used to update PMKSA cache in userspace
+ * The PMKSA can be maintained in userspace persistently so that it can be used
+ * later after reboots or wifi turn off/on also.
+ *
+ * %NL80211_ATTR_FILS_CACHE_ID is the cache identifier advertized by a FILS
+ * capable AP supporting PMK caching. It specifies the scope within which the
+ * PMKSAs are cached in an ESS. %NL80211_CMD_SET_PMKSA and
+ * %NL80211_CMD_DEL_PMKSA are enhanced to allow support for PMKSA caching based
+ * on FILS cache identifier. Additionally %NL80211_ATTR_PMK is used with
+ * %NL80211_SET_PMKSA to specify the PMK corresponding to a PMKSA for driver to
+ * use in a FILS shared key connection with PMKSA caching.
  */
 
 /**
@@ -351,7 +387,9 @@
  *	are used.  Extra IEs can also be passed from the userspace by
  *	using the %NL80211_ATTR_IE attribute.  The first cycle of the
  *	scheduled scan can be delayed by %NL80211_ATTR_SCHED_SCAN_DELAY
- *	is supplied.
+ *	is supplied. If the device supports multiple concurrent scheduled
+ *	scans, it will allow such when the caller provides the flag attribute
+ *	%NL80211_ATTR_SCHED_SCAN_MULTI to indicate user-space support for it.
  * @NL80211_CMD_STOP_SCHED_SCAN: stop a scheduled scan. Returns -ENOENT if
  *	scheduled scan is not running. The caller may assume that as soon
  *	as the call returns, it is safe to start a new scheduled scan again.
@@ -370,10 +408,18 @@
  * @NL80211_CMD_NEW_SURVEY_RESULTS: survey data notification (as a reply to
  *	NL80211_CMD_GET_SURVEY and on the "scan" multicast group)
  *
- * @NL80211_CMD_SET_PMKSA: Add a PMKSA cache entry, using %NL80211_ATTR_MAC
- *	(for the BSSID) and %NL80211_ATTR_PMKID.
+ * @NL80211_CMD_SET_PMKSA: Add a PMKSA cache entry using %NL80211_ATTR_MAC
+ *	(for the BSSID), %NL80211_ATTR_PMKID, and optionally %NL80211_ATTR_PMK
+ *	(PMK is used for PTKSA derivation in case of FILS shared key offload) or
+ *	using %NL80211_ATTR_SSID, %NL80211_ATTR_FILS_CACHE_ID,
+ *	%NL80211_ATTR_PMKID, and %NL80211_ATTR_PMK in case of FILS
+ *	authentication where %NL80211_ATTR_FILS_CACHE_ID is the identifier
+ *	advertized by a FILS capable AP identifying the scope of PMKSA in an
+ *	ESS.
  * @NL80211_CMD_DEL_PMKSA: Delete a PMKSA cache entry, using %NL80211_ATTR_MAC
- *	(for the BSSID) and %NL80211_ATTR_PMKID.
+ *	(for the BSSID) and %NL80211_ATTR_PMKID or using %NL80211_ATTR_SSID,
+ *	%NL80211_ATTR_FILS_CACHE_ID, and %NL80211_ATTR_PMKID in case of FILS
+ *	authentication.
  * @NL80211_CMD_FLUSH_PMKSA: Flush all PMKSA cache entries.
  *
  * @NL80211_CMD_REG_CHANGE: indicates to userspace the regulatory domain
@@ -854,12 +900,15 @@
  *	cfg80211_scan_done().
  *
  * @NL80211_CMD_START_NAN: Start NAN operation, identified by its
- *	%NL80211_ATTR_WDEV interface. This interface must have been previously
- *	created with %NL80211_CMD_NEW_INTERFACE. After it has been started, the
- *	NAN interface will create or join a cluster. This command must have a
- *	valid %NL80211_ATTR_NAN_MASTER_PREF attribute and optional
- *	%NL80211_ATTR_NAN_DUAL attributes.
- *	After this command NAN functions can be added.
+ *	%NL80211_ATTR_WDEV interface. This interface must have been
+ *	previously created with %NL80211_CMD_NEW_INTERFACE. After it
+ *	has been started, the NAN interface will create or join a
+ *	cluster. This command must have a valid
+ *	%NL80211_ATTR_NAN_MASTER_PREF attribute and optional
+ *	%NL80211_ATTR_BANDS attributes.  If %NL80211_ATTR_BANDS is
+ *	omitted or set to 0, it means don't-care and the device will
+ *	decide what to use.  After this command NAN functions can be
+ *	added.
  * @NL80211_CMD_STOP_NAN: Stop the NAN operation, identified by
  *	its %NL80211_ATTR_WDEV interface.
  * @NL80211_CMD_ADD_NAN_FUNCTION: Add a NAN function. The function is defined
@@ -880,10 +929,14 @@
  *	This command is also used as a notification sent when a NAN function is
  *	terminated. This will contain a %NL80211_ATTR_NAN_FUNC_INST_ID
  *	and %NL80211_ATTR_COOKIE attributes.
- * @NL80211_CMD_CHANGE_NAN_CONFIG: Change current NAN configuration. NAN
- *	must be operational (%NL80211_CMD_START_NAN was executed).
- *	It must contain at least one of the following attributes:
- *	%NL80211_ATTR_NAN_MASTER_PREF, %NL80211_ATTR_NAN_DUAL.
+ * @NL80211_CMD_CHANGE_NAN_CONFIG: Change current NAN
+ *	configuration. NAN must be operational (%NL80211_CMD_START_NAN
+ *	was executed).  It must contain at least one of the following
+ *	attributes: %NL80211_ATTR_NAN_MASTER_PREF,
+ *	%NL80211_ATTR_BANDS.  If %NL80211_ATTR_BANDS is omitted, the
+ *	current configuration is not changed.  If it is present but
+ *	set to zero, the configuration is changed to don't-care
+ *	(i.e. the device can decide what to do).
  * @NL80211_CMD_NAN_FUNC_MATCH: Notification sent when a match is reported.
  *	This will contain a %NL80211_ATTR_NAN_MATCH nested attribute and
  *	%NL80211_ATTR_COOKIE.
@@ -1772,7 +1825,9 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_OPMODE_NOTIF: Operating mode field from Operating Mode
  *	Notification Element based on association request when used with
- *	%NL80211_CMD_NEW_STATION; u8 attribute.
+ *	%NL80211_CMD_NEW_STATION or %NL80211_CMD_SET_STATION (only when
+ *	%NL80211_FEATURE_FULL_AP_CLIENT_STATE is supported, or with TDLS);
+ *	u8 attribute.
  *
  * @NL80211_ATTR_VENDOR_ID: The vendor ID, either a 24-bit OUI or, if
  *	%NL80211_VENDOR_ID_IS_LINUX is set, a special Linux ID (not used yet)
@@ -1820,6 +1875,8 @@ enum nl80211_commands {
  *	and remove functions. NAN notifications will be sent in unicast to that
  *	socket. Without this attribute, any socket can add functions and the
  *	notifications will be sent to the %NL80211_MCGRP_NAN multicast group.
+ *	If set during %NL80211_CMD_ASSOCIATE or %NL80211_CMD_CONNECT the
+ *	station will deauthenticate when the socket is closed.
  *
  * @NL80211_ATTR_TDLS_INITIATOR: flag attribute indicating the current end is
  *	the TDLS link initiator.
@@ -1959,10 +2016,13 @@ enum nl80211_commands {
  *	%NL80211_CMD_CHANGE_NAN_CONFIG. Its type is u8 and it can't be 0.
  *	Also, values 1 and 255 are reserved for certification purposes and
  *	should not be used during a normal device operation.
- * @NL80211_ATTR_NAN_DUAL: NAN dual band operation config (see
- *	&enum nl80211_nan_dual_band_conf). This attribute is used with
- *	%NL80211_CMD_START_NAN and optionally with
- *	%NL80211_CMD_CHANGE_NAN_CONFIG.
+ * @NL80211_ATTR_BANDS: operating bands configuration.  This is a u32
+ *	bitmask of BIT(NL80211_BAND_*) as described in %enum
+ *	nl80211_band.  For instance, for NL80211_BAND_2GHZ, bit 0
+ *	would be set.  This attribute is used with
+ *	%NL80211_CMD_START_NAN and %NL80211_CMD_CHANGE_NAN_CONFIG, and
+ *	it is optional.  If no bands are set, it means don't-care and
+ *	the device will decide what to use.
  * @NL80211_ATTR_NAN_FUNC: a function that can be added to NAN. See
  *	&enum nl80211_nan_func_attributes for description of this nested
  *	attribute.
@@ -1979,6 +2039,54 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_BSSID: The BSSID of the AP. Note that %NL80211_ATTR_MAC is also
  *	used in various commands/events for specifying the BSSID.
+ *
+ * @NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI: Relative RSSI threshold by which
+ *	other BSSs has to be better or slightly worse than the current
+ *	connected BSS so that they get reported to user space.
+ *	This will give an opportunity to userspace to consider connecting to
+ *	other matching BSSs which have better or slightly worse RSSI than
+ *	the current connected BSS by using an offloaded operation to avoid
+ *	unnecessary wakeups.
+ *
+ * @NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST: When present the RSSI level for BSSs in
+ *	the specified band is to be adjusted before doing
+ *	%NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI based comparision to figure out
+ *	better BSSs. The attribute value is a packed structure
+ *	value as specified by &struct nl80211_bss_select_rssi_adjust.
+ *
+ * @NL80211_ATTR_TIMEOUT_REASON: The reason for which an operation timed out.
+ *	u32 attribute with an &enum nl80211_timeout_reason value. This is used,
+ *	e.g., with %NL80211_CMD_CONNECT event.
+ *
+ * @NL80211_ATTR_FILS_ERP_USERNAME: EAP Re-authentication Protocol (ERP)
+ *	username part of NAI used to refer keys rRK and rIK. This is used with
+ *	%NL80211_CMD_CONNECT.
+ *
+ * @NL80211_ATTR_FILS_ERP_REALM: EAP Re-authentication Protocol (ERP) realm part
+ *	of NAI specifying the domain name of the ER server. This is used with
+ *	%NL80211_CMD_CONNECT.
+ *
+ * @NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM: Unsigned 16-bit ERP next sequence number
+ *	to use in ERP messages. This is used in generating the FILS wrapped data
+ *	for FILS authentication and is used with %NL80211_CMD_CONNECT.
+ *
+ * @NL80211_ATTR_FILS_ERP_RRK: ERP re-authentication Root Key (rRK) for the
+ *	NAI specified by %NL80211_ATTR_FILS_ERP_USERNAME and
+ *	%NL80211_ATTR_FILS_ERP_REALM. This is used for generating rIK and rMSK
+ *	from successful FILS authentication and is used with
+ *	%NL80211_CMD_CONNECT.
+ *
+ * @NL80211_ATTR_FILS_CACHE_ID: A 2-octet identifier advertized by a FILS AP
+ *	identifying the scope of PMKSAs. This is used with
+ *	@NL80211_CMD_SET_PMKSA and @NL80211_CMD_DEL_PMKSA.
+ *
+ * @NL80211_ATTR_PMK: PMK for the PMKSA identified by %NL80211_ATTR_PMKID.
+ *	This is used with @NL80211_CMD_SET_PMKSA.
+ *
+ * @NL80211_ATTR_SCHED_SCAN_MULTI: flag attribute which user-space shall use to
+ *	indicate that it supports multiple active scheduled scan requests.
+ * @NL80211_ATTR_SCHED_SCAN_MAX_REQS: indicates maximum number of scheduled
+ *	scan request that may be active for the device (u32).
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -2375,7 +2483,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_MESH_PEER_AID,
 
 	NL80211_ATTR_NAN_MASTER_PREF,
-	NL80211_ATTR_NAN_DUAL,
+	NL80211_ATTR_BANDS,
 	NL80211_ATTR_NAN_FUNC,
 	NL80211_ATTR_NAN_MATCH,
 
@@ -2385,6 +2493,22 @@ enum nl80211_attrs {
 	NL80211_ATTR_MULTICAST_TO_UNICAST_ENABLED,
 
 	NL80211_ATTR_BSSID,
+
+	NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI,
+	NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST,
+
+	NL80211_ATTR_TIMEOUT_REASON,
+
+	NL80211_ATTR_FILS_ERP_USERNAME,
+	NL80211_ATTR_FILS_ERP_REALM,
+	NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM,
+	NL80211_ATTR_FILS_ERP_RRK,
+	NL80211_ATTR_FILS_CACHE_ID,
+
+	NL80211_ATTR_PMK,
+
+	NL80211_ATTR_SCHED_SCAN_MULTI,
+	NL80211_ATTR_SCHED_SCAN_MAX_REQS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -3070,6 +3194,7 @@ enum nl80211_reg_rule_attr {
  * @__NL80211_SCHED_SCAN_MATCH_ATTR_INVALID: attribute number 0 is reserved
  * @NL80211_SCHED_SCAN_MATCH_ATTR_SSID: SSID to be used for matching,
  *	only report BSS with matching SSID.
+ *	(This cannot be used together with BSSID.)
  * @NL80211_SCHED_SCAN_MATCH_ATTR_RSSI: RSSI threshold (in dBm) for reporting a
  *	BSS in scan results. Filtering is turned off if not specified. Note that
  *	if this attribute is in a match set of its own, then it is treated as
@@ -3078,6 +3203,15 @@ enum nl80211_reg_rule_attr {
  *	how this API was implemented in the past. Also, due to the same problem,
  *	the only way to create a matchset with only an RSSI filter (with this
  *	attribute) is if there's only a single matchset with the RSSI attribute.
+ * @NL80211_SCHED_SCAN_MATCH_ATTR_RELATIVE_RSSI: Flag indicating whether
+ *	%NL80211_SCHED_SCAN_MATCH_ATTR_RSSI to be used as absolute RSSI or
+ *	relative to current bss's RSSI.
+ * @NL80211_SCHED_SCAN_MATCH_ATTR_RSSI_ADJUST: When present the RSSI level for
+ *	BSS-es in the specified band is to be adjusted before doing
+ *	RSSI-based BSS selection. The attribute value is a packed structure
+ *	value as specified by &struct nl80211_bss_select_rssi_adjust.
+ * @NL80211_SCHED_SCAN_MATCH_ATTR_BSSID: BSSID to be used for matching
+ *	(this cannot be used together with SSID).
  * @NL80211_SCHED_SCAN_MATCH_ATTR_MAX: highest scheduled scan filter
  *	attribute number currently defined
  * @__NL80211_SCHED_SCAN_MATCH_ATTR_AFTER_LAST: internal use
@@ -3087,6 +3221,9 @@ enum nl80211_sched_scan_match_attr {
 
 	NL80211_SCHED_SCAN_MATCH_ATTR_SSID,
 	NL80211_SCHED_SCAN_MATCH_ATTR_RSSI,
+	NL80211_SCHED_SCAN_MATCH_ATTR_RELATIVE_RSSI,
+	NL80211_SCHED_SCAN_MATCH_ATTR_RSSI_ADJUST,
+	NL80211_SCHED_SCAN_MATCH_ATTR_BSSID,
 
 	/* keep last */
 	__NL80211_SCHED_SCAN_MATCH_ATTR_AFTER_LAST,
@@ -3896,7 +4033,10 @@ enum nl80211_ps_state {
  * @__NL80211_ATTR_CQM_INVALID: invalid
  * @NL80211_ATTR_CQM_RSSI_THOLD: RSSI threshold in dBm. This value specifies
  *	the threshold for the RSSI level at which an event will be sent. Zero
- *	to disable.
+ *	to disable.  Alternatively, if %NL80211_EXT_FEATURE_CQM_RSSI_LIST is
+ *	set, multiple values can be supplied as a low-to-high sorted array of
+ *	threshold values in dBm.  Events will be sent when the RSSI value
+ *	crosses any of the thresholds.
  * @NL80211_ATTR_CQM_RSSI_HYST: RSSI hysteresis in dBm. This value specifies
  *	the minimum amount the RSSI level must change after an event before a
  *	new event may be issued (to reduce effects of RSSI oscillation).
@@ -3916,6 +4056,8 @@ enum nl80211_ps_state {
  *	%NL80211_CMD_NOTIFY_CQM. Set to 0 to turn off TX error reporting.
  * @NL80211_ATTR_CQM_BEACON_LOSS_EVENT: flag attribute that's set in a beacon
  *	loss event
+ * @NL80211_ATTR_CQM_RSSI_LEVEL: the RSSI value in dBm that triggered the
+ *	RSSI threshold event.
  * @__NL80211_ATTR_CQM_AFTER_LAST: internal
  * @NL80211_ATTR_CQM_MAX: highest key attribute
  */
@@ -3929,6 +4071,7 @@ enum nl80211_attr_cqm {
 	NL80211_ATTR_CQM_TXE_PKTS,
 	NL80211_ATTR_CQM_TXE_INTVL,
 	NL80211_ATTR_CQM_BEACON_LOSS_EVENT,
+	NL80211_ATTR_CQM_RSSI_LEVEL,
 
 	/* keep last */
 	__NL80211_ATTR_CQM_AFTER_LAST,
@@ -4697,6 +4840,18 @@ enum nl80211_feature_flags {
  *	configuration (AP/mesh) with VHT rates.
  * @NL80211_EXT_FEATURE_FILS_STA: This driver supports Fast Initial Link Setup
  *	with user space SME (NL80211_CMD_AUTHENTICATE) in station mode.
+ * @NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA: This driver supports randomized TA
+ *	in @NL80211_CMD_FRAME while not associated.
+ * @NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA_CONNECTED: This driver supports
+ *	randomized TA in @NL80211_CMD_FRAME while associated.
+ * @NL80211_EXT_FEATURE_SCHED_SCAN_RELATIVE_RSSI: The driver supports sched_scan
+ *	for reporting BSSs with better RSSI than the current connected BSS
+ *	(%NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI).
+ * @NL80211_EXT_FEATURE_CQM_RSSI_LIST: With this driver the
+ *	%NL80211_ATTR_CQM_RSSI_THOLD attribute accepts a list of zero or more
+ *	RSSI threshold values to monitor rather than exactly one threshold.
+ * @NL80211_EXT_FEATURE_FILS_SK_OFFLOAD: Driver SME supports FILS shared key
+ *	authentication with %NL80211_CMD_CONNECT.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -4712,6 +4867,11 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_BEACON_RATE_HT,
 	NL80211_EXT_FEATURE_BEACON_RATE_VHT,
 	NL80211_EXT_FEATURE_FILS_STA,
+	NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA,
+	NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA_CONNECTED,
+	NL80211_EXT_FEATURE_SCHED_SCAN_RELATIVE_RSSI,
+	NL80211_EXT_FEATURE_CQM_RSSI_LIST,
+	NL80211_EXT_FEATURE_FILS_SK_OFFLOAD,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
@@ -4748,6 +4908,21 @@ enum nl80211_probe_resp_offload_support_attr {
 enum nl80211_connect_failed_reason {
 	NL80211_CONN_FAIL_MAX_CLIENTS,
 	NL80211_CONN_FAIL_BLOCKED_CLIENT,
+};
+
+/**
+ * enum nl80211_timeout_reason - timeout reasons
+ *
+ * @NL80211_TIMEOUT_UNSPECIFIED: Timeout reason unspecified.
+ * @NL80211_TIMEOUT_SCAN: Scan (AP discovery) timed out.
+ * @NL80211_TIMEOUT_AUTH: Authentication timed out.
+ * @NL80211_TIMEOUT_ASSOC: Association timed out.
+ */
+enum nl80211_timeout_reason {
+	NL80211_TIMEOUT_UNSPECIFIED,
+	NL80211_TIMEOUT_SCAN,
+	NL80211_TIMEOUT_AUTH,
+	NL80211_TIMEOUT_ASSOC,
 };
 
 /**
@@ -4832,12 +5007,17 @@ enum nl80211_smps_mode {
  *	change to the channel status.
  * @NL80211_RADAR_NOP_FINISHED: The Non-Occupancy Period for this channel is
  *	over, channel becomes usable.
+ * @NL80211_RADAR_PRE_CAC_EXPIRED: Channel Availability Check done on this
+ *	non-operating channel is expired and no longer valid. New CAC must
+ *	be done on this channel before starting the operation. This is not
+ *	applicable for ETSI dfs domain where pre-CAC is valid for ever.
  */
 enum nl80211_radar_event {
 	NL80211_RADAR_DETECTED,
 	NL80211_RADAR_CAC_FINISHED,
 	NL80211_RADAR_CAC_ABORTED,
 	NL80211_RADAR_NOP_FINISHED,
+	NL80211_RADAR_PRE_CAC_EXPIRED,
 };
 
 /**
@@ -4964,8 +5144,9 @@ enum nl80211_sched_scan_plan {
 /**
  * struct nl80211_bss_select_rssi_adjust - RSSI adjustment parameters.
  *
- * @band: band of BSS that must match for RSSI value adjustment.
- * @delta: value used to adjust the RSSI value of matching BSS.
+ * @band: band of BSS that must match for RSSI value adjustment. The value
+ *	of this field is according to &enum nl80211_band.
+ * @delta: value used to adjust the RSSI value of matching BSS in dB.
  */
 struct nl80211_bss_select_rssi_adjust {
 	__u8 band;
@@ -5003,21 +5184,6 @@ enum nl80211_bss_select_attr {
 	/* keep last */
 	__NL80211_BSS_SELECT_ATTR_AFTER_LAST,
 	NL80211_BSS_SELECT_ATTR_MAX = __NL80211_BSS_SELECT_ATTR_AFTER_LAST - 1
-};
-
-/**
- * enum nl80211_nan_dual_band_conf - NAN dual band configuration
- *
- * Defines the NAN dual band mode of operation
- *
- * @NL80211_NAN_BAND_DEFAULT: device default mode
- * @NL80211_NAN_BAND_2GHZ: 2.4GHz mode
- * @NL80211_NAN_BAND_5GHZ: 5GHz mode
-  */
-enum nl80211_nan_dual_band_conf {
-	NL80211_NAN_BAND_DEFAULT	= 1 << 0,
-	NL80211_NAN_BAND_2GHZ		= 1 << 1,
-	NL80211_NAN_BAND_5GHZ		= 1 << 2,
 };
 
 /**

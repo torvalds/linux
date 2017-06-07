@@ -245,7 +245,7 @@ void do_unexpected_base(void)
 		long ret;
 		asm volatile ("int $0x80"
 			      : "=a" (ret) : "a" (243), "b" (low_desc)
-			      : "flags");
+			      : "r8", "r9", "r10", "r11");
 		memcpy(&desc, low_desc, sizeof(desc));
 		munmap(low_desc, sizeof(desc));
 

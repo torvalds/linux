@@ -97,7 +97,8 @@ static int wm831x_fll_prepare(struct clk_hw *hw)
 	if (ret != 0)
 		dev_crit(wm831x->dev, "Failed to enable FLL: %d\n", ret);
 
-	usleep_range(2000, 2000);
+	/* wait 2-3 ms for new frequency taking effect */
+	usleep_range(2000, 3000);
 
 	return ret;
 }
@@ -243,7 +244,7 @@ static int wm831x_clkout_is_prepared(struct clk_hw *hw)
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Unable to read CLOCK_CONTROL_1: %d\n",
 			ret);
-		return true;
+		return false;
 	}
 
 	return (ret & WM831X_CLKOUT_ENA) != 0;

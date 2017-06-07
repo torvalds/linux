@@ -147,7 +147,7 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	if (!d->rc.map_name)
 		return 0;
 
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(d->rc.driver_type);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;
@@ -162,7 +162,6 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	/* TODO: likely RC-core should took const char * */
 	dev->driver_name = (char *) d->props->driver_name;
 	dev->map_name = d->rc.map_name;
-	dev->driver_type = d->rc.driver_type;
 	dev->allowed_protocols = d->rc.allowed_protos;
 	dev->change_protocol = d->rc.change_protocol;
 	dev->priv = d;
@@ -1013,8 +1012,8 @@ EXPORT_SYMBOL(dvb_usbv2_probe);
 void dvb_usbv2_disconnect(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	const char *name = d->name;
-	struct device dev = d->udev->dev;
+	const char *devname = kstrdup(dev_name(&d->udev->dev), GFP_KERNEL);
+	const char *drvname = d->name;
 
 	dev_dbg(&d->udev->dev, "%s: bInterfaceNumber=%d\n", __func__,
 			intf->cur_altsetting->desc.bInterfaceNumber);
@@ -1024,8 +1023,9 @@ void dvb_usbv2_disconnect(struct usb_interface *intf)
 
 	dvb_usbv2_exit(d);
 
-	dev_info(&dev, "%s: '%s' successfully deinitialized and disconnected\n",
-			KBUILD_MODNAME, name);
+	pr_info("%s: '%s:%s' successfully deinitialized and disconnected\n",
+		KBUILD_MODNAME, drvname, devname);
+	kfree(devname);
 }
 EXPORT_SYMBOL(dvb_usbv2_disconnect);
 

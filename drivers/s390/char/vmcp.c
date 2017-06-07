@@ -21,7 +21,7 @@
 #include <asm/compat.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "vmcp.h"
 
 static debug_info_t *vmcp_debug;

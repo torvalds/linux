@@ -163,8 +163,7 @@ void rtl92de_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HAL_DEF_WOWLAN:
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", variable);
+		pr_err("switch case %#x not processed\n", variable);
 		break;
 	}
 }
@@ -358,9 +357,8 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				acm_ctrl &= (~ACMHW_VOQEN);
 				break;
 			default:
-				RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-					 "switch case %#x not processed\n",
-					 e_aci);
+				pr_err("switch case %#x not processed\n",
+				       e_aci);
 				break;
 			}
 		}
@@ -500,8 +498,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	}
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", variable);
+		pr_err("switch case %#x not processed\n", variable);
 		break;
 	}
 }
@@ -520,9 +517,8 @@ static bool _rtl92de_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
 			break;
 		if (count > POLLING_LLT_THRESHOLD) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Failed to polling write LLT done at address %d!\n",
-				 address);
+			pr_err("Failed to polling write LLT done at address %d!\n",
+			       address);
 			status = false;
 			break;
 		}
@@ -618,19 +614,19 @@ static bool _rtl92de_llt_table_init(struct ieee80211_hw *hw)
 
 static void _rtl92de_gen_refresh_led_state(struct ieee80211_hw *hw)
 {
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct rtl_led *pLed0 = &(pcipriv->ledctl.sw_led0);
+	struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
 
 	if (rtlpci->up_first_time)
 		return;
 	if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS)
-		rtl92de_sw_led_on(hw, pLed0);
+		rtl92de_sw_led_on(hw, pled0);
 	else if (ppsc->rfoff_reason == RF_CHANGE_BY_INIT)
-		rtl92de_sw_led_on(hw, pLed0);
+		rtl92de_sw_led_on(hw, pled0);
 	else
-		rtl92de_sw_led_off(hw, pLed0);
+		rtl92de_sw_led_off(hw, pled0);
 }
 
 static bool _rtl92de_init_mac(struct ieee80211_hw *hw)
@@ -920,7 +916,7 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 	/* rtlpriv->intf_ops->disable_aspm(hw); */
 	rtstatus = _rtl92de_init_mac(hw);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Init MAC failed\n");
+		pr_err("Init MAC failed\n");
 		err = 1;
 		spin_unlock_irqrestore(&globalmutex_for_power_and_efuse, flags);
 		return err;
@@ -1119,11 +1115,8 @@ static int _rtl92de_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Network type %d not supported!\n", type);
+		pr_err("Network type %d not supported!\n", type);
 		return 1;
-		break;
-
 	}
 	rtl_write_byte(rtlpriv, MSR, bt_msr);
 	rtlpriv->cfg->ops->led_control(hw, ledaction);
@@ -1732,7 +1725,7 @@ static void _rtl92de_efuse_update_chip_version(struct ieee80211_hw *hw)
 		break;
 	default:
 		chipver |= CHIP_92D_D_CUT;
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG, "Unknown CUT!\n");
+		pr_err("Unknown CUT!\n");
 		break;
 	}
 	rtlpriv->rtlhal.version = chipver;
@@ -1816,7 +1809,7 @@ void rtl92de_read_eeprom_info(struct ieee80211_hw *hw)
 		rtlefuse->autoload_failflag = false;
 		_rtl92de_read_adapter_info(hw);
 	} else {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Autoload ERR!!\n");
+		pr_err("Autoload ERR!!\n");
 	}
 	return;
 }
@@ -2169,8 +2162,8 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "switch case %#x not processed\n", enc_algo);
+			pr_err("switch case %#x not processed\n",
+			       enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -2186,9 +2179,7 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id = rtl_cam_get_free_entry(hw,
 								 p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						RT_TRACE(rtlpriv, COMP_SEC,
-							 DBG_EMERG,
-							 "Can not find free hw security cam entry\n");
+						pr_err("Can not find free hw security cam entry\n");
 						return;
 					}
 				} else {

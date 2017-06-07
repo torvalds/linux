@@ -233,7 +233,7 @@ static void __dlm_put_mle(struct dlm_master_list_entry *mle)
 
 	assert_spin_locked(&dlm->spinlock);
 	assert_spin_locked(&dlm->master_lock);
-	if (!atomic_read(&mle->mle_refs.refcount)) {
+	if (!kref_read(&mle->mle_refs)) {
 		/* this may or may not crash, but who cares.
 		 * it's a BUG. */
 		mlog(ML_ERROR, "bad mle: %p\n", mle);
@@ -1124,9 +1124,9 @@ recheck:
 		unsigned long timeo = msecs_to_jiffies(DLM_MASTERY_TIMEOUT_MS);
 
 		/*
-		if (atomic_read(&mle->mle_refs.refcount) < 2)
+		if (kref_read(&mle->mle_refs) < 2)
 			mlog(ML_ERROR, "mle (%p) refs=%d, name=%.*s\n", mle,
-			atomic_read(&mle->mle_refs.refcount),
+			kref_read(&mle->mle_refs),
 			res->lockname.len, res->lockname.name);
 		*/
 		atomic_set(&mle->woken, 0);
@@ -1609,8 +1609,6 @@ way_up_top:
 		__dlm_insert_mle(dlm, mle);
 		response = DLM_MASTER_RESP_NO;
 	} else {
-		// mlog(0, "mle was found\n");
-		set_maybe = 1;
 		spin_lock(&tmpmle->spinlock);
 		if (tmpmle->master == dlm->node_num) {
 			mlog(ML_ERROR, "no lockres, but an mle with this node as master!\n");
@@ -1625,8 +1623,7 @@ way_up_top:
 			response = DLM_MASTER_RESP_NO;
 		} else
 			response = DLM_MASTER_RESP_MAYBE;
-		if (set_maybe)
-			set_bit(request->node_idx, tmpmle->maybe_map);
+		set_bit(request->node_idx, tmpmle->maybe_map);
 		spin_unlock(&tmpmle->spinlock);
 	}
 	spin_unlock(&dlm->master_lock);
@@ -1644,12 +1641,6 @@ send_response:
 	 * dlm_assert_master_worker() isn't called, we drop it here.
 	 */
 	if (dispatch_assert) {
-		if (response != DLM_MASTER_RESP_YES)
-			mlog(ML_ERROR, "invalid response %d\n", response);
-		if (!res) {
-			mlog(ML_ERROR, "bad lockres while trying to assert!\n");
-			BUG();
-		}
 		mlog(0, "%u is the owner of %.*s, cleaning everyone else\n",
 			     dlm->node_num, res->lockname.len, res->lockname.name);
 		spin_lock(&res->spinlock);
@@ -1988,7 +1979,7 @@ ok:
 		 * on this mle. */
 		spin_lock(&dlm->master_lock);
 
-		rr = atomic_read(&mle->mle_refs.refcount);
+		rr = kref_read(&mle->mle_refs);
 		if (mle->inuse > 0) {
 			if (extra_ref && rr < 3)
 				err = 1;
@@ -2933,7 +2924,7 @@ again:
 	/*
 	 * if target is down, we need to clear DLM_LOCK_RES_BLOCK_DIRTY for
 	 * another try; otherwise, we are sure the MIGRATING state is there,
-	 * drop the unneded state which blocked threads trying to DIRTY
+	 * drop the unneeded state which blocked threads trying to DIRTY
 	 */
 	spin_lock(&res->spinlock);
 	BUG_ON(!(res->state & DLM_LOCK_RES_BLOCK_DIRTY));

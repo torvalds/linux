@@ -24,7 +24,6 @@
 
 #include <asm/amd_nb.h>
 #include <asm/apic.h>
-#include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/trace/irq_vectors.h>
@@ -55,11 +54,13 @@
 /* Threshold LVT offset is at MSR0xC0000410[15:12] */
 #define SMCA_THR_LVT_OFF	0xF000
 
+static bool thresholding_en;
+
 static const char * const th_names[] = {
 	"load_store",
 	"insn_fetch",
 	"combined_unit",
-	"",
+	"decode_unit",
 	"northbridge",
 	"execution_unit",
 };
@@ -191,6 +192,7 @@ static void get_smca_bank_info(unsigned int bank)
 
 			smca_banks[bank].hwid = s_hwid;
 			smca_banks[bank].id = instance_id;
+			smca_banks[bank].sysfs_id = s_hwid->count++;
 			break;
 		}
 	}
@@ -776,7 +778,8 @@ __log_error(unsigned int bank, bool deferred_err, bool threshold_err, u64 misc)
 	mce_setup(&m);
 
 	m.status = status;
-	m.bank = bank;
+	m.bank   = bank;
+	m.tsc	 = rdtsc();
 
 	if (threshold_err)
 		m.misc = misc;
@@ -813,14 +816,14 @@ static inline void __smp_deferred_error_interrupt(void)
 	deferred_error_int_vector();
 }
 
-asmlinkage __visible void smp_deferred_error_interrupt(void)
+asmlinkage __visible void __irq_entry smp_deferred_error_interrupt(void)
 {
 	entering_irq();
 	__smp_deferred_error_interrupt();
 	exiting_ack_irq();
 }
 
-asmlinkage __visible void smp_trace_deferred_error_interrupt(void)
+asmlinkage __visible void __irq_entry smp_trace_deferred_error_interrupt(void)
 {
 	entering_irq();
 	trace_deferred_error_apic_entry(DEFERRED_ERROR_VECTOR);
@@ -1063,9 +1066,12 @@ static const char *get_name(unsigned int bank, struct threshold_block *b)
 		return NULL;
 	}
 
+	if (smca_banks[bank].hwid->count == 1)
+		return smca_get_name(bank_type);
+
 	snprintf(buf_mcatype, MAX_MCATYPE_NAME_LEN,
 		 "%s_%x", smca_get_name(bank_type),
-			  smca_banks[bank].id);
+			  smca_banks[bank].sysfs_id);
 	return buf_mcatype;
 }
 
@@ -1181,6 +1187,9 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	const char *name = get_name(bank, NULL);
 	int err = 0;
 
+	if (!dev)
+		return -ENODEV;
+
 	if (is_shared_bank(bank)) {
 		nb = node_to_amd_nb(amd_get_nb_id(cpu));
 
@@ -1233,31 +1242,6 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	kfree(b);
 
  out:
-	return err;
-}
-
-/* create dir/files for all valid threshold banks */
-static int threshold_create_device(unsigned int cpu)
-{
-	unsigned int bank;
-	struct threshold_bank **bp;
-	int err = 0;
-
-	bp = kzalloc(sizeof(struct threshold_bank *) * mca_cfg.banks,
-		     GFP_KERNEL);
-	if (!bp)
-		return -ENOMEM;
-
-	per_cpu(threshold_banks, cpu) = bp;
-
-	for (bank = 0; bank < mca_cfg.banks; ++bank) {
-		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
-			continue;
-		err = threshold_create_bank(cpu, bank);
-		if (err)
-			return err;
-	}
-
 	return err;
 }
 
@@ -1328,9 +1312,12 @@ free_out:
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }
 
-static void threshold_remove_device(unsigned int cpu)
+int mce_threshold_remove_device(unsigned int cpu)
 {
 	unsigned int bank;
+
+	if (!thresholding_en)
+		return 0;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
@@ -1338,38 +1325,58 @@ static void threshold_remove_device(unsigned int cpu)
 		threshold_remove_bank(cpu, bank);
 	}
 	kfree(per_cpu(threshold_banks, cpu));
+	per_cpu(threshold_banks, cpu) = NULL;
+	return 0;
 }
 
-/* get notified when a cpu comes on/off */
-static void
-amd_64_threshold_cpu_callback(unsigned long action, unsigned int cpu)
+/* create dir/files for all valid threshold banks */
+int mce_threshold_create_device(unsigned int cpu)
 {
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		threshold_create_device(cpu);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		threshold_remove_device(cpu);
-		break;
-	default:
-		break;
+	unsigned int bank;
+	struct threshold_bank **bp;
+	int err = 0;
+
+	if (!thresholding_en)
+		return 0;
+
+	bp = per_cpu(threshold_banks, cpu);
+	if (bp)
+		return 0;
+
+	bp = kzalloc(sizeof(struct threshold_bank *) * mca_cfg.banks,
+		     GFP_KERNEL);
+	if (!bp)
+		return -ENOMEM;
+
+	per_cpu(threshold_banks, cpu) = bp;
+
+	for (bank = 0; bank < mca_cfg.banks; ++bank) {
+		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
+			continue;
+		err = threshold_create_bank(cpu, bank);
+		if (err)
+			goto err;
 	}
+	return err;
+err:
+	mce_threshold_remove_device(cpu);
+	return err;
 }
 
 static __init int threshold_init_device(void)
 {
 	unsigned lcpu = 0;
 
+	if (mce_threshold_vector == amd_threshold_interrupt)
+		thresholding_en = true;
+
 	/* to hit CPUs online before the notifier is up */
 	for_each_online_cpu(lcpu) {
-		int err = threshold_create_device(lcpu);
+		int err = mce_threshold_create_device(lcpu);
 
 		if (err)
 			return err;
 	}
-	threshold_cpu_callback = amd_64_threshold_cpu_callback;
 
 	return 0;
 }

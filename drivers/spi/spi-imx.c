@@ -95,6 +95,7 @@ struct spi_imx_data {
 	unsigned int spi_bus_clk;
 
 	unsigned int bytes_per_word;
+	unsigned int spi_drctl;
 
 	unsigned int count;
 	void (*tx)(struct spi_imx_data *);
@@ -173,15 +174,16 @@ static int mxc_clkdivs[] = {0, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192,
 
 /* MX21, MX27 */
 static unsigned int spi_imx_clkdiv_1(unsigned int fin,
-		unsigned int fspi, unsigned int max)
+		unsigned int fspi, unsigned int max, unsigned int *fres)
 {
 	int i;
 
 	for (i = 2; i < max; i++)
 		if (fspi * mxc_clkdivs[i] >= fin)
-			return i;
+			break;
 
-	return max;
+	*fres = fin / mxc_clkdivs[i];
+	return i;
 }
 
 /* MX1, MX31, MX35, MX51 CSPI */
@@ -210,7 +212,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 			 struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-	unsigned int bpw;
+	unsigned int bpw, i;
 
 	if (!master->dma_rx)
 		return false;
@@ -227,11 +229,15 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 	if (bpw != 1 && bpw != 2 && bpw != 4)
 		return false;
 
-	if (transfer->len < spi_imx->wml * bpw)
+	for (i = spi_imx_get_fifosize(spi_imx) / 2; i > 0; i--) {
+		if (!(transfer->len % (i * bpw)))
+			break;
+	}
+
+	if (i == 0)
 		return false;
 
-	if (transfer->len % (spi_imx->wml * bpw))
-		return false;
+	spi_imx->wml = i;
 
 	return true;
 }
@@ -241,6 +247,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 #define MX51_ECSPI_CTRL_XCH		(1 <<  2)
 #define MX51_ECSPI_CTRL_SMC		(1 << 3)
 #define MX51_ECSPI_CTRL_MODE_MASK	(0xf << 4)
+#define MX51_ECSPI_CTRL_DRCTL(drctl)	((drctl) << 16)
 #define MX51_ECSPI_CTRL_POSTDIV_OFFSET	8
 #define MX51_ECSPI_CTRL_PREDIV_OFFSET	12
 #define MX51_ECSPI_CTRL_CS(cs)		((cs) << 18)
@@ -350,6 +357,12 @@ static int mx51_ecspi_config(struct spi_device *spi,
 	 */
 	ctrl |= MX51_ECSPI_CTRL_MODE_MASK;
 
+	/*
+	 * Enable SPI_RDY handling (falling edge/level triggered).
+	 */
+	if (spi->mode & SPI_READY)
+		ctrl |= MX51_ECSPI_CTRL_DRCTL(spi_imx->spi_drctl);
+
 	/* set clock speed */
 	ctrl |= mx51_ecspi_clkdiv(spi_imx, config->speed_hz, &clk);
 	spi_imx->spi_bus_clk = clk;
@@ -442,6 +455,7 @@ static void mx51_ecspi_reset(struct spi_imx_data *spi_imx)
 #define MX31_CSPICTRL_ENABLE	(1 << 0)
 #define MX31_CSPICTRL_MASTER	(1 << 1)
 #define MX31_CSPICTRL_XCH	(1 << 2)
+#define MX31_CSPICTRL_SMC	(1 << 3)
 #define MX31_CSPICTRL_POL	(1 << 4)
 #define MX31_CSPICTRL_PHA	(1 << 5)
 #define MX31_CSPICTRL_SSCTL	(1 << 6)
@@ -451,6 +465,10 @@ static void mx51_ecspi_reset(struct spi_imx_data *spi_imx)
 #define MX31_CSPICTRL_CS_SHIFT	24
 #define MX35_CSPICTRL_CS_SHIFT	12
 #define MX31_CSPICTRL_DR_SHIFT	16
+
+#define MX31_CSPI_DMAREG	0x10
+#define MX31_DMAREG_RH_DEN	(1<<4)
+#define MX31_DMAREG_TH_DEN	(1<<1)
 
 #define MX31_CSPISTATUS		0x14
 #define MX31_STATUS_RR		(1 << 3)
@@ -511,6 +529,9 @@ static int mx31_config(struct spi_device *spi, struct spi_imx_config *config)
 			(is_imx35_cspi(spi_imx) ? MX35_CSPICTRL_CS_SHIFT :
 						  MX31_CSPICTRL_CS_SHIFT);
 
+	if (spi_imx->usedma)
+		reg |= MX31_CSPICTRL_SMC;
+
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 
 	reg = readl(spi_imx->base + MX31_CSPI_TESTREG);
@@ -519,6 +540,13 @@ static int mx31_config(struct spi_device *spi, struct spi_imx_config *config)
 	else
 		reg &= ~MX31_TEST_LBC;
 	writel(reg, spi_imx->base + MX31_CSPI_TESTREG);
+
+	if (spi_imx->usedma) {
+		/* configure DMA requests when RXFIFO is half full and
+		   when TXFIFO is half empty */
+		writel(MX31_DMAREG_RH_DEN | MX31_DMAREG_TH_DEN,
+			spi_imx->base + MX31_CSPI_DMAREG);
+	}
 
 	return 0;
 }
@@ -574,9 +602,12 @@ static int mx21_config(struct spi_device *spi, struct spi_imx_config *config)
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 	unsigned int reg = MX21_CSPICTRL_ENABLE | MX21_CSPICTRL_MASTER;
 	unsigned int max = is_imx27_cspi(spi_imx) ? 16 : 18;
+	unsigned int clk;
 
-	reg |= spi_imx_clkdiv_1(spi_imx->spi_clk, config->speed_hz, max) <<
-		MX21_CSPICTRL_DR_SHIFT;
+	reg |= spi_imx_clkdiv_1(spi_imx->spi_clk, config->speed_hz, max, &clk)
+		<< MX21_CSPICTRL_DR_SHIFT;
+	spi_imx->spi_bus_clk = clk;
+
 	reg |= config->bpw - 1;
 
 	if (spi->mode & SPI_CPHA)
@@ -817,10 +848,6 @@ static int spi_imx_dma_configure(struct spi_master *master,
 	enum dma_slave_buswidth buswidth;
 	struct dma_slave_config rx = {}, tx = {};
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-
-	if (bytes_per_word == spi_imx->bytes_per_word)
-		/* Same as last time */
-		return 0;
 
 	switch (bytes_per_word) {
 	case 4:
@@ -1154,7 +1181,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct spi_imx_data *spi_imx;
 	struct resource *res;
-	int i, ret, irq;
+	int i, ret, irq, spi_drctl;
 
 	if (!np && !mxc_platform_info) {
 		dev_err(&pdev->dev, "can't get the platform data\n");
@@ -1162,6 +1189,12 @@ static int spi_imx_probe(struct platform_device *pdev)
 	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct spi_imx_data));
+	ret = of_property_read_u32(np, "fsl,spi-rdy-drctl", &spi_drctl);
+	if ((ret < 0) || (spi_drctl >= 0x3)) {
+		/* '11' is reserved */
+		spi_drctl = 0;
+	}
+
 	if (!master)
 		return -ENOMEM;
 
@@ -1197,7 +1230,9 @@ static int spi_imx_probe(struct platform_device *pdev)
 	spi_imx->bitbang.master->unprepare_message = spi_imx_unprepare_message;
 	spi_imx->bitbang.master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	if (is_imx35_cspi(spi_imx) || is_imx51_ecspi(spi_imx))
-		spi_imx->bitbang.master->mode_bits |= SPI_LOOP;
+		spi_imx->bitbang.master->mode_bits |= SPI_LOOP | SPI_READY;
+
+	spi_imx->spi_drctl = spi_drctl;
 
 	init_completion(&spi_imx->xfer_done);
 
@@ -1244,10 +1279,10 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	spi_imx->spi_clk = clk_get_rate(spi_imx->clk_per);
 	/*
-	 * Only validated on i.mx6 now, can remove the constrain if validated on
-	 * other chips.
+	 * Only validated on i.mx35 and i.mx6 now, can remove the constraint
+	 * if validated on other chips.
 	 */
-	if (is_imx51_ecspi(spi_imx)) {
+	if (is_imx35_cspi(spi_imx) || is_imx51_ecspi(spi_imx)) {
 		ret = spi_imx_sdma_init(&pdev->dev, spi_imx, master);
 		if (ret == -EPROBE_DEFER)
 			goto out_clk_put;

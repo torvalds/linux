@@ -1038,10 +1038,8 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 			err = -ENOMEM;
 			goto out;
 		}
-		err = xenbus_scanf(XBT_NIL, pdev->xdev->otherend, str, "%d",
-				   &state);
-		if (err != 1)
-			state = XenbusStateUnknown;
+		state = xenbus_read_unsigned(pdev->xdev->otherend, str,
+					     XenbusStateUnknown);
 
 		if (state != XenbusStateClosing)
 			continue;

@@ -491,9 +491,6 @@ int sas_eh_abort_handler(struct scsi_cmnd *cmd)
 	struct Scsi_Host *host = cmd->device->host;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 
-	if (current != host->ehandler)
-		return FAILED;
-
 	if (!i->dft->lldd_abort_task)
 		return FAILED;
 
@@ -615,8 +612,6 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 
 		SAS_DPRINTK("trying to find task 0x%p\n", task);
 		res = sas_scsi_find_task(task);
-
-		cmd->eh_eflags = 0;
 
 		switch (res) {
 		case TASK_IS_DONE:
@@ -801,13 +796,6 @@ out:
 	SAS_DPRINTK("--- Exit %s: busy: %d failed: %d tries: %d\n",
 		    __func__, atomic_read(&shost->host_busy),
 		    shost->host_failed, tries);
-}
-
-enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
-{
-	scmd_dbg(cmd, "command %p timed out\n", cmd);
-
-	return BLK_EH_NOT_HANDLED;
 }
 
 int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)

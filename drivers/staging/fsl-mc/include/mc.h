@@ -1,7 +1,7 @@
 /*
  * Freescale Management Complex (MC) bus public interface
  *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  * Author: German Rivera <German.Rivera@freescale.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -81,7 +81,7 @@ enum fsl_mc_pool_type {
  */
 struct fsl_mc_resource {
 	enum fsl_mc_pool_type type;
-	int32_t id;
+	s32 id;
 	void *data;
 	struct fsl_mc_resource_pool *parent_pool;
 	struct list_head node;

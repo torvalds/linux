@@ -7,6 +7,8 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 
+#include <errno.h>
+#include <inttypes.h>
 #include "util.h"
 #include "ui/ui.h"
 #include "sort.h"
@@ -18,11 +20,15 @@
 #include "annotate.h"
 #include "evsel.h"
 #include "block-range.h"
+#include "string2.h"
 #include "arch/common.h"
 #include <regex.h>
 #include <pthread.h>
 #include <linux/bitops.h>
+#include <linux/kernel.h>
 #include <sys/utsname.h>
+
+#include "sane_ctype.h"
 
 const char 	*disassembler_style;
 const char	*objdump_path;
@@ -108,6 +114,7 @@ static int arch__associate_ins_ops(struct arch* arch, const char *name, struct i
 #include "arch/arm64/annotate/instructions.c"
 #include "arch/x86/annotate/instructions.c"
 #include "arch/powerpc/annotate/instructions.c"
+#include "arch/s390/annotate/instructions.c"
 
 static struct arch architectures[] = {
 	{
@@ -129,6 +136,13 @@ static struct arch architectures[] = {
 	{
 		.name = "powerpc",
 		.init = powerpc__annotate_init,
+	},
+	{
+		.name = "s390",
+		.init = s390__annotate_init,
+		.objdump =  {
+			.comment_char = '#',
+		},
 	},
 };
 
@@ -223,13 +237,19 @@ bool ins__is_call(const struct ins *ins)
 static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map *map __maybe_unused)
 {
 	const char *s = strchr(ops->raw, '+');
+	const char *c = strchr(ops->raw, ',');
 
-	ops->target.addr = strtoull(ops->raw, NULL, 16);
-
-	if (s++ != NULL)
-		ops->target.offset = strtoull(s, NULL, 16);
+	if (c++ != NULL)
+		ops->target.addr = strtoull(c, NULL, 16);
 	else
-		ops->target.offset = UINT64_MAX;
+		ops->target.addr = strtoull(ops->raw, NULL, 16);
+
+	if (s++ != NULL) {
+		ops->target.offset = strtoull(s, NULL, 16);
+		ops->target.offset_avail = true;
+	} else {
+		ops->target.offset_avail = false;
+	}
 
 	return 0;
 }
@@ -237,7 +257,7 @@ static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops)
 {
-	if (!ops->target.addr)
+	if (!ops->target.addr || ops->target.offset < 0)
 		return ins__raw_scnprintf(ins, bf, size, ops);
 
 	return scnprintf(bf, size, "%-6.6s %" PRIx64, ins->name, ops->target.offset);
@@ -373,9 +393,7 @@ static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map *m
 	if (comment == NULL)
 		return 0;
 
-	while (comment[0] != '\0' && isspace(comment[0]))
-		++comment;
-
+	comment = ltrim(comment);
 	comment__symbol(ops->source.raw, comment, &ops->source.addr, &ops->source.name);
 	comment__symbol(ops->target.raw, comment, &ops->target.addr, &ops->target.name);
 
@@ -420,9 +438,7 @@ static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops
 	if (comment == NULL)
 		return 0;
 
-	while (comment[0] != '\0' && isspace(comment[0]))
-		++comment;
-
+	comment = ltrim(comment);
 	comment__symbol(ops->target.raw, comment, &ops->target.addr, &ops->target.name);
 
 	return 0;
@@ -641,7 +657,8 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
-	if (addr < sym->start || addr >= sym->end) {
+	if ((addr < sym->start || addr >= sym->end) &&
+	    (addr != sym->end || sym->start != sym->end)) {
 		pr_debug("%s(%d): ERANGE! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 "\n",
 		       __func__, __LINE__, sym->name, sym->start, addr, sym->end);
 		return -ERANGE;
@@ -770,10 +787,7 @@ static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, str
 
 static int disasm_line__parse(char *line, const char **namep, char **rawp)
 {
-	char *name = line, tmp;
-
-	while (isspace(name[0]))
-		++name;
+	char tmp, *name = ltrim(line);
 
 	if (name[0] == '\0')
 		return -1;
@@ -791,12 +805,7 @@ static int disasm_line__parse(char *line, const char **namep, char **rawp)
 		goto out_free_name;
 
 	(*rawp)[0] = tmp;
-
-	if ((*rawp)[0] != '\0') {
-		(*rawp)++;
-		while (isspace((*rawp)[0]))
-			++(*rawp);
-	}
+	*rawp = ltrim(*rawp);
 
 	return 0;
 
@@ -1141,7 +1150,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct disasm_line *dl;
-	char *line = NULL, *parsed_line, *tmp, *tmp2, *c;
+	char *line = NULL, *parsed_line, *tmp, *tmp2;
 	size_t line_len;
 	s64 line_ip, offset = -1;
 	regmatch_t match[2];
@@ -1152,32 +1161,16 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 	if (!line)
 		return -1;
 
-	while (line_len != 0 && isspace(line[line_len - 1]))
-		line[--line_len] = '\0';
-
-	c = strchr(line, '\n');
-	if (c)
-		*c = 0;
-
 	line_ip = -1;
-	parsed_line = line;
+	parsed_line = rtrim(line);
 
 	/* /filename:linenr ? Save line number and ignore. */
-	if (regexec(&file_lineno, line, 2, match, 0) == 0) {
-		*line_nr = atoi(line + match[1].rm_so);
+	if (regexec(&file_lineno, parsed_line, 2, match, 0) == 0) {
+		*line_nr = atoi(parsed_line + match[1].rm_so);
 		return 0;
 	}
 
-	/*
-	 * Strip leading spaces:
-	 */
-	tmp = line;
-	while (*tmp) {
-		if (*tmp != ' ')
-			break;
-		tmp++;
-	}
-
+	tmp = ltrim(parsed_line);
 	if (*tmp) {
 		/*
 		 * Parse hexa addresses followed by ':'
@@ -1205,9 +1198,11 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 	if (dl == NULL)
 		return -1;
 
-	if (dl->ops.target.offset == UINT64_MAX)
+	if (!disasm_line__has_offset(dl)) {
 		dl->ops.target.offset = dl->ops.target.addr -
 					map__rip_2objdump(map, sym->start);
+		dl->ops.target.offset_avail = true;
+	}
 
 	/* kcore has no symbols, so add the call target name */
 	if (dl->ins.ops && ins__is_call(&dl->ins) && !dl->ops.target.name) {
@@ -1298,6 +1293,7 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 {
 	char linkname[PATH_MAX];
 	char *build_id_filename;
+	char *build_id_path = NULL;
 
 	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
 	    !dso__is_kcore(dso))
@@ -1313,8 +1309,14 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 		goto fallback;
 	}
 
+	build_id_path = strdup(filename);
+	if (!build_id_path)
+		return -1;
+
+	dirname(build_id_path);
+
 	if (dso__is_kcore(dso) ||
-	    readlink(filename, linkname, sizeof(linkname)) < 0 ||
+	    readlink(build_id_path, linkname, sizeof(linkname)) < 0 ||
 	    strstr(linkname, DSO__NAME_KALLSYMS) ||
 	    access(filename, R_OK)) {
 fallback:
@@ -1326,6 +1328,7 @@ fallback:
 		__symbol__join_symfs(filename, filename_size, dso->long_name);
 	}
 
+	free(build_id_path);
 	return 0;
 }
 
@@ -1426,7 +1429,7 @@ int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_na
 	snprintf(command, sizeof(command),
 		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
-		 " -l -d %s %s -C %s 2>/dev/null|grep -v %s|expand",
+		 " -l -d %s %s -C %s 2>/dev/null|grep -v %s:|expand",
 		 objdump_path ? objdump_path : "objdump",
 		 disassembler_style ? "-M " : "",
 		 disassembler_style ? disassembler_style : "",
@@ -1473,6 +1476,12 @@ int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_na
 
 	nline = 0;
 	while (!feof(file)) {
+		/*
+		 * The source code line number (lineno) needs to be kept in
+		 * accross calls to symbol__parse_objdump_line(), so that it
+		 * can associate it with the instructions till the next one.
+		 * See disasm_line__new() and struct disasm_line::line_nr.
+		 */
 		if (symbol__parse_objdump_line(sym, map, arch, file, privsize,
 			    &lineno) < 0)
 			break;
@@ -1642,24 +1651,31 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 	start = map__rip_2objdump(map, sym->start);
 
 	for (i = 0; i < len; i++) {
-		u64 offset;
+		u64 offset, nr_samples;
 		double percent_max = 0.0;
 
 		src_line->nr_pcnt = nr_pcnt;
 
 		for (k = 0; k < nr_pcnt; k++) {
-			h = annotation__histogram(notes, evidx + k);
-			src_line->samples[k].percent = 100.0 * h->addr[i] / h->sum;
+			double percent = 0.0;
 
-			if (src_line->samples[k].percent > percent_max)
-				percent_max = src_line->samples[k].percent;
+			h = annotation__histogram(notes, evidx + k);
+			nr_samples = h->addr[i];
+			if (h->sum)
+				percent = 100.0 * nr_samples / h->sum;
+
+			if (percent > percent_max)
+				percent_max = percent;
+			src_line->samples[k].percent = percent;
+			src_line->samples[k].nr = nr_samples;
 		}
 
 		if (percent_max <= 0.5)
 			goto next;
 
 		offset = start + i;
-		src_line->path = get_srcline(map->dso, offset, NULL, false);
+		src_line->path = get_srcline(map->dso, offset, NULL,
+					     false, true);
 		insert_source_line(&tmp_root, src_line);
 
 	next:
@@ -1759,7 +1775,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	printf("%-*.*s----\n",
 	       graph_dotted_len, graph_dotted_len, graph_dotted_line);
 
-	if (verbose)
+	if (verbose > 0)
 		symbol__annotate_hits(sym, evsel);
 
 	list_for_each_entry(pos, &notes->src->source, node) {

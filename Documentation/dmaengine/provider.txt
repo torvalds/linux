@@ -384,7 +384,7 @@ where to put them)
     - The descriptor should be prepared for reuse by invoking
       dmaengine_desc_set_reuse() which will set DMA_CTRL_REUSE.
     - dmaengine_desc_set_reuse() will succeed only when channel support
-      reusable descriptor as exhibited by capablities
+      reusable descriptor as exhibited by capabilities
     - As a consequence, if a device driver wants to skip the dma_map_sg() and
       dma_unmap_sg() in between 2 transfers, because the DMA'd data wasn't used,
       it can resubmit the transfer right after its completion.

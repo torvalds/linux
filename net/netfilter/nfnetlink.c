@@ -3,7 +3,7 @@
  *
  * (C) 2001 by Jay Schulist <jschlst@samba.org>,
  * (C) 2002-2005 by Harald Welte <laforge@gnumonks.org>
- * (C) 2005,2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2005-2017 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * Initial netfilter messages via netlink development funded and
  * generally made possible by Network Robots, Inc. (www.networkrobots.com)
@@ -22,7 +22,7 @@
 #include <linux/sockios.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/sock.h>
 #include <linux/init.h>
 
@@ -100,9 +100,9 @@ int nfnetlink_subsys_unregister(const struct nfnetlink_subsystem *n)
 }
 EXPORT_SYMBOL_GPL(nfnetlink_subsys_unregister);
 
-static inline const struct nfnetlink_subsystem *nfnetlink_get_subsys(u_int16_t type)
+static inline const struct nfnetlink_subsystem *nfnetlink_get_subsys(u16 type)
 {
-	u_int8_t subsys_id = NFNL_SUBSYS_ID(type);
+	u8 subsys_id = NFNL_SUBSYS_ID(type);
 
 	if (subsys_id >= NFNL_SUBSYS_COUNT)
 		return NULL;
@@ -111,9 +111,9 @@ static inline const struct nfnetlink_subsystem *nfnetlink_get_subsys(u_int16_t t
 }
 
 static inline const struct nfnl_callback *
-nfnetlink_find_client(u_int16_t type, const struct nfnetlink_subsystem *ss)
+nfnetlink_find_client(u16 type, const struct nfnetlink_subsystem *ss)
 {
-	u_int8_t cb_id = NFNL_MSG_TYPE(type);
+	u8 cb_id = NFNL_MSG_TYPE(type);
 
 	if (cb_id >= ss->cb_count)
 		return NULL;
@@ -148,7 +148,8 @@ int nfnetlink_unicast(struct sk_buff *skb, struct net *net, u32 portid,
 EXPORT_SYMBOL_GPL(nfnetlink_unicast);
 
 /* Process one complete nfnetlink message. */
-static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	const struct nfnl_callback *nc;
@@ -185,14 +186,14 @@ replay:
 
 	{
 		int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
-		u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
+		u8 cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
 		struct nlattr *cda[ss->cb[cb_id].attr_count + 1];
 		struct nlattr *attr = (void *)nlh + min_len;
 		int attrlen = nlh->nlmsg_len - min_len;
 		__u8 subsys_id = NFNL_SUBSYS_ID(type);
 
-		err = nla_parse(cda, ss->cb[cb_id].attr_count,
-				attr, attrlen, ss->cb[cb_id].policy);
+		err = nla_parse(cda, ss->cb[cb_id].attr_count, attr, attrlen,
+				ss->cb[cb_id].policy, extack);
 		if (err < 0) {
 			rcu_read_unlock();
 			return err;
@@ -261,7 +262,7 @@ static void nfnl_err_deliver(struct list_head *err_list, struct sk_buff *skb)
 	struct nfnl_err *nfnl_err, *next;
 
 	list_for_each_entry_safe(nfnl_err, next, err_list, head) {
-		netlink_ack(skb, nfnl_err->nlh, nfnl_err->err);
+		netlink_ack(skb, nfnl_err->nlh, nfnl_err->err, NULL);
 		nfnl_err_del(nfnl_err);
 	}
 }
@@ -273,24 +274,24 @@ enum {
 };
 
 static void nfnetlink_rcv_batch(struct sk_buff *skb, struct nlmsghdr *nlh,
-				u_int16_t subsys_id)
+				u16 subsys_id, u32 genid)
 {
 	struct sk_buff *oskb = skb;
 	struct net *net = sock_net(skb->sk);
 	const struct nfnetlink_subsystem *ss;
 	const struct nfnl_callback *nc;
-	static LIST_HEAD(err_list);
+	LIST_HEAD(err_list);
 	u32 status;
 	int err;
 
 	if (subsys_id >= NFNL_SUBSYS_COUNT)
-		return netlink_ack(skb, nlh, -EINVAL);
+		return netlink_ack(skb, nlh, -EINVAL, NULL);
 replay:
 	status = 0;
 
 	skb = netlink_skb_clone(oskb, GFP_KERNEL);
 	if (!skb)
-		return netlink_ack(oskb, nlh, -ENOMEM);
+		return netlink_ack(oskb, nlh, -ENOMEM, NULL);
 
 	nfnl_lock(subsys_id);
 	ss = nfnl_dereference_protected(subsys_id);
@@ -304,14 +305,20 @@ replay:
 #endif
 		{
 			nfnl_unlock(subsys_id);
-			netlink_ack(oskb, nlh, -EOPNOTSUPP);
+			netlink_ack(oskb, nlh, -EOPNOTSUPP, NULL);
 			return kfree_skb(skb);
 		}
 	}
 
 	if (!ss->commit || !ss->abort) {
 		nfnl_unlock(subsys_id);
-		netlink_ack(oskb, nlh, -EOPNOTSUPP);
+		netlink_ack(oskb, nlh, -EOPNOTSUPP, NULL);
+		return kfree_skb(skb);
+	}
+
+	if (genid && ss->valid_genid && !ss->valid_genid(net, genid)) {
+		nfnl_unlock(subsys_id);
+		netlink_ack(oskb, nlh, -ERESTART, NULL);
 		return kfree_skb(skb);
 	}
 
@@ -365,13 +372,13 @@ replay:
 
 		{
 			int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
-			u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
+			u8 cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
 			struct nlattr *cda[ss->cb[cb_id].attr_count + 1];
 			struct nlattr *attr = (void *)nlh + min_len;
 			int attrlen = nlh->nlmsg_len - min_len;
 
-			err = nla_parse(cda, ss->cb[cb_id].attr_count,
-					attr, attrlen, ss->cb[cb_id].policy);
+			err = nla_parse(cda, ss->cb[cb_id].attr_count, attr,
+					attrlen, ss->cb[cb_id].policy, NULL);
 			if (err < 0)
 				goto ack;
 
@@ -401,7 +408,8 @@ ack:
 				 * pointing to the batch header.
 				 */
 				nfnl_err_reset(&err_list);
-				netlink_ack(oskb, nlmsg_hdr(oskb), -ENOMEM);
+				netlink_ack(oskb, nlmsg_hdr(oskb), -ENOMEM,
+					    NULL);
 				status |= NFNL_BATCH_FAILURE;
 				goto done;
 			}
@@ -436,43 +444,66 @@ done:
 	kfree_skb(skb);
 }
 
+static const struct nla_policy nfnl_batch_policy[NFNL_BATCH_MAX + 1] = {
+	[NFNL_BATCH_GENID]	= { .type = NLA_U32 },
+};
+
+static void nfnetlink_rcv_skb_batch(struct sk_buff *skb, struct nlmsghdr *nlh)
+{
+	int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
+	struct nlattr *attr = (void *)nlh + min_len;
+	struct nlattr *cda[NFNL_BATCH_MAX + 1];
+	int attrlen = nlh->nlmsg_len - min_len;
+	struct nfgenmsg *nfgenmsg;
+	int msglen, err;
+	u32 gen_id = 0;
+	u16 res_id;
+
+	msglen = NLMSG_ALIGN(nlh->nlmsg_len);
+	if (msglen > skb->len)
+		msglen = skb->len;
+
+	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
+	    skb->len < NLMSG_HDRLEN + sizeof(struct nfgenmsg))
+		return;
+
+	err = nla_parse(cda, NFNL_BATCH_MAX, attr, attrlen, nfnl_batch_policy,
+			NULL);
+	if (err < 0) {
+		netlink_ack(skb, nlh, err, NULL);
+		return;
+	}
+	if (cda[NFNL_BATCH_GENID])
+		gen_id = ntohl(nla_get_be32(cda[NFNL_BATCH_GENID]));
+
+	nfgenmsg = nlmsg_data(nlh);
+	skb_pull(skb, msglen);
+	/* Work around old nft using host byte order */
+	if (nfgenmsg->res_id == NFNL_SUBSYS_NFTABLES)
+		res_id = NFNL_SUBSYS_NFTABLES;
+	else
+		res_id = ntohs(nfgenmsg->res_id);
+
+	nfnetlink_rcv_batch(skb, nlh, res_id, gen_id);
+}
+
 static void nfnetlink_rcv(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
-	u_int16_t res_id;
-	int msglen;
 
 	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
 	    skb->len < nlh->nlmsg_len)
 		return;
 
 	if (!netlink_net_capable(skb, CAP_NET_ADMIN)) {
-		netlink_ack(skb, nlh, -EPERM);
+		netlink_ack(skb, nlh, -EPERM, NULL);
 		return;
 	}
 
-	if (nlh->nlmsg_type == NFNL_MSG_BATCH_BEGIN) {
-		struct nfgenmsg *nfgenmsg;
-
-		msglen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (msglen > skb->len)
-			msglen = skb->len;
-
-		if (nlh->nlmsg_len < NLMSG_HDRLEN ||
-		    skb->len < NLMSG_HDRLEN + sizeof(struct nfgenmsg))
-			return;
-
-		nfgenmsg = nlmsg_data(nlh);
-		skb_pull(skb, msglen);
-		/* Work around old nft using host byte order */
-		if (nfgenmsg->res_id == NFNL_SUBSYS_NFTABLES)
-			res_id = NFNL_SUBSYS_NFTABLES;
-		else
-			res_id = ntohs(nfgenmsg->res_id);
-		nfnetlink_rcv_batch(skb, nlh, res_id);
-	} else {
-		netlink_rcv_skb(skb, &nfnetlink_rcv_msg);
-	}
+	if (nlh->nlmsg_type == NFNL_MSG_BATCH_BEGIN)
+		nfnetlink_rcv_skb_batch(skb, nlh);
+	else
+		netlink_rcv_skb(skb, nfnetlink_rcv_msg);
 }
 
 #ifdef CONFIG_MODULES

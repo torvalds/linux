@@ -78,6 +78,7 @@ nvkm_subdev_name[NVKM_SUBDEV_NR] = {
 	[NVKM_ENGINE_NVDEC   ] = "nvdec",
 	[NVKM_ENGINE_PM      ] = "pm",
 	[NVKM_ENGINE_SEC     ] = "sec",
+	[NVKM_ENGINE_SEC2    ] = "sec2",
 	[NVKM_ENGINE_SW      ] = "sw",
 	[NVKM_ENGINE_VIC     ] = "vic",
 	[NVKM_ENGINE_VP      ] = "vp",

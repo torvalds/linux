@@ -317,6 +317,9 @@ static enum musb_vbus_id_status
 			linkstat = MUSB_VBUS_OFF;
 	}
 
+	kobject_uevent(&twl->dev->kobj, linkstat == MUSB_VBUS_VALID
+					? KOBJ_ONLINE : KOBJ_OFFLINE);
+
 	dev_dbg(twl->dev, "HW_CONDITIONS 0x%02x/%d; link %d\n",
 			status, status, linkstat);
 

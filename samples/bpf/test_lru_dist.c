@@ -25,7 +25,9 @@
 #include "bpf_util.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
-#define offsetof(TYPE, MEMBER)	((size_t)&((TYPE *)0)->MEMBER)
+#ifndef offsetof
+# define offsetof(TYPE, MEMBER)	((size_t)&((TYPE *)0)->MEMBER)
+#endif
 #define container_of(ptr, type, member) ({			\
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
@@ -134,7 +136,7 @@ static int pfect_lru_lookup_or_insert(struct pfect_lru *lru,
 	int seen = 0;
 
 	lru->total++;
-	if (!bpf_lookup_elem(lru->map_fd, &key, &node)) {
+	if (!bpf_map_lookup_elem(lru->map_fd, &key, &node)) {
 		if (node) {
 			list_move(&node->list, &lru->list);
 			return 1;
@@ -151,7 +153,7 @@ static int pfect_lru_lookup_or_insert(struct pfect_lru *lru,
 		node = list_last_entry(&lru->list,
 				       struct pfect_lru_node,
 				       list);
-		bpf_update_elem(lru->map_fd, &node->key, &null_node, BPF_EXIST);
+		bpf_map_update_elem(lru->map_fd, &node->key, &null_node, BPF_EXIST);
 	}
 
 	node->key = key;
@@ -159,10 +161,10 @@ static int pfect_lru_lookup_or_insert(struct pfect_lru *lru,
 
 	lru->nr_misses++;
 	if (seen) {
-		assert(!bpf_update_elem(lru->map_fd, &key, &node, BPF_EXIST));
+		assert(!bpf_map_update_elem(lru->map_fd, &key, &node, BPF_EXIST));
 	} else {
 		lru->nr_unique++;
-		assert(!bpf_update_elem(lru->map_fd, &key, &node, BPF_NOEXIST));
+		assert(!bpf_map_update_elem(lru->map_fd, &key, &node, BPF_NOEXIST));
 	}
 
 	return seen;
@@ -285,11 +287,11 @@ static void do_test_lru_dist(int task, void *data)
 
 		pfect_lru_lookup_or_insert(&pfect_lru, key);
 
-		if (!bpf_lookup_elem(lru_map_fd, &key, &value))
+		if (!bpf_map_lookup_elem(lru_map_fd, &key, &value))
 			continue;
 
-		if (bpf_update_elem(lru_map_fd, &key, &value, BPF_NOEXIST)) {
-			printf("bpf_update_elem(lru_map_fd, %llu): errno:%d\n",
+		if (bpf_map_update_elem(lru_map_fd, &key, &value, BPF_NOEXIST)) {
+			printf("bpf_map_update_elem(lru_map_fd, %llu): errno:%d\n",
 			       key, errno);
 			assert(0);
 		}
@@ -358,19 +360,19 @@ static void test_lru_loss0(int map_type, int map_flags)
 	for (key = 1; key <= 1000; key++) {
 		int start_key, end_key;
 
-		assert(bpf_update_elem(map_fd, &key, value, BPF_NOEXIST) == 0);
+		assert(bpf_map_update_elem(map_fd, &key, value, BPF_NOEXIST) == 0);
 
 		start_key = 101;
 		end_key = min(key, 900);
 
 		while (start_key <= end_key) {
-			bpf_lookup_elem(map_fd, &start_key, value);
+			bpf_map_lookup_elem(map_fd, &start_key, value);
 			start_key++;
 		}
 	}
 
 	for (key = 1; key <= 1000; key++) {
-		if (bpf_lookup_elem(map_fd, &key, value)) {
+		if (bpf_map_lookup_elem(map_fd, &key, value)) {
 			if (key <= 100)
 				old_unused_losses++;
 			else if (key <= 900)
@@ -408,10 +410,10 @@ static void test_lru_loss1(int map_type, int map_flags)
 	value[0] = 1234;
 
 	for (key = 1; key <= 1000; key++)
-		assert(!bpf_update_elem(map_fd, &key, value, BPF_NOEXIST));
+		assert(!bpf_map_update_elem(map_fd, &key, value, BPF_NOEXIST));
 
 	for (key = 1; key <= 1000; key++) {
-		if (bpf_lookup_elem(map_fd, &key, value))
+		if (bpf_map_lookup_elem(map_fd, &key, value))
 			nr_losses++;
 	}
 
@@ -436,7 +438,7 @@ static void do_test_parallel_lru_loss(int task, void *data)
 	next_ins_key = stable_base;
 	value[0] = 1234;
 	for (i = 0; i < nr_stable_elems; i++) {
-		assert(bpf_update_elem(map_fd, &next_ins_key, value,
+		assert(bpf_map_update_elem(map_fd, &next_ins_key, value,
 				       BPF_NOEXIST) == 0);
 		next_ins_key++;
 	}
@@ -448,9 +450,9 @@ static void do_test_parallel_lru_loss(int task, void *data)
 
 		if (rn % 10) {
 			key = rn % nr_stable_elems + stable_base;
-			bpf_lookup_elem(map_fd, &key, value);
+			bpf_map_lookup_elem(map_fd, &key, value);
 		} else {
-			bpf_update_elem(map_fd, &next_ins_key, value,
+			bpf_map_update_elem(map_fd, &next_ins_key, value,
 					BPF_NOEXIST);
 			next_ins_key++;
 		}
@@ -458,7 +460,7 @@ static void do_test_parallel_lru_loss(int task, void *data)
 
 	key = stable_base;
 	for (i = 0; i < nr_stable_elems; i++) {
-		if (bpf_lookup_elem(map_fd, &key, value))
+		if (bpf_map_lookup_elem(map_fd, &key, value))
 			nr_losses++;
 		key++;
 	}

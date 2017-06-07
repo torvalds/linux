@@ -1,6 +1,7 @@
 #ifndef _ASM_POWERPC_NOHASH_64_PGTABLE_64K_H
 #define _ASM_POWERPC_NOHASH_64_PGTABLE_64K_H
 
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopud.h>
 
 
@@ -30,9 +31,6 @@
 #define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
 #define PTRS_PER_PMD	(1 << PMD_INDEX_SIZE)
 #define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
-
-/* With 4k base page size, hugepage PTEs go at the PMD level */
-#define MIN_HUGEPTE_SHIFT	PAGE_SHIFT
 
 /* PMD_SHIFT determines what a second-level page table entry can map */
 #define PMD_SHIFT	(PAGE_SHIFT + PTE_INDEX_SIZE)

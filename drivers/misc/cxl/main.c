@@ -19,6 +19,8 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/pci.h>
+#include <linux/sched/task.h>
+
 #include <asm/cputable.h>
 #include <misc/cxl-base.h>
 
@@ -57,16 +59,10 @@ int cxl_afu_slbia(struct cxl_afu *afu)
 
 static inline void _cxl_slbia(struct cxl_context *ctx, struct mm_struct *mm)
 {
-	struct task_struct *task;
 	unsigned long flags;
-	if (!(task = get_pid_task(ctx->pid, PIDTYPE_PID))) {
-		pr_devel("%s unable to get task %i\n",
-			 __func__, pid_nr(ctx->pid));
-		return;
-	}
 
-	if (task->mm != mm)
-		goto out_put;
+	if (ctx->mm != mm)
+		return;
 
 	pr_devel("%s matched mm - card: %i afu: %i pe: %i\n", __func__,
 		 ctx->afu->adapter->adapter_num, ctx->afu->slice, ctx->pe);
@@ -77,8 +73,6 @@ static inline void _cxl_slbia(struct cxl_context *ctx, struct mm_struct *mm)
 	spin_unlock_irqrestore(&ctx->sste_lock, flags);
 	mb();
 	cxl_afu_slbia(ctx->afu);
-out_put:
-	put_task_struct(task);
 }
 
 static inline void cxl_slbia_core(struct mm_struct *mm)
@@ -268,7 +262,7 @@ struct cxl_afu *cxl_alloc_afu(struct cxl *adapter, int slice)
 	idr_init(&afu->contexts_idr);
 	mutex_init(&afu->contexts_lock);
 	spin_lock_init(&afu->afu_cntl_lock);
-
+	atomic_set(&afu->configured_state, -1);
 	afu->prefault_mode = CXL_PREFAULT_NONE;
 	afu->irqs_max = afu->adapter->user_irqs;
 

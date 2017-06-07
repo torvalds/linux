@@ -8,10 +8,34 @@ http://0x04.net/cgit/index.cgi/rules-ng-ng
 git clone git://0x04.net/rules-ng-ng
 
 The rules-ng-ng source files this header was generated from are:
-- cmdstream.xml (  12589 bytes, from 2014-02-17 14:57:56)
-- common.xml    (  18437 bytes, from 2015-03-25 11:27:41)
+- cmdstream.xml (  14094 bytes, from 2016-11-11 06:55:14)
+- copyright.xml (   1597 bytes, from 2016-10-29 07:29:22)
+- common.xml    (  23344 bytes, from 2016-11-10 15:14:07)
 
-Copyright (C) 2014
+Copyright (C) 2012-2016 by the following authors:
+- Wladimir J. van der Laan <laanwj@gmail.com>
+- Christian Gmeiner <christian.gmeiner@gmail.com>
+- Lucas Stach <l.stach@pengutronix.de>
+- Russell King <rmk@arm.linux.org.uk>
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sub license,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice (including the
+next paragraph) shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 */
 
 
@@ -26,6 +50,7 @@ Copyright (C) 2014
 #define FE_OPCODE_STALL						0x00000009
 #define FE_OPCODE_CALL						0x0000000a
 #define FE_OPCODE_RETURN					0x0000000b
+#define FE_OPCODE_DRAW_INSTANCED				0x0000000c
 #define FE_OPCODE_CHIP_SELECT					0x0000000d
 #define PRIMITIVE_TYPE_POINTS					0x00000001
 #define PRIMITIVE_TYPE_LINES					0x00000002
@@ -213,6 +238,33 @@ Copyright (C) 2014
 #define VIV_FE_CHIP_SELECT_HEADER_ENABLE_CHIP2			0x00000004
 #define VIV_FE_CHIP_SELECT_HEADER_ENABLE_CHIP1			0x00000002
 #define VIV_FE_CHIP_SELECT_HEADER_ENABLE_CHIP0			0x00000001
+
+#define VIV_FE_DRAW_INSTANCED					0x00000000
+
+#define VIV_FE_DRAW_INSTANCED_HEADER				0x00000000
+#define VIV_FE_DRAW_INSTANCED_HEADER_OP__MASK			0xf8000000
+#define VIV_FE_DRAW_INSTANCED_HEADER_OP__SHIFT			27
+#define VIV_FE_DRAW_INSTANCED_HEADER_OP_DRAW_INSTANCED		0x60000000
+#define VIV_FE_DRAW_INSTANCED_HEADER_INDEXED			0x00100000
+#define VIV_FE_DRAW_INSTANCED_HEADER_TYPE__MASK			0x000f0000
+#define VIV_FE_DRAW_INSTANCED_HEADER_TYPE__SHIFT		16
+#define VIV_FE_DRAW_INSTANCED_HEADER_TYPE(x)			(((x) << VIV_FE_DRAW_INSTANCED_HEADER_TYPE__SHIFT) & VIV_FE_DRAW_INSTANCED_HEADER_TYPE__MASK)
+#define VIV_FE_DRAW_INSTANCED_HEADER_INSTANCE_COUNT_LO__MASK	0x0000ffff
+#define VIV_FE_DRAW_INSTANCED_HEADER_INSTANCE_COUNT_LO__SHIFT	0
+#define VIV_FE_DRAW_INSTANCED_HEADER_INSTANCE_COUNT_LO(x)	(((x) << VIV_FE_DRAW_INSTANCED_HEADER_INSTANCE_COUNT_LO__SHIFT) & VIV_FE_DRAW_INSTANCED_HEADER_INSTANCE_COUNT_LO__MASK)
+
+#define VIV_FE_DRAW_INSTANCED_COUNT				0x00000004
+#define VIV_FE_DRAW_INSTANCED_COUNT_INSTANCE_COUNT_HI__MASK	0xff000000
+#define VIV_FE_DRAW_INSTANCED_COUNT_INSTANCE_COUNT_HI__SHIFT	24
+#define VIV_FE_DRAW_INSTANCED_COUNT_INSTANCE_COUNT_HI(x)	(((x) << VIV_FE_DRAW_INSTANCED_COUNT_INSTANCE_COUNT_HI__SHIFT) & VIV_FE_DRAW_INSTANCED_COUNT_INSTANCE_COUNT_HI__MASK)
+#define VIV_FE_DRAW_INSTANCED_COUNT_VERTEX_COUNT__MASK		0x00ffffff
+#define VIV_FE_DRAW_INSTANCED_COUNT_VERTEX_COUNT__SHIFT		0
+#define VIV_FE_DRAW_INSTANCED_COUNT_VERTEX_COUNT(x)		(((x) << VIV_FE_DRAW_INSTANCED_COUNT_VERTEX_COUNT__SHIFT) & VIV_FE_DRAW_INSTANCED_COUNT_VERTEX_COUNT__MASK)
+
+#define VIV_FE_DRAW_INSTANCED_START				0x00000008
+#define VIV_FE_DRAW_INSTANCED_START_INDEX__MASK			0xffffffff
+#define VIV_FE_DRAW_INSTANCED_START_INDEX__SHIFT		0
+#define VIV_FE_DRAW_INSTANCED_START_INDEX(x)			(((x) << VIV_FE_DRAW_INSTANCED_START_INDEX__SHIFT) & VIV_FE_DRAW_INSTANCED_START_INDEX__MASK)
 
 
 #endif /* CMDSTREAM_XML */

@@ -152,6 +152,7 @@ struct fs_fte {
 	u32				index;
 	u32				action;
 	u32				encap_id;
+	u32				modify_id;
 	enum fs_fte_status		status;
 	struct mlx5_fc			*counter;
 };
@@ -193,10 +194,16 @@ struct mlx5_flow_root_namespace {
 	struct mlx5_flow_table		*root_ft;
 	/* Should be held when chaining flow tables */
 	struct mutex			chain_lock;
+	u32				underlay_qpn;
 };
 
 int mlx5_init_fc_stats(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev);
+void mlx5_fc_queue_stats_work(struct mlx5_core_dev *dev,
+			      struct delayed_work *dwork,
+			      unsigned long delay);
+void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
+				      unsigned long interval);
 
 int mlx5_init_fs(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev);

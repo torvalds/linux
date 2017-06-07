@@ -10,6 +10,7 @@
 #define SNDRV_FIREWIRE_EVENT_DICE_NOTIFICATION	0xd1ce004e
 #define SNDRV_FIREWIRE_EVENT_EFW_RESPONSE	0x4e617475
 #define SNDRV_FIREWIRE_EVENT_DIGI00X_MESSAGE	0x746e736c
+#define SNDRV_FIREWIRE_EVENT_MOTU_NOTIFICATION	0x64776479
 
 struct snd_firewire_event_common {
 	unsigned int type; /* SNDRV_FIREWIRE_EVENT_xxx */
@@ -46,12 +47,18 @@ struct snd_firewire_event_digi00x_message {
 	__u32 message;	/* Digi00x-specific message */
 };
 
+struct snd_firewire_event_motu_notification {
+	unsigned int type;
+	__u32 message;	/* MOTU-specific bits. */
+};
+
 union snd_firewire_event {
 	struct snd_firewire_event_common            common;
 	struct snd_firewire_event_lock_status       lock_status;
 	struct snd_firewire_event_dice_notification dice_notification;
 	struct snd_firewire_event_efw_response      efw_response;
 	struct snd_firewire_event_digi00x_message   digi00x_message;
+	struct snd_firewire_event_motu_notification motu_notification;
 };
 
 
@@ -65,7 +72,8 @@ union snd_firewire_event {
 #define SNDRV_FIREWIRE_TYPE_OXFW	4
 #define SNDRV_FIREWIRE_TYPE_DIGI00X	5
 #define SNDRV_FIREWIRE_TYPE_TASCAM	6
-/* RME, MOTU, ... */
+#define SNDRV_FIREWIRE_TYPE_MOTU	7
+#define SNDRV_FIREWIRE_TYPE_FIREFACE	8
 
 struct snd_firewire_get_info {
 	unsigned int type; /* SNDRV_FIREWIRE_TYPE_xxx */

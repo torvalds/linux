@@ -107,7 +107,7 @@
 #define PUT_USER(error,value,addr) error = put_user(value,addr)
 #define COPY_TO_USER(error,dest,src,size) error = copy_to_user(dest,src,size) ? -EFAULT : 0
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define RCLRVALUE 0xffff
 
@@ -869,9 +869,9 @@ static int txholdbufs[MAX_TOTAL_DEVICES];
 	
 module_param(break_on_load, bool, 0);
 module_param(ttymajor, int, 0);
-module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
-module_param_array(dma, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
+module_param_hw_array(dma, int, dma, NULL, 0);
 module_param(debug_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
 module_param_array(txdmabufs, int, NULL, 0);

@@ -10,6 +10,7 @@ voltages and other various functionality to Qualcomm SoCs.
 	Value type: <string>
 	Definition: must be one of:
 		    "qcom,pm8058"
+		    "qcom,pm8821"
 		    "qcom,pm8921"
 
 - #address-cells:

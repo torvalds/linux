@@ -422,7 +422,8 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 		goto err_wq;
 	}
 
-	xgbe_ptp_register(pdata);
+	if (IS_REACHABLE(CONFIG_PTP_1588_CLOCK))
+		xgbe_ptp_register(pdata);
 
 	xgbe_debugfs_init(pdata);
 
@@ -448,7 +449,8 @@ void xgbe_deconfig_netdev(struct xgbe_prv_data *pdata)
 
 	xgbe_debugfs_exit(pdata);
 
-	xgbe_ptp_unregister(pdata);
+	if (IS_REACHABLE(CONFIG_PTP_1588_CLOCK))
+		xgbe_ptp_unregister(pdata);
 
 	pdata->phy_if.phy_exit(pdata);
 

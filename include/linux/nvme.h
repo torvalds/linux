@@ -64,26 +64,26 @@ enum {
  * RDMA_QPTYPE field
  */
 enum {
-	NVMF_RDMA_QPTYPE_CONNECTED	= 0, /* Reliable Connected */
-	NVMF_RDMA_QPTYPE_DATAGRAM	= 1, /* Reliable Datagram */
+	NVMF_RDMA_QPTYPE_CONNECTED	= 1, /* Reliable Connected */
+	NVMF_RDMA_QPTYPE_DATAGRAM	= 2, /* Reliable Datagram */
 };
 
 /* RDMA QP Service Type codes for Discovery Log Page entry TSAS
  * RDMA_QPTYPE field
  */
 enum {
-	NVMF_RDMA_PRTYPE_NOT_SPECIFIED	= 0, /* No Provider Specified */
-	NVMF_RDMA_PRTYPE_IB		= 1, /* InfiniBand */
-	NVMF_RDMA_PRTYPE_ROCE		= 2, /* InfiniBand RoCE */
-	NVMF_RDMA_PRTYPE_ROCEV2		= 3, /* InfiniBand RoCEV2 */
-	NVMF_RDMA_PRTYPE_IWARP		= 4, /* IWARP */
+	NVMF_RDMA_PRTYPE_NOT_SPECIFIED	= 1, /* No Provider Specified */
+	NVMF_RDMA_PRTYPE_IB		= 2, /* InfiniBand */
+	NVMF_RDMA_PRTYPE_ROCE		= 3, /* InfiniBand RoCE */
+	NVMF_RDMA_PRTYPE_ROCEV2		= 4, /* InfiniBand RoCEV2 */
+	NVMF_RDMA_PRTYPE_IWARP		= 5, /* IWARP */
 };
 
 /* RDMA Connection Management Service Type codes for Discovery Log Page
  * entry TSAS RDMA_CMS field
  */
 enum {
-	NVMF_RDMA_CMS_RDMA_CM	= 0, /* Sockets based enpoint addressing */
+	NVMF_RDMA_CMS_RDMA_CM	= 1, /* Sockets based endpoint addressing */
 };
 
 #define NVMF_AQ_DEPTH		32
@@ -242,7 +242,10 @@ enum {
 	NVME_CTRL_ONCS_COMPARE			= 1 << 0,
 	NVME_CTRL_ONCS_WRITE_UNCORRECTABLE	= 1 << 1,
 	NVME_CTRL_ONCS_DSM			= 1 << 2,
+	NVME_CTRL_ONCS_WRITE_ZEROES		= 1 << 3,
 	NVME_CTRL_VWC_PRESENT			= 1 << 0,
+	NVME_CTRL_OACS_SEC_SUPP                 = 1 << 0,
+	NVME_CTRL_OACS_DBBUF_SUPP		= 1 << 7,
 };
 
 struct nvme_lbaf {
@@ -552,10 +555,35 @@ enum {
 	NVME_DSMGMT_AD		= 1 << 2,
 };
 
+#define NVME_DSM_MAX_RANGES	256
+
 struct nvme_dsm_range {
 	__le32			cattr;
 	__le32			nlb;
 	__le64			slba;
+};
+
+struct nvme_write_zeroes_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__u64			rsvd2;
+	__le64			metadata;
+	union nvme_data_ptr	dptr;
+	__le64			slba;
+	__le16			length;
+	__le16			control;
+	__le32			dsmgmt;
+	__le32			reftag;
+	__le16			apptag;
+	__le16			appmask;
+};
+
+/* Features */
+
+struct nvme_feat_auto_pst {
+	__le64 entries[32];
 };
 
 /* Admin commands */
@@ -576,6 +604,7 @@ enum nvme_admin_opcode {
 	nvme_admin_download_fw		= 0x11,
 	nvme_admin_ns_attach		= 0x15,
 	nvme_admin_keep_alive		= 0x18,
+	nvme_admin_dbbuf		= 0x7C,
 	nvme_admin_format_nvm		= 0x80,
 	nvme_admin_security_send	= 0x81,
 	nvme_admin_security_recv	= 0x82,
@@ -623,7 +652,9 @@ struct nvme_identify {
 	__le32			nsid;
 	__u64			rsvd2[2];
 	union nvme_data_ptr	dptr;
-	__le32			cns;
+	__u8			cns;
+	__u8			rsvd3;
+	__le16			ctrlid;
 	__u32			rsvd11[5];
 };
 
@@ -845,6 +876,16 @@ struct nvmf_property_get_command {
 	__u8		resv4[16];
 };
 
+struct nvme_dbbuf {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__u32			rsvd1[5];
+	__le64			prp1;
+	__le64			prp2;
+	__u32			rsvd12[6];
+};
+
 struct nvme_command {
 	union {
 		struct nvme_common_command common;
@@ -857,12 +898,14 @@ struct nvme_command {
 		struct nvme_download_firmware dlfw;
 		struct nvme_format_cmd format;
 		struct nvme_dsm_cmd dsm;
+		struct nvme_write_zeroes_cmd write_zeroes;
 		struct nvme_abort_cmd abort;
 		struct nvme_get_log_page_command get_log_page;
 		struct nvmf_common_command fabrics;
 		struct nvmf_connect_command connect;
 		struct nvmf_property_set_command prop_set;
 		struct nvmf_property_get_command prop_get;
+		struct nvme_dbbuf dbbuf;
 	};
 };
 
@@ -947,6 +990,7 @@ enum {
 	NVME_SC_BAD_ATTRIBUTES		= 0x180,
 	NVME_SC_INVALID_PI		= 0x181,
 	NVME_SC_READ_ONLY		= 0x182,
+	NVME_SC_ONCS_NOT_SUPPORTED	= 0x183,
 
 	/*
 	 * I/O Command Set Specific - Fabrics commands:
@@ -973,17 +1017,30 @@ enum {
 	NVME_SC_UNWRITTEN_BLOCK		= 0x287,
 
 	NVME_SC_DNR			= 0x4000,
+
+
+	/*
+	 * FC Transport-specific error status values for NVME commands
+	 *
+	 * Transport-specific status code values must be in the range 0xB0..0xBF
+	 */
+
+	/* Generic FC failure - catchall */
+	NVME_SC_FC_TRANSPORT_ERROR	= 0x00B0,
+
+	/* I/O failure due to FC ABTS'd */
+	NVME_SC_FC_TRANSPORT_ABORTED	= 0x00B1,
 };
 
 struct nvme_completion {
 	/*
 	 * Used by Admin and Fabrics commands to return data:
 	 */
-	union {
-		__le16	result16;
-		__le32	result;
-		__le64	result64;
-	};
+	union nvme_result {
+		__le16	u16;
+		__le32	u32;
+		__le64	u64;
+	} result;
 	__le16	sq_head;	/* how much of this queue may be reclaimed */
 	__le16	sq_id;		/* submission queue that generated this entry */
 	__u16	command_id;	/* of the command which completed */

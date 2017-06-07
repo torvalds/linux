@@ -34,10 +34,10 @@ static void flush_ldt(void *current_mm)
 }
 
 /* The caller must call finalize_ldt_struct on the result. LDT starts zeroed. */
-static struct ldt_struct *alloc_ldt_struct(int size)
+static struct ldt_struct *alloc_ldt_struct(unsigned int size)
 {
 	struct ldt_struct *new_ldt;
-	int alloc_size;
+	unsigned int alloc_size;
 
 	if (size > LDT_ENTRIES)
 		return NULL;
@@ -93,7 +93,7 @@ static void free_ldt_struct(struct ldt_struct *ldt)
 
 	paravirt_free_ldt(ldt->entries, ldt->size);
 	if (ldt->size * LDT_ENTRY_SIZE > PAGE_SIZE)
-		vfree(ldt->entries);
+		vfree_atomic(ldt->entries);
 	else
 		free_page((unsigned long)ldt->entries);
 	kfree(ldt);
@@ -207,11 +207,11 @@ static int read_default_ldt(void __user *ptr, unsigned long bytecount)
 static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 {
 	struct mm_struct *mm = current->mm;
+	struct ldt_struct *new_ldt, *old_ldt;
+	unsigned int oldsize, newsize;
+	struct user_desc ldt_info;
 	struct desc_struct ldt;
 	int error;
-	struct user_desc ldt_info;
-	int oldsize, newsize;
-	struct ldt_struct *new_ldt, *old_ldt;
 
 	error = -EINVAL;
 	if (bytecount != sizeof(ldt_info))
@@ -249,7 +249,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 
 	old_ldt = mm->context.ldt;
 	oldsize = old_ldt ? old_ldt->size : 0;
-	newsize = max((int)(ldt_info.entry_number + 1), oldsize);
+	newsize = max(ldt_info.entry_number + 1, oldsize);
 
 	error = -ENOMEM;
 	new_ldt = alloc_ldt_struct(newsize);

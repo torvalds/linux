@@ -63,7 +63,7 @@
 #include <asm/types.h>
 #include <asm/byteorder.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sbni.h"
 
@@ -1463,8 +1463,8 @@ set_multicast_list( struct net_device  *dev )
 
 
 #ifdef MODULE
-module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 module_param_array(baud, int, NULL, 0);
 module_param_array(rxl, int, NULL, 0);
 module_param_array(mac, int, NULL, 0);

@@ -3,7 +3,8 @@
  *
  * Copyright (c) 2008 Marvell Semiconductor
  *
- * Copyright (c) 2016 Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+ * Copyright (c) 2016-2017 Savoir-faire Linux Inc.
+ *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,6 +12,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/phy.h>
 #include "mv88e6xxx.h"
 #include "port.h"
 
@@ -193,7 +195,7 @@ static int mv88e6xxx_port_set_speed(struct mv88e6xxx_chip *chip, int port,
 		ctrl = PORT_PCS_CTRL_SPEED_1000;
 		break;
 	case 2500:
-		ctrl = PORT_PCS_CTRL_SPEED_1000 | PORT_PCS_CTRL_ALTSPEED;
+		ctrl = PORT_PCS_CTRL_SPEED_10000 | PORT_PCS_CTRL_ALTSPEED;
 		break;
 	case 10000:
 		/* all bits set, fall through... */
@@ -302,6 +304,69 @@ int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 		return -EOPNOTSUPP;
 
 	return mv88e6xxx_port_set_speed(chip, port, speed, true, true);
+}
+
+int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
+			      phy_interface_t mode)
+{
+	u16 reg;
+	u16 cmode;
+	int err;
+
+	if (mode == PHY_INTERFACE_MODE_NA)
+		return 0;
+
+	if (port != 9 && port != 10)
+		return -EOPNOTSUPP;
+
+	switch (mode) {
+	case PHY_INTERFACE_MODE_1000BASEX:
+		cmode = PORT_STATUS_CMODE_1000BASE_X;
+		break;
+	case PHY_INTERFACE_MODE_SGMII:
+		cmode = PORT_STATUS_CMODE_SGMII;
+		break;
+	case PHY_INTERFACE_MODE_2500BASEX:
+		cmode = PORT_STATUS_CMODE_2500BASEX;
+		break;
+	case PHY_INTERFACE_MODE_XGMII:
+		cmode = PORT_STATUS_CMODE_XAUI;
+		break;
+	case PHY_INTERFACE_MODE_RXAUI:
+		cmode = PORT_STATUS_CMODE_RXAUI;
+		break;
+	default:
+		cmode = 0;
+	}
+
+	if (cmode) {
+		err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
+		if (err)
+			return err;
+
+		reg &= ~PORT_STATUS_CMODE_MASK;
+		reg |= cmode;
+
+		err = mv88e6xxx_port_write(chip, port, PORT_STATUS, reg);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
+	if (err)
+		return err;
+
+	*cmode = reg & PORT_STATUS_CMODE_MASK;
+
+	return 0;
 }
 
 /* Offset 0x02: Pause Control
@@ -433,8 +498,8 @@ int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
 }
 
-int mv88e6085_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
-				       bool on)
+static int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
+					      int port, bool unicast)
 {
 	int err;
 	u16 reg;
@@ -443,7 +508,7 @@ int mv88e6085_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	if (on)
+	if (unicast)
 		reg |= PORT_CONTROL_FORWARD_UNKNOWN;
 	else
 		reg &= ~PORT_CONTROL_FORWARD_UNKNOWN;
@@ -451,8 +516,8 @@ int mv88e6085_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
 	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
 }
 
-int mv88e6351_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
-				       bool on)
+int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
+				     bool unicast, bool multicast)
 {
 	int err;
 	u16 reg;
@@ -461,21 +526,45 @@ int mv88e6351_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	if (on)
-		reg |= PORT_CONTROL_EGRESS_ALL_UNKNOWN_DA;
+	reg &= ~PORT_CONTROL_EGRESS_FLOODS_MASK;
+
+	if (unicast && multicast)
+		reg |= PORT_CONTROL_EGRESS_FLOODS_ALL_UNKNOWN_DA;
+	else if (unicast)
+		reg |= PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_MC_DA;
+	else if (multicast)
+		reg |= PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_UC_DA;
 	else
-		reg &= ~PORT_CONTROL_EGRESS_ALL_UNKNOWN_DA;
+		reg |= PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_DA;
 
 	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
 }
 
 /* Offset 0x05: Port Control 1 */
 
+int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,
+				    bool message_port)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &val);
+	if (err)
+		return err;
+
+	if (message_port)
+		val |= PORT_CONTROL_1_MESSAGE_PORT;
+	else
+		val &= ~PORT_CONTROL_1_MESSAGE_PORT;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_1, val);
+}
+
 /* Offset 0x06: Port Based VLAN Map */
 
 int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map)
 {
-	const u16 mask = GENMASK(mv88e6xxx_num_ports(chip) - 1, 0);
+	const u16 mask = mv88e6xxx_port_mask(chip);
 	u16 reg;
 	int err;
 
@@ -608,6 +697,52 @@ static const char * const mv88e6xxx_port_8021q_mode_names[] = {
 	[PORT_CONTROL_2_8021Q_SECURE] = "Secure",
 };
 
+static int mv88e6185_port_set_default_forward(struct mv88e6xxx_chip *chip,
+					      int port, bool multicast)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	if (err)
+		return err;
+
+	if (multicast)
+		reg |= PORT_CONTROL_2_DEFAULT_FORWARD;
+	else
+		reg &= ~PORT_CONTROL_2_DEFAULT_FORWARD;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+}
+
+int mv88e6185_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
+				     bool unicast, bool multicast)
+{
+	int err;
+
+	err = mv88e6185_port_set_forward_unknown(chip, port, unicast);
+	if (err)
+		return err;
+
+	return mv88e6185_port_set_default_forward(chip, port, multicast);
+}
+
+int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
+				     int upstream_port)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	if (err)
+		return err;
+
+	reg &= ~PORT_CONTROL_2_UPSTREAM_MASK;
+	reg |= upstream_port;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+}
+
 int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 				  u16 mode)
 {
@@ -629,6 +764,20 @@ int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 		   mv88e6xxx_port_8021q_mode_names[mode]);
 
 	return 0;
+}
+
+int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	if (err)
+		return err;
+
+	reg |= PORT_CONTROL_2_MAP_DA;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
 }
 
 int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port)
@@ -655,6 +804,20 @@ int mv88e6095_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
 int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_port_write(chip, port, PORT_RATE_CONTROL, 0x0001);
+}
+
+/* Offset 0x0C: Port ATU Control */
+
+int mv88e6xxx_port_disable_learn_limit(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_port_write(chip, port, PORT_ATU_CONTROL, 0);
+}
+
+/* Offset 0x0D: (Priority) Override Register */
+
+int mv88e6xxx_port_disable_pri_override(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_port_write(chip, port, PORT_PRI_OVERRIDE, 0);
 }
 
 /* Offset 0x0f: Port Ether type */

@@ -19,8 +19,9 @@
 #include <linux/highuid.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "ncp_fs.h"
 

@@ -134,6 +134,11 @@ static struct lov_lock *lov_lock_sub_init(const struct lu_env *env,
 	struct lov_layout_raid0 *r0     = lov_r0(loo);
 	struct lov_lock		*lovlck;
 
+	CDEBUG(D_INODE, "%p: lock/io FID " DFID "/" DFID ", lock/io clobj %p/%p\n",
+	       loo, PFID(lu_object_fid(lov2lu(loo))),
+	       PFID(lu_object_fid(&obj->co_lu)),
+	       lov2cl(loo), obj);
+
 	file_start = cl_offset(lov2cl(loo), lock->cll_descr.cld_start);
 	file_end   = cl_offset(lov2cl(loo), lock->cll_descr.cld_end + 1) - 1;
 

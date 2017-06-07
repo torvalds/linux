@@ -12,16 +12,22 @@
 #include <subcmd/run-command.h>
 #include <subcmd/help.h>
 #include "util/debug.h"
+#include <linux/kernel.h>
+#include <errno.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static struct man_viewer_list {
 	struct man_viewer_list *next;
-	char name[FLEX_ARRAY];
+	char name[0];
 } *man_viewer_list;
 
 static struct man_viewer_info_list {
 	struct man_viewer_info_list *next;
 	const char *info;
-	char name[FLEX_ARRAY];
+	char name[0];
 } *man_viewer_info_list;
 
 enum help_format {
@@ -301,12 +307,6 @@ void list_common_cmds_help(void)
 	}
 }
 
-static int is_perf_command(const char *s)
-{
-	return is_in_cmdlist(&main_cmds, s) ||
-		is_in_cmdlist(&other_cmds, s);
-}
-
 static const char *cmd_to_page(const char *perf_cmd)
 {
 	char *s;
@@ -418,7 +418,7 @@ static int show_html_page(const char *perf_cmd)
 	return 0;
 }
 
-int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_help(int argc, const char **argv)
 {
 	bool show_all = false;
 	enum help_format help_format = HELP_FORMAT_MAN;
@@ -434,7 +434,7 @@ int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
 	const char * const builtin_help_subcommands[] = {
 		"buildid-cache", "buildid-list", "diff", "evlist", "help", "list",
 		"record", "report", "bench", "stat", "timechart", "top", "annotate",
-		"script", "sched", "kmem", "lock", "kvm", "test", "inject", "mem", "data",
+		"script", "sched", "kallsyms", "kmem", "lock", "kvm", "test", "inject", "mem", "data",
 #ifdef HAVE_LIBELF_SUPPORT
 		"probe",
 #endif
@@ -446,12 +446,13 @@ int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf help [--all] [--man|--web|--info] [command]",
 		NULL
 	};
-	const char *alias;
-	int rc = 0;
+	int rc;
 
 	load_command_list("perf-", &main_cmds, &other_cmds);
 
-	perf_config(perf_help_config, &help_format);
+	rc = perf_config(perf_help_config, &help_format);
+	if (rc)
+		return rc;
 
 	argc = parse_options_subcommand(argc, argv, builtin_help_options,
 			builtin_help_subcommands, builtin_help_usage, 0);
@@ -467,12 +468,6 @@ int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
 		printf("\n usage: %s\n\n", perf_usage_string);
 		list_common_cmds_help();
 		printf("\n %s\n\n", perf_more_info_string);
-		return 0;
-	}
-
-	alias = alias_lookup(argv[0]);
-	if (alias && !is_perf_command(argv[0])) {
-		printf("`perf %s' is aliased to `%s'\n", argv[0], alias);
 		return 0;
 	}
 

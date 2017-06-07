@@ -11,6 +11,9 @@
 #ifndef _MMC_CORE_SDIO_BUS_H
 #define _MMC_CORE_SDIO_BUS_H
 
+struct mmc_card;
+struct sdio_func;
+
 struct sdio_func *sdio_alloc_func(struct mmc_card *card);
 int sdio_add_func(struct sdio_func *func);
 void sdio_remove_func(struct sdio_func *func);

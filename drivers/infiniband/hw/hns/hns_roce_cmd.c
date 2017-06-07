@@ -216,10 +216,10 @@ static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 		goto out;
 
 	/*
-	* It is timeout when wait_for_completion_timeout return 0
-	* The return value is the time limit set in advance
-	* how many seconds showing
-	*/
+	 * It is timeout when wait_for_completion_timeout return 0
+	 * The return value is the time limit set in advance
+	 * how many seconds showing
+	 */
 	if (!wait_for_completion_timeout(&context->done,
 					 msecs_to_jiffies(timeout))) {
 		dev_err(dev, "[cmd]wait_for_completion_timeout timeout\n");
@@ -299,9 +299,9 @@ int hns_roce_cmd_use_events(struct hns_roce_dev *hr_dev)
 	struct hns_roce_cmdq *hr_cmd = &hr_dev->cmd;
 	int i;
 
-	hr_cmd->context = kmalloc(hr_cmd->max_cmds *
-				  sizeof(struct hns_roce_cmd_context),
-				  GFP_KERNEL);
+	hr_cmd->context = kmalloc_array(hr_cmd->max_cmds,
+					sizeof(*hr_cmd->context),
+					GFP_KERNEL);
 	if (!hr_cmd->context)
 		return -ENOMEM;
 

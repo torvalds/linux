@@ -154,11 +154,11 @@ static int ti_syscon_reset_status(struct reset_controller_dev *rcdev,
 	if (ret)
 		return ret;
 
-	return (reset_state & BIT(control->status_bit)) &&
-			(control->flags & STATUS_SET);
+	return !(reset_state & BIT(control->status_bit)) ==
+		!(control->flags & STATUS_SET);
 }
 
-static struct reset_control_ops ti_syscon_reset_ops = {
+static const struct reset_control_ops ti_syscon_reset_ops = {
 	.assert		= ti_syscon_reset_assert,
 	.deassert	= ti_syscon_reset_deassert,
 	.status		= ti_syscon_reset_status,

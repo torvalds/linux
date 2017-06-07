@@ -176,9 +176,7 @@ struct ctlr_info {
 #	define DOORBELL_INT	1
 #	define SIMPLE_MODE_INT	2
 #	define MEMQ_MODE_INT	3
-	unsigned int intr[MAX_REPLY_QUEUES];
-	unsigned int msix_vector;
-	unsigned int msi_vector;
+	unsigned int msix_vectors;
 	int intr_mode; /* either PERF_MODE_INT or SIMPLE_MODE_INT */
 	struct access_method access;
 
@@ -203,6 +201,7 @@ struct ctlr_info {
 	dma_addr_t		errinfo_pool_dhandle;
 	unsigned long  		*cmd_pool_bits;
 	int			scan_finished;
+	u8			scan_waiting : 1;
 	spinlock_t		scan_lock;
 	wait_queue_head_t	scan_wait_queue;
 
@@ -466,7 +465,7 @@ static unsigned long SA5_performant_completed(struct ctlr_info *h, u8 q)
 	unsigned long register_value = FIFO_EMPTY;
 
 	/* msi auto clears the interrupt pending bit. */
-	if (unlikely(!(h->msi_vector || h->msix_vector))) {
+	if (unlikely(!(h->pdev->msi_enabled || h->msix_vectors))) {
 		/* flush the controller write of the reply queue by reading
 		 * outbound doorbell status register.
 		 */
@@ -580,38 +579,38 @@ static unsigned long SA5_ioaccel_mode1_completed(struct ctlr_info *h, u8 q)
 }
 
 static struct access_method SA5_access = {
-	SA5_submit_command,
-	SA5_intr_mask,
-	SA5_intr_pending,
-	SA5_completed,
+	.submit_command = SA5_submit_command,
+	.set_intr_mask = SA5_intr_mask,
+	.intr_pending = SA5_intr_pending,
+	.command_completed = SA5_completed,
 };
 
 static struct access_method SA5_ioaccel_mode1_access = {
-	SA5_submit_command,
-	SA5_performant_intr_mask,
-	SA5_ioaccel_mode1_intr_pending,
-	SA5_ioaccel_mode1_completed,
+	.submit_command = SA5_submit_command,
+	.set_intr_mask = SA5_performant_intr_mask,
+	.intr_pending = SA5_ioaccel_mode1_intr_pending,
+	.command_completed = SA5_ioaccel_mode1_completed,
 };
 
 static struct access_method SA5_ioaccel_mode2_access = {
-	SA5_submit_command_ioaccel2,
-	SA5_performant_intr_mask,
-	SA5_performant_intr_pending,
-	SA5_performant_completed,
+	.submit_command = SA5_submit_command_ioaccel2,
+	.set_intr_mask = SA5_performant_intr_mask,
+	.intr_pending = SA5_performant_intr_pending,
+	.command_completed = SA5_performant_completed,
 };
 
 static struct access_method SA5_performant_access = {
-	SA5_submit_command,
-	SA5_performant_intr_mask,
-	SA5_performant_intr_pending,
-	SA5_performant_completed,
+	.submit_command = SA5_submit_command,
+	.set_intr_mask = SA5_performant_intr_mask,
+	.intr_pending = SA5_performant_intr_pending,
+	.command_completed = SA5_performant_completed,
 };
 
 static struct access_method SA5_performant_access_no_read = {
-	SA5_submit_command_no_read,
-	SA5_performant_intr_mask,
-	SA5_performant_intr_pending,
-	SA5_performant_completed,
+	.submit_command = SA5_submit_command_no_read,
+	.set_intr_mask = SA5_performant_intr_mask,
+	.intr_pending = SA5_performant_intr_pending,
+	.command_completed = SA5_performant_completed,
 };
 
 struct board_type {

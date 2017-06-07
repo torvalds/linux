@@ -32,7 +32,7 @@
 
 
 #include <asm/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/slab.h>
 #include <linux/netdevice.h>
@@ -43,7 +43,7 @@
 #include <linux/delay.h>
 #include <linux/random.h>
 #include <linux/wait.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>

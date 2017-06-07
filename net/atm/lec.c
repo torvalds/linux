@@ -111,9 +111,9 @@ static inline void lec_arp_put(struct lec_arp_table *entry)
 }
 
 static struct lane2_ops lane2_ops = {
-	lane2_resolve,		/* resolve,             spec 3.1.3 */
-	lane2_associate_req,	/* associate_req,       spec 3.1.4 */
-	NULL			/* associate indicator, spec 3.1.5 */
+	.resolve = lane2_resolve,		/* spec 3.1.3 */
+	.associate_req = lane2_associate_req,	/* spec 3.1.4 */
+	.associate_indicator = NULL             /* spec 3.1.5 */
 };
 
 static unsigned char bus_mac[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -1059,7 +1059,9 @@ static void __exit lane_module_cleanup(void)
 {
 	int i;
 
+#ifdef CONFIG_PROC_FS
 	remove_proc_entry("lec", atm_proc_root);
+#endif
 
 	deregister_atm_ioctl(&lane_ioctl_ops);
 

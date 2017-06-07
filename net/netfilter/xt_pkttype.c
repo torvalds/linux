@@ -33,8 +33,7 @@ pkttype_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	else if (xt_family(par) == NFPROTO_IPV4 &&
 	    ipv4_is_multicast(ip_hdr(skb)->daddr))
 		type = PACKET_MULTICAST;
-	else if (xt_family(par) == NFPROTO_IPV6 &&
-	    ipv6_hdr(skb)->daddr.s6_addr[0] == 0xFF)
+	else if (xt_family(par) == NFPROTO_IPV6)
 		type = PACKET_MULTICAST;
 	else
 		type = PACKET_BROADCAST;

@@ -1748,8 +1748,8 @@ static struct address_info cfg;
 static int io = -1;
 static int irq = -1;
 
-module_param(irq, int, 0);
-module_param(io, int, 0);
+module_param_hw(irq, int, irq, 0);
+module_param_hw(io, int, ioport, 0);
 
 static int __init init_mpu401(void)
 {

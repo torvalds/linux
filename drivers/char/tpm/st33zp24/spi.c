@@ -230,6 +230,13 @@ static const struct st33zp24_phy_ops spi_phy_ops = {
 	.recv = st33zp24_spi_recv,
 };
 
+static const struct acpi_gpio_params lpcpd_gpios = { 1, 0, false };
+
+static const struct acpi_gpio_mapping acpi_st33zp24_gpios[] = {
+	{ "lpcpd-gpios", &lpcpd_gpios, 1 },
+	{},
+};
+
 static int st33zp24_spi_acpi_request_resources(struct spi_device *spi_dev)
 {
 	struct tpm_chip *chip = spi_get_drvdata(spi_dev);
@@ -237,10 +244,14 @@ static int st33zp24_spi_acpi_request_resources(struct spi_device *spi_dev)
 	struct st33zp24_spi_phy *phy = tpm_dev->phy_id;
 	struct gpio_desc *gpiod_lpcpd;
 	struct device *dev = &spi_dev->dev;
+	int ret;
+
+	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev), acpi_st33zp24_gpios);
+	if (ret)
+		return ret;
 
 	/* Get LPCPD GPIO from ACPI */
-	gpiod_lpcpd = devm_gpiod_get_index(dev, "TPM IO LPCPD", 1,
-					   GPIOD_OUT_HIGH);
+	gpiod_lpcpd = devm_gpiod_get(dev, "lpcpd", GPIOD_OUT_HIGH);
 	if (IS_ERR(gpiod_lpcpd)) {
 		dev_err(dev, "Failed to retrieve lpcpd-gpios from acpi.\n");
 		phy->io_lpcpd = -1;
@@ -385,8 +396,14 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 static int st33zp24_spi_remove(struct spi_device *dev)
 {
 	struct tpm_chip *chip = spi_get_drvdata(dev);
+	int ret;
 
-	return st33zp24_remove(chip);
+	ret = st33zp24_remove(chip);
+	if (ret)
+		return ret;
+
+	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&dev->dev));
+	return 0;
 }
 
 static const struct spi_device_id st33zp24_spi_id[] = {

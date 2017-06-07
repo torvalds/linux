@@ -13,10 +13,15 @@ int reset_control_deassert(struct reset_control *rstc);
 int reset_control_status(struct reset_control *rstc);
 
 struct reset_control *__of_reset_control_get(struct device_node *node,
-				     const char *id, int index, int shared);
+				     const char *id, int index, bool shared,
+				     bool optional);
+struct reset_control *__reset_control_get(struct device *dev, const char *id,
+					  int index, bool shared,
+					  bool optional);
 void reset_control_put(struct reset_control *rstc);
 struct reset_control *__devm_reset_control_get(struct device *dev,
-				     const char *id, int index, int shared);
+				     const char *id, int index, bool shared,
+				     bool optional);
 
 int __must_check device_reset(struct device *dev);
 
@@ -29,31 +34,26 @@ static inline int device_reset_optional(struct device *dev)
 
 static inline int reset_control_reset(struct reset_control *rstc)
 {
-	WARN_ON(1);
 	return 0;
 }
 
 static inline int reset_control_assert(struct reset_control *rstc)
 {
-	WARN_ON(1);
 	return 0;
 }
 
 static inline int reset_control_deassert(struct reset_control *rstc)
 {
-	WARN_ON(1);
 	return 0;
 }
 
 static inline int reset_control_status(struct reset_control *rstc)
 {
-	WARN_ON(1);
 	return 0;
 }
 
 static inline void reset_control_put(struct reset_control *rstc)
 {
-	WARN_ON(1);
 }
 
 static inline int __must_check device_reset(struct device *dev)
@@ -69,16 +69,24 @@ static inline int device_reset_optional(struct device *dev)
 
 static inline struct reset_control *__of_reset_control_get(
 					struct device_node *node,
-					const char *id, int index, int shared)
+					const char *id, int index, bool shared,
+					bool optional)
 {
-	return ERR_PTR(-ENOTSUPP);
+	return optional ? NULL : ERR_PTR(-ENOTSUPP);
+}
+
+static inline struct reset_control *__reset_control_get(
+					struct device *dev, const char *id,
+					int index, bool shared, bool optional)
+{
+	return optional ? NULL : ERR_PTR(-ENOTSUPP);
 }
 
 static inline struct reset_control *__devm_reset_control_get(
-					struct device *dev,
-					const char *id, int index, int shared)
+					struct device *dev, const char *id,
+					int index, bool shared, bool optional)
 {
-	return ERR_PTR(-ENOTSUPP);
+	return optional ? NULL : ERR_PTR(-ENOTSUPP);
 }
 
 #endif /* CONFIG_RESET_CONTROLLER */
@@ -104,7 +112,7 @@ __must_check reset_control_get_exclusive(struct device *dev, const char *id)
 #ifndef CONFIG_RESET_CONTROLLER
 	WARN_ON(1);
 #endif
-	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 0);
+	return __reset_control_get(dev, id, 0, false, false);
 }
 
 /**
@@ -132,19 +140,19 @@ __must_check reset_control_get_exclusive(struct device *dev, const char *id)
 static inline struct reset_control *reset_control_get_shared(
 					struct device *dev, const char *id)
 {
-	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 1);
+	return __reset_control_get(dev, id, 0, true, false);
 }
 
 static inline struct reset_control *reset_control_get_optional_exclusive(
 					struct device *dev, const char *id)
 {
-	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 0);
+	return __reset_control_get(dev, id, 0, false, true);
 }
 
 static inline struct reset_control *reset_control_get_optional_shared(
 					struct device *dev, const char *id)
 {
-	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 1);
+	return __reset_control_get(dev, id, 0, true, true);
 }
 
 /**
@@ -160,7 +168,7 @@ static inline struct reset_control *reset_control_get_optional_shared(
 static inline struct reset_control *of_reset_control_get_exclusive(
 				struct device_node *node, const char *id)
 {
-	return __of_reset_control_get(node, id, 0, 0);
+	return __of_reset_control_get(node, id, 0, false, false);
 }
 
 /**
@@ -185,7 +193,7 @@ static inline struct reset_control *of_reset_control_get_exclusive(
 static inline struct reset_control *of_reset_control_get_shared(
 				struct device_node *node, const char *id)
 {
-	return __of_reset_control_get(node, id, 0, 1);
+	return __of_reset_control_get(node, id, 0, true, false);
 }
 
 /**
@@ -202,7 +210,7 @@ static inline struct reset_control *of_reset_control_get_shared(
 static inline struct reset_control *of_reset_control_get_exclusive_by_index(
 					struct device_node *node, int index)
 {
-	return __of_reset_control_get(node, NULL, index, 0);
+	return __of_reset_control_get(node, NULL, index, false, false);
 }
 
 /**
@@ -230,7 +238,7 @@ static inline struct reset_control *of_reset_control_get_exclusive_by_index(
 static inline struct reset_control *of_reset_control_get_shared_by_index(
 					struct device_node *node, int index)
 {
-	return __of_reset_control_get(node, NULL, index, 1);
+	return __of_reset_control_get(node, NULL, index, true, false);
 }
 
 /**
@@ -252,7 +260,7 @@ __must_check devm_reset_control_get_exclusive(struct device *dev,
 #ifndef CONFIG_RESET_CONTROLLER
 	WARN_ON(1);
 #endif
-	return __devm_reset_control_get(dev, id, 0, 0);
+	return __devm_reset_control_get(dev, id, 0, false, false);
 }
 
 /**
@@ -267,19 +275,19 @@ __must_check devm_reset_control_get_exclusive(struct device *dev,
 static inline struct reset_control *devm_reset_control_get_shared(
 					struct device *dev, const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, 1);
+	return __devm_reset_control_get(dev, id, 0, true, false);
 }
 
 static inline struct reset_control *devm_reset_control_get_optional_exclusive(
 					struct device *dev, const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, 0);
+	return __devm_reset_control_get(dev, id, 0, false, true);
 }
 
 static inline struct reset_control *devm_reset_control_get_optional_shared(
 					struct device *dev, const char *id)
 {
-	return __devm_reset_control_get(dev, id, 0, 1);
+	return __devm_reset_control_get(dev, id, 0, true, true);
 }
 
 /**
@@ -297,7 +305,7 @@ static inline struct reset_control *devm_reset_control_get_optional_shared(
 static inline struct reset_control *
 devm_reset_control_get_exclusive_by_index(struct device *dev, int index)
 {
-	return __devm_reset_control_get(dev, NULL, index, 0);
+	return __devm_reset_control_get(dev, NULL, index, false, false);
 }
 
 /**
@@ -313,7 +321,7 @@ devm_reset_control_get_exclusive_by_index(struct device *dev, int index)
 static inline struct reset_control *
 devm_reset_control_get_shared_by_index(struct device *dev, int index)
 {
-	return __devm_reset_control_get(dev, NULL, index, 1);
+	return __devm_reset_control_get(dev, NULL, index, true, false);
 }
 
 /*

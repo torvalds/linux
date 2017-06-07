@@ -8,10 +8,11 @@ Required properties:
 	  the device. The interrupt specifier format depends on the interrupt
 	  controller parent.
 	- clocks: clock phandle and specifier pair.
-	- hisilicon,power-syscon: phandle of syscon used to control power.
 
 Optional properties:
-	- linux,rc-map-name : Remote control map name.
+	- linux,rc-map-name: see rc.txt file in the same directory.
+	- hisilicon,power-syscon: DEPRECATED. Don't use this in new dts files.
+		Provide correct clocks instead.
 
 Example node:
 
@@ -19,7 +20,6 @@ Example node:
 		compatible = "hisilicon,hix5hd2-ir";
 		reg = <0xf8001000 0x1000>;
 		interrupts = <0 47 4>;
-		clocks = <&clock HIX5HD2_FIXED_24M>;
-		hisilicon,power-syscon = <&sysctrl>;
+		clocks = <&clock HIX5HD2_IR_CLOCK>;
 		linux,rc-map-name = "rc-tivo";
 	};

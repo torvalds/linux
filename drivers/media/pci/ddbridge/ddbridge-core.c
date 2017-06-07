@@ -13,12 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -824,8 +820,7 @@ static int dvb_input_attach(struct ddb_input *input)
 				   &input->port->dev->pdev->dev,
 				   adapter_nr);
 	if (ret < 0) {
-		printk(KERN_ERR "ddbridge: Could not register adapter."
-		       "Check if you enabled enough adapters in dvb-core!\n");
+		printk(KERN_ERR "ddbridge: Could not register adapter.Check if you enabled enough adapters in dvb-core!\n");
 		return ret;
 	}
 	input->attached = 1;
@@ -1730,8 +1725,7 @@ static __init int module_init_ddbridge(void)
 {
 	int ret;
 
-	printk(KERN_INFO "Digital Devices PCIE bridge driver, "
-	       "Copyright (C) 2010-11 Digital Devices GmbH\n");
+	printk(KERN_INFO "Digital Devices PCIE bridge driver, Copyright (C) 2010-11 Digital Devices GmbH\n");
 
 	ret = ddb_class_create();
 	if (ret < 0)

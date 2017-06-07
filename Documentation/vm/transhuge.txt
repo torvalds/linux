@@ -110,6 +110,7 @@ MADV_HUGEPAGE region.
 
 echo always >/sys/kernel/mm/transparent_hugepage/defrag
 echo defer >/sys/kernel/mm/transparent_hugepage/defrag
+echo defer+madvise >/sys/kernel/mm/transparent_hugepage/defrag
 echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
 echo never >/sys/kernel/mm/transparent_hugepage/defrag
 
@@ -120,9 +121,14 @@ that benefit heavily from THP use and are willing to delay the VM start
 to utilise them.
 
 "defer" means that an application will wake kswapd in the background
-to reclaim pages and wake kcompact to compact memory so that THP is
+to reclaim pages and wake kcompactd to compact memory so that THP is
 available in the near future. It's the responsibility of khugepaged
 to then install the THP pages later.
+
+"defer+madvise" will enter direct reclaim and compaction like "always", but
+only for regions that have used madvise(MADV_HUGEPAGE); all other regions
+will wake kswapd in the background to reclaim pages and wake kcompactd to
+compact memory so that THP is available in the near future.
 
 "madvise" will enter direct reclaim like "always" but only for regions
 that are have used madvise(MADV_HUGEPAGE). This is the default behaviour.
@@ -135,6 +141,11 @@ or enable it back by writing 1:
 
 echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
 echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+
+Some userspace (such as a test program, or an optimized memory allocation
+library) may want to know the size (in bytes) of a transparent hugepage:
+
+cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
 
 khugepaged will be automatically started when
 transparent_hugepage/enabled is set to "always" or "madvise, and it'll
@@ -255,7 +266,7 @@ for each mapping.
 
 The number of file transparent huge pages mapped to userspace is available
 by reading ShmemPmdMapped and ShmemHugePages fields in /proc/meminfo.
-To identify what applications are mapping file  transparent huge pages, it
+To identify what applications are mapping file transparent huge pages, it
 is necessary to read /proc/PID/smaps and count the FileHugeMapped fields
 for each mapping.
 
@@ -281,7 +292,7 @@ thp_collapse_alloc_failed is incremented if khugepaged found a range
 	the allocation.
 
 thp_file_alloc is incremented every time a file huge page is successfully
-i	allocated.
+	allocated.
 
 thp_file_mapped is incremented every time a file huge page is mapped into
 	user address space.
@@ -291,7 +302,7 @@ thp_split_page is incremented every time a huge page is split into base
 	reason is that a huge page is old and is being reclaimed.
 	This action implies splitting all PMD the page mapped with.
 
-thp_split_page_failed is is incremented if kernel fails to split huge
+thp_split_page_failed is incremented if kernel fails to split huge
 	page. This can happen if the page was pinned by somebody.
 
 thp_deferred_split_page is incremented when a huge page is put onto split
@@ -490,7 +501,7 @@ scanner can get reference to a page is get_page_unless_zero().
 
 All tail pages have zero ->_refcount until atomic_add(). This prevents the
 scanner from getting a reference to the tail page up to that point. After the
-atomic_add() we don't care about the ->_refcount value.  We already known how
+atomic_add() we don't care about the ->_refcount value. We already known how
 many references should be uncharged from the head page.
 
 For head page get_page_unless_zero() will succeed and we don't mind. It's
@@ -508,8 +519,8 @@ comes. Splitting will free up unused subpages.
 
 Splitting the page right away is not an option due to locking context in
 the place where we can detect partial unmap. It's also might be
-counterproductive since in many cases partial unmap unmap happens during
-exit(2) if an THP crosses VMA boundary.
+counterproductive since in many cases partial unmap happens during exit(2) if
+a THP crosses a VMA boundary.
 
 Function deferred_split_huge_page() is used to queue page for splitting.
 The splitting itself will happen when we get memory pressure via shrinker

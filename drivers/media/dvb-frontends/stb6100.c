@@ -61,7 +61,7 @@ struct stb6100_lkup {
 	u8   reg;
 };
 
-static int stb6100_release(struct dvb_frontend *fe);
+static void stb6100_release(struct dvb_frontend *fe);
 
 static const struct stb6100_lkup lkup[] = {
 	{       0,  950000, 0x0a },
@@ -560,14 +560,12 @@ struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
 	return fe;
 }
 
-static int stb6100_release(struct dvb_frontend *fe)
+static void stb6100_release(struct dvb_frontend *fe)
 {
 	struct stb6100_state *state = fe->tuner_priv;
 
 	fe->tuner_priv = NULL;
 	kfree(state);
-
-	return 0;
 }
 
 EXPORT_SYMBOL(stb6100_attach);

@@ -252,7 +252,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 		   showflag(key, 'U', KEY_FLAG_USER_CONSTRUCT),
 		   showflag(key, 'N', KEY_FLAG_NEGATIVE),
 		   showflag(key, 'i', KEY_FLAG_INVALIDATED),
-		   atomic_read(&key->usage),
+		   refcount_read(&key->usage),
 		   xbuf,
 		   key->perm,
 		   from_kuid_munged(seq_user_ns(m), key->uid),
@@ -340,7 +340,7 @@ static int proc_key_users_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "%5u: %5d %d/%d %d/%d %d/%d\n",
 		   from_kuid_munged(seq_user_ns(m), user->uid),
-		   atomic_read(&user->usage),
+		   refcount_read(&user->usage),
 		   atomic_read(&user->nkeys),
 		   atomic_read(&user->nikeys),
 		   user->qnkeys,

@@ -70,8 +70,7 @@
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
 				  const struct iwl_cfg *cfg,
-				  const struct iwl_trans_ops *ops,
-				  size_t dev_cmd_headroom)
+				  const struct iwl_trans_ops *ops)
 {
 	struct iwl_trans *trans;
 #ifdef CONFIG_LOCKDEP
@@ -90,15 +89,13 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 	trans->dev = dev;
 	trans->cfg = cfg;
 	trans->ops = ops;
-	trans->dev_cmd_headroom = dev_cmd_headroom;
 	trans->num_rx_queues = 1;
 
 	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
 		 "iwl_cmd_pool:%s", dev_name(trans->dev));
 	trans->dev_cmd_pool =
 		kmem_cache_create(trans->dev_cmd_pool_name,
-				  sizeof(struct iwl_device_cmd)
-				  + trans->dev_cmd_headroom,
+				  sizeof(struct iwl_device_cmd),
 				  sizeof(void *),
 				  SLAB_HWCACHE_ALIGN,
 				  NULL);

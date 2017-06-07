@@ -175,29 +175,28 @@ static int apq8016_lpass_init(struct platform_device *pdev)
 
 	drvdata->pcnoc_mport_clk = devm_clk_get(dev, "pcnoc-mport-clk");
 	if (IS_ERR(drvdata->pcnoc_mport_clk)) {
-		dev_err(&pdev->dev, "%s() error getting pcnoc-mport-clk: %ld\n",
-				__func__, PTR_ERR(drvdata->pcnoc_mport_clk));
+		dev_err(&pdev->dev, "error getting pcnoc-mport-clk: %ld\n",
+			PTR_ERR(drvdata->pcnoc_mport_clk));
 		return PTR_ERR(drvdata->pcnoc_mport_clk);
 	}
 
 	ret = clk_prepare_enable(drvdata->pcnoc_mport_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "%s() Error enabling pcnoc-mport-clk: %d\n",
-				__func__, ret);
+		dev_err(&pdev->dev, "Error enabling pcnoc-mport-clk: %d\n",
+			ret);
 		return ret;
 	}
 
 	drvdata->pcnoc_sway_clk = devm_clk_get(dev, "pcnoc-sway-clk");
 	if (IS_ERR(drvdata->pcnoc_sway_clk)) {
-		dev_err(&pdev->dev, "%s() error getting pcnoc-sway-clk: %ld\n",
-				__func__, PTR_ERR(drvdata->pcnoc_sway_clk));
+		dev_err(&pdev->dev, "error getting pcnoc-sway-clk: %ld\n",
+			PTR_ERR(drvdata->pcnoc_sway_clk));
 		return PTR_ERR(drvdata->pcnoc_sway_clk);
 	}
 
 	ret = clk_prepare_enable(drvdata->pcnoc_sway_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "%s() Error enabling pcnoc_sway_clk: %d\n",
-				__func__, ret);
+		dev_err(&pdev->dev, "Error enabling pcnoc_sway_clk: %d\n", ret);
 		return ret;
 	}
 
@@ -232,6 +231,18 @@ static struct lpass_variant apq8016_data = {
 	.wrdma_channels		= 2,
 	.dai_driver		= apq8016_lpass_cpu_dai_driver,
 	.num_dai		= ARRAY_SIZE(apq8016_lpass_cpu_dai_driver),
+	.dai_osr_clk_names	= (const char *[]) {
+				"mi2s-osr-clk0",
+				"mi2s-osr-clk1",
+				"mi2s-osr-clk2",
+				"mi2s-osr-clk3",
+				},
+	.dai_bit_clk_names	= (const char *[]) {
+				"mi2s-bit-clk0",
+				"mi2s-bit-clk1",
+				"mi2s-bit-clk2",
+				"mi2s-bit-clk3",
+				},
 	.init			= apq8016_lpass_init,
 	.exit			= apq8016_lpass_exit,
 	.alloc_dma_channel	= apq8016_lpass_alloc_dma_channel,

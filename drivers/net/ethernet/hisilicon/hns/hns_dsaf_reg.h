@@ -421,7 +421,7 @@
 #define RCB_CFG_OVERTIME_REG			0x9300
 #define RCB_CFG_PKTLINE_INT_NUM_REG		0x9304
 #define RCB_CFG_OVERTIME_INT_NUM_REG		0x9308
-#define RCB_INT_GAP_TIME_REG			0x9400
+#define RCB_PORT_INT_GAPTIME_REG		0x9400
 #define RCB_PORT_CFG_OVERTIME_REG		0x9430
 
 #define RCB_RING_RX_RING_BASEADDR_L_REG		0x00000
@@ -466,6 +466,7 @@
 
 #define GMAC_DUPLEX_TYPE_REG			0x0008UL
 #define GMAC_FD_FC_TYPE_REG			0x000CUL
+#define GMAC_TX_WATER_LINE_REG			0x0010UL
 #define GMAC_FC_TX_TIMER_REG			0x001CUL
 #define GMAC_FD_FC_ADDR_LOW_REG			0x0020UL
 #define GMAC_FD_FC_ADDR_HIGH_REG		0x0024UL
@@ -912,6 +913,9 @@
 
 #define GMAC_DUPLEX_TYPE_B 0
 
+#define GMAC_TX_WATER_LINE_MASK		((1UL << 8) - 1)
+#define GMAC_TX_WATER_LINE_SHIFT	0
+
 #define GMAC_FC_TX_TIMER_S 0
 #define GMAC_FC_TX_TIMER_M 0xffff
 
@@ -1014,9 +1018,7 @@
 
 static inline void dsaf_write_reg(void __iomem *base, u32 reg, u32 value)
 {
-	u8 __iomem *reg_addr = ACCESS_ONCE(base);
-
-	writel(value, reg_addr + reg);
+	writel(value, base + reg);
 }
 
 #define dsaf_write_dev(a, reg, value) \
@@ -1024,9 +1026,7 @@ static inline void dsaf_write_reg(void __iomem *base, u32 reg, u32 value)
 
 static inline u32 dsaf_read_reg(u8 __iomem *base, u32 reg)
 {
-	u8 __iomem *reg_addr = ACCESS_ONCE(base);
-
-	return readl(reg_addr + reg);
+	return readl(base + reg);
 }
 
 static inline void dsaf_write_syscon(struct regmap *base, u32 reg, u32 value)

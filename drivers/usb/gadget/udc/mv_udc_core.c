@@ -445,7 +445,8 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	struct mv_dqh *dqh;
 	u16 max = 0;
 	u32 bit_pos, epctrlx, direction;
-	unsigned char zlt = 0, ios = 0, mult = 0;
+	const unsigned char zlt = 1;
+	unsigned char ios, mult;
 	unsigned long flags;
 
 	ep = container_of(_ep, struct mv_ep, ep);
@@ -465,8 +466,6 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	 * disable HW zero length termination select
 	 * driver handles zero length packet through req->req.zero
 	 */
-	zlt = 1;
-
 	bit_pos = 1 << ((direction == EP_DIR_OUT ? 0 : 16) + ep->ep_num);
 
 	/* Check if the Endpoint is Primed */
@@ -481,21 +480,20 @@ static int mv_ep_enable(struct usb_ep *_ep,
 			(unsigned)bit_pos);
 		goto en_done;
 	}
+
 	/* Set the max packet length, interrupt on Setup and Mult fields */
+	ios = 0;
+	mult = 0;
 	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 	case USB_ENDPOINT_XFER_BULK:
-		zlt = 1;
-		mult = 0;
+	case USB_ENDPOINT_XFER_INT:
 		break;
 	case USB_ENDPOINT_XFER_CONTROL:
 		ios = 1;
-	case USB_ENDPOINT_XFER_INT:
-		mult = 0;
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		/* Calculate transactions needed for high bandwidth iso */
-		mult = (unsigned char)(1 + ((max >> 11) & 0x03));
-		max = max & 0x7ff;	/* bit 0~10 */
+		mult = usb_endpoint_maxp_mult(desc);
 		/* 3 transactions at most */
 		if (mult > 3)
 			goto en_done;
@@ -947,7 +945,7 @@ static int mv_ep_set_wedge(struct usb_ep *_ep)
 	return mv_ep_set_halt_wedge(_ep, 1, 1);
 }
 
-static struct usb_ep_ops mv_ep_ops = {
+static const struct usb_ep_ops mv_ep_ops = {
 	.enable		= mv_ep_enable,
 	.disable	= mv_ep_disable,
 

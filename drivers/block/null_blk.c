@@ -117,6 +117,10 @@ static bool use_lightnvm;
 module_param(use_lightnvm, bool, S_IRUGO);
 MODULE_PARM_DESC(use_lightnvm, "Register as a LightNVM device");
 
+static bool blocking;
+module_param(blocking, bool, S_IRUGO);
+MODULE_PARM_DESC(blocking, "Register as a blocking blk-mq driver device");
+
 static int irqmode = NULL_IRQ_SOFTIRQ;
 
 static int null_set_irqmode(const char *str, const struct kernel_param *kp)
@@ -257,7 +261,7 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 
 static void null_cmd_end_timer(struct nullb_cmd *cmd)
 {
-	ktime_t kt = ktime_set(0, completion_nsec);
+	ktime_t kt = completion_nsec;
 
 	hrtimer_start(&cmd->timer, kt, HRTIMER_MODE_REL);
 }
@@ -277,7 +281,7 @@ static inline void null_handle_cmd(struct nullb_cmd *cmd)
 	case NULL_IRQ_SOFTIRQ:
 		switch (queue_mode)  {
 		case NULL_Q_MQ:
-			blk_mq_complete_request(cmd->rq, cmd->rq->errors);
+			blk_mq_complete_request(cmd->rq);
 			break;
 		case NULL_Q_RQ:
 			blk_complete_request(cmd->rq);
@@ -357,6 +361,8 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
 
+	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
+
 	if (irqmode == NULL_IRQ_TIMER) {
 		hrtimer_init(&cmd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		cmd->timer.function = null_cmd_timer_expired;
@@ -392,7 +398,7 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	return 0;
 }
 
-static struct blk_mq_ops null_mq_ops = {
+static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
 	.init_hctx	= null_init_hctx,
 	.complete	= null_softirq_done_fn,
@@ -420,7 +426,8 @@ static void null_lnvm_end_io(struct request *rq, int error)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
 
-	nvm_end_io(rqd, error);
+	rqd->error = error;
+	nvm_end_io(rqd);
 
 	blk_put_request(rq);
 }
@@ -431,19 +438,12 @@ static int null_lnvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	struct request *rq;
 	struct bio *bio = rqd->bio;
 
-	rq = blk_mq_alloc_request(q, bio_data_dir(bio), 0);
+	rq = blk_mq_alloc_request(q,
+		op_is_write(bio_op(bio)) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
-	rq->__sector = bio->bi_iter.bi_sector;
-	rq->ioprio = bio_prio(bio);
-
-	if (bio_has_data(bio))
-		rq->nr_phys_segments = bio_phys_segments(q, bio);
-
-	rq->__data_len = bio->bi_iter.bi_size;
-	rq->bio = rq->biotail = bio;
+	blk_init_request_from_bio(rq, bio);
 
 	rq->end_io_data = rqd;
 
@@ -460,7 +460,6 @@ static int null_lnvm_id(struct nvm_dev *dev, struct nvm_id *id)
 
 	id->ver_id = 0x1;
 	id->vmnt = 0;
-	id->cgrps = 1;
 	id->cap = 0x2;
 	id->dom = 0x1;
 
@@ -479,7 +478,7 @@ static int null_lnvm_id(struct nvm_dev *dev, struct nvm_id *id)
 
 	sector_div(size, bs); /* convert size to pages */
 	size >>= 8; /* concert size to pgs pr blk */
-	grp = &id->groups[0];
+	grp = &id->grp;
 	grp->mtype = 0;
 	grp->fmtype = 0;
 	grp->num_ch = 1;
@@ -577,6 +576,7 @@ static void null_nvm_unregister(struct nullb *nullb)
 #else
 static int null_nvm_register(struct nullb *nullb)
 {
+	pr_err("null_blk: CONFIG_NVM needs to be enabled for LightNVM\n");
 	return -EINVAL;
 }
 static void null_nvm_unregister(struct nullb *nullb) {}
@@ -722,6 +722,9 @@ static int null_add_dev(void)
 		nullb->tag_set.cmd_size	= sizeof(struct nullb_cmd);
 		nullb->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 		nullb->tag_set.driver_data = nullb;
+
+		if (blocking)
+			nullb->tag_set.flags |= BLK_MQ_F_BLOCKING;
 
 		rv = blk_mq_alloc_tag_set(&nullb->tag_set);
 		if (rv)

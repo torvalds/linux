@@ -86,6 +86,8 @@ int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
 void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 		     unsigned long param);
+void mlx5_core_page_fault(struct mlx5_core_dev *dev,
+			  struct mlx5_pagefault *pfault);
 void mlx5_port_module_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
 void mlx5_enter_error_state(struct mlx5_core_dev *dev);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
@@ -106,10 +108,15 @@ int mlx5_modify_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 int mlx5_destroy_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 					u32 element_id);
 int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev);
-cycle_t mlx5_read_internal_timer(struct mlx5_core_dev *dev);
+u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev);
 u32 mlx5_get_msix_vec(struct mlx5_core_dev *dev, int vecidx);
 struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn);
 void mlx5_cq_tasklet_cb(unsigned long data);
+
+int mlx5_query_pcam_reg(struct mlx5_core_dev *dev, u32 *pcam, u8 feature_group,
+			u8 access_reg_group);
+int mlx5_query_mcam_reg(struct mlx5_core_dev *dev, u32 *mcap, u8 feature_group,
+			u8 access_reg_group);
 
 void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev);
 void mlx5_lag_remove(struct mlx5_core_dev *dev);
@@ -134,7 +141,17 @@ int mlx5_encap_alloc(struct mlx5_core_dev *dev,
 		     u32 *encap_id);
 void mlx5_encap_dealloc(struct mlx5_core_dev *dev, u32 encap_id);
 
+int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
+			     u8 namespace, u8 num_actions,
+			     void *modify_actions, u32 *modify_header_id);
+void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev, u32 modify_header_id);
+
 bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv);
+
+int mlx5_query_mtpps(struct mlx5_core_dev *dev, u32 *mtpps, u32 mtpps_size);
+int mlx5_set_mtpps(struct mlx5_core_dev *mdev, u32 *mtpps, u32 mtpps_size);
+int mlx5_query_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 *arm, u8 *mode);
+int mlx5_set_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 arm, u8 mode);
 
 void mlx5e_init(void);
 void mlx5e_cleanup(void);

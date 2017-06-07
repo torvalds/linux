@@ -1,32 +1,13 @@
 #ifndef _LINUX_SIGNAL_H
 #define _LINUX_SIGNAL_H
 
-#include <linux/list.h>
 #include <linux/bug.h>
-#include <uapi/linux/signal.h>
+#include <linux/signal_types.h>
 
 struct task_struct;
 
 /* for sysctl */
 extern int print_fatal_signals;
-/*
- * Real Time signals may be queued.
- */
-
-struct sigqueue {
-	struct list_head list;
-	int flags;
-	siginfo_t info;
-	struct user_struct *user;
-};
-
-/* flags values. */
-#define SIGQUEUE_PREALLOC	1
-
-struct sigpending {
-	struct list_head list;
-	sigset_t signal;
-};
 
 #ifndef HAVE_ARCH_COPY_SIGINFO
 
@@ -95,6 +76,23 @@ static inline int sigisemptyset(sigset_t *set)
 		BUILD_BUG();
 		return 0;
 	}
+}
+
+static inline int sigequalsets(const sigset_t *set1, const sigset_t *set2)
+{
+	switch (_NSIG_WORDS) {
+	case 4:
+		return	(set1->sig[3] == set2->sig[3]) &&
+			(set1->sig[2] == set2->sig[2]) &&
+			(set1->sig[1] == set2->sig[1]) &&
+			(set1->sig[0] == set2->sig[0]);
+	case 2:
+		return	(set1->sig[1] == set2->sig[1]) &&
+			(set1->sig[0] == set2->sig[0]);
+	case 1:
+		return	set1->sig[0] == set2->sig[0];
+	}
+	return 0;
 }
 
 #define sigmask(sig)	(1UL << ((sig) - 1))
@@ -255,42 +253,6 @@ extern void set_current_blocked(sigset_t *);
 extern void __set_current_blocked(const sigset_t *);
 extern int show_unhandled_signals;
 
-struct sigaction {
-#ifndef __ARCH_HAS_IRIX_SIGACTION
-	__sighandler_t	sa_handler;
-	unsigned long	sa_flags;
-#else
-	unsigned int	sa_flags;
-	__sighandler_t	sa_handler;
-#endif
-#ifdef __ARCH_HAS_SA_RESTORER
-	__sigrestore_t sa_restorer;
-#endif
-	sigset_t	sa_mask;	/* mask last for extensibility */
-};
-
-struct k_sigaction {
-	struct sigaction sa;
-#ifdef __ARCH_HAS_KA_RESTORER
-	__sigrestore_t ka_restorer;
-#endif
-};
- 
-#ifdef CONFIG_OLD_SIGACTION
-struct old_sigaction {
-	__sighandler_t sa_handler;
-	old_sigset_t sa_mask;
-	unsigned long sa_flags;
-	__sigrestore_t sa_restorer;
-};
-#endif
-
-struct ksignal {
-	struct k_sigaction ka;
-	siginfo_t info;
-	int sig;
-};
-
 extern int get_signal(struct ksignal *ksig);
 extern void signal_setup_done(int failed, struct ksignal *ksig, int stepping);
 extern void exit_signals(struct task_struct *tsk);
@@ -427,10 +389,6 @@ int unhandled_signal(struct task_struct *tsk, int sig);
 #define sig_kernel_coredump(sig)	siginmask(sig, SIG_KERNEL_COREDUMP_MASK)
 #define sig_kernel_ignore(sig)		siginmask(sig, SIG_KERNEL_IGNORE_MASK)
 #define sig_kernel_stop(sig)		siginmask(sig, SIG_KERNEL_STOP_MASK)
-
-#define sig_user_defined(t, signr) \
-	(((t)->sighand->action[(signr)-1].sa.sa_handler != SIG_DFL) &&	\
-	 ((t)->sighand->action[(signr)-1].sa.sa_handler != SIG_IGN))
 
 #define sig_fatal(t, signr) \
 	(!siginmask(signr, SIG_KERNEL_IGNORE_MASK|SIG_KERNEL_STOP_MASK) && \

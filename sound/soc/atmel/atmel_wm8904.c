@@ -53,7 +53,7 @@ static int atmel_asoc_wm8904_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops atmel_asoc_wm8904_ops = {
+static const struct snd_soc_ops atmel_asoc_wm8904_ops = {
 	.hw_params = atmel_asoc_wm8904_hw_params,
 };
 

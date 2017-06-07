@@ -371,9 +371,9 @@ static int hns_roce_aeq_ovf_int(struct hns_roce_dev *hr_dev,
 	int i = 0;
 
 	/**
-	* AEQ overflow ECC mult bit err CEQ overflow alarm
-	* must clear interrupt, mask irq, clear irq, cancel mask operation
-	*/
+	 * AEQ overflow ECC mult bit err CEQ overflow alarm
+	 * must clear interrupt, mask irq, clear irq, cancel mask operation
+	 */
 	aeshift_val = roce_read(hr_dev, ROCEE_CAEP_AEQC_AEQE_SHIFT_REG);
 
 	if (roce_get_bit(aeshift_val,

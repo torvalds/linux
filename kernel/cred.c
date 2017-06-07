@@ -12,6 +12,7 @@
 #include <linux/cred.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/coredump.h>
 #include <linux/key.h>
 #include <linux/keyctl.h>
 #include <linux/init_task.h>

@@ -56,7 +56,7 @@
 #include <net/tcp_states.h>
 #include <net/net_namespace.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Configuration Variables */
 static unsigned char ipxcfg_max_hops = 16;
@@ -1168,11 +1168,10 @@ static int ipxitf_ioctl(unsigned int cmd, void __user *arg)
 		sipx->sipx_network	= ipxif->if_netnum;
 		memcpy(sipx->sipx_node, ipxif->if_node,
 			sizeof(sipx->sipx_node));
-		rc = -EFAULT;
-		if (copy_to_user(arg, &ifr, sizeof(ifr)))
-			break;
-		ipxitf_put(ipxif);
 		rc = 0;
+		if (copy_to_user(arg, &ifr, sizeof(ifr)))
+			rc = -EFAULT;
+		ipxitf_put(ipxif);
 		break;
 	}
 	case SIOCAIPXITFCRT:
@@ -1809,7 +1808,7 @@ static int ipx_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	rc = skb_copy_datagram_msg(skb, sizeof(struct ipxhdr), msg, copied);
 	if (rc)
 		goto out_free;
-	if (skb->tstamp.tv64)
+	if (skb->tstamp)
 		sk->sk_stamp = skb->tstamp;
 
 	if (sipx) {

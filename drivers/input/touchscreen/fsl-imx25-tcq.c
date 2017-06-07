@@ -55,6 +55,7 @@ static const struct of_device_id mx25_tcq_ids[] = {
 	{ .compatible = "fsl,imx25-tcq", },
 	{ /* Sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mx25_tcq_ids);
 
 #define TSC_4WIRE_PRE_INDEX 0
 #define TSC_4WIRE_X_INDEX 1
@@ -506,7 +507,7 @@ static int mx25_tcq_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct input_dev *idev;
 	struct mx25_tcq_priv *priv;
-	struct mx25_tsadc *tsadc = dev_get_drvdata(pdev->dev.parent);
+	struct mx25_tsadc *tsadc = dev_get_drvdata(dev->parent);
 	struct resource *res;
 	void __iomem *mem;
 	int error;

@@ -50,6 +50,7 @@ pci_config_attr(vendor, "0x%04x\n");
 pci_config_attr(device, "0x%04x\n");
 pci_config_attr(subsystem_vendor, "0x%04x\n");
 pci_config_attr(subsystem_device, "0x%04x\n");
+pci_config_attr(revision, "0x%02x\n");
 pci_config_attr(class, "0x%06x\n");
 pci_config_attr(irq, "%u\n");
 
@@ -471,6 +472,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_sriov *iov = pdev->sriov;
 	int ret;
 	u16 num_vfs;
 
@@ -481,37 +483,69 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 	if (num_vfs > pci_sriov_get_totalvfs(pdev))
 		return -ERANGE;
 
+	mutex_lock(&iov->dev->sriov->lock);
+
 	if (num_vfs == pdev->sriov->num_VFs)
-		return count;		/* no change */
+		goto exit;
 
 	/* is PF driver loaded w/callback */
 	if (!pdev->driver || !pdev->driver->sriov_configure) {
 		dev_info(&pdev->dev, "Driver doesn't support SRIOV configuration via sysfs\n");
-		return -ENOSYS;
+		ret = -ENOENT;
+		goto exit;
 	}
 
 	if (num_vfs == 0) {
 		/* disable VFs */
 		ret = pdev->driver->sriov_configure(pdev, 0);
-		if (ret < 0)
-			return ret;
-		return count;
+		goto exit;
 	}
 
 	/* enable VFs */
 	if (pdev->sriov->num_VFs) {
 		dev_warn(&pdev->dev, "%d VFs already enabled. Disable before enabling %d VFs\n",
 			 pdev->sriov->num_VFs, num_vfs);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto exit;
 	}
 
 	ret = pdev->driver->sriov_configure(pdev, num_vfs);
 	if (ret < 0)
-		return ret;
+		goto exit;
 
 	if (ret != num_vfs)
 		dev_warn(&pdev->dev, "%d VFs requested; only %d enabled\n",
 			 num_vfs, ret);
+
+exit:
+	mutex_unlock(&iov->dev->sriov->lock);
+
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static ssize_t sriov_drivers_autoprobe_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	return sprintf(buf, "%u\n", pdev->sriov->drivers_autoprobe);
+}
+
+static ssize_t sriov_drivers_autoprobe_store(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	bool drivers_autoprobe;
+
+	if (kstrtobool(buf, &drivers_autoprobe) < 0)
+		return -EINVAL;
+
+	pdev->sriov->drivers_autoprobe = drivers_autoprobe;
 
 	return count;
 }
@@ -520,6 +554,9 @@ static struct device_attribute sriov_totalvfs_attr = __ATTR_RO(sriov_totalvfs);
 static struct device_attribute sriov_numvfs_attr =
 		__ATTR(sriov_numvfs, (S_IRUGO|S_IWUSR|S_IWGRP),
 		       sriov_numvfs_show, sriov_numvfs_store);
+static struct device_attribute sriov_drivers_autoprobe_attr =
+		__ATTR(sriov_drivers_autoprobe, (S_IRUGO|S_IWUSR|S_IWGRP),
+		       sriov_drivers_autoprobe_show, sriov_drivers_autoprobe_store);
 #endif /* CONFIG_PCI_IOV */
 
 static ssize_t driver_override_store(struct device *dev,
@@ -568,6 +605,7 @@ static struct attribute *pci_dev_attrs[] = {
 	&dev_attr_device.attr,
 	&dev_attr_subsystem_vendor.attr,
 	&dev_attr_subsystem_device.attr,
+	&dev_attr_revision.attr,
 	&dev_attr_class.attr,
 	&dev_attr_irq.attr,
 	&dev_attr_local_cpus.attr,
@@ -969,20 +1007,24 @@ void pci_remove_legacy_files(struct pci_bus *b)
 }
 #endif /* HAVE_PCI_LEGACY */
 
-#ifdef HAVE_PCI_MMAP
+#if defined(HAVE_PCI_MMAP) || defined(ARCH_GENERIC_PCI_MMAP_RESOURCE)
 
 int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma,
 		  enum pci_mmap_api mmap_api)
 {
-	unsigned long nr, start, size, pci_start;
+	unsigned long nr, start, size;
+	resource_size_t pci_start = 0, pci_end;
 
 	if (pci_resource_len(pdev, resno) == 0)
 		return 0;
 	nr = vma_pages(vma);
 	start = vma->vm_pgoff;
 	size = ((pci_resource_len(pdev, resno) - 1) >> PAGE_SHIFT) + 1;
-	pci_start = (mmap_api == PCI_MMAP_PROCFS) ?
-			pci_resource_start(pdev, resno) >> PAGE_SHIFT : 0;
+	if (mmap_api == PCI_MMAP_PROCFS) {
+		pci_resource_to_user(pdev, resno, &pdev->resource[resno],
+				     &pci_start, &pci_end);
+		pci_start >>= PAGE_SHIFT;
+	}
 	if (start >= pci_start && start < pci_start + size &&
 			start + nr <= pci_start + size)
 		return 1;
@@ -1002,37 +1044,24 @@ static int pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 			     struct vm_area_struct *vma, int write_combine)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
-	struct resource *res = attr->private;
+	int bar = (unsigned long)attr->private;
 	enum pci_mmap_state mmap_type;
-	resource_size_t start, end;
-	int i;
-
-	for (i = 0; i < PCI_ROM_RESOURCE; i++)
-		if (res == &pdev->resource[i])
-			break;
-	if (i >= PCI_ROM_RESOURCE)
-		return -ENODEV;
+	struct resource *res = &pdev->resource[bar];
 
 	if (res->flags & IORESOURCE_MEM && iomem_is_exclusive(res->start))
 		return -EINVAL;
 
-	if (!pci_mmap_fits(pdev, i, vma, PCI_MMAP_SYSFS)) {
+	if (!pci_mmap_fits(pdev, bar, vma, PCI_MMAP_SYSFS)) {
 		WARN(1, "process \"%s\" tried to map 0x%08lx bytes at page 0x%08lx on %s BAR %d (start 0x%16Lx, size 0x%16Lx)\n",
 			current->comm, vma->vm_end-vma->vm_start, vma->vm_pgoff,
-			pci_name(pdev), i,
-			(u64)pci_resource_start(pdev, i),
-			(u64)pci_resource_len(pdev, i));
+			pci_name(pdev), bar,
+			(u64)pci_resource_start(pdev, bar),
+			(u64)pci_resource_len(pdev, bar));
 		return -EINVAL;
 	}
-
-	/* pci_mmap_page_range() expects the same kind of entry as coming
-	 * from /proc/bus/pci/ which is a "user visible" value. If this is
-	 * different from the resource itself, arch will do necessary fixup.
-	 */
-	pci_resource_to_user(pdev, i, res, &start, &end);
-	vma->vm_pgoff += start >> PAGE_SHIFT;
 	mmap_type = res->flags & IORESOURCE_MEM ? pci_mmap_mem : pci_mmap_io;
-	return pci_mmap_page_range(pdev, vma, mmap_type, write_combine);
+
+	return pci_mmap_resource_range(pdev, bar, vma, mmap_type, write_combine);
 }
 
 static int pci_mmap_resource_uc(struct file *filp, struct kobject *kobj,
@@ -1054,22 +1083,18 @@ static ssize_t pci_resource_io(struct file *filp, struct kobject *kobj,
 			       loff_t off, size_t count, bool write)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
-	struct resource *res = attr->private;
+	int bar = (unsigned long)attr->private;
+	struct resource *res;
 	unsigned long port = off;
-	int i;
 
-	for (i = 0; i < PCI_ROM_RESOURCE; i++)
-		if (res == &pdev->resource[i])
-			break;
-	if (i >= PCI_ROM_RESOURCE)
-		return -ENODEV;
+	res = &pdev->resource[bar];
 
-	port += pci_resource_start(pdev, i);
+	port += pci_resource_start(pdev, bar);
 
-	if (port > pci_resource_end(pdev, i))
+	if (port > pci_resource_end(pdev, bar))
 		return 0;
 
-	if (port + count - 1 > pci_resource_end(pdev, i))
+	if (port + count - 1 > pci_resource_end(pdev, bar))
 		return -EINVAL;
 
 	switch (count) {
@@ -1159,16 +1184,19 @@ static int pci_create_attr(struct pci_dev *pdev, int num, int write_combine)
 	} else {
 		pdev->res_attr[num] = res_attr;
 		sprintf(res_attr_name, "resource%d", num);
-		res_attr->mmap = pci_mmap_resource_uc;
-	}
-	if (pci_resource_flags(pdev, num) & IORESOURCE_IO) {
-		res_attr->read = pci_read_resource_io;
-		res_attr->write = pci_write_resource_io;
+		if (pci_resource_flags(pdev, num) & IORESOURCE_IO) {
+			res_attr->read = pci_read_resource_io;
+			res_attr->write = pci_write_resource_io;
+			if (arch_can_pci_mmap_io())
+				res_attr->mmap = pci_mmap_resource_uc;
+		} else {
+			res_attr->mmap = pci_mmap_resource_uc;
+		}
 	}
 	res_attr->attr.name = res_attr_name;
 	res_attr->attr.mode = S_IRUSR | S_IWUSR;
 	res_attr->size = pci_resource_len(pdev, num);
-	res_attr->private = &pdev->resource[num];
+	res_attr->private = (void *)(unsigned long)num;
 	retval = sysfs_create_bin_file(&pdev->dev.kobj, res_attr);
 	if (retval)
 		kfree(res_attr);
@@ -1196,9 +1224,9 @@ static int pci_create_resource_files(struct pci_dev *pdev)
 
 		retval = pci_create_attr(pdev, i, 0);
 		/* for prefetchable resources, create a WC mappable file */
-		if (!retval && pdev->resource[i].flags & IORESOURCE_PREFETCH)
+		if (!retval && arch_can_pci_mmap_wc() &&
+		    pdev->resource[i].flags & IORESOURCE_PREFETCH)
 			retval = pci_create_attr(pdev, i, 1);
-
 		if (retval) {
 			pci_remove_resource_files(pdev);
 			return retval;
@@ -1538,6 +1566,7 @@ static struct attribute_group pci_dev_hp_attr_group = {
 static struct attribute *sriov_dev_attrs[] = {
 	&sriov_totalvfs_attr.attr,
 	&sriov_numvfs_attr.attr,
+	&sriov_drivers_autoprobe_attr.attr,
 	NULL,
 };
 

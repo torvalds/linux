@@ -15,6 +15,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_mmu.h"
@@ -125,7 +126,7 @@ static void etnaviv_buffer_dump(struct etnaviv_gpu *gpu,
 	u32 *ptr = buf->vaddr + off;
 
 	dev_info(gpu->dev, "virt %p phys 0x%08x free 0x%08x\n",
-			ptr, etnaviv_iommu_get_cmdbuf_va(gpu, buf) + off, size - len * 4 - off);
+			ptr, etnaviv_cmdbuf_get_va(buf) + off, size - len * 4 - off);
 
 	print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,
 			ptr, len * 4, 0);
@@ -158,7 +159,7 @@ static u32 etnaviv_buffer_reserve(struct etnaviv_gpu *gpu,
 	if (buffer->user_size + cmd_dwords * sizeof(u64) > buffer->size)
 		buffer->user_size = 0;
 
-	return etnaviv_iommu_get_cmdbuf_va(gpu, buffer) + buffer->user_size;
+	return etnaviv_cmdbuf_get_va(buffer) + buffer->user_size;
 }
 
 u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
@@ -169,7 +170,7 @@ u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
 	buffer->user_size = 0;
 
 	CMD_WAIT(buffer);
-	CMD_LINK(buffer, 2, etnaviv_iommu_get_cmdbuf_va(gpu, buffer) +
+	CMD_LINK(buffer, 2, etnaviv_cmdbuf_get_va(buffer) +
 		 buffer->user_size - 4);
 
 	return buffer->user_size / 8;
@@ -261,7 +262,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	if (drm_debug & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
 
-	link_target = etnaviv_iommu_get_cmdbuf_va(gpu, cmdbuf);
+	link_target = etnaviv_cmdbuf_get_va(cmdbuf);
 	link_dwords = cmdbuf->size / 8;
 
 	/*
@@ -355,12 +356,13 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	CMD_LOAD_STATE(buffer, VIVS_GL_EVENT, VIVS_GL_EVENT_EVENT_ID(event) |
 		       VIVS_GL_EVENT_FROM_PE);
 	CMD_WAIT(buffer);
-	CMD_LINK(buffer, 2, etnaviv_iommu_get_cmdbuf_va(gpu, buffer) +
+	CMD_LINK(buffer, 2, etnaviv_cmdbuf_get_va(buffer) +
 			    buffer->user_size - 4);
 
 	if (drm_debug & DRM_UT_DRIVER)
 		pr_info("stream link to 0x%08x @ 0x%08x %p\n",
-			return_target, etnaviv_iommu_get_cmdbuf_va(gpu, cmdbuf), cmdbuf->vaddr);
+			return_target, etnaviv_cmdbuf_get_va(cmdbuf),
+			cmdbuf->vaddr);
 
 	if (drm_debug & DRM_UT_DRIVER) {
 		print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,

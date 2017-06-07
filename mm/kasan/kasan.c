@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <linux/stacktrace.h>
 #include <linux/string.h>
@@ -38,6 +39,16 @@
 
 #include "kasan.h"
 #include "../slab.h"
+
+void kasan_enable_current(void)
+{
+	current->kasan_depth++;
+}
+
+void kasan_disable_current(void)
+{
+	current->kasan_depth--;
+}
 
 /*
  * Poisons the shadow memory for 'size' bytes starting from 'addr'.
@@ -80,7 +91,14 @@ void kasan_unpoison_task_stack(struct task_struct *task)
 /* Unpoison the stack for the current task beyond a watermark sp value. */
 asmlinkage void kasan_unpoison_task_stack_below(const void *watermark)
 {
-	__kasan_unpoison_stack(current, watermark);
+	/*
+	 * Calculate the task stack base address.  Avoid using 'current'
+	 * because this function is called by early resume code which hasn't
+	 * yet set up the percpu register (%gs).
+	 */
+	void *base = (void *)((unsigned long)watermark & ~(THREAD_SIZE - 1));
+
+	kasan_unpoison_shadow(base, watermark - base);
 }
 
 /*
@@ -395,7 +413,7 @@ void kasan_cache_create(struct kmem_cache *cache, size_t *size,
 	*size += sizeof(struct kasan_alloc_meta);
 
 	/* Add free meta. */
-	if (cache->flags & SLAB_DESTROY_BY_RCU || cache->ctor ||
+	if (cache->flags & SLAB_TYPESAFE_BY_RCU || cache->ctor ||
 	    cache->object_size < sizeof(struct kasan_free_meta)) {
 		cache->kasan_info.free_meta_offset = *size;
 		*size += sizeof(struct kasan_free_meta);
@@ -428,7 +446,7 @@ void kasan_cache_shrink(struct kmem_cache *cache)
 	quarantine_remove_cache(cache);
 }
 
-void kasan_cache_destroy(struct kmem_cache *cache)
+void kasan_cache_shutdown(struct kmem_cache *cache)
 {
 	quarantine_remove_cache(cache);
 }
@@ -543,7 +561,7 @@ static void kasan_poison_slab_free(struct kmem_cache *cache, void *object)
 	unsigned long rounded_up_size = round_up(size, KASAN_SHADOW_SCALE_SIZE);
 
 	/* RCU slabs could be legally used after free within the RCU period */
-	if (unlikely(cache->flags & SLAB_DESTROY_BY_RCU))
+	if (unlikely(cache->flags & SLAB_TYPESAFE_BY_RCU))
 		return;
 
 	kasan_poison_shadow(object, rounded_up_size, KASAN_KMALLOC_FREE);
@@ -554,12 +572,13 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object)
 	s8 shadow_byte;
 
 	/* RCU slabs could be legally used after free within the RCU period */
-	if (unlikely(cache->flags & SLAB_DESTROY_BY_RCU))
+	if (unlikely(cache->flags & SLAB_TYPESAFE_BY_RCU))
 		return false;
 
 	shadow_byte = READ_ONCE(*(s8 *)kasan_mem_to_shadow(object));
 	if (shadow_byte < 0 || shadow_byte >= KASAN_SHADOW_SCALE_SIZE) {
-		kasan_report_double_free(cache, object, shadow_byte);
+		kasan_report_double_free(cache, object,
+				__builtin_return_address(1));
 		return true;
 	}
 
@@ -672,7 +691,7 @@ int kasan_module_alloc(void *addr, size_t size)
 
 	ret = __vmalloc_node_range(shadow_size, 1, shadow_start,
 			shadow_start + shadow_size,
-			GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
+			GFP_KERNEL | __GFP_ZERO,
 			PAGE_KERNEL, VM_NO_GUARD, NUMA_NO_NODE,
 			__builtin_return_address(0));
 

@@ -23,20 +23,21 @@
  */
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
+#include <subdev/bios/extdev.h>
 #include <subdev/bios/iccsense.h>
 
-static u16
+static u32
 nvbios_iccsense_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt,
 		      u8 *len)
 {
 	struct bit_entry bit_P;
-	u16 iccsense;
+	u32 iccsense;
 
 	if (bit_entry(bios, 'P', &bit_P) || bit_P.version != 2 ||
 	    bit_P.length < 0x2c)
 		return 0;
 
-	iccsense = nvbios_rd16(bios, bit_P.offset + 0x28);
+	iccsense = nvbios_rd32(bios, bit_P.offset + 0x28);
 	if (!iccsense)
 		return 0;
 
@@ -60,7 +61,7 @@ nvbios_iccsense_parse(struct nvkm_bios *bios, struct nvbios_iccsense *iccsense)
 {
 	struct nvkm_subdev *subdev = &bios->subdev;
 	u8 ver, hdr, cnt, len, i;
-	u16 table, entry;
+	u32 table, entry;
 
 	table = nvbios_iccsense_table(bios, &ver, &hdr, &cnt, &len);
 	if (!table || !cnt)
@@ -77,23 +78,47 @@ nvbios_iccsense_parse(struct nvkm_bios *bios, struct nvbios_iccsense *iccsense)
 		return -ENOMEM;
 
 	for (i = 0; i < cnt; ++i) {
+		struct nvbios_extdev_func extdev;
 		struct pwr_rail_t *rail = &iccsense->rail[i];
+		u8 res_start = 0;
+		int r;
+
 		entry = table + hdr + i * len;
 
 		switch(ver) {
 		case 0x10:
 			rail->mode = nvbios_rd08(bios, entry + 0x1);
 			rail->extdev_id = nvbios_rd08(bios, entry + 0x2);
-			rail->resistor_mohm = nvbios_rd08(bios, entry + 0x3);
-			rail->rail = nvbios_rd08(bios, entry + 0x4);
+			res_start = 0x3;
 			break;
 		case 0x20:
 			rail->mode = nvbios_rd08(bios, entry);
 			rail->extdev_id = nvbios_rd08(bios, entry + 0x1);
-			rail->resistor_mohm = nvbios_rd08(bios, entry + 0x5);
-			rail->rail = nvbios_rd08(bios, entry + 0x6);
+			res_start = 0x5;
 			break;
 		};
+
+		if (nvbios_extdev_parse(bios, rail->extdev_id, &extdev))
+			continue;
+
+		switch (extdev.type) {
+		case NVBIOS_EXTDEV_INA209:
+		case NVBIOS_EXTDEV_INA219:
+			rail->resistor_count = 1;
+			break;
+		case NVBIOS_EXTDEV_INA3221:
+			rail->resistor_count = 3;
+			break;
+		default:
+			rail->resistor_count = 0;
+			break;
+		};
+
+		for (r = 0; r < rail->resistor_count; ++r) {
+			rail->resistors[r].mohm = nvbios_rd08(bios, entry + res_start + r * 2);
+			rail->resistors[r].enabled = !(nvbios_rd08(bios, entry + res_start + r * 2 + 1) & 0x40);
+		}
+		rail->config = nvbios_rd16(bios, entry + res_start + rail->resistor_count * 2);
 	}
 
 	return 0;

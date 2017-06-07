@@ -225,8 +225,7 @@
 	vpshufb rmask,		x2, x2;       \
 	vpshufb rmask,		x3, x3;
 
-.data
-
+.section	.rodata.cst16, "aM", @progbits, 16
 .align 16
 .Lxts_gf128mul_and_shl1_mask:
 	.byte 0x87, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
@@ -244,10 +243,19 @@
 	.byte 12, 13, 14, 15, 8, 9, 10, 11, 7, 6, 5, 4, 3, 2, 1, 0
 .Lrkr_dec_QBAR_QBAR_QBAR_QBAR:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+
+.section	.rodata.cst4.L16_mask, "aM", @progbits, 4
+.align 4
 .L16_mask:
 	.byte 16, 16, 16, 16
+
+.section	.rodata.cst4.L32_mask, "aM", @progbits, 4
+.align 4
 .L32_mask:
 	.byte 32, 0, 0, 0
+
+.section	.rodata.cst4.first_mask, "aM", @progbits, 4
+.align 4
 .Lfirst_mask:
 	.byte 0x1f, 0, 0, 0
 

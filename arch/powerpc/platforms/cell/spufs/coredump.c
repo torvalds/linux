@@ -30,7 +30,7 @@
 #include <linux/coredump.h>
 #include <linux/binfmts.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "spufs.h"
 

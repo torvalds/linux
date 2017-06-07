@@ -54,10 +54,10 @@ static void _omap3_dpll_write_clken(struct clk_hw_omap *clk, u8 clken_bits)
 
 	dd = clk->dpll_data;
 
-	v = ti_clk_ll_ops->clk_readl(dd->control_reg);
+	v = ti_clk_ll_ops->clk_readl(&dd->control_reg);
 	v &= ~dd->enable_mask;
 	v |= clken_bits << __ffs(dd->enable_mask);
-	ti_clk_ll_ops->clk_writel(v, dd->control_reg);
+	ti_clk_ll_ops->clk_writel(v, &dd->control_reg);
 }
 
 /* _omap3_wait_dpll_status: wait for a DPLL to enter a specific state */
@@ -73,7 +73,7 @@ static int _omap3_wait_dpll_status(struct clk_hw_omap *clk, u8 state)
 
 	state <<= __ffs(dd->idlest_mask);
 
-	while (((ti_clk_ll_ops->clk_readl(dd->idlest_reg) & dd->idlest_mask)
+	while (((ti_clk_ll_ops->clk_readl(&dd->idlest_reg) & dd->idlest_mask)
 		!= state) && i < MAX_DPLL_WAIT_TRIES) {
 		i++;
 		udelay(1);
@@ -151,7 +151,7 @@ static int _omap3_noncore_dpll_lock(struct clk_hw_omap *clk)
 	state <<= __ffs(dd->idlest_mask);
 
 	/* Check if already locked */
-	if ((ti_clk_ll_ops->clk_readl(dd->idlest_reg) & dd->idlest_mask) ==
+	if ((ti_clk_ll_ops->clk_readl(&dd->idlest_reg) & dd->idlest_mask) ==
 	    state)
 		goto done;
 
@@ -317,14 +317,14 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 	 * only since freqsel field is no longer present on other devices.
 	 */
 	if (ti_clk_get_features()->flags & TI_CLK_DPLL_HAS_FREQSEL) {
-		v = ti_clk_ll_ops->clk_readl(dd->control_reg);
+		v = ti_clk_ll_ops->clk_readl(&dd->control_reg);
 		v &= ~dd->freqsel_mask;
 		v |= freqsel << __ffs(dd->freqsel_mask);
-		ti_clk_ll_ops->clk_writel(v, dd->control_reg);
+		ti_clk_ll_ops->clk_writel(v, &dd->control_reg);
 	}
 
 	/* Set DPLL multiplier, divider */
-	v = ti_clk_ll_ops->clk_readl(dd->mult_div1_reg);
+	v = ti_clk_ll_ops->clk_readl(&dd->mult_div1_reg);
 
 	/* Handle Duty Cycle Correction */
 	if (dd->dcc_mask) {
@@ -370,11 +370,11 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 		}
 	}
 
-	ti_clk_ll_ops->clk_writel(v, dd->mult_div1_reg);
+	ti_clk_ll_ops->clk_writel(v, &dd->mult_div1_reg);
 
 	/* Set 4X multiplier and low-power mode */
 	if (dd->m4xen_mask || dd->lpmode_mask) {
-		v = ti_clk_ll_ops->clk_readl(dd->control_reg);
+		v = ti_clk_ll_ops->clk_readl(&dd->control_reg);
 
 		if (dd->m4xen_mask) {
 			if (dd->last_rounded_m4xen)
@@ -390,7 +390,7 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 				v &= ~dd->lpmode_mask;
 		}
 
-		ti_clk_ll_ops->clk_writel(v, dd->control_reg);
+		ti_clk_ll_ops->clk_writel(v, &dd->control_reg);
 	}
 
 	/* We let the clock framework set the other output dividers later */
@@ -652,10 +652,10 @@ static u32 omap3_dpll_autoidle_read(struct clk_hw_omap *clk)
 
 	dd = clk->dpll_data;
 
-	if (!dd->autoidle_reg)
+	if (!dd->autoidle_mask)
 		return -EINVAL;
 
-	v = ti_clk_ll_ops->clk_readl(dd->autoidle_reg);
+	v = ti_clk_ll_ops->clk_readl(&dd->autoidle_reg);
 	v &= dd->autoidle_mask;
 	v >>= __ffs(dd->autoidle_mask);
 
@@ -681,7 +681,7 @@ static void omap3_dpll_allow_idle(struct clk_hw_omap *clk)
 
 	dd = clk->dpll_data;
 
-	if (!dd->autoidle_reg)
+	if (!dd->autoidle_mask)
 		return;
 
 	/*
@@ -689,10 +689,10 @@ static void omap3_dpll_allow_idle(struct clk_hw_omap *clk)
 	 * by writing 0x5 instead of 0x1.  Add some mechanism to
 	 * optionally enter this mode.
 	 */
-	v = ti_clk_ll_ops->clk_readl(dd->autoidle_reg);
+	v = ti_clk_ll_ops->clk_readl(&dd->autoidle_reg);
 	v &= ~dd->autoidle_mask;
 	v |= DPLL_AUTOIDLE_LOW_POWER_STOP << __ffs(dd->autoidle_mask);
-	ti_clk_ll_ops->clk_writel(v, dd->autoidle_reg);
+	ti_clk_ll_ops->clk_writel(v, &dd->autoidle_reg);
 }
 
 /**
@@ -711,13 +711,13 @@ static void omap3_dpll_deny_idle(struct clk_hw_omap *clk)
 
 	dd = clk->dpll_data;
 
-	if (!dd->autoidle_reg)
+	if (!dd->autoidle_mask)
 		return;
 
-	v = ti_clk_ll_ops->clk_readl(dd->autoidle_reg);
+	v = ti_clk_ll_ops->clk_readl(&dd->autoidle_reg);
 	v &= ~dd->autoidle_mask;
 	v |= DPLL_AUTOIDLE_DISABLE << __ffs(dd->autoidle_mask);
-	ti_clk_ll_ops->clk_writel(v, dd->autoidle_reg);
+	ti_clk_ll_ops->clk_writel(v, &dd->autoidle_reg);
 }
 
 /* Clock control for DPLL outputs */
@@ -773,7 +773,7 @@ unsigned long omap3_clkoutx2_recalc(struct clk_hw *hw,
 
 	WARN_ON(!dd->enable_mask);
 
-	v = ti_clk_ll_ops->clk_readl(dd->control_reg) & dd->enable_mask;
+	v = ti_clk_ll_ops->clk_readl(&dd->control_reg) & dd->enable_mask;
 	v >>= __ffs(dd->enable_mask);
 	if ((v != OMAP3XXX_EN_DPLL_LOCKED) || (dd->flags & DPLL_J_TYPE))
 		rate = parent_rate;
@@ -837,4 +837,71 @@ int omap3_dpll4_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
 
 	return omap3_noncore_dpll_set_rate_and_parent(hw, rate, parent_rate,
 						      index);
+}
+
+/* Apply DM3730 errata sprz319 advisory 2.1. */
+static bool omap3_dpll5_apply_errata(struct clk_hw *hw,
+				     unsigned long parent_rate)
+{
+	struct omap3_dpll5_settings {
+		unsigned int rate, m, n;
+	};
+
+	static const struct omap3_dpll5_settings precomputed[] = {
+		/*
+		 * From DM3730 errata advisory 2.1, table 35 and 36.
+		 * The N value is increased by 1 compared to the tables as the
+		 * errata lists register values while last_rounded_field is the
+		 * real divider value.
+		 */
+		{ 12000000,  80,  0 + 1 },
+		{ 13000000, 443,  5 + 1 },
+		{ 19200000,  50,  0 + 1 },
+		{ 26000000, 443, 11 + 1 },
+		{ 38400000,  25,  0 + 1 }
+	};
+
+	const struct omap3_dpll5_settings *d;
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+	struct dpll_data *dd;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(precomputed); ++i) {
+		if (parent_rate == precomputed[i].rate)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(precomputed))
+		return false;
+
+	d = &precomputed[i];
+
+	/* Update the M, N and rounded rate values and program the DPLL. */
+	dd = clk->dpll_data;
+	dd->last_rounded_m = d->m;
+	dd->last_rounded_n = d->n;
+	dd->last_rounded_rate = div_u64((u64)parent_rate * d->m, d->n);
+	omap3_noncore_dpll_program(clk, 0);
+
+	return true;
+}
+
+/**
+ * omap3_dpll5_set_rate - set rate for omap3 dpll5
+ * @hw: clock to change
+ * @rate: target rate for clock
+ * @parent_rate: rate of the parent clock
+ *
+ * Set rate for the DPLL5 clock. Apply the sprz319 advisory 2.1 on OMAP36xx if
+ * the DPLL is used for USB host (detected through the requested rate).
+ */
+int omap3_dpll5_set_rate(struct clk_hw *hw, unsigned long rate,
+			 unsigned long parent_rate)
+{
+	if (rate == OMAP3_DPLL5_FREQ_FOR_USBHOST * 8) {
+		if (omap3_dpll5_apply_errata(hw, parent_rate))
+			return 0;
+	}
+
+	return omap3_noncore_dpll_set_rate(hw, rate, parent_rate);
 }

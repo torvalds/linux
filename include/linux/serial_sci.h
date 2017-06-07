@@ -9,8 +9,6 @@
  * Generic header for SuperH (H)SCI(F) (used by sh/sh64 and related parts)
  */
 
-#define SCIx_NOT_SUPPORTED	(-1)
-
 /* Serial Control Register (@ = not supported by all parts) */
 #define SCSCR_TIE	BIT(7)	/* Transmit Interrupt Enable */
 #define SCSCR_RIE	BIT(6)	/* Receive Interrupt Enable */
@@ -41,16 +39,9 @@ enum {
 	SCIx_NR_REGTYPES,
 };
 
-struct device;
-
 struct plat_sci_port_ops {
 	void (*init_pins)(struct uart_port *, unsigned int cflag);
 };
-
-/*
- * Port-specific capabilities
- */
-#define SCIx_HAVE_RTSCTS	BIT(0)
 
 /*
  * Platform device specific platform_data struct
@@ -58,7 +49,6 @@ struct plat_sci_port_ops {
 struct plat_sci_port {
 	unsigned int	type;			/* SCI / SCIF / IRDA / HSCIF */
 	upf_t		flags;			/* UPF_* flags */
-	unsigned long	capabilities;		/* Port features/capabilities */
 
 	unsigned int	sampling_rate;
 	unsigned int	scscr;			/* SCSCR initialization */
@@ -66,14 +56,9 @@ struct plat_sci_port {
 	/*
 	 * Platform overrides if necessary, defaults otherwise.
 	 */
-	int		port_reg;
-	unsigned char	regshift;
 	unsigned char	regtype;
 
 	struct plat_sci_port_ops	*ops;
-
-	unsigned int	dma_slave_tx;
-	unsigned int	dma_slave_rx;
 };
 
 #endif /* __LINUX_SERIAL_SCI_H */

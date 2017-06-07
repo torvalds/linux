@@ -224,6 +224,8 @@ config DEBUG_TEST_DRIVER_REMOVE
 	  unusable. You should say N here unless you are explicitly looking to
 	  test this functionality.
 
+source "drivers/base/test/Kconfig"
+
 config SYS_HYPERVISOR
 	bool
 	default n
@@ -237,6 +239,7 @@ config GENERIC_CPU_AUTOPROBE
 
 config SOC_BUS
 	bool
+	select GLOB
 
 source "drivers/base/regmap/Kconfig"
 
@@ -250,11 +253,11 @@ config DMA_SHARED_BUFFER
 	  APIs extension; the file's descriptor can then be passed on to other
 	  driver.
 
-config FENCE_TRACE
-	bool "Enable verbose FENCE_TRACE messages"
+config DMA_FENCE_TRACE
+	bool "Enable verbose DMA_FENCE_TRACE messages"
 	depends on DMA_SHARED_BUFFER
 	help
-	  Enable the FENCE_TRACE printks. This will add extra
+	  Enable the DMA_FENCE_TRACE printks. This will add extra
 	  spam to the console log, but will make it easier to diagnose
 	  lockup related problems for dma-buffers shared across multiple
 	  devices.

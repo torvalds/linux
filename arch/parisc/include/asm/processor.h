@@ -93,9 +93,7 @@ struct system_cpuinfo_parisc {
 /* Per CPU data structure - ie varies per CPU.  */
 struct cpuinfo_parisc {
 	unsigned long it_value;     /* Interval Timer at last timer Intr */
-	unsigned long it_delta;     /* Interval delta (tic_10ms / HZ * 100) */
 	unsigned long irq_count;    /* number of IRQ's since boot */
-	unsigned long irq_max_cr16; /* longest time to handle a single IRQ */
 	unsigned long cpuid;        /* aka slot_number or set to NO_PROC_ID */
 	unsigned long hpa;          /* Host Physical address */
 	unsigned long txn_addr;     /* MMIO addr of EIR or id_eid */
@@ -103,8 +101,6 @@ struct cpuinfo_parisc {
 	unsigned long pending_ipi;  /* bitmap of type ipi_message_type */
 #endif
 	unsigned long bh_count;     /* number of times bh was invoked */
-	unsigned long prof_counter; /* per CPU profiling support */
-	unsigned long prof_multiplier;	/* per CPU profiling support */
 	unsigned long fp_rev;
 	unsigned long fp_model;
 	unsigned int state;

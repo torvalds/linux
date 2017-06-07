@@ -7,7 +7,9 @@
 
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/debug.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/file.h>
@@ -21,7 +23,7 @@
 #include <linux/smp.h>
 #include <linux/ipc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 #include "systbls.h"

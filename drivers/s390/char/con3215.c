@@ -9,7 +9,6 @@
  *	      Dan Morrison, IBM Corporation <dmorriso@cse.buffalo.edu>
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kdev_t.h>
 #include <linux/tty.h>
@@ -26,7 +25,7 @@
 #include <asm/cio.h>
 #include <asm/io.h>
 #include <asm/ebcdic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/delay.h>
 #include <asm/cpcmd.h>
 #include <asm/setup.h>
@@ -1215,13 +1214,4 @@ static int __init tty3215_init(void)
 	tty3215_driver = driver;
 	return 0;
 }
-
-static void __exit tty3215_exit(void)
-{
-	tty_unregister_driver(tty3215_driver);
-	put_tty_driver(tty3215_driver);
-	ccw_driver_unregister(&raw3215_ccw_driver);
-}
-
-module_init(tty3215_init);
-module_exit(tty3215_exit);
+device_initcall(tty3215_init);

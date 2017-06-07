@@ -561,7 +561,6 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 
 static int dccp_error(struct net *net, struct nf_conn *tmpl,
 		      struct sk_buff *skb, unsigned int dataoff,
-		      enum ip_conntrack_info *ctinfo,
 		      u_int8_t pf, unsigned int hooknum)
 {
 	struct dccp_hdr _dh, *dh;
@@ -608,6 +607,20 @@ out_invalid:
 	if (LOG_INVALID(net, IPPROTO_DCCP))
 		nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL, "%s", msg);
 	return -NF_ACCEPT;
+}
+
+static bool dccp_can_early_drop(const struct nf_conn *ct)
+{
+	switch (ct->proto.dccp.state) {
+	case CT_DCCP_CLOSEREQ:
+	case CT_DCCP_CLOSING:
+	case CT_DCCP_TIMEWAIT:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
 }
 
 static void dccp_print_tuple(struct seq_file *s,
@@ -666,7 +679,7 @@ static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 		return 0;
 
 	err = nla_parse_nested(tb, CTA_PROTOINFO_DCCP_MAX, attr,
-			       dccp_nla_policy);
+			       dccp_nla_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -869,6 +882,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	.packet			= dccp_packet,
 	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
+	.can_early_drop		= dccp_can_early_drop,
 	.print_tuple		= dccp_print_tuple,
 	.print_conntrack	= dccp_print_conntrack,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -903,6 +917,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
 	.packet			= dccp_packet,
 	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
+	.can_early_drop		= dccp_can_early_drop,
 	.print_tuple		= dccp_print_tuple,
 	.print_conntrack	= dccp_print_conntrack,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

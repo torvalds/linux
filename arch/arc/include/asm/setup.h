@@ -31,6 +31,7 @@ extern int root_mountflags, end_mem;
 
 void setup_processor(void);
 void __init setup_arch_memory(void);
+long __init arc_get_mem_sz(void);
 
 /* Helpers used in arc_*_mumbojumbo routines */
 #define IS_AVAIL1(v, s)		((v) ? s : "")

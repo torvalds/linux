@@ -1,5 +1,5 @@
 /*
- * simple-card-core.c
+ * simple-card-utils.c
  *
  * Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -98,7 +98,8 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);
 
-int asoc_simple_card_parse_clk(struct device_node *node,
+int asoc_simple_card_parse_clk(struct device *dev,
+			       struct device_node *node,
 			       struct device_node *dai_of_node,
 			       struct asoc_simple_dai *simple_dai)
 {
@@ -111,14 +112,14 @@ int asoc_simple_card_parse_clk(struct device_node *node,
 	 *  or "system-clock-frequency = <xxx>"
 	 *  or device's module clock.
 	 */
-	clk = of_clk_get(node, 0);
+	clk = devm_get_clk_from_child(dev, node, NULL);
 	if (!IS_ERR(clk)) {
 		simple_dai->sysclk = clk_get_rate(clk);
 		simple_dai->clk = clk;
 	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
 		simple_dai->sysclk = val;
 	} else {
-		clk = of_clk_get(dai_of_node, 0);
+		clk = devm_get_clk_from_child(dev, dai_of_node, NULL);
 		if (!IS_ERR(clk))
 			simple_dai->sysclk = clk_get_rate(clk);
 	}
@@ -195,9 +196,6 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_init_dai);
 
 int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link)
 {
-	if (!dai_link->cpu_dai_name || !dai_link->codec_dai_name)
-		return -EINVAL;
-
 	/* Assumes platform == cpu */
 	if (!dai_link->platform_of_node)
 		dai_link->platform_of_node = dai_link->cpu_of_node;

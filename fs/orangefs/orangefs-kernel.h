@@ -41,7 +41,7 @@
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <linux/uio.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 #include <linux/wait.h>
 #include <linux/dcache.h>
@@ -215,6 +215,7 @@ struct orangefs_inode_s {
 	unsigned long pinode_flags;
 
 	unsigned long getattr_time;
+	u32 getattr_mask;
 };
 
 #define P_ATIME_FLAG 0
@@ -249,6 +250,7 @@ struct orangefs_sb_info_s {
 	char devname[ORANGEFS_MAX_SERVER_ADDR_LEN];
 	struct super_block *sb;
 	int mount_pending;
+	int no_list;
 	struct list_head list;
 };
 
@@ -337,11 +339,6 @@ static inline ino_t orangefs_khandle_to_ino(struct orangefs_khandle *khandle)
 static inline struct orangefs_khandle *get_khandle_from_ino(struct inode *inode)
 {
 	return &(ORANGEFS_I(inode)->refn.khandle);
-}
-
-static inline __s32 get_fsid_from_ino(struct inode *inode)
-{
-	return ORANGEFS_I(inode)->refn.fs_id;
 }
 
 static inline ino_t get_ino_from_khandle(struct inode *inode)
@@ -439,9 +436,8 @@ struct inode *orangefs_new_inode(struct super_block *sb,
 
 int orangefs_setattr(struct dentry *dentry, struct iattr *iattr);
 
-int orangefs_getattr(struct vfsmount *mnt,
-		  struct dentry *dentry,
-		  struct kstat *kstat);
+int orangefs_getattr(const struct path *path, struct kstat *stat,
+		     u32 request_mask, unsigned int flags);
 
 int orangefs_permission(struct inode *inode, int mask);
 
@@ -500,7 +496,8 @@ int orangefs_inode_setxattr(struct inode *inode,
 			 size_t size,
 			 int flags);
 
-int orangefs_inode_getattr(struct inode *inode, int new, int bypass);
+int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
+    u32 request_mask);
 
 int orangefs_inode_check_changed(struct inode *inode);
 
@@ -529,7 +526,6 @@ extern spinlock_t orangefs_htable_ops_in_progress_lock;
 extern int hash_table_size;
 
 extern const struct address_space_operations orangefs_address_operations;
-extern struct backing_dev_info orangefs_backing_dev_info;
 extern const struct inode_operations orangefs_file_inode_operations;
 extern const struct file_operations orangefs_file_operations;
 extern const struct inode_operations orangefs_symlink_inode_operations;

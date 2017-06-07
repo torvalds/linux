@@ -389,6 +389,21 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	return 0;
 }
 
+const struct sh_pfc_bias_info *
+sh_pfc_pin_to_bias_info(const struct sh_pfc_bias_info *info,
+			unsigned int num, unsigned int pin)
+{
+	unsigned int i;
+
+	for (i = 0; i < num; i++)
+		if (info[i].pin == pin)
+			return &info[i];
+
+	WARN_ONCE(1, "Pin %u is not in bias info list\n", pin);
+
+	return NULL;
+}
+
 static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 {
 	struct sh_pfc_pin_range *range;
@@ -571,6 +586,9 @@ static int sh_pfc_probe(struct platform_device *pdev)
 		ret = info->ops->init(pfc);
 		if (ret < 0)
 			return ret;
+
+		/* .init() may have overridden pfc->info */
+		info = pfc->info;
 	}
 
 	/* Enable dummy states for those platforms without pinctrl support */

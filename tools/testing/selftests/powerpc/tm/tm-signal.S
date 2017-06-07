@@ -7,11 +7,11 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include "../basic_asm.h"
-#include "../gpr_asm.h"
-#include "../fpu_asm.h"
-#include "../vmx_asm.h"
-#include "../vsx_asm.h"
+#include "basic_asm.h"
+#include "gpr_asm.h"
+#include "fpu_asm.h"
+#include "vmx_asm.h"
+#include "vsx_asm.h"
 
 /*
  * Large caveat here being that the caller cannot expect the

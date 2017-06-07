@@ -9,7 +9,7 @@
 
 #include <linux/signal.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>

@@ -459,8 +459,8 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	};
 	static const char * const dv_rgb_range[] = {
 		"Automatic",
-		"RGB limited range (16-235)",
-		"RGB full range (0-255)",
+		"RGB Limited Range (16-235)",
+		"RGB Full Range (0-255)",
 		NULL,
 	};
 	static const char * const dv_it_content_type[] = {
@@ -885,6 +885,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_LINK_FREQ:		return "Link Frequency";
 	case V4L2_CID_PIXEL_RATE:		return "Pixel Rate";
 	case V4L2_CID_TEST_PATTERN:		return "Test Pattern";
+	case V4L2_CID_DEINTERLACING_MODE:	return "Deinterlacing Mode";
 
 	/* DV controls */
 	/* Keep the order of the 'case's the same as in v4l2-controls.h! */
@@ -996,6 +997,10 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		*min = 0;
 		*max = *step = 1;
 		break;
+	case V4L2_CID_ROTATE:
+		*type = V4L2_CTRL_TYPE_INTEGER;
+		*flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
+		break;
 	case V4L2_CID_MPEG_VIDEO_MV_H_SEARCH_RANGE:
 	case V4L2_CID_MPEG_VIDEO_MV_V_SEARCH_RANGE:
 		*type = V4L2_CTRL_TYPE_INTEGER;
@@ -1058,6 +1063,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_DV_RX_RGB_RANGE:
 	case V4L2_CID_DV_RX_IT_CONTENT_TYPE:
 	case V4L2_CID_TEST_PATTERN:
+	case V4L2_CID_DEINTERLACING_MODE:
 	case V4L2_CID_TUNE_DEEMPHASIS:
 	case V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_SEL:
 	case V4L2_CID_DETECT_MD_MODE:
@@ -3364,6 +3370,9 @@ static int v4l2_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems
 static void v4l2_ctrl_del_event(struct v4l2_subscribed_event *sev)
 {
 	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(sev->fh->ctrl_handler, sev->id);
+
+	if (ctrl == NULL)
+		return;
 
 	v4l2_ctrl_lock(ctrl);
 	list_del(&sev->node);

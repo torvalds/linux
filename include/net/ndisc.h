@@ -391,6 +391,23 @@ static inline struct neighbour *__ipv6_neigh_lookup(struct net_device *dev, cons
 	return n;
 }
 
+static inline void __ipv6_confirm_neigh(struct net_device *dev,
+					const void *pkey)
+{
+	struct neighbour *n;
+
+	rcu_read_lock_bh();
+	n = __ipv6_neigh_lookup_noref(dev, pkey);
+	if (n) {
+		unsigned long now = jiffies;
+
+		/* avoid dirtying neighbour */
+		if (n->confirmed != now)
+			n->confirmed = now;
+	}
+	rcu_read_unlock_bh();
+}
+
 int ndisc_init(void);
 int ndisc_late_init(void);
 
@@ -422,8 +439,10 @@ void ndisc_update(const struct net_device *dev, struct neighbour *neigh,
  *	IGMP
  */
 int igmp6_init(void);
+int igmp6_late_init(void);
 
 void igmp6_cleanup(void);
+void igmp6_late_cleanup(void);
 
 int igmp6_event_query(struct sk_buff *skb);
 

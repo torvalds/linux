@@ -632,8 +632,8 @@ static int bdisp_open(struct file *file)
 
 error_ctrls:
 	bdisp_ctrls_delete(ctx);
-error_fh:
 	v4l2_fh_del(&ctx->fh);
+error_fh:
 	v4l2_fh_exit(&ctx->fh);
 	bdisp_hw_free_nodes(ctx);
 mem_ctx:
@@ -1337,6 +1337,7 @@ static int bdisp_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "failed to get IRQ resource\n");
+		ret = -EINVAL;
 		goto err_clk;
 	}
 

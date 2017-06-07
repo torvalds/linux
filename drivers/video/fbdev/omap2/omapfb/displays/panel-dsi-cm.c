@@ -19,7 +19,7 @@
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/of_device.h>

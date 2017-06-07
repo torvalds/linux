@@ -101,8 +101,8 @@ static const struct coefficients adm1075_coefficients[] = {
 	[0] = { 27169, 0, -1 },		/* voltage */
 	[1] = { 806, 20475, -1 },	/* current, irange25 */
 	[2] = { 404, 20475, -1 },	/* current, irange50 */
-	[3] = { 0, -1, 8549 },		/* power, irange25 */
-	[4] = { 0, -1, 4279 },		/* power, irange50 */
+	[3] = { 8549, 0, -1 },		/* power, irange25 */
+	[4] = { 4279, 0, -1 },		/* power, irange50 */
 };
 
 static const struct coefficients adm1275_coefficients[] = {
@@ -499,15 +499,27 @@ static int adm1275_probe(struct i2c_client *client,
 		pindex = 2;
 		tindex = 3;
 
-		info->func[0] |= PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT;
+		info->func[0] |= PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT |
+			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
+
+		/* Enable VOUT if not enabled (it is disabled by default) */
+		if (!(config & ADM1278_VOUT_EN)) {
+			config |= ADM1278_VOUT_EN;
+			ret = i2c_smbus_write_byte_data(client,
+							ADM1275_PMON_CONFIG,
+							config);
+			if (ret < 0) {
+				dev_err(&client->dev,
+					"Failed to enable VOUT monitoring\n");
+				return -ENODEV;
+			}
+		}
+
 		if (config & ADM1278_TEMP1_EN)
 			info->func[0] |=
 				PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
 		if (config & ADM1278_VIN_EN)
 			info->func[0] |= PMBUS_HAVE_VIN;
-		if (config & ADM1278_VOUT_EN)
-			info->func[0] |=
-				PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
 		break;
 	case adm1293:
 	case adm1294:

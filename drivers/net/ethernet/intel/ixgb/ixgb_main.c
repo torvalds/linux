@@ -86,7 +86,6 @@ static void ixgb_set_multi(struct net_device *netdev);
 static void ixgb_watchdog(unsigned long data);
 static netdev_tx_t ixgb_xmit_frame(struct sk_buff *skb,
 				   struct net_device *netdev);
-static struct net_device_stats *ixgb_get_stats(struct net_device *netdev);
 static int ixgb_change_mtu(struct net_device *netdev, int new_mtu);
 static int ixgb_set_mac(struct net_device *netdev, void *p);
 static irqreturn_t ixgb_intr(int irq, void *data);
@@ -367,7 +366,6 @@ static const struct net_device_ops ixgb_netdev_ops = {
 	.ndo_open 		= ixgb_open,
 	.ndo_stop		= ixgb_close,
 	.ndo_start_xmit		= ixgb_xmit_frame,
-	.ndo_get_stats		= ixgb_get_stats,
 	.ndo_set_rx_mode	= ixgb_set_multi,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ixgb_set_mac,
@@ -1597,20 +1595,6 @@ ixgb_tx_timeout_task(struct work_struct *work)
 }
 
 /**
- * ixgb_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- *
- * Returns the address of the device statistics structure.
- * The statistics are actually updated from the timer callback.
- **/
-
-static struct net_device_stats *
-ixgb_get_stats(struct net_device *netdev)
-{
-	return &netdev->stats;
-}
-
-/**
  * ixgb_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -1817,7 +1801,7 @@ ixgb_clean(struct napi_struct *napi, int budget)
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		if (!test_bit(__IXGB_DOWN, &adapter->flags))
 			ixgb_irq_enable(adapter);
 	}

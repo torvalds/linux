@@ -716,6 +716,8 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 		pdata->phy.duplex = DUPLEX_UNKNOWN;
 		pdata->phy.autoneg = AUTONEG_ENABLE;
 		pdata->phy.advertising = pdata->phy.supported;
+
+		return;
 	}
 
 	pdata->phy.advertising &= ~ADVERTISED_Autoneg;
@@ -874,6 +876,16 @@ static int xgbe_phy_find_phy_device(struct xgbe_prv_data *pdata)
 	if ((phy_data->port_mode == XGBE_PORT_MODE_SFP) &&
 	    !phy_data->sfp_phy_avail)
 		return 0;
+
+	/* Set the proper MDIO mode for the PHY */
+	ret = pdata->hw_if.set_ext_mii_mode(pdata, phy_data->mdio_addr,
+					    phy_data->phydev_mode);
+	if (ret) {
+		netdev_err(pdata->netdev,
+			   "mdio port/clause not compatible (%u/%u)\n",
+			   phy_data->mdio_addr, phy_data->phydev_mode);
+		return ret;
+	}
 
 	/* Create and connect to the PHY device */
 	phydev = get_phy_device(phy_data->mii, phy_data->mdio_addr,
@@ -2721,6 +2733,18 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 	ret = pdata->i2c_if.i2c_start(pdata);
 	if (ret)
 		return ret;
+
+	/* Set the proper MDIO mode for the re-driver */
+	if (phy_data->redrv && !phy_data->redrv_if) {
+		ret = pdata->hw_if.set_ext_mii_mode(pdata, phy_data->redrv_addr,
+						    XGBE_MDIO_MODE_CL22);
+		if (ret) {
+			netdev_err(pdata->netdev,
+				   "redriver mdio port not compatible (%u)\n",
+				   phy_data->redrv_addr);
+			return ret;
+		}
+	}
 
 	/* Start in highest supported mode */
 	xgbe_phy_set_mode(pdata, phy_data->start_mode);
