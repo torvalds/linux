@@ -972,23 +972,10 @@ static const char *const mask_tokens[] = {
 	"MAY_APPEND"
 };
 
-enum {
-	func_file = 0, func_mmap, func_bprm,
-	func_module, func_firmware, func_post,
-	func_kexec_kernel, func_kexec_initramfs,
-	func_policy
-};
+#define __ima_hook_stringify(str)	(#str),
 
 static const char *const func_tokens[] = {
-	"FILE_CHECK",
-	"MMAP_CHECK",
-	"BPRM_CHECK",
-	"MODULE_CHECK",
-	"FIRMWARE_CHECK",
-	"POST_SETATTR",
-	"KEXEC_KERNEL_CHECK",
-	"KEXEC_INITRAMFS_CHECK",
-	"POLICY_CHECK"
+	__ima_hooks(__ima_hook_stringify)
 };
 
 void *ima_policy_start(struct seq_file *m, loff_t *pos)
@@ -1025,49 +1012,16 @@ void ima_policy_stop(struct seq_file *m, void *v)
 
 #define pt(token)	policy_tokens[token + Opt_err].pattern
 #define mt(token)	mask_tokens[token]
-#define ft(token)	func_tokens[token]
 
 /*
  * policy_func_show - display the ima_hooks policy rule
  */
 static void policy_func_show(struct seq_file *m, enum ima_hooks func)
 {
-	char tbuf[64] = {0,};
-
-	switch (func) {
-	case FILE_CHECK:
-		seq_printf(m, pt(Opt_func), ft(func_file));
-		break;
-	case MMAP_CHECK:
-		seq_printf(m, pt(Opt_func), ft(func_mmap));
-		break;
-	case BPRM_CHECK:
-		seq_printf(m, pt(Opt_func), ft(func_bprm));
-		break;
-	case MODULE_CHECK:
-		seq_printf(m, pt(Opt_func), ft(func_module));
-		break;
-	case FIRMWARE_CHECK:
-		seq_printf(m, pt(Opt_func), ft(func_firmware));
-		break;
-	case POST_SETATTR:
-		seq_printf(m, pt(Opt_func), ft(func_post));
-		break;
-	case KEXEC_KERNEL_CHECK:
-		seq_printf(m, pt(Opt_func), ft(func_kexec_kernel));
-		break;
-	case KEXEC_INITRAMFS_CHECK:
-		seq_printf(m, pt(Opt_func), ft(func_kexec_initramfs));
-		break;
-	case POLICY_CHECK:
-		seq_printf(m, pt(Opt_func), ft(func_policy));
-		break;
-	default:
-		snprintf(tbuf, sizeof(tbuf), "%d", func);
-		seq_printf(m, pt(Opt_func), tbuf);
-		break;
-	}
-	seq_puts(m, " ");
+	if (func > 0 && func < MAX_CHECK)
+		seq_printf(m, "func=%s ", func_tokens[func]);
+	else
+		seq_printf(m, "func=%d ", func);
 }
 
 int ima_policy_show(struct seq_file *m, void *v)
