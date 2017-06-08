@@ -377,6 +377,11 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	struct amdgpu_firmware_info *ucode = NULL;
 	const struct common_firmware_header *header = NULL;
 
+	if (!adev->firmware.fw_size) {
+		dev_warn(adev->dev, "No ip firmware need to load\n");
+		return 0;
+	}
+
 	err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
 				amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
 				AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
@@ -458,6 +463,9 @@ int amdgpu_ucode_fini_bo(struct amdgpu_device *adev)
 {
 	int i;
 	struct amdgpu_firmware_info *ucode = NULL;
+
+	if (!adev->firmware.fw_size)
+		return 0;
 
 	for (i = 0; i < adev->firmware.max_ucodes; i++) {
 		ucode = &adev->firmware.ucode[i];
