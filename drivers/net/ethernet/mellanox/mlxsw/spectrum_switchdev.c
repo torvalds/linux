@@ -102,8 +102,6 @@ struct mlxsw_sp_bridge_vlan {
 	struct list_head list;
 	struct list_head port_vlan_list;
 	u16 vid;
-	u8 egress_untagged:1,
-	   pvid:1;
 };
 
 struct mlxsw_sp_bridge_ops {
@@ -1003,8 +1001,6 @@ mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		goto err_port_vlan_bridge_join;
 
 	bridge_vlan = mlxsw_sp_bridge_vlan_find(bridge_port, vid);
-	bridge_vlan->egress_untagged = is_untagged;
-	bridge_vlan->pvid = is_pvid;
 
 	return 0;
 
@@ -1629,39 +1625,6 @@ out:
 	return stored_err ? stored_err : err;
 }
 
-static int mlxsw_sp_port_vlan_dump(struct mlxsw_sp_port *mlxsw_sp_port,
-				   struct switchdev_obj_port_vlan *vlan,
-				   switchdev_obj_dump_cb_t *cb)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct net_device *orig_dev = vlan->obj.orig_dev;
-	struct mlxsw_sp_bridge_port *bridge_port;
-	struct mlxsw_sp_bridge_vlan *bridge_vlan;
-	int err = 0;
-
-	bridge_port = mlxsw_sp_bridge_port_find(mlxsw_sp->bridge, orig_dev);
-	if (WARN_ON(!bridge_port))
-		return -EINVAL;
-
-	if (!bridge_port->bridge_device->vlan_enabled)
-		return 0;
-
-	list_for_each_entry(bridge_vlan, &bridge_port->vlans_list, list) {
-		vlan->flags = 0;
-		if (bridge_vlan->pvid)
-			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
-		if (bridge_vlan->egress_untagged)
-			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
-		vlan->vid_begin = bridge_vlan->vid;
-		vlan->vid_end = bridge_vlan->vid;
-		err = cb(&vlan->obj);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-
 static int mlxsw_sp_port_obj_dump(struct net_device *dev,
 				  struct switchdev_obj *obj,
 				  switchdev_obj_dump_cb_t *cb)
@@ -1670,10 +1633,6 @@ static int mlxsw_sp_port_obj_dump(struct net_device *dev,
 	int err = 0;
 
 	switch (obj->id) {
-	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = mlxsw_sp_port_vlan_dump(mlxsw_sp_port,
-					      SWITCHDEV_OBJ_PORT_VLAN(obj), cb);
-		break;
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = mlxsw_sp_port_fdb_dump(mlxsw_sp_port,
 					     SWITCHDEV_OBJ_PORT_FDB(obj), cb);
