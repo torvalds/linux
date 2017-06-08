@@ -7688,10 +7688,9 @@ int t4_shutdown_adapter(struct adapter *adapter)
 	t4_intr_disable(adapter);
 	t4_write_reg(adapter, DBG_GPIO_EN_A, 0);
 	for_each_port(adapter, port) {
-		u32 a_port_cfg = PORT_REG(port,
-					  is_t4(adapter->params.chip)
-					  ? XGMAC_PORT_CFG_A
-					  : MAC_PORT_CFG_A);
+		u32 a_port_cfg = is_t4(adapter->params.chip) ?
+				       PORT_REG(port, XGMAC_PORT_CFG_A) :
+				       T5_PORT_REG(port, MAC_PORT_CFG_A);
 
 		t4_write_reg(adapter, a_port_cfg,
 			     t4_read_reg(adapter, a_port_cfg)
