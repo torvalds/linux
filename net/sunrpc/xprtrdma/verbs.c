@@ -1187,6 +1187,7 @@ rpcrdma_get_mw(struct rpcrdma_xprt *r_xprt)
 
 	if (!mw)
 		goto out_nomws;
+	mw->mw_flags = 0;
 	return mw;
 
 out_nomws:

@@ -464,7 +464,6 @@ static void
 frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
 	struct ib_send_wr *first, **prev, *last, *bad_wr;
-	struct rpcrdma_rep *rep = req->rl_reply;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_frmr *f;
 	struct rpcrdma_mw *mw;
@@ -483,8 +482,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	list_for_each_entry(mw, &req->rl_registered, mw_list) {
 		mw->frmr.fr_state = FRMR_IS_INVALID;
 
-		if ((rep->rr_wc_flags & IB_WC_WITH_INVALIDATE) &&
-		    (mw->mw_handle == rep->rr_inv_rkey))
+		if (mw->mw_flags & RPCRDMA_MW_F_RI)
 			continue;
 
 		f = &mw->frmr;

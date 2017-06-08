@@ -271,6 +271,7 @@ struct rpcrdma_mw {
 	struct scatterlist	*mw_sg;
 	int			mw_nents;
 	enum dma_data_direction	mw_dir;
+	unsigned long		mw_flags;
 	union {
 		struct rpcrdma_fmr	fmr;
 		struct rpcrdma_frmr	frmr;
@@ -280,6 +281,11 @@ struct rpcrdma_mw {
 	u32			mw_length;
 	u64			mw_offset;
 	struct list_head	mw_all;
+};
+
+/* mw_flags */
+enum {
+	RPCRDMA_MW_F_RI		= 1,
 };
 
 /*

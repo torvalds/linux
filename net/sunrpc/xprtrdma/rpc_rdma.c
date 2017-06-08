@@ -928,6 +928,24 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 	return fixup_copy_count;
 }
 
+/* Caller must guarantee @rep remains stable during this call.
+ */
+static void
+rpcrdma_mark_remote_invalidation(struct list_head *mws,
+				 struct rpcrdma_rep *rep)
+{
+	struct rpcrdma_mw *mw;
+
+	if (!(rep->rr_wc_flags & IB_WC_WITH_INVALIDATE))
+		return;
+
+	list_for_each_entry(mw, mws, mw_list)
+		if (mw->mw_handle == rep->rr_inv_rkey) {
+			mw->mw_flags = RPCRDMA_MW_F_RI;
+			break; /* only one invalidated MR per RPC */
+		}
+}
+
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 /* By convention, backchannel calls arrive via rdma_msg type
  * messages, and never populate the chunk lists. This makes
@@ -1006,13 +1024,13 @@ rpcrdma_reply_handler(struct work_struct *work)
 	/* Sanity checking has passed. We are now committed
 	 * to complete this transaction.
 	 */
+	rpcrdma_mark_remote_invalidation(&req->rl_registered, rep);
 	list_del_init(&rqst->rq_list);
+	req->rl_reply = rep;
 	spin_unlock_bh(&xprt->transport_lock);
 	dprintk("RPC:       %s: reply %p completes request %p (xid 0x%08x)\n",
 		__func__, rep, req, be32_to_cpu(headerp->rm_xid));
 
-	/* from here on, the reply is no longer an orphan */
-	req->rl_reply = rep;
 	xprt->reestablish_timeout = 0;
 
 	if (headerp->rm_vers != rpcrdma_version)
