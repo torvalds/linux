@@ -1075,7 +1075,6 @@ int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 	struct net_bridge_fdb_entry *fdb;
 	int err = 0;
 
-	ASSERT_RTNL();
 	spin_lock_bh(&br->hash_lock);
 
 	head = &br->hash[br_mac_hash(addr, vid)];
@@ -1110,7 +1109,6 @@ int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 	struct net_bridge_fdb_entry *fdb;
 	int err = 0;
 
-	ASSERT_RTNL();
 	spin_lock_bh(&br->hash_lock);
 
 	fdb = br_fdb_find(br, addr, vid);

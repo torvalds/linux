@@ -284,6 +284,12 @@ static inline struct net_bridge_port *br_port_get_rtnl(const struct net_device *
 		rtnl_dereference(dev->rx_handler_data) : NULL;
 }
 
+static inline struct net_bridge_port *br_port_get_rtnl_rcu(const struct net_device *dev)
+{
+	return br_port_exists(dev) ?
+		rcu_dereference_rtnl(dev->rx_handler_data) : NULL;
+}
+
 struct net_bridge {
 	spinlock_t			lock;
 	spinlock_t			hash_lock;
