@@ -33,8 +33,6 @@
 #ifndef _FSL_DPRC_H
 #define _FSL_DPRC_H
 
-#include "mc-cmd.h"
-
 /*
  * Data Path Resource Container API
  * Contains DPRC API for managing and querying DPAA resources
