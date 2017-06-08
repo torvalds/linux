@@ -406,9 +406,11 @@ int dquot_acquire(struct dquot *dquot)
 	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 
 	mutex_lock(&dquot->dq_lock);
-	down_write(&dqopt->dqio_sem);
-	if (!test_bit(DQ_READ_B, &dquot->dq_flags))
+	if (!test_bit(DQ_READ_B, &dquot->dq_flags)) {
+		down_read(&dqopt->dqio_sem);
 		ret = dqopt->ops[dquot->dq_id.type]->read_dqblk(dquot);
+		up_read(&dqopt->dqio_sem);
+	}
 	if (ret < 0)
 		goto out_iolock;
 	/* Make sure flags update is visible after dquot has been filled */
@@ -416,12 +418,14 @@ int dquot_acquire(struct dquot *dquot)
 	set_bit(DQ_READ_B, &dquot->dq_flags);
 	/* Instantiate dquot if needed */
 	if (!test_bit(DQ_ACTIVE_B, &dquot->dq_flags) && !dquot->dq_off) {
+		down_write(&dqopt->dqio_sem);
 		ret = dqopt->ops[dquot->dq_id.type]->commit_dqblk(dquot);
 		/* Write the info if needed */
 		if (info_dirty(&dqopt->info[dquot->dq_id.type])) {
 			ret2 = dqopt->ops[dquot->dq_id.type]->write_file_info(
 					dquot->dq_sb, dquot->dq_id.type);
 		}
+		up_write(&dqopt->dqio_sem);
 		if (ret < 0)
 			goto out_iolock;
 		if (ret2 < 0) {
@@ -436,7 +440,6 @@ int dquot_acquire(struct dquot *dquot)
 	smp_mb__before_atomic();
 	set_bit(DQ_ACTIVE_B, &dquot->dq_flags);
 out_iolock:
-	up_write(&dqopt->dqio_sem);
 	mutex_unlock(&dquot->dq_lock);
 	return ret;
 }
