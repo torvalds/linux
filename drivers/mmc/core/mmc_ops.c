@@ -207,7 +207,7 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	return err;
 }
 
-int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
+static int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
 {
 	int err;
 	struct mmc_command cmd = {};
@@ -334,7 +334,7 @@ err:
 	return ret;
 }
 
-int mmc_send_cid(struct mmc_host *host, u32 *cid)
+static int mmc_spi_send_cid(struct mmc_host *host, u32 *cid)
 {
 	int ret, i;
 	__be32 *cid_tmp;
@@ -353,6 +353,14 @@ int mmc_send_cid(struct mmc_host *host, u32 *cid)
 err:
 	kfree(cid_tmp);
 	return ret;
+}
+
+int mmc_send_cid(struct mmc_host *host, u32 *cid)
+{
+	if (mmc_host_is_spi(host))
+		return mmc_spi_send_cid(host, cid);
+
+	return mmc_all_send_cid(host, cid);
 }
 
 int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
