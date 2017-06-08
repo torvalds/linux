@@ -300,12 +300,23 @@ static int v2_write_dquot(struct dquot *dquot)
 {
 	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 	int ret;
+	bool alloc = false;
 
-	down_write(&dqopt->dqio_sem);
+	/*
+	 * If space for dquot is already allocated, we don't need any
+	 * protection as we'll only overwrite the place of dquot. We are
+	 * still protected by concurrent writes of the same dquot by
+	 * dquot->dq_lock.
+	 */
+	if (!dquot->dq_off) {
+		alloc = true;
+		down_write(&dqopt->dqio_sem);
+	}
 	ret = qtree_write_dquot(
 			sb_dqinfo(dquot->dq_sb, dquot->dq_id.type)->dqi_priv,
 			dquot);
-	up_write(&dqopt->dqio_sem);
+	if (alloc)
+		up_write(&dqopt->dqio_sem);
 	return ret;
 }
 
