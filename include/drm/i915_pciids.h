@@ -347,6 +347,13 @@
 	INTEL_VGA_DEVICE(0x3E9B, info), /* Halo GT2 */ \
 	INTEL_VGA_DEVICE(0x3E94, info)  /* Halo GT2 */
 
+/* CFL U */
+#define INTEL_CFL_U_IDS(info) \
+	INTEL_VGA_DEVICE(0x3EA6, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x3EA7, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x3EA8, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x3EA5, info)  /* ULT GT3 */
+
 /* CNL U 2+2 */
 #define INTEL_CNL_U_GT2_IDS(info) \
 	INTEL_VGA_DEVICE(0x5A52, info), \
