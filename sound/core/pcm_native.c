@@ -342,16 +342,13 @@ retry:
 	for (k = 0; k < constrs->rules_num; k++) {
 		struct snd_pcm_hw_rule *r = &constrs->rules[k];
 		unsigned int d;
-		int doit = 0;
 		if (r->cond && !(r->cond & params->flags))
 			continue;
 		for (d = 0; r->deps[d] >= 0; d++) {
-			if (vstamps[r->deps[d]] > rstamps[k]) {
-				doit = 1;
+			if (vstamps[r->deps[d]] > rstamps[k])
 				break;
-			}
 		}
-		if (!doit)
+		if (r->deps[d] < 0)
 			continue;
 
 		if (trace_hw_mask_param_enabled()) {
