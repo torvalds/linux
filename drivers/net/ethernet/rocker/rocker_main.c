@@ -1691,6 +1691,29 @@ rocker_world_port_obj_fdb_del(struct rocker_port *rocker_port,
 }
 
 static int
+rocker_world_port_fdb_add(struct rocker_port *rocker_port,
+			  struct switchdev_notifier_fdb_info *info)
+{
+	struct rocker_world_ops *wops = rocker_port->rocker->wops;
+
+	if (!wops->port_obj_fdb_add)
+		return -EOPNOTSUPP;
+
+	return wops->port_obj_fdb_add(rocker_port, info->vid, info->addr);
+}
+
+static int
+rocker_world_port_fdb_del(struct rocker_port *rocker_port,
+			  struct switchdev_notifier_fdb_info *info)
+{
+	struct rocker_world_ops *wops = rocker_port->rocker->wops;
+
+	if (!wops->port_obj_fdb_del)
+		return -EOPNOTSUPP;
+	return wops->port_obj_fdb_del(rocker_port, info->vid, info->addr);
+}
+
+static int
 rocker_world_port_obj_fdb_dump(const struct rocker_port *rocker_port,
 			       struct switchdev_obj_port_fdb *fdb,
 			       switchdev_obj_dump_cb_t *cb)
@@ -2767,6 +2790,109 @@ static void rocker_msix_fini(const struct rocker *rocker)
 	kfree(rocker->msix_entries);
 }
 
+static bool rocker_port_dev_check(const struct net_device *dev)
+{
+	return dev->netdev_ops == &rocker_port_netdev_ops;
+}
+
+struct rocker_switchdev_event_work {
+	struct work_struct work;
+	struct switchdev_notifier_fdb_info fdb_info;
+	struct rocker_port *rocker_port;
+	unsigned long event;
+};
+
+static void
+rocker_fdb_offload_notify(struct rocker_port *rocker_port,
+			  struct switchdev_notifier_fdb_info *recv_info)
+{
+	struct switchdev_notifier_fdb_info info;
+
+	info.addr = recv_info->addr;
+	info.vid = recv_info->vid;
+	call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED,
+				 rocker_port->dev, &info.info);
+}
+
+static void rocker_switchdev_event_work(struct work_struct *work)
+{
+	struct rocker_switchdev_event_work *switchdev_work =
+		container_of(work, struct rocker_switchdev_event_work, work);
+	struct rocker_port *rocker_port = switchdev_work->rocker_port;
+	struct switchdev_notifier_fdb_info *fdb_info;
+	int err;
+
+	rtnl_lock();
+	switch (switchdev_work->event) {
+	case SWITCHDEV_FDB_ADD_TO_DEVICE:
+		fdb_info = &switchdev_work->fdb_info;
+		err = rocker_world_port_fdb_add(rocker_port, fdb_info);
+		if (err) {
+			netdev_dbg(rocker_port->dev, "fdb add failed err=%d\n", err);
+			break;
+		}
+		rocker_fdb_offload_notify(rocker_port, fdb_info);
+		break;
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		fdb_info = &switchdev_work->fdb_info;
+		err = rocker_world_port_fdb_del(rocker_port, fdb_info);
+		if (err)
+			netdev_dbg(rocker_port->dev, "fdb add failed err=%d\n", err);
+		break;
+	}
+	rtnl_unlock();
+
+	kfree(switchdev_work->fdb_info.addr);
+	kfree(switchdev_work);
+	dev_put(rocker_port->dev);
+}
+
+/* called under rcu_read_lock() */
+static int rocker_switchdev_event(struct notifier_block *unused,
+				  unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct rocker_switchdev_event_work *switchdev_work;
+	struct switchdev_notifier_fdb_info *fdb_info = ptr;
+	struct rocker_port *rocker_port;
+
+	if (!rocker_port_dev_check(dev))
+		return NOTIFY_DONE;
+
+	rocker_port = netdev_priv(dev);
+	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+	if (WARN_ON(!switchdev_work))
+		return NOTIFY_BAD;
+
+	INIT_WORK(&switchdev_work->work, rocker_switchdev_event_work);
+	switchdev_work->rocker_port = rocker_port;
+	switchdev_work->event = event;
+
+	switch (event) {
+	case SWITCHDEV_FDB_ADD_TO_DEVICE: /* fall through */
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		memcpy(&switchdev_work->fdb_info, ptr,
+		       sizeof(switchdev_work->fdb_info));
+		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
+		ether_addr_copy((u8 *)switchdev_work->fdb_info.addr,
+				fdb_info->addr);
+		/* Take a reference on the rocker device */
+		dev_hold(dev);
+		break;
+	default:
+		kfree(switchdev_work);
+		return NOTIFY_DONE;
+	}
+
+	queue_work(rocker_port->rocker->rocker_owq,
+		   &switchdev_work->work);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block rocker_switchdev_notifier = {
+	.notifier_call = rocker_switchdev_event,
+};
+
 static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct rocker *rocker;
@@ -2872,6 +2998,12 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_register_fib_notifier;
 
+	err = register_switchdev_notifier(&rocker_switchdev_notifier);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to register switchdev notifier\n");
+		goto err_register_switchdev_notifier;
+	}
+
 	rocker->hw.id = rocker_read64(rocker, SWITCH_ID);
 
 	err = rocker_probe_ports(rocker);
@@ -2886,6 +3018,8 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_probe_ports:
+	unregister_switchdev_notifier(&rocker_switchdev_notifier);
+err_register_switchdev_notifier:
 	unregister_fib_notifier(&rocker->fib_nb);
 err_register_fib_notifier:
 	destroy_workqueue(rocker->rocker_owq);
@@ -2916,6 +3050,7 @@ static void rocker_remove(struct pci_dev *pdev)
 	struct rocker *rocker = pci_get_drvdata(pdev);
 
 	rocker_remove_ports(rocker);
+	unregister_switchdev_notifier(&rocker_switchdev_notifier);
 	unregister_fib_notifier(&rocker->fib_nb);
 	rocker_write32(rocker, CONTROL, ROCKER_CONTROL_RESET);
 	destroy_workqueue(rocker->rocker_owq);
@@ -2939,11 +3074,6 @@ static struct pci_driver rocker_pci_driver = {
 /************************************
  * Net device notifier event handler
  ************************************/
-
-static bool rocker_port_dev_check(const struct net_device *dev)
-{
-	return dev->netdev_ops == &rocker_port_netdev_ops;
-}
 
 static bool rocker_port_dev_check_under(const struct net_device *dev,
 					struct rocker *rocker)
