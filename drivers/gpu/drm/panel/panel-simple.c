@@ -1322,6 +1322,33 @@ static const struct panel_desc lg_lp129qe = {
 	},
 };
 
+static const struct display_timing nec_nl12880bc20_05_timing = {
+	.pixelclock = { 67000000, 71000000, 75000000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 2, 30, 30 },
+	.hback_porch = { 6, 100, 100 },
+	.hsync_len = { 2, 30, 30 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 5, 5, 5 },
+	.vback_porch = { 11, 11, 11 },
+	.vsync_len = { 7, 7, 7 },
+};
+
+static const struct panel_desc nec_nl12880bc20_05 = {
+	.timings = &nec_nl12880bc20_05_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 261,
+		.height = 163,
+	},
+	.delay = {
+		.enable = 50,
+		.disable = 50,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct drm_display_mode nec_nl4827hc19_05b_mode = {
 	.clock = 10870,
 	.hdisplay = 480,
@@ -1971,6 +1998,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "lg,lp129qe",
 		.data = &lg_lp129qe,
+	}, {
+		.compatible = "nec,nl12880bc20-05",
+		.data = &nec_nl12880bc20_05,
 	}, {
 		.compatible = "nec,nl4827hc19-05b",
 		.data = &nec_nl4827hc19_05b,
