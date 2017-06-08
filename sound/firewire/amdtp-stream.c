@@ -148,7 +148,26 @@ EXPORT_SYMBOL(amdtp_rate_table);
 int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime)
 {
+	struct snd_pcm_hardware *hw = &runtime->hw;
 	int err;
+
+	hw->info = SNDRV_PCM_INFO_BATCH |
+		   SNDRV_PCM_INFO_BLOCK_TRANSFER |
+		   SNDRV_PCM_INFO_INTERLEAVED |
+		   SNDRV_PCM_INFO_JOINT_DUPLEX |
+		   SNDRV_PCM_INFO_MMAP |
+		   SNDRV_PCM_INFO_MMAP_VALID;
+
+	/* SNDRV_PCM_INFO_BATCH */
+	hw->periods_min = 2;
+	hw->periods_max = UINT_MAX;
+
+	/* bytes for a frame */
+	hw->period_bytes_min = 4 * hw->channels_max;
+
+	/* Just to prevent from allocating much pages. */
+	hw->period_bytes_max = hw->period_bytes_min * 2048;
+	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
 
 	/*
 	 * Currently firewire-lib processes 16 packets in one software

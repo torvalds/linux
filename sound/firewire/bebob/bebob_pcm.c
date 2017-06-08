@@ -92,19 +92,6 @@ limit_channels_and_rates(struct snd_pcm_hardware *hw,
 	}
 }
 
-static void
-limit_period_and_buffer(struct snd_pcm_hardware *hw)
-{
-	hw->periods_min = 2;		/* SNDRV_PCM_INFO_BATCH */
-	hw->periods_max = UINT_MAX;
-
-	hw->period_bytes_min = 4 * hw->channels_max;	/* bytes for a frame */
-
-	/* Just to prevent from allocating much pages. */
-	hw->period_bytes_max = hw->period_bytes_min * 2048;
-	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
-}
-
 static int
 pcm_init_hw_params(struct snd_bebob *bebob,
 		   struct snd_pcm_substream *substream)
@@ -113,13 +100,6 @@ pcm_init_hw_params(struct snd_bebob *bebob,
 	struct amdtp_stream *s;
 	struct snd_bebob_stream_formation *formations;
 	int err;
-
-	runtime->hw.info = SNDRV_PCM_INFO_BATCH |
-			   SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			   SNDRV_PCM_INFO_INTERLEAVED |
-			   SNDRV_PCM_INFO_JOINT_DUPLEX |
-			   SNDRV_PCM_INFO_MMAP |
-			   SNDRV_PCM_INFO_MMAP_VALID;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		runtime->hw.formats = AM824_IN_PCM_FORMAT_BITS;
@@ -132,7 +112,6 @@ pcm_init_hw_params(struct snd_bebob *bebob,
 	}
 
 	limit_channels_and_rates(&runtime->hw, formations);
-	limit_period_and_buffer(&runtime->hw);
 
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 				  hw_rule_channels, formations,

@@ -8,40 +8,13 @@
 
 #include "tascam.h"
 
-static void set_buffer_params(struct snd_pcm_hardware *hw)
-{
-	hw->period_bytes_min = 4 * hw->channels_min;
-	hw->period_bytes_max = hw->period_bytes_min * 2048;
-	hw->buffer_bytes_max = hw->period_bytes_max * 2;
-
-	hw->periods_min = 2;
-	hw->periods_max = UINT_MAX;
-}
-
 static int pcm_init_hw_params(struct snd_tscm *tscm,
 			      struct snd_pcm_substream *substream)
 {
-	static const struct snd_pcm_hardware hardware = {
-		.info = SNDRV_PCM_INFO_BATCH |
-			SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_JOINT_DUPLEX |
-			SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID,
-		.rates = SNDRV_PCM_RATE_44100 |
-			 SNDRV_PCM_RATE_48000 |
-			 SNDRV_PCM_RATE_88200 |
-			 SNDRV_PCM_RATE_96000,
-		.rate_min = 44100,
-		.rate_max = 96000,
-		.channels_min = 10,
-		.channels_max = 18,
-	};
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct amdtp_stream *stream;
 	unsigned int pcm_channels;
-
-	runtime->hw = hardware;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		runtime->hw.formats = SNDRV_PCM_FMTBIT_S32;
@@ -59,7 +32,11 @@ static int pcm_init_hw_params(struct snd_tscm *tscm,
 		pcm_channels += 2;
 	runtime->hw.channels_min = runtime->hw.channels_max = pcm_channels;
 
-	set_buffer_params(&runtime->hw);
+	hw->rates = SNDRV_PCM_RATE_44100 |
+		    SNDRV_PCM_RATE_48000 |
+		    SNDRV_PCM_RATE_88200 |
+		    SNDRV_PCM_RATE_96000;
+	snd_pcm_limit_hw_rates(runtime);
 
 	return amdtp_tscm_add_pcm_hw_constraints(stream, runtime);
 }

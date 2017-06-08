@@ -58,31 +58,11 @@ static int hw_rule_channels(struct snd_pcm_hw_params *params,
 static int pcm_init_hw_params(struct snd_dg00x *dg00x,
 			      struct snd_pcm_substream *substream)
 {
-	static const struct snd_pcm_hardware hardware = {
-		.info = SNDRV_PCM_INFO_BATCH |
-			SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_JOINT_DUPLEX |
-			SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID,
-		.rates = SNDRV_PCM_RATE_44100 |
-			 SNDRV_PCM_RATE_48000 |
-			 SNDRV_PCM_RATE_88200 |
-			 SNDRV_PCM_RATE_96000,
-		.rate_min = 44100,
-		.rate_max = 96000,
-		.channels_min = 10,
-		.channels_max = 18,
-		.period_bytes_min = 4 * 18,
-		.period_bytes_max = 4 * 18 * 2048,
-		.buffer_bytes_max = 4 * 18 * 2048 * 2,
-		.periods_min = 2,
-		.periods_max = UINT_MAX,
-	};
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct amdtp_stream *s;
 	int err;
 
-	substream->runtime->hw = hardware;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		substream->runtime->hw.formats = SNDRV_PCM_FMTBIT_S32;
@@ -91,6 +71,15 @@ static int pcm_init_hw_params(struct snd_dg00x *dg00x,
 		substream->runtime->hw.formats = SNDRV_PCM_FMTBIT_S32;
 		s = &dg00x->rx_stream;
 	}
+
+	hw->channels_min = 10;
+	hw->channels_max = 18;
+
+	hw->rates = SNDRV_PCM_RATE_44100 |
+		    SNDRV_PCM_RATE_48000 |
+		    SNDRV_PCM_RATE_88200 |
+		    SNDRV_PCM_RATE_96000;
+	snd_pcm_limit_hw_rates(runtime);
 
 	err = snd_pcm_hw_rule_add(substream->runtime, 0,
 				  SNDRV_PCM_HW_PARAM_CHANNELS,
