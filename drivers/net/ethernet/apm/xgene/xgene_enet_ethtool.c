@@ -127,7 +127,7 @@ static int xgene_get_link_ksettings(struct net_device *ndev,
 	struct phy_device *phydev = ndev->phydev;
 	u32 supported;
 
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
+	if (phy_interface_mode_is_rgmii(pdata->phy_mode)) {
 		if (phydev == NULL)
 			return -ENODEV;
 
@@ -177,7 +177,7 @@ static int xgene_set_link_ksettings(struct net_device *ndev,
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct phy_device *phydev = ndev->phydev;
 
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
+	if (phy_interface_mode_is_rgmii(pdata->phy_mode)) {
 		if (!phydev)
 			return -ENODEV;
 
@@ -304,7 +304,7 @@ static int xgene_set_pauseparam(struct net_device *ndev,
 	struct phy_device *phydev = ndev->phydev;
 	u32 oldadv, newadv;
 
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII ||
+	if (phy_interface_mode_is_rgmii(pdata->phy_mode) ||
 	    pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
 		if (!phydev)
 			return -EINVAL;

@@ -507,6 +507,7 @@ static int map_request(struct dm_rq_target_io *tio)
 	case DM_MAPIO_KILL:
 		/* The target wants to complete the I/O */
 		dm_kill_unmapped_request(rq, -EIO);
+		break;
 	default:
 		DMWARN("unimplemented target map return value: %d", r);
 		BUG();

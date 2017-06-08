@@ -398,7 +398,8 @@ void _c4iw_free_ep(struct kref *kref)
 					(const u32 *)&sin6->sin6_addr.s6_addr,
 					1);
 		}
-		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid);
+		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid,
+				 ep->com.local_addr.ss_family);
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
 		if (ep->mpa_skb)
@@ -488,6 +489,7 @@ static int _put_ep_safe(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	ep = *((struct c4iw_ep **)(skb->cb + 2 * sizeof(void *)));
 	release_ep_resources(ep);
+	kfree_skb(skb);
 	return 0;
 }
 
@@ -498,6 +500,7 @@ static int _put_pass_ep_safe(struct c4iw_dev *dev, struct sk_buff *skb)
 	ep = *((struct c4iw_ep **)(skb->cb + 2 * sizeof(void *)));
 	c4iw_put_ep(&ep->parent_ep->com);
 	release_ep_resources(ep);
+	kfree_skb(skb);
 	return 0;
 }
 
@@ -569,11 +572,13 @@ static void abort_arp_failure(void *handle, struct sk_buff *skb)
 
 	pr_debug("%s rdev %p\n", __func__, rdev);
 	req->cmd = CPL_ABORT_NO_RST;
+	skb_get(skb);
 	ret = c4iw_ofld_send(rdev, skb);
 	if (ret) {
 		__state_set(&ep->com, DEAD);
 		queue_arp_failure_cpl(ep, skb, FAKE_CPL_PUT_EP_SAFE);
-	}
+	} else
+		kfree_skb(skb);
 }
 
 static int send_flowc(struct c4iw_ep *ep)
@@ -1195,7 +1200,7 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	/* setup the hwtid for this connection */
 	ep->hwtid = tid;
-	cxgb4_insert_tid(t, ep, tid);
+	cxgb4_insert_tid(t, ep, tid, ep->com.local_addr.ss_family);
 	insert_ep_tid(ep);
 
 	ep->snd_seq = be32_to_cpu(req->snd_isn);
@@ -2300,7 +2305,8 @@ fail:
 				   (const u32 *)&sin6->sin6_addr.s6_addr, 1);
 	}
 	if (status && act_open_has_tid(status))
-		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, GET_TID(rpl));
+		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, GET_TID(rpl),
+				 ep->com.local_addr.ss_family);
 
 	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, atid);
 	cxgb4_free_atid(t, atid);
@@ -2517,7 +2523,8 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		goto reject;
 	}
 
-	hdrs = sizeof(struct iphdr) + sizeof(struct tcphdr) +
+	hdrs = ((iptype == 4) ? sizeof(struct iphdr) : sizeof(struct ipv6hdr)) +
+	       sizeof(struct tcphdr) +
 	       ((enable_tcp_timestamps && req->tcpopt.tstamp) ? 12 : 0);
 	if (peer_mss && child_ep->mtu > (peer_mss + hdrs))
 		child_ep->mtu = peer_mss + hdrs;
@@ -2576,7 +2583,8 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		 child_ep->tx_chan, child_ep->smac_idx, child_ep->rss_qid);
 
 	init_timer(&child_ep->timer);
-	cxgb4_insert_tid(t, child_ep, hwtid);
+	cxgb4_insert_tid(t, child_ep, hwtid,
+			 child_ep->com.local_addr.ss_family);
 	insert_ep_tid(child_ep);
 	if (accept_cr(child_ep, skb, req)) {
 		c4iw_put_ep(&parent_ep->com);
@@ -2844,7 +2852,8 @@ out:
 					1);
 		}
 		remove_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep->hwtid);
-		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid);
+		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid,
+				 ep->com.local_addr.ss_family);
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
 		c4iw_reconnect(ep);

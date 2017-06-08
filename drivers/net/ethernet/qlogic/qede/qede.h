@@ -197,7 +197,6 @@ struct qede_dev {
 #define QEDE_TSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_rx)
 
 	struct qed_int_info		int_info;
-	unsigned char			primary_mac[ETH_ALEN];
 
 	/* Smaller private varaiant of the RTNL lock */
 	struct mutex			qede_lock;

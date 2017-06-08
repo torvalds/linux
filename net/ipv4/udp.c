@@ -1218,7 +1218,7 @@ void udp_skb_destructor(struct sock *sk, struct sk_buff *skb)
 EXPORT_SYMBOL(udp_skb_destructor);
 
 /* as above, but the caller held the rx queue lock, too */
-void udp_skb_dtor_locked(struct sock *sk, struct sk_buff *skb)
+static void udp_skb_dtor_locked(struct sock *sk, struct sk_buff *skb)
 {
 	udp_rmem_release(sk, skb->dev_scratch, 1, true);
 }
@@ -1465,16 +1465,13 @@ struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
 		error = -EAGAIN;
 		*peeked = 0;
 		do {
-			int _off = *off;
-
 			spin_lock_bh(&queue->lock);
 			skb = __skb_try_recv_from_queue(sk, queue, flags,
 							udp_skb_destructor,
-							peeked, &_off, err,
+							peeked, off, err,
 							&last);
 			if (skb) {
 				spin_unlock_bh(&queue->lock);
-				*off = _off;
 				return skb;
 			}
 
@@ -1488,20 +1485,17 @@ struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
 			 * the sk_receive_queue lock if fwd memory scheduling
 			 * is needed.
 			 */
-			_off = *off;
 			spin_lock(&sk_queue->lock);
 			skb_queue_splice_tail_init(sk_queue, queue);
 
 			skb = __skb_try_recv_from_queue(sk, queue, flags,
 							udp_skb_dtor_locked,
-							peeked, &_off, err,
+							peeked, off, err,
 							&last);
 			spin_unlock(&sk_queue->lock);
 			spin_unlock_bh(&queue->lock);
-			if (skb) {
-				*off = _off;
+			if (skb)
 				return skb;
-			}
 
 busy_check:
 			if (!sk_can_busy_loop(sk))
@@ -1733,7 +1727,7 @@ static void udp_v4_rehash(struct sock *sk)
 	udp_lib_rehash(sk, new_hash);
 }
 
-int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	int rc;
 
@@ -1778,7 +1772,7 @@ EXPORT_SYMBOL(udp_encap_enable);
  * Note that in the success and error cases, the skb is assumed to
  * have either been requeued or freed.
  */
-int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+static int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct udp_sock *up = udp_sk(sk);
 	int is_udplite = IS_UDPLITE(sk);

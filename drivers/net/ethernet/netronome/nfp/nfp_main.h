@@ -47,39 +47,50 @@
 #include <linux/workqueue.h>
 
 struct dentry;
+struct device;
+struct devlink_ops;
 struct pci_dev;
 
 struct nfp_cpp;
 struct nfp_cpp_area;
 struct nfp_eth_table;
+struct nfp_net;
+struct nfp_nsp_identify;
 
 /**
  * struct nfp_pf - NFP PF-specific device structure
  * @pdev:		Backpointer to PCI device
  * @cpp:		Pointer to the CPP handle
- * @ctrl_area:		Pointer to the CPP area for the control BAR
- * @tx_area:		Pointer to the CPP area for the TX queues
- * @rx_area:		Pointer to the CPP area for the FL/RX queues
- * @irq_entries:	Array of MSI-X entries for all ports
+ * @app:		Pointer to the APP handle
+ * @data_vnic_bar:	Pointer to the CPP area for the data vNICs' BARs
+ * @ctrl_vnic_bar:	Pointer to the CPP area for the ctrl vNIC's BAR
+ * @qc_area:		Pointer to the CPP area for the queues
+ * @irq_entries:	Array of MSI-X entries for all vNICs
  * @limit_vfs:		Number of VFs supported by firmware (~0 for PCI limit)
  * @num_vfs:		Number of SR-IOV VFs enabled
  * @fw_loaded:		Is the firmware loaded?
+ * @ctrl_vnic:		Pointer to the control vNIC if available
  * @eth_tbl:		NSP ETH table
+ * @nspi:		NSP identification info
+ * @hwmon_dev:		pointer to hwmon device
  * @ddir:		Per-device debugfs directory
- * @num_ports:		Number of adapter ports app firmware supports
- * @num_netdevs:	Number of netdevs spawned
- * @ports:		Linked list of port structures (struct nfp_net)
- * @port_lock:		Protects @ports, @num_ports, @num_netdevs
+ * @max_data_vnics:	Number of data vNICs app firmware supports
+ * @num_vnics:		Number of vNICs spawned
+ * @vnics:		Linked list of vNIC structures (struct nfp_net)
+ * @ports:		Linked list of port structures (struct nfp_port)
  * @port_refresh_work:	Work entry for taking netdevs out
+ * @lock:		Protects all fields which may change after probe
  */
 struct nfp_pf {
 	struct pci_dev *pdev;
 
 	struct nfp_cpp *cpp;
 
-	struct nfp_cpp_area *ctrl_area;
-	struct nfp_cpp_area *tx_area;
-	struct nfp_cpp_area *rx_area;
+	struct nfp_app *app;
+
+	struct nfp_cpp_area *data_vnic_bar;
+	struct nfp_cpp_area *ctrl_vnic_bar;
+	struct nfp_cpp_area *qc_area;
 
 	struct msix_entry *irq_entries;
 
@@ -88,21 +99,39 @@ struct nfp_pf {
 
 	bool fw_loaded;
 
+	struct nfp_net *ctrl_vnic;
+
 	struct nfp_eth_table *eth_tbl;
+	struct nfp_nsp_identify *nspi;
+
+	struct device *hwmon_dev;
 
 	struct dentry *ddir;
 
-	unsigned int num_ports;
-	unsigned int num_netdevs;
+	unsigned int max_data_vnics;
+	unsigned int num_vnics;
 
+	struct list_head vnics;
 	struct list_head ports;
 	struct work_struct port_refresh_work;
-	struct mutex port_lock;
+	struct mutex lock;
 };
 
 extern struct pci_driver nfp_netvf_pci_driver;
 
+extern const struct devlink_ops nfp_devlink_ops;
+
 int nfp_net_pci_probe(struct nfp_pf *pf);
 void nfp_net_pci_remove(struct nfp_pf *pf);
+
+int nfp_hwmon_register(struct nfp_pf *pf);
+void nfp_hwmon_unregister(struct nfp_pf *pf);
+
+struct nfp_eth_table_port *
+nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int id);
+void
+nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_cpp *cpp, unsigned int id);
+
+bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 
 #endif /* NFP_MAIN_H */

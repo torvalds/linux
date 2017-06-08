@@ -706,6 +706,14 @@ int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 	return __br_vlan_filter_toggle(br, val);
 }
 
+bool br_vlan_enabled(const struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	return !!br->vlan_enabled;
+}
+EXPORT_SYMBOL_GPL(br_vlan_enabled);
+
 int __br_vlan_set_proto(struct net_bridge *br, __be16 proto)
 {
 	int err = 0;

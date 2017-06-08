@@ -624,6 +624,7 @@ static int download_firmware(struct ll_device *lldev)
 			skb = __hci_cmd_sync(lldev->hu.hdev, cmd->opcode, cmd->plen, &cmd->speed, HCI_INIT_TIMEOUT);
 			if (IS_ERR(skb)) {
 				bt_dev_err(lldev->hu.hdev, "send command failed\n");
+				err = PTR_ERR(skb);
 				goto out_rel_fw;
 			}
 			kfree_skb(skb);

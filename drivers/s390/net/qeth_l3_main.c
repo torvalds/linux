@@ -956,31 +956,6 @@ static int qeth_l3_start_ipa_arp_processing(struct qeth_card *card)
 	return rc;
 }
 
-static int qeth_l3_start_ipa_ip_fragmentation(struct qeth_card *card)
-{
-	int rc;
-
-	QETH_CARD_TEXT(card, 3, "ipaipfrg");
-
-	if (!qeth_is_supported(card, IPA_IP_FRAGMENTATION)) {
-		dev_info(&card->gdev->dev,
-			"Hardware IP fragmentation not supported on %s\n",
-			QETH_CARD_IFNAME(card));
-		return  -EOPNOTSUPP;
-	}
-
-	rc = qeth_send_simple_setassparms(card, IPA_IP_FRAGMENTATION,
-					  IPA_CMD_ASS_START, 0);
-	if (rc) {
-		dev_warn(&card->gdev->dev,
-			"Starting IP fragmentation support for %s failed\n",
-			QETH_CARD_IFNAME(card));
-	} else
-		dev_info(&card->gdev->dev,
-			"Hardware IP fragmentation enabled \n");
-	return rc;
-}
-
 static int qeth_l3_start_ipa_source_mac(struct qeth_card *card)
 {
 	int rc;
@@ -1060,9 +1035,6 @@ static int qeth_l3_softsetup_ipv6(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 3, "softipv6");
 
-	if (card->info.type == QETH_CARD_TYPE_IQD)
-		goto out;
-
 	rc = qeth_query_ipassists(card, QETH_PROT_IPV6);
 	if (rc) {
 		dev_err(&card->gdev->dev,
@@ -1070,6 +1042,10 @@ static int qeth_l3_softsetup_ipv6(struct qeth_card *card)
 			QETH_CARD_IFNAME(card));
 		return rc;
 	}
+
+	if (card->info.type == QETH_CARD_TYPE_IQD)
+		goto out;
+
 	rc = qeth_send_simple_setassparms(card, IPA_IPV6,
 					  IPA_CMD_ASS_START, 3);
 	if (rc) {
@@ -1171,7 +1147,6 @@ static int qeth_l3_start_ipassists(struct qeth_card *card)
 	if (qeth_set_access_ctrl_online(card, 0))
 		return -EIO;
 	qeth_l3_start_ipa_arp_processing(card);	/* go on*/
-	qeth_l3_start_ipa_ip_fragmentation(card);	/* go on*/
 	qeth_l3_start_ipa_source_mac(card);	/* go on*/
 	qeth_l3_start_ipa_vlan(card);		/* go on*/
 	qeth_l3_start_ipa_multicast(card);		/* go on*/
@@ -2702,8 +2677,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	use_tso = skb_is_gso(skb) &&
 		  (qeth_get_ip_protocol(skb) == IPPROTO_TCP) && (ipv == 4);
 
-	if ((card->info.type == QETH_CARD_TYPE_IQD) &&
-	    !skb_is_nonlinear(skb)) {
+	if (card->info.type == QETH_CARD_TYPE_IQD) {
 		new_skb = skb;
 		data_offset = ETH_HLEN;
 		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
@@ -2716,12 +2690,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 					+ VLAN_HLEN);
 		if (!new_skb)
 			goto tx_drop;
-	}
 
-	if (card->info.type == QETH_CARD_TYPE_IQD) {
-		if (data_offset < 0)
-			skb_pull(new_skb, ETH_HLEN);
-	} else {
 		if (ipv == 4) {
 			skb_pull(new_skb, ETH_HLEN);
 		}
@@ -3036,14 +3005,21 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	return register_netdev(card->dev);
 }
 
+static const struct device_type qeth_l3_devtype = {
+	.name = "qeth_layer3",
+	.groups = qeth_l3_attr_groups,
+};
+
 static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 	int rc;
 
-	rc = qeth_l3_create_device_attributes(&gdev->dev);
-	if (rc)
-		return rc;
+	if (gdev->dev.type == &qeth_generic_devtype) {
+		rc = qeth_l3_create_device_attributes(&gdev->dev);
+		if (rc)
+			return rc;
+	}
 	hash_init(card->ip_htable);
 	hash_init(card->ip_mc_htable);
 	card->options.layer2 = 0;
@@ -3055,7 +3031,8 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&cgdev->dev);
 
-	qeth_l3_remove_device_attributes(&cgdev->dev);
+	if (cgdev->dev.type == &qeth_generic_devtype)
+		qeth_l3_remove_device_attributes(&cgdev->dev);
 
 	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
@@ -3311,7 +3288,7 @@ static int qeth_l3_control_event(struct qeth_card *card,
 }
 
 struct qeth_discipline qeth_l3_discipline = {
-	.devtype = &qeth_generic_devtype,
+	.devtype = &qeth_l3_devtype,
 	.start_poll = qeth_qdio_start_poll,
 	.input_handler = (qdio_handler_t *) qeth_qdio_input_handler,
 	.output_handler = (qdio_handler_t *) qeth_qdio_output_handler,

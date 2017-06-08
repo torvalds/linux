@@ -403,14 +403,14 @@ int qed_eq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 	return rc;
 }
 
-struct qed_eq *qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
+int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 {
 	struct qed_eq *p_eq;
 
 	/* Allocate EQ struct */
 	p_eq = kzalloc(sizeof(*p_eq), GFP_KERNEL);
 	if (!p_eq)
-		return NULL;
+		return -ENOMEM;
 
 	/* Allocate and initialize EQ chain*/
 	if (qed_chain_alloc(p_hwfn->cdev,
@@ -426,24 +426,28 @@ struct qed_eq *qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 	qed_int_register_cb(p_hwfn, qed_eq_completion,
 			    p_eq, &p_eq->eq_sb_index, &p_eq->p_fw_cons);
 
-	return p_eq;
+	p_hwfn->p_eq = p_eq;
+	return 0;
 
 eq_allocate_fail:
-	qed_eq_free(p_hwfn, p_eq);
-	return NULL;
-}
-
-void qed_eq_setup(struct qed_hwfn *p_hwfn, struct qed_eq *p_eq)
-{
-	qed_chain_reset(&p_eq->chain);
-}
-
-void qed_eq_free(struct qed_hwfn *p_hwfn, struct qed_eq *p_eq)
-{
-	if (!p_eq)
-		return;
-	qed_chain_free(p_hwfn->cdev, &p_eq->chain);
 	kfree(p_eq);
+	return -ENOMEM;
+}
+
+void qed_eq_setup(struct qed_hwfn *p_hwfn)
+{
+	qed_chain_reset(&p_hwfn->p_eq->chain);
+}
+
+void qed_eq_free(struct qed_hwfn *p_hwfn)
+{
+	if (!p_hwfn->p_eq)
+		return;
+
+	qed_chain_free(p_hwfn->cdev, &p_hwfn->p_eq->chain);
+
+	kfree(p_hwfn->p_eq);
+	p_hwfn->p_eq = NULL;
 }
 
 /***************************************************************************
@@ -583,8 +587,8 @@ void qed_spq_free(struct qed_hwfn *p_hwfn)
 	}
 
 	qed_chain_free(p_hwfn->cdev, &p_spq->chain);
-	;
 	kfree(p_spq);
+	p_hwfn->p_spq = NULL;
 }
 
 int qed_spq_get_entry(struct qed_hwfn *p_hwfn, struct qed_spq_entry **pp_ent)
@@ -934,14 +938,14 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-struct qed_consq *qed_consq_alloc(struct qed_hwfn *p_hwfn)
+int qed_consq_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_consq *p_consq;
 
 	/* Allocate ConsQ struct */
 	p_consq = kzalloc(sizeof(*p_consq), GFP_KERNEL);
 	if (!p_consq)
-		return NULL;
+		return -ENOMEM;
 
 	/* Allocate and initialize EQ chain*/
 	if (qed_chain_alloc(p_hwfn->cdev,
@@ -952,22 +956,26 @@ struct qed_consq *qed_consq_alloc(struct qed_hwfn *p_hwfn)
 			    0x80, &p_consq->chain))
 		goto consq_allocate_fail;
 
-	return p_consq;
+	p_hwfn->p_consq = p_consq;
+	return 0;
 
 consq_allocate_fail:
-	qed_consq_free(p_hwfn, p_consq);
-	return NULL;
-}
-
-void qed_consq_setup(struct qed_hwfn *p_hwfn, struct qed_consq *p_consq)
-{
-	qed_chain_reset(&p_consq->chain);
-}
-
-void qed_consq_free(struct qed_hwfn *p_hwfn, struct qed_consq *p_consq)
-{
-	if (!p_consq)
-		return;
-	qed_chain_free(p_hwfn->cdev, &p_consq->chain);
 	kfree(p_consq);
+	return -ENOMEM;
+}
+
+void qed_consq_setup(struct qed_hwfn *p_hwfn)
+{
+	qed_chain_reset(&p_hwfn->p_consq->chain);
+}
+
+void qed_consq_free(struct qed_hwfn *p_hwfn)
+{
+	if (!p_hwfn->p_consq)
+		return;
+
+	qed_chain_free(p_hwfn->cdev, &p_hwfn->p_consq->chain);
+
+	kfree(p_hwfn->p_consq);
+	p_hwfn->p_consq = NULL;
 }

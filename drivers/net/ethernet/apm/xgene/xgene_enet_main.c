@@ -1634,7 +1634,7 @@ static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 	struct device *dev = &pdev->dev;
 	int i, ret, max_irqs;
 
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
+	if (phy_interface_mode_is_rgmii(pdata->phy_mode))
 		max_irqs = 1;
 	else if (pdata->phy_mode == PHY_INTERFACE_MODE_SGMII)
 		max_irqs = 2;
@@ -1760,7 +1760,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		dev_err(dev, "Unable to get phy-connection-type\n");
 		return pdata->phy_mode;
 	}
-	if (pdata->phy_mode != PHY_INTERFACE_MODE_RGMII &&
+	if (!phy_interface_mode_is_rgmii(pdata->phy_mode) &&
 	    pdata->phy_mode != PHY_INTERFACE_MODE_SGMII &&
 	    pdata->phy_mode != PHY_INTERFACE_MODE_XGMII) {
 		dev_err(dev, "Incorrect phy-connection-type specified\n");
@@ -1805,7 +1805,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	pdata->cle.base = base_addr + BLOCK_ETH_CLE_CSR_OFFSET;
 	pdata->eth_ring_if_addr = base_addr + BLOCK_ETH_RING_IF_OFFSET;
 	pdata->eth_diag_csr_addr = base_addr + BLOCK_ETH_DIAG_CSR_OFFSET;
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII ||
+	if (phy_interface_mode_is_rgmii(pdata->phy_mode) ||
 	    pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
 		pdata->mcx_mac_addr = pdata->base_addr + BLOCK_ETH_MAC_OFFSET;
 		pdata->mcx_stats_addr =
@@ -1904,6 +1904,9 @@ static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
 {
 	switch (pdata->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		pdata->mac_ops = &xgene_gmac_ops;
 		pdata->port_ops = &xgene_gport_ops;
 		pdata->rm = RM3;
@@ -2100,7 +2103,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
 		INIT_DELAYED_WORK(&pdata->link_work, link_state);
 	} else if (!pdata->mdio_driver) {
-		if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
+		if (phy_interface_mode_is_rgmii(pdata->phy_mode))
 			ret = xgene_enet_mdio_config(pdata);
 		else
 			INIT_DELAYED_WORK(&pdata->link_work, link_state);
@@ -2131,7 +2134,7 @@ err2:
 
 	if (pdata->mdio_driver)
 		xgene_enet_phy_disconnect(pdata);
-	else if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
+	else if (phy_interface_mode_is_rgmii(pdata->phy_mode))
 		xgene_enet_mdio_remove(pdata);
 err1:
 	xgene_enet_delete_desc_rings(pdata);
@@ -2155,7 +2158,7 @@ static int xgene_enet_remove(struct platform_device *pdev)
 
 	if (pdata->mdio_driver)
 		xgene_enet_phy_disconnect(pdata);
-	else if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
+	else if (phy_interface_mode_is_rgmii(pdata->phy_mode))
 		xgene_enet_mdio_remove(pdata);
 
 	unregister_netdev(ndev);

@@ -306,27 +306,24 @@ int qed_ll2_get_stats(struct qed_hwfn *p_hwfn,
  *
  * @param p_hwfn
  *
- * @return pointer to alocated qed_ll2_info or NULL
+ * @return int
  */
-struct qed_ll2_info *qed_ll2_alloc(struct qed_hwfn *p_hwfn);
+int qed_ll2_alloc(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_ll2_setup - Inits LL2 connections set
  *
  * @param p_hwfn
- * @param p_ll2_connections
  *
  */
-void qed_ll2_setup(struct qed_hwfn *p_hwfn,
-		   struct qed_ll2_info *p_ll2_connections);
+void qed_ll2_setup(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_ll2_free - Releases LL2 connections set
  *
  * @param p_hwfn
- * @param p_ll2_connections
  *
  */
-void qed_ll2_free(struct qed_hwfn *p_hwfn,
-		  struct qed_ll2_info *p_ll2_connections);
+void qed_ll2_free(struct qed_hwfn *p_hwfn);
+
 #endif

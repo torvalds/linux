@@ -1494,6 +1494,8 @@ static int qedi_send_iscsi_tmf(struct qedi_conn *qedi_conn,
 	tmf_hdr = (struct iscsi_tm *)mtask->hdr;
 	qedi_cmd = (struct qedi_cmd *)mtask->dd_data;
 	ep = qedi_conn->ep;
+	if (!ep)
+		return -ENODEV;
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
@@ -2099,14 +2101,16 @@ int qedi_iscsi_send_ioreq(struct iscsi_task *task)
 	/* Update header info */
 	SET_FIELD(cmd_pdu_header.flags_attr, ISCSI_CMD_HDR_ATTR,
 		  ISCSI_ATTR_SIMPLE);
-	if (sc->sc_data_direction == DMA_TO_DEVICE) {
-		SET_FIELD(cmd_pdu_header.flags_attr,
-			  ISCSI_CMD_HDR_WRITE, 1);
-		task_type = ISCSI_TASK_TYPE_INITIATOR_WRITE;
-	} else {
-		SET_FIELD(cmd_pdu_header.flags_attr,
-			  ISCSI_CMD_HDR_READ, 1);
-		task_type = ISCSI_TASK_TYPE_INITIATOR_READ;
+	if (hdr->cdb[0] != TEST_UNIT_READY) {
+		if (sc->sc_data_direction == DMA_TO_DEVICE) {
+			SET_FIELD(cmd_pdu_header.flags_attr,
+				  ISCSI_CMD_HDR_WRITE, 1);
+			task_type = ISCSI_TASK_TYPE_INITIATOR_WRITE;
+		} else {
+			SET_FIELD(cmd_pdu_header.flags_attr,
+				  ISCSI_CMD_HDR_READ, 1);
+			task_type = ISCSI_TASK_TYPE_INITIATOR_READ;
+		}
 	}
 
 	cmd_pdu_header.lun.lo = be32_to_cpu(scsi_lun[0]);
@@ -2117,7 +2121,7 @@ int qedi_iscsi_send_ioreq(struct iscsi_task *task)
 	cmd_pdu_header.expected_transfer_length = cpu_to_be32(hdr->data_length);
 	cmd_pdu_header.hdr_second_dword = ntoh24(hdr->dlength);
 	cmd_pdu_header.cmd_sn = be32_to_cpu(hdr->cmdsn);
-	cmd_pdu_header.opcode = hdr->opcode;
+	cmd_pdu_header.hdr_first_byte = hdr->opcode;
 	qedi_cpy_scsi_cdb(sc, (u32 *)cmd_pdu_header.cdb);
 
 	/* Fill tx AHS and rx buffer */

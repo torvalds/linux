@@ -42,6 +42,7 @@
 
 #include <linux/ctype.h>
 #include <linux/types.h>
+#include <linux/sizes.h>
 
 #ifndef NFP_SUBSYS
 #define NFP_SUBSYS "nfp"
@@ -59,6 +60,13 @@
 #define PCI_64BIT_BAR_COUNT             3
 
 #define NFP_CPP_NUM_TARGETS             16
+/* Max size of area it should be safe to request */
+#define NFP_CPP_SAFE_AREA_SIZE		SZ_2M
+
+/* NFP_MUTEX_WAIT_* are timeouts in seconds when waiting for a mutex */
+#define NFP_MUTEX_WAIT_FIRST_WARN	15
+#define NFP_MUTEX_WAIT_NEXT_WARN	5
+#define NFP_MUTEX_WAIT_ERROR		60
 
 struct device;
 
@@ -288,6 +296,17 @@ void nfp_cpp_mutex_free(struct nfp_cpp_mutex *mutex);
 int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex);
 int nfp_cpp_mutex_unlock(struct nfp_cpp_mutex *mutex);
 int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex);
+
+/**
+ * nfp_cppcore_pcie_unit() - Get PCI Unit of a CPP handle
+ * @cpp:	CPP handle
+ *
+ * Return: PCI unit for the NFP CPP handle
+ */
+static inline u8 nfp_cppcore_pcie_unit(struct nfp_cpp *cpp)
+{
+	return NFP_CPP_INTERFACE_UNIT_of(nfp_cpp_interface(cpp));
+}
 
 struct nfp_cpp_explicit;
 

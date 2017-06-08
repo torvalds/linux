@@ -170,20 +170,21 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 					  struct sk_buff **last)
 {
 	struct sk_buff *skb;
+	int _off = *off;
 
 	*last = queue->prev;
 	skb_queue_walk(queue, skb) {
 		if (flags & MSG_PEEK) {
-			if (*off >= skb->len && (skb->len || *off ||
+			if (_off >= skb->len && (skb->len || _off ||
 						 skb->peeked)) {
-				*off -= skb->len;
+				_off -= skb->len;
 				continue;
 			}
 			if (!skb->len) {
 				skb = skb_set_peeked(skb);
 				if (unlikely(IS_ERR(skb))) {
 					*err = PTR_ERR(skb);
-					return skb;
+					return NULL;
 				}
 			}
 			*peeked = 1;
@@ -193,6 +194,7 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 			if (destructor)
 				destructor(sk, skb);
 		}
+		*off = _off;
 		return skb;
 	}
 	return NULL;
@@ -253,8 +255,6 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 
 	*peeked = 0;
 	do {
-		int _off = *off;
-
 		/* Again only user level code calls this function, so nothing
 		 * interrupt level will suddenly eat the receive_queue.
 		 *
@@ -263,8 +263,10 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 		 */
 		spin_lock_irqsave(&queue->lock, cpu_flags);
 		skb = __skb_try_recv_from_queue(sk, queue, flags, destructor,
-						peeked, &_off, err, last);
+						peeked, off, &error, last);
 		spin_unlock_irqrestore(&queue->lock, cpu_flags);
+		if (error)
+			goto no_packet;
 		if (skb)
 			return skb;
 

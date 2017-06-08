@@ -869,7 +869,7 @@ static unsigned int get_mergeable_buf_len(struct receive_queue *rq,
 	unsigned int len;
 
 	len = hdr_len + clamp_t(unsigned int, ewma_pkt_len_read(avg_pkt_len),
-				rq->min_buf_len - hdr_len, PAGE_SIZE - hdr_len);
+				rq->min_buf_len, PAGE_SIZE - hdr_len);
 	return ALIGN(len, L1_CACHE_BYTES);
 }
 
@@ -1150,7 +1150,7 @@ static int xmit_skb(struct send_queue *sq, struct sk_buff *skb)
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
 	struct virtnet_info *vi = sq->vq->vdev->priv;
-	unsigned num_sg;
+	int num_sg;
 	unsigned hdr_len = vi->hdr_len;
 	bool can_push;
 
@@ -1177,11 +1177,16 @@ static int xmit_skb(struct send_queue *sq, struct sk_buff *skb)
 	if (can_push) {
 		__skb_push(skb, hdr_len);
 		num_sg = skb_to_sgvec(skb, sq->sg, 0, skb->len);
+		if (unlikely(num_sg < 0))
+			return num_sg;
 		/* Pull header back to avoid skew in tx bytes calculations. */
 		__skb_pull(skb, hdr_len);
 	} else {
 		sg_set_buf(sq->sg, hdr, hdr_len);
-		num_sg = skb_to_sgvec(skb, sq->sg + 1, 0, skb->len) + 1;
+		num_sg = skb_to_sgvec(skb, sq->sg + 1, 0, skb->len);
+		if (unlikely(num_sg < 0))
+			return num_sg;
+		num_sg++;
 	}
 	return virtqueue_add_outbuf(sq->vq, sq->sg, num_sg, skb, GFP_ATOMIC);
 }
@@ -1989,6 +1994,7 @@ static const struct net_device_ops virtnet_netdev = {
 	.ndo_poll_controller = virtnet_netpoll,
 #endif
 	.ndo_xdp		= virtnet_xdp,
+	.ndo_features_check	= passthru_features_check,
 };
 
 static void virtnet_config_changed_work(struct work_struct *work)
@@ -2143,7 +2149,8 @@ static unsigned int mergeable_min_buf_len(struct virtnet_info *vi, struct virtqu
 	unsigned int buf_len = hdr_len + ETH_HLEN + VLAN_HLEN + packet_len;
 	unsigned int min_buf_len = DIV_ROUND_UP(buf_len, rq_size);
 
-	return max(min_buf_len, hdr_len);
+	return max(max(min_buf_len, hdr_len) - hdr_len,
+		   (unsigned int)GOOD_PACKET_LEN);
 }
 
 static int virtnet_find_vqs(struct virtnet_info *vi)

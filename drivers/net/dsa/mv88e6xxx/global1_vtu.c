@@ -11,7 +11,7 @@
  * (at your option) any later version.
  */
 
-#include "mv88e6xxx.h"
+#include "chip.h"
 #include "global1.h"
 
 /* Offset 0x02: VTU FID Register */

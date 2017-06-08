@@ -958,7 +958,7 @@ enum mlxsw_flood_table_type {
 	MLXSW_REG_SFGC_TABLE_TYPE_VID = 1,
 	MLXSW_REG_SFGC_TABLE_TYPE_SINGLE = 2,
 	MLXSW_REG_SFGC_TABLE_TYPE_ANY = 0,
-	MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST = 3,
+	MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFSET = 3,
 	MLXSW_REG_SFGC_TABLE_TYPE_FID = 4,
 };
 
@@ -5643,6 +5643,222 @@ static inline void mlxsw_reg_mlcr_pack(char *payload, u8 local_port,
 					   MLXSW_REG_MLCR_DURATION_MAX : 0);
 }
 
+/* MCQI - Management Component Query Information
+ * ---------------------------------------------
+ * This register allows querying information about firmware components.
+ */
+#define MLXSW_REG_MCQI_ID 0x9061
+#define MLXSW_REG_MCQI_BASE_LEN 0x18
+#define MLXSW_REG_MCQI_CAP_LEN 0x14
+#define MLXSW_REG_MCQI_LEN (MLXSW_REG_MCQI_BASE_LEN + MLXSW_REG_MCQI_CAP_LEN)
+
+MLXSW_REG_DEFINE(mcqi, MLXSW_REG_MCQI_ID, MLXSW_REG_MCQI_LEN);
+
+/* reg_mcqi_component_index
+ * Index of the accessed component.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mcqi, component_index, 0x00, 0, 16);
+
+enum mlxfw_reg_mcqi_info_type {
+	MLXSW_REG_MCQI_INFO_TYPE_CAPABILITIES,
+};
+
+/* reg_mcqi_info_type
+ * Component properties set.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mcqi, info_type, 0x08, 0, 5);
+
+/* reg_mcqi_offset
+ * The requested/returned data offset from the section start, given in bytes.
+ * Must be DWORD aligned.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mcqi, offset, 0x10, 0, 32);
+
+/* reg_mcqi_data_size
+ * The requested/returned data size, given in bytes. If data_size is not DWORD
+ * aligned, the last bytes are zero padded.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mcqi, data_size, 0x14, 0, 16);
+
+/* reg_mcqi_cap_max_component_size
+ * Maximum size for this component, given in bytes.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mcqi, cap_max_component_size, 0x20, 0, 32);
+
+/* reg_mcqi_cap_log_mcda_word_size
+ * Log 2 of the access word size in bytes. Read and write access must be aligned
+ * to the word size. Write access must be done for an integer number of words.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mcqi, cap_log_mcda_word_size, 0x24, 28, 4);
+
+/* reg_mcqi_cap_mcda_max_write_size
+ * Maximal write size for MCDA register
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mcqi, cap_mcda_max_write_size, 0x24, 0, 16);
+
+static inline void mlxsw_reg_mcqi_pack(char *payload, u16 component_index)
+{
+	MLXSW_REG_ZERO(mcqi, payload);
+	mlxsw_reg_mcqi_component_index_set(payload, component_index);
+	mlxsw_reg_mcqi_info_type_set(payload,
+				     MLXSW_REG_MCQI_INFO_TYPE_CAPABILITIES);
+	mlxsw_reg_mcqi_offset_set(payload, 0);
+	mlxsw_reg_mcqi_data_size_set(payload, MLXSW_REG_MCQI_CAP_LEN);
+}
+
+static inline void mlxsw_reg_mcqi_unpack(char *payload,
+					 u32 *p_cap_max_component_size,
+					 u8 *p_cap_log_mcda_word_size,
+					 u16 *p_cap_mcda_max_write_size)
+{
+	*p_cap_max_component_size =
+		mlxsw_reg_mcqi_cap_max_component_size_get(payload);
+	*p_cap_log_mcda_word_size =
+		mlxsw_reg_mcqi_cap_log_mcda_word_size_get(payload);
+	*p_cap_mcda_max_write_size =
+		mlxsw_reg_mcqi_cap_mcda_max_write_size_get(payload);
+}
+
+/* MCC - Management Component Control
+ * ----------------------------------
+ * Controls the firmware component and updates the FSM.
+ */
+#define MLXSW_REG_MCC_ID 0x9062
+#define MLXSW_REG_MCC_LEN 0x1C
+
+MLXSW_REG_DEFINE(mcc, MLXSW_REG_MCC_ID, MLXSW_REG_MCC_LEN);
+
+enum mlxsw_reg_mcc_instruction {
+	MLXSW_REG_MCC_INSTRUCTION_LOCK_UPDATE_HANDLE = 0x01,
+	MLXSW_REG_MCC_INSTRUCTION_RELEASE_UPDATE_HANDLE = 0x02,
+	MLXSW_REG_MCC_INSTRUCTION_UPDATE_COMPONENT = 0x03,
+	MLXSW_REG_MCC_INSTRUCTION_VERIFY_COMPONENT = 0x04,
+	MLXSW_REG_MCC_INSTRUCTION_ACTIVATE = 0x06,
+	MLXSW_REG_MCC_INSTRUCTION_CANCEL = 0x08,
+};
+
+/* reg_mcc_instruction
+ * Command to be executed by the FSM.
+ * Applicable for write operation only.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mcc, instruction, 0x00, 0, 8);
+
+/* reg_mcc_component_index
+ * Index of the accessed component. Applicable only for commands that
+ * refer to components. Otherwise, this field is reserved.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mcc, component_index, 0x04, 0, 16);
+
+/* reg_mcc_update_handle
+ * Token representing the current flow executed by the FSM.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mcc, update_handle, 0x08, 0, 24);
+
+/* reg_mcc_error_code
+ * Indicates the successful completion of the instruction, or the reason it
+ * failed
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mcc, error_code, 0x0C, 8, 8);
+
+/* reg_mcc_control_state
+ * Current FSM state
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mcc, control_state, 0x0C, 0, 4);
+
+/* reg_mcc_component_size
+ * Component size in bytes. Valid for UPDATE_COMPONENT instruction. Specifying
+ * the size may shorten the update time. Value 0x0 means that size is
+ * unspecified.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mcc, component_size, 0x10, 0, 32);
+
+static inline void mlxsw_reg_mcc_pack(char *payload,
+				      enum mlxsw_reg_mcc_instruction instr,
+				      u16 component_index, u32 update_handle,
+				      u32 component_size)
+{
+	MLXSW_REG_ZERO(mcc, payload);
+	mlxsw_reg_mcc_instruction_set(payload, instr);
+	mlxsw_reg_mcc_component_index_set(payload, component_index);
+	mlxsw_reg_mcc_update_handle_set(payload, update_handle);
+	mlxsw_reg_mcc_component_size_set(payload, component_size);
+}
+
+static inline void mlxsw_reg_mcc_unpack(char *payload, u32 *p_update_handle,
+					u8 *p_error_code, u8 *p_control_state)
+{
+	if (p_update_handle)
+		*p_update_handle = mlxsw_reg_mcc_update_handle_get(payload);
+	if (p_error_code)
+		*p_error_code = mlxsw_reg_mcc_error_code_get(payload);
+	if (p_control_state)
+		*p_control_state = mlxsw_reg_mcc_control_state_get(payload);
+}
+
+/* MCDA - Management Component Data Access
+ * ---------------------------------------
+ * This register allows reading and writing a firmware component.
+ */
+#define MLXSW_REG_MCDA_ID 0x9063
+#define MLXSW_REG_MCDA_BASE_LEN 0x10
+#define MLXSW_REG_MCDA_MAX_DATA_LEN 0x80
+#define MLXSW_REG_MCDA_LEN \
+		(MLXSW_REG_MCDA_BASE_LEN + MLXSW_REG_MCDA_MAX_DATA_LEN)
+
+MLXSW_REG_DEFINE(mcda, MLXSW_REG_MCDA_ID, MLXSW_REG_MCDA_LEN);
+
+/* reg_mcda_update_handle
+ * Token representing the current flow executed by the FSM.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mcda, update_handle, 0x00, 0, 24);
+
+/* reg_mcda_offset
+ * Offset of accessed address relative to component start. Accesses must be in
+ * accordance to log_mcda_word_size in MCQI reg.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mcda, offset, 0x04, 0, 32);
+
+/* reg_mcda_size
+ * Size of the data accessed, given in bytes.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mcda, size, 0x08, 0, 16);
+
+/* reg_mcda_data
+ * Data block accessed.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, mcda, data, 0x10, 0, 32, 4, 0, false);
+
+static inline void mlxsw_reg_mcda_pack(char *payload, u32 update_handle,
+				       u32 offset, u16 size, u8 *data)
+{
+	int i;
+
+	MLXSW_REG_ZERO(mcda, payload);
+	mlxsw_reg_mcda_update_handle_set(payload, update_handle);
+	mlxsw_reg_mcda_offset_set(payload, offset);
+	mlxsw_reg_mcda_size_set(payload, size);
+
+	for (i = 0; i < size / 4; i++)
+		mlxsw_reg_mcda_data_set(payload, i, *(u32 *) &data[i * 4]);
+}
+
 /* MPSC - Monitoring Packet Sampling Configuration Register
  * --------------------------------------------------------
  * MPSC Register is used to configure the Packet Sampling mechanism.
@@ -6221,6 +6437,9 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mpar),
 	MLXSW_REG(mlcr),
 	MLXSW_REG(mpsc),
+	MLXSW_REG(mcqi),
+	MLXSW_REG(mcc),
+	MLXSW_REG(mcda),
 	MLXSW_REG(mgpc),
 	MLXSW_REG(sbpr),
 	MLXSW_REG(sbcm),

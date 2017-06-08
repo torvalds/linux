@@ -15,10 +15,10 @@
 
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
-#include "mv88e6xxx.h"
-#include "global2.h"
 
-#define ADDR_GLOBAL2	0x1c
+#include "chip.h"
+#include "global1.h" /* for GLOBAL_STATUS_IRQ_DEVICE */
+#include "global2.h"
 
 static int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
 {

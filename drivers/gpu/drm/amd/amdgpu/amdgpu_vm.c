@@ -634,7 +634,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 		mutex_unlock(&id_mgr->lock);
 	}
 
-	if (gds_switch_needed) {
+	if (ring->funcs->emit_gds_switch && gds_switch_needed) {
 		id->gds_base = job->gds_base;
 		id->gds_size = job->gds_size;
 		id->gws_base = job->gws_base;
@@ -672,12 +672,33 @@ void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vmhub,
 	struct amdgpu_vm_id_manager *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	struct amdgpu_vm_id *id = &id_mgr->ids[vmid];
 
+	atomic64_set(&id->owner, 0);
 	id->gds_base = 0;
 	id->gds_size = 0;
 	id->gws_base = 0;
 	id->gws_size = 0;
 	id->oa_base = 0;
 	id->oa_size = 0;
+}
+
+/**
+ * amdgpu_vm_reset_all_id - reset VMID to zero
+ *
+ * @adev: amdgpu device structure
+ *
+ * Reset VMID to force flush on next use
+ */
+void amdgpu_vm_reset_all_ids(struct amdgpu_device *adev)
+{
+	unsigned i, j;
+
+	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
+		struct amdgpu_vm_id_manager *id_mgr =
+			&adev->vm_manager.id_mgr[i];
+
+		for (j = 1; j < id_mgr->num_ids; ++j)
+			amdgpu_vm_reset_id(adev, i, j);
+	}
 }
 
 /**
@@ -2269,7 +2290,6 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 		dma_fence_context_alloc(AMDGPU_MAX_RINGS);
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		adev->vm_manager.seqno[i] = 0;
-
 
 	atomic_set(&adev->vm_manager.vm_pte_next_ring, 0);
 	atomic64_set(&adev->vm_manager.client_counter, 0);

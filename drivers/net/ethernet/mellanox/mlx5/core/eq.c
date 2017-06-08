@@ -35,6 +35,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
+#include "fpga/core.h"
 #ifdef CONFIG_MLX5_CORE_EN
 #include "eswitch.h"
 #endif
@@ -156,6 +157,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_PAGE_FAULT";
 	case MLX5_EVENT_TYPE_PPS_EVENT:
 		return "MLX5_EVENT_TYPE_PPS_EVENT";
+	case MLX5_EVENT_TYPE_FPGA_ERROR:
+		return "MLX5_EVENT_TYPE_FPGA_ERROR";
 	default:
 		return "Unrecognized event";
 	}
@@ -422,7 +425,7 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			break;
 
 		case MLX5_EVENT_TYPE_CMD:
-			mlx5_cmd_comp_handler(dev, be32_to_cpu(eqe->data.cmd.vector));
+			mlx5_cmd_comp_handler(dev, be32_to_cpu(eqe->data.cmd.vector), false);
 			break;
 
 		case MLX5_EVENT_TYPE_PORT_CHANGE:
@@ -476,6 +479,11 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			if (dev->event)
 				dev->event(dev, MLX5_DEV_EVENT_PPS, (unsigned long)eqe);
 			break;
+
+		case MLX5_EVENT_TYPE_FPGA_ERROR:
+			mlx5_fpga_event(dev, eqe->type, &eqe->data.raw);
+			break;
+
 		default:
 			mlx5_core_warn(dev, "Unhandled event 0x%x on EQ 0x%x\n",
 				       eqe->type, eq->eqn);
@@ -548,7 +556,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	inlen = MLX5_ST_SZ_BYTES(create_eq_in) +
 		MLX5_FLD_SZ_BYTES(create_eq_in, pas[0]) * eq->buf.npages;
 
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		err = -ENOMEM;
 		goto err_buf;
@@ -692,6 +700,9 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_GEN(dev, pps))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PPS_EVENT);
+
+	if (MLX5_CAP_GEN(dev, fpga))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_FPGA_ERROR);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,

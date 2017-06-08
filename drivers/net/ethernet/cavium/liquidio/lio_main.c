@@ -1421,7 +1421,7 @@ static bool fw_type_is_none(void)
  */
 static void octeon_destroy_resources(struct octeon_device *oct)
 {
-	int i;
+	int i, refcount;
 	struct msix_entry *msix_entries;
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)oct->priv;
@@ -1556,10 +1556,14 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		/* fallthrough */
 	case OCT_DEV_PCI_MAP_DONE:
+		refcount = octeon_deregister_device(oct);
+
 		if (!fw_type_is_none()) {
-			/* Soft reset the octeon device before exiting */
-			if (!OCTEON_CN23XX_PF(oct) ||
-			    (OCTEON_CN23XX_PF(oct) && !oct->octeon_id))
+			/* Soft reset the octeon device before exiting.
+			 * Implementation note: here, we reset the device
+			 * if it is a CN6XXX OR the last CN23XX device.
+			 */
+			if (OCTEON_CN6XXX(oct) || !refcount)
 				oct->fn_list.soft_reset(oct);
 		}
 
@@ -3020,6 +3024,7 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		conf.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
@@ -3693,6 +3698,9 @@ static int liquidio_set_vf_mac(struct net_device *netdev, int vfidx, u8 *mac)
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	int retval;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
+		return -EINVAL;
 
 	retval = __liquidio_set_vf_mac(netdev, vfidx, mac, true);
 	if (!retval)
@@ -4510,6 +4518,15 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 	}
 
 	atomic_set(&octeon_dev->status, OCT_DEV_PCI_MAP_DONE);
+
+	/* Only add a reference after setting status 'OCT_DEV_PCI_MAP_DONE',
+	 * since that is what is required for the reference to be removed
+	 * during de-initialization (see 'octeon_destroy_resources').
+	 */
+	octeon_register_device(octeon_dev, octeon_dev->pci_dev->bus->number,
+			       PCI_SLOT(octeon_dev->pci_dev->devfn),
+			       PCI_FUNC(octeon_dev->pci_dev->devfn),
+			       true);
 
 	octeon_dev->app_mode = CVM_DRV_INVALID_APP;
 

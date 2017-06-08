@@ -3241,8 +3241,9 @@ void be_detect_error(struct be_adapter *adapter)
 {
 	u32 ue_lo = 0, ue_hi = 0, ue_lo_mask = 0, ue_hi_mask = 0;
 	u32 sliport_status = 0, sliport_err1 = 0, sliport_err2 = 0;
-	u32 i;
 	struct device *dev = &adapter->pdev->dev;
+	u16 val;
+	u32 i;
 
 	if (be_check_error(adapter, BE_ERROR_HW))
 		return;
@@ -3280,15 +3281,25 @@ void be_detect_error(struct be_adapter *adapter)
 		ue_lo = (ue_lo & ~ue_lo_mask);
 		ue_hi = (ue_hi & ~ue_hi_mask);
 
-		/* On certain platforms BE hardware can indicate spurious UEs.
-		 * Allow HW to stop working completely in case of a real UE.
-		 * Hence not setting the hw_error for UE detection.
-		 */
-
 		if (ue_lo || ue_hi) {
+			/* On certain platforms BE3 hardware can indicate
+			 * spurious UEs. In case of a UE in the chip,
+			 * the POST register correctly reports either a
+			 * FAT_LOG_START state (FW is currently dumping
+			 * FAT log data) or a ARMFW_UE state. Check for the
+			 * above states to ascertain if the UE is valid or not.
+			 */
+			if (BE3_chip(adapter)) {
+				val = be_POST_stage_get(adapter);
+				if ((val & POST_STAGE_FAT_LOG_START)
+				     != POST_STAGE_FAT_LOG_START &&
+				    (val & POST_STAGE_ARMFW_UE)
+				     != POST_STAGE_ARMFW_UE)
+					return;
+			}
+
 			dev_err(dev, "Error detected in the adapter");
-			if (skyhawk_chip(adapter))
-				be_set_error(adapter, BE_ERROR_UE);
+			be_set_error(adapter, BE_ERROR_UE);
 
 			for (i = 0; ue_lo; ue_lo >>= 1, i++) {
 				if (ue_lo & 1)
@@ -5078,9 +5089,11 @@ static netdev_features_t be_features_check(struct sk_buff *skb,
 	struct be_adapter *adapter = netdev_priv(dev);
 	u8 l4_hdr = 0;
 
-	/* The code below restricts offload features for some tunneled packets.
+	/* The code below restricts offload features for some tunneled and
+	 * Q-in-Q packets.
 	 * Offload features for normal (non tunnel) packets are unchanged.
 	 */
+	features = vlan_features_check(skb, features);
 	if (!skb->encapsulation ||
 	    !(adapter->flags & BE_FLAGS_VXLAN_OFFLOADS))
 		return features;

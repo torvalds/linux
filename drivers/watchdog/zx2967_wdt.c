@@ -211,10 +211,8 @@ static int zx2967_wdt_probe(struct platform_device *pdev)
 
 	base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt->reg_base = devm_ioremap_resource(dev, base);
-	if (IS_ERR(wdt->reg_base)) {
-		dev_err(dev, "ioremap failed\n");
+	if (IS_ERR(wdt->reg_base))
 		return PTR_ERR(wdt->reg_base);
-	}
 
 	zx2967_wdt_reset_sysctrl(dev);
 

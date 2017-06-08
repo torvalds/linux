@@ -22,6 +22,8 @@ typedef __u16 __sum16;
 
 #include <sys/wait.h>
 #include <sys/resource.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 #include <linux/bpf.h>
 #include <linux/err.h>
@@ -70,6 +72,7 @@ static struct {
 		pass_cnt++;						\
 		printf("%s:PASS:%s %d nsec\n", __func__, tag, duration);\
 	}								\
+	__ret;								\
 })
 
 static int bpf_prog_load(const char *file, enum bpf_prog_type type,
@@ -283,6 +286,193 @@ static void test_tcp_estats(void)
 	bpf_object__close(obj);
 }
 
+static inline __u64 ptr_to_u64(const void *ptr)
+{
+	return (__u64) (unsigned long) ptr;
+}
+
+static void test_bpf_obj_id(void)
+{
+	const __u64 array_magic_value = 0xfaceb00c;
+	const __u32 array_key = 0;
+	const int nr_iters = 2;
+	const char *file = "./test_obj_id.o";
+
+	struct bpf_object *objs[nr_iters];
+	int prog_fds[nr_iters], map_fds[nr_iters];
+	/* +1 to test for the info_len returned by kernel */
+	struct bpf_prog_info prog_infos[nr_iters + 1];
+	struct bpf_map_info map_infos[nr_iters + 1];
+	char jited_insns[128], xlated_insns[128];
+	__u32 i, next_id, info_len, nr_id_found, duration = 0;
+	int err = 0;
+	__u64 array_value;
+
+	err = bpf_prog_get_fd_by_id(0);
+	CHECK(err >= 0 || errno != ENOENT,
+	      "get-fd-by-notexist-prog-id", "err %d errno %d\n", err, errno);
+
+	err = bpf_map_get_fd_by_id(0);
+	CHECK(err >= 0 || errno != ENOENT,
+	      "get-fd-by-notexist-map-id", "err %d errno %d\n", err, errno);
+
+	for (i = 0; i < nr_iters; i++)
+		objs[i] = NULL;
+
+	/* Check bpf_obj_get_info_by_fd() */
+	for (i = 0; i < nr_iters; i++) {
+		err = bpf_prog_load(file, BPF_PROG_TYPE_SOCKET_FILTER,
+				    &objs[i], &prog_fds[i]);
+		/* test_obj_id.o is a dumb prog. It should never fail
+		 * to load.
+		 */
+		assert(!err);
+
+		/* Check getting prog info */
+		info_len = sizeof(struct bpf_prog_info) * 2;
+		prog_infos[i].jited_prog_insns = ptr_to_u64(jited_insns);
+		prog_infos[i].jited_prog_len = sizeof(jited_insns);
+		prog_infos[i].xlated_prog_insns = ptr_to_u64(xlated_insns);
+		prog_infos[i].xlated_prog_len = sizeof(xlated_insns);
+		err = bpf_obj_get_info_by_fd(prog_fds[i], &prog_infos[i],
+					     &info_len);
+		if (CHECK(err ||
+			  prog_infos[i].type != BPF_PROG_TYPE_SOCKET_FILTER ||
+			  info_len != sizeof(struct bpf_prog_info) ||
+			  !prog_infos[i].jited_prog_len ||
+			  !prog_infos[i].xlated_prog_len,
+			  "get-prog-info(fd)",
+			  "err %d errno %d i %d type %d(%d) info_len %u(%lu) jited_prog_len %u xlated_prog_len %u\n",
+			  err, errno, i,
+			  prog_infos[i].type, BPF_PROG_TYPE_SOCKET_FILTER,
+			  info_len, sizeof(struct bpf_prog_info),
+			  prog_infos[i].jited_prog_len,
+			  prog_infos[i].xlated_prog_len))
+			goto done;
+
+		map_fds[i] = bpf_find_map(__func__, objs[i], "test_map_id");
+		assert(map_fds[i] >= 0);
+		err = bpf_map_update_elem(map_fds[i], &array_key,
+					  &array_magic_value, 0);
+		assert(!err);
+
+		/* Check getting map info */
+		info_len = sizeof(struct bpf_map_info) * 2;
+		err = bpf_obj_get_info_by_fd(map_fds[i], &map_infos[i],
+					     &info_len);
+		if (CHECK(err ||
+			  map_infos[i].type != BPF_MAP_TYPE_ARRAY ||
+			  map_infos[i].key_size != sizeof(__u32) ||
+			  map_infos[i].value_size != sizeof(__u64) ||
+			  map_infos[i].max_entries != 1 ||
+			  map_infos[i].map_flags != 0 ||
+			  info_len != sizeof(struct bpf_map_info),
+			  "get-map-info(fd)",
+			  "err %d errno %d type %d(%d) info_len %u(%lu) key_size %u value_size %u max_entries %u map_flags %X\n",
+			  err, errno,
+			  map_infos[i].type, BPF_MAP_TYPE_ARRAY,
+			  info_len, sizeof(struct bpf_map_info),
+			  map_infos[i].key_size,
+			  map_infos[i].value_size,
+			  map_infos[i].max_entries,
+			  map_infos[i].map_flags))
+			goto done;
+	}
+
+	/* Check bpf_prog_get_next_id() */
+	nr_id_found = 0;
+	next_id = 0;
+	while (!bpf_prog_get_next_id(next_id, &next_id)) {
+		struct bpf_prog_info prog_info;
+		int prog_fd;
+
+		info_len = sizeof(prog_info);
+
+		prog_fd = bpf_prog_get_fd_by_id(next_id);
+		if (prog_fd < 0 && errno == ENOENT)
+			/* The bpf_prog is in the dead row */
+			continue;
+		if (CHECK(prog_fd < 0, "get-prog-fd(next_id)",
+			  "prog_fd %d next_id %d errno %d\n",
+			  prog_fd, next_id, errno))
+			break;
+
+		for (i = 0; i < nr_iters; i++)
+			if (prog_infos[i].id == next_id)
+				break;
+
+		if (i == nr_iters)
+			continue;
+
+		nr_id_found++;
+
+		err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
+		CHECK(err || info_len != sizeof(struct bpf_prog_info) ||
+		      memcmp(&prog_info, &prog_infos[i], info_len),
+		      "get-prog-info(next_id->fd)",
+		      "err %d errno %d info_len %u(%lu) memcmp %d\n",
+		      err, errno, info_len, sizeof(struct bpf_prog_info),
+		      memcmp(&prog_info, &prog_infos[i], info_len));
+
+		close(prog_fd);
+	}
+	CHECK(nr_id_found != nr_iters,
+	      "check total prog id found by get_next_id",
+	      "nr_id_found %u(%u)\n",
+	      nr_id_found, nr_iters);
+
+	/* Check bpf_map_get_next_id() */
+	nr_id_found = 0;
+	next_id = 0;
+	while (!bpf_map_get_next_id(next_id, &next_id)) {
+		struct bpf_map_info map_info;
+		int map_fd;
+
+		info_len = sizeof(map_info);
+
+		map_fd = bpf_map_get_fd_by_id(next_id);
+		if (map_fd < 0 && errno == ENOENT)
+			/* The bpf_map is in the dead row */
+			continue;
+		if (CHECK(map_fd < 0, "get-map-fd(next_id)",
+			  "map_fd %d next_id %u errno %d\n",
+			  map_fd, next_id, errno))
+			break;
+
+		for (i = 0; i < nr_iters; i++)
+			if (map_infos[i].id == next_id)
+				break;
+
+		if (i == nr_iters)
+			continue;
+
+		nr_id_found++;
+
+		err = bpf_map_lookup_elem(map_fd, &array_key, &array_value);
+		assert(!err);
+
+		err = bpf_obj_get_info_by_fd(map_fd, &map_info, &info_len);
+		CHECK(err || info_len != sizeof(struct bpf_map_info) ||
+		      memcmp(&map_info, &map_infos[i], info_len) ||
+		      array_value != array_magic_value,
+		      "check get-map-info(next_id->fd)",
+		      "err %d errno %d info_len %u(%lu) memcmp %d array_value %llu(%llu)\n",
+		      err, errno, info_len, sizeof(struct bpf_map_info),
+		      memcmp(&map_info, &map_infos[i], info_len),
+		      array_value, array_magic_value);
+
+		close(map_fd);
+	}
+	CHECK(nr_id_found != nr_iters,
+	      "check total map id found by get_next_id",
+	      "nr_id_found %u(%u)\n",
+	      nr_id_found, nr_iters);
+
+done:
+	for (i = 0; i < nr_iters; i++)
+		bpf_object__close(objs[i]);
+}
+
 int main(void)
 {
 	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
@@ -293,6 +483,7 @@ int main(void)
 	test_xdp();
 	test_l4lb();
 	test_tcp_estats();
+	test_bpf_obj_id();
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
 	return 0;

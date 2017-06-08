@@ -2085,6 +2085,7 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		conf.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
@@ -3187,13 +3188,28 @@ static int octeon_device_init(struct octeon_device *oct)
 	if (octeon_setup_interrupt(oct))
 		return 1;
 
-	if (cn23xx_octeon_pfvf_handshake(oct))
-		return 1;
+	atomic_set(&oct->status, OCT_DEV_INTR_SET_DONE);
+
+	/* ***************************************************************
+	 * The interrupts need to be enabled for the PF<-->VF handshake.
+	 * They are [re]-enabled after the PF<-->VF handshake so that the
+	 * correct OQ tick value is used (i.e. the value retrieved from
+	 * the PF as part of the handshake).
+	 */
 
 	/* Enable Octeon device interrupts */
 	oct->fn_list.enable_interrupt(oct, OCTEON_ALL_INTR);
 
-	atomic_set(&oct->status, OCT_DEV_INTR_SET_DONE);
+	if (cn23xx_octeon_pfvf_handshake(oct))
+		return 1;
+
+	/* Here we [re]-enable the interrupts so that the correct OQ tick value
+	 * is used (i.e. the value that was retrieved during the handshake)
+	 */
+
+	/* Enable Octeon device interrupts */
+	oct->fn_list.enable_interrupt(oct, OCTEON_ALL_INTR);
+	/* *************************************************************** */
 
 	/* Enable the input and output queues for this Octeon device */
 	if (oct->fn_list.enable_io_queues(oct)) {

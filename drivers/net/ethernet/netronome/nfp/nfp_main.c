@@ -41,9 +41,11 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/vermagic.h>
+#include <net/devlink.h>
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
@@ -71,20 +73,22 @@ static const struct pci_device_id nfp_pci_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, nfp_pci_device_ids);
 
-static void nfp_pcie_sriov_read_nfd_limit(struct nfp_pf *pf)
+static int nfp_pcie_sriov_read_nfd_limit(struct nfp_pf *pf)
 {
-#ifdef CONFIG_PCI_IOV
 	int err;
 
 	pf->limit_vfs = nfp_rtsym_read_le(pf->cpp, "nfd_vf_cfg_max_vfs", &err);
 	if (!err)
-		return;
+		return pci_sriov_set_totalvfs(pf->pdev, pf->limit_vfs);
 
 	pf->limit_vfs = ~0;
+	pci_sriov_set_totalvfs(pf->pdev, 0); /* 0 is unset */
 	/* Allow any setting for backwards compatibility if symbol not found */
-	if (err != -ENOENT)
-		nfp_warn(pf->cpp, "Warning: VF limit read failed: %d\n", err);
-#endif
+	if (err == -ENOENT)
+		return 0;
+
+	nfp_warn(pf->cpp, "Warning: VF limit read failed: %d\n", err);
+	return err;
 }
 
 static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
@@ -253,7 +257,6 @@ exit_release_fw:
 
 static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
 {
-	struct nfp_nsp_identify *nspi;
 	struct nfp_nsp *nsp;
 	int err;
 
@@ -270,14 +273,13 @@ static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
 
 	pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
 
-	nspi = __nfp_nsp_identify(nsp);
-	if (nspi) {
-		dev_info(&pdev->dev, "BSP: %s\n", nspi->version);
-		kfree(nspi);
-	}
+	pf->nspi = __nfp_nsp_identify(nsp);
+	if (pf->nspi)
+		dev_info(&pdev->dev, "BSP: %s\n", pf->nspi->version);
 
 	err = nfp_fw_load(pdev, pf, nsp);
 	if (err < 0) {
+		kfree(pf->nspi);
 		kfree(pf->eth_tbl);
 		dev_err(&pdev->dev, "Failed to load FW\n");
 		goto exit_close_nsp;
@@ -315,6 +317,7 @@ static void nfp_fw_unload(struct nfp_pf *pf)
 static int nfp_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *pci_id)
 {
+	struct devlink *devlink;
 	struct nfp_pf *pf;
 	int err;
 
@@ -335,12 +338,15 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_pci_disable;
 	}
 
-	pf = kzalloc(sizeof(*pf), GFP_KERNEL);
-	if (!pf) {
+	devlink = devlink_alloc(&nfp_devlink_ops, sizeof(*pf));
+	if (!devlink) {
 		err = -ENOMEM;
 		goto err_rel_regions;
 	}
+	pf = devlink_priv(devlink);
+	INIT_LIST_HEAD(&pf->vnics);
 	INIT_LIST_HEAD(&pf->ports);
+	mutex_init(&pf->lock);
 	pci_set_drvdata(pdev, pf);
 	pf->pdev = pdev;
 
@@ -359,27 +365,47 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		 nfp_hwinfo_lookup(pf->cpp, "assembly.revision"),
 		 nfp_hwinfo_lookup(pf->cpp, "cpld.version"));
 
-	err = nfp_nsp_init(pdev, pf);
+	err = devlink_register(devlink, &pdev->dev);
 	if (err)
 		goto err_cpp_free;
 
-	nfp_pcie_sriov_read_nfd_limit(pf);
+	err = nfp_nsp_init(pdev, pf);
+	if (err)
+		goto err_devlink_unreg;
 
-	err = nfp_net_pci_probe(pf);
+	err = nfp_pcie_sriov_read_nfd_limit(pf);
 	if (err)
 		goto err_fw_unload;
 
+	err = nfp_net_pci_probe(pf);
+	if (err)
+		goto err_sriov_unlimit;
+
+	err = nfp_hwmon_register(pf);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to register hwmon info\n");
+		goto err_net_remove;
+	}
+
 	return 0;
 
+err_net_remove:
+	nfp_net_pci_remove(pf);
+err_sriov_unlimit:
+	pci_sriov_set_totalvfs(pf->pdev, 0);
 err_fw_unload:
 	if (pf->fw_loaded)
 		nfp_fw_unload(pf);
 	kfree(pf->eth_tbl);
+	kfree(pf->nspi);
+err_devlink_unreg:
+	devlink_unregister(devlink);
 err_cpp_free:
 	nfp_cpp_free(pf->cpp);
 err_disable_msix:
 	pci_set_drvdata(pdev, NULL);
-	kfree(pf);
+	mutex_destroy(&pf->lock);
+	devlink_free(devlink);
 err_rel_regions:
 	pci_release_regions(pdev);
 err_pci_disable:
@@ -391,10 +417,18 @@ err_pci_disable:
 static void nfp_pci_remove(struct pci_dev *pdev)
 {
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
+	struct devlink *devlink;
+
+	nfp_hwmon_unregister(pf);
+
+	devlink = priv_to_devlink(pf);
 
 	nfp_net_pci_remove(pf);
 
 	nfp_pcie_sriov_disable(pdev);
+	pci_sriov_set_totalvfs(pf->pdev, 0);
+
+	devlink_unregister(devlink);
 
 	if (pf->fw_loaded)
 		nfp_fw_unload(pf);
@@ -403,7 +437,9 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 	nfp_cpp_free(pf->cpp);
 
 	kfree(pf->eth_tbl);
-	kfree(pf);
+	kfree(pf->nspi);
+	mutex_destroy(&pf->lock);
+	devlink_free(devlink);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }

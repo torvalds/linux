@@ -431,11 +431,6 @@ int cn23xx_octeon_pfvf_handshake(struct octeon_device *oct)
 	mbox_cmd.fn = (octeon_mbox_callback_t)octeon_pfvf_hs_callback;
 	mbox_cmd.fn_arg = &status;
 
-	/* Interrupts are not enabled at this point.
-	 * Enable them with default oq ticks
-	 */
-	oct->fn_list.enable_interrupt(oct, OCTEON_ALL_INTR);
-
 	octeon_mbox_write(oct, &mbox_cmd);
 
 	atomic_set(&status, 0);
@@ -443,11 +438,6 @@ int cn23xx_octeon_pfvf_handshake(struct octeon_device *oct)
 	do {
 		schedule_timeout_uninterruptible(1);
 	} while ((!atomic_read(&status)) && (count++ < 100000));
-
-	/* Disable the interrupt so that the interrupsts will be reenabled
-	 * with the oq ticks received from the PF
-	 */
-	oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
 
 	ret = atomic_read(&status);
 	if (!ret) {

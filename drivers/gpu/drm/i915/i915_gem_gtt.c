@@ -195,9 +195,12 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 	u32 pte_flags;
 	int ret;
 
-	ret = vma->vm->allocate_va_range(vma->vm, vma->node.start, vma->size);
-	if (ret)
-		return ret;
+	if (!(vma->flags & I915_VMA_LOCAL_BIND)) {
+		ret = vma->vm->allocate_va_range(vma->vm, vma->node.start,
+						 vma->size);
+		if (ret)
+			return ret;
+	}
 
 	vma->pages = vma->obj->mm.pages;
 
@@ -2306,10 +2309,11 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	if (flags & I915_VMA_LOCAL_BIND) {
 		struct i915_hw_ppgtt *appgtt = i915->mm.aliasing_ppgtt;
 
-		if (appgtt->base.allocate_va_range) {
+		if (!(vma->flags & I915_VMA_LOCAL_BIND) &&
+		    appgtt->base.allocate_va_range) {
 			ret = appgtt->base.allocate_va_range(&appgtt->base,
 							     vma->node.start,
-							     vma->node.size);
+							     vma->size);
 			if (ret)
 				goto err_pages;
 		}

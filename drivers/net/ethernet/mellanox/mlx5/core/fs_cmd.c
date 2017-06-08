@@ -232,11 +232,9 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	u32 *in;
 	int err;
 
-	in = mlx5_vzalloc(inlen);
-	if (!in) {
-		mlx5_core_warn(dev, "failed to allocate inbox\n");
+	in = kvzalloc(inlen, GFP_KERNEL);
+	if (!in)
 		return -ENOMEM;
-	}
 
 	MLX5_SET(set_fte_in, in, opcode, MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY);
 	MLX5_SET(set_fte_in, in, op_mod, opmod);

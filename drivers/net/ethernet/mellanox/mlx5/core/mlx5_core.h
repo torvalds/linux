@@ -39,8 +39,7 @@
 #include <linux/if_link.h>
 
 #define DRIVER_NAME "mlx5_core"
-#define DRIVER_VERSION "3.0-1"
-#define DRIVER_RELDATE  "January 2015"
+#define DRIVER_VERSION "5.0-0"
 
 #define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs(mdev->pdev))
 

@@ -425,8 +425,7 @@ octeon_droq_refill_pullup_descs(struct octeon_droq *droq,
 							      droq->max_count);
 				desc_refilled++;
 				droq->refill_count--;
-			} while (droq->recv_buf_list[droq->refill_idx].
-				 buffer);
+			} while (droq->recv_buf_list[droq->refill_idx].buffer);
 		}
 		refill_index = incr_index(refill_index, 1, droq->max_count);
 	}                       /* while */
@@ -490,8 +489,8 @@ octeon_droq_refill(struct octeon_device *octeon_dev, struct octeon_droq *droq)
 		droq->recv_buf_list[droq->refill_idx].data = data;
 
 		desc_ring[droq->refill_idx].buffer_ptr =
-			lio_map_ring(droq->recv_buf_list[droq->
-				     refill_idx].buffer);
+			lio_map_ring(droq->recv_buf_list[
+				     droq->refill_idx].buffer);
 		/* Reset any previous values in the length field. */
 		droq->info_list[droq->refill_idx].length = 0;
 
@@ -690,8 +689,8 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 									nicbuf,
 									cpy_len,
 									idx);
-						buf = droq->recv_buf_list[idx].
-							buffer;
+						buf = droq->recv_buf_list[
+							idx].buffer;
 						recv_buffer_fast_free(buf);
 						droq->recv_buf_list[idx].buffer
 							= NULL;

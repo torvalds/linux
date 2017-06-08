@@ -21,6 +21,15 @@ Optional Properties:
 		  can support. For example, a particular board has some signal
 		  quality issue or the host processor can't support higher
 		  baud rates.
+- current-speed	: The current baud rate the device operates at. This should
+		  only be present in case a driver has no chance to know
+		  the baud rate of the slave device.
+		  Examples:
+		    * device supports auto-baud
+		    * the rate is setup by a bootloader and there is no
+		      way to reset the device
+		    * device baud rate is configured by its firmware but
+		      there is no way to request the actual settings
 
 Example:
 

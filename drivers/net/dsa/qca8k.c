@@ -18,7 +18,6 @@
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <net/dsa.h>
-#include <net/switchdev.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/if_bridge.h>
@@ -507,7 +506,7 @@ qca8k_setup(struct dsa_switch *ds)
 		pr_warn("regmap initialization failed");
 
 	/* Initialize CPU port pad mode (xMII type, delays...) */
-	phy_mode = of_get_phy_mode(ds->ports[ds->dst->cpu_port].dn);
+	phy_mode = of_get_phy_mode(ds->dst->cpu_dp->dn);
 	if (phy_mode < 0) {
 		pr_err("Can't find phy-mode for master device\n");
 		return phy_mode;
@@ -873,7 +872,7 @@ qca8k_port_fdb_del(struct dsa_switch *ds, int port,
 static int
 qca8k_port_fdb_dump(struct dsa_switch *ds, int port,
 		    struct switchdev_obj_port_fdb *fdb,
-		    int (*cb)(struct switchdev_obj *obj))
+		    switchdev_obj_dump_cb_t *cb)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	struct qca8k_fdb _fdb = { 0 };
@@ -959,7 +958,7 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	mutex_init(&priv->reg_mutex);
 	dev_set_drvdata(&mdiodev->dev, priv);
 
-	return dsa_register_switch(priv->ds, &mdiodev->dev);
+	return dsa_register_switch(priv->ds);
 }
 
 static void

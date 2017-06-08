@@ -120,6 +120,7 @@ union ramrod_data {
 	struct iscsi_spe_func_dstry iscsi_destroy;
 	struct iscsi_spe_conn_offload iscsi_conn_offload;
 	struct iscsi_conn_update_ramrod_params iscsi_conn_update;
+	struct iscsi_spe_conn_mac_update iscsi_conn_mac_update;
 	struct iscsi_spe_conn_termination iscsi_conn_terminate;
 
 	struct vf_start_ramrod_data vf_start;
@@ -270,28 +271,23 @@ void qed_spq_return_entry(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param num_elem number of elements in the eq
  *
- * @return struct qed_eq* - a newly allocated structure; NULL upon error.
+ * @return int
  */
-struct qed_eq *qed_eq_alloc(struct qed_hwfn *p_hwfn,
-			    u16 num_elem);
+int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem);
 
 /**
- * @brief qed_eq_setup - Reset the SPQ to its start state.
+ * @brief qed_eq_setup - Reset the EQ to its start state.
  *
  * @param p_hwfn
- * @param p_eq
  */
-void qed_eq_setup(struct qed_hwfn *p_hwfn,
-		  struct qed_eq *p_eq);
+void qed_eq_setup(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_eq_deallocate - deallocates the given EQ struct.
+ * @brief qed_eq_free - deallocates the given EQ struct.
  *
  * @param p_hwfn
- * @param p_eq
  */
-void qed_eq_free(struct qed_hwfn *p_hwfn,
-		 struct qed_eq *p_eq);
+void qed_eq_free(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_eq_prod_update - update the FW with default EQ producer
@@ -342,28 +338,23 @@ u32 qed_spq_get_cid(struct qed_hwfn *p_hwfn);
  *
  * @param p_hwfn
  *
- * @return struct qed_eq* - a newly allocated structure; NULL upon error.
+ * @return int
  */
-struct qed_consq *qed_consq_alloc(struct qed_hwfn *p_hwfn);
+int qed_consq_alloc(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_consq_setup - Reset the ConsQ to its start
- *        state.
+ * @brief qed_consq_setup - Reset the ConsQ to its start state.
  *
  * @param p_hwfn
- * @param p_eq
  */
-void qed_consq_setup(struct qed_hwfn *p_hwfn,
-		     struct qed_consq *p_consq);
+void qed_consq_setup(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_consq_free - deallocates the given ConsQ struct.
  *
  * @param p_hwfn
- * @param p_eq
  */
-void qed_consq_free(struct qed_hwfn *p_hwfn,
-		    struct qed_consq *p_consq);
+void qed_consq_free(struct qed_hwfn *p_hwfn);
 
 /**
  * @file
@@ -401,6 +392,7 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
  * to the internal RAM of the UStorm by the Function Start Ramrod.
  *
  * @param p_hwfn
+ * @param p_ptt
  * @param p_tunn
  * @param mode
  * @param allow_npar_tx_switch
@@ -409,6 +401,7 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
  */
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt,
 		    struct qed_tunnel_info *p_tunn,
 		    enum qed_mf_mode mode, bool allow_npar_tx_switch);
 
@@ -424,6 +417,15 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
  */
 
 int qed_sp_pf_update(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief qed_sp_pf_update_stag - Update firmware of new outer tag
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+int qed_sp_pf_update_stag(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_sp_pf_stop - PF Function Stop Ramrod
@@ -442,6 +444,7 @@ int qed_sp_pf_update(struct qed_hwfn *p_hwfn);
 int qed_sp_pf_stop(struct qed_hwfn *p_hwfn);
 
 int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
 			      struct qed_tunnel_info *p_tunn,
 			      enum spq_mode comp_mode,
 			      struct qed_spq_comp_cb *p_comp_data);

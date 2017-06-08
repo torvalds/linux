@@ -610,7 +610,6 @@ static void build_mpa_v2(struct nes_cm_node *cm_node,
 		ctrl_ord = cm_node->ord_size & IETF_NO_IRD_ORD;
 	}
 	ctrl_ird |= IETF_PEER_TO_PEER;
-	ctrl_ird |= IETF_FLPDU_ZERO_LEN;
 
 	switch (mpa_key) {
 	case MPA_KEY_REQUEST:
@@ -1826,7 +1825,7 @@ static void handle_rcv_mpa(struct nes_cm_node *cm_node, struct sk_buff *skb)
 			type = NES_CM_EVENT_CONNECTED;
 			cm_node->state = NES_CM_STATE_TSA;
 		}
-
+		send_ack(cm_node, NULL);
 		break;
 	default:
 		WARN_ON(1);

@@ -802,7 +802,7 @@ static int lan9303_register_switch(struct lan9303 *chip)
 	chip->ds->ops = &lan9303_switch_ops;
 	chip->ds->phys_mii_mask = chip->phy_addr_sel_strap ? 0xe : 0x7;
 
-	return dsa_register_switch(chip->ds, chip->dev);
+	return dsa_register_switch(chip->ds);
 }
 
 static void lan9303_probe_reset_gpio(struct lan9303 *chip,

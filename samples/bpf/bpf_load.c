@@ -516,16 +516,18 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		processed_sec[maps_shndx] = true;
 	}
 
-	/* load programs that need map fixup (relocations) */
+	/* process all relo sections, and rewrite bpf insns for maps */
 	for (i = 1; i < ehdr.e_shnum; i++) {
 		if (processed_sec[i])
 			continue;
 
 		if (get_sec(elf, i, &ehdr, &shname, &shdr, &data))
 			continue;
+
 		if (shdr.sh_type == SHT_REL) {
 			struct bpf_insn *insns;
 
+			/* locate prog sec that need map fixup (relocations) */
 			if (get_sec(elf, shdr.sh_info, &ehdr, &shname_prog,
 				    &shdr_prog, &data_prog))
 				continue;
@@ -535,26 +537,15 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 				continue;
 
 			insns = (struct bpf_insn *) data_prog->d_buf;
-
-			processed_sec[shdr.sh_info] = true;
-			processed_sec[i] = true;
+			processed_sec[i] = true; /* relo section */
 
 			if (parse_relo_and_apply(data, symbols, &shdr, insns,
 						 map_data, nr_maps))
 				continue;
-
-			if (memcmp(shname_prog, "kprobe/", 7) == 0 ||
-			    memcmp(shname_prog, "kretprobe/", 10) == 0 ||
-			    memcmp(shname_prog, "tracepoint/", 11) == 0 ||
-			    memcmp(shname_prog, "xdp", 3) == 0 ||
-			    memcmp(shname_prog, "perf_event", 10) == 0 ||
-			    memcmp(shname_prog, "socket", 6) == 0 ||
-			    memcmp(shname_prog, "cgroup/", 7) == 0)
-				load_and_attach(shname_prog, insns, data_prog->d_size);
 		}
 	}
 
-	/* load programs that don't use maps */
+	/* load programs */
 	for (i = 1; i < ehdr.e_shnum; i++) {
 
 		if (processed_sec[i])

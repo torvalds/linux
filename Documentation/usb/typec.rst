@@ -114,8 +114,7 @@ the details during registration. The class offers the following API for
 registering/unregistering cables and their plugs:
 
 .. kernel-doc:: drivers/usb/typec/typec.c
-   :functions: typec_register_cable typec_unregister_cable typec_register_plug
-   typec_unregister_plug
+   :functions: typec_register_cable typec_unregister_cable typec_register_plug typec_unregister_plug
 
 The class will provide a handle to struct typec_cable and struct typec_plug if
 the registration is successful, or NULL if it isn't.
@@ -137,8 +136,7 @@ during connection of a partner or cable, the port driver must use the following
 APIs to report it to the class:
 
 .. kernel-doc:: drivers/usb/typec/typec.c
-   :functions: typec_set_data_role typec_set_pwr_role typec_set_vconn_role
-   typec_set_pwr_opmode
+   :functions: typec_set_data_role typec_set_pwr_role typec_set_vconn_role typec_set_pwr_opmode
 
 Alternate Modes
 ~~~~~~~~~~~~~~~

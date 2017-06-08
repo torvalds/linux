@@ -49,6 +49,9 @@
 #define POST_STAGE_BE_RESET		0x3 /* Host wants to reset chip */
 #define POST_STAGE_ARMFW_RDY		0xc000	/* FW is done with POST */
 #define POST_STAGE_RECOVERABLE_ERR	0xE000	/* Recoverable err detected */
+/* FW has detected a UE and is dumping FAT log data */
+#define POST_STAGE_FAT_LOG_START       0x0D00
+#define POST_STAGE_ARMFW_UE            0xF000  /*FW has asserted an UE*/
 
 /* Lancer SLIPORT registers */
 #define SLIPORT_STATUS_OFFSET		0x404

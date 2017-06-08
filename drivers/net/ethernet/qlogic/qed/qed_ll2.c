@@ -38,7 +38,6 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <net/ipv6.h>
 #include <linux/bitops.h>
@@ -1921,7 +1920,7 @@ void qed_ll2_release_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 	mutex_unlock(&p_ll2_conn->mutex);
 }
 
-struct qed_ll2_info *qed_ll2_alloc(struct qed_hwfn *p_hwfn)
+int qed_ll2_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_ll2_info *p_ll2_connections;
 	u8 i;
@@ -1931,28 +1930,31 @@ struct qed_ll2_info *qed_ll2_alloc(struct qed_hwfn *p_hwfn)
 				    sizeof(struct qed_ll2_info), GFP_KERNEL);
 	if (!p_ll2_connections) {
 		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_ll2'\n");
-		return NULL;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < QED_MAX_NUM_OF_LL2_CONNECTIONS; i++)
 		p_ll2_connections[i].my_id = i;
 
-	return p_ll2_connections;
+	p_hwfn->p_ll2_info = p_ll2_connections;
+	return 0;
 }
 
-void qed_ll2_setup(struct qed_hwfn *p_hwfn,
-		   struct qed_ll2_info *p_ll2_connections)
+void qed_ll2_setup(struct qed_hwfn *p_hwfn)
 {
 	int i;
 
 	for (i = 0; i < QED_MAX_NUM_OF_LL2_CONNECTIONS; i++)
-		mutex_init(&p_ll2_connections[i].mutex);
+		mutex_init(&p_hwfn->p_ll2_info[i].mutex);
 }
 
-void qed_ll2_free(struct qed_hwfn *p_hwfn,
-		  struct qed_ll2_info *p_ll2_connections)
+void qed_ll2_free(struct qed_hwfn *p_hwfn)
 {
-	kfree(p_ll2_connections);
+	if (!p_hwfn->p_ll2_info)
+		return;
+
+	kfree(p_hwfn->p_ll2_info);
+	p_hwfn->p_ll2_info = NULL;
 }
 
 static void _qed_ll2_get_tstats(struct qed_hwfn *p_hwfn,

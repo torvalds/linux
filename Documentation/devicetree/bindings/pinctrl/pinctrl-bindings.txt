@@ -247,7 +247,6 @@ bias-bus-hold		- latch weakly
 bias-pull-up		- pull up the pin
 bias-pull-down		- pull down the pin
 bias-pull-pin-default	- use pin-default pull state
-bi-directional		- pin supports simultaneous input/output operations
 drive-push-pull		- drive actively high and low
 drive-open-drain	- drive with open drain
 drive-open-source	- drive with open source
@@ -260,7 +259,6 @@ input-debounce		- debounce mode with debound time X
 power-source		- select between different power supplies
 low-power-enable	- enable low power mode
 low-power-disable	- disable low power mode
-output-enable		- enable output on pin regardless of output value
 output-low		- set the pin to output mode with low level
 output-high		- set the pin to output mode with high level
 slew-rate		- set the slew rate

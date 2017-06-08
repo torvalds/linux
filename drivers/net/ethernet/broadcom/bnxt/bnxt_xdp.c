@@ -63,7 +63,7 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 		tx_buf = &txr->tx_buf_ring[last_tx_cons];
 		rx_prod = tx_buf->rx_prod;
 	}
-	writel(DB_KEY_RX | rx_prod, rxr->rx_doorbell);
+	bnxt_db_write(bp, rxr->rx_doorbell, DB_KEY_RX | rx_prod);
 }
 
 /* returns the following:

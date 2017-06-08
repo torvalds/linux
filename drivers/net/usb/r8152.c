@@ -841,12 +841,6 @@ int pla_ocp_write(struct r8152 *tp, u16 index, u16 byteen, u16 size, void *data)
 }
 
 static inline
-int usb_ocp_read(struct r8152 *tp, u16 index, u16 size, void *data)
-{
-	return generic_ocp_read(tp, index, size, data, MCU_TYPE_USB);
-}
-
-static inline
 int usb_ocp_write(struct r8152 *tp, u16 index, u16 byteen, u16 size, void *data)
 {
 	return generic_ocp_write(tp, index, byteen, size, data, MCU_TYPE_USB);
@@ -3841,7 +3835,7 @@ int rtl8152_get_link_ksettings(struct net_device *netdev,
 
 	mutex_lock(&tp->control);
 
-	ret = mii_ethtool_get_link_ksettings(&tp->mii, cmd);
+	mii_ethtool_get_link_ksettings(&tp->mii, cmd);
 
 	mutex_unlock(&tp->control);
 

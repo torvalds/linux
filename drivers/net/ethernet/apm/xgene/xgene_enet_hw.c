@@ -272,7 +272,7 @@ void xgene_enet_wr_mac(struct xgene_enet_pdata *pdata, u32 wr_addr, u32 wr_data)
 	u32 done;
 
 	if (pdata->mdio_driver && ndev->phydev &&
-	    pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
+	    phy_interface_mode_is_rgmii(pdata->phy_mode)) {
 		struct mii_bus *bus = ndev->phydev->mdio.bus;
 
 		return xgene_mdio_wr_mac(bus->priv, wr_addr, wr_data);
@@ -326,12 +326,13 @@ static void xgene_enet_rd_mcx_csr(struct xgene_enet_pdata *pdata,
 u32 xgene_enet_rd_mac(struct xgene_enet_pdata *pdata, u32 rd_addr)
 {
 	void __iomem *addr, *rd, *cmd, *cmd_done;
+	struct net_device *ndev = pdata->ndev;
 	u32 done, rd_data;
 	u8 wait = 10;
 
-	if (pdata->mdio_driver && pdata->ndev->phydev &&
-	    pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
-		struct mii_bus *bus = pdata->ndev->phydev->mdio.bus;
+	if (pdata->mdio_driver && ndev->phydev &&
+	    phy_interface_mode_is_rgmii(pdata->phy_mode)) {
+		struct mii_bus *bus = ndev->phydev->mdio.bus;
 
 		return xgene_mdio_rd_mac(bus->priv, rd_addr);
 	}
@@ -349,8 +350,7 @@ u32 xgene_enet_rd_mac(struct xgene_enet_pdata *pdata, u32 rd_addr)
 		udelay(1);
 
 	if (!done)
-		netdev_err(pdata->ndev, "mac read failed, addr: %04x\n",
-			   rd_addr);
+		netdev_err(ndev, "mac read failed, addr: %04x\n", rd_addr);
 
 	rd_data = ioread32(rd);
 	iowrite32(0, cmd);

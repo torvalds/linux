@@ -581,6 +581,7 @@ static int qed_rdma_start_fw(struct qed_hwfn *p_hwfn,
 	struct qed_sp_init_data init_data;
 	struct qed_spq_entry *p_ent;
 	u32 cnq_id, sb_id;
+	u16 igu_sb_id;
 	int rc;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Starting FW\n");
@@ -612,10 +613,10 @@ static int qed_rdma_start_fw(struct qed_hwfn *p_hwfn,
 
 	for (cnq_id = 0; cnq_id < params->desired_cnq; cnq_id++) {
 		sb_id = qed_rdma_get_sb_id(p_hwfn, cnq_id);
+		igu_sb_id = qed_get_igu_sb_id(p_hwfn, sb_id);
+		p_ramrod->cnq_params[cnq_id].sb_num = cpu_to_le16(igu_sb_id);
 		p_cnq_params = &p_ramrod->cnq_params[cnq_id];
 		p_cnq_pbl_list = &params->cnq_pbl_list[cnq_id];
-		p_cnq_params->sb_num =
-			cpu_to_le16(p_hwfn->sbs_info[sb_id]->igu_sb_id);
 
 		p_cnq_params->sb_index = p_hwfn->pf_params.rdma_pf_params.gl_pi;
 		p_cnq_params->num_pbl_pages = p_cnq_pbl_list->num_pbl_pages;
@@ -2430,10 +2431,6 @@ qed_rdma_register_tid(void *rdma_cxt,
 		SET_FIELD(p_ramrod->flags,
 			  RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG,
 			  params->page_size_log - 12);
-
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_MAX_ID,
-		  p_hwfn->p_rdma_info->last_tid);
 
 	SET_FIELD(p_ramrod->flags,
 		  RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ,

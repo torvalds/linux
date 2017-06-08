@@ -46,7 +46,8 @@ struct vf_pf_resc_request {
 	u8 num_mac_filters;
 	u8 num_vlan_filters;
 	u8 num_mc_filters;
-	u16 padding;
+	u8 num_cids;
+	u8 padding;
 };
 
 struct hw_sb_info {
@@ -113,6 +114,17 @@ struct vfpf_acquire_tlv {
 	struct vf_pf_vfdev_info {
 #define VFPF_ACQUIRE_CAP_PRE_FP_HSI     (1 << 0) /* VF pre-FP hsi version */
 #define VFPF_ACQUIRE_CAP_100G		(1 << 1) /* VF can support 100g */
+	/* A requirement for supporting multi-Tx queues on a single queue-zone,
+	 * VF would pass qids as additional information whenever passing queue
+	 * references.
+	 */
+#define VFPF_ACQUIRE_CAP_QUEUE_QIDS     BIT(2)
+
+	/* The VF is using the physical bar. While this is mostly internal
+	 * to the VF, might affect the number of CIDs supported assuming
+	 * QUEUE_QIDS is set.
+	 */
+#define VFPF_ACQUIRE_CAP_PHYSICAL_BAR   BIT(3)
 		u64 capabilities;
 		u8 fw_major;
 		u8 fw_minor;
@@ -185,6 +197,9 @@ struct pfvf_acquire_resp_tlv {
  */
 #define PFVF_ACQUIRE_CAP_POST_FW_OVERRIDE	BIT(2)
 
+	/* PF expects queues to be received with additional qids */
+#define PFVF_ACQUIRE_CAP_QUEUE_QIDS             BIT(3)
+
 		u16 db_size;
 		u8 indices_per_sb;
 		u8 os_type;
@@ -193,7 +208,8 @@ struct pfvf_acquire_resp_tlv {
 		u16 chip_rev;
 		u8 dev_type;
 
-		u8 padding;
+		/* Doorbell bar size configured in HW: log(size) or 0 */
+		u8 bar_size;
 
 		struct pfvf_stats_info stats_info;
 
@@ -221,7 +237,8 @@ struct pfvf_acquire_resp_tlv {
 		u8 num_mac_filters;
 		u8 num_vlan_filters;
 		u8 num_mc_filters;
-		u8 padding[2];
+		u8 num_cids;
+		u8 padding;
 	} resc;
 
 	u32 bulletin_size;
@@ -232,6 +249,16 @@ struct pfvf_start_queue_resp_tlv {
 	struct pfvf_tlv hdr;
 	u32 offset;		/* offset to consumer/producer of queue */
 	u8 padding[4];
+};
+
+/* Extended queue information - additional index for reference inside qzone.
+ * If commmunicated between VF/PF, each TLV relating to queues should be
+ * extended by one such [or have a future base TLV that already contains info].
+ */
+struct vfpf_qid_tlv {
+	struct channel_tlv tl;
+	u8 qid;
+	u8 padding[3];
 };
 
 /* Setup Queue */
@@ -597,6 +624,8 @@ enum {
 	CHANNEL_TLV_VPORT_UPDATE_ACCEPT_ANY_VLAN,
 	CHANNEL_TLV_VPORT_UPDATE_SGE_TPA,
 	CHANNEL_TLV_UPDATE_TUNN_PARAM,
+	CHANNEL_TLV_RESERVED,
+	CHANNEL_TLV_QID,
 	CHANNEL_TLV_MAX,
 
 	/* Required for iterating over vport-update tlvs.
@@ -604,6 +633,12 @@ enum {
 	 */
 	CHANNEL_TLV_VPORT_UPDATE_MAX = CHANNEL_TLV_VPORT_UPDATE_SGE_TPA + 1,
 };
+
+/* Default number of CIDs [total of both Rx and Tx] to be requested
+ * by default, and maximum possible number.
+ */
+#define QED_ETH_VF_DEFAULT_NUM_CIDS (32)
+#define QED_ETH_VF_MAX_NUM_CIDS (250)
 
 /* This data is held in the qed_hwfn structure for VFs only. */
 struct qed_vf_iov {
@@ -627,6 +662,19 @@ struct qed_vf_iov {
 	 * this has to be propagated as it affects the fastpath.
 	 */
 	bool b_pre_fp_hsi;
+
+	/* Current day VFs are passing the SBs physical address on vport
+	 * start, and as they lack an IGU mapping they need to store the
+	 * addresses of previously registered SBs.
+	 * Even if we were to change configuration flow, due to backward
+	 * compatibility [with older PFs] we'd still need to store these.
+	 */
+	struct qed_sb_info *sbs_info[PFVF_MAX_SBS_PER_VF];
+
+	/* Determines whether VF utilizes doorbells via limited register
+	 * bar or via the doorbell bar.
+	 */
+	bool b_doorbell_bar;
 };
 
 #ifdef CONFIG_QED_SRIOV
@@ -674,6 +722,22 @@ void qed_vf_get_link_caps(struct qed_hwfn *p_hwfn,
  *  @param num_rxqs - allocated RX queues
  */
 void qed_vf_get_num_rxqs(struct qed_hwfn *p_hwfn, u8 *num_rxqs);
+
+/**
+ * @brief Get number of Rx queues allocated for VF by qed
+ *
+ *  @param p_hwfn
+ *  @param num_txqs - allocated RX queues
+ */
+void qed_vf_get_num_txqs(struct qed_hwfn *p_hwfn, u8 *num_txqs);
+
+/**
+ * @brief Get number of available connections [both Rx and Tx] for VF
+ *
+ * @param p_hwfn
+ * @param num_cids - allocated number of connections
+ */
+void qed_vf_get_num_cids(struct qed_hwfn *p_hwfn, u8 *num_cids);
 
 /**
  * @brief Get port mac address for VF
@@ -837,6 +901,16 @@ int qed_vf_pf_release(struct qed_hwfn *p_hwfn);
 u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
 
 /**
+ * @brief Stores [or removes] a configured sb_info.
+ *
+ * @param p_hwfn
+ * @param sb_id - zero-based SB index [for fastpath]
+ * @param sb_info - may be NULL [during removal].
+ */
+void qed_vf_set_sb_info(struct qed_hwfn *p_hwfn,
+			u16 sb_id, struct qed_sb_info *p_sb);
+
+/**
  * @brief qed_vf_pf_vport_start - perform vport start for VF.
  *
  * @param p_hwfn
@@ -917,6 +991,8 @@ void qed_iov_vf_task(struct work_struct *work);
 void qed_vf_set_vf_start_tunn_update_param(struct qed_tunnel_info *p_tun);
 int qed_vf_pf_tunnel_param_update(struct qed_hwfn *p_hwfn,
 				  struct qed_tunnel_info *p_tunn);
+
+u32 qed_vf_hw_bar_size(struct qed_hwfn *p_hwfn, enum BAR_ID bar_id);
 #else
 static inline void qed_vf_get_link_params(struct qed_hwfn *p_hwfn,
 					  struct qed_mcp_link_params *params)
@@ -935,6 +1011,14 @@ qed_vf_get_link_caps(struct qed_hwfn *p_hwfn,
 }
 
 static inline void qed_vf_get_num_rxqs(struct qed_hwfn *p_hwfn, u8 *num_rxqs)
+{
+}
+
+static inline void qed_vf_get_num_txqs(struct qed_hwfn *p_hwfn, u8 *num_txqs)
+{
+}
+
+static inline void qed_vf_get_num_cids(struct qed_hwfn *p_hwfn, u8 *num_cids)
 {
 }
 
@@ -1088,6 +1172,13 @@ static inline int qed_vf_pf_tunnel_param_update(struct qed_hwfn *p_hwfn,
 						struct qed_tunnel_info *p_tunn)
 {
 	return -EINVAL;
+}
+
+static inline u32
+qed_vf_hw_bar_size(struct qed_hwfn  *p_hwfn,
+		   enum BAR_ID bar_id)
+{
+	return 0;
 }
 #endif
 

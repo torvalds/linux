@@ -11,7 +11,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <net/dsa.h>
+
 #include "dsa_priv.h"
 
 #define DSA_HLEN	4
@@ -30,7 +30,7 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		if (skb_cow_head(skb, DSA_HLEN) < 0)
-			goto out_free;
+			return NULL;
 		skb_push(skb, DSA_HLEN);
 
 		memmove(skb->data, skb->data + DSA_HLEN, 2 * ETH_ALEN);
@@ -55,7 +55,7 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	} else {
 		if (skb_cow_head(skb, EDSA_HLEN) < 0)
-			goto out_free;
+			return NULL;
 		skb_push(skb, EDSA_HLEN);
 
 		memmove(skb->data, skb->data + EDSA_HLEN, 2 * ETH_ALEN);
@@ -75,10 +75,6 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	return skb;
-
-out_free:
-	kfree_skb(skb);
-	return NULL;
 }
 
 static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
@@ -92,7 +88,7 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	int source_port;
 
 	if (unlikely(!pskb_may_pull(skb, EDSA_HLEN)))
-		goto out_drop;
+		return NULL;
 
 	/*
 	 * Skip the two null bytes after the ethertype.
@@ -103,7 +99,7 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * Check that frame type is either TO_CPU or FORWARD.
 	 */
 	if ((edsa_header[0] & 0xc0) != 0x00 && (edsa_header[0] & 0xc0) != 0xc0)
-		goto out_drop;
+		return NULL;
 
 	/*
 	 * Determine source device and port.
@@ -116,14 +112,14 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * port is a registered DSA port.
 	 */
 	if (source_device >= DSA_MAX_SWITCHES)
-		goto out_drop;
+		return NULL;
 
 	ds = dst->ds[source_device];
 	if (!ds)
-		goto out_drop;
+		return NULL;
 
 	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
-		goto out_drop;
+		return NULL;
 
 	/*
 	 * If the 'tagged' bit is set, convert the DSA tag to a 802.1q
@@ -180,9 +176,6 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb->dev = ds->ports[source_port].netdev;
 
 	return skb;
-
-out_drop:
-	return NULL;
 }
 
 const struct dsa_device_ops edsa_netdev_ops = {

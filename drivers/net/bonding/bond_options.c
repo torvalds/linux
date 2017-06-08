@@ -673,7 +673,30 @@ int __bond_opt_set(struct bonding *bond,
 out:
 	if (ret)
 		bond_opt_error_interpret(bond, opt, ret, val);
-	else if (bond->dev->reg_state == NETREG_REGISTERED)
+
+	return ret;
+}
+/**
+ * __bond_opt_set_notify - set a bonding option
+ * @bond: target bond device
+ * @option: option to set
+ * @val: value to set it to
+ *
+ * This function is used to change the bond's option value and trigger
+ * a notification to user sapce. It can be used for both enabling/changing
+ * an option and for disabling it. RTNL lock must be obtained before calling
+ * this function.
+ */
+int __bond_opt_set_notify(struct bonding *bond,
+			  unsigned int option, struct bond_opt_value *val)
+{
+	int ret = -ENOENT;
+
+	ASSERT_RTNL();
+
+	ret = __bond_opt_set(bond, option, val);
+
+	if (!ret && (bond->dev->reg_state == NETREG_REGISTERED))
 		call_netdevice_notifiers(NETDEV_CHANGEINFODATA, bond->dev);
 
 	return ret;
@@ -696,7 +719,7 @@ int bond_opt_tryset_rtnl(struct bonding *bond, unsigned int option, char *buf)
 	if (!rtnl_trylock())
 		return restart_syscall();
 	bond_opt_initstr(&optval, buf);
-	ret = __bond_opt_set(bond, option, &optval);
+	ret = __bond_opt_set_notify(bond, option, &optval);
 	rtnl_unlock();
 
 	return ret;

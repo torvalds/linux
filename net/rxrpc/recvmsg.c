@@ -522,8 +522,11 @@ try_again:
 	}
 
 	if (msg->msg_name) {
-		size_t len = sizeof(call->conn->params.peer->srx);
-		memcpy(msg->msg_name, &call->conn->params.peer->srx, len);
+		struct sockaddr_rxrpc *srx = msg->msg_name;
+		size_t len = sizeof(call->peer->srx);
+
+		memcpy(msg->msg_name, &call->peer->srx, len);
+		srx->srx_service = call->service_id;
 		msg->msg_namelen = len;
 	}
 

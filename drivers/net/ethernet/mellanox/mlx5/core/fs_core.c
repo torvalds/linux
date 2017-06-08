@@ -376,11 +376,9 @@ static void del_rule(struct fs_node *node)
 	int err;
 	bool update_fte = false;
 
-	match_value = mlx5_vzalloc(match_len);
-	if (!match_value) {
-		mlx5_core_warn(dev, "failed to allocate inbox\n");
+	match_value = kvzalloc(match_len, GFP_KERNEL);
+	if (!match_value)
 		return;
-	}
 
 	fs_get_obj(rule, node);
 	fs_get_obj(fte, rule->node.parent);
@@ -1157,7 +1155,7 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 	if (!ft->autogroup.active)
 		return ERR_PTR(-ENOENT);
 
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return ERR_PTR(-ENOMEM);
 
@@ -1777,7 +1775,7 @@ static struct mlx5_flow_root_namespace *create_root_ns(struct mlx5_flow_steering
 	struct mlx5_flow_namespace *ns;
 
 	/* Create the root namespace */
-	root_ns = mlx5_vzalloc(sizeof(*root_ns));
+	root_ns = kvzalloc(sizeof(*root_ns), GFP_KERNEL);
 	if (!root_ns)
 		return NULL;
 

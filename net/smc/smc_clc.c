@@ -204,7 +204,7 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 	memcpy(&cclc.lcl.mac, &link->smcibdev->mac[link->ibport - 1], ETH_ALEN);
 	hton24(cclc.qpn, link->roce_qp->qp_num);
 	cclc.rmb_rkey =
-		htonl(conn->rmb_desc->mr_rx[SMC_SINGLE_LINK]->rkey);
+		htonl(conn->rmb_desc->rkey[SMC_SINGLE_LINK]);
 	cclc.conn_idx = 1; /* for now: 1 RMB = 1 RMBE */
 	cclc.rmbe_alert_token = htonl(conn->alert_token_local);
 	cclc.qp_mtu = min(link->path_mtu, link->peer_mtu);
@@ -256,7 +256,7 @@ int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
 	memcpy(&aclc.lcl.mac, link->smcibdev->mac[link->ibport - 1], ETH_ALEN);
 	hton24(aclc.qpn, link->roce_qp->qp_num);
 	aclc.rmb_rkey =
-		htonl(conn->rmb_desc->mr_rx[SMC_SINGLE_LINK]->rkey);
+		htonl(conn->rmb_desc->rkey[SMC_SINGLE_LINK]);
 	aclc.conn_idx = 1;			/* as long as 1 RMB = 1 RMBE */
 	aclc.rmbe_alert_token = htonl(conn->alert_token_local);
 	aclc.qp_mtu = link->path_mtu;

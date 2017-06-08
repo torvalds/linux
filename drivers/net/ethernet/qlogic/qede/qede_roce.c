@@ -221,8 +221,8 @@ static void qede_roce_changeaddr(struct qede_dev *edev)
 		qedr_drv->notify(edev->rdma_info.qedr_dev, QEDE_CHANGE_ADDR);
 }
 
-struct qede_roce_event_work *qede_roce_get_free_event_node(struct qede_dev
-							   *edev)
+static struct qede_roce_event_work *
+qede_roce_get_free_event_node(struct qede_dev *edev)
 {
 	struct qede_roce_event_work *event_node = NULL;
 	struct list_head *list_node = NULL;

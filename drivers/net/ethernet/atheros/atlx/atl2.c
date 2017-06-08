@@ -1353,6 +1353,7 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) &&
 		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "atl2: No usable DMA configuration, aborting\n");
+		err = -EIO;
 		goto err_dma;
 	}
 
@@ -1366,10 +1367,11 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * pcibios_set_master to do the needed arch specific settings */
 	pci_set_master(pdev);
 
-	err = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct atl2_adapter));
-	if (!netdev)
+	if (!netdev) {
+		err = -ENOMEM;
 		goto err_alloc_etherdev;
+	}
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
@@ -1407,8 +1409,6 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = atl2_sw_init(adapter);
 	if (err)
 		goto err_sw_init;
-
-	err = -EIO;
 
 	netdev->hw_features = NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->features |= (NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX);

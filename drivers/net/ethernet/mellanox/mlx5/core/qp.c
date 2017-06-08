@@ -527,7 +527,7 @@ int mlx5_core_query_out_of_buffer(struct mlx5_core_dev *dev, u16 counter_id,
 	void *out;
 	int err;
 
-	out = mlx5_vzalloc(outlen);
+	out = kvzalloc(outlen, GFP_KERNEL);
 	if (!out)
 		return -ENOMEM;
 

@@ -29,7 +29,7 @@ struct proto;
 
 struct request_sock_ops {
 	int		family;
-	int		obj_size;
+	unsigned int	obj_size;
 	struct kmem_cache	*slab;
 	char		*slab_name;
 	int		(*rtx_syn_ack)(const struct sock *sk,

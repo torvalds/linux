@@ -543,7 +543,11 @@ static char oct_dev_app_str[CVM_DRV_APP_COUNT + 1][32] = {
 	"BASE", "NIC", "UNKNOWN"};
 
 static struct octeon_device *octeon_device[MAX_OCTEON_DEVICES];
+static atomic_t adapter_refcounts[MAX_OCTEON_DEVICES];
+
 static u32 octeon_device_count;
+/* locks device array (i.e. octeon_device[]) */
+static spinlock_t octeon_devices_lock;
 
 static struct octeon_core_setup core_setup[MAX_OCTEON_DEVICES];
 
@@ -561,6 +565,7 @@ void octeon_init_device_list(int conf_type)
 	memset(octeon_device, 0, (sizeof(void *) * MAX_OCTEON_DEVICES));
 	for (i = 0; i <  MAX_OCTEON_DEVICES; i++)
 		oct_set_config_info(i, conf_type);
+	spin_lock_init(&octeon_devices_lock);
 }
 
 static void *__retrieve_octeon_config_info(struct octeon_device *oct,
@@ -720,28 +725,98 @@ struct octeon_device *octeon_allocate_device(u32 pci_id,
 	u32 oct_idx = 0;
 	struct octeon_device *oct = NULL;
 
+	spin_lock(&octeon_devices_lock);
+
 	for (oct_idx = 0; oct_idx < MAX_OCTEON_DEVICES; oct_idx++)
 		if (!octeon_device[oct_idx])
 			break;
 
-	if (oct_idx == MAX_OCTEON_DEVICES)
-		return NULL;
+	if (oct_idx < MAX_OCTEON_DEVICES) {
+		oct = octeon_allocate_device_mem(pci_id, priv_size);
+		if (oct) {
+			octeon_device_count++;
+			octeon_device[oct_idx] = oct;
+		}
+	}
 
-	oct = octeon_allocate_device_mem(pci_id, priv_size);
+	spin_unlock(&octeon_devices_lock);
 	if (!oct)
 		return NULL;
 
 	spin_lock_init(&oct->pci_win_lock);
 	spin_lock_init(&oct->mem_access_lock);
 
-	octeon_device_count++;
-	octeon_device[oct_idx] = oct;
-
 	oct->octeon_id = oct_idx;
 	snprintf(oct->device_name, sizeof(oct->device_name),
 		 "LiquidIO%d", (oct->octeon_id));
 
 	return oct;
+}
+
+/** Register a device's bus location at initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @param bus        - PCIe bus #
+ *  @param dev        - PCIe device #
+ *  @param func       - PCIe function #
+ *  @param is_pf      - TRUE for PF, FALSE for VF
+ *  @return reference count of device's adapter
+ */
+int octeon_register_device(struct octeon_device *oct,
+			   int bus, int dev, int func, int is_pf)
+{
+	int idx, refcount;
+
+	oct->loc.bus = bus;
+	oct->loc.dev = dev;
+	oct->loc.func = func;
+
+	oct->adapter_refcount = &adapter_refcounts[oct->octeon_id];
+	atomic_set(oct->adapter_refcount, 0);
+
+	spin_lock(&octeon_devices_lock);
+	for (idx = (int)oct->octeon_id - 1; idx >= 0; idx--) {
+		if (!octeon_device[idx]) {
+			dev_err(&oct->pci_dev->dev,
+				"%s: Internal driver error, missing dev",
+				__func__);
+			spin_unlock(&octeon_devices_lock);
+			atomic_inc(oct->adapter_refcount);
+			return 1; /* here, refcount is guaranteed to be 1 */
+		}
+		/* if another device is at same bus/dev, use its refcounter */
+		if ((octeon_device[idx]->loc.bus == bus) &&
+		    (octeon_device[idx]->loc.dev == dev)) {
+			oct->adapter_refcount =
+				octeon_device[idx]->adapter_refcount;
+			break;
+		}
+	}
+	spin_unlock(&octeon_devices_lock);
+
+	atomic_inc(oct->adapter_refcount);
+	refcount = atomic_read(oct->adapter_refcount);
+
+	dev_dbg(&oct->pci_dev->dev, "%s: %02x:%02x:%d refcount %u", __func__,
+		oct->loc.bus, oct->loc.dev, oct->loc.func, refcount);
+
+	return refcount;
+}
+
+/** Deregister a device at de-initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @return reference count of device's adapter
+ */
+int octeon_deregister_device(struct octeon_device *oct)
+{
+	int refcount;
+
+	atomic_dec(oct->adapter_refcount);
+	refcount = atomic_read(oct->adapter_refcount);
+
+	dev_dbg(&oct->pci_dev->dev, "%s: %04d:%02d:%d refcount %u", __func__,
+		oct->loc.bus, oct->loc.dev, oct->loc.func, refcount);
+
+	return refcount;
 }
 
 int
@@ -1354,13 +1429,15 @@ int lio_get_device_id(void *dev)
 void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 {
 	u64 instr_cnt;
+	u32 pkts_pend;
 	struct octeon_device *oct = NULL;
 
 	/* the whole thing needs to be atomic, ideally */
 	if (droq) {
+		pkts_pend = (u32)atomic_read(&droq->pkts_pending);
 		spin_lock_bh(&droq->lock);
-		writel(droq->pkt_count, droq->pkts_sent_reg);
-		droq->pkt_count = 0;
+		writel(droq->pkt_count - pkts_pend, droq->pkts_sent_reg);
+		droq->pkt_count = pkts_pend;
 		/* this write needs to be flushed before we release the lock */
 		mmiowb();
 		spin_unlock_bh(&droq->lock);

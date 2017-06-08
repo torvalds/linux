@@ -82,14 +82,9 @@ err_file_priv_free:
 	return ret;
 }
 
-static void exynos_drm_preclose(struct drm_device *dev,
-					struct drm_file *file)
-{
-	exynos_drm_subdrv_close(dev, file);
-}
-
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
+	exynos_drm_subdrv_close(dev, file);
 	kfree(file->driver_priv);
 	file->driver_priv = NULL;
 }
@@ -145,7 +140,6 @@ static struct drm_driver exynos_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
 				  | DRIVER_ATOMIC | DRIVER_RENDER,
 	.open			= exynos_drm_open,
-	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
 	.postclose		= exynos_drm_postclose,
 	.gem_free_object_unlocked = exynos_drm_gem_free_object,

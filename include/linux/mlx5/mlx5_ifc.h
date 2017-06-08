@@ -32,6 +32,8 @@
 #ifndef MLX5_IFC_H
 #define MLX5_IFC_H
 
+#include "mlx5_ifc_fpga.h"
+
 enum {
 	MLX5_EVENT_TYPE_CODING_COMPLETION_EVENTS                   = 0x0,
 	MLX5_EVENT_TYPE_CODING_PATH_MIGRATED_SUCCEEDED             = 0x1,
@@ -56,7 +58,8 @@ enum {
 	MLX5_EVENT_TYPE_CODING_STALL_VL_EVENT                      = 0x1b,
 	MLX5_EVENT_TYPE_CODING_DROPPED_PACKET_LOGGED_EVENT         = 0x1f,
 	MLX5_EVENT_TYPE_CODING_COMMAND_INTERFACE_COMPLETION        = 0xa,
-	MLX5_EVENT_TYPE_CODING_PAGE_REQUEST                        = 0xb
+	MLX5_EVENT_TYPE_CODING_PAGE_REQUEST                        = 0xb,
+	MLX5_EVENT_TYPE_CODING_FPGA_ERROR                          = 0x20,
 };
 
 enum {
@@ -766,6 +769,12 @@ enum {
 	MLX5_CAP_PORT_TYPE_ETH = 0x1,
 };
 
+enum {
+	MLX5_CAP_UMR_FENCE_STRONG	= 0x0,
+	MLX5_CAP_UMR_FENCE_SMALL	= 0x1,
+	MLX5_CAP_UMR_FENCE_NONE		= 0x2,
+};
+
 struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_0[0x80];
 
@@ -854,7 +863,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         max_tc[0x4];
 	u8         reserved_at_1d0[0x1];
 	u8         dcbx[0x1];
-	u8         reserved_at_1d2[0x4];
+	u8         reserved_at_1d2[0x3];
+	u8         fpga[0x1];
 	u8         rol_s[0x1];
 	u8         rol_g[0x1];
 	u8         reserved_at_1d8[0x1];
@@ -875,7 +885,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_202[0x1];
 	u8         ipoib_enhanced_offloads[0x1];
 	u8         ipoib_basic_offloads[0x1];
-	u8         reserved_at_205[0xa];
+	u8         reserved_at_205[0x5];
+	u8         umr_fence[0x2];
+	u8         reserved_at_20c[0x3];
 	u8         drain_sigerr[0x1];
 	u8         cmdif_checksum[0x2];
 	u8         sigerr_cqe[0x1];
@@ -2186,6 +2198,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_e_switch_cap_bits e_switch_cap;
 	struct mlx5_ifc_vector_calc_cap_bits vector_calc_cap;
 	struct mlx5_ifc_qos_cap_bits qos_cap;
+	struct mlx5_ifc_fpga_cap_bits fpga_cap;
 	u8         reserved_at_0[0x8000];
 };
 
@@ -8182,6 +8195,8 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_sltp_reg_bits sltp_reg;
 	struct mlx5_ifc_mtpps_reg_bits mtpps_reg;
 	struct mlx5_ifc_mtppse_reg_bits mtppse_reg;
+	struct mlx5_ifc_fpga_ctrl_bits fpga_ctrl_bits;
+	struct mlx5_ifc_fpga_cap_bits fpga_cap_bits;
 	u8         reserved_at_0[0x60e0];
 };
 

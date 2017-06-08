@@ -1537,13 +1537,12 @@ static int enic_poll(struct napi_struct *napi, int budget)
 		 */
 		enic_calc_int_moderation(enic, &enic->rq[0]);
 
-	if (rq_work_done < rq_work_to_do) {
+	if ((rq_work_done < budget) && napi_complete_done(napi, rq_work_done)) {
 
 		/* Some work done, but not enough to stay in polling,
 		 * exit polling
 		 */
 
-		napi_complete_done(napi, rq_work_done);
 		if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
 			enic_set_int_moderation(enic, &enic->rq[0]);
 		vnic_intr_unmask(&enic->intr[intr]);
@@ -1663,13 +1662,12 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 		 */
 		enic_calc_int_moderation(enic, &enic->rq[rq]);
 
-	if (work_done < work_to_do) {
+	if ((work_done < budget) && napi_complete_done(napi, work_done)) {
 
 		/* Some work done, but not enough to stay in polling,
 		 * exit polling
 		 */
 
-		napi_complete_done(napi, work_done);
 		if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
 			enic_set_int_moderation(enic, &enic->rq[rq]);
 		vnic_intr_unmask(&enic->intr[intr]);

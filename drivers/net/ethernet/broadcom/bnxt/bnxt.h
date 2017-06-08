@@ -500,6 +500,7 @@ struct rx_tpa_end_cmp_ext {
 #define NEXT_CMP(idx)		RING_CMP(ADV_RAW_CMP(idx, 1))
 
 #define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
+#define BNXT_HWRM_SHORT_REQ_LEN		sizeof(struct hwrm_short_input)
 #define DFLT_HWRM_CMD_TIMEOUT		500
 #define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
@@ -937,31 +938,45 @@ struct bnxt {
 #define CHIP_NUM_57402		0x16d0
 #define CHIP_NUM_57404		0x16d1
 #define CHIP_NUM_57406		0x16d2
+#define CHIP_NUM_57407		0x16d5
 
 #define CHIP_NUM_57311		0x16ce
 #define CHIP_NUM_57312		0x16cf
 #define CHIP_NUM_57314		0x16df
+#define CHIP_NUM_57317		0x16e0
 #define CHIP_NUM_57412		0x16d6
 #define CHIP_NUM_57414		0x16d7
 #define CHIP_NUM_57416		0x16d8
 #define CHIP_NUM_57417		0x16d9
+#define CHIP_NUM_57412L		0x16da
+#define CHIP_NUM_57414L		0x16db
+
+#define CHIP_NUM_5745X		0xd730
 
 #define BNXT_CHIP_NUM_5730X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57301 &&	\
 	 (chip_num) <= CHIP_NUM_57304)
 
 #define BNXT_CHIP_NUM_5740X(chip_num)		\
-	((chip_num) >= CHIP_NUM_57402 &&	\
-	 (chip_num) <= CHIP_NUM_57406)
+	(((chip_num) >= CHIP_NUM_57402 &&	\
+	  (chip_num) <= CHIP_NUM_57406) ||	\
+	 (chip_num) == CHIP_NUM_57407)
 
 #define BNXT_CHIP_NUM_5731X(chip_num)		\
 	((chip_num) == CHIP_NUM_57311 ||	\
 	 (chip_num) == CHIP_NUM_57312 ||	\
-	 (chip_num) == CHIP_NUM_57314)
+	 (chip_num) == CHIP_NUM_57314 ||	\
+	 (chip_num) == CHIP_NUM_57317)
 
 #define BNXT_CHIP_NUM_5741X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57412 &&	\
-	 (chip_num) <= CHIP_NUM_57417)
+	 (chip_num) <= CHIP_NUM_57414L)
+
+#define BNXT_CHIP_NUM_58700(chip_num)		\
+	 ((chip_num) == CHIP_NUM_58700)
+
+#define BNXT_CHIP_NUM_5745X(chip_num)		\
+	 ((chip_num) == CHIP_NUM_5745X)
 
 #define BNXT_CHIP_NUM_57X0X(chip_num)		\
 	(BNXT_CHIP_NUM_5730X(chip_num) || BNXT_CHIP_NUM_5740X(chip_num))
@@ -1006,6 +1021,8 @@ struct bnxt {
 	#define BNXT_FLAG_RX_PAGE_MODE	0x40000
 	#define BNXT_FLAG_FW_LLDP_AGENT	0x80000
 	#define BNXT_FLAG_MULTI_HOST	0x100000
+	#define BNXT_FLAG_SHORT_CMD	0x200000
+	#define BNXT_FLAG_DOUBLE_DB	0x400000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
@@ -1019,6 +1036,13 @@ struct bnxt {
 #define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp) && !BNXT_MH(bp))
 #define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
 #define BNXT_RX_PAGE_MODE(bp)	((bp)->flags & BNXT_FLAG_RX_PAGE_MODE)
+
+/* Chip class phase 4 and later */
+#define BNXT_CHIP_P4_PLUS(bp)			\
+	(BNXT_CHIP_NUM_57X1X((bp)->chip_num) ||	\
+	 BNXT_CHIP_NUM_5745X((bp)->chip_num) ||	\
+	 (BNXT_CHIP_NUM_58700((bp)->chip_num) &&	\
+	  !BNXT_CHIP_TYPE_NITRO_A0(bp)))
 
 	struct bnxt_en_dev	*edev;
 	struct bnxt_en_dev *	(*ulp_probe)(struct net_device *);
@@ -1106,6 +1130,8 @@ struct bnxt {
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
 	u32			hwrm_intr_seq_id;
+	void			*hwrm_short_cmd_req_addr;
+	dma_addr_t		hwrm_short_cmd_req_dma_addr;
 	void			*hwrm_cmd_resp_addr;
 	dma_addr_t		hwrm_cmd_resp_dma_addr;
 	void			*hwrm_dbg_resp_addr;
@@ -1227,6 +1253,14 @@ static inline u32 bnxt_tx_avail(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
 
 	return bp->tx_ring_size -
 		((txr->tx_prod - txr->tx_cons) & bp->tx_ring_mask);
+}
+
+/* For TX and RX ring doorbells */
+static inline void bnxt_db_write(struct bnxt *bp, void __iomem *db, u32 val)
+{
+	writel(val, db);
+	if (bp->flags & BNXT_FLAG_DOUBLE_DB)
+		writel(val, db);
 }
 
 extern const u16 bnxt_lhint_arr[];

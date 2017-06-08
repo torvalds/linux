@@ -984,11 +984,11 @@ lio_get_ethtool_stats(struct net_device *netdev,
 		data[i++] =
 			CVM_CAST64(oct_dev->instr_queue[j]->stats.instr_posted);
 		/*# of instructions processed */
-		data[i++] = CVM_CAST64(oct_dev->instr_queue[j]->
-				       stats.instr_processed);
+		data[i++] = CVM_CAST64(
+				oct_dev->instr_queue[j]->stats.instr_processed);
 		/*# of instructions could not be processed */
-		data[i++] = CVM_CAST64(oct_dev->instr_queue[j]->
-				       stats.instr_dropped);
+		data[i++] = CVM_CAST64(
+				oct_dev->instr_queue[j]->stats.instr_dropped);
 		/*bytes sent through the queue */
 		data[i++] =
 			CVM_CAST64(oct_dev->instr_queue[j]->stats.bytes_sent);

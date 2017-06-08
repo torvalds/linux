@@ -228,14 +228,16 @@ static const struct nla_policy ip_tun_policy[LWTUNNEL_IP_MAX + 1] = {
 
 static int ip_tun_build_state(struct nlattr *attr,
 			      unsigned int family, const void *cfg,
-			      struct lwtunnel_state **ts)
+			      struct lwtunnel_state **ts,
+			      struct netlink_ext_ack *extack)
 {
 	struct ip_tunnel_info *tun_info;
 	struct lwtunnel_state *new_state;
 	struct nlattr *tb[LWTUNNEL_IP_MAX + 1];
 	int err;
 
-	err = nla_parse_nested(tb, LWTUNNEL_IP_MAX, attr, ip_tun_policy, NULL);
+	err = nla_parse_nested(tb, LWTUNNEL_IP_MAX, attr, ip_tun_policy,
+			       extack);
 	if (err < 0)
 		return err;
 
@@ -325,7 +327,8 @@ static const struct nla_policy ip6_tun_policy[LWTUNNEL_IP6_MAX + 1] = {
 
 static int ip6_tun_build_state(struct nlattr *attr,
 			       unsigned int family, const void *cfg,
-			       struct lwtunnel_state **ts)
+			       struct lwtunnel_state **ts,
+			       struct netlink_ext_ack *extack)
 {
 	struct ip_tunnel_info *tun_info;
 	struct lwtunnel_state *new_state;
@@ -333,7 +336,7 @@ static int ip6_tun_build_state(struct nlattr *attr,
 	int err;
 
 	err = nla_parse_nested(tb, LWTUNNEL_IP6_MAX, attr, ip6_tun_policy,
-			       NULL);
+			       extack);
 	if (err < 0)
 		return err;
 
