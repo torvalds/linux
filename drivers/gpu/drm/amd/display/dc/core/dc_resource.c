@@ -440,8 +440,8 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->surface == pipe_ctx->surface;
 
-	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_SIDE_BY_SIDE ||
-		stream->timing.timing_3d_format == TIMING_3D_FORMAT_TOP_AND_BOTTOM) {
+	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE ||
+		stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
 		pri_split = false;
 		sec_split = false;
 	}
@@ -568,8 +568,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 	/* Handle h & vsplit */
 	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->surface ==
 		pipe_ctx->surface) {
-		if (stream->public.timing.timing_3d_format ==
-			TIMING_3D_FORMAT_TOP_AND_BOTTOM) {
+		if (stream->public.view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
 			pipe_ctx->scl_data.recout.height /= 2;
 			pipe_ctx->scl_data.recout.y += pipe_ctx->scl_data.recout.height;
 			/* Floor primary pipe, ceil 2ndary pipe */
@@ -581,8 +580,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 		}
 	} else if (pipe_ctx->bottom_pipe &&
 			pipe_ctx->bottom_pipe->surface == pipe_ctx->surface) {
-		if (stream->public.timing.timing_3d_format ==
-			TIMING_3D_FORMAT_TOP_AND_BOTTOM)
+		if (stream->public.view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
 			pipe_ctx->scl_data.recout.height /= 2;
 		else
 			pipe_ctx->scl_data.recout.width /= 2;
@@ -626,7 +624,7 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 					surf_src.height,
 					surface->dst_rect.height);
 
-	if (surface->stereo_format == PLANE_STEREO_FORMAT_SIDE_BY_SIDE)
+	if (stream->public.view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
 		pipe_ctx->scl_data.ratios.horz.value *= 2;
 	else if (surface->stereo_format == PLANE_STEREO_FORMAT_TOP_AND_BOTTOM)
 		pipe_ctx->scl_data.ratios.vert.value *= 2;
@@ -1772,6 +1770,8 @@ static void set_vendor_info_packet(
 	enum dc_timing_3d_format format;
 
 	format = stream->public.timing.timing_3d_format;
+	if (stream->public.view_format == VIEW_3D_FORMAT_NONE)
+		format = TIMING_3D_FORMAT_NONE;
 
 	/* Can be different depending on packet content */
 	length = 5;

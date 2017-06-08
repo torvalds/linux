@@ -271,8 +271,6 @@ static void tg_program_timing_generator(
 	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_BY2, h_div_2);
 
-	dcn10_disable_stereo( tg);
-
 }
 
 /** tg_program_blanking

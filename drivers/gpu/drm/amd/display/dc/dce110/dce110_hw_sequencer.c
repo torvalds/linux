@@ -2057,6 +2057,11 @@ void dce110_update_pending_status(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->mi->current_address = pipe_ctx->mi->request_address;
 
 	surface->status.current_address = pipe_ctx->mi->current_address;
+	if (pipe_ctx->mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
+			pipe_ctx->tg->funcs->is_stereo_left_eye) {
+		surface->status.is_right_eye =\
+				!pipe_ctx->tg->funcs->is_stereo_left_eye(pipe_ctx->tg);
+	}
 }
 
 void dce110_power_down(struct core_dc *dc)
@@ -2576,6 +2581,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.set_static_screen_control = set_static_screen_control,
 	.reset_hw_ctx_wrap = reset_hw_ctx_wrap,
 	.prog_pixclk_crtc_otg = dce110_prog_pixclk_crtc_otg,
+	.setup_stereo = NULL
 };
 
 bool dce110_hw_sequencer_construct(struct core_dc *dc)

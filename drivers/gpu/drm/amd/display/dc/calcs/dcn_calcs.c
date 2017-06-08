@@ -972,9 +972,7 @@ bool dcn_validate_bandwidth(
 			if (pipe->surface) {
 				struct pipe_ctx *hsplit_pipe = pipe->bottom_pipe;
 
-				if (v->dpp_per_plane[input_idx] == 2 ||
-						(pipe->stream->public.timing.timing_3d_format == TIMING_3D_FORMAT_TOP_AND_BOTTOM ||
-						 pipe->stream->public.timing.timing_3d_format == TIMING_3D_FORMAT_SIDE_BY_SIDE)) {
+				if (v->dpp_per_plane[input_idx] == 2) {
 					if (hsplit_pipe && hsplit_pipe->surface == pipe->surface) {
 						/* update previously split pipe */
 						hsplit_pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx];

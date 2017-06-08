@@ -821,10 +821,6 @@ static void get_pixel_clock_parameters(
 	if (stream->public.timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		pixel_clk_params->requested_pix_clk  /= 2;
 
-	if (stream->public.timing. timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING ||
-		stream->public.timing. timing_3d_format == TIMING_3D_FORMAT_SW_FRAME_PACKING ||
-		stream->public.timing. timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA)
-		pixel_clk_params->requested_pix_clk *= 2;
 }
 
 static void build_clamping_params(struct core_stream *stream)

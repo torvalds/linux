@@ -896,8 +896,9 @@ static void reset_hw_ctx_wrap(
 	reset_hw_ctx(dc, context, reset_back_end_for_pipe);
 }
 
-static bool patch_address_for_sbs_tb_stereo(
-		struct pipe_ctx *pipe_ctx, PHYSICAL_ADDRESS_LOC *addr)
+
+static bool patch_address_for_sbs_tb_stereo(struct pipe_ctx *pipe_ctx,
+											PHYSICAL_ADDRESS_LOC *addr)
 {
 	struct core_surface *surface = pipe_ctx->surface;
 	bool sec_split = pipe_ctx->top_pipe &&
@@ -912,6 +913,7 @@ static bool patch_address_for_sbs_tb_stereo(
 		surface->public.address.grph_stereo.right_addr;
 		return true;
 	}
+
 	return false;
 }
 
@@ -2061,6 +2063,66 @@ static void set_plane_config(
 	program_gamut_remap(pipe_ctx);
 }
 
+static void dcn10_config_stereo_parameters(struct core_stream *stream,\
+										   struct crtc_stereo_flags *flags)
+{
+	enum view_3d_format view_format = stream->public.view_format;
+	enum dc_timing_3d_format timing_3d_format =\
+			stream->public.timing.timing_3d_format;
+	bool non_stereo_timing = false;
+
+	if (timing_3d_format == TIMING_3D_FORMAT_NONE ||
+		timing_3d_format == TIMING_3D_FORMAT_SIDE_BY_SIDE ||
+		timing_3d_format == TIMING_3D_FORMAT_TOP_AND_BOTTOM)
+		non_stereo_timing = true;
+
+	if (non_stereo_timing == false &&
+		view_format == VIEW_3D_FORMAT_FRAME_SEQUENTIAL) {
+
+		flags->PROGRAM_STEREO         = 1;
+		flags->PROGRAM_POLARITY       = 1;
+		if (timing_3d_format == TIMING_3D_FORMAT_INBAND_FA ||
+			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
+			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
+			enum display_dongle_type dongle = \
+					stream->sink->link->public.ddc->dongle_type;
+			if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
+				dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
+				dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+				flags->DISABLE_STEREO_DP_SYNC = 1;
+		}
+		flags->RIGHT_EYE_POLARITY =\
+				stream->public.timing.flags.RIGHT_EYE_3D_POLARITY;
+		if (timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
+			flags->FRAME_PACKED = 1;
+	}
+
+	return;
+}
+
+static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx,
+								struct core_dc *dc)
+{
+	struct crtc_stereo_flags flags = { 0 };
+	struct core_stream *stream = pipe_ctx->stream;
+
+	dcn10_config_stereo_parameters(stream, &flags);
+
+	pipe_ctx->opp->funcs->opp_set_stereo_polarity(
+		pipe_ctx->opp,
+		flags.PROGRAM_STEREO == 1 ? true:false,
+		stream->public.timing.flags.RIGHT_EYE_3D_POLARITY == 1 ? true:false);
+
+	pipe_ctx->tg->funcs->program_stereo(
+		pipe_ctx->tg,
+		&stream->public.timing,
+		&flags);
+
+
+
+	return;
+}
+
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.init_hw = init_hw,
@@ -2088,7 +2150,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.prog_pixclk_crtc_otg = dcn10_prog_pixclk_crtc_otg,
 	.set_drr = set_drr,
 	.get_position = get_position,
-	.set_static_screen_control = set_static_screen_control
+	.set_static_screen_control = set_static_screen_control,
+	.setup_stereo = dcn10_setup_stereo
 };
 
 

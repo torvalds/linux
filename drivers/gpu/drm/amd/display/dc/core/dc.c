@@ -832,6 +832,30 @@ static bool streams_changed(
 	return false;
 }
 
+bool dc_enable_stereo(
+	struct dc *dc,
+	struct validate_context *context,
+	const struct dc_stream *streams[],
+	uint8_t stream_count)
+{
+	bool ret = true;
+	int i, j;
+	struct pipe_ctx *pipe;
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (context != NULL)
+			pipe = &context->res_ctx.pipe_ctx[i];
+		else
+			pipe = &core_dc->current_context->res_ctx.pipe_ctx[i];
+		for (j = 0 ; pipe && j < stream_count; j++)  {
+			if (streams[j] && streams[j] == &pipe->stream->public &&
+				core_dc->hwss.setup_stereo)
+				core_dc->hwss.setup_stereo(pipe, core_dc);
+		}
+	}
+	return ret;
+}
+
 bool dc_commit_streams(
 	struct dc *dc,
 	const struct dc_stream *streams[],
@@ -903,6 +927,7 @@ bool dc_commit_streams(
 					DC_SURFACE_TO_CORE(context->stream_status[i].surfaces[j]);
 
 			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
+			dc_enable_stereo(dc, context, streams, stream_count);
 		}
 
 		CONN_MSG_MODE(sink->link, "{%dx%d, %dx%d@%dKhz}",
