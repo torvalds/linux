@@ -6101,7 +6101,7 @@ retry:
 	pipe_config->fdi_lanes = lane;
 
 	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, fdi_dotclock,
-			       link_bw, &pipe_config->fdi_m_n);
+			       link_bw, &pipe_config->fdi_m_n, false);
 
 	ret = ironlake_check_fdi_lanes(dev, intel_crtc->pipe, pipe_config);
 	if (ret == -EINVAL && pipe_config->pipe_bpp > 6*3) {
@@ -6277,7 +6277,8 @@ intel_reduce_m_n_ratio(uint32_t *num, uint32_t *den)
 }
 
 static void compute_m_n(unsigned int m, unsigned int n,
-			uint32_t *ret_m, uint32_t *ret_n)
+			uint32_t *ret_m, uint32_t *ret_n,
+			bool reduce_m_n)
 {
 	/*
 	 * Reduce M/N as much as possible without loss in precision. Several DP
@@ -6285,9 +6286,11 @@ static void compute_m_n(unsigned int m, unsigned int n,
 	 * values. The passed in values are more likely to have the least
 	 * significant bits zero than M after rounding below, so do this first.
 	 */
-	while ((m & 1) == 0 && (n & 1) == 0) {
-		m >>= 1;
-		n >>= 1;
+	if (reduce_m_n) {
+		while ((m & 1) == 0 && (n & 1) == 0) {
+			m >>= 1;
+			n >>= 1;
+		}
 	}
 
 	*ret_n = min_t(unsigned int, roundup_pow_of_two(n), DATA_LINK_N_MAX);
@@ -6298,16 +6301,19 @@ static void compute_m_n(unsigned int m, unsigned int n,
 void
 intel_link_compute_m_n(int bits_per_pixel, int nlanes,
 		       int pixel_clock, int link_clock,
-		       struct intel_link_m_n *m_n)
+		       struct intel_link_m_n *m_n,
+		       bool reduce_m_n)
 {
 	m_n->tu = 64;
 
 	compute_m_n(bits_per_pixel * pixel_clock,
 		    link_clock * nlanes * 8,
-		    &m_n->gmch_m, &m_n->gmch_n);
+		    &m_n->gmch_m, &m_n->gmch_n,
+		    reduce_m_n);
 
 	compute_m_n(pixel_clock, link_clock,
-		    &m_n->link_m, &m_n->link_n);
+		    &m_n->link_m, &m_n->link_n,
+		    reduce_m_n);
 }
 
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)

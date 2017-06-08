@@ -263,7 +263,7 @@ static void nvme_dbbuf_set(struct nvme_dev *dev)
 	c.dbbuf.prp2 = cpu_to_le64(dev->dbbuf_eis_dma_addr);
 
 	if (nvme_submit_sync_cmd(dev->ctrl.admin_q, &c, NULL, 0)) {
-		dev_warn(dev->dev, "unable to set dbbuf\n");
+		dev_warn(dev->ctrl.device, "unable to set dbbuf\n");
 		/* Free memory and continue on */
 		nvme_dbbuf_dma_free(dev);
 	}
@@ -1394,11 +1394,11 @@ static void nvme_warn_reset(struct nvme_dev *dev, u32 csts)
 	result = pci_read_config_word(to_pci_dev(dev->dev), PCI_STATUS,
 				      &pci_status);
 	if (result == PCIBIOS_SUCCESSFUL)
-		dev_warn(dev->dev,
+		dev_warn(dev->ctrl.device,
 			 "controller is down; will reset: CSTS=0x%x, PCI_STATUS=0x%hx\n",
 			 csts, pci_status);
 	else
-		dev_warn(dev->dev,
+		dev_warn(dev->ctrl.device,
 			 "controller is down; will reset: CSTS=0x%x, PCI_STATUS read failed (%d)\n",
 			 csts, result);
 }
@@ -1740,8 +1740,8 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_APPLE && pdev->device == 0x2001) {
 		dev->q_depth = 2;
-		dev_warn(dev->dev, "detected Apple NVMe controller, set "
-			"queue depth=%u to work around controller resets\n",
+		dev_warn(dev->ctrl.device, "detected Apple NVMe controller, "
+			"set queue depth=%u to work around controller resets\n",
 			dev->q_depth);
 	}
 
@@ -1759,7 +1759,7 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 		if (dev->cmbsz) {
 			if (sysfs_add_file_to_group(&dev->ctrl.device->kobj,
 						    &dev_attr_cmb.attr, NULL))
-				dev_warn(dev->dev,
+				dev_warn(dev->ctrl.device,
 					 "failed to add sysfs attribute for CMB\n");
 		}
 	}
@@ -2047,6 +2047,7 @@ static int nvme_pci_reset_ctrl(struct nvme_ctrl *ctrl)
 static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.name			= "pcie",
 	.module			= THIS_MODULE,
+	.flags			= NVME_F_METADATA_SUPPORTED,
 	.reg_read32		= nvme_pci_reg_read32,
 	.reg_write32		= nvme_pci_reg_write32,
 	.reg_read64		= nvme_pci_reg_read64,
@@ -2293,6 +2294,8 @@ static const struct pci_device_id nvme_id_table[] = {
 	{ PCI_VDEVICE(INTEL, 0x0a54),
 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
 				NVME_QUIRK_DEALLOCATE_ZEROES, },
+	{ PCI_VDEVICE(INTEL, 0xf1a5),	/* Intel 600P/P3100 */
+		.driver_data = NVME_QUIRK_NO_DEEPEST_PS },
 	{ PCI_VDEVICE(INTEL, 0x5845),	/* Qemu emulated controller */
 		.driver_data = NVME_QUIRK_IDENTIFY_CNS, },
 	{ PCI_DEVICE(0x1c58, 0x0003),	/* HGST adapter */

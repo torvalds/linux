@@ -335,6 +335,21 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 	return 0;
 }
 
+void dso__set_module_info(struct dso *dso, struct kmod_path *m,
+			  struct machine *machine)
+{
+	if (machine__is_host(machine))
+		dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
+	else
+		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
+
+	/* _KMODULE_COMP should be next to _KMODULE */
+	if (m->kmod && m->comp)
+		dso->symtab_type++;
+
+	dso__set_short_name(dso, strdup(m->name), true);
+}
+
 /*
  * Global list of open DSOs and the counter.
  */

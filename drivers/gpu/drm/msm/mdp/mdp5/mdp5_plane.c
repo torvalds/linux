@@ -225,9 +225,10 @@ mdp5_plane_duplicate_state(struct drm_plane *plane)
 
 	mdp5_state = kmemdup(to_mdp5_plane_state(plane->state),
 			sizeof(*mdp5_state), GFP_KERNEL);
+	if (!mdp5_state)
+		return NULL;
 
-	if (mdp5_state && mdp5_state->base.fb)
-		drm_framebuffer_reference(mdp5_state->base.fb);
+	__drm_atomic_helper_plane_duplicate_state(plane, &mdp5_state->base);
 
 	return &mdp5_state->base;
 }
@@ -444,6 +445,10 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 			mdp5_pipe_release(state->state, old_hwpipe);
 			mdp5_pipe_release(state->state, old_right_hwpipe);
 		}
+	} else {
+		mdp5_pipe_release(state->state, mdp5_state->hwpipe);
+		mdp5_pipe_release(state->state, mdp5_state->r_hwpipe);
+		mdp5_state->hwpipe = mdp5_state->r_hwpipe = NULL;
 	}
 
 	return 0;
