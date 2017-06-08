@@ -457,7 +457,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	};
 	int ret;
 
-	if (iwl_mvm_has_new_tx_api(mvm))
+	if (iwl_mvm_has_unified_ucode(mvm))
 		return iwl_run_unified_mvm_ucode(mvm, true);
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1034,7 +1034,7 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 {
 	int ret;
 
-	if (iwl_mvm_has_new_tx_api(mvm))
+	if (iwl_mvm_has_unified_ucode(mvm))
 		return iwl_run_unified_mvm_ucode(mvm, false);
 
 	ret = iwl_run_init_mvm_ucode(mvm, false);
@@ -1101,8 +1101,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
-	/* Send phy db control command and then phy db calibration*/
-	if (!iwl_mvm_has_new_tx_api(mvm)) {
+	if (!iwl_mvm_has_unified_ucode(mvm)) {
+		/* Send phy db control command and then phy db calibration */
 		ret = iwl_send_phy_db_data(mvm->phy_db);
 		if (ret)
 			goto error;

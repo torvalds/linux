@@ -645,7 +645,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		mvm->last_agg_queue = IWL_MVM_DQA_MAX_DATA_QUEUE;
 	}
 	mvm->sf_state = SF_UNINIT;
-	if (iwl_mvm_has_new_tx_api(mvm))
+	if (iwl_mvm_has_unified_ucode(mvm))
 		iwl_fw_set_current_image(&mvm->fwrt, IWL_UCODE_REGULAR);
 	else
 		iwl_fw_set_current_image(&mvm->fwrt, IWL_UCODE_INIT);
