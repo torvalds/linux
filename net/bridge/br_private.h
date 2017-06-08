@@ -169,7 +169,8 @@ struct net_bridge_fdb_entry {
 	unsigned char			is_local:1,
 					is_static:1,
 					added_by_user:1,
-					added_by_external_learn:1;
+					added_by_external_learn:1,
+					offloaded:1;
 
 	/* write-heavy members should not affect lookups */
 	unsigned long			updated ____cacheline_aligned_in_smp;
@@ -536,6 +537,8 @@ int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid);
 int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid);
+void br_fdb_offloaded_set(struct net_bridge *br, struct net_bridge_port *p,
+			  const unsigned char *addr, u16 vid);
 
 /* br_forward.c */
 enum br_pkt_type {

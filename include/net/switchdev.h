@@ -159,6 +159,7 @@ enum switchdev_notifier_type {
 	SWITCHDEV_FDB_DEL_TO_BRIDGE,
 	SWITCHDEV_FDB_ADD_TO_DEVICE,
 	SWITCHDEV_FDB_DEL_TO_DEVICE,
+	SWITCHDEV_FDB_OFFLOADED,
 };
 
 struct switchdev_notifier_info {
