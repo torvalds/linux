@@ -525,7 +525,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 			goto error_free_pages;
 		}
 
-		/* Fill the page arrays for all useptrs. */
+		/* Fill the page arrays for all userptrs. */
 		list_for_each_entry(e, &need_pages, tv.head) {
 			struct ttm_tt *ttm = e->robj->tbo.ttm;
 
