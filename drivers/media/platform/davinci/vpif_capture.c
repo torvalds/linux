@@ -18,11 +18,12 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-of.h>
 #include <media/i2c/tvp514x.h>
 #include <media/v4l2-mediabus.h>
 
@@ -1389,15 +1390,16 @@ static int vpif_async_bound(struct v4l2_async_notifier *notifier,
 
 	for (i = 0; i < vpif_obj.config->asd_sizes[0]; i++) {
 		struct v4l2_async_subdev *_asd = vpif_obj.config->asd[i];
-		const struct device_node *node = _asd->match.of.node;
+		const struct fwnode_handle *fwnode = _asd->match.fwnode.fwnode;
 
-		if (node == subdev->of_node) {
+		if (fwnode == subdev->fwnode) {
 			vpif_obj.sd[i] = subdev;
 			vpif_obj.config->chan_config->inputs[i].subdev_name =
-				(char *)subdev->of_node->full_name;
+				(char *)to_of_node(subdev->fwnode)->full_name;
 			vpif_dbg(2, debug,
 				 "%s: setting input %d subdev_name = %s\n",
-				 __func__, i, subdev->of_node->full_name);
+				 __func__, i,
+				 to_of_node(subdev->fwnode)->full_name);
 			return 0;
 		}
 	}
@@ -1502,7 +1504,7 @@ static struct vpif_capture_config *
 vpif_capture_get_pdata(struct platform_device *pdev)
 {
 	struct device_node *endpoint = NULL;
-	struct v4l2_of_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg;
 	struct vpif_capture_config *pdata;
 	struct vpif_subdev_info *sdinfo;
 	struct vpif_capture_chan_config *chan;
@@ -1549,7 +1551,8 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		chan->inputs[i].input.std = V4L2_STD_ALL;
 		chan->inputs[i].input.capabilities = V4L2_IN_CAP_STD;
 
-		err = v4l2_of_parse_endpoint(endpoint, &bus_cfg);
+		err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
+						 &bus_cfg);
 		if (err) {
 			dev_err(&pdev->dev, "Could not parse the endpoint\n");
 			goto done;
@@ -1584,8 +1587,8 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 			goto done;
 		}
 
-		pdata->asd[i]->match_type = V4L2_ASYNC_MATCH_OF;
-		pdata->asd[i]->match.of.node = rem;
+		pdata->asd[i]->match_type = V4L2_ASYNC_MATCH_FWNODE;
+		pdata->asd[i]->match.fwnode.fwnode = of_fwnode_handle(rem);
 		of_node_put(rem);
 	}
 
