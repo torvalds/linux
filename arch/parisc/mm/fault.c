@@ -154,6 +154,7 @@ int fixup_exception(struct pt_regs *regs)
 			/* zero target register for get_user() */
 			if (parisc_acctyp(0, regs->iir) == VM_READ) {
 				int treg = regs->iir & 0x1f;
+				BUG_ON(treg == 0);
 				regs->gr[treg] = 0;
 			}
 		}
