@@ -1355,12 +1355,7 @@ xfs_qm_quotacheck(
 	mp->m_qflags |= flags;
 
  error_return:
-	while (!list_empty(&buffer_list)) {
-		struct xfs_buf *bp =
-			list_first_entry(&buffer_list, struct xfs_buf, b_list);
-		list_del_init(&bp->b_list);
-		xfs_buf_relse(bp);
-	}
+	xfs_buf_delwri_cancel(&buffer_list);
 
 	if (error) {
 		xfs_warn(mp,
