@@ -1398,6 +1398,32 @@ static const struct panel_desc netron_dy_e231732 = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
+static const struct display_timing nlt_nl192108ac18_02d_timing = {
+	.pixelclock = { 130000000, 148350000, 163000000 },
+	.hactive = { 1920, 1920, 1920 },
+	.hfront_porch = { 80, 100, 100 },
+	.hback_porch = { 100, 120, 120 },
+	.hsync_len = { 50, 60, 60 },
+	.vactive = { 1080, 1080, 1080 },
+	.vfront_porch = { 12, 30, 30 },
+	.vback_porch = { 4, 10, 10 },
+	.vsync_len = { 4, 5, 5 },
+};
+
+static const struct panel_desc nlt_nl192108ac18_02d = {
+	.timings = &nlt_nl192108ac18_02d_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 344,
+		.height = 194,
+	},
+	.delay = {
+		.unprepare = 500,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct drm_display_mode nvd_9128_mode = {
 	.clock = 29500,
 	.hdisplay = 800,
@@ -2007,6 +2033,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "netron-dy,e231732",
 		.data = &netron_dy_e231732,
+	}, {
+		.compatible = "nlt,nl192108ac18-02d",
+		.data = &nlt_nl192108ac18_02d,
 	}, {
 		.compatible = "nvd,9128",
 		.data = &nvd_9128,
