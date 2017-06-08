@@ -328,7 +328,7 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 	spin_lock_init(&a->request_lock);
 	spin_lock_init(&a->fw_event_lock);
 	mutex_init(&a->fm_api_mutex);
-	sema_init(&a->fs_api_semaphore, 1);
+	mutex_init(&a->fs_api_mutex);
 	sema_init(&a->nvram_semaphore, 1);
 
 	esas2r_fw_event_off(a);
