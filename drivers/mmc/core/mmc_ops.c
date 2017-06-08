@@ -291,14 +291,10 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 	return 0;
 }
 
-int mmc_send_csd(struct mmc_card *card, u32 *csd)
+static int mmc_spi_send_csd(struct mmc_card *card, u32 *csd)
 {
 	int ret, i;
 	__be32 *csd_tmp;
-
-	if (!mmc_host_is_spi(card->host))
-		return mmc_send_cxd_native(card->host, card->rca << 16,
-				csd, MMC_SEND_CSD);
 
 	csd_tmp = kzalloc(16, GFP_KERNEL);
 	if (!csd_tmp)
@@ -314,6 +310,15 @@ int mmc_send_csd(struct mmc_card *card, u32 *csd)
 err:
 	kfree(csd_tmp);
 	return ret;
+}
+
+int mmc_send_csd(struct mmc_card *card, u32 *csd)
+{
+	if (mmc_host_is_spi(card->host))
+		return mmc_spi_send_csd(card, csd);
+
+	return mmc_send_cxd_native(card->host, card->rca << 16,	csd,
+				MMC_SEND_CSD);
 }
 
 static int mmc_spi_send_cid(struct mmc_host *host, u32 *cid)
