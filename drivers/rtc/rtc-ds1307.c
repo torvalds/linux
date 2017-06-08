@@ -34,6 +34,7 @@
  */
 enum ds_type {
 	ds_1307,
+	ds_1308,
 	ds_1337,
 	ds_1338,
 	ds_1339,
@@ -152,6 +153,10 @@ static struct chip_desc chips[last_ds_type] = {
 		.nvram_offset	= 8,
 		.nvram_size	= 56,
 	},
+	[ds_1308] = {
+		.nvram_offset	= 8,
+		.nvram_size	= 56,
+	},
 	[ds_1337] = {
 		.alarm		= 1,
 		.century_reg	= DS1307_REG_MONTH,
@@ -198,6 +203,7 @@ static struct chip_desc chips[last_ds_type] = {
 
 static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1307", ds_1307 },
+	{ "ds1308", ds_1308 },
 	{ "ds1337", ds_1337 },
 	{ "ds1338", ds_1338 },
 	{ "ds1339", ds_1339 },
@@ -221,6 +227,10 @@ static const struct of_device_id ds1307_of_match[] = {
 	{
 		.compatible = "dallas,ds1307",
 		.data = (void *)ds_1307
+	},
+	{
+		.compatible = "dallas,ds1308",
+		.data = (void *)ds_1308
 	},
 	{
 		.compatible = "dallas,ds1337",
@@ -282,6 +292,7 @@ MODULE_DEVICE_TABLE(of, ds1307_of_match);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ds1307_acpi_ids[] = {
 	{ .id = "DS1307", .driver_data = ds_1307 },
+	{ .id = "DS1308", .driver_data = ds_1308 },
 	{ .id = "DS1337", .driver_data = ds_1337 },
 	{ .id = "DS1338", .driver_data = ds_1338 },
 	{ .id = "DS1339", .driver_data = ds_1339 },
@@ -1558,6 +1569,7 @@ read_rtc:
 			goto read_rtc;
 		}
 		break;
+	case ds_1308:
 	case ds_1338:
 		/* clock halted?  turn it on, so clock can tick. */
 		if (tmp & DS1307_BIT_CH)
