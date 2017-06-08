@@ -136,36 +136,27 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
-	pmd_t *pmd = NULL;
-	pte_t *pte = NULL;
+	pmd_t *pmd;
 
 	pgd = pgd_offset(mm, addr);
 	pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
 	if (!pgd_present(*pgd))
 		return NULL;
+
 	pud = pud_offset(pgd, addr);
-	if (!pud_present(*pud))
+	if (pud_none(*pud))
 		return NULL;
-
-	if (pud_huge(*pud))
+	/* swap or huge page */
+	if (!pud_present(*pud) || pud_huge(*pud))
 		return (pte_t *)pud;
-	pmd = pmd_offset(pud, addr);
-	if (!pmd_present(*pmd))
-		return NULL;
+	/* table; check the next level */
 
-	if (pte_cont(pmd_pte(*pmd))) {
-		pmd = pmd_offset(
-			pud, (addr & CONT_PMD_MASK));
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(*pmd))
+		return NULL;
+	if (!pmd_present(*pmd) || pmd_huge(*pmd))
 		return (pte_t *)pmd;
-	}
-	if (pmd_huge(*pmd))
-		return (pte_t *)pmd;
-	pte = pte_offset_kernel(pmd, addr);
-	if (pte_present(*pte) && pte_cont(*pte)) {
-		pte = pte_offset_kernel(
-			pmd, (addr & CONT_PTE_MASK));
-		return pte;
-	}
+
 	return NULL;
 }
 
