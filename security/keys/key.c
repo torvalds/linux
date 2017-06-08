@@ -660,14 +660,11 @@ not_found:
 	goto error;
 
 found:
-	/* pretend it doesn't exist if it is awaiting deletion */
-	if (refcount_read(&key->usage) == 0)
-		goto not_found;
-
-	/* this races with key_put(), but that doesn't matter since key_put()
-	 * doesn't actually change the key
+	/* A key is allowed to be looked up only if someone still owns a
+	 * reference to it - otherwise it's awaiting the gc.
 	 */
-	__key_get(key);
+	if (!refcount_inc_not_zero(&key->usage))
+		goto not_found;
 
 error:
 	spin_unlock(&key_serial_lock);
