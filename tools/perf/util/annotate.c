@@ -1431,31 +1431,10 @@ int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_na
 				sizeof(symfs_filename));
 		}
 	} else if (dso__needs_decompress(dso)) {
-		char tmp[PATH_MAX];
-		struct kmod_path m;
-		int fd;
-		bool ret;
+		char tmp[KMOD_DECOMP_LEN];
 
-		if (kmod_path__parse_ext(&m, symfs_filename))
-			goto out;
-
-		snprintf(tmp, PATH_MAX, "/tmp/perf-kmod-XXXXXX");
-
-		fd = mkstemp(tmp);
-		if (fd < 0) {
-			free(m.ext);
-			goto out;
-		}
-
-		ret = decompress_to_file(m.ext, symfs_filename, fd);
-
-		if (ret)
-			pr_err("Cannot decompress %s %s\n", m.ext, symfs_filename);
-
-		free(m.ext);
-		close(fd);
-
-		if (!ret)
+		if (dso__decompress_kmodule_path(dso, symfs_filename,
+						 tmp, sizeof(tmp)) < 0)
 			goto out;
 
 		strcpy(symfs_filename, tmp);
