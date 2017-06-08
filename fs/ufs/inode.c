@@ -284,7 +284,7 @@ ufs_inode_getfrag(struct inode *inode, unsigned index,
 			goal += uspi->s_fpb;
 	}
 	tmp = ufs_new_fragments(inode, p, ufs_blknum(new_fragment),
-				goal, uspi->s_fpb, err, locked_page);
+				goal, nfrags, err, locked_page);
 
 	if (!tmp) {
 		*err = -ENOSPC;
