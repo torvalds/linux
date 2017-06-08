@@ -5263,18 +5263,13 @@ static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-/* Helper function for writing quotas on sync - we need to start transaction
- * before quota file is locked for write. Otherwise the are possible deadlocks:
- * Process 1                         Process 2
- * ext4_create()                     quota_sync()
- *   jbd2_journal_start()                  write_dquot()
- *   dquot_initialize()                         down(dqio_mutex)
- *     down(dqio_mutex)                    jbd2_journal_start()
- *
- */
 
 #ifdef CONFIG_QUOTA
 
+/*
+ * Helper functions so that transaction is started before we acquire dqio_sem
+ * to keep correct lock ordering of transaction > dqio_sem
+ */
 static inline struct inode *dquot_to_inode(struct dquot *dquot)
 {
 	return sb_dqopt(dquot->dq_sb)->files[dquot->dq_id.type];

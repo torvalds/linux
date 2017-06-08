@@ -520,7 +520,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 				mlog_errno(status);
 				goto out_drop_lock;
 			}
-			mutex_lock(&sb_dqopt(sb)->dqio_mutex);
+			down_write(&sb_dqopt(sb)->dqio_sem);
 			spin_lock(&dq_data_lock);
 			/* Add usage from quota entry into quota changes
 			 * of our node. Auxiliary variables are important
@@ -553,7 +553,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 			unlock_buffer(qbh);
 			ocfs2_journal_dirty(handle, qbh);
 out_commit:
-			mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
+			up_write(&sb_dqopt(sb)->dqio_sem);
 			ocfs2_commit_trans(OCFS2_SB(sb), handle);
 out_drop_lock:
 			ocfs2_unlock_global_qf(oinfo, 1);
@@ -693,7 +693,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 
 	/* We don't need the lock and we have to acquire quota file locks
 	 * which will later depend on this lock */
-	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
+	up_write(&sb_dqopt(sb)->dqio_sem);
 	info->dqi_max_spc_limit = 0x7fffffffffffffffLL;
 	info->dqi_max_ino_limit = 0x7fffffffffffffffLL;
 	oinfo = kmalloc(sizeof(struct ocfs2_mem_dqinfo), GFP_NOFS);
@@ -772,7 +772,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 		goto out_err;
 	}
 
-	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
+	down_write(&sb_dqopt(sb)->dqio_sem);
 	return 0;
 out_err:
 	if (oinfo) {
@@ -786,7 +786,7 @@ out_err:
 		kfree(oinfo);
 	}
 	brelse(bh);
-	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
+	down_write(&sb_dqopt(sb)->dqio_sem);
 	return -1;
 }
 

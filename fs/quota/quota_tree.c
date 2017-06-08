@@ -379,7 +379,7 @@ int qtree_write_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	if (!ddquot)
 		return -ENOMEM;
 
-	/* dq_off is guarded by dqio_mutex */
+	/* dq_off is guarded by dqio_sem */
 	if (!dquot->dq_off) {
 		ret = dq_insert_tree(info, dquot);
 		if (ret < 0) {

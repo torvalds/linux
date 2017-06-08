@@ -120,7 +120,7 @@
  * spinlock to internal buffers before writing.
  *
  * Lock ordering (including related VFS locks) is the following:
- *   s_umount > i_mutex > journal_lock > dquot->dq_lock > dqio_mutex
+ *   s_umount > i_mutex > journal_lock > dquot->dq_lock > dqio_sem
  */
 
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(dq_list_lock);
@@ -406,7 +406,7 @@ int dquot_acquire(struct dquot *dquot)
 	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 
 	mutex_lock(&dquot->dq_lock);
-	mutex_lock(&dqopt->dqio_mutex);
+	down_write(&dqopt->dqio_sem);
 	if (!test_bit(DQ_READ_B, &dquot->dq_flags))
 		ret = dqopt->ops[dquot->dq_id.type]->read_dqblk(dquot);
 	if (ret < 0)
@@ -436,7 +436,7 @@ int dquot_acquire(struct dquot *dquot)
 	smp_mb__before_atomic();
 	set_bit(DQ_ACTIVE_B, &dquot->dq_flags);
 out_iolock:
-	mutex_unlock(&dqopt->dqio_mutex);
+	up_write(&dqopt->dqio_sem);
 	mutex_unlock(&dquot->dq_lock);
 	return ret;
 }
@@ -450,7 +450,7 @@ int dquot_commit(struct dquot *dquot)
 	int ret = 0;
 	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 
-	mutex_lock(&dqopt->dqio_mutex);
+	down_write(&dqopt->dqio_sem);
 	spin_lock(&dq_list_lock);
 	if (!clear_dquot_dirty(dquot)) {
 		spin_unlock(&dq_list_lock);
@@ -464,7 +464,7 @@ int dquot_commit(struct dquot *dquot)
 	else
 		ret = -EIO;
 out_sem:
-	mutex_unlock(&dqopt->dqio_mutex);
+	up_write(&dqopt->dqio_sem);
 	return ret;
 }
 EXPORT_SYMBOL(dquot_commit);
@@ -481,7 +481,7 @@ int dquot_release(struct dquot *dquot)
 	/* Check whether we are not racing with some other dqget() */
 	if (atomic_read(&dquot->dq_count) > 1)
 		goto out_dqlock;
-	mutex_lock(&dqopt->dqio_mutex);
+	down_write(&dqopt->dqio_sem);
 	if (dqopt->ops[dquot->dq_id.type]->release_dqblk) {
 		ret = dqopt->ops[dquot->dq_id.type]->release_dqblk(dquot);
 		/* Write the info */
@@ -493,7 +493,7 @@ int dquot_release(struct dquot *dquot)
 			ret = ret2;
 	}
 	clear_bit(DQ_ACTIVE_B, &dquot->dq_flags);
-	mutex_unlock(&dqopt->dqio_mutex);
+	up_write(&dqopt->dqio_sem);
 out_dqlock:
 	mutex_unlock(&dquot->dq_lock);
 	return ret;
@@ -2060,9 +2060,9 @@ int dquot_commit_info(struct super_block *sb, int type)
 	int ret;
 	struct quota_info *dqopt = sb_dqopt(sb);
 
-	mutex_lock(&dqopt->dqio_mutex);
+	down_write(&dqopt->dqio_sem);
 	ret = dqopt->ops[type]->write_file_info(sb, type);
-	mutex_unlock(&dqopt->dqio_mutex);
+	up_write(&dqopt->dqio_sem);
 	return ret;
 }
 EXPORT_SYMBOL(dquot_commit_info);
@@ -2076,9 +2076,9 @@ int dquot_get_next_id(struct super_block *sb, struct kqid *qid)
 		return -ESRCH;
 	if (!dqopt->ops[qid->type]->get_next_id)
 		return -ENOSYS;
-	mutex_lock(&dqopt->dqio_mutex);
+	down_write(&dqopt->dqio_sem);
 	err = dqopt->ops[qid->type]->get_next_id(sb, qid);
-	mutex_unlock(&dqopt->dqio_mutex);
+	up_write(&dqopt->dqio_sem);
 	return err;
 }
 EXPORT_SYMBOL(dquot_get_next_id);
@@ -2328,15 +2328,15 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 	dqopt->info[type].dqi_format = fmt;
 	dqopt->info[type].dqi_fmt_id = format_id;
 	INIT_LIST_HEAD(&dqopt->info[type].dqi_dirty_list);
-	mutex_lock(&dqopt->dqio_mutex);
+	down_write(&dqopt->dqio_sem);
 	error = dqopt->ops[type]->read_file_info(sb, type);
 	if (error < 0) {
-		mutex_unlock(&dqopt->dqio_mutex);
+		up_write(&dqopt->dqio_sem);
 		goto out_file_init;
 	}
 	if (dqopt->flags & DQUOT_QUOTA_SYS_FILE)
 		dqopt->info[type].dqi_flags |= DQF_SYS_FILE;
-	mutex_unlock(&dqopt->dqio_mutex);
+	up_write(&dqopt->dqio_sem);
 	spin_lock(&dq_state_lock);
 	dqopt->flags |= dquot_state_flag(flags, type);
 	spin_unlock(&dq_state_lock);

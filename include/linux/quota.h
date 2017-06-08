@@ -521,7 +521,7 @@ static inline void quota_send_warning(struct kqid qid, dev_t dev,
 
 struct quota_info {
 	unsigned int flags;			/* Flags for diskquotas on this device */
-	struct mutex dqio_mutex;		/* lock device while I/O in progress */
+	struct rw_semaphore dqio_sem;		/* Lock quota file while I/O in progress */
 	struct inode *files[MAXQUOTAS];		/* inodes of quotafiles */
 	struct mem_dqinfo info[MAXQUOTAS];	/* Information for each quota type */
 	const struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */
