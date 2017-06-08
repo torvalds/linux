@@ -447,11 +447,52 @@ static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 
 BTRFS_ATTR(clone_alignment, btrfs_clone_alignment_show);
 
+static ssize_t quota_override_show(struct kobject *kobj,
+				   struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	int quota_override;
+
+	quota_override = test_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags);
+	return snprintf(buf, PAGE_SIZE, "%d\n", quota_override);
+}
+
+static ssize_t quota_override_store(struct kobject *kobj,
+				    struct kobj_attribute *a,
+				    const char *buf, size_t len)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	unsigned long knob;
+	int err;
+
+	if (!fs_info)
+		return -EPERM;
+
+	if (!capable(CAP_SYS_RESOURCE))
+		return -EPERM;
+
+	err = kstrtoul(buf, 10, &knob);
+	if (err)
+		return err;
+	if (knob > 1)
+		return -EINVAL;
+
+	if (knob)
+		set_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags);
+	else
+		clear_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags);
+
+	return len;
+}
+
+BTRFS_ATTR_RW(quota_override, quota_override_show, quota_override_store);
+
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(label),
 	BTRFS_ATTR_PTR(nodesize),
 	BTRFS_ATTR_PTR(sectorsize),
 	BTRFS_ATTR_PTR(clone_alignment),
+	BTRFS_ATTR_PTR(quota_override),
 	NULL,
 };
 
