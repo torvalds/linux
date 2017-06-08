@@ -329,25 +329,53 @@ static void handle_set_channel(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Failed to set channel\n");
 }
 
-static void handle_set_wfi_drv_handler(struct wilc_vif *vif,
-				       struct drv_handler *hif_drv_handler)
+static int handle_set_wfi_drv_handler(struct wilc_vif *vif,
+				      struct drv_handler *hif_drv_handler)
 {
 	int ret = 0;
 	struct wid wid;
+	u8 *currbyte, *buffer;
+	struct host_if_drv *hif_drv = NULL;
+
+	if (!vif->hif_drv)
+		return -EINVAL;
+
+	if (!hif_drv_handler)
+		return -EINVAL;
+
+	hif_drv	= vif->hif_drv;
+
+	buffer = kzalloc(DRV_HANDLER_SIZE, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	currbyte = buffer;
+	*currbyte = hif_drv->driver_handler_id & DRV_HANDLER_MASK;
+	currbyte++;
+	*currbyte = (u32)0 & DRV_HANDLER_MASK;
+	currbyte++;
+	*currbyte = (u32)0 & DRV_HANDLER_MASK;
+	currbyte++;
+	*currbyte = (u32)0 & DRV_HANDLER_MASK;
+	currbyte++;
+	*currbyte = (hif_drv_handler->name | (hif_drv_handler->mode << 1));
 
 	wid.id = (u16)WID_SET_DRV_HANDLER;
 	wid.type = WID_STR;
-	wid.val = (s8 *)hif_drv_handler;
-	wid.size = sizeof(*hif_drv_handler);
+	wid.val = (s8 *)buffer;
+	wid.size = DRV_HANDLER_SIZE;
 
 	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-				   hif_drv_handler->handler);
-
-	if (!hif_drv_handler->handler)
-		complete(&hif_driver_comp);
-
-	if (ret)
+				   hif_drv->driver_handler_id);
+	if (ret) {
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
+		complete(&hif_driver_comp);
+		kfree(buffer);
+		return ret;
+	}
+	complete(&hif_driver_comp);
+	kfree(buffer);
+	return 0;
 }
 
 static void handle_set_operation_mode(struct wilc_vif *vif,
@@ -2389,9 +2417,9 @@ static void Handle_SetMulticastFilter(struct wilc_vif *vif,
 
 	pu8CurrByte = wid.val;
 	*pu8CurrByte++ = (strHostIfSetMulti->enabled & 0xFF);
-	*pu8CurrByte++ = 0;
-	*pu8CurrByte++ = 0;
-	*pu8CurrByte++ = 0;
+	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 8) & 0xFF);
+	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 16) & 0xFF);
+	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 24) & 0xFF);
 
 	*pu8CurrByte++ = (strHostIfSetMulti->cnt & 0xFF);
 	*pu8CurrByte++ = ((strHostIfSetMulti->cnt >> 8) & 0xFF);
@@ -2449,6 +2477,7 @@ static void host_if_work(struct work_struct *work)
 {
 	struct host_if_msg *msg;
 	struct wilc *wilc;
+	int ret = 0;
 
 	msg = container_of(work, struct host_if_msg, work);
 	wilc = msg->vif->wilc;
@@ -2554,7 +2583,7 @@ static void host_if_work(struct work_struct *work)
 		break;
 
 	case HOST_IF_MSG_SET_WFIDRV_HANDLER:
-		handle_set_wfi_drv_handler(msg->vif, &msg->body.drv);
+		ret = handle_set_wfi_drv_handler(msg->vif, &msg->body.drv);
 		break;
 
 	case HOST_IF_MSG_SET_OPERATION_MODE:
@@ -2608,6 +2637,8 @@ static void host_if_work(struct work_struct *work)
 		break;
 	}
 free_msg:
+	if (ret)
+		netdev_err(msg->vif->ndev, "Host cmd %d failed\n", msg->id);
 	kfree(msg);
 	complete(&hif_thread_comp);
 }
@@ -3085,7 +3116,8 @@ int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel)
 	return 0;
 }
 
-int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mac_idx)
+int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
+			     u8 ifc_id)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3093,7 +3125,8 @@ int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mac_idx)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_WFIDRV_HANDLER;
 	msg.body.drv.handler = index;
-	msg.body.drv.mac_idx = mac_idx;
+	msg.body.drv.mode = mode;
+	msg.body.drv.name = ifc_id;
 	msg.vif = vif;
 
 	result = wilc_enqueue_cmd(&msg);
@@ -3316,6 +3349,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	for (i = 0; i < wilc->vif_num; i++)
 		if (dev == wilc->vif[i]->ndev) {
 			wilc->vif[i]->hif_drv = hif_drv;
+			hif_drv->driver_handler_id = i + 1;
 			break;
 		}
 
@@ -3389,7 +3423,7 @@ int wilc_deinit(struct wilc_vif *vif)
 	del_timer_sync(&periodic_rssi);
 	del_timer_sync(&hif_drv->remain_on_ch_timer);
 
-	wilc_set_wfi_drv_handler(vif, 0, 0);
+	wilc_set_wfi_drv_handler(vif, 0, 0, 0);
 	wait_for_completion(&hif_driver_comp);
 
 	if (hif_drv->usr_scan_req.scan_result) {
