@@ -2702,9 +2702,9 @@ static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 
 	if(data->smu_features[GNLD_LED_DISPLAY].supported == true){
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
-				true, data->smu_features[GNLD_LED_DISPLAY].smu_feature_bitmap),
-		"Attempt to Enable LED DPM feature Failed!", return -EINVAL);
-		data->smu_features[GNLD_LED_DISPLAY].enabled = true;
+				false, data->smu_features[GNLD_LED_DISPLAY].smu_feature_bitmap),
+		"Attempt to disable LED DPM feature failed!", return -EINVAL);
+		data->smu_features[GNLD_LED_DISPLAY].enabled = false;
 	}
 
 	for (i = 0; i < GNLD_DPM_MAX; i++) {
