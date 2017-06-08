@@ -385,10 +385,9 @@ static int get_derived_key(u8 *derived_key, enum derived_key_type key_type,
 		derived_buf_len = HASH_SIZE;
 
 	derived_buf = kzalloc(derived_buf_len, GFP_KERNEL);
-	if (!derived_buf) {
-		pr_err("encrypted_key: out of memory\n");
+	if (!derived_buf)
 		return -ENOMEM;
-	}
+
 	if (key_type)
 		strcpy(derived_buf, "AUTH_KEY");
 	else
