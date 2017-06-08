@@ -150,8 +150,15 @@ struct in_ifaddr {
 	unsigned long		ifa_tstamp; /* updated timestamp */
 };
 
+struct in_validator_info {
+	__be32			ivi_addr;
+	struct in_device	*ivi_dev;
+};
+
 int register_inetaddr_notifier(struct notifier_block *nb);
 int unregister_inetaddr_notifier(struct notifier_block *nb);
+int register_inetaddr_validator_notifier(struct notifier_block *nb);
+int unregister_inetaddr_validator_notifier(struct notifier_block *nb);
 
 void inet_netconf_notify_devconf(struct net *net, int event, int type,
 				 int ifindex, struct ipv4_devconf *devconf);

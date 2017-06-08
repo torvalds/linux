@@ -824,6 +824,33 @@ static int ipvlan_addr6_event(struct notifier_block *unused,
 	return NOTIFY_OK;
 }
 
+static int ipvlan_addr6_validator_event(struct notifier_block *unused,
+					unsigned long event, void *ptr)
+{
+	struct in6_validator_info *i6vi = (struct in6_validator_info *)ptr;
+	struct net_device *dev = (struct net_device *)i6vi->i6vi_dev->dev;
+	struct ipvl_dev *ipvlan = netdev_priv(dev);
+
+	/* FIXME IPv6 autoconf calls us from bh without RTNL */
+	if (in_softirq())
+		return NOTIFY_DONE;
+
+	if (!netif_is_ipvlan(dev))
+		return NOTIFY_DONE;
+
+	if (!ipvlan || !ipvlan->port)
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case NETDEV_UP:
+		if (ipvlan_addr_busy(ipvlan->port, &i6vi->i6vi_addr, true))
+			return notifier_from_errno(-EADDRINUSE);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 {
 	if (ipvlan_addr_busy(ipvlan->port, ip4_addr, false)) {
@@ -871,8 +898,35 @@ static int ipvlan_addr4_event(struct notifier_block *unused,
 	return NOTIFY_OK;
 }
 
+static int ipvlan_addr4_validator_event(struct notifier_block *unused,
+					unsigned long event, void *ptr)
+{
+	struct in_validator_info *ivi = (struct in_validator_info *)ptr;
+	struct net_device *dev = (struct net_device *)ivi->ivi_dev->dev;
+	struct ipvl_dev *ipvlan = netdev_priv(dev);
+
+	if (!netif_is_ipvlan(dev))
+		return NOTIFY_DONE;
+
+	if (!ipvlan || !ipvlan->port)
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case NETDEV_UP:
+		if (ipvlan_addr_busy(ipvlan->port, &ivi->ivi_addr, false))
+			return notifier_from_errno(-EADDRINUSE);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 static struct notifier_block ipvlan_addr4_notifier_block __read_mostly = {
 	.notifier_call = ipvlan_addr4_event,
+};
+
+static struct notifier_block ipvlan_addr4_vtor_notifier_block __read_mostly = {
+	.notifier_call = ipvlan_addr4_validator_event,
 };
 
 static struct notifier_block ipvlan_notifier_block __read_mostly = {
@@ -881,6 +935,10 @@ static struct notifier_block ipvlan_notifier_block __read_mostly = {
 
 static struct notifier_block ipvlan_addr6_notifier_block __read_mostly = {
 	.notifier_call = ipvlan_addr6_event,
+};
+
+static struct notifier_block ipvlan_addr6_vtor_notifier_block __read_mostly = {
+	.notifier_call = ipvlan_addr6_validator_event,
 };
 
 static void ipvlan_ns_exit(struct net *net)
@@ -907,7 +965,10 @@ static int __init ipvlan_init_module(void)
 	ipvlan_init_secret();
 	register_netdevice_notifier(&ipvlan_notifier_block);
 	register_inet6addr_notifier(&ipvlan_addr6_notifier_block);
+	register_inet6addr_validator_notifier(
+	    &ipvlan_addr6_vtor_notifier_block);
 	register_inetaddr_notifier(&ipvlan_addr4_notifier_block);
+	register_inetaddr_validator_notifier(&ipvlan_addr4_vtor_notifier_block);
 
 	err = register_pernet_subsys(&ipvlan_net_ops);
 	if (err < 0)
@@ -922,7 +983,11 @@ static int __init ipvlan_init_module(void)
 	return 0;
 error:
 	unregister_inetaddr_notifier(&ipvlan_addr4_notifier_block);
+	unregister_inetaddr_validator_notifier(
+	    &ipvlan_addr4_vtor_notifier_block);
 	unregister_inet6addr_notifier(&ipvlan_addr6_notifier_block);
+	unregister_inet6addr_validator_notifier(
+	    &ipvlan_addr6_vtor_notifier_block);
 	unregister_netdevice_notifier(&ipvlan_notifier_block);
 	return err;
 }
@@ -933,7 +998,11 @@ static void __exit ipvlan_cleanup_module(void)
 	unregister_pernet_subsys(&ipvlan_net_ops);
 	unregister_netdevice_notifier(&ipvlan_notifier_block);
 	unregister_inetaddr_notifier(&ipvlan_addr4_notifier_block);
+	unregister_inetaddr_validator_notifier(
+	    &ipvlan_addr4_vtor_notifier_block);
 	unregister_inet6addr_notifier(&ipvlan_addr6_notifier_block);
+	unregister_inet6addr_validator_notifier(
+	    &ipvlan_addr6_vtor_notifier_block);
 }
 
 module_init(ipvlan_init_module);
