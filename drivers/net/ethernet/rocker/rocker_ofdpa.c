@@ -2643,6 +2643,16 @@ ofdpa_port_attr_bridge_flags_get(const struct rocker_port *rocker_port,
 }
 
 static int
+ofdpa_port_attr_bridge_flags_support_get(const struct rocker_port *
+					 rocker_port,
+					 unsigned long *
+					 p_brport_flags_support)
+{
+	*p_brport_flags_support = BR_LEARNING;
+	return 0;
+}
+
+static int
 ofdpa_port_attr_bridge_ageing_time_set(struct rocker_port *rocker_port,
 				       u32 ageing_time,
 				       struct switchdev_trans *trans)
@@ -2989,6 +2999,7 @@ struct rocker_world_ops rocker_ofdpa_ops = {
 	.port_attr_stp_state_set = ofdpa_port_attr_stp_state_set,
 	.port_attr_bridge_flags_set = ofdpa_port_attr_bridge_flags_set,
 	.port_attr_bridge_flags_get = ofdpa_port_attr_bridge_flags_get,
+	.port_attr_bridge_flags_support_get = ofdpa_port_attr_bridge_flags_support_get,
 	.port_attr_bridge_ageing_time_set = ofdpa_port_attr_bridge_ageing_time_set,
 	.port_obj_vlan_add = ofdpa_port_obj_vlan_add,
 	.port_obj_vlan_del = ofdpa_port_obj_vlan_del,

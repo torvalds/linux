@@ -112,6 +112,10 @@ struct rocker_world_ops {
 					  struct switchdev_trans *trans);
 	int (*port_attr_bridge_flags_get)(const struct rocker_port *rocker_port,
 					  unsigned long *p_brport_flags);
+	int (*port_attr_bridge_flags_support_get)(const struct rocker_port *
+						  rocker_port,
+						  unsigned long *
+						  p_brport_flags);
 	int (*port_attr_bridge_ageing_time_set)(struct rocker_port *rocker_port,
 						u32 ageing_time,
 						struct switchdev_trans *trans);
