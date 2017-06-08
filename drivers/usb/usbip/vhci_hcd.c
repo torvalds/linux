@@ -66,7 +66,7 @@ static const char * const bit_desc[] = {
 	"SUSPEND",		/*2*/
 	"OVER_CURRENT",		/*3*/
 	"RESET",		/*4*/
-	"R5",			/*5*/
+	"L1",			/*5*/
 	"R6",			/*6*/
 	"R7",			/*7*/
 	"POWER",		/*8*/
@@ -82,7 +82,7 @@ static const char * const bit_desc[] = {
 	"C_SUSPEND",		/*18*/
 	"C_OVER_CURRENT",	/*19*/
 	"C_RESET",		/*20*/
-	"R21",			/*21*/
+	"C_L1",			/*21*/
 	"R22",			/*22*/
 	"R23",			/*23*/
 	"R24",			/*24*/
@@ -95,10 +95,49 @@ static const char * const bit_desc[] = {
 	"R31",			/*31*/
 };
 
-static void dump_port_status_diff(u32 prev_status, u32 new_status)
+static const char * const bit_desc_ss[] = {
+	"CONNECTION",		/*0*/
+	"ENABLE",		/*1*/
+	"SUSPEND",		/*2*/
+	"OVER_CURRENT",		/*3*/
+	"RESET",		/*4*/
+	"L1",			/*5*/
+	"R6",			/*6*/
+	"R7",			/*7*/
+	"R8",			/*8*/
+	"POWER",		/*9*/
+	"HIGHSPEED",		/*10*/
+	"PORT_TEST",		/*11*/
+	"INDICATOR",		/*12*/
+	"R13",			/*13*/
+	"R14",			/*14*/
+	"R15",			/*15*/
+	"C_CONNECTION",		/*16*/
+	"C_ENABLE",		/*17*/
+	"C_SUSPEND",		/*18*/
+	"C_OVER_CURRENT",	/*19*/
+	"C_RESET",		/*20*/
+	"C_BH_RESET",		/*21*/
+	"C_LINK_STATE",		/*22*/
+	"C_CONFIG_ERROR",	/*23*/
+	"R24",			/*24*/
+	"R25",			/*25*/
+	"R26",			/*26*/
+	"R27",			/*27*/
+	"R28",			/*28*/
+	"R29",			/*29*/
+	"R30",			/*30*/
+	"R31",			/*31*/
+};
+
+static void dump_port_status_diff(u32 prev_status, u32 new_status, bool usb3)
 {
 	int i = 0;
 	u32 bit = 1;
+	const char * const *desc = bit_desc;
+
+	if (usb3)
+		desc = bit_desc_ss;
 
 	pr_debug("status prev -> new: %08x -> %08x\n", prev_status, new_status);
 	while (bit) {
@@ -113,8 +152,12 @@ static void dump_port_status_diff(u32 prev_status, u32 new_status)
 		else
 			change = ' ';
 
-		if (prev || new)
-			pr_debug(" %c%s\n", change, bit_desc[i]);
+		if (prev || new) {
+			pr_debug(" %c%s\n", change, desc[i]);
+
+			if (bit == 1) /* USB_PORT_STAT_CONNECTION */
+				pr_debug(" %c%s\n", change, "USB_PORT_STAT_SPEED_5GBPS");
+		}
 		bit <<= 1;
 		i++;
 	}
@@ -568,7 +611,8 @@ error:
 		/* Only dump valid port status */
 		if (rhport >= 0) {
 			dump_port_status_diff(prev_port_status[rhport],
-					      vhci_hcd->port_status[rhport]);
+					      vhci_hcd->port_status[rhport],
+					      hcd->speed == HCD_USB3);
 		}
 	}
 	usbip_dbg_vhci_rh(" bye\n");
