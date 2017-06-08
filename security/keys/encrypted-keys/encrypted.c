@@ -54,13 +54,7 @@ static int blksize;
 #define MAX_DATA_SIZE 4096
 #define MIN_DATA_SIZE  20
 
-struct sdesc {
-	struct shash_desc shash;
-	char ctx[];
-};
-
-static struct crypto_shash *hashalg;
-static struct crypto_shash *hmacalg;
+static struct crypto_shash *hash_tfm;
 
 enum {
 	Opt_err = -1, Opt_new, Opt_load, Opt_update
@@ -320,53 +314,38 @@ error:
 	return ukey;
 }
 
-static struct sdesc *alloc_sdesc(struct crypto_shash *alg)
+static int calc_hash(struct crypto_shash *tfm, u8 *digest,
+		     const u8 *buf, unsigned int buflen)
 {
-	struct sdesc *sdesc;
-	int size;
+	SHASH_DESC_ON_STACK(desc, tfm);
+	int err;
 
-	size = sizeof(struct shash_desc) + crypto_shash_descsize(alg);
-	sdesc = kmalloc(size, GFP_KERNEL);
-	if (!sdesc)
-		return ERR_PTR(-ENOMEM);
-	sdesc->shash.tfm = alg;
-	sdesc->shash.flags = 0x0;
-	return sdesc;
+	desc->tfm = tfm;
+	desc->flags = 0;
+
+	err = crypto_shash_digest(desc, buf, buflen, digest);
+	shash_desc_zero(desc);
+	return err;
 }
 
 static int calc_hmac(u8 *digest, const u8 *key, unsigned int keylen,
 		     const u8 *buf, unsigned int buflen)
 {
-	struct sdesc *sdesc;
-	int ret;
+	struct crypto_shash *tfm;
+	int err;
 
-	sdesc = alloc_sdesc(hmacalg);
-	if (IS_ERR(sdesc)) {
-		pr_info("encrypted_key: can't alloc %s\n", hmac_alg);
-		return PTR_ERR(sdesc);
+	tfm = crypto_alloc_shash(hmac_alg, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm)) {
+		pr_err("encrypted_key: can't alloc %s transform: %ld\n",
+		       hmac_alg, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
-	ret = crypto_shash_setkey(hmacalg, key, keylen);
-	if (!ret)
-		ret = crypto_shash_digest(&sdesc->shash, buf, buflen, digest);
-	kfree(sdesc);
-	return ret;
-}
-
-static int calc_hash(u8 *digest, const u8 *buf, unsigned int buflen)
-{
-	struct sdesc *sdesc;
-	int ret;
-
-	sdesc = alloc_sdesc(hashalg);
-	if (IS_ERR(sdesc)) {
-		pr_info("encrypted_key: can't alloc %s\n", hash_alg);
-		return PTR_ERR(sdesc);
-	}
-
-	ret = crypto_shash_digest(&sdesc->shash, buf, buflen, digest);
-	kfree(sdesc);
-	return ret;
+	err = crypto_shash_setkey(tfm, key, keylen);
+	if (!err)
+		err = calc_hash(tfm, digest, buf, buflen);
+	crypto_free_shash(tfm);
+	return err;
 }
 
 enum derived_key_type { ENC_KEY, AUTH_KEY };
@@ -394,7 +373,7 @@ static int get_derived_key(u8 *derived_key, enum derived_key_type key_type,
 
 	memcpy(derived_buf + strlen(derived_buf) + 1, master_key,
 	       master_keylen);
-	ret = calc_hash(derived_key, derived_buf, derived_buf_len);
+	ret = calc_hash(hash_tfm, derived_key, derived_buf, derived_buf_len);
 	kfree(derived_buf);
 	return ret;
 }
@@ -998,47 +977,17 @@ struct key_type key_type_encrypted = {
 };
 EXPORT_SYMBOL_GPL(key_type_encrypted);
 
-static void encrypted_shash_release(void)
-{
-	if (hashalg)
-		crypto_free_shash(hashalg);
-	if (hmacalg)
-		crypto_free_shash(hmacalg);
-}
-
-static int __init encrypted_shash_alloc(void)
-{
-	int ret;
-
-	hmacalg = crypto_alloc_shash(hmac_alg, 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(hmacalg)) {
-		pr_info("encrypted_key: could not allocate crypto %s\n",
-			hmac_alg);
-		return PTR_ERR(hmacalg);
-	}
-
-	hashalg = crypto_alloc_shash(hash_alg, 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(hashalg)) {
-		pr_info("encrypted_key: could not allocate crypto %s\n",
-			hash_alg);
-		ret = PTR_ERR(hashalg);
-		goto hashalg_fail;
-	}
-
-	return 0;
-
-hashalg_fail:
-	crypto_free_shash(hmacalg);
-	return ret;
-}
-
 static int __init init_encrypted(void)
 {
 	int ret;
 
-	ret = encrypted_shash_alloc();
-	if (ret < 0)
-		return ret;
+	hash_tfm = crypto_alloc_shash(hash_alg, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hash_tfm)) {
+		pr_err("encrypted_key: can't allocate %s transform: %ld\n",
+		       hash_alg, PTR_ERR(hash_tfm));
+		return PTR_ERR(hash_tfm);
+	}
+
 	ret = aes_get_sizes();
 	if (ret < 0)
 		goto out;
@@ -1047,14 +996,14 @@ static int __init init_encrypted(void)
 		goto out;
 	return 0;
 out:
-	encrypted_shash_release();
+	crypto_free_shash(hash_tfm);
 	return ret;
 
 }
 
 static void __exit cleanup_encrypted(void)
 {
-	encrypted_shash_release();
+	crypto_free_shash(hash_tfm);
 	unregister_key_type(&key_type_encrypted);
 }
 
