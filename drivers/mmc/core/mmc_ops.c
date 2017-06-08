@@ -207,24 +207,6 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	return err;
 }
 
-static int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
-{
-	int err;
-	struct mmc_command cmd = {};
-
-	cmd.opcode = MMC_ALL_SEND_CID;
-	cmd.arg = 0;
-	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
-
-	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
-	if (err)
-		return err;
-
-	memcpy(cid, cmd.resp, sizeof(u32) * 4);
-
-	return 0;
-}
-
 int mmc_set_relative_addr(struct mmc_card *card)
 {
 	struct mmc_command cmd = {};
@@ -360,7 +342,7 @@ int mmc_send_cid(struct mmc_host *host, u32 *cid)
 	if (mmc_host_is_spi(host))
 		return mmc_spi_send_cid(host, cid);
 
-	return mmc_all_send_cid(host, cid);
+	return mmc_send_cxd_native(host, 0, cid, MMC_ALL_SEND_CID);
 }
 
 int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
