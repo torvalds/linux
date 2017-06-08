@@ -266,6 +266,8 @@ at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 	if (ret) {
 		kfree(gck);
 		hw = ERR_PTR(ret);
+	} else {
+		pmc_register_id(id);
 	}
 
 	return hw;
