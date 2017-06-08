@@ -92,6 +92,7 @@ enum ad_link_speed_type {
 	AD_LINK_SPEED_2500MBPS,
 	AD_LINK_SPEED_5000MBPS,
 	AD_LINK_SPEED_10000MBPS,
+	AD_LINK_SPEED_14000MBPS,
 	AD_LINK_SPEED_20000MBPS,
 	AD_LINK_SPEED_25000MBPS,
 	AD_LINK_SPEED_40000MBPS,
@@ -263,6 +264,7 @@ static inline int __check_agg_selection_timer(struct port *port)
  *     %AD_LINK_SPEED_2500MBPS,
  *     %AD_LINK_SPEED_5000MBPS,
  *     %AD_LINK_SPEED_10000MBPS
+ *     %AD_LINK_SPEED_14000MBPS,
  *     %AD_LINK_SPEED_20000MBPS
  *     %AD_LINK_SPEED_25000MBPS
  *     %AD_LINK_SPEED_40000MBPS
@@ -306,6 +308,10 @@ static u16 __get_link_speed(struct port *port)
 
 		case SPEED_10000:
 			speed = AD_LINK_SPEED_10000MBPS;
+			break;
+
+		case SPEED_14000:
+			speed = AD_LINK_SPEED_14000MBPS;
 			break;
 
 		case SPEED_20000:
@@ -724,6 +730,9 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 			break;
 		case AD_LINK_SPEED_10000MBPS:
 			bandwidth = nports * 10000;
+			break;
+		case AD_LINK_SPEED_14000MBPS:
+			bandwidth = nports * 14000;
 			break;
 		case AD_LINK_SPEED_20000MBPS:
 			bandwidth = nports * 20000;
