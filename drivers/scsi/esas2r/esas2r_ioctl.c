@@ -110,7 +110,7 @@ static void do_fm_api(struct esas2r_adapter *a, struct esas2r_flash_img *fi)
 {
 	struct esas2r_request *rq;
 
-	if (down_interruptible(&a->fm_api_semaphore)) {
+	if (mutex_lock_interruptible(&a->fm_api_mutex)) {
 		fi->status = FI_STAT_BUSY;
 		return;
 	}
@@ -173,7 +173,7 @@ all_done:
 free_req:
 	esas2r_free_request(a, (struct esas2r_request *)rq);
 free_sem:
-	up(&a->fm_api_semaphore);
+	mutex_unlock(&a->fm_api_mutex);
 	return;
 
 }
