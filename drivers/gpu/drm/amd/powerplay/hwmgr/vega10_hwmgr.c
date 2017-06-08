@@ -3824,6 +3824,18 @@ static int vega10_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 				[vega10_ps->performance_level_count-1].mem_clock;
 }
 
+static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
+		struct pp_gpu_power *query)
+{
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+			PPSMC_MSG_GetCurrPkgPwr),
+			"Failed to get current package power!",
+			return -EINVAL);
+
+	return vega10_read_arg_from_smc(hwmgr->smumgr,
+			&query->average_gpu_power);
+}
+
 static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			      void *value, int *size)
 {
@@ -3868,6 +3880,14 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	case AMDGPU_PP_SENSOR_VCE_POWER:
 		*((uint32_t *)value) = data->vce_power_gated ? 0 : 1;
 		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_POWER:
+		if (*size < sizeof(struct pp_gpu_power))
+			ret = -EINVAL;
+		else {
+			*size = sizeof(struct pp_gpu_power);
+			ret = vega10_get_gpu_power(hwmgr, (struct pp_gpu_power *)value);
+		}
 		break;
 	default:
 		ret = -EINVAL;
