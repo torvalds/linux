@@ -683,7 +683,6 @@ static int
 i915_gem_request_await_request(struct drm_i915_gem_request *to,
 			       struct drm_i915_gem_request *from)
 {
-	u32 seqno;
 	int ret;
 
 	GEM_BUG_ON(to == from);
@@ -707,18 +706,14 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 		return ret < 0 ? ret : 0;
 	}
 
-	seqno = i915_gem_request_global_seqno(from);
-	if (!seqno)
-		goto await_dma_fence;
+	if (to->engine->semaphore.sync_to) {
+		u32 seqno;
 
-	if (!to->engine->semaphore.sync_to) {
-		if (!__i915_gem_request_started(from, seqno))
-			goto await_dma_fence;
-
-		if (!__i915_spin_request(from, seqno, TASK_INTERRUPTIBLE, 2))
-			goto await_dma_fence;
-	} else {
 		GEM_BUG_ON(!from->engine->semaphore.signal);
+
+		seqno = i915_gem_request_global_seqno(from);
+		if (!seqno)
+			goto await_dma_fence;
 
 		if (seqno <= to->timeline->global_sync[from->engine->id])
 			return 0;
@@ -729,9 +724,8 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 			return ret;
 
 		to->timeline->global_sync[from->engine->id] = seqno;
+		return 0;
 	}
-
-	return 0;
 
 await_dma_fence:
 	ret = i915_sw_fence_await_dma_fence(&to->submit,
