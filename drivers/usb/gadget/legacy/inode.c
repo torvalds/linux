@@ -1183,8 +1183,10 @@ dev_release (struct inode *inode, struct file *fd)
 
 	/* closing ep0 === shutdown all */
 
-	if (dev->gadget_registered)
+	if (dev->gadget_registered) {
 		usb_gadget_unregister_driver (&gadgetfs_driver);
+		dev->gadget_registered = false;
+	}
 
 	/* at this point "good" hardware has disconnected the
 	 * device from USB; the host won't see it any more.
