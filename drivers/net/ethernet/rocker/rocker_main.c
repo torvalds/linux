@@ -1557,7 +1557,11 @@ static int rocker_world_port_attr_stp_state_set(struct rocker_port *rocker_port,
 
 	if (!wops->port_attr_stp_state_set)
 		return -EOPNOTSUPP;
-	return wops->port_attr_stp_state_set(rocker_port, state, trans);
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	return wops->port_attr_stp_state_set(rocker_port, state);
 }
 
 static int
@@ -1569,6 +1573,10 @@ rocker_world_port_attr_bridge_flags_set(struct rocker_port *rocker_port,
 
 	if (!wops->port_attr_bridge_flags_set)
 		return -EOPNOTSUPP;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
 	return wops->port_attr_bridge_flags_set(rocker_port, brport_flags,
 						trans);
 }
@@ -1608,6 +1616,10 @@ rocker_world_port_attr_bridge_ageing_time_set(struct rocker_port *rocker_port,
 
 	if (!wops->port_attr_bridge_ageing_time_set)
 		return -EOPNOTSUPP;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
 	return wops->port_attr_bridge_ageing_time_set(rocker_port, ageing_time,
 						      trans);
 }
@@ -1621,7 +1633,11 @@ rocker_world_port_obj_vlan_add(struct rocker_port *rocker_port,
 
 	if (!wops->port_obj_vlan_add)
 		return -EOPNOTSUPP;
-	return wops->port_obj_vlan_add(rocker_port, vlan, trans);
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	return wops->port_obj_vlan_add(rocker_port, vlan);
 }
 
 static int
@@ -1656,7 +1672,11 @@ rocker_world_port_obj_fdb_add(struct rocker_port *rocker_port,
 
 	if (!wops->port_obj_fdb_add)
 		return -EOPNOTSUPP;
-	return wops->port_obj_fdb_add(rocker_port, fdb, trans);
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	return wops->port_obj_fdb_add(rocker_port, fdb->vid, fdb->addr);
 }
 
 static int
@@ -1667,7 +1687,7 @@ rocker_world_port_obj_fdb_del(struct rocker_port *rocker_port,
 
 	if (!wops->port_obj_fdb_del)
 		return -EOPNOTSUPP;
-	return wops->port_obj_fdb_del(rocker_port, fdb);
+	return wops->port_obj_fdb_del(rocker_port, fdb->vid, fdb->addr);
 }
 
 static int
