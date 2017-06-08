@@ -1652,33 +1652,6 @@ rocker_world_port_obj_vlan_del(struct rocker_port *rocker_port,
 }
 
 static int
-rocker_world_port_obj_fdb_add(struct rocker_port *rocker_port,
-			      const struct switchdev_obj_port_fdb *fdb,
-			      struct switchdev_trans *trans)
-{
-	struct rocker_world_ops *wops = rocker_port->rocker->wops;
-
-	if (!wops->port_obj_fdb_add)
-		return -EOPNOTSUPP;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
-
-	return wops->port_obj_fdb_add(rocker_port, fdb->vid, fdb->addr);
-}
-
-static int
-rocker_world_port_obj_fdb_del(struct rocker_port *rocker_port,
-			      const struct switchdev_obj_port_fdb *fdb)
-{
-	struct rocker_world_ops *wops = rocker_port->rocker->wops;
-
-	if (!wops->port_obj_fdb_del)
-		return -EOPNOTSUPP;
-	return wops->port_obj_fdb_del(rocker_port, fdb->vid, fdb->addr);
-}
-
-static int
 rocker_world_port_fdb_add(struct rocker_port *rocker_port,
 			  struct switchdev_notifier_fdb_info *info)
 {
@@ -1699,18 +1672,6 @@ rocker_world_port_fdb_del(struct rocker_port *rocker_port,
 	if (!wops->port_obj_fdb_del)
 		return -EOPNOTSUPP;
 	return wops->port_obj_fdb_del(rocker_port, info->vid, info->addr);
-}
-
-static int
-rocker_world_port_obj_fdb_dump(const struct rocker_port *rocker_port,
-			       struct switchdev_obj_port_fdb *fdb,
-			       switchdev_obj_dump_cb_t *cb)
-{
-	struct rocker_world_ops *wops = rocker_port->rocker->wops;
-
-	if (!wops->port_obj_fdb_dump)
-		return -EOPNOTSUPP;
-	return wops->port_obj_fdb_dump(rocker_port, fdb, cb);
 }
 
 static int rocker_world_port_master_linked(struct rocker_port *rocker_port,
@@ -2067,9 +2028,6 @@ static const struct net_device_ops rocker_port_netdev_ops = {
 	.ndo_start_xmit			= rocker_port_xmit,
 	.ndo_set_mac_address		= rocker_port_set_mac_address,
 	.ndo_change_mtu			= rocker_port_change_mtu,
-	.ndo_fdb_add			= switchdev_port_fdb_add,
-	.ndo_fdb_del			= switchdev_port_fdb_del,
-	.ndo_fdb_dump			= switchdev_port_fdb_dump,
 	.ndo_get_phys_port_name		= rocker_port_get_phys_port_name,
 	.ndo_change_proto_down		= rocker_port_change_proto_down,
 	.ndo_neigh_destroy		= rocker_port_neigh_destroy,
@@ -2150,11 +2108,6 @@ static int rocker_port_obj_add(struct net_device *dev,
 						     SWITCHDEV_OBJ_PORT_VLAN(obj),
 						     trans);
 		break;
-	case SWITCHDEV_OBJ_ID_PORT_FDB:
-		err = rocker_world_port_obj_fdb_add(rocker_port,
-						    SWITCHDEV_OBJ_PORT_FDB(obj),
-						    trans);
-		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
@@ -2174,31 +2127,6 @@ static int rocker_port_obj_del(struct net_device *dev,
 		err = rocker_world_port_obj_vlan_del(rocker_port,
 						     SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
-	case SWITCHDEV_OBJ_ID_PORT_FDB:
-		err = rocker_world_port_obj_fdb_del(rocker_port,
-						    SWITCHDEV_OBJ_PORT_FDB(obj));
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		break;
-	}
-
-	return err;
-}
-
-static int rocker_port_obj_dump(struct net_device *dev,
-				struct switchdev_obj *obj,
-				switchdev_obj_dump_cb_t *cb)
-{
-	const struct rocker_port *rocker_port = netdev_priv(dev);
-	int err = 0;
-
-	switch (obj->id) {
-	case SWITCHDEV_OBJ_ID_PORT_FDB:
-		err = rocker_world_port_obj_fdb_dump(rocker_port,
-						     SWITCHDEV_OBJ_PORT_FDB(obj),
-						     cb);
-		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
@@ -2212,7 +2140,6 @@ static const struct switchdev_ops rocker_port_switchdev_ops = {
 	.switchdev_port_attr_set	= rocker_port_attr_set,
 	.switchdev_port_obj_add		= rocker_port_obj_add,
 	.switchdev_port_obj_del		= rocker_port_obj_del,
-	.switchdev_port_obj_dump	= rocker_port_obj_dump,
 };
 
 struct rocker_fib_event_work {

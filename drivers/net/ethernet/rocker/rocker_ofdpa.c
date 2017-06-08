@@ -2608,35 +2608,6 @@ static int ofdpa_port_obj_fdb_del(struct rocker_port *rocker_port,
 	return ofdpa_port_fdb(ofdpa_port, addr, vlan_id, flags);
 }
 
-static int ofdpa_port_obj_fdb_dump(const struct rocker_port *rocker_port,
-				   struct switchdev_obj_port_fdb *fdb,
-				   switchdev_obj_dump_cb_t *cb)
-{
-	const struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-	struct ofdpa *ofdpa = ofdpa_port->ofdpa;
-	struct ofdpa_fdb_tbl_entry *found;
-	struct hlist_node *tmp;
-	unsigned long lock_flags;
-	int bkt;
-	int err = 0;
-
-	spin_lock_irqsave(&ofdpa->fdb_tbl_lock, lock_flags);
-	hash_for_each_safe(ofdpa->fdb_tbl, bkt, tmp, found, entry) {
-		if (found->key.ofdpa_port != ofdpa_port)
-			continue;
-		ether_addr_copy(fdb->addr, found->key.addr);
-		fdb->ndm_state = NUD_REACHABLE;
-		fdb->vid = ofdpa_port_vlan_to_vid(ofdpa_port,
-						  found->key.vlan_id);
-		err = cb(&fdb->obj);
-		if (err)
-			break;
-	}
-	spin_unlock_irqrestore(&ofdpa->fdb_tbl_lock, lock_flags);
-
-	return err;
-}
-
 static int ofdpa_port_bridge_join(struct ofdpa_port *ofdpa_port,
 				  struct net_device *bridge)
 {
@@ -2861,7 +2832,6 @@ struct rocker_world_ops rocker_ofdpa_ops = {
 	.port_obj_vlan_del = ofdpa_port_obj_vlan_del,
 	.port_obj_fdb_add = ofdpa_port_obj_fdb_add,
 	.port_obj_fdb_del = ofdpa_port_obj_fdb_del,
-	.port_obj_fdb_dump = ofdpa_port_obj_fdb_dump,
 	.port_master_linked = ofdpa_port_master_linked,
 	.port_master_unlinked = ofdpa_port_master_unlinked,
 	.port_neigh_update = ofdpa_port_neigh_update,

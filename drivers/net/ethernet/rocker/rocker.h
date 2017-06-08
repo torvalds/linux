@@ -126,9 +126,6 @@ struct rocker_world_ops {
 				u16 vid, const unsigned char *addr);
 	int (*port_obj_fdb_del)(struct rocker_port *rocker_port,
 				u16 vid, const unsigned char *addr);
-	int (*port_obj_fdb_dump)(const struct rocker_port *rocker_port,
-				 struct switchdev_obj_port_fdb *fdb,
-				 switchdev_obj_dump_cb_t *cb);
 	int (*port_master_linked)(struct rocker_port *rocker_port,
 				  struct net_device *master);
 	int (*port_master_unlinked)(struct rocker_port *rocker_port,
