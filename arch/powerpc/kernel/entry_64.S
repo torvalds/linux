@@ -210,27 +210,17 @@ system_call:			/* label this so stack traces look sane */
 	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	syscall_exit_work
 
-	andi.	r0,r8,MSR_FP
-	beq 2f
+	/* If MSR_FP and MSR_VEC are set in user msr, then no need to restore */
+	li	r7,MSR_FP
 #ifdef CONFIG_ALTIVEC
-	andis.	r0,r8,MSR_VEC@h
-	bne	3f
+	oris	r7,r7,MSR_VEC@h
 #endif
-2:	addi    r3,r1,STACK_FRAME_OVERHEAD
-#ifdef CONFIG_PPC_BOOK3S
-	li	r10,MSR_RI
-	mtmsrd	r10,1		/* Restore RI */
-#endif
-	bl	restore_math
-#ifdef CONFIG_PPC_BOOK3S
-	li	r11,0
-	mtmsrd	r11,1
-#endif
-	ld	r8,_MSR(r1)
-	ld	r3,RESULT(r1)
-	li	r11,-MAX_ERRNO
+	and	r0,r8,r7
+	cmpd	r0,r7
+	bne	syscall_restore_math
+.Lsyscall_restore_math_cont:
 
-3:	cmpld	r3,r11
+	cmpld	r3,r11
 	ld	r5,_CCR(r1)
 	bge-	syscall_error
 .Lsyscall_error_cont:
@@ -263,7 +253,41 @@ syscall_error:
 	neg	r3,r3
 	std	r5,_CCR(r1)
 	b	.Lsyscall_error_cont
-	
+
+syscall_restore_math:
+	/*
+	 * Some initial tests from restore_math to avoid the heavyweight
+	 * C code entry and MSR manipulations.
+	 */
+	LOAD_REG_IMMEDIATE(r0, MSR_TS_MASK)
+	and.	r0,r0,r8
+	bne	1f
+
+	ld	r7,PACACURRENT(r13)
+	lbz	r0,THREAD+THREAD_LOAD_FP(r7)
+#ifdef CONFIG_ALTIVEC
+	lbz	r6,THREAD+THREAD_LOAD_VEC(r7)
+	add	r0,r0,r6
+#endif
+	cmpdi	r0,0
+	beq	.Lsyscall_restore_math_cont
+
+1:	addi    r3,r1,STACK_FRAME_OVERHEAD
+#ifdef CONFIG_PPC_BOOK3S
+	li	r10,MSR_RI
+	mtmsrd	r10,1		/* Restore RI */
+#endif
+	bl	restore_math
+#ifdef CONFIG_PPC_BOOK3S
+	li	r11,0
+	mtmsrd	r11,1
+#endif
+	/* Restore volatiles, reload MSR from updated one */
+	ld	r8,_MSR(r1)
+	ld	r3,RESULT(r1)
+	li	r11,-MAX_ERRNO
+	b	.Lsyscall_restore_math_cont
+
 /* Traced system call support */
 syscall_dotrace:
 	bl	save_nvgprs
