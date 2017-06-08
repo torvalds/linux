@@ -948,7 +948,7 @@ struct ib_wc {
 	u32			src_qp;
 	int			wc_flags;
 	u16			pkey_index;
-	u16			slid;
+	u32			slid;
 	u8			sl;
 	u8			dlid_path_bits;
 	u8			port_num;	/* valid only for DR SMPs on switches */
@@ -3705,5 +3705,17 @@ static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
 		return RDMA_AH_ATTR_TYPE_OPA;
 	else
 		return RDMA_AH_ATTR_TYPE_IB;
+}
+
+/* Return slid in 16bit CPU encoding */
+static inline u16 ib_slid_cpu16(u32 slid)
+{
+	return (u16)slid;
+}
+
+/* Return slid in 16bit BE encoding */
+static inline u16 ib_slid_be16(u32 slid)
+{
+	return cpu_to_be16((u16)slid);
 }
 #endif /* IB_VERBS_H */

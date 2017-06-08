@@ -205,7 +205,7 @@ int mthca_process_mad(struct ib_device *ibdev,
 		      u16 *out_mad_pkey_index)
 {
 	int err;
-	u16 slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
+	u16 slid = in_wc ? ib_slid_cpu16(in_wc->slid) : be16_to_cpu(IB_LID_PERMISSIVE);
 	u16 prev_lid = 0;
 	struct ib_port_attr pattr;
 	const struct ib_mad *in_mad = (const struct ib_mad *)in;

@@ -1190,7 +1190,8 @@ out:
 	return ret ? ret : in_len;
 }
 
-static int copy_wc_to_user(void __user *dest, struct ib_wc *wc)
+static int copy_wc_to_user(struct ib_device *ib_dev, void __user *dest,
+			   struct ib_wc *wc)
 {
 	struct ib_uverbs_wc tmp;
 
@@ -1204,7 +1205,10 @@ static int copy_wc_to_user(void __user *dest, struct ib_wc *wc)
 	tmp.src_qp		= wc->src_qp;
 	tmp.wc_flags		= wc->wc_flags;
 	tmp.pkey_index		= wc->pkey_index;
-	tmp.slid		= wc->slid;
+	if (rdma_cap_opa_ah(ib_dev, wc->port_num))
+		tmp.slid  = OPA_TO_IB_UCAST_LID(wc->slid);
+	else
+		tmp.slid  = ib_slid_cpu16(wc->slid);
 	tmp.sl			= wc->sl;
 	tmp.dlid_path_bits	= wc->dlid_path_bits;
 	tmp.port_num		= wc->port_num;
@@ -1248,7 +1252,7 @@ ssize_t ib_uverbs_poll_cq(struct ib_uverbs_file *file,
 		if (!ret)
 			break;
 
-		ret = copy_wc_to_user(data_ptr, &wc);
+		ret = copy_wc_to_user(ib_dev, data_ptr, &wc);
 		if (ret)
 			goto out_put;
 
