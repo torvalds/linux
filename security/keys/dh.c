@@ -317,7 +317,7 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	 * Concatenate SP800-56A otherinfo past DH shared secret -- the
 	 * input to the KDF is (DH shared secret || otherinfo)
 	 */
-	if (kdfcopy && kdfcopy->otherinfo &&
+	if (kdfcopy &&
 	    copy_from_user(kbuf + resultlen, kdfcopy->otherinfo,
 			   kdfcopy->otherinfolen) != 0) {
 		ret = -EFAULT;
