@@ -58,8 +58,7 @@ static const char driver_name[] = "vhci_hcd";
 static const char driver_desc[] = "USB/IP Virtual Host Controller";
 
 int vhci_num_controllers = VHCI_NR_HCS;
-
-struct platform_device **vhci_pdevs;
+struct vhci *vhcis;
 
 static const char * const bit_desc[] = {
 	"CONNECTION",		/*0*/
@@ -1193,7 +1192,7 @@ static int add_platform_device(int id)
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
-	*(vhci_pdevs + id) = pdev;
+	vhcis[id].pdev = pdev;
 	return 0;
 }
 
@@ -1203,10 +1202,10 @@ static void del_platform_devices(void)
 	int i;
 
 	for (i = 0; i < vhci_num_controllers; i++) {
-		pdev = *(vhci_pdevs + i);
+		pdev = vhcis[i].pdev;
 		if (pdev != NULL)
 			platform_device_unregister(pdev);
-		*(vhci_pdevs + i) = NULL;
+		vhcis[i].pdev = NULL;
 	}
 	sysfs_remove_link(&platform_bus.kobj, driver_name);
 }
@@ -1221,8 +1220,8 @@ static int __init vhci_hcd_init(void)
 	if (vhci_num_controllers < 1)
 		vhci_num_controllers = 1;
 
-	vhci_pdevs = kcalloc(vhci_num_controllers, sizeof(void *), GFP_KERNEL);
-	if (vhci_pdevs == NULL)
+	vhcis = kcalloc(vhci_num_controllers, sizeof(struct vhci), GFP_KERNEL);
+	if (vhcis == NULL)
 		return -ENOMEM;
 
 	ret = platform_driver_register(&vhci_driver);
@@ -1242,7 +1241,7 @@ err_platform_device_register:
 	del_platform_devices();
 	platform_driver_unregister(&vhci_driver);
 err_driver_register:
-	kfree(vhci_pdevs);
+	kfree(vhcis);
 	return ret;
 }
 
@@ -1250,7 +1249,7 @@ static void __exit vhci_hcd_exit(void)
 {
 	del_platform_devices();
 	platform_driver_unregister(&vhci_driver);
-	kfree(vhci_pdevs);
+	kfree(vhcis);
 }
 
 module_init(vhci_hcd_init);

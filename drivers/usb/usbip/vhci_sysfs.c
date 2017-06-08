@@ -32,7 +32,7 @@
 /* Sysfs entry to show port status */
 static ssize_t status_show_vhci(int pdev_nr, char *out)
 {
-	struct platform_device *pdev = *(vhci_pdevs + pdev_nr);
+	struct platform_device *pdev = vhcis[pdev_nr].pdev;
 	struct vhci_hcd *vhci;
 	char *s = out;
 	int i = 0;
@@ -206,7 +206,7 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 	if (!valid_port(pdev_nr, rhport))
 		return -EINVAL;
 
-	hcd = platform_get_drvdata(*(vhci_pdevs + pdev_nr));
+	hcd = platform_get_drvdata(vhcis[pdev_nr].pdev);
 	if (hcd == NULL) {
 		dev_err(dev, "port is not ready %u\n", port);
 		return -EAGAIN;
@@ -287,7 +287,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	if (!valid_args(pdev_nr, rhport, speed))
 		return -EINVAL;
 
-	hcd = platform_get_drvdata(*(vhci_pdevs + pdev_nr));
+	hcd = platform_get_drvdata(vhcis[pdev_nr].pdev);
 	if (hcd == NULL) {
 		dev_err(dev, "port %d is not ready\n", port);
 		return -EAGAIN;

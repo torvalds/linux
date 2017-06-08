@@ -90,6 +90,8 @@ struct vhci_unlink {
 struct vhci {
 	spinlock_t lock;
 
+	struct platform_device *pdev;
+
 	struct vhci_hcd *vhci_hcd_hs;
 	struct vhci_hcd *vhci_hcd_ss;
 };
@@ -116,7 +118,6 @@ struct vhci_hcd {
 };
 
 extern int vhci_num_controllers;
-extern struct platform_device **vhci_pdevs;
 extern struct vhci *vhcis;
 extern struct attribute_group vhci_attr_group;
 
