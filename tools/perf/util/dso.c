@@ -454,7 +454,7 @@ static int do_open(char *name)
 
 static int __open_dso(struct dso *dso, struct machine *machine)
 {
-	int fd;
+	int fd = -EINVAL;
 	char *root_dir = (char *)"";
 	char *name = malloc(PATH_MAX);
 
@@ -465,23 +465,19 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 		root_dir = machine->root_dir;
 
 	if (dso__read_binary_type_filename(dso, dso->binary_type,
-					    root_dir, name, PATH_MAX)) {
-		free(name);
-		return -EINVAL;
-	}
+					    root_dir, name, PATH_MAX))
+		goto out;
 
-	if (!is_regular_file(name)) {
-		free(name);
-		return -EINVAL;
-	}
+	if (!is_regular_file(name))
+		goto out;
 
 	if (dso__needs_decompress(dso)) {
 		char newpath[KMOD_DECOMP_LEN];
 		size_t len = sizeof(newpath);
 
 		if (dso__decompress_kmodule_path(dso, name, newpath, len) < 0) {
-			free(name);
-			return -dso->load_errno;
+			fd = -dso->load_errno;
+			goto out;
 		}
 
 		strcpy(name, newpath);
@@ -492,6 +488,7 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 	if (dso__needs_decompress(dso))
 		unlink(name);
 
+out:
 	free(name);
 	return fd;
 }
