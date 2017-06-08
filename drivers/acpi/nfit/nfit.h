@@ -79,6 +79,7 @@ enum {
 
 enum nfit_root_notifiers {
 	NFIT_NOTIFY_UPDATE = 0x80,
+	NFIT_NOTIFY_UC_MEMORY_ERROR = 0x81,
 };
 
 enum nfit_dimm_notifiers {
