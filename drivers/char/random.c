@@ -436,6 +436,7 @@ static void _extract_crng(struct crng_state *crng,
 static void _crng_backtrack_protect(struct crng_state *crng,
 				    __u8 tmp[CHACHA20_BLOCK_SIZE], int used);
 static void process_random_ready_list(void);
+static void _get_random_bytes(void *buf, int nbytes);
 
 /**********************************************************************
  *
@@ -776,7 +777,7 @@ static void crng_initialize(struct crng_state *crng)
 		_extract_entropy(&input_pool, &crng->state[4],
 				 sizeof(__u32) * 12, 0);
 	else
-		get_random_bytes(&crng->state[4], sizeof(__u32) * 12);
+		_get_random_bytes(&crng->state[4], sizeof(__u32) * 12);
 	for (i = 4; i < 16; i++) {
 		if (!arch_get_random_seed_long(&rv) &&
 		    !arch_get_random_long(&rv))
@@ -1466,6 +1467,30 @@ static ssize_t extract_entropy_user(struct entropy_store *r, void __user *buf,
 	return ret;
 }
 
+#define warn_unseeded_randomness(previous) \
+	_warn_unseeded_randomness(__func__, (void *) _RET_IP_, (previous))
+
+static void _warn_unseeded_randomness(const char *func_name, void *caller,
+				      void **previous)
+{
+#ifdef CONFIG_WARN_ALL_UNSEEDED_RANDOM
+	const bool print_once = false;
+#else
+	static bool print_once __read_mostly;
+#endif
+
+	if (print_once ||
+	    crng_ready() ||
+	    (previous && (caller == READ_ONCE(*previous))))
+		return;
+	WRITE_ONCE(*previous, caller);
+#ifndef CONFIG_WARN_ALL_UNSEEDED_RANDOM
+	print_once = true;
+#endif
+	pr_notice("random: %s called from %pF with crng_init=%d\n",
+		  func_name, caller, crng_init);
+}
+
 /*
  * This function is the exported kernel interface.  It returns some
  * number of good random numbers, suitable for key generation, seeding
@@ -1476,15 +1501,10 @@ static ssize_t extract_entropy_user(struct entropy_store *r, void __user *buf,
  * wait_for_random_bytes() should be called and return 0 at least once
  * at any point prior.
  */
-void get_random_bytes(void *buf, int nbytes)
+static void _get_random_bytes(void *buf, int nbytes)
 {
 	__u8 tmp[CHACHA20_BLOCK_SIZE];
 
-#ifdef CONFIG_WARN_UNSEEDED_RANDOM
-	if (!crng_ready())
-		printk(KERN_NOTICE "random: %pF get_random_bytes called "
-		       "with crng_init = %d\n", (void *) _RET_IP_, crng_init);
-#endif
 	trace_get_random_bytes(nbytes, _RET_IP_);
 
 	while (nbytes >= CHACHA20_BLOCK_SIZE) {
@@ -1500,6 +1520,14 @@ void get_random_bytes(void *buf, int nbytes)
 	} else
 		crng_backtrack_protect(tmp, CHACHA20_BLOCK_SIZE);
 	memzero_explicit(tmp, sizeof(tmp));
+}
+
+void get_random_bytes(void *buf, int nbytes)
+{
+	static void *previous;
+
+	warn_unseeded_randomness(&previous);
+	_get_random_bytes(buf, nbytes);
 }
 EXPORT_SYMBOL(get_random_bytes);
 
@@ -2064,6 +2092,7 @@ u64 get_random_u64(void)
 	bool use_lock = READ_ONCE(crng_init) < 2;
 	unsigned long flags = 0;
 	struct batched_entropy *batch;
+	static void *previous;
 
 #if BITS_PER_LONG == 64
 	if (arch_get_random_long((unsigned long *)&ret))
@@ -2074,11 +2103,7 @@ u64 get_random_u64(void)
 	    return ret;
 #endif
 
-#ifdef CONFIG_WARN_UNSEEDED_RANDOM
-	if (!crng_ready())
-		printk(KERN_NOTICE "random: %pF get_random_u64 called "
-		       "with crng_init = %d\n", (void *) _RET_IP_, crng_init);
-#endif
+	warn_unseeded_randomness(&previous);
 
 	batch = &get_cpu_var(batched_entropy_u64);
 	if (use_lock)
@@ -2102,15 +2127,12 @@ u32 get_random_u32(void)
 	bool use_lock = READ_ONCE(crng_init) < 2;
 	unsigned long flags = 0;
 	struct batched_entropy *batch;
+	static void *previous;
 
 	if (arch_get_random_int(&ret))
 		return ret;
 
-#ifdef CONFIG_WARN_UNSEEDED_RANDOM
-	if (!crng_ready())
-		printk(KERN_NOTICE "random: %pF get_random_u32 called "
-		       "with crng_init = %d\n", (void *) _RET_IP_, crng_init);
-#endif
+	warn_unseeded_randomness(&previous);
 
 	batch = &get_cpu_var(batched_entropy_u32);
 	if (use_lock)
