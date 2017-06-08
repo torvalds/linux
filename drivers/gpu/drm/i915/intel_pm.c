@@ -58,24 +58,24 @@
 
 static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	/* See Bspec note for PSR2_CTL bit 31, Wa#828:skl,bxt,kbl */
+	/* See Bspec note for PSR2_CTL bit 31, Wa#828:skl,bxt,kbl,cfl */
 	I915_WRITE(CHICKEN_PAR1_1,
 		   I915_READ(CHICKEN_PAR1_1) | SKL_EDP_PSR_FIX_RDWRAP);
 
 	I915_WRITE(GEN8_CONFIG0,
 		   I915_READ(GEN8_CONFIG0) | GEN9_DEFAULT_FIXES);
 
-	/* WaEnableChickenDCPR:skl,bxt,kbl,glk */
+	/* WaEnableChickenDCPR:skl,bxt,kbl,glk,cfl */
 	I915_WRITE(GEN8_CHICKEN_DCPR_1,
 		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
 
-	/* WaFbcTurnOffFbcWatermark:skl,bxt,kbl */
-	/* WaFbcWakeMemOn:skl,bxt,kbl,glk */
+	/* WaFbcTurnOffFbcWatermark:skl,bxt,kbl,cfl */
+	/* WaFbcWakeMemOn:skl,bxt,kbl,glk,cfl */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_WM_DIS |
 		   DISP_FBC_MEMORY_WAKE);
 
-	/* WaFbcHighMemBwCorruptionAvoidance:skl,bxt,kbl */
+	/* WaFbcHighMemBwCorruptionAvoidance:skl,bxt,kbl,cfl */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_DISABLE_DUMMY0);
 }
@@ -3549,7 +3549,7 @@ static bool skl_needs_memory_bw_wa(struct intel_atomic_state *state)
 static bool
 intel_has_sagv(struct drm_i915_private *dev_priv)
 {
-	if (IS_KABYLAKE(dev_priv))
+	if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
 		return true;
 
 	if (IS_SKYLAKE(dev_priv) &&
@@ -4459,8 +4459,9 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		  fb->modifier == I915_FORMAT_MOD_Yf_TILED;
 	x_tiled = fb->modifier == I915_FORMAT_MOD_X_TILED;
 
-	/* Display WA #1141: kbl. */
-	if (IS_KABYLAKE(dev_priv) && dev_priv->ipc_enabled)
+	/* Display WA #1141: kbl,cfl */
+	if ((IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) &&
+	    dev_priv->ipc_enabled)
 		latency += 4;
 
 	if (apply_memory_bw_wa && x_tiled)
@@ -8312,7 +8313,7 @@ static void kabylake_init_clock_gating(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
 			   GEN6_GAMUNIT_CLOCK_GATE_DISABLE);
 
-	/* WaFbcNukeOnHostModify:kbl */
+	/* WaFbcNukeOnHostModify:kbl,cfl */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
 }
@@ -8780,7 +8781,7 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
 	if (IS_SKYLAKE(dev_priv))
 		dev_priv->display.init_clock_gating = skylake_init_clock_gating;
-	else if (IS_KABYLAKE(dev_priv))
+	else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
 		dev_priv->display.init_clock_gating = kabylake_init_clock_gating;
 	else if (IS_BROXTON(dev_priv))
 		dev_priv->display.init_clock_gating = bxt_init_clock_gating;
