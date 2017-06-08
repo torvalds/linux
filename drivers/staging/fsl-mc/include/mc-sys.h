@@ -46,7 +46,6 @@
  */
 #define FSL_MC_IO_ATOMIC_CONTEXT_PORTAL	0x0001
 
-struct fsl_mc_resource;
 struct mc_command;
 
 /**
