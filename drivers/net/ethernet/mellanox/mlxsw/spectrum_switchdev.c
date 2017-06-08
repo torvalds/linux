@@ -1181,6 +1181,43 @@ mlxsw_sp_port_fdb_static_add(struct mlxsw_sp_port *mlxsw_sp_port,
 						   true, false);
 }
 
+static int
+mlxsw_sp_port_fdb_set(struct mlxsw_sp_port *mlxsw_sp_port,
+		      struct switchdev_notifier_fdb_info *fdb_info, bool adding)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct net_device *orig_dev = fdb_info->info.dev;
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
+	struct mlxsw_sp_bridge_device *bridge_device;
+	struct mlxsw_sp_bridge_port *bridge_port;
+	u16 fid_index, vid;
+
+	bridge_port = mlxsw_sp_bridge_port_find(mlxsw_sp->bridge, orig_dev);
+	if (!bridge_port)
+		return -EINVAL;
+
+	bridge_device = bridge_port->bridge_device;
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_bridge(mlxsw_sp_port,
+							       bridge_device,
+							       fdb_info->vid);
+	if (!mlxsw_sp_port_vlan)
+		return 0;
+
+	fid_index = mlxsw_sp_fid_index(mlxsw_sp_port_vlan->fid);
+	vid = mlxsw_sp_port_vlan->vid;
+
+	if (!bridge_port->lagged)
+		return mlxsw_sp_port_fdb_uc_op(mlxsw_sp,
+					       bridge_port->system_port,
+					       fdb_info->addr, fid_index,
+					       adding, false);
+	else
+		return mlxsw_sp_port_fdb_uc_lag_op(mlxsw_sp,
+						   bridge_port->lag_id,
+						   fdb_info->addr, fid_index,
+						   vid, adding, false);
+}
+
 static int mlxsw_sp_port_mdb_op(struct mlxsw_sp *mlxsw_sp, const char *addr,
 				u16 fid, u16 mid, bool adding)
 {
@@ -2013,6 +2050,97 @@ out:
 	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
 }
 
+struct mlxsw_sp_switchdev_event_work {
+	struct work_struct work;
+	struct switchdev_notifier_fdb_info fdb_info;
+	struct net_device *dev;
+	unsigned long event;
+};
+
+static void mlxsw_sp_switchdev_event_work(struct work_struct *work)
+{
+	struct mlxsw_sp_switchdev_event_work *switchdev_work =
+		container_of(work, struct mlxsw_sp_switchdev_event_work, work);
+	struct net_device *dev = switchdev_work->dev;
+	struct switchdev_notifier_fdb_info *fdb_info;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	int err;
+
+	rtnl_lock();
+	mlxsw_sp_port = mlxsw_sp_port_dev_lower_find(dev);
+	if (!mlxsw_sp_port)
+		goto out;
+
+	switch (switchdev_work->event) {
+	case SWITCHDEV_FDB_ADD_TO_DEVICE:
+		fdb_info = &switchdev_work->fdb_info;
+		err = mlxsw_sp_port_fdb_set(mlxsw_sp_port, fdb_info, true);
+		if (err)
+			break;
+		mlxsw_sp_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED,
+					    fdb_info->addr,
+					    fdb_info->vid, dev);
+		break;
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		fdb_info = &switchdev_work->fdb_info;
+		mlxsw_sp_port_fdb_set(mlxsw_sp_port, fdb_info, false);
+		break;
+	}
+
+out:
+	rtnl_unlock();
+	kfree(switchdev_work->fdb_info.addr);
+	kfree(switchdev_work);
+	dev_put(dev);
+}
+
+/* Called under rcu_read_lock() */
+static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
+				    unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct mlxsw_sp_switchdev_event_work *switchdev_work;
+	struct switchdev_notifier_fdb_info *fdb_info = ptr;
+
+	if (!mlxsw_sp_port_dev_lower_find_rcu(dev))
+		return NOTIFY_DONE;
+
+	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+	if (!switchdev_work)
+		return NOTIFY_BAD;
+
+	INIT_WORK(&switchdev_work->work, mlxsw_sp_switchdev_event_work);
+	switchdev_work->dev = dev;
+	switchdev_work->event = event;
+
+	switch (event) {
+	case SWITCHDEV_FDB_ADD_TO_DEVICE: /* fall through */
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		memcpy(&switchdev_work->fdb_info, ptr,
+		       sizeof(switchdev_work->fdb_info));
+		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
+		ether_addr_copy((u8 *)switchdev_work->fdb_info.addr,
+				fdb_info->addr);
+		/* Take a reference on the device. This can be either
+		 * upper device containig mlxsw_sp_port or just a
+		 * mlxsw_sp_port
+		 */
+		dev_hold(dev);
+		break;
+	default:
+		kfree(switchdev_work);
+		return NOTIFY_DONE;
+	}
+
+	mlxsw_core_schedule_work(&switchdev_work->work);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block mlxsw_sp_switchdev_notifier = {
+	.notifier_call = mlxsw_sp_switchdev_event,
+};
+
 static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_bridge *bridge = mlxsw_sp->bridge;
@@ -2023,6 +2151,13 @@ static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to set default ageing time\n");
 		return err;
 	}
+
+	err = register_switchdev_notifier(&mlxsw_sp_switchdev_notifier);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to register switchdev notifier\n");
+		return err;
+	}
+
 	INIT_DELAYED_WORK(&bridge->fdb_notify.dw, mlxsw_sp_fdb_notify_work);
 	bridge->fdb_notify.interval = MLXSW_SP_DEFAULT_LEARNING_INTERVAL;
 	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
@@ -2032,6 +2167,8 @@ static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 static void mlxsw_sp_fdb_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	cancel_delayed_work_sync(&mlxsw_sp->bridge->fdb_notify.dw);
+	unregister_switchdev_notifier(&mlxsw_sp_switchdev_notifier);
+
 }
 
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp)

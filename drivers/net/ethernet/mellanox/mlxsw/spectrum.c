@@ -3706,7 +3706,7 @@ struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev)
 	return mlxsw_sp_port ? mlxsw_sp_port->mlxsw_sp : NULL;
 }
 
-static struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev)
+struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
 
