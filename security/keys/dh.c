@@ -89,6 +89,7 @@ static int kdf_alloc(struct kdf_sdesc **sdesc_ret, char *hashname)
 	struct crypto_shash *tfm;
 	struct kdf_sdesc *sdesc;
 	int size;
+	int err;
 
 	/* allocate synchronous hash */
 	tfm = crypto_alloc_shash(hashname, 0, 0);
@@ -97,16 +98,25 @@ static int kdf_alloc(struct kdf_sdesc **sdesc_ret, char *hashname)
 		return PTR_ERR(tfm);
 	}
 
+	err = -EINVAL;
+	if (crypto_shash_digestsize(tfm) == 0)
+		goto out_free_tfm;
+
+	err = -ENOMEM;
 	size = sizeof(struct shash_desc) + crypto_shash_descsize(tfm);
 	sdesc = kmalloc(size, GFP_KERNEL);
 	if (!sdesc)
-		return -ENOMEM;
+		goto out_free_tfm;
 	sdesc->shash.tfm = tfm;
 	sdesc->shash.flags = 0x0;
 
 	*sdesc_ret = sdesc;
 
 	return 0;
+
+out_free_tfm:
+	crypto_free_shash(tfm);
+	return err;
 }
 
 static void kdf_dealloc(struct kdf_sdesc *sdesc)
