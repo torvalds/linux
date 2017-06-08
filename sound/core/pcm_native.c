@@ -286,6 +286,39 @@ static int constrain_mask_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int constrain_interval_params(struct snd_pcm_substream *substream,
+				     struct snd_pcm_hw_params *params)
+{
+	struct snd_pcm_hw_constraints *constrs =
+					&substream->runtime->hw_constraints;
+	struct snd_interval *i;
+	unsigned int k;
+	struct snd_interval old_interval;
+	int changed;
+
+	for (k = SNDRV_PCM_HW_PARAM_FIRST_INTERVAL; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++) {
+		i = hw_param_interval(params, k);
+		if (snd_interval_empty(i))
+			return -EINVAL;
+		if (!(params->rmask & (1 << k)))
+			continue;
+
+		if (trace_hw_interval_param_enabled())
+			old_interval = *i;
+
+		changed = snd_interval_refine(i, constrs_interval(constrs, k));
+
+		trace_hw_interval_param(substream, k, 0, &old_interval, i);
+
+		if (changed)
+			params->cmask |= 1 << k;
+		if (changed < 0)
+			return changed;
+	}
+
+	return 0;
+}
+
 int snd_pcm_hw_refine(struct snd_pcm_substream *substream, 
 		      struct snd_pcm_hw_params *params)
 {
@@ -316,25 +349,9 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	for (k = SNDRV_PCM_HW_PARAM_FIRST_INTERVAL; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++) {
-		i = hw_param_interval(params, k);
-		if (snd_interval_empty(i))
-			return -EINVAL;
-		if (!(params->rmask & (1 << k)))
-			continue;
-
-		if (trace_hw_interval_param_enabled())
-			old_interval = *i;
-
-		changed = snd_interval_refine(i, constrs_interval(constrs, k));
-
-		trace_hw_interval_param(substream, k, 0, &old_interval, i);
-
-		if (changed)
-			params->cmask |= 1 << k;
-		if (changed < 0)
-			return changed;
-	}
+	err = constrain_interval_params(substream, params);
+	if (err < 0)
+		return err;
 
 	for (k = 0; k < constrs->rules_num; k++)
 		rstamps[k] = 0;
