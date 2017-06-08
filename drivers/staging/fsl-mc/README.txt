@@ -131,9 +131,7 @@ in creating a network interfaces.
 
     DPRCs can be defined statically and populated with objects
     via a config file passed to the MC when firmware starts
-    it.  There is also a Linux user space tool called "restool"
-    that can be used to create/destroy containers and objects
-    dynamically.
+    it.
 
 -DPAA2 Objects for an Ethernet Network Interface
 
