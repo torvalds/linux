@@ -320,6 +320,8 @@ A brief description of each driver is provided below.
        -creates an MSI IRQ domain
        -doing a 'device add' to expose the 'root' DPRC, in turn triggering
         a bind of the root DPRC to the DPRC driver
+    The binding for the MC-bus device-tree node can be consulted here:
+        Documentation/devicetree/bindings/misc/fsl,qoriq-mc.txt
 
     DPRC driver
     -----------
