@@ -277,6 +277,7 @@ static int valid_args(__u32 pdev_nr, __u32 rhport, enum usb_device_speed speed)
 	case USB_SPEED_FULL:
 	case USB_SPEED_HIGH:
 	case USB_SPEED_WIRELESS:
+	case USB_SPEED_SUPER:
 		break;
 	default:
 		pr_err("Failed attach request for unsupported USB speed: %s\n",
