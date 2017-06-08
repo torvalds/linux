@@ -319,43 +319,23 @@ static int constrain_interval_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int snd_pcm_hw_refine(struct snd_pcm_substream *substream, 
-		      struct snd_pcm_hw_params *params)
+static int constrain_params_by_rules(struct snd_pcm_substream *substream,
+				     struct snd_pcm_hw_params *params)
 {
+	struct snd_pcm_hw_constraints *constrs =
+					&substream->runtime->hw_constraints;
 	unsigned int k;
-	struct snd_pcm_hardware *hw;
-	struct snd_interval *i = NULL;
-	struct snd_mask *m = NULL;
-	struct snd_pcm_hw_constraints *constrs = &substream->runtime->hw_constraints;
 	unsigned int rstamps[constrs->rules_num];
 	unsigned int vstamps[SNDRV_PCM_HW_PARAM_LAST_INTERVAL + 1];
 	unsigned int stamp = 2;
-	int changed, again;
-	int err;
-
-	struct snd_mask __maybe_unused old_mask;
-	struct snd_interval __maybe_unused old_interval;
-
-	params->info = 0;
-	params->fifo_size = 0;
-	if (params->rmask & (1 << SNDRV_PCM_HW_PARAM_SAMPLE_BITS))
-		params->msbits = 0;
-	if (params->rmask & (1 << SNDRV_PCM_HW_PARAM_RATE)) {
-		params->rate_num = 0;
-		params->rate_den = 0;
-	}
-
-	err = constrain_mask_params(substream, params);
-	if (err < 0)
-		return err;
-
-	err = constrain_interval_params(substream, params);
-	if (err < 0)
-		return err;
+	struct snd_mask old_mask;
+	struct snd_interval old_interval;
+	int again;
+	int changed;
 
 	for (k = 0; k < constrs->rules_num; k++)
 		rstamps[k] = 0;
-	for (k = 0; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++) 
+	for (k = 0; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++)
 		vstamps[k] = (params->rmask & (1 << k)) ? 1 : 0;
 	do {
 		again = 0;
@@ -405,6 +385,39 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 			stamp++;
 		}
 	} while (again);
+
+	return 0;
+}
+
+int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
+		      struct snd_pcm_hw_params *params)
+{
+	struct snd_pcm_hardware *hw;
+	struct snd_interval *i = NULL;
+	struct snd_mask *m = NULL;
+	int err;
+
+	params->info = 0;
+	params->fifo_size = 0;
+	if (params->rmask & (1 << SNDRV_PCM_HW_PARAM_SAMPLE_BITS))
+		params->msbits = 0;
+	if (params->rmask & (1 << SNDRV_PCM_HW_PARAM_RATE)) {
+		params->rate_num = 0;
+		params->rate_den = 0;
+	}
+
+	err = constrain_mask_params(substream, params);
+	if (err < 0)
+		return err;
+
+	err = constrain_interval_params(substream, params);
+	if (err < 0)
+		return err;
+
+	err = constrain_params_by_rules(substream, params);
+	if (err < 0)
+		return err;
+
 	if (!params->msbits) {
 		i = hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
 		if (snd_interval_single(i))
@@ -432,10 +445,10 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		i = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 		if (snd_mask_min(m) == snd_mask_max(m) &&
                     snd_interval_min(i) == snd_interval_max(i)) {
-			changed = substream->ops->ioctl(substream,
+			err = substream->ops->ioctl(substream,
 					SNDRV_PCM_IOCTL1_FIFO_SIZE, params);
-			if (changed < 0)
-				return changed;
+			if (err < 0)
+				return err;
 		}
 	}
 	params->rmask = 0;
