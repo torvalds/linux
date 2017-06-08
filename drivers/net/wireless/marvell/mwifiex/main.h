@@ -629,7 +629,7 @@ struct mwifiex_private {
 	struct dentry *dfs_dev_dir;
 #endif
 	u16 current_key_index;
-	struct semaphore async_sem;
+	struct mutex async_mutex;
 	struct cfg80211_scan_request *scan_request;
 	u8 cfg_bssid[6];
 	struct wps wps;
