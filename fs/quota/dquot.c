@@ -110,14 +110,11 @@
  * sure they cannot race with quotaon which first sets S_NOQUOTA flag and
  * then drops all pointers to dquots from an inode.
  *
- * Each dquot has its dq_lock mutex. Locked dquots might not be referenced
- * from inodes (dquot_alloc_space() and such don't check the dq_lock).
- * Currently dquot is locked only when it is being read to memory (or space for
- * it is being allocated) on the first dqget() and when it is being released on
- * the last dqput(). The allocation and release oparations are serialized by
- * the dq_lock and by checking the use count in dquot_release().  Write
- * operations on dquots don't hold dq_lock as they copy data under dq_data_lock
- * spinlock to internal buffers before writing.
+ * Each dquot has its dq_lock mutex.  Dquot is locked when it is being read to
+ * memory (or space for it is being allocated) on the first dqget(), when it is
+ * being written out, and when it is being released on the last dqput(). The
+ * allocation and release operations are serialized by the dq_lock and by
+ * checking the use count in dquot_release().
  *
  * Lock ordering (including related VFS locks) is the following:
  *   s_umount > i_mutex > journal_lock > dquot->dq_lock > dqio_sem
@@ -453,21 +450,24 @@ int dquot_commit(struct dquot *dquot)
 	int ret = 0;
 	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 
-	down_write(&dqopt->dqio_sem);
+	mutex_lock(&dquot->dq_lock);
 	spin_lock(&dq_list_lock);
 	if (!clear_dquot_dirty(dquot)) {
 		spin_unlock(&dq_list_lock);
-		goto out_sem;
+		goto out_lock;
 	}
 	spin_unlock(&dq_list_lock);
 	/* Inactive dquot can be only if there was error during read/init
 	 * => we have better not writing it */
-	if (test_bit(DQ_ACTIVE_B, &dquot->dq_flags))
+	if (test_bit(DQ_ACTIVE_B, &dquot->dq_flags)) {
+		down_write(&dqopt->dqio_sem);
 		ret = dqopt->ops[dquot->dq_id.type]->commit_dqblk(dquot);
-	else
+		up_write(&dqopt->dqio_sem);
+	} else {
 		ret = -EIO;
-out_sem:
-	up_write(&dqopt->dqio_sem);
+	}
+out_lock:
+	mutex_unlock(&dquot->dq_lock);
 	return ret;
 }
 EXPORT_SYMBOL(dquot_commit);
