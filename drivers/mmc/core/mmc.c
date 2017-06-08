@@ -1651,12 +1651,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		mmc_set_erase_size(card);
 	}
 
-	/*
-	 * If enhanced_area_en is TRUE, host needs to enable ERASE_GRP_DEF
-	 * bit.  This bit will be lost every time after a reset or power off.
-	 */
-	if (card->ext_csd.partition_setting_completed ||
-	    (card->ext_csd.rev >= 3 && (host->caps2 & MMC_CAP2_HC_ERASE_SZ))) {
+	/* Enable ERASE_GRP_DEF. This bit is lost after a reset or power off. */
+	if (card->ext_csd.rev >= 3) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_ERASE_GROUP_DEF, 1,
 				 card->ext_csd.generic_cmd6_time);

@@ -347,8 +347,7 @@ static inline void sdhci_pci_remove_own_cd(struct sdhci_pci_slot *slot)
 static int mfd_emmc_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE;
-	slot->host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC |
-				  MMC_CAP2_HC_ERASE_SZ;
+	slot->host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC;
 	return 0;
 }
 
@@ -587,7 +586,6 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 				 MMC_CAP_HW_RESET | MMC_CAP_1_8V_DDR |
 				 MMC_CAP_CMD_DURING_TFR |
 				 MMC_CAP_WAIT_WHILE_BUSY;
-	slot->host->mmc->caps2 |= MMC_CAP2_HC_ERASE_SZ;
 	slot->hw_reset = sdhci_pci_int_hw_reset;
 	if (slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_BSW_EMMC)
 		slot->host->timeout_clk = 1000; /* 1000 kHz i.e. 1 MHz */
