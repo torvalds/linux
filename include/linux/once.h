@@ -53,5 +53,7 @@ void __do_once_done(bool *done, struct static_key *once_key,
 
 #define get_random_once(buf, nbytes)					     \
 	DO_ONCE(get_random_bytes, (buf), (nbytes))
+#define get_random_once_wait(buf, nbytes)                                    \
+	DO_ONCE(get_random_bytes_wait, (buf), (nbytes))                      \
 
 #endif /* _LINUX_ONCE_H */
