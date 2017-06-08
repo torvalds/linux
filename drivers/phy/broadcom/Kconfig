@@ -31,6 +31,7 @@ config PHY_BCM_NS_USB3
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on HAS_IOMEM && OF
 	select GENERIC_PHY
+	select MDIO_DEVICE
 	help
 	  Enable this to support Broadcom USB 3.0 PHY connected to the USB
 	  controller on Northstar family.
