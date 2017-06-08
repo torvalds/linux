@@ -102,6 +102,7 @@
 				compatible = "marvell,orion-mdio";
 				reg = <0x12a200 0x10>;
 				clocks = <&cps_syscon0 1 9>, <&cps_syscon0 1 5>;
+				status = "disabled";
 			};
 
 			cps_syscon0: system-controller@440000 {
