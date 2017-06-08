@@ -328,9 +328,11 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	unsigned int rstamps[constrs->rules_num];
 	unsigned int vstamps[SNDRV_PCM_HW_PARAM_LAST_INTERVAL + 1];
 	unsigned int stamp = 2;
+	struct snd_pcm_hw_rule *r;
+	unsigned int d;
 	struct snd_mask old_mask;
 	struct snd_interval old_interval;
-	int again;
+	bool again;
 	int changed;
 
 	for (k = 0; k < constrs->rules_num; k++)
@@ -338,10 +340,9 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	for (k = 0; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++)
 		vstamps[k] = (params->rmask & (1 << k)) ? 1 : 0;
 retry:
-	again = 0;
+	again = false;
 	for (k = 0; k < constrs->rules_num; k++) {
-		struct snd_pcm_hw_rule *r = &constrs->rules[k];
-		unsigned int d;
+		r = &constrs->rules[k];
 		if (r->cond && !(r->cond & params->flags))
 			continue;
 		for (d = 0; r->deps[d] >= 0; d++) {
@@ -375,7 +376,7 @@ retry:
 		if (changed && r->var >= 0) {
 			params->cmask |= (1 << r->var);
 			vstamps[r->var] = stamp;
-			again = 1;
+			again = true;
 		}
 		if (changed < 0)
 			return changed;
@@ -453,7 +454,6 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 	params->rmask = 0;
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_refine);
 
 static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
