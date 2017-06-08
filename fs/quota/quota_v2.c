@@ -298,7 +298,15 @@ static int v2_read_dquot(struct dquot *dquot)
 
 static int v2_write_dquot(struct dquot *dquot)
 {
-	return qtree_write_dquot(sb_dqinfo(dquot->dq_sb, dquot->dq_id.type)->dqi_priv, dquot);
+	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
+	int ret;
+
+	down_write(&dqopt->dqio_sem);
+	ret = qtree_write_dquot(
+			sb_dqinfo(dquot->dq_sb, dquot->dq_id.type)->dqi_priv,
+			dquot);
+	up_write(&dqopt->dqio_sem);
+	return ret;
 }
 
 static int v2_release_dquot(struct dquot *dquot)

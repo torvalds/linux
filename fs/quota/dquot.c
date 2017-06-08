@@ -412,14 +412,14 @@ int dquot_acquire(struct dquot *dquot)
 	set_bit(DQ_READ_B, &dquot->dq_flags);
 	/* Instantiate dquot if needed */
 	if (!test_bit(DQ_ACTIVE_B, &dquot->dq_flags) && !dquot->dq_off) {
-		down_write(&dqopt->dqio_sem);
 		ret = dqopt->ops[dquot->dq_id.type]->commit_dqblk(dquot);
 		/* Write the info if needed */
 		if (info_dirty(&dqopt->info[dquot->dq_id.type])) {
+			down_write(&dqopt->dqio_sem);
 			ret2 = dqopt->ops[dquot->dq_id.type]->write_file_info(
 					dquot->dq_sb, dquot->dq_id.type);
+			up_write(&dqopt->dqio_sem);
 		}
-		up_write(&dqopt->dqio_sem);
 		if (ret < 0)
 			goto out_iolock;
 		if (ret2 < 0) {
@@ -456,13 +456,10 @@ int dquot_commit(struct dquot *dquot)
 	spin_unlock(&dq_list_lock);
 	/* Inactive dquot can be only if there was error during read/init
 	 * => we have better not writing it */
-	if (test_bit(DQ_ACTIVE_B, &dquot->dq_flags)) {
-		down_write(&dqopt->dqio_sem);
+	if (test_bit(DQ_ACTIVE_B, &dquot->dq_flags))
 		ret = dqopt->ops[dquot->dq_id.type]->commit_dqblk(dquot);
-		up_write(&dqopt->dqio_sem);
-	} else {
+	else
 		ret = -EIO;
-	}
 out_lock:
 	mutex_unlock(&dquot->dq_lock);
 	return ret;
