@@ -68,6 +68,7 @@ static inline u32 ila_locator_hash(struct ila_locator loc)
 {
 	u32 *v = (u32 *)loc.v32;
 
+	__ila_hash_secret_init();
 	return jhash_2words(v[0], v[1], hashrnd);
 }
 
