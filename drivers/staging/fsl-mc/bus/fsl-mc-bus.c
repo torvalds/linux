@@ -420,15 +420,11 @@ bool fsl_mc_is_root_dprc(struct device *dev)
 static void fsl_mc_device_release(struct device *dev)
 {
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
-	struct fsl_mc_bus *mc_bus = NULL;
 
 	kfree(mc_dev->regions);
 
 	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0)
-		mc_bus = to_fsl_mc_bus(mc_dev);
-
-	if (mc_bus)
-		kfree(mc_bus);
+		kfree(to_fsl_mc_bus(mc_dev));
 	else
 		kfree(mc_dev);
 }
@@ -559,10 +555,8 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 
 error_cleanup_dev:
 	kfree(mc_dev->regions);
-	if (mc_bus)
-		kfree(mc_bus);
-	else
-		kfree(mc_dev);
+	kfree(mc_bus);
+	kfree(mc_dev);
 
 	return error;
 }
