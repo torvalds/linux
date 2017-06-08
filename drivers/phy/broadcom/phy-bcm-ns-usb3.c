@@ -53,6 +53,8 @@ struct bcm_ns_usb3 {
 	void __iomem *dmp;
 	void __iomem *ccb_mii;
 	struct phy *phy;
+
+	int (*phy_write)(struct bcm_ns_usb3 *usb3, u16 reg, u16 value);
 };
 
 static const struct of_device_id bcm_ns_usb3_id_table[] = {
@@ -68,51 +70,10 @@ static const struct of_device_id bcm_ns_usb3_id_table[] = {
 };
 MODULE_DEVICE_TABLE(of, bcm_ns_usb3_id_table);
 
-static int bcm_ns_usb3_wait_reg(struct bcm_ns_usb3 *usb3, void __iomem *addr,
-				u32 mask, u32 value, unsigned long timeout)
-{
-	unsigned long deadline = jiffies + timeout;
-	u32 val;
-
-	do {
-		val = readl(addr);
-		if ((val & mask) == value)
-			return 0;
-		cpu_relax();
-		udelay(10);
-	} while (!time_after_eq(jiffies, deadline));
-
-	dev_err(usb3->dev, "Timeout waiting for register %p\n", addr);
-
-	return -EBUSY;
-}
-
-static inline int bcm_ns_usb3_mii_mng_wait_idle(struct bcm_ns_usb3 *usb3)
-{
-	return bcm_ns_usb3_wait_reg(usb3, usb3->ccb_mii + BCMA_CCB_MII_MNG_CTL,
-				    0x0100, 0x0000,
-				    usecs_to_jiffies(BCM_NS_USB3_MII_MNG_TIMEOUT_US));
-}
-
 static int bcm_ns_usb3_mdio_phy_write(struct bcm_ns_usb3 *usb3, u16 reg,
 				      u16 value)
 {
-	u32 tmp = 0;
-	int err;
-
-	err = bcm_ns_usb3_mii_mng_wait_idle(usb3);
-	if (err < 0) {
-		dev_err(usb3->dev, "Couldn't write 0x%08x value\n", value);
-		return err;
-	}
-
-	/* TODO: Use a proper MDIO bus layer */
-	tmp |= 0x58020000; /* Magic value for MDIO PHY write */
-	tmp |= reg << 18;
-	tmp |= value;
-	writel(tmp, usb3->ccb_mii + BCMA_CCB_MII_MNG_CMD_DATA);
-
-	return bcm_ns_usb3_mii_mng_wait_idle(usb3);
+	return usb3->phy_write(usb3, reg, value);
 }
 
 static int bcm_ns_usb3_phy_init_ns_bx(struct bcm_ns_usb3 *usb3)
@@ -233,6 +194,57 @@ static const struct phy_ops ops = {
 	.owner		= THIS_MODULE,
 };
 
+/**************************************************
+ * Platform driver code
+ **************************************************/
+
+static int bcm_ns_usb3_wait_reg(struct bcm_ns_usb3 *usb3, void __iomem *addr,
+				u32 mask, u32 value, unsigned long timeout)
+{
+	unsigned long deadline = jiffies + timeout;
+	u32 val;
+
+	do {
+		val = readl(addr);
+		if ((val & mask) == value)
+			return 0;
+		cpu_relax();
+		udelay(10);
+	} while (!time_after_eq(jiffies, deadline));
+
+	dev_err(usb3->dev, "Timeout waiting for register %p\n", addr);
+
+	return -EBUSY;
+}
+
+static inline int bcm_ns_usb3_mii_mng_wait_idle(struct bcm_ns_usb3 *usb3)
+{
+	return bcm_ns_usb3_wait_reg(usb3, usb3->ccb_mii + BCMA_CCB_MII_MNG_CTL,
+				    0x0100, 0x0000,
+				    usecs_to_jiffies(BCM_NS_USB3_MII_MNG_TIMEOUT_US));
+}
+
+static int bcm_ns_usb3_platform_phy_write(struct bcm_ns_usb3 *usb3, u16 reg,
+					  u16 value)
+{
+	u32 tmp = 0;
+	int err;
+
+	err = bcm_ns_usb3_mii_mng_wait_idle(usb3);
+	if (err < 0) {
+		dev_err(usb3->dev, "Couldn't write 0x%08x value\n", value);
+		return err;
+	}
+
+	/* TODO: Use a proper MDIO bus layer */
+	tmp |= 0x58020000; /* Magic value for MDIO PHY write */
+	tmp |= reg << 18;
+	tmp |= value;
+	writel(tmp, usb3->ccb_mii + BCMA_CCB_MII_MNG_CMD_DATA);
+
+	return bcm_ns_usb3_mii_mng_wait_idle(usb3);
+}
+
 static int bcm_ns_usb3_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -265,6 +277,8 @@ static int bcm_ns_usb3_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to map ChipCommon B MII regs\n");
 		return PTR_ERR(usb3->ccb_mii);
 	}
+
+	usb3->phy_write = bcm_ns_usb3_platform_phy_write;
 
 	usb3->phy = devm_phy_create(dev, NULL, &ops);
 	if (IS_ERR(usb3->phy)) {
