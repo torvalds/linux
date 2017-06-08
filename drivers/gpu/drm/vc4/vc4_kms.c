@@ -202,11 +202,50 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	return 0;
 }
 
+static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
+					     struct drm_file *file_priv,
+					     const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	struct drm_mode_fb_cmd2 mode_cmd_local;
+
+	/* If the user didn't specify a modifier, use the
+	 * vc4_set_tiling_ioctl() state for the BO.
+	 */
+	if (!(mode_cmd->flags & DRM_MODE_FB_MODIFIERS)) {
+		struct drm_gem_object *gem_obj;
+		struct vc4_bo *bo;
+
+		gem_obj = drm_gem_object_lookup(file_priv,
+						mode_cmd->handles[0]);
+		if (!gem_obj) {
+			DRM_ERROR("Failed to look up GEM BO %d\n",
+				  mode_cmd->handles[0]);
+			return ERR_PTR(-ENOENT);
+		}
+		bo = to_vc4_bo(gem_obj);
+
+		mode_cmd_local = *mode_cmd;
+
+		if (bo->t_format) {
+			mode_cmd_local.modifier[0] =
+				DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED;
+		} else {
+			mode_cmd_local.modifier[0] = DRM_FORMAT_MOD_NONE;
+		}
+
+		drm_gem_object_unreference_unlocked(gem_obj);
+
+		mode_cmd = &mode_cmd_local;
+	}
+
+	return drm_fb_cma_create(dev, file_priv, mode_cmd);
+}
+
 static const struct drm_mode_config_funcs vc4_mode_funcs = {
 	.output_poll_changed = vc4_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = vc4_atomic_commit,
-	.fb_create = drm_fb_cma_create,
+	.fb_create = vc4_fb_create,
 };
 
 int vc4_kms_load(struct drm_device *dev)
