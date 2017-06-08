@@ -284,7 +284,7 @@ static inline int ima_read_xattr(struct dentry *dentry,
 	return 0;
 }
 
-#endif
+#endif /* CONFIG_IMA_APPRAISE */
 
 /* LSM based policy rules require audit */
 #ifdef CONFIG_IMA_LSM_RULES

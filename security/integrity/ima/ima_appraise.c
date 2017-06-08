@@ -240,6 +240,7 @@ int ima_appraise_measurement(enum ima_hooks func,
 	case IMA_XATTR_DIGEST_NG:
 		/* first byte contains algorithm id */
 		hash_start = 1;
+		/* fall through */
 	case IMA_XATTR_DIGEST:
 		if (iint->flags & IMA_DIGSIG_REQUIRED) {
 			cause = "IMA-signature-required";
