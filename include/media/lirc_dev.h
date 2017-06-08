@@ -9,8 +9,6 @@
 #ifndef _LINUX_LIRC_DEV_H
 #define _LINUX_LIRC_DEV_H
 
-#define BUFLEN            16
-
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
@@ -117,7 +115,6 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  *
  * @name:		used for logging
  * @minor:		the minor device (/dev/lircX) number for the device
- * @code_length:	length of a remote control key code expressed in bits
  * @features:		lirc compatible hardware features, like LIRC_MODE_RAW,
  *			LIRC_CAN\_\*, as defined at include/media/lirc.h.
  * @buffer_size:	Number of FIFO buffers with @chunk_size size.
@@ -142,7 +139,6 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
 struct lirc_dev {
 	char name[40];
 	unsigned int minor;
-	__u32 code_length;
 	__u32 features;
 
 	unsigned int buffer_size; /* in chunks holding one code each */

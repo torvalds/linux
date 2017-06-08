@@ -62,8 +62,7 @@ LIRC features
 
 ``LIRC_CAN_REC_LIRCCODE``
 
-    The driver is capable of receiving using
-    :ref:`LIRC_MODE_LIRCCODE <lirc-mode-LIRCCODE>`.
+    Unused. Kept just to avoid breaking uAPI.
 
 .. _LIRC-CAN-SET-SEND-CARRIER:
 
@@ -170,9 +169,7 @@ LIRC features
 
 ``LIRC_CAN_SEND_LIRCCODE``
 
-    The driver supports sending (also called as IR blasting or IR TX) using
-    :ref:`LIRC_MODE_LIRCCODE <lirc-mode-LIRCCODE>`.
-
+    Unused. Kept just to avoid breaking uAPI.
 
 Return Value
 ============

@@ -28,6 +28,10 @@ ignore define LIRC_CAN_SEND_MASK
 ignore define LIRC_CAN_REC_MASK
 ignore define LIRC_CAN_SET_REC_DUTY_CYCLE
 
+# Obsolete ioctls
+
+ignore ioctl LIRC_GET_LENGTH
+
 # Undocumented macros
 
 ignore define PULSE_BIT
@@ -40,3 +44,4 @@ ignore define LIRC_VALUE_MASK
 ignore define LIRC_MODE2_MASK
 
 ignore define LIRC_MODE_RAW
+ignore define LIRC_MODE_LIRCCODE

@@ -72,21 +72,6 @@ on the following table.
         this packet will be sent, with the number of microseconds with
         no IR.
 
-.. _lirc-mode-lirccode:
-
-``LIRC_MODE_LIRCCODE``
-
-    This mode can be used for IR receive and send.
-
-    The IR signal is decoded internally by the receiver, or encoded by the
-    transmitter. The LIRC interface represents the scancode as byte string,
-    which might not be a u32, it can be any length. The value is entirely
-    driver dependent. This mode is used by some older lirc drivers.
-
-    The length of each code depends on the driver, which can be retrieved
-    with :ref:`lirc_get_length`. This length is used both
-    for transmitting and receiving IR.
-
 .. _lirc-mode-pulse:
 
 ``LIRC_MODE_PULSE``
