@@ -671,6 +671,8 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		fd = dso__decompress_kmodule_fd(dso, name);
 		if (fd < 0)
 			return -1;
+
+		type = dso->symtab_type;
 	} else {
 		fd = open(name, O_RDONLY);
 		if (fd < 0) {
