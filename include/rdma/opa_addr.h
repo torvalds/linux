@@ -50,7 +50,8 @@
 
 #define	OPA_SPECIAL_OUI		(0x00066AULL)
 #define OPA_MAKE_ID(x)          (cpu_to_be64(OPA_SPECIAL_OUI << 40 | (x)))
-
+#define OPA_TO_IB_UCAST_LID(x) (((x) >= be16_to_cpu(IB_MULTICAST_LID_BASE)) \
+				? 0 : x)
 /**
  * ib_is_opa_gid: Returns true if the top 24 bits of the gid
  * contains the OPA_STL_OUI identifier. This identifies that
