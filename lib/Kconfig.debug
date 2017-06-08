@@ -1209,6 +1209,22 @@ config STACKTRACE
 	  It is also used by various kernel debugging features that require
 	  stack trace generation.
 
+config WARN_UNSEEDED_RANDOM
+	bool "Warn when kernel uses unseeded randomness"
+	default y
+	depends on DEBUG_KERNEL
+	help
+	  Some parts of the kernel contain bugs relating to their use of
+	  cryptographically secure random numbers before it's actually possible
+	  to generate those numbers securely. This setting ensures that these
+	  flaws don't go unnoticed, by enabling a message, should this ever
+	  occur. This will allow people with obscure setups to know when things
+	  are going wrong, so that they might contact developers about fixing
+	  it.
+
+	  Say Y here, unless you simply do not care about using unseeded
+	  randomness and do not want a potential warning message in your logs.
+
 config DEBUG_KOBJECT
 	bool "kobject debugging"
 	depends on DEBUG_KERNEL
