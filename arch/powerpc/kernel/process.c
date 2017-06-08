@@ -1199,12 +1199,14 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	__switch_to_tm(prev, new);
 
-	/*
-	 * We can't take a PMU exception inside _switch() since there is a
-	 * window where the kernel stack SLB and the kernel stack are out
-	 * of sync. Hard disable here.
-	 */
-	hard_irq_disable();
+	if (!radix_enabled()) {
+		/*
+		 * We can't take a PMU exception inside _switch() since there
+		 * is a window where the kernel stack SLB and the kernel stack
+		 * are out of sync. Hard disable here.
+		 */
+		hard_irq_disable();
+	}
 
 	/*
 	 * Call restore_sprs() before calling _switch(). If we move it after
