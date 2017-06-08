@@ -29,6 +29,42 @@
 
 /* TODO: refine locking ?*/
 
+/*
+ * output example:
+ * hub port sta spd dev      socket           local_busid
+ * hs  0000 004 000 00000000         c5a7bb80 1-2.3
+ * ................................................
+ * ss  0008 004 000 00000000         d8cee980 2-3.4
+ * ................................................
+ *
+ * IP address can be retrieved from a socket pointer address by looking
+ * up /proc/net/{tcp,tcp6}. Also, a userland program may remember a
+ * port number and its peer IP address.
+ */
+static void port_show_vhci(char **out, int hub, int port, struct vhci_device *vdev)
+{
+	if (hub == HUB_SPEED_HIGH)
+		*out += sprintf(*out, "hs  %04u %03u ",
+				      port, vdev->ud.status);
+	else /* hub == HUB_SPEED_SUPER */
+		*out += sprintf(*out, "ss  %04u %03u ",
+				      port, vdev->ud.status);
+
+	if (vdev->ud.status == VDEV_ST_USED) {
+		*out += sprintf(*out, "%03u %08x ",
+				      vdev->speed, vdev->devid);
+		*out += sprintf(*out, "%16p %s",
+				      vdev->ud.tcp_socket,
+				      dev_name(&vdev->udev->dev));
+
+	} else {
+		*out += sprintf(*out, "000 00000000 ");
+		*out += sprintf(*out, "0000000000000000 0-0");
+	}
+
+	*out += sprintf(*out, "\n");
+}
+
 /* Sysfs entry to show port status */
 static ssize_t status_show_vhci(int pdev_nr, char *out)
 {
@@ -51,37 +87,21 @@ static ssize_t status_show_vhci(int pdev_nr, char *out)
 
 	spin_lock_irqsave(&vhci->lock, flags);
 
-	/*
-	 * output example:
-	 * port sta spd dev      socket           local_busid
-	 * 0000 004 000 00000000         c5a7bb80 1-2.3
-	 * 0001 004 000 00000000         d8cee980 2-3.4
-	 *
-	 * IP address can be retrieved from a socket pointer address by looking
-	 * up /proc/net/{tcp,tcp6}. Also, a userland program may remember a
-	 * port number and its peer IP address.
-	 */
 	for (i = 0; i < VHCI_HC_PORTS; i++) {
-		struct vhci_device *vdev = &vhci_hcd->vdev[i];
+		struct vhci_device *vdev = &vhci->vhci_hcd_hs->vdev[i];
 
 		spin_lock(&vdev->ud.lock);
-		out += sprintf(out, "%04u %03u ",
-				    (pdev_nr * VHCI_HC_PORTS) + i,
-				    vdev->ud.status);
+		port_show_vhci(&out, HUB_SPEED_HIGH,
+			       pdev_nr * VHCI_HC_PORTS * 2 + i, vdev);
+		spin_unlock(&vdev->ud.lock);
+	}
 
-		if (vdev->ud.status == VDEV_ST_USED) {
-			out += sprintf(out, "%03u %08x ",
-					    vdev->speed, vdev->devid);
-			out += sprintf(out, "%16p %s",
-					    vdev->ud.tcp_socket,
-					    dev_name(&vdev->udev->dev));
+	for (i = 0; i < VHCI_HC_PORTS; i++) {
+		struct vhci_device *vdev = &vhci->vhci_hcd_ss->vdev[i];
 
-		} else {
-			out += sprintf(out, "000 00000000 ");
-			out += sprintf(out, "0000000000000000 0-0");
-		}
-
-		out += sprintf(out, "\n");
+		spin_lock(&vdev->ud.lock);
+		port_show_vhci(&out, HUB_SPEED_SUPER,
+			       pdev_nr * VHCI_HC_PORTS * 2 + VHCI_HC_PORTS + i, vdev);
 		spin_unlock(&vdev->ud.lock);
 	}
 
@@ -96,8 +116,16 @@ static ssize_t status_show_not_ready(int pdev_nr, char *out)
 	int i = 0;
 
 	for (i = 0; i < VHCI_HC_PORTS; i++) {
-		out += sprintf(out, "%04u %03u ",
-				    (pdev_nr * VHCI_HC_PORTS) + i,
+		out += sprintf(out, "hs  %04u %03u ",
+				    (pdev_nr * VHCI_HC_PORTS * 2) + i,
+				    VDEV_ST_NOTASSIGNED);
+		out += sprintf(out, "000 00000000 0000000000000000 0-0");
+		out += sprintf(out, "\n");
+	}
+
+	for (i = 0; i < VHCI_HC_PORTS; i++) {
+		out += sprintf(out, "ss  %04u %03u ",
+				    (pdev_nr * VHCI_HC_PORTS * 2) + VHCI_HC_PORTS + i,
 				    VDEV_ST_NOTASSIGNED);
 		out += sprintf(out, "000 00000000 0000000000000000 0-0");
 		out += sprintf(out, "\n");
@@ -129,7 +157,7 @@ static ssize_t status_show(struct device *dev,
 	int pdev_nr;
 
 	out += sprintf(out,
-		       "port sta spd dev      socket           local_busid\n");
+		       "hub port sta spd dev      socket           local_busid\n");
 
 	pdev_nr = status_name_to_id(attr->attr.name);
 	if (pdev_nr < 0)
@@ -145,7 +173,10 @@ static ssize_t nports_show(struct device *dev, struct device_attribute *attr,
 {
 	char *s = out;
 
-	out += sprintf(out, "%d\n", VHCI_HC_PORTS * vhci_num_controllers);
+	/*
+	 * Half the ports are for SPEED_HIGH and half for SPEED_SUPER, thus the * 2.
+	 */
+	out += sprintf(out, "%d\n", VHCI_HC_PORTS * vhci_num_controllers * 2);
 	return out - s;
 }
 static DEVICE_ATTR_RO(nports);
@@ -200,6 +231,7 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 {
 	__u32 port = 0, pdev_nr = 0, rhport = 0;
 	struct usb_hcd *hcd;
+	struct vhci_hcd *vhci_hcd;
 	int ret;
 
 	if (kstrtoint(buf, 10, &port) < 0)
@@ -217,7 +249,14 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 		return -EAGAIN;
 	}
 
-	ret = vhci_port_disconnect(hcd_to_vhci_hcd(hcd), rhport);
+	usbip_dbg_vhci_sysfs("rhport %d\n", rhport);
+
+	if ((port / VHCI_HC_PORTS) % 2)
+		vhci_hcd = hcd_to_vhci_hcd(hcd)->vhci->vhci_hcd_ss;
+	else
+		vhci_hcd = hcd_to_vhci_hcd(hcd)->vhci->vhci_hcd_hs;
+
+	ret = vhci_port_disconnect(vhci_hcd, rhport);
 	if (ret < 0)
 		return -EINVAL;
 
@@ -301,7 +340,11 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 
 	vhci_hcd = hcd_to_vhci_hcd(hcd);
 	vhci = vhci_hcd->vhci;
-	vdev = &vhci_hcd->vdev[rhport];
+
+	if (speed == USB_SPEED_SUPER)
+		vdev = &vhci->vhci_hcd_ss->vdev[rhport];
+	else
+		vdev = &vhci->vhci_hcd_hs->vdev[rhport];
 
 	/* Extract socket from fd. */
 	socket = sockfd_lookup(sockfd, &err);

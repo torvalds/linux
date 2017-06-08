@@ -14,7 +14,13 @@
 #define USBIP_VHCI_DEVICE_NAME "vhci_hcd.0"
 #define MAXNPORT 128
 
+enum hub_speed {
+	HUB_SPEED_HIGH = 0,
+	HUB_SPEED_SUPER,
+};
+
 struct usbip_imported_device {
+	enum hub_speed hub;
 	uint8_t port;
 	uint32_t status;
 
@@ -46,7 +52,7 @@ void usbip_vhci_driver_close(void);
 int  usbip_vhci_refresh_device_list(void);
 
 
-int usbip_vhci_get_free_port(void);
+int usbip_vhci_get_free_port(uint32_t speed);
 int usbip_vhci_attach_device2(uint8_t port, int sockfd, uint32_t devid,
 		uint32_t speed);
 

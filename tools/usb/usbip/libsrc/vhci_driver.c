@@ -52,9 +52,10 @@ static int parse_status(const char *value)
 		unsigned long socket;
 		char lbusid[SYSFS_BUS_ID_SIZE];
 		struct usbip_imported_device *idev;
+		char hub[3];
 
-		ret = sscanf(c, "%d %d %d %x %lx %31s\n",
-				&port, &status, &speed,
+		ret = sscanf(c, "%2s  %d %d %d %x %lx %31s\n",
+				hub, &port, &status, &speed,
 				&devid, &socket, lbusid);
 
 		if (ret < 5) {
@@ -62,14 +63,18 @@ static int parse_status(const char *value)
 			BUG();
 		}
 
-		dbg("port %d status %d speed %d devid %x",
-				port, status, speed, devid);
+		dbg("hub %s port %d status %d speed %d devid %x",
+				hub, port, status, speed, devid);
 		dbg("socket %lx lbusid %s", socket, lbusid);
 
 		/* if a device is connected, look at it */
 		idev = &vhci_driver->idev[port];
-
 		memset(idev, 0, sizeof(*idev));
+
+		if (strncmp("hs", hub, 2) == 0)
+			idev->hub = HUB_SPEED_HIGH;
+		else /* strncmp("ss", hub, 2) == 0 */
+			idev->hub = HUB_SPEED_SUPER;
 
 		idev->port	= port;
 		idev->status	= status;
@@ -320,11 +325,15 @@ err:
 }
 
 
-int usbip_vhci_get_free_port(void)
+int usbip_vhci_get_free_port(uint32_t speed)
 {
 	for (int i = 0; i < vhci_driver->nports; i++) {
+		if (speed == USB_SPEED_SUPER &&
+		    vhci_driver->idev[i].hub != HUB_SPEED_SUPER)
+			continue;
+
 		if (vhci_driver->idev[i].status == VDEV_ST_NULL)
-			return i;
+			return vhci_driver->idev[i].port;
 	}
 
 	return -1;

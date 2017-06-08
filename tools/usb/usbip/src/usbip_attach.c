@@ -94,6 +94,7 @@ static int import_device(int sockfd, struct usbip_usb_device *udev)
 {
 	int rc;
 	int port;
+	uint32_t speed = udev->speed;
 
 	rc = usbip_vhci_driver_open();
 	if (rc < 0) {
@@ -101,7 +102,7 @@ static int import_device(int sockfd, struct usbip_usb_device *udev)
 		return -1;
 	}
 
-	port = usbip_vhci_get_free_port();
+	port = usbip_vhci_get_free_port(speed);
 	if (port < 0) {
 		err("no free port");
 		usbip_vhci_driver_close();

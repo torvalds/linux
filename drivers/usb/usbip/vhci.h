@@ -72,6 +72,11 @@ struct vhci_unlink {
 	unsigned long unlink_seqnum;
 };
 
+enum hub_speed {
+	HUB_SPEED_HIGH = 0,
+	HUB_SPEED_SUPER,
+};
+
 /* Number of supported ports. Value has an upperbound of USB_MAXCHILDREN */
 #ifdef CONFIG_USBIP_VHCI_HC_PORTS
 #define VHCI_HC_PORTS CONFIG_USBIP_VHCI_HC_PORTS
@@ -140,7 +145,7 @@ static inline __u32 port_to_rhport(__u32 port)
 
 static inline int port_to_pdev_nr(__u32 port)
 {
-	return port / VHCI_HC_PORTS;
+	return port / (VHCI_HC_PORTS * 2);
 }
 
 static inline struct vhci_hcd *hcd_to_vhci_hcd(struct usb_hcd *hcd)
