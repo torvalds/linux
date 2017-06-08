@@ -159,8 +159,8 @@ nla_put_failure:
 }
 EXPORT_SYMBOL(ibnl_put_attr);
 
-static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
-			struct netlink_ext_ack *extack)
+static int rdma_nl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
+			   struct netlink_ext_ack *extack)
 {
 	int type = nlh->nlmsg_type;
 	unsigned int index = RDMA_NL_GET_CLIENT(type);
@@ -187,40 +187,66 @@ static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return netlink_dump_start(nls, skb, nlh, &c);
 }
 
-static void ibnl_rcv_reply_skb(struct sk_buff *skb)
+/*
+ * This function is similar to netlink_rcv_skb with one exception:
+ * It calls to the callback for the netlink messages without NLM_F_REQUEST
+ * flag. These messages are intended for RDMA_NL_LS consumer, so it is allowed
+ * for that consumer only.
+ */
+static int rdma_nl_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
+						   struct nlmsghdr *,
+						   struct netlink_ext_ack *))
 {
+	struct netlink_ext_ack extack = {};
 	struct nlmsghdr *nlh;
-	int msglen;
+	int err;
 
-	/*
-	 * Process responses until there is no more message or the first
-	 * request. Generally speaking, it is not recommended to mix responses
-	 * with requests.
-	 */
 	while (skb->len >= nlmsg_total_size(0)) {
+		int msglen;
+
 		nlh = nlmsg_hdr(skb);
+		err = 0;
 
 		if (nlh->nlmsg_len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len)
-			return;
+			return 0;
 
-		/* Handle response only */
-		if (nlh->nlmsg_flags & NLM_F_REQUEST)
-			return;
+		/*
+		 * Generally speaking, the only requests are handled
+		 * by the kernel, but RDMA_NL_LS is different, because it
+		 * runs backward netlink scheme. Kernel initiates messages
+		 * and waits for reply with data to keep pathrecord cache
+		 * in sync.
+		 */
+		if (!(nlh->nlmsg_flags & NLM_F_REQUEST) &&
+		    (RDMA_NL_GET_CLIENT(nlh->nlmsg_type) != RDMA_NL_LS))
+			goto ack;
 
-		ibnl_rcv_msg(skb, nlh, NULL);
+		/* Skip control messages */
+		if (nlh->nlmsg_type < NLMSG_MIN_TYPE)
+			goto ack;
 
+		err = cb(skb, nlh, &extack);
+		if (err == -EINTR)
+			goto skip;
+
+ack:
+		if (nlh->nlmsg_flags & NLM_F_ACK || err)
+			netlink_ack(skb, nlh, err, &extack);
+
+skip:
 		msglen = NLMSG_ALIGN(nlh->nlmsg_len);
 		if (msglen > skb->len)
 			msglen = skb->len;
 		skb_pull(skb, msglen);
 	}
+
+	return 0;
 }
 
-static void ibnl_rcv(struct sk_buff *skb)
+static void rdma_nl_rcv(struct sk_buff *skb)
 {
 	mutex_lock(&rdma_nl_mutex);
-	ibnl_rcv_reply_skb(skb);
-	netlink_rcv_skb(skb, &ibnl_rcv_msg);
+	rdma_nl_rcv_skb(skb, &rdma_nl_rcv_msg);
 	mutex_unlock(&rdma_nl_mutex);
 }
 
@@ -254,7 +280,7 @@ EXPORT_SYMBOL(ibnl_multicast);
 int __init rdma_nl_init(void)
 {
 	struct netlink_kernel_cfg cfg = {
-		.input	= ibnl_rcv,
+		.input	= rdma_nl_rcv,
 	};
 
 	nls = netlink_kernel_create(&init_net, NETLINK_RDMA, &cfg);
