@@ -134,7 +134,7 @@ static inline int port_to_pdev_nr(__u32 port)
 	return port / VHCI_HC_PORTS;
 }
 
-static inline struct vhci_hcd *hcd_to_vhci(struct usb_hcd *hcd)
+static inline struct vhci_hcd *hcd_to_vhci_hcd(struct usb_hcd *hcd)
 {
 	return (struct vhci_hcd *) (hcd->hcd_priv);
 }
@@ -149,15 +149,14 @@ static inline const char *hcd_name(struct usb_hcd *hcd)
 	return (hcd)->self.bus_name;
 }
 
-static inline struct usb_hcd *vhci_to_hcd(struct vhci_hcd *vhci)
+static inline struct usb_hcd *vhci_hcd_to_hcd(struct vhci_hcd *vhci_hcd)
 {
-	return container_of((void *) vhci, struct usb_hcd, hcd_priv);
+	return container_of((void *) vhci_hcd, struct usb_hcd, hcd_priv);
 }
 
-static inline struct vhci_hcd *vdev_to_vhci(struct vhci_device *vdev)
+static inline struct vhci_hcd *vdev_to_vhci_hcd(struct vhci_device *vdev)
 {
-	return container_of(
-			(void *)(vdev - vdev->rhport), struct vhci_hcd, vdev);
+	return container_of((void *)(vdev - vdev->rhport), struct vhci_hcd, vdev);
 }
 
 #endif /* __USBIP_VHCI_H */

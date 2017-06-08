@@ -43,7 +43,7 @@ static ssize_t status_show_vhci(int pdev_nr, char *out)
 		return 0;
 	}
 
-	vhci = hcd_to_vhci(platform_get_drvdata(pdev));
+	vhci = hcd_to_vhci_hcd(platform_get_drvdata(pdev));
 
 	spin_lock_irqsave(&vhci->lock, flags);
 
@@ -212,7 +212,7 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 		return -EAGAIN;
 	}
 
-	ret = vhci_port_disconnect(hcd_to_vhci(hcd), rhport);
+	ret = vhci_port_disconnect(hcd_to_vhci_hcd(hcd), rhport);
 	if (ret < 0)
 		return -EINVAL;
 
@@ -292,7 +292,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		dev_err(dev, "port %d is not ready\n", port);
 		return -EAGAIN;
 	}
-	vhci = hcd_to_vhci(hcd);
+	vhci = hcd_to_vhci_hcd(hcd);
 	vdev = &vhci->vdev[rhport];
 
 	/* Extract socket from fd. */

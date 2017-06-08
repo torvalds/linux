@@ -124,7 +124,7 @@ static void dump_port_status_diff(u32 prev_status, u32 new_status)
 
 void rh_port_connect(struct vhci_device *vdev, enum usb_device_speed speed)
 {
-	struct vhci_hcd	*vhci = vdev_to_vhci(vdev);
+	struct vhci_hcd	*vhci = vdev_to_vhci_hcd(vdev);
 	int		rhport = vdev->rhport;
 	u32		status;
 	unsigned long	flags;
@@ -152,12 +152,12 @@ void rh_port_connect(struct vhci_device *vdev, enum usb_device_speed speed)
 
 	spin_unlock_irqrestore(&vhci->lock, flags);
 
-	usb_hcd_poll_rh_status(vhci_to_hcd(vhci));
+	usb_hcd_poll_rh_status(vhci_hcd_to_hcd(vhci));
 }
 
 static void rh_port_disconnect(struct vhci_device *vdev)
 {
-	struct vhci_hcd	*vhci = vdev_to_vhci(vdev);
+	struct vhci_hcd	*vhci = vdev_to_vhci_hcd(vdev);
 	int		rhport = vdev->rhport;
 	u32		status;
 	unsigned long	flags;
@@ -174,7 +174,7 @@ static void rh_port_disconnect(struct vhci_device *vdev)
 	vhci->port_status[rhport] = status;
 
 	spin_unlock_irqrestore(&vhci->lock, flags);
-	usb_hcd_poll_rh_status(vhci_to_hcd(vhci));
+	usb_hcd_poll_rh_status(vhci_hcd_to_hcd(vhci));
 }
 
 #define PORT_C_MASK				\
@@ -206,7 +206,7 @@ static int vhci_hub_status(struct usb_hcd *hcd, char *buf)
 	retval = DIV_ROUND_UP(VHCI_HC_PORTS + 1, 8);
 	memset(buf, 0, retval);
 
-	vhci = hcd_to_vhci(hcd);
+	vhci = hcd_to_vhci_hcd(hcd);
 
 	spin_lock_irqsave(&vhci->lock, flags);
 	if (!HCD_HW_ACCESSIBLE(hcd)) {
@@ -273,7 +273,7 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		pr_err("invalid port number %d\n", wIndex);
 	rhport = ((__u8)(wIndex & 0x00ff)) - 1;
 
-	dum = hcd_to_vhci(hcd);
+	dum = hcd_to_vhci_hcd(hcd);
 
 	spin_lock_irqsave(&dum->lock, flags);
 
@@ -445,7 +445,7 @@ static void vhci_tx_urb(struct urb *urb, struct vhci_device *vdev)
 		pr_err("could not get virtual device");
 		return;
 	}
-	vhci = vdev_to_vhci(vdev);
+	vhci = vdev_to_vhci_hcd(vdev);
 
 	priv = kzalloc(sizeof(struct vhci_priv), GFP_ATOMIC);
 	if (!priv) {
@@ -473,7 +473,7 @@ static void vhci_tx_urb(struct urb *urb, struct vhci_device *vdev)
 static int vhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 			    gfp_t mem_flags)
 {
-	struct vhci_hcd *vhci = hcd_to_vhci(hcd);
+	struct vhci_hcd *vhci = hcd_to_vhci_hcd(hcd);
 	struct device *dev = &urb->dev->dev;
 	u8 portnum = urb->dev->portnum;
 	int ret = 0;
@@ -640,7 +640,7 @@ no_need_unlink:
  */
 static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
-	struct vhci_hcd *vhci = hcd_to_vhci(hcd);
+	struct vhci_hcd *vhci = hcd_to_vhci_hcd(hcd);
 	struct vhci_priv *priv;
 	struct vhci_device *vdev;
 	unsigned long flags;
@@ -691,7 +691,7 @@ static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 		spin_unlock_irqrestore(&vhci->lock, flags);
-		usb_hcd_giveback_urb(vhci_to_hcd(vhci), urb, urb->status);
+		usb_hcd_giveback_urb(vhci_hcd_to_hcd(vhci), urb, urb->status);
 		spin_lock_irqsave(&vhci->lock, flags);
 
 	} else {
@@ -733,8 +733,8 @@ static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 {
-	struct vhci_hcd *vhci = vdev_to_vhci(vdev);
-	struct usb_hcd *hcd = vhci_to_hcd(vhci);
+	struct vhci_hcd *vhci = vdev_to_vhci_hcd(vdev);
+	struct usb_hcd *hcd = vhci_hcd_to_hcd(vhci);
 	struct vhci_unlink *unlink, *tmp;
 	unsigned long flags;
 
@@ -920,7 +920,7 @@ static int hcd_name_to_id(const char *name)
 
 static int vhci_start(struct usb_hcd *hcd)
 {
-	struct vhci_hcd *vhci = hcd_to_vhci(hcd);
+	struct vhci_hcd *vhci = hcd_to_vhci_hcd(hcd);
 	int id, rhport;
 	int err = 0;
 
@@ -968,7 +968,7 @@ static int vhci_start(struct usb_hcd *hcd)
 
 static void vhci_stop(struct usb_hcd *hcd)
 {
-	struct vhci_hcd *vhci = hcd_to_vhci(hcd);
+	struct vhci_hcd *vhci = hcd_to_vhci_hcd(hcd);
 	int id, rhport;
 
 	usbip_dbg_vhci_hc("stop VHCI controller\n");
@@ -1000,7 +1000,7 @@ static int vhci_get_frame_number(struct usb_hcd *hcd)
 /* FIXME: suspend/resume */
 static int vhci_bus_suspend(struct usb_hcd *hcd)
 {
-	struct vhci_hcd *vhci = hcd_to_vhci(hcd);
+	struct vhci_hcd *vhci = hcd_to_vhci_hcd(hcd);
 	unsigned long flags;
 
 	dev_dbg(&hcd->self.root_hub->dev, "%s\n", __func__);
@@ -1014,7 +1014,7 @@ static int vhci_bus_suspend(struct usb_hcd *hcd)
 
 static int vhci_bus_resume(struct usb_hcd *hcd)
 {
-	struct vhci_hcd *vhci = hcd_to_vhci(hcd);
+	struct vhci_hcd *vhci = hcd_to_vhci_hcd(hcd);
 	int rc = 0;
 	unsigned long flags;
 
@@ -1124,7 +1124,7 @@ static int vhci_hcd_suspend(struct platform_device *pdev, pm_message_t state)
 	hcd = platform_get_drvdata(pdev);
 	if (!hcd)
 		return 0;
-	vhci = hcd_to_vhci(hcd);
+	vhci = hcd_to_vhci_hcd(hcd);
 
 	spin_lock_irqsave(&vhci->lock, flags);
 
