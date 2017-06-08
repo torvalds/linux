@@ -87,8 +87,17 @@ struct vhci_unlink {
 
 #define MAX_STATUS_NAME 16
 
-/* for usb_bus.hcpriv */
+struct vhci {
+	spinlock_t lock;
+
+	struct vhci_hcd *vhci_hcd_hs;
+	struct vhci_hcd *vhci_hcd_ss;
+};
+
+/* for usb_hcd.hcd_priv[0] */
 struct vhci_hcd {
+	struct vhci *vhci;
+
 	spinlock_t lock;
 
 	u32 port_status[VHCI_HC_PORTS];
@@ -108,6 +117,7 @@ struct vhci_hcd {
 
 extern int vhci_num_controllers;
 extern struct platform_device **vhci_pdevs;
+extern struct vhci *vhcis;
 extern struct attribute_group vhci_attr_group;
 
 /* vhci_hcd.c */
