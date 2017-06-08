@@ -112,7 +112,7 @@ static int bcm_ns_usb3_mdio_phy_write(struct bcm_ns_usb3 *usb3, u16 reg,
 	tmp |= value;
 	writel(tmp, usb3->ccb_mii + BCMA_CCB_MII_MNG_CMD_DATA);
 
-	return 0;
+	return bcm_ns_usb3_mii_mng_wait_idle(usb3);
 }
 
 static int bcm_ns_usb3_phy_init_ns_bx(struct bcm_ns_usb3 *usb3)
@@ -143,9 +143,6 @@ static int bcm_ns_usb3_phy_init_ns_bx(struct bcm_ns_usb3 *usb3)
 	/* Deaaserting PLL Reset */
 	bcm_ns_usb3_mdio_phy_write(usb3, BCM_NS_USB3_PLLA_CONTROL1, 0x8000);
 
-	/* Waiting MII Mgt interface idle */
-	bcm_ns_usb3_mii_mng_wait_idle(usb3);
-
 	/* Deasserting USB3 system reset */
 	writel(0, usb3->dmp + BCMA_RESET_CTL);
 
@@ -168,9 +165,6 @@ static int bcm_ns_usb3_phy_init_ns_bx(struct bcm_ns_usb3 *usb3)
 
 	/* Enabling SSC */
 	bcm_ns_usb3_mdio_phy_write(usb3, BCM_NS_USB3_TX_PMD_CONTROL1, 0x1003);
-
-	/* Waiting MII Mgt interface idle */
-	bcm_ns_usb3_mii_mng_wait_idle(usb3);
 
 	return 0;
 }
@@ -204,9 +198,6 @@ static int bcm_ns_usb3_phy_init_ns_ax(struct bcm_ns_usb3 *usb3)
 	bcm_ns_usb3_mdio_phy_write(usb3, 0x02, 0x21d3);
 
 	bcm_ns_usb3_mdio_phy_write(usb3, BCM_NS_USB3_TX_PMD_CONTROL1, 0x1003);
-
-	/* Waiting MII Mgt interface idle */
-	bcm_ns_usb3_mii_mng_wait_idle(usb3);
 
 	/* Deasserting USB3 system reset */
 	writel(0, usb3->dmp + BCMA_RESET_CTL);
