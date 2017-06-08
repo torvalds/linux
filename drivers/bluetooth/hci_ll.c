@@ -741,6 +741,14 @@ static void hci_ti_remove(struct serdev_device *serdev)
 }
 
 static const struct of_device_id hci_ti_of_match[] = {
+	{ .compatible = "ti,wl1271-st" },
+	{ .compatible = "ti,wl1273-st" },
+	{ .compatible = "ti,wl1281-st" },
+	{ .compatible = "ti,wl1283-st" },
+	{ .compatible = "ti,wl1285-st" },
+	{ .compatible = "ti,wl1801-st" },
+	{ .compatible = "ti,wl1805-st" },
+	{ .compatible = "ti,wl1807-st" },
 	{ .compatible = "ti,wl1831-st" },
 	{ .compatible = "ti,wl1835-st" },
 	{ .compatible = "ti,wl1837-st" },
