@@ -403,6 +403,15 @@ void amdgpu_pci_config_reset(struct amdgpu_device *adev)
  */
 static int amdgpu_doorbell_init(struct amdgpu_device *adev)
 {
+	/* No doorbell on SI hardware generation */
+	if (adev->asic_type < CHIP_BONAIRE) {
+		adev->doorbell.base = 0;
+		adev->doorbell.size = 0;
+		adev->doorbell.num_doorbells = 0;
+		adev->doorbell.ptr = NULL;
+		return 0;
+	}
+
 	/* doorbell bar mapping */
 	adev->doorbell.base = pci_resource_start(adev->pdev, 2);
 	adev->doorbell.size = pci_resource_len(adev->pdev, 2);
@@ -2075,9 +2084,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	DRM_INFO("register mmio base: 0x%08X\n", (uint32_t)adev->rmmio_base);
 	DRM_INFO("register mmio size: %u\n", (unsigned)adev->rmmio_size);
 
-	if (adev->asic_type >= CHIP_BONAIRE)
-		/* doorbell bar mapping */
-		amdgpu_doorbell_init(adev);
+	/* doorbell bar mapping */
+	amdgpu_doorbell_init(adev);
 
 	/* io port mapping */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
@@ -2304,8 +2312,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	adev->rio_mem = NULL;
 	iounmap(adev->rmmio);
 	adev->rmmio = NULL;
-	if (adev->asic_type >= CHIP_BONAIRE)
-		amdgpu_doorbell_fini(adev);
+	amdgpu_doorbell_fini(adev);
 	amdgpu_debugfs_regs_cleanup(adev);
 }
 
