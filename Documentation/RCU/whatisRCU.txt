@@ -199,7 +199,7 @@ synchronize_rcu()
 	it is illegal to block or where update-side performance is
 	critically important.
 
-	However, the call_rcu() API should not be used lightly, as use
+	However, the call_rcu() API should be used lightly, as use
 	of the synchronize_rcu() API generally results in simpler code.
 	In addition, the synchronize_rcu() API has the nice property
 	of automatically limiting update rate should grace periods
