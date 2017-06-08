@@ -297,11 +297,16 @@ void context_timing_trace(
 	struct dal_logger *logger =  core_dc->ctx->logger;
 	int h_pos[MAX_PIPES], v_pos[MAX_PIPES];
 	struct crtc_position position;
+	unsigned int underlay_idx = core_dc->res_pool->underlay_pipe_index;
+
 
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
-
-		if (pipe_ctx->stream == NULL)
+		/* get_position() returns CRTC vertical/horizontal counter
+		 * hence not applicable for underlay pipe
+		 */
+		if (pipe_ctx->stream == NULL
+				 || pipe_ctx->pipe_idx == underlay_idx)
 			continue;
 
 		pipe_ctx->tg->funcs->get_position(pipe_ctx->tg, &position);

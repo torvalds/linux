@@ -570,13 +570,6 @@ static void dce110_timing_generator_v_set_early_control(
 	dm_write_reg(tg->ctx, address, regval);
 }
 
-static void dce110_timing_generator_get_underlay_position(struct timing_generator *tg,
-	struct crtc_position *position)
-{
-	//Should never hit this case
-	ASSERT(false);
-}
-
 static uint32_t dce110_timing_generator_v_get_vblank_counter(struct timing_generator *tg)
 {
 	uint32_t addr = mmCRTCV_STATUS_FRAME_COUNT;
@@ -652,7 +645,7 @@ static const struct timing_generator_funcs dce110_tg_v_funcs = {
 		.enable_crtc = dce110_timing_generator_v_enable_crtc,
 		.disable_crtc = dce110_timing_generator_v_disable_crtc,
 		.is_counter_moving = dce110_timing_generator_v_is_counter_moving,
-		.get_position = dce110_timing_generator_get_underlay_position,
+		.get_position = NULL, /* Not to be implemented for underlay*/
 		.get_frame_count = dce110_timing_generator_v_get_vblank_counter,
 		.set_early_control = dce110_timing_generator_v_set_early_control,
 		.wait_for_state = dce110_timing_generator_v_wait_for_state,
