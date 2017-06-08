@@ -764,19 +764,19 @@ static struct meson_pmx_func meson_gxl_aobus_functions[] = {
 };
 
 static struct meson_bank meson_gxl_periphs_banks[] = {
-	/*   name    first                      last                    pullen  pull    dir     out     in  */
-	BANK("X",    PIN(GPIOX_0, EE_OFF),	PIN(GPIOX_18, EE_OFF),  4,  0,  4,  0,  12, 0,  13, 0,  14, 0),
-	BANK("DV",   PIN(GPIODV_0, EE_OFF),	PIN(GPIODV_29, EE_OFF), 0,  0,  0,  0,  0,  0,  1,  0,  2,  0),
-	BANK("H",    PIN(GPIOH_0, EE_OFF),	PIN(GPIOH_9, EE_OFF),   1, 20,  1, 20,  3, 20,  4, 20,  5, 20),
-	BANK("Z",    PIN(GPIOZ_0, EE_OFF),	PIN(GPIOZ_15, EE_OFF),  3,  0,  3,  0,  9,  0,  10, 0, 11,  0),
-	BANK("CARD", PIN(CARD_0, EE_OFF),	PIN(CARD_6, EE_OFF),    2, 20,  2, 20,  6, 20,  7, 20,  8, 20),
-	BANK("BOOT", PIN(BOOT_0, EE_OFF),	PIN(BOOT_15, EE_OFF),   2,  0,  2,  0,  6,  0,  7,  0,  8,  0),
-	BANK("CLK",  PIN(GPIOCLK_0, EE_OFF),	PIN(GPIOCLK_1, EE_OFF), 3, 28,  3, 28,  9, 28, 10, 28, 11, 28),
+	/*   name    first                      last                    irq	  pullen  pull    dir     out     in  */
+	BANK("X",    PIN(GPIOX_0, EE_OFF),	PIN(GPIOX_18, EE_OFF),   89, 107, 4,  0,  4,  0,  12, 0,  13, 0,  14, 0),
+	BANK("DV",   PIN(GPIODV_0, EE_OFF),	PIN(GPIODV_29, EE_OFF),  83,  88, 0,  0,  0,  0,  0,  0,  1,  0,  2,  0),
+	BANK("H",    PIN(GPIOH_0, EE_OFF),	PIN(GPIOH_9, EE_OFF),    26,  35, 1, 20,  1, 20,  3, 20,  4, 20,  5, 20),
+	BANK("Z",    PIN(GPIOZ_0, EE_OFF),	PIN(GPIOZ_15, EE_OFF),   10,  25, 3,  0,  3,  0,  9,  0,  10, 0, 11,  0),
+	BANK("CARD", PIN(CARD_0, EE_OFF),	PIN(CARD_6, EE_OFF),     52,  58, 2, 20,  2, 20,  6, 20,  7, 20,  8, 20),
+	BANK("BOOT", PIN(BOOT_0, EE_OFF),	PIN(BOOT_15, EE_OFF),    36,  51, 2,  0,  2,  0,  6,  0,  7,  0,  8,  0),
+	BANK("CLK",  PIN(GPIOCLK_0, EE_OFF),	PIN(GPIOCLK_1, EE_OFF), 108, 109, 3, 28,  3, 28,  9, 28, 10, 28, 11, 28),
 };
 
 static struct meson_bank meson_gxl_aobus_banks[] = {
-	/*   name    first              last              pullen  pull    dir     out     in  */
-	BANK("AO",   PIN(GPIOAO_0, 0),  PIN(GPIOAO_9, 0), 0,  0,  0, 16,  0,  0,  0, 16,  1,  0),
+	/*   name    first              last              irq	pullen  pull    dir     out     in  */
+	BANK("AO",   PIN(GPIOAO_0, 0),  PIN(GPIOAO_9, 0), 0, 9, 0,  0,  0, 16,  0,  0,  0, 16,  1,  0),
 };
 
 struct meson_pinctrl_data meson_gxl_periphs_pinctrl_data = {
