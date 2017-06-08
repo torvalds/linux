@@ -234,7 +234,7 @@ static void enable_fake_irq(struct intel_breadcrumbs *b)
 		mod_timer(&b->hangcheck, wait_timeout());
 }
 
-static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
+static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 {
 	struct intel_engine_cs *engine =
 		container_of(b, struct intel_engine_cs, breadcrumbs);
@@ -242,7 +242,7 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 
 	lockdep_assert_held(&b->irq_lock);
 	if (b->irq_armed)
-		return;
+		return false;
 
 	/* The breadcrumb irq will be disarmed on the interrupt after the
 	 * waiters are signaled. This gives us a single interrupt window in
@@ -260,7 +260,7 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 		 * implementation to call intel_engine_wakeup()
 		 * itself when it wants to simulate a user interrupt,
 		 */
-		return;
+		return true;
 	}
 
 	/* Since we are waiting on a request, the GPU should be busy
@@ -278,6 +278,7 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 	}
 
 	enable_fake_irq(b);
+	return true;
 }
 
 static inline struct intel_wait *to_wait(struct rb_node *node)
@@ -329,7 +330,7 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 	struct rb_node **p, *parent, *completed;
-	bool first;
+	bool first, armed;
 	u32 seqno;
 
 	/* Insert the request into the retirement ordered list
@@ -344,6 +345,7 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	 * removing stale elements in the tree, we may be able to reduce the
 	 * ping-pong between the old bottom-half and ourselves as first-waiter.
 	 */
+	armed = false;
 	first = true;
 	parent = NULL;
 	completed = NULL;
@@ -399,7 +401,7 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		 * in the unlocked read of b->irq_seqno_bh in the irq handler)
 		 * and so we miss the wake up.
 		 */
-		__intel_breadcrumbs_enable_irq(b);
+		armed = __intel_breadcrumbs_enable_irq(b);
 		spin_unlock(&b->irq_lock);
 	}
 
@@ -426,20 +428,24 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	GEM_BUG_ON(!b->irq_armed);
 	GEM_BUG_ON(rb_first(&b->waiters) != &b->irq_wait->node);
 
-	return first;
+	return armed;
 }
 
 bool intel_engine_add_wait(struct intel_engine_cs *engine,
 			   struct intel_wait *wait)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	bool first;
+	bool armed;
 
 	spin_lock_irq(&b->rb_lock);
-	first = __intel_engine_add_wait(engine, wait);
+	armed = __intel_engine_add_wait(engine, wait);
 	spin_unlock_irq(&b->rb_lock);
+	if (armed)
+		return armed;
 
-	return first;
+	/* Make the caller recheck if its request has already started. */
+	return i915_seqno_passed(intel_engine_get_seqno(engine),
+				 wait->seqno - 1);
 }
 
 static inline bool chain_wakeup(struct rb_node *rb, int priority)
