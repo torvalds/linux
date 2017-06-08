@@ -7378,12 +7378,11 @@ static void nfs4_exchange_id_done(struct rpc_task *task, void *data)
 	if (status == 0) {
 		clp->cl_clientid = cdata->res.clientid;
 		clp->cl_exchange_flags = cdata->res.flags;
+		clp->cl_seqid = cdata->res.seqid;
 		/* Client ID is not confirmed */
-		if (!(cdata->res.flags & EXCHGID4_FLAG_CONFIRMED_R)) {
+		if (!(cdata->res.flags & EXCHGID4_FLAG_CONFIRMED_R))
 			clear_bit(NFS4_SESSION_ESTABLISHED,
-			&clp->cl_session->session_state);
-			clp->cl_seqid = cdata->res.seqid;
-		}
+				  &clp->cl_session->session_state);
 
 		kfree(clp->cl_serverowner);
 		clp->cl_serverowner = cdata->res.server_owner;
