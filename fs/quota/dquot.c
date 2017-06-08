@@ -2331,15 +2331,15 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 	dqopt->info[type].dqi_format = fmt;
 	dqopt->info[type].dqi_fmt_id = format_id;
 	INIT_LIST_HEAD(&dqopt->info[type].dqi_dirty_list);
-	down_write(&dqopt->dqio_sem);
+	down_read(&dqopt->dqio_sem);
 	error = dqopt->ops[type]->read_file_info(sb, type);
 	if (error < 0) {
-		up_write(&dqopt->dqio_sem);
+		up_read(&dqopt->dqio_sem);
 		goto out_file_init;
 	}
 	if (dqopt->flags & DQUOT_QUOTA_SYS_FILE)
 		dqopt->info[type].dqi_flags |= DQF_SYS_FILE;
-	up_write(&dqopt->dqio_sem);
+	up_read(&dqopt->dqio_sem);
 	spin_lock(&dq_state_lock);
 	dqopt->flags |= dquot_state_flag(flags, type);
 	spin_unlock(&dq_state_lock);

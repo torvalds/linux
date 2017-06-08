@@ -693,7 +693,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 
 	/* We don't need the lock and we have to acquire quota file locks
 	 * which will later depend on this lock */
-	up_write(&sb_dqopt(sb)->dqio_sem);
+	up_read(&sb_dqopt(sb)->dqio_sem);
 	info->dqi_max_spc_limit = 0x7fffffffffffffffLL;
 	info->dqi_max_ino_limit = 0x7fffffffffffffffLL;
 	oinfo = kmalloc(sizeof(struct ocfs2_mem_dqinfo), GFP_NOFS);
@@ -772,7 +772,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 		goto out_err;
 	}
 
-	down_write(&sb_dqopt(sb)->dqio_sem);
+	down_read(&sb_dqopt(sb)->dqio_sem);
 	return 0;
 out_err:
 	if (oinfo) {
@@ -786,7 +786,7 @@ out_err:
 		kfree(oinfo);
 	}
 	brelse(bh);
-	down_write(&sb_dqopt(sb)->dqio_sem);
+	down_read(&sb_dqopt(sb)->dqio_sem);
 	return -1;
 }
 
