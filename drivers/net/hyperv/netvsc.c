@@ -855,14 +855,14 @@ int netvsc_send(struct hv_device *device,
 	bool xmit_more = (skb != NULL) ? skb->xmit_more : false;
 
 	net_device = get_outbound_net_device(device);
-	if (!net_device)
+	if (unlikely(!net_device))
 		return -ENODEV;
 
 	/* We may race with netvsc_connect_vsp()/netvsc_init_buf() and get
 	 * here before the negotiation with the host is finished and
 	 * send_section_map may not be allocated yet.
 	 */
-	if (!net_device->send_section_map)
+	if (unlikely(!net_device->send_section_map))
 		return -EAGAIN;
 
 	nvchan = &net_device->chan_table[packet->q_idx];
