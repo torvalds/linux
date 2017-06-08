@@ -1356,6 +1356,16 @@ static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_CDB_SUPPORT);
 }
 
+static inline bool iwl_mvm_cdb_scan_api(struct iwl_mvm *mvm)
+{
+	/*
+	 * TODO: should this be the same as iwl_mvm_is_cdb_supported()?
+	 * but then there's a little bit of code in scan that won't make
+	 * any sense...
+	 */
+	return mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22000;
+}
+
 static inline bool iwl_mvm_has_new_rx_stats_api(struct iwl_mvm *mvm)
 {
 	return fw_has_api(&mvm->fw->ucode_capa,
