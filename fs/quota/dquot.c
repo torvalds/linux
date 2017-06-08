@@ -478,19 +478,19 @@ int dquot_release(struct dquot *dquot)
 	/* Check whether we are not racing with some other dqget() */
 	if (atomic_read(&dquot->dq_count) > 1)
 		goto out_dqlock;
-	down_write(&dqopt->dqio_sem);
 	if (dqopt->ops[dquot->dq_id.type]->release_dqblk) {
 		ret = dqopt->ops[dquot->dq_id.type]->release_dqblk(dquot);
 		/* Write the info */
 		if (info_dirty(&dqopt->info[dquot->dq_id.type])) {
+			down_write(&dqopt->dqio_sem);
 			ret2 = dqopt->ops[dquot->dq_id.type]->write_file_info(
 						dquot->dq_sb, dquot->dq_id.type);
+			up_write(&dqopt->dqio_sem);
 		}
 		if (ret >= 0)
 			ret = ret2;
 	}
 	clear_bit(DQ_ACTIVE_B, &dquot->dq_flags);
-	up_write(&dqopt->dqio_sem);
 out_dqlock:
 	mutex_unlock(&dquot->dq_lock);
 	return ret;
