@@ -417,7 +417,7 @@
 		function = "i2c2";
 	};
 
-	pwm1_pins: pwm {
+	pwm1_pins: pwm1 {
 		groups = "pwm1_a";
 		function = "pwm1";
 	};
