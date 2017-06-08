@@ -428,7 +428,6 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 out:
 	mmc_release_host(card->host);
 }
-EXPORT_SYMBOL(mmc_start_bkops);
 
 /*
  * mmc_wait_data_done() - done callback for data request
@@ -811,7 +810,6 @@ out:
 	mmc_release_host(card->host);
 	return err;
 }
-EXPORT_SYMBOL(mmc_interrupt_hpi);
 
 /**
  *	mmc_wait_for_cmd - start a command and wait for completion
@@ -869,7 +867,6 @@ int mmc_stop_bkops(struct mmc_card *card)
 
 	return err;
 }
-EXPORT_SYMBOL(mmc_stop_bkops);
 
 int mmc_read_bkops_status(struct mmc_card *card)
 {
@@ -887,7 +884,6 @@ int mmc_read_bkops_status(struct mmc_card *card)
 	kfree(ext_csd);
 	return 0;
 }
-EXPORT_SYMBOL(mmc_read_bkops_status);
 
 /**
  *	mmc_set_data_timeout - set the timeout for a data command
