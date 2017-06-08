@@ -475,7 +475,23 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 		return -EINVAL;
 	}
 
+	if (dso__needs_decompress(dso)) {
+		char newpath[KMOD_DECOMP_LEN];
+		size_t len = sizeof(newpath);
+
+		if (dso__decompress_kmodule_path(dso, name, newpath, len) < 0) {
+			free(name);
+			return -dso->load_errno;
+		}
+
+		strcpy(name, newpath);
+	}
+
 	fd = do_open(name);
+
+	if (dso__needs_decompress(dso))
+		unlink(name);
+
 	free(name);
 	return fd;
 }
