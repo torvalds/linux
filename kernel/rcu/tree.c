@@ -3684,8 +3684,6 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	 */
 	rnp = rdp->mynode;
 	raw_spin_lock_rcu_node(rnp);		/* irqs already disabled. */
-	if (!rdp->beenonline)
-		WRITE_ONCE(rsp->ncpus, READ_ONCE(rsp->ncpus) + 1);
 	rdp->beenonline = true;	 /* We have now been online. */
 	rdp->gpnum = rnp->completed; /* Make CPU later note any new GP. */
 	rdp->completed = rnp->completed;
@@ -3789,6 +3787,8 @@ void rcu_cpu_starting(unsigned int cpu)
 {
 	unsigned long flags;
 	unsigned long mask;
+	int nbits;
+	unsigned long oldmask;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 	struct rcu_state *rsp;
@@ -3799,9 +3799,15 @@ void rcu_cpu_starting(unsigned int cpu)
 		mask = rdp->grpmask;
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		rnp->qsmaskinitnext |= mask;
+		oldmask = rnp->expmaskinitnext;
 		rnp->expmaskinitnext |= mask;
+		oldmask ^= rnp->expmaskinitnext;
+		nbits = bitmap_weight(&oldmask, BITS_PER_LONG);
+		/* Allow lockless access for expedited grace periods. */
+		smp_store_release(&rsp->ncpus, rsp->ncpus + nbits); /* ^^^ */
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
+	smp_mb(); /* Ensure RCU read-side usage follows above initialization. */
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
