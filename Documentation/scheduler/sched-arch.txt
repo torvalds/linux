@@ -21,7 +21,7 @@ CPU idle
 ========
 Your cpu_idle routines need to obey the following rules:
 
-1. Preempt should now disabled over idle routines. Should only
+1. Preempt should now be disabled over idle routines. Should only
    be enabled to call schedule() then disabled again.
 
 2. need_resched/TIF_NEED_RESCHED is only ever set, and will never
