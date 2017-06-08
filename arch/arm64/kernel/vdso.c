@@ -222,7 +222,6 @@ void update_vsyscall(struct timekeeper *tk)
 		vdso_data->raw_time_nsec        = tk->tkr_raw.xtime_nsec;
 		vdso_data->xtime_clock_sec	= tk->xtime_sec;
 		vdso_data->xtime_clock_nsec	= tk->tkr_mono.xtime_nsec;
-		/* tkr_raw.xtime_nsec == 0 */
 		vdso_data->cs_mono_mult		= tk->tkr_mono.mult;
 		vdso_data->cs_raw_mult		= tk->tkr_raw.mult;
 		/* tkr_mono.shift == tkr_raw.shift */
