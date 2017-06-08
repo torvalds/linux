@@ -567,12 +567,12 @@ static int cs35l34_pcm_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static unsigned int cs35l34_src_rates[] = {
+static const unsigned int cs35l34_src_rates[] = {
 	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000
 };
 
 
-static struct snd_pcm_hw_constraint_list cs35l34_constraints = {
+static const struct snd_pcm_hw_constraint_list cs35l34_constraints = {
 	.count  = ARRAY_SIZE(cs35l34_src_rates),
 	.list   = cs35l34_src_rates,
 };
