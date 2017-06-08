@@ -102,10 +102,9 @@ static u32 tcp_v4_init_seq(const struct sk_buff *skb)
 			      tcp_hdr(skb)->source);
 }
 
-static u32 tcp_v4_init_ts_off(const struct sk_buff *skb)
+static u32 tcp_v4_init_ts_off(const struct net *net, const struct sk_buff *skb)
 {
-	return secure_tcp_ts_off(ip_hdr(skb)->daddr,
-				 ip_hdr(skb)->saddr);
+	return secure_tcp_ts_off(net, ip_hdr(skb)->daddr, ip_hdr(skb)->saddr);
 }
 
 int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
@@ -242,7 +241,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 						       inet->inet_daddr,
 						       inet->inet_sport,
 						       usin->sin_port);
-		tp->tsoffset = secure_tcp_ts_off(inet->inet_saddr,
+		tp->tsoffset = secure_tcp_ts_off(sock_net(sk),
+						 inet->inet_saddr,
 						 inet->inet_daddr);
 	}
 
@@ -2465,6 +2465,9 @@ static int __net_init tcp_sk_init(struct net *net)
 	net->ipv4.tcp_death_row.hashinfo = &tcp_hashinfo;
 
 	net->ipv4.sysctl_max_syn_backlog = max(128, cnt / 256);
+	net->ipv4.sysctl_tcp_sack = 1;
+	net->ipv4.sysctl_tcp_window_scaling = 1;
+	net->ipv4.sysctl_tcp_timestamps = 1;
 
 	return 0;
 fail:

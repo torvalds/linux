@@ -109,9 +109,9 @@ static u32 tcp_v6_init_seq(const struct sk_buff *skb)
 				tcp_hdr(skb)->source);
 }
 
-static u32 tcp_v6_init_ts_off(const struct sk_buff *skb)
+static u32 tcp_v6_init_ts_off(const struct net *net, const struct sk_buff *skb)
 {
-	return secure_tcpv6_ts_off(ipv6_hdr(skb)->daddr.s6_addr32,
+	return secure_tcpv6_ts_off(net, ipv6_hdr(skb)->daddr.s6_addr32,
 				   ipv6_hdr(skb)->saddr.s6_addr32);
 }
 
@@ -292,7 +292,8 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 							 sk->sk_v6_daddr.s6_addr32,
 							 inet->inet_sport,
 							 inet->inet_dport);
-		tp->tsoffset = secure_tcpv6_ts_off(np->saddr.s6_addr32,
+		tp->tsoffset = secure_tcpv6_ts_off(sock_net(sk),
+						   np->saddr.s6_addr32,
 						   sk->sk_v6_daddr.s6_addr32);
 	}
 
