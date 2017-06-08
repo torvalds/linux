@@ -130,14 +130,6 @@ static void kdf_dealloc(struct kdf_sdesc *sdesc)
 	kzfree(sdesc);
 }
 
-/* convert 32 bit integer into its string representation */
-static inline void crypto_kw_cpu_to_be32(u32 val, u8 *buf)
-{
-	__be32 *a = (__be32 *)buf;
-
-	*a = cpu_to_be32(val);
-}
-
 /*
  * Implementation of the KDF in counter mode according to SP800-108 section 5.1
  * as well as SP800-56A section 5.8.1 (Single-step KDF).
@@ -154,16 +146,14 @@ static int kdf_ctr(struct kdf_sdesc *sdesc, const u8 *src, unsigned int slen,
 	unsigned int h = crypto_shash_digestsize(desc->tfm);
 	int err = 0;
 	u8 *dst_orig = dst;
-	u32 i = 1;
-	u8 iteration[sizeof(u32)];
+	__be32 counter = cpu_to_be32(1);
 
 	while (dlen) {
 		err = crypto_shash_init(desc);
 		if (err)
 			goto err;
 
-		crypto_kw_cpu_to_be32(i, iteration);
-		err = crypto_shash_update(desc, iteration, sizeof(u32));
+		err = crypto_shash_update(desc, (u8 *)&counter, sizeof(__be32));
 		if (err)
 			goto err;
 
@@ -189,7 +179,7 @@ static int kdf_ctr(struct kdf_sdesc *sdesc, const u8 *src, unsigned int slen,
 
 			dlen -= h;
 			dst += h;
-			i++;
+			counter = cpu_to_be32(be32_to_cpu(counter) + 1);
 		}
 	}
 
