@@ -967,13 +967,14 @@ static int mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-static int mlxsw_sp_port_module_map(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+static int mlxsw_sp_port_module_map(struct mlxsw_sp_port *mlxsw_sp_port,
 				    u8 module, u8 width, u8 lane)
 {
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 	int i;
 
-	mlxsw_reg_pmlp_pack(pmlp_pl, local_port);
+	mlxsw_reg_pmlp_pack(pmlp_pl, mlxsw_sp_port->local_port);
 	mlxsw_reg_pmlp_width_set(pmlp_pl, width);
 	for (i = 0; i < width; i++) {
 		mlxsw_reg_pmlp_module_set(pmlp_pl, i, module);
@@ -983,11 +984,12 @@ static int mlxsw_sp_port_module_map(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pmlp), pmlp_pl);
 }
 
-static int mlxsw_sp_port_module_unmap(struct mlxsw_sp *mlxsw_sp, u8 local_port)
+static int mlxsw_sp_port_module_unmap(struct mlxsw_sp_port *mlxsw_sp_port)
 {
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 
-	mlxsw_reg_pmlp_pack(pmlp_pl, local_port);
+	mlxsw_reg_pmlp_pack(pmlp_pl, mlxsw_sp_port->local_port);
 	mlxsw_reg_pmlp_width_set(pmlp_pl, 0);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pmlp), pmlp_pl);
 }
@@ -2708,8 +2710,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	dev->netdev_ops = &mlxsw_sp_port_netdev_ops;
 	dev->ethtool_ops = &mlxsw_sp_port_ethtool_ops;
 
-	err = mlxsw_sp_port_module_map(mlxsw_sp, local_port, module, width,
-				       lane);
+	err = mlxsw_sp_port_module_map(mlxsw_sp_port, module, width, lane);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to map module\n",
 			mlxsw_sp_port->local_port);
@@ -2838,7 +2839,7 @@ err_port_system_port_mapping_set:
 err_dev_addr_init:
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 err_port_swid_set:
-	mlxsw_sp_port_module_unmap(mlxsw_sp, local_port);
+	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
 err_port_module_map:
 	kfree(mlxsw_sp_port->hw_stats.cache);
 err_alloc_hw_stats:
@@ -2865,7 +2866,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port_fids_fini(mlxsw_sp_port);
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
-	mlxsw_sp_port_module_unmap(mlxsw_sp, mlxsw_sp_port->local_port);
+	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
 	kfree(mlxsw_sp_port->hw_stats.cache);
 	kfree(mlxsw_sp_port->sample);
 	free_percpu(mlxsw_sp_port->pcpu_stats);
