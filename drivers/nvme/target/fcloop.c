@@ -569,7 +569,6 @@ fcloop_tgt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 			struct nvmefc_tgt_fcp_req *tgt_fcpreq)
 {
 	struct fcloop_fcpreq *tfcp_req = tgt_fcp_req_to_fcpreq(tgt_fcpreq);
-	int active;
 
 	/*
 	 * mark aborted only in case there were 2 threads in transport
@@ -577,7 +576,6 @@ fcloop_tgt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	 * after the abort request
 	 */
 	spin_lock(&tfcp_req->reqlock);
-	active = tfcp_req->active;
 	tfcp_req->aborted = true;
 	spin_unlock(&tfcp_req->reqlock);
 
