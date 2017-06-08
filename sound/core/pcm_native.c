@@ -253,35 +253,22 @@ static bool hw_support_mmap(struct snd_pcm_substream *substream)
 	return true;
 }
 
-int snd_pcm_hw_refine(struct snd_pcm_substream *substream, 
-		      struct snd_pcm_hw_params *params)
+static int constrain_mask_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *params)
 {
+	struct snd_pcm_hw_constraints *constrs =
+					&substream->runtime->hw_constraints;
+	struct snd_mask *m;
 	unsigned int k;
-	struct snd_pcm_hardware *hw;
-	struct snd_interval *i = NULL;
-	struct snd_mask *m = NULL;
-	struct snd_pcm_hw_constraints *constrs = &substream->runtime->hw_constraints;
-	unsigned int rstamps[constrs->rules_num];
-	unsigned int vstamps[SNDRV_PCM_HW_PARAM_LAST_INTERVAL + 1];
-	unsigned int stamp = 2;
-	int changed, again;
-
-	struct snd_mask __maybe_unused old_mask;
-	struct snd_interval __maybe_unused old_interval;
-
-	params->info = 0;
-	params->fifo_size = 0;
-	if (params->rmask & (1 << SNDRV_PCM_HW_PARAM_SAMPLE_BITS))
-		params->msbits = 0;
-	if (params->rmask & (1 << SNDRV_PCM_HW_PARAM_RATE)) {
-		params->rate_num = 0;
-		params->rate_den = 0;
-	}
+	struct snd_mask old_mask;
+	int changed;
 
 	for (k = SNDRV_PCM_HW_PARAM_FIRST_MASK; k <= SNDRV_PCM_HW_PARAM_LAST_MASK; k++) {
 		m = hw_param_mask(params, k);
 		if (snd_mask_empty(m))
 			return -EINVAL;
+
+		/* This parameter is not requested to change by a caller. */
 		if (!(params->rmask & (1 << k)))
 			continue;
 
@@ -292,16 +279,32 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 
 		trace_hw_mask_param(substream, k, 0, &old_mask, m);
 
+		/* Set corresponding flag so that the caller gets it. */
 		if (changed)
 			params->cmask |= 1 << k;
 		if (changed < 0)
 			return changed;
 	}
 
+	return 0;
+}
+
+static int constrain_interval_params(struct snd_pcm_substream *substream,
+				     struct snd_pcm_hw_params *params)
+{
+	struct snd_pcm_hw_constraints *constrs =
+					&substream->runtime->hw_constraints;
+	struct snd_interval *i;
+	unsigned int k;
+	struct snd_interval old_interval;
+	int changed;
+
 	for (k = SNDRV_PCM_HW_PARAM_FIRST_INTERVAL; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++) {
 		i = hw_param_interval(params, k);
 		if (snd_interval_empty(i))
 			return -EINVAL;
+
+		/* This parameter is not requested to change by a caller. */
 		if (!(params->rmask & (1 << k)))
 			continue;
 
@@ -312,64 +315,160 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 
 		trace_hw_interval_param(substream, k, 0, &old_interval, i);
 
+		/* Set corresponding flag so that the caller gets it. */
 		if (changed)
 			params->cmask |= 1 << k;
 		if (changed < 0)
 			return changed;
 	}
 
+	return 0;
+}
+
+static int constrain_params_by_rules(struct snd_pcm_substream *substream,
+				     struct snd_pcm_hw_params *params)
+{
+	struct snd_pcm_hw_constraints *constrs =
+					&substream->runtime->hw_constraints;
+	unsigned int k;
+	unsigned int rstamps[constrs->rules_num];
+	unsigned int vstamps[SNDRV_PCM_HW_PARAM_LAST_INTERVAL + 1];
+	unsigned int stamp;
+	struct snd_pcm_hw_rule *r;
+	unsigned int d;
+	struct snd_mask old_mask;
+	struct snd_interval old_interval;
+	bool again;
+	int changed;
+
+	/*
+	 * Each application of rule has own sequence number.
+	 *
+	 * Each member of 'rstamps' array represents the sequence number of
+	 * recent application of corresponding rule.
+	 */
 	for (k = 0; k < constrs->rules_num; k++)
 		rstamps[k] = 0;
-	for (k = 0; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++) 
+
+	/*
+	 * Each member of 'vstamps' array represents the sequence number of
+	 * recent application of rule in which corresponding parameters were
+	 * changed.
+	 *
+	 * In initial state, elements corresponding to parameters requested by
+	 * a caller is 1. For unrequested parameters, corresponding members
+	 * have 0 so that the parameters are never changed anymore.
+	 */
+	for (k = 0; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++)
 		vstamps[k] = (params->rmask & (1 << k)) ? 1 : 0;
-	do {
-		again = 0;
-		for (k = 0; k < constrs->rules_num; k++) {
-			struct snd_pcm_hw_rule *r = &constrs->rules[k];
-			unsigned int d;
-			int doit = 0;
-			if (r->cond && !(r->cond & params->flags))
-				continue;
-			for (d = 0; r->deps[d] >= 0; d++) {
-				if (vstamps[r->deps[d]] > rstamps[k]) {
-					doit = 1;
-					break;
-				}
-			}
-			if (!doit)
-				continue;
 
-			if (trace_hw_mask_param_enabled()) {
-				if (hw_is_mask(r->var))
-					old_mask = *hw_param_mask(params, r->var);
-			}
-			if (trace_hw_interval_param_enabled()) {
-				if (hw_is_interval(r->var))
-					old_interval = *hw_param_interval(params, r->var);
-			}
+	/* Due to the above design, actual sequence number starts at 2. */
+	stamp = 2;
+retry:
+	/* Apply all rules in order. */
+	again = false;
+	for (k = 0; k < constrs->rules_num; k++) {
+		r = &constrs->rules[k];
 
-			changed = r->func(params, r);
+		/*
+		 * Check condition bits of this rule. When the rule has
+		 * some condition bits, parameter without the bits is
+		 * never processed. SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP
+		 * is an example of the condition bits.
+		 */
+		if (r->cond && !(r->cond & params->flags))
+			continue;
 
-			if (hw_is_mask(r->var)) {
-				trace_hw_mask_param(substream, r->var, k + 1,
-					&old_mask, hw_param_mask(params, r->var));
-			}
-			if (hw_is_interval(r->var)) {
-				trace_hw_interval_param(substream, r->var, k + 1,
-					&old_interval, hw_param_interval(params, r->var));
-			}
-
-			rstamps[k] = stamp;
-			if (changed && r->var >= 0) {
-				params->cmask |= (1 << r->var);
-				vstamps[r->var] = stamp;
-				again = 1;
-			}
-			if (changed < 0)
-				return changed;
-			stamp++;
+		/*
+		 * The 'deps' array includes maximum three dependencies
+		 * to SNDRV_PCM_HW_PARAM_XXXs for this rule. The fourth
+		 * member of this array is a sentinel and should be
+		 * negative value.
+		 *
+		 * This rule should be processed in this time when dependent
+		 * parameters were changed at former applications of the other
+		 * rules.
+		 */
+		for (d = 0; r->deps[d] >= 0; d++) {
+			if (vstamps[r->deps[d]] > rstamps[k])
+				break;
 		}
-	} while (again);
+		if (r->deps[d] < 0)
+			continue;
+
+		if (trace_hw_mask_param_enabled()) {
+			if (hw_is_mask(r->var))
+				old_mask = *hw_param_mask(params, r->var);
+		}
+		if (trace_hw_interval_param_enabled()) {
+			if (hw_is_interval(r->var))
+				old_interval = *hw_param_interval(params, r->var);
+		}
+
+		changed = r->func(params, r);
+
+		if (hw_is_mask(r->var)) {
+			trace_hw_mask_param(substream, r->var, k + 1,
+				&old_mask, hw_param_mask(params, r->var));
+		}
+		if (hw_is_interval(r->var)) {
+			trace_hw_interval_param(substream, r->var, k + 1,
+				&old_interval, hw_param_interval(params, r->var));
+		}
+
+		rstamps[k] = stamp;
+
+		/*
+		 * When the parameters is changed, notify it to the caller
+		 * by corresponding returned bit, then preparing for next
+		 * iteration.
+		 */
+		if (changed && r->var >= 0) {
+			params->cmask |= (1 << r->var);
+			vstamps[r->var] = stamp;
+			again = true;
+		}
+		if (changed < 0)
+			return changed;
+		stamp++;
+	}
+
+	/* Iterate to evaluate all rules till no parameters are changed. */
+	if (again)
+		goto retry;
+
+	return 0;
+}
+
+int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
+		      struct snd_pcm_hw_params *params)
+{
+	struct snd_pcm_hardware *hw;
+	struct snd_interval *i = NULL;
+	struct snd_mask *m = NULL;
+	int err;
+
+	params->info = 0;
+	params->fifo_size = 0;
+	if (params->rmask & (1 << SNDRV_PCM_HW_PARAM_SAMPLE_BITS))
+		params->msbits = 0;
+	if (params->rmask & (1 << SNDRV_PCM_HW_PARAM_RATE)) {
+		params->rate_num = 0;
+		params->rate_den = 0;
+	}
+
+	err = constrain_mask_params(substream, params);
+	if (err < 0)
+		return err;
+
+	err = constrain_interval_params(substream, params);
+	if (err < 0)
+		return err;
+
+	err = constrain_params_by_rules(substream, params);
+	if (err < 0)
+		return err;
+
 	if (!params->msbits) {
 		i = hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
 		if (snd_interval_single(i))
@@ -395,18 +494,16 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 	if (!params->fifo_size) {
 		m = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 		i = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
-		if (snd_mask_min(m) == snd_mask_max(m) &&
-                    snd_interval_min(i) == snd_interval_max(i)) {
-			changed = substream->ops->ioctl(substream,
+		if (snd_mask_single(m) && snd_interval_single(i)) {
+			err = substream->ops->ioctl(substream,
 					SNDRV_PCM_IOCTL1_FIFO_SIZE, params);
-			if (changed < 0)
-				return changed;
+			if (err < 0)
+				return err;
 		}
 	}
 	params->rmask = 0;
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_refine);
 
 static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
