@@ -355,7 +355,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	struct ib_mr *mr;
 	struct ib_reg_wr *reg_wr;
 	struct ib_send_wr *bad_wr;
-	int rc, i, n, dma_nents;
+	int rc, i, n;
 	u8 key;
 
 	mw = NULL;
@@ -391,14 +391,10 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
 			break;
 	}
-	mw->mw_nents = i;
 	mw->mw_dir = rpcrdma_data_dir(writing);
-	if (i == 0)
-		goto out_dmamap_err;
 
-	dma_nents = ib_dma_map_sg(ia->ri_device,
-				  mw->mw_sg, mw->mw_nents, mw->mw_dir);
-	if (!dma_nents)
+	mw->mw_nents = ib_dma_map_sg(ia->ri_device, mw->mw_sg, i, mw->mw_dir);
+	if (!mw->mw_nents)
 		goto out_dmamap_err;
 
 	n = ib_map_mr_sg(mr, mw->mw_sg, mw->mw_nents, NULL, PAGE_SIZE);
@@ -436,13 +432,14 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	return mw->mw_nents;
 
 out_dmamap_err:
-	pr_err("rpcrdma: failed to dma map sg %p sg_nents %u\n",
-	       mw->mw_sg, mw->mw_nents);
-	rpcrdma_defer_mr_recovery(mw);
+	pr_err("rpcrdma: failed to DMA map sg %p sg_nents %d\n",
+	       mw->mw_sg, i);
+	frmr->fr_state = FRMR_IS_INVALID;
+	rpcrdma_put_mw(r_xprt, mw);
 	return -EIO;
 
 out_mapmr_err:
-	pr_err("rpcrdma: failed to map mr %p (%u/%u)\n",
+	pr_err("rpcrdma: failed to map mr %p (%d/%d)\n",
 	       frmr->fr_mr, n, mw->mw_nents);
 	rpcrdma_defer_mr_recovery(mw);
 	return -EIO;

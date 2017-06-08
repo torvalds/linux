@@ -213,13 +213,11 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
 			break;
 	}
-	mw->mw_nents = i;
 	mw->mw_dir = rpcrdma_data_dir(writing);
-	if (i == 0)
-		goto out_dmamap_err;
 
-	if (!ib_dma_map_sg(r_xprt->rx_ia.ri_device,
-			   mw->mw_sg, mw->mw_nents, mw->mw_dir))
+	mw->mw_nents = ib_dma_map_sg(r_xprt->rx_ia.ri_device,
+				     mw->mw_sg, i, mw->mw_dir);
+	if (!mw->mw_nents)
 		goto out_dmamap_err;
 
 	for (i = 0, dma_pages = mw->fmr.fm_physaddrs; i < mw->mw_nents; i++)
@@ -237,16 +235,18 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	return mw->mw_nents;
 
 out_dmamap_err:
-	pr_err("rpcrdma: failed to dma map sg %p sg_nents %u\n",
-	       mw->mw_sg, mw->mw_nents);
-	rpcrdma_defer_mr_recovery(mw);
+	pr_err("rpcrdma: failed to DMA map sg %p sg_nents %d\n",
+	       mw->mw_sg, i);
+	rpcrdma_put_mw(r_xprt, mw);
 	return -EIO;
 
 out_maperr:
 	pr_err("rpcrdma: ib_map_phys_fmr %u@0x%llx+%i (%d) status %i\n",
 	       len, (unsigned long long)dma_pages[0],
 	       pageoff, mw->mw_nents, rc);
-	rpcrdma_defer_mr_recovery(mw);
+	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+			mw->mw_sg, mw->mw_nents, mw->mw_dir);
+	rpcrdma_put_mw(r_xprt, mw);
 	return -EIO;
 }
 
