@@ -43,7 +43,6 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		unsigned int timeout_ms);
 int mmc_stop_bkops(struct mmc_card *card);
 void mmc_start_bkops(struct mmc_card *card, bool from_exception);
-int mmc_can_reset(struct mmc_card *card);
 int mmc_flush_cache(struct mmc_card *card);
 int mmc_cmdq_enable(struct mmc_card *card);
 int mmc_cmdq_disable(struct mmc_card *card);
