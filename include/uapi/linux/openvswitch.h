@@ -343,6 +343,7 @@ enum ovs_key_attr {
 #define OVS_KEY_ATTR_MAX (__OVS_KEY_ATTR_MAX - 1)
 
 enum ovs_tunnel_key_attr {
+	/* OVS_TUNNEL_KEY_ATTR_NONE, standard nl API requires this attribute! */
 	OVS_TUNNEL_KEY_ATTR_ID,                 /* be64 Tunnel ID */
 	OVS_TUNNEL_KEY_ATTR_IPV4_SRC,           /* be32 src IP address. */
 	OVS_TUNNEL_KEY_ATTR_IPV4_DST,           /* be32 dst IP address. */
