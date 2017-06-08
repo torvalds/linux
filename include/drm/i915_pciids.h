@@ -334,6 +334,14 @@
 	INTEL_KBL_GT3_IDS(info), \
 	INTEL_KBL_GT4_IDS(info)
 
+/* CFL S */
+#define INTEL_CFL_S_IDS(info) \
+	INTEL_VGA_DEVICE(0x3E90, info), /* SRV GT1 */ \
+	INTEL_VGA_DEVICE(0x3E93, info), /* SRV GT1 */ \
+	INTEL_VGA_DEVICE(0x3E91, info), /* SRV GT2 */ \
+	INTEL_VGA_DEVICE(0x3E92, info), /* SRV GT2 */ \
+	INTEL_VGA_DEVICE(0x3E96, info)  /* SRV GT2 */
+
 /* CNL U 2+2 */
 #define INTEL_CNL_U_GT2_IDS(info) \
 	INTEL_VGA_DEVICE(0x5A52, info), \
