@@ -141,7 +141,7 @@ static bool rpcrdma_args_inline(struct rpcrdma_xprt *r_xprt,
 
 	if (xdr->page_len) {
 		remaining = xdr->page_len;
-		offset = xdr->page_base & ~PAGE_MASK;
+		offset = offset_in_page(xdr->page_base);
 		count = 0;
 		while (remaining) {
 			remaining -= min_t(unsigned int,
@@ -222,7 +222,7 @@ rpcrdma_convert_iovs(struct rpcrdma_xprt *r_xprt, struct xdr_buf *xdrbuf,
 
 	len = xdrbuf->page_len;
 	ppages = xdrbuf->pages + (xdrbuf->page_base >> PAGE_SHIFT);
-	page_base = xdrbuf->page_base & ~PAGE_MASK;
+	page_base = offset_in_page(xdrbuf->page_base);
 	p = 0;
 	while (len && n < RPCRDMA_MAX_SEGS) {
 		if (!ppages[p]) {
@@ -540,7 +540,7 @@ rpcrdma_prepare_msg_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 			goto out;
 
 		page = virt_to_page(xdr->tail[0].iov_base);
-		page_base = (unsigned long)xdr->tail[0].iov_base & ~PAGE_MASK;
+		page_base = offset_in_page(xdr->tail[0].iov_base);
 
 		/* If the content in the page list is an odd length,
 		 * xdr_write_pages() has added a pad at the beginning
@@ -557,7 +557,7 @@ rpcrdma_prepare_msg_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 	 */
 	if (xdr->page_len) {
 		ppages = xdr->pages + (xdr->page_base >> PAGE_SHIFT);
-		page_base = xdr->page_base & ~PAGE_MASK;
+		page_base = offset_in_page(xdr->page_base);
 		remaining = xdr->page_len;
 		while (remaining) {
 			sge_no++;
@@ -587,7 +587,7 @@ rpcrdma_prepare_msg_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 	 */
 	if (xdr->tail[0].iov_len) {
 		page = virt_to_page(xdr->tail[0].iov_base);
-		page_base = (unsigned long)xdr->tail[0].iov_base & ~PAGE_MASK;
+		page_base = offset_in_page(xdr->tail[0].iov_base);
 		len = xdr->tail[0].iov_len;
 
 map_tail:
@@ -878,9 +878,9 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 	srcp += curlen;
 	copy_len -= curlen;
 
-	page_base = rqst->rq_rcv_buf.page_base;
-	ppages = rqst->rq_rcv_buf.pages + (page_base >> PAGE_SHIFT);
-	page_base &= ~PAGE_MASK;
+	ppages = rqst->rq_rcv_buf.pages +
+		(rqst->rq_rcv_buf.page_base >> PAGE_SHIFT);
+	page_base = offset_in_page(rqst->rq_rcv_buf.page_base);
 	fixup_copy_count = 0;
 	if (copy_len && rqst->rq_rcv_buf.page_len) {
 		int pagelist_len;
