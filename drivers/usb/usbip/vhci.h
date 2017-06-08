@@ -84,6 +84,9 @@ enum hub_speed {
 #define VHCI_HC_PORTS 8
 #endif
 
+/* Each VHCI has 2 hubs (USB2 and USB3), each has VHCI_HC_PORTS ports */
+#define VHCI_PORTS	(VHCI_HC_PORTS*2)
+
 #ifdef CONFIG_USBIP_VHCI_NR_HCS
 #define VHCI_NR_HCS CONFIG_USBIP_VHCI_NR_HCS
 #else
@@ -145,7 +148,7 @@ static inline __u32 port_to_rhport(__u32 port)
 
 static inline int port_to_pdev_nr(__u32 port)
 {
-	return port / (VHCI_HC_PORTS * 2);
+	return port / VHCI_PORTS;
 }
 
 static inline struct vhci_hcd *hcd_to_vhci_hcd(struct usb_hcd *hcd)

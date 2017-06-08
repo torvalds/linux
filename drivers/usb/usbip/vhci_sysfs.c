@@ -92,7 +92,7 @@ static ssize_t status_show_vhci(int pdev_nr, char *out)
 
 		spin_lock(&vdev->ud.lock);
 		port_show_vhci(&out, HUB_SPEED_HIGH,
-			       pdev_nr * VHCI_HC_PORTS * 2 + i, vdev);
+			       pdev_nr * VHCI_PORTS + i, vdev);
 		spin_unlock(&vdev->ud.lock);
 	}
 
@@ -101,7 +101,7 @@ static ssize_t status_show_vhci(int pdev_nr, char *out)
 
 		spin_lock(&vdev->ud.lock);
 		port_show_vhci(&out, HUB_SPEED_SUPER,
-			       pdev_nr * VHCI_HC_PORTS * 2 + VHCI_HC_PORTS + i, vdev);
+			       pdev_nr * VHCI_PORTS + VHCI_HC_PORTS + i, vdev);
 		spin_unlock(&vdev->ud.lock);
 	}
 
@@ -117,7 +117,7 @@ static ssize_t status_show_not_ready(int pdev_nr, char *out)
 
 	for (i = 0; i < VHCI_HC_PORTS; i++) {
 		out += sprintf(out, "hs  %04u %03u ",
-				    (pdev_nr * VHCI_HC_PORTS * 2) + i,
+				    (pdev_nr * VHCI_PORTS) + i,
 				    VDEV_ST_NOTASSIGNED);
 		out += sprintf(out, "000 00000000 0000000000000000 0-0");
 		out += sprintf(out, "\n");
@@ -125,7 +125,7 @@ static ssize_t status_show_not_ready(int pdev_nr, char *out)
 
 	for (i = 0; i < VHCI_HC_PORTS; i++) {
 		out += sprintf(out, "ss  %04u %03u ",
-				    (pdev_nr * VHCI_HC_PORTS * 2) + VHCI_HC_PORTS + i,
+				    (pdev_nr * VHCI_PORTS) + VHCI_HC_PORTS + i,
 				    VDEV_ST_NOTASSIGNED);
 		out += sprintf(out, "000 00000000 0000000000000000 0-0");
 		out += sprintf(out, "\n");
@@ -176,7 +176,7 @@ static ssize_t nports_show(struct device *dev, struct device_attribute *attr,
 	/*
 	 * Half the ports are for SPEED_HIGH and half for SPEED_SUPER, thus the * 2.
 	 */
-	out += sprintf(out, "%d\n", VHCI_HC_PORTS * vhci_num_controllers * 2);
+	out += sprintf(out, "%d\n", VHCI_PORTS * vhci_num_controllers);
 	return out - s;
 }
 static DEVICE_ATTR_RO(nports);
