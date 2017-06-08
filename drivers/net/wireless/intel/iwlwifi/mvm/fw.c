@@ -1118,7 +1118,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	/* Init RSS configuration */
 	/* TODO - remove a000 disablement when we have RXQ config API */
-	if (iwl_mvm_has_new_rx_api(mvm) && !iwl_mvm_has_new_tx_api(mvm)) {
+	if (iwl_mvm_has_new_rx_api(mvm) &&
+	    mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_A000) {
 		ret = iwl_send_rss_cfg_cmd(mvm);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to configure RSS queues: %d\n",
