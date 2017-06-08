@@ -122,9 +122,6 @@ struct rocker_world_ops {
 				 const struct switchdev_obj_port_vlan *vlan);
 	int (*port_obj_vlan_del)(struct rocker_port *rocker_port,
 				 const struct switchdev_obj_port_vlan *vlan);
-	int (*port_obj_vlan_dump)(const struct rocker_port *rocker_port,
-				  struct switchdev_obj_port_vlan *vlan,
-				  switchdev_obj_dump_cb_t *cb);
 	int (*port_obj_fdb_add)(struct rocker_port *rocker_port,
 				u16 vid, const unsigned char *addr);
 	int (*port_obj_fdb_del)(struct rocker_port *rocker_port,

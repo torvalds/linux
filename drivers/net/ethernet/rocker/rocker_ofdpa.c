@@ -2583,29 +2583,6 @@ static int ofdpa_port_obj_vlan_del(struct rocker_port *rocker_port,
 	return 0;
 }
 
-static int ofdpa_port_obj_vlan_dump(const struct rocker_port *rocker_port,
-				    struct switchdev_obj_port_vlan *vlan,
-				    switchdev_obj_dump_cb_t *cb)
-{
-	const struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-	u16 vid;
-	int err = 0;
-
-	for (vid = 1; vid < VLAN_N_VID; vid++) {
-		if (!test_bit(vid, ofdpa_port->vlan_bitmap))
-			continue;
-		vlan->flags = 0;
-		if (ofdpa_vlan_id_is_internal(htons(vid)))
-			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
-		vlan->vid_begin = vlan->vid_end = vid;
-		err = cb(&vlan->obj);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-
 static int ofdpa_port_obj_fdb_add(struct rocker_port *rocker_port,
 				  u16 vid, const unsigned char *addr)
 {
@@ -2882,7 +2859,6 @@ struct rocker_world_ops rocker_ofdpa_ops = {
 	.port_attr_bridge_ageing_time_set = ofdpa_port_attr_bridge_ageing_time_set,
 	.port_obj_vlan_add = ofdpa_port_obj_vlan_add,
 	.port_obj_vlan_del = ofdpa_port_obj_vlan_del,
-	.port_obj_vlan_dump = ofdpa_port_obj_vlan_dump,
 	.port_obj_fdb_add = ofdpa_port_obj_fdb_add,
 	.port_obj_fdb_del = ofdpa_port_obj_fdb_del,
 	.port_obj_fdb_dump = ofdpa_port_obj_fdb_dump,

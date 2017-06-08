@@ -1652,18 +1652,6 @@ rocker_world_port_obj_vlan_del(struct rocker_port *rocker_port,
 }
 
 static int
-rocker_world_port_obj_vlan_dump(const struct rocker_port *rocker_port,
-				struct switchdev_obj_port_vlan *vlan,
-				switchdev_obj_dump_cb_t *cb)
-{
-	struct rocker_world_ops *wops = rocker_port->rocker->wops;
-
-	if (!wops->port_obj_vlan_dump)
-		return -EOPNOTSUPP;
-	return wops->port_obj_vlan_dump(rocker_port, vlan, cb);
-}
-
-static int
 rocker_world_port_obj_fdb_add(struct rocker_port *rocker_port,
 			      const struct switchdev_obj_port_fdb *fdb,
 			      struct switchdev_trans *trans)
@@ -2079,9 +2067,6 @@ static const struct net_device_ops rocker_port_netdev_ops = {
 	.ndo_start_xmit			= rocker_port_xmit,
 	.ndo_set_mac_address		= rocker_port_set_mac_address,
 	.ndo_change_mtu			= rocker_port_change_mtu,
-	.ndo_bridge_getlink		= switchdev_port_bridge_getlink,
-	.ndo_bridge_setlink		= switchdev_port_bridge_setlink,
-	.ndo_bridge_dellink		= switchdev_port_bridge_dellink,
 	.ndo_fdb_add			= switchdev_port_fdb_add,
 	.ndo_fdb_del			= switchdev_port_fdb_del,
 	.ndo_fdb_dump			= switchdev_port_fdb_dump,
@@ -2213,11 +2198,6 @@ static int rocker_port_obj_dump(struct net_device *dev,
 		err = rocker_world_port_obj_fdb_dump(rocker_port,
 						     SWITCHDEV_OBJ_PORT_FDB(obj),
 						     cb);
-		break;
-	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = rocker_world_port_obj_vlan_dump(rocker_port,
-						      SWITCHDEV_OBJ_PORT_VLAN(obj),
-						      cb);
 		break;
 	default:
 		err = -EOPNOTSUPP;
