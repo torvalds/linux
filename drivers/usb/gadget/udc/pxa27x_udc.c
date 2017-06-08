@@ -33,6 +33,7 @@
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/phy.h>
 
 #include "pxa27x_udc.h"
 
@@ -1472,7 +1473,7 @@ static int pxa_ep_disable(struct usb_ep *_ep)
 	return 0;
 }
 
-static struct usb_ep_ops pxa_ep_ops = {
+static const struct usb_ep_ops pxa_ep_ops = {
 	.enable		= pxa_ep_enable,
 	.disable	= pxa_ep_disable,
 
@@ -1607,9 +1608,6 @@ static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
-static void udc_enable(struct pxa_udc *udc);
-static void udc_disable(struct pxa_udc *udc);
-
 /**
  * pxa_udc_vbus_session - Called by external transceiver to enable/disable udc
  * @_gadget: usb gadget
@@ -1654,6 +1652,37 @@ static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 		return usb_phy_set_power(udc->transceiver, mA);
 	return -EOPNOTSUPP;
 }
+
+/**
+ * pxa_udc_phy_event - Called by phy upon VBus event
+ * @nb: notifier block
+ * @action: phy action, is vbus connect or disconnect
+ * @data: the usb_gadget structure in pxa_udc
+ *
+ * Called by the USB Phy when a cable connect or disconnect is sensed.
+ *
+ * Returns 0
+ */
+static int pxa_udc_phy_event(struct notifier_block *nb, unsigned long action,
+			     void *data)
+{
+	struct usb_gadget *gadget = data;
+
+	switch (action) {
+	case USB_EVENT_VBUS:
+		usb_gadget_vbus_connect(gadget);
+		return NOTIFY_OK;
+	case USB_EVENT_NONE:
+		usb_gadget_vbus_disconnect(gadget);
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static struct notifier_block pxa27x_udc_phy = {
+	.notifier_call = pxa_udc_phy_event,
+};
 
 static int pxa27x_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
@@ -1825,13 +1854,10 @@ fail:
  * Disables all udc endpoints (even control endpoint), report disconnect to
  * the gadget user.
  */
-static void stop_activity(struct pxa_udc *udc, struct usb_gadget_driver *driver)
+static void stop_activity(struct pxa_udc *udc)
 {
 	int i;
 
-	/* don't disconnect drivers more than once */
-	if (udc->gadget.speed == USB_SPEED_UNKNOWN)
-		driver = NULL;
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 
 	for (i = 0; i < NR_USB_ENDPOINTS; i++)
@@ -1848,7 +1874,7 @@ static int pxa27x_udc_stop(struct usb_gadget *g)
 {
 	struct pxa_udc *udc = to_pxa(g);
 
-	stop_activity(udc, NULL);
+	stop_activity(udc);
 	udc_disable(udc);
 
 	udc->driver = NULL;
@@ -2296,7 +2322,7 @@ static void irq_udc_reset(struct pxa_udc *udc)
 
 	if ((udccr & UDCCR_UDA) == 0) {
 		dev_dbg(udc->dev, "USB reset start\n");
-		stop_activity(udc, udc->driver);
+		stop_activity(udc);
 	}
 	udc->gadget.speed = USB_SPEED_FULL;
 	memset(&udc->stats, 0, sizeof udc->stats);
@@ -2435,7 +2461,14 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		return udc->irq;
 
 	udc->dev = &pdev->dev;
-	udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+	if (of_have_populated_dt()) {
+		udc->transceiver =
+			devm_usb_get_phy_by_phandle(udc->dev, "phys", 0);
+		if (IS_ERR(udc->transceiver))
+			return PTR_ERR(udc->transceiver);
+	} else {
+		udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+	}
 
 	if (IS_ERR(udc->gpiod)) {
 		dev_err(&pdev->dev, "Couldn't find or request D+ gpio : %ld\n",
@@ -2468,14 +2501,20 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	if (!IS_ERR_OR_NULL(udc->transceiver))
+		usb_register_notifier(udc->transceiver, &pxa27x_udc_phy);
 	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (retval)
-		goto err;
+		goto err_add_gadget;
 
 	pxa_init_debugfs(udc);
 	if (should_enable_udc(udc))
 		udc_enable(udc);
 	return 0;
+
+err_add_gadget:
+	if (!IS_ERR_OR_NULL(udc->transceiver))
+		usb_unregister_notifier(udc->transceiver, &pxa27x_udc_phy);
 err:
 	clk_unprepare(udc->clk);
 	return retval;
@@ -2492,7 +2531,10 @@ static int pxa_udc_remove(struct platform_device *_dev)
 	usb_del_gadget_udc(&udc->gadget);
 	pxa_cleanup_debugfs(udc);
 
-	usb_put_phy(udc->transceiver);
+	if (!IS_ERR_OR_NULL(udc->transceiver)) {
+		usb_unregister_notifier(udc->transceiver, &pxa27x_udc_phy);
+		usb_put_phy(udc->transceiver);
+	}
 
 	udc->transceiver = NULL;
 	the_controller = NULL;
@@ -2535,6 +2577,9 @@ static int pxa_udc_suspend(struct platform_device *_dev, pm_message_t state)
 	udc_disable(udc);
 	udc->pullup_resume = udc->pullup_on;
 	dplus_pullup(udc, 0);
+
+	if (udc->driver)
+		udc->driver->disconnect(&udc->gadget);
 
 	return 0;
 }

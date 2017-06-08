@@ -5,8 +5,8 @@
  * Copyright 1997 Linus Torvalds
  * Copyright 2002 Andi Kleen <ak@suse.de>
  */
-#include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/export.h>
+#include <linux/uaccess.h>
 
 /*
  * Zero Userspace
@@ -54,15 +54,6 @@ unsigned long clear_user(void __user *to, unsigned long n)
 }
 EXPORT_SYMBOL(clear_user);
 
-unsigned long copy_in_user(void __user *to, const void __user *from, unsigned len)
-{
-	if (access_ok(VERIFY_WRITE, to, len) && access_ok(VERIFY_READ, from, len)) { 
-		return copy_user_generic((__force void *)to, (__force void *)from, len);
-	} 
-	return len;		
-}
-EXPORT_SYMBOL(copy_in_user);
-
 /*
  * Try to copy last bytes and clear the rest if needed.
  * Since protection fault in copy_from/to_user is not a normal situation,
@@ -80,9 +71,5 @@ copy_user_handle_tail(char *to, char *from, unsigned len)
 			break;
 	}
 	clac();
-
-	/* If the destination is a kernel buffer, we always clear the end */
-	if (!__addr_ok(to))
-		memset(to, 0, len);
 	return len;
 }

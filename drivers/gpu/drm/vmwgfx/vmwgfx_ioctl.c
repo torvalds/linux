@@ -64,7 +64,7 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case DRM_VMW_PARAM_FIFO_HW_VERSION:
 	{
-		u32 __iomem *fifo_mem = dev_priv->mmio_virt;
+		u32 *fifo_mem = dev_priv->mmio_virt;
 		const struct vmw_fifo_state *fifo = &dev_priv->fifo;
 
 		if ((dev_priv->capabilities & SVGA_CAP_GBOBJECTS)) {
@@ -73,11 +73,11 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		}
 
 		param->value =
-			ioread32(fifo_mem +
-				 ((fifo->capabilities &
-				   SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
-				  SVGA_FIFO_3D_HWVERSION_REVISED :
-				  SVGA_FIFO_3D_HWVERSION));
+			vmw_mmio_read(fifo_mem +
+				      ((fifo->capabilities &
+					SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
+				       SVGA_FIFO_3D_HWVERSION_REVISED :
+				       SVGA_FIFO_3D_HWVERSION));
 		break;
 	}
 	case DRM_VMW_PARAM_MAX_SURF_MEMORY:
@@ -114,12 +114,26 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		param->value = dev_priv->has_dx;
 		break;
 	default:
-		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
-			  param->param);
 		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static u32 vmw_mask_multisample(unsigned int cap, u32 fmt_value)
+{
+	/* If the header is updated, update the format test as well! */
+	BUILD_BUG_ON(SVGA3D_DEVCAP_DXFMT_BC5_UNORM + 1 != SVGA3D_DEVCAP_MAX);
+
+	if (cap >= SVGA3D_DEVCAP_DXFMT_X8R8G8B8 &&
+	    cap <= SVGA3D_DEVCAP_DXFMT_BC5_UNORM)
+		fmt_value &= ~(SVGADX_DXFMT_MULTISAMPLE_2 |
+			       SVGADX_DXFMT_MULTISAMPLE_4 |
+			       SVGADX_DXFMT_MULTISAMPLE_8);
+	else if (cap == SVGA3D_DEVCAP_MULTISAMPLE_MASKABLESAMPLES)
+		return 0;
+
+	return fmt_value;
 }
 
 static int vmw_fill_compat_cap(struct vmw_private *dev_priv, void *bounce,
@@ -147,7 +161,8 @@ static int vmw_fill_compat_cap(struct vmw_private *dev_priv, void *bounce,
 	for (i = 0; i < max_size; ++i) {
 		vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
 		compat_cap->pairs[i][0] = i;
-		compat_cap->pairs[i][1] = vmw_read(dev_priv, SVGA_REG_DEV_CAP);
+		compat_cap->pairs[i][1] = vmw_mask_multisample
+			(i, vmw_read(dev_priv, SVGA_REG_DEV_CAP));
 	}
 	spin_unlock(&dev_priv->cap_lock);
 
@@ -162,14 +177,14 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		(struct drm_vmw_get_3d_cap_arg *) data;
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	uint32_t size;
-	u32 __iomem *fifo_mem;
+	u32 *fifo_mem;
 	void __user *buffer = (void __user *)((unsigned long)(arg->buffer));
 	void *bounce;
 	int ret;
 	bool gb_objects = !!(dev_priv->capabilities & SVGA_CAP_GBOBJECTS);
 	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
 
-	if (unlikely(arg->pad64 != 0)) {
+	if (unlikely(arg->pad64 != 0 || arg->max_size == 0)) {
 		DRM_ERROR("Illegal GET_3D_CAP argument.\n");
 		return -EINVAL;
 	}
@@ -202,7 +217,8 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		spin_lock(&dev_priv->cap_lock);
 		for (i = 0; i < num; ++i) {
 			vmw_write(dev_priv, SVGA_REG_DEV_CAP, i);
-			*bounce32++ = vmw_read(dev_priv, SVGA_REG_DEV_CAP);
+			*bounce32++ = vmw_mask_multisample
+				(i, vmw_read(dev_priv, SVGA_REG_DEV_CAP));
 		}
 		spin_unlock(&dev_priv->cap_lock);
 	} else if (gb_objects) {
@@ -211,7 +227,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 			goto out_err;
 	} else {
 		fifo_mem = dev_priv->mmio_virt;
-		memcpy_fromio(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
+		memcpy(bounce, &fifo_mem[SVGA_FIFO_3D_CAPS], size);
 	}
 
 	ret = copy_to_user(buffer, bounce, size);

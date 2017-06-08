@@ -22,10 +22,21 @@
  *
  */
 
+#include <linux/i2c.h>
+#include <linux/pm_qos.h>
+
+#define DW_IC_DEFAULT_FUNCTIONALITY (I2C_FUNC_I2C |			\
+					I2C_FUNC_SMBUS_BYTE |		\
+					I2C_FUNC_SMBUS_BYTE_DATA |	\
+					I2C_FUNC_SMBUS_WORD_DATA |	\
+					I2C_FUNC_SMBUS_BLOCK_DATA |	\
+					I2C_FUNC_SMBUS_I2C_BLOCK)
 
 #define DW_IC_CON_MASTER		0x1
 #define DW_IC_CON_SPEED_STD		0x2
 #define DW_IC_CON_SPEED_FAST		0x4
+#define DW_IC_CON_SPEED_HIGH		0x6
+#define DW_IC_CON_SPEED_MASK		0x6
 #define DW_IC_CON_10BITADDR_MASTER	0x10
 #define DW_IC_CON_RESTART_EN		0x20
 #define DW_IC_CON_SLAVE_DISABLE		0x40
@@ -36,7 +47,6 @@
  * @dev: driver model device node
  * @base: IO registers pointer
  * @cmd_complete: tx completion indicator
- * @lock: protect this struct and IO registers
  * @clk: input reference clock
  * @cmd_err: run time hadware error code
  * @msgs: points to an array of messages currently being transfered
@@ -57,13 +67,19 @@
  * @tx_fifo_depth: depth of the hardware tx fifo
  * @rx_fifo_depth: depth of the hardware rx fifo
  * @rx_outstanding: current master-rx elements in tx fifo
+ * @clk_freq: bus clock frequency
  * @ss_hcnt: standard speed HCNT value
  * @ss_lcnt: standard speed LCNT value
  * @fs_hcnt: fast speed HCNT value
  * @fs_lcnt: fast speed LCNT value
+ * @fp_hcnt: fast plus HCNT value
+ * @fp_lcnt: fast plus LCNT value
+ * @hs_hcnt: high speed HCNT value
+ * @hs_lcnt: high speed LCNT value
+ * @pm_qos: pm_qos_request used while holding a hardware lock on the bus
  * @acquire_lock: function to acquire a hardware lock on the bus
  * @release_lock: function to release a hardware lock on the bus
- * @pm_runtime_disabled: true if pm runtime is disabled
+ * @pm_disabled: true if power-management should be disabled for this i2c-bus
  *
  * HCNT and LCNT parameters can be used if the platform knows more accurate
  * values than the one computed based only on the input clock frequency.
@@ -73,8 +89,8 @@ struct dw_i2c_dev {
 	struct device		*dev;
 	void __iomem		*base;
 	struct completion	cmd_complete;
-	struct mutex		lock;
 	struct clk		*clk;
+	struct reset_control	*rst;
 	u32			(*get_clk_rate_khz) (struct dw_i2c_dev *dev);
 	struct dw_pci_controller *controller;
 	int			cmd_err;
@@ -90,13 +106,14 @@ struct dw_i2c_dev {
 	unsigned int		status;
 	u32			abort_source;
 	int			irq;
-	u32			accessor_flags;
+	u32			flags;
 	struct i2c_adapter	adapter;
 	u32			functionality;
 	u32			master_cfg;
 	unsigned int		tx_fifo_depth;
 	unsigned int		rx_fifo_depth;
 	int			rx_outstanding;
+	u32			clk_freq;
 	u32			sda_hold_time;
 	u32			sda_falling_time;
 	u32			scl_falling_time;
@@ -104,30 +121,32 @@ struct dw_i2c_dev {
 	u16			ss_lcnt;
 	u16			fs_hcnt;
 	u16			fs_lcnt;
+	u16			fp_hcnt;
+	u16			fp_lcnt;
+	u16			hs_hcnt;
+	u16			hs_lcnt;
+	struct pm_qos_request	pm_qos;
 	int			(*acquire_lock)(struct dw_i2c_dev *dev);
 	void			(*release_lock)(struct dw_i2c_dev *dev);
-	bool			pm_runtime_disabled;
+	bool			pm_disabled;
 };
 
 #define ACCESS_SWAP		0x00000001
 #define ACCESS_16BIT		0x00000002
+#define ACCESS_INTR_MASK	0x00000004
 
-extern u32 dw_readl(struct dw_i2c_dev *dev, int offset);
-extern void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset);
+#define MODEL_CHERRYTRAIL	0x00000100
+
 extern int i2c_dw_init(struct dw_i2c_dev *dev);
-extern int i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
-		int num);
-extern u32 i2c_dw_func(struct i2c_adapter *adap);
-extern irqreturn_t i2c_dw_isr(int this_irq, void *dev_id);
-extern void i2c_dw_enable(struct dw_i2c_dev *dev);
-extern u32 i2c_dw_is_enabled(struct dw_i2c_dev *dev);
 extern void i2c_dw_disable(struct dw_i2c_dev *dev);
-extern void i2c_dw_clear_int(struct dw_i2c_dev *dev);
 extern void i2c_dw_disable_int(struct dw_i2c_dev *dev);
 extern u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev);
+extern int i2c_dw_probe(struct dw_i2c_dev *dev);
 
 #if IS_ENABLED(CONFIG_I2C_DESIGNWARE_BAYTRAIL)
-extern int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev);
+extern int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev);
+extern void i2c_dw_remove_lock_support(struct dw_i2c_dev *dev);
 #else
-static inline int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev) { return 0; }
+static inline int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev) { return 0; }
+static inline void i2c_dw_remove_lock_support(struct dw_i2c_dev *dev) {}
 #endif

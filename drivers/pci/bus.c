@@ -91,6 +91,35 @@ void pci_bus_remove_resources(struct pci_bus *bus)
 	}
 }
 
+int devm_request_pci_bus_resources(struct device *dev,
+				   struct list_head *resources)
+{
+	struct resource_entry *win;
+	struct resource *parent, *res;
+	int err;
+
+	resource_list_for_each_entry(win, resources) {
+		res = win->res;
+		switch (resource_type(res)) {
+		case IORESOURCE_IO:
+			parent = &ioport_resource;
+			break;
+		case IORESOURCE_MEM:
+			parent = &iomem_resource;
+			break;
+		default:
+			continue;
+		}
+
+		err = devm_request_resource(dev, parent, res);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_request_pci_bus_resources);
+
 static struct pci_bus_region pci_32_bit = {0, 0xffffffffULL};
 #ifdef CONFIG_PCI_BUS_ADDR_T_64BIT
 static struct pci_bus_region pci_64_bit = {0,
@@ -140,6 +169,8 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 	type_mask |= IORESOURCE_TYPE_BITS;
 
 	pci_bus_for_each_resource(bus, r, i) {
+		resource_size_t min_used = min;
+
 		if (!r)
 			continue;
 
@@ -163,12 +194,12 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 		 * overrides "min".
 		 */
 		if (avail.start)
-			min = avail.start;
+			min_used = avail.start;
 
 		max = avail.end;
 
 		/* Ok, try it out.. */
-		ret = allocate_resource(r, res, size, min, max,
+		ret = allocate_resource(r, res, size, min_used, max,
 					align, alignf, alignf_data);
 		if (ret == 0)
 			return 0;
@@ -256,6 +287,8 @@ bool pci_bus_clip_resource(struct pci_dev *dev, int idx)
 
 		res->start = start;
 		res->end = end;
+		res->flags &= ~IORESOURCE_UNSET;
+		orig_res.flags &= ~IORESOURCE_UNSET;
 		dev_printk(KERN_DEBUG, &dev->dev, "%pR clipped to %pR\n",
 				 &orig_res, res);
 
@@ -266,6 +299,8 @@ bool pci_bus_clip_resource(struct pci_dev *dev, int idx)
 }
 
 void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
+
+void __weak pcibios_bus_add_device(struct pci_dev *pdev) { }
 
 /**
  * pci_bus_add_device - start driver for a single device
@@ -281,13 +316,20 @@ void pci_bus_add_device(struct pci_dev *dev)
 	 * Can not put in pci_device_add yet because resources
 	 * are not assigned yet for some devices.
 	 */
+	pcibios_bus_add_device(dev);
 	pci_fixup_device(pci_fixup_final, dev);
 	pci_create_sysfs_dev_files(dev);
 	pci_proc_attach_device(dev);
+	pci_bridge_d3_update(dev);
 
 	dev->match_driver = true;
 	retval = device_attach(&dev->dev);
-	WARN_ON(retval < 0);
+	if (retval < 0 && retval != -EPROBE_DEFER) {
+		dev_warn(&dev->dev, "device attach failed (%d)\n", retval);
+		pci_proc_detach_device(dev);
+		pci_remove_sysfs_dev_files(dev);
+		return;
+	}
 
 	dev->is_added = 1;
 }
@@ -312,7 +354,9 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 	}
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		BUG_ON(!dev->is_added);
+		/* Skip if device attach failed */
+		if (!dev->is_added)
+			continue;
 		child = dev->subordinate;
 		if (child)
 			pci_bus_add_devices(child);
@@ -383,4 +427,3 @@ void pci_bus_put(struct pci_bus *bus)
 		put_device(&bus->dev);
 }
 EXPORT_SYMBOL(pci_bus_put);
-

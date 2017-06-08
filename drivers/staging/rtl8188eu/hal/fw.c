@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -58,43 +54,21 @@ static void _rtl88e_fw_block_write(struct adapter *adapt,
 				   const u8 *buffer, u32 size)
 {
 	u32 blk_sz = sizeof(u32);
-	u8 *buf_ptr = (u8 *)buffer;
-	u32 *pu4BytePtr = (u32 *)buffer;
-	u32 i, offset, blk_cnt, remain;
+	const u8 *byte_buffer;
+	const u32 *dword_buffer = (u32 *)buffer;
+	u32 i, write_address, blk_cnt, remain;
 
 	blk_cnt = size / blk_sz;
 	remain = size % blk_sz;
 
-	for (i = 0; i < blk_cnt; i++) {
-		offset = i * blk_sz;
-		usb_write32(adapt, (FW_8192C_START_ADDRESS + offset),
-				*(pu4BytePtr + i));
-	}
+	write_address = FW_8192C_START_ADDRESS;
 
-	if (remain) {
-		offset = blk_cnt * blk_sz;
-		buf_ptr += offset;
-		for (i = 0; i < remain; i++) {
-			usb_write8(adapt, (FW_8192C_START_ADDRESS +
-						 offset + i), *(buf_ptr + i));
-		}
-	}
-}
+	for (i = 0; i < blk_cnt; i++, write_address += blk_sz)
+		usb_write32(adapt, write_address, dword_buffer[i]);
 
-static void _rtl88e_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
-{
-	u32 fwlen = *pfwlen;
-	u8 remain = (u8)(fwlen % 4);
-
-	remain = (remain == 0) ? 0 : (4 - remain);
-
-	while (remain > 0) {
-		pfwbuf[fwlen] = 0;
-		fwlen++;
-		remain--;
-	}
-
-	*pfwlen = fwlen;
+	byte_buffer = buffer + blk_cnt * blk_sz;
+	for (i = 0; i < remain; i++, write_address++)
+		usb_write8(adapt, write_address, byte_buffer[i]);
 }
 
 static void _rtl88e_fw_page_write(struct adapter *adapt,
@@ -114,8 +88,6 @@ static void _rtl88e_write_fw(struct adapter *adapt, u8 *buffer, u32 size)
 	u8 *buf_ptr = buffer;
 	u32 page_no, remain;
 	u32 page, offset;
-
-	_rtl88e_fill_dummy(buf_ptr, &size);
 
 	page_no = size / FW_8192C_PAGE_SIZE;
 	remain = size % FW_8192C_PAGE_SIZE;
@@ -182,15 +154,14 @@ exit:
 
 int rtl88eu_download_fw(struct adapter *adapt)
 {
-	struct hal_data_8188e *rtlhal = GET_HAL_DATA(adapt);
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapt);
 	struct device *device = dvobj_to_dev(dvobj);
 	const struct firmware *fw;
 	const char fw_name[] = "rtlwifi/rtl8188eufw.bin";
 	struct rtl92c_firmware_header *pfwheader = NULL;
-	u8 *pfwdata;
-	u32 fwsize;
-	int err;
+	u8 *download_data, *fw_data;
+	size_t download_size;
+	unsigned int trailing_zeros_length;
 
 	if (request_firmware(&fw, fw_name, device)) {
 		dev_err(device, "Firmware %s not available\n", fw_name);
@@ -199,26 +170,33 @@ int rtl88eu_download_fw(struct adapter *adapt)
 
 	if (fw->size > FW_8188E_SIZE) {
 		dev_err(device, "Firmware size exceed 0x%X. Check it.\n",
-			 FW_8188E_SIZE);
+			FW_8188E_SIZE);
+		release_firmware(fw);
 		return -1;
 	}
 
-	pfwdata = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
-	if (!pfwdata)
+	trailing_zeros_length = (4 - fw->size % 4) % 4;
+
+	fw_data = kmalloc(fw->size + trailing_zeros_length, GFP_KERNEL);
+	if (!fw_data) {
+		release_firmware(fw);
 		return -ENOMEM;
+	}
 
-	rtlhal->pfirmware = pfwdata;
-	memcpy(rtlhal->pfirmware, fw->data, fw->size);
-	rtlhal->fwsize = fw->size;
-	release_firmware(fw);
+	memcpy(fw_data, fw->data, fw->size);
+	memset(fw_data + fw->size, 0, trailing_zeros_length);
 
-	fwsize = rtlhal->fwsize;
-	pfwheader = (struct rtl92c_firmware_header *)pfwdata;
+	pfwheader = (struct rtl92c_firmware_header *)fw_data;
 
 	if (IS_FW_HEADER_EXIST(pfwheader)) {
-		pfwdata = pfwdata + 32;
-		fwsize = fwsize - 32;
+		download_data = fw_data + 32;
+		download_size = fw->size + trailing_zeros_length - 32;
+	} else {
+		download_data = fw_data;
+		download_size = fw->size + trailing_zeros_length;
 	}
+
+	release_firmware(fw);
 
 	if (usb_read8(adapt, REG_MCUFWDL) & RAM_DL_SEL) {
 		usb_write8(adapt, REG_MCUFWDL, 0);
@@ -226,10 +204,9 @@ int rtl88eu_download_fw(struct adapter *adapt)
 	}
 	_rtl88e_enable_fw_download(adapt, true);
 	usb_write8(adapt, REG_MCUFWDL, usb_read8(adapt, REG_MCUFWDL) | FWDL_ChkSum_rpt);
-	_rtl88e_write_fw(adapt, pfwdata, fwsize);
+	_rtl88e_write_fw(adapt, download_data, download_size);
 	_rtl88e_enable_fw_download(adapt, false);
 
-	err = _rtl88e_fw_free_to_go(adapt);
-
-	return err;
+	kfree(fw_data);
+	return _rtl88e_fw_free_to_go(adapt);
 }

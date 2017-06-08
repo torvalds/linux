@@ -700,7 +700,6 @@ static struct spi_driver ssp_driver = {
 	.remove = ssp_remove,
 	.driver = {
 		.pm = &ssp_pm_ops,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(ssp_of_match),
 		.name = "sensorhub"
 	},

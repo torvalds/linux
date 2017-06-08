@@ -75,6 +75,7 @@ static int bc_set_next(ktime_t expires, struct clock_event_device *bc)
 }
 
 static struct clock_event_device ce_broadcast_hrtimer = {
+	.name			= "bc_hrtimer",
 	.set_state_shutdown	= bc_shutdown,
 	.set_next_ktime		= bc_set_next,
 	.features		= CLOCK_EVT_FEAT_ONESHOT |
@@ -96,7 +97,7 @@ static enum hrtimer_restart bc_handler(struct hrtimer *t)
 	ce_broadcast_hrtimer.event_handler(&ce_broadcast_hrtimer);
 
 	if (clockevent_state_oneshot(&ce_broadcast_hrtimer))
-		if (ce_broadcast_hrtimer.next_event.tv64 != KTIME_MAX)
+		if (ce_broadcast_hrtimer.next_event != KTIME_MAX)
 			return HRTIMER_RESTART;
 
 	return HRTIMER_NORESTART;

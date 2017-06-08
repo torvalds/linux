@@ -13,6 +13,10 @@
 		serial0 = &uarta;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
 		reg = <0x00000000 0x20000000>;
 	};
@@ -508,7 +512,7 @@
 		nvidia,repeat-delay-ms = <160>;
 		nvidia,kbc-row-pins = <0 1 2>;
 		nvidia,kbc-col-pins = <16 17>;
-		nvidia,wakeup-source;
+		wakeup-source;
 		linux,keymap = <MATRIX_KEY(0x00, 0x00, KEY_POWER)
 				MATRIX_KEY(0x01, 0x00, KEY_HOME)
 				MATRIX_KEY(0x01, 0x01, KEY_BACK)
@@ -565,7 +569,7 @@
 
 		clk32k_in: clock@0 {
 			compatible = "fixed-clock";
-			reg=<0>;
+			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};

@@ -55,27 +55,28 @@ of heat dissipation). For example a fan's cooling states correspond to
 the different fan speeds possible. Cooling states are referred to by
 single unsigned integers, where larger numbers mean greater heat
 dissipation. The precise set of cooling states associated with a device
-(as referred to be the cooling-min-state and cooling-max-state
+(as referred to by the cooling-min-level and cooling-max-level
 properties) should be defined in a particular device's binding.
 For more examples of cooling devices, refer to the example sections below.
 
 Required properties:
-- cooling-min-state:	An integer indicating the smallest
-  Type: unsigned	cooling state accepted. Typically 0.
-  Size: one cell
-
-- cooling-max-state:	An integer indicating the largest
-  Type: unsigned	cooling state accepted.
-  Size: one cell
-
 - #cooling-cells:	Used to provide cooling device specific information
   Type: unsigned	while referring to it. Must be at least 2, in order
-  Size: one cell      	to specify minimum and maximum cooling state used
+  Size: one cell	to specify minimum and maximum cooling state used
 			in the reference. The first cell is the minimum
 			cooling state requested and the second cell is
 			the maximum cooling state requested in the reference.
 			See Cooling device maps section below for more details
 			on how consumers refer to cooling devices.
+
+Optional properties:
+- cooling-min-level:	An integer indicating the smallest
+  Type: unsigned	cooling state accepted. Typically 0.
+  Size: one cell
+
+- cooling-max-level:	An integer indicating the largest
+  Type: unsigned	cooling state accepted.
+  Size: one cell
 
 * Trip points
 
@@ -118,7 +119,7 @@ Required properties:
 Optional property:
 - contribution:		The cooling contribution to the thermal zone of the
   Type: unsigned	referred cooling device at the referred trip point.
-  Size: one cell      	The contribution is a ratio of the sum
+  Size: one cell	The contribution is a ratio of the sum
 			of all cooling contributions within a thermal zone.
 
 Note: Using the THERMAL_NO_LIMIT (-1UL) constant in the cooling-device phandle
@@ -144,7 +145,7 @@ Required properties:
   Size: one cell
 
 - thermal-sensors:	A list of thermal sensor phandles and sensor specifier
-  Type: list of 	used while monitoring the thermal zone.
+  Type: list of		used while monitoring the thermal zone.
   phandles + sensor
   specifier
 
@@ -225,8 +226,8 @@ cpus {
 			396000  950000
 			198000  850000
 		>;
-		cooling-min-state = <0>;
-		cooling-max-state = <3>;
+		cooling-min-level = <0>;
+		cooling-max-level = <3>;
 		#cooling-cells = <2>; /* min followed by max */
 	};
 	...
@@ -240,8 +241,8 @@ cpus {
 	 */
 	fan0: fan@0x48 {
 		...
-		cooling-min-state = <0>;
-		cooling-max-state = <9>;
+		cooling-min-level = <0>;
+		cooling-max-level = <9>;
 		#cooling-cells = <2>; /* min followed by max */
 	};
 };
@@ -472,7 +473,7 @@ thermal-zones {
 				  <&adc>;	/* pcb north */
 
 		/* hotspot = 100 * bandgap - 120 * adc + 484 */
-		coefficients = 		<100	-120	484>;
+		coefficients =		<100	-120	484>;
 
 		trips {
 			...
@@ -501,7 +502,7 @@ from the ADC sensor. The binding would be then:
         thermal-sensors =  <&adc>;
 
 		/* hotspot = 1 * adc + 6000 */
-	coefficients = 		<1	6000>;
+	coefficients =		<1	6000>;
 
 (d) - Board thermal
 

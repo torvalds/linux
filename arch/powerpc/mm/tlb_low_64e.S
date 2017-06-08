@@ -68,11 +68,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	ld	r14,PACAPGD(r13)
 	std	r15,EX_TLB_R15(r12)
 	std	r10,EX_TLB_CR(r12)
+#ifdef CONFIG_PPC_FSL_BOOK3E
+	std	r7,EX_TLB_R7(r12)
+#endif
 	TLB_MISS_PROLOG_STATS
 .endm
 
 .macro tlb_epilog_bolted
 	ld	r14,EX_TLB_CR(r12)
+#ifdef CONFIG_PPC_FSL_BOOK3E
+	ld	r7,EX_TLB_R7(r12)
+#endif
 	ld	r10,EX_TLB_R10(r12)
 	ld	r11,EX_TLB_R11(r12)
 	ld	r13,EX_TLB_R13(r12)
@@ -297,6 +303,7 @@ itlb_miss_fault_bolted:
  * r13 = PACA
  * r11 = tlb_per_core ptr
  * r10 = crap (free to use)
+ * r7  = esel_next
  */
 tlb_miss_common_e6500:
 	crmove	cr2*4+2,cr0*4+2		/* cr2.eq != 0 if kernel address */
@@ -325,7 +332,11 @@ BEGIN_FTR_SECTION		/* CPU_FTR_SMT */
 	bne	10b
 	b	1b
 	.previous
+END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 
+	lbz	r7,TCD_ESEL_NEXT(r11)
+
+BEGIN_FTR_SECTION		/* CPU_FTR_SMT */
 	/*
 	 * Erratum A-008139 says that we can't use tlbwe to change
 	 * an indirect entry in any way (including replacing or
@@ -334,8 +345,7 @@ BEGIN_FTR_SECTION		/* CPU_FTR_SMT */
 	 * with tlbilx before overwriting.
 	 */
 
-	lbz	r15,TCD_ESEL_NEXT(r11)
-	rlwinm	r10,r15,16,0xff0000
+	rlwinm	r10,r7,16,0xff0000
 	oris	r10,r10,MAS0_TLBSEL(1)@h
 	mtspr	SPRN_MAS0,r10
 	isync
@@ -429,15 +439,14 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_SMT)
 	mtspr	SPRN_MAS2,r15
 
 tlb_miss_huge_done_e6500:
-	lbz	r15,TCD_ESEL_NEXT(r11)
 	lbz	r16,TCD_ESEL_MAX(r11)
 	lbz	r14,TCD_ESEL_FIRST(r11)
-	rlwimi	r10,r15,16,0x00ff0000	/* insert esel_next into MAS0 */
-	addi	r15,r15,1		/* increment esel_next */
+	rlwimi	r10,r7,16,0x00ff0000	/* insert esel_next into MAS0 */
+	addi	r7,r7,1			/* increment esel_next */
 	mtspr	SPRN_MAS0,r10
-	cmpw	r15,r16
-	iseleq	r15,r14,r15		/* if next == last use first */
-	stb	r15,TCD_ESEL_NEXT(r11)
+	cmpw	r7,r16
+	iseleq	r7,r14,r7		/* if next == last use first */
+	stb	r7,TCD_ESEL_NEXT(r11)
 
 	tlbwe
 
@@ -886,7 +895,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 BEGIN_MMU_FTR_SECTION
 virt_page_table_tlb_miss_done:
 
-	/* We have overriden MAS2:EPN but currently our primary TLB miss
+	/* We have overridden MAS2:EPN but currently our primary TLB miss
 	 * handler will always restore it so that should not be an issue,
 	 * if we ever optimize the primary handler to not write MAS2 on
 	 * some cases, we'll have to restore MAS2:EPN here based on the

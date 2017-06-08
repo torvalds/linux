@@ -182,7 +182,7 @@ static int __init _clps711x_intc_init(struct device_node *np,
 	writel_relaxed(0, clps711x_intc->intmr[2]);
 
 	err = irq_alloc_descs(-1, 0, ARRAY_SIZE(clps711x_irqs), numa_node_id());
-	if (IS_ERR_VALUE(err))
+	if (err < 0)
 		goto out_iounmap;
 
 	clps711x_intc->ops.map = clps711x_intc_irq_map;
@@ -234,5 +234,5 @@ static int __init clps711x_intc_init_dt(struct device_node *np,
 
 	return _clps711x_intc_init(np, res.start, resource_size(&res));
 }
-IRQCHIP_DECLARE(clps711x, "cirrus,clps711x-intc", clps711x_intc_init_dt);
+IRQCHIP_DECLARE(clps711x, "cirrus,ep7209-intc", clps711x_intc_init_dt);
 #endif

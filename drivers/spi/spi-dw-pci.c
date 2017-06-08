@@ -23,11 +23,6 @@
 
 #define DRIVER_NAME "dw_spi_pci"
 
-struct dw_spi_pci {
-	struct pci_dev	*pdev;
-	struct dw_spi	dws;
-};
-
 struct spi_pci_desc {
 	int	(*setup)(struct dw_spi *);
 	u16	num_cs;
@@ -48,7 +43,6 @@ static struct spi_pci_desc spi_pci_mid_desc_2 = {
 
 static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct dw_spi_pci *dwpci;
 	struct dw_spi *dws;
 	struct spi_pci_desc *desc = (struct spi_pci_desc *)ent->driver_data;
 	int pci_bar = 0;
@@ -58,13 +52,9 @@ static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	dwpci = devm_kzalloc(&pdev->dev, sizeof(struct dw_spi_pci),
-			GFP_KERNEL);
-	if (!dwpci)
+	dws = devm_kzalloc(&pdev->dev, sizeof(*dws), GFP_KERNEL);
+	if (!dws)
 		return -ENOMEM;
-
-	dwpci->pdev = pdev;
-	dws = &dwpci->dws;
 
 	/* Get basic io resource and map it */
 	dws->paddr = pci_resource_start(pdev, pci_bar);
@@ -74,11 +64,10 @@ static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ret;
 
 	dws->regs = pcim_iomap_table(pdev)[pci_bar];
-
 	dws->irq = pdev->irq;
 
 	/*
-	 * Specific handling for paltforms, like dma setup,
+	 * Specific handling for platforms, like dma setup,
 	 * clock rate, FIFO depth.
 	 */
 	if (desc) {
@@ -99,7 +88,7 @@ static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ret;
 
 	/* PCI hook and SPI hook use the same drv data */
-	pci_set_drvdata(pdev, dwpci);
+	pci_set_drvdata(pdev, dws);
 
 	dev_info(&pdev->dev, "found PCI SPI controller(ID: %04x:%04x)\n",
 		pdev->vendor, pdev->device);
@@ -109,26 +98,26 @@ static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 static void spi_pci_remove(struct pci_dev *pdev)
 {
-	struct dw_spi_pci *dwpci = pci_get_drvdata(pdev);
+	struct dw_spi *dws = pci_get_drvdata(pdev);
 
-	dw_spi_remove_host(&dwpci->dws);
+	dw_spi_remove_host(dws);
 }
 
 #ifdef CONFIG_PM_SLEEP
 static int spi_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct dw_spi_pci *dwpci = pci_get_drvdata(pdev);
+	struct dw_spi *dws = pci_get_drvdata(pdev);
 
-	return dw_spi_suspend_host(&dwpci->dws);
+	return dw_spi_suspend_host(dws);
 }
 
 static int spi_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct dw_spi_pci *dwpci = pci_get_drvdata(pdev);
+	struct dw_spi *dws = pci_get_drvdata(pdev);
 
-	return dw_spi_resume_host(&dwpci->dws);
+	return dw_spi_resume_host(dws);
 }
 #endif
 

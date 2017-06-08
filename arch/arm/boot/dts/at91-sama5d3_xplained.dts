@@ -76,7 +76,7 @@
 				pmic: act8865@5b {
 					compatible = "active-semi,act8865";
 					reg = <0x5b>;
-					status = "okay";
+					status = "disabled";
 
 					regulators {
 						vcc_1v8_reg: DCDC_REG1 {
@@ -162,9 +162,10 @@
 			};
 
 			adc0: adc@f8018000 {
+				atmel,adc-vref = <3300>;
+				atmel,adc-channels-used = <0xfe>;
 				pinctrl-0 = <
 					&pinctrl_adc0_adtrg
-					&pinctrl_adc0_ad0
 					&pinctrl_adc0_ad1
 					&pinctrl_adc0_ad2
 					&pinctrl_adc0_ad3
@@ -172,8 +173,6 @@
 					&pinctrl_adc0_ad5
 					&pinctrl_adc0_ad6
 					&pinctrl_adc0_ad7
-					&pinctrl_adc0_ad8
-					&pinctrl_adc0_ad9
 					>;
 				status = "okay";
 			};
@@ -297,12 +296,13 @@
 		};
 	};
 
-	vcc_mmc0_reg: fixedregulator@0 {
+	vcc_mmc0_reg: fixedregulator_mmc0 {
 		compatible = "regulator-fixed";
 		gpio = <&pioE 2 GPIO_ACTIVE_LOW>;
 		regulator-name = "mmc0-card-supply";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 	};
 
 	gpio_keys {
@@ -315,7 +315,7 @@
 			label = "PB_USER";
 			gpios = <&pioE 29 GPIO_ACTIVE_LOW>;
 			linux,code = <0x104>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

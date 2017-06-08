@@ -1,18 +1,15 @@
-/**
- * Copyright (C) 2005 - 2015 Avago Technologies
- * All rights reserved.
+/*
+ * Copyright 2017 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.  The full GNU General
+ * as published by the Free Software Foundation. The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@avagotech.com
+ * linux-drivers@broadcom.com
  *
- * Avago Technologies
- * 3333 Susan Street
- * Costa Mesa, CA 92626
  */
 
 #ifndef BEISCSI_H
@@ -20,7 +17,7 @@
 
 #include <linux/pci.h>
 #include <linux/if_vlan.h>
-#include <linux/blk-iopoll.h>
+#include <linux/irq_poll.h>
 #define FW_VER_LEN	32
 #define MCC_Q_LEN	128
 #define MCC_CQ_LEN	256
@@ -42,7 +39,7 @@ struct be_queue_info {
 	u16 id;
 	u16 tail, head;
 	bool created;
-	atomic_t used;		/* Number of valid elements in the queue */
+	u16 used;		/* Number of valid elements in the queue */
 };
 
 static inline u32 MODULO(u16 val, u16 limit)
@@ -84,24 +81,21 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 /*ISCSI */
 
 struct be_aic_obj {		/* Adaptive interrupt coalescing (AIC) info */
-	bool enable;
 	u32 min_eqd;		/* in usecs */
 	u32 max_eqd;		/* in usecs */
 	u32 prev_eqd;		/* in usecs */
 	u32 et_eqd;		/* configured val when aic is off */
-	ulong jiffs;
+	ulong jiffies;
 	u64 eq_prev;		/* Used to calculate eqe */
 };
 
 struct be_eq_obj {
-	bool todo_mcc_cq;
-	bool todo_cq;
 	u32 cq_count;
 	struct be_queue_info q;
 	struct beiscsi_hba *phba;
 	struct be_queue_info *cq;
-	struct work_struct work_cqs; /* Work Item */
-	struct blk_iopoll	iopoll;
+	struct work_struct mcc_work; /* Work Item */
+	struct irq_poll	iopoll;
 };
 
 struct be_mcc_obj {
@@ -110,10 +104,12 @@ struct be_mcc_obj {
 };
 
 struct beiscsi_mcc_tag_state {
-#define MCC_TAG_STATE_COMPLETED 0x00
-#define MCC_TAG_STATE_RUNNING   0x01
-#define MCC_TAG_STATE_TIMEOUT   0x02
-	uint8_t tag_state;
+	unsigned long tag_state;
+#define MCC_TAG_STATE_RUNNING	0
+#define MCC_TAG_STATE_TIMEOUT	1
+#define MCC_TAG_STATE_ASYNC	2
+#define MCC_TAG_STATE_IGNORE	3
+	void (*cbfn)(struct beiscsi_hba *, unsigned int);
 	struct be_dma_mem tag_mem_state;
 };
 
@@ -124,7 +120,7 @@ struct be_ctrl_info {
 	struct pci_dev *pdev;
 
 	/* Mbox used for cmd request/response */
-	spinlock_t mbox_lock;	/* For serializing mbox cmds to BE card */
+	struct mutex mbox_lock;	/* For serializing mbox cmds to BE card */
 	struct be_dma_mem mbox_mem;
 	/* Mbox mem is adjusted to align to 16 bytes. The allocated addr
 	 * is stored for freeing purpose */
@@ -133,11 +129,10 @@ struct be_ctrl_info {
 	/* MCC Rings */
 	struct be_mcc_obj mcc_obj;
 	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
-	spinlock_t mcc_cq_lock;
 
 	wait_queue_head_t mcc_wait[MAX_MCC_CMD + 1];
 	unsigned int mcc_tag[MAX_MCC_CMD];
-	unsigned int mcc_numtag[MAX_MCC_CMD + 1];
+	unsigned int mcc_tag_status[MAX_MCC_CMD + 1];
 	unsigned short mcc_alloc_index;
 	unsigned short mcc_free_index;
 	unsigned int mcc_tag_available;
@@ -147,10 +142,15 @@ struct be_ctrl_info {
 
 #include "be_cmds.h"
 
+/* WRB index mask for MCC_Q_LEN queue entries */
+#define MCC_Q_WRB_IDX_MASK	CQE_STATUS_WRB_MASK
+#define MCC_Q_WRB_IDX_SHIFT	CQE_STATUS_WRB_SHIFT
+/* TAG is from 1...MAX_MCC_CMD, MASK includes MAX_MCC_CMD */
+#define MCC_Q_CMD_TAG_MASK	((MAX_MCC_CMD << 1) - 1)
+
 #define PAGE_SHIFT_4K 12
 #define PAGE_SIZE_4K (1 << PAGE_SHIFT_4K)
 #define mcc_timeout		120000 /* 12s timeout */
-#define BEISCSI_LOGOUT_SYNC_DELAY	250
 
 /* Returns number of pages spanned by the data starting at the given addr */
 #define PAGES_4K_SPANNED(_address, size)				\

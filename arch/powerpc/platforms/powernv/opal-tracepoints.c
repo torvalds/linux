@@ -1,13 +1,15 @@
 #include <linux/percpu.h>
 #include <linux/jump_label.h>
 #include <asm/trace.h>
+#include <asm/asm-prototypes.h>
 
 #ifdef HAVE_JUMP_LABEL
 struct static_key opal_tracepoint_key = STATIC_KEY_INIT;
 
-void opal_tracepoint_regfunc(void)
+int opal_tracepoint_regfunc(void)
 {
 	static_key_slow_inc(&opal_tracepoint_key);
+	return 0;
 }
 
 void opal_tracepoint_unregfunc(void)
@@ -24,9 +26,10 @@ void opal_tracepoint_unregfunc(void)
 /* NB: reg/unreg are called while guarded with the tracepoints_mutex */
 extern long opal_tracepoint_refcount;
 
-void opal_tracepoint_regfunc(void)
+int opal_tracepoint_regfunc(void)
 {
 	opal_tracepoint_refcount++;
+	return 0;
 }
 
 void opal_tracepoint_unregfunc(void)

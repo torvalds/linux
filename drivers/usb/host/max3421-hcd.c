@@ -797,19 +797,16 @@ max3421_check_unlink(struct usb_hcd *hcd)
 {
 	struct spi_device *spi = to_spi_device(hcd->self.controller);
 	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
-	struct list_head *pos, *upos, *next_upos;
 	struct max3421_ep *max3421_ep;
 	struct usb_host_endpoint *ep;
-	struct urb *urb;
+	struct urb *urb, *next;
 	unsigned long flags;
 	int retval = 0;
 
 	spin_lock_irqsave(&max3421_hcd->lock, flags);
-	list_for_each(pos, &max3421_hcd->ep_list) {
-		max3421_ep = container_of(pos, struct max3421_ep, ep_list);
+	list_for_each_entry(max3421_ep, &max3421_hcd->ep_list, ep_list) {
 		ep = max3421_ep->ep;
-		list_for_each_safe(upos, next_upos, &ep->urb_list) {
-			urb = container_of(upos, struct urb, urb_list);
+		list_for_each_entry_safe(urb, next, &ep->urb_list, urb_list) {
 			if (urb->unlinked) {
 				retval = 1;
 				dev_dbg(&spi->dev, "%s: URB %p unlinked=%d",
@@ -1184,22 +1181,19 @@ dump_eps(struct usb_hcd *hcd)
 	struct max3421_hcd *max3421_hcd = hcd_to_max3421(hcd);
 	struct max3421_ep *max3421_ep;
 	struct usb_host_endpoint *ep;
-	struct list_head *pos, *upos;
 	char ubuf[512], *dp, *end;
 	unsigned long flags;
 	struct urb *urb;
 	int epnum, ret;
 
 	spin_lock_irqsave(&max3421_hcd->lock, flags);
-	list_for_each(pos, &max3421_hcd->ep_list) {
-		max3421_ep = container_of(pos, struct max3421_ep, ep_list);
+	list_for_each_entry(max3421_ep, &max3421_hcd->ep_list, ep_list) {
 		ep = max3421_ep->ep;
 
 		dp = ubuf;
 		end = dp + sizeof(ubuf);
 		*dp = '\0';
-		list_for_each(upos, &ep->urb_list) {
-			urb = container_of(upos, struct urb, urb_list);
+		list_for_each_entry(urb, &ep->urb_list, urb_list) {
 			ret = snprintf(dp, end - dp, " %p(%d.%s %d/%d)", urb,
 				       usb_pipetype(urb->pipe),
 				       usb_urb_dir_in(urb) ? "IN" : "OUT",
@@ -1681,7 +1675,7 @@ max3421_gpout_set_value(struct usb_hcd *hcd, u8 pin_number, u8 value)
 	if (pin_number > 7)
 		return;
 
-	mask = 1u << pin_number;
+	mask = 1u << (pin_number % 4);
 	idx = pin_number / 4;
 
 	if (value)
@@ -1862,15 +1856,11 @@ max3421_probe(struct spi_device *spi)
 	INIT_LIST_HEAD(&max3421_hcd->ep_list);
 
 	max3421_hcd->tx = kmalloc(sizeof(*max3421_hcd->tx), GFP_KERNEL);
-	if (!max3421_hcd->tx) {
-		dev_err(&spi->dev, "failed to kmalloc tx buffer\n");
+	if (!max3421_hcd->tx)
 		goto error;
-	}
 	max3421_hcd->rx = kmalloc(sizeof(*max3421_hcd->rx), GFP_KERNEL);
-	if (!max3421_hcd->rx) {
-		dev_err(&spi->dev, "failed to kmalloc rx buffer\n");
+	if (!max3421_hcd->rx)
 		goto error;
-	}
 
 	max3421_hcd->spi_thread = kthread_run(max3421_spi_thread, hcd,
 					      "max3421_spi_thread");
@@ -1944,7 +1934,6 @@ static struct spi_driver max3421_driver = {
 	.remove		= max3421_remove,
 	.driver		= {
 		.name	= "max3421-hcd",
-		.owner	= THIS_MODULE,
 	},
 };
 

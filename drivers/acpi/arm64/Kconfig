@@ -1,0 +1,9 @@
+#
+# ACPI Configuration for ARM64
+#
+
+config ACPI_IORT
+	bool
+
+config ACPI_GTDT
+	bool

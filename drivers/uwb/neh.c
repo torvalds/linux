@@ -223,9 +223,7 @@ struct uwb_rc_neh *uwb_rc_neh_add(struct uwb_rc *rc, struct uwb_rccb *cmd,
 
 	kref_init(&neh->kref);
 	INIT_LIST_HEAD(&neh->list_node);
-	init_timer(&neh->timer);
-	neh->timer.function = uwb_rc_neh_timer;
-	neh->timer.data     = (unsigned long)neh;
+	setup_timer(&neh->timer, uwb_rc_neh_timer, (unsigned long)neh);
 
 	neh->rc = rc;
 	neh->evt_type = expected_type;

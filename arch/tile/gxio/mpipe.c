@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/string.h>
 
 #include <gxio/iorpc_globals.h>
 #include <gxio/iorpc_mpipe.h>
@@ -28,32 +29,6 @@
 
 /* HACK: Avoid pointless "shadow" warnings. */
 #define link link_shadow
-
-/**
- * strscpy - Copy a C-string into a sized buffer, but only if it fits
- * @dest: Where to copy the string to
- * @src: Where to copy the string from
- * @size: size of destination buffer
- *
- * Use this routine to avoid copying too-long strings.
- * The routine returns the total number of bytes copied
- * (including the trailing NUL) or zero if the buffer wasn't
- * big enough.  To ensure that programmers pay attention
- * to the return code, the destination has a single NUL
- * written at the front (if size is non-zero) when the
- * buffer is not big enough.
- */
-static size_t strscpy(char *dest, const char *src, size_t size)
-{
-	size_t len = strnlen(src, size) + 1;
-	if (len > size) {
-		if (size)
-			dest[0] = '\0';
-		return 0;
-	}
-	memcpy(dest, src, len);
-	return len;
-}
 
 int gxio_mpipe_init(gxio_mpipe_context_t *context, unsigned int mpipe_index)
 {
@@ -147,7 +122,7 @@ size_t gxio_mpipe_calc_buffer_stack_bytes(unsigned long buffers)
 {
 	const int BUFFERS_PER_LINE = 12;
 
-	/* Count the number of cachlines. */
+	/* Count the number of cachelines. */
 	unsigned long lines =
 		(buffers + BUFFERS_PER_LINE - 1) / BUFFERS_PER_LINE;
 
@@ -540,7 +515,7 @@ int gxio_mpipe_link_instance(const char *link_name)
 	if (!context)
 		return GXIO_ERR_NO_DEVICE;
 
-	if (strscpy(name.name, link_name, sizeof(name.name)) == 0)
+	if (strscpy(name.name, link_name, sizeof(name.name)) < 0)
 		return GXIO_ERR_NO_DEVICE;
 
 	return gxio_mpipe_info_instance_aux(context, name);
@@ -559,7 +534,7 @@ int gxio_mpipe_link_enumerate_mac(int idx, char *link_name, uint8_t *link_mac)
 
 	rv = gxio_mpipe_info_enumerate_aux(context, idx, &name, &mac);
 	if (rv >= 0) {
-		if (strscpy(link_name, name.name, sizeof(name.name)) == 0)
+		if (strscpy(link_name, name.name, sizeof(name.name)) < 0)
 			return GXIO_ERR_INVAL_MEMORY_SIZE;
 		memcpy(link_mac, mac.mac, sizeof(mac.mac));
 	}
@@ -576,7 +551,7 @@ int gxio_mpipe_link_open(gxio_mpipe_link_t *link,
 	_gxio_mpipe_link_name_t name;
 	int rv;
 
-	if (strscpy(name.name, link_name, sizeof(name.name)) == 0)
+	if (strscpy(name.name, link_name, sizeof(name.name)) < 0)
 		return GXIO_ERR_NO_DEVICE;
 
 	rv = gxio_mpipe_link_open_aux(context, name, flags);

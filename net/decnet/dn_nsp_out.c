@@ -85,7 +85,7 @@ static void dn_nsp_send(struct sk_buff *skb)
 	if (dst) {
 try_again:
 		skb_dst_set(skb, dst);
-		dst_output(skb);
+		dst_output(&init_net, skb->sk, skb);
 		return;
 	}
 
@@ -582,7 +582,7 @@ static __inline__ void dn_nsp_do_disc(struct sock *sk, unsigned char msgflg,
 	 * associations.
 	 */
 	skb_dst_set(skb, dst_clone(dst));
-	dst_output(skb);
+	dst_output(&init_net, skb->sk, skb);
 }
 
 

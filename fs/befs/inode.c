@@ -1,6 +1,6 @@
 /*
  * inode.c
- * 
+ *
  * Copyright (C) 2001 Will Dyson <will_dyson@pobox.com>
  */
 
@@ -10,12 +10,12 @@
 #include "inode.h"
 
 /*
-	Validates the correctness of the befs inode
-	Returns BEFS_OK if the inode should be used, otherwise
-	returns BEFS_BAD_INODE
-*/
+ * Validates the correctness of the befs inode
+ * Returns BEFS_OK if the inode should be used, otherwise
+ * returns BEFS_BAD_INODE
+ */
 int
-befs_check_inode(struct super_block *sb, befs_inode * raw_inode,
+befs_check_inode(struct super_block *sb, befs_inode *raw_inode,
 		 befs_blocknr_t inode)
 {
 	u32 magic1 = fs32_to_cpu(sb, raw_inode->magic1);

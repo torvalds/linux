@@ -23,7 +23,7 @@
 #include <linux/sysctl.h>
 #include <linux/device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
 
@@ -617,5 +617,5 @@ static void __exit parport_default_proc_unregister (void)
 }
 #endif
 
-module_init(parport_default_proc_register)
+subsys_initcall(parport_default_proc_register)
 module_exit(parport_default_proc_unregister)

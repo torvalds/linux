@@ -127,7 +127,7 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	if (lp->in_idx >= MAX_SKB_BUFFERS)
 		lp->in_idx = 0;	/* wrap around */
 	lp->sk_count++;		/* adjust counter */
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	/* If we just used up the very last entry in the
 	 * TX ring on this device, tell the queueing
@@ -232,7 +232,6 @@ static const struct net_device_ops hysdn_netdev_ops = {
 	.ndo_open		= net_open,
 	.ndo_stop		= net_close,
 	.ndo_start_xmit		= net_send_packet,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

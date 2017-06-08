@@ -15,6 +15,9 @@
 #include <net/ipv6.h>
 #include <net/addrconf.h>
 #include <net/inet_frag.h>
+#ifdef CONFIG_NETLABEL
+#include <net/calipso.h>
+#endif
 
 static int one = 1;
 static int auto_flowlabels_min;
@@ -106,6 +109,22 @@ static struct ctl_table ipv6_rotable[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &one
 	},
+#ifdef CONFIG_NETLABEL
+	{
+		.procname	= "calipso_cache_enable",
+		.data		= &calipso_cache_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "calipso_cache_bucket_size",
+		.data		= &calipso_cache_bucketsize,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif /* CONFIG_NETLABEL */
 	{ }
 };
 

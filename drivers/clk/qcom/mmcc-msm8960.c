@@ -41,6 +41,10 @@ enum {
 	P_PLL3,
 	P_PLL15,
 	P_HDMI_PLL,
+	P_DSI1_PLL_DSICLK,
+	P_DSI2_PLL_DSICLK,
+	P_DSI1_PLL_BYTECLK,
+	P_DSI2_PLL_BYTECLK,
 };
 
 #define F_MN(f, s, _m, _n) { .freq = f, .src = s, .m = _m, .n = _n }
@@ -83,6 +87,30 @@ static const char * const mmcc_pxo_pll8_pll2_pll3[] = {
 	"pll8_vote",
 	"pll2",
 	"pll3",
+};
+
+static const struct parent_map mmcc_pxo_dsi2_dsi1_map[] = {
+	{ P_PXO, 0 },
+	{ P_DSI2_PLL_DSICLK, 1 },
+	{ P_DSI1_PLL_DSICLK, 3 },
+};
+
+static const char * const mmcc_pxo_dsi2_dsi1[] = {
+	"pxo",
+	"dsi2pll",
+	"dsi1pll",
+};
+
+static const struct parent_map mmcc_pxo_dsi1_dsi2_byte_map[] = {
+	{ P_PXO, 0 },
+	{ P_DSI1_PLL_BYTECLK, 1 },
+	{ P_DSI2_PLL_BYTECLK, 2 },
+};
+
+static const char * const mmcc_pxo_dsi1_dsi2_byte[] = {
+	"pxo",
+	"dsi1pllbyte",
+	"dsi2pllbyte",
 };
 
 static struct clk_pll pll2 = {
@@ -1761,7 +1789,6 @@ static struct clk_branch gmem_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gmem_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1777,7 +1804,6 @@ static struct clk_branch ijpeg_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "ijpeg_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1793,7 +1819,6 @@ static struct clk_branch mmss_imem_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "mmss_imem_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1807,7 +1832,6 @@ static struct clk_branch jpegd_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "jpegd_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1823,7 +1847,6 @@ static struct clk_branch vcodec_axi_b_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "vcodec_axi_b_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1839,7 +1862,6 @@ static struct clk_branch vcodec_axi_a_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "vcodec_axi_a_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1855,7 +1877,6 @@ static struct clk_branch vcodec_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "vcodec_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1869,7 +1890,6 @@ static struct clk_branch vfe_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "vfe_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1885,7 +1905,6 @@ static struct clk_branch mdp_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "mdp_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1901,7 +1920,6 @@ static struct clk_branch rot_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "rot_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1917,7 +1935,6 @@ static struct clk_branch vcap_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "vcap_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1933,7 +1950,6 @@ static struct clk_branch vpe_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "vpe_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1949,7 +1965,6 @@ static struct clk_branch gfx3d_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gfx3d_axi_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1963,7 +1978,6 @@ static struct clk_branch amp_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "amp_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -1977,7 +1991,6 @@ static struct clk_branch csi_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "csi_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT
 		},
 	},
 };
@@ -1991,7 +2004,6 @@ static struct clk_branch dsi_m_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "dsi_m_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2007,7 +2019,6 @@ static struct clk_branch dsi_s_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "dsi_s_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2021,7 +2032,6 @@ static struct clk_branch dsi2_m_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "dsi2_m_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT
 		},
 	},
 };
@@ -2037,7 +2047,350 @@ static struct clk_branch dsi2_s_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "dsi2_s_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
+		},
+	},
+};
+
+static struct clk_rcg dsi1_src = {
+	.ns_reg = 0x0054,
+	.md_reg = 0x0050,
+	.mn = {
+		.mnctr_en_bit = 5,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 6,
+		.n_val_shift = 24,
+		.m_val_shift = 8,
+		.width = 8,
+	},
+	.p = {
+		.pre_div_shift = 14,
+		.pre_div_width = 2,
+	},
+	.s = {
+		.src_sel_shift = 0,
+		.parent_map = mmcc_pxo_dsi2_dsi1_map,
+	},
+	.clkr = {
+		.enable_reg = 0x004c,
+		.enable_mask = BIT(2),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi1_src",
+			.parent_names = mmcc_pxo_dsi2_dsi1,
+			.num_parents = 3,
+			.ops = &clk_rcg_bypass2_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_branch dsi1_clk = {
+	.halt_reg = 0x01d0,
+	.halt_bit = 2,
+	.clkr = {
+		.enable_reg = 0x004c,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi1_clk",
+			.parent_names = (const char *[]){ "dsi1_src" },
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_rcg dsi2_src = {
+	.ns_reg = 0x012c,
+	.md_reg = 0x00a8,
+	.mn = {
+		.mnctr_en_bit = 5,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 6,
+		.n_val_shift = 24,
+		.m_val_shift = 8,
+		.width = 8,
+	},
+	.p = {
+		.pre_div_shift = 14,
+		.pre_div_width = 2,
+	},
+	.s = {
+		.src_sel_shift = 0,
+		.parent_map = mmcc_pxo_dsi2_dsi1_map,
+	},
+	.clkr = {
+		.enable_reg = 0x003c,
+		.enable_mask = BIT(2),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi2_src",
+			.parent_names = mmcc_pxo_dsi2_dsi1,
+			.num_parents = 3,
+			.ops = &clk_rcg_bypass2_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_branch dsi2_clk = {
+	.halt_reg = 0x01d0,
+	.halt_bit = 20,
+	.clkr = {
+		.enable_reg = 0x003c,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi2_clk",
+			.parent_names = (const char *[]){ "dsi2_src" },
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_rcg dsi1_byte_src = {
+	.ns_reg = 0x00b0,
+	.p = {
+		.pre_div_shift = 12,
+		.pre_div_width = 4,
+	},
+	.s = {
+		.src_sel_shift = 0,
+		.parent_map = mmcc_pxo_dsi1_dsi2_byte_map,
+	},
+	.clkr = {
+		.enable_reg = 0x0090,
+		.enable_mask = BIT(2),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi1_byte_src",
+			.parent_names = mmcc_pxo_dsi1_dsi2_byte,
+			.num_parents = 3,
+			.ops = &clk_rcg_bypass2_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_branch dsi1_byte_clk = {
+	.halt_reg = 0x01cc,
+	.halt_bit = 21,
+	.clkr = {
+		.enable_reg = 0x0090,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi1_byte_clk",
+			.parent_names = (const char *[]){ "dsi1_byte_src" },
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_rcg dsi2_byte_src = {
+	.ns_reg = 0x012c,
+	.p = {
+		.pre_div_shift = 12,
+		.pre_div_width = 4,
+	},
+	.s = {
+		.src_sel_shift = 0,
+		.parent_map = mmcc_pxo_dsi1_dsi2_byte_map,
+	},
+	.clkr = {
+		.enable_reg = 0x0130,
+		.enable_mask = BIT(2),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi2_byte_src",
+			.parent_names = mmcc_pxo_dsi1_dsi2_byte,
+			.num_parents = 3,
+			.ops = &clk_rcg_bypass2_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_branch dsi2_byte_clk = {
+	.halt_reg = 0x01cc,
+	.halt_bit = 20,
+	.clkr = {
+		.enable_reg = 0x00b4,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi2_byte_clk",
+			.parent_names = (const char *[]){ "dsi2_byte_src" },
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_rcg dsi1_esc_src = {
+	.ns_reg = 0x0011c,
+	.p = {
+		.pre_div_shift = 12,
+		.pre_div_width = 4,
+	},
+	.s = {
+		.src_sel_shift = 0,
+		.parent_map = mmcc_pxo_dsi1_dsi2_byte_map,
+	},
+	.clkr = {
+		.enable_reg = 0x00cc,
+		.enable_mask = BIT(2),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi1_esc_src",
+			.parent_names = mmcc_pxo_dsi1_dsi2_byte,
+			.num_parents = 3,
+			.ops = &clk_rcg_esc_ops,
+		},
+	},
+};
+
+static struct clk_branch dsi1_esc_clk = {
+	.halt_reg = 0x01e8,
+	.halt_bit = 1,
+	.clkr = {
+		.enable_reg = 0x00cc,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi1_esc_clk",
+			.parent_names = (const char *[]){ "dsi1_esc_src" },
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_rcg dsi2_esc_src = {
+	.ns_reg = 0x0150,
+	.p = {
+		.pre_div_shift = 12,
+		.pre_div_width = 4,
+	},
+	.s = {
+		.src_sel_shift = 0,
+		.parent_map = mmcc_pxo_dsi1_dsi2_byte_map,
+	},
+	.clkr = {
+		.enable_reg = 0x013c,
+		.enable_mask = BIT(2),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi2_esc_src",
+			.parent_names = mmcc_pxo_dsi1_dsi2_byte,
+			.num_parents = 3,
+			.ops = &clk_rcg_esc_ops,
+		},
+	},
+};
+
+static struct clk_branch dsi2_esc_clk = {
+	.halt_reg = 0x01e8,
+	.halt_bit = 3,
+	.clkr = {
+		.enable_reg = 0x013c,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi2_esc_clk",
+			.parent_names = (const char *[]){ "dsi2_esc_src" },
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_rcg dsi1_pixel_src = {
+	.ns_reg = 0x0138,
+	.md_reg = 0x0134,
+	.mn = {
+		.mnctr_en_bit = 5,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 6,
+		.n_val_shift = 16,
+		.m_val_shift = 8,
+		.width = 8,
+	},
+	.p = {
+		.pre_div_shift = 12,
+		.pre_div_width = 4,
+	},
+	.s = {
+		.src_sel_shift = 0,
+		.parent_map = mmcc_pxo_dsi2_dsi1_map,
+	},
+	.clkr = {
+		.enable_reg = 0x0130,
+		.enable_mask = BIT(2),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi1_pixel_src",
+			.parent_names = mmcc_pxo_dsi2_dsi1,
+			.num_parents = 3,
+			.ops = &clk_rcg_pixel_ops,
+		},
+	},
+};
+
+static struct clk_branch dsi1_pixel_clk = {
+	.halt_reg = 0x01d0,
+	.halt_bit = 6,
+	.clkr = {
+		.enable_reg = 0x0130,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "mdp_pclk1_clk",
+			.parent_names = (const char *[]){ "dsi1_pixel_src" },
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_rcg dsi2_pixel_src = {
+	.ns_reg = 0x00e4,
+	.md_reg = 0x00b8,
+	.mn = {
+		.mnctr_en_bit = 5,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 6,
+		.n_val_shift = 16,
+		.m_val_shift = 8,
+		.width = 8,
+	},
+	.p = {
+		.pre_div_shift = 12,
+		.pre_div_width = 4,
+	},
+	.s = {
+		.src_sel_shift = 0,
+		.parent_map = mmcc_pxo_dsi2_dsi1_map,
+	},
+	.clkr = {
+		.enable_reg = 0x0094,
+		.enable_mask = BIT(2),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi2_pixel_src",
+			.parent_names = mmcc_pxo_dsi2_dsi1,
+			.num_parents = 3,
+			.ops = &clk_rcg_pixel_ops,
+		},
+	},
+};
+
+static struct clk_branch dsi2_pixel_clk = {
+	.halt_reg = 0x01d0,
+	.halt_bit = 19,
+	.clkr = {
+		.enable_reg = 0x0094,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "mdp_pclk2_clk",
+			.parent_names = (const char *[]){ "dsi2_pixel_src" },
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
@@ -2053,7 +2406,6 @@ static struct clk_branch gfx2d0_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gfx2d0_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2069,7 +2421,6 @@ static struct clk_branch gfx2d1_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gfx2d1_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2085,7 +2436,6 @@ static struct clk_branch gfx3d_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gfx3d_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2101,7 +2451,6 @@ static struct clk_branch hdmi_m_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "hdmi_m_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2117,7 +2466,6 @@ static struct clk_branch hdmi_s_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "hdmi_s_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2131,7 +2479,6 @@ static struct clk_branch ijpeg_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "ijpeg_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT
 		},
 	},
 };
@@ -2147,7 +2494,6 @@ static struct clk_branch mmss_imem_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "mmss_imem_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT
 		},
 	},
 };
@@ -2161,7 +2507,6 @@ static struct clk_branch jpegd_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "jpegd_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2175,7 +2520,6 @@ static struct clk_branch mdp_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "mdp_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2189,7 +2533,6 @@ static struct clk_branch rot_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "rot_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT
 		},
 	},
 };
@@ -2205,7 +2548,6 @@ static struct clk_branch smmu_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "smmu_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2219,7 +2561,6 @@ static struct clk_branch tv_enc_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "tv_enc_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2233,7 +2574,6 @@ static struct clk_branch vcap_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "vcap_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2249,7 +2589,6 @@ static struct clk_branch vcodec_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "vcodec_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2263,7 +2602,6 @@ static struct clk_branch vfe_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "vfe_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2277,7 +2615,6 @@ static struct clk_branch vpe_ahb_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "vpe_ahb_clk",
 			.ops = &clk_branch_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2325,6 +2662,8 @@ static struct clk_regmap *mmcc_msm8960_clks[] = {
 	[CSI2_SRC] = &csi2_src.clkr,
 	[CSI2_CLK] = &csi2_clk.clkr,
 	[CSI2_PHY_CLK] = &csi2_phy_clk.clkr,
+	[DSI_SRC] = &dsi1_src.clkr,
+	[DSI_CLK] = &dsi1_clk.clkr,
 	[CSI_PIX_CLK] = &csi_pix_clk.clkr,
 	[CSI_RDI_CLK] = &csi_rdi_clk.clkr,
 	[MDP_VSYNC_CLK] = &mdp_vsync_clk.clkr,
@@ -2345,6 +2684,18 @@ static struct clk_regmap *mmcc_msm8960_clks[] = {
 	[MDP_SRC] = &mdp_src.clkr,
 	[MDP_CLK] = &mdp_clk.clkr,
 	[MDP_LUT_CLK] = &mdp_lut_clk.clkr,
+	[DSI2_PIXEL_SRC] = &dsi2_pixel_src.clkr,
+	[DSI2_PIXEL_CLK] = &dsi2_pixel_clk.clkr,
+	[DSI2_SRC] = &dsi2_src.clkr,
+	[DSI2_CLK] = &dsi2_clk.clkr,
+	[DSI1_BYTE_SRC] = &dsi1_byte_src.clkr,
+	[DSI1_BYTE_CLK] = &dsi1_byte_clk.clkr,
+	[DSI2_BYTE_SRC] = &dsi2_byte_src.clkr,
+	[DSI2_BYTE_CLK] = &dsi2_byte_clk.clkr,
+	[DSI1_ESC_SRC] = &dsi1_esc_src.clkr,
+	[DSI1_ESC_CLK] = &dsi1_esc_clk.clkr,
+	[DSI2_ESC_SRC] = &dsi2_esc_src.clkr,
+	[DSI2_ESC_CLK] = &dsi2_esc_clk.clkr,
 	[ROT_SRC] = &rot_src.clkr,
 	[ROT_CLK] = &rot_clk.clkr,
 	[TV_ENC_CLK] = &tv_enc_clk.clkr,
@@ -2359,6 +2710,8 @@ static struct clk_regmap *mmcc_msm8960_clks[] = {
 	[VFE_CSI_CLK] = &vfe_csi_clk.clkr,
 	[VPE_SRC] = &vpe_src.clkr,
 	[VPE_CLK] = &vpe_clk.clkr,
+	[DSI_PIXEL_SRC] = &dsi1_pixel_src.clkr,
+	[DSI_PIXEL_CLK] = &dsi1_pixel_clk.clkr,
 	[CAMCLK0_SRC] = &camclk0_src.clkr,
 	[CAMCLK0_CLK] = &camclk0_clk.clkr,
 	[CAMCLK1_SRC] = &camclk1_src.clkr,
@@ -2490,6 +2843,8 @@ static struct clk_regmap *mmcc_apq8064_clks[] = {
 	[CSI2_SRC] = &csi2_src.clkr,
 	[CSI2_CLK] = &csi2_clk.clkr,
 	[CSI2_PHY_CLK] = &csi2_phy_clk.clkr,
+	[DSI_SRC] = &dsi1_src.clkr,
+	[DSI_CLK] = &dsi1_clk.clkr,
 	[CSI_PIX_CLK] = &csi_pix_clk.clkr,
 	[CSI_RDI_CLK] = &csi_rdi_clk.clkr,
 	[MDP_VSYNC_CLK] = &mdp_vsync_clk.clkr,
@@ -2506,6 +2861,18 @@ static struct clk_regmap *mmcc_apq8064_clks[] = {
 	[MDP_SRC] = &mdp_src.clkr,
 	[MDP_CLK] = &mdp_clk.clkr,
 	[MDP_LUT_CLK] = &mdp_lut_clk.clkr,
+	[DSI2_PIXEL_SRC] = &dsi2_pixel_src.clkr,
+	[DSI2_PIXEL_CLK] = &dsi2_pixel_clk.clkr,
+	[DSI2_SRC] = &dsi2_src.clkr,
+	[DSI2_CLK] = &dsi2_clk.clkr,
+	[DSI1_BYTE_SRC] = &dsi1_byte_src.clkr,
+	[DSI1_BYTE_CLK] = &dsi1_byte_clk.clkr,
+	[DSI2_BYTE_SRC] = &dsi2_byte_src.clkr,
+	[DSI2_BYTE_CLK] = &dsi2_byte_clk.clkr,
+	[DSI1_ESC_SRC] = &dsi1_esc_src.clkr,
+	[DSI1_ESC_CLK] = &dsi1_esc_clk.clkr,
+	[DSI2_ESC_SRC] = &dsi2_esc_src.clkr,
+	[DSI2_ESC_CLK] = &dsi2_esc_clk.clkr,
 	[ROT_SRC] = &rot_src.clkr,
 	[ROT_CLK] = &rot_clk.clkr,
 	[TV_DAC_CLK] = &tv_dac_clk.clkr,
@@ -2519,6 +2886,8 @@ static struct clk_regmap *mmcc_apq8064_clks[] = {
 	[VFE_CSI_CLK] = &vfe_csi_clk.clkr,
 	[VPE_SRC] = &vpe_src.clkr,
 	[VPE_CLK] = &vpe_clk.clkr,
+	[DSI_PIXEL_SRC] = &dsi1_pixel_src.clkr,
+	[DSI_PIXEL_CLK] = &dsi1_pixel_clk.clkr,
 	[CAMCLK0_SRC] = &camclk0_src.clkr,
 	[CAMCLK0_CLK] = &camclk0_clk.clkr,
 	[CAMCLK1_SRC] = &camclk1_src.clkr,
@@ -2686,15 +3055,8 @@ static int mmcc_msm8960_probe(struct platform_device *pdev)
 	return qcom_cc_really_probe(pdev, match->data, regmap);
 }
 
-static int mmcc_msm8960_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver mmcc_msm8960_driver = {
 	.probe		= mmcc_msm8960_probe,
-	.remove		= mmcc_msm8960_remove,
 	.driver		= {
 		.name	= "mmcc-msm8960",
 		.of_match_table = mmcc_msm8960_match_table,

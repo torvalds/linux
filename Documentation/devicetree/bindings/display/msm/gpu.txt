@@ -1,0 +1,38 @@
+Qualcomm adreno/snapdragon GPU
+
+Required properties:
+- compatible: "qcom,adreno-XYZ.W", "qcom,adreno"
+    for example: "qcom,adreno-306.0", "qcom,adreno"
+  Note that you need to list the less specific "qcom,adreno" (since this
+  is what the device is matched on), in addition to the more specific
+  with the chip-id.
+- reg: Physical base address and length of the controller's registers.
+- interrupts: The interrupt signal from the gpu.
+- clocks: device clocks
+  See ../clocks/clock-bindings.txt for details.
+- clock-names: the following clocks are required:
+  * "core"
+  * "iface"
+  * "mem_iface"
+
+Example:
+
+/ {
+	...
+
+	gpu: qcom,kgsl-3d0@4300000 {
+		compatible = "qcom,adreno-320.2", "qcom,adreno";
+		reg = <0x04300000 0x20000>;
+		reg-names = "kgsl_3d0_reg_memory";
+		interrupts = <GIC_SPI 80 0>;
+		interrupt-names = "kgsl_3d0_irq";
+		clock-names =
+		    "core",
+		    "iface",
+		    "mem_iface";
+		clocks =
+		    <&mmcc GFX3D_CLK>,
+		    <&mmcc GFX3D_AHB_CLK>,
+		    <&mmcc MMSS_IMEM_AHB_CLK>;
+	};
+};

@@ -25,6 +25,7 @@
 
 #include <linux/gpio.h>
 
+#include <asm/mach-jz4740/gpio.h>
 #include <asm/mach-jz4740/jz4740_nand.h>
 
 #define JZ_REG_NAND_CTRL	0x50
@@ -58,7 +59,6 @@
 #define JZ_NAND_MEM_ADDR_OFFSET 0x10000
 
 struct jz_nand {
-	struct mtd_info mtd;
 	struct nand_chip chip;
 	void __iomem *base;
 	struct resource *mem;
@@ -75,13 +75,13 @@ struct jz_nand {
 
 static inline struct jz_nand *mtd_to_jz_nand(struct mtd_info *mtd)
 {
-	return container_of(mtd, struct jz_nand, mtd);
+	return container_of(mtd_to_nand(mtd), struct jz_nand, chip);
 }
 
 static void jz_nand_select_chip(struct mtd_info *mtd, int chipnr)
 {
 	struct jz_nand *nand = mtd_to_jz_nand(mtd);
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	uint32_t ctrl;
 	int banknr;
 
@@ -103,7 +103,7 @@ static void jz_nand_select_chip(struct mtd_info *mtd, int chipnr)
 static void jz_nand_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
 {
 	struct jz_nand *nand = mtd_to_jz_nand(mtd);
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	uint32_t reg;
 	void __iomem *bank_base = nand->bank_base[nand->selected_bank];
 
@@ -221,26 +221,7 @@ static int jz_nand_correct_ecc_rs(struct mtd_info *mtd, uint8_t *dat,
 	struct jz_nand *nand = mtd_to_jz_nand(mtd);
 	int i, error_count, index;
 	uint32_t reg, status, error;
-	uint32_t t;
 	unsigned int timeout = 1000;
-
-	t = read_ecc[0];
-
-	if (t == 0xff) {
-		for (i = 1; i < 9; ++i)
-			t &= read_ecc[i];
-
-		t &= dat[0];
-		t &= dat[nand->chip.ecc.size / 2];
-		t &= dat[nand->chip.ecc.size - 1];
-
-		if (t == 0xff) {
-			for (i = 1; i < nand->chip.ecc.size - 1; ++i)
-				t &= dat[i];
-			if (t == 0xff)
-				return 0;
-		}
-	}
 
 	for (i = 0; i < 9; ++i)
 		writeb(read_ecc[i], nand->base + JZ_REG_NAND_PAR0 + i);
@@ -254,7 +235,7 @@ static int jz_nand_correct_ecc_rs(struct mtd_info *mtd, uint8_t *dat,
 	} while (!(status & JZ_NAND_STATUS_DEC_FINISH) && --timeout);
 
 	if (timeout == 0)
-	    return -1;
+		return -ETIMEDOUT;
 
 	reg = readl(nand->base + JZ_REG_NAND_ECC_CTRL);
 	reg &= ~JZ_NAND_ECC_CTRL_ENABLE;
@@ -262,7 +243,7 @@ static int jz_nand_correct_ecc_rs(struct mtd_info *mtd, uint8_t *dat,
 
 	if (status & JZ_NAND_STATUS_ERROR) {
 		if (status & JZ_NAND_STATUS_UNCOR_ERROR)
-			return -1;
+			return -EBADMSG;
 
 		error_count = (status & JZ_NAND_STATUS_ERR_COUNT) >> 29;
 
@@ -333,8 +314,8 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 	char gpio_name[9];
 	char res_name[6];
 	uint32_t ctrl;
-	struct mtd_info *mtd = &nand->mtd;
 	struct nand_chip *chip = &nand->chip;
+	struct mtd_info *mtd = nand_to_mtd(chip);
 
 	/* Request GPIO port. */
 	gpio = JZ_GPIO_MEM_CS0 + bank - 1;
@@ -431,10 +412,9 @@ static int jz_nand_probe(struct platform_device *pdev)
 		goto err_iounmap_mmio;
 	}
 
-	mtd		= &nand->mtd;
 	chip		= &nand->chip;
-	mtd->priv	= chip;
-	mtd->owner	= THIS_MODULE;
+	mtd		= nand_to_mtd(chip);
+	mtd->dev.parent = &pdev->dev;
 	mtd->name	= "jz4740-nand";
 
 	chip->ecc.hwctl		= jz_nand_hwctl;
@@ -444,9 +424,7 @@ static int jz_nand_probe(struct platform_device *pdev)
 	chip->ecc.size		= 512;
 	chip->ecc.bytes		= 9;
 	chip->ecc.strength	= 4;
-
-	if (pdata)
-		chip->ecc.layout = pdata->ecc_layout;
+	chip->ecc.options	= NAND_ECC_GENERIC_ERASED_CHECK;
 
 	chip->chip_delay = 50;
 	chip->cmd_ctrl = jz_nand_cmd_ctrl;
@@ -497,7 +475,7 @@ static int jz_nand_probe(struct platform_device *pdev)
 	}
 
 	if (pdata && pdata->ident_callback) {
-		pdata->ident_callback(pdev, chip, &pdata->partitions,
+		pdata->ident_callback(pdev, mtd, &pdata->partitions,
 					&pdata->num_partitions);
 	}
 
@@ -542,7 +520,7 @@ static int jz_nand_remove(struct platform_device *pdev)
 	struct jz_nand *nand = platform_get_drvdata(pdev);
 	size_t i;
 
-	nand_release(&nand->mtd);
+	nand_release(nand_to_mtd(&nand->chip));
 
 	/* Deassert and disable all chips */
 	writel(0, nand->base + JZ_REG_NAND_CTRL);

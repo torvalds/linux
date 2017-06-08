@@ -27,6 +27,7 @@
 #define UARTn_FRAME		0x04
 #define UARTn_FRAME_DATABITS__MASK	0x000f
 #define UARTn_FRAME_DATABITS(n)		((n) - 3)
+#define UARTn_FRAME_PARITY__MASK	0x0300
 #define UARTn_FRAME_PARITY_NONE		0x0000
 #define UARTn_FRAME_PARITY_EVEN		0x0200
 #define UARTn_FRAME_PARITY_ODD		0x0300
@@ -487,7 +488,7 @@ static int efm32_uart_verify_port(struct uart_port *port,
 	return ret;
 }
 
-static struct uart_ops efm32_uart_pops = {
+static const struct uart_ops efm32_uart_pops = {
 	.tx_empty = efm32_uart_tx_empty,
 	.set_mctrl = efm32_uart_set_mctrl,
 	.get_mctrl = efm32_uart_get_mctrl,
@@ -572,12 +573,16 @@ static void efm32_uart_console_get_options(struct efm32_uart_port *efm_port,
 			16 * (4 + (clkdiv >> 6)));
 
 	frame = efm32_uart_read32(efm_port, UARTn_FRAME);
-	if (frame & UARTn_FRAME_PARITY_ODD)
+	switch (frame & UARTn_FRAME_PARITY__MASK) {
+	case UARTn_FRAME_PARITY_ODD:
 		*parity = 'o';
-	else if (frame & UARTn_FRAME_PARITY_EVEN)
+		break;
+	case UARTn_FRAME_PARITY_EVEN:
 		*parity = 'e';
-	else
+		break;
+	default:
 		*parity = 'n';
+	}
 
 	*bits = (frame & UARTn_FRAME_DATABITS__MASK) -
 			UARTn_FRAME_DATABITS(4) + 4;

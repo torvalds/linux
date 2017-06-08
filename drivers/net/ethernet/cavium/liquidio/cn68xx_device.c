@@ -1,46 +1,31 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-#include <linux/version.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 #include <linux/pci.h>
-#include <linux/kthread.h>
 #include <linux/netdevice.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_nic.h"
 #include "octeon_main.h"
-#include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
 #include "cn68xx_regs.h"
-#include "cn68xx_device.h"
-#include "liquidio_image.h"
-#include "octeon_mem_ops.h"
 
 static void lio_cn68xx_set_dpi_regs(struct octeon_device *oct)
 {
@@ -87,7 +72,7 @@ static void lio_cn68xx_setup_pkt_ctl_regs(struct octeon_device *oct)
 	pktctl = octeon_read_csr64(oct, CN6XXX_SLI_PKT_CTL);
 
 	/* 68XX specific */
-	max_oqs = CFG_GET_OQ_MAX_Q(CHIP_FIELD(oct, cn6xxx, conf));
+	max_oqs = CFG_GET_OQ_MAX_Q(CHIP_CONF(oct, cn6xxx));
 	tx_pipe  = octeon_read_csr64(oct, CN68XX_SLI_TX_PIPE);
 	tx_pipe &= 0xffffffffff00ffffULL; /* clear out NUMP field */
 	tx_pipe |= max_oqs << 16; /* put max_oqs in NUMP field */
@@ -129,7 +114,7 @@ static inline void lio_cn68xx_vendor_message_fix(struct octeon_device *oct)
 	pci_write_config_dword(oct->pci_dev, CN6XXX_PCIE_FLTMSK, val);
 }
 
-int lio_is_210nv(struct octeon_device *oct)
+static int lio_is_210nv(struct octeon_device *oct)
 {
 	u64 mio_qlm4_cfg = lio_pci_readq(oct, CN6XXX_MIO_QLM4_CFG);
 
@@ -159,7 +144,6 @@ int lio_setup_cn68xx_octeon_device(struct octeon_device *oct)
 	oct->fn_list.process_interrupt_regs = lio_cn6xxx_process_interrupt_regs;
 	oct->fn_list.soft_reset = lio_cn68xx_soft_reset;
 	oct->fn_list.setup_device_regs = lio_cn68xx_setup_device_regs;
-	oct->fn_list.reinit_regs = lio_cn6xxx_reinit_regs;
 	oct->fn_list.update_iq_read_idx = lio_cn6xxx_update_read_index;
 
 	oct->fn_list.bar1_idx_setup = lio_cn6xxx_bar1_idx_setup;

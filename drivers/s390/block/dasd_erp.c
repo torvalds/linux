@@ -15,7 +15,7 @@
 
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* This is ugly... */
 #define PRINTK_HEADER "dasd_erp:"
@@ -96,7 +96,7 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
                              "default ERP called (%i retries left)",
                              cqr->retries);
 		if (!test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags))
-			cqr->lpm = device->path_data.opm;
+			cqr->lpm = dasd_path_get_opm(device);
 		cqr->status = DASD_CQR_FILLED;
         } else {
 		pr_err("%s: default ERP has run out of retries and failed\n",
@@ -169,12 +169,12 @@ dasd_log_sense(struct dasd_ccw_req *cqr, struct irb *irb)
 	device = cqr->startdev;
 	if (cqr->intrc == -ETIMEDOUT) {
 		dev_err(&device->cdev->dev,
-			"A timeout error occurred for cqr %p", cqr);
+			"A timeout error occurred for cqr %p\n", cqr);
 		return;
 	}
 	if (cqr->intrc == -ENOLINK) {
 		dev_err(&device->cdev->dev,
-			"A transport error occurred for cqr %p", cqr);
+			"A transport error occurred for cqr %p\n", cqr);
 		return;
 	}
 	/* dump sense data */

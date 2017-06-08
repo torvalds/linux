@@ -28,10 +28,6 @@
 #include <linux/pci.h>
 #include <asm/io.h>
 
-#ifdef CONFIG_PPC64
-#include <asm/pci-bridge.h>
-#endif
-
 #ifdef CONFIG_PPC32
 #include <asm/bootx.h>
 #endif
@@ -629,6 +625,21 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 	if (address == OF_BAD_ADDR && addr_prop)
 		address = (u64)addr_prop;
 	if (address != OF_BAD_ADDR) {
+#ifdef CONFIG_PCI
+		const __be32 *vidp, *didp;
+		u32 vid, did;
+		struct pci_dev *pdev;
+
+		vidp = of_get_property(dp, "vendor-id", NULL);
+		didp = of_get_property(dp, "device-id", NULL);
+		if (vidp && didp) {
+			vid = be32_to_cpup(vidp);
+			did = be32_to_cpup(didp);
+			pdev = pci_get_device(vid, did, NULL);
+			if (!pdev || pci_enable_device(pdev))
+				return;
+		}
+#endif
 		/* kludge for valkyrie */
 		if (strcmp(dp->name, "valkyrie") == 0)
 			address += 0x1000;
@@ -657,14 +668,14 @@ static int __init offb_init(void)
 		offb_init_nodriver(of_chosen, 1);
 	}
 
-	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
+	for_each_node_by_type(dp, "display") {
 		if (of_get_property(dp, "linux,opened", NULL) &&
 		    of_get_property(dp, "linux,boot-display", NULL)) {
 			boot_disp = dp;
 			offb_init_nodriver(dp, 0);
 		}
 	}
-	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
+	for_each_node_by_type(dp, "display") {
 		if (of_get_property(dp, "linux,opened", NULL) &&
 		    dp != boot_disp)
 			offb_init_nodriver(dp, 0);

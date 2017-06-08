@@ -37,6 +37,21 @@ static const struct usb_device_id m5602_table[] = {
 
 MODULE_DEVICE_TABLE(usb, m5602_table);
 
+/* A skeleton used for sending messages to the sensor */
+static const unsigned char sensor_urb_skeleton[] = {
+	0x23, M5602_XB_GPIO_EN_H, 0x81, 0x06,
+	0x23, M5602_XB_MISC_CTRL, 0x81, 0x80,
+	0x13, M5602_XB_I2C_DEV_ADDR, 0x81, 0x00,
+	0x13, M5602_XB_I2C_REG_ADDR, 0x81, 0x00,
+	0x13, M5602_XB_I2C_DATA, 0x81, 0x00,
+	0x13, M5602_XB_I2C_CTRL, 0x81, 0x11
+};
+
+/* A skeleton used for sending messages to the m5602 bridge */
+static const unsigned char bridge_urb_skeleton[] = {
+	0x13, 0x00, 0x81, 0x00
+};
+
 /* Reads a byte from the m5602 */
 int m5602_read_bridge(struct sd *sd, const u8 address, u8 *i2c_data)
 {
@@ -139,8 +154,8 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 
 		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
 
-		PDEBUG(D_CONF, "Reading sensor register "
-			       "0x%x containing 0x%x ", address, *i2c_data);
+		PDEBUG(D_CONF, "Reading sensor register 0x%x containing 0x%x ",
+		       address, *i2c_data);
 	}
 	return err;
 }
@@ -426,13 +441,10 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 module_param(force_sensor, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(force_sensor,
-		"forces detection of a sensor, "
-		"1 = OV9650, 2 = S5K83A, 3 = S5K4AA, "
-		"4 = MT9M111, 5 = PO1030, 6 = OV7660");
+		"forces detection of a sensor, 1 = OV9650, 2 = S5K83A, 3 = S5K4AA, 4 = MT9M111, 5 = PO1030, 6 = OV7660");
 
 module_param(dump_bridge, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dump_bridge, "Dumps all usb bridge registers at startup");
 
 module_param(dump_sensor, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(dump_sensor, "Dumps all usb sensor registers "
-		"at startup providing a sensor is found");
+MODULE_PARM_DESC(dump_sensor, "Dumps all usb sensor registers at startup providing a sensor is found");

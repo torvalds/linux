@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * ------------------------------------------------------------------------
  */
 
@@ -245,10 +241,6 @@ static int zr36016_pushit (struct zr36016 *ptr,
 
    //TODO//
    ========================================================================= */
-
-// needed offset values          PAL NTSC SECAM
-static const int zr016_xoff[] = { 20, 20, 20 };
-static const int zr016_yoff[] = { 8, 9, 7 };
 
 static void
 zr36016_init (struct zr36016 *ptr)

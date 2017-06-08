@@ -22,11 +22,10 @@
 #include "omap_device.h"
 #include "omap-pm.h"
 
-#include "mux.h"
 #include "hsmmc.h"
 #include "control.h"
 
-#if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
+#if IS_ENABLED(CONFIG_MMC_OMAP_HS)
 
 static u16 control_pbias_offset;
 static u16 control_devconf1_offset;
@@ -145,91 +144,6 @@ static int am35x_hsmmc2_set_power(struct device *dev, int power_on, int vdd)
 static int nop_mmc_set_power(struct device *dev, int power_on, int vdd)
 {
 	return 0;
-}
-
-static inline void omap_hsmmc_mux(struct omap_hsmmc_platform_data
-				  *mmc_controller, int controller_nr)
-{
-	if (gpio_is_valid(mmc_controller->gpio_cd) &&
-	    (mmc_controller->gpio_cd < OMAP_MAX_GPIO_LINES))
-		omap_mux_init_gpio(mmc_controller->gpio_cd,
-				   OMAP_PIN_INPUT_PULLUP);
-	if (gpio_is_valid(mmc_controller->gpio_cod) &&
-	    (mmc_controller->gpio_cod < OMAP_MAX_GPIO_LINES))
-		omap_mux_init_gpio(mmc_controller->gpio_cod,
-				   OMAP_PIN_INPUT_PULLUP);
-	if (gpio_is_valid(mmc_controller->gpio_wp) &&
-	    (mmc_controller->gpio_wp < OMAP_MAX_GPIO_LINES))
-		omap_mux_init_gpio(mmc_controller->gpio_wp,
-				   OMAP_PIN_INPUT_PULLUP);
-	if (cpu_is_omap34xx()) {
-		if (controller_nr == 0) {
-			omap_mux_init_signal("sdmmc1_clk",
-				OMAP_PIN_INPUT_PULLUP);
-			omap_mux_init_signal("sdmmc1_cmd",
-				OMAP_PIN_INPUT_PULLUP);
-			omap_mux_init_signal("sdmmc1_dat0",
-				OMAP_PIN_INPUT_PULLUP);
-			if (mmc_controller->caps &
-				(MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA)) {
-				omap_mux_init_signal("sdmmc1_dat1",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat2",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat3",
-					OMAP_PIN_INPUT_PULLUP);
-			}
-			if (mmc_controller->caps &
-						MMC_CAP_8_BIT_DATA) {
-				omap_mux_init_signal("sdmmc1_dat4",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat5",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat6",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat7",
-					OMAP_PIN_INPUT_PULLUP);
-			}
-		}
-		if (controller_nr == 1) {
-			/* MMC2 */
-			omap_mux_init_signal("sdmmc2_clk",
-				OMAP_PIN_INPUT_PULLUP);
-			omap_mux_init_signal("sdmmc2_cmd",
-				OMAP_PIN_INPUT_PULLUP);
-			omap_mux_init_signal("sdmmc2_dat0",
-				OMAP_PIN_INPUT_PULLUP);
-
-			/*
-			 * For 8 wire configurations, Lines DAT4, 5, 6 and 7
-			 * need to be muxed in the board-*.c files
-			 */
-			if (mmc_controller->caps &
-				(MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA)) {
-				omap_mux_init_signal("sdmmc2_dat1",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc2_dat2",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc2_dat3",
-					OMAP_PIN_INPUT_PULLUP);
-			}
-			if (mmc_controller->caps &
-							MMC_CAP_8_BIT_DATA) {
-				omap_mux_init_signal("sdmmc2_dat4.sdmmc2_dat4",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc2_dat5.sdmmc2_dat5",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc2_dat6.sdmmc2_dat6",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc2_dat7.sdmmc2_dat7",
-					OMAP_PIN_INPUT_PULLUP);
-			}
-		}
-
-		/*
-		 * For MMC3 the pins need to be muxed in the board-*.c files
-		 */
-	}
 }
 
 static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
@@ -409,8 +323,6 @@ static void __init omap_hsmmc_init_one(struct omap2_hsmmc_info *hsmmcinfo,
 	res = omap_hsmmc_pdata_init(hsmmcinfo, mmc_data);
 	if (res < 0)
 		goto free_mmc;
-
-	omap_hsmmc_mux(mmc_data, (ctrl_nr - 1));
 
 	name = "omap_hsmmc";
 	res = snprintf(oh_name, MAX_OMAP_MMC_HWMOD_NAME_LEN,

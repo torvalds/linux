@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Maintained by: Arvind Kumar <arvindkumar@vmware.com>
+ * Maintained by: Jim Gill <jgill@vmware.com>
  *
  */
 
@@ -26,7 +26,7 @@
 
 #include <linux/types.h>
 
-#define PVSCSI_DRIVER_VERSION_STRING   "1.0.5.0-k"
+#define PVSCSI_DRIVER_VERSION_STRING   "1.0.7.0-k"
 
 #define PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT 128
 
@@ -421,11 +421,6 @@ struct PVSCSIConfigPageController {
  * Number of MSI-X vectors supported.
  */
 #define PVSCSI_MAX_INTRS        24
-
-/*
- * Enumeration of supported MSI-X vectors
- */
-#define PVSCSI_VECTOR_COMPLETION   0
 
 /*
  * Misc constants for the rings.

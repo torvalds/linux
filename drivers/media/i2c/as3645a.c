@@ -15,11 +15,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  * TODO:
  * - Check hardware FSTROBE control when sensor driver add support for this
  *
@@ -31,7 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
-#include <media/as3645a.h>
+#include <media/i2c/as3645a.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 
@@ -827,11 +822,11 @@ static int as3645a_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto done;
 
-	ret = media_entity_init(&flash->subdev.entity, 0, NULL, 0);
+	ret = media_entity_pads_init(&flash->subdev.entity, 0, NULL);
 	if (ret < 0)
 		goto done;
 
-	flash->subdev.entity.type = MEDIA_ENT_T_V4L2_SUBDEV_FLASH;
+	flash->subdev.entity.function = MEDIA_ENT_F_FLASH;
 
 	mutex_init(&flash->power_lock);
 

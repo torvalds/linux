@@ -1,0 +1,179 @@
+/*
+ * kirkwood-pogoplug-series-4.dts - Device tree file for PogoPlug Series 4
+ * inspired by the board files made by Kevin Mihelich for ArchLinux,
+ * and their DTS file.
+ *
+ * Copyright (C) 2015 Linus Walleij <linus.walleij@linaro.org>
+ */
+
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6192.dtsi"
+#include <dt-bindings/input/linux-event-codes.h>
+
+/ {
+	model = "Cloud Engines PogoPlug Series 4";
+	compatible = "cloudengines,pogoplugv4", "marvell,kirkwood-88f6192",
+		     "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>;
+	};
+
+	chosen {
+		stdout-path = "uart0:115200n8";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_button_eject>;
+		pinctrl-names = "default";
+
+		eject {
+			debounce_interval = <50>;
+			wakeup-source;
+			linux,code = <KEY_EJECTCD>;
+			label = "Eject Button";
+			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_green &pmx_led_red>;
+		pinctrl-names = "default";
+
+		health {
+			label = "pogoplugv4:green:health";
+			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+		fault {
+			label = "pogoplugv4:red:fault";
+			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&pinctrl {
+	pmx_sata0: pmx-sata0 {
+		marvell,pins = "mpp21";
+		marvell,function = "sata0";
+	};
+
+	pmx_sata1: pmx-sata1 {
+		marvell,pins = "mpp20";
+		marvell,function = "sata1";
+	};
+
+	pmx_sdio_cd: pmx-sdio-cd {
+		marvell,pins = "mpp27";
+		marvell,function = "gpio";
+	};
+
+	pmx_sdio_wp: pmx-sdio-wp {
+		marvell,pins = "mpp28";
+		marvell,function = "gpio";
+	};
+
+	pmx_button_eject: pmx-button-eject {
+		marvell,pins = "mpp29";
+		marvell,function = "gpio";
+	};
+
+	pmx_led_green: pmx-led-green {
+		marvell,pins = "mpp22";
+		marvell,function = "gpio";
+	};
+
+	pmx_led_red: pmx-led-red {
+		marvell,pins = "mpp24";
+		marvell,function = "gpio";
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+/*
+ * This PCIE controller has a USB 3.0 XHCI controller at 1,0
+ */
+&pciec {
+	status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+	pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+	pinctrl-names = "default";
+	nr-ports = <1>;
+};
+
+&sdio {
+	status = "okay";
+	pinctrl-0 = <&pmx_sdio &pmx_sdio_cd &pmx_sdio_wp>;
+	pinctrl-names = "default";
+	cd-gpios = <&gpio0 27 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+};
+
+&nand {
+	/* 128 MiB of NAND flash */
+	chip-delay = <40>;
+	status = "okay";
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x00000000 0x200000>;
+			read-only;
+		};
+
+		partition@200000 {
+			label = "uImage";
+			reg = <0x00200000 0x300000>;
+		};
+
+		partition@500000 {
+			label = "uImage2";
+			reg = <0x00500000 0x300000>;
+		};
+
+		partition@800000 {
+			label = "failsafe";
+			reg = <0x00800000 0x800000>;
+		};
+
+		partition@1000000 {
+			label = "root";
+			reg = <0x01000000 0x7000000>;
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};

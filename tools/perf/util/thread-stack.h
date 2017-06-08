@@ -19,17 +19,16 @@
 #include <sys/types.h>
 
 #include <linux/types.h>
-#include <linux/rbtree.h>
 
 struct thread;
 struct comm;
 struct ip_callchain;
 struct symbol;
 struct dso;
-struct call_return_processor;
 struct comm;
 struct perf_sample;
 struct addr_location;
+struct call_path;
 
 /*
  * Call/Return flags.
@@ -69,26 +68,16 @@ struct call_return {
 };
 
 /**
- * struct call_path - node in list of calls leading to a function call.
- * @parent: call path to the parent function call
- * @sym: symbol of function called
- * @ip: only if sym is null, the ip of the function
- * @db_id: id used for db-export
- * @in_kernel: whether function is a in the kernel
- * @rb_node: node in parent's tree of called functions
- * @children: tree of call paths of functions called
- *
- * In combination with the call_return structure, the call_path structure
- * defines a context-sensitve call-graph.
+ * struct call_return_processor - provides a call-back to consume call-return
+ *                                information.
+ * @cpr: call path root
+ * @process: call-back that accepts call/return information
+ * @data: anonymous data for call-back
  */
-struct call_path {
-	struct call_path *parent;
-	struct symbol *sym;
-	u64 ip;
-	u64 db_id;
-	bool in_kernel;
-	struct rb_node rb_node;
-	struct rb_root children;
+struct call_return_processor {
+	struct call_path_root *cpr;
+	int (*process)(struct call_return *cr, void *data);
+	void *data;
 };
 
 int thread_stack__event(struct thread *thread, u32 flags, u64 from_ip,
@@ -98,6 +87,7 @@ void thread_stack__sample(struct thread *thread, struct ip_callchain *chain,
 			  size_t sz, u64 ip);
 int thread_stack__flush(struct thread *thread);
 void thread_stack__free(struct thread *thread);
+size_t thread_stack__depth(struct thread *thread);
 
 struct call_return_processor *
 call_return_processor__new(int (*process)(struct call_return *cr, void *data),

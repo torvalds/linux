@@ -32,9 +32,9 @@ top of the irq_alloc_desc*() API.  An irq_domain to manage mapping is
 preferred over interrupt controller drivers open coding their own
 reverse mapping scheme.
 
-irq_domain also implements translation from Device Tree interrupt
-specifiers to hwirq numbers, and can be easily extended to support
-other IRQ topology data sources.
+irq_domain also implements translation from an abstract irq_fwspec
+structure to hwirq numbers (Device Tree and ACPI GSI so far), and can
+be easily extended to support other IRQ topology data sources.
 
 === irq_domain usage ===
 An interrupt controller driver creates and registers an irq_domain by
@@ -70,6 +70,7 @@ of the reverse map types are described below:
 
 ==== Linear ====
 irq_domain_add_linear()
+irq_domain_create_linear()
 
 The linear reverse map maintains a fixed size table indexed by the
 hwirq number.  When a hwirq is mapped, an irq_desc is allocated for
@@ -81,10 +82,16 @@ map are fixed time lookup for IRQ numbers, and irq_descs are only
 allocated for in-use IRQs.  The disadvantage is that the table must be
 as large as the largest possible hwirq number.
 
+irq_domain_add_linear() and irq_domain_create_linear() are functionally
+equivalent, except for the first argument is different - the former
+accepts an Open Firmware specific 'struct device_node', while the latter
+accepts a more general abstraction 'struct fwnode_handle'.
+
 The majority of drivers should use the linear map.
 
 ==== Tree ====
 irq_domain_add_tree()
+irq_domain_create_tree()
 
 The irq_domain maintains a radix tree map from hwirq numbers to Linux
 IRQs.  When an hwirq is mapped, an irq_desc is allocated and the
@@ -94,6 +101,11 @@ The tree map is a good choice if the hwirq number can be very large
 since it doesn't need to allocate a table as large as the largest
 hwirq number.  The disadvantage is that hwirq to IRQ number lookup is
 dependent on how many entries are in the table.
+
+irq_domain_add_tree() and irq_domain_create_tree() are functionally
+equivalent, except for the first argument is different - the former
+accepts an Open Firmware specific 'struct device_node', while the latter
+accepts a more general abstraction 'struct fwnode_handle'.
 
 Very few drivers should need this mapping.
 
@@ -184,7 +196,7 @@ There are four major interfaces to use hierarchy irq_domain:
    related resources associated with these interrupts.
 3) irq_domain_activate_irq(): activate interrupt controller hardware to
    deliver the interrupt.
-3) irq_domain_deactivate_irq(): deactivate interrupt controller hardware
+4) irq_domain_deactivate_irq(): deactivate interrupt controller hardware
    to stop delivering the interrupt.
 
 Following changes are needed to support hierarchy irq_domain.

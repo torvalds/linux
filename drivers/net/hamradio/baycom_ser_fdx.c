@@ -80,8 +80,9 @@
 #include <linux/hdlcdrv.h>
 #include <linux/baycom.h>
 #include <linux/jiffies.h>
+#include <linux/time64.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -228,14 +229,15 @@ static inline unsigned int hweight8(unsigned int w)
 
 /* --------------------------------------------------------------------- */
 
-static __inline__ void ser12_rx(struct net_device *dev, struct baycom_state *bc, struct timeval *tv, unsigned char curs)
+static __inline__ void ser12_rx(struct net_device *dev, struct baycom_state *bc, struct timespec64 *ts, unsigned char curs)
 {
 	int timediff;
 	int bdus8 = bc->baud_us >> 3;
 	int bdus4 = bc->baud_us >> 2;
 	int bdus2 = bc->baud_us >> 1;
 
-	timediff = 1000000 + tv->tv_usec - bc->modem.ser12.pll_time;
+	timediff = 1000000 + ts->tv_nsec / NSEC_PER_USEC -
+					bc->modem.ser12.pll_time;
 	while (timediff >= 500000)
 		timediff -= 1000000;
 	while (timediff >= bdus2) {
@@ -287,7 +289,7 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct baycom_state *bc = netdev_priv(dev);
-	struct timeval tv;
+	struct timespec64 ts;
 	unsigned char iir, msr;
 	unsigned int txcount = 0;
 
@@ -297,7 +299,7 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 	if ((iir = inb(IIR(dev->base_addr))) & 1) 	
 		return IRQ_NONE;
 	/* get current time */
-	do_gettimeofday(&tv);
+	ktime_get_ts64(&ts);
 	msr = inb(MSR(dev->base_addr));
 	/* delta DCD */
 	if ((msr & 8) && bc->opt_dcd)
@@ -340,7 +342,7 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 		}
 		iir = inb(IIR(dev->base_addr));
 	} while (!(iir & 1));
-	ser12_rx(dev, bc, &tv, msr & 0x10); /* CTS */
+	ser12_rx(dev, bc, &ts, msr & 0x10); /* CTS */
 	if (bc->modem.ptt && txcount) {
 		if (bc->modem.ser12.txshreg <= 1) {
 			bc->modem.ser12.txshreg = 0x10000 | hdlcdrv_getbits(&bc->hdrv);
@@ -612,9 +614,9 @@ static int baud[NR_PORTS] = { [0 ... NR_PORTS-1] = 1200 };
 
 module_param_array(mode, charp, NULL, 0);
 MODULE_PARM_DESC(mode, "baycom operating mode; * for software DCD");
-module_param_array(iobase, int, NULL, 0);
+module_param_hw_array(iobase, int, ioport, NULL, 0);
 MODULE_PARM_DESC(iobase, "baycom io base address");
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 MODULE_PARM_DESC(irq, "baycom irq number");
 module_param_array(baud, int, NULL, 0);
 MODULE_PARM_DESC(baud, "baycom baud rate (300 to 4800)");

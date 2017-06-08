@@ -15,7 +15,7 @@
  * - Pin pad configuration (pull up/down, strength)
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -84,7 +84,7 @@ static struct pinctrl_ops dc_pinctrl_ops = {
 	.get_group_name		= dc_get_group_name,
 	.get_group_pins		= dc_get_group_pins,
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 };
 
 static const char *const dc_functions[] = {
@@ -169,19 +169,9 @@ static struct pinmux_ops dc_pmxops = {
 	.gpio_request_enable	= dc_pmx_request_gpio,
 };
 
-static int dc_gpio_request(struct gpio_chip *chip, unsigned gpio)
-{
-	return pinctrl_request_gpio(chip->base + gpio);
-}
-
-static void dc_gpio_free(struct gpio_chip *chip, unsigned gpio)
-{
-	pinctrl_free_gpio(chip->base + gpio);
-}
-
 static int dc_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
-	struct dc_pinmap *pmap = container_of(chip, struct dc_pinmap, chip);
+	struct dc_pinmap *pmap = gpiochip_get_data(chip);
 	int reg_off = GP_DRIVE0(gpio/PINS_PER_COLLECTION);
 	int bit_off = gpio % PINS_PER_COLLECTION;
 	u8 drive;
@@ -201,7 +191,7 @@ static void dc_gpio_set(struct gpio_chip *chip, unsigned gpio, int value);
 static int dc_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 				    int value)
 {
-	struct dc_pinmap *pmap = container_of(chip, struct dc_pinmap, chip);
+	struct dc_pinmap *pmap = gpiochip_get_data(chip);
 	int reg_off = GP_DRIVE0(gpio/PINS_PER_COLLECTION);
 	int bit_off = gpio % PINS_PER_COLLECTION;
 	u8 drive;
@@ -220,7 +210,7 @@ static int dc_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 
 static int dc_gpio_get(struct gpio_chip *chip, unsigned gpio)
 {
-	struct dc_pinmap *pmap = container_of(chip, struct dc_pinmap, chip);
+	struct dc_pinmap *pmap = gpiochip_get_data(chip);
 	int reg_off = GP_INPUT(gpio/PINS_PER_COLLECTION);
 	int bit_off = gpio % PINS_PER_COLLECTION;
 	u8 input;
@@ -232,7 +222,7 @@ static int dc_gpio_get(struct gpio_chip *chip, unsigned gpio)
 
 static void dc_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
 {
-	struct dc_pinmap *pmap = container_of(chip, struct dc_pinmap, chip);
+	struct dc_pinmap *pmap = gpiochip_get_data(chip);
 	int reg_off = GP_OUTPUT0(gpio/PINS_PER_COLLECTION);
 	int bit_off = gpio % PINS_PER_COLLECTION;
 	u8 output;
@@ -254,9 +244,9 @@ static int dc_gpiochip_add(struct dc_pinmap *pmap, struct device_node *np)
 	int ret;
 
 	chip->label		= DRIVER_NAME;
-	chip->dev		= pmap->dev;
-	chip->request		= dc_gpio_request;
-	chip->free		= dc_gpio_free;
+	chip->parent		= pmap->dev;
+	chip->request		= gpiochip_generic_request;
+	chip->free		= gpiochip_generic_free;
 	chip->direction_input	= dc_gpio_direction_input;
 	chip->direction_output	= dc_gpio_direction_output;
 	chip->get		= dc_gpio_get;
@@ -268,7 +258,7 @@ static int dc_gpiochip_add(struct dc_pinmap *pmap, struct device_node *np)
 
 	spin_lock_init(&pmap->lock);
 
-	ret = gpiochip_add(chip);
+	ret = gpiochip_add_data(chip, pmap);
 	if (ret < 0)
 		return ret;
 
@@ -290,7 +280,7 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 	struct pinctrl_desc *pctl_desc;
 	char *pin_names;
 	int name_len = strlen("GP_xx") + 1;
-	int i, j, ret;
+	int i, j;
 
 	pmap = devm_kzalloc(&pdev->dev, sizeof(*pmap), GFP_KERNEL);
 	if (!pmap)
@@ -336,43 +326,26 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 
 	pmap->dev = &pdev->dev;
 
-	pmap->pctl = pinctrl_register(pctl_desc, &pdev->dev, pmap);
+	pmap->pctl = devm_pinctrl_register(&pdev->dev, pctl_desc, pmap);
 	if (IS_ERR(pmap->pctl)) {
 		dev_err(&pdev->dev, "pinctrl driver registration failed\n");
 		return PTR_ERR(pmap->pctl);
 	}
 
-	ret = dc_gpiochip_add(pmap, pdev->dev.of_node);
-	if (ret < 0) {
-		pinctrl_unregister(pmap->pctl);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int dc_pinctrl_remove(struct platform_device *pdev)
-{
-	struct dc_pinmap *pmap = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(pmap->pctl);
-	gpiochip_remove(&pmap->chip);
-
-	return 0;
+	return dc_gpiochip_add(pmap, pdev->dev.of_node);
 }
 
 static const struct of_device_id dc_pinctrl_ids[] = {
 	{ .compatible = "cnxt,cx92755-pinctrl" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, dc_pinctrl_ids);
 
 static struct platform_driver dc_pinctrl_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = dc_pinctrl_ids,
+		.suppress_bind_attrs = true,
 	},
 	.probe = dc_pinctrl_probe,
-	.remove = dc_pinctrl_remove,
 };
-module_platform_driver(dc_pinctrl_driver);
+builtin_platform_driver(dc_pinctrl_driver);

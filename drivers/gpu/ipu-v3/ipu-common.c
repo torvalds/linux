@@ -28,6 +28,7 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 
 #include <drm/drm_fourcc.h>
 
@@ -44,23 +45,36 @@ static inline void ipu_cm_write(struct ipu_soc *ipu, u32 value, unsigned offset)
 	writel(value, ipu->cm_reg + offset);
 }
 
-void ipu_srm_dp_sync_update(struct ipu_soc *ipu)
+int ipu_get_num(struct ipu_soc *ipu)
+{
+	return ipu->id;
+}
+EXPORT_SYMBOL_GPL(ipu_get_num);
+
+void ipu_srm_dp_update(struct ipu_soc *ipu, bool sync)
 {
 	u32 val;
 
 	val = ipu_cm_read(ipu, IPU_SRM_PRI2);
-	val |= 0x8;
+	val &= ~DP_S_SRM_MODE_MASK;
+	val |= sync ? DP_S_SRM_MODE_NEXT_FRAME :
+		      DP_S_SRM_MODE_NOW;
 	ipu_cm_write(ipu, val, IPU_SRM_PRI2);
 }
-EXPORT_SYMBOL_GPL(ipu_srm_dp_sync_update);
+EXPORT_SYMBOL_GPL(ipu_srm_dp_update);
 
 enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
 {
 	switch (drm_fourcc) {
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_ABGR1555:
+	case DRM_FORMAT_RGBA5551:
+	case DRM_FORMAT_BGRA5551:
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_BGR565:
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_BGR888:
+	case DRM_FORMAT_ARGB4444:
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_RGBX8888:
@@ -69,6 +83,12 @@ enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
 	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_RGBA8888:
 	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_RGB565_A8:
+	case DRM_FORMAT_BGR565_A8:
+	case DRM_FORMAT_RGB888_A8:
+	case DRM_FORMAT_BGR888_A8:
+	case DRM_FORMAT_RGBX8888_A8:
+	case DRM_FORMAT_BGRX8888_A8:
 		return IPUV3_COLORSPACE_RGB;
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_UYVY:
@@ -76,6 +96,8 @@ enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
 	case DRM_FORMAT_YVU420:
 	case DRM_FORMAT_YUV422:
 	case DRM_FORMAT_YVU422:
+	case DRM_FORMAT_YUV444:
+	case DRM_FORMAT_YVU444:
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_NV16:
@@ -718,6 +740,137 @@ void ipu_set_ic_src_mux(struct ipu_soc *ipu, int csi_id, bool vdi)
 }
 EXPORT_SYMBOL_GPL(ipu_set_ic_src_mux);
 
+
+/* Frame Synchronization Unit Channel Linking */
+
+struct fsu_link_reg_info {
+	int chno;
+	u32 reg;
+	u32 mask;
+	u32 val;
+};
+
+struct fsu_link_info {
+	struct fsu_link_reg_info src;
+	struct fsu_link_reg_info sink;
+};
+
+static const struct fsu_link_info fsu_link_info[] = {
+	{
+		.src  = { IPUV3_CHANNEL_IC_PRP_ENC_MEM, IPU_FS_PROC_FLOW2,
+			  FS_PRP_ENC_DEST_SEL_MASK, FS_PRP_ENC_DEST_SEL_IRT_ENC },
+		.sink = { IPUV3_CHANNEL_MEM_ROT_ENC, IPU_FS_PROC_FLOW1,
+			  FS_PRPENC_ROT_SRC_SEL_MASK, FS_PRPENC_ROT_SRC_SEL_ENC },
+	}, {
+		.src =  { IPUV3_CHANNEL_IC_PRP_VF_MEM, IPU_FS_PROC_FLOW2,
+			  FS_PRPVF_DEST_SEL_MASK, FS_PRPVF_DEST_SEL_IRT_VF },
+		.sink = { IPUV3_CHANNEL_MEM_ROT_VF, IPU_FS_PROC_FLOW1,
+			  FS_PRPVF_ROT_SRC_SEL_MASK, FS_PRPVF_ROT_SRC_SEL_VF },
+	}, {
+		.src =  { IPUV3_CHANNEL_IC_PP_MEM, IPU_FS_PROC_FLOW2,
+			  FS_PP_DEST_SEL_MASK, FS_PP_DEST_SEL_IRT_PP },
+		.sink = { IPUV3_CHANNEL_MEM_ROT_PP, IPU_FS_PROC_FLOW1,
+			  FS_PP_ROT_SRC_SEL_MASK, FS_PP_ROT_SRC_SEL_PP },
+	}, {
+		.src =  { IPUV3_CHANNEL_CSI_DIRECT, 0 },
+		.sink = { IPUV3_CHANNEL_CSI_VDI_PREV, IPU_FS_PROC_FLOW1,
+			  FS_VDI_SRC_SEL_MASK, FS_VDI_SRC_SEL_CSI_DIRECT },
+	},
+};
+
+static const struct fsu_link_info *find_fsu_link_info(int src, int sink)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fsu_link_info); i++) {
+		if (src == fsu_link_info[i].src.chno &&
+		    sink == fsu_link_info[i].sink.chno)
+			return &fsu_link_info[i];
+	}
+
+	return NULL;
+}
+
+/*
+ * Links a source channel to a sink channel in the FSU.
+ */
+int ipu_fsu_link(struct ipu_soc *ipu, int src_ch, int sink_ch)
+{
+	const struct fsu_link_info *link;
+	u32 src_reg, sink_reg;
+	unsigned long flags;
+
+	link = find_fsu_link_info(src_ch, sink_ch);
+	if (!link)
+		return -EINVAL;
+
+	spin_lock_irqsave(&ipu->lock, flags);
+
+	if (link->src.mask) {
+		src_reg = ipu_cm_read(ipu, link->src.reg);
+		src_reg &= ~link->src.mask;
+		src_reg |= link->src.val;
+		ipu_cm_write(ipu, src_reg, link->src.reg);
+	}
+
+	if (link->sink.mask) {
+		sink_reg = ipu_cm_read(ipu, link->sink.reg);
+		sink_reg &= ~link->sink.mask;
+		sink_reg |= link->sink.val;
+		ipu_cm_write(ipu, sink_reg, link->sink.reg);
+	}
+
+	spin_unlock_irqrestore(&ipu->lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_fsu_link);
+
+/*
+ * Unlinks source and sink channels in the FSU.
+ */
+int ipu_fsu_unlink(struct ipu_soc *ipu, int src_ch, int sink_ch)
+{
+	const struct fsu_link_info *link;
+	u32 src_reg, sink_reg;
+	unsigned long flags;
+
+	link = find_fsu_link_info(src_ch, sink_ch);
+	if (!link)
+		return -EINVAL;
+
+	spin_lock_irqsave(&ipu->lock, flags);
+
+	if (link->src.mask) {
+		src_reg = ipu_cm_read(ipu, link->src.reg);
+		src_reg &= ~link->src.mask;
+		ipu_cm_write(ipu, src_reg, link->src.reg);
+	}
+
+	if (link->sink.mask) {
+		sink_reg = ipu_cm_read(ipu, link->sink.reg);
+		sink_reg &= ~link->sink.mask;
+		ipu_cm_write(ipu, sink_reg, link->sink.reg);
+	}
+
+	spin_unlock_irqrestore(&ipu->lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_fsu_unlink);
+
+/* Link IDMAC channels in the FSU */
+int ipu_idmac_link(struct ipuv3_channel *src, struct ipuv3_channel *sink)
+{
+	return ipu_fsu_link(src->ipu, src->num, sink->num);
+}
+EXPORT_SYMBOL_GPL(ipu_idmac_link);
+
+/* Unlink IDMAC channels in the FSU */
+int ipu_idmac_unlink(struct ipuv3_channel *src, struct ipuv3_channel *sink)
+{
+	return ipu_fsu_unlink(src->ipu, src->num, sink->num);
+}
+EXPORT_SYMBOL_GPL(ipu_idmac_unlink);
+
 struct ipu_devtype {
 	const char *name;
 	unsigned long cm_ofs;
@@ -786,6 +939,7 @@ static const struct of_device_id imx_ipu_dt_ids[] = {
 	{ .compatible = "fsl,imx51-ipu", .data = &ipu_type_imx51, },
 	{ .compatible = "fsl,imx53-ipu", .data = &ipu_type_imx53, },
 	{ .compatible = "fsl,imx6q-ipu", .data = &ipu_type_imx6q, },
+	{ .compatible = "fsl,imx6qp-ipu", .data = &ipu_type_imx6q, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_ipu_dt_ids);
@@ -825,6 +979,20 @@ static int ipu_submodules_init(struct ipu_soc *ipu,
 	if (ret) {
 		unit = "ic";
 		goto err_ic;
+	}
+
+	ret = ipu_vdi_init(ipu, dev, ipu_base + devtype->vdi_ofs,
+			   IPU_CONF_VDI_EN | IPU_CONF_ISP_EN |
+			   IPU_CONF_IC_INPUT);
+	if (ret) {
+		unit = "vdi";
+		goto err_vdi;
+	}
+
+	ret = ipu_image_convert_init(ipu, dev);
+	if (ret) {
+		unit = "image_convert";
+		goto err_image_convert;
 	}
 
 	ret = ipu_di_init(ipu, dev, 0, ipu_base + devtype->disp0_ofs,
@@ -881,6 +1049,10 @@ err_dc:
 err_di_1:
 	ipu_di_exit(ipu, 0);
 err_di_0:
+	ipu_image_convert_exit(ipu);
+err_image_convert:
+	ipu_vdi_exit(ipu);
+err_vdi:
 	ipu_ic_exit(ipu);
 err_ic:
 	ipu_csi_exit(ipu, 1);
@@ -965,6 +1137,8 @@ static void ipu_submodules_exit(struct ipu_soc *ipu)
 	ipu_dc_exit(ipu);
 	ipu_di_exit(ipu, 1);
 	ipu_di_exit(ipu, 0);
+	ipu_image_convert_exit(ipu);
+	ipu_vdi_exit(ipu);
 	ipu_ic_exit(ipu);
 	ipu_csi_exit(ipu, 1);
 	ipu_csi_exit(ipu, 0);
@@ -988,11 +1162,25 @@ static void platform_device_unregister_children(struct platform_device *pdev)
 struct ipu_platform_reg {
 	struct ipu_client_platformdata pdata;
 	const char *name;
-	int reg_offset;
 };
 
-static const struct ipu_platform_reg client_reg[] = {
+/* These must be in the order of the corresponding device tree port nodes */
+static struct ipu_platform_reg client_reg[] = {
 	{
+		.pdata = {
+			.csi = 0,
+			.dma[0] = IPUV3_CHANNEL_CSI0,
+			.dma[1] = -EINVAL,
+		},
+		.name = "imx-ipuv3-csi",
+	}, {
+		.pdata = {
+			.csi = 1,
+			.dma[0] = IPUV3_CHANNEL_CSI1,
+			.dma[1] = -EINVAL,
+		},
+		.name = "imx-ipuv3-csi",
+	}, {
 		.pdata = {
 			.di = 0,
 			.dc = 5,
@@ -1010,22 +1198,6 @@ static const struct ipu_platform_reg client_reg[] = {
 			.dma[1] = -EINVAL,
 		},
 		.name = "imx-ipuv3-crtc",
-	}, {
-		.pdata = {
-			.csi = 0,
-			.dma[0] = IPUV3_CHANNEL_CSI0,
-			.dma[1] = -EINVAL,
-		},
-		.reg_offset = IPU_CM_CSI0_REG_OFS,
-		.name = "imx-ipuv3-camera",
-	}, {
-		.pdata = {
-			.csi = 1,
-			.dma[0] = IPUV3_CHANNEL_CSI1,
-			.dma[1] = -EINVAL,
-		},
-		.reg_offset = IPU_CM_CSI1_REG_OFS,
-		.name = "imx-ipuv3-camera",
 	},
 };
 
@@ -1044,24 +1216,35 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 	mutex_unlock(&ipu_client_id_mutex);
 
 	for (i = 0; i < ARRAY_SIZE(client_reg); i++) {
-		const struct ipu_platform_reg *reg = &client_reg[i];
+		struct ipu_platform_reg *reg = &client_reg[i];
 		struct platform_device *pdev;
-		struct resource res;
+		struct device_node *of_node;
 
-		if (reg->reg_offset) {
-			memset(&res, 0, sizeof(res));
-			res.flags = IORESOURCE_MEM;
-			res.start = ipu_base + ipu->devtype->cm_ofs + reg->reg_offset;
-			res.end = res.start + PAGE_SIZE - 1;
-			pdev = platform_device_register_resndata(dev, reg->name,
-				id++, &res, 1, &reg->pdata, sizeof(reg->pdata));
-		} else {
-			pdev = platform_device_register_data(dev, reg->name,
-				id++, &reg->pdata, sizeof(reg->pdata));
+		/* Associate subdevice with the corresponding port node */
+		of_node = of_graph_get_port_by_id(dev->of_node, i);
+		if (!of_node) {
+			dev_info(dev,
+				 "no port@%d node in %s, not using %s%d\n",
+				 i, dev->of_node->full_name,
+				 (i / 2) ? "DI" : "CSI", i % 2);
+			continue;
 		}
 
-		if (IS_ERR(pdev)) {
-			ret = PTR_ERR(pdev);
+		pdev = platform_device_alloc(reg->name, id++);
+		if (!pdev) {
+			ret = -ENOMEM;
+			goto err_register;
+		}
+
+		pdev->dev.parent = dev;
+
+		reg->pdata.of_node = of_node;
+		ret = platform_device_add_data(pdev, &reg->pdata,
+					       sizeof(reg->pdata));
+		if (!ret)
+			ret = platform_device_add(pdev);
+		if (ret) {
+			platform_device_put(pdev);
 			goto err_register;
 		}
 	}
@@ -1106,8 +1289,11 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 		return ret;
 	}
 
-	for (i = 0; i < IPU_NUM_IRQS; i += 32)
+	/* Mask and clear all interrupts */
+	for (i = 0; i < IPU_NUM_IRQS; i += 32) {
 		ipu_cm_write(ipu, 0, IPU_INT_CTRL(i / 32));
+		ipu_cm_write(ipu, ~unused[i / 32], IPU_INT_STAT(i / 32));
+	}
 
 	for (i = 0; i < IPU_NUM_IRQS; i += 32) {
 		gc = irq_get_domain_generic_chip(ipu->domain, i);
@@ -1186,15 +1372,16 @@ EXPORT_SYMBOL_GPL(ipu_dump);
 
 static int ipu_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-			of_match_device(imx_ipu_dt_ids, &pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
 	struct ipu_soc *ipu;
 	struct resource *res;
 	unsigned long ipu_base;
 	int i, ret, irq_sync, irq_err;
 	const struct ipu_devtype *devtype;
 
-	devtype = of_id->data;
+	devtype = of_device_get_match_data(&pdev->dev);
+	if (!devtype)
+		return -EINVAL;
 
 	irq_sync = platform_get_irq(pdev, 0);
 	irq_err = platform_get_irq(pdev, 1);
@@ -1211,6 +1398,16 @@ static int ipu_probe(struct platform_device *pdev)
 	ipu = devm_kzalloc(&pdev->dev, sizeof(*ipu), GFP_KERNEL);
 	if (!ipu)
 		return -ENODEV;
+
+	ipu->id = of_alias_get_id(np, "ipu");
+
+	if (of_device_is_compatible(np, "fsl,imx6qp-ipu") &&
+	    IS_ENABLED(CONFIG_DRM)) {
+		ipu->prg_priv = ipu_prg_lookup_by_phandle(&pdev->dev,
+							  "fsl,prg", ipu->id);
+		if (!ipu->prg_priv)
+			return -EPROBE_DEFER;
+	}
 
 	for (i = 0; i < 64; i++)
 		ipu->channel[i].ipu = ipu;
@@ -1277,10 +1474,6 @@ static int ipu_probe(struct platform_device *pdev)
 	ipu->irq_sync = irq_sync;
 	ipu->irq_err = irq_err;
 
-	ret = ipu_irq_init(ipu);
-	if (ret)
-		goto out_failed_irq;
-
 	ret = device_reset(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to reset: %d\n", ret);
@@ -1289,6 +1482,10 @@ static int ipu_probe(struct platform_device *pdev)
 	ret = ipu_memory_reset(ipu);
 	if (ret)
 		goto out_failed_reset;
+
+	ret = ipu_irq_init(ipu);
+	if (ret)
+		goto out_failed_irq;
 
 	/* Set MCU_T to divide MCU access window into 2 */
 	ipu_cm_write(ipu, 0x00400000L | (IPU_MCU_T_DEFAULT << 18),
@@ -1312,9 +1509,9 @@ static int ipu_probe(struct platform_device *pdev)
 failed_add_clients:
 	ipu_submodules_exit(ipu);
 failed_submodules_init:
-out_failed_reset:
 	ipu_irq_exit(ipu);
 out_failed_irq:
+out_failed_reset:
 	clk_disable_unprepare(ipu->clk);
 	return ret;
 }
@@ -1341,7 +1538,25 @@ static struct platform_driver imx_ipu_driver = {
 	.remove = ipu_remove,
 };
 
-module_platform_driver(imx_ipu_driver);
+static struct platform_driver * const drivers[] = {
+#if IS_ENABLED(CONFIG_DRM)
+	&ipu_pre_drv,
+	&ipu_prg_drv,
+#endif
+	&imx_ipu_driver,
+};
+
+static int __init imx_ipu_init(void)
+{
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_init(imx_ipu_init);
+
+static void __exit imx_ipu_exit(void)
+{
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_exit(imx_ipu_exit);
 
 MODULE_ALIAS("platform:imx-ipuv3");
 MODULE_DESCRIPTION("i.MX IPU v3 driver");

@@ -26,7 +26,7 @@
 #include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
-#include <mach/regs-u2d.h>
+#include "regs-u2d.h"
 #include <linux/platform_data/usb-pxa3xx-ulpi.h>
 
 struct pxa3xx_u2d_ulpi {

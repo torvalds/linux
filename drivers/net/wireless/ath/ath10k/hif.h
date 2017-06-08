@@ -30,13 +30,6 @@ struct ath10k_hif_sg_item {
 	u16 len;
 };
 
-struct ath10k_hif_cb {
-	int (*tx_completion)(struct ath10k *ar,
-			     struct sk_buff *wbuf);
-	int (*rx_completion)(struct ath10k *ar,
-			     struct sk_buff *wbuf);
-};
-
 struct ath10k_hif_ops {
 	/* send a scatter-gather list to the target */
 	int (*tx_sg)(struct ath10k *ar, u8 pipe_id,
@@ -61,12 +54,12 @@ struct ath10k_hif_ops {
 	int (*start)(struct ath10k *ar);
 
 	/* Clean up what start() did. This does not revert to BMI phase. If
-	 * desired so, call power_down() and power_up() */
+	 * desired so, call power_down() and power_up()
+	 */
 	void (*stop)(struct ath10k *ar);
 
 	int (*map_service_to_pipe)(struct ath10k *ar, u16 service_id,
-				   u8 *ul_pipe, u8 *dl_pipe,
-				   int *ul_is_polled, int *dl_is_polled);
+				   u8 *ul_pipe, u8 *dl_pipe);
 
 	void (*get_default_pipe)(struct ath10k *ar, u8 *ul_pipe, u8 *dl_pipe);
 
@@ -80,9 +73,6 @@ struct ath10k_hif_ops {
 	 */
 	void (*send_complete_check)(struct ath10k *ar, u8 pipe_id, int force);
 
-	void (*set_callbacks)(struct ath10k *ar,
-			      struct ath10k_hif_cb *callbacks);
-
 	u16 (*get_free_queue_number)(struct ath10k *ar, u8 pipe_id);
 
 	u32 (*read32)(struct ath10k *ar, u32 address);
@@ -93,11 +83,16 @@ struct ath10k_hif_ops {
 	int (*power_up)(struct ath10k *ar);
 
 	/* Power down the device and free up resources. stop() must be called
-	 * before this if start() was called earlier */
+	 * before this if start() was called earlier
+	 */
 	void (*power_down)(struct ath10k *ar);
 
 	int (*suspend)(struct ath10k *ar);
 	int (*resume)(struct ath10k *ar);
+
+	/* fetch calibration data from target eeprom */
+	int (*fetch_cal_eeprom)(struct ath10k *ar, void **data,
+				size_t *data_len);
 };
 
 static inline int ath10k_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
@@ -142,13 +137,10 @@ static inline void ath10k_hif_stop(struct ath10k *ar)
 
 static inline int ath10k_hif_map_service_to_pipe(struct ath10k *ar,
 						 u16 service_id,
-						 u8 *ul_pipe, u8 *dl_pipe,
-						 int *ul_is_polled,
-						 int *dl_is_polled)
+						 u8 *ul_pipe, u8 *dl_pipe)
 {
 	return ar->hif.ops->map_service_to_pipe(ar, service_id,
-						ul_pipe, dl_pipe,
-						ul_is_polled, dl_is_polled);
+						ul_pipe, dl_pipe);
 }
 
 static inline void ath10k_hif_get_default_pipe(struct ath10k *ar,
@@ -161,12 +153,6 @@ static inline void ath10k_hif_send_complete_check(struct ath10k *ar,
 						  u8 pipe_id, int force)
 {
 	ar->hif.ops->send_complete_check(ar, pipe_id, force);
-}
-
-static inline void ath10k_hif_set_callbacks(struct ath10k *ar,
-					    struct ath10k_hif_cb *callbacks)
-{
-	ar->hif.ops->set_callbacks(ar, callbacks);
 }
 
 static inline u16 ath10k_hif_get_free_queue_number(struct ath10k *ar,
@@ -220,6 +206,16 @@ static inline void ath10k_hif_write32(struct ath10k *ar,
 	}
 
 	ar->hif.ops->write32(ar, address, data);
+}
+
+static inline int ath10k_hif_fetch_cal_eeprom(struct ath10k *ar,
+					      void **data,
+					      size_t *data_len)
+{
+	if (!ar->hif.ops->fetch_cal_eeprom)
+		return -EOPNOTSUPP;
+
+	return ar->hif.ops->fetch_cal_eeprom(ar, data, data_len);
 }
 
 #endif /* _HIF_H_ */

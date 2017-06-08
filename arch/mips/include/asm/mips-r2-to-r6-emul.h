@@ -52,7 +52,7 @@ do {									\
 	__this_cpu_inc(mipsr2emustats.M);				\
 	err = __get_user(nir, (u32 __user *)regs->cp0_epc);		\
 	if (!err) {							\
-		if (nir == BREAK_MATH)					\
+		if (nir == BREAK_MATH(0))				\
 			__this_cpu_inc(mipsr2bdemustats.M);		\
 	}								\
 	preempt_enable();						\
@@ -79,7 +79,7 @@ struct r2_decoder_table {
 };
 
 
-extern void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
+extern void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 			  const char *str);
 
 #ifndef CONFIG_MIPSR2_TO_R6_EMULATOR

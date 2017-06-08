@@ -113,7 +113,7 @@ uint r8712_alloc_io_queue(struct _adapter *adapter)
 	struct io_req *pio_req;
 
 	pio_queue = kmalloc(sizeof(*pio_queue), GFP_ATOMIC);
-	if (pio_queue == NULL)
+	if (!pio_queue)
 		goto alloc_io_queue_fail;
 	INIT_LIST_HEAD(&pio_queue->free_ioreqs);
 	INIT_LIST_HEAD(&pio_queue->processing);
@@ -150,7 +150,7 @@ alloc_io_queue_fail:
 
 void r8712_free_io_queue(struct _adapter *adapter)
 {
-	struct io_queue *pio_queue = (struct io_queue *)(adapter->pio_queue);
+	struct io_queue *pio_queue = adapter->pio_queue;
 
 	if (pio_queue) {
 		kfree(pio_queue->pallocated_free_ioreqs_buf);

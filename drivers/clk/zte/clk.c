@@ -9,6 +9,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/err.h>
+#include <linux/gcd.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/slab.h>
@@ -21,8 +22,8 @@
 #define to_clk_zx_audio(_hw) container_of(_hw, struct clk_zx_audio, hw)
 
 #define CFG0_CFG1_OFFSET 4
-#define LOCK_FLAG BIT(30)
-#define POWER_DOWN BIT(31)
+#define LOCK_FLAG 30
+#define POWER_DOWN 31
 
 static int rate_to_idx(struct clk_zx_pll *zx_pll, unsigned long rate)
 {
@@ -50,8 +51,11 @@ static int hw_to_idx(struct clk_zx_pll *zx_pll)
 	hw_cfg1 = readl_relaxed(zx_pll->reg_base + CFG0_CFG1_OFFSET);
 
 	/* For matching the value in lookup table */
-	hw_cfg0 &= ~LOCK_FLAG;
-	hw_cfg0 |= POWER_DOWN;
+	hw_cfg0 &= ~BIT(zx_pll->lock_bit);
+
+	/* Check availability of pd_bit */
+	if (zx_pll->pd_bit < 32)
+		hw_cfg0 |= BIT(zx_pll->pd_bit);
 
 	for (i = 0; i < zx_pll->count; i++) {
 		if (hw_cfg0 == config[i].cfg0 && hw_cfg1 == config[i].cfg1)
@@ -107,11 +111,15 @@ static int zx_pll_enable(struct clk_hw *hw)
 	struct clk_zx_pll *zx_pll = to_clk_zx_pll(hw);
 	u32 reg;
 
+	/* If pd_bit is not available, simply return success. */
+	if (zx_pll->pd_bit > 31)
+		return 0;
+
 	reg = readl_relaxed(zx_pll->reg_base);
-	writel_relaxed(reg & ~POWER_DOWN, zx_pll->reg_base);
+	writel_relaxed(reg & ~BIT(zx_pll->pd_bit), zx_pll->reg_base);
 
 	return readl_relaxed_poll_timeout(zx_pll->reg_base, reg,
-					  reg & LOCK_FLAG, 0, 100);
+					  reg & BIT(zx_pll->lock_bit), 0, 100);
 }
 
 static void zx_pll_disable(struct clk_hw *hw)
@@ -119,8 +127,11 @@ static void zx_pll_disable(struct clk_hw *hw)
 	struct clk_zx_pll *zx_pll = to_clk_zx_pll(hw);
 	u32 reg;
 
+	if (zx_pll->pd_bit > 31)
+		return;
+
 	reg = readl_relaxed(zx_pll->reg_base);
-	writel_relaxed(reg | POWER_DOWN, zx_pll->reg_base);
+	writel_relaxed(reg | BIT(zx_pll->pd_bit), zx_pll->reg_base);
 }
 
 static int zx_pll_is_enabled(struct clk_hw *hw)
@@ -130,10 +141,10 @@ static int zx_pll_is_enabled(struct clk_hw *hw)
 
 	reg = readl_relaxed(zx_pll->reg_base);
 
-	return !(reg & POWER_DOWN);
+	return !(reg & BIT(zx_pll->pd_bit));
 }
 
-static const struct clk_ops zx_pll_ops = {
+const struct clk_ops zx_pll_ops = {
 	.recalc_rate = zx_pll_recalc_rate,
 	.round_rate = zx_pll_round_rate,
 	.set_rate = zx_pll_set_rate,
@@ -141,6 +152,7 @@ static const struct clk_ops zx_pll_ops = {
 	.disable = zx_pll_disable,
 	.is_enabled = zx_pll_is_enabled,
 };
+EXPORT_SYMBOL(zx_pll_ops);
 
 struct clk *clk_register_zx_pll(const char *name, const char *parent_name,
 				unsigned long flags, void __iomem *reg_base,
@@ -164,6 +176,8 @@ struct clk *clk_register_zx_pll(const char *name, const char *parent_name,
 	zx_pll->reg_base = reg_base;
 	zx_pll->lookup_table = lookup_table;
 	zx_pll->count = count;
+	zx_pll->lock_bit = LOCK_FLAG;
+	zx_pll->pd_bit = POWER_DOWN;
 	zx_pll->lock = lock;
 	zx_pll->hw.init = &init;
 
@@ -307,3 +321,129 @@ struct clk *clk_register_zx_audio(const char *name,
 
 	return clk;
 }
+
+#define CLK_AUDIO_DIV_FRAC	BIT(0)
+#define CLK_AUDIO_DIV_INT	BIT(1)
+#define CLK_AUDIO_DIV_UNCOMMON	BIT(1)
+
+#define CLK_AUDIO_DIV_FRAC_NSHIFT	16
+#define CLK_AUDIO_DIV_INT_FRAC_RE	BIT(16)
+#define CLK_AUDIO_DIV_INT_FRAC_MAX	(0xffff)
+#define CLK_AUDIO_DIV_INT_FRAC_MIN	(0x2)
+#define CLK_AUDIO_DIV_INT_INT_SHIFT	24
+#define CLK_AUDIO_DIV_INT_INT_WIDTH	4
+
+struct zx_clk_audio_div_table {
+	unsigned long rate;
+	unsigned int int_reg;
+	unsigned int frac_reg;
+};
+
+#define to_clk_zx_audio_div(_hw) container_of(_hw, struct clk_zx_audio_divider, hw)
+
+static unsigned long audio_calc_rate(struct clk_zx_audio_divider *audio_div,
+				     u32 reg_frac, u32 reg_int,
+				     unsigned long parent_rate)
+{
+	unsigned long rate, m, n;
+
+	m = reg_frac & 0xffff;
+	n = (reg_frac >> 16) & 0xffff;
+
+	m = (reg_int & 0xffff) * n + m;
+	rate = (parent_rate * n) / m;
+
+	return rate;
+}
+
+static void audio_calc_reg(struct clk_zx_audio_divider *audio_div,
+			   struct zx_clk_audio_div_table *div_table,
+			   unsigned long rate, unsigned long parent_rate)
+{
+	unsigned int reg_int, reg_frac;
+	unsigned long m, n, div;
+
+	reg_int = parent_rate / rate;
+
+	if (reg_int > CLK_AUDIO_DIV_INT_FRAC_MAX)
+		reg_int = CLK_AUDIO_DIV_INT_FRAC_MAX;
+	else if (reg_int < CLK_AUDIO_DIV_INT_FRAC_MIN)
+		reg_int = 0;
+	m = parent_rate - rate * reg_int;
+	n = rate;
+
+	div = gcd(m, n);
+	m = m / div;
+	n = n / div;
+
+	if ((m >> 16) || (n >> 16)) {
+		if (m > n) {
+			n = n * 0xffff / m;
+			m = 0xffff;
+		} else {
+			m = m * 0xffff / n;
+			n = 0xffff;
+		}
+	}
+	reg_frac = m | (n << 16);
+
+	div_table->rate = parent_rate * n / (reg_int * n + m);
+	div_table->int_reg = reg_int;
+	div_table->frac_reg = reg_frac;
+}
+
+static unsigned long zx_audio_div_recalc_rate(struct clk_hw *hw,
+					  unsigned long parent_rate)
+{
+	struct clk_zx_audio_divider *zx_audio_div = to_clk_zx_audio_div(hw);
+	u32 reg_frac, reg_int;
+
+	reg_frac = readl_relaxed(zx_audio_div->reg_base);
+	reg_int = readl_relaxed(zx_audio_div->reg_base + 0x4);
+
+	return audio_calc_rate(zx_audio_div, reg_frac, reg_int, parent_rate);
+}
+
+static long zx_audio_div_round_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long *prate)
+{
+	struct clk_zx_audio_divider *zx_audio_div = to_clk_zx_audio_div(hw);
+	struct zx_clk_audio_div_table divt;
+
+	audio_calc_reg(zx_audio_div, &divt, rate, *prate);
+
+	return audio_calc_rate(zx_audio_div, divt.frac_reg, divt.int_reg, *prate);
+}
+
+static int zx_audio_div_set_rate(struct clk_hw *hw, unsigned long rate,
+				    unsigned long parent_rate)
+{
+	struct clk_zx_audio_divider *zx_audio_div = to_clk_zx_audio_div(hw);
+	struct zx_clk_audio_div_table divt;
+	unsigned int val;
+
+	audio_calc_reg(zx_audio_div, &divt, rate, parent_rate);
+	if (divt.rate != rate)
+		pr_debug("the real rate is:%ld", divt.rate);
+
+	writel_relaxed(divt.frac_reg, zx_audio_div->reg_base);
+
+	val = readl_relaxed(zx_audio_div->reg_base + 0x4);
+	val &= ~0xffff;
+	val |= divt.int_reg | CLK_AUDIO_DIV_INT_FRAC_RE;
+	writel_relaxed(val, zx_audio_div->reg_base + 0x4);
+
+	mdelay(1);
+
+	val = readl_relaxed(zx_audio_div->reg_base + 0x4);
+	val &= ~CLK_AUDIO_DIV_INT_FRAC_RE;
+	writel_relaxed(val, zx_audio_div->reg_base + 0x4);
+
+	return 0;
+}
+
+const struct clk_ops zx_audio_div_ops = {
+	.recalc_rate = zx_audio_div_recalc_rate,
+	.round_rate = zx_audio_div_round_rate,
+	.set_rate = zx_audio_div_set_rate,
+};

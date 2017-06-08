@@ -9,7 +9,9 @@
 
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/irqdomain.h>
 #include <linux/pci.h>
+#include <linux/msi.h>
 #include <linux/pci_hotplug.h>
 #include <linux/module.h>
 #include <linux/pci-aspm.h>
@@ -26,6 +28,82 @@ const u8 pci_acpi_dsm_uuid[] = {
 	0xd0, 0x37, 0xc9, 0xe5, 0x53, 0x35, 0x7a, 0x4d,
 	0x91, 0x17, 0xea, 0x4d, 0x19, 0xc3, 0x43, 0x4d
 };
+
+#if defined(CONFIG_PCI_QUIRKS) && defined(CONFIG_ARM64)
+static int acpi_get_rc_addr(struct acpi_device *adev, struct resource *res)
+{
+	struct device *dev = &adev->dev;
+	struct resource_entry *entry;
+	struct list_head list;
+	unsigned long flags;
+	int ret;
+
+	INIT_LIST_HEAD(&list);
+	flags = IORESOURCE_MEM;
+	ret = acpi_dev_get_resources(adev, &list,
+				     acpi_dev_filter_resource_type_cb,
+				     (void *) flags);
+	if (ret < 0) {
+		dev_err(dev, "failed to parse _CRS method, error code %d\n",
+			ret);
+		return ret;
+	}
+
+	if (ret == 0) {
+		dev_err(dev, "no IO and memory resources present in _CRS\n");
+		return -EINVAL;
+	}
+
+	entry = list_first_entry(&list, struct resource_entry, node);
+	*res = *entry->res;
+	acpi_dev_free_resource_list(&list);
+	return 0;
+}
+
+static acpi_status acpi_match_rc(acpi_handle handle, u32 lvl, void *context,
+				 void **retval)
+{
+	u16 *segment = context;
+	unsigned long long uid;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(handle, "_UID", NULL, &uid);
+	if (ACPI_FAILURE(status) || uid != *segment)
+		return AE_CTRL_DEPTH;
+
+	*(acpi_handle *)retval = handle;
+	return AE_CTRL_TERMINATE;
+}
+
+int acpi_get_rc_resources(struct device *dev, const char *hid, u16 segment,
+			  struct resource *res)
+{
+	struct acpi_device *adev;
+	acpi_status status;
+	acpi_handle handle;
+	int ret;
+
+	status = acpi_get_devices(hid, acpi_match_rc, &segment, &handle);
+	if (ACPI_FAILURE(status)) {
+		dev_err(dev, "can't find _HID %s device to locate resources\n",
+			hid);
+		return -ENODEV;
+	}
+
+	ret = acpi_bus_get_device(handle, &adev);
+	if (ret)
+		return ret;
+
+	ret = acpi_get_rc_addr(adev, res);
+	if (ret) {
+		dev_err(dev, "can't get resource from %s\n",
+			dev_name(&adev->dev));
+		return ret;
+	}
+
+	return 0;
+}
+#endif
 
 phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
 {
@@ -292,6 +370,30 @@ int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
 EXPORT_SYMBOL_GPL(pci_get_hp_params);
 
 /**
+ * pciehp_is_native - Check whether a hotplug port is handled by the OS
+ * @pdev: Hotplug port to check
+ *
+ * Walk up from @pdev to the host bridge, obtain its cached _OSC Control Field
+ * and return the value of the "PCI Express Native Hot Plug control" bit.
+ * On failure to obtain the _OSC Control Field return %false.
+ */
+bool pciehp_is_native(struct pci_dev *pdev)
+{
+	struct acpi_pci_root *root;
+	acpi_handle handle;
+
+	handle = acpi_find_root_bridge_handle(pdev);
+	if (!handle)
+		return false;
+
+	root = acpi_pci_find_root(handle);
+	if (!root)
+		return false;
+
+	return root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL;
+}
+
+/**
  * pci_acpi_wake_bus - Root bus wakeup notification fork function.
  * @work: Work item to handle.
  */
@@ -450,6 +552,27 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return error;
 }
 
+static pci_power_t acpi_pci_get_power_state(struct pci_dev *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
+	static const pci_power_t state_conv[] = {
+		[ACPI_STATE_D0]      = PCI_D0,
+		[ACPI_STATE_D1]      = PCI_D1,
+		[ACPI_STATE_D2]      = PCI_D2,
+		[ACPI_STATE_D3_HOT]  = PCI_D3hot,
+		[ACPI_STATE_D3_COLD] = PCI_D3cold,
+	};
+	int state;
+
+	if (!adev || !acpi_device_power_manageable(adev))
+		return PCI_UNKNOWN;
+
+	if (acpi_device_get_power(adev, &state) || state == ACPI_STATE_UNKNOWN)
+		return PCI_UNKNOWN;
+
+	return state_conv[state];
+}
+
 static bool acpi_pci_can_wakeup(struct pci_dev *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
@@ -529,9 +652,10 @@ static bool acpi_pci_need_resume(struct pci_dev *dev)
 	return !!adev->power.flags.dsw_present;
 }
 
-static struct pci_platform_pm_ops acpi_pci_platform_pm = {
+static const struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
+	.get_state = acpi_pci_get_power_state,
 	.choose_state = acpi_pci_choose_state,
 	.sleep_wake = acpi_pci_sleep_wake,
 	.run_wake = acpi_pci_run_wake,
@@ -688,6 +812,46 @@ static struct acpi_bus_type acpi_pci_bus = {
 	.setup = pci_acpi_setup,
 	.cleanup = pci_acpi_cleanup,
 };
+
+
+static struct fwnode_handle *(*pci_msi_get_fwnode_cb)(struct device *dev);
+
+/**
+ * pci_msi_register_fwnode_provider - Register callback to retrieve fwnode
+ * @fn:       Callback matching a device to a fwnode that identifies a PCI
+ *            MSI domain.
+ *
+ * This should be called by irqchip driver, which is the parent of
+ * the MSI domain to provide callback interface to query fwnode.
+ */
+void
+pci_msi_register_fwnode_provider(struct fwnode_handle *(*fn)(struct device *))
+{
+	pci_msi_get_fwnode_cb = fn;
+}
+
+/**
+ * pci_host_bridge_acpi_msi_domain - Retrieve MSI domain of a PCI host bridge
+ * @bus:      The PCI host bridge bus.
+ *
+ * This function uses the callback function registered by
+ * pci_msi_register_fwnode_provider() to retrieve the irq_domain with
+ * type DOMAIN_BUS_PCI_MSI of the specified host bridge bus.
+ * This returns NULL on error or when the domain is not found.
+ */
+struct irq_domain *pci_host_bridge_acpi_msi_domain(struct pci_bus *bus)
+{
+	struct fwnode_handle *fwnode;
+
+	if (!pci_msi_get_fwnode_cb)
+		return NULL;
+
+	fwnode = pci_msi_get_fwnode_cb(&bus->dev);
+	if (!fwnode)
+		return NULL;
+
+	return irq_find_matching_fwnode(fwnode, DOMAIN_BUS_PCI_MSI);
+}
 
 static int __init acpi_pci_init(void)
 {

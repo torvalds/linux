@@ -1,0 +1,53 @@
+config STM
+	tristate "System Trace Module devices"
+	select CONFIGFS_FS
+	select SRCU
+	help
+	  A System Trace Module (STM) is a device exporting data in System
+	  Trace Protocol (STP) format as defined by MIPI STP standards.
+	  Examples of such devices are Intel(R) Trace Hub and Coresight STM.
+
+	  Say Y here to enable System Trace Module device support.
+
+if STM
+
+config STM_DUMMY
+	tristate "Dummy STM driver"
+	help
+	  This is a simple dummy device that pretends to be an stm device
+	  and discards your data. Use for stm class testing.
+
+	  If you don't know what this is, say N.
+
+config STM_SOURCE_CONSOLE
+	tristate "Kernel console over STM devices"
+	help
+	  This is a kernel space trace source that sends kernel log
+	  messages to trace hosts over STM devices.
+
+	  If you want to send kernel console messages over STM devices,
+	  say Y.
+
+config STM_SOURCE_HEARTBEAT
+	tristate "Heartbeat over STM devices"
+	help
+	  This is a kernel space trace source that sends periodic
+	  heartbeat messages to trace hosts over STM devices. It is
+	  also useful for testing stm class drivers and the stm class
+	  framework itself.
+
+	  If you want to send heartbeat messages over STM devices,
+	  say Y.
+
+config STM_SOURCE_FTRACE
+	tristate "Copy the output from kernel Ftrace to STM engine"
+	depends on FUNCTION_TRACER
+	help
+	  This option can be used to copy the output from kernel Ftrace
+	  to STM engine. Enabling this option will introduce a slight
+	  timing effect.
+
+	  If you want to send kernel Ftrace messages over STM devices,
+	  say Y.
+
+endif

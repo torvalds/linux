@@ -6,6 +6,7 @@ Required properties:
 Optional properties:
 	- autorepeat: Boolean, Enable auto repeat feature of Linux input
 	  subsystem.
+	- label: String, name of the input device.
 
 Each button (key) is represented as a sub-node of "gpio-keys":
 Subnode properties:
@@ -24,23 +25,24 @@ Optional subnode-properties:
 	- debounce-interval: Debouncing interval time in milliseconds.
 	  If not specified defaults to 5.
 	- wakeup-source: Boolean, button can wake-up the system.
+			 (Legacy property supported: "gpio-key,wakeup")
 	- linux,can-disable: Boolean, indicates that button is connected
 	  to dedicated (not shared) interrupt which can be disabled to
 	  suppress events from the button.
 
 Example nodes:
 
-	gpio_keys {
+	gpio-keys {
 			compatible = "gpio-keys";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			autorepeat;
-			button@21 {
+
+			up {
 				label = "GPIO Key UP";
 				linux,code = <103>;
 				gpios = <&gpio1 0 1>;
 			};
-			button@22 {
+
+			down {
 				label = "GPIO Key DOWN";
 				linux,code = <108>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;

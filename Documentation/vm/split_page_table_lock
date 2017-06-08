@@ -54,8 +54,8 @@ everything required is done by pgtable_page_ctor() and pgtable_page_dtor(),
 which must be called on PTE table allocation / freeing.
 
 Make sure the architecture doesn't use slab allocator for page table
-allocation: slab uses page->slab_cache and page->first_page for its pages.
-These fields share storage with page->ptl.
+allocation: slab uses page->slab_cache for its pages.
+This field shares storage with page->ptl.
 
 PMD split lock only makes sense if you have more than two page table
 levels.

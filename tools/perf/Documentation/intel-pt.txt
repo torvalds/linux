@@ -364,21 +364,6 @@ cyc_thresh	Specifies how frequently CYC packets are produced - see cyc
 
 		CYC packets are not requested by default.
 
-no_force_psb	This is a driver option and is not in the IA32_RTIT_CTL MSR.
-
-		It stops the driver resetting the byte count to zero whenever
-		enabling the trace (for example on context switches) which in
-		turn results in no PSB being forced.  However some processors
-		will produce a PSB anyway.
-
-		In any case, there is still a PSB when the trace is enabled for
-		the first time.
-
-		no_force_psb can be used to slightly decrease the trace size but
-		may make it harder for the decoder to recover from errors.
-
-		no_force_psb is not selected by default.
-
 
 new snapshot option
 -------------------
@@ -565,6 +550,18 @@ Unless /proc/sys/kernel/perf_event_paranoid is set to -1, unprivileged users
 have memory limits imposed upon them.  That affects what buffer sizes they can
 have as outlined above.
 
+The v4.2 kernel introduced support for a context switch metadata event,
+PERF_RECORD_SWITCH, which allows unprivileged users to see when their processes
+are scheduled out and in, just not by whom, which is left for the
+PERF_RECORD_SWITCH_CPU_WIDE, that is only accessible in system wide context,
+which in turn requires CAP_SYS_ADMIN.
+
+Please see the 45ac1403f564 ("perf: Add PERF_RECORD_SWITCH to indicate context
+switches") commit, that introduces these metadata events for further info.
+
+When working with kernels < v4.2, the following considerations must be taken,
+as the sched:sched_switch tracepoints will be used to receive such information:
+
 Unless /proc/sys/kernel/perf_event_paranoid is set to -1, unprivileged users are
 not permitted to use tracepoints which means there is insufficient side-band
 information to decode Intel PT in per-cpu mode, and potentially workload-only
@@ -579,8 +576,11 @@ sched_switch tracepoint
 -----------------------
 
 The sched_switch tracepoint is used to provide side-band data for Intel PT
-decoding.  sched_switch events are automatically added. e.g. the second event
-shown below
+decoding in kernels where the PERF_RECORD_SWITCH metadata event isn't
+available.
+
+The sched_switch events are automatically added. e.g. the second event shown
+below:
 
 	$ perf record -vv -e intel_pt//u uname
 	------------------------------------------------------------
@@ -686,6 +686,8 @@ The letters are:
 	e	synthesize tracing error events
 	d	create a debug log
 	g	synthesize a call chain (use with i or x)
+	l	synthesize last branch entries (use with i or x)
+	s	skip initial number of events
 
 "Instructions" events look like they were recorded by "perf record -e
 instructions".
@@ -722,14 +724,34 @@ on the sample is *not* adjusted and reflects the last known value of TSC.
 
 For Intel PT, the default period is 100us.
 
+Setting it to a zero period means "as often as possible".
+
+In the case of Intel PT that is the same as a period of 1 and a unit of
+'instructions' (i.e. --itrace=i1i).
+
 Also the call chain size (default 16, max. 1024) for instructions or
 transactions events can be specified. e.g.
 
 	--itrace=ig32
 	--itrace=xg32
 
+Also the number of last branch entries (default 64, max. 1024) for instructions or
+transactions events can be specified. e.g.
+
+       --itrace=il10
+       --itrace=xl10
+
+Note that last branch entries are cleared for each sample, so there is no overlap
+from one sample to the next.
+
 To disable trace decoding entirely, use the option --no-itrace.
 
+It is also possible to skip events generated (instructions, branches, transactions)
+at the beginning. This is useful to ignore initialization code.
+
+	--itrace=i0nss1000000
+
+skips the first million instructions.
 
 dump option
 -----------
@@ -764,3 +786,32 @@ perf inject also accepts the --itrace option in which case tracing data is
 removed and replaced with the synthesized events. e.g.
 
 	perf inject --itrace -i perf.data -o perf.data.new
+
+Below is an example of using Intel PT with autofdo.  It requires autofdo
+(https://github.com/google/autofdo) and gcc version 5.  The bubble
+sort example is from the AutoFDO tutorial (https://gcc.gnu.org/wiki/AutoFDO/Tutorial)
+amended to take the number of elements as a parameter.
+
+	$ gcc-5 -O3 sort.c -o sort_optimized
+	$ ./sort_optimized 30000
+	Bubble sorting array of 30000 elements
+	2254 ms
+
+	$ cat ~/.perfconfig
+	[intel-pt]
+		mispred-all
+
+	$ perf record -e intel_pt//u ./sort 3000
+	Bubble sorting array of 3000 elements
+	58 ms
+	[ perf record: Woken up 2 times to write data ]
+	[ perf record: Captured and wrote 3.939 MB perf.data ]
+	$ perf inject -i perf.data -o inj --itrace=i100usle --strip
+	$ ./create_gcov --binary=./sort --profile=inj --gcov=sort.gcov -gcov_version=1
+	$ gcc-5 -O3 -fauto-profile=sort.gcov sort.c -o sort_autofdo
+	$ ./sort_autofdo 30000
+	Bubble sorting array of 30000 elements
+	2155 ms
+
+Note there is currently no advantage to using Intel PT instead of LBR, but
+that may change in the future if greater use is made of the data.

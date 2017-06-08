@@ -27,6 +27,8 @@ struct pt_regs {
 
 #define instruction_pointer(regs) PT_REGS_IP(regs)
 
+#define PTRACE_OLDSETOPTIONS 21
+
 struct task_struct;
 
 extern long subarch_ptrace(struct task_struct *child, long request,

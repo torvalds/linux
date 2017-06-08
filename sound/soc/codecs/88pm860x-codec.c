@@ -1361,12 +1361,14 @@ static struct snd_soc_codec_driver soc_codec_dev_pm860x = {
 	.set_bias_level	= pm860x_set_bias_level,
 	.get_regmap	= pm860x_get_regmap,
 
-	.controls = pm860x_snd_controls,
-	.num_controls = ARRAY_SIZE(pm860x_snd_controls),
-	.dapm_widgets = pm860x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(pm860x_dapm_widgets),
-	.dapm_routes = pm860x_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(pm860x_dapm_routes),
+	.component_driver = {
+		.controls		= pm860x_snd_controls,
+		.num_controls		= ARRAY_SIZE(pm860x_snd_controls),
+		.dapm_widgets		= pm860x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(pm860x_dapm_widgets),
+		.dapm_routes		= pm860x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(pm860x_dapm_routes),
+	},
 };
 
 static int pm860x_codec_probe(struct platform_device *pdev)

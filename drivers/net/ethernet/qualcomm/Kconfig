@@ -24,4 +24,17 @@ config QCA7000
 	  To compile this driver as a module, choose M here. The module
 	  will be called qcaspi.
 
+config QCOM_EMAC
+	tristate "Qualcomm Technologies, Inc. EMAC Gigabit Ethernet support"
+	depends on HAS_DMA && HAS_IOMEM
+	select CRC32
+	select PHYLIB
+	---help---
+	  This driver supports the Qualcomm Technologies, Inc. Gigabit
+	  Ethernet Media Access Controller (EMAC). The controller
+	  supports IEEE 802.3-2002, half-duplex mode at 10/100 Mb/s,
+	  full-duplex mode at 10/100/1000Mb/s, Wake On LAN (WOL) for
+	  low power, Receive-Side Scaling (RSS), and IEEE 1588-2008
+	  Precision Clock Synchronization Protocol.
+
 endif # NET_VENDOR_QUALCOMM

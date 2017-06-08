@@ -39,36 +39,33 @@
 int mlx5_core_mad_ifc(struct mlx5_core_dev *dev, const void *inb, void *outb,
 		      u16 opmod, u8 port)
 {
-	struct mlx5_mad_ifc_mbox_in *in = NULL;
-	struct mlx5_mad_ifc_mbox_out *out = NULL;
-	int err;
+	int outlen = MLX5_ST_SZ_BYTES(mad_ifc_out);
+	int inlen = MLX5_ST_SZ_BYTES(mad_ifc_in);
+	int err = -ENOMEM;
+	void *data;
+	void *resp;
+	u32 *out;
+	u32 *in;
 
-	in = kzalloc(sizeof(*in), GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
-
-	out = kzalloc(sizeof(*out), GFP_KERNEL);
-	if (!out) {
-		err = -ENOMEM;
+	in = kzalloc(inlen, GFP_KERNEL);
+	out = kzalloc(outlen, GFP_KERNEL);
+	if (!in || !out)
 		goto out;
-	}
 
-	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MAD_IFC);
-	in->hdr.opmod = cpu_to_be16(opmod);
-	in->port = port;
+	MLX5_SET(mad_ifc_in, in, opcode, MLX5_CMD_OP_MAD_IFC);
+	MLX5_SET(mad_ifc_in, in, op_mod, opmod);
+	MLX5_SET(mad_ifc_in, in, port, port);
 
-	memcpy(in->data, inb, sizeof(in->data));
+	data = MLX5_ADDR_OF(mad_ifc_in, in, mad);
+	memcpy(data, inb, MLX5_FLD_SZ_BYTES(mad_ifc_in, mad));
 
-	err = mlx5_cmd_exec(dev, in, sizeof(*in), out, sizeof(*out));
+	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
 	if (err)
 		goto out;
 
-	if (out->hdr.status) {
-		err = mlx5_cmd_status_to_err(&out->hdr);
-		goto out;
-	}
-
-	memcpy(outb, out->data, sizeof(out->data));
+	resp = MLX5_ADDR_OF(mad_ifc_out, out, response_mad_packet);
+	memcpy(outb, resp,
+	       MLX5_FLD_SZ_BYTES(mad_ifc_out, response_mad_packet));
 
 out:
 	kfree(out);

@@ -8,9 +8,6 @@
 #include "qeth_core.h"
 #include "qeth_l2.h"
 
-#define QETH_DEVICE_ATTR(_id, _name, _mode, _show, _store) \
-struct device_attribute dev_attr_##_id = __ATTR(_name, _mode, _show, _store)
-
 static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 				struct device_attribute *attr, char *buf,
 				int show_state)
@@ -109,7 +106,7 @@ static ssize_t qeth_bridge_port_state_show(struct device *dev,
 	return qeth_bridge_port_role_state_show(dev, attr, buf, 1);
 }
 
-static DEVICE_ATTR(bridge_state, 0644, qeth_bridge_port_state_show,
+static DEVICE_ATTR(bridge_state, 0444, qeth_bridge_port_state_show,
 		   NULL);
 
 static ssize_t qeth_bridgeport_hostnotification_show(struct device *dev,
@@ -272,3 +269,11 @@ void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 	} else
 		qeth_bridgeport_an_set(card, 0);
 }
+
+const struct attribute_group *qeth_l2_attr_groups[] = {
+	&qeth_device_attr_group,
+	&qeth_device_blkt_group,
+	/* l2 specific, see l2_{create,remove}_device_attributes(): */
+	&qeth_l2_bridgeport_attr_group,
+	NULL,
+};

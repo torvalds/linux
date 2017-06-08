@@ -65,13 +65,14 @@ config CHELSIO_T3
 	  will be called cxgb3.
 
 config CHELSIO_T4
-	tristate "Chelsio Communications T4/T5 Ethernet support"
+	tristate "Chelsio Communications T4/T5/T6 Ethernet support"
 	depends on PCI && (IPV6 || IPV6=n)
 	select FW_LOADER
 	select MDIO
 	---help---
-	  This driver supports Chelsio T4 and T5 based gigabit, 10Gb Ethernet
-	  adapter and T5 based 40Gb Ethernet adapter.
+	  This driver supports Chelsio T4, T5 & T6 based gigabit, 10Gb Ethernet
+	  adapter and T5/T6 based 40Gb and T6 based 25Gb, 50Gb and 100Gb
+	  Ethernet adapters.
 
 	  For general information about Chelsio and our products, visit
 	  our website at <http://www.chelsio.com>.
@@ -85,7 +86,7 @@ config CHELSIO_T4
 	  will be called cxgb4.
 
 config CHELSIO_T4_DCB
-	bool "Data Center Bridging (DCB) Support for Chelsio T4/T5 cards"
+	bool "Data Center Bridging (DCB) Support for Chelsio T4/T5/T6 cards"
 	default n
 	depends on CHELSIO_T4 && DCB
 	---help---
@@ -107,12 +108,12 @@ config CHELSIO_T4_FCOE
 	  If unsure, say N.
 
 config CHELSIO_T4VF
-	tristate "Chelsio Communications T4/T5 Virtual Function Ethernet support"
+	tristate "Chelsio Communications T4/T5/T6 Virtual Function Ethernet support"
 	depends on PCI
 	---help---
-	  This driver supports Chelsio T4 and T5 based gigabit, 10Gb Ethernet
-	  adapters and T5 based 40Gb Ethernet adapters with PCI-E SR-IOV Virtual
-	  Functions.
+	  This driver supports Chelsio T4, T5 & T6 based gigabit, 10Gb Ethernet
+	  adapters and T5/T6 based 40Gb and T6 based 25Gb, 50Gb and 100Gb
+	  Ethernet adapters with PCI-E SR-IOV Virtual Functions.
 
 	  For general information about Chelsio and our products, visit
 	  our website at <http://www.chelsio.com>.
@@ -124,5 +125,10 @@ config CHELSIO_T4VF
 
 	  To compile this driver as a module choose M here; the module
 	  will be called cxgb4vf.
+
+config CHELSIO_LIB
+	tristate
+	---help---
+	Common library for Chelsio drivers.
 
 endif # NET_VENDOR_CHELSIO

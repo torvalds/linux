@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -28,13 +28,13 @@
 static s32 fm10k_stop_hw_vf(struct fm10k_hw *hw)
 {
 	u8 *perm_addr = hw->mac.perm_addr;
-	u32 bal = 0, bah = 0;
+	u32 bal = 0, bah = 0, tdlen;
 	s32 err;
 	u16 i;
 
 	/* we need to disable the queues before taking further steps */
 	err = fm10k_stop_hw_generic(hw);
-	if (err)
+	if (err && err != FM10K_ERR_REQUESTS_PENDING)
 		return err;
 
 	/* If permanent address is set then we need to restore it */
@@ -48,6 +48,9 @@ static s32 fm10k_stop_hw_vf(struct fm10k_hw *hw)
 		       ((u32)perm_addr[2]);
 	}
 
+	/* restore default itr_scale for next VF initialization */
+	tdlen = hw->mac.itr_scale << FM10K_TDLEN_ITR_SCALE_SHIFT;
+
 	/* The queues have already been disabled so we just need to
 	 * update their base address registers
 	 */
@@ -56,9 +59,15 @@ static s32 fm10k_stop_hw_vf(struct fm10k_hw *hw)
 		fm10k_write_reg(hw, FM10K_TDBAH(i), bah);
 		fm10k_write_reg(hw, FM10K_RDBAL(i), bal);
 		fm10k_write_reg(hw, FM10K_RDBAH(i), bah);
+		/* Restore ITR scale in software-defined mechanism in TDLEN
+		 * for next VF initialization. See definition of
+		 * FM10K_TDLEN_ITR_SCALE_SHIFT for more details on the use of
+		 * TDLEN here.
+		 */
+		fm10k_write_reg(hw, FM10K_TDLEN(i), tdlen);
 	}
 
-	return 0;
+	return err;
 }
 
 /**
@@ -74,7 +83,9 @@ static s32 fm10k_reset_hw_vf(struct fm10k_hw *hw)
 
 	/* shut down queues we own and reset DMA configuration */
 	err = fm10k_stop_hw_vf(hw);
-	if (err)
+	if (err == FM10K_ERR_REQUESTS_PENDING)
+		hw->mac.reset_while_pending++;
+	else if (err)
 		return err;
 
 	/* Inititate VF reset */
@@ -87,9 +98,9 @@ static s32 fm10k_reset_hw_vf(struct fm10k_hw *hw)
 	/* Clear reset bit and verify it was cleared */
 	fm10k_write_reg(hw, FM10K_VFCTRL, 0);
 	if (fm10k_read_reg(hw, FM10K_VFCTRL) & FM10K_VFCTRL_RST)
-		err = FM10K_ERR_RESET_FAILED;
+		return FM10K_ERR_RESET_FAILED;
 
-	return err;
+	return 0;
 }
 
 /**
@@ -103,7 +114,14 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 	s32 err;
 	u16 i;
 
-	/* assume we always have at least 1 queue */
+	/* verify we have at least 1 queue */
+	if (!~fm10k_read_reg(hw, FM10K_TXQCTL(0)) ||
+	    !~fm10k_read_reg(hw, FM10K_RXQCTL(0))) {
+		err = FM10K_ERR_NO_RESOURCES;
+		goto reset_max_queues;
+	}
+
+	/* determine how many queues we have */
 	for (i = 1; tqdloc0 && (i < FM10K_MAX_QUEUES_POOL); i++) {
 		/* verify the Descriptor cache offsets are increasing */
 		tqdloc = ~fm10k_read_reg(hw, FM10K_TQDLOC(i));
@@ -119,29 +137,28 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 	/* shut down queues we own and reset DMA configuration */
 	err = fm10k_disable_queues_generic(hw, i);
 	if (err)
-		return err;
+		goto reset_max_queues;
 
 	/* record maximum queue count */
 	hw->mac.max_queues = i;
 
-	/* fetch default VLAN */
+	/* fetch default VLAN and ITR scale */
 	hw->mac.default_vid = (fm10k_read_reg(hw, FM10K_TXQCTL(0)) &
 			       FM10K_TXQCTL_VID_MASK) >> FM10K_TXQCTL_VID_SHIFT;
+	/* Read the ITR scale from TDLEN. See the definition of
+	 * FM10K_TDLEN_ITR_SCALE_SHIFT for more information about how TDLEN is
+	 * used here.
+	 */
+	hw->mac.itr_scale = (fm10k_read_reg(hw, FM10K_TDLEN(0)) &
+			     FM10K_TDLEN_ITR_SCALE_MASK) >>
+			    FM10K_TDLEN_ITR_SCALE_SHIFT;
 
 	return 0;
-}
 
-/**
- *  fm10k_is_slot_appropriate_vf - Indicate appropriate slot for this SKU
- *  @hw: pointer to hardware structure
- *
- *  Looks at the PCIe bus info to confirm whether or not this slot can support
- *  the necessary bandwidth for this device. Since the VF has no control over
- *  the "slot" it is in, always indicate that the slot is appropriate.
- **/
-static bool fm10k_is_slot_appropriate_vf(struct fm10k_hw *hw)
-{
-	return true;
+reset_max_queues:
+	hw->mac.max_queues = 0;
+
+	return err;
 }
 
 /* This structure defines the attibutes to be parsed below */
@@ -173,7 +190,7 @@ static s32 fm10k_update_vlan_vf(struct fm10k_hw *hw, u32 vid, u8 vsi, bool set)
 	if (vsi)
 		return FM10K_ERR_PARAM;
 
-	/* verify upper 4 bits of vid and length are 0 */
+	/* clever trick to verify reserved bits in both vid and length */
 	if ((vid << 16 | vid) >> 28)
 		return FM10K_ERR_PARAM;
 
@@ -213,7 +230,7 @@ s32 fm10k_msg_mac_vlan_vf(struct fm10k_hw *hw, u32 **results,
 
 	ether_addr_copy(hw->mac.perm_addr, perm_addr);
 	hw->mac.default_vid = vid & (FM10K_VLAN_TABLE_VID_MAX - 1);
-	hw->mac.vlan_override = !!(vid & FM10K_VLAN_CLEAR);
+	hw->mac.vlan_override = !!(vid & FM10K_VLAN_OVERRIDE);
 
 	return 0;
 }
@@ -283,7 +300,7 @@ static s32 fm10k_update_uc_addr_vf(struct fm10k_hw *hw, u16 glort,
 
 	/* verify we are not locked down on the MAC address */
 	if (is_valid_ether_addr(hw->mac.perm_addr) &&
-	    memcmp(hw->mac.perm_addr, mac, ETH_ALEN))
+	    !ether_addr_equal(hw->mac.perm_addr, mac))
 		return FM10K_ERR_PARAM;
 
 	/* add bit to notify us if this is a set or clear operation */
@@ -427,6 +444,7 @@ static s32 fm10k_update_xcast_mode_vf(struct fm10k_hw *hw, u16 glort, u8 mode)
 
 	if (mode > FM10K_XCAST_MODE_NONE)
 		return FM10K_ERR_PARAM;
+
 	/* generate message requesting to change xcast mode */
 	fm10k_tlv_msg_init(msg, FM10K_VF_MSG_ID_LPORT_STATE);
 	fm10k_tlv_attr_put_u8(msg, FM10K_LPORT_STATE_MSG_XCAST_MODE, mode);
@@ -434,13 +452,6 @@ static s32 fm10k_update_xcast_mode_vf(struct fm10k_hw *hw, u16 glort, u8 mode)
 	/* load onto outgoing mailbox */
 	return mbx->ops.enqueue_tx(hw, mbx, msg);
 }
-
-const struct fm10k_tlv_attr fm10k_1588_msg_attr[] = {
-	FM10K_TLV_ATTR_U64(FM10K_1588_MSG_TIMESTAMP),
-	FM10K_TLV_ATTR_LAST
-};
-
-/* currently there is no shared 1588 timestamp handler */
 
 /**
  *  fm10k_update_hw_stats_vf - Updates hardware related statistics of VF
@@ -493,52 +504,6 @@ static s32 fm10k_configure_dglort_map_vf(struct fm10k_hw *hw,
 	return 0;
 }
 
-/**
- *  fm10k_adjust_systime_vf - Adjust systime frequency
- *  @hw: pointer to hardware structure
- *  @ppb: adjustment rate in parts per billion
- *
- *  This function takes an adjustment rate in parts per billion and will
- *  verify that this value is 0 as the VF cannot support adjusting the
- *  systime clock.
- *
- *  If the ppb value is non-zero the return is ERR_PARAM else success
- **/
-static s32 fm10k_adjust_systime_vf(struct fm10k_hw *hw, s32 ppb)
-{
-	/* The VF cannot adjust the clock frequency, however it should
-	 * already have a syntonic clock with whichever host interface is
-	 * running as the master for the host interface clock domain so
-	 * there should be not frequency adjustment necessary.
-	 */
-	return ppb ? FM10K_ERR_PARAM : 0;
-}
-
-/**
- *  fm10k_read_systime_vf - Reads value of systime registers
- *  @hw: pointer to the hardware structure
- *
- *  Function reads the content of 2 registers, combined to represent a 64 bit
- *  value measured in nanoseconds.  In order to guarantee the value is accurate
- *  we check the 32 most significant bits both before and after reading the
- *  32 least significant bits to verify they didn't change as we were reading
- *  the registers.
- **/
-static u64 fm10k_read_systime_vf(struct fm10k_hw *hw)
-{
-	u32 systime_l, systime_h, systime_tmp;
-
-	systime_h = fm10k_read_reg(hw, FM10K_VFSYSTIME + 1);
-
-	do {
-		systime_tmp = systime_h;
-		systime_l = fm10k_read_reg(hw, FM10K_VFSYSTIME);
-		systime_h = fm10k_read_reg(hw, FM10K_VFSYSTIME + 1);
-	} while (systime_tmp != systime_h);
-
-	return ((u64)systime_h << 32) | systime_l;
-}
-
 static const struct fm10k_msg_data fm10k_msg_data_vf[] = {
 	FM10K_TLV_MSG_TEST_HANDLER(fm10k_tlv_msg_test),
 	FM10K_VF_MSG_MAC_VLAN_HANDLER(fm10k_msg_mac_vlan_vf),
@@ -546,26 +511,23 @@ static const struct fm10k_msg_data fm10k_msg_data_vf[] = {
 	FM10K_TLV_MSG_ERROR_HANDLER(fm10k_tlv_msg_error),
 };
 
-static struct fm10k_mac_ops mac_ops_vf = {
-	.get_bus_info		= &fm10k_get_bus_info_generic,
-	.reset_hw		= &fm10k_reset_hw_vf,
-	.init_hw		= &fm10k_init_hw_vf,
-	.start_hw		= &fm10k_start_hw_generic,
-	.stop_hw		= &fm10k_stop_hw_vf,
-	.is_slot_appropriate	= &fm10k_is_slot_appropriate_vf,
-	.update_vlan		= &fm10k_update_vlan_vf,
-	.read_mac_addr		= &fm10k_read_mac_addr_vf,
-	.update_uc_addr		= &fm10k_update_uc_addr_vf,
-	.update_mc_addr		= &fm10k_update_mc_addr_vf,
-	.update_xcast_mode	= &fm10k_update_xcast_mode_vf,
-	.update_int_moderator	= &fm10k_update_int_moderator_vf,
-	.update_lport_state	= &fm10k_update_lport_state_vf,
-	.update_hw_stats	= &fm10k_update_hw_stats_vf,
-	.rebind_hw_stats	= &fm10k_rebind_hw_stats_vf,
-	.configure_dglort_map	= &fm10k_configure_dglort_map_vf,
-	.get_host_state		= &fm10k_get_host_state_generic,
-	.adjust_systime		= &fm10k_adjust_systime_vf,
-	.read_systime		= &fm10k_read_systime_vf,
+static const struct fm10k_mac_ops mac_ops_vf = {
+	.get_bus_info		= fm10k_get_bus_info_generic,
+	.reset_hw		= fm10k_reset_hw_vf,
+	.init_hw		= fm10k_init_hw_vf,
+	.start_hw		= fm10k_start_hw_generic,
+	.stop_hw		= fm10k_stop_hw_vf,
+	.update_vlan		= fm10k_update_vlan_vf,
+	.read_mac_addr		= fm10k_read_mac_addr_vf,
+	.update_uc_addr		= fm10k_update_uc_addr_vf,
+	.update_mc_addr		= fm10k_update_mc_addr_vf,
+	.update_xcast_mode	= fm10k_update_xcast_mode_vf,
+	.update_int_moderator	= fm10k_update_int_moderator_vf,
+	.update_lport_state	= fm10k_update_lport_state_vf,
+	.update_hw_stats	= fm10k_update_hw_stats_vf,
+	.rebind_hw_stats	= fm10k_rebind_hw_stats_vf,
+	.configure_dglort_map	= fm10k_configure_dglort_map_vf,
+	.get_host_state		= fm10k_get_host_state_generic,
 };
 
 static s32 fm10k_get_invariants_vf(struct fm10k_hw *hw)
@@ -575,8 +537,8 @@ static s32 fm10k_get_invariants_vf(struct fm10k_hw *hw)
 	return fm10k_pfvf_mbx_init(hw, &hw->mbx, fm10k_msg_data_vf, 0);
 }
 
-struct fm10k_info fm10k_vf_info = {
+const struct fm10k_info fm10k_vf_info = {
 	.mac		= fm10k_mac_vf,
-	.get_invariants	= &fm10k_get_invariants_vf,
+	.get_invariants	= fm10k_get_invariants_vf,
 	.mac_ops	= &mac_ops_vf,
 };

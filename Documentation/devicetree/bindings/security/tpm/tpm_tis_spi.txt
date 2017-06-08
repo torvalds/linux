@@ -1,0 +1,24 @@
+Required properties:
+- compatible: should be one of the following
+    "st,st33htpm-spi"
+    "infineon,slb9670"
+    "tcg,tpm_tis-spi"
+- spi-max-frequency: Maximum SPI frequency (depends on TPMs).
+
+Optional SoC Specific Properties:
+- pinctrl-names: Contains only one value - "default".
+- pintctrl-0: Specifies the pin control groups used for this controller.
+
+Example (for ARM-based BeagleBoard xM with TPM_TIS on SPI4):
+
+&mcspi4 {
+
+        status = "okay";
+
+        tpm_tis@0 {
+
+                compatible = "tcg,tpm_tis-spi";
+
+                spi-max-frequency = <10000000>;
+        };
+};

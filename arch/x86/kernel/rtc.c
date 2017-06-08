@@ -13,7 +13,7 @@
 #include <asm/x86_init.h>
 #include <asm/time.h>
 #include <asm/intel-mid.h>
-#include <asm/rtc.h>
+#include <asm/setup.h>
 
 #ifdef CONFIG_X86_32
 /*
@@ -46,7 +46,7 @@ int mach_set_rtc_mmss(const struct timespec *now)
 
 	rtc_time_to_tm(nowtime, &tm);
 	if (!rtc_valid_tm(&tm)) {
-		retval = set_rtc_time(&tm);
+		retval = mc146818_set_time(&tm);
 		if (retval)
 			printk(KERN_ERR "%s: RTC write failed with error %d\n",
 			       __func__, retval);
@@ -63,6 +63,15 @@ void mach_get_cmos_time(struct timespec *now)
 {
 	unsigned int status, year, mon, day, hour, min, sec, century = 0;
 	unsigned long flags;
+
+	/*
+	 * If pm_trace abused the RTC as storage, set the timespec to 0,
+	 * which tells the caller that this RTC value is unusable.
+	 */
+	if (!pm_trace_rtc_valid()) {
+		now->tv_sec = now->tv_nsec = 0;
+		return;
+	}
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
@@ -185,20 +194,8 @@ static __init int add_rtc_cmos(void)
 		}
 	}
 #endif
-	if (of_have_populated_dt())
-		return 0;
-
-	/* Intel MID platforms don't have ioport rtc */
-	if (intel_mid_identify_cpu())
+	if (!x86_platform.legacy.rtc)
 		return -ENODEV;
-
-#ifdef CONFIG_ACPI
-	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_CMOS_RTC) {
-		/* This warning can likely go away again in a year or two. */
-		pr_info("ACPI: not registering RTC platform device\n");
-		return -ENODEV;
-	}
-#endif
 
 	platform_device_register(&rtc_device);
 	dev_info(&rtc_device.dev,

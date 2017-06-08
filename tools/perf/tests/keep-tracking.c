@@ -49,13 +49,12 @@ static int find_comm(struct perf_evlist *evlist, const char *comm)
  * when an event is disabled but a dummy software event is not disabled.  If the
  * test passes %0 is returned, otherwise %-1 is returned.
  */
-int test__keep_tracking(void)
+int test__keep_tracking(int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
-		.freq		     = 4000,
 		.target		     = {
 			.uses_mmap   = true,
 		},
@@ -81,7 +80,7 @@ int test__keep_tracking(void)
 	CHECK__(parse_events(evlist, "dummy:u", NULL));
 	CHECK__(parse_events(evlist, "cycles:u", NULL));
 
-	perf_evlist__config(evlist, &opts);
+	perf_evlist__config(evlist, &opts, NULL);
 
 	evsel = perf_evlist__first(evlist);
 
@@ -90,8 +89,8 @@ int test__keep_tracking(void)
 	evsel->attr.enable_on_exec = 0;
 
 	if (perf_evlist__open(evlist) < 0) {
-		fprintf(stderr, " (not supported)");
-		err = 0;
+		pr_debug("Unable to open dummy and cycles event\n");
+		err = TEST_SKIP;
 		goto out_err;
 	}
 
@@ -124,7 +123,7 @@ int test__keep_tracking(void)
 
 	evsel = perf_evlist__last(evlist);
 
-	CHECK__(perf_evlist__disable_event(evlist, evsel));
+	CHECK__(perf_evsel__disable(evsel));
 
 	comm = "Test COMM 2";
 	CHECK__(prctl(PR_SET_NAME, (unsigned long)comm, 0, 0, 0));

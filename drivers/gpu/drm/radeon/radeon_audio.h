@@ -79,5 +79,6 @@ void radeon_audio_fini(struct radeon_device *rdev);
 void radeon_audio_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
 void radeon_audio_dpms(struct drm_encoder *encoder, int mode);
+unsigned int radeon_audio_decode_dfs_div(unsigned int div);
 
 #endif

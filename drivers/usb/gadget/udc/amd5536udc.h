@@ -13,6 +13,12 @@
 #ifndef AMD5536UDC_H
 #define AMD5536UDC_H
 
+/* debug control */
+/* #define UDC_VERBOSE */
+
+#include <linux/usb/ch9.h>
+#include <linux/usb/gadget.h>
+
 /* various constants */
 #define UDC_RDE_TIMER_SECONDS		1
 #define UDC_RDE_TIMER_DIV		10
@@ -526,14 +532,11 @@ struct udc {
 	struct udc_ep			ep[UDC_EP_NUM];
 	struct usb_gadget_driver	*driver;
 	/* operational flags */
-	unsigned			active : 1,
-					stall_ep0in : 1,
+	unsigned			stall_ep0in : 1,
 					waiting_zlp_ack_ep0in : 1,
 					set_cfg_not_acked : 1,
-					irq_registered : 1,
 					data_ep_enabled : 1,
 					data_ep_queued : 1,
-					mem_region : 1,
 					sys_suspended : 1,
 					connected;
 
@@ -548,8 +551,8 @@ struct udc {
 	u32 __iomem			*txfifo;
 
 	/* DMA desc pools */
-	struct pci_pool			*data_requests;
-	struct pci_pool			*stp_requests;
+	struct dma_pool			*data_requests;
+	struct dma_pool			*stp_requests;
 
 	/* device data */
 	unsigned long			phys_addr;
@@ -570,6 +573,36 @@ union udc_setup_data {
 	struct usb_ctrlrequest	request;
 };
 
+/* Function declarations */
+int udc_enable_dev_setup_interrupts(struct udc *dev);
+int udc_mask_unused_interrupts(struct udc *dev);
+irqreturn_t udc_irq(int irq, void *pdev);
+void gadget_release(struct device *pdev);
+void udc_basic_init(struct udc *dev);
+void free_dma_pools(struct udc *dev);
+int init_dma_pools(struct udc *dev);
+void udc_remove(struct udc *dev);
+int udc_probe(struct udc *dev);
+
+/* DMA usage flag */
+static bool use_dma = 1;
+/* packet per buffer dma */
+static bool use_dma_ppb = 1;
+/* with per descr. update */
+static bool use_dma_ppb_du;
+/* full speed only mode */
+static bool use_fullspeed;
+
+/* module parameters */
+module_param(use_dma, bool, S_IRUGO);
+MODULE_PARM_DESC(use_dma, "true for DMA");
+module_param(use_dma_ppb, bool, S_IRUGO);
+MODULE_PARM_DESC(use_dma_ppb, "true for DMA in packet per buffer mode");
+module_param(use_dma_ppb_du, bool, S_IRUGO);
+MODULE_PARM_DESC(use_dma_ppb_du,
+	"true for DMA in packet per buffer mode with descriptor update");
+module_param(use_fullspeed, bool, S_IRUGO);
+MODULE_PARM_DESC(use_fullspeed, "true for fullspeed only");
 /*
  *---------------------------------------------------------------------------
  * SET and GET bitfields in u32 values

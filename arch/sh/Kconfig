@@ -1,5 +1,6 @@
 config SUPERH
 	def_bool y
+	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_PATA_PLATFORM
 	select CLKDEV_LOOKUP
@@ -11,7 +12,6 @@ config SUPERH
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
-	select HAVE_DMA_ATTRS
 	select HAVE_PERF_EVENTS
 	select HAVE_DEBUG_BUGVERBOSE
 	select ARCH_HAVE_CUSTOM_GPIO_H
@@ -20,6 +20,7 @@ config SUPERH
 	select PERF_USE_VMALLOC
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_KERNEL_GZIP
+	select CPU_NO_EFFICIENT_FFS
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_XZ
@@ -37,6 +38,7 @@ config SUPERH
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE if SH_SH03 || SH_DREAMCAST
+	select GENERIC_SCHED_CLOCK
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HAVE_MOD_ARCH_SPECIFIC if DWARF_UNWINDER
@@ -44,6 +46,8 @@ config SUPERH
 	select OLD_SIGSUSPEND
 	select OLD_SIGACTION
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_FUTEX_CMPXCHG if FUTEX
+	select HAVE_NMI
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -71,6 +75,7 @@ config SUPERH32
 
 config SUPERH64
 	def_bool ARCH = "sh64"
+	select HAVE_EXIT_THREAD
 	select KALLSYMS
 
 config ARCH_DEFCONFIG
@@ -130,9 +135,6 @@ config STACKTRACE_SUPPORT
 config LOCKDEP_SUPPORT
 	def_bool y
 
-config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
-
 config ARCH_HAS_ILOG2_U32
 	def_bool n
 
@@ -183,6 +185,12 @@ config CPU_SH2A
 	bool
 	select CPU_SH2
 	select UNCACHED_MAPPING
+
+config CPU_J2
+	bool
+	select CPU_SH2
+	select OF
+	select OF_EARLY_FLATTREE
 
 config CPU_SH3
 	bool
@@ -250,6 +258,12 @@ config CPU_SUBTYPE_SH7619
 	select CPU_SH2
 	select SYS_SUPPORTS_SH_CMT
 
+config CPU_SUBTYPE_J2
+	bool "Support J2 processor"
+	select CPU_J2
+	select SYS_SUPPORTS_SMP
+	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+
 # SH-2A Processor Support
 
 config CPU_SUBTYPE_SH7201
@@ -264,7 +278,6 @@ config CPU_SUBTYPE_SH7203
 	select CPU_HAS_FPU
 	select SYS_SUPPORTS_SH_CMT
 	select SYS_SUPPORTS_SH_MTU2
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PINCTRL
 
 config CPU_SUBTYPE_SH7206
@@ -353,7 +366,6 @@ config CPU_SUBTYPE_SH7720
 	select CPU_SH3
 	select CPU_HAS_DSP
 	select SYS_SUPPORTS_SH_CMT
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select USB_OHCI_SH if USB_OHCI_HCD
 	select PINCTRL
 	help
@@ -419,7 +431,6 @@ config CPU_SUBTYPE_SH7723
 	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_SH_CMT
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PINCTRL
 	help
 	  Select SH7723 if you have an SH-MobileR2 CPU.
@@ -431,7 +442,6 @@ config CPU_SUBTYPE_SH7724
 	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_SH_CMT
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PINCTRL
 	help
 	  Select SH7724 if you have an SH-MobileR2R CPU.
@@ -440,7 +450,6 @@ config CPU_SUBTYPE_SH7734
 	bool "Support SH7734 processor"
 	select CPU_SH4A
 	select CPU_SHX2
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PINCTRL
 	help
 	  Select SH7734 if you have a SH4A SH7734 CPU.
@@ -449,7 +458,6 @@ config CPU_SUBTYPE_SH7757
 	bool "Support SH7757 processor"
 	select CPU_SH4A
 	select CPU_SHX2
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PINCTRL
 	help
 	  Select SH7757 if you have a SH4A SH7757 CPU.
@@ -475,7 +483,6 @@ config CPU_SUBTYPE_SH7785
 	select CPU_SHX2
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PINCTRL
 
 config CPU_SUBTYPE_SH7786
@@ -484,7 +491,6 @@ config CPU_SUBTYPE_SH7786
 	select CPU_SHX3
 	select CPU_HAS_PTEAEX
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select USB_OHCI_SH if USB_OHCI_HCD
 	select USB_EHCI_SH if USB_EHCI_HCD
 	select PINCTRL
@@ -494,7 +500,7 @@ config CPU_SUBTYPE_SHX3
 	select CPU_SH4A
 	select CPU_SHX3
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select PINCTRL
 
 # SH4AL-DSP Processor Support
@@ -513,7 +519,6 @@ config CPU_SUBTYPE_SH7722
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SH_CMT
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PINCTRL
 
 config CPU_SUBTYPE_SH7366
@@ -748,6 +753,26 @@ endmenu
 
 menu "Boot options"
 
+config USE_BUILTIN_DTB
+	bool "Use builtin DTB"
+	default n
+	depends on SH_DEVICE_TREE
+	help
+	  Link a device tree blob for particular hardware into the kernel,
+	  suppressing use of the DTB pointer provided by the bootloader.
+	  This option should only be used with legacy bootloaders that are
+	  not capable of providing a DTB to the kernel, or for experimental
+	  hardware without stable device tree bindings.
+
+config BUILTIN_DTB_SOURCE
+	string "Source file for builtin DTB"
+	default ""
+	depends on USE_BUILTIN_DTB
+	help
+	  Base name (without suffix, relative to arch/sh/boot/dts) for the
+	  a DTS file that will be used to produce the DTB linked into the
+	  kernel.
+
 config ZERO_PAGE_OFFSET
 	hex
 	default "0x00010000" if PAGE_SIZE_64KB || SH_RTS7751R2D || \
@@ -851,13 +876,9 @@ config PCI
 config PCI_DOMAINS
 	bool
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 

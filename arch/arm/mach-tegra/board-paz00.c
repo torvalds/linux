@@ -17,36 +17,35 @@
  *
  */
 
+#include <linux/property.h>
 #include <linux/gpio/machine.h>
 #include <linux/platform_device.h>
-#include <linux/rfkill-gpio.h>
 
 #include "board.h"
 
-static struct rfkill_gpio_platform_data wifi_rfkill_platform_data = {
-	.name	= "wifi_rfkill",
-	.type	= RFKILL_TYPE_WLAN,
+static struct property_entry wifi_rfkill_prop[] __initdata = {
+	PROPERTY_ENTRY_STRING("name", "wifi_rfkill"),
+	PROPERTY_ENTRY_STRING("type", "wlan"),
+	{ },
 };
 
 static struct platform_device wifi_rfkill_device = {
 	.name	= "rfkill_gpio",
 	.id	= -1,
-	.dev	= {
-		.platform_data = &wifi_rfkill_platform_data,
-	},
 };
 
 static struct gpiod_lookup_table wifi_gpio_lookup = {
 	.dev_id = "rfkill_gpio",
 	.table = {
-		GPIO_LOOKUP_IDX("tegra-gpio", 25, NULL, 0, 0),
-		GPIO_LOOKUP_IDX("tegra-gpio", 85, NULL, 1, 0),
+		GPIO_LOOKUP("tegra-gpio", 25, "reset", 0),
+		GPIO_LOOKUP("tegra-gpio", 85, "shutdown", 0),
 		{ },
 	},
 };
 
 void __init tegra_paz00_wifikill_init(void)
 {
+	platform_device_add_properties(&wifi_rfkill_device, wifi_rfkill_prop);
 	gpiod_add_lookup_table(&wifi_gpio_lookup);
 	platform_device_register(&wifi_rfkill_device);
 }

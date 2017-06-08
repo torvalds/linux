@@ -167,6 +167,7 @@ struct imxdma_channel {
 	u32				ccr_to_device;
 	bool				enabled_2d;
 	int				slot_2d;
+	unsigned int			irq;
 };
 
 enum imx_dma_type {
@@ -186,6 +187,9 @@ struct imxdma_engine {
 	struct imx_dma_2d_config	slots_2d[IMX_DMA_2D_SLOTS];
 	struct imxdma_channel		channel[IMX_DMA_CHANNELS];
 	enum imx_dma_type		devtype;
+	unsigned int			irq;
+	unsigned int			irq_err;
+
 };
 
 struct imxdma_filter_data {
@@ -659,9 +663,7 @@ static void imxdma_tasklet(unsigned long data)
 out:
 	spin_unlock_irqrestore(&imxdma->lock, flags);
 
-	if (desc->desc.callback)
-		desc->desc.callback(desc->desc.callback_param);
-
+	dmaengine_desc_get_callback_invoke(&desc->desc, NULL);
 }
 
 static int imxdma_terminate_all(struct dma_chan *chan)
@@ -1048,7 +1050,7 @@ static struct dma_chan *imxdma_xlate(struct of_phandle_args *dma_spec,
 }
 
 static int __init imxdma_probe(struct platform_device *pdev)
-	{
+{
 	struct imxdma_engine *imxdma;
 	struct resource *res;
 	const struct of_device_id *of_id;
@@ -1100,6 +1102,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 			dev_warn(imxdma->dev, "Can't register IRQ for DMA\n");
 			goto disable_dma_ahb_clk;
 		}
+		imxdma->irq = irq;
 
 		irq_err = platform_get_irq(pdev, 1);
 		if (irq_err < 0) {
@@ -1113,6 +1116,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 			dev_warn(imxdma->dev, "Can't register ERRIRQ for DMA\n");
 			goto disable_dma_ahb_clk;
 		}
+		imxdma->irq_err = irq_err;
 	}
 
 	/* enable DMA module */
@@ -1150,6 +1154,8 @@ static int __init imxdma_probe(struct platform_device *pdev)
 					 irq + i, i);
 				goto disable_dma_ahb_clk;
 			}
+
+			imxdmac->irq = irq + i;
 			init_timer(&imxdmac->watchdog);
 			imxdmac->watchdog.function = &imxdma_watchdog;
 			imxdmac->watchdog.data = (unsigned long)imxdmac;
@@ -1217,9 +1223,30 @@ disable_dma_ipg_clk:
 	return ret;
 }
 
+static void imxdma_free_irq(struct platform_device *pdev, struct imxdma_engine *imxdma)
+{
+	int i;
+
+	if (is_imx1_dma(imxdma)) {
+		disable_irq(imxdma->irq);
+		disable_irq(imxdma->irq_err);
+	}
+
+	for (i = 0; i < IMX_DMA_CHANNELS; i++) {
+		struct imxdma_channel *imxdmac = &imxdma->channel[i];
+
+		if (!is_imx1_dma(imxdma))
+			disable_irq(imxdmac->irq);
+
+		tasklet_kill(&imxdmac->dma_tasklet);
+	}
+}
+
 static int imxdma_remove(struct platform_device *pdev)
 {
 	struct imxdma_engine *imxdma = platform_get_drvdata(pdev);
+
+	imxdma_free_irq(pdev, imxdma);
 
         dma_async_device_unregister(&imxdma->dma_device);
 

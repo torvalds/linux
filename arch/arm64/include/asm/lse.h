@@ -5,7 +5,6 @@
 
 #include <linux/stringify.h>
 #include <asm/alternative.h>
-#include <asm/cpufeature.h>
 
 #ifdef __ASSEMBLER__
 
@@ -20,12 +19,13 @@
 __asm__(".arch_extension	lse");
 
 /* Move the ll/sc atomics out-of-line */
-#define __LL_SC_INLINE
+#define __LL_SC_INLINE		notrace
 #define __LL_SC_PREFIX(x)	__ll_sc_##x
 #define __LL_SC_EXPORT(x)	EXPORT_SYMBOL(__LL_SC_PREFIX(x))
 
 /* Macro for constructing calls to out-of-line ll/sc atomics */
 #define __LL_SC_CALL(op)	"bl\t" __stringify(__LL_SC_PREFIX(op)) "\n"
+#define __LL_SC_CLOBBERS	"x16", "x17", "x30"
 
 /* In-line patching at runtime */
 #define ARM64_LSE_ATOMIC_INSN(llsc, lse)				\

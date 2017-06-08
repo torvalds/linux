@@ -1,0 +1,199 @@
+FPGA Manager Core
+
+Alan Tull 2015
+
+Overview
+========
+
+The FPGA manager core exports a set of functions for programming an FPGA with
+an image.  The API is manufacturer agnostic.  All manufacturer specifics are
+hidden away in a low level driver which registers a set of ops with the core.
+The FPGA image data itself is very manufacturer specific, but for our purposes
+it's just binary data.  The FPGA manager core won't parse it.
+
+
+API Functions:
+==============
+
+To program the FPGA from a file or from a buffer:
+-------------------------------------------------
+
+	int fpga_mgr_buf_load(struct fpga_manager *mgr,
+			      struct fpga_image_info *info,
+		              const char *buf, size_t count);
+
+Load the FPGA from an image which exists as a contiguous buffer in
+memory. Allocating contiguous kernel memory for the buffer should be avoided,
+users are encouraged to use the _sg interface instead of this.
+
+        int fpga_mgr_buf_load_sg(struct fpga_manager *mgr,
+				 struct fpga_image_info *info,
+				 struct sg_table *sgt);
+
+Load the FPGA from an image from non-contiguous in memory. Callers can
+construct a sg_table using alloc_page backed memory.
+
+	int fpga_mgr_firmware_load(struct fpga_manager *mgr,
+				   struct fpga_image_info *info,
+		                   const char *image_name);
+
+Load the FPGA from an image which exists as a file.  The image file must be on
+the firmware search path (see the firmware class documentation).  If successful,
+the FPGA ends up in operating mode.  Return 0 on success or a negative error
+code.
+
+A FPGA design contained in a FPGA image file will likely have particulars that
+affect how the image is programmed to the FPGA.  These are contained in struct
+fpga_image_info.  Currently the only such particular is a single flag bit
+indicating whether the image is for full or partial reconfiguration.
+
+To get/put a reference to a FPGA manager:
+-----------------------------------------
+
+	struct fpga_manager *of_fpga_mgr_get(struct device_node *node);
+	struct fpga_manager *fpga_mgr_get(struct device *dev);
+
+Given a DT node or device, get an exclusive reference to a FPGA manager.
+
+	void fpga_mgr_put(struct fpga_manager *mgr);
+
+Release the reference.
+
+
+To register or unregister the low level FPGA-specific driver:
+-------------------------------------------------------------
+
+	int fpga_mgr_register(struct device *dev, const char *name,
+		              const struct fpga_manager_ops *mops,
+		              void *priv);
+
+	void fpga_mgr_unregister(struct device *dev);
+
+Use of these two functions is described below in "How To Support a new FPGA
+device."
+
+
+How to write an image buffer to a supported FPGA
+================================================
+/* Include to get the API */
+#include <linux/fpga/fpga-mgr.h>
+
+/* device node that specifies the FPGA manager to use */
+struct device_node *mgr_node = ...
+
+/* FPGA image is in this buffer.  count is size of the buffer. */
+char *buf = ...
+int count = ...
+
+/* struct with information about the FPGA image to program. */
+struct fpga_image_info info;
+
+/* flags indicates whether to do full or partial reconfiguration */
+info.flags = 0;
+
+int ret;
+
+/* Get exclusive control of FPGA manager */
+struct fpga_manager *mgr = of_fpga_mgr_get(mgr_node);
+
+/* Load the buffer to the FPGA */
+ret = fpga_mgr_buf_load(mgr, &info, buf, count);
+
+/* Release the FPGA manager */
+fpga_mgr_put(mgr);
+
+
+How to write an image file to a supported FPGA
+==============================================
+/* Include to get the API */
+#include <linux/fpga/fpga-mgr.h>
+
+/* device node that specifies the FPGA manager to use */
+struct device_node *mgr_node = ...
+
+/* FPGA image is in this file which is in the firmware search path */
+const char *path = "fpga-image-9.rbf"
+
+/* struct with information about the FPGA image to program. */
+struct fpga_image_info info;
+
+/* flags indicates whether to do full or partial reconfiguration */
+info.flags = 0;
+
+int ret;
+
+/* Get exclusive control of FPGA manager */
+struct fpga_manager *mgr = of_fpga_mgr_get(mgr_node);
+
+/* Get the firmware image (path) and load it to the FPGA */
+ret = fpga_mgr_firmware_load(mgr, &info, path);
+
+/* Release the FPGA manager */
+fpga_mgr_put(mgr);
+
+
+How to support a new FPGA device
+================================
+To add another FPGA manager, write a driver that implements a set of ops.  The
+probe function calls fpga_mgr_register(), such as:
+
+static const struct fpga_manager_ops socfpga_fpga_ops = {
+       .write_init = socfpga_fpga_ops_configure_init,
+       .write = socfpga_fpga_ops_configure_write,
+       .write_complete = socfpga_fpga_ops_configure_complete,
+       .state = socfpga_fpga_ops_state,
+};
+
+static int socfpga_fpga_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct socfpga_fpga_priv *priv;
+	int ret;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	/* ... do ioremaps, get interrupts, etc. and save
+	   them in priv... */
+
+	return fpga_mgr_register(dev, "Altera SOCFPGA FPGA Manager",
+				 &socfpga_fpga_ops, priv);
+}
+
+static int socfpga_fpga_remove(struct platform_device *pdev)
+{
+	fpga_mgr_unregister(&pdev->dev);
+
+	return 0;
+}
+
+
+The ops will implement whatever device specific register writes are needed to
+do the programming sequence for this particular FPGA.  These ops return 0 for
+success or negative error codes otherwise.
+
+The programming sequence is:
+ 1. .write_init
+ 2. .write or .write_sg (may be called once or multiple times)
+ 3. .write_complete
+
+The .write_init function will prepare the FPGA to receive the image data.  The
+buffer passed into .write_init will be atmost .initial_header_size bytes long,
+if the whole bitstream is not immediately available then the core code will
+buffer up at least this much before starting.
+
+The .write function writes a buffer to the FPGA. The buffer may be contain the
+whole FPGA image or may be a smaller chunk of an FPGA image.  In the latter
+case, this function is called multiple times for successive chunks. This interface
+is suitable for drivers which use PIO.
+
+The .write_sg version behaves the same as .write except the input is a sg_table
+scatter list. This interface is suitable for drivers which use DMA.
+
+The .write_complete function is called after all the image has been written
+to put the FPGA into operating mode.
+
+The ops include a .state function which will read the hardware FPGA manager and
+return a code of type enum fpga_mgr_states.  It doesn't result in a change in
+hardware state.

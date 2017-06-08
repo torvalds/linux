@@ -16,19 +16,23 @@ virtual context
 @r2 depends on patch@
 expression E;
 @@
-- if (E)
+- if (E != NULL)
 (
--	kfree(E);
-+ kfree(E);
+  kfree(E);
 |
--	debugfs_remove(E);
-+ debugfs_remove(E);
+  kzfree(E);
 |
--	debugfs_remove_recursive(E);
-+ debugfs_remove_recursive(E);
+  debugfs_remove(E);
 |
--	usb_free_urb(E);
-+ usb_free_urb(E);
+  debugfs_remove_recursive(E);
+|
+  usb_free_urb(E);
+|
+  kmem_cache_destroy(E);
+|
+  mempool_destroy(E);
+|
+  dma_pool_destroy(E);
 )
 
 @r depends on context || report || org @
@@ -36,8 +40,10 @@ expression E;
 position p;
 @@
 
-* if (E)
-*	\(kfree@p\|debugfs_remove@p\|debugfs_remove_recursive@p\|usb_free_urb\)(E);
+* if (E != NULL)
+*	\(kfree@p\|kzfree@p\|debugfs_remove@p\|debugfs_remove_recursive@p\|
+*         usb_free_urb@p\|kmem_cache_destroy@p\|mempool_destroy@p\|
+*         dma_pool_destroy@p\)(E);
 
 @script:python depends on org@
 p << r.p;

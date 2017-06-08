@@ -63,6 +63,7 @@ SECTIONS
 	*(.text..tlbmiss)
 	TEXT_TEXT
 	SCHED_TEXT
+	CPUIDLE_TEXT
 	LOCK_TEXT
 #ifdef CONFIG_DEBUG_INFO
 	INIT_TEXT
@@ -100,6 +101,8 @@ SECTIONS
 	}
 
   _edata = .;			/* End of data section */
+
+  BUG_TABLE
 
   /* GP section */
   . = ALIGN(L1_CACHE_BYTES);

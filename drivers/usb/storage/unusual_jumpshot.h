@@ -1,4 +1,5 @@
-/* Unusual Devices File for the Lexar "Jumpshot" Compact Flash reader
+/*
+ * Unusual Devices File for the Lexar "Jumpshot" Compact Flash reader
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

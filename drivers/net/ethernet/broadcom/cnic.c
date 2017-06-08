@@ -3665,7 +3665,7 @@ static int cnic_cm_destroy(struct cnic_sock *csk)
 static inline u16 cnic_get_vlan(struct net_device *dev,
 				struct net_device **vlan_dev)
 {
-	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(dev)) {
 		*vlan_dev = vlan_dev_real_dev(dev);
 		return vlan_dev_vlan_id(dev);
 	}
@@ -5350,7 +5350,10 @@ static int cnic_start_hw(struct cnic_dev *dev)
 	return 0;
 
 err1:
-	cp->free_resc(dev);
+	if (ethdev->drv_state & CNIC_DRV_STATE_HANDLES_IRQ)
+		cp->stop_hw(dev);
+	else
+		cp->free_resc(dev);
 	pci_dev_put(dev->pcidev);
 	return err;
 }

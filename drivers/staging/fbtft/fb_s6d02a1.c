@@ -13,21 +13,18 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
 #define DRVNAME "fb_s6d02a1"
 
-static int default_init_sequence[] = {
+static const s16 default_init_sequence[] = {
 
 	-1, 0xf0, 0x5a, 0x5a,
 
@@ -54,7 +51,7 @@ static int default_init_sequence[] = {
 
 	-1, 0xf3, 0x00, 0x00,
 
-	-1, 0x11,
+	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 50,
 
 	-1, 0xf3, 0x00, 0x01,
@@ -83,18 +80,18 @@ static int default_init_sequence[] = {
 
 	/* initializing sequence */
 
-	-1, 0x36, 0x08,
+	-1, MIPI_DCS_SET_ADDRESS_MODE, 0x08,
 
-	-1, 0x35, 0x00,
+	-1, MIPI_DCS_SET_TEAR_ON, 0x00,
 
-	-1, 0x3a, 0x05,
+	-1, MIPI_DCS_SET_PIXEL_FORMAT, 0x05,
 
-	/* gamma setting sequence */
-	-1, 0x26, 0x01,	/* preset gamma curves, possible values 0x01, 0x02, 0x04, 0x08 */
+	/* gamma setting - possible values 0x01, 0x02, 0x04, 0x08 */
+	-1, MIPI_DCS_SET_GAMMA_CURVE, 0x01,
 
 	-2, 150,
-	-1, 0x29,
-	-1, 0x2c,
+	-1, MIPI_DCS_SET_DISPLAY_ON,
+	-1, MIPI_DCS_WRITE_MEMORY_START,
 	/* end marker */
 	-3
 
@@ -102,44 +99,44 @@ static int default_init_sequence[] = {
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
+	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
+		  xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
 
-	/* Column address */
-	write_reg(par, 0x2A, xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
+	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
+		  ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
 
-	/* Row address */
-	write_reg(par, 0x2B, ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
-
-	/* Memory write */
-	write_reg(par, 0x2C);
+	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 }
 
-#define MY (1 << 7)
-#define MX (1 << 6)
-#define MV (1 << 5)
+#define MY BIT(7)
+#define MX BIT(6)
+#define MV BIT(5)
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
-	/* MADCTL - Memory data access control
-	     RGB/BGR:
-		1. Mode selection pin SRGB
-			RGB H/W pin for color filter setting: 0=RGB, 1=BGR
-		2. MADCTL RGB bit
-			RGB-BGR ORDER color filter panel: 0=RGB, 1=BGR */
+	/*
+	 * Memory data access control (0x36h)
+	 * RGB/BGR:
+	 *	1. Mode selection pin SRGB
+	 *		RGB H/W pin for color filter setting: 0=RGB, 1=BGR
+	 *	2. MADCTL RGB bit
+	 *		RGB-BGR ORDER color filter panel: 0=RGB, 1=BGR
+	 */
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x36, MX | MY | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MX | MY | (par->bgr << 3));
 		break;
 	case 270:
-		write_reg(par, 0x36, MY | MV | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MY | MV | (par->bgr << 3));
 		break;
 	case 180:
-		write_reg(par, 0x36, par->bgr << 3);
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  par->bgr << 3);
 		break;
 	case 90:
-		write_reg(par, 0x36, MX | MV | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MX | MV | (par->bgr << 3));
 		break;
 	}
 
@@ -156,6 +153,7 @@ static struct fbtft_display display = {
 		.set_var = set_var,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "samsung,s6d02a1", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

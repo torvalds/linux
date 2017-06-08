@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/smp.h>
@@ -27,7 +28,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
@@ -493,7 +494,8 @@ unregister_all_debug_traps(struct task_struct *child)
 	int i;
 
 	for (i = 0; i < p->nr_trap; i++)
-		access_process_vm(child, p->addr[i], &p->insn[i], sizeof(p->insn[i]), 1);
+		access_process_vm(child, p->addr[i], &p->insn[i], sizeof(p->insn[i]),
+				FOLL_FORCE | FOLL_WRITE);
 	p->nr_trap = 0;
 }
 
@@ -537,7 +539,8 @@ embed_debug_trap(struct task_struct *child, unsigned long next_pc)
 	unsigned long next_insn, code;
 	unsigned long addr = next_pc & ~3;
 
-	if (access_process_vm(child, addr, &next_insn, sizeof(next_insn), 0)
+	if (access_process_vm(child, addr, &next_insn, sizeof(next_insn),
+			FOLL_FORCE)
 	    != sizeof(next_insn)) {
 		return -1; /* error */
 	}
@@ -546,7 +549,8 @@ embed_debug_trap(struct task_struct *child, unsigned long next_pc)
 	if (register_debug_trap(child, next_pc, next_insn, &code)) {
 		return -1; /* error */
 	}
-	if (access_process_vm(child, addr, &code, sizeof(code), 1)
+	if (access_process_vm(child, addr, &code, sizeof(code),
+			FOLL_FORCE | FOLL_WRITE)
 	    != sizeof(code)) {
 		return -1; /* error */
 	}
@@ -562,7 +566,8 @@ withdraw_debug_trap(struct pt_regs *regs)
  	addr = (regs->bpc - 2) & ~3;
 	regs->bpc -= 2;
 	if (unregister_debug_trap(current, addr, &code)) {
-	    access_process_vm(current, addr, &code, sizeof(code), 1);
+	    access_process_vm(current, addr, &code, sizeof(code),
+		    FOLL_FORCE | FOLL_WRITE);
 	    invalidate_cache();
 	}
 }
@@ -589,7 +594,8 @@ void user_enable_single_step(struct task_struct *child)
 	/* Compute next pc.  */
 	pc = get_stack_long(child, PT_BPC);
 
-	if (access_process_vm(child, pc&~3, &insn, sizeof(insn), 0)
+	if (access_process_vm(child, pc&~3, &insn, sizeof(insn),
+			FOLL_FORCE)
 	    != sizeof(insn))
 		return;
 

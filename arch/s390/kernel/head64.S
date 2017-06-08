@@ -16,7 +16,12 @@
 
 __HEAD
 ENTRY(startup_continue)
-	larl	%r1,sched_clock_base_cc
+	tm	__LC_STFLE_FAC_LIST+5,0x80	# LPP available ?
+	jz	0f
+	xc	__LC_LPP+1(7,0),__LC_LPP+1	# clear lpp and current_pid
+	mvi	__LC_LPP,0x80			#   and set LPP_MAGIC
+	.insn	s,0xb2800000,__LC_LPP		# load program parameter
+0:	larl	%r1,sched_clock_base_cc
 	mvc	0(8,%r1),__LC_LAST_UPDATE_CLOCK
 	larl	%r13,.LPG1		# get base
 	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
@@ -27,11 +32,10 @@ ENTRY(startup_continue)
 #
 # Setup stack
 #
-	larl	%r15,init_thread_union
-	stg	%r15,__LC_THREAD_INFO	# cache thread info in lowcore
-	lg	%r14,__TI_task(%r15)	# cache current in lowcore
+	larl	%r14,init_task
 	stg	%r14,__LC_CURRENT
-	aghi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union + THREAD_SIZE
+	larl	%r15,init_thread_union
+	aghi	%r15,1<<(PAGE_SHIFT+THREAD_SIZE_ORDER) # init_task_union + THREAD_SIZE
 	stg	%r15,__LC_KERNEL_STACK	# set end of kernel stack
 	aghi	%r15,-160
 #
@@ -48,7 +52,7 @@ ENTRY(startup_continue)
 	.quad	0			# cr1: primary space segment table
 	.quad	.Lduct			# cr2: dispatchable unit control table
 	.quad	0			# cr3: instruction authorization
-	.quad	0			# cr4: instruction authorization
+	.quad	0xffff			# cr4: instruction authorization
 	.quad	.Lduct			# cr5: primary-aste origin
 	.quad	0			# cr6:	I/O interrupts
 	.quad	0			# cr7:	secondary space segment table

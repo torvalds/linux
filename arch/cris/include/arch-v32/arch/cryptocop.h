@@ -81,7 +81,7 @@ struct cryptocop_tfrm_cfg {
 
 	unsigned int flags; /* DECRYPT, ENCRYPT, EXPLICIT_IV */
 
-	/* CBC initialisation vector for cihers. */
+	/* CBC initialisation vector for ciphers. */
 	u8 iv[CRYPTOCOP_MAX_IV_LENGTH];
 
 	/* The position in output where to write the transform output.  The order

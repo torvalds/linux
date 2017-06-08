@@ -21,12 +21,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <errno.h>
 
 #include "../perf.h"
 #include "util.h"
 #include "trace-event.h"
+
+#include "sane_ctype.h"
 
 static int get_common_field(struct scripting_context *context,
 			    int *offset, int *size, const char *type)
@@ -160,6 +161,23 @@ void parse_ftrace_printk(struct pevent *pevent,
 	}
 }
 
+void parse_saved_cmdline(struct pevent *pevent,
+			 char *file, unsigned int size __maybe_unused)
+{
+	char *comm;
+	char *line;
+	char *next = NULL;
+	int pid;
+
+	line = strtok_r(file, "\n", &next);
+	while (line) {
+		sscanf(line, "%d %ms", &pid, &comm);
+		pevent_register_comm(pevent, comm, pid);
+		free(comm);
+		line = strtok_r(NULL, "\n", &next);
+	}
+}
+
 int parse_ftrace_file(struct pevent *pevent, char *buf, unsigned long size)
 {
 	return pevent_parse_event(pevent, buf, size, "ftrace");
@@ -209,7 +227,7 @@ static const struct flag flags[] = {
 	{ "NET_TX_SOFTIRQ", 2 },
 	{ "NET_RX_SOFTIRQ", 3 },
 	{ "BLOCK_SOFTIRQ", 4 },
-	{ "BLOCK_IOPOLL_SOFTIRQ", 5 },
+	{ "IRQ_POLL_SOFTIRQ", 5 },
 	{ "TASKLET_SOFTIRQ", 6 },
 	{ "SCHED_SOFTIRQ", 7 },
 	{ "HRTIMER_SOFTIRQ", 8 },

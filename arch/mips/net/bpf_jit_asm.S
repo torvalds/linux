@@ -57,15 +57,28 @@
 
 LEAF(sk_load_word)
 	is_offset_negative(word)
-	.globl sk_load_word_positive
-sk_load_word_positive:
+FEXPORT(sk_load_word_positive)
 	is_offset_in_header(4, word)
 	/* Offset within header boundaries */
 	PTR_ADDU t1, $r_skb_data, offset
+	.set	reorder
 	lw	$r_A, 0(t1)
+	.set	noreorder
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 	wsbh	t0, $r_A
 	rotr	$r_A, t0, 16
+# else
+	sll	t0, $r_A, 24
+	srl	t1, $r_A, 24
+	srl	t2, $r_A, 8
+	or	t0, t0, t1
+	andi	t2, t2, 0xff00
+	andi	t1, $r_A, 0xff00
+	or	t0, t0, t2
+	sll	t1, t1, 8
+	or	$r_A, t0, t1
+# endif
 #endif
 	jr	$r_ra
 	 move	$r_ret, zero
@@ -73,15 +86,20 @@ sk_load_word_positive:
 
 LEAF(sk_load_half)
 	is_offset_negative(half)
-	.globl sk_load_half_positive
-sk_load_half_positive:
+FEXPORT(sk_load_half_positive)
 	is_offset_in_header(2, half)
 	/* Offset within header boundaries */
 	PTR_ADDU t1, $r_skb_data, offset
-	lh	$r_A, 0(t1)
+	lhu	$r_A, 0(t1)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
-	wsbh	t0, $r_A
-	seh	$r_A, t0
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
+	wsbh	$r_A, $r_A
+# else
+	sll	t0, $r_A, 8
+	srl	t1, $r_A, 8
+	andi	t0, t0, 0xff00
+	or	$r_A, t0, t1
+# endif
 #endif
 	jr	$r_ra
 	 move	$r_ret, zero
@@ -89,12 +107,11 @@ sk_load_half_positive:
 
 LEAF(sk_load_byte)
 	is_offset_negative(byte)
-	.globl sk_load_byte_positive
-sk_load_byte_positive:
+FEXPORT(sk_load_byte_positive)
 	is_offset_in_header(1, byte)
 	/* Offset within header boundaries */
 	PTR_ADDU t1, $r_skb_data, offset
-	lb	$r_A, 0(t1)
+	lbu	$r_A, 0(t1)
 	jr	$r_ra
 	 move	$r_ret, zero
 	END(sk_load_byte)
@@ -118,6 +135,11 @@ sk_load_byte_positive:
  * (void *to) is returned in r_s0
  *
  */
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+#define DS_OFFSET(SIZE) (4 * SZREG)
+#else
+#define DS_OFFSET(SIZE) ((4 * SZREG) + (4 - SIZE))
+#endif
 #define bpf_slow_path_common(SIZE)				\
 	/* Quick check. Are we within reasonable boundaries? */ \
 	LONG_ADDIU	$r_s1, $r_skb_len, -SIZE;		\
@@ -129,7 +151,7 @@ sk_load_byte_positive:
 	PTR_LA		t0, skb_copy_bits;			\
 	PTR_S		$r_ra, (5 * SZREG)($r_sp);		\
 	/* Assign low slot to a2 */				\
-	move		a2, $r_sp;				\
+	PTR_ADDIU	a2, $r_sp, DS_OFFSET(SIZE);		\
 	jalr		t0;					\
 	/* Reset our destination slot (DS but it's ok) */	\
 	 INT_S		zero, (4 * SZREG)($r_sp);		\
@@ -148,23 +170,47 @@ sk_load_byte_positive:
 NESTED(bpf_slow_path_word, (6 * SZREG), $r_sp)
 	bpf_slow_path_common(4)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 	wsbh	t0, $r_s0
 	jr	$r_ra
 	 rotr	$r_A, t0, 16
-#endif
+# else
+	sll	t0, $r_s0, 24
+	srl	t1, $r_s0, 24
+	srl	t2, $r_s0, 8
+	or	t0, t0, t1
+	andi	t2, t2, 0xff00
+	andi	t1, $r_s0, 0xff00
+	or	t0, t0, t2
+	sll	t1, t1, 8
 	jr	$r_ra
-	move	$r_A, $r_s0
+	 or	$r_A, t0, t1
+# endif
+#else
+	jr	$r_ra
+	 move	$r_A, $r_s0
+#endif
 
 	END(bpf_slow_path_word)
 
 NESTED(bpf_slow_path_half, (6 * SZREG), $r_sp)
 	bpf_slow_path_common(2)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
+# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 	jr	$r_ra
 	 wsbh	$r_A, $r_s0
-#endif
+# else
+	sll	t0, $r_s0, 8
+	andi	t1, $r_s0, 0xff00
+	andi	t0, t0, 0xff00
+	srl	t1, t1, 8
+	jr	$r_ra
+	 or	$r_A, t0, t1
+# endif
+#else
 	jr	$r_ra
 	 move	$r_A, $r_s0
+#endif
 
 	END(bpf_slow_path_half)
 

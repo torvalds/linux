@@ -1543,7 +1543,7 @@ bfa_flash_cmd_act_check(void __iomem *pci_bar)
 }
 
 /* Flush FLI data fifo. */
-static u32
+static int
 bfa_flash_fifo_flush(void __iomem *pci_bar)
 {
 	u32 i;
@@ -1573,11 +1573,11 @@ bfa_flash_fifo_flush(void __iomem *pci_bar)
 }
 
 /* Read flash status. */
-static u32
+static int
 bfa_flash_status_read(void __iomem *pci_bar)
 {
 	union bfa_flash_dev_status_reg	dev_status;
-	u32				status;
+	int				status;
 	u32			ret_status;
 	int				i;
 
@@ -1611,11 +1611,11 @@ bfa_flash_status_read(void __iomem *pci_bar)
 }
 
 /* Start flash read operation. */
-static u32
+static int
 bfa_flash_read_start(void __iomem *pci_bar, u32 offset, u32 len,
 		     char *buf)
 {
-	u32 status;
+	int status;
 
 	/* len must be mutiple of 4 and not exceeding fifo size */
 	if (len == 0 || len > BFA_FLASH_FIFO_SIZE || (len & 0x03) != 0)
@@ -1703,7 +1703,8 @@ static enum bfa_status
 bfa_flash_raw_read(void __iomem *pci_bar, u32 offset, char *buf,
 		   u32 len)
 {
-	u32 n, status;
+	u32 n;
+	int status;
 	u32 off, l, s, residue, fifo_sz;
 
 	residue = len;
@@ -1929,13 +1930,13 @@ static void
 bfa_ioc_send_enable(struct bfa_ioc *ioc)
 {
 	struct bfi_ioc_ctrl_req enable_req;
-	struct timeval tv;
 
 	bfi_h2i_set(enable_req.mh, BFI_MC_IOC, BFI_IOC_H2I_ENABLE_REQ,
 		    bfa_ioc_portid(ioc));
 	enable_req.clscode = htons(ioc->clscode);
-	do_gettimeofday(&tv);
-	enable_req.tv_sec = ntohl(tv.tv_sec);
+	enable_req.rsvd = htons(0);
+	/* overflow in 2106 */
+	enable_req.tv_sec = ntohl(ktime_get_real_seconds());
 	bfa_ioc_mbox_send(ioc, &enable_req, sizeof(struct bfi_ioc_ctrl_req));
 }
 
@@ -1946,6 +1947,10 @@ bfa_ioc_send_disable(struct bfa_ioc *ioc)
 
 	bfi_h2i_set(disable_req.mh, BFI_MC_IOC, BFI_IOC_H2I_DISABLE_REQ,
 		    bfa_ioc_portid(ioc));
+	disable_req.clscode = htons(ioc->clscode);
+	disable_req.rsvd = htons(0);
+	/* overflow in 2106 */
+	disable_req.tv_sec = ntohl(ktime_get_real_seconds());
 	bfa_ioc_mbox_send(ioc, &disable_req, sizeof(struct bfi_ioc_ctrl_req));
 }
 
@@ -2840,7 +2845,7 @@ bfa_ioc_get_adapter_optrom_ver(struct bfa_ioc *ioc, char *optrom_ver)
 static void
 bfa_ioc_get_adapter_manufacturer(struct bfa_ioc *ioc, char *manufacturer)
 {
-	memcpy(manufacturer, BFA_MFG_NAME, BFA_ADAPTER_MFG_NAME_LEN);
+	strncpy(manufacturer, BFA_MFG_NAME, BFA_ADAPTER_MFG_NAME_LEN);
 }
 
 static void

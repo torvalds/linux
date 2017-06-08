@@ -26,7 +26,6 @@
 
 #include <linux/types.h>
 #ifndef __KERNEL__
-#include <stdint.h>
 #include <time.h>
 #endif
 
@@ -207,7 +206,8 @@ typedef __u16 video_attributes_t;
 /*    6    line 21-2 data present in GOP (1=yes, 0=no) */
 /*    5- 3 source resolution (0=720x480/576, 1=704x480/576, 2=352x480/57 */
 /*    2    source letterboxed (1=yes, 0=no) */
-/*    0    film/camera mode (0=camera, 1=film (625/50 only)) */
+/*    0    film/camera mode (0=
+ *camera, 1=film (625/50 only)) */
 
 
 /* bit definitions for capabilities: */

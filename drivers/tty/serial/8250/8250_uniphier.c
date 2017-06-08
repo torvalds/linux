@@ -13,6 +13,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/console.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -23,16 +24,51 @@
 /* Most (but not all) of UniPhier UART devices have 64-depth FIFO. */
 #define UNIPHIER_UART_DEFAULT_FIFO_SIZE	64
 
-#define UNIPHIER_UART_CHAR_FCR	3	/* Character / FIFO Control Register */
-#define UNIPHIER_UART_LCR_MCR	4	/* Line/Modem Control Register */
-#define   UNIPHIER_UART_LCR_SHIFT	8
-#define UNIPHIER_UART_DLR	9	/* Divisor Latch Register */
+/*
+ * This hardware is similar to 8250, but its register map is a bit different:
+ *   - MMIO32 (regshift = 2)
+ *   - FCR is not at 2, but 3
+ *   - LCR and MCR are not at 3 and 4, they share 4
+ *   - Divisor latch at 9, no divisor latch access bit
+ */
+
+#define UNIPHIER_UART_REGSHIFT		2
+
+/* bit[15:8] = CHAR (not used), bit[7:0] = FCR */
+#define UNIPHIER_UART_CHAR_FCR		(3 << (UNIPHIER_UART_REGSHIFT))
+/* bit[15:8] = LCR, bit[7:0] = MCR */
+#define UNIPHIER_UART_LCR_MCR		(4 << (UNIPHIER_UART_REGSHIFT))
+/* Divisor Latch Register */
+#define UNIPHIER_UART_DLR		(9 << (UNIPHIER_UART_REGSHIFT))
 
 struct uniphier8250_priv {
 	int line;
 	struct clk *clk;
 	spinlock_t atomic_write_lock;
 };
+
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+static int __init uniphier_early_console_setup(struct earlycon_device *device,
+					       const char *options)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	/* This hardware always expects MMIO32 register interface. */
+	device->port.iotype = UPIO_MEM32;
+	device->port.regshift = UNIPHIER_UART_REGSHIFT;
+
+	/*
+	 * Do not touch the divisor register in early_serial8250_setup();
+	 * we assume it has been initialized by a boot loader.
+	 */
+	device->baud = 0;
+
+	return early_serial8250_setup(device, options);
+}
+OF_EARLYCON_DECLARE(uniphier, "socionext,uniphier-uart",
+		    uniphier_early_console_setup);
+#endif
 
 /*
  * The register map is slightly different from that of 8250.
@@ -44,16 +80,15 @@ static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 
 	switch (offset) {
 	case UART_LCR:
-		valshift = UNIPHIER_UART_LCR_SHIFT;
+		valshift = 8;
 		/* fall through */
 	case UART_MCR:
 		offset = UNIPHIER_UART_LCR_MCR;
 		break;
 	default:
+		offset <<= UNIPHIER_UART_REGSHIFT;
 		break;
 	}
-
-	offset <<= p->regshift;
 
 	/*
 	 * The return value must be masked with 0xff because LCR and MCR reside
@@ -66,26 +101,25 @@ static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 {
 	unsigned int valshift = 0;
-	bool normal = false;
+	bool normal = true;
 
 	switch (offset) {
 	case UART_FCR:
 		offset = UNIPHIER_UART_CHAR_FCR;
 		break;
 	case UART_LCR:
-		valshift = UNIPHIER_UART_LCR_SHIFT;
+		valshift = 8;
 		/* Divisor latch access bit does not exist. */
-		value &= ~(UART_LCR_DLAB << valshift);
+		value &= ~UART_LCR_DLAB;
 		/* fall through */
 	case UART_MCR:
 		offset = UNIPHIER_UART_LCR_MCR;
+		normal = false;
 		break;
 	default:
-		normal = true;
+		offset <<= UNIPHIER_UART_REGSHIFT;
 		break;
 	}
-
-	offset <<= p->regshift;
 
 	if (normal) {
 		writel(value, p->membase + offset);
@@ -171,7 +205,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
-		dev_err(dev, "failed to get memory resource");
+		dev_err(dev, "failed to get memory resource\n");
 		return -EINVAL;
 	}
 
@@ -181,7 +215,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "failed to get IRQ number");
+		dev_err(dev, "failed to get IRQ number\n");
 		return irq;
 	}
 
@@ -206,7 +240,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	up.port.type = PORT_16550A;
 	up.port.iotype = UPIO_MEM32;
-	up.port.regshift = 2;
+	up.port.regshift = UNIPHIER_UART_REGSHIFT;
 	up.port.flags = UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	up.capabilities = UART_CAP_FIFO;
 

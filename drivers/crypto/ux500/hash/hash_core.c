@@ -41,22 +41,6 @@ static int hash_mode;
 module_param(hash_mode, int, 0);
 MODULE_PARM_DESC(hash_mode, "CPU or DMA mode. CPU = 0 (default), DMA = 1");
 
-/**
- * Pre-calculated empty message digests.
- */
-static const u8 zero_message_hash_sha1[SHA1_DIGEST_SIZE] = {
-	0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d,
-	0x32, 0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90,
-	0xaf, 0xd8, 0x07, 0x09
-};
-
-static const u8 zero_message_hash_sha256[SHA256_DIGEST_SIZE] = {
-	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
-	0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
-	0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
-	0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
-};
-
 /* HMAC-SHA1, no key */
 static const u8 zero_message_hmac_sha1[SHA1_DIGEST_SIZE] = {
 	0xfb, 0xdb, 0x1d, 0x1b, 0x18, 0xaa, 0x6c, 0x08,
@@ -242,13 +226,13 @@ static int get_empty_message_digest(
 
 	if (HASH_OPER_MODE_HASH == ctx->config.oper_mode) {
 		if (HASH_ALGO_SHA1 == ctx->config.algorithm) {
-			memcpy(zero_hash, &zero_message_hash_sha1[0],
+			memcpy(zero_hash, &sha1_zero_message_hash[0],
 			       SHA1_DIGEST_SIZE);
 			*zero_hash_size = SHA1_DIGEST_SIZE;
 			*zero_digest = true;
 		} else if (HASH_ALGO_SHA256 ==
 				ctx->config.algorithm) {
-			memcpy(zero_hash, &zero_message_hash_sha256[0],
+			memcpy(zero_hash, &sha256_zero_message_hash[0],
 			       SHA256_DIGEST_SIZE);
 			*zero_hash_size = SHA256_DIGEST_SIZE;
 			*zero_digest = true;
@@ -797,7 +781,7 @@ static int hash_process_data(struct hash_device_data *device_data,
 						&device_data->state);
 				memmove(req_ctx->state.buffer,
 					device_data->state.buffer,
-					HASH_BLOCK_SIZE / sizeof(u32));
+					HASH_BLOCK_SIZE);
 				if (ret) {
 					dev_err(device_data->dev,
 						"%s: hash_resume_state() failed!\n",
@@ -848,7 +832,7 @@ static int hash_process_data(struct hash_device_data *device_data,
 
 			memmove(device_data->state.buffer,
 				req_ctx->state.buffer,
-				HASH_BLOCK_SIZE / sizeof(u32));
+				HASH_BLOCK_SIZE);
 			if (ret) {
 				dev_err(device_data->dev, "%s: hash_save_state() failed!\n",
 					__func__);
@@ -1657,7 +1641,7 @@ static int ux500_hash_probe(struct platform_device *pdev)
 	struct hash_device_data *device_data;
 	struct device		*dev = &pdev->dev;
 
-	device_data = kzalloc(sizeof(*device_data), GFP_ATOMIC);
+	device_data = devm_kzalloc(dev, sizeof(*device_data), GFP_ATOMIC);
 	if (!device_data) {
 		ret = -ENOMEM;
 		goto out;
@@ -1670,22 +1654,15 @@ static int ux500_hash_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_dbg(dev, "%s: platform_get_resource() failed!\n", __func__);
 		ret = -ENODEV;
-		goto out_kfree;
-	}
-
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (res == NULL) {
-		dev_dbg(dev, "%s: request_mem_region() failed!\n", __func__);
-		ret = -EBUSY;
-		goto out_kfree;
+		goto out;
 	}
 
 	device_data->phybase = res->start;
-	device_data->base = ioremap(res->start, resource_size(res));
-	if (!device_data->base) {
+	device_data->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(device_data->base)) {
 		dev_err(dev, "%s: ioremap() failed!\n", __func__);
-		ret = -ENOMEM;
-		goto out_free_mem;
+		ret = PTR_ERR(device_data->base);
+		goto out;
 	}
 	spin_lock_init(&device_data->ctx_lock);
 	spin_lock_init(&device_data->power_state_lock);
@@ -1696,11 +1673,11 @@ static int ux500_hash_probe(struct platform_device *pdev)
 		dev_err(dev, "%s: regulator_get() failed!\n", __func__);
 		ret = PTR_ERR(device_data->regulator);
 		device_data->regulator = NULL;
-		goto out_unmap;
+		goto out;
 	}
 
 	/* Enable the clock for HASH1 hardware block */
-	device_data->clk = clk_get(dev, NULL);
+	device_data->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(device_data->clk)) {
 		dev_err(dev, "%s: clk_get() failed!\n", __func__);
 		ret = PTR_ERR(device_data->clk);
@@ -1710,7 +1687,7 @@ static int ux500_hash_probe(struct platform_device *pdev)
 	ret = clk_prepare(device_data->clk);
 	if (ret) {
 		dev_err(dev, "%s: clk_prepare() failed!\n", __func__);
-		goto out_clk;
+		goto out_regulator;
 	}
 
 	/* Enable device power (and clock) */
@@ -1752,20 +1729,9 @@ out_power:
 out_clk_unprepare:
 	clk_unprepare(device_data->clk);
 
-out_clk:
-	clk_put(device_data->clk);
-
 out_regulator:
 	regulator_put(device_data->regulator);
 
-out_unmap:
-	iounmap(device_data->base);
-
-out_free_mem:
-	release_mem_region(res->start, resource_size(res));
-
-out_kfree:
-	kfree(device_data);
 out:
 	return ret;
 }
@@ -1776,7 +1742,6 @@ out:
  */
 static int ux500_hash_remove(struct platform_device *pdev)
 {
-	struct resource		*res;
 	struct hash_device_data *device_data;
 	struct device		*dev = &pdev->dev;
 
@@ -1816,16 +1781,7 @@ static int ux500_hash_remove(struct platform_device *pdev)
 			__func__);
 
 	clk_unprepare(device_data->clk);
-	clk_put(device_data->clk);
 	regulator_put(device_data->regulator);
-
-	iounmap(device_data->base);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
-
-	kfree(device_data);
 
 	return 0;
 }
@@ -1836,7 +1792,6 @@ static int ux500_hash_remove(struct platform_device *pdev)
  */
 static void ux500_hash_shutdown(struct platform_device *pdev)
 {
-	struct resource *res = NULL;
 	struct hash_device_data *device_data;
 
 	device_data = platform_get_drvdata(pdev);
@@ -1869,12 +1824,6 @@ static void ux500_hash_shutdown(struct platform_device *pdev)
 	/* If this was the last device, remove the services */
 	if (list_empty(&driver_data.device_list.k_list))
 		ahash_algs_unregister_all(device_data);
-
-	iounmap(device_data->base);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
 
 	if (hash_disable_power(device_data, false))
 		dev_err(&pdev->dev, "%s: hash_disable_power() failed\n",
@@ -1958,6 +1907,7 @@ static const struct of_device_id ux500_hash_match[] = {
 	{ .compatible = "stericsson,ux500-hash" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ux500_hash_match);
 
 static struct platform_driver hash_driver = {
 	.probe  = ux500_hash_probe,

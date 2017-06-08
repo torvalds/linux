@@ -13,97 +13,86 @@
  * PURPOSE.  See the GNU General Public License for more details.
  */
 
-/************************************************************************
- *
+/*
  * This file implements the mgmt functionality for the
  * Neo and ClassicBoard based product lines.
- *
- ************************************************************************
  */
+
 #include <linux/kernel.h>
 #include <linux/ctype.h>
-#include <linux/sched.h>	/* For jiffies, task states */
-#include <linux/interrupt.h>	/* For tasklet and interrupt structs/defines */
+#include <linux/sched.h>
+#include <linux/interrupt.h>
 #include <linux/serial_reg.h>
 #include <linux/termios.h>
-#include <linux/uaccess.h>	/* For copy_from_user/copy_to_user */
+#include <linux/uaccess.h>
 
 #include "dgnc_driver.h"
 #include "dgnc_pci.h"
 #include "dgnc_mgmt.h"
 
-
 /* Our "in use" variables, to enforce 1 open only */
 static int dgnc_mgmt_in_use[MAXMGMTDEVICES];
 
-
-/*
- * dgnc_mgmt_open()
- *
- * Open the mgmt/downld/dpa device
+/**
+ * dgnc_mgmt_open() - Open the mgmt/downld/dpa device.
  */
 int dgnc_mgmt_open(struct inode *inode, struct file *file)
 {
 	unsigned long flags;
 	unsigned int minor = iminor(inode);
+	int rc = 0;
 
 	spin_lock_irqsave(&dgnc_global_lock, flags);
 
-	/* mgmt device */
-	if (minor < MAXMGMTDEVICES) {
-		/* Only allow 1 open at a time on mgmt device */
-		if (dgnc_mgmt_in_use[minor]) {
-			spin_unlock_irqrestore(&dgnc_global_lock, flags);
-			return -EBUSY;
-		}
-		dgnc_mgmt_in_use[minor]++;
-	} else {
-		spin_unlock_irqrestore(&dgnc_global_lock, flags);
-		return -ENXIO;
+	if (minor >= MAXMGMTDEVICES) {
+		rc = -ENXIO;
+		goto out;
 	}
+	/* Only allow 1 open at a time on mgmt device */
+	if (dgnc_mgmt_in_use[minor]) {
+		rc = -EBUSY;
+		goto out;
+	}
+	dgnc_mgmt_in_use[minor]++;
 
+out:
 	spin_unlock_irqrestore(&dgnc_global_lock, flags);
 
-	return 0;
+	return rc;
 }
 
-
-/*
- * dgnc_mgmt_close()
- *
- * Open the mgmt/dpa device
+/**
+ * dgnc_mgmt_close() - Close the mgmt/dpa device
  */
 int dgnc_mgmt_close(struct inode *inode, struct file *file)
 {
 	unsigned long flags;
 	unsigned int minor = iminor(inode);
+	int rc = 0;
 
 	spin_lock_irqsave(&dgnc_global_lock, flags);
 
-	/* mgmt device */
-	if (minor < MAXMGMTDEVICES) {
-		if (dgnc_mgmt_in_use[minor])
-			dgnc_mgmt_in_use[minor] = 0;
+	if (minor >= MAXMGMTDEVICES) {
+		rc = -ENXIO;
+		goto out;
 	}
+	dgnc_mgmt_in_use[minor] = 0;
+
+out:
 	spin_unlock_irqrestore(&dgnc_global_lock, flags);
 
-	return 0;
+	return rc;
 }
 
-
-/*
- * dgnc_mgmt_ioctl()
- *
- * ioctl the mgmt/dpa device
+/**
+ * dgnc_mgmt_ioctl() - Ioctl the mgmt/dpa device.
  */
-
 long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
-	void __user *uarg = (void __user *) arg;
+	void __user *uarg = (void __user *)arg;
 
 	switch (cmd) {
-
 	case DIGI_GETDD:
 	{
 		/*
@@ -115,7 +104,8 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		spin_lock_irqsave(&dgnc_global_lock, flags);
 
-		ddi.dinfo_nboards = dgnc_NumBoards;
+		memset(&ddi, 0, sizeof(ddi));
+		ddi.dinfo_nboards = dgnc_num_boards;
 		sprintf(ddi.dinfo_version, "%s", DG_PART);
 
 		spin_unlock_irqrestore(&dgnc_global_lock, flags);
@@ -135,26 +125,27 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&brd, uarg, sizeof(int)))
 			return -EFAULT;
 
-		if (brd < 0 || brd >= dgnc_NumBoards)
+		if (brd < 0 || brd >= dgnc_num_boards)
 			return -ENODEV;
 
 		memset(&di, 0, sizeof(di));
 
 		di.info_bdnum = brd;
 
-		spin_lock_irqsave(&dgnc_Board[brd]->bd_lock, flags);
+		spin_lock_irqsave(&dgnc_board[brd]->bd_lock, flags);
 
-		di.info_bdtype = dgnc_Board[brd]->dpatype;
-		di.info_bdstate = dgnc_Board[brd]->dpastatus;
+		di.info_bdtype = dgnc_board[brd]->dpatype;
+		di.info_bdstate = dgnc_board[brd]->dpastatus;
 		di.info_ioport = 0;
-		di.info_physaddr = (ulong) dgnc_Board[brd]->membase;
-		di.info_physsize = (ulong) dgnc_Board[brd]->membase - dgnc_Board[brd]->membase_end;
-		if (dgnc_Board[brd]->state != BOARD_FAILED)
-			di.info_nports = dgnc_Board[brd]->nasync;
+		di.info_physaddr = (ulong)dgnc_board[brd]->membase;
+		di.info_physsize = (ulong)dgnc_board[brd]->membase
+			- dgnc_board[brd]->membase_end;
+		if (dgnc_board[brd]->state != BOARD_FAILED)
+			di.info_nports = dgnc_board[brd]->nasync;
 		else
 			di.info_nports = 0;
 
-		spin_unlock_irqrestore(&dgnc_Board[brd]->bd_lock, flags);
+		spin_unlock_irqrestore(&dgnc_board[brd]->bd_lock, flags);
 
 		if (copy_to_user(uarg, &di, sizeof(di)))
 			return -EFAULT;
@@ -176,17 +167,15 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		board = ni.board;
 		channel = ni.channel;
 
-		/* Verify boundaries on board */
-		if (board >= dgnc_NumBoards)
+		if (board >= dgnc_num_boards)
 			return -ENODEV;
 
-		/* Verify boundaries on channel */
-		if (channel >= dgnc_Board[board]->nasync)
+		if (channel >= dgnc_board[board]->nasync)
 			return -ENODEV;
 
-		ch = dgnc_Board[board]->channels[channel];
+		ch = dgnc_board[board]->channels[channel];
 
-		if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		if (!ch)
 			return -ENODEV;
 
 		memset(&ni, 0, sizeof(ni));
@@ -195,7 +184,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		spin_lock_irqsave(&ch->ch_lock, flags);
 
-		mstat = (ch->ch_mostat | ch->ch_mistat);
+		mstat = ch->ch_mostat | ch->ch_mistat;
 
 		if (mstat & UART_MCR_DTR) {
 			ni.mstat |= TIOCM_DTR;
@@ -254,9 +243,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		break;
 	}
-
-
 	}
-
 	return 0;
 }

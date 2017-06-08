@@ -105,6 +105,7 @@ enum mlxsw_cmd_opcode {
 	MLXSW_CMD_OPCODE_SW2HW_EQ		= 0x013,
 	MLXSW_CMD_OPCODE_HW2SW_EQ		= 0x014,
 	MLXSW_CMD_OPCODE_QUERY_EQ		= 0x015,
+	MLXSW_CMD_OPCODE_QUERY_RESOURCES	= 0x101,
 };
 
 static inline const char *mlxsw_cmd_opcode_str(u16 opcode)
@@ -144,6 +145,8 @@ static inline const char *mlxsw_cmd_opcode_str(u16 opcode)
 		return "HW2SW_EQ";
 	case MLXSW_CMD_OPCODE_QUERY_EQ:
 		return "QUERY_EQ";
+	case MLXSW_CMD_OPCODE_QUERY_RESOURCES:
+		return "QUERY_RESOURCES";
 	default:
 		return "*UNKNOWN*";
 	}
@@ -464,6 +467,8 @@ MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_sg_rq, 0x10, 0, 8);
  * passed in this command must be pinned.
  */
 
+#define MLXSW_CMD_MAP_FA_VPM_ENTRIES_MAX 32
+
 static inline int mlxsw_cmd_map_fa(struct mlxsw_core *mlxsw_core,
 				   char *in_mbox, u32 vpm_entries_count)
 {
@@ -497,6 +502,40 @@ static inline int mlxsw_cmd_unmap_fa(struct mlxsw_core *mlxsw_core)
 {
 	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_UNMAP_FA, 0, 0);
 }
+
+/* QUERY_RESOURCES - Query chip resources
+ * --------------------------------------
+ * OpMod == 0 (N/A) , INMmod is index
+ * ----------------------------------
+ * The QUERY_RESOURCES command retrieves information related to chip resources
+ * by resource ID. Every command returns 32 entries. INmod is being use as base.
+ * for example, index 1 will return entries 32-63. When the tables end and there
+ * are no more sources in the table, will return resource id 0xFFF to indicate
+ * it.
+ */
+
+#define MLXSW_CMD_QUERY_RESOURCES_TABLE_END_ID 0xffff
+#define MLXSW_CMD_QUERY_RESOURCES_MAX_QUERIES 100
+#define MLXSW_CMD_QUERY_RESOURCES_PER_QUERY 32
+
+static inline int mlxsw_cmd_query_resources(struct mlxsw_core *mlxsw_core,
+					    char *out_mbox, int index)
+{
+	return mlxsw_cmd_exec_out(mlxsw_core, MLXSW_CMD_OPCODE_QUERY_RESOURCES,
+				  0, index, false, out_mbox,
+				  MLXSW_CMD_MBOX_SIZE);
+}
+
+/* cmd_mbox_query_resource_id
+ * The resource id. 0xFFFF indicates table's end.
+ */
+MLXSW_ITEM32_INDEXED(cmd_mbox, query_resource, id, 0x00, 16, 16, 0x8, 0, false);
+
+/* cmd_mbox_query_resource_data
+ * The resource
+ */
+MLXSW_ITEM64_INDEXED(cmd_mbox, query_resource, data,
+		     0x00, 0, 40, 0x8, 0, false);
 
 /* CONFIG_PROFILE (Set) - Configure Switch Profile
  * ------------------------------
@@ -568,7 +607,7 @@ MLXSW_ITEM32(cmd_mbox, config_profile, set_max_vlan_groups, 0x0C, 6, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_max_regions, 0x0C, 7, 1);
 
-/* cmd_mbox_config_profile_set_fid_based
+/* cmd_mbox_config_profile_set_flood_mode
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
@@ -604,6 +643,24 @@ MLXSW_ITEM32(cmd_mbox, config_profile,
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_ar_sec, 0x0C, 15, 1);
+
+/* cmd_mbox_config_set_kvd_linear_size
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_linear_size, 0x0C, 24, 1);
+
+/* cmd_mbox_config_set_kvd_hash_single_size
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_single_size, 0x0C, 25, 1);
+
+/* cmd_mbox_config_set_kvd_hash_double_size
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_double_size, 0x0C, 26, 1);
 
 /* cmd_mbox_config_profile_max_vepa_channels
  * Maximum number of VEPA channels per port (0 through 16)
@@ -649,12 +706,8 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_vlan_groups, 0x28, 0, 12);
 MLXSW_ITEM32(cmd_mbox, config_profile, max_regions, 0x2C, 0, 16);
 
 /* cmd_mbox_config_profile_max_flood_tables
- * Maximum number of Flooding Tables. Flooding Tables are associated to
- * the different packet types for the different switch partitions.
- * Note that the table size depends on the fid_based mode.
- * In SwitchX silicon, tables are split equally between the switch
- * partitions. e.g. for 2 swids and 8 tables, the first 4 are associated
- * with swid-1 and the last 4 are associated with swid-2.
+ * Maximum number of single-entry flooding tables. Different flooding tables
+ * can be associated with different packet types.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_flood_tables, 0x30, 16, 4);
 
@@ -665,14 +718,41 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_flood_tables, 0x30, 16, 4);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_vid_flood_tables, 0x30, 8, 4);
 
-/* cmd_mbox_config_profile_fid_based
- * FID Based Flood Mode
- * 00 Do not use FID to offset the index into the Port Group Table/Multicast ID
- * 01 Use FID to offset the index to the Port Group Table (pgi)
- * 10 Use FID to offset the index to the Port Group Table (pgi) and
- * the Multicast ID
+/* cmd_mbox_config_profile_flood_mode
+ * Flooding mode to use.
+ * 0-2 - Backward compatible modes for SwitchX devices.
+ * 3 - Mixed mode, where:
+ * max_flood_tables indicates the number of single-entry tables.
+ * max_vid_flood_tables indicates the number of per-VID tables.
+ * max_fid_offset_flood_tables indicates the number of FID-offset tables.
+ * max_fid_flood_tables indicates the number of per-FID tables.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, flood_mode, 0x30, 0, 2);
+
+/* cmd_mbox_config_profile_max_fid_offset_flood_tables
+ * Maximum number of FID-offset flooding tables.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile,
+	     max_fid_offset_flood_tables, 0x34, 24, 4);
+
+/* cmd_mbox_config_profile_fid_offset_flood_table_size
+ * The size (number of entries) of each FID-offset flood table.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile,
+	     fid_offset_flood_table_size, 0x34, 0, 16);
+
+/* cmd_mbox_config_profile_max_fid_flood_tables
+ * Maximum number of per-FID flooding tables.
+ *
+ * Note: This flooding tables cover special FIDs only (vFIDs), starting at
+ * FID value 4K and higher.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, max_fid_flood_tables, 0x38, 24, 4);
+
+/* cmd_mbox_config_profile_fid_flood_table_size
+ * The size (number of entries) of each per-FID table.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, fid_flood_table_size, 0x38, 0, 16);
 
 /* cmd_mbox_config_profile_max_ib_mc
  * Maximum number of multicast FDB records for InfiniBand
@@ -707,6 +787,31 @@ MLXSW_ITEM32(cmd_mbox, config_profile, adaptive_routing_group_cap, 0x4C, 0, 16);
  * Not supported in SwitchX, SwitchX-2
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, arn, 0x50, 31, 1);
+
+/* cmd_mbox_config_kvd_linear_size
+ * KVD Linear Size
+ * Valid for Spectrum only
+ * Allowed values are 128*N where N=0 or higher
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, kvd_linear_size, 0x54, 0, 24);
+
+/* cmd_mbox_config_kvd_hash_single_size
+ * KVD Hash single-entries size
+ * Valid for Spectrum only
+ * Allowed values are 128*N where N=0 or higher
+ * Must be greater or equal to cap_min_kvd_hash_single_size
+ * Must be smaller or equal to cap_kvd_size - kvd_linear_size
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, kvd_hash_single_size, 0x58, 0, 24);
+
+/* cmd_mbox_config_kvd_hash_double_size
+ * KVD Hash double-entries size (units of single-size entries)
+ * Valid for Spectrum only
+ * Allowed values are 128*N where N=0 or higher
+ * Must be either 0 or greater or equal to cap_min_kvd_hash_double_size
+ * Must be smaller or equal to cap_kvd_size - kvd_linear_size
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, kvd_hash_double_size, 0x5C, 0, 24);
 
 /* cmd_mbox_config_profile_swid_config_mask
  * Modify Switch Partition Configuration mask. When set, the configu-
@@ -938,13 +1043,6 @@ MLXSW_ITEM32(cmd_mbox, sw2hw_cq, cv, 0x00, 28, 4);
  */
 MLXSW_ITEM32(cmd_mbox, sw2hw_cq, c_eqn, 0x00, 24, 1);
 
-/* cmd_mbox_sw2hw_cq_oi
- * When set, overrun ignore is enabled. When set, updates of
- * CQ consumer counter (poll for completion) or Request completion
- * notifications (Arm CQ) DoorBells should not be rung on that CQ.
- */
-MLXSW_ITEM32(cmd_mbox, sw2hw_cq, oi, 0x00, 12, 1);
-
 /* cmd_mbox_sw2hw_cq_st
  * Event delivery state machine
  * 0x0 - FIRED
@@ -1027,12 +1125,7 @@ static inline int mlxsw_cmd_sw2hw_eq(struct mlxsw_core *mlxsw_core,
  */
 MLXSW_ITEM32(cmd_mbox, sw2hw_eq, int_msix, 0x00, 24, 1);
 
-/* cmd_mbox_sw2hw_eq_int_oi
- * When set, overrun ignore is enabled.
- */
-MLXSW_ITEM32(cmd_mbox, sw2hw_eq, oi, 0x00, 12, 1);
-
-/* cmd_mbox_sw2hw_eq_int_st
+/* cmd_mbox_sw2hw_eq_st
  * Event delivery state machine
  * 0x0 - FIRED
  * 0x1 - ARMED (Request for Notification)
@@ -1041,19 +1134,19 @@ MLXSW_ITEM32(cmd_mbox, sw2hw_eq, oi, 0x00, 12, 1);
  */
 MLXSW_ITEM32(cmd_mbox, sw2hw_eq, st, 0x00, 8, 2);
 
-/* cmd_mbox_sw2hw_eq_int_log_eq_size
+/* cmd_mbox_sw2hw_eq_log_eq_size
  * Log (base 2) of the EQ size (in entries).
  */
 MLXSW_ITEM32(cmd_mbox, sw2hw_eq, log_eq_size, 0x00, 0, 4);
 
-/* cmd_mbox_sw2hw_eq_int_producer_counter
+/* cmd_mbox_sw2hw_eq_producer_counter
  * Producer Counter. The counter is incremented for each EQE that is written
  * by the HW to the EQ.
  * Maintained by HW (valid for the QUERY_EQ command only)
  */
 MLXSW_ITEM32(cmd_mbox, sw2hw_eq, producer_counter, 0x04, 0, 16);
 
-/* cmd_mbox_sw2hw_eq_int_pa
+/* cmd_mbox_sw2hw_eq_pa
  * Physical Address.
  */
 MLXSW_ITEM64_INDEXED(cmd_mbox, sw2hw_eq, pa, 0x10, 11, 53, 0x08, 0x00, true);

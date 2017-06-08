@@ -18,7 +18,7 @@
 #define rLN r7	/* length of data to be processed			*/
 #define rIP r8	/* potiner to IV (CBC/CTR/XTS modes)			*/
 #define rKT r9	/* pointer to tweak key (XTS mode)			*/
-#define rT0 r11	/* pointers to en-/decrpytion tables			*/
+#define rT0 r11	/* pointers to en-/decryption tables			*/
 #define rT1 r10
 #define rD0 r9	/* data 						*/
 #define rD1 r14

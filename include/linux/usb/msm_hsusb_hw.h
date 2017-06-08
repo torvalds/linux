@@ -22,6 +22,7 @@
 #define USB_AHBBURST         (MSM_USB_BASE + 0x0090)
 #define USB_AHBMODE          (MSM_USB_BASE + 0x0098)
 #define USB_GENCONFIG_2      (MSM_USB_BASE + 0x00a0)
+#define ULPI_TX_PKT_EN_CLR_FIX	BIT(19)
 
 #define USB_CAPLENGTH        (MSM_USB_BASE + 0x0100) /* 8 bit */
 

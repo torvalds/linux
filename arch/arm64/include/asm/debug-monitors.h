@@ -20,6 +20,7 @@
 
 #include <linux/errno.h>
 #include <linux/types.h>
+#include <asm/brk-imm.h>
 #include <asm/esr.h>
 #include <asm/insn.h>
 #include <asm/ptrace.h>
@@ -47,19 +48,6 @@
 #define BREAK_INSTR_SIZE		AARCH64_INSN_SIZE
 
 /*
- * #imm16 values used for BRK instruction generation
- * Allowed values for kgbd are 0x400 - 0x7ff
- * 0x100: for triggering a fault on purpose (reserved)
- * 0x400: for dynamic BRK instruction
- * 0x401: for compile time BRK instruction
- * 0x800: kernel-mode BUG() and WARN() traps
- */
-#define FAULT_BRK_IMM			0x100
-#define KGDB_DYN_DBG_BRK_IMM		0x400
-#define KGDB_COMPILED_DBG_BRK_IMM	0x401
-#define BUG_BRK_IMM			0x800
-
-/*
  * BRK instruction encoding
  * The #imm16 value should be placed at bits[20:5] within BRK ins
  */
@@ -73,10 +61,16 @@
 
 #define AARCH64_BREAK_KGDB_DYN_DBG	\
 	(AARCH64_BREAK_MON | (KGDB_DYN_DBG_BRK_IMM << 5))
-#define KGDB_DYN_BRK_INS_BYTE(x)	\
-	((AARCH64_BREAK_KGDB_DYN_DBG >> (8 * (x))) & 0xff)
 
 #define CACHE_FLUSH_IS_SAFE		1
+
+/* kprobes BRK opcodes with ESR encoding  */
+#define BRK64_ESR_MASK		0xFFFF
+#define BRK64_ESR_KPROBES	0x0004
+#define BRK64_OPCODE_KPROBES	(AARCH64_BREAK_MON | (BRK64_ESR_KPROBES << 5))
+/* uprobes BRK opcodes with ESR encoding  */
+#define BRK64_ESR_UPROBES	0x0005
+#define BRK64_OPCODE_UPROBES	(AARCH64_BREAK_MON | (BRK64_ESR_UPROBES << 5))
 
 /* AArch32 */
 #define DBG_ESR_EVT_BKPT	0x4

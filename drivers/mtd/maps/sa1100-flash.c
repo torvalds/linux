@@ -117,7 +117,6 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 		ret = -ENXIO;
 		goto err;
 	}
-	subdev->mtd->owner = THIS_MODULE;
 
 	printk(KERN_INFO "SA1100 flash: CFI device at 0x%08lx, %uMiB, %d-bit\n",
 		phys, (unsigned)(subdev->mtd->size >> 20),
@@ -231,9 +230,12 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 
 		info->mtd = mtd_concat_create(cdev, info->num_subdev,
 					      plat->name);
-		if (info->mtd == NULL)
+		if (info->mtd == NULL) {
 			ret = -ENXIO;
+			goto err;
+		}
 	}
+	info->mtd->dev.parent = &pdev->dev;
 
 	if (ret == 0)
 		return info;

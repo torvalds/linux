@@ -1,0 +1,13 @@
+config SAMSUNG_MC
+	bool "Samsung Exynos Memory Controller support" if COMPILE_TEST
+	help
+	  Support for the Memory Controller (MC) devices found on
+	  Samsung Exynos SoCs.
+
+if SAMSUNG_MC
+
+config EXYNOS_SROM
+	bool "Exynos SROM controller driver" if COMPILE_TEST
+	depends on (ARM && ARCH_EXYNOS) || (COMPILE_TEST && HAS_IOMEM)
+
+endif

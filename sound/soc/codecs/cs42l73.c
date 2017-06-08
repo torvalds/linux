@@ -794,7 +794,7 @@ struct cs42l73_mclk_div {
 	u8 mmcc;
 };
 
-static struct cs42l73_mclk_div cs42l73_mclk_coeffs[] = {
+static const struct cs42l73_mclk_div cs42l73_mclk_coeffs[] = {
 	/* MCLK, Sample Rate, xMMCC[5:0] */
 	{5644800, 11025, 0x30},
 	{5644800, 22050, 0x20},
@@ -844,7 +844,7 @@ struct cs42l73_mclkx_div {
 	u8 mclkdiv;
 };
 
-static struct cs42l73_mclkx_div cs42l73_mclkx_coeffs[] = {
+static const struct cs42l73_mclkx_div cs42l73_mclkx_coeffs[] = {
 	{5644800,  1, 0},	/* 5644800 */
 	{6000000,  1, 0},	/* 6000000 */
 	{6144000,  1, 0},	/* 6144000 */
@@ -1257,13 +1257,14 @@ static const struct snd_soc_codec_driver soc_codec_dev_cs42l73 = {
 	.set_bias_level = cs42l73_set_bias_level,
 	.suspend_bias_off = true,
 
-	.dapm_widgets = cs42l73_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs42l73_dapm_widgets),
-	.dapm_routes = cs42l73_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(cs42l73_audio_map),
-
-	.controls = cs42l73_snd_controls,
-	.num_controls = ARRAY_SIZE(cs42l73_snd_controls),
+	.component_driver = {
+		.controls		= cs42l73_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs42l73_snd_controls),
+		.dapm_widgets		= cs42l73_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs42l73_dapm_widgets),
+		.dapm_routes		= cs42l73_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(cs42l73_audio_map),
+	},
 };
 
 static const struct regmap_config cs42l73_regmap = {
@@ -1336,8 +1337,6 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 		gpio_set_value_cansleep(cs42l73->pdata.reset_gpio, 1);
 	}
 
-	regcache_cache_bypass(cs42l73->regmap, true);
-
 	/* initialize codec */
 	ret = regmap_read(cs42l73->regmap, CS42L73_DEVID_AB, &reg);
 	devid = (reg & 0xFF) << 12;
@@ -1364,8 +1363,6 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 
 	dev_info(&i2c_client->dev,
 		 "Cirrus Logic CS42L73, Revision: %02X\n", reg & 0xFF);
-
-	regcache_cache_bypass(cs42l73->regmap, false);
 
 	ret =  snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_dev_cs42l73, cs42l73_dai,

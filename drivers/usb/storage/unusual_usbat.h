@@ -1,4 +1,5 @@
-/* Unusual Devices File for SCM Microsystems (a.k.a. Shuttle) USB-ATAPI cable
+/*
+ * Unusual Devices File for SCM Microsystems (a.k.a. Shuttle) USB-ATAPI cable
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

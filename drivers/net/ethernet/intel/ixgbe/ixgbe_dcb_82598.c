@@ -210,7 +210,7 @@ s32 ixgbe_dcb_config_pfc_82598(struct ixgbe_hw *hw, u8 pfc_en)
 
 	/* Configure PFC Tx thresholds per TC */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
-		if (!(pfc_en & (1 << i))) {
+		if (!(pfc_en & BIT(i))) {
 			IXGBE_WRITE_REG(hw, IXGBE_FCRTL(i), 0);
 			IXGBE_WRITE_REG(hw, IXGBE_FCRTH(i), 0);
 			continue;

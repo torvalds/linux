@@ -13,7 +13,7 @@
 
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -34,15 +34,16 @@ static int sunxi_reset_assert(struct reset_controller_dev *rcdev,
 	struct sunxi_reset_data *data = container_of(rcdev,
 						     struct sunxi_reset_data,
 						     rcdev);
-	int bank = id / BITS_PER_LONG;
-	int offset = id % BITS_PER_LONG;
+	int reg_width = sizeof(u32);
+	int bank = id / (reg_width * BITS_PER_BYTE);
+	int offset = id % (reg_width * BITS_PER_BYTE);
 	unsigned long flags;
 	u32 reg;
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	reg = readl(data->membase + (bank * 4));
-	writel(reg & ~BIT(offset), data->membase + (bank * 4));
+	reg = readl(data->membase + (bank * reg_width));
+	writel(reg & ~BIT(offset), data->membase + (bank * reg_width));
 
 	spin_unlock_irqrestore(&data->lock, flags);
 
@@ -55,22 +56,23 @@ static int sunxi_reset_deassert(struct reset_controller_dev *rcdev,
 	struct sunxi_reset_data *data = container_of(rcdev,
 						     struct sunxi_reset_data,
 						     rcdev);
-	int bank = id / BITS_PER_LONG;
-	int offset = id % BITS_PER_LONG;
+	int reg_width = sizeof(u32);
+	int bank = id / (reg_width * BITS_PER_BYTE);
+	int offset = id % (reg_width * BITS_PER_BYTE);
 	unsigned long flags;
 	u32 reg;
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	reg = readl(data->membase + (bank * 4));
-	writel(reg | BIT(offset), data->membase + (bank * 4));
+	reg = readl(data->membase + (bank * reg_width));
+	writel(reg | BIT(offset), data->membase + (bank * reg_width));
 
 	spin_unlock_irqrestore(&data->lock, flags);
 
 	return 0;
 }
 
-static struct reset_control_ops sunxi_reset_ops = {
+static const struct reset_control_ops sunxi_reset_ops = {
 	.assert		= sunxi_reset_assert,
 	.deassert	= sunxi_reset_deassert,
 };
@@ -108,9 +110,8 @@ static int sunxi_reset_init(struct device_node *np)
 	data->rcdev.nr_resets = size * 32;
 	data->rcdev.ops = &sunxi_reset_ops;
 	data->rcdev.of_node = np;
-	reset_controller_register(&data->rcdev);
 
-	return 0;
+	return reset_controller_register(&data->rcdev);
 
 err_alloc:
 	kfree(data);
@@ -122,7 +123,7 @@ err_alloc:
  * our system, before we can even think of using a regular device
  * driver for it.
  */
-static const struct of_device_id sunxi_early_reset_dt_ids[] __initdata = {
+static const struct of_device_id sunxi_early_reset_dt_ids[] __initconst = {
 	{ .compatible = "allwinner,sun6i-a31-ahb1-reset", },
 	{ /* sentinel */ },
 };
@@ -143,7 +144,6 @@ static const struct of_device_id sunxi_reset_dt_ids[] = {
 	 { .compatible = "allwinner,sun6i-a31-clock-reset", },
 	 { /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, sunxi_reset_dt_ids);
 
 static int sunxi_reset_probe(struct platform_device *pdev)
 {
@@ -166,28 +166,14 @@ static int sunxi_reset_probe(struct platform_device *pdev)
 	data->rcdev.ops = &sunxi_reset_ops;
 	data->rcdev.of_node = pdev->dev.of_node;
 
-	return reset_controller_register(&data->rcdev);
-}
-
-static int sunxi_reset_remove(struct platform_device *pdev)
-{
-	struct sunxi_reset_data *data = platform_get_drvdata(pdev);
-
-	reset_controller_unregister(&data->rcdev);
-
-	return 0;
+	return devm_reset_controller_register(&pdev->dev, &data->rcdev);
 }
 
 static struct platform_driver sunxi_reset_driver = {
 	.probe	= sunxi_reset_probe,
-	.remove	= sunxi_reset_remove,
 	.driver = {
 		.name		= "sunxi-reset",
 		.of_match_table	= sunxi_reset_dt_ids,
 	},
 };
-module_platform_driver(sunxi_reset_driver);
-
-MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
-MODULE_DESCRIPTION("Allwinner SoCs Reset Controller Driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(sunxi_reset_driver);

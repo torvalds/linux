@@ -44,7 +44,7 @@ static void fail_dump(struct fault_attr *attr)
 		printk(KERN_NOTICE "FAULT_INJECTION: forcing a failure.\n"
 		       "name %pd, interval %lu, probability %lu, "
 		       "space %d, times %d\n", attr->dname,
-		       attr->probability, attr->interval,
+		       attr->interval, attr->probability,
 		       atomic_read(&attr->space),
 		       atomic_read(&attr->times));
 		if (attr->verbose > 1)
@@ -56,7 +56,7 @@ static void fail_dump(struct fault_attr *attr)
 
 static bool fail_task(struct fault_attr *attr, struct task_struct *task)
 {
-	return !in_interrupt() && task->make_it_fail;
+	return in_task() && task->make_it_fail;
 }
 
 #define MAX_STACK_TRACE_DEPTH 32

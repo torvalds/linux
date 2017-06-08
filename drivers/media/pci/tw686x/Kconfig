@@ -1,0 +1,20 @@
+config VIDEO_TW686X
+	tristate "Intersil/Techwell TW686x video capture cards"
+	depends on PCI && VIDEO_DEV && VIDEO_V4L2 && SND
+	depends on HAS_DMA
+	select VIDEOBUF2_VMALLOC
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_DMA_SG
+	select SND_PCM
+	help
+	  Support for Intersil/Techwell TW686x-based frame grabber cards.
+
+	  Currently supported chips:
+	  - TW6864 (4 video channels),
+	  - TW6865 (4 video channels, not tested, second generation chip),
+	  - TW6868 (8 video channels but only 4 first channels using
+	    built-in video decoder are supported, not tested),
+	  - TW6869 (8 video channels, second generation chip).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be named tw686x.

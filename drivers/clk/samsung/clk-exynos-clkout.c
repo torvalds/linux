@@ -132,26 +132,34 @@ free_clkout:
 	pr_err("%s: failed to register clkout clock\n", __func__);
 }
 
+/*
+ * We use CLK_OF_DECLARE_DRIVER initialization method to avoid setting
+ * the OF_POPULATED flag on the pmu device tree node, so later the
+ * Exynos PMU platform device can be properly probed with PMU driver.
+ */
+
 static void __init exynos4_clkout_init(struct device_node *node)
 {
 	exynos_clkout_init(node, EXYNOS4_CLKOUT_MUX_MASK);
 }
-CLK_OF_DECLARE(exynos4210_clkout, "samsung,exynos4210-pmu",
+CLK_OF_DECLARE_DRIVER(exynos4210_clkout, "samsung,exynos4210-pmu",
 		exynos4_clkout_init);
-CLK_OF_DECLARE(exynos4212_clkout, "samsung,exynos4212-pmu",
+CLK_OF_DECLARE_DRIVER(exynos4212_clkout, "samsung,exynos4212-pmu",
 		exynos4_clkout_init);
-CLK_OF_DECLARE(exynos4412_clkout, "samsung,exynos4412-pmu",
+CLK_OF_DECLARE_DRIVER(exynos4412_clkout, "samsung,exynos4412-pmu",
 		exynos4_clkout_init);
-CLK_OF_DECLARE(exynos3250_clkout, "samsung,exynos3250-pmu",
+CLK_OF_DECLARE_DRIVER(exynos3250_clkout, "samsung,exynos3250-pmu",
 		exynos4_clkout_init);
 
 static void __init exynos5_clkout_init(struct device_node *node)
 {
 	exynos_clkout_init(node, EXYNOS5_CLKOUT_MUX_MASK);
 }
-CLK_OF_DECLARE(exynos5250_clkout, "samsung,exynos5250-pmu",
+CLK_OF_DECLARE_DRIVER(exynos5250_clkout, "samsung,exynos5250-pmu",
 		exynos5_clkout_init);
-CLK_OF_DECLARE(exynos5420_clkout, "samsung,exynos5420-pmu",
+CLK_OF_DECLARE_DRIVER(exynos5410_clkout, "samsung,exynos5410-pmu",
 		exynos5_clkout_init);
-CLK_OF_DECLARE(exynos5433_clkout, "samsung,exynos5433-pmu",
+CLK_OF_DECLARE_DRIVER(exynos5420_clkout, "samsung,exynos5420-pmu",
+		exynos5_clkout_init);
+CLK_OF_DECLARE_DRIVER(exynos5433_clkout, "samsung,exynos5433-pmu",
 		exynos5_clkout_init);

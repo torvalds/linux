@@ -34,7 +34,7 @@
 #include "ivtv-cards.h"
 #include "ivtv-firmware.h"
 #include <media/v4l2-event.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 
 /* This function tries to claim the stream for a specific file descriptor.
    If no one else is using this stream then the stream is claimed and

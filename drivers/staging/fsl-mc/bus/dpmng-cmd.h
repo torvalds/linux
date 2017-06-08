@@ -1,4 +1,5 @@
-/* Copyright 2013-2014 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -10,7 +11,6 @@
  *     * Neither the name of the above-listed copyright holders nor the
  *       names of any contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
- *
  *
  * ALTERNATIVELY, this software may be distributed under the terms of the
  * GNU General Public License ("GPL") as published by the Free Software
@@ -30,18 +30,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*************************************************************************//*
- dpmng-cmd.h
-
- defines portal commands
-
- *//**************************************************************************/
+/*
+ * dpmng-cmd.h
+ *
+ * defines portal commands
+ *
+ */
 
 #ifndef __FSL_DPMNG_CMD_H
 #define __FSL_DPMNG_CMD_H
 
+/* Command versioning */
+#define DPMNG_CMD_BASE_VERSION		1
+#define DPMNG_CMD_ID_OFFSET		4
+
+#define DPMNG_CMD(id)	((id << DPMNG_CMD_ID_OFFSET) | DPMNG_CMD_BASE_VERSION)
+
 /* Command IDs */
-#define DPMNG_CMDID_GET_CONT_ID			0x830
-#define DPMNG_CMDID_GET_VERSION			0x831
+#define DPMNG_CMDID_GET_VERSION		DPMNG_CMD(0x831)
+
+struct dpmng_rsp_get_version {
+	__le32 revision;
+	__le32 version_major;
+	__le32 version_minor;
+};
 
 #endif /* __FSL_DPMNG_CMD_H */

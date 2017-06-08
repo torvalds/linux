@@ -247,7 +247,7 @@ static void __vmw_cmdbuf_header_free(struct vmw_cmdbuf_header *header)
 {
 	struct vmw_cmdbuf_man *man = header->man;
 
-	BUG_ON(!spin_is_locked(&man->lock));
+	lockdep_assert_held_once(&man->lock);
 
 	if (header->inline_space) {
 		vmw_cmdbuf_header_inline_free(header);
@@ -293,13 +293,10 @@ static int vmw_cmdbuf_header_submit(struct vmw_cmdbuf_header *header)
 	struct vmw_cmdbuf_man *man = header->man;
 	u32 val;
 
-	if (sizeof(header->handle) > 4)
-		val = (header->handle >> 32);
-	else
-		val = 0;
+	val = upper_32_bits(header->handle);
 	vmw_write(man->dev_priv, SVGA_REG_COMMAND_HIGH, val);
 
-	val = (header->handle & 0xFFFFFFFFULL);
+	val = lower_32_bits(header->handle);
 	val |= header->cb_context & SVGA_CB_CONTEXT_MASK;
 	vmw_write(man->dev_priv, SVGA_REG_COMMAND_LOW, val);
 
@@ -415,16 +412,16 @@ static void vmw_cmdbuf_ctx_process(struct vmw_cmdbuf_man *man,
  *
  * Calls vmw_cmdbuf_ctx_process() on all contexts. If any context has
  * command buffers left that are not submitted to hardware, Make sure
- * IRQ handling is turned on. Otherwise, make sure it's turned off. This
- * function may return -EAGAIN to indicate it should be rerun due to
- * possibly missed IRQs if IRQs has just been turned on.
+ * IRQ handling is turned on. Otherwise, make sure it's turned off.
  */
-static int vmw_cmdbuf_man_process(struct vmw_cmdbuf_man *man)
+static void vmw_cmdbuf_man_process(struct vmw_cmdbuf_man *man)
 {
-	int notempty = 0;
+	int notempty;
 	struct vmw_cmdbuf_context *ctx;
 	int i;
 
+retry:
+	notempty = 0;
 	for_each_cmdbuf_ctx(man, i, ctx)
 		vmw_cmdbuf_ctx_process(man, ctx, &notempty);
 
@@ -440,10 +437,8 @@ static int vmw_cmdbuf_man_process(struct vmw_cmdbuf_man *man)
 		man->irq_on = true;
 
 		/* Rerun in case we just missed an irq. */
-		return -EAGAIN;
+		goto retry;
 	}
-
-	return 0;
 }
 
 /**
@@ -468,8 +463,7 @@ static void vmw_cmdbuf_ctx_add(struct vmw_cmdbuf_man *man,
 	header->cb_context = cb_context;
 	list_add_tail(&header->list, &man->ctx[cb_context].submitted);
 
-	if (vmw_cmdbuf_man_process(man) == -EAGAIN)
-		vmw_cmdbuf_man_process(man);
+	vmw_cmdbuf_man_process(man);
 }
 
 /**
@@ -488,8 +482,7 @@ static void vmw_cmdbuf_man_tasklet(unsigned long data)
 	struct vmw_cmdbuf_man *man = (struct vmw_cmdbuf_man *) data;
 
 	spin_lock(&man->lock);
-	if (vmw_cmdbuf_man_process(man) == -EAGAIN)
-		(void) vmw_cmdbuf_man_process(man);
+	vmw_cmdbuf_man_process(man);
 	spin_unlock(&man->lock);
 }
 
@@ -507,6 +500,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 	struct vmw_cmdbuf_man *man =
 		container_of(work, struct vmw_cmdbuf_man, work);
 	struct vmw_cmdbuf_header *entry, *next;
+	uint32_t dummy;
 	bool restart = false;
 
 	spin_lock_bh(&man->lock);
@@ -523,6 +517,8 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 	if (restart && vmw_cmdbuf_startstop(man, true))
 		DRM_ERROR("Failed restarting command buffer context 0.\n");
 
+	/* Send a new fence in case one was removed */
+	vmw_fifo_send_fence(man->dev_priv, &dummy);
 }
 
 /**
@@ -677,10 +673,12 @@ static bool vmw_cmdbuf_try_alloc(struct vmw_cmdbuf_man *man,
  
 	memset(info->node, 0, sizeof(*info->node));
 	spin_lock_bh(&man->lock);
-	ret = drm_mm_insert_node_generic(&man->mm, info->node, info->page_size,
-					 0, 0,
-					 DRM_MM_SEARCH_DEFAULT,
-					 DRM_MM_CREATE_DEFAULT);
+	ret = drm_mm_insert_node(&man->mm, info->node, info->page_size);
+	if (ret) {
+		vmw_cmdbuf_man_process(man);
+		ret = drm_mm_insert_node(&man->mm, info->node, info->page_size);
+	}
+
 	spin_unlock_bh(&man->lock);
 	info->done = !ret;
 
@@ -1160,7 +1158,14 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
 	drm_mm_init(&man->mm, 0, size >> PAGE_SHIFT);
 
 	man->has_pool = true;
-	man->default_size = default_size;
+
+	/*
+	 * For now, set the default size to VMW_CMDBUF_INLINE_SIZE to
+	 * prevent deadlocks from happening when vmw_cmdbuf_space_pool()
+	 * needs to wait for space and we block on further command
+	 * submissions to be able to free up space.
+	 */
+	man->default_size = VMW_CMDBUF_INLINE_SIZE;
 	DRM_INFO("Using command buffers with %s pool.\n",
 		 (man->using_mob) ? "MOB" : "DMA");
 

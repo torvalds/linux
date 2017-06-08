@@ -24,17 +24,14 @@
 #define ARCH_HAS_DMA_GET_REQUIRED_MASK
 #endif
 
-extern struct dma_map_ops *tile_dma_map_ops;
-extern struct dma_map_ops *gx_pci_dma_map_ops;
-extern struct dma_map_ops *gx_legacy_pci_dma_map_ops;
-extern struct dma_map_ops *gx_hybrid_pci_dma_map_ops;
+extern const struct dma_map_ops *tile_dma_map_ops;
+extern const struct dma_map_ops *gx_pci_dma_map_ops;
+extern const struct dma_map_ops *gx_legacy_pci_dma_map_ops;
+extern const struct dma_map_ops *gx_hybrid_pci_dma_map_ops;
 
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-	if (dev && dev->archdata.dma_ops)
-		return dev->archdata.dma_ops;
-	else
-		return tile_dma_map_ops;
+	return tile_dma_map_ops;
 }
 
 static inline dma_addr_t get_dma_offset(struct device *dev)
@@ -59,11 +56,6 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 
 static inline void dma_mark_clean(void *addr, size_t size) {}
 
-static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
-{
-	dev->archdata.dma_ops = ops;
-}
-
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {
 	if (!dev->dma_mask)
@@ -73,37 +65,7 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 }
 
 #define HAVE_ARCH_DMA_SET_MASK 1
-
-#include <asm-generic/dma-mapping-common.h>
-
-static inline int
-dma_set_mask(struct device *dev, u64 mask)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	/*
-	 * For PCI devices with 64-bit DMA addressing capability, promote
-	 * the dma_ops to hybrid, with the consistent memory DMA space limited
-	 * to 32-bit. For 32-bit capable devices, limit the streaming DMA
-	 * address range to max_direct_dma_addr.
-	 */
-	if (dma_ops == gx_pci_dma_map_ops ||
-	    dma_ops == gx_hybrid_pci_dma_map_ops ||
-	    dma_ops == gx_legacy_pci_dma_map_ops) {
-		if (mask == DMA_BIT_MASK(64) &&
-		    dma_ops == gx_legacy_pci_dma_map_ops)
-			set_dma_ops(dev, gx_hybrid_pci_dma_map_ops);
-		else if (mask > dev->archdata.max_direct_dma_addr)
-			mask = dev->archdata.max_direct_dma_addr;
-	}
-
-	if (!dev->dma_mask || !dma_supported(dev, mask))
-		return -EIO;
-
-	*dev->dma_mask = mask;
-
-	return 0;
-}
+int dma_set_mask(struct device *dev, u64 mask);
 
 /*
  * dma_alloc_noncoherent() is #defined to return coherent memory,

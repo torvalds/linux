@@ -66,7 +66,7 @@ static int horus3a_write_regs(struct horus3a_priv *priv,
 		}
 	};
 
-	if (len + 1 >= sizeof(buf)) {
+	if (len + 1 > sizeof(buf)) {
 		dev_warn(&priv->i2c->dev,"wr reg=%04x: len=%d is too big!\n",
 			 reg, len + 1);
 		return -E2BIG;
@@ -151,14 +151,13 @@ static int horus3a_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int horus3a_release(struct dvb_frontend *fe)
+static void horus3a_release(struct dvb_frontend *fe)
 {
 	struct horus3a_priv *priv = fe->tuner_priv;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int horus3a_sleep(struct dvb_frontend *fe)
@@ -272,24 +271,6 @@ static int horus3a_set_params(struct dvb_frontend *fe)
 		if (fc_lpf > 36)
 			fc_lpf = 36;
 	} else if (p->delivery_system == SYS_DVBS2) {
-		int rolloff;
-
-		switch (p->rolloff) {
-		case ROLLOFF_35:
-			rolloff = 35;
-			break;
-		case ROLLOFF_25:
-			rolloff = 25;
-			break;
-		case ROLLOFF_20:
-			rolloff = 20;
-			break;
-		case ROLLOFF_AUTO:
-		default:
-			dev_err(&priv->i2c->dev,
-				"horus3a: auto roll-off is not supported\n");
-			return -EINVAL;
-		}
 		/*
 		 * SR <= 4.5:
 		 * fc_lpf = 5
@@ -302,11 +283,9 @@ static int horus3a_set_params(struct dvb_frontend *fe)
 		if (symbol_rate <= 4500)
 			fc_lpf = 5;
 		else if (symbol_rate <= 10000)
-			fc_lpf = (u8)DIV_ROUND_UP(
-				symbol_rate * (200 + rolloff), 200000);
+			fc_lpf = (u8)((symbol_rate * 11 + (10000-1)) / 10000);
 		else
-			fc_lpf = (u8)DIV_ROUND_UP(
-				symbol_rate * (100 + rolloff), 200000) + 5;
+			fc_lpf = (u8)((symbol_rate * 3 + (5000-1)) / 5000 + 5);
 		/* 5 <= fc_lpf <= 36 is valid */
 		if (fc_lpf > 36)
 			fc_lpf = 36;
@@ -346,7 +325,7 @@ static int horus3a_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static struct dvb_tuner_ops horus3a_tuner_ops = {
+static const struct dvb_tuner_ops horus3a_tuner_ops = {
 	.info = {
 		.name = "Sony Horus3a",
 		.frequency_min = 950000,
@@ -425,6 +404,6 @@ struct dvb_frontend *horus3a_attach(struct dvb_frontend *fe,
 }
 EXPORT_SYMBOL(horus3a_attach);
 
-MODULE_DESCRIPTION("Sony HORUS3A sattelite tuner driver");
+MODULE_DESCRIPTION("Sony HORUS3A satellite tuner driver");
 MODULE_AUTHOR("Sergey Kozlov <serjk@netup.ru>");
 MODULE_LICENSE("GPL");

@@ -150,90 +150,126 @@ uint oid_rt_get_power_mode_hdl(
 #ifdef _RTL871X_MP_IOCTL_C_ /* CAUTION!!! */
 /* This ifdef _MUST_ be left in!! */
 static const struct oid_obj_priv oid_rtl_seg_81_80_00[] = {
-	{1, &oid_null_function},	/*0x00	OID_RT_PRO_RESET_DUT */
-	{1, &oid_rt_pro_set_data_rate_hdl},	/*0x01*/
-	{1, &oid_rt_pro_start_test_hdl},/*0x02*/
-	{1, &oid_rt_pro_stop_test_hdl},	/*0x03*/
-	{1, &oid_null_function},	/*0x04	OID_RT_PRO_SET_PREAMBLE*/
-	{1, &oid_null_function},	/*0x05	OID_RT_PRO_SET_SCRAMBLER*/
-	{1, &oid_null_function},	/*0x06	OID_RT_PRO_SET_FILTER_BB*/
-	{1, &oid_null_function},	/*0x07
-					 * OID_RT_PRO_SET_MANUAL_DIVERS_BB*/
-	{1, &oid_rt_pro_set_channel_direct_call_hdl},	/*0x08*/
-	{1, &oid_null_function},	/*0x09
-				* OID_RT_PRO_SET_SLEEP_MODE_DIRECT_CALL*/
-	{1, &oid_null_function},	/*0x0A
-				* OID_RT_PRO_SET_WAKE_MODE_DIRECT_CALL*/
-	{1, &oid_rt_pro_set_continuous_tx_hdl},	/*0x0B
-				* OID_RT_PRO_SET_TX_CONTINUOUS_DIRECT_CALL*/
-	{1, &oid_rt_pro_set_single_carrier_tx_hdl}, /*0x0C
-				* OID_RT_PRO_SET_SINGLE_CARRIER_TX_CONTINUOUS*/
-	{1, &oid_null_function},	/*0x0D
-				* OID_RT_PRO_SET_TX_ANTENNA_BB*/
-	{1, &oid_rt_pro_set_antenna_bb_hdl},		/*0x0E*/
-	{1, &oid_null_function},	/*0x0F	OID_RT_PRO_SET_CR_SCRAMBLER*/
-	{1, &oid_null_function},	/*0x10	OID_RT_PRO_SET_CR_NEW_FILTER*/
-	{1, &oid_rt_pro_set_tx_power_control_hdl}, /*0x11
-				* OID_RT_PRO_SET_TX_POWER_CONTROL*/
-	{1, &oid_null_function},	/*0x12	OID_RT_PRO_SET_CR_TX_CONFIG*/
-	{1, &oid_null_function},	/*0x13
-					 * OID_RT_PRO_GET_TX_POWER_CONTROL*/
-	{1, &oid_null_function},	/*0x14
-					 * OID_RT_PRO_GET_CR_SIGNAL_QUALITY*/
-	{1, &oid_null_function},	/*0x15	OID_RT_PRO_SET_CR_SETPOINT*/
-	{1, &oid_null_function},	/*0x16	OID_RT_PRO_SET_INTEGRATOR*/
-	{1, &oid_null_function},	/*0x17	OID_RT_PRO_SET_SIGNAL_QUALITY*/
-	{1, &oid_null_function},	/*0x18	OID_RT_PRO_GET_INTEGRATOR*/
-	{1, &oid_null_function},	/*0x19	OID_RT_PRO_GET_SIGNAL_QUALITY*/
-	{1, &oid_null_function},	/*0x1A	OID_RT_PRO_QUERY_EEPROM_TYPE*/
-	{1, &oid_null_function},	/*0x1B	OID_RT_PRO_WRITE_MAC_ADDRESS*/
-	{1, &oid_null_function},	/*0x1C	OID_RT_PRO_READ_MAC_ADDRESS*/
-	{1, &oid_null_function},	/*0x1D	OID_RT_PRO_WRITE_CIS_DATA*/
-	{1, &oid_null_function},	/*0x1E	OID_RT_PRO_READ_CIS_DATA*/
-	{1, &oid_null_function}		/*0x1F	OID_RT_PRO_WRITE_POWER_CONTROL*/
+	/* 0x00	OID_RT_PRO_RESET_DUT */
+	{1, oid_null_function},
+	/* 0x01 */
+	{1, oid_rt_pro_set_data_rate_hdl},
+	/* 0x02 */
+	{1, oid_rt_pro_start_test_hdl},
+	/* 0x03 */
+	{1, oid_rt_pro_stop_test_hdl},
+	/* 0x04	OID_RT_PRO_SET_PREAMBLE */
+	{1, oid_null_function},
+	/* 0x05	OID_RT_PRO_SET_SCRAMBLER */
+	{1, oid_null_function},
+	/* 0x06	OID_RT_PRO_SET_FILTER_BB */
+	{1, oid_null_function},
+	/* 0x07  OID_RT_PRO_SET_MANUAL_DIVERS_BB */
+	{1, oid_null_function},
+	/* 0x08 */
+	{1, oid_rt_pro_set_channel_direct_call_hdl},
+	/* 0x09  OID_RT_PRO_SET_SLEEP_MODE_DIRECT_CALL */
+	{1, oid_null_function},
+	/* 0x0A  OID_RT_PRO_SET_WAKE_MODE_DIRECT_CALL */
+	{1, oid_null_function},
+	/* 0x0B OID_RT_PRO_SET_TX_CONTINUOUS_DIRECT_CALL */
+	{1, oid_rt_pro_set_continuous_tx_hdl},
+	/* 0x0C OID_RT_PRO_SET_SINGLE_CARRIER_TX_CONTINUOUS */
+	{1, oid_rt_pro_set_single_carrier_tx_hdl},
+	/* 0x0D OID_RT_PRO_SET_TX_ANTENNA_BB */
+	{1, oid_null_function},
+	/* 0x0E */
+	{1, oid_rt_pro_set_antenna_bb_hdl},
+	/* 0x0F	OID_RT_PRO_SET_CR_SCRAMBLER */
+	{1, oid_null_function},
+	/* 0x10	OID_RT_PRO_SET_CR_NEW_FILTER */
+	{1, oid_null_function},
+	/* 0x11 OID_RT_PRO_SET_TX_POWER_CONTROL */
+	{1, oid_rt_pro_set_tx_power_control_hdl},
+	/* 0x12	OID_RT_PRO_SET_CR_TX_CONFIG */
+	{1, oid_null_function},
+	/* 0x13  OID_RT_PRO_GET_TX_POWER_CONTROL */
+	{1, oid_null_function},
+	/* 0x14  OID_RT_PRO_GET_CR_SIGNAL_QUALITY */
+	{1, oid_null_function},
+	/* 0x15	OID_RT_PRO_SET_CR_SETPOINT */
+	{1, oid_null_function},
+	/* 0x16	OID_RT_PRO_SET_INTEGRATOR */
+	{1, oid_null_function},
+	/* 0x17	OID_RT_PRO_SET_SIGNAL_QUALITY */
+	{1, oid_null_function},
+	/* 0x18	OID_RT_PRO_GET_INTEGRATOR */
+	{1, oid_null_function},
+	/* 0x19	OID_RT_PRO_GET_SIGNAL_QUALITY */
+	{1, oid_null_function},
+	/* 0x1A	OID_RT_PRO_QUERY_EEPROM_TYPE */
+	{1, oid_null_function},
+	/* 0x1B	OID_RT_PRO_WRITE_MAC_ADDRESS */
+	{1, oid_null_function},
+	/* 0x1C	OID_RT_PRO_READ_MAC_ADDRESS */
+	{1, oid_null_function},
+	/* 0x1D	OID_RT_PRO_WRITE_CIS_DATA */
+	{1, oid_null_function},
+	/* 0x1E	OID_RT_PRO_READ_CIS_DATA */
+	{1, oid_null_function},
+	/* 0x1F	OID_RT_PRO_WRITE_POWER_CONTROL */
+	{1, oid_null_function}
 };
 
 static const struct oid_obj_priv oid_rtl_seg_81_80_20[] = {
-	{1, &oid_null_function},	/*0x20	OID_RT_PRO_READ_POWER_CONTROL*/
-	{1, &oid_null_function},	/*0x21	OID_RT_PRO_WRITE_EEPROM*/
-	{1, &oid_null_function},	/*0x22	OID_RT_PRO_READ_EEPROM*/
-	{1, &oid_rt_pro_reset_tx_packet_sent_hdl},	/*0x23*/
-	{1, &oid_rt_pro_query_tx_packet_sent_hdl},	/*0x24*/
-	{1, &oid_rt_pro_reset_rx_packet_received_hdl},	/*0x25*/
-	{1, &oid_rt_pro_query_rx_packet_received_hdl},	/*0x26*/
-	{1, &oid_rt_pro_query_rx_packet_crc32_error_hdl},/*0x27*/
-	{1, &oid_null_function},	/*0x28
-					 *OID_RT_PRO_QUERY_CURRENT_ADDRESS*/
-	{1, &oid_null_function},	/*0x29
-					 *OID_RT_PRO_QUERY_PERMANENT_ADDRESS*/
-	{1, &oid_null_function},	/*0x2A
-				 *OID_RT_PRO_SET_PHILIPS_RF_PARAMETERS*/
-	{1, &oid_rt_pro_set_carrier_suppression_tx_hdl},/*0x2B
-				 *OID_RT_PRO_SET_CARRIER_SUPPRESSION_TX*/
-	{1, &oid_null_function},	/*0x2C	OID_RT_PRO_RECEIVE_PACKET*/
-	{1, &oid_null_function},	/*0x2D	OID_RT_PRO_WRITE_EEPROM_BYTE*/
-	{1, &oid_null_function},	/*0x2E	OID_RT_PRO_READ_EEPROM_BYTE*/
-	{1, &oid_rt_pro_set_modulation_hdl}		/*0x2F*/
+	/* 0x20	OID_RT_PRO_READ_POWER_CONTROL */
+	{1, oid_null_function},
+	/* 0x21	OID_RT_PRO_WRITE_EEPROM */
+	{1, oid_null_function},
+	/* 0x22	OID_RT_PRO_READ_EEPROM */
+	{1, oid_null_function},
+	/* 0x23 */
+	{1, oid_rt_pro_reset_tx_packet_sent_hdl},
+	/* 0x24 */
+	{1, oid_rt_pro_query_tx_packet_sent_hdl},
+	/* 0x25 */
+	{1, oid_rt_pro_reset_rx_packet_received_hdl},
+	/* 0x26 */
+	{1, oid_rt_pro_query_rx_packet_received_hdl},
+	/* 0x27 */
+	{1, oid_rt_pro_query_rx_packet_crc32_error_hdl},
+	/* 0x28 OID_RT_PRO_QUERY_CURRENT_ADDRESS */
+	{1, oid_null_function},
+	/* 0x29 OID_RT_PRO_QUERY_PERMANENT_ADDRESS */
+	{1, oid_null_function},
+	/* 0x2A OID_RT_PRO_SET_PHILIPS_RF_PARAMETERS */
+	{1, oid_null_function},
+	/* 0x2B OID_RT_PRO_SET_CARRIER_SUPPRESSION_TX */
+	{1, oid_rt_pro_set_carrier_suppression_tx_hdl},
+	/* 0x2C	OID_RT_PRO_RECEIVE_PACKET */
+	{1, oid_null_function},
+	/* 0x2D	OID_RT_PRO_WRITE_EEPROM_BYTE */
+	{1, oid_null_function},
+	/* 0x2E	OID_RT_PRO_READ_EEPROM_BYTE */
+	{1, oid_null_function},
+	/* 0x2F */
+	{1, oid_rt_pro_set_modulation_hdl}
 };
 
 static const struct oid_obj_priv oid_rtl_seg_81_80_40[] = {
-	{1, &oid_null_function},			/*0x40*/
-	{1, &oid_null_function},			/*0x41*/
-	{1, &oid_null_function},			/*0x42*/
-	{1, &oid_rt_pro_set_single_tone_tx_hdl},	/*0x43*/
-	{1, &oid_null_function},			/*0x44*/
-	{1, &oid_null_function}				/*0x45*/
+	{1, oid_null_function},				/* 0x40 */
+	{1, oid_null_function},				/* 0x41 */
+	{1, oid_null_function},				/* 0x42 */
+	{1, oid_rt_pro_set_single_tone_tx_hdl},		/* 0x43 */
+	{1, oid_null_function},				/* 0x44 */
+	{1, oid_null_function}				/* 0x45 */
 };
 
 static const struct oid_obj_priv oid_rtl_seg_81_80_80[] = {
-	{1, &oid_null_function},	/*0x80	OID_RT_DRIVER_OPTION*/
-	{1, &oid_null_function},	/*0x81	OID_RT_RF_OFF*/
-	{1, &oid_null_function}		/*0x82	OID_RT_AUTH_STATUS*/
+	{1, oid_null_function},		/* 0x80	OID_RT_DRIVER_OPTION */
+	{1, oid_null_function},		/* 0x81	OID_RT_RF_OFF */
+	{1, oid_null_function}		/* 0x82	OID_RT_AUTH_STATUS */
 
 };
 
 static const struct oid_obj_priv oid_rtl_seg_81_85[] = {
-	{1, &oid_rt_wireless_mode_hdl}	/*0x00	OID_RT_WIRELESS_MODE*/
+	/* 0x00	OID_RT_WIRELESS_MODE */
+	{1, oid_rt_wireless_mode_hdl}
 };
 
 #else /* _RTL871X_MP_IOCTL_C_ */
@@ -384,7 +420,7 @@ static struct mp_ioctl_handler mp_ioctl_hdl[] = {
 			     oid_rt_pro_write_rf_reg_hdl,
 			     OID_RT_PRO_RF_WRITE_REGISTRY},
 	{sizeof(struct rfintfs_parm), NULL, 0},
-	{0, &mp_ioctl_xmit_packet_hdl, 0},/*12*/
+	{0, mp_ioctl_xmit_packet_hdl, 0},/*12*/
 	{sizeof(struct psmode_param), NULL, 0},/*13*/
 	{sizeof(struct eeprom_rw_param), NULL, 0},/*14*/
 	{sizeof(struct eeprom_rw_param), NULL, 0},/*15*/

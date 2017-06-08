@@ -1,10 +1,10 @@
-* Texas Instruments Davinci I2C
+* Texas Instruments Davinci/Keystone I2C
 
 This file provides information, what the device node for the
-davinci i2c interface contain.
+davinci/keystone i2c interface contains.
 
 Required properties:
-- compatible: "ti,davinci-i2c";
+- compatible: "ti,davinci-i2c" or "ti,keystone-i2c";
 - reg : Offset and length of the register set for the device
 
 Recommended properties :

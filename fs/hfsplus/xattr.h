@@ -21,14 +21,14 @@ extern const struct xattr_handler *hfsplus_xattr_handlers[];
 int __hfsplus_setxattr(struct inode *inode, const char *name,
 			const void *value, size_t size, int flags);
 
-int hfsplus_setxattr(struct dentry *dentry, const char *name,
+int hfsplus_setxattr(struct inode *inode, const char *name,
 				   const void *value, size_t size, int flags,
 				   const char *prefix, size_t prefixlen);
 
 ssize_t __hfsplus_getxattr(struct inode *inode, const char *name,
 			   void *value, size_t size);
 
-ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
+ssize_t hfsplus_getxattr(struct inode *inode, const char *name,
 			 void *value, size_t size,
 			 const char *prefix, size_t prefixlen);
 

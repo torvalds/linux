@@ -22,12 +22,23 @@
  */
 #define USB_MAXCHILDREN		31
 
+/* See USB 3.1 spec Table 10-5 */
+#define USB_SS_MAXPORTS		15
+
 /*
  * Hub request types
  */
 
 #define USB_RT_HUB	(USB_TYPE_CLASS | USB_RECIP_DEVICE)
 #define USB_RT_PORT	(USB_TYPE_CLASS | USB_RECIP_OTHER)
+
+/*
+ * Port status type for GetPortStatus requests added in USB 3.1
+ * See USB 3.1 spec Table 10-12
+ */
+#define HUB_PORT_STATUS		0
+#define HUB_PORT_PD_STATUS	1
+#define HUB_EXT_PORT_STATUS	2
 
 /*
  * Hub class requests
@@ -97,10 +108,13 @@
 /*
  * Hub Status and Hub Change results
  * See USB 2.0 spec Table 11-19 and Table 11-20
+ * USB 3.1 extends the port status request and may return 4 additional bytes.
+ * See USB 3.1 spec section 10.16.2.6 Table 10-12 and 10-15
  */
 struct usb_port_status {
 	__le16 wPortStatus;
 	__le16 wPortChange;
+	__le32 dwExtPortStatus;
 } __attribute__ ((packed));
 
 /*
@@ -171,6 +185,16 @@ struct usb_port_status {
 #define USB_PORT_STAT_C_BH_RESET	0x0020
 #define USB_PORT_STAT_C_LINK_STATE	0x0040
 #define USB_PORT_STAT_C_CONFIG_ERROR	0x0080
+
+/*
+ * USB 3.1 dwExtPortStatus field masks
+ * See USB 3.1 spec 10.16.2.6.3 Table 10-15
+ */
+
+#define USB_EXT_PORT_STAT_RX_SPEED_ID	0x0000000f
+#define USB_EXT_PORT_STAT_TX_SPEED_ID	0x000000f0
+#define USB_EXT_PORT_STAT_RX_LANES	0x00000f00
+#define USB_EXT_PORT_STAT_TX_LANES	0x0000f000
 
 /*
  * wHubCharacteristics (masks)

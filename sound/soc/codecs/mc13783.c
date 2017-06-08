@@ -737,12 +737,14 @@ static struct snd_soc_codec_driver soc_codec_dev_mc13783 = {
 	.probe		= mc13783_probe,
 	.remove		= mc13783_remove,
 	.get_regmap	= mc13783_get_regmap,
-	.controls	= mc13783_control_list,
-	.num_controls	= ARRAY_SIZE(mc13783_control_list),
-	.dapm_widgets	= mc13783_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(mc13783_dapm_widgets),
-	.dapm_routes	= mc13783_routes,
-	.num_dapm_routes = ARRAY_SIZE(mc13783_routes),
+	.component_driver = {
+		.controls		= mc13783_control_list,
+		.num_controls		= ARRAY_SIZE(mc13783_control_list),
+		.dapm_widgets		= mc13783_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(mc13783_dapm_widgets),
+		.dapm_routes		= mc13783_routes,
+		.num_dapm_routes	= ARRAY_SIZE(mc13783_routes),
+	},
 };
 
 static int __init mc13783_codec_probe(struct platform_device *pdev)

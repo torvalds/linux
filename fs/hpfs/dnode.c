@@ -21,7 +21,7 @@ static loff_t get_pos(struct dnode *d, struct hpfs_dirent *fde)
 	return ((loff_t)le32_to_cpu(d->self) << 4) | (loff_t)1;
 }
 
-void hpfs_add_pos(struct inode *inode, loff_t *pos)
+int hpfs_add_pos(struct inode *inode, loff_t *pos)
 {
 	struct hpfs_inode_info *hpfs_inode = hpfs_i(inode);
 	int i = 0;
@@ -29,11 +29,12 @@ void hpfs_add_pos(struct inode *inode, loff_t *pos)
 
 	if (hpfs_inode->i_rddir_off)
 		for (; hpfs_inode->i_rddir_off[i]; i++)
-			if (hpfs_inode->i_rddir_off[i] == pos) return;
+			if (hpfs_inode->i_rddir_off[i] == pos)
+				return 0;
 	if (!(i&0x0f)) {
 		if (!(ppos = kmalloc((i+0x11) * sizeof(loff_t*), GFP_NOFS))) {
 			pr_err("out of memory for position list\n");
-			return;
+			return -ENOMEM;
 		}
 		if (hpfs_inode->i_rddir_off) {
 			memcpy(ppos, hpfs_inode->i_rddir_off, i * sizeof(loff_t));
@@ -43,6 +44,7 @@ void hpfs_add_pos(struct inode *inode, loff_t *pos)
 	}
 	hpfs_inode->i_rddir_off[i] = pos;
 	hpfs_inode->i_rddir_off[i + 1] = NULL;
+	return 0;
 }
 
 void hpfs_del_pos(struct inode *inode, loff_t *pos)

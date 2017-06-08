@@ -240,9 +240,6 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 		mxc_rtc_irq_enable(&pdev->dev, RTC_ALM_BIT, 0);
 	}
 
-	if (status & RTC_1HZ_BIT)
-		events |= (RTC_UF | RTC_IRQF);
-
 	if (status & PIT_ALL_ON)
 		events |= (RTC_PF | RTC_IRQF);
 
@@ -356,7 +353,7 @@ static int mxc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 }
 
 /* RTC layer */
-static struct rtc_class_ops mxc_rtc_ops = {
+static const struct rtc_class_ops mxc_rtc_ops = {
 	.release		= mxc_rtc_release,
 	.read_time		= mxc_rtc_read_time,
 	.set_mmss64		= mxc_rtc_set_mmss,

@@ -58,7 +58,8 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	} else {
 		context->sq_size_stride = ilog2(TXBB_SIZE) - 4;
 	}
-	context->usr_page = cpu_to_be32(mdev->priv_uar.index);
+	context->usr_page = cpu_to_be32(mlx4_to_hw_uar_index(mdev->dev,
+					mdev->priv_uar.index));
 	context->local_qpn = cpu_to_be32(qpn);
 	context->pri_path.ackto = 1 & 0x07;
 	context->pri_path.sched_queue = 0x83 | (priv->port - 1) << 6;
@@ -69,6 +70,15 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	context->pri_path.counter_index = priv->counter_index;
 	context->cqn_send = cpu_to_be32(cqn);
 	context->cqn_recv = cpu_to_be32(cqn);
+	if (!rss &&
+	    (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_LB_SRC_CHK) &&
+	    context->pri_path.counter_index !=
+			    MLX4_SINK_COUNTER_INDEX(mdev->dev)) {
+		/* disable multicast loopback to qp with same counter */
+		if (!(dev->features & NETIF_F_LOOPBACK))
+			context->pri_path.fl |= MLX4_FL_ETH_SRC_CHECK_MC_LB;
+		context->pri_path.control |= MLX4_CTRL_ETH_SRC_CHECK_IF_COUNTER;
+	}
 	context->db_rec_addr = cpu_to_be64(priv->res.db.dma << 2);
 	if (!(dev->features & NETIF_F_HW_VLAN_CTAG_RX))
 		context->param3 |= cpu_to_be32(1 << 30);
@@ -80,36 +90,21 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	}
 }
 
-
-int mlx4_en_map_buffer(struct mlx4_buf *buf)
+int mlx4_en_change_mcast_lb(struct mlx4_en_priv *priv, struct mlx4_qp *qp,
+			    int loopback)
 {
-	struct page **pages;
-	int i;
+	int ret;
+	struct mlx4_update_qp_params qp_params;
 
-	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
-		return 0;
+	memset(&qp_params, 0, sizeof(qp_params));
+	if (!loopback)
+		qp_params.flags = MLX4_UPDATE_QP_PARAMS_FLAGS_ETH_CHECK_MC_LB;
 
-	pages = kmalloc(sizeof *pages * buf->nbufs, GFP_KERNEL);
-	if (!pages)
-		return -ENOMEM;
+	ret = mlx4_update_qp(priv->mdev->dev, qp->qpn,
+			     MLX4_UPDATE_QP_ETH_SRC_CHECK_MC_LB,
+			     &qp_params);
 
-	for (i = 0; i < buf->nbufs; ++i)
-		pages[i] = virt_to_page(buf->page_list[i].buf);
-
-	buf->direct.buf = vmap(pages, buf->nbufs, VM_MAP, PAGE_KERNEL);
-	kfree(pages);
-	if (!buf->direct.buf)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void mlx4_en_unmap_buffer(struct mlx4_buf *buf)
-{
-	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
-		return;
-
-	vunmap(buf->direct.buf);
+	return ret;
 }
 
 void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event)

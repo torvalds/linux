@@ -118,7 +118,7 @@ static inline void ftm_reset_counter(void __iomem *base)
 	ftm_writel(0x00, base + FTM_CNT);
 }
 
-static u64 ftm_read_sched_clock(void)
+static u64 notrace ftm_read_sched_clock(void)
 {
 	return ftm_readl(priv->clksrc_base + FTM_CNT);
 }
@@ -203,7 +203,7 @@ static int __init ftm_clockevent_init(unsigned long freq, int irq)
 	int err;
 
 	ftm_writel(0x00, priv->clkevt_base + FTM_CNTIN);
-	ftm_writel(~0UL, priv->clkevt_base + FTM_MOD);
+	ftm_writel(~0u, priv->clkevt_base + FTM_MOD);
 
 	ftm_reset_counter(priv->clkevt_base);
 
@@ -230,7 +230,7 @@ static int __init ftm_clocksource_init(unsigned long freq)
 	int err;
 
 	ftm_writel(0x00, priv->clksrc_base + FTM_CNTIN);
-	ftm_writel(~0UL, priv->clksrc_base + FTM_MOD);
+	ftm_writel(~0u, priv->clksrc_base + FTM_MOD);
 
 	ftm_reset_counter(priv->clksrc_base);
 
@@ -316,15 +316,16 @@ static int __init ftm_calc_closest_round_cyc(unsigned long freq)
 	return 0;
 }
 
-static void __init ftm_timer_init(struct device_node *np)
+static int __init ftm_timer_init(struct device_node *np)
 {
 	unsigned long freq;
-	int irq;
+	int ret, irq;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return;
+		return -ENOMEM;
 
+	ret = -ENXIO;
 	priv->clkevt_base = of_iomap(np, 0);
 	if (!priv->clkevt_base) {
 		pr_err("ftm: unable to map event timer registers\n");
@@ -337,6 +338,7 @@ static void __init ftm_timer_init(struct device_node *np)
 		goto err;
 	}
 
+	ret = -EINVAL;
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0) {
 		pr_err("ftm: unable to get IRQ from DT, %d\n", irq);
@@ -349,18 +351,22 @@ static void __init ftm_timer_init(struct device_node *np)
 	if (!freq)
 		goto err;
 
-	if (ftm_calc_closest_round_cyc(freq))
+	ret = ftm_calc_closest_round_cyc(freq);
+	if (ret)
 		goto err;
 
-	if (ftm_clocksource_init(freq))
+	ret = ftm_clocksource_init(freq);
+	if (ret)
 		goto err;
 
-	if (ftm_clockevent_init(freq, irq))
+	ret = ftm_clockevent_init(freq, irq);
+	if (ret)
 		goto err;
 
-	return;
+	return 0;
 
 err:
 	kfree(priv);
+	return ret;
 }
 CLOCKSOURCE_OF_DECLARE(flextimer, "fsl,ftm-timer", ftm_timer_init);

@@ -1,0 +1,91 @@
+/*
+ * dts file for AppliedMicro (APM) Merlin Board
+ *
+ * Copyright (C) 2015, Applied Micro Circuits Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ */
+
+/dts-v1/;
+
+/include/ "apm-shadowcat.dtsi"
+
+/ {
+	model = "APM X-Gene Merlin board";
+	compatible = "apm,merlin", "apm,xgene-shadowcat";
+
+	chosen { };
+
+	memory {
+		device_type = "memory";
+		reg = < 0x1 0x00000000 0x0 0x80000000 >;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		button@1 {
+			label = "POWER";
+			linux,code = <116>;
+			linux,input-type = <0x1>;
+			interrupt-parent = <&sbgpio>;
+			interrupts = <0x0 0x1>;
+		};
+	};
+
+	poweroff_mbox: poweroff_mbox@10548000 {
+		compatible = "syscon";
+		reg = <0x0 0x10548000 0x0 0x30>;
+	};
+
+	poweroff: poweroff@10548010 {
+		compatible = "syscon-poweroff";
+		regmap = <&poweroff_mbox>;
+		offset = <0x10>;
+		mask = <0x1>;
+	};
+};
+
+&serial0 {
+	status = "ok";
+};
+
+&sata1 {
+	status = "ok";
+};
+
+&sata2 {
+	status = "ok";
+};
+
+&sata3 {
+	status = "ok";
+};
+
+&sgenet0 {
+	status = "ok";
+};
+
+&xgenet1 {
+	status = "ok";
+};
+
+&mmc0 {
+	status = "ok";
+};
+
+&i2c4 {
+	rtc68: rtc@68 {
+		compatible = "dallas,ds1337";
+		reg = <0x68>;
+		status = "ok";
+	};
+};
+
+&mdio {
+	sgenet0phy: phy@0 {
+		reg = <0x0>;
+	};
+};

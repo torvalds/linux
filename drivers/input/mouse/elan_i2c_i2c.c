@@ -276,7 +276,7 @@ static int elan_i2c_get_sm_version(struct i2c_client *client,
 	return 0;
 }
 
-static int elan_i2c_get_product_id(struct i2c_client *client, u8 *id)
+static int elan_i2c_get_product_id(struct i2c_client *client, u16 *id)
 {
 	int error;
 	u8 val[3];
@@ -287,7 +287,7 @@ static int elan_i2c_get_product_id(struct i2c_client *client, u8 *id)
 		return error;
 	}
 
-	*id = val[0];
+	*id = le16_to_cpup((__le16 *)val);
 	return 0;
 }
 
@@ -554,31 +554,33 @@ static int elan_i2c_finish_fw_update(struct i2c_client *client,
 				     struct completion *completion)
 {
 	struct device *dev = &client->dev;
-	long ret;
 	int error;
 	int len;
-	u8 buffer[ETP_I2C_INF_LENGTH];
+	u8 buffer[ETP_I2C_REPORT_LEN];
+
+	len = i2c_master_recv(client, buffer, ETP_I2C_REPORT_LEN);
+	if (len != ETP_I2C_REPORT_LEN) {
+		error = len < 0 ? len : -EIO;
+		dev_warn(dev, "failed to read I2C data after FW WDT reset: %d (%d)\n",
+			error, len);
+	}
 
 	reinit_completion(completion);
 	enable_irq(client->irq);
 
 	error = elan_i2c_write_cmd(client, ETP_I2C_STAND_CMD, ETP_I2C_RESET);
-	if (!error)
-		ret = wait_for_completion_interruptible_timeout(completion,
-							msecs_to_jiffies(300));
-	disable_irq(client->irq);
-
 	if (error) {
 		dev_err(dev, "device reset failed: %d\n", error);
-		return error;
-	} else if (ret == 0) {
+	} else if (!wait_for_completion_timeout(completion,
+						msecs_to_jiffies(300))) {
 		dev_err(dev, "timeout waiting for device reset\n");
-		return -ETIMEDOUT;
-	} else if (ret < 0) {
-		error = ret;
-		dev_err(dev, "error waiting for device reset: %d\n", error);
-		return error;
+		error = -ETIMEDOUT;
 	}
+
+	disable_irq(client->irq);
+
+	if (error)
+		return error;
 
 	len = i2c_master_recv(client, buffer, ETP_I2C_INF_LENGTH);
 	if (len != ETP_I2C_INF_LENGTH) {

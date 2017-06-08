@@ -707,7 +707,7 @@ static void qib_6120_clear_freeze(struct qib_devdata *dd)
 	/* disable error interrupts, to avoid confusion */
 	qib_write_kreg(dd, kr_errmask, 0ULL);
 
-	/* also disable interrupts; errormask is sometimes overwriten */
+	/* also disable interrupts; errormask is sometimes overwritten */
 	qib_6120_set_intr_state(dd, 0);
 
 	qib_cancel_sends(dd->pport);
@@ -1759,9 +1759,7 @@ static void pe_boardname(struct qib_devdata *dd)
 	}
 	namelen = strlen(n) + 1;
 	dd->boardname = kmalloc(namelen, GFP_KERNEL);
-	if (!dd->boardname)
-		qib_dev_err(dd, "Failed allocation for board name: %s\n", n);
-	else
+	if (dd->boardname)
 		snprintf(dd->boardname, namelen, "%s", n);
 
 	if (dd->majrev != 4 || !dd->minrev || dd->minrev > 2)
@@ -2533,8 +2531,6 @@ static void init_6120_cntrnames(struct qib_devdata *dd)
 		dd->cspec->cntrnamelen = 1 + s - cntr6120names;
 	dd->cspec->cntrs = kmalloc(dd->cspec->ncntrs
 		* sizeof(u64), GFP_KERNEL);
-	if (!dd->cspec->cntrs)
-		qib_dev_err(dd, "Failed allocation for counters\n");
 
 	for (i = 0, s = (char *)portcntr6120names; s; i++)
 		s = strchr(s + 1, '\n');
@@ -2542,8 +2538,6 @@ static void init_6120_cntrnames(struct qib_devdata *dd)
 	dd->cspec->portcntrnamelen = sizeof(portcntr6120names) - 1;
 	dd->cspec->portcntrs = kmalloc(dd->cspec->nportcntrs
 		* sizeof(u64), GFP_KERNEL);
-	if (!dd->cspec->portcntrs)
-		qib_dev_err(dd, "Failed allocation for portcounters\n");
 }
 
 static u32 qib_read_6120cntrs(struct qib_devdata *dd, loff_t pos, char **namep,
@@ -2956,13 +2950,13 @@ static void pma_6120_timer(unsigned long data)
 	struct qib_ibport *ibp = &ppd->ibport_data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ibp->lock, flags);
+	spin_lock_irqsave(&ibp->rvp.lock, flags);
 	if (cs->pma_sample_status == IB_PMA_SAMPLE_STATUS_STARTED) {
 		cs->pma_sample_status = IB_PMA_SAMPLE_STATUS_RUNNING;
 		qib_snapshot_counters(ppd, &cs->sword, &cs->rword,
 				      &cs->spkts, &cs->rpkts, &cs->xmit_wait);
 		mod_timer(&cs->pma_timer,
-			  jiffies + usecs_to_jiffies(ibp->pma_sample_interval));
+		      jiffies + usecs_to_jiffies(ibp->rvp.pma_sample_interval));
 	} else if (cs->pma_sample_status == IB_PMA_SAMPLE_STATUS_RUNNING) {
 		u64 ta, tb, tc, td, te;
 
@@ -2975,11 +2969,11 @@ static void pma_6120_timer(unsigned long data)
 		cs->rpkts = td - cs->rpkts;
 		cs->xmit_wait = te - cs->xmit_wait;
 	}
-	spin_unlock_irqrestore(&ibp->lock, flags);
+	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 }
 
 /*
- * Note that the caller has the ibp->lock held.
+ * Note that the caller has the ibp->rvp.lock held.
  */
 static void qib_set_cntr_6120_sample(struct qib_pportdata *ppd, u32 intv,
 				     u32 start)
@@ -3301,13 +3295,11 @@ static int init_6120_variables(struct qib_devdata *dd)
 	dd->rhdrhead_intr_off = 1ULL << 32;
 
 	/* setup the stats timer; the add_timer is done at end of init */
-	init_timer(&dd->stats_timer);
-	dd->stats_timer.function = qib_get_6120_faststats;
-	dd->stats_timer.data = (unsigned long) dd;
+	setup_timer(&dd->stats_timer, qib_get_6120_faststats,
+		    (unsigned long)dd);
 
-	init_timer(&dd->cspec->pma_timer);
-	dd->cspec->pma_timer.function = pma_6120_timer;
-	dd->cspec->pma_timer.data = (unsigned long) ppd;
+	setup_timer(&dd->cspec->pma_timer, pma_6120_timer,
+		    (unsigned long)ppd);
 
 	dd->ureg_align = qib_read_kreg32(dd, kr_palign);
 

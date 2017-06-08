@@ -17,7 +17,7 @@
  ******************************************************************************/
 
 #include <linux/slab.h>
-
+#include <linux/uio.h> /* struct kvec */
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_util.h"
 #include "iscsi_target_parameters.h"
@@ -208,7 +208,7 @@ int iscsi_create_default_params(struct iscsi_param_list **param_list_ptr)
 	if (!pl) {
 		pr_err("Unable to allocate memory for"
 				" struct iscsi_param_list.\n");
-		return -1 ;
+		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&pl->param_list);
 	INIT_LIST_HEAD(&pl->extra_response_list);
@@ -407,6 +407,7 @@ int iscsi_create_default_params(struct iscsi_param_list **param_list_ptr)
 			TYPERANGE_UTF8, USE_INITIAL_ONLY);
 	if (!param)
 		goto out;
+
 	/*
 	 * Extra parameters for ISER from RFC-5046
 	 */
@@ -496,9 +497,9 @@ int iscsi_set_keys_to_negotiate(
 		} else if (!strcmp(param->name, SESSIONTYPE)) {
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, IFMARKER)) {
-			SET_PSTATE_NEGOTIATE(param);
+			SET_PSTATE_REJECT(param);
 		} else if (!strcmp(param->name, OFMARKER)) {
-			SET_PSTATE_NEGOTIATE(param);
+			SET_PSTATE_REJECT(param);
 		} else if (!strcmp(param->name, IFMARKINT)) {
 			SET_PSTATE_REJECT(param);
 		} else if (!strcmp(param->name, OFMARKINT)) {
@@ -577,7 +578,7 @@ int iscsi_copy_param_list(
 	param_list = kzalloc(sizeof(struct iscsi_param_list), GFP_KERNEL);
 	if (!param_list) {
 		pr_err("Unable to allocate memory for struct iscsi_param_list.\n");
-		return -1;
+		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&param_list->param_list);
 	INIT_LIST_HEAD(&param_list->extra_response_list);
@@ -628,7 +629,7 @@ int iscsi_copy_param_list(
 
 err_out:
 	iscsi_release_param_list(param_list);
-	return -1;
+	return -ENOMEM;
 }
 
 static void iscsi_release_extra_responses(struct iscsi_param_list *param_list)
@@ -679,6 +680,7 @@ struct iscsi_param *iscsi_find_param_from_key(
 	pr_err("Unable to locate key \"%s\".\n", key);
 	return NULL;
 }
+EXPORT_SYMBOL(iscsi_find_param_from_key);
 
 int iscsi_extract_key_value(char *textbuf, char **key, char **value)
 {
@@ -728,7 +730,7 @@ static int iscsi_add_notunderstood_response(
 	if (!extra_response) {
 		pr_err("Unable to allocate memory for"
 			" struct iscsi_extra_response.\n");
-		return -1;
+		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&extra_response->er_list);
 
@@ -778,22 +780,6 @@ static void iscsi_check_proposer_for_optional_reply(struct iscsi_param *param)
 			SET_PSTATE_REPLY_OPTIONAL(param);
 	} else if (IS_TYPE_NUMBER(param)) {
 		if (!strcmp(param->name, MAXRECVDATASEGMENTLENGTH))
-			SET_PSTATE_REPLY_OPTIONAL(param);
-		/*
-		 * The GlobalSAN iSCSI Initiator for MacOSX does
-		 * not respond to MaxBurstLength, FirstBurstLength,
-		 * DefaultTime2Wait or DefaultTime2Retain parameter keys.
-		 * So, we set them to 'reply optional' here, and assume the
-		 * the defaults from iscsi_parameters.h if the initiator
-		 * is not RFC compliant and the keys are not negotiated.
-		 */
-		if (!strcmp(param->name, MAXBURSTLENGTH))
-			SET_PSTATE_REPLY_OPTIONAL(param);
-		if (!strcmp(param->name, FIRSTBURSTLENGTH))
-			SET_PSTATE_REPLY_OPTIONAL(param);
-		if (!strcmp(param->name, DEFAULTTIME2WAIT))
-			SET_PSTATE_REPLY_OPTIONAL(param);
-		if (!strcmp(param->name, DEFAULTTIME2RETAIN))
 			SET_PSTATE_REPLY_OPTIONAL(param);
 		/*
 		 * Required for gPXE iSCSI boot client
@@ -1369,7 +1355,7 @@ int iscsi_decode_text_input(
 	tmpbuf = kzalloc(length + 1, GFP_KERNEL);
 	if (!tmpbuf) {
 		pr_err("Unable to allocate %u + 1 bytes for tmpbuf.\n", length);
-		return -1;
+		return -ENOMEM;
 	}
 
 	memcpy(tmpbuf, textbuf, length);
@@ -1667,7 +1653,7 @@ void iscsi_set_session_parameters(
 				param->value);
 		} else if (!strcmp(param->name, INITIALR2T)) {
 			ops->InitialR2T = !strcmp(param->value, YES);
-			 pr_debug("InitialR2T:                   %s\n",
+			pr_debug("InitialR2T:                   %s\n",
 				param->value);
 		} else if (!strcmp(param->name, IMMEDIATEDATA)) {
 			ops->ImmediateData = !strcmp(param->value, YES);

@@ -85,21 +85,23 @@ intel_connector_atomic_get_property(struct drm_connector *connector,
 struct drm_crtc_state *
 intel_crtc_duplicate_state(struct drm_crtc *crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_crtc_state *crtc_state;
 
-	if (WARN_ON(!intel_crtc->config))
-		crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
-	else
-		crtc_state = kmemdup(intel_crtc->config,
-				     sizeof(*intel_crtc->config), GFP_KERNEL);
-
+	crtc_state = kmemdup(crtc->state, sizeof(*crtc_state), GFP_KERNEL);
 	if (!crtc_state)
 		return NULL;
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->base);
 
-	crtc_state->base.crtc = crtc;
+	crtc_state->update_pipe = false;
+	crtc_state->disable_lp_wm = false;
+	crtc_state->disable_cxsr = false;
+	crtc_state->update_wm_pre = false;
+	crtc_state->update_wm_post = false;
+	crtc_state->fb_changed = false;
+	crtc_state->fifo_changed = false;
+	crtc_state->wm.need_postvbl_update = false;
+	crtc_state->fb_bits = 0;
 
 	return &crtc_state->base;
 }
@@ -120,7 +122,7 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
 
 /**
  * intel_atomic_setup_scalers() - setup scalers for crtc per staged requests
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @crtc: intel crtc
  * @crtc_state: incoming crtc_state to validate and setup scalers
  *
@@ -135,9 +137,9 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
  *         0 - scalers were setup succesfully
  *         error code - otherwise
  */
-int intel_atomic_setup_scalers(struct drm_device *dev,
-	struct intel_crtc *intel_crtc,
-	struct intel_crtc_state *crtc_state)
+int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
+			       struct intel_crtc *intel_crtc,
+			       struct intel_crtc_state *crtc_state)
 {
 	struct drm_plane *plane = NULL;
 	struct intel_plane *intel_plane;
@@ -149,9 +151,6 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 	int i, j;
 
 	num_scalers_need = hweight32(scaler_state->scaler_users);
-	DRM_DEBUG_KMS("crtc_state = %p need = %d avail = %d scaler_users = 0x%x\n",
-		crtc_state, num_scalers_need, intel_crtc->num_scalers,
-		scaler_state->scaler_users);
 
 	/*
 	 * High level flow:
@@ -193,7 +192,7 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 
 			/* plane scaler case: assign as a plane scaler */
 			/* find the plane that set the bit as scaler_user */
-			plane = drm_state->planes[i];
+			plane = drm_state->planes[i].ptr;
 
 			/*
 			 * to enable/disable hq mode, add planes that are using scaler
@@ -201,7 +200,7 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 			 */
 			if (!plane) {
 				struct drm_plane_state *state;
-				plane = drm_plane_from_index(dev, i);
+				plane = drm_plane_from_index(&dev_priv->drm, i);
 				state = drm_atomic_get_plane_state(drm_state, plane);
 				if (IS_ERR(state)) {
 					DRM_DEBUG_KMS("Failed to add [PLANE:%d] to drm_state\n",
@@ -214,8 +213,6 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 				 * but since this plane is unchanged just do the
 				 * minimum required validation.
 				 */
-				if (plane->type == DRM_PLANE_TYPE_PRIMARY)
-					intel_crtc->atomic.wait_for_flips = true;
 				crtc_state->base.planes_changed = true;
 			}
 
@@ -227,7 +224,8 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 				continue;
 			}
 
-			plane_state = to_intel_plane_state(drm_state->plane_states[i]);
+			plane_state = intel_atomic_get_existing_plane_state(drm_state,
+									    intel_plane);
 			scaler_id = &plane_state->scaler_id;
 		}
 
@@ -250,7 +248,9 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 		}
 
 		/* set scaler mode */
-		if (num_scalers_need == 1 && intel_crtc->pipe != PIPE_C) {
+		if (IS_GEMINILAKE(dev_priv)) {
+			scaler_state->scalers[*scaler_id].mode = 0;
+		} else if (num_scalers_need == 1 && intel_crtc->pipe != PIPE_C) {
 			/*
 			 * when only 1 scaler is in use on either pipe A or B,
 			 * scaler 0 operates in high quality (HQ) mode.
@@ -266,37 +266,6 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 	}
 
 	return 0;
-}
-
-static void
-intel_atomic_duplicate_dpll_state(struct drm_i915_private *dev_priv,
-				  struct intel_shared_dpll_config *shared_dpll)
-{
-	enum intel_dpll_id i;
-
-	/* Copy shared dpll state */
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
-
-		shared_dpll[i] = pll->config;
-	}
-}
-
-struct intel_shared_dpll_config *
-intel_atomic_get_shared_dpll_state(struct drm_atomic_state *s)
-{
-	struct intel_atomic_state *state = to_intel_atomic_state(s);
-
-	WARN_ON(!drm_modeset_is_locked(&s->dev->mode_config.connection_mutex));
-
-	if (!state->dpll_set) {
-		state->dpll_set = true;
-
-		intel_atomic_duplicate_dpll_state(to_i915(s->dev),
-						  state->shared_dpll);
-	}
-
-	return state->shared_dpll;
 }
 
 struct drm_atomic_state *
@@ -316,5 +285,5 @@ void intel_atomic_state_clear(struct drm_atomic_state *s)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(s);
 	drm_atomic_state_default_clear(&state->base);
-	state->dpll_set = false;
+	state->dpll_set = state->modeset = false;
 }

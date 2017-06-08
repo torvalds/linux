@@ -59,23 +59,13 @@ static int locomoled_probe(struct locomo_dev *ldev)
 {
 	int ret;
 
-	ret = led_classdev_register(&ldev->dev, &locomo_led0);
+	ret = devm_led_classdev_register(&ldev->dev, &locomo_led0);
 	if (ret < 0)
 		return ret;
 
-	ret = led_classdev_register(&ldev->dev, &locomo_led1);
-	if (ret < 0)
-		led_classdev_unregister(&locomo_led0);
-
-	return ret;
+	return  devm_led_classdev_register(&ldev->dev, &locomo_led1);
 }
 
-static int locomoled_remove(struct locomo_dev *dev)
-{
-	led_classdev_unregister(&locomo_led0);
-	led_classdev_unregister(&locomo_led1);
-	return 0;
-}
 
 static struct locomo_driver locomoled_driver = {
 	.drv = {
@@ -83,7 +73,6 @@ static struct locomo_driver locomoled_driver = {
 	},
 	.devid	= LOCOMO_DEVID_LED,
 	.probe	= locomoled_probe,
-	.remove	= locomoled_remove,
 };
 
 static int __init locomoled_init(void)

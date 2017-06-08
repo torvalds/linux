@@ -370,8 +370,8 @@ static int zforce_touch_event(struct zforce_ts *ts, u8 *payload)
 			point.coord_x = point.coord_y = 0;
 		}
 
-		point.state = payload[9 * i + 5] & 0x03;
-		point.id = (payload[9 * i + 5] & 0xfc) >> 2;
+		point.state = payload[9 * i + 5] & 0x0f;
+		point.id = (payload[9 * i + 5] & 0xf0) >> 4;
 
 		/* determine touch major, minor and orientation */
 		point.area_major = max(payload[9 * i + 6],
@@ -599,13 +599,8 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 static int zforce_input_open(struct input_dev *dev)
 {
 	struct zforce_ts *ts = input_get_drvdata(dev);
-	int ret;
 
-	ret = zforce_start(ts);
-	if (ret)
-		return ret;
-
-	return 0;
+	return zforce_start(ts);
 }
 
 static void zforce_input_close(struct input_dev *dev)

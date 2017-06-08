@@ -15,6 +15,7 @@
 #include <linux/wait.h>
 #include <linux/string.h>
 #include <asm/ctl_reg.h>
+#include <asm/diag.h>
 
 #include "hmcdrv_ftp.h"
 #include "diag_ftp.h"
@@ -102,6 +103,7 @@ static int diag_ftp_2c4(struct diag_ftp_ldfpl *fpl,
 {
 	int rc;
 
+	diag_stat_inc(DIAG_STAT_X2C4);
 	asm volatile(
 		"	diag	%[addr],%[cmd],0x2c4\n"
 		"0:	j	2f\n"

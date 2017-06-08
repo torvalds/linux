@@ -39,5 +39,5 @@ Description:	Make it possible to adjust defio refresh rate.
 		Note: As device can barely do 2 complete refreshes a second
 		it only makes sense to adjust this value if only one or two
 		tiles get changed and it's not appropriate to expect the application
-		to flush it's tiny changes explicitely at higher than default rate.
+		to flush its tiny changes explicitly at higher than default rate.
 

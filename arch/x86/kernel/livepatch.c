@@ -1,9 +1,6 @@
 /*
  * livepatch.c - x86-specific Kernel Live Patching Core
  *
- * Copyright (C) 2014 Seth Jennings <sjenning@redhat.com>
- * Copyright (C) 2014 SUSE
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -19,72 +16,50 @@
  */
 
 #include <linux/module.h>
-#include <linux/uaccess.h>
-#include <asm/cacheflush.h>
-#include <asm/page_types.h>
-#include <asm/elf.h>
-#include <asm/livepatch.h>
+#include <linux/kallsyms.h>
+#include <linux/livepatch.h>
+#include <asm/text-patching.h>
 
-/**
- * klp_write_module_reloc() - write a relocation in a module
- * @mod:	module in which the section to be modified is found
- * @type:	ELF relocation type (see asm/elf.h)
- * @loc:	address that the relocation should be written to
- * @value:	relocation value (sym address + addend)
- *
- * This function writes a relocation to the specified location for
- * a particular module.
- */
-int klp_write_module_reloc(struct module *mod, unsigned long type,
-			   unsigned long loc, unsigned long value)
+/* Apply per-object alternatives. Based on x86 module_finalize() */
+void arch_klp_init_object_loaded(struct klp_patch *patch,
+				 struct klp_object *obj)
 {
-	int ret, numpages, size = 4;
-	bool readonly;
-	unsigned long val;
-	unsigned long core = (unsigned long)mod->module_core;
-	unsigned long core_ro_size = mod->core_ro_size;
-	unsigned long core_size = mod->core_size;
+	int cnt;
+	struct klp_modinfo *info;
+	Elf_Shdr *s, *alt = NULL, *para = NULL;
+	void *aseg, *pseg;
+	const char *objname;
+	char sec_objname[MODULE_NAME_LEN];
+	char secname[KSYM_NAME_LEN];
 
-	switch (type) {
-	case R_X86_64_NONE:
-		return 0;
-	case R_X86_64_64:
-		val = value;
-		size = 8;
-		break;
-	case R_X86_64_32:
-		val = (u32)value;
-		break;
-	case R_X86_64_32S:
-		val = (s32)value;
-		break;
-	case R_X86_64_PC32:
-		val = (u32)(value - loc);
-		break;
-	default:
-		/* unsupported relocation type */
-		return -EINVAL;
+	info = patch->mod->klp_info;
+	objname = obj->name ? obj->name : "vmlinux";
+
+	/* See livepatch core code for BUILD_BUG_ON() explanation */
+	BUILD_BUG_ON(MODULE_NAME_LEN < 56 || KSYM_NAME_LEN != 128);
+
+	for (s = info->sechdrs; s < info->sechdrs + info->hdr.e_shnum; s++) {
+		/* Apply per-object .klp.arch sections */
+		cnt = sscanf(info->secstrings + s->sh_name,
+			     ".klp.arch.%55[^.].%127s",
+			     sec_objname, secname);
+		if (cnt != 2)
+			continue;
+		if (strcmp(sec_objname, objname))
+			continue;
+		if (!strcmp(".altinstructions", secname))
+			alt = s;
+		if (!strcmp(".parainstructions", secname))
+			para = s;
 	}
 
-	if (loc < core || loc >= core + core_size)
-		/* loc does not point to any symbol inside the module */
-		return -EINVAL;
+	if (alt) {
+		aseg = (void *) alt->sh_addr;
+		apply_alternatives(aseg, aseg + alt->sh_size);
+	}
 
-	if (loc < core + core_ro_size)
-		readonly = true;
-	else
-		readonly = false;
-
-	/* determine if the relocation spans a page boundary */
-	numpages = ((loc & PAGE_MASK) == ((loc + size) & PAGE_MASK)) ? 1 : 2;
-
-	if (readonly)
-		set_memory_rw(loc & PAGE_MASK, numpages);
-
-	ret = probe_kernel_write((void *)loc, &val, size);
-
-	if (readonly)
-		set_memory_ro(loc & PAGE_MASK, numpages);
-
-	return ret;
+	if (para) {
+		pseg = (void *) para->sh_addr;
+		apply_paravirt(pseg, pseg + para->sh_size);
+	}
 }

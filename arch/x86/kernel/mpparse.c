@@ -16,7 +16,6 @@
 #include <linux/mc146818rtc.h>
 #include <linux/bitops.h>
 #include <linux/acpi.h>
-#include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/pci.h>
 
@@ -27,7 +26,7 @@
 #include <asm/io_apic.h>
 #include <asm/proto.h>
 #include <asm/bios_ebda.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
 
@@ -408,7 +407,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	processor.cpuflag = CPU_ENABLED;
 	processor.cpufeature = (boot_cpu_data.x86 << 8) |
 	    (boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
-	processor.featureflag = boot_cpu_data.x86_capability[0];
+	processor.featureflag = boot_cpu_data.x86_capability[CPUID_1_EDX];
 	processor.reserved[0] = 0;
 	processor.reserved[1] = 0;
 	for (i = 0; i < 2; i++) {
@@ -499,6 +498,9 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
 void __init default_get_smp_config(unsigned int early)
 {
 	struct mpf_intel *mpf = mpf_found;
+
+	if (!smp_found_config)
+		return;
 
 	if (!mpf)
 		return;
@@ -824,10 +826,10 @@ static int __init parse_alloc_mptable_opt(char *p)
 }
 early_param("alloc_mptable", parse_alloc_mptable_opt);
 
-void __init early_reserve_e820_mpc_new(void)
+void __init e820__memblock_alloc_reserved_mpc_new(void)
 {
 	if (enable_update_mptable && alloc_mptable)
-		mpc_new_phys = early_reserve_e820(mpc_new_length, 4);
+		mpc_new_phys = e820__memblock_alloc_reserved(mpc_new_length, 4);
 }
 
 static int __init update_mp_table(void)

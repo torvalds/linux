@@ -1,10 +1,11 @@
-* Bosch BMA180 triaxial acceleration sensor
+* Bosch BMA180 / BMA250 triaxial acceleration sensor
 
 http://omapworld.com/BMA180_111_1002839.pdf
+http://ae-bst.resource.bosch.com/media/products/dokumente/bma250/bst-bma250-ds002-05.pdf
 
 Required properties:
 
-  - compatible : should be "bosch,bma180"
+  - compatible : should be "bosch,bma180" or "bosch,bma250"
   - reg : the I2C address of the sensor
 
 Optional properties:
@@ -13,6 +14,9 @@ Optional properties:
 
   - interrupts : interrupt mapping for GPIO IRQ, it should by configured with
 		flags IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_EDGE_RISING
+		For the bma250 the first interrupt listed must be the one
+		connected to the INT1 pin, the second (optional) interrupt
+		listed must be the one connected to the INT2 pin.
 
 Example:
 

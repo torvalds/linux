@@ -19,7 +19,7 @@
 #include <asm/blackfin.h>
 #include <asm/cacheflush.h>
 #include <asm/dma.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/early_printk.h>
 
 /*

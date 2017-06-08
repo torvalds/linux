@@ -4,7 +4,7 @@
  * by the Free Software Foundation.
  *
  * Copyright (C) 2011 Thomas Langer <thomas.langer@lantiq.com>
- * Copyright (C) 2011 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2011 John Crispin <john@phrozen.org>
  */
 
 #include <linux/ioport.h>
@@ -24,7 +24,7 @@
 
 /* GPE frequency selection */
 #define GPPC_OFFSET		24
-#define GPEFREQ_MASK		0x00000C0
+#define GPEFREQ_MASK		0x0000C00
 #define GPEFREQ_OFFSET		10
 /* Clock status register */
 #define SYSCTL_CLKS		0x0000

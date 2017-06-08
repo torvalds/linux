@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <linux/syscalls.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/string.h>
@@ -47,7 +48,7 @@
 #include <linux/slab.h>
 #include <linux/security.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 #include <asm/irq.h>
@@ -160,22 +161,31 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 
 static void mark_screen_rdonly(struct mm_struct *mm)
 {
+	struct vm_area_struct *vma;
+	spinlock_t *ptl;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
-	spinlock_t *ptl;
 	int i;
 
 	down_write(&mm->mmap_sem);
 	pgd = pgd_offset(mm, 0xA0000);
 	if (pgd_none_or_clear_bad(pgd))
 		goto out;
-	pud = pud_offset(pgd, 0xA0000);
+	p4d = p4d_offset(pgd, 0xA0000);
+	if (p4d_none_or_clear_bad(p4d))
+		goto out;
+	pud = pud_offset(p4d, 0xA0000);
 	if (pud_none_or_clear_bad(pud))
 		goto out;
 	pmd = pmd_offset(pud, 0xA0000);
-	split_huge_page_pmd_mm(mm, 0xA0000, pmd);
+
+	if (pmd_trans_huge(*pmd)) {
+		vma = find_vma(mm, 0xA0000);
+		split_huge_pmd(vma, pmd, 0xA0000);
+	}
 	if (pmd_none_or_clear_bad(pmd))
 		goto out;
 	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
@@ -187,7 +197,7 @@ static void mark_screen_rdonly(struct mm_struct *mm)
 	pte_unmap_unlock(pte, ptl);
 out:
 	up_write(&mm->mmap_sem);
-	flush_tlb();
+	flush_tlb_mm_range(mm, 0xA0000, 0xA0000 + 32*PAGE_SIZE, 0UL);
 }
 
 
@@ -357,8 +367,10 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	tss = &per_cpu(cpu_tss, get_cpu());
 	/* make room for real-mode segments */
 	tsk->thread.sp0 += 16;
-	if (cpu_has_sep)
+
+	if (static_cpu_has(X86_FEATURE_SEP))
 		tsk->thread.sysenter_cs = 0;
+
 	load_sp0(tss, &tsk->thread);
 	put_cpu();
 
@@ -434,10 +446,7 @@ static inline unsigned long get_vflags(struct kernel_vm86_regs *regs)
 
 static inline int is_revectored(int nr, struct revectored_struct *bitmap)
 {
-	__asm__ __volatile__("btl %2,%1\n\tsbbl %0,%0"
-		:"=r" (nr)
-		:"m" (*bitmap), "r" (nr));
-	return nr;
+	return test_bit(nr, bitmap->__map);
 }
 
 #define val_byte(val, n) (((__u8 *)&val)[n])

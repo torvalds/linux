@@ -4,6 +4,8 @@
 menuconfig BLOCK
        bool "Enable the block layer" if EXPERT
        default y
+       select SBITMAP
+       select SRCU
        help
 	 Provide block layer support for the kernel.
 
@@ -47,9 +49,13 @@ config LBDAF
 
 	  If unsure, say Y.
 
+config BLK_SCSI_REQUEST
+	bool
+
 config BLK_DEV_BSG
 	bool "Block layer SG support v4"
 	default y
+	select BLK_SCSI_REQUEST
 	help
 	  Saying Y here will enable generic SG (SCSI generic) v4 support
 	  for any block device.
@@ -69,6 +75,7 @@ config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
 	default n
 	select BLK_DEV_BSG
+	select BLK_SCSI_REQUEST
 	help
 	  Subsystems will normally enable this if needed. Users will not
 	  normally need to manually enable this.
@@ -88,6 +95,14 @@ config BLK_DEV_INTEGRITY
 	T10/SCSI Data Integrity Field or the T13/ATA External Path
 	Protection.  If in doubt, say N.
 
+config BLK_DEV_ZONED
+	bool "Zoned block device support"
+	---help---
+	Block layer zoned block device support. This option enables
+	support for ZAC/ZBC host-managed and host-aware zoned block devices.
+
+	Say yes here if you have a ZAC or ZBC storage device.
+
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
 	depends on BLK_CGROUP=y
@@ -100,6 +115,18 @@ config BLK_DEV_THROTTLING
 
 	See Documentation/cgroups/blkio-controller.txt for more information.
 
+config BLK_DEV_THROTTLING_LOW
+	bool "Block throttling .low limit interface support (EXPERIMENTAL)"
+	depends on BLK_DEV_THROTTLING
+	default n
+	---help---
+	Add .low limit interface for block throttling. The low limit is a best
+	effort limit to prioritize cgroups. Depending on the setting, the limit
+	can be used to protect cgroups in terms of bandwidth/iops and better
+	utilize disk resource.
+
+	Note, this is an experimental interface and could be changed someday.
+
 config BLK_CMDLINE_PARSER
 	bool "Block device command line partition parser"
 	default n
@@ -110,6 +137,51 @@ config BLK_CMDLINE_PARSER
 	partitions on a block device.
 
 	See Documentation/block/cmdline-partition.txt for more information.
+
+config BLK_WBT
+	bool "Enable support for block device writeback throttling"
+	default n
+	---help---
+	Enabling this option enables the block layer to throttle buffered
+	background writeback from the VM, making it more smooth and having
+	less impact on foreground operations. The throttling is done
+	dynamically on an algorithm loosely based on CoDel, factoring in
+	the realtime performance of the disk.
+
+config BLK_WBT_SQ
+	bool "Single queue writeback throttling"
+	default n
+	depends on BLK_WBT
+	---help---
+	Enable writeback throttling by default on legacy single queue devices
+
+config BLK_WBT_MQ
+	bool "Multiqueue writeback throttling"
+	default y
+	depends on BLK_WBT
+	---help---
+	Enable writeback throttling by default on multiqueue devices.
+	Multiqueue currently doesn't have support for IO scheduling,
+	enabling this option is recommended.
+
+config BLK_DEBUG_FS
+	bool "Block layer debugging information in debugfs"
+	default y
+	depends on DEBUG_FS
+	---help---
+	Include block layer debugging information in debugfs. This information
+	is mostly useful for kernel developers, but it doesn't incur any cost
+	at runtime.
+
+	Unless you are building a kernel for a tiny system, you should
+	say Y here.
+
+config BLK_SED_OPAL
+	bool "Logic for interfacing with Opal enabled SEDs"
+	---help---
+	Builds Logic for interfacing with Opal enabled controllers.
+	Enabling this option enables users to setup/unlock/lock
+	Locking ranges for SED devices using the Opal protocol.
 
 menu "Partition Types"
 
@@ -122,6 +194,16 @@ endif # BLOCK
 config BLOCK_COMPAT
 	bool
 	depends on BLOCK && COMPAT
+	default y
+
+config BLK_MQ_PCI
+	bool
+	depends on BLOCK && PCI
+	default y
+
+config BLK_MQ_VIRTIO
+	bool
+	depends on BLOCK && VIRTIO
 	default y
 
 source block/Kconfig.iosched

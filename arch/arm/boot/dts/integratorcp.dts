@@ -13,6 +13,32 @@
 		bootargs = "root=/dev/ram0 console=ttyAMA0,38400n8 earlyprintk";
 	};
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			/*
+			 * Since the board has pluggable CPU modules, we
+			 * cannot define a proper compatible here. Let the
+			 * boot loader fill in the apropriate compatible
+			 * string if necessary.
+			 */
+			/* compatible = "arm,arm920t"; */
+			reg = <0>;
+			/*
+			 * TBD comment.
+			 */
+					 /* kHz     uV   */
+			operating-points = <50000  0
+					    48000  0>;
+			clocks = <&cmcore>;
+			clock-names = "cpu";
+			clock-latency = <1000000>; /* 1 ms */
+		};
+	};
+
 	/*
 	 * The Integrator/CP overall clocking architecture can be found in
 	 * ARM DUI 0184B page 7-28 "Integrator/CP922T system clocks" which
@@ -58,20 +84,37 @@
 
 	core-module@10000000 {
 		/* 24 MHz chrystal on the core module */
-		xtal24mhz: xtal24mhz@24M {
+		cm24mhz: cm24mhz@24M {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
 		};
 
-		/*
-		 * External oscillator on the core module, usually used
-		 * to drive video circuitry. Driven from the 24MHz clock.
-		 */
-		auxosc: cm_aux_osc@25M {
+		/* Oscillator on the core module, clocks the CPU core */
+		cmcore: cmosc@24M {
+			compatible = "arm,syscon-icst525-integratorcp-cm-core";
 			#clock-cells = <0>;
-			compatible = "arm,integrator-cm-auxosc";
-			clocks = <&xtal24mhz>;
+			lock-offset = <0x14>;
+			vco-offset = <0x08>;
+			clocks = <&cm24mhz>;
+		};
+
+		/* Oscillator on the core module, clocks the memory bus */
+		cmmem: cmosc@24M {
+			compatible = "arm,syscon-icst525-integratorcp-cm-mem";
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x08>;
+			clocks = <&cm24mhz>;
+		};
+
+		/* Auxilary oscillator on the core module, clocks the CLCD */
+		auxosc: auxosc@24M {
+			compatible = "arm,syscon-icst525";
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x1c>;
+			clocks = <&cm24mhz>;
 		};
 
 		/* The KMI clock is the 24 MHz oscillator divided to 8MHz */
@@ -80,7 +123,7 @@
 			compatible = "fixed-factor-clock";
 			clock-div = <3>;
 			clock-mult = <1>;
-			clocks = <&xtal24mhz>;
+			clocks = <&cm24mhz>;
 		};
 
 		/* The timer clock is the 24 MHz oscillator divided to 1MHz */
@@ -89,12 +132,12 @@
 			compatible = "fixed-factor-clock";
 			clock-div = <24>;
 			clock-mult = <1>;
-			clocks = <&xtal24mhz>;
+			clocks = <&cm24mhz>;
 		};
 	};
 
 	syscon {
-		compatible = "arm,integrator-cp-syscon";
+		compatible = "arm,integrator-cp-syscon", "syscon";
 		reg = <0xcb000000 0x100>;
 	};
 
@@ -209,7 +252,42 @@
 			reg = <0xC0000000 0x1000>;
 			interrupts = <22>;
 			clocks = <&auxosc>, <&pclk>;
-			clock-names = "clcd", "apb_pclk";
+			clock-names = "clcdclk", "apb_pclk";
+
+			port {
+				/*
+				 * The VGA connected is implemented with a
+				 * THS8134A triple DAC that can be run in 24bit
+				 * or 16bit RGB mode.
+				 */
+				clcd_pads: endpoint {
+					remote-endpoint = <&clcd_panel>;
+					arm,pl11x,tft-r0g0b0-pads = <1 7 13>;
+				};
+			};
+
+			panel {
+				compatible = "panel-dpi";
+
+				port {
+					clcd_panel: endpoint {
+						remote-endpoint = <&clcd_pads>;
+					};
+				};
+
+				/* Standard 640x480 VGA timings */
+				panel-timing {
+					clock-frequency = <25175000>;
+					hactive = <640>;
+					hback-porch = <48>;
+					hfront-porch = <16>;
+					hsync-len = <96>;
+					vactive = <480>;
+					vback-porch = <33>;
+					vfront-porch = <10>;
+					vsync-len = <2>;
+				};
+			};
 		};
 	};
 };

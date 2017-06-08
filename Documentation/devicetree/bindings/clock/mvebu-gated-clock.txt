@@ -86,6 +86,8 @@ ID	Clock		Peripheral
 7	pex3		PCIe 3
 8	pex0		PCIe 0
 9	usb3h0		USB3 Host 0
+10	usb3h1		USB3 Host 1
+15	sata0		SATA 0
 17	sdio		SDIO
 22	xor0		XOR 0
 28	xor1		XOR 1
@@ -115,7 +117,17 @@ ID	Clock	Peripheral
 25	tdm	Time Division Mplx
 28	xor1	XOR DMA 1
 29	sata1lnk
-30	sata1	SATA Host 0
+30	sata1	SATA Host 1
+
+The following is a list of provided IDs for 98dx3236:
+ID	Clock	Peripheral
+-----------------------------------
+3	ge1	Gigabit Ethernet 1
+4	ge0	Gigabit Ethernet 0
+5	pex0	PCIe Cntrl 0
+17	sdio	SDHCI Host
+18	usb0	USB Host 0
+22	xor0	XOR DMA 0
 
 The following is a list of provided IDs for Dove:
 ID	Clock	Peripheral
@@ -167,6 +179,7 @@ Required properties:
 	"marvell,armada-380-gating-clock" - for Armada 380/385 SoC clock gating
 	"marvell,armada-390-gating-clock" - for Armada 39x SoC clock gating
 	"marvell,armada-xp-gating-clock" - for Armada XP SoC clock gating
+	"marvell,mv98dx3236-gating-clock" - for 98dx3236 SoC clock gating
 	"marvell,dove-gating-clock" - for Dove SoC clock gating
 	"marvell,kirkwood-gating-clock" - for Kirkwood SoC clock gating
 - reg : shall be the register address of the Clock Gating Control register

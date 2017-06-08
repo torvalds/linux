@@ -864,7 +864,6 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 	this = (struct onenand_chip *) &mtd[1];
 	mtd->priv = this;
 	mtd->dev.parent = &pdev->dev;
-	mtd->owner = THIS_MODULE;
 	onenand->pdev = pdev;
 	onenand->type = platform_get_device_id(pdev)->driver_data;
 

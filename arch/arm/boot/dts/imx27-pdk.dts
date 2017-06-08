@@ -37,7 +37,6 @@
 &cspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_cspi2>;
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 21 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
@@ -106,7 +105,7 @@
 };
 
 &uart1 {
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";

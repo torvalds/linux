@@ -58,7 +58,7 @@
  *   jneq #0x0, drop_ieee1588      ; for PTP_GEN_BIT and drop these
  *   ldh [18]                      ; reload payload
  *   and #0xf                      ; mask PTP_CLASS_VMASK
- *   or #0x70                      ; PTP_CLASS_VLAN|PTP_CLASS_L2
+ *   or #0xc0                      ; PTP_CLASS_VLAN|PTP_CLASS_L2
  *   ret a                         ; return PTP class
  *
  * ; PTP over UDP over IPv4 over 802.1Q over Ethernet
@@ -73,7 +73,7 @@
  *   jneq #319, drop_8021q_ipv4    ; is port PTP_EV_PORT ?
  *   ldh [x + 26]                  ; load payload
  *   and #0xf                      ; mask PTP_CLASS_VMASK
- *   or #0x50                      ; PTP_CLASS_VLAN|PTP_CLASS_IPV4
+ *   or #0x90                      ; PTP_CLASS_VLAN|PTP_CLASS_IPV4
  *   ret a                         ; return PTP class
  *   drop_8021q_ipv4: ret #0x0     ; PTP_CLASS_NONE
  *
@@ -86,7 +86,7 @@
  *   jneq #319, drop_8021q_ipv6          ; is port PTP_EV_PORT ?
  *   ldh [66]                      ; load payload
  *   and #0xf                      ; mask PTP_CLASS_VMASK
- *   or #0x60                      ; PTP_CLASS_VLAN|PTP_CLASS_IPV6
+ *   or #0xa0                      ; PTP_CLASS_VLAN|PTP_CLASS_IPV6
  *   ret a                         ; return PTP class
  *   drop_8021q_ipv6: ret #0x0     ; PTP_CLASS_NONE
  *
@@ -98,7 +98,7 @@
  *   jneq #0x0, drop_ieee1588      ; for PTP_GEN_BIT and drop these
  *   ldh [14]                      ; reload payload
  *   and #0xf                      ; mask PTP_CLASS_VMASK
- *   or #0x30                      ; PTP_CLASS_L2
+ *   or #0x40                      ; PTP_CLASS_L2
  *   ret a                         ; return PTP class
  *   drop_ieee1588: ret #0x0       ; PTP_CLASS_NONE
  */
@@ -150,7 +150,7 @@ void __init ptp_classifier_init(void)
 		{ 0x15,  0, 35, 0x00000000 },
 		{ 0x28,  0,  0, 0x00000012 },
 		{ 0x54,  0,  0, 0x0000000f },
-		{ 0x44,  0,  0, 0x00000070 },
+		{ 0x44,  0,  0, 0x000000c0 },
 		{ 0x16,  0,  0, 0x00000000 },
 		{ 0x15,  0, 12, 0x00000800 },
 		{ 0x30,  0,  0, 0x0000001b },
@@ -162,7 +162,7 @@ void __init ptp_classifier_init(void)
 		{ 0x15,  0,  4, 0x0000013f },
 		{ 0x48,  0,  0, 0x0000001a },
 		{ 0x54,  0,  0, 0x0000000f },
-		{ 0x44,  0,  0, 0x00000050 },
+		{ 0x44,  0,  0, 0x00000090 },
 		{ 0x16,  0,  0, 0x00000000 },
 		{ 0x06,  0,  0, 0x00000000 },
 		{ 0x15,  0,  8, 0x000086dd },
@@ -172,7 +172,7 @@ void __init ptp_classifier_init(void)
 		{ 0x15,  0,  4, 0x0000013f },
 		{ 0x28,  0,  0, 0x00000042 },
 		{ 0x54,  0,  0, 0x0000000f },
-		{ 0x44,  0,  0, 0x00000060 },
+		{ 0x44,  0,  0, 0x000000a0 },
 		{ 0x16,  0,  0, 0x00000000 },
 		{ 0x06,  0,  0, 0x00000000 },
 		{ 0x15,  0,  7, 0x000088f7 },
@@ -181,7 +181,7 @@ void __init ptp_classifier_init(void)
 		{ 0x15,  0,  4, 0x00000000 },
 		{ 0x28,  0,  0, 0x0000000e },
 		{ 0x54,  0,  0, 0x0000000f },
-		{ 0x44,  0,  0, 0x00000030 },
+		{ 0x44,  0,  0, 0x00000040 },
 		{ 0x16,  0,  0, 0x00000000 },
 		{ 0x06,  0,  0, 0x00000000 },
 	};

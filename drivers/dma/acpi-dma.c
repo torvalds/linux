@@ -15,12 +15,14 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
 #include <linux/acpi_dma.h>
+#include <linux/property.h>
 
 static LIST_HEAD(acpi_dma_list);
 static DEFINE_MUTEX(acpi_dma_lock);
@@ -71,7 +73,9 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 	si = (const struct acpi_csrt_shared_info *)&grp[1];
 
 	/* Match device by MMIO and IRQ */
-	if (si->mmio_base_low != mem || si->gsi_interrupt != irq)
+	if (si->mmio_base_low != lower_32_bits(mem) ||
+	    si->mmio_base_high != upper_32_bits(mem) ||
+	    si->gsi_interrupt != irq)
 		return 0;
 
 	dev_dbg(&adev->dev, "matches with %.4s%04X (rev %u)\n",
@@ -160,10 +164,8 @@ int acpi_dma_controller_register(struct device *dev,
 		return -EINVAL;
 
 	/* Check if the device was enumerated by ACPI */
-	if (!ACPI_HANDLE(dev))
-		return -EINVAL;
-
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &adev))
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
 		return -EINVAL;
 
 	adma = kzalloc(sizeof(*adma), GFP_KERNEL);
@@ -358,10 +360,11 @@ struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 	int found;
 
 	/* Check if the device was enumerated by ACPI */
-	if (!dev || !ACPI_HANDLE(dev))
+	if (!dev)
 		return ERR_PTR(-ENODEV);
 
-	if (acpi_bus_get_device(ACPI_HANDLE(dev), &adev))
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
 		return ERR_PTR(-ENODEV);
 
 	memset(&pdata, 0, sizeof(pdata));
@@ -413,21 +416,29 @@ EXPORT_SYMBOL_GPL(acpi_dma_request_slave_chan_by_index);
  * translate the names "tx" and "rx" here based on the most common case where
  * the first FixedDMA descriptor is TX and second is RX.
  *
+ * If the device has "dma-names" property the FixedDMA descriptor indices
+ * are retrieved based on those. Otherwise the function falls back using
+ * hardcoded indices.
+ *
  * Return:
  * Pointer to appropriate dma channel on success or an error pointer.
  */
 struct dma_chan *acpi_dma_request_slave_chan_by_name(struct device *dev,
 		const char *name)
 {
-	size_t index;
+	int index;
 
-	if (!strcmp(name, "tx"))
-		index = 0;
-	else if (!strcmp(name, "rx"))
-		index = 1;
-	else
-		return ERR_PTR(-ENODEV);
+	index = device_property_match_string(dev, "dma-names", name);
+	if (index < 0) {
+		if (!strcmp(name, "tx"))
+			index = 0;
+		else if (!strcmp(name, "rx"))
+			index = 1;
+		else
+			return ERR_PTR(-ENODEV);
+	}
 
+	dev_dbg(dev, "Looking for DMA channel \"%s\" at index %d...\n", name, index);
 	return acpi_dma_request_slave_chan_by_index(dev, index);
 }
 EXPORT_SYMBOL_GPL(acpi_dma_request_slave_chan_by_name);

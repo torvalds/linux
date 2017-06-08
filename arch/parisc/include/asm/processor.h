@@ -93,9 +93,7 @@ struct system_cpuinfo_parisc {
 /* Per CPU data structure - ie varies per CPU.  */
 struct cpuinfo_parisc {
 	unsigned long it_value;     /* Interval Timer at last timer Intr */
-	unsigned long it_delta;     /* Interval delta (tic_10ms / HZ * 100) */
 	unsigned long irq_count;    /* number of IRQ's since boot */
-	unsigned long irq_max_cr16; /* longest time to handle a single IRQ */
 	unsigned long cpuid;        /* aka slot_number or set to NO_PROC_ID */
 	unsigned long hpa;          /* Host Physical address */
 	unsigned long txn_addr;     /* MMIO addr of EIR or id_eid */
@@ -103,8 +101,6 @@ struct cpuinfo_parisc {
 	unsigned long pending_ipi;  /* bitmap of type ipi_message_type */
 #endif
 	unsigned long bh_count;     /* number of times bh was invoked */
-	unsigned long prof_counter; /* per CPU profiling support */
-	unsigned long prof_multiplier;	/* per CPU profiling support */
 	unsigned long fp_rev;
 	unsigned long fp_model;
 	unsigned int state;
@@ -191,33 +187,6 @@ void show_trace(struct task_struct *task, unsigned long *stack);
  * implementation, not for the architecture).
  */
 typedef unsigned int elf_caddr_t;
-
-#define start_thread_som(regs, new_pc, new_sp) do {	\
-	unsigned long *sp = (unsigned long *)new_sp;	\
-	__u32 spaceid = (__u32)current->mm->context;	\
-	unsigned long pc = (unsigned long)new_pc;	\
-	/* offset pc for priv. level */			\
-	pc |= 3;					\
-							\
-	regs->iasq[0] = spaceid;			\
-	regs->iasq[1] = spaceid;			\
-	regs->iaoq[0] = pc;				\
-	regs->iaoq[1] = pc + 4;                         \
-	regs->sr[2] = LINUX_GATEWAY_SPACE;              \
-	regs->sr[3] = 0xffff;				\
-	regs->sr[4] = spaceid;				\
-	regs->sr[5] = spaceid;				\
-	regs->sr[6] = spaceid;				\
-	regs->sr[7] = spaceid;				\
-	regs->gr[ 0] = USER_PSW;                        \
-	regs->gr[30] = ((new_sp)+63)&~63;		\
-	regs->gr[31] = pc;				\
-							\
-	get_user(regs->gr[26],&sp[0]);			\
-	get_user(regs->gr[25],&sp[-1]); 		\
-	get_user(regs->gr[24],&sp[-2]); 		\
-	get_user(regs->gr[23],&sp[-3]); 		\
-} while(0)
 
 /* The ELF abi wants things done a "wee bit" differently than
  * som does.  Supporting this behavior here avoids
@@ -336,20 +305,18 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk)	((tsk)->thread.regs.gr[30])
 
 #define cpu_relax()	barrier()
-#define cpu_relax_lowlatency() cpu_relax()
 
-/* Used as a macro to identify the combined VIPT/PIPT cached
- * CPUs which require a guarantee of coherency (no inequivalent
- * aliases with different data, whether clean or not) to operate */
-static inline int parisc_requires_coherency(void)
-{
+/*
+ * parisc_requires_coherency() is used to identify the combined VIPT/PIPT
+ * cached CPUs which require a guarantee of coherency (no inequivalent aliases
+ * with different data, whether clean or not) to operate
+ */
 #ifdef CONFIG_PA8X00
-	return (boot_cpu_data.cpu_type == mako) ||
-		(boot_cpu_data.cpu_type == mako2);
+extern int _parisc_requires_coherency;
+#define parisc_requires_coherency()	_parisc_requires_coherency
 #else
-	return 0;
+#define parisc_requires_coherency()	(0)
 #endif
-}
 
 #endif /* __ASSEMBLY__ */
 

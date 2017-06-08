@@ -170,23 +170,31 @@ void pcibios_set_master(struct pci_dev *dev)
 			      (0x80 << 8) | pci_cache_line_size);
 }
 
-
-void __init pcibios_init_bus(struct pci_bus *bus)
+/*
+ * pcibios_init_bridge() initializes cache line and default latency
+ * for pci controllers and pci-pci bridges
+ */
+void __init pcibios_init_bridge(struct pci_dev *dev)
 {
-	struct pci_dev *dev = bus->self;
-	unsigned short bridge_ctl;
+	unsigned short bridge_ctl, bridge_ctl_new;
 
 	/* We deal only with pci controllers and pci-pci bridges. */
 	if (!dev || (dev->class >> 8) != PCI_CLASS_BRIDGE_PCI)
 		return;
 
 	/* PCI-PCI bridge - set the cache line and default latency
-	   (32) for primary and secondary buses. */
+	 * (32) for primary and secondary buses.
+	 */
 	pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER, 32);
 
 	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &bridge_ctl);
-	bridge_ctl |= PCI_BRIDGE_CTL_PARITY | PCI_BRIDGE_CTL_SERR;
-	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, bridge_ctl);
+
+	bridge_ctl_new = bridge_ctl | PCI_BRIDGE_CTL_PARITY |
+		PCI_BRIDGE_CTL_SERR | PCI_BRIDGE_CTL_MASTER_ABORT;
+	dev_info(&dev->dev, "Changing bridge control from 0x%08x to 0x%08x\n",
+		bridge_ctl, bridge_ctl_new);
+
+	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, bridge_ctl_new);
 }
 
 /*
@@ -217,34 +225,6 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 	start &= ~mask;
 
 	return start;
-}
-
-
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state, int write_combine)
-{
-	unsigned long prot;
-
-	/*
-	 * I/O space can be accessed via normal processor loads and stores on
-	 * this platform but for now we elect not to do this and portable
-	 * drivers should not do this anyway.
-	 */
-	if (mmap_state == pci_mmap_io)
-		return -EINVAL;
-
-	if (write_combine)
-		return -EINVAL;
-
-	/*
-	 * Ignore write-combine; for now only return uncached mappings.
-	 */
-	prot = pgprot_val(vma->vm_page_prot);
-	prot |= _PAGE_NO_CACHE;
-	vma->vm_page_prot = __pgprot(prot);
-
-	return remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-		vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
 /*

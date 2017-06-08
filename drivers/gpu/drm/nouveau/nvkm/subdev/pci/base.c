@@ -46,6 +46,14 @@ nvkm_pci_wr32(struct nvkm_pci *pci, u16 addr, u32 data)
 	pci->func->wr32(pci, addr, data);
 }
 
+u32
+nvkm_pci_mask(struct nvkm_pci *pci, u16 addr, u32 mask, u32 value)
+{
+	u32 data = pci->func->rd32(pci, addr);
+	pci->func->wr32(pci, addr, (data & ~mask) | value);
+	return data;
+}
+
 void
 nvkm_pci_rom_shadow(struct nvkm_pci *pci, bool shadow)
 {
@@ -61,15 +69,13 @@ static irqreturn_t
 nvkm_pci_intr(int irq, void *arg)
 {
 	struct nvkm_pci *pci = arg;
-	struct nvkm_mc *mc = pci->subdev.device->mc;
+	struct nvkm_device *device = pci->subdev.device;
 	bool handled = false;
-	if (likely(mc)) {
-		nvkm_mc_intr_unarm(mc);
-		if (pci->msi)
-			pci->func->msi_rearm(pci);
-		nvkm_mc_intr(mc, &handled);
-		nvkm_mc_intr_rearm(mc);
-	}
+	nvkm_mc_intr_unarm(device);
+	if (pci->msi)
+		pci->func->msi_rearm(pci);
+	nvkm_mc_intr(device, &handled);
+	nvkm_mc_intr_rearm(device);
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
@@ -99,6 +105,15 @@ nvkm_pci_preinit(struct nvkm_subdev *subdev)
 }
 
 static int
+nvkm_pci_oneinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_pci *pci = nvkm_pci(subdev);
+	if (pci_is_pcie(pci->pdev))
+		return nvkm_pcie_oneinit(pci);
+	return 0;
+}
+
+static int
 nvkm_pci_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pci *pci = nvkm_pci(subdev);
@@ -109,7 +124,12 @@ nvkm_pci_init(struct nvkm_subdev *subdev)
 		ret = nvkm_agp_init(pci);
 		if (ret)
 			return ret;
+	} else if (pci_is_pcie(pci->pdev)) {
+		nvkm_pcie_init(pci);
 	}
+
+	if (pci->func->init)
+		pci->func->init(pci);
 
 	ret = request_irq(pdev->irq, nvkm_pci_intr, IRQF_SHARED, "nvkm", pci);
 	if (ret)
@@ -132,6 +152,7 @@ nvkm_pci_dtor(struct nvkm_subdev *subdev)
 static const struct nvkm_subdev_func
 nvkm_pci_func = {
 	.dtor = nvkm_pci_dtor,
+	.oneinit = nvkm_pci_oneinit,
 	.preinit = nvkm_pci_preinit,
 	.init = nvkm_pci_init,
 	.fini = nvkm_pci_fini,
@@ -145,10 +166,12 @@ nvkm_pci_new_(const struct nvkm_pci_func *func, struct nvkm_device *device,
 
 	if (!(pci = *ppci = kzalloc(sizeof(**ppci), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&nvkm_pci_func, device, index, 0, &pci->subdev);
+	nvkm_subdev_ctor(&nvkm_pci_func, device, index, &pci->subdev);
 	pci->func = func;
 	pci->pdev = device->func->pci(device)->pdev;
 	pci->irq = -1;
+	pci->pcie.speed = -1;
+	pci->pcie.width = -1;
 
 	if (device->type == NVKM_DEVICE_AGP)
 		nvkm_agp_ctor(pci);

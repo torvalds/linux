@@ -27,15 +27,6 @@
 		.irq = soc ## _INT_UART ## _hwid,			\
 	}
 
-#ifdef CONFIG_SOC_IMX1
-const struct imx_imx_uart_3irq_data imx1_imx_uart_data[] __initconst = {
-#define imx1_imx_uart_data_entry(_id, _hwid)				\
-	imx_imx_uart_3irq_data_entry(MX1, _id, _hwid, 0xd0)
-	imx1_imx_uart_data_entry(0, 1),
-	imx1_imx_uart_data_entry(1, 2),
-};
-#endif /* ifdef CONFIG_SOC_IMX1 */
-
 #ifdef CONFIG_SOC_IMX21
 const struct imx_imx_uart_1irq_data imx21_imx_uart_data[] __initconst = {
 #define imx21_imx_uart_data_entry(_id, _hwid)				\
@@ -81,34 +72,6 @@ const struct imx_imx_uart_1irq_data imx35_imx_uart_data[] __initconst = {
 	imx35_imx_uart_data_entry(2, 3),
 };
 #endif /* ifdef CONFIG_SOC_IMX35 */
-
-struct platform_device *__init imx_add_imx_uart_3irq(
-		const struct imx_imx_uart_3irq_data *data,
-		const struct imxuart_platform_data *pdata)
-{
-	struct resource res[] = {
-		{
-			.start = data->iobase,
-			.end = data->iobase + data->iosize - 1,
-			.flags = IORESOURCE_MEM,
-		}, {
-			.start = data->irqrx,
-			.end = data->irqrx,
-			.flags = IORESOURCE_IRQ,
-		}, {
-			.start = data->irqtx,
-			.end = data->irqtx,
-			.flags = IORESOURCE_IRQ,
-		}, {
-			.start = data->irqrts,
-			.end = data->irqrx,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-
-	return imx_add_platform_device("imx1-uart", data->id, res,
-			ARRAY_SIZE(res), pdata, sizeof(*pdata));
-}
 
 struct platform_device *__init imx_add_imx_uart_1irq(
 		const struct imx_imx_uart_1irq_data *data,

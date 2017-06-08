@@ -36,7 +36,6 @@ struct qce_sha_ctx {
  * @flags: operation flags
  * @src_orig: original request sg list
  * @nbytes_orig: original request number of bytes
- * @src_chained: is source scatterlist chained
  * @src_nents: source number of entries
  * @byte_count: byte count
  * @count: save count in states during update, import and export
@@ -55,7 +54,6 @@ struct qce_sha_reqctx {
 	unsigned long flags;
 	struct scatterlist *src_orig;
 	unsigned int nbytes_orig;
-	bool src_chained;
 	int src_nents;
 	__be32 byte_count[2];
 	u64 count;

@@ -16,12 +16,13 @@
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/syscore_ops.h>
+#include <linux/soc/samsung/exynos-regs-pmu.h>
 
 #include <asm/cputype.h>
 #include <asm/cp15.h>
 #include <asm/mcpm.h>
+#include <asm/smp_plat.h>
 
-#include "regs-pmu.h"
 #include "common.h"
 
 #define EXYNOS5420_CPUS_PER_CLUSTER	4
@@ -31,7 +32,7 @@
 #define EXYNOS5420_USE_ARM_CORE_DOWN_STATE	BIT(29)
 #define EXYNOS5420_USE_L2_COMMON_UP_STATE	BIT(30)
 
-static void __iomem *ns_sram_base_addr;
+static void __iomem *ns_sram_base_addr __ro_after_init;
 
 /*
  * The common v7_exit_coherency_flush API could not be used because of the
@@ -70,7 +71,31 @@ static int exynos_cpu_powerup(unsigned int cpu, unsigned int cluster)
 		cluster >= EXYNOS5420_NR_CLUSTERS)
 		return -EINVAL;
 
-	exynos_cpu_power_up(cpunr);
+	if (!exynos_cpu_power_state(cpunr)) {
+		exynos_cpu_power_up(cpunr);
+
+		/*
+		 * This assumes the cluster number of the big cores(Cortex A15)
+		 * is 0 and the Little cores(Cortex A7) is 1.
+		 * When the system was booted from the Little core,
+		 * they should be reset during power up cpu.
+		 */
+		if (cluster &&
+		    cluster == MPIDR_AFFINITY_LEVEL(cpu_logical_map(0), 1)) {
+			/*
+			 * Before we reset the Little cores, we should wait
+			 * the SPARE2 register is set to 1 because the init
+			 * codes of the iROM will set the register after
+			 * initialization.
+			 */
+			while (!pmu_raw_readl(S5P_PMU_SPARE2))
+				udelay(10);
+
+			pmu_raw_writel(EXYNOS5420_KFC_CORE_RESET(cpu),
+					EXYNOS_SWRESET);
+		}
+	}
+
 	return 0;
 }
 
@@ -196,7 +221,7 @@ static void exynos_mcpm_setup_entry_point(void)
 	 */
 	__raw_writel(0xe59f0000, ns_sram_base_addr);     /* ldr r0, [pc, #0] */
 	__raw_writel(0xe12fff10, ns_sram_base_addr + 4); /* bx  r0 */
-	__raw_writel(virt_to_phys(mcpm_entry_point), ns_sram_base_addr + 8);
+	__raw_writel(__pa_symbol(mcpm_entry_point), ns_sram_base_addr + 8);
 }
 
 static struct syscore_ops exynos_mcpm_syscore_ops = {

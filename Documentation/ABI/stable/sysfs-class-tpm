@@ -116,7 +116,7 @@ Description:	The "pubek" property will return the TPM's public endorsement
 		owner's authorization. Since the TPM driver doesn't store any
 		secrets, it can't authorize its own request for the pubek,
 		making it unaccessible. The public endorsement key is gener-
-		ated at TPM menufacture time and exists for the life of the
+		ated at TPM manufacture time and exists for the life of the
 		chip.
 
 		Example output:
@@ -163,7 +163,7 @@ Date:		April 2006
 KernelVersion:	2.6.17
 Contact:	tpmdd-devel@lists.sf.net
 Description:	The "temp_deactivated" property returns a '1' if the chip has
-		been temporarily dectivated, usually until the next power
+		been temporarily deactivated, usually until the next power
 		cycle. Whether a warm boot (reboot) will clear a TPM chip
 		from a temp_deactivated state is platform specific.
 

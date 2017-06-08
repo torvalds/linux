@@ -3,14 +3,12 @@
 #include <linux/scatterlist.h>
 #include <linux/kernel.h>
 
-/* TODO: empty stubs for now. Broken but enough for virtio_ring.c */
-#define list_add_tail(a, b) do {} while (0)
-#define list_del(a) do {} while (0)
-#define list_for_each_entry(a, b, c) while (0)
-/* end of stubs */
+struct device {
+	void *parent;
+};
 
 struct virtio_device {
-	void *dev;
+	struct device dev;
 	u64 features;
 };
 
@@ -59,6 +57,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      unsigned int vring_align,
 				      struct virtio_device *vdev,
 				      bool weak_barriers,
+				      bool ctx,
 				      void *pages,
 				      bool (*notify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),

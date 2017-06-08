@@ -117,6 +117,12 @@ extern void ist_exit(struct pt_regs *regs);
 extern void ist_begin_non_atomic(struct pt_regs *regs);
 extern void ist_end_non_atomic(void);
 
+#ifdef CONFIG_VMAP_STACK
+void __noreturn handle_stack_overflow(const char *message,
+				      struct pt_regs *regs,
+				      unsigned long fault_address);
+#endif
+
 /* Interrupts/Exceptions */
 enum {
 	X86_TRAP_DE = 0,	/*  0, Divide-by-zero */

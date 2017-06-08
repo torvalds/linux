@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -23,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
@@ -30,12 +27,9 @@
 #define WIDTH		240
 #define HEIGHT		320
 
-
 /* Init sequence taken from: Arduino Library for the Adafruit 2.2" display */
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	write_reg(par, 0xEF, 0x03, 0x80, 0x02);
@@ -60,7 +54,7 @@ static int init_display(struct fbtft_par *par)
 
 	/* COLMOD: Pixel Format Set */
 	/* 16 bits/pixel */
-	write_reg(par, 0x3A, 0x55);
+	write_reg(par, MIPI_DCS_SET_PIXEL_FORMAT, 0x55);
 
 	/* Frame Rate Control */
 	/* Division ratio = fosc, Frame Rate = 79Hz */
@@ -72,43 +66,37 @@ static int init_display(struct fbtft_par *par)
 	/* Gamma Function Disable */
 	write_reg(par, 0xF2, 0x00);
 
-	/* Gamma curve selected  */
-	write_reg(par, 0x26, 0x01);
+	/* Gamma curve selection */
+	write_reg(par, MIPI_DCS_SET_GAMMA_CURVE, 0x01);
 
 	/* Positive Gamma Correction */
 	write_reg(par, 0xE0,
-		0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1,
-		0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00);
+		  0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1,
+		  0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00);
 
 	/* Negative Gamma Correction */
 	write_reg(par, 0xE1,
-		0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31, 0xC1,
-		0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F);
+		  0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31, 0xC1,
+		  0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F);
 
-	/* Sleep OUT */
-	write_reg(par, 0x11);
+	write_reg(par, MIPI_DCS_EXIT_SLEEP_MODE);
 
 	mdelay(120);
 
-	/* Display ON */
-	write_reg(par, 0x29);
+	write_reg(par, MIPI_DCS_SET_DISPLAY_ON);
 
 	return 0;
 }
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
+	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
+		  xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
 
-	/* Column address */
-	write_reg(par, 0x2A, xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
+	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
+		  ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
 
-	/* Row address */
-	write_reg(par, 0x2B, ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
-
-	/* Memory write */
-	write_reg(par, 0x2C);
+	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 }
 
 #define ILI9340_MADCTL_MV  0x20
@@ -117,8 +105,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 static int set_var(struct fbtft_par *par)
 {
 	u8 val;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	switch (par->info->var.rotate) {
 	case 270:
@@ -135,11 +121,10 @@ static int set_var(struct fbtft_par *par)
 		break;
 	}
 	/* Memory Access Control  */
-	write_reg(par, 0x36, val | (par->bgr << 3));
+	write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, val | (par->bgr << 3));
 
 	return 0;
 }
-
 
 static struct fbtft_display display = {
 	.regwidth = 8,
@@ -151,6 +136,7 @@ static struct fbtft_display display = {
 		.set_var = set_var,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "ilitek,ili9340", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

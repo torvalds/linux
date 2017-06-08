@@ -168,7 +168,7 @@ static unsigned long ti_fapll_recalc_rate(struct clk_hw *hw,
 {
 	struct fapll_data *fd = to_fapll(hw);
 	u32 fapll_n, fapll_p, v;
-	long long rate;
+	u64 rate;
 
 	if (ti_fapll_clock_is_bypass(fd))
 		return parent_rate;
@@ -314,7 +314,7 @@ static unsigned long ti_fapll_synth_recalc_rate(struct clk_hw *hw,
 {
 	struct fapll_synth *synth = to_synth(hw);
 	u32 synth_div_m;
-	long long rate;
+	u64 rate;
 
 	/* The audio_pll_clk1 is hardwired to produce 32.768KiHz clock */
 	if (!synth->div)

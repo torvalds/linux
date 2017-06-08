@@ -17,8 +17,8 @@
 #include <linux/clkdev.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <mach/pxa25x.h>
 #include <mach/pxa2xx-regs.h>
+#include <mach/smemc.h>
 
 #include <dt-bindings/clock/pxa-clock.h>
 #include "clk-pxa.h"
@@ -30,6 +30,17 @@ enum {
 	PXA_CORE_RUN = 0,
 	PXA_CORE_TURBO,
 };
+
+#define PXA25x_CLKCFG(T)			\
+	(CLKCFG_FCS |				\
+	 ((T) ? CLKCFG_TURBO : 0))
+#define PXA25x_CCCR(N2, M, L) (N2 << 7 | M << 5 | L)
+
+#define MDCNFG_DRAC2(mdcnfg)	(((mdcnfg) >> 21) & 0x3)
+#define MDCNFG_DRAC0(mdcnfg)	(((mdcnfg) >> 5) & 0x3)
+
+/* Define the refresh period in mSec for the SDRAM and the number of rows */
+#define SDRAM_TREF	64	/* standard 64ms SDRAM */
 
 /*
  * Various clock factors driven by the CCCR register.
@@ -48,6 +59,34 @@ static unsigned char N2_clk_mult[8] = { 0, 0, 2, 3, 4, 0, 6, 0 };
 static const char * const get_freq_khz[] = {
 	"core", "run", "cpll", "memory"
 };
+
+static int get_sdram_rows(void)
+{
+	static int sdram_rows;
+	unsigned int drac2 = 0, drac0 = 0;
+	u32 mdcnfg;
+
+	if (sdram_rows)
+		return sdram_rows;
+
+	mdcnfg = readl_relaxed(MDCNFG);
+
+	if (mdcnfg & (MDCNFG_DE2 | MDCNFG_DE3))
+		drac2 = MDCNFG_DRAC2(mdcnfg);
+
+	if (mdcnfg & (MDCNFG_DE0 | MDCNFG_DE1))
+		drac0 = MDCNFG_DRAC0(mdcnfg);
+
+	sdram_rows = 1 << (11 + max(drac0, drac2));
+	return sdram_rows;
+}
+
+static u32 mdrefr_dri(unsigned int freq_khz)
+{
+	u32 interval = freq_khz * SDRAM_TREF / get_sdram_rows();
+
+	return interval / 32;
+}
 
 /*
  * Get the clock frequency as reflected by CCCR and the turbo flag.
@@ -85,7 +124,7 @@ unsigned int pxa25x_get_clk_frequency_khz(int info)
 static unsigned long clk_pxa25x_memory_get_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
-	unsigned long cccr = CCCR;
+	unsigned long cccr = readl(CCCR);
 	unsigned int m = M_clk_mult[(cccr >> 5) & 0x03];
 
 	return parent_rate / m;
@@ -100,7 +139,7 @@ PARENTS(pxa25x_osc3) = { "osc_3_6864mhz", "osc_3_6864mhz" };
 #define PXA25X_CKEN(dev_id, con_id, parents, mult, div,			\
 		    bit, is_lp, flags)					\
 	PXA_CKEN(dev_id, con_id, bit, parents, mult, div, mult, div,	\
-		 is_lp,  &CKEN, CKEN_ ## bit, flags)
+		 is_lp,  CKEN, CKEN_ ## bit, flags)
 #define PXA25X_PBUS95_CKEN(dev_id, con_id, bit, mult_hp, div_hp, delay)	\
 	PXA25X_CKEN(dev_id, con_id, pxa25x_pbus95_parents, mult_hp,	\
 		    div_hp, bit, NULL, 0)
@@ -113,10 +152,10 @@ PARENTS(pxa25x_osc3) = { "osc_3_6864mhz", "osc_3_6864mhz" };
 
 #define PXA25X_CKEN_1RATE(dev_id, con_id, bit, parents, delay)		\
 	PXA_CKEN_1RATE(dev_id, con_id, bit, parents,			\
-		       &CKEN, CKEN_ ## bit, 0)
+		       CKEN, CKEN_ ## bit, 0)
 #define PXA25X_CKEN_1RATE_AO(dev_id, con_id, bit, parents, delay)	\
 	PXA_CKEN_1RATE(dev_id, con_id, bit, parents,			\
-		       &CKEN, CKEN_ ## bit, CLK_IGNORE_UNUSED)
+		       CKEN, CKEN_ ## bit, CLK_IGNORE_UNUSED)
 
 static struct desc_clk_cken pxa25x_clocks[] __initdata = {
 	PXA25X_PBUS95_CKEN("pxa2xx-mci.0", NULL, MMC, 1, 5, 0),
@@ -140,6 +179,21 @@ static struct desc_clk_cken pxa25x_clocks[] __initdata = {
 			     clk_pxa25x_memory_parents, 0),
 };
 
+/*
+ * In this table, PXA25x_CCCR(N2, M, L) has the following meaning, where :
+ *   - freq_cpll = n * m * L * 3.6864 MHz
+ *   - n = N2 / 2
+ *   - m = 2^(M - 1), where 1 <= M <= 3
+ *   - l = L_clk_mult[L], ie. { 0, 27, 32, 36, 40, 45, 0, }[L]
+ */
+static struct pxa2xx_freq pxa25x_freqs[] = {
+	/* CPU  MEMBUS  CCCR                  DIV2 CCLKCFG      */
+	{ 99532800, 99500, PXA25x_CCCR(2,  1, 1),  1, PXA25x_CLKCFG(1)},
+	{199065600, 99500, PXA25x_CCCR(4,  1, 1),  0, PXA25x_CLKCFG(1)},
+	{298598400, 99500, PXA25x_CCCR(3,  2, 1),  0, PXA25x_CLKCFG(1)},
+	{398131200, 99500, PXA25x_CCCR(4,  2, 1),  0, PXA25x_CLKCFG(1)},
+};
+
 static u8 clk_pxa25x_core_get_parent(struct clk_hw *hw)
 {
 	unsigned long clkcfg;
@@ -152,18 +206,29 @@ static u8 clk_pxa25x_core_get_parent(struct clk_hw *hw)
 	return PXA_CORE_RUN;
 }
 
-static unsigned long clk_pxa25x_core_get_rate(struct clk_hw *hw,
-					      unsigned long parent_rate)
+static int clk_pxa25x_core_set_parent(struct clk_hw *hw, u8 index)
 {
-	return parent_rate;
+	if (index > PXA_CORE_TURBO)
+		return -EINVAL;
+
+	pxa2xx_core_turbo_switch(index == PXA_CORE_TURBO);
+
+	return 0;
 }
+
+static int clk_pxa25x_core_determine_rate(struct clk_hw *hw,
+					  struct clk_rate_request *req)
+{
+	return __clk_mux_determine_rate(hw, req);
+}
+
 PARENTS(clk_pxa25x_core) = { "run", "cpll" };
-MUX_RO_RATE_RO_OPS(clk_pxa25x_core, "core");
+MUX_OPS(clk_pxa25x_core, "core", CLK_SET_RATE_PARENT);
 
 static unsigned long clk_pxa25x_run_get_rate(struct clk_hw *hw,
 					     unsigned long parent_rate)
 {
-	unsigned long cccr = CCCR;
+	unsigned long cccr = readl(CCCR);
 	unsigned int n2 = N2_clk_mult[(cccr >> 7) & 0x07];
 
 	return (parent_rate / n2) * 2;
@@ -174,7 +239,7 @@ RATE_RO_OPS(clk_pxa25x_run, "run");
 static unsigned long clk_pxa25x_cpll_get_rate(struct clk_hw *hw,
 	unsigned long parent_rate)
 {
-	unsigned long clkcfg, cccr = CCCR;
+	unsigned long clkcfg, cccr = readl(CCCR);
 	unsigned int l, m, n2, t;
 
 	asm("mrc\tp14, 0, %0, c6, c0, 0" : "=r" (clkcfg));
@@ -183,17 +248,42 @@ static unsigned long clk_pxa25x_cpll_get_rate(struct clk_hw *hw,
 	m = M_clk_mult[(cccr >> 5) & 0x03];
 	n2 = N2_clk_mult[(cccr >> 7) & 0x07];
 
-	if (t)
-		return m * l * n2 * parent_rate / 2;
-	return m * l * parent_rate;
+	return m * l * n2 * parent_rate / 2;
+}
+
+static int clk_pxa25x_cpll_determine_rate(struct clk_hw *hw,
+					  struct clk_rate_request *req)
+{
+	return pxa2xx_determine_rate(req, pxa25x_freqs,
+				     ARRAY_SIZE(pxa25x_freqs));
+}
+
+static int clk_pxa25x_cpll_set_rate(struct clk_hw *hw, unsigned long rate,
+				    unsigned long parent_rate)
+{
+	int i;
+
+	pr_debug("%s(rate=%lu parent_rate=%lu)\n", __func__, rate, parent_rate);
+	for (i = 0; i < ARRAY_SIZE(pxa25x_freqs); i++)
+		if (pxa25x_freqs[i].cpll == rate)
+			break;
+
+	if (i >= ARRAY_SIZE(pxa25x_freqs))
+		return -EINVAL;
+
+	pxa2xx_cpll_change(&pxa25x_freqs[i], mdrefr_dri, MDREFR, CCCR);
+
+	return 0;
 }
 PARENTS(clk_pxa25x_cpll) = { "osc_3_6864mhz" };
-RATE_RO_OPS(clk_pxa25x_cpll, "cpll");
+RATE_OPS(clk_pxa25x_cpll, "cpll");
 
 static void __init pxa25x_register_core(void)
 {
-	clk_register_clk_pxa25x_cpll();
-	clk_register_clk_pxa25x_run();
+	clkdev_pxa_register(CLK_NONE, "cpll", NULL,
+			    clk_register_clk_pxa25x_cpll());
+	clkdev_pxa_register(CLK_NONE, "run", NULL,
+			    clk_register_clk_pxa25x_run());
 	clkdev_pxa_register(CLK_CORE, "core", NULL,
 			    clk_register_clk_pxa25x_core());
 }
@@ -201,12 +291,10 @@ static void __init pxa25x_register_core(void)
 static void __init pxa25x_register_plls(void)
 {
 	clk_register_fixed_rate(NULL, "osc_3_6864mhz", NULL,
-				CLK_GET_RATE_NOCACHE | CLK_IS_ROOT,
-				3686400);
+				CLK_GET_RATE_NOCACHE, 3686400);
 	clk_register_fixed_rate(NULL, "osc_32_768khz", NULL,
-				CLK_GET_RATE_NOCACHE | CLK_IS_ROOT,
-				32768);
-	clk_register_fixed_rate(NULL, "clk_dummy", NULL, CLK_IS_ROOT, 0);
+				CLK_GET_RATE_NOCACHE, 32768);
+	clk_register_fixed_rate(NULL, "clk_dummy", NULL, 0, 0);
 	clk_register_fixed_factor(NULL, "ppll_95_85mhz", "osc_3_6864mhz",
 				  0, 26, 1);
 	clk_register_fixed_factor(NULL, "ppll_147_46mhz", "osc_3_6864mhz",
@@ -217,7 +305,8 @@ static void __init pxa25x_base_clocks_init(void)
 {
 	pxa25x_register_plls();
 	pxa25x_register_core();
-	clk_register_clk_pxa25x_memory();
+	clkdev_pxa_register(CLK_NONE, "system_bus", NULL,
+			    clk_register_clk_pxa25x_memory());
 }
 
 #define DUMMY_CLK(_con_id, _dev_id, _parent) \
@@ -233,7 +322,7 @@ static struct dummy_clk dummy_clks[] __initdata = {
 	DUMMY_CLK("GPIO11_CLK", NULL, "osc_3_6864mhz"),
 	DUMMY_CLK("GPIO12_CLK", NULL, "osc_32_768khz"),
 	DUMMY_CLK(NULL, "sa1100-rtc", "osc_32_768khz"),
-	DUMMY_CLK("OSTIMER0", NULL, "osc_32_768khz"),
+	DUMMY_CLK("OSTIMER0", NULL, "osc_3_6864mhz"),
 	DUMMY_CLK("UARTCLK", "pxa2xx-ir", "STUART"),
 };
 

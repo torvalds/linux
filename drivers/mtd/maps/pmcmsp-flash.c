@@ -75,15 +75,15 @@ static int __init init_msp_flash(void)
 
 	printk(KERN_NOTICE "Found %d PMC flash devices\n", fcnt);
 
-	msp_flash = kmalloc(fcnt * sizeof(struct map_info *), GFP_KERNEL);
+	msp_flash = kcalloc(fcnt, sizeof(*msp_flash), GFP_KERNEL);
 	if (!msp_flash)
 		return -ENOMEM;
 
-	msp_parts = kmalloc(fcnt * sizeof(struct mtd_partition *), GFP_KERNEL);
+	msp_parts = kcalloc(fcnt, sizeof(*msp_parts), GFP_KERNEL);
 	if (!msp_parts)
 		goto free_msp_flash;
 
-	msp_maps = kcalloc(fcnt, sizeof(struct mtd_info), GFP_KERNEL);
+	msp_maps = kcalloc(fcnt, sizeof(*msp_maps), GFP_KERNEL);
 	if (!msp_maps)
 		goto free_msp_parts;
 
@@ -139,14 +139,12 @@ static int __init init_msp_flash(void)
 		}
 
 		msp_maps[i].bankwidth = 1;
-		msp_maps[i].name = kmalloc(7, GFP_KERNEL);
+		msp_maps[i].name = kstrndup(flash_name, 7, GFP_KERNEL);
 		if (!msp_maps[i].name) {
 			iounmap(msp_maps[i].virt);
 			kfree(msp_parts[i]);
 			goto cleanup_loop;
 		}
-
-		msp_maps[i].name = strncpy(msp_maps[i].name, flash_name, 7);
 
 		for (j = 0; j < pcnt; j++) {
 			part_name[5] = '0' + i;

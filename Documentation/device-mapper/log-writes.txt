@@ -14,14 +14,14 @@ Log Ordering
 
 We log things in order of completion once we are sure the write is no longer in
 cache.  This means that normal WRITE requests are not actually logged until the
-next REQ_FLUSH request.  This is to make it easier for userspace to replay the
-log in a way that correlates to what is on disk and not what is in cache, to
-make it easier to detect improper waiting/flushing.
+next REQ_PREFLUSH request.  This is to make it easier for userspace to replay
+the log in a way that correlates to what is on disk and not what is in cache,
+to make it easier to detect improper waiting/flushing.
 
 This works by attaching all WRITE requests to a list once the write completes.
-Once we see a REQ_FLUSH request we splice this list onto the request and once
+Once we see a REQ_PREFLUSH request we splice this list onto the request and once
 the FLUSH request completes we log all of the WRITEs and then the FLUSH.  Only
-completed WRITEs, at the time the REQ_FLUSH is issued, are added in order to
+completed WRITEs, at the time the REQ_PREFLUSH is issued, are added in order to
 simulate the worst case scenario with regard to power failures.  Consider the
 following example (W means write, C means complete):
 

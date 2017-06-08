@@ -9,6 +9,8 @@
  */
 
 #include <linux/errno.h>
+#include <linux/percpu.h>
+#include <linux/spinlock.h>
 
 #include <asm/mips-cm.h>
 #include <asm/mipsregs.h>
@@ -22,7 +24,7 @@ static char *cm2_tr[8] = {
 	"0x04", "cpc", "0x06", "0x07"
 };
 
-/* CM3 Tag ECC transation type */
+/* CM3 Tag ECC transaction type */
 static char *cm3_tr[16] = {
 	[0x0] = "ReqNoData",
 	[0x1] = "0x1",
@@ -136,6 +138,9 @@ static char *cm3_causes[32] = {
 	"0x19", "0x1a", "0x1b", "0x1c", "0x1d", "0x1e", "0x1f"
 };
 
+static DEFINE_PER_CPU_ALIGNED(spinlock_t, cm_core_lock);
+static DEFINE_PER_CPU_ALIGNED(unsigned long, cm_core_lock_flags);
+
 phys_addr_t __mips_cm_phys_base(void)
 {
 	u32 config3 = read_c0_config3();
@@ -200,6 +205,7 @@ int mips_cm_probe(void)
 {
 	phys_addr_t addr;
 	u32 base_reg;
+	unsigned cpu;
 
 	/*
 	 * No need to probe again if we have already been
@@ -245,40 +251,72 @@ int mips_cm_probe(void)
 	mips_cm_probe_l2sync();
 
 	/* determine register width for this CM */
-	mips_cm_is64 = config_enabled(CONFIG_64BIT) && (mips_cm_revision() >= CM_REV_CM3);
+	mips_cm_is64 = IS_ENABLED(CONFIG_64BIT) && (mips_cm_revision() >= CM_REV_CM3);
+
+	for_each_possible_cpu(cpu)
+		spin_lock_init(&per_cpu(cm_core_lock, cpu));
 
 	return 0;
 }
 
+void mips_cm_lock_other(unsigned int core, unsigned int vp)
+{
+	unsigned curr_core;
+	u32 val;
+
+	preempt_disable();
+	curr_core = current_cpu_data.core;
+	spin_lock_irqsave(&per_cpu(cm_core_lock, curr_core),
+			  per_cpu(cm_core_lock_flags, curr_core));
+
+	if (mips_cm_revision() >= CM_REV_CM3) {
+		val = core << CM3_GCR_Cx_OTHER_CORE_SHF;
+		val |= vp << CM3_GCR_Cx_OTHER_VP_SHF;
+	} else {
+		BUG_ON(vp != 0);
+		val = core << CM_GCR_Cx_OTHER_CORENUM_SHF;
+	}
+
+	write_gcr_cl_other(val);
+
+	/*
+	 * Ensure the core-other region reflects the appropriate core &
+	 * VP before any accesses to it occur.
+	 */
+	mb();
+}
+
+void mips_cm_unlock_other(void)
+{
+	unsigned curr_core = current_cpu_data.core;
+
+	spin_unlock_irqrestore(&per_cpu(cm_core_lock, curr_core),
+			       per_cpu(cm_core_lock_flags, curr_core));
+	preempt_enable();
+}
+
 void mips_cm_error_report(void)
 {
-	unsigned long revision = mips_cm_revision();
-	/*
-	 * CM3 has a 64-bit Error cause register with 0:57 containing the error
-	 * info and 63:58 the error type. For old CMs, everything is contained
-	 * in a single 32-bit register (0:26 and 31:27 respectively). Even
-	 * though the cm_error is u64, we will simply ignore the upper word
-	 * for CM2.
-	 */
-	u64 cm_error = read_gcr_error_cause();
-	int cm_error_cause_sft = CM_GCR_ERROR_CAUSE_ERRTYPE_SHF +
-				 ((revision >= CM_REV_CM3) ? 31 : 0);
-	unsigned long cm_addr = read_gcr_error_addr();
-	unsigned long cm_other = read_gcr_error_mult();
+	u64 cm_error, cm_addr, cm_other;
+	unsigned long revision;
 	int ocause, cause;
 	char buf[256];
 
 	if (!mips_cm_present())
 		return;
 
-	cause = cm_error >> cm_error_cause_sft;
+	revision = mips_cm_revision();
 
-	if (!cause)
-		/* All good */
-		return;
-
-	ocause = cm_other >> CM_GCR_ERROR_MULT_ERR2ND_SHF;
 	if (revision < CM_REV_CM3) { /* CM2 */
+		cm_error = read_gcr_error_cause();
+		cm_addr = read_gcr_error_addr();
+		cm_other = read_gcr_error_mult();
+		cause = cm_error >> CM_GCR_ERROR_CAUSE_ERRTYPE_SHF;
+		ocause = cm_other >> CM_GCR_ERROR_MULT_ERR2ND_SHF;
+
+		if (!cause)
+			return;
+
 		if (cause < 16) {
 			unsigned long cca_bits = (cm_error >> 15) & 7;
 			unsigned long tr_bits = (cm_error >> 12) & 7;
@@ -310,18 +348,30 @@ void mips_cm_error_report(void)
 		}
 			pr_err("CM_ERROR=%08llx %s <%s>\n", cm_error,
 			       cm2_causes[cause], buf);
-		pr_err("CM_ADDR =%08lx\n", cm_addr);
-		pr_err("CM_OTHER=%08lx %s\n", cm_other, cm2_causes[ocause]);
+		pr_err("CM_ADDR =%08llx\n", cm_addr);
+		pr_err("CM_OTHER=%08llx %s\n", cm_other, cm2_causes[ocause]);
 	} else { /* CM3 */
-	/* Used by cause == {1,2,3} */
-		unsigned long core_id_bits = (cm_error >> 22) & 0xf;
-		unsigned long vp_id_bits = (cm_error >> 18) & 0xf;
-		unsigned long cmd_bits = (cm_error >> 14) & 0xf;
-		unsigned long cmd_group_bits = (cm_error >> 11) & 0xf;
-		unsigned long cm3_cca_bits = (cm_error >> 8) & 7;
-		unsigned long mcp_bits = (cm_error >> 5) & 0xf;
-		unsigned long cm3_tr_bits = (cm_error >> 1) & 0xf;
-		unsigned long sched_bit = cm_error & 0x1;
+		ulong core_id_bits, vp_id_bits, cmd_bits, cmd_group_bits;
+		ulong cm3_cca_bits, mcp_bits, cm3_tr_bits, sched_bit;
+
+		cm_error = read64_gcr_error_cause();
+		cm_addr = read64_gcr_error_addr();
+		cm_other = read64_gcr_error_mult();
+		cause = cm_error >> CM3_GCR_ERROR_CAUSE_ERRTYPE_SHF;
+		ocause = cm_other >> CM_GCR_ERROR_MULT_ERR2ND_SHF;
+
+		if (!cause)
+			return;
+
+		/* Used by cause == {1,2,3} */
+		core_id_bits = (cm_error >> 22) & 0xf;
+		vp_id_bits = (cm_error >> 18) & 0xf;
+		cmd_bits = (cm_error >> 14) & 0xf;
+		cmd_group_bits = (cm_error >> 11) & 0xf;
+		cm3_cca_bits = (cm_error >> 8) & 7;
+		mcp_bits = (cm_error >> 5) & 0xf;
+		cm3_tr_bits = (cm_error >> 1) & 0xf;
+		sched_bit = cm_error & 0x1;
 
 		if (cause == 1 || cause == 3) { /* Tag ECC */
 			unsigned long tag_ecc = (cm_error >> 57) & 0x1;
@@ -363,12 +413,14 @@ void mips_cm_error_report(void)
 				 cm3_cmd_group[cmd_group_bits],
 				 cm3_cca_bits, 1 << mcp_bits,
 				 cm3_tr[cm3_tr_bits], sched_bit);
+		} else {
+			buf[0] = 0;
 		}
 
 		pr_err("CM_ERROR=%llx %s <%s>\n", cm_error,
 		       cm3_causes[cause], buf);
-		pr_err("CM_ADDR =%lx\n", cm_addr);
-		pr_err("CM_OTHER=%lx %s\n", cm_other, cm3_causes[ocause]);
+		pr_err("CM_ADDR =%llx\n", cm_addr);
+		pr_err("CM_OTHER=%llx %s\n", cm_other, cm3_causes[ocause]);
 	}
 
 	/* reprime cause register */

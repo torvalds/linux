@@ -9,6 +9,10 @@
 #ifndef _ASM_ARC_MMU_H
 #define _ASM_ARC_MMU_H
 
+#ifndef __ASSEMBLY__
+#include <linux/threads.h>	/* NR_CPUS */
+#endif
+
 #if defined(CONFIG_ARC_MMU_V1)
 #define CONFIG_ARC_MMU_VER 1
 #elif defined(CONFIG_ARC_MMU_V2)
@@ -24,6 +28,7 @@
 #if (CONFIG_ARC_MMU_VER < 4)
 #define ARC_REG_TLBPD0		0x405
 #define ARC_REG_TLBPD1		0x406
+#define ARC_REG_TLBPD1HI	0	/* Dummy: allows code sharing with ARC700 */
 #define ARC_REG_TLBINDEX	0x407
 #define ARC_REG_TLBCOMMAND	0x408
 #define ARC_REG_PID		0x409
@@ -31,6 +36,7 @@
 #else
 #define ARC_REG_TLBPD0		0x460
 #define ARC_REG_TLBPD1		0x461
+#define ARC_REG_TLBPD1HI	0x463
 #define ARC_REG_TLBINDEX	0x464
 #define ARC_REG_TLBCOMMAND	0x465
 #define ARC_REG_PID		0x468
@@ -82,6 +88,11 @@ void tlb_paranoid_check(unsigned int mm_asid, unsigned long address);
 void arc_mmu_init(void);
 extern char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len);
 void read_decode_mmu_bcr(void);
+
+static inline int is_pae40_enabled(void)
+{
+	return IS_ENABLED(CONFIG_ARC_HAS_PAE40);
+}
 
 #endif	/* !__ASSEMBLY__ */
 

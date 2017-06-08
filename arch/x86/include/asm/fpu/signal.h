@@ -5,7 +5,7 @@
 #define _ASM_X86_FPU_SIGNAL_H
 
 #ifdef CONFIG_X86_64
-# include <asm/sigcontext32.h>
+# include <uapi/asm/sigcontext.h>
 # include <asm/user32.h>
 struct ksignal;
 int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
@@ -18,6 +18,12 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 # define ia32_setup_frame	__setup_frame
 # define ia32_setup_rt_frame	__setup_rt_frame
 #endif
+
+#ifdef CONFIG_COMPAT
+int __copy_siginfo_to_user32(compat_siginfo_t __user *to,
+		const siginfo_t *from, bool x32_ABI);
+#endif
+
 
 extern void convert_from_fxsr(struct user_i387_ia32_struct *env,
 			      struct task_struct *tsk);

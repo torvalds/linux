@@ -138,12 +138,12 @@ get_hardware_info(struct snd_efw *efw)
 	efw->midi_out_ports = hwinfo->midi_out_ports;
 	efw->midi_in_ports = hwinfo->midi_in_ports;
 
-	if (hwinfo->amdtp_tx_pcm_channels    > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_tx_pcm_channels_2x > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_tx_pcm_channels_4x > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_rx_pcm_channels    > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_rx_pcm_channels_2x > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_rx_pcm_channels_4x > AMDTP_MAX_CHANNELS_FOR_PCM) {
+	if (hwinfo->amdtp_tx_pcm_channels    > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_tx_pcm_channels_2x > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_tx_pcm_channels_4x > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels    > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels_2x > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels_4x > AM824_MAX_CHANNELS_FOR_PCM) {
 		err = -ENOSYS;
 		goto end;
 	}
@@ -168,9 +168,32 @@ get_hardware_info(struct snd_efw *efw)
 	       sizeof(struct snd_efw_phys_grp) * hwinfo->phys_in_grp_count);
 	memcpy(&efw->phys_out_grps, hwinfo->phys_out_grps,
 	       sizeof(struct snd_efw_phys_grp) * hwinfo->phys_out_grp_count);
+
+	/* AudioFire8 (since 2009) and AudioFirePre8 */
+	if (hwinfo->type == MODEL_ECHO_AUDIOFIRE_9)
+		efw->is_af9 = true;
+	/* These models uses the same firmware. */
+	if (hwinfo->type == MODEL_ECHO_AUDIOFIRE_2 ||
+	    hwinfo->type == MODEL_ECHO_AUDIOFIRE_4 ||
+	    hwinfo->type == MODEL_ECHO_AUDIOFIRE_9 ||
+	    hwinfo->type == MODEL_GIBSON_RIP ||
+	    hwinfo->type == MODEL_GIBSON_GOLDTOP)
+		efw->is_fireworks3 = true;
 end:
 	kfree(hwinfo);
 	return err;
+}
+
+static void efw_free(struct snd_efw *efw)
+{
+	snd_efw_stream_destroy_duplex(efw);
+	snd_efw_transaction_remove_instance(efw);
+	fw_unit_put(efw->unit);
+
+	kfree(efw->resp_buf);
+
+	mutex_destroy(&efw->mutex);
+	kfree(efw);
 }
 
 /*
@@ -184,28 +207,24 @@ efw_card_free(struct snd_card *card)
 {
 	struct snd_efw *efw = card->private_data;
 
-	snd_efw_stream_destroy_duplex(efw);
-	snd_efw_transaction_remove_instance(efw);
-	fw_unit_put(efw->unit);
-
-	kfree(efw->resp_buf);
-
 	if (efw->card_index >= 0) {
 		mutex_lock(&devices_mutex);
 		clear_bit(efw->card_index, devices_used);
 		mutex_unlock(&devices_mutex);
 	}
 
-	mutex_destroy(&efw->mutex);
+	efw_free(card->private_data);
 }
 
-static int
-efw_probe(struct fw_unit *unit,
-	  const struct ieee1394_device_id *entry)
+static void
+do_registration(struct work_struct *work)
 {
-	struct snd_card *card;
-	struct snd_efw *efw;
-	int card_index, err;
+	struct snd_efw *efw = container_of(work, struct snd_efw, dwork.work);
+	unsigned int card_index;
+	int err;
+
+	if (efw->registered)
+		return;
 
 	mutex_lock(&devices_mutex);
 
@@ -215,24 +234,16 @@ efw_probe(struct fw_unit *unit,
 			break;
 	}
 	if (card_index >= SNDRV_CARDS) {
-		err = -ENOENT;
-		goto end;
+		mutex_unlock(&devices_mutex);
+		return;
 	}
 
-	err = snd_card_new(&unit->device, index[card_index], id[card_index],
-			   THIS_MODULE, sizeof(struct snd_efw), &card);
-	if (err < 0)
-		goto end;
-	efw = card->private_data;
-	efw->card_index = card_index;
-	set_bit(card_index, devices_used);
-	card->private_free = efw_card_free;
-
-	efw->card = card;
-	efw->unit = fw_unit_get(unit);
-	mutex_init(&efw->mutex);
-	spin_lock_init(&efw->lock);
-	init_waitqueue_head(&efw->hwdep_wait);
+	err = snd_card_new(&efw->unit->device, index[card_index],
+			   id[card_index], THIS_MODULE, 0, &efw->card);
+	if (err < 0) {
+		mutex_unlock(&devices_mutex);
+		return;
+	}
 
 	/* prepare response buffer */
 	snd_efw_resp_buf_size = clamp(snd_efw_resp_buf_size,
@@ -248,16 +259,10 @@ efw_probe(struct fw_unit *unit,
 	err = get_hardware_info(efw);
 	if (err < 0)
 		goto error;
-	/* AudioFire8 (since 2009) and AudioFirePre8 */
-	if (entry->model_id == MODEL_ECHO_AUDIOFIRE_9)
-		efw->is_af9 = true;
-	/* These models uses the same firmware. */
-	if (entry->model_id == MODEL_ECHO_AUDIOFIRE_2 ||
-	    entry->model_id == MODEL_ECHO_AUDIOFIRE_4 ||
-	    entry->model_id == MODEL_ECHO_AUDIOFIRE_9 ||
-	    entry->model_id == MODEL_GIBSON_RIP ||
-	    entry->model_id == MODEL_GIBSON_GOLDTOP)
-		efw->is_fireworks3 = true;
+
+	err = snd_efw_stream_init_duplex(efw);
+	if (err < 0)
+		goto error;
 
 	snd_efw_proc_init(efw);
 
@@ -275,41 +280,93 @@ efw_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
-	err = snd_efw_stream_init_duplex(efw);
+	err = snd_card_register(efw->card);
 	if (err < 0)
 		goto error;
 
-	err = snd_card_register(card);
-	if (err < 0) {
-		snd_efw_stream_destroy_duplex(efw);
-		goto error;
-	}
+	set_bit(card_index, devices_used);
+	mutex_unlock(&devices_mutex);
 
-	dev_set_drvdata(&unit->device, efw);
-end:
-	mutex_unlock(&devices_mutex);
-	return err;
+	/*
+	 * After registered, efw instance can be released corresponding to
+	 * releasing the sound card instance.
+	 */
+	efw->card->private_free = efw_card_free;
+	efw->card->private_data = efw;
+	efw->registered = true;
+
+	return;
 error:
-	snd_efw_transaction_remove_instance(efw);
 	mutex_unlock(&devices_mutex);
-	snd_card_free(card);
-	return err;
+	snd_efw_transaction_remove_instance(efw);
+	snd_efw_stream_destroy_duplex(efw);
+	snd_card_free(efw->card);
+	dev_info(&efw->unit->device,
+		 "Sound card registration failed: %d\n", err);
+}
+
+static int
+efw_probe(struct fw_unit *unit, const struct ieee1394_device_id *entry)
+{
+	struct snd_efw *efw;
+
+	efw = kzalloc(sizeof(struct snd_efw), GFP_KERNEL);
+	if (efw == NULL)
+		return -ENOMEM;
+
+	efw->unit = fw_unit_get(unit);
+	dev_set_drvdata(&unit->device, efw);
+
+	mutex_init(&efw->mutex);
+	spin_lock_init(&efw->lock);
+	init_waitqueue_head(&efw->hwdep_wait);
+
+	/* Allocate and register this sound card later. */
+	INIT_DEFERRABLE_WORK(&efw->dwork, do_registration);
+	snd_fw_schedule_registration(unit, &efw->dwork);
+
+	return 0;
 }
 
 static void efw_update(struct fw_unit *unit)
 {
 	struct snd_efw *efw = dev_get_drvdata(&unit->device);
 
+	/* Postpone a workqueue for deferred registration. */
+	if (!efw->registered)
+		snd_fw_schedule_registration(unit, &efw->dwork);
+
 	snd_efw_transaction_bus_reset(efw->unit);
-	snd_efw_stream_update_duplex(efw);
+
+	/*
+	 * After registration, userspace can start packet streaming, then this
+	 * code block works fine.
+	 */
+	if (efw->registered) {
+		mutex_lock(&efw->mutex);
+		snd_efw_stream_update_duplex(efw);
+		mutex_unlock(&efw->mutex);
+	}
 }
 
 static void efw_remove(struct fw_unit *unit)
 {
 	struct snd_efw *efw = dev_get_drvdata(&unit->device);
 
-	/* No need to wait for releasing card object in this context. */
-	snd_card_free_when_closed(efw->card);
+	/*
+	 * Confirm to stop the work for registration before the sound card is
+	 * going to be released. The work is not scheduled again because bus
+	 * reset handler is not called anymore.
+	 */
+	cancel_delayed_work_sync(&efw->dwork);
+
+	if (efw->registered) {
+		/* No need to wait for releasing card object in this context. */
+		snd_card_free_when_closed(efw->card);
+	} else {
+		/* Don't forget this case. */
+		efw_free(efw);
+	}
 }
 
 static const struct ieee1394_device_id efw_id_table[] = {

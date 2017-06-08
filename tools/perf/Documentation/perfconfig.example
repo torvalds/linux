@@ -5,7 +5,7 @@
 	medium = green, lightgray
 	normal = black, lightgray
 	selected = lightgray, magenta
-	code = blue, lightgray
+	jump_arrows = blue, lightgray
 	addr = magenta, lightgray
 
 [tui]
@@ -27,3 +27,12 @@
 	use_offset = true
 	jump_arrows = true
 	show_nr_jumps = false
+
+[report]
+
+	# Defaults
+	sort-order = comm,dso,symbol
+	percent-limit = 0
+	queue-size = 0
+	children = true
+	group = true

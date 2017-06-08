@@ -628,7 +628,7 @@ typedef union h1_icrbb_u {
 /*
  * Values for field imsgtype
  */
-#define IIO_ICRB_IMSGT_XTALK	0	/* Incoming Meessage from Xtalk */
+#define IIO_ICRB_IMSGT_XTALK	0	/* Incoming Message from Xtalk */
 #define IIO_ICRB_IMSGT_BTE	1	/* Incoming message from BTE	*/
 #define IIO_ICRB_IMSGT_SN0NET	2	/* Incoming message from SN0 net */
 #define IIO_ICRB_IMSGT_CRB	3	/* Incoming message from CRB ???  */

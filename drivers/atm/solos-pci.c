@@ -347,8 +347,8 @@ static char *next_string(struct sk_buff *skb)
  */       
 static int process_status(struct solos_card *card, int port, struct sk_buff *skb)
 {
-	char *str, *end, *state_str, *snr, *attn;
-	int ver, rate_up, rate_down;
+	char *str, *state_str, *snr, *attn;
+	int ver, rate_up, rate_down, err;
 
 	if (!card->atmdev[port])
 		return -ENODEV;
@@ -357,7 +357,11 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 	if (!str)
 		return -EIO;
 
-	ver = simple_strtol(str, NULL, 10);
+	err = kstrtoint(str, 10, &ver);
+	if (err) {
+		dev_warn(&card->dev->dev, "Unexpected status interrupt version\n");
+		return err;
+	}
 	if (ver < 1) {
 		dev_warn(&card->dev->dev, "Unexpected status interrupt version %d\n",
 			 ver);
@@ -373,16 +377,16 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 		return 0;
 	}
 
-	rate_down = simple_strtol(str, &end, 10);
-	if (*end)
-		return -EIO;
+	err = kstrtoint(str, 10, &rate_down);
+	if (err)
+		return err;
 
 	str = next_string(skb);
 	if (!str)
 		return -EIO;
-	rate_up = simple_strtol(str, &end, 10);
-	if (*end)
-		return -EIO;
+	err = kstrtoint(str, 10, &rate_up);
+	if (err)
+		return err;
 
 	state_str = next_string(skb);
 	if (!state_str)
@@ -417,7 +421,7 @@ static int process_command(struct solos_card *card, int port, struct sk_buff *sk
 	struct solos_param *prm;
 	unsigned long flags;
 	int cmdpid;
-	int found = 0;
+	int found = 0, err;
 
 	if (skb->len < 7)
 		return 0;
@@ -428,7 +432,9 @@ static int process_command(struct solos_card *card, int port, struct sk_buff *sk
 	    skb->data[6] != '\n')
 		return 0;
 
-	cmdpid = simple_strtol(&skb->data[1], NULL, 10);
+	err = kstrtoint(&skb->data[1], 10, &cmdpid);
+	if (err)
+		return err;
 
 	spin_lock_irqsave(&card->param_queue_lock, flags);
 	list_for_each_entry(prm, &card->param_queue, list) {
@@ -519,7 +525,7 @@ struct geos_gpio_attr {
 static ssize_t geos_gpio_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct geos_gpio_attr *gattr = container_of(attr, struct geos_gpio_attr, attr);
 	struct solos_card *card = pci_get_drvdata(pdev);
 	uint32_t data32;
@@ -545,7 +551,7 @@ static ssize_t geos_gpio_store(struct device *dev, struct device_attribute *attr
 static ssize_t geos_gpio_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct geos_gpio_attr *gattr = container_of(attr, struct geos_gpio_attr, attr);
 	struct solos_card *card = pci_get_drvdata(pdev);
 	uint32_t data32;
@@ -559,7 +565,7 @@ static ssize_t geos_gpio_show(struct device *dev, struct device_attribute *attr,
 static ssize_t hardware_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct geos_gpio_attr *gattr = container_of(attr, struct geos_gpio_attr, attr);
 	struct solos_card *card = pci_get_drvdata(pdev);
 	uint32_t data32;
@@ -578,7 +584,7 @@ static ssize_t hardware_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", data32);
 }
 
-static DEVICE_ATTR(console, 0644, console_show, console_store);
+static DEVICE_ATTR_RW(console);
 
 
 #define SOLOS_ATTR_RO(x) static DEVICE_ATTR(x, 0444, solos_param_show, NULL);
@@ -805,7 +811,12 @@ static void solos_bh(unsigned long card_arg)
 					continue;
 				}
 
-				skb = alloc_skb(size + 1, GFP_ATOMIC);
+				/* Use netdev_alloc_skb() because it adds NET_SKB_PAD of
+				 * headroom, and ensures we can route packets back out an
+				 * Ethernet interface (for example) without having to
+				 * reallocate. Adding NET_IP_ALIGN also ensures that both
+				 * PPPoATM and PPPoEoBR2684 packets end up aligned. */
+				skb = netdev_alloc_skb_ip_align(NULL, size + 1);
 				if (!skb) {
 					if (net_ratelimit())
 						dev_warn(&card->dev->dev, "Failed to allocate sk_buff for RX\n");
@@ -869,7 +880,10 @@ static void solos_bh(unsigned long card_arg)
 		/* Allocate RX skbs for any ports which need them */
 		if (card->using_dma && card->atmdev[port] &&
 		    !card->rx_skb[port]) {
-			struct sk_buff *skb = alloc_skb(RX_DMA_SIZE, GFP_ATOMIC);
+			/* Unlike the MMIO case (qv) we can't add NET_IP_ALIGN
+			 * here; the FPGA can only DMA to addresses which are
+			 * aligned to 4 bytes. */
+			struct sk_buff *skb = dev_alloc_skb(RX_DMA_SIZE);
 			if (skb) {
 				SKB_CB(skb)->dma_addr =
 					dma_map_single(&card->dev->dev, skb->data,

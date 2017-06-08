@@ -29,12 +29,13 @@
 	 * we want to be. The kernel image wants to be placed at TEXT_OFFSET
 	 * from start of RAM.
 	 */
-ENTRY(efi_stub_entry)
+ENTRY(entry)
 	/*
 	 * Create a stack frame to save FP/LR with extra space
 	 * for image_addr variable passed to efi_entry().
 	 */
 	stp	x29, x30, [sp, #-32]!
+	mov	x29, sp
 
 	/*
 	 * Call efi_entry to do the real work.
@@ -45,8 +46,7 @@ ENTRY(efi_stub_entry)
 	 *                         efi_system_table_t *sys_table,
 	 *                         unsigned long *image_addr) ;
 	 */
-	adrp	x8, _text
-	add	x8, x8, #:lo12:_text
+	adr_l	x8, _text
 	add	x2, sp, 16
 	str	x8, [x2]
 	bl	efi_entry
@@ -61,16 +61,14 @@ ENTRY(efi_stub_entry)
 	 */
 	mov	x20, x0		// DTB address
 	ldr	x0, [sp, #16]	// relocated _text address
-	ldr	x21, =stext_offset
+	ldr	w21, =stext_offset
 	add	x21, x0, x21
 
 	/*
 	 * Calculate size of the kernel Image (same for original and copy).
 	 */
-	adrp	x1, _text
-	add	x1, x1, #:lo12:_text
-	adrp	x2, _edata
-	add	x2, x2, #:lo12:_edata
+	adr_l	x1, _text
+	adr_l	x2, _edata
 	sub	x1, x2, x1
 
 	/*
@@ -86,8 +84,8 @@ ENTRY(efi_stub_entry)
 	 * entries for the VA range of the current image, so no maintenance is
 	 * necessary.
 	 */
-	adr	x0, efi_stub_entry
-	adr	x1, efi_stub_entry_end
+	adr	x0, entry
+	adr	x1, entry_end
 	sub	x1, x1, x0
 	bl	__flush_dcache_area
 
@@ -120,5 +118,5 @@ efi_load_fail:
 	ldp	x29, x30, [sp], #32
 	ret
 
-efi_stub_entry_end:
-ENDPROC(efi_stub_entry)
+entry_end:
+ENDPROC(entry)

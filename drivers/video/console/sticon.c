@@ -79,11 +79,6 @@ static const char *sticon_startup(void)
     return "STI console";
 }
 
-static int sticon_set_palette(struct vc_data *c, unsigned char *table)
-{
-    return -EINVAL;
-}
-
 static void sticon_putc(struct vc_data *conp, int c, int ypos, int xpos)
 {
     int redraw_cursor = 0;
@@ -158,12 +153,13 @@ static void sticon_cursor(struct vc_data *conp, int mode)
     }
 }
 
-static int sticon_scroll(struct vc_data *conp, int t, int b, int dir, int count)
+static bool sticon_scroll(struct vc_data *conp, unsigned int t,
+		unsigned int b, enum con_scroll dir, unsigned int count)
 {
     struct sti_struct *sti = sticon_sti;
 
     if (vga_is_gfx)
-        return 0;
+        return false;
 
     sticon_cursor(conp, CM_ERASE);
 
@@ -179,23 +175,7 @@ static int sticon_scroll(struct vc_data *conp, int t, int b, int dir, int count)
 	break;
     }
 
-    return 0;
-}
-
-static void sticon_bmove(struct vc_data *conp, int sy, int sx, 
-	int dy, int dx, int height, int width)
-{
-    if (!width || !height)
-	    return;
-#if 0
-    if (((sy <= p->cursor_y) && (p->cursor_y < sy+height) &&
-	(sx <= p->cursor_x) && (p->cursor_x < sx+width)) ||
-	((dy <= p->cursor_y) && (p->cursor_y < dy+height) &&
-	(dx <= p->cursor_x) && (p->cursor_x < dx+width)))
-		sticon_cursor(p, CM_ERASE /*|CM_SOFTBACK*/);
-#endif
-
-    sti_bmove(sticon_sti, sy, sx, dy, dx, height, width);
+    return false;
 }
 
 static void sticon_init(struct vc_data *c, int init)
@@ -254,11 +234,6 @@ static int sticon_blank(struct vc_data *c, int blank, int mode_switch)
     if (mode_switch)
 	vga_is_gfx = 1;
     return 1;
-}
-
-static int sticon_scrolldelta(struct vc_data *conp, int lines)
-{
-    return 0;
 }
 
 static u16 *sticon_screen_pos(struct vc_data *conp, int offset)
@@ -355,11 +330,8 @@ static const struct consw sti_con = {
 	.con_putcs		= sticon_putcs,
 	.con_cursor		= sticon_cursor,
 	.con_scroll		= sticon_scroll,
-	.con_bmove		= sticon_bmove,
 	.con_switch		= sticon_switch,
 	.con_blank		= sticon_blank,
-	.con_set_palette	= sticon_set_palette,
-	.con_scrolldelta	= sticon_scrolldelta,
 	.con_set_origin		= sticon_set_origin,
 	.con_save_screen	= sticon_save_screen, 
 	.con_build_attr		= sticon_build_attr,

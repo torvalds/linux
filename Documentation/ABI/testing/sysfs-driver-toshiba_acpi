@@ -179,3 +179,19 @@ Description:	This file controls the USB 3 functionality, valid values are:
 		Note that toggling this value requires a reboot for changes to
 		take effect.
 Users:		KToshiba
+
+What:		/sys/devices/LNXSYSTM:00/LNXSYBUS:00/TOS{1900,620{0,7,8}}:00/cooling_method
+Date:		2016
+KernelVersion:	4.6
+Contact:	Azael Avalos <coproscefalo@gmail.com>
+Description:	This file controls the Cooling Method feature.
+		Reading this file prints two values, the first is the actual cooling method
+		and the second is the maximum cooling method supported.
+		When the maximum cooling method is ONE, valid values are:
+			* 0 -> Maximum Performance
+			* 1 -> Battery Optimized
+		When the maximum cooling method is TWO, valid values are:
+			* 0 -> Maximum Performance
+			* 1 -> Performance
+			* 2 -> Battery Optimized
+Users:		KToshiba

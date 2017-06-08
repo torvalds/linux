@@ -1391,6 +1391,8 @@
 #define mmRLC_CGTT_MGCG_OVERRIDE                                                0xec48
 #define mmRLC_CGCG_CGLS_CTRL                                                    0xec49
 #define mmRLC_CGCG_RAMP_CTRL                                                    0xec4a
+#define mmRLC_CGCG_CGLS_CTRL_3D                                                 0xec9d
+#define mmRLC_CGCG_RAMP_CTRL_3D                                                 0xec9e
 #define mmRLC_DYN_PG_STATUS                                                     0xec4b
 #define mmRLC_DYN_PG_REQUEST                                                    0xec4c
 #define mmRLC_PG_DELAY                                                          0xec4d
@@ -2807,5 +2809,21 @@
 #define ixDIDT_DBR_WEIGHT0_3                                                    0x90
 #define ixDIDT_DBR_WEIGHT4_7                                                    0x91
 #define ixDIDT_DBR_WEIGHT8_11                                                   0x92
+#define mmTD_EDC_CNT                                                            0x252e
+#define mmCPF_EDC_TAG_CNT                                                       0x3188
+#define mmCPF_EDC_ROQ_CNT                                                       0x3189
+#define mmCPF_EDC_ATC_CNT                                                       0x318a
+#define mmCPG_EDC_TAG_CNT                                                       0x318b
+#define mmCPG_EDC_ATC_CNT                                                       0x318c
+#define mmCPG_EDC_DMA_CNT                                                       0x318d
+#define mmCPC_EDC_SCRATCH_CNT                                                   0x318e
+#define mmCPC_EDC_UCODE_CNT                                                     0x318f
+#define mmCPC_EDC_ATC_CNT                                                       0x3190
+#define mmDC_EDC_STATE_CNT                                                      0x3191
+#define mmDC_EDC_CSINVOC_CNT                                                    0x3192
+#define mmDC_EDC_RESTORE_CNT                                                    0x3193
+
+#define mmGC_CAC_IND_INDEX                                                      0x129a
+#define mmGC_CAC_IND_DATA                                                       0x129b
 
 #endif /* GFX_8_0_D_H */

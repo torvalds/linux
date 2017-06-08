@@ -23,12 +23,9 @@
 #include <linux/seq_file.h>
 #include <linux/io.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/iosf_mbi.h>
 
-/* Side band Interface port */
-#define PUNIT_PORT		0x04
-/* Power gate status reg */
-#define PWRGT_STATUS		0x61
 /* Subsystem config/status Video processor */
 #define VED_SS_PM0		0x32
 /* Subsystem config/status ISP (Image Signal Processor) */
@@ -37,12 +34,16 @@
 #define MIO_SS_PM		0x3B
 /* Shift bits for getting status for video, isp and i/o */
 #define SSS_SHIFT		24
+
+/* Power gate status reg */
+#define PWRGT_STATUS		0x61
 /* Shift bits for getting status for graphics rendering */
 #define RENDER_POS		0
 /* Shift bits for getting status for media control */
 #define MEDIA_POS		2
 /* Shift bits for getting status for Valley View/Baytrail display */
 #define VLV_DISPLAY_POS		6
+
 /* Subsystem config/status display for Cherry Trail SOC */
 #define CHT_DSP_SSS		0x36
 /* Shift bits for getting status for display */
@@ -52,6 +53,14 @@ struct punit_device {
 	char *name;
 	int reg;
 	int sss_pos;
+};
+
+static const struct punit_device punit_device_tng[] = {
+	{ "DISPLAY",	CHT_DSP_SSS,	SSS_SHIFT },
+	{ "VED",	VED_SS_PM0,	SSS_SHIFT },
+	{ "ISP",	ISP_SS_PM0,	SSS_SHIFT },
+	{ "MIO",	MIO_SS_PM,	SSS_SHIFT },
+	{ NULL }
 };
 
 static const struct punit_device punit_device_byt[] = {
@@ -85,9 +94,8 @@ static int punit_dev_state_show(struct seq_file *seq_file, void *unused)
 
 	seq_puts(seq_file, "\n\nPUNIT NORTH COMPLEX DEVICES :\n");
 	while (punit_devp->name) {
-		status = iosf_mbi_read(PUNIT_PORT, BT_MBI_PMC_READ,
-				       punit_devp->reg,
-				       &punit_pwr_status);
+		status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
+				       punit_devp->reg, &punit_pwr_status);
 		if (status) {
 			seq_printf(seq_file, "%9s : Read Failed\n",
 				   punit_devp->name);
@@ -146,8 +154,9 @@ static void punit_dbgfs_unregister(void)
 	  (kernel_ulong_t)&drv_data }
 
 static const struct x86_cpu_id intel_punit_cpu_ids[] = {
-	ICPU(55, punit_device_byt), /* Valleyview, Bay Trail */
-	ICPU(76, punit_device_cht), /* Braswell, Cherry Trail */
+	ICPU(INTEL_FAM6_ATOM_SILVERMONT1, punit_device_byt),
+	ICPU(INTEL_FAM6_ATOM_MERRIFIELD,  punit_device_tng),
+	ICPU(INTEL_FAM6_ATOM_AIRMONT,	  punit_device_cht),
 	{}
 };
 

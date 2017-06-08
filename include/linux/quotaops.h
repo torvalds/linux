@@ -82,6 +82,7 @@ int dquot_commit(struct dquot *dquot);
 int dquot_acquire(struct dquot *dquot);
 int dquot_release(struct dquot *dquot);
 int dquot_commit_info(struct super_block *sb, int type);
+int dquot_get_next_id(struct super_block *sb, struct kqid *qid);
 int dquot_mark_dquot_dirty(struct dquot *dquot);
 
 int dquot_file_open(struct inode *inode, struct file *file);
@@ -89,7 +90,7 @@ int dquot_file_open(struct inode *inode, struct file *file);
 int dquot_enable(struct inode *inode, int type, int format_id,
 	unsigned int flags);
 int dquot_quota_on(struct super_block *sb, int type, int format_id,
- 	struct path *path);
+	const struct path *path);
 int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
  	int format_id, int type);
 int dquot_quota_off(struct super_block *sb, int type);
@@ -98,6 +99,8 @@ int dquot_quota_sync(struct super_block *sb, int type);
 int dquot_get_state(struct super_block *sb, struct qc_state *state);
 int dquot_set_dqinfo(struct super_block *sb, int type, struct qc_info *ii);
 int dquot_get_dqblk(struct super_block *sb, struct kqid id,
+		struct qc_dqblk *di);
+int dquot_get_next_dqblk(struct super_block *sb, struct kqid *id,
 		struct qc_dqblk *di);
 int dquot_set_dqblk(struct super_block *sb, struct kqid id,
 		struct qc_dqblk *di);
@@ -159,7 +162,6 @@ static inline bool sb_has_quota_active(struct super_block *sb, int type)
  * Operations supported for diskquotas.
  */
 extern const struct dquot_operations dquot_operations;
-extern const struct quotactl_ops dquot_quotactl_ops;
 extern const struct quotactl_ops dquot_quotactl_sysfile_ops;
 
 #else

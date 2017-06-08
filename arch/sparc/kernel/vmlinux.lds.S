@@ -33,6 +33,10 @@ ENTRY(_start)
 jiffies = jiffies_64;
 #endif
 
+#ifdef CONFIG_SPARC64
+ASSERT((swapper_tsb == 0x0000000000408000), "Error: sparc64 early assembler too large")
+#endif
+
 SECTIONS
 {
 #ifdef CONFIG_SPARC64
@@ -45,9 +49,11 @@ SECTIONS
 		HEAD_TEXT
 		TEXT_TEXT
 		SCHED_TEXT
+		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
 		IRQENTRY_TEXT
+		SOFTIRQENTRY_TEXT
 		*(.gnu.warning)
 	} = 0
 	_etext = .;
@@ -144,6 +150,13 @@ SECTIONS
 		__sun_m7_2insn_patch_end = .;
 	}
 	PERCPU_SECTION(SMP_CACHE_BYTES)
+
+#ifdef CONFIG_JUMP_LABEL
+	. = ALIGN(PAGE_SIZE);
+	.exit.text : {
+		EXIT_TEXT
+	}
+#endif
 
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;

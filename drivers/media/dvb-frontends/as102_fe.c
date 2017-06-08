@@ -190,10 +190,10 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 	return state->ops->set_tune(state->priv, &tune_args);
 }
 
-static int as102_fe_get_frontend(struct dvb_frontend *fe)
+static int as102_fe_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *c)
 {
 	struct as102_state *state = fe->demodulator_priv;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret = 0;
 	struct as10x_tps tps = { 0 };
 
@@ -415,7 +415,7 @@ static void as102_fe_release(struct dvb_frontend *fe)
 }
 
 
-static struct dvb_frontend_ops as102_fe_ops = {
+static const struct dvb_frontend_ops as102_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Abilis AS102 DVB-T",

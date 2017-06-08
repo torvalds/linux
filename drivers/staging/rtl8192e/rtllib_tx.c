@@ -1,35 +1,31 @@
 /******************************************************************************
-
-  Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-
-  Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-******************************************************************************
-
-  Few modifications for Realtek's Wi-Fi drivers by
-  Andrea Merello <andrea.merello@gmail.com>
-
-  A special thanks goes to Realtek for their support !
-
-******************************************************************************/
+ *
+ * Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ *
+ *****************************************************************************
+ *
+ * Few modifications for Realtek's Wi-Fi drivers by
+ * Andrea Merello <andrea.merello@gmail.com>
+ *
+ * A special thanks goes to Realtek for their support !
+ *
+ *****************************************************************************/
 
 #include <linux/compiler.h>
 #include <linux/errno.h>
@@ -487,7 +483,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	if (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		tcb_desc->bUseShortPreamble = true;
 	if (ieee->iw_mode == IW_MODE_MASTER)
-			goto NO_PROTECTION;
+		goto NO_PROTECTION;
 	return;
 NO_PROTECTION:
 	tcb_desc->bRTSEnable	= false;
@@ -635,10 +631,10 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (skb->len > 282) {
-			if (ETH_P_IP == ether_type) {
+			if (ether_type == ETH_P_IP) {
 				const struct iphdr *ip = (struct iphdr *)
 					((u8 *)skb->data+14);
-				if (IPPROTO_UDP == ip->protocol) {
+				if (ip->protocol == IPPROTO_UDP) {
 					struct udphdr *udp;
 
 					udp = (struct udphdr *)((u8 *)ip +
@@ -651,7 +647,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 						ieee->LPSDelayCnt = 200;
 					}
 				}
-			} else if (ETH_P_ARP == ether_type) {
+			} else if (ether_type == ETH_P_ARP) {
 				netdev_info(ieee->dev,
 					    "=================>DHCP Protocol start tx ARP pkt!!\n");
 				bdhcp = true;
@@ -735,17 +731,19 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		if (qos_actived) {
 			hdr_len = RTLLIB_3ADDR_LEN + 2;
 
-		/* in case we are a client verify acm is not set for this ac */
-		while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
-			netdev_info(ieee->dev, "skb->priority = %x\n",
-				    skb->priority);
-			if (wme_downgrade_ac(skb))
-				break;
-			netdev_info(ieee->dev, "converted skb->priority = %x\n",
-			       skb->priority);
-		 }
+			/* in case we are a client verify acm is not set for this ac */
+			while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
+				netdev_info(ieee->dev, "skb->priority = %x\n",
+						skb->priority);
+				if (wme_downgrade_ac(skb))
+					break;
+				netdev_info(ieee->dev, "converted skb->priority = %x\n",
+					   skb->priority);
+			}
+
 			qos_ctl |= skb->priority;
 			header.qos_ctl = cpu_to_le16(qos_ctl & RTLLIB_QOS_TID);
+
 		} else {
 			hdr_len = RTLLIB_3ADDR_LEN;
 		}
@@ -985,6 +983,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	return 1;
 
 }
+
 int rtllib_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	memset(skb->cb, 0, sizeof(skb->cb));

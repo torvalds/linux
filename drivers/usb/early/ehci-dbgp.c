@@ -13,14 +13,13 @@
 
 #include <linux/console.h>
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pci_regs.h>
 #include <linux/pci_ids.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/delay.h>
 #include <linux/serial_core.h>
-#include <linux/kconfig.h>
 #include <linux/kgdb.h>
 #include <linux/kthread.h>
 #include <asm/io.h>
@@ -581,7 +580,6 @@ try_again:
 				USB_DEBUG_DEVNUM);
 			goto err;
 		}
-		devnum = USB_DEBUG_DEVNUM;
 		dbgp_printk("debug device renamed to 127\n");
 	}
 
@@ -1093,5 +1091,5 @@ static int __init kgdbdbgp_start_thread(void)
 
 	return 0;
 }
-module_init(kgdbdbgp_start_thread);
+device_initcall(kgdbdbgp_start_thread);
 #endif /* CONFIG_KGDB */

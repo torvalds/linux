@@ -1,41 +1,12 @@
 config WILC1000
-	tristate "WILC1000 support (WiFi only)"
-	depends on BROKEN
-	depends on !S390
-	depends on CFG80211 && WEXT_CORE && INET
-	depends on MMC || SPI
+	tristate
 	---help---
 	  This module only support IEEE 802.11n WiFi.
 
-choice
-        prompt "Memory Allocation"
-        depends on WILC1000
-        default WILC1000_PREALLOCATE_AT_LOADING_DRIVER
-
-config WILC1000_PREALLOCATE_AT_LOADING_DRIVER
-	bool "Preallocate memory at loading driver"
-	---help---
-	  This choice supports static allocation of the memory
-	  for the receive buffer. The driver will allocate the RX buffer
-	  during initial time. The driver will also free the buffer
-	  by calling network device stop.
-
-config WILC1000_DYNAMICALLY_ALLOCATE_MEMROY
-        bool "Dynamically allocate memory in real time"
-        ---help---
-	  This choice supports dynamic allocation of the memory
-	  for the receive buffer. The driver will allocate the RX buffer
-	  when it is required.
-endchoice
-
-choice
-	prompt "Bus Type"
-	depends on WILC1000
-	default WILC1000_SDIO
-
-	config WILC1000_SDIO
-	bool "SDIO support"
-	depends on MMC
+config WILC1000_SDIO
+	tristate "Atmel WILC1000 SDIO (WiFi only)"
+	depends on CFG80211 && INET && MMC
+	select WILC1000
 	---help---
 	  This module adds support for the SDIO interface of adapters using
 	  WILC1000 chipset. The Atmel WILC1000 SDIO is a full speed interface.
@@ -46,9 +17,10 @@ choice
 	  To use this interface, pin9 (SDIO_SPI_CFG) must be grounded. Select
 	  this if your platform is using the SDIO bus.
 
-	config WILC1000_SPI
-	depends on SPI
-	bool "SPI support"
+config WILC1000_SPI
+	tristate "Atmel WILC1000 SPI (WiFi only)"
+	depends on CFG80211 && INET && SPI
+	select WILC1000
 	---help---
 	  This module adds support for the SPI interface of adapters using
 	  WILC1000 chipset. The Atmel WILC1000 has a Serial Peripheral
@@ -57,11 +29,10 @@ choice
 	  full-duplex slave synchronous serial interface that is available
 	  immediately following reset when pin 9 (SDIO_SPI_CFG) is tied to
 	  VDDIO. Select this if your platform is using the SPI bus.
-endchoice
 
 config WILC1000_HW_OOB_INTR
-	bool "Use out of band interrupt"
-	depends on WILC1000 && WILC1000_SDIO
+	bool "WILC1000 out of band interrupt"
+	depends on WILC1000_SDIO
 	default n
 	---help---
 	  This option enables out-of-band interrupt support for the WILC1000

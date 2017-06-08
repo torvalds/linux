@@ -26,19 +26,37 @@
 bool __init vexpress_smp_init_ops(void)
 {
 #ifdef CONFIG_MCPM
+	int cpu;
+	struct device_node *cpu_node, *cci_node;
+
 	/*
-	 * The best way to detect a multi-cluster configuration at the moment
-	 * is to look for the presence of a CCI in the system.
+	 * The best way to detect a multi-cluster configuration
+	 * is to detect if the kernel can take over CCI ports
+	 * control. Loop over possible CPUs and check if CCI
+	 * port control is available.
 	 * Override the default vexpress_smp_ops if so.
 	 */
-	struct device_node *node;
-	node = of_find_compatible_node(NULL, NULL, "arm,cci-400");
-	if (node && of_device_is_available(node)) {
-		mcpm_smp_set_ops();
-		return true;
+	for_each_possible_cpu(cpu) {
+		bool available;
+
+		cpu_node = of_get_cpu_node(cpu, NULL);
+		if (WARN(!cpu_node, "Missing cpu device node!"))
+			return false;
+
+		cci_node = of_parse_phandle(cpu_node, "cci-control-port", 0);
+		available = cci_node && of_device_is_available(cci_node);
+		of_node_put(cci_node);
+		of_node_put(cpu_node);
+
+		if (!available)
+			return false;
 	}
-#endif
+
+	mcpm_smp_set_ops();
+	return true;
+#else
 	return false;
+#endif
 }
 
 static const struct of_device_id vexpress_smp_dt_scu_match[] __initconst = {
@@ -61,10 +79,10 @@ static void __init vexpress_smp_dt_prepare_cpus(unsigned int max_cpus)
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
 	 */
-	vexpress_flags_set(virt_to_phys(versatile_secondary_startup));
+	vexpress_flags_set(__pa_symbol(versatile_secondary_startup));
 }
 
-struct smp_operations __initdata vexpress_smp_dt_ops = {
+const struct smp_operations vexpress_smp_dt_ops __initconst = {
 	.smp_prepare_cpus	= vexpress_smp_dt_prepare_cpus,
 	.smp_secondary_init	= versatile_secondary_init,
 	.smp_boot_secondary	= versatile_boot_secondary,

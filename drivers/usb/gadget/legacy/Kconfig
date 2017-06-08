@@ -103,8 +103,7 @@ config USB_ETH
 	   - CDC Ethernet Emulation Model (EEM) is a newer standard that has
 	     a simpler interface that can be used by more USB hardware.
 
-	  RNDIS support is an additional option, more demanding than than
-	  subset.
+	  RNDIS support is an additional option, more demanding than subset.
 
 	  Within the USB device, this gadget driver exposes a network device
 	  "usbX", where X depends on what other networking devices you have.
@@ -250,6 +249,7 @@ config USB_GADGET_TARGET
 	tristate "USB Gadget Target Fabric Module"
 	depends on TARGET_CORE
 	select USB_LIBCOMPOSITE
+	select USB_F_TCM
 	help
 	  This fabric is an USB gadget. Two USB protocols are supported that is
 	  BBB or BOT (Bulk Only Transport) and UAS (USB Attached SCSI). BOT is

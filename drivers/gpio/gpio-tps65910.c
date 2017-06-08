@@ -4,7 +4,7 @@
  * Copyright 2010 Texas Instruments Inc.
  *
  * Author: Graeme Gregory <gg@slimlogic.co.uk>
- * Author: Jorge Eduardo Candelaria jedu@slimlogic.co.uk>
+ * Author: Jorge Eduardo Candelaria <jedu@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under  the terms of the GNU General  Public License as published by the
@@ -14,7 +14,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
@@ -27,14 +27,9 @@ struct tps65910_gpio {
 	struct tps65910 *tps65910;
 };
 
-static inline struct tps65910_gpio *to_tps65910_gpio(struct gpio_chip *chip)
-{
-	return container_of(chip, struct tps65910_gpio, gpio_chip);
-}
-
 static int tps65910_gpio_get(struct gpio_chip *gc, unsigned offset)
 {
-	struct tps65910_gpio *tps65910_gpio = to_tps65910_gpio(gc);
+	struct tps65910_gpio *tps65910_gpio = gpiochip_get_data(gc);
 	struct tps65910 *tps65910 = tps65910_gpio->tps65910;
 	unsigned int val;
 
@@ -49,7 +44,7 @@ static int tps65910_gpio_get(struct gpio_chip *gc, unsigned offset)
 static void tps65910_gpio_set(struct gpio_chip *gc, unsigned offset,
 			      int value)
 {
-	struct tps65910_gpio *tps65910_gpio = to_tps65910_gpio(gc);
+	struct tps65910_gpio *tps65910_gpio = gpiochip_get_data(gc);
 	struct tps65910 *tps65910 = tps65910_gpio->tps65910;
 
 	if (value)
@@ -63,7 +58,7 @@ static void tps65910_gpio_set(struct gpio_chip *gc, unsigned offset,
 static int tps65910_gpio_output(struct gpio_chip *gc, unsigned offset,
 				int value)
 {
-	struct tps65910_gpio *tps65910_gpio = to_tps65910_gpio(gc);
+	struct tps65910_gpio *tps65910_gpio = gpiochip_get_data(gc);
 	struct tps65910 *tps65910 = tps65910_gpio->tps65910;
 
 	/* Set the initial value */
@@ -75,7 +70,7 @@ static int tps65910_gpio_output(struct gpio_chip *gc, unsigned offset,
 
 static int tps65910_gpio_input(struct gpio_chip *gc, unsigned offset)
 {
-	struct tps65910_gpio *tps65910_gpio = to_tps65910_gpio(gc);
+	struct tps65910_gpio *tps65910_gpio = gpiochip_get_data(gc);
 	struct tps65910 *tps65910 = tps65910_gpio->tps65910;
 
 	return tps65910_reg_clear_bits(tps65910, TPS65910_GPIO0 + offset,
@@ -146,7 +141,7 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 	tps65910_gpio->gpio_chip.direction_output = tps65910_gpio_output;
 	tps65910_gpio->gpio_chip.set	= tps65910_gpio_set;
 	tps65910_gpio->gpio_chip.get	= tps65910_gpio_get;
-	tps65910_gpio->gpio_chip.dev = &pdev->dev;
+	tps65910_gpio->gpio_chip.parent = &pdev->dev;
 #ifdef CONFIG_OF_GPIO
 	tps65910_gpio->gpio_chip.of_node = tps65910->dev->of_node;
 #endif
@@ -175,7 +170,8 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 	}
 
 skip_init:
-	ret = gpiochip_add(&tps65910_gpio->gpio_chip);
+	ret = devm_gpiochip_add_data(&pdev->dev, &tps65910_gpio->gpio_chip,
+				     tps65910_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
 		return ret;
@@ -186,19 +182,9 @@ skip_init:
 	return ret;
 }
 
-static int tps65910_gpio_remove(struct platform_device *pdev)
-{
-	struct tps65910_gpio *tps65910_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&tps65910_gpio->gpio_chip);
-	return 0;
-}
-
 static struct platform_driver tps65910_gpio_driver = {
 	.driver.name    = "tps65910-gpio",
-	.driver.owner   = THIS_MODULE,
 	.probe		= tps65910_gpio_probe,
-	.remove		= tps65910_gpio_remove,
 };
 
 static int __init tps65910_gpio_init(void)
@@ -206,15 +192,3 @@ static int __init tps65910_gpio_init(void)
 	return platform_driver_register(&tps65910_gpio_driver);
 }
 subsys_initcall(tps65910_gpio_init);
-
-static void __exit tps65910_gpio_exit(void)
-{
-	platform_driver_unregister(&tps65910_gpio_driver);
-}
-module_exit(tps65910_gpio_exit);
-
-MODULE_AUTHOR("Graeme Gregory <gg@slimlogic.co.uk>");
-MODULE_AUTHOR("Jorge Eduardo Candelaria jedu@slimlogic.co.uk>");
-MODULE_DESCRIPTION("GPIO interface for TPS65910/TPS6511 PMICs");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:tps65910-gpio");

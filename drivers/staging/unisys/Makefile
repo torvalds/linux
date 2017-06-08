@@ -3,3 +3,5 @@
 #
 obj-$(CONFIG_UNISYS_VISORBUS)		+= visorbus/
 obj-$(CONFIG_UNISYS_VISORNIC)		+= visornic/
+obj-$(CONFIG_UNISYS_VISORINPUT)		+= visorinput/
+obj-$(CONFIG_UNISYS_VISORHBA)		+= visorhba/

@@ -42,7 +42,7 @@ Required properties:
 - queue-pools	: child node classifying the queue ranges into pools.
 		  Queue ranges are grouped into 3 type of pools:
 		  - qpend	    : pool of qpend(interruptible) queues
-		  - general-purpose : pool of general queues, primarly used
+		  - general-purpose : pool of general queues, primarily used
 				      as free descriptor queues or the
 				      transmit DMA queues.
 		  - accumulator	    : pool of queues on PDSP accumulator channel
@@ -50,7 +50,7 @@ Required properties:
   -- qrange		: number of queues to use per queue range, specified as
 			  <"base queue #" "# of queues">.
   -- interrupts		: Optional property to specify the interrupt mapping
-			  for interruptible queues. The driver additionaly sets
+			  for interruptible queues. The driver additionally sets
 			  the interrupt affinity hint based on the cpu mask.
   -- qalloc-by-id	: Optional property to specify that the queues in this
 			  range can only be allocated by queue id.
@@ -80,7 +80,7 @@ Required properties:
 			  latency     : time to delay the interrupt, specified
 					in microseconds.
   -- multi-queue	: Optional property to specify that the channel has to
-			  monitor upto 32 queues starting at the base queue #.
+			  monitor up to 32 queues starting at the base queue #.
 - descriptor-regions	: child node describing the memory regions for keystone
 			  navigator packet DMA descriptors. The memory for
 			  descriptors will be allocated by the driver.
@@ -221,7 +221,6 @@ qmss: qmss@2a40000 {
 		#size-cells = <1>;
 		ranges;
 		pdsp0@0x2a10000 {
-			firmware = "keystone/qmss_pdsp_acc48_k2_le_1_0_0_8.fw";
 			reg = <0x2a10000 0x1000>,
 			      <0x2a0f000 0x100>,
 			      <0x2a0c000 0x3c8>,

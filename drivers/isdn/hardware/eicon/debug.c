@@ -192,8 +192,6 @@ static diva_os_spin_lock_t dbg_q_lock;
 static diva_os_spin_lock_t dbg_adapter_lock;
 static int                 dbg_q_busy;
 static volatile dword      dbg_sequence;
-static dword               start_sec;
-static dword               start_usec;
 
 /*
   INTERFACE:
@@ -214,8 +212,6 @@ int diva_maint_init(byte *base, unsigned long length, int do_init) {
 	TraceFilterChannel = -1;
 
 	dbg_base = base;
-
-	diva_os_get_time(&start_sec, &start_usec);
 
 	*(dword *)base  = (dword)DBG_MAGIC; /* Store Magic */
 	base   += sizeof(dword);
@@ -2053,7 +2049,7 @@ static int diva_dbg_cmp_key(const char *ref, const char *key) {
 /*
   In case trace filter starts with "C" character then
   all following characters are interpreted as command.
-  Followings commands are available:
+  Following commands are available:
   - single, trace single call at time, independent from CPN/CiPN
 */
 static int diva_mnt_cmp_nmbr(const char *nmbr) {

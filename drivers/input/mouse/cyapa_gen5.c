@@ -342,6 +342,9 @@ u8 pip_bl_read_app_info[] = { 0x04, 0x00, 0x0b, 0x00, 0x40, 0x00,
 static u8 cyapa_pip_bl_cmd_key[] = { 0xa5, 0x01, 0x02, 0x03,
 	0xff, 0xfe, 0xfd, 0x5a };
 
+static int cyapa_pip_event_process(struct cyapa *cyapa,
+				   struct cyapa_pip_report_data *report_data);
+
 int cyapa_pip_cmd_state_initialize(struct cyapa *cyapa)
 {
 	struct cyapa_pip_cmd_states *pip = &cyapa->cmd_states.pip;
@@ -349,6 +352,9 @@ int cyapa_pip_cmd_state_initialize(struct cyapa *cyapa)
 	init_completion(&pip->cmd_ready);
 	atomic_set(&pip->cmd_issued, 0);
 	mutex_init(&pip->cmd_lock);
+
+	mutex_init(&pip->pm_stage_lock);
+	pip->pm_stage = CYAPA_PM_DEACTIVE;
 
 	pip->resp_sort_func = NULL;
 	pip->in_progress_cmd = PIP_INVALID_CMD;
@@ -397,6 +403,38 @@ ssize_t cyapa_i2c_pip_write(struct cyapa *cyapa, u8 *buf, size_t size)
 	return 0;
 }
 
+static void cyapa_set_pip_pm_state(struct cyapa *cyapa,
+				   enum cyapa_pm_stage pm_stage)
+{
+	struct cyapa_pip_cmd_states *pip = &cyapa->cmd_states.pip;
+
+	mutex_lock(&pip->pm_stage_lock);
+	pip->pm_stage = pm_stage;
+	mutex_unlock(&pip->pm_stage_lock);
+}
+
+static void cyapa_reset_pip_pm_state(struct cyapa *cyapa)
+{
+	struct cyapa_pip_cmd_states *pip = &cyapa->cmd_states.pip;
+
+	/* Indicates the pip->pm_stage is not valid. */
+	mutex_lock(&pip->pm_stage_lock);
+	pip->pm_stage = CYAPA_PM_DEACTIVE;
+	mutex_unlock(&pip->pm_stage_lock);
+}
+
+static enum cyapa_pm_stage cyapa_get_pip_pm_state(struct cyapa *cyapa)
+{
+	struct cyapa_pip_cmd_states *pip = &cyapa->cmd_states.pip;
+	enum cyapa_pm_stage pm_stage;
+
+	mutex_lock(&pip->pm_stage_lock);
+	pm_stage = pip->pm_stage;
+	mutex_unlock(&pip->pm_stage_lock);
+
+	return pm_stage;
+}
+
 /**
  * This function is aimed to dump all not read data in Gen5 trackpad
  * before send any command, otherwise, the interrupt line will be blocked.
@@ -404,7 +442,9 @@ ssize_t cyapa_i2c_pip_write(struct cyapa *cyapa, u8 *buf, size_t size)
 int cyapa_empty_pip_output_data(struct cyapa *cyapa,
 		u8 *buf, int *len, cb_sort func)
 {
+	struct input_dev *input = cyapa->input;
 	struct cyapa_pip_cmd_states *pip = &cyapa->cmd_states.pip;
+	enum cyapa_pm_stage pm_stage = cyapa_get_pip_pm_state(cyapa);
 	int length;
 	int report_count;
 	int empty_count;
@@ -478,6 +518,12 @@ int cyapa_empty_pip_output_data(struct cyapa *cyapa,
 			*len = length;
 			/* Response found, success. */
 			return 0;
+		} else if (cyapa->operational && input && input->users &&
+			   (pm_stage == CYAPA_PM_RUNTIME_RESUME ||
+			    pm_stage == CYAPA_PM_RUNTIME_SUSPEND)) {
+			/* Parse the data and report it if it's valid. */
+			cyapa_pip_event_process(cyapa,
+			       (struct cyapa_pip_report_data *)pip->empty_buf);
 		}
 
 		error = -EINVAL;
@@ -1566,14 +1612,16 @@ int cyapa_pip_deep_sleep(struct cyapa *cyapa, u8 state)
 }
 
 static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
-		u8 power_mode, u16 sleep_time, bool is_suspend)
+		u8 power_mode, u16 sleep_time, enum cyapa_pm_stage pm_stage)
 {
 	struct device *dev = &cyapa->client->dev;
 	u8 power_state;
-	int error;
+	int error = 0;
 
 	if (cyapa->state != CYAPA_STATE_GEN5_APP)
 		return 0;
+
+	cyapa_set_pip_pm_state(cyapa, pm_stage);
 
 	if (PIP_DEV_GET_PWR_STATE(cyapa) == UNINIT_PWR_MODE) {
 		/*
@@ -1597,7 +1645,7 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 			power_mode == PWR_MODE_BTN_ONLY ||
 			PIP_DEV_GET_SLEEP_TIME(cyapa) == sleep_time) {
 			/* Has in correct power mode state, early return. */
-			return 0;
+			goto out;
 		}
 	}
 
@@ -1605,11 +1653,11 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 		error = cyapa_pip_deep_sleep(cyapa, PIP_DEEP_SLEEP_STATE_OFF);
 		if (error) {
 			dev_err(dev, "enter deep sleep fail: %d\n", error);
-			return error;
+			goto out;
 		}
 
 		PIP_DEV_SET_PWR_STATE(cyapa, PWR_MODE_OFF);
-		return 0;
+		goto out;
 	}
 
 	/*
@@ -1621,7 +1669,7 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 		error = cyapa_pip_deep_sleep(cyapa, PIP_DEEP_SLEEP_STATE_ON);
 		if (error) {
 			dev_err(dev, "deep sleep wake fail: %d\n", error);
-			return error;
+			goto out;
 		}
 	}
 
@@ -1630,7 +1678,7 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 				GEN5_POWER_STATE_ACTIVE);
 		if (error) {
 			dev_err(dev, "change to active fail: %d\n", error);
-			return error;
+			goto out;
 		}
 
 		PIP_DEV_SET_PWR_STATE(cyapa, PWR_MODE_FULL_ACTIVE);
@@ -1639,7 +1687,7 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 				GEN5_POWER_STATE_BTN_ONLY);
 		if (error) {
 			dev_err(dev, "fail to button only mode: %d\n", error);
-			return error;
+			goto out;
 		}
 
 		PIP_DEV_SET_PWR_STATE(cyapa, PWR_MODE_BTN_ONLY);
@@ -1664,7 +1712,7 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 		if (error) {
 			dev_err(dev, "set power state to 0x%02x failed: %d\n",
 				power_state, error);
-			return error;
+			goto out;
 		}
 
 		/*
@@ -1677,14 +1725,16 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 		 * is suspending which may cause interrupt line unable to be
 		 * asserted again.
 		 */
-		if (is_suspend)
+		if (pm_stage == CYAPA_PM_SUSPEND)
 			cyapa_gen5_disable_pip_report(cyapa);
 
 		PIP_DEV_SET_PWR_STATE(cyapa,
 			cyapa_sleep_time_to_pwr_cmd(sleep_time));
 	}
 
-	return 0;
+out:
+	cyapa_reset_pip_pm_state(cyapa);
+	return error;
 }
 
 int cyapa_pip_resume_scanning(struct cyapa *cyapa)
@@ -2513,7 +2563,7 @@ static int cyapa_gen5_do_operational_check(struct cyapa *cyapa)
 		 * the device state is required.
 		 */
 		error = cyapa_gen5_set_power_mode(cyapa,
-				PWR_MODE_FULL_ACTIVE, 0, false);
+				PWR_MODE_FULL_ACTIVE, 0, CYAPA_PM_ACTIVE);
 		if (error)
 			dev_warn(dev, "%s: failed to set power active mode.\n",
 				__func__);
@@ -2715,7 +2765,6 @@ int cyapa_pip_irq_handler(struct cyapa *cyapa)
 	struct device *dev = &cyapa->client->dev;
 	struct cyapa_pip_report_data report_data;
 	unsigned int report_len;
-	u8 report_id;
 	int ret;
 
 	if (!cyapa_is_pip_app_mode(cyapa)) {
@@ -2752,7 +2801,23 @@ int cyapa_pip_irq_handler(struct cyapa *cyapa)
 		return -EINVAL;
 	}
 
-	report_id = report_data.report_head[PIP_RESP_REPORT_ID_OFFSET];
+	return cyapa_pip_event_process(cyapa, &report_data);
+}
+
+static int cyapa_pip_event_process(struct cyapa *cyapa,
+				   struct cyapa_pip_report_data *report_data)
+{
+	struct device *dev = &cyapa->client->dev;
+	unsigned int report_len;
+	u8 report_id;
+
+	report_len = get_unaligned_le16(
+			&report_data->report_head[PIP_RESP_LENGTH_OFFSET]);
+	/* Idle, no data for report. */
+	if (report_len == PIP_RESP_LENGTH_SIZE)
+		return 0;
+
+	report_id = report_data->report_head[PIP_RESP_REPORT_ID_OFFSET];
 	if (report_id == PIP_WAKEUP_EVENT_REPORT_ID &&
 			report_len == PIP_WAKEUP_EVENT_SIZE) {
 		/*
@@ -2805,11 +2870,11 @@ int cyapa_pip_irq_handler(struct cyapa *cyapa)
 	}
 
 	if (report_id == PIP_TOUCH_REPORT_ID)
-		cyapa_pip_report_touches(cyapa, &report_data);
+		cyapa_pip_report_touches(cyapa, report_data);
 	else if (report_id == PIP_PROXIMITY_REPORT_ID)
-		cyapa_pip_report_proximity(cyapa, &report_data);
+		cyapa_pip_report_proximity(cyapa, report_data);
 	else
-		cyapa_pip_report_buttons(cyapa, &report_data);
+		cyapa_pip_report_buttons(cyapa, report_data);
 
 	return 0;
 }

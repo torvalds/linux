@@ -65,7 +65,7 @@ static int tegra_alc5632_asoc_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops tegra_alc5632_asoc_ops = {
+static const struct snd_soc_ops tegra_alc5632_asoc_ops = {
 	.hw_params = tegra_alc5632_asoc_hw_params,
 };
 
@@ -101,12 +101,16 @@ static const struct snd_kcontrol_new tegra_alc5632_controls[] = {
 
 static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
+	int ret;
 	struct tegra_alc5632 *machine = snd_soc_card_get_drvdata(rtd->card);
 
-	snd_soc_card_jack_new(rtd->card, "Headset Jack", SND_JACK_HEADSET,
-			      &tegra_alc5632_hs_jack,
-			      tegra_alc5632_hs_jack_pins,
-			      ARRAY_SIZE(tegra_alc5632_hs_jack_pins));
+	ret = snd_soc_card_jack_new(rtd->card, "Headset Jack",
+				    SND_JACK_HEADSET,
+				    &tegra_alc5632_hs_jack,
+				    tegra_alc5632_hs_jack_pins,
+				    ARRAY_SIZE(tegra_alc5632_hs_jack_pins));
+	if (ret)
+		return ret;
 
 	if (gpio_is_valid(machine->gpio_hp_det)) {
 		tegra_alc5632_hp_jack_gpio.gpio = machine->gpio_hp_det;
@@ -165,10 +169,8 @@ static int tegra_alc5632_probe(struct platform_device *pdev)
 
 	alc5632 = devm_kzalloc(&pdev->dev,
 			sizeof(struct tegra_alc5632), GFP_KERNEL);
-	if (!alc5632) {
-		dev_err(&pdev->dev, "Can't allocate tegra_alc5632\n");
+	if (!alc5632)
 		return -ENOMEM;
-	}
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);

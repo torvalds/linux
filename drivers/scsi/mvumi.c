@@ -31,6 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/ktime.h>
 #include <linux/blkdev.h>
 #include <linux/io.h>
 #include <scsi/scsi.h>
@@ -209,39 +210,27 @@ static int mvumi_make_sgl(struct mvumi_hba *mhba, struct scsi_cmnd *scmd,
 	unsigned int sgnum = scsi_sg_count(scmd);
 	dma_addr_t busaddr;
 
-	if (sgnum) {
-		sg = scsi_sglist(scmd);
-		*sg_count = pci_map_sg(mhba->pdev, sg, sgnum,
-				(int) scmd->sc_data_direction);
-		if (*sg_count > mhba->max_sge) {
-			dev_err(&mhba->pdev->dev, "sg count[0x%x] is bigger "
-						"than max sg[0x%x].\n",
-						*sg_count, mhba->max_sge);
-			return -1;
-		}
-		for (i = 0; i < *sg_count; i++) {
-			busaddr = sg_dma_address(&sg[i]);
-			m_sg->baseaddr_l = cpu_to_le32(lower_32_bits(busaddr));
-			m_sg->baseaddr_h = cpu_to_le32(upper_32_bits(busaddr));
-			m_sg->flags = 0;
-			sgd_setsz(mhba, m_sg, cpu_to_le32(sg_dma_len(&sg[i])));
-			if ((i + 1) == *sg_count)
-				m_sg->flags |= 1U << mhba->eot_flag;
-
-			sgd_inc(mhba, m_sg);
-		}
-	} else {
-		scmd->SCp.dma_handle = scsi_bufflen(scmd) ?
-			pci_map_single(mhba->pdev, scsi_sglist(scmd),
-				scsi_bufflen(scmd),
-				(int) scmd->sc_data_direction)
-			: 0;
-		busaddr = scmd->SCp.dma_handle;
+	sg = scsi_sglist(scmd);
+	*sg_count = pci_map_sg(mhba->pdev, sg, sgnum,
+			       (int) scmd->sc_data_direction);
+	if (*sg_count > mhba->max_sge) {
+		dev_err(&mhba->pdev->dev,
+			"sg count[0x%x] is bigger than max sg[0x%x].\n",
+			*sg_count, mhba->max_sge);
+		pci_unmap_sg(mhba->pdev, sg, sgnum,
+			     (int) scmd->sc_data_direction);
+		return -1;
+	}
+	for (i = 0; i < *sg_count; i++) {
+		busaddr = sg_dma_address(&sg[i]);
 		m_sg->baseaddr_l = cpu_to_le32(lower_32_bits(busaddr));
 		m_sg->baseaddr_h = cpu_to_le32(upper_32_bits(busaddr));
-		m_sg->flags = 1U << mhba->eot_flag;
-		sgd_setsz(mhba, m_sg, cpu_to_le32(scsi_bufflen(scmd)));
-		*sg_count = 1;
+		m_sg->flags = 0;
+		sgd_setsz(mhba, m_sg, cpu_to_le32(sg_dma_len(&sg[i])));
+		if ((i + 1) == *sg_count)
+			m_sg->flags |= 1U << mhba->eot_flag;
+
+		sgd_inc(mhba, m_sg);
 	}
 
 	return 0;
@@ -858,8 +847,8 @@ static void mvumi_hs_build_page(struct mvumi_hba *mhba,
 	struct mvumi_hs_page2 *hs_page2;
 	struct mvumi_hs_page4 *hs_page4;
 	struct mvumi_hs_page3 *hs_page3;
-	struct timeval time;
-	unsigned int local_time;
+	u64 time;
+	u64 local_time;
 
 	switch (hs_header->page_code) {
 	case HS_PAGE_HOST_INFO:
@@ -877,9 +866,8 @@ static void mvumi_hs_build_page(struct mvumi_hba *mhba,
 		hs_page2->slot_number = 0;
 		hs_page2->intr_level = 0;
 		hs_page2->intr_vector = 0;
-		do_gettimeofday(&time);
-		local_time = (unsigned int) (time.tv_sec -
-						(sys_tz.tz_minuteswest * 60));
+		time = ktime_get_real_seconds();
+		local_time = (time - (sys_tz.tz_minuteswest * 60));
 		hs_page2->seconds_since1970 = local_time;
 		hs_header->checksum = mvumi_calculate_checksum(hs_header,
 						hs_header->frame_length);
@@ -1350,21 +1338,10 @@ static void mvumi_complete_cmd(struct mvumi_hba *mhba, struct mvumi_cmd *cmd,
 		break;
 	}
 
-	if (scsi_bufflen(scmd)) {
-		if (scsi_sg_count(scmd)) {
-			pci_unmap_sg(mhba->pdev,
-				scsi_sglist(scmd),
-				scsi_sg_count(scmd),
-				(int) scmd->sc_data_direction);
-		} else {
-			pci_unmap_single(mhba->pdev,
-				scmd->SCp.dma_handle,
-				scsi_bufflen(scmd),
-				(int) scmd->sc_data_direction);
-
-			scmd->SCp.dma_handle = 0;
-		}
-	}
+	if (scsi_bufflen(scmd))
+		pci_unmap_sg(mhba->pdev, scsi_sglist(scmd),
+			     scsi_sg_count(scmd),
+			     (int) scmd->sc_data_direction);
 	cmd->scmd->scsi_done(scmd);
 	mvumi_return_cmd(mhba, cmd);
 }
@@ -2171,19 +2148,9 @@ static enum blk_eh_timer_return mvumi_timed_out(struct scsi_cmnd *scmd)
 	scmd->result = (DRIVER_INVALID << 24) | (DID_ABORT << 16);
 	scmd->SCp.ptr = NULL;
 	if (scsi_bufflen(scmd)) {
-		if (scsi_sg_count(scmd)) {
-			pci_unmap_sg(mhba->pdev,
-				scsi_sglist(scmd),
-				scsi_sg_count(scmd),
-				(int)scmd->sc_data_direction);
-		} else {
-			pci_unmap_single(mhba->pdev,
-				scmd->SCp.dma_handle,
-				scsi_bufflen(scmd),
-				(int)scmd->sc_data_direction);
-
-			scmd->SCp.dma_handle = 0;
-		}
+		pci_unmap_sg(mhba->pdev, scsi_sglist(scmd),
+			     scsi_sg_count(scmd),
+			     (int)scmd->sc_data_direction);
 	}
 	mvumi_return_cmd(mhba, cmd);
 	spin_unlock_irqrestore(mhba->shost->host_lock, flags);
@@ -2225,13 +2192,10 @@ static struct scsi_host_template mvumi_template = {
 	.name = "Marvell Storage Controller",
 	.slave_configure = mvumi_slave_configure,
 	.queuecommand = mvumi_queue_command,
+	.eh_timed_out = mvumi_timed_out,
 	.eh_host_reset_handler = mvumi_host_reset,
 	.bios_param = mvumi_bios_param,
 	.this_id = -1,
-};
-
-static struct scsi_transport_template mvumi_transport_template = {
-	.eh_timed_out = mvumi_timed_out,
 };
 
 static int mvumi_cfg_hw_reg(struct mvumi_hba *mhba)
@@ -2451,7 +2415,6 @@ static int mvumi_io_attach(struct mvumi_hba *mhba)
 	host->cmd_per_lun = (mhba->max_io - 1) ? (mhba->max_io - 1) : 1;
 	host->max_id = mhba->max_target_id;
 	host->max_cmd_len = MAX_COMMAND_SIZE;
-	host->transportt = &mvumi_transport_template;
 
 	ret = scsi_add_host(host, &mhba->pdev->dev);
 	if (ret) {
@@ -2629,7 +2592,7 @@ static void mvumi_shutdown(struct pci_dev *pdev)
 	mvumi_flush_cache(mhba);
 }
 
-static int mvumi_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused mvumi_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct mvumi_hba *mhba = NULL;
 
@@ -2648,7 +2611,7 @@ static int mvumi_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int mvumi_resume(struct pci_dev *pdev)
+static int __maybe_unused mvumi_resume(struct pci_dev *pdev)
 {
 	int ret;
 	struct mvumi_hba *mhba = NULL;

@@ -11,8 +11,11 @@
 #include <stdbool.h>
 #include <string.h>
 #include <linux/bpf.h>
+#include <sys/resource.h>
+
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "bpf_util.h"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
@@ -20,11 +23,13 @@
 
 static void clear_stats(int fd)
 {
+	unsigned int nr_cpus = bpf_num_possible_cpus();
+	__u64 values[nr_cpus];
 	__u32 key;
-	__u64 value = 0;
 
+	memset(values, 0, sizeof(values));
 	for (key = 0; key < SLOTS; key++)
-		bpf_update_elem(fd, &key, &value, BPF_ANY);
+		bpf_map_update_elem(fd, &key, values, BPF_ANY);
 }
 
 const char *color[] = {
@@ -75,15 +80,20 @@ static void print_banner(void)
 
 static void print_hist(int fd)
 {
-	__u32 key;
-	__u64 value;
-	__u64 cnt[SLOTS];
-	__u64 max_cnt = 0;
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	__u64 total_events = 0;
+	long values[nr_cpus];
+	__u64 max_cnt = 0;
+	__u64 cnt[SLOTS];
+	__u64 value;
+	__u32 key;
+	int i;
 
 	for (key = 0; key < SLOTS; key++) {
+		bpf_map_lookup_elem(fd, &key, values);
 		value = 0;
-		bpf_lookup_elem(fd, &key, &value);
+		for (i = 0; i < nr_cpus; i++)
+			value += values[i];
 		cnt[key] = value;
 		total_events += value;
 		if (value > max_cnt)
@@ -103,10 +113,16 @@ static void print_hist(int fd)
 
 int main(int ac, char **argv)
 {
+	struct rlimit r = {1024*1024, RLIM_INFINITY};
 	char filename[256];
 	int i;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return 1;
+	}
 
 	if (load_bpf_file(filename)) {
 		printf("%s", bpf_log_buf);

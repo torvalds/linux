@@ -270,6 +270,9 @@ static irqreturn_t axi_dmac_interrupt_handler(int irq, void *devid)
 	unsigned int pending;
 
 	pending = axi_dmac_read(dmac, AXI_DMAC_REG_IRQ_PENDING);
+	if (!pending)
+		return IRQ_NONE;
+
 	axi_dmac_write(dmac, AXI_DMAC_REG_IRQ_PENDING, pending);
 
 	spin_lock(&dmac->chan.vchan.lock);
@@ -305,6 +308,13 @@ static int axi_dmac_terminate_all(struct dma_chan *c)
 	vchan_dma_desc_free_list(&chan->vchan, &head);
 
 	return 0;
+}
+
+static void axi_dmac_synchronize(struct dma_chan *c)
+{
+	struct axi_dmac_chan *chan = to_axi_dmac_chan(c);
+
+	vchan_synchronize(&chan->vchan);
 }
 
 static void axi_dmac_issue_pending(struct dma_chan *c)
@@ -572,7 +582,9 @@ static int axi_dmac_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dmac->irq = platform_get_irq(pdev, 0);
-	if (dmac->irq <= 0)
+	if (dmac->irq < 0)
+		return dmac->irq;
+	if (dmac->irq == 0)
 		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -613,6 +625,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	dma_dev->device_prep_dma_cyclic = axi_dmac_prep_dma_cyclic;
 	dma_dev->device_prep_interleaved_dma = axi_dmac_prep_interleaved;
 	dma_dev->device_terminate_all = axi_dmac_terminate_all;
+	dma_dev->device_synchronize = axi_dmac_synchronize;
 	dma_dev->dev = &pdev->dev;
 	dma_dev->chancnt = 1;
 	dma_dev->src_addr_widths = BIT(dmac->chan.src_width);
@@ -675,6 +688,7 @@ static const struct of_device_id axi_dmac_of_match_table[] = {
 	{ .compatible = "adi,axi-dmac-1.00.a" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, axi_dmac_of_match_table);
 
 static struct platform_driver axi_dmac_driver = {
 	.driver = {

@@ -42,6 +42,5 @@ static inline int squashfs_xattr_lookup(struct super_block *sb,
 	return 0;
 }
 #define squashfs_listxattr NULL
-#define generic_getxattr NULL
 #define squashfs_xattr_handlers NULL
 #endif

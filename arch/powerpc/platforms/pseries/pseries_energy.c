@@ -208,19 +208,19 @@ static ssize_t percpu_deactivate_hint_show(struct device *dev,
  *	Per-cpu value of the hint
  */
 
-struct device_attribute attr_cpu_activate_hint_list =
+static struct device_attribute attr_cpu_activate_hint_list =
 		__ATTR(pseries_activate_hint_list, 0444,
 		cpu_activate_hint_list_show, NULL);
 
-struct device_attribute attr_cpu_deactivate_hint_list =
+static struct device_attribute attr_cpu_deactivate_hint_list =
 		__ATTR(pseries_deactivate_hint_list, 0444,
 		cpu_deactivate_hint_list_show, NULL);
 
-struct device_attribute attr_percpu_activate_hint =
+static struct device_attribute attr_percpu_activate_hint =
 		__ATTR(pseries_activate_hint, 0444,
 		percpu_activate_hint_show, NULL);
 
-struct device_attribute attr_percpu_deactivate_hint =
+static struct device_attribute attr_percpu_deactivate_hint =
 		__ATTR(pseries_deactivate_hint, 0444,
 		percpu_deactivate_hint_show, NULL);
 

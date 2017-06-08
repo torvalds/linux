@@ -19,35 +19,21 @@
 #ifndef __ASM_PAGE_H
 #define __ASM_PAGE_H
 
+#include <linux/const.h>
+
 /* PAGE_SHIFT determines the page size */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define PAGE_SHIFT		16
-#else
-#define PAGE_SHIFT		12
-#endif
-#define PAGE_SIZE		(_AC(1,UL) << PAGE_SHIFT)
+/* CONT_SHIFT determines the number of pages which can be tracked together  */
+#define PAGE_SHIFT		CONFIG_ARM64_PAGE_SHIFT
+#define CONT_SHIFT		CONFIG_ARM64_CONT_SHIFT
+#define PAGE_SIZE		(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 
-/*
- * The idmap and swapper page tables need some space reserved in the kernel
- * image. Both require pgd, pud (4 levels only) and pmd tables to (section)
- * map the kernel. With the 64K page configuration, swapper and idmap need to
- * map to pte level. The swapper also maps the FDT (see __create_page_tables
- * for more information). Note that the number of ID map translation levels
- * could be increased on the fly if system RAM is out of reach for the default
- * VA range, so 3 pages are reserved in all cases.
- */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define SWAPPER_PGTABLE_LEVELS	(CONFIG_PGTABLE_LEVELS)
-#else
-#define SWAPPER_PGTABLE_LEVELS	(CONFIG_PGTABLE_LEVELS - 1)
-#endif
-
-#define SWAPPER_DIR_SIZE	(SWAPPER_PGTABLE_LEVELS * PAGE_SIZE)
-#define IDMAP_DIR_SIZE		(3 * PAGE_SIZE)
+#define CONT_SIZE		(_AC(1, UL) << (CONT_SHIFT + PAGE_SHIFT))
+#define CONT_MASK		(~(CONT_SIZE-1))
 
 #ifndef __ASSEMBLY__
 
+#include <linux/personality.h> /* for READ_IMPLIES_EXEC */
 #include <asm/pgtable-types.h>
 
 extern void __cpu_clear_user_page(void *p, unsigned long user);

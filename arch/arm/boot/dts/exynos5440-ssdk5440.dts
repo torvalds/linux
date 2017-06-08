@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "exynos5440.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "SAMSUNG SSDK5440 board based on EXYNOS5440";
@@ -18,6 +19,12 @@
 
 	chosen {
 		bootargs = "root=/dev/sda2 rw rootwait ignore_loglevel earlyprintk no_console_suspend mem=2048M@0x80000000 mem=6144M@0x100000000 console=ttySAC0,115200";
+	};
+
+	/* FIXME: set reg property with correct start address and size */
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0>;
 	};
 
 	fixed-rate-clocks {
@@ -29,12 +36,12 @@
 };
 
 &pcie_0 {
-	reset-gpio = <&pin_ctrl 5 0>;
+	reset-gpio = <&pin_ctrl 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &pcie_1 {
-	reset-gpio = <&pin_ctrl 22 0>;
+	reset-gpio = <&pin_ctrl 22 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 

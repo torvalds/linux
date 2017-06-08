@@ -88,7 +88,7 @@
 #include <pcmcia/ciscode.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifndef MANFID_COMPAQ
   #define MANFID_COMPAQ 	   0x0138
@@ -466,7 +466,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_set_config		= do_config,
 	.ndo_do_ioctl		= do_ioctl,
 	.ndo_set_rx_mode	= set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1144,8 +1143,8 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	    dev->stats.tx_packets += lp->last_ptr_value - n;
 	netif_wake_queue(dev);
     }
-    if (tx_status & 0x0002) {	/* Execessive collissions */
-	pr_debug("tx restarted due to execssive collissions\n");
+    if (tx_status & 0x0002) {	/* Excessive collisions */
+	pr_debug("tx restarted due to excessive collisions\n");
 	PutByte(XIRCREG_CR, RestartTx);  /* restart transmitter process */
     }
     if (tx_status & 0x0040)
@@ -1199,7 +1198,7 @@ xirc2ps_tx_timeout_task(struct work_struct *work)
 	struct net_device *dev = local->dev;
     /* reset the card */
     do_reset(dev,1);
-    dev->trans_start = jiffies; /* prevent tx timeout */
+    netif_trans_update(dev); /* prevent tx timeout */
     netif_wake_queue(dev);
 }
 

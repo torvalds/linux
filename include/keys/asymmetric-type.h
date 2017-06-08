@@ -15,8 +15,20 @@
 #define _KEYS_ASYMMETRIC_TYPE_H
 
 #include <linux/key-type.h>
+#include <linux/verification.h>
 
 extern struct key_type key_type_asymmetric;
+
+/*
+ * The key payload is four words.  The asymmetric-type key uses them as
+ * follows:
+ */
+enum asymmetric_payload_bits {
+	asym_crypto,		/* The data representing the key */
+	asym_subtype,		/* Pointer to an asymmetric_key_subtype struct */
+	asym_key_ids,		/* Pointer to an asymmetric_key_ids struct */
+	asym_auth		/* The key's authorisation (signature, parent key ID) */
+};
 
 /*
  * Identifiers for an asymmetric key ID.  We have three ways of looking up a
@@ -58,6 +70,16 @@ extern struct asymmetric_key_id *asymmetric_key_generate_id(const void *val_1,
 							    size_t len_1,
 							    const void *val_2,
 							    size_t len_2);
+static inline
+const struct asymmetric_key_ids *asymmetric_key_ids(const struct key *key)
+{
+	return key->payload.data[asym_key_ids];
+}
+
+extern struct key *find_asymmetric_key(struct key *keyring,
+				       const struct asymmetric_key_id *id_0,
+				       const struct asymmetric_key_id *id_1,
+				       bool partial);
 
 /*
  * The payload is at the discretion of the subtype.

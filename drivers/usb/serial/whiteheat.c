@@ -116,6 +116,8 @@ static struct usb_serial_driver whiteheat_device = {
 	.description =		"Connect Tech - WhiteHEAT",
 	.id_table =		id_table_std,
 	.num_ports =		4,
+	.num_bulk_in =		5,
+	.num_bulk_out =		5,
 	.attach =		whiteheat_attach,
 	.release =		whiteheat_release,
 	.port_probe =		whiteheat_port_probe,
@@ -217,6 +219,7 @@ static int whiteheat_firmware_attach(struct usb_serial *serial)
 /*****************************************************************************
  * Connect Tech's White Heat serial driver functions
  *****************************************************************************/
+
 static int whiteheat_attach(struct usb_serial *serial)
 {
 	struct usb_serial_port *command_port;
@@ -456,7 +459,6 @@ static int whiteheat_ioctl(struct tty_struct *tty,
 		serstruct.type = PORT_16654;
 		serstruct.line = port->minor;
 		serstruct.port = port->port_number;
-		serstruct.flags = ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
 		serstruct.xmit_fifo_size = kfifo_size(&port->write_fifo);
 		serstruct.custom_divisor = 0;
 		serstruct.baud_base = 460800;

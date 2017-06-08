@@ -229,18 +229,18 @@ static struct fd_routine_l {
 	int (*_dma_setup)(char *addr, unsigned long size, int mode, int io);
 } fd_routine[] = {
 	{
-		request_dma,
-		free_dma,
-		get_dma_residue,
-		dma_mem_alloc,
-		hard_dma_setup
+		._request_dma		= request_dma,
+		._free_dma		= free_dma,
+		._get_dma_residue	= get_dma_residue,
+		._dma_mem_alloc		= dma_mem_alloc,
+		._dma_setup		= hard_dma_setup
 	},
 	{
-		vdma_request_dma,
-		vdma_nop,
-		vdma_get_dma_residue,
-		vdma_mem_alloc,
-		vdma_dma_setup
+		._request_dma		= vdma_request_dma,
+		._free_dma		= vdma_nop,
+		._get_dma_residue	= vdma_get_dma_residue,
+		._dma_mem_alloc		= vdma_mem_alloc,
+		._dma_setup		= vdma_dma_setup
 	}
 };
 

@@ -1113,7 +1113,7 @@ void expr_print(struct expr *e, void (*fn)(void *, struct symbol *, const char *
 			fn(data, e->left.sym, e->left.sym->name);
 		else
 			fn(data, NULL, "<choice>");
-		fn(data, NULL, e->type == E_LEQ ? ">=" : ">");
+		fn(data, NULL, e->type == E_GEQ ? ">=" : ">");
 		fn(data, e->right.sym, e->right.sym->name);
 		break;
 	case E_UNEQUAL:

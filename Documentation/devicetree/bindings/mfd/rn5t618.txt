@@ -1,18 +1,25 @@
-* Ricoh RN5T618 PMIC
+* Ricoh RN5T567/RN5T618 PMIC
 
-Ricoh RN5T618 is a power management IC which integrates 3 step-down
-DCDC converters, 7 low-dropout regulators, a Li-ion battery charger,
-fuel gauge, ADC, GPIOs and a watchdog timer. It can be controlled
-through a I2C interface.
+Ricoh RN5T567/RN5T618/RC5T619 is a power management IC family which
+integrates 3 to 5 step-down DCDC converters, 7 to 10 low-dropout regulators,
+GPIOs, and a watchdog timer. It can be controlled through an I2C interface.
+The RN5T618/RC5T619 provides additionally a Li-ion battery charger,
+fuel gauge, and an ADC.
+The RC5T619 additionnally includes USB charger detection and an RTC.
 
 Required properties:
- - compatible: should be "ricoh,rn5t618"
+ - compatible: must be one of
+		"ricoh,rn5t567"
+		"ricoh,rn5t618"
+		"ricoh,rc5t619"
  - reg: the I2C slave address of the device
 
 Sub-nodes:
  - regulators: the node is required if the regulator functionality is
-   needed. The valid regulator names are: DCDC1, DCDC2, DCDC3, LDO1,
-   LDO2, LDO3, LDO4, LDO5, LDORTC1 and LDORTC2.
+   needed. The valid regulator names are: DCDC1, DCDC2, DCDC3, DCDC4
+   (RN5T567/RC5T619), LDO1, LDO2, LDO3, LDO4, LDO5, LDO6, LDO7, LDO8,
+   LDO9, LDO10, LDORTC1 and LDORTC2.
+   LDO7-10 are specific to RC5T619.
    The common bindings for each individual regulator can be found in:
    Documentation/devicetree/bindings/regulator/regulator.txt
 

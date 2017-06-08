@@ -274,7 +274,7 @@ Additional Configurations
   diagnostics, as well as displaying statistical information.  We
   strongly recommend downloading the latest version of ethtool at:
 
-  http://ftp.kernel.org/pub/software/network/ethtool/
+  https://kernel.org/pub/software/network/ethtool/
 
   NOTE: When validating enable/disable tests on some parts (82578, for example)
   you need to add a few seconds between tests when working with ethtool.

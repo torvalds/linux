@@ -41,8 +41,6 @@ struct amba_driver {
 	int			(*probe)(struct amba_device *, const struct amba_id *);
 	int			(*remove)(struct amba_device *);
 	void			(*shutdown)(struct amba_device *);
-	int			(*suspend)(struct amba_device *, pm_message_t);
-	int			(*resume)(struct amba_device *);
 	const struct amba_id	*id_table;
 };
 
@@ -55,7 +53,13 @@ enum amba_vendor {
 	AMBA_VENDOR_ST = 0x80,
 	AMBA_VENDOR_QCOM = 0x51,
 	AMBA_VENDOR_LSI = 0xb6,
+	AMBA_VENDOR_LINUX = 0xfe,	/* This value is not official */
 };
+
+/* This is used to generate pseudo-ID for AMBA device */
+#define AMBA_LINUX_ID(conf, rev, part) \
+	(((conf) & 0xff) << 24 | ((rev) & 0xf) << 20 | \
+	AMBA_VENDOR_LINUX << 12 | ((part) & 0xfff))
 
 extern struct bus_type amba_bustype;
 
@@ -164,5 +168,14 @@ struct amba_device name##_device = {				\
  */
 #define module_amba_driver(__amba_drv) \
 	module_driver(__amba_drv, amba_driver_register, amba_driver_unregister)
+
+/*
+ * builtin_amba_driver() - Helper macro for drivers that don't do anything
+ * special in driver initcall.  This eliminates a lot of boilerplate.  Each
+ * driver may only use this macro once, and calling it replaces the instance
+ * device_initcall().
+ */
+#define builtin_amba_driver(__amba_drv) \
+	builtin_driver(__amba_drv, amba_driver_register)
 
 #endif

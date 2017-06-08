@@ -32,7 +32,7 @@ struct asymmetric_key_subtype {
 	void (*describe)(const struct key *key, struct seq_file *m);
 
 	/* Destroy a key of this subtype */
-	void (*destroy)(void *payload);
+	void (*destroy)(void *payload_crypto, void *payload_auth);
 
 	/* Verify the signature on a key of this subtype (optional) */
 	int (*verify_signature)(const struct key *key,
@@ -49,7 +49,7 @@ struct asymmetric_key_subtype {
 static inline
 struct asymmetric_key_subtype *asymmetric_key_subtype(const struct key *key)
 {
-	return key->type_data.p[0];
+	return key->payload.data[asym_subtype];
 }
 
 #endif /* _KEYS_ASYMMETRIC_SUBTYPE_H */

@@ -34,10 +34,9 @@ import datetime
 #
 # ubuntu:
 #
-#	$ sudo apt-get install postgresql
+#	$ sudo apt-get install postgresql python-pyside.qtsql libqt4-sql-psql
 #	$ sudo su - postgres
-#	$ createuser <your user id here>
-#	Shall the new role be a superuser? (y/n) y
+#	$ createuser -s <your user id here>
 #
 # An example of using this script with Intel PT:
 #
@@ -61,6 +60,142 @@ import datetime
 #
 # An example of using the database is provided by the script
 # call-graph-from-postgresql.py.  Refer to that script for details.
+#
+# Tables:
+#
+#	The tables largely correspond to perf tools' data structures.  They are largely self-explanatory.
+#
+#	samples
+#
+#		'samples' is the main table. It represents what instruction was executing at a point in time
+#		when something (a selected event) happened.  The memory address is the instruction pointer or 'ip'.
+#
+#	calls
+#
+#		'calls' represents function calls and is related to 'samples' by 'call_id' and 'return_id'.
+#		'calls' is only created when the 'calls' option to this script is specified.
+#
+#	call_paths
+#
+#		'call_paths' represents all the call stacks.  Each 'call' has an associated record in 'call_paths'.
+#		'calls_paths' is only created when the 'calls' option to this script is specified.
+#
+#	branch_types
+#
+#		'branch_types' provides descriptions for each type of branch.
+#
+#	comm_threads
+#
+#		'comm_threads' shows how 'comms' relates to 'threads'.
+#
+#	comms
+#
+#		'comms' contains a record for each 'comm' - the name given to the executable that is running.
+#
+#	dsos
+#
+#		'dsos' contains a record for each executable file or library.
+#
+#	machines
+#
+#		'machines' can be used to distinguish virtual machines if virtualization is supported.
+#
+#	selected_events
+#
+#		'selected_events' contains a record for each kind of event that has been sampled.
+#
+#	symbols
+#
+#		'symbols' contains a record for each symbol.  Only symbols that have samples are present.
+#
+#	threads
+#
+#		'threads' contains a record for each thread.
+#
+# Views:
+#
+#	Most of the tables have views for more friendly display.  The views are:
+#
+#		calls_view
+#		call_paths_view
+#		comm_threads_view
+#		dsos_view
+#		machines_view
+#		samples_view
+#		symbols_view
+#		threads_view
+#
+# More examples of browsing the database with psql:
+#   Note that some of the examples are not the most optimal SQL query.
+#   Note that call information is only available if the script's 'calls' option has been used.
+#
+#	Top 10 function calls (not aggregated by symbol):
+#
+#		SELECT * FROM calls_view ORDER BY elapsed_time DESC LIMIT 10;
+#
+#	Top 10 function calls (aggregated by symbol):
+#
+#		SELECT symbol_id,(SELECT name FROM symbols WHERE id = symbol_id) AS symbol,
+#			SUM(elapsed_time) AS tot_elapsed_time,SUM(branch_count) AS tot_branch_count
+#			FROM calls_view GROUP BY symbol_id ORDER BY tot_elapsed_time DESC LIMIT 10;
+#
+#		Note that the branch count gives a rough estimation of cpu usage, so functions
+#		that took a long time but have a relatively low branch count must have spent time
+#		waiting.
+#
+#	Find symbols by pattern matching on part of the name (e.g. names containing 'alloc'):
+#
+#		SELECT * FROM symbols_view WHERE name LIKE '%alloc%';
+#
+#	Top 10 function calls for a specific symbol (e.g. whose symbol_id is 187):
+#
+#		SELECT * FROM calls_view WHERE symbol_id = 187 ORDER BY elapsed_time DESC LIMIT 10;
+#
+#	Show function calls made by function in the same context (i.e. same call path) (e.g. one with call_path_id 254):
+#
+#		SELECT * FROM calls_view WHERE parent_call_path_id = 254;
+#
+#	Show branches made during a function call (e.g. where call_id is 29357 and return_id is 29370 and tid is 29670)
+#
+#		SELECT * FROM samples_view WHERE id >= 29357 AND id <= 29370 AND tid = 29670 AND event LIKE 'branches%';
+#
+#	Show transactions:
+#
+#		SELECT * FROM samples_view WHERE event = 'transactions';
+#
+#		Note transaction start has 'in_tx' true whereas, transaction end has 'in_tx' false.
+#		Transaction aborts have branch_type_name 'transaction abort'
+#
+#	Show transaction aborts:
+#
+#		SELECT * FROM samples_view WHERE event = 'transactions' AND branch_type_name = 'transaction abort';
+#
+# To print a call stack requires walking the call_paths table.  For example this python script:
+#   #!/usr/bin/python2
+#
+#   import sys
+#   from PySide.QtSql import *
+#
+#   if __name__ == '__main__':
+#           if (len(sys.argv) < 3):
+#                   print >> sys.stderr, "Usage is: printcallstack.py <database name> <call_path_id>"
+#                   raise Exception("Too few arguments")
+#           dbname = sys.argv[1]
+#           call_path_id = sys.argv[2]
+#           db = QSqlDatabase.addDatabase('QPSQL')
+#           db.setDatabaseName(dbname)
+#           if not db.open():
+#                   raise Exception("Failed to open database " + dbname + " error: " + db.lastError().text())
+#           query = QSqlQuery(db)
+#           print "    id          ip  symbol_id  symbol                          dso_id  dso_short_name"
+#           while call_path_id != 0 and call_path_id != 1:
+#                   ret = query.exec_('SELECT * FROM call_paths_view WHERE id = ' + str(call_path_id))
+#                   if not ret:
+#                           raise Exception("Query failed: " + query.lastError().text())
+#                   if not query.next():
+#                           raise Exception("Query failed")
+#                   print "{0:>6}  {1:>10}  {2:>9}  {3:<30}  {4:>6}  {5:<30}".format(query.value(0), query.value(1), query.value(2), query.value(3), query.value(4), query.value(5))
+#                   call_path_id = query.value(6)
 
 from PySide.QtSql import *
 
@@ -88,11 +223,14 @@ sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 
 perf_db_export_mode = True
 perf_db_export_calls = False
+perf_db_export_callchains = False
+
 
 def usage():
-	print >> sys.stderr, "Usage is: export-to-postgresql.py <database name> [<columns>] [<calls>]"
+	print >> sys.stderr, "Usage is: export-to-postgresql.py <database name> [<columns>] [<calls>] [<callchains>]"
 	print >> sys.stderr, "where:	columns		'all' or 'branches'"
-	print >> sys.stderr, "		calls		'calls' => create calls table"
+	print >> sys.stderr, "		calls		'calls' => create calls and call_paths table"
+	print >> sys.stderr, "		callchains	'callchains' => create call_paths table"
 	raise Exception("Too few arguments")
 
 if (len(sys.argv) < 2):
@@ -110,9 +248,11 @@ if columns not in ("all", "branches"):
 
 branches = (columns == "branches")
 
-if (len(sys.argv) >= 4):
-	if (sys.argv[3] == "calls"):
+for i in range(3,len(sys.argv)):
+	if (sys.argv[i] == "calls"):
 		perf_db_export_calls = True
+	elif (sys.argv[i] == "callchains"):
+		perf_db_export_callchains = True
 	else:
 		usage()
 
@@ -223,14 +363,16 @@ else:
 		'transaction	bigint,'
 		'data_src	bigint,'
 		'branch_type	integer,'
-		'in_tx		boolean)')
+		'in_tx		boolean,'
+		'call_path_id	bigint)')
 
-if perf_db_export_calls:
+if perf_db_export_calls or perf_db_export_callchains:
 	do_query(query, 'CREATE TABLE call_paths ('
 		'id		bigint		NOT NULL,'
 		'parent_id	bigint,'
 		'symbol_id	bigint,'
 		'ip		bigint)')
+if perf_db_export_calls:
 	do_query(query, 'CREATE TABLE calls ('
 		'id		bigint		NOT NULL,'
 		'thread_id	bigint,'
@@ -243,6 +385,92 @@ if perf_db_export_calls:
 		'return_id	bigint,'
 		'parent_call_path_id	bigint,'
 		'flags		integer)')
+
+do_query(query, 'CREATE VIEW machines_view AS '
+	'SELECT '
+		'id,'
+		'pid,'
+		'root_dir,'
+		'CASE WHEN id=0 THEN \'unknown\' WHEN pid=-1 THEN \'host\' ELSE \'guest\' END AS host_or_guest'
+	' FROM machines')
+
+do_query(query, 'CREATE VIEW dsos_view AS '
+	'SELECT '
+		'id,'
+		'machine_id,'
+		'(SELECT host_or_guest FROM machines_view WHERE id = machine_id) AS host_or_guest,'
+		'short_name,'
+		'long_name,'
+		'build_id'
+	' FROM dsos')
+
+do_query(query, 'CREATE VIEW symbols_view AS '
+	'SELECT '
+		'id,'
+		'name,'
+		'(SELECT short_name FROM dsos WHERE id=dso_id) AS dso,'
+		'dso_id,'
+		'sym_start,'
+		'sym_end,'
+		'CASE WHEN binding=0 THEN \'local\' WHEN binding=1 THEN \'global\' ELSE \'weak\' END AS binding'
+	' FROM symbols')
+
+do_query(query, 'CREATE VIEW threads_view AS '
+	'SELECT '
+		'id,'
+		'machine_id,'
+		'(SELECT host_or_guest FROM machines_view WHERE id = machine_id) AS host_or_guest,'
+		'process_id,'
+		'pid,'
+		'tid'
+	' FROM threads')
+
+do_query(query, 'CREATE VIEW comm_threads_view AS '
+	'SELECT '
+		'comm_id,'
+		'(SELECT comm FROM comms WHERE id = comm_id) AS command,'
+		'thread_id,'
+		'(SELECT pid FROM threads WHERE id = thread_id) AS pid,'
+		'(SELECT tid FROM threads WHERE id = thread_id) AS tid'
+	' FROM comm_threads')
+
+if perf_db_export_calls or perf_db_export_callchains:
+	do_query(query, 'CREATE VIEW call_paths_view AS '
+		'SELECT '
+			'c.id,'
+			'to_hex(c.ip) AS ip,'
+			'c.symbol_id,'
+			'(SELECT name FROM symbols WHERE id = c.symbol_id) AS symbol,'
+			'(SELECT dso_id FROM symbols WHERE id = c.symbol_id) AS dso_id,'
+			'(SELECT dso FROM symbols_view  WHERE id = c.symbol_id) AS dso_short_name,'
+			'c.parent_id,'
+			'to_hex(p.ip) AS parent_ip,'
+			'p.symbol_id AS parent_symbol_id,'
+			'(SELECT name FROM symbols WHERE id = p.symbol_id) AS parent_symbol,'
+			'(SELECT dso_id FROM symbols WHERE id = p.symbol_id) AS parent_dso_id,'
+			'(SELECT dso FROM symbols_view  WHERE id = p.symbol_id) AS parent_dso_short_name'
+		' FROM call_paths c INNER JOIN call_paths p ON p.id = c.parent_id')
+if perf_db_export_calls:
+	do_query(query, 'CREATE VIEW calls_view AS '
+		'SELECT '
+			'calls.id,'
+			'thread_id,'
+			'(SELECT pid FROM threads WHERE id = thread_id) AS pid,'
+			'(SELECT tid FROM threads WHERE id = thread_id) AS tid,'
+			'(SELECT comm FROM comms WHERE id = comm_id) AS command,'
+			'call_path_id,'
+			'to_hex(ip) AS ip,'
+			'symbol_id,'
+			'(SELECT name FROM symbols WHERE id = symbol_id) AS symbol,'
+			'call_time,'
+			'return_time,'
+			'return_time - call_time AS elapsed_time,'
+			'branch_count,'
+			'call_id,'
+			'return_id,'
+			'CASE WHEN flags=1 THEN \'no call\' WHEN flags=2 THEN \'no return\' WHEN flags=3 THEN \'no call/return\' ELSE \'\' END AS flags,'
+			'parent_call_path_id'
+		' FROM calls INNER JOIN call_paths ON call_paths.id = call_path_id')
 
 do_query(query, 'CREATE VIEW samples_view AS '
 	'SELECT '
@@ -320,8 +548,9 @@ dso_file		= open_output_file("dso_table.bin")
 symbol_file		= open_output_file("symbol_table.bin")
 branch_type_file	= open_output_file("branch_type_table.bin")
 sample_file		= open_output_file("sample_table.bin")
-if perf_db_export_calls:
+if perf_db_export_calls or perf_db_export_callchains:
 	call_path_file		= open_output_file("call_path_table.bin")
+if perf_db_export_calls:
 	call_file		= open_output_file("call_table.bin")
 
 def trace_begin():
@@ -333,8 +562,8 @@ def trace_begin():
 	comm_table(0, "unknown")
 	dso_table(0, 0, "unknown", "unknown", "")
 	symbol_table(0, 0, 0, 0, 0, "unknown")
-	sample_table(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-	if perf_db_export_calls:
+	sample_table(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	if perf_db_export_calls or perf_db_export_callchains:
 		call_path_table(0, 0, 0, 0)
 
 unhandled_count = 0
@@ -350,8 +579,9 @@ def trace_end():
 	copy_output_file(symbol_file,		"symbols")
 	copy_output_file(branch_type_file,	"branch_types")
 	copy_output_file(sample_file,		"samples")
-	if perf_db_export_calls:
+	if perf_db_export_calls or perf_db_export_callchains:
 		copy_output_file(call_path_file,	"call_paths")
+	if perf_db_export_calls:
 		copy_output_file(call_file,		"calls")
 
 	print datetime.datetime.today(), "Removing intermediate files..."
@@ -364,8 +594,9 @@ def trace_end():
 	remove_output_file(symbol_file)
 	remove_output_file(branch_type_file)
 	remove_output_file(sample_file)
-	if perf_db_export_calls:
+	if perf_db_export_calls or perf_db_export_callchains:
 		remove_output_file(call_path_file)
+	if perf_db_export_calls:
 		remove_output_file(call_file)
 	os.rmdir(output_dir_name)
 	print datetime.datetime.today(), "Adding primary keys"
@@ -378,8 +609,9 @@ def trace_end():
 	do_query(query, 'ALTER TABLE symbols         ADD PRIMARY KEY (id)')
 	do_query(query, 'ALTER TABLE branch_types    ADD PRIMARY KEY (id)')
 	do_query(query, 'ALTER TABLE samples         ADD PRIMARY KEY (id)')
-	if perf_db_export_calls:
+	if perf_db_export_calls or perf_db_export_callchains:
 		do_query(query, 'ALTER TABLE call_paths      ADD PRIMARY KEY (id)')
+	if perf_db_export_calls:
 		do_query(query, 'ALTER TABLE calls           ADD PRIMARY KEY (id)')
 
 	print datetime.datetime.today(), "Adding foreign keys"
@@ -402,10 +634,11 @@ def trace_end():
 					'ADD CONSTRAINT symbolfk   FOREIGN KEY (symbol_id)    REFERENCES symbols    (id),'
 					'ADD CONSTRAINT todsofk    FOREIGN KEY (to_dso_id)    REFERENCES dsos       (id),'
 					'ADD CONSTRAINT tosymbolfk FOREIGN KEY (to_symbol_id) REFERENCES symbols    (id)')
-	if perf_db_export_calls:
+	if perf_db_export_calls or perf_db_export_callchains:
 		do_query(query, 'ALTER TABLE call_paths '
 					'ADD CONSTRAINT parentfk    FOREIGN KEY (parent_id)    REFERENCES call_paths (id),'
 					'ADD CONSTRAINT symbolfk    FOREIGN KEY (symbol_id)    REFERENCES symbols    (id)')
+	if perf_db_export_calls:
 		do_query(query, 'ALTER TABLE calls '
 					'ADD CONSTRAINT threadfk    FOREIGN KEY (thread_id)    REFERENCES threads    (id),'
 					'ADD CONSTRAINT commfk      FOREIGN KEY (comm_id)      REFERENCES comms      (id),'
@@ -473,11 +706,11 @@ def branch_type_table(branch_type, name, *x):
 	value = struct.pack(fmt, 2, 4, branch_type, n, name)
 	branch_type_file.write(value)
 
-def sample_table(sample_id, evsel_id, machine_id, thread_id, comm_id, dso_id, symbol_id, sym_offset, ip, time, cpu, to_dso_id, to_symbol_id, to_sym_offset, to_ip, period, weight, transaction, data_src, branch_type, in_tx, *x):
+def sample_table(sample_id, evsel_id, machine_id, thread_id, comm_id, dso_id, symbol_id, sym_offset, ip, time, cpu, to_dso_id, to_symbol_id, to_sym_offset, to_ip, period, weight, transaction, data_src, branch_type, in_tx, call_path_id, *x):
 	if branches:
-		value = struct.pack("!hiqiqiqiqiqiqiqiqiqiqiiiqiqiqiqiiiB", 17, 8, sample_id, 8, evsel_id, 8, machine_id, 8, thread_id, 8, comm_id, 8, dso_id, 8, symbol_id, 8, sym_offset, 8, ip, 8, time, 4, cpu, 8, to_dso_id, 8, to_symbol_id, 8, to_sym_offset, 8, to_ip, 4, branch_type, 1, in_tx)
+		value = struct.pack("!hiqiqiqiqiqiqiqiqiqiqiiiqiqiqiqiiiBiq", 18, 8, sample_id, 8, evsel_id, 8, machine_id, 8, thread_id, 8, comm_id, 8, dso_id, 8, symbol_id, 8, sym_offset, 8, ip, 8, time, 4, cpu, 8, to_dso_id, 8, to_symbol_id, 8, to_sym_offset, 8, to_ip, 4, branch_type, 1, in_tx, 8, call_path_id)
 	else:
-		value = struct.pack("!hiqiqiqiqiqiqiqiqiqiqiiiqiqiqiqiqiqiqiqiiiB", 21, 8, sample_id, 8, evsel_id, 8, machine_id, 8, thread_id, 8, comm_id, 8, dso_id, 8, symbol_id, 8, sym_offset, 8, ip, 8, time, 4, cpu, 8, to_dso_id, 8, to_symbol_id, 8, to_sym_offset, 8, to_ip, 8, period, 8, weight, 8, transaction, 8, data_src, 4, branch_type, 1, in_tx)
+		value = struct.pack("!hiqiqiqiqiqiqiqiqiqiqiiiqiqiqiqiqiqiqiqiiiBiq", 22, 8, sample_id, 8, evsel_id, 8, machine_id, 8, thread_id, 8, comm_id, 8, dso_id, 8, symbol_id, 8, sym_offset, 8, ip, 8, time, 4, cpu, 8, to_dso_id, 8, to_symbol_id, 8, to_sym_offset, 8, to_ip, 8, period, 8, weight, 8, transaction, 8, data_src, 4, branch_type, 1, in_tx, 8, call_path_id)
 	sample_file.write(value)
 
 def call_path_table(cp_id, parent_id, symbol_id, ip, *x):

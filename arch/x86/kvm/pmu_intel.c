@@ -93,7 +93,7 @@ static unsigned intel_find_fixed_event(int idx)
 	return intel_arch_events[fixed_pmc_events[idx]].event_type;
 }
 
-/* check if a PMC is enabled by comparising it with globl_ctrl bits. */
+/* check if a PMC is enabled by comparing it with globl_ctrl bits. */
 static bool intel_pmc_is_enabled(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
@@ -294,7 +294,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 			((u64)1 << edx.split.bit_width_fixed) - 1;
 	}
 
-	pmu->global_ctrl = ((1 << pmu->nr_arch_gp_counters) - 1) |
+	pmu->global_ctrl = ((1ull << pmu->nr_arch_gp_counters) - 1) |
 		(((1ull << pmu->nr_arch_fixed_counters) - 1) << INTEL_PMC_IDX_FIXED);
 	pmu->global_ctrl_mask = ~pmu->global_ctrl;
 

@@ -1,6 +1,7 @@
 /dts-v1/;
 
 /include/ "bcm7362.dtsi"
+/include/ "bcm97xxx-nand-cs1-bch4.dtsi"
 
 / {
 	compatible = "brcm,bcm97362svmb", "brcm,bcm7362";
@@ -29,6 +30,22 @@
 	status = "okay";
 };
 
+&bsca {
+	status = "okay";
+};
+
+&bscb {
+	status = "okay";
+};
+
+&bscd {
+	status = "okay";
+};
+
+&pwma {
+	status = "okay";
+};
+
 &enet0 {
 	status = "okay";
 };
@@ -38,5 +55,25 @@
 };
 
 &ohci0 {
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
+&sata_phy {
+	status = "okay";
+};
+
+&sdhci0 {
+	status = "okay";
+};
+
+&mspi {
 	status = "okay";
 };

@@ -109,6 +109,8 @@
 #define NI_DP_MSE_SAT2                                 0x7398
 
 #define NI_DP_MSE_SAT_UPDATE                           0x739c
+#       define NI_DP_MSE_SAT_UPDATE_MASK               0x3
+#       define NI_DP_MSE_16_MTP_KEEPOUT                0x100
 
 #define NI_DIG_BE_CNTL                                 0x7140
 #       define NI_DIG_FE_SOURCE_SELECT(x)              (((x) & 0x7f) << 8)

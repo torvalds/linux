@@ -1,0 +1,97 @@
+What:		/sys/devices/platform/hidma-mgmt*/chanops/chan*/priority
+		/sys/devices/platform/QCOM8060:*/chanops/chan*/priority
+Date:		Nov 2015
+KernelVersion:	4.4
+Contact:	"Sinan Kaya <okaya@codeaurora.org>"
+Description:
+		Contains either 0 or 1 and indicates if the DMA channel is a
+		low priority (0) or high priority (1) channel.
+
+What:		/sys/devices/platform/hidma-mgmt*/chanops/chan*/weight
+		/sys/devices/platform/QCOM8060:*/chanops/chan*/weight
+Date:		Nov 2015
+KernelVersion:	4.4
+Contact:	"Sinan Kaya <okaya@codeaurora.org>"
+Description:
+		Contains 0..15 and indicates the weight of the channel among
+		equal priority channels during round robin scheduling.
+
+What:		/sys/devices/platform/hidma-mgmt*/chreset_timeout_cycles
+		/sys/devices/platform/QCOM8060:*/chreset_timeout_cycles
+Date:		Nov 2015
+KernelVersion:	4.4
+Contact:	"Sinan Kaya <okaya@codeaurora.org>"
+Description:
+		Contains the platform specific cycle value to wait after a
+		reset command is issued. If the value is chosen too short,
+		then the HW will issue a reset failure interrupt. The value
+		is platform specific and should not be changed without
+		consultance.
+
+What:		/sys/devices/platform/hidma-mgmt*/dma_channels
+		/sys/devices/platform/QCOM8060:*/dma_channels
+Date:		Nov 2015
+KernelVersion:	4.4
+Contact:	"Sinan Kaya <okaya@codeaurora.org>"
+Description:
+		Contains the number of dma channels supported by one instance
+		of HIDMA hardware. The value may change from chip to chip.
+
+What:		/sys/devices/platform/hidma-mgmt*/hw_version_major
+		/sys/devices/platform/QCOM8060:*/hw_version_major
+Date:		Nov 2015
+KernelVersion:	4.4
+Contact:	"Sinan Kaya <okaya@codeaurora.org>"
+Description:
+		Version number major for the hardware.
+
+What:		/sys/devices/platform/hidma-mgmt*/hw_version_minor
+		/sys/devices/platform/QCOM8060:*/hw_version_minor
+Date:		Nov 2015
+KernelVersion:	4.4
+Contact:	"Sinan Kaya <okaya@codeaurora.org>"
+Description:
+		Version number minor for the hardware.
+
+What:		/sys/devices/platform/hidma-mgmt*/max_rd_xactions
+		/sys/devices/platform/QCOM8060:*/max_rd_xactions
+Date:		Nov 2015
+KernelVersion:	4.4
+Contact:	"Sinan Kaya <okaya@codeaurora.org>"
+Description:
+		Contains a value between 0 and 31. Maximum number of
+		read transactions that can be issued back to back.
+		Choosing a higher number gives better performance but
+		can also cause performance reduction to other peripherals
+		sharing the same bus.
+
+What:		/sys/devices/platform/hidma-mgmt*/max_read_request
+		/sys/devices/platform/QCOM8060:*/max_read_request
+Date:		Nov 2015
+KernelVersion:	4.4
+Contact:	"Sinan Kaya <okaya@codeaurora.org>"
+Description:
+		Size of each read request. The value needs to be a power
+		of two and can be between 128 and 1024.
+
+What:		/sys/devices/platform/hidma-mgmt*/max_wr_xactions
+		/sys/devices/platform/QCOM8060:*/max_wr_xactions
+Date:		Nov 2015
+KernelVersion:	4.4
+Contact:	"Sinan Kaya <okaya@codeaurora.org>"
+Description:
+		Contains a value between 0 and 31. Maximum number of
+		write transactions that can be issued back to back.
+		Choosing a higher number gives better performance but
+		can also cause performance reduction to other peripherals
+		sharing the same bus.
+
+
+What:		/sys/devices/platform/hidma-mgmt*/max_write_request
+		/sys/devices/platform/QCOM8060:*/max_write_request
+Date:		Nov 2015
+KernelVersion:	4.4
+Contact:	"Sinan Kaya <okaya@codeaurora.org>"
+Description:
+		Size of each write request. The value needs to be a power
+		of two and can be between 128 and 1024.

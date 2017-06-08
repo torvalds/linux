@@ -11,10 +11,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * CCDC hardware module for DM6446
  * ------------------------------
  *
@@ -261,7 +257,7 @@ static int ccdc_update_raw_params(struct ccdc_config_params_raw *raw_params)
 	 */
 	if (raw_params->fault_pxl.fp_num != config_params->fault_pxl.fp_num) {
 		if (fpc_physaddr != NULL) {
-			free_pages((unsigned long)fpc_physaddr,
+			free_pages((unsigned long)fpc_virtaddr,
 				   get_order
 				   (config_params->fault_pxl.fp_num *
 				   FP_NUM_BYTES));
@@ -354,8 +350,8 @@ static int ccdc_set_params(void __user *params)
 
 	x = copy_from_user(&ccdc_raw_params, params, sizeof(ccdc_raw_params));
 	if (x) {
-		dev_dbg(ccdc_cfg.dev, "ccdc_set_params: error in copying"
-			   "ccdc params, %d\n", x);
+		dev_dbg(ccdc_cfg.dev, "ccdc_set_params: error in copyingccdc params, %d\n",
+			x);
 		return -EFAULT;
 	}
 

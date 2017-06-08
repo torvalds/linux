@@ -15,7 +15,7 @@
 #ifndef __VIDEO_CS5530_H__
 #define __VIDEO_CS5530_H__
 
-extern struct geode_vid_ops cs5530_vid_ops;
+extern const struct geode_vid_ops cs5530_vid_ops;
 
 /* CS5530 Video device registers */
 

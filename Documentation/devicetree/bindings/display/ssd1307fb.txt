@@ -1,0 +1,51 @@
+* Solomon SSD1307 Framebuffer Driver
+
+Required properties:
+  - compatible: Should be "solomon,<chip>fb-<bus>". The only supported bus for
+    now is i2c, and the supported chips are ssd1305, ssd1306, ssd1307 and
+    ssd1309.
+  - reg: Should contain address of the controller on the I2C bus. Most likely
+         0x3c or 0x3d
+  - pwm: Should contain the pwm to use according to the OF device tree PWM
+         specification [0]. Only required for the ssd1307.
+  - solomon,height: Height in pixel of the screen driven by the controller
+  - solomon,width: Width in pixel of the screen driven by the controller
+  - solomon,page-offset: Offset of pages (band of 8 pixels) that the screen is
+    mapped to.
+
+Optional properties:
+  - reset-gpios: The GPIO used to reset the OLED display, if available. See
+                 Documentation/devicetree/bindings/gpio/gpio.txt for details.
+  - vbat-supply: The supply for VBAT
+  - solomon,segment-no-remap: Display needs normal (non-inverted) data column
+                              to segment mapping
+  - solomon,com-seq: Display uses sequential COM pin configuration
+  - solomon,com-lrremap: Display uses left-right COM pin remap
+  - solomon,com-invdir: Display uses inverted COM pin scan direction
+  - solomon,com-offset: Number of the COM pin wired to the first display line
+  - solomon,prechargep1: Length of deselect period (phase 1) in clock cycles.
+  - solomon,prechargep2: Length of precharge period (phase 2) in clock cycles.
+                         This needs to be the higher, the higher the capacitance
+                         of the OLED's pixels is
+
+[0]: Documentation/devicetree/bindings/pwm/pwm.txt
+
+Examples:
+ssd1307: oled@3c {
+        compatible = "solomon,ssd1307fb-i2c";
+        reg = <0x3c>;
+        pwms = <&pwm 4 3000>;
+        reset-gpios = <&gpio2 7>;
+        reset-active-low;
+};
+
+ssd1306: oled@3c {
+        compatible = "solomon,ssd1306fb-i2c";
+        reg = <0x3c>;
+        pwms = <&pwm 4 3000>;
+        reset-gpios = <&gpio2 7>;
+        reset-active-low;
+        solomon,com-lrremap;
+        solomon,com-invdir;
+        solomon,com-offset = <32>;
+};

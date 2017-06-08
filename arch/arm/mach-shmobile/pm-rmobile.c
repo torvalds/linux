@@ -12,6 +12,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#include <linux/clk/renesas.h>
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/of.h>
@@ -124,49 +125,19 @@ static bool rmobile_pd_active_wakeup(struct device *dev)
 	return true;
 }
 
-static int rmobile_pd_attach_dev(struct generic_pm_domain *domain,
-				 struct device *dev)
-{
-	int error;
-
-	error = pm_clk_create(dev);
-	if (error) {
-		dev_err(dev, "pm_clk_create failed %d\n", error);
-		return error;
-	}
-
-	error = pm_clk_add(dev, NULL);
-	if (error) {
-		dev_err(dev, "pm_clk_add failed %d\n", error);
-		goto fail;
-	}
-
-	return 0;
-
-fail:
-	pm_clk_destroy(dev);
-	return error;
-}
-
-static void rmobile_pd_detach_dev(struct generic_pm_domain *domain,
-				  struct device *dev)
-{
-	pm_clk_destroy(dev);
-}
-
 static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 {
 	struct generic_pm_domain *genpd = &rmobile_pd->genpd;
 	struct dev_power_governor *gov = rmobile_pd->gov;
 
 	genpd->flags = GENPD_FLAG_PM_CLK;
-	pm_genpd_init(genpd, gov ? : &simple_qos_governor, false);
 	genpd->dev_ops.active_wakeup	= rmobile_pd_active_wakeup;
 	genpd->power_off		= rmobile_pd_power_down;
 	genpd->power_on			= rmobile_pd_power_up;
-	genpd->attach_dev		= rmobile_pd_attach_dev;
-	genpd->detach_dev		= rmobile_pd_detach_dev;
+	genpd->attach_dev		= cpg_mstp_attach_dev;
+	genpd->detach_dev		= cpg_mstp_detach_dev;
 	__rmobile_pd_power_up(rmobile_pd, false);
+	pm_genpd_init(genpd, gov ? : &simple_qos_governor, false);
 }
 
 static int rmobile_pd_suspend_busy(void)
@@ -342,8 +313,10 @@ static int __init rmobile_add_pm_domains(void __iomem *base,
 		}
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-		if (!pd)
+		if (!pd) {
+			of_node_put(np);
 			return -ENOMEM;
+		}
 
 		pd->genpd.name = np->name;
 		pd->base = base;

@@ -1,0 +1,62 @@
+config NVME_CORE
+	tristate
+
+config BLK_DEV_NVME
+	tristate "NVM Express block device"
+	depends on PCI && BLOCK
+	select NVME_CORE
+	---help---
+	  The NVM Express driver is for solid state drives directly
+	  connected to the PCI or PCI Express bus.  If you know you
+	  don't have one of these, it is safe to answer N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvme.
+
+config BLK_DEV_NVME_SCSI
+	bool "SCSI emulation for NVMe device nodes"
+	depends on NVME_CORE
+	---help---
+	  This adds support for the SG_IO ioctl on the NVMe character
+	  and block devices nodes, as well as a translation for a small
+	  number of selected SCSI commands to NVMe commands to the NVMe
+	  driver.  If you don't know what this means you probably want
+	  to say N here, unless you run a distro that abuses the SCSI
+	  emulation to provide stable device names for mount by id, like
+	  some OpenSuSE and SLES versions.
+
+config NVME_FABRICS
+	tristate
+
+config NVME_RDMA
+	tristate "NVM Express over Fabrics RDMA host driver"
+	depends on INFINIBAND && BLOCK
+	select NVME_CORE
+	select NVME_FABRICS
+	select SG_POOL
+	help
+	  This provides support for the NVMe over Fabrics protocol using
+	  the RDMA (Infiniband, RoCE, iWarp) transport.  This allows you
+	  to use remote block devices exported using the NVMe protocol set.
+
+	  To configure a NVMe over Fabrics controller use the nvme-cli tool
+	  from https://github.com/linux-nvme/nvme-cli.
+
+	  If unsure, say N.
+
+config NVME_FC
+	tristate "NVM Express over Fabrics FC host driver"
+	depends on BLOCK
+	depends on HAS_DMA
+	select NVME_CORE
+	select NVME_FABRICS
+	select SG_POOL
+	help
+	  This provides support for the NVMe over Fabrics protocol using
+	  the FC transport.  This allows you to use remote block devices
+	  exported using the NVMe protocol set.
+
+	  To configure a NVMe over Fabrics controller use the nvme-cli tool
+	  from https://github.com/linux-nvme/nvme-cli.
+
+	  If unsure, say N.

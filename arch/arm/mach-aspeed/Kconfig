@@ -1,0 +1,34 @@
+menuconfig ARCH_ASPEED
+	bool "Aspeed BMC architectures"
+	depends on ARCH_MULTI_V5 || ARCH_MULTI_V6
+	select SRAM
+	select WATCHDOG
+	select ASPEED_WATCHDOG
+	select MOXART_TIMER
+	select MFD_SYSCON
+	select PINCTRL
+	help
+	  Say Y here if you want to run your kernel on an ASpeed BMC SoC.
+
+if ARCH_ASPEED
+
+config MACH_ASPEED_G4
+	bool "Aspeed SoC 4th Generation"
+	depends on ARCH_MULTI_V5
+	select CPU_ARM926T
+	select PINCTRL_ASPEED_G4
+	help
+	 Say yes if you intend to run on an Aspeed ast2400 or similar
+	 fourth generation BMCs, such as those used by OpenPower Power8
+	 systems.
+
+config MACH_ASPEED_G5
+	bool "Aspeed SoC 5th Generation"
+	depends on ARCH_MULTI_V6
+	select CPU_V6
+	select PINCTRL_ASPEED_G5
+	help
+	 Say yes if you intend to run on an Aspeed ast2500 or similar
+	 fifth generation Aspeed BMCs.
+
+endif

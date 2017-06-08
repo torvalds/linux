@@ -45,7 +45,7 @@ is how we expect the compiler, application and kernel to work together.
    MPX-instrumented.
 3) The kernel detects that the CPU has MPX, allows the new prctl() to
    succeed, and notes the location of the bounds directory. Userspace is
-   expected to keep the bounds directory at that locationWe note it
+   expected to keep the bounds directory at that location. We note it
    instead of reading it each time because the 'xsave' operation needed
    to access the bounds directory register is an expensive operation.
 4) If the application needs to spill bounds out of the 4 registers, it
@@ -136,7 +136,7 @@ A: MPX-enabled application will possibly create a lot of bounds tables in
    If we were to preallocate them for the 128TB of user virtual address
    space, we would need to reserve 512TB+2GB, which is larger than the
    entire virtual address space today. This means they can not be reserved
-   ahead of time. Also, a single process's pre-popualated bounds directory
+   ahead of time. Also, a single process's pre-populated bounds directory
    consumes 2GB of virtual *AND* physical memory. IOW, it's completely
    infeasible to prepopulate bounds directories.
 
@@ -151,7 +151,7 @@ A: This would work if we could hook the site of each and every memory
    these calls.
 
 Q: Could a bounds fault be handed to userspace and the tables allocated
-   there in a signal handler intead of in the kernel?
+   there in a signal handler instead of in the kernel?
 A: mmap() is not on the list of safe async handler functions and even
    if mmap() would work it still requires locking or nasty tricks to
    keep track of the allocation state there.
@@ -167,7 +167,7 @@ If a #BR is generated due to a bounds violation caused by MPX.
 We need to decode MPX instructions to get violation address and
 set this address into extended struct siginfo.
 
-The _sigfault feild of struct siginfo is extended as follow:
+The _sigfault field of struct siginfo is extended as follow:
 
 87		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
 88		struct {
@@ -240,5 +240,5 @@ them at the same bounds table.
 This is allowed architecturally.  See more information "Intel(R) Architecture
 Instruction Set Extensions Programming Reference" (9.3.4).
 
-However, if users did this, the kernel might be fooled in to unmaping an
+However, if users did this, the kernel might be fooled in to unmapping an
 in-use bounds table since it does not recognize sharing.

@@ -19,12 +19,6 @@
 #define LIMIT_INVALID_BLOCK	40 /* percentage over total user space */
 #define LIMIT_FREE_BLOCK	40 /* percentage over invalid + free space */
 
-/*
- * with this macro, we can control the max time we do garbage collection,
- * when user triggers batch mode gc by ioctl.
- */
-#define F2FS_BATCH_GC_MAX_NUM		16
-
 /* Search max. number of dirty segments to select a victim segment */
 #define DEF_MAX_VICTIM_SEARCH 4096 /* covers 8GB */
 
@@ -105,12 +99,4 @@ static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
 			free_user_blocks(sbi) < limit_free_user_blocks(sbi))
 		return true;
 	return false;
-}
-
-static inline int is_idle(struct f2fs_sb_info *sbi)
-{
-	struct block_device *bdev = sbi->sb->s_bdev;
-	struct request_queue *q = bdev_get_queue(bdev);
-	struct request_list *rl = &q->root_rl;
-	return !(rl->count[BLK_RW_SYNC]) && !(rl->count[BLK_RW_ASYNC]);
 }

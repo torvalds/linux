@@ -29,13 +29,17 @@
 	 */
 tsb_miss_dtlb:
 	mov		TLB_TAG_ACCESS, %g4
+	ldxa		[%g4] ASI_DMMU, %g4
+	srlx		%g4, PAGE_SHIFT, %g4
 	ba,pt		%xcc, tsb_miss_page_table_walk
-	 ldxa		[%g4] ASI_DMMU, %g4
+	 sllx		%g4, PAGE_SHIFT, %g4
 
 tsb_miss_itlb:
 	mov		TLB_TAG_ACCESS, %g4
+	ldxa		[%g4] ASI_IMMU, %g4
+	srlx		%g4, PAGE_SHIFT, %g4
 	ba,pt		%xcc, tsb_miss_page_table_walk
-	 ldxa		[%g4] ASI_IMMU, %g4
+	 sllx		%g4, PAGE_SHIFT, %g4
 
 	/* At this point we have:
 	 * %g1 --	PAGE_SIZE TSB entry address
@@ -113,26 +117,11 @@ tsb_miss_page_table_walk_sun4v_fastpath:
 	/* Valid PTE is now in %g5.  */
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-661:	sethi		%uhi(_PAGE_SZALL_4U), %g7
+	sethi		%uhi(_PAGE_PMD_HUGE), %g7
 	sllx		%g7, 32, %g7
-	.section	.sun4v_2insn_patch, "ax"
-	.word		661b
-	mov		_PAGE_SZALL_4V, %g7
-	nop
-	.previous
 
-	and		%g5, %g7, %g2
-
-661:	sethi		%uhi(_PAGE_SZHUGE_4U), %g7
-	sllx		%g7, 32, %g7
-	.section	.sun4v_2insn_patch, "ax"
-	.word		661b
-	mov		_PAGE_SZHUGE_4V, %g7
-	nop
-	.previous
-
-	cmp		%g2, %g7
-	bne,pt		%xcc, 60f
+	andcc		%g5, %g7, %g0
+	be,pt		%xcc, 60f
 	 nop
 
 	/* It is a huge page, use huge page TSB entry address we
@@ -283,6 +272,10 @@ tsb_do_dtlb_fault:
 	ldx	[%g4 + HV_FAULT_D_ADDR_OFFSET], %g5
 	nop
 	.previous
+
+	/* Clear context ID bits.  */
+	srlx		%g5, PAGE_SHIFT, %g5
+	sllx		%g5, PAGE_SHIFT, %g5
 
 	be,pt	%xcc, sparc64_realfault_common
 	 mov	FAULT_CODE_DTLB, %g4
@@ -462,12 +455,15 @@ __tsb_context_switch:
 	.type	copy_tsb,#function
 copy_tsb:		/* %o0=old_tsb_base, %o1=old_tsb_size
 			 * %o2=new_tsb_base, %o3=new_tsb_size
+			 * %o4=page_size_shift
 			 */
 	sethi		%uhi(TSB_PASS_BITS), %g7
 	srlx		%o3, 4, %o3
-	add		%o0, %o1, %g1	/* end of old tsb */
+	add		%o0, %o1, %o1	/* end of old tsb */
 	sllx		%g7, 32, %g7
 	sub		%o3, 1, %o3	/* %o3 == new tsb hash mask */
+
+	mov		%o4, %g1	/* page_size_shift */
 
 661:	prefetcha	[%o0] ASI_N, #one_read
 	.section	.tsb_phys_patch, "ax"
@@ -493,9 +489,9 @@ copy_tsb:		/* %o0=old_tsb_base, %o1=old_tsb_size
 	/* This can definitely be computed faster... */
 	srlx		%o0, 4, %o5	/* Build index */
 	and		%o5, 511, %o5	/* Mask index */
-	sllx		%o5, PAGE_SHIFT, %o5 /* Put into vaddr position */
+	sllx		%o5, %g1, %o5	/* Put into vaddr position */
 	or		%o4, %o5, %o4	/* Full VADDR. */
-	srlx		%o4, PAGE_SHIFT, %o4 /* Shift down to create index */
+	srlx		%o4, %g1, %o4	/* Shift down to create index */
 	and		%o4, %o3, %o4	/* Mask with new_tsb_nents-1 */
 	sllx		%o4, 4, %o4	/* Shift back up into tsb ent offset */
 	TSB_STORE(%o2 + %o4, %g2)	/* Store TAG */
@@ -503,7 +499,7 @@ copy_tsb:		/* %o0=old_tsb_base, %o1=old_tsb_size
 	TSB_STORE(%o2 + %o4, %g3)	/* Store TTE */
 
 80:	add		%o0, 16, %o0
-	cmp		%o0, %g1
+	cmp		%o0, %o1
 	bne,pt		%xcc, 90b
 	 nop
 

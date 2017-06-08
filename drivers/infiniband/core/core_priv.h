@@ -35,8 +35,38 @@
 
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/cgroup_rdma.h>
 
 #include <rdma/ib_verbs.h>
+
+#if IS_ENABLED(CONFIG_INFINIBAND_ADDR_TRANS_CONFIGFS)
+int cma_configfs_init(void);
+void cma_configfs_exit(void);
+#else
+static inline int cma_configfs_init(void)
+{
+	return 0;
+}
+
+static inline void cma_configfs_exit(void)
+{
+}
+#endif
+struct cma_device;
+void cma_ref_dev(struct cma_device *cma_dev);
+void cma_deref_dev(struct cma_device *cma_dev);
+typedef bool (*cma_device_filter)(struct ib_device *, void *);
+struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter	filter,
+					     void		*cookie);
+int cma_get_default_gid_type(struct cma_device *cma_dev,
+			     unsigned int port);
+int cma_set_default_gid_type(struct cma_device *cma_dev,
+			     unsigned int port,
+			     enum ib_gid_type default_gid_type);
+int cma_get_default_roce_tos(struct cma_device *cma_dev, unsigned int port);
+int cma_set_default_roce_tos(struct cma_device *a_dev, unsigned int port,
+			     u8 default_roce_tos);
+struct ib_device *cma_get_ib_dev(struct cma_device *cma_dev);
 
 int  ib_device_register_sysfs(struct ib_device *device,
 			      int (*port_callback)(struct ib_device *,
@@ -45,9 +75,6 @@ void ib_device_unregister_sysfs(struct ib_device *device);
 
 void ib_cache_setup(void);
 void ib_cache_cleanup(void);
-
-int ib_resolve_eth_l2_attrs(struct ib_qp *qp,
-			    struct ib_qp_attr *qp_attr, int *qp_attr_mask);
 
 typedef void (*roce_netdev_callback)(struct ib_device *device, u8 port,
 	      struct net_device *idev, void *cookie);
@@ -65,18 +92,18 @@ void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 			      roce_netdev_callback cb,
 			      void *cookie);
 
-int ib_cache_gid_find_by_port(struct ib_device *ib_dev,
-			      const union ib_gid *gid,
-			      u8 port, struct net_device *ndev,
-			      u16 *index);
-
 enum ib_cache_gid_default_mode {
 	IB_CACHE_GID_DEFAULT_MODE_SET,
 	IB_CACHE_GID_DEFAULT_MODE_DELETE
 };
 
+int ib_cache_gid_parse_type_str(const char *buf);
+
+const char *ib_cache_gid_type_str(enum ib_gid_type gid_type);
+
 void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 				  struct net_device *ndev,
+				  unsigned long gid_type_mask,
 				  enum ib_cache_gid_default_mode mode);
 
 int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
@@ -92,9 +119,71 @@ int roce_gid_mgmt_init(void);
 void roce_gid_mgmt_cleanup(void);
 
 int roce_rescan_device(struct ib_device *ib_dev);
+unsigned long roce_gid_type_mask_support(struct ib_device *ib_dev, u8 port);
 
 int ib_cache_setup_one(struct ib_device *device);
 void ib_cache_cleanup_one(struct ib_device *device);
 void ib_cache_release_one(struct ib_device *device);
+
+#ifdef CONFIG_CGROUP_RDMA
+int ib_device_register_rdmacg(struct ib_device *device);
+void ib_device_unregister_rdmacg(struct ib_device *device);
+
+int ib_rdmacg_try_charge(struct ib_rdmacg_object *cg_obj,
+			 struct ib_device *device,
+			 enum rdmacg_resource_type resource_index);
+
+void ib_rdmacg_uncharge(struct ib_rdmacg_object *cg_obj,
+			struct ib_device *device,
+			enum rdmacg_resource_type resource_index);
+#else
+static inline int ib_device_register_rdmacg(struct ib_device *device)
+{ return 0; }
+
+static inline void ib_device_unregister_rdmacg(struct ib_device *device)
+{ }
+
+static inline int ib_rdmacg_try_charge(struct ib_rdmacg_object *cg_obj,
+				       struct ib_device *device,
+				       enum rdmacg_resource_type resource_index)
+{ return 0; }
+
+static inline void ib_rdmacg_uncharge(struct ib_rdmacg_object *cg_obj,
+				      struct ib_device *device,
+				      enum rdmacg_resource_type resource_index)
+{ }
+#endif
+
+static inline bool rdma_is_upper_dev_rcu(struct net_device *dev,
+					 struct net_device *upper)
+{
+	return netdev_has_upper_dev_all_rcu(dev, upper);
+}
+
+int addr_init(void);
+void addr_cleanup(void);
+
+int ib_mad_init(void);
+void ib_mad_cleanup(void);
+
+int ib_sa_init(void);
+void ib_sa_cleanup(void);
+
+int ibnl_init(void);
+void ibnl_cleanup(void);
+
+/**
+ * Check if there are any listeners to the netlink group
+ * @group: the netlink group ID
+ * Returns 0 on success or a negative for no listeners.
+ */
+int ibnl_chk_listeners(unsigned int group);
+
+int ib_nl_handle_resolve_resp(struct sk_buff *skb,
+			      struct netlink_callback *cb);
+int ib_nl_handle_set_timeout(struct sk_buff *skb,
+			     struct netlink_callback *cb);
+int ib_nl_handle_ip_res_resp(struct sk_buff *skb,
+			     struct netlink_callback *cb);
 
 #endif /* _CORE_PRIV_H */

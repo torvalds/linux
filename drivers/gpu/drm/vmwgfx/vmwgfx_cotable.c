@@ -311,7 +311,6 @@ static int vmw_cotable_unbind(struct vmw_resource *res,
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct ttm_buffer_object *bo = val_buf->bo;
 	struct vmw_fence_obj *fence;
-	int ret;
 
 	if (list_empty(&res->mob_head))
 		return 0;
@@ -328,7 +327,7 @@ static int vmw_cotable_unbind(struct vmw_resource *res,
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -422,9 +421,9 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	}
 
 	bo = &buf->base;
-	WARN_ON_ONCE(ttm_bo_reserve(bo, false, true, false, NULL));
+	WARN_ON_ONCE(ttm_bo_reserve(bo, false, true, NULL));
 
-	ret = ttm_bo_wait(old_bo, false, false, false);
+	ret = ttm_bo_wait(old_bo, false, false);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed waiting for cotable unbind.\n");
 		goto out_wait;

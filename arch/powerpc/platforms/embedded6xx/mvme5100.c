@@ -47,7 +47,7 @@ static void mvme5100_8259_cascade(struct irq_desc *desc)
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
 
-	if (cascade_irq != NO_IRQ)
+	if (cascade_irq)
 		generic_handle_irq(cascade_irq);
 
 	chip->irq_eoi(&desc->irq_data);
@@ -84,7 +84,7 @@ static void __init mvme5100_pic_init(void)
 	}
 
 	cirq = irq_of_parse_and_map(cp, 0);
-	if (cirq == NO_IRQ) {
+	if (!cirq) {
 		pr_warn("mvme5100_pic_init: no cascade interrupt?\n");
 		return;
 	}
@@ -177,7 +177,7 @@ static void mvme5100_show_cpuinfo(struct seq_file *m)
 	seq_puts(m, "Machine\t\t: MVME5100\n");
 }
 
-static void mvme5100_restart(char *cmd)
+static void __noreturn mvme5100_restart(char *cmd)
 {
 
 	local_irq_disable();
@@ -194,9 +194,7 @@ static void mvme5100_restart(char *cmd)
  */
 static int __init mvme5100_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "MVME5100");
+	return of_machine_is_compatible("MVME5100");
 }
 
 static int __init probe_of_platform_devices(void)

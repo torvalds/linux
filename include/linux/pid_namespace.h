@@ -21,6 +21,12 @@ struct pidmap {
 
 struct fs_pin;
 
+enum { /* definitions for pid_namespace's hide_pid field */
+	HIDEPID_OFF	  = 0,
+	HIDEPID_NO_ACCESS = 1,
+	HIDEPID_INVISIBLE = 2,
+};
+
 struct pid_namespace {
 	struct kref kref;
 	struct pidmap pidmap[PIDMAP_ENTRIES];
@@ -40,6 +46,7 @@ struct pid_namespace {
 	struct fs_pin *bacct;
 #endif
 	struct user_namespace *user_ns;
+	struct ucounts *ucounts;
 	struct work_struct proc_work;
 	kgid_t pid_gid;
 	int hide_pid;

@@ -195,7 +195,7 @@ static void parport_detach(struct parport *port)
 	struct pps_client_pp *device;
 
 	/* FIXME: oooh, this is ugly! */
-	if (strcmp(pardev->name, KBUILD_MODNAME))
+	if (!pardev || strcmp(pardev->name, KBUILD_MODNAME))
 		/* not our port */
 		return;
 

@@ -7,11 +7,12 @@
 #ifndef __ASM_FACILITY_H
 #define __ASM_FACILITY_H
 
+#include <generated/facilities.h>
 #include <linux/string.h>
 #include <linux/preempt.h>
 #include <asm/lowcore.h>
 
-#define MAX_FACILITY_BIT (256*8)	/* stfle_fac_list has 256 bytes */
+#define MAX_FACILITY_BIT (sizeof(((struct lowcore *)0)->stfle_fac_list) * 8)
 
 static inline int __test_facility(unsigned long nr, void *facilities)
 {
@@ -30,6 +31,12 @@ static inline int __test_facility(unsigned long nr, void *facilities)
  */
 static inline int test_facility(unsigned long nr)
 {
+	unsigned long facilities_als[] = { FACILITIES_ALS };
+
+	if (__builtin_constant_p(nr) && nr < sizeof(facilities_als) * 8) {
+		if (__test_facility(nr, &facilities_als))
+			return 1;
+	}
 	return __test_facility(nr, &S390_lowcore.stfle_fac_list);
 }
 
@@ -44,10 +51,8 @@ static inline void stfle(u64 *stfle_fac_list, int size)
 
 	preempt_disable();
 	asm volatile(
-		"	.insn s,0xb2b10000,0(0)\n" /* stfl */
-		"0:\n"
-		EX_TABLE(0b, 0b)
-		: "+m" (S390_lowcore.stfl_fac_list));
+		"	stfl	0(0)\n"
+		: "=m" (S390_lowcore.stfl_fac_list));
 	nr = 4; /* bytes stored by stfl */
 	memcpy(stfle_fac_list, &S390_lowcore.stfl_fac_list, 4);
 	if (S390_lowcore.stfl_fac_list & 0x01000000) {

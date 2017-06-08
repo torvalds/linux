@@ -108,8 +108,9 @@ static void mt7601u_init_usb_dma(struct mt7601u_dev *dev)
 {
 	u32 val;
 
-	val = MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, MT_USB_AGGR_TIMEOUT) |
-	      MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_LMT, MT_USB_AGGR_SIZE_LIMIT) |
+	val = FIELD_PREP(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, MT_USB_AGGR_TIMEOUT) |
+	      FIELD_PREP(MT_USB_DMA_CFG_RX_BULK_AGG_LMT,
+			 MT_USB_AGGR_SIZE_LIMIT) |
 	      MT_USB_DMA_CFG_RX_BULK_EN |
 	      MT_USB_DMA_CFG_TX_BULK_EN;
 	if (dev->in_max_packet == 512)
@@ -292,13 +293,13 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 	ok = 0;
 	i = 200;
 	while (i--) {
-		if ((mt76_rr(dev, 0x0430) & 0x00ff0000) ||
-		    (mt76_rr(dev, 0x0a30) & 0xffffffff) ||
-		    (mt76_rr(dev, 0x0a34) & 0xffffffff))
-			ok++;
-		if (ok > 6)
-			break;
-
+		if (!(mt76_rr(dev, MT_RXQ_STA) & 0x00ff0000) &&
+		    !mt76_rr(dev, 0x0a30) &&
+		    !mt76_rr(dev, 0x0a34)) {
+			if (ok++ > 5)
+				break;
+			continue;
+		}
 		msleep(1);
 	}
 
@@ -396,8 +397,9 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 
 	mt7601u_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 
-	mt7601u_wr(dev, MT_TXOP_CTRL_CFG, MT76_SET(MT_TXOP_TRUN_EN, 0x3f) |
-					  MT76_SET(MT_TXOP_EXT_CCA_DLY, 0x58));
+	mt7601u_wr(dev, MT_TXOP_CTRL_CFG,
+		   FIELD_PREP(MT_TXOP_TRUN_EN, 0x3f) |
+		   FIELD_PREP(MT_TXOP_EXT_CCA_DLY, 0x58));
 
 	ret = mt7601u_eeprom_init(dev);
 	if (ret)
@@ -469,7 +471,7 @@ struct mt7601u_dev *mt7601u_alloc_device(struct device *pdev)
 }
 
 #define CHAN2G(_idx, _freq) {			\
-	.band = IEEE80211_BAND_2GHZ,		\
+	.band = NL80211_BAND_2GHZ,		\
 	.center_freq = (_freq),			\
 	.hw_value = (_idx),			\
 	.max_power = 30,			\
@@ -563,7 +565,7 @@ mt76_init_sband_2g(struct mt7601u_dev *dev)
 {
 	dev->sband_2g = devm_kzalloc(dev->dev, sizeof(*dev->sband_2g),
 				     GFP_KERNEL);
-	dev->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = dev->sband_2g;
+	dev->hw->wiphy->bands[NL80211_BAND_2GHZ] = dev->sband_2g;
 
 	WARN_ON(dev->ee->reg.start - 1 + dev->ee->reg.num >
 		ARRAY_SIZE(mt76_channels_2ghz));
@@ -612,6 +614,8 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 
 	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	ret = mt76_init_sband_2g(dev);
 	if (ret)

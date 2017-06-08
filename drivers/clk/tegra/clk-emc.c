@@ -450,8 +450,10 @@ static int load_timings_from_dt(struct tegra_clk_emc *tegra,
 		struct emc_timing *timing = tegra->timings + (i++);
 
 		err = load_one_timing_from_dt(tegra, timing, child);
-		if (err)
+		if (err) {
+			of_node_put(child);
 			return err;
+		}
 
 		timing->ram_code = ram_code;
 	}
@@ -491,19 +493,17 @@ struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
 	for_each_child_of_node(np, node) {
 		err = of_property_read_u32(node, "nvidia,ram-code",
 					   &node_ram_code);
-		if (err) {
-			of_node_put(node);
+		if (err)
 			continue;
-		}
 
 		/*
 		 * Store timings for all ram codes as we cannot read the
 		 * fuses until the apbmisc driver is loaded.
 		 */
 		err = load_timings_from_dt(tegra, node, node_ram_code);
+		of_node_put(node);
 		if (err)
 			return ERR_PTR(err);
-		of_node_put(node);
 		break;
 	}
 

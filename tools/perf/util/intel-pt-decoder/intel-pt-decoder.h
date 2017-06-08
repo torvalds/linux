@@ -66,6 +66,7 @@ struct intel_pt_state {
 	uint32_t flags;
 	enum intel_pt_insn_op insn_op;
 	int insn_len;
+	char insn[INTEL_PT_INSN_BUF_SZ];
 };
 
 struct intel_pt_insn;
@@ -83,6 +84,7 @@ struct intel_pt_params {
 	int (*walk_insn)(struct intel_pt_insn *intel_pt_insn,
 			 uint64_t *insn_cnt_ptr, uint64_t *ip, uint64_t to_ip,
 			 uint64_t max_insn_cnt, void *data);
+	bool (*pgd_ip)(uint64_t ip, void *data);
 	void *data;
 	bool return_compression;
 	uint64_t period;

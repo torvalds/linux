@@ -12,6 +12,12 @@ Optional properties:
 
 - vmmc-supply:	a phandle of a regulator, supplying Vcc to the card
 - vqmmc-supply:	a phandle of a regulator, supplying VccQ to the card
+- pinctrl-names: Can contain a "default" entry and a "state_uhs"
+                 entry. The state_uhs entry is used together with the default
+                 entry when the board requires distinct settings for UHS speeds.
+
+- pinctrl-N: One property for each name listed in pinctrl-names, see
+             ../pinctrl/pinctrl-bindings.txt.
 
 Additionally any standard mmc bindings from mmc.txt can be used.
 

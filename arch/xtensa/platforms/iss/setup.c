@@ -8,6 +8,7 @@
  *          Joe Taylor <joe@tensilica.com>
  *
  * Copyright 2001 - 2005 Tensilica Inc.
+ * Copyright 2017 Cadence Design Systems Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -15,6 +16,7 @@
  * option) any later version.
  *
  */
+#include <linux/bootmem.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -31,82 +33,69 @@
 
 #include <asm/platform.h>
 #include <asm/bootparam.h>
+#include <asm/setup.h>
+
+#include <platform/simcall.h>
 
 
 void __init platform_init(bp_tag_t* bootparam)
 {
-
 }
 
 void platform_halt(void)
 {
 	pr_info(" ** Called platform_halt() **\n");
-	__asm__ __volatile__("movi a2, 1\nsimcall\n");
+	simc_exit(0);
 }
 
 void platform_power_off(void)
 {
 	pr_info(" ** Called platform_power_off() **\n");
-	__asm__ __volatile__("movi a2, 1\nsimcall\n");
+	simc_exit(0);
 }
 void platform_restart(void)
 {
 	/* Flush and reset the mmu, simulate a processor reset, and
 	 * jump to the reset vector. */
-
-	__asm__ __volatile__("movi	a2, 15\n\t"
-			     "wsr	a2, icountlevel\n\t"
-			     "movi	a2, 0\n\t"
-			     "wsr	a2, icount\n\t"
-#if XCHAL_NUM_IBREAK > 0
-			     "wsr	a2, ibreakenable\n\t"
-#endif
-			     "wsr	a2, lcount\n\t"
-			     "movi	a2, 0x1f\n\t"
-			     "wsr	a2, ps\n\t"
-			     "isync\n\t"
-			     "jx	%0\n\t"
-			     :
-			     : "a" (XCHAL_RESET_VECTOR_VADDR)
-			     : "a2");
-
+	cpu_reset();
 	/* control never gets here */
 }
 
-extern void iss_net_poll(void);
-
-const char twirl[]="|/-\\|/-\\";
-
 void platform_heartbeat(void)
 {
-#if 0
-	static int i = 0, j = 0;
-
-	if (--i < 0) {
-		i = 99;
-		printk("\r%c\r", twirl[j++]);
-		if (j == 8)
-			j = 0;
-	}
-#endif
 }
-
-
 
 static int
 iss_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	__asm__ __volatile__("movi a2, -1; simcall\n");
+	simc_exit(1);
 	return NOTIFY_DONE;
 }
 
 static struct notifier_block iss_panic_block = {
-	iss_panic_event,
-	NULL,
-	0
+	.notifier_call = iss_panic_event,
 };
 
 void __init platform_setup(char **p_cmdline)
 {
+	int argc = simc_argc();
+	int argv_size = simc_argv_size();
+
+	if (argc > 1) {
+		void **argv = alloc_bootmem(argv_size);
+		char *cmdline = alloc_bootmem(argv_size);
+		int i;
+
+		cmdline[0] = 0;
+		simc_argv((void *)argv);
+
+		for (i = 1; i < argc; ++i) {
+			if (i > 1)
+				strcat(cmdline, " ");
+			strcat(cmdline, argv[i]);
+		}
+		*p_cmdline = cmdline;
+	}
+
 	atomic_notifier_chain_register(&panic_notifier_list, &iss_panic_block);
 }

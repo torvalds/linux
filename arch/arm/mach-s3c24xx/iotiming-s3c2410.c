@@ -249,7 +249,7 @@ static int s3c2410_calc_bank(struct s3c_cpufreq_config *cfg,
 	return 0;
 }
 
-static unsigned int tacc_tab[] = {
+static const unsigned int tacc_tab[] = {
 	[0]	= 1,
 	[1]	= 2,
 	[2]	= 3,
@@ -423,7 +423,7 @@ void s3c2410_iotiming_set(struct s3c_cpufreq_config *cfg,
  * @timings: The IO timing information to fill out.
  *
  * Calculate the @timings timing information from the current frequency
- * information in @cfg, and the new frequency configur
+ * information in @cfg, and the new frequency configuration
  * through all the IO banks, reading the state and then updating @iot
  * as necessary.
  *

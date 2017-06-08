@@ -1,13 +1,17 @@
 config UML
 	bool
 	default y
+	select ARCH_HAS_KCOV
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_UID16
 	select HAVE_FUTEX_CMPXCHG if FUTEX
+	select HAVE_DEBUG_KMEMLEAK
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
 	select GENERIC_IO
 	select GENERIC_CLOCKEVENTS
+	select HAVE_GCC_PLUGINS
 	select TTY # Needed for line.c
 
 config MMU
@@ -29,10 +33,9 @@ config PCI
 config PCMCIA
 	bool
 
-# Yet to do!
 config TRACE_IRQFLAGS_SUPPORT
 	bool
-	default n
+	default y
 
 config LOCKDEP_SUPPORT
 	bool
@@ -47,11 +50,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config GENERIC_BUG
-	bool
-	default y
-	depends on BUG
-
 config HZ
 	int
 	default 100
@@ -59,3 +57,8 @@ config HZ
 config SUBARCH
 	string
 	option env="SUBARCH"
+
+config NR_CPUS
+	int
+	range 1 1
+	default 1

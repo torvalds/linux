@@ -165,9 +165,9 @@ static int init_child(struct dm_btree_info *info, struct dm_btree_value_type *vt
 	return 0;
 }
 
-static int exit_child(struct dm_btree_info *info, struct child *c)
+static void exit_child(struct dm_btree_info *info, struct child *c)
 {
-	return dm_tm_unlock(info->tm, c->block);
+	dm_tm_unlock(info->tm, c->block);
 }
 
 static void shift(struct btree_node *left, struct btree_node *right, int count)
@@ -249,13 +249,10 @@ static int rebalance2(struct shadow_spine *s, struct dm_btree_info *info,
 
 	__rebalance2(info, parent, &left, &right);
 
-	r = exit_child(info, &left);
-	if (r) {
-		exit_child(info, &right);
-		return r;
-	}
+	exit_child(info, &left);
+	exit_child(info, &right);
 
-	return exit_child(info, &right);
+	return 0;
 }
 
 /*
@@ -301,11 +298,16 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 {
 	int s;
 	uint32_t max_entries = le32_to_cpu(left->header.max_entries);
-	unsigned target = (nr_left + nr_center + nr_right) / 3;
-	BUG_ON(target > max_entries);
+	unsigned total = nr_left + nr_center + nr_right;
+	unsigned target_right = total / 3;
+	unsigned remainder = (target_right * 3) != total;
+	unsigned target_left = target_right + remainder;
+
+	BUG_ON(target_left > max_entries);
+	BUG_ON(target_right > max_entries);
 
 	if (nr_left < nr_right) {
-		s = nr_left - target;
+		s = nr_left - target_left;
 
 		if (s < 0 && nr_center < -s) {
 			/* not enough in central node */
@@ -316,10 +318,10 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 		} else
 			shift(left, center, s);
 
-		shift(center, right, target - nr_right);
+		shift(center, right, target_right - nr_right);
 
 	} else {
-		s = target - nr_right;
+		s = target_right - nr_right;
 		if (s > 0 && nr_center < s) {
 			/* not enough in central node */
 			shift(center, right, nr_center);
@@ -329,7 +331,7 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 		} else
 			shift(center, right, s);
 
-		shift(left, center, nr_left - target);
+		shift(left, center, nr_left - target_left);
 	}
 
 	*key_ptr(parent, c->index) = center->keys[0];
@@ -389,22 +391,9 @@ static int rebalance3(struct shadow_spine *s, struct dm_btree_info *info,
 
 	__rebalance3(info, parent, &left, &center, &right);
 
-	r = exit_child(info, &left);
-	if (r) {
-		exit_child(info, &center);
-		exit_child(info, &right);
-		return r;
-	}
-
-	r = exit_child(info, &center);
-	if (r) {
-		exit_child(info, &right);
-		return r;
-	}
-
-	r = exit_child(info, &right);
-	if (r)
-		return r;
+	exit_child(info, &left);
+	exit_child(info, &center);
+	exit_child(info, &right);
 
 	return 0;
 }
@@ -428,9 +417,7 @@ static int rebalance_children(struct shadow_spine *s,
 
 		memcpy(n, dm_block_data(child),
 		       dm_bm_block_size(dm_tm_get_bm(info->tm)));
-		r = dm_tm_unlock(info->tm, child);
-		if (r)
-			return r;
+		dm_tm_unlock(info->tm, child);
 
 		dm_tm_dec(info->tm, dm_block_location(child));
 		return 0;

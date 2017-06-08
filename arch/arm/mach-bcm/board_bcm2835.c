@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/irqchip.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/clk/bcm2835.h>
 
 #include <asm/mach/arch.h>
@@ -23,20 +22,16 @@
 
 static void __init bcm2835_init(void)
 {
-	int ret;
-
 	bcm2835_init_clocks();
-
-	ret = of_platform_populate(NULL, of_default_bus_match_table, NULL,
-				   NULL);
-	if (ret) {
-		pr_err("of_platform_populate failed: %d\n", ret);
-		BUG();
-	}
 }
 
 static const char * const bcm2835_compat[] = {
+#ifdef CONFIG_ARCH_MULTI_V6
 	"brcm,bcm2835",
+#endif
+#ifdef CONFIG_ARCH_MULTI_V7
+	"brcm,bcm2836",
+#endif
 	NULL
 };
 

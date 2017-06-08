@@ -18,7 +18,7 @@
 /*
  * Oscillator Configuration Register (OSCC)
  */
-#define OSCC           __REG(0x41350000)  /* Oscillator Configuration Register */
+#define OSCC           io_p2v(0x41350000)  /* Oscillator Configuration Register */
 
 #define OSCC_PEN       (1 << 11)       /* 13MHz POUT */
 

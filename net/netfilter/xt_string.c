@@ -77,6 +77,7 @@ static struct xt_match xt_string_mt_reg __read_mostly = {
 	.match      = string_mt,
 	.destroy    = string_mt_destroy,
 	.matchsize  = sizeof(struct xt_string_info),
+	.usersize   = offsetof(struct xt_string_info, config),
 	.me         = THIS_MODULE,
 };
 

@@ -16,6 +16,8 @@
 #ifndef __ASM_WORD_AT_A_TIME_H
 #define __ASM_WORD_AT_A_TIME_H
 
+#include <linux/uaccess.h>
+
 #ifndef __AARCH64EB__
 
 #include <linux/kernel.h>
@@ -81,10 +83,7 @@ static inline unsigned long load_unaligned_zeropad(const void *addr)
 #endif
 	"	b	2b\n"
 	"	.popsection\n"
-	"	.pushsection __ex_table,\"a\"\n"
-	"	.align	3\n"
-	"	.quad	1b, 3b\n"
-	"	.popsection"
+	_ASM_EXTABLE(1b, 3b)
 	: "=&r" (ret), "=&r" (offset)
 	: "r" (addr), "Q" (*(unsigned long *)addr));
 

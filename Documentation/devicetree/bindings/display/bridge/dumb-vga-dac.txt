@@ -1,0 +1,50 @@
+Dumb RGB to VGA DAC bridge
+---------------------------
+
+This binding is aimed for dumb RGB to VGA DAC based bridges that do not require
+any configuration.
+
+Required properties:
+
+- compatible: Must be "dumb-vga-dac"
+
+Required nodes:
+
+This device has two video ports. Their connections are modelled using the OF
+graph bindings specified in Documentation/devicetree/bindings/graph.txt.
+
+- Video port 0 for RGB input
+- Video port 1 for VGA output
+
+Optional properties:
+- vdd-supply: Power supply for DAC
+
+Example
+-------
+
+bridge {
+	compatible = "dumb-vga-dac";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			vga_bridge_in: endpoint {
+				remote-endpoint = <&tcon0_out_vga>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			vga_bridge_out: endpoint {
+				remote-endpoint = <&vga_con_in>;
+			};
+		};
+	};
+};

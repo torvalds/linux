@@ -32,6 +32,7 @@
 #include <subdev/bios/dcb.h>
 
 #include <nvif/class.h>
+#include <nvif/cl0046.h>
 #include <nvif/event.h>
 #include <nvif/unpack.h>
 
@@ -58,9 +59,9 @@ nvkm_disp_vblank_ctor(struct nvkm_object *object, void *data, u32 size,
 	union {
 		struct nvif_notify_head_req_v0 v0;
 	} *req = data;
-	int ret;
+	int ret = -ENOSYS;
 
-	if (nvif_unpack(req->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, false))) {
 		notify->size = sizeof(struct nvif_notify_head_rep_v0);
 		if (ret = -ENXIO, req->v0.head <= disp->vblank.index_nr) {
 			notify->types = 1;
@@ -96,9 +97,9 @@ nvkm_disp_hpd_ctor(struct nvkm_object *object, void *data, u32 size,
 		struct nvif_notify_conn_req_v0 v0;
 	} *req = data;
 	struct nvkm_output *outp;
-	int ret;
+	int ret = -ENOSYS;
 
-	if (nvif_unpack(req->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, false))) {
 		notify->size = sizeof(struct nvif_notify_conn_rep_v0);
 		list_for_each_entry(outp, &disp->outp, head) {
 			if (ret = -ENXIO, outp->conn->index == req->v0.conn) {
@@ -297,8 +298,7 @@ nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	disp->func = func;
 	disp->head.nr = heads;
 
-	ret = nvkm_engine_ctor(&nvkm_disp, device, index, 0,
-			       true, &disp->engine);
+	ret = nvkm_engine_ctor(&nvkm_disp, device, index, true, &disp->engine);
 	if (ret)
 		return ret;
 

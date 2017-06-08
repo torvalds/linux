@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -256,7 +256,7 @@ acpi_evaluate_object(acpi_handle handle,
 		 * Allocate a new parameter block for the internal objects
 		 * Add 1 to count to allow for null terminated internal list
 		 */
-		info->parameters = ACPI_ALLOCATE_ZEROED(((acpi_size) info->
+		info->parameters = ACPI_ALLOCATE_ZEROED(((acpi_size)info->
 							 param_count +
 							 1) * sizeof(void *));
 		if (!info->parameters) {
@@ -280,13 +280,12 @@ acpi_evaluate_object(acpi_handle handle,
 		info->parameters[info->param_count] = NULL;
 	}
 
-#if 0
+#ifdef _FUTURE_FEATURE
 
 	/*
 	 * Begin incoming argument count analysis. Check for too few args
 	 * and too many args.
 	 */
-
 	switch (acpi_ns_get_type(info->node)) {
 	case ACPI_TYPE_METHOD:
 
@@ -370,67 +369,67 @@ acpi_evaluate_object(acpi_handle handle,
 	 * If we are expecting a return value, and all went well above,
 	 * copy the return value to an external object.
 	 */
-	if (return_buffer) {
-		if (!info->return_object) {
-			return_buffer->length = 0;
+	if (!return_buffer) {
+		goto cleanup_return_object;
+	}
+
+	if (!info->return_object) {
+		return_buffer->length = 0;
+		goto cleanup;
+	}
+
+	if (ACPI_GET_DESCRIPTOR_TYPE(info->return_object) ==
+	    ACPI_DESC_TYPE_NAMED) {
+		/*
+		 * If we received a NS Node as a return object, this means that
+		 * the object we are evaluating has nothing interesting to
+		 * return (such as a mutex, etc.)  We return an error because
+		 * these types are essentially unsupported by this interface.
+		 * We don't check up front because this makes it easier to add
+		 * support for various types at a later date if necessary.
+		 */
+		status = AE_TYPE;
+		info->return_object = NULL;	/* No need to delete a NS Node */
+		return_buffer->length = 0;
+	}
+
+	if (ACPI_FAILURE(status)) {
+		goto cleanup_return_object;
+	}
+
+	/* Dereference Index and ref_of references */
+
+	acpi_ns_resolve_references(info);
+
+	/* Get the size of the returned object */
+
+	status = acpi_ut_get_object_size(info->return_object,
+					 &buffer_space_needed);
+	if (ACPI_SUCCESS(status)) {
+
+		/* Validate/Allocate/Clear caller buffer */
+
+		status = acpi_ut_initialize_buffer(return_buffer,
+						   buffer_space_needed);
+		if (ACPI_FAILURE(status)) {
+			/*
+			 * Caller's buffer is too small or a new one can't
+			 * be allocated
+			 */
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					  "Needed buffer size %X, %s\n",
+					  (u32)buffer_space_needed,
+					  acpi_format_exception(status)));
 		} else {
-			if (ACPI_GET_DESCRIPTOR_TYPE(info->return_object) ==
-			    ACPI_DESC_TYPE_NAMED) {
-				/*
-				 * If we received a NS Node as a return object, this means that
-				 * the object we are evaluating has nothing interesting to
-				 * return (such as a mutex, etc.)  We return an error because
-				 * these types are essentially unsupported by this interface.
-				 * We don't check up front because this makes it easier to add
-				 * support for various types at a later date if necessary.
-				 */
-				status = AE_TYPE;
-				info->return_object = NULL;	/* No need to delete a NS Node */
-				return_buffer->length = 0;
-			}
+			/* We have enough space for the object, build it */
 
-			if (ACPI_SUCCESS(status)) {
-
-				/* Dereference Index and ref_of references */
-
-				acpi_ns_resolve_references(info);
-
-				/* Get the size of the returned object */
-
-				status =
-				    acpi_ut_get_object_size(info->return_object,
-							    &buffer_space_needed);
-				if (ACPI_SUCCESS(status)) {
-
-					/* Validate/Allocate/Clear caller buffer */
-
-					status =
-					    acpi_ut_initialize_buffer
-					    (return_buffer,
-					     buffer_space_needed);
-					if (ACPI_FAILURE(status)) {
-						/*
-						 * Caller's buffer is too small or a new one can't
-						 * be allocated
-						 */
-						ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-								  "Needed buffer size %X, %s\n",
-								  (u32)
-								  buffer_space_needed,
-								  acpi_format_exception
-								  (status)));
-					} else {
-						/* We have enough space for the object, build it */
-
-						status =
-						    acpi_ut_copy_iobject_to_eobject
-						    (info->return_object,
-						     return_buffer);
-					}
-				}
-			}
+			status =
+			    acpi_ut_copy_iobject_to_eobject(info->return_object,
+							    return_buffer);
 		}
 	}
+
+cleanup_return_object:
 
 	if (info->return_object) {
 		/*
@@ -496,9 +495,9 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 	/*
 	 * Two types of references are supported - those created by Index and
 	 * ref_of operators. A name reference (AML_NAMEPATH_OP) can be converted
-	 * to an union acpi_object, so it is not dereferenced here. A ddb_handle
+	 * to a union acpi_object, so it is not dereferenced here. A ddb_handle
 	 * (AML_LOAD_OP) cannot be dereferenced, nor can it be converted to
-	 * an union acpi_object.
+	 * a union acpi_object.
 	 */
 	switch (info->return_object->reference.class) {
 	case ACPI_REFCLASS_INDEX:
@@ -750,8 +749,8 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 
 	/* We have a valid device, invoke the user function */
 
-	status = info->user_function(obj_handle, nesting_level, info->context,
-				     return_value);
+	status = info->user_function(obj_handle, nesting_level,
+				     info->context, return_value);
 	return (status);
 }
 

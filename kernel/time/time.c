@@ -38,7 +38,7 @@
 #include <linux/math64.h>
 #include <linux/ptrace.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 #include <generated/timeconst.h>
@@ -160,15 +160,15 @@ static inline void warp_clock(void)
  * various programs will get confused when the clock gets warped.
  */
 
-int do_sys_settimeofday(const struct timespec *tv, const struct timezone *tz)
+int do_sys_settimeofday64(const struct timespec64 *tv, const struct timezone *tz)
 {
 	static int firsttime = 1;
 	int error = 0;
 
-	if (tv && !timespec_valid(tv))
+	if (tv && !timespec64_valid(tv))
 		return -EINVAL;
 
-	error = security_settime(tv, tz);
+	error = security_settime64(tv, tz);
 	if (error)
 		return error;
 
@@ -186,15 +186,15 @@ int do_sys_settimeofday(const struct timespec *tv, const struct timezone *tz)
 		}
 	}
 	if (tv)
-		return do_settimeofday(tv);
+		return do_settimeofday64(tv);
 	return 0;
 }
 
 SYSCALL_DEFINE2(settimeofday, struct timeval __user *, tv,
 		struct timezone __user *, tz)
 {
+	struct timespec64 new_ts;
 	struct timeval user_tv;
-	struct timespec	new_ts;
 	struct timezone new_tz;
 
 	if (tv) {
@@ -212,7 +212,7 @@ SYSCALL_DEFINE2(settimeofday, struct timeval __user *, tv,
 			return -EFAULT;
 	}
 
-	return do_sys_settimeofday(tv ? &new_ts : NULL, tz ? &new_tz : NULL);
+	return do_sys_settimeofday64(tv ? &new_ts : NULL, tz ? &new_tz : NULL);
 }
 
 SYSCALL_DEFINE1(adjtimex, struct timex __user *, txc_p)
@@ -229,20 +229,6 @@ SYSCALL_DEFINE1(adjtimex, struct timex __user *, txc_p)
 	ret = do_adjtimex(&txc);
 	return copy_to_user(txc_p, &txc, sizeof(struct timex)) ? -EFAULT : ret;
 }
-
-/**
- * current_fs_time - Return FS time
- * @sb: Superblock.
- *
- * Return the current time truncated to the time granularity supported by
- * the fs.
- */
-struct timespec current_fs_time(struct super_block *sb)
-{
-	struct timespec now = current_kernel_time();
-	return timespec_trunc(now, sb->s_time_gran);
-}
-EXPORT_SYMBOL(current_fs_time);
 
 /*
  * Convert jiffies to milliseconds and back.
@@ -322,6 +308,13 @@ EXPORT_SYMBOL(timespec_trunc);
  * -year/100+year/400 terms, and add 10.]
  *
  * This algorithm was first published by Gauss (I think).
+ *
+ * A leap second can be indicated by calling this function with sec as
+ * 60 (allowable under ISO 8601).  The leap second is treated the same
+ * as the following second since they don't exist in UNIX time.
+ *
+ * An encoding of midnight at the end of the day as 24:00:00 - ie. midnight
+ * tomorrow - (allowable under ISO 8601) is supported.
  */
 time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 		const unsigned int day, const unsigned int hour,
@@ -338,7 +331,7 @@ time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 	return ((((time64_t)
 		  (year/4 - year/100 + year/400 + 367*mon/12 + day) +
 		  year*365 - 719499
-	    )*24 + hour /* now have hours */
+	    )*24 + hour /* now have hours - midnight tomorrow handled here */
 	  )*60 + min /* now have minutes */
 	)*60 + sec; /* finally seconds */
 }
@@ -695,6 +688,16 @@ u64 nsec_to_clock_t(u64 x)
 #endif
 }
 
+u64 jiffies64_to_nsecs(u64 j)
+{
+#if !(NSEC_PER_SEC % HZ)
+	return (NSEC_PER_SEC / HZ) * j;
+# else
+	return div_u64(j * HZ_TO_NSEC_NUM, HZ_TO_NSEC_DEN);
+#endif
+}
+EXPORT_SYMBOL(jiffies64_to_nsecs);
+
 /**
  * nsecs_to_jiffies64 - Convert nsecs in u64 to jiffies64
  *
@@ -759,6 +762,27 @@ struct timespec timespec_add_safe(const struct timespec lhs,
 
 	if (res.tv_sec < lhs.tv_sec || res.tv_sec < rhs.tv_sec)
 		res.tv_sec = TIME_T_MAX;
+
+	return res;
+}
+
+/*
+ * Add two timespec64 values and do a safety check for overflow.
+ * It's assumed that both values are valid (>= 0).
+ * And, each timespec64 is in normalized form.
+ */
+struct timespec64 timespec64_add_safe(const struct timespec64 lhs,
+				const struct timespec64 rhs)
+{
+	struct timespec64 res;
+
+	set_normalized_timespec64(&res, (timeu64_t) lhs.tv_sec + rhs.tv_sec,
+			lhs.tv_nsec + rhs.tv_nsec);
+
+	if (unlikely(res.tv_sec < lhs.tv_sec || res.tv_sec < rhs.tv_sec)) {
+		res.tv_sec = TIME64_MAX;
+		res.tv_nsec = 0;
+	}
 
 	return res;
 }

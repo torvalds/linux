@@ -9,8 +9,12 @@ perf-buildid-cache		mainporcelain common
 perf-buildid-list		mainporcelain common
 perf-data			mainporcelain common
 perf-diff			mainporcelain common
+perf-c2c			mainporcelain common
+perf-config			mainporcelain common
 perf-evlist			mainporcelain common
+perf-ftrace			mainporcelain common
 perf-inject			mainporcelain common
+perf-kallsyms			mainporcelain common
 perf-kmem			mainporcelain common
 perf-kvm			mainporcelain common
 perf-list			mainporcelain common
@@ -25,4 +29,4 @@ perf-stat			mainporcelain common
 perf-test			mainporcelain common
 perf-timechart			mainporcelain common
 perf-top			mainporcelain common
-perf-trace			mainporcelain common
+perf-trace			mainporcelain audit

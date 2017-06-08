@@ -49,6 +49,9 @@
  * RXCR
  * receive operation control register
 */
+#define I2S_RXCR_CSR_SHIFT	15
+#define I2S_RXCR_CSR(x)		(x << I2S_RXCR_CSR_SHIFT)
+#define I2S_RXCR_CSR_MASK	(3 << I2S_RXCR_CSR_SHIFT)
 #define I2S_RXCR_HWT		BIT(14)
 #define I2S_RXCR_SJM_SHIFT	12
 #define I2S_RXCR_SJM_R		(0 << I2S_RXCR_SJM_SHIFT)
@@ -75,6 +78,12 @@
  * CKR
  * clock generation register
 */
+#define I2S_CKR_TRCM_SHIFT	28
+#define I2S_CKR_TRCM(x)	(x << I2S_CKR_TRCM_SHIFT)
+#define I2S_CKR_TRCM_TXRX	(0 << I2S_CKR_TRCM_SHIFT)
+#define I2S_CKR_TRCM_TXONLY	(1 << I2S_CKR_TRCM_SHIFT)
+#define I2S_CKR_TRCM_RXONLY	(2 << I2S_CKR_TRCM_SHIFT)
+#define I2S_CKR_TRCM_MASK	(3 << I2S_CKR_TRCM_SHIFT)
 #define I2S_CKR_MSS_SHIFT	27
 #define I2S_CKR_MSS_MASTER	(0 << I2S_CKR_MSS_SHIFT)
 #define I2S_CKR_MSS_SLAVE	(1 << I2S_CKR_MSS_SHIFT)
@@ -207,6 +216,13 @@ enum {
 	ROCKCHIP_DIV_BCLK,
 };
 
+/* channel select */
+#define I2S_CSR_SHIFT	15
+#define I2S_CHN_2	(0 << I2S_CSR_SHIFT)
+#define I2S_CHN_4	(1 << I2S_CSR_SHIFT)
+#define I2S_CHN_6	(2 << I2S_CSR_SHIFT)
+#define I2S_CHN_8	(3 << I2S_CSR_SHIFT)
+
 /* I2S REGS */
 #define I2S_TXCR	(0x0000)
 #define I2S_RXCR	(0x0004)
@@ -219,5 +235,12 @@ enum {
 #define I2S_CLR		(0x0020)
 #define I2S_TXDR	(0x0024)
 #define I2S_RXDR	(0x0028)
+
+/* io direction cfg register */
+#define I2S_IO_DIRECTION_MASK	(7)
+#define I2S_IO_8CH_OUT_2CH_IN	(0)
+#define I2S_IO_6CH_OUT_4CH_IN	(4)
+#define I2S_IO_4CH_OUT_6CH_IN	(6)
+#define I2S_IO_2CH_OUT_8CH_IN	(7)
 
 #endif /* _ROCKCHIP_IIS_H */

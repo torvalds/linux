@@ -124,7 +124,6 @@ initialization with a pointer to a structure describing the driver
 
 The ID table is an array of struct pci_device_id entries ending with an
 all-zero entry.  Definitions with static const are generally preferred.
-Use of the deprecated macro DEFINE_PCI_DEVICE_TABLE should be avoided.
 
 Each entry consists of:
 
@@ -383,18 +382,18 @@ The fundamental difference between MSI and MSI-X is how multiple
 "vectors" get allocated. MSI requires contiguous blocks of vectors
 while MSI-X can allocate several individual ones.
 
-MSI capability can be enabled by calling pci_enable_msi() or
-pci_enable_msix() before calling request_irq(). This causes
-the PCI support to program CPU vector data into the PCI device
-capability registers.
+MSI capability can be enabled by calling pci_alloc_irq_vectors() with the
+PCI_IRQ_MSI and/or PCI_IRQ_MSIX flags before calling request_irq(). This
+causes the PCI support to program CPU vector data into the PCI device
+capability registers. Many architectures, chip-sets, or BIOSes do NOT
+support MSI or MSI-X and a call to pci_alloc_irq_vectors with just
+the PCI_IRQ_MSI and PCI_IRQ_MSIX flags will fail, so try to always
+specify PCI_IRQ_LEGACY as well.
 
-If your PCI device supports both, try to enable MSI-X first.
-Only one can be enabled at a time.  Many architectures, chip-sets,
-or BIOSes do NOT support MSI or MSI-X and the call to pci_enable_msi/msix
-will fail. This is important to note since many drivers have
-two (or more) interrupt handlers: one for MSI/MSI-X and another for IRQs.
-They choose which handler to register with request_irq() based on the
-return value from pci_enable_msi/msix().
+Drivers that have different interrupt handlers for MSI/MSI-X and
+legacy INTx should chose the right one based on the msi_enabled
+and msix_enabled flags in the pci_dev structure after calling
+pci_alloc_irq_vectors.
 
 There are (at least) two really good reasons for using MSI:
 1) MSI is an exclusive interrupt vector by definition.

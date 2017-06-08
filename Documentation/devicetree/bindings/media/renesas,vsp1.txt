@@ -1,30 +1,23 @@
-* Renesas VSP1 Video Processing Engine
+* Renesas VSP Video Processing Engine
 
-The VSP1 is a video processing engine that supports up-/down-scaling, alpha
+The VSP is a video processing engine that supports up-/down-scaling, alpha
 blending, color space conversion and various other image processing features.
 It can be found in the Renesas R-Car second generation SoCs.
 
 Required properties:
 
-  - compatible: Must contain "renesas,vsp1"
+  - compatible: Must contain one of the following values
+    - "renesas,vsp1" for the R-Car Gen2 VSP1
+    - "renesas,vsp2" for the R-Car Gen3 VSP2
 
-  - reg: Base address and length of the registers block for the VSP1.
-  - interrupts: VSP1 interrupt specifier.
-  - clocks: A phandle + clock-specifier pair for the VSP1 functional clock.
-
-  - renesas,#rpf: Number of Read Pixel Formatter (RPF) modules in the VSP1.
-  - renesas,#uds: Number of Up Down Scaler (UDS) modules in the VSP1.
-  - renesas,#wpf: Number of Write Pixel Formatter (WPF) modules in the VSP1.
-
+  - reg: Base address and length of the registers block for the VSP.
+  - interrupts: VSP interrupt specifier.
+  - clocks: A phandle + clock-specifier pair for the VSP functional clock.
 
 Optional properties:
 
-  - renesas,has-lif: Boolean, indicates that the LCD Interface (LIF) module is
-    available.
-  - renesas,has-lut: Boolean, indicates that the Look Up Table (LUT) module is
-    available.
-  - renesas,has-sru: Boolean, indicates that the Super Resolution Unit (SRU)
-    module is available.
+  - renesas,fcp: A phandle referencing the FCP that handles memory accesses
+                 for the VSP. Not needed on Gen2, mandatory on Gen3.
 
 
 Example: R8A7790 (R-Car H2) VSP1-S node
@@ -34,10 +27,4 @@ Example: R8A7790 (R-Car H2) VSP1-S node
 		reg = <0 0xfe928000 0 0x8000>;
 		interrupts = <0 267 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp1_clks R8A7790_CLK_VSP1_S>;
-
-		renesas,has-lut;
-		renesas,has-sru;
-		renesas,#rpf = <5>;
-		renesas,#uds = <3>;
-		renesas,#wpf = <4>;
 	};

@@ -79,8 +79,7 @@ exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 	list_for_each_entry(outp, &disp->base.outp, head) {
 		if ((outp->info.hasht & 0xff) == type &&
 		    (outp->info.hashm & mask) == mask) {
-			*data = nvbios_outp_match(bios, outp->info.hasht,
-							outp->info.hashm,
+			*data = nvbios_outp_match(bios, outp->info.hasht, mask,
 						  ver, hdr, cnt, len, info);
 			if (!*data)
 				return NULL;
@@ -155,25 +154,21 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 	if (!outp)
 		return NULL;
 
+	*conf = (ctrl & 0x00000f00) >> 8;
 	switch (outp->info.type) {
 	case DCB_OUTPUT_TMDS:
-		*conf = (ctrl & 0x00000f00) >> 8;
-		if (pclk >= 165000)
+		if (*conf == 5)
 			*conf |= 0x0100;
 		break;
 	case DCB_OUTPUT_LVDS:
-		*conf = disp->sor.lvdsconf;
+		*conf |= disp->sor.lvdsconf;
 		break;
-	case DCB_OUTPUT_DP:
-		*conf = (ctrl & 0x00000f00) >> 8;
-		break;
-	case DCB_OUTPUT_ANALOG:
 	default:
-		*conf = 0x00ff;
 		break;
 	}
 
-	data = nvbios_ocfg_match(bios, data, *conf, &ver, &hdr, &cnt, &len, &info2);
+	data = nvbios_ocfg_match(bios, data, *conf & 0xff, *conf >> 8,
+				 &ver, &hdr, &cnt, &len, &info2);
 	if (data && id < 0xff) {
 		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
 		if (data) {
@@ -208,17 +203,20 @@ gf119_disp_intr_unk2_0(struct nv50_disp *disp, int head)
 	/* see note in nv50_disp_intr_unk20_0() */
 	if (outp && outp->info.type == DCB_OUTPUT_DP) {
 		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
-		struct nvbios_init init = {
-			.subdev = subdev,
-			.bios = subdev->device->bios,
-			.outp = &outp->info,
-			.crtc = head,
-			.offset = outpdp->info.script[4],
-			.execute = 1,
-		};
+		if (!outpdp->lt.mst) {
+			struct nvbios_init init = {
+				.subdev = subdev,
+				.bios = subdev->device->bios,
+				.outp = &outp->info,
+				.crtc = head,
+				.offset = outpdp->info.script[4],
+				.execute = 1,
+			};
 
-		nvbios_exec(&init);
-		atomic_set(&outpdp->lt.done, 0);
+			nvkm_notify_put(&outpdp->irq);
+			nvbios_exec(&init);
+			atomic_set(&outpdp->lt.done, 0);
+		}
 	}
 }
 
@@ -319,7 +317,7 @@ gf119_disp_intr_unk2_2(struct nv50_disp *disp, int head)
 			break;
 		}
 
-		if (nvkm_output_dp_train(outp, pclk, true))
+		if (nvkm_output_dp_train(outp, pclk))
 			OUTP_ERR(outp, "link not trained before attach");
 	} else {
 		if (disp->func->sor.magic)
@@ -418,7 +416,7 @@ gf119_disp_intr_supervisor(struct work_struct *work)
 	nvkm_wr32(device, 0x6101d0, 0x80000000);
 }
 
-static void
+void
 gf119_disp_intr_error(struct nv50_disp *disp, int chid)
 {
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
@@ -466,7 +464,7 @@ gf119_disp_intr(struct nv50_disp *disp)
 		u32 stat = nvkm_rd32(device, 0x61009c);
 		int chid = ffs(stat) - 1;
 		if (chid >= 0)
-			gf119_disp_intr_error(disp, chid);
+			disp->func->intr_error(disp, chid);
 		intr &= ~0x00000002;
 	}
 
@@ -510,6 +508,7 @@ gf119_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 static const struct nv50_disp_func
 gf119_disp = {
 	.intr = gf119_disp_intr,
+	.intr_error = gf119_disp_intr_error,
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_intr_supervisor,
 	.root = &gf119_disp_root_oclass,

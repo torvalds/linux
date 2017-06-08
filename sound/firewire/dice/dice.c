@@ -12,30 +12,50 @@ MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
 
 #define OUI_WEISS		0x001c6a
+#define OUI_LOUD		0x000ff2
+#define OUI_FOCUSRITE		0x00130e
+#define OUI_TCELECTRONIC	0x001486
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
+#define LOUD_CATEGORY_ID	0x10
 
-static int dice_interface_check(struct fw_unit *unit)
+/*
+ * Some models support several isochronous channels, while these streams are not
+ * always available. In this case, add the model name to this list.
+ */
+static bool force_two_pcm_support(struct fw_unit *unit)
 {
-	static const int min_values[10] = {
-		10, 0x64 / 4,
-		10, 0x18 / 4,
-		10, 0x18 / 4,
-		0, 0,
-		0, 0,
+	const char *const models[] = {
+		/* TC Electronic models. */
+		"StudioKonnekt48",
+		/* Focusrite models. */
+		"SAFFIRE_PRO_40",
+		"LIQUID_SAFFIRE_56",
+		"SAFFIRE_PRO_40_1",
 	};
+	char model[32];
+	unsigned int i;
+	int err;
+
+	err = fw_csr_string(unit->directory, CSR_MODEL, model, sizeof(model));
+	if (err < 0)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(models); i++) {
+		if (strcmp(models[i], model) == 0)
+			break;
+	}
+
+	return i < ARRAY_SIZE(models);
+}
+
+static int check_dice_category(struct fw_unit *unit)
+{
 	struct fw_device *device = fw_parent_device(unit);
 	struct fw_csr_iterator it;
-	int key, val, vendor = -1, model = -1, err;
-	unsigned int category, i;
-	__be32 *pointers, value;
-	__be32 version;
-
-	pointers = kmalloc_array(ARRAY_SIZE(min_values), sizeof(__be32),
-				 GFP_KERNEL);
-	if (pointers == NULL)
-		return -ENOMEM;
+	int key, val, vendor = -1, model = -1;
+	unsigned int category;
 
 	/*
 	 * Check that GUID and unit directory are constructed according to DICE
@@ -54,117 +74,29 @@ static int dice_interface_check(struct fw_unit *unit)
 			break;
 		}
 	}
+
+	if (vendor == OUI_FOCUSRITE || vendor == OUI_TCELECTRONIC) {
+		if (force_two_pcm_support(unit))
+			return 0;
+	}
+
 	if (vendor == OUI_WEISS)
 		category = WEISS_CATEGORY_ID;
+	else if (vendor == OUI_LOUD)
+		category = LOUD_CATEGORY_ID;
 	else
 		category = DICE_CATEGORY_ID;
 	if (device->config_rom[3] != ((vendor << 8) | category) ||
-	    device->config_rom[4] >> 22 != model) {
-		err = -ENODEV;
-		goto end;
-	}
-
-	/*
-	 * Check that the sub address spaces exist and are located inside the
-	 * private address space.  The minimum values are chosen so that all
-	 * minimally required registers are included.
-	 */
-	err = snd_fw_transaction(unit, TCODE_READ_BLOCK_REQUEST,
-				 DICE_PRIVATE_SPACE, pointers,
-				 sizeof(__be32) * ARRAY_SIZE(min_values), 0);
-	if (err < 0) {
-		err = -ENODEV;
-		goto end;
-	}
-	for (i = 0; i < ARRAY_SIZE(min_values); ++i) {
-		value = be32_to_cpu(pointers[i]);
-		if (value < min_values[i] || value >= 0x40000) {
-			err = -ENODEV;
-			goto end;
-		}
-	}
-
-	/*
-	 * Check that the implemented DICE driver specification major version
-	 * number matches.
-	 */
-	err = snd_fw_transaction(unit, TCODE_READ_QUADLET_REQUEST,
-				 DICE_PRIVATE_SPACE +
-				 be32_to_cpu(pointers[0]) * 4 + GLOBAL_VERSION,
-				 &version, 4, 0);
-	if (err < 0) {
-		err = -ENODEV;
-		goto end;
-	}
-	if ((version & cpu_to_be32(0xff000000)) != cpu_to_be32(0x01000000)) {
-		dev_err(&unit->device,
-			"unknown DICE version: 0x%08x\n", be32_to_cpu(version));
-		err = -ENODEV;
-		goto end;
-	}
-end:
-	return err;
-}
-
-static int highest_supported_mode_rate(struct snd_dice *dice,
-				       unsigned int mode, unsigned int *rate)
-{
-	unsigned int i, m;
-
-	for (i = ARRAY_SIZE(snd_dice_rates); i > 0; i--) {
-		*rate = snd_dice_rates[i - 1];
-		if (snd_dice_stream_get_rate_mode(dice, *rate, &m) < 0)
-			continue;
-		if (mode == m)
-			break;
-	}
-	if (i == 0)
-		return -EINVAL;
+	    device->config_rom[4] >> 22 != model)
+		return -ENODEV;
 
 	return 0;
 }
 
-static int dice_read_mode_params(struct snd_dice *dice, unsigned int mode)
-{
-	__be32 values[2];
-	unsigned int rate;
-	int err;
-
-	if (highest_supported_mode_rate(dice, mode, &rate) < 0) {
-		dice->tx_channels[mode] = 0;
-		dice->tx_midi_ports[mode] = 0;
-		dice->rx_channels[mode] = 0;
-		dice->rx_midi_ports[mode] = 0;
-		return 0;
-	}
-
-	err = snd_dice_transaction_set_rate(dice, rate);
-	if (err < 0)
-		return err;
-
-	err = snd_dice_transaction_read_tx(dice, TX_NUMBER_AUDIO,
-					   values, sizeof(values));
-	if (err < 0)
-		return err;
-
-	dice->tx_channels[mode]   = be32_to_cpu(values[0]);
-	dice->tx_midi_ports[mode] = be32_to_cpu(values[1]);
-
-	err = snd_dice_transaction_read_rx(dice, RX_NUMBER_AUDIO,
-					   values, sizeof(values));
-	if (err < 0)
-		return err;
-
-	dice->rx_channels[mode]   = be32_to_cpu(values[0]);
-	dice->rx_midi_ports[mode] = be32_to_cpu(values[1]);
-
-	return 0;
-}
-
-static int dice_read_params(struct snd_dice *dice)
+static int check_clock_caps(struct snd_dice *dice)
 {
 	__be32 value;
-	int mode, err;
+	int err;
 
 	/* some very old firmwares don't tell about their clock support */
 	if (dice->clock_caps > 0) {
@@ -180,12 +112,6 @@ static int dice_read_params(struct snd_dice *dice)
 				   CLOCK_CAP_RATE_48000 |
 				   CLOCK_CAP_SOURCE_ARX1 |
 				   CLOCK_CAP_SOURCE_INTERNAL;
-	}
-
-	for (mode = 2; mode >= 0; --mode) {
-		err = dice_read_mode_params(dice, mode);
-		if (err < 0)
-			return err;
 	}
 
 	return 0;
@@ -226,6 +152,16 @@ static void dice_card_strings(struct snd_dice *dice)
 	strcpy(card->mixername, "DICE");
 }
 
+static void dice_free(struct snd_dice *dice)
+{
+	snd_dice_stream_destroy_duplex(dice);
+	snd_dice_transaction_destroy(dice);
+	fw_unit_put(dice->unit);
+
+	mutex_destroy(&dice->mutex);
+	kfree(dice);
+}
+
 /*
  * This module releases the FireWire unit data after all ALSA character devices
  * are released by applications. This is for releasing stream data or finishing
@@ -234,51 +170,46 @@ static void dice_card_strings(struct snd_dice *dice)
  */
 static void dice_card_free(struct snd_card *card)
 {
-	struct snd_dice *dice = card->private_data;
-
-	snd_dice_stream_destroy_duplex(dice);
-	snd_dice_transaction_destroy(dice);
-	fw_unit_put(dice->unit);
-
-	mutex_destroy(&dice->mutex);
+	dice_free(card->private_data);
 }
 
-static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
+static void do_registration(struct work_struct *work)
 {
-	struct snd_card *card;
-	struct snd_dice *dice;
+	struct snd_dice *dice = container_of(work, struct snd_dice, dwork.work);
 	int err;
 
-	err = dice_interface_check(unit);
+	if (dice->registered)
+		return;
+
+	err = snd_card_new(&dice->unit->device, -1, NULL, THIS_MODULE, 0,
+			   &dice->card);
 	if (err < 0)
-		goto end;
+		return;
 
-	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE,
-			   sizeof(*dice), &card);
-	if (err < 0)
-		goto end;
-
-	dice = card->private_data;
-	dice->card = card;
-	dice->unit = fw_unit_get(unit);
-	card->private_free = dice_card_free;
-
-	spin_lock_init(&dice->lock);
-	mutex_init(&dice->mutex);
-	init_completion(&dice->clock_accepted);
-	init_waitqueue_head(&dice->hwdep_wait);
+	if (force_two_pcm_support(dice->unit))
+		dice->force_two_pcms = true;
 
 	err = snd_dice_transaction_init(dice);
 	if (err < 0)
 		goto error;
 
-	err = dice_read_params(dice);
+	err = check_clock_caps(dice);
 	if (err < 0)
 		goto error;
 
 	dice_card_strings(dice);
 
+	err = snd_dice_stream_init_duplex(dice);
+	if (err < 0)
+		goto error;
+
+	snd_dice_create_proc(dice);
+
 	err = snd_dice_create_pcm(dice);
+	if (err < 0)
+		goto error;
+
+	err = snd_dice_create_midi(dice);
 	if (err < 0)
 		goto error;
 
@@ -286,48 +217,97 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	if (err < 0)
 		goto error;
 
-	snd_dice_create_proc(dice);
-
-	err = snd_dice_create_midi(dice);
+	err = snd_card_register(dice->card);
 	if (err < 0)
 		goto error;
 
-	err = snd_dice_stream_init_duplex(dice);
-	if (err < 0)
-		goto error;
+	/*
+	 * After registered, dice instance can be released corresponding to
+	 * releasing the sound card instance.
+	 */
+	dice->card->private_free = dice_card_free;
+	dice->card->private_data = dice;
+	dice->registered = true;
 
-	err = snd_card_register(card);
-	if (err < 0) {
-		snd_dice_stream_destroy_duplex(dice);
-		goto error;
-	}
-
-	dev_set_drvdata(&unit->device, dice);
-end:
-	return err;
+	return;
 error:
-	snd_card_free(card);
-	return err;
+	snd_dice_stream_destroy_duplex(dice);
+	snd_dice_transaction_destroy(dice);
+	snd_dice_stream_destroy_duplex(dice);
+	snd_card_free(dice->card);
+	dev_info(&dice->unit->device,
+		 "Sound card registration failed: %d\n", err);
+}
+
+static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
+{
+	struct snd_dice *dice;
+	int err;
+
+	err = check_dice_category(unit);
+	if (err < 0)
+		return -ENODEV;
+
+	/* Allocate this independent of sound card instance. */
+	dice = kzalloc(sizeof(struct snd_dice), GFP_KERNEL);
+	if (dice == NULL)
+		return -ENOMEM;
+
+	dice->unit = fw_unit_get(unit);
+	dev_set_drvdata(&unit->device, dice);
+
+	spin_lock_init(&dice->lock);
+	mutex_init(&dice->mutex);
+	init_completion(&dice->clock_accepted);
+	init_waitqueue_head(&dice->hwdep_wait);
+
+	/* Allocate and register this sound card later. */
+	INIT_DEFERRABLE_WORK(&dice->dwork, do_registration);
+	snd_fw_schedule_registration(unit, &dice->dwork);
+
+	return 0;
 }
 
 static void dice_remove(struct fw_unit *unit)
 {
 	struct snd_dice *dice = dev_get_drvdata(&unit->device);
 
-	/* No need to wait for releasing card object in this context. */
-	snd_card_free_when_closed(dice->card);
+	/*
+	 * Confirm to stop the work for registration before the sound card is
+	 * going to be released. The work is not scheduled again because bus
+	 * reset handler is not called anymore.
+	 */
+	cancel_delayed_work_sync(&dice->dwork);
+
+	if (dice->registered) {
+		/* No need to wait for releasing card object in this context. */
+		snd_card_free_when_closed(dice->card);
+	} else {
+		/* Don't forget this case. */
+		dice_free(dice);
+	}
 }
 
 static void dice_bus_reset(struct fw_unit *unit)
 {
 	struct snd_dice *dice = dev_get_drvdata(&unit->device);
 
+	/* Postpone a workqueue for deferred registration. */
+	if (!dice->registered)
+		snd_fw_schedule_registration(unit, &dice->dwork);
+
 	/* The handler address register becomes initialized. */
 	snd_dice_transaction_reinit(dice);
 
-	mutex_lock(&dice->mutex);
-	snd_dice_stream_update_duplex(dice);
-	mutex_unlock(&dice->mutex);
+	/*
+	 * After registration, userspace can start packet streaming, then this
+	 * code block works fine.
+	 */
+	if (dice->registered) {
+		mutex_lock(&dice->mutex);
+		snd_dice_stream_update_duplex(dice);
+		mutex_unlock(&dice->mutex);
+	}
 }
 
 #define DICE_INTERFACE	0x000001
@@ -336,6 +316,13 @@ static const struct ieee1394_device_id dice_id_table[] = {
 	{
 		.match_flags = IEEE1394_MATCH_VERSION,
 		.version     = DICE_INTERFACE,
+	},
+	/* M-Audio Profire 610/2626 has a different value in version field. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID,
+		.vendor_id	= 0x000d6c,
+		.specifier_id	= 0x000d6c,
 	},
 	{ }
 };

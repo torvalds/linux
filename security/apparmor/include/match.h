@@ -62,6 +62,7 @@ struct table_set_header {
 #define YYTD_ID_ACCEPT2 6
 #define YYTD_ID_NXT	7
 #define YYTD_ID_TSIZE	8
+#define YYTD_ID_MAX	8
 
 #define YYTD_DATA8	1
 #define YYTD_DATA16	2
@@ -99,13 +100,15 @@ struct aa_dfa {
 	struct table_header *tables[YYTD_ID_TSIZE];
 };
 
+extern struct aa_dfa *nulldfa;
+
 #define byte_to_byte(X) (X)
 
-#define UNPACK_ARRAY(TABLE, BLOB, LEN, TYPE, NTOHX) \
+#define UNPACK_ARRAY(TABLE, BLOB, LEN, TTYPE, BTYPE, NTOHX)	\
 	do { \
 		typeof(LEN) __i; \
-		TYPE *__t = (TYPE *) TABLE; \
-		TYPE *__b = (TYPE *) BLOB; \
+		TTYPE *__t = (TTYPE *) TABLE; \
+		BTYPE *__b = (BTYPE *) BLOB; \
 		for (__i = 0; __i < LEN; __i++) { \
 			__t[__i] = NTOHX(__b[__i]); \
 		} \
@@ -116,6 +119,9 @@ static inline size_t table_size(size_t len, size_t el_size)
 	return ALIGN(sizeof(struct table_header) + len * el_size, 8);
 }
 
+int aa_setup_dfa_engine(void);
+void aa_teardown_dfa_engine(void);
+
 struct aa_dfa *aa_dfa_unpack(void *blob, size_t size, int flags);
 unsigned int aa_dfa_match_len(struct aa_dfa *dfa, unsigned int start,
 			      const char *str, int len);
@@ -125,6 +131,21 @@ unsigned int aa_dfa_next(struct aa_dfa *dfa, unsigned int state,
 			 const char c);
 
 void aa_dfa_free_kref(struct kref *kref);
+
+/**
+ * aa_get_dfa - increment refcount on dfa @p
+ * @dfa: dfa  (MAYBE NULL)
+ *
+ * Returns: pointer to @dfa if @dfa is NULL will return NULL
+ * Requires: @dfa must be held with valid refcount when called
+ */
+static inline struct aa_dfa *aa_get_dfa(struct aa_dfa *dfa)
+{
+	if (dfa)
+		kref_get(&(dfa->count));
+
+	return dfa;
+}
 
 /**
  * aa_put_dfa - put a dfa refcount

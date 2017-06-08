@@ -71,7 +71,7 @@
 
 #include <stdarg.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -132,7 +132,7 @@ static struct dentry *ufs_get_parent(struct dentry *child)
 	ino = ufs_inode_by_name(d_inode(child), &dot_dot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
-	return d_obtain_alias(ufs_iget(d_inode(child)->i_sb, ino));
+	return d_obtain_alias(ufs_iget(child->d_sb, ino));
 }
 
 static const struct export_operations ufs_export_ops = {
@@ -812,9 +812,8 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	uspi->s_dirblksize = UFS_SECTOR_SIZE;
 	super_block_offset=UFS_SBLOCK;
 
-	/* Keep 2Gig file limit. Some UFS variants need to override 
-	   this but as I don't know which I'll let those in the know loosen
-	   the rules */
+	sb->s_maxbytes = MAX_LFS_FILESIZE;
+
 	switch (sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) {
 	case UFS_MOUNT_UFSTYPE_44BSD:
 		UFSD("ufstype=44bsd\n");
@@ -1427,7 +1426,7 @@ static int __init init_inodecache(void)
 	ufs_inode_cachep = kmem_cache_create("ufs_inode_cache",
 					     sizeof(struct ufs_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
+						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
 	if (ufs_inode_cachep == NULL)
 		return -ENOMEM;

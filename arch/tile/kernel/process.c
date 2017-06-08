@@ -13,6 +13,9 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/preempt.h>
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -22,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/compat.h>
-#include <linux/hardirq.h>
+#include <linux/nmi.h>
 #include <linux/syscalls.h>
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
@@ -35,7 +38,7 @@
 #include <asm/syscalls.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #ifdef CONFIG_HARDWALL
 #include <asm/hardwall.h>
 #endif
@@ -73,8 +76,9 @@ void arch_cpu_idle(void)
 /*
  * Release a thread_info structure
  */
-void arch_release_thread_info(struct thread_info *info)
+void arch_release_thread_stack(unsigned long *stack)
 {
+	struct thread_info *info = (void *)stack;
 	struct single_step_state *step_state = info->step_state;
 
 	if (step_state) {
@@ -462,54 +466,57 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 
 /*
  * This routine is called on return from interrupt if any of the
- * TIF_WORK_MASK flags are set in thread_info->flags.  It is
- * entered with interrupts disabled so we don't miss an event
- * that modified the thread_info flags.  If any flag is set, we
- * handle it and return, and the calling assembly code will
- * re-disable interrupts, reload the thread flags, and call back
- * if more flags need to be handled.
- *
- * We return whether we need to check the thread_info flags again
- * or not.  Note that we don't clear TIF_SINGLESTEP here, so it's
- * important that it be tested last, and then claim that we don't
- * need to recheck the flags.
+ * TIF_ALLWORK_MASK flags are set in thread_info->flags.  It is
+ * entered with interrupts disabled so we don't miss an event that
+ * modified the thread_info flags.  We loop until all the tested flags
+ * are clear.  Note that the function is called on certain conditions
+ * that are not listed in the loop condition here (e.g. SINGLESTEP)
+ * which guarantees we will do those things once, and redo them if any
+ * of the other work items is re-done, but won't continue looping if
+ * all the other work is done.
  */
-int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
+void prepare_exit_to_usermode(struct pt_regs *regs, u32 thread_info_flags)
 {
-	/* If we enter in kernel mode, do nothing and exit the caller loop. */
-	if (!user_mode(regs))
-		return 0;
+	if (WARN_ON(!user_mode(regs)))
+		return;
 
-	user_exit();
+	do {
+		local_irq_enable();
 
-	/* Enable interrupts; they are disabled again on return to caller. */
-	local_irq_enable();
+		if (thread_info_flags & _TIF_NEED_RESCHED)
+			schedule();
 
-	if (thread_info_flags & _TIF_NEED_RESCHED) {
-		schedule();
-		return 1;
-	}
 #if CHIP_HAS_TILE_DMA()
-	if (thread_info_flags & _TIF_ASYNC_TLB) {
-		do_async_page_fault(regs);
-		return 1;
-	}
+		if (thread_info_flags & _TIF_ASYNC_TLB)
+			do_async_page_fault(regs);
 #endif
-	if (thread_info_flags & _TIF_SIGPENDING) {
-		do_signal(regs);
-		return 1;
-	}
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-		return 1;
-	}
-	if (thread_info_flags & _TIF_SINGLESTEP)
+
+		if (thread_info_flags & _TIF_SIGPENDING)
+			do_signal(regs);
+
+		if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+			clear_thread_flag(TIF_NOTIFY_RESUME);
+			tracehook_notify_resume(regs);
+		}
+
+		local_irq_disable();
+		thread_info_flags = READ_ONCE(current_thread_info()->flags);
+
+	} while (thread_info_flags & _TIF_WORK_MASK);
+
+	if (thread_info_flags & _TIF_SINGLESTEP) {
 		single_step_once(regs);
+#ifndef __tilegx__
+		/*
+		 * FIXME: on tilepro, since we enable interrupts in
+		 * this routine, it's possible that we miss a signal
+		 * or other asynchronous event.
+		 */
+		local_irq_disable();
+#endif
+	}
 
 	user_enter();
-
-	return 0;
 }
 
 unsigned long get_wchan(struct task_struct *p)
@@ -538,7 +545,7 @@ void flush_thread(void)
 /*
  * Free current thread data structures etc..
  */
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
 #ifdef CONFIG_HARDWALL
 	/*
@@ -547,7 +554,7 @@ void exit_thread(void)
 	 * the last reference to a hardwall fd, it would already have
 	 * been released and deactivated at this point.)
 	 */
-	hardwall_deactivate_all(current);
+	hardwall_deactivate_all(tsk);
 #endif
 }
 
@@ -590,66 +597,18 @@ void show_regs(struct pt_regs *regs)
 	tile_show_stack(&kbt);
 }
 
-/* To ensure stack dump on tiles occurs one by one. */
-static DEFINE_SPINLOCK(backtrace_lock);
-/* To ensure no backtrace occurs before all of the stack dump are done. */
-static atomic_t backtrace_cpus;
-/* The cpu mask to avoid reentrance. */
-static struct cpumask backtrace_mask;
-
-void do_nmi_dump_stack(struct pt_regs *regs)
-{
-	int is_idle = is_idle_task(current) && !in_interrupt();
-	int cpu;
-
-	nmi_enter();
-	cpu = smp_processor_id();
-	if (WARN_ON_ONCE(!cpumask_test_and_clear_cpu(cpu, &backtrace_mask)))
-		goto done;
-
-	spin_lock(&backtrace_lock);
-	if (is_idle)
-		pr_info("CPU: %d idle\n", cpu);
-	else
-		show_regs(regs);
-	spin_unlock(&backtrace_lock);
-	atomic_dec(&backtrace_cpus);
-done:
-	nmi_exit();
-}
-
 #ifdef __tilegx__
-void arch_trigger_all_cpu_backtrace(bool self)
+void nmi_raise_cpu_backtrace(struct cpumask *in_mask)
 {
 	struct cpumask mask;
 	HV_Coord tile;
 	unsigned int timeout;
 	int cpu;
-	int ongoing;
 	HV_NMI_Info info[NR_CPUS];
-
-	ongoing = atomic_cmpxchg(&backtrace_cpus, 0, num_online_cpus() - 1);
-	if (ongoing != 0) {
-		pr_err("Trying to do all-cpu backtrace.\n");
-		pr_err("But another all-cpu backtrace is ongoing (%d cpus left)\n",
-		       ongoing);
-		if (self) {
-			pr_err("Reporting the stack on this cpu only.\n");
-			dump_stack();
-		}
-		return;
-	}
-
-	cpumask_copy(&mask, cpu_online_mask);
-	cpumask_clear_cpu(smp_processor_id(), &mask);
-	cpumask_copy(&backtrace_mask, &mask);
-
-	/* Backtrace for myself first. */
-	if (self)
-		dump_stack();
 
 	/* Tentatively dump stack on remote tiles via NMI. */
 	timeout = 100;
+	cpumask_copy(&mask, in_mask);
 	while (!cpumask_empty(&mask) && timeout) {
 		for_each_cpu(cpu, &mask) {
 			tile.x = cpu_x(cpu);
@@ -660,12 +619,17 @@ void arch_trigger_all_cpu_backtrace(bool self)
 		}
 
 		mdelay(10);
+		touch_softlockup_watchdog();
 		timeout--;
 	}
 
-	/* Warn about cpus stuck in ICS and decrement their counts here. */
+	/* Warn about cpus stuck in ICS. */
 	if (!cpumask_empty(&mask)) {
 		for_each_cpu(cpu, &mask) {
+
+			/* Clear the bit as if nmi_cpu_backtrace() ran. */
+			cpumask_clear_cpu(cpu, in_mask);
+
 			switch (info[cpu].result) {
 			case HV_NMI_RESULT_FAIL_ICS:
 				pr_warn("Skipping stack dump of cpu %d in ICS at pc %#llx\n",
@@ -676,16 +640,20 @@ void arch_trigger_all_cpu_backtrace(bool self)
 					cpu);
 				break;
 			case HV_ENOSYS:
-				pr_warn("Hypervisor too old to allow remote stack dumps.\n");
-				goto skip_for_each;
+				WARN_ONCE(1, "Hypervisor too old to allow remote stack dumps.\n");
+				break;
 			default:  /* should not happen */
 				pr_warn("Skipping stack dump of cpu %d [%d,%#llx]\n",
 					cpu, info[cpu].result, info[cpu].pc);
 				break;
 			}
 		}
-skip_for_each:
-		atomic_sub(cpumask_weight(&mask), &backtrace_cpus);
 	}
+}
+
+void arch_trigger_cpumask_backtrace(const cpumask_t *mask, bool exclude_self)
+{
+	nmi_trigger_cpumask_backtrace(mask, exclude_self,
+				      nmi_raise_cpu_backtrace);
 }
 #endif /* __tilegx_ */

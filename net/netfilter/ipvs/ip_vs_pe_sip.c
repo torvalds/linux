@@ -70,10 +70,10 @@ ip_vs_sip_fill_param(struct ip_vs_conn_param *p, struct sk_buff *skb)
 	const char *dptr;
 	int retc;
 
-	ip_vs_fill_iph_skb(p->af, skb, &iph);
+	retc = ip_vs_fill_iph_skb(p->af, skb, false, &iph);
 
 	/* Only useful with UDP */
-	if (iph.protocol != IPPROTO_UDP)
+	if (!retc || iph.protocol != IPPROTO_UDP)
 		return -EINVAL;
 	/* todo: IPv6 fragments:
 	 *       I think this only should be done for the first fragment. /HS
@@ -88,7 +88,7 @@ ip_vs_sip_fill_param(struct ip_vs_conn_param *p, struct sk_buff *skb)
 	dptr = skb->data + dataoff;
 	datalen = skb->len - dataoff;
 
-	if (get_callid(dptr, dataoff, datalen, &matchoff, &matchlen))
+	if (get_callid(dptr, 0, datalen, &matchoff, &matchlen))
 		return -EINVAL;
 
 	/* N.B: pe_data is only set on success,
@@ -143,6 +143,20 @@ static int ip_vs_sip_show_pe_data(const struct ip_vs_conn *cp, char *buf)
 	return cp->pe_data_len;
 }
 
+static struct ip_vs_conn *
+ip_vs_sip_conn_out(struct ip_vs_service *svc,
+		   struct ip_vs_dest *dest,
+		   struct sk_buff *skb,
+		   const struct ip_vs_iphdr *iph,
+		   __be16 dport,
+		   __be16 cport)
+{
+	if (likely(iph->protocol == IPPROTO_UDP))
+		return ip_vs_new_conn_out(svc, dest, skb, iph, dport, cport);
+	/* currently no need to handle other than UDP */
+	return NULL;
+}
+
 static struct ip_vs_pe ip_vs_sip_pe =
 {
 	.name =			"sip",
@@ -153,6 +167,7 @@ static struct ip_vs_pe ip_vs_sip_pe =
 	.ct_match =		ip_vs_sip_ct_match,
 	.hashkey_raw =		ip_vs_sip_hashkey_raw,
 	.show_pe_data =		ip_vs_sip_show_pe_data,
+	.conn_out =		ip_vs_sip_conn_out,
 };
 
 static int __init ip_vs_sip_init(void)

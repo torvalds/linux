@@ -50,7 +50,7 @@ Required properties for I2C mode:
 
 Example:
 
-clock@0,70110000 {
+clock@70110000 {
         compatible = "nvidia,tegra124-dfll";
         reg = <0 0x70110000 0 0x100>, /* DFLL control */
               <0 0x70110000 0 0x100>, /* I2C output control */

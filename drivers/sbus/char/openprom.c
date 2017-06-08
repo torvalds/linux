@@ -40,7 +40,7 @@
 #include <linux/fs.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/openpromio.h>
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
@@ -383,27 +383,12 @@ static struct device_node *get_node(phandle n, DATA *data)
 }
 
 /* Copy in a whole string from userspace into kernelspace. */
-static int copyin_string(char __user *user, size_t len, char **ptr)
+static char * copyin_string(char __user *user, size_t len)
 {
-	char *tmp;
-
 	if ((ssize_t)len < 0 || (ssize_t)(len + 1) < 0)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
-	tmp = kmalloc(len + 1, GFP_KERNEL);
-	if (!tmp)
-		return -ENOMEM;
-
-	if (copy_from_user(tmp, user, len)) {
-		kfree(tmp);
-		return -EFAULT;
-	}
-
-	tmp[len] = '\0';
-
-	*ptr = tmp;
-
-	return 0;
+	return memdup_user_nul(user, len);
 }
 
 /*
@@ -422,9 +407,9 @@ static int opiocget(void __user *argp, DATA *data)
 
 	dp = get_node(op.op_nodeid, data);
 
-	err = copyin_string(op.op_name, op.op_namelen, &str);
-	if (err)
-		return err;
+	str = copyin_string(op.op_name, op.op_namelen);
+	if (IS_ERR(str))
+		return PTR_ERR(str);
 
 	pval = of_get_property(dp, str, &len);
 	err = 0;
@@ -447,7 +432,7 @@ static int opiocnextprop(void __user *argp, DATA *data)
 	struct device_node *dp;
 	struct property *prop;
 	char *str;
-	int err, len;
+	int len;
 
 	if (copy_from_user(&op, argp, sizeof(op)))
 		return -EFAULT;
@@ -456,9 +441,9 @@ static int opiocnextprop(void __user *argp, DATA *data)
 	if (!dp)
 		return -EINVAL;
 
-	err = copyin_string(op.op_name, op.op_namelen, &str);
-	if (err)
-		return err;
+	str = copyin_string(op.op_name, op.op_namelen);
+	if (IS_ERR(str))
+		return PTR_ERR(str);
 
 	if (str[0] == '\0') {
 		prop = dp->properties;
@@ -501,14 +486,14 @@ static int opiocset(void __user *argp, DATA *data)
 	if (!dp)
 		return -EINVAL;
 
-	err = copyin_string(op.op_name, op.op_namelen, &str);
-	if (err)
-		return err;
+	str = copyin_string(op.op_name, op.op_namelen);
+	if (IS_ERR(str))
+		return PTR_ERR(str);
 
-	err = copyin_string(op.op_buf, op.op_buflen, &tmp);
-	if (err) {
+	tmp = copyin_string(op.op_buf, op.op_buflen);
+	if (IS_ERR(tmp)) {
 		kfree(str);
-		return err;
+		return PTR_ERR(tmp);
 	}
 
 	err = of_set_property(dp, str, tmp, op.op_buflen);

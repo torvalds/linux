@@ -61,7 +61,7 @@
                         the slower the port i/o.  In some cases, setting
                         this to zero will speed up the device. (default -1)
 
-	    major	You may use this parameter to overide the
+	    major	You may use this parameter to override the
 			default major number (96) that this driver
 			will use.  Be sure to change the device
 			name as well.
@@ -117,7 +117,7 @@
 
 */
 
-static bool verbose = 0;
+static int verbose = 0;
 static int major = PT_MAJOR;
 static char *name = PT_NAME;
 static int disable = 0;
@@ -150,9 +150,9 @@ static int (*drives[4])[6] = {&drive0, &drive1, &drive2, &drive3};
 #include <linux/sched.h>	/* current, TASK_*, schedule_timeout() */
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
-module_param(verbose, bool, 0);
+module_param(verbose, int, 0);
 module_param(major, int, 0);
 module_param(name, charp, 0);
 module_param_array(drive0, int, NULL, 0);

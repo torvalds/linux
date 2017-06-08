@@ -23,25 +23,10 @@
 #include <net/netfilter/nf_conntrack.h>
 #endif
 
-static struct net *pick_net(struct sk_buff *skb)
-{
-#ifdef CONFIG_NET_NS
-	const struct dst_entry *dst;
-
-	if (skb->dev != NULL)
-		return dev_net(skb->dev);
-	dst = skb_dst(skb);
-	if (dst != NULL && dst->dev != NULL)
-		return dev_net(dst->dev);
-#endif
-	return &init_net;
-}
-
-static bool nf_dup_ipv4_route(struct sk_buff *skb, const struct in_addr *gw,
-			      int oif)
+static bool nf_dup_ipv4_route(struct net *net, struct sk_buff *skb,
+			      const struct in_addr *gw, int oif)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	struct net *net = pick_net(skb);
 	struct rtable *rt;
 	struct flowi4 fl4;
 
@@ -65,7 +50,7 @@ static bool nf_dup_ipv4_route(struct sk_buff *skb, const struct in_addr *gw,
 	return true;
 }
 
-void nf_dup_ipv4(struct sk_buff *skb, unsigned int hooknum,
+void nf_dup_ipv4(struct net *net, struct sk_buff *skb, unsigned int hooknum,
 		 const struct in_addr *gw, int oif)
 {
 	struct iphdr *iph;
@@ -83,31 +68,27 @@ void nf_dup_ipv4(struct sk_buff *skb, unsigned int hooknum,
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	/* Avoid counting cloned packets towards the original connection. */
-	nf_conntrack_put(skb->nfct);
-	skb->nfct     = &nf_ct_untracked_get()->ct_general;
-	skb->nfctinfo = IP_CT_NEW;
-	nf_conntrack_get(skb->nfct);
+	nf_reset(skb);
+	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 #endif
 	/*
-	 * If we are in PREROUTING/INPUT, the checksum must be recalculated
-	 * since the length could have changed as a result of defragmentation.
-	 *
-	 * We also decrease the TTL to mitigate potential loops between two
-	 * hosts.
+	 * If we are in PREROUTING/INPUT, decrease the TTL to mitigate potential
+	 * loops between two hosts.
 	 *
 	 * Set %IP_DF so that the original source is notified of a potentially
 	 * decreased MTU on the clone route. IPv6 does this too.
+	 *
+	 * IP header checksum will be recalculated at ip_local_out.
 	 */
 	iph = ip_hdr(skb);
 	iph->frag_off |= htons(IP_DF);
 	if (hooknum == NF_INET_PRE_ROUTING ||
 	    hooknum == NF_INET_LOCAL_IN)
 		--iph->ttl;
-	ip_send_check(iph);
 
-	if (nf_dup_ipv4_route(skb, gw, oif)) {
+	if (nf_dup_ipv4_route(net, skb, gw, oif)) {
 		__this_cpu_write(nf_skb_duplicated, true);
-		ip_local_out(skb);
+		ip_local_out(net, skb->sk, skb);
 		__this_cpu_write(nf_skb_duplicated, false);
 	} else {
 		kfree_skb(skb);

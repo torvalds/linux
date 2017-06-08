@@ -82,6 +82,16 @@ enum bmi_cmd_id {
 
 #define BMI_NVRAM_SEG_NAME_SZ 16
 
+#define BMI_PARAM_GET_EEPROM_BOARD_ID 0x10
+
+#define ATH10K_BMI_BOARD_ID_FROM_OTP_MASK   0x7c00
+#define ATH10K_BMI_BOARD_ID_FROM_OTP_LSB    10
+
+#define ATH10K_BMI_CHIP_ID_FROM_OTP_MASK    0x18000
+#define ATH10K_BMI_CHIP_ID_FROM_OTP_LSB     15
+
+#define ATH10K_BMI_BOARD_ID_STATUS_MASK 0xff
+
 struct bmi_cmd {
 	__le32 id; /* enum bmi_cmd_id */
 	union {
@@ -166,7 +176,8 @@ union bmi_resp {
 	} rompatch_uninstall;
 	struct {
 		/* 0 = nothing executed
-		 * otherwise = NVRAM segment return value */
+		 * otherwise = NVRAM segment return value
+		 */
 		__le32 result;
 	} nvram_process;
 	u8 payload[BMI_MAX_CMDBUF_SIZE];
@@ -222,4 +233,6 @@ int ath10k_bmi_lz_stream_start(struct ath10k *ar, u32 address);
 int ath10k_bmi_lz_data(struct ath10k *ar, const void *buffer, u32 length);
 int ath10k_bmi_fast_download(struct ath10k *ar, u32 address,
 			     const void *buffer, u32 length);
+int ath10k_bmi_read_soc_reg(struct ath10k *ar, u32 address, u32 *reg_val);
+int ath10k_bmi_write_soc_reg(struct ath10k *ar, u32 address, u32 reg_val);
 #endif /* _BMI_H_ */

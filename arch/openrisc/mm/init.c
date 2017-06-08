@@ -106,11 +106,11 @@ static void __init map_ram(void)
 			}
 
 			/* Alloc one page for holding PTE's... */
-			pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
+			pte = (pte_t *) __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
 			set_pmd(pme, __pmd(_KERNPG_TABLE + __pa(pte)));
 
 			/* Fill the newly allocated page with PTE'S */
-			for (j = 0; p < e && j < PTRS_PER_PGD;
+			for (j = 0; p < e && j < PTRS_PER_PTE;
 			     v += PAGE_SIZE, p += PAGE_SIZE, j++, pte++) {
 				if (v >= (u32) _e_kernel_ro ||
 				    v < (u32) _s_kernel_ro)

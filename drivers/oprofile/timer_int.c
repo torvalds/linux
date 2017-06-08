@@ -74,37 +74,39 @@ static void oprofile_hrtimer_stop(void)
 	put_online_cpus();
 }
 
-static int oprofile_cpu_notify(struct notifier_block *self,
-			       unsigned long action, void *hcpu)
+static int oprofile_timer_online(unsigned int cpu)
 {
-	long cpu = (long) hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		smp_call_function_single(cpu, __oprofile_hrtimer_start,
-					 NULL, 1);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		__oprofile_hrtimer_stop(cpu);
-		break;
-	}
-	return NOTIFY_OK;
+	local_irq_disable();
+	__oprofile_hrtimer_start(NULL);
+	local_irq_enable();
+	return 0;
 }
 
-static struct notifier_block __refdata oprofile_cpu_notifier = {
-	.notifier_call = oprofile_cpu_notify,
-};
+static int oprofile_timer_prep_down(unsigned int cpu)
+{
+	__oprofile_hrtimer_stop(cpu);
+	return 0;
+}
+
+static enum cpuhp_state hp_online;
 
 static int oprofile_hrtimer_setup(void)
 {
-	return register_hotcpu_notifier(&oprofile_cpu_notifier);
+	int ret;
+
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					"oprofile/timer:online",
+					oprofile_timer_online,
+					oprofile_timer_prep_down);
+	if (ret < 0)
+		return ret;
+	hp_online = ret;
+	return 0;
 }
 
 static void oprofile_hrtimer_shutdown(void)
 {
-	unregister_hotcpu_notifier(&oprofile_cpu_notifier);
+	cpuhp_remove_state_nocalls(hp_online);
 }
 
 int oprofile_timer_init(struct oprofile_operations *ops)

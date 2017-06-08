@@ -15,7 +15,6 @@
 #include <linux/clk.h>
 #include <linux/coresight.h>
 #include <linux/device.h>
-#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -47,8 +46,6 @@ static int replicator_enable(struct coresight_device *csdev, int inport,
 			      int outport)
 {
 	struct replicator_state *drvdata = dev_get_drvdata(csdev->dev.parent);
-
-	pm_runtime_get_sync(drvdata->dev);
 
 	CS_UNLOCK(drvdata->base);
 
@@ -86,8 +83,6 @@ static void replicator_disable(struct coresight_device *csdev, int inport,
 
 	CS_LOCK(drvdata->base);
 
-	pm_runtime_put(drvdata->dev);
-
 	dev_info(drvdata->dev, "REPLICATOR disabled\n");
 }
 
@@ -107,7 +102,7 @@ static int replicator_probe(struct amba_device *adev, const struct amba_id *id)
 	struct resource *res = &adev->res;
 	struct coresight_platform_data *pdata = NULL;
 	struct replicator_state *drvdata;
-	struct coresight_desc *desc;
+	struct coresight_desc desc = { 0 };
 	struct device_node *np = adev->dev.of_node;
 	void __iomem *base;
 
@@ -139,29 +134,16 @@ static int replicator_probe(struct amba_device *adev, const struct amba_id *id)
 	dev_set_drvdata(dev, drvdata);
 	pm_runtime_put(&adev->dev);
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
-	if (!desc)
-		return -ENOMEM;
-
-	desc->type = CORESIGHT_DEV_TYPE_LINK;
-	desc->subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_SPLIT;
-	desc->ops = &replicator_cs_ops;
-	desc->pdata = adev->dev.platform_data;
-	desc->dev = &adev->dev;
-	drvdata->csdev = coresight_register(desc);
+	desc.type = CORESIGHT_DEV_TYPE_LINK;
+	desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_SPLIT;
+	desc.ops = &replicator_cs_ops;
+	desc.pdata = adev->dev.platform_data;
+	desc.dev = &adev->dev;
+	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev))
 		return PTR_ERR(drvdata->csdev);
 
 	dev_info(dev, "%s initialized\n", (char *)id->data);
-	return 0;
-}
-
-static int replicator_remove(struct amba_device *adev)
-{
-	struct replicator_state *drvdata = amba_get_drvdata(adev);
-
-	pm_runtime_disable(&adev->dev);
-	coresight_unregister(drvdata->csdev);
 	return 0;
 }
 
@@ -206,10 +188,9 @@ static struct amba_driver replicator_driver = {
 	.drv = {
 		.name	= "coresight-replicator-qcom",
 		.pm	= &replicator_dev_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 	.probe		= replicator_probe,
-	.remove		= replicator_remove,
 	.id_table	= replicator_ids,
 };
-
-module_amba_driver(replicator_driver);
+builtin_amba_driver(replicator_driver);

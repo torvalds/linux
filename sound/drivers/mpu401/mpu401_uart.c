@@ -481,14 +481,14 @@ snd_mpu401_uart_output_trigger(struct snd_rawmidi_substream *substream, int up)
 
  */
 
-static struct snd_rawmidi_ops snd_mpu401_uart_output =
+static const struct snd_rawmidi_ops snd_mpu401_uart_output =
 {
 	.open =		snd_mpu401_uart_output_open,
 	.close =	snd_mpu401_uart_output_close,
 	.trigger =	snd_mpu401_uart_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_mpu401_uart_input =
+static const struct snd_rawmidi_ops snd_mpu401_uart_input =
 {
 	.open =		snd_mpu401_uart_input_open,
 	.close =	snd_mpu401_uart_input_close,

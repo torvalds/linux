@@ -23,7 +23,6 @@
 
 struct mdp4_dtv_encoder {
 	struct drm_encoder base;
-	struct clk *src_clk;
 	struct clk *hdmi_clk;
 	struct clk *mdp_clk;
 	unsigned long int pixclock;
@@ -93,13 +92,6 @@ static void mdp4_dtv_encoder_destroy(struct drm_encoder *encoder)
 static const struct drm_encoder_funcs mdp4_dtv_encoder_funcs = {
 	.destroy = mdp4_dtv_encoder_destroy,
 };
-
-static bool mdp4_dtv_encoder_mode_fixup(struct drm_encoder *encoder,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
 
 static void mdp4_dtv_encoder_mode_set(struct drm_encoder *encoder,
 		struct drm_display_mode *mode,
@@ -186,7 +178,6 @@ static void mdp4_dtv_encoder_disable(struct drm_encoder *encoder)
 	 */
 	mdp_irq_wait(&mdp4_kms->base, MDP4_IRQ_EXTERNAL_VSYNC);
 
-	clk_disable_unprepare(mdp4_dtv_encoder->src_clk);
 	clk_disable_unprepare(mdp4_dtv_encoder->hdmi_clk);
 	clk_disable_unprepare(mdp4_dtv_encoder->mdp_clk);
 
@@ -215,18 +206,20 @@ static void mdp4_dtv_encoder_enable(struct drm_encoder *encoder)
 
 	bs_set(mdp4_dtv_encoder, 1);
 
-	DBG("setting src_clk=%lu", pc);
+	DBG("setting mdp_clk=%lu", pc);
 
-	ret = clk_set_rate(mdp4_dtv_encoder->src_clk, pc);
+	ret = clk_set_rate(mdp4_dtv_encoder->mdp_clk, pc);
 	if (ret)
-		dev_err(dev->dev, "failed to set src_clk to %lu: %d\n", pc, ret);
-	clk_prepare_enable(mdp4_dtv_encoder->src_clk);
-	ret = clk_prepare_enable(mdp4_dtv_encoder->hdmi_clk);
-	if (ret)
-		dev_err(dev->dev, "failed to enable hdmi_clk: %d\n", ret);
+		dev_err(dev->dev, "failed to set mdp_clk to %lu: %d\n",
+			pc, ret);
+
 	ret = clk_prepare_enable(mdp4_dtv_encoder->mdp_clk);
 	if (ret)
 		dev_err(dev->dev, "failed to enabled mdp_clk: %d\n", ret);
+
+	ret = clk_prepare_enable(mdp4_dtv_encoder->hdmi_clk);
+	if (ret)
+		dev_err(dev->dev, "failed to enable hdmi_clk: %d\n", ret);
 
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 1);
 
@@ -234,7 +227,6 @@ static void mdp4_dtv_encoder_enable(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs mdp4_dtv_encoder_helper_funcs = {
-	.mode_fixup = mdp4_dtv_encoder_mode_fixup,
 	.mode_set = mdp4_dtv_encoder_mode_set,
 	.enable = mdp4_dtv_encoder_enable,
 	.disable = mdp4_dtv_encoder_disable,
@@ -243,7 +235,7 @@ static const struct drm_encoder_helper_funcs mdp4_dtv_encoder_helper_funcs = {
 long mdp4_dtv_round_pixclk(struct drm_encoder *encoder, unsigned long rate)
 {
 	struct mdp4_dtv_encoder *mdp4_dtv_encoder = to_mdp4_dtv_encoder(encoder);
-	return clk_round_rate(mdp4_dtv_encoder->src_clk, rate);
+	return clk_round_rate(mdp4_dtv_encoder->mdp_clk, rate);
 }
 
 /* initialize encoder */
@@ -262,15 +254,8 @@ struct drm_encoder *mdp4_dtv_encoder_init(struct drm_device *dev)
 	encoder = &mdp4_dtv_encoder->base;
 
 	drm_encoder_init(dev, encoder, &mdp4_dtv_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 	drm_encoder_helper_add(encoder, &mdp4_dtv_encoder_helper_funcs);
-
-	mdp4_dtv_encoder->src_clk = devm_clk_get(dev->dev, "src_clk");
-	if (IS_ERR(mdp4_dtv_encoder->src_clk)) {
-		dev_err(dev->dev, "failed to get src_clk\n");
-		ret = PTR_ERR(mdp4_dtv_encoder->src_clk);
-		goto fail;
-	}
 
 	mdp4_dtv_encoder->hdmi_clk = devm_clk_get(dev->dev, "hdmi_clk");
 	if (IS_ERR(mdp4_dtv_encoder->hdmi_clk)) {
@@ -279,9 +264,9 @@ struct drm_encoder *mdp4_dtv_encoder_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_dtv_encoder->mdp_clk = devm_clk_get(dev->dev, "mdp_clk");
+	mdp4_dtv_encoder->mdp_clk = devm_clk_get(dev->dev, "tv_clk");
 	if (IS_ERR(mdp4_dtv_encoder->mdp_clk)) {
-		dev_err(dev->dev, "failed to get mdp_clk\n");
+		dev_err(dev->dev, "failed to get tv_clk\n");
 		ret = PTR_ERR(mdp4_dtv_encoder->mdp_clk);
 		goto fail;
 	}

@@ -11,27 +11,12 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #ifndef __BASIC_TYPES_H__
 #define __BASIC_TYPES_H__
 
-#define SUCCESS	0
-#define FAIL	(-1)
-
 #include <linux/types.h>
 #define NDIS_OID uint
-
-typedef void (*proc_t)(void *);
-
-#define FIELD_OFFSET(s, field)	((ssize_t)&((s *)(0))->field)
-
-#define MEM_ALIGNMENT_OFFSET	(sizeof(size_t))
-#define MEM_ALIGNMENT_PADDING	(sizeof(size_t) - 1)
 
 /* port from fw */
 /*  TODO: Macros Below are Sync from SD7-Driver. It is necessary
@@ -51,31 +36,6 @@ typedef void (*proc_t)(void *);
 	(le16_to_cpu(_val))
 #define EF4BYTE(_val)		\
 	(le32_to_cpu(_val))
-
-/* Read data from memory */
-#define READEF1BYTE(_ptr)	\
-	EF1BYTE(*((u8 *)(_ptr)))
-/* Read le16 data from memory and convert to host ordering */
-#define READEF2BYTE(_ptr)	\
-	EF2BYTE(*(_ptr))
-#define READEF4BYTE(_ptr)	\
-	EF4BYTE(*(_ptr))
-
-/* Write data to memory */
-#define WRITEEF1BYTE(_ptr, _val)			\
-	do {						\
-		(*((u8 *)(_ptr))) = EF1BYTE(_val)	\
-	} while (0)
-/* Write le data to memory in host ordering */
-#define WRITEEF2BYTE(_ptr, _val)			\
-	do {						\
-		(*((u16 *)(_ptr))) = EF2BYTE(_val)	\
-	} while (0)
-
-#define WRITEEF4BYTE(_ptr, _val)			\
-	do {						\
-		(*((u32 *)(_ptr))) = EF2BYTE(_val)	\
-	} while (0)
 
 /* Create a bit mask
  * Examples:
@@ -176,9 +136,5 @@ value to host byte ordering.*/
 		LE_BITS_CLEARED_TO_1BYTE(__pstart, __bitoffset, __bitlen) | \
 		((((u8)__val) & BIT_LEN_MASK_8(__bitlen)) << (__bitoffset)) \
 		)
-
-/*  Get the N-bytes aligment offset from the current length */
-#define	N_BYTE_ALIGMENT(__value, __aligment) ((__aligment == 1) ? \
-	(__value) : (((__value + __aligment - 1) / __aligment) * __aligment))
 
 #endif /* __BASIC_TYPES_H__ */

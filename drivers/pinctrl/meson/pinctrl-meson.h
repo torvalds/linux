@@ -34,7 +34,6 @@ struct meson_pmx_group {
 	bool is_gpio;
 	unsigned int reg;
 	unsigned int bit;
-	unsigned int domain;
 };
 
 /**
@@ -96,55 +95,17 @@ struct meson_bank {
 	struct meson_reg_desc regs[NUM_REG];
 };
 
-/**
- * struct meson_domain_data - domain platform data
- *
- * @name:	name of the domain
- * @banks:	set of banks belonging to the domain
- * @num_banks:	number of banks in the domain
- */
-struct meson_domain_data {
-	const char *name;
-	struct meson_bank *banks;
-	unsigned int num_banks;
-	unsigned int pin_base;
-	unsigned int num_pins;
-};
-
-/**
- * struct meson_domain
- *
- * @reg_mux:	registers for mux settings
- * @reg_pullen:	registers for pull-enable settings
- * @reg_pull:	registers for pull settings
- * @reg_gpio:	registers for gpio settings
- * @chip:	gpio chip associated with the domain
- * @data;	platform data for the domain
- * @node:	device tree node for the domain
- *
- * A domain represents a set of banks controlled by the same set of
- * registers.
- */
-struct meson_domain {
-	struct regmap *reg_mux;
-	struct regmap *reg_pullen;
-	struct regmap *reg_pull;
-	struct regmap *reg_gpio;
-
-	struct gpio_chip chip;
-	struct meson_domain_data *data;
-	struct device_node *of_node;
-};
-
 struct meson_pinctrl_data {
+	const char *name;
 	const struct pinctrl_pin_desc *pins;
 	struct meson_pmx_group *groups;
 	struct meson_pmx_func *funcs;
-	struct meson_domain_data *domain_data;
+	unsigned int pin_base;
 	unsigned int num_pins;
 	unsigned int num_groups;
 	unsigned int num_funcs;
-	unsigned int num_domains;
+	struct meson_bank *banks;
+	unsigned int num_banks;
 };
 
 struct meson_pinctrl {
@@ -152,7 +113,12 @@ struct meson_pinctrl {
 	struct pinctrl_dev *pcdev;
 	struct pinctrl_desc desc;
 	struct meson_pinctrl_data *data;
-	struct meson_domain *domains;
+	struct regmap *reg_mux;
+	struct regmap *reg_pullen;
+	struct regmap *reg_pull;
+	struct regmap *reg_gpio;
+	struct gpio_chip chip;
+	struct device_node *of_node;
 };
 
 #define PIN(x, b)	(b + x)
@@ -164,7 +130,6 @@ struct meson_pinctrl {
 		.num_pins = ARRAY_SIZE(grp ## _pins),			\
 		.reg = r,						\
 		.bit = b,						\
-		.domain = 0,						\
 	 }
 
 #define GPIO_GROUP(gpio, b)						\
@@ -173,16 +138,6 @@ struct meson_pinctrl {
 		.pins = (const unsigned int[]){ PIN(gpio, b) },		\
 		.num_pins = 1,						\
 		.is_gpio = true,					\
-	 }
-
-#define GROUP_AO(grp, r, b)						\
-	{								\
-		.name = #grp,						\
-		.pins = grp ## _pins,					\
-		.num_pins = ARRAY_SIZE(grp ## _pins),			\
-		.reg = r,						\
-		.bit = b,						\
-		.domain = 1,						\
 	 }
 
 #define FUNCTION(fn)							\
@@ -208,5 +163,11 @@ struct meson_pinctrl {
 
 #define MESON_PIN(x, b) PINCTRL_PIN(PIN(x, b), #x)
 
-extern struct meson_pinctrl_data meson8_pinctrl_data;
-extern struct meson_pinctrl_data meson8b_pinctrl_data;
+extern struct meson_pinctrl_data meson8_cbus_pinctrl_data;
+extern struct meson_pinctrl_data meson8_aobus_pinctrl_data;
+extern struct meson_pinctrl_data meson8b_cbus_pinctrl_data;
+extern struct meson_pinctrl_data meson8b_aobus_pinctrl_data;
+extern struct meson_pinctrl_data meson_gxbb_periphs_pinctrl_data;
+extern struct meson_pinctrl_data meson_gxbb_aobus_pinctrl_data;
+extern struct meson_pinctrl_data meson_gxl_periphs_pinctrl_data;
+extern struct meson_pinctrl_data meson_gxl_aobus_pinctrl_data;

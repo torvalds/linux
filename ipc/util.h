@@ -118,7 +118,7 @@ int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flg);
  * both function can sleep
  */
 void *ipc_alloc(int size);
-void ipc_free(void *ptr, int size);
+void ipc_free(void *ptr);
 
 /*
  * For allocation that need to be freed by RCU.
@@ -152,8 +152,6 @@ extern void free_msg(struct msg_msg *msg);
 extern struct msg_msg *load_msg(const void __user *src, size_t len);
 extern struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst);
 extern int store_msg(void __user *dest, struct msg_msg *msg, size_t len);
-
-extern void recompute_msgmni(struct ipc_namespace *);
 
 static inline int ipc_buildid(int id, int seq)
 {

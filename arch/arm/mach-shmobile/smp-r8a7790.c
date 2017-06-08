@@ -17,12 +17,12 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/soc/renesas/rcar-sysc.h>
 
 #include <asm/smp_plat.h>
 
 #include "common.h"
 #include "platsmp-apmu.h"
-#include "pm-rcar.h"
 #include "rcar-gen2.h"
 #include "r8a7790.h"
 
@@ -60,7 +60,7 @@ static void __init r8a7790_smp_prepare_cpus(unsigned int max_cpus)
 	rcar_sysc_power_up(&r8a7790_ca7_scu);
 }
 
-struct smp_operations r8a7790_smp_ops __initdata = {
+const struct smp_operations r8a7790_smp_ops __initconst = {
 	.smp_prepare_cpus	= r8a7790_smp_prepare_cpus,
 	.smp_boot_secondary	= shmobile_smp_apmu_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU

@@ -6,7 +6,7 @@ Required properties:
 
 Required child nodes:
 - backlight	: container node for backlight following the binding
-		in video/backlight/sky81452-backlight.txt
+		in leds/backlight/sky81452-backlight.txt
 - regulator	: container node for regulators following the binding
 		in regulator/sky81452-regulator.txt
 

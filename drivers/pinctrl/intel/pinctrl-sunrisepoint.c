@@ -30,6 +30,7 @@
 		.padcfglock_offset = SPT_PADCFGLOCK,	\
 		.hostown_offset = SPT_HOSTSW_OWN,	\
 		.ie_offset = SPT_GPI_IE,		\
+		.gpp_size = 24,				\
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\
 	}
@@ -573,7 +574,6 @@ static const struct dev_pm_ops spt_pinctrl_pm_ops = {
 
 static struct platform_driver spt_pinctrl_driver = {
 	.probe = spt_pinctrl_probe,
-	.remove = intel_pinctrl_remove,
 	.driver = {
 		.name = "sunrisepoint-pinctrl",
 		.acpi_match_table = spt_pinctrl_acpi_match,

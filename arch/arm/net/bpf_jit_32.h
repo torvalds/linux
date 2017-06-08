@@ -115,6 +115,8 @@
 
 #define ARM_INST_UMULL		0x00800090
 
+#define ARM_INST_MLS		0x00600090
+
 /*
  * Use a suitable undefined instruction to use for ARM/Thumb2 faulting.
  * We need to be careful not to conflict with those used by other modules
@@ -209,5 +211,8 @@
 
 #define ARM_UMULL(rd_lo, rd_hi, rn, rm)	(ARM_INST_UMULL | (rd_hi) << 16 \
 					 | (rd_lo) << 12 | (rm) << 8 | rn)
+
+#define ARM_MLS(rd, rn, rm, ra)	(ARM_INST_MLS | (rd) << 16 | (rn) | (rm) << 8 \
+				 | (ra) << 12)
 
 #endif /* PFILTER_OPCODES_ARM_H */

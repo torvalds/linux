@@ -14,10 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7134.h"
@@ -192,7 +188,7 @@ static void mute_input_7134(struct saa7134_dev *dev)
 	in   = dev->input;
 	mute = (dev->ctl_mute ||
 		(dev->automute  &&  (&card(dev).radio) != in));
-	if (card(dev).mute.name) {
+	if (card(dev).mute.type) {
 		/*
 		 * 7130 - we'll mute using some unconnected audio input
 		 * 7134 - we'll probably should switch external mux with gpio
@@ -204,13 +200,14 @@ static void mute_input_7134(struct saa7134_dev *dev)
 	if (dev->hw_mute  == mute &&
 		dev->hw_input == in && !dev->insuspend) {
 		audio_dbg(1, "mute/input: nothing to do [mute=%d,input=%s]\n",
-			  mute, in->name);
+			  mute, saa7134_input_name[in->type]);
 		return;
 	}
 
 	audio_dbg(1, "ctl_mute=%d automute=%d input=%s  =>  mute=%d input=%s\n",
 		  dev->ctl_mute, dev->automute,
-		  dev->input->name, mute, in->name);
+		  saa7134_input_name[dev->input->type], mute,
+		  saa7134_input_name[in->type]);
 	dev->hw_mute  = mute;
 	dev->hw_input = in;
 
@@ -245,7 +242,7 @@ static void mute_input_7134(struct saa7134_dev *dev)
 	mask = card(dev).gpiomask;
 	saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   mask, mask);
 	saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, mask, in->gpio);
-	saa7134_track_gpio(dev,in->name);
+	saa7134_track_gpio(dev, saa7134_input_name[in->type]);
 }
 
 static void tvaudio_setmode(struct saa7134_dev *dev,
@@ -756,14 +753,14 @@ static int mute_input_7133(struct saa7134_dev *dev)
 	if (0 != card(dev).gpiomask) {
 		mask = card(dev).gpiomask;
 
-		if (card(dev).mute.name && dev->ctl_mute)
+		if (card(dev).mute.type && dev->ctl_mute)
 			in = &card(dev).mute;
 		else
 			in = dev->input;
 
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   mask, mask);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, mask, in->gpio);
-		saa7134_track_gpio(dev,in->name);
+		saa7134_track_gpio(dev, saa7134_input_name[in->type]);
 	}
 
 	return 0;

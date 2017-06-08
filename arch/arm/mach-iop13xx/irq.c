@@ -20,12 +20,12 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/sysctl.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mach/irq.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/msi.h>
+#include "msi.h"
 
 /* INTCTL0 CP6 R0 Page 4
  */

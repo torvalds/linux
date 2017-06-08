@@ -192,8 +192,8 @@ static int desc_list_init(struct net_device *dev)
 			goto init_error;
 
 		skb_reserve(new_skb, NET_IP_ALIGN);
-		/* Invidate the data cache of skb->data range when it is write back
-		 * cache. It will prevent overwritting the new data from DMA
+		/* Invalidate the data cache of skb->data range when it is write back
+		 * cache. It will prevent overwriting the new data from DMA
 		 */
 		blackfin_dcache_invalidate_range((unsigned long)new_skb->head,
 					 (unsigned long)new_skb->end);
@@ -310,7 +310,7 @@ static int bfin_mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
 static void bfin_mac_adjust_link(struct net_device *dev)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
-	struct phy_device *phydev = lp->phydev;
+	struct phy_device *phydev = dev->phydev;
 	unsigned long flags;
 	int new_state = 0;
 
@@ -380,9 +380,8 @@ static void bfin_mac_adjust_link(struct net_device *dev)
 static int mii_probe(struct net_device *dev, int phy_mode)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
-	struct phy_device *phydev = NULL;
+	struct phy_device *phydev;
 	unsigned short sysctl;
-	int i;
 	u32 sclk, mdc_div;
 
 	/* Enable PHY output early */
@@ -396,18 +395,7 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 	sysctl = (sysctl & ~MDCDIV) | SET_MDCDIV(mdc_div);
 	bfin_write_EMAC_SYSCTL(sysctl);
 
-	/* search for connected PHY device */
-	for (i = 0; i < PHY_MAX_ADDR; ++i) {
-		struct phy_device *const tmp_phydev = lp->mii_bus->phy_map[i];
-
-		if (!tmp_phydev)
-			continue; /* no PHY here... */
-
-		phydev = tmp_phydev;
-		break; /* found it */
-	}
-
-	/* now we are supposed to have a proper phydev, to attach to... */
+	phydev = phy_find_first(lp->mii_bus);
 	if (!phydev) {
 		netdev_err(dev, "no phy device found\n");
 		return -ENODEV;
@@ -419,7 +407,7 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 		return -EINVAL;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev),
+	phydev = phy_connect(dev, phydev_name(phydev),
 			     &bfin_mac_adjust_link, phy_mode);
 
 	if (IS_ERR(phydev)) {
@@ -442,12 +430,9 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 	lp->old_link = 0;
 	lp->old_speed = 0;
 	lp->old_duplex = -1;
-	lp->phydev = phydev;
 
-	pr_info("attached PHY driver [%s] "
-	        "(mii_bus:phy_addr=%s, irq=%d, mdc_clk=%dHz(mdc_div=%d)@sclk=%dMHz)\n",
-	        phydev->drv->name, dev_name(&phydev->dev), phydev->irq,
-	        MDC_CLK, mdc_div, sclk/1000000);
+	phy_attached_print(phydev, "mdc_clk=%dHz(mdc_div=%d)@sclk=%dMHz)\n",
+			   MDC_CLK, mdc_div, sclk / 1000000);
 
 	return 0;
 }
@@ -462,31 +447,6 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 static irqreturn_t bfin_mac_wake_interrupt(int irq, void *dev_id)
 {
 	return IRQ_HANDLED;
-}
-
-static int
-bfin_mac_ethtool_getsettings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct bfin_mac_local *lp = netdev_priv(dev);
-
-	if (lp->phydev)
-		return phy_ethtool_gset(lp->phydev, cmd);
-
-	return -EINVAL;
-}
-
-static int
-bfin_mac_ethtool_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct bfin_mac_local *lp = netdev_priv(dev);
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (lp->phydev)
-		return phy_ethtool_sset(lp->phydev, cmd);
-
-	return -EINVAL;
 }
 
 static void bfin_mac_ethtool_getdrvinfo(struct net_device *dev,
@@ -566,8 +526,6 @@ static int bfin_mac_ethtool_get_ts_info(struct net_device *dev,
 #endif
 
 static const struct ethtool_ops bfin_mac_ethtool_ops = {
-	.get_settings = bfin_mac_ethtool_getsettings,
-	.set_settings = bfin_mac_ethtool_setsettings,
 	.get_link = ethtool_op_get_link,
 	.get_drvinfo = bfin_mac_ethtool_getdrvinfo,
 	.get_wol = bfin_mac_ethtool_getwol,
@@ -575,6 +533,8 @@ static const struct ethtool_ops bfin_mac_ethtool_ops = {
 #ifdef CONFIG_BFIN_MAC_USE_HWSTAMP
 	.get_ts_info = bfin_mac_ethtool_get_ts_info,
 #endif
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 /**************************************************************************/
@@ -1245,8 +1205,8 @@ static void bfin_mac_rx(struct bfin_mac_local *lp)
 	}
 	/* reserve 2 bytes for RXDWA padding */
 	skb_reserve(new_skb, NET_IP_ALIGN);
-	/* Invidate the data cache of skb->data range when it is write back
-	 * cache. It will prevent overwritting the new data from DMA
+	/* Invalidate the data cache of skb->data range when it is write back
+	 * cache. It will prevent overwriting the new data from DMA
 	 */
 	blackfin_dcache_invalidate_range((unsigned long)new_skb->head,
 					 (unsigned long)new_skb->end);
@@ -1314,7 +1274,7 @@ static int bfin_mac_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (i < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, i);
 		if (test_and_clear_bit(BFIN_MAC_RX_IRQ_DISABLED, &lp->flags))
 			enable_irq(IRQ_MAC_RX);
 	}
@@ -1441,10 +1401,10 @@ static void bfin_mac_timeout(struct net_device *dev)
 	if (netif_queue_stopped(dev))
 		netif_wake_queue(dev);
 
-	bfin_mac_enable(lp->phydev);
+	bfin_mac_enable(dev->phydev);
 
 	/* We can accept TX packets again */
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 }
 
 static void bfin_mac_multicast_hash(struct net_device *dev)
@@ -1505,8 +1465,6 @@ static void bfin_mac_set_multicast_list(struct net_device *dev)
 
 static int bfin_mac_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
-	struct bfin_mac_local *lp = netdev_priv(netdev);
-
 	if (!netif_running(netdev))
 		return -EINVAL;
 
@@ -1516,8 +1474,8 @@ static int bfin_mac_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCGHWTSTAMP:
 		return bfin_mac_hwtstamp_get(netdev, ifr);
 	default:
-		if (lp->phydev)
-			return phy_mii_ioctl(lp->phydev, ifr, cmd);
+		if (netdev->phydev)
+			return phy_mii_ioctl(netdev->phydev, ifr, cmd);
 		else
 			return -EOPNOTSUPP;
 	}
@@ -1561,12 +1519,12 @@ static int bfin_mac_open(struct net_device *dev)
 	if (ret)
 		return ret;
 
-	phy_start(lp->phydev);
+	phy_start(dev->phydev);
 	setup_system_regs(dev);
 	setup_mac_addr(dev->dev_addr);
 
 	bfin_mac_disable();
-	ret = bfin_mac_enable(lp->phydev);
+	ret = bfin_mac_enable(dev->phydev);
 	if (ret)
 		return ret;
 	pr_debug("hardware init finished\n");
@@ -1592,8 +1550,8 @@ static int bfin_mac_close(struct net_device *dev)
 	napi_disable(&lp->napi);
 	netif_carrier_off(dev);
 
-	phy_stop(lp->phydev);
-	phy_write(lp->phydev, MII_BMCR, BMCR_PDOWN);
+	phy_stop(dev->phydev);
+	phy_write(dev->phydev, MII_BMCR, BMCR_PDOWN);
 
 	/* clear everything */
 	bfin_mac_shutdown(dev);
@@ -1613,7 +1571,6 @@ static const struct net_device_ops bfin_mac_netdev_ops = {
 	.ndo_set_rx_mode	= bfin_mac_set_multicast_list,
 	.ndo_do_ioctl           = bfin_mac_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= bfin_mac_poll_controller,
 #endif
@@ -1641,7 +1598,7 @@ static int bfin_mac_probe(struct platform_device *pdev)
 	*(__le16 *) (&(ndev->dev_addr[4])) = cpu_to_le16((u16) bfin_read_EMAC_ADDRHI());
 
 	/* probe mac */
-	/*todo: how to proble? which is revision_register */
+	/*todo: how to probe? which is revision_register */
 	bfin_write_EMAC_ADDRLO(0x12345678);
 	if (bfin_read_EMAC_ADDRLO() != 0x12345678) {
 		dev_err(&pdev->dev, "Cannot detect Blackfin on-chip ethernet MAC controller!\n");
@@ -1840,12 +1797,6 @@ static int bfin_mii_bus_probe(struct platform_device *pdev)
 
 	snprintf(miibus->id, MII_BUS_ID_SIZE, "%s-%x",
 		pdev->name, pdev->id);
-	miibus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	if (!miibus->irq)
-		goto out_err_irq_alloc;
-
-	for (i = rc; i < PHY_MAX_ADDR; ++i)
-		miibus->irq[i] = PHY_POLL;
 
 	rc = clamp(mii_bus_pd->phydev_number, 0, PHY_MAX_ADDR);
 	if (rc != mii_bus_pd->phydev_number)
@@ -1864,14 +1815,12 @@ static int bfin_mii_bus_probe(struct platform_device *pdev)
 	rc = mdiobus_register(miibus);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register MDIO bus!\n");
-		goto out_err_mdiobus_register;
+		goto out_err_irq_alloc;
 	}
 
 	platform_set_drvdata(pdev, miibus);
 	return 0;
 
-out_err_mdiobus_register:
-	kfree(miibus->irq);
 out_err_irq_alloc:
 	mdiobus_free(miibus);
 out_err_alloc:
@@ -1887,7 +1836,6 @@ static int bfin_mii_bus_remove(struct platform_device *pdev)
 		dev_get_platdata(&pdev->dev);
 
 	mdiobus_unregister(miibus);
-	kfree(miibus->irq);
 	mdiobus_free(miibus);
 	peripheral_free_list(mii_bus_pd->mac_peripherals);
 
@@ -1912,21 +1860,21 @@ static struct platform_driver bfin_mac_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&bfin_mii_bus_driver,
+	&bfin_mac_driver,
+};
+
 static int __init bfin_mac_init(void)
 {
-	int ret;
-	ret = platform_driver_register(&bfin_mii_bus_driver);
-	if (!ret)
-		return platform_driver_register(&bfin_mac_driver);
-	return -ENODEV;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_init(bfin_mac_init);
 
 static void __exit bfin_mac_cleanup(void)
 {
-	platform_driver_unregister(&bfin_mac_driver);
-	platform_driver_unregister(&bfin_mii_bus_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_exit(bfin_mac_cleanup);

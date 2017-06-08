@@ -24,8 +24,10 @@ Required properties:
                          brcm,brcmnand-v5.0
                          brcm,brcmnand-v6.0
                          brcm,brcmnand-v6.1
+                         brcm,brcmnand-v6.2
                          brcm,brcmnand-v7.0
                          brcm,brcmnand-v7.1
+                         brcm,brcmnand-v7.2
                          brcm,brcmnand
 - reg              : the register start and length for NAND register region.
                      (optional) Flash DMA register range (if present)
@@ -45,12 +47,14 @@ Required properties:
 - #size-cells      : <0>
 
 Optional properties:
+- clock                     : reference to the clock for the NAND controller
+- clock-names               : "nand" (required for the above clock)
 - brcm,nand-has-wp          : Some versions of this IP include a write-protect
                               (WP) control bit. It is always available on >=
                               v7.0. Use this property to describe the rare
                               earlier versions of this core that include WP
 
- -- Additonal SoC-specific NAND controller properties --
+ -- Additional SoC-specific NAND controller properties --
 
 The NAND controller is integrated differently on the variety of SoCs on which it
 is found. Part of this integration involves providing status and enable bits
@@ -70,6 +74,12 @@ we define additional 'compatible' properties and associated register resources w
    * "brcm,nand-bcm63138"
      - reg: (required) the 'NAND_INT_BASE' register range, with separate status
        and enable registers
+     - reg-names: (required) "nand-int-base"
+
+   * "brcm,nand-bcm6368"
+     - compatible: should contain "brcm,nand-bcm<soc>", "brcm,nand-bcm6368"
+     - reg: (required) the 'NAND_INTR_BASE' register range, with combined status
+       and enable registers, and boot address registers
      - reg-names: (required) "nand-int-base"
 
    * "brcm,nand-iproc"
@@ -146,5 +156,29 @@ nand@f0442800 {
 		flash0.kernel@10000000 {
 			reg = <0x10000000 0x400000>;
 		};
+	};
+};
+
+nand@10000200 {
+	compatible = "brcm,nand-bcm63168", "brcm,nand-bcm6368",
+		"brcm,brcmnand-v4.0", "brcm,brcmnand";
+	reg = <0x10000200 0x180>,
+	      <0x10000600 0x200>,
+	      <0x100000b0 0x10>;
+	reg-names = "nand", "nand-cache", "nand-int-base";
+	interrupt-parent = <&periph_intc>;
+	interrupts = <50>;
+	clocks = <&periph_clk 20>;
+	clock-names = "nand";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	nand0: nandcs@0 {
+		compatible = "brcm,nandcs";
+		reg = <0>;
+		nand-on-flash-bbt;
+		nand-ecc-strength = <1>;
+		nand-ecc-step-size = <512>;
 	};
 };

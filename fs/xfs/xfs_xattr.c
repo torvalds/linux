@@ -32,14 +32,12 @@
 
 
 static int
-xfs_xattr_get(struct dentry *dentry, const char *name,
-		void *value, size_t size, int xflags)
+xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
+		struct inode *inode, const char *name, void *value, size_t size)
 {
-	struct xfs_inode *ip = XFS_I(d_inode(dentry));
+	int xflags = handler->flags;
+	struct xfs_inode *ip = XFS_I(inode);
 	int error, asize = size;
-
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 
 	/* Convert Linux syscall to XFS internal ATTR flags */
 	if (!size) {
@@ -53,14 +51,36 @@ xfs_xattr_get(struct dentry *dentry, const char *name,
 	return asize;
 }
 
-static int
-xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
-		size_t size, int flags, int xflags)
+void
+xfs_forget_acl(
+	struct inode		*inode,
+	const char		*name,
+	int			xflags)
 {
-	struct xfs_inode *ip = XFS_I(d_inode(dentry));
+	/*
+	 * Invalidate any cached ACLs if the user has bypassed the ACL
+	 * interface. We don't validate the content whatsoever so it is caller
+	 * responsibility to provide data in valid format and ensure i_mode is
+	 * consistent.
+	 */
+	if (xflags & ATTR_ROOT) {
+#ifdef CONFIG_XFS_POSIX_ACL
+		if (!strcmp(name, SGI_ACL_FILE))
+			forget_cached_acl(inode, ACL_TYPE_ACCESS);
+		else if (!strcmp(name, SGI_ACL_DEFAULT))
+			forget_cached_acl(inode, ACL_TYPE_DEFAULT);
+#endif
+	}
+}
 
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
+static int
+xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused,
+		struct inode *inode, const char *name, const void *value,
+		size_t size, int flags)
+{
+	int			xflags = handler->flags;
+	struct xfs_inode	*ip = XFS_I(inode);
+	int			error;
 
 	/* Convert Linux syscall to XFS internal ATTR flags */
 	if (flags & XATTR_CREATE)
@@ -70,8 +90,12 @@ xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 
 	if (!value)
 		return xfs_attr_remove(ip, (unsigned char *)name, xflags);
-	return xfs_attr_set(ip, (unsigned char *)name,
+	error = xfs_attr_set(ip, (unsigned char *)name,
 				(void *)value, size, xflags);
+	if (!error)
+		xfs_forget_acl(inode, name, xflags);
+
+	return error;
 }
 
 static const struct xattr_handler xfs_xattr_user_handler = {
@@ -106,99 +130,104 @@ const struct xattr_handler *xfs_xattr_handlers[] = {
 	NULL
 };
 
-static unsigned int xfs_xattr_prefix_len(int flags)
+static void
+__xfs_xattr_put_listent(
+	struct xfs_attr_list_context *context,
+	char *prefix,
+	int prefix_len,
+	unsigned char *name,
+	int namelen)
 {
-	if (flags & XFS_ATTR_SECURE)
-		return sizeof("security");
-	else if (flags & XFS_ATTR_ROOT)
-		return sizeof("trusted");
-	else
-		return sizeof("user");
+	char *offset;
+	int arraytop;
+
+	if (!context->alist)
+		goto compute_size;
+
+	arraytop = context->count + prefix_len + namelen + 1;
+	if (arraytop > context->firstu) {
+		context->count = -1;	/* insufficient space */
+		context->seen_enough = 1;
+		return;
+	}
+	offset = (char *)context->alist + context->count;
+	strncpy(offset, prefix, prefix_len);
+	offset += prefix_len;
+	strncpy(offset, (char *)name, namelen);			/* real name */
+	offset += namelen;
+	*offset = '\0';
+
+compute_size:
+	context->count += prefix_len + namelen + 1;
+	return;
 }
 
-static const char *xfs_xattr_prefix(int flags)
-{
-	if (flags & XFS_ATTR_SECURE)
-		return xfs_xattr_security_handler.prefix;
-	else if (flags & XFS_ATTR_ROOT)
-		return xfs_xattr_trusted_handler.prefix;
-	else
-		return xfs_xattr_user_handler.prefix;
-}
-
-static int
+static void
 xfs_xattr_put_listent(
 	struct xfs_attr_list_context *context,
 	int		flags,
 	unsigned char	*name,
 	int		namelen,
-	int		valuelen,
-	unsigned char	*value)
+	int		valuelen)
 {
-	unsigned int prefix_len = xfs_xattr_prefix_len(flags);
-	char *offset;
-	int arraytop;
+	char *prefix;
+	int prefix_len;
 
 	ASSERT(context->count >= 0);
 
-	/*
-	 * Only show root namespace entries if we are actually allowed to
-	 * see them.
-	 */
-	if ((flags & XFS_ATTR_ROOT) && !capable(CAP_SYS_ADMIN))
-		return 0;
+	if (flags & XFS_ATTR_ROOT) {
+#ifdef CONFIG_XFS_POSIX_ACL
+		if (namelen == SGI_ACL_FILE_SIZE &&
+		    strncmp(name, SGI_ACL_FILE,
+			    SGI_ACL_FILE_SIZE) == 0) {
+			__xfs_xattr_put_listent(
+					context, XATTR_SYSTEM_PREFIX,
+					XATTR_SYSTEM_PREFIX_LEN,
+					XATTR_POSIX_ACL_ACCESS,
+					strlen(XATTR_POSIX_ACL_ACCESS));
+		} else if (namelen == SGI_ACL_DEFAULT_SIZE &&
+			 strncmp(name, SGI_ACL_DEFAULT,
+				 SGI_ACL_DEFAULT_SIZE) == 0) {
+			__xfs_xattr_put_listent(
+					context, XATTR_SYSTEM_PREFIX,
+					XATTR_SYSTEM_PREFIX_LEN,
+					XATTR_POSIX_ACL_DEFAULT,
+					strlen(XATTR_POSIX_ACL_DEFAULT));
+		}
+#endif
 
-	arraytop = context->count + prefix_len + namelen + 1;
-	if (arraytop > context->firstu) {
-		context->count = -1;	/* insufficient space */
-		return 1;
+		/*
+		 * Only show root namespace entries if we are actually allowed to
+		 * see them.
+		 */
+		if (!capable(CAP_SYS_ADMIN))
+			return;
+
+		prefix = XATTR_TRUSTED_PREFIX;
+		prefix_len = XATTR_TRUSTED_PREFIX_LEN;
+	} else if (flags & XFS_ATTR_SECURE) {
+		prefix = XATTR_SECURITY_PREFIX;
+		prefix_len = XATTR_SECURITY_PREFIX_LEN;
+	} else {
+		prefix = XATTR_USER_PREFIX;
+		prefix_len = XATTR_USER_PREFIX_LEN;
 	}
-	offset = (char *)context->alist + context->count;
-	strncpy(offset, xfs_xattr_prefix(flags), prefix_len);
-	offset += prefix_len;
-	strncpy(offset, (char *)name, namelen);			/* real name */
-	offset += namelen;
-	*offset = '\0';
-	context->count += prefix_len + namelen + 1;
-	return 0;
-}
 
-static int
-xfs_xattr_put_listent_sizes(
-	struct xfs_attr_list_context *context,
-	int		flags,
-	unsigned char	*name,
-	int		namelen,
-	int		valuelen,
-	unsigned char	*value)
-{
-	context->count += xfs_xattr_prefix_len(flags) + namelen + 1;
-	return 0;
-}
-
-static int
-list_one_attr(const char *name, const size_t len, void *data,
-		size_t size, ssize_t *result)
-{
-	char *p = data + *result;
-
-	*result += len;
-	if (!size)
-		return 0;
-	if (*result > size)
-		return -ERANGE;
-
-	strcpy(p, name);
-	return 0;
+	__xfs_xattr_put_listent(context, prefix, prefix_len, name,
+				namelen);
+	return;
 }
 
 ssize_t
-xfs_vn_listxattr(struct dentry *dentry, char *data, size_t size)
+xfs_vn_listxattr(
+	struct dentry	*dentry,
+	char		*data,
+	size_t		size)
 {
 	struct xfs_attr_list_context context;
 	struct attrlist_cursor_kern cursor = { 0 };
-	struct inode		*inode = d_inode(dentry);
-	int			error;
+	struct inode	*inode = d_inode(dentry);
+	int		error;
 
 	/*
 	 * First read the regular on-disk attributes.
@@ -207,37 +236,16 @@ xfs_vn_listxattr(struct dentry *dentry, char *data, size_t size)
 	context.dp = XFS_I(inode);
 	context.cursor = &cursor;
 	context.resynch = 1;
-	context.alist = data;
+	context.alist = size ? data : NULL;
 	context.bufsize = size;
 	context.firstu = context.bufsize;
+	context.put_listent = xfs_xattr_put_listent;
 
-	if (size)
-		context.put_listent = xfs_xattr_put_listent;
-	else
-		context.put_listent = xfs_xattr_put_listent_sizes;
-
-	xfs_attr_list_int(&context);
+	error = xfs_attr_list_int(&context);
+	if (error)
+		return error;
 	if (context.count < 0)
 		return -ERANGE;
-
-	/*
-	 * Then add the two synthetic ACL attributes.
-	 */
-	if (posix_acl_access_exists(inode)) {
-		error = list_one_attr(POSIX_ACL_XATTR_ACCESS,
-				strlen(POSIX_ACL_XATTR_ACCESS) + 1,
-				data, size, &context.count);
-		if (error)
-			return error;
-	}
-
-	if (posix_acl_default_exists(inode)) {
-		error = list_one_attr(POSIX_ACL_XATTR_DEFAULT,
-				strlen(POSIX_ACL_XATTR_DEFAULT) + 1,
-				data, size, &context.count);
-		if (error)
-			return error;
-	}
 
 	return context.count;
 }

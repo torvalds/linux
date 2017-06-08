@@ -1874,7 +1874,7 @@ static void sym2_io_resume(struct pci_dev *pdev)
 
 	spin_lock_irq(shost->host_lock);
 	if (sym_data->io_reset)
-		complete_all(sym_data->io_reset);
+		complete(sym_data->io_reset);
 	spin_unlock_irq(shost->host_lock);
 }
 

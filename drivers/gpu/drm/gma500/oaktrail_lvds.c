@@ -255,15 +255,15 @@ static void oaktrail_lvds_get_configuration_mode(struct drm_device *dev,
 				((ti->vblank_hi << 8) | ti->vblank_lo);
 		mode->clock = ti->pixel_clock * 10;
 #if 0
-		printk(KERN_INFO "hdisplay is %d\n", mode->hdisplay);
-		printk(KERN_INFO "vdisplay is %d\n", mode->vdisplay);
-		printk(KERN_INFO "HSS is %d\n", mode->hsync_start);
-		printk(KERN_INFO "HSE is %d\n", mode->hsync_end);
-		printk(KERN_INFO "htotal is %d\n", mode->htotal);
-		printk(KERN_INFO "VSS is %d\n", mode->vsync_start);
-		printk(KERN_INFO "VSE is %d\n", mode->vsync_end);
-		printk(KERN_INFO "vtotal is %d\n", mode->vtotal);
-		printk(KERN_INFO "clock is %d\n", mode->clock);
+		pr_info("hdisplay is %d\n", mode->hdisplay);
+		pr_info("vdisplay is %d\n", mode->vdisplay);
+		pr_info("HSS is %d\n", mode->hsync_start);
+		pr_info("HSE is %d\n", mode->hsync_end);
+		pr_info("htotal is %d\n", mode->htotal);
+		pr_info("VSS is %d\n", mode->vsync_start);
+		pr_info("VSE is %d\n", mode->vsync_end);
+		pr_info("vtotal is %d\n", mode->vtotal);
+		pr_info("clock is %d\n", mode->clock);
 #endif
 		mode_dev->panel_fixed_mode = mode;
 	}
@@ -323,7 +323,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 			   DRM_MODE_CONNECTOR_LVDS);
 
 	drm_encoder_init(dev, encoder, &psb_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_LVDS);
+			 DRM_MODE_ENCODER_LVDS, NULL);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 	gma_encoder->type = INTEL_OUTPUT_LVDS;

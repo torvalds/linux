@@ -39,7 +39,7 @@ static int snd_i2c_bit_readbytes(struct snd_i2c_device *device,
 static int snd_i2c_bit_probeaddr(struct snd_i2c_bus *bus,
 				 unsigned short addr);
 
-static struct snd_i2c_ops snd_i2c_bit_ops = {
+static const struct snd_i2c_ops snd_i2c_bit_ops = {
 	.sendbytes = snd_i2c_bit_sendbytes,
 	.readbytes = snd_i2c_bit_readbytes,
 	.probeaddr = snd_i2c_bit_probeaddr,

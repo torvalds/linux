@@ -3,10 +3,12 @@
 #include <linux/bpf.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "sock_example.h"
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sys/resource.h>
 
-struct flow_keys {
+struct bpf_flow_keys {
 	__be32 src;
 	__be32 dst;
 	union {
@@ -23,11 +25,13 @@ struct pair {
 
 int main(int argc, char **argv)
 {
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	char filename[256];
 	FILE *f;
 	int i, sock;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	setrlimit(RLIMIT_MEMLOCK, &r);
 
 	if (load_bpf_file(filename)) {
 		printf("%s", bpf_log_buf);
@@ -46,13 +50,13 @@ int main(int argc, char **argv)
 	(void) f;
 
 	for (i = 0; i < 5; i++) {
-		struct flow_keys key = {}, next_key;
+		struct bpf_flow_keys key = {}, next_key;
 		struct pair value;
 
 		sleep(1);
 		printf("IP     src.port -> dst.port               bytes      packets\n");
-		while (bpf_get_next_key(map_fd[2], &key, &next_key) == 0) {
-			bpf_lookup_elem(map_fd[2], &next_key, &value);
+		while (bpf_map_get_next_key(map_fd[2], &key, &next_key) == 0) {
+			bpf_map_lookup_elem(map_fd[2], &next_key, &value);
 			printf("%s.%05d -> %s.%05d %12lld %12lld\n",
 			       inet_ntoa((struct in_addr){htonl(next_key.src)}),
 			       next_key.port16[0],

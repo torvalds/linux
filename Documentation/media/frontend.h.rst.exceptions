@@ -1,0 +1,47 @@
+# Ignore header name
+ignore define _DVBFRONTEND_H_
+
+# Group layer A-C symbols together
+replace define DTV_ISDBT_LAYERA_FEC dtv-isdbt-layer-fec
+replace define DTV_ISDBT_LAYERB_FEC dtv-isdbt-layer-fec
+replace define DTV_ISDBT_LAYERC_FEC dtv-isdbt-layer-fec
+replace define DTV_ISDBT_LAYERA_MODULATION dtv-isdbt-layer-modulation
+replace define DTV_ISDBT_LAYERB_MODULATION dtv-isdbt-layer-modulation
+replace define DTV_ISDBT_LAYERC_MODULATION dtv-isdbt-layer-modulation
+replace define DTV_ISDBT_LAYERA_SEGMENT_COUNT dtv-isdbt-layer-segment-count
+replace define DTV_ISDBT_LAYERB_SEGMENT_COUNT dtv-isdbt-layer-segment-count
+replace define DTV_ISDBT_LAYERC_SEGMENT_COUNT dtv-isdbt-layer-segment-count
+replace define DTV_ISDBT_LAYERA_TIME_INTERLEAVING dtv-isdbt-layer-time-interleaving
+replace define DTV_ISDBT_LAYERB_TIME_INTERLEAVING dtv-isdbt-layer-time-interleaving
+replace define DTV_ISDBT_LAYERC_TIME_INTERLEAVING dtv-isdbt-layer-time-interleaving
+
+# Ignore legacy defines
+ignore define DTV_ISDBS_TS_ID_LEGACY
+ignore define SYS_DVBC_ANNEX_AC
+ignore define SYS_DMBTH
+
+# Ignore limits
+ignore define DTV_MAX_COMMAND
+ignore define MAX_DTV_STATS
+ignore define DTV_IOCTL_MAX_MSGS
+
+# Stats enum is documented altogether
+replace enum fecap_scale_params :ref:`frontend-stat-properties`
+replace symbol FE_SCALE_COUNTER frontend-stat-properties
+replace symbol FE_SCALE_DECIBEL frontend-stat-properties
+replace symbol FE_SCALE_NOT_AVAILABLE frontend-stat-properties
+replace symbol FE_SCALE_RELATIVE frontend-stat-properties
+
+# the same reference is used for both get and set ioctls
+replace ioctl FE_SET_PROPERTY :c:type:`FE_GET_PROPERTY`
+
+# Ignore struct used only internally at Kernel
+ignore struct dtv_cmds_h
+
+# Typedefs that use the enum reference
+replace typedef fe_sec_voltage_t :c:type:`fe_sec_voltage`
+
+# Replaces for flag constants
+replace define FE_TUNE_MODE_ONESHOT :c:func:`FE_SET_FRONTEND_TUNE_MODE`
+replace define LNA_AUTO dtv-lna
+replace define NO_STREAM_ID_FILTER dtv-stream-id

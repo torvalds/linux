@@ -31,6 +31,7 @@ unsigned int debug_mask;
 static unsigned int suspend_mode;
 static unsigned int wow_mode;
 static unsigned int uart_debug;
+static unsigned int uart_rate = 115200;
 static unsigned int ath6kl_p2p;
 static unsigned int testmode;
 static unsigned int recovery_enable;
@@ -40,6 +41,7 @@ module_param(debug_mask, uint, 0644);
 module_param(suspend_mode, uint, 0644);
 module_param(wow_mode, uint, 0644);
 module_param(uart_debug, uint, 0644);
+module_param(uart_rate, uint, 0644);
 module_param(ath6kl_p2p, uint, 0644);
 module_param(testmode, uint, 0644);
 module_param(recovery_enable, uint, 0644);
@@ -180,6 +182,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 
 	if (uart_debug)
 		ar->conf_flags |= ATH6KL_CONF_UART_DEBUG;
+	ar->hw.uarttx_rate = uart_rate;
 
 	set_bit(FIRST_BOOT, &ar->flag);
 

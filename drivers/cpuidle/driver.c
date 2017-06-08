@@ -11,9 +11,11 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/idle.h>
 #include <linux/cpuidle.h>
 #include <linux/cpumask.h>
 #include <linux/tick.h>
+#include <linux/cpu.h>
 
 #include "cpuidle.h"
 
@@ -178,8 +180,8 @@ static void __cpuidle_driver_init(struct cpuidle_driver *drv)
 }
 
 #ifdef CONFIG_ARCH_HAS_CPU_RELAX
-static int poll_idle(struct cpuidle_device *dev,
-		struct cpuidle_driver *drv, int index)
+static int __cpuidle poll_idle(struct cpuidle_device *dev,
+			       struct cpuidle_driver *drv, int index)
 {
 	local_irq_enable();
 	if (!current_set_polling_and_test()) {

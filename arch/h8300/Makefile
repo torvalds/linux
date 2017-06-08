@@ -22,7 +22,9 @@ KBUILD_CFLAGS += -DUTS_SYSNAME=\"uClinux\"
 KBUILD_AFLAGS += $(aflags-y)
 LDFLAGS += $(ldflags-y)
 
+ifeq ($(CROSS_COMPILE),)
 CROSS_COMPILE := h8300-unknown-linux-
+endif
 
 core-y	+= arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/
 ifneq '$(CONFIG_H8300_BUILTIN_DTB)' '""'

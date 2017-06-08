@@ -1,7 +1,8 @@
 /*
  * Device Tree Source for UniPhier Support Card (Expansion Board)
  *
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2017 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,11 +43,15 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-&extbus {
-	support_card: support_card {
+&system_bus {
+	status = "okay";
+	ranges = <1 0x00000000 0x42000000 0x02000000>;
+
+	support_card: support_card@1,1f00000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
+		ranges = <0x00000000 1 0x01f00000 0x00100000>;
 
 		ethsc: ethernet@00000000 {
 			compatible = "smsc,lan9118", "smsc,lan9115";

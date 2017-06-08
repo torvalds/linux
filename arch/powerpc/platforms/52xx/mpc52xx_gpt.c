@@ -278,14 +278,9 @@ mpc52xx_gpt_irq_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
  * GPIOLIB hooks
  */
 #if defined(CONFIG_GPIOLIB)
-static inline struct mpc52xx_gpt_priv *gc_to_mpc52xx_gpt(struct gpio_chip *gc)
-{
-	return container_of(gc, struct mpc52xx_gpt_priv, gc);
-}
-
 static int mpc52xx_gpt_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
-	struct mpc52xx_gpt_priv *gpt = gc_to_mpc52xx_gpt(gc);
+	struct mpc52xx_gpt_priv *gpt = gpiochip_get_data(gc);
 
 	return (in_be32(&gpt->regs->status) >> 8) & 1;
 }
@@ -293,7 +288,7 @@ static int mpc52xx_gpt_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 static void
 mpc52xx_gpt_gpio_set(struct gpio_chip *gc, unsigned int gpio, int v)
 {
-	struct mpc52xx_gpt_priv *gpt = gc_to_mpc52xx_gpt(gc);
+	struct mpc52xx_gpt_priv *gpt = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 r;
 
@@ -307,7 +302,7 @@ mpc52xx_gpt_gpio_set(struct gpio_chip *gc, unsigned int gpio, int v)
 
 static int mpc52xx_gpt_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
-	struct mpc52xx_gpt_priv *gpt = gc_to_mpc52xx_gpt(gc);
+	struct mpc52xx_gpt_priv *gpt = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	dev_dbg(gpt->dev, "%s: gpio:%d\n", __func__, gpio);
@@ -354,9 +349,9 @@ mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
 	clrsetbits_be32(&gpt->regs->mode, MPC52xx_GPT_MODE_MS_MASK,
 			MPC52xx_GPT_MODE_MS_GPIO);
 
-	rc = gpiochip_add(&gpt->gc);
+	rc = gpiochip_add_data(&gpt->gc, gpt);
 	if (rc)
-		dev_err(gpt->dev, "gpiochip_add() failed; rc=%i\n", rc);
+		dev_err(gpt->dev, "gpiochip_add_data() failed; rc=%i\n", rc);
 
 	dev_dbg(gpt->dev, "%s() complete.\n", __func__);
 }
@@ -724,7 +719,7 @@ static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 {
 	struct mpc52xx_gpt_priv *gpt;
 
-	gpt = kzalloc(sizeof *gpt, GFP_KERNEL);
+	gpt = devm_kzalloc(&ofdev->dev, sizeof *gpt, GFP_KERNEL);
 	if (!gpt)
 		return -ENOMEM;
 
@@ -732,10 +727,8 @@ static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 	gpt->dev = &ofdev->dev;
 	gpt->ipb_freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_node);
 	gpt->regs = of_iomap(ofdev->dev.of_node, 0);
-	if (!gpt->regs) {
-		kfree(gpt);
+	if (!gpt->regs)
 		return -ENOMEM;
-	}
 
 	dev_set_drvdata(&ofdev->dev, gpt);
 

@@ -20,10 +20,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *  Stripped of 2.4 stuff ready for main kernel submit by
  *		Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
@@ -36,6 +32,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/firmware.h>
+#include <linux/sched/signal.h>
 
 #define FIRMWARE "cpia2/stv0672_vp4.bin"
 MODULE_FIRMWARE(FIRMWARE);
@@ -923,7 +920,7 @@ static int apply_vp_patch(struct camera_data *cam)
 	/* ... followed by the data payload */
 	for (i = 2; i < fw->size; i += 64) {
 		cmd.start = 0x0C; /* Data */
-		cmd.reg_count = min_t(int, 64, fw->size - i);
+		cmd.reg_count = min_t(uint, 64, fw->size - i);
 		memcpy(cmd.buffer.block_data, &fw->data[i], cmd.reg_count);
 		cpia2_send_command(cam, &cmd);
 	}

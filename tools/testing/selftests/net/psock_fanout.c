@@ -71,18 +71,17 @@
 
 /* Open a socket in a given fanout mode.
  * @return -1 if mode is bad, a valid socket otherwise */
-static int sock_fanout_open(uint16_t typeflags, int num_packets)
+static int sock_fanout_open(uint16_t typeflags, uint16_t group_id)
 {
 	int fd, val;
 
-	fd = socket(PF_PACKET, SOCK_DGRAM, htons(ETH_P_IP));
+	fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP));
 	if (fd < 0) {
 		perror("socket packet");
 		exit(1);
 	}
 
-	/* fanout group ID is always 0: tests whether old groups are deleted */
-	val = ((int) typeflags) << 16;
+	val = (((int) typeflags) << 16) | group_id;
 	if (setsockopt(fd, SOL_PACKET, PACKET_FANOUT, &val, sizeof(val))) {
 		if (close(fd)) {
 			perror("close packet");
@@ -93,6 +92,38 @@ static int sock_fanout_open(uint16_t typeflags, int num_packets)
 
 	pair_udp_setfilter(fd);
 	return fd;
+}
+
+static void sock_fanout_set_cbpf(int fd)
+{
+	struct sock_filter bpf_filter[] = {
+		BPF_STMT(BPF_LD+BPF_B+BPF_ABS, 80),	      /* ldb [80] */
+		BPF_STMT(BPF_RET+BPF_A, 0),		      /* ret A */
+	};
+	struct sock_fprog bpf_prog;
+
+	bpf_prog.filter = bpf_filter;
+	bpf_prog.len = sizeof(bpf_filter) / sizeof(struct sock_filter);
+
+	if (setsockopt(fd, SOL_PACKET, PACKET_FANOUT_DATA, &bpf_prog,
+		       sizeof(bpf_prog))) {
+		perror("fanout data cbpf");
+		exit(1);
+	}
+}
+
+static void sock_fanout_getopts(int fd, uint16_t *typeflags, uint16_t *group_id)
+{
+	int sockopt;
+	socklen_t sockopt_len = sizeof(sockopt);
+
+	if (getsockopt(fd, SOL_PACKET, PACKET_FANOUT,
+		       &sockopt, &sockopt_len)) {
+		perror("failed to getsockopt");
+		exit(1);
+	}
+	*typeflags = sockopt >> 16;
+	*group_id = sockopt & 0xfffff;
 }
 
 static void sock_fanout_set_ebpf(int fd)
@@ -223,31 +254,86 @@ static void test_control_group(void)
 
 	fprintf(stderr, "test: control multiple sockets\n");
 
-	fds[0] = sock_fanout_open(PACKET_FANOUT_HASH, 20);
+	fds[0] = sock_fanout_open(PACKET_FANOUT_HASH, 0);
 	if (fds[0] == -1) {
 		fprintf(stderr, "ERROR: failed to open HASH socket\n");
 		exit(1);
 	}
 	if (sock_fanout_open(PACKET_FANOUT_HASH |
-			       PACKET_FANOUT_FLAG_DEFRAG, 10) != -1) {
+			       PACKET_FANOUT_FLAG_DEFRAG, 0) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong flag defrag\n");
 		exit(1);
 	}
 	if (sock_fanout_open(PACKET_FANOUT_HASH |
-			       PACKET_FANOUT_FLAG_ROLLOVER, 10) != -1) {
+			       PACKET_FANOUT_FLAG_ROLLOVER, 0) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong flag ro\n");
 		exit(1);
 	}
-	if (sock_fanout_open(PACKET_FANOUT_CPU, 10) != -1) {
+	if (sock_fanout_open(PACKET_FANOUT_CPU, 0) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong mode\n");
 		exit(1);
 	}
-	fds[1] = sock_fanout_open(PACKET_FANOUT_HASH, 20);
+	fds[1] = sock_fanout_open(PACKET_FANOUT_HASH, 0);
 	if (fds[1] == -1) {
 		fprintf(stderr, "ERROR: failed to join group\n");
 		exit(1);
 	}
 	if (close(fds[1]) || close(fds[0])) {
+		fprintf(stderr, "ERROR: closing sockets\n");
+		exit(1);
+	}
+}
+
+/* Test creating a unique fanout group ids */
+static void test_unique_fanout_group_ids(void)
+{
+	int fds[3];
+	uint16_t typeflags, first_group_id, second_group_id;
+
+	fprintf(stderr, "test: unique ids\n");
+
+	fds[0] = sock_fanout_open(PACKET_FANOUT_HASH |
+				  PACKET_FANOUT_FLAG_UNIQUEID, 0);
+	if (fds[0] == -1) {
+		fprintf(stderr, "ERROR: failed to create a unique id group.\n");
+		exit(1);
+	}
+
+	sock_fanout_getopts(fds[0], &typeflags, &first_group_id);
+	if (typeflags != PACKET_FANOUT_HASH) {
+		fprintf(stderr, "ERROR: unexpected typeflags %x\n", typeflags);
+		exit(1);
+	}
+
+	if (sock_fanout_open(PACKET_FANOUT_CPU, first_group_id) != -1) {
+		fprintf(stderr, "ERROR: joined group with wrong type.\n");
+		exit(1);
+	}
+
+	fds[1] = sock_fanout_open(PACKET_FANOUT_HASH, first_group_id);
+	if (fds[1] == -1) {
+		fprintf(stderr,
+			"ERROR: failed to join previously created group.\n");
+		exit(1);
+	}
+
+	fds[2] = sock_fanout_open(PACKET_FANOUT_HASH |
+				  PACKET_FANOUT_FLAG_UNIQUEID, 0);
+	if (fds[2] == -1) {
+		fprintf(stderr,
+			"ERROR: failed to create a second unique id group.\n");
+		exit(1);
+	}
+
+	sock_fanout_getopts(fds[2], &typeflags, &second_group_id);
+	if (sock_fanout_open(PACKET_FANOUT_HASH | PACKET_FANOUT_FLAG_UNIQUEID,
+			     second_group_id) != -1) {
+		fprintf(stderr,
+			"ERROR: specified a group id when requesting unique id\n");
+		exit(1);
+	}
+
+	if (close(fds[0]) || close(fds[1]) || close(fds[2])) {
 		fprintf(stderr, "ERROR: closing sockets\n");
 		exit(1);
 	}
@@ -263,14 +349,14 @@ static int test_datapath(uint16_t typeflags, int port_off,
 
 	fprintf(stderr, "test: datapath 0x%hx\n", typeflags);
 
-	fds[0] = sock_fanout_open(typeflags, 20);
-	fds[1] = sock_fanout_open(typeflags, 20);
+	fds[0] = sock_fanout_open(typeflags, 0);
+	fds[1] = sock_fanout_open(typeflags, 0);
 	if (fds[0] == -1 || fds[1] == -1) {
 		fprintf(stderr, "ERROR: failed open\n");
 		exit(1);
 	}
 	if (type == PACKET_FANOUT_CBPF)
-		sock_setfilter(fds[0], SOL_PACKET, PACKET_FANOUT_DATA);
+		sock_fanout_set_cbpf(fds[0]);
 	else if (type == PACKET_FANOUT_EBPF)
 		sock_fanout_set_ebpf(fds[0]);
 
@@ -331,10 +417,12 @@ int main(int argc, char **argv)
 	const int expect_cpu0[2][2]	= { { 20, 0 },  { 20, 0 } };
 	const int expect_cpu1[2][2]	= { { 0, 20 },  { 0, 20 } };
 	const int expect_bpf[2][2]	= { { 15, 5 },  { 15, 20 } };
+	const int expect_uniqueid[2][2] = { { 20, 20},  { 20, 20 } };
 	int port_off = 2, tries = 5, ret;
 
 	test_control_single();
 	test_control_group();
+	test_unique_fanout_group_ids();
 
 	/* find a set of ports that do not collide onto the same socket */
 	ret = test_datapath(PACKET_FANOUT_HASH, port_off,
@@ -364,6 +452,9 @@ int main(int argc, char **argv)
 		/* TODO: test that choice alternates with previous */
 		ret |= test_datapath(PACKET_FANOUT_CPU, port_off,
 				     expect_cpu1[0], expect_cpu1[1]);
+
+	ret |= test_datapath(PACKET_FANOUT_FLAG_UNIQUEID, port_off,
+			     expect_uniqueid[0], expect_uniqueid[1]);
 
 	if (ret)
 		return 1;

@@ -11,27 +11,15 @@
  */
 
 /*
- * The AMD5536 UDC is part of the x86 southbridge AMD Geode CS5536.
- * It is a USB Highspeed DMA capable USB device controller. Beside ep0 it
- * provides 4 IN and 4 OUT endpoints (bulk or interrupt type).
- *
- * Make sure that UDC is assigned to port 4 by BIOS settings (port can also
- * be used as host port) and UOC bits PAD_EN and APU are set (should be done
- * by BIOS init).
- *
- * UDC DMA requires 32-bit aligned buffers so DMA with gadget ether does not
- * work without updating NET_IP_ALIGN. Or PIO mode (module param "use_dma=0")
- * can be used with gadget ether.
+ * This file does the core driver implementation for the UDC that is based
+ * on Synopsys device controller IP (different than HS OTG IP) that is either
+ * connected through PCI bus or integrated to SoC platforms.
  */
 
-/* debug control */
-/* #define UDC_VERBOSE */
-
 /* Driver strings */
-#define UDC_MOD_DESCRIPTION		"AMD 5536 UDC - USB Device Controller"
+#define UDC_MOD_DESCRIPTION		"Synopsys USB Device Controller"
 #define UDC_DRIVER_VERSION_STRING	"01.00.0206"
 
-/* system */
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -46,41 +34,22 @@
 #include <linux/ioctl.h>
 #include <linux/fs.h>
 #include <linux/dmapool.h>
-#include <linux/moduleparam.h>
-#include <linux/device.h>
-#include <linux/io.h>
-#include <linux/irq.h>
 #include <linux/prefetch.h>
-
+#include <linux/moduleparam.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
-
-/* gadget stack */
-#include <linux/usb/ch9.h>
-#include <linux/usb/gadget.h>
-
-/* udc specific */
 #include "amd5536udc.h"
-
 
 static void udc_tasklet_disconnect(unsigned long);
 static void empty_req_queue(struct udc_ep *);
-static int udc_probe(struct udc *dev);
-static void udc_basic_init(struct udc *dev);
 static void udc_setup_endpoints(struct udc *dev);
 static void udc_soft_reset(struct udc *dev);
 static struct udc_request *udc_alloc_bna_dummy(struct udc_ep *ep);
 static void udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq);
-static int udc_free_dma_chain(struct udc *dev, struct udc_request *req);
-static int udc_create_dma_chain(struct udc_ep *ep, struct udc_request *req,
-				unsigned long buf_len, gfp_t gfp_flags);
-static int udc_remote_wakeup(struct udc *dev);
-static int udc_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
-static void udc_pci_remove(struct pci_dev *pdev);
 
 /* description */
 static const char mod_desc[] = UDC_MOD_DESCRIPTION;
-static const char name[] = "amd5536udc";
+static const char name[] = "udc";
 
 /* structure to hold endpoint function pointers */
 static const struct usb_ep_ops udc_ep_ops;
@@ -216,29 +185,10 @@ static const struct {
 #undef EP_INFO
 };
 
-/* DMA usage flag */
-static bool use_dma = 1;
-/* packet per buffer dma */
-static bool use_dma_ppb = 1;
-/* with per descr. update */
-static bool use_dma_ppb_du;
 /* buffer fill mode */
 static int use_dma_bufferfill_mode;
-/* full speed only mode */
-static bool use_fullspeed;
 /* tx buffer size for high speed */
 static unsigned long hs_tx_buf = UDC_EPIN_BUFF_SIZE;
-
-/* module parameters */
-module_param(use_dma, bool, S_IRUGO);
-MODULE_PARM_DESC(use_dma, "true for DMA");
-module_param(use_dma_ppb, bool, S_IRUGO);
-MODULE_PARM_DESC(use_dma_ppb, "true for DMA in packet per buffer mode");
-module_param(use_dma_ppb_du, bool, S_IRUGO);
-MODULE_PARM_DESC(use_dma_ppb_du,
-	"true for DMA in packet per buffer mode with descriptor update");
-module_param(use_fullspeed, bool, S_IRUGO);
-MODULE_PARM_DESC(use_fullspeed, "true for fullspeed only");
 
 /*---------------------------------------------------------------------------*/
 /* Prints UDC device registers and endpoint irq registers */
@@ -275,7 +225,7 @@ static void print_regs(struct udc *dev)
 }
 
 /* Masks unused interrupts */
-static int udc_mask_unused_interrupts(struct udc *dev)
+int udc_mask_unused_interrupts(struct udc *dev)
 {
 	u32 tmp;
 
@@ -295,6 +245,7 @@ static int udc_mask_unused_interrupts(struct udc *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(udc_mask_unused_interrupts);
 
 /* Enables endpoint 0 interrupts */
 static int udc_enable_ep0_interrupts(struct udc *dev)
@@ -314,7 +265,7 @@ static int udc_enable_ep0_interrupts(struct udc *dev)
 }
 
 /* Enables device interrupts for SET_INTF and SET_CONFIG */
-static int udc_enable_dev_setup_interrupts(struct udc *dev)
+int udc_enable_dev_setup_interrupts(struct udc *dev)
 {
 	u32 tmp;
 
@@ -333,6 +284,7 @@ static int udc_enable_dev_setup_interrupts(struct udc *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(udc_enable_dev_setup_interrupts);
 
 /* Calculates fifo start of endpoint based on preceding endpoints */
 static int udc_set_txfifo_addr(struct udc_ep *ep)
@@ -591,7 +543,7 @@ udc_alloc_request(struct usb_ep *usbep, gfp_t gfp)
 
 	if (ep->dma) {
 		/* ep0 in requests are allocated from data pool here */
-		dma_desc = pci_pool_alloc(ep->dev->data_requests, gfp,
+		dma_desc = dma_pool_alloc(ep->dev->data_requests, gfp,
 						&req->td_phys);
 		if (!dma_desc) {
 			kfree(req);
@@ -615,6 +567,26 @@ udc_alloc_request(struct usb_ep *usbep, gfp_t gfp)
 	return &req->req;
 }
 
+/* frees pci pool descriptors of a DMA chain */
+static void udc_free_dma_chain(struct udc *dev, struct udc_request *req)
+{
+	struct udc_data_dma *td = req->td_data;
+	unsigned int i;
+
+	dma_addr_t addr_next = 0x00;
+	dma_addr_t addr = (dma_addr_t)td->next;
+
+	DBG(dev, "free chain req = %p\n", req);
+
+	/* do not free first desc., will be done by free for request */
+	for (i = 1; i < req->chain_len; i++) {
+		td = phys_to_virt(addr);
+		addr_next = (dma_addr_t)td->next;
+		dma_pool_free(dev->data_requests, td, addr);
+		addr = addr_next;
+	}
+}
+
 /* Frees request packet, called by gadget driver */
 static void
 udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq)
@@ -636,7 +608,7 @@ udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq)
 		if (req->chain_len > 1)
 			udc_free_dma_chain(ep->dev, req);
 
-		pci_pool_free(ep->dev->data_requests, req->td_data,
+		dma_pool_free(ep->dev->data_requests, req->td_data,
 							req->td_phys);
 	}
 	kfree(req);
@@ -789,6 +761,123 @@ udc_rxfifo_read(struct udc_ep *ep, struct udc_request *req)
 	return finished;
 }
 
+/* Creates or re-inits a DMA chain */
+static int udc_create_dma_chain(
+	struct udc_ep *ep,
+	struct udc_request *req,
+	unsigned long buf_len, gfp_t gfp_flags
+)
+{
+	unsigned long bytes = req->req.length;
+	unsigned int i;
+	dma_addr_t dma_addr;
+	struct udc_data_dma	*td = NULL;
+	struct udc_data_dma	*last = NULL;
+	unsigned long txbytes;
+	unsigned create_new_chain = 0;
+	unsigned len;
+
+	VDBG(ep->dev, "udc_create_dma_chain: bytes=%ld buf_len=%ld\n",
+	     bytes, buf_len);
+	dma_addr = DMA_DONT_USE;
+
+	/* unset L bit in first desc for OUT */
+	if (!ep->in)
+		req->td_data->status &= AMD_CLEAR_BIT(UDC_DMA_IN_STS_L);
+
+	/* alloc only new desc's if not already available */
+	len = req->req.length / ep->ep.maxpacket;
+	if (req->req.length % ep->ep.maxpacket)
+		len++;
+
+	if (len > req->chain_len) {
+		/* shorter chain already allocated before */
+		if (req->chain_len > 1)
+			udc_free_dma_chain(ep->dev, req);
+		req->chain_len = len;
+		create_new_chain = 1;
+	}
+
+	td = req->td_data;
+	/* gen. required number of descriptors and buffers */
+	for (i = buf_len; i < bytes; i += buf_len) {
+		/* create or determine next desc. */
+		if (create_new_chain) {
+			td = dma_pool_alloc(ep->dev->data_requests,
+					    gfp_flags, &dma_addr);
+			if (!td)
+				return -ENOMEM;
+
+			td->status = 0;
+		} else if (i == buf_len) {
+			/* first td */
+			td = (struct udc_data_dma *)phys_to_virt(
+						req->td_data->next);
+			td->status = 0;
+		} else {
+			td = (struct udc_data_dma *)phys_to_virt(last->next);
+			td->status = 0;
+		}
+
+		if (td)
+			td->bufptr = req->req.dma + i; /* assign buffer */
+		else
+			break;
+
+		/* short packet ? */
+		if ((bytes - i) >= buf_len) {
+			txbytes = buf_len;
+		} else {
+			/* short packet */
+			txbytes = bytes - i;
+		}
+
+		/* link td and assign tx bytes */
+		if (i == buf_len) {
+			if (create_new_chain)
+				req->td_data->next = dma_addr;
+			/*
+			 * else
+			 *	req->td_data->next = virt_to_phys(td);
+			 */
+			/* write tx bytes */
+			if (ep->in) {
+				/* first desc */
+				req->td_data->status =
+					AMD_ADDBITS(req->td_data->status,
+						    ep->ep.maxpacket,
+						    UDC_DMA_IN_STS_TXBYTES);
+				/* second desc */
+				td->status = AMD_ADDBITS(td->status,
+							txbytes,
+							UDC_DMA_IN_STS_TXBYTES);
+			}
+		} else {
+			if (create_new_chain)
+				last->next = dma_addr;
+			/*
+			 * else
+			 *	last->next = virt_to_phys(td);
+			 */
+			if (ep->in) {
+				/* write tx bytes */
+				td->status = AMD_ADDBITS(td->status,
+							txbytes,
+							UDC_DMA_IN_STS_TXBYTES);
+			}
+		}
+		last = td;
+	}
+	/* set last bit */
+	if (td) {
+		td->status |= AMD_BIT(UDC_DMA_IN_STS_L);
+		/* last desc. points to itself */
+		req->td_data_last = td;
+	}
+
+	return 0;
+}
+
 /* create/re-init a DMA descriptor or a DMA descriptor chain */
 static int prep_dma(struct udc_ep *ep, struct udc_request *req, gfp_t gfp)
 {
@@ -913,32 +1002,6 @@ __acquires(ep->dev->lock)
 	ep->halted = halted;
 }
 
-/* frees pci pool descriptors of a DMA chain */
-static int udc_free_dma_chain(struct udc *dev, struct udc_request *req)
-{
-
-	int ret_val = 0;
-	struct udc_data_dma	*td;
-	struct udc_data_dma	*td_last = NULL;
-	unsigned int i;
-
-	DBG(dev, "free chain req = %p\n", req);
-
-	/* do not free first desc., will be done by free for request */
-	td_last = req->td_data;
-	td = phys_to_virt(td_last->next);
-
-	for (i = 1; i < req->chain_len; i++) {
-
-		pci_pool_free(dev->data_requests, td,
-				(dma_addr_t) td_last->next);
-		td_last = td;
-		td = phys_to_virt(td_last->next);
-	}
-
-	return ret_val;
-}
-
 /* Iterates to the end of a DMA chain and returns last descriptor */
 static struct udc_data_dma *udc_get_last_dma_desc(struct udc_request *req)
 {
@@ -973,125 +1036,6 @@ static u32 udc_get_ppbdu_rxbytes(struct udc_request *req)
 
 	return count;
 
-}
-
-/* Creates or re-inits a DMA chain */
-static int udc_create_dma_chain(
-	struct udc_ep *ep,
-	struct udc_request *req,
-	unsigned long buf_len, gfp_t gfp_flags
-)
-{
-	unsigned long bytes = req->req.length;
-	unsigned int i;
-	dma_addr_t dma_addr;
-	struct udc_data_dma	*td = NULL;
-	struct udc_data_dma	*last = NULL;
-	unsigned long txbytes;
-	unsigned create_new_chain = 0;
-	unsigned len;
-
-	VDBG(ep->dev, "udc_create_dma_chain: bytes=%ld buf_len=%ld\n",
-			bytes, buf_len);
-	dma_addr = DMA_DONT_USE;
-
-	/* unset L bit in first desc for OUT */
-	if (!ep->in)
-		req->td_data->status &= AMD_CLEAR_BIT(UDC_DMA_IN_STS_L);
-
-	/* alloc only new desc's if not already available */
-	len = req->req.length / ep->ep.maxpacket;
-	if (req->req.length % ep->ep.maxpacket)
-		len++;
-
-	if (len > req->chain_len) {
-		/* shorter chain already allocated before */
-		if (req->chain_len > 1)
-			udc_free_dma_chain(ep->dev, req);
-		req->chain_len = len;
-		create_new_chain = 1;
-	}
-
-	td = req->td_data;
-	/* gen. required number of descriptors and buffers */
-	for (i = buf_len; i < bytes; i += buf_len) {
-		/* create or determine next desc. */
-		if (create_new_chain) {
-
-			td = pci_pool_alloc(ep->dev->data_requests,
-					gfp_flags, &dma_addr);
-			if (!td)
-				return -ENOMEM;
-
-			td->status = 0;
-		} else if (i == buf_len) {
-			/* first td */
-			td = (struct udc_data_dma *) phys_to_virt(
-						req->td_data->next);
-			td->status = 0;
-		} else {
-			td = (struct udc_data_dma *) phys_to_virt(last->next);
-			td->status = 0;
-		}
-
-
-		if (td)
-			td->bufptr = req->req.dma + i; /* assign buffer */
-		else
-			break;
-
-		/* short packet ? */
-		if ((bytes - i) >= buf_len) {
-			txbytes = buf_len;
-		} else {
-			/* short packet */
-			txbytes = bytes - i;
-		}
-
-		/* link td and assign tx bytes */
-		if (i == buf_len) {
-			if (create_new_chain)
-				req->td_data->next = dma_addr;
-			/*
-			else
-				req->td_data->next = virt_to_phys(td);
-			*/
-			/* write tx bytes */
-			if (ep->in) {
-				/* first desc */
-				req->td_data->status =
-					AMD_ADDBITS(req->td_data->status,
-							ep->ep.maxpacket,
-							UDC_DMA_IN_STS_TXBYTES);
-				/* second desc */
-				td->status = AMD_ADDBITS(td->status,
-							txbytes,
-							UDC_DMA_IN_STS_TXBYTES);
-			}
-		} else {
-			if (create_new_chain)
-				last->next = dma_addr;
-			/*
-			else
-				last->next = virt_to_phys(td);
-			*/
-			if (ep->in) {
-				/* write tx bytes */
-				td->status = AMD_ADDBITS(td->status,
-							txbytes,
-							UDC_DMA_IN_STS_TXBYTES);
-			}
-		}
-		last = td;
-	}
-	/* set last bit */
-	if (td) {
-		td->status |= AMD_BIT(UDC_DMA_IN_STS_L);
-		/* last desc. points to itself */
-		req->td_data_last = td;
-	}
-
-	return 0;
 }
 
 /* Enabling RX DMA */
@@ -1453,6 +1397,26 @@ static int udc_get_frame(struct usb_gadget *gadget)
 	return -EOPNOTSUPP;
 }
 
+/* Initiates a remote wakeup */
+static int udc_remote_wakeup(struct udc *dev)
+{
+	unsigned long flags;
+	u32 tmp;
+
+	DBG(dev, "UDC initiates remote wakeup\n");
+
+	spin_lock_irqsave(&dev->lock, flags);
+
+	tmp = readl(&dev->regs->ctl);
+	tmp |= AMD_BIT(UDC_DEVCTL_RES);
+	writel(tmp, &dev->regs->ctl);
+	tmp &= AMD_CLEAR_BIT(UDC_DEVCTL_RES);
+	writel(tmp, &dev->regs->ctl);
+
+	spin_unlock_irqrestore(&dev->lock, flags);
+	return 0;
+}
+
 /* Remote wakeup gadget interface */
 static int udc_wakeup(struct usb_gadget *gadget)
 {
@@ -1498,35 +1462,8 @@ static void make_ep_lists(struct udc *dev)
 	dev->ep[UDC_EPOUT_IX].fifo_depth = UDC_RXFIFO_SIZE;
 }
 
-/* init registers at driver load time */
-static int startup_registers(struct udc *dev)
-{
-	u32 tmp;
-
-	/* init controller by soft reset */
-	udc_soft_reset(dev);
-
-	/* mask not needed interrupts */
-	udc_mask_unused_interrupts(dev);
-
-	/* put into initial config */
-	udc_basic_init(dev);
-	/* link up all endpoints */
-	udc_setup_endpoints(dev);
-
-	/* program speed */
-	tmp = readl(&dev->regs->cfg);
-	if (use_fullspeed)
-		tmp = AMD_ADDBITS(tmp, UDC_DEVCFG_SPD_FS, UDC_DEVCFG_SPD);
-	else
-		tmp = AMD_ADDBITS(tmp, UDC_DEVCFG_SPD_HS, UDC_DEVCFG_SPD);
-	writel(tmp, &dev->regs->cfg);
-
-	return 0;
-}
-
 /* Inits UDC context */
-static void udc_basic_init(struct udc *dev)
+void udc_basic_init(struct udc *dev)
 {
 	u32	tmp;
 
@@ -1561,6 +1498,34 @@ static void udc_basic_init(struct udc *dev)
 
 	dev->data_ep_enabled = 0;
 	dev->data_ep_queued = 0;
+}
+EXPORT_SYMBOL_GPL(udc_basic_init);
+
+/* init registers at driver load time */
+static int startup_registers(struct udc *dev)
+{
+	u32 tmp;
+
+	/* init controller by soft reset */
+	udc_soft_reset(dev);
+
+	/* mask not needed interrupts */
+	udc_mask_unused_interrupts(dev);
+
+	/* put into initial config */
+	udc_basic_init(dev);
+	/* link up all endpoints */
+	udc_setup_endpoints(dev);
+
+	/* program speed */
+	tmp = readl(&dev->regs->cfg);
+	if (use_fullspeed)
+		tmp = AMD_ADDBITS(tmp, UDC_DEVCFG_SPD_FS, UDC_DEVCFG_SPD);
+	else
+		tmp = AMD_ADDBITS(tmp, UDC_DEVCFG_SPD_HS, UDC_DEVCFG_SPD);
+	writel(tmp, &dev->regs->cfg);
+
+	return 0;
 }
 
 /* Sets initial endpoint parameters */
@@ -2177,7 +2142,7 @@ static irqreturn_t udc_data_out_isr(struct udc *dev, int ep_ix)
 		}
 
 	/* DMA */
-	} else if (!ep->cancel_transfer && req != NULL) {
+	} else if (!ep->cancel_transfer && req) {
 		ret_val = IRQ_HANDLED;
 
 		/* check for DMA done */
@@ -2332,7 +2297,6 @@ static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 	struct udc_ep *ep;
 	struct udc_request *req;
 	struct udc_data_dma *td;
-	unsigned dma_done;
 	unsigned len;
 
 	ep = &dev->ep[ep_ix];
@@ -2377,13 +2341,8 @@ static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 			 */
 			if (use_dma_ppb_du) {
 				td = udc_get_last_dma_desc(req);
-				if (td) {
-					dma_done =
-						AMD_GETBITS(td->status,
-						UDC_DMA_IN_STS_BS);
-					/* don't care DMA done */
+				if (td)
 					req->req.actual = req->req.length;
-				}
 			} else {
 				/* assume all bytes transferred */
 				req->req.actual = req->req.length;
@@ -3029,7 +2988,7 @@ __acquires(dev->lock)
 }
 
 /* Interrupt Service Routine, see Linux Kernel Doc for parameters */
-static irqreturn_t udc_irq(int irq, void *pdev)
+irqreturn_t udc_irq(int irq, void *pdev)
 {
 	struct udc *dev = pdev;
 	u32 reg;
@@ -3081,16 +3040,18 @@ static irqreturn_t udc_irq(int irq, void *pdev)
 	spin_unlock(&dev->lock);
 	return ret_val;
 }
+EXPORT_SYMBOL_GPL(udc_irq);
 
 /* Tears down device */
-static void gadget_release(struct device *pdev)
+void gadget_release(struct device *pdev)
 {
 	struct amd5536udc *dev = dev_get_drvdata(pdev);
 	kfree(dev);
 }
+EXPORT_SYMBOL_GPL(gadget_release);
 
 /* Cleanup on device remove */
-static void udc_remove(struct udc *dev)
+void udc_remove(struct udc *dev)
 {
 	/* remove timer */
 	stop_timer++;
@@ -3106,51 +3067,22 @@ static void udc_remove(struct udc *dev)
 		del_timer_sync(&udc_pollstall_timer);
 	udc = NULL;
 }
+EXPORT_SYMBOL_GPL(udc_remove);
 
-/* Reset all pci context */
-static void udc_pci_remove(struct pci_dev *pdev)
+/* free all the dma pools */
+void free_dma_pools(struct udc *dev)
 {
-	struct udc		*dev;
-
-	dev = pci_get_drvdata(pdev);
-
-	usb_del_gadget_udc(&udc->gadget);
-	/* gadget driver must not be registered */
-	BUG_ON(dev->driver != NULL);
-
-	/* dma pool cleanup */
-	if (dev->data_requests)
-		pci_pool_destroy(dev->data_requests);
-
-	if (dev->stp_requests) {
-		/* cleanup DMA desc's for ep0in */
-		pci_pool_free(dev->stp_requests,
-			dev->ep[UDC_EP0OUT_IX].td_stp,
-			dev->ep[UDC_EP0OUT_IX].td_stp_dma);
-		pci_pool_free(dev->stp_requests,
-			dev->ep[UDC_EP0OUT_IX].td,
-			dev->ep[UDC_EP0OUT_IX].td_phys);
-
-		pci_pool_destroy(dev->stp_requests);
-	}
-
-	/* reset controller */
-	writel(AMD_BIT(UDC_DEVCFG_SOFTRESET), &dev->regs->cfg);
-	if (dev->irq_registered)
-		free_irq(pdev->irq, dev);
-	if (dev->regs)
-		iounmap(dev->regs);
-	if (dev->mem_region)
-		release_mem_region(pci_resource_start(pdev, 0),
-				pci_resource_len(pdev, 0));
-	if (dev->active)
-		pci_disable_device(pdev);
-
-	udc_remove(dev);
+	dma_pool_free(dev->stp_requests, dev->ep[UDC_EP0OUT_IX].td,
+		      dev->ep[UDC_EP0OUT_IX].td_phys);
+	dma_pool_free(dev->stp_requests, dev->ep[UDC_EP0OUT_IX].td_stp,
+		      dev->ep[UDC_EP0OUT_IX].td_stp_dma);
+	dma_pool_destroy(dev->stp_requests);
+	dma_pool_destroy(dev->data_requests);
 }
+EXPORT_SYMBOL_GPL(free_dma_pools);
 
 /* create dma pools on init */
-static int init_dma_pools(struct udc *dev)
+int init_dma_pools(struct udc *dev)
 {
 	struct udc_stp_dma	*td_stp;
 	struct udc_data_dma	*td_data;
@@ -3169,8 +3101,7 @@ static int init_dma_pools(struct udc *dev)
 		sizeof(struct udc_data_dma), 0, 0);
 	if (!dev->data_requests) {
 		DBG(dev, "can't get request data pool\n");
-		retval = -ENOMEM;
-		goto finished;
+		return -ENOMEM;
 	}
 
 	/* EP0 in dma regs = dev control regs */
@@ -3182,145 +3113,42 @@ static int init_dma_pools(struct udc *dev)
 	if (!dev->stp_requests) {
 		DBG(dev, "can't get stp request pool\n");
 		retval = -ENOMEM;
-		goto finished;
+		goto err_create_dma_pool;
 	}
 	/* setup */
 	td_stp = dma_pool_alloc(dev->stp_requests, GFP_KERNEL,
 				&dev->ep[UDC_EP0OUT_IX].td_stp_dma);
-	if (td_stp == NULL) {
+	if (!td_stp) {
 		retval = -ENOMEM;
-		goto finished;
+		goto err_alloc_dma;
 	}
 	dev->ep[UDC_EP0OUT_IX].td_stp = td_stp;
 
 	/* data: 0 packets !? */
 	td_data = dma_pool_alloc(dev->stp_requests, GFP_KERNEL,
 				&dev->ep[UDC_EP0OUT_IX].td_phys);
-	if (td_data == NULL) {
+	if (!td_data) {
 		retval = -ENOMEM;
-		goto finished;
+		goto err_alloc_phys;
 	}
 	dev->ep[UDC_EP0OUT_IX].td = td_data;
 	return 0;
 
-finished:
+err_alloc_phys:
+	dma_pool_free(dev->stp_requests, dev->ep[UDC_EP0OUT_IX].td_stp,
+		      dev->ep[UDC_EP0OUT_IX].td_stp_dma);
+err_alloc_dma:
+	dma_pool_destroy(dev->stp_requests);
+	dev->stp_requests = NULL;
+err_create_dma_pool:
+	dma_pool_destroy(dev->data_requests);
+	dev->data_requests = NULL;
 	return retval;
 }
-
-/* Called by pci bus driver to init pci context */
-static int udc_pci_probe(
-	struct pci_dev *pdev,
-	const struct pci_device_id *id
-)
-{
-	struct udc		*dev;
-	unsigned long		resource;
-	unsigned long		len;
-	int			retval = 0;
-
-	/* one udc only */
-	if (udc) {
-		dev_dbg(&pdev->dev, "already probed\n");
-		return -EBUSY;
-	}
-
-	/* init */
-	dev = kzalloc(sizeof(struct udc), GFP_KERNEL);
-	if (!dev) {
-		retval = -ENOMEM;
-		goto finished;
-	}
-
-	/* pci setup */
-	if (pci_enable_device(pdev) < 0) {
-		kfree(dev);
-		dev = NULL;
-		retval = -ENODEV;
-		goto finished;
-	}
-	dev->active = 1;
-
-	/* PCI resource allocation */
-	resource = pci_resource_start(pdev, 0);
-	len = pci_resource_len(pdev, 0);
-
-	if (!request_mem_region(resource, len, name)) {
-		dev_dbg(&pdev->dev, "pci device used already\n");
-		kfree(dev);
-		dev = NULL;
-		retval = -EBUSY;
-		goto finished;
-	}
-	dev->mem_region = 1;
-
-	dev->virt_addr = ioremap_nocache(resource, len);
-	if (dev->virt_addr == NULL) {
-		dev_dbg(&pdev->dev, "start address cannot be mapped\n");
-		kfree(dev);
-		dev = NULL;
-		retval = -EFAULT;
-		goto finished;
-	}
-
-	if (!pdev->irq) {
-		dev_err(&pdev->dev, "irq not set\n");
-		kfree(dev);
-		dev = NULL;
-		retval = -ENODEV;
-		goto finished;
-	}
-
-	spin_lock_init(&dev->lock);
-	/* udc csr registers base */
-	dev->csr = dev->virt_addr + UDC_CSR_ADDR;
-	/* dev registers base */
-	dev->regs = dev->virt_addr + UDC_DEVCFG_ADDR;
-	/* ep registers base */
-	dev->ep_regs = dev->virt_addr + UDC_EPREGS_ADDR;
-	/* fifo's base */
-	dev->rxfifo = (u32 __iomem *)(dev->virt_addr + UDC_RXFIFO_ADDR);
-	dev->txfifo = (u32 __iomem *)(dev->virt_addr + UDC_TXFIFO_ADDR);
-
-	if (request_irq(pdev->irq, udc_irq, IRQF_SHARED, name, dev) != 0) {
-		dev_dbg(&pdev->dev, "request_irq(%d) fail\n", pdev->irq);
-		kfree(dev);
-		dev = NULL;
-		retval = -EBUSY;
-		goto finished;
-	}
-	dev->irq_registered = 1;
-
-	pci_set_drvdata(pdev, dev);
-
-	/* chip revision for Hs AMD5536 */
-	dev->chiprev = pdev->revision;
-
-	pci_set_master(pdev);
-	pci_try_set_mwi(pdev);
-
-	/* init dma pools */
-	if (use_dma) {
-		retval = init_dma_pools(dev);
-		if (retval != 0)
-			goto finished;
-	}
-
-	dev->phys_addr = resource;
-	dev->irq = pdev->irq;
-	dev->pdev = pdev;
-
-	/* general probing */
-	if (udc_probe(dev) == 0)
-		return 0;
-
-finished:
-	if (dev)
-		udc_pci_remove(pdev);
-	return retval;
-}
+EXPORT_SYMBOL_GPL(init_dma_pools);
 
 /* general probe */
-static int udc_probe(struct udc *dev)
+int udc_probe(struct udc *dev)
 {
 	char		tmp[128];
 	u32		reg;
@@ -3342,11 +3170,11 @@ static int udc_probe(struct udc *dev)
 
 	dev_info(&dev->pdev->dev, "%s\n", mod_desc);
 
-	snprintf(tmp, sizeof tmp, "%d", dev->irq);
+	snprintf(tmp, sizeof(tmp), "%d", dev->irq);
 	dev_info(&dev->pdev->dev,
-		"irq %s, pci mem %08lx, chip rev %02x(Geode5536 %s)\n",
-		tmp, dev->phys_addr, dev->chiprev,
-		(dev->chiprev == UDC_HSA0_REV) ? "A0" : "B1");
+		 "irq %s, pci mem %08lx, chip rev %02x(Geode5536 %s)\n",
+		 tmp, dev->phys_addr, dev->chiprev,
+		 (dev->chiprev == UDC_HSA0_REV) ? "A0" : "B1");
 	strcpy(tmp, UDC_DRIVER_VERSION_STRING);
 	if (dev->chiprev == UDC_HSA0_REV) {
 		dev_err(&dev->pdev->dev, "chip revision is A0; too old\n");
@@ -3354,11 +3182,11 @@ static int udc_probe(struct udc *dev)
 		goto finished;
 	}
 	dev_info(&dev->pdev->dev,
-		"driver version: %s(for Geode5536 B1)\n", tmp);
+		 "driver version: %s(for Geode5536 B1)\n", tmp);
 	udc = dev;
 
 	retval = usb_add_gadget_udc_release(&udc->pdev->dev, &dev->gadget,
-			gadget_release);
+					    gadget_release);
 	if (retval)
 		goto finished;
 
@@ -3384,49 +3212,8 @@ static int udc_probe(struct udc *dev)
 finished:
 	return retval;
 }
-
-/* Initiates a remote wakeup */
-static int udc_remote_wakeup(struct udc *dev)
-{
-	unsigned long flags;
-	u32 tmp;
-
-	DBG(dev, "UDC initiates remote wakeup\n");
-
-	spin_lock_irqsave(&dev->lock, flags);
-
-	tmp = readl(&dev->regs->ctl);
-	tmp |= AMD_BIT(UDC_DEVCTL_RES);
-	writel(tmp, &dev->regs->ctl);
-	tmp &= AMD_CLEAR_BIT(UDC_DEVCTL_RES);
-	writel(tmp, &dev->regs->ctl);
-
-	spin_unlock_irqrestore(&dev->lock, flags);
-	return 0;
-}
-
-/* PCI device parameters */
-static const struct pci_device_id pci_id[] = {
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x2096),
-		.class =	(PCI_CLASS_SERIAL_USB << 8) | 0xfe,
-		.class_mask =	0xffffffff,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(pci, pci_id);
-
-/* PCI functions */
-static struct pci_driver udc_pci_driver = {
-	.name =		(char *) name,
-	.id_table =	pci_id,
-	.probe =	udc_pci_probe,
-	.remove =	udc_pci_remove,
-};
-
-module_pci_driver(udc_pci_driver);
+EXPORT_SYMBOL_GPL(udc_probe);
 
 MODULE_DESCRIPTION(UDC_MOD_DESCRIPTION);
 MODULE_AUTHOR("Thomas Dahlmann");
 MODULE_LICENSE("GPL");
-

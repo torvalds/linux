@@ -27,8 +27,8 @@
 
 #define DEBUG_PSC
 
-int psc_present;
 volatile __u8 *psc;
+EXPORT_SYMBOL_GPL(psc);
 
 /*
  * Debugging dump, used in various places to see what's going on.
@@ -38,7 +38,9 @@ static void psc_debug_dump(void)
 {
 	int	i;
 
-	if (!psc_present) return;
+	if (!psc)
+		return;
+
 	for (i = 0x30 ; i < 0x70 ; i += 0x10) {
 		printk("PSC #%d:  IFR = 0x%02X IER = 0x%02X\n",
 			i >> 4,
@@ -80,7 +82,6 @@ void __init psc_init(void)
 	 && macintosh_config->ident != MAC_MODEL_Q840)
 	{
 		psc = NULL;
-		psc_present = 0;
 		return;
 	}
 
@@ -90,7 +91,6 @@ void __init psc_init(void)
 	 */
 
 	psc = (void *) PSC_BASE;
-	psc_present = 1;
 
 	printk("PSC detected at %p\n", psc);
 
@@ -121,11 +121,6 @@ static void psc_irq(struct irq_desc *desc)
 	int pIER	= pIERbase + offset;
 	int irq_num;
 	unsigned char irq_bit, events;
-
-#ifdef DEBUG_IRQS
-	printk("psc_irq: irq %u pIFR = 0x%02X pIER = 0x%02X\n",
-		irq, (int) psc_read_byte(pIFR), (int) psc_read_byte(pIER));
-#endif
 
 	events = psc_read_byte(pIFR) & psc_read_byte(pIER) & 0xF;
 	if (!events)
@@ -160,9 +155,6 @@ void psc_irq_enable(int irq) {
 	int irq_idx	= IRQ_IDX(irq);
 	int pIER	= pIERbase + (irq_src << 4);
 
-#ifdef DEBUG_IRQUSE
-	printk("psc_irq_enable(%d)\n", irq);
-#endif
 	psc_write_byte(pIER, (1 << irq_idx) | 0x80);
 }
 
@@ -171,8 +163,5 @@ void psc_irq_disable(int irq) {
 	int irq_idx	= IRQ_IDX(irq);
 	int pIER	= pIERbase + (irq_src << 4);
 
-#ifdef DEBUG_IRQUSE
-	printk("psc_irq_disable(%d)\n", irq);
-#endif
 	psc_write_byte(pIER, 1 << irq_idx);
 }

@@ -5,17 +5,17 @@ Supported chips:
   * Maxim MAX34440
     Prefixes: 'max34440'
     Addresses scanned: -
-    Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX34440.pdf
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34440.pdf
   * Maxim MAX34441
     PMBus 5-Channel Power-Supply Manager and Intelligent Fan Controller
     Prefixes: 'max34441'
     Addresses scanned: -
-    Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX34441.pdf
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34441.pdf
   * Maxim MAX34446
     PMBus Power-Supply Data Logger
     Prefixes: 'max34446'
     Addresses scanned: -
-    Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX34446.pdf
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34446.pdf
   * Maxim MAX34460
     PMBus 12-Channel Voltage Monitor & Sequencer
     Prefix: 'max34460'
@@ -33,7 +33,7 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-This driver supports hardware montoring for Maxim MAX34440 PMBus 6-Channel
+This driver supports hardware monitoring for Maxim MAX34440 PMBus 6-Channel
 Power-Supply Manager, MAX34441 PMBus 5-Channel Power-Supply Manager
 and Intelligent Fan Controller, and MAX34446 PMBus Power-Supply Data Logger.
 It also supports the MAX34460 and MAX34461 PMBus Voltage Monitor & Sequencers.

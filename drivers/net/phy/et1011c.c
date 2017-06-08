@@ -95,7 +95,6 @@ static struct phy_driver et1011c_driver[] = { {
 	.flags		= PHY_POLL,
 	.config_aneg	= et1011c_config_aneg,
 	.read_status	= et1011c_read_status,
-	.driver 	= { .owner = THIS_MODULE,},
 } };
 
 module_phy_driver(et1011c_driver);

@@ -392,6 +392,24 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
 	drm_mga_private_t *dev_priv;
 	int ret;
 
+	/* There are PCI versions of the G450.  These cards have the
+	 * same PCI ID as the AGP G450, but have an additional PCI-to-PCI
+	 * bridge chip.  We detect these cards, which are not currently
+	 * supported by this driver, by looking at the device ID of the
+	 * bus the "card" is on.  If vendor is 0x3388 (Hint Corp) and the
+	 * device is 0x0021 (HB6 Universal PCI-PCI bridge), we reject the
+	 * device.
+	 */
+	if ((dev->pdev->device == 0x0525) && dev->pdev->bus->self
+	    && (dev->pdev->bus->self->vendor == 0x3388)
+	    && (dev->pdev->bus->self->device == 0x0021)
+	    && dev->agp) {
+		/* FIXME: This should be quirked in the pci core, but oh well
+		 * the hw probably stopped existing. */
+		arch_phys_wc_del(dev->agp->agp_mtrr);
+		kfree(dev->agp);
+		dev->agp = NULL;
+	}
 	dev_priv = kzalloc(sizeof(drm_mga_private_t), GFP_KERNEL);
 	if (!dev_priv)
 		return -ENOMEM;
@@ -416,7 +434,7 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 }
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 /**
  * Bootstrap the driver for AGP DMA.
  *
@@ -698,7 +716,7 @@ static int mga_do_pci_dma_bootstrap(struct drm_device *dev,
 static int mga_do_dma_bootstrap(struct drm_device *dev,
 				drm_mga_dma_bootstrap_t *dma_bs)
 {
-	const int is_agp = (dma_bs->agp_mode != 0) && drm_pci_device_is_agp(dev);
+	const int is_agp = (dma_bs->agp_mode != 0) && dev->agp;
 	int err;
 	drm_mga_private_t *const dev_priv =
 	    (drm_mga_private_t *) dev->dev_private;
@@ -947,7 +965,7 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 			drm_legacy_ioremapfree(dev->agp_buffer_map, dev);
 
 		if (dev_priv->used_new_dma_init) {
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 			if (dev_priv->agp_handle != 0) {
 				struct drm_agp_binding unbind_req;
 				struct drm_agp_buffer free_req;
@@ -1127,12 +1145,10 @@ int mga_dma_buffers(struct drm_device *dev, void *data,
 /**
  * Called just before the module is unloaded.
  */
-int mga_driver_unload(struct drm_device *dev)
+void mga_driver_unload(struct drm_device *dev)
 {
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;
-
-	return 0;
 }
 
 /**

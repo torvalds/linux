@@ -23,22 +23,6 @@ static void __flush_dcache(unsigned long start, unsigned long end)
 	end += (cpuinfo.dcache_line_size - 1);
 	end &= ~(cpuinfo.dcache_line_size - 1);
 
-	for (addr = start; addr < end; addr += cpuinfo.dcache_line_size) {
-		__asm__ __volatile__ ("   flushda 0(%0)\n"
-					: /* Outputs */
-					: /* Inputs  */ "r"(addr)
-					/* : No clobber */);
-	}
-}
-
-static void __flush_dcache_all(unsigned long start, unsigned long end)
-{
-	unsigned long addr;
-
-	start &= ~(cpuinfo.dcache_line_size - 1);
-	end += (cpuinfo.dcache_line_size - 1);
-	end &= ~(cpuinfo.dcache_line_size - 1);
-
 	if (end > start + cpuinfo.dcache_size)
 		end = start + cpuinfo.dcache_size;
 
@@ -112,7 +96,7 @@ static void flush_aliases(struct address_space *mapping, struct page *page)
 
 void flush_cache_all(void)
 {
-	__flush_dcache_all(0, cpuinfo.dcache_size);
+	__flush_dcache(0, cpuinfo.dcache_size);
 	__flush_icache(0, cpuinfo.icache_size);
 }
 
@@ -182,7 +166,7 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 	 */
 	unsigned long start = (unsigned long)page_address(page);
 
-	__flush_dcache_all(start, start + PAGE_SIZE);
+	__flush_dcache(start, start + PAGE_SIZE);
 }
 
 void flush_dcache_page(struct page *page)
@@ -268,7 +252,7 @@ void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 {
 	flush_cache_page(vma, user_vaddr, page_to_pfn(page));
 	memcpy(dst, src, len);
-	__flush_dcache_all((unsigned long)src, (unsigned long)src + len);
+	__flush_dcache((unsigned long)src, (unsigned long)src + len);
 	if (vma->vm_flags & VM_EXEC)
 		__flush_icache((unsigned long)src, (unsigned long)src + len);
 }
@@ -279,7 +263,7 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 {
 	flush_cache_page(vma, user_vaddr, page_to_pfn(page));
 	memcpy(dst, src, len);
-	__flush_dcache_all((unsigned long)dst, (unsigned long)dst + len);
+	__flush_dcache((unsigned long)dst, (unsigned long)dst + len);
 	if (vma->vm_flags & VM_EXEC)
 		__flush_icache((unsigned long)dst, (unsigned long)dst + len);
 }

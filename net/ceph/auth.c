@@ -82,7 +82,10 @@ void ceph_auth_reset(struct ceph_auth_client *ac)
 	mutex_unlock(&ac->mutex);
 }
 
-int ceph_entity_name_encode(const char *name, void **p, void *end)
+/*
+ * EntityName, not to be confused with entity_name_t
+ */
+int ceph_auth_entity_name_encode(const char *name, void **p, void *end)
 {
 	int len = strlen(name);
 
@@ -111,7 +114,7 @@ int ceph_auth_build_hello(struct ceph_auth_client *ac, void *buf, size_t len)
 	monhdr->session_mon = cpu_to_le16(-1);
 	monhdr->session_mon_tid = 0;
 
-	ceph_encode_32(&p, 0);  /* no protocol, yet */
+	ceph_encode_32(&p, CEPH_AUTH_UNKNOWN);  /* no protocol, yet */
 
 	lenp = p;
 	p += sizeof(u32);
@@ -124,7 +127,7 @@ int ceph_auth_build_hello(struct ceph_auth_client *ac, void *buf, size_t len)
 	for (i = 0; i < num; i++)
 		ceph_encode_32(&p, supported_protocols[i]);
 
-	ret = ceph_entity_name_encode(ac->name, &p, end);
+	ret = ceph_auth_entity_name_encode(ac->name, &p, end);
 	if (ret < 0)
 		goto out;
 	ceph_decode_need(&p, end, sizeof(u64), bad);
@@ -259,9 +262,7 @@ int ceph_build_auth(struct ceph_auth_client *ac,
 	int ret = 0;
 
 	mutex_lock(&ac->mutex);
-	if (!ac->protocol)
-		ret = ceph_auth_build_hello(ac, msg_buf, msg_len);
-	else if (ac->ops->should_authenticate(ac))
+	if (ac->ops->should_authenticate(ac))
 		ret = ceph_build_auth_request(ac, msg_buf, msg_len);
 	mutex_unlock(&ac->mutex);
 	return ret;
@@ -293,13 +294,9 @@ int ceph_auth_create_authorizer(struct ceph_auth_client *ac,
 }
 EXPORT_SYMBOL(ceph_auth_create_authorizer);
 
-void ceph_auth_destroy_authorizer(struct ceph_auth_client *ac,
-				  struct ceph_authorizer *a)
+void ceph_auth_destroy_authorizer(struct ceph_authorizer *a)
 {
-	mutex_lock(&ac->mutex);
-	if (ac->ops && ac->ops->destroy_authorizer)
-		ac->ops->destroy_authorizer(ac, a);
-	mutex_unlock(&ac->mutex);
+	a->destroy(a);
 }
 EXPORT_SYMBOL(ceph_auth_destroy_authorizer);
 
@@ -318,13 +315,13 @@ int ceph_auth_update_authorizer(struct ceph_auth_client *ac,
 EXPORT_SYMBOL(ceph_auth_update_authorizer);
 
 int ceph_auth_verify_authorizer_reply(struct ceph_auth_client *ac,
-				      struct ceph_authorizer *a, size_t len)
+				      struct ceph_authorizer *a)
 {
 	int ret = 0;
 
 	mutex_lock(&ac->mutex);
 	if (ac->ops && ac->ops->verify_authorizer_reply)
-		ret = ac->ops->verify_authorizer_reply(ac, a, len);
+		ret = ac->ops->verify_authorizer_reply(ac, a);
 	mutex_unlock(&ac->mutex);
 	return ret;
 }

@@ -27,6 +27,18 @@ config IMA
 	  to learn more about IMA.
 	  If unsure, say N.
 
+config IMA_KEXEC
+	bool "Enable carrying the IMA measurement list across a soft boot"
+	depends on IMA && TCG_TPM && HAVE_IMA_KEXEC
+	default n
+	help
+	   TPM PCRs are only reset on a hard reboot.  In order to validate
+	   a TPM's quote after a soft boot, the IMA measurement list of the
+	   running kernel must be saved and restored on boot.
+
+	   Depending on the IMA policy, the measurement list can grow to
+	   be very large.
+
 config IMA_MEASURE_PCR_IDX
 	int
 	depends on IMA
@@ -107,6 +119,27 @@ config IMA_DEFAULT_HASH
 	default "sha512" if IMA_DEFAULT_HASH_SHA512
 	default "wp512" if IMA_DEFAULT_HASH_WP512
 
+config IMA_WRITE_POLICY
+	bool "Enable multiple writes to the IMA policy"
+	depends on IMA
+	default n
+	help
+	  IMA policy can now be updated multiple times.  The new rules get
+	  appended to the original policy.  Have in mind that the rules are
+	  scanned in FIFO order so be careful when you design and add new ones.
+
+	  If unsure, say N.
+
+config IMA_READ_POLICY
+	bool "Enable reading back the current IMA policy"
+	depends on IMA
+	default y if IMA_WRITE_POLICY
+	default n if !IMA_WRITE_POLICY
+	help
+	   It is often useful to be able to read back the IMA policy.  It is
+	   even more important after introducing CONFIG_IMA_WRITE_POLICY.
+	   This option allows the root user to see the current policy rules.
+
 config IMA_APPRAISE
 	bool "Appraise integrity measurements"
 	depends on IMA
@@ -123,13 +156,44 @@ config IMA_APPRAISE
 	  If unsure, say N.
 
 config IMA_TRUSTED_KEYRING
-	bool "Require all keys on the .ima keyring be signed"
+	bool "Require all keys on the .ima keyring be signed (deprecated)"
 	depends on IMA_APPRAISE && SYSTEM_TRUSTED_KEYRING
 	depends on INTEGRITY_ASYMMETRIC_KEYS
+	select INTEGRITY_TRUSTED_KEYRING
 	default y
 	help
 	   This option requires that all keys added to the .ima
 	   keyring be signed by a key on the system trusted keyring.
+
+	   This option is deprecated in favor of INTEGRITY_TRUSTED_KEYRING
+
+config IMA_KEYRINGS_PERMIT_SIGNED_BY_BUILTIN_OR_SECONDARY
+	bool "Permit keys validly signed by a built-in or secondary CA cert (EXPERIMENTAL)"
+	depends on SYSTEM_TRUSTED_KEYRING
+	depends on SECONDARY_TRUSTED_KEYRING
+	depends on INTEGRITY_ASYMMETRIC_KEYS
+	select INTEGRITY_TRUSTED_KEYRING
+	default n
+	help
+	  Keys may be added to the IMA or IMA blacklist keyrings, if the
+	  key is validly signed by a CA cert in the system built-in or
+	  secondary trusted keyrings.
+
+	  Intermediate keys between those the kernel has compiled in and the
+	  IMA keys to be added may be added to the system secondary keyring,
+	  provided they are validly signed by a key already resident in the
+	  built-in or secondary trusted keyrings.
+
+config IMA_BLACKLIST_KEYRING
+	bool "Create IMA machine owner blacklist keyrings (EXPERIMENTAL)"
+	depends on SYSTEM_TRUSTED_KEYRING
+	depends on IMA_TRUSTED_KEYRING
+	default n
+	help
+	   This option creates an IMA blacklist keyring, which contains all
+	   revoked IMA keys.  It is consulted before any other keyring.  If
+	   the search is successful the requested operation is rejected and
+	   an error is returned to the caller.
 
 config IMA_LOAD_X509
 	bool "Load X509 certificate onto the '.ima' trusted keyring"

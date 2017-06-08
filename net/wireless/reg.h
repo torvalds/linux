@@ -104,7 +104,7 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
  * information for a band the BSS is not present in it will be ignored.
  */
 void regulatory_hint_country_ie(struct wiphy *wiphy,
-			 enum ieee80211_band band,
+			 enum nl80211_band band,
 			 const u8 *country_ie,
 			 u8 country_ie_len);
 
@@ -143,4 +143,40 @@ int cfg80211_get_unii(int freq);
  */
 bool regulatory_indoor_allowed(void);
 
+/*
+ * Grace period to timeout pre-CAC results on the dfs channels. This timeout
+ * value is used for Non-ETSI domain.
+ * TODO: May be make this timeout available through regdb?
+ */
+#define REG_PRE_CAC_EXPIRY_GRACE_MS 2000
+
+/**
+ * regulatory_pre_cac_allowed - if pre-CAC allowed in the current dfs domain
+ * @wiphy: wiphy for which pre-CAC capability is checked.
+
+ * Pre-CAC is allowed only in ETSI domain.
+ */
+bool regulatory_pre_cac_allowed(struct wiphy *wiphy);
+
+/**
+ * regulatory_propagate_dfs_state - Propagate DFS channel state to other wiphys
+ * @wiphy - wiphy on which radar is detected and the event will be propagated
+ *	to other available wiphys having the same DFS domain
+ * @chandef - Channel definition of radar detected channel
+ * @dfs_state - DFS channel state to be set
+ * @event - Type of radar event which triggered this DFS state change
+ *
+ * This function should be called with rtnl lock held.
+ */
+void regulatory_propagate_dfs_state(struct wiphy *wiphy,
+				    struct cfg80211_chan_def *chandef,
+				    enum nl80211_dfs_state dfs_state,
+				    enum nl80211_radar_event event);
+
+/**
+ * reg_dfs_domain_same - Checks if both wiphy have same DFS domain configured
+ * @wiphy1 - wiphy it's dfs_region to be checked against that of wiphy2
+ * @wiphy2 - wiphy it's dfs_region to be checked against that of wiphy1
+ */
+bool reg_dfs_domain_same(struct wiphy *wiphy1, struct wiphy *wiphy2);
 #endif  /* __NET_WIRELESS_REG_H */

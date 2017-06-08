@@ -10,7 +10,7 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/gfp.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/fs.h>
 #include <asm/compat.h>
@@ -56,6 +56,7 @@ static int sclp_ctl_ioctl_sccb(void __user *user_area)
 {
 	struct sclp_ctl_sccb ctl_sccb;
 	struct sccb_header *sccb;
+	unsigned long copied;
 	int rc;
 
 	if (copy_from_user(&ctl_sccb, user_area, sizeof(ctl_sccb)))
@@ -65,14 +66,15 @@ static int sclp_ctl_ioctl_sccb(void __user *user_area)
 	sccb = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
 		return -ENOMEM;
-	if (copy_from_user(sccb, u64_to_uptr(ctl_sccb.sccb), sizeof(*sccb))) {
+	copied = PAGE_SIZE -
+		copy_from_user(sccb, u64_to_uptr(ctl_sccb.sccb), PAGE_SIZE);
+	if (offsetof(struct sccb_header, length) +
+	    sizeof(sccb->length) > copied || sccb->length > copied) {
 		rc = -EFAULT;
 		goto out_free;
 	}
-	if (sccb->length > PAGE_SIZE || sccb->length < 8)
-		return -EINVAL;
-	if (copy_from_user(sccb, u64_to_uptr(ctl_sccb.sccb), sccb->length)) {
-		rc = -EFAULT;
+	if (sccb->length < 8) {
+		rc = -EINVAL;
 		goto out_free;
 	}
 	rc = sclp_sync_request(ctl_sccb.cmdw, sccb);
@@ -124,21 +126,4 @@ static struct miscdevice sclp_ctl_device = {
 	.name = "sclp",
 	.fops = &sclp_ctl_fops,
 };
-
-/*
- * Register sclp_ctl misc device
- */
-static int __init sclp_ctl_init(void)
-{
-	return misc_register(&sclp_ctl_device);
-}
-module_init(sclp_ctl_init);
-
-/*
- * Deregister sclp_ctl misc device
- */
-static void __exit sclp_ctl_exit(void)
-{
-	misc_deregister(&sclp_ctl_device);
-}
-module_exit(sclp_ctl_exit);
+builtin_misc_device(sclp_ctl_device);

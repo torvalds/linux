@@ -33,7 +33,7 @@
 #include <linux/crc32.h>
 #include <crypto/internal/hash.h>
 
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/cpu_device_id.h>
 #include <asm/fpu/api.h>
 

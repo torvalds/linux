@@ -35,6 +35,8 @@
 #define DIGITAL_ATR_REQ_MIN_SIZE 16
 #define DIGITAL_ATR_REQ_MAX_SIZE 64
 
+#define DIGITAL_ATR_RES_TO_WT(s)	((s) & 0xF)
+
 #define DIGITAL_DID_MAX	14
 
 #define DIGITAL_PAYLOAD_SIZE_MAX	254
@@ -62,6 +64,9 @@
 #define DIGITAL_NFC_DEP_NAD_BIT_SET(pfb) ((pfb) & 0x08)
 #define DIGITAL_NFC_DEP_DID_BIT_SET(pfb) ((pfb) & DIGITAL_NFC_DEP_PFB_DID_BIT)
 #define DIGITAL_NFC_DEP_PFB_PNI(pfb)     ((pfb) & 0x03)
+
+#define DIGITAL_NFC_DEP_RTOX_VALUE(data) ((data) & 0x3F)
+#define DIGITAL_NFC_DEP_RTOX_MAX	 59
 
 #define DIGITAL_NFC_DEP_PFB_I_PDU          0x00
 #define DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU   0x40
@@ -120,6 +125,37 @@ static const u8 digital_payload_bits_map[4] = {
 	[1] = 128,
 	[2] = 192,
 	[3] = 254
+};
+
+/* Response Waiting Time for ATR_RES PDU in ms
+ *
+ * RWT(ATR_RES) = RWT(nfcdep,activation) + dRWT(nfcdep) + dT(nfcdep,initiator)
+ *
+ * with:
+ *  RWT(nfcdep,activation) = 4096 * 2^12 / f(c) s
+ *  dRWT(nfcdep) = 16 / f(c) s
+ *  dT(nfcdep,initiator) = 100 ms
+ *  f(c) = 13560000 Hz
+ */
+#define DIGITAL_ATR_RES_RWT 1337
+
+/* Response Waiting Time for other DEP PDUs in ms
+ *
+ * max_rwt = rwt + dRWT(nfcdep) + dT(nfcdep,initiator)
+ *
+ * with:
+ *  rwt = (256 * 16 / f(c)) * 2^wt s
+ *  dRWT(nfcdep) = 16 / f(c) s
+ *  dT(nfcdep,initiator) = 100 ms
+ *  f(c) = 13560000 Hz
+ *  0 <= wt <= 14 (given by the target by the TO field of ATR_RES response)
+ */
+#define DIGITAL_NFC_DEP_IN_MAX_WT 14
+#define DIGITAL_NFC_DEP_TG_MAX_WT 8
+static const u16 digital_rwt_map[DIGITAL_NFC_DEP_IN_MAX_WT + 1] = {
+	100,  101,  101,  102,  105,
+	110,  119,  139,  177,  255,
+	409,  719, 1337, 2575, 5049,
 };
 
 static u8 digital_payload_bits_to_size(u8 payload_bits)
@@ -190,8 +226,6 @@ digital_send_dep_data_prep(struct nfc_digital_dev *ddev, struct sk_buff *skb,
 			return ERR_PTR(-ENOMEM);
 		}
 
-		skb_reserve(new_skb, ddev->tx_headroom + NFC_HEADER_SIZE +
-					DIGITAL_NFC_DEP_REQ_RES_HEADROOM);
 		memcpy(skb_put(new_skb, ddev->remote_payload_max), skb->data,
 		       ddev->remote_payload_max);
 		skb_pull(skb, ddev->remote_payload_max);
@@ -368,8 +402,8 @@ static int digital_in_send_psl_req(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	rc = digital_in_send_cmd(ddev, skb, 500, digital_in_recv_psl_res,
-				 target);
+	rc = digital_in_send_cmd(ddev, skb, ddev->dep_rwt,
+				 digital_in_recv_psl_res, target);
 	if (rc)
 		kfree_skb(skb);
 
@@ -382,6 +416,7 @@ static void digital_in_recv_atr_res(struct nfc_digital_dev *ddev, void *arg,
 	struct nfc_target *target = arg;
 	struct digital_atr_res *atr_res;
 	u8 gb_len, payload_bits;
+	u8 wt;
 	int rc;
 
 	if (IS_ERR(resp)) {
@@ -410,6 +445,11 @@ static void digital_in_recv_atr_res(struct nfc_digital_dev *ddev, void *arg,
 	gb_len = resp->len - sizeof(struct digital_atr_res);
 
 	atr_res = (struct digital_atr_res *)resp->data;
+
+	wt = DIGITAL_ATR_RES_TO_WT(atr_res->to);
+	if (wt > DIGITAL_NFC_DEP_IN_MAX_WT)
+		wt = DIGITAL_NFC_DEP_IN_MAX_WT;
+	ddev->dep_rwt = digital_rwt_map[wt];
 
 	payload_bits = DIGITAL_PAYLOAD_PP_TO_BITS(atr_res->pp);
 	ddev->remote_payload_max = digital_payload_bits_to_size(payload_bits);
@@ -492,8 +532,8 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	rc = digital_in_send_cmd(ddev, skb, 500, digital_in_recv_atr_res,
-				 target);
+	rc = digital_in_send_cmd(ddev, skb, DIGITAL_ATR_RES_RWT,
+				 digital_in_recv_atr_res, target);
 	if (rc)
 		kfree_skb(skb);
 
@@ -524,11 +564,10 @@ static int digital_in_send_ack(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	ddev->saved_skb = skb_get(skb);
-	ddev->saved_skb_len = skb->len;
+	ddev->saved_skb = pskb_copy(skb, GFP_KERNEL);
 
-	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
-				 data_exch);
+	rc = digital_in_send_cmd(ddev, skb, ddev->dep_rwt,
+				 digital_in_recv_dep_res, data_exch);
 	if (rc) {
 		kfree_skb(skb);
 		kfree_skb(ddev->saved_skb);
@@ -562,8 +601,8 @@ static int digital_in_send_nack(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
-				 data_exch);
+	rc = digital_in_send_cmd(ddev, skb, ddev->dep_rwt,
+				 digital_in_recv_dep_res, data_exch);
 	if (rc)
 		kfree_skb(skb);
 
@@ -593,8 +632,8 @@ static int digital_in_send_atn(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
-				 data_exch);
+	rc = digital_in_send_cmd(ddev, skb, ddev->dep_rwt,
+				 digital_in_recv_dep_res, data_exch);
 	if (rc)
 		kfree_skb(skb);
 
@@ -607,6 +646,11 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 	struct digital_dep_req_res *dep_req;
 	struct sk_buff *skb;
 	int rc;
+	u16 rwt_int;
+
+	rwt_int = ddev->dep_rwt * rtox;
+	if (rwt_int > digital_rwt_map[DIGITAL_NFC_DEP_IN_MAX_WT])
+		rwt_int = digital_rwt_map[DIGITAL_NFC_DEP_IN_MAX_WT];
 
 	skb = digital_skb_alloc(ddev, 1);
 	if (!skb)
@@ -627,16 +671,10 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	ddev->saved_skb = skb_get(skb);
-	ddev->saved_skb_len = skb->len;
-
-	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
-				 data_exch);
-	if (rc) {
+	rc = digital_in_send_cmd(ddev, skb, rwt_int,
+				 digital_in_recv_dep_res, data_exch);
+	if (rc)
 		kfree_skb(skb);
-		kfree_skb(ddev->saved_skb);
-		ddev->saved_skb = NULL;
-	}
 
 	return rc;
 }
@@ -644,11 +682,19 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 static int digital_in_send_saved_skb(struct nfc_digital_dev *ddev,
 				     struct digital_data_exch *data_exch)
 {
-	skb_get(ddev->saved_skb);
-	skb_push(ddev->saved_skb, ddev->saved_skb_len);
+	int rc;
 
-	return digital_in_send_cmd(ddev, ddev->saved_skb, 1500,
-				   digital_in_recv_dep_res, data_exch);
+	if (!ddev->saved_skb)
+		return -EINVAL;
+
+	skb_get(ddev->saved_skb);
+
+	rc = digital_in_send_cmd(ddev, ddev->saved_skb, ddev->dep_rwt,
+				 digital_in_recv_dep_res, data_exch);
+	if (rc)
+		kfree_skb(ddev->saved_skb);
+
+	return rc;
 }
 
 static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
@@ -659,12 +705,13 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 	u8 pfb;
 	uint size;
 	int rc;
+	u8 rtox;
 
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
 		resp = NULL;
 
-		if (((rc != -ETIMEDOUT) || ddev->nack_count) &&
+		if ((rc == -EIO || (rc == -ETIMEDOUT && ddev->nack_count)) &&
 		    (ddev->nack_count++ < DIGITAL_NFC_DEP_N_RETRY_NACK)) {
 			ddev->atn_count = 0;
 
@@ -783,6 +830,12 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		break;
 
 	case DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU:
+		if (DIGITAL_NFC_DEP_NACK_BIT_SET(pfb)) {
+			PROTOCOL_ERR("14.12.4.5");
+			rc = -EIO;
+			goto exit;
+		}
+
 		if (DIGITAL_NFC_DEP_PFB_PNI(pfb) != ddev->curr_nfc_dep_pni) {
 			PROTOCOL_ERR("14.12.3.3");
 			rc = -EIO;
@@ -792,43 +845,53 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		ddev->curr_nfc_dep_pni =
 			DIGITAL_NFC_DEP_PFB_PNI(ddev->curr_nfc_dep_pni + 1);
 
-		if (ddev->chaining_skb && !DIGITAL_NFC_DEP_NACK_BIT_SET(pfb)) {
-			kfree_skb(ddev->saved_skb);
-			ddev->saved_skb = NULL;
-
-			rc = digital_in_send_dep_req(ddev, NULL,
-						     ddev->chaining_skb,
-						     ddev->data_exch);
-			if (rc)
-				goto error;
-
-			return;
+		if (!ddev->chaining_skb) {
+			PROTOCOL_ERR("14.12.4.3");
+			rc = -EIO;
+			goto exit;
 		}
 
-		pr_err("Received a ACK/NACK PDU\n");
-		rc = -EINVAL;
-		goto exit;
+		/* The initiator has received a valid ACK. Free the last sent
+		 * PDU and keep on sending chained skb.
+		 */
+		kfree_skb(ddev->saved_skb);
+		ddev->saved_skb = NULL;
+
+		rc = digital_in_send_dep_req(ddev, NULL,
+					     ddev->chaining_skb,
+					     ddev->data_exch);
+		if (rc)
+			goto error;
+
+		goto free_resp;
 
 	case DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU:
 		if (!DIGITAL_NFC_DEP_PFB_IS_TIMEOUT(pfb)) { /* ATN */
 			rc = digital_in_send_saved_skb(ddev, data_exch);
-			if (rc) {
-				kfree_skb(ddev->saved_skb);
+			if (rc)
 				goto error;
-			}
 
-			return;
+			goto free_resp;
 		}
 
-		kfree_skb(ddev->saved_skb);
-		ddev->saved_skb = NULL;
+		if (ddev->atn_count || ddev->nack_count) {
+			PROTOCOL_ERR("14.12.4.4");
+			rc = -EIO;
+			goto error;
+		}
 
-		rc = digital_in_send_rtox(ddev, data_exch, resp->data[0]);
+		rtox = DIGITAL_NFC_DEP_RTOX_VALUE(resp->data[0]);
+		if (!rtox || rtox > DIGITAL_NFC_DEP_RTOX_MAX) {
+			PROTOCOL_ERR("14.8.4.1");
+			rc = -EIO;
+			goto error;
+		}
+
+		rc = digital_in_send_rtox(ddev, data_exch, rtox);
 		if (rc)
 			goto error;
 
-		kfree_skb(resp);
-		return;
+		goto free_resp;
 	}
 
 exit:
@@ -845,6 +908,11 @@ error:
 
 	if (rc)
 		kfree_skb(resp);
+
+	return;
+
+free_resp:
+	dev_kfree_skb(resp);
 }
 
 int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
@@ -876,11 +944,10 @@ int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(tmp_skb);
 
-	ddev->saved_skb = skb_get(tmp_skb);
-	ddev->saved_skb_len = tmp_skb->len;
+	ddev->saved_skb = pskb_copy(tmp_skb, GFP_KERNEL);
 
-	rc = digital_in_send_cmd(ddev, tmp_skb, 1500, digital_in_recv_dep_res,
-				 data_exch);
+	rc = digital_in_send_cmd(ddev, tmp_skb, ddev->dep_rwt,
+				 digital_in_recv_dep_res, data_exch);
 	if (rc) {
 		if (tmp_skb != skb)
 			kfree_skb(tmp_skb);
@@ -956,8 +1023,7 @@ static int digital_tg_send_ack(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	ddev->saved_skb = skb_get(skb);
-	ddev->saved_skb_len = skb->len;
+	ddev->saved_skb = pskb_copy(skb, GFP_KERNEL);
 
 	rc = digital_tg_send_cmd(ddev, skb, 1500, digital_tg_recv_dep_req,
 				 data_exch);
@@ -1009,11 +1075,19 @@ static int digital_tg_send_atn(struct nfc_digital_dev *ddev)
 
 static int digital_tg_send_saved_skb(struct nfc_digital_dev *ddev)
 {
-	skb_get(ddev->saved_skb);
-	skb_push(ddev->saved_skb, ddev->saved_skb_len);
+	int rc;
 
-	return digital_tg_send_cmd(ddev, ddev->saved_skb, 1500,
-				   digital_tg_recv_dep_req, NULL);
+	if (!ddev->saved_skb)
+		return -EINVAL;
+
+	skb_get(ddev->saved_skb);
+
+	rc = digital_tg_send_cmd(ddev, ddev->saved_skb, 1500,
+				 digital_tg_recv_dep_req, NULL);
+	if (rc)
+		kfree_skb(ddev->saved_skb);
+
+	return rc;
 }
 
 static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
@@ -1086,22 +1160,38 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 	case DIGITAL_NFC_DEP_PFB_I_PDU:
 		pr_debug("DIGITAL_NFC_DEP_PFB_I_PDU\n");
 
-		if ((ddev->atn_count && (DIGITAL_NFC_DEP_PFB_PNI(pfb - 1) !=
-						ddev->curr_nfc_dep_pni)) ||
-		    (DIGITAL_NFC_DEP_PFB_PNI(pfb) != ddev->curr_nfc_dep_pni)) {
+		if (ddev->atn_count) {
+			/* The target has received (and replied to) at least one
+			 * ATN DEP_REQ.
+			 */
+			ddev->atn_count = 0;
+
+			/* pni of resp PDU equal to the target current pni - 1
+			 * means resp is the previous DEP_REQ PDU received from
+			 * the initiator so the target replies with saved_skb
+			 * which is the previous DEP_RES saved in
+			 * digital_tg_send_dep_res().
+			 */
+			if (DIGITAL_NFC_DEP_PFB_PNI(pfb) ==
+			  DIGITAL_NFC_DEP_PFB_PNI(ddev->curr_nfc_dep_pni - 1)) {
+				rc = digital_tg_send_saved_skb(ddev);
+				if (rc)
+					goto exit;
+
+				goto free_resp;
+			}
+
+			/* atn_count > 0 and PDU pni != curr_nfc_dep_pni - 1
+			 * means the target probably did not received the last
+			 * DEP_REQ PDU sent by the initiator. The target
+			 * fallbacks to normal processing then.
+			 */
+		}
+
+		if (DIGITAL_NFC_DEP_PFB_PNI(pfb) != ddev->curr_nfc_dep_pni) {
 			PROTOCOL_ERR("14.12.3.4");
 			rc = -EIO;
 			goto exit;
-		}
-
-		if (ddev->atn_count) {
-			ddev->atn_count = 0;
-
-			rc = digital_tg_send_saved_skb(ddev);
-			if (rc)
-				goto exit;
-
-			return;
 		}
 
 		kfree_skb(ddev->saved_skb);
@@ -1125,37 +1215,9 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 		rc = 0;
 		break;
 	case DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU:
-		if (!DIGITAL_NFC_DEP_NACK_BIT_SET(pfb)) { /* ACK */
-			if ((ddev->atn_count &&
-			     (DIGITAL_NFC_DEP_PFB_PNI(pfb - 1) !=
-						ddev->curr_nfc_dep_pni)) ||
-			    (DIGITAL_NFC_DEP_PFB_PNI(pfb) !=
-						ddev->curr_nfc_dep_pni) ||
-			    !ddev->chaining_skb || !ddev->saved_skb) {
-				rc = -EIO;
-				goto exit;
-			}
-
-			if (ddev->atn_count) {
-				ddev->atn_count = 0;
-
-				rc = digital_tg_send_saved_skb(ddev);
-				if (rc)
-					goto exit;
-
-				return;
-			}
-
-			kfree_skb(ddev->saved_skb);
-			ddev->saved_skb = NULL;
-
-			rc = digital_tg_send_dep_res(ddev, ddev->chaining_skb);
-			if (rc)
-				goto exit;
-		} else { /* NACK */
-			if ((DIGITAL_NFC_DEP_PFB_PNI(pfb + 1) !=
-						ddev->curr_nfc_dep_pni) ||
-			    !ddev->saved_skb) {
+		if (DIGITAL_NFC_DEP_NACK_BIT_SET(pfb)) { /* NACK */
+			if (DIGITAL_NFC_DEP_PFB_PNI(pfb + 1) !=
+						ddev->curr_nfc_dep_pni) {
 				rc = -EIO;
 				goto exit;
 			}
@@ -1163,13 +1225,54 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 			ddev->atn_count = 0;
 
 			rc = digital_tg_send_saved_skb(ddev);
-			if (rc) {
-				kfree_skb(ddev->saved_skb);
+			if (rc)
 				goto exit;
-			}
+
+			goto free_resp;
 		}
 
-		return;
+		/* ACK */
+		if (ddev->atn_count) {
+			/* The target has previously recevied one or more ATN
+			 * PDUs.
+			 */
+			ddev->atn_count = 0;
+
+			/* If the ACK PNI is equal to the target PNI - 1 means
+			 * that the initiator did not receive the previous PDU
+			 * sent by the target so re-send it.
+			 */
+			if (DIGITAL_NFC_DEP_PFB_PNI(pfb + 1) ==
+						ddev->curr_nfc_dep_pni) {
+				rc = digital_tg_send_saved_skb(ddev);
+				if (rc)
+					goto exit;
+
+				goto free_resp;
+			}
+
+			/* Otherwise, the target did not receive the previous
+			 * ACK PDU from the initiator. Fallback to normal
+			 * processing of chained PDU then.
+			 */
+		}
+
+		/* Keep on sending chained PDU */
+		if (!ddev->chaining_skb ||
+		    DIGITAL_NFC_DEP_PFB_PNI(pfb) !=
+					ddev->curr_nfc_dep_pni) {
+			rc = -EIO;
+			goto exit;
+		}
+
+		kfree_skb(ddev->saved_skb);
+		ddev->saved_skb = NULL;
+
+		rc = digital_tg_send_dep_res(ddev, ddev->chaining_skb);
+		if (rc)
+			goto exit;
+
+		goto free_resp;
 	case DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU:
 		if (DIGITAL_NFC_DEP_PFB_IS_TIMEOUT(pfb)) {
 			rc = -EINVAL;
@@ -1182,8 +1285,7 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 
 		ddev->atn_count++;
 
-		kfree_skb(resp);
-		return;
+		goto free_resp;
 	}
 
 	rc = nfc_tm_data_received(ddev->nfc_dev, resp);
@@ -1199,6 +1301,11 @@ exit:
 
 	if (rc)
 		kfree_skb(resp);
+
+	return;
+
+free_resp:
+	dev_kfree_skb(resp);
 }
 
 int digital_tg_send_dep_res(struct nfc_digital_dev *ddev, struct sk_buff *skb)
@@ -1235,8 +1342,7 @@ int digital_tg_send_dep_res(struct nfc_digital_dev *ddev, struct sk_buff *skb)
 
 	ddev->skb_add_crc(tmp_skb);
 
-	ddev->saved_skb = skb_get(tmp_skb);
-	ddev->saved_skb_len = tmp_skb->len;
+	ddev->saved_skb = pskb_copy(tmp_skb, GFP_KERNEL);
 
 	rc = digital_tg_send_cmd(ddev, tmp_skb, 1500, digital_tg_recv_dep_req,
 				 NULL);
@@ -1420,7 +1526,7 @@ static int digital_tg_send_atr_res(struct nfc_digital_dev *ddev,
 	atr_res->dir = DIGITAL_NFC_DEP_FRAME_DIR_IN;
 	atr_res->cmd = DIGITAL_CMD_ATR_RES;
 	memcpy(atr_res->nfcid3, atr_req->nfcid3, sizeof(atr_req->nfcid3));
-	atr_res->to = 8;
+	atr_res->to = DIGITAL_NFC_DEP_TG_MAX_WT;
 
 	ddev->local_payload_max = DIGITAL_PAYLOAD_SIZE_MAX;
 	payload_bits = digital_payload_size_to_bits(ddev->local_payload_max);

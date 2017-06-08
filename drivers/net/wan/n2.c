@@ -330,7 +330,6 @@ static void n2_destroy_card(card_t *card)
 static const struct net_device_ops n2_ops = {
 	.ndo_open       = n2_open,
 	.ndo_stop       = n2_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = n2_ioctl,
 };

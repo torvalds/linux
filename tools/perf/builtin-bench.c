@@ -16,7 +16,7 @@
  */
 #include "perf.h"
 #include "util/util.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "builtin.h"
 #include "bench/bench.h"
 
@@ -25,7 +25,7 @@
 #include <string.h>
 #include <sys/prctl.h>
 
-typedef int (*bench_fn_t)(int argc, const char **argv, const char *prefix);
+typedef int (*bench_fn_t)(int argc, const char **argv);
 
 struct bench {
 	const char	*name;
@@ -36,7 +36,7 @@ struct bench {
 #ifdef HAVE_LIBNUMA_SUPPORT
 static struct bench numa_benchmarks[] = {
 	{ "mem",	"Benchmark for NUMA workloads",			bench_numa		},
-	{ "all",	"Test all NUMA benchmarks",			NULL			},
+	{ "all",	"Run all NUMA benchmarks",			NULL			},
 	{ NULL,		NULL,						NULL			}
 };
 #endif
@@ -44,14 +44,14 @@ static struct bench numa_benchmarks[] = {
 static struct bench sched_benchmarks[] = {
 	{ "messaging",	"Benchmark for scheduling and IPC",		bench_sched_messaging	},
 	{ "pipe",	"Benchmark for pipe() between two processes",	bench_sched_pipe	},
-	{ "all",	"Test all scheduler benchmarks",		NULL			},
+	{ "all",	"Run all scheduler benchmarks",		NULL			},
 	{ NULL,		NULL,						NULL			}
 };
 
 static struct bench mem_benchmarks[] = {
-	{ "memcpy",	"Benchmark for memcpy()",			bench_mem_memcpy	},
-	{ "memset",	"Benchmark for memset() tests",			bench_mem_memset	},
-	{ "all",	"Test all memory benchmarks",			NULL			},
+	{ "memcpy",	"Benchmark for memcpy() functions",		bench_mem_memcpy	},
+	{ "memset",	"Benchmark for memset() functions",		bench_mem_memset	},
+	{ "all",	"Run all memory access benchmarks",		NULL			},
 	{ NULL,		NULL,						NULL			}
 };
 
@@ -62,7 +62,7 @@ static struct bench futex_benchmarks[] = {
 	{ "requeue",	"Benchmark for futex requeue calls",            bench_futex_requeue	},
 	/* pi-futexes */
 	{ "lock-pi",	"Benchmark for futex lock_pi calls",            bench_futex_lock_pi	},
-	{ "all",	"Test all futex benchmarks",			NULL			},
+	{ "all",	"Run all futex benchmarks",			NULL			},
 	{ NULL,		NULL,						NULL			}
 };
 
@@ -110,7 +110,7 @@ int bench_format = BENCH_FORMAT_DEFAULT;
 unsigned int bench_repeat = 10; /* default number of times to repeat the run */
 
 static const struct option bench_options[] = {
-	OPT_STRING('f', "format", &bench_format_str, "default", "Specify format style"),
+	OPT_STRING('f', "format", &bench_format_str, "default|simple", "Specify the output formatting style"),
 	OPT_UINTEGER('r', "repeat",  &bench_repeat,   "Specify amount of times to repeat the run"),
 	OPT_END()
 };
@@ -155,7 +155,7 @@ static int bench_str2int(const char *str)
  * to something meaningful:
  */
 static int run_bench(const char *coll_name, const char *bench_name, bench_fn_t fn,
-		     int argc, const char **argv, const char *prefix)
+		     int argc, const char **argv)
 {
 	int size;
 	char *name;
@@ -171,7 +171,7 @@ static int run_bench(const char *coll_name, const char *bench_name, bench_fn_t f
 	prctl(PR_SET_NAME, name);
 	argv[0] = name;
 
-	ret = fn(argc, argv, prefix);
+	ret = fn(argc, argv);
 
 	free(name);
 
@@ -198,7 +198,7 @@ static void run_collection(struct collection *coll)
 		fflush(stdout);
 
 		argv[1] = bench->name;
-		run_bench(coll->name, bench->name, bench->fn, 1, argv, NULL);
+		run_bench(coll->name, bench->name, bench->fn, 1, argv);
 		printf("\n");
 	}
 }
@@ -211,7 +211,7 @@ static void run_all_collections(void)
 		run_collection(coll);
 }
 
-int cmd_bench(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_bench(int argc, const char **argv)
 {
 	struct collection *coll;
 	int ret = 0;
@@ -270,7 +270,7 @@ int cmd_bench(int argc, const char **argv, const char *prefix __maybe_unused)
 			if (bench_format == BENCH_FORMAT_DEFAULT)
 				printf("# Running '%s/%s' benchmark:\n", coll->name, bench->name);
 			fflush(stdout);
-			ret = run_bench(coll->name, bench->name, bench->fn, argc-1, argv+1, prefix);
+			ret = run_bench(coll->name, bench->name, bench->fn, argc-1, argv+1);
 			goto end;
 		}
 

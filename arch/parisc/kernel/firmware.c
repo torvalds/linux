@@ -1258,7 +1258,7 @@ int pdc_pat_cell_module(unsigned long *actcnt, unsigned long ploc, unsigned long
  *
  * Retrieve the cpu number for the cpu at the specified HPA.
  */
-int pdc_pat_cpu_get_number(struct pdc_pat_cpu_num *cpu_info, void *hpa)
+int pdc_pat_cpu_get_number(struct pdc_pat_cpu_num *cpu_info, unsigned long hpa)
 {
 	int retval;
 	unsigned long flags;
@@ -1354,9 +1354,9 @@ int pdc_pat_io_pci_cfg_read(unsigned long pci_addr, int pci_size, u32 *mem_addr)
 	retval = mem_pdc_call(PDC_PAT_IO, PDC_PAT_IO_PCI_CONFIG_READ,
 					__pa(pdc_result), pci_addr, pci_size);
 	switch(pci_size) {
-		case 1: *(u8 *) mem_addr =  (u8)  pdc_result[0];
-		case 2: *(u16 *)mem_addr =  (u16) pdc_result[0];
-		case 4: *(u32 *)mem_addr =  (u32) pdc_result[0];
+		case 1: *(u8 *) mem_addr =  (u8)  pdc_result[0]; break;
+		case 2: *(u16 *)mem_addr =  (u16) pdc_result[0]; break;
+		case 4: *(u32 *)mem_addr =  (u32) pdc_result[0]; break;
 	}
 	spin_unlock_irqrestore(&pdc_lock, flags);
 

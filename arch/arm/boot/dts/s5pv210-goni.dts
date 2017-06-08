@@ -29,7 +29,7 @@
 		bootargs = "console=ttySAC0,115200n8 root=/dev/mmcblk0p5 rw rootwait ignore_loglevel earlyprintk";
 	};
 
-	memory {
+	memory@30000000 {
 		device_type = "memory";
 		reg = <0x30000000 0x05000000
 			0x40000000 0x10000000
@@ -47,7 +47,7 @@
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
 			reg = <0>;
-			gpios = <&mp05 4 0>;
+			gpio = <&mp05 4 0>;
 			enable-active-high;
 		};
 
@@ -73,7 +73,7 @@
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
 			reg = <3>;
-			gpios = <&gpj1 3 0>;
+			gpio = <&gpj1 3 0>;
 			enable-active-high;
 		};
 	};
@@ -239,7 +239,7 @@
 			linux,code = <KEY_POWER>;
 			label = "power";
 			debounce-interval = <1>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 };
@@ -250,7 +250,7 @@
 
 &keypad {
 	linux,input-no-autorepeat;
-	linux,input-wakeup;
+	wakeup-source;
 	samsung,keypad-num-rows = <3>;
 	samsung,keypad-num-columns = <3>;
 	pinctrl-names = "default";

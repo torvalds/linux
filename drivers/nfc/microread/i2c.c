@@ -50,8 +50,6 @@ struct microread_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct nfc_hci_dev *hdev;
 
-	int irq;
-
 	int hard_fault;		/*
 				 * < 0 if hardware error occured (e.g. i2c err)
 				 * and prevents normal operation.
@@ -248,17 +246,9 @@ static int microread_i2c_probe(struct i2c_client *client,
 			       const struct i2c_device_id *id)
 {
 	struct microread_i2c_phy *phy;
-	struct microread_nfc_platform_data *pdata =
-		dev_get_platdata(&client->dev);
 	int r;
 
 	dev_dbg(&client->dev, "client %p\n", client);
-
-	if (!pdata) {
-		nfc_err(&client->dev, "client %p: missing platform data\n",
-			client);
-		return -EINVAL;
-	}
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct microread_i2c_phy),
 			   GFP_KERNEL);

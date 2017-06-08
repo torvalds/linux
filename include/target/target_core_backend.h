@@ -1,7 +1,19 @@
 #ifndef TARGET_CORE_BACKEND_H
 #define TARGET_CORE_BACKEND_H
 
-#define TRANSPORT_FLAG_PASSTHROUGH		1
+#include <linux/types.h>
+#include <target/target_core_base.h>
+
+#define TRANSPORT_FLAG_PASSTHROUGH		0x1
+/*
+ * ALUA commands, state checks and setup operations are handled by the
+ * backend module.
+ */
+#define TRANSPORT_FLAG_PASSTHROUGH_ALUA		0x2
+#define TRANSPORT_FLAG_PASSTHROUGH_PGR          0x4
+
+struct request_queue;
+struct scatterlist;
 
 struct target_backend_ops {
 	char name[16];
@@ -85,7 +97,6 @@ extern struct configfs_attribute *passthrough_attrib_attrs[];
 void	*transport_kmap_data_sg(struct se_cmd *);
 void	transport_kunmap_data_sg(struct se_cmd *);
 /* core helpers also used by xcopy during internal command setup */
-int	target_alloc_sgl(struct scatterlist **, unsigned int *, u32, bool);
 sense_reason_t	transport_generic_map_mem_to_cmd(struct se_cmd *,
 		struct scatterlist *, u32, struct scatterlist *, u32);
 
@@ -94,5 +105,8 @@ sense_reason_t passthrough_parse_cdb(struct se_cmd *cmd,
 	sense_reason_t (*exec_cmd)(struct se_cmd *cmd));
 
 bool target_sense_desc_format(struct se_device *dev);
+sector_t target_to_linux_sector(struct se_device *dev, sector_t lb);
+bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
+				       struct request_queue *q);
 
 #endif /* TARGET_CORE_BACKEND_H */

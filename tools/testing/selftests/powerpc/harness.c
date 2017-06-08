@@ -19,9 +19,9 @@
 #include "subunit.h"
 #include "utils.h"
 
-#define TIMEOUT		120
 #define KILL_TIMEOUT	5
 
+static uint64_t timeout = 120;
 
 int run_test(int (test_function)(void), char *name)
 {
@@ -44,7 +44,7 @@ int run_test(int (test_function)(void), char *name)
 	setpgid(pid, pid);
 
 	/* Wake us up in timeout seconds */
-	alarm(TIMEOUT);
+	alarm(timeout);
 	terminated = false;
 
 wait:
@@ -94,6 +94,11 @@ static struct sigaction alarm_action = {
 	.sa_handler = alarm_handler,
 };
 
+void test_harness_set_timeout(uint64_t time)
+{
+	timeout = time;
+}
+
 int test_harness(int (test_function)(void), char *name)
 {
 	int rc;
@@ -109,53 +114,12 @@ int test_harness(int (test_function)(void), char *name)
 
 	rc = run_test(test_function, name);
 
-	if (rc == MAGIC_SKIP_RETURN_VALUE)
+	if (rc == MAGIC_SKIP_RETURN_VALUE) {
 		test_skip(name);
-	else
+		/* so that skipped test is not marked as failed */
+		rc = 0;
+	} else
 		test_finish(name, rc);
 
 	return rc;
-}
-
-static char auxv[4096];
-
-void *get_auxv_entry(int type)
-{
-	ElfW(auxv_t) *p;
-	void *result;
-	ssize_t num;
-	int fd;
-
-	fd = open("/proc/self/auxv", O_RDONLY);
-	if (fd == -1) {
-		perror("open");
-		return NULL;
-	}
-
-	result = NULL;
-
-	num = read(fd, auxv, sizeof(auxv));
-	if (num < 0) {
-		perror("read");
-		goto out;
-	}
-
-	if (num > sizeof(auxv)) {
-		printf("Overflowed auxv buffer\n");
-		goto out;
-	}
-
-	p = (ElfW(auxv_t) *)auxv;
-
-	while (p->a_type != AT_NULL) {
-		if (p->a_type == type) {
-			result = (void *)p->a_un.a_val;
-			break;
-		}
-
-		p++;
-	}
-out:
-	close(fd);
-	return result;
 }

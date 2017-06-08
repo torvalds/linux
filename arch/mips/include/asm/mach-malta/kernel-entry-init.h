@@ -56,7 +56,7 @@
 		(0 << MIPS_SEGCFG_PA_SHIFT) |				\
 		(1 << MIPS_SEGCFG_EU_SHIFT)) << 16)
 	or	t0, t2
-	mtc0	t0, $5, 2
+	mtc0	t0, CP0_SEGCTL0
 
 	/* SegCtl1 */
 	li      t0, ((MIPS_SEGCFG_MUSUK << MIPS_SEGCFG_AM_SHIFT) |	\
@@ -67,7 +67,7 @@
 		(0 << MIPS_SEGCFG_PA_SHIFT) |				\
 		(1 << MIPS_SEGCFG_EU_SHIFT)) << 16)
 	ins	t0, t1, 16, 3
-	mtc0	t0, $5, 3
+	mtc0	t0, CP0_SEGCTL1
 
 	/* SegCtl2 */
 	li	t0, ((MIPS_SEGCFG_MUSUK << MIPS_SEGCFG_AM_SHIFT) |	\
@@ -77,7 +77,7 @@
 		(4 << MIPS_SEGCFG_PA_SHIFT) |				\
 		(1 << MIPS_SEGCFG_EU_SHIFT)) << 16)
 	or	t0, t2
-	mtc0	t0, $5, 4
+	mtc0	t0, CP0_SEGCTL2
 
 	jal	mips_ihb
 	mfc0    t0, $16, 5

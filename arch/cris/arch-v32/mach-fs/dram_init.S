@@ -3,7 +3,7 @@
  * This file is intended to be included from other assembler files
  *
  * Note: This file may not modify r8 or r9 because they are used to
- * carry information from the decompresser to the kernel
+ * carry information from the decompressor to the kernel
  *
  * Copyright (C) 2000-2007 Axis Communications AB
  *
@@ -11,7 +11,7 @@
  */
 
 /* Just to be certain the config file is included, we include it here
- * explicitely instead of depending on it being included in the file that
+ * explicitly instead of depending on it being included in the file that
  * uses this code.
  */
 

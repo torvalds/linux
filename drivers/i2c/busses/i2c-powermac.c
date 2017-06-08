@@ -150,13 +150,11 @@ static int i2c_powermac_master_xfer(	struct i2c_adapter *adap,
 {
 	struct pmac_i2c_bus	*bus = i2c_get_adapdata(adap);
 	int			rc = 0;
-	int			read;
 	int			addrdir;
 
 	if (msgs->flags & I2C_M_TEN)
 		return -EINVAL;
-	read = (msgs->flags & I2C_M_RD) != 0;
-	addrdir = (msgs->addr << 1) | read;
+	addrdir = i2c_8bit_addr_from_msg(msgs);
 
 	rc = pmac_i2c_open(bus, 0);
 	if (rc) {

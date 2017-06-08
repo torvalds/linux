@@ -204,6 +204,17 @@ of ftrace. Here is a list of some of the key files:
 
 	Have the function tracer only trace a single thread.
 
+  set_event_pid:
+
+	Have the events only trace a task with a PID listed in this file.
+	Note, sched_switch and sched_wake_up will also trace events
+	listed in this file.
+
+	To have the PIDs of children of tasks with their PID in this file
+	added on fork, enable the "event-fork" option. That option will also
+	cause the PIDs of tasks to be removed from this file when the task
+	exits.
+
   set_graph_function:
 
 	Set a "trigger" function where tracing should start
@@ -351,6 +362,26 @@ of ftrace. Here is a list of some of the key files:
 		  to correlate events across hypervisor/guest if
 		  tb_offset is known.
 
+	  mono: This uses the fast monotonic clock (CLOCK_MONOTONIC)
+		which is monotonic and is subject to NTP rate adjustments.
+
+	  mono_raw:
+		This is the raw monotonic clock (CLOCK_MONOTONIC_RAW)
+		which is montonic but is not subject to any rate adjustments
+		and ticks at the same rate as the hardware clocksource.
+
+	  boot: This is the boot clock (CLOCK_BOOTTIME) and is based on the
+		fast monotonic clock, but also accounts for time spent in
+		suspend. Since the clock access is designed for use in
+		tracing in the suspend path, some side effects are possible
+		if clock is accessed after the suspend time is accounted before
+		the fast mono clock is updated. In this case, the clock update
+		appears to happen slightly sooner than it normally would have.
+		Also on 32-bit systems, it's possible that the 64-bit boot offset
+		sees a partial update. These effects are rare and post
+		processing should be able to handle them. See comments in the
+		ktime_get_boot_fast_ns() function for more information.
+
 	To set a clock, simply echo the clock name into this file.
 
 	  echo global > trace_clock
@@ -384,6 +415,12 @@ of ftrace. Here is a list of some of the key files:
 	start:
 
 		trace_fd = open("trace_marker", WR_ONLY);
+
+  trace_marker_raw:
+
+	This is similar to trace_marker above, but is meant for for binary data
+	to be written to it, where a tool can be used to parse the data
+	from trace_pipe_raw.
 
   uprobe_events:
  
@@ -719,16 +756,14 @@ noraw
 nohex
 nobin
 noblock
-nostacktrace
 trace_printk
-noftrace_preempt
 nobranch
 annotate
 nouserstacktrace
 nosym-userobj
 noprintk-msg-only
 context-info
-latency-format
+nolatency-format
 sleep-time
 graph-time
 record-cmd
@@ -736,7 +771,10 @@ overwrite
 nodisable_on_free
 irq-info
 markers
+noevent-fork
 function-trace
+nodisplay-graph
+nostacktrace
 
 To disable one of the options, echo in the option prepended with
 "no".
@@ -789,11 +827,6 @@ Here are the available options:
   bin - This will print out the formats in raw binary.
 
   block - When set, reading trace_pipe will not block when polled.
-
-  stacktrace - This is one of the options that changes the trace
-	       itself. When a trace is recorded, so is the stack
-	       of functions. This allows for back traces of
-	       trace sites.
 
   trace_printk - Can disable trace_printk() from writing into the buffer.
 
@@ -851,11 +884,11 @@ x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
 	       When enabled, it will account time the task has been
 	       scheduled out as part of the function call.
 
-  graph-time - When running function graph tracer, to include the
-  	       time to call nested functions. When this is not set,
-	       the time reported for the function will only include
-	       the time the function itself executed for, not the time
-	       for functions that it called.
+  graph-time - When running function profiler with function graph tracer,
+	       to include the time to call nested functions. When this is
+	       not set, the time reported for the function will only
+	       include the time the function itself executed for, not the
+	       time for functions that it called.
 
   record-cmd - When any event or tracer is enabled, a hook is enabled
   	       in the sched_switch trace point to fill comm cache
@@ -891,6 +924,10 @@ x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
   	    When disabled, the trace_marker will error with EINVAL
 	    on write.
 
+  event-fork - When set, tasks with PIDs listed in set_event_pid will have
+	       the PIDs of their children added to set_event_pid when those
+	       tasks fork. Also, when tasks with PIDs in set_event_pid exit,
+	       their PIDs will be removed from the file.
 
   function-trace - The latency tracers will enable function tracing
   	    if this option is enabled (default it is). When
@@ -898,8 +935,17 @@ x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
 	    functions. This keeps the overhead of the tracer down
 	    when performing latency tests.
 
- Note: Some tracers have their own options. They only appear
-       when the tracer is active.
+  display-graph - When set, the latency tracers (irqsoff, wakeup, etc) will
+	          use function graph tracing instead of function tracing.
+
+  stacktrace - This is one of the options that changes the trace
+	       itself. When a trace is recorded, so is the stack
+	       of functions. This allows for back traces of
+	       trace sites.
+
+ Note: Some tracers have their own options. They only appear in this
+       file when the tracer is active. They always appear in the
+       options directory.
 
 
 
@@ -1500,7 +1546,7 @@ Note, that the trace data shows the internal priority (99 - rtprio).
 
   <idle>-0       3d..3    5us :      0:120:R ==> [003]  2389: 94:R sleep
 
-The 0:120:R means idle was running with a nice priority of 0 (120 - 20)
+The 0:120:R means idle was running with a nice priority of 0 (120 - 120)
 and in the running state 'R'. The sleep task was scheduled in with
 2389: 94:R. That is the priority is the kernel rtprio (99 - 5 = 94)
 and it too is in the running state.
@@ -1556,12 +1602,12 @@ Doing the same with chrt -r 5 and function-trace set.
   <idle>-0       3dN.1   12us : menu_hrtimer_cancel <-tick_nohz_idle_exit
   <idle>-0       3dN.1   12us : ktime_get <-tick_nohz_idle_exit
   <idle>-0       3dN.1   12us : tick_do_update_jiffies64 <-tick_nohz_idle_exit
-  <idle>-0       3dN.1   13us : update_cpu_load_nohz <-tick_nohz_idle_exit
-  <idle>-0       3dN.1   13us : _raw_spin_lock <-update_cpu_load_nohz
+  <idle>-0       3dN.1   13us : cpu_load_update_nohz <-tick_nohz_idle_exit
+  <idle>-0       3dN.1   13us : _raw_spin_lock <-cpu_load_update_nohz
   <idle>-0       3dN.1   13us : add_preempt_count <-_raw_spin_lock
-  <idle>-0       3dN.2   13us : __update_cpu_load <-update_cpu_load_nohz
-  <idle>-0       3dN.2   14us : sched_avg_update <-__update_cpu_load
-  <idle>-0       3dN.2   14us : _raw_spin_unlock <-update_cpu_load_nohz
+  <idle>-0       3dN.2   13us : __cpu_load_update <-cpu_load_update_nohz
+  <idle>-0       3dN.2   14us : sched_avg_update <-__cpu_load_update
+  <idle>-0       3dN.2   14us : _raw_spin_unlock <-cpu_load_update_nohz
   <idle>-0       3dN.2   14us : sub_preempt_count <-_raw_spin_unlock
   <idle>-0       3dN.1   15us : calc_load_exit_idle <-tick_nohz_idle_exit
   <idle>-0       3dN.1   15us : touch_softlockup_watchdog <-tick_nohz_idle_exit
@@ -2198,16 +2244,13 @@ hrtimer_interrupt
 sys_nanosleep
 
 
-Perhaps this is not enough. The filters also allow simple wild
-cards. Only the following are currently available
+Perhaps this is not enough. The filters also allow glob(7) matching.
 
   <match>*  - will match functions that begin with <match>
   *<match>  - will match functions that end with <match>
   *<match>* - will match functions that have <match> in it
-
-These are the only wild cards which are supported.
-
-  <match>*<match> will not work.
+  <match1>*<match2> - will match functions that begin with
+                      <match1> and end with <match2>
 
 Note: It is better to use quotes to enclose the wild cards,
       otherwise the shell may expand the parameters into names
@@ -2436,6 +2479,23 @@ The following commands are supported:
   '!':
 
    echo '!writeback*:mod:ext3' >> set_ftrace_filter
+
+  Mod command supports module globbing. Disable tracing for all
+  functions except a specific module:
+
+   echo '!*:mod:!ext3' >> set_ftrace_filter
+
+  Disable tracing for all modules, but still trace kernel:
+
+   echo '!*:mod:*' >> set_ftrace_filter
+
+  Enable filter only for kernel:
+
+   echo '*write*:mod:!*' >> set_ftrace_filter
+
+  Enable filter for module globbing:
+
+   echo '*write*:mod:*snd*' >> set_ftrace_filter
 
 - traceon/traceoff
   These commands turn tracing on and off when the specified

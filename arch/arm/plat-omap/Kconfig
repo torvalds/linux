@@ -63,32 +63,6 @@ config OMAP_RESET_CLOCKS
 	  probably do not want this option enabled until your
 	  device drivers work properly.
 
-config OMAP_MUX
-	bool "OMAP multiplexing support"
-	depends on ARCH_OMAP
-	default y
-	help
-	  Pin multiplexing support for OMAP boards. If your bootloader
-	  sets the multiplexing correctly, say N. Otherwise, or if unsure,
-	  say Y.
-
-config OMAP_MUX_DEBUG
-	bool "Multiplexing debug output"
-	depends on OMAP_MUX
-	help
-	  Makes the multiplexing functions print out a lot of debug info.
-	  This is useful if you want to find out the correct values of the
-	  multiplexing registers.
-
-config OMAP_MUX_WARNINGS
-	bool "Warn about pins the bootloader didn't set up"
-	depends on OMAP_MUX
-	default y
-	help
-	  Choose Y here to warn whenever driver initialization logic needs
-	  to change the pin multiplexing setup.	 When there are no warnings
-	  printed, it's safe to deselect OMAP_MUX for your product.
-
 config OMAP_MPU_TIMER
 	bool "Use mpu timer"
 	depends on ARCH_OMAP1

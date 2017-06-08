@@ -27,9 +27,6 @@
 #include <mach/audio.h>
 #include <linux/platform_data/asoc-palm27x.h>
 
-#include "../codecs/wm9712.h"
-#include "pxa2xx-ac97.h"
-
 static struct snd_soc_jack hs_jack;
 
 /* Headphones jack detection DAPM pins */
@@ -140,22 +137,15 @@ static int palm27x_asoc_probe(struct platform_device *pdev)
 
 	palm27x_asoc.dev = &pdev->dev;
 
-	ret = snd_soc_register_card(&palm27x_asoc);
+	ret = devm_snd_soc_register_card(&pdev->dev, &palm27x_asoc);
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
 	return ret;
 }
 
-static int palm27x_asoc_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_card(&palm27x_asoc);
-	return 0;
-}
-
 static struct platform_driver palm27x_wm9712_driver = {
 	.probe		= palm27x_asoc_probe,
-	.remove		= palm27x_asoc_remove,
 	.driver		= {
 		.name		= "palm27x-asoc",
 		.pm     = &snd_soc_pm_ops,
@@ -168,3 +158,4 @@ module_platform_driver(palm27x_wm9712_driver);
 MODULE_AUTHOR("Marek Vasut <marek.vasut@gmail.com>");
 MODULE_DESCRIPTION("ALSA SoC Palm T|X, T5 and LifeDrive");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:palm27x-asoc");

@@ -28,6 +28,7 @@ static void nfs4_init_slot_table(struct nfs4_slot_table *tbl, const char *queue)
 	tbl->highest_used_slotid = NFS4_NO_SLOT;
 	spin_lock_init(&tbl->slot_tbl_lock);
 	rpc_init_priority_wait_queue(&tbl->slot_tbl_waitq, queue);
+	init_waitqueue_head(&tbl->slot_waitq);
 	init_completion(&tbl->complete);
 }
 
@@ -135,6 +136,97 @@ static struct nfs4_slot *nfs4_find_or_create_slot(struct nfs4_slot_table  *tbl,
 	return ERR_PTR(-ENOMEM);
 }
 
+static void nfs4_lock_slot(struct nfs4_slot_table *tbl,
+		struct nfs4_slot *slot)
+{
+	u32 slotid = slot->slot_nr;
+
+	__set_bit(slotid, tbl->used_slots);
+	if (slotid > tbl->highest_used_slotid ||
+	    tbl->highest_used_slotid == NFS4_NO_SLOT)
+		tbl->highest_used_slotid = slotid;
+	slot->generation = tbl->generation;
+}
+
+/*
+ * nfs4_try_to_lock_slot - Given a slot try to allocate it
+ *
+ * Note: must be called with the slot_tbl_lock held.
+ */
+bool nfs4_try_to_lock_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *slot)
+{
+	if (nfs4_test_locked_slot(tbl, slot->slot_nr))
+		return false;
+	nfs4_lock_slot(tbl, slot);
+	return true;
+}
+
+/*
+ * nfs4_lookup_slot - Find a slot but don't allocate it
+ *
+ * Note: must be called with the slot_tbl_lock held.
+ */
+struct nfs4_slot *nfs4_lookup_slot(struct nfs4_slot_table *tbl, u32 slotid)
+{
+	if (slotid <= tbl->max_slotid)
+		return nfs4_find_or_create_slot(tbl, slotid, 0, GFP_NOWAIT);
+	return ERR_PTR(-E2BIG);
+}
+
+static int nfs4_slot_get_seqid(struct nfs4_slot_table  *tbl, u32 slotid,
+		u32 *seq_nr)
+	__must_hold(&tbl->slot_tbl_lock)
+{
+	struct nfs4_slot *slot;
+	int ret;
+
+	slot = nfs4_lookup_slot(tbl, slotid);
+	ret = PTR_ERR_OR_ZERO(slot);
+	if (!ret)
+		*seq_nr = slot->seq_nr;
+
+	return ret;
+}
+
+/*
+ * nfs4_slot_seqid_in_use - test if a slot sequence id is still in use
+ *
+ * Given a slot table, slot id and sequence number, determine if the
+ * RPC call in question is still in flight. This function is mainly
+ * intended for use by the callback channel.
+ */
+static bool nfs4_slot_seqid_in_use(struct nfs4_slot_table *tbl,
+		u32 slotid, u32 seq_nr)
+{
+	u32 cur_seq = 0;
+	bool ret = false;
+
+	spin_lock(&tbl->slot_tbl_lock);
+	if (nfs4_slot_get_seqid(tbl, slotid, &cur_seq) == 0 &&
+	    cur_seq == seq_nr && test_bit(slotid, tbl->used_slots))
+		ret = true;
+	spin_unlock(&tbl->slot_tbl_lock);
+	return ret;
+}
+
+/*
+ * nfs4_slot_wait_on_seqid - wait until a slot sequence id is complete
+ *
+ * Given a slot table, slot id and sequence number, wait until the
+ * corresponding RPC call completes. This function is mainly
+ * intended for use by the callback channel.
+ */
+int nfs4_slot_wait_on_seqid(struct nfs4_slot_table *tbl,
+		u32 slotid, u32 seq_nr,
+		unsigned long timeout)
+{
+	if (wait_event_timeout(tbl->slot_waitq,
+			!nfs4_slot_seqid_in_use(tbl, slotid, seq_nr),
+			timeout) == 0)
+		return -ETIMEDOUT;
+	return 0;
+}
+
 /*
  * nfs4_alloc_slot - efficiently look for a free slot
  *
@@ -153,18 +245,11 @@ struct nfs4_slot *nfs4_alloc_slot(struct nfs4_slot_table *tbl)
 		__func__, tbl->used_slots[0], tbl->highest_used_slotid,
 		tbl->max_slotid + 1);
 	slotid = find_first_zero_bit(tbl->used_slots, tbl->max_slotid + 1);
-	if (slotid > tbl->max_slotid)
-		goto out;
-	ret = nfs4_find_or_create_slot(tbl, slotid, 1, GFP_NOWAIT);
-	if (IS_ERR(ret))
-		goto out;
-	__set_bit(slotid, tbl->used_slots);
-	if (slotid > tbl->highest_used_slotid ||
-			tbl->highest_used_slotid == NFS4_NO_SLOT)
-		tbl->highest_used_slotid = slotid;
-	ret->generation = tbl->generation;
-
-out:
+	if (slotid <= tbl->max_slotid) {
+		ret = nfs4_find_or_create_slot(tbl, slotid, 1, GFP_NOWAIT);
+		if (!IS_ERR(ret))
+			nfs4_lock_slot(tbl, ret);
+	}
 	dprintk("<-- %s used_slots=%04lx highest_used=%u slotid=%u\n",
 		__func__, tbl->used_slots[0], tbl->highest_used_slotid,
 		!IS_ERR(ret) ? ret->slot_nr : NFS4_NO_SLOT);

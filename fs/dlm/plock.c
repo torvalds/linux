@@ -145,7 +145,7 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	send_op(op);
 
 	if (xop->callback == NULL) {
-		rv = wait_event_killable(recv_wq, (op->done != 0));
+		rv = wait_event_interruptible(recv_wq, (op->done != 0));
 		if (rv == -ERESTARTSYS) {
 			log_debug(ls, "dlm_posix_lock: wait killed %llx",
 				  (unsigned long long)number);
@@ -172,7 +172,7 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	rv = op->info.rv;
 
 	if (!rv) {
-		if (posix_lock_file_wait(file, fl) < 0)
+		if (locks_lock_file_wait(file, fl) < 0)
 			log_error(ls, "dlm_posix_lock: vfs lock error %llx",
 				  (unsigned long long)number);
 	}
@@ -262,7 +262,7 @@ int dlm_posix_unlock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	/* cause the vfs unlock to return ENOENT if lock is not found */
 	fl->fl_flags |= FL_EXISTS;
 
-	rv = posix_lock_file_wait(file, fl);
+	rv = locks_lock_file_wait(file, fl);
 	if (rv == -ENOENT) {
 		rv = 0;
 		goto out_free;

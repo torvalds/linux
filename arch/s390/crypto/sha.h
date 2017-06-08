@@ -19,7 +19,7 @@
 #include <crypto/sha.h>
 
 /* must be big enough for the largest SHA variant */
-#define SHA_MAX_STATE_SIZE	16
+#define SHA_MAX_STATE_SIZE	(SHA512_DIGEST_SIZE / 4)
 #define SHA_MAX_BLOCK_SIZE      SHA512_BLOCK_SIZE
 
 struct s390_sha_ctx {

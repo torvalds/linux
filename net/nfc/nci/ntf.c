@@ -734,7 +734,7 @@ static void nci_nfcee_discover_ntf_packet(struct nci_dev *ndev,
 	 * “HCI Access”, even if the HCI Network contains multiple NFCEEs.
 	 */
 	ndev->hci_dev->nfcee_id = nfcee_ntf->nfcee_id;
-	ndev->cur_id = nfcee_ntf->nfcee_id;
+	ndev->cur_params.id = nfcee_ntf->nfcee_id;
 
 	nci_req_complete(ndev, status);
 }
@@ -759,7 +759,7 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	skb_pull(skb, NCI_CTRL_HDR_SIZE);
 
 	if (nci_opcode_gid(ntf_opcode) == NCI_GID_PROPRIETARY) {
-		if (nci_prop_ntf_packet(ndev, ntf_opcode, skb)) {
+		if (nci_prop_ntf_packet(ndev, ntf_opcode, skb) == -ENOTSUPP) {
 			pr_err("unsupported ntf opcode 0x%x\n",
 			       ntf_opcode);
 		}
@@ -805,6 +805,7 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 	}
 
+	nci_core_ntf_packet(ndev, ntf_opcode, skb);
 end:
 	kfree_skb(skb);
 }

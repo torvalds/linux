@@ -19,9 +19,9 @@
  * for more details.
  */
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/timer.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -139,26 +139,11 @@ static int heartbeat_drv_probe(struct platform_device *pdev)
 	return mod_timer(&hd->timer, jiffies + 1);
 }
 
-static int heartbeat_drv_remove(struct platform_device *pdev)
-{
-	struct heartbeat_data *hd = platform_get_drvdata(pdev);
-
-	del_timer_sync(&hd->timer);
-	iounmap(hd->base);
-
-	platform_set_drvdata(pdev, NULL);
-
-	if (!pdev->dev.platform_data)
-		kfree(hd);
-
-	return 0;
-}
-
 static struct platform_driver heartbeat_driver = {
 	.probe		= heartbeat_drv_probe,
-	.remove		= heartbeat_drv_remove,
 	.driver		= {
-		.name	= DRV_NAME,
+		.name			= DRV_NAME,
+		.suppress_bind_attrs	= true,
 	},
 };
 
@@ -167,14 +152,4 @@ static int __init heartbeat_init(void)
 	printk(KERN_NOTICE DRV_NAME ": version %s loaded\n", DRV_VERSION);
 	return platform_driver_register(&heartbeat_driver);
 }
-
-static void __exit heartbeat_exit(void)
-{
-	platform_driver_unregister(&heartbeat_driver);
-}
-module_init(heartbeat_init);
-module_exit(heartbeat_exit);
-
-MODULE_VERSION(DRV_VERSION);
-MODULE_AUTHOR("Paul Mundt");
-MODULE_LICENSE("GPL v2");
+device_initcall(heartbeat_init);

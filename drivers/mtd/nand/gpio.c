@@ -35,12 +35,14 @@
 
 struct gpiomtd {
 	void __iomem		*io_sync;
-	struct mtd_info		mtd_info;
 	struct nand_chip	nand_chip;
 	struct gpio_nand_platdata plat;
 };
 
-#define gpio_nand_getpriv(x) container_of(x, struct gpiomtd, mtd_info)
+static inline struct gpiomtd *gpio_nand_getpriv(struct mtd_info *mtd)
+{
+	return container_of(mtd_to_nand(mtd), struct gpiomtd, nand_chip);
+}
 
 
 #ifdef CONFIG_ARM
@@ -76,7 +78,9 @@ static void gpio_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 	gpio_nand_dosync(gpiomtd);
 
 	if (ctrl & NAND_CTRL_CHANGE) {
-		gpio_set_value(gpiomtd->plat.gpio_nce, !(ctrl & NAND_NCE));
+		if (gpio_is_valid(gpiomtd->plat.gpio_nce))
+			gpio_set_value(gpiomtd->plat.gpio_nce,
+				       !(ctrl & NAND_NCE));
 		gpio_set_value(gpiomtd->plat.gpio_cle, !!(ctrl & NAND_CLE));
 		gpio_set_value(gpiomtd->plat.gpio_ale, !!(ctrl & NAND_ALE));
 		gpio_nand_dosync(gpiomtd);
@@ -195,11 +199,12 @@ static int gpio_nand_remove(struct platform_device *pdev)
 {
 	struct gpiomtd *gpiomtd = platform_get_drvdata(pdev);
 
-	nand_release(&gpiomtd->mtd_info);
+	nand_release(nand_to_mtd(&gpiomtd->nand_chip));
 
 	if (gpio_is_valid(gpiomtd->plat.gpio_nwp))
 		gpio_set_value(gpiomtd->plat.gpio_nwp, 0);
-	gpio_set_value(gpiomtd->plat.gpio_nce, 1);
+	if (gpio_is_valid(gpiomtd->plat.gpio_nce))
+		gpio_set_value(gpiomtd->plat.gpio_nce, 1);
 
 	return 0;
 }
@@ -208,8 +213,8 @@ static int gpio_nand_probe(struct platform_device *pdev)
 {
 	struct gpiomtd *gpiomtd;
 	struct nand_chip *chip;
+	struct mtd_info *mtd;
 	struct resource *res;
-	struct mtd_part_parser_data ppdata = {};
 	int ret = 0;
 
 	if (!pdev->dev.of_node && !dev_get_platdata(&pdev->dev))
@@ -237,10 +242,13 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_nce, "NAND NCE");
-	if (ret)
-		return ret;
-	gpio_direction_output(gpiomtd->plat.gpio_nce, 1);
+	if (gpio_is_valid(gpiomtd->plat.gpio_nce)) {
+		ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_nce,
+					"NAND NCE");
+		if (ret)
+			return ret;
+		gpio_direction_output(gpiomtd->plat.gpio_nce, 1);
+	}
 
 	if (gpio_is_valid(gpiomtd->plat.gpio_nwp)) {
 		ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_nwp,
@@ -268,33 +276,31 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		chip->dev_ready = gpio_nand_devready;
 	}
 
+	nand_set_flash_node(chip, pdev->dev.of_node);
 	chip->IO_ADDR_W		= chip->IO_ADDR_R;
 	chip->ecc.mode		= NAND_ECC_SOFT;
+	chip->ecc.algo		= NAND_ECC_HAMMING;
 	chip->options		= gpiomtd->plat.options;
 	chip->chip_delay	= gpiomtd->plat.chip_delay;
 	chip->cmd_ctrl		= gpio_nand_cmd_ctrl;
 
-	gpiomtd->mtd_info.priv	= chip;
-	gpiomtd->mtd_info.owner	= THIS_MODULE;
+	mtd			= nand_to_mtd(chip);
+	mtd->dev.parent		= &pdev->dev;
 
 	platform_set_drvdata(pdev, gpiomtd);
 
 	if (gpio_is_valid(gpiomtd->plat.gpio_nwp))
 		gpio_direction_output(gpiomtd->plat.gpio_nwp, 1);
 
-	if (nand_scan(&gpiomtd->mtd_info, 1)) {
-		ret = -ENXIO;
+	ret = nand_scan(mtd, 1);
+	if (ret)
 		goto err_wp;
-	}
 
 	if (gpiomtd->plat.adjust_parts)
-		gpiomtd->plat.adjust_parts(&gpiomtd->plat,
-					   gpiomtd->mtd_info.size);
+		gpiomtd->plat.adjust_parts(&gpiomtd->plat, mtd->size);
 
-	ppdata.of_node = pdev->dev.of_node;
-	ret = mtd_device_parse_register(&gpiomtd->mtd_info, NULL, &ppdata,
-					gpiomtd->plat.parts,
-					gpiomtd->plat.num_parts);
+	ret = mtd_device_register(mtd, gpiomtd->plat.parts,
+				  gpiomtd->plat.num_parts);
 	if (!ret)
 		return 0;
 

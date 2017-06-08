@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #ifndef _RTW_RECV_H_
 #define _RTW_RECV_H_
@@ -70,13 +65,6 @@ struct	stainfo_rxcache	{
 */
 };
 
-struct smooth_rssi_data {
-	u32	elements[100];	/* array to store values */
-	u32	index;			/* index to current array to store */
-	u32	total_num;		/* num of valid elements */
-	u32	total_val;		/* sum of valid elements */
-};
-
 struct signal_stat {
 	u8	update_req;		/* used to indicate */
 	u8	avg_val;		/* avg of valid elements */
@@ -118,7 +106,7 @@ struct rx_pkt_attrib {
 	u8	privacy; /* in frame_ctrl field */
 	u8	bdecrypted;
 	u8	encrypt; /* when 0 indicate no encrypt. when non-zero,
-			  * indicate the encrypt algorith */
+			  * indicate the encrypt algorithm */
 	u8	iv_len;
 	u8	icv_len;
 	u8	crc_err;
@@ -151,8 +139,6 @@ struct rx_pkt_attrib {
 #define SN_EQUAL(a, b)	(a == b)
 #define REORDER_WAIT_TIME	(50) /*  (ms) */
 
-#define RECVBUFF_ALIGN_SZ 8
-
 #define RXDESC_SIZE	24
 #define RXDESC_OFFSET RXDESC_SIZE
 
@@ -165,8 +151,6 @@ struct recv_stat {
 	__le32 rxdw5;
 };
 
-#define EOR BIT(30)
-
 /*
 accesser of recv_priv: rtw_recv_entry(dispatch / passive level);
 recv_thread(passive) ; returnpkt(dispatch)
@@ -178,9 +162,7 @@ struct recv_priv {
 	struct __queue free_recv_queue;
 	struct __queue recv_pending_queue;
 	struct __queue uc_swdec_pending_queue;
-	u8 *pallocated_frame_buf;
-	u8 *precv_frame_buf;
-	uint free_recvframe_cnt;
+	void *pallocated_frame_buf;
 	struct adapter	*adapter;
 	u32	bIsAnyNonBEPkts;
 	u64	rx_bytes;
@@ -188,20 +170,13 @@ struct recv_priv {
 	u64	rx_drop;
 	u64	last_rx_bytes;
 
-	uint	ff_hwaddr;
-	u8	rx_pending_cnt;
-
 	struct tasklet_struct irq_prepare_beacon_tasklet;
 	struct tasklet_struct recv_tasklet;
 	struct sk_buff_head free_recv_skb_queue;
 	struct sk_buff_head rx_skb_queue;
-	u8 *pallocated_recv_buf;
-	u8 *precv_buf;    /*  4 alignment */
+	struct recv_buf *precv_buf;    /*  4 alignment */
 	struct __queue free_recv_buf_queue;
-	u32	free_recv_buf_queue_cnt;
-	/* For display the phy informatiom */
-	u8 is_signal_dbg;	/*  for debug */
-	u8 signal_strength_dbg;	/*  for debug */
+	/* For display the phy information */
 	s8 rssi;
 	s8 rxpwdb;
 	u8 signal_strength;
@@ -251,14 +226,8 @@ struct recv_buf {
 struct recv_frame {
 	struct list_head list;
 	struct sk_buff	 *pkt;
-	struct sk_buff	 *pkt_newalloc;
 	struct adapter  *adapter;
 	struct rx_pkt_attrib attrib;
-	uint  len;
-	u8 *rx_head;
-	u8 *rx_data;
-	u8 *rx_tail;
-	u8 *rx_end;
 	struct sta_info *psta;
 	/* for A-MPDU Rx reordering buffer control */
 	struct recv_reorder_ctrl *preorder_ctrl;
@@ -279,70 +248,6 @@ void rtw_free_recvframe_queue(struct __queue *pframequeue,
 u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter);
 
 void rtw_reordering_ctrl_timeout_handler(unsigned long data);
-
-static inline u8 *get_rxmem(struct recv_frame *precvframe)
-{
-	/* always return rx_head... */
-	if (precvframe == NULL)
-		return NULL;
-	return precvframe->rx_head;
-}
-
-static inline u8 *recvframe_pull(struct recv_frame *precvframe, int sz)
-{
-	/*  rx_data += sz; move rx_data sz bytes  hereafter */
-
-	/* used for extract sz bytes from rx_data, update rx_data and return
-	 * the updated rx_data to the caller */
-
-	if (precvframe == NULL)
-		return NULL;
-	precvframe->rx_data += sz;
-	if (precvframe->rx_data > precvframe->rx_tail) {
-		precvframe->rx_data -= sz;
-		return NULL;
-	}
-	precvframe->len -= sz;
-	return precvframe->rx_data;
-}
-
-static inline u8 *recvframe_put(struct recv_frame *precvframe, int sz)
-{
-	/* used for append sz bytes from ptr to rx_tail, update rx_tail
-	 * and return the updated rx_tail to the caller */
-	/* after putting, rx_tail must be still larger than rx_end. */
-
-	if (precvframe == NULL)
-		return NULL;
-
-	precvframe->rx_tail += sz;
-
-	if (precvframe->rx_tail > precvframe->rx_end) {
-		precvframe->rx_tail -= sz;
-		return NULL;
-	}
-	precvframe->len += sz;
-	return precvframe->rx_tail;
-}
-
-static inline u8 *recvframe_pull_tail(struct recv_frame *precvframe, int sz)
-{
-	/*  rmv data from rx_tail (by yitsen) */
-
-	/* used for extract sz bytes from rx_end, update rx_end and return
-	 * the updated rx_end to the caller */
-	/* after pulling, rx_end must be still larger than rx_data. */
-
-	if (precvframe == NULL)
-		return NULL;
-	precvframe->rx_tail -= sz;
-	if (precvframe->rx_tail < precvframe->rx_data) {
-		precvframe->rx_tail += sz;
-		return NULL;
-	}
-	precvframe->len -= sz;
-	return precvframe->rx_tail;
-}
 
 static inline s32 translate_percentage_to_dbm(u32 sig_stren_index)
 {

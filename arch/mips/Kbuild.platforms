@@ -11,6 +11,7 @@ platforms += cavium-octeon
 platforms += cobalt
 platforms += dec
 platforms += emma
+platforms += generic
 platforms += jazz
 platforms += jz4740
 platforms += lantiq
@@ -18,9 +19,9 @@ platforms += lasat
 platforms += loongson32
 platforms += loongson64
 platforms += mti-malta
-platforms += mti-sead3
 platforms += netlogic
 platforms += paravirt
+platforms += pic32
 platforms += pistachio
 platforms += pmcs-msp71xx
 platforms += pnx833x
@@ -33,6 +34,7 @@ platforms += sibyte
 platforms += sni
 platforms += txx9
 platforms += vr41xx
+platforms += xilfpga
 
 # include the platform specific files
 include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platforms))

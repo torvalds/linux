@@ -25,6 +25,18 @@ config ATMEL_SDRAMC
 	  Starting with the at91sam9g45, this controller supports SDR, DDR and
 	  LP-DDR memories.
 
+config ATMEL_EBI
+	bool "Atmel EBI driver"
+	default y
+	depends on ARCH_AT91 && OF
+	select MFD_SYSCON
+	select MFD_ATMEL_SMC
+	help
+	  Driver for Atmel EBI controller.
+	  Used to configure the EBI (external bus interface) when the device-
+	  tree is used. This bus supports NANDs, external ethernet controller,
+	  SRAMs, ATA devices, etc.
+
 config TI_AEMIF
 	tristate "Texas Instruments AEMIF driver"
 	depends on (ARCH_DAVINCI || ARCH_KEYSTONE) && OF
@@ -51,6 +63,7 @@ config TI_EMIF
 
 config OMAP_GPMC
 	bool
+	select GPIOLIB
 	help
 	  This driver is for the General Purpose Memory Controller (GPMC)
 	  present on Texas Instruments SoCs (e.g. OMAP2+). GPMC allows
@@ -58,12 +71,18 @@ config OMAP_GPMC
 	  memory drives like NOR, NAND, OneNAND, SRAM.
 
 config OMAP_GPMC_DEBUG
-	bool
+	bool "Enable GPMC debug output and skip reset of GPMC during init"
 	depends on OMAP_GPMC
 	help
 	  Enables verbose debugging mostly to decode the bootloader provided
-	  timings. Enable this during development to configure devices
-	  connected to the GPMC bus.
+	  timings. To preserve the bootloader provided timings, the reset
+	  of GPMC is skipped during init. Enable this during development to
+	  configure devices connected to the GPMC bus.
+
+	  NOTE: In addition to matching the register setup with the bootloader
+	  you also need to match the GPMC FCLK frequency used by the
+	  bootloader or else the GPMC timings won't be identical with the
+	  bootloader timings.
 
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"
@@ -97,7 +116,7 @@ config FSL_CORENET_CF
 
 config FSL_IFC
 	bool
-	depends on FSL_SOC
+	depends on FSL_SOC || ARCH_LAYERSCAPE || SOC_LS1021A
 
 config JZ4780_NEMC
 	bool "Ingenic JZ4780 SoC NEMC driver"
@@ -108,6 +127,23 @@ config JZ4780_NEMC
 	  the Ingenic JZ4780. This controller is used to handle external
 	  memory devices such as NAND and SRAM.
 
+config MTK_SMI
+	bool
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  This driver is for the Memory Controller module in MediaTek SoCs,
+	  mainly help enable/disable iommu and control the power domain and
+	  clocks for each local arbiter.
+
+config DA8XX_DDRCTL
+	bool "Texas Instruments da8xx DDR2/mDDR driver"
+	depends on ARCH_DAVINCI_DA8XX
+	help
+	  This driver is for the DDR2/mDDR Memory Controller present on
+	  Texas Instruments da8xx SoCs. It's used to tweak various memory
+	  controller configuration options.
+
+source "drivers/memory/samsung/Kconfig"
 source "drivers/memory/tegra/Kconfig"
 
 endif

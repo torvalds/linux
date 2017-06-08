@@ -36,6 +36,10 @@
 #include <asm/irqflags-compact.h>
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
 
+#ifdef CONFIG_ARC_PLAT_EZNPS
+#include <plat/ctop.h>
+#endif
+
 /*--------------------------------------------------------------
  * Switch to Kernel Mode stack if SP points to User Mode stack
  *
@@ -72,8 +76,8 @@
 	 * We need to be a bit more cautious here. What if a kernel bug in
 	 * L1 ISR, caused SP to go whaco (some small value which looks like
 	 * USER stk) and then we take L2 ISR.
-	 * Above brlo alone would treat it as a valid L1-L2 sceanrio
-	 * instead of shouting alound
+	 * Above brlo alone would treat it as a valid L1-L2 scenario
+	 * instead of shouting around
 	 * The only feasible way is to make sure this L2 happened in
 	 * L1 prelogue ONLY i.e. ilink2 is less than a pre-set marker in
 	 * L1 ISR before it switches stack
@@ -110,13 +114,12 @@
 
 .macro FAKE_RET_FROM_EXCPN
 
-	ld  r9, [sp, PT_status32]
-	bic r9, r9, (STATUS_U_MASK|STATUS_DE_MASK)
-	bset  r9, r9, STATUS_L_BIT
-	sr  r9, [erstatus]
-	mov r9, 55f
-	sr  r9, [eret]
-
+	lr	r9, [status32]
+	bclr	r9, r9, STATUS_AE_BIT
+	or	r9, r9, (STATUS_E1_MASK|STATUS_E2_MASK)
+	sr	r9, [erstatus]
+	mov	r9, 55f
+	sr	r9, [eret]
 	rtie
 55:
 .endm
@@ -232,7 +235,7 @@
 	/* free up r9 as scratchpad */
 	PROLOG_FREEUP_REG r9, @int\LVL\()_saved_reg
 
-	/* Which mode (user/kernel) was the system in when intr occured */
+	/* Which mode (user/kernel) was the system in when intr occurred */
 	lr  r9, [status32_l\LVL\()]
 
 	SWITCH_TO_KERNEL_STK
@@ -297,11 +300,13 @@
 	bic \reg, sp, (THREAD_SIZE - 1)
 .endm
 
+#ifndef CONFIG_ARC_PLAT_EZNPS
 /* Get CPU-ID of this core */
 .macro  GET_CPU_ID  reg
 	lr  \reg, [identity]
 	lsr \reg, \reg, 8
 	bmsk \reg, \reg, 7
 .endm
+#endif
 
 #endif  /* __ASM_ARC_ENTRY_COMPACT_H */

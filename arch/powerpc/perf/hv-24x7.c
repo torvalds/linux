@@ -27,20 +27,6 @@
 #include "hv-24x7-catalog.h"
 #include "hv-common.h"
 
-static const char *event_domain_suffix(unsigned domain)
-{
-	switch (domain) {
-#define DOMAIN(n, v, x, c)		\
-	case HV_PERF_DOMAIN_##n:	\
-		return "__" #n;
-#include "hv-24x7-domains.h"
-#undef DOMAIN
-	default:
-		WARN(1, "unknown domain %d\n", domain);
-		return "__UNKNOWN_DOMAIN_SUFFIX";
-	}
-}
-
 static bool domain_is_valid(unsigned domain)
 {
 	switch (domain) {
@@ -66,6 +52,24 @@ static bool is_physical_domain(unsigned domain)
 	default:
 		return false;
 	}
+}
+
+static const char *domain_name(unsigned domain)
+{
+	if (!domain_is_valid(domain))
+		return NULL;
+
+	switch (domain) {
+	case HV_PERF_DOMAIN_PHYS_CHIP:		return "Physical Chip";
+	case HV_PERF_DOMAIN_PHYS_CORE:		return "Physical Core";
+	case HV_PERF_DOMAIN_VCPU_HOME_CORE:	return "VCPU Home Core";
+	case HV_PERF_DOMAIN_VCPU_HOME_CHIP:	return "VCPU Home Chip";
+	case HV_PERF_DOMAIN_VCPU_HOME_NODE:	return "VCPU Home Node";
+	case HV_PERF_DOMAIN_VCPU_REMOTE_NODE:	return "VCPU Remote Node";
+	}
+
+	WARN_ON_ONCE(domain);
+	return NULL;
 }
 
 static bool catalog_entry_domain_is_valid(unsigned domain)
@@ -101,6 +105,7 @@ static bool catalog_entry_domain_is_valid(unsigned domain)
 EVENT_DEFINE_RANGE_FORMAT(domain, config, 0, 3);
 /* u16 */
 EVENT_DEFINE_RANGE_FORMAT(core, config, 16, 31);
+EVENT_DEFINE_RANGE_FORMAT(chip, config, 16, 31);
 EVENT_DEFINE_RANGE_FORMAT(vcpu, config, 16, 31);
 /* u32, see "data_offset" */
 EVENT_DEFINE_RANGE_FORMAT(offset, config, 32, 63);
@@ -115,6 +120,7 @@ static struct attribute *format_attrs[] = {
 	&format_attr_domain.attr,
 	&format_attr_offset.attr,
 	&format_attr_core.attr,
+	&format_attr_chip.attr,
 	&format_attr_vcpu.attr,
 	&format_attr_lpar.attr,
 	NULL,
@@ -141,6 +147,15 @@ static struct attribute_group event_long_desc_group = {
 };
 
 static struct kmem_cache *hv_page_cache;
+
+DEFINE_PER_CPU(int, hv_24x7_txn_flags);
+DEFINE_PER_CPU(int, hv_24x7_txn_err);
+
+struct hv_24x7_hw {
+	struct perf_event *events[255];
+};
+
+DEFINE_PER_CPU(struct hv_24x7_hw, hv_24x7_hw);
 
 /*
  * request_buffer and result_buffer are not required to be 4k aligned,
@@ -265,32 +280,70 @@ static unsigned long h_get_24x7_catalog_page(char page[],
 					version, index);
 }
 
-static unsigned core_domains[] = {
-	HV_PERF_DOMAIN_PHYS_CORE,
-	HV_PERF_DOMAIN_VCPU_HOME_CORE,
-	HV_PERF_DOMAIN_VCPU_HOME_CHIP,
-	HV_PERF_DOMAIN_VCPU_HOME_NODE,
-	HV_PERF_DOMAIN_VCPU_REMOTE_NODE,
-};
-/* chip event data always yeilds a single event, core yeilds multiple */
-#define MAX_EVENTS_PER_EVENT_DATA ARRAY_SIZE(core_domains)
-
+/*
+ * Each event we find in the catalog, will have a sysfs entry. Format the
+ * data for this sysfs entry based on the event's domain.
+ *
+ * Events belonging to the Chip domain can only be monitored in that domain.
+ * i.e the domain for these events is a fixed/knwon value.
+ *
+ * Events belonging to the Core domain can be monitored either in the physical
+ * core or in one of the virtual CPU domains. So the domain value for these
+ * events must be specified by the user (i.e is a required parameter). Format
+ * the Core events with 'domain=?' so the perf-tool can error check required
+ * parameters.
+ *
+ * NOTE: For the Core domain events, rather than making domain a required
+ *	 parameter we could default it to PHYS_CORE and allowe users to
+ *	 override the domain to one of the VCPU domains.
+ *
+ *	 However, this can make the interface a little inconsistent.
+ *
+ *	 If we set domain=2 (PHYS_CHIP) and allow user to override this field
+ *	 the user may be tempted to also modify the "offset=x" field in which
+ *	 can lead to confusing usage. Consider the HPM_PCYC (offset=0x18) and
+ *	 HPM_INST (offset=0x20) events. With:
+ *
+ *		perf stat -e hv_24x7/HPM_PCYC,offset=0x20/
+ *
+ *	we end up monitoring HPM_INST, while the command line has HPM_PCYC.
+ *
+ *	By not assigning a default value to the domain for the Core events,
+ *	we can have simple guidelines:
+ *
+ *		- Specifying values for parameters with "=?" is required.
+ *
+ *		- Specifying (i.e overriding) values for other parameters
+ *		  is undefined.
+ */
 static char *event_fmt(struct hv_24x7_event_data *event, unsigned domain)
 {
 	const char *sindex;
 	const char *lpar;
+	const char *domain_str;
+	char buf[8];
 
-	if (is_physical_domain(domain)) {
+	switch (domain) {
+	case HV_PERF_DOMAIN_PHYS_CHIP:
+		snprintf(buf, sizeof(buf), "%d", domain);
+		domain_str = buf;
+		lpar = "0x0";
+		sindex = "chip";
+		break;
+	case HV_PERF_DOMAIN_PHYS_CORE:
+		domain_str = "?";
 		lpar = "0x0";
 		sindex = "core";
-	} else {
+		break;
+	default:
+		domain_str = "?";
 		lpar = "?";
 		sindex = "vcpu";
 	}
 
 	return kasprintf(GFP_KERNEL,
-			"domain=0x%x,offset=0x%x,%s=?,lpar=%s",
-			domain,
+			"domain=%s,offset=0x%x,%s=?,lpar=%s",
+			domain_str,
 			be16_to_cpu(event->event_counter_offs) +
 				be16_to_cpu(event->event_group_record_offs),
 			sindex,
@@ -330,6 +383,15 @@ static struct attribute *device_str_attr_create_(char *name, char *str)
 	return &attr->attr.attr;
 }
 
+/*
+ * Allocate and initialize strings representing event attributes.
+ *
+ * NOTE: The strings allocated here are never destroyed and continue to
+ *	 exist till shutdown. This is to allow us to create as many events
+ *	 from the catalog as possible, even if we encounter errors with some.
+ *	 In case of changes to error paths in future, these may need to be
+ *	 freed by the caller.
+ */
 static struct attribute *device_str_attr_create(char *name, int name_max,
 						int name_nonce,
 						char *str, size_t str_max)
@@ -361,16 +423,6 @@ out_s:
 	return NULL;
 }
 
-static void device_str_attr_destroy(struct attribute *attr)
-{
-	struct dev_ext_attribute *d;
-
-	d = container_of(attr, struct dev_ext_attribute, attr.attr);
-	kfree(d->var);
-	kfree(d->attr.attr.name);
-	kfree(d);
-}
-
 static struct attribute *event_to_attr(unsigned ix,
 				       struct hv_24x7_event_data *event,
 				       unsigned domain,
@@ -378,7 +430,6 @@ static struct attribute *event_to_attr(unsigned ix,
 {
 	int event_name_len;
 	char *ev_name, *a_ev_name, *val;
-	const char *ev_suffix;
 	struct attribute *attr;
 
 	if (!domain_is_valid(domain)) {
@@ -391,14 +442,13 @@ static struct attribute *event_to_attr(unsigned ix,
 	if (!val)
 		return NULL;
 
-	ev_suffix = event_domain_suffix(domain);
 	ev_name = event_name(event, &event_name_len);
 	if (!nonce)
-		a_ev_name = kasprintf(GFP_KERNEL, "%.*s%s",
-				(int)event_name_len, ev_name, ev_suffix);
+		a_ev_name = kasprintf(GFP_KERNEL, "%.*s",
+				(int)event_name_len, ev_name);
 	else
-		a_ev_name = kasprintf(GFP_KERNEL, "%.*s%s__%d",
-				(int)event_name_len, ev_name, ev_suffix, nonce);
+		a_ev_name = kasprintf(GFP_KERNEL, "%.*s__%d",
+				(int)event_name_len, ev_name, nonce);
 
 	if (!a_ev_name)
 		goto out_val;
@@ -443,53 +493,14 @@ event_to_long_desc_attr(struct hv_24x7_event_data *event, int nonce)
 	return device_str_attr_create(name, nl, nonce, desc, dl);
 }
 
-static ssize_t event_data_to_attrs(unsigned ix, struct attribute **attrs,
+static int event_data_to_attrs(unsigned ix, struct attribute **attrs,
 				   struct hv_24x7_event_data *event, int nonce)
 {
-	unsigned i;
-
-	switch (event->domain) {
-	case HV_PERF_DOMAIN_PHYS_CHIP:
-		*attrs = event_to_attr(ix, event, event->domain, nonce);
-		return 1;
-	case HV_PERF_DOMAIN_PHYS_CORE:
-		for (i = 0; i < ARRAY_SIZE(core_domains); i++) {
-			attrs[i] = event_to_attr(ix, event, core_domains[i],
-						nonce);
-			if (!attrs[i]) {
-				pr_warn("catalog event %u: individual attr %u "
-					"creation failure\n", ix, i);
-				for (; i; i--)
-					device_str_attr_destroy(attrs[i - 1]);
-				return -1;
-			}
-		}
-		return i;
-	default:
-		pr_warn("catalog event %u: domain %u is not allowed in the "
-				"catalog\n", ix, event->domain);
+	*attrs = event_to_attr(ix, event, event->domain, nonce);
+	if (!*attrs)
 		return -1;
-	}
-}
 
-static size_t event_to_attr_ct(struct hv_24x7_event_data *event)
-{
-	switch (event->domain) {
-	case HV_PERF_DOMAIN_PHYS_CHIP:
-		return 1;
-	case HV_PERF_DOMAIN_PHYS_CORE:
-		return ARRAY_SIZE(core_domains);
-	default:
-		return 0;
-	}
-}
-
-static unsigned long vmalloc_to_phys(void *v)
-{
-	struct page *p = vmalloc_to_page(v);
-
-	BUG_ON(!p);
-	return page_to_phys(p) + offset_in_page(v);
+	return 0;
 }
 
 /* */
@@ -717,9 +728,8 @@ static int create_events_from_catalog(struct attribute ***events_,
 		goto e_free;
 	}
 
-	if (SIZE_MAX / MAX_EVENTS_PER_EVENT_DATA - 1 < event_entry_count) {
-		pr_err("event_entry_count %zu is invalid\n",
-				event_entry_count);
+	if (SIZE_MAX - 1 < event_entry_count) {
+		pr_err("event_entry_count %zu is invalid\n", event_entry_count);
 		ret = -EIO;
 		goto e_free;
 	}
@@ -792,7 +802,7 @@ static int create_events_from_catalog(struct attribute ***events_,
 			continue;
 		}
 
-		attr_max += event_to_attr_ct(event);
+		attr_max++;
 	}
 
 	event_idx_last = event_idx;
@@ -842,12 +852,12 @@ static int create_events_from_catalog(struct attribute ***events_,
 		nonce = event_uniq_add(&ev_uniq, name, nl, event->domain);
 		ct    = event_data_to_attrs(event_idx, events + event_attr_ct,
 					    event, nonce);
-		if (ct <= 0) {
+		if (ct < 0) {
 			pr_warn("event %zu (%.*s) creation failure, skipping\n",
 				event_idx, nl, name);
 			junk_events++;
 		} else {
-			event_attr_ct += ct;
+			event_attr_ct++;
 			event_descs[desc_ct] = event_to_desc_attr(event, nonce);
 			if (event_descs[desc_ct])
 				desc_ct++;
@@ -952,6 +962,27 @@ e_free:
 	return ret;
 }
 
+static ssize_t domains_show(struct device *dev, struct device_attribute *attr,
+			    char *page)
+{
+	int d, n, count = 0;
+	const char *str;
+
+	for (d = 0; d < HV_PERF_DOMAIN_MAX; d++) {
+		str = domain_name(d);
+		if (!str)
+			continue;
+
+		n = sprintf(page, "%d: %s\n", d, str);
+		if (n < 0)
+			break;
+
+		count += n;
+		page += n;
+	}
+	return count;
+}
+
 #define PAGE_0_ATTR(_name, _fmt, _expr)				\
 static ssize_t _name##_show(struct device *dev,			\
 			    struct device_attribute *dev_attr,	\
@@ -980,6 +1011,7 @@ PAGE_0_ATTR(catalog_version, "%lld\n",
 PAGE_0_ATTR(catalog_len, "%lld\n",
 		(unsigned long long)be32_to_cpu(page_0->length) * 4096);
 static BIN_ATTR_RO(catalog, 0/* real length varies */);
+static DEVICE_ATTR_RO(domains);
 
 static struct bin_attribute *if_bin_attrs[] = {
 	&bin_attr_catalog,
@@ -989,6 +1021,7 @@ static struct bin_attribute *if_bin_attrs[] = {
 static struct attribute *if_attrs[] = {
 	&dev_attr_catalog_len.attr,
 	&dev_attr_catalog_version.attr,
+	&dev_attr_domains.attr,
 	NULL,
 };
 
@@ -1080,10 +1113,16 @@ static int add_event_to_24x7_request(struct perf_event *event,
 		return -EINVAL;
 	}
 
-	if (is_physical_domain(event_get_domain(event)))
+	switch (event_get_domain(event)) {
+	case HV_PERF_DOMAIN_PHYS_CHIP:
+		idx = event_get_chip(event);
+		break;
+	case HV_PERF_DOMAIN_PHYS_CORE:
 		idx = event_get_core(event);
-	else
+		break;
+	default:
 		idx = event_get_vcpu(event);
+	}
 
 	i = request_buffer->num_requests++;
 	req = &request_buffer->requests[i];
@@ -1199,11 +1238,12 @@ static int h_24x7_event_init(struct perf_event *event)
 		return -EACCES;
 	}
 
-	/* see if the event complains */
+	/* Get the initial value of the counter for this event */
 	if (single_24x7_request(event, &ct)) {
 		pr_devel("test hcall failed\n");
 		return -EIO;
 	}
+	(void)local64_xchg(&event->hw.prev_count, ct);
 
 	return 0;
 }
@@ -1231,9 +1271,58 @@ static void update_event_count(struct perf_event *event, u64 now)
 static void h_24x7_event_read(struct perf_event *event)
 {
 	u64 now;
+	struct hv_24x7_request_buffer *request_buffer;
+	struct hv_24x7_hw *h24x7hw;
+	int txn_flags;
 
-	now = h_24x7_get_value(event);
-	update_event_count(event, now);
+	txn_flags = __this_cpu_read(hv_24x7_txn_flags);
+
+	/*
+	 * If in a READ transaction, add this counter to the list of
+	 * counters to read during the next HCALL (i.e commit_txn()).
+	 * If not in a READ transaction, go ahead and make the HCALL
+	 * to read this counter by itself.
+	 */
+
+	if (txn_flags & PERF_PMU_TXN_READ) {
+		int i;
+		int ret;
+
+		if (__this_cpu_read(hv_24x7_txn_err))
+			return;
+
+		request_buffer = (void *)get_cpu_var(hv_24x7_reqb);
+
+		ret = add_event_to_24x7_request(event, request_buffer);
+		if (ret) {
+			__this_cpu_write(hv_24x7_txn_err, ret);
+		} else {
+			/*
+			 * Associate the event with the HCALL request index,
+			 * so ->commit_txn() can quickly find/update count.
+			 */
+			i = request_buffer->num_requests - 1;
+
+			h24x7hw = &get_cpu_var(hv_24x7_hw);
+			h24x7hw->events[i] = event;
+			put_cpu_var(h24x7hw);
+			/*
+			 * Clear the event count so we can compute the _change_
+			 * in the 24x7 raw counter value at the end of the txn.
+			 *
+			 * Note that we could alternatively read the 24x7 value
+			 * now and save its value in event->hw.prev_count. But
+			 * that would require issuing a hcall, which would then
+			 * defeat the purpose of using the txn interface.
+			 */
+			local64_set(&event->count, 0);
+		}
+
+		put_cpu_var(hv_24x7_reqb);
+	} else {
+		now = h_24x7_get_value(event);
+		update_event_count(event, now);
+	}
 }
 
 static void h_24x7_event_start(struct perf_event *event, int flags)
@@ -1255,6 +1344,117 @@ static int h_24x7_event_add(struct perf_event *event, int flags)
 	return 0;
 }
 
+/*
+ * 24x7 counters only support READ transactions. They are
+ * always counting and dont need/support ADD transactions.
+ * Cache the flags, but otherwise ignore transactions that
+ * are not PERF_PMU_TXN_READ.
+ */
+static void h_24x7_event_start_txn(struct pmu *pmu, unsigned int flags)
+{
+	struct hv_24x7_request_buffer *request_buffer;
+	struct hv_24x7_data_result_buffer *result_buffer;
+
+	/* We should not be called if we are already in a txn */
+	WARN_ON_ONCE(__this_cpu_read(hv_24x7_txn_flags));
+
+	__this_cpu_write(hv_24x7_txn_flags, flags);
+	if (flags & ~PERF_PMU_TXN_READ)
+		return;
+
+	request_buffer = (void *)get_cpu_var(hv_24x7_reqb);
+	result_buffer = (void *)get_cpu_var(hv_24x7_resb);
+
+	init_24x7_request(request_buffer, result_buffer);
+
+	put_cpu_var(hv_24x7_resb);
+	put_cpu_var(hv_24x7_reqb);
+}
+
+/*
+ * Clean up transaction state.
+ *
+ * NOTE: Ignore state of request and result buffers for now.
+ *	 We will initialize them during the next read/txn.
+ */
+static void reset_txn(void)
+{
+	__this_cpu_write(hv_24x7_txn_flags, 0);
+	__this_cpu_write(hv_24x7_txn_err, 0);
+}
+
+/*
+ * 24x7 counters only support READ transactions. They are always counting
+ * and dont need/support ADD transactions. Clear ->txn_flags but otherwise
+ * ignore transactions that are not of type PERF_PMU_TXN_READ.
+ *
+ * For READ transactions, submit all pending 24x7 requests (i.e requests
+ * that were queued by h_24x7_event_read()), to the hypervisor and update
+ * the event counts.
+ */
+static int h_24x7_event_commit_txn(struct pmu *pmu)
+{
+	struct hv_24x7_request_buffer *request_buffer;
+	struct hv_24x7_data_result_buffer *result_buffer;
+	struct hv_24x7_result *resb;
+	struct perf_event *event;
+	u64 count;
+	int i, ret, txn_flags;
+	struct hv_24x7_hw *h24x7hw;
+
+	txn_flags = __this_cpu_read(hv_24x7_txn_flags);
+	WARN_ON_ONCE(!txn_flags);
+
+	ret = 0;
+	if (txn_flags & ~PERF_PMU_TXN_READ)
+		goto out;
+
+	ret = __this_cpu_read(hv_24x7_txn_err);
+	if (ret)
+		goto out;
+
+	request_buffer = (void *)get_cpu_var(hv_24x7_reqb);
+	result_buffer = (void *)get_cpu_var(hv_24x7_resb);
+
+	ret = make_24x7_request(request_buffer, result_buffer);
+	if (ret) {
+		log_24x7_hcall(request_buffer, result_buffer, ret);
+		goto put_reqb;
+	}
+
+	h24x7hw = &get_cpu_var(hv_24x7_hw);
+
+	/* Update event counts from hcall */
+	for (i = 0; i < request_buffer->num_requests; i++) {
+		resb = &result_buffer->results[i];
+		count = be64_to_cpu(resb->elements[0].element_data[0]);
+		event = h24x7hw->events[i];
+		h24x7hw->events[i] = NULL;
+		update_event_count(event, count);
+	}
+
+	put_cpu_var(hv_24x7_hw);
+
+put_reqb:
+	put_cpu_var(hv_24x7_resb);
+	put_cpu_var(hv_24x7_reqb);
+out:
+	reset_txn();
+	return ret;
+}
+
+/*
+ * 24x7 counters only support READ transactions. They are always counting
+ * and dont need/support ADD transactions. However, regardless of type
+ * of transaction, all we need to do is cleanup, so we don't have to check
+ * the type of transaction.
+ */
+static void h_24x7_event_cancel_txn(struct pmu *pmu)
+{
+	WARN_ON_ONCE(!__this_cpu_read(hv_24x7_txn_flags));
+	reset_txn();
+}
+
 static struct pmu h_24x7_pmu = {
 	.task_ctx_nr = perf_invalid_context,
 
@@ -1266,6 +1466,9 @@ static struct pmu h_24x7_pmu = {
 	.start       = h_24x7_event_start,
 	.stop        = h_24x7_event_stop,
 	.read        = h_24x7_event_read,
+	.start_txn   = h_24x7_event_start_txn,
+	.commit_txn  = h_24x7_event_commit_txn,
+	.cancel_txn  = h_24x7_event_cancel_txn,
 };
 
 static int hv_24x7_init(void)

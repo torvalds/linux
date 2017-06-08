@@ -23,6 +23,8 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
+#include <linux/irqchip/irq-omap-intc.h>
+
 /* Define these here for now until we drop all board-files */
 #define OMAP24XX_IC_BASE	0x480fe000
 #define OMAP34XX_IC_BASE	0x48200000
@@ -47,6 +49,7 @@
 #define INTC_ILR0		0x0100
 
 #define ACTIVEIRQ_MASK		0x7f	/* omap2/3 active interrupt bits */
+#define SPURIOUSIRQ_MASK	(0x1ffffff << 7)
 #define INTCPS_NR_ILR_REGS	128
 #define INTCPS_NR_MIR_REGS	4
 
@@ -207,7 +210,6 @@ static int __init omap_alloc_gc_of(struct irq_domain *d, void __iomem *base)
 		ct = gc->chip_types;
 
 		ct->type = IRQ_TYPE_LEVEL_MASK;
-		ct->handler = handle_level_irq;
 
 		ct->chip.irq_ack = omap_mask_ack_irq;
 		ct->chip.irq_mask = irq_gc_mask_disable_reg;
@@ -330,11 +332,35 @@ static int __init omap_init_irq(u32 base, struct device_node *node)
 static asmlinkage void __exception_irq_entry
 omap_intc_handle_irq(struct pt_regs *regs)
 {
+	extern unsigned long irq_err_count;
 	u32 irqnr;
 
 	irqnr = intc_readl(INTC_SIR);
+
+	/*
+	 * A spurious IRQ can result if interrupt that triggered the
+	 * sorting is no longer active during the sorting (10 INTC
+	 * functional clock cycles after interrupt assertion). Or a
+	 * change in interrupt mask affected the result during sorting
+	 * time. There is no special handling required except ignoring
+	 * the SIR register value just read and retrying.
+	 * See section 6.2.5 of AM335x TRM Literature Number: SPRUH73K
+	 *
+	 * Many a times, a spurious interrupt situation has been fixed
+	 * by adding a flush for the posted write acking the IRQ in
+	 * the device driver. Typically, this is going be the device
+	 * driver whose interrupt was handled just before the spurious
+	 * IRQ occurred. Pay attention to those device drivers if you
+	 * run into hitting the spurious IRQ condition below.
+	 */
+	if (unlikely((irqnr & SPURIOUSIRQ_MASK) == SPURIOUSIRQ_MASK)) {
+		pr_err_once("%s: spurious irq!\n", __func__);
+		irq_err_count++;
+		omap_ack_irq(NULL);
+		return;
+	}
+
 	irqnr &= ACTIVEIRQ_MASK;
-	WARN_ONCE(!irqnr, "Spurious IRQ ?\n");
 	handle_domain_irq(domain, irqnr, regs);
 }
 

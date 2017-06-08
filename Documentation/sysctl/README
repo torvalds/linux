@@ -69,6 +69,7 @@ proc/		<empty>
 sunrpc/		SUN Remote Procedure Call (NFS)
 vm/		memory management tuning
 		buffer and cache management
+user/		Per user per user namespace limits
 
 These are the subdirs I have on my system. There might be more
 or other subdirs in another setup. If you see another dir, I'd

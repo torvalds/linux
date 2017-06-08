@@ -9,6 +9,7 @@ mkdir
 open
 openat
 quotactl
+read
 readlink
 rename
 rmdir
@@ -16,3 +17,4 @@ stat
 statfs
 symlink
 unlink
+write

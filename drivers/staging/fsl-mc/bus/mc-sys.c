@@ -1,4 +1,5 @@
-/* Copyright 2013-2014 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * I/O services to send MC commands to the MC hardware
  *
@@ -12,7 +13,6 @@
  *     * Neither the name of the above-listed copyright holders nor the
  *       names of any contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
- *
  *
  * ALTERNATIVELY, this software may be distributed under the terms of the
  * GNU General Public License ("GPL") as published by the Free Software
@@ -32,17 +32,21 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../include/mc-sys.h"
-#include "../include/mc-cmd.h"
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
+#include <linux/io.h>
+#include "../include/mc-sys.h"
+#include "../include/mc-cmd.h"
+#include "../include/mc.h"
+
+#include "dpmcp.h"
 
 /**
- * Timeout in jiffies to wait for the completion of an MC command
+ * Timeout in milliseconds to wait for the completion of an MC command
  */
-#define MC_CMD_COMPLETION_TIMEOUT_JIFFIES   (HZ / 2)	/* 500 ms */
+#define MC_CMD_COMPLETION_TIMEOUT_MS	500
 
 /*
  * usleep_range() min and max values used to throttle down polling
@@ -51,84 +55,20 @@
 #define MC_CMD_COMPLETION_POLLING_MIN_SLEEP_USECS    10
 #define MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS    500
 
-#define MC_CMD_HDR_READ_CMDID(_hdr) \
-	((uint16_t)mc_dec((_hdr), MC_CMD_HDR_CMDID_O, MC_CMD_HDR_CMDID_S))
-
-/**
- * Creates an MC I/O object
- *
- * @dev: device to be associated with the MC I/O object
- * @mc_portal_phys_addr: physical address of the MC portal to use
- * @mc_portal_size: size in bytes of the MC portal
- * @resource: Pointer to MC bus object allocator resource associated
- * with this MC I/O object or NULL if none.
- * @flags: flags for the new MC I/O object
- * @new_mc_io: Area to return pointer to newly created MC I/O object
- *
- * Returns '0' on Success; Error code otherwise.
- */
-int __must_check fsl_create_mc_io(struct device *dev,
-				  phys_addr_t mc_portal_phys_addr,
-				  uint32_t mc_portal_size,
-				  struct fsl_mc_resource *resource,
-				  uint32_t flags, struct fsl_mc_io **new_mc_io)
+static enum mc_cmd_status mc_cmd_hdr_read_status(struct mc_command *cmd)
 {
-	struct fsl_mc_io *mc_io;
-	void __iomem *mc_portal_virt_addr;
-	struct resource *res;
+	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
 
-	mc_io = devm_kzalloc(dev, sizeof(*mc_io), GFP_KERNEL);
-	if (!mc_io)
-		return -ENOMEM;
-
-	mc_io->dev = dev;
-	mc_io->flags = flags;
-	mc_io->portal_phys_addr = mc_portal_phys_addr;
-	mc_io->portal_size = mc_portal_size;
-	mc_io->resource = resource;
-	res = devm_request_mem_region(dev,
-				      mc_portal_phys_addr,
-				      mc_portal_size,
-				      "mc_portal");
-	if (!res) {
-		dev_err(dev,
-			"devm_request_mem_region failed for MC portal %#llx\n",
-			mc_portal_phys_addr);
-		return -EBUSY;
-	}
-
-	mc_portal_virt_addr = devm_ioremap_nocache(dev,
-						   mc_portal_phys_addr,
-						   mc_portal_size);
-	if (!mc_portal_virt_addr) {
-		dev_err(dev,
-			"devm_ioremap_nocache failed for MC portal %#llx\n",
-			mc_portal_phys_addr);
-		return -ENXIO;
-	}
-
-	mc_io->portal_virt_addr = mc_portal_virt_addr;
-	*new_mc_io = mc_io;
-	return 0;
+	return (enum mc_cmd_status)hdr->status;
 }
-EXPORT_SYMBOL_GPL(fsl_create_mc_io);
 
-/**
- * Destroys an MC I/O object
- *
- * @mc_io: MC I/O object to destroy
- */
-void fsl_destroy_mc_io(struct fsl_mc_io *mc_io)
+static u16 mc_cmd_hdr_read_cmdid(struct mc_command *cmd)
 {
-	devm_iounmap(mc_io->dev, mc_io->portal_virt_addr);
-	devm_release_mem_region(mc_io->dev,
-				mc_io->portal_phys_addr,
-				mc_io->portal_size);
+	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
+	u16 cmd_id = le16_to_cpu(hdr->cmd_id);
 
-	mc_io->portal_virt_addr = NULL;
-	devm_kfree(mc_io->dev, mc_io);
+	return cmd_id;
 }
-EXPORT_SYMBOL_GPL(fsl_destroy_mc_io);
 
 static int mc_status_to_error(enum mc_cmd_status status)
 {
@@ -188,10 +128,11 @@ static inline void mc_write_command(struct mc_command __iomem *portal,
 
 	/* copy command parameters into the portal */
 	for (i = 0; i < MC_CMD_NUM_OF_PARAMS; i++)
-		writeq(cmd->params[i], &portal->params[i]);
+		__raw_writeq(cmd->params[i], &portal->params[i]);
+	__iowmb();
 
 	/* submit the command by writing the header */
-	writeq(cmd->header, &portal->header);
+	__raw_writeq(cmd->header, &portal->header);
 }
 
 /**
@@ -211,38 +152,36 @@ static inline enum mc_cmd_status mc_read_response(struct mc_command __iomem *
 	enum mc_cmd_status status;
 
 	/* Copy command response header from MC portal: */
-	resp->header = readq(&portal->header);
-	status = MC_CMD_HDR_READ_STATUS(resp->header);
+	__iormb();
+	resp->header = __raw_readq(&portal->header);
+	__iormb();
+	status = mc_cmd_hdr_read_status(resp);
 	if (status != MC_CMD_STATUS_OK)
 		return status;
 
 	/* Copy command response data from MC portal: */
 	for (i = 0; i < MC_CMD_NUM_OF_PARAMS; i++)
-		resp->params[i] = readq(&portal->params[i]);
+		resp->params[i] = __raw_readq(&portal->params[i]);
+	__iormb();
 
 	return status;
 }
 
 /**
- * Sends an command to the MC device using the given MC I/O object
+ * Waits for the completion of an MC command doing preemptible polling.
+ * uslepp_range() is called between polling iterations.
  *
  * @mc_io: MC I/O object to be used
- * @cmd: command to be sent
- *
- * Returns '0' on Success; Error code otherwise.
- *
- * NOTE: This function cannot be invoked from from atomic contexts.
+ * @cmd: command buffer to receive MC response
+ * @mc_status: MC command completion status
  */
-int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
+static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
+				       struct mc_command *cmd,
+				       enum mc_cmd_status *mc_status)
 {
 	enum mc_cmd_status status;
 	unsigned long jiffies_until_timeout =
-	    jiffies + MC_CMD_COMPLETION_TIMEOUT_JIFFIES;
-
-	/*
-	 * Send command to the MC hardware:
-	 */
-	mc_write_command(mc_io->portal_virt_addr, cmd);
+		jiffies + msecs_to_jiffies(MC_CMD_COMPLETION_TIMEOUT_MS);
 
 	/*
 	 * Wait for response from the MC hardware:
@@ -260,28 +199,119 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 			     MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS);
 
 		if (time_after_eq(jiffies, jiffies_until_timeout)) {
-			pr_debug("MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
+			dev_dbg(mc_io->dev,
+				"MC command timed out (portal: %#llx, dprc handle: %#x, command: %#x)\n",
 				 mc_io->portal_phys_addr,
-				 (unsigned int)
-					MC_CMD_HDR_READ_TOKEN(cmd->header),
-				 (unsigned int)
-					MC_CMD_HDR_READ_CMDID(cmd->header));
+				 (unsigned int)mc_cmd_hdr_read_token(cmd),
+				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
 
 			return -ETIMEDOUT;
 		}
 	}
 
+	*mc_status = status;
+	return 0;
+}
+
+/**
+ * Waits for the completion of an MC command doing atomic polling.
+ * udelay() is called between polling iterations.
+ *
+ * @mc_io: MC I/O object to be used
+ * @cmd: command buffer to receive MC response
+ * @mc_status: MC command completion status
+ */
+static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
+				  struct mc_command *cmd,
+				  enum mc_cmd_status *mc_status)
+{
+	enum mc_cmd_status status;
+	unsigned long timeout_usecs = MC_CMD_COMPLETION_TIMEOUT_MS * 1000;
+
+	BUILD_BUG_ON((MC_CMD_COMPLETION_TIMEOUT_MS * 1000) %
+		     MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS != 0);
+
+	for (;;) {
+		status = mc_read_response(mc_io->portal_virt_addr, cmd);
+		if (status != MC_CMD_STATUS_READY)
+			break;
+
+		udelay(MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS);
+		timeout_usecs -= MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS;
+		if (timeout_usecs == 0) {
+			dev_dbg(mc_io->dev,
+				"MC command timed out (portal: %#llx, dprc handle: %#x, command: %#x)\n",
+				 mc_io->portal_phys_addr,
+				 (unsigned int)mc_cmd_hdr_read_token(cmd),
+				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
+
+			return -ETIMEDOUT;
+		}
+	}
+
+	*mc_status = status;
+	return 0;
+}
+
+/**
+ * Sends a command to the MC device using the given MC I/O object
+ *
+ * @mc_io: MC I/O object to be used
+ * @cmd: command to be sent
+ *
+ * Returns '0' on Success; Error code otherwise.
+ */
+int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
+{
+	int error;
+	enum mc_cmd_status status;
+	unsigned long irq_flags = 0;
+
+	if (WARN_ON(in_irq() &&
+		    !(mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)))
+		return -EINVAL;
+
+	if (mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)
+		spin_lock_irqsave(&mc_io->spinlock, irq_flags);
+	else
+		mutex_lock(&mc_io->mutex);
+
+	/*
+	 * Send command to the MC hardware:
+	 */
+	mc_write_command(mc_io->portal_virt_addr, cmd);
+
+	/*
+	 * Wait for response from the MC hardware:
+	 */
+	if (!(mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL))
+		error = mc_polling_wait_preemptible(mc_io, cmd, &status);
+	else
+		error = mc_polling_wait_atomic(mc_io, cmd, &status);
+
+	if (error < 0)
+		goto common_exit;
+
 	if (status != MC_CMD_STATUS_OK) {
-		pr_debug("MC command failed: portal: %#llx, obj handle: %#x, command: %#x, status: %s (%#x)\n",
+		dev_dbg(mc_io->dev,
+			"MC command failed: portal: %#llx, dprc handle: %#x, command: %#x, status: %s (%#x)\n",
 			 mc_io->portal_phys_addr,
-			 (unsigned int)MC_CMD_HDR_READ_TOKEN(cmd->header),
-			 (unsigned int)MC_CMD_HDR_READ_CMDID(cmd->header),
+			 (unsigned int)mc_cmd_hdr_read_token(cmd),
+			 (unsigned int)mc_cmd_hdr_read_cmdid(cmd),
 			 mc_status_to_string(status),
 			 (unsigned int)status);
 
-		return mc_status_to_error(status);
+		error = mc_status_to_error(status);
+		goto common_exit;
 	}
 
-	return 0;
+	error = 0;
+common_exit:
+	if (mc_io->flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)
+		spin_unlock_irqrestore(&mc_io->spinlock, irq_flags);
+	else
+		mutex_unlock(&mc_io->mutex);
+
+	return error;
 }
 EXPORT_SYMBOL(mc_send_command);

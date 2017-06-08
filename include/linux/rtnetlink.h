@@ -33,11 +33,11 @@ extern wait_queue_head_t netdev_unregistering_wq;
 extern struct mutex net_mutex;
 
 #ifdef CONFIG_PROVE_LOCKING
-extern int lockdep_rtnl_is_held(void);
+extern bool lockdep_rtnl_is_held(void);
 #else
-static inline int lockdep_rtnl_is_held(void)
+static inline bool lockdep_rtnl_is_held(void)
 {
-	return 1;
+	return true;
 }
 #endif /* #ifdef CONFIG_PROVE_LOCKING */
 
@@ -84,8 +84,14 @@ void net_inc_ingress_queue(void);
 void net_dec_ingress_queue(void);
 #endif
 
-extern void rtnetlink_init(void);
-extern void __rtnl_unlock(void);
+#ifdef CONFIG_NET_EGRESS
+void net_inc_egress_queue(void);
+void net_dec_egress_queue(void);
+#endif
+
+void rtnetlink_init(void);
+void __rtnl_unlock(void);
+void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail);
 
 #define ASSERT_RTNL() do { \
 	if (unlikely(!rtnl_is_locked())) { \
@@ -99,7 +105,7 @@ extern int ndo_dflt_fdb_dump(struct sk_buff *skb,
 			     struct netlink_callback *cb,
 			     struct net_device *dev,
 			     struct net_device *filter_dev,
-			     int idx);
+			     int *idx);
 extern int ndo_dflt_fdb_add(struct ndmsg *ndm,
 			    struct nlattr *tb[],
 			    struct net_device *dev,

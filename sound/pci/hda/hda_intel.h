@@ -35,7 +35,7 @@ struct hda_intel {
 	unsigned int irq_pending_warned:1;
 	unsigned int probe_continued:1;
 
-	/* VGA-switcheroo setup */
+	/* vga_switcheroo setup */
 	unsigned int use_vga_switcheroo:1;
 	unsigned int vga_switcheroo_registered:1;
 	unsigned int init_failed:1; /* delayed init failed */

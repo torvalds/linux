@@ -1,7 +1,15 @@
 #ifndef ISCSI_TARGET_UTIL_H
 #define ISCSI_TARGET_UTIL_H
 
+#include <linux/types.h>
+#include <scsi/iscsi_proto.h>        /* itt_t */
+
 #define MARKER_SIZE	8
+
+struct iscsi_cmd;
+struct iscsi_conn;
+struct iscsi_conn_recovery;
+struct iscsi_session;
 
 extern int iscsit_add_r2t_to_list(struct iscsi_cmd *, u32, u32, int, u32);
 extern struct iscsi_r2t *iscsit_get_r2t_for_eos(struct iscsi_cmd *, u32, u32);
@@ -23,7 +31,7 @@ extern int iscsit_find_cmd_for_recovery(struct iscsi_session *, struct iscsi_cmd
 			struct iscsi_conn_recovery **, itt_t);
 extern void iscsit_add_cmd_to_immediate_queue(struct iscsi_cmd *, struct iscsi_conn *, u8);
 extern struct iscsi_queue_req *iscsit_get_cmd_from_immediate_queue(struct iscsi_conn *);
-extern void iscsit_add_cmd_to_response_queue(struct iscsi_cmd *, struct iscsi_conn *, u8);
+extern int iscsit_add_cmd_to_response_queue(struct iscsi_cmd *, struct iscsi_conn *, u8);
 extern struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(struct iscsi_conn *);
 extern void iscsit_remove_cmd_from_tx_queues(struct iscsi_cmd *, struct iscsi_conn *);
 extern bool iscsit_conn_all_queues_empty(struct iscsi_conn *);

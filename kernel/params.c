@@ -160,58 +160,6 @@ static int parse_one(char *param,
 	return -ENOENT;
 }
 
-/* You can use " around spaces, but can't escape ". */
-/* Hyphens and underscores equivalent in parameter names. */
-static char *next_arg(char *args, char **param, char **val)
-{
-	unsigned int i, equals = 0;
-	int in_quote = 0, quoted = 0;
-	char *next;
-
-	if (*args == '"') {
-		args++;
-		in_quote = 1;
-		quoted = 1;
-	}
-
-	for (i = 0; args[i]; i++) {
-		if (isspace(args[i]) && !in_quote)
-			break;
-		if (equals == 0) {
-			if (args[i] == '=')
-				equals = i;
-		}
-		if (args[i] == '"')
-			in_quote = !in_quote;
-	}
-
-	*param = args;
-	if (!equals)
-		*val = NULL;
-	else {
-		args[equals] = '\0';
-		*val = args + equals + 1;
-
-		/* Don't include quotes in value. */
-		if (**val == '"') {
-			(*val)++;
-			if (args[i-1] == '"')
-				args[i-1] = '\0';
-		}
-	}
-	if (quoted && args[i-1] == '"')
-		args[i-1] = '\0';
-
-	if (args[i]) {
-		args[i] = '\0';
-		next = args + i + 1;
-	} else
-		next = args + i;
-
-	/* Chew up trailing spaces. */
-	return skip_spaces(next);
-}
-
 /* Args looks like "foo=bar,bar2 baz=fuz wiz". */
 char *parse_args(const char *doing,
 		 char *args,
@@ -223,7 +171,7 @@ char *parse_args(const char *doing,
 		 int (*unknown)(char *param, char *val,
 				const char *doing, void *arg))
 {
-	char *param, *val;
+	char *param, *val, *err = NULL;
 
 	/* Chew leading spaces */
 	args = skip_spaces(args);
@@ -238,7 +186,7 @@ char *parse_args(const char *doing,
 		args = next_arg(args, &param, &val);
 		/* Stop at -- */
 		if (!val && strcmp(param, "--") == 0)
-			return args;
+			return err ?: args;
 		irq_was_disabled = irqs_disabled();
 		ret = parse_one(param, val, doing, params, num,
 				min_level, max_level, arg, unknown);
@@ -247,24 +195,25 @@ char *parse_args(const char *doing,
 				doing, param);
 
 		switch (ret) {
+		case 0:
+			continue;
 		case -ENOENT:
 			pr_err("%s: Unknown parameter `%s'\n", doing, param);
-			return ERR_PTR(ret);
+			break;
 		case -ENOSPC:
 			pr_err("%s: `%s' too large for parameter `%s'\n",
 			       doing, val ?: "", param);
-			return ERR_PTR(ret);
-		case 0:
 			break;
 		default:
 			pr_err("%s: `%s' invalid for parameter `%s'\n",
 			       doing, val ?: "", param);
-			return ERR_PTR(ret);
+			break;
 		}
+
+		err = ERR_PTR(ret);
 	}
 
-	/* All parsed OK. */
-	return NULL;
+	return err;
 }
 
 /* Lazy bastard, eh? */
@@ -325,10 +274,11 @@ int param_get_charp(char *buffer, const struct kernel_param *kp)
 }
 EXPORT_SYMBOL(param_get_charp);
 
-static void param_free_charp(void *arg)
+void param_free_charp(void *arg)
 {
 	maybe_kfree_parameter(*((char **)arg));
 }
+EXPORT_SYMBOL(param_free_charp);
 
 const struct kernel_param_ops param_ops_charp = {
 	.set = param_set_charp,

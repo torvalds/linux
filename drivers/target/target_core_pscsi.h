@@ -15,11 +15,12 @@
 #define PS_TIMEOUT_DISK		(15*HZ)
 #define PS_TIMEOUT_OTHER	(500*HZ)
 
-#include <linux/device.h>
-#include <linux/kref.h>
-#include <linux/kobject.h>
+#include <linux/cache.h>             /* ___cacheline_aligned */
+#include <target/target_core_base.h> /* struct se_device */
 
+struct block_device;
 struct scsi_device;
+struct Scsi_Host;
 
 struct pscsi_plugin_task {
 	unsigned char pscsi_sense[TRANSPORT_SENSE_BUFFER];

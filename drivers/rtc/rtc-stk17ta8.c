@@ -23,8 +23,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-#define DRV_VERSION "0.1"
-
 #define RTC_REG_SIZE		0x20000
 #define RTC_OFFSET		0x1fff0
 
@@ -366,4 +364,3 @@ module_platform_driver(stk17ta8_rtc_driver);
 MODULE_AUTHOR("Thomas Hommel <thomas.hommel@ge.com>");
 MODULE_DESCRIPTION("Simtek STK17TA8 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

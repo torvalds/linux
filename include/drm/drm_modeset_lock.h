@@ -43,19 +43,19 @@ struct drm_modeset_acquire_ctx {
 
 	struct ww_acquire_ctx ww_ctx;
 
-	/**
+	/*
 	 * Contended lock: if a lock is contended you should only call
 	 * drm_modeset_backoff() which drops locks and slow-locks the
 	 * contended lock.
 	 */
 	struct drm_modeset_lock *contended;
 
-	/**
+	/*
 	 * list of held locks (drm_modeset_lock)
 	 */
 	struct list_head locked;
 
-	/**
+	/*
 	 * Trylock mode, use only for panic handlers!
 	 */
 	bool trylock_only;
@@ -64,25 +64,23 @@ struct drm_modeset_acquire_ctx {
 /**
  * struct drm_modeset_lock - used for locking modeset resources.
  * @mutex: resource locking
- * @head: used to hold it's place on state->locked list when
+ * @head: used to hold it's place on &drm_atomi_state.locked list when
  *    part of an atomic update
  *
  * Used for locking CRTCs and other modeset resources.
  */
 struct drm_modeset_lock {
-	/**
+	/*
 	 * modeset lock
 	 */
 	struct ww_mutex mutex;
 
-	/**
+	/*
 	 * Resources that are locked as part of an atomic update are added
 	 * to a list (so we know what to unlock at the end).
 	 */
 	struct list_head head;
 };
-
-extern struct ww_class crtc_ww_class;
 
 void drm_modeset_acquire_init(struct drm_modeset_acquire_ctx *ctx,
 		uint32_t flags);
@@ -91,15 +89,7 @@ void drm_modeset_drop_locks(struct drm_modeset_acquire_ctx *ctx);
 void drm_modeset_backoff(struct drm_modeset_acquire_ctx *ctx);
 int drm_modeset_backoff_interruptible(struct drm_modeset_acquire_ctx *ctx);
 
-/**
- * drm_modeset_lock_init - initialize lock
- * @lock: lock to init
- */
-static inline void drm_modeset_lock_init(struct drm_modeset_lock *lock)
-{
-	ww_mutex_init(&lock->mutex, &crtc_ww_class);
-	INIT_LIST_HEAD(&lock->head);
-}
+void drm_modeset_lock_init(struct drm_modeset_lock *lock);
 
 /**
  * drm_modeset_lock_fini - cleanup lock
@@ -131,14 +121,9 @@ struct drm_plane;
 
 void drm_modeset_lock_all(struct drm_device *dev);
 void drm_modeset_unlock_all(struct drm_device *dev);
-void drm_modeset_lock_crtc(struct drm_crtc *crtc,
-			   struct drm_plane *plane);
-void drm_modeset_unlock_crtc(struct drm_crtc *crtc);
 void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
-struct drm_modeset_acquire_ctx *
-drm_modeset_legacy_acquire_ctx(struct drm_crtc *crtc);
 
-int drm_modeset_lock_all_crtcs(struct drm_device *dev,
-		struct drm_modeset_acquire_ctx *ctx);
+int drm_modeset_lock_all_ctx(struct drm_device *dev,
+			     struct drm_modeset_acquire_ctx *ctx);
 
 #endif /* DRM_MODESET_LOCK_H_ */

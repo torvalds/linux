@@ -10,9 +10,17 @@
  */
 
 #include <linux/kernel.h>
-#include <keys/system_keyring.h>
+#include <linux/errno.h>
+#include <linux/string.h>
+#include <linux/verification.h>
 #include <crypto/public_key.h>
 #include "module-internal.h"
+
+enum pkey_id_type {
+	PKEY_ID_PGP,		/* OpenPGP generated key ID */
+	PKEY_ID_X509,		/* X.509 arbitrary subjectKeyIdentifier */
+	PKEY_ID_PKCS7,		/* Signature in PKCS#7 message */
+};
 
 /*
  * Module signature information block.
@@ -72,6 +80,7 @@ int mod_verify_sig(const void *mod, unsigned long *_modlen)
 		return -EBADMSG;
 	}
 
-	return system_verify_data(mod, modlen, mod + modlen, sig_len,
-				  VERIFYING_MODULE_SIGNATURE);
+	return verify_pkcs7_signature(mod, modlen, mod + modlen, sig_len,
+				      NULL, VERIFYING_MODULE_SIGNATURE,
+				      NULL, NULL);
 }

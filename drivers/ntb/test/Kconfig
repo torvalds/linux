@@ -17,3 +17,11 @@ config NTB_TOOL
 	 functioning at a basic level.
 
 	 If unsure, say N.
+
+config NTB_PERF
+	tristate "NTB RAW Perf Measuring Tool"
+	help
+	 This is a tool to measure raw NTB performance by transferring data
+	 to and from the window without additional software interaction.
+
+	 If unsure, say N.

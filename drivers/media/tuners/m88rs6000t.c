@@ -461,13 +461,12 @@ static int m88rs6000t_sleep(struct dvb_frontend *fe)
 	dev_dbg(&dev->client->dev, "%s:\n", __func__);
 
 	ret = regmap_write(dev->regmap, 0x07, 0x6d);
-	if (ret)
-		goto err;
-	usleep_range(5000, 10000);
-err:
-	if (ret)
+	if (ret) {
 		dev_dbg(&dev->client->dev, "failed=%d\n", ret);
-	return ret;
+		return ret;
+	}
+	usleep_range(5000, 10000);
+	return 0;
 }
 
 static int m88rs6000t_get_frequency(struct dvb_frontend *fe, u32 *frequency)

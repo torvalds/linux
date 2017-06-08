@@ -3,6 +3,7 @@
 
 #include <linux/limits.h>
 #include <linux/net.h>
+#include <linux/cred.h>
 #include <linux/security.h>
 #include <linux/pid.h>
 #include <linux/nsproxy.h>
@@ -21,6 +22,7 @@ struct scm_creds {
 struct scm_fp_list {
 	short			count;
 	short			max;
+	struct user_struct	*user;
 	struct file		*fp[SCM_MAX_FD];
 };
 

@@ -167,7 +167,6 @@ static int adis16130_probe(struct spi_device *spi)
 static struct spi_driver adis16130_driver = {
 	.driver = {
 		.name = "adis16130",
-		.owner = THIS_MODULE,
 	},
 	.probe = adis16130_probe,
 };

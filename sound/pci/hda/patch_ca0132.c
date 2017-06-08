@@ -778,7 +778,9 @@ static const struct hda_pintbl alienware_pincfgs[] = {
 };
 
 static const struct snd_pci_quirk ca0132_quirks[] = {
-	SND_PCI_QUIRK(0x1028, 0x0685, "Alienware 15", QUIRK_ALIENWARE),
+	SND_PCI_QUIRK(0x1028, 0x0685, "Alienware 15 2015", QUIRK_ALIENWARE),
+	SND_PCI_QUIRK(0x1028, 0x0688, "Alienware 17 2015", QUIRK_ALIENWARE),
+	SND_PCI_QUIRK(0x1028, 0x0708, "Alienware 15 R2 2016", QUIRK_ALIENWARE),
 	{}
 };
 
@@ -855,7 +857,7 @@ static int chipio_write_address(struct hda_codec *codec,
 				  chip_addx >> 16);
 	}
 
-	spec->curr_chip_addx = (res < 0) ? ~0UL : chip_addx;
+	spec->curr_chip_addx = (res < 0) ? ~0U : chip_addx;
 
 	return res;
 }
@@ -880,7 +882,7 @@ static int chipio_write_data(struct hda_codec *codec, unsigned int data)
 	/*If no error encountered, automatically increment the address
 	as per chip behaviour*/
 	spec->curr_chip_addx = (res != -EIO) ?
-					(spec->curr_chip_addx + 4) : ~0UL;
+					(spec->curr_chip_addx + 4) : ~0U;
 	return res;
 }
 
@@ -931,7 +933,7 @@ static int chipio_read_data(struct hda_codec *codec, unsigned int *data)
 	/*If no error encountered, automatically increment the address
 	as per chip behaviour*/
 	spec->curr_chip_addx = (res != -EIO) ?
-					(spec->curr_chip_addx + 4) : ~0UL;
+					(spec->curr_chip_addx + 4) : ~0U;
 	return res;
 }
 
@@ -1166,7 +1168,7 @@ static int dspio_write_multiple(struct hda_codec *codec,
 	int status = 0;
 	unsigned int count;
 
-	if ((buffer == NULL))
+	if (buffer == NULL)
 		return -EINVAL;
 
 	count = 0;
@@ -1208,7 +1210,7 @@ static int dspio_read_multiple(struct hda_codec *codec, unsigned int *buffer,
 	unsigned int skip_count;
 	unsigned int dummy;
 
-	if ((buffer == NULL))
+	if (buffer == NULL)
 		return -1;
 
 	count = 0;
@@ -1479,6 +1481,9 @@ static int dspio_scp(struct hda_codec *codec,
 			return -EINVAL;
 		} else if (ret_size != reply_data_size) {
 			codec_dbg(codec, "RetLen and HdrLen .NE.\n");
+			return -EINVAL;
+		} else if (!reply) {
+			codec_dbg(codec, "NULL reply\n");
 			return -EINVAL;
 		} else {
 			*reply_len = ret_size*sizeof(unsigned int);
@@ -2673,13 +2678,13 @@ static bool dspload_wait_loaded(struct hda_codec *codec)
 
 	do {
 		if (dspload_is_loaded(codec)) {
-			pr_info("ca0132 DOWNLOAD OK :-) DSP IS RUNNING.\n");
+			codec_info(codec, "ca0132 DSP downloaded and running\n");
 			return true;
 		}
 		msleep(20);
 	} while (time_before(jiffies, timeout));
 
-	pr_err("ca0132 DOWNLOAD FAILED!!! DSP IS NOT RUNNING.\n");
+	codec_err(codec, "ca0132 failed to download DSP\n");
 	return false;
 }
 
@@ -2861,7 +2866,7 @@ static unsigned int ca0132_capture_pcm_delay(struct hda_pcm_stream *info,
 #define CA0132_CODEC_MUTE(xname, nid, dir) \
 	CA0132_CODEC_MUTE_MONO(xname, nid, 3, dir)
 
-/* The followings are for tuning of products */
+/* The following are for tuning of products */
 #ifdef ENABLE_TUNING_CONTROLS
 
 static unsigned int voice_focus_vals_lookup[] = {
@@ -4017,7 +4022,7 @@ static int ca0132_build_controls(struct hda_codec *codec)
 /*
  * PCM
  */
-static struct hda_pcm_stream ca0132_pcm_analog_playback = {
+static const struct hda_pcm_stream ca0132_pcm_analog_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 6,
@@ -4028,7 +4033,7 @@ static struct hda_pcm_stream ca0132_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream ca0132_pcm_analog_capture = {
+static const struct hda_pcm_stream ca0132_pcm_analog_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4039,7 +4044,7 @@ static struct hda_pcm_stream ca0132_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream ca0132_pcm_digital_playback = {
+static const struct hda_pcm_stream ca0132_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4051,7 +4056,7 @@ static struct hda_pcm_stream ca0132_pcm_digital_playback = {
 	},
 };
 
-static struct hda_pcm_stream ca0132_pcm_digital_capture = {
+static const struct hda_pcm_stream ca0132_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4375,7 +4380,7 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 
 	dsp_os_image = (struct dsp_image_seg *)(fw_entry->data);
 	if (dspload_image(codec, dsp_os_image, 0, 0, true, 0)) {
-		pr_err("ca0132 dspload_image failed.\n");
+		codec_err(codec, "ca0132 DSP load image failed\n");
 		goto exit_download;
 	}
 
@@ -4426,13 +4431,16 @@ static void ca0132_process_dsp_response(struct hda_codec *codec,
 static void hp_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
 {
 	struct ca0132_spec *spec = codec->spec;
+	struct hda_jack_tbl *tbl;
 
 	/* Delay enabling the HP amp, to let the mic-detection
 	 * state machine run.
 	 */
 	cancel_delayed_work_sync(&spec->unsol_hp_work);
 	schedule_delayed_work(&spec->unsol_hp_work, msecs_to_jiffies(500));
-	cb->tbl->block_report = 1;
+	tbl = snd_hda_jack_tbl_get(codec, cb->nid);
+	if (tbl)
+		tbl->block_report = 1;
 }
 
 static void amic_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
@@ -4610,7 +4618,7 @@ static void ca0132_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
-static struct hda_codec_ops ca0132_patch_ops = {
+static const struct hda_codec_ops ca0132_patch_ops = {
 	.build_controls = ca0132_build_controls,
 	.build_pcms = ca0132_build_pcms,
 	.init = ca0132_init,
@@ -4778,18 +4786,17 @@ static int patch_ca0132(struct hda_codec *codec)
 /*
  * patch entries
  */
-static struct hda_codec_preset snd_hda_preset_ca0132[] = {
-	{ .id = 0x11020011, .name = "CA0132",     .patch = patch_ca0132 },
+static struct hda_device_id snd_hda_id_ca0132[] = {
+	HDA_CODEC_ENTRY(0x11020011, "CA0132", patch_ca0132),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:11020011");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_ca0132);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Creative Sound Core3D codec");
 
 static struct hda_codec_driver ca0132_driver = {
-	.preset = snd_hda_preset_ca0132,
+	.id = snd_hda_id_ca0132,
 };
 
 module_hda_codec_driver(ca0132_driver);

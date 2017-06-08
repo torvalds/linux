@@ -20,12 +20,14 @@
 
 static const struct i2c_device_id es8328_id[] = {
 	{ "es8328", 0 },
+	{ "es8388", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, es8328_id);
 
 static const struct of_device_id es8328_of_match[] = {
 	{ .compatible = "everest,es8328", },
+	{ .compatible = "everest,es8388", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, es8328_of_match);

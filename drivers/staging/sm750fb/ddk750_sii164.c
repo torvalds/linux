@@ -11,11 +11,11 @@
 #define USE_HW_I2C
 
 #ifdef USE_HW_I2C
-    #define i2cWriteReg hwI2CWriteReg
-    #define i2cReadReg  hwI2CReadReg
+    #define i2cWriteReg sm750_hw_i2c_write_reg
+    #define i2cReadReg  sm750_hw_i2c_read_reg
 #else
-    #define i2cWriteReg swI2CWriteReg
-    #define i2cReadReg  swI2CReadReg
+    #define i2cWriteReg sm750_sw_i2c_write_reg
+    #define i2cReadReg  sm750_sw_i2c_read_reg
 #endif
 
 /* SII164 Vendor and Device ID */
@@ -130,9 +130,9 @@ long sii164InitChip(
 	/* Initialize the i2c bus */
 #ifdef USE_HW_I2C
 	/* Use fast mode. */
-	hwI2CInit(1);
+	sm750_hw_i2c_init(1);
 #else
-	swI2CInit(DEFAULT_I2C_SCL, DEFAULT_I2C_SDA);
+	sm750_sw_i2c_init(DEFAULT_I2C_SCL, DEFAULT_I2C_SDA);
 #endif
 
 	/* Check if SII164 Chip exists */
@@ -173,9 +173,10 @@ long sii164InitChip(
 
 		i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
 
-		/* De-skew enabled with default 111b value.
-		   This will fix some artifacts problem in some mode on board 2.2.
-		   Somehow this fix does not affect board 2.1.
+		/*
+		 * De-skew enabled with default 111b value.
+		 * This fixes some artifacts problem in some mode on board 2.2.
+		 * Somehow this fix does not affect board 2.1.
 		 */
 		if (deskewEnable == 0)
 			config = SII164_DESKEW_DISABLE;
@@ -236,7 +237,7 @@ long sii164InitChip(
 	}
 
 	/* Return -1 if initialization fails. */
-	return (-1);
+	return -1;
 }
 
 
@@ -344,7 +345,8 @@ void sii164EnableHotPlugDetection(
 	detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT);
 
 	/* Depending on each DVI controller, need to enable the hot plug based on each
-	   individual chip design. */
+	 * individual chip design.
+	 */
 	if (enableHotPlug != 0)
 		sii164SelectHotPlugDetectionMode(SII164_HOTPLUG_USE_MDI);
 	else

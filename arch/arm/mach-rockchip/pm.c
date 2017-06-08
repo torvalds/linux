@@ -62,7 +62,7 @@ static inline u32 rk3288_l2_config(void)
 static void rk3288_config_bootdata(void)
 {
 	rkpm_bootdata_cpusp = rk3288_bootram_phy + (SZ_4K - 8);
-	rkpm_bootdata_cpu_code = virt_to_phys(cpu_resume);
+	rkpm_bootdata_cpu_code = __pa_symbol(cpu_resume);
 
 	rkpm_bootdata_l2ctlr_f  = 1;
 	rkpm_bootdata_l2ctlr = rk3288_l2_config();

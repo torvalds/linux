@@ -5,7 +5,7 @@
 #include <net/act_api.h>
 
 struct tcf_nat {
-	struct tcf_common common;
+	struct tc_action common;
 
 	__be32 old_addr;
 	__be32 new_addr;
@@ -13,9 +13,6 @@ struct tcf_nat {
 	u32 flags;
 };
 
-static inline struct tcf_nat *to_tcf_nat(struct tc_action *a)
-{
-	return container_of(a->priv, struct tcf_nat, common);
-}
+#define to_tcf_nat(a) ((struct tcf_nat *)a)
 
 #endif /* __NET_TC_NAT_H */

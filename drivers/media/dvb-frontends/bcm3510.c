@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2001-5, B2C2 inc.
  *
- *  GPL/Linux driver written by Patrick Boettcher <patrick.boettcher@desy.de>
+ *  GPL/Linux driver written by Patrick Boettcher <patrick.boettcher@posteo.de>
  *
  *  This driver is "hard-coded" to be used with the 1st generation of
  *  Technisat/B2C2's Air2PC ATSC PCI/USB cards/boxes. The pll-programming
@@ -788,7 +788,7 @@ static int bcm3510_init(struct dvb_frontend* fe)
 }
 
 
-static struct dvb_frontend_ops bcm3510_ops;
+static const struct dvb_frontend_ops bcm3510_ops;
 
 struct dvb_frontend* bcm3510_attach(const struct bcm3510_config *config,
 				   struct i2c_adapter *i2c)
@@ -834,7 +834,7 @@ error:
 }
 EXPORT_SYMBOL(bcm3510_attach);
 
-static struct dvb_frontend_ops bcm3510_ops = {
+static const struct dvb_frontend_ops bcm3510_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "Broadcom BCM3510 VSB/QAM frontend",
@@ -865,5 +865,5 @@ static struct dvb_frontend_ops bcm3510_ops = {
 };
 
 MODULE_DESCRIPTION("Broadcom BCM3510 ATSC (8VSB/16VSB & ITU J83 AnnexB FEC QAM64/256) demodulator driver");
-MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_LICENSE("GPL");

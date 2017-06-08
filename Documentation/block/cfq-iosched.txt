@@ -81,14 +81,13 @@ on higher end storage.
 
 Default value for this parameter is 8ms.
 
-latency
--------
-This parameter is used to enable/disable the latency mode of the CFQ
-scheduler. If latency mode (called low_latency) is enabled, CFQ tries
-to recompute the slice time for each process based on the target_latency set
-for the system. This favors fairness over throughput. Disabling low
-latency (setting it to 0) ignores target latency, allowing each process in the
-system to get a full time slice.
+low_latency
+-----------
+This parameter is used to enable/disable the low latency mode of the CFQ
+scheduler. If enabled, CFQ tries to recompute the slice time for each process
+based on the target_latency set for the system. This favors fairness over
+throughput. Disabling low latency (setting it to 0) ignores target latency,
+allowing each process in the system to get a full time slice.
 
 By default low latency mode is enabled.
 
@@ -241,11 +240,11 @@ All cfq queues doing synchronous sequential IO go on to sync-idle tree.
 On this tree we idle on each queue individually.
 
 All synchronous non-sequential queues go on sync-noidle tree. Also any
-request which are marked with REQ_NOIDLE go on this service tree. On this
-tree we do not idle on individual queues instead idle on the whole group
-of queues or the tree. So if there are 4 queues waiting for IO to dispatch
-we will idle only once last queue has dispatched the IO and there is
-no more IO on this service tree.
+synchronous write request which is not marked with REQ_IDLE goes on this
+service tree. On this tree we do not idle on individual queues instead idle
+on the whole group of queues or the tree. So if there are 4 queues waiting
+for IO to dispatch we will idle only once last queue has dispatched the IO
+and there is no more IO on this service tree.
 
 All async writes go on async service tree. There is no idling on async
 queues.
@@ -258,17 +257,17 @@ tree idling provides isolation with buffered write queues on async tree.
 
 FAQ
 ===
-Q1. Why to idle at all on queues marked with REQ_NOIDLE.
+Q1. Why to idle at all on queues not marked with REQ_IDLE.
 
-A1. We only do tree idle (all queues on sync-noidle tree) on queues marked
-    with REQ_NOIDLE. This helps in providing isolation with all the sync-idle
+A1. We only do tree idle (all queues on sync-noidle tree) on queues not marked
+    with REQ_IDLE. This helps in providing isolation with all the sync-idle
     queues. Otherwise in presence of many sequential readers, other
     synchronous IO might not get fair share of disk.
 
     For example, if there are 10 sequential readers doing IO and they get
-    100ms each. If a REQ_NOIDLE request comes in, it will be scheduled
-    roughly after 1 second. If after completion of REQ_NOIDLE request we
-    do not idle, and after a couple of milli seconds a another REQ_NOIDLE
+    100ms each. If a !REQ_IDLE request comes in, it will be scheduled
+    roughly after 1 second. If after completion of !REQ_IDLE request we
+    do not idle, and after a couple of milli seconds a another !REQ_IDLE
     request comes in, again it will be scheduled after 1second. Repeat it
     and notice how a workload can lose its disk share and suffer due to
     multiple sequential readers.
@@ -277,16 +276,16 @@ A1. We only do tree idle (all queues on sync-noidle tree) on queues marked
     context of fsync, and later some journaling data is written. Journaling
     data comes in only after fsync has finished its IO (atleast for ext4
     that seemed to be the case). Now if one decides not to idle on fsync
-    thread due to REQ_NOIDLE, then next journaling write will not get
+    thread due to !REQ_IDLE, then next journaling write will not get
     scheduled for another second. A process doing small fsync, will suffer
     badly in presence of multiple sequential readers.
 
-    Hence doing tree idling on threads using REQ_NOIDLE flag on requests
+    Hence doing tree idling on threads using !REQ_IDLE flag on requests
     provides isolation from multiple sequential readers and at the same
     time we do not idle on individual threads.
 
-Q2. When to specify REQ_NOIDLE
-A2. I would think whenever one is doing synchronous write and not expecting
+Q2. When to specify REQ_IDLE
+A2. I would think whenever one is doing synchronous write and expecting
     more writes to be dispatched from same context soon, should be able
-    to specify REQ_NOIDLE on writes and that probably should work well for
+    to specify REQ_IDLE on writes and that probably should work well for
     most of the cases.

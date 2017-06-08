@@ -1414,7 +1414,7 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	dev_dbg(dev, "[%s]", __func__);
-	device_data = kzalloc(sizeof(struct cryp_device_data), GFP_ATOMIC);
+	device_data = devm_kzalloc(dev, sizeof(*device_data), GFP_ATOMIC);
 	if (!device_data) {
 		dev_err(dev, "[%s]: kzalloc() failed!", __func__);
 		ret = -ENOMEM;
@@ -1435,23 +1435,15 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 		dev_err(dev, "[%s]: platform_get_resource() failed",
 				__func__);
 		ret = -ENODEV;
-		goto out_kfree;
-	}
-
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (res == NULL) {
-		dev_err(dev, "[%s]: request_mem_region() failed",
-				__func__);
-		ret = -EBUSY;
-		goto out_kfree;
+		goto out;
 	}
 
 	device_data->phybase = res->start;
-	device_data->base = ioremap(res->start, resource_size(res));
-	if (!device_data->base) {
+	device_data->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(device_data->base)) {
 		dev_err(dev, "[%s]: ioremap failed!", __func__);
-		ret = -ENOMEM;
-		goto out_free_mem;
+		ret = PTR_ERR(device_data->base);
+		goto out;
 	}
 
 	spin_lock_init(&device_data->ctx_lock);
@@ -1463,11 +1455,11 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 		dev_err(dev, "[%s]: could not get cryp regulator", __func__);
 		ret = PTR_ERR(device_data->pwr_regulator);
 		device_data->pwr_regulator = NULL;
-		goto out_unmap;
+		goto out;
 	}
 
 	/* Enable the clk for CRYP hardware block */
-	device_data->clk = clk_get(&pdev->dev, NULL);
+	device_data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(device_data->clk)) {
 		dev_err(dev, "[%s]: clk_get() failed!", __func__);
 		ret = PTR_ERR(device_data->clk);
@@ -1477,7 +1469,7 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 	ret = clk_prepare(device_data->clk);
 	if (ret) {
 		dev_err(dev, "[%s]: clk_prepare() failed!", __func__);
-		goto out_clk;
+		goto out_regulator;
 	}
 
 	/* Enable device power (and clock) */
@@ -1510,11 +1502,8 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 		goto out_power;
 	}
 
-	ret = request_irq(res_irq->start,
-			  cryp_interrupt_handler,
-			  0,
-			  "cryp1",
-			  device_data);
+	ret = devm_request_irq(&pdev->dev, res_irq->start,
+			       cryp_interrupt_handler, 0, "cryp1", device_data);
 	if (ret) {
 		dev_err(dev, "[%s]: Unable to request IRQ", __func__);
 		goto out_power;
@@ -1550,28 +1539,15 @@ out_power:
 out_clk_unprepare:
 	clk_unprepare(device_data->clk);
 
-out_clk:
-	clk_put(device_data->clk);
-
 out_regulator:
 	regulator_put(device_data->pwr_regulator);
 
-out_unmap:
-	iounmap(device_data->base);
-
-out_free_mem:
-	release_mem_region(res->start, resource_size(res));
-
-out_kfree:
-	kfree(device_data);
 out:
 	return ret;
 }
 
 static int ux500_cryp_remove(struct platform_device *pdev)
 {
-	struct resource *res = NULL;
-	struct resource *res_irq = NULL;
 	struct cryp_device_data *device_data;
 
 	dev_dbg(&pdev->dev, "[%s]", __func__);
@@ -1607,37 +1583,18 @@ static int ux500_cryp_remove(struct platform_device *pdev)
 	if (list_empty(&driver_data.device_list.k_list))
 		cryp_algs_unregister_all();
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res_irq)
-		dev_err(&pdev->dev, "[%s]: IORESOURCE_IRQ, unavailable",
-			__func__);
-	else {
-		disable_irq(res_irq->start);
-		free_irq(res_irq->start, device_data);
-	}
-
 	if (cryp_disable_power(&pdev->dev, device_data, false))
 		dev_err(&pdev->dev, "[%s]: cryp_disable_power() failed",
 			__func__);
 
 	clk_unprepare(device_data->clk);
-	clk_put(device_data->clk);
 	regulator_put(device_data->pwr_regulator);
-
-	iounmap(device_data->base);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
-
-	kfree(device_data);
 
 	return 0;
 }
 
 static void ux500_cryp_shutdown(struct platform_device *pdev)
 {
-	struct resource *res_irq = NULL;
 	struct cryp_device_data *device_data;
 
 	dev_dbg(&pdev->dev, "[%s]", __func__);
@@ -1672,15 +1629,6 @@ static void ux500_cryp_shutdown(struct platform_device *pdev)
 	/* If this was the last device, remove the services */
 	if (list_empty(&driver_data.device_list.k_list))
 		cryp_algs_unregister_all();
-
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res_irq)
-		dev_err(&pdev->dev, "[%s]: IORESOURCE_IRQ, unavailable",
-			__func__);
-	else {
-		disable_irq(res_irq->start);
-		free_irq(res_irq->start, device_data);
-	}
 
 	if (cryp_disable_power(&pdev->dev, device_data, false))
 		dev_err(&pdev->dev, "[%s]: cryp_disable_power() failed",
@@ -1777,6 +1725,7 @@ static const struct of_device_id ux500_cryp_match[] = {
 	{ .compatible = "stericsson,ux500-cryp" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ux500_cryp_match);
 
 static struct platform_driver cryp_driver = {
 	.probe  = ux500_cryp_probe,

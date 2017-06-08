@@ -9,6 +9,15 @@
 #define TVP5150_ANAL_CHL_CTL         0x01 /* Analog channel controls */
 #define TVP5150_OP_MODE_CTL          0x02 /* Operation mode controls */
 #define TVP5150_MISC_CTL             0x03 /* Miscellaneous controls */
+#define TVP5150_MISC_CTL_VBLK_GPCL	BIT(7)
+#define TVP5150_MISC_CTL_GPCL		BIT(6)
+#define TVP5150_MISC_CTL_INTREQ_OE	BIT(5)
+#define TVP5150_MISC_CTL_HVLK		BIT(4)
+#define TVP5150_MISC_CTL_YCBCR_OE	BIT(3)
+#define TVP5150_MISC_CTL_SYNC_OE	BIT(2)
+#define TVP5150_MISC_CTL_VBLANK		BIT(1)
+#define TVP5150_MISC_CTL_CLOCK_OE	BIT(0)
+
 #define TVP5150_AUTOSW_MSK           0x04 /* Autoswitch mask: TVP5150A / TVP5150AM */
 
 /* Reserved 05h */

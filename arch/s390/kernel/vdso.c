@@ -9,7 +9,7 @@
  * as published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -80,7 +80,7 @@ struct vdso_data *vdso_data = &vdso_data_store.data;
 /*
  * Setup vdso data page.
  */
-static void vdso_init_data(struct vdso_data *vd)
+static void __init vdso_init_data(struct vdso_data *vd)
 {
 	vd->ectg_available = test_facility(31);
 }
@@ -90,9 +90,10 @@ static void vdso_init_data(struct vdso_data *vd)
  */
 #define SEGMENT_ORDER	2
 
-int vdso_alloc_per_cpu(struct _lowcore *lowcore)
+int vdso_alloc_per_cpu(struct lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
+	struct vdso_per_cpu_data *vd;
 	u32 *psal, *aste;
 	int i;
 
@@ -107,6 +108,12 @@ int vdso_alloc_per_cpu(struct _lowcore *lowcore)
 	if (!segment_table || !page_table || !page_frame)
 		goto out;
 
+	/* Initialize per-cpu vdso data page */
+	vd = (struct vdso_per_cpu_data *) page_frame;
+	vd->cpu_nr = lowcore->cpu_nr;
+	vd->node_id = cpu_to_node(vd->cpu_nr);
+
+	/* Set up access register mode page table */
 	clear_table((unsigned long *) segment_table, _SEGMENT_ENTRY_EMPTY,
 		    PAGE_SIZE << SEGMENT_ORDER);
 	clear_table((unsigned long *) page_table, _PAGE_INVALID,
@@ -138,7 +145,7 @@ out:
 	return -ENOMEM;
 }
 
-void vdso_free_per_cpu(struct _lowcore *lowcore)
+void vdso_free_per_cpu(struct lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
 	u32 *psal, *aste;
@@ -163,7 +170,7 @@ static void vdso_init_cr5(void)
 
 	if (!vdso_enabled)
 		return;
-	cr5 = offsetof(struct _lowcore, paste);
+	cr5 = offsetof(struct lowcore, paste);
 	__ctl_load(cr5, 5, 5);
 }
 
@@ -209,7 +216,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * it at vdso_base which is the "natural" base for it, but we might
 	 * fail and end up putting it elsewhere.
 	 */
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
 	vdso_base = get_unmapped_area(NULL, 0, vdso_pages << PAGE_SHIFT, 0, 0);
 	if (IS_ERR_VALUE(vdso_base)) {
 		rc = vdso_base;
@@ -298,8 +306,6 @@ static int __init vdso_init(void)
 	vdso_init_cr5();
 
 	get_page(virt_to_page(vdso_data));
-
-	smp_wmb();
 
 	return 0;
 }

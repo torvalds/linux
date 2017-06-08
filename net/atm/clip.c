@@ -106,7 +106,7 @@ static void unlink_clip_vcc(struct clip_vcc *clip_vcc)
 			entry->expires = jiffies - 1;
 			/* force resolution or expiration */
 			error = neigh_update(entry->neigh, NULL, NUD_NONE,
-					     NEIGH_UPDATE_F_ADMIN);
+					     NEIGH_UPDATE_F_ADMIN, 0);
 			if (error)
 				pr_crit("neigh_update failed with %d\n", error);
 			goto out;
@@ -286,7 +286,7 @@ static const struct neigh_ops clip_neigh_ops = {
 	.connected_output =	neigh_direct_output,
 };
 
-static int clip_constructor(struct neighbour *neigh)
+static int clip_constructor(struct net_device *dev, struct neighbour *neigh)
 {
 	struct atmarp_entry *entry = neighbour_priv(neigh);
 
@@ -317,6 +317,9 @@ static int clip_constructor(struct neighbour *neigh)
 
 static int clip_encap(struct atm_vcc *vcc, int mode)
 {
+	if (!CLIP_VCC(vcc))
+		return -EBADFD;
+
 	CLIP_VCC(vcc)->encap = mode;
 	return 0;
 }
@@ -478,7 +481,7 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 		link_vcc(clip_vcc, entry);
 	}
 	error = neigh_update(neigh, llc_oui, NUD_PERMANENT,
-			     NEIGH_UPDATE_F_OVERRIDE | NEIGH_UPDATE_F_ADMIN);
+			     NEIGH_UPDATE_F_OVERRIDE | NEIGH_UPDATE_F_ADMIN, 0);
 	neigh_release(neigh);
 	return error;
 }

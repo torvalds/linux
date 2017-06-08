@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -27,7 +23,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -35,7 +31,6 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LOG
-
 
 #include "../include/obd_class.h"
 #include "../include/lustre_log.h"
@@ -89,7 +84,8 @@ int __llog_ctxt_put(const struct lu_env *env, struct llog_ctxt *ctxt)
 	spin_unlock(&obd->obd_dev_lock);
 
 	/* obd->obd_starting is needed for the case of cleanup
-	 * in error case while obd is starting up. */
+	 * in error case while obd is starting up.
+	 */
 	LASSERTF(obd->obd_starting == 1 ||
 		 obd->obd_stopping == 1 || obd->obd_set_up == 0,
 		 "wrong obd state: %d/%d/%d\n", !!obd->obd_starting,
@@ -111,11 +107,8 @@ int llog_cleanup(const struct lu_env *env, struct llog_ctxt *ctxt)
 	struct obd_llog_group *olg;
 	int rc, idx;
 
-	LASSERT(ctxt != NULL);
-	LASSERT(ctxt != LP_POISON);
-
 	olg = ctxt->loc_olg;
-	LASSERT(olg != NULL);
+	LASSERT(olg);
 	LASSERT(olg != LP_POISON);
 
 	idx = ctxt->loc_idx;
@@ -152,7 +145,7 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 	if (index < 0 || index >= LLOG_MAX_CTXTS)
 		return -EINVAL;
 
-	LASSERT(olg != NULL);
+	LASSERT(olg);
 
 	ctxt = llog_new_ctxt(obd);
 	if (!ctxt)
@@ -165,6 +158,7 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 	mutex_init(&ctxt->loc_mutex);
 	ctxt->loc_exp = class_export_get(disk_obd->obd_self_export);
 	ctxt->loc_flags = LLOG_CTXT_FLAG_UNINITIALIZED;
+	ctxt->loc_chunk_size = LLOG_MIN_CHUNK_SIZE;
 
 	rc = llog_group_set_ctxt(olg, ctxt, index);
 	if (rc) {
@@ -212,42 +206,11 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 }
 EXPORT_SYMBOL(llog_setup);
 
-int llog_sync(struct llog_ctxt *ctxt, struct obd_export *exp, int flags)
-{
-	int rc = 0;
-
-	if (!ctxt)
-		return 0;
-
-	if (CTXTP(ctxt, sync))
-		rc = CTXTP(ctxt, sync)(ctxt, exp, flags);
-
-	return rc;
-}
-EXPORT_SYMBOL(llog_sync);
-
-int llog_cancel(const struct lu_env *env, struct llog_ctxt *ctxt,
-		struct llog_cookie *cookies, int flags)
-{
-	int rc;
-
-	if (!ctxt) {
-		CERROR("No ctxt\n");
-		return -ENODEV;
-	}
-
-	CTXT_CHECK_OP(ctxt, cancel, -EOPNOTSUPP);
-	rc = CTXTP(ctxt, cancel)(env, ctxt, cookies, flags);
-	return rc;
-}
-EXPORT_SYMBOL(llog_cancel);
-
 /* context key constructor/destructor: llog_key_init, llog_key_fini */
 LU_KEY_INIT_FINI(llog, struct llog_thread_info);
 /* context key: llog_thread_key */
 LU_CONTEXT_KEY_DEFINE(llog, LCT_MD_THREAD | LCT_MG_THREAD | LCT_LOCAL);
 LU_KEY_INIT_GENERIC(llog);
-EXPORT_SYMBOL(llog_thread_key);
 
 int llog_info_init(void)
 {

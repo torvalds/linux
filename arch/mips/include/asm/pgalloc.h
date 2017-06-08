@@ -43,21 +43,7 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
  * Initialize a new pgd / pmd table with invalid pointers.
  */
 extern void pgd_init(unsigned long page);
-
-static inline pgd_t *pgd_alloc(struct mm_struct *mm)
-{
-	pgd_t *ret, *init;
-
-	ret = (pgd_t *) __get_free_pages(GFP_KERNEL, PGD_ORDER);
-	if (ret) {
-		init = pgd_offset(&init_mm, 0UL);
-		pgd_init((unsigned long)ret);
-		memcpy(ret + USER_PTRS_PER_PGD, init + USER_PTRS_PER_PGD,
-		       (PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
-	}
-
-	return ret;
-}
+extern pgd_t *pgd_alloc(struct mm_struct *mm);
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
@@ -67,11 +53,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 	unsigned long address)
 {
-	pte_t *pte;
-
-	pte = (pte_t *) __get_free_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, PTE_ORDER);
-
-	return pte;
+	return (pte_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, PTE_ORDER);
 }
 
 static inline struct page *pte_alloc_one(struct mm_struct *mm,
@@ -79,7 +61,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 {
 	struct page *pte;
 
-	pte = alloc_pages(GFP_KERNEL | __GFP_REPEAT, PTE_ORDER);
+	pte = alloc_pages(GFP_KERNEL, PTE_ORDER);
 	if (!pte)
 		return NULL;
 	clear_highpage(pte);
@@ -113,7 +95,7 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	pmd_t *pmd;
 
-	pmd = (pmd_t *) __get_free_pages(GFP_KERNEL|__GFP_REPEAT, PMD_ORDER);
+	pmd = (pmd_t *) __get_free_pages(GFP_KERNEL, PMD_ORDER);
 	if (pmd)
 		pmd_init((unsigned long)pmd, (unsigned long)invalid_pte_table);
 	return pmd;
@@ -127,6 +109,32 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 #define __pmd_free_tlb(tlb, x, addr)	pmd_free((tlb)->mm, x)
 
 #endif
+
+#ifndef __PAGETABLE_PUD_FOLDED
+
+static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
+{
+	pud_t *pud;
+
+	pud = (pud_t *) __get_free_pages(GFP_KERNEL|__GFP_REPEAT, PUD_ORDER);
+	if (pud)
+		pud_init((unsigned long)pud, (unsigned long)invalid_pmd_table);
+	return pud;
+}
+
+static inline void pud_free(struct mm_struct *mm, pud_t *pud)
+{
+	free_pages((unsigned long)pud, PUD_ORDER);
+}
+
+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+{
+	set_pgd(pgd, __pgd((unsigned long)pud));
+}
+
+#define __pud_free_tlb(tlb, x, addr)	pud_free((tlb)->mm, x)
+
+#endif /* __PAGETABLE_PUD_FOLDED */
 
 #define check_pgt_cache()	do { } while (0)
 

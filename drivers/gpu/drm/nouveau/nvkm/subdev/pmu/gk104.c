@@ -27,6 +27,7 @@
 #include "fuc/gf119.fuc4.h"
 
 #include <core/option.h>
+#include <subdev/fuse.h>
 #include <subdev/timer.h>
 
 static void
@@ -57,6 +58,9 @@ gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
 	struct nvkm_device *device = pmu->subdev.device;
 
+	if (!(nvkm_fuse_read(device->fuse, 0x31c) & 0x00000001))
+		return;
+
 	nvkm_mask(device, 0x000200, 0x00001000, 0x00000000);
 	nvkm_rd32(device, 0x000200);
 	nvkm_mask(device, 0x000200, 0x08000000, 0x08000000);
@@ -77,9 +81,7 @@ gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 	nvkm_mask(device, 0x000200, 0x00001000, 0x00001000);
 	nvkm_rd32(device, 0x000200);
 
-	if ( nvkm_boolopt(device->cfgopt, "War00C800_0",
-	    device->quirk ? device->quirk->War00C800_0 : false)) {
-		nvkm_info(&pmu->subdev, "hw bug workaround enabled\n");
+	if (nvkm_boolopt(device->cfgopt, "War00C800_0", true)) {
 		switch (device->chipset) {
 		case 0xe4:
 			magic(device, 0x04000000);
@@ -107,6 +109,12 @@ gk104_pmu = {
 	.code.size = sizeof(gk104_pmu_code),
 	.data.data = gk104_pmu_data,
 	.data.size = sizeof(gk104_pmu_data),
+	.reset = gt215_pmu_reset,
+	.init = gt215_pmu_init,
+	.fini = gt215_pmu_fini,
+	.intr = gt215_pmu_intr,
+	.send = gt215_pmu_send,
+	.recv = gt215_pmu_recv,
 	.pgob = gk104_pmu_pgob,
 };
 

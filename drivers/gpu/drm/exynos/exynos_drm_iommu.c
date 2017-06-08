@@ -9,17 +9,31 @@
  * option) any later version.
  */
 
-#include <drmP.h>
+#include <drm/drmP.h>
 #include <drm/exynos_drm.h>
 
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
-#include <linux/kref.h>
-
-#include <asm/dma-iommu.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_iommu.h"
+
+static inline int configure_dma_max_seg_size(struct device *dev)
+{
+	if (!dev->dma_parms)
+		dev->dma_parms = kzalloc(sizeof(*dev->dma_parms), GFP_KERNEL);
+	if (!dev->dma_parms)
+		return -ENOMEM;
+
+	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
+	return 0;
+}
+
+static inline void clear_dma_max_seg_size(struct device *dev)
+{
+	kfree(dev->dma_parms);
+	dev->dma_parms = NULL;
+}
 
 /*
  * drm_create_iommu_mapping - create a mapping structure
@@ -28,48 +42,22 @@
  */
 int drm_create_iommu_mapping(struct drm_device *drm_dev)
 {
-	struct dma_iommu_mapping *mapping = NULL;
 	struct exynos_drm_private *priv = drm_dev->dev_private;
-	struct device *dev = drm_dev->dev;
 
-	if (!priv->da_start)
-		priv->da_start = EXYNOS_DEV_ADDR_START;
-	if (!priv->da_space_size)
-		priv->da_space_size = EXYNOS_DEV_ADDR_SIZE;
-
-	mapping = arm_iommu_create_mapping(&platform_bus_type, priv->da_start,
-						priv->da_space_size);
-
-	if (IS_ERR(mapping))
-		return PTR_ERR(mapping);
-
-	dev->dma_parms = devm_kzalloc(dev, sizeof(*dev->dma_parms),
-					GFP_KERNEL);
-	if (!dev->dma_parms)
-		goto error;
-
-	dma_set_max_seg_size(dev, 0xffffffffu);
-	dev->archdata.mapping = mapping;
-
-	return 0;
-error:
-	arm_iommu_release_mapping(mapping);
-	return -ENOMEM;
+	return __exynos_iommu_create_mapping(priv, EXYNOS_DEV_ADDR_START,
+					     EXYNOS_DEV_ADDR_SIZE);
 }
 
 /*
  * drm_release_iommu_mapping - release iommu mapping structure
  *
  * @drm_dev: DRM device
- *
- * if mapping->kref becomes 0 then all things related to iommu mapping
- * will be released
  */
 void drm_release_iommu_mapping(struct drm_device *drm_dev)
 {
-	struct device *dev = drm_dev->dev;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	arm_iommu_release_mapping(dev->archdata.mapping);
+	__exynos_iommu_release_mapping(priv);
 }
 
 /*
@@ -84,39 +72,22 @@ void drm_release_iommu_mapping(struct drm_device *drm_dev)
 int drm_iommu_attach_device(struct drm_device *drm_dev,
 				struct device *subdrv_dev)
 {
-	struct device *dev = drm_dev->dev;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
 	int ret;
 
-	if (!dev->archdata.mapping)
-		return 0;
-
-	subdrv_dev->dma_parms = devm_kzalloc(subdrv_dev,
-					sizeof(*subdrv_dev->dma_parms),
-					GFP_KERNEL);
-	if (!subdrv_dev->dma_parms)
-		return -ENOMEM;
-
-	dma_set_max_seg_size(subdrv_dev, 0xffffffffu);
-
-	if (subdrv_dev->archdata.mapping)
-		arm_iommu_detach_device(subdrv_dev);
-
-	ret = arm_iommu_attach_device(subdrv_dev, dev->archdata.mapping);
-	if (ret < 0) {
-		DRM_DEBUG_KMS("failed iommu attach.\n");
-		return ret;
+	if (get_dma_ops(priv->dma_dev) != get_dma_ops(subdrv_dev)) {
+		DRM_ERROR("Device %s lacks support for IOMMU\n",
+			  dev_name(subdrv_dev));
+		return -EINVAL;
 	}
 
-	/*
-	 * Set dma_ops to drm_device just one time.
-	 *
-	 * The dma mapping api needs device object and the api is used
-	 * to allocate physial memory and map it with iommu table.
-	 * If iommu attach succeeded, the sub driver would have dma_ops
-	 * for iommu and also all sub drivers have same dma_ops.
-	 */
-	if (get_dma_ops(dev) == get_dma_ops(NULL))
-		set_dma_ops(dev, get_dma_ops(subdrv_dev));
+	ret = configure_dma_max_seg_size(subdrv_dev);
+	if (ret)
+		return ret;
+
+	ret = __exynos_iommu_attach(priv, subdrv_dev);
+	if (ret)
+		clear_dma_max_seg_size(subdrv_dev);
 
 	return 0;
 }
@@ -133,12 +104,8 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 void drm_iommu_detach_device(struct drm_device *drm_dev,
 				struct device *subdrv_dev)
 {
-	struct device *dev = drm_dev->dev;
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	if (!mapping || !mapping->domain)
-		return;
-
-	iommu_detach_device(mapping->domain, subdrv_dev);
-	drm_release_iommu_mapping(drm_dev);
+	__exynos_iommu_detach(priv, subdrv_dev);
+	clear_dma_max_seg_size(subdrv_dev);
 }

@@ -248,8 +248,8 @@ static int ds3000_writereg(struct ds3000_state *state, int reg, int data)
 
 	err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
-		printk(KERN_ERR "%s: writereg error(err == %i, reg == 0x%02x,"
-			 " value == 0x%02x)\n", __func__, err, reg, data);
+		printk(KERN_ERR "%s: writereg error(err == %i, reg == 0x%02x, value == 0x%02x)\n",
+		       __func__, err, reg, data);
 		return -EREMOTEIO;
 	}
 
@@ -296,8 +296,8 @@ static int ds3000_writeFW(struct ds3000_state *state, int reg,
 
 		ret = i2c_transfer(state->i2c, &msg, 1);
 		if (ret != 1) {
-			printk(KERN_ERR "%s: write error(err == %i, "
-				"reg == 0x%02x\n", __func__, ret, reg);
+			printk(KERN_ERR "%s: write error(err == %i, reg == 0x%02x\n",
+			       __func__, ret, reg);
 			ret = -EREMOTEIO;
 			goto error;
 		}
@@ -364,8 +364,8 @@ static int ds3000_firmware_ondemand(struct dvb_frontend *fe)
 				state->i2c->dev.parent);
 	printk(KERN_INFO "%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
-		printk(KERN_ERR "%s: No firmware uploaded (timeout or file not "
-				"found?)\n", __func__);
+		printk(KERN_ERR "%s: No firmware uploaded (timeout or file not found?)\n",
+		       __func__);
 		return ret;
 	}
 
@@ -458,7 +458,7 @@ static int ds3000_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	if (state->config->set_lock_led)
@@ -528,7 +528,7 @@ static int ds3000_read_ber(struct dvb_frontend *fe, u32* ber)
 			*ber = 0xffffffff;
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -623,7 +623,7 @@ static int ds3000_read_snr(struct dvb_frontend *fe, u16 *snr)
 				snr_reading, *snr);
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -661,7 +661,7 @@ static int ds3000_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 		state->prevUCBS2 = _ucblocks;
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -754,7 +754,7 @@ static int ds3000_send_diseqc_msg(struct dvb_frontend *fe,
 		data |= 0x80;
 		ds3000_writereg(state, 0xa2, data);
 
-		return 1;
+		return -ETIMEDOUT;
 	}
 
 	data = ds3000_readreg(state, 0xa2);
@@ -808,7 +808,7 @@ static int ds3000_diseqc_send_burst(struct dvb_frontend *fe,
 		data |= 0x80;
 		ds3000_writereg(state, 0xa2, data);
 
-		return 1;
+		return -ETIMEDOUT;
 	}
 
 	data = ds3000_readreg(state, 0xa2);
@@ -830,7 +830,7 @@ static void ds3000_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops ds3000_ops;
+static const struct dvb_frontend_ops ds3000_ops;
 
 struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 				    struct i2c_adapter *i2c)
@@ -951,13 +951,22 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 			ds3000_writereg(state, 0xfe, 0x98);
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	/* enable 27MHz clock output */
 	ds3000_writereg(state, 0x29, 0x80);
 	/* enable ac coupling */
 	ds3000_writereg(state, 0x25, 0x8a);
+
+	if ((c->symbol_rate < ds3000_ops.info.symbol_rate_min) ||
+			(c->symbol_rate > ds3000_ops.info.symbol_rate_max)) {
+		dprintk("%s() symbol_rate %u out of range (%u ... %u)\n",
+				__func__, c->symbol_rate,
+				ds3000_ops.info.symbol_rate_min,
+				ds3000_ops.info.symbol_rate_max);
+		return -EINVAL;
+	}
 
 	/* enhance symbol rate performance */
 	if ((c->symbol_rate / 1000) <= 5000) {
@@ -1095,7 +1104,7 @@ static int ds3000_initfe(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct dvb_frontend_ops ds3000_ops = {
+static const struct dvb_frontend_ops ds3000_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name = "Montage Technology DS3000",
@@ -1135,8 +1144,7 @@ static struct dvb_frontend_ops ds3000_ops = {
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 
-MODULE_DESCRIPTION("DVB Frontend module for Montage Technology "
-			"DS3000 hardware");
+MODULE_DESCRIPTION("DVB Frontend module for Montage Technology DS3000 hardware");
 MODULE_AUTHOR("Konstantin Dimitrov <kosio.dimitrov@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(DS3000_DEFAULT_FIRMWARE);

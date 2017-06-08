@@ -201,6 +201,7 @@ struct ep93xx_dma_engine {
 	struct dma_device	dma_dev;
 	bool			m2m;
 	int			(*hw_setup)(struct ep93xx_dma_chan *);
+	void			(*hw_synchronize)(struct ep93xx_dma_chan *);
 	void			(*hw_shutdown)(struct ep93xx_dma_chan *);
 	void			(*hw_submit)(struct ep93xx_dma_chan *);
 	int			(*hw_interrupt)(struct ep93xx_dma_chan *);
@@ -262,10 +263,8 @@ static void ep93xx_dma_set_active(struct ep93xx_dma_chan *edmac,
 static struct ep93xx_dma_desc *
 ep93xx_dma_get_active(struct ep93xx_dma_chan *edmac)
 {
-	if (list_empty(&edmac->active))
-		return NULL;
-
-	return list_first_entry(&edmac->active, struct ep93xx_dma_desc, node);
+	return list_first_entry_or_null(&edmac->active,
+					struct ep93xx_dma_desc, node);
 }
 
 /**
@@ -325,6 +324,8 @@ static int m2p_hw_setup(struct ep93xx_dma_chan *edmac)
 		| M2P_CONTROL_ENABLE;
 	m2p_set_control(edmac, control);
 
+	edmac->buffer = 0;
+
 	return 0;
 }
 
@@ -333,21 +334,27 @@ static inline u32 m2p_channel_state(struct ep93xx_dma_chan *edmac)
 	return (readl(edmac->regs + M2P_STATUS) >> 4) & 0x3;
 }
 
-static void m2p_hw_shutdown(struct ep93xx_dma_chan *edmac)
+static void m2p_hw_synchronize(struct ep93xx_dma_chan *edmac)
 {
+	unsigned long flags;
 	u32 control;
 
+	spin_lock_irqsave(&edmac->lock, flags);
 	control = readl(edmac->regs + M2P_CONTROL);
 	control &= ~(M2P_CONTROL_STALLINT | M2P_CONTROL_NFBINT);
 	m2p_set_control(edmac, control);
+	spin_unlock_irqrestore(&edmac->lock, flags);
 
 	while (m2p_channel_state(edmac) >= M2P_STATE_ON)
-		cpu_relax();
+		schedule();
+}
 
+static void m2p_hw_shutdown(struct ep93xx_dma_chan *edmac)
+{
 	m2p_set_control(edmac, 0);
 
-	while (m2p_channel_state(edmac) == M2P_STATE_STALL)
-		cpu_relax();
+	while (m2p_channel_state(edmac) != M2P_STATE_IDLE)
+		dev_warn(chan2dev(edmac), "M2P: Not yet IDLE\n");
 }
 
 static void m2p_fill_desc(struct ep93xx_dma_chan *edmac)
@@ -421,23 +428,25 @@ static int m2p_hw_interrupt(struct ep93xx_dma_chan *edmac)
 			desc->size);
 	}
 
-	switch (irq_status & (M2P_INTERRUPT_STALL | M2P_INTERRUPT_NFB)) {
-	case M2P_INTERRUPT_STALL:
-		/* Disable interrupts */
-		control = readl(edmac->regs + M2P_CONTROL);
-		control &= ~(M2P_CONTROL_STALLINT | M2P_CONTROL_NFBINT);
-		m2p_set_control(edmac, control);
+	/*
+	 * Even latest E2 silicon revision sometimes assert STALL interrupt
+	 * instead of NFB. Therefore we treat them equally, basing on the
+	 * amount of data we still have to transfer.
+	 */
+	if (!(irq_status & (M2P_INTERRUPT_STALL | M2P_INTERRUPT_NFB)))
+		return INTERRUPT_UNKNOWN;
 
-		return INTERRUPT_DONE;
-
-	case M2P_INTERRUPT_NFB:
-		if (ep93xx_dma_advance_active(edmac))
-			m2p_fill_desc(edmac);
-
+	if (ep93xx_dma_advance_active(edmac)) {
+		m2p_fill_desc(edmac);
 		return INTERRUPT_NEXT_BUFFER;
 	}
 
-	return INTERRUPT_UNKNOWN;
+	/* Disable interrupts */
+	control = readl(edmac->regs + M2P_CONTROL);
+	control &= ~(M2P_CONTROL_STALLINT | M2P_CONTROL_NFBINT);
+	m2p_set_control(edmac, control);
+
+	return INTERRUPT_DONE;
 }
 
 /*
@@ -737,10 +746,10 @@ static void ep93xx_dma_tasklet(unsigned long data)
 {
 	struct ep93xx_dma_chan *edmac = (struct ep93xx_dma_chan *)data;
 	struct ep93xx_dma_desc *desc, *d;
-	dma_async_tx_callback callback = NULL;
-	void *callback_param = NULL;
+	struct dmaengine_desc_callback cb;
 	LIST_HEAD(list);
 
+	memset(&cb, 0, sizeof(cb));
 	spin_lock_irq(&edmac->lock);
 	/*
 	 * If dma_terminate_all() was called before we get to run, the active
@@ -755,8 +764,7 @@ static void ep93xx_dma_tasklet(unsigned long data)
 				dma_cookie_complete(&desc->txd);
 			list_splice_init(&edmac->active, &list);
 		}
-		callback = desc->txd.callback;
-		callback_param = desc->txd.callback_param;
+		dmaengine_desc_get_callback(&desc->txd, &cb);
 	}
 	spin_unlock_irq(&edmac->lock);
 
@@ -769,8 +777,7 @@ static void ep93xx_dma_tasklet(unsigned long data)
 		ep93xx_dma_desc_put(edmac, desc);
 	}
 
-	if (callback)
-		callback(callback_param);
+	dmaengine_desc_callback_invoke(&cb, NULL);
 }
 
 static irqreturn_t ep93xx_dma_interrupt(int irq, void *dev_id)
@@ -1045,11 +1052,11 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	first = NULL;
 	for_each_sg(sgl, sg, sg_len, i) {
-		size_t sg_len = sg_dma_len(sg);
+		size_t len = sg_dma_len(sg);
 
-		if (sg_len > DMA_MAX_CHAN_BYTES) {
-			dev_warn(chan2dev(edmac), "too big transfer size %d\n",
-				 sg_len);
+		if (len > DMA_MAX_CHAN_BYTES) {
+			dev_warn(chan2dev(edmac), "too big transfer size %zu\n",
+				 len);
 			goto fail;
 		}
 
@@ -1066,7 +1073,7 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->src_addr = edmac->runtime_addr;
 			desc->dst_addr = sg_dma_address(sg);
 		}
-		desc->size = sg_len;
+		desc->size = len;
 
 		if (!first)
 			first = desc;
@@ -1123,7 +1130,7 @@ ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 	}
 
 	if (period_len > DMA_MAX_CHAN_BYTES) {
-		dev_warn(chan2dev(edmac), "too big period length %d\n",
+		dev_warn(chan2dev(edmac), "too big period length %zu\n",
 			 period_len);
 		return NULL;
 	}
@@ -1160,6 +1167,26 @@ ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 fail:
 	ep93xx_dma_desc_put(edmac, first);
 	return NULL;
+}
+
+/**
+ * ep93xx_dma_synchronize - Synchronizes the termination of transfers to the
+ * current context.
+ * @chan: channel
+ *
+ * Synchronizes the DMA channel termination to the current context. When this
+ * function returns it is guaranteed that all transfers for previously issued
+ * descriptors have stopped and and it is safe to free the memory associated
+ * with them. Furthermore it is guaranteed that all complete callback functions
+ * for a previously submitted descriptor have finished running and it is safe to
+ * free resources accessed from within the complete callbacks.
+ */
+static void ep93xx_dma_synchronize(struct dma_chan *chan)
+{
+	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
+
+	if (edmac->edma->hw_synchronize)
+		edmac->edma->hw_synchronize(edmac);
 }
 
 /**
@@ -1325,6 +1352,7 @@ static int __init ep93xx_dma_probe(struct platform_device *pdev)
 	dma_dev->device_prep_slave_sg = ep93xx_dma_prep_slave_sg;
 	dma_dev->device_prep_dma_cyclic = ep93xx_dma_prep_dma_cyclic;
 	dma_dev->device_config = ep93xx_dma_slave_config;
+	dma_dev->device_synchronize = ep93xx_dma_synchronize;
 	dma_dev->device_terminate_all = ep93xx_dma_terminate_all;
 	dma_dev->device_issue_pending = ep93xx_dma_issue_pending;
 	dma_dev->device_tx_status = ep93xx_dma_tx_status;
@@ -1342,6 +1370,7 @@ static int __init ep93xx_dma_probe(struct platform_device *pdev)
 	} else {
 		dma_cap_set(DMA_PRIVATE, dma_dev->cap_mask);
 
+		edma->hw_synchronize = m2p_hw_synchronize;
 		edma->hw_setup = m2p_hw_setup;
 		edma->hw_shutdown = m2p_hw_shutdown;
 		edma->hw_submit = m2p_hw_submit;

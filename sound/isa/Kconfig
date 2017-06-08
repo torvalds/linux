@@ -3,6 +3,7 @@
 config SND_WSS_LIB
         tristate
         select SND_PCM
+	select SND_TIMER
 
 config SND_SB_COMMON
         tristate
@@ -42,6 +43,7 @@ config SND_AD1816A
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_TIMER
 	help
 	  Say Y here to include support for Analog Devices SoundPort
 	  AD1816A or compatible sound chips.
@@ -209,6 +211,7 @@ config SND_GUSCLASSIC
 	tristate "Gravis UltraSound Classic"
 	select SND_RAWMIDI
 	select SND_PCM
+	select SND_TIMER
 	help
 	  Say Y here to include support for Gravis UltraSound Classic
 	  soundcards.
@@ -221,6 +224,7 @@ config SND_GUSEXTREME
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_TIMER
 	help
 	  Say Y here to include support for Gravis UltraSound Extreme
 	  soundcards.

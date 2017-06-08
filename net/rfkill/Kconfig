@@ -23,17 +23,6 @@ config RFKILL_INPUT
 	depends on INPUT = y || RFKILL = INPUT
 	default y if !EXPERT
 
-config RFKILL_REGULATOR
-	tristate "Generic rfkill regulator driver"
-	depends on RFKILL || !RFKILL
-	depends on REGULATOR
-	help
-          This options enable controlling radio transmitters connected to
-          voltage regulator using the regulator framework.
-
-          To compile this driver as a module, choose M here: the module will
-          be called rfkill-regulator.
-
 config RFKILL_GPIO
 	tristate "GPIO RFKILL driver"
 	depends on RFKILL
@@ -41,5 +30,4 @@ config RFKILL_GPIO
 	default n
 	help
 	  If you say yes here you get support of a generic gpio RFKILL
-	  driver. The platform should fill in the appropriate fields in the
-	  rfkill_gpio_platform_data structure and pass that to the driver.
+	  driver.

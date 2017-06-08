@@ -14,10 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx231xx.h"
@@ -293,7 +289,6 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
 		urb = usb_alloc_urb(CX231XX_ISO_NUM_AUDIO_PACKETS, GFP_ATOMIC);
 		if (!urb) {
-			dev_err(dev->dev, "usb_alloc_urb failed!\n");
 			for (j = 0; j < i; j++) {
 				usb_free_urb(dev->adev.urb[j]);
 				kfree(dev->adev.transfer_buffer[j]);
@@ -355,7 +350,6 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
 		urb = usb_alloc_urb(CX231XX_NUM_AUDIO_PACKETS, GFP_ATOMIC);
 		if (!urb) {
-			dev_err(dev->dev, "usb_alloc_urb failed!\n");
 			for (j = 0; j < i; j++) {
 				usb_free_urb(dev->adev.urb[j]);
 				kfree(dev->adev.transfer_buffer[j]);
@@ -499,6 +493,11 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 	}
 
 	dev->adev.users--;
+	if (substream->runtime->dma_area) {
+		dev_dbg(dev->dev, "freeing\n");
+		vfree(substream->runtime->dma_area);
+		substream->runtime->dma_area = NULL;
+	}
 	mutex_unlock(&dev->lock);
 
 	if (dev->adev.users == 0 && dev->adev.shutdown == 1) {
@@ -632,7 +631,7 @@ static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
 	return vmalloc_to_page(pageptr);
 }
 
-static struct snd_pcm_ops snd_cx231xx_pcm_capture = {
+static const struct snd_pcm_ops snd_cx231xx_pcm_capture = {
 	.open = snd_cx231xx_capture_open,
 	.close = snd_cx231xx_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -671,10 +670,8 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 
 	spin_lock_init(&adev->slock);
 	err = snd_pcm_new(card, "Cx231xx Audio", 0, 0, 1, &pcm);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto err_free_card;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 			&snd_cx231xx_pcm_capture);
@@ -688,10 +685,9 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	INIT_WORK(&dev->wq_trigger, audio_trigger);
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto err_free_card;
+
 	adev->sndcard = card;
 	adev->udev = dev->udev;
 
@@ -700,6 +696,11 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	    dev->udev->actconfig->interface[dev->current_pcb_config.
 					    hs_config_info[0].interface_info.
 					    audio_index + 1];
+
+	if (uif->altsetting[0].desc.bNumEndpoints < isoc_pipe + 1) {
+		err = -ENODEV;
+		goto err_free_card;
+	}
 
 	adev->end_point_addr =
 	    uif->altsetting[0].endpoint[isoc_pipe].desc.
@@ -710,13 +711,20 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 		"audio EndPoint Addr 0x%x, Alternate settings: %i\n",
 		adev->end_point_addr, adev->num_alt);
 	adev->alt_max_pkt_size = kmalloc(32 * adev->num_alt, GFP_KERNEL);
-
-	if (adev->alt_max_pkt_size == NULL)
-		return -ENOMEM;
+	if (!adev->alt_max_pkt_size) {
+		err = -ENOMEM;
+		goto err_free_card;
+	}
 
 	for (i = 0; i < adev->num_alt; i++) {
-		u16 tmp =
-		    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
+		u16 tmp;
+
+		if (uif->altsetting[i].desc.bNumEndpoints < isoc_pipe + 1) {
+			err = -ENODEV;
+			goto err_free_pkt_size;
+		}
+
+		tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.
 				wMaxPacketSize);
 		adev->alt_max_pkt_size[i] =
 		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
@@ -726,6 +734,13 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	}
 
 	return 0;
+
+err_free_pkt_size:
+	kfree(adev->alt_max_pkt_size);
+err_free_card:
+	snd_card_free(card);
+
+	return err;
 }
 
 static int cx231xx_audio_fini(struct cx231xx *dev)

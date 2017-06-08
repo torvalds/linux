@@ -98,7 +98,7 @@ rename_retry:
 		return end;
 	}
 	namelen = strlen(base);
-	if (flags & NFS_PATH_CANONICAL) {
+	if (*end == '/') {
 		/* Strip off excess slashes in base string */
 		while (namelen > 0 && base[namelen - 1] == '/')
 			namelen--;
@@ -143,11 +143,8 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	struct nfs_fh *fh = NULL;
 	struct nfs_fattr *fattr = NULL;
 
-	dprintk("--> nfs_d_automount()\n");
-
-	mnt = ERR_PTR(-ESTALE);
 	if (IS_ROOT(path->dentry))
-		goto out_nofree;
+		return ERR_PTR(-ESTALE);
 
 	mnt = ERR_PTR(-ENOMEM);
 	fh = nfs_alloc_fhandle();
@@ -155,13 +152,10 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	if (fh == NULL || fattr == NULL)
 		goto out;
 
-	dprintk("%s: enter\n", __func__);
-
 	mnt = server->nfs_client->rpc_ops->submount(server, path->dentry, fh, fattr);
 	if (IS_ERR(mnt))
 		goto out;
 
-	dprintk("%s: done, success\n", __func__);
 	mntget(mnt); /* prevent immediate expiration */
 	mnt_set_expiry(mnt, &nfs_automount_list);
 	schedule_delayed_work(&nfs_automount_task, nfs_mountpoint_expiry_timeout);
@@ -169,20 +163,16 @@ struct vfsmount *nfs_d_automount(struct path *path)
 out:
 	nfs_free_fattr(fattr);
 	nfs_free_fhandle(fh);
-out_nofree:
-	if (IS_ERR(mnt))
-		dprintk("<-- %s(): error %ld\n", __func__, PTR_ERR(mnt));
-	else
-		dprintk("<-- %s() = %p\n", __func__, mnt);
 	return mnt;
 }
 
 static int
-nfs_namespace_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+nfs_namespace_getattr(const struct path *path, struct kstat *stat,
+			u32 request_mask, unsigned int query_flags)
 {
-	if (NFS_FH(d_inode(dentry))->size != 0)
-		return nfs_getattr(mnt, dentry, stat);
-	generic_fillattr(d_inode(dentry), stat);
+	if (NFS_FH(d_inode(path->dentry))->size != 0)
+		return nfs_getattr(path, stat, request_mask, query_flags);
+	generic_fillattr(d_inode(path->dentry), stat);
 	return 0;
 }
 
@@ -226,7 +216,7 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
 					   const char *devname,
 					   struct nfs_clone_mount *mountdata)
 {
-	return vfs_kern_mount(&nfs_xdev_fs_type, 0, devname, mountdata);
+	return vfs_submount(mountdata->dentry, &nfs_xdev_fs_type, devname, mountdata);
 }
 
 /**
@@ -247,27 +237,20 @@ struct vfsmount *nfs_do_submount(struct dentry *dentry, struct nfs_fh *fh,
 		.fattr = fattr,
 		.authflavor = authflavor,
 	};
-	struct vfsmount *mnt = ERR_PTR(-ENOMEM);
+	struct vfsmount *mnt;
 	char *page = (char *) __get_free_page(GFP_USER);
 	char *devname;
 
-	dprintk("--> nfs_do_submount()\n");
-
-	dprintk("%s: submounting on %pd2\n", __func__,
-			dentry);
 	if (page == NULL)
-		goto out;
-	devname = nfs_devname(dentry, page, PAGE_SIZE);
-	mnt = (struct vfsmount *)devname;
-	if (IS_ERR(devname))
-		goto free_page;
-	mnt = nfs_do_clone_mount(NFS_SB(dentry->d_sb), devname, &mountdata);
-free_page:
-	free_page((unsigned long)page);
-out:
-	dprintk("%s: done\n", __func__);
+		return ERR_PTR(-ENOMEM);
 
-	dprintk("<-- nfs_do_submount() = %p\n", mnt);
+	devname = nfs_devname(dentry, page, PAGE_SIZE);
+	if (IS_ERR(devname))
+		mnt = ERR_CAST(devname);
+	else
+		mnt = nfs_do_clone_mount(NFS_SB(dentry->d_sb), devname, &mountdata);
+
+	free_page((unsigned long)page);
 	return mnt;
 }
 EXPORT_SYMBOL_GPL(nfs_do_submount);

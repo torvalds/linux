@@ -46,13 +46,22 @@ struct zpci_ccdf_avail {
 static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 {
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
-	struct pci_dev *pdev = zdev ? zdev->pdev : NULL;
+	struct pci_dev *pdev = NULL;
 
 	zpci_err("error CCDF:\n");
 	zpci_err_hex(ccdf, sizeof(*ccdf));
 
+	if (zdev)
+		pdev = pci_get_slot(zdev->bus, ZPCI_DEVFN);
+
 	pr_err("%s: Event 0x%x reports an error for PCI function 0x%x\n",
 	       pdev ? pci_name(pdev) : "n/a", ccdf->pec, ccdf->fid);
+
+	if (!pdev)
+		return;
+
+	pdev->error_state = pci_channel_io_perm_failure;
+	pci_dev_put(pdev);
 }
 
 void zpci_event_error(void *data)
@@ -64,8 +73,11 @@ void zpci_event_error(void *data)
 static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 {
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
-	struct pci_dev *pdev = zdev ? zdev->pdev : NULL;
+	struct pci_dev *pdev = NULL;
 	int ret;
+
+	if (zdev)
+		pdev = pci_get_slot(zdev->bus, ZPCI_DEVFN);
 
 	pr_info("%s: Event 0x%x reconfigured PCI function 0x%x\n",
 		pdev ? pci_name(pdev) : "n/a", ccdf->pec, ccdf->fid);
@@ -133,6 +145,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	default:
 		break;
 	}
+	pci_dev_put(pdev);
 }
 
 void zpci_event_availability(void *data)

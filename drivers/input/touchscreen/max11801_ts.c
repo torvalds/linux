@@ -199,7 +199,6 @@ static int max11801_ts_probe(struct i2c_client *client,
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 	input_set_abs_params(input_dev, ABS_X, 0, MAX11801_MAX_X, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, MAX11801_MAX_Y, 0, 0);
-	input_set_drvdata(input_dev, data);
 
 	max11801_ts_phy_init(data);
 
@@ -216,7 +215,6 @@ static int max11801_ts_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	i2c_set_clientdata(client, data);
 	return 0;
 }
 
@@ -226,9 +224,16 @@ static const struct i2c_device_id max11801_ts_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max11801_ts_id);
 
+static const struct of_device_id max11801_ts_dt_ids[] = {
+	{ .compatible = "maxim,max11801" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, max11801_ts_dt_ids);
+
 static struct i2c_driver max11801_ts_driver = {
 	.driver = {
 		.name	= "max11801_ts",
+		.of_match_table = max11801_ts_dt_ids,
 	},
 	.id_table	= max11801_ts_id,
 	.probe		= max11801_ts_probe,

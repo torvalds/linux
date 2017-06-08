@@ -1,0 +1,36 @@
+#
+# Netronome device configuration
+#
+
+config NET_VENDOR_NETRONOME
+	bool "Netronome(R) devices"
+	default y
+	---help---
+	  If you have a Netronome(R) network (Ethernet) card or device, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Netronome(R) cards. If you say Y, you will be
+	  asked for your specific card in the following questions.
+
+if NET_VENDOR_NETRONOME
+
+config NFP
+	tristate "Netronome(R) NFP4000/NFP6000 NIC driver"
+	depends on PCI && PCI_MSI
+	depends on VXLAN || VXLAN=n
+	---help---
+	  This driver supports the Netronome(R) NFP4000/NFP6000 based
+	  cards working as a advanced Ethernet NIC.  It works with both
+	  SR-IOV physical and virtual functions.
+
+config NFP_DEBUG
+	bool "Debug support for Netronome(R) NFP4000/NFP6000 NIC drivers"
+	depends on NFP
+	---help---
+	  Enable extra sanity checks and debugfs support in
+	  Netronome(R) NFP4000/NFP6000 NIC drivers.
+	  Note: selecting this option may adversely impact
+		performance.
+
+endif

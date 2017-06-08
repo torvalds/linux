@@ -44,7 +44,7 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 	sch = to_subchannel(cdev->dev.parent);
 	private = to_io_private(sch);
 	orb = &private->orb;
-	cc = stsch_err(sch->schid, &schib);
+	cc = stsch(sch->schid, &schib);
 
 	printk(KERN_WARNING "cio: ccw device timeout occurred at %llx, "
 	       "device information:\n", get_tod_clock());
@@ -124,14 +124,6 @@ ccw_device_set_timeout(struct ccw_device *cdev, int expires)
 	add_timer(&cdev->private->timer);
 }
 
-/*
- * Cancel running i/o. This is called repeatedly since halt/clear are
- * asynchronous operations. We do one try with cio_cancel, two tries
- * with cio_halt, 255 tries with cio_clear. If everythings fails panic.
- * Returns 0 if device now idle, -ENODEV for device not operational and
- * -EBUSY if an interrupt is expected (either from halt/clear or from a
- * status pending).
- */
 int
 ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 {
@@ -139,44 +131,14 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 	int ret;
 
 	sch = to_subchannel(cdev->dev.parent);
-	if (cio_update_schib(sch))
-		return -ENODEV; 
-	if (!sch->schib.pmcw.ena)
-		/* Not operational -> done. */
-		return 0;
-	/* Stage 1: cancel io. */
-	if (!(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_HALT_PEND) &&
-	    !(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_CLEAR_PEND)) {
-		if (!scsw_is_tm(&sch->schib.scsw)) {
-			ret = cio_cancel(sch);
-			if (ret != -EINVAL)
-				return ret;
-		}
-		/* cancel io unsuccessful or not applicable (transport mode).
-		 * Continue with asynchronous instructions. */
-		cdev->private->iretry = 3;	/* 3 halt retries. */
-	}
-	if (!(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_CLEAR_PEND)) {
-		/* Stage 2: halt io. */
-		if (cdev->private->iretry) {
-			cdev->private->iretry--;
-			ret = cio_halt(sch);
-			if (ret != -EBUSY)
-				return (ret == 0) ? -EBUSY : ret;
-		}
-		/* halt io unsuccessful. */
-		cdev->private->iretry = 255;	/* 255 clear retries. */
-	}
-	/* Stage 3: clear io. */
-	if (cdev->private->iretry) {
-		cdev->private->iretry--;
-		ret = cio_clear (sch);
-		return (ret == 0) ? -EBUSY : ret;
-	}
-	/* Function was unsuccessful */
-	CIO_MSG_EVENT(0, "0.%x.%04x: could not stop I/O\n",
-		      cdev->private->dev_id.ssid, cdev->private->dev_id.devno);
-	return -EIO;
+	ret = cio_cancel_halt_clear(sch, &cdev->private->iretry);
+
+	if (ret == -EIO)
+		CIO_MSG_EVENT(0, "0.%x.%04x: could not stop I/O\n",
+			      cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno);
+
+	return ret;
 }
 
 void ccw_device_update_sense_data(struct ccw_device *cdev)
@@ -731,6 +693,44 @@ static void ccw_device_boxed_verify(struct ccw_device *cdev,
 }
 
 /*
+ * Pass interrupt to device driver.
+ */
+static int ccw_device_call_handler(struct ccw_device *cdev)
+{
+	unsigned int stctl;
+	int ending_status;
+
+	/*
+	 * we allow for the device action handler if .
+	 *  - we received ending status
+	 *  - the action handler requested to see all interrupts
+	 *  - we received an intermediate status
+	 *  - fast notification was requested (primary status)
+	 *  - unsolicited interrupts
+	 */
+	stctl = scsw_stctl(&cdev->private->irb.scsw);
+	ending_status = (stctl & SCSW_STCTL_SEC_STATUS) ||
+		(stctl == (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND)) ||
+		(stctl == SCSW_STCTL_STATUS_PEND);
+	if (!ending_status &&
+	    !cdev->private->options.repall &&
+	    !(stctl & SCSW_STCTL_INTER_STATUS) &&
+	    !(cdev->private->options.fast &&
+	      (stctl & SCSW_STCTL_PRIM_STATUS)))
+		return 0;
+
+	if (ending_status)
+		ccw_device_set_timeout(cdev, 0);
+
+	if (cdev->handler)
+		cdev->handler(cdev, cdev->private->intparm,
+			      &cdev->private->irb);
+
+	memset(&cdev->private->irb, 0, sizeof(struct irb));
+	return 1;
+}
+
+/*
  * Got an interrupt for a normal io (state online).
  */
 static void
@@ -1018,12 +1018,6 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_nop,
 		[DEV_EVENT_INTERRUPT]	= ccw_device_disabled_irq,
 		[DEV_EVENT_TIMEOUT]	= ccw_device_nop,
-		[DEV_EVENT_VERIFY]	= ccw_device_nop,
-	},
-	[DEV_STATE_SENSE_PGID] = {
-		[DEV_EVENT_NOTOPER]	= ccw_device_request_event,
-		[DEV_EVENT_INTERRUPT]	= ccw_device_request_event,
-		[DEV_EVENT_TIMEOUT]	= ccw_device_request_event,
 		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
 	[DEV_STATE_SENSE_ID] = {

@@ -10,14 +10,7 @@ This binding uses the common clock binding[1].
 Required properties:
 
 - compatible : shall be:
-	"st,stih416-clkgenc-vcc-hd",	"st,clkgen-mux"
-	"st,stih416-clkgenf-vcc-fvdp",	"st,clkgen-mux"
-	"st,stih416-clkgenf-vcc-hva", 	"st,clkgen-mux"
-	"st,stih416-clkgenf-vcc-hd",	"st,clkgen-mux"
-	"st,stih416-clkgenf-vcc-sd",	"st,clkgen-mux"
-	"st,stih415-clkgen-a9-mux",	"st,clkgen-mux"
-	"st,stih416-clkgen-a9-mux",	"st,clkgen-mux"
-	"st,stih407-clkgen-a9-mux",	"st,clkgen-mux"
+	"st,stih407-clkgen-a9-mux"
 
 - #clock-cells : from common clock binding; shall be set to 0.
 
@@ -27,10 +20,13 @@ Required properties:
 
 Example:
 
-	clk_m_hva: clk-m-hva@fd690868 {
+	clk_m_a9: clk-m-a9@92b0000 {
 		#clock-cells = <0>;
-		compatible = "st,stih416-clkgenf-vcc-hva", "st,clkgen-mux";
-		reg = <0xfd690868 4>;
+		compatible = "st,stih407-clkgen-a9-mux";
+		reg = <0x92b0000 0x10000>;
 
-		clocks = <&clockgen_f 1>, <&clk_m_a1_div0 3>;
+		clocks = <&clockgen_a9_pll 0>,
+			 <&clockgen_a9_pll 0>,
+			 <&clk_s_c0_flexgen 13>,
+			 <&clk_m_a9_ext2f_div2>;
 	};

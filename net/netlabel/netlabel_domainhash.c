@@ -37,10 +37,12 @@
 #include <linux/slab.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
+#include <net/calipso.h>
 #include <asm/bug.h>
 
 #include "netlabel_mgmt.h"
 #include "netlabel_addrlist.h"
+#include "netlabel_calipso.h"
 #include "netlabel_domainhash.h"
 #include "netlabel_user.h"
 
@@ -55,8 +57,9 @@ struct netlbl_domhsh_tbl {
 static DEFINE_SPINLOCK(netlbl_domhsh_lock);
 #define netlbl_domhsh_rcu_deref(p) \
 	rcu_dereference_check(p, lockdep_is_held(&netlbl_domhsh_lock))
-static struct netlbl_domhsh_tbl *netlbl_domhsh = NULL;
-static struct netlbl_dom_map *netlbl_domhsh_def = NULL;
+static struct netlbl_domhsh_tbl __rcu *netlbl_domhsh;
+static struct netlbl_dom_map __rcu *netlbl_domhsh_def_ipv4;
+static struct netlbl_dom_map __rcu *netlbl_domhsh_def_ipv6;
 
 /*
  * Domain Hash Table Helper Functions
@@ -126,18 +129,26 @@ static u32 netlbl_domhsh_hash(const char *key)
 	return val & (netlbl_domhsh_rcu_deref(netlbl_domhsh)->size - 1);
 }
 
+static bool netlbl_family_match(u16 f1, u16 f2)
+{
+	return (f1 == f2) || (f1 == AF_UNSPEC) || (f2 == AF_UNSPEC);
+}
+
 /**
  * netlbl_domhsh_search - Search for a domain entry
  * @domain: the domain
+ * @family: the address family
  *
  * Description:
  * Searches the domain hash table and returns a pointer to the hash table
- * entry if found, otherwise NULL is returned.  The caller is responsible for
+ * entry if found, otherwise NULL is returned.  @family may be %AF_UNSPEC
+ * which matches any address family entries.  The caller is responsible for
  * ensuring that the hash table is protected with either a RCU read lock or the
  * hash table lock.
  *
  */
-static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain)
+static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain,
+						   u16 family)
 {
 	u32 bkt;
 	struct list_head *bkt_list;
@@ -147,7 +158,9 @@ static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain)
 		bkt = netlbl_domhsh_hash(domain);
 		bkt_list = &netlbl_domhsh_rcu_deref(netlbl_domhsh)->tbl[bkt];
 		list_for_each_entry_rcu(iter, bkt_list, list)
-			if (iter->valid && strcmp(iter->domain, domain) == 0)
+			if (iter->valid &&
+			    netlbl_family_match(iter->family, family) &&
+			    strcmp(iter->domain, domain) == 0)
 				return iter;
 	}
 
@@ -157,28 +170,37 @@ static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain)
 /**
  * netlbl_domhsh_search_def - Search for a domain entry
  * @domain: the domain
- * @def: return default if no match is found
+ * @family: the address family
  *
  * Description:
  * Searches the domain hash table and returns a pointer to the hash table
  * entry if an exact match is found, if an exact match is not present in the
  * hash table then the default entry is returned if valid otherwise NULL is
- * returned.  The caller is responsible ensuring that the hash table is
+ * returned.  @family may be %AF_UNSPEC which matches any address family
+ * entries.  The caller is responsible ensuring that the hash table is
  * protected with either a RCU read lock or the hash table lock.
  *
  */
-static struct netlbl_dom_map *netlbl_domhsh_search_def(const char *domain)
+static struct netlbl_dom_map *netlbl_domhsh_search_def(const char *domain,
+						       u16 family)
 {
 	struct netlbl_dom_map *entry;
 
-	entry = netlbl_domhsh_search(domain);
-	if (entry == NULL) {
-		entry = netlbl_domhsh_rcu_deref(netlbl_domhsh_def);
-		if (entry != NULL && !entry->valid)
-			entry = NULL;
+	entry = netlbl_domhsh_search(domain, family);
+	if (entry != NULL)
+		return entry;
+	if (family == AF_INET || family == AF_UNSPEC) {
+		entry = netlbl_domhsh_rcu_deref(netlbl_domhsh_def_ipv4);
+		if (entry != NULL && entry->valid)
+			return entry;
+	}
+	if (family == AF_INET6 || family == AF_UNSPEC) {
+		entry = netlbl_domhsh_rcu_deref(netlbl_domhsh_def_ipv6);
+		if (entry != NULL && entry->valid)
+			return entry;
 	}
 
-	return entry;
+	return NULL;
 }
 
 /**
@@ -203,6 +225,7 @@ static void netlbl_domhsh_audit_add(struct netlbl_dom_map *entry,
 {
 	struct audit_buffer *audit_buf;
 	struct cipso_v4_doi *cipsov4 = NULL;
+	struct calipso_doi *calipso = NULL;
 	u32 type;
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_ADD, audit_info);
@@ -221,12 +244,14 @@ static void netlbl_domhsh_audit_add(struct netlbl_dom_map *entry,
 			struct netlbl_domaddr6_map *map6;
 			map6 = netlbl_domhsh_addr6_entry(addr6);
 			type = map6->def.type;
+			calipso = map6->def.calipso;
 			netlbl_af6list_audit_addr(audit_buf, 0, NULL,
 						  &addr6->addr, &addr6->mask);
 #endif /* IPv6 */
 		} else {
 			type = entry->def.type;
 			cipsov4 = entry->def.cipso;
+			calipso = entry->def.calipso;
 		}
 		switch (type) {
 		case NETLBL_NLTYPE_UNLABELED:
@@ -237,6 +262,12 @@ static void netlbl_domhsh_audit_add(struct netlbl_dom_map *entry,
 			audit_log_format(audit_buf,
 					 " nlbl_protocol=cipsov4 cipso_doi=%u",
 					 cipsov4->doi);
+			break;
+		case NETLBL_NLTYPE_CALIPSO:
+			BUG_ON(calipso == NULL);
+			audit_log_format(audit_buf,
+					 " nlbl_protocol=calipso calipso_doi=%u",
+					 calipso->doi);
 			break;
 		}
 		audit_log_format(audit_buf, " res=%u", result == 0 ? 1 : 0);
@@ -264,13 +295,25 @@ static int netlbl_domhsh_validate(const struct netlbl_dom_map *entry)
 	if (entry == NULL)
 		return -EINVAL;
 
+	if (entry->family != AF_INET && entry->family != AF_INET6 &&
+	    (entry->family != AF_UNSPEC ||
+	     entry->def.type != NETLBL_NLTYPE_UNLABELED))
+		return -EINVAL;
+
 	switch (entry->def.type) {
 	case NETLBL_NLTYPE_UNLABELED:
-		if (entry->def.cipso != NULL || entry->def.addrsel != NULL)
+		if (entry->def.cipso != NULL || entry->def.calipso != NULL ||
+		    entry->def.addrsel != NULL)
 			return -EINVAL;
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
-		if (entry->def.cipso == NULL)
+		if (entry->family != AF_INET ||
+		    entry->def.cipso == NULL)
+			return -EINVAL;
+		break;
+	case NETLBL_NLTYPE_CALIPSO:
+		if (entry->family != AF_INET6 ||
+		    entry->def.calipso == NULL)
 			return -EINVAL;
 		break;
 	case NETLBL_NLTYPE_ADDRSELECT:
@@ -294,6 +337,12 @@ static int netlbl_domhsh_validate(const struct netlbl_dom_map *entry)
 			map6 = netlbl_domhsh_addr6_entry(iter6);
 			switch (map6->def.type) {
 			case NETLBL_NLTYPE_UNLABELED:
+				if (map6->def.calipso != NULL)
+					return -EINVAL;
+				break;
+			case NETLBL_NLTYPE_CALIPSO:
+				if (map6->def.calipso == NULL)
+					return -EINVAL;
 				break;
 			default:
 				return -EINVAL;
@@ -358,15 +407,18 @@ int __init netlbl_domhsh_init(u32 size)
  *
  * Description:
  * Adds a new entry to the domain hash table and handles any updates to the
- * lower level protocol handler (i.e. CIPSO).  Returns zero on success,
- * negative on failure.
+ * lower level protocol handler (i.e. CIPSO).  @entry->family may be set to
+ * %AF_UNSPEC which will add an entry that matches all address families.  This
+ * is only useful for the unlabelled type and will only succeed if there is no
+ * existing entry for any address family with the same domain.  Returns zero
+ * on success, negative on failure.
  *
  */
 int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 		      struct netlbl_audit *audit_info)
 {
 	int ret_val = 0;
-	struct netlbl_dom_map *entry_old;
+	struct netlbl_dom_map *entry_old, *entry_b;
 	struct netlbl_af4list *iter4;
 	struct netlbl_af4list *tmp4;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -385,9 +437,10 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 	rcu_read_lock();
 	spin_lock(&netlbl_domhsh_lock);
 	if (entry->domain != NULL)
-		entry_old = netlbl_domhsh_search(entry->domain);
+		entry_old = netlbl_domhsh_search(entry->domain, entry->family);
 	else
-		entry_old = netlbl_domhsh_search_def(entry->domain);
+		entry_old = netlbl_domhsh_search_def(entry->domain,
+						     entry->family);
 	if (entry_old == NULL) {
 		entry->valid = 1;
 
@@ -397,7 +450,41 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 				    &rcu_dereference(netlbl_domhsh)->tbl[bkt]);
 		} else {
 			INIT_LIST_HEAD(&entry->list);
-			rcu_assign_pointer(netlbl_domhsh_def, entry);
+			switch (entry->family) {
+			case AF_INET:
+				rcu_assign_pointer(netlbl_domhsh_def_ipv4,
+						   entry);
+				break;
+			case AF_INET6:
+				rcu_assign_pointer(netlbl_domhsh_def_ipv6,
+						   entry);
+				break;
+			case AF_UNSPEC:
+				if (entry->def.type !=
+				    NETLBL_NLTYPE_UNLABELED) {
+					ret_val = -EINVAL;
+					goto add_return;
+				}
+				entry_b = kzalloc(sizeof(*entry_b), GFP_ATOMIC);
+				if (entry_b == NULL) {
+					ret_val = -ENOMEM;
+					goto add_return;
+				}
+				entry_b->family = AF_INET6;
+				entry_b->def.type = NETLBL_NLTYPE_UNLABELED;
+				entry_b->valid = 1;
+				entry->family = AF_INET;
+				rcu_assign_pointer(netlbl_domhsh_def_ipv4,
+						   entry);
+				rcu_assign_pointer(netlbl_domhsh_def_ipv6,
+						   entry_b);
+				break;
+			default:
+				/* Already checked in
+				 * netlbl_domhsh_validate(). */
+				ret_val = -EINVAL;
+				goto add_return;
+			}
 		}
 
 		if (entry->def.type == NETLBL_NLTYPE_ADDRSELECT) {
@@ -513,10 +600,12 @@ int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
 	spin_lock(&netlbl_domhsh_lock);
 	if (entry->valid) {
 		entry->valid = 0;
-		if (entry != rcu_dereference(netlbl_domhsh_def))
-			list_del_rcu(&entry->list);
+		if (entry == rcu_dereference(netlbl_domhsh_def_ipv4))
+			RCU_INIT_POINTER(netlbl_domhsh_def_ipv4, NULL);
+		else if (entry == rcu_dereference(netlbl_domhsh_def_ipv6))
+			RCU_INIT_POINTER(netlbl_domhsh_def_ipv6, NULL);
 		else
-			RCU_INIT_POINTER(netlbl_domhsh_def, NULL);
+			list_del_rcu(&entry->list);
 	} else
 		ret_val = -ENOENT;
 	spin_unlock(&netlbl_domhsh_lock);
@@ -533,6 +622,10 @@ int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
 	if (ret_val == 0) {
 		struct netlbl_af4list *iter4;
 		struct netlbl_domaddr4_map *map4;
+#if IS_ENABLED(CONFIG_IPV6)
+		struct netlbl_af6list *iter6;
+		struct netlbl_domaddr6_map *map6;
+#endif /* IPv6 */
 
 		switch (entry->def.type) {
 		case NETLBL_NLTYPE_ADDRSELECT:
@@ -541,12 +634,22 @@ int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
 				map4 = netlbl_domhsh_addr4_entry(iter4);
 				cipso_v4_doi_putdef(map4->def.cipso);
 			}
-			/* no need to check the IPv6 list since we currently
-			 * support only unlabeled protocols for IPv6 */
+#if IS_ENABLED(CONFIG_IPV6)
+			netlbl_af6list_foreach_rcu(iter6,
+					     &entry->def.addrsel->list6) {
+				map6 = netlbl_domhsh_addr6_entry(iter6);
+				calipso_doi_putdef(map6->def.calipso);
+			}
+#endif /* IPv6 */
 			break;
 		case NETLBL_NLTYPE_CIPSOV4:
 			cipso_v4_doi_putdef(entry->def.cipso);
 			break;
+#if IS_ENABLED(CONFIG_IPV6)
+		case NETLBL_NLTYPE_CALIPSO:
+			calipso_doi_putdef(entry->def.calipso);
+			break;
+#endif /* IPv6 */
 		}
 		call_rcu(&entry->rcu, netlbl_domhsh_free_entry);
 	}
@@ -583,9 +686,9 @@ int netlbl_domhsh_remove_af4(const char *domain,
 	rcu_read_lock();
 
 	if (domain)
-		entry_map = netlbl_domhsh_search(domain);
+		entry_map = netlbl_domhsh_search(domain, AF_INET);
 	else
-		entry_map = netlbl_domhsh_search_def(domain);
+		entry_map = netlbl_domhsh_search_def(domain, AF_INET);
 	if (entry_map == NULL ||
 	    entry_map->def.type != NETLBL_NLTYPE_ADDRSELECT)
 		goto remove_af4_failure;
@@ -622,28 +725,114 @@ remove_af4_failure:
 	return -ENOENT;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+/**
+ * netlbl_domhsh_remove_af6 - Removes an address selector entry
+ * @domain: the domain
+ * @addr: IPv6 address
+ * @mask: IPv6 address mask
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Removes an individual address selector from a domain mapping and potentially
+ * the entire mapping if it is empty.  Returns zero on success, negative values
+ * on failure.
+ *
+ */
+int netlbl_domhsh_remove_af6(const char *domain,
+			     const struct in6_addr *addr,
+			     const struct in6_addr *mask,
+			     struct netlbl_audit *audit_info)
+{
+	struct netlbl_dom_map *entry_map;
+	struct netlbl_af6list *entry_addr;
+	struct netlbl_af4list *iter4;
+	struct netlbl_af6list *iter6;
+	struct netlbl_domaddr6_map *entry;
+
+	rcu_read_lock();
+
+	if (domain)
+		entry_map = netlbl_domhsh_search(domain, AF_INET6);
+	else
+		entry_map = netlbl_domhsh_search_def(domain, AF_INET6);
+	if (entry_map == NULL ||
+	    entry_map->def.type != NETLBL_NLTYPE_ADDRSELECT)
+		goto remove_af6_failure;
+
+	spin_lock(&netlbl_domhsh_lock);
+	entry_addr = netlbl_af6list_remove(addr, mask,
+					   &entry_map->def.addrsel->list6);
+	spin_unlock(&netlbl_domhsh_lock);
+
+	if (entry_addr == NULL)
+		goto remove_af6_failure;
+	netlbl_af4list_foreach_rcu(iter4, &entry_map->def.addrsel->list4)
+		goto remove_af6_single_addr;
+	netlbl_af6list_foreach_rcu(iter6, &entry_map->def.addrsel->list6)
+		goto remove_af6_single_addr;
+	/* the domain mapping is empty so remove it from the mapping table */
+	netlbl_domhsh_remove_entry(entry_map, audit_info);
+
+remove_af6_single_addr:
+	rcu_read_unlock();
+	/* yick, we can't use call_rcu here because we don't have a rcu head
+	 * pointer but hopefully this should be a rare case so the pause
+	 * shouldn't be a problem */
+	synchronize_rcu();
+	entry = netlbl_domhsh_addr6_entry(entry_addr);
+	calipso_doi_putdef(entry->def.calipso);
+	kfree(entry);
+	return 0;
+
+remove_af6_failure:
+	rcu_read_unlock();
+	return -ENOENT;
+}
+#endif /* IPv6 */
+
 /**
  * netlbl_domhsh_remove - Removes an entry from the domain hash table
  * @domain: the domain to remove
+ * @family: address family
  * @audit_info: NetLabel audit information
  *
  * Description:
  * Removes an entry from the domain hash table and handles any updates to the
- * lower level protocol handler (i.e. CIPSO).  Returns zero on success,
- * negative on failure.
+ * lower level protocol handler (i.e. CIPSO).  @family may be %AF_UNSPEC which
+ * removes all address family entries.  Returns zero on success, negative on
+ * failure.
  *
  */
-int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
+int netlbl_domhsh_remove(const char *domain, u16 family,
+			 struct netlbl_audit *audit_info)
 {
-	int ret_val;
+	int ret_val = -EINVAL;
 	struct netlbl_dom_map *entry;
 
 	rcu_read_lock();
-	if (domain)
-		entry = netlbl_domhsh_search(domain);
-	else
-		entry = netlbl_domhsh_search_def(domain);
-	ret_val = netlbl_domhsh_remove_entry(entry, audit_info);
+
+	if (family == AF_INET || family == AF_UNSPEC) {
+		if (domain)
+			entry = netlbl_domhsh_search(domain, AF_INET);
+		else
+			entry = netlbl_domhsh_search_def(domain, AF_INET);
+		ret_val = netlbl_domhsh_remove_entry(entry, audit_info);
+		if (ret_val && ret_val != -ENOENT)
+			goto done;
+	}
+	if (family == AF_INET6 || family == AF_UNSPEC) {
+		int ret_val2;
+
+		if (domain)
+			entry = netlbl_domhsh_search(domain, AF_INET6);
+		else
+			entry = netlbl_domhsh_search_def(domain, AF_INET6);
+		ret_val2 = netlbl_domhsh_remove_entry(entry, audit_info);
+		if (ret_val2 != -ENOENT)
+			ret_val = ret_val2;
+	}
+done:
 	rcu_read_unlock();
 
 	return ret_val;
@@ -651,32 +840,38 @@ int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 
 /**
  * netlbl_domhsh_remove_default - Removes the default entry from the table
+ * @family: address family
  * @audit_info: NetLabel audit information
  *
  * Description:
- * Removes/resets the default entry for the domain hash table and handles any
- * updates to the lower level protocol handler (i.e. CIPSO).  Returns zero on
- * success, non-zero on failure.
+ * Removes/resets the default entry corresponding to @family from the domain
+ * hash table and handles any updates to the lower level protocol handler
+ * (i.e. CIPSO).  @family may be %AF_UNSPEC which removes all address family
+ * entries.  Returns zero on success, negative on failure.
  *
  */
-int netlbl_domhsh_remove_default(struct netlbl_audit *audit_info)
+int netlbl_domhsh_remove_default(u16 family, struct netlbl_audit *audit_info)
 {
-	return netlbl_domhsh_remove(NULL, audit_info);
+	return netlbl_domhsh_remove(NULL, family, audit_info);
 }
 
 /**
  * netlbl_domhsh_getentry - Get an entry from the domain hash table
  * @domain: the domain name to search for
+ * @family: address family
  *
  * Description:
  * Look through the domain hash table searching for an entry to match @domain,
- * return a pointer to a copy of the entry or NULL.  The caller is responsible
- * for ensuring that rcu_read_[un]lock() is called.
+ * with address family @family, return a pointer to a copy of the entry or
+ * NULL.  The caller is responsible for ensuring that rcu_read_[un]lock() is
+ * called.
  *
  */
-struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain)
+struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain, u16 family)
 {
-	return netlbl_domhsh_search_def(domain);
+	if (family == AF_UNSPEC)
+		return NULL;
+	return netlbl_domhsh_search_def(domain, family);
 }
 
 /**
@@ -696,7 +891,7 @@ struct netlbl_dommap_def *netlbl_domhsh_getentry_af4(const char *domain,
 	struct netlbl_dom_map *dom_iter;
 	struct netlbl_af4list *addr_iter;
 
-	dom_iter = netlbl_domhsh_search_def(domain);
+	dom_iter = netlbl_domhsh_search_def(domain, AF_INET);
 	if (dom_iter == NULL)
 		return NULL;
 
@@ -726,7 +921,7 @@ struct netlbl_dommap_def *netlbl_domhsh_getentry_af6(const char *domain,
 	struct netlbl_dom_map *dom_iter;
 	struct netlbl_af6list *addr_iter;
 
-	dom_iter = netlbl_domhsh_search_def(domain);
+	dom_iter = netlbl_domhsh_search_def(domain, AF_INET6);
 	if (dom_iter == NULL)
 		return NULL;
 

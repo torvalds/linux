@@ -1,12 +1,28 @@
 #include <asm/bug.h>
+#include <linux/kernel.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+#include "compress.h"
+#include "path.h"
 #include "symbol.h"
 #include "dso.h"
 #include "machine.h"
 #include "auxtrace.h"
 #include "util.h"
 #include "debug.h"
+#include "string2.h"
+#include "vdso.h"
+
+static const char * const debuglink_paths[] = {
+	"%.0s%s",
+	"%s/%s",
+	"%s/.debug/%s",
+	"/usr/lib/debug%s/%s"
+};
 
 char dso__symtab_origin(const struct dso *dso)
 {
@@ -38,28 +54,50 @@ int dso__read_binary_type_filename(const struct dso *dso,
 				   enum dso_binary_type type,
 				   char *root_dir, char *filename, size_t size)
 {
-	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
+	char build_id_hex[SBUILD_ID_SIZE];
 	int ret = 0;
 	size_t len;
 
 	switch (type) {
-	case DSO_BINARY_TYPE__DEBUGLINK: {
-		char *debuglink;
+	case DSO_BINARY_TYPE__DEBUGLINK:
+	{
+		const char *last_slash;
+		char dso_dir[PATH_MAX];
+		char symfile[PATH_MAX];
+		unsigned int i;
 
 		len = __symbol__join_symfs(filename, size, dso->long_name);
-		debuglink = filename + len;
-		while (debuglink != filename && *debuglink != '/')
-			debuglink--;
-		if (*debuglink == '/')
-			debuglink++;
-		ret = filename__read_debuglink(filename, debuglink,
-					       size - (debuglink - filename));
+		last_slash = filename + len;
+		while (last_slash != filename && *last_slash != '/')
+			last_slash--;
+
+		strncpy(dso_dir, filename, last_slash - filename);
+		dso_dir[last_slash-filename] = '\0';
+
+		if (!is_regular_file(filename)) {
+			ret = -1;
+			break;
 		}
+
+		ret = filename__read_debuglink(filename, symfile, PATH_MAX);
+		if (ret)
+			break;
+
+		/* Check predefined locations where debug file might reside */
+		ret = -1;
+		for (i = 0; i < ARRAY_SIZE(debuglink_paths); i++) {
+			snprintf(filename, size,
+					debuglink_paths[i], dso_dir, symfile);
+			if (is_regular_file(filename)) {
+				ret = 0;
+				break;
+			}
+		}
+
 		break;
+	}
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
-		/* skip the locally configured cache if a symfs is given */
-		if (symbol_conf.symfs[0] ||
-		    (dso__build_id_filename(dso, filename, size) == NULL))
+		if (dso__build_id_filename(dso, filename, size) == NULL)
 			ret = -1;
 		break;
 
@@ -331,7 +369,7 @@ static int do_open(char *name)
 			return fd;
 
 		pr_debug("dso open failed: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		if (!dso__data_open_cnt || errno != EMFILE)
 			break;
 
@@ -358,6 +396,9 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 		free(name);
 		return -EINVAL;
 	}
+
+	if (!is_regular_file(name))
+		return -EINVAL;
 
 	fd = do_open(name);
 	free(name);
@@ -438,17 +479,27 @@ static rlim_t get_fd_limit(void)
 	return limit;
 }
 
+static rlim_t fd_limit;
+
+/*
+ * Used only by tests/dso-data.c to reset the environment
+ * for tests. I dont expect we should change this during
+ * standard runtime.
+ */
+void reset_fd_limit(void)
+{
+	fd_limit = 0;
+}
+
 static bool may_cache_fd(void)
 {
-	static rlim_t limit;
+	if (!fd_limit)
+		fd_limit = get_fd_limit();
 
-	if (!limit)
-		limit = get_fd_limit();
-
-	if (limit == RLIM_INFINITY)
+	if (fd_limit == RLIM_INFINITY)
 		return true;
 
-	return limit > (rlim_t) dso__data_open_cnt;
+	return fd_limit > (rlim_t) dso__data_open_cnt;
 }
 
 /*
@@ -772,7 +823,7 @@ static int data_file_size(struct dso *dso, struct machine *machine)
 	if (fstat(dso->data.fd, &st) < 0) {
 		ret = -errno;
 		pr_err("dso cache fstat failed: %s\n",
-		       strerror_r(errno, sbuf, sizeof(sbuf)));
+		       str_error_r(errno, sbuf, sizeof(sbuf)));
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		goto out;
 	}
@@ -908,7 +959,7 @@ static struct dso *__dso__findlink_by_longname(struct rb_root *root,
 		if (rc == 0) {
 			/*
 			 * In case the new DSO is a duplicate of an existing
-			 * one, print an one-time warning & put the new entry
+			 * one, print a one-time warning & put the new entry
 			 * at the end of the list of duplicates.
 			 */
 			if (!dso || (dso == this))
@@ -933,6 +984,7 @@ static struct dso *__dso__findlink_by_longname(struct rb_root *root,
 		/* Add new node and rebalance tree */
 		rb_link_node(&dso->rb_node, parent, p);
 		rb_insert_color(&dso->rb_node, root);
+		dso->root = root;
 	}
 	return NULL;
 }
@@ -945,15 +997,30 @@ static inline struct dso *__dso__find_by_longname(struct rb_root *root,
 
 void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
 {
+	struct rb_root *root = dso->root;
+
 	if (name == NULL)
 		return;
 
 	if (dso->long_name_allocated)
 		free((char *)dso->long_name);
 
+	if (root) {
+		rb_erase(&dso->rb_node, root);
+		/*
+		 * __dso__findlink_by_longname() isn't guaranteed to add it
+		 * back, so a clean removal is required here.
+		 */
+		RB_CLEAR_NODE(&dso->rb_node);
+		dso->root = NULL;
+	}
+
 	dso->long_name		 = name;
 	dso->long_name_len	 = strlen(name);
 	dso->long_name_allocated = name_allocated;
+
+	if (root)
+		__dso__findlink_by_longname(root, dso, NULL);
 }
 
 void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
@@ -999,7 +1066,7 @@ int dso__name_len(const struct dso *dso)
 {
 	if (!dso)
 		return strlen("[unknown]");
-	if (verbose)
+	if (verbose > 0)
 		return dso->long_name_len;
 
 	return dso->short_name_len;
@@ -1046,10 +1113,11 @@ struct dso *dso__new(const char *name)
 		dso->kernel = DSO_TYPE_USER;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		RB_CLEAR_NODE(&dso->rb_node);
+		dso->root = NULL;
 		INIT_LIST_HEAD(&dso->node);
 		INIT_LIST_HEAD(&dso->data.open_entry);
 		pthread_mutex_init(&dso->lock, NULL);
-		atomic_set(&dso->refcnt, 1);
+		refcount_set(&dso->refcnt, 1);
 	}
 
 	return dso;
@@ -1087,13 +1155,13 @@ void dso__delete(struct dso *dso)
 struct dso *dso__get(struct dso *dso)
 {
 	if (dso)
-		atomic_inc(&dso->refcnt);
+		refcount_inc(&dso->refcnt);
 	return dso;
 }
 
 void dso__put(struct dso *dso)
 {
-	if (dso && atomic_dec_and_test(&dso->refcnt))
+	if (dso && refcount_dec_and_test(&dso->refcnt))
 		dso__delete(dso);
 }
 
@@ -1147,7 +1215,7 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 	struct dso *pos;
 
 	list_for_each_entry(pos, head, node) {
-		if (with_hits && !pos->hit)
+		if (with_hits && !pos->hit && !dso__is_vdso(pos))
 			continue;
 		if (pos->has_build_id) {
 			have_build_id = true;
@@ -1226,6 +1294,8 @@ struct dso *__dsos__addnew(struct dsos *dsos, const char *name)
 	if (dso != NULL) {
 		__dsos__add(dsos, dso);
 		dso__set_basename(dso);
+		/* Put dso here because __dsos_add already got it */
+		dso__put(dso);
 	}
 	return dso;
 }
@@ -1277,7 +1347,7 @@ size_t __dsos__fprintf(struct list_head *head, FILE *fp)
 
 size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 {
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
 	return fprintf(fp, "%s", sbuild_id);
@@ -1333,7 +1403,7 @@ int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
 	BUG_ON(buflen == 0);
 
 	if (errnum >= 0) {
-		const char *err = strerror_r(errnum, buf, buflen);
+		const char *err = str_error_r(errnum, buf, buflen);
 
 		if (err != buf)
 			scnprintf(buf, buflen, "%s", err);

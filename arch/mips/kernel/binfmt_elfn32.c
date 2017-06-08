@@ -1,5 +1,6 @@
 /*
  * Support for n32 Linux/MIPS ELF binaries.
+ * Author: Ralf Baechle (ralf@linux-mips.org)
  *
  * Copyright (C) 1999, 2001 Ralf Baechle
  * Copyright (C) 1999, 2001 Silicon Graphics, Inc.
@@ -30,28 +31,13 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(hdr)						\
-({									\
-	int __res = 1;							\
-	struct elfhdr *__h = (hdr);					\
-									\
-	if (__h->e_machine != EM_MIPS)					\
-		__res = 0;						\
-	if (__h->e_ident[EI_CLASS] != ELFCLASS32)			\
-		__res = 0;						\
-	if (((__h->e_flags & EF_MIPS_ABI2) == 0) ||			\
-	    ((__h->e_flags & EF_MIPS_ABI) != 0))			\
-		__res = 0;						\
-									\
-	__res;								\
-})
+#define elf_check_arch elfn32_check_arch
 
 #define TASK32_SIZE		0x7fff8000UL
 #undef ELF_ET_DYN_BASE
 #define ELF_ET_DYN_BASE		(TASK32_SIZE / 3 * 2)
 
 #include <asm/processor.h>
-#include <linux/module.h>
 #include <linux/elfcore.h>
 #include <linux/compat.h>
 #include <linux/math64.h>
@@ -110,24 +96,10 @@ jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
 
 #define ELF_CORE_EFLAGS EF_MIPS_ABI2
 
-MODULE_DESCRIPTION("Binary format loader for compatibility with n32 Linux/MIPS binaries");
-MODULE_AUTHOR("Ralf Baechle (ralf@linux-mips.org)");
-
-#undef MODULE_DESCRIPTION
-#undef MODULE_AUTHOR
-
 #undef TASK_SIZE
 #define TASK_SIZE TASK_SIZE32
 
-#undef cputime_to_timeval
-#define cputime_to_timeval cputime_to_compat_timeval
-static __inline__ void
-cputime_to_compat_timeval(const cputime_t cputime, struct compat_timeval *value)
-{
-	unsigned long jiffies = cputime_to_jiffies(cputime);
-
-	value->tv_usec = (jiffies % HZ) * (1000000L / HZ);
-	value->tv_sec = jiffies / HZ;
-}
+#undef ns_to_timeval
+#define ns_to_timeval ns_to_compat_timeval
 
 #include "../../../fs/binfmt_elf.c"

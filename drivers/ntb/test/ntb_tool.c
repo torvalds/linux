@@ -59,6 +59,12 @@
  *
  * Eg: check if clearing the doorbell mask generates an interrupt.
  *
+ * # Check the link status
+ * root@self# cat $DBG_DIR/link
+ *
+ * # Block until the link is up
+ * root@self# echo Y > $DBG_DIR/link_event
+ *
  * # Set the doorbell mask
  * root@self# echo 's 1' > $DBG_DIR/mask
  *
@@ -79,6 +85,13 @@
  * root@self# cat $DBG_DIR/spad
  *
  * Observe that spad 0 and 1 have the values set by the peer.
+ *
+ * # Check the memory window translation info
+ * cat $DBG_DIR/peer_trans0
+ *
+ * # Setup a 16k memory window buffer
+ * echo 16384 > $DBG_DIR/peer_trans0
+ *
  */
 
 #include <linux/init.h>
@@ -89,6 +102,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #include <linux/ntb.h>
 
@@ -105,11 +119,27 @@ MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
 
+#define MAX_MWS 16
+
 static struct dentry *tool_dbgfs;
+
+struct tool_mw {
+	int idx;
+	struct tool_ctx *tc;
+	resource_size_t win_size;
+	resource_size_t size;
+	u8 __iomem *local;
+	u8 *peer;
+	dma_addr_t peer_dma;
+	struct dentry *peer_dbg_file;
+};
 
 struct tool_ctx {
 	struct ntb_dev *ntb;
 	struct dentry *dbgfs;
+	wait_queue_head_t link_wq;
+	int mw_count;
+	struct tool_mw mws[MAX_MWS];
 };
 
 #define SPAD_FNAME_SIZE 0x10
@@ -135,6 +165,8 @@ static void tool_link_event(void *ctx)
 
 	dev_dbg(&tc->ntb->dev, "link is %s speed %d width %d\n",
 		up ? "up" : "down", speed, width);
+
+	wake_up(&tc->link_wq);
 }
 
 static void tool_db_event(void *ctx, int vec)
@@ -239,7 +271,14 @@ static ssize_t tool_spadfn_read(struct tool_ctx *tc, char __user *ubuf,
 	if (!spad_read_fn)
 		return -EINVAL;
 
-	buf_size = min_t(size_t, size, 0x100);
+	spad_count = ntb_spad_count(tc->ntb);
+
+	/*
+	 * We multiply the number of spads by 15 to get the buffer size
+	 * this is from 3 for the %d, 10 for the largest hex value
+	 * (0x00000000) and 2 for the tab and line feed.
+	 */
+	buf_size = min_t(size_t, size, spad_count * 15);
 
 	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf)
@@ -247,7 +286,6 @@ static ssize_t tool_spadfn_read(struct tool_ctx *tc, char __user *ubuf,
 
 	pos = 0;
 
-	spad_count = ntb_spad_count(tc->ntb);
 	for (i = 0; i < spad_count; ++i) {
 		pos += scnprintf(buf + pos, buf_size - pos, "%d\t%#x\n",
 				 i, spad_read_fn(tc->ntb, i));
@@ -268,7 +306,7 @@ static ssize_t tool_spadfn_write(struct tool_ctx *tc,
 {
 	int spad_idx;
 	u32 spad_val;
-	char *buf;
+	char *buf, *buf_ptr;
 	int pos, n;
 	ssize_t rc;
 
@@ -288,14 +326,15 @@ static ssize_t tool_spadfn_write(struct tool_ctx *tc,
 	}
 
 	buf[size] = 0;
-
-	n = sscanf(buf, "%d %i%n", &spad_idx, &spad_val, &pos);
+	buf_ptr = buf;
+	n = sscanf(buf_ptr, "%d %i%n", &spad_idx, &spad_val, &pos);
 	while (n == 2) {
+		buf_ptr += pos;
 		rc = spad_write_fn(tc->ntb, spad_idx, spad_val);
 		if (rc)
 			break;
 
-		n = sscanf(buf + pos, "%d %i%n", &spad_idx, &spad_val, &pos);
+		n = sscanf(buf_ptr, "%d %i%n", &spad_idx, &spad_val, &pos);
 	}
 
 	if (n < 0)
@@ -442,8 +481,384 @@ static TOOL_FOPS_RDWR(tool_peer_spad_fops,
 		      tool_peer_spad_read,
 		      tool_peer_spad_write);
 
+static ssize_t tool_link_read(struct file *filep, char __user *ubuf,
+			      size_t size, loff_t *offp)
+{
+	struct tool_ctx *tc = filep->private_data;
+	char buf[3];
+
+	buf[0] = ntb_link_is_up(tc->ntb, NULL, NULL) ? 'Y' : 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+
+	return simple_read_from_buffer(ubuf, size, offp, buf, 2);
+}
+
+static ssize_t tool_link_write(struct file *filep, const char __user *ubuf,
+			       size_t size, loff_t *offp)
+{
+	struct tool_ctx *tc = filep->private_data;
+	char buf[32];
+	size_t buf_size;
+	bool val;
+	int rc;
+
+	buf_size = min(size, (sizeof(buf) - 1));
+	if (copy_from_user(buf, ubuf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+
+	rc = strtobool(buf, &val);
+	if (rc)
+		return rc;
+
+	if (val)
+		rc = ntb_link_enable(tc->ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
+	else
+		rc = ntb_link_disable(tc->ntb);
+
+	if (rc)
+		return rc;
+
+	return size;
+}
+
+static TOOL_FOPS_RDWR(tool_link_fops,
+		      tool_link_read,
+		      tool_link_write);
+
+static ssize_t tool_link_event_write(struct file *filep,
+				     const char __user *ubuf,
+				     size_t size, loff_t *offp)
+{
+	struct tool_ctx *tc = filep->private_data;
+	char buf[32];
+	size_t buf_size;
+	bool val;
+	int rc;
+
+	buf_size = min(size, (sizeof(buf) - 1));
+	if (copy_from_user(buf, ubuf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+
+	rc = strtobool(buf, &val);
+	if (rc)
+		return rc;
+
+	if (wait_event_interruptible(tc->link_wq,
+		ntb_link_is_up(tc->ntb, NULL, NULL) == val))
+		return -ERESTART;
+
+	return size;
+}
+
+static TOOL_FOPS_RDWR(tool_link_event_fops,
+		      NULL,
+		      tool_link_event_write);
+
+static ssize_t tool_mw_read(struct file *filep, char __user *ubuf,
+			    size_t size, loff_t *offp)
+{
+	struct tool_mw *mw = filep->private_data;
+	ssize_t rc;
+	loff_t pos = *offp;
+	void *buf;
+
+	if (mw->local == NULL)
+		return -EIO;
+	if (pos < 0)
+		return -EINVAL;
+	if (pos >= mw->win_size || !size)
+		return 0;
+	if (size > mw->win_size - pos)
+		size = mw->win_size - pos;
+
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	memcpy_fromio(buf, mw->local + pos, size);
+	rc = copy_to_user(ubuf, buf, size);
+	if (rc == size) {
+		rc = -EFAULT;
+		goto err_free;
+	}
+
+	size -= rc;
+	*offp = pos + size;
+	rc = size;
+
+err_free:
+	kfree(buf);
+
+	return rc;
+}
+
+static ssize_t tool_mw_write(struct file *filep, const char __user *ubuf,
+			     size_t size, loff_t *offp)
+{
+	struct tool_mw *mw = filep->private_data;
+	ssize_t rc;
+	loff_t pos = *offp;
+	void *buf;
+
+	if (pos < 0)
+		return -EINVAL;
+	if (pos >= mw->win_size || !size)
+		return 0;
+	if (size > mw->win_size - pos)
+		size = mw->win_size - pos;
+
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	rc = copy_from_user(buf, ubuf, size);
+	if (rc == size) {
+		rc = -EFAULT;
+		goto err_free;
+	}
+
+	size -= rc;
+	*offp = pos + size;
+	rc = size;
+
+	memcpy_toio(mw->local + pos, buf, size);
+
+err_free:
+	kfree(buf);
+
+	return rc;
+}
+
+static TOOL_FOPS_RDWR(tool_mw_fops,
+		      tool_mw_read,
+		      tool_mw_write);
+
+static ssize_t tool_peer_mw_read(struct file *filep, char __user *ubuf,
+				 size_t size, loff_t *offp)
+{
+	struct tool_mw *mw = filep->private_data;
+
+	if (!mw->peer)
+		return -ENXIO;
+
+	return simple_read_from_buffer(ubuf, size, offp, mw->peer, mw->size);
+}
+
+static ssize_t tool_peer_mw_write(struct file *filep, const char __user *ubuf,
+				  size_t size, loff_t *offp)
+{
+	struct tool_mw *mw = filep->private_data;
+
+	if (!mw->peer)
+		return -ENXIO;
+
+	return simple_write_to_buffer(mw->peer, mw->size, offp, ubuf, size);
+}
+
+static TOOL_FOPS_RDWR(tool_peer_mw_fops,
+		      tool_peer_mw_read,
+		      tool_peer_mw_write);
+
+static int tool_setup_mw(struct tool_ctx *tc, int idx, size_t req_size)
+{
+	int rc;
+	struct tool_mw *mw = &tc->mws[idx];
+	phys_addr_t base;
+	resource_size_t size, align, align_size;
+	char buf[16];
+
+	if (mw->peer)
+		return 0;
+
+	rc = ntb_mw_get_range(tc->ntb, idx, &base, &size, &align,
+			      &align_size);
+	if (rc)
+		return rc;
+
+	mw->size = min_t(resource_size_t, req_size, size);
+	mw->size = round_up(mw->size, align);
+	mw->size = round_up(mw->size, align_size);
+	mw->peer = dma_alloc_coherent(&tc->ntb->pdev->dev, mw->size,
+				      &mw->peer_dma, GFP_KERNEL);
+
+	if (!mw->peer)
+		return -ENOMEM;
+
+	rc = ntb_mw_set_trans(tc->ntb, idx, mw->peer_dma, mw->size);
+	if (rc)
+		goto err_free_dma;
+
+	snprintf(buf, sizeof(buf), "peer_mw%d", idx);
+	mw->peer_dbg_file = debugfs_create_file(buf, S_IRUSR | S_IWUSR,
+						mw->tc->dbgfs, mw,
+						&tool_peer_mw_fops);
+
+	return 0;
+
+err_free_dma:
+	dma_free_coherent(&tc->ntb->pdev->dev, mw->size,
+			  mw->peer,
+			  mw->peer_dma);
+	mw->peer = NULL;
+	mw->peer_dma = 0;
+	mw->size = 0;
+
+	return rc;
+}
+
+static void tool_free_mw(struct tool_ctx *tc, int idx)
+{
+	struct tool_mw *mw = &tc->mws[idx];
+
+	if (mw->peer) {
+		ntb_mw_clear_trans(tc->ntb, idx);
+		dma_free_coherent(&tc->ntb->pdev->dev, mw->size,
+				  mw->peer,
+				  mw->peer_dma);
+	}
+
+	mw->peer = NULL;
+	mw->peer_dma = 0;
+
+	debugfs_remove(mw->peer_dbg_file);
+
+	mw->peer_dbg_file = NULL;
+}
+
+static ssize_t tool_peer_mw_trans_read(struct file *filep,
+				       char __user *ubuf,
+				       size_t size, loff_t *offp)
+{
+	struct tool_mw *mw = filep->private_data;
+
+	char *buf;
+	size_t buf_size;
+	ssize_t ret, off = 0;
+
+	phys_addr_t base;
+	resource_size_t mw_size;
+	resource_size_t align;
+	resource_size_t align_size;
+
+	buf_size = min_t(size_t, size, 512);
+
+	buf = kmalloc(buf_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ntb_mw_get_range(mw->tc->ntb, mw->idx,
+			 &base, &mw_size, &align, &align_size);
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "Peer MW %d Information:\n", mw->idx);
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "Physical Address      \t%pa[p]\n",
+			 &base);
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "Window Size           \t%lld\n",
+			 (unsigned long long)mw_size);
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "Alignment             \t%lld\n",
+			 (unsigned long long)align);
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "Size Alignment        \t%lld\n",
+			 (unsigned long long)align_size);
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "Ready                 \t%c\n",
+			 (mw->peer) ? 'Y' : 'N');
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "Allocated Size       \t%zd\n",
+			 (mw->peer) ? (size_t)mw->size : 0);
+
+	ret = simple_read_from_buffer(ubuf, size, offp, buf, off);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t tool_peer_mw_trans_write(struct file *filep,
+					const char __user *ubuf,
+					size_t size, loff_t *offp)
+{
+	struct tool_mw *mw = filep->private_data;
+
+	char buf[32];
+	size_t buf_size;
+	unsigned long long val;
+	int rc;
+
+	buf_size = min(size, (sizeof(buf) - 1));
+	if (copy_from_user(buf, ubuf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+
+	rc = kstrtoull(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	tool_free_mw(mw->tc, mw->idx);
+	if (val)
+		rc = tool_setup_mw(mw->tc, mw->idx, val);
+
+	if (rc)
+		return rc;
+
+	return size;
+}
+
+static TOOL_FOPS_RDWR(tool_peer_mw_trans_fops,
+		      tool_peer_mw_trans_read,
+		      tool_peer_mw_trans_write);
+
+static int tool_init_mw(struct tool_ctx *tc, int idx)
+{
+	struct tool_mw *mw = &tc->mws[idx];
+	phys_addr_t base;
+	int rc;
+
+	rc = ntb_mw_get_range(tc->ntb, idx, &base, &mw->win_size,
+			      NULL, NULL);
+	if (rc)
+		return rc;
+
+	mw->tc = tc;
+	mw->idx = idx;
+	mw->local = ioremap_wc(base, mw->win_size);
+	if (!mw->local)
+		return -EFAULT;
+
+	return 0;
+}
+
+static void tool_free_mws(struct tool_ctx *tc)
+{
+	int i;
+
+	for (i = 0; i < tc->mw_count; i++) {
+		tool_free_mw(tc, i);
+
+		if (tc->mws[i].local)
+			iounmap(tc->mws[i].local);
+
+		tc->mws[i].local = NULL;
+	}
+}
+
 static void tool_setup_dbgfs(struct tool_ctx *tc)
 {
+	int i;
+
 	/* This modules is useless without dbgfs... */
 	if (!tool_dbgfs) {
 		tc->dbgfs = NULL;
@@ -472,12 +887,31 @@ static void tool_setup_dbgfs(struct tool_ctx *tc)
 
 	debugfs_create_file("peer_spad", S_IRUSR | S_IWUSR, tc->dbgfs,
 			    tc, &tool_peer_spad_fops);
+
+	debugfs_create_file("link", S_IRUSR | S_IWUSR, tc->dbgfs,
+			    tc, &tool_link_fops);
+
+	debugfs_create_file("link_event", S_IWUSR, tc->dbgfs,
+			    tc, &tool_link_event_fops);
+
+	for (i = 0; i < tc->mw_count; i++) {
+		char buf[30];
+
+		snprintf(buf, sizeof(buf), "mw%d", i);
+		debugfs_create_file(buf, S_IRUSR | S_IWUSR, tc->dbgfs,
+				    &tc->mws[i], &tool_mw_fops);
+
+		snprintf(buf, sizeof(buf), "peer_trans%d", i);
+		debugfs_create_file(buf, S_IRUSR | S_IWUSR, tc->dbgfs,
+				    &tc->mws[i], &tool_peer_mw_trans_fops);
+	}
 }
 
 static int tool_probe(struct ntb_client *self, struct ntb_dev *ntb)
 {
 	struct tool_ctx *tc;
 	int rc;
+	int i;
 
 	if (ntb_db_is_unsafe(ntb))
 		dev_dbg(&ntb->dev, "doorbell is unsafe\n");
@@ -485,13 +919,21 @@ static int tool_probe(struct ntb_client *self, struct ntb_dev *ntb)
 	if (ntb_spad_is_unsafe(ntb))
 		dev_dbg(&ntb->dev, "scratchpad is unsafe\n");
 
-	tc = kmalloc(sizeof(*tc), GFP_KERNEL);
+	tc = kzalloc(sizeof(*tc), GFP_KERNEL);
 	if (!tc) {
 		rc = -ENOMEM;
 		goto err_tc;
 	}
 
 	tc->ntb = ntb;
+	init_waitqueue_head(&tc->link_wq);
+
+	tc->mw_count = min(ntb_mw_count(tc->ntb), MAX_MWS);
+	for (i = 0; i < tc->mw_count; i++) {
+		rc = tool_init_mw(tc, i);
+		if (rc)
+			goto err_ctx;
+	}
 
 	tool_setup_dbgfs(tc);
 
@@ -505,6 +947,7 @@ static int tool_probe(struct ntb_client *self, struct ntb_dev *ntb)
 	return 0;
 
 err_ctx:
+	tool_free_mws(tc);
 	debugfs_remove_recursive(tc->dbgfs);
 	kfree(tc);
 err_tc:
@@ -514,6 +957,8 @@ err_tc:
 static void tool_remove(struct ntb_client *self, struct ntb_dev *ntb)
 {
 	struct tool_ctx *tc = ntb->ctx;
+
+	tool_free_mws(tc);
 
 	ntb_clear_ctx(ntb);
 	ntb_link_disable(ntb);

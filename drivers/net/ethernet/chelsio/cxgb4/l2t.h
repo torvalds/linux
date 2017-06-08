@@ -39,6 +39,8 @@
 #include <linux/if_ether.h>
 #include <linux/atomic.h>
 
+#define VLAN_NONE 0xfff
+
 enum { L2T_SIZE = 4096 };     /* # of L2T entries */
 
 enum {
@@ -76,8 +78,7 @@ struct l2t_entry {
 	struct neighbour *neigh;    /* associated neighbour */
 	struct l2t_entry *first;    /* start of hash chain */
 	struct l2t_entry *next;     /* next l2t_entry on chain */
-	struct sk_buff *arpq_head;  /* queue of packets awaiting resolution */
-	struct sk_buff *arpq_tail;
+	struct sk_buff_head arpq;   /* packet queue awaiting resolution */
 	spinlock_t lock;
 	atomic_t refcnt;            /* entry reference count */
 	u16 hash;                   /* hash bucket the entry is on */
@@ -114,10 +115,11 @@ struct l2t_entry *cxgb4_l2t_get(struct l2t_data *d, struct neighbour *neigh,
 				unsigned int priority);
 u64 cxgb4_select_ntuple(struct net_device *dev,
 			const struct l2t_entry *l2t);
+struct l2t_entry *cxgb4_l2t_alloc_switching(struct net_device *dev, u16 vlan,
+					    u8 port, u8 *dmac);
 void t4_l2t_update(struct adapter *adap, struct neighbour *neigh);
-struct l2t_entry *t4_l2t_alloc_switching(struct l2t_data *d);
-int t4_l2t_set_switching(struct adapter *adap, struct l2t_entry *e, u16 vlan,
-			 u8 port, u8 *eth_addr);
+struct l2t_entry *t4_l2t_alloc_switching(struct adapter *adap, u16 vlan,
+					 u8 port, u8 *dmac);
 struct l2t_data *t4_init_l2t(unsigned int l2t_start, unsigned int l2t_end);
 void do_l2t_write_rpl(struct adapter *p, const struct cpl_l2t_write_rpl *rpl);
 

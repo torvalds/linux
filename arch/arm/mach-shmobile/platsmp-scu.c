@@ -17,38 +17,34 @@
 #include <asm/smp_scu.h>
 #include "common.h"
 
-static int shmobile_smp_scu_notifier_call(struct notifier_block *nfb,
-					  unsigned long action, void *hcpu)
+
+static phys_addr_t shmobile_scu_base_phys;
+static void __iomem *shmobile_scu_base;
+
+static int shmobile_scu_cpu_prepare(unsigned int cpu)
 {
-	unsigned int cpu = (long)hcpu;
-
-	switch (action) {
-	case CPU_UP_PREPARE:
-		/* For this particular CPU register SCU SMP boot vector */
-		shmobile_smp_hook(cpu, virt_to_phys(shmobile_boot_scu),
-				  (unsigned long)shmobile_scu_base);
-		break;
-	};
-
-	return NOTIFY_OK;
+	/* For this particular CPU register SCU SMP boot vector */
+	shmobile_smp_hook(cpu, __pa_symbol(shmobile_boot_scu),
+			  shmobile_scu_base_phys);
+	return 0;
 }
 
-static struct notifier_block shmobile_smp_scu_notifier = {
-	.notifier_call = shmobile_smp_scu_notifier_call,
-};
-
-void __init shmobile_smp_scu_prepare_cpus(unsigned int max_cpus)
+void __init shmobile_smp_scu_prepare_cpus(phys_addr_t scu_base_phys,
+					  unsigned int max_cpus)
 {
 	/* install boot code shared by all CPUs */
-	shmobile_boot_fn = virt_to_phys(shmobile_smp_boot);
-	shmobile_boot_arg = MPIDR_HWID_BITMASK;
+	shmobile_boot_fn = __pa_symbol(shmobile_smp_boot);
 
 	/* enable SCU and cache coherency on booting CPU */
+	shmobile_scu_base_phys = scu_base_phys;
+	shmobile_scu_base = ioremap(scu_base_phys, PAGE_SIZE);
 	scu_enable(shmobile_scu_base);
 	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
 
 	/* Use CPU notifier for reset vector control */
-	register_cpu_notifier(&shmobile_smp_scu_notifier);
+	cpuhp_setup_state_nocalls(CPUHP_ARM_SHMOBILE_SCU_PREPARE,
+				  "arm/shmobile-scu:prepare",
+				  shmobile_scu_cpu_prepare, NULL);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

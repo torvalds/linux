@@ -12,16 +12,6 @@
 		stdout-path = &uart0;
 	};
 
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
-	};
-
 	ocp@f1000000 {
 		i2c@11000 {
 			status = "okay";
@@ -40,7 +30,7 @@
 		};
 		poweroff@12100 {
 			compatible = "qnap,power-off";
-			reg = <0x12000 0x100>;
+			reg = <0x12100 0x100>;
 			clocks = <&gate_clk 7>;
 		};
 		spi@10600 {
@@ -94,7 +84,7 @@
 &mdio {
 	status = "okay";
 
-	ethphy0: ethernet-phy {
+	ethphy0: ethernet-phy@X {
                 /* overwrite reg property in board file */
 	};
 };
@@ -104,4 +94,12 @@
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

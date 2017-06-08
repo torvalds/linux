@@ -27,10 +27,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/syscore_ops.h>
 #include <linux/acpi.h>
 #include <acpi/processor.h>
 #include <xen/xen.h>
-#include <xen/xen-ops.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
 
@@ -116,7 +116,7 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 	set_xen_guest_handle(op.u.set_pminfo.power.states, dst_cx_states);
 
 	if (!no_hypercall)
-		ret = HYPERVISOR_dom0_op(&op);
+		ret = HYPERVISOR_platform_op(&op);
 
 	if (!ret) {
 		pr_debug("ACPI CPU%u - C-states uploaded.\n", _pr->acpi_id);
@@ -244,7 +244,7 @@ static int push_pxx_to_hypervisor(struct acpi_processor *_pr)
 	}
 
 	if (!no_hypercall)
-		ret = HYPERVISOR_dom0_op(&op);
+		ret = HYPERVISOR_platform_op(&op);
 
 	if (!ret) {
 		struct acpi_processor_performance *perf;
@@ -302,7 +302,7 @@ static unsigned int __init get_max_acpi_id(void)
 	info = &op.u.pcpu_info;
 	info->xen_cpuid = 0;
 
-	ret = HYPERVISOR_dom0_op(&op);
+	ret = HYPERVISOR_platform_op(&op);
 	if (ret)
 		return NR_CPUS;
 
@@ -310,7 +310,7 @@ static unsigned int __init get_max_acpi_id(void)
 	last_cpu = op.u.pcpu_info.max_present;
 	for (i = 0; i <= last_cpu; i++) {
 		info->xen_cpuid = i;
-		ret = HYPERVISOR_dom0_op(&op);
+		ret = HYPERVISOR_platform_op(&op);
 		if (ret)
 			continue;
 		max_acpi_id = max(info->acpi_id, max_acpi_id);
@@ -408,7 +408,7 @@ static int check_acpi_ids(struct acpi_processor *pr_backup)
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
 			    read_acpi_id, NULL, NULL, NULL);
-	acpi_get_devices("ACPI0007", read_acpi_id, NULL, NULL);
+	acpi_get_devices(ACPI_PROCESSOR_DEVICE_HID, read_acpi_id, NULL, NULL);
 
 upload:
 	if (!bitmap_equal(acpi_id_present, acpi_ids_done, nr_acpi_bits)) {
@@ -423,36 +423,7 @@ upload:
 
 	return 0;
 }
-static int __init check_prereq(void)
-{
-	struct cpuinfo_x86 *c = &cpu_data(0);
 
-	if (!xen_initial_domain())
-		return -ENODEV;
-
-	if (!acpi_gbl_FADT.smi_command)
-		return -ENODEV;
-
-	if (c->x86_vendor == X86_VENDOR_INTEL) {
-		if (!cpu_has(c, X86_FEATURE_EST))
-			return -ENODEV;
-
-		return 0;
-	}
-	if (c->x86_vendor == X86_VENDOR_AMD) {
-		/* Copied from powernow-k8.h, can't include ../cpufreq/powernow
-		 * as we get compile warnings for the static functions.
-		 */
-#define CPUID_FREQ_VOLT_CAPABILITIES    0x80000007
-#define USE_HW_PSTATE                   0x00000080
-		u32 eax, ebx, ecx, edx;
-		cpuid(CPUID_FREQ_VOLT_CAPABILITIES, &eax, &ebx, &ecx, &edx);
-		if ((edx & USE_HW_PSTATE) != USE_HW_PSTATE)
-			return -ENODEV;
-		return 0;
-	}
-	return -ENODEV;
-}
 /* acpi_perf_data is a pointer to percpu data. */
 static struct acpi_processor_performance __percpu *acpi_perf_data;
 
@@ -495,24 +466,42 @@ static int xen_upload_processor_pm_data(void)
 	return rc;
 }
 
-static int xen_acpi_processor_resume(struct notifier_block *nb,
-				     unsigned long action, void *data)
+static void xen_acpi_processor_resume_worker(struct work_struct *dummy)
 {
+	int rc;
+
 	bitmap_zero(acpi_ids_done, nr_acpi_bits);
-	return xen_upload_processor_pm_data();
+
+	rc = xen_upload_processor_pm_data();
+	if (rc != 0)
+		pr_info("ACPI data upload failed, error = %d\n", rc);
 }
 
-struct notifier_block xen_acpi_processor_resume_nb = {
-	.notifier_call = xen_acpi_processor_resume,
+static void xen_acpi_processor_resume(void)
+{
+	static DECLARE_WORK(wq, xen_acpi_processor_resume_worker);
+
+	/*
+	 * xen_upload_processor_pm_data() calls non-atomic code.
+	 * However, the context for xen_acpi_processor_resume is syscore
+	 * with only the boot CPU online and in an atomic context.
+	 *
+	 * So defer the upload for some point safer.
+	 */
+	schedule_work(&wq);
+}
+
+static struct syscore_ops xap_syscore_ops = {
+	.resume	= xen_acpi_processor_resume,
 };
 
 static int __init xen_acpi_processor_init(void)
 {
 	unsigned int i;
-	int rc = check_prereq();
+	int rc;
 
-	if (rc)
-		return rc;
+	if (!xen_initial_domain())
+		return -ENODEV;
 
 	nr_acpi_bits = get_max_acpi_id() + 1;
 	acpi_ids_done = kcalloc(BITS_TO_LONGS(nr_acpi_bits), sizeof(unsigned long), GFP_KERNEL);
@@ -556,7 +545,7 @@ static int __init xen_acpi_processor_init(void)
 	if (rc)
 		goto err_unregister;
 
-	xen_resume_notifier_register(&xen_acpi_processor_resume_nb);
+	register_syscore_ops(&xap_syscore_ops);
 
 	return 0;
 err_unregister:
@@ -573,7 +562,7 @@ static void __exit xen_acpi_processor_exit(void)
 {
 	int i;
 
-	xen_resume_notifier_unregister(&xen_acpi_processor_resume_nb);
+	unregister_syscore_ops(&xap_syscore_ops);
 	kfree(acpi_ids_done);
 	kfree(acpi_id_present);
 	kfree(acpi_id_cst_present);

@@ -67,6 +67,8 @@ static int vfio_amba_probe(struct amba_device *adev, const struct amba_id *id)
 	vdev->flags = VFIO_DEVICE_FLAGS_AMBA;
 	vdev->get_resource = get_amba_resource;
 	vdev->get_irq = get_amba_irq;
+	vdev->parent_module = THIS_MODULE;
+	vdev->reset_required = false;
 
 	ret = vfio_platform_probe_common(vdev, &adev->dev);
 	if (ret) {

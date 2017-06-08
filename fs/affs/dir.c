@@ -20,7 +20,7 @@ static int affs_readdir(struct file *, struct dir_context *);
 const struct file_operations affs_dir_operations = {
 	.read		= generic_read_dir,
 	.llseek		= generic_file_llseek,
-	.iterate	= affs_readdir,
+	.iterate_shared	= affs_readdir,
 	.fsync		= affs_file_fsync,
 };
 
@@ -35,7 +35,7 @@ const struct inode_operations affs_dir_inode_operations = {
 	.symlink	= affs_symlink,
 	.mkdir		= affs_mkdir,
 	.rmdir		= affs_rmdir,
-	.rename		= affs_rename,
+	.rename		= affs_rename2,
 	.setattr	= affs_notify_change,
 };
 

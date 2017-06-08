@@ -1,0 +1,50 @@
+/*
+ * Copyright (C) 2015 Broadcom Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation version 2.
+ *
+ * This program is distributed "as is" WITHOUT ANY WARRANTY of any
+ * kind, whether express or implied; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ */
+
+#ifndef _LINUX_BCM_PHY_LIB_H
+#define _LINUX_BCM_PHY_LIB_H
+
+#include <linux/phy.h>
+
+int bcm_phy_write_exp(struct phy_device *phydev, u16 reg, u16 val);
+int bcm_phy_read_exp(struct phy_device *phydev, u16 reg);
+
+int bcm54xx_auxctl_write(struct phy_device *phydev, u16 regnum, u16 val);
+int bcm54xx_auxctl_read(struct phy_device *phydev, u16 regnum);
+
+int bcm_phy_write_misc(struct phy_device *phydev,
+		       u16 reg, u16 chl, u16 value);
+int bcm_phy_read_misc(struct phy_device *phydev,
+		      u16 reg, u16 chl);
+
+int bcm_phy_write_shadow(struct phy_device *phydev, u16 shadow,
+			 u16 val);
+int bcm_phy_read_shadow(struct phy_device *phydev, u16 shadow);
+
+int bcm_phy_ack_intr(struct phy_device *phydev);
+int bcm_phy_config_intr(struct phy_device *phydev);
+
+int bcm_phy_enable_apd(struct phy_device *phydev, bool dll_pwr_down);
+
+int bcm_phy_set_eee(struct phy_device *phydev, bool enable);
+
+int bcm_phy_downshift_get(struct phy_device *phydev, u8 *count);
+
+int bcm_phy_downshift_set(struct phy_device *phydev, u8 count);
+
+int bcm_phy_get_sset_count(struct phy_device *phydev);
+void bcm_phy_get_strings(struct phy_device *phydev, u8 *data);
+void bcm_phy_get_stats(struct phy_device *phydev, u64 *shadow,
+		       struct ethtool_stats *stats, u64 *data);
+
+#endif /* _LINUX_BCM_PHY_LIB_H */

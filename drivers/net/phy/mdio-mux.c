@@ -34,7 +34,6 @@ struct mdio_mux_child_bus {
 	struct mdio_mux_parent_bus *parent;
 	struct mdio_mux_child_bus *next;
 	int bus_number;
-	int phy_irq[PHY_MAX_ADDR];
 };
 
 /*
@@ -46,13 +45,7 @@ static int mdio_mux_read(struct mii_bus *bus, int phy_id, int regnum)
 	struct mdio_mux_parent_bus *pb = cb->parent;
 	int r;
 
-	/* In theory multiple mdio_mux could be stacked, thus creating
-	 * more than a single level of nesting.  But in practice,
-	 * SINGLE_DEPTH_NESTING will cover the vast majority of use
-	 * cases.  We use it, instead of trying to handle the general
-	 * case.
-	 */
-	mutex_lock_nested(&pb->mii_bus->mdio_lock, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&pb->mii_bus->mdio_lock, MDIO_MUTEX_MUX);
 	r = pb->switch_fn(pb->current_child, cb->bus_number, pb->switch_data);
 	if (r)
 		goto out;
@@ -77,7 +70,7 @@ static int mdio_mux_write(struct mii_bus *bus, int phy_id,
 
 	int r;
 
-	mutex_lock_nested(&pb->mii_bus->mdio_lock, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&pb->mii_bus->mdio_lock, MDIO_MUTEX_MUX);
 	r = pb->switch_fn(pb->current_child, cb->bus_number, pb->switch_data);
 	if (r)
 		goto out;
@@ -96,7 +89,8 @@ static int parent_count;
 int mdio_mux_init(struct device *dev,
 		  int (*switch_fn)(int cur, int desired, void *data),
 		  void **mux_handle,
-		  void *data)
+		  void *data,
+		  struct mii_bus *mux_bus)
 {
 	struct device_node *parent_bus_node;
 	struct device_node *child_bus_node;
@@ -108,21 +102,27 @@ int mdio_mux_init(struct device *dev,
 	if (!dev->of_node)
 		return -ENODEV;
 
-	parent_bus_node = of_parse_phandle(dev->of_node, "mdio-parent-bus", 0);
+	if (!mux_bus) {
+		parent_bus_node = of_parse_phandle(dev->of_node,
+						   "mdio-parent-bus", 0);
 
-	if (!parent_bus_node)
-		return -ENODEV;
+		if (!parent_bus_node)
+			return -ENODEV;
 
-	parent_bus = of_mdio_find_bus(parent_bus_node);
-	if (parent_bus == NULL) {
-		ret_val = -EPROBE_DEFER;
-		goto err_parent_bus;
+		parent_bus = of_mdio_find_bus(parent_bus_node);
+		if (!parent_bus) {
+			ret_val = -EPROBE_DEFER;
+			goto err_parent_bus;
+		}
+	} else {
+		parent_bus_node = NULL;
+		parent_bus = mux_bus;
 	}
 
 	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
 	if (pb == NULL) {
 		ret_val = -ENOMEM;
-		goto err_parent_bus;
+		goto err_pb_kz;
 	}
 
 	pb->switch_data = data;
@@ -144,14 +144,21 @@ int mdio_mux_init(struct device *dev,
 			dev_err(dev,
 				"Error: Failed to allocate memory for child\n");
 			ret_val = -ENOMEM;
+			of_node_put(child_bus_node);
 			break;
 		}
 		cb->bus_number = v;
 		cb->parent = pb;
+
 		cb->mii_bus = mdiobus_alloc();
+		if (!cb->mii_bus) {
+			ret_val = -ENOMEM;
+			devm_kfree(dev, cb);
+			of_node_put(child_bus_node);
+			break;
+		}
 		cb->mii_bus->priv = cb;
 
-		cb->mii_bus->irq = cb->phy_irq;
 		cb->mii_bus->name = "mdio_mux";
 		snprintf(cb->mii_bus->id, MII_BUS_ID_SIZE, "%x.%x",
 			 pb->parent_id, v);
@@ -163,7 +170,6 @@ int mdio_mux_init(struct device *dev,
 			mdiobus_free(cb->mii_bus);
 			devm_kfree(dev, cb);
 		} else {
-			of_node_get(child_bus_node);
 			cb->next = pb->children;
 			pb->children = cb;
 		}
@@ -173,6 +179,12 @@ int mdio_mux_init(struct device *dev,
 		dev_info(dev, "Version " DRV_VERSION "\n");
 		return 0;
 	}
+
+	devm_kfree(dev, pb);
+err_pb_kz:
+	/* balance the reference of_mdio_find_bus() took */
+	if (!mux_bus)
+		put_device(&parent_bus->dev);
 err_parent_bus:
 	of_node_put(parent_bus_node);
 	return ret_val;
@@ -189,6 +201,9 @@ void mdio_mux_uninit(void *mux_handle)
 		mdiobus_free(cb->mii_bus);
 		cb = cb->next;
 	}
+
+	/* balance the reference of_mdio_find_bus() in mdio_mux_init() took */
+	put_device(&pb->mii_bus->dev);
 }
 EXPORT_SYMBOL_GPL(mdio_mux_uninit);
 

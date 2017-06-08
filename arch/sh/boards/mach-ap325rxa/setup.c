@@ -15,7 +15,6 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
 #include <linux/mfd/tmio.h>
@@ -27,10 +26,10 @@
 #include <linux/gpio.h>
 #include <linux/videodev2.h>
 #include <linux/sh_intc.h>
-#include <media/ov772x.h>
+#include <media/i2c/ov772x.h>
 #include <media/soc_camera.h>
-#include <media/soc_camera_platform.h>
-#include <media/sh_mobile_ceu.h>
+#include <linux/platform_data/media/soc_camera_platform.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/io.h>
 #include <asm/clock.h>

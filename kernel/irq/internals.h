@@ -7,6 +7,7 @@
  */
 #include <linux/irqdesc.h>
 #include <linux/kernel_stat.h>
+#include <linux/pm_runtime.h>
 
 #ifdef CONFIG_SPARSE_IRQ
 # define IRQ_BITMAP_BITS	(NR_IRQS + 8196)
@@ -17,6 +18,8 @@
 #define istate core_internal_state__do_not_mess_with_it
 
 extern bool noirqdebug;
+
+extern struct irqaction chained_action;
 
 /*
  * Bits used by threaded handlers:
@@ -81,7 +84,8 @@ extern void irq_mark_irq(unsigned int irq);
 
 extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
 
-irqreturn_t handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action);
+irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags);
+irqreturn_t handle_irq_event_percpu(struct irq_desc *desc);
 irqreturn_t handle_irq_event(struct irq_desc *desc);
 
 /* Resending of interrupts :*/
@@ -102,6 +106,8 @@ static inline void register_handler_proc(unsigned int irq,
 static inline void unregister_handler_proc(unsigned int irq,
 					   struct irqaction *action) { }
 #endif
+
+extern bool irq_can_set_affinity_usr(unsigned int irq);
 
 extern int irq_select_affinity_usr(unsigned int irq, struct cpumask *mask);
 
@@ -128,6 +134,9 @@ static inline void chip_bus_sync_unlock(struct irq_desc *desc)
 
 #define IRQ_GET_DESC_CHECK_GLOBAL	(_IRQ_DESC_CHECK)
 #define IRQ_GET_DESC_CHECK_PERCPU	(_IRQ_DESC_CHECK | _IRQ_DESC_PERCPU)
+
+#define for_each_action_of_desc(desc, act)			\
+	for (act = desc->act; act; act = act->next)
 
 struct irq_desc *
 __irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus,
@@ -158,6 +167,8 @@ irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags)
 	__irq_put_desc_unlock(desc, flags, false);
 }
 
+#define __irqd_to_state(d) ACCESS_PRIVATE((d)->common, state_use_accessors)
+
 /*
  * Manipulation functions for irq_data.state
  */
@@ -186,6 +197,8 @@ static inline bool irqd_has_set(struct irq_data *d, unsigned int mask)
 	return __irqd_to_state(d) & mask;
 }
 
+#undef __irqd_to_state
+
 static inline void kstat_incr_irqs_this_cpu(struct irq_desc *desc)
 {
 	__this_cpu_inc(*desc->kstat_irqs);
@@ -195,6 +208,11 @@ static inline void kstat_incr_irqs_this_cpu(struct irq_desc *desc)
 static inline int irq_desc_get_node(struct irq_desc *desc)
 {
 	return irq_common_data_get_node(&desc->irq_common_data);
+}
+
+static inline int irq_desc_is_chained(struct irq_desc *desc)
+{
+	return (desc->action && desc->action == &chained_action);
 }
 
 #ifdef CONFIG_PM_SLEEP

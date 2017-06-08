@@ -38,7 +38,6 @@
 #define AD7816_TEMP_FLOAT_OFFSET	2
 #define AD7816_TEMP_FLOAT_MASK		0x3
 
-
 /*
  * struct ad7816_chip_info - chip specific information
  */
@@ -48,7 +47,7 @@ struct ad7816_chip_info {
 	u16 rdwr_pin;
 	u16 convert_pin;
 	u16 busy_pin;
-	u8  oti_data[AD7816_CS_MAX+1];
+	u8  oti_data[AD7816_CS_MAX + 1];
 	u8  channel_id;	/* 0 always be temperature */
 	u8  mode;
 };
@@ -60,6 +59,7 @@ static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 {
 	struct spi_device *spi_dev = chip->spi_dev;
 	int ret = 0;
+	__be16 buf;
 
 	gpio_set_value(chip->rdwr_pin, 1);
 	gpio_set_value(chip->rdwr_pin, 0);
@@ -69,7 +69,6 @@ static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 		return ret;
 	}
 	gpio_set_value(chip->rdwr_pin, 1);
-
 
 	if (chip->mode == AD7816_PD) { /* operating mode 2 */
 		gpio_set_value(chip->convert_pin, 1);
@@ -84,13 +83,13 @@ static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 
 	gpio_set_value(chip->rdwr_pin, 0);
 	gpio_set_value(chip->rdwr_pin, 1);
-	ret = spi_read(spi_dev, (u8 *)data, sizeof(*data));
+	ret = spi_read(spi_dev, &buf, sizeof(*data));
 	if (ret < 0) {
 		dev_err(&spi_dev->dev, "SPI data read error\n");
 		return ret;
 	}
 
-	*data = be16_to_cpu(*data);
+	*data = be16_to_cpu(buf);
 
 	return ret;
 }
@@ -110,8 +109,8 @@ static int ad7816_spi_write(struct ad7816_chip_info *chip, u8 data)
 }
 
 static ssize_t ad7816_show_mode(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				struct device_attribute *attr,
+				char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
@@ -122,9 +121,9 @@ static ssize_t ad7816_show_mode(struct device *dev,
 }
 
 static ssize_t ad7816_store_mode(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				 struct device_attribute *attr,
+				 const char *buf,
+				 size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
@@ -140,24 +139,24 @@ static ssize_t ad7816_store_mode(struct device *dev,
 	return len;
 }
 
-static IIO_DEVICE_ATTR(mode, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(mode, 0644,
 		ad7816_show_mode,
 		ad7816_store_mode,
 		0);
 
 static ssize_t ad7816_show_available_modes(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+					   struct device_attribute *attr,
+					   char *buf)
 {
 	return sprintf(buf, "full\npower-save\n");
 }
 
-static IIO_DEVICE_ATTR(available_modes, S_IRUGO, ad7816_show_available_modes,
+static IIO_DEVICE_ATTR(available_modes, 0444, ad7816_show_available_modes,
 			NULL, 0);
 
 static ssize_t ad7816_show_channel(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				   struct device_attribute *attr,
+				   char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
@@ -166,9 +165,9 @@ static ssize_t ad7816_show_channel(struct device *dev,
 }
 
 static ssize_t ad7816_store_channel(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
@@ -198,15 +197,14 @@ static ssize_t ad7816_store_channel(struct device *dev,
 	return len;
 }
 
-static IIO_DEVICE_ATTR(channel, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(channel, 0644,
 		ad7816_show_channel,
 		ad7816_store_channel,
 		0);
 
-
 static ssize_t ad7816_show_value(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
@@ -230,7 +228,7 @@ static ssize_t ad7816_show_value(struct device *dev,
 	return sprintf(buf, "%u\n", data);
 }
 
-static IIO_DEVICE_ATTR(value, S_IRUGO, ad7816_show_value, NULL, 0);
+static IIO_DEVICE_ATTR(value, 0444, ad7816_show_value, NULL, 0);
 
 static struct attribute *ad7816_attributes[] = {
 	&iio_dev_attr_available_modes.dev_attr.attr,
@@ -255,13 +253,14 @@ static const struct attribute_group ad7816_attribute_group = {
 
 static irqreturn_t ad7816_event_handler(int irq, void *private)
 {
-	iio_push_event(private, IIO_EVENT_CODE_AD7816_OTI, iio_get_time_ns());
+	iio_push_event(private, IIO_EVENT_CODE_AD7816_OTI,
+		       iio_get_time_ns((struct iio_dev *)private));
 	return IRQ_HANDLED;
 }
 
 static ssize_t ad7816_show_oti(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+			       struct device_attribute *attr,
+			       char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
@@ -280,9 +279,9 @@ static ssize_t ad7816_show_oti(struct device *dev,
 }
 
 static inline ssize_t ad7816_set_oti(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				     struct device_attribute *attr,
+				     const char *buf,
+				     size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
@@ -298,14 +297,14 @@ static inline ssize_t ad7816_set_oti(struct device *dev,
 		dev_err(dev, "Invalid oti channel id %d.\n", chip->channel_id);
 		return -EINVAL;
 	} else if (chip->channel_id == 0) {
-		if (ret || value < AD7816_BOUND_VALUE_MIN ||
-			value > AD7816_BOUND_VALUE_MAX)
+		if (value < AD7816_BOUND_VALUE_MIN ||
+		    value > AD7816_BOUND_VALUE_MAX)
 			return -EINVAL;
 
 		data = (u8)(value - AD7816_BOUND_VALUE_MIN +
 			AD7816_BOUND_VALUE_BASE);
 	} else {
-		if (ret || value < AD7816_BOUND_VALUE_BASE || value > 255)
+		if (value < AD7816_BOUND_VALUE_BASE || value > 255)
 			return -EINVAL;
 
 		data = (u8)value;
@@ -320,7 +319,7 @@ static inline ssize_t ad7816_set_oti(struct device *dev,
 	return len;
 }
 
-static IIO_DEVICE_ATTR(oti, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(oti, 0644,
 		       ad7816_show_oti, ad7816_set_oti, 0);
 
 static struct attribute *ad7816_event_attributes[] = {
@@ -328,7 +327,7 @@ static struct attribute *ad7816_event_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group ad7816_event_attribute_group = {
+static const struct attribute_group ad7816_event_attribute_group = {
 	.attrs = ad7816_event_attributes,
 	.name = "events",
 };
@@ -347,7 +346,7 @@ static int ad7816_probe(struct spi_device *spi_dev)
 {
 	struct ad7816_chip_info *chip;
 	struct iio_dev *indio_dev;
-	unsigned short *pins = spi_dev->dev.platform_data;
+	unsigned short *pins = dev_get_platdata(&spi_dev->dev);
 	int ret = 0;
 	int i;
 
@@ -371,7 +370,7 @@ static int ad7816_probe(struct spi_device *spi_dev)
 	chip->busy_pin = pins[2];
 
 	ret = devm_gpio_request(&spi_dev->dev, chip->rdwr_pin,
-					spi_get_device_id(spi_dev)->name);
+				spi_get_device_id(spi_dev)->name);
 	if (ret) {
 		dev_err(&spi_dev->dev, "Fail to request rdwr gpio PIN %d.\n",
 			chip->rdwr_pin);
@@ -379,7 +378,7 @@ static int ad7816_probe(struct spi_device *spi_dev)
 	}
 	gpio_direction_input(chip->rdwr_pin);
 	ret = devm_gpio_request(&spi_dev->dev, chip->convert_pin,
-					spi_get_device_id(spi_dev)->name);
+				spi_get_device_id(spi_dev)->name);
 	if (ret) {
 		dev_err(&spi_dev->dev, "Fail to request convert gpio PIN %d.\n",
 			chip->convert_pin);
@@ -387,7 +386,7 @@ static int ad7816_probe(struct spi_device *spi_dev)
 	}
 	gpio_direction_input(chip->convert_pin);
 	ret = devm_gpio_request(&spi_dev->dev, chip->busy_pin,
-					spi_get_device_id(spi_dev)->name);
+				spi_get_device_id(spi_dev)->name);
 	if (ret) {
 		dev_err(&spi_dev->dev, "Fail to request busy gpio PIN %d.\n",
 			chip->busy_pin);
@@ -417,7 +416,7 @@ static int ad7816_probe(struct spi_device *spi_dev)
 		return ret;
 
 	dev_info(&spi_dev->dev, "%s temperature sensor and ADC registered.\n",
-			 indio_dev->name);
+		 indio_dev->name);
 
 	return 0;
 }
@@ -434,7 +433,6 @@ MODULE_DEVICE_TABLE(spi, ad7816_id);
 static struct spi_driver ad7816_driver = {
 	.driver = {
 		.name = "ad7816",
-		.owner = THIS_MODULE,
 	},
 	.probe = ad7816_probe,
 	.id_table = ad7816_id,

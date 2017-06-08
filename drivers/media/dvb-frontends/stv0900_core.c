@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -1087,7 +1083,7 @@ u8 stv0900_get_optim_carr_loop(s32 srate, enum fe_stv0900_modcode modcode,
 							s32 pilot, u8 chip_id)
 {
 	u8 aclc_value = 0x29;
-	s32 i;
+	s32 i, cllas2_size;
 	const struct stv0900_car_loop_optim *cls2, *cllqs2, *cllas2;
 
 	dprintk("%s\n", __func__);
@@ -1096,14 +1092,17 @@ u8 stv0900_get_optim_carr_loop(s32 srate, enum fe_stv0900_modcode modcode,
 		cls2 = FE_STV0900_S2CarLoop;
 		cllqs2 = FE_STV0900_S2LowQPCarLoopCut30;
 		cllas2 = FE_STV0900_S2APSKCarLoopCut30;
+		cllas2_size = ARRAY_SIZE(FE_STV0900_S2APSKCarLoopCut30);
 	} else if (chip_id == 0x20) {
 		cls2 = FE_STV0900_S2CarLoopCut20;
 		cllqs2 = FE_STV0900_S2LowQPCarLoopCut20;
 		cllas2 = FE_STV0900_S2APSKCarLoopCut20;
+		cllas2_size = ARRAY_SIZE(FE_STV0900_S2APSKCarLoopCut20);
 	} else {
 		cls2 = FE_STV0900_S2CarLoopCut30;
 		cllqs2 = FE_STV0900_S2LowQPCarLoopCut30;
 		cllas2 = FE_STV0900_S2APSKCarLoopCut30;
+		cllas2_size = ARRAY_SIZE(FE_STV0900_S2APSKCarLoopCut30);
 	}
 
 	if (modcode < STV0900_QPSK_12) {
@@ -1178,7 +1177,7 @@ u8 stv0900_get_optim_carr_loop(s32 srate, enum fe_stv0900_modcode modcode,
 				aclc_value = cls2[i].car_loop_pilots_off_30;
 		}
 
-	} else {
+	} else if (i < cllas2_size) {
 		if (srate <= 3000000)
 			aclc_value = cllas2[i].car_loop_pilots_on_2;
 		else if (srate <= 7000000)
@@ -1859,9 +1858,9 @@ static int stv0900_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int stv0900_get_frontend(struct dvb_frontend *fe)
+static int stv0900_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0900_state *state = fe->demodulator_priv;
 	struct stv0900_internal *intp = state->internal;
 	enum fe_stv0900_demod_num demod = state->demod;
@@ -1872,7 +1871,7 @@ static int stv0900_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct dvb_frontend_ops stv0900_ops = {
+static const struct dvb_frontend_ops stv0900_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name			= "STV0900 frontend",

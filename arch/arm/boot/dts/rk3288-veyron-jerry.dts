@@ -56,17 +56,18 @@
 	panel_regulator: panel-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio7 14 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio7 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_enable_h>;
 		regulator-name = "panel_regulator";
+		startup-delay-us = <100000>;
 		vin-supply = <&vcc33_sys>;
 	};
 
 	vcc18_lcd: vcc18-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&avdd_1v8_disp_en>;
 		regulator-name = "vcc18_lcd";
@@ -78,13 +79,21 @@
 	backlight_regulator: backlight-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bl_pwr_en>;
 		regulator-name = "backlight_regulator";
 		vin-supply = <&vcc33_sys>;
 		startup-delay-us = <15000>;
 	};
+};
+
+&backlight {
+	power-supply = <&backlight_regulator>;
+};
+
+&panel {
+	power-supply= <&panel_regulator>;
 };
 
 &rk808 {
@@ -114,14 +123,14 @@
 
 &vcc_5v {
 	enable-active-high;
-	gpio = <&gpio7 21 GPIO_ACTIVE_HIGH>;
+	gpio = <&gpio7 RK_PC5 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&drv_5v>;
 };
 
 &vcc50_hdmi {
 	enable-active-high;
-	gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
+	gpio = <&gpio5 RK_PC3 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&vcc50_hdmi_en>;
 };
@@ -188,7 +197,7 @@
 	trackpad@2c {
 		compatible = "hid-over-i2c";
 		interrupt-parent = <&gpio7>;
-		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <RK_PA3 IRQ_TYPE_EDGE_FALLING>;
 		reg = <0x2c>;
 		hid-descr-addr = <0x0020>;
 		vcc-supply = <&vcc33_io>;

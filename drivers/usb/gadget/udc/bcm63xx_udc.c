@@ -21,7 +21,6 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -1083,7 +1082,7 @@ static int bcm63xx_ep_disable(struct usb_ep *ep)
 	struct bcm63xx_ep *bep = our_ep(ep);
 	struct bcm63xx_udc *udc = bep->udc;
 	struct iudma_ch *iudma = bep->iudma;
-	struct list_head *pos, *n;
+	struct bcm63xx_req *breq, *n;
 	unsigned long flags;
 
 	if (!ep || !ep->desc)
@@ -1099,10 +1098,7 @@ static int bcm63xx_ep_disable(struct usb_ep *ep)
 	iudma_reset_channel(udc, iudma);
 
 	if (!list_empty(&bep->queue)) {
-		list_for_each_safe(pos, n, &bep->queue) {
-			struct bcm63xx_req *breq =
-				list_entry(pos, struct bcm63xx_req, queue);
-
+		list_for_each_entry_safe(breq, n, &bep->queue, queue) {
 			usb_gadget_unmap_request(&udc->gadget, &breq->req,
 						 iudma->is_tx);
 			list_del(&breq->queue);

@@ -213,10 +213,11 @@
 /* Xmit modes */
 #define M_START_XMIT		0	/* Default normal TX */
 #define M_NETIF_RECEIVE 	1	/* Inject packets into stack */
+#define M_QUEUE_XMIT		2	/* Inject packet into qdisc */
 
 /* If lock -- protects updating of if_list */
-#define   if_lock(t)           spin_lock(&(t->if_lock));
-#define   if_unlock(t)           spin_unlock(&(t->if_lock));
+#define   if_lock(t)           mutex_lock(&(t->if_lock));
+#define   if_unlock(t)           mutex_unlock(&(t->if_lock));
 
 /* Used to help with determining the pkts on receive */
 #define PKTGEN_MAGIC 0xbe9be955
@@ -412,7 +413,7 @@ struct pktgen_hdr {
 };
 
 
-static int pg_net_id __read_mostly;
+static unsigned int pg_net_id __read_mostly;
 
 struct pktgen_net {
 	struct net		*net;
@@ -422,7 +423,7 @@ struct pktgen_net {
 };
 
 struct pktgen_thread {
-	spinlock_t if_lock;		/* for list of devices */
+	struct mutex if_lock;		/* for list of devices */
 	struct list_head if_list;	/* All device here */
 	struct list_head th_list;
 	struct task_struct *tsk;
@@ -626,6 +627,8 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 
 	if (pkt_dev->xmit_mode == M_NETIF_RECEIVE)
 		seq_puts(seq, "     xmit_mode: netif_receive\n");
+	else if (pkt_dev->xmit_mode == M_QUEUE_XMIT)
+		seq_puts(seq, "     xmit_mode: xmit_queue\n");
 
 	seq_puts(seq, "     Flags: ");
 
@@ -1142,8 +1145,10 @@ static ssize_t pktgen_if_write(struct file *file,
 			return len;
 
 		i += len;
-		if ((value > 1) && (pkt_dev->xmit_mode == M_START_XMIT) &&
-		    (!(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))
+		if ((value > 1) &&
+		    ((pkt_dev->xmit_mode == M_QUEUE_XMIT) ||
+		     ((pkt_dev->xmit_mode == M_START_XMIT) &&
+		     (!(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))))
 			return -ENOTSUPP;
 		pkt_dev->burst = value < 1 ? 1 : value;
 		sprintf(pg_result, "OK: burst=%d", pkt_dev->burst);
@@ -1198,6 +1203,9 @@ static ssize_t pktgen_if_write(struct file *file,
 			 * at module loading time
 			 */
 			pkt_dev->clone_skb = 0;
+		} else if (strcmp(f, "queue_xmit") == 0) {
+			pkt_dev->xmit_mode = M_QUEUE_XMIT;
+			pkt_dev->last_ok = 1;
 		} else {
 			sprintf(pg_result,
 				"xmit_mode -:%s:- unknown\nAvailable modes: %s",
@@ -2002,11 +2010,13 @@ static void pktgen_change_name(const struct pktgen_net *pn, struct net_device *d
 {
 	struct pktgen_thread *t;
 
+	mutex_lock(&pktgen_thread_lock);
+
 	list_for_each_entry(t, &pn->pktgen_threads, th_list) {
 		struct pktgen_dev *pkt_dev;
 
-		rcu_read_lock();
-		list_for_each_entry_rcu(pkt_dev, &t->if_list, list) {
+		if_lock(t);
+		list_for_each_entry(pkt_dev, &t->if_list, list) {
 			if (pkt_dev->odev != dev)
 				continue;
 
@@ -2021,8 +2031,9 @@ static void pktgen_change_name(const struct pktgen_net *pn, struct net_device *d
 				       dev->name);
 			break;
 		}
-		rcu_read_unlock();
+		if_unlock(t);
 	}
+	mutex_unlock(&pktgen_thread_lock);
 }
 
 static int pktgen_device_event(struct notifier_block *unused,
@@ -2245,10 +2256,8 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	hrtimer_set_expires(&t.timer, spin_until);
 
 	remaining = ktime_to_ns(hrtimer_expires_remaining(&t.timer));
-	if (remaining <= 0) {
-		pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
-		return;
-	}
+	if (remaining <= 0)
+		goto out;
 
 	start_time = ktime_get();
 	if (remaining < 100000) {
@@ -2273,12 +2282,14 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	}
 
 	pkt_dev->idle_acc += ktime_to_ns(ktime_sub(end_time, start_time));
+out:
 	pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
+	destroy_hrtimer_on_stack(&t.timer);
 }
 
 static inline void set_pkt_overhead(struct pktgen_dev *pkt_dev)
 {
-	pkt_dev->pkt_overhead = LL_RESERVED_SPACE(pkt_dev->odev);
+	pkt_dev->pkt_overhead = 0;
 	pkt_dev->pkt_overhead += pkt_dev->nr_labels*sizeof(u32);
 	pkt_dev->pkt_overhead += VLAN_TAG_SIZE(pkt_dev);
 	pkt_dev->pkt_overhead += SVLAN_TAG_SIZE(pkt_dev);
@@ -2769,13 +2780,13 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 }
 
 static struct sk_buff *pktgen_alloc_skb(struct net_device *dev,
-					struct pktgen_dev *pkt_dev,
-					unsigned int extralen)
+					struct pktgen_dev *pkt_dev)
 {
+	unsigned int extralen = LL_RESERVED_SPACE(dev);
 	struct sk_buff *skb = NULL;
-	unsigned int size = pkt_dev->cur_pkt_size + 64 + extralen +
-			    pkt_dev->pkt_overhead;
+	unsigned int size;
 
+	size = pkt_dev->cur_pkt_size + 64 + extralen + pkt_dev->pkt_overhead;
 	if (pkt_dev->flags & F_NODE) {
 		int node = pkt_dev->node >= 0 ? pkt_dev->node : numa_node_id();
 
@@ -2787,7 +2798,10 @@ static struct sk_buff *pktgen_alloc_skb(struct net_device *dev,
 	} else {
 		 skb = __netdev_alloc_skb(dev, size, GFP_NOWAIT);
 	}
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
+
+	/* the caller pre-fetches from skb->data and reserves for the mac hdr */
+	if (likely(skb))
+		skb_reserve(skb, extralen - 16);
 
 	return skb;
 }
@@ -2820,16 +2834,14 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	mod_cur_headers(pkt_dev);
 	queue_map = pkt_dev->cur_queue_map;
 
-	datalen = (odev->hard_header_len + 16) & ~0xf;
-
-	skb = pktgen_alloc_skb(odev, pkt_dev, datalen);
+	skb = pktgen_alloc_skb(odev, pkt_dev);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
 	}
 
 	prefetchw(skb->data);
-	skb_reserve(skb, datalen);
+	skb_reserve(skb, 16);
 
 	/*  Reserve for ethernet and IP header  */
 	eth = (__u8 *) skb_push(skb, 14);
@@ -2854,7 +2866,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 		*vlan_encapsulated_proto = htons(ETH_P_IP);
 	}
 
-	skb_set_mac_header(skb, 0);
+	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb->len);
 	iph = (struct iphdr *) skb_put(skb, sizeof(struct iphdr));
 
@@ -2898,7 +2910,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 
 	if (!(pkt_dev->flags & F_UDPCSUM)) {
 		skb->ip_summed = CHECKSUM_NONE;
-	} else if (odev->features & NETIF_F_V4_CSUM) {
+	} else if (odev->features & (NETIF_F_HW_CSUM | NETIF_F_IP_CSUM)) {
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum = 0;
 		udp4_hwcsum(skb, iph->saddr, iph->daddr);
@@ -2949,7 +2961,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	mod_cur_headers(pkt_dev);
 	queue_map = pkt_dev->cur_queue_map;
 
-	skb = pktgen_alloc_skb(odev, pkt_dev, 16);
+	skb = pktgen_alloc_skb(odev, pkt_dev);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
@@ -2981,7 +2993,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 		*vlan_encapsulated_proto = htons(ETH_P_IPV6);
 	}
 
-	skb_set_mac_header(skb, 0);
+	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb->len);
 	iph = (struct ipv6hdr *) skb_put(skb, sizeof(struct ipv6hdr));
 
@@ -3032,7 +3044,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 
 	if (!(pkt_dev->flags & F_UDPCSUM)) {
 		skb->ip_summed = CHECKSUM_NONE;
-	} else if (odev->features & NETIF_F_V6_CSUM) {
+	} else if (odev->features & (NETIF_F_HW_CSUM | NETIF_F_IPV6_CSUM)) {
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct udphdr, check);
@@ -3427,11 +3439,39 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 			/* skb was 'freed' by stack, so clean few
 			 * bits and reuse it
 			 */
-#ifdef CONFIG_NET_CLS_ACT
-			skb->tc_verd = 0; /* reset reclass/redir ttl */
-#endif
+			skb_reset_tc(skb);
 		} while (--burst > 0);
 		goto out; /* Skips xmit_mode M_START_XMIT */
+	} else if (pkt_dev->xmit_mode == M_QUEUE_XMIT) {
+		local_bh_disable();
+		atomic_inc(&pkt_dev->skb->users);
+
+		ret = dev_queue_xmit(pkt_dev->skb);
+		switch (ret) {
+		case NET_XMIT_SUCCESS:
+			pkt_dev->sofar++;
+			pkt_dev->seq_num++;
+			pkt_dev->tx_bytes += pkt_dev->last_pkt_size;
+			break;
+		case NET_XMIT_DROP:
+		case NET_XMIT_CN:
+		/* These are all valid return codes for a qdisc but
+		 * indicate packets are being dropped or will likely
+		 * be dropped soon.
+		 */
+		case NETDEV_TX_BUSY:
+		/* qdisc may call dev_hard_start_xmit directly in cases
+		 * where no queues exist e.g. loopback device, virtual
+		 * devices, etc. In this case we need to handle
+		 * NETDEV_TX_ codes.
+		 */
+		default:
+			pkt_dev->errors++;
+			net_info_ratelimited("%s xmit error: %d\n",
+					     pkt_dev->odevname, ret);
+			break;
+		}
+		goto out;
 	}
 
 	txq = skb_get_tx_queue(odev, pkt_dev->skb);
@@ -3461,7 +3501,6 @@ xmit_more:
 		break;
 	case NET_XMIT_DROP:
 	case NET_XMIT_CN:
-	case NET_XMIT_POLICED:
 		/* skb has been consumed */
 		pkt_dev->errors++;
 		break;
@@ -3470,7 +3509,6 @@ xmit_more:
 				     pkt_dev->odevname, ret);
 		pkt_dev->errors++;
 		/* fallthru */
-	case NETDEV_TX_LOCKED:
 	case NETDEV_TX_BUSY:
 		/* Retry it next time */
 		atomic_dec(&(pkt_dev->skb->users));
@@ -3725,7 +3763,7 @@ static int __net_init pktgen_create_thread(int cpu, struct pktgen_net *pn)
 		return -ENOMEM;
 	}
 
-	spin_lock_init(&t->if_lock);
+	mutex_init(&t->if_lock);
 	t->cpu = cpu;
 
 	INIT_LIST_HEAD(&t->if_list);

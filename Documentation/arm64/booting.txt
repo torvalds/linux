@@ -104,7 +104,18 @@ Header notes:
 - The flags field (introduced in v3.17) is a little-endian 64-bit field
   composed as follows:
   Bit 0:	Kernel endianness.  1 if BE, 0 if LE.
-  Bits 1-63:	Reserved.
+  Bit 1-2:	Kernel Page size.
+			0 - Unspecified.
+			1 - 4K
+			2 - 16K
+			3 - 64K
+  Bit 3:	Kernel physical placement
+			0 - 2MB aligned base should be as close as possible
+			    to the base of DRAM, since memory below it is not
+			    accessible via the linear mapping
+			1 - 2MB aligned base may be anywhere in physical
+			    memory
+  Bits 4-63:	Reserved.
 
 - When image_size is zero, a bootloader should attempt to keep as much
   memory as possible free for use by the kernel immediately after the
@@ -112,14 +123,18 @@ Header notes:
   depending on selected features, and is effectively unbound.
 
 The Image must be placed text_offset bytes from a 2MB aligned base
-address near the start of usable system RAM and called there. Memory
-below that base address is currently unusable by Linux, and therefore it
-is strongly recommended that this location is the start of system RAM.
-The region between the 2 MB aligned base address and the start of the
-image has no special significance to the kernel, and may be used for
-other purposes.
+address anywhere in usable system RAM and called there. The region
+between the 2 MB aligned base address and the start of the image has no
+special significance to the kernel, and may be used for other purposes.
 At least image_size bytes from the start of the image must be free for
 use by the kernel.
+NOTE: versions prior to v4.6 cannot make use of memory below the
+physical offset of the Image so it is recommended that the Image be
+placed as close as possible to the start of system RAM.
+
+If an initrd/initramfs is passed to the kernel at boot, it must reside
+entirely within a 1 GB aligned physical memory window of up to 32 GB in
+size that fully covers the kernel Image as well.
 
 Any memory described to the kernel (even that below the start of the
 image) which is not marked as reserved from the kernel (e.g., with a
@@ -173,13 +188,22 @@ Before jumping into the kernel, the following conditions must be met:
   the kernel image will be entered must be initialised by software at a
   higher exception level to prevent execution in an UNKNOWN state.
 
-  For systems with a GICv3 interrupt controller:
+  For systems with a GICv3 interrupt controller to be used in v3 mode:
   - If EL3 is present:
     ICC_SRE_EL3.Enable (bit 3) must be initialiased to 0b1.
     ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b1.
   - If the kernel is entered at EL1:
     ICC.SRE_EL2.Enable (bit 3) must be initialised to 0b1
     ICC_SRE_EL2.SRE (bit 0) must be initialised to 0b1.
+  - The DT or ACPI tables must describe a GICv3 interrupt controller.
+
+  For systems with a GICv3 interrupt controller to be used in
+  compatibility (v2) mode:
+  - If EL3 is present:
+    ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b0.
+  - If the kernel is entered at EL1:
+    ICC_SRE_EL2.SRE (bit 0) must be initialised to 0b0.
+  - The DT or ACPI tables must describe a GICv2 interrupt controller.
 
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must

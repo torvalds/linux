@@ -215,7 +215,7 @@ in xillybus_core.c as follows:
   choice is a non-zero value, to match standard UNIX behavior.
 
 * synchronous: A non-zero value means that the pipe is synchronous. See
-  Syncronization above.
+  Synchronization above.
 
 * bufsize: Each DMA buffer's size. Always a power of two.
 

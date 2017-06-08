@@ -1,0 +1,109 @@
+* ARM PrimeCell Color LCD Controller PL110/PL111
+
+See also Documentation/devicetree/bindings/arm/primecell.txt
+
+Required properties:
+
+- compatible: must be one of:
+	"arm,pl110", "arm,primecell"
+	"arm,pl111", "arm,primecell"
+
+- reg: base address and size of the control registers block
+
+- interrupt-names: either the single entry "combined" representing a
+	combined interrupt output (CLCDINTR), or the four entries
+	"mbe", "vcomp", "lnbu", "fuf" representing the individual
+	CLCDMBEINTR, CLCDVCOMPINTR, CLCDLNBUINTR, CLCDFUFINTR interrupts
+
+- interrupts: contains an interrupt specifier for each entry in
+	interrupt-names
+
+- clock-names: should contain "clcdclk" and "apb_pclk"
+
+- clocks: contains phandle and clock specifier pairs for the entries
+	in the clock-names property. See
+	Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Optional properties:
+
+- memory-region: phandle to a node describing memory (see
+	Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt)
+	to be used for the framebuffer; if not present, the framebuffer
+	may be located anywhere in the memory
+
+- max-memory-bandwidth: maximum bandwidth in bytes per second that the
+	cell's memory interface can handle; if not present, the memory
+	interface is fast enough to handle all possible video modes
+
+Required sub-nodes:
+
+- port: describes LCD panel signals, following the common binding
+	for video transmitter interfaces; see
+	Documentation/devicetree/bindings/media/video-interfaces.txt;
+	when it is a TFT panel, the port's endpoint must define the
+	following property:
+
+	- arm,pl11x,tft-r0g0b0-pads: an array of three 32-bit values,
+		defining the way CLD pads are wired up; first value
+		contains index of the "CLD" external pin (pad) used
+		as R0 (first bit of the red component), second value
+	        index of the pad used as G0, third value index of the
+		pad used as B0, see also "LCD panel signal multiplexing
+		details" paragraphs in the PL110/PL111 Technical
+		Reference Manuals; this implicitly defines available
+		color modes, for example:
+		- PL111 TFT 4:4:4 panel:
+			arm,pl11x,tft-r0g0b0-pads = <4 15 20>;
+		- PL110 TFT (1:)5:5:5 panel:
+			arm,pl11x,tft-r0g0b0-pads = <1 7 13>;
+		- PL111 TFT (1:)5:5:5 panel:
+			arm,pl11x,tft-r0g0b0-pads = <3 11 19>;
+		- PL111 TFT 5:6:5 panel:
+			arm,pl11x,tft-r0g0b0-pads = <3 10 19>;
+		- PL110 and PL111 TFT 8:8:8 panel:
+			arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+		- PL110 and PL111 TFT 8:8:8 panel, R & B components swapped:
+			arm,pl11x,tft-r0g0b0-pads = <16 8 0>;
+
+
+Example:
+
+	clcd@10020000 {
+		compatible = "arm,pl111", "arm,primecell";
+		reg = <0x10020000 0x1000>;
+		interrupt-names = "combined";
+		interrupts = <0 44 4>;
+		clocks = <&oscclk1>, <&oscclk2>;
+		clock-names = "clcdclk", "apb_pclk";
+		max-memory-bandwidth = <94371840>; /* Bps, 1024x768@60 16bpp */
+
+		port {
+			clcd_pads: endpoint {
+				remote-endpoint = <&clcd_panel>;
+				arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+			};
+		};
+
+	};
+
+	panel {
+		compatible = "panel-dpi";
+
+		port {
+			clcd_panel: endpoint {
+				remote-endpoint = <&clcd_pads>;
+			};
+		};
+
+		panel-timing {
+			clock-frequency = <25175000>;
+			hactive = <640>;
+			hback-porch = <40>;
+			hfront-porch = <24>;
+			hsync-len = <96>;
+			vactive = <480>;
+			vback-porch = <32>;
+			vfront-porch = <11>;
+			vsync-len = <2>;
+		};
+	};

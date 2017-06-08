@@ -12,10 +12,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -54,7 +50,7 @@ static int stmmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
-	priv->hw->ptp->config_addend(priv->ioaddr, addend);
+	priv->hw->ptp->config_addend(priv->ptpaddr, addend);
 
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
@@ -89,7 +85,8 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
-	priv->hw->ptp->adjust_systime(priv->ioaddr, sec, nsec, neg_adj);
+	priv->hw->ptp->adjust_systime(priv->ptpaddr, sec, nsec, neg_adj,
+				      priv->plat->has_gmac4);
 
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
@@ -114,7 +111,7 @@ static int stmmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
-	ns = priv->hw->ptp->get_systime(priv->ioaddr);
+	ns = priv->hw->ptp->get_systime(priv->ptpaddr);
 
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
@@ -141,7 +138,7 @@ static int stmmac_set_time(struct ptp_clock_info *ptp,
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
-	priv->hw->ptp->init_systime(priv->ioaddr, ts->tv_sec, ts->tv_nsec);
+	priv->hw->ptp->init_systime(priv->ptpaddr, ts->tv_sec, ts->tv_nsec);
 
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
@@ -177,7 +174,7 @@ static struct ptp_clock_info stmmac_ptp_clock_ops = {
  * Description: this function will register the ptp clock driver
  * to kernel. It also does some house keeping work.
  */
-int stmmac_ptp_register(struct stmmac_priv *priv)
+void stmmac_ptp_register(struct stmmac_priv *priv)
 {
 	spin_lock_init(&priv->ptp_lock);
 	priv->ptp_clock_ops = stmmac_ptp_clock_ops;
@@ -185,13 +182,10 @@ int stmmac_ptp_register(struct stmmac_priv *priv)
 	priv->ptp_clock = ptp_clock_register(&priv->ptp_clock_ops,
 					     priv->device);
 	if (IS_ERR(priv->ptp_clock)) {
+		netdev_err(priv->dev, "ptp_clock_register failed\n");
 		priv->ptp_clock = NULL;
-		pr_err("ptp_clock_register() failed on %s\n", priv->dev->name);
-	} else
-		pr_debug("Added PTP HW clock successfully on %s\n",
-			 priv->dev->name);
-
-	return 0;
+	} else if (priv->ptp_clock)
+		netdev_info(priv->dev, "registered PTP clock\n");
 }
 
 /**

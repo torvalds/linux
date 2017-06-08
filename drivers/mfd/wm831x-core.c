@@ -19,6 +19,8 @@
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
@@ -1613,12 +1615,24 @@ struct regmap_config wm831x_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(wm831x_regmap_config);
 
+const struct of_device_id wm831x_of_match[] = {
+	{ .compatible = "wlf,wm8310", .data = (void *)WM8310 },
+	{ .compatible = "wlf,wm8311", .data = (void *)WM8311 },
+	{ .compatible = "wlf,wm8312", .data = (void *)WM8312 },
+	{ .compatible = "wlf,wm8320", .data = (void *)WM8320 },
+	{ .compatible = "wlf,wm8321", .data = (void *)WM8321 },
+	{ .compatible = "wlf,wm8325", .data = (void *)WM8325 },
+	{ .compatible = "wlf,wm8326", .data = (void *)WM8326 },
+	{ },
+};
+EXPORT_SYMBOL_GPL(wm831x_of_match);
+
 /*
  * Instantiate the generic non-control parts of the device.
  */
-int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
+int wm831x_device_init(struct wm831x *wm831x, int irq)
 {
-	struct wm831x_pdata *pdata = dev_get_platdata(wm831x->dev);
+	struct wm831x_pdata *pdata = &wm831x->pdata;
 	int rev, wm831x_num;
 	enum wm831x_parent parent;
 	int ret, i;
@@ -1626,6 +1640,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	mutex_init(&wm831x->io_lock);
 	mutex_init(&wm831x->key_lock);
 	dev_set_drvdata(wm831x->dev, wm831x);
+
 	wm831x->soft_shutdown = pdata->soft_shutdown;
 
 	ret = wm831x_reg_read(wm831x, WM831X_PARENT_ID);
@@ -1661,7 +1676,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	 */
 	if (ret == 0) {
 		dev_info(wm831x->dev, "Device is an engineering sample\n");
-		ret = id;
+		ret = wm831x->type;
 	}
 
 	switch (ret) {
@@ -1734,9 +1749,9 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	/* This will need revisiting in future but is OK for all
 	 * current parts.
 	 */
-	if (parent != id)
-		dev_warn(wm831x->dev, "Device was registered as a WM%lx\n",
-			 id);
+	if (parent != wm831x->type)
+		dev_warn(wm831x->dev, "Device was registered as a WM%x\n",
+			 wm831x->type);
 
 	/* Bootstrap the user key */
 	ret = wm831x_reg_read(wm831x, WM831X_SECURITY_KEY);

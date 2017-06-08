@@ -85,7 +85,8 @@
 #define E1000_TXD_CMD_DEXT	0x20000000 /* Desc extension (0 = legacy) */
 #define E1000_TXD_STAT_DD	0x00000001 /* Desc Done */
 
-#define MAX_JUMBO_FRAME_SIZE	0x3F00
+#define MAX_JUMBO_FRAME_SIZE		0x3F00
+#define MAX_STD_JUMBO_FRAME_SIZE	9216
 
 /* 802.1q VLAN Packet Size */
 #define VLAN_TAG_SIZE		4    /* 802.3ac tag (not DMA'd) */
@@ -113,7 +114,7 @@
 #define E1000_RXDCTL_QUEUE_ENABLE	0x02000000 /* Enable specific Rx Que */
 
 /* Direct Cache Access (DCA) definitions */
-#define E1000_DCA_TXCTRL_TX_WB_RO_EN	(1 << 11) /* Tx Desc writeback RO bit */
+#define E1000_DCA_TXCTRL_TX_WB_RO_EN	BIT(11) /* Tx Desc writeback RO bit */
 
 #define E1000_VF_INIT_TIMEOUT	200 /* Number of retries to clear RSTI */
 

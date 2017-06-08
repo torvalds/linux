@@ -482,13 +482,13 @@ static struct orVals orDMA[] __initdata = {
 };
 
 static struct aedsp16_info ae_config = {
-	DEF_AEDSP16_IOB,
-	DEF_AEDSP16_IRQ,
-	DEF_AEDSP16_MRQ,
-	DEF_AEDSP16_DMA,
-	-1,
-	-1,
-	INIT_NONE
+	.base_io = DEF_AEDSP16_IOB,
+	.irq = DEF_AEDSP16_IRQ,
+	.mpu_irq = DEF_AEDSP16_MRQ,
+	.dma = DEF_AEDSP16_DMA,
+	.mss_base = -1,
+	.mpu_base = -1,
+	.init = INIT_NONE
 };
 
 /*
@@ -1303,17 +1303,17 @@ static int __initdata mpu_irq = -1;
 static int __initdata mss_base = -1;
 static int __initdata mpu_base = -1;
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 MODULE_PARM_DESC(io, "I/O base address (0x220 0x240)");
-module_param(irq, int, 0);
+module_param_hw(irq, int, irq, 0);
 MODULE_PARM_DESC(irq, "IRQ line (5 7 9 10 11)");
-module_param(dma, int, 0);
+module_param_hw(dma, int, dma, 0);
 MODULE_PARM_DESC(dma, "dma line (0 1 3)");
-module_param(mpu_irq, int, 0);
+module_param_hw(mpu_irq, int, irq, 0);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ line (5 7 9 10 0)");
-module_param(mss_base, int, 0);
+module_param_hw(mss_base, int, ioport, 0);
 MODULE_PARM_DESC(mss_base, "MSS emulation I/O base address (0x530 0xE80)");
-module_param(mpu_base, int, 0);
+module_param_hw(mpu_base, int, ioport, 0);
 MODULE_PARM_DESC(mpu_base,"MPU-401 I/O base address (0x300 0x310 0x320 0x330)");
 MODULE_AUTHOR("Riccardo Facchetti <fizban@tin.it>");
 MODULE_DESCRIPTION("Audio Excel DSP 16 Driver Version " VERSION);

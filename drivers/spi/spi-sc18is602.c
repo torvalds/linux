@@ -21,8 +21,10 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
+#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_data/sc18is602.h>
+#include <linux/gpio/consumer.h>
 
 enum chips { sc18is602, sc18is602b, sc18is603 };
 
@@ -50,6 +52,8 @@ struct sc18is602 {
 	u8			buffer[SC18IS602_BUFSIZ + 1];
 	int			tlen;	/* Data queued for tx in buffer */
 	int			rindex;	/* Receive data index in buffer */
+
+	struct gpio_desc	*reset;
 };
 
 static int sc18is602_wait_ready(struct sc18is602 *hw, int len)
@@ -257,12 +261,21 @@ static int sc18is602_probe(struct i2c_client *client,
 	hw = spi_master_get_devdata(master);
 	i2c_set_clientdata(client, hw);
 
+	/* assert reset and then release */
+	hw->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(hw->reset))
+		return PTR_ERR(hw->reset);
+	gpiod_set_value_cansleep(hw->reset, 0);
+
 	hw->master = master;
 	hw->client = client;
 	hw->dev = dev;
 	hw->ctrl = 0xff;
 
-	hw->id = id->driver_data;
+	if (client->dev.of_node)
+		hw->id = (enum chips)of_device_get_match_data(&client->dev);
+	else
+		hw->id = id->driver_data;
 
 	switch (hw->id) {
 	case sc18is602:
@@ -314,9 +327,27 @@ static const struct i2c_device_id sc18is602_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, sc18is602_id);
 
+static const struct of_device_id sc18is602_of_match[] = {
+	{
+		.compatible = "nxp,sc18is602",
+		.data = (void *)sc18is602
+	},
+	{
+		.compatible = "nxp,sc18is602b",
+		.data = (void *)sc18is602b
+	},
+	{
+		.compatible = "nxp,sc18is603",
+		.data = (void *)sc18is603
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, sc18is602_of_match);
+
 static struct i2c_driver sc18is602_driver = {
 	.driver = {
 		.name = "sc18is602",
+		.of_match_table = of_match_ptr(sc18is602_of_match),
 	},
 	.probe = sc18is602_probe,
 	.id_table = sc18is602_id,

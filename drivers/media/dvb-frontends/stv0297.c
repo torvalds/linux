@@ -57,8 +57,8 @@ static int stv0297_writereg(struct stv0297_state *state, u8 reg, u8 data)
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		dprintk("%s: writereg error (reg == 0x%02x, val == 0x%02x, "
-			"ret == %i)\n", __func__, reg, data, ret);
+		dprintk("%s: writereg error (reg == 0x%02x, val == 0x%02x, ret == %i)\n",
+			__func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -615,9 +615,9 @@ timeout:
 	return 0;
 }
 
-static int stv0297_get_frontend(struct dvb_frontend *fe)
+static int stv0297_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0297_state *state = fe->demodulator_priv;
 	int reg_00, reg_83;
 
@@ -658,7 +658,7 @@ static void stv0297_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops stv0297_ops;
+static const struct dvb_frontend_ops stv0297_ops;
 
 struct dvb_frontend *stv0297_attach(const struct stv0297_config *config,
 				    struct i2c_adapter *i2c)
@@ -690,7 +690,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops stv0297_ops = {
+static const struct dvb_frontend_ops stv0297_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		 .name = "ST STV0297 DVB-C",

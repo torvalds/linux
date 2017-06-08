@@ -12,9 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * File: dpc.c
  *
@@ -37,7 +34,7 @@
 #include "rf.h"
 
 int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
-	unsigned long bytes_received)
+		unsigned long bytes_received)
 {
 	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_supported_band *sband;
@@ -49,7 +46,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	__le64 *tsf_time;
 	u32 frame_size;
 	int ii, r;
-	u8 *rx_sts, *rx_rate, *sq, *sq_3;
+	u8 *rx_rate, *sq, *sq_3;
 	u32 wbk_status;
 	u8 *skb_data;
 	u16 *pay_load_len;
@@ -78,22 +75,21 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	skb_data = (u8 *)skb->data;
 
-	rx_sts = skb_data+4;
-	rx_rate = skb_data+5;
+	rx_rate = skb_data + 5;
 
 	/* real Frame Size = USBframe_size -4WbkStatus - 4RxStatus */
 	/* -8TSF - 4RSR - 4SQ3 - ?Padding */
 
 	/* if SQ3 the range is 24~27, if no SQ3 the range is 20~23 */
 
-	pay_load_len = (u16 *) (skb_data + 6);
+	pay_load_len = (u16 *)(skb_data + 6);
 
 	/*Fix hardware bug => PLCP_Length error */
 	if (((bytes_received - (*pay_load_len)) > 27) ||
-		((bytes_received - (*pay_load_len)) < 24) ||
-			(bytes_received < (*pay_load_len))) {
+	    ((bytes_received - (*pay_load_len)) < 24) ||
+	    (bytes_received < (*pay_load_len))) {
 		dev_dbg(&priv->usb->dev, "Wrong PLCP Length %x\n",
-							*pay_load_len);
+			*pay_load_len);
 		return false;
 	}
 

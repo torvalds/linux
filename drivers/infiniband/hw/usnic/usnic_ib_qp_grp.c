@@ -1,9 +1,24 @@
 /*
  * Copyright (c) 2013, Cisco Systems, Inc. All rights reserved.
  *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
@@ -49,7 +64,7 @@ const char *usnic_ib_qp_grp_state_to_string(enum ib_qp_state state)
 	case IB_QPS_ERR:
 		return "ERR";
 	default:
-		return "UNKOWN STATE";
+		return "UNKNOWN STATE";
 
 	}
 }
@@ -102,10 +117,10 @@ static int enable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
 	vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
 
 	res_chunk = get_qp_res_chunk(qp_grp);
-	if (IS_ERR_OR_NULL(res_chunk)) {
+	if (IS_ERR(res_chunk)) {
 		usnic_err("Unable to get qp res with err %ld\n",
 				PTR_ERR(res_chunk));
-		return res_chunk ? PTR_ERR(res_chunk) : -ENOMEM;
+		return PTR_ERR(res_chunk);
 	}
 
 	for (i = 0; i < res_chunk->cnt; i++) {
@@ -143,10 +158,10 @@ static int disable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
 	vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
 
 	res_chunk = get_qp_res_chunk(qp_grp);
-	if (IS_ERR_OR_NULL(res_chunk)) {
+	if (IS_ERR(res_chunk)) {
 		usnic_err("Unable to get qp res with err %ld\n",
 			PTR_ERR(res_chunk));
-		return res_chunk ? PTR_ERR(res_chunk) : -ENOMEM;
+		return PTR_ERR(res_chunk);
 	}
 
 	for (i = 0; i < res_chunk->cnt; i++) {
@@ -171,11 +186,11 @@ static int init_filter_action(struct usnic_ib_qp_grp *qp_grp,
 	struct usnic_vnic_res_chunk *res_chunk;
 
 	res_chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
-	if (IS_ERR_OR_NULL(res_chunk)) {
+	if (IS_ERR(res_chunk)) {
 		usnic_err("Unable to get %s with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_RQ),
 			PTR_ERR(res_chunk));
-		return res_chunk ? PTR_ERR(res_chunk) : -ENOMEM;
+		return PTR_ERR(res_chunk);
 	}
 
 	uaction->vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
@@ -213,16 +228,14 @@ create_roce_custom_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	flow = usnic_fwd_alloc_flow(qp_grp->ufdev, &filter, &uaction);
 	if (IS_ERR_OR_NULL(flow)) {
-		usnic_err("Unable to alloc flow failed with err %ld\n",
-				PTR_ERR(flow));
 		err = flow ? PTR_ERR(flow) : -EFAULT;
 		goto out_unreserve_port;
 	}
 
 	/* Create Flow Handle */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
-	if (IS_ERR_OR_NULL(qp_flow)) {
-		err = qp_flow ? PTR_ERR(qp_flow) : -ENOMEM;
+	if (!qp_flow) {
+		err = -ENOMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;
@@ -288,16 +301,14 @@ create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	flow = usnic_fwd_alloc_flow(qp_grp->ufdev, &filter, &uaction);
 	if (IS_ERR_OR_NULL(flow)) {
-		usnic_err("Unable to alloc flow failed with err %ld\n",
-				PTR_ERR(flow));
 		err = flow ? PTR_ERR(flow) : -EFAULT;
 		goto out_put_sock;
 	}
 
 	/* Create qp_flow */
 	qp_flow = kzalloc(sizeof(*qp_flow), GFP_ATOMIC);
-	if (IS_ERR_OR_NULL(qp_flow)) {
-		err = qp_flow ? PTR_ERR(qp_flow) : -ENOMEM;
+	if (!qp_flow) {
+		err = -ENOMEM;
 		goto out_dealloc_flow;
 	}
 	qp_flow->flow = flow;
@@ -506,7 +517,7 @@ int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 
 	if (!status) {
 		qp_grp->state = new_state;
-		usnic_info("Transistioned %u from %s to %s",
+		usnic_info("Transitioned %u from %s to %s",
 		qp_grp->grp_id,
 		usnic_ib_qp_grp_state_to_string(old_state),
 		usnic_ib_qp_grp_state_to_string(new_state));
@@ -560,7 +571,7 @@ alloc_res_chunk_list(struct usnic_vnic *vnic,
 	return res_chunk_list;
 
 out_free_res:
-	for (i--; i > 0; i--)
+	for (i--; i >= 0; i--)
 		usnic_vnic_put_resources(res_chunk_list[i]);
 	kfree(res_chunk_list);
 	return ERR_PTR(err);
@@ -679,18 +690,14 @@ usnic_ib_qp_grp_create(struct usnic_fwd_dev *ufdev, struct usnic_ib_vf *vf,
 	}
 
 	qp_grp = kzalloc(sizeof(*qp_grp), GFP_ATOMIC);
-	if (!qp_grp) {
-		usnic_err("Unable to alloc qp_grp - Out of memory\n");
+	if (!qp_grp)
 		return NULL;
-	}
 
 	qp_grp->res_chunk_list = alloc_res_chunk_list(vf->vnic, res_spec,
 							qp_grp);
 	if (IS_ERR_OR_NULL(qp_grp->res_chunk_list)) {
 		err = qp_grp->res_chunk_list ?
 				PTR_ERR(qp_grp->res_chunk_list) : -ENOMEM;
-		usnic_err("Unable to alloc res for %d with err %d\n",
-				qp_grp->grp_id, err);
 		goto out_free_qp_grp;
 	}
 

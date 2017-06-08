@@ -118,10 +118,19 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 	if (rctx->buf_count) {
 		sg_init_one(&rctx->buf_sg, rctx->buf, rctx->buf_count);
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, &rctx->buf_sg);
+		if (!sg) {
+			ret = -EINVAL;
+			goto e_free;
+		}
 	}
 
-	if (nbytes)
+	if (nbytes) {
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, req->src);
+		if (!sg) {
+			ret = -EINVAL;
+			goto e_free;
+		}
+	}
 
 	if (need_pad) {
 		int pad_length = block_size - (len & (block_size - 1));
@@ -132,6 +141,10 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 		rctx->pad[0] = 0x80;
 		sg_init_one(&rctx->pad_sg, rctx->pad, pad_length);
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, &rctx->pad_sg);
+		if (!sg) {
+			ret = -EINVAL;
+			goto e_free;
+		}
 	}
 	if (sg) {
 		sg_mark_end(sg);
@@ -161,6 +174,11 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 	rctx->cmd.u.aes.cmac_final = final;
 
 	ret = ccp_crypto_enqueue_request(&req->base, &rctx->cmd);
+
+	return ret;
+
+e_free:
+	sg_free_table(&rctx->data_sg);
 
 	return ret;
 }
@@ -200,6 +218,42 @@ static int ccp_aes_cmac_digest(struct ahash_request *req)
 		return ret;
 
 	return ccp_aes_cmac_finup(req);
+}
+
+static int ccp_aes_cmac_export(struct ahash_request *req, void *out)
+{
+	struct ccp_aes_cmac_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_aes_cmac_exp_ctx state;
+
+	/* Don't let anything leak to 'out' */
+	memset(&state, 0, sizeof(state));
+
+	state.null_msg = rctx->null_msg;
+	memcpy(state.iv, rctx->iv, sizeof(state.iv));
+	state.buf_count = rctx->buf_count;
+	memcpy(state.buf, rctx->buf, sizeof(state.buf));
+
+	/* 'out' may not be aligned so memcpy from local variable */
+	memcpy(out, &state, sizeof(state));
+
+	return 0;
+}
+
+static int ccp_aes_cmac_import(struct ahash_request *req, const void *in)
+{
+	struct ccp_aes_cmac_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_aes_cmac_exp_ctx state;
+
+	/* 'in' may not be aligned so memcpy to local variable */
+	memcpy(&state, in, sizeof(state));
+
+	memset(rctx, 0, sizeof(*rctx));
+	rctx->null_msg = state.null_msg;
+	memcpy(rctx->iv, state.iv, sizeof(rctx->iv));
+	rctx->buf_count = state.buf_count;
+	memcpy(rctx->buf, state.buf, sizeof(rctx->buf));
+
+	return 0;
 }
 
 static int ccp_aes_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
@@ -334,10 +388,13 @@ int ccp_register_aes_cmac_algs(struct list_head *head)
 	alg->final = ccp_aes_cmac_final;
 	alg->finup = ccp_aes_cmac_finup;
 	alg->digest = ccp_aes_cmac_digest;
+	alg->export = ccp_aes_cmac_export;
+	alg->import = ccp_aes_cmac_import;
 	alg->setkey = ccp_aes_cmac_setkey;
 
 	halg = &alg->halg;
 	halg->digestsize = AES_BLOCK_SIZE;
+	halg->statesize = sizeof(struct ccp_aes_cmac_exp_ctx);
 
 	base = &halg->base;
 	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "cmac(aes)");

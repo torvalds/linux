@@ -141,7 +141,7 @@ static struct phy_provider *of_phy_provider_lookup(struct device_node *node)
 		if (phy_provider->dev->of_node == node)
 			return phy_provider;
 
-		for_each_child_of_node(phy_provider->dev->of_node, child)
+		for_each_child_of_node(phy_provider->children, child)
 			if (child == node)
 				return phy_provider;
 	}
@@ -275,20 +275,21 @@ EXPORT_SYMBOL_GPL(phy_exit);
 
 int phy_power_on(struct phy *phy)
 {
-	int ret;
+	int ret = 0;
 
 	if (!phy)
-		return 0;
+		goto out;
 
 	if (phy->pwr) {
 		ret = regulator_enable(phy->pwr);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
-		return ret;
+		goto err_pm_sync;
+
 	ret = 0; /* Override possible ret == -ENOTSUPP */
 
 	mutex_lock(&phy->mutex);
@@ -296,19 +297,20 @@ int phy_power_on(struct phy *phy)
 		ret = phy->ops->power_on(phy);
 		if (ret < 0) {
 			dev_err(&phy->dev, "phy poweron failed --> %d\n", ret);
-			goto out;
+			goto err_pwr_on;
 		}
 	}
 	++phy->power_count;
 	mutex_unlock(&phy->mutex);
 	return 0;
 
-out:
+err_pwr_on:
 	mutex_unlock(&phy->mutex);
 	phy_pm_runtime_put_sync(phy);
+err_pm_sync:
 	if (phy->pwr)
 		regulator_disable(phy->pwr);
-
+out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_power_on);
@@ -339,6 +341,36 @@ int phy_power_off(struct phy *phy)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(phy_power_off);
+
+int phy_set_mode(struct phy *phy, enum phy_mode mode)
+{
+	int ret;
+
+	if (!phy || !phy->ops->set_mode)
+		return 0;
+
+	mutex_lock(&phy->mutex);
+	ret = phy->ops->set_mode(phy, mode);
+	mutex_unlock(&phy->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_set_mode);
+
+int phy_reset(struct phy *phy)
+{
+	int ret;
+
+	if (!phy || !phy->ops->reset)
+		return 0;
+
+	mutex_lock(&phy->mutex);
+	ret = phy->ops->reset(phy);
+	mutex_unlock(&phy->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_reset);
 
 /**
  * _of_phy_get() - lookup and obtain a reference to a phy by phandle
@@ -636,8 +668,9 @@ EXPORT_SYMBOL_GPL(devm_of_phy_get);
  * @np: node containing the phy
  * @index: index of the phy
  *
- * Gets the phy using _of_phy_get(), and associates a device with it using
- * devres. On driver detach, release function is invoked on the devres data,
+ * Gets the phy using _of_phy_get(), then gets a refcount to it,
+ * and associates a device with it using devres. On driver detach,
+ * release function is invoked on the devres data,
  * then, devres data is freed.
  *
  */
@@ -651,12 +684,20 @@ struct phy *devm_of_phy_get_by_index(struct device *dev, struct device_node *np,
 		return ERR_PTR(-ENOMEM);
 
 	phy = _of_phy_get(np, index);
-	if (!IS_ERR(phy)) {
-		*ptr = phy;
-		devres_add(dev, ptr);
-	} else {
+	if (IS_ERR(phy)) {
 		devres_free(ptr);
+		return phy;
 	}
+
+	if (!try_module_get(phy->ops->owner)) {
+		devres_free(ptr);
+		return ERR_PTR(-EPROBE_DEFER);
+	}
+
+	get_device(&phy->dev);
+
+	*ptr = phy;
+	devres_add(dev, ptr);
 
 	return phy;
 }
@@ -800,24 +841,59 @@ EXPORT_SYMBOL_GPL(devm_phy_destroy);
 /**
  * __of_phy_provider_register() - create/register phy provider with the framework
  * @dev: struct device of the phy provider
+ * @children: device node containing children (if different from dev->of_node)
  * @owner: the module owner containing of_xlate
  * @of_xlate: function pointer to obtain phy instance from phy provider
  *
  * Creates struct phy_provider from dev and of_xlate function pointer.
  * This is used in the case of dt boot for finding the phy instance from
  * phy provider.
+ *
+ * If the PHY provider doesn't nest children directly but uses a separate
+ * child node to contain the individual children, the @children parameter
+ * can be used to override the default. If NULL, the default (dev->of_node)
+ * will be used. If non-NULL, the device node must be a child (or further
+ * descendant) of dev->of_node. Otherwise an ERR_PTR()-encoded -EINVAL
+ * error code is returned.
  */
 struct phy_provider *__of_phy_provider_register(struct device *dev,
-	struct module *owner, struct phy * (*of_xlate)(struct device *dev,
-	struct of_phandle_args *args))
+	struct device_node *children, struct module *owner,
+	struct phy * (*of_xlate)(struct device *dev,
+				 struct of_phandle_args *args))
 {
 	struct phy_provider *phy_provider;
+
+	/*
+	 * If specified, the device node containing the children must itself
+	 * be the provider's device node or a child (or further descendant)
+	 * thereof.
+	 */
+	if (children) {
+		struct device_node *parent = of_node_get(children), *next;
+
+		while (parent) {
+			if (parent == dev->of_node)
+				break;
+
+			next = of_get_parent(parent);
+			of_node_put(parent);
+			parent = next;
+		}
+
+		if (!parent)
+			return ERR_PTR(-EINVAL);
+
+		of_node_put(parent);
+	} else {
+		children = dev->of_node;
+	}
 
 	phy_provider = kzalloc(sizeof(*phy_provider), GFP_KERNEL);
 	if (!phy_provider)
 		return ERR_PTR(-ENOMEM);
 
 	phy_provider->dev = dev;
+	phy_provider->children = of_node_get(children);
 	phy_provider->owner = owner;
 	phy_provider->of_xlate = of_xlate;
 
@@ -843,8 +919,9 @@ EXPORT_SYMBOL_GPL(__of_phy_provider_register);
  * on the devres data, then, devres data is freed.
  */
 struct phy_provider *__devm_of_phy_provider_register(struct device *dev,
-	struct module *owner, struct phy * (*of_xlate)(struct device *dev,
-	struct of_phandle_args *args))
+	struct device_node *children, struct module *owner,
+	struct phy * (*of_xlate)(struct device *dev,
+				 struct of_phandle_args *args))
 {
 	struct phy_provider **ptr, *phy_provider;
 
@@ -852,7 +929,8 @@ struct phy_provider *__devm_of_phy_provider_register(struct device *dev,
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	phy_provider = __of_phy_provider_register(dev, owner, of_xlate);
+	phy_provider = __of_phy_provider_register(dev, children, owner,
+						  of_xlate);
 	if (!IS_ERR(phy_provider)) {
 		*ptr = phy_provider;
 		devres_add(dev, ptr);
@@ -877,6 +955,7 @@ void of_phy_provider_unregister(struct phy_provider *phy_provider)
 
 	mutex_lock(&phy_provider_mutex);
 	list_del(&phy_provider->list);
+	of_node_put(phy_provider->children);
 	kfree(phy_provider);
 	mutex_unlock(&phy_provider_mutex);
 }

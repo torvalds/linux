@@ -94,7 +94,7 @@ out:
  * This routine is a inverse to hfs_mac2triv().
  * A ':' is replaced by a '/'.
  */
-void hfs_asc2mac(struct super_block *sb, struct hfs_name *out, struct qstr *in)
+void hfs_asc2mac(struct super_block *sb, struct hfs_name *out, const struct qstr *in)
 {
 	struct nls_table *nls_disk = HFS_SB(sb)->nls_disk;
 	struct nls_table *nls_io = HFS_SB(sb)->nls_io;

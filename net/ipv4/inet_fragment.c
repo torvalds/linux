@@ -209,12 +209,6 @@ int inet_frags_init(struct inet_frags *f)
 }
 EXPORT_SYMBOL(inet_frags_init);
 
-void inet_frags_init_net(struct netns_frags *nf)
-{
-	init_frag_mem_limit(nf);
-}
-EXPORT_SYMBOL(inet_frags_init_net);
-
 void inet_frags_fini(struct inet_frags *f)
 {
 	cancel_work_sync(&f->frags_work);
@@ -291,14 +285,6 @@ void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
 }
 EXPORT_SYMBOL(inet_frag_kill);
 
-static inline void frag_kfree_skb(struct netns_frags *nf, struct inet_frags *f,
-				  struct sk_buff *skb)
-{
-	if (f->skb_free)
-		f->skb_free(skb);
-	kfree_skb(skb);
-}
-
 void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f)
 {
 	struct sk_buff *fp;
@@ -315,7 +301,7 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f)
 		struct sk_buff *xp = fp->next;
 
 		sum_truesize += fp->truesize;
-		frag_kfree_skb(nf, f, fp);
+		kfree_skb(fp);
 		fp = xp;
 	}
 	sum = sum_truesize + f->qsize;
@@ -369,7 +355,7 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 {
 	struct inet_frag_queue *q;
 
-	if (frag_mem_limit(nf) > nf->high_thresh) {
+	if (!nf->high_thresh || frag_mem_limit(nf) > nf->high_thresh) {
 		inet_frag_schedule_worker(f);
 		return NULL;
 	}

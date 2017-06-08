@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 
 
@@ -42,7 +37,7 @@
 /*	resource allocation failed, unexpected HW behavior, HW BUG and so on. */
 #define ODM_DBG_SERIOUS				2
 
-/*	Abnormal, rare, or unexpeted cases. */
+/*	Abnormal, rare, or unexpected cases. */
 /*	For example, IRP/Packet/OID canceled, device suprisely unremoved and so on. */
 #define ODM_DBG_WARNING				3
 
@@ -57,30 +52,30 @@
 
 /*  Define the tracing components */
 /* BB Functions */
-#define ODM_COMP_DIG					BIT0
-#define ODM_COMP_RA_MASK				BIT1
-#define ODM_COMP_DYNAMIC_TXPWR				BIT2
-#define ODM_COMP_FA_CNT					BIT3
-#define ODM_COMP_RSSI_MONITOR				BIT4
-#define ODM_COMP_CCK_PD					BIT5
-#define ODM_COMP_ANT_DIV				BIT6
-#define ODM_COMP_PWR_SAVE				BIT7
-#define ODM_COMP_PWR_TRA				BIT8
-#define ODM_COMP_RATE_ADAPTIVE				BIT9
-#define ODM_COMP_PATH_DIV				BIT10
-#define ODM_COMP_PSD					BIT11
-#define ODM_COMP_DYNAMIC_PRICCA				BIT12
-#define ODM_COMP_RXHP					BIT13
+#define ODM_COMP_DIG					BIT(0)
+#define ODM_COMP_RA_MASK				BIT(1)
+#define ODM_COMP_DYNAMIC_TXPWR				BIT(2)
+#define ODM_COMP_FA_CNT					BIT(3)
+#define ODM_COMP_RSSI_MONITOR				BIT(4)
+#define ODM_COMP_CCK_PD					BIT(5)
+#define ODM_COMP_ANT_DIV				BIT(6)
+#define ODM_COMP_PWR_SAVE				BIT(7)
+#define ODM_COMP_PWR_TRA				BIT(8)
+#define ODM_COMP_RATE_ADAPTIVE				BIT(9)
+#define ODM_COMP_PATH_DIV				BIT(10)
+#define ODM_COMP_PSD					BIT(11)
+#define ODM_COMP_DYNAMIC_PRICCA				BIT(12)
+#define ODM_COMP_RXHP					BIT(13)
 /* MAC Functions */
-#define ODM_COMP_EDCA_TURBO				BIT16
-#define ODM_COMP_EARLY_MODE				BIT17
+#define ODM_COMP_EDCA_TURBO				BIT(16)
+#define ODM_COMP_EARLY_MODE				BIT(17)
 /* RF Functions */
-#define ODM_COMP_TX_PWR_TRACK				BIT24
-#define ODM_COMP_RX_GAIN_TRACK				BIT25
-#define ODM_COMP_CALIBRATION				BIT26
+#define ODM_COMP_TX_PWR_TRACK				BIT(24)
+#define ODM_COMP_RX_GAIN_TRACK				BIT(25)
+#define ODM_COMP_CALIBRATION				BIT(26)
 /* Common Functions */
-#define ODM_COMP_COMMON					BIT30
-#define ODM_COMP_INIT					BIT31
+#define ODM_COMP_COMMON					BIT(30)
+#define ODM_COMP_INIT					BIT(31)
 
 /*------------------------Export Marco Definition---------------------------*/
 #define RT_PRINTK(fmt, args...)				\

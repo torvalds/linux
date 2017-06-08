@@ -169,11 +169,15 @@ int hex_dump_to_buffer(const void *buf, size_t len, int rowsize, int groupsize,
 		}
 	} else {
 		for (j = 0; j < len; j++) {
-			if (linebuflen < lx + 3)
+			if (linebuflen < lx + 2)
 				goto overflow2;
 			ch = ptr[j];
 			linebuf[lx++] = hex_asc_hi(ch);
+			if (linebuflen < lx + 2)
+				goto overflow2;
 			linebuf[lx++] = hex_asc_lo(ch);
+			if (linebuflen < lx + 2)
+				goto overflow2;
 			linebuf[lx++] = ' ';
 		}
 		if (j)

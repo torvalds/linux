@@ -4,7 +4,7 @@
 
 obj-y				+= cache.o dma-default.o extable.o fault.o \
 				   gup.o init.o mmap.o page.o page-funcs.o \
-				   tlbex.o tlbex-fault.o tlb-funcs.o
+				   pgtable.o tlbex.o tlbex-fault.o tlb-funcs.o
 
 ifdef CONFIG_CPU_MICROMIPS
 obj-y				+= uasm-micromips.o
@@ -28,3 +28,4 @@ obj-$(CONFIG_IP22_CPU_SCACHE)	+= sc-ip22.o
 obj-$(CONFIG_R5000_CPU_SCACHE)	+= sc-r5k.o
 obj-$(CONFIG_RM7000_CPU_SCACHE) += sc-rm7k.o
 obj-$(CONFIG_MIPS_CPU_SCACHE)	+= sc-mips.o
+obj-$(CONFIG_SCACHE_DEBUGFS)	+= sc-debugfs.o

@@ -1,8 +1,9 @@
-#include <linux/bitops.h>
-#include <linux/kernel.h>
 
-#include <asm/processor.h>
-#include <asm/e820.h>
+#include <linux/sched.h>
+#include <linux/sched/clock.h>
+
+#include <asm/cpufeature.h>
+#include <asm/e820/api.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
 
@@ -29,7 +30,7 @@ static void init_c3(struct cpuinfo_x86 *c)
 			rdmsr(MSR_VIA_FCR, lo, hi);
 			lo |= ACE_FCR;		/* enable ACE unit */
 			wrmsr(MSR_VIA_FCR, lo, hi);
-			printk(KERN_INFO "CPU: Enabled ACE h/w crypto\n");
+			pr_info("CPU: Enabled ACE h/w crypto\n");
 		}
 
 		/* enable RNG unit, if present and disabled */
@@ -37,13 +38,13 @@ static void init_c3(struct cpuinfo_x86 *c)
 			rdmsr(MSR_VIA_RNG, lo, hi);
 			lo |= RNG_ENABLE;	/* enable RNG unit */
 			wrmsr(MSR_VIA_RNG, lo, hi);
-			printk(KERN_INFO "CPU: Enabled h/w RNG\n");
+			pr_info("CPU: Enabled h/w RNG\n");
 		}
 
 		/* store Centaur Extended Feature Flags as
 		 * word 5 of the CPU capability bit array
 		 */
-		c->x86_capability[5] = cpuid_edx(0xC0000001);
+		c->x86_capability[CPUID_C000_0001_EDX] = cpuid_edx(0xC0000001);
 	}
 #ifdef CONFIG_X86_32
 	/* Cyrix III family needs CX8 & PGE explicitly enabled. */
@@ -130,7 +131,7 @@ static void init_centaur(struct cpuinfo_x86 *c)
 			name = "C6";
 			fcr_set = ECX8|DSMC|EDCTLB|EMMX|ERETSTK;
 			fcr_clr = DPDC;
-			printk(KERN_NOTICE "Disabling bugged TSC.\n");
+			pr_notice("Disabling bugged TSC.\n");
 			clear_cpu_cap(c, X86_FEATURE_TSC);
 			break;
 		case 8:
@@ -163,11 +164,11 @@ static void init_centaur(struct cpuinfo_x86 *c)
 		newlo = (lo|fcr_set) & (~fcr_clr);
 
 		if (newlo != lo) {
-			printk(KERN_INFO "Centaur FCR was 0x%X now 0x%X\n",
+			pr_info("Centaur FCR was 0x%X now 0x%X\n",
 				lo, newlo);
 			wrmsr(MSR_IDT_FCR1, newlo, hi);
 		} else {
-			printk(KERN_INFO "Centaur FCR is 0x%X\n", lo);
+			pr_info("Centaur FCR is 0x%X\n", lo);
 		}
 		/* Emulate MTRRs using Centaur's MCR. */
 		set_cpu_cap(c, X86_FEATURE_CENTAUR_MCR);

@@ -1,6 +1,3 @@
-config ICST
-	bool
-
 config SA1111
 	bool
 	select DMABOUNCE if !ARCH_PXA
@@ -16,7 +13,4 @@ config SHARP_PARAM
 	bool
 
 config SHARP_SCOOP
-	bool
-
-config TI_PRIV_EDMA
 	bool

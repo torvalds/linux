@@ -1,3 +1,6 @@
+NOTE: this document is outdated and will eventually be removed.  See
+Documentation/doc-guide/ for current information.
+
 kernel-doc nano-HOWTO
 =====================
 

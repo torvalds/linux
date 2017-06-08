@@ -3,7 +3,7 @@ Linux IOMMU Support
 
 The architecture spec can be obtained from the below location.
 
-http://www.intel.com/technology/virtualization/
+http://www.intel.com/content/dam/www/public/us/en/documents/product-specifications/vt-directed-io-spec.pdf
 
 This guide gives a quick cheat sheet for some basic understanding.
 

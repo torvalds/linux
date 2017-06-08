@@ -1,6 +1,6 @@
 /*
  * Linux ARCnet driver - COM20020 chipset support
- * 
+ *
  * Written 1997 by David Woodhouse.
  * Written 1994-1999 by Avery Pennarun.
  * Written 1999-2000 by Martin Mares <mj@ucw.cz>.
@@ -25,6 +25,9 @@
  *
  * **********************
  */
+
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -36,16 +39,12 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/bootmem.h>
-#include <linux/arcdevice.h>
-#include <linux/com20020.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
+#include "arcdevice.h"
+#include "com20020.h"
 
-#define VERSION "arcnet: COM20020 ISA support (by David Woodhouse et al.)\n"
-
-
-/*
- * We cannot (yet) probe for an IO mapped card, although we can check that
+/* We cannot (yet) probe for an IO mapped card, although we can check that
  * it's where we were told it was, and even do autoirq.
  */
 static int __init com20020isa_probe(struct net_device *dev)
@@ -55,21 +54,21 @@ static int __init com20020isa_probe(struct net_device *dev)
 	struct arcnet_local *lp = netdev_priv(dev);
 	int err;
 
-	BUGLVL(D_NORMAL) printk(VERSION);
+	if (BUGLVL(D_NORMAL))
+		pr_info("%s\n", "COM20020 ISA support (by David Woodhouse et al.)");
 
 	ioaddr = dev->base_addr;
 	if (!ioaddr) {
-		BUGMSG(D_NORMAL, "No autoprobe (yet) for IO mapped cards; you "
-		       "must specify the base address!\n");
+		arc_printk(D_NORMAL, dev, "No autoprobe (yet) for IO mapped cards; you must specify the base address!\n");
 		return -ENODEV;
 	}
 	if (!request_region(ioaddr, ARCNET_TOTAL_SIZE, "arcnet (COM20020)")) {
-		BUGMSG(D_NORMAL, "IO region %xh-%xh already allocated.\n",
-		       ioaddr, ioaddr + ARCNET_TOTAL_SIZE - 1);
+		arc_printk(D_NORMAL, dev, "IO region %xh-%xh already allocated.\n",
+			   ioaddr, ioaddr + ARCNET_TOTAL_SIZE - 1);
 		return -ENXIO;
 	}
-	if (ASTATUS() == 0xFF) {
-		BUGMSG(D_NORMAL, "IO address %x empty\n", ioaddr);
+	if (arcnet_inb(ioaddr, COM20020_REG_R_STATUS) == 0xFF) {
+		arc_printk(D_NORMAL, dev, "IO address %x empty\n", ioaddr);
 		err = -ENODEV;
 		goto out;
 	}
@@ -83,23 +82,24 @@ static int __init com20020isa_probe(struct net_device *dev)
 		 * card has just reset and the NORXflag is on until
 		 * we tell it to start receiving.
 		 */
-		BUGMSG(D_INIT_REASONS, "intmask was %02Xh\n", inb(_INTMASK));
-		outb(0, _INTMASK);
+		arc_printk(D_INIT_REASONS, dev, "intmask was %02Xh\n",
+			   arcnet_inb(ioaddr, COM20020_REG_R_STATUS));
+		arcnet_outb(0, ioaddr, COM20020_REG_W_INTMASK);
 		airqmask = probe_irq_on();
-		outb(NORXflag, _INTMASK);
+		arcnet_outb(NORXflag, ioaddr, COM20020_REG_W_INTMASK);
 		udelay(1);
-		outb(0, _INTMASK);
+		arcnet_outb(0, ioaddr, COM20020_REG_W_INTMASK);
 		dev->irq = probe_irq_off(airqmask);
 
 		if ((int)dev->irq <= 0) {
-			BUGMSG(D_INIT_REASONS, "Autoprobe IRQ failed first time\n");
+			arc_printk(D_INIT_REASONS, dev, "Autoprobe IRQ failed first time\n");
 			airqmask = probe_irq_on();
-			outb(NORXflag, _INTMASK);
+			arcnet_outb(NORXflag, ioaddr, COM20020_REG_W_INTMASK);
 			udelay(5);
-			outb(0, _INTMASK);
+			arcnet_outb(0, ioaddr, COM20020_REG_W_INTMASK);
 			dev->irq = probe_irq_off(airqmask);
 			if ((int)dev->irq <= 0) {
-				BUGMSG(D_NORMAL, "Autoprobe IRQ failed.\n");
+				arc_printk(D_NORMAL, dev, "Autoprobe IRQ failed.\n");
 				err = -ENODEV;
 				goto out;
 			}
@@ -107,7 +107,9 @@ static int __init com20020isa_probe(struct net_device *dev)
 	}
 
 	lp->card_name = "ISA COM20020";
-	if ((err = com20020_found(dev, 0)) != 0)
+
+	err = com20020_found(dev, 0);
+	if (err != 0)
 		goto out;
 
 	return 0;
@@ -127,8 +129,8 @@ static int clockp = 0;
 static int clockm = 0;
 
 module_param(node, int, 0);
-module_param(io, int, 0);
-module_param(irq, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
 module_param_string(device, device, sizeof(device), 0);
 module_param(timeout, int, 0);
 module_param(backplane, int, 0);
@@ -194,7 +196,7 @@ static int __init com20020isa_setup(char *s)
 
 	switch (ints[0]) {
 	default:		/* ERROR */
-		printk("com90xx: Too many arguments.\n");
+		pr_info("Too many arguments\n");
 	case 6:		/* Timeout */
 		timeout = ints[6];
 	case 5:		/* CKP value */

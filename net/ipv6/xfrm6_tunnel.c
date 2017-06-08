@@ -44,7 +44,7 @@ struct xfrm6_tunnel_net {
 	u32 spi;
 };
 
-static int xfrm6_tunnel_net_id __read_mostly;
+static unsigned int xfrm6_tunnel_net_id __read_mostly;
 static inline struct xfrm6_tunnel_net *xfrm6_tunnel_pernet(struct net *net)
 {
 	return net_generic(net, xfrm6_tunnel_net_id);
@@ -236,7 +236,7 @@ static int xfrm6_tunnel_rcv(struct sk_buff *skb)
 	__be32 spi;
 
 	spi = xfrm6_tunnel_spi_lookup(net, (const xfrm_address_t *)&iph->saddr);
-	return xfrm6_rcv_spi(skb, IPPROTO_IPV6, spi);
+	return xfrm6_rcv_spi(skb, IPPROTO_IPV6, spi, NULL);
 }
 
 static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,

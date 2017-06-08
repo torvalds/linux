@@ -37,6 +37,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mii.h>
 #include <linux/netdevice.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
@@ -96,6 +97,27 @@ static inline u32 tse_tx_avail(struct altera_tse_private *priv)
 	return priv->tx_cons + priv->tx_ring_size - priv->tx_prod - 1;
 }
 
+/* PCS Register read/write functions
+ */
+static u16 sgmii_pcs_read(struct altera_tse_private *priv, int regnum)
+{
+	return csrrd32(priv->mac_dev,
+		       tse_csroffs(mdio_phy0) + regnum * 4) & 0xffff;
+}
+
+static void sgmii_pcs_write(struct altera_tse_private *priv, int regnum,
+				u16 value)
+{
+	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy0) + regnum * 4);
+}
+
+/* Check PCS scratch memory */
+static int sgmii_pcs_scratch_test(struct altera_tse_private *priv, u16 value)
+{
+	sgmii_pcs_write(priv, SGMII_PCS_SCRATCH, value);
+	return (sgmii_pcs_read(priv, SGMII_PCS_SCRATCH) == value);
+}
+
 /* MDIO specific functions
  */
 static int altera_tse_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
@@ -131,7 +153,6 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 	int ret;
-	int i;
 	struct device_node *mdio_node = NULL;
 	struct mii_bus *mdio = NULL;
 	struct device_node *child_node = NULL;
@@ -161,14 +182,6 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	mdio->write = &altera_tse_mdio_write;
 	snprintf(mdio->id, MII_BUS_ID_SIZE, "%s-%u", mdio->name, id);
 
-	mdio->irq = kcalloc(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
-	if (mdio->irq == NULL) {
-		ret = -ENOMEM;
-		goto out_free_mdio;
-	}
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		mdio->irq[i] = PHY_POLL;
-
 	mdio->priv = dev;
 	mdio->parent = priv->device;
 
@@ -176,7 +189,7 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	if (ret != 0) {
 		netdev_err(dev, "Cannot register MDIO bus %s\n",
 			   mdio->id);
-		goto out_free_mdio_irq;
+		goto out_free_mdio;
 	}
 
 	if (netif_msg_drv(priv))
@@ -184,8 +197,6 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 
 	priv->mdio = mdio;
 	return 0;
-out_free_mdio_irq:
-	kfree(mdio->irq);
 out_free_mdio:
 	mdiobus_free(mdio);
 	mdio = NULL;
@@ -204,7 +215,6 @@ static void altera_tse_mdio_destroy(struct net_device *dev)
 			    priv->mdio->id);
 
 	mdiobus_unregister(priv->mdio);
-	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 	priv->mdio = NULL;
 }
@@ -412,12 +422,6 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 
 		skb_put(skb, pktlength);
 
-		/* make cache consistent with receive packet buffer */
-		dma_sync_single_for_cpu(priv->device,
-					priv->rx_ring[entry].dma_addr,
-					priv->rx_ring[entry].len,
-					DMA_FROM_DEVICE);
-
 		dma_unmap_single(priv->device, priv->rx_ring[entry].dma_addr,
 				 priv->rx_ring[entry].len, DMA_FROM_DEVICE);
 
@@ -481,7 +485,6 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 
 	if (unlikely(netif_queue_stopped(priv->dev) &&
 		     tse_tx_avail(priv) > TSE_TX_THRESH(priv))) {
-		netif_tx_lock(priv->dev);
 		if (netif_queue_stopped(priv->dev) &&
 		    tse_tx_avail(priv) > TSE_TX_THRESH(priv)) {
 			if (netif_msg_tx_done(priv))
@@ -489,7 +492,6 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 					   __func__);
 			netif_wake_queue(priv->dev);
 		}
-		netif_tx_unlock(priv->dev);
 	}
 
 	spin_unlock(&priv->tx_lock);
@@ -511,7 +513,7 @@ static int tse_poll(struct napi_struct *napi, int budget)
 
 	if (rxcomplete < budget) {
 
-		napi_complete(napi);
+		napi_complete_done(napi, rxcomplete);
 
 		netdev_dbg(priv->dev,
 			   "NAPI Complete, did %d packets with budget %d\n",
@@ -604,10 +606,6 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	buffer->dma_addr = dma_addr;
 	buffer->len = nopaged_len;
 
-	/* Push data out of the cache hierarchy into main memory */
-	dma_sync_single_for_device(priv->device, buffer->dma_addr,
-				   buffer->len, DMA_TO_DEVICE);
-
 	priv->dmaops->tx_buffer(priv, buffer);
 
 	skb_tx_timestamp(skb);
@@ -637,7 +635,7 @@ out:
 static void altera_tse_adjust_link(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 	int new_state = 0;
 
 	/* only change config if there is a link */
@@ -827,9 +825,12 @@ static int init_phy(struct net_device *dev)
 		phydev = of_phy_connect(dev, phynode,
 			&altera_tse_adjust_link, 0, priv->phy_iface);
 	}
+	of_node_put(phynode);
 
 	if (!phydev) {
 		netdev_err(dev, "Could not find the PHY\n");
+		if (fixed_link)
+			of_phy_deregister_fixed_link(priv->device->of_node);
 		return -ENODEV;
 	}
 
@@ -855,9 +856,8 @@ static int init_phy(struct net_device *dev)
 	}
 
 	netdev_dbg(dev, "attached to PHY %d UID 0x%08x Link = %d\n",
-		   phydev->addr, phydev->phy_id, phydev->link);
+		   phydev->mdio.addr, phydev->phy_id, phydev->link);
 
-	priv->phydev = phydev;
 	return 0;
 }
 
@@ -1006,18 +1006,9 @@ static void tse_set_mac(struct altera_tse_private *priv, bool enable)
  */
 static int tse_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
-	unsigned int max_mtu = priv->max_mtu;
-	unsigned int min_mtu = ETH_ZLEN + ETH_FCS_LEN;
-
 	if (netif_running(dev)) {
 		netdev_err(dev, "must be stopped to change its MTU\n");
 		return -EBUSY;
-	}
-
-	if ((new_mtu < min_mtu) || (new_mtu > max_mtu)) {
-		netdev_err(dev, "invalid MTU, max MTU is: %u\n", max_mtu);
-		return -EINVAL;
 	}
 
 	dev->mtu = new_mtu;
@@ -1104,6 +1095,66 @@ static void tse_set_rx_mode(struct net_device *dev)
 	spin_unlock(&priv->mac_cfg_lock);
 }
 
+/* Initialise (if necessary) the SGMII PCS component
+ */
+static int init_sgmii_pcs(struct net_device *dev)
+{
+	struct altera_tse_private *priv = netdev_priv(dev);
+	int n;
+	unsigned int tmp_reg = 0;
+
+	if (priv->phy_iface != PHY_INTERFACE_MODE_SGMII)
+		return 0; /* Nothing to do, not in SGMII mode */
+
+	/* The TSE SGMII PCS block looks a little like a PHY, it is
+	 * mapped into the zeroth MDIO space of the MAC and it has
+	 * ID registers like a PHY would.  Sadly this is often
+	 * configured to zeroes, so don't be surprised if it does
+	 * show 0x00000000.
+	 */
+
+	if (sgmii_pcs_scratch_test(priv, 0x0000) &&
+		sgmii_pcs_scratch_test(priv, 0xffff) &&
+		sgmii_pcs_scratch_test(priv, 0xa5a5) &&
+		sgmii_pcs_scratch_test(priv, 0x5a5a)) {
+		netdev_info(dev, "PCS PHY ID: 0x%04x%04x\n",
+				sgmii_pcs_read(priv, MII_PHYSID1),
+				sgmii_pcs_read(priv, MII_PHYSID2));
+	} else {
+		netdev_err(dev, "SGMII PCS Scratch memory test failed.\n");
+		return -ENOMEM;
+	}
+
+	/* Starting on page 5-29 of the MegaCore Function User Guide
+	 * Set SGMII Link timer to 1.6ms
+	 */
+	sgmii_pcs_write(priv, SGMII_PCS_LINK_TIMER_0, 0x0D40);
+	sgmii_pcs_write(priv, SGMII_PCS_LINK_TIMER_1, 0x03);
+
+	/* Enable SGMII Interface and Enable SGMII Auto Negotiation */
+	sgmii_pcs_write(priv, SGMII_PCS_IF_MODE, 0x3);
+
+	/* Enable Autonegotiation */
+	tmp_reg = sgmii_pcs_read(priv, MII_BMCR);
+	tmp_reg |= (BMCR_SPEED1000 | BMCR_FULLDPLX | BMCR_ANENABLE);
+	sgmii_pcs_write(priv, MII_BMCR, tmp_reg);
+
+	/* Reset PCS block */
+	tmp_reg |= BMCR_RESET;
+	sgmii_pcs_write(priv, MII_BMCR, tmp_reg);
+	for (n = 0; n < SGMII_PCS_SW_RESET_TIMEOUT; n++) {
+		if (!(sgmii_pcs_read(priv, MII_BMCR) & BMCR_RESET)) {
+			netdev_info(dev, "SGMII PCS block initialised OK\n");
+			return 0;
+		}
+		udelay(1);
+	}
+
+	/* We failed to reset the block, return a timeout */
+	netdev_err(dev, "SGMII PCS block reset failed.\n");
+	return -ETIMEDOUT;
+}
+
 /* Open and initialize the interface
  */
 static int tse_open(struct net_device *dev)
@@ -1128,6 +1179,15 @@ static int tse_open(struct net_device *dev)
 		netdev_warn(dev, "TSE revision %x\n", priv->revision);
 
 	spin_lock(&priv->mac_cfg_lock);
+	/* no-op if MAC not operating in SGMII mode*/
+	ret = init_sgmii_pcs(dev);
+	if (ret) {
+		netdev_err(dev,
+			   "Cannot init the SGMII PCS (error: %d)\n", ret);
+		spin_unlock(&priv->mac_cfg_lock);
+		goto phy_error;
+	}
+
 	ret = reset_mac(priv);
 	/* Note that reset_mac will fail if the clocks are gated by the PHY
 	 * due to the PHY being put into isolation or power down mode.
@@ -1184,8 +1244,8 @@ static int tse_open(struct net_device *dev)
 
 	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
 
-	if (priv->phydev)
-		phy_start(priv->phydev);
+	if (dev->phydev)
+		phy_start(dev->phydev);
 
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
@@ -1217,8 +1277,8 @@ static int tse_shutdown(struct net_device *dev)
 	unsigned long int flags;
 
 	/* Stop the PHY */
-	if (priv->phydev)
-		phy_stop(priv->phydev);
+	if (dev->phydev)
+		phy_stop(dev->phydev);
 
 	netif_stop_queue(dev);
 	napi_disable(&priv->napi);
@@ -1350,11 +1410,13 @@ static int altera_tse_probe(struct platform_device *pdev)
 		if (upper_32_bits(priv->rxdescmem_busaddr)) {
 			dev_dbg(priv->device,
 				"SGDMA bus addresses greater than 32-bits\n");
+			ret = -EINVAL;
 			goto err_free_netdev;
 		}
 		if (upper_32_bits(priv->txdescmem_busaddr)) {
 			dev_dbg(priv->device,
 				"SGDMA bus addresses greater than 32-bits\n");
+			ret = -EINVAL;
 			goto err_free_netdev;
 		}
 	} else if (priv->dmaops &&
@@ -1458,15 +1520,16 @@ static int altera_tse_probe(struct platform_device *pdev)
 		of_property_read_bool(pdev->dev.of_node,
 				      "altr,has-supplementary-unicast");
 
+	priv->dev->min_mtu = ETH_ZLEN + ETH_FCS_LEN;
 	/* Max MTU is 1500, ETH_DATA_LEN */
-	priv->max_mtu = ETH_DATA_LEN;
+	priv->dev->max_mtu = ETH_DATA_LEN;
 
 	/* Get the max mtu from the device tree. Note that the
 	 * "max-frame-size" parameter is actually max mtu. Definition
 	 * in the ePAPR v1.1 spec and usage differ, so go with usage.
 	 */
 	of_property_read_u32(pdev->dev.of_node, "max-frame-size",
-			     &priv->max_mtu);
+			     &priv->dev->max_mtu);
 
 	/* The DMA buffer size already accounts for an alignment bias
 	 * to avoid unaligned access exceptions for the NIOS processor,
@@ -1559,8 +1622,12 @@ static int altera_tse_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct altera_tse_private *priv = netdev_priv(ndev);
 
-	if (priv->phydev)
-		phy_disconnect(priv->phydev);
+	if (ndev->phydev) {
+		phy_disconnect(ndev->phydev);
+
+		if (of_phy_is_fixed_link(priv->device->of_node))
+			of_phy_deregister_fixed_link(priv->device->of_node);
+	}
 
 	platform_set_drvdata(pdev, NULL);
 	altera_tse_mdio_destroy(ndev);

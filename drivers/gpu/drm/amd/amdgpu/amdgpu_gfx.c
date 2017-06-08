@@ -24,6 +24,7 @@
  */
 #include <drm/drmP.h>
 #include "amdgpu.h"
+#include "amdgpu_gfx.h"
 
 /*
  * GPU scratch registers helpers function.
@@ -41,12 +42,12 @@ int amdgpu_gfx_scratch_get(struct amdgpu_device *adev, uint32_t *reg)
 {
 	int i;
 
-	for (i = 0; i < adev->gfx.scratch.num_reg; i++) {
-		if (adev->gfx.scratch.free[i]) {
-			adev->gfx.scratch.free[i] = false;
-			*reg = adev->gfx.scratch.reg[i];
-			return 0;
-		}
+	i = ffs(adev->gfx.scratch.free_mask);
+	if (i != 0 && i <= adev->gfx.scratch.num_reg) {
+		i--;
+		adev->gfx.scratch.free_mask &= ~(1u << i);
+		*reg = adev->gfx.scratch.reg_base + i;
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -61,12 +62,49 @@ int amdgpu_gfx_scratch_get(struct amdgpu_device *adev, uint32_t *reg)
  */
 void amdgpu_gfx_scratch_free(struct amdgpu_device *adev, uint32_t reg)
 {
-	int i;
+	adev->gfx.scratch.free_mask |= 1u << (reg - adev->gfx.scratch.reg_base);
+}
 
-	for (i = 0; i < adev->gfx.scratch.num_reg; i++) {
-		if (adev->gfx.scratch.reg[i] == reg) {
-			adev->gfx.scratch.free[i] = true;
+/**
+ * amdgpu_gfx_parse_disable_cu - Parse the disable_cu module parameter
+ *
+ * @mask: array in which the per-shader array disable masks will be stored
+ * @max_se: number of SEs
+ * @max_sh: number of SHs
+ *
+ * The bitmask of CUs to be disabled in the shader array determined by se and
+ * sh is stored in mask[se * max_sh + sh].
+ */
+void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_sh)
+{
+	unsigned se, sh, cu;
+	const char *p;
+
+	memset(mask, 0, sizeof(*mask) * max_se * max_sh);
+
+	if (!amdgpu_disable_cu || !*amdgpu_disable_cu)
+		return;
+
+	p = amdgpu_disable_cu;
+	for (;;) {
+		char *next;
+		int ret = sscanf(p, "%u.%u.%u", &se, &sh, &cu);
+		if (ret < 3) {
+			DRM_ERROR("amdgpu: could not parse disable_cu\n");
 			return;
 		}
+
+		if (se < max_se && sh < max_sh && cu < 16) {
+			DRM_INFO("amdgpu: disabling CU %u.%u.%u\n", se, sh, cu);
+			mask[se * max_sh + sh] |= 1u << cu;
+		} else {
+			DRM_ERROR("amdgpu: disable_cu %u.%u.%u is out of range\n",
+				  se, sh, cu);
+		}
+
+		next = strchr(p, ',');
+		if (!next)
+			break;
+		p = next + 1;
 	}
 }

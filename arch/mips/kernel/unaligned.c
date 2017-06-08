@@ -85,10 +85,11 @@
 #include <asm/branch.h>
 #include <asm/byteorder.h>
 #include <asm/cop2.h>
+#include <asm/debug.h>
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define STR(x)	__STR(x)
 #define __STR(x)  #x
@@ -884,7 +885,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 {
 	union mips_instruction insn;
 	unsigned long value;
-	unsigned int res;
+	unsigned int res, preempted;
 	unsigned long origpc;
 	unsigned long orig31;
 	void __user *fault_addr = NULL;
@@ -1024,8 +1025,8 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		if (!access_ok(VERIFY_READ, addr, 2))
 			goto sigbus;
 
-		if (config_enabled(CONFIG_EVA)) {
-			if (segment_eq(get_fs(), get_ds()))
+		if (IS_ENABLED(CONFIG_EVA)) {
+			if (uaccess_kernel())
 				LoadHW(addr, value, res);
 			else
 				LoadHWE(addr, value, res);
@@ -1043,8 +1044,8 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		if (!access_ok(VERIFY_READ, addr, 4))
 			goto sigbus;
 
-		if (config_enabled(CONFIG_EVA)) {
-			if (segment_eq(get_fs(), get_ds()))
+		if (IS_ENABLED(CONFIG_EVA)) {
+			if (uaccess_kernel())
 				LoadW(addr, value, res);
 			else
 				LoadWE(addr, value, res);
@@ -1062,8 +1063,8 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		if (!access_ok(VERIFY_READ, addr, 2))
 			goto sigbus;
 
-		if (config_enabled(CONFIG_EVA)) {
-			if (segment_eq(get_fs(), get_ds()))
+		if (IS_ENABLED(CONFIG_EVA)) {
+			if (uaccess_kernel())
 				LoadHWU(addr, value, res);
 			else
 				LoadHWUE(addr, value, res);
@@ -1130,8 +1131,8 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		compute_return_epc(regs);
 		value = regs->regs[insn.i_format.rt];
 
-		if (config_enabled(CONFIG_EVA)) {
-			if (segment_eq(get_fs(), get_ds()))
+		if (IS_ENABLED(CONFIG_EVA)) {
+			if (uaccess_kernel())
 				StoreHW(addr, value, res);
 			else
 				StoreHWE(addr, value, res);
@@ -1150,8 +1151,8 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		compute_return_epc(regs);
 		value = regs->regs[insn.i_format.rt];
 
-		if (config_enabled(CONFIG_EVA)) {
-			if (segment_eq(get_fs(), get_ds()))
+		if (IS_ENABLED(CONFIG_EVA)) {
+			if (uaccess_kernel())
 				StoreW(addr, value, res);
 			else
 				StoreWE(addr, value, res);
@@ -1190,6 +1191,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	case ldc1_op:
 	case swc1_op:
 	case sdc1_op:
+	case cop1x_op:
 		die_if_kernel("Unaligned FP access in kernel code", regs);
 		BUG_ON(!used_math());
 
@@ -1225,27 +1227,36 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 			if (!access_ok(VERIFY_READ, addr, sizeof(*fpr)))
 				goto sigbus;
 
-			/*
-			 * Disable preemption to avoid a race between copying
-			 * state from userland, migrating to another CPU and
-			 * updating the hardware vector register below.
-			 */
-			preempt_disable();
+			do {
+				/*
+				 * If we have live MSA context keep track of
+				 * whether we get preempted in order to avoid
+				 * the register context we load being clobbered
+				 * by the live context as it's saved during
+				 * preemption. If we don't have live context
+				 * then it can't be saved to clobber the value
+				 * we load.
+				 */
+				preempted = test_thread_flag(TIF_USEDMSA);
 
-			res = __copy_from_user_inatomic(fpr, addr,
-							sizeof(*fpr));
-			if (res)
-				goto fault;
+				res = __copy_from_user_inatomic(fpr, addr,
+								sizeof(*fpr));
+				if (res)
+					goto fault;
 
-			/*
-			 * Update the hardware register if it is in use by the
-			 * task in this quantum, in order to avoid having to
-			 * save & restore the whole vector context.
-			 */
-			if (test_thread_flag(TIF_USEDMSA))
-				write_msa_wr(wd, fpr, df);
-
-			preempt_enable();
+				/*
+				 * Update the hardware register if it is in use
+				 * by the task in this quantum, in order to
+				 * avoid having to save & restore the whole
+				 * vector context.
+				 */
+				preempt_disable();
+				if (test_thread_flag(TIF_USEDMSA)) {
+					write_msa_wr(wd, fpr, df);
+					preempted = 0;
+				}
+				preempt_enable();
+			} while (preempted);
 			break;
 
 		case msa_st_op:
@@ -2295,7 +2306,6 @@ sigbus:
 }
 
 #ifdef CONFIG_DEBUG_FS
-extern struct dentry *mips_debugfs_dir;
 static int __init debugfs_unaligned(void)
 {
 	struct dentry *d;

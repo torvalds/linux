@@ -21,13 +21,17 @@
 #ifndef _ASM_KPROBES_H
 #define _ASM_KPROBES_H
 
+#include <asm-generic/kprobes.h>
+
+#define BREAKPOINT_INSTRUCTION	0xff
+
+#ifdef CONFIG_KPROBES
 #include <linux/types.h>
 #include <linux/ptrace.h>
 
 struct kprobe;
 
 typedef unsigned char kprobe_opcode_t;
-#define BREAKPOINT_INSTRUCTION	0xff
 #define MAX_INSN_SIZE 8
 #define MAX_STACK_SIZE 128
 
@@ -47,4 +51,5 @@ extern int kprobe_exceptions_notify(struct notifier_block *self,
 
 extern void arch_remove_kprobe(struct kprobe *p);
 
+#endif /* CONFIG_KPROBES */
 #endif /* _ASM_KPROBES_H */

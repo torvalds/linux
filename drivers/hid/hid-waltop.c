@@ -42,11 +42,6 @@
  * 02 16 02     ink
  */
 
-/*
- * See Slim Tablet 5.8 inch description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=Waltop_Slim_Tablet_5.8%22
- */
-
 /* Size of the original report descriptor of Slim Tablet 5.8 inch */
 #define SLIM_TABLET_5_8_INCH_RDESC_ORIG_SIZE	222
 
@@ -97,11 +92,6 @@ static __u8 slim_tablet_5_8_inch_rdesc_fixed[] = {
 	0xC0,               /*      End Collection,                 */
 	0xC0                /*  End Collection                      */
 };
-
-/*
- * See Slim Tablet 12.1 inch description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=Waltop_Slim_Tablet_12.1%22
- */
 
 /* Size of the original report descriptor of Slim Tablet 12.1 inch */
 #define SLIM_TABLET_12_1_INCH_RDESC_ORIG_SIZE	269
@@ -154,11 +144,6 @@ static __u8 slim_tablet_12_1_inch_rdesc_fixed[] = {
 	0xC0                /*  End Collection                      */
 };
 
-/*
- * See Q Pad description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=Waltop_Q_Pad
- */
-
 /* Size of the original report descriptor of Q Pad */
 #define Q_PAD_RDESC_ORIG_SIZE	241
 
@@ -209,11 +194,6 @@ static __u8 q_pad_rdesc_fixed[] = {
 	0xC0,               /*      End Collection,                 */
 	0xC0                /*  End Collection                      */
 };
-
-/*
- * See description, device and HID report descriptors of tablet with PID 0038 at
- * http://sf.net/apps/mediawiki/digimend/?title=Waltop_PID_0038
- */
 
 /* Size of the original report descriptor of tablet with PID 0038 */
 #define PID_0038_RDESC_ORIG_SIZE	241
@@ -267,11 +247,6 @@ static __u8 pid_0038_rdesc_fixed[] = {
 	0xC0,               /*      End Collection,                 */
 	0xC0                /*  End Collection                      */
 };
-
-/*
- * See Media Tablet 10.6 inch description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=Waltop_Media_Tablet_10.6%22
- */
 
 /* Size of the original report descriptor of Media Tablet 10.6 inch */
 #define MEDIA_TABLET_10_6_INCH_RDESC_ORIG_SIZE	300
@@ -386,11 +361,6 @@ static __u8 media_tablet_10_6_inch_rdesc_fixed[] = {
 	0xC0                /*  End Collection                      */
 };
 
-/*
- * See Media Tablet 14.1 inch description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=Waltop_Media_Tablet_14.1%22
- */
-
 /* Size of the original report descriptor of Media Tablet 14.1 inch */
 #define MEDIA_TABLET_14_1_INCH_RDESC_ORIG_SIZE	309
 
@@ -501,12 +471,6 @@ static __u8 media_tablet_14_1_inch_rdesc_fixed[] = {
 	0x81, 0x03,         /*      Input (Constant, Variable),     */
 	0xC0                /*  End Collection                      */
 };
-
-/*
- * See Sirius Battery Free Tablet description, device and HID report descriptors
- * at
- * http://sf.net/apps/mediawiki/digimend/?title=Waltop_Sirius_Battery_Free_Tablet
- */
 
 /* Size of the original report descriptor of Sirius Battery Free Tablet */
 #define SIRIUS_BATTERY_FREE_TABLET_RDESC_ORIG_SIZE	335

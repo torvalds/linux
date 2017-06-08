@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
@@ -87,6 +88,11 @@ int os_process_parent(int pid)
 		printk(UM_KERN_ERR "Failed to scan '%s'\n", data);
 
 	return parent;
+}
+
+void os_alarm_process(int pid)
+{
+	kill(pid, SIGALRM);
 }
 
 void os_stop_process(int pid)

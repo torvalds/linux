@@ -195,6 +195,8 @@ superio_exit(int ioreg)
 
 #define NUM_FAN		6
 
+#define TEMP_SOURCE_VIRTUAL	0x1f
+
 /* Common and NCT6775 specific data */
 
 /* Voltage min/max registers for nr=7..14 are in bank 5 */
@@ -515,16 +517,24 @@ static const char *const nct6779_temp_label[] = {
 	"PCH_DIM1_TEMP",
 	"PCH_DIM2_TEMP",
 	"PCH_DIM3_TEMP",
-	"BYTE_TEMP"
+	"BYTE_TEMP",
+	"",
+	"",
+	"",
+	"",
+	"Virtual_TEMP"
 };
 
-static const u16 NCT6779_REG_TEMP_ALTERNATE[ARRAY_SIZE(nct6779_temp_label) - 1]
+#define NCT6779_NUM_LABELS	(ARRAY_SIZE(nct6779_temp_label) - 5)
+#define NCT6791_NUM_LABELS	ARRAY_SIZE(nct6779_temp_label)
+
+static const u16 NCT6779_REG_TEMP_ALTERNATE[NCT6791_NUM_LABELS - 1]
 	= { 0x490, 0x491, 0x492, 0x493, 0x494, 0x495, 0, 0,
 	    0, 0, 0, 0, 0, 0, 0, 0,
 	    0, 0x400, 0x401, 0x402, 0x404, 0x405, 0x406, 0x407,
 	    0x408, 0 };
 
-static const u16 NCT6779_REG_TEMP_CRIT[ARRAY_SIZE(nct6779_temp_label) - 1]
+static const u16 NCT6779_REG_TEMP_CRIT[NCT6791_NUM_LABELS - 1]
 	= { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x709, 0x70a };
 
 /* NCT6791 specific data */
@@ -556,6 +566,76 @@ static const u16 NCT6792_REG_TEMP_MON[] = {
 	0x73, 0x75, 0x77, 0x79, 0x7b, 0x7d };
 static const u16 NCT6792_REG_BEEP[NUM_REG_BEEP] = {
 	0xb2, 0xb3, 0xb4, 0xb5, 0xbf };
+
+static const char *const nct6792_temp_label[] = {
+	"",
+	"SYSTIN",
+	"CPUTIN",
+	"AUXTIN0",
+	"AUXTIN1",
+	"AUXTIN2",
+	"AUXTIN3",
+	"",
+	"SMBUSMASTER 0",
+	"SMBUSMASTER 1",
+	"SMBUSMASTER 2",
+	"SMBUSMASTER 3",
+	"SMBUSMASTER 4",
+	"SMBUSMASTER 5",
+	"SMBUSMASTER 6",
+	"SMBUSMASTER 7",
+	"PECI Agent 0",
+	"PECI Agent 1",
+	"PCH_CHIP_CPU_MAX_TEMP",
+	"PCH_CHIP_TEMP",
+	"PCH_CPU_TEMP",
+	"PCH_MCH_TEMP",
+	"PCH_DIM0_TEMP",
+	"PCH_DIM1_TEMP",
+	"PCH_DIM2_TEMP",
+	"PCH_DIM3_TEMP",
+	"BYTE_TEMP",
+	"PECI Agent 0 Calibration",
+	"PECI Agent 1 Calibration",
+	"",
+	"",
+	"Virtual_TEMP"
+};
+
+static const char *const nct6793_temp_label[] = {
+	"",
+	"SYSTIN",
+	"CPUTIN",
+	"AUXTIN0",
+	"AUXTIN1",
+	"AUXTIN2",
+	"AUXTIN3",
+	"",
+	"SMBUSMASTER 0",
+	"SMBUSMASTER 1",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"PECI Agent 0",
+	"PECI Agent 1",
+	"PCH_CHIP_CPU_MAX_TEMP",
+	"PCH_CHIP_TEMP",
+	"PCH_CPU_TEMP",
+	"PCH_MCH_TEMP",
+	"Agent0 Dimm0 ",
+	"Agent0 Dimm1",
+	"Agent1 Dimm0",
+	"Agent1 Dimm1",
+	"BYTE_TEMP0",
+	"BYTE_TEMP1",
+	"PECI Agent 0 Calibration",
+	"PECI Agent 1 Calibration",
+	"",
+	"Virtual_TEMP"
+};
 
 /* NCT6102D/NCT6106D specific data */
 
@@ -967,7 +1047,8 @@ struct sensor_template_group {
 };
 
 static struct attribute_group *
-nct6775_create_attr_group(struct device *dev, struct sensor_template_group *tg,
+nct6775_create_attr_group(struct device *dev,
+			  const struct sensor_template_group *tg,
 			  int repeat)
 {
 	struct attribute_group *group;
@@ -1749,7 +1830,7 @@ static struct sensor_device_template *nct6775_attributes_in_template[] = {
 	NULL
 };
 
-static struct sensor_template_group nct6775_in_template_group = {
+static const struct sensor_template_group nct6775_in_template_group = {
 	.templates = nct6775_attributes_in_template,
 	.is_visible = nct6775_in_is_visible,
 };
@@ -1968,7 +2049,7 @@ static struct sensor_device_template *nct6775_attributes_fan_template[] = {
 	NULL
 };
 
-static struct sensor_template_group nct6775_fan_template_group = {
+static const struct sensor_template_group nct6775_fan_template_group = {
 	.templates = nct6775_attributes_fan_template,
 	.is_visible = nct6775_fan_is_visible,
 	.base = 1,
@@ -2177,7 +2258,7 @@ static struct sensor_device_template *nct6775_attributes_temp_template[] = {
 	NULL
 };
 
-static struct sensor_template_group nct6775_temp_template_group = {
+static const struct sensor_template_group nct6775_temp_template_group = {
 	.templates = nct6775_attributes_temp_template,
 	.is_visible = nct6775_temp_is_visible,
 	.base = 1,
@@ -3039,21 +3120,21 @@ static struct sensor_device_template *nct6775_attributes_pwm_template[] = {
 	NULL
 };
 
-static struct sensor_template_group nct6775_pwm_template_group = {
+static const struct sensor_template_group nct6775_pwm_template_group = {
 	.templates = nct6775_attributes_pwm_template,
 	.is_visible = nct6775_pwm_is_visible,
 	.base = 1,
 };
 
 static ssize_t
-show_vid(struct device *dev, struct device_attribute *attr, char *buf)
+cpu0_vid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
 
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
 /* Case open detection */
 
@@ -3605,7 +3686,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->speed_tolerance_limit = 63;
 
 		data->temp_label = nct6779_temp_label;
-		data->temp_label_num = ARRAY_SIZE(nct6779_temp_label);
+		data->temp_label_num = NCT6779_NUM_LABELS;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
 		data->REG_VBAT = NCT6775_REG_VBAT;
@@ -3682,8 +3763,19 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->tolerance_mask = 0x07;
 		data->speed_tolerance_limit = 63;
 
-		data->temp_label = nct6779_temp_label;
-		data->temp_label_num = ARRAY_SIZE(nct6779_temp_label);
+		switch (data->kind) {
+		default:
+		case nct6791:
+			data->temp_label = nct6779_temp_label;
+			break;
+		case nct6792:
+			data->temp_label = nct6792_temp_label;
+			break;
+		case nct6793:
+			data->temp_label = nct6793_temp_label;
+			break;
+		}
+		data->temp_label_num = NCT6791_NUM_LABELS;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
 		data->REG_VBAT = NCT6775_REG_VBAT;
@@ -3850,7 +3942,7 @@ static int nct6775_probe(struct platform_device *pdev)
 			continue;
 
 		src = nct6775_read_value(data, data->REG_TEMP_SEL[i]) & 0x1f;
-		if (!src || (mask & (1 << src)))
+		if (!src)
 			continue;
 
 		if (src >= data->temp_label_num ||
@@ -3862,7 +3954,16 @@ static int nct6775_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		mask |= 1 << src;
+		/*
+		 * For virtual temperature sources, the 'virtual' temperature
+		 * for each fan reflects a different temperature, and there
+		 * are no duplicates.
+		 */
+		if (src != TEMP_SOURCE_VIRTUAL) {
+			if (mask & (1 << src))
+				continue;
+			mask |= 1 << src;
+		}
 
 		/* Use fixed index for SYSTIN(1), CPUTIN(2), AUXTIN(3) */
 		if (src <= data->temp_fixed_num) {
@@ -4142,11 +4243,11 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 	if (err)
 		return err;
 
-	if (force_id)
+	val = (superio_inb(sioaddr, SIO_REG_DEVID) << 8) |
+		superio_inb(sioaddr, SIO_REG_DEVID + 1);
+	if (force_id && val != 0xffff)
 		val = force_id;
-	else
-		val = (superio_inb(sioaddr, SIO_REG_DEVID) << 8)
-		    | superio_inb(sioaddr, SIO_REG_DEVID + 1);
+
 	switch (val & SIO_ID_MASK) {
 	case SIO_NCT6106_ID:
 		sio_data->kind = nct6106;

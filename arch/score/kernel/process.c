@@ -28,6 +28,8 @@
 #include <linux/elfcore.h>
 #include <linux/pm.h>
 #include <linux/rcupdate.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
@@ -55,8 +57,6 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
 	regs->cp0_epc = pc;
 	regs->regs[0] = sp;
 }
-
-void exit_thread(void) {}
 
 /*
  * When a process does an "exec", machine state like FPU and debug

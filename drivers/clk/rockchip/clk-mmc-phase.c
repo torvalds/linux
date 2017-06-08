@@ -45,8 +45,8 @@ static unsigned long rockchip_mmc_recalc(struct clk_hw *hw,
 #define PSECS_PER_SEC 1000000000000LL
 
 /*
- * Each fine delay is between 40ps-80ps. Assume each fine delay is 60ps to
- * simplify calculations. So 45degs could be anywhere between 33deg and 66deg.
+ * Each fine delay is between 44ps-77ps. Assume each fine delay is 60ps to
+ * simplify calculations. So 45degs could be anywhere between 33deg and 57.8deg.
  */
 #define ROCKCHIP_MMC_DELAY_ELEMENT_PSEC 60
 
@@ -69,7 +69,7 @@ static int rockchip_mmc_get_phase(struct clk_hw *hw)
 
 		delay_num = (raw_value & ROCKCHIP_MMC_DELAYNUM_MASK);
 		delay_num >>= ROCKCHIP_MMC_DELAYNUM_OFFSET;
-		degrees += delay_num * factor / 10000;
+		degrees += DIV_ROUND_CLOSEST(delay_num * factor, 10000);
 	}
 
 	return degrees % 360;
@@ -82,30 +82,47 @@ static int rockchip_mmc_set_phase(struct clk_hw *hw, int degrees)
 	u8 nineties, remainder;
 	u8 delay_num;
 	u32 raw_value;
-	u64 delay;
-
-	/* allow 22 to be 22.5 */
-	degrees++;
-	/* floor to 22.5 increment */
-	degrees -= ((degrees) * 10 % 225) / 10;
+	u32 delay;
 
 	nineties = degrees / 90;
-	/* 22.5 multiples */
-	remainder = (degrees % 90) / 22;
+	remainder = (degrees % 90);
 
-	delay = PSECS_PER_SEC;
-	do_div(delay, rate);
-	/* / 360 / 22.5 */
-	do_div(delay, 16);
-	do_div(delay, ROCKCHIP_MMC_DELAY_ELEMENT_PSEC);
+	/*
+	 * Due to the inexact nature of the "fine" delay, we might
+	 * actually go non-monotonic.  We don't go _too_ monotonic
+	 * though, so we should be OK.  Here are options of how we may
+	 * work:
+	 *
+	 * Ideally we end up with:
+	 *   1.0, 2.0, ..., 69.0, 70.0, ...,  89.0, 90.0
+	 *
+	 * On one extreme (if delay is actually 44ps):
+	 *   .73, 1.5, ..., 50.6, 51.3, ...,  65.3, 90.0
+	 * The other (if delay is actually 77ps):
+	 *   1.3, 2.6, ..., 88.6. 89.8, ..., 114.0, 90
+	 *
+	 * It's possible we might make a delay that is up to 25
+	 * degrees off from what we think we're making.  That's OK
+	 * though because we should be REALLY far from any bad range.
+	 */
 
+	/*
+	 * Convert to delay; do a little extra work to make sure we
+	 * don't overflow 32-bit / 64-bit numbers.
+	 */
+	delay = 10000000; /* PSECS_PER_SEC / 10000 / 10 */
 	delay *= remainder;
-	delay_num = (u8) min(delay, 255ULL);
+	delay = DIV_ROUND_CLOSEST(delay,
+			(rate / 1000) * 36 *
+				(ROCKCHIP_MMC_DELAY_ELEMENT_PSEC / 10));
+
+	delay_num = (u8) min_t(u32, delay, 255);
 
 	raw_value = delay_num ? ROCKCHIP_MMC_DELAY_SEL : 0;
 	raw_value |= delay_num << ROCKCHIP_MMC_DELAYNUM_OFFSET;
 	raw_value |= nineties;
-	writel(HIWORD_UPDATE(raw_value, 0x07ff, mmc_clock->shift), mmc_clock->reg);
+	writel(HIWORD_UPDATE(raw_value, 0x07ff, mmc_clock->shift),
+	       mmc_clock->reg);
 
 	pr_debug("%s->set_phase(%d) delay_nums=%u reg[0x%p]=0x%03x actual_degrees=%d\n",
 		clk_hw_get_name(hw), degrees, delay_num,
@@ -132,9 +149,10 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 
 	mmc_clock = kmalloc(sizeof(*mmc_clock), GFP_KERNEL);
 	if (!mmc_clock)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
+	init.flags = 0;
 	init.num_parents = num_parents;
 	init.parent_names = parent_names;
 	init.ops = &rockchip_mmc_clk_ops;
@@ -145,11 +163,7 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 
 	clk = clk_register(NULL, &mmc_clock->hw);
 	if (IS_ERR(clk))
-		goto err_free;
+		kfree(mmc_clock);
 
 	return clk;
-
-err_free:
-	kfree(mmc_clock);
-	return NULL;
 }

@@ -376,7 +376,7 @@ static const struct mfd_cell micro_cells[] = {
 	{ .name = "ipaq-micro-leds", },
 };
 
-static int micro_resume(struct device *dev)
+static int __maybe_unused micro_resume(struct device *dev)
 {
 	struct ipaq_micro *micro = dev_get_drvdata(dev);
 
@@ -400,9 +400,6 @@ static int __init micro_probe(struct platform_device *pdev)
 	micro->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
 	micro->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(micro->base))
 		return PTR_ERR(micro->base);

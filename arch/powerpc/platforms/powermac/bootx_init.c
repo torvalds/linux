@@ -84,6 +84,7 @@ static void __init bootx_printf(const char *format, ...)
 			break;
 		}
 	}
+	va_end(args);
 }
 #else /* CONFIG_BOOTX_TEXT */
 static void __init bootx_printf(const char *format, ...) {}

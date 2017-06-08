@@ -7,6 +7,7 @@
 
 #include <linux/kernel.h>
 #include <asm/asm-compat.h>
+#include <asm/ppc_asm.h>
 
 #ifdef __BIG_ENDIAN__
 
@@ -38,6 +39,11 @@ static inline bool has_zero(unsigned long val, unsigned long *data, const struct
 	unsigned long rhs = val | c->low_bits;
 	*data = rhs;
 	return (val + c->high_bits) & ~rhs;
+}
+
+static inline unsigned long zero_bytemask(unsigned long mask)
+{
+	return ~1ul << __fls(mask);
 }
 
 #else
@@ -77,7 +83,7 @@ static inline unsigned long create_zero_mask(unsigned long bits)
 	    "andc	%1,%1,%2\n\t"
 	    "popcntd	%0,%1"
 		: "=r" (leading_zero_bits), "=&r" (trailing_zero_bit_mask)
-		: "r" (bits));
+		: "b" (bits));
 
 	return leading_zero_bits;
 }
@@ -188,10 +194,7 @@ static inline unsigned long load_unaligned_zeropad(const void *addr)
 #endif
 	"b	2b\n"
 	".previous\n"
-	".section __ex_table,\"a\"\n\t"
-		PPC_LONG_ALIGN "\n\t"
-		PPC_LONG "1b,3b\n"
-	".previous"
+	EX_TABLE(1b, 3b)
 	: [tmp] "=&b" (tmp), [offset] "=&r" (offset), [ret] "=&r" (ret)
 	: [addr] "b" (addr), "m" (*(unsigned long *)addr));
 

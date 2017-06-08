@@ -19,6 +19,7 @@
 #define MCFINT_UART0        26          /* Interrupt number for UART0 */
 #define MCFINT_UART1        27          /* Interrupt number for UART1 */
 #define MCFINT_UART2        28          /* Interrupt number for UART2 */
+#define MCFINT_I2C0         30		/* Interrupt number for I2C */
 #define MCFINT_QSPI         31          /* Interrupt number for QSPI */
 #define MCFINT_FECRX0	    36		/* Interrupt number for FEC */
 #define MCFINT_FECTX0	    40		/* Interrupt number for FEC */
@@ -32,6 +33,7 @@
 #define MCF_IRQ_FECTX0	    (MCFINT_VECBASE + MCFINT_FECTX0)
 #define MCF_IRQ_FECENTC0    (MCFINT_VECBASE + MCFINT_FECENTC0)
 
+#define	MCF_IRQ_I2C0	    (MCFINT_VECBASE + MCFINT_I2C0)
 #define	MCF_IRQ_QSPI	    (MCFINT_VECBASE + MCFINT_QSPI)
 
 #define MCF_WTM_WCR		0xFC098000
@@ -1236,6 +1238,12 @@
 #define MCFEPORT_EPDR                 (0xFC094004)
 #define MCFEPORT_EPPDR                (0xFC094005)
 #define MCFEPORT_EPFR                 (0xFC094006)
+
+/*
+ * I2C Module
+ */
+#define	MCFI2C_BASE0			(0xFc058000)
+#define	MCFI2C_SIZE0			0x40
 
 /********************************************************************/
 #endif	/* m53xxsim_h */

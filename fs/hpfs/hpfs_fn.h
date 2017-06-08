@@ -18,7 +18,7 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/blkdev.h>
 #include <asm/unaligned.h>
 
@@ -242,7 +242,7 @@ extern const struct file_operations hpfs_dir_ops;
 
 /* dnode.c */
 
-void hpfs_add_pos(struct inode *, loff_t *);
+int hpfs_add_pos(struct inode *, loff_t *);
 void hpfs_del_pos(struct inode *, loff_t *);
 struct hpfs_dirent *hpfs_add_de(struct super_block *, struct dnode *,
 				const unsigned char *, unsigned, secno);

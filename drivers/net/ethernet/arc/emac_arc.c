@@ -78,6 +78,7 @@ static const struct of_device_id emac_arc_dt_ids[] = {
 	{ .compatible = "snps,arc-emac" },
 	{ /* Sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, emac_arc_dt_ids);
 
 static struct platform_driver emac_arc_driver = {
 	.probe = emac_arc_probe,

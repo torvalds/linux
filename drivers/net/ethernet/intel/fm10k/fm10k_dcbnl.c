@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,7 +20,6 @@
 
 #include "fm10k.h"
 
-#ifdef CONFIG_DCB
 /**
  * fm10k_dcbnl_ieee_getets - get the ETS configuration for the device
  * @dev: netdev interface for the device
@@ -155,7 +154,6 @@ static const struct dcbnl_rtnl_ops fm10k_dcbnl_ops = {
 	.setdcbx	= fm10k_dcbnl_setdcbx,
 };
 
-#endif /* CONFIG_DCB */
 /**
  * fm10k_dcbnl_set_ops - Configures dcbnl ops pointer for netdev
  * @dev: netdev interface for the device
@@ -164,11 +162,9 @@ static const struct dcbnl_rtnl_ops fm10k_dcbnl_ops = {
  **/
 void fm10k_dcbnl_set_ops(struct net_device *dev)
 {
-#ifdef CONFIG_DCB
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	struct fm10k_hw *hw = &interface->hw;
 
 	if (hw->mac.type == fm10k_mac_pf)
 		dev->dcbnl_ops = &fm10k_dcbnl_ops;
-#endif /* CONFIG_DCB */
 }

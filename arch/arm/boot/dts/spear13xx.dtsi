@@ -117,7 +117,8 @@
 			chan_priority = <1>;
 			block_size = <0xfff>;
 			dma-masters = <2>;
-			data_width = <3 3>;
+			data-width = <8 8>;
+			multi-block = <1 1 1 1 1 1 1 1>;
 		};
 
 		dma@eb000000 {
@@ -133,7 +134,8 @@
 			chan_allocation_order = <1>;
 			chan_priority = <1>;
 			block_size = <0xfff>;
-			data_width = <3 3>;
+			data-width = <8 8>;
+			multi-block = <1 1 1 1 1 1 1 1>;
 		};
 
 		fsmc: flash@b0000000 {

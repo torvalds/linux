@@ -60,6 +60,8 @@ Machine check
 		threshold to 1. Enabling this may make memory predictive failure
 		analysis less effective if the bios sets thresholds for memory
 		errors since we will not see details for all errors.
+   mce=recovery
+		Force-enable recoverable machine check code paths
 
    nomce (for compatibility with i386): same as mce=off
 
@@ -274,10 +276,6 @@ IOMMU (input/output memory management unit)
     bridge, X servers that access the hardware directly from user
     space might stop working. Use this option if you have devices that
     are accessed from userspace directly on some PCI host bridge.
-
-Debugging
-
-  kstack=N	Print N words from the kernel stack in oops dumps.
 
 Miscellaneous
 

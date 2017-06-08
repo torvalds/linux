@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/xattr.h>
+#include <linux/evm.h>
 #include <keys/encrypted-type.h>
 #include <crypto/hash.h>
 #include "evm.h"
@@ -32,6 +33,44 @@ struct crypto_shash *hash_tfm;
 
 static DEFINE_MUTEX(mutex);
 
+#define EVM_SET_KEY_BUSY 0
+
+static unsigned long evm_set_key_flags;
+
+/**
+ * evm_set_key() - set EVM HMAC key from the kernel
+ * @key: pointer to a buffer with the key data
+ * @size: length of the key data
+ *
+ * This function allows setting the EVM HMAC key from the kernel
+ * without using the "encrypted" key subsystem keys. It can be used
+ * by the crypto HW kernel module which has its own way of managing
+ * keys.
+ *
+ * key length should be between 32 and 128 bytes long
+ */
+int evm_set_key(void *key, size_t keylen)
+{
+	int rc;
+
+	rc = -EBUSY;
+	if (test_and_set_bit(EVM_SET_KEY_BUSY, &evm_set_key_flags))
+		goto busy;
+	rc = -EINVAL;
+	if (keylen > MAX_KEY_SIZE)
+		goto inval;
+	memcpy(evmkey, key, keylen);
+	evm_initialized |= EVM_INIT_HMAC;
+	pr_info("key initialized\n");
+	return 0;
+inval:
+	clear_bit(EVM_SET_KEY_BUSY, &evm_set_key_flags);
+busy:
+	pr_err("key initialization failed\n");
+	return rc;
+}
+EXPORT_SYMBOL_GPL(evm_set_key);
+
 static struct shash_desc *init_desc(char type)
 {
 	long rc;
@@ -40,6 +79,10 @@ static struct shash_desc *init_desc(char type)
 	struct shash_desc *desc;
 
 	if (type == EVM_XATTR_HMAC) {
+		if (!(evm_initialized & EVM_INIT_HMAC)) {
+			pr_err("HMAC key is not set\n");
+			return ERR_PTR(-ENOKEY);
+		}
 		tfm = &hmac_tfm;
 		algo = evm_hmac;
 	} else {
@@ -108,6 +151,14 @@ static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
 	memset(&hmac_misc, 0, sizeof(hmac_misc));
 	hmac_misc.ino = inode->i_ino;
 	hmac_misc.generation = inode->i_generation;
+	/* The hmac uid and gid must be encoded in the initial user
+	 * namespace (not the filesystems user namespace) as encoding
+	 * them in the filesystems user namespace allows an attack
+	 * where first they are written in an unprivileged fuse mount
+	 * of a filesystem and then the system is tricked to mount the
+	 * filesystem for real on next boot and trust it because
+	 * everything is signed.
+	 */
 	hmac_misc.uid = from_kuid(&init_user_ns, inode->i_uid);
 	hmac_misc.gid = from_kgid(&init_user_ns, inode->i_gid);
 	hmac_misc.mode = inode->i_mode;
@@ -139,8 +190,9 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 	int error;
 	int size;
 
-	if (!inode->i_op->getxattr)
+	if (!(inode->i_opflags & IOP_XATTR))
 		return -EOPNOTSUPP;
+
 	desc = init_desc(type);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
@@ -210,8 +262,8 @@ int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 		rc = __vfs_setxattr_noperm(dentry, XATTR_NAME_EVM,
 					   &xattr_data,
 					   sizeof(xattr_data), 0);
-	} else if (rc == -ENODATA && inode->i_op->removexattr) {
-		rc = inode->i_op->removexattr(dentry, XATTR_NAME_EVM);
+	} else if (rc == -ENODATA && (inode->i_opflags & IOP_XATTR)) {
+		rc = __vfs_removexattr(dentry, XATTR_NAME_EVM);
 	}
 	return rc;
 }
@@ -240,20 +292,17 @@ int evm_init_key(void)
 {
 	struct key *evm_key;
 	struct encrypted_key_payload *ekp;
-	int rc = 0;
+	int rc;
 
 	evm_key = request_key(&key_type_encrypted, EVMKEY, NULL);
 	if (IS_ERR(evm_key))
 		return -ENOENT;
 
 	down_read(&evm_key->sem);
-	ekp = evm_key->payload.data;
-	if (ekp->decrypted_datalen > MAX_KEY_SIZE) {
-		rc = -EINVAL;
-		goto out;
-	}
-	memcpy(evmkey, ekp->decrypted_data, ekp->decrypted_datalen);
-out:
+	ekp = evm_key->payload.data[0];
+
+	rc = evm_set_key(ekp->decrypted_data, ekp->decrypted_datalen);
+
 	/* burn the original key contents */
 	memset(ekp->decrypted_data, 0, ekp->decrypted_datalen);
 	up_read(&evm_key->sem);

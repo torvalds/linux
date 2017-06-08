@@ -175,7 +175,8 @@ struct ap_device_id {
 	kernel_ulong_t driver_info;
 };
 
-#define AP_DEVICE_ID_MATCH_DEVICE_TYPE		0x01
+#define AP_DEVICE_ID_MATCH_CARD_TYPE		0x01
+#define AP_DEVICE_ID_MATCH_QUEUE_TYPE		0x02
 
 /* s390 css bus devices (subchannels) */
 struct css_device_id {
@@ -217,6 +218,14 @@ struct serio_device_id {
 	__u8 extra;
 	__u8 id;
 	__u8 proto;
+};
+
+struct hda_device_id {
+	__u32 vendor_id;
+	__u32 rev_id;
+	__u8 api_version;
+	const char *name;
+	unsigned long driver_data;
 };
 
 /*
@@ -396,7 +405,7 @@ struct virtio_device_id {
  * For Hyper-V devices we use the device guid as the id.
  */
 struct hv_vmbus_device_id {
-	__u8 guid[16];
+	uuid_le guid;
 	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
@@ -417,6 +426,16 @@ struct rpmsg_device_id {
 struct i2c_device_id {
 	char name[I2C_NAME_SIZE];
 	kernel_ulong_t driver_data;	/* Data private to the driver */
+};
+
+/* pci_epf */
+
+#define PCI_EPF_NAME_SIZE	20
+#define PCI_EPF_MODULE_PREFIX	"pci_epf:"
+
+struct pci_epf_device_id {
+	char name[PCI_EPF_NAME_SIZE];
+	kernel_ulong_t driver_data;
 };
 
 /* spi */
@@ -448,6 +467,7 @@ enum dmi_field {
 	DMI_PRODUCT_VERSION,
 	DMI_PRODUCT_SERIAL,
 	DMI_PRODUCT_UUID,
+	DMI_PRODUCT_FAMILY,
 	DMI_BOARD_VENDOR,
 	DMI_BOARD_NAME,
 	DMI_BOARD_VERSION,
@@ -492,6 +512,7 @@ struct platform_device_id {
 	kernel_ulong_t driver_data;
 };
 
+#define MDIO_NAME_SIZE		32
 #define MDIO_MODULE_PREFIX	"mdio:"
 
 #define MDIO_ID_FMT "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d"
@@ -601,15 +622,13 @@ struct ipack_device_id {
 
 #define MEI_CL_MODULE_PREFIX "mei:"
 #define MEI_CL_NAME_SIZE 32
-#define MEI_CL_UUID_FMT "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
-#define MEI_CL_UUID_ARGS(_u) \
-	_u[0], _u[1], _u[2], _u[3], _u[4], _u[5], _u[6], _u[7], \
-	_u[8], _u[9], _u[10], _u[11], _u[12], _u[13], _u[14], _u[15]
+#define MEI_CL_VERSION_ANY 0xff
 
 /**
  * struct mei_cl_device_id - MEI client device identifier
  * @name: helper name
  * @uuid: client uuid
+ * @version: client protocol version
  * @driver_info: information used by the driver.
  *
  * identifies mei client device by uuid and name
@@ -617,6 +636,7 @@ struct ipack_device_id {
 struct mei_cl_device_id {
 	char name[MEI_CL_NAME_SIZE];
 	uuid_le uuid;
+	__u8    version;
 	kernel_ulong_t driver_info;
 };
 
@@ -649,5 +669,21 @@ struct ulpi_device_id {
 	__u16 product;
 	kernel_ulong_t driver_data;
 };
+
+/**
+ * struct fsl_mc_device_id - MC object device identifier
+ * @vendor: vendor ID
+ * @obj_type: MC object type
+ * @ver_major: MC object version major number
+ * @ver_minor: MC object version minor number
+ *
+ * Type of entries in the "device Id" table for MC object devices supported by
+ * a MC object device driver. The last entry of the table has vendor set to 0x0
+ */
+struct fsl_mc_device_id {
+	__u16 vendor;
+	const char obj_type[16];
+};
+
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

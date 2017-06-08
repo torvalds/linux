@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/videodev2.h>
+#include <linux/gcd.h>
 
 #include "mt2063.h"
 
@@ -225,7 +226,6 @@ struct mt2063_state {
 	const struct mt2063_config *config;
 	struct dvb_tuner_ops ops;
 	struct dvb_frontend *frontend;
-	struct tuner_state status;
 
 	u32 frequency;
 	u32 srate;
@@ -666,27 +666,6 @@ static u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info)
 }
 
 /**
- * gcd() - Uses Euclid's algorithm
- *
- * @u, @v:	Unsigned values whose GCD is desired.
- *
- * Returns THE greatest common divisor of u and v, if either value is 0,
- * the other value is returned as the result.
- */
-static u32 MT2063_gcd(u32 u, u32 v)
-{
-	u32 r;
-
-	while (v != 0) {
-		r = u % v;
-		u = v;
-		v = r;
-	}
-
-	return u;
-}
-
-/**
  * IsSpurInBand() - Checks to see if a spur will be present within the IF's
  *                  bandwidth. (fIFOut +/- fIFBW, -fIFOut +/- fIFBW)
  *
@@ -732,12 +711,12 @@ static u32 IsSpurInBand(struct MT2063_AvoidSpursData_t *pAS_Info,
 	 ** of f_LO1, f_LO2 and the edge value.  Use the larger of this
 	 ** gcd-based scale factor or f_Scale.
 	 */
-	lo_gcd = MT2063_gcd(f_LO1, f_LO2);
-	gd_Scale = max((u32) MT2063_gcd(lo_gcd, d), f_Scale);
+	lo_gcd = gcd(f_LO1, f_LO2);
+	gd_Scale = max((u32) gcd(lo_gcd, d), f_Scale);
 	hgds = gd_Scale / 2;
-	gc_Scale = max((u32) MT2063_gcd(lo_gcd, c), f_Scale);
+	gc_Scale = max((u32) gcd(lo_gcd, c), f_Scale);
 	hgcs = gc_Scale / 2;
-	gf_Scale = max((u32) MT2063_gcd(lo_gcd, f), f_Scale);
+	gf_Scale = max((u32) gcd(lo_gcd, f), f_Scale);
 	hgfs = gf_Scale / 2;
 
 	n0 = DIV_ROUND_UP(f_LO2 - d, f_LO1 - f_LO2);
@@ -2040,7 +2019,7 @@ static int mt2063_get_status(struct dvb_frontend *fe, u32 *tuner_status)
 	return 0;
 }
 
-static int mt2063_release(struct dvb_frontend *fe)
+static void mt2063_release(struct dvb_frontend *fe)
 {
 	struct mt2063_state *state = fe->tuner_priv;
 
@@ -2048,8 +2027,6 @@ static int mt2063_release(struct dvb_frontend *fe)
 
 	fe->tuner_priv = NULL;
 	kfree(state);
-
-	return 0;
 }
 
 static int mt2063_set_analog_params(struct dvb_frontend *fe,
@@ -2222,7 +2199,7 @@ static int mt2063_get_bandwidth(struct dvb_frontend *fe, u32 *bw)
 	return 0;
 }
 
-static struct dvb_tuner_ops mt2063_ops = {
+static const struct dvb_tuner_ops mt2063_ops = {
 	.info = {
 		 .name = "MT2063 Silicon Tuner",
 		 .frequency_min = 45000000,

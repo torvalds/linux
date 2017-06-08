@@ -38,7 +38,7 @@ the update lasts only as long as the inode is cached in memory, after
 which the timestamp reverts to 1970, i.e. moves backwards in time.
 
 Currently, cramfs must be written and read with architectures of the
-same endianness, and can be read only by kernels with PAGE_CACHE_SIZE
+same endianness, and can be read only by kernels with PAGE_SIZE
 == 4096.  At least the latter of these is a bug, but it hasn't been
 decided what the best fix is.  For the moment if you have larger pages
 you can just change the #define in mkcramfs.c, so long as you don't

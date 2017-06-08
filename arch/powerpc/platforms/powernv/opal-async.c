@@ -117,6 +117,11 @@ int opal_async_wait_response(uint64_t token, struct opal_msg *msg)
 		return -EINVAL;
 	}
 
+	/* Wakeup the poller before we wait for events to speed things
+	 * up on platforms or simulators where the interrupts aren't
+	 * functional.
+	 */
+	opal_wake_poller();
 	wait_event(opal_async_wait, test_bit(token, opal_async_complete_map));
 	memcpy(msg, &opal_async_responses[token], sizeof(*msg));
 

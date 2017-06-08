@@ -19,6 +19,7 @@
 #include <linux/reboot.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
@@ -49,11 +50,14 @@ static struct resource puv3_i2c_resources[] = {
 	}
 };
 
+static struct pwm_lookup nb0916_pwm_lookup[] = {
+	PWM_LOOKUP("PKUnity-v3-PWM", 0, "pwm-backlight", NULL, 70 * 1024,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data nb0916_backlight_data = {
-	.pwm_id		= 0,
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
-	.pwm_period_ns	= 70 * 1024,
 	.enable_gpio	= -1,
 };
 
@@ -111,6 +115,8 @@ int __init mach_nb0916_init(void)
 
 	platform_device_register_simple("PKUnity-v3-I2C", -1,
 			puv3_i2c_resources, ARRAY_SIZE(puv3_i2c_resources));
+
+	pwm_add_table(nb0916_pwm_lookup, ARRAY_SIZE(nb0916_pwm_lookup));
 
 	platform_device_register_data(NULL, "pwm-backlight", -1,
 			&nb0916_backlight_data, sizeof(nb0916_backlight_data));

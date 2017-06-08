@@ -66,25 +66,35 @@ static const char *std_sel[] = {"ppll", "arm"};
 static const char *ipg_per_sel[] = {"ahb_per_div", "arm_per_div"};
 
 enum mx35_clks {
-	ckih, ckil, mpll, ppll, mpll_075, arm, hsp, hsp_div, hsp_sel, ahb, ipg,
-	arm_per_div, ahb_per_div, ipg_per, uart_sel, uart_div, esdhc_sel,
-	esdhc1_div, esdhc2_div, esdhc3_div, spdif_sel, spdif_div_pre,
-	spdif_div_post, ssi_sel, ssi1_div_pre, ssi1_div_post, ssi2_div_pre,
-	ssi2_div_post, usb_sel, usb_div, nfc_div, asrc_gate, pata_gate,
-	audmux_gate, can1_gate, can2_gate, cspi1_gate, cspi2_gate, ect_gate,
-	edio_gate, emi_gate, epit1_gate, epit2_gate, esai_gate, esdhc1_gate,
-	esdhc2_gate, esdhc3_gate, fec_gate, gpio1_gate, gpio2_gate, gpio3_gate,
-	gpt_gate, i2c1_gate, i2c2_gate, i2c3_gate, iomuxc_gate, ipu_gate,
-	kpp_gate, mlb_gate, mshc_gate, owire_gate, pwm_gate, rngc_gate,
-	rtc_gate, rtic_gate, scc_gate, sdma_gate, spba_gate, spdif_gate,
-	ssi1_gate, ssi2_gate, uart1_gate, uart2_gate, uart3_gate, usbotg_gate,
-	wdog_gate, max_gate, admux_gate, csi_gate, csi_div, csi_sel, iim_gate,
-	gpu2d_gate, clk_max
+	/*  0 */ ckih, mpll, ppll, mpll_075, arm, hsp, hsp_div, hsp_sel, ahb,
+	/*  9 */ ipg, arm_per_div, ahb_per_div, ipg_per, uart_sel, uart_div,
+	/* 15 */ esdhc_sel, esdhc1_div, esdhc2_div, esdhc3_div, spdif_sel,
+	/* 20 */ spdif_div_pre, spdif_div_post, ssi_sel, ssi1_div_pre,
+	/* 24 */ ssi1_div_post, ssi2_div_pre, ssi2_div_post, usb_sel, usb_div,
+	/* 29 */ nfc_div, asrc_gate, pata_gate, audmux_gate, can1_gate,
+	/* 34 */ can2_gate, cspi1_gate, cspi2_gate, ect_gate, edio_gate,
+	/* 39 */ emi_gate, epit1_gate, epit2_gate, esai_gate, esdhc1_gate,
+	/* 44 */ esdhc2_gate, esdhc3_gate, fec_gate, gpio1_gate, gpio2_gate,
+	/* 49 */ gpio3_gate, gpt_gate, i2c1_gate, i2c2_gate, i2c3_gate,
+	/* 54 */ iomuxc_gate, ipu_gate, kpp_gate, mlb_gate, mshc_gate,
+	/* 59 */ owire_gate, pwm_gate, rngc_gate, rtc_gate, rtic_gate, scc_gate,
+	/* 65 */ sdma_gate, spba_gate, spdif_gate, ssi1_gate, ssi2_gate,
+	/* 70 */ uart1_gate, uart2_gate, uart3_gate, usbotg_gate, wdog_gate,
+	/* 75 */ max_gate, admux_gate, csi_gate, csi_div, csi_sel, iim_gate,
+	/* 81 */ gpu2d_gate, ckil, clk_max
 };
 
 static struct clk *clk[clk_max];
 
-int __init mx35_clocks_init(void)
+static struct clk ** const uart_clks[] __initconst = {
+	&clk[ipg],
+	&clk[uart1_gate],
+	&clk[uart2_gate],
+	&clk[uart3_gate],
+	NULL
+};
+
+static void __init _mx35_clocks_init(void)
 {
 	void __iomem *base;
 	u32 pdr0, consumer_sel, hsp_sel;
@@ -107,7 +117,7 @@ int __init mx35_clocks_init(void)
 	}
 
 	clk[ckih] = imx_clk_fixed("ckih", 24000000);
-	clk[ckil] = imx_clk_fixed("ckih", 32768);
+	clk[ckil] = imx_clk_fixed("ckil", 32768);
 	clk[mpll] = imx_clk_pllv1(IMX_PLLV1_IMX35, "mpll", "ckih", base + MX35_CCM_MPCTL);
 	clk[ppll] = imx_clk_pllv1(IMX_PLLV1_IMX35, "ppll", "ckih", base + MX35_CCM_PPCTL);
 
@@ -220,6 +230,32 @@ int __init mx35_clocks_init(void)
 
 	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
+	clk_prepare_enable(clk[spba_gate]);
+	clk_prepare_enable(clk[gpio1_gate]);
+	clk_prepare_enable(clk[gpio2_gate]);
+	clk_prepare_enable(clk[gpio3_gate]);
+	clk_prepare_enable(clk[iim_gate]);
+	clk_prepare_enable(clk[emi_gate]);
+	clk_prepare_enable(clk[max_gate]);
+	clk_prepare_enable(clk[iomuxc_gate]);
+
+	/*
+	 * SCC is needed to boot via mmc after a watchdog reset. The clock code
+	 * before conversion to common clk also enabled UART1 (which isn't
+	 * handled here and not needed for mmc) and IIM (which is enabled
+	 * unconditionally above).
+	 */
+	clk_prepare_enable(clk[scc_gate]);
+
+	imx_register_uart_clocks(uart_clks);
+
+	imx_print_silicon_rev("i.MX35", mx35_revision());
+}
+
+int __init mx35_clocks_init(void)
+{
+	_mx35_clocks_init();
+
 	clk_register_clkdev(clk[pata_gate], NULL, "pata_imx");
 	clk_register_clkdev(clk[can1_gate], NULL, "flexcan.0");
 	clk_register_clkdev(clk[can2_gate], NULL, "flexcan.1");
@@ -279,25 +315,6 @@ int __init mx35_clocks_init(void)
 	clk_register_clkdev(clk[csi_gate], NULL, "mx3-camera.0");
 	clk_register_clkdev(clk[admux_gate], "audmux", NULL);
 
-	clk_prepare_enable(clk[spba_gate]);
-	clk_prepare_enable(clk[gpio1_gate]);
-	clk_prepare_enable(clk[gpio2_gate]);
-	clk_prepare_enable(clk[gpio3_gate]);
-	clk_prepare_enable(clk[iim_gate]);
-	clk_prepare_enable(clk[emi_gate]);
-	clk_prepare_enable(clk[max_gate]);
-	clk_prepare_enable(clk[iomuxc_gate]);
-
-	/*
-	 * SCC is needed to boot via mmc after a watchdog reset. The clock code
-	 * before conversion to common clk also enabled UART1 (which isn't
-	 * handled here and not needed for mmc) and IIM (which is enabled
-	 * unconditionally above).
-	 */
-	clk_prepare_enable(clk[scc_gate]);
-
-	imx_print_silicon_rev("i.MX35", mx35_revision());
-
 	mxc_timer_init(MX35_GPT1_BASE_ADDR, MX35_INT_GPT, GPT_TYPE_IMX31);
 
 	return 0;
@@ -305,10 +322,10 @@ int __init mx35_clocks_init(void)
 
 static void __init mx35_clocks_init_dt(struct device_node *ccm_node)
 {
+	_mx35_clocks_init();
+
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(ccm_node, of_clk_src_onecell_get, &clk_data);
-
-	mx35_clocks_init();
 }
 CLK_OF_DECLARE(imx35, "fsl,imx35-ccm", mx35_clocks_init_dt);

@@ -326,6 +326,9 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	if (data->found_creds && client_name.data != NULL) {
 		char *c;
 
+		data->creds.cr_raw_principal = kstrndup(client_name.data,
+						client_name.len, GFP_KERNEL);
+
 		data->creds.cr_principal = kstrndup(client_name.data,
 						client_name.len, GFP_KERNEL);
 		if (data->creds.cr_principal) {

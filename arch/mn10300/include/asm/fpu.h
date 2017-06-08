@@ -76,11 +76,9 @@ static inline void unlazy_fpu(struct task_struct *tsk)
 	preempt_enable();
 }
 
-static inline void exit_fpu(void)
+static inline void exit_fpu(struct task_struct *tsk)
 {
 #ifdef CONFIG_LAZY_SAVE_FPU
-	struct task_struct *tsk = current;
-
 	preempt_disable();
 	if (fpu_state_owner == tsk)
 		fpu_state_owner = NULL;
@@ -123,7 +121,7 @@ static inline void fpu_init_state(void) {}
 static inline void fpu_save(struct fpu_state_struct *s) {}
 static inline void fpu_kill_state(struct task_struct *tsk) {}
 static inline void unlazy_fpu(struct task_struct *tsk) {}
-static inline void exit_fpu(void) {}
+static inline void exit_fpu(struct task_struct *tsk) {}
 static inline void flush_fpu(void) {}
 static inline int fpu_setup_sigcontext(struct fpucontext *buf) { return 0; }
 static inline int fpu_restore_sigcontext(struct fpucontext *buf) { return 0; }

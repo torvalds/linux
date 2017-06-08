@@ -50,15 +50,19 @@ static int si7020_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = i2c_smbus_read_word_data(*client,
-					       chan->type == IIO_TEMP ?
-					       SI7020CMD_TEMP_HOLD :
-					       SI7020CMD_RH_HOLD);
+		ret = i2c_smbus_read_word_swapped(*client,
+						  chan->type == IIO_TEMP ?
+						  SI7020CMD_TEMP_HOLD :
+						  SI7020CMD_RH_HOLD);
 		if (ret < 0)
 			return ret;
 		*val = ret >> 2;
+		/*
+		 * Humidity values can slightly exceed the 0-100%RH
+		 * range and should be corrected by software
+		 */
 		if (chan->type == IIO_HUMIDITYRELATIVE)
-			*val &= GENMASK(11, 0);
+			*val = clamp_val(*val, 786, 13893);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_TEMP)
@@ -117,7 +121,7 @@ static int si7020_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WRITE_BYTE |
 				     I2C_FUNC_SMBUS_READ_WORD_DATA))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	/* Reset device, loads default settings. */
 	ret = i2c_smbus_write_byte(client, SI7020CMD_RESET);
@@ -145,12 +149,22 @@ static int si7020_probe(struct i2c_client *client,
 
 static const struct i2c_device_id si7020_id[] = {
 	{ "si7020", 0 },
+	{ "th06", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si7020_id);
 
+static const struct of_device_id si7020_dt_ids[] = {
+	{ .compatible = "silabs,si7020" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, si7020_dt_ids);
+
 static struct i2c_driver si7020_driver = {
-	.driver.name	= "si7020",
+	.driver = {
+		.name = "si7020",
+		.of_match_table = of_match_ptr(si7020_dt_ids),
+	},
 	.probe		= si7020_probe,
 	.id_table	= si7020_id,
 };

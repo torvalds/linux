@@ -25,7 +25,6 @@
 
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/blk_types.h>
 #include <asm/byteorder.h>
 #include <asm/memory.h>
 #include <asm-generic/pci_iomap.h>
@@ -188,6 +187,16 @@ static inline void pci_ioremap_set_mem_type(int mem_type) {}
 extern int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr);
 
 /*
+ * PCI configuration space mapping function.
+ *
+ * The PCI specification does not allow configuration write
+ * transactions to be posted. Add an arch specific
+ * pci_remap_cfgspace() definition that is implemented
+ * through strongly ordered memory mappings.
+ */
+#define pci_remap_cfgspace pci_remap_cfgspace
+void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size);
+/*
  * Now, pick up the machine-defined IO definitions
  */
 #ifdef CONFIG_NEED_MACH_IO_H
@@ -282,7 +291,7 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
  * These perform PCI memory accesses via an ioremap region.  They don't
  * take an address as such, but a cookie.
  *
- * Again, this are defined to perform little endian accesses.  See the
+ * Again, these are defined to perform little endian accesses.  See the
  * IO port primitives for more information.
  */
 #ifndef readl
@@ -392,8 +401,17 @@ void __iomem *ioremap(resource_size_t res_cookie, size_t size);
 #define ioremap ioremap
 #define ioremap_nocache ioremap
 
+/*
+ * Do not use ioremap_cache for mapping memory. Use memremap instead.
+ */
 void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size);
 #define ioremap_cache ioremap_cache
+
+/*
+ * Do not use ioremap_cached in new code. Provided for the benefit of
+ * the pxa2xx-flash MTD driver only.
+ */
+void __iomem *ioremap_cached(resource_size_t res_cookie, size_t size);
 
 void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size);
 #define ioremap_wc ioremap_wc
@@ -401,6 +419,9 @@ void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size);
 
 void iounmap(volatile void __iomem *iomem_cookie);
 #define iounmap iounmap
+
+void *arch_memremap_wb(phys_addr_t phys_addr, size_t size);
+#define arch_memremap_wb arch_memremap_wb
 
 /*
  * io{read,write}{16,32}be() macros

@@ -71,7 +71,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/atmdev.h>
 #include <linux/atm.h>
@@ -779,8 +779,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 		  G0_RBPS_BS + (group * 32));
 
 	/* bitmap table */
-	he_dev->rbpl_table = kmalloc(BITS_TO_LONGS(RBPL_TABLE_SIZE)
-				     * sizeof(unsigned long), GFP_KERNEL);
+	he_dev->rbpl_table = kmalloc_array(BITS_TO_LONGS(RBPL_TABLE_SIZE),
+					   sizeof(*he_dev->rbpl_table),
+					   GFP_KERNEL);
 	if (!he_dev->rbpl_table) {
 		hprintk("unable to allocate rbpl bitmap table\n");
 		return -ENOMEM;
@@ -788,8 +789,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 	bitmap_zero(he_dev->rbpl_table, RBPL_TABLE_SIZE);
 
 	/* rbpl_virt 64-bit pointers */
-	he_dev->rbpl_virt = kmalloc(RBPL_TABLE_SIZE
-				    * sizeof(struct he_buff *), GFP_KERNEL);
+	he_dev->rbpl_virt = kmalloc_array(RBPL_TABLE_SIZE,
+					  sizeof(*he_dev->rbpl_virt),
+					  GFP_KERNEL);
 	if (!he_dev->rbpl_virt) {
 		hprintk("unable to allocate rbpl virt table\n");
 		goto out_free_rbpl_table;
@@ -1578,9 +1580,7 @@ he_stop(struct he_dev *he_dev)
 
 	kfree(he_dev->rbpl_virt);
 	kfree(he_dev->rbpl_table);
-
-	if (he_dev->rbpl_pool)
-		dma_pool_destroy(he_dev->rbpl_pool);
+	dma_pool_destroy(he_dev->rbpl_pool);
 
 	if (he_dev->rbrq_base)
 		dma_free_coherent(&he_dev->pci_dev->dev, CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq),
@@ -1594,8 +1594,7 @@ he_stop(struct he_dev *he_dev)
 		dma_free_coherent(&he_dev->pci_dev->dev, CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq),
 				  he_dev->tpdrq_base, he_dev->tpdrq_phys);
 
-	if (he_dev->tpd_pool)
-		dma_pool_destroy(he_dev->tpd_pool);
+	dma_pool_destroy(he_dev->tpd_pool);
 
 	if (he_dev->pci_dev) {
 		pci_read_config_word(he_dev->pci_dev, PCI_COMMAND, &command);

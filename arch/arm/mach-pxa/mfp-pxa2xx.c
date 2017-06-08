@@ -21,7 +21,7 @@
 #include <linux/syscore_ops.h>
 
 #include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa2xx.h>
+#include "mfp-pxa2xx.h"
 
 #include "generic.h"
 

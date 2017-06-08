@@ -14,38 +14,37 @@
 
 #include <linux/rxrpc.h>
 
+struct key;
+struct sock;
+struct socket;
 struct rxrpc_call;
 
-/*
- * the mark applied to socket buffers that may be intercepted
- */
-enum {
-	RXRPC_SKB_MARK_DATA,		/* data message */
-	RXRPC_SKB_MARK_FINAL_ACK,	/* final ACK received message */
-	RXRPC_SKB_MARK_BUSY,		/* server busy message */
-	RXRPC_SKB_MARK_REMOTE_ABORT,	/* remote abort message */
-	RXRPC_SKB_MARK_NET_ERROR,	/* network error message */
-	RXRPC_SKB_MARK_LOCAL_ERROR,	/* local error message */
-	RXRPC_SKB_MARK_NEW_CALL,	/* local error message */
-};
+typedef void (*rxrpc_notify_rx_t)(struct sock *, struct rxrpc_call *,
+				  unsigned long);
+typedef void (*rxrpc_notify_new_call_t)(struct sock *, struct rxrpc_call *,
+					unsigned long);
+typedef void (*rxrpc_discard_new_call_t)(struct rxrpc_call *, unsigned long);
+typedef void (*rxrpc_user_attach_call_t)(struct rxrpc_call *, unsigned long);
 
-typedef void (*rxrpc_interceptor_t)(struct sock *, unsigned long,
-				    struct sk_buff *);
-void rxrpc_kernel_intercept_rx_messages(struct socket *, rxrpc_interceptor_t);
+void rxrpc_kernel_new_call_notification(struct socket *,
+					rxrpc_notify_new_call_t,
+					rxrpc_discard_new_call_t);
 struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *,
 					   struct sockaddr_rxrpc *,
 					   struct key *,
 					   unsigned long,
-					   gfp_t);
-int rxrpc_kernel_send_data(struct rxrpc_call *, struct msghdr *, size_t);
-void rxrpc_kernel_abort_call(struct rxrpc_call *, u32);
-void rxrpc_kernel_end_call(struct rxrpc_call *);
-bool rxrpc_kernel_is_data_last(struct sk_buff *);
-u32 rxrpc_kernel_get_abort_code(struct sk_buff *);
-int rxrpc_kernel_get_error_number(struct sk_buff *);
-void rxrpc_kernel_data_delivered(struct sk_buff *);
-void rxrpc_kernel_free_skb(struct sk_buff *);
-struct rxrpc_call *rxrpc_kernel_accept_call(struct socket *, unsigned long);
-int rxrpc_kernel_reject_call(struct socket *);
+					   gfp_t,
+					   rxrpc_notify_rx_t);
+int rxrpc_kernel_send_data(struct socket *, struct rxrpc_call *,
+			   struct msghdr *, size_t);
+int rxrpc_kernel_recv_data(struct socket *, struct rxrpc_call *,
+			   void *, size_t, size_t *, bool, u32 *);
+bool rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *,
+			     u32, int, const char *);
+void rxrpc_kernel_end_call(struct socket *, struct rxrpc_call *);
+void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
+			   struct sockaddr_rxrpc *);
+int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,
+			       rxrpc_user_attach_call_t, unsigned long, gfp_t);
 
 #endif /* _NET_RXRPC_H */

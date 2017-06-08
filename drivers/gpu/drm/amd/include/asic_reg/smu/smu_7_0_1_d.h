@@ -1310,5 +1310,6 @@
 #define ixROM_SW_DATA_62                                                        0xc060012c
 #define ixROM_SW_DATA_63                                                        0xc0600130
 #define ixROM_SW_DATA_64                                                        0xc0600134
+#define ixCURRENT_PG_STATUS                                                     0xc020029c
 
 #endif /* SMU_7_0_1_D_H */

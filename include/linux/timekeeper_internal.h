@@ -29,9 +29,9 @@
  */
 struct tk_read_base {
 	struct clocksource	*clock;
-	cycle_t			(*read)(struct clocksource *cs);
-	cycle_t			mask;
-	cycle_t			cycle_last;
+	u64			(*read)(struct clocksource *cs);
+	u64			mask;
+	u64			cycle_last;
 	u32			mult;
 	u32			shift;
 	u64			xtime_nsec;
@@ -50,6 +50,7 @@ struct tk_read_base {
  * @offs_tai:		Offset clock monotonic -> clock tai
  * @tai_offset:		The current UTC to TAI offset in seconds
  * @clock_was_set_seq:	The sequence number of clock was set events
+ * @cs_was_changed_seq:	The sequence number of clocksource change events
  * @next_leap_ktime:	CLOCK_MONOTONIC time value of a pending leap-second
  * @raw_time:		Monotonic raw base time in timespec64 format
  * @cycle_interval:	Number of clock cycles in one NTP interval
@@ -91,11 +92,12 @@ struct timekeeper {
 	ktime_t			offs_tai;
 	s32			tai_offset;
 	unsigned int		clock_was_set_seq;
+	u8			cs_was_changed_seq;
 	ktime_t			next_leap_ktime;
 	struct timespec64	raw_time;
 
 	/* The following members are for timekeeping internal use */
-	cycle_t			cycle_interval;
+	u64			cycle_interval;
 	u64			xtime_interval;
 	s64			xtime_remainder;
 	u32			raw_interval;
@@ -134,7 +136,7 @@ extern void update_vsyscall_tz(void);
 
 extern void update_vsyscall_old(struct timespec *ts, struct timespec *wtm,
 				struct clocksource *c, u32 mult,
-				cycle_t cycle_last);
+				u64 cycle_last);
 extern void update_vsyscall_tz(void);
 
 #else

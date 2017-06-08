@@ -100,7 +100,6 @@ extern void setbat(int index, unsigned long virt, phys_addr_t phys,
 
 extern int __map_without_bats;
 extern int __allow_ioremap_reserved;
-extern unsigned long ioremap_base;
 extern unsigned int rtas_data, rtas_size;
 
 struct hash_pte;
@@ -108,10 +107,6 @@ extern struct hash_pte *Hash, *Hash_end;
 extern unsigned long Hash_size, Hash_mask;
 
 #endif /* CONFIG_PPC32 */
-
-#ifdef CONFIG_PPC64
-extern int map_kernel_page(unsigned long ea, unsigned long pa, int flags);
-#endif /* CONFIG_PPC64 */
 
 extern unsigned long ioremap_bot;
 extern unsigned long __max_low_memory;
@@ -132,26 +127,23 @@ extern void wii_memory_fixups(void);
 /* ...and now those things that may be slightly different between processor
  * architectures.  -- Dan
  */
-#if defined(CONFIG_8xx)
-#define MMU_init_hw()		do { } while(0)
-#define mmu_mapin_ram(top)	(0UL)
-
-#elif defined(CONFIG_4xx)
-extern void MMU_init_hw(void);
-extern unsigned long mmu_mapin_ram(unsigned long top);
-
-#elif defined(CONFIG_PPC_FSL_BOOK3E)
-extern unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx);
-extern unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
-				 phys_addr_t phys);
 #ifdef CONFIG_PPC32
 extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(unsigned long top);
+#endif
+
+#ifdef CONFIG_PPC_FSL_BOOK3E
+extern unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx,
+				     bool dryrun);
+extern unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
+				 phys_addr_t phys);
+#ifdef CONFIG_PPC32
 extern void adjust_total_lowmem(void);
 extern int switch_to_as1(void);
 extern void restore_to_as0(int esel, int offset, void *dt_ptr, int bootcpu);
 #endif
 extern void loadcam_entry(unsigned int index);
+extern void loadcam_multi(int first_idx, int num, int tmp_idx);
 
 struct tlbcam {
 	u32	MAS0;
@@ -160,8 +152,15 @@ struct tlbcam {
 	u32	MAS3;
 	u32	MAS7;
 };
-#elif defined(CONFIG_PPC32)
-/* anything 32-bit except 4xx or 8xx */
-extern void MMU_init_hw(void);
-extern unsigned long mmu_mapin_ram(unsigned long top);
+#endif
+
+#if defined(CONFIG_6xx) || defined(CONFIG_FSL_BOOKE) || defined(CONFIG_PPC_8xx)
+/* 6xx have BATS */
+/* FSL_BOOKE have TLBCAM */
+/* 8xx have LTLB */
+phys_addr_t v_block_mapped(unsigned long va);
+unsigned long p_block_mapped(phys_addr_t pa);
+#else
+static inline phys_addr_t v_block_mapped(unsigned long va) { return 0; }
+static inline unsigned long p_block_mapped(phys_addr_t pa) { return 0; }
 #endif

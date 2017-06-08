@@ -22,12 +22,12 @@
 #include <linux/vmalloc.h>
 #include <linux/bug.h>
 #include <asm/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/firmware.h>
 #include <linux/sort.h>
 #include <asm/setup.h>
 
-LIST_HEAD(module_bug_list);
+static LIST_HEAD(module_bug_list);
 
 static const Elf_Shdr *find_section(const Elf_Ehdr *hdr,
 				    const Elf_Shdr *sechdrs,
@@ -47,6 +47,11 @@ int module_finalize(const Elf_Ehdr *hdr,
 		const Elf_Shdr *sechdrs, struct module *me)
 {
 	const Elf_Shdr *sect;
+	int rc;
+
+	rc = module_finalize_ftrace(me, sechdrs);
+	if (rc)
+		return rc;
 
 	/* Apply feature fixups */
 	sect = find_section(hdr, sechdrs, "__ftr_fixup");

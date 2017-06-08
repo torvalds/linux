@@ -15,7 +15,7 @@
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
-#include <mach/mv78xx0.h>
+#include "mv78xx0.h"
 #include "common.h"
 
 #define MV78XX0_MBUS_PCIE_MEM_TARGET(port, lane) ((port) ? 8 : 4)
@@ -29,7 +29,7 @@ struct pcie_port {
 	u8			root_bus_nr;
 	void __iomem		*base;
 	spinlock_t		conf_lock;
-	char			mem_space_name[16];
+	char			mem_space_name[20];
 	struct resource		res;
 };
 

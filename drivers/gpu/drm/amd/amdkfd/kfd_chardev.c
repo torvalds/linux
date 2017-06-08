@@ -107,9 +107,9 @@ static int kfd_open(struct inode *inode, struct file *filep)
 	if (iminor(inode) != 0)
 		return -ENODEV;
 
-	is_32bit_user_mode = is_compat_task();
+	is_32bit_user_mode = in_compat_syscall();
 
-	if (is_32bit_user_mode == true) {
+	if (is_32bit_user_mode) {
 		dev_warn(kfd_device,
 			"Process %d (32-bit) failed to open /dev/kfd\n"
 			"32-bit processes are not supported by amdkfd\n",
@@ -131,12 +131,11 @@ static int kfd_ioctl_get_version(struct file *filep, struct kfd_process *p,
 					void *data)
 {
 	struct kfd_ioctl_get_version_args *args = data;
-	int err = 0;
 
 	args->major_version = KFD_IOCTL_MAJOR_VERSION;
 	args->minor_version = KFD_IOCTL_MINOR_VERSION;
 
-	return err;
+	return 0;
 }
 
 static int set_queue_properties_from_user(struct queue_properties *q_properties,
@@ -487,7 +486,7 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	return status;
 }
 
-static int kfd_ioctl_dbg_unrgesiter(struct file *filep,
+static int kfd_ioctl_dbg_unregister(struct file *filep,
 				struct kfd_process *p, void *data)
 {
 	struct kfd_ioctl_dbg_unregister_args *args = data;
@@ -499,7 +498,7 @@ static int kfd_ioctl_dbg_unrgesiter(struct file *filep,
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
-		pr_debug("kfd_ioctl_dbg_unrgesiter not supported on CZ\n");
+		pr_debug("kfd_ioctl_dbg_unregister not supported on CZ\n");
 		return -EINVAL;
 	}
 
@@ -558,20 +557,10 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 		return -EINVAL;
 
 	/* this is the actual buffer to work with */
-
-	args_buff = kmalloc(args->buf_size_in_bytes -
-					sizeof(*args), GFP_KERNEL);
-	if (args_buff == NULL)
-		return -ENOMEM;
-
-	status = copy_from_user(args_buff, cmd_from_user,
+	args_buff = memdup_user(cmd_from_user,
 				args->buf_size_in_bytes - sizeof(*args));
-
-	if (status != 0) {
-		pr_debug("Failed to copy address watch user data\n");
-		kfree(args_buff);
-		return -EINVAL;
-	}
+	if (IS_ERR(args_buff))
+		return PTR_ERR(args_buff);
 
 	aw_info.process = p;
 
@@ -677,22 +666,12 @@ static int kfd_ioctl_dbg_wave_control(struct file *filep,
 	if (cmd_from_user == NULL)
 		return -EINVAL;
 
-	/* this is the actual buffer to work with */
+	/* copy the entire buffer from user */
 
-	args_buff = kmalloc(args->buf_size_in_bytes - sizeof(*args),
-			GFP_KERNEL);
-
-	if (args_buff == NULL)
-		return -ENOMEM;
-
-	/* Now copy the entire buffer from user */
-	status = copy_from_user(args_buff, cmd_from_user,
+	args_buff = memdup_user(cmd_from_user,
 				args->buf_size_in_bytes - sizeof(*args));
-	if (status != 0) {
-		pr_debug("Failed to copy wave control user data\n");
-		kfree(args_buff);
-		return -EINVAL;
-	}
+	if (IS_ERR(args_buff))
+		return PTR_ERR(args_buff);
 
 	/* move ptr to the start of the "pay-load" area */
 	wac_info.process = p;
@@ -913,7 +892,7 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 			kfd_ioctl_dbg_register, 0),
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_UNREGISTER,
-			kfd_ioctl_dbg_unrgesiter, 0),
+			kfd_ioctl_dbg_unregister, 0),
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_ADDRESS_WATCH,
 			kfd_ioctl_dbg_address_watch, 0),

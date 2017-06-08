@@ -17,7 +17,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/reboot.h>
 #include <linux/string.h>
 
@@ -36,6 +36,7 @@ unsigned int soc_pass;
 unsigned int soc_type;
 EXPORT_SYMBOL(soc_type);
 unsigned int periph_rev;
+EXPORT_SYMBOL_GPL(periph_rev);
 unsigned int zbbus_mhz;
 EXPORT_SYMBOL(zbbus_mhz);
 

@@ -1,0 +1,152 @@
+/*
+ * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+#include "pic32mzda.dtsi"
+
+/ {
+	compatible = "microchip,pic32mzda-sk", "microchip,pic32mzda";
+	model = "Microchip PIC32MZDA Starter Kit";
+
+	memory {
+		device_type = "memory";
+		reg = <0x08000000 0x08000000>;
+	};
+
+	chosen {
+		bootargs = "earlyprintk=ttyPIC1,115200n8r console=ttyPIC1,115200n8";
+	};
+
+	leds0 {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&user_leds_s0>;
+
+		led@1 {
+			label = "pic32mzda_sk:red:led1";
+			gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led@2 {
+			label = "pic32mzda_sk:yellow:led2";
+			gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "mmc0";
+		};
+
+		led@3 {
+			label = "pic32mzda_sk:green:led3";
+			gpios = <&gpio7 2 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	keys0 {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&user_buttons_s0>;
+		pinctrl-names = "default";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@sw1 {
+			label = "ESC";
+			linux,code = <1>;
+			gpios = <&gpio1 12 0>;
+		};
+
+		button@sw2 {
+			label = "Home";
+			linux,code = <102>;
+			gpios = <&gpio1 13 0>;
+		};
+
+		button@sw3 {
+			label = "Menu";
+			linux,code = <139>;
+			gpios = <&gpio1 14 0>;
+		};
+	};
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4>;
+	status = "okay";
+};
+
+&sdhci {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdhc1>;
+	status = "okay";
+	assigned-clocks = <&rootclk REF2CLK>, <&rootclk REF4CLK>,
+		<&rootclk REF5CLK>;
+	assigned-clock-rates = <50000000>, <25000000>, <40000000>;
+};
+
+&pic32_pinctrl {
+
+	pinctrl_sdhc1: sdhc1_pins0 {
+		pins = "A6", "D4", "G13", "G12", "G14", "A7", "A0";
+		microchip,digital;
+	};
+
+	user_leds_s0: user_leds_s0 {
+		pins = "H0", "H1", "H2";
+		output-low;
+		microchip,digital;
+	};
+
+	user_buttons_s0: user_buttons_s0 {
+		pins = "B12", "B13", "B14";
+		microchip,digital;
+		input-enable;
+		bias-pull-up;
+	};
+
+	pinctrl_uart2: pinctrl_uart2 {
+		uart2-tx {
+			pins = "G9";
+			function = "U2TX";
+			microchip,digital;
+			output-high;
+		};
+		uart2-rx {
+			pins = "B0";
+			function = "U2RX";
+			microchip,digital;
+			input-enable;
+		};
+	};
+
+	pinctrl_uart4: uart4-0 {
+		uart4-tx {
+			pins = "C3";
+			function = "U4TX";
+			microchip,digital;
+			output-high;
+		};
+		uart4-rx {
+			pins = "E8";
+			function = "U4RX";
+			microchip,digital;
+			input-enable;
+		};
+	};
+};

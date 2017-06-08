@@ -1,19 +1,22 @@
-export srctree := ../../../..
+export srctree := $(abspath ../../../..)
 export CC      := gcc
 export LD      := ld
 export AR      := ar
 
-build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+ex:
+
+include $(srctree)/tools/build/Makefile.include
+
 ex: ex-in.o libex-in.o
 	gcc -o $@ $^
 
-ex.%: FORCE
+ex.%: fixdep FORCE
 	make -f $(srctree)/tools/build/Makefile.build dir=. $@
 
-ex-in.o: FORCE
+ex-in.o: fixdep FORCE
 	make $(build)=ex
 
-libex-in.o: FORCE
+libex-in.o: fixdep FORCE
 	make $(build)=libex
 
 clean:

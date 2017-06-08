@@ -346,7 +346,7 @@ static irqreturn_t mpc52xx_psc_handle_irq(struct uart_port *port)
 	return mpc5xxx_uart_process_int(port);
 }
 
-static struct psc_ops mpc52xx_psc_ops = {
+static const struct psc_ops mpc52xx_psc_ops = {
 	.fifo_init = mpc52xx_psc_fifo_init,
 	.raw_rx_rdy = mpc52xx_psc_raw_rx_rdy,
 	.raw_tx_rdy = mpc52xx_psc_raw_tx_rdy,
@@ -376,7 +376,7 @@ static struct psc_ops mpc52xx_psc_ops = {
 	.get_mr1 = mpc52xx_psc_get_mr1,
 };
 
-static struct psc_ops mpc5200b_psc_ops = {
+static const struct psc_ops mpc5200b_psc_ops = {
 	.fifo_init = mpc52xx_psc_fifo_init,
 	.raw_rx_rdy = mpc52xx_psc_raw_rx_rdy,
 	.raw_tx_rdy = mpc52xx_psc_raw_tx_rdy,
@@ -969,7 +969,7 @@ static u8 mpc5125_psc_get_mr1(struct uart_port *port)
 	return in_8(&PSC_5125(port)->mr1);
 }
 
-static struct psc_ops mpc5125_psc_ops = {
+static const struct psc_ops mpc5125_psc_ops = {
 	.fifo_init = mpc5125_psc_fifo_init,
 	.raw_rx_rdy = mpc5125_psc_raw_rx_rdy,
 	.raw_tx_rdy = mpc5125_psc_raw_tx_rdy,
@@ -1004,7 +1004,7 @@ static struct psc_ops mpc5125_psc_ops = {
 	.get_mr1 = mpc5125_psc_get_mr1,
 };
 
-static struct psc_ops mpc512x_psc_ops = {
+static const struct psc_ops mpc512x_psc_ops = {
 	.fifo_init = mpc512x_psc_fifo_init,
 	.raw_rx_rdy = mpc512x_psc_raw_rx_rdy,
 	.raw_tx_rdy = mpc512x_psc_raw_tx_rdy,
@@ -1134,6 +1134,13 @@ mpc52xx_uart_startup(struct uart_port *port)
 	/* Reset/activate the port, clear and enable interrupts */
 	psc_ops->command(port, MPC52xx_PSC_RST_RX);
 	psc_ops->command(port, MPC52xx_PSC_RST_TX);
+
+	/*
+	 * According to Freescale's support the RST_TX command can produce a
+	 * spike on the TX pin. So they recommend to delay "for one character".
+	 * One millisecond should be enough for everyone.
+	 */
+	msleep(1);
 
 	psc_ops->set_sicr(port, 0);	/* UART mode DCD ignored */
 

@@ -943,14 +943,14 @@ static const struct attribute_group pc87427_group_temp[6] = {
 	{ .attrs = pc87427_attributes_temp[5] },
 };
 
-static ssize_t show_name(struct device *dev, struct device_attribute
+static ssize_t name_show(struct device *dev, struct device_attribute
 			 *devattr, char *buf)
 {
 	struct pc87427_data *data = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%s\n", data->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 
 /*

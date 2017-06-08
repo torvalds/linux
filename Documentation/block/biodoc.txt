@@ -115,7 +115,7 @@ i. Per-queue limits/values exported to the generic layer by the driver
 
 Various parameters that the generic i/o scheduler logic uses are set at
 a per-queue level (e.g maximum request size, maximum number of segments in
-a scatter-gather list, hardsect size)
+a scatter-gather list, logical block size)
 
 Some parameters that were earlier available as global arrays indexed by
 major/minor are now directly associated with the queue. Some of these may
@@ -156,7 +156,7 @@ Some new queue property settings:
 	blk_queue_max_segment_size(q, max_seg_size)
 		Maximum size of a clustered segment, 64kB default.
 
-	blk_queue_hardsect_size(q, hardsect_size)
+	blk_queue_logical_block_size(q, logical_block_size)
 		Lowest possible sector size that the hardware can operate
 		on, 512 bytes default.
 
@@ -269,7 +269,7 @@ Arjan's proposed request priority scheme allows higher levels some broad
   requests which haven't aged too much on the queue. Potentially this priority
   could even be exposed to applications in some manner, providing higher level
   tunability. Time based aging avoids starvation of lower priority
-  requests. Some bits in the bi_rw flags field in the bio structure are
+  requests. Some bits in the bi_opf flags field in the bio structure are
   intended to be used for this priority information.
 
 
@@ -348,7 +348,7 @@ Drivers can now specify a request prepare function (q->prep_rq_fn) that the
 block layer would invoke to pre-build device commands for a given request,
 or perform other preparatory processing for the request. This is routine is
 called by elv_next_request(), i.e. typically just before servicing a request.
-(The prepare function would not be called for requests that have REQ_DONTPREP
+(The prepare function would not be called for requests that have RQF_DONTPREP
 enabled)
 
 Aside:
@@ -432,7 +432,7 @@ struct bio {
        struct bio          *bi_next;    /* request queue link */
        struct block_device *bi_bdev;	/* target device */
        unsigned long       bi_flags;    /* status, command, etc */
-       unsigned long       bi_rw;       /* low bits: r/w, high: priority */
+       unsigned long       bi_opf;       /* low bits: r/w, high: priority */
 
        unsigned int	bi_vcnt;     /* how may bio_vec's */
        struct bvec_iter	bi_iter;	/* current index into bio_vec array */
@@ -553,8 +553,8 @@ struct request {
 	struct request_list *rl;
 }
 	
-See the rq_flag_bits definitions for an explanation of the various flags
-available. Some bits are used by the block layer or i/o scheduler.
+See the req_ops and req_flag_bits definitions for an explanation of the various
+flags available. Some bits are used by the block layer or i/o scheduler.
 	
 The behaviour of the various sector counts are almost the same as before,
 except that since we have multi-segment bios, current_nr_sectors refers
@@ -1024,8 +1024,7 @@ could be on demand. For example wait_on_buffer sets the unplugging going
 through sync_buffer() running blk_run_address_space(mapping). Or the caller
 can do it explicity through blk_unplug(bdev). So in the read case,
 the queue gets explicitly unplugged as part of waiting for completion on that
-buffer. For page driven IO, the address space ->sync_page() takes care of
-doing the blk_run_address_space().
+buffer.
 
 Aside:
   This is kind of controversial territory, as it's not clear if plugging is

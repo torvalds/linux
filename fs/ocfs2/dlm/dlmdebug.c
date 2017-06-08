@@ -81,7 +81,7 @@ static void __dlm_print_lock(struct dlm_lock *lock)
 	       lock->ml.type, lock->ml.convert_type, lock->ml.node,
 	       dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
 	       dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
-	       atomic_read(&lock->lock_refs.refcount),
+	       kref_read(&lock->lock_refs),
 	       (list_empty(&lock->ast_list) ? 'y' : 'n'),
 	       (lock->ast_pending ? 'y' : 'n'),
 	       (list_empty(&lock->bast_list) ? 'y' : 'n'),
@@ -106,7 +106,7 @@ void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 	printk("lockres: %s, owner=%u, state=%u\n",
 	       buf, res->owner, res->state);
 	printk("  last used: %lu, refcnt: %u, on purge list: %s\n",
-	       res->last_used, atomic_read(&res->refs.refcount),
+	       res->last_used, kref_read(&res->refs),
 	       list_empty(&res->purge) ? "no" : "yes");
 	printk("  on dirty list: %s, on reco list: %s, "
 	       "migrating pending: %s\n",
@@ -298,7 +298,7 @@ static int dump_mle(struct dlm_master_list_entry *mle, char *buf, int len)
 			mle_type, mle->master, mle->new_master,
 			!list_empty(&mle->hb_events),
 			!!mle->inuse,
-			atomic_read(&mle->mle_refs.refcount));
+			kref_read(&mle->mle_refs));
 
 	out += snprintf(buf + out, len - out, "Maybe=");
 	out += stringify_nodemap(mle->maybe_map, O2NM_MAX_NODES,
@@ -347,26 +347,6 @@ static struct dentry *dlm_debugfs_root;
 #define DLM_DEBUGFS_PURGE_LIST			"purge_list"
 
 /* begin - utils funcs */
-static void dlm_debug_free(struct kref *kref)
-{
-	struct dlm_debug_ctxt *dc;
-
-	dc = container_of(kref, struct dlm_debug_ctxt, debug_refcnt);
-
-	kfree(dc);
-}
-
-static void dlm_debug_put(struct dlm_debug_ctxt *dc)
-{
-	if (dc)
-		kref_put(&dc->debug_refcnt, dlm_debug_free);
-}
-
-static void dlm_debug_get(struct dlm_debug_ctxt *dc)
-{
-	kref_get(&dc->debug_refcnt);
-}
-
 static int debug_release(struct inode *inode, struct file *file)
 {
 	free_page((unsigned long)file->private_data);
@@ -514,7 +494,7 @@ static int dump_lock(struct dlm_lock *lock, int list_type, char *buf, int len)
 		       lock->ast_pending, lock->bast_pending,
 		       lock->convert_pending, lock->lock_pending,
 		       lock->cancel_pending, lock->unlock_pending,
-		       atomic_read(&lock->lock_refs.refcount));
+		       kref_read(&lock->lock_refs));
 	spin_unlock(&lock->spinlock);
 
 	return out;
@@ -541,7 +521,7 @@ static int dump_lockres(struct dlm_lock_resource *res, char *buf, int len)
 			!list_empty(&res->recovering),
 			res->inflight_locks, res->migration_pending,
 			atomic_read(&res->asts_reserved),
-			atomic_read(&res->refs.refcount));
+			kref_read(&res->refs));
 
 	/* refmap */
 	out += snprintf(buf + out, len - out, "RMAP:");
@@ -797,7 +777,7 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 	/* Purge Count: xxx  Refs: xxx */
 	out += snprintf(buf + out, len - out,
 			"Purge Count: %d  Refs: %d\n", dlm->purge_count,
-			atomic_read(&dlm->dlm_refs.refcount));
+			kref_read(&dlm->dlm_refs));
 
 	/* Dead Node: xxx */
 	out += snprintf(buf + out, len - out,
@@ -932,11 +912,9 @@ int dlm_debug_init(struct dlm_ctxt *dlm)
 		goto bail;
 	}
 
-	dlm_debug_get(dc);
 	return 0;
 
 bail:
-	dlm_debug_shutdown(dlm);
 	return -ENOMEM;
 }
 
@@ -949,7 +927,8 @@ void dlm_debug_shutdown(struct dlm_ctxt *dlm)
 		debugfs_remove(dc->debug_mle_dentry);
 		debugfs_remove(dc->debug_lockres_dentry);
 		debugfs_remove(dc->debug_state_dentry);
-		dlm_debug_put(dc);
+		kfree(dc);
+		dc = NULL;
 	}
 }
 
@@ -969,7 +948,6 @@ int dlm_create_debugfs_subroot(struct dlm_ctxt *dlm)
 		mlog_errno(-ENOMEM);
 		goto bail;
 	}
-	kref_init(&dlm->dlm_debug_ctxt->debug_refcnt);
 
 	return 0;
 bail:

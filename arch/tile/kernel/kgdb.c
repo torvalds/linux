@@ -19,6 +19,8 @@
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
+#include <linux/sched/task_stack.h>
+
 #include <asm/cacheflush.h>
 
 static tile_bundle_bits singlestep_insn = TILEGX_BPT_BUNDLE | DIE_SSTEPBP;
@@ -126,15 +128,15 @@ void
 sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *task)
 {
 	struct pt_regs *thread_regs;
+	const int NGPRS = TREG_LAST_GPR + 1;
 
 	if (task == NULL)
 		return;
 
-	/* Initialize to zero. */
-	memset(gdb_regs, 0, NUMREGBYTES);
-
 	thread_regs = task_pt_regs(task);
-	memcpy(gdb_regs, thread_regs, TREG_LAST_GPR * sizeof(unsigned long));
+	memcpy(gdb_regs, thread_regs, NGPRS * sizeof(unsigned long));
+	memset(&gdb_regs[NGPRS], 0,
+	       (TILEGX_PC_REGNUM - NGPRS) * sizeof(unsigned long));
 	gdb_regs[TILEGX_PC_REGNUM] = thread_regs->pc;
 	gdb_regs[TILEGX_FAULTNUM_REGNUM] = thread_regs->faultnum;
 }
@@ -164,7 +166,7 @@ static unsigned long writable_address(unsigned long addr)
 	unsigned long ret = 0;
 
 	if (core_kernel_text(addr))
-		ret = addr - MEM_SV_START + PAGE_OFFSET;
+		ret = ktext_writable_addr(addr);
 	else if (is_module_text_address(addr))
 		ret = addr;
 	else
@@ -433,9 +435,9 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 struct kgdb_arch arch_kgdb_ops;
 
 /*
- * kgdb_arch_init - Perform any architecture specific initalization.
+ * kgdb_arch_init - Perform any architecture specific initialization.
  *
- * This function will handle the initalization of any architecture
+ * This function will handle the initialization of any architecture
  * specific callbacks.
  */
 int kgdb_arch_init(void)
@@ -447,9 +449,9 @@ int kgdb_arch_init(void)
 }
 
 /*
- * kgdb_arch_exit - Perform any architecture specific uninitalization.
+ * kgdb_arch_exit - Perform any architecture specific uninitialization.
  *
- * This function will handle the uninitalization of any architecture
+ * This function will handle the uninitialization of any architecture
  * specific callbacks, for dynamic registration and unregistration.
  */
 void kgdb_arch_exit(void)

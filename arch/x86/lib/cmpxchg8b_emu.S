@@ -7,6 +7,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/export.h>
 
 .text
 
@@ -48,3 +49,4 @@ ENTRY(cmpxchg8b_emu)
 	ret
 
 ENDPROC(cmpxchg8b_emu)
+EXPORT_SYMBOL(cmpxchg8b_emu)

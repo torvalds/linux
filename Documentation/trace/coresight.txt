@@ -190,8 +190,8 @@ expected to be accessed and controlled using those entries.
 Last but not least, "struct module *owner" is expected to be set to reflect
 the information carried in "THIS_MODULE".
 
-How to use
-----------
+How to use the tracer modules
+-----------------------------
 
 Before trace collection can start, a coresight sink needs to be identify.
 There is no limit on the amount of sinks (nor sources) that can be enabled at
@@ -297,3 +297,36 @@ Info                                    Tracing enabled
 Instruction     13570831        0x8026B584      E28DD00C        false   ADD      sp,sp,#0xc
 Instruction     0       0x8026B588      E8BD8000        true    LDM      sp!,{pc}
 Timestamp                                       Timestamp: 17107041535
+
+How to use the STM module
+-------------------------
+
+Using the System Trace Macrocell module is the same as the tracers - the only
+difference is that clients are driving the trace capture rather
+than the program flow through the code.
+
+As with any other CoreSight component, specifics about the STM tracer can be
+found in sysfs with more information on each entry being found in [1]:
+
+root@genericarmv8:~# ls /sys/bus/coresight/devices/20100000.stm
+enable_source   hwevent_select  port_enable     subsystem       uevent
+hwevent_enable  mgmt            port_select     traceid
+root@genericarmv8:~#
+
+Like any other source a sink needs to be identified and the STM enabled before
+being used:
+
+root@genericarmv8:~# echo 1 > /sys/bus/coresight/devices/20010000.etf/enable_sink
+root@genericarmv8:~# echo 1 > /sys/bus/coresight/devices/20100000.stm/enable_source
+
+From there user space applications can request and use channels using the devfs
+interface provided for that purpose by the generic STM API:
+
+root@genericarmv8:~# ls -l /dev/20100000.stm
+crw-------    1 root     root       10,  61 Jan  3 18:11 /dev/20100000.stm
+root@genericarmv8:~#
+
+Details on how to use the generic STM API can be found here [2].
+
+[1]. Documentation/ABI/testing/sysfs-bus-coresight-devices-stm
+[2]. Documentation/trace/stm.txt

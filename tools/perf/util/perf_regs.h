@@ -2,6 +2,7 @@
 #define __PERF_REGS_H
 
 #include <linux/types.h>
+#include <linux/compiler.h>
 
 struct regs_dump;
 
@@ -13,6 +14,13 @@ struct sample_reg {
 #define SMPL_REG_END { .name = NULL }
 
 extern const struct sample_reg sample_reg_masks[];
+
+enum {
+	SDT_ARG_VALID = 0,
+	SDT_ARG_SKIP,
+};
+
+int arch_sdt_arg_parse_op(char *old_op, char **new_op);
 
 #ifdef HAVE_PERF_REGS_SUPPORT
 #include <perf_regs.h>

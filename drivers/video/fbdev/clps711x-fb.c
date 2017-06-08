@@ -273,7 +273,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 	}
 
 	cfb->syscon =
-		syscon_regmap_lookup_by_compatible("cirrus,clps711x-syscon1");
+		syscon_regmap_lookup_by_compatible("cirrus,ep7209-syscon1");
 	if (IS_ERR(cfb->syscon)) {
 		ret = PTR_ERR(cfb->syscon);
 		goto out_fb_release;
@@ -376,7 +376,7 @@ static int clps711x_fb_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id clps711x_fb_dt_ids[] = {
-	{ .compatible = "cirrus,clps711x-fb", },
+	{ .compatible = "cirrus,ep7209-fb", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clps711x_fb_dt_ids);

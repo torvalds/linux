@@ -60,12 +60,6 @@ static void __init keystone_init(void)
 		bus_register_notifier(&platform_bus_type, &platform_nb);
 	}
 	keystone_pm_runtime_init();
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
-
-static phys_addr_t keystone_virt_to_idmap(unsigned long x)
-{
-	return (phys_addr_t)(x) - CONFIG_PAGE_OFFSET + KEYSTONE_LOW_PHYS_START;
 }
 
 static long long __init keystone_pv_fixup(void)
@@ -91,12 +85,16 @@ static long long __init keystone_pv_fixup(void)
 	offset = KEYSTONE_HIGH_PHYS_START - KEYSTONE_LOW_PHYS_START;
 
 	/* Populate the arch idmap hook */
-	arch_virt_to_idmap = keystone_virt_to_idmap;
+	arch_phys_to_idmap_offset = -offset;
 
 	return offset;
 }
 
 static const char *const keystone_match[] __initconst = {
+	"ti,k2hk",
+	"ti,k2e",
+	"ti,k2l",
+	"ti,k2g",
 	"ti,keystone",
 	NULL,
 };

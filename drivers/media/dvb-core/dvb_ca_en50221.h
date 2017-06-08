@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #ifndef _DVB_CA_EN50221_H_
@@ -37,50 +33,53 @@
 #define DVB_CA_EN50221_CAMCHANGE_REMOVED		0
 #define DVB_CA_EN50221_CAMCHANGE_INSERTED		1
 
-
-
-/* Structure describing a CA interface */
+/**
+ * struct dvb_ca_en50221- Structure describing a CA interface
+ *
+ * @owner:		the module owning this structure
+ * @read_attribute_mem:	function for reading attribute memory on the CAM
+ * @write_attribute_mem: function for writing attribute memory on the CAM
+ * @read_cam_control:	function for reading the control interface on the CAM
+ * @write_cam_control:	function for reading the control interface on the CAM
+ * @slot_reset:		function to reset the CAM slot
+ * @slot_shutdown:	function to shutdown a CAM slot
+ * @slot_ts_enable:	function to enable the Transport Stream on a CAM slot
+ * @poll_slot_status:	function to poll slot status. Only necessary if
+ *			DVB_CA_FLAG_EN50221_IRQ_CAMCHANGE is not set.
+ * @data:		private data, used by caller.
+ * @private:		Opaque data used by the dvb_ca core. Do not modify!
+ *
+ * NOTE: the read_*, write_* and poll_slot_status functions will be
+ * called for different slots concurrently and need to use locks where
+ * and if appropriate. There will be no concurrent access to one slot.
+ */
 struct dvb_ca_en50221 {
+	struct module *owner;
 
-	/* the module owning this structure */
-	struct module* owner;
+	int (*read_attribute_mem)(struct dvb_ca_en50221 *ca,
+				  int slot, int address);
+	int (*write_attribute_mem)(struct dvb_ca_en50221 *ca,
+				   int slot, int address, u8 value);
 
-	/* NOTE: the read_*, write_* and poll_slot_status functions will be
-	 * called for different slots concurrently and need to use locks where
-	 * and if appropriate. There will be no concurrent access to one slot.
-	 */
+	int (*read_cam_control)(struct dvb_ca_en50221 *ca,
+				int slot, u8 address);
+	int (*write_cam_control)(struct dvb_ca_en50221 *ca,
+				 int slot, u8 address, u8 value);
 
-	/* functions for accessing attribute memory on the CAM */
-	int (*read_attribute_mem)(struct dvb_ca_en50221* ca, int slot, int address);
-	int (*write_attribute_mem)(struct dvb_ca_en50221* ca, int slot, int address, u8 value);
+	int (*slot_reset)(struct dvb_ca_en50221 *ca, int slot);
+	int (*slot_shutdown)(struct dvb_ca_en50221 *ca, int slot);
+	int (*slot_ts_enable)(struct dvb_ca_en50221 *ca, int slot);
 
-	/* functions for accessing the control interface on the CAM */
-	int (*read_cam_control)(struct dvb_ca_en50221* ca, int slot, u8 address);
-	int (*write_cam_control)(struct dvb_ca_en50221* ca, int slot, u8 address, u8 value);
+	int (*poll_slot_status)(struct dvb_ca_en50221 *ca, int slot, int open);
 
-	/* Functions for controlling slots */
-	int (*slot_reset)(struct dvb_ca_en50221* ca, int slot);
-	int (*slot_shutdown)(struct dvb_ca_en50221* ca, int slot);
-	int (*slot_ts_enable)(struct dvb_ca_en50221* ca, int slot);
+	void *data;
 
-	/*
-	* Poll slot status.
-	* Only necessary if DVB_CA_FLAG_EN50221_IRQ_CAMCHANGE is not set
-	*/
-	int (*poll_slot_status)(struct dvb_ca_en50221* ca, int slot, int open);
-
-	/* private data, used by caller */
-	void* data;
-
-	/* Opaque data used by the dvb_ca core. Do not modify! */
-	void* private;
+	void *private;
 };
 
-
-
-
-/* ******************************************************************************** */
-/* Functions for reporting IRQ events */
+/*
+ * Functions for reporting IRQ events
+ */
 
 /**
  * dvb_ca_en50221_camchange_irq - A CAMCHANGE IRQ has occurred.
@@ -89,7 +88,8 @@ struct dvb_ca_en50221 {
  * @slot: Slot concerned.
  * @change_type: One of the DVB_CA_CAMCHANGE_* values
  */
-void dvb_ca_en50221_camchange_irq(struct dvb_ca_en50221* pubca, int slot, int change_type);
+void dvb_ca_en50221_camchange_irq(struct dvb_ca_en50221 *pubca, int slot,
+				  int change_type);
 
 /**
  * dvb_ca_en50221_camready_irq - A CAMREADY IRQ has occurred.
@@ -97,7 +97,7 @@ void dvb_ca_en50221_camchange_irq(struct dvb_ca_en50221* pubca, int slot, int ch
  * @pubca: CA instance.
  * @slot: Slot concerned.
  */
-void dvb_ca_en50221_camready_irq(struct dvb_ca_en50221* pubca, int slot);
+void dvb_ca_en50221_camready_irq(struct dvb_ca_en50221 *pubca, int slot);
 
 /**
  * dvb_ca_en50221_frda_irq - An FR or a DA IRQ has occurred.
@@ -105,12 +105,11 @@ void dvb_ca_en50221_camready_irq(struct dvb_ca_en50221* pubca, int slot);
  * @ca: CA instance.
  * @slot: Slot concerned.
  */
-void dvb_ca_en50221_frda_irq(struct dvb_ca_en50221* ca, int slot);
+void dvb_ca_en50221_frda_irq(struct dvb_ca_en50221 *ca, int slot);
 
-
-
-/* ******************************************************************************** */
-/* Initialisation/shutdown functions */
+/*
+ * Initialisation/shutdown functions
+ */
 
 /**
  * dvb_ca_en50221_init - Initialise a new DVB CA device.
@@ -122,15 +121,15 @@ void dvb_ca_en50221_frda_irq(struct dvb_ca_en50221* ca, int slot);
  *
  * @return 0 on success, nonzero on failure
  */
-extern int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter, struct dvb_ca_en50221* ca, int flags, int slot_count);
+extern int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
+			       struct dvb_ca_en50221 *ca, int flags,
+			       int slot_count);
 
 /**
  * dvb_ca_en50221_release - Release a DVB CA device.
  *
  * @ca: The associated dvb_ca instance.
  */
-extern void dvb_ca_en50221_release(struct dvb_ca_en50221* ca);
-
-
+extern void dvb_ca_en50221_release(struct dvb_ca_en50221 *ca);
 
 #endif

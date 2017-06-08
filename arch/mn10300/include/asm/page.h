@@ -57,6 +57,7 @@ typedef struct page *pgtable_t;
 #define __pgd(x)	((pgd_t) { (x) })
 #define __pgprot(x)	((pgprot_t) { (x) })
 
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 
 #endif /* !__ASSEMBLY__ */
@@ -107,6 +108,7 @@ static inline int get_order(unsigned long size)
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define pfn_to_page(pfn)	(mem_map + ((pfn) - __pfn_disp))
 #define page_to_pfn(page)	((unsigned long)((page) - mem_map) + __pfn_disp)
+#define __pfn_to_phys(pfn)	PFN_PHYS(pfn)
 
 #define pfn_valid(pfn)					\
 ({							\

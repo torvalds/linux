@@ -27,14 +27,14 @@
 #include <linux/clockchips.h>
 #include <linux/io.h>
 #include <linux/export.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/cpu.h>
 #include <linux/pci.h>
 #include <linux/sched_clock.h>
 #include <mach/udc.h>
 #include <mach/hardware.h>
 #include <mach/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
@@ -461,7 +461,7 @@ void __init ixp4xx_sys_init(void)
 
 	platform_add_devices(ixp4xx_devices, ARRAY_SIZE(ixp4xx_devices));
 
-	gpiochip_add(&ixp4xx_gpio_chip);
+	gpiochip_add_data(&ixp4xx_gpio_chip, NULL);
 
 	if (cpu_is_ixp46x()) {
 		int region;
@@ -493,7 +493,7 @@ static u64 notrace ixp4xx_read_sched_clock(void)
  * clocksource
  */
 
-static cycle_t ixp4xx_clocksource_read(struct clocksource *c)
+static u64 ixp4xx_clocksource_read(struct clocksource *c)
 {
 	return *IXP4XX_OSTS;
 }

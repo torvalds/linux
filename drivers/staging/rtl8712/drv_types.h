@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
  *
@@ -23,11 +19,12 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  ******************************************************************************/
-/*---------------------------------------------------------------------
-
-	For type defines and data structure defines
-
------------------------------------------------------------------------*/
+/* ---------------------------------------------------------------------
+ *
+ *	For type defines and data structure defines
+ *
+ * ---------------------------------------------------------------------
+ */
 #ifndef __DRV_TYPES_H__
 #define __DRV_TYPES_H__
 
@@ -158,6 +155,7 @@ struct _adapter {
 	struct mp_priv  mppriv;
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;
+	s32	bSuspended;
 	u32	IsrContent;
 	u32	ImrContent;
 	u8	EepromAddressSize;

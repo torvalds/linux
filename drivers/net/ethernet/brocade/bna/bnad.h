@@ -175,6 +175,7 @@ struct bnad_drv_stats {
 	u64		tx_skb_headlen_zero;
 	u64		tx_skb_frag_zero;
 	u64		tx_skb_len_mismatch;
+	u64		tx_skb_map_failed;
 
 	u64		hw_stats_updates;
 	u64		netif_rx_dropped;
@@ -189,6 +190,7 @@ struct bnad_drv_stats {
 	u64		rx_unmap_q_alloc_failed;
 
 	u64		rxbuf_alloc_failed;
+	u64		rxbuf_map_failed;
 };
 
 /* Complete driver stats */
@@ -286,7 +288,6 @@ struct bnad_rx_unmap_q {
 struct bnad {
 	struct net_device	*netdev;
 	u32			id;
-	struct list_head	list_entry;
 
 	/* Data path */
 	struct bnad_tx_info tx_info[BNAD_MAX_TX];

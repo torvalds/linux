@@ -112,6 +112,14 @@ struct at91_udc_caps {
 	void (*pullup)(struct at91_udc *udc, int is_on);
 };
 
+struct at91_udc_data {
+	int	vbus_pin;		/* high == host powering us */
+	u8	vbus_active_low;	/* vbus polarity */
+	u8	vbus_polled;		/* Use polling, not interrupt */
+	int	pullup_pin;		/* active == D+ pulled up */
+	u8	pullup_active_low;	/* true == pullup_pin is active low */
+};
+
 /*
  * driver is non-SMP, and just blocks IRQs whenever it needs
  * access protection for chip registers or driver state
@@ -167,7 +175,7 @@ struct at91_request {
 #endif
 
 #define ERR(stuff...)		pr_err("udc: " stuff)
-#define WARNING(stuff...)	pr_warning("udc: " stuff)
+#define WARNING(stuff...)	pr_warn("udc: " stuff)
 #define INFO(stuff...)		pr_info("udc: " stuff)
 #define DBG(stuff...)		pr_debug("udc: " stuff)
 

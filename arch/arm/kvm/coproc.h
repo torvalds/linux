@@ -37,7 +37,7 @@ struct coproc_reg {
 	unsigned long Op1;
 	unsigned long Op2;
 
-	bool is_64;
+	bool is_64bit;
 
 	/* Trapped access from guest, if non-NULL. */
 	bool (*access)(struct kvm_vcpu *,
@@ -47,7 +47,7 @@ struct coproc_reg {
 	/* Initialization for vcpu. */
 	void (*reset)(struct kvm_vcpu *, const struct coproc_reg *);
 
-	/* Index into vcpu->arch.cp15[], or 0 if we don't need to save it. */
+	/* Index into vcpu_cp15(vcpu, ...), or 0 if we don't need to save it. */
 	unsigned long reg;
 
 	/* Value (usually reset value) */
@@ -81,48 +81,30 @@ static inline bool read_zero(struct kvm_vcpu *vcpu,
 	return true;
 }
 
-static inline bool write_to_read_only(struct kvm_vcpu *vcpu,
-				      const struct coproc_params *params)
-{
-	kvm_debug("CP15 write to read-only register at: %08lx\n",
-		  *vcpu_pc(vcpu));
-	print_cp_instr(params);
-	return false;
-}
-
-static inline bool read_from_write_only(struct kvm_vcpu *vcpu,
-					const struct coproc_params *params)
-{
-	kvm_debug("CP15 read to write-only register at: %08lx\n",
-		  *vcpu_pc(vcpu));
-	print_cp_instr(params);
-	return false;
-}
-
 /* Reset functions */
 static inline void reset_unknown(struct kvm_vcpu *vcpu,
 				 const struct coproc_reg *r)
 {
 	BUG_ON(!r->reg);
-	BUG_ON(r->reg >= ARRAY_SIZE(vcpu->arch.cp15));
-	vcpu->arch.cp15[r->reg] = 0xdecafbad;
+	BUG_ON(r->reg >= ARRAY_SIZE(vcpu->arch.ctxt.cp15));
+	vcpu_cp15(vcpu, r->reg) = 0xdecafbad;
 }
 
 static inline void reset_val(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 {
 	BUG_ON(!r->reg);
-	BUG_ON(r->reg >= ARRAY_SIZE(vcpu->arch.cp15));
-	vcpu->arch.cp15[r->reg] = r->val;
+	BUG_ON(r->reg >= ARRAY_SIZE(vcpu->arch.ctxt.cp15));
+	vcpu_cp15(vcpu, r->reg) = r->val;
 }
 
 static inline void reset_unknown64(struct kvm_vcpu *vcpu,
 				   const struct coproc_reg *r)
 {
 	BUG_ON(!r->reg);
-	BUG_ON(r->reg + 1 >= ARRAY_SIZE(vcpu->arch.cp15));
+	BUG_ON(r->reg + 1 >= ARRAY_SIZE(vcpu->arch.ctxt.cp15));
 
-	vcpu->arch.cp15[r->reg] = 0xdecafbad;
-	vcpu->arch.cp15[r->reg+1] = 0xd0c0ffee;
+	vcpu_cp15(vcpu, r->reg) = 0xdecafbad;
+	vcpu_cp15(vcpu, r->reg+1) = 0xd0c0ffee;
 }
 
 static inline int cmp_reg(const struct coproc_reg *i1,
@@ -141,7 +123,7 @@ static inline int cmp_reg(const struct coproc_reg *i1,
 		return i1->Op1 - i2->Op1;
 	if (i1->Op2 != i2->Op2)
 		return i1->Op2 - i2->Op2;
-	return i2->is_64 - i1->is_64;
+	return i2->is_64bit - i1->is_64bit;
 }
 
 
@@ -150,8 +132,8 @@ static inline int cmp_reg(const struct coproc_reg *i1,
 #define CRm64(_x)       .CRn = _x, .CRm = 0
 #define Op1(_x) 	.Op1 = _x
 #define Op2(_x) 	.Op2 = _x
-#define is64		.is_64 = true
-#define is32		.is_64 = false
+#define is64		.is_64bit = true
+#define is32		.is_64bit = false
 
 bool access_vm_reg(struct kvm_vcpu *vcpu,
 		   const struct coproc_params *p,

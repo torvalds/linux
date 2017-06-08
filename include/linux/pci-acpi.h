@@ -24,6 +24,10 @@ static inline acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
 }
 extern phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle);
 
+struct pci_ecam_ops;
+extern int pci_mcfg_lookup(struct acpi_pci_root *root, struct resource *cfgres,
+			   struct pci_ecam_ops **ecam_ops);
+
 static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
 {
 	struct pci_bus *pbus = pdev->bus;
@@ -51,6 +55,30 @@ static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 
 	return ACPI_HANDLE(dev);
 }
+
+struct acpi_pci_root;
+struct acpi_pci_root_ops;
+
+struct acpi_pci_root_info {
+	struct acpi_pci_root		*root;
+	struct acpi_device		*bridge;
+	struct acpi_pci_root_ops	*ops;
+	struct list_head		resources;
+	char				name[16];
+};
+
+struct acpi_pci_root_ops {
+	struct pci_ops *pci_ops;
+	int (*init_info)(struct acpi_pci_root_info *info);
+	void (*release_info)(struct acpi_pci_root_info *info);
+	int (*prepare_resources)(struct acpi_pci_root_info *info);
+};
+
+extern int acpi_pci_probe_root_resources(struct acpi_pci_root_info *info);
+extern struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
+					    struct acpi_pci_root_ops *ops,
+					    struct acpi_pci_root_info *info,
+					    void *sd);
 
 void acpi_pci_add_bus(struct pci_bus *bus);
 void acpi_pci_remove_bus(struct pci_bus *bus);

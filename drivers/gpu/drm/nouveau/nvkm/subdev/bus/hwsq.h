@@ -134,6 +134,12 @@ hwsq_wait(struct hwsq *ram, u8 flag, u8 data)
 }
 
 static inline void
+hwsq_wait_vblank(struct hwsq *ram)
+{
+	nvkm_hwsq_wait_vblank(ram->hwsq);
+}
+
+static inline void
 hwsq_nsec(struct hwsq *ram, u32 nsec)
 {
 	nvkm_hwsq_nsec(ram->hwsq, nsec);

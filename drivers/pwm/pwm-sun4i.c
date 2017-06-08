@@ -68,6 +68,7 @@ static const u32 prescaler_table[] = {
 struct sun4i_pwm_data {
 	bool has_prescaler_bypass;
 	bool has_rdy;
+	unsigned int npwm;
 };
 
 struct sun4i_pwm_chip {
@@ -114,7 +115,7 @@ static int sun4i_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		 * is not an integer so round it half up instead of
 		 * truncating to get less surprising values.
 		 */
-		div = clk_rate * period_ns + NSEC_PER_SEC/2;
+		div = clk_rate * period_ns + NSEC_PER_SEC / 2;
 		do_div(div, NSEC_PER_SEC);
 		if (div - 1 > PWM_PRD_MASK)
 			prescaler = 0;
@@ -262,11 +263,31 @@ static const struct pwm_ops sun4i_pwm_ops = {
 static const struct sun4i_pwm_data sun4i_pwm_data_a10 = {
 	.has_prescaler_bypass = false,
 	.has_rdy = false,
+	.npwm = 2,
+};
+
+static const struct sun4i_pwm_data sun4i_pwm_data_a10s = {
+	.has_prescaler_bypass = true,
+	.has_rdy = true,
+	.npwm = 2,
+};
+
+static const struct sun4i_pwm_data sun4i_pwm_data_a13 = {
+	.has_prescaler_bypass = true,
+	.has_rdy = true,
+	.npwm = 1,
 };
 
 static const struct sun4i_pwm_data sun4i_pwm_data_a20 = {
 	.has_prescaler_bypass = true,
 	.has_rdy = true,
+	.npwm = 2,
+};
+
+static const struct sun4i_pwm_data sun4i_pwm_data_h3 = {
+	.has_prescaler_bypass = true,
+	.has_rdy = true,
+	.npwm = 1,
 };
 
 static const struct of_device_id sun4i_pwm_dt_ids[] = {
@@ -274,8 +295,17 @@ static const struct of_device_id sun4i_pwm_dt_ids[] = {
 		.compatible = "allwinner,sun4i-a10-pwm",
 		.data = &sun4i_pwm_data_a10,
 	}, {
+		.compatible = "allwinner,sun5i-a10s-pwm",
+		.data = &sun4i_pwm_data_a10s,
+	}, {
+		.compatible = "allwinner,sun5i-a13-pwm",
+		.data = &sun4i_pwm_data_a13,
+	}, {
 		.compatible = "allwinner,sun7i-a20-pwm",
 		.data = &sun4i_pwm_data_a20,
+	}, {
+		.compatible = "allwinner,sun8i-h3-pwm",
+		.data = &sun4i_pwm_data_h3,
 	}, {
 		/* sentinel */
 	},
@@ -305,14 +335,13 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pwm->clk))
 		return PTR_ERR(pwm->clk);
 
+	pwm->data = match->data;
 	pwm->chip.dev = &pdev->dev;
 	pwm->chip.ops = &sun4i_pwm_ops;
 	pwm->chip.base = -1;
-	pwm->chip.npwm = 2;
-	pwm->chip.can_sleep = true;
+	pwm->chip.npwm = pwm->data->npwm;
 	pwm->chip.of_xlate = of_pwm_xlate_with_flags;
 	pwm->chip.of_pwm_n_cells = 3;
-	pwm->data = match->data;
 
 	spin_lock_init(&pwm->ctrl_lock);
 
@@ -333,7 +362,8 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	val = sun4i_pwm_readl(pwm, PWM_CTRL_REG);
 	for (i = 0; i < pwm->chip.npwm; i++)
 		if (!(val & BIT_CH(PWM_ACT_STATE, i)))
-			pwm->chip.pwms[i].polarity = PWM_POLARITY_INVERSED;
+			pwm_set_polarity(&pwm->chip.pwms[i],
+					 PWM_POLARITY_INVERSED);
 	clk_disable_unprepare(pwm->clk);
 
 	return 0;

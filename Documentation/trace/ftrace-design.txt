@@ -203,6 +203,17 @@ along to ftrace_push_return_trace() instead of a stub value of 0.
 
 Similarly, when you call ftrace_return_to_handler(), pass it the frame pointer.
 
+HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
+--------------------------------
+
+An arch may pass in a pointer to the return address on the stack.  This
+prevents potential stack unwinding issues where the unwinder gets out of
+sync with ret_stack and the wrong addresses are reported by
+ftrace_graph_ret_addr().
+
+Adding support for it is easy: just define the macro in asm/ftrace.h and
+pass the return address pointer as the 'retp' argument to
+ftrace_push_return_trace().
 
 HAVE_FTRACE_NMI_ENTER
 ---------------------

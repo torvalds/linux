@@ -117,7 +117,7 @@ static u32 osif_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm osif_algorithm = {
+static const struct i2c_algorithm osif_algorithm = {
 	.master_xfer	= osif_xfer,
 	.functionality	= osif_func,
 };
@@ -125,7 +125,7 @@ static struct i2c_algorithm osif_algorithm = {
 #define USB_OSIF_VENDOR_ID	0x1964
 #define USB_OSIF_PRODUCT_ID	0x0001
 
-static struct usb_device_id osif_table[] = {
+static const struct usb_device_id osif_table[] = {
 	{ USB_DEVICE(USB_OSIF_VENDOR_ID, USB_OSIF_PRODUCT_ID) },
 	{ }
 };

@@ -31,6 +31,10 @@
 #define MFD_I2C_BAR		0
 #define MFD_GPIO_BAR		1
 
+/* ACPI _ADR value to match the child node */
+#define MFD_ACPI_MATCH_GPIO	0ULL
+#define MFD_ACPI_MATCH_I2C	1ULL
+
 /* The base GPIO number under GPIOLIB framework */
 #define INTEL_QUARK_MFD_GPIO_BASE	8
 
@@ -48,10 +52,8 @@
 /* The Quark I2C controller source clock */
 #define INTEL_QUARK_I2C_CLK_HZ	33000000
 
-#define INTEL_QUARK_I2C_NCLK	1
-
 struct intel_quark_mfd {
-	struct pci_dev		*pdev;
+	struct device		*dev;
 	struct clk		*i2c_clk;
 	struct clk_lookup	*i2c_clk_lookup;
 };
@@ -82,25 +84,35 @@ static struct resource intel_quark_i2c_res[] = {
 	},
 };
 
+static struct mfd_cell_acpi_match intel_quark_acpi_match_i2c = {
+	.adr = MFD_ACPI_MATCH_I2C,
+};
+
 static struct resource intel_quark_gpio_res[] = {
 	[INTEL_QUARK_IORES_MEM] = {
 		.flags = IORESOURCE_MEM,
 	},
 };
 
+static struct mfd_cell_acpi_match intel_quark_acpi_match_gpio = {
+	.adr = MFD_ACPI_MATCH_GPIO,
+};
+
 static struct mfd_cell intel_quark_mfd_cells[] = {
-	{
-		.id = MFD_I2C_BAR,
-		.name = "i2c_designware",
-		.num_resources = ARRAY_SIZE(intel_quark_i2c_res),
-		.resources = intel_quark_i2c_res,
-		.ignore_resource_conflicts = true,
-	},
 	{
 		.id = MFD_GPIO_BAR,
 		.name = "gpio-dwapb",
+		.acpi_match = &intel_quark_acpi_match_gpio,
 		.num_resources = ARRAY_SIZE(intel_quark_gpio_res),
 		.resources = intel_quark_gpio_res,
+		.ignore_resource_conflicts = true,
+	},
+	{
+		.id = MFD_I2C_BAR,
+		.name = "i2c_designware",
+		.acpi_match = &intel_quark_acpi_match_i2c,
+		.num_resources = ARRAY_SIZE(intel_quark_i2c_res),
+		.resources = intel_quark_i2c_res,
 		.ignore_resource_conflicts = true,
 	},
 };
@@ -111,40 +123,35 @@ static const struct pci_device_id intel_quark_mfd_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, intel_quark_mfd_ids);
 
-static int intel_quark_register_i2c_clk(struct intel_quark_mfd *quark_mfd)
+static int intel_quark_register_i2c_clk(struct device *dev)
 {
-	struct pci_dev *pdev = quark_mfd->pdev;
-	struct clk_lookup *i2c_clk_lookup;
+	struct intel_quark_mfd *quark_mfd = dev_get_drvdata(dev);
 	struct clk *i2c_clk;
-	int ret;
 
-	i2c_clk_lookup = devm_kcalloc(&pdev->dev, INTEL_QUARK_I2C_NCLK,
-				      sizeof(*i2c_clk_lookup), GFP_KERNEL);
-	if (!i2c_clk_lookup)
-		return -ENOMEM;
-
-	i2c_clk_lookup[0].dev_id = INTEL_QUARK_I2C_CONTROLLER_CLK;
-
-	i2c_clk = clk_register_fixed_rate(&pdev->dev,
+	i2c_clk = clk_register_fixed_rate(dev,
 					  INTEL_QUARK_I2C_CONTROLLER_CLK, NULL,
-					  CLK_IS_ROOT, INTEL_QUARK_I2C_CLK_HZ);
+					  0, INTEL_QUARK_I2C_CLK_HZ);
+	if (IS_ERR(i2c_clk))
+		return PTR_ERR(i2c_clk);
 
-	quark_mfd->i2c_clk_lookup = i2c_clk_lookup;
 	quark_mfd->i2c_clk = i2c_clk;
+	quark_mfd->i2c_clk_lookup = clkdev_create(i2c_clk, NULL,
+						INTEL_QUARK_I2C_CONTROLLER_CLK);
 
-	ret = clk_register_clkdevs(i2c_clk, i2c_clk_lookup,
-				   INTEL_QUARK_I2C_NCLK);
-	if (ret)
-		dev_err(&pdev->dev, "Fixed clk register failed: %d\n", ret);
+	if (!quark_mfd->i2c_clk_lookup) {
+		clk_unregister(quark_mfd->i2c_clk);
+		dev_err(dev, "Fixed clk register failed\n");
+		return -ENOMEM;
+	}
 
-	return ret;
+	return 0;
 }
 
-static void intel_quark_unregister_i2c_clk(struct pci_dev *pdev)
+static void intel_quark_unregister_i2c_clk(struct device *dev)
 {
-	struct intel_quark_mfd *quark_mfd = dev_get_drvdata(&pdev->dev);
+	struct intel_quark_mfd *quark_mfd = dev_get_drvdata(dev);
 
-	if (!quark_mfd->i2c_clk || !quark_mfd->i2c_clk_lookup)
+	if (!quark_mfd->i2c_clk_lookup)
 		return;
 
 	clkdev_drop(quark_mfd->i2c_clk_lookup);
@@ -213,8 +220,7 @@ static int intel_quark_gpio_setup(struct pci_dev *pdev, struct mfd_cell *cell)
 		return -ENOMEM;
 
 	/* Set the properties for portA */
-	pdata->properties->node		= NULL;
-	pdata->properties->name		= "intel-quark-x1000-gpio-portA";
+	pdata->properties->fwnode	= NULL;
 	pdata->properties->idx		= 0;
 	pdata->properties->ngpio	= INTEL_QUARK_MFD_NGPIO;
 	pdata->properties->gpio_base	= INTEL_QUARK_MFD_GPIO_BASE;
@@ -240,31 +246,38 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 	quark_mfd = devm_kzalloc(&pdev->dev, sizeof(*quark_mfd), GFP_KERNEL);
 	if (!quark_mfd)
 		return -ENOMEM;
-	quark_mfd->pdev = pdev;
 
-	ret = intel_quark_register_i2c_clk(quark_mfd);
-	if (ret)
-		return ret;
-
+	quark_mfd->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, quark_mfd);
 
-	ret = intel_quark_i2c_setup(pdev, &intel_quark_mfd_cells[MFD_I2C_BAR]);
+	ret = intel_quark_register_i2c_clk(&pdev->dev);
 	if (ret)
 		return ret;
 
-	ret = intel_quark_gpio_setup(pdev,
-				     &intel_quark_mfd_cells[MFD_GPIO_BAR]);
+	ret = intel_quark_i2c_setup(pdev, &intel_quark_mfd_cells[1]);
 	if (ret)
-		return ret;
+		goto err_unregister_i2c_clk;
 
-	return mfd_add_devices(&pdev->dev, 0, intel_quark_mfd_cells,
-			       ARRAY_SIZE(intel_quark_mfd_cells), NULL, 0,
-			       NULL);
+	ret = intel_quark_gpio_setup(pdev, &intel_quark_mfd_cells[0]);
+	if (ret)
+		goto err_unregister_i2c_clk;
+
+	ret = mfd_add_devices(&pdev->dev, 0, intel_quark_mfd_cells,
+			      ARRAY_SIZE(intel_quark_mfd_cells), NULL, 0,
+			      NULL);
+	if (ret)
+		goto err_unregister_i2c_clk;
+
+	return 0;
+
+err_unregister_i2c_clk:
+	intel_quark_unregister_i2c_clk(&pdev->dev);
+	return ret;
 }
 
 static void intel_quark_mfd_remove(struct pci_dev *pdev)
 {
-	intel_quark_unregister_i2c_clk(pdev);
+	intel_quark_unregister_i2c_clk(&pdev->dev);
 	mfd_remove_devices(&pdev->dev);
 }
 

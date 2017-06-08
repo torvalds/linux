@@ -5,9 +5,10 @@
 
 enum {
 	RDMA_NL_RDMA_CM = 1,
-	RDMA_NL_NES,
-	RDMA_NL_C4IW,
+	RDMA_NL_IWCM,
+	RDMA_NL_RSVD,
 	RDMA_NL_LS,	/* RDMA Local Services */
+	RDMA_NL_I40IW,
 	RDMA_NL_NUM_CLIENTS
 };
 
@@ -134,10 +135,12 @@ enum {
  * Local service operations:
  *   RESOLVE - The client requests the local service to resolve a path.
  *   SET_TIMEOUT - The local service requests the client to set the timeout.
+ *   IP_RESOLVE - The client requests the local service to resolve an IP to GID.
  */
 enum {
 	RDMA_NL_LS_OP_RESOLVE = 0,
 	RDMA_NL_LS_OP_SET_TIMEOUT,
+	RDMA_NL_LS_OP_IP_RESOLVE,
 	RDMA_NL_LS_NUM_OPS
 };
 
@@ -175,6 +178,10 @@ struct rdma_ls_resolve_header {
 	__u8 path_use;
 };
 
+struct rdma_ls_ip_resolve_header {
+	__u32 ifindex;
+};
+
 /* Local service attribute type */
 #define RDMA_NLA_F_MANDATORY	(1 << 13)
 #define RDMA_NLA_TYPE_MASK	(~(NLA_F_NESTED | NLA_F_NET_BYTEORDER | \
@@ -192,6 +199,8 @@ struct rdma_ls_resolve_header {
  *   TCLASS          u8
  *   PKEY            u16                        cpu
  *   QOS_CLASS       u16                        cpu
+ *   IPV4            u32                        BE
+ *   IPV6            u8[16]                     BE
  */
 enum {
 	LS_NLA_TYPE_UNSPEC = 0,
@@ -203,6 +212,8 @@ enum {
 	LS_NLA_TYPE_TCLASS,
 	LS_NLA_TYPE_PKEY,
 	LS_NLA_TYPE_QOS_CLASS,
+	LS_NLA_TYPE_IPV4,
+	LS_NLA_TYPE_IPV6,
 	LS_NLA_TYPE_MAX
 };
 

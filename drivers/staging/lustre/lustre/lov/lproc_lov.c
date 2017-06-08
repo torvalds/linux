@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -27,7 +23,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015 Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -46,22 +42,22 @@ static int lov_stripesize_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lov_desc *desc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	seq_printf(m, "%llu\n", desc->ld_default_stripe_size);
 	return 0;
 }
 
 static ssize_t lov_stripesize_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct lov_desc *desc;
 	__u64 val;
 	int rc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	rc = lprocfs_write_u64_helper(buffer, count, &val);
 	if (rc)
@@ -71,6 +67,7 @@ static ssize_t lov_stripesize_seq_write(struct file *file,
 	desc->ld_default_stripe_size = val;
 	return count;
 }
+
 LPROC_SEQ_FOPS(lov_stripesize);
 
 static int lov_stripeoffset_seq_show(struct seq_file *m, void *v)
@@ -78,22 +75,22 @@ static int lov_stripeoffset_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lov_desc *desc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	seq_printf(m, "%llu\n", desc->ld_default_stripe_offset);
 	return 0;
 }
 
 static ssize_t lov_stripeoffset_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					  const char __user *buffer,
+					  size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct lov_desc *desc;
 	__u64 val;
 	int rc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	rc = lprocfs_write_u64_helper(buffer, count, &val);
 	if (rc)
@@ -102,6 +99,7 @@ static ssize_t lov_stripeoffset_seq_write(struct file *file,
 	desc->ld_default_stripe_offset = val;
 	return count;
 }
+
 LPROC_SEQ_FOPS(lov_stripeoffset);
 
 static int lov_stripetype_seq_show(struct seq_file *m, void *v)
@@ -109,21 +107,21 @@ static int lov_stripetype_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lov_desc *desc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	seq_printf(m, "%u\n", desc->ld_pattern);
 	return 0;
 }
 
 static ssize_t lov_stripetype_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct lov_desc *desc;
 	int val, rc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	rc = lprocfs_write_helper(buffer, count, &val);
 	if (rc)
@@ -133,6 +131,7 @@ static ssize_t lov_stripetype_seq_write(struct file *file,
 	desc->ld_pattern = val;
 	return count;
 }
+
 LPROC_SEQ_FOPS(lov_stripetype);
 
 static int lov_stripecount_seq_show(struct seq_file *m, void *v)
@@ -140,21 +139,21 @@ static int lov_stripecount_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lov_desc *desc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	seq_printf(m, "%d\n", (__s16)(desc->ld_default_stripe_count + 1) - 1);
 	return 0;
 }
 
 static ssize_t lov_stripecount_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					 const char __user *buffer,
+					 size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct lov_desc *desc;
 	int val, rc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	rc = lprocfs_write_helper(buffer, count, &val);
 	if (rc)
@@ -164,6 +163,7 @@ static ssize_t lov_stripecount_seq_write(struct file *file,
 	desc->ld_default_stripe_count = val;
 	return count;
 }
+
 LPROC_SEQ_FOPS(lov_stripecount);
 
 static ssize_t numobd_show(struct kobject *kobj, struct attribute *attr,
@@ -195,11 +195,12 @@ static int lov_desc_uuid_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lov_obd *lov;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	lov = &dev->u.lov;
 	seq_printf(m, "%s\n", lov->desc.ld_uuid.uuid);
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(lov_desc_uuid);
 
 static void *lov_tgt_seq_start(struct seq_file *p, loff_t *pos)

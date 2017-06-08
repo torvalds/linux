@@ -3,13 +3,13 @@
  *  under the terms of the GNU General Public License version 2 as published
  *  by the Free Software Foundation.
  *
- *  Copyright (C) 2012 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  *  Copyright (C) 2012 Lantiq GmbH
  */
 
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
 
@@ -187,7 +187,6 @@ static const struct of_device_id gptu_match[] = {
 	{ .compatible = "lantiq,gptu-xway" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, dma_match);
 
 static struct platform_driver dma_driver = {
 	.probe = gptu_probe,

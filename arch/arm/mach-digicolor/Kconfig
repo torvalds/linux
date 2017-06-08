@@ -4,4 +4,7 @@ config ARCH_DIGICOLOR
 	select CLKSRC_MMIO
 	select DIGICOLOR_TIMER
 	select GENERIC_IRQ_CHIP
+	select GPIOLIB
 	select MFD_SYSCON
+	select PINCTRL
+	select PINCTRL_DIGICOLOR

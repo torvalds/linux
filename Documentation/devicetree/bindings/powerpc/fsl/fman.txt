@@ -35,7 +35,7 @@ PROPERTIES
 		Definition: Specifies the index of the FMan unit.
 
 		The cell-index value may be used by the SoC, to identify the
-		FMan unit in the SoC memory map. In the table bellow,
+		FMan unit in the SoC memory map. In the table below,
 		there's a description of the cell-index use in each SoC:
 
 		- P1023:
@@ -247,7 +247,7 @@ PROPERTIES
 
 		The cell-index value may be used by the FMan or the SoC, to
 		identify the MAC unit in the FMan (or SoC) memory map.
-		In the tables bellow there's a description of the cell-index
+		In the tables below there's a description of the cell-index
 		use, there are two tables, one describes the use of cell-index
 		by the FMan, the second describes the use by the SoC:
 
@@ -315,6 +315,16 @@ PROPERTIES
 		Value type: <phandle>
 		Definition: A phandle for 1EEE1588 timer.
 
+- pcsphy-handle
+		Usage required for "fsl,fman-memac" MACs
+		Value type: <phandle>
+		Definition: A phandle for pcsphy.
+
+- tbi-handle
+		Usage required for "fsl,fman-dtsec" MACs
+		Value type: <phandle>
+		Definition: A phandle for tbiphy.
+
 EXAMPLE
 
 fman1_tx28: port@a8000 {
@@ -340,6 +350,7 @@ ethernet@e0000 {
 	reg = <0xe0000 0x1000>;
 	fsl,fman-ports = <&fman1_rx8 &fman1_tx28>;
 	ptp-timer = <&ptp-timer>;
+	tbi-handle = <&tbi0>;
 };
 
 ============================================================================
@@ -415,6 +426,13 @@ PROPERTIES
 		The settings and programming routines for internal/external
 		MDIO are different. Must be included for internal MDIO.
 
+For internal PHY device on internal mdio bus, a PHY node should be created.
+See the definition of the PHY node in booting-without-of.txt for an
+example of how to define a PHY (Internal PHY has no interrupt line).
+- For "fsl,fman-mdio" compatible internal mdio bus, the PHY is TBI PHY.
+- For "fsl,fman-memac-mdio" compatible internal mdio bus, the PHY is PCS PHY,
+  PCS PHY addr must be '0'.
+
 EXAMPLE
 
 Example for FMan v2 external MDIO:
@@ -425,12 +443,29 @@ mdio@f1000 {
 	interrupts = <101 2 0 0>;
 };
 
+Example for FMan v2 internal MDIO:
+
+mdio@e3120 {
+	compatible = "fsl,fman-mdio";
+	reg = <0xe3120 0xee0>;
+	fsl,fman-internal-mdio;
+
+	tbi1: tbi-phy@8 {
+		reg = <0x8>;
+		device_type = "tbi-phy";
+	};
+};
+
 Example for FMan v3 internal MDIO:
 
 mdio@f1000 {
 	compatible = "fsl,fman-memac-mdio";
 	reg = <0xf1000 0x1000>;
 	fsl,fman-internal-mdio;
+
+	pcsphy6: ethernet-phy@0 {
+		reg = <0x0>;
+	};
 };
 
 =============================================================================
@@ -568,6 +603,7 @@ fman@400000 {
 		cell-index = <0>;
 		reg = <0xe0000 0x1000>;
 		fsl,fman-ports = <&fman1_rx_0x8 &fman1_tx_0x28>;
+		tbi-handle = <&tbi5>;
 	};
 
 	ethernet@e2000 {
@@ -575,6 +611,7 @@ fman@400000 {
 		cell-index = <1>;
 		reg = <0xe2000 0x1000>;
 		fsl,fman-ports = <&fman1_rx_0x9 &fman1_tx_0x29>;
+		tbi-handle = <&tbi6>;
 	};
 
 	ethernet@e4000 {
@@ -582,6 +619,7 @@ fman@400000 {
 		cell-index = <2>;
 		reg = <0xe4000 0x1000>;
 		fsl,fman-ports = <&fman1_rx_0xa &fman1_tx_0x2a>;
+		tbi-handle = <&tbi7>;
 	};
 
 	ethernet@e6000 {
@@ -589,6 +627,7 @@ fman@400000 {
 		cell-index = <3>;
 		reg = <0xe6000 0x1000>;
 		fsl,fman-ports = <&fman1_rx_0xb &fman1_tx_0x2b>;
+		tbi-handle = <&tbi8>;
 	};
 
 	ethernet@e8000 {
@@ -596,6 +635,7 @@ fman@400000 {
 		cell-index = <4>;
 		reg = <0xf0000 0x1000>;
 		fsl,fman-ports = <&fman1_rx_0xc &fman1_tx_0x2c>;
+		tbi-handle = <&tbi9>;
 
 	ethernet@f0000 {
 		cell-index = <8>;

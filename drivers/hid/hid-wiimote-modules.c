@@ -296,13 +296,11 @@ static const struct wiimod_ops wiimod_battery = {
 
 static enum led_brightness wiimod_led_get(struct led_classdev *led_dev)
 {
-	struct wiimote_data *wdata;
 	struct device *dev = led_dev->dev->parent;
+	struct wiimote_data *wdata = dev_to_wii(dev);
 	int i;
 	unsigned long flags;
 	bool value = false;
-
-	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
 
 	for (i = 0; i < 4; ++i) {
 		if (wdata->leds[i] == led_dev) {
@@ -319,13 +317,11 @@ static enum led_brightness wiimod_led_get(struct led_classdev *led_dev)
 static void wiimod_led_set(struct led_classdev *led_dev,
 			   enum led_brightness value)
 {
-	struct wiimote_data *wdata;
 	struct device *dev = led_dev->dev->parent;
+	struct wiimote_data *wdata = dev_to_wii(dev);
 	int i;
 	unsigned long flags;
 	__u8 state, flag;
-
-	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
 
 	for (i = 0; i < 4; ++i) {
 		if (wdata->leds[i] == led_dev) {
@@ -2053,9 +2049,11 @@ static void wiimod_mp_in_mp(struct wiimote_data *wdata, const __u8 *ext)
 	 *   -----+------------------------------+-----+-----+
 	 * The single bits Yaw, Roll, Pitch in the lower right corner specify
 	 * whether the wiimote is rotating fast (0) or slow (1). Speed for slow
-	 * roation is 440 deg/s and for fast rotation 2000 deg/s. To get a
-	 * linear scale we multiply by 2000/440 = ~4.5454 which is 18 for fast
-	 * and 9 for slow.
+	 * roation is 8192/440 units / deg/s and for fast rotation 8192/2000
+	 * units / deg/s. To get a linear scale for fast rotation we multiply
+	 * by 2000/440 = ~4.5454 and scale both fast and slow by 9 to match the
+	 * previous scale reported by this driver.
+	 * This leaves a linear scale with 8192*9/440 (~167.564) units / deg/s.
 	 * If the wiimote is not rotating the sensor reports 2^13 = 8192.
 	 * Ext specifies whether an extension is connected to the motionp.
 	 * which is parsed by wiimote-core.
@@ -2074,15 +2072,15 @@ static void wiimod_mp_in_mp(struct wiimote_data *wdata, const __u8 *ext)
 	z -= 8192;
 
 	if (!(ext[3] & 0x02))
-		x *= 18;
+		x = (x * 2000 * 9) / 440;
 	else
 		x *= 9;
 	if (!(ext[4] & 0x02))
-		y *= 18;
+		y = (y * 2000 * 9) / 440;
 	else
 		y *= 9;
 	if (!(ext[3] & 0x01))
-		z *= 18;
+		z = (z * 2000 * 9) / 440;
 	else
 		z *= 9;
 

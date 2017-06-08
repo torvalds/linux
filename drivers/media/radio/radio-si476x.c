@@ -31,7 +31,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-device.h>
 
-#include <media/si476x.h>
+#include <media/drv-intf/si476x.h>
 #include <linux/mfd/si476x-core.h>
 
 #define FM_FREQ_RANGE_LOW   64000000
@@ -1530,11 +1530,11 @@ static int si476x_radio_probe(struct platform_device *pdev)
 	if (si476x_core_has_diversity(radio->core)) {
 		si476x_ctrls[SI476X_IDX_DIVERSITY_MODE].def =
 			si476x_phase_diversity_mode_to_idx(radio->core->diversity_mode);
-		si476x_radio_add_new_custom(radio, SI476X_IDX_DIVERSITY_MODE);
+		rval = si476x_radio_add_new_custom(radio, SI476X_IDX_DIVERSITY_MODE);
 		if (rval < 0)
 			goto exit;
 
-		si476x_radio_add_new_custom(radio, SI476X_IDX_INTERCHIP_LINK);
+		rval = si476x_radio_add_new_custom(radio, SI476X_IDX_INTERCHIP_LINK);
 		if (rval < 0)
 			goto exit;
 	}

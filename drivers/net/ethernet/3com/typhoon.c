@@ -119,7 +119,7 @@ static const int multicast_filter_limit = 32;
 #include <linux/bitops.h>
 #include <asm/processor.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/in6.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
@@ -283,7 +283,6 @@ struct typhoon {
 	spinlock_t		command_lock	____cacheline_aligned;
 	struct basic_ring	cmdRing;
 	struct basic_ring	respRing;
-	struct net_device_stats	stats;
 	struct net_device_stats	stats_saved;
 	struct typhoon_shared *	shared;
 	dma_addr_t		shared_dma;
@@ -898,7 +897,7 @@ typhoon_set_rx_mode(struct net_device *dev)
 static int
 typhoon_do_get_stats(struct typhoon *tp)
 {
-	struct net_device_stats *stats = &tp->stats;
+	struct net_device_stats *stats = &tp->dev->stats;
 	struct net_device_stats *saved = &tp->stats_saved;
 	struct cmd_desc xp_cmd;
 	struct resp_desc xp_resp[7];
@@ -951,7 +950,7 @@ static struct net_device_stats *
 typhoon_get_stats(struct net_device *dev)
 {
 	struct typhoon *tp = netdev_priv(dev);
-	struct net_device_stats *stats = &tp->stats;
+	struct net_device_stats *stats = &tp->dev->stats;
 	struct net_device_stats *saved = &tp->stats_saved;
 
 	smp_rmb();
@@ -996,28 +995,30 @@ typhoon_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 }
 
 static int
-typhoon_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+typhoon_get_link_ksettings(struct net_device *dev,
+			   struct ethtool_link_ksettings *cmd)
 {
 	struct typhoon *tp = netdev_priv(dev);
+	u32 supported, advertising = 0;
 
-	cmd->supported = SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
+	supported = SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
 				SUPPORTED_Autoneg;
 
 	switch (tp->xcvr_select) {
 	case TYPHOON_XCVR_10HALF:
-		cmd->advertising = ADVERTISED_10baseT_Half;
+		advertising = ADVERTISED_10baseT_Half;
 		break;
 	case TYPHOON_XCVR_10FULL:
-		cmd->advertising = ADVERTISED_10baseT_Full;
+		advertising = ADVERTISED_10baseT_Full;
 		break;
 	case TYPHOON_XCVR_100HALF:
-		cmd->advertising = ADVERTISED_100baseT_Half;
+		advertising = ADVERTISED_100baseT_Half;
 		break;
 	case TYPHOON_XCVR_100FULL:
-		cmd->advertising = ADVERTISED_100baseT_Full;
+		advertising = ADVERTISED_100baseT_Full;
 		break;
 	case TYPHOON_XCVR_AUTONEG:
-		cmd->advertising = ADVERTISED_10baseT_Half |
+		advertising = ADVERTISED_10baseT_Half |
 					    ADVERTISED_10baseT_Full |
 					    ADVERTISED_100baseT_Half |
 					    ADVERTISED_100baseT_Full |
@@ -1026,54 +1027,57 @@ typhoon_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 
 	if(tp->capabilities & TYPHOON_FIBER) {
-		cmd->supported |= SUPPORTED_FIBRE;
-		cmd->advertising |= ADVERTISED_FIBRE;
-		cmd->port = PORT_FIBRE;
+		supported |= SUPPORTED_FIBRE;
+		advertising |= ADVERTISED_FIBRE;
+		cmd->base.port = PORT_FIBRE;
 	} else {
-		cmd->supported |= SUPPORTED_10baseT_Half |
+		supported |= SUPPORTED_10baseT_Half |
 		    			SUPPORTED_10baseT_Full |
 					SUPPORTED_TP;
-		cmd->advertising |= ADVERTISED_TP;
-		cmd->port = PORT_TP;
+		advertising |= ADVERTISED_TP;
+		cmd->base.port = PORT_TP;
 	}
 
 	/* need to get stats to make these link speed/duplex valid */
 	typhoon_do_get_stats(tp);
-	ethtool_cmd_speed_set(cmd, tp->speed);
-	cmd->duplex = tp->duplex;
-	cmd->phy_address = 0;
-	cmd->transceiver = XCVR_INTERNAL;
+	cmd->base.speed = tp->speed;
+	cmd->base.duplex = tp->duplex;
+	cmd->base.phy_address = 0;
 	if(tp->xcvr_select == TYPHOON_XCVR_AUTONEG)
-		cmd->autoneg = AUTONEG_ENABLE;
+		cmd->base.autoneg = AUTONEG_ENABLE;
 	else
-		cmd->autoneg = AUTONEG_DISABLE;
-	cmd->maxtxpkt = 1;
-	cmd->maxrxpkt = 1;
+		cmd->base.autoneg = AUTONEG_DISABLE;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
 
 static int
-typhoon_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+typhoon_set_link_ksettings(struct net_device *dev,
+			   const struct ethtool_link_ksettings *cmd)
 {
 	struct typhoon *tp = netdev_priv(dev);
-	u32 speed = ethtool_cmd_speed(cmd);
+	u32 speed = cmd->base.speed;
 	struct cmd_desc xp_cmd;
 	__le16 xcvr;
 	int err;
 
 	err = -EINVAL;
-	if (cmd->autoneg == AUTONEG_ENABLE) {
+	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		xcvr = TYPHOON_XCVR_AUTONEG;
 	} else {
-		if (cmd->duplex == DUPLEX_HALF) {
+		if (cmd->base.duplex == DUPLEX_HALF) {
 			if (speed == SPEED_10)
 				xcvr = TYPHOON_XCVR_10HALF;
 			else if (speed == SPEED_100)
 				xcvr = TYPHOON_XCVR_100HALF;
 			else
 				goto out;
-		} else if (cmd->duplex == DUPLEX_FULL) {
+		} else if (cmd->base.duplex == DUPLEX_FULL) {
 			if (speed == SPEED_10)
 				xcvr = TYPHOON_XCVR_10FULL;
 			else if (speed == SPEED_100)
@@ -1091,12 +1095,12 @@ typhoon_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		goto out;
 
 	tp->xcvr_select = xcvr;
-	if(cmd->autoneg == AUTONEG_ENABLE) {
+	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		tp->speed = 0xff;	/* invalid */
 		tp->duplex = 0xff;	/* invalid */
 	} else {
 		tp->speed = speed;
-		tp->duplex = cmd->duplex;
+		tp->duplex = cmd->base.duplex;
 	}
 
 out:
@@ -1145,13 +1149,13 @@ typhoon_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 }
 
 static const struct ethtool_ops typhoon_ethtool_ops = {
-	.get_settings		= typhoon_get_settings,
-	.set_settings		= typhoon_set_settings,
 	.get_drvinfo		= typhoon_get_drvinfo,
 	.get_wol		= typhoon_get_wol,
 	.set_wol		= typhoon_set_wol,
 	.get_link		= ethtool_op_get_link,
 	.get_ringparam		= typhoon_get_ringparam,
+	.get_link_ksettings	= typhoon_get_link_ksettings,
+	.set_link_ksettings	= typhoon_set_link_ksettings,
 };
 
 static int
@@ -1748,7 +1752,7 @@ typhoon_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		iowrite32(TYPHOON_INTR_NONE,
 				tp->ioaddr + TYPHOON_REG_INTR_MASK);
 		typhoon_post_pci_writes(tp->ioaddr);
@@ -1986,7 +1990,7 @@ typhoon_stop_runtime(struct typhoon *tp, int wait_type)
 	tp->card_state = Sleeping;
 	smp_wmb();
 	typhoon_do_get_stats(tp);
-	memcpy(&tp->stats_saved, &tp->stats, sizeof(struct net_device_stats));
+	memcpy(&tp->stats_saved, &tp->dev->stats, sizeof(struct net_device_stats));
 
 	INIT_COMMAND_NO_RESPONSE(&xp_cmd, TYPHOON_CMD_HALT);
 	typhoon_issue_command(tp, 1, &xp_cmd, 0, NULL);
@@ -2255,7 +2259,6 @@ static const struct net_device_ops typhoon_netdev_ops = {
 	.ndo_get_stats		= typhoon_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int
@@ -2366,9 +2369,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 4) Get the hardware address.
 	 * 5) Put the card to sleep.
 	 */
-	if (typhoon_reset(ioaddr, WaitSleep) < 0) {
+	err = typhoon_reset(ioaddr, WaitSleep);
+	if (err < 0) {
 		err_msg = "could not reset 3XP";
-		err = -EIO;
 		goto error_out_dma;
 	}
 
@@ -2382,24 +2385,25 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	typhoon_init_interface(tp);
 	typhoon_init_rings(tp);
 
-	if(typhoon_boot_3XP(tp, TYPHOON_STATUS_WAITING_FOR_HOST) < 0) {
+	err = typhoon_boot_3XP(tp, TYPHOON_STATUS_WAITING_FOR_HOST);
+	if (err < 0) {
 		err_msg = "cannot boot 3XP sleep image";
-		err = -EIO;
 		goto error_out_reset;
 	}
 
 	INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_MAC_ADDRESS);
-	if(typhoon_issue_command(tp, 1, &xp_cmd, 1, xp_resp) < 0) {
+	err = typhoon_issue_command(tp, 1, &xp_cmd, 1, xp_resp);
+	if (err < 0) {
 		err_msg = "cannot read MAC address";
-		err = -EIO;
 		goto error_out_reset;
 	}
 
 	*(__be16 *)&dev->dev_addr[0] = htons(le16_to_cpu(xp_resp[0].parm1));
 	*(__be32 *)&dev->dev_addr[2] = htonl(le32_to_cpu(xp_resp[0].parm2));
 
-	if(!is_valid_ether_addr(dev->dev_addr)) {
+	if (!is_valid_ether_addr(dev->dev_addr)) {
 		err_msg = "Could not obtain valid ethernet address, aborting";
+		err = -EIO;
 		goto error_out_reset;
 	}
 
@@ -2407,7 +2411,8 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * later when we print out the version reported.
 	 */
 	INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_VERSIONS);
-	if(typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp) < 0) {
+	err = typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp);
+	if (err < 0) {
 		err_msg = "Could not get Sleep Image version";
 		goto error_out_reset;
 	}
@@ -2424,9 +2429,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if(xp_resp[0].numDesc != 0)
 		tp->capabilities |= TYPHOON_WAKEUP_NEEDS_RESET;
 
-	if(typhoon_sleep(tp, PCI_D3hot, 0) < 0) {
+	err = typhoon_sleep(tp, PCI_D3hot, 0);
+	if (err < 0) {
 		err_msg = "cannot put adapter to sleep";
-		err = -EIO;
 		goto error_out_reset;
 	}
 
@@ -2449,7 +2454,8 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->features = dev->hw_features |
 		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXCSUM;
 
-	if(register_netdev(dev) < 0) {
+	err = register_netdev(dev);
+	if (err < 0) {
 		err_msg = "unable to register netdev";
 		goto error_out_reset;
 	}

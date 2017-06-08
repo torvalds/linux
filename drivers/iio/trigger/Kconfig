@@ -5,6 +5,16 @@
 
 menu "Triggers - standalone"
 
+config IIO_HRTIMER_TRIGGER
+	tristate "High resolution timer trigger"
+	depends on IIO_SW_TRIGGER
+	help
+	  Provides a frequency based IIO trigger using high resolution
+	  timers as interrupt source.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iio-trig-hrtimer.
+
 config IIO_INTERRUPT_TRIGGER
 	tristate "Generic interrupt trigger"
 	help
@@ -13,6 +23,27 @@ config IIO_INTERRUPT_TRIGGER
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called iio-trig-interrupt.
+
+config IIO_STM32_TIMER_TRIGGER
+	tristate "STM32 Timer Trigger"
+	depends on (ARCH_STM32 && OF && MFD_STM32_TIMERS) || COMPILE_TEST
+	help
+	  Select this option to enable STM32 Timer Trigger
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stm32-timer-trigger.
+
+config IIO_TIGHTLOOP_TRIGGER
+	tristate "A kthread based hammering loop trigger"
+	depends on IIO_SW_TRIGGER
+	help
+	  An experimental trigger, used to allow sensors to be sampled as fast
+	  as possible under the limitations of whatever else is going on.
+	  Uses a tight loop in a kthread.  Will only work with lower half only
+	  trigger consumers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iio-trig-loop.
 
 config IIO_SYSFS_TRIGGER
 	tristate "SYSFS trigger"

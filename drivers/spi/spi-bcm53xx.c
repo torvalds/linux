@@ -1,3 +1,11 @@
+/*
+ * Copyright (C) 2014-2016 Rafał Miłecki <rafal@milecki.pl>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
 #define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
@@ -10,6 +18,7 @@
 #include "spi-bcm53xx.h"
 
 #define BCM53XXSPI_MAX_SPI_BAUD	13500000	/* 216 MHz? */
+#define BCM53XXSPI_FLASH_WINDOW	SZ_32M
 
 /* The longest observed required wait was 19 ms */
 #define BCM53XXSPI_SPE_TIMEOUT_MS	80
@@ -17,8 +26,10 @@
 struct bcm53xxspi {
 	struct bcma_device *core;
 	struct spi_master *master;
+	void __iomem *mmio_base;
 
 	size_t read_offset;
+	bool bspi;				/* Boot SPI mode with memory mapping */
 };
 
 static inline u32 bcm53xxspi_read(struct bcm53xxspi *b53spi, u16 offset)
@@ -30,6 +41,50 @@ static inline void bcm53xxspi_write(struct bcm53xxspi *b53spi, u16 offset,
 				    u32 value)
 {
 	bcma_write32(b53spi->core, offset, value);
+}
+
+static void bcm53xxspi_disable_bspi(struct bcm53xxspi *b53spi)
+{
+	struct device *dev = &b53spi->core->dev;
+	unsigned long deadline;
+	u32 tmp;
+
+	if (!b53spi->bspi)
+		return;
+
+	tmp = bcm53xxspi_read(b53spi, B53SPI_BSPI_MAST_N_BOOT_CTRL);
+	if (tmp & 0x1)
+		return;
+
+	deadline = jiffies + usecs_to_jiffies(200);
+	do {
+		tmp = bcm53xxspi_read(b53spi, B53SPI_BSPI_BUSY_STATUS);
+		if (!(tmp & 0x1)) {
+			bcm53xxspi_write(b53spi, B53SPI_BSPI_MAST_N_BOOT_CTRL,
+					 0x1);
+			ndelay(200);
+			b53spi->bspi = false;
+			return;
+		}
+		udelay(1);
+	} while (!time_after_eq(jiffies, deadline));
+
+	dev_warn(dev, "Timeout disabling BSPI\n");
+}
+
+static void bcm53xxspi_enable_bspi(struct bcm53xxspi *b53spi)
+{
+	u32 tmp;
+
+	if (b53spi->bspi)
+		return;
+
+	tmp = bcm53xxspi_read(b53spi, B53SPI_BSPI_MAST_N_BOOT_CTRL);
+	if (!(tmp & 0x1))
+		return;
+
+	bcm53xxspi_write(b53spi, B53SPI_BSPI_MAST_N_BOOT_CTRL, 0x0);
+	b53spi->bspi = true;
 }
 
 static inline unsigned int bcm53xxspi_calc_timeout(size_t len)
@@ -176,6 +231,8 @@ static int bcm53xxspi_transfer_one(struct spi_master *master,
 	u8 *buf;
 	size_t left;
 
+	bcm53xxspi_disable_bspi(b53spi);
+
 	if (t->tx_buf) {
 		buf = (u8 *)t->tx_buf;
 		left = t->len;
@@ -206,13 +263,25 @@ static int bcm53xxspi_transfer_one(struct spi_master *master,
 	return 0;
 }
 
+static int bcm53xxspi_flash_read(struct spi_device *spi,
+				 struct spi_flash_read_message *msg)
+{
+	struct bcm53xxspi *b53spi = spi_master_get_devdata(spi->master);
+	int ret = 0;
+
+	if (msg->from + msg->len > BCM53XXSPI_FLASH_WINDOW)
+		return -EINVAL;
+
+	bcm53xxspi_enable_bspi(b53spi);
+	memcpy_fromio(msg->buf, b53spi->mmio_base + msg->from, msg->len);
+	msg->retlen = msg->len;
+
+	return ret;
+}
+
 /**************************************************
  * BCMA
  **************************************************/
-
-static struct spi_board_info bcm53xx_info = {
-	.modalias	= "bcm53xxspiflash",
-};
 
 static const struct bcma_device_id bcm53xxspi_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_NS_QSPI, BCMA_ANY_REV, BCMA_ANY_CLASS),
@@ -222,6 +291,7 @@ MODULE_DEVICE_TABLE(bcma, bcm53xxspi_bcma_tbl);
 
 static int bcm53xxspi_bcma_probe(struct bcma_device *core)
 {
+	struct device *dev = &core->dev;
 	struct bcm53xxspi *b53spi;
 	struct spi_master *master;
 	int err;
@@ -231,7 +301,7 @@ static int bcm53xxspi_bcma_probe(struct bcma_device *core)
 		return -ENOTSUPP;
 	}
 
-	master = spi_alloc_master(&core->dev, sizeof(*b53spi));
+	master = spi_alloc_master(dev, sizeof(*b53spi));
 	if (!master)
 		return -ENOMEM;
 
@@ -239,36 +309,33 @@ static int bcm53xxspi_bcma_probe(struct bcma_device *core)
 	b53spi->master = master;
 	b53spi->core = core;
 
+	if (core->addr_s[0])
+		b53spi->mmio_base = devm_ioremap(dev, core->addr_s[0],
+						 BCM53XXSPI_FLASH_WINDOW);
+	b53spi->bspi = true;
+	bcm53xxspi_disable_bspi(b53spi);
+
+	master->dev.of_node = dev->of_node;
 	master->transfer_one = bcm53xxspi_transfer_one;
+	if (b53spi->mmio_base)
+		master->spi_flash_read = bcm53xxspi_flash_read;
 
 	bcma_set_drvdata(core, b53spi);
 
-	err = devm_spi_register_master(&core->dev, master);
+	err = devm_spi_register_master(dev, master);
 	if (err) {
 		spi_master_put(master);
 		bcma_set_drvdata(core, NULL);
-		goto out;
+		return err;
 	}
 
-	/* Broadcom SoCs (at least with the CC rev 42) use SPI for flash only */
-	spi_new_device(master, &bcm53xx_info);
-
-out:
-	return err;
-}
-
-static void bcm53xxspi_bcma_remove(struct bcma_device *core)
-{
-	struct bcm53xxspi *b53spi = bcma_get_drvdata(core);
-
-	spi_unregister_master(b53spi->master);
+	return 0;
 }
 
 static struct bcma_driver bcm53xxspi_bcma_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= bcm53xxspi_bcma_tbl,
 	.probe		= bcm53xxspi_bcma_probe,
-	.remove		= bcm53xxspi_bcma_remove,
 };
 
 /**************************************************
@@ -296,4 +363,4 @@ module_exit(bcm53xxspi_module_exit);
 
 MODULE_DESCRIPTION("Broadcom BCM53xx SPI Controller driver");
 MODULE_AUTHOR("Rafał Miłecki <zajec5@gmail.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

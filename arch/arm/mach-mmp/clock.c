@@ -13,7 +13,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <mach/regs-apbc.h>
+#include "regs-apbc.h"
 #include "clock.h"
 
 static void apbc_clk_enable(struct clk *clk)
@@ -66,6 +66,9 @@ EXPORT_SYMBOL(clk_enable);
 void clk_disable(struct clk *clk)
 {
 	unsigned long flags;
+
+	if (!clk)
+		return;
 
 	WARN_ON(clk->enabled == 0);
 

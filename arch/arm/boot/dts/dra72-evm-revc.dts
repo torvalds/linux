@@ -1,0 +1,84 @@
+/*
+ * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+#include "dra72-evm-common.dtsi"
+#include <dt-bindings/net/ti-dp83867.h>
+
+/ {
+	model = "TI DRA722 Rev C EVM";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>; /* 2GB */
+	};
+};
+
+&i2c1 {
+	tps65917: tps65917@58 {
+		reg = <0x58>;
+
+		interrupts = <GIC_SPI 2 IRQ_TYPE_NONE>;  /* IRQ_SYS_1N */
+	};
+};
+
+#include "dra72-evm-tps65917.dtsi"
+
+&ldo2_reg {
+	/* LDO2_OUT --> VDDA_1V8_PHY2 */
+	regulator-always-on;
+	regulator-boot-on;
+};
+
+&hdmi {
+	vdda-supply = <&ldo2_reg>;
+};
+
+&pcf_gpio_21 {
+	interrupt-parent = <&gpio3>;
+	interrupts = <30 IRQ_TYPE_EDGE_FALLING>;
+};
+
+&mac {
+	mode-gpios = <&pcf_gpio_21 4 GPIO_ACTIVE_LOW>,
+		     <&pcf_hdmi 9 GPIO_ACTIVE_LOW>,	/* P11 */
+		     <&pcf_hdmi 10 GPIO_ACTIVE_LOW>;	/* P12 */
+	dual_emac;
+};
+
+&cpsw_emac0 {
+	phy_id = <&davinci_mdio>, <2>;
+	phy-mode = "rgmii-id";
+	dual_emac_res_vlan = <1>;
+};
+
+&cpsw_emac1 {
+	phy_id = <&davinci_mdio>, <3>;
+	phy-mode = "rgmii-id";
+	dual_emac_res_vlan = <2>;
+};
+
+&davinci_mdio {
+	dp83867_0: ethernet-phy@2 {
+		reg = <2>;
+		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
+		ti,tx-internal-delay = <DP83867_RGMIIDCTL_250_PS>;
+		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_8_B_NIB>;
+		ti,min-output-impedance;
+		interrupt-parent = <&gpio6>;
+		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+	};
+
+	dp83867_1: ethernet-phy@3 {
+		reg = <3>;
+		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
+		ti,tx-internal-delay = <DP83867_RGMIIDCTL_250_PS>;
+		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_8_B_NIB>;
+		ti,min-output-impedance;
+		interrupt-parent = <&gpio6>;
+		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+	};
+};

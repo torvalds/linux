@@ -9,6 +9,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
@@ -20,13 +21,13 @@
 #include <linux/compat.h>
 #include <linux/binfmts.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/fpu/internal.h>
 #include <asm/fpu/signal.h>
 #include <asm/ptrace.h>
 #include <asm/ia32_unistd.h>
 #include <asm/user32.h>
-#include <asm/sigcontext32.h>
+#include <uapi/asm/sigcontext.h>
 #include <asm/proto.h>
 #include <asm/vdso.h>
 #include <asm/sigframe.h>
@@ -68,7 +69,7 @@
 }
 
 static int ia32_restore_sigcontext(struct pt_regs *regs,
-				   struct sigcontext_ia32 __user *sc)
+				   struct sigcontext_32 __user *sc)
 {
 	unsigned int tmpflags, err = 0;
 	void __user *buf;
@@ -170,7 +171,7 @@ badframe:
  * Set up a signal frame.
  */
 
-static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
+static int ia32_setup_sigcontext(struct sigcontext_32 __user *sc,
 				 void __user *fpstate,
 				 struct pt_regs *regs, unsigned int mask)
 {
@@ -234,7 +235,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 		unsigned long fx_aligned, math_size;
 
 		sp = fpu__alloc_mathframe(sp, 1, &fx_aligned, &math_size);
-		*fpstate = (struct _fpstate_ia32 __user *) sp;
+		*fpstate = (struct _fpstate_32 __user *) sp;
 		if (copy_fpstate_to_sigframe(*fpstate, (void __user *)fx_aligned,
 				    math_size) < 0)
 			return (void __user *) -1L;
@@ -289,7 +290,7 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 		/* Return stub is in 32bit vsyscall page */
 		if (current->mm->context.vdso)
 			restorer = current->mm->context.vdso +
-				selected_vdso32->sym___kernel_sigreturn;
+				vdso_image_32.sym___kernel_sigreturn;
 		else
 			restorer = &frame->retcode;
 	}
@@ -357,7 +358,7 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 		put_user_ex(ptr_to_compat(&frame->uc), &frame->puc);
 
 		/* Create the ucontext.  */
-		if (cpu_has_xsave)
+		if (boot_cpu_has(X86_FEATURE_XSAVE))
 			put_user_ex(UC_FP_XSTATE, &frame->uc.uc_flags);
 		else
 			put_user_ex(0, &frame->uc.uc_flags);
@@ -368,7 +369,7 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 			restorer = ksig->ka.sa.sa_restorer;
 		else
 			restorer = current->mm->context.vdso +
-				selected_vdso32->sym___kernel_rt_sigreturn;
+				vdso_image_32.sym___kernel_rt_sigreturn;
 		put_user_ex(ptr_to_compat(restorer), &frame->pretcode);
 
 		/*
@@ -378,7 +379,7 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 		put_user_ex(*((u64 *)&code), (u64 __user *)frame->retcode);
 	} put_user_catch(err);
 
-	err |= copy_siginfo_to_user32(&frame->info, &ksig->info);
+	err |= __copy_siginfo_to_user32(&frame->info, &ksig->info, false);
 	err |= ia32_setup_sigcontext(&frame->uc.uc_mcontext, fpstate,
 				     regs, set->sig[0]);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));

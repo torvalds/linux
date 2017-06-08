@@ -1,6 +1,6 @@
 #ifndef __NVKM_DISP_DPORT_H__
 #define __NVKM_DISP_DPORT_H__
-#include <core/os.h>
+struct nvkm_output_dp;
 
 /* DPCD Receiver Capabilities */
 #define DPCD_RC00_DPCD_REV                                              0x00000
@@ -71,5 +71,11 @@
 #define DPCD_LS0C_LANE1_POST_CURSOR2                                       0x0c
 #define DPCD_LS0C_LANE0_POST_CURSOR2                                       0x03
 
-void nvkm_dp_train(struct work_struct *);
+/* DPCD Sink Control */
+#define DPCD_SC00                                                       0x00600
+#define DPCD_SC00_SET_POWER                                                0x03
+#define DPCD_SC00_SET_POWER_D0                                             0x01
+#define DPCD_SC00_SET_POWER_D3                                             0x03
+
+void nvkm_dp_train(struct nvkm_output_dp *);
 #endif

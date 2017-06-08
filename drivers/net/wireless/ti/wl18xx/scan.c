@@ -110,7 +110,7 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	/* TODO: per-band ies? */
 	if (cmd->active[0]) {
-		u8 band = IEEE80211_BAND_2GHZ;
+		u8 band = NL80211_BAND_2GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
 				 cmd->role_id, band,
 				 req->ssids ? req->ssids[0].ssid : NULL,
@@ -127,7 +127,7 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	}
 
 	if (cmd->active[1] || cmd->dfs) {
-		u8 band = IEEE80211_BAND_5GHZ;
+		u8 band = NL80211_BAND_5GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
 				 cmd->role_id, band,
 				 req->ssids ? req->ssids[0].ssid : NULL,
@@ -228,13 +228,15 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 	wl18xx_adjust_channels(cmd, cmd_channels);
 
 	if (c->num_short_intervals && c->long_interval &&
-	    c->long_interval > req->interval) {
-		cmd->short_cycles_msec = cpu_to_le16(req->interval);
+	    c->long_interval > req->scan_plans[0].interval * MSEC_PER_SEC) {
+		cmd->short_cycles_msec =
+			cpu_to_le16(req->scan_plans[0].interval * MSEC_PER_SEC);
 		cmd->long_cycles_msec = cpu_to_le16(c->long_interval);
 		cmd->short_cycles_count = c->num_short_intervals;
 	} else {
 		cmd->short_cycles_msec = 0;
-		cmd->long_cycles_msec = cpu_to_le16(req->interval);
+		cmd->long_cycles_msec =
+			cpu_to_le16(req->scan_plans[0].interval * MSEC_PER_SEC);
 		cmd->short_cycles_count = 0;
 	}
 	wl1271_debug(DEBUG_SCAN, "short_interval: %d, long_interval: %d, num_short: %d",
@@ -251,7 +253,7 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 	cmd->terminate_on_report = 0;
 
 	if (cmd->active[0]) {
-		u8 band = IEEE80211_BAND_2GHZ;
+		u8 band = NL80211_BAND_2GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
 				 cmd->role_id, band,
 				 req->ssids ? req->ssids[0].ssid : NULL,
@@ -268,7 +270,7 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 	}
 
 	if (cmd->active[1] || cmd->dfs) {
-		u8 band = IEEE80211_BAND_5GHZ;
+		u8 band = NL80211_BAND_5GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
 				 cmd->role_id, band,
 				 req->ssids ? req->ssids[0].ssid : NULL,

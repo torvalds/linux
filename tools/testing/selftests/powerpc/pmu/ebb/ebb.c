@@ -15,7 +15,6 @@
 #include <sys/ioctl.h>
 
 #include "trace.h"
-#include "reg.h"
 #include "ebb.h"
 
 
@@ -317,6 +316,16 @@ void ebb_global_disable(void)
 	/* Disable EBBs & freeze counters, events are still scheduled */
 	mtspr(SPRN_BESCRR, BESCR_PME);
 	mb();
+}
+
+bool ebb_is_supported(void)
+{
+#ifdef PPC_FEATURE2_EBB
+	/* EBB requires at least POWER8 */
+	return have_hwcap2(PPC_FEATURE2_EBB);
+#else
+	return false;
+#endif
 }
 
 void event_ebb_init(struct event *e)

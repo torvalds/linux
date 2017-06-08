@@ -4,11 +4,12 @@
 menuconfig CORESIGHT
 	bool "CoreSight Tracing Support"
 	select ARM_AMBA
+	select PERF_EVENTS
 	help
 	  This framework provides a kernel interface for the CoreSight debug
 	  and trace drivers to register themselves with. It's intended to build
 	  a topological view of the CoreSight components based on a DT
-	  specification and configure the right serie of components when a
+	  specification and configure the right series of components when a
 	  trace source gets enabled.
 
 if CORESIGHT
@@ -76,5 +77,16 @@ config CORESIGHT_QCOM_REPLICATOR
 	  This enables support for Qualcomm CoreSight link driver. The
 	  programmable ATB replicator sends the ATB trace stream from the
 	  ETB/ETF to the TPIUi and ETR.
+
+config CORESIGHT_STM
+	bool "CoreSight System Trace Macrocell driver"
+	depends on (ARM && !(CPU_32v3 || CPU_32v4 || CPU_32v4T)) || ARM64
+	select CORESIGHT_LINKS_AND_SINKS
+	select STM
+	help
+	  This driver provides support for hardware assisted software
+	  instrumentation based tracing. This is primarily used for
+	  logging useful software events or data coming from various entities
+	  in the system, possibly running different OSs
 
 endif

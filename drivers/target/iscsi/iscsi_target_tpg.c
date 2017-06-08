@@ -16,9 +16,9 @@
  * GNU General Public License for more details.
  ******************************************************************************/
 
+#include <linux/slab.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_erl0.h"
 #include "iscsi_target_login.h"
@@ -260,7 +260,6 @@ err_out:
 		iscsi_release_param_list(tpg->param_list);
 		tpg->param_list = NULL;
 	}
-	kfree(tpg);
 	return -ENOMEM;
 }
 
@@ -588,16 +587,6 @@ int iscsit_tpg_del_network_portal(
 	spin_unlock(&tpg->tpg_np_lock);
 
 	return iscsit_tpg_release_np(tpg_np, tpg, np);
-}
-
-int iscsit_tpg_set_initiator_node_queue_depth(
-	struct iscsi_portal_group *tpg,
-	unsigned char *initiatorname,
-	u32 queue_depth,
-	int force)
-{
-	return core_tpg_set_initiator_node_queue_depth(&tpg->tpg_se_tpg,
-		initiatorname, queue_depth, force);
 }
 
 int iscsit_ta_authentication(struct iscsi_portal_group *tpg, u32 authentication)

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,6 @@
  */
 
 #include <acpi/acpi.h>
-#include <linux/acpi.h>
 #include "accommon.h"
 
 #define _COMPONENT          ACPI_HARDWARE
@@ -103,7 +102,7 @@ void acpi_hw_execute_sleep_method(char *method_pathname, u32 integer_argument)
 acpi_status acpi_hw_extended_sleep(u8 sleep_state)
 {
 	acpi_status status;
-	u8 sleep_type_value;
+	u8 sleep_control;
 	u64 sleep_status;
 
 	ACPI_FUNCTION_TRACE(hw_extended_sleep);
@@ -117,25 +116,13 @@ acpi_status acpi_hw_extended_sleep(u8 sleep_state)
 
 	/* Clear wake status (WAK_STS) */
 
-	status =
-	    acpi_write((u64)ACPI_X_WAKE_STATUS, &acpi_gbl_FADT.sleep_status);
+	status = acpi_write((u64)ACPI_X_WAKE_STATUS,
+			    &acpi_gbl_FADT.sleep_status);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
 	acpi_gbl_system_awake_and_running = FALSE;
-
-	/* Flush caches, as per ACPI specification */
-
-	ACPI_FLUSH_CPU_CACHE();
-
-	status = acpi_os_prepare_extended_sleep(sleep_state,
-						acpi_gbl_sleep_type_a,
-						acpi_gbl_sleep_type_b);
-	if (ACPI_SKIP(status))
-		return_ACPI_STATUS(AE_OK);
-	if (ACPI_FAILURE(status))
-		return_ACPI_STATUS(status);
 
 	/*
 	 * Set the SLP_TYP and SLP_EN bits.
@@ -146,12 +133,22 @@ acpi_status acpi_hw_extended_sleep(u8 sleep_state)
 	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
 			  "Entering sleep state [S%u]\n", sleep_state));
 
-	sleep_type_value =
-	    ((acpi_gbl_sleep_type_a << ACPI_X_SLEEP_TYPE_POSITION) &
-	     ACPI_X_SLEEP_TYPE_MASK);
+	sleep_control = ((acpi_gbl_sleep_type_a << ACPI_X_SLEEP_TYPE_POSITION) &
+			 ACPI_X_SLEEP_TYPE_MASK) | ACPI_X_SLEEP_ENABLE;
 
-	status = acpi_write((u64)(sleep_type_value | ACPI_X_SLEEP_ENABLE),
-			    &acpi_gbl_FADT.sleep_control);
+	/* Flush caches, as per ACPI specification */
+
+	ACPI_FLUSH_CPU_CACHE();
+
+	status = acpi_os_enter_sleep(sleep_state, sleep_control, 0);
+	if (status == AE_CTRL_TERMINATE) {
+		return_ACPI_STATUS(AE_OK);
+	}
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	status = acpi_write((u64)sleep_control, &acpi_gbl_FADT.sleep_control);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

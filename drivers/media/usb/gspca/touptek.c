@@ -203,7 +203,7 @@ static int val_reply(struct gspca_dev *gspca_dev, const char *reply, int rc)
 		return -EIO;
 	}
 	if (reply[0] != 0x08) {
-		PERR("Bad reply 0x%02X", reply[0]);
+		PERR("Bad reply 0x%02x", (int)reply[0]);
 		return -EIO;
 	}
 	return 0;
@@ -211,7 +211,7 @@ static int val_reply(struct gspca_dev *gspca_dev, const char *reply, int rc)
 
 static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
 {
-	char buff[1];
+	char *buff = gspca_dev->usb_buf;
 	int rc;
 
 	PDEBUG(D_USBO,
@@ -219,7 +219,7 @@ static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
 		value, index);
 	rc = usb_control_msg(gspca_dev->dev, usb_rcvctrlpipe(gspca_dev->dev, 0),
 		0x0B, 0xC0, value, index, buff, 1, 500);
-	PDEBUG(D_USBO, "rc=%d, ret={0x%02X}", rc, buff[0]);
+	PDEBUG(D_USBO, "rc=%d, ret={0x%02x}", rc, (int)buff[0]);
 	if (rc < 0) {
 		PERR("Failed reg_w(0x0B, 0xC0, 0x%04X, 0x%04X) w/ rc %d\n",
 			value, index, rc);
@@ -438,7 +438,7 @@ static void configure_encrypted(struct gspca_dev *gspca_dev)
 static int configure(struct gspca_dev *gspca_dev)
 {
 	int rc;
-	uint8_t buff[4];
+	char *buff = gspca_dev->usb_buf;
 
 	PDEBUG(D_STREAM, "configure()\n");
 

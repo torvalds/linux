@@ -74,7 +74,7 @@ static struct clk_ops clk_pll_ops = {
 	.get_parent = clk_pll_get_parent,
 };
 
-static struct __init clk * __socfpga_pll_init(struct device_node *node,
+static struct clk * __init __socfpga_pll_init(struct device_node *node,
 	const struct clk_ops *ops)
 {
 	u32 reg;

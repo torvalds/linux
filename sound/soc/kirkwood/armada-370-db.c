@@ -42,7 +42,7 @@ static int a370db_hw_params(struct snd_pcm_substream *substream,
 	return snd_soc_dai_set_sysclk(codec_dai, 0, freq, SND_SOC_CLOCK_IN);
 }
 
-static struct snd_soc_ops a370db_ops = {
+static const struct snd_soc_ops a370db_ops = {
 	.hw_params = a370db_hw_params,
 };
 
@@ -130,6 +130,7 @@ static const struct of_device_id a370db_dt_ids[] = {
 	{ .compatible = "marvell,a370db-audio" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, a370db_dt_ids);
 
 static struct platform_driver a370db_driver = {
 	.driver		= {

@@ -19,6 +19,7 @@
  *   GNU General Public License for more details.
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

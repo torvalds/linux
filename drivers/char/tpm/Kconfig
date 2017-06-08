@@ -6,6 +6,8 @@ menuconfig TCG_TPM
 	tristate "TPM Hardware Support"
 	depends on HAS_IOMEM
 	select SECURITYFS
+	select CRYPTO
+	select CRYPTO_HASH_INFO
 	---help---
 	  If you have a TPM security chip in your system, which
 	  implements the Trusted Computing Group's specification,
@@ -24,15 +26,34 @@ menuconfig TCG_TPM
 
 if TCG_TPM
 
+config TCG_TIS_CORE
+	tristate
+	---help---
+	TCG TIS TPM core driver. It implements the TPM TCG TIS logic and hooks
+	into the TPM kernel APIs. Physical layers will register against it.
+
 config TCG_TIS
 	tristate "TPM Interface Specification 1.2 Interface / TPM 2.0 FIFO Interface"
-	depends on X86
+	depends on X86 || OF
+	select TCG_TIS_CORE
 	---help---
 	  If you have a TPM security chip that is compliant with the
 	  TCG TIS 1.2 TPM specification (TPM1.2) or the TCG PTP FIFO
 	  specification (TPM2.0) say Yes and it will be accessible from
 	  within Linux. To compile this driver as a module, choose  M here;
 	  the module will be called tpm_tis.
+
+config TCG_TIS_SPI
+	tristate "TPM Interface Specification 1.3 Interface / TPM 2.0 FIFO Interface - (SPI)"
+	depends on SPI
+	select TCG_TIS_CORE
+	---help---
+	  If you have a TPM security chip which is connected to a regular,
+	  non-tcg SPI master (i.e. most embedded platforms) that is compliant with the
+	  TCG TIS 1.3 TPM specification (TPM1.2) or the TCG PTP FIFO
+	  specification (TPM2.0) say Yes and it will be accessible from
+	  within Linux. To compile this driver as a module, choose  M here;
+	  the module will be called tpm_tis_spi.
 
 config TCG_TIS_I2C_ATMEL
 	tristate "TPM Interface Specification 1.2 Interface (I2C - Atmel)"
@@ -115,12 +136,23 @@ config TCG_XEN
 
 config TCG_CRB
 	tristate "TPM 2.0 CRB Interface"
-	depends on X86 && ACPI
+	depends on ACPI
 	---help---
 	  If you have a TPM security chip that is compliant with the
 	  TCG CRB 2.0 TPM specification say Yes and it will be accessible
 	  from within Linux.  To compile this driver as a module, choose
 	  M here; the module will be called tpm_crb.
+
+config TCG_VTPM_PROXY
+	tristate "VTPM Proxy Interface"
+	depends on TCG_TPM
+	select ANON_INODES
+	---help---
+	  This driver proxies for an emulated TPM (vTPM) running in userspace.
+	  A device /dev/vtpmx is provided that creates a device pair
+	  /dev/vtpmX and a server-side file descriptor on which the vTPM
+	  can receive commands.
+
 
 source "drivers/char/tpm/st33zp24/Kconfig"
 endif # TCG_TPM

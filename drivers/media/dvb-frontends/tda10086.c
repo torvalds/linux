@@ -459,9 +459,9 @@ static int tda10086_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda10086_get_frontend(struct dvb_frontend *fe)
+static int tda10086_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *fe_params)
 {
-	struct dtv_frontend_properties *fe_params = &fe->dtv_property_cache;
 	struct tda10086_state* state = fe->demodulator_priv;
 	u8 val;
 	int tmp;
@@ -706,7 +706,7 @@ static void tda10086_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops tda10086_ops = {
+static const struct dvb_frontend_ops tda10086_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name     = "Philips TDA10086 DVB-S",

@@ -1,0 +1,58 @@
+* Atmel ClassD driver under ALSA SoC architecture
+
+Required properties:
+- compatible
+	Should be "atmel,sama5d2-classd".
+- reg
+	Should contain ClassD registers location and length.
+- interrupts
+	Should contain the IRQ line for the ClassD.
+- dmas
+	One DMA specifiers as described in atmel-dma.txt and dma.txt files.
+- dma-names
+	Must be "tx".
+- clock-names
+	Tuple listing input clock names.
+	Required elements: "pclk", "gclk" and "aclk".
+- clocks
+	Please refer to clock-bindings.txt.
+- assigned-clocks
+	Should be <&classd_gclk>.
+- assigned-clock-parents
+	Should be <&audio_pll_pmc>.
+
+Optional properties:
+- pinctrl-names, pinctrl-0
+	Please refer to pinctrl-bindings.txt.
+- atmel,model
+	The user-visible name of this sound complex.
+	The default value is "CLASSD".
+- atmel,pwm-type
+	PWM modulation type, "single" or "diff".
+	The default value is "single".
+- atmel,non-overlap-time
+	Set non-overlapping time, the unit is nanosecond(ns).
+	There are four values,
+	<5>, <10>, <15>, <20>, the default value is <10>.
+	Non-overlapping will be disabled if not specified.
+
+Example:
+classd: classd@fc048000 {
+		compatible = "atmel,sama5d2-classd";
+		reg = <0xfc048000 0x100>;
+		interrupts = <59 IRQ_TYPE_LEVEL_HIGH 7>;
+		dmas = <&dma0
+			(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+			| AT91_XDMAC_DT_PERID(47))>;
+		dma-names = "tx";
+		clocks = <&classd_clk>, <&classd_gclk>, <&audio_pll_pmc>;
+		clock-names = "pclk", "gclk", "aclk";
+		assigned-clocks = <&classd_gclk>;
+		assigned-clock-parents = <&audio_pll_pmc>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_classd_default>;
+		atmel,model = "classd @ SAMA5D2-Xplained";
+		atmel,pwm-type = "diff";
+		atmel,non-overlap-time = <10>;
+};

@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_lpat.h>
 
@@ -157,5 +157,3 @@ void acpi_lpat_free_conversion_table(struct acpi_lpat_conversion_table
 	}
 }
 EXPORT_SYMBOL_GPL(acpi_lpat_free_conversion_table);
-
-MODULE_LICENSE("GPL");

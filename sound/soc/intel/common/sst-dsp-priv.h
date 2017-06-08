@@ -243,7 +243,7 @@ struct sst_mem_block {
 	u32 size;			/* block size */
 	u32 index;			/* block index 0..N */
 	enum sst_mem_type type;		/* block memory type IRAM/DRAM */
-	struct sst_block_ops *ops;	/* block operations, if any */
+	const struct sst_block_ops *ops;/* block operations, if any */
 
 	/* block status */
 	u32 bytes_used;			/* bytes in use by modules */
@@ -308,12 +308,16 @@ struct sst_dsp {
 
 	/* SKL data */
 
+	const char *fw_name;
+
 	/* To allocate CL dma buffers */
 	struct skl_dsp_loader_ops dsp_ops;
 	struct skl_dsp_fw_ops fw_ops;
 	int sst_state;
 	struct skl_cl_dev cl_dev;
 	u32 intr_status;
+	const struct firmware *fw;
+	struct snd_dma_buffer dmab;
 };
 
 /* Size optimised DRAM/IRAM memcpy */
@@ -375,13 +379,9 @@ void sst_block_free_scratch(struct sst_dsp *dsp);
 
 /* Register the DSPs memory blocks - would be nice to read from ACPI */
 struct sst_mem_block *sst_mem_block_register(struct sst_dsp *dsp, u32 offset,
-	u32 size, enum sst_mem_type type, struct sst_block_ops *ops, u32 index,
-	void *private);
+	u32 size, enum sst_mem_type type, const struct sst_block_ops *ops,
+	u32 index, void *private);
 void sst_mem_block_unregister_all(struct sst_dsp *dsp);
-
-/* Create/Free DMA resources */
-int sst_dma_new(struct sst_dsp *sst);
-void sst_dma_free(struct sst_dma *dma);
 
 u32 sst_dsp_get_offset(struct sst_dsp *dsp, u32 offset,
 	enum sst_mem_type type);

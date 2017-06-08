@@ -125,6 +125,7 @@
 #define PPC4XX_INTERRUPT_CLR			0x3ffff
 #define PPC4XX_PRNG_CTRL_AUTO_EN		0x3
 #define PPC4XX_DC_3DES_EN			1
+#define PPC4XX_TRNG_EN				0x00020000
 #define PPC4XX_INT_DESCR_CNT			4
 #define PPC4XX_INT_TIMEOUT_CNT			0
 #define PPC4XX_INT_CFG				1
@@ -179,7 +180,7 @@ union ce_ring_size {
 } __attribute__((packed));
 
 #define CRYPTO4XX_RING_CONTROL_OFFSET		0x54
-union ce_ring_contol {
+union ce_ring_control {
 	struct {
 		u32 continuous:1;
 		u32 rsv:5;

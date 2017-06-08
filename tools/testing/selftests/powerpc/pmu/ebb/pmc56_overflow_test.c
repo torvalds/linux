@@ -49,6 +49,8 @@ int pmc56_overflow(void)
 {
 	struct event event;
 
+	SKIP_IF(!ebb_is_supported());
+
 	/* Use PMC2 so we set PMCjCE, which enables PMC5/6 */
 	event_init(&event, 0x2001e);
 	event_leader_ebb_init(&event);
@@ -64,7 +66,7 @@ int pmc56_overflow(void)
 
 	FAIL_IF(ebb_event_enable(&event));
 
-	mtspr(SPRN_PMC1, pmc_sample_period(sample_period));
+	mtspr(SPRN_PMC2, pmc_sample_period(sample_period));
 	mtspr(SPRN_PMC5, 0);
 	mtspr(SPRN_PMC6, 0);
 

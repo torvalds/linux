@@ -8,19 +8,9 @@
 #include <linux/alarmtimer.h>
 
 
-static inline unsigned long long cputime_to_expires(cputime_t expires)
-{
-	return (__force unsigned long long)expires;
-}
-
-static inline cputime_t expires_to_cputime(unsigned long long expires)
-{
-	return (__force cputime_t)expires;
-}
-
 struct cpu_timer_list {
 	struct list_head entry;
-	unsigned long long expires, incr;
+	u64 expires, incr;
 	struct task_struct *task;
 	int firing;
 };
@@ -97,22 +87,22 @@ struct k_itimer {
 };
 
 struct k_clock {
-	int (*clock_getres) (const clockid_t which_clock, struct timespec *tp);
+	int (*clock_getres) (const clockid_t which_clock, struct timespec64 *tp);
 	int (*clock_set) (const clockid_t which_clock,
-			  const struct timespec *tp);
-	int (*clock_get) (const clockid_t which_clock, struct timespec * tp);
+			  const struct timespec64 *tp);
+	int (*clock_get) (const clockid_t which_clock, struct timespec64 *tp);
 	int (*clock_adj) (const clockid_t which_clock, struct timex *tx);
 	int (*timer_create) (struct k_itimer *timer);
 	int (*nsleep) (const clockid_t which_clock, int flags,
-		       struct timespec *, struct timespec __user *);
+		       struct timespec64 *, struct timespec __user *);
 	long (*nsleep_restart) (struct restart_block *restart_block);
-	int (*timer_set) (struct k_itimer * timr, int flags,
-			  struct itimerspec * new_setting,
-			  struct itimerspec * old_setting);
-	int (*timer_del) (struct k_itimer * timr);
+	int (*timer_set) (struct k_itimer *timr, int flags,
+			  struct itimerspec64 *new_setting,
+			  struct itimerspec64 *old_setting);
+	int (*timer_del) (struct k_itimer *timr);
 #define TIMER_RETRY 1
-	void (*timer_get) (struct k_itimer * timr,
-			   struct itimerspec * cur_setting);
+	void (*timer_get) (struct k_itimer *timr,
+			   struct itimerspec64 *cur_setting);
 };
 
 extern struct k_clock clock_posix_cpu;
@@ -128,11 +118,8 @@ void posix_cpu_timer_schedule(struct k_itimer *timer);
 void run_posix_cpu_timers(struct task_struct *task);
 void posix_cpu_timers_exit(struct task_struct *task);
 void posix_cpu_timers_exit_group(struct task_struct *task);
-
-bool posix_cpu_timers_can_stop_tick(struct task_struct *tsk);
-
 void set_process_cpu_timer(struct task_struct *task, unsigned int clock_idx,
-			   cputime_t *newval, cputime_t *oldval);
+			   u64 *newval, u64 *oldval);
 
 long clock_nanosleep_restart(struct restart_block *restart_block);
 

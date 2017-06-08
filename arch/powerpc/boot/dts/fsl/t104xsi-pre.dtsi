@@ -1,7 +1,7 @@
 /*
  * T1040/T1042 Silicon/SoC Device Tree Source (pre include)
  *
- * Copyright 2013 Freescale Semiconductor Inc.
+ * Copyright 2013-2014 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -58,6 +58,13 @@
 		sdhc = &sdhc;
 
 		crypto = &crypto;
+
+		fman0 = &fman0;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		ethernet4 = &enet4;
 	};
 
 	cpus {
@@ -69,6 +76,7 @@
 			reg = <0>;
 			clocks = <&mux0>;
 			next-level-cache = <&L2_1>;
+			#cooling-cells = <2>;
 			L2_1: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -78,6 +86,7 @@
 			reg = <1>;
 			clocks = <&mux1>;
 			next-level-cache = <&L2_2>;
+			#cooling-cells = <2>;
 			L2_2: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -87,6 +96,7 @@
 			reg = <2>;
 			clocks = <&mux2>;
 			next-level-cache = <&L2_3>;
+			#cooling-cells = <2>;
 			L2_3: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -96,6 +106,7 @@
 			reg = <3>;
 			clocks = <&mux3>;
 			next-level-cache = <&L2_4>;
+			#cooling-cells = <2>;
 			L2_4: l2-cache {
 				next-level-cache = <&cpc>;
 			};

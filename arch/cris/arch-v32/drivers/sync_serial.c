@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/major.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
@@ -1627,6 +1627,12 @@ static int __init etrax_sync_serial_init(void)
 
 	/* Create a sysfs class for syncser */
 	syncser_class = class_create(THIS_MODULE, "syncser_class");
+	if (IS_ERR(syncser_class)) {
+		pr_err("Failed to create a sysfs class for syncser\n");
+		unregister_chrdev_region(syncser_first, minor_count);
+		cdev_del(syncser_cdev);
+		return -1;
+	}
 
 	/* Initialize Ports */
 #if defined(CONFIG_ETRAX_SYNCHRONOUS_SERIAL_PORT0)

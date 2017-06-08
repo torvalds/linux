@@ -1,5 +1,5 @@
 #
-# Makefile for the Linux/SuperH CPU-specifc backends.
+# Makefile for the Linux/SuperH CPU-specific backends.
 #
 
 obj-$(CONFIG_CPU_SH2)		= sh2/

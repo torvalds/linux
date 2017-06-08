@@ -46,25 +46,24 @@ static inline int ieee754sp_finite(union ieee754sp x)
 }
 
 /* 3bit extended single precision sticky right shift */
-#define SPXSRSXn(rs)							\
-	(xe += rs,							\
-	 xm = (rs > (SP_FBITS+3))?1:((xm) >> (rs)) | ((xm) << (32-(rs)) != 0))
+#define XSPSRS(v, rs)						\
+	((rs > (SP_FBITS+3))?1:((v) >> (rs)) | ((v) << (32-(rs)) != 0))
+
+#define XSPSRS1(m) \
+	((m >> 1) | (m & 1))
 
 #define SPXSRSX1() \
-	(xe++, (xm = (xm >> 1) | (xm & 1)))
-
-#define SPXSRSYn(rs)								\
-	(ye+=rs,								\
-	 ym = (rs > (SP_FBITS+3))?1:((ym) >> (rs)) | ((ym) << (32-(rs)) != 0))
+	(xe++, (xm = XSPSRS1(xm)))
 
 #define SPXSRSY1() \
-	(ye++, (ym = (ym >> 1) | (ym & 1)))
+	(ye++, (ym = XSPSRS1(ym)))
 
 /* convert denormal to normalized with extended exponent */
 #define SPDNORMx(m,e) \
 	while ((m >> SP_FBITS) == 0) { m <<= 1; e--; }
 #define SPDNORMX	SPDNORMx(xm, xe)
 #define SPDNORMY	SPDNORMx(ym, ye)
+#define SPDNORMZ	SPDNORMx(zm, ze)
 
 static inline union ieee754sp buildsp(int s, int bx, unsigned m)
 {

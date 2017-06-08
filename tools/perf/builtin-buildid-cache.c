@@ -10,17 +10,19 @@
 #include <sys/time.h>
 #include <time.h>
 #include <dirent.h>
+#include <errno.h>
 #include <unistd.h>
 #include "builtin.h"
 #include "perf.h"
 #include "util/cache.h"
 #include "util/debug.h"
 #include "util/header.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/strlist.h"
 #include "util/build-id.h"
 #include "util/session.h"
 #include "util/symbol.h"
+#include "util/time-utils.h"
 
 static int build_id_cache__kcore_buildid(const char *proc_dir, char *sbuildid)
 {
@@ -38,19 +40,7 @@ static int build_id_cache__kcore_buildid(const char *proc_dir, char *sbuildid)
 
 static int build_id_cache__kcore_dir(char *dir, size_t sz)
 {
-	struct timeval tv;
-	struct tm tm;
-	char dt[32];
-
-	if (gettimeofday(&tv, NULL) || !localtime_r(&tv.tv_sec, &tm))
-		return -1;
-
-	if (!strftime(dt, sizeof(dt), "%Y%m%d%H%M%S", &tm))
-		return -1;
-
-	scnprintf(dir, sz, "%s%02u", dt, (unsigned)tv.tv_usec / 10000);
-
-	return 0;
+	return fetch_current_timestamp(dir, sz);
 }
 
 static bool same_kallsyms_reloc(const char *from_dir, char *to_dir)
@@ -59,19 +49,22 @@ static bool same_kallsyms_reloc(const char *from_dir, char *to_dir)
 	char to[PATH_MAX];
 	const char *name;
 	u64 addr1 = 0, addr2 = 0;
-	int i;
+	int i, err = -1;
 
 	scnprintf(from, sizeof(from), "%s/kallsyms", from_dir);
 	scnprintf(to, sizeof(to), "%s/kallsyms", to_dir);
 
 	for (i = 0; (name = ref_reloc_sym_names[i]) != NULL; i++) {
-		addr1 = kallsyms__get_function_start(from, name);
-		if (addr1)
+		err = kallsyms__get_function_start(from, name, &addr1);
+		if (!err)
 			break;
 	}
 
-	if (name)
-		addr2 = kallsyms__get_function_start(to, name);
+	if (err)
+		return false;
+
+	if (kallsyms__get_function_start(to, name, &addr2))
+		return false;
 
 	return addr1 == addr2;
 }
@@ -131,8 +124,8 @@ static int build_id_cache__add_kcore(const char *filename, bool force)
 	if (build_id_cache__kcore_buildid(from_dir, sbuildid) < 0)
 		return -1;
 
-	scnprintf(to_dir, sizeof(to_dir), "%s/[kernel.kcore]/%s",
-		  buildid_dir, sbuildid);
+	scnprintf(to_dir, sizeof(to_dir), "%s/%s/%s",
+		  buildid_dir, DSO__NAME_KCORE, sbuildid);
 
 	if (!force &&
 	    !build_id_cache__kcore_existing(from_dir, to_dir, sizeof(to_dir))) {
@@ -143,8 +136,8 @@ static int build_id_cache__add_kcore(const char *filename, bool force)
 	if (build_id_cache__kcore_dir(dir, sizeof(dir)))
 		return -1;
 
-	scnprintf(to_dir, sizeof(to_dir), "%s/[kernel.kcore]/%s/%s",
-		  buildid_dir, sbuildid, dir);
+	scnprintf(to_dir, sizeof(to_dir), "%s/%s/%s/%s",
+		  buildid_dir, DSO__NAME_KCORE, sbuildid, dir);
 
 	if (mkdir_p(to_dir, 0755))
 		return -1;
@@ -221,7 +214,7 @@ static int build_id_cache__purge_path(const char *pathname)
 	if (err)
 		goto out;
 
-	strlist__for_each(pos, list) {
+	strlist__for_each_entry(pos, list) {
 		err = build_id_cache__remove_s(pos->s);
 		pr_debug("Removing %s %s: %s\n", pos->s, pathname,
 			 err ? "FAIL" : "Ok");
@@ -288,8 +281,7 @@ static int build_id_cache__update_file(const char *filename)
 	return err;
 }
 
-int cmd_buildid_cache(int argc, const char **argv,
-		      const char *prefix __maybe_unused)
+int cmd_buildid_cache(int argc, const char **argv)
 {
 	struct strlist *list;
 	struct str_node *pos;
@@ -355,7 +347,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	if (add_name_list_str) {
 		list = strlist__new(add_name_list_str, NULL);
 		if (list) {
-			strlist__for_each(pos, list)
+			strlist__for_each_entry(pos, list)
 				if (build_id_cache__add_file(pos->s)) {
 					if (errno == EEXIST) {
 						pr_debug("%s already in the cache\n",
@@ -363,7 +355,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't add %s: %s\n",
-						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -373,7 +365,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	if (remove_name_list_str) {
 		list = strlist__new(remove_name_list_str, NULL);
 		if (list) {
-			strlist__for_each(pos, list)
+			strlist__for_each_entry(pos, list)
 				if (build_id_cache__remove_file(pos->s)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
@@ -381,7 +373,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't remove %s: %s\n",
-						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -391,7 +383,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	if (purge_name_list_str) {
 		list = strlist__new(purge_name_list_str, NULL);
 		if (list) {
-			strlist__for_each(pos, list)
+			strlist__for_each_entry(pos, list)
 				if (build_id_cache__purge_path(pos->s)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
@@ -399,7 +391,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't remove %s: %s\n",
-						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -412,7 +404,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	if (update_name_list_str) {
 		list = strlist__new(update_name_list_str, NULL);
 		if (list) {
-			strlist__for_each(pos, list)
+			strlist__for_each_entry(pos, list)
 				if (build_id_cache__update_file(pos->s)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
@@ -420,7 +412,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't update %s: %s\n",
-						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -431,8 +423,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		pr_warning("Couldn't add %s\n", kcore_filename);
 
 out:
-	if (session)
-		perf_session__delete(session);
+	perf_session__delete(session);
 
 	return ret;
 }

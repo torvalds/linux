@@ -21,12 +21,11 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/slab.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/of_device.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regmap.h>
 
@@ -46,7 +45,7 @@ static int da9210_set_current_limit(struct regulator_dev *rdev, int min_uA,
 				    int max_uA);
 static int da9210_get_current_limit(struct regulator_dev *rdev);
 
-static struct regulator_ops da9210_buck_ops = {
+static const struct regulator_ops da9210_buck_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -132,6 +131,8 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 	if (error < 0)
 		goto error_i2c;
 
+	mutex_lock(&chip->rdev->mutex);
+
 	if (val & DA9210_E_OVCURR) {
 		regulator_notifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_OVER_CURRENT,
@@ -155,6 +156,9 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 					      NULL);
 		handled |= DA9210_E_VMAX;
 	}
+
+	mutex_unlock(&chip->rdev->mutex);
+
 	if (handled) {
 		/* Clear handled events */
 		error = regmap_write(chip->regmap, DA9210_REG_EVENT_B, handled);
@@ -174,6 +178,13 @@ error_i2c:
 /*
  * I2C driver interface functions
  */
+
+static const struct of_device_id da9210_dt_ids[] = {
+	{ .compatible = "dlg,da9210", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, da9210_dt_ids);
+
 static int da9210_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -183,6 +194,16 @@ static int da9210_i2c_probe(struct i2c_client *i2c,
 	struct regulator_dev *rdev = NULL;
 	struct regulator_config config = { };
 	int error;
+	const struct of_device_id *match;
+
+	if (i2c->dev.of_node && !pdata) {
+		match = of_match_device(of_match_ptr(da9210_dt_ids),
+						&i2c->dev);
+		if (!match) {
+			dev_err(&i2c->dev, "Error: No device match found\n");
+			return -ENODEV;
+		}
+	}
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9210), GFP_KERNEL);
 	if (!chip)
@@ -259,6 +280,7 @@ MODULE_DEVICE_TABLE(i2c, da9210_i2c_id);
 static struct i2c_driver da9210_regulator_driver = {
 	.driver = {
 		.name = "da9210",
+		.of_match_table = of_match_ptr(da9210_dt_ids),
 	},
 	.probe = da9210_i2c_probe,
 	.id_table = da9210_i2c_id,

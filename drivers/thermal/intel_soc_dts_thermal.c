@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include "intel_soc_dts_iosf.h"
 
 #define CRITICAL_OFFSET_FROM_TJ_MAX	5000
@@ -42,7 +43,8 @@ static irqreturn_t soc_irq_thread_fn(int irq, void *dev_data)
 }
 
 static const struct x86_cpu_id soc_thermal_ids[] = {
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, 0x37, 0, BYT_SOC_DTS_APIC_IRQ},
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT1, 0,
+		BYT_SOC_DTS_APIC_IRQ},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, soc_thermal_ids);
@@ -71,8 +73,12 @@ static int __init intel_soc_thermal_init(void)
 					   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					   "soc_dts", soc_dts);
 		if (err) {
-			pr_err("request_threaded_irq ret %d\n", err);
-			goto error_irq;
+			/*
+			 * Do not just error out because the user space thermal
+			 * daemon such as DPTF may use polling instead of being
+			 * interrupt driven.
+			 */
+			pr_warn("request_threaded_irq ret %d\n", err);
 		}
 	}
 
@@ -86,7 +92,6 @@ static int __init intel_soc_thermal_init(void)
 error_trips:
 	if (soc_dts_thres_irq)
 		free_irq(soc_dts_thres_irq, soc_dts);
-error_irq:
 	intel_soc_dts_iosf_exit(soc_dts);
 
 	return err;

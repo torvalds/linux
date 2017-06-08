@@ -15,6 +15,10 @@
 		serial2 = &uartd;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	host1x@50000000 {
 		dc@54200000 {
 			rgb {
@@ -55,7 +59,7 @@
 
 		/* M41T0M6 real time clock on carrier board */
 		rtc@68 {
-			compatible = "stm,m41t00";
+			compatible = "st,m41t00";
 			reg = <0x68>;
 		};
 	};
@@ -84,6 +88,7 @@
 		};
 	};
 
+	/* SD/MMC */
 	sdhci@78000200 {
 		status = "okay";
 		bus-width = <4>;
@@ -126,7 +131,7 @@
 	clocks {
 		clk16m: clk@1 {
 			compatible = "fixed-clock";
-			reg=<1>;
+			reg = <1>;
 			#clock-cells = <0>;
 			clock-frequency = <16000000>;
 			clock-output-names = "clk16m";
@@ -136,12 +141,12 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		power {
-			label = "Power";
+		wakeup {
+			label = "SODIMM pin 45 wakeup";
 			gpios = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
-			linux,code = <KEY_POWER>;
+			linux,code = <KEY_WAKEUP>;
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

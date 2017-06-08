@@ -28,6 +28,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/slot-gpio.h>
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
@@ -85,7 +86,7 @@ struct pxamci_host {
 static inline void pxamci_init_ocr(struct pxamci_host *host)
 {
 #ifdef CONFIG_REGULATOR
-	host->vcc = regulator_get_optional(mmc_dev(host->mmc), "vmmc");
+	host->vcc = devm_regulator_get_optional(mmc_dev(host->mmc), "vmmc");
 
 	if (IS_ERR(host->vcc))
 		host->vcc = NULL;
@@ -189,9 +190,6 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 	int ret;
 
 	host->data = data;
-
-	if (data->flags & MMC_DATA_STREAM)
-		nob = 0xffff;
 
 	writel(nob, host->base + MMC_NOB);
 	writel(data->blksz, host->base + MMC_BLKLEN);
@@ -442,9 +440,6 @@ static void pxamci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		cmdat |= CMDAT_DATAEN | CMDAT_DMAEN;
 		if (mrq->data->flags & MMC_DATA_WRITE)
 			cmdat |= CMDAT_WRITE;
-
-		if (mrq->data->flags & MMC_DATA_STREAM)
-			cmdat |= CMDAT_STREAM;
 	}
 
 	pxamci_start_cmd(host, mrq->cmd, cmdat);
@@ -454,12 +449,8 @@ static int pxamci_get_ro(struct mmc_host *mmc)
 {
 	struct pxamci_host *host = mmc_priv(mmc);
 
-	if (host->pdata && gpio_is_valid(host->pdata->gpio_card_ro)) {
-		if (host->pdata->gpio_card_ro_invert)
-			return !gpio_get_value(host->pdata->gpio_card_ro);
-		else
-			return gpio_get_value(host->pdata->gpio_card_ro);
-	}
+	if (host->pdata && gpio_is_valid(host->pdata->gpio_card_ro))
+		return mmc_gpio_get_ro(mmc);
 	if (host->pdata && host->pdata->get_ro)
 		return !!host->pdata->get_ro(mmc_dev(mmc));
 	/*
@@ -551,6 +542,7 @@ static void pxamci_enable_sdio_irq(struct mmc_host *host, int enable)
 
 static const struct mmc_host_ops pxamci_ops = {
 	.request		= pxamci_request,
+	.get_cd			= mmc_gpio_get_cd,
 	.get_ro			= pxamci_get_ro,
 	.set_ios		= pxamci_set_ios,
 	.enable_sdio_irq	= pxamci_enable_sdio_irq,
@@ -656,12 +648,8 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!r || irq < 0)
-		return -ENXIO;
-
-	r = request_mem_region(r->start, SZ_4K, DRIVER_NAME);
-	if (!r)
-		return -EBUSY;
+	if (irq < 0)
+		return irq;
 
 	mmc = mmc_alloc_host(sizeof(struct pxamci_host), &pdev->dev);
 	if (!mmc) {
@@ -697,7 +685,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	host->pdata = pdev->dev.platform_data;
 	host->clkrt = CLKRT_OFF;
 
-	host->clk = clk_get(&pdev->dev, NULL);
+	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
 		host->clk = NULL;
@@ -729,9 +717,9 @@ static int pxamci_probe(struct platform_device *pdev)
 	host->irq = irq;
 	host->imask = MMC_I_MASK_ALL;
 
-	host->base = ioremap(r->start, SZ_4K);
-	if (!host->base) {
-		ret = -ENOMEM;
+	host->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(host->base)) {
+		ret = PTR_ERR(host->base);
 		goto out;
 	}
 
@@ -744,7 +732,8 @@ static int pxamci_probe(struct platform_device *pdev)
 	writel(64, host->base + MMC_RESTO);
 	writel(host->imask, host->base + MMC_I_MASK);
 
-	ret = request_irq(host->irq, pxamci_irq, 0, DRIVER_NAME, host);
+	ret = devm_request_irq(&pdev->dev, host->irq, pxamci_irq, 0,
+			       DRIVER_NAME, host);
 	if (ret)
 		goto out;
 
@@ -790,37 +779,33 @@ static int pxamci_probe(struct platform_device *pdev)
 		gpio_power = host->pdata->gpio_power;
 	}
 	if (gpio_is_valid(gpio_power)) {
-		ret = gpio_request(gpio_power, "mmc card power");
+		ret = devm_gpio_request(&pdev->dev, gpio_power,
+					"mmc card power");
 		if (ret) {
-			dev_err(&pdev->dev, "Failed requesting gpio_power %d\n", gpio_power);
+			dev_err(&pdev->dev, "Failed requesting gpio_power %d\n",
+				gpio_power);
 			goto out;
 		}
 		gpio_direction_output(gpio_power,
 				      host->pdata->gpio_power_invert);
 	}
 	if (gpio_is_valid(gpio_ro)) {
-		ret = gpio_request(gpio_ro, "mmc card read only");
+		ret = mmc_gpio_request_ro(mmc, gpio_ro);
 		if (ret) {
-			dev_err(&pdev->dev, "Failed requesting gpio_ro %d\n", gpio_ro);
-			goto err_gpio_ro;
+			dev_err(&pdev->dev, "Failed requesting gpio_ro %d\n",
+				gpio_ro);
+			goto out;
+		} else {
+			mmc->caps2 |= host->pdata->gpio_card_ro_invert ?
+				0 : MMC_CAP2_RO_ACTIVE_HIGH;
 		}
-		gpio_direction_input(gpio_ro);
 	}
-	if (gpio_is_valid(gpio_cd)) {
-		ret = gpio_request(gpio_cd, "mmc card detect");
-		if (ret) {
-			dev_err(&pdev->dev, "Failed requesting gpio_cd %d\n", gpio_cd);
-			goto err_gpio_cd;
-		}
-		gpio_direction_input(gpio_cd);
 
-		ret = request_irq(gpio_to_irq(gpio_cd), pxamci_detect_irq,
-				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				  "mmc card detect", mmc);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to request card detect IRQ\n");
-			goto err_request_irq;
-		}
+	if (gpio_is_valid(gpio_cd))
+		ret = mmc_gpio_request_cd(mmc, gpio_cd, 0);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed requesting gpio_cd %d\n", gpio_cd);
+		goto out;
 	}
 
 	if (host->pdata && host->pdata->init)
@@ -835,26 +820,15 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_request_irq:
-	gpio_free(gpio_cd);
-err_gpio_cd:
-	gpio_free(gpio_ro);
-err_gpio_ro:
-	gpio_free(gpio_power);
- out:
+out:
 	if (host) {
 		if (host->dma_chan_rx)
 			dma_release_channel(host->dma_chan_rx);
 		if (host->dma_chan_tx)
 			dma_release_channel(host->dma_chan_tx);
-		if (host->base)
-			iounmap(host->base);
-		if (host->clk)
-			clk_put(host->clk);
 	}
 	if (mmc)
 		mmc_free_host(mmc);
-	release_resource(r);
 	return ret;
 }
 
@@ -873,17 +847,6 @@ static int pxamci_remove(struct platform_device *pdev)
 			gpio_ro = host->pdata->gpio_card_ro;
 			gpio_power = host->pdata->gpio_power;
 		}
-		if (gpio_is_valid(gpio_cd)) {
-			free_irq(gpio_to_irq(gpio_cd), mmc);
-			gpio_free(gpio_cd);
-		}
-		if (gpio_is_valid(gpio_ro))
-			gpio_free(gpio_ro);
-		if (gpio_is_valid(gpio_power))
-			gpio_free(gpio_power);
-		if (host->vcc)
-			regulator_put(host->vcc);
-
 		if (host->pdata && host->pdata->exit)
 			host->pdata->exit(&pdev->dev, mmc);
 
@@ -892,16 +855,10 @@ static int pxamci_remove(struct platform_device *pdev)
 		       END_CMD_RES|PRG_DONE|DATA_TRAN_DONE,
 		       host->base + MMC_I_MASK);
 
-		free_irq(host->irq, host);
 		dmaengine_terminate_all(host->dma_chan_rx);
 		dmaengine_terminate_all(host->dma_chan_tx);
 		dma_release_channel(host->dma_chan_rx);
 		dma_release_channel(host->dma_chan_tx);
-		iounmap(host->base);
-
-		clk_put(host->clk);
-
-		release_resource(host->res);
 
 		mmc_free_host(mmc);
 	}

@@ -1,0 +1,43 @@
+/*
+ * Samsung's Exynos3250 based ARTIK5 evaluation board device tree source
+ *
+ * Copyright (c) 2016 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * Device tree source file for Samsung's ARTIK5 evaluation board
+ * which is based on Samsung Exynos3250 SoC.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+#include "exynos3250-artik5.dtsi"
+
+/ {
+	model = "Samsung ARTIK5 evaluation board";
+	compatible = "samsung,artik5-eval", "samsung,artik5",
+			"samsung,exynos3250", "samsung,exynos3";
+};
+
+&mshc_2 {
+	num-slots = <1>;
+	cap-sd-highspeed;
+	disable-wp;
+	vqmmc-supply = <&ldo3_reg>;
+	card-detect-delay = <200>;
+	clock-frequency = <100000000>;
+	max-frequency = <100000000>;
+	samsung,dw-mshc-ciu-div = <1>;
+	samsung,dw-mshc-sdr-timing = <0 1>;
+	samsung,dw-mshc-ddr-timing = <1 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd2_cmd &sd2_clk &sd2_cd &sd2_bus1 &sd2_bus4>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&serial_2 {
+	status = "okay";
+};

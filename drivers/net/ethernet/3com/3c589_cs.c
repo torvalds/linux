@@ -188,7 +188,6 @@ static const struct net_device_ops el3_netdev_ops = {
 	.ndo_set_config		= el3_config,
 	.ndo_get_stats		= el3_get_stats,
 	.ndo_set_rx_mode	= set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -534,7 +533,7 @@ static void el3_tx_timeout(struct net_device *dev)
 	netdev_warn(dev, "Transmit timed out!\n");
 	dump_status(dev);
 	dev->stats.tx_errors++;
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	/* Issue TX_RESET and TX_START commands. */
 	tc589_wait_for_completion(dev, TxReset);
 	outw(TxEnable, ioaddr + EL3_CMD);

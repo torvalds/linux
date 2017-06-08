@@ -15,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
+#include <linux/seq_file.h>
 
 /* Mark the filesystem dirty, so that chkdsk checks it when os/2 booted */
 
@@ -261,7 +262,7 @@ static int init_inodecache(void)
 	hpfs_inode_cachep = kmem_cache_create("hpfs_inode_cache",
 					     sizeof(struct hpfs_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
+						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
 	if (hpfs_inode_cachep == NULL)
 		return -ENOMEM;
@@ -453,10 +454,6 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	int lowercase, eas, chk, errs, chkdsk, timeshift;
 	int o;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
-	char *new_opts = kstrdup(data, GFP_KERNEL);
-
-	if (!new_opts)
-		return -ENOMEM;
 
 	sync_filesystem(s);
 
@@ -493,15 +490,42 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 
 	if (!(*flags & MS_RDONLY)) mark_dirty(s, 1);
 
-	replace_mount_options(s, new_opts);
-
 	hpfs_unlock(s);
 	return 0;
 
 out_err:
 	hpfs_unlock(s);
-	kfree(new_opts);
 	return -EINVAL;
+}
+
+static int hpfs_show_options(struct seq_file *seq, struct dentry *root)
+{
+	struct hpfs_sb_info *sbi = hpfs_sb(root->d_sb);
+
+	seq_printf(seq, ",uid=%u", from_kuid_munged(&init_user_ns, sbi->sb_uid));
+	seq_printf(seq, ",gid=%u", from_kgid_munged(&init_user_ns, sbi->sb_gid));
+	seq_printf(seq, ",umask=%03o", (~sbi->sb_mode & 0777));
+	if (sbi->sb_lowercase)
+		seq_printf(seq, ",case=lower");
+	if (!sbi->sb_chk)
+		seq_printf(seq, ",check=none");
+	if (sbi->sb_chk == 2)
+		seq_printf(seq, ",check=strict");
+	if (!sbi->sb_err)
+		seq_printf(seq, ",errors=continue");
+	if (sbi->sb_err == 2)
+		seq_printf(seq, ",errors=panic");
+	if (!sbi->sb_chkdsk)
+		seq_printf(seq, ",chkdsk=no");
+	if (sbi->sb_chkdsk == 2)
+		seq_printf(seq, ",chkdsk=always");
+	if (!sbi->sb_eas)
+		seq_printf(seq, ",eas=no");
+	if (sbi->sb_eas == 1)
+		seq_printf(seq, ",eas=ro");
+	if (sbi->sb_timeshift)
+		seq_printf(seq, ",timeshift=%d", sbi->sb_timeshift);
+	return 0;
 }
 
 /* Super operations */
@@ -514,7 +538,7 @@ static const struct super_operations hpfs_sops =
 	.put_super	= hpfs_put_super,
 	.statfs		= hpfs_statfs,
 	.remount_fs	= hpfs_remount_fs,
-	.show_options	= generic_show_options,
+	.show_options	= hpfs_show_options,
 };
 
 static int hpfs_fill_super(struct super_block *s, void *options, int silent)
@@ -536,8 +560,6 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	struct quad_buffer_head qbh;
 
 	int o;
-
-	save_mount_options(s, options);
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi) {

@@ -198,7 +198,7 @@ nv31_mpeg_intr(struct nvkm_engine *engine)
 		}
 
 		if (type == 0x00000010) {
-			if (!nv31_mpeg_mthd(mpeg, mthd, data))
+			if (nv31_mpeg_mthd(mpeg, mthd, data))
 				show &= ~0x01000000;
 		}
 	}
@@ -278,7 +278,7 @@ nv31_mpeg_new_(const struct nv31_mpeg_func *func, struct nvkm_device *device,
 	mpeg->func = func;
 	*pmpeg = &mpeg->engine;
 
-	return nvkm_engine_ctor(&nv31_mpeg_, device, index, 0x00000002,
+	return nvkm_engine_ctor(&nv31_mpeg_, device, index,
 				true, &mpeg->engine);
 }
 

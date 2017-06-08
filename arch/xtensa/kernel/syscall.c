@@ -15,7 +15,7 @@
  * Kevin Chea
  *
  */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/syscall.h>
 #include <asm/unistd.h>
 #include <linux/linkage.h>
@@ -25,6 +25,7 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/mman.h>
+#include <linux/sched/mm.h>
 #include <linux/shm.h>
 
 typedef void (*syscall_t)(void);

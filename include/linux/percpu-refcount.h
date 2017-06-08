@@ -99,6 +99,7 @@ int __must_check percpu_ref_init(struct percpu_ref *ref,
 void percpu_ref_exit(struct percpu_ref *ref);
 void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_switch);
+void percpu_ref_switch_to_atomic_sync(struct percpu_ref *ref);
 void percpu_ref_switch_to_percpu(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill);
@@ -116,7 +117,7 @@ void percpu_ref_reinit(struct percpu_ref *ref);
  */
 static inline void percpu_ref_kill(struct percpu_ref *ref)
 {
-	return percpu_ref_kill_and_confirm(ref, NULL);
+	percpu_ref_kill_and_confirm(ref, NULL);
 }
 
 /*
@@ -136,14 +137,12 @@ static inline bool __ref_is_percpu(struct percpu_ref *ref,
 	 * used as a pointer.  If the compiler generates a separate fetch
 	 * when using it as a pointer, __PERCPU_REF_ATOMIC may be set in
 	 * between contaminating the pointer value, meaning that
-	 * ACCESS_ONCE() is required when fetching it.
-	 *
-	 * Also, we need a data dependency barrier to be paired with
-	 * smp_store_release() in __percpu_ref_switch_to_percpu().
-	 *
-	 * Use lockless deref which contains both.
+	 * READ_ONCE() is required when fetching it.
 	 */
-	percpu_ptr = lockless_dereference(ref->percpu_count_ptr);
+	percpu_ptr = READ_ONCE(ref->percpu_count_ptr);
+
+	/* paired with smp_store_release() in __percpu_ref_switch_to_percpu() */
+	smp_read_barrier_depends();
 
 	/*
 	 * Theoretically, the following could test just ATOMIC; however,
@@ -206,7 +205,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
 static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 {
 	unsigned long __percpu *percpu_count;
-	int ret;
+	bool ret;
 
 	rcu_read_lock_sched();
 
@@ -240,7 +239,7 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 {
 	unsigned long __percpu *percpu_count;
-	int ret = false;
+	bool ret = false;
 
 	rcu_read_lock_sched();
 

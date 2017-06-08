@@ -23,15 +23,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <16000000>;
-		};
-
 		slow_xtal {
 			clock-frequency = <32768>;
 		};
@@ -69,10 +60,6 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_qt1070_irq>;
 				};
-			};
-
-			i2c1: i2c@f8014000 {
-				status = "okay";
 			};
 
 			mmc0: mmc@f0008000 {
@@ -204,13 +191,13 @@
 		};
 
 		d9 {
-			label = "d6";
+			label = "d9";
 			gpios = <&pioB 5 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "nand-disk";
 		};
 
 		d10 {
-			label = "d7";
+			label = "d10";
 			gpios = <&pioB 6 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
@@ -223,12 +210,12 @@
 			label = "Enter";
 			gpios = <&pioB 3 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
 	panel: panel {
-		compatible = "qd,qd43003c0-40", "simple-panel";
+		compatible = "qiaodian,qd43003c0-40", "simple-panel";
 		backlight = <&backlight>;
 		power-supply = <&panel_reg>;
 		#address-cells = <1>;

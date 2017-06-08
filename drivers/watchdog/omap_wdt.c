@@ -205,7 +205,7 @@ static int omap_wdt_set_timeout(struct watchdog_device *wdog,
 
 static unsigned int omap_wdt_get_timeleft(struct watchdog_device *wdog)
 {
-	struct omap_wdt_dev *wdev = watchdog_get_drvdata(wdog);
+	struct omap_wdt_dev *wdev = to_omap_wdt_dev(wdog);
 	void __iomem *base = wdev->base;
 	u32 value;
 
@@ -271,7 +271,8 @@ static int omap_wdt_probe(struct platform_device *pdev)
 			wdev->wdog.bootstatus = WDIOF_CARDRESET;
 	}
 
-	omap_wdt_disable(wdev);
+	if (!early_enable)
+		omap_wdt_disable(wdev);
 
 	ret = watchdog_register_device(&wdev->wdog);
 	if (ret) {
@@ -283,10 +284,10 @@ static int omap_wdt_probe(struct platform_device *pdev)
 		readl_relaxed(wdev->base + OMAP_WATCHDOG_REV) & 0xFF,
 		wdev->wdog.timeout);
 
-	pm_runtime_put_sync(wdev->dev);
-
 	if (early_enable)
 		omap_wdt_start(&wdev->wdog);
+
+	pm_runtime_put(wdev->dev);
 
 	return 0;
 }

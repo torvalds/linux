@@ -11,9 +11,9 @@
 	model = "CompuLab CM-T54";
 	compatible = "compulab,omap5-cm-t54", "ti,omap5";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
-		reg = <0x80000000 0x7F000000>; /* 2048 MB */
+		reg = <0 0x80000000 0 0x7f000000>; /* 2048 MB */
 	};
 
 	aliases {
@@ -72,7 +72,7 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@1 {
+		led1 {
 			label = "Heartbeat";
 			gpios = <&gpio3 16 GPIO_ACTIVE_HIGH>; /* gpio3_80 ACT_LED */
 			linux,default-trigger = "heartbeat";
@@ -112,7 +112,7 @@
                 };
         };
 
-	hdmi0: connector@0 {
+	hdmi0: connector0 {
 		compatible = "hdmi-connector";
 		label = "hdmi";
 
@@ -130,7 +130,7 @@
 		};
 	};
 
-	tfp410: encoder@0 {
+	tfp410: encoder0 {
 		compatible = "ti,tfp410";
 
 		ports {
@@ -140,7 +140,7 @@
 			port@0 {
 				reg = <0>;
 
-				tfp410_in: endpoint@0 {
+				tfp410_in: endpoint {
 					remote-endpoint = <&dpi_dvi_out>;
 				};
 			};
@@ -148,14 +148,14 @@
 			port@1 {
 				reg = <1>;
 
-				tfp410_out: endpoint@0 {
+				tfp410_out: endpoint {
 					remote-endpoint = <&dvi_connector_in>;
 				};
 			};
 		};
 	};
 
-	dvi0: connector@1 {
+	dvi0: connector1 {
 		compatible = "dvi-connector";
 		label = "dvi";
 
@@ -175,7 +175,7 @@
 
 	ads7846_pins: pinmux_ads7846_pins {
 		pinctrl-single,pins = <
-			0x02 (PIN_INPUT_PULLDOWN | MUX_MODE6)  /* llib_wakereqin.gpio1_wk15 */
+			OMAP5_IOPAD(0x0042, PIN_INPUT_PULLDOWN | MUX_MODE6)  /* llib_wakereqin.gpio1_wk15 */
 		>;
 	};
 };
@@ -344,7 +344,7 @@
 
 		interrupt-parent = <&gpio1>;
 		interrupts = <15 0>;			/* gpio1_wk15 */
-		pendown-gpio = <&gpio1 15 0>;
+		pendown-gpio = <&gpio1 15 GPIO_ACTIVE_HIGH>;
 
 
 		ti,x-min = /bits/ 16 <0x0>;
@@ -359,7 +359,7 @@
 		ti,debounce-tol = /bits/ 16 <10>;
 		ti,debounce-rep = /bits/ 16 <1>;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 
@@ -434,7 +434,7 @@
 			compatible = "ti,palmas-pmic";
 			interrupt-parent = <&palmas>;
 			interrupts = <14 IRQ_TYPE_NONE>;
-			interrupt-name = "short-irq";
+			interrupt-names = "short-irq";
 
 			ti,ldo6-vibrator;
 
@@ -513,7 +513,7 @@
 				ldo1_reg: ldo1 {
 					/* VDDAPHY_CAM: vdda_csiport */
 					regulator-name = "ldo1";
-					regulator-min-microvolt = <1500000>;
+					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
@@ -537,7 +537,7 @@
 				ldo4_reg: ldo4 {
 					/* VDDAPHY_DISP: vdda_dsiport/hdmi */
 					regulator-name = "ldo4";
-					regulator-min-microvolt = <1500000>;
+					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
@@ -646,12 +646,17 @@
 	pinctrl-0 = <&dss_dpi_pins>;
 
 	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		dpi_dvi_out: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&tfp410_in>;
 			data-lines = <24>;
 		};
 
 		dpi_lcd_out: endpoint@1 {
+			reg = <1>;
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
 		};

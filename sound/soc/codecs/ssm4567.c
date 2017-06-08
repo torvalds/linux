@@ -352,6 +352,11 @@ static int ssm4567_set_power(struct ssm4567 *ssm4567, bool enable)
 	regcache_cache_only(ssm4567->regmap, !enable);
 
 	if (enable) {
+		ret = regmap_write(ssm4567->regmap, SSM4567_REG_SOFT_RESET,
+			0x00);
+		if (ret)
+			return ret;
+
 		ret = regmap_update_bits(ssm4567->regmap,
 			SSM4567_REG_POWER_CTRL,
 			SSM4567_POWER_SPWDN, 0x00);
@@ -416,12 +421,14 @@ static struct snd_soc_codec_driver ssm4567_codec_driver = {
 	.set_bias_level = ssm4567_set_bias_level,
 	.idle_bias_off = true,
 
-	.controls = ssm4567_snd_controls,
-	.num_controls = ARRAY_SIZE(ssm4567_snd_controls),
-	.dapm_widgets = ssm4567_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ssm4567_dapm_widgets),
-	.dapm_routes = ssm4567_routes,
-	.num_dapm_routes = ARRAY_SIZE(ssm4567_routes),
+	.component_driver = {
+		.controls		= ssm4567_snd_controls,
+		.num_controls		= ARRAY_SIZE(ssm4567_snd_controls),
+		.dapm_widgets		= ssm4567_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ssm4567_dapm_widgets),
+		.dapm_routes		= ssm4567_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ssm4567_routes),
+	},
 };
 
 static const struct regmap_config ssm4567_regmap_config = {
@@ -478,6 +485,14 @@ static const struct i2c_device_id ssm4567_i2c_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ssm4567_i2c_ids);
 
+#ifdef CONFIG_OF
+static const struct of_device_id ssm4567_of_match[] = {
+	{ .compatible = "adi,ssm4567", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ssm4567_of_match);
+#endif
+
 #ifdef CONFIG_ACPI
 
 static const struct acpi_device_id ssm4567_acpi_match[] = {
@@ -491,6 +506,7 @@ MODULE_DEVICE_TABLE(acpi, ssm4567_acpi_match);
 static struct i2c_driver ssm4567_driver = {
 	.driver = {
 		.name = "ssm4567",
+		.of_match_table = of_match_ptr(ssm4567_of_match),
 		.acpi_match_table = ACPI_PTR(ssm4567_acpi_match),
 	},
 	.probe = ssm4567_i2c_probe,

@@ -1262,7 +1262,7 @@ static int sunsu_kbd_ms_init(struct uart_sunsu_port *up)
 /*
  *	Wait for transmitter & holding register to empty
  */
-static __inline__ void wait_for_xmitr(struct uart_sunsu_port *up)
+static void wait_for_xmitr(struct uart_sunsu_port *up)
 {
 	unsigned int status, tmout = 10000;
 
@@ -1500,6 +1500,7 @@ static int su_probe(struct platform_device *op)
 
 out_unmap:
 	of_iounmap(&op->resource[0], up->port.membase, up->reg_size);
+	kfree(up);
 	return err;
 }
 

@@ -237,6 +237,11 @@ static int img_pwm_probe(struct platform_device *pdev)
 	}
 
 	clk_rate = clk_get_rate(pwm->pwm_clk);
+	if (!clk_rate) {
+		dev_err(&pdev->dev, "pwm clock has no frequency\n");
+		ret = -EINVAL;
+		goto disable_pwmclk;
+	}
 
 	/* The maximum input clock divider is 512 */
 	val = (u64)NSEC_PER_SEC * 512 * pwm->data->max_timebase;

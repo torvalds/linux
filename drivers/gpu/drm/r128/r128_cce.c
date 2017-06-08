@@ -149,20 +149,19 @@ static int r128_cce_load_microcode(drm_r128_private_t *dev_priv)
 
 	pdev = platform_device_register_simple("r128_cce", 0, NULL, 0);
 	if (IS_ERR(pdev)) {
-		printk(KERN_ERR "r128_cce: Failed to register firmware\n");
+		pr_err("r128_cce: Failed to register firmware\n");
 		return PTR_ERR(pdev);
 	}
 	rc = request_firmware(&fw, FIRMWARE_NAME, &pdev->dev);
 	platform_device_unregister(pdev);
 	if (rc) {
-		printk(KERN_ERR "r128_cce: Failed to load firmware \"%s\"\n",
+		pr_err("r128_cce: Failed to load firmware \"%s\"\n",
 		       FIRMWARE_NAME);
 		return rc;
 	}
 
 	if (fw->size != 256 * 8) {
-		printk(KERN_ERR
-		       "r128_cce: Bogus length %zu in firmware \"%s\"\n",
+		pr_err("r128_cce: Bogus length %zu in firmware \"%s\"\n",
 		       fw->size, FIRMWARE_NAME);
 		rc = -EINVAL;
 		goto out_release;
@@ -311,7 +310,7 @@ static void r128_cce_init_ring_buffer(struct drm_device *dev,
 	/* The manual (p. 2) says this address is in "VM space".  This
 	 * means it's an offset from the start of AGP space.
 	 */
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	if (!dev_priv->is_pci)
 		ring_start = dev_priv->cce_ring->offset - dev->agp->base;
 	else
@@ -505,7 +504,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 	    (drm_r128_sarea_t *) ((u8 *) dev_priv->sarea->handle +
 				  init->sarea_priv_offset);
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	if (!dev_priv->is_pci) {
 		drm_legacy_ioremap_wc(dev_priv->cce_ring, dev);
 		drm_legacy_ioremap_wc(dev_priv->ring_rptr, dev);
@@ -529,7 +528,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 			(void *)(unsigned long)dev->agp_buffer_map->offset;
 	}
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	if (!dev_priv->is_pci)
 		dev_priv->cce_buffers_offset = dev->agp->base;
 	else
@@ -552,7 +551,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 	dev_priv->sarea_priv->last_dispatch = 0;
 	R128_WRITE(R128_LAST_DISPATCH_REG, dev_priv->sarea_priv->last_dispatch);
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	if (dev_priv->is_pci) {
 #endif
 		dev_priv->gart_info.table_mask = DMA_BIT_MASK(32);
@@ -568,7 +567,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 			return -ENOMEM;
 		}
 		R128_WRITE(R128_PCI_GART_PAGE, dev_priv->gart_info.bus_addr);
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	}
 #endif
 
@@ -600,7 +599,7 @@ int r128_do_cleanup_cce(struct drm_device *dev)
 	if (dev->dev_private) {
 		drm_r128_private_t *dev_priv = dev->dev_private;
 
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 		if (!dev_priv->is_pci) {
 			if (dev_priv->cce_ring != NULL)
 				drm_legacy_ioremapfree(dev_priv->cce_ring, dev);

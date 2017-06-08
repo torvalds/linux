@@ -349,6 +349,7 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 
 	if (input->id.product == USB_DEVICE_ID_APPLE_MAGICMOUSE) {
 		magicmouse_emit_buttons(msc, clicks & 3);
+		input_mt_report_pointer_emulation(input, true);
 		input_report_rel(input, REL_X, x);
 		input_report_rel(input, REL_Y, y);
 	} else { /* USB_DEVICE_ID_APPLE_MAGICTRACKPAD */
@@ -388,16 +389,16 @@ static int magicmouse_setup_input(struct input_dev *input, struct hid_device *hd
 		__clear_bit(BTN_RIGHT, input->keybit);
 		__clear_bit(BTN_MIDDLE, input->keybit);
 		__set_bit(BTN_MOUSE, input->keybit);
-		__set_bit(BTN_TOOL_FINGER, input->keybit);
-		__set_bit(BTN_TOOL_DOUBLETAP, input->keybit);
-		__set_bit(BTN_TOOL_TRIPLETAP, input->keybit);
-		__set_bit(BTN_TOOL_QUADTAP, input->keybit);
-		__set_bit(BTN_TOOL_QUINTTAP, input->keybit);
-		__set_bit(BTN_TOUCH, input->keybit);
-		__set_bit(INPUT_PROP_POINTER, input->propbit);
 		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 	}
 
+	__set_bit(BTN_TOOL_FINGER, input->keybit);
+	__set_bit(BTN_TOOL_DOUBLETAP, input->keybit);
+	__set_bit(BTN_TOOL_TRIPLETAP, input->keybit);
+	__set_bit(BTN_TOOL_QUADTAP, input->keybit);
+	__set_bit(BTN_TOOL_QUINTTAP, input->keybit);
+	__set_bit(BTN_TOUCH, input->keybit);
+	__set_bit(INPUT_PROP_POINTER, input->propbit);
 
 	__set_bit(EV_ABS, input->evbit);
 
@@ -471,25 +472,30 @@ static int magicmouse_input_mapping(struct hid_device *hdev,
 	return 0;
 }
 
-static void magicmouse_input_configured(struct hid_device *hdev,
+static int magicmouse_input_configured(struct hid_device *hdev,
 		struct hid_input *hi)
 
 {
 	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
+	int ret;
 
-	int ret = magicmouse_setup_input(msc->input, hdev);
+	ret = magicmouse_setup_input(msc->input, hdev);
 	if (ret) {
 		hid_err(hdev, "magicmouse setup input failed (%d)\n", ret);
 		/* clean msc->input to notify probe() of the failure */
 		msc->input = NULL;
+		return ret;
 	}
+
+	return 0;
 }
 
 
 static int magicmouse_probe(struct hid_device *hdev,
 	const struct hid_device_id *id)
 {
-	__u8 feature[] = { 0xd7, 0x01 };
+	const u8 feature[] = { 0xd7, 0x01 };
+	u8 *buf;
 	struct magicmouse_sc *msc;
 	struct hid_report *report;
 	int ret;
@@ -540,6 +546,12 @@ static int magicmouse_probe(struct hid_device *hdev,
 	}
 	report->size = 6;
 
+	buf = kmemdup(feature, sizeof(feature), GFP_KERNEL);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto err_stop_hw;
+	}
+
 	/*
 	 * Some devices repond with 'invalid report id' when feature
 	 * report switching it into multitouch mode is sent to it.
@@ -548,8 +560,9 @@ static int magicmouse_probe(struct hid_device *hdev,
 	 * but there seems to be no other way of switching the mode.
 	 * Thus the super-ugly hacky success check below.
 	 */
-	ret = hid_hw_raw_request(hdev, feature[0], feature, sizeof(feature),
+	ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(feature),
 				HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+	kfree(buf);
 	if (ret != -EIO && ret != sizeof(feature)) {
 		hid_err(hdev, "unable to request touch data (%d)\n", ret);
 		goto err_stop_hw;

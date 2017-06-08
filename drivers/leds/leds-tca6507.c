@@ -327,6 +327,8 @@ static void set_times(struct tca6507_chip *tca, int bank)
 	int result;
 
 	result = choose_times(tca->bank[bank].ontime, &c1, &c2);
+	if (result < 0)
+		return;
 	dev_dbg(&tca->client->dev,
 		"Chose on  times %d(%d) %d(%d) for %dms\n",
 		c1, time_codes[c1],
@@ -603,7 +605,7 @@ static int tca6507_blink_set(struct led_classdev *led_cdev,
 static void tca6507_gpio_set_value(struct gpio_chip *gc,
 				   unsigned offset, int val)
 {
-	struct tca6507_chip *tca = container_of(gc, struct tca6507_chip, gpio);
+	struct tca6507_chip *tca = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	spin_lock_irqsave(&tca->lock, flags);
@@ -651,11 +653,11 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 	tca->gpio.owner = THIS_MODULE;
 	tca->gpio.direction_output = tca6507_gpio_direction_output;
 	tca->gpio.set = tca6507_gpio_set_value;
-	tca->gpio.dev = &client->dev;
+	tca->gpio.parent = &client->dev;
 #ifdef CONFIG_OF_GPIO
 	tca->gpio.of_node = of_node_get(client->dev.of_node);
 #endif
-	err = gpiochip_add(&tca->gpio);
+	err = gpiochip_add_data(&tca->gpio, tca);
 	if (err) {
 		tca->gpio.ngpio = 0;
 		return err;

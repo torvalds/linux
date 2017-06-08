@@ -13,9 +13,9 @@
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
 #include <linux/io.h>
-#include "edac_core.h"
+#include "edac_module.h"
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #define I3200_REVISION        "1.1"
 

@@ -13,7 +13,7 @@
 #ifndef S5P_MFC_ENC_H_
 #define S5P_MFC_ENC_H_
 
-struct s5p_mfc_codec_ops *get_enc_codec_ops(void);
+const struct s5p_mfc_codec_ops *get_enc_codec_ops(void);
 struct vb2_ops *get_enc_queue_ops(void);
 const struct v4l2_ioctl_ops *get_enc_v4l2_ioctl_ops(void);
 struct s5p_mfc_fmt *get_enc_def_fmt(bool src);

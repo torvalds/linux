@@ -29,6 +29,7 @@
 #include <asm/unistd.h>
 
 #include <asm/asmmacro.h>
+#include <asm/export.h>
 
 #define curptr      g6
 
@@ -948,7 +949,24 @@ linux_syscall_trace:
 	cmp	%o0, 0
 	bne	3f
 	 mov	-ENOSYS, %o0
+
+	/* Syscall tracing can modify the registers.  */
+	ld	[%sp + STACKFRAME_SZ + PT_G1], %g1
+	sethi	%hi(sys_call_table), %l7
+	ld	[%sp + STACKFRAME_SZ + PT_I0], %i0
+	or	%l7, %lo(sys_call_table), %l7
+	ld	[%sp + STACKFRAME_SZ + PT_I1], %i1
+	ld	[%sp + STACKFRAME_SZ + PT_I2], %i2
+	ld	[%sp + STACKFRAME_SZ + PT_I3], %i3
+	ld	[%sp + STACKFRAME_SZ + PT_I4], %i4
+	ld	[%sp + STACKFRAME_SZ + PT_I5], %i5
+	cmp	%g1, NR_syscalls
+	bgeu	3f
+	 mov	-ENOSYS, %o0
+
+	sll	%g1, 2, %l4
 	mov	%i0, %o0
+	ld	[%l7 + %l4], %l7
 	mov	%i1, %o1
 	mov	%i2, %o2
 	mov	%i3, %o3
@@ -1190,6 +1208,8 @@ delay_continue:
 	
 	ret
 	restore
+EXPORT_SYMBOL(__udelay)
+EXPORT_SYMBOL(__ndelay)
 
 	/* Handle a software breakpoint */
 	/* We have to inform parent that child has stopped */
@@ -1208,20 +1228,18 @@ breakpoint_trap:
 	RESTORE_ALL
 
 #ifdef CONFIG_KGDB
-	.align	4
-	.globl	kgdb_trap_low
-	.type	kgdb_trap_low,#function
-kgdb_trap_low:
+	ENTRY(kgdb_trap_low)
 	rd	%wim,%l3
 	SAVE_ALL
 	wr 	%l0, PSR_ET, %psr
 	WRITE_PAUSE
 
+	mov	%l7, %o0		! trap_level
 	call	kgdb_trap
-	 add	%sp, STACKFRAME_SZ, %o0
+	 add	%sp, STACKFRAME_SZ, %o1	! struct pt_regs *regs
 
 	RESTORE_ALL
-	.size	kgdb_trap_low,.-kgdb_trap_low
+	ENDPROC(kgdb_trap_low)
 #endif
 
 	.align	4
@@ -1238,7 +1256,7 @@ flush_patch_exception:
 kuw_patch1_7win:	sll	%o3, 6, %o3
 
 	/* No matter how much overhead this routine has in the worst
-	 * case scenerio, it is several times better than taking the
+	 * case scenario, it is several times better than taking the
 	 * traps with the old method of just doing flush_user_windows().
 	 */
 kill_user_windows:

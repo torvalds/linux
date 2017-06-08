@@ -14,6 +14,9 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
+#define NR_CPU_IRQS	32	/* number of irq lines coming in */
+#define TIMER0_IRQ	3	/* Fixed by ISA */
+
 /*
  * Early Hardware specific Interrupt setup
  * -Platform independent, needed for each CPU (not foldable into init_IRQ)
@@ -26,10 +29,8 @@ void arc_init_IRQ(void)
 {
 	int level_mask = 0;
 
-       /* setup any high priority Interrupts (Level2 in ARCompact jargon) */
-	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ3_LV2) << 3;
-	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ5_LV2) << 5;
-	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ6_LV2) << 6;
+       /* Is timer high priority Interrupt (Level2 in ARCompact jargon) */
+	level_mask |= IS_ENABLED(CONFIG_ARC_COMPACT_IRQ_LEVELS) << TIMER0_IRQ;
 
 	/*
 	 * Write to register, even if no LV2 IRQs configured to reset it
@@ -57,7 +58,7 @@ static void arc_irq_mask(struct irq_data *data)
 	unsigned int ienb;
 
 	ienb = read_aux_reg(AUX_IENABLE);
-	ienb &= ~(1 << data->irq);
+	ienb &= ~(1 << data->hwirq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 
@@ -66,7 +67,7 @@ static void arc_irq_unmask(struct irq_data *data)
 	unsigned int ienb;
 
 	ienb = read_aux_reg(AUX_IENABLE);
-	ienb |= (1 << data->irq);
+	ienb |= (1 << data->hwirq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 
@@ -79,17 +80,14 @@ static struct irq_chip onchip_intc = {
 static int arc_intc_domain_map(struct irq_domain *d, unsigned int irq,
 			       irq_hw_number_t hw)
 {
-	/*
-	 * XXX: the IPI IRQ needs to be handled like TIMER too. However ARC core
-	 *      code doesn't own it (like TIMER0). ISS IDU / ezchip define it
-	 *      in platform header which can't be included here as it goes
-	 *      against multi-platform image philisophy
-	 */
-	if (irq == TIMER0_IRQ)
+	switch (hw) {
+	case TIMER0_IRQ:
+		irq_set_percpu_devid(irq);
 		irq_set_chip_and_handler(irq, &onchip_intc, handle_percpu_irq);
-	else
+		break;
+	default:
 		irq_set_chip_and_handler(irq, &onchip_intc, handle_level_irq);
-
+	}
 	return 0;
 }
 
@@ -98,21 +96,23 @@ static const struct irq_domain_ops arc_intc_domain_ops = {
 	.map = arc_intc_domain_map,
 };
 
-static struct irq_domain *root_domain;
-
 static int __init
 init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 {
+	struct irq_domain *root_domain;
+
 	if (parent)
 		panic("DeviceTree incore intc not a root irq controller\n");
 
-	root_domain = irq_domain_add_legacy(intc, NR_CPU_IRQS, 0, 0,
+	root_domain = irq_domain_add_linear(intc, NR_CPU_IRQS,
 					    &arc_intc_domain_ops, NULL);
-
 	if (!root_domain)
 		panic("root irq domain not avail\n");
 
-	/* with this we don't need to export root_domain */
+	/*
+	 * Needed for primary domain lookup to succeed
+	 * This is a primary irqchip, and can never have a parent
+	 */
 	irq_set_default_host(root_domain);
 
 	return 0;
@@ -148,78 +148,15 @@ IRQCHIP_DECLARE(arc_intc, "snps,arc700-intc", init_onchip_IRQ);
 
 void arch_local_irq_enable(void)
 {
-
 	unsigned long flags = arch_local_save_flags();
 
-	/* Allow both L1 and L2 at the onset */
-	flags |= (STATUS_E1_MASK | STATUS_E2_MASK);
-
-	/* Called from hard ISR (between irq_enter and irq_exit) */
-	if (in_irq()) {
-
-		/* If in L2 ISR, don't re-enable any further IRQs as this can
-		 * cause IRQ priorities to get upside down. e.g. it could allow
-		 * L1 be taken while in L2 hard ISR which is wrong not only in
-		 * theory, it can also cause the dreaded L1-L2-L1 scenario
-		 */
-		if (flags & STATUS_A2_MASK)
-			flags &= ~(STATUS_E1_MASK | STATUS_E2_MASK);
-
-		/* Even if in L1 ISR, allowe Higher prio L2 IRQs */
-		else if (flags & STATUS_A1_MASK)
-			flags &= ~(STATUS_E1_MASK);
-	}
-
-	/* called from soft IRQ, ideally we want to re-enable all levels */
-
-	else if (in_softirq()) {
-
-		/* However if this is case of L1 interrupted by L2,
-		 * re-enabling both may cause whaco L1-L2-L1 scenario
-		 * because ARC700 allows level 1 to interrupt an active L2 ISR
-		 * Thus we disable both
-		 * However some code, executing in soft ISR wants some IRQs
-		 * to be enabled so we re-enable L2 only
-		 *
-		 * How do we determine L1 intr by L2
-		 *  -A2 is set (means in L2 ISR)
-		 *  -E1 is set in this ISR's pt_regs->status32 which is
-		 *      saved copy of status32_l2 when l2 ISR happened
-		 */
-		struct pt_regs *pt = get_irq_regs();
-
-		if ((flags & STATUS_A2_MASK) && pt &&
-		    (pt->status32 & STATUS_A1_MASK)) {
-			/*flags &= ~(STATUS_E1_MASK | STATUS_E2_MASK); */
-			flags &= ~(STATUS_E1_MASK);
-		}
-	}
+	if (flags & STATUS_A2_MASK)
+		flags |= STATUS_E2_MASK;
+	else if (flags & STATUS_A1_MASK)
+		flags |= STATUS_E1_MASK;
 
 	arch_local_irq_restore(flags);
 }
 
-#else /* ! CONFIG_ARC_COMPACT_IRQ_LEVELS */
-
-/*
- * Simpler version for only 1 level of interrupt
- * Here we only Worry about Level 1 Bits
- */
-void arch_local_irq_enable(void)
-{
-	unsigned long flags;
-
-	/*
-	 * ARC IDE Drivers tries to re-enable interrupts from hard-isr
-	 * context which is simply wrong
-	 */
-	if (in_irq()) {
-		WARN_ONCE(1, "IRQ enabled from hard-isr");
-		return;
-	}
-
-	flags = arch_local_save_flags();
-	flags |= (STATUS_E1_MASK | STATUS_E2_MASK);
-	arch_local_irq_restore(flags);
-}
-#endif
 EXPORT_SYMBOL(arch_local_irq_enable);
+#endif

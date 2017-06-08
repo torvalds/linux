@@ -12,7 +12,7 @@
 #include "mesh.h"
 #include "driver-ops.h"
 
-/* This is not in the standard.  It represents a tolerable tbtt drift below
+/* This is not in the standard.  It represents a tolerable tsf drift below
  * which we do no TSF adjustment.
  */
 #define TOFFSET_MINIMUM_ADJUSTMENT 10
@@ -28,7 +28,7 @@
  * could be, for instance, in case a neighbor is restarted and its TSF counter
  * reset.
  */
-#define TOFFSET_MAXIMUM_ADJUSTMENT 30000		/* 30 ms */
+#define TOFFSET_MAXIMUM_ADJUSTMENT 800		/* 0.8 ms */
 
 struct sync_method {
 	u8 method;
@@ -46,7 +46,7 @@ static bool mesh_peer_tbtt_adjusting(struct ieee802_11_elems *ie)
 			IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING) != 0;
 }
 
-void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata)
+void mesh_sync_adjust_tsf(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
@@ -57,12 +57,12 @@ void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata)
 
 	spin_lock_bh(&ifmsh->sync_offset_lock);
 	if (ifmsh->sync_offset_clockdrift_max < beacon_int_fraction) {
-		msync_dbg(sdata, "TBTT : max clockdrift=%lld; adjusting\n",
+		msync_dbg(sdata, "TSF : max clockdrift=%lld; adjusting\n",
 			  (long long) ifmsh->sync_offset_clockdrift_max);
 		tsfdelta = -ifmsh->sync_offset_clockdrift_max;
 		ifmsh->sync_offset_clockdrift_max = 0;
 	} else {
-		msync_dbg(sdata, "TBTT : max clockdrift=%lld; adjusting by %llu\n",
+		msync_dbg(sdata, "TSF : max clockdrift=%lld; adjusting by %llu\n",
 			  (long long) ifmsh->sync_offset_clockdrift_max,
 			  (unsigned long long) beacon_int_fraction);
 		tsfdelta = -beacon_int_fraction;
@@ -70,9 +70,13 @@ void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata)
 	}
 	spin_unlock_bh(&ifmsh->sync_offset_lock);
 
-	tsf = drv_get_tsf(local, sdata);
-	if (tsf != -1ULL)
-		drv_set_tsf(local, sdata, tsf + tsfdelta);
+	if (local->ops->offset_tsf) {
+		drv_offset_tsf(local, sdata, tsfdelta);
+	} else {
+		tsf = drv_get_tsf(local, sdata);
+		if (tsf != -1ULL)
+			drv_set_tsf(local, sdata, tsf + tsfdelta);
+	}
 }
 
 static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
@@ -119,7 +123,6 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	 */
 
 	if (elems->mesh_config && mesh_peer_tbtt_adjusting(elems)) {
-		clear_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN);
 		msync_dbg(sdata, "STA %pM : is adjusting TBTT\n",
 			  sta->sta.addr);
 		goto no_sync;
@@ -164,15 +167,13 @@ no_sync:
 	rcu_read_unlock();
 }
 
-static void mesh_sync_offset_adjust_tbtt(struct ieee80211_sub_if_data *sdata,
+static void mesh_sync_offset_adjust_tsf(struct ieee80211_sub_if_data *sdata,
 					 struct beacon_data *beacon)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	u8 cap;
 
 	WARN_ON(ifmsh->mesh_sp_id != IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET);
 	WARN_ON(!rcu_read_lock_held());
-	cap = beacon->meshconf->meshconf_cap;
 
 	spin_lock_bh(&ifmsh->sync_offset_lock);
 
@@ -183,24 +184,16 @@ static void mesh_sync_offset_adjust_tbtt(struct ieee80211_sub_if_data *sdata,
 		 * the tsf adjustment to the mesh tasklet
 		 */
 		msync_dbg(sdata,
-			  "TBTT : kicking off TBTT adjustment with clockdrift_max=%lld\n",
+			  "TSF : kicking off TSF adjustment with clockdrift_max=%lld\n",
 			  ifmsh->sync_offset_clockdrift_max);
 		set_bit(MESH_WORK_DRIFT_ADJUST, &ifmsh->wrkq_flags);
-
-		ifmsh->adjusting_tbtt = true;
 	} else {
 		msync_dbg(sdata,
-			  "TBTT : max clockdrift=%lld; too small to adjust\n",
+			  "TSF : max clockdrift=%lld; too small to adjust\n",
 			  (long long)ifmsh->sync_offset_clockdrift_max);
 		ifmsh->sync_offset_clockdrift_max = 0;
-
-		ifmsh->adjusting_tbtt = false;
 	}
 	spin_unlock_bh(&ifmsh->sync_offset_lock);
-
-	beacon->meshconf->meshconf_cap = ifmsh->adjusting_tbtt ?
-			IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING | cap :
-			~IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING & cap;
 }
 
 static const struct sync_method sync_methods[] = {
@@ -208,7 +201,7 @@ static const struct sync_method sync_methods[] = {
 		.method = IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET,
 		.ops = {
 			.rx_bcn_presp = &mesh_sync_offset_rx_bcn_presp,
-			.adjust_tbtt = &mesh_sync_offset_adjust_tbtt,
+			.adjust_tsf = &mesh_sync_offset_adjust_tsf,
 		}
 	},
 };

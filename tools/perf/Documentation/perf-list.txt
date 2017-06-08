@@ -8,12 +8,26 @@ perf-list - List all symbolic event types
 SYNOPSIS
 --------
 [verse]
-'perf list' [hw|sw|cache|tracepoint|pmu|event_glob]
+'perf list' [--no-desc] [--long-desc] [hw|sw|cache|tracepoint|pmu|sdt|event_glob]
 
 DESCRIPTION
 -----------
 This command displays the symbolic event types which can be selected in the
 various perf commands with the -e option.
+
+OPTIONS
+-------
+--no-desc::
+Don't print descriptions.
+
+-v::
+--long-desc::
+Print longer event descriptions.
+
+--details::
+Print how named events are resolved internally into perf events, and also
+any extra expressions computed by perf stat.
+
 
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS
@@ -30,6 +44,7 @@ counted. The following modifiers exist:
  G - guest counting (in KVM guests)
  H - host counting (not in KVM guests)
  p - precise level
+ P - use maximum detected precise level
  S - read sample value (PERF_SAMPLE_READ)
  D - pin the event to the PMU
 
@@ -39,10 +54,12 @@ address should be. The 'p' modifier can be specified multiple times:
  0 - SAMPLE_IP can have arbitrary skid
  1 - SAMPLE_IP must have constant skid
  2 - SAMPLE_IP requested to have 0 skid
- 3 - SAMPLE_IP must have 0 skid
+ 3 - SAMPLE_IP must have 0 skid, or uses randomization to avoid
+     sample shadowing effects.
 
 For Intel systems precise event sampling is implemented with PEBS
-which supports up to precise-level 2.
+which supports up to precise-level 2, and precise level 3 for
+some special cases
 
 On AMD systems it is implemented using IBS (up to precise-level 2).
 The precise modifier works with event types 0x76 (cpu-cycles, CPU
@@ -90,6 +107,67 @@ raw encoding of 0x1A8 can be used:
 You should refer to the processor specific documentation for getting these
 details. Some of them are referenced in the SEE ALSO section below.
 
+ARBITRARY PMUS
+--------------
+
+perf also supports an extended syntax for specifying raw parameters
+to PMUs. Using this typically requires looking up the specific event
+in the CPU vendor specific documentation.
+
+The available PMUs and their raw parameters can be listed with
+
+  ls /sys/devices/*/format
+
+For example the raw event "LSD.UOPS" core pmu event above could
+be specified as
+
+  perf stat -e cpu/event=0xa8,umask=0x1,name=LSD.UOPS_CYCLES,cmask=1/ ...
+
+PER SOCKET PMUS
+---------------
+
+Some PMUs are not associated with a core, but with a whole CPU socket.
+Events on these PMUs generally cannot be sampled, but only counted globally
+with perf stat -a. They can be bound to one logical CPU, but will measure
+all the CPUs in the same socket.
+
+This example measures memory bandwidth every second
+on the first memory controller on socket 0 of a Intel Xeon system
+
+  perf stat -C 0 -a uncore_imc_0/cas_count_read/,uncore_imc_0/cas_count_write/ -I 1000 ...
+
+Each memory controller has its own PMU.  Measuring the complete system
+bandwidth would require specifying all imc PMUs (see perf list output),
+and adding the values together.
+
+This example measures the combined core power every second
+
+  perf stat -I 1000 -e power/energy-cores/  -a
+
+ACCESS RESTRICTIONS
+-------------------
+
+For non root users generally only context switched PMU events are available.
+This is normally only the events in the cpu PMU, the predefined events
+like cycles and instructions and some software events.
+
+Other PMUs and global measurements are normally root only.
+Some event qualifiers, such as "any", are also root only.
+
+This can be overriden by setting the kernel.perf_event_paranoid
+sysctl to -1, which allows non root to use these events.
+
+For accessing trace point events perf needs to have read access to
+/sys/kernel/debug/tracing, even when perf_event_paranoid is in a relaxed
+setting.
+
+TRACING
+-------
+
+Some PMUs control advanced hardware tracing capabilities, such as Intel PT,
+that allows low overhead execution tracing.  These are described in a separate
+intel-pt.txt document.
+
 PARAMETERIZED EVENTS
 --------------------
 
@@ -102,6 +180,50 @@ This means that when provided as an event, a value for '?' must
 also be supplied. For example:
 
   perf stat -C 0 -e 'hv_gpci/dtbp_ptitc,phys_processor_idx=0x2/' ...
+
+EVENT GROUPS
+------------
+
+Perf supports time based multiplexing of events, when the number of events
+active exceeds the number of hardware performance counters. Multiplexing
+can cause measurement errors when the workload changes its execution
+profile.
+
+When metrics are computed using formulas from event counts, it is useful to
+ensure some events are always measured together as a group to minimize multiplexing
+errors. Event groups can be specified using { }.
+
+  perf stat -e '{instructions,cycles}' ...
+
+The number of available performance counters depend on the CPU. A group
+cannot contain more events than available counters.
+For example Intel Core CPUs typically have four generic performance counters
+for the core, plus three fixed counters for instructions, cycles and
+ref-cycles. Some special events have restrictions on which counter they
+can schedule, and may not support multiple instances in a single group.
+When too many events are specified in the group none of them will not
+be measured.
+
+Globally pinned events can limit the number of counters available for
+other groups. On x86 systems, the NMI watchdog pins a counter by default.
+The nmi watchdog can be disabled as root with
+
+	echo 0 > /proc/sys/kernel/nmi_watchdog
+
+Events from multiple different PMUs cannot be mixed in a group, with
+some exceptions for software events.
+
+LEADER SAMPLING
+---------------
+
+perf also supports group leader sampling using the :S specifier.
+
+  perf record -e '{cycles,instructions}:S' ...
+  perf report --group
+
+Normally all events in a event group sample, but with :S only
+the first event (the leader) samples, and it only reads the values of the
+other events in the group.
 
 OPTIONS
 -------
@@ -122,8 +244,12 @@ To limit the list use:
 
 . 'pmu' to print the kernel supplied PMU events.
 
+. 'sdt' to list all Statically Defined Tracepoint events.
+
 . If none of the above is matched, it will apply the supplied glob to all
   events, printing the ones that match.
+
+. As a last resort, it will do a substring search in all event names.
 
 One or more types can be used at the same time, listing the events for the
 types specified.
@@ -138,5 +264,5 @@ SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-top[1],
 linkperf:perf-record[1],
-http://www.intel.com/Assets/PDF/manual/253669.pdf[Intel® 64 and IA-32 Architectures Software Developer's Manual Volume 3B: System Programming Guide],
+http://www.intel.com/sdm/[Intel® 64 and IA-32 Architectures Software Developer's Manual Volume 3B: System Programming Guide],
 http://support.amd.com/us/Processor_TechDocs/24593_APM_v2.pdf[AMD64 Architecture Programmer’s Manual Volume 2: System Programming]

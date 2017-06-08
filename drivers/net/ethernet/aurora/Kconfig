@@ -1,0 +1,21 @@
+config NET_VENDOR_AURORA
+	bool "Aurora VLSI devices"
+	help
+	  If you have a network (Ethernet) device belonging to this class,
+	  say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  questions about Aurora devices. If you say Y, you will be asked
+	  for your specific device in the following questions.
+
+if NET_VENDOR_AURORA
+
+config AURORA_NB8800
+	tristate "Aurora AU-NB8800 support"
+	depends on HAS_DMA
+	select PHYLIB
+	help
+	 Support for the AU-NB8800 gigabit Ethernet controller.
+
+endif

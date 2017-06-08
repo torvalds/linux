@@ -3,7 +3,7 @@
 
 #include <drm/drmP.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_bo.h"
 
 #define nouveau_bo_tile_layout(nvbo)				\
@@ -16,7 +16,7 @@ nouveau_gem_object(struct drm_gem_object *gem)
 }
 
 /* nouveau_gem.c */
-extern int nouveau_gem_new(struct drm_device *, int size, int align,
+extern int nouveau_gem_new(struct nouveau_cli *, u64 size, int align,
 			   uint32_t domain, uint32_t tile_mode,
 			   uint32_t tile_flags, struct nouveau_bo **);
 extern void nouveau_gem_object_del(struct drm_gem_object *);

@@ -24,6 +24,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/frame.h>
 
 .file "cast5-avx-x86_64-asm_64.S"
 
@@ -194,19 +195,29 @@
 	vpshufb rmask,	x0, x0;           \
 	vpshufb rmask,	x1, x1;
 
-.data
-
+.section	.rodata.cst16.bswap_mask, "aM", @progbits, 16
 .align 16
 .Lbswap_mask:
 	.byte 3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12
+.section	.rodata.cst16.bswap128_mask, "aM", @progbits, 16
+.align 16
 .Lbswap128_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+.section	.rodata.cst16.bswap_iv_mask, "aM", @progbits, 16
+.align 16
 .Lbswap_iv_mask:
 	.byte 7, 6, 5, 4, 3, 2, 1, 0, 7, 6, 5, 4, 3, 2, 1, 0
+
+.section	.rodata.cst4.16_mask, "aM", @progbits, 4
+.align 4
 .L16_mask:
 	.byte 16, 16, 16, 16
+.section	.rodata.cst4.32_mask, "aM", @progbits, 4
+.align 4
 .L32_mask:
 	.byte 32, 0, 0, 0
+.section	.rodata.cst4.first_mask, "aM", @progbits, 4
+.align 4
 .Lfirst_mask:
 	.byte 0x1f, 0, 0, 0
 
@@ -365,6 +376,7 @@ ENTRY(cast5_ecb_enc_16way)
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
+	FRAME_BEGIN
 
 	movq %rsi, %r11;
 
@@ -388,6 +400,7 @@ ENTRY(cast5_ecb_enc_16way)
 	vmovdqu RR4, (6*4*4)(%r11);
 	vmovdqu RL4, (7*4*4)(%r11);
 
+	FRAME_END
 	ret;
 ENDPROC(cast5_ecb_enc_16way)
 
@@ -398,6 +411,7 @@ ENTRY(cast5_ecb_dec_16way)
 	 *	%rdx: src
 	 */
 
+	FRAME_BEGIN
 	movq %rsi, %r11;
 
 	vmovdqu (0*4*4)(%rdx), RL1;
@@ -420,6 +434,7 @@ ENTRY(cast5_ecb_dec_16way)
 	vmovdqu RR4, (6*4*4)(%r11);
 	vmovdqu RL4, (7*4*4)(%r11);
 
+	FRAME_END
 	ret;
 ENDPROC(cast5_ecb_dec_16way)
 
@@ -429,6 +444,7 @@ ENTRY(cast5_cbc_dec_16way)
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
+	FRAME_BEGIN
 
 	pushq %r12;
 
@@ -469,6 +485,7 @@ ENTRY(cast5_cbc_dec_16way)
 
 	popq %r12;
 
+	FRAME_END
 	ret;
 ENDPROC(cast5_cbc_dec_16way)
 
@@ -479,6 +496,7 @@ ENTRY(cast5_ctr_16way)
 	 *	%rdx: src
 	 *	%rcx: iv (big endian, 64bit)
 	 */
+	FRAME_BEGIN
 
 	pushq %r12;
 
@@ -542,5 +560,6 @@ ENTRY(cast5_ctr_16way)
 
 	popq %r12;
 
+	FRAME_END
 	ret;
 ENDPROC(cast5_ctr_16way)

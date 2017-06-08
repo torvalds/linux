@@ -90,10 +90,6 @@ static int msm_rng_read(struct hwrng *hwrng, void *data, size_t max, bool wait)
 	/* calculate max size bytes to transfer back to caller */
 	maxsize = min_t(size_t, MAX_HW_FIFO_SIZE, max);
 
-	/* no room for word data */
-	if (maxsize < WORD_SZ)
-		return 0;
-
 	ret = clk_prepare_enable(rng->clk);
 	if (ret)
 		return ret;

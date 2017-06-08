@@ -1387,7 +1387,7 @@ static bool pci_data_iowrite(u16 port, u32 mask, u32 val)
 		/* Allow writing to any other BAR, or expansion ROM */
 		iowrite(portoff, val, mask, &d->config_words[reg]);
 		return true;
-		/* We let them overide latency timer and cacheline size */
+		/* We let them override latency timer and cacheline size */
 	} else if (&d->config_words[reg] == (void *)&d->config.cacheline_size) {
 		/* Only let them change the first two fields. */
 		if (mask == 0xFFFFFFFF)
@@ -3266,6 +3266,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/* If we exit via err(), this kills all the threads, restores tty. */
+	atexit(cleanup_devices);
+
 	/* We always have a console device, and it's always device 1. */
 	setup_console();
 
@@ -3336,7 +3339,7 @@ int main(int argc, char *argv[])
 	 * simple, single region.
 	 */
 	boot->e820_entries = 1;
-	boot->e820_map[0] = ((struct e820entry) { 0, mem, E820_RAM });
+	boot->e820_table[0] = ((struct e820_entry) { 0, mem, E820_TYPE_RAM });
 	/*
 	 * The boot header contains a command line pointer: we put the command
 	 * line after the boot header.
@@ -3351,20 +3354,23 @@ int main(int argc, char *argv[])
 	/* Boot protocol version: 2.07 supports the fields for lguest. */
 	boot->hdr.version = 0x207;
 
-	/* The hardware_subarch value of "1" tells the Guest it's an lguest. */
-	boot->hdr.hardware_subarch = 1;
+	/* X86_SUBARCH_LGUEST tells the Guest it's an lguest. */
+	boot->hdr.hardware_subarch = X86_SUBARCH_LGUEST;
 
 	/* Tell the entry path not to try to reload segment registers. */
 	boot->hdr.loadflags |= KEEP_SEGMENTS;
+
+	/* We don't support tboot: */
+	boot->tboot_addr = 0;
+
+	/* Ensure this is 0 to prevent APM from loading: */
+	boot->apm_bios_info.version = 0;
 
 	/* We tell the kernel to initialize the Guest. */
 	tell_kernel(start);
 
 	/* Ensure that we terminate if a device-servicing child dies. */
 	signal(SIGCHLD, kill_launcher);
-
-	/* If we exit via err(), this kills all the threads, restores tty. */
-	atexit(cleanup_devices);
 
 	/* If requested, chroot to a directory */
 	if (chroot_path) {

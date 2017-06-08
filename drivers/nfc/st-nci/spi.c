@@ -20,46 +20,42 @@
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
+#include <linux/acpi.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
+#include <net/nfc/nci.h>
 #include <linux/platform_data/st-nci.h>
 
-#include "ndlc.h"
+#include "st-nci.h"
 
 #define DRIVER_DESC "NCI NFC driver for ST_NCI"
 
 /* ndlc header */
 #define ST_NCI_FRAME_HEADROOM	1
-#define ST_NCI_FRAME_TAILROOM 0
+#define ST_NCI_FRAME_TAILROOM	0
 
 #define ST_NCI_SPI_MIN_SIZE 4   /* PCB(1) + NCI Packet header(3) */
 #define ST_NCI_SPI_MAX_SIZE 250 /* req 4.2.1 */
 
 #define ST_NCI_SPI_DRIVER_NAME "st_nci_spi"
 
-static struct spi_device_id st_nci_spi_id_table[] = {
-	{ST_NCI_SPI_DRIVER_NAME, 0},
-	{}
-};
-MODULE_DEVICE_TABLE(spi, st_nci_spi_id_table);
+#define ST_NCI_GPIO_NAME_RESET "reset"
 
 struct st_nci_spi_phy {
 	struct spi_device *spi_dev;
 	struct llt_ndlc *ndlc;
 
+	bool irq_active;
+
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
-};
 
-#define SPI_DUMP_SKB(info, skb)					\
-do {								\
-	pr_debug("%s:\n", info);				\
-	print_hex_dump(KERN_DEBUG, "spi: ", DUMP_PREFIX_OFFSET,	\
-		       16, 1, (skb)->data, (skb)->len, 0);	\
-} while (0)
+	struct st_nci_se_status se_status;
+};
 
 static int st_nci_spi_enable(void *phy_id)
 {
@@ -70,8 +66,10 @@ static int st_nci_spi_enable(void *phy_id)
 	gpio_set_value(phy->gpio_reset, 1);
 	usleep_range(80000, 85000);
 
-	if (phy->ndlc->powered == 0)
+	if (phy->ndlc->powered == 0 && phy->irq_active == 0) {
 		enable_irq(phy->spi_dev->irq);
+		phy->irq_active = true;
+	}
 
 	return 0;
 }
@@ -81,6 +79,7 @@ static void st_nci_spi_disable(void *phy_id)
 	struct st_nci_spi_phy *phy = phy_id;
 
 	disable_irq_nosync(phy->spi_dev->irq);
+	phy->irq_active = false;
 }
 
 /*
@@ -94,14 +93,13 @@ static int st_nci_spi_write(void *phy_id, struct sk_buff *skb)
 	struct st_nci_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_dev;
 	struct sk_buff *skb_rx;
-	u8 buf[ST_NCI_SPI_MAX_SIZE];
+	u8 buf[ST_NCI_SPI_MAX_SIZE + NCI_DATA_HDR_SIZE +
+	       ST_NCI_FRAME_HEADROOM + ST_NCI_FRAME_TAILROOM];
 	struct spi_transfer spi_xfer = {
 		.tx_buf = skb->data,
 		.rx_buf = buf,
 		.len = skb->len,
 	};
-
-	SPI_DUMP_SKB("st_nci_spi_write", skb);
 
 	if (phy->ndlc->hard_fault != 0)
 		return phy->ndlc->hard_fault;
@@ -179,8 +177,6 @@ static int st_nci_spi_read(struct st_nci_spi_phy *phy,
 	skb_put(*skb, len);
 	memcpy((*skb)->data + ST_NCI_SPI_MIN_SIZE, buf, len);
 
-	SPI_DUMP_SKB("spi frame read", *skb);
-
 	return 0;
 }
 
@@ -227,7 +223,41 @@ static struct nfc_phy_ops spi_phy_ops = {
 	.disable = st_nci_spi_disable,
 };
 
-#ifdef CONFIG_OF
+static int st_nci_spi_acpi_request_resources(struct spi_device *spi_dev)
+{
+	struct st_nci_spi_phy *phy = spi_get_drvdata(spi_dev);
+	struct gpio_desc *gpiod_reset;
+	struct device *dev = &spi_dev->dev;
+	u8 tmp;
+
+	/* Get RESET GPIO from ACPI */
+	gpiod_reset = devm_gpiod_get_index(dev, ST_NCI_GPIO_NAME_RESET, 1,
+					   GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiod_reset)) {
+		nfc_err(dev, "Unable to get RESET GPIO\n");
+		return -ENODEV;
+	}
+
+	phy->gpio_reset = desc_to_gpio(gpiod_reset);
+
+	phy->irq_polarity = irq_get_trigger_type(spi_dev->irq);
+
+	phy->se_status.is_ese_present = false;
+	phy->se_status.is_uicc_present = false;
+
+	if (device_property_present(dev, "ese-present")) {
+		device_property_read_u8(dev, "ese-present", &tmp);
+		tmp = phy->se_status.is_ese_present;
+	}
+
+	if (device_property_present(dev, "uicc-present")) {
+		device_property_read_u8(dev, "uicc-present", &tmp);
+		tmp = phy->se_status.is_uicc_present;
+	}
+
+	return 0;
+}
+
 static int st_nci_spi_of_request_resources(struct spi_device *dev)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(dev);
@@ -249,7 +279,7 @@ static int st_nci_spi_of_request_resources(struct spi_device *dev)
 
 	/* GPIO request and configuration */
 	r = devm_gpio_request_one(&dev->dev, gpio,
-				GPIOF_OUT_INIT_HIGH, "clf_reset");
+				GPIOF_OUT_INIT_HIGH, ST_NCI_GPIO_NAME_RESET);
 	if (r) {
 		nfc_err(&dev->dev, "Failed to request reset pin\n");
 		return r;
@@ -258,14 +288,13 @@ static int st_nci_spi_of_request_resources(struct spi_device *dev)
 
 	phy->irq_polarity = irq_get_trigger_type(dev->irq);
 
+	phy->se_status.is_ese_present =
+				of_property_read_bool(pp, "ese-present");
+	phy->se_status.is_uicc_present =
+				of_property_read_bool(pp, "uicc-present");
+
 	return 0;
 }
-#else
-static int st_nci_spi_of_request_resources(struct spi_device *dev)
-{
-	return -ENODEV;
-}
-#endif
 
 static int st_nci_spi_request_resources(struct spi_device *dev)
 {
@@ -284,11 +313,15 @@ static int st_nci_spi_request_resources(struct spi_device *dev)
 	phy->irq_polarity = pdata->irq_polarity;
 
 	r = devm_gpio_request_one(&dev->dev,
-			phy->gpio_reset, GPIOF_OUT_INIT_HIGH, "clf_reset");
+			phy->gpio_reset, GPIOF_OUT_INIT_HIGH,
+			ST_NCI_GPIO_NAME_RESET);
 	if (r) {
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
 		return r;
 	}
+
+	phy->se_status.is_ese_present = pdata->is_ese_present;
+	phy->se_status.is_uicc_present = pdata->is_uicc_present;
 
 	return 0;
 }
@@ -332,6 +365,12 @@ static int st_nci_spi_probe(struct spi_device *dev)
 				"Cannot get platform resources\n");
 			return r;
 		}
+	} else if (ACPI_HANDLE(&dev->dev)) {
+		r = st_nci_spi_acpi_request_resources(dev);
+		if (r) {
+			nfc_err(&dev->dev, "Cannot get ACPI data\n");
+			return r;
+		}
 	} else {
 		nfc_err(&dev->dev,
 			"st_nci platform resources not available\n");
@@ -340,12 +379,13 @@ static int st_nci_spi_probe(struct spi_device *dev)
 
 	r = ndlc_probe(phy, &spi_phy_ops, &dev->dev,
 			ST_NCI_FRAME_HEADROOM, ST_NCI_FRAME_TAILROOM,
-			&phy->ndlc);
+			&phy->ndlc, &phy->se_status);
 	if (r < 0) {
 		nfc_err(&dev->dev, "Unable to register ndlc layer\n");
 		return r;
 	}
 
+	phy->irq_active = true;
 	r = devm_request_threaded_irq(&dev->dev, dev->irq, NULL,
 				st_nci_irq_thread_fn,
 				phy->irq_polarity | IRQF_ONESHOT,
@@ -367,25 +407,34 @@ static int st_nci_spi_remove(struct spi_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
+static struct spi_device_id st_nci_spi_id_table[] = {
+	{ST_NCI_SPI_DRIVER_NAME, 0},
+	{}
+};
+MODULE_DEVICE_TABLE(spi, st_nci_spi_id_table);
+
+static const struct acpi_device_id st_nci_spi_acpi_match[] = {
+	{"SMO2101", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, st_nci_spi_acpi_match);
+
 static const struct of_device_id of_st_nci_spi_match[] = {
 	{ .compatible = "st,st21nfcb-spi", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, of_st_nci_spi_match);
-#endif
 
 static struct spi_driver st_nci_spi_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = ST_NCI_SPI_DRIVER_NAME,
 		.of_match_table = of_match_ptr(of_st_nci_spi_match),
+		.acpi_match_table = ACPI_PTR(st_nci_spi_acpi_match),
 	},
 	.probe = st_nci_spi_probe,
 	.id_table = st_nci_spi_id_table,
 	.remove = st_nci_spi_remove,
 };
-
 module_spi_driver(st_nci_spi_driver);
 
 MODULE_LICENSE("GPL");

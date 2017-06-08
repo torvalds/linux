@@ -15,6 +15,7 @@ ath9k-$(CONFIG_ATH9K_DFS_DEBUGFS) += dfs_debug.o
 ath9k-$(CONFIG_ATH9K_DFS_CERTIFIED) += dfs.o
 ath9k-$(CONFIG_ATH9K_TX99) += tx99.o
 ath9k-$(CONFIG_ATH9K_WOW) += wow.o
+ath9k-$(CONFIG_ATH9K_HWRNG) += rng.o
 
 ath9k-$(CONFIG_ATH9K_DEBUGFS) += debug.o
 
@@ -59,8 +60,9 @@ obj-$(CONFIG_ATH9K_COMMON) += ath9k_common.o
 ath9k_common-y:=	common.o \
 			common-init.o \
 			common-beacon.o \
-			common-debug.o \
-			common-spectral.o
+
+ath9k_common-$(CONFIG_ATH9K_COMMON_DEBUG) += common-debug.o \
+					     common-spectral.o
 
 ath9k_htc-y +=	htc_hst.o \
 		hif_usb.o \

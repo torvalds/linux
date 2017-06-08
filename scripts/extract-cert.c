@@ -17,13 +17,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <getopt.h>
 #include <err.h>
-#include <arpa/inet.h>
 #include <openssl/bio.h>
-#include <openssl/evp.h>
 #include <openssl/pem.h>
-#include <openssl/pkcs7.h>
 #include <openssl/err.h>
 #include <openssl/engine.h>
 

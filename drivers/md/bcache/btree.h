@@ -260,8 +260,7 @@ void bch_initial_mark_key(struct cache_set *, int, struct bkey *);
 
 static inline void wake_up_gc(struct cache_set *c)
 {
-	if (c->gc_thread)
-		wake_up_process(c->gc_thread);
+	wake_up(&c->gc_wait);
 }
 
 #define MAP_DONE	0

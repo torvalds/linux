@@ -145,7 +145,7 @@ static void bio_dma_done_cb(struct rsxx_cardinfo *card,
 	}
 }
 
-static void rsxx_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct rsxx_cardinfo *card = q->queuedata;
 	struct rsxx_bio_meta *bio_meta;
@@ -199,7 +199,7 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 	if (st)
 		goto queue_err;
 
-	return;
+	return BLK_QC_T_NONE;
 
 queue_err:
 	kmem_cache_free(bio_meta_pool, bio_meta);
@@ -207,6 +207,7 @@ req_err:
 	if (st)
 		bio->bi_error = st;
 	bio_endio(bio);
+	return BLK_QC_T_NONE;
 }
 
 /*----------------- Device Setup -------------------*/
@@ -229,8 +230,7 @@ int rsxx_attach_dev(struct rsxx_cardinfo *card)
 			set_capacity(card->gendisk, card->size8 >> 9);
 		else
 			set_capacity(card->gendisk, 0);
-		add_disk(card->gendisk);
-
+		device_add_disk(CARD_TO_DEV(card), card->gendisk);
 		card->bdev_attached = 1;
 	}
 
@@ -300,14 +300,12 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 						RSXX_HW_BLK_SIZE >> 9);
 		card->queue->limits.discard_granularity = RSXX_HW_BLK_SIZE;
 		card->queue->limits.discard_alignment   = RSXX_HW_BLK_SIZE;
-		card->queue->limits.discard_zeroes_data = 1;
 	}
 
 	card->queue->queuedata = card;
 
 	snprintf(card->gendisk->disk_name, sizeof(card->gendisk->disk_name),
 		 "rsxx%d", card->disk_id);
-	card->gendisk->driverfs_dev = &card->dev->dev;
 	card->gendisk->major = card->major;
 	card->gendisk->first_minor = 0;
 	card->gendisk->fops = &rsxx_fops;

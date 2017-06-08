@@ -87,7 +87,7 @@
 /* This should be 1500 if "jumbo" is not set in LIPP. */
 /* This should be at most 10226 (10240 - 14) if "jumbo" is set in LIPP. */
 /* ISSUE: This has not been thoroughly tested (except at 1500). */
-#define TILE_NET_MTU 1500
+#define TILE_NET_MTU ETH_DATA_LEN
 
 /* HACK: Define this to verify incoming packets. */
 /* #define TILE_NET_VERIFY_INGRESS */
@@ -588,7 +588,7 @@ static bool tile_net_lepp_free_comps(struct net_device *dev, bool all)
 static void tile_net_schedule_egress_timer(struct tile_net_cpu *info)
 {
 	if (!info->egress_timer_scheduled) {
-		mod_timer_pinned(&info->egress_timer, jiffies + 1);
+		mod_timer(&info->egress_timer, jiffies + 1);
 		info->egress_timer_scheduled = true;
 	}
 }
@@ -842,7 +842,7 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
-	napi_complete(&info->napi);
+	napi_complete_done(&info->napi, work);
 
 	if (!priv->active)
 		goto done;
@@ -1004,7 +1004,7 @@ static void tile_net_register(void *dev_ptr)
 		BUG();
 
 	/* Initialize the egress timer. */
-	init_timer(&info->egress_timer);
+	init_timer_pinned(&info->egress_timer);
 	info->egress_timer.data = (long)info;
 	info->egress_timer.function = tile_net_handle_egress_timer;
 
@@ -1349,8 +1349,7 @@ static int tile_net_open_inner(struct net_device *dev)
  */
 static void tile_net_open_retry(struct work_struct *w)
 {
-	struct delayed_work *dw =
-		container_of(w, struct delayed_work, work);
+	struct delayed_work *dw = to_delayed_work(w);
 
 	struct tile_net_priv *priv =
 		container_of(dw, struct tile_net_priv, retry_work);
@@ -1884,7 +1883,7 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 
 
 	/* Save the timestamp. */
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 
 #ifdef TILE_NET_PARANOIA
@@ -2027,7 +2026,7 @@ static void tile_net_tx_timeout(struct net_device *dev)
 {
 	PDEBUG("tile_net_tx_timeout()\n");
 	PDEBUG("Transmit timeout at %ld, latency %ld\n", jiffies,
-	       jiffies - dev->trans_start);
+	       jiffies - dev_trans_start(dev));
 
 	/* XXX: ISSUE: This doesn't seem useful for us. */
 	netif_wake_queue(dev);
@@ -2048,8 +2047,8 @@ static int tile_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  *
  * Returns the address of the device statistics structure.
  */
-static struct rtnl_link_stats64 *tile_net_get_stats64(struct net_device *dev,
-		struct rtnl_link_stats64 *stats)
+static void tile_net_get_stats64(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats)
 {
 	struct tile_net_priv *priv = netdev_priv(dev);
 	u64 rx_packets = 0, tx_packets = 0;
@@ -2091,31 +2090,7 @@ static struct rtnl_link_stats64 *tile_net_get_stats64(struct net_device *dev,
 	stats->tx_bytes   = tx_bytes;
 	stats->rx_errors  = rx_errors;
 	stats->rx_dropped = rx_dropped;
-
-	return stats;
 }
-
-
-/*
- * Change the "mtu".
- *
- * The "change_mtu" method is usually not needed.
- * If you need it, it must be like this.
- */
-static int tile_net_change_mtu(struct net_device *dev, int new_mtu)
-{
-	PDEBUG("tile_net_change_mtu()\n");
-
-	/* Check ranges. */
-	if ((new_mtu < 68) || (new_mtu > 1500))
-		return -EINVAL;
-
-	/* Accept the value. */
-	dev->mtu = new_mtu;
-
-	return 0;
-}
-
 
 /*
  * Change the Ethernet Address of the NIC.
@@ -2230,7 +2205,6 @@ static const struct net_device_ops tile_net_ops = {
 	.ndo_start_xmit = tile_net_tx,
 	.ndo_do_ioctl = tile_net_ioctl,
 	.ndo_get_stats64 = tile_net_get_stats64,
-	.ndo_change_mtu = tile_net_change_mtu,
 	.ndo_tx_timeout = tile_net_tx_timeout,
 	.ndo_set_mac_address = tile_net_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2253,7 +2227,11 @@ static void tile_net_setup(struct net_device *dev)
 	dev->netdev_ops = &tile_net_ops;
 	dev->watchdog_timeo = TILE_NET_TIMEOUT;
 	dev->tx_queue_len = TILE_NET_TX_QUEUE_LEN;
+
+	/* MTU range: 68 - 1500 */
 	dev->mtu = TILE_NET_MTU;
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = TILE_NET_MTU;
 
 	features |= NETIF_F_HW_CSUM;
 	features |= NETIF_F_SG;

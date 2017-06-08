@@ -319,6 +319,9 @@ static ssize_t ibft_attr_show_nic(void *data, int type, char *buf)
 		val = cpu_to_be32(~((1 << (32-nic->subnet_mask_prefix))-1));
 		str += sprintf(str, "%pI4", &val);
 		break;
+	case ISCSI_BOOT_ETH_PREFIX_LEN:
+		str += sprintf(str, "%d\n", nic->subnet_mask_prefix);
+		break;
 	case ISCSI_BOOT_ETH_ORIGIN:
 		str += sprintf(str, "%d\n", nic->origin);
 		break;
@@ -415,6 +418,31 @@ static ssize_t ibft_attr_show_target(void *data, int type, char *buf)
 	return str - buf;
 }
 
+static ssize_t ibft_attr_show_acpitbl(void *data, int type, char *buf)
+{
+	struct ibft_kobject *entry = data;
+	char *str = buf;
+
+	switch (type) {
+	case ISCSI_BOOT_ACPITBL_SIGNATURE:
+		str += sprintf_string(str, ACPI_NAME_SIZE,
+				      entry->header->header.signature);
+		break;
+	case ISCSI_BOOT_ACPITBL_OEM_ID:
+		str += sprintf_string(str, ACPI_OEM_ID_SIZE,
+				      entry->header->header.oem_id);
+		break;
+	case ISCSI_BOOT_ACPITBL_OEM_TABLE_ID:
+		str += sprintf_string(str, ACPI_OEM_TABLE_ID_SIZE,
+				      entry->header->header.oem_table_id);
+		break;
+	default:
+		break;
+	}
+
+	return str - buf;
+}
+
 static int __init ibft_check_device(void)
 {
 	int len;
@@ -460,6 +488,7 @@ static umode_t ibft_check_nic_for(void *data, int type)
 		if (address_not_null(nic->ip_addr))
 			rc = S_IRUGO;
 		break;
+	case ISCSI_BOOT_ETH_PREFIX_LEN:
 	case ISCSI_BOOT_ETH_SUBNET_MASK:
 		if (nic->subnet_mask_prefix)
 			rc = S_IRUGO;
@@ -564,6 +593,24 @@ static umode_t __init ibft_check_initiator_for(void *data, int type)
 	case ISCSI_BOOT_INI_INITIATOR_NAME:
 		if (init->initiator_name_len)
 			rc = S_IRUGO;
+		break;
+	default:
+		break;
+	}
+
+	return rc;
+}
+
+static umode_t __init ibft_check_acpitbl_for(void *data, int type)
+{
+
+	umode_t rc = 0;
+
+	switch (type) {
+	case ISCSI_BOOT_ACPITBL_SIGNATURE:
+	case ISCSI_BOOT_ACPITBL_OEM_ID:
+	case ISCSI_BOOT_ACPITBL_OEM_TABLE_ID:
+		rc = S_IRUGO;
 		break;
 	default:
 		break;
@@ -695,6 +742,8 @@ free_ibft_obj:
 static int __init ibft_register_kobjects(struct acpi_table_ibft *header)
 {
 	struct ibft_control *control = NULL;
+	struct iscsi_boot_kobj *boot_kobj;
+	struct ibft_kobject *ibft_kobj;
 	void *ptr, *end;
 	int rc = 0;
 	u16 offset;
@@ -722,6 +771,25 @@ static int __init ibft_register_kobjects(struct acpi_table_ibft *header)
 				break;
 		}
 	}
+	if (rc)
+		return rc;
+
+	ibft_kobj = kzalloc(sizeof(*ibft_kobj), GFP_KERNEL);
+	if (!ibft_kobj)
+		return -ENOMEM;
+
+	ibft_kobj->header = header;
+	ibft_kobj->hdr = NULL; /*for ibft_unregister*/
+
+	boot_kobj = iscsi_boot_create_acpitbl(boot_kset, 0,
+					ibft_kobj,
+					ibft_attr_show_acpitbl,
+					ibft_check_acpitbl_for,
+					ibft_kobj_release);
+	if (!boot_kobj)  {
+		kfree(ibft_kobj);
+		rc = -ENOMEM;
+	}
 
 	return rc;
 }
@@ -734,7 +802,7 @@ static void ibft_unregister(void)
 	list_for_each_entry_safe(boot_kobj, tmp_kobj,
 				 &boot_kset->kobj_list, list) {
 		ibft_kobj = boot_kobj->data;
-		if (ibft_kobj->hdr->id == id_nic)
+		if (ibft_kobj->hdr && ibft_kobj->hdr->id == id_nic)
 			sysfs_remove_link(&boot_kobj->kobj, "device");
 	};
 }

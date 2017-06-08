@@ -195,15 +195,13 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	int retval = -ENOMEM;
-	int i;
 	DEFINE_WAIT(wait);
+	int res;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (!dev)
 		goto error;
-	}
 	kref_init(&dev->kref);
 	mutex_init(&dev->io_mutex);
 	spin_lock_init(&dev->lock);
@@ -214,34 +212,24 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* set up the endpoint information */
 	iface_desc = interface->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_int_in(endpoint)) {
-			dev->int_in_endpointAddr = endpoint->bEndpointAddress;
-			break;
-		}
-	}
-	if (!dev->int_in_endpointAddr) {
-		retval = -ENODEV;
+	res = usb_find_int_in_endpoint(iface_desc, &endpoint);
+	if (res) {
 		dev_err(&interface->dev, "Could not find endpoints\n");
+		retval = res;
 		goto error;
 	}
 
+	dev->int_in_endpointAddr = endpoint->bEndpointAddress;
 
 	/* allocate control URB */
 	dev->cntl_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->cntl_urb) {
-		dev_err(&interface->dev, "Could not allocate control URB\n");
+	if (!dev->cntl_urb)
 		goto error;
-	}
 
 	/* allocate buffer for control req */
 	dev->cntl_req = kmalloc(YUREX_BUF_SIZE, GFP_KERNEL);
-	if (!dev->cntl_req) {
-		dev_err(&interface->dev, "Could not allocate cntl_req\n");
+	if (!dev->cntl_req)
 		goto error;
-	}
 
 	/* allocate buffer for control msg */
 	dev->cntl_buffer = usb_alloc_coherent(dev->udev, YUREX_BUF_SIZE,
@@ -269,10 +257,8 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* allocate interrupt URB */
 	dev->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->urb) {
-		dev_err(&interface->dev, "Could not allocate URB\n");
+	if (!dev->urb)
 		goto error;
-	}
 
 	/* allocate buffer for interrupt in */
 	dev->int_buffer = usb_alloc_coherent(dev->udev, YUREX_BUF_SIZE,

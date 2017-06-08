@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -27,7 +23,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -45,7 +41,7 @@
  *
  * @{
  *
- * http://wiki.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
+ * http://wiki.old.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
  * describes the FID namespace and interoperability requirements for FIDs.
  * The important parts of that document are included here for reference.
  *
@@ -154,6 +150,7 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include "lustre/lustre_idl.h"
+#include "seq_range.h"
 
 struct lu_env;
 struct lu_site;
@@ -233,6 +230,7 @@ enum local_oid {
 	MDD_LOV_OBJ_OSEQ	= 4121UL,
 	LFSCK_NAMESPACE_OID     = 4122UL,
 	REMOTE_PARENT_DIR_OID	= 4123UL,
+	SLAVE_LLOG_CATALOGS_OID	= 4124UL,
 };
 
 static inline void lu_local_obj_fid(struct lu_fid *fid, __u32 oid)
@@ -251,7 +249,8 @@ static inline void lu_local_name_obj_fid(struct lu_fid *fid, __u32 oid)
 
 /* For new FS (>= 2.4), the root FID will be changed to
  * [FID_SEQ_ROOT:1:0], for existing FS, (upgraded to 2.4),
- * the root FID will still be IGIF */
+ * the root FID will still be IGIF
+ */
 static inline int fid_is_root(const struct lu_fid *fid)
 {
 	return unlikely((fid_seq(fid) == FID_SEQ_ROOT &&
@@ -294,7 +293,8 @@ static inline int fid_is_namespace_visible(const struct lu_fid *fid)
 	const __u64 seq = fid_seq(fid);
 
 	/* Here, we cannot distinguish whether the normal FID is for OST
-	 * object or not. It is caller's duty to check more if needed. */
+	 * object or not. It is caller's duty to check more if needed.
+	 */
 	return (!fid_is_last_id(fid) &&
 		(fid_seq_is_norm(seq) || fid_seq_is_igif(seq))) ||
 	       fid_is_root(fid) || fid_is_dot_lustre(fid);
@@ -306,10 +306,10 @@ static inline int fid_seq_in_fldb(__u64 seq)
 	       fid_seq_is_root(seq) || fid_seq_is_dot(seq);
 }
 
-static inline void lu_last_id_fid(struct lu_fid *fid, __u64 seq)
+static inline void lu_last_id_fid(struct lu_fid *fid, __u64 seq, __u32 ost_idx)
 {
 	if (fid_seq_is_mdt0(seq)) {
-		fid->f_seq = fid_idif_seq(0, 0);
+		fid->f_seq = fid_idif_seq(0, ost_idx);
 	} else {
 		LASSERTF(fid_seq_is_norm(seq) || fid_seq_is_echo(seq) ||
 			 fid_seq_is_idif(seq), "%#llx\n", seq);
@@ -329,8 +329,6 @@ enum lu_mgr_type {
 	LUSTRE_SEQ_SERVER,
 	LUSTRE_SEQ_CONTROLLER
 };
-
-struct lu_server_seq;
 
 /* Client sequence manager interface. */
 struct lu_client_seq {
@@ -366,108 +364,16 @@ struct lu_client_seq {
 	 */
 	__u64		   lcs_width;
 
-	/* Seq-server for direct talking */
-	struct lu_server_seq   *lcs_srv;
-
 	/* wait queue for fid allocation and update indicator */
 	wait_queue_head_t	     lcs_waitq;
 	int		     lcs_update;
 };
 
-/* server sequence manager interface */
-struct lu_server_seq {
-	/* Available sequences space */
-	struct lu_seq_range	 lss_space;
-
-	/* keeps highwater in lsr_end for seq allocation algorithm */
-	struct lu_seq_range	 lss_lowater_set;
-	struct lu_seq_range	 lss_hiwater_set;
-
-	/*
-	 * Device for server side seq manager needs (saving sequences to backing
-	 * store).
-	 */
-	struct dt_device       *lss_dev;
-
-	/* /seq file object device */
-	struct dt_object       *lss_obj;
-
-	/* LUSTRE_SEQ_SERVER or LUSTRE_SEQ_CONTROLLER */
-	enum lu_mgr_type       lss_type;
-
-	/* Client interface to request controller */
-	struct lu_client_seq   *lss_cli;
-
-	/* Mutex for protecting allocation */
-	struct mutex		lss_mutex;
-
-	/*
-	 * Service uuid, passed from MDT + seq name to form unique seq name to
-	 * use it with procfs.
-	 */
-	char		    lss_name[LUSTRE_MDT_MAXNAMELEN];
-
-	/*
-	 * Allocation chunks for super and meta sequences. Default values are
-	 * LUSTRE_SEQ_SUPER_WIDTH and LUSTRE_SEQ_META_WIDTH.
-	 */
-	__u64		   lss_width;
-
-	/*
-	 * minimum lss_alloc_set size that should be allocated from
-	 * lss_space
-	 */
-	__u64		   lss_set_width;
-
-	/* sync is needed for update operation */
-	__u32		   lss_need_sync;
-
-	/**
-	 * Pointer to site object, required to access site fld.
-	 */
-	struct seq_server_site  *lss_site;
-};
-
-/* Server methods */
-
-int seq_server_init(struct lu_server_seq *seq,
-		    struct dt_device *dev,
-		    const char *prefix,
-		    enum lu_mgr_type type,
-		    struct seq_server_site *ss,
-		    const struct lu_env *env);
-
-void seq_server_fini(struct lu_server_seq *seq,
-		     const struct lu_env *env);
-
-int seq_server_alloc_super(struct lu_server_seq *seq,
-			   struct lu_seq_range *out,
-			   const struct lu_env *env);
-
-int seq_server_alloc_meta(struct lu_server_seq *seq,
-			  struct lu_seq_range *out,
-			  const struct lu_env *env);
-
-int seq_server_set_cli(struct lu_server_seq *seq,
-		       struct lu_client_seq *cli,
-		       const struct lu_env *env);
-
 /* Client methods */
-int seq_client_init(struct lu_client_seq *seq,
-		    struct obd_export *exp,
-		    enum lu_cli_type type,
-		    const char *prefix,
-		    struct lu_server_seq *srv);
-
-void seq_client_fini(struct lu_client_seq *seq);
-
 void seq_client_flush(struct lu_client_seq *seq);
 
 int seq_client_alloc_fid(const struct lu_env *env, struct lu_client_seq *seq,
 			 struct lu_fid *fid);
-int seq_client_get_seq(const struct lu_env *env, struct lu_client_seq *seq,
-		       u64 *seqnr);
-int seq_site_fini(const struct lu_env *env, struct seq_server_site *ss);
 /* Fids common stuff */
 int fid_is_local(const struct lu_env *env,
 		 struct lu_site *site, const struct lu_fid *fid);
@@ -488,21 +394,19 @@ struct ldlm_namespace;
  * but was moved into name[1] along with the OID to avoid consuming the
  * renaming name[2,3] fields that need to be used for the quota identifier.
  */
-static inline struct ldlm_res_id *
+static inline void
 fid_build_reg_res_name(const struct lu_fid *fid, struct ldlm_res_id *res)
 {
 	memset(res, 0, sizeof(*res));
 	res->name[LUSTRE_RES_ID_SEQ_OFF] = fid_seq(fid);
 	res->name[LUSTRE_RES_ID_VER_OID_OFF] = fid_ver_oid(fid);
-
-	return res;
 }
 
 /*
  * Return true if resource is for object identified by FID.
  */
-static inline int fid_res_name_eq(const struct lu_fid *fid,
-				  const struct ldlm_res_id *res)
+static inline bool fid_res_name_eq(const struct lu_fid *fid,
+				   const struct ldlm_res_id *res)
 {
 	return res->name[LUSTRE_RES_ID_SEQ_OFF] == fid_seq(fid) &&
 	       res->name[LUSTRE_RES_ID_VER_OID_OFF] == fid_ver_oid(fid);
@@ -511,29 +415,25 @@ static inline int fid_res_name_eq(const struct lu_fid *fid,
 /*
  * Extract FID from LDLM resource. Reverse of fid_build_reg_res_name().
  */
-static inline struct lu_fid *
+static inline void
 fid_extract_from_res_name(struct lu_fid *fid, const struct ldlm_res_id *res)
 {
 	fid->f_seq = res->name[LUSTRE_RES_ID_SEQ_OFF];
 	fid->f_oid = (__u32)(res->name[LUSTRE_RES_ID_VER_OID_OFF]);
 	fid->f_ver = (__u32)(res->name[LUSTRE_RES_ID_VER_OID_OFF] >> 32);
 	LASSERT(fid_res_name_eq(fid, res));
-
-	return fid;
 }
 
 /*
  * Build (DLM) resource identifier from global quota FID and quota ID.
  */
-static inline struct ldlm_res_id *
+static inline void
 fid_build_quota_res_name(const struct lu_fid *glb_fid, union lquota_id *qid,
-		      struct ldlm_res_id *res)
+			 struct ldlm_res_id *res)
 {
 	fid_build_reg_res_name(glb_fid, res);
 	res->name[LUSTRE_RES_ID_QUOTA_SEQ_OFF] = fid_seq(&qid->qid_fid);
 	res->name[LUSTRE_RES_ID_QUOTA_VER_OID_OFF] = fid_ver_oid(&qid->qid_fid);
-
-	return res;
 }
 
 /*
@@ -550,14 +450,12 @@ static inline void fid_extract_from_quota_res(struct lu_fid *glb_fid,
 		(__u32)(res->name[LUSTRE_RES_ID_QUOTA_VER_OID_OFF] >> 32);
 }
 
-static inline struct ldlm_res_id *
+static inline void
 fid_build_pdo_res_name(const struct lu_fid *fid, unsigned int hash,
 		       struct ldlm_res_id *res)
 {
 	fid_build_reg_res_name(fid, res);
 	res->name[LUSTRE_RES_ID_HSH_OFF] = hash;
-
-	return res;
 }
 
 /**
@@ -578,7 +476,7 @@ fid_build_pdo_res_name(const struct lu_fid *fid, unsigned int hash,
  *    res will be built from normal FID directly, i.e. res[0] = f_seq,
  *    res[1] = f_oid + f_ver.
  */
-static inline void ostid_build_res_name(struct ost_id *oi,
+static inline void ostid_build_res_name(const struct ost_id *oi,
 					struct ldlm_res_id *name)
 {
 	memset(name, 0, sizeof(*name));
@@ -590,27 +488,15 @@ static inline void ostid_build_res_name(struct ost_id *oi,
 	}
 }
 
-static inline void ostid_res_name_to_id(struct ost_id *oi,
-					struct ldlm_res_id *name)
-{
-	if (fid_seq_is_mdt0(name->name[LUSTRE_RES_ID_SEQ_OFF])) {
-		/* old resid */
-		ostid_set_seq(oi, name->name[LUSTRE_RES_ID_VER_OID_OFF]);
-		ostid_set_id(oi, name->name[LUSTRE_RES_ID_SEQ_OFF]);
-	} else {
-		/* new resid */
-		fid_extract_from_res_name(&oi->oi_fid, name);
-	}
-}
-
 /**
  * Return true if the resource is for the object identified by this id & group.
  */
-static inline int ostid_res_name_eq(struct ost_id *oi,
-				    struct ldlm_res_id *name)
+static inline int ostid_res_name_eq(const struct ost_id *oi,
+				    const struct ldlm_res_id *name)
 {
 	/* Note: it is just a trick here to save some effort, probably the
-	 * correct way would be turn them into the FID and compare */
+	 * correct way would be turn them into the FID and compare
+	 */
 	if (fid_seq_is_mdt0(ostid_seq(oi))) {
 		return name->name[LUSTRE_RES_ID_SEQ_OFF] == ostid_id(oi) &&
 		       name->name[LUSTRE_RES_ID_VER_OID_OFF] == ostid_seq(oi);
@@ -626,6 +512,7 @@ static inline void ost_fid_build_resid(const struct lu_fid *fid,
 {
 	if (fid_is_mdt0(fid) || fid_is_idif(fid)) {
 		struct ost_id oi;
+
 		oi.oi.oi_id = 0; /* gcc 4.7.2 complains otherwise */
 		if (fid_to_ostid(fid, &oi) != 0)
 			return;
@@ -636,14 +523,16 @@ static inline void ost_fid_build_resid(const struct lu_fid *fid,
 }
 
 static inline void ost_fid_from_resid(struct lu_fid *fid,
-				      const struct ldlm_res_id *name)
+				      const struct ldlm_res_id *name,
+				      int ost_idx)
 {
 	if (fid_seq_is_mdt0(name->name[LUSTRE_RES_ID_VER_OID_OFF])) {
 		/* old resid */
 		struct ost_id oi;
+
 		ostid_set_seq(&oi, name->name[LUSTRE_RES_ID_VER_OID_OFF]);
 		ostid_set_id(&oi, name->name[LUSTRE_RES_ID_SEQ_OFF]);
-		ostid_to_fid(fid, &oi, 0);
+		ostid_to_fid(fid, &oi, ost_idx);
 	} else {
 		/* new resid */
 		fid_extract_from_res_name(fid, name);
@@ -681,12 +570,14 @@ static inline __u64 fid_flatten(const struct lu_fid *fid)
 static inline __u32 fid_hash(const struct lu_fid *f, int bits)
 {
 	/* all objects with same id and different versions will belong to same
-	 * collisions list. */
+	 * collisions list.
+	 */
 	return hash_long(fid_flatten(f), bits);
 }
 
 /**
- * map fid to 32 bit value for ino on 32bit systems. */
+ * map fid to 32 bit value for ino on 32bit systems.
+ */
 static inline __u32 fid_flatten32(const struct lu_fid *fid)
 {
 	__u32 ino;
@@ -703,15 +594,17 @@ static inline __u32 fid_flatten32(const struct lu_fid *fid)
 	 * that inodes generated at about the same time have a reduced chance
 	 * of collisions. This will give a period of 2^12 = 1024 unique clients
 	 * (from SEQ) and up to min(LUSTRE_SEQ_MAX_WIDTH, 2^20) = 128k objects
-	 * (from OID), or up to 128M inodes without collisions for new files. */
+	 * (from OID), or up to 128M inodes without collisions for new files.
+	 */
 	ino = ((seq & 0x000fffffULL) << 12) + ((seq >> 8) & 0xfffff000) +
-	       (seq >> (64 - (40-8)) & 0xffffff00) +
+	       (seq >> (64 - (40 - 8)) & 0xffffff00) +
 	       (fid_oid(fid) & 0xff000fff) + ((fid_oid(fid) & 0x00fff000) << 8);
 
 	return ino ? ino : fid_oid(fid);
 }
 
-static inline int lu_fid_diff(struct lu_fid *fid1, struct lu_fid *fid2)
+static inline int lu_fid_diff(const struct lu_fid *fid1,
+			      const struct lu_fid *fid2)
 {
 	LASSERTF(fid_seq(fid1) == fid_seq(fid2), "fid1:"DFID", fid2:"DFID"\n",
 		 PFID(fid1), PFID(fid2));

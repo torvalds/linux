@@ -97,13 +97,6 @@ extern asmlinkage void *restore_user_regs(const struct user_context *target, ...
 #define forget_segments()		do { } while (0)
 
 /*
- * Free current thread data structures etc..
- */
-static inline void exit_thread(void)
-{
-}
-
-/*
  * Return saved PC of a blocked thread.
  */
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
@@ -114,7 +107,6 @@ unsigned long get_wchan(struct task_struct *p);
 #define	KSTK_ESP(tsk)	((tsk)->thread.frame0->sp)
 
 #define cpu_relax() barrier()
-#define cpu_relax_lowlatency() cpu_relax()
 
 /* data cache prefetch */
 #define ARCH_HAS_PREFETCH

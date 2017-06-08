@@ -10,7 +10,9 @@
 #ifndef	__EDAC_MODULE_H__
 #define	__EDAC_MODULE_H__
 
-#include "edac_core.h"
+#include "edac_mc.h"
+#include "edac_pci.h"
+#include "edac_device.h"
 
 /*
  * INTERNAL EDAC MODULE:
@@ -47,10 +49,12 @@ extern int edac_device_create_sysfs(struct edac_device_ctl_info *edac_dev);
 extern void edac_device_remove_sysfs(struct edac_device_ctl_info *edac_dev);
 
 /* edac core workqueue: single CPU mode */
-extern struct workqueue_struct *edac_workqueue;
-extern void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
-				    unsigned msec);
-extern void edac_device_workq_teardown(struct edac_device_ctl_info *edac_dev);
+int edac_workqueue_setup(void);
+void edac_workqueue_teardown(void);
+bool edac_queue_work(struct delayed_work *work, unsigned long delay);
+bool edac_stop_work(struct delayed_work *work);
+bool edac_mod_work(struct delayed_work *work, unsigned long delay);
+
 extern void edac_device_reset_delay_period(struct edac_device_ctl_info
 					   *edac_dev, unsigned long value);
 extern void edac_mc_reset_delay_period(unsigned long value);
@@ -60,15 +64,39 @@ extern void *edac_align_ptr(void **p, unsigned size, int n_elems);
 /*
  * EDAC debugfs functions
  */
+
+#define edac_debugfs_remove_recursive debugfs_remove_recursive
+#define edac_debugfs_remove debugfs_remove
 #ifdef CONFIG_EDAC_DEBUG
 int edac_debugfs_init(void);
 void edac_debugfs_exit(void);
+int edac_create_debugfs_nodes(struct mem_ctl_info *mci);
+struct dentry *edac_debugfs_create_dir(const char *dirname);
+struct dentry *
+edac_debugfs_create_dir_at(const char *dirname, struct dentry *parent);
+struct dentry *
+edac_debugfs_create_file(const char *name, umode_t mode, struct dentry *parent,
+			 void *data, const struct file_operations *fops);
+struct dentry *
+edac_debugfs_create_x8(const char *name, umode_t mode, struct dentry *parent, u8 *value);
+struct dentry *
+edac_debugfs_create_x16(const char *name, umode_t mode, struct dentry *parent, u16 *value);
 #else
-static inline int edac_debugfs_init(void)
-{
-	return -ENODEV;
-}
-static inline void edac_debugfs_exit(void) {}
+static inline int edac_debugfs_init(void)					{ return -ENODEV; }
+static inline void edac_debugfs_exit(void)					{ }
+static inline int edac_create_debugfs_nodes(struct mem_ctl_info *mci)		{ return 0; }
+static inline struct dentry *edac_debugfs_create_dir(const char *dirname)	{ return NULL; }
+static inline struct dentry *
+edac_debugfs_create_dir_at(const char *dirname, struct dentry *parent)		{ return NULL; }
+static inline struct dentry *
+edac_debugfs_create_file(const char *name, umode_t mode, struct dentry *parent,
+			 void *data, const struct file_operations *fops)	{ return NULL; }
+static inline struct dentry *
+edac_debugfs_create_x8(const char *name, umode_t mode,
+		       struct dentry *parent, u8 *value)			{ return NULL; }
+static inline struct dentry *
+edac_debugfs_create_x16(const char *name, umode_t mode,
+		       struct dentry *parent, u16 *value)			{ return NULL; }
 #endif
 
 /*

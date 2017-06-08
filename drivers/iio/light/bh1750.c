@@ -212,7 +212,7 @@ static struct attribute *bh1750_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group bh1750_attribute_group = {
+static const struct attribute_group bh1750_attribute_group = {
 	.attrs = bh1750_attributes,
 };
 
@@ -241,7 +241,7 @@ static int bh1750_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				I2C_FUNC_SMBUS_WRITE_BYTE))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)

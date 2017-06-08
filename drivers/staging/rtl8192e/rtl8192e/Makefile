@@ -16,5 +16,3 @@ r8192e_pci-objs :=		\
 	rtl_wx.o		\
 
 obj-$(CONFIG_RTL8192E) += r8192e_pci.o
-
-ccflags-y += -D__CHECK_ENDIAN__

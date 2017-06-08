@@ -5,23 +5,19 @@
 #include <limits.h>
 #include <string.h>
 #include <ctype.h>
-
 #include <getopt.h>
 
-#include "cpufreq.h"
+#include <cpufreq.h>
+#include <cpuidle.h>
+
 #include "helpers/helpers.h"
-#include "helpers/sysfs.h"
 
 static struct option info_opts[] = {
-	{ .name = "disable",
-	  .has_arg = required_argument,	.flag = NULL,	.val = 'd'},
-	{ .name = "enable",
-	  .has_arg = required_argument,	.flag = NULL,	.val = 'e'},
-	{ .name = "disable-by-latency",
-	  .has_arg = required_argument,	.flag = NULL,	.val = 'D'},
-	{ .name = "enable-all",
-	  .has_arg = no_argument,	.flag = NULL,	.val = 'E'},
-	{ },
+     {"disable",	required_argument,		NULL, 'd'},
+     {"enable",		required_argument,		NULL, 'e'},
+     {"disable-by-latency", required_argument,		NULL, 'D'},
+     {"enable-all",	no_argument,			NULL, 'E'},
+     { },
 };
 
 
@@ -108,16 +104,16 @@ int cmd_idle_set(int argc, char **argv)
 		if (!bitmask_isbitset(cpus_chosen, cpu))
 			continue;
 
-		if (sysfs_is_cpu_online(cpu) != 1)
+		if (cpupower_is_cpu_online(cpu) != 1)
 			continue;
 
-		idlestates = sysfs_get_idlestate_count(cpu);
+		idlestates = cpuidle_state_count(cpu);
 		if (idlestates <= 0)
 			continue;
 
 		switch (param) {
 		case 'd':
-			ret = sysfs_idlestate_disable(cpu, idlestate, 1);
+			ret = cpuidle_state_disable(cpu, idlestate, 1);
 			if (ret == 0)
 		printf(_("Idlestate %u disabled on CPU %u\n"),  idlestate, cpu);
 			else if (ret == -1)
@@ -130,7 +126,7 @@ int cmd_idle_set(int argc, char **argv)
 		       idlestate, cpu);
 			break;
 		case 'e':
-			ret = sysfs_idlestate_disable(cpu, idlestate, 0);
+			ret = cpuidle_state_disable(cpu, idlestate, 0);
 			if (ret == 0)
 		printf(_("Idlestate %u enabled on CPU %u\n"),  idlestate, cpu);
 			else if (ret == -1)
@@ -144,26 +140,33 @@ int cmd_idle_set(int argc, char **argv)
 			break;
 		case 'D':
 			for (idlestate = 0; idlestate < idlestates; idlestate++) {
-				disabled = sysfs_is_idlestate_disabled
+				disabled = cpuidle_is_state_disabled
 					(cpu, idlestate);
-				state_latency = sysfs_get_idlestate_latency
+				state_latency = cpuidle_state_latency
 					(cpu, idlestate);
-				printf("CPU: %u - idlestate %u - state_latency: %llu - latency: %llu\n",
-				       cpu, idlestate, state_latency, latency);
-				if (disabled == 1 || latency > state_latency)
+				if (disabled == 1) {
+					if (latency > state_latency){
+						ret = cpuidle_state_disable
+							(cpu, idlestate, 0);
+						if (ret == 0)
+		printf(_("Idlestate %u enabled on CPU %u\n"),  idlestate, cpu);
+					}
 					continue;
-				ret = sysfs_idlestate_disable
-					(cpu, idlestate, 1);
-				if (ret == 0)
+				}
+				if (latency <= state_latency){
+					ret = cpuidle_state_disable
+						(cpu, idlestate, 1);
+					if (ret == 0)
 		printf(_("Idlestate %u disabled on CPU %u\n"), idlestate, cpu);
+				}
 			}
 			break;
 		case 'E':
 			for (idlestate = 0; idlestate < idlestates; idlestate++) {
-				disabled = sysfs_is_idlestate_disabled
+				disabled = cpuidle_is_state_disabled
 					(cpu, idlestate);
 				if (disabled == 1) {
-					ret = sysfs_idlestate_disable
+					ret = cpuidle_state_disable
 						(cpu, idlestate, 0);
 					if (ret == 0)
 		printf(_("Idlestate %u enabled on CPU %u\n"), idlestate, cpu);

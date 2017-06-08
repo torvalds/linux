@@ -108,24 +108,10 @@ static struct phy_driver teranetics_driver[] = {
 	.config_aneg    = teranetics_config_aneg,
 	.read_status	= teranetics_read_status,
 	.match_phy_device = teranetics_match_phy_device,
-	.driver		= { .owner = THIS_MODULE,},
 },
 };
 
-static int __init teranetics_init(void)
-{
-	return phy_drivers_register(teranetics_driver,
-				    ARRAY_SIZE(teranetics_driver));
-}
-
-static void __exit teranetics_exit(void)
-{
-	return phy_drivers_unregister(teranetics_driver,
-				      ARRAY_SIZE(teranetics_driver));
-}
-
-module_init(teranetics_init);
-module_exit(teranetics_exit);
+module_phy_driver(teranetics_driver);
 
 static struct mdio_device_id __maybe_unused teranetics_tbl[] = {
 	{ PHY_ID_TN2020, 0xffffffff },

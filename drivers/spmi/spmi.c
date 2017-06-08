@@ -25,6 +25,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/spmi.h>
 
+static bool is_registered;
 static DEFINE_IDA(ctrl_ida);
 
 static void spmi_dev_release(struct device *dev)
@@ -507,7 +508,7 @@ int spmi_controller_add(struct spmi_controller *ctrl)
 	int ret;
 
 	/* Can't register until after driver model init */
-	if (WARN_ON(!spmi_bus_type.p))
+	if (WARN_ON(!is_registered))
 		return -EAGAIN;
 
 	ret = device_add(&ctrl->dev);
@@ -560,12 +561,13 @@ EXPORT_SYMBOL_GPL(spmi_controller_remove);
  * This API will register the client driver with the SPMI framework.
  * It is typically called from the driver's module-init function.
  */
-int spmi_driver_register(struct spmi_driver *sdrv)
+int __spmi_driver_register(struct spmi_driver *sdrv, struct module *owner)
 {
 	sdrv->driver.bus = &spmi_bus_type;
+	sdrv->driver.owner = owner;
 	return driver_register(&sdrv->driver);
 }
-EXPORT_SYMBOL_GPL(spmi_driver_register);
+EXPORT_SYMBOL_GPL(__spmi_driver_register);
 
 static void __exit spmi_exit(void)
 {
@@ -575,7 +577,14 @@ module_exit(spmi_exit);
 
 static int __init spmi_init(void)
 {
-	return bus_register(&spmi_bus_type);
+	int ret;
+
+	ret = bus_register(&spmi_bus_type);
+	if (ret)
+		return ret;
+
+	is_registered = true;
+	return 0;
 }
 postcore_initcall(spmi_init);
 

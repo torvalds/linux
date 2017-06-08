@@ -117,4 +117,3 @@ module_i2c_driver(ad_dpot_i2c_driver);
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("digital potentiometer I2C bus driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("i2c:ad_dpot");

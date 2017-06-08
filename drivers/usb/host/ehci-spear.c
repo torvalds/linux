@@ -149,6 +149,7 @@ static const struct of_device_id spear_ehci_id_table[] = {
 	{ .compatible = "st,spear600-ehci", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, spear_ehci_id_table);
 
 static struct platform_driver spear_ehci_hcd_driver = {
 	.probe		= spear_ehci_hcd_drv_probe,
@@ -162,7 +163,7 @@ static struct platform_driver spear_ehci_hcd_driver = {
 	}
 };
 
-static const struct ehci_driver_overrides spear_overrides __initdata = {
+static const struct ehci_driver_overrides spear_overrides __initconst = {
 	.extra_priv_size = sizeof(struct spear_ehci),
 };
 

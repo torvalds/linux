@@ -21,17 +21,25 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/log2.h>
 
 /* ADC configuration registers field define */
 #define ADC_AIEN		(0x1 << 7)
 #define ADC_CONV_DISABLE	0x1F
+#define ADC_AVGE		(0x1 << 5)
 #define ADC_CAL			(0x1 << 7)
 #define ADC_CALF		0x2
 #define ADC_12BIT_MODE		(0x2 << 2)
+#define ADC_CONV_MODE_MASK	(0x3 << 2)
 #define ADC_IPG_CLK		0x00
+#define ADC_INPUT_CLK_MASK	0x3
 #define ADC_CLK_DIV_8		(0x03 << 5)
+#define ADC_CLK_DIV_MASK	(0x3 << 5)
 #define ADC_SHORT_SAMPLE_MODE	(0x0 << 4)
+#define ADC_SAMPLE_MODE_MASK	(0x1 << 4)
 #define ADC_HARDWARE_TRIGGER	(0x1 << 13)
+#define ADC_AVGS_SHIFT		14
+#define ADC_AVGS_MASK		(0x3 << 14)
 #define SELECT_CHANNEL_4	0x04
 #define SELECT_CHANNEL_1	0x01
 #define DISABLE_CONVERSION_INT	(0x0 << 7)
@@ -84,8 +92,10 @@ struct imx6ul_tsc {
 	struct clk *adc_clk;
 	struct gpio_desc *xnur_gpio;
 
-	int measure_delay_time;
-	int pre_charge_time;
+	u32 measure_delay_time;
+	u32 pre_charge_time;
+	bool average_enable;
+	u32 average_select;
 
 	struct completion completion;
 };
@@ -94,19 +104,25 @@ struct imx6ul_tsc {
  * TSC module need ADC to get the measure value. So
  * before config TSC, we should initialize ADC module.
  */
-static void imx6ul_adc_init(struct imx6ul_tsc *tsc)
+static int imx6ul_adc_init(struct imx6ul_tsc *tsc)
 {
-	int adc_hc = 0;
-	int adc_gc;
-	int adc_gs;
-	int adc_cfg;
-	int timeout;
+	u32 adc_hc = 0;
+	u32 adc_gc;
+	u32 adc_gs;
+	u32 adc_cfg;
+	unsigned long timeout;
 
 	reinit_completion(&tsc->completion);
 
 	adc_cfg = readl(tsc->adc_regs + REG_ADC_CFG);
+	adc_cfg &= ~(ADC_CONV_MODE_MASK | ADC_INPUT_CLK_MASK);
 	adc_cfg |= ADC_12BIT_MODE | ADC_IPG_CLK;
+	adc_cfg &= ~(ADC_CLK_DIV_MASK | ADC_SAMPLE_MODE_MASK);
 	adc_cfg |= ADC_CLK_DIV_8 | ADC_SHORT_SAMPLE_MODE;
+	if (tsc->average_enable) {
+		adc_cfg &= ~ADC_AVGS_MASK;
+		adc_cfg |= (tsc->average_select) << ADC_AVGS_SHIFT;
+	}
 	adc_cfg &= ~ADC_HARDWARE_TRIGGER;
 	writel(adc_cfg, tsc->adc_regs + REG_ADC_CFG);
 
@@ -118,21 +134,29 @@ static void imx6ul_adc_init(struct imx6ul_tsc *tsc)
 	/* start ADC calibration */
 	adc_gc = readl(tsc->adc_regs + REG_ADC_GC);
 	adc_gc |= ADC_CAL;
+	if (tsc->average_enable)
+		adc_gc |= ADC_AVGE;
 	writel(adc_gc, tsc->adc_regs + REG_ADC_GC);
 
 	timeout = wait_for_completion_timeout
 			(&tsc->completion, ADC_TIMEOUT);
-	if (timeout == 0)
+	if (timeout == 0) {
 		dev_err(tsc->dev, "Timeout for adc calibration\n");
+		return -ETIMEDOUT;
+	}
 
 	adc_gs = readl(tsc->adc_regs + REG_ADC_GS);
-	if (adc_gs & ADC_CALF)
+	if (adc_gs & ADC_CALF) {
 		dev_err(tsc->dev, "ADC calibration failed\n");
+		return -EINVAL;
+	}
 
 	/* TSC need the ADC work in hardware trigger */
 	adc_cfg = readl(tsc->adc_regs + REG_ADC_CFG);
 	adc_cfg |= ADC_HARDWARE_TRIGGER;
 	writel(adc_cfg, tsc->adc_regs + REG_ADC_CFG);
+
+	return 0;
 }
 
 /*
@@ -142,7 +166,7 @@ static void imx6ul_adc_init(struct imx6ul_tsc *tsc)
  */
 static void imx6ul_tsc_channel_config(struct imx6ul_tsc *tsc)
 {
-	int adc_hc0, adc_hc1, adc_hc2, adc_hc3, adc_hc4;
+	u32 adc_hc0, adc_hc1, adc_hc2, adc_hc3, adc_hc4;
 
 	adc_hc0 = DISABLE_CONVERSION_INT;
 	writel(adc_hc0, tsc->adc_regs + REG_ADC_HC0);
@@ -167,8 +191,8 @@ static void imx6ul_tsc_channel_config(struct imx6ul_tsc *tsc)
  */
 static void imx6ul_tsc_set(struct imx6ul_tsc *tsc)
 {
-	int basic_setting = 0;
-	int start;
+	u32 basic_setting = 0;
+	u32 start;
 
 	basic_setting |= tsc->measure_delay_time << 8;
 	basic_setting |= DETECT_4_WIRE_MODE | AUTO_MEASURE;
@@ -188,17 +212,23 @@ static void imx6ul_tsc_set(struct imx6ul_tsc *tsc)
 	writel(start, tsc->tsc_regs + REG_TSC_FLOW_CONTROL);
 }
 
-static void imx6ul_tsc_init(struct imx6ul_tsc *tsc)
+static int imx6ul_tsc_init(struct imx6ul_tsc *tsc)
 {
-	imx6ul_adc_init(tsc);
+	int err;
+
+	err = imx6ul_adc_init(tsc);
+	if (err)
+		return err;
 	imx6ul_tsc_channel_config(tsc);
 	imx6ul_tsc_set(tsc);
+
+	return 0;
 }
 
 static void imx6ul_tsc_disable(struct imx6ul_tsc *tsc)
 {
-	int tsc_flow;
-	int adc_cfg;
+	u32 tsc_flow;
+	u32 adc_cfg;
 
 	/* TSC controller enters to idle status */
 	tsc_flow = readl(tsc->tsc_regs + REG_TSC_FLOW_CONTROL);
@@ -215,8 +245,8 @@ static void imx6ul_tsc_disable(struct imx6ul_tsc *tsc)
 static bool tsc_wait_detect_mode(struct imx6ul_tsc *tsc)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(2);
-	int state_machine;
-	int debug_mode2;
+	u32 state_machine;
+	u32 debug_mode2;
 
 	do {
 		if (time_after(jiffies, timeout))
@@ -234,10 +264,10 @@ static bool tsc_wait_detect_mode(struct imx6ul_tsc *tsc)
 static irqreturn_t tsc_irq_fn(int irq, void *dev_id)
 {
 	struct imx6ul_tsc *tsc = dev_id;
-	int status;
-	int value;
-	int x, y;
-	int start;
+	u32 status;
+	u32 value;
+	u32 x, y;
+	u32 start;
 
 	status = readl(tsc->tsc_regs + REG_TSC_INT_STATUS);
 
@@ -277,8 +307,8 @@ static irqreturn_t tsc_irq_fn(int irq, void *dev_id)
 static irqreturn_t adc_irq_fn(int irq, void *dev_id)
 {
 	struct imx6ul_tsc *tsc = dev_id;
-	int coco;
-	int value;
+	u32 coco;
+	u32 value;
 
 	coco = readl(tsc->adc_regs + REG_ADC_HS);
 	if (coco & 0x01) {
@@ -307,13 +337,20 @@ static int imx6ul_tsc_open(struct input_dev *input_dev)
 		dev_err(tsc->dev,
 			"Could not prepare or enable the tsc clock: %d\n",
 			err);
-		clk_disable_unprepare(tsc->adc_clk);
-		return err;
+		goto disable_adc_clk;
 	}
 
-	imx6ul_tsc_init(tsc);
+	err = imx6ul_tsc_init(tsc);
+	if (err)
+		goto disable_tsc_clk;
 
 	return 0;
+
+disable_tsc_clk:
+	clk_disable_unprepare(tsc->tsc_clk);
+disable_adc_clk:
+	clk_disable_unprepare(tsc->adc_clk);
+	return err;
 }
 
 static void imx6ul_tsc_close(struct input_dev *input_dev)
@@ -336,8 +373,9 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	int err;
 	int tsc_irq;
 	int adc_irq;
+	u32 average_samples;
 
-	tsc = devm_kzalloc(&pdev->dev, sizeof(struct imx6ul_tsc), GFP_KERNEL);
+	tsc = devm_kzalloc(&pdev->dev, sizeof(*tsc), GFP_KERNEL);
 	if (!tsc)
 		return -ENOMEM;
 
@@ -345,7 +383,7 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	if (!input_dev)
 		return -ENOMEM;
 
-	input_dev->name = "iMX6UL TouchScreen Controller";
+	input_dev->name = "iMX6UL Touchscreen Controller";
 	input_dev->id.bustype = BUS_HOST;
 
 	input_dev->open = imx6ul_tsc_open;
@@ -406,7 +444,7 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	}
 
 	adc_irq = platform_get_irq(pdev, 1);
-	if (adc_irq <= 0) {
+	if (adc_irq < 0) {
 		dev_err(&pdev->dev, "no adc irq resource?\n");
 		return adc_irq;
 	}
@@ -439,6 +477,30 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 				   &tsc->pre_charge_time);
 	if (err)
 		tsc->pre_charge_time = 0xfff;
+
+	err = of_property_read_u32(np, "touchscreen-average-samples",
+				   &average_samples);
+	if (err)
+		average_samples = 1;
+
+	switch (average_samples) {
+	case 1:
+		tsc->average_enable = false;
+		tsc->average_select = 0; /* value unused; initialize anyway */
+		break;
+	case 4:
+	case 8:
+	case 16:
+	case 32:
+		tsc->average_enable = true;
+		tsc->average_select = ilog2(average_samples) - 2;
+		break;
+	default:
+		dev_err(&pdev->dev,
+			"touchscreen-average-samples (%u) must be 1, 4, 8, 16 or 32\n",
+			average_samples);
+		return -EINVAL;
+	}
 
 	err = input_register_device(tsc->input);
 	if (err) {
@@ -491,7 +553,7 @@ static int __maybe_unused imx6ul_tsc_resume(struct device *dev)
 			goto out;
 		}
 
-		imx6ul_tsc_init(tsc);
+		retval = imx6ul_tsc_init(tsc);
 	}
 
 out:

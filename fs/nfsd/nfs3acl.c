@@ -95,22 +95,20 @@ static __be32 nfsd3_proc_setacl(struct svc_rqst * rqstp,
 		goto out;
 
 	inode = d_inode(fh->fh_dentry);
-	if (!IS_POSIXACL(inode) || !inode->i_op->set_acl) {
-		error = -EOPNOTSUPP;
-		goto out_errno;
-	}
 
 	error = fh_want_write(fh);
 	if (error)
 		goto out_errno;
 
-	error = inode->i_op->set_acl(inode, argp->acl_access, ACL_TYPE_ACCESS);
-	if (error)
-		goto out_drop_write;
-	error = inode->i_op->set_acl(inode, argp->acl_default,
-				     ACL_TYPE_DEFAULT);
+	fh_lock(fh);
 
-out_drop_write:
+	error = set_posix_acl(inode, ACL_TYPE_ACCESS, argp->acl_access);
+	if (error)
+		goto out_drop_lock;
+	error = set_posix_acl(inode, ACL_TYPE_DEFAULT, argp->acl_default);
+
+out_drop_lock:
+	fh_unlock(fh);
 	fh_drop_write(fh);
 out_errno:
 	nfserr = nfserrno(error);
@@ -268,6 +266,5 @@ struct svc_version	nfsd_acl_version3 = {
 		.vs_proc	= nfsd_acl_procedures3,
 		.vs_dispatch	= nfsd_dispatch,
 		.vs_xdrsize	= NFS3_SVC_XDRSIZE,
-		.vs_hidden	= 0,
 };
 

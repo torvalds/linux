@@ -23,9 +23,9 @@ struct semid64_ds {
 	unsigned int	__pad2;
 #endif
 	__kernel_time_t	sem_ctime;		/* last change time */
-	unsigned int	sem_nsems;		/* no. of semaphores in array */
-	unsigned int	__unused1;
-	unsigned int	__unused2;
+	unsigned long 	sem_nsems;		/* no. of semaphores in array */
+	unsigned long	__unused1;
+	unsigned long	__unused2;
 };
 
 #endif /* _PARISC_SEMBUF_H */

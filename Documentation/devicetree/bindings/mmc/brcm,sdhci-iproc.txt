@@ -4,7 +4,19 @@ This file documents differences between the core properties described
 by mmc.txt and the properties that represent the IPROC SDHCI controller.
 
 Required properties:
-- compatible : Should be "brcm,sdhci-iproc-cygnus".
+- compatible : Should be one of the following
+	       "brcm,bcm2835-sdhci"
+	       "brcm,sdhci-iproc-cygnus"
+	       "brcm,sdhci-iproc"
+
+Use brcm2835-sdhci for Rasperry PI.
+
+Use sdhci-iproc-cygnus for Broadcom SDHCI Controllers
+restricted to 32bit host accesses to SDHCI registers.
+
+Use sdhci-iproc for Broadcom SDHCI Controllers that allow standard
+8, 16, 32-bit host access to SDHCI register.
+
 - clocks : The clock feeding the SDHCI controller.
 
 Optional properties:

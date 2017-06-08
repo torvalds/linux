@@ -53,29 +53,25 @@
 
 /**
  * i915_check_vgpu - detect virtual GPU
- * @dev: drm device *
+ * @dev_priv: i915 device private
  *
  * This function is called at the initialization stage, to detect whether
  * running on a vGPU.
  */
-void i915_check_vgpu(struct drm_device *dev)
+void i915_check_vgpu(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint64_t magic;
 	uint32_t version;
 
 	BUILD_BUG_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 
-	if (!IS_HASWELL(dev))
-		return;
-
-	magic = readq(dev_priv->regs + vgtif_reg(magic));
+	magic = __raw_i915_read64(dev_priv, vgtif_reg(magic));
 	if (magic != VGT_MAGIC)
 		return;
 
 	version = INTEL_VGT_IF_VERSION_ENCODE(
-		readw(dev_priv->regs + vgtif_reg(version_major)),
-		readw(dev_priv->regs + vgtif_reg(version_minor)));
+		__raw_i915_read16(dev_priv, vgtif_reg(version_major)),
+		__raw_i915_read16(dev_priv, vgtif_reg(version_minor)));
 	if (version != INTEL_VGT_IF_VERSION) {
 		DRM_INFO("VGT interface version mismatch!\n");
 		return;
@@ -98,13 +94,17 @@ static struct _balloon_info_ bl_info;
 
 /**
  * intel_vgt_deballoon - deballoon reserved graphics address trunks
+ * @dev_priv: i915 device private data
  *
  * This function is called to deallocate the ballooned-out graphic memory, when
  * driver is unloaded or when ballooning fails.
  */
-void intel_vgt_deballoon(void)
+void intel_vgt_deballoon(struct drm_i915_private *dev_priv)
 {
 	int i;
+
+	if (!intel_vgpu_active(dev_priv))
+		return;
 
 	DRM_DEBUG("VGT deballoon.\n");
 
@@ -116,27 +116,25 @@ void intel_vgt_deballoon(void)
 	memset(&bl_info, 0, sizeof(bl_info));
 }
 
-static int vgt_balloon_space(struct drm_mm *mm,
+static int vgt_balloon_space(struct i915_ggtt *ggtt,
 			     struct drm_mm_node *node,
 			     unsigned long start, unsigned long end)
 {
 	unsigned long size = end - start;
 
-	if (start == end)
+	if (start >= end)
 		return -EINVAL;
 
 	DRM_INFO("balloon space: range [ 0x%lx - 0x%lx ] %lu KiB.\n",
 		 start, end, size / 1024);
-
-	node->start = start;
-	node->size = size;
-
-	return drm_mm_reserve_node(mm, node);
+	return i915_gem_gtt_reserve(&ggtt->base, node,
+				    size, start, I915_COLOR_UNEVICTABLE,
+				    0);
 }
 
 /**
  * intel_vgt_balloon - balloon out reserved graphics address trunks
- * @dev: drm device
+ * @dev_priv: i915 device private data
  *
  * This function is called at the initialization stage, to balloon out the
  * graphic address space allocated to other vGPUs, by marking these spaces as
@@ -151,42 +149,44 @@ static int vgt_balloon_space(struct drm_mm *mm,
  * of its graphic space being zero. Yet there are some portions ballooned out(
  * the shadow part, which are marked as reserved by drm allocator). From the
  * host point of view, the graphic address space is partitioned by multiple
- * vGPUs in different VMs.
+ * vGPUs in different VMs. ::
  *
- *                        vGPU1 view         Host view
- *             0 ------> +-----------+     +-----------+
- *               ^       |///////////|     |   vGPU3   |
- *               |       |///////////|     +-----------+
- *               |       |///////////|     |   vGPU2   |
- *               |       +-----------+     +-----------+
- *        mappable GM    | available | ==> |   vGPU1   |
- *               |       +-----------+     +-----------+
- *               |       |///////////|     |           |
- *               v       |///////////|     |   Host    |
- *               +=======+===========+     +===========+
- *               ^       |///////////|     |   vGPU3   |
- *               |       |///////////|     +-----------+
- *               |       |///////////|     |   vGPU2   |
- *               |       +-----------+     +-----------+
- *      unmappable GM    | available | ==> |   vGPU1   |
- *               |       +-----------+     +-----------+
- *               |       |///////////|     |           |
- *               |       |///////////|     |   Host    |
- *               v       |///////////|     |           |
- * total GM size ------> +-----------+     +-----------+
+ *                         vGPU1 view         Host view
+ *              0 ------> +-----------+     +-----------+
+ *                ^       |###########|     |   vGPU3   |
+ *                |       |###########|     +-----------+
+ *                |       |###########|     |   vGPU2   |
+ *                |       +-----------+     +-----------+
+ *         mappable GM    | available | ==> |   vGPU1   |
+ *                |       +-----------+     +-----------+
+ *                |       |###########|     |           |
+ *                v       |###########|     |   Host    |
+ *                +=======+===========+     +===========+
+ *                ^       |###########|     |   vGPU3   |
+ *                |       |###########|     +-----------+
+ *                |       |###########|     |   vGPU2   |
+ *                |       +-----------+     +-----------+
+ *       unmappable GM    | available | ==> |   vGPU1   |
+ *                |       +-----------+     +-----------+
+ *                |       |###########|     |           |
+ *                |       |###########|     |   Host    |
+ *                v       |###########|     |           |
+ *  total GM size ------> +-----------+     +-----------+
  *
  * Returns:
  * zero on success, non-zero if configuration invalid or ballooning failed
  */
-int intel_vgt_balloon(struct drm_device *dev)
+int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_address_space *ggtt_vm = &dev_priv->gtt.base;
-	unsigned long ggtt_vm_end = ggtt_vm->start + ggtt_vm->total;
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	unsigned long ggtt_end = ggtt->base.total;
 
 	unsigned long mappable_base, mappable_size, mappable_end;
 	unsigned long unmappable_base, unmappable_size, unmappable_end;
 	int ret;
+
+	if (!intel_vgpu_active(dev_priv))
+		return 0;
 
 	mappable_base = I915_READ(vgtif_reg(avail_rs.mappable_gmadr.base));
 	mappable_size = I915_READ(vgtif_reg(avail_rs.mappable_gmadr.size));
@@ -202,53 +202,41 @@ int intel_vgt_balloon(struct drm_device *dev)
 	DRM_INFO("Unmappable graphic memory: base 0x%lx size %ldKiB\n",
 		 unmappable_base, unmappable_size / 1024);
 
-	if (mappable_base < ggtt_vm->start ||
-	    mappable_end > dev_priv->gtt.mappable_end ||
-	    unmappable_base < dev_priv->gtt.mappable_end ||
-	    unmappable_end > ggtt_vm_end) {
+	if (mappable_end > ggtt->mappable_end ||
+	    unmappable_base < ggtt->mappable_end ||
+	    unmappable_end > ggtt_end) {
 		DRM_ERROR("Invalid ballooning configuration!\n");
 		return -EINVAL;
 	}
 
 	/* Unmappable graphic memory ballooning */
-	if (unmappable_base > dev_priv->gtt.mappable_end) {
-		ret = vgt_balloon_space(&ggtt_vm->mm,
-					&bl_info.space[2],
-					dev_priv->gtt.mappable_end,
-					unmappable_base);
+	if (unmappable_base > ggtt->mappable_end) {
+		ret = vgt_balloon_space(ggtt, &bl_info.space[2],
+					ggtt->mappable_end, unmappable_base);
 
 		if (ret)
 			goto err;
 	}
 
-	/*
-	 * No need to partition out the last physical page,
-	 * because it is reserved to the guard page.
-	 */
-	if (unmappable_end < ggtt_vm_end - PAGE_SIZE) {
-		ret = vgt_balloon_space(&ggtt_vm->mm,
-					&bl_info.space[3],
-					unmappable_end,
-					ggtt_vm_end - PAGE_SIZE);
+	if (unmappable_end < ggtt_end) {
+		ret = vgt_balloon_space(ggtt, &bl_info.space[3],
+					unmappable_end, ggtt_end);
 		if (ret)
 			goto err;
 	}
 
 	/* Mappable graphic memory ballooning */
-	if (mappable_base > ggtt_vm->start) {
-		ret = vgt_balloon_space(&ggtt_vm->mm,
-					&bl_info.space[0],
-					ggtt_vm->start, mappable_base);
+	if (mappable_base) {
+		ret = vgt_balloon_space(ggtt, &bl_info.space[0],
+					0, mappable_base);
 
 		if (ret)
 			goto err;
 	}
 
-	if (mappable_end < dev_priv->gtt.mappable_end) {
-		ret = vgt_balloon_space(&ggtt_vm->mm,
-					&bl_info.space[1],
-					mappable_end,
-					dev_priv->gtt.mappable_end);
+	if (mappable_end < ggtt->mappable_end) {
+		ret = vgt_balloon_space(ggtt, &bl_info.space[1],
+					mappable_end, ggtt->mappable_end);
 
 		if (ret)
 			goto err;
@@ -259,6 +247,6 @@ int intel_vgt_balloon(struct drm_device *dev)
 
 err:
 	DRM_ERROR("VGT balloon fail\n");
-	intel_vgt_deballoon();
+	intel_vgt_deballoon(dev_priv);
 	return ret;
 }

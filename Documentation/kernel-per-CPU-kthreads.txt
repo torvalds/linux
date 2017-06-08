@@ -10,7 +10,7 @@ REFERENCES
 
 o	Documentation/IRQ-affinity.txt:  Binding interrupts to sets of CPUs.
 
-o	Documentation/cgroups:  Using cgroups to bind tasks to sets of CPUs.
+o	Documentation/cgroup-v1:  Using cgroups to bind tasks to sets of CPUs.
 
 o	man taskset:  Using the taskset command to bind tasks to sets
 	of CPUs.
@@ -90,7 +90,7 @@ BLOCK_SOFTIRQ:  Do all of the following:
 	from being initiated from tasks that might run on the CPU to
 	be de-jittered.  (It is OK to force this CPU offline and then
 	bring it back online before you start your application.)
-BLOCK_IOPOLL_SOFTIRQ:  Do all of the following:
+IRQ_POLL_SOFTIRQ:  Do all of the following:
 1.	Force block-device interrupts onto some other CPU.
 2.	Initiate any block I/O and block-I/O polling on other CPUs.
 3.	Once your application has started, prevent CPU-hotplug operations
@@ -264,7 +264,7 @@ To reduce its OS jitter, do at least one of the following:
 	kthreads from being created in the first place.
 2.	Boot with "nosoftlockup=0", which will also prevent these kthreads
 	from being created.  Other related watchdog and softlockup boot
-	parameters may be found in Documentation/kernel-parameters.txt
+	parameters may be found in Documentation/admin-guide/kernel-parameters.rst
 	and Documentation/watchdog/watchdog-parameters.txt.
 3.	Echo a zero to /proc/sys/kernel/watchdog to disable the
 	watchdog timer.

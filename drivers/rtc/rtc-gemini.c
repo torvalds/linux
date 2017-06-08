@@ -28,7 +28,6 @@
 #include <linux/module.h>
 
 #define DRV_NAME        "rtc-gemini"
-#define DRV_VERSION     "0.2"
 
 MODULE_AUTHOR("Hans Ulli Kroll <ulli.kroll@googlemail.com>");
 MODULE_DESCRIPTION("RTC driver for Gemini SoC");
@@ -111,7 +110,7 @@ static int gemini_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static struct rtc_class_ops gemini_rtc_ops = {
+static const struct rtc_class_ops gemini_rtc_ops = {
 	.read_time     = gemini_rtc_read_time,
 	.set_time      = gemini_rtc_set_time,
 };
@@ -140,6 +139,8 @@ static int gemini_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc_base = devm_ioremap(dev, res->start,
 				     resource_size(res));
+	if (!rtc->rtc_base)
+		return -ENOMEM;
 
 	ret = devm_request_irq(dev, rtc->rtc_irq, gemini_rtc_interrupt,
 			       IRQF_SHARED, pdev->name, dev);
@@ -156,14 +157,20 @@ static int gemini_rtc_remove(struct platform_device *pdev)
 	struct gemini_rtc *rtc = platform_get_drvdata(pdev);
 
 	rtc_device_unregister(rtc->rtc_dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
+static const struct of_device_id gemini_rtc_dt_match[] = {
+	{ .compatible = "cortina,gemini-rtc" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, gemini_rtc_dt_match);
+
 static struct platform_driver gemini_rtc_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
+		.of_match_table = gemini_rtc_dt_match,
 	},
 	.probe		= gemini_rtc_probe,
 	.remove		= gemini_rtc_remove,

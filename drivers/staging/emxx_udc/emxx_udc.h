@@ -11,19 +11,10 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software Foundation,
- *  Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335, USA.
  */
-
-
-
 
 #ifndef _LINUX_EMXX_H
 #define _LINUX_EMXX_H
-
-
 
 /*---------------------------------------------------------------------------*/
 /*----------------- Default undef */
@@ -36,13 +27,10 @@
 #define	USE_DMA	1
 #define USE_SUSPEND_WAIT	1
 
-
-
 #ifndef TRUE
 #define TRUE	1
 #define FALSE	0
 #endif
-
 
 /*------------ Board dependence(Resource) */
 #define	VBUS_VALUE		GPIO_VBUS
@@ -58,14 +46,10 @@
 /* DMA Abort wait time ms */
 #define DMA_DISABLE_TIME		10
 
-
-
 /*------------ Controller dependence */
 #define NUM_ENDPOINTS		14		/* Endpoint */
 #define REG_EP_NUM		15		/* Endpoint Register */
 #define DMA_MAX_COUNT		256		/* DMA Block */
-
-
 
 #define EPC_RST_DISABLE_TIME		1	/* 1 usec */
 #define EPC_DIRPD_DISABLE_TIME		1	/* 1 msec */
@@ -75,11 +59,9 @@
 #define CHATGER_TIME			700	/* 700msec */
 #define USB_SUSPEND_TIME		2000	/* 2 sec */
 
-
 /* U2F FLAG */
 #define U2F_ENABLE		1
 #define U2F_DISABLE		0
-
 
 /*------- BIT */
 #define BIT00		0x00000001
@@ -115,7 +97,7 @@
 #define BIT30		0x40000000
 #define BIT31		0x80000000
 
-#define TEST_FORCE_ENABLE		(BIT18+BIT16)
+#define TEST_FORCE_ENABLE		(BIT18 + BIT16)
 
 #define INT_SEL				BIT10
 #define CONSTFS				BIT09
@@ -143,15 +125,15 @@
 /*------- (0x0008) USB Address Register */
 #define USB_ADDR			0x007F0000
 #define SOF_STATUS			BIT15
-#define UFRAME				(BIT14+BIT13+BIT12)
+#define UFRAME				(BIT14 + BIT13 + BIT12)
 #define FRAME				0x000007FF
 
 #define USB_ADRS_SHIFT			16
 
 /*------- (0x000C) UTMI Characteristic 1 Register */
-#define SQUSET				(BIT07+BIT06+BIT05+BIT04)
+#define SQUSET				(BIT07 + BIT06 + BIT05 + BIT04)
 
-#define USB_SQUSET			(BIT06+BIT05+BIT04)
+#define USB_SQUSET			(BIT06 + BIT05 + BIT04)
 
 /*------- (0x0010) TEST Control Register */
 #define FORCEHS				BIT02
@@ -214,7 +196,7 @@
 #define RSUM_EN				BIT01
 
 #define USB_INT_EN_BIT	\
-	(EP0_EN|SPEED_MODE_EN|USB_RST_EN|SPND_EN|RSUM_EN)
+	(EP0_EN | SPEED_MODE_EN | USB_RST_EN | SPND_EN | RSUM_EN)
 
 /*------- (0x0028) EP0 Control Register */
 #define EP0_STGSEL			BIT18
@@ -223,9 +205,9 @@
 #define EP0_PIDCLR			BIT09
 #define EP0_BCLR			BIT08
 #define EP0_DEND			BIT07
-#define EP0_DW				(BIT06+BIT05)
+#define EP0_DW				(BIT06 + BIT05)
 #define EP0_DW4				0
-#define EP0_DW3				(BIT06+BIT05)
+#define EP0_DW3				(BIT06 + BIT05)
 #define EP0_DW2				BIT06
 #define EP0_DW1				BIT05
 
@@ -256,7 +238,7 @@
 #define STG_START_INT			BIT01
 #define SETUP_INT			BIT00
 
-#define EP0_STATUS_RW_BIT	(BIT16|BIT15|BIT11|0xFF)
+#define EP0_STATUS_RW_BIT	(BIT16 | BIT15 | BIT11 | 0xFF)
 
 /*------- (0x0030) EP0 Interrupt Enable Register */
 #define EP0_PERR_NAK_EN			BIT16
@@ -274,7 +256,7 @@
 #define SETUP_EN			BIT00
 
 #define EP0_INT_EN_BIT	\
-	(EP0_OUT_OR_EN|EP0_OUT_EN|EP0_IN_EN|STG_END_EN|SETUP_EN)
+	(EP0_OUT_OR_EN | EP0_OUT_EN | EP0_IN_EN | STG_END_EN | SETUP_EN)
 
 /*------- (0x0034) EP0 Length Register */
 #define EP0_LDATA			0x0000007F
@@ -288,7 +270,7 @@
 #define EPn_BUF_SINGLE			BIT30
 
 #define EPn_DIR0			BIT26
-#define EPn_MODE			(BIT25+BIT24)
+#define EPn_MODE			(BIT25 + BIT24)
 #define EPn_BULK			0
 #define EPn_INTERRUPT			BIT24
 #define EPn_ISO				BIT25
@@ -301,9 +283,9 @@
 #define EPn_BCLR			BIT09
 #define EPn_CBCLR			BIT08
 #define EPn_DEND			BIT07
-#define EPn_DW				(BIT06+BIT05)
+#define EPn_DW				(BIT06 + BIT05)
 #define EPn_DW4				0
-#define EPn_DW3				(BIT06+BIT05)
+#define EPn_DW3				(BIT06 + BIT05)
 #define EPn_DW2				BIT06
 #define EPn_DW1				BIT05
 
@@ -342,7 +324,7 @@
 #define EPn_IN_EMPTY			BIT00		/* R */
 
 #define EPn_INT_EN	\
-	(EPn_OUT_END_INT|EPn_OUT_INT|EPn_IN_END_INT|EPn_IN_INT)
+	(EPn_OUT_END_INT | EPn_OUT_INT | EPn_IN_END_INT | EPn_IN_INT)
 
 /*------- (0x0048:) EPn Interrupt Enable Register */
 #define EPn_OUT_END_EN			BIT23		/* RW */
@@ -386,7 +368,7 @@
 #define ARBITER_CTR			BIT31		/* RW */
 #define MCYCLE_RST			BIT12		/* RW */
 
-#define ENDIAN_CTR			(BIT09+BIT08)	/* RW */
+#define ENDIAN_CTR			(BIT09 + BIT08)	/* RW */
 #define ENDIAN_BYTE_SWAP		BIT09
 #define ENDIAN_HALF_WORD_SWAP		ENDIAN_CTR
 
@@ -394,7 +376,7 @@
 #define HTRANS_MODE			BIT04		/* RW */
 
 #define WBURST_TYPE			BIT02		/* RW */
-#define BURST_TYPE			(BIT01+BIT00)	/* RW */
+#define BURST_TYPE			(BIT01 + BIT00)	/* RW */
 #define BURST_MAX_16			0
 #define BURST_MAX_8			BIT00
 #define BURST_MAX_4			BIT01
@@ -430,7 +412,7 @@
 #define EPC_RST				BIT00		/* RW */
 
 /*------- (0x1014) USBF_EPTEST Register */
-#define LINESTATE			(BIT09+BIT08)	/* R */
+#define LINESTATE			(BIT09 + BIT08)	/* R */
 #define DM_LEVEL			BIT09		/* R */
 #define DP_LEVEL			BIT08		/* R */
 
@@ -459,8 +441,6 @@
 
 /*------- (0x1118:) EPnTADR Register */
 #define EPn_TADR			0xFFFFFFFF	/* RW */
-
-
 
 /*===========================================================================*/
 /* Struct */
@@ -505,7 +485,7 @@ struct fc_regs {
 
 	struct ep_regs EP_REGS[REG_EP_NUM];	/* Endpoint Register */
 
-	u8 Reserved220[0x1000-0x220];	/* (0x0220:0x0FFF) Reserved */
+	u8 Reserved220[0x1000 - 0x220];	/* (0x0220:0x0FFF) Reserved */
 
 	u32 AHBSCTR;			/* (0x1000) AHBSCTR */
 	u32 AHBMCTR;			/* (0x1004) AHBMCTR */
@@ -514,24 +494,17 @@ struct fc_regs {
 	u32 EPCTR;			/* (0x1010) EPCTR */
 	u32 USBF_EPTEST;		/* (0x1014) USBF_EPTEST */
 
-	u8 Reserved1018[0x20-0x18];	/* (0x1018:0x101F) Reserved */
+	u8 Reserved1018[0x20 - 0x18];	/* (0x1018:0x101F) Reserved */
 
 	u32 USBSSVER;			/* (0x1020) USBSSVER */
 	u32 USBSSCONF;			/* (0x1024) USBSSCONF */
 
-	u8 Reserved1028[0x110-0x28];	/* (0x1028:0x110F) Reserved */
+	u8 Reserved1028[0x110 - 0x28];	/* (0x1028:0x110F) Reserved */
 
 	struct ep_dcr EP_DCR[REG_EP_NUM];	/* */
 
-	u8 Reserved1200[0x1000-0x200];	/* Reserved */
+	u8 Reserved1200[0x1000 - 0x200];	/* Reserved */
 } __aligned(32);
-
-
-
-
-
-
-
 
 #define EP0_PACKETSIZE			64
 #define EP_PACKETSIZE			1024
@@ -543,9 +516,7 @@ struct fc_regs {
 #define D_FS_RAM_SIZE_BULK		64
 #define D_HS_RAM_SIZE_BULK		512
 
-
 struct nbu2ss_udc;
-
 
 enum ep0_state {
 	EP0_IDLE,
@@ -591,13 +562,12 @@ struct nbu2ss_ep {
 	dma_addr_t	phys_buf;
 };
 
-
 struct nbu2ss_udc {
 	struct usb_gadget gadget;
 	struct usb_gadget_driver *driver;
 	struct platform_device *pdev;
 	struct device *dev;
-	spinlock_t lock;
+	spinlock_t lock; /* Protects nbu2ss_udc structure fields */
 	struct completion		*pdone;
 
 	enum ep0_state			ep0state;
@@ -616,7 +586,7 @@ struct nbu2ss_udc {
 	unsigned		remote_wakeup:1;
 	unsigned		udc_enabled:1;
 
-	unsigned		mA;
+	unsigned int		mA;
 
 	u32		curr_config;	/* Current Configuration Number */
 

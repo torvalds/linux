@@ -29,12 +29,14 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 	u32 tx_cnt = 0;
 	u32 spaces;
 	u32 v;
-	int i, err = 0;
+	int err = 0;
+	unsigned int i;
 	unsigned int ileft = areq->nbytes;
 	unsigned int oleft = areq->nbytes;
 	unsigned int todo;
 	struct sg_mapping_iter mi, mo;
 	unsigned int oi, oo; /* offset for in and out */
+	unsigned long flags;
 
 	if (areq->nbytes == 0)
 		return 0;
@@ -49,7 +51,7 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 		return -EINVAL;
 	}
 
-	spin_lock_bh(&ss->slock);
+	spin_lock_irqsave(&ss->slock, flags);
 
 	for (i = 0; i < op->keylen; i += 4)
 		writel(*(op->key + i / 4), ss->base + SS_KEY0 + i);
@@ -117,7 +119,7 @@ release_ss:
 	sg_miter_stop(&mi);
 	sg_miter_stop(&mo);
 	writel(0, ss->base + SS_CTL);
-	spin_unlock_bh(&ss->slock);
+	spin_unlock_irqrestore(&ss->slock, flags);
 	return err;
 }
 
@@ -138,7 +140,8 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 	u32 tx_cnt = 0;
 	u32 v;
 	u32 spaces;
-	int i, err = 0;
+	int err = 0;
+	unsigned int i;
 	unsigned int ileft = areq->nbytes;
 	unsigned int oleft = areq->nbytes;
 	unsigned int todo;
@@ -149,6 +152,7 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 	unsigned int ob = 0;	/* offset in buf */
 	unsigned int obo = 0;	/* offset in bufo*/
 	unsigned int obl = 0;	/* length of data in bufo */
+	unsigned long flags;
 
 	if (areq->nbytes == 0)
 		return 0;
@@ -181,7 +185,7 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 	if (no_chunk == 1)
 		return sun4i_ss_opti_poll(areq);
 
-	spin_lock_bh(&ss->slock);
+	spin_lock_irqsave(&ss->slock, flags);
 
 	for (i = 0; i < op->keylen; i += 4)
 		writel(*(op->key + i / 4), ss->base + SS_KEY0 + i);
@@ -251,11 +255,10 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 		spaces = readl(ss->base + SS_FCSR);
 		rx_cnt = SS_RXFIFO_SPACES(spaces);
 		tx_cnt = SS_TXFIFO_SPACES(spaces);
-		dev_dbg(ss->dev, "%x %u/%u %u/%u cnt=%u %u/%u %u/%u cnt=%u %u %u\n",
+		dev_dbg(ss->dev, "%x %u/%u %u/%u cnt=%u %u/%u %u/%u cnt=%u %u\n",
 			mode,
 			oi, mi.length, ileft, areq->nbytes, rx_cnt,
-			oo, mo.length, oleft, areq->nbytes, tx_cnt,
-			todo, ob);
+			oo, mo.length, oleft, areq->nbytes, tx_cnt, ob);
 
 		if (tx_cnt == 0)
 			continue;
@@ -308,7 +311,7 @@ release_ss:
 	sg_miter_stop(&mi);
 	sg_miter_stop(&mo);
 	writel(0, ss->base + SS_CTL);
-	spin_unlock_bh(&ss->slock);
+	spin_unlock_irqrestore(&ss->slock, flags);
 
 	return err;
 }

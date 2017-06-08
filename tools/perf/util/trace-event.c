@@ -7,7 +7,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <linux/kernel.h>
+#include <linux/err.h>
 #include <traceevent/event-parse.h>
+#include <api/fs/tracing_path.h>
+#include <api/fs/fs.h>
 #include "trace-event.h"
 #include "machine.h"
 #include "util.h"
@@ -65,6 +68,9 @@ void trace_event__cleanup(struct trace_event *t)
 	pevent_free(t->pevent);
 }
 
+/*
+ * Returns pointer with encoded error via <linux/err.h> interface.
+ */
 static struct event_format*
 tp_format(const char *sys, const char *name)
 {
@@ -73,12 +79,14 @@ tp_format(const char *sys, const char *name)
 	char path[PATH_MAX];
 	size_t size;
 	char *data;
+	int err;
 
 	scnprintf(path, PATH_MAX, "%s/%s/%s/format",
 		  tracing_events_path, sys, name);
 
-	if (filename__read_str(path, &data, &size))
-		return NULL;
+	err = filename__read_str(path, &data, &size);
+	if (err)
+		return ERR_PTR(err);
 
 	pevent_parse_format(pevent, &event, data, size, sys);
 
@@ -86,11 +94,22 @@ tp_format(const char *sys, const char *name)
 	return event;
 }
 
+/*
+ * Returns pointer with encoded error via <linux/err.h> interface.
+ */
 struct event_format*
 trace_event__tp_format(const char *sys, const char *name)
 {
 	if (!tevent_initialized && trace_event__init2())
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	return tp_format(sys, name);
+}
+
+struct event_format *trace_event__tp_format_id(int id)
+{
+	if (!tevent_initialized && trace_event__init2())
+		return ERR_PTR(-ENOMEM);
+
+	return pevent_find_event(tevent.pevent, id);
 }

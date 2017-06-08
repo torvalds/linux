@@ -1,21 +1,23 @@
-/*
-   This file contains wireless extension handlers.
-
-   This is part of rtl8180 OpenSource driver.
-   Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
-   Released under the terms of GPL (General Public Licence)
-
-   Parts of this driver are based on the GPL part
-   of the official realtek driver.
-
-   Parts of this driver are based on the rtl8180 driver skeleton
-   from Patric Schenke & Andres Salomon.
-
-   Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
-
-   We want to thank the Authors of those projects and the Ndiswrapper
-   project Authors.
-*/
+/******************************************************************************
+ *
+ * This file contains wireless extension handlers.
+ *
+ * This is part of rtl8180 OpenSource driver.
+ * Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
+ * Released under the terms of GPL (General Public Licence)
+ *
+ * Parts of this driver are based on the GPL part
+ * of the official realtek driver.
+ *
+ * Parts of this driver are based on the rtl8180 driver skeleton
+ * from Patric Schenke & Andres Salomon.
+ *
+ * Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
+ *
+ * We want to thank the Authors of those projects and the Ndiswrapper
+ * project Authors.
+ *
+ *****************************************************************************/
 
 #include <linux/string.h>
 #include "r8192U.h"
@@ -27,7 +29,6 @@
 #define RATE_COUNT 12
 static const u32 rtl8180_rates[] = {1000000, 2000000, 5500000, 11000000,
 	6000000, 9000000, 12000000, 18000000, 24000000, 36000000, 48000000, 54000000};
-
 
 #ifndef ENETDOWN
 #define ENETDOWN 1
@@ -42,7 +43,6 @@ static int r8192_wx_get_freq(struct net_device *dev,
 	return ieee80211_wx_get_freq(priv->ieee80211, a, wrqu, b);
 }
 
-
 static int r8192_wx_get_mode(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
@@ -50,8 +50,6 @@ static int r8192_wx_get_mode(struct net_device *dev, struct iw_request_info *a,
 
 	return ieee80211_wx_get_mode(priv->ieee80211, a, wrqu, b);
 }
-
-
 
 static int r8192_wx_get_rate(struct net_device *dev,
 			     struct iw_request_info *info,
@@ -62,8 +60,6 @@ static int r8192_wx_get_rate(struct net_device *dev,
 	return ieee80211_wx_get_rate(priv->ieee80211, info, wrqu, extra);
 }
 
-
-
 static int r8192_wx_set_rate(struct net_device *dev,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
@@ -71,15 +67,14 @@ static int r8192_wx_set_rate(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = ieee80211_wx_set_rate(priv->ieee80211, info, wrqu, extra);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 }
-
 
 static int r8192_wx_set_rts(struct net_device *dev,
 			     struct iw_request_info *info,
@@ -88,11 +83,11 @@ static int r8192_wx_set_rts(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = ieee80211_wx_set_rts(priv->ieee80211, info, wrqu, extra);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 }
@@ -113,11 +108,11 @@ static int r8192_wx_set_power(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = ieee80211_wx_set_power(priv->ieee80211, info, wrqu, extra);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 }
@@ -137,15 +132,14 @@ static int r8192_wx_force_reset(struct net_device *dev,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	netdev_dbg(dev, "%s(): force reset ! extra is %d\n", __func__, *extra);
 	priv->force_reset = *extra;
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return 0;
 
 }
-
 
 static int r8192_wx_set_rawtx(struct net_device *dev,
 			       struct iw_request_info *info,
@@ -154,11 +148,11 @@ static int r8192_wx_set_rawtx(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = ieee80211_wx_set_rawtx(priv->ieee80211, info, wrqu, extra);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 
@@ -172,7 +166,7 @@ static int r8192_wx_set_crcmon(struct net_device *dev,
 	int *parms = (int *)extra;
 	int enable = (parms[0] > 0);
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	if (enable)
 		priv->crcmon = 1;
@@ -182,7 +176,7 @@ static int r8192_wx_set_crcmon(struct net_device *dev,
 	DMESG("bad CRC in monitor mode are %s",
 	      priv->crcmon ? "accepted" : "rejected");
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return 0;
 }
@@ -193,13 +187,13 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = ieee80211_wx_set_mode(priv->ieee80211, a, wrqu, b);
 
 	rtl8192_set_rxconf(dev);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 }
 
@@ -263,12 +257,12 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	range->max_qual.qual = 100;
 	/* TODO: Find real max RSSI and stick here */
 	range->max_qual.level = 0;
-	range->max_qual.noise = -98;
+	range->max_qual.noise = 0x100 - 98;
 	range->max_qual.updated = 7; /* Updated all three */
 
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
 	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
-	range->avg_qual.level = 20 + -98;
+	range->avg_qual.level = 0x100 - 78;
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
 
@@ -299,7 +293,6 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	/* range->min_r_time; */	/* Minimal retry lifetime */
 	/* range->max_r_time; */	/* Maximal retry lifetime */
 
-
 	for (i = 0, val = 0; i < 14; i++) {
 
 		/* Include only legal frequencies for some countries */
@@ -324,7 +317,6 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	return 0;
 }
 
-
 static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
@@ -346,7 +338,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		}
 	}
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 	if (priv->ieee80211->state != IEEE80211_LINKED) {
 		priv->ieee80211->scanning = 0;
 		ieee80211_softmac_scan_syncro(priv->ieee80211);
@@ -354,7 +346,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	} else {
 		ret = ieee80211_wx_set_scan(priv->ieee80211, a, wrqu, b);
 	}
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 }
 
@@ -369,11 +361,11 @@ static int r8192_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 	if (!priv->up)
 		return -ENETDOWN;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = ieee80211_wx_get_scan(priv->ieee80211, a, wrqu, b);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 }
@@ -385,17 +377,14 @@ static int r8192_wx_set_essid(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = ieee80211_wx_set_essid(priv->ieee80211, a, wrqu, b);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 }
-
-
-
 
 static int r8192_wx_get_essid(struct net_device *dev,
 			      struct iw_request_info *a,
@@ -404,15 +393,14 @@ static int r8192_wx_get_essid(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = ieee80211_wx_get_essid(priv->ieee80211, a, wrqu, b);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 }
-
 
 static int r8192_wx_set_freq(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
@@ -420,11 +408,11 @@ static int r8192_wx_set_freq(struct net_device *dev, struct iw_request_info *a,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = ieee80211_wx_set_freq(priv->ieee80211, a, wrqu, b);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 }
 
@@ -436,7 +424,6 @@ static int r8192_wx_get_name(struct net_device *dev,
 
 	return ieee80211_wx_get_name(priv->ieee80211, info, wrqu, extra);
 }
-
 
 static int r8192_wx_set_frag(struct net_device *dev,
 			     struct iw_request_info *info,
@@ -481,16 +468,15 @@ static int r8192_wx_set_wap(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	/* struct sockaddr *temp = (struct sockaddr *)awrq; */
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = ieee80211_wx_set_wap(priv->ieee80211, info, awrq, extra);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 
 }
-
 
 static int r8192_wx_get_wap(struct net_device *dev,
 			    struct iw_request_info *info,
@@ -500,7 +486,6 @@ static int r8192_wx_get_wap(struct net_device *dev,
 
 	return ieee80211_wx_get_wap(priv->ieee80211, info, wrqu, extra);
 }
-
 
 static int r8192_wx_get_enc(struct net_device *dev,
 			    struct iw_request_info *info,
@@ -530,12 +515,12 @@ static int r8192_wx_set_enc(struct net_device *dev,
 	if (!priv->up)
 		return -ENETDOWN;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	RT_TRACE(COMP_SEC, "Setting SW wep key");
 	ret = ieee80211_wx_set_encode(priv->ieee80211, info, wrqu, key);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 
 
@@ -577,7 +562,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		}
 
 		if (wrqu->encoding.length == 0x5) {
-				ieee->pairwise_key_type = KEY_TYPE_WEP40;
+			ieee->pairwise_key_type = KEY_TYPE_WEP40;
 			EnableHWSecurityConfig8192(dev);
 
 			setKey(dev,
@@ -591,8 +576,8 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		}
 
 		else if (wrqu->encoding.length == 0xd) {
-				ieee->pairwise_key_type = KEY_TYPE_WEP104;
-				EnableHWSecurityConfig8192(dev);
+			ieee->pairwise_key_type = KEY_TYPE_WEP104;
+			EnableHWSecurityConfig8192(dev);
 
 			setKey(dev,
 				key_idx,                /* EntryNo */
@@ -634,7 +619,7 @@ static int r8192_wx_set_retry(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int err = 0;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	if (wrqu->retry.flags & IW_RETRY_LIFETIME ||
 	    wrqu->retry.disabled){
@@ -667,7 +652,7 @@ static int r8192_wx_set_retry(struct net_device *dev,
 
 	rtl8192_commit(dev);
 exit:
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return err;
 }
@@ -693,7 +678,6 @@ static int r8192_wx_get_retry(struct net_device *dev,
 		wrqu->retry.value = priv->retry_data;
 	}
 
-
 	return 0;
 }
 
@@ -709,7 +693,6 @@ static int r8192_wx_get_sens(struct net_device *dev,
 	return 0;
 }
 
-
 static int r8192_wx_set_sens(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *wrqu, char *extra)
@@ -718,7 +701,7 @@ static int r8192_wx_set_sens(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	short err = 0;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 	if (priv->rf_set_sens == NULL) {
 		err = -1; /* we have not this support for this radio */
 		goto exit;
@@ -729,7 +712,7 @@ static int r8192_wx_set_sens(struct net_device *dev,
 		err = -EINVAL;
 
 exit:
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return err;
 }
@@ -744,7 +727,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 	struct ieee80211_device *ieee = priv->ieee80211;
 
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 	ret = ieee80211_wx_set_encode_ext(priv->ieee80211, info, wrqu, extra);
 
 	{
@@ -807,7 +790,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 
 end_hw_sec:
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 
 }
@@ -818,9 +801,9 @@ static int r8192_wx_set_auth(struct net_device *dev,
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 	ret = ieee80211_wx_set_auth(priv->ieee80211, info, &(data->param), extra);
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 }
 
@@ -832,10 +815,10 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 	ret = ieee80211_wx_set_mlme(priv->ieee80211, info, wrqu, extra);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 }
 
@@ -846,9 +829,9 @@ static int r8192_wx_set_gen_ie(struct net_device *dev,
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 	ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, data->data.length);
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 
 
@@ -859,7 +842,6 @@ static int dummy(struct net_device *dev, struct iw_request_info *a,
 {
 	return -1;
 }
-
 
 static iw_handler r8192_wx_handlers[] = {
 	NULL,                     /* SIOCSIWCOMMIT */
@@ -947,7 +929,6 @@ static const struct iw_priv_args r8192_private_args[] = {
 
 };
 
-
 static iw_handler r8192_private_handler[] = {
 	r8192_wx_set_crcmon,
 	r8192_wx_set_scan_type,
@@ -982,7 +963,6 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 	wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	return wstats;
 }
-
 
 struct iw_handler_def  r8192_wx_handlers_def = {
 	.standard = r8192_wx_handlers,

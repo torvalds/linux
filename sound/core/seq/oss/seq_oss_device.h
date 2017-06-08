@@ -24,7 +24,7 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <sound/core.h>
 #include <sound/seq_oss.h>
 #include <sound/rawmidi.h>
@@ -127,7 +127,6 @@ int snd_seq_oss_write(struct seq_oss_devinfo *dp, const char __user *buf, int co
 unsigned int snd_seq_oss_poll(struct seq_oss_devinfo *dp, struct file *file, poll_table * wait);
 
 void snd_seq_oss_reset(struct seq_oss_devinfo *dp);
-void snd_seq_oss_drain_write(struct seq_oss_devinfo *dp);
 
 /* */
 void snd_seq_oss_process_queue(struct seq_oss_devinfo *dp, abstime_t time);

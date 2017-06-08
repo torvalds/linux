@@ -19,6 +19,11 @@ interrupts.
 - reg : Specify the base address and the size of the TWD timer
 	register window.
 
+Optional
+
+- always-on : a boolean property. If present, the timer is powered through
+  an always-on power domain, therefore it never loses context.
+
 Example:
 
 	twd-timer@2c000600 {

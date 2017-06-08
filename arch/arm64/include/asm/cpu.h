@@ -25,10 +25,12 @@
  */
 struct cpuinfo_arm64 {
 	struct cpu	cpu;
+	struct kobject	kobj;
 	u32		reg_ctr;
 	u32		reg_cntfrq;
 	u32		reg_dczid;
 	u32		reg_midr;
+	u32		reg_revidr;
 
 	u64		reg_id_aa64dfr0;
 	u64		reg_id_aa64dfr1;
@@ -36,6 +38,7 @@ struct cpuinfo_arm64 {
 	u64		reg_id_aa64isar1;
 	u64		reg_id_aa64mmfr0;
 	u64		reg_id_aa64mmfr1;
+	u64		reg_id_aa64mmfr2;
 	u64		reg_id_aa64pfr0;
 	u64		reg_id_aa64pfr1;
 
@@ -62,5 +65,9 @@ DECLARE_PER_CPU(struct cpuinfo_arm64, cpu_data);
 
 void cpuinfo_store_cpu(void);
 void __init cpuinfo_store_boot_cpu(void);
+
+void __init init_cpu_features(struct cpuinfo_arm64 *info);
+void update_cpu_features(int cpu, struct cpuinfo_arm64 *info,
+				 struct cpuinfo_arm64 *boot);
 
 #endif /* __ASM_CPU_H */

@@ -721,9 +721,7 @@ static ssize_t c2port_read_flash_data(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr,
 				char *buffer, loff_t offset, size_t count)
 {
-	struct c2port_device *c2dev =
-			dev_get_drvdata(container_of(kobj,
-						struct device, kobj));
+	struct c2port_device *c2dev = dev_get_drvdata(kobj_to_dev(kobj));
 	ssize_t ret;
 
 	/* Check the device and flash access status */
@@ -838,9 +836,7 @@ static ssize_t c2port_write_flash_data(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr,
 				char *buffer, loff_t offset, size_t count)
 {
-	struct c2port_device *c2dev =
-			dev_get_drvdata(container_of(kobj,
-						struct device, kobj));
+	struct c2port_device *c2dev = dev_get_drvdata(kobj_to_dev(kobj));
 	int ret;
 
 	/* Check the device access status */
@@ -926,7 +922,7 @@ struct c2port_device *c2port_device_register(char *name,
 
 	c2dev->dev = device_create(c2port_class, NULL, 0, c2dev,
 				   "c2port%d", c2dev->id);
-	if (unlikely(IS_ERR(c2dev->dev))) {
+	if (IS_ERR(c2dev->dev)) {
 		ret = PTR_ERR(c2dev->dev);
 		goto error_device_create;
 	}

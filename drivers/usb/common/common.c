@@ -17,6 +17,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/of.h>
 #include <linux/usb/otg.h>
+#include <linux/of_platform.h>
 
 const char *usb_otg_state_string(enum usb_otg_state state)
 {
@@ -50,6 +51,7 @@ static const char *const speed_names[] = {
 	[USB_SPEED_HIGH] = "high-speed",
 	[USB_SPEED_WIRELESS] = "wireless",
 	[USB_SPEED_SUPER] = "super-speed",
+	[USB_SPEED_SUPER_PLUS] = "super-speed-plus",
 };
 
 const char *usb_speed_string(enum usb_device_speed speed)
@@ -59,6 +61,21 @@ const char *usb_speed_string(enum usb_device_speed speed)
 	return speed_names[speed];
 }
 EXPORT_SYMBOL_GPL(usb_speed_string);
+
+enum usb_device_speed usb_get_maximum_speed(struct device *dev)
+{
+	const char *maximum_speed;
+	int ret;
+
+	ret = device_property_read_string(dev, "maximum-speed", &maximum_speed);
+	if (ret < 0)
+		return USB_SPEED_UNKNOWN;
+
+	ret = match_string(speed_names, ARRAY_SIZE(speed_names), maximum_speed);
+
+	return (ret < 0) ? USB_SPEED_UNKNOWN : ret;
+}
+EXPORT_SYMBOL_GPL(usb_get_maximum_speed);
 
 const char *usb_state_string(enum usb_device_state state)
 {
@@ -81,7 +98,6 @@ const char *usb_state_string(enum usb_device_state state)
 }
 EXPORT_SYMBOL_GPL(usb_state_string);
 
-#ifdef CONFIG_OF
 static const char *const usb_dr_modes[] = {
 	[USB_DR_MODE_UNKNOWN]		= "",
 	[USB_DR_MODE_HOST]		= "host",
@@ -89,55 +105,81 @@ static const char *const usb_dr_modes[] = {
 	[USB_DR_MODE_OTG]		= "otg",
 };
 
-/**
- * of_usb_get_dr_mode - Get dual role mode for given device_node
- * @np:	Pointer to the given device_node
- *
- * The function gets phy interface string from property 'dr_mode',
- * and returns the correspondig enum usb_dr_mode
- */
-enum usb_dr_mode of_usb_get_dr_mode(struct device_node *np)
+static enum usb_dr_mode usb_get_dr_mode_from_string(const char *str)
+{
+	int ret;
+
+	ret = match_string(usb_dr_modes, ARRAY_SIZE(usb_dr_modes), str);
+	return (ret < 0) ? USB_DR_MODE_UNKNOWN : ret;
+}
+
+enum usb_dr_mode usb_get_dr_mode(struct device *dev)
 {
 	const char *dr_mode;
-	int err, i;
+	int err;
 
-	err = of_property_read_string(np, "dr_mode", &dr_mode);
+	err = device_property_read_string(dev, "dr_mode", &dr_mode);
 	if (err < 0)
 		return USB_DR_MODE_UNKNOWN;
 
-	for (i = 0; i < ARRAY_SIZE(usb_dr_modes); i++)
-		if (!strcmp(dr_mode, usb_dr_modes[i]))
-			return i;
-
-	return USB_DR_MODE_UNKNOWN;
+	return usb_get_dr_mode_from_string(dr_mode);
 }
-EXPORT_SYMBOL_GPL(of_usb_get_dr_mode);
+EXPORT_SYMBOL_GPL(usb_get_dr_mode);
 
+#ifdef CONFIG_OF
 /**
- * of_usb_get_maximum_speed - Get maximum requested speed for a given USB
- * controller.
- * @np: Pointer to the given device_node
+ * of_usb_get_dr_mode_by_phy - Get dual role mode for the controller device
+ * which is associated with the given phy device_node
+ * @np:	Pointer to the given phy device_node
+ * @arg0: phandle args[0] for phy's with #phy-cells >= 1, or -1 for
+ *        phys which do not have phy-cells
  *
- * The function gets the maximum speed string from property "maximum-speed",
- * and returns the corresponding enum usb_device_speed.
+ * In dts a usb controller associates with phy devices.  The function gets
+ * the string from property 'dr_mode' of the controller associated with the
+ * given phy device node, and returns the correspondig enum usb_dr_mode.
  */
-enum usb_device_speed of_usb_get_maximum_speed(struct device_node *np)
+enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 {
-	const char *maximum_speed;
+	struct device_node *controller = NULL;
+	struct of_phandle_args args;
+	const char *dr_mode;
+	int index;
 	int err;
-	int i;
 
-	err = of_property_read_string(np, "maximum-speed", &maximum_speed);
+	do {
+		controller = of_find_node_with_property(controller, "phys");
+		index = 0;
+		do {
+			if (arg0 == -1) {
+				args.np = of_parse_phandle(controller, "phys",
+							index);
+				args.args_count = 0;
+			} else {
+				err = of_parse_phandle_with_args(controller,
+							"phys", "#phy-cells",
+							index, &args);
+				if (err)
+					break;
+			}
+
+			of_node_put(args.np);
+			if (args.np == np && (args.args_count == 0 ||
+					      args.args[0] == arg0))
+				goto finish;
+			index++;
+		} while (args.np);
+	} while (controller);
+
+finish:
+	err = of_property_read_string(controller, "dr_mode", &dr_mode);
+	of_node_put(controller);
+
 	if (err < 0)
-		return USB_SPEED_UNKNOWN;
+		return USB_DR_MODE_UNKNOWN;
 
-	for (i = 0; i < ARRAY_SIZE(speed_names); i++)
-		if (strcmp(maximum_speed, speed_names[i]) == 0)
-			return i;
-
-	return USB_SPEED_UNKNOWN;
+	return usb_get_dr_mode_from_string(dr_mode);
 }
-EXPORT_SYMBOL_GPL(of_usb_get_maximum_speed);
+EXPORT_SYMBOL_GPL(of_usb_get_dr_mode_by_phy);
 
 /**
  * of_usb_host_tpl_support - to get if Targeted Peripheral List is supported

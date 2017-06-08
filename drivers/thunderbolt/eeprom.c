@@ -5,6 +5,7 @@
  */
 
 #include <linux/crc32.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include "tb.h"
 
@@ -221,7 +222,7 @@ struct tb_drom_entry_port {
 	u8 micro1:4;
 	u8 micro3;
 
-	/* BYTES 5-6, TODO: verify (find hardware that has these set) */
+	/* BYTES 6-7, TODO: verify (find hardware that has these set) */
 	u8 peer_port_rid:4;
 	u8 unknown3:3;
 	bool has_peer_port:1;
@@ -360,6 +361,40 @@ static int tb_drom_parse_entries(struct tb_switch *sw)
 }
 
 /**
+ * tb_drom_copy_efi - copy drom supplied by EFI to sw->drom if present
+ */
+static int tb_drom_copy_efi(struct tb_switch *sw, u16 *size)
+{
+	struct device *dev = &sw->tb->nhi->pdev->dev;
+	int len, res;
+
+	len = device_property_read_u8_array(dev, "ThunderboltDROM", NULL, 0);
+	if (len < 0 || len < sizeof(struct tb_drom_header))
+		return -EINVAL;
+
+	sw->drom = kmalloc(len, GFP_KERNEL);
+	if (!sw->drom)
+		return -ENOMEM;
+
+	res = device_property_read_u8_array(dev, "ThunderboltDROM", sw->drom,
+									len);
+	if (res)
+		goto err;
+
+	*size = ((struct tb_drom_header *)sw->drom)->data_len +
+							  TB_DROM_DATA_START;
+	if (*size > len)
+		goto err;
+
+	return 0;
+
+err:
+	kfree(sw->drom);
+	sw->drom = NULL;
+	return -EINVAL;
+}
+
+/**
  * tb_drom_read - copy drom to sw->drom and parse it
  */
 int tb_drom_read(struct tb_switch *sw)
@@ -373,6 +408,13 @@ int tb_drom_read(struct tb_switch *sw)
 		return 0;
 
 	if (tb_route(sw) == 0) {
+		/*
+		 * Apple's NHI EFI driver supplies a DROM for the root switch
+		 * in a device property. Use it if available.
+		 */
+		if (tb_drom_copy_efi(sw, &size) == 0)
+			goto parse;
+
 		/*
 		 * The root switch contains only a dummy drom (header only,
 		 * no entries). Hardcode the configuration here.
@@ -388,6 +430,11 @@ int tb_drom_read(struct tb_switch *sw)
 		sw->ports[4].link_nr = 1;
 		sw->ports[3].dual_link_port = &sw->ports[4];
 		sw->ports[4].dual_link_port = &sw->ports[3];
+
+		/* Port 5 is inaccessible on this gen 1 controller */
+		if (sw->config.device_id == PCI_DEVICE_ID_INTEL_LIGHT_RIDGE)
+			sw->ports[5].disabled = true;
+
 		return 0;
 	}
 
@@ -413,6 +460,7 @@ int tb_drom_read(struct tb_switch *sw)
 	if (res)
 		goto err;
 
+parse:
 	header = (void *) sw->drom;
 
 	if (header->data_len + TB_DROM_DATA_START != size) {
@@ -444,6 +492,7 @@ int tb_drom_read(struct tb_switch *sw)
 	return tb_drom_parse_entries(sw);
 err:
 	kfree(sw->drom);
+	sw->drom = NULL;
 	return -EIO;
 
 }

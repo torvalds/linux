@@ -35,9 +35,9 @@ static struct page *qnx6_get_page(struct inode *dir, unsigned long n)
 static unsigned last_entry(struct inode *inode, unsigned long page_nr)
 {
 	unsigned long last_byte = inode->i_size;
-	last_byte -= page_nr << PAGE_CACHE_SHIFT;
-	if (last_byte > PAGE_CACHE_SIZE)
-		last_byte = PAGE_CACHE_SIZE;
+	last_byte -= page_nr << PAGE_SHIFT;
+	if (last_byte > PAGE_SIZE)
+		last_byte = PAGE_SIZE;
 	return last_byte / QNX6_DIR_ENTRY_SIZE;
 }
 
@@ -47,9 +47,9 @@ static struct qnx6_long_filename *qnx6_longname(struct super_block *sb,
 {
 	struct qnx6_sb_info *sbi = QNX6_SB(sb);
 	u32 s = fs32_to_cpu(sbi, de->de_long_inode); /* in block units */
-	u32 n = s >> (PAGE_CACHE_SHIFT - sb->s_blocksize_bits); /* in pages */
+	u32 n = s >> (PAGE_SHIFT - sb->s_blocksize_bits); /* in pages */
 	/* within page */
-	u32 offs = (s << sb->s_blocksize_bits) & ~PAGE_CACHE_MASK;
+	u32 offs = (s << sb->s_blocksize_bits) & ~PAGE_MASK;
 	struct address_space *mapping = sbi->longfile->i_mapping;
 	struct page *page = read_mapping_page(mapping, n, NULL);
 	if (IS_ERR(page))
@@ -115,8 +115,8 @@ static int qnx6_readdir(struct file *file, struct dir_context *ctx)
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
 	loff_t pos = ctx->pos & ~(QNX6_DIR_ENTRY_SIZE - 1);
 	unsigned long npages = dir_pages(inode);
-	unsigned long n = pos >> PAGE_CACHE_SHIFT;
-	unsigned start = (pos & ~PAGE_CACHE_MASK) / QNX6_DIR_ENTRY_SIZE;
+	unsigned long n = pos >> PAGE_SHIFT;
+	unsigned start = (pos & ~PAGE_MASK) / QNX6_DIR_ENTRY_SIZE;
 	bool done = false;
 
 	ctx->pos = pos;
@@ -131,7 +131,7 @@ static int qnx6_readdir(struct file *file, struct dir_context *ctx)
 
 		if (IS_ERR(page)) {
 			pr_err("%s(): read failed\n", __func__);
-			ctx->pos = (n + 1) << PAGE_CACHE_SHIFT;
+			ctx->pos = (n + 1) << PAGE_SHIFT;
 			return PTR_ERR(page);
 		}
 		de = ((struct qnx6_dir_entry *)page_address(page)) + start;
@@ -272,7 +272,7 @@ found:
 const struct file_operations qnx6_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= qnx6_readdir,
+	.iterate_shared	= qnx6_readdir,
 	.fsync		= generic_file_fsync,
 };
 

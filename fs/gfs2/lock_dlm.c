@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/sched/signal.h>
 
 #include "incore.h"
 #include "glock.h"
@@ -50,7 +51,7 @@ static inline void gfs2_update_stats(struct gfs2_lkstats *s, unsigned index,
 	s64 delta = sample - s->stats[index];
 	s->stats[index] += (delta >> 3);
 	index++;
-	s->stats[index] += ((abs64(delta) - s->stats[index]) >> 2);
+	s->stats[index] += ((abs(delta) - s->stats[index]) >> 2);
 }
 
 /**

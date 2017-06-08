@@ -16,20 +16,18 @@
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_ipv6.h>
 
-static unsigned int nft_do_chain_ipv6(const struct nf_hook_ops *ops,
+static unsigned int nft_do_chain_ipv6(void *priv,
 				      struct sk_buff *skb,
 				      const struct nf_hook_state *state)
 {
 	struct nft_pktinfo pkt;
 
-	/* malformed packet, drop it */
-	if (nft_set_pktinfo_ipv6(&pkt, ops, skb, state) < 0)
-		return NF_DROP;
+	nft_set_pktinfo_ipv6(&pkt, skb, state);
 
-	return nft_do_chain(&pkt, ops);
+	return nft_do_chain(&pkt, priv);
 }
 
-static unsigned int nft_ipv6_output(const struct nf_hook_ops *ops,
+static unsigned int nft_ipv6_output(void *priv,
 				    struct sk_buff *skb,
 				    const struct nf_hook_state *state)
 {
@@ -40,7 +38,7 @@ static unsigned int nft_ipv6_output(const struct nf_hook_ops *ops,
 		return NF_ACCEPT;
 	}
 
-	return nft_do_chain_ipv6(ops, skb, state);
+	return nft_do_chain_ipv6(priv, skb, state);
 }
 
 struct nft_af_info nft_af_ipv6 __read_mostly = {
@@ -77,7 +75,7 @@ err:
 
 static void nf_tables_ipv6_exit_net(struct net *net)
 {
-	nft_unregister_afinfo(net->nft.ipv6);
+	nft_unregister_afinfo(net, net->nft.ipv6);
 	kfree(net->nft.ipv6);
 }
 
@@ -102,7 +100,10 @@ static int __init nf_tables_ipv6_init(void)
 {
 	int ret;
 
-	nft_register_chain_type(&filter_ipv6);
+	ret = nft_register_chain_type(&filter_ipv6);
+	if (ret < 0)
+		return ret;
+
 	ret = register_pernet_subsys(&nf_tables_ipv6_net_ops);
 	if (ret < 0)
 		nft_unregister_chain_type(&filter_ipv6);

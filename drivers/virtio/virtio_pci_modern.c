@@ -17,6 +17,7 @@
  *
  */
 
+#include <linux/delay.h>
 #define VIRTIO_PCI_NO_LEGACY
 #include "virtio_pci_common.h"
 
@@ -32,12 +33,12 @@ static inline u8 vp_ioread8(u8 __iomem *addr)
 {
 	return ioread8(addr);
 }
-static inline u16 vp_ioread16 (u16 __iomem *addr)
+static inline u16 vp_ioread16 (__le16 __iomem *addr)
 {
 	return ioread16(addr);
 }
 
-static inline u32 vp_ioread32(u32 __iomem *addr)
+static inline u32 vp_ioread32(__le32 __iomem *addr)
 {
 	return ioread32(addr);
 }
@@ -47,12 +48,12 @@ static inline void vp_iowrite8(u8 value, u8 __iomem *addr)
 	iowrite8(value, addr);
 }
 
-static inline void vp_iowrite16(u16 value, u16 __iomem *addr)
+static inline void vp_iowrite16(u16 value, __le16 __iomem *addr)
 {
 	iowrite16(value, addr);
 }
 
-static inline void vp_iowrite32(u32 value, u32 __iomem *addr)
+static inline void vp_iowrite32(u32 value, __le32 __iomem *addr)
 {
 	iowrite32(value, addr);
 }
@@ -271,9 +272,13 @@ static void vp_reset(struct virtio_device *vdev)
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	/* 0 status means a reset. */
 	vp_iowrite8(0, &vp_dev->common->device_status);
-	/* Flush out the status write, and flush in device writes,
-	 * including MSI-X interrupts, if any. */
-	vp_ioread8(&vp_dev->common->device_status);
+	/* After writing 0 to device_status, the driver MUST wait for a read of
+	 * device_status to return 0 before reinitializing the device.
+	 * This will flush out the status write, and flush in device writes,
+	 * including MSI-X interrupts, if any.
+	 */
+	while (vp_ioread8(&vp_dev->common->device_status))
+		msleep(1);
 	/* Flush pending VQ/configuration callbacks. */
 	vp_synchronize_vectors(vdev);
 }
@@ -287,36 +292,12 @@ static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
 	return vp_ioread16(&vp_dev->common->msix_config);
 }
 
-static size_t vring_pci_size(u16 num)
-{
-	/* We only need a cacheline separation. */
-	return PAGE_ALIGN(vring_size(num, SMP_CACHE_BYTES));
-}
-
-static void *alloc_virtqueue_pages(int *num)
-{
-	void *pages;
-
-	/* TODO: allocate each queue chunk individually */
-	for (; *num && vring_pci_size(*num) > PAGE_SIZE; *num /= 2) {
-		pages = alloc_pages_exact(vring_pci_size(*num),
-					  GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN);
-		if (pages)
-			return pages;
-	}
-
-	if (!*num)
-		return NULL;
-
-	/* Try to get a single page. You are my only hope! */
-	return alloc_pages_exact(vring_pci_size(*num), GFP_KERNEL|__GFP_ZERO);
-}
-
 static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 				  struct virtio_pci_vq_info *info,
 				  unsigned index,
 				  void (*callback)(struct virtqueue *vq),
 				  const char *name,
+				  bool ctx,
 				  u16 msix_vec)
 {
 	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
@@ -343,29 +324,23 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	/* get offset of notification word for this vq */
 	off = vp_ioread16(&cfg->queue_notify_off);
 
-	info->num = num;
 	info->msix_vector = msix_vec;
 
-	info->queue = alloc_virtqueue_pages(&info->num);
-	if (info->queue == NULL)
+	/* create the vring */
+	vq = vring_create_virtqueue(index, num,
+				    SMP_CACHE_BYTES, &vp_dev->vdev,
+				    true, true, ctx,
+				    vp_notify, callback, name);
+	if (!vq)
 		return ERR_PTR(-ENOMEM);
 
-	/* create the vring */
-	vq = vring_new_virtqueue(index, info->num,
-				 SMP_CACHE_BYTES, &vp_dev->vdev,
-				 true, info->queue, vp_notify, callback, name);
-	if (!vq) {
-		err = -ENOMEM;
-		goto err_new_queue;
-	}
-
 	/* activate the queue */
-	vp_iowrite16(num, &cfg->queue_size);
-	vp_iowrite64_twopart(virt_to_phys(info->queue),
+	vp_iowrite16(virtqueue_get_vring_size(vq), &cfg->queue_size);
+	vp_iowrite64_twopart(virtqueue_get_desc_addr(vq),
 			     &cfg->queue_desc_lo, &cfg->queue_desc_hi);
-	vp_iowrite64_twopart(virt_to_phys(virtqueue_get_avail(vq)),
+	vp_iowrite64_twopart(virtqueue_get_avail_addr(vq),
 			     &cfg->queue_avail_lo, &cfg->queue_avail_hi);
-	vp_iowrite64_twopart(virt_to_phys(virtqueue_get_used(vq)),
+	vp_iowrite64_twopart(virtqueue_get_used_addr(vq),
 			     &cfg->queue_used_lo, &cfg->queue_used_hi);
 
 	if (vp_dev->notify_base) {
@@ -410,19 +385,18 @@ err_assign_vector:
 		pci_iounmap(vp_dev->pci_dev, (void __iomem __force *)vq->priv);
 err_map_notify:
 	vring_del_virtqueue(vq);
-err_new_queue:
-	free_pages_exact(info->queue, vring_pci_size(info->num));
 	return ERR_PTR(err);
 }
 
 static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			      struct virtqueue *vqs[],
 			      vq_callback_t *callbacks[],
-			      const char *names[])
+			      const char * const names[], const bool *ctx,
+			      struct irq_affinity *desc)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtqueue *vq;
-	int rc = vp_find_vqs(vdev, nvqs, vqs, callbacks, names);
+	int rc = vp_find_vqs(vdev, nvqs, vqs, callbacks, names, ctx, desc);
 
 	if (rc)
 		return rc;
@@ -456,8 +430,6 @@ static void del_vq(struct virtio_pci_vq_info *info)
 		pci_iounmap(vp_dev->pci_dev, (void __force __iomem *)vq->priv);
 
 	vring_del_virtqueue(vq);
-
-	free_pages_exact(info->queue, vring_pci_size(info->num));
 }
 
 static const struct virtio_config_ops virtio_pci_config_nodev_ops = {
@@ -473,6 +445,7 @@ static const struct virtio_config_ops virtio_pci_config_nodev_ops = {
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,
 	.set_vq_affinity = vp_set_vq_affinity,
+	.get_vq_affinity = vp_get_vq_affinity,
 };
 
 static const struct virtio_config_ops virtio_pci_config_ops = {
@@ -488,6 +461,7 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,
 	.set_vq_affinity = vp_set_vq_affinity,
+	.get_vq_affinity = vp_get_vq_affinity,
 };
 
 /**
@@ -641,6 +615,13 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 		return -EINVAL;
 	}
 
+	err = dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(64));
+	if (err)
+		err = dma_set_mask_and_coherent(&pci_dev->dev,
+						DMA_BIT_MASK(32));
+	if (err)
+		dev_warn(&pci_dev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might not work.\n");
+
 	/* Device capability is only mandatory for devices that have
 	 * device-specific configuration.
 	 */
@@ -679,7 +660,7 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 
 	pci_read_config_dword(pci_dev,
 			      notify + offsetof(struct virtio_pci_notify_cap,
-						cap.length),
+						cap.offset),
 			      &notify_offset);
 
 	/* We don't know how many VQs we'll map, ahead of the time.

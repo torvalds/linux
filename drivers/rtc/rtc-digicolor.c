@@ -159,7 +159,7 @@ static int dc_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static struct rtc_class_ops dc_rtc_ops = {
+static const struct rtc_class_ops dc_rtc_ops = {
 	.read_time		= dc_rtc_read_time,
 	.set_mmss		= dc_rtc_set_mmss,
 	.read_alarm		= dc_rtc_read_alarm,

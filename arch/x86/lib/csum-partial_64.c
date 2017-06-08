@@ -6,7 +6,7 @@
  */
  
 #include <linux/compiler.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/checksum.h>
 
 static inline unsigned short from32to16(unsigned a) 
@@ -135,6 +135,7 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 	return (__force __wsum)add32_with_carry(do_csum(buff, len),
 						(__force u32)sum);
 }
+EXPORT_SYMBOL(csum_partial);
 
 /*
  * this routine is used for miscellaneous IP-like checksums, mainly

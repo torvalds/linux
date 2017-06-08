@@ -1,0 +1,30 @@
+HDMI Connector
+==============
+
+Required properties:
+- compatible: "hdmi-connector"
+- type: the HDMI connector type: "a", "b", "c", "d" or "e"
+
+Optional properties:
+- label: a symbolic name for the connector
+- hpd-gpios: HPD GPIO number
+- ddc-i2c-bus: phandle link to the I2C controller used for DDC EDID probing
+
+Required nodes:
+- Video port for HDMI input
+
+Example
+-------
+
+hdmi0: connector@1 {
+	compatible = "hdmi-connector";
+	label = "hdmi";
+
+	type = "a";
+
+	port {
+		hdmi_connector_in: endpoint {
+			remote-endpoint = <&tpd12s015_out>;
+		};
+	};
+};

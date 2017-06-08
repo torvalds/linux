@@ -85,7 +85,7 @@ ENTRY(sha2_ce_transform)
 	ld1		{v12.4s-v15.4s}, [x8]
 
 	/* load state */
-	ldp		dga, dgb, [x0]
+	ld1		{dgav.4s, dgbv.4s}, [x0]
 
 	/* load sha256_ce_state::finalize */
 	ldr		w4, [x0, #:lo12:sha256_ce_offsetof_finalize]
@@ -148,6 +148,6 @@ CPU_LE(	rev32		v19.16b, v19.16b	)
 	b		1b
 
 	/* store new state */
-3:	stp		dga, dgb, [x0]
+3:	st1		{dgav.4s, dgbv.4s}, [x0]
 	ret
 ENDPROC(sha2_ce_transform)

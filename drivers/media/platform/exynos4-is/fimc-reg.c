@@ -13,7 +13,7 @@
 #include <linux/io.h>
 #include <linux/regmap.h>
 
-#include <media/exynos-fimc.h>
+#include <media/drv-intf/exynos-fimc.h>
 #include "media-dev.h"
 
 #include "fimc-reg.h"

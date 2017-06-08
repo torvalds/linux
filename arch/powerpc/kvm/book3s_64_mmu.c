@@ -26,7 +26,7 @@
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
-#include <asm/mmu-hash64.h>
+#include <asm/book3s/64/mmu-hash.h>
 
 /* #define DEBUG_MMU */
 
@@ -265,7 +265,8 @@ do_second:
 		goto no_page_found;
 
 	if(copy_from_user(pteg, (void __user *)ptegp, sizeof(pteg))) {
-		printk(KERN_ERR "KVM can't copy data from 0x%lx!\n", ptegp);
+		printk_ratelimited(KERN_ERR
+			"KVM: Can't copy data from 0x%lx!\n", ptegp);
 		goto no_page_found;
 	}
 
@@ -318,6 +319,7 @@ do_second:
 		gpte->may_execute = true;
 	gpte->may_read = false;
 	gpte->may_write = false;
+	gpte->wimg = r & HPTE_R_WIMG;
 
 	switch (pp) {
 	case 0:
@@ -377,14 +379,11 @@ no_seg_found:
 
 static void kvmppc_mmu_book3s_64_slbmte(struct kvm_vcpu *vcpu, u64 rs, u64 rb)
 {
-	struct kvmppc_vcpu_book3s *vcpu_book3s;
 	u64 esid, esid_1t;
 	int slb_nr;
 	struct kvmppc_slb *slbe;
 
 	dprintk("KVM MMU: slbmte(0x%llx, 0x%llx)\n", rs, rb);
-
-	vcpu_book3s = to_book3s(vcpu);
 
 	esid = GET_ESID(rb);
 	esid_1t = GET_ESID_1T(rb);

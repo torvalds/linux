@@ -83,7 +83,7 @@ static void mcpm_cpu_die(unsigned int cpu)
 
 #endif
 
-static struct smp_operations __initdata mcpm_smp_ops = {
+static const struct smp_operations mcpm_smp_ops __initconst = {
 	.smp_boot_secondary	= mcpm_boot_secondary,
 	.smp_secondary_init	= mcpm_secondary_init,
 #ifdef CONFIG_HOTPLUG_CPU

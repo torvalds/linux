@@ -241,7 +241,7 @@ nvkm_mxm_new_(struct nvkm_device *device, int index, struct nvkm_mxm **pmxm)
 	if (!(mxm = *pmxm = kzalloc(sizeof(*mxm), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_mxm, device, index, 0, &mxm->subdev);
+	nvkm_subdev_ctor(&nvkm_mxm, device, index, &mxm->subdev);
 
 	data = mxm_table(bios, &ver, &len);
 	if (!data || !(ver = nvbios_rd08(bios, data))) {
@@ -250,6 +250,10 @@ nvkm_mxm_new_(struct nvkm_device *device, int index, struct nvkm_mxm **pmxm)
 	}
 
 	nvkm_info(&mxm->subdev, "BIOS version %d.%d\n", ver >> 4, ver & 0x0f);
+	nvkm_debug(&mxm->subdev, "module flags: %02x\n",
+		   nvbios_rd08(bios, data + 0x01));
+	nvkm_debug(&mxm->subdev, "config flags: %02x\n",
+		   nvbios_rd08(bios, data + 0x02));
 
 	if (mxm_shadow(mxm, ver)) {
 		nvkm_warn(&mxm->subdev, "failed to locate valid SIS\n");

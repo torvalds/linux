@@ -121,11 +121,6 @@ static bool deskpro_xl;
 static bool deskpro_m;
 static bool soundpro;
 
-static volatile signed char irq2dev[17] = {
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1
-};
-
 #ifndef EXCLUDE_TIMERS
 static int timer_installed = -1;
 #endif
@@ -254,7 +249,7 @@ static void ad_write(ad1848_info * devc, int reg, int data)
 
 static void wait_for_calibration(ad1848_info * devc)
 {
-	int timeout = 0;
+	int timeout;
 
 	/*
 	 * Wait until the auto calibration process has finished.
@@ -2060,7 +2055,7 @@ int ad1848_init (char *name, struct resource *ports, int irq, int dma_playback,
 		else
 			devc->irq_ok = 1;	/* Couldn't test. assume it's OK */
 	} else if (irq < 0)
-		irq2dev[-irq] = devc->dev_no = my_dev;
+		devc->dev_no = my_dev;
 
 #ifndef EXCLUDE_TIMERS
 	if ((capabilities[devc->model].flags & CAP_F_TIMER) &&
@@ -2810,10 +2805,10 @@ static int __initdata dma = -1;
 static int __initdata dma2 = -1;
 static int __initdata type = 0;
 
-module_param(io, int, 0);		/* I/O for a raw AD1848 card */
-module_param(irq, int, 0);		/* IRQ to use */
-module_param(dma, int, 0);		/* First DMA channel */
-module_param(dma2, int, 0);		/* Second DMA channel */
+module_param_hw(io, int, ioport, 0);	/* I/O for a raw AD1848 card */
+module_param_hw(irq, int, irq, 0);	/* IRQ to use */
+module_param_hw(dma, int, dma, 0);	/* First DMA channel */
+module_param_hw(dma2, int, dma, 0);	/* Second DMA channel */
 module_param(type, int, 0);		/* Card type */
 module_param(deskpro_xl, bool, 0);	/* Special magic for Deskpro XL boxen */
 module_param(deskpro_m, bool, 0);	/* Special magic for Deskpro M box */

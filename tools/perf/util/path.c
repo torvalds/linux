@@ -11,35 +11,18 @@
  * which is what it's designed for.
  */
 #include "cache.h"
+#include "path.h"
+#include <linux/kernel.h>
+#include <limits.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static char bad_path[] = "/bad-path/";
 /*
- * Two hacks:
+ * One hack:
  */
-
-static const char *get_perf_dir(void)
-{
-	return ".";
-}
-
-/*
- * If libc has strlcpy() then that version will override this
- * implementation:
- */
-size_t __weak strlcpy(char *dest, const char *src, size_t size)
-{
-	size_t ret = strlen(src);
-
-	if (size) {
-		size_t len = (ret >= size) ? size - 1 : ret;
-
-		memcpy(dest, src, len);
-		dest[len] = '\0';
-	}
-
-	return ret;
-}
-
 static char *get_pathname(void)
 {
 	static char pathname_array[4][PATH_MAX];
@@ -59,36 +42,6 @@ static char *cleanup_path(char *path)
 	return path;
 }
 
-static char *perf_vsnpath(char *buf, size_t n, const char *fmt, va_list args)
-{
-	const char *perf_dir = get_perf_dir();
-	size_t len;
-
-	len = strlen(perf_dir);
-	if (n < len + 1)
-		goto bad;
-	memcpy(buf, perf_dir, len);
-	if (len && !is_dir_sep(perf_dir[len-1]))
-		buf[len++] = '/';
-	len += vsnprintf(buf + len, n - len, fmt, args);
-	if (len >= n)
-		goto bad;
-	return cleanup_path(buf);
-bad:
-	strlcpy(buf, bad_path, n);
-	return buf;
-}
-
-char *perf_pathdup(const char *fmt, ...)
-{
-	char path[PATH_MAX];
-	va_list args;
-	va_start(args, fmt);
-	(void)perf_vsnpath(path, sizeof(path), fmt, args);
-	va_end(args);
-	return xstrdup(path);
-}
-
 char *mkpath(const char *fmt, ...)
 {
 	va_list args;
@@ -103,59 +56,23 @@ char *mkpath(const char *fmt, ...)
 	return cleanup_path(pathname);
 }
 
-char *perf_path(const char *fmt, ...)
+int path__join(char *bf, size_t size, const char *path1, const char *path2)
 {
-	const char *perf_dir = get_perf_dir();
-	char *pathname = get_pathname();
-	va_list args;
-	unsigned len;
-
-	len = strlen(perf_dir);
-	if (len > PATH_MAX-100)
-		return bad_path;
-	memcpy(pathname, perf_dir, len);
-	if (len && perf_dir[len-1] != '/')
-		pathname[len++] = '/';
-	va_start(args, fmt);
-	len += vsnprintf(pathname + len, PATH_MAX - len, fmt, args);
-	va_end(args);
-	if (len >= PATH_MAX)
-		return bad_path;
-	return cleanup_path(pathname);
+	return scnprintf(bf, size, "%s%s%s", path1, path1[0] ? "/" : "", path2);
 }
 
-/* strip arbitrary amount of directory separators at end of path */
-static inline int chomp_trailing_dir_sep(const char *path, int len)
+int path__join3(char *bf, size_t size, const char *path1, const char *path2, const char *path3)
 {
-	while (len && is_dir_sep(path[len - 1]))
-		len--;
-	return len;
+	return scnprintf(bf, size, "%s%s%s%s%s", path1, path1[0] ? "/" : "",
+			 path2, path2[0] ? "/" : "", path3);
 }
 
-/*
- * If path ends with suffix (complete path components), returns the
- * part before suffix (sans trailing directory separators).
- * Otherwise returns NULL.
- */
-char *strip_path_suffix(const char *path, const char *suffix)
+bool is_regular_file(const char *file)
 {
-	int path_len = strlen(path), suffix_len = strlen(suffix);
+	struct stat st;
 
-	while (suffix_len) {
-		if (!path_len)
-			return NULL;
+	if (stat(file, &st))
+		return false;
 
-		if (is_dir_sep(path[path_len - 1])) {
-			if (!is_dir_sep(suffix[suffix_len - 1]))
-				return NULL;
-			path_len = chomp_trailing_dir_sep(path, path_len);
-			suffix_len = chomp_trailing_dir_sep(suffix, suffix_len);
-		}
-		else if (path[--path_len] != suffix[--suffix_len])
-			return NULL;
-	}
-
-	if (path_len && !is_dir_sep(path[path_len - 1]))
-		return NULL;
-	return strndup(path, chomp_trailing_dir_sep(path, path_len));
+	return S_ISREG(st.st_mode);
 }

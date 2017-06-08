@@ -36,6 +36,6 @@ extern unsigned long *_interrupt_redirect_table;
 extern char _start, _etext;
 #define check_kernel_text(addr) \
 	((addr >= (unsigned long)(&_start)) && \
-	 (addr <  (unsigned long)(&_etext)))
+	 (addr <  (unsigned long)(&_etext)) && !(addr & 1))
 
 #endif /* _H8300_TRAPS_H */

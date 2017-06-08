@@ -53,7 +53,7 @@ static struct mtd_partition partition_info[] = {
 
 static u_char cmx270_read_byte(struct mtd_info *mtd)
 {
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 
 	return (readl(this->IO_ADDR_R) >> 16);
 }
@@ -61,7 +61,7 @@ static u_char cmx270_read_byte(struct mtd_info *mtd)
 static void cmx270_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
 	int i;
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 
 	for (i=0; i<len; i++)
 		writel((*buf++ << 16), this->IO_ADDR_W);
@@ -70,7 +70,7 @@ static void cmx270_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 static void cmx270_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 {
 	int i;
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 
 	for (i=0; i<len; i++)
 		*buf++ = readl(this->IO_ADDR_R) >> 16;
@@ -94,7 +94,7 @@ static void nand_cs_off(void)
 static void cmx270_hwcontrol(struct mtd_info *mtd, int dat,
 			     unsigned int ctrl)
 {
-	struct nand_chip* this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	unsigned int nandaddr = (unsigned int)this->IO_ADDR_W;
 
 	dsb();
@@ -145,7 +145,7 @@ static int __init cmx270_init(void)
 
 	ret = gpio_request(GPIO_NAND_CS, "NAND CS");
 	if (ret) {
-		pr_warning("CM-X270: failed to request NAND CS gpio\n");
+		pr_warn("CM-X270: failed to request NAND CS gpio\n");
 		return ret;
 	}
 
@@ -153,17 +153,15 @@ static int __init cmx270_init(void)
 
 	ret = gpio_request(GPIO_NAND_RB, "NAND R/B");
 	if (ret) {
-		pr_warning("CM-X270: failed to request NAND R/B gpio\n");
+		pr_warn("CM-X270: failed to request NAND R/B gpio\n");
 		goto err_gpio_request;
 	}
 
 	gpio_direction_input(GPIO_NAND_RB);
 
 	/* Allocate memory for MTD device structure and private data */
-	cmx270_nand_mtd = kzalloc(sizeof(struct mtd_info) +
-				  sizeof(struct nand_chip),
-				  GFP_KERNEL);
-	if (!cmx270_nand_mtd) {
+	this = kzalloc(sizeof(struct nand_chip), GFP_KERNEL);
+	if (!this) {
 		ret = -ENOMEM;
 		goto err_kzalloc;
 	}
@@ -175,12 +173,10 @@ static int __init cmx270_init(void)
 		goto err_ioremap;
 	}
 
-	/* Get pointer to private data */
-	this = (struct nand_chip *)(&cmx270_nand_mtd[1]);
+	cmx270_nand_mtd = nand_to_mtd(this);
 
 	/* Link the private data with the MTD structure */
 	cmx270_nand_mtd->owner = THIS_MODULE;
-	cmx270_nand_mtd->priv = this;
 
 	/* insert callbacks */
 	this->IO_ADDR_R = cmx270_nand_io;
@@ -191,6 +187,7 @@ static int __init cmx270_init(void)
 	/* 15 us command delay time */
 	this->chip_delay = 20;
 	this->ecc.mode = NAND_ECC_SOFT;
+	this->ecc.algo = NAND_ECC_HAMMING;
 
 	/* read/write functions */
 	this->read_byte = cmx270_read_byte;
@@ -198,9 +195,9 @@ static int __init cmx270_init(void)
 	this->write_buf = cmx270_write_buf;
 
 	/* Scan to find existence of the device */
-	if (nand_scan (cmx270_nand_mtd, 1)) {
+	ret = nand_scan(cmx270_nand_mtd, 1);
+	if (ret) {
 		pr_notice("No NAND device\n");
-		ret = -ENXIO;
 		goto err_scan;
 	}
 
@@ -216,7 +213,7 @@ static int __init cmx270_init(void)
 err_scan:
 	iounmap(cmx270_nand_io);
 err_ioremap:
-	kfree(cmx270_nand_mtd);
+	kfree(this);
 err_kzalloc:
 	gpio_free(GPIO_NAND_RB);
 err_gpio_request:
@@ -240,8 +237,7 @@ static void __exit cmx270_cleanup(void)
 
 	iounmap(cmx270_nand_io);
 
-	/* Free the MTD device structure */
-	kfree (cmx270_nand_mtd);
+	kfree(mtd_to_nand(cmx270_nand_mtd));
 }
 module_exit(cmx270_cleanup);
 

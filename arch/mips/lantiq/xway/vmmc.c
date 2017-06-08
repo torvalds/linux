@@ -3,10 +3,10 @@
  *  under the terms of the GNU General Public License version 2 as published
  *  by the Free Software Foundation.
  *
- *  Copyright (C) 2012 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/dma-mapping.h>
@@ -55,7 +55,6 @@ static const struct of_device_id vmmc_match[] = {
 	{ .compatible = "lantiq,vmmc-xway" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, vmmc_match);
 
 static struct platform_driver vmmc_driver = {
 	.probe = vmmc_probe,
@@ -64,5 +63,4 @@ static struct platform_driver vmmc_driver = {
 		.of_match_table = vmmc_match,
 	},
 };
-
-module_platform_driver(vmmc_driver);
+builtin_platform_driver(vmmc_driver);

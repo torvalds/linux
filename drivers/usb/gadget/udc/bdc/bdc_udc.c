@@ -581,8 +581,13 @@ err0:
 
 void bdc_udc_exit(struct bdc *bdc)
 {
+	unsigned long flags;
+
 	dev_dbg(bdc->dev, "%s()\n", __func__);
+	spin_lock_irqsave(&bdc->lock, flags);
 	bdc_ep_disable(bdc->bdc_ep_array[1]);
+	spin_unlock_irqrestore(&bdc->lock, flags);
+
 	usb_del_gadget_udc(&bdc->gadget);
 	bdc_free_ep(bdc);
 }

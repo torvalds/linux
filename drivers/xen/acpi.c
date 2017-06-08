@@ -58,7 +58,7 @@ static int xen_acpi_notify_hypervisor_state(u8 sleep_state,
 		 bits, val_a, val_b))
 		return -1;
 
-	HYPERVISOR_dom0_op(&op);
+	HYPERVISOR_platform_op(&op);
 	return 1;
 }
 

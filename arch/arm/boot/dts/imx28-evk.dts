@@ -57,7 +57,7 @@
 				flash: m25p80@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "sst,sst25vf016b";
+					compatible = "sst,sst25vf016b", "jedec,spi-nor";
 					spi-max-frequency = <40000000>;
 					reg = <0>;
 				};
@@ -224,7 +224,7 @@
 			auart0: serial@8006a000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&auart0_pins_a>;
-				fsl,uart-has-rtscts;
+				uart-has-rtscts;
 				status = "okay";
 			};
 

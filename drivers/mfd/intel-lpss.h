@@ -16,12 +16,14 @@
 
 struct device;
 struct resource;
+struct property_entry;
 
 struct intel_lpss_platform_info {
 	struct resource *mem;
 	int irq;
 	unsigned long clk_rate;
 	const char *clk_con_id;
+	struct property_entry *properties;
 };
 
 int intel_lpss_probe(struct device *dev,
@@ -42,6 +44,8 @@ int intel_lpss_resume(struct device *dev);
 	.thaw = intel_lpss_resume,		\
 	.poweroff = intel_lpss_suspend,		\
 	.restore = intel_lpss_resume,
+#else
+#define INTEL_LPSS_SLEEP_PM_OPS
 #endif
 
 #define INTEL_LPSS_RUNTIME_PM_OPS		\

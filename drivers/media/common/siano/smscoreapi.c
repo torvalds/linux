@@ -15,10 +15,6 @@
  *  basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.
  *
  *  See the GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "smscoreapi.h"
@@ -1167,8 +1163,8 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 		return rc;
 	}
 	pr_debug("read fw %s, buffer size=0x%zx\n", fw_filename, fw->size);
-	fw_buf = kmalloc(ALIGN(fw->size, SMS_ALLOC_ALIGNMENT),
-			 GFP_KERNEL | GFP_DMA);
+	fw_buf = kmalloc(ALIGN(fw->size + sizeof(struct sms_firmware),
+			 SMS_ALLOC_ALIGNMENT), GFP_KERNEL | GFP_DMA);
 	if (!fw_buf) {
 		pr_err("failed to allocate firmware buffer\n");
 		rc = -ENOMEM;

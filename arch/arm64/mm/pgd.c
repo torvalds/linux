@@ -26,10 +26,6 @@
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 
-#include "mm.h"
-
-#define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
-
 static struct kmem_cache *pgd_cache;
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
@@ -48,14 +44,14 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 		kmem_cache_free(pgd_cache, pgd);
 }
 
-static int __init pgd_cache_init(void)
+void __init pgd_cache_init(void)
 {
+	if (PGD_SIZE == PAGE_SIZE)
+		return;
+
 	/*
 	 * Naturally aligned pgds required by the architecture.
 	 */
-	if (PGD_SIZE != PAGE_SIZE)
-		pgd_cache = kmem_cache_create("pgd_cache", PGD_SIZE, PGD_SIZE,
-					      SLAB_PANIC, NULL);
-	return 0;
+	pgd_cache = kmem_cache_create("pgd_cache", PGD_SIZE, PGD_SIZE,
+				      SLAB_PANIC, NULL);
 }
-core_initcall(pgd_cache_init);

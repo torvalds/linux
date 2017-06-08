@@ -25,10 +25,11 @@
 #include <linux/mmc/host.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/dm9000.h>
 #include <linux/gpio_keys.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/spi/spi.h>
 
 #include <linux/platform_data/pca953x.h>
@@ -51,6 +52,7 @@
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>
+#include <mach/irqs.h>
 
 #include <plat/fb.h>
 #include <plat/sdhci.h>
@@ -108,11 +110,14 @@ static struct s3c2410_uartcfg crag6410_uartcfgs[] __initdata = {
 	},
 };
 
+static struct pwm_lookup crag6410_pwm_lookup[] = {
+	PWM_LOOKUP("samsung-pwm", 0, "pwm-backlight", NULL, 100000,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data crag6410_backlight_data = {
-	.pwm_id		= 0,
 	.max_brightness	= 1000,
 	.dft_brightness	= 600,
-	.pwm_period_ns	= 100000,	/* about 1kHz */
 	.enable_gpio	= -1,
 };
 
@@ -809,7 +814,7 @@ static const struct gpio_led_platform_data gpio_leds_pdata = {
 	.num_leds = ARRAY_SIZE(gpio_leds),
 };
 
-static struct s3c_hsotg_plat crag6410_hsotg_pdata;
+static struct dwc2_hsotg_plat crag6410_hsotg_pdata;
 
 static void __init crag6410_machine_init(void)
 {
@@ -835,7 +840,7 @@ static void __init crag6410_machine_init(void)
 	s3c_i2c0_set_platdata(&i2c0_pdata);
 	s3c_i2c1_set_platdata(&i2c1_pdata);
 	s3c_fb_set_platdata(&crag6410_lcd_pdata);
-	s3c_hsotg_set_platdata(&crag6410_hsotg_pdata);
+	dwc2_hsotg_set_platdata(&crag6410_hsotg_pdata);
 
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
@@ -843,6 +848,7 @@ static void __init crag6410_machine_init(void)
 	samsung_keypad_set_platdata(&crag6410_keypad_data);
 	s3c64xx_spi0_set_platdata(NULL, 0, 2);
 
+	pwm_add_table(crag6410_pwm_lookup, ARRAY_SIZE(crag6410_pwm_lookup));
 	platform_add_devices(crag6410_devices, ARRAY_SIZE(crag6410_devices));
 
 	gpio_led_register_device(-1, &gpio_leds_pdata);
@@ -855,6 +861,7 @@ static void __init crag6410_machine_init(void)
 MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")
 	/* Maintainer: Mark Brown <broonie@opensource.wolfsonmicro.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= S3C64XX_NR_IRQS,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= crag6410_map_io,
 	.init_machine	= crag6410_machine_init,

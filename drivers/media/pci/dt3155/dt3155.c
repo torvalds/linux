@@ -131,9 +131,9 @@ static int wait_i2c_reg(void __iomem *addr)
 }
 
 static int
-dt3155_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+dt3155_queue_setup(struct vb2_queue *vq,
 		unsigned int *nbuffers, unsigned int *num_planes,
-		unsigned int sizes[], void *alloc_ctxs[])
+		unsigned int sizes[], struct device *alloc_devs[])
 
 {
 	struct dt3155_priv *pd = vb2_get_drv_priv(vq);
@@ -141,11 +141,10 @@ dt3155_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 	if (vq->num_buffers + *nbuffers < 2)
 		*nbuffers = 2 - vq->num_buffers;
-	if (fmt && fmt->fmt.pix.sizeimage < size)
-		return -EINVAL;
+	if (*num_planes)
+		return sizes[0] < size ? -EINVAL : 0;
 	*num_planes = 1;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : size;
-	alloc_ctxs[0] = pd->alloc_ctx;
+	sizes[0] = size;
 	return 0;
 }
 
@@ -160,7 +159,7 @@ static int dt3155_buf_prepare(struct vb2_buffer *vb)
 static int dt3155_start_streaming(struct vb2_queue *q, unsigned count)
 {
 	struct dt3155_priv *pd = vb2_get_drv_priv(q);
-	struct vb2_buffer *vb = pd->curr_buf;
+	struct vb2_buffer *vb = &pd->curr_buf->vb2_buf;
 	dma_addr_t dma_addr;
 
 	pd->sequence = 0;
@@ -208,7 +207,7 @@ static void dt3155_stop_streaming(struct vb2_queue *q)
 
 	spin_lock_irq(&pd->lock);
 	if (pd->curr_buf) {
-		vb2_buffer_done(pd->curr_buf, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&pd->curr_buf->vb2_buf, VB2_BUF_STATE_ERROR);
 		pd->curr_buf = NULL;
 	}
 
@@ -222,6 +221,7 @@ static void dt3155_stop_streaming(struct vb2_queue *q)
 
 static void dt3155_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct dt3155_priv *pd = vb2_get_drv_priv(vb->vb2_queue);
 
 	/*  pd->vidq.streaming = 1 when dt3155_buf_queue() is invoked  */
@@ -229,7 +229,7 @@ static void dt3155_buf_queue(struct vb2_buffer *vb)
 	if (pd->curr_buf)
 		list_add_tail(&vb->done_entry, &pd->dmaq);
 	else
-		pd->curr_buf = vb;
+		pd->curr_buf = vbuf;
 	spin_unlock_irq(&pd->lock);
 }
 
@@ -269,14 +269,14 @@ static irqreturn_t dt3155_irq_handler_even(int irq, void *dev_id)
 
 	spin_lock(&ipd->lock);
 	if (ipd->curr_buf && !list_empty(&ipd->dmaq)) {
-		v4l2_get_timestamp(&ipd->curr_buf->v4l2_buf.timestamp);
-		ipd->curr_buf->v4l2_buf.sequence = ipd->sequence++;
-		ipd->curr_buf->v4l2_buf.field = V4L2_FIELD_NONE;
-		vb2_buffer_done(ipd->curr_buf, VB2_BUF_STATE_DONE);
+		ipd->curr_buf->vb2_buf.timestamp = ktime_get_ns();
+		ipd->curr_buf->sequence = ipd->sequence++;
+		ipd->curr_buf->field = V4L2_FIELD_NONE;
+		vb2_buffer_done(&ipd->curr_buf->vb2_buf, VB2_BUF_STATE_DONE);
 
 		ivb = list_first_entry(&ipd->dmaq, typeof(*ivb), done_entry);
 		list_del(&ivb->done_entry);
-		ipd->curr_buf = ivb;
+		ipd->curr_buf = to_vb2_v4l2_buffer(ivb);
 		dma_addr = vb2_dma_contig_plane_dma_addr(ivb, 0);
 		iowrite32(dma_addr, ipd->regs + EVEN_DMA_START);
 		iowrite32(dma_addr + ipd->width, ipd->regs + ODD_DMA_START);
@@ -543,21 +543,16 @@ static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pd->vidq.min_buffers_needed = 2;
 	pd->vidq.gfp_flags = GFP_DMA32;
 	pd->vidq.lock = &pd->mux; /* for locking v4l2_file_operations */
+	pd->vidq.dev = &pdev->dev;
 	pd->vdev.queue = &pd->vidq;
 	err = vb2_queue_init(&pd->vidq);
 	if (err < 0)
 		goto err_v4l2_dev_unreg;
-	pd->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(pd->alloc_ctx)) {
-		dev_err(&pdev->dev, "Can't allocate buffer context");
-		err = PTR_ERR(pd->alloc_ctx);
-		goto err_v4l2_dev_unreg;
-	}
 	spin_lock_init(&pd->lock);
 	pd->config = ACQ_MODE_EVEN;
 	err = pci_enable_device(pdev);
 	if (err)
-		goto err_free_ctx;
+		goto err_v4l2_dev_unreg;
 	err = pci_request_region(pdev, 0, pci_name(pdev));
 	if (err)
 		goto err_pci_disable;
@@ -587,8 +582,6 @@ err_free_reg:
 	pci_release_region(pdev, 0);
 err_pci_disable:
 	pci_disable_device(pdev);
-err_free_ctx:
-	vb2_dma_contig_cleanup_ctx(pd->alloc_ctx);
 err_v4l2_dev_unreg:
 	v4l2_device_unregister(&pd->v4l2_dev);
 	return err;
@@ -607,7 +600,6 @@ static void dt3155_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, pd->regs);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
-	vb2_dma_contig_cleanup_ctx(pd->alloc_ctx);
 }
 
 static const struct pci_device_id pci_ids[] = {

@@ -140,7 +140,7 @@
 			auart0: serial@8006a000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&auart0_pins_a>;
-				fsl,uart-has-rtscts;
+				uart-has-rtscts;
 				status = "okay";
 			};
 
@@ -225,7 +225,7 @@
 			label = "User button";
 			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
 			linux,code = <0x100>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 };

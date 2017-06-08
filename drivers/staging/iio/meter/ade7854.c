@@ -23,8 +23,8 @@
 #include "ade7854.h"
 
 static ssize_t ade7854_read_8bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	int ret;
 	u8 val = 0;
@@ -40,8 +40,8 @@ static ssize_t ade7854_read_8bit(struct device *dev,
 }
 
 static ssize_t ade7854_read_16bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u16 val = 0;
@@ -57,8 +57,8 @@ static ssize_t ade7854_read_16bit(struct device *dev,
 }
 
 static ssize_t ade7854_read_24bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u32 val;
@@ -74,8 +74,8 @@ static ssize_t ade7854_read_24bit(struct device *dev,
 }
 
 static ssize_t ade7854_read_32bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u32 val = 0;
@@ -91,9 +91,9 @@ static ssize_t ade7854_read_32bit(struct device *dev,
 }
 
 static ssize_t ade7854_write_8bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				  struct device_attribute *attr,
+				  const char *buf,
+				  size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -112,9 +112,9 @@ error_ret:
 }
 
 static ssize_t ade7854_write_16bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -133,9 +133,9 @@ error_ret:
 }
 
 static ssize_t ade7854_write_24bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -154,9 +154,9 @@ error_ret:
 }
 
 static ssize_t ade7854_write_32bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -181,7 +181,7 @@ static int ade7854_reset(struct device *dev)
 	u16 val;
 
 	st->read_reg_16(dev, ADE7854_CONFIG, &val);
-	val |= 1 << 7; /* Software Chip Reset */
+	val |= BIT(7); /* Software Chip Reset */
 
 	return st->write_reg_16(dev, ADE7854_CONFIG, val);
 }
@@ -417,20 +417,16 @@ static int ade7854_set_irq(struct device *dev, bool enable)
 
 	ret = st->read_reg_32(dev, ADE7854_MASK0, &irqen);
 	if (ret)
-		goto error_ret;
+		return ret;
 
 	if (enable)
-		irqen |= 1 << 17; /* 1: interrupt enabled when all periodical
-				     (at 8 kHz rate) DSP computations finish. */
+		irqen |= BIT(17); /* 1: interrupt enabled when all periodical
+				   * (at 8 kHz rate) DSP computations finish.
+				   */
 	else
-		irqen &= ~(1 << 17);
+		irqen &= ~BIT(17);
 
-	ret = st->write_reg_32(dev, ADE7854_MASK0, irqen);
-	if (ret)
-		goto error_ret;
-
-error_ret:
-	return ret;
+	return st->write_reg_32(dev, ADE7854_MASK0, irqen);
 }
 
 static int ade7854_initial_setup(struct iio_dev *indio_dev)
@@ -446,7 +442,7 @@ static int ade7854_initial_setup(struct iio_dev *indio_dev)
 	}
 
 	ade7854_reset(dev);
-	msleep(ADE7854_STARTUP_DELAY);
+	usleep_range(ADE7854_STARTUP_DELAY, ADE7854_STARTUP_DELAY + 100);
 
 err_ret:
 	return ret;
@@ -548,30 +544,14 @@ int ade7854_probe(struct iio_dev *indio_dev, struct device *dev)
 	indio_dev->info = &ade7854_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
 		return ret;
 
 	/* Get the device into a sane initial state */
-	ret = ade7854_initial_setup(indio_dev);
-	if (ret)
-		goto error_unreg_dev;
-
-	return 0;
-
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
-	return ret;
+	return ade7854_initial_setup(indio_dev);
 }
 EXPORT_SYMBOL(ade7854_probe);
-
-int ade7854_remove(struct iio_dev *indio_dev)
-{
-	iio_device_unregister(indio_dev);
-
-	return 0;
-}
-EXPORT_SYMBOL(ade7854_remove);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7854/58/68/78 Polyphase Energy Meter");

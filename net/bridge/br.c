@@ -121,6 +121,7 @@ static struct notifier_block br_device_notifier = {
 	.notifier_call = br_device_event
 };
 
+/* called with RTNL */
 static int br_switchdev_event(struct notifier_block *unused,
 			      unsigned long event, void *ptr)
 {
@@ -130,7 +131,6 @@ static int br_switchdev_event(struct notifier_block *unused,
 	struct switchdev_notifier_fdb_info *fdb_info;
 	int err = NOTIFY_DONE;
 
-	rtnl_lock();
 	p = br_port_get_rtnl(dev);
 	if (!p)
 		goto out;
@@ -155,7 +155,6 @@ static int br_switchdev_event(struct notifier_block *unused,
 	}
 
 out:
-	rtnl_unlock();
 	return err;
 }
 
@@ -228,9 +227,11 @@ static int __init br_init(void)
 	br_fdb_test_addr_hook = br_fdb_test_addr;
 #endif
 
-	pr_info("bridge: automatic filtering via arp/ip/ip6tables has been "
-		"deprecated. Update your scripts to load br_netfilter if you "
+#if IS_MODULE(CONFIG_BRIDGE_NETFILTER)
+	pr_info("bridge: filtering via arp/ip/ip6tables is no longer available "
+		"by default. Update your scripts to load br_netfilter if you "
 		"need this.\n");
+#endif
 
 	return 0;
 

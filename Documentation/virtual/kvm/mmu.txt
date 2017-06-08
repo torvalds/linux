@@ -203,10 +203,10 @@ Shadow pages contain the following information:
     page cannot be destroyed.  See role.invalid.
   parent_ptes:
     The reverse mapping for the pte/ptes pointing at this page's spt. If
-    parent_ptes bit 0 is zero, only one spte points at this pages and
+    parent_ptes bit 0 is zero, only one spte points at this page and
     parent_ptes points at this single spte, otherwise, there exists multiple
     sptes pointing at this page and (parent_ptes & ~0x1) points at a data
-    structure with a list of parent_ptes.
+    structure with a list of parent sptes.
   unsync:
     If true, then the translations in this page may not match the guest's
     translation.  This is equivalent to the state of the tlb when a pte is
@@ -358,7 +358,8 @@ In the first case there are two additional complications:
 - if CR4.SMEP is enabled: since we've turned the page into a kernel page,
   the kernel may now execute it.  We handle this by also setting spte.nx.
   If we get a user fetch or read fault, we'll change spte.u=1 and
-  spte.nx=gpte.nx back.
+  spte.nx=gpte.nx back.  For this to work, KVM forces EFER.NX to 1 when
+  shadow paging is in use.
 - if CR4.SMAP is disabled: since the page has been changed to a kernel
   page, it can not be reused when CR4.SMAP is enabled. We set
   CR4.SMAP && !CR0.WP into shadow page's role to avoid this case. Note,
@@ -391,11 +392,11 @@ To instantiate a large spte, four constraints must be satisfied:
   write-protected pages
 - the guest page must be wholly contained by a single memory slot
 
-To check the last two conditions, the mmu maintains a ->write_count set of
+To check the last two conditions, the mmu maintains a ->disallow_lpage set of
 arrays for each memory slot and large page size.  Every write protected page
-causes its write_count to be incremented, thus preventing instantiation of
+causes its disallow_lpage to be incremented, thus preventing instantiation of
 a large spte.  The frames at the end of an unaligned memory slot have
-artificially inflated ->write_counts so they can never be instantiated.
+artificially inflated ->disallow_lpages so they can never be instantiated.
 
 Zapping all pages (page generation count)
 =========================================

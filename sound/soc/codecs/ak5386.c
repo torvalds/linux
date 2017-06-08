@@ -74,10 +74,12 @@ static struct snd_soc_codec_driver soc_codec_ak5386 = {
 	.remove = ak5386_soc_remove,
 	.suspend = ak5386_soc_suspend,
 	.resume = ak5386_soc_resume,
-	.dapm_widgets = ak5386_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ak5386_dapm_widgets),
-	.dapm_routes = ak5386_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(ak5386_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= ak5386_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ak5386_dapm_widgets),
+		.dapm_routes		= ak5386_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ak5386_dapm_routes),
+	},
 };
 
 static int ak5386_set_dai_fmt(struct snd_soc_dai *codec_dai,

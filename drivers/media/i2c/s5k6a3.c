@@ -144,8 +144,7 @@ static int s5k6a3_set_fmt(struct v4l2_subdev *sd,
 	mf = __s5k6a3_get_format(sensor, cfg, fmt->pad, fmt->which);
 	if (mf) {
 		mutex_lock(&sensor->lock);
-		if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-			*mf = fmt->format;
+		*mf = fmt->format;
 		mutex_unlock(&sensor->lock);
 	}
 	return 0;
@@ -166,7 +165,7 @@ static int s5k6a3_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops s5k6a3_pad_ops = {
+static const struct v4l2_subdev_pad_ops s5k6a3_pad_ops = {
 	.enum_mbus_code	= s5k6a3_enum_mbus_code,
 	.get_fmt	= s5k6a3_get_fmt,
 	.set_fmt	= s5k6a3_set_fmt,
@@ -267,11 +266,11 @@ static int s5k6a3_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-static struct v4l2_subdev_core_ops s5k6a3_core_ops = {
+static const struct v4l2_subdev_core_ops s5k6a3_core_ops = {
 	.s_power = s5k6a3_s_power,
 };
 
-static struct v4l2_subdev_ops s5k6a3_subdev_ops = {
+static const struct v4l2_subdev_ops s5k6a3_subdev_ops = {
 	.core = &s5k6a3_core_ops,
 	.pad = &s5k6a3_pad_ops,
 };
@@ -332,8 +331,9 @@ static int s5k6a3_probe(struct i2c_client *client,
 	sensor->format.width = S5K6A3_DEFAULT_WIDTH;
 	sensor->format.height = S5K6A3_DEFAULT_HEIGHT;
 
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, 1, &sensor->pad, 0);
+	ret = media_entity_pads_init(&sd->entity, 1, &sensor->pad);
 	if (ret < 0)
 		return ret;
 
@@ -377,7 +377,6 @@ static struct i2c_driver s5k6a3_driver = {
 	.driver = {
 		.of_match_table	= of_match_ptr(s5k6a3_of_match),
 		.name		= S5K6A3_DRV_NAME,
-		.owner		= THIS_MODULE,
 	},
 	.probe		= s5k6a3_probe,
 	.remove		= s5k6a3_remove,

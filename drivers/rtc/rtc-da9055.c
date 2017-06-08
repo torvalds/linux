@@ -74,6 +74,7 @@ static int da9055_read_alarm(struct da9055 *da9055, struct rtc_time *rtc_tm)
 	rtc_tm->tm_mday = v[2] & DA9055_RTC_ALM_DAY;
 	rtc_tm->tm_hour = v[1] & DA9055_RTC_ALM_HOUR;
 	rtc_tm->tm_min  = v[0] & DA9055_RTC_ALM_MIN;
+	rtc_tm->tm_sec = 0;
 
 	return rtc_valid_tm(rtc_tm);
 }

@@ -23,6 +23,7 @@
 #include <linux/audit.h>
 #include <linux/skbuff.h>
 #include <uapi/linux/mqueue.h>
+#include <linux/tty.h>
 
 /* AUDIT_NAMES is the number of slots we reserve in the audit_context
  * for saving names from getname().  If we get more names we will allocate
@@ -111,7 +112,7 @@ struct audit_context {
 	enum audit_state    state, current_state;
 	unsigned int	    serial;     /* serial number for record */
 	int		    major;      /* syscall number */
-	struct timespec	    ctime;      /* time of syscall entry */
+	struct timespec64   ctime;      /* time of syscall entry */
 	unsigned long	    argv[4];    /* syscall arguments */
 	long		    return_code;/* syscall return code */
 	u64		    prio;
@@ -198,6 +199,9 @@ struct audit_context {
 		struct {
 			int			argc;
 		} execve;
+		struct {
+			char			*name;
+		} module;
 	};
 	int fds[2];
 	struct audit_proctitle proctitle;
@@ -207,14 +211,14 @@ extern u32 audit_ever_enabled;
 
 extern void audit_copy_inode(struct audit_names *name,
 			     const struct dentry *dentry,
-			     const struct inode *inode);
+			     struct inode *inode);
 extern void audit_log_cap(struct audit_buffer *ab, char *prefix,
 			  kernel_cap_t *cap);
 extern void audit_log_name(struct audit_context *context,
-			   struct audit_names *n, struct path *path,
+			   struct audit_names *n, const struct path *path,
 			   int record_num, int *call_panic);
 
-extern int audit_pid;
+extern int auditd_test_task(struct task_struct *task);
 
 #define AUDIT_INODE_BUCKETS	32
 extern struct list_head audit_inode_hash[AUDIT_INODE_BUCKETS];
@@ -233,8 +237,7 @@ extern int audit_uid_comparator(kuid_t left, u32 op, kuid_t right);
 extern int audit_gid_comparator(kgid_t left, u32 op, kgid_t right);
 extern int parent_len(const char *path);
 extern int audit_compare_dname_path(const char *dname, const char *path, int plen);
-extern struct sk_buff *audit_make_reply(__u32 portid, int seq, int type,
-					int done, int multi,
+extern struct sk_buff *audit_make_reply(int seq, int type, int done, int multi,
 					const void *payload, int size);
 extern void		    audit_panic(const char *message);
 
@@ -245,10 +248,6 @@ struct audit_netlink_list {
 };
 
 int audit_send_list(void *);
-
-struct audit_net {
-	struct sock *nlsk;
-};
 
 extern int selinux_audit_rule_update(void);
 
@@ -261,6 +260,9 @@ extern struct audit_entry *audit_dupe_rule(struct audit_krule *old);
 
 extern void audit_log_d_path_exe(struct audit_buffer *ab,
 				 struct mm_struct *mm);
+
+extern struct tty_struct *audit_get_tty(struct task_struct *tsk);
+extern void audit_put_tty(struct tty_struct *tty);
 
 /* audit watch functions */
 #ifdef CONFIG_AUDIT_WATCH
@@ -301,7 +303,7 @@ extern int audit_exe_compare(struct task_struct *tsk, struct audit_fsnotify_mark
 #ifdef CONFIG_AUDIT_TREE
 extern struct audit_chunk *audit_tree_lookup(const struct inode *);
 extern void audit_put_chunk(struct audit_chunk *);
-extern int audit_tree_match(struct audit_chunk *, struct audit_tree *);
+extern bool audit_tree_match(struct audit_chunk *, struct audit_tree *);
 extern int audit_make_tree(struct audit_krule *, char *, u32);
 extern int audit_add_tree_rule(struct audit_krule *);
 extern int audit_remove_tree_rule(struct audit_krule *);
@@ -327,15 +329,10 @@ extern pid_t audit_sig_pid;
 extern kuid_t audit_sig_uid;
 extern u32 audit_sig_sid;
 
+extern int audit_filter(int msgtype, unsigned int listtype);
+
 #ifdef CONFIG_AUDITSYSCALL
-extern int __audit_signal_info(int sig, struct task_struct *t);
-static inline int audit_signal_info(int sig, struct task_struct *t)
-{
-	if (unlikely((audit_pid && t->tgid == audit_pid) ||
-		     (audit_signals && !audit_dummy_context())))
-		return __audit_signal_info(sig, t);
-	return 0;
-}
+extern int audit_signal_info(int sig, struct task_struct *t);
 extern void audit_filter_inodes(struct task_struct *, struct audit_context *);
 extern struct list_head *audit_killed_trees(void);
 #else

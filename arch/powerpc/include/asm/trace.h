@@ -54,14 +54,16 @@ DEFINE_EVENT(ppc64_interrupt_class, timer_interrupt_exit,
 );
 
 #ifdef CONFIG_PPC_PSERIES
-extern void hcall_tracepoint_regfunc(void);
+extern int hcall_tracepoint_regfunc(void);
 extern void hcall_tracepoint_unregfunc(void);
 
-TRACE_EVENT_FN(hcall_entry,
+TRACE_EVENT_FN_COND(hcall_entry,
 
 	TP_PROTO(unsigned long opcode, unsigned long *args),
 
 	TP_ARGS(opcode, args),
+
+	TP_CONDITION(cpu_online(raw_smp_processor_id())),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, opcode)
@@ -76,12 +78,14 @@ TRACE_EVENT_FN(hcall_entry,
 	hcall_tracepoint_regfunc, hcall_tracepoint_unregfunc
 );
 
-TRACE_EVENT_FN(hcall_exit,
+TRACE_EVENT_FN_COND(hcall_exit,
 
 	TP_PROTO(unsigned long opcode, unsigned long retval,
 		unsigned long *retbuf),
 
 	TP_ARGS(opcode, retval, retbuf),
+
+	TP_CONDITION(cpu_online(raw_smp_processor_id())),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, opcode)
@@ -100,7 +104,7 @@ TRACE_EVENT_FN(hcall_exit,
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-extern void opal_tracepoint_regfunc(void);
+extern int opal_tracepoint_regfunc(void);
 extern void opal_tracepoint_unregfunc(void);
 
 TRACE_EVENT_FN(opal_entry,

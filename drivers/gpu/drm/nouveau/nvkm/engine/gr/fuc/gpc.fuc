@@ -52,10 +52,12 @@ mmio_list_base:
 #endif
 
 #ifdef INCLUDE_CODE
+#define gpc_addr(reg,addr)                                                    /*
+*/	imm32(reg,addr)                                                       /*
+*/	or reg NV_PGRAPH_GPCX_GPCCS_MMIO_CTRL_BASE_ENABLE
 #define gpc_wr32(addr,reg)                                                    /*
+*/	gpc_addr($r14,addr)                                                   /*
 */	mov b32 $r15 reg                                                      /*
-*/	imm32($r14, addr)                                                     /*
-*/	or $r14 NV_PGRAPH_GPCX_GPCCS_MMIO_CTRL_BASE_ENABLE                    /*
 */	call(nv_wr32)
 
 // reports an exception to the host
@@ -161,7 +163,7 @@ init:
 
 #if NV_PGRAPH_GPCX_UNK__SIZE > 0
 	// figure out which, and how many, UNKs are actually present
-	imm32($r14, 0x500c30)
+	gpc_addr($r14, 0x500c30)
 	clear b32 $r2
 	clear b32 $r3
 	clear b32 $r4
@@ -245,10 +247,7 @@ init:
 	tpc_strand_info(-1);
 
 	ld b32 $r4 D[$r0 + #tpc_count]
-	mov $r5 NV_PGRAPH_GPC0_TPC0
-	ld b32 $r6 D[$r0 + #gpc_id]
-	shl b32 $r6 15
-	add b32 $r5 $r6
+	gpc_addr($r5, NV_PGRAPH_GPC0_TPC0)
 	tpc_strand_init_tpc_loop:
 		add b32 $r14 $r5 NV_TPC_STRAND_CNT
 		call(nv_rd32)
@@ -292,12 +291,13 @@ init:
 // Main program loop, very simple, sleeps until woken up by the interrupt
 // handler, pulls a command from the queue and executes its handler
 //
-main:
-	bset $flags $p0
+wait:
 	sleep $p0
+	bset $flags $p0
+main:
 	mov $r13 #cmd_queue
 	call(queue_get)
-	bra $p1 #main
+	bra $p1 #wait
 
 	// 0x0000-0x0003 are all context transfers
 	cmpu b32 $r14 0x04
@@ -323,6 +323,7 @@ main:
 
 // interrupt handler
 ih:
+	push $r0
 	push $r8
 	mov $r8 $flags
 	push $r8
@@ -359,6 +360,7 @@ ih:
 	pop $r8
 	mov $flags $r8
 	pop $r8
+	pop $r0
 	bclr $flags $p0
 	iret
 

@@ -1,22 +1,26 @@
 /*
  */
+
+#include "cx88.h"
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include "cx88.h"
-
 static unsigned int vbi_debug;
-module_param(vbi_debug,int,0644);
-MODULE_PARM_DESC(vbi_debug,"enable debug messages [vbi]");
+module_param(vbi_debug, int, 0644);
+MODULE_PARM_DESC(vbi_debug, "enable debug messages [vbi]");
 
-#define dprintk(level,fmt, arg...)	if (vbi_debug >= level) \
-	printk(KERN_DEBUG "%s: " fmt, dev->core->name , ## arg)
+#define dprintk(level, fmt, arg...) do {			\
+	if (vbi_debug >= level)					\
+		printk(KERN_DEBUG pr_fmt("%s: vbi:" fmt),	\
+			__func__, ##arg);			\
+} while (0)
 
 /* ------------------------------------------------------------------ */
 
-int cx8800_vbi_fmt (struct file *file, void *priv,
-					struct v4l2_format *f)
+int cx8800_vbi_fmt(struct file *file, void *priv,
+		   struct v4l2_format *f)
 {
 	struct cx8800_dev *dev = video_drvdata(file);
 
@@ -44,8 +48,8 @@ int cx8800_vbi_fmt (struct file *file, void *priv,
 }
 
 static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
-			 struct cx88_dmaqueue *q,
-			 struct cx88_buffer   *buf)
+				struct cx88_dmaqueue *q,
+				struct cx88_buffer   *buf)
 {
 	struct cx88_core *core = dev->core;
 
@@ -53,9 +57,9 @@ static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
 	cx88_sram_channel_setup(dev->core, &cx88_sram_channels[SRAM_CH24],
 				VBI_LINE_LENGTH, buf->risc.dma);
 
-	cx_write(MO_VBOS_CONTROL, ( (1 << 18) |  // comb filter delay fixup
-				    (1 << 15) |  // enable vbi capture
-				    (1 << 11) ));
+	cx_write(MO_VBOS_CONTROL, (1 << 18) |  /* comb filter delay fixup */
+				  (1 << 15) |  /* enable vbi capture */
+				  (1 << 11));
 
 	/* reset counter */
 	cx_write(MO_VBI_GPCNTRL, GP_COUNT_CONTROL_RESET);
@@ -66,10 +70,10 @@ static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
 	cx_set(MO_VID_INTMSK, 0x0f0088);
 
 	/* enable capture */
-	cx_set(VID_CAPTURE_CONTROL,0x18);
+	cx_set(VID_CAPTURE_CONTROL, 0x18);
 
 	/* start dma */
-	cx_set(MO_DEV_CNTRL2, (1<<5));
+	cx_set(MO_DEV_CNTRL2, (1 << 5));
 	cx_set(MO_VID_DMACNTRL, 0x88);
 
 	return 0;
@@ -83,7 +87,7 @@ void cx8800_stop_vbi_dma(struct cx8800_dev *dev)
 	cx_clear(MO_VID_DMACNTRL, 0x88);
 
 	/* disable capture */
-	cx_clear(VID_CAPTURE_CONTROL,0x18);
+	cx_clear(VID_CAPTURE_CONTROL, 0x18);
 
 	/* disable irqs */
 	cx_clear(MO_PCI_INTMSK, PCI_INT_VIDINT);
@@ -99,17 +103,17 @@ int cx8800_restart_vbi_queue(struct cx8800_dev    *dev,
 		return 0;
 
 	buf = list_entry(q->active.next, struct cx88_buffer, list);
-	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
-		buf, buf->vb.v4l2_buf.index);
+	dprintk(2, "restart_queue [%p/%d]: restart dma\n",
+		buf, buf->vb.vb2_buf.index);
 	cx8800_start_vbi_dma(dev, q, buf);
 	return 0;
 }
 
 /* ------------------------------------------------------------------ */
 
-static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
-			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+static int queue_setup(struct vb2_queue *q,
+		       unsigned int *num_buffers, unsigned int *num_planes,
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct cx8800_dev *dev = q->drv_priv;
 
@@ -118,15 +122,14 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 		sizes[0] = VBI_LINE_NTSC_COUNT * VBI_LINE_LENGTH * 2;
 	else
 		sizes[0] = VBI_LINE_PAL_COUNT * VBI_LINE_LENGTH * 2;
-	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 
-
 static int buffer_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx8800_dev *dev = vb->vb2_queue->drv_priv;
-	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
+	struct cx88_buffer *buf = container_of(vbuf, struct cx88_buffer, vb);
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 	unsigned int lines;
 	unsigned int size;
@@ -149,8 +152,9 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 static void buffer_finish(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx8800_dev *dev = vb->vb2_queue->drv_priv;
-	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
+	struct cx88_buffer *buf = container_of(vbuf, struct cx88_buffer, vb);
 	struct cx88_riscmem *risc = &buf->risc;
 
 	if (risc->cpu)
@@ -160,8 +164,9 @@ static void buffer_finish(struct vb2_buffer *vb)
 
 static void buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct cx8800_dev *dev = vb->vb2_queue->drv_priv;
-	struct cx88_buffer    *buf = container_of(vb, struct cx88_buffer, vb);
+	struct cx88_buffer    *buf = container_of(vbuf, struct cx88_buffer, vb);
 	struct cx88_buffer    *prev;
 	struct cx88_dmaqueue  *q    = &dev->vbiq;
 
@@ -173,16 +178,16 @@ static void buffer_queue(struct vb2_buffer *vb)
 	if (list_empty(&q->active)) {
 		list_add_tail(&buf->list, &q->active);
 		cx8800_start_vbi_dma(dev, q, buf);
-		dprintk(2,"[%p/%d] vbi_queue - first active\n",
-			buf, buf->vb.v4l2_buf.index);
+		dprintk(2, "[%p/%d] vbi_queue - first active\n",
+			buf, buf->vb.vb2_buf.index);
 
 	} else {
 		buf->risc.cpu[0] |= cpu_to_le32(RISC_IRQ1);
 		prev = list_entry(q->active.prev, struct cx88_buffer, list);
 		list_add_tail(&buf->list, &q->active);
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
-		dprintk(2,"[%p/%d] buffer_queue - append to active\n",
-			buf, buf->vb.v4l2_buf.index);
+		dprintk(2, "[%p/%d] buffer_queue - append to active\n",
+			buf, buf->vb.vb2_buf.index);
 	}
 }
 
@@ -213,7 +218,7 @@ static void stop_streaming(struct vb2_queue *q)
 			struct cx88_buffer, list);
 
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&dev->slock, flags);
 }

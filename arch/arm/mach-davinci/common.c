@@ -28,13 +28,18 @@ EXPORT_SYMBOL(davinci_soc_info);
 void __iomem *davinci_intc_base;
 int davinci_intc_type;
 
-void davinci_get_mac_addr(struct memory_accessor *mem_acc, void *context)
+void davinci_get_mac_addr(struct nvmem_device *nvmem, void *context)
 {
 	char *mac_addr = davinci_soc_info.emac_pdata->mac_addr;
 	off_t offset = (off_t)context;
 
+	if (!IS_BUILTIN(CONFIG_NVMEM)) {
+		pr_warn("Cannot read MAC addr from EEPROM without CONFIG_NVMEM\n");
+		return;
+	}
+
 	/* Read MAC addr from EEPROM */
-	if (mem_acc->read(mem_acc, mac_addr, offset, ETH_ALEN) == ETH_ALEN)
+	if (nvmem_device_read(nvmem, offset, ETH_ALEN, mac_addr) == ETH_ALEN)
 		pr_info("Read MAC addr from EEPROM: %pM\n", mac_addr);
 }
 
@@ -103,12 +108,6 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 	if (ret < 0)
 		goto err;
 
-	if (davinci_soc_info.cpu_clks) {
-		ret = davinci_clk_init(davinci_soc_info.cpu_clks);
-
-		if (ret != 0)
-			goto err;
-	}
 
 	return;
 
@@ -119,6 +118,5 @@ err:
 void __init davinci_init_late(void)
 {
 	davinci_cpufreq_init();
-	davinci_pm_init();
 	davinci_clk_disable_unused();
 }

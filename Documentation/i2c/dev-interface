@@ -4,7 +4,7 @@ the /dev interface. You need to load module i2c-dev for this.
 
 Each registered i2c adapter gets a number, counting from 0. You can
 examine /sys/class/i2c-dev/ to see what number corresponds to which adapter.
-Alternatively, you can run "i2cdetect -l" to obtain a formated list of all
+Alternatively, you can run "i2cdetect -l" to obtain a formatted list of all
 i2c adapters present on your system at a given time. i2cdetect is part of
 the i2c-tools package.
 

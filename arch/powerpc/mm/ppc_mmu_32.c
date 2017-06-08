@@ -49,7 +49,7 @@ struct batrange {		/* stores address ranges mapped by BATs */
 /*
  * Return PA for this VA if it is mapped by a BAT, or 0
  */
-phys_addr_t v_mapped_by_bats(unsigned long va)
+phys_addr_t v_block_mapped(unsigned long va)
 {
 	int b;
 	for (b = 0; b < 4; ++b)
@@ -61,7 +61,7 @@ phys_addr_t v_mapped_by_bats(unsigned long va)
 /*
  * Return VA for a given PA or 0 if not mapped
  */
-unsigned long p_mapped_by_bats(phys_addr_t pa)
+unsigned long p_block_mapped(phys_addr_t pa)
 {
 	int b;
 	for (b = 0; b < 4; ++b)

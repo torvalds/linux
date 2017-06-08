@@ -31,15 +31,27 @@ should provide its own implementation of of_xlate. of_xlate is used only for
 dt boot case.
 
 #define of_phy_provider_register(dev, xlate)    \
-        __of_phy_provider_register((dev), THIS_MODULE, (xlate))
+        __of_phy_provider_register((dev), NULL, THIS_MODULE, (xlate))
 
 #define devm_of_phy_provider_register(dev, xlate)       \
-        __devm_of_phy_provider_register((dev), THIS_MODULE, (xlate))
+        __devm_of_phy_provider_register((dev), NULL, THIS_MODULE, (xlate))
 
 of_phy_provider_register and devm_of_phy_provider_register macros can be used to
 register the phy_provider and it takes device and of_xlate as
 arguments. For the dt boot case, all PHY providers should use one of the above
 2 macros to register the PHY provider.
+
+Often the device tree nodes associated with a PHY provider will contain a set
+of children that each represent a single PHY. Some bindings may nest the child
+nodes within extra levels for context and extensibility, in which case the low
+level of_phy_provider_register_full() and devm_of_phy_provider_register_full()
+macros can be used to override the node containing the children.
+
+#define of_phy_provider_register_full(dev, children, xlate) \
+	__of_phy_provider_register(dev, children, THIS_MODULE, xlate)
+
+#define devm_of_phy_provider_register_full(dev, children, xlate) \
+	__devm_of_phy_provider_register_full(dev, children, THIS_MODULE, xlate)
 
 void devm_of_phy_provider_unregister(struct device *dev,
 	struct phy_provider *phy_provider);
@@ -85,7 +97,7 @@ should contain the phy name as given in the dt data and in the case of
 non-dt boot, it should contain the label of the PHY.  The two
 devm_phy_get associates the device with the PHY using devres on
 successful PHY get. On driver detach, release function is invoked on
-the the devres data and devres data is freed. phy_optional_get and
+the devres data and devres data is freed. phy_optional_get and
 devm_phy_optional_get should be used when the phy is optional. These
 two functions will never return -ENODEV, but instead returns NULL when
 the phy cannot be found.Some generic drivers, such as ehci, may use multiple

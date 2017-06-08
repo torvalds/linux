@@ -2,10 +2,12 @@ ina2xx properties
 
 Required properties:
 - compatible: Must be one of the following:
+	- "ti,ina209" for ina209
 	- "ti,ina219" for ina219
 	- "ti,ina220" for ina220
 	- "ti,ina226" for ina226
 	- "ti,ina230" for ina230
+	- "ti,ina231" for ina231
 - reg: I2C address
 
 Optional properties:

@@ -33,6 +33,12 @@
 		marvell,tauros2-cache-features = <0>;
 	};
 
+	gpu-subsystem {
+		compatible = "marvell,dove-gpu-subsystem";
+		cores = <&gpu>;
+		status = "disabled";
+	};
+
 	i2c-mux {
 		compatible = "i2c-mux-pinctrl";
 		#address-cells = <1>;
@@ -263,12 +269,13 @@
 			};
 
 			crypto: crypto-engine@30000 {
-				compatible = "marvell,orion-crypto";
-				reg = <0x30000 0x10000>,
-				      <0xffffe000 0x800>;
-				reg-names = "regs", "sram";
+				compatible = "marvell,dove-crypto";
+				reg = <0x30000 0x10000>;
+				reg-names = "regs";
 				interrupts = <31>;
 				clocks = <&gate_clk 15>;
+				marvell,crypto-srams = <&crypto_sram>;
+				marvell,crypto-sram-size = <0x800>;
 				status = "okay";
 			};
 
@@ -456,6 +463,12 @@
 					compatible = "marvell,dove-gating-clock";
 					reg = <0x0038 0x4>;
 					clocks = <&core_clk 0>;
+					#clock-cells = <1>;
+				};
+
+				divider_clk: core-clock@0064 {
+					compatible = "marvell,dove-divider-clock";
+					reg = <0x0064 0x8>;
 					#clock-cells = <1>;
 				};
 
@@ -765,6 +778,24 @@
 				compatible = "marvell,dove-lcd";
 				reg = <0x820000 0x1000>;
 				interrupts = <47>;
+				status = "disabled";
+			};
+
+			crypto_sram: sa-sram@ffffe000 {
+				compatible = "mmio-sram";
+				reg = <0xffffe000 0x800>;
+				clocks = <&gate_clk 15>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+			};
+
+			gpu: gpu@840000 {
+				clocks = <&divider_clk 1>;
+				clock-names = "core";
+				compatible = "vivante,gc";
+				interrupts = <48>;
+				power-domains = <&gpu_domain>;
+				reg = <0x840000 0x4000>;
 				status = "disabled";
 			};
 		};

@@ -74,7 +74,6 @@ static void radeon_cs_buckets_get_list(struct radeon_cs_buckets *b,
 
 static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 {
-	struct drm_device *ddev = p->rdev->ddev;
 	struct radeon_cs_chunk *chunk;
 	struct radeon_cs_buckets buckets;
 	unsigned i;
@@ -101,7 +100,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		unsigned priority;
 
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
-		gobj = drm_gem_object_lookup(ddev, p->filp, r->handle);
+		gobj = drm_gem_object_lookup(p->filp, r->handle);
 		if (gobj == NULL) {
 			DRM_ERROR("gem object lookup failed 0x%x\n",
 				  r->handle);
@@ -118,11 +117,14 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		priority = (r->flags & RADEON_RELOC_PRIO_MASK) * 2
 			   + !!r->write_domain;
 
-		/* the first reloc of an UVD job is the msg and that must be in
-		   VRAM, also but everything into VRAM on AGP cards and older
-		   IGP chips to avoid image corruptions */
+		/* The first reloc of an UVD job is the msg and that must be in
+		 * VRAM, the second reloc is the DPB and for WMV that must be in
+		 * VRAM as well. Also put everything into VRAM on AGP cards and older
+		 * IGP chips to avoid image corruptions
+		 */
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
-		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev) ||
+		    (i <= 0 || pci_find_capability(p->rdev->ddev->pdev,
+						   PCI_CAP_ID_AGP) ||
 		     p->rdev->family == CHIP_RS780 ||
 		     p->rdev->family == CHIP_RS880)) {
 
@@ -162,6 +164,16 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			domain = RADEON_GEM_DOMAIN_GTT;
 			p->relocs[i].prefered_domains = domain;
 			p->relocs[i].allowed_domains = domain;
+		}
+
+		/* Objects shared as dma-bufs cannot be moved to VRAM */
+		if (p->relocs[i].robj->prime_shared_count) {
+			p->relocs[i].allowed_domains &= ~RADEON_GEM_DOMAIN_VRAM;
+			if (!p->relocs[i].allowed_domains) {
+				DRM_ERROR("BO associated with dma-buf cannot "
+					  "be moved to VRAM\n");
+				return -EINVAL;
+			}
 		}
 
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;

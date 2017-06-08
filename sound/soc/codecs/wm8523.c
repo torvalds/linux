@@ -413,17 +413,19 @@ static int wm8523_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8523 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8523 = {
 	.probe =	wm8523_probe,
 	.set_bias_level = wm8523_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8523_controls,
-	.num_controls = ARRAY_SIZE(wm8523_controls),
-	.dapm_widgets = wm8523_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8523_dapm_widgets),
-	.dapm_routes = wm8523_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8523_dapm_routes),
+	.component_driver = {
+		.controls		= wm8523_controls,
+		.num_controls		= ARRAY_SIZE(wm8523_controls),
+		.dapm_widgets		= wm8523_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8523_dapm_widgets),
+		.dapm_routes		= wm8523_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8523_dapm_routes),
+	},
 };
 
 static const struct of_device_id wm8523_of_match[] = {
@@ -444,7 +446,6 @@ static const struct regmap_config wm8523_regmap = {
 	.volatile_reg = wm8523_volatile_register,
 };
 
-#if IS_ENABLED(CONFIG_I2C)
 static int wm8523_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -541,29 +542,8 @@ static struct i2c_driver wm8523_i2c_driver = {
 	.remove =   wm8523_i2c_remove,
 	.id_table = wm8523_i2c_id,
 };
-#endif
 
-static int __init wm8523_modinit(void)
-{
-	int ret;
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&wm8523_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8523 I2C driver: %d\n",
-		       ret);
-	}
-#endif
-	return 0;
-}
-module_init(wm8523_modinit);
-
-static void __exit wm8523_exit(void)
-{
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&wm8523_i2c_driver);
-#endif
-}
-module_exit(wm8523_exit);
+module_i2c_driver(wm8523_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8523 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

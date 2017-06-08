@@ -13,7 +13,6 @@
 #include <linux/platform_device.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
-#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mfd/tmio.h>
 #include <linux/gpio.h>
@@ -38,10 +37,10 @@
 #include <video/sh_mobile_lcdc.h>
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
-#include <media/sh_mobile_ceu.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
 #include <media/soc_camera.h>
-#include <media/tw9910.h>
-#include <media/mt9t112.h>
+#include <media/i2c/tw9910.h>
+#include <media/i2c/mt9t112.h>
 #include <asm/heartbeat.h>
 #include <asm/clock.h>
 #include <asm/suspend.h>
@@ -900,8 +899,8 @@ static struct platform_device irda_device = {
 	.resource       = irda_resources,
 };
 
-#include <media/ak881x.h>
-#include <media/sh_vou.h>
+#include <media/i2c/ak881x.h>
+#include <media/drv-intf/sh_vou.h>
 
 static struct ak881x_pdata ak881x_pdata = {
 	.flags = AK881X_IF_MODE_SLAVE,

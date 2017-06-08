@@ -157,7 +157,7 @@ static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 	 */
 	if (!btrfs_find_name_in_ext_backref(path, ref_objectid,
 					    name, name_len, &extref)) {
-		btrfs_std_error(root->fs_info, -ENOENT);
+		btrfs_handle_fs_error(root->fs_info, -ENOENT, NULL);
 		ret = -EROFS;
 		goto out;
 	}
@@ -182,7 +182,7 @@ static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 	memmove_extent_buffer(leaf, ptr, ptr + del_len,
 			      item_size - (ptr + del_len - item_start));
 
-	btrfs_truncate_item(root, path, item_size - del_len, 1);
+	btrfs_truncate_item(root->fs_info, path, item_size - del_len, 1);
 
 out:
 	btrfs_free_path(path);
@@ -245,7 +245,7 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 	item_start = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	memmove_extent_buffer(leaf, ptr, ptr + sub_item_len,
 			      item_size - (ptr + sub_item_len - item_start));
-	btrfs_truncate_item(root, path, item_size - sub_item_len, 1);
+	btrfs_truncate_item(root->fs_info, path, item_size - sub_item_len, 1);
 out:
 	btrfs_free_path(path);
 
@@ -297,7 +297,7 @@ static int btrfs_insert_inode_extref(struct btrfs_trans_handle *trans,
 						   name, name_len, NULL))
 			goto out;
 
-		btrfs_extend_item(root, path, ins_len);
+		btrfs_extend_item(root->fs_info, path, ins_len);
 		ret = 0;
 	}
 	if (ret < 0)
@@ -328,6 +328,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 			   const char *name, int name_len,
 			   u64 inode_objectid, u64 ref_objectid, u64 index)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_inode_ref *ref;
@@ -354,7 +355,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 			goto out;
 
 		old_size = btrfs_item_size_nr(path->nodes[0], path->slots[0]);
-		btrfs_extend_item(root, path, ins_len);
+		btrfs_extend_item(fs_info, path, ins_len);
 		ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				     struct btrfs_inode_ref);
 		ref = (struct btrfs_inode_ref *)((unsigned long)ref + old_size);
@@ -384,7 +385,7 @@ out:
 	btrfs_free_path(path);
 
 	if (ret == -EMLINK) {
-		struct btrfs_super_block *disk_super = root->fs_info->super_copy;
+		struct btrfs_super_block *disk_super = fs_info->super_copy;
 		/* We ran out of space in the ref array. Need to
 		 * add an extended ref. */
 		if (btrfs_super_incompat_flags(disk_super)

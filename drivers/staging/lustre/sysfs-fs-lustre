@@ -11,7 +11,7 @@ Description:
 		Shows if the lustre module has pinger support.
 		"on" means yes and "off" means no.
 
-What:		/sys/fs/lustre/health
+What:		/sys/fs/lustre/health_check
 Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
@@ -293,6 +293,14 @@ Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Controls extended attributes client-side cache.
 		1 to enable, 0 to disable.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/unstable_stats
+Date:		Apr 2016
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows number of pages that were sent and acknowledged by
+		server but were not yet committed and therefore still
+		pinned in client memory even though no longer dirty.
 
 What:		/sys/fs/lustre/ldlm/cancel_unused_locks_before_replay
 Date:		May 2015

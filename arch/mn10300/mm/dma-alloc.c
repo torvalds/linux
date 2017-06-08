@@ -20,8 +20,8 @@
 
 static unsigned long pci_sram_allocated = 0xbc000000;
 
-void *dma_alloc_coherent(struct device *dev, size_t size,
-			 dma_addr_t *dma_handle, int gfp)
+static void *mn10300_dma_alloc(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
 {
 	unsigned long addr;
 	void *ret;
@@ -61,10 +61,9 @@ done:
 	printk("dma_alloc_coherent() = %p [%x]\n", ret, *dma_handle);
 	return ret;
 }
-EXPORT_SYMBOL(dma_alloc_coherent);
 
-void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
-		       dma_addr_t dma_handle)
+static void mn10300_dma_free(struct device *dev, size_t size, void *vaddr,
+		dma_addr_t dma_handle, unsigned long attrs)
 {
 	unsigned long addr = (unsigned long) vaddr & ~0x20000000;
 
@@ -73,4 +72,60 @@ void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 
 	free_pages(addr, get_order(size));
 }
-EXPORT_SYMBOL(dma_free_coherent);
+
+static int mn10300_dma_map_sg(struct device *dev, struct scatterlist *sglist,
+		int nents, enum dma_data_direction direction,
+		unsigned long attrs)
+{
+	struct scatterlist *sg;
+	int i;
+
+	for_each_sg(sglist, sg, nents, i) {
+		BUG_ON(!sg_page(sg));
+
+		sg->dma_address = sg_phys(sg);
+	}
+
+	mn10300_dcache_flush_inv();
+	return nents;
+}
+
+static dma_addr_t mn10300_dma_map_page(struct device *dev, struct page *page,
+		unsigned long offset, size_t size,
+		enum dma_data_direction direction, unsigned long attrs)
+{
+	return page_to_bus(page) + offset;
+}
+
+static void mn10300_dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
+				size_t size, enum dma_data_direction direction)
+{
+	mn10300_dcache_flush_inv();
+}
+
+static void mn10300_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
+			    int nelems, enum dma_data_direction direction)
+{
+	mn10300_dcache_flush_inv();
+}
+
+static int mn10300_dma_supported(struct device *dev, u64 mask)
+{
+	/*
+	 * we fall back to GFP_DMA when the mask isn't all 1s, so we can't
+	 * guarantee allocations that must be within a tighter range than
+	 * GFP_DMA
+	 */
+	if (mask < 0x00ffffff)
+		return 0;
+	return 1;
+}
+
+const struct dma_map_ops mn10300_dma_ops = {
+	.alloc			= mn10300_dma_alloc,
+	.free			= mn10300_dma_free,
+	.map_page		= mn10300_dma_map_page,
+	.map_sg			= mn10300_dma_map_sg,
+	.sync_single_for_device	= mn10300_dma_sync_single_for_device,
+	.sync_sg_for_device	= mn10300_dma_sync_sg_for_device,
+};

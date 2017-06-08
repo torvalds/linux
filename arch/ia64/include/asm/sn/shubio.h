@@ -1385,7 +1385,7 @@ typedef union ii_ibcr_u {
  * respones are captured until IXSS[VALID] is cleared by setting the    *
  * appropriate bit in IECLR. Every time a spurious read response is     *
  * detected, the SPUR_RD bit of the PRB corresponding to the incoming   *
- * message's SIDN field is set. This always happens, regarless of       *
+ * message's SIDN field is set. This always happens, regardless of       *
  * whether a header is captured. The programmer should check            *
  * IXSM[SIDN] to determine which widget sent the spurious response,     *
  * because there may be more than one SPUR_RD bit set in the PRB        *
@@ -2997,7 +2997,7 @@ typedef union ii_ippr_u {
 /*
  * Values for field imsgtype
  */
-#define IIO_ICRB_IMSGT_XTALK    0	/* Incoming Meessage from Xtalk */
+#define IIO_ICRB_IMSGT_XTALK    0	/* Incoming message from Xtalk */
 #define IIO_ICRB_IMSGT_BTE      1	/* Incoming message from BTE    */
 #define IIO_ICRB_IMSGT_SN1NET   2	/* Incoming message from SN1 net */
 #define IIO_ICRB_IMSGT_CRB      3	/* Incoming message from CRB ???  */

@@ -15,6 +15,7 @@ int kimage_is_destination_range(struct kimage *image,
 extern struct mutex kexec_mutex;
 
 #ifdef CONFIG_KEXEC_FILE
+#include <linux/purgatory.h>
 void kimage_file_post_load_cleanup(struct kimage *image);
 #else /* CONFIG_KEXEC_FILE */
 static inline void kimage_file_post_load_cleanup(struct kimage *image) { }

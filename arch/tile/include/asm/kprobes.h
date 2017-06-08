@@ -17,10 +17,13 @@
 #ifndef _ASM_TILE_KPROBES_H
 #define _ASM_TILE_KPROBES_H
 
+#include <asm-generic/kprobes.h>
+
+#ifdef CONFIG_KPROBES
+
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
-
 #include <arch/opcode.h>
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
@@ -76,4 +79,5 @@ void arch_remove_kprobe(struct kprobe *);
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 			     unsigned long val, void *data);
 
+#endif /* CONFIG_KPROBES */
 #endif /* _ASM_TILE_KPROBES_H */

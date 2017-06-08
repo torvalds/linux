@@ -214,7 +214,7 @@ RedBoot scripting
 -----------------
 
 All the commands above aren't so useful if they have to be typed in every
-time the Assabet is rebooted.  Therefore it's possible to automatize the boot
+time the Assabet is rebooted.  Therefore it's possible to automate the boot
 process using RedBoot's scripting capability.
 
 For example, I use this to boot Linux with both the kernel and the ramdisk

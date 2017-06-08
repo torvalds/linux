@@ -3,7 +3,7 @@ Properties for an MDIO bus multiplexer controlled by a memory-mapped device
 This is a special case of a MDIO bus multiplexer.  A memory-mapped device,
 like an FPGA, is used to control which child bus is connected.  The mdio-mux
 node must be a child of the memory-mapped device.  The driver currently only
-supports devices with eight-bit registers.
+supports devices with 8, 16 or 32-bit registers.
 
 Required properties in addition to the generic multiplexer properties:
 
@@ -11,7 +11,7 @@ Required properties in addition to the generic multiplexer properties:
 
 - reg : integer, contains the offset of the register that controls the bus
 	multiplexer.  The size field in the 'reg' property is the size of
-	register, and must therefore be 1.
+	register, and must therefore be 1, 2, or 4.
 
 - mux-mask : integer, contains an eight-bit mask that specifies which
 	bits in the register control the actual bus multiplexer.  The

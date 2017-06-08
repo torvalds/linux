@@ -47,8 +47,6 @@ static inline unsigned int __xchg(unsigned int x, volatile void *ptr, int size)
 #define xchg(ptr, x) \
 	((__typeof__(*(ptr)))__xchg((unsigned int)(x), (void *) (ptr), \
 				    sizeof(*(ptr))))
-#define tas(ptr)    xchg((ptr), 1)
-
 
 #include <asm-generic/cmpxchg-local.h>
 

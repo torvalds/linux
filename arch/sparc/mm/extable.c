@@ -3,7 +3,8 @@
  */
 
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/extable.h>
+#include <linux/uaccess.h>
 
 void sort_extable(struct exception_table_entry *start,
 		  struct exception_table_entry *finish)

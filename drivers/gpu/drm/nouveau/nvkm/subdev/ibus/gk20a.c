@@ -29,7 +29,7 @@ gk20a_ibus_init_ibus_ring(struct nvkm_subdev *ibus)
 	nvkm_mask(device, 0x137250, 0x3f, 0);
 
 	nvkm_mask(device, 0x000200, 0x20, 0);
-	usleep_range(20, 30);
+	udelay(20);
 	nvkm_mask(device, 0x000200, 0x20, 0x20);
 
 	nvkm_wr32(device, 0x12004c, 0x4);
@@ -84,6 +84,6 @@ gk20a_ibus_new(struct nvkm_device *device, int index,
 	struct nvkm_subdev *ibus;
 	if (!(ibus = *pibus = kzalloc(sizeof(*ibus), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&gk20a_ibus, device, index, 0, ibus);
+	nvkm_subdev_ctor(&gk20a_ibus, device, index, ibus);
 	return 0;
 }

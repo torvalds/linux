@@ -28,18 +28,20 @@ MODULE_DESCRIPTION("iptables mangle table");
 			    (1 << NF_INET_LOCAL_OUT) | \
 			    (1 << NF_INET_POST_ROUTING))
 
+static int __net_init iptable_mangle_table_init(struct net *net);
+
 static const struct xt_table packet_mangler = {
 	.name		= "mangle",
 	.valid_hooks	= MANGLE_VALID_HOOKS,
 	.me		= THIS_MODULE,
 	.af		= NFPROTO_IPV4,
 	.priority	= NF_IP_PRI_MANGLE,
+	.table_init	= iptable_mangle_table_init,
 };
 
 static unsigned int
 ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 {
-	struct net_device *out = state->out;
 	unsigned int ret;
 	const struct iphdr *iph;
 	u_int8_t tos;
@@ -59,8 +61,7 @@ ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 	daddr = iph->daddr;
 	tos = iph->tos;
 
-	ret = ipt_do_table(skb, NF_INET_LOCAL_OUT, state,
-			   dev_net(out)->ipv4.iptable_mangle);
+	ret = ipt_do_table(skb, state, state->net->ipv4.iptable_mangle);
 	/* Reroute for ANY change. */
 	if (ret != NF_DROP && ret != NF_STOLEN) {
 		iph = ip_hdr(skb);
@@ -69,7 +70,7 @@ ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 		    iph->daddr != daddr ||
 		    skb->mark != mark ||
 		    iph->tos != tos) {
-			err = ip_route_me_harder(skb, RTN_UNSPEC);
+			err = ip_route_me_harder(state->net, skb, RTN_UNSPEC);
 			if (err < 0)
 				ret = NF_DROP_ERR(err);
 		}
@@ -80,42 +81,42 @@ ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
-iptable_mangle_hook(const struct nf_hook_ops *ops,
+iptable_mangle_hook(void *priv,
 		     struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
-	if (ops->hooknum == NF_INET_LOCAL_OUT)
+	if (state->hook == NF_INET_LOCAL_OUT)
 		return ipt_mangle_out(skb, state);
-	if (ops->hooknum == NF_INET_POST_ROUTING)
-		return ipt_do_table(skb, ops->hooknum, state,
-				    dev_net(state->out)->ipv4.iptable_mangle);
-	/* PREROUTING/INPUT/FORWARD: */
-	return ipt_do_table(skb, ops->hooknum, state,
-			    dev_net(state->in)->ipv4.iptable_mangle);
+	return ipt_do_table(skb, state, state->net->ipv4.iptable_mangle);
 }
 
 static struct nf_hook_ops *mangle_ops __read_mostly;
-
-static int __net_init iptable_mangle_net_init(struct net *net)
+static int __net_init iptable_mangle_table_init(struct net *net)
 {
 	struct ipt_replace *repl;
+	int ret;
+
+	if (net->ipv4.iptable_mangle)
+		return 0;
 
 	repl = ipt_alloc_initial_table(&packet_mangler);
 	if (repl == NULL)
 		return -ENOMEM;
-	net->ipv4.iptable_mangle =
-		ipt_register_table(net, &packet_mangler, repl);
+	ret = ipt_register_table(net, &packet_mangler, repl, mangle_ops,
+				 &net->ipv4.iptable_mangle);
 	kfree(repl);
-	return PTR_ERR_OR_ZERO(net->ipv4.iptable_mangle);
+	return ret;
 }
 
 static void __net_exit iptable_mangle_net_exit(struct net *net)
 {
-	ipt_unregister_table(net, net->ipv4.iptable_mangle);
+	if (!net->ipv4.iptable_mangle)
+		return;
+	ipt_unregister_table(net, net->ipv4.iptable_mangle, mangle_ops);
+	net->ipv4.iptable_mangle = NULL;
 }
 
 static struct pernet_operations iptable_mangle_net_ops = {
-	.init = iptable_mangle_net_init,
 	.exit = iptable_mangle_net_exit,
 };
 
@@ -123,15 +124,22 @@ static int __init iptable_mangle_init(void)
 {
 	int ret;
 
-	ret = register_pernet_subsys(&iptable_mangle_net_ops);
-	if (ret < 0)
-		return ret;
-
-	/* Register hooks */
-	mangle_ops = xt_hook_link(&packet_mangler, iptable_mangle_hook);
+	mangle_ops = xt_hook_ops_alloc(&packet_mangler, iptable_mangle_hook);
 	if (IS_ERR(mangle_ops)) {
 		ret = PTR_ERR(mangle_ops);
+		return ret;
+	}
+
+	ret = register_pernet_subsys(&iptable_mangle_net_ops);
+	if (ret < 0) {
+		kfree(mangle_ops);
+		return ret;
+	}
+
+	ret = iptable_mangle_table_init(&init_net);
+	if (ret) {
 		unregister_pernet_subsys(&iptable_mangle_net_ops);
+		kfree(mangle_ops);
 	}
 
 	return ret;
@@ -139,8 +147,8 @@ static int __init iptable_mangle_init(void)
 
 static void __exit iptable_mangle_fini(void)
 {
-	xt_hook_unlink(&packet_mangler, mangle_ops);
 	unregister_pernet_subsys(&iptable_mangle_net_ops);
+	kfree(mangle_ops);
 }
 
 module_init(iptable_mangle_init);

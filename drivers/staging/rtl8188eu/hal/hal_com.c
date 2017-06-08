@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #include <osdep_service.h>
 #include <drv_types.h>
@@ -32,19 +27,19 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 	char buf[128];
 
 	cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8188E_");
-	cnt += sprintf((buf+cnt), "%s_", IS_NORMAL_CHIP(chip_vers) ?
+	cnt += sprintf((buf+cnt), "%s_", chip_vers.ChipType == NORMAL_CHIP ?
 		       "Normal_Chip" : "Test_Chip");
-	cnt += sprintf((buf+cnt), "%s_", IS_CHIP_VENDOR_TSMC(chip_vers) ?
+	cnt += sprintf((buf+cnt), "%s_", chip_vers.VendorType == CHIP_VENDOR_TSMC ?
 		       "TSMC" : "UMC");
-	if (IS_A_CUT(chip_vers))
+	if (chip_vers.CUTVersion == A_CUT_VERSION)
 		cnt += sprintf((buf+cnt), "A_CUT_");
-	else if (IS_B_CUT(chip_vers))
+	else if (chip_vers.CUTVersion == B_CUT_VERSION)
 		cnt += sprintf((buf+cnt), "B_CUT_");
-	else if (IS_C_CUT(chip_vers))
+	else if (chip_vers.CUTVersion == C_CUT_VERSION)
 		cnt += sprintf((buf+cnt), "C_CUT_");
-	else if (IS_D_CUT(chip_vers))
+	else if (chip_vers.CUTVersion == D_CUT_VERSION)
 		cnt += sprintf((buf+cnt), "D_CUT_");
-	else if (IS_E_CUT(chip_vers))
+	else if (chip_vers.CUTVersion == E_CUT_VERSION)
 		cnt += sprintf((buf+cnt), "E_CUT_");
 	else
 		cnt += sprintf((buf+cnt), "UNKNOWN_CUT(%d)_",

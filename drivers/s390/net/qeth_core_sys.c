@@ -153,52 +153,17 @@ static DEVICE_ATTR(portno, 0644, qeth_dev_portno_show, qeth_dev_portno_store);
 static ssize_t qeth_dev_portname_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct qeth_card *card = dev_get_drvdata(dev);
-	char portname[9] = {0, };
-
-	if (!card)
-		return -EINVAL;
-
-	if (card->info.portname_required) {
-		memcpy(portname, card->info.portname + 1, 8);
-		EBCASC(portname, 8);
-		return sprintf(buf, "%s\n", portname);
-	} else
-		return sprintf(buf, "no portname required\n");
+	return sprintf(buf, "no portname required\n");
 }
 
 static ssize_t qeth_dev_portname_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
-	int i, rc = 0;
 
-	if (!card)
-		return -EINVAL;
-
-	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
-		rc = -EPERM;
-		goto out;
-	}
-
-	tmp = strsep((char **) &buf, "\n");
-	if ((strlen(tmp) > 8) || (strlen(tmp) == 0)) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	card->info.portname[0] = strlen(tmp);
-	/* for beauty reasons */
-	for (i = 1; i < 9; i++)
-		card->info.portname[i] = ' ';
-	strcpy(card->info.portname + 1, tmp);
-	ASCEBC(card->info.portname + 1, 8);
-out:
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
+	dev_warn_once(&card->gdev->dev,
+		      "portname is deprecated and is ignored\n");
+	return count;
 }
 
 static DEVICE_ATTR(portname, 0644, qeth_dev_portname_show,
@@ -278,6 +243,10 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = 2;
 	} else if (sysfs_streq(buf, "no_prio_queueing:3")) {
+		if (card->info.type == QETH_CARD_TYPE_IQD) {
+			rc = -EPERM;
+			goto out;
+		}
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = 3;
 	} else if (sysfs_streq(buf, "no_prio_queueing")) {
@@ -444,12 +413,16 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 
 	if (card->options.layer2 == newdis)
 		goto out;
-	else {
-		card->info.mac_bits  = 0;
-		if (card->discipline) {
-			card->discipline->remove(card->gdev);
-			qeth_core_free_discipline(card);
-		}
+	if (card->info.type == QETH_CARD_TYPE_OSM) {
+		/* fixed layer, can't switch */
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+
+	card->info.mac_bits = 0;
+	if (card->discipline) {
+		card->discipline->remove(card->gdev);
+		qeth_core_free_discipline(card);
 	}
 
 	rc = qeth_core_load_discipline(card, newdis);
@@ -457,6 +430,8 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		goto out;
 
 	rc = card->discipline->setup(card->gdev);
+	if (rc)
+		qeth_core_free_discipline(card);
 out:
 	mutex_unlock(&card->discipline_mutex);
 	return rc ? rc : count;
@@ -734,10 +709,11 @@ static struct attribute *qeth_blkt_device_attrs[] = {
 	&dev_attr_inter_jumbo.attr,
 	NULL,
 };
-static struct attribute_group qeth_device_blkt_group = {
+const struct attribute_group qeth_device_blkt_group = {
 	.name = "blkt",
 	.attrs = qeth_blkt_device_attrs,
 };
+EXPORT_SYMBOL_GPL(qeth_device_blkt_group);
 
 static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_state.attr,
@@ -757,9 +733,10 @@ static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_switch_attrs.attr,
 	NULL,
 };
-static struct attribute_group qeth_device_attr_group = {
+const struct attribute_group qeth_device_attr_group = {
 	.attrs = qeth_device_attrs,
 };
+EXPORT_SYMBOL_GPL(qeth_device_attr_group);
 
 const struct attribute_group *qeth_generic_attr_groups[] = {
 	&qeth_device_attr_group,

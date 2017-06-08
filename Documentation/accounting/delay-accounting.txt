@@ -54,9 +54,9 @@ are sent to userspace without requiring a command. If it is the last exiting
 task of a thread group, the per-tgid statistics are also sent. More details
 are given in the taskstats interface description.
 
-The getdelays.c userspace utility in this directory allows simple commands to
-be run and the corresponding delay statistics to be displayed. It also serves
-as an example of using the taskstats interface.
+The getdelays.c userspace utility in tools/accounting directory allows simple
+commands to be run and the corresponding delay statistics to be displayed. It
+also serves as an example of using the taskstats interface.
 
 Usage
 -----

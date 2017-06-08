@@ -29,9 +29,9 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
-#include <media/saa6588.h>
+#include <media/i2c/saa6588.h>
 #include <media/v4l2-device.h>
 
 

@@ -335,11 +335,6 @@ static int mdfld_dsi_connector_get_modes(struct drm_connector *connector)
 	struct drm_display_mode *dup_mode = NULL;
 	struct drm_device *dev = connector->dev;
 
-	connector->display_info.min_vfreq = 0;
-	connector->display_info.max_vfreq = 200;
-	connector->display_info.min_hfreq = 0;
-	connector->display_info.max_hfreq = 200;
-
 	if (fixed_mode) {
 		dev_dbg(dev->dev, "fixed_mode %dx%d\n",
 				fixed_mode->hdisplay, fixed_mode->vdisplay);
@@ -382,16 +377,6 @@ static int mdfld_dsi_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static void mdfld_dsi_connector_dpms(struct drm_connector *connector, int mode)
-{
-	if (mode == connector->dpms)
-		return;
-
-	/*first, execute dpms*/
-
-	drm_helper_connector_dpms(connector, mode);
-}
-
 static struct drm_encoder *mdfld_dsi_connector_best_encoder(
 				struct drm_connector *connector)
 {
@@ -404,9 +389,7 @@ static struct drm_encoder *mdfld_dsi_connector_best_encoder(
 
 /*DSI connector funcs*/
 static const struct drm_connector_funcs mdfld_dsi_connector_funcs = {
-	.dpms = /*drm_helper_connector_dpms*/mdfld_dsi_connector_dpms,
-	.save = mdfld_dsi_connector_save,
-	.restore = mdfld_dsi_connector_restore,
+	.dpms = drm_helper_connector_dpms,
 	.detect = mdfld_dsi_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = mdfld_dsi_connector_set_property,
@@ -563,6 +546,9 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 
 
 	connector = &dsi_connector->base.base;
+	dsi_connector->base.save = mdfld_dsi_connector_save;
+	dsi_connector->base.restore = mdfld_dsi_connector_restore;
+
 	drm_connector_init(dev, connector, &mdfld_dsi_connector_funcs,
 						DRM_MODE_CONNECTOR_LVDS);
 	drm_connector_helper_add(connector, &mdfld_dsi_connector_helper_funcs);

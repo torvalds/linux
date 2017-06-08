@@ -151,7 +151,7 @@ static inline int drff_init(struct hid_device *hid)
  * descriptor. In any case, it's a wonder it works on Windows.
  *
  *  Usage Page (Desktop),             ; Generic desktop controls (01h)
- *  Usage (Joystik),                  ; Joystik (04h, application collection)
+ *  Usage (Joystick),                 ; Joystick (04h, application collection)
  *  Collection (Application),
  *    Collection (Logical),
  *      Report Size (8),
@@ -207,7 +207,7 @@ static inline int drff_init(struct hid_device *hid)
 /* Fixed report descriptor for PID 0x011 joystick */
 static __u8 pid0011_rdesc_fixed[] = {
 	0x05, 0x01,         /*  Usage Page (Desktop),           */
-	0x09, 0x04,         /*  Usage (Joystik),                */
+	0x09, 0x04,         /*  Usage (Joystick),               */
 	0xA1, 0x01,         /*  Collection (Application),       */
 	0xA1, 0x02,         /*      Collection (Logical),       */
 	0x14,               /*          Logical Minimum (0),    */
@@ -246,6 +246,30 @@ static __u8 *dr_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		break;
 	}
 	return rdesc;
+}
+
+#define map_abs(c)      hid_map_usage(hi, usage, bit, max, EV_ABS, (c))
+#define map_rel(c)      hid_map_usage(hi, usage, bit, max, EV_REL, (c))
+
+static int dr_input_mapping(struct hid_device *hdev, struct hid_input *hi,
+			    struct hid_field *field, struct hid_usage *usage,
+			    unsigned long **bit, int *max)
+{
+	switch (usage->hid) {
+	/*
+	 * revert to the old hid-input behavior where axes
+	 * can be randomly assigned when hid->usage is reused.
+	 */
+	case HID_GD_X: case HID_GD_Y: case HID_GD_Z:
+	case HID_GD_RX: case HID_GD_RY: case HID_GD_RZ:
+		if (field->flags & HID_MAIN_ITEM_RELATIVE)
+			map_rel(usage->hid & 0xf);
+		else
+			map_abs(usage->hid & 0xf);
+		return 1;
+	}
+
+	return 0;
 }
 
 static int dr_probe(struct hid_device *hdev, const struct hid_device_id *id)
@@ -294,6 +318,7 @@ static struct hid_driver dr_driver = {
 	.id_table = dr_devices,
 	.report_fixup = dr_report_fixup,
 	.probe = dr_probe,
+	.input_mapping = dr_input_mapping,
 };
 module_hid_driver(dr_driver);
 

@@ -9,6 +9,7 @@
  */
 #include <linux/preempt.h>
 #include <linux/smp.h>
+#include <linux/uaccess.h>
 
 #include <asm/smp_plat.h>
 #include <asm/tlbflush.h>
@@ -40,8 +41,11 @@ static inline void ipi_flush_tlb_mm(void *arg)
 static inline void ipi_flush_tlb_page(void *arg)
 {
 	struct tlb_args *ta = (struct tlb_args *)arg;
+	unsigned int __ua_flags = uaccess_save_and_enable();
 
 	local_flush_tlb_page(ta->ta_vma, ta->ta_start);
+
+	uaccess_restore(__ua_flags);
 }
 
 static inline void ipi_flush_tlb_kernel_page(void *arg)
@@ -54,8 +58,11 @@ static inline void ipi_flush_tlb_kernel_page(void *arg)
 static inline void ipi_flush_tlb_range(void *arg)
 {
 	struct tlb_args *ta = (struct tlb_args *)arg;
+	unsigned int __ua_flags = uaccess_save_and_enable();
 
 	local_flush_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
+
+	uaccess_restore(__ua_flags);
 }
 
 static inline void ipi_flush_tlb_kernel_range(void *arg)
@@ -93,17 +100,53 @@ void erratum_a15_798181_init(void)
 	unsigned int revidr = read_cpuid(CPUID_REVIDR);
 
 	/* Brahma-B15 r0p0..r0p2 affected
-	 * Cortex-A15 r0p0..r3p2 w/o ECO fix affected */
-	if ((midr & 0xff0ffff0) == 0x420f00f0 && midr <= 0x420f00f2)
+	 * Cortex-A15 r0p0..r3p3 w/o ECO fix affected
+	 * Fixes applied to A15 with respect to the revision and revidr are:
+	 *
+	 * r0p0-r2p1: No fixes applied
+	 * r2p2,r2p3:
+	 *	REVIDR[4]: 798181 Moving a virtual page that is being accessed
+	 *		   by an active process can lead to unexpected behavior
+	 *	REVIDR[9]: Not defined
+	 * r2p4,r3p0,r3p1,r3p2:
+	 *	REVIDR[4]: 798181 Moving a virtual page that is being accessed
+	 *		   by an active process can lead to unexpected behavior
+	 *	REVIDR[9]: 798181 Moving a virtual page that is being accessed
+	 *		   by an active process can lead to unexpected behavior
+	 *		   - This is an update to a previously released ECO.
+	 * r3p3:
+	 *	REVIDR[4]: Reserved
+	 *	REVIDR[9]: 798181 Moving a virtual page that is being accessed
+	 *		   by an active process can lead to unexpected behavior
+	 *		   - This is an update to a previously released ECO.
+	 *
+	 * Handling:
+	 *	REVIDR[9] set -> No WA
+	 *	REVIDR[4] set, REVIDR[9] cleared -> Partial WA
+	 *	Both cleared -> Full WA
+	 */
+	if ((midr & 0xff0ffff0) == 0x420f00f0 && midr <= 0x420f00f2) {
 		erratum_a15_798181_handler = erratum_a15_798181_broadcast;
-	else if ((midr & 0xff0ffff0) == 0x410fc0f0 && midr <= 0x413fc0f2 &&
-		 (revidr & 0x210) != 0x210) {
+	} else if ((midr & 0xff0ffff0) == 0x410fc0f0 && midr < 0x412fc0f2) {
+		erratum_a15_798181_handler = erratum_a15_798181_broadcast;
+	} else if ((midr & 0xff0ffff0) == 0x410fc0f0 && midr < 0x412fc0f4) {
 		if (revidr & 0x10)
 			erratum_a15_798181_handler =
 				erratum_a15_798181_partial;
 		else
 			erratum_a15_798181_handler =
 				erratum_a15_798181_broadcast;
+	} else if ((midr & 0xff0ffff0) == 0x410fc0f0 && midr < 0x413fc0f3) {
+		if ((revidr & 0x210) == 0)
+			erratum_a15_798181_handler =
+				erratum_a15_798181_broadcast;
+		else if (revidr & 0x10)
+			erratum_a15_798181_handler =
+				erratum_a15_798181_partial;
+	} else if ((midr & 0xff0ffff0) == 0x410fc0f0 && midr < 0x414fc0f0) {
+		if ((revidr & 0x200) == 0)
+			erratum_a15_798181_handler =
+				erratum_a15_798181_partial;
 	}
 }
 #endif

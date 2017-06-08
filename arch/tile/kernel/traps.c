@@ -13,6 +13,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
@@ -20,7 +21,8 @@
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
-#include <linux/context_tracking.h>
+#include <linux/hardirq.h>
+#include <linux/nmi.h>
 #include <asm/stack.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
@@ -254,7 +256,6 @@ static int do_bpt(struct pt_regs *regs)
 void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		       unsigned long reason)
 {
-	enum ctx_state prev_state = exception_enter();
 	siginfo_t info = { 0 };
 	int signo, code;
 	unsigned long address = 0;
@@ -263,7 +264,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 
 	/* Handle breakpoints, etc. */
 	if (is_kernel && fault_num == INT_ILL && do_bpt(regs))
-		goto done;
+		return;
 
 	/* Re-enable interrupts, if they were previously enabled. */
 	if (!(regs->flags & PT_FLAGS_DISABLE_IRQ))
@@ -277,7 +278,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		const char *name;
 		char buf[100];
 		if (fixup_exception(regs))  /* ILL_TRANS or UNALIGN_DATA */
-			goto done;
+			return;
 		if (fault_num >= 0 &&
 		    fault_num < ARRAY_SIZE(int_name) &&
 		    int_name[fault_num] != NULL)
@@ -319,7 +320,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	case INT_GPV:
 #if CHIP_HAS_TILE_DMA()
 		if (retry_gpv(reason))
-			goto done;
+			return;
 #endif
 		/*FALLTHROUGH*/
 	case INT_UDN_ACCESS:
@@ -346,7 +347,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 			if (!state ||
 			    (void __user *)(regs->pc) != state->buffer) {
 				single_step_once(regs);
-				goto done;
+				return;
 			}
 		}
 #endif
@@ -390,21 +391,21 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	if (signo != SIGTRAP)
 		trace_unhandled_signal("trap", regs, address, signo);
 	force_sig_info(signo, &info, current);
-
-done:
-	exception_exit(prev_state);
 }
 
 void do_nmi(struct pt_regs *regs, int fault_num, unsigned long reason)
 {
+	nmi_enter();
 	switch (reason) {
+#ifdef arch_trigger_cpumask_backtrace
 	case TILE_NMI_DUMP_STACK:
-		do_nmi_dump_stack(regs);
+		nmi_cpu_backtrace(regs);
 		break;
+#endif
 	default:
 		panic("Unexpected do_nmi type %ld", reason);
-		return;
 	}
+	nmi_exit();
 }
 
 /* Deprecated function currently only used here. */

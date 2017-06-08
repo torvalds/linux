@@ -1303,19 +1303,19 @@ static int tumbler_init(struct snd_pmac *chip)
 				    &mix->line_mute, 1);
 	irq = tumbler_find_device("headphone-detect",
 				  NULL, &mix->hp_detect, 0);
-	if (irq <= NO_IRQ)
+	if (irq <= 0)
 		irq = tumbler_find_device("headphone-detect",
 					  NULL, &mix->hp_detect, 1);
-	if (irq <= NO_IRQ)
+	if (irq <= 0)
 		irq = tumbler_find_device("keywest-gpio15",
 					  NULL, &mix->hp_detect, 1);
 	mix->headphone_irq = irq;
  	irq = tumbler_find_device("line-output-detect",
 				  NULL, &mix->line_detect, 0);
- 	if (irq <= NO_IRQ)
+	if (irq <= 0)
 		irq = tumbler_find_device("line-output-detect",
 					  NULL, &mix->line_detect, 1);
-	if (IS_G4DA && irq <= NO_IRQ)
+	if (IS_G4DA && irq <= 0)
 		irq = tumbler_find_device("keywest-gpio16",
 					  NULL, &mix->line_detect, 1);
 	mix->lineout_irq = irq;

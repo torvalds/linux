@@ -11,7 +11,6 @@
 
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/bootmem.h>
@@ -22,12 +21,12 @@
 
 #include "interrupt.h"
 
-void kvm_mips_queue_irq(struct kvm_vcpu *vcpu, uint32_t priority)
+void kvm_mips_queue_irq(struct kvm_vcpu *vcpu, unsigned int priority)
 {
 	set_bit(priority, &vcpu->arch.pending_exceptions);
 }
 
-void kvm_mips_dequeue_irq(struct kvm_vcpu *vcpu, uint32_t priority)
+void kvm_mips_dequeue_irq(struct kvm_vcpu *vcpu, unsigned int priority)
 {
 	clear_bit(priority, &vcpu->arch.pending_exceptions);
 }
@@ -114,10 +113,10 @@ void kvm_mips_dequeue_io_int_cb(struct kvm_vcpu *vcpu,
 
 /* Deliver the interrupt of the corresponding priority, if possible. */
 int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
-			    uint32_t cause)
+			    u32 cause)
 {
 	int allowed = 0;
-	uint32_t exccode;
+	u32 exccode;
 
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
@@ -128,7 +127,7 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 		    && (!(kvm_read_c0_guest_status(cop0) & (ST0_EXL | ST0_ERL)))
 		    && (kvm_read_c0_guest_status(cop0) & IE_IRQ5)) {
 			allowed = 1;
-			exccode = T_INT;
+			exccode = EXCCODE_INT;
 		}
 		break;
 
@@ -137,7 +136,7 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 		    && (!(kvm_read_c0_guest_status(cop0) & (ST0_EXL | ST0_ERL)))
 		    && (kvm_read_c0_guest_status(cop0) & IE_IRQ0)) {
 			allowed = 1;
-			exccode = T_INT;
+			exccode = EXCCODE_INT;
 		}
 		break;
 
@@ -146,7 +145,7 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 		    && (!(kvm_read_c0_guest_status(cop0) & (ST0_EXL | ST0_ERL)))
 		    && (kvm_read_c0_guest_status(cop0) & IE_IRQ1)) {
 			allowed = 1;
-			exccode = T_INT;
+			exccode = EXCCODE_INT;
 		}
 		break;
 
@@ -155,7 +154,7 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 		    && (!(kvm_read_c0_guest_status(cop0) & (ST0_EXL | ST0_ERL)))
 		    && (kvm_read_c0_guest_status(cop0) & IE_IRQ2)) {
 			allowed = 1;
-			exccode = T_INT;
+			exccode = EXCCODE_INT;
 		}
 		break;
 
@@ -184,10 +183,11 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 					  (exccode << CAUSEB_EXCCODE));
 
 		/* XXXSL Set PC to the interrupt exception entry point */
+		arch->pc = kvm_mips_guest_exception_base(vcpu);
 		if (kvm_read_c0_guest_cause(cop0) & CAUSEF_IV)
-			arch->pc = KVM_GUEST_KSEG0 + 0x200;
+			arch->pc += 0x200;
 		else
-			arch->pc = KVM_GUEST_KSEG0 + 0x180;
+			arch->pc += 0x180;
 
 		clear_bit(priority, &vcpu->arch.pending_exceptions);
 	}
@@ -196,12 +196,12 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 }
 
 int kvm_mips_irq_clear_cb(struct kvm_vcpu *vcpu, unsigned int priority,
-			  uint32_t cause)
+			  u32 cause)
 {
 	return 1;
 }
 
-void kvm_mips_deliver_interrupts(struct kvm_vcpu *vcpu, uint32_t cause)
+void kvm_mips_deliver_interrupts(struct kvm_vcpu *vcpu, u32 cause)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
 	unsigned long *pending_clr = &vcpu->arch.pending_exceptions_clr;

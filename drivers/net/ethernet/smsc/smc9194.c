@@ -663,7 +663,7 @@ static void smc_hardware_send_packet( struct net_device * dev )
 	lp->saved_skb = NULL;
 	dev_kfree_skb_any (skb);
 
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	/* we can send another packet */
 	netif_wake_queue(dev);
@@ -809,7 +809,6 @@ static const struct net_device_ops smc_netdev_ops = {
 	.ndo_start_xmit    	= smc_wait_to_send_packet,
 	.ndo_tx_timeout	    	= smc_timeout,
 	.ndo_set_rx_mode	= smc_set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1104,7 +1103,7 @@ static void smc_timeout(struct net_device *dev)
 	/* "kick" the adaptor */
 	smc_reset( dev->base_addr );
 	smc_enable( dev->base_addr );
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	/* clear anything saved */
 	((struct smc_local *)netdev_priv(dev))->saved_skb = NULL;
 	netif_wake_queue(dev);
@@ -1502,8 +1501,8 @@ static void smc_set_multicast_list(struct net_device *dev)
 static struct net_device *devSMC9194;
 MODULE_LICENSE("GPL");
 
-module_param(io, int, 0);
-module_param(irq, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
 module_param(ifport, int, 0);
 MODULE_PARM_DESC(io, "SMC 99194 I/O base address");
 MODULE_PARM_DESC(irq, "SMC 99194 IRQ number");

@@ -817,12 +817,14 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm8988 = {
 	.set_bias_level = wm8988_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8988_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8988_snd_controls),
-	.dapm_widgets = wm8988_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8988_dapm_widgets),
-	.dapm_routes = wm8988_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8988_dapm_routes),
+	.component_driver = {
+		.controls		= wm8988_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8988_snd_controls),
+		.dapm_widgets		= wm8988_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8988_dapm_widgets),
+		.dapm_routes		= wm8988_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8988_dapm_routes),
+	},
 };
 
 static const struct regmap_config wm8988_regmap = {
@@ -871,7 +873,6 @@ static int wm8988_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8988_spi_driver = {
 	.driver = {
 		.name	= "wm8988",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8988_spi_probe,
 	.remove		= wm8988_spi_remove,

@@ -698,6 +698,9 @@ static void ar9003_tx_gain_table_mode2(struct ath_hw *ah)
 	else if (AR_SREV_9340(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9340Modes_low_ob_db_tx_gain_table_1p0);
+	else if (AR_SREV_9531_11(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       qca953x_1p1_modes_no_xpa_low_power_tx_gain_table);
 	else if (AR_SREV_9485_11_OR_LATER(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9485Modes_low_ob_db_tx_gain_1_1);
@@ -857,7 +860,7 @@ static void ar9003_rx_gain_table_mode0(struct ath_hw *ah)
 			       qca956x_1p0_common_rx_gain_table);
 		INIT_INI_ARRAY(&ah->ini_modes_rx_gain_bounds,
 			       qca956x_1p0_common_rx_gain_bounds);
-		INIT_INI_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+		INIT_INI_ARRAY(&ah->ini_modes_rxgain_xlna,
 			       qca956x_1p0_xlna_only);
 	} else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
@@ -942,7 +945,7 @@ static void ar9003_rx_gain_table_mode2(struct ath_hw *ah)
 			       ar9462_2p1_baseband_core_mix_rxgain);
 		INIT_INI_ARRAY(&ah->ini_modes_rxgain_bb_postamble,
 			       ar9462_2p1_baseband_postamble_mix_rxgain);
-		INIT_INI_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+		INIT_INI_ARRAY(&ah->ini_modes_rxgain_xlna,
 			       ar9462_2p1_baseband_postamble_5g_xlna);
 	} else if (AR_SREV_9462_20(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
@@ -951,7 +954,7 @@ static void ar9003_rx_gain_table_mode2(struct ath_hw *ah)
 			       ar9462_2p0_baseband_core_mix_rxgain);
 		INIT_INI_ARRAY(&ah->ini_modes_rxgain_bb_postamble,
 			       ar9462_2p0_baseband_postamble_mix_rxgain);
-		INIT_INI_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+		INIT_INI_ARRAY(&ah->ini_modes_rxgain_xlna,
 			       ar9462_2p0_baseband_postamble_5g_xlna);
 	}
 }
@@ -961,12 +964,12 @@ static void ar9003_rx_gain_table_mode3(struct ath_hw *ah)
 	if (AR_SREV_9462_21(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			       ar9462_2p1_common_5g_xlna_only_rxgain);
-		INIT_INI_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+		INIT_INI_ARRAY(&ah->ini_modes_rxgain_xlna,
 			       ar9462_2p1_baseband_postamble_5g_xlna);
 	} else if (AR_SREV_9462_20(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			       ar9462_2p0_common_5g_xlna_only_rxgain);
-		INIT_INI_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+		INIT_INI_ARRAY(&ah->ini_modes_rxgain_xlna,
 			       ar9462_2p0_baseband_postamble_5g_xlna);
 	}
 }

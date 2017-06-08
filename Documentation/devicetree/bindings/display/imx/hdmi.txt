@@ -1,0 +1,65 @@
+Freescale i.MX6 DWC HDMI TX Encoder
+===================================
+
+The HDMI transmitter is a Synopsys DesignWare HDMI 1.4 TX controller IP
+with a companion PHY IP.
+
+These DT bindings follow the Synopsys DWC HDMI TX bindings defined in
+Documentation/devicetree/bindings/display/bridge/dw_hdmi.txt with the
+following device-specific properties.
+
+
+Required properties:
+
+- compatible : Shall be one of "fsl,imx6q-hdmi" or "fsl,imx6dl-hdmi".
+- reg: See dw_hdmi.txt.
+- interrupts: HDMI interrupt number
+- clocks: See dw_hdmi.txt.
+- clock-names: Shall contain "iahb" and "isfr" as defined in dw_hdmi.txt.
+- ports: See dw_hdmi.txt. The DWC HDMI shall have between one and four ports,
+  numbered 0 to 3, corresponding to the four inputs of the HDMI multiplexer.
+  Each port shall have a single endpoint.
+- gpr : Shall contain a phandle to the iomuxc-gpr region containing the HDMI
+  multiplexer control register.
+
+Optional properties
+
+- ddc-i2c-bus: The HDMI DDC bus can be connected to either a system I2C master
+  or the functionally-reduced I2C master contained in the DWC HDMI. When
+  connected to a system I2C master this property contains a phandle to that
+  I2C master controller.
+
+
+Example:
+
+	gpr: iomuxc-gpr@020e0000 {
+		/* ... */
+	};
+
+        hdmi: hdmi@0120000 {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                compatible = "fsl,imx6q-hdmi";
+                reg = <0x00120000 0x9000>;
+                interrupts = <0 115 0x04>;
+                gpr = <&gpr>;
+                clocks = <&clks 123>, <&clks 124>;
+                clock-names = "iahb", "isfr";
+                ddc-i2c-bus = <&i2c2>;
+
+                port@0 {
+                        reg = <0>;
+
+                        hdmi_mux_0: endpoint {
+                                remote-endpoint = <&ipu1_di0_hdmi>;
+                        };
+                };
+
+                port@1 {
+                        reg = <1>;
+
+                        hdmi_mux_1: endpoint {
+                                remote-endpoint = <&ipu1_di1_hdmi>;
+                        };
+                };
+        };

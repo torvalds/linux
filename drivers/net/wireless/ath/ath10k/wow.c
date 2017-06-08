@@ -233,7 +233,7 @@ int ath10k_wow_op_suspend(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	if (WARN_ON(!test_bit(ATH10K_FW_FEATURE_WOWLAN_SUPPORT,
-			      ar->fw_features))) {
+			      ar->running_fw->fw_file.fw_features))) {
 		ret = 1;
 		goto exit;
 	}
@@ -285,7 +285,7 @@ int ath10k_wow_op_resume(struct ieee80211_hw *hw)
 	mutex_lock(&ar->conf_mutex);
 
 	if (WARN_ON(!test_bit(ATH10K_FW_FEATURE_WOWLAN_SUPPORT,
-			      ar->fw_features))) {
+			      ar->running_fw->fw_file.fw_features))) {
 		ret = 1;
 		goto exit;
 	}
@@ -325,7 +325,8 @@ exit:
 
 int ath10k_wow_init(struct ath10k *ar)
 {
-	if (!test_bit(ATH10K_FW_FEATURE_WOWLAN_SUPPORT, ar->fw_features))
+	if (!test_bit(ATH10K_FW_FEATURE_WOWLAN_SUPPORT,
+		      ar->running_fw->fw_file.fw_features))
 		return 0;
 
 	if (WARN_ON(!test_bit(WMI_SERVICE_WOW, ar->wmi.svc_map)))

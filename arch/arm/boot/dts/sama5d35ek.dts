@@ -9,6 +9,8 @@
 /dts-v1/;
 #include "sama5d35.dtsi"
 #include "sama5d3xmb.dtsi"
+#include "sama5d3xmb_emac.dtsi"
+#include "sama5d3xmb_gmac.dtsi"
 
 / {
 	model = "Atmel SAMA5D35-EK";
@@ -49,7 +51,7 @@
 			label = "pb_user1";
 			gpios = <&pioE 27 GPIO_ACTIVE_HIGH>;
 			linux,code = <0x100>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 };

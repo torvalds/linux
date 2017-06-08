@@ -1,0 +1,19 @@
+SMSC USB4604 High-Speed Hub Controller
+
+Required properties:
+- compatible: Should be "smsc,usb4604"
+
+Optional properties:
+- reg: Specifies the i2c slave address, it is required and should be 0x2d
+       if I2C is used.
+- reset-gpios: Should specify GPIO for reset.
+- initial-mode: Should specify initial mode.
+                (1 for HUB mode, 2 for STANDBY mode)
+
+Examples:
+	usb-hub@2d {
+		compatible = "smsc,usb4604";
+		reg = <0x2d>;
+		reset-gpios = <&gpx3 5 1>;
+		initial-mode = <1>;
+	};

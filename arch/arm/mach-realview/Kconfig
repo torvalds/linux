@@ -1,32 +1,60 @@
-menu "RealView platform type"
-	depends on ARCH_REALVIEW
-
-config REALVIEW_DT
-	bool "Support RealView(R) Device Tree based boot"
+menuconfig ARCH_REALVIEW
+	bool "ARM Ltd. RealView family"
+	depends on ARCH_MULTI_V5 || ARCH_MULTI_V6 || ARCH_MULTI_V7
+	select ARM_AMBA
 	select ARM_GIC
+	select ARM_TIMER_SP804
+	select CLK_SP810
+	select COMMON_CLK_VERSATILE
+	select GPIO_PL061 if GPIOLIB
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select HAVE_PATA_PLATFORM
+	select HAVE_TCM
+	select ICST
+	select MACH_REALVIEW_EB if ARCH_MULTI_V5
 	select MFD_SYSCON
+	select PLAT_VERSATILE
+	select PLAT_VERSATILE_SCHED_CLOCK
 	select POWER_RESET
 	select POWER_RESET_VERSATILE
 	select POWER_SUPPLY
 	select SOC_REALVIEW
 	select USE_OF
 	help
-	  Include support for booting the ARM(R) RealView(R) evaluation
-	  boards using a device tree machine description.
+	  This enables support for ARM Ltd RealView boards.
+
+if ARCH_REALVIEW
 
 config MACH_REALVIEW_EB
 	bool "Support RealView(R) Emulation Baseboard"
 	select ARM_GIC
+	select CPU_ARM926T if ARCH_MULTI_V5
 	help
 	  Include support for the ARM(R) RealView(R) Emulation Baseboard
-	  platform.
+	  platform. On an ARMv5 kernel, this will include support for
+	  the ARM926EJ-S core tile, while on an ARMv6/v7 kernel, at least
+	  one of the ARM1136, ARM1176, ARM11MPCore or Cortex-A9MPCore
+	  core tile options should be enabled.
+
+config REALVIEW_EB_ARM1136
+	bool "Support ARM1136J(F)-S Tile"
+	depends on MACH_REALVIEW_EB && ARCH_MULTI_V6
+	select CPU_V6
+	help
+	  Enable support for the ARM1136 tile fitted to the
+	  Realview(R) Emulation Baseboard platform.
+
+config REALVIEW_EB_ARM1176
+	bool "Support ARM1176JZ(F)-S Tile"
+	depends on MACH_REALVIEW_EB && ARCH_MULTI_V6
+	help
+	  Enable support for the ARM1176 tile fitted to the
+	  Realview(R) Emulation Baseboard platform.
 
 config REALVIEW_EB_A9MP
 	bool "Support Multicore Cortex-A9 Tile"
-	depends on MACH_REALVIEW_EB
-	select CPU_V7
-	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if SMP
+	depends on MACH_REALVIEW_EB && ARCH_MULTI_V7
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	help
@@ -35,34 +63,16 @@ config REALVIEW_EB_A9MP
 
 config REALVIEW_EB_ARM11MP
 	bool "Support ARM11MPCore Tile"
-	depends on MACH_REALVIEW_EB
-	select ARCH_HAS_BARRIERS if SMP
-	select CPU_V6K
-	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if SMP
+	depends on MACH_REALVIEW_EB && ARCH_MULTI_V6
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	help
 	  Enable support for the ARM11MPCore tile fitted to the Realview(R)
 	  Emulation Baseboard platform.
 
-config REALVIEW_EB_ARM11MP_REVB
-	bool "Support ARM11MPCore RevB Tile"
-	depends on REALVIEW_EB_ARM11MP
-	help
-	  Enable support for the ARM11MPCore Revision B tile on the
-	  Realview(R) Emulation Baseboard platform. Since there are device
-	  address differences, a kernel built with this option enabled is
-	  not compatible with other revisions of the ARM11MPCore tile.
-
 config MACH_REALVIEW_PB11MP
 	bool "Support RealView(R) Platform Baseboard for ARM11MPCore"
-	select ARCH_HAS_BARRIERS if SMP
-	select ARM_GIC
-	select CPU_V6K
-	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if SMP
-	select HAVE_PATA_PLATFORM
+	depends on ARCH_MULTI_V6
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	help
@@ -73,7 +83,7 @@ config MACH_REALVIEW_PB11MP
 # ARMv6 CPU without K extensions, but does have the new exclusive ops
 config MACH_REALVIEW_PB1176
 	bool "Support RealView(R) Platform Baseboard for ARM1176JZF-S"
-	select ARM_GIC
+	depends on ARCH_MULTI_V6
 	select CPU_V6
 	select HAVE_TCM
 	select MIGHT_HAVE_CACHE_L2X0
@@ -81,49 +91,22 @@ config MACH_REALVIEW_PB1176
 	  Include support for the ARM(R) RealView(R) Platform Baseboard for
 	  ARM1176JZF-S.
 
-config REALVIEW_PB1176_SECURE_FLASH
-	bool "Allow access to the secure flash memory block"
-	depends on MACH_REALVIEW_PB1176
-	default n
-	help
-	  Select this option if Linux will only run in secure mode on the
-	  RealView PB1176 platform and access to the secure flash memory
-	  block (64MB @ 0x3c000000) is required.
-
 config MACH_REALVIEW_PBA8
 	bool "Support RealView(R) Platform Baseboard for Cortex(tm)-A8 platform"
-	select ARM_GIC
-	select CPU_V7
-	select HAVE_PATA_PLATFORM
+	depends on ARCH_MULTI_V7
 	help
 	  Include support for the ARM(R) RealView Platform Baseboard for
 	  Cortex(tm)-A8.  This platform has an on-board Cortex-A8 and has
 	  support for PCI-E and Compact Flash.
 
 config MACH_REALVIEW_PBX
-	bool "Support RealView(R) Platform Baseboard Explore"
-	select ARCH_SPARSEMEM_ENABLE if CPU_V7 && !REALVIEW_HIGH_PHYS_OFFSET
-	select ARM_GIC
-	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if SMP
-	select HAVE_PATA_PLATFORM
+	bool "Support RealView(R) Platform Baseboard Explore for Cortex-A9"
+	depends on ARCH_MULTI_V7
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
-	select ZONE_DMA if SPARSEMEM
+	select ZONE_DMA
 	help
 	  Include support for the ARM(R) RealView(R) Platform Baseboard
 	  Explore.
 
-config REALVIEW_HIGH_PHYS_OFFSET
-	bool "High physical base address for the RealView platform"
-	depends on MMU && !MACH_REALVIEW_PB1176
-	default y
-	help
-	  RealView boards other than PB1176 have the RAM available at
-	  0x70000000, 256MB of which being mirrored at 0x00000000. If
-	  the board supports 512MB of RAM, this option allows the
-	  memory to be accessed contiguously at the high physical
-	  offset. On the PBX board, disabling this option allows 1GB of
-	  RAM to be used with SPARSEMEM.
-
-endmenu
+endif

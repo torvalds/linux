@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/in.h>
 #include <linux/rcupdate.h>
+#include <linux/cpumask.h>
 #include <linux/if_arp.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -57,20 +58,21 @@ static u16 range_n_bytes(const struct sw_flow_key_range *range)
 }
 
 void ovs_flow_mask_key(struct sw_flow_key *dst, const struct sw_flow_key *src,
-		       const struct sw_flow_mask *mask)
+		       bool full, const struct sw_flow_mask *mask)
 {
-	const long *m = (const long *)((const u8 *)&mask->key +
-				mask->range.start);
-	const long *s = (const long *)((const u8 *)src +
-				mask->range.start);
-	long *d = (long *)((u8 *)dst + mask->range.start);
+	int start = full ? 0 : mask->range.start;
+	int len = full ? sizeof *dst : range_n_bytes(&mask->range);
+	const long *m = (const long *)((const u8 *)&mask->key + start);
+	const long *s = (const long *)((const u8 *)src + start);
+	long *d = (long *)((u8 *)dst + start);
 	int i;
 
-	/* The memory outside of the 'mask->range' are not set since
-	 * further operations on 'dst' only uses contents within
-	 * 'mask->range'.
+	/* If 'full' is true then all of 'dst' is fully initialized. Otherwise,
+	 * if 'full' is false the memory outside of the 'mask->range' is left
+	 * uninitialized. This can be used as an optimization when further
+	 * operations on 'dst' only use contents within 'mask->range'.
 	 */
-	for (i = 0; i < range_n_bytes(&mask->range); i += sizeof(long))
+	for (i = 0; i < len; i += sizeof(long))
 		*d++ = *s++ & *m++;
 }
 
@@ -78,31 +80,23 @@ struct sw_flow *ovs_flow_alloc(void)
 {
 	struct sw_flow *flow;
 	struct flow_stats *stats;
-	int node;
 
-	flow = kmem_cache_alloc(flow_cache, GFP_KERNEL);
+	flow = kmem_cache_zalloc(flow_cache, GFP_KERNEL);
 	if (!flow)
 		return ERR_PTR(-ENOMEM);
 
-	flow->sf_acts = NULL;
-	flow->mask = NULL;
-	flow->id.unmasked_key = NULL;
-	flow->id.ufid_len = 0;
-	flow->stats_last_writer = NUMA_NO_NODE;
+	flow->stats_last_writer = -1;
 
 	/* Initialize the default stat node. */
 	stats = kmem_cache_alloc_node(flow_stats_cache,
-				      GFP_KERNEL | __GFP_ZERO, 0);
+				      GFP_KERNEL | __GFP_ZERO,
+				      node_online(0) ? 0 : NUMA_NO_NODE);
 	if (!stats)
 		goto err;
 
 	spin_lock_init(&stats->lock);
 
 	RCU_INIT_POINTER(flow->stats[0], stats);
-
-	for_each_node(node)
-		if (node != 0)
-			RCU_INIT_POINTER(flow->stats[node], NULL);
 
 	return flow;
 err:
@@ -140,16 +134,17 @@ static struct flex_array *alloc_buckets(unsigned int n_buckets)
 
 static void flow_free(struct sw_flow *flow)
 {
-	int node;
+	int cpu;
 
 	if (ovs_identifier_is_key(&flow->id))
 		kfree(flow->id.unmasked_key);
 	if (flow->sf_acts)
 		ovs_nla_free_flow_actions((struct sw_flow_actions __force *)flow->sf_acts);
-	for_each_node(node)
-		if (flow->stats[node])
+	/* We open code this to make sure cpu 0 is always considered */
+	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpu_possible_mask))
+		if (flow->stats[cpu])
 			kmem_cache_free(flow_stats_cache,
-					(struct flow_stats __force *)flow->stats[node]);
+					(struct flow_stats __force *)flow->stats[cpu]);
 	kmem_cache_free(flow_cache, flow);
 }
 
@@ -426,7 +421,7 @@ static u32 flow_hash(const struct sw_flow_key *key,
 
 static int flow_key_start(const struct sw_flow_key *key)
 {
-	if (key->tun_key.u.ipv4.dst)
+	if (key->tun_proto)
 		return 0;
 	else
 		return rounddown(offsetof(struct sw_flow_key, phy),
@@ -475,7 +470,7 @@ static struct sw_flow *masked_flow_lookup(struct table_instance *ti,
 	u32 hash;
 	struct sw_flow_key masked_key;
 
-	ovs_flow_mask_key(&masked_key, unmasked, mask);
+	ovs_flow_mask_key(&masked_key, unmasked, false, mask);
 	hash = flow_hash(&masked_key, &mask->range);
 	head = find_bucket(ti, hash);
 	hlist_for_each_entry_rcu(flow, head, flow_table.node[ti->node_ver]) {
@@ -754,7 +749,7 @@ int ovs_flow_init(void)
 	BUILD_BUG_ON(sizeof(struct sw_flow_key) % sizeof(long));
 
 	flow_cache = kmem_cache_create("sw_flow", sizeof(struct sw_flow)
-				       + (nr_node_ids
+				       + (nr_cpu_ids
 					  * sizeof(struct flow_stats *)),
 				       0, 0, NULL);
 	if (flow_cache == NULL)

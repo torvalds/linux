@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 	/* Turn on update interrupts (one per second) */
 	retval = ioctl(fd, RTC_UIE_ON, 0);
 	if (retval == -1) {
-		if (errno == ENOTTY) {
+		if (errno == EINVAL) {
 			fprintf(stderr,
 				"\n...Update IRQs not supported.\n");
 			goto test_READ;
@@ -144,11 +144,12 @@ test_READ:
 
 	retval = ioctl(fd, RTC_ALM_SET, &rtc_tm);
 	if (retval == -1) {
-		if (errno == ENOTTY) {
+		if (errno == EINVAL) {
 			fprintf(stderr,
 				"\n...Alarm IRQs not supported.\n");
 			goto test_PIE;
 		}
+
 		perror("RTC_ALM_SET ioctl");
 		exit(errno);
 	}
@@ -166,6 +167,12 @@ test_READ:
 	/* Enable alarm interrupts */
 	retval = ioctl(fd, RTC_AIE_ON, 0);
 	if (retval == -1) {
+		if (errno == EINVAL) {
+			fprintf(stderr,
+				"\n...Alarm IRQs not supported.\n");
+			goto test_PIE;
+		}
+
 		perror("RTC_AIE_ON ioctl");
 		exit(errno);
 	}
@@ -193,7 +200,7 @@ test_PIE:
 	retval = ioctl(fd, RTC_IRQP_READ, &tmp);
 	if (retval == -1) {
 		/* not all RTCs support periodic IRQs */
-		if (errno == ENOTTY) {
+		if (errno == EINVAL) {
 			fprintf(stderr, "\nNo periodic IRQ support\n");
 			goto done;
 		}
@@ -211,7 +218,7 @@ test_PIE:
 		retval = ioctl(fd, RTC_IRQP_SET, tmp);
 		if (retval == -1) {
 			/* not all RTCs can change their periodic IRQ rate */
-			if (errno == ENOTTY) {
+			if (errno == EINVAL) {
 				fprintf(stderr,
 					"\n...Periodic IRQ rate is fixed\n");
 				goto done;

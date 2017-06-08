@@ -1,0 +1,56 @@
+Synaptics RMI4 2D Sensor Device Binding
+
+The Synaptics RMI4 core is able to support RMI4 devices using different
+transports and different functions. This file describes the device tree
+bindings for devices which contain 2D sensors using Function 11 or
+Function 12. Complete documentation for transports and other functions
+can be found in:
+Documentation/devicetree/bindings/input/rmi4.
+
+RMI4 Function 11 and Function 12 are for 2D touch position sensing.
+Additional documentation for F11 can be found at:
+http://www.synaptics.com/sites/default/files/511-000136-01-Rev-E-RMI4-Interfacing-Guide.pdf
+
+Optional Touch Properties:
+Description in Documentation/devicetree/bindings/input/touch
+- touchscreen-inverted-x
+- touchscreen-inverted-y
+- touchscreen-swapped-x-y
+- touchscreen-x-mm
+- touchscreen-y-mm
+
+Optional Properties:
+- syna,clip-x-low: Sets a minimum value for X.
+- syna,clip-y-low: Sets a minimum value for Y.
+- syna,clip-x-high: Sets a maximum value for X.
+- syna,clip-y-high: Sets a maximum value for Y.
+- syna,offset-x: Add an offset to X.
+- syna,offset-y: Add an offset to Y.
+- syna,delta-x-threshold: Set the minimum distance on the X axis required
+				to generate an interrupt in reduced reporting
+				mode.
+- syna,delta-y-threshold: Set the minimum distance on the Y axis required
+				to generate an interrupt in reduced reporting
+				mode.
+- syna,sensor-type: Set the sensor type. 1 for touchscreen 2 for touchpad.
+- syna,disable-report-mask: Mask for disabling posiiton reporting. Used to
+				disable reporing absolute position data.
+- syna,rezero-wait-ms: Time in miliseconds to wait after issuing a rezero
+				command.
+
+
+Example of a RMI4 I2C device with F11:
+Example:
+	&i2c1 {
+		rmi4-i2c-dev@2c {
+			compatible = "syna,rmi4-i2c";
+
+			...
+
+			rmi4-f11@11 {
+				reg = <0x11>;
+				touchscreen-inverted-y;
+				syna,sensor-type = <2>;
+			};
+		};
+	};

@@ -19,27 +19,25 @@ unsigned long *crst_table_alloc(struct mm_struct *);
 void crst_table_free(struct mm_struct *, unsigned long *);
 
 unsigned long *page_table_alloc(struct mm_struct *);
+struct page *page_table_alloc_pgste(struct mm_struct *mm);
 void page_table_free(struct mm_struct *, unsigned long *);
 void page_table_free_rcu(struct mmu_gather *, unsigned long *, unsigned long);
+void page_table_free_pgste(struct page *page);
 extern int page_table_allocate_pgste;
-
-int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
-			  unsigned long key, bool nq);
-unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr);
 
 static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
 {
-	typedef struct { char _[n]; } addrtype;
+	struct addrtype { char _[256]; };
+	int i;
 
-	*s = val;
-	n = (n / 256) - 1;
-	asm volatile(
-		"	mvc	8(248,%0),0(%0)\n"
-		"0:	mvc	256(256,%0),0(%0)\n"
-		"	la	%0,256(%0)\n"
-		"	brct	%1,0b\n"
-		: "+a" (s), "+d" (n), "=m" (*(addrtype *) s)
-		: "m" (*(addrtype *) s));
+	for (i = 0; i < n; i += 256) {
+		*s = val;
+		asm volatile(
+			"mvc	8(248,%[s]),0(%[s])\n"
+			: "+m" (*(struct addrtype *) s)
+			: [s] "a" (s));
+		s += 256 / sizeof(long);
+	}
 }
 
 static inline void crst_table_init(unsigned long *crst, unsigned long entry)
@@ -56,8 +54,8 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 	return _REGION2_ENTRY_EMPTY;
 }
 
-int crst_table_upgrade(struct mm_struct *, unsigned long limit);
-void crst_table_downgrade(struct mm_struct *, unsigned long limit);
+int crst_table_upgrade(struct mm_struct *);
+void crst_table_downgrade(struct mm_struct *);
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 {
@@ -100,12 +98,26 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	spin_lock_init(&mm->context.list_lock);
-	INIT_LIST_HEAD(&mm->context.pgtable_list);
-	INIT_LIST_HEAD(&mm->context.gmap_list);
-	return (pgd_t *) crst_table_alloc(mm);
+	unsigned long *table = crst_table_alloc(mm);
+
+	if (!table)
+		return NULL;
+	if (mm->context.asce_limit == (1UL << 31)) {
+		/* Forking a compat process with 2 page table levels */
+		if (!pgtable_pmd_page_ctor(virt_to_page(table))) {
+			crst_table_free(mm, table);
+			return NULL;
+		}
+	}
+	return (pgd_t *) table;
 }
-#define pgd_free(mm, pgd) crst_table_free(mm, (unsigned long *) pgd)
+
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+{
+	if (mm->context.asce_limit == (1UL << 31))
+		pgtable_pmd_page_dtor(virt_to_page(pgd));
+	crst_table_free(mm, (unsigned long *) pgd);
+}
 
 static inline void pmd_populate(struct mm_struct *mm,
 				pmd_t *pmd, pgtable_t pte)

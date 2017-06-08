@@ -54,58 +54,6 @@ void qce_dma_release(struct qce_dma_data *dma)
 	kfree(dma->result_buf);
 }
 
-int qce_mapsg(struct device *dev, struct scatterlist *sg, int nents,
-	      enum dma_data_direction dir, bool chained)
-{
-	int err;
-
-	if (chained) {
-		while (sg) {
-			err = dma_map_sg(dev, sg, 1, dir);
-			if (!err)
-				return -EFAULT;
-			sg = sg_next(sg);
-		}
-	} else {
-		err = dma_map_sg(dev, sg, nents, dir);
-		if (!err)
-			return -EFAULT;
-	}
-
-	return nents;
-}
-
-void qce_unmapsg(struct device *dev, struct scatterlist *sg, int nents,
-		 enum dma_data_direction dir, bool chained)
-{
-	if (chained)
-		while (sg) {
-			dma_unmap_sg(dev, sg, 1, dir);
-			sg = sg_next(sg);
-		}
-	else
-		dma_unmap_sg(dev, sg, nents, dir);
-}
-
-int qce_countsg(struct scatterlist *sglist, int nbytes, bool *chained)
-{
-	struct scatterlist *sg = sglist;
-	int nents = 0;
-
-	if (chained)
-		*chained = false;
-
-	while (nbytes > 0 && sg) {
-		nents++;
-		nbytes -= sg->length;
-		if (!sg_is_last(sg) && (sg + 1)->length == 0 && chained)
-			*chained = true;
-		sg = sg_next(sg);
-	}
-
-	return nents;
-}
-
 struct scatterlist *
 qce_sgtable_add(struct sg_table *sgt, struct scatterlist *new_sgl)
 {

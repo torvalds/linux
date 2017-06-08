@@ -52,7 +52,6 @@
 #include <linux/suspend.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
-#include <linux/memblock.h>
 
 #include <asm/reg.h>
 #include <asm/sections.h>
@@ -96,11 +95,6 @@ int sccdbg;
 
 sys_ctrler_t sys_ctrler = SYS_CTRLER_UNKNOWN;
 EXPORT_SYMBOL(sys_ctrler);
-
-#ifdef CONFIG_PMAC_SMU
-unsigned long smu_cmdbuf_abs;
-EXPORT_SYMBOL(smu_cmdbuf_abs);
-#endif
 
 static void pmac_show_cpuinfo(struct seq_file *m)
 {
@@ -325,7 +319,6 @@ static void __init pmac_setup_arch(void)
     defined(CONFIG_PPC64)
 	pmac_nvram_init();
 #endif
-
 #ifdef CONFIG_PPC32
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
@@ -360,12 +353,12 @@ static int pmac_late_init(void)
 machine_late_initcall(powermac, pmac_late_init);
 
 /*
- * This is __init_refok because we check for "initializing" before
+ * This is __ref because we check for "initializing" before
  * touching any of the __init sensitive things and "initializing"
  * will be false after __init time. This can't be __init because it
  * can be called whenever a disk is first accessed.
  */
-void __init_refok note_bootable_part(dev_t dev, int part, int goodness)
+void __ref note_bootable_part(dev_t dev, int part, int goodness)
 {
 	char *p;
 
@@ -383,7 +376,7 @@ void __init_refok note_bootable_part(dev_t dev, int part, int goodness)
 }
 
 #ifdef CONFIG_ADB_CUDA
-static void cuda_restart(void)
+static void __noreturn cuda_restart(void)
 {
 	struct adb_request req;
 
@@ -392,7 +385,7 @@ static void cuda_restart(void)
 		cuda_poll();
 }
 
-static void cuda_shutdown(void)
+static void __noreturn cuda_shutdown(void)
 {
 	struct adb_request req;
 
@@ -416,7 +409,7 @@ static void cuda_shutdown(void)
 #define smu_shutdown()
 #endif
 
-static void pmac_restart(char *cmd)
+static void __noreturn pmac_restart(char *cmd)
 {
 	switch (sys_ctrler) {
 	case SYS_CTRLER_CUDA:
@@ -430,9 +423,10 @@ static void pmac_restart(char *cmd)
 		break;
 	default: ;
 	}
+	while (1) ;
 }
 
-static void pmac_power_off(void)
+static void __noreturn pmac_power_off(void)
 {
 	switch (sys_ctrler) {
 	case SYS_CTRLER_CUDA:
@@ -446,9 +440,10 @@ static void pmac_power_off(void)
 		break;
 	default: ;
 	}
+	while (1) ;
 }
 
-static void
+static void __noreturn
 pmac_halt(void)
 {
 	pmac_power_off();
@@ -457,7 +452,7 @@ pmac_halt(void)
 /* 
  * Early initialization.
  */
-static void __init pmac_init_early(void)
+static void __init pmac_init(void)
 {
 	/* Enable early btext debug if requested */
 	if (strstr(boot_command_line, "btextdbg")) {
@@ -488,9 +483,6 @@ static void __init pmac_init_early(void)
 static int __init pmac_declare_of_platform_devices(void)
 {
 	struct device_node *np;
-
-	if (machine_is(chrp))
-		return -1;
 
 	np = of_find_node_by_name(NULL, "valkyrie");
 	if (np) {
@@ -598,23 +590,9 @@ console_initcall(check_pmac_serial_console);
  */
 static int __init pmac_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "Power Macintosh") &&
-	    !of_flat_dt_is_compatible(root, "MacRISC"))
+	if (!of_machine_is_compatible("Power Macintosh") &&
+	    !of_machine_is_compatible("MacRISC"))
 		return 0;
-
-#ifdef CONFIG_PPC64
-	/*
-	 * On U3, the DART (iommu) must be allocated now since it
-	 * has an impact on htab_initialize (due to the large page it
-	 * occupies having to be broken up so the DART itself is not
-	 * part of the cacheable linar mapping
-	 */
-	alloc_dart_table();
-
-	hpte_init_native();
-#endif
 
 #ifdef CONFIG_PPC32
 	/* isa_io_base gets set in pmac_pci_init */
@@ -623,16 +601,9 @@ static int __init pmac_probe(void)
 	DMA_MODE_WRITE = 2;
 #endif /* CONFIG_PPC32 */
 
-#ifdef CONFIG_PMAC_SMU
-	/*
-	 * SMU based G5s need some memory below 2Gb, at least the current
-	 * driver needs that. We have to allocate it now. We allocate 4k
-	 * (1 small page) for now.
-	 */
-	smu_cmdbuf_abs = memblock_alloc_base(4096, 4096, 0x80000000UL);
-#endif /* CONFIG_PMAC_SMU */
-
 	pm_power_off = pmac_power_off;
+
+	pmac_init();
 
 	return 1;
 }
@@ -641,7 +612,6 @@ define_machine(powermac) {
 	.name			= "PowerMac",
 	.probe			= pmac_probe,
 	.setup_arch		= pmac_setup_arch,
-	.init_early		= pmac_init_early,
 	.show_cpuinfo		= pmac_show_cpuinfo,
 	.init_IRQ		= pmac_pic_init,
 	.get_irq		= NULL,	/* changed later */

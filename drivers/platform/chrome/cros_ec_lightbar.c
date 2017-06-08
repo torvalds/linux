@@ -252,7 +252,7 @@ static ssize_t led_rgb_store(struct device *dev, struct device_attribute *attr,
 
 		ret = sscanf(buf, "%i", &val[i++]);
 		if (ret == 0)
-			return -EINVAL;
+			goto exit;
 
 		if (i == 4) {
 			param = (struct ec_params_lightbar *)msg->data;
@@ -268,17 +268,15 @@ static ssize_t led_rgb_store(struct device *dev, struct device_attribute *attr,
 			if ((j++ % 4) == 0) {
 				ret = lb_throttle();
 				if (ret)
-					return ret;
+					goto exit;
 			}
 
 			ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
 			if (ret < 0)
 				goto exit;
 
-			if (msg->result != EC_RES_SUCCESS) {
-				ret = -EINVAL;
+			if (msg->result != EC_RES_SUCCESS)
 				goto exit;
-			}
 
 			i = 0;
 			ok = 1;
@@ -352,10 +350,6 @@ static ssize_t sequence_store(struct device *dev, struct device_attribute *attr,
 	struct cros_ec_dev *ec = container_of(dev,
 					      struct cros_ec_dev, class_dev);
 
-	msg = alloc_lightbar_cmd_msg(ec);
-	if (!msg)
-		return -ENOMEM;
-
 	for (len = 0; len < count; len++)
 		if (!isalnum(buf[len]))
 			break;
@@ -370,21 +364,30 @@ static ssize_t sequence_store(struct device *dev, struct device_attribute *attr,
 			return ret;
 	}
 
+	msg = alloc_lightbar_cmd_msg(ec);
+	if (!msg)
+		return -ENOMEM;
+
 	param = (struct ec_params_lightbar *)msg->data;
 	param->cmd = LIGHTBAR_CMD_SEQ;
 	param->seq.num = num;
 	ret = lb_throttle();
 	if (ret)
-		return ret;
+		goto exit;
 
 	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
 	if (ret < 0)
-		return ret;
+		goto exit;
 
-	if (msg->result != EC_RES_SUCCESS)
-		return -EINVAL;
+	if (msg->result != EC_RES_SUCCESS) {
+		ret = -EINVAL;
+		goto exit;
+	}
 
-	return count;
+	ret = count;
+exit:
+	kfree(msg);
+	return ret;
 }
 
 /* Module initialization */
@@ -409,9 +412,13 @@ static umode_t cros_ec_lightbar_attrs_are_visible(struct kobject *kobj,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct cros_ec_dev *ec = container_of(dev,
 					      struct cros_ec_dev, class_dev);
-	struct platform_device *pdev = container_of(ec->dev,
-						   struct platform_device, dev);
-	if (pdev->id != 0)
+	struct platform_device *pdev = to_platform_device(ec->dev);
+	struct cros_ec_platform *pdata = pdev->dev.platform_data;
+	int is_cros_ec;
+
+	is_cros_ec = strcmp(pdata->ec_name, CROS_EC_DEV_NAME);
+
+	if (is_cros_ec != 0)
 		return 0;
 
 	/* Only instantiate this stuff if the EC has a lightbar */

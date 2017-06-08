@@ -139,14 +139,17 @@ static void lpc32xx_stop_tsc(struct lpc32xx_tsc *tsc)
 		   tsc_readl(tsc, LPC32XX_TSC_CON) &
 			     ~LPC32XX_TSC_ADCCON_AUTO_EN);
 
-	clk_disable(tsc->clk);
+	clk_disable_unprepare(tsc->clk);
 }
 
-static void lpc32xx_setup_tsc(struct lpc32xx_tsc *tsc)
+static int lpc32xx_setup_tsc(struct lpc32xx_tsc *tsc)
 {
 	u32 tmp;
+	int err;
 
-	clk_enable(tsc->clk);
+	err = clk_prepare_enable(tsc->clk);
+	if (err)
+		return err;
 
 	tmp = tsc_readl(tsc, LPC32XX_TSC_CON) & ~LPC32XX_TSC_ADCCON_POWER_UP;
 
@@ -184,15 +187,15 @@ static void lpc32xx_setup_tsc(struct lpc32xx_tsc *tsc)
 
 	/* Enable automatic ts event capture */
 	tsc_writel(tsc, LPC32XX_TSC_CON, tmp | LPC32XX_TSC_ADCCON_AUTO_EN);
+
+	return 0;
 }
 
 static int lpc32xx_ts_open(struct input_dev *dev)
 {
 	struct lpc32xx_tsc *tsc = input_get_drvdata(dev);
 
-	lpc32xx_setup_tsc(tsc);
-
-	return 0;
+	return lpc32xx_setup_tsc(tsc);
 }
 
 static void lpc32xx_ts_close(struct input_dev *dev)
@@ -313,7 +316,6 @@ static int lpc32xx_ts_remove(struct platform_device *pdev)
 	struct lpc32xx_tsc *tsc = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	device_init_wakeup(&pdev->dev, 0);
 	free_irq(tsc->irq, tsc);
 
 	input_unregister_device(tsc->dev);

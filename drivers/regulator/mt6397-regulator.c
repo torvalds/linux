@@ -23,6 +23,9 @@
 #include <linux/regulator/mt6397-regulator.h>
 #include <linux/regulator/of_regulator.h>
 
+#define MT6397_BUCK_MODE_AUTO	0
+#define MT6397_BUCK_MODE_FORCE_PWM	1
+
 /*
  * MT6397 regulators' information
  *
@@ -38,10 +41,14 @@ struct mt6397_regulator_info {
 	u32 vselon_reg;
 	u32 vselctrl_reg;
 	u32 vselctrl_mask;
+	u32 modeset_reg;
+	u32 modeset_mask;
+	u32 modeset_shift;
 };
 
 #define MT6397_BUCK(match, vreg, min, max, step, volt_ranges, enreg,	\
-		vosel, vosel_mask, voselon, vosel_ctrl)			\
+		vosel, vosel_mask, voselon, vosel_ctrl, _modeset_reg,	\
+		_modeset_shift)					\
 [MT6397_ID_##vreg] = {							\
 	.desc = {							\
 		.name = #vreg,						\
@@ -62,6 +69,9 @@ struct mt6397_regulator_info {
 	.vselon_reg = voselon,						\
 	.vselctrl_reg = vosel_ctrl,					\
 	.vselctrl_mask = BIT(1),					\
+	.modeset_reg = _modeset_reg,					\
+	.modeset_mask = BIT(_modeset_shift),				\
+	.modeset_shift = _modeset_shift					\
 }
 
 #define MT6397_LDO(match, vreg, ldo_volt_table, enreg, enbit, vosel,	\
@@ -145,6 +155,63 @@ static const u32 ldo_volt_table7[] = {
 	1300000, 1500000, 1800000, 2000000, 2500000, 2800000, 3000000, 3300000,
 };
 
+static int mt6397_regulator_set_mode(struct regulator_dev *rdev,
+				     unsigned int mode)
+{
+	struct mt6397_regulator_info *info = rdev_get_drvdata(rdev);
+	int ret, val;
+
+	switch (mode) {
+	case REGULATOR_MODE_FAST:
+		val = MT6397_BUCK_MODE_FORCE_PWM;
+		break;
+	case REGULATOR_MODE_NORMAL:
+		val = MT6397_BUCK_MODE_AUTO;
+		break;
+	default:
+		ret = -EINVAL;
+		goto err_mode;
+	}
+
+	dev_dbg(&rdev->dev, "mt6397 buck set_mode %#x, %#x, %#x, %#x\n",
+		info->modeset_reg, info->modeset_mask,
+		info->modeset_shift, val);
+
+	val <<= info->modeset_shift;
+	ret = regmap_update_bits(rdev->regmap, info->modeset_reg,
+				 info->modeset_mask, val);
+err_mode:
+	if (ret != 0) {
+		dev_err(&rdev->dev,
+			"Failed to set mt6397 buck mode: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static unsigned int mt6397_regulator_get_mode(struct regulator_dev *rdev)
+{
+	struct mt6397_regulator_info *info = rdev_get_drvdata(rdev);
+	int ret, regval;
+
+	ret = regmap_read(rdev->regmap, info->modeset_reg, &regval);
+	if (ret != 0) {
+		dev_err(&rdev->dev,
+			"Failed to get mt6397 buck mode: %d\n", ret);
+		return ret;
+	}
+
+	switch ((regval & info->modeset_mask) >> info->modeset_shift) {
+	case MT6397_BUCK_MODE_AUTO:
+		return REGULATOR_MODE_NORMAL;
+	case MT6397_BUCK_MODE_FORCE_PWM:
+		return REGULATOR_MODE_FAST;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int mt6397_get_status(struct regulator_dev *rdev)
 {
 	int ret;
@@ -160,7 +227,7 @@ static int mt6397_get_status(struct regulator_dev *rdev)
 	return (regval & info->qi) ? REGULATOR_STATUS_ON : REGULATOR_STATUS_OFF;
 }
 
-static struct regulator_ops mt6397_volt_range_ops = {
+static const struct regulator_ops mt6397_volt_range_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 	.map_voltage = regulator_map_voltage_linear_range,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -170,9 +237,11 @@ static struct regulator_ops mt6397_volt_range_ops = {
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.get_status = mt6397_get_status,
+	.set_mode = mt6397_regulator_set_mode,
+	.get_mode = mt6397_regulator_get_mode,
 };
 
-static struct regulator_ops mt6397_volt_table_ops = {
+static const struct regulator_ops mt6397_volt_table_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_iterate,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -184,7 +253,7 @@ static struct regulator_ops mt6397_volt_table_ops = {
 	.get_status = mt6397_get_status,
 };
 
-static struct regulator_ops mt6397_volt_fixed_ops = {
+static const struct regulator_ops mt6397_volt_fixed_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -196,28 +265,30 @@ static struct regulator_ops mt6397_volt_fixed_ops = {
 static struct mt6397_regulator_info mt6397_regulators[] = {
 	MT6397_BUCK("buck_vpca15", VPCA15, 700000, 1493750, 6250,
 		buck_volt_range1, MT6397_VCA15_CON7, MT6397_VCA15_CON9, 0x7f,
-		MT6397_VCA15_CON10, MT6397_VCA15_CON5),
+		MT6397_VCA15_CON10, MT6397_VCA15_CON5, MT6397_VCA15_CON2, 11),
 	MT6397_BUCK("buck_vpca7", VPCA7, 700000, 1493750, 6250,
 		buck_volt_range1, MT6397_VPCA7_CON7, MT6397_VPCA7_CON9, 0x7f,
-		MT6397_VPCA7_CON10, MT6397_VPCA7_CON5),
+		MT6397_VPCA7_CON10, MT6397_VPCA7_CON5, MT6397_VPCA7_CON2, 8),
 	MT6397_BUCK("buck_vsramca15", VSRAMCA15, 700000, 1493750, 6250,
 		buck_volt_range1, MT6397_VSRMCA15_CON7, MT6397_VSRMCA15_CON9,
-		0x7f, MT6397_VSRMCA15_CON10, MT6397_VSRMCA15_CON5),
+		0x7f, MT6397_VSRMCA15_CON10, MT6397_VSRMCA15_CON5,
+		MT6397_VSRMCA15_CON2, 8),
 	MT6397_BUCK("buck_vsramca7", VSRAMCA7, 700000, 1493750, 6250,
 		buck_volt_range1, MT6397_VSRMCA7_CON7, MT6397_VSRMCA7_CON9,
-		0x7f, MT6397_VSRMCA7_CON10, MT6397_VSRMCA7_CON5),
+		0x7f, MT6397_VSRMCA7_CON10, MT6397_VSRMCA7_CON5,
+		MT6397_VSRMCA7_CON2, 8),
 	MT6397_BUCK("buck_vcore", VCORE, 700000, 1493750, 6250,
 		buck_volt_range1, MT6397_VCORE_CON7, MT6397_VCORE_CON9, 0x7f,
-		MT6397_VCORE_CON10, MT6397_VCORE_CON5),
+		MT6397_VCORE_CON10, MT6397_VCORE_CON5, MT6397_VCORE_CON2, 8),
 	MT6397_BUCK("buck_vgpu", VGPU, 700000, 1493750, 6250, buck_volt_range1,
 		MT6397_VGPU_CON7, MT6397_VGPU_CON9, 0x7f,
-		MT6397_VGPU_CON10, MT6397_VGPU_CON5),
+		MT6397_VGPU_CON10, MT6397_VGPU_CON5, MT6397_VGPU_CON2, 8),
 	MT6397_BUCK("buck_vdrm", VDRM, 800000, 1593750, 6250, buck_volt_range2,
 		MT6397_VDRM_CON7, MT6397_VDRM_CON9, 0x7f,
-		MT6397_VDRM_CON10, MT6397_VDRM_CON5),
+		MT6397_VDRM_CON10, MT6397_VDRM_CON5, MT6397_VDRM_CON2, 8),
 	MT6397_BUCK("buck_vio18", VIO18, 1500000, 2120000, 20000,
 		buck_volt_range3, MT6397_VIO18_CON7, MT6397_VIO18_CON9, 0x1f,
-		MT6397_VIO18_CON10, MT6397_VIO18_CON5),
+		MT6397_VIO18_CON10, MT6397_VIO18_CON5, MT6397_VIO18_CON2, 8),
 	MT6397_REG_FIXED("ldo_vtcxo", VTCXO, MT6397_ANALDO_CON0, 10, 2800000),
 	MT6397_REG_FIXED("ldo_va28", VA28, MT6397_ANALDO_CON1, 14, 2800000),
 	MT6397_LDO("ldo_vcama", VCAMA, ldo_volt_table1,
@@ -317,11 +388,25 @@ static int mt6397_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id mt6397_platform_ids[] = {
+	{"mt6397-regulator", 0},
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(platform, mt6397_platform_ids);
+
+static const struct of_device_id mt6397_of_match[] = {
+	{ .compatible = "mediatek,mt6397-regulator", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, mt6397_of_match);
+
 static struct platform_driver mt6397_regulator_driver = {
 	.driver = {
 		.name = "mt6397-regulator",
+		.of_match_table = of_match_ptr(mt6397_of_match),
 	},
 	.probe = mt6397_regulator_probe,
+	.id_table = mt6397_platform_ids,
 };
 
 module_platform_driver(mt6397_regulator_driver);
@@ -329,4 +414,3 @@ module_platform_driver(mt6397_regulator_driver);
 MODULE_AUTHOR("Flora Fu <flora.fu@mediatek.com>");
 MODULE_DESCRIPTION("Regulator Driver for MediaTek MT6397 PMIC");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:mt6397-regulator");

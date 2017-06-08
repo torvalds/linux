@@ -143,13 +143,11 @@ static void __init make_sensor_label(struct device_node *np,
 		if (cpuid >= 0)
 			/*
 			 * The digital thermal sensors are associated
-			 * with a core. Let's print out the range of
-			 * cpu ids corresponding to the hardware
-			 * threads of the core.
+			 * with a core.
 			 */
 			n += snprintf(sdata->label + n,
-				      sizeof(sdata->label) - n, " %d-%d",
-				      cpuid, cpuid + threads_per_core - 1);
+				      sizeof(sdata->label) - n, " %d",
+				      cpuid);
 		else
 			n += snprintf(sdata->label + n,
 				      sizeof(sdata->label) - n, " phy%d", id);
@@ -474,11 +472,18 @@ static const struct platform_device_id opal_sensor_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, opal_sensor_driver_ids);
 
+static const struct of_device_id opal_sensor_match[] = {
+	{ .compatible	= "ibm,opal-sensor" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, opal_sensor_match);
+
 static struct platform_driver ibmpowernv_driver = {
 	.probe		= ibmpowernv_probe,
 	.id_table	= opal_sensor_driver_ids,
 	.driver		= {
 		.name	= DRVNAME,
+		.of_match_table	= opal_sensor_match,
 	},
 };
 

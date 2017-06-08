@@ -144,13 +144,7 @@ int qib_pcie_ddinit(struct qib_devdata *dd, struct pci_dev *pdev,
 	addr = pci_resource_start(pdev, 0);
 	len = pci_resource_len(pdev, 0);
 
-#if defined(__powerpc__)
-	/* There isn't a generic way to specify writethrough mappings */
-	dd->kregbase = __ioremap(addr, len, _PAGE_NO_CACHE | _PAGE_WRITETHRU);
-#else
 	dd->kregbase = ioremap_nocache(addr, len);
-#endif
-
 	if (!dd->kregbase)
 		return -ENOMEM;
 
@@ -688,13 +682,6 @@ qib_pci_slot_reset(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
-static pci_ers_result_t
-qib_pci_link_reset(struct pci_dev *pdev)
-{
-	qib_devinfo(pdev, "QIB link_reset function called, ignored\n");
-	return PCI_ERS_RESULT_CAN_RECOVER;
-}
-
 static void
 qib_pci_resume(struct pci_dev *pdev)
 {
@@ -713,7 +700,6 @@ qib_pci_resume(struct pci_dev *pdev)
 const struct pci_error_handlers qib_pci_err_handler = {
 	.error_detected = qib_pci_error_detected,
 	.mmio_enabled = qib_pci_mmio_enabled,
-	.link_reset = qib_pci_link_reset,
 	.slot_reset = qib_pci_slot_reset,
 	.resume = qib_pci_resume,
 };

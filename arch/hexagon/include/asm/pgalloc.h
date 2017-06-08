@@ -64,7 +64,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 {
 	struct page *pte;
 
-	pte = alloc_page(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO);
+	pte = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!pte)
 		return NULL;
 	if (!pgtable_page_ctor(pte)) {
@@ -78,7 +78,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 					  unsigned long address)
 {
-	gfp_t flags =  GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO;
+	gfp_t flags =  GFP_KERNEL | __GFP_ZERO;
 	return (pte_t *) __get_free_page(flags);
 }
 

@@ -616,16 +616,24 @@ static int adf4350_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id adf4350_of_match[] = {
+	{ .compatible = "adi,adf4350", },
+	{ .compatible = "adi,adf4351", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, adf4350_of_match);
+
 static const struct spi_device_id adf4350_id[] = {
 	{"adf4350", 4350},
 	{"adf4351", 4351},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, adf4350_id);
 
 static struct spi_driver adf4350_driver = {
 	.driver = {
 		.name	= "adf4350",
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(adf4350_of_match),
 	},
 	.probe		= adf4350_probe,
 	.remove		= adf4350_remove,

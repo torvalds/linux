@@ -31,7 +31,7 @@
 /* input clock on serial interface */
 #define AD2S1200_HZ	8192000
 /* clock period in nano second */
-#define AD2S1200_TSCLK	(1000000000/AD2S1200_HZ)
+#define AD2S1200_TSCLK	(1000000000 / AD2S1200_HZ)
 
 struct ad2s1200_state {
 	struct mutex lock;
@@ -42,10 +42,10 @@ struct ad2s1200_state {
 };
 
 static int ad2s1200_read_raw(struct iio_dev *indio_dev,
-			   struct iio_chan_spec const *chan,
-			   int *val,
-			   int *val2,
-			   long m)
+			     struct iio_chan_spec const *chan,
+			     int *val,
+			     int *val2,
+			     long m)
 {
 	int ret = 0;
 	s16 vel;
@@ -97,7 +97,7 @@ static const struct iio_chan_spec ad2s1200_channels[] = {
 };
 
 static const struct iio_info ad2s1200_info = {
-	.read_raw = &ad2s1200_read_raw,
+	.read_raw = ad2s1200_read_raw,
 	.driver_module = THIS_MODULE,
 };
 
@@ -113,7 +113,7 @@ static int ad2s1200_probe(struct spi_device *spi)
 					    DRV_NAME);
 		if (ret) {
 			dev_err(&spi->dev, "request gpio pin %d failed\n",
-							pins[pn]);
+				pins[pn]);
 			return ret;
 		}
 	}
@@ -155,7 +155,6 @@ MODULE_DEVICE_TABLE(spi, ad2s1200_id);
 static struct spi_driver ad2s1200_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = ad2s1200_probe,
 	.id_table = ad2s1200_id,

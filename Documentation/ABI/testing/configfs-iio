@@ -1,0 +1,34 @@
+What:		/config/iio
+Date:		October 2015
+KernelVersion:	4.4
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This represents Industrial IO configuration entry point
+		directory. It contains sub-groups corresponding to IIO
+		objects.
+
+What:		/config/iio/triggers
+Date:		October 2015
+KernelVersion:	4.4
+Description:
+		Industrial IO software triggers directory.
+
+What:		/config/iio/triggers/hrtimers
+Date:		October 2015
+KernelVersion:	4.4
+Description:
+		High resolution timers directory. Creating a directory here
+		will result in creating a hrtimer trigger in the IIO subsystem.
+
+What:		/config/iio/devices
+Date:		April 2016
+KernelVersion:	4.7
+Description:
+		Industrial IO software devices directory.
+
+What:		/config/iio/devices/dummy
+Date:		April 2016
+KernelVersion:	4.7
+Description:
+		Dummy IIO devices directory. Creating a directory here will result
+		in creating a dummy IIO device in the IIO subystem.

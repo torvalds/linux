@@ -1,0 +1,23 @@
+menu "Broadcom SoC drivers"
+
+config RASPBERRYPI_POWER
+	bool "Raspberry Pi power domain driver"
+	depends on ARCH_BCM2835 || (COMPILE_TEST && OF)
+	depends on RASPBERRYPI_FIRMWARE=y
+	select PM_GENERIC_DOMAINS if PM
+	help
+	  This enables support for the RPi power domains which can be enabled
+	  or disabled via the RPi firmware.
+
+config SOC_BRCMSTB
+	bool "Broadcom STB SoC drivers"
+	depends on ARM
+	select SOC_BUS
+	help
+	  Enables drivers for the Broadcom Set-Top Box (STB) series of chips.
+	  This option alone enables only some support code, while the drivers
+	  can be enabled individually within this menu.
+
+	  If unsure, say N.
+
+endmenu

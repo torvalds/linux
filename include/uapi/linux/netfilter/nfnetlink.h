@@ -22,6 +22,8 @@ enum nfnetlink_groups {
 #define NFNLGRP_NFTABLES                NFNLGRP_NFTABLES
 	NFNLGRP_ACCT_QUOTA,
 #define NFNLGRP_ACCT_QUOTA		NFNLGRP_ACCT_QUOTA
+	NFNLGRP_NFTRACE,
+#define NFNLGRP_NFTRACE			NFNLGRP_NFTRACE
 	__NFNLGRP_MAX,
 };
 #define NFNLGRP_MAX	(__NFNLGRP_MAX - 1)
@@ -62,5 +64,17 @@ struct nfgenmsg {
 /* Reserved control nfnetlink messages */
 #define NFNL_MSG_BATCH_BEGIN		NLMSG_MIN_TYPE
 #define NFNL_MSG_BATCH_END		NLMSG_MIN_TYPE+1
+
+/**
+ * enum nfnl_batch_attributes - nfnetlink batch netlink attributes
+ *
+ * @NFNL_BATCH_GENID: generation ID for this changeset (NLA_U32)
+ */
+enum nfnl_batch_attributes {
+        NFNL_BATCH_UNSPEC,
+        NFNL_BATCH_GENID,
+        __NFNL_BATCH_MAX
+};
+#define NFNL_BATCH_MAX			(__NFNL_BATCH_MAX - 1)
 
 #endif /* _UAPI_NFNETLINK_H */

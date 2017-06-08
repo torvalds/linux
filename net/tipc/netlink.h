@@ -35,6 +35,7 @@
 
 #ifndef _TIPC_NETLINK_H
 #define _TIPC_NETLINK_H
+#include <net/netlink.h>
 
 extern struct genl_family tipc_genl_family;
 int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***buf);
@@ -44,6 +45,17 @@ struct tipc_nl_msg {
 	u32 portid;
 	u32 seq;
 };
+
+extern const struct nla_policy tipc_nl_name_table_policy[];
+extern const struct nla_policy tipc_nl_sock_policy[];
+extern const struct nla_policy tipc_nl_net_policy[];
+extern const struct nla_policy tipc_nl_link_policy[];
+extern const struct nla_policy tipc_nl_node_policy[];
+extern const struct nla_policy tipc_nl_prop_policy[];
+extern const struct nla_policy tipc_nl_bearer_policy[];
+extern const struct nla_policy tipc_nl_media_policy[];
+extern const struct nla_policy tipc_nl_udp_policy[];
+extern const struct nla_policy tipc_nl_monitor_policy[];
 
 int tipc_netlink_start(void);
 int tipc_netlink_compat_start(void);

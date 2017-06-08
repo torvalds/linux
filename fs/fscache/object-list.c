@@ -316,7 +316,7 @@ static const struct seq_operations fscache_objlist_ops = {
 static void fscache_objlist_config(struct fscache_objlist_data *data)
 {
 #ifdef CONFIG_KEYS
-	struct user_key_payload *confkey;
+	const struct user_key_payload *confkey;
 	unsigned long config;
 	struct key *key;
 	const char *buf;
@@ -329,7 +329,7 @@ static void fscache_objlist_config(struct fscache_objlist_data *data)
 	config = 0;
 	rcu_read_lock();
 
-	confkey = key->payload.data;
+	confkey = user_key_payload_rcu(key);
 	buf = confkey->data;
 
 	for (len = confkey->datalen - 1; len >= 0; len--) {
@@ -404,7 +404,6 @@ static int fscache_objlist_release(struct inode *inode, struct file *file)
 }
 
 const struct file_operations fscache_objlist_fops = {
-	.owner		= THIS_MODULE,
 	.open		= fscache_objlist_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

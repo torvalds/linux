@@ -33,6 +33,7 @@
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>
+#include <mach/irqs.h>
 
 #include <plat/adc.h>
 #include <plat/cpu.h>
@@ -193,6 +194,7 @@ static struct s3c2410_platform_nand real6410_nand_info = {
 	.twrph1		= 40,
 	.nr_sets	= ARRAY_SIZE(real6410_nand_sets),
 	.sets		= real6410_nand_sets,
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 static struct platform_device *real6410_devices[] __initdata = {
@@ -202,7 +204,6 @@ static struct platform_device *real6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_nand,
 	&s3c_device_adc,
-	&s3c_device_ts,
 	&s3c_device_ohci,
 };
 
@@ -301,7 +302,7 @@ static void __init real6410_machine_init(void)
 
 	s3c_fb_set_platdata(&real6410_lcd_pdata[features.lcd_index]);
 	s3c_nand_set_platdata(&real6410_nand_info);
-	s3c24xx_ts_set_platdata(NULL);
+	s3c64xx_ts_set_platdata(NULL);
 
 	/* configure nCS1 width to 16 bits */
 
@@ -331,7 +332,7 @@ static void __init real6410_machine_init(void)
 MACHINE_START(REAL6410, "REAL6410")
 	/* Maintainer: Darius Augulis <augulis.darius@gmail.com> */
 	.atag_offset	= 0x100,
-
+	.nr_irqs	= S3C64XX_NR_IRQS,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= real6410_map_io,
 	.init_machine	= real6410_machine_init,

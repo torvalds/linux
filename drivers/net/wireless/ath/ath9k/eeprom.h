@@ -23,6 +23,17 @@
 #include <net/cfg80211.h>
 #include "ar9003_eeprom.h"
 
+/* helpers to swap EEPROM fields, which are stored as __le16 or __le32. Since
+ * we are 100% sure about it we __force these to u16/u32 for the swab calls to
+ * silence the sparse checks. These macros are used when we have a Big Endian
+ * EEPROM (according to AR5416_EEPMISC_BIG_ENDIAN) and need to convert the
+ * fields to __le16/__le32.
+ */
+#define EEPROM_FIELD_SWAB16(field) \
+	(field = (__force __le16)swab16((__force u16)field))
+#define EEPROM_FIELD_SWAB32(field) \
+	(field = (__force __le32)swab32((__force u32)field))
+
 #ifdef __BIG_ENDIAN
 #define AR5416_EEPROM_MAGIC 0x5aa5
 #else
@@ -95,11 +106,10 @@
 #define AR9285_RDEXT_DEFAULT    0x1F
 
 #define ATH9K_POW_SM(_r, _s)	(((_r) & 0x3f) << (_s))
-#define FREQ2FBIN(x, y)		((y) ? ((x) - 2300) : (((x) - 4800) / 5))
+#define FREQ2FBIN(x, y)		(u8)((y) ? ((x) - 2300) : (((x) - 4800) / 5))
 #define FBIN2FREQ(x, y)		((y) ? (2300 + x) : (4800 + 5 * x))
 #define ath9k_hw_use_flash(_ah)	(!(_ah->ah_flags & AH_USE_EEPROM))
 
-#define AR5416_VER_MASK (eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK)
 #define OLC_FOR_AR9280_20_LATER (AR_SREV_9280_20_OR_LATER(ah) && \
 				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 #define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_11_OR_LATER(ah) && \
@@ -121,6 +131,8 @@
 
 #define AR5416_EEP_NO_BACK_VER       0x1
 #define AR5416_EEP_VER               0xE
+#define AR5416_EEP_VER_MAJOR_SHIFT   12
+#define AR5416_EEP_VER_MAJOR_MASK    0xF000
 #define AR5416_EEP_VER_MINOR_MASK    0x0FFF
 #define AR5416_EEP_MINOR_VER_2       0x2
 #define AR5416_EEP_MINOR_VER_3       0x3
@@ -161,6 +173,9 @@
 #define AR5416_EEP_TXGAIN_ORIGINAL         0
 #define AR5416_EEP_TXGAIN_HIGH_POWER       1
 
+/* Endianness of EEPROM content */
+#define AR5416_EEPMISC_BIG_ENDIAN          0x01
+
 #define AR5416_EEP4K_START_LOC                64
 #define AR5416_EEP4K_NUM_2G_CAL_PIERS         3
 #define AR5416_EEP4K_NUM_2G_CCK_TARGET_POWERS 3
@@ -174,7 +189,6 @@
 #define AR9280_TX_GAIN_TABLE_SIZE 22
 
 #define AR9287_EEP_VER               0xE
-#define AR9287_EEP_VER_MINOR_MASK    0xFFF
 #define AR9287_EEP_MINOR_VER_1       0x1
 #define AR9287_EEP_MINOR_VER_2       0x2
 #define AR9287_EEP_MINOR_VER_3       0x3
@@ -191,7 +205,6 @@
 #define AR9287_NUM_CTLS              	12
 #define AR9287_NUM_BAND_EDGES        	4
 #define AR9287_PD_GAIN_ICEPTS           1
-#define AR9287_EEPMISC_BIG_ENDIAN       0x01
 #define AR9287_EEPMISC_WOW              0x02
 #define AR9287_MAX_CHAINS               2
 #define AR9287_ANT_16S                  32
@@ -228,7 +241,6 @@ enum eeprom_param {
 	EEP_DB_5,
 	EEP_OB_2,
 	EEP_DB_2,
-	EEP_MINOR_REV,
 	EEP_TX_MASK,
 	EEP_RX_MASK,
 	EEP_FSTCLK_5G,
@@ -269,19 +281,19 @@ enum ath9k_hal_freq_band {
 };
 
 struct base_eep_header {
-	u16 length;
-	u16 checksum;
-	u16 version;
+	__le16 length;
+	__le16 checksum;
+	__le16 version;
 	u8 opCapFlags;
 	u8 eepMisc;
-	u16 regDmn[2];
+	__le16 regDmn[2];
 	u8 macAddr[6];
 	u8 rxMask;
 	u8 txMask;
-	u16 rfSilent;
-	u16 blueToothOptions;
-	u16 deviceCap;
-	u32 binBuildNumber;
+	__le16 rfSilent;
+	__le16 blueToothOptions;
+	__le16 deviceCap;
+	__le32 binBuildNumber;
 	u8 deviceType;
 	u8 pwdclkind;
 	u8 fastClk5g;
@@ -299,33 +311,33 @@ struct base_eep_header {
 } __packed;
 
 struct base_eep_header_4k {
-	u16 length;
-	u16 checksum;
-	u16 version;
+	__le16 length;
+	__le16 checksum;
+	__le16 version;
 	u8 opCapFlags;
 	u8 eepMisc;
-	u16 regDmn[2];
+	__le16 regDmn[2];
 	u8 macAddr[6];
 	u8 rxMask;
 	u8 txMask;
-	u16 rfSilent;
-	u16 blueToothOptions;
-	u16 deviceCap;
-	u32 binBuildNumber;
+	__le16 rfSilent;
+	__le16 blueToothOptions;
+	__le16 deviceCap;
+	__le32 binBuildNumber;
 	u8 deviceType;
 	u8 txGainType;
 } __packed;
 
 
 struct spur_chan {
-	u16 spurChan;
+	__le16 spurChan;
 	u8 spurRangeLow;
 	u8 spurRangeHigh;
 } __packed;
 
 struct modal_eep_header {
-	u32 antCtrlChain[AR5416_MAX_CHAINS];
-	u32 antCtrlCommon;
+	__le32 antCtrlChain[AR5416_MAX_CHAINS];
+	__le32 antCtrlCommon;
 	u8 antennaGainCh[AR5416_MAX_CHAINS];
 	u8 switchSettling;
 	u8 txRxAttenCh[AR5416_MAX_CHAINS];
@@ -360,7 +372,7 @@ struct modal_eep_header {
 	u8 db_ch1;
 	u8 lna_ctl;
 	u8 miscBits;
-	u16 xpaBiasLvlFreq[3];
+	__le16 xpaBiasLvlFreq[3];
 	u8 futureModal[6];
 
 	struct spur_chan spurChans[AR_EEPROM_MODAL_SPURS];
@@ -374,8 +386,8 @@ struct calDataPerFreqOpLoop {
 } __packed;
 
 struct modal_eep_4k_header {
-	u32 antCtrlChain[AR5416_EEP4K_MAX_CHAINS];
-	u32 antCtrlCommon;
+	__le32 antCtrlChain[AR5416_EEP4K_MAX_CHAINS];
+	__le32 antCtrlCommon;
 	u8 antennaGainCh[AR5416_EEP4K_MAX_CHAINS];
 	u8 switchSettling;
 	u8 txRxAttenCh[AR5416_EEP4K_MAX_CHAINS];
@@ -439,19 +451,19 @@ struct modal_eep_4k_header {
 } __packed;
 
 struct base_eep_ar9287_header {
-	u16 length;
-	u16 checksum;
-	u16 version;
+	__le16 length;
+	__le16 checksum;
+	__le16 version;
 	u8 opCapFlags;
 	u8 eepMisc;
-	u16 regDmn[2];
+	__le16 regDmn[2];
 	u8 macAddr[6];
 	u8 rxMask;
 	u8 txMask;
-	u16 rfSilent;
-	u16 blueToothOptions;
-	u16 deviceCap;
-	u32 binBuildNumber;
+	__le16 rfSilent;
+	__le16 blueToothOptions;
+	__le16 deviceCap;
+	__le32 binBuildNumber;
 	u8 deviceType;
 	u8 openLoopPwrCntl;
 	int8_t pwrTableOffset;
@@ -461,8 +473,8 @@ struct base_eep_ar9287_header {
 } __packed;
 
 struct modal_eep_ar9287_header {
-	u32 antCtrlChain[AR9287_MAX_CHAINS];
-	u32 antCtrlCommon;
+	__le32 antCtrlChain[AR9287_MAX_CHAINS];
+	__le32 antCtrlCommon;
 	int8_t antennaGainCh[AR9287_MAX_CHAINS];
 	u8 switchSettling;
 	u8 txRxAttenCh[AR9287_MAX_CHAINS];
@@ -653,6 +665,7 @@ struct eeprom_ops {
 			   u16 cfgCtl, u8 twiceAntennaReduction,
 			   u8 powerLimit, bool test);
 	u16 (*get_spur_channel)(struct ath_hw *ah, u16 i, bool is2GHz);
+	u8 (*get_eepmisc)(struct ath_hw *ah);
 };
 
 void ath9k_hw_analog_shift_regwrite(struct ath_hw *ah, u32 reg, u32 val);
@@ -664,6 +677,9 @@ int16_t ath9k_hw_interpolate(u16 target, u16 srcLeft, u16 srcRight,
 bool ath9k_hw_get_lower_upper_index(u8 target, u8 *pList, u16 listSize,
 				    u16 *indexL, u16 *indexR);
 bool ath9k_hw_nvram_read(struct ath_hw *ah, u32 off, u16 *data);
+int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size);
+bool ath9k_hw_nvram_validate_checksum(struct ath_hw *ah, int size);
+bool ath9k_hw_nvram_check_version(struct ath_hw *ah, int version, int minrev);
 void ath9k_hw_usb_gen_fill_eeprom(struct ath_hw *ah, u16 *eep_data,
 				  int eep_start_loc, int size);
 void ath9k_hw_fill_vpd_table(u8 pwrMin, u8 pwrMax, u8 *pPwrList,

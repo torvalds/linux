@@ -24,7 +24,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/context_tracking.h>
 
-struct static_key context_tracking_enabled = STATIC_KEY_INIT_FALSE;
+DEFINE_STATIC_KEY_FALSE(context_tracking_enabled);
 EXPORT_SYMBOL_GPL(context_tracking_enabled);
 
 DEFINE_PER_CPU(struct context_tracking, context_tracking);
@@ -58,36 +58,13 @@ static void context_tracking_recursion_exit(void)
  * instructions to execute won't use any RCU read side critical section
  * because this function sets RCU in extended quiescent state.
  */
-void context_tracking_enter(enum ctx_state state)
+void __context_tracking_enter(enum ctx_state state)
 {
-	unsigned long flags;
-
-	/*
-	 * Repeat the user_enter() check here because some archs may be calling
-	 * this from asm and if no CPU needs context tracking, they shouldn't
-	 * go further. Repeat the check here until they support the inline static
-	 * key check.
-	 */
-	if (!context_tracking_is_enabled())
-		return;
-
-	/*
-	 * Some contexts may involve an exception occuring in an irq,
-	 * leading to that nesting:
-	 * rcu_irq_enter() rcu_user_exit() rcu_user_exit() rcu_irq_exit()
-	 * This would mess up the dyntick_nesting count though. And rcu_irq_*()
-	 * helpers are enough to protect RCU uses inside the exception. So
-	 * just return immediately if we detect we are in an IRQ.
-	 */
-	if (in_interrupt())
-		return;
-
 	/* Kernel threads aren't supposed to go to userspace */
 	WARN_ON_ONCE(!current->mm);
 
-	local_irq_save(flags);
 	if (!context_tracking_recursion_enter())
-		goto out_irq_restore;
+		return;
 
 	if ( __this_cpu_read(context_tracking.state) != state) {
 		if (__this_cpu_read(context_tracking.active)) {
@@ -120,7 +97,27 @@ void context_tracking_enter(enum ctx_state state)
 		__this_cpu_write(context_tracking.state, state);
 	}
 	context_tracking_recursion_exit();
-out_irq_restore:
+}
+NOKPROBE_SYMBOL(__context_tracking_enter);
+EXPORT_SYMBOL_GPL(__context_tracking_enter);
+
+void context_tracking_enter(enum ctx_state state)
+{
+	unsigned long flags;
+
+	/*
+	 * Some contexts may involve an exception occuring in an irq,
+	 * leading to that nesting:
+	 * rcu_irq_enter() rcu_user_exit() rcu_user_exit() rcu_irq_exit()
+	 * This would mess up the dyntick_nesting count though. And rcu_irq_*()
+	 * helpers are enough to protect RCU uses inside the exception. So
+	 * just return immediately if we detect we are in an IRQ.
+	 */
+	if (in_interrupt())
+		return;
+
+	local_irq_save(flags);
+	__context_tracking_enter(state);
 	local_irq_restore(flags);
 }
 NOKPROBE_SYMBOL(context_tracking_enter);
@@ -128,7 +125,7 @@ EXPORT_SYMBOL_GPL(context_tracking_enter);
 
 void context_tracking_user_enter(void)
 {
-	context_tracking_enter(CONTEXT_USER);
+	user_enter();
 }
 NOKPROBE_SYMBOL(context_tracking_user_enter);
 
@@ -144,19 +141,10 @@ NOKPROBE_SYMBOL(context_tracking_user_enter);
  * This call supports re-entrancy. This way it can be called from any exception
  * handler without needing to know if we came from userspace or not.
  */
-void context_tracking_exit(enum ctx_state state)
+void __context_tracking_exit(enum ctx_state state)
 {
-	unsigned long flags;
-
-	if (!context_tracking_is_enabled())
-		return;
-
-	if (in_interrupt())
-		return;
-
-	local_irq_save(flags);
 	if (!context_tracking_recursion_enter())
-		goto out_irq_restore;
+		return;
 
 	if (__this_cpu_read(context_tracking.state) == state) {
 		if (__this_cpu_read(context_tracking.active)) {
@@ -173,7 +161,19 @@ void context_tracking_exit(enum ctx_state state)
 		__this_cpu_write(context_tracking.state, CONTEXT_KERNEL);
 	}
 	context_tracking_recursion_exit();
-out_irq_restore:
+}
+NOKPROBE_SYMBOL(__context_tracking_exit);
+EXPORT_SYMBOL_GPL(__context_tracking_exit);
+
+void context_tracking_exit(enum ctx_state state)
+{
+	unsigned long flags;
+
+	if (in_interrupt())
+		return;
+
+	local_irq_save(flags);
+	__context_tracking_exit(state);
 	local_irq_restore(flags);
 }
 NOKPROBE_SYMBOL(context_tracking_exit);
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(context_tracking_exit);
 
 void context_tracking_user_exit(void)
 {
-	context_tracking_exit(CONTEXT_USER);
+	user_exit();
 }
 NOKPROBE_SYMBOL(context_tracking_user_exit);
 
@@ -191,7 +191,7 @@ void __init context_tracking_cpu_set(int cpu)
 
 	if (!per_cpu(context_tracking.active, cpu)) {
 		per_cpu(context_tracking.active, cpu) = true;
-		static_key_slow_inc(&context_tracking_enabled);
+		static_branch_inc(&context_tracking_enabled);
 	}
 
 	if (initialized)

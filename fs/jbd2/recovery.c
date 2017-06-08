@@ -104,7 +104,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 		if (!buffer_uptodate(bh) && !buffer_locked(bh)) {
 			bufs[nbufs++] = bh;
 			if (nbufs == MAXBUF) {
-				ll_rw_block(READ, nbufs, bufs);
+				ll_rw_block(REQ_OP_READ, 0, nbufs, bufs);
 				journal_brelse_array(bufs, nbufs);
 				nbufs = 0;
 			}
@@ -113,7 +113,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 	}
 
 	if (nbufs)
-		ll_rw_block(READ, nbufs, bufs);
+		ll_rw_block(REQ_OP_READ, 0, nbufs, bufs);
 	err = 0;
 
 failed:
@@ -140,7 +140,7 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 
 	if (offset >= journal->j_maxlen) {
 		printk(KERN_ERR "JBD2: corrupted journal superblock\n");
-		return -EIO;
+		return -EFSCORRUPTED;
 	}
 
 	err = jbd2_journal_bmap(journal, offset, &blocknr);
@@ -174,8 +174,7 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 	return 0;
 }
 
-static int jbd2_descr_block_csum_verify(journal_t *j,
-					void *buf)
+static int jbd2_descriptor_block_csum_verify(journal_t *j, void *buf)
 {
 	struct jbd2_journal_block_tail *tail;
 	__be32 provided;
@@ -304,7 +303,7 @@ int jbd2_journal_recover(journal_t *journal)
  * Locate any valid recovery information from the journal and set up the
  * journal structures in memory to ignore it (presumably because the
  * caller has evidence that it is out of date).
- * This function does'nt appear to be exorted..
+ * This function doesn't appear to be exported..
  *
  * We perform one pass over the journal to allow us to tell the user how
  * much recovery information is being erased, and to let us initialise
@@ -342,7 +341,7 @@ static inline unsigned long long read_tag_block(journal_t *journal,
 						journal_block_tag_t *tag)
 {
 	unsigned long long block = be32_to_cpu(tag->t_blocknr);
-	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_64BIT))
+	if (jbd2_has_feature_64bit(journal))
 		block |= (u64)be32_to_cpu(tag->t_blocknr_high) << 32;
 	return block;
 }
@@ -411,7 +410,7 @@ static int jbd2_block_tag_csum_verify(journal_t *j, journal_block_tag_t *tag,
 	csum32 = jbd2_chksum(j, j->j_csum_seed, (__u8 *)&seq, sizeof(seq));
 	csum32 = jbd2_chksum(j, csum32, buf, j->j_blocksize);
 
-	if (JBD2_HAS_INCOMPAT_FEATURE(j, JBD2_FEATURE_INCOMPAT_CSUM_V3))
+	if (jbd2_has_feature_csum3(j))
 		return tag3->t_checksum == cpu_to_be32(csum32);
 	else
 		return tag->t_checksum == cpu_to_be16(csum32);
@@ -522,12 +521,12 @@ static int do_one_pass(journal_t *journal,
 				descr_csum_size =
 					sizeof(struct jbd2_journal_block_tail);
 			if (descr_csum_size > 0 &&
-			    !jbd2_descr_block_csum_verify(journal,
-							  bh->b_data)) {
+			    !jbd2_descriptor_block_csum_verify(journal,
+							       bh->b_data)) {
 				printk(KERN_ERR "JBD2: Invalid checksum "
 				       "recovering block %lu in log\n",
 				       next_log_block);
-				err = -EIO;
+				err = -EFSBADCRC;
 				brelse(bh);
 				goto failed;
 			}
@@ -538,8 +537,7 @@ static int do_one_pass(journal_t *journal,
 			 * just skip over the blocks it describes. */
 			if (pass != PASS_REPLAY) {
 				if (pass == PASS_SCAN &&
-				    JBD2_HAS_COMPAT_FEATURE(journal,
-					    JBD2_FEATURE_COMPAT_CHECKSUM) &&
+				    jbd2_has_feature_checksum(journal) &&
 				    !info->end_transaction) {
 					if (calc_chksums(journal, bh,
 							&next_log_block,
@@ -602,7 +600,7 @@ static int do_one_pass(journal_t *journal,
 						journal, tag, obh->b_data,
 						be32_to_cpu(tmp->h_sequence))) {
 						brelse(obh);
-						success = -EIO;
+						success = -EFSBADCRC;
 						printk(KERN_ERR "JBD2: Invalid "
 						       "checksum recovering "
 						       "block %llu in log\n",
@@ -694,8 +692,7 @@ static int do_one_pass(journal_t *journal,
 			 * much to do other than move on to the next sequence
 			 * number. */
 			if (pass == PASS_SCAN &&
-			    JBD2_HAS_COMPAT_FEATURE(journal,
-				    JBD2_FEATURE_COMPAT_CHECKSUM)) {
+			    jbd2_has_feature_checksum(journal)) {
 				int chksum_err, chksum_seen;
 				struct commit_header *cbh =
 					(struct commit_header *)bh->b_data;
@@ -735,8 +732,7 @@ static int do_one_pass(journal_t *journal,
 				if (chksum_err) {
 					info->end_transaction = next_commit_ID;
 
-					if (!JBD2_HAS_INCOMPAT_FEATURE(journal,
-					   JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)){
+					if (!jbd2_has_feature_async_commit(journal)) {
 						journal->j_failed_commit =
 							next_commit_ID;
 						brelse(bh);
@@ -750,8 +746,7 @@ static int do_one_pass(journal_t *journal,
 							   bh->b_data)) {
 				info->end_transaction = next_commit_ID;
 
-				if (!JBD2_HAS_INCOMPAT_FEATURE(journal,
-				     JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
+				if (!jbd2_has_feature_async_commit(journal)) {
 					journal->j_failed_commit =
 						next_commit_ID;
 					brelse(bh);
@@ -815,26 +810,6 @@ static int do_one_pass(journal_t *journal,
 	return err;
 }
 
-static int jbd2_revoke_block_csum_verify(journal_t *j,
-					 void *buf)
-{
-	struct jbd2_journal_revoke_tail *tail;
-	__be32 provided;
-	__u32 calculated;
-
-	if (!jbd2_journal_has_csum_v2or3(j))
-		return 1;
-
-	tail = (struct jbd2_journal_revoke_tail *)(buf + j->j_blocksize -
-			sizeof(struct jbd2_journal_revoke_tail));
-	provided = tail->r_checksum;
-	tail->r_checksum = 0;
-	calculated = jbd2_chksum(j, j->j_csum_seed, buf, j->j_blocksize);
-	tail->r_checksum = provided;
-
-	return provided == cpu_to_be32(calculated);
-}
-
 /* Scan a revoke record, marking all blocks mentioned as revoked. */
 
 static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
@@ -850,16 +825,16 @@ static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
 	offset = sizeof(jbd2_journal_revoke_header_t);
 	rcount = be32_to_cpu(header->r_count);
 
-	if (!jbd2_revoke_block_csum_verify(journal, header))
-		return -EINVAL;
+	if (!jbd2_descriptor_block_csum_verify(journal, header))
+		return -EFSBADCRC;
 
 	if (jbd2_journal_has_csum_v2or3(journal))
-		csum_size = sizeof(struct jbd2_journal_revoke_tail);
+		csum_size = sizeof(struct jbd2_journal_block_tail);
 	if (rcount > journal->j_blocksize - csum_size)
 		return -EINVAL;
 	max = rcount;
 
-	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_64BIT))
+	if (jbd2_has_feature_64bit(journal))
 		record_len = 8;
 
 	while (offset + record_len <= max) {

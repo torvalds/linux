@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_debug.h"
@@ -58,7 +58,6 @@ static ssize_t jfs_loglevel_proc_write(struct file *file,
 }
 
 static const struct file_operations jfs_loglevel_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= jfs_loglevel_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

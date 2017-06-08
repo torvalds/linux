@@ -52,6 +52,75 @@ static inline void store_clock_comparator(__u64 *time)
 
 void clock_comparator_work(void);
 
+void __init time_early_init(void);
+
+extern unsigned char ptff_function_mask[16];
+
+/* Function codes for the ptff instruction. */
+#define PTFF_QAF	0x00	/* query available functions */
+#define PTFF_QTO	0x01	/* query tod offset */
+#define PTFF_QSI	0x02	/* query steering information */
+#define PTFF_QUI	0x04	/* query UTC information */
+#define PTFF_ATO	0x40	/* adjust tod offset */
+#define PTFF_STO	0x41	/* set tod offset */
+#define PTFF_SFS	0x42	/* set fine steering rate */
+#define PTFF_SGS	0x43	/* set gross steering rate */
+
+/* Query TOD offset result */
+struct ptff_qto {
+	unsigned long long physical_clock;
+	unsigned long long tod_offset;
+	unsigned long long logical_tod_offset;
+	unsigned long long tod_epoch_difference;
+} __packed;
+
+static inline int ptff_query(unsigned int nr)
+{
+	unsigned char *ptr;
+
+	ptr = ptff_function_mask + (nr >> 3);
+	return (*ptr & (0x80 >> (nr & 7))) != 0;
+}
+
+/* Query UTC information result */
+struct ptff_qui {
+	unsigned int tm : 2;
+	unsigned int ts : 2;
+	unsigned int : 28;
+	unsigned int pad_0x04;
+	unsigned long leap_event;
+	short old_leap;
+	short new_leap;
+	unsigned int pad_0x14;
+	unsigned long prt[5];
+	unsigned long cst[3];
+	unsigned int skew;
+	unsigned int pad_0x5c[41];
+} __packed;
+
+/*
+ * ptff - Perform timing facility function
+ * @ptff_block: Pointer to ptff parameter block
+ * @len: Length of parameter block
+ * @func: Function code
+ * Returns: Condition code (0 on success)
+ */
+#define ptff(ptff_block, len, func)					\
+({									\
+	struct addrtype { char _[len]; };				\
+	register unsigned int reg0 asm("0") = func;			\
+	register unsigned long reg1 asm("1") = (unsigned long) (ptff_block);\
+	int rc;								\
+									\
+	asm volatile(							\
+		"	.word	0x0104\n"				\
+		"	ipm	%0\n"					\
+		"	srl	%0,28\n"				\
+		: "=d" (rc), "+m" (*(struct addrtype *) reg1)		\
+		: "d" (reg0), "d" (reg1) : "cc");			\
+	rc;								\
+})
+
 static inline unsigned long long local_tick_disable(void)
 {
 	unsigned long long old;
@@ -105,17 +174,9 @@ static inline cycles_t get_cycles(void)
 	return (cycles_t) get_tod_clock() >> 2;
 }
 
-int get_sync_clock(unsigned long long *clock);
+int get_phys_clock(unsigned long long *clock);
 void init_cpu_timer(void);
 unsigned long long monotonic_clock(void);
-
-void tod_to_timeval(__u64 todval, struct timespec64 *xt);
-
-static inline
-void stck_to_timespec64(unsigned long long stck, struct timespec64 *ts)
-{
-	tod_to_timeval(stck - TOD_UNIX_EPOCH, ts);
-}
 
 extern u64 sched_clock_base_cc;
 
@@ -145,20 +206,16 @@ static inline unsigned long long get_tod_clock_monotonic(void)
  *    ns = (todval * 125) >> 9;
  *
  * In order to avoid an overflow with the multiplication we can rewrite this.
- * With a split todval == 2^32 * th + tl (th upper 32 bits, tl lower 32 bits)
+ * With a split todval == 2^9 * th + tl (th upper 55 bits, tl lower 9 bits)
  * we end up with
  *
- *    ns = ((2^32 * th + tl) * 125 ) >> 9;
- * -> ns = (2^23 * th * 125) + ((tl * 125) >> 9);
+ *    ns = ((2^9 * th + tl) * 125 ) >> 9;
+ * -> ns = (th * 125) + ((tl * 125) >> 9);
  *
  */
 static inline unsigned long long tod_to_ns(unsigned long long todval)
 {
-	unsigned long long ns;
-
-	ns = ((todval >> 32) << 23) * 125;
-	ns += ((todval & 0xffffffff) * 125) >> 9;
-	return ns;
+	return ((todval >> 9) * 125) + (((todval & 0x1ff) * 125) >> 9);
 }
 
 #endif

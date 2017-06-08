@@ -88,6 +88,7 @@ int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 	int ret;
 	uint32_t pitch;
 	uint32_t resid;
+	uint32_t format;
 
 	pitch = args->width * ((args->bpp + 1) / 8);
 	args->size = pitch * args->height;
@@ -98,9 +99,10 @@ int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 	if (ret)
 		goto fail;
 
+	format = virtio_gpu_translate_format(DRM_FORMAT_XRGB8888);
 	virtio_gpu_resource_id_get(vgdev, &resid);
-	virtio_gpu_cmd_create_resource(vgdev, resid,
-				       2, args->width, args->height);
+	virtio_gpu_cmd_create_resource(vgdev, resid, format,
+				       args->width, args->height);
 
 	/* attach the object to the resource */
 	obj = gem_to_virtio_gpu_obj(gobj);
@@ -130,11 +132,52 @@ int virtio_gpu_mode_dumb_mmap(struct drm_file *file_priv,
 	struct drm_gem_object *gobj;
 	struct virtio_gpu_object *obj;
 	BUG_ON(!offset_p);
-	gobj = drm_gem_object_lookup(dev, file_priv, handle);
+	gobj = drm_gem_object_lookup(file_priv, handle);
 	if (gobj == NULL)
 		return -ENOENT;
 	obj = gem_to_virtio_gpu_obj(gobj);
 	*offset_p = virtio_gpu_object_mmap_offset(obj);
 	drm_gem_object_unreference_unlocked(gobj);
 	return 0;
+}
+
+int virtio_gpu_gem_object_open(struct drm_gem_object *obj,
+			       struct drm_file *file)
+{
+	struct virtio_gpu_device *vgdev = obj->dev->dev_private;
+	struct virtio_gpu_fpriv *vfpriv = file->driver_priv;
+	struct virtio_gpu_object *qobj = gem_to_virtio_gpu_obj(obj);
+	int r;
+
+	if (!vgdev->has_virgl_3d)
+		return 0;
+
+	r = virtio_gpu_object_reserve(qobj, false);
+	if (r)
+		return r;
+
+	virtio_gpu_cmd_context_attach_resource(vgdev, vfpriv->ctx_id,
+					       qobj->hw_res_handle);
+	virtio_gpu_object_unreserve(qobj);
+	return 0;
+}
+
+void virtio_gpu_gem_object_close(struct drm_gem_object *obj,
+				 struct drm_file *file)
+{
+	struct virtio_gpu_device *vgdev = obj->dev->dev_private;
+	struct virtio_gpu_fpriv *vfpriv = file->driver_priv;
+	struct virtio_gpu_object *qobj = gem_to_virtio_gpu_obj(obj);
+	int r;
+
+	if (!vgdev->has_virgl_3d)
+		return;
+
+	r = virtio_gpu_object_reserve(qobj, false);
+	if (r)
+		return;
+
+	virtio_gpu_cmd_context_detach_resource(vgdev, vfpriv->ctx_id,
+						qobj->hw_res_handle);
+	virtio_gpu_object_unreserve(qobj);
 }

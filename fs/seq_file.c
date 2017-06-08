@@ -13,8 +13,9 @@
 #include <linux/cred.h>
 #include <linux/mm.h>
 #include <linux/printk.h>
+#include <linux/string_helpers.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 
 static void seq_set_overflow(struct seq_file *m)
@@ -24,16 +25,7 @@ static void seq_set_overflow(struct seq_file *m)
 
 static void *seq_buf_alloc(unsigned long size)
 {
-	void *buf;
-
-	/*
-	 * __GFP_NORETRY to avoid oom-killings with high-order allocations -
-	 * it's better to fall back to vmalloc() than to kill things.
-	 */
-	buf = kmalloc(size, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
-	if (!buf && size > PAGE_SIZE)
-		buf = vmalloc(size);
-	return buf;
+	return kvmalloc(size, GFP_KERNEL);
 }
 
 /**
@@ -66,9 +58,10 @@ int seq_open(struct file *file, const struct seq_operations *op)
 
 	mutex_init(&p->lock);
 	p->op = op;
-#ifdef CONFIG_USER_NS
-	p->user_ns = file->f_cred->user_ns;
-#endif
+
+	// No refcounting: the lifetime of 'p' is constrained
+	// to the lifetime of the file.
+	p->file = file;
 
 	/*
 	 * Wrappers around seq_open(e.g. swaps_open) need to be
@@ -183,6 +176,13 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 	 */
 	m->version = file->f_version;
 
+	/*
+	 * if request is to read from zero offset, reset iterator to first
+	 * record as it might have been already advanced by previous requests
+	 */
+	if (*ppos == 0)
+		m->index = 0;
+
 	/* Don't assume *ppos is where we left it */
 	if (unlikely(*ppos != m->read_pos)) {
 		while ((err = traverse(m, *ppos)) == -EAGAIN)
@@ -216,8 +216,10 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 		size -= n;
 		buf += n;
 		copied += n;
-		if (!m->count)
+		if (!m->count) {
+			m->from = 0;
 			m->index++;
+		}
 		if (!size)
 			goto Done;
 	}
@@ -377,26 +379,12 @@ EXPORT_SYMBOL(seq_release);
  */
 void seq_escape(struct seq_file *m, const char *s, const char *esc)
 {
-	char *end = m->buf + m->size;
-	char *p;
-	char c;
+	char *buf;
+	size_t size = seq_get_buf(m, &buf);
+	int ret;
 
-	for (p = m->buf + m->count; (c = *s) != '\0' && p < end; s++) {
-		if (!strchr(esc, c)) {
-			*p++ = c;
-			continue;
-		}
-		if (p + 3 < end) {
-			*p++ = '\\';
-			*p++ = '0' + ((c & 0300) >> 6);
-			*p++ = '0' + ((c & 070) >> 3);
-			*p++ = '0' + (c & 07);
-			continue;
-		}
-		seq_set_overflow(m);
-		return;
-	}
-	m->count = p - m->buf;
+	ret = string_escape_str(s, buf, size, ESCAPE_OCTAL, esc);
+	seq_commit(m, ret < size ? ret : -1);
 }
 EXPORT_SYMBOL(seq_escape);
 
@@ -684,11 +672,11 @@ EXPORT_SYMBOL(seq_puts);
 /*
  * A helper routine for putting decimal numbers without rich format of printf().
  * only 'unsigned long long' is supported.
- * This routine will put one byte delimiter + number into seq_file.
+ * This routine will put strlen(delimiter) + number into seq_file.
  * This routine is very quick when you show lots of numbers.
  * In usual cases, it will be better to use seq_printf(). It's easier to read.
  */
-void seq_put_decimal_ull(struct seq_file *m, char delimiter,
+void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
 			 unsigned long long num)
 {
 	int len;
@@ -696,8 +684,15 @@ void seq_put_decimal_ull(struct seq_file *m, char delimiter,
 	if (m->count + 2 >= m->size) /* we'll write 2 bytes at least */
 		goto overflow;
 
-	if (delimiter)
-		m->buf[m->count++] = delimiter;
+	len = strlen(delimiter);
+	if (m->count + len >= m->size)
+		goto overflow;
+
+	memcpy(m->buf + m->count, delimiter, len);
+	m->count += len;
+
+	if (m->count + 1 >= m->size)
+		goto overflow;
 
 	if (num < 10) {
 		m->buf[m->count++] = num + '0';
@@ -707,6 +702,7 @@ void seq_put_decimal_ull(struct seq_file *m, char delimiter,
 	len = num_to_str(m->buf + m->count, m->size - m->count, num);
 	if (!len)
 		goto overflow;
+
 	m->count += len;
 	return;
 
@@ -715,19 +711,42 @@ overflow:
 }
 EXPORT_SYMBOL(seq_put_decimal_ull);
 
-void seq_put_decimal_ll(struct seq_file *m, char delimiter, long long num)
+void seq_put_decimal_ll(struct seq_file *m, const char *delimiter, long long num)
 {
+	int len;
+
+	if (m->count + 3 >= m->size) /* we'll write 2 bytes at least */
+		goto overflow;
+
+	len = strlen(delimiter);
+	if (m->count + len >= m->size)
+		goto overflow;
+
+	memcpy(m->buf + m->count, delimiter, len);
+	m->count += len;
+
+	if (m->count + 2 >= m->size)
+		goto overflow;
+
 	if (num < 0) {
-		if (m->count + 3 >= m->size) {
-			seq_set_overflow(m);
-			return;
-		}
-		if (delimiter)
-			m->buf[m->count++] = delimiter;
+		m->buf[m->count++] = '-';
 		num = -num;
-		delimiter = '-';
 	}
-	seq_put_decimal_ull(m, delimiter, num);
+
+	if (num < 10) {
+		m->buf[m->count++] = num + '0';
+		return;
+	}
+
+	len = num_to_str(m->buf + m->count, m->size - m->count, num);
+	if (!len)
+		goto overflow;
+
+	m->count += len;
+	return;
+
+overflow:
+	seq_set_overflow(m);
 }
 EXPORT_SYMBOL(seq_put_decimal_ll);
 
@@ -773,6 +792,8 @@ void seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
 {
 	const u8 *ptr = buf;
 	int i, linelen, remaining = len;
+	char *buffer;
+	size_t size;
 	int ret;
 
 	if (rowsize != 16 && rowsize != 32)
@@ -794,15 +815,12 @@ void seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
 			break;
 		}
 
+		size = seq_get_buf(m, &buffer);
 		ret = hex_dump_to_buffer(ptr + i, linelen, rowsize, groupsize,
-					 m->buf + m->count, m->size - m->count,
-					 ascii);
-		if (ret >= m->size - m->count) {
-			seq_set_overflow(m);
-		} else {
-			m->count += ret;
-			seq_putc(m, '\n');
-		}
+					 buffer, size, ascii);
+		seq_commit(m, ret < size ? ret : -1);
+
+		seq_putc(m, '\n');
 	}
 }
 EXPORT_SYMBOL(seq_hex_dump);

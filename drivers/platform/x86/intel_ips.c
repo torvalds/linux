@@ -68,6 +68,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/tick.h>
@@ -78,7 +79,7 @@
 #include <asm/processor.h>
 #include "intel_ips.h"
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #define PCI_DEVICE_ID_INTEL_THERMAL_SENSOR 0x3b32
 

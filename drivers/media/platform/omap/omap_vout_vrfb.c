@@ -79,10 +79,12 @@ void omap_vout_free_vrfb_buffers(struct omap_vout_device *vout)
 	int j;
 
 	for (j = 0; j < VRFB_NUM_BUFS; j++) {
-		omap_vout_free_buffer(vout->smsshado_virt_addr[j],
-				vout->smsshado_size);
-		vout->smsshado_virt_addr[j] = 0;
-		vout->smsshado_phy_addr[j] = 0;
+		if (vout->smsshado_virt_addr[j]) {
+			omap_vout_free_buffer(vout->smsshado_virt_addr[j],
+					      vout->smsshado_size);
+			vout->smsshado_virt_addr[j] = 0;
+			vout->smsshado_phy_addr[j] = 0;
+		}
 	}
 }
 
@@ -137,8 +139,9 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 			(void *) &vout->vrfb_dma_tx, &vout->vrfb_dma_tx.dma_ch);
 	if (ret < 0) {
 		vout->vrfb_dma_tx.req_status = DMA_CHAN_NOT_ALLOTED;
-		dev_info(&pdev->dev, ": failed to allocate DMA Channel for"
-				" video%d\n", vfd->minor);
+		dev_info(&pdev->dev,
+			 ": failed to allocate DMA Channel for video%d\n",
+			 vfd->minor);
 	}
 	init_waitqueue_head(&vout->vrfb_dma_tx.wait);
 

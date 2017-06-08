@@ -84,4 +84,4 @@ stable:
 
 - Kernel-internal symbols.  Do not rely on the presence, absence, location, or
   type of any kernel symbol, either in System.map files or the kernel binary
-  itself.  See Documentation/stable_api_nonsense.txt.
+  itself.  See Documentation/process/stable-api-nonsense.rst.

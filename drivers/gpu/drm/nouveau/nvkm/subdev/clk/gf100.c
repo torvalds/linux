@@ -99,7 +99,7 @@ read_div(struct gf100_clk *clk, int doff, u32 dsrc, u32 dctl)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
 	u32 ssrc = nvkm_rd32(device, dsrc + (doff * 4));
-	u32 sctl = nvkm_rd32(device, dctl + (doff * 4));
+	u32 sclk, sctl, sdiv = 2;
 
 	switch (ssrc & 0x00000003) {
 	case 0:
@@ -109,13 +109,21 @@ read_div(struct gf100_clk *clk, int doff, u32 dsrc, u32 dctl)
 	case 2:
 		return 100000;
 	case 3:
-		if (sctl & 0x80000000) {
-			u32 sclk = read_vco(clk, dsrc + (doff * 4));
-			u32 sdiv = (sctl & 0x0000003f) + 2;
-			return (sclk * 2) / sdiv;
+		sclk = read_vco(clk, dsrc + (doff * 4));
+
+		/* Memclk has doff of 0 despite its alt. location */
+		if (doff <= 2) {
+			sctl = nvkm_rd32(device, dctl + (doff * 4));
+
+			if (sctl & 0x80000000) {
+				if (ssrc & 0x100)
+					sctl >>= 8;
+
+				sdiv = (sctl & 0x3f) + 2;
+			}
 		}
 
-		return read_vco(clk, dsrc + (doff * 4));
+		return (sclk * 2) / sdiv;
 	default:
 		return 0;
 	}
@@ -188,7 +196,7 @@ gf100_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 		return read_clk(clk, 0x08);
 	case nv_clk_src_copy:
 		return read_clk(clk, 0x09);
-	case nv_clk_src_daemon:
+	case nv_clk_src_pmu:
 		return read_clk(clk, 0x0c);
 	case nv_clk_src_vdec:
 		return read_clk(clk, 0x0e);
@@ -325,7 +333,7 @@ gf100_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 	    (ret = calc_clk(clk, cstate, 0x07, nv_clk_src_hubk06)) ||
 	    (ret = calc_clk(clk, cstate, 0x08, nv_clk_src_hubk01)) ||
 	    (ret = calc_clk(clk, cstate, 0x09, nv_clk_src_copy)) ||
-	    (ret = calc_clk(clk, cstate, 0x0c, nv_clk_src_daemon)) ||
+	    (ret = calc_clk(clk, cstate, 0x0c, nv_clk_src_pmu)) ||
 	    (ret = calc_clk(clk, cstate, 0x0e, nv_clk_src_vdec)))
 		return ret;
 
@@ -366,11 +374,17 @@ gf100_clk_prog_2(struct gf100_clk *clk, int idx)
 		if (info->coef) {
 			nvkm_wr32(device, addr + 0x04, info->coef);
 			nvkm_mask(device, addr + 0x00, 0x00000001, 0x00000001);
+
+			/* Test PLL lock */
+			nvkm_mask(device, addr + 0x00, 0x00000010, 0x00000000);
 			nvkm_msec(device, 2000,
 				if (nvkm_rd32(device, addr + 0x00) & 0x00020000)
 					break;
 			);
-			nvkm_mask(device, addr + 0x00, 0x00020004, 0x00000004);
+			nvkm_mask(device, addr + 0x00, 0x00000010, 0x00000010);
+
+			/* Enable sync mode */
+			nvkm_mask(device, addr + 0x00, 0x00000004, 0x00000004);
 		}
 	}
 }
@@ -443,11 +457,11 @@ gf100_clk = {
 		{ nv_clk_src_hubk06 , 0x00 },
 		{ nv_clk_src_hubk01 , 0x01 },
 		{ nv_clk_src_copy   , 0x02 },
-		{ nv_clk_src_gpc    , 0x03, 0, "core", 2000 },
+		{ nv_clk_src_gpc    , 0x03, NVKM_CLK_DOM_FLAG_VPSTATE, "core", 2000 },
 		{ nv_clk_src_rop    , 0x04 },
 		{ nv_clk_src_mem    , 0x05, 0, "memory", 1000 },
 		{ nv_clk_src_vdec   , 0x06 },
-		{ nv_clk_src_daemon , 0x0a },
+		{ nv_clk_src_pmu    , 0x0a },
 		{ nv_clk_src_hubk07 , 0x0b },
 		{ nv_clk_src_max }
 	}

@@ -1,0 +1,17 @@
+max9867 codec
+
+This device supports I2C mode only.
+
+Required properties:
+
+- compatible : "maxim,max9867"
+- reg : The chip select number on the I2C bus
+
+Example:
+
+&i2c {
+	max9867: max9867@0x18 {
+		compatible = "maxim,max9867";
+		reg = <0x18>;
+	};
+};

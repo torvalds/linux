@@ -31,7 +31,7 @@
 #include <linux/dma-mapping.h>
 
 #include <linux/fs_uart_pd.h>
-#include <asm/ucc_slow.h>
+#include <soc/fsl/qe/ucc_slow.h>
 
 #include <linux/firmware.h>
 #include <asm/reg.h>
@@ -1477,6 +1477,9 @@ static const struct of_device_id ucc_uart_match[] = {
 	{
 		.type = "serial",
 		.compatible = "ucc_uart",
+	},
+	{
+		.compatible = "fsl,t1040-ucc-uart",
 	},
 	{},
 };

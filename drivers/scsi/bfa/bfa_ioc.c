@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -2697,7 +2698,7 @@ bfa_ioc_reset_fwstate(struct bfa_ioc_s *ioc)
 	bfa_ioc_set_alt_ioc_fwstate(ioc, BFI_IOC_UNINIT);
 }
 
-#define BFA_MFG_NAME "Brocade"
+#define BFA_MFG_NAME "QLogic"
 void
 bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 			 struct bfa_adapter_attr_s *ad_attr)
@@ -2802,7 +2803,7 @@ void
 bfa_ioc_get_adapter_manufacturer(struct bfa_ioc_s *ioc, char *manufacturer)
 {
 	memset((void *)manufacturer, 0, BFA_ADAPTER_MFG_NAME_LEN);
-	memcpy(manufacturer, BFA_MFG_NAME, BFA_ADAPTER_MFG_NAME_LEN);
+	strncpy(manufacturer, BFA_MFG_NAME, BFA_ADAPTER_MFG_NAME_LEN);
 }
 
 void
@@ -5821,12 +5822,6 @@ bfa_phy_intr(void *phyarg, struct bfi_mbmsg_s *msg)
 }
 
 /*
- *	DCONF module specific
- */
-
-BFA_MODULE(dconf);
-
-/*
  * DCONF state machine events
  */
 enum bfa_dconf_event {
@@ -6072,7 +6067,7 @@ bfa_dconf_sm_iocdown_dirty(struct bfa_dconf_mod_s *dconf,
 /*
  * Compute and return memory needed by DRV_CFG module.
  */
-static void
+void
 bfa_dconf_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 		  struct bfa_s *bfa)
 {
@@ -6086,9 +6081,8 @@ bfa_dconf_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 				sizeof(struct bfa_dconf_s));
 }
 
-static void
-bfa_dconf_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-		struct bfa_pcidev_s *pcidev)
+void
+bfa_dconf_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg)
 {
 	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
 
@@ -6133,31 +6127,18 @@ bfa_dconf_modinit(struct bfa_s *bfa)
 	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
 	bfa_sm_send_event(dconf, BFA_DCONF_SM_INIT);
 }
-static void
-bfa_dconf_start(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_dconf_stop(struct bfa_s *bfa)
-{
-}
 
 static void bfa_dconf_timer(void *cbarg)
 {
 	struct bfa_dconf_mod_s *dconf = cbarg;
 	bfa_sm_send_event(dconf, BFA_DCONF_SM_TIMEOUT);
 }
-static void
+
+void
 bfa_dconf_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
 	bfa_sm_send_event(dconf, BFA_DCONF_SM_IOCDISABLE);
-}
-
-static void
-bfa_dconf_detach(struct bfa_s *bfa)
-{
 }
 
 static bfa_status_t

@@ -46,7 +46,7 @@
 #include <asm/hvcall.h>
 #include <asm/hvconsole.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/vio.h>
 #include <asm/param.h>
 #include <asm/hvsi.h>
@@ -509,7 +509,7 @@ static irqreturn_t hvsi_interrupt(int irq, void *arg)
 	}
 
 	spin_lock_irqsave(&hp->lock, flags);
-	if (tty && hp->n_throttle && !test_bit(TTY_THROTTLED, &tty->flags)) {
+	if (tty && hp->n_throttle && !tty_throttled(tty)) {
 		/* we weren't hung up and we weren't throttled, so we can
 		 * deliver the rest now */
 		hvsi_send_overflow(hp);

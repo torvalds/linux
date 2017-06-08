@@ -53,8 +53,13 @@ static struct insn insn_table_MM[] = {
 	{ insn_bltzl, 0, 0 },
 	{ insn_bne, M(mm_bne32_op, 0, 0, 0, 0, 0), RT | RS | BIMM },
 	{ insn_cache, M(mm_pool32b_op, 0, 0, mm_cache_func, 0, 0), RT | RS | SIMM },
+	{ insn_cfc1, M(mm_pool32f_op, 0, 0, 0, mm_cfc1_op, mm_32f_73_op), RT | RS },
+	{ insn_cfcmsa, M(mm_pool32s_op, 0, msa_cfc_op, 0, 0, mm_32s_elm_op), RD | RE },
+	{ insn_ctc1, M(mm_pool32f_op, 0, 0, 0, mm_ctc1_op, mm_32f_73_op), RT | RS },
+	{ insn_ctcmsa, M(mm_pool32s_op, 0, msa_ctc_op, 0, 0, mm_32s_elm_op), RD | RE },
 	{ insn_daddu, 0, 0 },
 	{ insn_daddiu, 0, 0 },
+	{ insn_di, M(mm_pool32a_op, 0, 0, 0, mm_di_op, mm_pool32axf_op), RS },
 	{ insn_divu, M(mm_pool32a_op, 0, 0, 0, mm_divu_op, mm_pool32axf_op), RT | RS },
 	{ insn_dmfc0, 0, 0 },
 	{ insn_dmtc0, 0, 0 },
@@ -84,6 +89,8 @@ static struct insn insn_table_MM[] = {
 	{ insn_mfhi, M(mm_pool32a_op, 0, 0, 0, mm_mfhi32_op, mm_pool32axf_op), RS },
 	{ insn_mflo, M(mm_pool32a_op, 0, 0, 0, mm_mflo32_op, mm_pool32axf_op), RS },
 	{ insn_mtc0, M(mm_pool32a_op, 0, 0, 0, mm_mtc0_op, mm_pool32axf_op), RT | RS | RD },
+	{ insn_mthi, M(mm_pool32a_op, 0, 0, 0, mm_mthi32_op, mm_pool32axf_op), RS },
+	{ insn_mtlo, M(mm_pool32a_op, 0, 0, 0, mm_mtlo32_op, mm_pool32axf_op), RS },
 	{ insn_mul, M(mm_pool32a_op, 0, 0, 0, 0, mm_mul_op), RT | RS | RD },
 	{ insn_or, M(mm_pool32a_op, 0, 0, 0, 0, mm_or32_op), RT | RS | RD },
 	{ insn_ori, M(mm_ori32_op, 0, 0, 0, 0, 0), RT | RS | UIMM },
@@ -166,13 +173,15 @@ static void build_insn(u32 **buf, enum opcode opc, ...)
 	op = ip->match;
 	va_start(ap, opc);
 	if (ip->fields & RS) {
-		if (opc == insn_mfc0 || opc == insn_mtc0)
+		if (opc == insn_mfc0 || opc == insn_mtc0 ||
+		    opc == insn_cfc1 || opc == insn_ctc1)
 			op |= build_rt(va_arg(ap, u32));
 		else
 			op |= build_rs(va_arg(ap, u32));
 	}
 	if (ip->fields & RT) {
-		if (opc == insn_mfc0 || opc == insn_mtc0)
+		if (opc == insn_mfc0 || opc == insn_mtc0 ||
+		    opc == insn_cfc1 || opc == insn_ctc1)
 			op |= build_rs(va_arg(ap, u32));
 		else
 			op |= build_rt(va_arg(ap, u32));

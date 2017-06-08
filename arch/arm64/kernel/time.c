@@ -52,8 +52,11 @@ unsigned long profile_pc(struct pt_regs *regs)
 	frame.fp = regs->regs[29];
 	frame.sp = regs->sp;
 	frame.pc = regs->pc;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	frame.graph = -1; /* no task info */
+#endif
 	do {
-		int ret = unwind_frame(&frame);
+		int ret = unwind_frame(NULL, &frame);
 		if (ret < 0)
 			return 0;
 	} while (in_lock_functions(frame.pc));
@@ -67,15 +70,9 @@ void __init time_init(void)
 	u32 arch_timer_rate;
 
 	of_clk_init(NULL);
-	clocksource_of_init();
+	clocksource_probe();
 
 	tick_setup_hrtimer_broadcast();
-
-	/*
-	 * Since ACPI or FDT will only one be available in the system,
-	 * we can use acpi_generic_timer_init() here safely
-	 */
-	acpi_generic_timer_init();
 
 	arch_timer_rate = arch_timer_get_rate();
 	if (!arch_timer_rate)

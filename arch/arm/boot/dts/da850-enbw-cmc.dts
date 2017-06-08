@@ -16,15 +16,29 @@
 	compatible = "enbw,cmc", "ti,da850";
 	model = "EnBW CMC";
 
-	soc {
-		serial0: serial@1c42000 {
+	soc@1c00000 {
+		serial0: serial@42000 {
 			status = "okay";
 		};
-		serial1: serial@1d0c000 {
+		serial1: serial@10c000 {
 			status = "okay";
 		};
-		serial2: serial@1d0d000 {
+		serial2: serial@10d000 {
+			status = "okay";
+		};
+		mdio: mdio@224000 {
+			status = "okay";
+		};
+		eth0: ethernet@220000 {
 			status = "okay";
 		};
 	};
+};
+
+&edma0 {
+	ti,edma-reserved-slot-ranges = <32 50>;
+};
+
+&edma1 {
+	ti,edma-reserved-slot-ranges = <32 90>;
 };

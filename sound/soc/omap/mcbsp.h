@@ -280,6 +280,7 @@ struct omap_mcbsp_reg_cfg {
 
 struct omap_mcbsp_st_data {
 	void __iomem *io_base_st;
+	struct clk *mcbsp_iclk;
 	bool running;
 	bool enabled;
 	s16 taps[128];	/* Sidetone filter coefficients */
@@ -322,8 +323,11 @@ struct omap_mcbsp {
 
 	unsigned int fmt;
 	unsigned int in_freq;
+	unsigned int latency[2];
 	int clk_div;
 	int wlen;
+
+	struct pm_qos_request pm_qos_req;
 };
 
 void omap_mcbsp_config(struct omap_mcbsp *mcbsp,
@@ -349,6 +353,6 @@ int omap_st_disable(struct omap_mcbsp *mcbsp);
 int omap_st_is_enabled(struct omap_mcbsp *mcbsp);
 
 int omap_mcbsp_init(struct platform_device *pdev);
-void omap_mcbsp_sysfs_remove(struct omap_mcbsp *mcbsp);
+void omap_mcbsp_cleanup(struct omap_mcbsp *mcbsp);
 
 #endif /* __ASOC_MCBSP_H */

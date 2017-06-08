@@ -122,18 +122,13 @@
 #endif
 
 #ifdef CONFIG_MTD_MAP_BANK_WIDTH_32
-# ifdef map_bankwidth
-#  undef map_bankwidth
-#  define map_bankwidth(map) ((map)->bankwidth)
-#  undef map_bankwidth_is_large
-#  define map_bankwidth_is_large(map) (map_bankwidth(map) > BITS_PER_LONG/8)
-#  undef map_words
-#  define map_words(map) map_calc_words(map)
-# else
-#  define map_bankwidth(map) 32
-#  define map_bankwidth_is_large(map) (1)
-#  define map_words(map) map_calc_words(map)
-# endif
+/* always use indirect access for 256-bit to preserve kernel stack */
+# undef map_bankwidth
+# define map_bankwidth(map) ((map)->bankwidth)
+# undef map_bankwidth_is_large
+# define map_bankwidth_is_large(map) (map_bankwidth(map) > BITS_PER_LONG/8)
+# undef map_words
+# define map_words(map) map_calc_words(map)
 #define map_bankwidth_is_32(map) (map_bankwidth(map) == 32)
 #undef MAX_MAP_BANKWIDTH
 #define MAX_MAP_BANKWIDTH 32
@@ -142,7 +137,9 @@
 #endif
 
 #ifndef map_bankwidth
+#ifdef CONFIG_MTD
 #warning "No CONFIG_MTD_MAP_BANK_WIDTH_xx selected. No NOR chip support can work"
+#endif
 static inline int map_bankwidth(void *map)
 {
 	BUG();
@@ -238,8 +235,11 @@ struct map_info {
 	   If there is no cache to care about this can be set to NULL. */
 	void (*inval_cache)(struct map_info *, unsigned long, ssize_t);
 
-	/* set_vpp() must handle being reentered -- enable, enable, disable
-	   must leave it enabled. */
+	/* This will be called with 1 as parameter when the first map user
+	 * needs VPP, and called with 0 when the last user exits. The map
+	 * core maintains a reference counter, and assumes that VPP is a
+	 * global resource applying to all mapped flash chips on the system.
+	 */
 	void (*set_vpp)(struct map_info *, int);
 
 	unsigned long pfow_base;

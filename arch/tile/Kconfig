@@ -3,47 +3,36 @@
 
 config TILE
 	def_bool y
-	select HAVE_PERF_EVENTS
-	select USE_PMC if PERF_EVENTS
-	select HAVE_DMA_ATTRS
-	select HAVE_DMA_API_DEBUG
-	select HAVE_KVM if !TILEGX
-	select GENERIC_FIND_FIRST_BIT
-	select SYSCTL_EXCEPTION_TRACE
-	select CC_OPTIMIZE_FOR_SIZE
-	select HAVE_DEBUG_KMEMLEAK
-	select GENERIC_IRQ_PROBE
-	select GENERIC_PENDING_IRQ if SMP
-	select GENERIC_IRQ_SHOW
-	select HAVE_DEBUG_BUGVERBOSE
-	select VIRT_TO_BUS
-	select SYS_HYPERVISOR
-	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
-	select GENERIC_CLOCKEVENTS
-	select MODULES_USE_ELF_RELA
-	select HAVE_ARCH_TRACEHOOK
-	select HAVE_SYSCALL_TRACEPOINTS
-	select USER_STACKTRACE_SUPPORT
-	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
-	select HAVE_DEBUG_STACKOVERFLOW
 	select ARCH_WANT_FRAME_POINTERS
-	select HAVE_CONTEXT_TRACKING
+	select CC_OPTIMIZE_FOR_SIZE
 	select EDAC_SUPPORT
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_FIND_FIRST_BIT
+	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
+	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HAVE_ARCH_SECCOMP_FILTER
-
-# FIXME: investigate whether we need/want these options.
-#	select HAVE_IOREMAP_PROT
-#	select HAVE_OPTPROBES
-#	select HAVE_REGS_AND_STACK_ACCESS_API
-#	select HAVE_HW_BREAKPOINT
-#	select PERF_EVENTS
-#	select HAVE_USER_RETURN_NOTIFIER
-#	config NO_BOOTMEM
-#	config ARCH_SUPPORTS_DEBUG_PAGEALLOC
-#	config HUGETLB_PAGE_SIZE_VARIABLE
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_CONTEXT_TRACKING
+	select HAVE_DEBUG_BUGVERBOSE
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DMA_API_DEBUG
+	select HAVE_EXIT_THREAD
+	select HAVE_KVM if !TILEGX
+	select HAVE_NMI if USE_PMC
+	select HAVE_PERF_EVENTS
+	select HAVE_SYSCALL_TRACEPOINTS
+	select MODULES_USE_ELF_RELA
+	select SYSCTL_EXCEPTION_TRACE
+	select SYS_HYPERVISOR
+	select USER_STACKTRACE_SUPPORT
+	select USE_PMC if PERF_EVENTS
+	select VIRT_TO_BUS
 
 config MMU
 	def_bool y
@@ -116,9 +105,6 @@ config ARCH_DISCONTIGMEM_DEFAULT
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
-config STRICT_DEVMEM
-	def_bool y
-
 # SMP is required for Tilera Linux.
 config SMP
 	def_bool y
@@ -133,16 +119,17 @@ config HVC_TILE
 # 64-bit TILE-Gx toolchain, so force CONFIG_TILEGX on.
 config TILEGX
 	def_bool ARCH != "tilepro"
-	select SPARSE_IRQ
+	select ARCH_SUPPORTS_ATOMIC_RMW
 	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
-	select HAVE_FUNCTION_TRACER
-	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_ARCH_KGDB
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACER
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
-	select HAVE_ARCH_KGDB
-	select ARCH_SUPPORTS_ATOMIC_RMW
+	select SPARSE_IRQ
 
 config TILEPRO
 	def_bool !TILEGX
@@ -176,8 +163,6 @@ config NR_CPUS
 	  smaller kernel memory footprint results from using a smaller
 	  value on chips with fewer tiles.
 
-if TILEGX
-
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_64KB
@@ -188,8 +173,11 @@ choice
 	  connections, etc., it may be better to select 16KB, which uses
 	  memory more efficiently at some cost in TLB performance.
 
-	  Note that this option is TILE-Gx specific; currently
-	  TILEPro page size is set by rebuilding the hypervisor.
+	  Note that for TILEPro, you must also rebuild the hypervisor
+	  with a matching page size.
+
+config PAGE_SIZE_4KB
+	bool "4KB" if TILEPRO
 
 config PAGE_SIZE_16KB
 	bool "16KB"
@@ -198,8 +186,6 @@ config PAGE_SIZE_64KB
 	bool "64KB"
 
 endchoice
-
-endif
 
 source "kernel/Kconfig.hz"
 
@@ -458,8 +444,6 @@ config TILE_PCI_IO
 
 source "drivers/pci/Kconfig"
 
-source "drivers/pci/pcie/Kconfig"
-
 config TILE_USB
 	tristate "Tilera USB host adapter support"
 	default y
@@ -469,8 +453,6 @@ config TILE_USB
 	---help---
 	  Provides USB host adapter support for the built-in EHCI and OHCI
 	  interfaces on TILE-Gx chips.
-
-source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 

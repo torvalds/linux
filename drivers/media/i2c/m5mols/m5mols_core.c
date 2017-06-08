@@ -25,7 +25,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/m5mols.h>
+#include <media/i2c/m5mols.h>
 
 #include "m5mols.h"
 #include "m5mols_reg.h"
@@ -168,7 +168,7 @@ static int m5mols_read(struct v4l2_subdev *sd, u32 size, u32 reg, u32 *val)
 	msg[1].buf = rbuf;
 
 	/* minimum stabilization time */
-	usleep_range(200, 200);
+	usleep_range(200, 300);
 
 	ret = i2c_transfer(client->adapter, msg, 2);
 
@@ -268,7 +268,8 @@ int m5mols_write(struct v4l2_subdev *sd, u32 reg, u32 val)
 
 	*buf = m5mols_swap_byte((u8 *)&val, size);
 
-	usleep_range(200, 200);
+	/* minimum stabilization time */
+	usleep_range(200, 300);
 
 	ret = i2c_transfer(client->adapter, msg, 1);
 	if (ret == 1)
@@ -651,7 +652,7 @@ static int m5mols_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops m5mols_pad_ops = {
+static const struct v4l2_subdev_pad_ops m5mols_pad_ops = {
 	.enum_mbus_code	= m5mols_enum_mbus_code,
 	.get_fmt	= m5mols_get_fmt,
 	.set_fmt	= m5mols_set_fmt,
@@ -975,10 +976,10 @@ static int m5mols_probe(struct i2c_client *client,
 
 	sd->internal_ops = &m5mols_subdev_internal_ops;
 	info->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, 1, &info->pad, 0);
+	ret = media_entity_pads_init(&sd->entity, 1, &info->pad);
 	if (ret < 0)
 		return ret;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	init_waitqueue_head(&info->irq_waitq);
 	mutex_init(&info->lock);

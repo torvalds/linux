@@ -50,10 +50,14 @@ static const struct ebt_table broute_table = {
 
 static int ebt_broute(struct sk_buff *skb)
 {
+	struct nf_hook_state state;
 	int ret;
 
-	ret = ebt_do_table(NF_BR_BROUTING, skb, skb->dev, NULL,
-			   dev_net(skb->dev)->xt.broute_table);
+	nf_hook_state_init(&state, NF_BR_BROUTING,
+			   NFPROTO_BRIDGE, skb->dev, NULL, NULL,
+			   dev_net(skb->dev), NULL);
+
+	ret = ebt_do_table(skb, &state, state.net->xt.broute_table);
 	if (ret == NF_DROP)
 		return 1; /* route it */
 	return 0; /* bridge it */
@@ -61,13 +65,13 @@ static int ebt_broute(struct sk_buff *skb)
 
 static int __net_init broute_net_init(struct net *net)
 {
-	net->xt.broute_table = ebt_register_table(net, &broute_table);
+	net->xt.broute_table = ebt_register_table(net, &broute_table, NULL);
 	return PTR_ERR_OR_ZERO(net->xt.broute_table);
 }
 
 static void __net_exit broute_net_exit(struct net *net)
 {
-	ebt_unregister_table(net, net->xt.broute_table);
+	ebt_unregister_table(net, net->xt.broute_table, NULL);
 }
 
 static struct pernet_operations broute_net_ops = {

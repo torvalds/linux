@@ -24,6 +24,7 @@
 # include "boot.h"
 #endif
 #include <linux/types.h>
+#include <asm/intel-family.h>
 #include <asm/processor-flags.h>
 #include <asm/required-features.h>
 #include <asm/msr-index.h>
@@ -43,6 +44,15 @@ static const u32 req_flags[NCAPINTS] =
 	0, /* REQUIRED_MASK5 not implemented in this file */
 	REQUIRED_MASK6,
 	0, /* REQUIRED_MASK7 not implemented in this file */
+	0, /* REQUIRED_MASK8 not implemented in this file */
+	0, /* REQUIRED_MASK9 not implemented in this file */
+	0, /* REQUIRED_MASK10 not implemented in this file */
+	0, /* REQUIRED_MASK11 not implemented in this file */
+	0, /* REQUIRED_MASK12 not implemented in this file */
+	0, /* REQUIRED_MASK13 not implemented in this file */
+	0, /* REQUIRED_MASK14 not implemented in this file */
+	0, /* REQUIRED_MASK15 not implemented in this file */
+	REQUIRED_MASK16,
 };
 
 #define A32(a, b, c, d) (((d) << 24)+((c) << 16)+((b) << 8)+(a))
@@ -175,6 +185,8 @@ int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr)
 			puts("WARNING: PAE disabled. Use parameter 'forcepae' to enable at your own risk!\n");
 		}
 	}
+	if (!err)
+		err = check_knl_erratum();
 
 	if (err_flags_ptr)
 		*err_flags_ptr = err ? err_flags : NULL;
@@ -185,3 +197,33 @@ int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr)
 
 	return (cpu.level < req_level || err) ? -1 : 0;
 }
+
+int check_knl_erratum(void)
+{
+	/*
+	 * First check for the affected model/family:
+	 */
+	if (!is_intel() ||
+	    cpu.family != 6 ||
+	    cpu.model != INTEL_FAM6_XEON_PHI_KNL)
+		return 0;
+
+	/*
+	 * This erratum affects the Accessed/Dirty bits, and can
+	 * cause stray bits to be set in !Present PTEs.  We have
+	 * enough bits in our 64-bit PTEs (which we have on real
+	 * 64-bit mode or PAE) to avoid using these troublesome
+	 * bits.  But, we do not have enough space in our 32-bit
+	 * PTEs.  So, refuse to run on 32-bit non-PAE kernels.
+	 */
+	if (IS_ENABLED(CONFIG_X86_64) || IS_ENABLED(CONFIG_X86_PAE))
+		return 0;
+
+	puts("This 32-bit kernel can not run on this Xeon Phi x200\n"
+	     "processor due to a processor erratum.  Use a 64-bit\n"
+	     "kernel, or enable PAE in this 32-bit kernel.\n\n");
+
+	return -1;
+}
+
+

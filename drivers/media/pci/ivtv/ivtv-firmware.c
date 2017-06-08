@@ -26,7 +26,7 @@
 #include "ivtv-ioctl.h"
 #include "ivtv-cards.h"
 #include <linux/firmware.h>
-#include <media/saa7127.h>
+#include <media/i2c/saa7127.h>
 
 #define IVTV_MASK_SPU_ENABLE 		0xFFFFFFFE
 #define IVTV_MASK_VPU_ENABLE15 		0xFFFFFFF6
@@ -376,8 +376,8 @@ int ivtv_firmware_check(struct ivtv *itv, char *where)
 	/* If something failed & currently idle, try to reload */
 	if (res && !atomic_read(&itv->capturing) &&
 						!atomic_read(&itv->decoding)) {
-		IVTV_INFO("Detected in %s that firmware had failed - "
-			  "Reloading\n", where);
+		IVTV_INFO("Detected in %s that firmware had failed - Reloading\n",
+			  where);
 		res = ivtv_firmware_restart(itv);
 		/*
 		 * Even if restarted ok, still signal a problem had occurred.

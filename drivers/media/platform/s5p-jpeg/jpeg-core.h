@@ -20,6 +20,8 @@
 
 #define S5P_JPEG_M2M_NAME		"s5p-jpeg"
 
+#define JPEG_MAX_CLOCKS			4
+
 /* JPEG compression quality setting */
 #define S5P_JPEG_COMPR_QUAL_BEST	0
 #define S5P_JPEG_COMPR_QUAL_WORST	3
@@ -40,9 +42,12 @@
 /* a selection of JPEG markers */
 #define TEM				0x01
 #define SOF0				0xc0
+#define DHT				0xc4
 #define RST				0xd0
 #define SOI				0xd8
 #define EOI				0xd9
+#define	SOS				0xda
+#define DQT				0xdb
 #define DHP				0xde
 
 /* Flags that indicate a format can be used for capture/output */
@@ -66,12 +71,15 @@
 #define SJPEG_SUBSAMPLING_422	0x21
 #define SJPEG_SUBSAMPLING_420	0x22
 
+#define S5P_JPEG_MAX_MARKER	4
+
 /* Version numbers */
 enum sjpeg_version {
 	SJPEG_S5P,
 	SJPEG_EXYNOS3250,
 	SJPEG_EXYNOS4,
 	SJPEG_EXYNOS5420,
+	SJPEG_EXYNOS5433,
 };
 
 enum exynos4_jpeg_result {
@@ -100,10 +108,8 @@ enum  exynos4_jpeg_img_quality_level {
  * @m2m_dev:		v4l2 mem2mem device data
  * @regs:		JPEG IP registers mapping
  * @irq:		JPEG IP irq
- * @clk:		JPEG IP clock
- * @sclk:		Exynos3250 JPEG IP special clock
+ * @clocks:		JPEG IP clock(s)
  * @dev:		JPEG IP struct device
- * @alloc_ctx:		videobuf2 memory allocator's context
  * @variant:		driver variant to be used
  * @irq_status		interrupt flags set during single encode/decode
 			operation
@@ -121,10 +127,8 @@ struct s5p_jpeg {
 	void __iomem		*regs;
 	unsigned int		irq;
 	enum exynos4_jpeg_result irq_ret;
-	struct clk		*clk;
-	struct clk		*sclk;
+	struct clk		*clocks[JPEG_MAX_CLOCKS];
 	struct device		*dev;
-	void			*alloc_ctx;
 	struct s5p_jpeg_variant *variant;
 	u32			irq_status;
 };
@@ -134,8 +138,11 @@ struct s5p_jpeg_variant {
 	unsigned int		fmt_ver_flag;
 	unsigned int		hw3250_compat:1;
 	unsigned int		htbl_reinit:1;
+	unsigned int		hw_ex4_compat:1;
 	struct v4l2_m2m_ops	*m2m_ops;
 	irqreturn_t		(*jpeg_irq)(int irq, void *priv);
+	const char		*clk_names[JPEG_MAX_CLOCKS];
+	int			num_clocks;
 };
 
 /**
@@ -161,16 +168,40 @@ struct s5p_jpeg_fmt {
 };
 
 /**
+ * s5p_jpeg_marker - collection of markers from jpeg header
+ * @marker:	markers' positions relative to the buffer beginning
+ * @len:	markers' payload lengths (without length field)
+ * @n:		number of markers in collection
+ */
+struct s5p_jpeg_marker {
+	u32	marker[S5P_JPEG_MAX_MARKER];
+	u32	len[S5P_JPEG_MAX_MARKER];
+	u32	n;
+};
+
+/**
  * s5p_jpeg_q_data - parameters of one queue
  * @fmt:	driver-specific format of this queue
  * @w:		image width
  * @h:		image height
+ * @sos:	SOS marker's position relative to the buffer beginning
+ * @dht:	DHT markers' positions relative to the buffer beginning
+ * @dqt:	DQT markers' positions relative to the buffer beginning
+ * @sof:	SOF0 marker's postition relative to the buffer beginning
+ * @sof_len:	SOF0 marker's payload length (without length field itself)
+ * @components:	number of image components
  * @size:	image buffer size in bytes
  */
 struct s5p_jpeg_q_data {
 	struct s5p_jpeg_fmt	*fmt;
 	u32			w;
 	u32			h;
+	u32			sos;
+	struct s5p_jpeg_marker	dht;
+	struct s5p_jpeg_marker	dqt;
+	u32			sof;
+	u32			sof_len;
+	u32			components;
 	u32			size;
 };
 

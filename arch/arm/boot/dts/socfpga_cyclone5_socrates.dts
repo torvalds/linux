@@ -25,7 +25,7 @@
 		bootargs = "console=ttyS0,115200";
 	};
 
-	memory {
+	memory@0 {
 		name = "memory";
 		device_type = "memory";
 		reg = <0x0 0x40000000>; /* 1GB */
@@ -36,6 +36,7 @@
 };
 
 &gmac1 {
+	phy-mode = "rgmii";
 	status = "okay";
 };
 
@@ -51,7 +52,7 @@
 	status = "okay";
 
 	rtc: rtc@68 {
-		compatible = "stm,m41t82";
+		compatible = "st,m41t82";
 		reg = <0x68>;
 	};
 };
@@ -59,18 +60,18 @@
 &leds {
 	compatible = "gpio-leds";
 
-	led@0 {
+	led0 {
 		label = "led:green:heartbeat";
 		gpios = <&porta 28 1>;
 		linux,default-trigger = "heartbeat";
 	};
 
-	led@1 {
+	led1 {
 		label = "led:green:D7";
 		gpios = <&portb 19 1>;
 	};
 
-	led@2 {
+	led2 {
 		label = "led:green:D8";
 		gpios = <&portb 25 1>;
 	};
@@ -78,4 +79,23 @@
 
 &mmc {
 	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+
+	flash: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "n25q256a";
+		reg = <0>;
+		spi-max-frequency = <100000000>;
+		m25p,fast-read;
+		cdns,read-delay = <4>;
+		cdns,tshsl-ns = <50>;
+		cdns,tsd2d-ns = <50>;
+		cdns,tchsh-ns = <4>;
+		cdns,tslch-ns = <4>;
+		status = "okay";
+	};
 };

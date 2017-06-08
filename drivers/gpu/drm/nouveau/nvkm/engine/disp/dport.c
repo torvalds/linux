@@ -319,15 +319,15 @@ static const struct dp_rates {
 };
 
 void
-nvkm_dp_train(struct work_struct *w)
+nvkm_dp_train(struct nvkm_output_dp *outp)
 {
-	struct nvkm_output_dp *outp = container_of(w, typeof(*outp), lt.work);
 	struct nv50_disp *disp = nv50_disp(outp->base.disp);
 	const struct dp_rates *cfg = nvkm_dp_rates;
 	struct dp_state _dp = {
 		.outp = outp,
 	}, *dp = &_dp;
 	u32 datarate = 0;
+	u8  pwr;
 	int ret;
 
 	if (!outp->base.info.location && disp->func->sor.magic)
@@ -352,8 +352,14 @@ nvkm_dp_train(struct work_struct *w)
 	}
 	cfg--;
 
-	/* disable link interrupt handling during link training */
-	nvkm_notify_put(&outp->irq);
+	/* ensure sink is not in a low-power state */
+	if (!nvkm_rdaux(outp->aux, DPCD_SC00, &pwr, 1)) {
+		if ((pwr & DPCD_SC00_SET_POWER) != DPCD_SC00_SET_POWER_D0) {
+			pwr &= ~DPCD_SC00_SET_POWER;
+			pwr |=  DPCD_SC00_SET_POWER_D0;
+			nvkm_wraux(outp->aux, DPCD_SC00, &pwr, 1);
+		}
+	}
 
 	/* enable down-spreading and execute pre-train script from vbios */
 	dp_link_train_init(dp, outp->dpcd[3] & 0x01);
@@ -390,9 +396,6 @@ nvkm_dp_train(struct work_struct *w)
 
 	dp_link_train_fini(dp);
 
-	/* signal completion and enable link interrupt handling */
 	OUTP_DBG(&outp->base, "training complete");
 	atomic_set(&outp->lt.done, 1);
-	wake_up(&outp->lt.wait);
-	nvkm_notify_get(&outp->irq);
 }

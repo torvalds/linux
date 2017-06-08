@@ -34,6 +34,20 @@ static int scif_fdclose(struct inode *inode, struct file *f)
 	return scif_close(priv);
 }
 
+static int scif_fdmmap(struct file *f, struct vm_area_struct *vma)
+{
+	struct scif_endpt *priv = f->private_data;
+
+	return scif_mmap(vma, priv);
+}
+
+static unsigned int scif_fdpoll(struct file *f, poll_table *wait)
+{
+	struct scif_endpt *priv = f->private_data;
+
+	return __scif_pollfd(f, wait, priv);
+}
+
 static int scif_fdflush(struct file *f, fl_owner_t id)
 {
 	struct scif_endpt *ep = f->private_data;
@@ -140,12 +154,12 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		 * Add to the list of user mode eps where the second half
 		 * of the accept is not yet completed.
 		 */
-		spin_lock(&scif_info.eplock);
+		mutex_lock(&scif_info.eplock);
 		list_add_tail(&((*ep)->miacceptlist), &scif_info.uaccept);
 		list_add_tail(&((*ep)->liacceptlist), &priv->li_accept);
 		(*ep)->listenep = priv;
 		priv->acceptcnt++;
-		spin_unlock(&scif_info.eplock);
+		mutex_unlock(&scif_info.eplock);
 
 		return 0;
 	}
@@ -163,7 +177,7 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		/* Remove form the user accept queue */
-		spin_lock(&scif_info.eplock);
+		mutex_lock(&scif_info.eplock);
 		list_for_each_safe(pos, tmpq, &scif_info.uaccept) {
 			tmpep = list_entry(pos,
 					   struct scif_endpt, miacceptlist);
@@ -175,7 +189,7 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		}
 
 		if (!fep) {
-			spin_unlock(&scif_info.eplock);
+			mutex_unlock(&scif_info.eplock);
 			return -ENOENT;
 		}
 
@@ -190,9 +204,10 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 			}
 		}
 
-		spin_unlock(&scif_info.eplock);
+		mutex_unlock(&scif_info.eplock);
 
 		/* Free the resources automatically created from the open. */
+		scif_anon_inode_fput(priv);
 		scif_teardown_ep(priv);
 		scif_add_epd_to_zombie_list(priv, !SCIF_EPLOCK_HELD);
 		f->private_data = newep;
@@ -290,6 +305,157 @@ getnodes_err1:
 getnodes_err2:
 		return err;
 	}
+	case SCIF_REG:
+	{
+		struct scif_endpt *priv = f->private_data;
+		struct scifioctl_reg reg;
+		off_t ret;
+
+		if (copy_from_user(&reg, argp, sizeof(reg))) {
+			err = -EFAULT;
+			goto reg_err;
+		}
+		if (reg.flags & SCIF_MAP_KERNEL) {
+			err = -EINVAL;
+			goto reg_err;
+		}
+		ret = scif_register(priv, (void *)reg.addr, reg.len,
+				    reg.offset, reg.prot, reg.flags);
+		if (ret < 0) {
+			err = (int)ret;
+			goto reg_err;
+		}
+
+		if (copy_to_user(&((struct scifioctl_reg __user *)argp)
+				 ->out_offset, &ret, sizeof(reg.out_offset))) {
+			err = -EFAULT;
+			goto reg_err;
+		}
+		err = 0;
+reg_err:
+		scif_err_debug(err, "scif_register");
+		return err;
+	}
+	case SCIF_UNREG:
+	{
+		struct scif_endpt *priv = f->private_data;
+		struct scifioctl_unreg unreg;
+
+		if (copy_from_user(&unreg, argp, sizeof(unreg))) {
+			err = -EFAULT;
+			goto unreg_err;
+		}
+		err = scif_unregister(priv, unreg.offset, unreg.len);
+unreg_err:
+		scif_err_debug(err, "scif_unregister");
+		return err;
+	}
+	case SCIF_READFROM:
+	{
+		struct scif_endpt *priv = f->private_data;
+		struct scifioctl_copy copy;
+
+		if (copy_from_user(&copy, argp, sizeof(copy))) {
+			err = -EFAULT;
+			goto readfrom_err;
+		}
+		err = scif_readfrom(priv, copy.loffset, copy.len, copy.roffset,
+				    copy.flags);
+readfrom_err:
+		scif_err_debug(err, "scif_readfrom");
+		return err;
+	}
+	case SCIF_WRITETO:
+	{
+		struct scif_endpt *priv = f->private_data;
+		struct scifioctl_copy copy;
+
+		if (copy_from_user(&copy, argp, sizeof(copy))) {
+			err = -EFAULT;
+			goto writeto_err;
+		}
+		err = scif_writeto(priv, copy.loffset, copy.len, copy.roffset,
+				   copy.flags);
+writeto_err:
+		scif_err_debug(err, "scif_writeto");
+		return err;
+	}
+	case SCIF_VREADFROM:
+	{
+		struct scif_endpt *priv = f->private_data;
+		struct scifioctl_copy copy;
+
+		if (copy_from_user(&copy, argp, sizeof(copy))) {
+			err = -EFAULT;
+			goto vreadfrom_err;
+		}
+		err = scif_vreadfrom(priv, (void __force *)copy.addr, copy.len,
+				     copy.roffset, copy.flags);
+vreadfrom_err:
+		scif_err_debug(err, "scif_vreadfrom");
+		return err;
+	}
+	case SCIF_VWRITETO:
+	{
+		struct scif_endpt *priv = f->private_data;
+		struct scifioctl_copy copy;
+
+		if (copy_from_user(&copy, argp, sizeof(copy))) {
+			err = -EFAULT;
+			goto vwriteto_err;
+		}
+		err = scif_vwriteto(priv, (void __force *)copy.addr, copy.len,
+				    copy.roffset, copy.flags);
+vwriteto_err:
+		scif_err_debug(err, "scif_vwriteto");
+		return err;
+	}
+	case SCIF_FENCE_MARK:
+	{
+		struct scif_endpt *priv = f->private_data;
+		struct scifioctl_fence_mark mark;
+		int tmp_mark = 0;
+
+		if (copy_from_user(&mark, argp, sizeof(mark))) {
+			err = -EFAULT;
+			goto fence_mark_err;
+		}
+		err = scif_fence_mark(priv, mark.flags, &tmp_mark);
+		if (err)
+			goto fence_mark_err;
+		if (copy_to_user((void __user *)mark.mark, &tmp_mark,
+				 sizeof(tmp_mark))) {
+			err = -EFAULT;
+			goto fence_mark_err;
+		}
+fence_mark_err:
+		scif_err_debug(err, "scif_fence_mark");
+		return err;
+	}
+	case SCIF_FENCE_WAIT:
+	{
+		struct scif_endpt *priv = f->private_data;
+
+		err = scif_fence_wait(priv, arg);
+		scif_err_debug(err, "scif_fence_wait");
+		return err;
+	}
+	case SCIF_FENCE_SIGNAL:
+	{
+		struct scif_endpt *priv = f->private_data;
+		struct scifioctl_fence_signal signal;
+
+		if (copy_from_user(&signal, argp, sizeof(signal))) {
+			err = -EFAULT;
+			goto fence_signal_err;
+		}
+
+		err = scif_fence_signal(priv, signal.loff, signal.lval,
+					signal.roff, signal.rval, signal.flags);
+fence_signal_err:
+		scif_err_debug(err, "scif_fence_signal");
+		return err;
+	}
 	}
 	return -EINVAL;
 }
@@ -298,6 +464,8 @@ const struct file_operations scif_fops = {
 	.open = scif_fdopen,
 	.release = scif_fdclose,
 	.unlocked_ioctl = scif_fdioctl,
+	.mmap = scif_fdmmap,
+	.poll = scif_fdpoll,
 	.flush = scif_fdflush,
 	.owner = THIS_MODULE,
 };

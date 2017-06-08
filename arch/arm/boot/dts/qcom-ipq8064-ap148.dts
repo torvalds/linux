@@ -95,6 +95,7 @@
 		};
 
 		sata@29000000 {
+			ports-implemented = <0x1>;
 			status = "ok";
 		};
 	};

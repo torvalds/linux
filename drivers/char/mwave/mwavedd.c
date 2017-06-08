@@ -80,10 +80,10 @@ int mwave_3780i_io = 0;
 int mwave_uart_irq = 0;
 int mwave_uart_io = 0;
 module_param(mwave_debug, int, 0);
-module_param(mwave_3780i_irq, int, 0);
-module_param(mwave_3780i_io, int, 0);
-module_param(mwave_uart_irq, int, 0);
-module_param(mwave_uart_io, int, 0);
+module_param_hw(mwave_3780i_irq, int, irq, 0);
+module_param_hw(mwave_3780i_io, int, ioport, 0);
+module_param_hw(mwave_uart_irq, int, irq, 0);
+module_param_hw(mwave_uart_io, int, ioport, 0);
 
 static int mwave_open(struct inode *inode, struct file *file);
 static int mwave_close(struct inode *inode, struct file *file);
@@ -296,8 +296,8 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 				pDrvData->IPCs[ipcnum].usIntCount);
 
 			mutex_lock(&mwave_mutex);
-			pDrvData->IPCs[ipcnum].bIsHere = FALSE;
-			pDrvData->IPCs[ipcnum].bIsEnabled = TRUE;
+			pDrvData->IPCs[ipcnum].bIsHere = false;
+			pDrvData->IPCs[ipcnum].bIsEnabled = true;
 			mutex_unlock(&mwave_mutex);
 	
 			PRINTK_2(TRACE_MWAVE,
@@ -324,7 +324,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 				pDrvData->IPCs[ipcnum].usIntCount);
 	
 			mutex_lock(&mwave_mutex);
-			if (pDrvData->IPCs[ipcnum].bIsEnabled == TRUE) {
+			if (pDrvData->IPCs[ipcnum].bIsEnabled == true) {
 				DECLARE_WAITQUEUE(wait, current);
 
 				PRINTK_2(TRACE_MWAVE,
@@ -332,7 +332,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 					" ipc %x going to sleep\n",
 					ipcnum);
 				add_wait_queue(&pDrvData->IPCs[ipcnum].ipc_wait_queue, &wait);
-				pDrvData->IPCs[ipcnum].bIsHere = TRUE;
+				pDrvData->IPCs[ipcnum].bIsHere = true;
 				set_current_state(TASK_INTERRUPTIBLE);
 				/* check whether an event was signalled by */
 				/* the interrupt handler while we were gone */
@@ -355,7 +355,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						" application\n",
 						ipcnum);
 				}
-				pDrvData->IPCs[ipcnum].bIsHere = FALSE;
+				pDrvData->IPCs[ipcnum].bIsHere = false;
 				remove_wait_queue(&pDrvData->IPCs[ipcnum].ipc_wait_queue, &wait);
 				set_current_state(TASK_RUNNING);
 				PRINTK_2(TRACE_MWAVE,
@@ -384,9 +384,9 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 				return -EINVAL;
 			}
 			mutex_lock(&mwave_mutex);
-			if (pDrvData->IPCs[ipcnum].bIsEnabled == TRUE) {
-				pDrvData->IPCs[ipcnum].bIsEnabled = FALSE;
-				if (pDrvData->IPCs[ipcnum].bIsHere == TRUE) {
+			if (pDrvData->IPCs[ipcnum].bIsEnabled == true) {
+				pDrvData->IPCs[ipcnum].bIsEnabled = false;
+				if (pDrvData->IPCs[ipcnum].bIsHere == true) {
 					wake_up_interruptible(&pDrvData->IPCs[ipcnum].ipc_wait_queue);
 				}
 			}
@@ -541,7 +541,7 @@ static void mwave_exit(void)
 
 	if (pDrvData->device_registered) {
 		device_unregister(&mwave_device);
-		pDrvData->device_registered = FALSE;
+		pDrvData->device_registered = false;
 	}
 #endif
 
@@ -576,16 +576,16 @@ static int __init mwave_init(void)
 
 	memset(&mwave_s_mdd, 0, sizeof(MWAVE_DEVICE_DATA));
 
-	pDrvData->bBDInitialized = FALSE;
-	pDrvData->bResourcesClaimed = FALSE;
-	pDrvData->bDSPEnabled = FALSE;
-	pDrvData->bDSPReset = FALSE;
-	pDrvData->bMwaveDevRegistered = FALSE;
+	pDrvData->bBDInitialized = false;
+	pDrvData->bResourcesClaimed = false;
+	pDrvData->bDSPEnabled = false;
+	pDrvData->bDSPReset = false;
+	pDrvData->bMwaveDevRegistered = false;
 	pDrvData->sLine = -1;
 
 	for (i = 0; i < ARRAY_SIZE(pDrvData->IPCs); i++) {
-		pDrvData->IPCs[i].bIsEnabled = FALSE;
-		pDrvData->IPCs[i].bIsHere = FALSE;
+		pDrvData->IPCs[i].bIsEnabled = false;
+		pDrvData->IPCs[i].bIsHere = false;
 		pDrvData->IPCs[i].usIntCount = 0;	/* no ints received yet */
 		init_waitqueue_head(&pDrvData->IPCs[i].ipc_wait_queue);
 	}
@@ -601,7 +601,7 @@ static int __init mwave_init(void)
 				" Failed to initialize board data\n");
 		goto cleanup_error;
 	}
-	pDrvData->bBDInitialized = TRUE;
+	pDrvData->bBDInitialized = true;
 
 	retval = tp3780I_CalcResources(&pDrvData->rBDData);
 	PRINTK_2(TRACE_MWAVE,
@@ -626,7 +626,7 @@ static int __init mwave_init(void)
 				" Failed to claim resources\n");
 		goto cleanup_error;
 	}
-	pDrvData->bResourcesClaimed = TRUE;
+	pDrvData->bResourcesClaimed = true;
 
 	retval = tp3780I_EnableDSP(&pDrvData->rBDData);
 	PRINTK_2(TRACE_MWAVE,
@@ -639,7 +639,7 @@ static int __init mwave_init(void)
 				" Failed to enable DSP\n");
 		goto cleanup_error;
 	}
-	pDrvData->bDSPEnabled = TRUE;
+	pDrvData->bDSPEnabled = true;
 
 	if (misc_register(&mwave_misc_dev) < 0) {
 		PRINTK_ERROR(KERN_ERR_MWAVE
@@ -647,7 +647,7 @@ static int __init mwave_init(void)
 				" Failed to register misc device\n");
 		goto cleanup_error;
 	}
-	pDrvData->bMwaveDevRegistered = TRUE;
+	pDrvData->bMwaveDevRegistered = true;
 
 	pDrvData->sLine = register_serial_portandirq(
 		pDrvData->rBDData.rDspSettings.usUartBaseIO,
@@ -668,7 +668,7 @@ static int __init mwave_init(void)
 
 	if (device_register(&mwave_device))
 		goto cleanup_error;
-	pDrvData->device_registered = TRUE;
+	pDrvData->device_registered = true;
 	for (i = 0; i < ARRAY_SIZE(mwave_dev_attrs); i++) {
 		if(device_create_file(&mwave_device, mwave_dev_attrs[i])) {
 			PRINTK_ERROR(KERN_ERR_MWAVE

@@ -12,16 +12,12 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ *****************************************************************************/
 #include "rtl_core.h"
 #include "r8192E_phy.h"
 #include "r8192E_phyreg.h"
@@ -43,8 +39,8 @@ void rtl92e_enable_hw_security_config(struct net_device *dev)
 	struct rtllib_device *ieee = priv->rtllib;
 
 	SECR_value = SCR_TxEncEnable | SCR_RxDecEnable;
-	if (((KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
-	     (KEY_TYPE_WEP104 == ieee->pairwise_key_type)) &&
+	if (((ieee->pairwise_key_type == KEY_TYPE_WEP40) ||
+	     (ieee->pairwise_key_type == KEY_TYPE_WEP104)) &&
 	     (priv->rtllib->auth_mode != 2)) {
 		SECR_value |= SCR_RxUseDK;
 		SECR_value |= SCR_TxUseDK;
@@ -111,9 +107,9 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 					    __func__);
 				return;
 			}
-			down(&priv->rtllib->ips_sem);
+			mutex_lock(&priv->rtllib->ips_mutex);
 			rtl92e_ips_leave(dev);
-			up(&priv->rtllib->ips_sem);
+			mutex_unlock(&priv->rtllib->ips_mutex);
 		}
 	}
 	priv->rtllib->is_set_key = true;

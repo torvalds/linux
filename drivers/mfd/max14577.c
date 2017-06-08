@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2014 Samsung Electronics
  * Chanwoo Choi <cw00.choi@samsung.com>
- * Krzysztof Kozlowski <k.kozlowski@samsung.com>
+ * Krzysztof Kozlowski <krzk@kernel.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -495,7 +495,7 @@ MODULE_DEVICE_TABLE(i2c, max14577_i2c_id);
 #ifdef CONFIG_PM_SLEEP
 static int max14577_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max14577 *max14577 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -516,7 +516,7 @@ static int max14577_suspend(struct device *dev)
 
 static int max14577_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max14577 *max14577 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -561,7 +561,7 @@ static int __init max14577_i2c_init(void)
 
 	return i2c_add_driver(&max14577_i2c_driver);
 }
-subsys_initcall(max14577_i2c_init);
+module_init(max14577_i2c_init);
 
 static void __exit max14577_i2c_exit(void)
 {
@@ -569,6 +569,6 @@ static void __exit max14577_i2c_exit(void)
 }
 module_exit(max14577_i2c_exit);
 
-MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>, Krzysztof Kozlowski <k.kozlowski@samsung.com>");
+MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>, Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_DESCRIPTION("Maxim 14577/77836 multi-function core driver");
 MODULE_LICENSE("GPL");

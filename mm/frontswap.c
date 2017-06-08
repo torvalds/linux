@@ -20,6 +20,8 @@
 #include <linux/frontswap.h>
 #include <linux/swapfile.h>
 
+DEFINE_STATIC_KEY_FALSE(frontswap_enabled_key);
+
 /*
  * frontswap_ops are added by frontswap_register_ops, and provide the
  * frontswap "backend" implementation functions.  Multiple implementations
@@ -139,6 +141,8 @@ void frontswap_register_ops(struct frontswap_ops *ops)
 		ops->next = frontswap_ops;
 	} while (cmpxchg(&frontswap_ops, ops->next, ops) != ops->next);
 
+	static_branch_inc(&frontswap_enabled_key);
+
 	spin_lock(&swap_lock);
 	plist_for_each_entry(si, &swap_active_head, list) {
 		if (si->frontswap_map)
@@ -189,7 +193,7 @@ void __frontswap_init(unsigned type, unsigned long *map)
 	struct swap_info_struct *sis = swap_info[type];
 	struct frontswap_ops *ops;
 
-	BUG_ON(sis == NULL);
+	VM_BUG_ON(sis == NULL);
 
 	/*
 	 * p->frontswap is a bitmap that we MUST have to figure out which page
@@ -248,15 +252,9 @@ int __frontswap_store(struct page *page)
 	pgoff_t offset = swp_offset(entry);
 	struct frontswap_ops *ops;
 
-	/*
-	 * Return if no backend registed.
-	 * Don't need to inc frontswap_failed_stores here.
-	 */
-	if (!frontswap_ops)
-		return -1;
-
-	BUG_ON(!PageLocked(page));
-	BUG_ON(sis == NULL);
+	VM_BUG_ON(!frontswap_ops);
+	VM_BUG_ON(!PageLocked(page));
+	VM_BUG_ON(sis == NULL);
 
 	/*
 	 * If a dup, we must remove the old page first; we can't leave the
@@ -303,11 +301,10 @@ int __frontswap_load(struct page *page)
 	pgoff_t offset = swp_offset(entry);
 	struct frontswap_ops *ops;
 
-	if (!frontswap_ops)
-		return -1;
+	VM_BUG_ON(!frontswap_ops);
+	VM_BUG_ON(!PageLocked(page));
+	VM_BUG_ON(sis == NULL);
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(sis == NULL);
 	if (!__frontswap_test(sis, offset))
 		return -1;
 
@@ -337,10 +334,9 @@ void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
 	struct swap_info_struct *sis = swap_info[type];
 	struct frontswap_ops *ops;
 
-	if (!frontswap_ops)
-		return;
+	VM_BUG_ON(!frontswap_ops);
+	VM_BUG_ON(sis == NULL);
 
-	BUG_ON(sis == NULL);
 	if (!__frontswap_test(sis, offset))
 		return;
 
@@ -360,10 +356,9 @@ void __frontswap_invalidate_area(unsigned type)
 	struct swap_info_struct *sis = swap_info[type];
 	struct frontswap_ops *ops;
 
-	if (!frontswap_ops)
-		return;
+	VM_BUG_ON(!frontswap_ops);
+	VM_BUG_ON(sis == NULL);
 
-	BUG_ON(sis == NULL);
 	if (sis->frontswap_map == NULL)
 		return;
 

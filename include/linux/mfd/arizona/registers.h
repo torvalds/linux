@@ -242,6 +242,7 @@
 #define ARIZONA_HP1_SHORT_CIRCUIT_CTRL           0x4A0
 #define ARIZONA_HP2_SHORT_CIRCUIT_CTRL           0x4A1
 #define ARIZONA_HP3_SHORT_CIRCUIT_CTRL           0x4A2
+#define ARIZONA_HP_TEST_CTRL_1                   0x4A4
 #define ARIZONA_SPK_CTRL_2                       0x4B5
 #define ARIZONA_SPK_CTRL_3                       0x4B6
 #define ARIZONA_DAC_COMP_1                       0x4DC
@@ -855,12 +856,6 @@
 #define ARIZONA_ISRC1INT4MIX_INPUT_1_SOURCE      0xB38
 #define ARIZONA_ISRC2DEC1MIX_INPUT_1_SOURCE      0xB40
 #define ARIZONA_ISRC2DEC2MIX_INPUT_1_SOURCE      0xB48
-#define ARIZONA_ISRC2INT1MIX_INPUT_1_SOURCE      0xB60
-#define ARIZONA_ISRC2INT2MIX_INPUT_1_SOURCE      0xB68
-#define ARIZONA_ISRC1INT3MIX_INPUT_1_SOURCE      0xB30
-#define ARIZONA_ISRC1INT4MIX_INPUT_1_SOURCE      0xB38
-#define ARIZONA_ISRC2DEC1MIX_INPUT_1_SOURCE      0xB40
-#define ARIZONA_ISRC2DEC2MIX_INPUT_1_SOURCE      0xB48
 #define ARIZONA_ISRC2DEC3MIX_INPUT_1_SOURCE      0xB50
 #define ARIZONA_ISRC2DEC4MIX_INPUT_1_SOURCE      0xB58
 #define ARIZONA_ISRC2INT1MIX_INPUT_1_SOURCE      0xB60
@@ -1064,6 +1059,16 @@
 #define ARIZONA_CLOCK_CONTROL                    0xF00
 #define ARIZONA_ANC_SRC                          0xF01
 #define ARIZONA_DSP_STATUS                       0xF02
+#define ARIZONA_ANC_COEFF_START                  0xF08
+#define ARIZONA_ANC_COEFF_END                    0xF12
+#define ARIZONA_FCL_FILTER_CONTROL               0xF15
+#define ARIZONA_FCL_ADC_REFORMATTER_CONTROL      0xF17
+#define ARIZONA_FCL_COEFF_START                  0xF18
+#define ARIZONA_FCL_COEFF_END                    0xF69
+#define ARIZONA_FCR_FILTER_CONTROL               0xF70
+#define ARIZONA_FCR_ADC_REFORMATTER_CONTROL      0xF72
+#define ARIZONA_FCR_COEFF_START                  0xF73
+#define ARIZONA_FCR_COEFF_END                    0xFC4
 #define ARIZONA_DSP1_CONTROL_1                   0x1100
 #define ARIZONA_DSP1_CLOCKING_1                  0x1101
 #define ARIZONA_DSP1_STATUS_1                    0x1104
@@ -2359,9 +2364,9 @@
 #define ARIZONA_ACCDET_SRC_MASK                  0x2000  /* ACCDET_SRC */
 #define ARIZONA_ACCDET_SRC_SHIFT                     13  /* ACCDET_SRC */
 #define ARIZONA_ACCDET_SRC_WIDTH                      1  /* ACCDET_SRC */
-#define ARIZONA_ACCDET_MODE_MASK                 0x0003  /* ACCDET_MODE - [1:0] */
-#define ARIZONA_ACCDET_MODE_SHIFT                     0  /* ACCDET_MODE - [1:0] */
-#define ARIZONA_ACCDET_MODE_WIDTH                     2  /* ACCDET_MODE - [1:0] */
+#define ARIZONA_ACCDET_MODE_MASK                 0x0007  /* ACCDET_MODE - [2:0] */
+#define ARIZONA_ACCDET_MODE_SHIFT                     0  /* ACCDET_MODE - [2:0] */
+#define ARIZONA_ACCDET_MODE_WIDTH                     3  /* ACCDET_MODE - [2:0] */
 
 /*
  * R667 (0x29B) - Headphone Detect 1
@@ -3700,6 +3705,13 @@
 #define ARIZONA_HP3_SC_ENA_MASK                  0x1000  /* HP3_SC_ENA */
 #define ARIZONA_HP3_SC_ENA_SHIFT                     12  /* HP3_SC_ENA */
 #define ARIZONA_HP3_SC_ENA_WIDTH                      1  /* HP3_SC_ENA */
+
+/*
+ * R1188 (0x4A4) HP Test Ctrl 1
+ */
+#define ARIZONA_HP1_TST_CAP_SEL_MASK             0x0003  /* HP1_TST_CAP_SEL - [1:0] */
+#define ARIZONA_HP1_TST_CAP_SEL_SHIFT                 0  /* HP1_TST_CAP_SEL - [1:0] */
+#define ARIZONA_HP1_TST_CAP_SEL_WIDTH                 2  /* HP1_TST_CAP_SEL - [1:0] */
 
 /*
  * R1244 (0x4DC) - DAC comp 1
@@ -8041,6 +8053,66 @@
 #define ARIZONA_ISRC3_NOTCH_ENA_MASK             0x0001  /* ISRC3_NOTCH_ENA */
 #define ARIZONA_ISRC3_NOTCH_ENA_SHIFT                 0  /* ISRC3_NOTCH_ENA */
 #define ARIZONA_ISRC3_NOTCH_ENA_WIDTH                 1  /* ISRC3_NOTCH_ENA */
+
+/*
+ * R3840 (0xF00) - Clock Control
+ */
+#define ARIZONA_EXT_NG_SEL_CLR                   0x0080  /* EXT_NG_SEL_CLR */
+#define ARIZONA_EXT_NG_SEL_CLR_MASK              0x0080  /* EXT_NG_SEL_CLR */
+#define ARIZONA_EXT_NG_SEL_CLR_SHIFT                  7  /* EXT_NG_SEL_CLR */
+#define ARIZONA_EXT_NG_SEL_CLR_WIDTH                  1  /* EXT_NG_SEL_CLR */
+#define ARIZONA_EXT_NG_SEL_SET                   0x0040  /* EXT_NG_SEL_SET */
+#define ARIZONA_EXT_NG_SEL_SET_MASK              0x0040  /* EXT_NG_SEL_SET */
+#define ARIZONA_EXT_NG_SEL_SET_SHIFT                  6  /* EXT_NG_SEL_SET */
+#define ARIZONA_EXT_NG_SEL_SET_WIDTH                  1  /* EXT_NG_SEL_SET */
+#define ARIZONA_CLK_R_ENA_CLR                    0x0020  /* CLK_R_ENA_CLR */
+#define ARIZONA_CLK_R_ENA_CLR_MASK               0x0020  /* CLK_R_ENA_CLR */
+#define ARIZONA_CLK_R_ENA_CLR_SHIFT                   5  /* CLK_R_ENA_CLR */
+#define ARIZONA_CLK_R_ENA_CLR_WIDTH                   1  /* CLK_R_ENA_CLR */
+#define ARIZONA_CLK_R_ENA_SET                    0x0010  /* CLK_R_ENA_SET */
+#define ARIZONA_CLK_R_ENA_SET_MASK               0x0010  /* CLK_R_ENA_SET */
+#define ARIZONA_CLK_R_ENA_SET_SHIFT                   4  /* CLK_R_ENA_SET */
+#define ARIZONA_CLK_R_ENA_SET_WIDTH                   1  /* CLK_R_ENA_SET */
+#define ARIZONA_CLK_NG_ENA_CLR                   0x0008  /* CLK_NG_ENA_CLR */
+#define ARIZONA_CLK_NG_ENA_CLR_MASK              0x0008  /* CLK_NG_ENA_CLR */
+#define ARIZONA_CLK_NG_ENA_CLR_SHIFT                  3  /* CLK_NG_ENA_CLR */
+#define ARIZONA_CLK_NG_ENA_CLR_WIDTH                  1  /* CLK_NG_ENA_CLR */
+#define ARIZONA_CLK_NG_ENA_SET                   0x0004  /* CLK_NG_ENA_SET */
+#define ARIZONA_CLK_NG_ENA_SET_MASK              0x0004  /* CLK_NG_ENA_SET */
+#define ARIZONA_CLK_NG_ENA_SET_SHIFT                  2  /* CLK_NG_ENA_SET */
+#define ARIZONA_CLK_NG_ENA_SET_WIDTH                  1  /* CLK_NG_ENA_SET */
+#define ARIZONA_CLK_L_ENA_CLR                    0x0002  /* CLK_L_ENA_CLR */
+#define ARIZONA_CLK_L_ENA_CLR_MASK               0x0002  /* CLK_L_ENA_CLR */
+#define ARIZONA_CLK_L_ENA_CLR_SHIFT                   1  /* CLK_L_ENA_CLR */
+#define ARIZONA_CLK_L_ENA_CLR_WIDTH                   1  /* CLK_L_ENA_CLR */
+#define ARIZONA_CLK_L_ENA_SET                    0x0001  /* CLK_L_ENA_SET */
+#define ARIZONA_CLK_L_ENA_SET_MASK               0x0001  /* CLK_L_ENA_SET */
+#define ARIZONA_CLK_L_ENA_SET_SHIFT                   0  /* CLK_L_ENA_SET */
+#define ARIZONA_CLK_L_ENA_SET_WIDTH                   1  /* CLK_L_ENA_SET */
+
+/*
+ * R3841 (0xF01) - ANC SRC
+ */
+#define ARIZONA_IN_RXANCR_SEL_MASK               0x0070  /* IN_RXANCR_SEL - [4:6] */
+#define ARIZONA_IN_RXANCR_SEL_SHIFT                   4  /* IN_RXANCR_SEL - [4:6] */
+#define ARIZONA_IN_RXANCR_SEL_WIDTH                   3  /* IN_RXANCR_SEL - [4:6] */
+#define ARIZONA_IN_RXANCL_SEL_MASK               0x0007  /* IN_RXANCL_SEL - [0:2] */
+#define ARIZONA_IN_RXANCL_SEL_SHIFT                   0  /* IN_RXANCL_SEL - [0:2] */
+#define ARIZONA_IN_RXANCL_SEL_WIDTH                   3  /* IN_RXANCL_SEL - [0:2] */
+
+/*
+ * R3863 (0xF17) - FCL ADC Reformatter Control
+ */
+#define ARIZONA_FCL_MIC_MODE_SEL                 0x000C  /* FCL_MIC_MODE_SEL - [2:3] */
+#define ARIZONA_FCL_MIC_MODE_SEL_SHIFT                2  /* FCL_MIC_MODE_SEL - [2:3] */
+#define ARIZONA_FCL_MIC_MODE_SEL_WIDTH                2  /* FCL_MIC_MODE_SEL - [2:3] */
+
+/*
+ * R3954 (0xF72) - FCR ADC Reformatter Control
+ */
+#define ARIZONA_FCR_MIC_MODE_SEL                 0x000C  /* FCR_MIC_MODE_SEL - [2:3] */
+#define ARIZONA_FCR_MIC_MODE_SEL_SHIFT                2  /* FCR_MIC_MODE_SEL - [2:3] */
+#define ARIZONA_FCR_MIC_MODE_SEL_WIDTH                2  /* FCR_MIC_MODE_SEL - [2:3] */
 
 /*
  * R4352 (0x1100) - DSP1 Control 1

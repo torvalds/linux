@@ -27,10 +27,6 @@ typedef u64 pmdval_t;
 typedef u64 pudval_t;
 typedef u64 pgdval_t;
 
-#undef STRICT_MM_TYPECHECKS
-
-#ifdef STRICT_MM_TYPECHECKS
-
 /*
  * These are used to make use of C type-checking..
  */
@@ -58,38 +54,14 @@ typedef struct { pteval_t pgprot; } pgprot_t;
 #define pgprot_val(x)	((x).pgprot)
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
-#else	/* !STRICT_MM_TYPECHECKS */
-
-typedef pteval_t pte_t;
-#define pte_val(x)	(x)
-#define __pte(x)	(x)
-
-#if CONFIG_PGTABLE_LEVELS > 2
-typedef pmdval_t pmd_t;
-#define pmd_val(x)	(x)
-#define __pmd(x)	(x)
-#endif
-
-#if CONFIG_PGTABLE_LEVELS > 3
-typedef pudval_t pud_t;
-#define pud_val(x)	(x)
-#define __pud(x)	(x)
-#endif
-
-typedef pgdval_t pgd_t;
-#define pgd_val(x)	(x)
-#define __pgd(x)	(x)
-
-typedef pteval_t pgprot_t;
-#define pgprot_val(x)	(x)
-#define __pgprot(x)	(x)
-
-#endif /* STRICT_MM_TYPECHECKS */
-
 #if CONFIG_PGTABLE_LEVELS == 2
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 #elif CONFIG_PGTABLE_LEVELS == 3
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopud.h>
+#elif CONFIG_PGTABLE_LEVELS == 4
+#include <asm-generic/5level-fixup.h>
 #endif
 
 #endif	/* __ASM_PGTABLE_TYPES_H */

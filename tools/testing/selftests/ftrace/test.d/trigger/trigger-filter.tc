@@ -1,0 +1,60 @@
+#!/bin/sh
+# description: event trigger - test trigger filter
+# flags: instance
+
+do_reset() {
+    reset_trigger
+    echo > set_event
+    clear_trace
+}
+
+fail() { #msg
+    do_reset
+    echo $1
+    exit $FAIL
+}
+
+if [ ! -f set_event -o ! -d events/sched ]; then
+    echo "event tracing is not supported"
+    exit_unsupported
+fi
+
+if [ ! -f events/sched/sched_process_fork/trigger ]; then
+    echo "event trigger is not supported"
+    exit_unsupported
+fi
+
+reset_tracer
+do_reset
+
+echo "Test trigger filter"
+echo 1 > tracing_on
+echo 'traceoff if child_pid == 0' > events/sched/sched_process_fork/trigger
+( echo "forked")
+if [ `cat tracing_on` -ne 1 ]; then
+    fail "traceoff trigger on sched_process_fork did not work"
+fi
+
+reset_trigger
+
+echo "Test semantic error for trigger filter"
+! echo 'traceoff if a' > events/sched/sched_process_fork/trigger
+! echo 'traceoff if common_pid=0' > events/sched/sched_process_fork/trigger
+! echo 'traceoff if common_pid==b' > events/sched/sched_process_fork/trigger
+echo 'traceoff if common_pid == 0' > events/sched/sched_process_fork/trigger
+echo '!traceoff' > events/sched/sched_process_fork/trigger
+! echo 'traceoff if common_pid == child_pid' > events/sched/sched_process_fork/trigger
+echo 'traceoff if common_pid <= 0' > events/sched/sched_process_fork/trigger
+echo '!traceoff' > events/sched/sched_process_fork/trigger
+echo 'traceoff if common_pid >= 0' > events/sched/sched_process_fork/trigger
+echo '!traceoff' > events/sched/sched_process_fork/trigger
+echo 'traceoff if parent_pid >= 0 && child_pid >= 0' > events/sched/sched_process_fork/trigger
+echo '!traceoff' > events/sched/sched_process_fork/trigger
+echo 'traceoff if parent_pid >= 0 || child_pid >= 0' > events/sched/sched_process_fork/trigger
+echo '!traceoff' > events/sched/sched_process_fork/trigger
+
+
+
+do_reset
+
+exit 0

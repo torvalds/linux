@@ -38,6 +38,7 @@
 				reg = <0x2000 0x1000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
+				#pinctrl-cells = <1>;
 				ranges = <0 0x2000 0x1000>;
 
 				omap2430_pmx: pinmux@30 {
@@ -46,6 +47,7 @@
 					reg = <0x30 0x0154>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					pinctrl-single,register-width = <8>;
 					pinctrl-single,function-mask = <0x3f>;
 				};
@@ -56,14 +58,15 @@
 					reg = <0x270 0x240>;
 					#address-cells = <1>;
 					#size-cells = <1>;
+					ranges = <0 0x270 0x240>;
 
 					scm_clocks: clocks {
 						#address-cells = <1>;
 						#size-cells = <0>;
 					};
 
-					pbias_regulator: pbias_regulator {
-						compatible = "ti,pbias-omap";
+					pbias_regulator: pbias_regulator@230 {
+						compatible = "ti,pbias-omap2", "ti,pbias-omap";
 						reg = <0x230 0x4>;
 						syscon = <&scm_conf>;
 						pbias_mmc_reg: pbias_mmc_omap2430 {
@@ -153,6 +156,10 @@
 			gpmc,num-cs = <8>;
 			gpmc,num-waitpins = <4>;
 			ti,hwmods = "gpmc";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		mcbsp1: mcbsp@48074000 {

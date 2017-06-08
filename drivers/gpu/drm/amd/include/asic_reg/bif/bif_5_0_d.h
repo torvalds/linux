@@ -27,6 +27,7 @@
 #define mmMM_INDEX                                                              0x0
 #define mmMM_INDEX_HI                                                           0x6
 #define mmMM_DATA                                                               0x1
+#define mmCC_BIF_BX_STRAP2							0x152A
 #define mmBIF_MM_INDACCESS_CNTL                                                 0x1500
 #define mmBIF_DOORBELL_APER_EN                                                  0x1501
 #define mmBUS_CNTL                                                              0x1508
@@ -596,6 +597,7 @@
 #define mmSWRST_EP_CONTROL_0                                                    0x14ac
 #define mmCPM_CONTROL                                                           0x14b8
 #define mmGSKT_CONTROL                                                          0x14bf
+#define ixSWRST_COMMAND_1                                                       0x1400103
 #define ixLM_CONTROL                                                            0x1400120
 #define ixLM_PCIETXMUX0                                                         0x1400121
 #define ixLM_PCIETXMUX1                                                         0x1400122

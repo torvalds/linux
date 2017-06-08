@@ -1,6 +1,8 @@
 config MN10300
 	def_bool y
+	select HAVE_EXIT_THREAD
 	select HAVE_OPROFILE
+	select HAVE_UID16
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select HAVE_ARCH_TRACEHOOK
@@ -13,6 +15,7 @@ config MN10300
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
 	select HAVE_DEBUG_STACKOVERFLOW
+	select ARCH_NO_COHERENT_DMA_MMAP
 
 config AM33_2
 	def_bool n
@@ -37,9 +40,6 @@ config HIGHMEM
 config NUMA
 	def_bool n
 
-config UID16
-	def_bool y
-
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
@@ -54,6 +54,7 @@ config GENERIC_HWEIGHT
 
 config GENERIC_BUG
 	def_bool y
+	depends on BUG
 
 config QUICKLIST
 	def_bool y
@@ -235,7 +236,9 @@ source "kernel/Kconfig.hz"
 config MN10300_RTC
 	bool "Using MN10300 RTC"
 	depends on MN10300_PROC_MN103E010 || MN10300_PROC_MN2WS0050
-	select GENERIC_CMOS_UPDATE
+	select RTC_CLASS
+	select RTC_DRV_CMOS
+	select RTC_SYSTOHC
 	default n
 	help
 	  This option enables support for the RTC, thus enabling time to be

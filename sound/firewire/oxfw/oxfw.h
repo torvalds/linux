@@ -13,6 +13,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
+#include <linux/sched/signal.h>
 
 #include <sound/control.h>
 #include <sound/core.h>
@@ -28,27 +29,21 @@
 #include "../fcp.h"
 #include "../packets-buffer.h"
 #include "../iso-resources.h"
-#include "../amdtp.h"
+#include "../amdtp-am824.h"
 #include "../cmp.h"
-
-struct device_info {
-	const char *driver_name;
-	const char *vendor_name;
-	const char *model_name;
-	unsigned int mixer_channels;
-	u8 mute_fb_id;
-	u8 volume_fb_id;
-};
 
 /* This is an arbitrary number for convinience. */
 #define	SND_OXFW_STREAM_FORMAT_ENTRIES	10
 struct snd_oxfw {
 	struct snd_card *card;
 	struct fw_unit *unit;
-	const struct device_info *device_info;
 	struct mutex mutex;
 	spinlock_t lock;
 
+	bool registered;
+	struct delayed_work dwork;
+
+	bool wrong_dbs;
 	bool has_output;
 	u8 *tx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
 	u8 *rx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
@@ -63,14 +58,12 @@ struct snd_oxfw {
 	unsigned int midi_input_ports;
 	unsigned int midi_output_ports;
 
-	bool mute;
-	s16 volume[6];
-	s16 volume_min;
-	s16 volume_max;
-
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
+
+	const struct ieee1394_device_id *entry;
+	void *spec;
 };
 
 /*
@@ -137,10 +130,12 @@ void snd_oxfw_stream_lock_release(struct snd_oxfw *oxfw);
 
 int snd_oxfw_create_pcm(struct snd_oxfw *oxfw);
 
-int snd_oxfw_create_mixer(struct snd_oxfw *oxfw);
-
 void snd_oxfw_proc_init(struct snd_oxfw *oxfw);
 
 int snd_oxfw_create_midi(struct snd_oxfw *oxfw);
 
 int snd_oxfw_create_hwdep(struct snd_oxfw *oxfw);
+
+int snd_oxfw_add_spkr(struct snd_oxfw *oxfw, bool is_lacie);
+int snd_oxfw_scs1x_add(struct snd_oxfw *oxfw);
+void snd_oxfw_scs1x_update(struct snd_oxfw *oxfw);

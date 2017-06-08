@@ -18,7 +18,7 @@
 struct platform_device;
 
 /**
- * struct imx_pin_group - describes a single i.MX pin
+ * struct imx_pin - describes a single i.MX pin
  * @pin: the pin_id of this pin
  * @mux_mode: the mux mode for this pin.
  * @input_reg: the select input register offset for this pin if any
@@ -32,33 +32,6 @@ struct imx_pin {
 	u16 input_reg;
 	unsigned int input_val;
 	unsigned long config;
-};
-
-/**
- * struct imx_pin_group - describes an IMX pin group
- * @name: the name of this specific pin group
- * @npins: the number of pins in this group array, i.e. the number of
- *	elements in .pins so we can iterate over that array
- * @pin_ids: array of pin_ids. pinctrl forces us to maintain such an array
- * @pins: array of pins
- */
-struct imx_pin_group {
-	const char *name;
-	unsigned npins;
-	unsigned int *pin_ids;
-	struct imx_pin *pins;
-};
-
-/**
- * struct imx_pmx_func - describes IMX pinmux functions
- * @name: the name of this specific function
- * @groups: corresponding pin groups
- * @num_groups: the number of groups
- */
-struct imx_pmx_func {
-	const char *name;
-	const char **groups;
-	unsigned num_groups;
 };
 
 /**
@@ -76,14 +49,14 @@ struct imx_pinctrl_soc_info {
 	const struct pinctrl_pin_desc *pins;
 	unsigned int npins;
 	struct imx_pin_reg *pin_regs;
-	struct imx_pin_group *groups;
-	unsigned int ngroups;
-	struct imx_pmx_func *functions;
-	unsigned int nfunctions;
+	unsigned int group_index;
 	unsigned int flags;
+	const char *gpr_compatible;
+	struct mutex mutex;
 };
 
 #define SHARE_MUX_CONF_REG	0x1
+#define ZERO_OFFSET_VALID	0x2
 
 #define NO_MUX		0x0
 #define NO_PAD		0x0
@@ -96,5 +69,4 @@ struct imx_pinctrl_soc_info {
 
 int imx_pinctrl_probe(struct platform_device *pdev,
 			struct imx_pinctrl_soc_info *info);
-int imx_pinctrl_remove(struct platform_device *pdev);
 #endif /* __DRIVERS_PINCTRL_IMX_H */

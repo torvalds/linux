@@ -61,6 +61,7 @@
 #define ADF_CFG_AFFINITY_WHATEVER 0xFF
 #define MAX_DEVICE_NAME_SIZE 32
 #define ADF_MAX_DEVICES (32 * 32)
+#define ADF_DEVS_ARRAY_SIZE BITS_TO_LONGS(ADF_MAX_DEVICES)
 
 enum adf_cfg_val_type {
 	ADF_DEC,
@@ -72,12 +73,16 @@ enum adf_device_type {
 	DEV_UNKNOWN = 0,
 	DEV_DH895XCC,
 	DEV_DH895XCCVF,
+	DEV_C62X,
+	DEV_C62XVF,
+	DEV_C3XXX,
+	DEV_C3XXXVF
 };
 
 struct adf_dev_status_info {
 	enum adf_device_type type;
-	uint8_t accel_id;
-	uint8_t instance_id;
+	u32 accel_id;
+	u32 instance_id;
 	uint8_t num_ae;
 	uint8_t num_accel;
 	uint8_t num_logical_accel;

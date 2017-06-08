@@ -32,7 +32,7 @@ compatible interfaces. Once found, it will create  subfolders  in
 the /sys directories of each supported interface, e.g.
 
 # ls /sys/class/net/eth0/batman_adv/
-# iface_status  mesh_iface
+# elp_interval  iface_status  mesh_iface  throughput_override
 
 If an interface does not have the "batman_adv" subfolder it prob-
 ably is not supported. Not supported  interfaces  are:  loopback,
@@ -43,10 +43,15 @@ new interfaces to verify the compatibility. There is no  need  to
 reload the module if you plug your USB wifi adapter into your ma-
 chine after batman advanced was initially loaded.
 
-To activate a  given  interface  simply  write  "bat0"  into  its
-"mesh_iface" file inside the batman_adv subfolder:
+The batman-adv soft-interface can be created using  the  iproute2
+tool "ip"
 
-# echo bat0 > /sys/class/net/eth0/batman_adv/mesh_iface
+# ip link add name bat0 type batadv
+
+To  activate a  given  interface  simply  attach it to the "bat0"
+interface
+
+# ip link set dev eth0 master bat0
 
 Repeat  this step for all interfaces you wish to add.  Now batman
 starts using/broadcasting on this/these interface(s).
@@ -56,27 +61,29 @@ By reading the "iface_status" file you can check its status:
 # cat /sys/class/net/eth0/batman_adv/iface_status
 # active
 
-To deactivate an interface you have  to  write  "none"  into  its
-"mesh_iface" file:
+To  deactivate  an  interface  you  have   to  detach it from the
+"bat0" interface:
 
-# echo none > /sys/class/net/eth0/batman_adv/mesh_iface
+# ip link set dev eth0 nomaster
 
 
 All  mesh  wide  settings  can be found in batman's own interface
 folder:
 
 # ls /sys/class/net/bat0/mesh/
-#aggregated_ogms        distributed_arp_table  gw_sel_class    orig_interval
-#ap_isolation           fragmentation          hop_penalty     routing_algo
-#bonding                gw_bandwidth           isolation_mark  vlan0
-#bridge_loop_avoidance  gw_mode                log_level
+# aggregated_ogms        fragmentation  isolation_mark  routing_algo
+# ap_isolation           gw_bandwidth   log_level       vlan0
+# bonding                gw_mode        multicast_mode
+# bridge_loop_avoidance  gw_sel_class   network_coding
+# distributed_arp_table  hop_penalty    orig_interval
 
 There is a special folder for debugging information:
 
 # ls /sys/kernel/debug/batman_adv/bat0/
-# bla_backbone_table  log                 transtable_global
-# bla_claim_table     originators         transtable_local
-# gateways            socket
+# bla_backbone_table  log          neighbors          transtable_local
+# bla_claim_table     mcast_flags  originators
+# dat_cache           nc           socket
+# gateways            nc_nodes     transtable_global
 
 Some of the files contain all sort of status information  regard-
 ing  the  mesh  network.  For  example, you can view the table of
@@ -115,14 +122,17 @@ The "bat0" interface can be used like any  other  regular  inter-
 face.  It needs an IP address which can be either statically con-
 figured or dynamically (by using DHCP or similar services):
 
-# NodeA: ifconfig bat0 192.168.0.1
-# NodeB: ifconfig bat0 192.168.0.2
+# NodeA: ip link set up dev bat0
+# NodeA: ip addr add 192.168.0.1/24 dev bat0
+
+# NodeB: ip link set up dev bat0
+# NodeB: ip addr add 192.168.0.2/24 dev bat0
 # NodeB: ping 192.168.0.1
 
 Note:  In  order to avoid problems remove all IP addresses previ-
 ously assigned to interfaces now used by batman advanced, e.g.
 
-# ifconfig eth0 0.0.0.0
+# ip addr flush dev eth0
 
 
 LOGGING/DEBUGGING
@@ -151,13 +161,16 @@ file in debugfs
 The additional debug output is by default disabled. It can be en-
 abled  during run time. Following log_levels are defined:
 
-0 - All  debug  output  disabled
-1 - Enable messages related to routing / flooding / broadcasting
-2 - Enable messages related to route added / changed / deleted
-4 - Enable messages related to translation table operations
-8 - Enable messages related to bridge loop avoidance
-16 - Enable messaged related to DAT, ARP snooping and parsing
-31 - Enable all messages
+  0 - All  debug  output  disabled
+  1 - Enable messages related to routing / flooding / broadcasting
+  2 - Enable messages related to route added / changed / deleted
+  4 - Enable messages related to translation table operations
+  8 - Enable messages related to bridge loop avoidance
+ 16 - Enable messages related to DAT, ARP snooping and parsing
+ 32 - Enable messages related to network coding
+ 64 - Enable messages related to multicast
+128 - Enable messages related to throughput meter
+255 - Enable all messages
 
 The debug output can be changed at runtime  using  the  file
 /sys/class/net/bat0/mesh/log_level. e.g.
@@ -184,7 +197,7 @@ interfaces to the kernel module settings.
 
 For more information, please see the manpage (man batctl).
 
-batctl is available on http://www.open-mesh.org/
+batctl is available on https://www.open-mesh.org/
 
 
 CONTACT

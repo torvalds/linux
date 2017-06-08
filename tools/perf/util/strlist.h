@@ -13,11 +13,18 @@ struct str_node {
 
 struct strlist {
 	struct rblist rblist;
-	bool	       dupstr;
+	bool	      dupstr;
+	bool	      file_only;
 };
 
+/*
+ * @file_only: When dirname is present, only consider entries as filenames,
+ *             that should not be added to the list if dirname/entry is not
+ *             found
+ */
 struct strlist_config {
 	bool dont_dupstr;
+	bool file_only;
 	const char *dirname;
 };
 
@@ -66,7 +73,7 @@ static inline struct str_node *strlist__next(struct str_node *sn)
  * @pos:	the &struct str_node to use as a loop cursor.
  * @slist:	the &struct strlist for loop.
  */
-#define strlist__for_each(pos, slist)	\
+#define strlist__for_each_entry(pos, slist)	\
 	for (pos = strlist__first(slist); pos; pos = strlist__next(pos))
 
 /**
@@ -76,7 +83,7 @@ static inline struct str_node *strlist__next(struct str_node *sn)
  * @n:		another &struct str_node to use as temporary storage.
  * @slist:	the &struct strlist for loop.
  */
-#define strlist__for_each_safe(pos, n, slist)	\
+#define strlist__for_each_entry_safe(pos, n, slist)	\
 	for (pos = strlist__first(slist), n = strlist__next(pos); pos;\
 	     pos = n, n = strlist__next(n))
 #endif /* __PERF_STRLIST_H */

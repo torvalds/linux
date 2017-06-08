@@ -25,8 +25,7 @@ struct completion that tells the waiting threads of execution if they
 can continue safely.
 
 As completions are scheduling related, the code is found in
-kernel/sched/completion.c - for details on completion design and
-implementation see completions-design.txt
+kernel/sched/completion.c.
 
 
 Usage:

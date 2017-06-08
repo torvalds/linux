@@ -20,7 +20,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <media/saa7146.h>
+#include <media/drv-intf/saa7146.h>
 #include <linux/module.h>
 
 static int saa7146_num;

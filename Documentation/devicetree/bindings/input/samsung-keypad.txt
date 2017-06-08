@@ -38,6 +38,7 @@ Required Board Specific Properties:
 
 Optional Properties:
 - wakeup-source: use any event on keypad as wakeup event.
+		 (Legacy property supported: "linux,input-wakeup")
 
 Optional Properties specific to linux:
 - linux,keypad-no-autorepeat: do no enable autorepeat feature.
@@ -51,7 +52,7 @@ Example:
 		samsung,keypad-num-rows = <2>;
 		samsung,keypad-num-columns = <8>;
 		linux,input-no-autorepeat;
-		linux,input-wakeup;
+		wakeup-source;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&keypad_rows &keypad_columns>;

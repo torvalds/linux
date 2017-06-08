@@ -21,6 +21,7 @@
 
 #include <drm/drmP.h>
 #include <linux/shmem_fs.h>
+#include <asm/set_memory.h>
 #include "psb_drv.h"
 #include "blitter.h"
 
@@ -76,6 +77,7 @@ static u32 __iomem *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
  *	psb_gtt_insert	-	put an object into the GTT
  *	@dev: our DRM device
  *	@r: our GTT range
+ *	@resume: on resume
  *
  *	Take our preallocated GTT range and insert the GEM object into
  *	the GTT. This is protected via the gtt mutex which the caller
@@ -130,7 +132,7 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
  *	page table entries with the dummy page. This is protected via the gtt
  *	mutex which the caller must hold.
  */
-void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
+static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 __iomem *gtt_slot;
@@ -321,6 +323,7 @@ out:
  *	@len: length (bytes) of address space required
  *	@name: resource name
  *	@backed: resource should be backed by stolen pages
+ *	@align: requested alignment
  *
  *	Ask the kernel core to find us a suitable range of addresses
  *	to use for a GTT mapping.
@@ -425,6 +428,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 
 	if (!resume) {
 		mutex_init(&dev_priv->gtt_mutex);
+		mutex_init(&dev_priv->mmap_mutex);
 		psb_gtt_alloc(dev);
 	}
 

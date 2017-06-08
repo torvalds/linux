@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -36,73 +32,66 @@
 #define DEFAULT_GAMMA	"0F 00 7 2 0 0 6 5 4 1\n" \
 			"04 16 2 7 6 3 2 1 7 7"
 
-
-static unsigned bt = 6; /* VGL=Vci*4 , VGH=Vci*4 */
-module_param(bt, uint, 0);
+static unsigned int bt = 6; /* VGL=Vci*4 , VGH=Vci*4 */
+module_param(bt, uint, 0000);
 MODULE_PARM_DESC(bt, "Sets the factor used in the step-up circuits");
 
-static unsigned vc = 0x03; /* Vci1=Vci*0.80 */
-module_param(vc, uint, 0);
-MODULE_PARM_DESC(vc,
-"Sets the ratio factor of Vci to generate the reference voltages Vci1");
+static unsigned int vc = 0x03; /* Vci1=Vci*0.80 */
+module_param(vc, uint, 0000);
+MODULE_PARM_DESC(vc, "Sets the ratio factor of Vci to generate the reference voltages Vci1");
 
-static unsigned vrh = 0x0d; /* VREG1OUT=Vci*1.85 */
-module_param(vrh, uint, 0);
-MODULE_PARM_DESC(vrh,
-"Set the amplifying rate (1.6 ~ 1.9) of Vci applied to output the VREG1OUT");
+static unsigned int vrh = 0x0d; /* VREG1OUT=Vci*1.85 */
+module_param(vrh, uint, 0000);
+MODULE_PARM_DESC(vrh, "Set the amplifying rate (1.6 ~ 1.9) of Vci applied to output the VREG1OUT");
 
-static unsigned vdv = 0x12; /* VCOMH amplitude=VREG1OUT*0.98 */
-module_param(vdv, uint, 0);
-MODULE_PARM_DESC(vdv,
-"Select the factor of VREG1OUT to set the amplitude of Vcom");
+static unsigned int vdv = 0x12; /* VCOMH amplitude=VREG1OUT*0.98 */
+module_param(vdv, uint, 0000);
+MODULE_PARM_DESC(vdv, "Select the factor of VREG1OUT to set the amplitude of Vcom");
 
-static unsigned vcm = 0x0a; /* VCOMH=VREG1OUT*0.735 */
-module_param(vcm, uint, 0);
+static unsigned int vcm = 0x0a; /* VCOMH=VREG1OUT*0.735 */
+module_param(vcm, uint, 0000);
 MODULE_PARM_DESC(vcm, "Set the internal VcomH voltage");
 
-
 /*
-Verify that this configuration is within the Voltage limits
-
-Display module configuration: Vcc = IOVcc = Vci = 3.3V
-
- Voltages
-----------
-Vci                                =   3.3
-Vci1           =  Vci * 0.80       =   2.64
-DDVDH          =  Vci1 * 2         =   5.28
-VCL            = -Vci1             =  -2.64
-VREG1OUT       =  Vci * 1.85       =   4.88
-VCOMH          =  VREG1OUT * 0.735 =   3.59
-VCOM amplitude =  VREG1OUT * 0.98  =   4.79
-VGH            =  Vci * 4          =  13.2
-VGL            = -Vci * 4          = -13.2
-
- Limits
---------
-Power supplies
-1.65 < IOVcc < 3.30   =>  1.65 < 3.3 < 3.30
-2.40 < Vcc   < 3.30   =>  2.40 < 3.3 < 3.30
-2.50 < Vci   < 3.30   =>  2.50 < 3.3 < 3.30
-
-Source/VCOM power supply voltage
- 4.50 < DDVDH < 6.0   =>  4.50 <  5.28 <  6.0
--3.0  < VCL   < -2.0  =>  -3.0 < -2.64 < -2.0
-VCI - VCL < 6.0       =>  5.94 < 6.0
-
-Gate driver output voltage
- 10  < VGH   < 20     =>   10 <  13.2  < 20
--15  < VGL   < -5     =>  -15 < -13.2  < -5
-VGH - VGL < 32        =>   26.4 < 32
-
-VCOM driver output voltage
-VCOMH - VCOML < 6.0   =>  4.79 < 6.0
-*/
+ * Verify that this configuration is within the Voltage limits
+ *
+ * Display module configuration: Vcc = IOVcc = Vci = 3.3V
+ *
+ * Voltages
+ * ----------
+ * Vci                                =   3.3
+ * Vci1           =  Vci * 0.80       =   2.64
+ * DDVDH          =  Vci1 * 2         =   5.28
+ * VCL            = -Vci1             =  -2.64
+ * VREG1OUT       =  Vci * 1.85       =   4.88
+ * VCOMH          =  VREG1OUT * 0.735 =   3.59
+ * VCOM amplitude =  VREG1OUT * 0.98  =   4.79
+ * VGH            =  Vci * 4          =  13.2
+ * VGL            = -Vci * 4          = -13.2
+ *
+ * Limits
+ * --------
+ * Power supplies
+ * 1.65 < IOVcc < 3.30   =>  1.65 < 3.3 < 3.30
+ * 2.40 < Vcc   < 3.30   =>  2.40 < 3.3 < 3.30
+ * 2.50 < Vci   < 3.30   =>  2.50 < 3.3 < 3.30
+ *
+ * Source/VCOM power supply voltage
+ *  4.50 < DDVDH < 6.0   =>  4.50 <  5.28 <  6.0
+ * -3.0  < VCL   < -2.0  =>  -3.0 < -2.64 < -2.0
+ * VCI - VCL < 6.0       =>  5.94 < 6.0
+ *
+ * Gate driver output voltage
+ *  10  < VGH   < 20     =>   10 <  13.2  < 20
+ * -15  < VGL   < -5     =>  -15 < -13.2  < -5
+ * VGH - VGL < 32        =>   26.4 < 32
+ *
+ * VCOM driver output voltage
+ * VCOMH - VCOML < 6.0   =>  4.79 < 6.0
+ */
 
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	if (par->gpio.cs != -1)
@@ -137,7 +126,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x0013, 0x0000); /* VDV[4:0] for VCOM amplitude */
 	mdelay(200); /* Dis-charge capacitor power voltage */
 	write_reg(par, 0x0010, /* SAP, BT[3:0], AP, DSTB, SLP, STB */
-		(1 << 12) | (bt << 8) | (1 << 7) | (0x01 << 4));
+		BIT(12) | (bt << 8) | BIT(7) | BIT(4));
 	write_reg(par, 0x0011, 0x220 | vc); /* DC1[2:0], DC0[2:0], VC[2:0] */
 	mdelay(50); /* Delay 50ms */
 	write_reg(par, 0x0012, vrh); /* Internal reference voltage= Vci; */
@@ -176,8 +165,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
 	switch (par->info->var.rotate) {
 	/* R20h = Horizontal GRAM Start Address */
 	/* R21h = Vertical GRAM Start Address */
@@ -203,8 +190,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	switch (par->info->var.rotate) {
 	/* AM: GRAM update direction */
 	case 0:
@@ -225,12 +210,12 @@ static int set_var(struct fbtft_par *par)
 }
 
 /*
-  Gamma string format:
-    VRP0 VRP1 RP0 RP1 KP0 KP1 KP2 KP3 KP4 KP5
-    VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
-*/
-#define CURVE(num, idx)  curves[num*par->gamma.num_values + idx]
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+ * Gamma string format:
+ *  VRP0 VRP1 RP0 RP1 KP0 KP1 KP2 KP3 KP4 KP5
+ *  VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
+ */
+#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long mask[] = {
 		0x1f, 0x1f, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
@@ -238,12 +223,10 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	};
 	int i, j;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* apply mask */
 	for (i = 0; i < 2; i++)
 		for (j = 0; j < 10; j++)
-			CURVE(i, j) &= mask[i*par->gamma.num_values + j];
+			CURVE(i, j) &= mask[i * par->gamma.num_values + j];
 
 	write_reg(par, 0x0030, CURVE(0, 5) << 8 | CURVE(0, 4));
 	write_reg(par, 0x0031, CURVE(0, 7) << 8 | CURVE(0, 6));
@@ -259,8 +242,8 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 
 	return 0;
 }
-#undef CURVE
 
+#undef CURVE
 
 static struct fbtft_display display = {
 	.regwidth = 16,
@@ -278,6 +261,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "ilitek,ili9325", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

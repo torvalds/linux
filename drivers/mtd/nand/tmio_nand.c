@@ -103,7 +103,6 @@
 /*--------------------------------------------------------------------------*/
 
 struct tmio_nand {
-	struct mtd_info mtd;
 	struct nand_chip chip;
 
 	struct platform_device *dev;
@@ -119,7 +118,10 @@ struct tmio_nand {
 	unsigned read_good:1;
 };
 
-#define mtd_to_tmio(m)			container_of(m, struct tmio_nand, mtd)
+static inline struct tmio_nand *mtd_to_tmio(struct mtd_info *mtd)
+{
+	return container_of(mtd_to_nand(mtd), struct tmio_nand, chip);
+}
 
 
 /*--------------------------------------------------------------------------*/
@@ -128,7 +130,7 @@ static void tmio_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 				   unsigned int ctrl)
 {
 	struct tmio_nand *tmio = mtd_to_tmio(mtd);
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	if (ctrl & NAND_CTRL_CHANGE) {
 		u8 mode;
@@ -378,10 +380,10 @@ static int tmio_probe(struct platform_device *dev)
 	tmio->dev = dev;
 
 	platform_set_drvdata(dev, tmio);
-	mtd = &tmio->mtd;
 	nand_chip = &tmio->chip;
-	mtd->priv = nand_chip;
+	mtd = nand_to_mtd(nand_chip);
 	mtd->name = "tmio-nand";
+	mtd->dev.parent = &dev->dev;
 
 	tmio->ccr = devm_ioremap(&dev->dev, ccr->start, resource_size(ccr));
 	if (!tmio->ccr)
@@ -433,10 +435,10 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->waitfunc = tmio_nand_wait;
 
 	/* Scan to find existence of the device */
-	if (nand_scan(mtd, 1)) {
-		retval = -ENODEV;
+	retval = nand_scan(mtd, 1);
+	if (retval)
 		goto err_irq;
-	}
+
 	/* Register the partitions */
 	retval = mtd_device_parse_register(mtd, NULL, NULL,
 					   data ? data->partition : NULL,
@@ -455,7 +457,7 @@ static int tmio_remove(struct platform_device *dev)
 {
 	struct tmio_nand *tmio = platform_get_drvdata(dev);
 
-	nand_release(&tmio->mtd);
+	nand_release(nand_to_mtd(&tmio->chip));
 	tmio_hw_stop(dev, tmio);
 	return 0;
 }

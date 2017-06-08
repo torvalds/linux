@@ -13,9 +13,12 @@
  */
 #define S3C64XX_AC97_GPD  0
 #define S3C64XX_AC97_GPE  1
+
+#include <linux/dmaengine.h>
+
 extern void s3c64xx_ac97_setup_gpio(int);
 
-struct samsung_i2s {
+struct samsung_i2s_type {
 /* If the Primary DAI has 5.1 Channels */
 #define QUIRK_PRI_6CHAN		(1 << 0)
 /* If the I2S block has a Stereo Overlay Channel */
@@ -39,7 +42,10 @@ struct samsung_i2s {
  */
 struct s3c_audio_pdata {
 	int (*cfg_gpio)(struct platform_device *);
-	union {
-		struct samsung_i2s i2s;
-	} type;
+	dma_filter_fn dma_filter;
+	void *dma_playback;
+	void *dma_capture;
+	void *dma_play_sec;
+	void *dma_capture_mic;
+	struct samsung_i2s_type type;
 };

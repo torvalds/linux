@@ -84,15 +84,19 @@ struct pl08x_channel_data {
  * running any DMA transfer and multiplexing can be recycled
  * @lli_buses: buses which LLIs can be fetched from: PL08X_AHB1 | PL08X_AHB2
  * @mem_buses: buses which memory can be accessed from: PL08X_AHB1 | PL08X_AHB2
+ * @slave_map: DMA slave matching table
+ * @slave_map_len: number of elements in @slave_map
  */
 struct pl08x_platform_data {
-	const struct pl08x_channel_data *slave_channels;
+	struct pl08x_channel_data *slave_channels;
 	unsigned int num_slave_channels;
 	struct pl08x_channel_data memcpy_channel;
 	int (*get_xfer_signal)(const struct pl08x_channel_data *);
 	void (*put_xfer_signal)(const struct pl08x_channel_data *, int);
 	u8 lli_buses;
 	u8 mem_buses;
+	const struct dma_slave_map *slave_map;
+	int slave_map_len;
 };
 
 #ifdef CONFIG_AMBA_PL08X

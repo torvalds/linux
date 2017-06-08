@@ -22,6 +22,7 @@
 #include <linux/security.h>
 #include <linux/memblock.h>
 
+#include <asm/cpu_has_feature.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
@@ -195,7 +196,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * and end up putting it elsewhere.
 	 * Add enough to the size so that the result can be aligned.
 	 */
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
 	vdso_base = get_unmapped_area(NULL, vdso_base,
 				      (vdso_pages << PAGE_SHIFT) +
 				      ((VDSO_ALIGNMENT - 1) & PAGE_MASK),
@@ -671,7 +673,7 @@ static void __init vdso_setup_syscall_map(void)
 	extern unsigned long sys_ni_syscall;
 
 
-	for (i = 0; i < __NR_syscalls; i++) {
+	for (i = 0; i < NR_syscalls; i++) {
 #ifdef CONFIG_PPC64
 		if (sys_call_table[i*2] != sys_ni_syscall)
 			vdso_data->syscall_map_64[i >> 5] |=
@@ -734,16 +736,14 @@ static int __init vdso_init(void)
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		vdso_data->platform |= 1;
 	vdso_data->physicalMemorySize = memblock_phys_mem_size();
-	vdso_data->dcache_size = ppc64_caches.dsize;
-	vdso_data->dcache_line_size = ppc64_caches.dline_size;
-	vdso_data->icache_size = ppc64_caches.isize;
-	vdso_data->icache_line_size = ppc64_caches.iline_size;
-
-	/* XXXOJN: Blocks should be added to ppc64_caches and used instead */
-	vdso_data->dcache_block_size = ppc64_caches.dline_size;
-	vdso_data->icache_block_size = ppc64_caches.iline_size;
-	vdso_data->dcache_log_block_size = ppc64_caches.log_dline_size;
-	vdso_data->icache_log_block_size = ppc64_caches.log_iline_size;
+	vdso_data->dcache_size = ppc64_caches.l1d.size;
+	vdso_data->dcache_line_size = ppc64_caches.l1d.line_size;
+	vdso_data->icache_size = ppc64_caches.l1i.size;
+	vdso_data->icache_line_size = ppc64_caches.l1i.line_size;
+	vdso_data->dcache_block_size = ppc64_caches.l1d.block_size;
+	vdso_data->icache_block_size = ppc64_caches.l1i.block_size;
+	vdso_data->dcache_log_block_size = ppc64_caches.l1d.log_block_size;
+	vdso_data->icache_log_block_size = ppc64_caches.l1i.log_block_size;
 
 	/*
 	 * Calculate the size of the 64 bits vDSO

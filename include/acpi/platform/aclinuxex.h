@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@
 /*
  * Overrides for in-kernel ACPICA
  */
-acpi_status __init acpi_os_initialize(void);
+acpi_status ACPI_INIT_FUNCTION acpi_os_initialize(void);
 
 acpi_status acpi_os_terminate(void);
 
@@ -124,10 +124,24 @@ static inline acpi_thread_id acpi_os_get_thread_id(void)
 		lock ? AE_OK : AE_NO_MEMORY; \
 	})
 
+static inline u8 acpi_os_readable(void *pointer, acpi_size length)
+{
+	return TRUE;
+}
+
+static inline acpi_status acpi_os_initialize_debugger(void)
+{
+	return AE_OK;
+}
+
+static inline void acpi_os_terminate_debugger(void)
+{
+	return;
+}
+
 /*
  * OSL interfaces added by Linux
  */
-void early_acpi_os_unmap_memory(void __iomem * virt, acpi_size size);
 
 #endif				/* __KERNEL__ */
 

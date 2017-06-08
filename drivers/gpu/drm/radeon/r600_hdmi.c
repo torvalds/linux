@@ -215,7 +215,7 @@ void r600_hdmi_update_acr(struct drm_encoder *encoder, long offset,
  * build a HDMI Video Info Frame
  */
 void r600_set_avi_packet(struct radeon_device *rdev, u32 offset,
-    unsigned char *buffer, size_t size)
+			 unsigned char *buffer, size_t size)
 {
 	uint8_t *frame = buffer + 3;
 
@@ -312,7 +312,7 @@ void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
 }
 
 void r600_hdmi_audio_set_dto(struct radeon_device *rdev,
-    struct radeon_crtc *crtc, unsigned int clock)
+			     struct radeon_crtc *crtc, unsigned int clock)
 {
 	struct radeon_encoder *radeon_encoder;
 	struct radeon_encoder_atom_dig *dig;

@@ -22,13 +22,13 @@
 
 		button@139 {
 			/* Proximity sensor */
-			gpios = <&gpio6 25 0x4>;
+			gpios = <&gpio6 25 GPIO_ACTIVE_HIGH>;
 			linux,code = <11>; /* SW_FRONT_PROXIMITY */
 			label = "SFH7741 Proximity Sensor";
 		};
 		button@145 {
 			/* Hall sensor */
-			gpios = <&gpio4 17 0x4>;
+			gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
 			linux,code = <0>; /* SW_LID */
 			label = "HED54XXU11 Hall Effect Sensor";
 		};
@@ -114,6 +114,8 @@
 				rohm,touch-max-x = <384>;
 				rohm,touch-max-y = <704>;
 				rohm,flip-y;
+				pinctrl-names = "default";
+				pinctrl-0 = <&touch_rohm_mode>;
 			};
 
 			bu21013_tp@5d {
@@ -124,6 +126,8 @@
 				rohm,touch-max-x = <384>;
 				rohm,touch-max-y = <704>;
 				rohm,flip-y;
+				pinctrl-names = "default";
+				pinctrl-0 = <&touch_rohm_mode>;
 			};
 		};
 
@@ -163,6 +167,25 @@
 					stuib_cfg2 {
 						pins = "GPIO32_V2";
 						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+			touch {
+				touch_rohm_mode: touch_rohm {
+					/*
+					 * ROHM touch screen uses GPIO 143 for
+					 * RST1, GPIO 146 for RST2 and
+					 * GPIO 67 for interrupts. Pull-up
+					 * the IRQ line and drive both
+					 * reset signals low.
+					 */
+					stuib_cfg1 {
+						pins = "GPIO143_D12", "GPIO146_D13";
+						ste,config = <&gpio_out_lo>;
+					};
+					stuib_cfg2 {
+						pins = "GPIO67_G2";
+						ste,config = <&gpio_in_pu>;
 					};
 				};
 			};

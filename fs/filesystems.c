@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Handling of filesystem drivers list.
@@ -46,9 +46,9 @@ void put_filesystem(struct file_system_type *fs)
 static struct file_system_type **find_filesystem(const char *name, unsigned len)
 {
 	struct file_system_type **p;
-	for (p=&file_systems; *p; p=&(*p)->next)
-		if (strlen((*p)->name) == len &&
-		    strncmp((*p)->name, name, len) == 0)
+	for (p = &file_systems; *p; p = &(*p)->next)
+		if (strncmp((*p)->name, name, len) == 0 &&
+		    !(*p)->name[len])
 			break;
 	return p;
 }

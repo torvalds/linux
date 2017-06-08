@@ -7,7 +7,7 @@ NOR memories, without DMA support and a 64-byte unified transmit /
 receive buffer.
 
 Required properties:
- - compatible: should be "amlogic,meson6-spifc"
+ - compatible: should be "amlogic,meson6-spifc" or "amlogic,meson-gxbb-spifc"
  - reg: physical base address and length of the controller registers
  - clocks: phandle of the input clock for the baud rate generator
  - #address-cells: should be 1

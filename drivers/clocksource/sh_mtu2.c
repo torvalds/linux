@@ -280,7 +280,9 @@ static int sh_mtu2_clock_event_shutdown(struct clock_event_device *ced)
 {
 	struct sh_mtu2_channel *ch = ced_to_sh_mtu2(ced);
 
-	sh_mtu2_disable(ch);
+	if (clockevent_state_periodic(ced))
+		sh_mtu2_disable(ch);
+
 	return 0;
 }
 

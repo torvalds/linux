@@ -41,8 +41,8 @@ struct nfs_page {
 	struct page		*wb_page;	/* page to read in/write out */
 	struct nfs_open_context	*wb_context;	/* File state context info */
 	struct nfs_lock_context	*wb_lock_context;	/* lock context info */
-	pgoff_t			wb_index;	/* Offset >> PAGE_CACHE_SHIFT */
-	unsigned int		wb_offset,	/* Offset & ~PAGE_CACHE_MASK */
+	pgoff_t			wb_index;	/* Offset >> PAGE_SHIFT */
+	unsigned int		wb_offset,	/* Offset & ~PAGE_MASK */
 				wb_pgbase,	/* Start of page data */
 				wb_bytes;	/* Length of request */
 	struct kref		wb_kref;	/* reference count */
@@ -64,7 +64,6 @@ struct nfs_pageio_ops {
 };
 
 struct nfs_rw_ops {
-	const fmode_t rw_mode;
 	struct nfs_pgio_header *(*rw_alloc_header)(void);
 	void (*rw_free_header)(struct nfs_pgio_header *);
 	int  (*rw_done)(struct rpc_task *, struct nfs_pgio_header *,
@@ -124,7 +123,8 @@ extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     const struct nfs_pgio_completion_ops *compl_ops,
 			     const struct nfs_rw_ops *rw_ops,
 			     size_t bsize,
-			     int how);
+			     int how,
+			     gfp_t gfp_flags);
 extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,
 				   struct nfs_page *);
 extern  int nfs_pageio_resend(struct nfs_pageio_descriptor *,
@@ -141,6 +141,7 @@ extern int nfs_page_group_lock(struct nfs_page *, bool);
 extern void nfs_page_group_lock_wait(struct nfs_page *);
 extern void nfs_page_group_unlock(struct nfs_page *);
 extern bool nfs_page_group_sync_on_bit(struct nfs_page *, unsigned int);
+extern bool nfs_async_iocounter_wait(struct rpc_task *, struct nfs_lock_context *);
 
 /*
  * Lock the page of an asynchronous request
@@ -184,7 +185,7 @@ nfs_list_entry(struct list_head *head)
 static inline
 loff_t req_offset(struct nfs_page *req)
 {
-	return (((loff_t)req->wb_index) << PAGE_CACHE_SHIFT) + req->wb_offset;
+	return (((loff_t)req->wb_index) << PAGE_SHIFT) + req->wb_offset;
 }
 
 #endif /* _LINUX_NFS_PAGE_H */

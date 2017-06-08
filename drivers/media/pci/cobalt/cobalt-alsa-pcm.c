@@ -510,7 +510,7 @@ static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
 	return vmalloc_to_page(pageptr);
 }
 
-static struct snd_pcm_ops snd_cobalt_pcm_capture_ops = {
+static const struct snd_pcm_ops snd_cobalt_pcm_capture_ops = {
 	.open		= snd_cobalt_pcm_capture_open,
 	.close		= snd_cobalt_pcm_capture_close,
 	.ioctl		= snd_cobalt_pcm_ioctl,
@@ -522,7 +522,7 @@ static struct snd_pcm_ops snd_cobalt_pcm_capture_ops = {
 	.page		= snd_pcm_get_vmalloc_page,
 };
 
-static struct snd_pcm_ops snd_cobalt_pcm_playback_ops = {
+static const struct snd_pcm_ops snd_cobalt_pcm_playback_ops = {
 	.open		= snd_cobalt_pcm_playback_open,
 	.close		= snd_cobalt_pcm_playback_close,
 	.ioctl		= snd_cobalt_pcm_ioctl,

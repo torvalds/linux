@@ -10,6 +10,8 @@
  * option) any later version.
  */
 
+#include <linux/delay.h>
+
 #include <asm/bootinfo.h>
 #include <asm/cacheflush.h>
 #include <asm/idle.h>
@@ -37,7 +39,6 @@ extern void msp_serial_setup(void);
 void msp7120_reset(void)
 {
 	void *start, *end, *iptr;
-	register int i;
 
 	/* Diasble all interrupts */
 	local_irq_disable();
@@ -77,7 +78,7 @@ void msp7120_reset(void)
 	 */
 
 	/* Wait a bit for the DDRC to settle */
-	for (i = 0; i < 100000000; i++);
+	mdelay(125);
 
 #if defined(CONFIG_PMC_MSP7120_GW)
 	/*
@@ -117,7 +118,7 @@ void msp_restart(char *command)
 	/* No chip-specific reset code, just jump to the ROM reset vector */
 	set_c0_status(ST0_BEV | ST0_ERL);
 	change_c0_config(CONF_CM_CMASK, CONF_CM_UNCACHED);
-	flush_cache_all();
+	__flush_cache_all();
 	write_c0_wired(0);
 
 	__asm__ __volatile__("jr\t%0"::"r"(0xbfc00000));

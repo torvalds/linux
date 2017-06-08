@@ -281,7 +281,7 @@ out:
 	return ret;
 }
 
-void __exit bl_cleanup_pipefs(void)
+void bl_cleanup_pipefs(void)
 {
 	rpc_pipefs_notifier_unregister(&nfs4blocklayout_block);
 	unregister_pernet_subsys(&nfs4blocklayout_net_ops);

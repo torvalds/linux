@@ -13,11 +13,13 @@
 #ifndef __ND_H__
 #define __ND_H__
 #include <linux/libnvdimm.h>
+#include <linux/badblocks.h>
 #include <linux/blkdev.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/ndctl.h>
 #include <linux/types.h>
+#include <linux/nd.h>
 #include "label.h"
 
 enum {
@@ -29,13 +31,13 @@ enum {
 	ND_MAX_LANES = 256,
 	SECTOR_SHIFT = 9,
 	INT_LBASIZE_ALIGNMENT = 64,
-#if IS_ENABLED(CONFIG_NVDIMM_PFN)
-	ND_PFN_ALIGN = PAGES_PER_SECTION * PAGE_SIZE,
-	ND_PFN_MASK = ND_PFN_ALIGN - 1,
-#else
-	ND_PFN_ALIGN = 0,
-	ND_PFN_MASK = 0,
-#endif
+	NVDIMM_IO_ATOMIC = 1,
+};
+
+struct nd_poison {
+	u64 start;
+	u64 length;
+	struct list_head list;
 };
 
 struct nvdimm_drvdata {
@@ -48,10 +50,30 @@ struct nvdimm_drvdata {
 	struct kref kref;
 };
 
-struct nd_region_namespaces {
-	int count;
-	int active;
+struct nd_region_data {
+	int ns_count;
+	int ns_active;
+	unsigned int hints_shift;
+	void __iomem *flush_wpq[0];
 };
+
+static inline void __iomem *ndrd_get_flush_wpq(struct nd_region_data *ndrd,
+		int dimm, int hint)
+{
+	unsigned int num = 1 << ndrd->hints_shift;
+	unsigned int mask = num - 1;
+
+	return ndrd->flush_wpq[dimm * num + (hint & mask)];
+}
+
+static inline void ndrd_set_flush_wpq(struct nd_region_data *ndrd, int dimm,
+		int hint, void __iomem *flush)
+{
+	unsigned int num = 1 << ndrd->hints_shift;
+	unsigned int mask = num - 1;
+
+	ndrd->flush_wpq[dimm * num + (hint & mask)] = flush;
+}
 
 static inline struct nd_namespace_index *to_namespace_index(
 		struct nvdimm_drvdata *ndd, int i)
@@ -80,9 +102,6 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 		(unsigned long long) (res ? resource_size(res) : 0), \
 		(unsigned long long) (res ? res->start : 0), ##arg)
 
-#define for_each_label(l, label, labels) \
-	for (l = 0; (label = labels ? labels[l] : NULL); l++)
-
 #define for_each_dpa_resource(ndd, res) \
 	for (res = (ndd)->dpa.child; res; res = res->sibling)
 
@@ -95,20 +114,48 @@ struct nd_percpu_lane {
 	spinlock_t lock;
 };
 
+struct nd_label_ent {
+	struct list_head list;
+	struct nd_namespace_label *label;
+};
+
+enum nd_mapping_lock_class {
+	ND_MAPPING_CLASS0,
+	ND_MAPPING_UUID_SCAN,
+};
+
+struct nd_mapping {
+	struct nvdimm *nvdimm;
+	u64 start;
+	u64 size;
+	struct list_head labels;
+	struct mutex lock;
+	/*
+	 * @ndd is for private use at region enable / disable time for
+	 * get_ndd() + put_ndd(), all other nd_mapping to ndd
+	 * conversions use to_ndd() which respects enabled state of the
+	 * nvdimm.
+	 */
+	struct nvdimm_drvdata *ndd;
+};
+
 struct nd_region {
 	struct device dev;
 	struct ida ns_ida;
 	struct ida btt_ida;
 	struct ida pfn_ida;
+	struct ida dax_ida;
 	unsigned long flags;
 	struct device *ns_seed;
 	struct device *btt_seed;
 	struct device *pfn_seed;
+	struct device *dax_seed;
 	u16 ndr_mappings;
 	u64 ndr_size;
 	u64 ndr_start;
 	int id, num_lanes, ro, numa_node;
 	void *provider_data;
+	struct badblocks bb;
 	struct nd_interleave_set *nd_set;
 	struct nd_percpu_lane __percpu *lane;
 	struct nd_mapping mapping[0];
@@ -116,7 +163,6 @@ struct nd_region {
 
 struct nd_blk_region {
 	int (*enable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
-	void (*disable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 	int (*do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 	void *blk_provider_data;
@@ -139,6 +185,7 @@ struct nd_btt {
 	struct nd_namespace_common *ndns;
 	struct btt *btt;
 	unsigned long lbasize;
+	u64 size;
 	u8 *uuid;
 	int id;
 };
@@ -153,10 +200,15 @@ struct nd_pfn {
 	int id;
 	u8 *uuid;
 	struct device dev;
+	unsigned long align;
 	unsigned long npfns;
 	enum nd_pfn_mode mode;
 	struct nd_pfn_sb *pfn_sb;
 	struct nd_namespace_common *ndns;
+};
+
+struct nd_dax {
+	struct nd_pfn nd_pfn;
 };
 
 enum nd_async_mode {
@@ -168,6 +220,7 @@ int nd_integrity_init(struct gendisk *disk, unsigned long meta_size);
 void wait_nvdimm_bus_probe_idle(struct device *dev);
 void nd_device_register(struct device *dev);
 void nd_device_unregister(struct device *dev, enum nd_async_mode mode);
+void nd_device_notify(struct device *dev, enum nvdimm_event event);
 int nd_uuid_store(struct device *dev, u8 **uuid_out, const char *buf,
 		size_t len);
 ssize_t nd_sector_size_show(unsigned long current_lbasize,
@@ -180,10 +233,15 @@ void nvdimm_exit(void);
 void nd_region_exit(void);
 struct nvdimm;
 struct nvdimm_drvdata *to_ndd(struct nd_mapping *nd_mapping);
+int nvdimm_check_config_data(struct device *dev);
 int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd);
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd);
 int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 		void *buf, size_t len);
+long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
+		unsigned int len);
+void nvdimm_set_aliasing(struct device *dev);
+void nvdimm_set_locked(struct device *dev);
 struct nd_btt *to_nd_btt(struct device *dev);
 
 struct nd_gen_sb {
@@ -193,11 +251,12 @@ struct nd_gen_sb {
 
 u64 nd_sb_checksum(struct nd_gen_sb *sb);
 #if IS_ENABLED(CONFIG_BTT)
-int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata);
+int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns);
 bool is_nd_btt(struct device *dev);
 struct device *nd_btt_create(struct nd_region *nd_region);
 #else
-static inline int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata)
+static inline int nd_btt_probe(struct device *dev,
+		struct nd_namespace_common *ndns)
 {
 	return -ENODEV;
 }
@@ -215,12 +274,16 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
 
 struct nd_pfn *to_nd_pfn(struct device *dev);
 #if IS_ENABLED(CONFIG_NVDIMM_PFN)
-int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata);
+int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns);
 bool is_nd_pfn(struct device *dev);
 struct device *nd_pfn_create(struct nd_region *nd_region);
-int nd_pfn_validate(struct nd_pfn *nd_pfn);
+struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
+		struct nd_namespace_common *ndns);
+int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig);
+extern struct attribute_group nd_pfn_attribute_group;
 #else
-static inline int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata)
+static inline int nd_pfn_probe(struct device *dev,
+		struct nd_namespace_common *ndns)
 {
 	return -ENODEV;
 }
@@ -235,9 +298,32 @@ static inline struct device *nd_pfn_create(struct nd_region *nd_region)
 	return NULL;
 }
 
-static inline int nd_pfn_validate(struct nd_pfn *nd_pfn)
+static inline int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 {
 	return -ENODEV;
+}
+#endif
+
+struct nd_dax *to_nd_dax(struct device *dev);
+#if IS_ENABLED(CONFIG_NVDIMM_DAX)
+int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns);
+bool is_nd_dax(struct device *dev);
+struct device *nd_dax_create(struct nd_region *nd_region);
+#else
+static inline int nd_dax_probe(struct device *dev,
+		struct nd_namespace_common *ndns)
+{
+	return -ENODEV;
+}
+
+static inline bool is_nd_dax(struct device *dev)
+{
+	return false;
+}
+
+static inline struct device *nd_dax_create(struct nd_region *nd_region)
+{
+	return NULL;
 }
 #endif
 
@@ -245,6 +331,7 @@ struct nd_region *to_nd_region(struct device *dev);
 int nd_region_to_nstype(struct nd_region *nd_region);
 int nd_region_register_namespaces(struct nd_region *nd_region, int *err);
 u64 nd_region_interleave_set_cookie(struct nd_region *nd_region);
+u64 nd_region_interleave_set_altcookie(struct nd_region *nd_region);
 void nvdimm_bus_lock(struct device *dev);
 void nvdimm_bus_unlock(struct device *dev);
 bool is_nvdimm_bus_locked(struct device *dev);
@@ -259,10 +346,34 @@ struct resource *nvdimm_allocate_dpa(struct nvdimm_drvdata *ndd,
 resource_size_t nvdimm_namespace_capacity(struct nd_namespace_common *ndns);
 struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev);
 int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns);
-int nvdimm_namespace_detach_btt(struct nd_namespace_common *ndns);
+int nvdimm_namespace_detach_btt(struct nd_btt *nd_btt);
 const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 		char *name);
+void nvdimm_badblocks_populate(struct nd_region *nd_region,
+		struct badblocks *bb, const struct resource *res);
+#if IS_ENABLED(CONFIG_ND_CLAIM)
+struct vmem_altmap *nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
+		struct resource *res, struct vmem_altmap *altmap);
+int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio);
+void devm_nsio_disable(struct device *dev, struct nd_namespace_io *nsio);
+#else
+static inline struct vmem_altmap *nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
+		struct resource *res, struct vmem_altmap *altmap)
+{
+	return ERR_PTR(-ENXIO);
+}
+static inline int devm_nsio_enable(struct device *dev,
+		struct nd_namespace_io *nsio)
+{
+	return -ENXIO;
+}
+static inline void devm_nsio_disable(struct device *dev,
+		struct nd_namespace_io *nsio)
+{
+}
+#endif
 int nd_blk_region_init(struct nd_region *nd_region);
+int nd_region_activate(struct nd_region *nd_region);
 void __nd_iostat_start(struct bio *bio, unsigned long *start);
 static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
 {
@@ -271,10 +382,30 @@ static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
 	if (!blk_queue_io_stat(disk->queue))
 		return false;
 
-	__nd_iostat_start(bio, start);
+	*start = jiffies;
+	generic_start_io_acct(bio_data_dir(bio),
+			      bio_sectors(bio), &disk->part0);
 	return true;
 }
-void nd_iostat_end(struct bio *bio, unsigned long start);
+static inline void nd_iostat_end(struct bio *bio, unsigned long start)
+{
+	struct gendisk *disk = bio->bi_bdev->bd_disk;
+
+	generic_end_io_acct(bio_data_dir(bio), &disk->part0, start);
+}
+static inline bool is_bad_pmem(struct badblocks *bb, sector_t sector,
+		unsigned int len)
+{
+	if (bb->count) {
+		sector_t first_bad;
+		int num_bad;
+
+		return !!badblocks_check(bb, sector, len / 512, &first_bad,
+				&num_bad);
+	}
+
+	return false;
+}
 resource_size_t nd_namespace_blk_validate(struct nd_namespace_blk *nsblk);
 const u8 *nd_dev_to_uuid(struct device *dev);
 bool pmem_should_map_pages(struct device *dev);

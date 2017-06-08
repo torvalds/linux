@@ -255,6 +255,16 @@ unconfined
 	the access permitted if it wouldn't be otherwise. Note that this
 	is dangerous and can ruin the proper labeling of your system.
 	It should never be used in production.
+relabel-self
+	This interface contains a list of labels to which the process can
+	transition to, by writing to /proc/self/attr/current.
+	Normally a process can change its own label to any legal value, but only
+	if it has CAP_MAC_ADMIN. This interface allows a process without
+	CAP_MAC_ADMIN to relabel itself to one of labels from predefined list.
+	A process without CAP_MAC_ADMIN can change its label only once. When it
+	does, this list will be cleared.
+	The values are set by writing the desired labels, separated
+	by spaces, to the file or cleared by writing "-" to the file.
 
 If you are using the smackload utility
 you can add access rules in /etc/smack/accesses. They take the form:

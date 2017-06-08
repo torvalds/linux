@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -137,7 +137,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 		/* Destination is not a Reference object */
 
 		ACPI_ERROR((AE_INFO,
-			    "Target is not a Reference or Constant object - %s [%p]",
+			    "Target is not a Reference or Constant object - [%s] %p",
 			    acpi_ut_get_object_type_name(dest_desc),
 			    dest_desc));
 
@@ -189,7 +189,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 		 * displayed and otherwise has no effect -- see ACPI Specification
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "**** Write to Debug Object: Object %p %s ****:\n\n",
+				  "**** Write to Debug Object: Object %p [%s] ****:\n\n",
 				  source_desc,
 				  acpi_ut_get_object_type_name(source_desc)));
 
@@ -341,7 +341,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 			/* All other types are invalid */
 
 			ACPI_ERROR((AE_INFO,
-				    "Source must be Integer/Buffer/String type, not %s",
+				    "Source must be type [Integer/Buffer/String], found [%s]",
 				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -352,8 +352,9 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 		break;
 
 	default:
-		ACPI_ERROR((AE_INFO, "Target is not a Package or BufferField"));
-		status = AE_AML_OPERAND_TYPE;
+		ACPI_ERROR((AE_INFO,
+			    "Target is not of type [Package/BufferField]"));
+		status = AE_AML_TARGET_TYPE;
 		break;
 	}
 
@@ -373,20 +374,20 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
  *
  * DESCRIPTION: Store the object to the named object.
  *
- *              The Assignment of an object to a named object is handled here
- *              The value passed in will replace the current value (if any)
- *              with the input value.
+ * The assignment of an object to a named object is handled here.
+ * The value passed in will replace the current value (if any)
+ * with the input value.
  *
- *              When storing into an object the data is converted to the
- *              target object type then stored in the object. This means
- *              that the target object type (for an initialized target) will
- *              not be changed by a store operation. A copy_object can change
- *              the target type, however.
+ * When storing into an object the data is converted to the
+ * target object type then stored in the object. This means
+ * that the target object type (for an initialized target) will
+ * not be changed by a store operation. A copy_object can change
+ * the target type, however.
  *
- *              The implicit_conversion flag is set to NO/FALSE only when
- *              storing to an arg_x -- as per the rules of the ACPI spec.
+ * The implicit_conversion flag is set to NO/FALSE only when
+ * storing to an arg_x -- as per the rules of the ACPI spec.
  *
- *              Assumes parameters are already validated.
+ * Assumes parameters are already validated.
  *
  ******************************************************************************/
 
@@ -408,10 +409,75 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 	target_type = acpi_ns_get_type(node);
 	target_desc = acpi_ns_get_attached_object(node);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Storing %p (%s) to node %p (%s)\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Storing %p [%s] to node %p [%s]\n",
 			  source_desc,
 			  acpi_ut_get_object_type_name(source_desc), node,
 			  acpi_ut_get_type_name(target_type)));
+
+	/* Only limited target types possible for everything except copy_object */
+
+	if (walk_state->opcode != AML_COPY_OBJECT_OP) {
+		/*
+		 * Only copy_object allows all object types to be overwritten. For
+		 * target_ref(s), there are restrictions on the object types that
+		 * are allowed.
+		 *
+		 * Allowable operations/typing for Store:
+		 *
+		 * 1) Simple Store
+		 *      Integer     --> Integer (Named/Local/Arg)
+		 *      String      --> String  (Named/Local/Arg)
+		 *      Buffer      --> Buffer  (Named/Local/Arg)
+		 *      Package     --> Package (Named/Local/Arg)
+		 *
+		 * 2) Store with implicit conversion
+		 *      Integer     --> String or Buffer  (Named)
+		 *      String      --> Integer or Buffer (Named)
+		 *      Buffer      --> Integer or String (Named)
+		 */
+		switch (target_type) {
+		case ACPI_TYPE_PACKAGE:
+			/*
+			 * Here, can only store a package to an existing package.
+			 * Storing a package to a Local/Arg is OK, and handled
+			 * elsewhere.
+			 */
+			if (walk_state->opcode == AML_STORE_OP) {
+				if (source_desc->common.type !=
+				    ACPI_TYPE_PACKAGE) {
+					ACPI_ERROR((AE_INFO,
+						    "Cannot assign type [%s] to [Package] "
+						    "(source must be type Pkg)",
+						    acpi_ut_get_object_type_name
+						    (source_desc)));
+
+					return_ACPI_STATUS(AE_AML_TARGET_TYPE);
+				}
+				break;
+			}
+
+			/* Fallthrough */
+
+		case ACPI_TYPE_DEVICE:
+		case ACPI_TYPE_EVENT:
+		case ACPI_TYPE_MUTEX:
+		case ACPI_TYPE_REGION:
+		case ACPI_TYPE_POWER:
+		case ACPI_TYPE_PROCESSOR:
+		case ACPI_TYPE_THERMAL:
+
+			ACPI_ERROR((AE_INFO,
+				    "Target must be [Buffer/Integer/String/Reference]"
+				    ", found [%s] (%4.4s)",
+				    acpi_ut_get_type_name(node->type),
+				    node->name.ascii));
+
+			return_ACPI_STATUS(AE_AML_TARGET_TYPE);
+
+		default:
+			break;
+		}
+	}
 
 	/*
 	 * Resolve the source object to an actual value
@@ -425,22 +491,24 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 	/* Do the actual store operation */
 
 	switch (target_type) {
-	case ACPI_TYPE_INTEGER:
-	case ACPI_TYPE_STRING:
-	case ACPI_TYPE_BUFFER:
 		/*
 		 * The simple data types all support implicit source operand
 		 * conversion before the store.
 		 */
+	case ACPI_TYPE_INTEGER:
+	case ACPI_TYPE_STRING:
+	case ACPI_TYPE_BUFFER:
 
-		if ((walk_state->opcode == AML_COPY_OP) || !implicit_conversion) {
+		if ((walk_state->opcode == AML_COPY_OBJECT_OP) ||
+		    !implicit_conversion) {
 			/*
 			 * However, copy_object and Stores to arg_x do not perform
 			 * an implicit conversion, as per the ACPI specification.
 			 * A direct store is performed instead.
 			 */
-			status = acpi_ex_store_direct_to_node(source_desc, node,
-							      walk_state);
+			status =
+			    acpi_ex_store_direct_to_node(source_desc, node,
+							 walk_state);
 			break;
 		}
 
@@ -463,11 +531,12 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 			 * store has been performed such that the node/object type
 			 * has been changed.
 			 */
-			status = acpi_ns_attach_object(node, new_desc,
-						       new_desc->common.type);
+			status =
+			    acpi_ns_attach_object(node, new_desc,
+						  new_desc->common.type);
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-					  "Store %s into %s via Convert/Attach\n",
+					  "Store type [%s] into [%s] via Convert/Attach\n",
 					  acpi_ut_get_object_type_name
 					  (source_desc),
 					  acpi_ut_get_object_type_name
@@ -491,18 +560,15 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 
 	default:
 		/*
-		 * No conversions for all other types. Directly store a copy of
-		 * the source object. This is the ACPI spec-defined behavior for
-		 * the copy_object operator.
+		 * copy_object operator: No conversions for all other types.
+		 * Instead, directly store a copy of the source object.
 		 *
-		 * NOTE: For the Store operator, this is a departure from the
-		 * ACPI spec, which states "If conversion is impossible, abort
-		 * the running control method". Instead, this code implements
-		 * "If conversion is impossible, treat the Store operation as
-		 * a CopyObject".
+		 * This is the ACPI spec-defined behavior for the copy_object
+		 * operator. (Note, for this default case, all normal
+		 * Store/Target operations exited above with an error).
 		 */
-		status = acpi_ex_store_direct_to_node(source_desc, node,
-						      walk_state);
+		status =
+		    acpi_ex_store_direct_to_node(source_desc, node, walk_state);
 		break;
 	}
 

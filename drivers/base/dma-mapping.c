@@ -7,12 +7,13 @@
  * This file is released under the GPLv2.
  */
 
+#include <linux/acpi.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <asm-generic/dma-coherent.h>
 
 /*
  * Managed DMA API
@@ -109,13 +110,13 @@ void dmam_free_coherent(struct device *dev, size_t size, void *vaddr,
 EXPORT_SYMBOL(dmam_free_coherent);
 
 /**
- * dmam_alloc_non_coherent - Managed dma_alloc_non_coherent()
+ * dmam_alloc_non_coherent - Managed dma_alloc_noncoherent()
  * @dev: Device to allocate non_coherent memory for
  * @size: Size of allocation
  * @dma_handle: Out argument for allocated DMA handle
  * @gfp: Allocation flags
  *
- * Managed dma_alloc_non_coherent().  Memory allocated using this
+ * Managed dma_alloc_noncoherent().  Memory allocated using this
  * function will be automatically released on driver detach.
  *
  * RETURNS:
@@ -167,7 +168,7 @@ void dmam_free_noncoherent(struct device *dev, size_t size, void *vaddr,
 }
 EXPORT_SYMBOL(dmam_free_noncoherent);
 
-#ifdef ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
+#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
 
 static void dmam_coherent_decl_release(struct device *dev, void *res)
 {
@@ -199,10 +200,13 @@ int dmam_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 
 	rc = dma_declare_coherent_memory(dev, phys_addr, device_addr, size,
 					 flags);
-	if (rc == 0)
+	if (rc) {
 		devres_add(dev, res);
-	else
+		rc = 0;
+	} else {
 		devres_free(res);
+		rc = -ENOMEM;
+	}
 
 	return rc;
 }
@@ -247,8 +251,8 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 		    void *cpu_addr, dma_addr_t dma_addr, size_t size)
 {
 	int ret = -ENXIO;
-#ifdef CONFIG_MMU
-	unsigned long user_count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+#if defined(CONFIG_MMU) && !defined(CONFIG_ARCH_NO_COHERENT_DMA_MMAP)
+	unsigned long user_count = vma_pages(vma);
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	unsigned long pfn = page_to_pfn(virt_to_page(cpu_addr));
 	unsigned long off = vma->vm_pgoff;
@@ -264,7 +268,7 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 				      user_count << PAGE_SHIFT,
 				      vma->vm_page_prot);
 	}
-#endif	/* CONFIG_MMU */
+#endif	/* CONFIG_MMU && !CONFIG_ARCH_NO_COHERENT_DMA_MMAP */
 
 	return ret;
 }
@@ -307,14 +311,13 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
 	int i;
 	struct page **pages;
 	void *ptr;
-	unsigned long pfn;
 
 	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
 	if (!pages)
 		return NULL;
 
-	for (i = 0, pfn = page_to_pfn(page); i < (size >> PAGE_SHIFT); i++)
-		pages[i] = pfn_to_page(pfn + i);
+	for (i = 0; i < (size >> PAGE_SHIFT); i++)
+		pages[i] = nth_page(page, i);
 
 	ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
 
@@ -335,7 +338,46 @@ void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
 		return;
 	}
 
-	unmap_kernel_range((unsigned long)cpu_addr, size);
+	unmap_kernel_range((unsigned long)cpu_addr, PAGE_ALIGN(size));
 	vunmap(cpu_addr);
 }
 #endif
+
+/*
+ * Common configuration to enable DMA API use for a device
+ */
+#include <linux/pci.h>
+
+int dma_configure(struct device *dev)
+{
+	struct device *bridge = NULL, *dma_dev = dev;
+	enum dev_dma_attr attr;
+	int ret = 0;
+
+	if (dev_is_pci(dev)) {
+		bridge = pci_get_host_bridge_device(to_pci_dev(dev));
+		dma_dev = bridge;
+		if (IS_ENABLED(CONFIG_OF) && dma_dev->parent &&
+		    dma_dev->parent->of_node)
+			dma_dev = dma_dev->parent;
+	}
+
+	if (dma_dev->of_node) {
+		ret = of_dma_configure(dev, dma_dev->of_node);
+	} else if (has_acpi_companion(dma_dev)) {
+		attr = acpi_get_dma_attr(to_acpi_device_node(dma_dev->fwnode));
+		if (attr != DEV_DMA_NOT_SUPPORTED)
+			ret = acpi_dma_configure(dev, attr);
+	}
+
+	if (bridge)
+		pci_put_host_bridge_device(bridge);
+
+	return ret;
+}
+
+void dma_deconfigure(struct device *dev)
+{
+	of_dma_deconfigure(dev);
+	acpi_dma_deconfigure(dev);
+}

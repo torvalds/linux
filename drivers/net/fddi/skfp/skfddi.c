@@ -88,7 +88,7 @@ static const char * const boot_msg =
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include	"h/types.h"
 #undef ADDR			// undo Linux definition
@@ -166,7 +166,6 @@ static const struct net_device_ops skfp_netdev_ops = {
 	.ndo_stop		= skfp_close,
 	.ndo_start_xmit		= skfp_send_pkt,
 	.ndo_get_stats		= skfp_ctl_get_stats,
-	.ndo_change_mtu		= fddi_change_mtu,
 	.ndo_set_rx_mode	= skfp_ctl_set_multicast_list,
 	.ndo_set_mac_address	= skfp_ctl_set_mac_address,
 	.ndo_do_ioctl		= skfp_ioctl,

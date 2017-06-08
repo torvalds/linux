@@ -38,6 +38,7 @@ struct ptp_clock_request {
 	};
 };
 
+struct system_device_crosststamp;
 /**
  * struct ptp_clock_info - decribes a PTP hardware clock
  *
@@ -57,7 +58,14 @@ struct ptp_clock_request {
  *
  * clock operations
  *
+ * @adjfine:  Adjusts the frequency of the hardware clock.
+ *            parameter scaled_ppm: Desired frequency offset from
+ *            nominal frequency in parts per million, but with a
+ *            16 bit binary fractional field.
+ *
  * @adjfreq:  Adjusts the frequency of the hardware clock.
+ *            This method is deprecated.  New drivers should implement
+ *            the @adjfine method instead.
  *            parameter delta: Desired frequency offset from nominal frequency
  *            in parts per billion
  *
@@ -66,6 +74,11 @@ struct ptp_clock_request {
  *
  * @gettime64:  Reads the current time from the hardware clock.
  *              parameter ts: Holds the result.
+ *
+ * @getcrosststamp:  Reads the current time from the hardware clock and
+ *                   system clock simultaneously.
+ *                   parameter cts: Contains timestamp (device,system) pair,
+ *                   where system time is realtime and monotonic.
  *
  * @settime64:  Set the current time on the hardware clock.
  *              parameter ts: Time value to set.
@@ -102,9 +115,12 @@ struct ptp_clock_info {
 	int n_pins;
 	int pps;
 	struct ptp_pin_desc *pin_config;
+	int (*adjfine)(struct ptp_clock_info *ptp, long scaled_ppm);
 	int (*adjfreq)(struct ptp_clock_info *ptp, s32 delta);
 	int (*adjtime)(struct ptp_clock_info *ptp, s64 delta);
 	int (*gettime64)(struct ptp_clock_info *ptp, struct timespec64 *ts);
+	int (*getcrosststamp)(struct ptp_clock_info *ptp,
+			      struct system_device_crosststamp *cts);
 	int (*settime64)(struct ptp_clock_info *p, const struct timespec64 *ts);
 	int (*enable)(struct ptp_clock_info *ptp,
 		      struct ptp_clock_request *request, int on);
@@ -113,25 +129,6 @@ struct ptp_clock_info {
 };
 
 struct ptp_clock;
-
-/**
- * ptp_clock_register() - register a PTP hardware clock driver
- *
- * @info:   Structure describing the new clock.
- * @parent: Pointer to the parent device of the new clock.
- */
-
-extern struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
-					    struct device *parent);
-
-/**
- * ptp_clock_unregister() - unregister a PTP hardware clock driver
- *
- * @ptp:  The clock to remove from service.
- */
-
-extern int ptp_clock_unregister(struct ptp_clock *ptp);
-
 
 enum ptp_clock_events {
 	PTP_CLOCK_ALARM,
@@ -157,6 +154,31 @@ struct ptp_clock_event {
 		struct pps_event_time pps_times;
 	};
 };
+
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
+
+/**
+ * ptp_clock_register() - register a PTP hardware clock driver
+ *
+ * @info:   Structure describing the new clock.
+ * @parent: Pointer to the parent device of the new clock.
+ *
+ * Returns a valid pointer on success or PTR_ERR on failure.  If PHC
+ * support is missing at the configuration level, this function
+ * returns NULL, and drivers are expected to gracefully handle that
+ * case separately.
+ */
+
+extern struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
+					    struct device *parent);
+
+/**
+ * ptp_clock_unregister() - unregister a PTP hardware clock driver
+ *
+ * @ptp:  The clock to remove from service.
+ */
+
+extern int ptp_clock_unregister(struct ptp_clock *ptp);
 
 /**
  * ptp_clock_event() - notify the PTP layer about an event
@@ -188,5 +210,21 @@ extern int ptp_clock_index(struct ptp_clock *ptp);
 
 int ptp_find_pin(struct ptp_clock *ptp,
 		 enum ptp_pin_function func, unsigned int chan);
+
+#else
+static inline struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
+						   struct device *parent)
+{ return NULL; }
+static inline int ptp_clock_unregister(struct ptp_clock *ptp)
+{ return 0; }
+static inline void ptp_clock_event(struct ptp_clock *ptp,
+				   struct ptp_clock_event *event)
+{ }
+static inline int ptp_clock_index(struct ptp_clock *ptp)
+{ return -1; }
+static inline int ptp_find_pin(struct ptp_clock *ptp,
+			       enum ptp_pin_function func, unsigned int chan)
+{ return -1; }
+#endif
 
 #endif

@@ -28,10 +28,20 @@
 #define CMD_ANALOG        0x50
 #define CMD_DIGITAL       0x51
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  80
+
 struct cxusb_state {
 	u8 gpio_write_state[3];
 	struct i2c_client *i2c_client_demod;
 	struct i2c_client *i2c_client_tuner;
+
+	unsigned char data[MAX_XFER_SIZE];
+
+	struct mutex stream_mutex;
+	u8 last_lock;
+	int (*fe_read_status)(struct dvb_frontend *fe,
+		enum fe_status *status);
 };
 
 #endif

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,10 +91,9 @@ acpi_status acpi_reset(void)
 		 * compatibility with other ACPI implementations that have allowed
 		 * BIOS code with bad register width values to go unnoticed.
 		 */
-		status =
-		    acpi_os_write_port((acpi_io_address) reset_reg->address,
-				       acpi_gbl_FADT.reset_value,
-				       ACPI_RESET_REGISTER_WIDTH);
+		status = acpi_os_write_port((acpi_io_address)reset_reg->address,
+					    acpi_gbl_FADT.reset_value,
+					    ACPI_RESET_REGISTER_WIDTH);
 	} else {
 		/* Write the reset value to the reset register */
 
@@ -504,11 +503,18 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 	 * Evaluate the \_Sx namespace object containing the register values
 	 * for this state
 	 */
-	info->relative_pathname =
-	    ACPI_CAST_PTR(char, acpi_gbl_sleep_state_names[sleep_state]);
+	info->relative_pathname = acpi_gbl_sleep_state_names[sleep_state];
+
 	status = acpi_ns_evaluate(info);
 	if (ACPI_FAILURE(status)) {
-		goto cleanup;
+		if (status == AE_NOT_FOUND) {
+
+			/* The _Sx states are optional, ignore NOT_FOUND */
+
+			goto final_cleanup;
+		}
+
+		goto warning_cleanup;
 	}
 
 	/* Must have a return object */
@@ -517,7 +523,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		ACPI_ERROR((AE_INFO, "No Sleep State object returned from [%s]",
 			    info->relative_pathname));
 		status = AE_AML_NO_RETURN_VALUE;
-		goto cleanup;
+		goto warning_cleanup;
 	}
 
 	/* Return object must be of type Package */
@@ -526,7 +532,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return object is not a Package"));
 		status = AE_AML_OPERAND_TYPE;
-		goto cleanup1;
+		goto return_value_cleanup;
 	}
 
 	/*
@@ -570,16 +576,17 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		break;
 	}
 
-cleanup1:
+return_value_cleanup:
 	acpi_ut_remove_reference(info->return_object);
 
-cleanup:
+warning_cleanup:
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"While evaluating Sleep State [%s]",
 				info->relative_pathname));
 	}
 
+final_cleanup:
 	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }

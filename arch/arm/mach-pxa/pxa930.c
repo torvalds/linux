@@ -17,7 +17,7 @@
 #include <linux/gpio-pxa.h>
 #include <linux/platform_device.h>
 
-#include <mach/pxa930.h>
+#include "pxa930.h"
 
 #include "devices.h"
 

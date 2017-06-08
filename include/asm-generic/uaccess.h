@@ -6,7 +6,6 @@
  * on any machine that has kernel and user data in the same
  * address space, e.g. all NOMMU machines.
  */
-#include <linux/sched.h>
 #include <linux/string.h>
 
 #include <asm/segment.h>
@@ -35,9 +34,6 @@ static inline void set_fs(mm_segment_t fs)
 #define segment_eq(a, b) ((a).seg == (b).seg)
 #endif
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 #define access_ok(type, addr, size) __access_ok((unsigned long)(addr),(size))
 
 /*
@@ -48,90 +44,6 @@ static inline void set_fs(mm_segment_t fs)
 static inline int __access_ok(unsigned long addr, unsigned long size)
 {
 	return 1;
-}
-#endif
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
-
-/* Returns 0 if exception not found and fixup otherwise.  */
-extern unsigned long search_exception_table(unsigned long);
-
-/*
- * architectures with an MMU should override these two
- */
-#ifndef __copy_from_user
-static inline __must_check long __copy_from_user(void *to,
-		const void __user * from, unsigned long n)
-{
-	if (__builtin_constant_p(n)) {
-		switch(n) {
-		case 1:
-			*(u8 *)to = *(u8 __force *)from;
-			return 0;
-		case 2:
-			*(u16 *)to = *(u16 __force *)from;
-			return 0;
-		case 4:
-			*(u32 *)to = *(u32 __force *)from;
-			return 0;
-#ifdef CONFIG_64BIT
-		case 8:
-			*(u64 *)to = *(u64 __force *)from;
-			return 0;
-#endif
-		default:
-			break;
-		}
-	}
-
-	memcpy(to, (const void __force *)from, n);
-	return 0;
-}
-#endif
-
-#ifndef __copy_to_user
-static inline __must_check long __copy_to_user(void __user *to,
-		const void *from, unsigned long n)
-{
-	if (__builtin_constant_p(n)) {
-		switch(n) {
-		case 1:
-			*(u8 __force *)to = *(u8 *)from;
-			return 0;
-		case 2:
-			*(u16 __force *)to = *(u16 *)from;
-			return 0;
-		case 4:
-			*(u32 __force *)to = *(u32 *)from;
-			return 0;
-#ifdef CONFIG_64BIT
-		case 8:
-			*(u64 __force *)to = *(u64 *)from;
-			return 0;
-#endif
-		default:
-			break;
-		}
-	}
-
-	memcpy((void __force *)to, from, n);
-	return 0;
 }
 #endif
 
@@ -163,9 +75,10 @@ static inline __must_check long __copy_to_user(void __user *to,
 
 #define put_user(x, ptr)					\
 ({								\
+	void *__p = (ptr);					\
 	might_fault();						\
-	access_ok(VERIFY_WRITE, ptr, sizeof(*ptr)) ?		\
-		__put_user(x, ptr) :				\
+	access_ok(VERIFY_WRITE, __p, sizeof(*ptr)) ?		\
+		__put_user((x), ((__typeof__(*(ptr)) *)__p)) :	\
 		-EFAULT;					\
 })
 
@@ -173,8 +86,7 @@ static inline __must_check long __copy_to_user(void __user *to,
 
 static inline int __put_user_fn(size_t size, void __user *ptr, void *x)
 {
-	size = __copy_to_user(ptr, x, size);
-	return size ? -EFAULT : size;
+	return unlikely(raw_copy_to_user(ptr, x, size)) ? -EFAULT : 0;
 }
 
 #define __put_user_fn(sz, u, k)	__put_user_fn(sz, u, k)
@@ -189,28 +101,28 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 	__chk_user_ptr(ptr);					\
 	switch (sizeof(*(ptr))) {				\
 	case 1: {						\
-		unsigned char __x;				\
+		unsigned char __x = 0;				\
 		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
 					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 2: {						\
-		unsigned short __x;				\
+		unsigned short __x = 0;				\
 		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
 					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 4: {						\
-		unsigned int __x;				\
+		unsigned int __x = 0;				\
 		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
 					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 8: {						\
-		unsigned long long __x;				\
+		unsigned long long __x = 0;			\
 		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
 					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
@@ -225,17 +137,17 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 
 #define get_user(x, ptr)					\
 ({								\
+	const void *__p = (ptr);				\
 	might_fault();						\
-	access_ok(VERIFY_READ, ptr, sizeof(*ptr)) ?		\
-		__get_user(x, ptr) :				\
-		-EFAULT;					\
+	access_ok(VERIFY_READ, __p, sizeof(*ptr)) ?		\
+		__get_user((x), (__typeof__(*(ptr)) *)__p) :	\
+		((x) = (__typeof__(*(ptr)))0,-EFAULT);		\
 })
 
 #ifndef __get_user_fn
 static inline int __get_user_fn(size_t size, const void __user *ptr, void *x)
 {
-	size = __copy_from_user(x, ptr, size);
-	return size ? -EFAULT : size;
+	return unlikely(raw_copy_from_user(x, ptr, size)) ? -EFAULT : 0;
 }
 
 #define __get_user_fn(sz, u, k)	__get_user_fn(sz, u, k)
@@ -243,34 +155,6 @@ static inline int __get_user_fn(size_t size, const void __user *ptr, void *x)
 #endif
 
 extern int __get_user_bad(void) __attribute__((noreturn));
-
-#ifndef __copy_from_user_inatomic
-#define __copy_from_user_inatomic __copy_from_user
-#endif
-
-#ifndef __copy_to_user_inatomic
-#define __copy_to_user_inatomic __copy_to_user
-#endif
-
-static inline long copy_from_user(void *to,
-		const void __user * from, unsigned long n)
-{
-	might_fault();
-	if (access_ok(VERIFY_READ, from, n))
-		return __copy_from_user(to, from, n);
-	else
-		return n;
-}
-
-static inline long copy_to_user(void __user *to,
-		const void *from, unsigned long n)
-{
-	might_fault();
-	if (access_ok(VERIFY_WRITE, to, n))
-		return __copy_to_user(to, from, n);
-	else
-		return n;
-}
 
 /*
  * Copy a null terminated string from userspace.
@@ -342,5 +226,7 @@ clear_user(void __user *to, unsigned long n)
 
 	return __clear_user(to, n);
 }
+
+#include <asm/extable.h>
 
 #endif /* __ASM_GENERIC_UACCESS_H */

@@ -7,6 +7,7 @@ enum hv_perf_domains {
 #define DOMAIN(n, v, x, c) HV_PERF_DOMAIN_##n = v,
 #include "hv-24x7-domains.h"
 #undef DOMAIN
+	HV_PERF_DOMAIN_MAX,
 };
 
 struct hv_24x7_request {
@@ -65,7 +66,7 @@ struct hv_24x7_result_element {
 	/* -1 if @performance_domain does not refer to a virtual processor */
 	__be32 lpar_cfg_instance_id;
 
-	/* size = @result_element_data_size of cointaining result. */
+	/* size = @result_element_data_size of containing result. */
 	__u64 element_data[1];
 } __packed;
 
@@ -80,7 +81,7 @@ struct hv_24x7_result {
 	__u8 results_complete;
 	__be16 num_elements_returned;
 
-	/* This is a copy of @data_size from the coresponding hv_24x7_request */
+	/* This is a copy of @data_size from the corresponding hv_24x7_request */
 	__be16 result_element_data_size;
 	__u8 reserved[0x2];
 

@@ -85,8 +85,8 @@ static int ci_hdrc_pci_probe(struct pci_dev *pdev,
 
 	/* register a nop PHY */
 	ci->phy = usb_phy_generic_register();
-	if (!ci->phy)
-		return -ENOMEM;
+	if (IS_ERR(ci->phy))
+		return PTR_ERR(ci->phy);
 
 	memset(res, 0, sizeof(res));
 	res[0].start	= pci_resource_start(pdev, 0);
@@ -142,16 +142,16 @@ static const struct pci_device_id ci_hdrc_pci_id_table[] = {
 		.driver_data = (kernel_ulong_t)&pci_platdata,
 	},
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0811),
+		PCI_VDEVICE(INTEL, 0x0811),
 		.driver_data = (kernel_ulong_t)&langwell_pci_platdata,
 	},
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0829),
+		PCI_VDEVICE(INTEL, 0x0829),
 		.driver_data = (kernel_ulong_t)&penwell_pci_platdata,
 	},
 	{
 		/* Intel Clovertrail */
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xe006),
+		PCI_VDEVICE(INTEL, 0xe006),
 		.driver_data = (kernel_ulong_t)&penwell_pci_platdata,
 	},
 	{ 0 } /* end: all zeroes */

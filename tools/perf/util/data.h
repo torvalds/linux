@@ -46,5 +46,14 @@ int perf_data_file__open(struct perf_data_file *file);
 void perf_data_file__close(struct perf_data_file *file);
 ssize_t perf_data_file__write(struct perf_data_file *file,
 			      void *buf, size_t size);
-
+/*
+ * If at_exit is set, only rename current perf.data to
+ * perf.data.<postfix>, continue write on original file.
+ * Set at_exit when flushing the last output.
+ *
+ * Return value is fd of new output.
+ */
+int perf_data_file__switch(struct perf_data_file *file,
+			   const char *postfix,
+			   size_t pos, bool at_exit);
 #endif /* __PERF_DATA_H */

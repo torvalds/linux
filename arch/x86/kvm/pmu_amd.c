@@ -23,8 +23,8 @@
 static struct kvm_event_hw_type_mapping amd_event_mapping[] = {
 	[0] = { 0x76, 0x00, PERF_COUNT_HW_CPU_CYCLES },
 	[1] = { 0xc0, 0x00, PERF_COUNT_HW_INSTRUCTIONS },
-	[2] = { 0x80, 0x00, PERF_COUNT_HW_CACHE_REFERENCES },
-	[3] = { 0x81, 0x00, PERF_COUNT_HW_CACHE_MISSES },
+	[2] = { 0x7d, 0x07, PERF_COUNT_HW_CACHE_REFERENCES },
+	[3] = { 0x7e, 0x07, PERF_COUNT_HW_CACHE_MISSES },
 	[4] = { 0xc2, 0x00, PERF_COUNT_HW_BRANCH_INSTRUCTIONS },
 	[5] = { 0xc3, 0x00, PERF_COUNT_HW_BRANCH_MISSES },
 	[6] = { 0xd0, 0x00, PERF_COUNT_HW_STALLED_CYCLES_FRONTEND },

@@ -24,10 +24,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #include <linux/kernel.h>
@@ -311,9 +307,9 @@ static int mt352_set_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int mt352_get_parameters(struct dvb_frontend* fe)
+static int mt352_get_parameters(struct dvb_frontend* fe,
+				struct dtv_frontend_properties *op)
 {
-	struct dtv_frontend_properties *op = &fe->dtv_property_cache;
 	struct mt352_state* state = fe->demodulator_priv;
 	u16 tps;
 	u16 div;
@@ -538,7 +534,7 @@ static void mt352_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops mt352_ops;
+static const struct dvb_frontend_ops mt352_ops;
 
 struct dvb_frontend* mt352_attach(const struct mt352_config* config,
 				  struct i2c_adapter* i2c)
@@ -566,7 +562,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops mt352_ops = {
+static const struct dvb_frontend_ops mt352_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Zarlink MT352 DVB-T",

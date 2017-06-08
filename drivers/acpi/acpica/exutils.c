@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,6 +94,10 @@ void acpi_ex_enter_interpreter(void)
 		ACPI_ERROR((AE_INFO,
 			    "Could not acquire AML Interpreter mutex"));
 	}
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		ACPI_ERROR((AE_INFO, "Could not acquire AML Namespace mutex"));
+	}
 
 	return_VOID;
 }
@@ -127,6 +131,10 @@ void acpi_ex_exit_interpreter(void)
 
 	ACPI_FUNCTION_TRACE(ex_exit_interpreter);
 
+	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		ACPI_ERROR((AE_INFO, "Could not release AML Namespace mutex"));
+	}
 	status = acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO,
@@ -167,8 +175,8 @@ u8 acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
 	if ((acpi_gbl_integer_byte_width == 4) &&
 	    (obj_desc->integer.value > (u64)ACPI_UINT32_MAX)) {
 		/*
-		 * We are executing in a 32-bit ACPI table.
-		 * Truncate the value to 32 bits by zeroing out the upper 32-bit field
+		 * We are executing in a 32-bit ACPI table. Truncate
+		 * the value to 32 bits by zeroing out the upper 32-bit field
 		 */
 		obj_desc->integer.value &= (u64)ACPI_UINT32_MAX;
 		return (TRUE);
@@ -301,8 +309,8 @@ static u32 acpi_ex_digits_needed(u64 value, u32 base)
  *
  * FUNCTION:    acpi_ex_eisa_id_to_string
  *
- * PARAMETERS:  compressed_id   - EISAID to be converted
- *              out_string      - Where to put the converted string (8 bytes)
+ * PARAMETERS:  out_string      - Where to put the converted string (8 bytes)
+ *              compressed_id   - EISAID to be converted
  *
  * RETURN:      None
  *
@@ -323,7 +331,8 @@ void acpi_ex_eisa_id_to_string(char *out_string, u64 compressed_id)
 
 	if (compressed_id > ACPI_UINT32_MAX) {
 		ACPI_WARNING((AE_INFO,
-			      "Expected EISAID is larger than 32 bits: 0x%8.8X%8.8X, truncating",
+			      "Expected EISAID is larger than 32 bits: "
+			      "0x%8.8X%8.8X, truncating",
 			      ACPI_FORMAT_UINT64(compressed_id)));
 	}
 
@@ -353,7 +362,7 @@ void acpi_ex_eisa_id_to_string(char *out_string, u64 compressed_id)
  *                                possible 64-bit integer.
  *              value           - Value to be converted
  *
- * RETURN:      None, string
+ * RETURN:      Converted string in out_string
  *
  * DESCRIPTION: Convert a 64-bit integer to decimal string representation.
  *              Assumes string buffer is large enough to hold the string. The
@@ -383,9 +392,9 @@ void acpi_ex_integer_to_string(char *out_string, u64 value)
  * FUNCTION:    acpi_ex_pci_cls_to_string
  *
  * PARAMETERS:  out_string      - Where to put the converted string (7 bytes)
- * PARAMETERS:  class_code      - PCI class code to be converted (3 bytes)
+ *              class_code      - PCI class code to be converted (3 bytes)
  *
- * RETURN:      None
+ * RETURN:      Converted string in out_string
  *
  * DESCRIPTION: Convert 3-bytes PCI class code to string representation.
  *              Return buffer must be large enough to hold the string. The
@@ -416,7 +425,7 @@ void acpi_ex_pci_cls_to_string(char *out_string, u8 class_code[3])
  *
  * PARAMETERS:  space_id            - ID to be validated
  *
- * RETURN:      TRUE if valid/supported ID.
+ * RETURN:      TRUE if space_id is a valid/supported ID.
  *
  * DESCRIPTION: Validate an operation region space_ID.
  *

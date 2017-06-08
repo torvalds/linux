@@ -3,7 +3,7 @@
  * Copyright (c) 2008 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * Coyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
+ * Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
  *
  * Watchdog reset support for Samsung SoCs.
  *

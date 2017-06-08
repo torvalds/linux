@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/kfifo.h>
 #include <linux/vmalloc.h>
+#include <linux/time64.h>
 #include <linux/gfp.h>
 #include <net/net_namespace.h>
 
@@ -47,20 +48,20 @@ static struct {
 	struct kfifo	  fifo;
 	spinlock_t	  lock;
 	wait_queue_head_t wait;
-	struct timespec	  tstart;
+	struct timespec64 tstart;
 } dccpw;
 
 static void printl(const char *fmt, ...)
 {
 	va_list args;
 	int len;
-	struct timespec now;
+	struct timespec64 now;
 	char tbuf[256];
 
 	va_start(args, fmt);
-	getnstimeofday(&now);
+	getnstimeofday64(&now);
 
-	now = timespec_sub(now, dccpw.tstart);
+	now = timespec64_sub(now, dccpw.tstart);
 
 	len = sprintf(tbuf, "%lu.%06lu ",
 		      (unsigned long) now.tv_sec,
@@ -110,7 +111,7 @@ static struct jprobe dccp_send_probe = {
 static int dccpprobe_open(struct inode *inode, struct file *file)
 {
 	kfifo_reset(&dccpw.fifo);
-	getnstimeofday(&dccpw.tstart);
+	getnstimeofday64(&dccpw.tstart);
 	return 0;
 }
 

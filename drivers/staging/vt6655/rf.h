@@ -12,11 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- *
  * File: rf.h
  *
  * Purpose:
@@ -35,7 +30,7 @@
 /*---------------------  Export Definitions -------------------------*/
 /*
  * Baseband RF pair definition in eeprom (Bits 6..0)
-*/
+ */
 #define RF_RFMD2959             0x01
 #define RF_MAXIMAG              0x02
 #define RF_AIROHA               0x03
@@ -79,11 +74,11 @@ bool RFbInit(
 	struct vnt_private *
 );
 bool RFvWriteWakeProgSyn(struct vnt_private *, unsigned char byRFType, u16);
-bool RFbSetPower(struct vnt_private *, unsigned int uRATE, u16);
+bool RFbSetPower(struct vnt_private *, unsigned int rate, u16);
 bool RFbRawSetPower(
 	struct vnt_private *,
 	unsigned char byPwr,
-	unsigned int uRATE
+	unsigned int rate
 );
 
 void

@@ -1,10 +1,10 @@
 #include <linux/io.h>
-#include <linux/fb.h>
 #include <linux/console.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 
 #include <drm/drm_gem.h>
@@ -149,7 +149,7 @@ int bochs_dumb_mmap_offset(struct drm_file *file, struct drm_device *dev,
 
 int bochs_framebuffer_init(struct drm_device *dev,
 			   struct bochs_framebuffer *gfb,
-			   struct drm_mode_fb_cmd2 *mode_cmd,
+			   const struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_gem_object *obj);
 int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag, u64 *gpu_addr);
 int bochs_bo_unpin(struct bochs_bo *bo);

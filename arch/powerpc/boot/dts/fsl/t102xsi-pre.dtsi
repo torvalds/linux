@@ -59,6 +59,12 @@
 		sdhc = &sdhc;
 
 		crypto = &crypto;
+
+		fman0 = &fman0;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
 	};
 
 	cpus {
@@ -70,6 +76,7 @@
 			reg = <0>;
 			clocks = <&mux0>;
 			next-level-cache = <&L2_1>;
+			#cooling-cells = <2>;
 			L2_1: l2-cache {
 				next-level-cache = <&cpc>;
 			};
@@ -79,6 +86,7 @@
 			reg = <1>;
 			clocks = <&mux1>;
 			next-level-cache = <&L2_2>;
+			#cooling-cells = <2>;
 			L2_2: l2-cache {
 				next-level-cache = <&cpc>;
 			};

@@ -3,7 +3,7 @@
  *  under the terms of the GNU General Public License version 2 as published
  *  by the Free Software Foundation.
  *
- * Copyright (C) 2010 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2010 John Crispin <john@phrozen.org>
  */
 
 #ifndef _LTQ_CLK_H__
@@ -31,13 +31,18 @@
 #define CLOCK_240M	240000000
 #define CLOCK_250M	250000000
 #define CLOCK_266M	266666666
+#define CLOCK_288M	288888888
 #define CLOCK_300M	300000000
 #define CLOCK_333M	333333333
+#define CLOCK_360M	360000000
 #define CLOCK_393M	393215332
 #define CLOCK_400M	400000000
+#define CLOCK_432M	432000000
 #define CLOCK_450M	450000000
 #define CLOCK_500M	500000000
 #define CLOCK_600M	600000000
+#define CLOCK_666M	666666666
+#define CLOCK_720M	720000000
 
 /* clock out speeds */
 #define CLOCK_32_768K	32768
@@ -79,5 +84,13 @@ extern unsigned long ltq_ar9_fpi_hz(void);
 extern unsigned long ltq_vr9_cpu_hz(void);
 extern unsigned long ltq_vr9_fpi_hz(void);
 extern unsigned long ltq_vr9_pp32_hz(void);
+
+extern unsigned long ltq_ar10_cpu_hz(void);
+extern unsigned long ltq_ar10_fpi_hz(void);
+extern unsigned long ltq_ar10_pp32_hz(void);
+
+extern unsigned long ltq_grx390_cpu_hz(void);
+extern unsigned long ltq_grx390_fpi_hz(void);
+extern unsigned long ltq_grx390_pp32_hz(void);
 
 #endif

@@ -140,6 +140,7 @@ static const struct of_device_id platform_uhci_ids[] = {
 	{ .compatible = "platform-uhci", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, platform_uhci_ids);
 
 static struct platform_driver uhci_platform_driver = {
 	.probe		= uhci_hcd_platform_probe,

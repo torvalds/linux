@@ -8,6 +8,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/uaccess.h>
+#include <linux/sched/loadavg.h>
 
 #include <asm/auxio.h>
 
@@ -69,16 +70,9 @@ static ssize_t led_proc_write(struct file *file, const char __user *buffer,
 	if (count > LED_MAX_LENGTH)
 		count = LED_MAX_LENGTH;
 
-	buf = kmalloc(sizeof(char) * (count + 1), GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, buffer, count)) {
-		kfree(buf);
-		return -EFAULT;
-	}
-
-	buf[count] = '\0';
+	buf = memdup_user_nul(buffer, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	/* work around \n when echo'ing into proc */
 	if (buf[count - 1] == '\n')

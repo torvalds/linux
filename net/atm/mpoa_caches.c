@@ -534,33 +534,32 @@ static void eg_destroy_cache(struct mpoa_client *mpc)
 }
 
 
-static struct in_cache_ops ingress_ops = {
-	in_cache_add_entry,               /* add_entry       */
-	in_cache_get,                     /* get             */
-	in_cache_get_with_mask,           /* get_with_mask   */
-	in_cache_get_by_vcc,              /* get_by_vcc      */
-	in_cache_put,                     /* put             */
-	in_cache_remove_entry,            /* remove_entry    */
-	cache_hit,                        /* cache_hit       */
-	clear_count_and_expired,          /* clear_count     */
-	check_resolving_entries,          /* check_resolving */
-	refresh_entries,                  /* refresh         */
-	in_destroy_cache                  /* destroy_cache   */
+static const struct in_cache_ops ingress_ops = {
+	.add_entry = in_cache_add_entry,
+	.get = in_cache_get,
+	.get_with_mask = in_cache_get_with_mask,
+	.get_by_vcc = in_cache_get_by_vcc,
+	.put = in_cache_put,
+	.remove_entry = in_cache_remove_entry,
+	.cache_hit = cache_hit,
+	.clear_count = clear_count_and_expired,
+	.check_resolving = check_resolving_entries,
+	.refresh = refresh_entries,
+	.destroy_cache = in_destroy_cache
 };
 
-static struct eg_cache_ops egress_ops = {
-	eg_cache_add_entry,               /* add_entry        */
-	eg_cache_get_by_cache_id,         /* get_by_cache_id  */
-	eg_cache_get_by_tag,              /* get_by_tag       */
-	eg_cache_get_by_vcc,              /* get_by_vcc       */
-	eg_cache_get_by_src_ip,           /* get_by_src_ip    */
-	eg_cache_put,                     /* put              */
-	eg_cache_remove_entry,            /* remove_entry     */
-	update_eg_cache_entry,            /* update           */
-	clear_expired,                    /* clear_expired    */
-	eg_destroy_cache                  /* destroy_cache    */
+static const struct eg_cache_ops egress_ops = {
+	.add_entry = eg_cache_add_entry,
+	.get_by_cache_id = eg_cache_get_by_cache_id,
+	.get_by_tag = eg_cache_get_by_tag,
+	.get_by_vcc = eg_cache_get_by_vcc,
+	.get_by_src_ip = eg_cache_get_by_src_ip,
+	.put = eg_cache_put,
+	.remove_entry = eg_cache_remove_entry,
+	.update = update_eg_cache_entry,
+	.clear_expired = clear_expired,
+	.destroy_cache = eg_destroy_cache
 };
-
 
 void atm_mpoa_init_cache(struct mpoa_client *mpc)
 {

@@ -18,6 +18,80 @@
 #include "wmi-ops.h"
 #include "debug.h"
 
+static void ath10k_sta_update_extd_stats_rx_duration(struct ath10k *ar,
+						     struct ath10k_fw_stats *stats)
+{
+	struct ath10k_fw_extd_stats_peer *peer;
+	struct ieee80211_sta *sta;
+	struct ath10k_sta *arsta;
+
+	rcu_read_lock();
+	list_for_each_entry(peer, &stats->peers_extd, list) {
+		sta = ieee80211_find_sta_by_ifaddr(ar->hw, peer->peer_macaddr,
+						   NULL);
+		if (!sta)
+			continue;
+		arsta = (struct ath10k_sta *)sta->drv_priv;
+		arsta->rx_duration += (u64)peer->rx_duration;
+	}
+	rcu_read_unlock();
+}
+
+static void ath10k_sta_update_stats_rx_duration(struct ath10k *ar,
+						struct ath10k_fw_stats *stats)
+{
+	struct ath10k_fw_stats_peer *peer;
+	struct ieee80211_sta *sta;
+	struct ath10k_sta *arsta;
+
+	rcu_read_lock();
+	list_for_each_entry(peer, &stats->peers, list) {
+		sta = ieee80211_find_sta_by_ifaddr(ar->hw, peer->peer_macaddr,
+						   NULL);
+		if (!sta)
+			continue;
+		arsta = (struct ath10k_sta *)sta->drv_priv;
+		arsta->rx_duration += (u64)peer->rx_duration;
+	}
+	rcu_read_unlock();
+}
+
+void ath10k_sta_update_rx_duration(struct ath10k *ar,
+				   struct ath10k_fw_stats *stats)
+{
+	if (stats->extended)
+		ath10k_sta_update_extd_stats_rx_duration(ar, stats);
+	else
+		ath10k_sta_update_stats_rx_duration(ar, stats);
+}
+
+void ath10k_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta,
+			   struct station_info *sinfo)
+{
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arsta->arvif->ar;
+
+	if (!ath10k_peer_stats_enabled(ar))
+		return;
+
+	sinfo->rx_duration = arsta->rx_duration;
+	sinfo->filled |= 1ULL << NL80211_STA_INFO_RX_DURATION;
+
+	if (!arsta->txrate.legacy && !arsta->txrate.nss)
+		return;
+
+	if (arsta->txrate.legacy) {
+		sinfo->txrate.legacy = arsta->txrate.legacy;
+	} else {
+		sinfo->txrate.mcs = arsta->txrate.mcs;
+		sinfo->txrate.nss = arsta->txrate.nss;
+		sinfo->txrate.bw = arsta->txrate.bw;
+	}
+	sinfo->txrate.flags = arsta->txrate.flags;
+	sinfo->filled |= 1ULL << NL80211_STA_INFO_TX_BITRATE;
+}
+
 static ssize_t ath10k_dbg_sta_read_aggr_mode(struct file *file,
 					     char __user *user_buf,
 					     size_t count, loff_t *ppos)
@@ -232,12 +306,76 @@ static const struct file_operations fops_delba = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_dbg_sta_read_peer_debug_trigger(struct file *file,
+						      char __user *user_buf,
+						      size_t count,
+						      loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arsta->arvif->ar;
+	char buf[8];
+	int len = 0;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf) - len,
+			"Write 1 to once trigger the debug logs\n");
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t
+ath10k_dbg_sta_write_peer_debug_trigger(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arsta->arvif->ar;
+	u8 peer_debug_trigger;
+	int ret;
+
+	if (kstrtou8_from_user(user_buf, count, 0, &peer_debug_trigger))
+		return -EINVAL;
+
+	if (peer_debug_trigger != 1)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto out;
+	}
+
+	ret = ath10k_wmi_peer_set_param(ar, arsta->arvif->vdev_id, sta->addr,
+					WMI_PEER_DEBUG, peer_debug_trigger);
+	if (ret) {
+		ath10k_warn(ar, "failed to set param to trigger peer tid logs for station ret: %d\n",
+			    ret);
+		goto out;
+	}
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return count;
+}
+
+static const struct file_operations fops_peer_debug_trigger = {
+	.open = simple_open,
+	.read = ath10k_dbg_sta_read_peer_debug_trigger,
+	.write = ath10k_dbg_sta_write_peer_debug_trigger,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir)
 {
-	debugfs_create_file("aggr_mode", S_IRUGO | S_IWUSR, dir, sta,
-			    &fops_aggr_mode);
-	debugfs_create_file("addba", S_IWUSR, dir, sta, &fops_addba);
-	debugfs_create_file("addba_resp", S_IWUSR, dir, sta, &fops_addba_resp);
-	debugfs_create_file("delba", S_IWUSR, dir, sta, &fops_delba);
+	debugfs_create_file("aggr_mode", 0644, dir, sta, &fops_aggr_mode);
+	debugfs_create_file("addba", 0200, dir, sta, &fops_addba);
+	debugfs_create_file("addba_resp", 0200, dir, sta, &fops_addba_resp);
+	debugfs_create_file("delba", 0200, dir, sta, &fops_delba);
+	debugfs_create_file("peer_debug_trigger", 0600, dir, sta,
+			    &fops_peer_debug_trigger);
 }

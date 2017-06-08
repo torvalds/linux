@@ -175,7 +175,6 @@ static int tpohvga_probe(struct spi_device *spi)
 static struct spi_driver panel_tpohvga_driver = {
 	.driver		= {
 		.name	= "tpo-hvga",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= tpohvga_probe,
 };

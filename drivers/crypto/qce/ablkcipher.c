@@ -15,8 +15,8 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
 #include <crypto/des.h>
+#include <crypto/internal/skcipher.h>
 
 #include "cipher.h"
 
@@ -44,10 +44,8 @@ static void qce_ablkcipher_done(void *data)
 			error);
 
 	if (diff_dst)
-		qce_unmapsg(qce->dev, rctx->src_sg, rctx->src_nents, dir_src,
-			    rctx->dst_chained);
-	qce_unmapsg(qce->dev, rctx->dst_sg, rctx->dst_nents, dir_dst,
-		    rctx->dst_chained);
+		dma_unmap_sg(qce->dev, rctx->src_sg, rctx->src_nents, dir_src);
+	dma_unmap_sg(qce->dev, rctx->dst_sg, rctx->dst_nents, dir_dst);
 
 	sg_free_table(&rctx->dst_tbl);
 
@@ -80,14 +78,18 @@ qce_ablkcipher_async_req_handle(struct crypto_async_request *async_req)
 	dir_src = diff_dst ? DMA_TO_DEVICE : DMA_BIDIRECTIONAL;
 	dir_dst = diff_dst ? DMA_FROM_DEVICE : DMA_BIDIRECTIONAL;
 
-	rctx->src_nents = qce_countsg(req->src, req->nbytes,
-				      &rctx->src_chained);
-	if (diff_dst) {
-		rctx->dst_nents = qce_countsg(req->dst, req->nbytes,
-					      &rctx->dst_chained);
-	} else {
+	rctx->src_nents = sg_nents_for_len(req->src, req->nbytes);
+	if (diff_dst)
+		rctx->dst_nents = sg_nents_for_len(req->dst, req->nbytes);
+	else
 		rctx->dst_nents = rctx->src_nents;
-		rctx->dst_chained = rctx->src_chained;
+	if (rctx->src_nents < 0) {
+		dev_err(qce->dev, "Invalid numbers of src SG.\n");
+		return rctx->src_nents;
+	}
+	if (rctx->dst_nents < 0) {
+		dev_err(qce->dev, "Invalid numbers of dst SG.\n");
+		return -rctx->dst_nents;
 	}
 
 	rctx->dst_nents += 1;
@@ -116,14 +118,12 @@ qce_ablkcipher_async_req_handle(struct crypto_async_request *async_req)
 	sg_mark_end(sg);
 	rctx->dst_sg = rctx->dst_tbl.sgl;
 
-	ret = qce_mapsg(qce->dev, rctx->dst_sg, rctx->dst_nents, dir_dst,
-			rctx->dst_chained);
+	ret = dma_map_sg(qce->dev, rctx->dst_sg, rctx->dst_nents, dir_dst);
 	if (ret < 0)
 		goto error_free;
 
 	if (diff_dst) {
-		ret = qce_mapsg(qce->dev, req->src, rctx->src_nents, dir_src,
-				rctx->src_chained);
+		ret = dma_map_sg(qce->dev, req->src, rctx->src_nents, dir_src);
 		if (ret < 0)
 			goto error_unmap_dst;
 		rctx->src_sg = req->src;
@@ -149,11 +149,9 @@ error_terminate:
 	qce_dma_terminate_all(&qce->dma);
 error_unmap_src:
 	if (diff_dst)
-		qce_unmapsg(qce->dev, req->src, rctx->src_nents, dir_src,
-			    rctx->src_chained);
+		dma_unmap_sg(qce->dev, req->src, rctx->src_nents, dir_src);
 error_unmap_dst:
-	qce_unmapsg(qce->dev, rctx->dst_sg, rctx->dst_nents, dir_dst,
-		    rctx->dst_chained);
+	dma_unmap_sg(qce->dev, rctx->dst_sg, rctx->dst_nents, dir_dst);
 error_free:
 	sg_free_table(&rctx->dst_tbl);
 	return ret;
@@ -191,7 +189,7 @@ static int qce_ablkcipher_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
 	memcpy(ctx->enc_key, key, keylen);
 	return 0;
 fallback:
-	ret = crypto_ablkcipher_setkey(ctx->fallback, key, keylen);
+	ret = crypto_skcipher_setkey(ctx->fallback, key, keylen);
 	if (!ret)
 		ctx->enc_keylen = keylen;
 	return ret;
@@ -214,10 +212,16 @@ static int qce_ablkcipher_crypt(struct ablkcipher_request *req, int encrypt)
 
 	if (IS_AES(rctx->flags) && ctx->enc_keylen != AES_KEYSIZE_128 &&
 	    ctx->enc_keylen != AES_KEYSIZE_256) {
-		ablkcipher_request_set_tfm(req, ctx->fallback);
-		ret = encrypt ? crypto_ablkcipher_encrypt(req) :
-				crypto_ablkcipher_decrypt(req);
-		ablkcipher_request_set_tfm(req, __crypto_ablkcipher_cast(tfm));
+		SKCIPHER_REQUEST_ON_STACK(subreq, ctx->fallback);
+
+		skcipher_request_set_tfm(subreq, ctx->fallback);
+		skcipher_request_set_callback(subreq, req->base.flags,
+					      NULL, NULL);
+		skcipher_request_set_crypt(subreq, req->src, req->dst,
+					   req->nbytes, req->info);
+		ret = encrypt ? crypto_skcipher_encrypt(subreq) :
+				crypto_skcipher_decrypt(subreq);
+		skcipher_request_zero(subreq);
 		return ret;
 	}
 
@@ -241,10 +245,9 @@ static int qce_ablkcipher_init(struct crypto_tfm *tfm)
 	memset(ctx, 0, sizeof(*ctx));
 	tfm->crt_ablkcipher.reqsize = sizeof(struct qce_cipher_reqctx);
 
-	ctx->fallback = crypto_alloc_ablkcipher(crypto_tfm_alg_name(tfm),
-						CRYPTO_ALG_TYPE_ABLKCIPHER,
-						CRYPTO_ALG_ASYNC |
-						CRYPTO_ALG_NEED_FALLBACK);
+	ctx->fallback = crypto_alloc_skcipher(crypto_tfm_alg_name(tfm), 0,
+					      CRYPTO_ALG_ASYNC |
+					      CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->fallback))
 		return PTR_ERR(ctx->fallback);
 
@@ -255,7 +258,7 @@ static void qce_ablkcipher_exit(struct crypto_tfm *tfm)
 {
 	struct qce_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	crypto_free_ablkcipher(ctx->fallback);
+	crypto_free_skcipher(ctx->fallback);
 }
 
 struct qce_ablkcipher_def {

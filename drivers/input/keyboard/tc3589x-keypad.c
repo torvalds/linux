@@ -32,7 +32,7 @@
 #define TC3589x_PULL_DOWN_MASK		0x1
 #define TC3589x_PULL_UP_MASK		0x2
 #define TC3589x_PULLUP_ALL_MASK		0xAA
-#define TC3589x_IO_PULL_VAL(index, mask)	((mask)<<((index)%4)*2))
+#define TC3589x_IO_PULL_VAL(index, mask)	((mask)<<((index)%4)*2)
 
 /* Bit masks for IOCFG register */
 #define IOCFG_BALLCFG		0x01

@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #ifndef __HAL_VERSION_DEF_H__
 #define __HAL_VERSION_DEF_H__
@@ -46,38 +41,5 @@ struct HAL_VERSION {
 	enum HAL_CUT_VERSION	CUTVersion;
 	enum HAL_VENDOR		VendorType;
 };
-
-/*  Get element */
-#define GET_CVID_CHIP_TYPE(version)	(((version).ChipType))
-#define GET_CVID_MANUFACTUER(version)	(((version).VendorType))
-#define GET_CVID_CUT_VERSION(version)	(((version).CUTVersion))
-
-/* Common Macro. -- */
-/* HAL_VERSION VersionID */
-
-/* HAL_CHIP_TYPE_E */
-#define IS_TEST_CHIP(version)				\
-	((GET_CVID_CHIP_TYPE(version) == TEST_CHIP) ? true : false)
-#define IS_NORMAL_CHIP(version)				\
-	((GET_CVID_CHIP_TYPE(version) == NORMAL_CHIP) ? true : false)
-
-/* HAL_CUT_VERSION_E */
-#define IS_A_CUT(version)				\
-	((GET_CVID_CUT_VERSION(version) == A_CUT_VERSION) ? true : false)
-#define IS_B_CUT(version)				\
-	((GET_CVID_CUT_VERSION(version) == B_CUT_VERSION) ? true : false)
-#define IS_C_CUT(version)				\
-	((GET_CVID_CUT_VERSION(version) == C_CUT_VERSION) ? true : false)
-#define IS_D_CUT(version)				\
-	((GET_CVID_CUT_VERSION(version) == D_CUT_VERSION) ? true : false)
-#define IS_E_CUT(version)				\
-	((GET_CVID_CUT_VERSION(version) == E_CUT_VERSION) ? true : false)
-
-
-/* HAL_VENDOR_E */
-#define IS_CHIP_VENDOR_TSMC(version)			\
-	((GET_CVID_MANUFACTUER(version) == CHIP_VENDOR_TSMC) ? true : false)
-#define IS_CHIP_VENDOR_UMC(version)			\
-	((GET_CVID_MANUFACTUER(version) == CHIP_VENDOR_UMC) ? true : false)
 
 #endif

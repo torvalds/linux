@@ -139,6 +139,16 @@ static int scsi_bus_resume_common(struct device *dev,
 	else
 		fn = NULL;
 
+	/*
+	 * Forcibly set runtime PM status of request queue to "active" to
+	 * make sure we can again get requests from the queue (see also
+	 * blk_pm_peek_request()).
+	 *
+	 * The resume hook will correct runtime PM status of the disk.
+	 */
+	if (scsi_is_sdev_device(dev) && pm_runtime_suspended(dev))
+		blk_set_runtime_active(to_scsi_device(dev)->request_queue);
+
 	if (fn) {
 		async_schedule_domain(fn, dev, &scsi_sd_pm_domain);
 
@@ -219,13 +229,13 @@ static int sdev_runtime_suspend(struct device *dev)
 	struct scsi_device *sdev = to_scsi_device(dev);
 	int err = 0;
 
-	if (pm && pm->runtime_suspend) {
-		err = blk_pre_runtime_suspend(sdev->request_queue);
-		if (err)
-			return err;
+	err = blk_pre_runtime_suspend(sdev->request_queue);
+	if (err)
+		return err;
+	if (pm && pm->runtime_suspend)
 		err = pm->runtime_suspend(dev);
-		blk_post_runtime_suspend(sdev->request_queue, err);
-	}
+	blk_post_runtime_suspend(sdev->request_queue, err);
+
 	return err;
 }
 
@@ -248,11 +258,11 @@ static int sdev_runtime_resume(struct device *dev)
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int err = 0;
 
-	if (pm && pm->runtime_resume) {
-		blk_pre_runtime_resume(sdev->request_queue);
+	blk_pre_runtime_resume(sdev->request_queue);
+	if (pm && pm->runtime_resume)
 		err = pm->runtime_resume(dev);
-		blk_post_runtime_resume(sdev->request_queue, err);
-	}
+	blk_post_runtime_resume(sdev->request_queue, err);
+
 	return err;
 }
 

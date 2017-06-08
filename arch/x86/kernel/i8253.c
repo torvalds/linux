@@ -3,7 +3,7 @@
  *
  */
 #include <linux/clockchips.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/timex.h>
 #include <linux/i8253.h>
 

@@ -12,7 +12,7 @@
  */
 #include <linux/edac.h>
 
-#include "edac_core.h"
+#include "edac_mc.h"
 #include "edac_module.h"
 
 #define EDAC_VERSION "Ver: 3.0.0"
@@ -43,9 +43,6 @@ module_param_call(edac_debug_level, edac_set_debug_level, param_get_int,
 MODULE_PARM_DESC(edac_debug_level, "EDAC debug level: [0-4], default: 2");
 #endif
 
-/* scope is to module level only */
-struct workqueue_struct *edac_workqueue;
-
 /*
  * edac_op_state_to_string()
  */
@@ -66,31 +63,37 @@ char *edac_op_state_to_string(int opstate)
 }
 
 /*
- * edac_workqueue_setup
- *	initialize the edac work queue for polling operations
+ * sysfs object: /sys/devices/system/edac
+ *	need to export to other files
  */
-static int edac_workqueue_setup(void)
+static struct bus_type edac_subsys = {
+	.name = "edac",
+	.dev_name = "edac",
+};
+
+static int edac_subsys_init(void)
 {
-	edac_workqueue = create_singlethread_workqueue("edac-poller");
-	if (edac_workqueue == NULL)
-		return -ENODEV;
-	else
-		return 0;
+	int err;
+
+	/* create the /sys/devices/system/edac directory */
+	err = subsys_system_register(&edac_subsys, NULL);
+	if (err)
+		printk(KERN_ERR "Error registering toplevel EDAC sysfs dir\n");
+
+	return err;
 }
 
-/*
- * edac_workqueue_teardown
- *	teardown the edac workqueue
- */
-static void edac_workqueue_teardown(void)
+static void edac_subsys_exit(void)
 {
-	if (edac_workqueue) {
-		flush_workqueue(edac_workqueue);
-		destroy_workqueue(edac_workqueue);
-		edac_workqueue = NULL;
-	}
+	bus_unregister(&edac_subsys);
 }
 
+/* return pointer to the 'edac' node in sysfs */
+struct bus_type *edac_get_sysfs_subsys(void)
+{
+	return &edac_subsys;
+}
+EXPORT_SYMBOL_GPL(edac_get_sysfs_subsys);
 /*
  * edac_init
  *      module initialization entry point
@@ -100,6 +103,10 @@ static int __init edac_init(void)
 	int err = 0;
 
 	edac_printk(KERN_INFO, EDAC_MC, EDAC_VERSION "\n");
+
+	err = edac_subsys_init();
+	if (err)
+		return err;
 
 	/*
 	 * Harvest and clear any boot/initialization PCI parity errors
@@ -129,6 +136,8 @@ err_wq:
 	edac_mc_sysfs_exit();
 
 err_sysfs:
+	edac_subsys_exit();
+
 	return err;
 }
 
@@ -144,6 +153,7 @@ static void __exit edac_exit(void)
 	edac_workqueue_teardown();
 	edac_mc_sysfs_exit();
 	edac_debugfs_exit();
+	edac_subsys_exit();
 }
 
 /*

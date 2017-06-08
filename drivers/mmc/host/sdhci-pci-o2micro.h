@@ -64,8 +64,6 @@
 #define O2_SD_VENDOR_SETTING	0x110
 #define O2_SD_VENDOR_SETTING2	0x1C8
 
-extern void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip);
-
 extern int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot);
 
 extern int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip);

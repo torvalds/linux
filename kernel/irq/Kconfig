@@ -30,6 +30,10 @@ config GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 config GENERIC_PENDING_IRQ
 	bool
 
+# Support for generic irq migrating off cpu before the cpu is offline.
+config GENERIC_IRQ_MIGRATION
+	bool
+
 # Alpha specific irq affinity mechanism
 config AUTO_IRQ_AFFINITY
        bool
@@ -59,6 +63,10 @@ config IRQ_DOMAIN
 config IRQ_DOMAIN_HIERARCHY
 	bool
 	select IRQ_DOMAIN
+
+# Generic IRQ IPI support
+config GENERIC_IRQ_IPI
+	bool
 
 # Generic MSI interrupt support
 config GENERIC_MSI_IRQ

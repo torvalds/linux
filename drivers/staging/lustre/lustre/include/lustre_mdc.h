@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -64,9 +60,27 @@ struct obd_export;
 struct ptlrpc_request;
 struct obd_device;
 
+/**
+ * Serializes in-flight MDT-modifying RPC requests to preserve idempotency.
+ *
+ * This mutex is used to implement execute-once semantics on the MDT.
+ * The MDT stores the last transaction ID and result for every client in
+ * its last_rcvd file. If the client doesn't get a reply, it can safely
+ * resend the request and the MDT will reconstruct the reply being aware
+ * that the request has already been executed. Without this lock,
+ * execution status of concurrent in-flight requests would be
+ * overwritten.
+ *
+ * This design limits the extent to which we can keep a full pipeline of
+ * in-flight requests from a single client.  This limitation could be
+ * overcome by allowing multiple slots per client in the last_rcvd file.
+ */
 struct mdc_rpc_lock {
+	/** Lock protecting in-flight RPC concurrency. */
 	struct mutex		rpcl_mutex;
+	/** Intent associated with currently executing request. */
 	struct lookup_intent	*rpcl_it;
+	/** Used for MDS/RPC load testing purposes. */
 	int			rpcl_fakes;
 };
 
@@ -81,8 +95,8 @@ static inline void mdc_init_rpc_lock(struct mdc_rpc_lock *lck)
 static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
-	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
-			   it->it_op == IT_LAYOUT))
+	if (it && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
+		   it->it_op == IT_LAYOUT || it->it_op == IT_READDIR))
 		return;
 
 	/* This would normally block until the existing request finishes.
@@ -90,7 +104,8 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 	 * done, then set rpcl_it to MDC_FAKE_RPCL_IT.  Once that is set
 	 * it will only be cleared when all fake requests are finished.
 	 * Only when all fake requests are finished can normal requests
-	 * be sent, to ensure they are recoverable again. */
+	 * be sent, to ensure they are recoverable again.
+	 */
  again:
 	mutex_lock(&lck->rpcl_mutex);
 
@@ -105,22 +120,23 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 	 * just turned off but there are still requests in progress.
 	 * Wait until they finish.  It doesn't need to be efficient
 	 * in this extremely rare case, just have low overhead in
-	 * the common case when it isn't true. */
+	 * the common case when it isn't true.
+	 */
 	while (unlikely(lck->rpcl_it == MDC_FAKE_RPCL_IT)) {
 		mutex_unlock(&lck->rpcl_mutex);
 		schedule_timeout(cfs_time_seconds(1) / 4);
 		goto again;
 	}
 
-	LASSERT(lck->rpcl_it == NULL);
+	LASSERT(!lck->rpcl_it);
 	lck->rpcl_it = it;
 }
 
 static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
-	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
-			   it->it_op == IT_LAYOUT))
+	if (it && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
+		   it->it_op == IT_LAYOUT || it->it_op == IT_READDIR))
 		return;
 
 	if (lck->rpcl_it == MDC_FAKE_RPCL_IT) { /* OBD_FAIL_MDC_RPCS_SEM */
@@ -140,39 +156,61 @@ static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 	mutex_unlock(&lck->rpcl_mutex);
 }
 
-/* Update the maximum observed easize and cookiesize.  The default easize
- * and cookiesize is initialized to the minimum value but allowed to grow
- * up to a single page in size if required to handle the common case.
+static inline void mdc_get_mod_rpc_slot(struct ptlrpc_request *req,
+					struct lookup_intent *it)
+{
+	struct client_obd *cli = &req->rq_import->imp_obd->u.cli;
+	u32 opc;
+	u16 tag;
+
+	opc = lustre_msg_get_opc(req->rq_reqmsg);
+	tag = obd_get_mod_rpc_slot(cli, opc, it);
+	lustre_msg_set_tag(req->rq_reqmsg, tag);
+}
+
+static inline void mdc_put_mod_rpc_slot(struct ptlrpc_request *req,
+					struct lookup_intent *it)
+{
+	struct client_obd *cli = &req->rq_import->imp_obd->u.cli;
+	u32 opc;
+	u16 tag;
+
+	opc = lustre_msg_get_opc(req->rq_reqmsg);
+	tag = lustre_msg_get_tag(req->rq_reqmsg);
+	obd_put_mod_rpc_slot(cli, opc, it, tag);
+}
+
+/**
+ * Update the maximum possible easize.
+ *
+ * This value is learned from ptlrpc replies sent by the MDT. The
+ * default easize is initialized to the minimum value but allowed
+ * to grow up to a single page in size if required to handle the
+ * common case.
+ *
+ * \see client_obd::cl_default_mds_easize
+ *
+ * \param[in] exp	export for MDC device
+ * \param[in] body	body of ptlrpc reply from MDT
+ *
  */
 static inline void mdc_update_max_ea_from_body(struct obd_export *exp,
 					       struct mdt_body *body)
 {
-	if (body->valid & OBD_MD_FLMODEASIZE) {
+	if (body->mbo_valid & OBD_MD_FLMODEASIZE) {
 		struct client_obd *cli = &exp->exp_obd->u.cli;
+		u32 def_easize;
 
-		if (cli->cl_max_mds_easize < body->max_mdsize) {
-			cli->cl_max_mds_easize = body->max_mdsize;
-			cli->cl_default_mds_easize =
-			    min_t(__u32, body->max_mdsize, PAGE_CACHE_SIZE);
-		}
-		if (cli->cl_max_mds_cookiesize < body->max_cookiesize) {
-			cli->cl_max_mds_cookiesize = body->max_cookiesize;
-			cli->cl_default_mds_cookiesize =
-			    min_t(__u32, body->max_cookiesize, PAGE_CACHE_SIZE);
-		}
+		if (cli->cl_max_mds_easize < body->mbo_max_mdsize)
+			cli->cl_max_mds_easize = body->mbo_max_mdsize;
+
+		def_easize = min_t(__u32, body->mbo_max_mdsize,
+				   OBD_MAX_DEFAULT_EA_SIZE);
+		cli->cl_default_mds_easize = def_easize;
 	}
 }
 
-
-struct mdc_cache_waiter {
-	struct list_head	      mcw_entry;
-	wait_queue_head_t	     mcw_waitq;
-};
-
 /* mdc/mdc_locks.c */
-int it_disposition(struct lookup_intent *it, int flag);
-void it_clear_disposition(struct lookup_intent *it, int flag);
-void it_set_disposition(struct lookup_intent *it, int flag);
 int it_open_error(int phase, struct lookup_intent *it);
 
 static inline bool cl_is_lov_delay_create(unsigned int flags)

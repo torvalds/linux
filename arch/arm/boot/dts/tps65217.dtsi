@@ -13,6 +13,18 @@
 
 &tps {
 	compatible = "ti,tps65217";
+	interrupt-controller;
+	#interrupt-cells = <1>;
+
+	charger {
+		compatible = "ti,tps65217-charger";
+		status = "disabled";
+	};
+
+	pwrbutton {
+		compatible = "ti,tps65217-pwrbutton";
+		status = "disabled";
+	};
 
 	regulators {
 		#address-cells = <1>;

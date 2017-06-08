@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -50,8 +50,8 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 	s64 vflre;
 	int i;
 
-	/* if there is no iov_data then there is no mailboxes to process */
-	if (!ACCESS_ONCE(interface->iov_data))
+	/* if there is no iov_data then there is no mailbox to process */
+	if (!READ_ONCE(interface->iov_data))
 		return 0;
 
 	rcu_read_lock();
@@ -98,8 +98,8 @@ s32 fm10k_iov_mbx(struct fm10k_intfc *interface)
 	struct fm10k_iov_data *iov_data;
 	int i;
 
-	/* if there is no iov_data then there is no mailboxes to process */
-	if (!ACCESS_ONCE(interface->iov_data))
+	/* if there is no iov_data then there is no mailbox to process */
+	if (!READ_ONCE(interface->iov_data))
 		return 0;
 
 	rcu_read_lock();
@@ -137,8 +137,11 @@ process_mbx:
 		}
 
 		/* guarantee we have free space in the SM mailbox */
-		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU))
+		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU)) {
+			/* keep track of how many times this occurs */
+			interface->hw_sm_mbx_full++;
 			break;
+		}
 
 		/* cleanup mailbox and process received messages */
 		mbx->ops.process(hw, mbx);
@@ -227,9 +230,6 @@ int fm10k_iov_resume(struct pci_dev *pdev)
 		/* assign GLORT to VF, and restrict it to multicast */
 		hw->iov.ops.set_lport(hw, vf_info, i,
 				      FM10K_VF_FLAG_MULTI_CAPABLE);
-
-		/* assign our default vid to the VF following reset */
-		vf_info->sw_vid = hw->mac.default_vid;
 
 		/* mailbox is disconnected so we don't send a message */
 		hw->iov.ops.assign_default_mac_vlan(hw, vf_info);
@@ -445,7 +445,7 @@ int fm10k_ndo_set_vf_mac(struct net_device *netdev, int vf_idx, u8 *mac)
 }
 
 int fm10k_ndo_set_vf_vlan(struct net_device *netdev, int vf_idx, u16 vid,
-			  u8 qos)
+			  u8 qos, __be16 vlan_proto)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_iov_data *iov_data = interface->iov_data;
@@ -459,6 +459,10 @@ int fm10k_ndo_set_vf_vlan(struct net_device *netdev, int vf_idx, u16 vid,
 	/* QOS is unsupported and VLAN IDs accepted range 0-4094 */
 	if (qos || (vid > (VLAN_VID_MASK - 1)))
 		return -EINVAL;
+
+	/* VF VLAN Protocol part to default is unsupported */
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
 
 	vf_info = &iov_data->vf_info[vf_idx];
 

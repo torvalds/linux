@@ -52,10 +52,12 @@ static struct snd_soc_dai_driver gtm601_dai = {
 };
 
 static const struct snd_soc_codec_driver soc_codec_dev_gtm601 = {
-	.dapm_widgets = gtm601_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(gtm601_dapm_widgets),
-	.dapm_routes = gtm601_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(gtm601_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= gtm601_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(gtm601_dapm_widgets),
+		.dapm_routes		= gtm601_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(gtm601_dapm_routes),
+	},
 };
 
 static int gtm601_platform_probe(struct platform_device *pdev)

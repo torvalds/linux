@@ -22,7 +22,8 @@
 /*
  * TLB hazards
  */
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6) && !defined(CONFIG_CPU_CAVIUM_OCTEON)
+#if (defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)) && \
+	!defined(CONFIG_CPU_CAVIUM_OCTEON) && !defined(CONFIG_LOONGSON3_ENHANCEMENT)
 
 /*
  * MIPSR2 defines ehb for hazard avoidance
@@ -57,8 +58,8 @@
  * address of a label as argument to inline assembler.	Gas otoh has the
  * annoying difference between la and dla which are only usable for 32-bit
  * rsp. 64-bit code, so can't be used without conditional compilation.
- * The alterantive is switching the assembler to 64-bit code which happens
- * to work right even for 32-bit code ...
+ * The alternative is switching the assembler to 64-bit code which happens
+ * to work right even for 32-bit code...
  */
 #define instruction_hazard()						\
 do {									\
@@ -132,8 +133,8 @@ do {									\
  * address of a label as argument to inline assembler.	Gas otoh has the
  * annoying difference between la and dla which are only usable for 32-bit
  * rsp. 64-bit code, so can't be used without conditional compilation.
- * The alterantive is switching the assembler to 64-bit code which happens
- * to work right even for 32-bit code ...
+ * The alternative is switching the assembler to 64-bit code which happens
+ * to work right even for 32-bit code...
  */
 #define __instruction_hazard()						\
 do {									\
@@ -155,8 +156,8 @@ do {									\
 } while (0)
 
 #elif defined(CONFIG_MIPS_ALCHEMY) || defined(CONFIG_CPU_CAVIUM_OCTEON) || \
-	defined(CONFIG_CPU_LOONGSON2) || defined(CONFIG_CPU_R10000) || \
-	defined(CONFIG_CPU_R5500) || defined(CONFIG_CPU_XLR)
+	defined(CONFIG_CPU_LOONGSON2) || defined(CONFIG_LOONGSON3_ENHANCEMENT) || \
+	defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_R5500) || defined(CONFIG_CPU_XLR)
 
 /*
  * R10000 rocks - all hazards handled in hardware, so this becomes a nobrainer.

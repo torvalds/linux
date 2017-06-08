@@ -31,6 +31,7 @@
 
 #include <linux/linkage.h>
 #include <asm/inst.h>
+#include <asm/frame.h>
 
 /*
  * The following macros are used to move an (un)aligned 16 byte value to/from
@@ -45,27 +46,48 @@
 
 #ifdef __x86_64__
 
-.data
+# constants in mergeable sections, linker can reorder and merge
+.section	.rodata.cst16.gf128mul_x_ble_mask, "aM", @progbits, 16
 .align 16
 .Lgf128mul_x_ble_mask:
 	.octa 0x00000000000000010000000000000087
+.section	.rodata.cst16.POLY, "aM", @progbits, 16
+.align 16
 POLY:   .octa 0xC2000000000000000000000000000001
+.section	.rodata.cst16.TWOONE, "aM", @progbits, 16
+.align 16
 TWOONE: .octa 0x00000001000000000000000000000001
+
+.section	.rodata.cst16.SHUF_MASK, "aM", @progbits, 16
+.align 16
+SHUF_MASK:  .octa 0x000102030405060708090A0B0C0D0E0F
+.section	.rodata.cst16.MASK1, "aM", @progbits, 16
+.align 16
+MASK1:      .octa 0x0000000000000000ffffffffffffffff
+.section	.rodata.cst16.MASK2, "aM", @progbits, 16
+.align 16
+MASK2:      .octa 0xffffffffffffffff0000000000000000
+.section	.rodata.cst16.ONE, "aM", @progbits, 16
+.align 16
+ONE:        .octa 0x00000000000000000000000000000001
+.section	.rodata.cst16.F_MIN_MASK, "aM", @progbits, 16
+.align 16
+F_MIN_MASK: .octa 0xf1f2f3f4f5f6f7f8f9fafbfcfdfeff0
+.section	.rodata.cst16.dec, "aM", @progbits, 16
+.align 16
+dec:        .octa 0x1
+.section	.rodata.cst16.enc, "aM", @progbits, 16
+.align 16
+enc:        .octa 0x2
 
 # order of these constants should not change.
 # more specifically, ALL_F should follow SHIFT_MASK,
-# and ZERO should follow ALL_F
-
-SHUF_MASK:  .octa 0x000102030405060708090A0B0C0D0E0F
-MASK1:      .octa 0x0000000000000000ffffffffffffffff
-MASK2:      .octa 0xffffffffffffffff0000000000000000
+# and zero should follow ALL_F
+.section	.rodata, "a", @progbits
+.align 16
 SHIFT_MASK: .octa 0x0f0e0d0c0b0a09080706050403020100
 ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
-ZERO:       .octa 0x00000000000000000000000000000000
-ONE:        .octa 0x00000000000000000000000000000001
-F_MIN_MASK: .octa 0xf1f2f3f4f5f6f7f8f9fafbfcfdfeff0
-dec:        .octa 0x1
-enc:        .octa 0x2
+            .octa 0x00000000000000000000000000000000
 
 
 .text
@@ -1800,11 +1822,12 @@ ENDPROC(_key_expansion_256b)
  *                   unsigned int key_len)
  */
 ENTRY(aesni_set_key)
+	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl KEYP
-	movl 8(%esp), KEYP		# ctx
-	movl 12(%esp), UKEYP		# in_key
-	movl 16(%esp), %edx		# key_len
+	movl (FRAME_OFFSET+8)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+12)(%esp), UKEYP	# in_key
+	movl (FRAME_OFFSET+16)(%esp), %edx	# key_len
 #endif
 	movups (UKEYP), %xmm0		# user key (first 16 bytes)
 	movaps %xmm0, (KEYP)
@@ -1905,6 +1928,7 @@ ENTRY(aesni_set_key)
 #ifndef __x86_64__
 	popl KEYP
 #endif
+	FRAME_END
 	ret
 ENDPROC(aesni_set_key)
 
@@ -1912,12 +1936,13 @@ ENDPROC(aesni_set_key)
  * void aesni_enc(struct crypto_aes_ctx *ctx, u8 *dst, const u8 *src)
  */
 ENTRY(aesni_enc)
+	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl KEYP
 	pushl KLEN
-	movl 12(%esp), KEYP
-	movl 16(%esp), OUTP
-	movl 20(%esp), INP
+	movl (FRAME_OFFSET+12)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+16)(%esp), OUTP	# dst
+	movl (FRAME_OFFSET+20)(%esp), INP	# src
 #endif
 	movl 480(KEYP), KLEN		# key length
 	movups (INP), STATE		# input
@@ -1927,6 +1952,7 @@ ENTRY(aesni_enc)
 	popl KLEN
 	popl KEYP
 #endif
+	FRAME_END
 	ret
 ENDPROC(aesni_enc)
 
@@ -2101,12 +2127,13 @@ ENDPROC(_aesni_enc4)
  * void aesni_dec (struct crypto_aes_ctx *ctx, u8 *dst, const u8 *src)
  */
 ENTRY(aesni_dec)
+	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl KEYP
 	pushl KLEN
-	movl 12(%esp), KEYP
-	movl 16(%esp), OUTP
-	movl 20(%esp), INP
+	movl (FRAME_OFFSET+12)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+16)(%esp), OUTP	# dst
+	movl (FRAME_OFFSET+20)(%esp), INP	# src
 #endif
 	mov 480(KEYP), KLEN		# key length
 	add $240, KEYP
@@ -2117,6 +2144,7 @@ ENTRY(aesni_dec)
 	popl KLEN
 	popl KEYP
 #endif
+	FRAME_END
 	ret
 ENDPROC(aesni_dec)
 
@@ -2292,14 +2320,15 @@ ENDPROC(_aesni_dec4)
  *		      size_t len)
  */
 ENTRY(aesni_ecb_enc)
+	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl LEN
 	pushl KEYP
 	pushl KLEN
-	movl 16(%esp), KEYP
-	movl 20(%esp), OUTP
-	movl 24(%esp), INP
-	movl 28(%esp), LEN
+	movl (FRAME_OFFSET+16)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+20)(%esp), OUTP	# dst
+	movl (FRAME_OFFSET+24)(%esp), INP	# src
+	movl (FRAME_OFFSET+28)(%esp), LEN	# len
 #endif
 	test LEN, LEN		# check length
 	jz .Lecb_enc_ret
@@ -2342,6 +2371,7 @@ ENTRY(aesni_ecb_enc)
 	popl KEYP
 	popl LEN
 #endif
+	FRAME_END
 	ret
 ENDPROC(aesni_ecb_enc)
 
@@ -2350,14 +2380,15 @@ ENDPROC(aesni_ecb_enc)
  *		      size_t len);
  */
 ENTRY(aesni_ecb_dec)
+	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl LEN
 	pushl KEYP
 	pushl KLEN
-	movl 16(%esp), KEYP
-	movl 20(%esp), OUTP
-	movl 24(%esp), INP
-	movl 28(%esp), LEN
+	movl (FRAME_OFFSET+16)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+20)(%esp), OUTP	# dst
+	movl (FRAME_OFFSET+24)(%esp), INP	# src
+	movl (FRAME_OFFSET+28)(%esp), LEN	# len
 #endif
 	test LEN, LEN
 	jz .Lecb_dec_ret
@@ -2401,6 +2432,7 @@ ENTRY(aesni_ecb_dec)
 	popl KEYP
 	popl LEN
 #endif
+	FRAME_END
 	ret
 ENDPROC(aesni_ecb_dec)
 
@@ -2409,16 +2441,17 @@ ENDPROC(aesni_ecb_dec)
  *		      size_t len, u8 *iv)
  */
 ENTRY(aesni_cbc_enc)
+	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl IVP
 	pushl LEN
 	pushl KEYP
 	pushl KLEN
-	movl 20(%esp), KEYP
-	movl 24(%esp), OUTP
-	movl 28(%esp), INP
-	movl 32(%esp), LEN
-	movl 36(%esp), IVP
+	movl (FRAME_OFFSET+20)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+24)(%esp), OUTP	# dst
+	movl (FRAME_OFFSET+28)(%esp), INP	# src
+	movl (FRAME_OFFSET+32)(%esp), LEN	# len
+	movl (FRAME_OFFSET+36)(%esp), IVP	# iv
 #endif
 	cmp $16, LEN
 	jb .Lcbc_enc_ret
@@ -2443,6 +2476,7 @@ ENTRY(aesni_cbc_enc)
 	popl LEN
 	popl IVP
 #endif
+	FRAME_END
 	ret
 ENDPROC(aesni_cbc_enc)
 
@@ -2451,16 +2485,17 @@ ENDPROC(aesni_cbc_enc)
  *		      size_t len, u8 *iv)
  */
 ENTRY(aesni_cbc_dec)
+	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl IVP
 	pushl LEN
 	pushl KEYP
 	pushl KLEN
-	movl 20(%esp), KEYP
-	movl 24(%esp), OUTP
-	movl 28(%esp), INP
-	movl 32(%esp), LEN
-	movl 36(%esp), IVP
+	movl (FRAME_OFFSET+20)(%esp), KEYP	# ctx
+	movl (FRAME_OFFSET+24)(%esp), OUTP	# dst
+	movl (FRAME_OFFSET+28)(%esp), INP	# src
+	movl (FRAME_OFFSET+32)(%esp), LEN	# len
+	movl (FRAME_OFFSET+36)(%esp), IVP	# iv
 #endif
 	cmp $16, LEN
 	jb .Lcbc_dec_just_ret
@@ -2534,13 +2569,16 @@ ENTRY(aesni_cbc_dec)
 	popl LEN
 	popl IVP
 #endif
+	FRAME_END
 	ret
 ENDPROC(aesni_cbc_dec)
 
 #ifdef __x86_64__
+.pushsection .rodata
 .align 16
 .Lbswap_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+.popsection
 
 /*
  * _aesni_inc_init:	internal ABI
@@ -2598,6 +2636,7 @@ ENDPROC(_aesni_inc)
  *		      size_t len, u8 *iv)
  */
 ENTRY(aesni_ctr_enc)
+	FRAME_BEGIN
 	cmp $16, LEN
 	jb .Lctr_enc_just_ret
 	mov 480(KEYP), KLEN
@@ -2651,6 +2690,7 @@ ENTRY(aesni_ctr_enc)
 .Lctr_enc_ret:
 	movups IV, (IVP)
 .Lctr_enc_just_ret:
+	FRAME_END
 	ret
 ENDPROC(aesni_ctr_enc)
 
@@ -2677,6 +2717,7 @@ ENDPROC(aesni_ctr_enc)
  *			 bool enc, u8 *iv)
  */
 ENTRY(aesni_xts_crypt8)
+	FRAME_BEGIN
 	cmpb $0, %cl
 	movl $0, %ecx
 	movl $240, %r10d
@@ -2777,6 +2818,7 @@ ENTRY(aesni_xts_crypt8)
 	pxor INC, STATE4
 	movdqu STATE4, 0x70(OUTP)
 
+	FRAME_END
 	ret
 ENDPROC(aesni_xts_crypt8)
 

@@ -5,7 +5,7 @@ This documents the basic principles of the glock state machine
 internals. Each glock (struct gfs2_glock in fs/gfs2/incore.h)
 has two main (internal) locks:
 
- 1. A spinlock (gl_spin) which protects the internal state such
+ 1. A spinlock (gl_lockref.lock) which protects the internal state such
     as gl_state, gl_target and the list of holders (gl_holders)
  2. A non-blocking bit lock, GLF_LOCK, which is used to prevent other
     threads from making calls to the DLM, etc. at the same time. If a
@@ -82,8 +82,8 @@ rather than via the glock.
 
 Locking rules for glock operations:
 
-Operation     |  GLF_LOCK bit lock held |  gl_spin spinlock held
------------------------------------------------------------------
+Operation     |  GLF_LOCK bit lock held |  gl_lockref.lock spinlock held
+-------------------------------------------------------------------------
 go_xmote_th   |       Yes               |       No
 go_xmote_bh   |       Yes               |       No
 go_inval      |       Yes               |       No

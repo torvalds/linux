@@ -1,8 +1,8 @@
 #
-# Makefile for ST21NFCB NCI based NFC driver
+# Makefile for ST_NCI NCI based NFC driver
 #
 
-st-nci-objs = ndlc.o core.o st-nci_se.o
+st-nci-objs = ndlc.o core.o se.o vendor_cmds.o
 obj-$(CONFIG_NFC_ST_NCI)     += st-nci.o
 
 st-nci_i2c-objs = i2c.o

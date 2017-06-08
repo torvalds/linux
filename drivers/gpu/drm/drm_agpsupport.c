@@ -36,8 +36,6 @@
 #include <linux/slab.h>
 #include "drm_legacy.h"
 
-#if __OS_HAS_AGP
-
 #include <asm/agp.h>
 
 /**
@@ -423,26 +421,26 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 	head->base = head->agp_info.aper_base;
 	return head;
 }
+/* Only exported for i810.ko */
+EXPORT_SYMBOL(drm_agp_init);
 
 /**
- * drm_agp_clear - Clear AGP resource list
+ * drm_legacy_agp_clear - Clear AGP resource list
  * @dev: DRM device
  *
  * Iterate over all AGP resources and remove them. But keep the AGP head
  * intact so it can still be used. It is safe to call this if AGP is disabled or
  * was already removed.
  *
- * If DRIVER_MODESET is active, nothing is done to protect the modesetting
- * resources from getting destroyed. Drivers are responsible of cleaning them up
- * during device shutdown.
+ * Cleanup is only done for drivers who have DRIVER_LEGACY set.
  */
-void drm_agp_clear(struct drm_device *dev)
+void drm_legacy_agp_clear(struct drm_device *dev)
 {
 	struct drm_agp_mem *entry, *tempe;
 
 	if (!dev->agp)
 		return;
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
 		return;
 
 	list_for_each_entry_safe(entry, tempe, &dev->agp->memory, head) {
@@ -502,5 +500,3 @@ drm_agp_bind_pages(struct drm_device *dev,
 	return mem;
 }
 EXPORT_SYMBOL(drm_agp_bind_pages);
-
-#endif /* __OS_HAS_AGP */

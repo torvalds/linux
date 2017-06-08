@@ -15,7 +15,6 @@
 #include <drm/drmP.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
-#include "exynos_drm_fbdev.h"
 
 static LIST_HEAD(exynos_drm_subdrv_list);
 
@@ -28,7 +27,6 @@ int exynos_drm_subdrv_register(struct exynos_drm_subdrv *subdrv)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(exynos_drm_subdrv_register);
 
 int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *subdrv)
 {
@@ -39,7 +37,6 @@ int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *subdrv)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(exynos_drm_subdrv_unregister);
 
 int exynos_drm_device_subdrv_probe(struct drm_device *dev)
 {
@@ -69,7 +66,6 @@ int exynos_drm_device_subdrv_probe(struct drm_device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(exynos_drm_device_subdrv_probe);
 
 int exynos_drm_device_subdrv_remove(struct drm_device *dev)
 {
@@ -87,7 +83,6 @@ int exynos_drm_device_subdrv_remove(struct drm_device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(exynos_drm_device_subdrv_remove);
 
 int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -105,13 +100,12 @@ int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 
 err:
-	list_for_each_entry_reverse(subdrv, &subdrv->list, list) {
+	list_for_each_entry_continue_reverse(subdrv, &exynos_drm_subdrv_list, list) {
 		if (subdrv->close)
 			subdrv->close(dev, subdrv->dev, file);
 	}
 	return ret;
 }
-EXPORT_SYMBOL_GPL(exynos_drm_subdrv_open);
 
 void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file)
 {
@@ -122,4 +116,3 @@ void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file)
 			subdrv->close(dev, subdrv->dev, file);
 	}
 }
-EXPORT_SYMBOL_GPL(exynos_drm_subdrv_close);

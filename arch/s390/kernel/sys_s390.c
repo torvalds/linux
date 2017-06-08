@@ -27,7 +27,7 @@
 #include <linux/personality.h>
 #include <linux/unistd.h>
 #include <linux/ipc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "entry.h"
 
 /*

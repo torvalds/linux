@@ -330,7 +330,7 @@ static void nuke(struct dummy *dum, struct dummy_ep *ep)
 /* caller must hold lock */
 static void stop_activity(struct dummy *dum)
 {
-	struct dummy_ep	*ep;
+	int i;
 
 	/* prevent any more requests */
 	dum->address = 0;
@@ -338,8 +338,8 @@ static void stop_activity(struct dummy *dum)
 	/* The timer is left running so that outstanding URBs can fail */
 
 	/* nuke any pending requests first, so driver i/o is quiesced */
-	list_for_each_entry(ep, &dum->gadget.ep_list, ep.ep_list)
-		nuke(dum, ep);
+	for (i = 0; i < DUMMY_ENDPOINTS; ++i)
+		nuke(dum, &dum->ep[i]);
 
 	/* driver now does any non-usb quiescing necessary */
 }
@@ -503,7 +503,7 @@ static int dummy_enable(struct usb_ep *_ep,
 	 * maximum packet size.
 	 * For SS devices the wMaxPacketSize is limited by 1024.
 	 */
-	max = usb_endpoint_maxp(desc) & 0x7ff;
+	max = usb_endpoint_maxp(desc);
 
 	/* drivers must not request bad settings, since lower levels
 	 * (hardware or its drivers) may not check.  some endpoints
@@ -647,12 +647,10 @@ static int dummy_disable(struct usb_ep *_ep)
 static struct usb_request *dummy_alloc_request(struct usb_ep *_ep,
 		gfp_t mem_flags)
 {
-	struct dummy_ep		*ep;
 	struct dummy_request	*req;
 
 	if (!_ep)
 		return NULL;
-	ep = usb_ep_to_dummy_ep(_ep);
 
 	req = kzalloc(sizeof(*req), mem_flags);
 	if (!req)
@@ -833,10 +831,10 @@ static const struct usb_ep_ops dummy_ep_ops = {
 /* there are both host and device side versions of this call ... */
 static int dummy_g_get_frame(struct usb_gadget *_gadget)
 {
-	struct timeval	tv;
+	struct timespec64 ts64;
 
-	do_gettimeofday(&tv);
-	return tv.tv_usec / 1000;
+	ktime_get_ts64(&ts64);
+	return ts64.tv_nsec / NSEC_PER_MSEC;
 }
 
 static int dummy_wakeup(struct usb_gadget *_gadget)
@@ -1033,6 +1031,8 @@ static int dummy_udc_probe(struct platform_device *pdev)
 	int		rc;
 
 	dum = *((void **)dev_get_platdata(&pdev->dev));
+	/* Clear usb_gadget region for new registration to udc-core */
+	memzero_explicit(&dum->gadget, sizeof(struct usb_gadget));
 	dum->gadget.name = gadget_name;
 	dum->gadget.ops = &dummy_ops;
 	dum->gadget.max_speed = USB_SPEED_SUPER;
@@ -1348,6 +1348,7 @@ static int transfer(struct dummy_hcd *dum_hcd, struct urb *urb,
 {
 	struct dummy		*dum = dum_hcd->dum;
 	struct dummy_request	*req;
+	int			sent = 0;
 
 top:
 	/* if there's no request queued, the device is NAKing; return */
@@ -1385,12 +1386,15 @@ top:
 			if (len == 0)
 				break;
 
-			/* use an extra pass for the final short packet */
-			if (len > ep->ep.maxpacket) {
-				rescan = 1;
-				len -= (len % ep->ep.maxpacket);
+			/* send multiple of maxpacket first, then remainder */
+			if (len >= ep->ep.maxpacket) {
+				is_short = 0;
+				if (len % ep->ep.maxpacket)
+					rescan = 1;
+				len -= len % ep->ep.maxpacket;
+			} else {
+				is_short = 1;
 			}
-			is_short = (len % ep->ep.maxpacket) != 0;
 
 			len = dummy_perform_transfer(urb, req, len);
 
@@ -1399,6 +1403,7 @@ top:
 				req->req.status = len;
 			} else {
 				limit -= len;
+				sent += len;
 				urb->actual_length += len;
 				req->req.actual += len;
 			}
@@ -1421,7 +1426,7 @@ top:
 					*status = -EOVERFLOW;
 				else
 					*status = 0;
-			} else if (!to_host) {
+			} else {
 				*status = 0;
 				if (host_len > dev_len)
 					req->req.status = -EOVERFLOW;
@@ -1429,15 +1434,24 @@ top:
 					req->req.status = 0;
 			}
 
-		/* many requests terminate without a short packet */
+		/*
+		 * many requests terminate without a short packet.
+		 * send a zlp if demanded by flags.
+		 */
 		} else {
-			if (req->req.length == req->req.actual
-					&& !req->req.zero)
-				req->req.status = 0;
-			if (urb->transfer_buffer_length == urb->actual_length
-					&& !(urb->transfer_flags
-						& URB_ZERO_PACKET))
-				*status = 0;
+			if (req->req.length == req->req.actual) {
+				if (req->req.zero && to_host)
+					rescan = 1;
+				else
+					req->req.status = 0;
+			}
+			if (urb->transfer_buffer_length == urb->actual_length) {
+				if (urb->transfer_flags & URB_ZERO_PACKET &&
+				    !to_host)
+					rescan = 1;
+				else
+					*status = 0;
+			}
 		}
 
 		/* device side completion --> continuable */
@@ -1460,7 +1474,7 @@ top:
 		if (rescan)
 			goto top;
 	}
-	return limit;
+	return sent;
 }
 
 static int periodic_bytes(struct dummy *dum, struct dummy_ep *ep)
@@ -1471,8 +1485,7 @@ static int periodic_bytes(struct dummy *dum, struct dummy_ep *ep)
 		int	tmp;
 
 		/* high bandwidth mode */
-		tmp = usb_endpoint_maxp(ep->desc);
-		tmp = (tmp >> 11) & 0x03;
+		tmp = usb_endpoint_maxp_mult(ep->desc);
 		tmp *= 8 /* applies to entire frame */;
 		limit += limit * tmp;
 	}
@@ -1890,7 +1903,7 @@ restart:
 		default:
 treat_control_like_bulk:
 			ep->last_io = jiffies;
-			total = transfer(dum_hcd, urb, ep, limit, &status);
+			total -= transfer(dum_hcd, urb, ep, limit, &status);
 			break;
 		}
 
@@ -1995,7 +2008,7 @@ ss_hub_descriptor(struct usb_hub_descriptor *desc)
 			HUB_CHAR_COMMON_OCPM);
 	desc->bNbrPorts = 1;
 	desc->u.ss.bHubHdrDecLat = 0x04; /* Worst case: 0.4 micro sec*/
-	desc->u.ss.DeviceRemovable = 0xffff;
+	desc->u.ss.DeviceRemovable = 0;
 }
 
 static inline void hub_descriptor(struct usb_hub_descriptor *desc)
@@ -2007,8 +2020,8 @@ static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 			HUB_CHAR_INDV_PORT_LPSM |
 			HUB_CHAR_COMMON_OCPM);
 	desc->bNbrPorts = 1;
-	desc->u.hs.DeviceRemovable[0] = 0xff;
-	desc->u.hs.DeviceRemovable[1] = 0xff;
+	desc->u.hs.DeviceRemovable[0] = 0;
+	desc->u.hs.DeviceRemovable[1] = 0xff;	/* PortPwrCtrlMask */
 }
 
 static int dummy_hub_control(
@@ -2049,16 +2062,13 @@ static int dummy_hub_control(
 			}
 			break;
 		case USB_PORT_FEAT_POWER:
-			if (hcd->speed == HCD_USB3) {
-				if (dum_hcd->port_status & USB_PORT_STAT_POWER)
-					dev_dbg(dummy_dev(dum_hcd),
-						"power-off\n");
-			} else
-				if (dum_hcd->port_status &
-							USB_SS_PORT_STAT_POWER)
-					dev_dbg(dummy_dev(dum_hcd),
-						"power-off\n");
-			/* FALLS THROUGH */
+			dev_dbg(dummy_dev(dum_hcd), "power-off\n");
+			if (hcd->speed == HCD_USB3)
+				dum_hcd->port_status &= ~USB_SS_PORT_STAT_POWER;
+			else
+				dum_hcd->port_status &= ~USB_PORT_STAT_POWER;
+			set_link_state(dum_hcd);
+			break;
 		default:
 			dum_hcd->port_status &= ~(1 << wValue);
 			set_link_state(dum_hcd);
@@ -2229,14 +2239,13 @@ static int dummy_hub_control(
 				if ((dum_hcd->port_status &
 				     USB_SS_PORT_STAT_POWER) != 0) {
 					dum_hcd->port_status |= (1 << wValue);
-					set_link_state(dum_hcd);
 				}
 			} else
 				if ((dum_hcd->port_status &
 				     USB_PORT_STAT_POWER) != 0) {
 					dum_hcd->port_status |= (1 << wValue);
-					set_link_state(dum_hcd);
 				}
+			set_link_state(dum_hcd);
 		}
 		break;
 	case GetPortErrorCount:
@@ -2430,9 +2439,6 @@ static int dummy_start(struct usb_hcd *hcd)
 
 static void dummy_stop(struct usb_hcd *hcd)
 {
-	struct dummy		*dum;
-
-	dum = hcd_to_dummy_hcd(hcd)->dum;
 	device_remove_file(dummy_dev(hcd_to_dummy_hcd(hcd)), &dev_attr_urbs);
 	dev_info(dummy_dev(hcd_to_dummy_hcd(hcd)), "stopped\n");
 }

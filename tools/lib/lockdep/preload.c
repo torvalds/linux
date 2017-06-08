@@ -439,7 +439,5 @@ __attribute__((constructor)) static void init_preload(void)
 	ll_pthread_rwlock_unlock = dlsym(RTLD_NEXT, "pthread_rwlock_unlock");
 #endif
 
-	lockdep_init();
-
 	__init_state = done;
 }

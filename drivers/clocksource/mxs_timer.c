@@ -31,8 +31,6 @@
 #include <linux/stmp_device.h>
 #include <linux/sched_clock.h>
 
-#include <asm/mach/time.h>
-
 /*
  * There are 2 versions of the timrot on Freescale MXS-based SoCs.
  * The v1 on MX23 only gets 16 bits counter, while v2 on MX28
@@ -99,7 +97,7 @@ static void timrot_irq_acknowledge(void)
 		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_CLR);
 }
 
-static cycle_t timrotv1_get_cycles(struct clocksource *cs)
+static u64 timrotv1_get_cycles(struct clocksource *cs)
 {
 	return ~((__raw_readl(mxs_timrot_base + HW_TIMROT_TIMCOUNTn(1))
 			& 0xffff0000) >> 16);
@@ -226,10 +224,10 @@ static int __init mxs_clocksource_init(struct clk *timer_clk)
 	return 0;
 }
 
-static void __init mxs_timer_init(struct device_node *np)
+static int __init mxs_timer_init(struct device_node *np)
 {
 	struct clk *timer_clk;
-	int irq;
+	int irq, ret;
 
 	mxs_timrot_base = of_iomap(np, 0);
 	WARN_ON(!mxs_timrot_base);
@@ -237,10 +235,12 @@ static void __init mxs_timer_init(struct device_node *np)
 	timer_clk = of_clk_get(np, 0);
 	if (IS_ERR(timer_clk)) {
 		pr_err("%s: failed to get clk\n", __func__);
-		return;
+		return PTR_ERR(timer_clk);
 	}
 
-	clk_prepare_enable(timer_clk);
+	ret = clk_prepare_enable(timer_clk);
+	if (ret)
+		return ret;
 
 	/*
 	 * Initialize timers to a known state
@@ -278,11 +278,19 @@ static void __init mxs_timer_init(struct device_node *np)
 			mxs_timrot_base + HW_TIMROT_FIXED_COUNTn(1));
 
 	/* init and register the timer to the framework */
-	mxs_clocksource_init(timer_clk);
-	mxs_clockevent_init(timer_clk);
+	ret = mxs_clocksource_init(timer_clk);
+	if (ret)
+		return ret;
+
+	ret = mxs_clockevent_init(timer_clk);
+	if (ret)
+		return ret;
 
 	/* Make irqs happen */
 	irq = irq_of_parse_and_map(np, 0);
-	setup_irq(irq, &mxs_timer_irq);
+	if (irq <= 0)
+		return -EINVAL;
+
+	return setup_irq(irq, &mxs_timer_irq);
 }
 CLOCKSOURCE_OF_DECLARE(mxs, "fsl,timrot", mxs_timer_init);

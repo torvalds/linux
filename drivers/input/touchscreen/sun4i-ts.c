@@ -115,7 +115,6 @@
 struct sun4i_ts_data {
 	struct device *dev;
 	struct input_dev *input;
-	struct thermal_zone_device *tz;
 	void __iomem *base;
 	unsigned int irq;
 	bool ignore_fifo_data;
@@ -366,10 +365,7 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	if (IS_ERR(hwmon))
 		return PTR_ERR(hwmon);
 
-	ts->tz = thermal_zone_of_sensor_register(ts->dev, 0, ts,
-						 &sun4i_ts_tz_ops);
-	if (IS_ERR(ts->tz))
-		ts->tz = NULL;
+	devm_thermal_zone_of_sensor_register(ts->dev, 0, ts, &sun4i_ts_tz_ops);
 
 	writel(TEMP_IRQ_EN(1), ts->base + TP_INT_FIFOC);
 
@@ -377,7 +373,6 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 		error = input_register_device(ts->input);
 		if (error) {
 			writel(0, ts->base + TP_INT_FIFOC);
-			thermal_zone_of_sensor_unregister(ts->dev, ts->tz);
 			return error;
 		}
 	}
@@ -393,8 +388,6 @@ static int sun4i_ts_remove(struct platform_device *pdev)
 	/* Explicit unregister to avoid open/close changing the imask later */
 	if (ts->input)
 		input_unregister_device(ts->input);
-
-	thermal_zone_of_sensor_unregister(ts->dev, ts->tz);
 
 	/* Deactivate all IRQs */
 	writel(0, ts->base + TP_INT_FIFOC);

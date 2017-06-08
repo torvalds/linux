@@ -1,25 +1,20 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*! \file cn66xx_regs.h
  *  \brief Host Driver: Register Address and Register Mask values for
  *  Octeon CN66XX devices.
@@ -443,10 +438,10 @@
 #define    CN6XXX_SLI_S2M_PORT0_CTL              0x3D80
 #define    CN6XXX_SLI_S2M_PORT1_CTL              0x3D90
 #define    CN6XXX_SLI_S2M_PORTX_CTL(port)        \
-	(CN6XXX_SLI_S2M_PORT0_CTL + (port * 0x10))
+	(CN6XXX_SLI_S2M_PORT0_CTL + ((port) * 0x10))
 
 #define    CN6XXX_SLI_INT_ENB64(port)            \
-	(CN6XXX_SLI_INT_ENB64_PORT0 + (port * 0x10))
+	(CN6XXX_SLI_INT_ENB64_PORT0 + ((port) * 0x10))
 
 #define    CN6XXX_SLI_MAC_NUMBER                 0x3E00
 
@@ -458,7 +453,7 @@
 #define    CN6XXX_PCI_BAR1_OFFSET                  0x8
 
 #define    CN6XXX_BAR1_REG(idx, port) \
-		(CN6XXX_BAR1_INDEX_START + (port * CN6XXX_PEM_OFFSET) + \
+		(CN6XXX_BAR1_INDEX_START + ((port) * CN6XXX_PEM_OFFSET) + \
 		(CN6XXX_PCI_BAR1_OFFSET * (idx)))
 
 /*############################ DPI #########################*/
@@ -476,17 +471,17 @@
 #define    CN6XXX_DPI_DMA_ENG0_ENB        0x0001df0000000080ULL
 
 #define    CN6XXX_DPI_DMA_ENG_ENB(q_no)   \
-	(CN6XXX_DPI_DMA_ENG0_ENB + (q_no * 8))
+	(CN6XXX_DPI_DMA_ENG0_ENB + ((q_no) * 8))
 
 #define    CN6XXX_DPI_DMA_ENG0_BUF        0x0001df0000000880ULL
 
 #define    CN6XXX_DPI_DMA_ENG_BUF(q_no)   \
-	(CN6XXX_DPI_DMA_ENG0_BUF + (q_no * 8))
+	(CN6XXX_DPI_DMA_ENG0_BUF + ((q_no) * 8))
 
 #define    CN6XXX_DPI_SLI_PRT0_CFG        0x0001df0000000900ULL
 #define    CN6XXX_DPI_SLI_PRT1_CFG        0x0001df0000000908ULL
 #define    CN6XXX_DPI_SLI_PRTX_CFG(port)        \
-	(CN6XXX_DPI_SLI_PRT0_CFG + (port * 0x10))
+	(CN6XXX_DPI_SLI_PRT0_CFG + ((port) * 0x10))
 
 #define    CN6XXX_DPI_DMA_COMMIT_MODE     BIT_ULL(58)
 #define    CN6XXX_DPI_DMA_PKT_HP          BIT_ULL(57)

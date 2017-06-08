@@ -13,6 +13,7 @@
 #ifndef _REGMAP_INTERNAL_H
 #define _REGMAP_INTERNAL_H
 
+#include <linux/device.h>
 #include <linux/regmap.h>
 #include <linux/fs.h>
 #include <linux/list.h>
@@ -59,6 +60,7 @@ struct regmap {
 	regmap_lock lock;
 	regmap_unlock unlock;
 	void *lock_arg; /* This is passed to lock/unlock functions */
+	gfp_t alloc_flags;
 
 	struct device *dev; /* Device we do I/O on */
 	void *work_buf;     /* Scratch buffer used to format I/O */
@@ -98,15 +100,18 @@ struct regmap {
 
 	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
 	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
+	int (*reg_update_bits)(void *context, unsigned int reg,
+			       unsigned int mask, unsigned int val);
 
 	bool defer_caching;
 
-	u8 read_flag_mask;
-	u8 write_flag_mask;
+	unsigned long read_flag_mask;
+	unsigned long write_flag_mask;
 
 	/* number of bits to (left) shift the reg value when formatting*/
 	int reg_shift;
 	int reg_stride;
+	int reg_stride_order;
 
 	/* regcache specific members */
 	const struct regcache_ops *cache_ops;
@@ -122,9 +127,9 @@ struct regmap {
 	unsigned int num_reg_defaults_raw;
 
 	/* if set, only the cache is modified not the HW */
-	u32 cache_only;
+	bool cache_only;
 	/* if set, only the HW is modified not the cache */
-	u32 cache_bypass;
+	bool cache_bypass;
 	/* if set, remember to free reg_defaults_raw */
 	bool cache_free;
 
@@ -132,7 +137,7 @@ struct regmap {
 	const void *reg_defaults_raw;
 	void *cache;
 	/* if set, the cache contains newer data than the HW */
-	u32 cache_dirty;
+	bool cache_dirty;
 	/* if set, the HW registers are known to match map->reg_defaults */
 	bool no_sync_defaults;
 
@@ -168,6 +173,7 @@ struct regcache_ops {
 	int (*drop)(struct regmap *map, unsigned int min, unsigned int max);
 };
 
+bool regmap_cached(struct regmap *map, unsigned int reg);
 bool regmap_writeable(struct regmap *map, unsigned int reg);
 bool regmap_readable(struct regmap *map, unsigned int reg);
 bool regmap_volatile(struct regmap *map, unsigned int reg);
@@ -258,6 +264,21 @@ static inline const char *regmap_name(const struct regmap *map)
 		return dev_name(map->dev);
 
 	return map->name;
+}
+
+static inline unsigned int regmap_get_offset(const struct regmap *map,
+					     unsigned int index)
+{
+	if (map->reg_stride_order >= 0)
+		return index << map->reg_stride_order;
+	else
+		return index * map->reg_stride;
+}
+
+static inline unsigned int regcache_get_index_by_order(const struct regmap *map,
+						       unsigned int reg)
+{
+	return reg >> map->reg_stride_order;
 }
 
 #endif

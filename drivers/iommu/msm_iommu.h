@@ -19,6 +19,7 @@
 #define MSM_IOMMU_H
 
 #include <linux/interrupt.h>
+#include <linux/iommu.h>
 #include <linux/clk.h>
 
 /* Sharability attributes of MSM IOMMU mappings */
@@ -42,73 +43,54 @@
  */
 #define MAX_NUM_MIDS	32
 
+/* Maximum number of context banks that can be present in IOMMU */
+#define IOMMU_MAX_CBS	128
+
 /**
  * struct msm_iommu_dev - a single IOMMU hardware instance
- * name		Human-readable name given to this IOMMU HW instance
  * ncb		Number of context banks present on this IOMMU HW instance
+ * dev:		IOMMU device
+ * irq:		Interrupt number
+ * clk:		The bus clock for this IOMMU hardware instance
+ * pclk:	The clock for the IOMMU bus interconnect
+ * dev_node:	list head in qcom_iommu_device_list
+ * dom_node:	list head for domain
+ * ctx_list:	list of 'struct msm_iommu_ctx_dev'
+ * context_map: Bitmap to track allocated context banks
  */
 struct msm_iommu_dev {
-	const char *name;
+	void __iomem *base;
 	int ncb;
+	struct device *dev;
+	int irq;
+	struct clk *clk;
+	struct clk *pclk;
+	struct list_head dev_node;
+	struct list_head dom_node;
+	struct list_head ctx_list;
+	DECLARE_BITMAP(context_map, IOMMU_MAX_CBS);
+
+	struct iommu_device iommu;
 };
 
 /**
  * struct msm_iommu_ctx_dev - an IOMMU context bank instance
- * name		Human-readable name given to this context bank
+ * of_node	node ptr of client device
  * num		Index of this context bank within the hardware
  * mids		List of Machine IDs that are to be mapped into this context
  *		bank, terminated by -1. The MID is a set of signals on the
  *		AXI bus that identifies the function associated with a specific
  *		memory request. (See ARM spec).
+ * num_mids	Total number of mids
+ * node		list head in ctx_list
  */
 struct msm_iommu_ctx_dev {
-	const char *name;
+	struct device_node *of_node;
 	int num;
 	int mids[MAX_NUM_MIDS];
+	int num_mids;
+	struct list_head list;
 };
-
-
-/**
- * struct msm_iommu_drvdata - A single IOMMU hardware instance
- * @base:	IOMMU config port base address (VA)
- * @ncb		The number of contexts on this IOMMU
- * @irq:	Interrupt number
- * @clk:	The bus clock for this IOMMU hardware instance
- * @pclk:	The clock for the IOMMU bus interconnect
- *
- * A msm_iommu_drvdata holds the global driver data about a single piece
- * of an IOMMU hardware instance.
- */
-struct msm_iommu_drvdata {
-	void __iomem *base;
-	int irq;
-	int ncb;
-	struct clk *clk;
-	struct clk *pclk;
-};
-
-/**
- * struct msm_iommu_ctx_drvdata - an IOMMU context bank instance
- * @num:		Hardware context number of this context
- * @pdev:		Platform device associated wit this HW instance
- * @attached_elm:	List element for domains to track which devices are
- *			attached to them
- *
- * A msm_iommu_ctx_drvdata holds the driver data for a single context bank
- * within each IOMMU hardware instance
- */
-struct msm_iommu_ctx_drvdata {
-	int num;
-	struct platform_device *pdev;
-	struct list_head attached_elm;
-};
-
-/*
- * Look up an IOMMU context device by its context name. NULL if none found.
- * Useful for testing and drivers that do not yet fully have IOMMU stuff in
- * their platform devices.
- */
-struct device *msm_iommu_get_ctx(const char *ctx_name);
 
 /*
  * Interrupt handler for the IOMMU context fault interrupt. Hooking the

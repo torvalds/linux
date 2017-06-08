@@ -243,12 +243,8 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 	sg_list = PTR_ALIGN(sg_list_unaligned, sizeof(struct fh_sg_list));
 
 	/* Get the physical addresses of the source buffer */
-	down_read(&current->mm->mmap_sem);
-	num_pinned = get_user_pages(current, current->mm,
-		param.local_vaddr - lb_offset, num_pages,
-		(param.source == -1) ? READ : WRITE,
-		0, pages, NULL);
-	up_read(&current->mm->mmap_sem);
+	num_pinned = get_user_pages_unlocked(param.local_vaddr - lb_offset,
+		num_pages, pages, (param.source == -1) ? 0 : FOLL_WRITE);
 
 	if (num_pinned != num_pages) {
 		/* get_user_pages() failed */

@@ -732,9 +732,8 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 			int ret;
 
 			pr_debug("Sending pending skb\n");
-			print_hex_dump(KERN_DEBUG, "LLCP Tx: ",
-				       DUMP_PREFIX_OFFSET, 16, 1,
-				       skb->data, skb->len, true);
+			print_hex_dump_debug("LLCP Tx: ", DUMP_PREFIX_OFFSET,
+					     16, 1, skb->data, skb->len, true);
 
 			if (ptype == LLCP_PDU_DISC && sk != NULL &&
 			    sk->sk_state == LLCP_DISCONNECTING) {
@@ -1412,8 +1411,8 @@ static void nfc_llcp_rx_skb(struct nfc_llcp_local *local, struct sk_buff *skb)
 	pr_debug("ptype 0x%x dsap 0x%x ssap 0x%x\n", ptype, dsap, ssap);
 
 	if (ptype != LLCP_PDU_SYMM)
-		print_hex_dump(KERN_DEBUG, "LLCP Rx: ", DUMP_PREFIX_OFFSET,
-			       16, 1, skb->data, skb->len, true);
+		print_hex_dump_debug("LLCP Rx: ", DUMP_PREFIX_OFFSET, 16, 1,
+				     skb->data, skb->len, true);
 
 	switch (ptype) {
 	case LLCP_PDU_SYMM:

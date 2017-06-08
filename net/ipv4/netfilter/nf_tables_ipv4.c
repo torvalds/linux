@@ -18,18 +18,18 @@
 #include <net/ip.h>
 #include <net/netfilter/nf_tables_ipv4.h>
 
-static unsigned int nft_do_chain_ipv4(const struct nf_hook_ops *ops,
+static unsigned int nft_do_chain_ipv4(void *priv,
 				      struct sk_buff *skb,
 				      const struct nf_hook_state *state)
 {
 	struct nft_pktinfo pkt;
 
-	nft_set_pktinfo_ipv4(&pkt, ops, skb, state);
+	nft_set_pktinfo_ipv4(&pkt, skb, state);
 
-	return nft_do_chain(&pkt, ops);
+	return nft_do_chain(&pkt, priv);
 }
 
-static unsigned int nft_ipv4_output(const struct nf_hook_ops *ops,
+static unsigned int nft_ipv4_output(void *priv,
 				    struct sk_buff *skb,
 				    const struct nf_hook_state *state)
 {
@@ -41,7 +41,7 @@ static unsigned int nft_ipv4_output(const struct nf_hook_ops *ops,
 		return NF_ACCEPT;
 	}
 
-	return nft_do_chain_ipv4(ops, skb, state);
+	return nft_do_chain_ipv4(priv, skb, state);
 }
 
 struct nft_af_info nft_af_ipv4 __read_mostly = {
@@ -78,7 +78,7 @@ err:
 
 static void nf_tables_ipv4_exit_net(struct net *net)
 {
-	nft_unregister_afinfo(net->nft.ipv4);
+	nft_unregister_afinfo(net, net->nft.ipv4);
 	kfree(net->nft.ipv4);
 }
 
@@ -103,7 +103,10 @@ static int __init nf_tables_ipv4_init(void)
 {
 	int ret;
 
-	nft_register_chain_type(&filter_ipv4);
+	ret = nft_register_chain_type(&filter_ipv4);
+	if (ret < 0)
+		return ret;
+
 	ret = register_pernet_subsys(&nf_tables_ipv4_net_ops);
 	if (ret < 0)
 		nft_unregister_chain_type(&filter_ipv4);

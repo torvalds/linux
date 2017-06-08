@@ -18,10 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 /* Note this is not a stand alone driver, it gets included in ov519.c, this
@@ -79,6 +75,8 @@ static void w9968cf_write_fsb(struct sd *sd, u16* data)
 	value = *data++;
 	memcpy(sd->gspca_dev.usb_buf, data, 6);
 
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0,
 			      USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
 			      value, 0x06, sd->gspca_dev.usb_buf, 6, 500);
@@ -98,6 +96,9 @@ static void w9968cf_write_sb(struct sd *sd, u16 value)
 
 	if (sd->gspca_dev.usb_err < 0)
 		return;
+
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
 
 	/* We don't use reg_w here, as that would cause all writes when
 	   bitbanging i2c to be logged, making the logs impossible to read */
@@ -125,6 +126,9 @@ static int w9968cf_read_sb(struct sd *sd)
 
 	if (sd->gspca_dev.usb_err < 0)
 		return -1;
+
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
 
 	/* We don't use reg_r here, as the w9968cf is special and has 16
 	   bit registers instead of 8 bit */

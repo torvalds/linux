@@ -22,9 +22,9 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/mfd/syscon.h>
-#include <linux/mfd/syscon/exynos5-pmu.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/soc/samsung/exynos-regs-pmu.h>
 
 /* Exynos USB PHY registers */
 #define EXYNOS5_FSEL_9MHZ6		0x0
@@ -235,10 +235,10 @@ static void exynos5_usbdrd_phy_isol(struct phy_usb_instance *inst,
 	if (!inst->reg_pmu)
 		return;
 
-	val = on ? 0 : EXYNOS5_PHY_ENABLE;
+	val = on ? 0 : EXYNOS4_PHY_ENABLE;
 
 	regmap_update_bits(inst->reg_pmu, inst->pmu_offset,
-			   EXYNOS5_PHY_ENABLE, val);
+			   EXYNOS4_PHY_ENABLE, val);
 }
 
 /*
@@ -249,7 +249,7 @@ static void exynos5_usbdrd_phy_isol(struct phy_usb_instance *inst,
 static unsigned int
 exynos5_usbdrd_pipe3_set_refclk(struct phy_usb_instance *inst)
 {
-	static u32 reg;
+	u32 reg;
 	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
 	/* restore any previous reference clock settings */
@@ -295,7 +295,7 @@ exynos5_usbdrd_pipe3_set_refclk(struct phy_usb_instance *inst)
 static unsigned int
 exynos5_usbdrd_utmi_set_refclk(struct phy_usb_instance *inst)
 {
-	static u32 reg;
+	u32 reg;
 	struct exynos5_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
 	/* restore any previous reference clock settings */

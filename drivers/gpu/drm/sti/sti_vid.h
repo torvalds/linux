@@ -23,7 +23,9 @@ struct sti_vid {
 void sti_vid_commit(struct sti_vid *vid,
 		    struct drm_plane_state *state);
 void sti_vid_disable(struct sti_vid *vid);
-struct sti_vid *sti_vid_create(struct device *dev, int id,
-			       void __iomem *baseaddr);
+struct sti_vid *sti_vid_create(struct device *dev, struct drm_device *drm_dev,
+			       int id, void __iomem *baseaddr);
+
+int vid_debugfs_init(struct sti_vid *vid, struct drm_minor *minor);
 
 #endif

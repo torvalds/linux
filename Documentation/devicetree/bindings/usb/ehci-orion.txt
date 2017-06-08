@@ -1,7 +1,9 @@
 * EHCI controller, Orion Marvell variants
 
 Required properties:
-- compatible: must be "marvell,orion-ehci"
+- compatible: must be one of the following
+	"marvell,orion-ehci"
+	"marvell,armada-3700-ehci"
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: The EHCI interrupt

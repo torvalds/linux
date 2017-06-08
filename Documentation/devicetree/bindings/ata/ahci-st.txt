@@ -18,21 +18,6 @@ Optional properties:
 
 Example:
 
-	/* Example for stih416 */
-	sata0: sata@fe380000 {
-		compatible	= "st,ahci";
-		reg		= <0xfe380000 0x1000>;
-		interrupts	= <GIC_SPI 157 IRQ_TYPE_NONE>;
-		interrupt-names	= "hostc";
-		phys		= <&phy_port0 PHY_TYPE_SATA>;
-		phy-names	= "ahci_phy";
-		resets		= <&powerdown STIH416_SATA0_POWERDOWN>,
-				  <&softreset STIH416_SATA0_SOFTRESET>;
-		reset-names	= "pwr-dwn", "sw-rst";
-		clocks		= <&clk_s_a0_ls CLK_ICN_REG>;
-		clock-names	= "ahci_clk";
-	};
-
 	/* Example for stih407 family silicon */
 	sata0: sata@9b20000 {
 		compatible	= "st,ahci";

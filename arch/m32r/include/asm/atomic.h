@@ -28,7 +28,7 @@
  *
  * Atomically reads the value of @v.
  */
-#define atomic_read(v)	ACCESS_ONCE((v)->counter)
+#define atomic_read(v)	READ_ONCE((v)->counter)
 
 /**
  * atomic_set - set atomic variable
@@ -37,7 +37,7 @@
  *
  * Atomically sets the value of @v to @i.
  */
-#define atomic_set(v,i)	(((v)->counter) = (i))
+#define atomic_set(v,i)	WRITE_ONCE(((v)->counter), (i))
 
 #ifdef CONFIG_CHIP_M32700_TS1
 #define __ATOMIC_CLOBBER	, "r4"
@@ -89,16 +89,44 @@ static __inline__ int atomic_##op##_return(int i, atomic_t *v)		\
 	return result;							\
 }
 
-#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op)
+#define ATOMIC_FETCH_OP(op)						\
+static __inline__ int atomic_fetch_##op(int i, atomic_t *v)		\
+{									\
+	unsigned long flags;						\
+	int result, val;						\
+									\
+	local_irq_save(flags);						\
+	__asm__ __volatile__ (						\
+		"# atomic_fetch_" #op "		\n\t"			\
+		DCACHE_CLEAR("%0", "r4", "%2")				\
+		M32R_LOCK" %1, @%2;		\n\t"			\
+		"mv %0, %1			\n\t" 			\
+		#op " %1, %3;			\n\t"			\
+		M32R_UNLOCK" %1, @%2;		\n\t"			\
+		: "=&r" (result), "=&r" (val)				\
+		: "r" (&v->counter), "r" (i)				\
+		: "memory"						\
+		__ATOMIC_CLOBBER					\
+	);								\
+	local_irq_restore(flags);					\
+									\
+	return result;							\
+}
+
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op) ATOMIC_FETCH_OP(op)
 
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
 
-ATOMIC_OP(and)
-ATOMIC_OP(or)
-ATOMIC_OP(xor)
+#undef ATOMIC_OPS
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_FETCH_OP(op)
+
+ATOMIC_OPS(and)
+ATOMIC_OPS(or)
+ATOMIC_OPS(xor)
 
 #undef ATOMIC_OPS
+#undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 

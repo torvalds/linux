@@ -77,8 +77,9 @@ static void iint_free(struct integrity_iint_cache *iint)
 	iint->ima_file_status = INTEGRITY_UNKNOWN;
 	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
 	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
-	iint->ima_module_status = INTEGRITY_UNKNOWN;
+	iint->ima_read_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
+	iint->measured_pcrs = 0;
 	kmem_cache_free(iint_cache, iint);
 }
 
@@ -157,8 +158,9 @@ static void init_once(void *foo)
 	iint->ima_file_status = INTEGRITY_UNKNOWN;
 	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
 	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
-	iint->ima_module_status = INTEGRITY_UNKNOWN;
+	iint->ima_read_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
+	iint->measured_pcrs = 0;
 }
 
 static int __init integrity_iintcache_init(void)
@@ -234,12 +236,13 @@ int __init integrity_read_file(const char *path, char **data)
 	}
 
 	rc = integrity_kernel_read(file, 0, buf, size);
-	if (rc < 0)
-		kfree(buf);
-	else if (rc != size)
-		rc = -EIO;
-	else
+	if (rc == size) {
 		*data = buf;
+	} else {
+		kfree(buf);
+		if (rc >= 0)
+			rc = -EIO;
+	}
 out:
 	fput(file);
 	return rc;
@@ -254,4 +257,5 @@ out:
 void __init integrity_load_keys(void)
 {
 	ima_load_x509();
+	evm_load_x509();
 }

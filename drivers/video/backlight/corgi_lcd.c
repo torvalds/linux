@@ -598,7 +598,6 @@ static int corgi_lcd_remove(struct spi_device *spi)
 static struct spi_driver corgi_lcd_driver = {
 	.driver		= {
 		.name	= "corgi-lcd",
-		.owner	= THIS_MODULE,
 		.pm	= &corgi_lcd_pm_ops,
 	},
 	.probe		= corgi_lcd_probe,

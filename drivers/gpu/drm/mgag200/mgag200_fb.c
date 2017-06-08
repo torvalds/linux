@@ -15,8 +15,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
-#include <linux/fb.h>
-
 #include "mgag200_drv.h"
 
 static void mga_dirty_update(struct mga_fbdev *mfbdev,
@@ -26,7 +24,7 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 	struct drm_gem_object *obj;
 	struct mgag200_bo *bo;
 	int src_offset, dst_offset;
-	int bpp = (mfbdev->mfb.base.bits_per_pixel + 7)/8;
+	int bpp = mfbdev->mfb.base.format->cpp[0];
 	int ret = -EBUSY;
 	bool unmap = false;
 	bool store_for_later = false;
@@ -138,7 +136,7 @@ static struct fb_ops mgag200fb_ops = {
 };
 
 static int mgag200fb_create_object(struct mga_fbdev *afbdev,
-				   struct drm_mode_fb_cmd2 *mode_cmd,
+				   const struct drm_mode_fb_cmd2 *mode_cmd,
 				   struct drm_gem_object **gobj_p)
 {
 	struct drm_device *dev = afbdev->helper.dev;
@@ -185,18 +183,22 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 	}
 
 	sysram = vmalloc(size);
-	if (!sysram)
-		return -ENOMEM;
+	if (!sysram) {
+		ret = -ENOMEM;
+		goto err_sysram;
+	}
 
 	info = drm_fb_helper_alloc_fbi(helper);
-	if (IS_ERR(info))
-		return PTR_ERR(info);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
+		goto err_alloc_fbi;
+	}
 
 	info->par = mfbdev;
 
 	ret = mgag200_framebuffer_init(dev, &mfbdev->mfb, &mode_cmd, gobj);
 	if (ret)
-		return ret;
+		goto err_alloc_fbi;
 
 	mfbdev->sysram = sysram;
 	mfbdev->size = size;
@@ -215,7 +217,7 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 	info->apertures->ranges[0].base = mdev->dev->mode_config.fb_base;
 	info->apertures->ranges[0].size = mdev->mc.vram_size;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &mfbdev->helper, sizes->fb_width,
 			       sizes->fb_height);
 
@@ -225,7 +227,15 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	DRM_DEBUG_KMS("allocated %dx%d\n",
 		      fb->width, fb->height);
+
 	return 0;
+
+err_alloc_fbi:
+	vfree(sysram);
+err_sysram:
+	drm_gem_object_unreference_unlocked(gobj);
+
+	return ret;
 }
 
 static int mga_fbdev_destroy(struct drm_device *dev,
@@ -234,7 +244,6 @@ static int mga_fbdev_destroy(struct drm_device *dev,
 	struct mga_framebuffer *mfb = &mfbdev->mfb;
 
 	drm_fb_helper_unregister_fbi(&mfbdev->helper);
-	drm_fb_helper_release_fbi(&mfbdev->helper);
 
 	if (mfb->obj) {
 		drm_gem_object_unreference_unlocked(mfb->obj);
@@ -274,25 +283,28 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 	drm_fb_helper_prepare(mdev->dev, &mfbdev->helper, &mga_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(mdev->dev, &mfbdev->helper,
-				 mdev->num_crtc, MGAG200FB_CONN_LIMIT);
+				 MGAG200FB_CONN_LIMIT);
 	if (ret)
-		return ret;
+		goto err_fb_helper;
 
 	ret = drm_fb_helper_single_add_all_connectors(&mfbdev->helper);
 	if (ret)
-		goto fini;
+		goto err_fb_setup;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(mdev->dev);
 
 	ret = drm_fb_helper_initial_config(&mfbdev->helper, bpp_sel);
 	if (ret)
-		goto fini;
+		goto err_fb_setup;
 
 	return 0;
 
-fini:
+err_fb_setup:
 	drm_fb_helper_fini(&mfbdev->helper);
+err_fb_helper:
+	mdev->mfbdev = NULL;
+
 	return ret;
 }
 

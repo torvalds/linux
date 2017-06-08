@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -30,23 +26,20 @@
 #define WIDTH		128
 #define HEIGHT		64
 
-
 /*
-  write_reg() caveat:
-
-     This doesn't work because D/C has to be LOW for both values:
-       write_reg(par, val1, val2);
-
-     Do it like this:
-       write_reg(par, val1);
-       write_reg(par, val2);
-*/
+ * write_reg() caveat:
+ *
+ * This doesn't work because D/C has to be LOW for both values:
+ * write_reg(par, val1, val2);
+ *
+ * Do it like this:
+ * write_reg(par, val1);
+ * write_reg(par, val2);
+ */
 
 /* Init sequence taken from the Adafruit SSD1306 Arduino library */
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	if (par->gamma.curves[0] == 0) {
@@ -69,6 +62,8 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0xA8);
 	if (par->info->var.yres == 64)
 		write_reg(par, 0x3F);
+	else if (par->info->var.yres == 48)
+		write_reg(par, 0x2F);
 	else
 		write_reg(par, 0x1F);
 
@@ -89,7 +84,7 @@ static int init_display(struct fbtft_par *par)
 	/* Vertical addressing mode  */
 	write_reg(par, 0x01);
 
-	/*Set Segment Re-map */
+	/* Set Segment Re-map */
 	/* column address 127 is mapped to SEG0 */
 	write_reg(par, 0xA0 | 0x1);
 
@@ -100,6 +95,9 @@ static int init_display(struct fbtft_par *par)
 	/* Set COM Pins Hardware Configuration */
 	write_reg(par, 0xDA);
 	if (par->info->var.yres == 64)
+		/* A[4]=1b, Alternative COM pin configuration */
+		write_reg(par, 0x12);
+	else if (par->info->var.yres == 48)
 		/* A[4]=1b, Alternative COM pin configuration */
 		write_reg(par, 0x12);
 	else
@@ -120,8 +118,9 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0xA4);
 
 	/* Set Normal Display
-	   0 in RAM: OFF in display panel
-	   1 in RAM: ON in display panel */
+	 * 0 in RAM: OFF in display panel
+	 * 1 in RAM: ON in display panel
+	 */
 	write_reg(par, 0xA6);
 
 	/* Set Display ON */
@@ -130,23 +129,36 @@ static int init_display(struct fbtft_par *par)
 	return 0;
 }
 
+static void set_addr_win_64x48(struct fbtft_par *par)
+{
+	/* Set Column Address */
+	write_reg(par, 0x21);
+	write_reg(par, 0x20);
+	write_reg(par, 0x5F);
+
+	/* Set Page Address */
+	write_reg(par, 0x22);
+	write_reg(par, 0x0);
+	write_reg(par, 0x5);
+}
+
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	/* Set Lower Column Start Address for Page Addressing Mode */
 	write_reg(par, 0x00 | 0x0);
 	/* Set Higher Column Start Address for Page Addressing Mode */
 	write_reg(par, 0x10 | 0x0);
 	/* Set Display Start Line */
 	write_reg(par, 0x40 | 0x0);
+
+	if (par->info->var.xres == 64 && par->info->var.yres == 48)
+		set_addr_win_64x48(par);
 }
 
 static int blank(struct fbtft_par *par, bool on)
 {
 	fbtft_par_dbg(DEBUG_BLANK, par, "%s(blank=%s)\n",
-		__func__, on ? "true" : "false");
+		      __func__, on ? "true" : "false");
 
 	if (on)
 		write_reg(par, 0xAE);
@@ -156,10 +168,8 @@ static int blank(struct fbtft_par *par, bool on)
 }
 
 /* Gamma is used to control Contrast */
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* apply mask */
 	curves[0] &= 0xFF;
 
@@ -172,33 +182,31 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u16 *vmem16 = (u16 *)par->info->screen_base;
+	u16 *vmem16 = (u16 *)par->info->screen_buffer;
+	u32 xres = par->info->var.xres;
+	u32 yres = par->info->var.yres;
 	u8 *buf = par->txbuf.buf;
 	int x, y, i;
 	int ret = 0;
 
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
-
-	for (x = 0; x < par->info->var.xres; x++) {
-		for (y = 0; y < par->info->var.yres/8; y++) {
+	for (x = 0; x < xres; x++) {
+		for (y = 0; y < yres / 8; y++) {
 			*buf = 0x00;
 			for (i = 0; i < 8; i++)
-				*buf |= (vmem16[(y*8+i)*par->info->var.xres+x] ? 1 : 0) << i;
+				*buf |= (vmem16[(y * 8 + i) * xres + x] ? 1 : 0) << i;
 			buf++;
 		}
 	}
 
 	/* Write data */
 	gpio_set_value(par->gpio.dc, 1);
-	ret = par->fbtftops.write(par, par->txbuf.buf,
-				par->info->var.xres*par->info->var.yres/8);
+	ret = par->fbtftops.write(par, par->txbuf.buf, xres * yres / 8);
 	if (ret < 0)
 		dev_err(par->info->device, "write failed and returned: %d\n",
 			ret);
 
 	return ret;
 }
-
 
 static struct fbtft_display display = {
 	.regwidth = 8,
@@ -215,7 +223,6 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
-
 
 FBTFT_REGISTER_DRIVER(DRVNAME, "solomon,ssd1306", &display);
 

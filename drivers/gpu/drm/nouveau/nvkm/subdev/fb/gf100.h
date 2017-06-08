@@ -14,4 +14,10 @@ int gf100_fb_new_(const struct nvkm_fb_func *, struct nvkm_device *,
 void *gf100_fb_dtor(struct nvkm_fb *);
 void gf100_fb_init(struct nvkm_fb *);
 void gf100_fb_intr(struct nvkm_fb *);
+
+void gp100_fb_init(struct nvkm_fb *);
+
+void gm200_fb_init_page(struct nvkm_fb *fb);
+void gm200_fb_init(struct nvkm_fb *base);
+
 #endif

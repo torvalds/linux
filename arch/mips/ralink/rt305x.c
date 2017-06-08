@@ -7,21 +7,20 @@
  *
  * Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  * Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
- * Copyright (C) 2013 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2013 John Crispin <john@phrozen.org>
  */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/bug.h>
 
+#include <asm/io.h>
 #include <asm/mipsregs.h>
 #include <asm/mach-ralink/ralink_regs.h>
 #include <asm/mach-ralink/rt305x.h>
 #include <asm/mach-ralink/pinmux.h>
 
 #include "common.h"
-
-enum rt305x_soc_type rt305x_soc;
 
 static struct rt2880_pmx_func i2c_func[] =  { FUNC("i2c", 0, 1, 2) };
 static struct rt2880_pmx_func spi_func[] = { FUNC("spi", 0, 3, 4) };
@@ -90,17 +89,6 @@ static struct rt2880_pmx_group rt5350_pinmux_data[] = {
 	GRP("spi_cs1", rt5350_cs1_func, 2, RT5350_GPIO_MODE_SPI_CS1),
 	{ 0 }
 };
-
-static void rt305x_wdt_reset(void)
-{
-	u32 t;
-
-	/* enable WDT reset output on pin SRAM_CS_N */
-	t = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG);
-	t |= RT305X_SYSCFG_SRAM_CS0_MODE_WDT <<
-		RT305X_SYSCFG_SRAM_CS0_MODE_SHIFT;
-	rt_sysc_w32(t, SYSC_REG_SYSTEM_CONFIG);
-}
 
 static unsigned long rt5350_get_mem_size(void)
 {
@@ -201,7 +189,11 @@ void __init ralink_clk_init(void)
 	}
 
 	ralink_clk_add("cpu", cpu_rate);
+	ralink_clk_add("sys", sys_rate);
+	ralink_clk_add("10000900.i2c", uart_rate);
+	ralink_clk_add("10000a00.i2s", uart_rate);
 	ralink_clk_add("10000b00.spi", sys_rate);
+	ralink_clk_add("10000b40.spi", sys_rate);
 	ralink_clk_add("10000100.timer", wdt_rate);
 	ralink_clk_add("10000120.watchdog", wdt_rate);
 	ralink_clk_add("10000500.uart", uart_rate);
@@ -235,24 +227,24 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 
 		icache_sets = (read_c0_config1() >> 22) & 7;
 		if (icache_sets == 1) {
-			rt305x_soc = RT305X_SOC_RT3050;
+			ralink_soc = RT305X_SOC_RT3050;
 			name = "RT3050";
 			soc_info->compatible = "ralink,rt3050-soc";
 		} else {
-			rt305x_soc = RT305X_SOC_RT3052;
+			ralink_soc = RT305X_SOC_RT3052;
 			name = "RT3052";
 			soc_info->compatible = "ralink,rt3052-soc";
 		}
 	} else if (n0 == RT3350_CHIP_NAME0 && n1 == RT3350_CHIP_NAME1) {
-		rt305x_soc = RT305X_SOC_RT3350;
+		ralink_soc = RT305X_SOC_RT3350;
 		name = "RT3350";
 		soc_info->compatible = "ralink,rt3350-soc";
 	} else if (n0 == RT3352_CHIP_NAME0 && n1 == RT3352_CHIP_NAME1) {
-		rt305x_soc = RT305X_SOC_RT3352;
+		ralink_soc = RT305X_SOC_RT3352;
 		name = "RT3352";
 		soc_info->compatible = "ralink,rt3352-soc";
 	} else if (n0 == RT5350_CHIP_NAME0 && n1 == RT5350_CHIP_NAME1) {
-		rt305x_soc = RT305X_SOC_RT5350;
+		ralink_soc = RT305X_SOC_RT5350;
 		name = "RT5350";
 		soc_info->compatible = "ralink,rt5350-soc";
 	} else {

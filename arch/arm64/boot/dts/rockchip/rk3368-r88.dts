@@ -42,6 +42,7 @@
 
 /dts-v1/;
 #include "rk3368.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Rockchip R88";
@@ -60,21 +61,19 @@
 		compatible = "mmc-pwrseq-emmc";
 		pinctrl-0 = <&emmc_reset>;
 		pinctrl-names = "default";
-		reset-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>;
 	};
 
 	keys: gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key>;
 
-		button@0 {
-			gpio-key,wakeup = <1>;
-			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+		power {
+			wakeup-source;
+			gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 		};
 	};
 
@@ -82,7 +81,7 @@
 		compatible = "gpio-leds";
 
 		work {
-			gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
 			label = "r88:green:led";
 			pinctrl-names = "default";
 			pinctrl-0 = <&led_ctl>;
@@ -91,7 +90,7 @@
 
 	ir: ir-receiver {
 		compatible = "gpio-ir-receiver";
-		gpios = <&gpio3 30 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio3 RK_PD6 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ir_int>;
 	};
@@ -105,10 +104,10 @@
 
 		reset-gpios =
 			/* BT_RST_N */
-			<&gpio3 5 GPIO_ACTIVE_LOW>,
+			<&gpio3 RK_PA5 GPIO_ACTIVE_LOW>,
 
 			/* WL_REG_ON */
-			<&gpio3 4 GPIO_ACTIVE_LOW>;
+			<&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
 	};
 
 	vcc_18: vcc18-regulator {
@@ -125,7 +124,7 @@
 	vcc_host: vcc-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc_host";
@@ -185,7 +184,6 @@
 };
 
 &emmc {
-	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
@@ -201,7 +199,7 @@
 	phy-supply = <&vcc_lan>;
 	phy-mode = "rmii";
 	clock_in_out = "output";
-	snps,reset-gpio = <&gpio3 12 0>;
+	snps,reset-gpio = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 1000000>;
 	pinctrl-names = "default";
@@ -238,10 +236,18 @@
 	};
 };
 
+&io_domains {
+	status = "ok";
+
+	audio-supply = <&vcc_io>;
+	gpio30-supply = <&vcc_io>;
+	gpio1830-supply = <&vcc_io>;
+	wifi-supply = <&vccio_wl>;
+};
+
 &sdio0 {
 	assigned-clocks = <&cru SCLK_SDIO0>;
 	assigned-clock-parents = <&cru PLL_CPLL>;
-	broken-cd;
 	bus-width = <4>;
 	cap-sd-highspeed;
 	cap-sdio-irq;
@@ -331,8 +337,21 @@
 	};
 };
 
+&pmu_io_domains {
+	status = "okay";
+
+	pmu-supply = <&vcc_io>;
+	vop-supply = <&vcc_io>;
+};
+
 &saradc {
 	vref-supply = <&vcc_18>;
+	status = "okay";
+};
+
+&tsadc {
+	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+	rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
 	status = "okay";
 };
 

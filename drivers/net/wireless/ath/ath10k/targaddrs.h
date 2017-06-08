@@ -268,13 +268,13 @@ struct host_interest {
 #define HI_OPTION_FW_BRIDGE_SHIFT 0x04
 
 /*
-Fw Mode/SubMode Mask
-|-----------------------------------------------------------------------------|
-|  SUB   |   SUB   |   SUB   |  SUB    |         |         |         |        |
-|MODE[3] | MODE[2] | MODE[1] | MODE[0] | MODE[3] | MODE[2] | MODE[1] | MODE[0]|
-|  (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)  |
-|-----------------------------------------------------------------------------|
-*/
+ * Fw Mode/SubMode Mask
+ *-----------------------------------------------------------------------------
+ *  SUB   |   SUB   |   SUB   |  SUB    |         |         |         |
+ *MODE[3] | MODE[2] | MODE[1] | MODE[0] | MODE[3] | MODE[2] | MODE[1] | MODE[0]
+ *  (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)
+ *-----------------------------------------------------------------------------
+ */
 #define HI_OPTION_FW_MODE_BITS         0x2
 #define HI_OPTION_FW_MODE_MASK         0x3
 #define HI_OPTION_FW_MODE_SHIFT        0xC
@@ -405,7 +405,7 @@ Fw Mode/SubMode Mask
  * 1. target firmware would check magic number and if it's a match, firmware
  *    would consider the bits[0:15] are valid and base on that to calculate
  *    the end of DRAM. Early allocation would be located at that area and
- *    may be reclaimed when necesary
+ *    may be reclaimed when necessary
  * 2. if no magic number is found, early allocation would happen at "_end"
  *    symbol of ROM which is located before the app-data and might NOT be
  *    re-claimable. If this is adopted, link script should keep this in
@@ -428,8 +428,9 @@ Fw Mode/SubMode Mask
 #define HI_PWR_SAVE_LPL_ENABLED   0x1
 /*b1-b3 reserved*/
 /*b4-b5 : dev0 LPL type : 0 - none
-			  1- Reduce Pwr Search
-			  2- Reduce Pwr Listen*/
+ *			  1- Reduce Pwr Search
+ *			  2- Reduce Pwr Listen
+ */
 /*b6-b7 : dev1 LPL type and so on for Max 8 devices*/
 #define HI_PWR_SAVE_LPL_DEV0_LSB   4
 #define HI_PWR_SAVE_LPL_DEV_MASK   0x3
@@ -438,7 +439,7 @@ Fw Mode/SubMode Mask
 	((HOST_INTEREST->hi_pwr_save_flags & HI_PWR_SAVE_LPL_ENABLED))
 #define HI_DEV_LPL_TYPE_GET(_devix) \
 	(HOST_INTEREST->hi_pwr_save_flags & ((HI_PWR_SAVE_LPL_DEV_MASK) << \
-	 (HI_PWR_SAVE_LPL_DEV0_LSB + (_devix)*2)))
+	 (HI_PWR_SAVE_LPL_DEV0_LSB + (_devix) * 2)))
 
 #define HOST_INTEREST_SMPS_IS_ALLOWED() \
 	((HOST_INTEREST->hi_smps_options & HI_SMPS_ALLOW_MASK))
@@ -447,10 +448,19 @@ Fw Mode/SubMode Mask
 #define QCA988X_BOARD_DATA_SZ     7168
 #define QCA988X_BOARD_EXT_DATA_SZ 0
 
+#define QCA9887_BOARD_DATA_SZ     7168
+#define QCA9887_BOARD_EXT_DATA_SZ 0
+
 #define QCA6174_BOARD_DATA_SZ     8192
 #define QCA6174_BOARD_EXT_DATA_SZ 0
 
+#define QCA9377_BOARD_DATA_SZ     QCA6174_BOARD_DATA_SZ
+#define QCA9377_BOARD_EXT_DATA_SZ 0
+
 #define QCA99X0_BOARD_DATA_SZ	  12288
 #define QCA99X0_BOARD_EXT_DATA_SZ 0
+
+#define QCA4019_BOARD_DATA_SZ	  12064
+#define QCA4019_BOARD_EXT_DATA_SZ 0
 
 #endif /* __TARGADDRS_H__ */

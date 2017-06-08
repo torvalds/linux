@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -34,7 +34,7 @@ u32 fm10k_read_reg(struct fm10k_hw *hw, int reg);
 /* write operations, indexed using DWORDS */
 #define fm10k_write_reg(hw, reg, val) \
 do { \
-	u32 __iomem *hw_addr = ACCESS_ONCE((hw)->hw_addr); \
+	u32 __iomem *hw_addr = READ_ONCE((hw)->hw_addr); \
 	if (!FM10K_REMOVED(hw_addr)) \
 		writel((val), &hw_addr[(reg)]); \
 } while (0)
@@ -42,7 +42,7 @@ do { \
 /* Switch register write operations, index using DWORDS */
 #define fm10k_write_sw_reg(hw, reg, val) \
 do { \
-	u32 __iomem *sw_addr = ACCESS_ONCE((hw)->sw_addr); \
+	u32 __iomem *sw_addr = READ_ONCE((hw)->sw_addr); \
 	if (!FM10K_REMOVED(sw_addr)) \
 		writel((val), &sw_addr[(reg)]); \
 } while (0)

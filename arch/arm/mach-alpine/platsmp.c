@@ -27,7 +27,7 @@ static int alpine_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	phys_addr_t addr;
 
-	addr = virt_to_phys(secondary_startup);
+	addr = __pa_symbol(secondary_startup);
 
 	if (addr > (phys_addr_t)(uint32_t)(-1)) {
 		pr_err("FAIL: resume address over 32bit (%pa)", &addr);
@@ -42,7 +42,7 @@ static void __init alpine_smp_prepare_cpus(unsigned int max_cpus)
 	alpine_cpu_pm_init();
 }
 
-static struct smp_operations alpine_smp_ops __initdata = {
+static const struct smp_operations alpine_smp_ops __initconst = {
 	.smp_prepare_cpus	= alpine_smp_prepare_cpus,
 	.smp_boot_secondary	= alpine_boot_secondary,
 };

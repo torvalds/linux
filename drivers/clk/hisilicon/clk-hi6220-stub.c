@@ -230,12 +230,12 @@ static int hi6220_stub_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(stub_clk->mbox)) {
 		dev_err(dev, "failed get mailbox channel\n");
 		return PTR_ERR(stub_clk->mbox);
-	};
+	}
 
 	init.name = "acpu0";
 	init.ops = &hi6220_stub_clk_ops;
 	init.num_parents = 0;
-	init.flags = CLK_IS_ROOT;
+	init.flags = 0;
 
 	clk = devm_clk_register(dev, &stub_clk->hw);
 	if (IS_ERR(clk))

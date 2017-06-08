@@ -15,15 +15,13 @@
 
 #define arch_spin_is_locked(x)	((x)->slock != __ARCH_SPIN_LOCK_UNLOCKED__)
 #define arch_spin_lock_flags(lock, flags)	arch_spin_lock(lock)
-#define arch_spin_unlock_wait(x) \
-	do { while (arch_spin_is_locked(x)) cpu_relax(); } while (0)
+
+static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
+{
+	smp_cond_load_acquire(&lock->slock, !VAL);
+}
 
 #ifdef CONFIG_ARC_HAS_LLSC
-
-/*
- * A normal LLOCK/SCOND based system, w/o need for livelock workaround
- */
-#ifndef CONFIG_ARC_STAR_9000923308
 
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
@@ -238,293 +236,6 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 	smp_mb();
 }
 
-#else	/* CONFIG_ARC_STAR_9000923308 */
-
-/*
- * HS38x4 could get into a LLOCK/SCOND livelock in case of multiple overlapping
- * coherency transactions in the SCU. The exclusive line state keeps rotating
- * among contenting cores leading to a never ending cycle. So break the cycle
- * by deferring the retry of failed exclusive access (SCOND). The actual delay
- * needed is function of number of contending cores as well as the unrelated
- * coherency traffic from other cores. To keep the code simple, start off with
- * small delay of 1 which would suffice most cases and in case of contention
- * double the delay. Eventually the delay is sufficient such that the coherency
- * pipeline is drained, thus a subsequent exclusive access would succeed.
- */
-
-#define SCOND_FAIL_RETRY_VAR_DEF						\
-	unsigned int delay, tmp;						\
-
-#define SCOND_FAIL_RETRY_ASM							\
-	"   ; --- scond fail delay ---		\n"				\
-	"	mov	%[tmp], %[delay]	\n"	/* tmp = delay */	\
-	"2: 	brne.d	%[tmp], 0, 2b		\n"	/* while (tmp != 0) */	\
-	"	sub	%[tmp], %[tmp], 1	\n"	/* tmp-- */		\
-	"	rol	%[delay], %[delay]	\n"	/* delay *= 2 */	\
-	"	b	1b			\n"	/* start over */	\
-	"					\n"				\
-	"4: ; --- done ---			\n"				\
-
-#define SCOND_FAIL_RETRY_VARS							\
-	  ,[delay] "=&r" (delay), [tmp] "=&r"	(tmp)				\
-
-static inline void arch_spin_lock(arch_spinlock_t *lock)
-{
-	unsigned int val;
-	SCOND_FAIL_RETRY_VAR_DEF;
-
-	smp_mb();
-
-	__asm__ __volatile__(
-	"0:	mov	%[delay], 1		\n"
-	"1:	llock	%[val], [%[slock]]	\n"
-	"	breq	%[val], %[LOCKED], 0b	\n"	/* spin while LOCKED */
-	"	scond	%[LOCKED], [%[slock]]	\n"	/* acquire */
-	"	bz	4f			\n"	/* done */
-	"					\n"
-	SCOND_FAIL_RETRY_ASM
-
-	: [val]		"=&r"	(val)
-	  SCOND_FAIL_RETRY_VARS
-	: [slock]	"r"	(&(lock->slock)),
-	  [LOCKED]	"r"	(__ARCH_SPIN_LOCK_LOCKED__)
-	: "memory", "cc");
-
-	smp_mb();
-}
-
-/* 1 - lock taken successfully */
-static inline int arch_spin_trylock(arch_spinlock_t *lock)
-{
-	unsigned int val, got_it = 0;
-	SCOND_FAIL_RETRY_VAR_DEF;
-
-	smp_mb();
-
-	__asm__ __volatile__(
-	"0:	mov	%[delay], 1		\n"
-	"1:	llock	%[val], [%[slock]]	\n"
-	"	breq	%[val], %[LOCKED], 4f	\n"	/* already LOCKED, just bail */
-	"	scond	%[LOCKED], [%[slock]]	\n"	/* acquire */
-	"	bz.d	4f			\n"
-	"	mov.z	%[got_it], 1		\n"	/* got it */
-	"					\n"
-	SCOND_FAIL_RETRY_ASM
-
-	: [val]		"=&r"	(val),
-	  [got_it]	"+&r"	(got_it)
-	  SCOND_FAIL_RETRY_VARS
-	: [slock]	"r"	(&(lock->slock)),
-	  [LOCKED]	"r"	(__ARCH_SPIN_LOCK_LOCKED__)
-	: "memory", "cc");
-
-	smp_mb();
-
-	return got_it;
-}
-
-static inline void arch_spin_unlock(arch_spinlock_t *lock)
-{
-	smp_mb();
-
-	lock->slock = __ARCH_SPIN_LOCK_UNLOCKED__;
-
-	smp_mb();
-}
-
-/*
- * Read-write spinlocks, allowing multiple readers but only one writer.
- * Unfair locking as Writers could be starved indefinitely by Reader(s)
- */
-
-static inline void arch_read_lock(arch_rwlock_t *rw)
-{
-	unsigned int val;
-	SCOND_FAIL_RETRY_VAR_DEF;
-
-	smp_mb();
-
-	/*
-	 * zero means writer holds the lock exclusively, deny Reader.
-	 * Otherwise grant lock to first/subseq reader
-	 *
-	 * 	if (rw->counter > 0) {
-	 *		rw->counter--;
-	 *		ret = 1;
-	 *	}
-	 */
-
-	__asm__ __volatile__(
-	"0:	mov	%[delay], 1		\n"
-	"1:	llock	%[val], [%[rwlock]]	\n"
-	"	brls	%[val], %[WR_LOCKED], 0b\n"	/* <= 0: spin while write locked */
-	"	sub	%[val], %[val], 1	\n"	/* reader lock */
-	"	scond	%[val], [%[rwlock]]	\n"
-	"	bz	4f			\n"	/* done */
-	"					\n"
-	SCOND_FAIL_RETRY_ASM
-
-	: [val]		"=&r"	(val)
-	  SCOND_FAIL_RETRY_VARS
-	: [rwlock]	"r"	(&(rw->counter)),
-	  [WR_LOCKED]	"ir"	(0)
-	: "memory", "cc");
-
-	smp_mb();
-}
-
-/* 1 - lock taken successfully */
-static inline int arch_read_trylock(arch_rwlock_t *rw)
-{
-	unsigned int val, got_it = 0;
-	SCOND_FAIL_RETRY_VAR_DEF;
-
-	smp_mb();
-
-	__asm__ __volatile__(
-	"0:	mov	%[delay], 1		\n"
-	"1:	llock	%[val], [%[rwlock]]	\n"
-	"	brls	%[val], %[WR_LOCKED], 4f\n"	/* <= 0: already write locked, bail */
-	"	sub	%[val], %[val], 1	\n"	/* counter-- */
-	"	scond	%[val], [%[rwlock]]	\n"
-	"	bz.d	4f			\n"
-	"	mov.z	%[got_it], 1		\n"	/* got it */
-	"					\n"
-	SCOND_FAIL_RETRY_ASM
-
-	: [val]		"=&r"	(val),
-	  [got_it]	"+&r"	(got_it)
-	  SCOND_FAIL_RETRY_VARS
-	: [rwlock]	"r"	(&(rw->counter)),
-	  [WR_LOCKED]	"ir"	(0)
-	: "memory", "cc");
-
-	smp_mb();
-
-	return got_it;
-}
-
-static inline void arch_write_lock(arch_rwlock_t *rw)
-{
-	unsigned int val;
-	SCOND_FAIL_RETRY_VAR_DEF;
-
-	smp_mb();
-
-	/*
-	 * If reader(s) hold lock (lock < __ARCH_RW_LOCK_UNLOCKED__),
-	 * deny writer. Otherwise if unlocked grant to writer
-	 * Hence the claim that Linux rwlocks are unfair to writers.
-	 * (can be starved for an indefinite time by readers).
-	 *
-	 *	if (rw->counter == __ARCH_RW_LOCK_UNLOCKED__) {
-	 *		rw->counter = 0;
-	 *		ret = 1;
-	 *	}
-	 */
-
-	__asm__ __volatile__(
-	"0:	mov	%[delay], 1		\n"
-	"1:	llock	%[val], [%[rwlock]]	\n"
-	"	brne	%[val], %[UNLOCKED], 0b	\n"	/* while !UNLOCKED spin */
-	"	mov	%[val], %[WR_LOCKED]	\n"
-	"	scond	%[val], [%[rwlock]]	\n"
-	"	bz	4f			\n"
-	"					\n"
-	SCOND_FAIL_RETRY_ASM
-
-	: [val]		"=&r"	(val)
-	  SCOND_FAIL_RETRY_VARS
-	: [rwlock]	"r"	(&(rw->counter)),
-	  [UNLOCKED]	"ir"	(__ARCH_RW_LOCK_UNLOCKED__),
-	  [WR_LOCKED]	"ir"	(0)
-	: "memory", "cc");
-
-	smp_mb();
-}
-
-/* 1 - lock taken successfully */
-static inline int arch_write_trylock(arch_rwlock_t *rw)
-{
-	unsigned int val, got_it = 0;
-	SCOND_FAIL_RETRY_VAR_DEF;
-
-	smp_mb();
-
-	__asm__ __volatile__(
-	"0:	mov	%[delay], 1		\n"
-	"1:	llock	%[val], [%[rwlock]]	\n"
-	"	brne	%[val], %[UNLOCKED], 4f	\n"	/* !UNLOCKED, bail */
-	"	mov	%[val], %[WR_LOCKED]	\n"
-	"	scond	%[val], [%[rwlock]]	\n"
-	"	bz.d	4f			\n"
-	"	mov.z	%[got_it], 1		\n"	/* got it */
-	"					\n"
-	SCOND_FAIL_RETRY_ASM
-
-	: [val]		"=&r"	(val),
-	  [got_it]	"+&r"	(got_it)
-	  SCOND_FAIL_RETRY_VARS
-	: [rwlock]	"r"	(&(rw->counter)),
-	  [UNLOCKED]	"ir"	(__ARCH_RW_LOCK_UNLOCKED__),
-	  [WR_LOCKED]	"ir"	(0)
-	: "memory", "cc");
-
-	smp_mb();
-
-	return got_it;
-}
-
-static inline void arch_read_unlock(arch_rwlock_t *rw)
-{
-	unsigned int val;
-
-	smp_mb();
-
-	/*
-	 * rw->counter++;
-	 */
-	__asm__ __volatile__(
-	"1:	llock	%[val], [%[rwlock]]	\n"
-	"	add	%[val], %[val], 1	\n"
-	"	scond	%[val], [%[rwlock]]	\n"
-	"	bnz	1b			\n"
-	"					\n"
-	: [val]		"=&r"	(val)
-	: [rwlock]	"r"	(&(rw->counter))
-	: "memory", "cc");
-
-	smp_mb();
-}
-
-static inline void arch_write_unlock(arch_rwlock_t *rw)
-{
-	unsigned int val;
-
-	smp_mb();
-
-	/*
-	 * rw->counter = __ARCH_RW_LOCK_UNLOCKED__;
-	 */
-	__asm__ __volatile__(
-	"1:	llock	%[val], [%[rwlock]]	\n"
-	"	scond	%[UNLOCKED], [%[rwlock]]\n"
-	"	bnz	1b			\n"
-	"					\n"
-	: [val]		"=&r"	(val)
-	: [rwlock]	"r"	(&(rw->counter)),
-	  [UNLOCKED]	"r"	(__ARCH_RW_LOCK_UNLOCKED__)
-	: "memory", "cc");
-
-	smp_mb();
-}
-
-#undef SCOND_FAIL_RETRY_VAR_DEF
-#undef SCOND_FAIL_RETRY_ASM
-#undef SCOND_FAIL_RETRY_VARS
-
-#endif	/* CONFIG_ARC_STAR_9000923308 */
-
 #else	/* !CONFIG_ARC_HAS_LLSC */
 
 static inline void arch_spin_lock(arch_spinlock_t *lock)
@@ -610,7 +321,9 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
 	int ret = 0;
+	unsigned long flags;
 
+	local_irq_save(flags);
 	arch_spin_lock(&(rw->lock_mutex));
 
 	/*
@@ -623,6 +336,7 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 	}
 
 	arch_spin_unlock(&(rw->lock_mutex));
+	local_irq_restore(flags);
 
 	smp_mb();
 	return ret;
@@ -632,7 +346,9 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
 	int ret = 0;
+	unsigned long flags;
 
+	local_irq_save(flags);
 	arch_spin_lock(&(rw->lock_mutex));
 
 	/*
@@ -646,6 +362,7 @@ static inline int arch_write_trylock(arch_rwlock_t *rw)
 		ret = 1;
 	}
 	arch_spin_unlock(&(rw->lock_mutex));
+	local_irq_restore(flags);
 
 	return ret;
 }
@@ -664,16 +381,24 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 
 static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
 	arch_spin_lock(&(rw->lock_mutex));
 	rw->counter++;
 	arch_spin_unlock(&(rw->lock_mutex));
+	local_irq_restore(flags);
 }
 
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
 	arch_spin_lock(&(rw->lock_mutex));
 	rw->counter = __ARCH_RW_LOCK_UNLOCKED__;
 	arch_spin_unlock(&(rw->lock_mutex));
+	local_irq_restore(flags);
 }
 
 #endif

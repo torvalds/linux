@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #ifndef __INC_HAL8188EPHYCFG_H__
 #define __INC_HAL8188EPHYCFG_H__
@@ -69,13 +64,11 @@ enum hw90_block {
 enum rf_radio_path {
 	RF_PATH_A = 0,			/* Radio Path A */
 	RF_PATH_B = 1,			/* Radio Path B */
-	RF_PATH_C = 2,			/* Radio Path C */
-	RF_PATH_D = 3,			/* Radio Path D */
 };
 
 #define MAX_PG_GROUP 13
 
-#define	RF_PATH_MAX			3
+#define	RF_PATH_MAX			2
 #define		MAX_RF_PATH		RF_PATH_MAX
 #define		MAX_TX_COUNT		4 /* path numbers */
 
@@ -87,13 +80,13 @@ enum rf_radio_path {
 
 enum wireless_mode {
 	WIRELESS_MODE_UNKNOWN = 0x00,
-	WIRELESS_MODE_A			= BIT2,
-	WIRELESS_MODE_B			= BIT0,
-	WIRELESS_MODE_G			= BIT1,
-	WIRELESS_MODE_AUTO		= BIT5,
-	WIRELESS_MODE_N_24G		= BIT3,
-	WIRELESS_MODE_N_5G		= BIT4,
-	WIRELESS_MODE_AC		= BIT6
+	WIRELESS_MODE_A			= BIT(2),
+	WIRELESS_MODE_B			= BIT(0),
+	WIRELESS_MODE_G			= BIT(1),
+	WIRELESS_MODE_AUTO		= BIT(5),
+	WIRELESS_MODE_N_24G		= BIT(3),
+	WIRELESS_MODE_N_5G		= BIT(4),
+	WIRELESS_MODE_AC		= BIT(6)
 };
 
 enum phy_rate_tx_offset_area {
@@ -104,17 +97,6 @@ enum phy_rate_tx_offset_area {
 	RA_OFFSET_HT_OFDM3,
 	RA_OFFSET_HT_OFDM4,
 	RA_OFFSET_HT_CCK,
-};
-
-/* BB/RF related */
-enum RF_TYPE_8190P {
-	RF_TYPE_MIN,		/*  0 */
-	RF_8225 = 1,		/*  1 11b/g RF for verification only */
-	RF_8256 = 2,		/*  2 11b/g/n */
-	RF_8258 = 3,		/*  3 11a/b/g/n RF */
-	RF_6052 = 4,		/*  4 11b/g/n RF */
-	/*  TODO: We should remove this psudo PHY RF after we get new RF. */
-	RF_PSEUDO_11N = 5,	/*  5, It is a temporality RF. */
 };
 
 struct bb_reg_def {
@@ -163,24 +145,6 @@ struct bb_reg_def {
 				/*	0x8a0~0x8af [16 bytes] */
 	u32 rfLSSIReadBackPi;	/* LSSI RF readback data PI mode 0x8b8-8bc for
 				 * Path A and B */
-};
-
-struct ant_sel_ofdm {
-	u32 r_tx_antenna:4;
-	u32 r_ant_l:4;
-	u32 r_ant_non_ht:4;
-	u32 r_ant_ht1:4;
-	u32 r_ant_ht2:4;
-	u32 r_ant_ht_s1:4;
-	u32 r_ant_non_ht_s1:4;
-	u32 OFDM_TXSC:2;
-	u32 reserved:2;
-};
-
-struct ant_sel_cck {
-	u8 r_cckrx_enable_2:2;
-	u8 r_cckrx_enable:2;
-	u8 r_ccktx_enable:4;
 };
 
 /*------------------------------Define structure----------------------------*/

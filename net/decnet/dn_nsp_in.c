@@ -714,7 +714,8 @@ out:
 	return ret;
 }
 
-static int dn_nsp_rx_packet(struct sock *sk2, struct sk_buff *skb)
+static int dn_nsp_rx_packet(struct net *net, struct sock *sk2,
+			    struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 	struct sock *sk = NULL;
@@ -814,8 +815,8 @@ free_out:
 
 int dn_nsp_rx(struct sk_buff *skb)
 {
-	return NF_HOOK(NFPROTO_DECNET, NF_DN_LOCAL_IN, NULL, skb,
-		       skb->dev, NULL,
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_LOCAL_IN,
+		       &init_net, NULL, skb, skb->dev, NULL,
 		       dn_nsp_rx_packet);
 }
 

@@ -47,6 +47,9 @@ Required properties:
 
 - samsung,syscon-phandle Contains the PMU system controller node
 			(To access the ADC_PHY register on Exynos5250/5420/5800/3250)
+Optional properties:
+- has-touchscreen:	If present, indicates that a touchscreen is
+			connected an usable.
 
 Note: child nodes can be added for auto probing from device tree.
 

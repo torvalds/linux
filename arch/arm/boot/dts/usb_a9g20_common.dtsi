@@ -11,14 +11,15 @@
 
 / {
 	chosen {
-		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock5 rw rootfstype=ubifs";
+		bootargs = "mem=64M root=/dev/mtdblock5 rw rootfstype=ubifs";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
 		reg = <0x20000000 0x4000000>;
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		rv3029c2@56 {
 			compatible = "rv3029c2";
 			reg = <0x56>;

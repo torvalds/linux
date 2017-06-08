@@ -30,6 +30,7 @@
 #include <linux/smsc911x.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
@@ -51,6 +52,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <mach/map.h>
 
 #include <asm/irq.h>
@@ -214,7 +216,7 @@ static struct regulator_consumer_supply smdk6410_b_pwr_5v_consumers[] = {
 	REGULATOR_SUPPLY("AVDD", "0-001b"),
 };
 
-static struct regulator_init_data smdk6410_b_pwr_5v_data = {
+static struct regulator_init_data __maybe_unused smdk6410_b_pwr_5v_data = {
 	.constraints = {
 		.always_on = 1,
 	},
@@ -288,7 +290,6 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_adc,
 	&s3c_device_cfcon,
 	&s3c_device_rtc,
-	&s3c_device_ts,
 	&s3c_device_wdt,
 };
 
@@ -299,7 +300,7 @@ static struct regulator_consumer_supply smdk6410_vddarm_consumers[] = {
 };
 
 /* VDDARM, BUCK1 on J5 */
-static struct regulator_init_data smdk6410_vddarm = {
+static struct regulator_init_data __maybe_unused smdk6410_vddarm = {
 	.constraints = {
 		.name = "PVDD_ARM",
 		.min_uV = 1000000,
@@ -312,7 +313,7 @@ static struct regulator_init_data smdk6410_vddarm = {
 };
 
 /* VDD_INT, BUCK2 on J5 */
-static struct regulator_init_data smdk6410_vddint = {
+static struct regulator_init_data __maybe_unused smdk6410_vddint = {
 	.constraints = {
 		.name = "PVDD_INT",
 		.min_uV = 1000000,
@@ -323,7 +324,7 @@ static struct regulator_init_data smdk6410_vddint = {
 };
 
 /* VDD_HI, LDO3 on J5 */
-static struct regulator_init_data smdk6410_vddhi = {
+static struct regulator_init_data __maybe_unused smdk6410_vddhi = {
 	.constraints = {
 		.name = "PVDD_HI",
 		.always_on = 1,
@@ -331,7 +332,7 @@ static struct regulator_init_data smdk6410_vddhi = {
 };
 
 /* VDD_PLL, LDO2 on J5 */
-static struct regulator_init_data smdk6410_vddpll = {
+static struct regulator_init_data __maybe_unused smdk6410_vddpll = {
 	.constraints = {
 		.name = "PVDD_PLL",
 		.always_on = 1,
@@ -339,7 +340,7 @@ static struct regulator_init_data smdk6410_vddpll = {
 };
 
 /* VDD_UH_MMC, LDO5 on J5 */
-static struct regulator_init_data smdk6410_vdduh_mmc = {
+static struct regulator_init_data __maybe_unused smdk6410_vdduh_mmc = {
 	.constraints = {
 		.name = "PVDD_UH+PVDD_MMC",
 		.always_on = 1,
@@ -347,7 +348,7 @@ static struct regulator_init_data smdk6410_vdduh_mmc = {
 };
 
 /* VCCM3BT, LDO8 on J5 */
-static struct regulator_init_data smdk6410_vccmc3bt = {
+static struct regulator_init_data __maybe_unused smdk6410_vccmc3bt = {
 	.constraints = {
 		.name = "PVCCM3BT",
 		.always_on = 1,
@@ -355,7 +356,7 @@ static struct regulator_init_data smdk6410_vccmc3bt = {
 };
 
 /* VCCM2MTV, LDO11 on J5 */
-static struct regulator_init_data smdk6410_vccm2mtv = {
+static struct regulator_init_data __maybe_unused smdk6410_vccm2mtv = {
 	.constraints = {
 		.name = "PVCCM2MTV",
 		.always_on = 1,
@@ -363,7 +364,7 @@ static struct regulator_init_data smdk6410_vccm2mtv = {
 };
 
 /* VDD_LCD, LDO12 on J5 */
-static struct regulator_init_data smdk6410_vddlcd = {
+static struct regulator_init_data __maybe_unused smdk6410_vddlcd = {
 	.constraints = {
 		.name = "PVDD_LCD",
 		.always_on = 1,
@@ -371,7 +372,7 @@ static struct regulator_init_data smdk6410_vddlcd = {
 };
 
 /* VDD_OTGI, LDO9 on J5 */
-static struct regulator_init_data smdk6410_vddotgi = {
+static struct regulator_init_data __maybe_unused smdk6410_vddotgi = {
 	.constraints = {
 		.name = "PVDD_OTGI",
 		.always_on = 1,
@@ -379,7 +380,7 @@ static struct regulator_init_data smdk6410_vddotgi = {
 };
 
 /* VDD_OTG, LDO14 on J5 */
-static struct regulator_init_data smdk6410_vddotg = {
+static struct regulator_init_data __maybe_unused smdk6410_vddotg = {
 	.constraints = {
 		.name = "PVDD_OTG",
 		.always_on = 1,
@@ -387,7 +388,7 @@ static struct regulator_init_data smdk6410_vddotg = {
 };
 
 /* VDD_ALIVE, LDO15 on J5 */
-static struct regulator_init_data smdk6410_vddalive = {
+static struct regulator_init_data __maybe_unused smdk6410_vddalive = {
 	.constraints = {
 		.name = "PVDD_ALIVE",
 		.always_on = 1,
@@ -395,7 +396,7 @@ static struct regulator_init_data smdk6410_vddalive = {
 };
 
 /* VDD_AUDIO, VLDO_AUDIO on J5 */
-static struct regulator_init_data smdk6410_vddaudio = {
+static struct regulator_init_data __maybe_unused smdk6410_vddaudio = {
 	.constraints = {
 		.name = "PVDD_AUDIO",
 		.always_on = 1,
@@ -405,7 +406,7 @@ static struct regulator_init_data smdk6410_vddaudio = {
 
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 /* S3C64xx internal logic & PLL */
-static struct regulator_init_data wm8350_dcdc1_data = {
+static struct regulator_init_data __maybe_unused wm8350_dcdc1_data = {
 	.constraints = {
 		.name = "PVDD_INT+PVDD_PLL",
 		.min_uV = 1200000,
@@ -416,7 +417,7 @@ static struct regulator_init_data wm8350_dcdc1_data = {
 };
 
 /* Memory */
-static struct regulator_init_data wm8350_dcdc3_data = {
+static struct regulator_init_data __maybe_unused wm8350_dcdc3_data = {
 	.constraints = {
 		.name = "PVDD_MEM",
 		.min_uV = 1800000,
@@ -436,7 +437,7 @@ static struct regulator_consumer_supply wm8350_dcdc4_consumers[] = {
 	REGULATOR_SUPPLY("DVDD", "0-001b"),
 };
 
-static struct regulator_init_data wm8350_dcdc4_data = {
+static struct regulator_init_data __maybe_unused wm8350_dcdc4_data = {
 	.constraints = {
 		.name = "PVDD_HI+PVDD_EXT+PVDD_SYS+PVCCM2MTV",
 		.min_uV = 3000000,
@@ -448,7 +449,7 @@ static struct regulator_init_data wm8350_dcdc4_data = {
 };
 
 /* OTGi/1190-EV1 HPVDD & AVDD */
-static struct regulator_init_data wm8350_ldo4_data = {
+static struct regulator_init_data __maybe_unused wm8350_ldo4_data = {
 	.constraints = {
 		.name = "PVDD_OTGI+HPVDD+AVDD",
 		.min_uV = 1200000,
@@ -536,7 +537,7 @@ static struct wm831x_backlight_pdata wm1192_backlight_pdata = {
 	.max_uA = 27554,
 };
 
-static struct regulator_init_data wm1192_dcdc3 = {
+static struct regulator_init_data __maybe_unused wm1192_dcdc3 = {
 	.constraints = {
 		.name = "PVDD_MEM+PVDD_GPS",
 		.always_on = 1,
@@ -547,7 +548,7 @@ static struct regulator_consumer_supply wm1192_ldo1_consumers[] = {
 	REGULATOR_SUPPLY("DVDD", "0-001b"),   /* WM8580 */
 };
 
-static struct regulator_init_data wm1192_ldo1 = {
+static struct regulator_init_data __maybe_unused wm1192_ldo1 = {
 	.constraints = {
 		.name = "PVDD_LCD+PVDD_EXT",
 		.always_on = 1,
@@ -623,12 +624,16 @@ static struct samsung_bl_gpio_info smdk6410_bl_gpio_info = {
 	.func = S3C_GPIO_SFN(2),
 };
 
+static struct pwm_lookup smdk6410_pwm_lookup[] = {
+	PWM_LOOKUP("samsung-pwm", 1, "pwm-backlight.0", NULL, 78770,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data smdk6410_bl_data = {
-	.pwm_id = 1,
 	.enable_gpio = -1,
 };
 
-static struct s3c_hsotg_plat smdk6410_hsotg_pdata;
+static struct dwc2_hsotg_plat smdk6410_hsotg_pdata;
 
 static void __init smdk6410_map_io(void)
 {
@@ -659,11 +664,11 @@ static void __init smdk6410_machine_init(void)
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
 	s3c_fb_set_platdata(&smdk6410_lcd_pdata);
-	s3c_hsotg_set_platdata(&smdk6410_hsotg_pdata);
+	dwc2_hsotg_set_platdata(&smdk6410_hsotg_pdata);
 
 	samsung_keypad_set_platdata(&smdk6410_keypad_data);
 
-	s3c24xx_ts_set_platdata(NULL);
+	s3c64xx_ts_set_platdata(NULL);
 
 	/* configure nCS1 width to 16 bits */
 
@@ -695,13 +700,14 @@ static void __init smdk6410_machine_init(void)
 
 	platform_add_devices(smdk6410_devices, ARRAY_SIZE(smdk6410_devices));
 
+	pwm_add_table(smdk6410_pwm_lookup, ARRAY_SIZE(smdk6410_pwm_lookup));
 	samsung_bl_set(&smdk6410_bl_gpio_info, &smdk6410_bl_data);
 }
 
 MACHINE_START(SMDK6410, "SMDK6410")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.atag_offset	= 0x100,
-
+	.nr_irqs	= S3C64XX_NR_IRQS,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= smdk6410_map_io,
 	.init_machine	= smdk6410_machine_init,

@@ -25,6 +25,8 @@ config ADIS16480
 	  Say yes here to build support for Analog Devices ADIS16375, ADIS16480,
 	  ADIS16485, ADIS16488 inertial sensors.
 
+source "drivers/iio/imu/bmi160/Kconfig"
+
 config KMX61
 	tristate "Kionix KMX61 6-axis accelerometer and magnetometer"
 	depends on I2C
@@ -37,6 +39,7 @@ config KMX61
 	  be called kmx61.
 
 source "drivers/iio/imu/inv_mpu6050/Kconfig"
+source "drivers/iio/imu/st_lsm6dsx/Kconfig"
 
 endmenu
 

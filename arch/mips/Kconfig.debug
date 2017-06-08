@@ -82,7 +82,7 @@ config CMDLINE_OVERRIDE
 config SB1XXX_CORELIS
 	bool "Corelis Debugger"
 	depends on SIBYTE_SB1xxx_SOC
-	select DEBUG_INFO
+	select DEBUG_INFO if !COMPILE_TEST
 	help
 	  Select compile flags that produce code that can be processed by the
 	  Corelis mksym utility and UDB Emulator.
@@ -112,5 +112,41 @@ config SPINLOCK_TEST
 	default n
 	help
 	  Add several files to the debugfs to test spinlock speed.
+
+config SCACHE_DEBUGFS
+	bool "L2 cache debugfs entries"
+	depends on DEBUG_FS
+	help
+	  Enable this to allow parts of the L2 cache configuration, such as
+	  whether or not prefetching is enabled, to be exposed to userland
+	  via debugfs.
+
+	  If unsure, say N.
+
+menuconfig MIPS_CPS_NS16550
+	bool "CPS SMP NS16550 UART output"
+	depends on MIPS_CPS
+	help
+	  Output debug information via an ns16550 compatible UART if exceptions
+	  occur early in the boot process of a secondary core.
+
+if MIPS_CPS_NS16550
+
+config MIPS_CPS_NS16550_BASE
+	hex "UART Base Address"
+	default 0x1b0003f8 if MIPS_MALTA
+	help
+	  The base address of the ns16550 compatible UART on which to output
+	  debug information from the early stages of core startup.
+
+config MIPS_CPS_NS16550_SHIFT
+	int "UART Register Shift"
+	default 0 if MIPS_MALTA
+	help
+	  The number of bits to shift ns16550 register indices by in order to
+	  form their addresses. That is, log base 2 of the span between
+	  adjacent ns16550 registers in the system.
+
+endif # MIPS_CPS_NS16550
 
 endmenu

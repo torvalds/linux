@@ -26,7 +26,7 @@
 #include <linux/device-mapper.h>
 #include <linux/dm-kcopyd.h>
 
-#include "dm.h"
+#include "dm-core.h"
 
 #define SUB_JOB_SIZE	128
 #define SPLIT_COUNT	8
@@ -244,7 +244,7 @@ static int kcopyd_get_pages(struct dm_kcopyd_client *kc,
 	*pages = NULL;
 
 	do {
-		pl = alloc_pl(__GFP_NOWARN | __GFP_NORETRY);
+		pl = alloc_pl(__GFP_NOWARN | __GFP_NORETRY | __GFP_KSWAPD_RECLAIM);
 		if (unlikely(!pl)) {
 			/* Use reserved pages */
 			pl = kc->pages;
@@ -465,7 +465,7 @@ static void complete_io(unsigned long error, void *context)
 	io_job_finish(kc->throttle);
 
 	if (error) {
-		if (job->rw & WRITE)
+		if (op_is_write(job->rw))
 			job->write_err |= error;
 		else
 			job->read_err = 1;
@@ -477,7 +477,7 @@ static void complete_io(unsigned long error, void *context)
 		}
 	}
 
-	if (job->rw & WRITE)
+	if (op_is_write(job->rw))
 		push(&kc->complete_jobs, job);
 
 	else {
@@ -496,7 +496,8 @@ static int run_io_job(struct kcopyd_job *job)
 {
 	int r;
 	struct dm_io_request io_req = {
-		.bi_rw = job->rw,
+		.bi_op = job->rw,
+		.bi_op_flags = 0,
 		.mem.type = DM_IO_PAGE_LIST,
 		.mem.ptr.pl = job->pages,
 		.mem.offset = 0,
@@ -550,7 +551,7 @@ static int process_jobs(struct list_head *jobs, struct dm_kcopyd_client *kc,
 
 		if (r < 0) {
 			/* error this rogue job */
-			if (job->rw & WRITE)
+			if (op_is_write(job->rw))
 				job->write_err = (unsigned long) -1L;
 			else
 				job->read_err = 1;
@@ -732,11 +733,11 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 		job->pages = &zero_page_list;
 
 		/*
-		 * Use WRITE SAME to optimize zeroing if all dests support it.
+		 * Use WRITE ZEROES to optimize zeroing if all dests support it.
 		 */
-		job->rw = WRITE | REQ_WRITE_SAME;
+		job->rw = REQ_OP_WRITE_ZEROES;
 		for (i = 0; i < job->num_dests; i++)
-			if (!bdev_write_same(job->dests[i].bdev)) {
+			if (!bdev_write_zeroes_sectors(job->dests[i].bdev)) {
 				job->rw = WRITE;
 				break;
 			}

@@ -32,8 +32,6 @@
 #include <linux/stmp3xxx_rtc_wdt.h>
 
 #define STMP3XXX_RTC_CTRL			0x0
-#define STMP3XXX_RTC_CTRL_SET			0x4
-#define STMP3XXX_RTC_CTRL_CLR			0x8
 #define STMP3XXX_RTC_CTRL_ALARM_IRQ_EN		0x00000001
 #define STMP3XXX_RTC_CTRL_ONEMSEC_IRQ_EN	0x00000002
 #define STMP3XXX_RTC_CTRL_ALARM_IRQ		0x00000004
@@ -52,8 +50,6 @@
 #define STMP3XXX_RTC_WATCHDOG			0x50
 
 #define STMP3XXX_RTC_PERSISTENT0		0x60
-#define STMP3XXX_RTC_PERSISTENT0_SET		0x64
-#define STMP3XXX_RTC_PERSISTENT0_CLR		0x68
 #define STMP3XXX_RTC_PERSISTENT0_CLOCKSOURCE		(1 << 0)
 #define STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN		(1 << 1)
 #define STMP3XXX_RTC_PERSISTENT0_ALARM_EN		(1 << 2)
@@ -111,14 +107,19 @@ static struct stmp3xxx_wdt_pdata wdt_pdata = {
 
 static void stmp3xxx_wdt_register(struct platform_device *rtc_pdev)
 {
+	int rc = -1;
 	struct platform_device *wdt_pdev =
 		platform_device_alloc("stmp3xxx_rtc_wdt", rtc_pdev->id);
 
 	if (wdt_pdev) {
 		wdt_pdev->dev.parent = &rtc_pdev->dev;
 		wdt_pdev->dev.platform_data = &wdt_pdata;
-		platform_device_add(wdt_pdev);
+		rc = platform_device_add(wdt_pdev);
 	}
+
+	if (rc)
+		dev_err(&rtc_pdev->dev,
+			"failed to register stmp3xxx_rtc_wdt\n");
 }
 #else
 static void stmp3xxx_wdt_register(struct platform_device *rtc_pdev)
@@ -179,7 +180,7 @@ static irqreturn_t stmp3xxx_rtc_interrupt(int irq, void *dev_id)
 
 	if (status & STMP3XXX_RTC_CTRL_ALARM_IRQ) {
 		writel(STMP3XXX_RTC_CTRL_ALARM_IRQ,
-				rtc_data->io + STMP3XXX_RTC_CTRL_CLR);
+			rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
 		rtc_update_irq(rtc_data->rtc, 1, RTC_AF | RTC_IRQF);
 		return IRQ_HANDLED;
 	}
@@ -194,15 +195,17 @@ static int stmp3xxx_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	if (enabled) {
 		writel(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 				STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN,
-				rtc_data->io + STMP3XXX_RTC_PERSISTENT0_SET);
+			rtc_data->io + STMP3XXX_RTC_PERSISTENT0 +
+				STMP_OFFSET_REG_SET);
 		writel(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
-				rtc_data->io + STMP3XXX_RTC_CTRL_SET);
+			rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_SET);
 	} else {
 		writel(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 				STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN,
-				rtc_data->io + STMP3XXX_RTC_PERSISTENT0_CLR);
+			rtc_data->io + STMP3XXX_RTC_PERSISTENT0 +
+				STMP_OFFSET_REG_CLR);
 		writel(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
-				rtc_data->io + STMP3XXX_RTC_CTRL_CLR);
+			rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
 	}
 	return 0;
 }
@@ -228,7 +231,7 @@ static int stmp3xxx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	return 0;
 }
 
-static struct rtc_class_ops stmp3xxx_rtc_ops = {
+static const struct rtc_class_ops stmp3xxx_rtc_ops = {
 	.alarm_irq_enable =
 			  stmp3xxx_alarm_irq_enable,
 	.read_time	= stmp3xxx_rtc_gettime,
@@ -245,7 +248,7 @@ static int stmp3xxx_rtc_remove(struct platform_device *pdev)
 		return 0;
 
 	writel(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
-			rtc_data->io + STMP3XXX_RTC_CTRL_CLR);
+		rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
 
 	return 0;
 }
@@ -334,16 +337,17 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 			STMP3XXX_RTC_PERSISTENT0_CLOCKSOURCE;
 	}
 
-	writel(pers0_set, rtc_data->io + STMP3XXX_RTC_PERSISTENT0_SET);
+	writel(pers0_set, rtc_data->io + STMP3XXX_RTC_PERSISTENT0 +
+			STMP_OFFSET_REG_SET);
 
 	writel(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE | pers0_clr,
-			rtc_data->io + STMP3XXX_RTC_PERSISTENT0_CLR);
+		rtc_data->io + STMP3XXX_RTC_PERSISTENT0 + STMP_OFFSET_REG_CLR);
 
 	writel(STMP3XXX_RTC_CTRL_ONEMSEC_IRQ_EN |
 			STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
-			rtc_data->io + STMP3XXX_RTC_CTRL_CLR);
+		rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
 
 	rtc_data->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				&stmp3xxx_rtc_ops, THIS_MODULE);
@@ -376,7 +380,7 @@ static int stmp3xxx_rtc_resume(struct device *dev)
 	writel(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE,
-			rtc_data->io + STMP3XXX_RTC_PERSISTENT0_CLR);
+		rtc_data->io + STMP3XXX_RTC_PERSISTENT0 + STMP_OFFSET_REG_CLR);
 	return 0;
 }
 #endif

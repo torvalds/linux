@@ -389,3 +389,12 @@ ENTRY(sys_call_table)
 	.long sys_memfd_create
 	.long sys_bpf
 	.long sys_execveat
+	.long sys_userfaultfd
+	.long sys_membarrier		/* 390 */
+	.long sys_mlock2
+	.long sys_copy_file_range
+	.long sys_preadv2
+	.long sys_pwritev2
+	.long sys_pkey_mprotect		/* 395 */
+	.long sys_pkey_alloc
+	.long sys_pkey_free

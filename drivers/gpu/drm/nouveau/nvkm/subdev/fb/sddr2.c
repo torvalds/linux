@@ -23,6 +23,7 @@
  *          Ben Skeggs
  */
 #include "priv.h"
+#include "ram.h"
 
 struct ramxlat {
 	int id;
@@ -74,6 +75,12 @@ nvkm_sddr2_calc(struct nvkm_ram *ram)
 		break;
 	default:
 		return -ENOSYS;
+	}
+
+	if (ram->next->bios.timing_ver == 0x20 ||
+	    ram->next->bios.ramcfg_timing == 0xff) {
+		ODT =  (ram->mr[1] & 0x004) >> 2 |
+		       (ram->mr[1] & 0x040) >> 5;
 	}
 
 	CL  = ramxlat(ramddr2_cl, CL);

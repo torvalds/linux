@@ -31,17 +31,20 @@ static int get_first_sibling(unsigned int cpu)
 	return cpu;
 }
 
-int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues)
+int blk_mq_map_queues(struct blk_mq_tag_set *set)
 {
+	unsigned int *map = set->mq_map;
+	unsigned int nr_queues = set->nr_hw_queues;
+	const struct cpumask *online_mask = cpu_online_mask;
 	unsigned int i, nr_cpus, nr_uniq_cpus, queue, first_sibling;
 	cpumask_var_t cpus;
 
 	if (!alloc_cpumask_var(&cpus, GFP_ATOMIC))
-		return 1;
+		return -ENOMEM;
 
 	cpumask_clear(cpus);
 	nr_cpus = nr_uniq_cpus = 0;
-	for_each_online_cpu(i) {
+	for_each_cpu(i, online_mask) {
 		nr_cpus++;
 		first_sibling = get_first_sibling(i);
 		if (!cpumask_test_cpu(first_sibling, cpus))
@@ -51,7 +54,7 @@ int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues)
 
 	queue = 0;
 	for_each_possible_cpu(i) {
-		if (!cpu_online(i)) {
+		if (!cpumask_test_cpu(i, online_mask)) {
 			map[i] = 0;
 			continue;
 		}
@@ -84,23 +87,7 @@ int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues)
 	free_cpumask_var(cpus);
 	return 0;
 }
-
-unsigned int *blk_mq_make_queue_map(struct blk_mq_tag_set *set)
-{
-	unsigned int *map;
-
-	/* If cpus are offline, map them to first hctx */
-	map = kzalloc_node(sizeof(*map) * nr_cpu_ids, GFP_KERNEL,
-				set->numa_node);
-	if (!map)
-		return NULL;
-
-	if (!blk_mq_update_queue_map(map, set->nr_hw_queues))
-		return map;
-
-	kfree(map);
-	return NULL;
-}
+EXPORT_SYMBOL_GPL(blk_mq_map_queues);
 
 /*
  * We have no quick way of doing reverse lookups. This is only used at
@@ -112,7 +99,7 @@ int blk_mq_hw_queue_to_node(unsigned int *mq_map, unsigned int index)
 
 	for_each_possible_cpu(i) {
 		if (index == mq_map[i])
-			return cpu_to_node(i);
+			return local_memory_node(cpu_to_node(i));
 	}
 
 	return NUMA_NO_NODE;

@@ -853,45 +853,6 @@ rqbiocnt(struct request *r)
 	return n;
 }
 
-/* This can be removed if we are certain that no users of the block
- * layer will ever use zero-count pages in bios.  Otherwise we have to
- * protect against the put_page sometimes done by the network layer.
- *
- * See http://oss.sgi.com/archives/xfs/2007-01/msg00594.html for
- * discussion.
- *
- * We cannot use get_page in the workaround, because it insists on a
- * positive page count as a precondition.  So we use _count directly.
- */
-static void
-bio_pageinc(struct bio *bio)
-{
-	struct bio_vec bv;
-	struct page *page;
-	struct bvec_iter iter;
-
-	bio_for_each_segment(bv, bio, iter) {
-		/* Non-zero page count for non-head members of
-		 * compound pages is no longer allowed by the kernel.
-		 */
-		page = compound_head(bv.bv_page);
-		atomic_inc(&page->_count);
-	}
-}
-
-static void
-bio_pagedec(struct bio *bio)
-{
-	struct page *page;
-	struct bio_vec bv;
-	struct bvec_iter iter;
-
-	bio_for_each_segment(bv, bio, iter) {
-		page = compound_head(bv.bv_page);
-		atomic_dec(&page->_count);
-	}
-}
-
 static void
 bufinit(struct buf *buf, struct request *rq, struct bio *bio)
 {
@@ -899,7 +860,6 @@ bufinit(struct buf *buf, struct request *rq, struct bio *bio)
 	buf->rq = rq;
 	buf->bio = bio;
 	buf->iter = bio->bi_iter;
-	bio_pageinc(bio);
 }
 
 static struct buf *
@@ -964,9 +924,9 @@ aoecmd_sleepwork(struct work_struct *work)
 		ssize = get_capacity(d->gd);
 		bd = bdget_disk(d->gd, 0);
 		if (bd) {
-			mutex_lock(&bd->bd_inode->i_mutex);
+			inode_lock(bd->bd_inode);
 			i_size_write(bd->bd_inode, (loff_t)ssize<<9);
-			mutex_unlock(&bd->bd_inode->i_mutex);
+			inode_unlock(bd->bd_inode);
 			bdput(bd);
 		}
 		spin_lock_irq(&d->lock);
@@ -1127,7 +1087,6 @@ aoe_end_buf(struct aoedev *d, struct buf *buf)
 	if (buf == d->ip.buf)
 		d->ip.buf = NULL;
 	rq = buf->rq;
-	bio_pagedec(buf->bio);
 	mempool_free(buf, d->bufpool);
 	n = (unsigned long) rq->special;
 	rq->special = (void *) --n;
@@ -1750,7 +1709,7 @@ aoecmd_init(void)
 	int ret;
 
 	/* get_zeroed_page returns page with ref count 1 */
-	p = (void *) get_zeroed_page(GFP_KERNEL | __GFP_REPEAT);
+	p = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 	empty_page = virt_to_page(p);

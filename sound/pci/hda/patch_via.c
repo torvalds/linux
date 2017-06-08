@@ -785,21 +785,11 @@ static int patch_vt1708S(struct hda_codec *codec)
 	override_mic_boost(codec, 0x1e, 0, 3, 40);
 
 	/* correct names for VT1708BCE */
-	if (get_codec_type(codec) == VT1708BCE)	{
-		kfree(codec->core.chip_name);
-		codec->core.chip_name = kstrdup("VT1708BCE", GFP_KERNEL);
-		snprintf(codec->card->mixername,
-			 sizeof(codec->card->mixername),
-			 "%s %s", codec->core.vendor_name, codec->core.chip_name);
-	}
+	if (get_codec_type(codec) == VT1708BCE)
+		snd_hda_codec_set_name(codec, "VT1708BCE");
 	/* correct names for VT1705 */
-	if (codec->core.vendor_id == 0x11064397) {
-		kfree(codec->core.chip_name);
-		codec->core.chip_name = kstrdup("VT1705", GFP_KERNEL);
-		snprintf(codec->card->mixername,
-			 sizeof(codec->card->mixername),
-			 "%s %s", codec->core.vendor_name, codec->core.chip_name);
-	}
+	if (codec->core.vendor_id == 0x11064397)
+		snd_hda_codec_set_name(codec, "VT1705");
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
@@ -1210,109 +1200,64 @@ static int patch_vt3476(struct hda_codec *codec)
 /*
  * patch entries
  */
-static const struct hda_codec_preset snd_hda_preset_via[] = {
-	{ .id = 0x11061708, .name = "VT1708", .patch = patch_vt1708},
-	{ .id = 0x11061709, .name = "VT1708", .patch = patch_vt1708},
-	{ .id = 0x1106170a, .name = "VT1708", .patch = patch_vt1708},
-	{ .id = 0x1106170b, .name = "VT1708", .patch = patch_vt1708},
-	{ .id = 0x1106e710, .name = "VT1709 10-Ch",
-	  .patch = patch_vt1709},
-	{ .id = 0x1106e711, .name = "VT1709 10-Ch",
-	  .patch = patch_vt1709},
-	{ .id = 0x1106e712, .name = "VT1709 10-Ch",
-	  .patch = patch_vt1709},
-	{ .id = 0x1106e713, .name = "VT1709 10-Ch",
-	  .patch = patch_vt1709},
-	{ .id = 0x1106e714, .name = "VT1709 6-Ch",
-	  .patch = patch_vt1709},
-	{ .id = 0x1106e715, .name = "VT1709 6-Ch",
-	  .patch = patch_vt1709},
-	{ .id = 0x1106e716, .name = "VT1709 6-Ch",
-	  .patch = patch_vt1709},
-	{ .id = 0x1106e717, .name = "VT1709 6-Ch",
-	  .patch = patch_vt1709},
-	{ .id = 0x1106e720, .name = "VT1708B 8-Ch",
-	  .patch = patch_vt1708B},
-	{ .id = 0x1106e721, .name = "VT1708B 8-Ch",
-	  .patch = patch_vt1708B},
-	{ .id = 0x1106e722, .name = "VT1708B 8-Ch",
-	  .patch = patch_vt1708B},
-	{ .id = 0x1106e723, .name = "VT1708B 8-Ch",
-	  .patch = patch_vt1708B},
-	{ .id = 0x1106e724, .name = "VT1708B 4-Ch",
-	  .patch = patch_vt1708B},
-	{ .id = 0x1106e725, .name = "VT1708B 4-Ch",
-	  .patch = patch_vt1708B},
-	{ .id = 0x1106e726, .name = "VT1708B 4-Ch",
-	  .patch = patch_vt1708B},
-	{ .id = 0x1106e727, .name = "VT1708B 4-Ch",
-	  .patch = patch_vt1708B},
-	{ .id = 0x11060397, .name = "VT1708S",
-	  .patch = patch_vt1708S},
-	{ .id = 0x11061397, .name = "VT1708S",
-	  .patch = patch_vt1708S},
-	{ .id = 0x11062397, .name = "VT1708S",
-	  .patch = patch_vt1708S},
-	{ .id = 0x11063397, .name = "VT1708S",
-	  .patch = patch_vt1708S},
-	{ .id = 0x11064397, .name = "VT1705",
-	  .patch = patch_vt1708S},
-	{ .id = 0x11065397, .name = "VT1708S",
-	  .patch = patch_vt1708S},
-	{ .id = 0x11066397, .name = "VT1708S",
-	  .patch = patch_vt1708S},
-	{ .id = 0x11067397, .name = "VT1708S",
-	  .patch = patch_vt1708S},
-	{ .id = 0x11060398, .name = "VT1702",
-	  .patch = patch_vt1702},
-	{ .id = 0x11061398, .name = "VT1702",
-	  .patch = patch_vt1702},
-	{ .id = 0x11062398, .name = "VT1702",
-	  .patch = patch_vt1702},
-	{ .id = 0x11063398, .name = "VT1702",
-	  .patch = patch_vt1702},
-	{ .id = 0x11064398, .name = "VT1702",
-	  .patch = patch_vt1702},
-	{ .id = 0x11065398, .name = "VT1702",
-	  .patch = patch_vt1702},
-	{ .id = 0x11066398, .name = "VT1702",
-	  .patch = patch_vt1702},
-	{ .id = 0x11067398, .name = "VT1702",
-	  .patch = patch_vt1702},
-	{ .id = 0x11060428, .name = "VT1718S",
-	  .patch = patch_vt1718S},
-	{ .id = 0x11064428, .name = "VT1718S",
-	  .patch = patch_vt1718S},
-	{ .id = 0x11060441, .name = "VT2020",
-	  .patch = patch_vt1718S},
-	{ .id = 0x11064441, .name = "VT1828S",
-	  .patch = patch_vt1718S},
-	{ .id = 0x11060433, .name = "VT1716S",
-	  .patch = patch_vt1716S},
-	{ .id = 0x1106a721, .name = "VT1716S",
-	  .patch = patch_vt1716S},
-	{ .id = 0x11060438, .name = "VT2002P", .patch = patch_vt2002P},
-	{ .id = 0x11064438, .name = "VT2002P", .patch = patch_vt2002P},
-	{ .id = 0x11060448, .name = "VT1812", .patch = patch_vt1812},
-	{ .id = 0x11060440, .name = "VT1818S",
-	  .patch = patch_vt1708S},
-	{ .id = 0x11060446, .name = "VT1802",
-		.patch = patch_vt2002P},
-	{ .id = 0x11068446, .name = "VT1802",
-		.patch = patch_vt2002P},
-	{ .id = 0x11064760, .name = "VT1705CF",
-		.patch = patch_vt3476},
-	{ .id = 0x11064761, .name = "VT1708SCE",
-		.patch = patch_vt3476},
-	{ .id = 0x11064762, .name = "VT1808",
-		.patch = patch_vt3476},
+static const struct hda_device_id snd_hda_id_via[] = {
+	HDA_CODEC_ENTRY(0x11061708, "VT1708", patch_vt1708),
+	HDA_CODEC_ENTRY(0x11061709, "VT1708", patch_vt1708),
+	HDA_CODEC_ENTRY(0x1106170a, "VT1708", patch_vt1708),
+	HDA_CODEC_ENTRY(0x1106170b, "VT1708", patch_vt1708),
+	HDA_CODEC_ENTRY(0x1106e710, "VT1709 10-Ch", patch_vt1709),
+	HDA_CODEC_ENTRY(0x1106e711, "VT1709 10-Ch", patch_vt1709),
+	HDA_CODEC_ENTRY(0x1106e712, "VT1709 10-Ch", patch_vt1709),
+	HDA_CODEC_ENTRY(0x1106e713, "VT1709 10-Ch", patch_vt1709),
+	HDA_CODEC_ENTRY(0x1106e714, "VT1709 6-Ch", patch_vt1709),
+	HDA_CODEC_ENTRY(0x1106e715, "VT1709 6-Ch", patch_vt1709),
+	HDA_CODEC_ENTRY(0x1106e716, "VT1709 6-Ch", patch_vt1709),
+	HDA_CODEC_ENTRY(0x1106e717, "VT1709 6-Ch", patch_vt1709),
+	HDA_CODEC_ENTRY(0x1106e720, "VT1708B 8-Ch", patch_vt1708B),
+	HDA_CODEC_ENTRY(0x1106e721, "VT1708B 8-Ch", patch_vt1708B),
+	HDA_CODEC_ENTRY(0x1106e722, "VT1708B 8-Ch", patch_vt1708B),
+	HDA_CODEC_ENTRY(0x1106e723, "VT1708B 8-Ch", patch_vt1708B),
+	HDA_CODEC_ENTRY(0x1106e724, "VT1708B 4-Ch", patch_vt1708B),
+	HDA_CODEC_ENTRY(0x1106e725, "VT1708B 4-Ch", patch_vt1708B),
+	HDA_CODEC_ENTRY(0x1106e726, "VT1708B 4-Ch", patch_vt1708B),
+	HDA_CODEC_ENTRY(0x1106e727, "VT1708B 4-Ch", patch_vt1708B),
+	HDA_CODEC_ENTRY(0x11060397, "VT1708S", patch_vt1708S),
+	HDA_CODEC_ENTRY(0x11061397, "VT1708S", patch_vt1708S),
+	HDA_CODEC_ENTRY(0x11062397, "VT1708S", patch_vt1708S),
+	HDA_CODEC_ENTRY(0x11063397, "VT1708S", patch_vt1708S),
+	HDA_CODEC_ENTRY(0x11064397, "VT1705", patch_vt1708S),
+	HDA_CODEC_ENTRY(0x11065397, "VT1708S", patch_vt1708S),
+	HDA_CODEC_ENTRY(0x11066397, "VT1708S", patch_vt1708S),
+	HDA_CODEC_ENTRY(0x11067397, "VT1708S", patch_vt1708S),
+	HDA_CODEC_ENTRY(0x11060398, "VT1702", patch_vt1702),
+	HDA_CODEC_ENTRY(0x11061398, "VT1702", patch_vt1702),
+	HDA_CODEC_ENTRY(0x11062398, "VT1702", patch_vt1702),
+	HDA_CODEC_ENTRY(0x11063398, "VT1702", patch_vt1702),
+	HDA_CODEC_ENTRY(0x11064398, "VT1702", patch_vt1702),
+	HDA_CODEC_ENTRY(0x11065398, "VT1702", patch_vt1702),
+	HDA_CODEC_ENTRY(0x11066398, "VT1702", patch_vt1702),
+	HDA_CODEC_ENTRY(0x11067398, "VT1702", patch_vt1702),
+	HDA_CODEC_ENTRY(0x11060428, "VT1718S", patch_vt1718S),
+	HDA_CODEC_ENTRY(0x11064428, "VT1718S", patch_vt1718S),
+	HDA_CODEC_ENTRY(0x11060441, "VT2020", patch_vt1718S),
+	HDA_CODEC_ENTRY(0x11064441, "VT1828S", patch_vt1718S),
+	HDA_CODEC_ENTRY(0x11060433, "VT1716S", patch_vt1716S),
+	HDA_CODEC_ENTRY(0x1106a721, "VT1716S", patch_vt1716S),
+	HDA_CODEC_ENTRY(0x11060438, "VT2002P", patch_vt2002P),
+	HDA_CODEC_ENTRY(0x11064438, "VT2002P", patch_vt2002P),
+	HDA_CODEC_ENTRY(0x11060448, "VT1812", patch_vt1812),
+	HDA_CODEC_ENTRY(0x11060440, "VT1818S", patch_vt1708S),
+	HDA_CODEC_ENTRY(0x11060446, "VT1802", patch_vt2002P),
+	HDA_CODEC_ENTRY(0x11068446, "VT1802", patch_vt2002P),
+	HDA_CODEC_ENTRY(0x11064760, "VT1705CF", patch_vt3476),
+	HDA_CODEC_ENTRY(0x11064761, "VT1708SCE", patch_vt3476),
+	HDA_CODEC_ENTRY(0x11064762, "VT1808", patch_vt3476),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:1106*");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_via);
 
 static struct hda_codec_driver via_driver = {
-	.preset = snd_hda_preset_via,
+	.id = snd_hda_id_via,
 };
 
 MODULE_LICENSE("GPL");

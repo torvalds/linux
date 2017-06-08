@@ -189,7 +189,7 @@ static bool kvm_notify(struct virtqueue *vq)
 static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 				     unsigned index,
 				     void (*callback)(struct virtqueue *vq),
-				     const char *name)
+				     const char *name, bool ctx)
 {
 	struct kvm_device *kdev = to_kvmdev(vdev);
 	struct kvm_vqconfig *config;
@@ -211,7 +211,7 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 		goto out;
 
 	vq = vring_new_virtqueue(index, config->num, KVM_S390_VIRTIO_RING_ALIGN,
-				 vdev, true, (void *) config->address,
+				 vdev, true, ctx, (void *) config->address,
 				 kvm_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
@@ -255,7 +255,9 @@ static void kvm_del_vqs(struct virtio_device *vdev)
 static int kvm_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			struct virtqueue *vqs[],
 			vq_callback_t *callbacks[],
-			const char *names[])
+			const char * const names[],
+			const bool *ctx,
+			struct irq_affinity *desc)
 {
 	struct kvm_device *kdev = to_kvmdev(vdev);
 	int i;
@@ -265,7 +267,8 @@ static int kvm_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 		return -ENOENT;
 
 	for (i = 0; i < nvqs; ++i) {
-		vqs[i] = kvm_find_vq(vdev, i, callbacks[i], names[i]);
+		vqs[i] = kvm_find_vq(vdev, i, callbacks[i], names[i],
+				     ctx ? ctx[i] : false);
 		if (IS_ERR(vqs[i]))
 			goto error;
 	}
@@ -458,6 +461,8 @@ static int __init kvm_devices_init(void)
 	if (test_devices_support(total_memory_size) < 0)
 		return -ENODEV;
 
+	pr_warn("The s390-virtio transport is deprecated. Please switch to a modern host providing virtio-ccw.\n");
+
 	rc = vmem_add_mapping(total_memory_size, PAGE_SIZE);
 	if (rc)
 		return rc;
@@ -482,7 +487,7 @@ static int __init kvm_devices_init(void)
 }
 
 /* code for early console output with virtio_console */
-static __init int early_put_chars(u32 vtermno, const char *buf, int count)
+static int early_put_chars(u32 vtermno, const char *buf, int count)
 {
 	char scratch[17];
 	unsigned int len = count;

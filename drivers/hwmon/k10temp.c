@@ -60,7 +60,6 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
  * Control]
  */
 #define F15H_M60H_REPORTED_TEMP_CTRL_OFFSET	0xd8200ca4
-#define PCI_DEVICE_ID_AMD_15H_M60H_NB_F3	0x1573
 
 static void amd_nb_smu_index_read(struct pci_dev *pdev, unsigned int devfn,
 				  int offset, u32 *val)
@@ -73,8 +72,8 @@ static void amd_nb_smu_index_read(struct pci_dev *pdev, unsigned int devfn,
 	mutex_unlock(&nb_smu_ind_mutex);
 }
 
-static ssize_t show_temp(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+static ssize_t temp1_input_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	u32 regval;
 	struct pci_dev *pdev = dev_get_drvdata(dev);
@@ -89,8 +88,8 @@ static ssize_t show_temp(struct device *dev,
 	return sprintf(buf, "%u\n", (regval >> 21) * 125);
 }
 
-static ssize_t show_temp_max(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+static ssize_t temp1_max_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", 70 * 1000);
 }
@@ -111,8 +110,8 @@ static ssize_t show_temp_crit(struct device *dev,
 	return sprintf(buf, "%d\n", value);
 }
 
-static DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL);
-static DEVICE_ATTR(temp1_max, S_IRUGO, show_temp_max, NULL);
+static DEVICE_ATTR_RO(temp1_input);
+static DEVICE_ATTR_RO(temp1_max);
 static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, show_temp_crit, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO, show_temp_crit, NULL, 1);
 

@@ -688,14 +688,6 @@ nvkm_device_pci_10de_11e3[] = {
 };
 
 static const struct nvkm_device_pci_vendor
-nvkm_device_pci_10de_11fc[] = {
-	{ 0x1179, 0x0001, NULL, { .War00C800_0 = true } }, /* Toshiba Tecra W50 */
-	{ 0x17aa, 0x2211, NULL, { .War00C800_0 = true } }, /* Lenovo W541 */
-	{ 0x17aa, 0x221e, NULL, { .War00C800_0 = true } }, /* Lenovo W541 */
-	{}
-};
-
-static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_1247[] = {
 	{ 0x1043, 0x212a, "GeForce GT 635M" },
 	{ 0x1043, 0x212b, "GeForce GT 635M" },
@@ -1483,7 +1475,7 @@ nvkm_device_pci_10de[] = {
 	{ 0x11e2, "GeForce GTX 765M" },
 	{ 0x11e3, "GeForce GTX 760M", nvkm_device_pci_10de_11e3 },
 	{ 0x11fa, "Quadro K4000" },
-	{ 0x11fc, "Quadro K2100M", nvkm_device_pci_10de_11fc },
+	{ 0x11fc, "Quadro K2100M" },
 	{ 0x1200, "GeForce GTX 560 Ti" },
 	{ 0x1201, "GeForce GTX 560" },
 	{ 0x1203, "GeForce GTX 460 SE v2" },
@@ -1673,14 +1665,31 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 	*pdevice = &pdev->device;
 	pdev->pdev = pci_dev;
 
-	return nvkm_device_ctor(&nvkm_device_pci_func, quirk, &pci_dev->dev,
-				pci_is_pcie(pci_dev) ? NVKM_DEVICE_PCIE :
-				pci_find_capability(pci_dev, PCI_CAP_ID_AGP) ?
-				NVKM_DEVICE_AGP : NVKM_DEVICE_PCI,
-				(u64)pci_domain_nr(pci_dev->bus) << 32 |
-				     pci_dev->bus->number << 16 |
-				     PCI_SLOT(pci_dev->devfn) << 8 |
-				     PCI_FUNC(pci_dev->devfn), name,
-				cfg, dbg, detect, mmio, subdev_mask,
-				&pdev->device);
+	ret = nvkm_device_ctor(&nvkm_device_pci_func, quirk, &pci_dev->dev,
+			       pci_is_pcie(pci_dev) ? NVKM_DEVICE_PCIE :
+			       pci_find_capability(pci_dev, PCI_CAP_ID_AGP) ?
+			       NVKM_DEVICE_AGP : NVKM_DEVICE_PCI,
+			       (u64)pci_domain_nr(pci_dev->bus) << 32 |
+				    pci_dev->bus->number << 16 |
+				    PCI_SLOT(pci_dev->devfn) << 8 |
+				    PCI_FUNC(pci_dev->devfn), name,
+			       cfg, dbg, detect, mmio, subdev_mask,
+			       &pdev->device);
+
+	if (ret)
+		return ret;
+
+	/*
+	 * Set a preliminary DMA mask based on the .dma_bits member of the
+	 * MMU subdevice. This allows other subdevices to create DMA mappings
+	 * in their init() or oneinit() methods, which may be called before the
+	 * TTM layer sets the DMA mask definitively.
+	 * This is necessary for platforms where the default DMA mask of 32
+	 * does not cover any system memory, i.e., when all RAM is > 4 GB.
+	 */
+	if (pdev->device.mmu)
+		dma_set_mask_and_coherent(&pci_dev->dev,
+				DMA_BIT_MASK(pdev->device.mmu->dma_bits));
+
+	return 0;
 }

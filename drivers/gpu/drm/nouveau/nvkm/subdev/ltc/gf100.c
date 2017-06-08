@@ -23,7 +23,6 @@
  */
 #include "priv.h"
 
-#include <core/enum.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
@@ -71,7 +70,7 @@ gf100_ltc_zbc_clear_depth(struct nvkm_ltc *ltc, int i, const u32 depth)
 	nvkm_wr32(device, 0x17ea58, depth);
 }
 
-static const struct nvkm_bitfield
+const struct nvkm_bitfield
 gf100_ltc_lts_intr_name[] = {
 	{ 0x00000001, "IDLE_ERROR_IQ" },
 	{ 0x00000002, "IDLE_ERROR_CBC" },
@@ -120,6 +119,32 @@ gf100_ltc_intr(struct nvkm_ltc *ltc)
 			gf100_ltc_lts_intr(ltc, c, s);
 		mask &= ~(1 << c);
 	}
+}
+
+void
+gf100_ltc_invalidate(struct nvkm_ltc *ltc)
+{
+	struct nvkm_device *device = ltc->subdev.device;
+	s64 taken;
+
+	nvkm_wr32(device, 0x70004, 0x00000001);
+	taken = nvkm_wait_msec(device, 2000, 0x70004, 0x00000003, 0x00000000);
+
+	if (taken > 0)
+		nvkm_debug(&ltc->subdev, "LTC invalidate took %lld ns\n", taken);
+}
+
+void
+gf100_ltc_flush(struct nvkm_ltc *ltc)
+{
+	struct nvkm_device *device = ltc->subdev.device;
+	s64 taken;
+
+	nvkm_wr32(device, 0x70010, 0x00000001);
+	taken = nvkm_wait_msec(device, 2000, 0x70010, 0x00000003, 0x00000000);
+
+	if (taken > 0)
+		nvkm_debug(&ltc->subdev, "LTC flush took %lld ns\n", taken);
 }
 
 /* TODO: Figure out tag memory details and drop the over-cautious allocation.
@@ -215,6 +240,8 @@ gf100_ltc = {
 	.zbc = 16,
 	.zbc_clear_color = gf100_ltc_zbc_clear_color,
 	.zbc_clear_depth = gf100_ltc_zbc_clear_depth,
+	.invalidate = gf100_ltc_invalidate,
+	.flush = gf100_ltc_flush,
 };
 
 int

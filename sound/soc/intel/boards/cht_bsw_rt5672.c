@@ -25,12 +25,14 @@
 #include <sound/jack.h>
 #include "../../codecs/rt5670.h"
 #include "../atom/sst-atom-controls.h"
+#include "../common/sst-acpi.h"
 
 /* The platform clock #3 outputs 19.2Mhz clock to codec as I2S MCLK */
 #define CHT_PLAT_CLK_3_HZ	19200000
 #define CHT_CODEC_DAI	"rt5670-aif1"
 
 static struct snd_soc_jack cht_bsw_headset;
+static char cht_bsw_codec_name[16];
 
 /* Headset jack detection DAPM pins */
 static struct snd_soc_jack_pin cht_bsw_headset_pins[] = {
@@ -46,12 +48,9 @@ static struct snd_soc_jack_pin cht_bsw_headset_pins[] = {
 
 static inline struct snd_soc_dai *cht_get_codec_dai(struct snd_soc_card *card)
 {
-	int i;
+	struct snd_soc_pcm_runtime *rtd;
 
-	for (i = 0; i < card->num_rtd; i++) {
-		struct snd_soc_pcm_runtime *rtd;
-
-		rtd = card->rtd + i;
+	list_for_each_entry(rtd, &card->rtd_list, list) {
 		if (!strncmp(rtd->codec_dai->name, CHT_CODEC_DAI,
 			     strlen(CHT_CODEC_DAI)))
 			return rtd->codec_dai;
@@ -222,27 +221,17 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static unsigned int rates_48000[] = {
-	48000,
-};
-
-static struct snd_pcm_hw_constraint_list constraints_48000 = {
-	.count = ARRAY_SIZE(rates_48000),
-	.list  = rates_48000,
-};
-
 static int cht_aif1_startup(struct snd_pcm_substream *substream)
 {
-	return snd_pcm_hw_constraint_list(substream->runtime, 0,
-			SNDRV_PCM_HW_PARAM_RATE,
-			&constraints_48000);
+	return snd_pcm_hw_constraint_single(substream->runtime,
+			SNDRV_PCM_HW_PARAM_RATE, 48000);
 }
 
-static struct snd_soc_ops cht_aif1_ops = {
+static const struct snd_soc_ops cht_aif1_ops = {
 	.startup = cht_aif1_startup,
 };
 
-static struct snd_soc_ops cht_be_ssp2_ops = {
+static const struct snd_soc_ops cht_be_ssp2_ops = {
 	.hw_params = cht_aif1_hw_params,
 };
 
@@ -261,6 +250,18 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.dpcm_capture = 1,
 		.ops = &cht_aif1_ops,
 	},
+	[MERR_DPCM_DEEP_BUFFER] = {
+		.name = "Deep-Buffer Audio Port",
+		.stream_name = "Deep-Buffer Audio",
+		.cpu_dai_name = "deepbuffer-cpu-dai",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.platform_name = "sst-mfld-platform",
+		.nonatomic = true,
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.ops = &cht_aif1_ops,
+	},
 	[MERR_DPCM_COMPR] = {
 		.name = "Compressed Port",
 		.stream_name = "Compress",
@@ -274,7 +275,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	{
 		/* SSP2 - Codec */
 		.name = "SSP2-Codec",
-		.be_id = 1,
+		.id = 1,
 		.cpu_dai_name = "ssp2-port",
 		.platform_name = "sst-mfld-platform",
 		.no_pcm = 1,
@@ -293,10 +294,12 @@ static struct snd_soc_dai_link cht_dailink[] = {
 
 static int cht_suspend_pre(struct snd_soc_card *card)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 
-	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		if (!strcmp(codec->component.name, "i2c-10EC5670:00")) {
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		if (!strcmp(component->name, "i2c-10EC5670:00")) {
+			struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
 			dev_dbg(codec->dev, "disabling jack detect before going to suspend.\n");
 			rt5670_jack_suspend(codec);
 			break;
@@ -307,10 +310,12 @@ static int cht_suspend_pre(struct snd_soc_card *card)
 
 static int cht_resume_post(struct snd_soc_card *card)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 
-	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		if (!strcmp(codec->component.name, "i2c-10EC5670:00")) {
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		if (!strcmp(component->name, "i2c-10EC5670:00")) {
+			struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
 			dev_dbg(codec->dev, "enabling jack detect for resume.\n");
 			rt5670_jack_resume(codec);
 			break;
@@ -336,9 +341,33 @@ static struct snd_soc_card snd_soc_card_cht = {
 	.resume_post = cht_resume_post,
 };
 
+#define RT5672_I2C_DEFAULT	"i2c-10EC5670:00"
+
 static int snd_cht_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
+	struct sst_acpi_mach *mach = pdev->dev.platform_data;
+	const char *i2c_name;
+	int i;
+
+	strcpy(cht_bsw_codec_name, RT5672_I2C_DEFAULT);
+
+	/* fixup codec name based on HID */
+	if (mach) {
+		i2c_name = sst_acpi_find_name_from_hid(mach->id);
+		if (i2c_name) {
+			snprintf(cht_bsw_codec_name, sizeof(cht_bsw_codec_name),
+				 "i2c-%s", i2c_name);
+			for (i = 0; i < ARRAY_SIZE(cht_dailink); i++) {
+				if (!strcmp(cht_dailink[i].codec_name,
+					    RT5672_I2C_DEFAULT)) {
+					cht_dailink[i].codec_name =
+						cht_bsw_codec_name;
+					break;
+				}
+			}
+		}
+	}
 
 	/* register the soc card */
 	snd_soc_card_cht.dev = &pdev->dev;

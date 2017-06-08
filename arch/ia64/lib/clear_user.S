@@ -12,6 +12,7 @@
  */
 
 #include <asm/asmmacro.h>
+#include <asm/export.h>
 
 //
 // arguments
@@ -207,3 +208,4 @@ GLOBAL_ENTRY(__do_clear_user)
 	mov ar.lc=saved_lc
 	br.ret.sptk.many rp
 END(__do_clear_user)
+EXPORT_SYMBOL(__do_clear_user)

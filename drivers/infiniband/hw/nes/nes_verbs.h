@@ -79,6 +79,10 @@ struct nes_mr {
 	u16               pbls_used;
 	u8                mode;
 	u8                pbl_4k;
+	__le64            *pages;
+	dma_addr_t        paddr;
+	u32               max_pages;
+	u32		  npages;
 };
 
 struct nes_hw_pb {
@@ -185,5 +189,11 @@ struct nes_qp {
 	u8                    pau_pending;
 	u8                    pau_state;
 	__u64                 nesuqp_addr;
+	struct completion     sq_drained;
+	struct completion     rq_drained;
 };
+
+struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
+		u64 addr, u64 size, int acc, u64 *iova_start);
+
 #endif			/* NES_VERBS_H */

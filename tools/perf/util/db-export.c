@@ -23,6 +23,8 @@
 #include "event.h"
 #include "util.h"
 #include "thread-stack.h"
+#include "callchain.h"
+#include "call-path.h"
 #include "db-export.h"
 
 struct deferred_export {
@@ -231,17 +233,6 @@ int db_export__symbol(struct db_export *dbe, struct symbol *sym,
 	return 0;
 }
 
-static struct thread *get_main_thread(struct machine *machine, struct thread *thread)
-{
-	if (thread->pid_ == thread->tid)
-		return thread__get(thread);
-
-	if (thread->pid_ == -1)
-		return NULL;
-
-	return machine__find_thread(machine, thread->pid_, thread->pid_);
-}
-
 static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 			  u64 *dso_db_id, u64 *sym_db_id, u64 *offset)
 {
@@ -258,8 +249,7 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 		if (!al->sym) {
 			al->sym = symbol__new(al->addr, 0, 0, "unknown");
 			if (al->sym)
-				symbols__insert(&dso->symbols[al->map->type],
-						al->sym);
+				dso__insert_symbol(dso, al->map->type, al->sym);
 		}
 
 		if (al->sym) {
@@ -274,6 +264,79 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 	}
 
 	return 0;
+}
+
+static struct call_path *call_path_from_sample(struct db_export *dbe,
+					       struct machine *machine,
+					       struct thread *thread,
+					       struct perf_sample *sample,
+					       struct perf_evsel *evsel)
+{
+	u64 kernel_start = machine__kernel_start(machine);
+	struct call_path *current = &dbe->cpr->call_path;
+	enum chain_order saved_order = callchain_param.order;
+	int err;
+
+	if (!symbol_conf.use_callchain || !sample->callchain)
+		return NULL;
+
+	/*
+	 * Since the call path tree must be built starting with the root, we
+	 * must use ORDER_CALL for call chain resolution, in order to process
+	 * the callchain starting with the root node and ending with the leaf.
+	 */
+	callchain_param.order = ORDER_CALLER;
+	err = thread__resolve_callchain(thread, &callchain_cursor, evsel,
+					sample, NULL, NULL, PERF_MAX_STACK_DEPTH);
+	if (err) {
+		callchain_param.order = saved_order;
+		return NULL;
+	}
+	callchain_cursor_commit(&callchain_cursor);
+
+	while (1) {
+		struct callchain_cursor_node *node;
+		struct addr_location al;
+		u64 dso_db_id = 0, sym_db_id = 0, offset = 0;
+
+		memset(&al, 0, sizeof(al));
+
+		node = callchain_cursor_current(&callchain_cursor);
+		if (!node)
+			break;
+		/*
+		 * Handle export of symbol and dso for this node by
+		 * constructing an addr_location struct and then passing it to
+		 * db_ids_from_al() to perform the export.
+		 */
+		al.sym = node->sym;
+		al.map = node->map;
+		al.machine = machine;
+		al.addr = node->ip;
+
+		if (al.map && !al.sym)
+			al.sym = dso__find_symbol(al.map->dso, MAP__FUNCTION,
+						  al.addr);
+
+		db_ids_from_al(dbe, &al, &dso_db_id, &sym_db_id, &offset);
+
+		/* add node to the call path tree if it doesn't exist */
+		current = call_path__findnew(dbe->cpr, current,
+					     al.sym, node->ip,
+					     kernel_start);
+
+		callchain_cursor_advance(&callchain_cursor);
+	}
+
+	/* Reset the callchain order to its prior value. */
+	callchain_param.order = saved_order;
+
+	if (current == &dbe->cpr->call_path) {
+		/* Bail because the callchain was empty. */
+		return NULL;
+	}
+
+	return current;
 }
 
 int db_export__branch_type(struct db_export *dbe, u32 branch_type,
@@ -308,7 +371,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	if (err)
 		return err;
 
-	main_thread = get_main_thread(al->machine, thread);
+	main_thread = thread__main_thread(al->machine, thread);
 	if (main_thread)
 		comm = machine__thread_exec_comm(al->machine, main_thread);
 
@@ -329,11 +392,21 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	if (err)
 		goto out_put;
 
+	if (dbe->cpr) {
+		struct call_path *cp = call_path_from_sample(dbe, al->machine,
+							     thread, sample,
+							     evsel);
+		if (cp) {
+			db_export__call_path(dbe, cp);
+			es.call_path_id = cp->db_id;
+		}
+	}
+
 	if ((evsel->attr.sample_type & PERF_SAMPLE_ADDR) &&
 	    sample_addr_correlates_sym(&evsel->attr)) {
 		struct addr_location addr_al;
 
-		perf_event__preprocess_sample_addr(event, sample, thread, &addr_al);
+		thread__resolve(thread, &addr_al, sample);
 		err = db_ids_from_al(dbe, &addr_al, &es.addr_dso_db_id,
 				     &es.addr_sym_db_id, &es.addr_offset);
 		if (err)

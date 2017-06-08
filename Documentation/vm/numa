@@ -63,7 +63,7 @@ nodes.  Each emulated node will manage a fraction of the underlying cells'
 physical memory.  NUMA emluation is useful for testing NUMA kernel and
 application features on non-NUMA platforms, and as a sort of memory resource
 management mechanism when used together with cpusets.
-[see Documentation/cgroups/cpusets.txt]
+[see Documentation/cgroup-v1/cpusets.txt]
 
 For each node with memory, Linux constructs an independent memory management
 subsystem, complete with its own free page lists, in-use page lists, usage
@@ -82,7 +82,7 @@ such as DMA or DMA32, represent relatively scarce resources.  Linux chooses
 a default zonelist order based on the sizes of the various zone types relative
 to the total memory of the node and the total memory of the system.  The
 default zonelist order may be overridden using the numa_zonelist_order kernel
-boot parameter or sysctl.  [see Documentation/kernel-parameters.txt and
+boot parameter or sysctl.  [see Documentation/admin-guide/kernel-parameters.rst and
 Documentation/sysctl/vm.txt]
 
 By default, Linux will attempt to satisfy memory allocation requests from the
@@ -113,7 +113,7 @@ allocation behavior using Linux NUMA memory policy.
 
 System administrators can restrict the CPUs and nodes' memories that a non-
 privileged user can specify in the scheduling or NUMA commands and functions
-using control groups and CPUsets.  [see Documentation/cgroups/cpusets.txt]
+using control groups and CPUsets.  [see Documentation/cgroup-v1/cpusets.txt]
 
 On architectures that do not hide memoryless nodes, Linux will include only
 zones [nodes] with memory in the zonelists.  This means that for a memoryless

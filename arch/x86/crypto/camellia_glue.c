@@ -1503,13 +1503,9 @@ int xts_camellia_setkey(struct crypto_tfm *tfm, const u8 *key,
 	u32 *flags = &tfm->crt_flags;
 	int err;
 
-	/* key consists of keys of equal size concatenated, therefore
-	 * the length must be even
-	 */
-	if (keylen % 2) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
+	err = xts_check_key(tfm, key, keylen);
+	if (err)
+		return err;
 
 	/* first half of xts-key is for crypt */
 	err = __camellia_setkey(&ctx->crypt_ctx, key, keylen / 2, flags);
@@ -1526,7 +1522,7 @@ static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct camellia_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[2 * 4];
+	le128 buf[2 * 4];
 	struct xts_crypt_req req = {
 		.tbuf = buf,
 		.tbuflen = sizeof(buf),
@@ -1544,7 +1540,7 @@ static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct camellia_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[2 * 4];
+	le128 buf[2 * 4];
 	struct xts_crypt_req req = {
 		.tbuf = buf,
 		.tbuflen = sizeof(buf),

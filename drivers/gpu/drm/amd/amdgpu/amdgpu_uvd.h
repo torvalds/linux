@@ -24,16 +24,49 @@
 #ifndef __AMDGPU_UVD_H__
 #define __AMDGPU_UVD_H__
 
+#define AMDGPU_DEFAULT_UVD_HANDLES	10
+#define AMDGPU_MAX_UVD_HANDLES		40
+#define AMDGPU_UVD_STACK_SIZE		(200*1024)
+#define AMDGPU_UVD_HEAP_SIZE		(256*1024)
+#define AMDGPU_UVD_SESSION_SIZE		(50*1024)
+#define AMDGPU_UVD_FIRMWARE_OFFSET	256
+
+struct amdgpu_uvd {
+	struct amdgpu_bo	*vcpu_bo;
+	void			*cpu_addr;
+	uint64_t		gpu_addr;
+	unsigned		fw_version;
+	void			*saved_bo;
+	unsigned		max_handles;
+	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
+	struct drm_file		*filp[AMDGPU_MAX_UVD_HANDLES];
+	struct delayed_work	idle_work;
+	const struct firmware	*fw;	/* UVD firmware */
+	struct amdgpu_ring	ring;
+	struct amdgpu_ring	ring_enc[AMDGPU_MAX_UVD_ENC_RINGS];
+	struct amdgpu_irq_src	irq;
+	bool			address_64_bit;
+	bool			use_ctx_buf;
+	struct amd_sched_entity entity;
+	struct amd_sched_entity entity_enc;
+	uint32_t                srbm_soft_reset;
+	unsigned		num_enc_rings;
+};
+
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev);
 int amdgpu_uvd_sw_fini(struct amdgpu_device *adev);
 int amdgpu_uvd_suspend(struct amdgpu_device *adev);
 int amdgpu_uvd_resume(struct amdgpu_device *adev);
 int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct fence **fence);
+			      struct dma_fence **fence);
 int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       struct fence **fence);
+			       bool direct, struct dma_fence **fence);
 void amdgpu_uvd_free_handles(struct amdgpu_device *adev,
 			     struct drm_file *filp);
 int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx);
+void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring);
+void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring);
+int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout);
+uint32_t amdgpu_uvd_used_handles(struct amdgpu_device *adev);
 
 #endif

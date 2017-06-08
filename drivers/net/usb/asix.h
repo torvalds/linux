@@ -46,6 +46,7 @@
 #define AX_CMD_SET_SW_MII		0x06
 #define AX_CMD_READ_MII_REG		0x07
 #define AX_CMD_WRITE_MII_REG		0x08
+#define AX_CMD_STATMNGSTS_REG		0x09
 #define AX_CMD_SET_HW_MII		0x0a
 #define AX_CMD_READ_EEPROM		0x0b
 #define AX_CMD_WRITE_EEPROM		0x0c
@@ -71,6 +72,17 @@
 #define AX_CMD_SW_RESET			0x20
 #define AX_CMD_SW_PHY_STATUS		0x21
 #define AX_CMD_SW_PHY_SELECT		0x22
+#define AX_QCTCTRL			0x2A
+
+#define AX_CHIPCODE_MASK		0x70
+#define AX_AX88772_CHIPCODE		0x00
+#define AX_AX88772A_CHIPCODE		0x10
+#define AX_AX88772B_CHIPCODE		0x20
+#define AX_HOST_EN			0x01
+
+#define AX_PHYSEL_PSEL			0x01
+#define AX_PHYSEL_SSMII			0
+#define AX_PHYSEL_SSEN			0x10
 
 #define AX_PHY_SELECT_MASK		(BIT(3) | BIT(2))
 #define AX_PHY_SELECT_INTERNAL		0
@@ -168,11 +180,15 @@ struct asix_data {
 struct asix_rx_fixup_info {
 	struct sk_buff *ax_skb;
 	u32 header;
-	u16 size;
+	u16 remaining;
 	bool split_head;
 };
 
 struct asix_common_private {
+	void (*resume)(struct usbnet *dev);
+	void (*suspend)(struct usbnet *dev);
+	u16 presvd_phy_advertise;
+	u16 presvd_phy_bmcr;
 	struct asix_rx_fixup_info rx_fixup_info;
 };
 
@@ -182,10 +198,10 @@ extern const struct driver_info ax88172a_info;
 #define FLAG_EEPROM_MAC		(1UL << 0)  /* init device MAC from eeprom */
 
 int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
-		  u16 size, void *data);
+		  u16 size, void *data, int in_pm);
 
 int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
-		   u16 size, void *data);
+		   u16 size, void *data, int in_pm);
 
 void asix_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value,
 			  u16 index, u16 size, void *data);
@@ -197,26 +213,30 @@ int asix_rx_fixup_common(struct usbnet *dev, struct sk_buff *skb);
 struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 			      gfp_t flags);
 
-int asix_set_sw_mii(struct usbnet *dev);
-int asix_set_hw_mii(struct usbnet *dev);
+int asix_set_sw_mii(struct usbnet *dev, int in_pm);
+int asix_set_hw_mii(struct usbnet *dev, int in_pm);
 
 int asix_read_phy_addr(struct usbnet *dev, int internal);
 int asix_get_phy_addr(struct usbnet *dev);
 
-int asix_sw_reset(struct usbnet *dev, u8 flags);
+int asix_sw_reset(struct usbnet *dev, u8 flags, int in_pm);
 
-u16 asix_read_rx_ctl(struct usbnet *dev);
-int asix_write_rx_ctl(struct usbnet *dev, u16 mode);
+u16 asix_read_rx_ctl(struct usbnet *dev, int in_pm);
+int asix_write_rx_ctl(struct usbnet *dev, u16 mode, int in_pm);
 
-u16 asix_read_medium_status(struct usbnet *dev);
-int asix_write_medium_mode(struct usbnet *dev, u16 mode);
+u16 asix_read_medium_status(struct usbnet *dev, int in_pm);
+int asix_write_medium_mode(struct usbnet *dev, u16 mode, int in_pm);
 
-int asix_write_gpio(struct usbnet *dev, u16 value, int sleep);
+int asix_write_gpio(struct usbnet *dev, u16 value, int sleep, int in_pm);
 
 void asix_set_multicast(struct net_device *net);
 
 int asix_mdio_read(struct net_device *netdev, int phy_id, int loc);
 void asix_mdio_write(struct net_device *netdev, int phy_id, int loc, int val);
+
+int asix_mdio_read_nopm(struct net_device *netdev, int phy_id, int loc);
+void asix_mdio_write_nopm(struct net_device *netdev, int phy_id, int loc,
+			  int val);
 
 void asix_get_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo);
 int asix_set_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo);

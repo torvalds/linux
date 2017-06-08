@@ -9,8 +9,7 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -86,7 +85,6 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 						      clk_parent, 0, reg, i,
 						      0, NULL);
 		WARN_ON(IS_ERR(clk_data->clks[i]));
-		clk_register_clkdev(clk_data->clks[i], clk_name, NULL);
 
 		j++;
 	}
@@ -103,8 +101,4 @@ static struct platform_driver sun6i_a31_apb0_gates_clk_driver = {
 	},
 	.probe = sun6i_a31_apb0_gates_clk_probe,
 };
-module_platform_driver(sun6i_a31_apb0_gates_clk_driver);
-
-MODULE_AUTHOR("Boris BREZILLON <boris.brezillon@free-electrons.com>");
-MODULE_DESCRIPTION("Allwinner A31 APB0 gate clocks driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(sun6i_a31_apb0_gates_clk_driver);

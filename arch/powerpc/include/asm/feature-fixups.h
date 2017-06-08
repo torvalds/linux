@@ -66,6 +66,9 @@ label##5:							\
 #define END_FTR_SECTION(msk, val)		\
 	END_FTR_SECTION_NESTED(msk, val, 97)
 
+#define END_FTR_SECTION_NESTED_IFSET(msk, label)	\
+	END_FTR_SECTION_NESTED((msk), (msk), label)
+
 #define END_FTR_SECTION_IFSET(msk)	END_FTR_SECTION((msk), (msk))
 #define END_FTR_SECTION_IFCLR(msk)	END_FTR_SECTION((msk), 0)
 
@@ -183,5 +186,10 @@ label##2:						\
 label##3:					       	\
 	FTR_ENTRY_OFFSET label##1b-label##3b;		\
 	.popsection;
+
+#ifndef __ASSEMBLY__
+void apply_feature_fixups(void);
+void setup_feature_keys(void);
+#endif
 
 #endif /* __ASM_POWERPC_FEATURE_FIXUPS_H */

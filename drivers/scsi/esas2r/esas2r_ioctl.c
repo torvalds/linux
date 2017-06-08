@@ -1289,32 +1289,13 @@ int esas2r_ioctl_handler(void *hostdata, int cmd, void __user *arg)
 	    || (cmd > EXPRESS_IOCTL_MAX))
 		return -ENOTSUPP;
 
-	if (!access_ok(VERIFY_WRITE, arg, sizeof(struct atto_express_ioctl))) {
+	ioctl = memdup_user(arg, sizeof(struct atto_express_ioctl));
+	if (IS_ERR(ioctl)) {
 		esas2r_log(ESAS2R_LOG_WARN,
 			   "ioctl_handler access_ok failed for cmd %d, "
 			   "address %p", cmd,
 			   arg);
-		return -EFAULT;
-	}
-
-	/* allocate a kernel memory buffer for the IOCTL data */
-	ioctl = kzalloc(sizeof(struct atto_express_ioctl), GFP_KERNEL);
-	if (ioctl == NULL) {
-		esas2r_log(ESAS2R_LOG_WARN,
-			   "ioctl_handler kzalloc failed for %d bytes",
-			   sizeof(struct atto_express_ioctl));
-		return -ENOMEM;
-	}
-
-	err = __copy_from_user(ioctl, arg, sizeof(struct atto_express_ioctl));
-	if (err != 0) {
-		esas2r_log(ESAS2R_LOG_WARN,
-			   "copy_from_user didn't copy everything (err %d, cmd %d)",
-			   err,
-			   cmd);
-		kfree(ioctl);
-
-		return -EFAULT;
+		return PTR_ERR(ioctl);
 	}
 
 	/* verify the signature */
@@ -1360,14 +1341,15 @@ int esas2r_ioctl_handler(void *hostdata, int cmd, void __user *arg)
 	if (ioctl->header.channel == 0xFF) {
 		a = (struct esas2r_adapter *)hostdata;
 	} else {
-		a = esas2r_adapters[ioctl->header.channel];
-		if (ioctl->header.channel >= MAX_ADAPTERS || (a == NULL)) {
+		if (ioctl->header.channel >= MAX_ADAPTERS ||
+			esas2r_adapters[ioctl->header.channel] == NULL) {
 			ioctl->header.return_code = IOCTL_BAD_CHANNEL;
 			esas2r_log(ESAS2R_LOG_WARN, "bad channel value");
 			kfree(ioctl);
 
 			return -ENOTSUPP;
 		}
+		a = esas2r_adapters[ioctl->header.channel];
 	}
 
 	switch (cmd) {

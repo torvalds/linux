@@ -2,3 +2,5 @@ nvkm-y += nvkm/subdev/ltc/base.o
 nvkm-y += nvkm/subdev/ltc/gf100.o
 nvkm-y += nvkm/subdev/ltc/gk104.o
 nvkm-y += nvkm/subdev/ltc/gm107.o
+nvkm-y += nvkm/subdev/ltc/gm200.o
+nvkm-y += nvkm/subdev/ltc/gp100.o

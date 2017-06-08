@@ -138,9 +138,7 @@ static void octeon_cf_set_piomode(struct ata_port *ap, struct ata_device *dev)
 	int trh;
 	int pause;
 	/* These names are timing parameters from the ATA spec */
-	int t1;
 	int t2;
-	int t2i;
 
 	/*
 	 * A divisor value of four will overflow the timing fields at
@@ -152,18 +150,11 @@ static void octeon_cf_set_piomode(struct ata_port *ap, struct ata_device *dev)
 		div = 8;
 	T = (int)((1000000000000LL * div) / octeon_get_io_clock_rate());
 
-	if (ata_timing_compute(dev, dev->pio_mode, &timing, T, T))
-		BUG();
+	BUG_ON(ata_timing_compute(dev, dev->pio_mode, &timing, T, T));
 
-	t1 = timing.setup;
-	if (t1)
-		t1--;
 	t2 = timing.active;
 	if (t2)
 		t2--;
-	t2i = timing.act8b;
-	if (t2i)
-		t2i--;
 
 	trh = ns_to_tim_reg(div, 20);
 	if (trh)
@@ -294,17 +285,17 @@ static void octeon_cf_set_dmamode(struct ata_port *ap, struct ata_device *dev)
 /**
  * Handle an 8 bit I/O request.
  *
- * @dev:        Device to access
+ * @qc:         Queued command
  * @buffer:     Data buffer
  * @buflen:     Length of the buffer.
  * @rw:         True to write.
  */
-static unsigned int octeon_cf_data_xfer8(struct ata_device *dev,
+static unsigned int octeon_cf_data_xfer8(struct ata_queued_cmd *qc,
 					 unsigned char *buffer,
 					 unsigned int buflen,
 					 int rw)
 {
-	struct ata_port *ap		= dev->link->ap;
+	struct ata_port *ap		= qc->dev->link->ap;
 	void __iomem *data_addr		= ap->ioaddr.data_addr;
 	unsigned long words;
 	int count;
@@ -333,17 +324,17 @@ static unsigned int octeon_cf_data_xfer8(struct ata_device *dev,
 /**
  * Handle a 16 bit I/O request.
  *
- * @dev:        Device to access
+ * @qc:         Queued command
  * @buffer:     Data buffer
  * @buflen:     Length of the buffer.
  * @rw:         True to write.
  */
-static unsigned int octeon_cf_data_xfer16(struct ata_device *dev,
+static unsigned int octeon_cf_data_xfer16(struct ata_queued_cmd *qc,
 					  unsigned char *buffer,
 					  unsigned int buflen,
 					  int rw)
 {
-	struct ata_port *ap		= dev->link->ap;
+	struct ata_port *ap		= qc->dev->link->ap;
 	void __iomem *data_addr		= ap->ioaddr.data_addr;
 	unsigned long words;
 	int count;

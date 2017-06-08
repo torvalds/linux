@@ -38,9 +38,9 @@ static const char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
 };
 
 /**
- * vxge_ethtool_sset - Sets different link parameters.
+ * vxge_ethtool_set_link_ksettings - Sets different link parameters.
  * @dev: device pointer.
- * @info: pointer to the structure with parameters given by ethtool to set
+ * @cmd: pointer to the structure with parameters given by ethtool to set
  * link information.
  *
  * The function sets different link parameters provided by the user onto
@@ -48,44 +48,51 @@ static const char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
  * Return value:
  * 0 on success.
  */
-static int vxge_ethtool_sset(struct net_device *dev, struct ethtool_cmd *info)
+static int
+vxge_ethtool_set_link_ksettings(struct net_device *dev,
+				const struct ethtool_link_ksettings *cmd)
 {
 	/* We currently only support 10Gb/FULL */
-	if ((info->autoneg == AUTONEG_ENABLE) ||
-	    (ethtool_cmd_speed(info) != SPEED_10000) ||
-	    (info->duplex != DUPLEX_FULL))
+	if ((cmd->base.autoneg == AUTONEG_ENABLE) ||
+	    (cmd->base.speed != SPEED_10000) ||
+	    (cmd->base.duplex != DUPLEX_FULL))
 		return -EINVAL;
 
 	return 0;
 }
 
 /**
- * vxge_ethtool_gset - Return link specific information.
+ * vxge_ethtool_get_link_ksettings - Return link specific information.
  * @dev: device pointer.
- * @info: pointer to the structure with parameters given by ethtool
+ * @cmd: pointer to the structure with parameters given by ethtool
  * to return link information.
  *
  * Returns link specific information like speed, duplex etc.. to ethtool.
  * Return value :
  * return 0 on success.
  */
-static int vxge_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
+static int vxge_ethtool_get_link_ksettings(struct net_device *dev,
+					   struct ethtool_link_ksettings *cmd)
 {
-	info->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
-	info->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_FIBRE);
-	info->port = PORT_FIBRE;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, 10000baseT_Full);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
 
-	info->transceiver = XCVR_EXTERNAL;
+	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, 10000baseT_Full);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, FIBRE);
+
+	cmd->base.port = PORT_FIBRE;
 
 	if (netif_carrier_ok(dev)) {
-		ethtool_cmd_speed_set(info, SPEED_10000);
-		info->duplex = DUPLEX_FULL;
+		cmd->base.speed = SPEED_10000;
+		cmd->base.duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(info, SPEED_UNKNOWN);
-		info->duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 
-	info->autoneg = AUTONEG_DISABLE;
+	cmd->base.autoneg = AUTONEG_DISABLE;
 	return 0;
 }
 
@@ -105,10 +112,6 @@ static void vxge_ethtool_gdrvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->fw_version, vdev->fw_version, sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(vdev->pdev), sizeof(info->bus_info));
-	info->regdump_len = sizeof(struct vxge_hw_vpath_reg)
-				* vdev->no_of_vpath;
-
-	info->n_stats = STAT_LEN;
 }
 
 /**
@@ -116,7 +119,7 @@ static void vxge_ethtool_gdrvinfo(struct net_device *dev,
  * @dev: device pointer.
  * @regs: pointer to the structure with parameters given by ethtool for
  * dumping the registers.
- * @reg_space: The input argumnet into which all the registers are dumped.
+ * @reg_space: The input argument into which all the registers are dumped.
  *
  * Dumps the vpath register space of Titan NIC into the user given
  * buffer area.
@@ -1130,8 +1133,6 @@ static int vxge_fw_flash(struct net_device *dev, struct ethtool_flash *parms)
 }
 
 static const struct ethtool_ops vxge_ethtool_ops = {
-	.get_settings		= vxge_ethtool_gset,
-	.set_settings		= vxge_ethtool_sset,
 	.get_drvinfo		= vxge_ethtool_gdrvinfo,
 	.get_regs_len		= vxge_ethtool_get_regs_len,
 	.get_regs		= vxge_ethtool_gregs,
@@ -1143,6 +1144,8 @@ static const struct ethtool_ops vxge_ethtool_ops = {
 	.get_sset_count		= vxge_ethtool_get_sset_count,
 	.get_ethtool_stats	= vxge_get_ethtool_stats,
 	.flash_device		= vxge_fw_flash,
+	.get_link_ksettings	= vxge_ethtool_get_link_ksettings,
+	.set_link_ksettings	= vxge_ethtool_set_link_ksettings,
 };
 
 void vxge_initialize_ethtool_ops(struct net_device *ndev)

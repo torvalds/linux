@@ -13,7 +13,6 @@
  */
 enum dev_state {
 	DEV_STATE_NOT_OPER,
-	DEV_STATE_SENSE_PGID,
 	DEV_STATE_SENSE_ID,
 	DEV_STATE_OFFLINE,
 	DEV_STATE_VERIFY,
@@ -125,11 +124,6 @@ void ccw_device_verify_done(struct ccw_device *, int);
 void ccw_device_disband_start(struct ccw_device *);
 void ccw_device_disband_done(struct ccw_device *, int);
 
-void ccw_device_stlck_start(struct ccw_device *, void *, void *, void *);
-void ccw_device_stlck_done(struct ccw_device *, void *, int);
-
-int ccw_device_call_handler(struct ccw_device *);
-
 int ccw_device_stlck(struct ccw_device *);
 
 /* Helper function for machine check handling. */
@@ -145,6 +139,7 @@ void ccw_device_set_timeout(struct ccw_device *, int);
 void retry_set_schib(struct ccw_device *cdev);
 void cmf_retry_copy_block(struct ccw_device *);
 int cmf_reenable(struct ccw_device *);
+void cmf_reactivate(void);
 int ccw_set_cmf(struct ccw_device *cdev, int enable);
 extern struct device_attribute dev_attr_cmb_enable;
 #endif

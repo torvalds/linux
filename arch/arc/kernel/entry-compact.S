@@ -86,32 +86,18 @@
  */
 
 ; ********* Critical System Events **********************
-VECTOR   res_service             ; 0x0, Restart Vector  (0x0)
+VECTOR   res_service             ; 0x0, Reset Vector	(0x0)
 VECTOR   mem_service             ; 0x8, Mem exception   (0x1)
 VECTOR   instr_service           ; 0x10, Instrn Error   (0x2)
 
 ; ******************** Device ISRs **********************
-#ifdef CONFIG_ARC_IRQ3_LV2
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 VECTOR   handle_interrupt_level2
 #else
 VECTOR   handle_interrupt_level1
 #endif
 
-VECTOR   handle_interrupt_level1
-
-#ifdef CONFIG_ARC_IRQ5_LV2
-VECTOR   handle_interrupt_level2
-#else
-VECTOR   handle_interrupt_level1
-#endif
-
-#ifdef CONFIG_ARC_IRQ6_LV2
-VECTOR   handle_interrupt_level2
-#else
-VECTOR   handle_interrupt_level1
-#endif
-
-.rept   25
+.rept   28
 VECTOR   handle_interrupt_level1 ; Other devices
 .endr
 
@@ -142,26 +128,18 @@ int1_saved_reg:
 	.zero 4
 
 /* Each Interrupt level needs its own scratch */
-#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
-
 ARCFP_DATA int2_saved_reg
 	.type   int2_saved_reg, @object
 	.size   int2_saved_reg, 4
 int2_saved_reg:
 	.zero 4
 
-#endif
-
 ; ---------------------------------------------
 	.section .text, "ax",@progbits
 
-res_service:		; processor restart
-	flag    0x1     ; not implemented
-	nop
-	nop
 
-reserved:		; processor restart
-	rtie            ; jump to processor initializations
+reserved:
+	flag 1		; Unexpected event, halt
 
 ;##################### Interrupt Handling ##############################
 
@@ -175,12 +153,25 @@ ENTRY(handle_interrupt_level2)
 
 	;------------------------------------------------------
 	; if L2 IRQ interrupted a L1 ISR, disable preemption
+	;
+	; This is to avoid a potential L1-L2-L1 scenario
+	;  -L1 IRQ taken
+	;  -L2 interrupts L1 (before L1 ISR could run)
+	;  -preemption off IRQ, user task in syscall picked to run
+	;  -RTIE to userspace
+	;	Returns from L2 context fine
+	;	But both L1 and L2 re-enabled, so another L1 can be taken
+	;	while prev L1 is still unserviced
+	;
 	;------------------------------------------------------
+
+	; L2 interrupting L1 implies both L2 and L1 active
+	; However both A2 and A1 are NOT set in STATUS32, thus
+	; need to check STATUS32_L2 to determine if L1 was active
 
 	ld r9, [sp, PT_status32]        ; get statu32_l2 (saved in pt_regs)
 	bbit0 r9, STATUS_A1_BIT, 1f     ; L1 not active when L2 IRQ, so normal
 
-	; A1 is set in status32_l2
 	; bump thread_info->preempt_count (Disable preemption)
 	GET_CURR_THR_INFO_FROM_SP   r10
 	ld      r9, [r10, THREAD_INFO_PREEMPT_COUNT]
@@ -205,6 +196,31 @@ ENTRY(handle_interrupt_level2)
 END(handle_interrupt_level2)
 
 #endif
+
+; ---------------------------------------------
+; User Mode Memory Bus Error Interrupt Handler
+; (Kernel mode memory errors handled via seperate exception vectors)
+; ---------------------------------------------
+ENTRY(mem_service)
+
+	INTERRUPT_PROLOGUE 2
+
+	mov r0, ilink2
+	mov r1, sp
+
+	; User process needs to be killed with SIGBUS, but first need to get
+	; out of the L2 interrupt context (drop to pure kernel mode) and jump
+	; off to "C" code where SIGBUS in enqueued
+	lr  r3, [status32]
+	bclr r3, r3, STATUS_A2_BIT
+	or  r3, r3, (STATUS_E1_MASK|STATUS_E2_MASK)
+	sr  r3, [status32_l2]
+	mov ilink2, 1f
+	rtie
+1:
+	bl  do_memory_error
+	b   ret_from_exception
+END(mem_service)
 
 ; ---------------------------------------------
 ;  Level 1 ISR
@@ -243,7 +259,7 @@ ENTRY(EV_TLBProtV)
 
 	EXCEPTION_PROLOGUE
 
-	lr  r2, [ecr]
+	mov r2, r9	; ECR set into r9 already
 	lr  r0, [efa]	; Faulting Data address (not part of pt_regs saved above)
 
 	; Exception auto-disables further Intr/exceptions.
@@ -311,6 +327,9 @@ END(call_do_page_fault)
 
 .Lrestore_regs:
 
+	# Interrpts are actually disabled from this point on, but will get
+	# reenabled after we return from interrupt/exception.
+	# But irq tracer needs to be told now...
 	TRACE_ASM_IRQ_ENABLE
 
 	lr	r10, [status32]
@@ -320,11 +339,10 @@ END(call_do_page_fault)
 	; Note that we use realtime STATUS32 (not pt_regs->status32) to
 	; decide that.
 
-	; if Returning from Exception
-	btst   r10, STATUS_AE_BIT
-	bnz    .Lexcep_ret
+	and.f	0, r10, (STATUS_A1_MASK|STATUS_A2_MASK)
+	bz	.Lexcep_or_pure_K_ret
 
-	; Not Exception so maybe Interrupts (Level 1 or 2)
+	; Returning from Interrupts (Level 1 or 2)
 
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 
@@ -365,8 +383,7 @@ END(call_do_page_fault)
 	st      r9, [r10, THREAD_INFO_PREEMPT_COUNT]
 
 149:
-	;return from level 2
-	INTERRUPT_EPILOGUE 2
+	INTERRUPT_EPILOGUE 2	; return from level 2 interrupt
 debug_marker_l2:
 	rtie
 
@@ -374,15 +391,11 @@ not_level2_interrupt:
 
 #endif
 
-	bbit0  r10, STATUS_A1_BIT, .Lpure_k_mode_ret
-
-	;return from level 1
-	INTERRUPT_EPILOGUE 1
+	INTERRUPT_EPILOGUE 1	; return from level 1 interrupt
 debug_marker_l1:
 	rtie
 
-.Lexcep_ret:
-.Lpure_k_mode_ret:
+.Lexcep_or_pure_K_ret:
 
 	;this case is for syscalls or Exceptions or pure kernel mode
 

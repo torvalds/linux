@@ -35,7 +35,6 @@ static inline void byte0_out(unsigned char data);
 static inline void byte1_out(unsigned char data);
 static inline void xl_cclk_b(int32_t i);
 
-
 /* Assert and Deassert CCLK */
 void xl_shift_cclk(int count)
 {

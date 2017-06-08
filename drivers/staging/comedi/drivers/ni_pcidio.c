@@ -1,50 +1,49 @@
 /*
-    comedi/drivers/ni_pcidio.c
-    driver for National Instruments PCI-DIO-32HS
+ * Comedi driver for National Instruments PCI-DIO-32HS
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1999,2002 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1999,2002 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: ni_pcidio
-Description: National Instruments PCI-DIO32HS, PCI-6533
-Author: ds
-Status: works
-Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio)
-	 [National Instruments] PXI-6533, PCI-6533 (pxi-6533)
-	 [National Instruments] PCI-6534 (pci-6534)
-Updated: Mon, 09 Jan 2012 14:27:23 +0000
-
-The DIO32HS board appears as one subdevice, with 32 channels.
-Each channel is individually I/O configurable.  The channel order
-is 0=A0, 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0.  The driver only
-supports simple digital I/O; no handshaking is supported.
-
-DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
-
-The PCI-DIO-32HS/PCI-6533 has a configurable external trigger. Setting
-scan_begin_arg to 0 or CR_EDGE triggers on the leading edge. Setting
-scan_begin_arg to CR_INVERT or (CR_EDGE | CR_INVERT) triggers on the
-trailing edge.
-
-This driver could be easily modified to support AT-MIO32HS and
-AT-MIO96.
-
-The PCI-6534 requires a firmware upload after power-up to work, the
-firmware data and instructions for loading it with comedi_config
-it are contained in the
-comedi_nonfree_firmware tarball available from http://www.comedi.org
-*/
+ * Driver: ni_pcidio
+ * Description: National Instruments PCI-DIO32HS, PCI-6533
+ * Author: ds
+ * Status: works
+ * Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio)
+ *   [National Instruments] PXI-6533, PCI-6533 (pxi-6533)
+ *   [National Instruments] PCI-6534 (pci-6534)
+ * Updated: Mon, 09 Jan 2012 14:27:23 +0000
+ *
+ * The DIO32HS board appears as one subdevice, with 32 channels. Each
+ * channel is individually I/O configurable. The channel order is 0=A0,
+ * 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0. The driver only supports simple
+ * digital I/O; no handshaking is supported.
+ *
+ * DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
+ *
+ * The PCI-DIO-32HS/PCI-6533 has a configurable external trigger. Setting
+ * scan_begin_arg to 0 or CR_EDGE triggers on the leading edge. Setting
+ * scan_begin_arg to CR_INVERT or (CR_EDGE | CR_INVERT) triggers on the
+ * trailing edge.
+ *
+ * This driver could be easily modified to support AT-MIO32HS and AT-MIO96.
+ *
+ * The PCI-6534 requires a firmware upload after power-up to work, the
+ * firmware data and instructions for loading it with comedi_config
+ * it are contained in the comedi_nonfree_firmware tarball available from
+ * http://www.comedi.org
+ */
 
 #define USE_DMA
 
@@ -61,36 +60,36 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 
 #define Window_Address			4	/* W */
 #define Interrupt_And_Window_Status	4	/* R */
-#define IntStatus1				(1<<0)
-#define IntStatus2				(1<<1)
+#define IntStatus1				BIT(0)
+#define IntStatus2				BIT(1)
 #define WindowAddressStatus_mask		0x7c
 
 #define Master_DMA_And_Interrupt_Control 5	/* W */
-#define InterruptLine(x)			((x)&3)
-#define OpenInt				(1<<2)
+#define InterruptLine(x)			((x) & 3)
+#define OpenInt				BIT(2)
 #define Group_Status			5	/* R */
-#define DataLeft				(1<<0)
-#define Req					(1<<2)
-#define StopTrig				(1<<3)
+#define DataLeft				BIT(0)
+#define Req					BIT(2)
+#define StopTrig				BIT(3)
 
 #define Group_1_Flags			6	/* R */
 #define Group_2_Flags			7	/* R */
-#define TransferReady				(1<<0)
-#define CountExpired				(1<<1)
-#define Waited				(1<<5)
-#define PrimaryTC				(1<<6)
-#define SecondaryTC				(1<<7)
+#define TransferReady				BIT(0)
+#define CountExpired				BIT(1)
+#define Waited					BIT(5)
+#define PrimaryTC				BIT(6)
+#define SecondaryTC				BIT(7)
   /* #define SerialRose */
   /* #define ReqRose */
   /* #define Paused */
 
 #define Group_1_First_Clear		6	/* W */
 #define Group_2_First_Clear		7	/* W */
-#define ClearWaited				(1<<3)
-#define ClearPrimaryTC			(1<<4)
-#define ClearSecondaryTC			(1<<5)
-#define DMAReset				(1<<6)
-#define FIFOReset				(1<<7)
+#define ClearWaited				BIT(3)
+#define ClearPrimaryTC				BIT(4)
+#define ClearSecondaryTC			BIT(5)
+#define DMAReset				BIT(6)
+#define FIFOReset				BIT(7)
 #define ClearAll				0xf8
 
 #define Group_1_FIFO			8	/* W */
@@ -101,38 +100,38 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #define Chip_ID_I			25
 #define Chip_ID_O			26
 #define Chip_Version			27
-#define Port_IO(x)			(28+(x))
-#define Port_Pin_Directions(x)		(32+(x))
-#define Port_Pin_Mask(x)		(36+(x))
-#define Port_Pin_Polarities(x)		(40+(x))
+#define Port_IO(x)			(28 + (x))
+#define Port_Pin_Directions(x)		(32 + (x))
+#define Port_Pin_Mask(x)		(36 + (x))
+#define Port_Pin_Polarities(x)		(40 + (x))
 
 #define Master_Clock_Routing		45
-#define RTSIClocking(x)			(((x)&3)<<4)
+#define RTSIClocking(x)			(((x) & 3) << 4)
 
 #define Group_1_Second_Clear		46	/* W */
 #define Group_2_Second_Clear		47	/* W */
-#define ClearExpired				(1<<0)
+#define ClearExpired				BIT(0)
 
-#define Port_Pattern(x)			(48+(x))
+#define Port_Pattern(x)			(48 + (x))
 
 #define Data_Path			64
-#define FIFOEnableA		(1<<0)
-#define FIFOEnableB		(1<<1)
-#define FIFOEnableC		(1<<2)
-#define FIFOEnableD		(1<<3)
-#define Funneling(x)		(((x)&3)<<4)
-#define GroupDirection	(1<<7)
+#define FIFOEnableA		BIT(0)
+#define FIFOEnableB		BIT(1)
+#define FIFOEnableC		BIT(2)
+#define FIFOEnableD		BIT(3)
+#define Funneling(x)		(((x) & 3) << 4)
+#define GroupDirection		BIT(7)
 
 #define Protocol_Register_1		65
 #define OpMode				Protocol_Register_1
-#define RunMode(x)		((x)&7)
-#define Numbered		(1<<3)
+#define RunMode(x)		((x) & 7)
+#define Numbered		BIT(3)
 
 #define Protocol_Register_2		66
 #define ClockReg			Protocol_Register_2
-#define ClockLine(x)		(((x)&3)<<5)
-#define InvertStopTrig	(1<<7)
-#define DataLatching(x)       (((x)&3)<<5)
+#define ClockLine(x)		(((x) & 3) << 5)
+#define InvertStopTrig		BIT(7)
+#define DataLatching(x)       (((x) & 3) << 5)
 
 #define Protocol_Register_3		67
 #define Sequence			Protocol_Register_3
@@ -142,27 +141,27 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 
 #define Protocol_Register_4		70
 #define ReqReg				Protocol_Register_4
-#define ReqConditioning(x)	(((x)&7)<<3)
+#define ReqConditioning(x)	(((x) & 7) << 3)
 
 #define Protocol_Register_5		71
 #define BlockMode			Protocol_Register_5
 
 #define FIFO_Control			72
-#define ReadyLevel(x)		((x)&7)
+#define ReadyLevel(x)		((x) & 7)
 
 #define Protocol_Register_6		73
 #define LinePolarities			Protocol_Register_6
-#define InvertAck		(1<<0)
-#define InvertReq		(1<<1)
-#define InvertClock		(1<<2)
-#define InvertSerial		(1<<3)
-#define OpenAck		(1<<4)
-#define OpenClock		(1<<5)
+#define InvertAck		BIT(0)
+#define InvertReq		BIT(1)
+#define InvertClock		BIT(2)
+#define InvertSerial		BIT(3)
+#define OpenAck		BIT(4)
+#define OpenClock		BIT(5)
 
 #define Protocol_Register_7		74
 #define AckSer				Protocol_Register_7
-#define AckLine(x)		(((x)&3)<<2)
-#define ExchangePins		(1<<7)
+#define AckLine(x)		(((x) & 3) << 2)
+#define ExchangePins		BIT(7)
 
 #define Interrupt_Control		75
   /* bits same as flags */
@@ -170,33 +169,33 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #define DMA_Line_Control_Group1		76
 #define DMA_Line_Control_Group2		108
 /* channel zero is none */
-static inline unsigned primary_DMAChannel_bits(unsigned channel)
+static inline unsigned int primary_DMAChannel_bits(unsigned int channel)
 {
 	return channel & 0x3;
 }
 
-static inline unsigned secondary_DMAChannel_bits(unsigned channel)
+static inline unsigned int secondary_DMAChannel_bits(unsigned int channel)
 {
 	return (channel << 2) & 0xc;
 }
 
 #define Transfer_Size_Control		77
-#define TransferWidth(x)	((x)&3)
-#define TransferLength(x)	(((x)&3)<<3)
-#define RequireRLevel		(1<<5)
+#define TransferWidth(x)	((x) & 3)
+#define TransferLength(x)	(((x) & 3) << 3)
+#define RequireRLevel		BIT(5)
 
 #define Protocol_Register_15		79
 #define DAQOptions			Protocol_Register_15
-#define StartSource(x)			((x)&0x3)
-#define InvertStart				(1<<2)
-#define StopSource(x)				(((x)&0x3)<<3)
-#define ReqStart				(1<<6)
-#define PreStart				(1<<7)
+#define StartSource(x)			((x) & 0x3)
+#define InvertStart				BIT(2)
+#define StopSource(x)				(((x) & 0x3) << 3)
+#define ReqStart				BIT(6)
+#define PreStart				BIT(7)
 
 #define Pattern_Detection		81
-#define DetectionMethod			(1<<0)
-#define InvertMatch				(1<<1)
-#define IE_Pattern_Detection			(1<<2)
+#define DetectionMethod			BIT(0)
+#define InvertMatch				BIT(1)
+#define IE_Pattern_Detection			BIT(2)
 
 #define Protocol_Register_9		82
 #define ReqDelay			Protocol_Register_9
@@ -231,6 +230,7 @@ enum pci_6534_firmware_registers {	/* 16 bit */
 	Firmware_Mask_Register = 0x10c,
 	Firmware_Debug_Register = 0x110,
 };
+
 /* main fpga registers (32 bit)*/
 enum pci_6534_fpga_registers {
 	FPGA_Control1_Register = 0x200,
@@ -247,6 +247,7 @@ enum pci_6534_fpga_registers {
 	FPGA_ELC_Read_Register = 0x2b8,
 	FPGA_ELC_Write_Register = 0x2bc,
 };
+
 enum FPGA_Control_Bits {
 	FPGA_Enable_Bit = 0x8000,
 };
@@ -254,9 +255,9 @@ enum FPGA_Control_Bits {
 #define TIMER_BASE 50		/* nanoseconds */
 
 #ifdef USE_DMA
-#define IntEn (CountExpired|Waited|PrimaryTC|SecondaryTC)
+#define IntEn (CountExpired | Waited | PrimaryTC | SecondaryTC)
 #else
-#define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
+#define IntEn (TransferReady | CountExpired | Waited | PrimaryTC | SecondaryTC)
 #endif
 
 enum nidio_boardid {
@@ -284,12 +285,12 @@ static const struct nidio_board nidio_boards[] = {
 };
 
 struct nidio96_private {
-	struct mite_struct *mite;
+	struct mite *mite;
 	int boardtype;
 	int dio;
 	unsigned short OpModeBits;
 	struct mite_channel *di_mite_chan;
-	struct mite_dma_descriptor_ring *di_mite_ring;
+	struct mite_ring *di_mite_ring;
 	spinlock_t mite_channel_lock;
 };
 
@@ -324,8 +325,6 @@ static void ni_pcidio_release_di_mite_channel(struct comedi_device *dev)
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->di_mite_chan) {
-		mite_dma_disarm(devpriv->di_mite_chan);
-		mite_dma_reset(devpriv->di_mite_chan);
 		mite_release_channel(devpriv->di_mite_chan);
 		devpriv->di_mite_chan = NULL;
 		writeb(primary_DMAChannel_bits(0) |
@@ -370,7 +369,7 @@ static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan)
-		mite_sync_input_dma(devpriv->di_mite_chan, s);
+		mite_sync_dma(devpriv->di_mite_chan, s);
 	spin_unlock(&devpriv->mite_channel_lock);
 	count = comedi_buf_n_bytes_ready(s);
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
@@ -383,12 +382,10 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	struct nidio96_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
-	struct mite_struct *mite = devpriv->mite;
 	unsigned int auxdata;
 	int flags;
 	int status;
 	int work = 0;
-	unsigned int m_status = 0;
 
 	/* interrupcions parasites */
 	if (!dev->attached) {
@@ -403,24 +400,9 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	flags = readb(dev->mmio + Group_1_Flags);
 
 	spin_lock(&devpriv->mite_channel_lock);
-	if (devpriv->di_mite_chan)
-		m_status = mite_get_status(devpriv->di_mite_chan);
-
-	if (m_status & CHSR_INT) {
-		if (m_status & CHSR_LINKC) {
-			writel(CHOR_CLRLC,
-			       mite->mite_io_addr +
-			       MITE_CHOR(devpriv->di_mite_chan->channel));
-			mite_sync_input_dma(devpriv->di_mite_chan, s);
-			/* XXX need to byteswap */
-		}
-		if (m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY |
-				 CHSR_DRQ1 | CHSR_MRDY)) {
-			dev_dbg(dev->class_dev,
-				"unknown mite interrupt, disabling IRQ\n");
-			async->events |= COMEDI_CB_ERROR;
-			disable_irq(dev->irq);
-		}
+	if (devpriv->di_mite_chan) {
+		mite_ack_linkc(devpriv->di_mite_chan, s, false);
+		/* XXX need to byteswap sync'ed dma */
 	}
 	spin_unlock(&devpriv->mite_channel_lock);
 
@@ -525,13 +507,13 @@ static int ni_pcidio_ns_to_timer(int *nanosec, unsigned int flags)
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		divider = (*nanosec + base / 2) / base;
+		divider = DIV_ROUND_CLOSEST(*nanosec, base);
 		break;
 	case CMDF_ROUND_DOWN:
 		divider = (*nanosec) / base;
 		break;
 	case CMDF_ROUND_UP:
-		divider = (*nanosec + base - 1) / base;
+		divider = DIV_ROUND_UP(*nanosec, base);
 		break;
 	}
 
@@ -668,8 +650,10 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writeb(1, dev->mmio + AckDelay);
 		writeb(0x0b, dev->mmio + AckNotDelay);
 		writeb(0x01, dev->mmio + Data1Delay);
-		/* manual, page 4-5: ClockSpeed comment is incorrectly listed
-		 * on DAQOptions */
+		/*
+		 * manual, page 4-5:
+		 * ClockSpeed comment is incorrectly listed on DAQOptions
+		 */
 		writew(0, dev->mmio + ClockSpeed);
 		writeb(0, dev->mmio + DAQOptions);
 	} else {
@@ -916,13 +900,9 @@ static int nidio_auto_attach(struct comedi_device *dev,
 
 	spin_lock_init(&devpriv->mite_channel_lock);
 
-	devpriv->mite = mite_alloc(pcidev);
+	devpriv->mite = mite_attach(dev, false);	/* use win0 */
 	if (!devpriv->mite)
 		return -ENOMEM;
-
-	ret = mite_setup(dev, devpriv->mite);
-	if (ret < 0)
-		return ret;
 
 	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (!devpriv->di_mite_ring)

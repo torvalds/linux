@@ -27,10 +27,10 @@
 #include <linux/io.h>
 
 #include <asm/mach-types.h>
-#include <mach/pm.h>
+#include "pm.h"
 #include <mach/pxa2xx-regs.h>
-#include <mach/regs-rtc.h>
-#include <mach/sharpsl_pm.h>
+#include "regs-rtc.h"
+#include "sharpsl_pm.h"
 
 /*
  * Constants
@@ -744,7 +744,7 @@ static int sharpsl_off_charge_battery(void)
 		time = RCNR;
 		while (1) {
 			/* Check if any wakeup event had occurred */
-			if (sharpsl_pm.machinfo->charger_wakeup() != 0)
+			if (sharpsl_pm.machinfo->charger_wakeup())
 				return 0;
 			/* Check for timeout */
 			if ((RCNR - time) > SHARPSL_WAIT_CO_TIME)

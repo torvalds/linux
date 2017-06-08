@@ -16,7 +16,8 @@ config CAN_ESD_USB2
 config CAN_GS_USB
 	tristate "Geschwister Schneider UG interfaces"
 	---help---
-	  This driver supports the Geschwister Schneider USB/CAN devices.
+	  This driver supports the Geschwister Schneider and bytewerk.org
+	  candleLight USB CAN interfaces USB/CAN devices
 	  If unsure choose N,
 	  choose Y for built in support,
 	  M to compile as module (module will be named: gs_usb).
@@ -46,6 +47,8 @@ config CAN_KVASER_USB
 	    - Kvaser USBcan R
 	    - Kvaser Leaf Light v2
 	    - Kvaser Mini PCI Express HS
+	    - Kvaser Mini PCI Express 2xHS
+	    - Kvaser USBcan Light 2xHS
 	    - Kvaser USBcan II HS/HS
 	    - Kvaser USBcan II HS/LS
 	    - Kvaser USBcan Rugged ("USBcan Rev B")
@@ -69,6 +72,8 @@ config CAN_PEAK_USB
 	  PCAN-USB Pro         dual CAN 2.0b channels USB adapter
 	  PCAN-USB FD          single CAN-FD channel USB adapter
 	  PCAN-USB Pro FD      dual CAN-FD channels USB adapter
+	  PCAN-Chip USB        CAN-FD to USB stamp module
+	  PCAN-USB X6          6 CAN-FD channels USB adapter
 
 	  (see also http://www.peak-system.com).
 
@@ -77,5 +82,11 @@ config CAN_8DEV_USB
 	---help---
 	  This driver supports the USB2CAN interface
 	  from 8 devices (http://www.8devices.com).
+
+config CAN_MCBA_USB
+	tristate "Microchip CAN BUS Analyzer interface"
+	---help---
+	  This driver supports the CAN BUS Analyzer interface
+	  from Microchip (http://www.microchip.com/development-tools/).
 
 endmenu
