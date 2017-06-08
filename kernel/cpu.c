@@ -562,30 +562,6 @@ void clear_tasks_mm_cpumask(int cpu)
 	rcu_read_unlock();
 }
 
-static inline void check_for_tasks(int dead_cpu)
-{
-	struct task_struct *g, *p;
-
-	read_lock(&tasklist_lock);
-	for_each_process_thread(g, p) {
-		if (!p->on_rq)
-			continue;
-		/*
-		 * We do the check with unlocked task_rq(p)->lock.
-		 * Order the reading to do not warn about a task,
-		 * which was running on this cpu in the past, and
-		 * it's just been woken on another cpu.
-		 */
-		rmb();
-		if (task_cpu(p) != dead_cpu)
-			continue;
-
-		pr_warn("Task %s (pid=%d) is on cpu %d (state=%ld, flags=%x)\n",
-			p->comm, task_pid_nr(p), dead_cpu, p->state, p->flags);
-	}
-	read_unlock(&tasklist_lock);
-}
-
 /* Take this CPU down. */
 static int take_cpu_down(void *_param)
 {
