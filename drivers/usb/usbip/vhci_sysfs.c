@@ -33,9 +33,11 @@
 static ssize_t status_show_vhci(int pdev_nr, char *out)
 {
 	struct platform_device *pdev = vhcis[pdev_nr].pdev;
-	struct vhci_hcd *vhci;
+	struct vhci *vhci;
+	struct usb_hcd *hcd;
+	struct vhci_hcd *vhci_hcd;
 	char *s = out;
-	int i = 0;
+	int i;
 	unsigned long flags;
 
 	if (!pdev || !out) {
@@ -43,7 +45,9 @@ static ssize_t status_show_vhci(int pdev_nr, char *out)
 		return 0;
 	}
 
-	vhci = hcd_to_vhci_hcd(platform_get_drvdata(pdev));
+	hcd = platform_get_drvdata(pdev);
+	vhci_hcd = hcd_to_vhci_hcd(hcd);
+	vhci = vhci_hcd->vhci;
 
 	spin_lock_irqsave(&vhci->lock, flags);
 
@@ -58,7 +62,7 @@ static ssize_t status_show_vhci(int pdev_nr, char *out)
 	 * port number and its peer IP address.
 	 */
 	for (i = 0; i < VHCI_HC_PORTS; i++) {
-		struct vhci_device *vdev = &vhci->vdev[i];
+		struct vhci_device *vdev = &vhci_hcd->vdev[i];
 
 		spin_lock(&vdev->ud.lock);
 		out += sprintf(out, "%04u %03u ",
@@ -147,9 +151,10 @@ static ssize_t nports_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(nports);
 
 /* Sysfs entry to shutdown a virtual connection */
-static int vhci_port_disconnect(struct vhci_hcd *vhci, __u32 rhport)
+static int vhci_port_disconnect(struct vhci_hcd *vhci_hcd, __u32 rhport)
 {
-	struct vhci_device *vdev = &vhci->vdev[rhport];
+	struct vhci_device *vdev = &vhci_hcd->vdev[rhport];
+	struct vhci *vhci = vhci_hcd->vhci;
 	unsigned long flags;
 
 	usbip_dbg_vhci_sysfs("enter\n");
@@ -262,8 +267,9 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	int sockfd = 0;
 	__u32 port = 0, pdev_nr = 0, rhport = 0, devid = 0, speed = 0;
 	struct usb_hcd *hcd;
-	struct vhci_hcd *vhci;
+	struct vhci_hcd *vhci_hcd;
 	struct vhci_device *vdev;
+	struct vhci *vhci;
 	int err;
 	unsigned long flags;
 
@@ -292,8 +298,10 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		dev_err(dev, "port %d is not ready\n", port);
 		return -EAGAIN;
 	}
-	vhci = hcd_to_vhci_hcd(hcd);
-	vdev = &vhci->vdev[rhport];
+
+	vhci_hcd = hcd_to_vhci_hcd(hcd);
+	vhci = vhci_hcd->vhci;
+	vdev = &vhci_hcd->vdev[rhport];
 
 	/* Extract socket from fd. */
 	socket = sockfd_lookup(sockfd, &err);

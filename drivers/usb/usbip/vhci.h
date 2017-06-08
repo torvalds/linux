@@ -100,8 +100,6 @@ struct vhci {
 struct vhci_hcd {
 	struct vhci *vhci;
 
-	spinlock_t lock;
-
 	u32 port_status[VHCI_HC_PORTS];
 
 	unsigned resuming:1;
