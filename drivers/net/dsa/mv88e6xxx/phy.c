@@ -62,7 +62,7 @@ int mv88e6xxx_phy_write(struct mv88e6xxx_chip *chip, int phy, int reg, u16 val)
 
 static int mv88e6xxx_phy_page_get(struct mv88e6xxx_chip *chip, int phy, u8 page)
 {
-	return mv88e6xxx_phy_write(chip, phy, PHY_PAGE, page);
+	return mv88e6xxx_phy_write(chip, phy, MV88E6XXX_PHY_PAGE, page);
 }
 
 static void mv88e6xxx_phy_page_put(struct mv88e6xxx_chip *chip, int phy)
@@ -72,7 +72,8 @@ static void mv88e6xxx_phy_page_put(struct mv88e6xxx_chip *chip, int phy)
 	/* Restore PHY page Copper 0x0 for access via the registered
 	 * MDIO bus
 	 */
-	err = mv88e6xxx_phy_write(chip, phy, PHY_PAGE, PHY_PAGE_COPPER);
+	err = mv88e6xxx_phy_write(chip, phy, MV88E6XXX_PHY_PAGE,
+				  MV88E6XXX_PHY_PAGE_COPPER);
 	if (unlikely(err)) {
 		dev_err(chip->dev,
 			"failed to restore PHY %d page Copper (%d)\n",
@@ -86,7 +87,7 @@ int mv88e6xxx_phy_page_read(struct mv88e6xxx_chip *chip, int phy,
 	int err;
 
 	/* There is no paging for registers 22 */
-	if (reg == PHY_PAGE)
+	if (reg == MV88E6XXX_PHY_PAGE)
 		return -EINVAL;
 
 	err = mv88e6xxx_phy_page_get(chip, phy, page);
@@ -104,12 +105,12 @@ int mv88e6xxx_phy_page_write(struct mv88e6xxx_chip *chip, int phy,
 	int err;
 
 	/* There is no paging for registers 22 */
-	if (reg == PHY_PAGE)
+	if (reg == MV88E6XXX_PHY_PAGE)
 		return -EINVAL;
 
 	err = mv88e6xxx_phy_page_get(chip, phy, page);
 	if (!err) {
-		err = mv88e6xxx_phy_write(chip, phy, PHY_PAGE, page);
+		err = mv88e6xxx_phy_write(chip, phy, MV88E6XXX_PHY_PAGE, page);
 		mv88e6xxx_phy_page_put(chip, phy);
 	}
 
