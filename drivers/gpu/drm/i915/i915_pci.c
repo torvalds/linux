@@ -422,6 +422,22 @@ static const struct intel_device_info intel_kabylake_gt3_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
+#define CFL_PLATFORM \
+	.is_alpha_support = 1, \
+	BDW_FEATURES, \
+	.gen = 9, \
+	.platform = INTEL_COFFEELAKE, \
+	.ddb_size = 896
+
+static const struct intel_device_info intel_coffeelake_info = {
+	CFL_PLATFORM,
+};
+
+static const struct intel_device_info intel_coffeelake_gt3_info = {
+	CFL_PLATFORM,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+};
+
 static const struct intel_device_info intel_cannonlake_info = {
 	BDW_FEATURES,
 	.is_alpha_support = 1,
