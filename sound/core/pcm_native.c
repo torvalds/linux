@@ -337,54 +337,56 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 		rstamps[k] = 0;
 	for (k = 0; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++)
 		vstamps[k] = (params->rmask & (1 << k)) ? 1 : 0;
-	do {
-		again = 0;
-		for (k = 0; k < constrs->rules_num; k++) {
-			struct snd_pcm_hw_rule *r = &constrs->rules[k];
-			unsigned int d;
-			int doit = 0;
-			if (r->cond && !(r->cond & params->flags))
-				continue;
-			for (d = 0; r->deps[d] >= 0; d++) {
-				if (vstamps[r->deps[d]] > rstamps[k]) {
-					doit = 1;
-					break;
-				}
+retry:
+	again = 0;
+	for (k = 0; k < constrs->rules_num; k++) {
+		struct snd_pcm_hw_rule *r = &constrs->rules[k];
+		unsigned int d;
+		int doit = 0;
+		if (r->cond && !(r->cond & params->flags))
+			continue;
+		for (d = 0; r->deps[d] >= 0; d++) {
+			if (vstamps[r->deps[d]] > rstamps[k]) {
+				doit = 1;
+				break;
 			}
-			if (!doit)
-				continue;
-
-			if (trace_hw_mask_param_enabled()) {
-				if (hw_is_mask(r->var))
-					old_mask = *hw_param_mask(params, r->var);
-			}
-			if (trace_hw_interval_param_enabled()) {
-				if (hw_is_interval(r->var))
-					old_interval = *hw_param_interval(params, r->var);
-			}
-
-			changed = r->func(params, r);
-
-			if (hw_is_mask(r->var)) {
-				trace_hw_mask_param(substream, r->var, k + 1,
-					&old_mask, hw_param_mask(params, r->var));
-			}
-			if (hw_is_interval(r->var)) {
-				trace_hw_interval_param(substream, r->var, k + 1,
-					&old_interval, hw_param_interval(params, r->var));
-			}
-
-			rstamps[k] = stamp;
-			if (changed && r->var >= 0) {
-				params->cmask |= (1 << r->var);
-				vstamps[r->var] = stamp;
-				again = 1;
-			}
-			if (changed < 0)
-				return changed;
-			stamp++;
 		}
-	} while (again);
+		if (!doit)
+			continue;
+
+		if (trace_hw_mask_param_enabled()) {
+			if (hw_is_mask(r->var))
+				old_mask = *hw_param_mask(params, r->var);
+		}
+		if (trace_hw_interval_param_enabled()) {
+			if (hw_is_interval(r->var))
+				old_interval = *hw_param_interval(params, r->var);
+		}
+
+		changed = r->func(params, r);
+
+		if (hw_is_mask(r->var)) {
+			trace_hw_mask_param(substream, r->var, k + 1,
+				&old_mask, hw_param_mask(params, r->var));
+		}
+		if (hw_is_interval(r->var)) {
+			trace_hw_interval_param(substream, r->var, k + 1,
+				&old_interval, hw_param_interval(params, r->var));
+		}
+
+		rstamps[k] = stamp;
+		if (changed && r->var >= 0) {
+			params->cmask |= (1 << r->var);
+			vstamps[r->var] = stamp;
+			again = 1;
+		}
+		if (changed < 0)
+			return changed;
+		stamp++;
+	}
+
+	if (again)
+		goto retry;
 
 	return 0;
 }
