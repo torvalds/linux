@@ -56,10 +56,12 @@ static int v1_read_dqblk(struct dquot *dquot)
 {
 	int type = dquot->dq_id.type;
 	struct v1_disk_dqblk dqblk;
+	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 
-	if (!sb_dqopt(dquot->dq_sb)->files[type])
+	if (!dqopt->files[type])
 		return -EINVAL;
 
+	down_read(&dqopt->dqio_sem);
 	/* Set structure to 0s in case read fails/is after end of file */
 	memset(&dqblk, 0, sizeof(struct v1_disk_dqblk));
 	dquot->dq_sb->s_op->quota_read(dquot->dq_sb, type, (char *)&dqblk,
@@ -73,6 +75,7 @@ static int v1_read_dqblk(struct dquot *dquot)
 	    dquot->dq_dqb.dqb_isoftlimit == 0)
 		set_bit(DQ_FAKE_B, &dquot->dq_flags);
 	dqstats_inc(DQST_READS);
+	up_read(&dqopt->dqio_sem);
 
 	return 0;
 }

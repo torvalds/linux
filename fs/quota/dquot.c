@@ -403,11 +403,8 @@ int dquot_acquire(struct dquot *dquot)
 	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 
 	mutex_lock(&dquot->dq_lock);
-	if (!test_bit(DQ_READ_B, &dquot->dq_flags)) {
-		down_read(&dqopt->dqio_sem);
+	if (!test_bit(DQ_READ_B, &dquot->dq_flags))
 		ret = dqopt->ops[dquot->dq_id.type]->read_dqblk(dquot);
-		up_read(&dqopt->dqio_sem);
-	}
 	if (ret < 0)
 		goto out_iolock;
 	/* Make sure flags update is visible after dquot has been filled */
