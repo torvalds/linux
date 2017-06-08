@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/acpi.h>
+#include <linux/suspend.h>
 #include <acpi/acpi_bus.h>
 
 MODULE_LICENSE("GPL");
@@ -46,6 +47,7 @@ static const struct key_entry intel_vbtn_keymap[] = {
 
 struct intel_vbtn_priv {
 	struct input_dev *input_dev;
+	bool wakeup_mode;
 };
 
 static int intel_vbtn_input_setup(struct platform_device *device)
@@ -73,9 +75,15 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	struct platform_device *device = context;
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
 
-	if (!sparse_keymap_report_event(priv->input_dev, event, 1, true))
-		dev_info(&device->dev, "unknown event index 0x%x\n",
-			 event);
+	if (priv->wakeup_mode) {
+		if (sparse_keymap_entry_from_scancode(priv->input_dev, event)) {
+			pm_wakeup_hard_event(&device->dev);
+			return;
+		}
+	} else if (sparse_keymap_report_event(priv->input_dev, event, 1, true)) {
+		return;
+	}
+	dev_info(&device->dev, "unknown event index 0x%x\n", event);
 }
 
 static int intel_vbtn_probe(struct platform_device *device)
@@ -109,6 +117,7 @@ static int intel_vbtn_probe(struct platform_device *device)
 	if (ACPI_FAILURE(status))
 		return -EBUSY;
 
+	device_init_wakeup(&device->dev, true);
 	return 0;
 }
 
@@ -125,10 +134,34 @@ static int intel_vbtn_remove(struct platform_device *device)
 	return 0;
 }
 
+static int intel_vbtn_pm_prepare(struct device *dev)
+{
+	struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
+
+	priv->wakeup_mode = true;
+	return 0;
+}
+
+static int intel_vbtn_pm_resume(struct device *dev)
+{
+	struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
+
+	priv->wakeup_mode = false;
+	return 0;
+}
+
+static const struct dev_pm_ops intel_vbtn_pm_ops = {
+	.prepare = intel_vbtn_pm_prepare,
+	.resume = intel_vbtn_pm_resume,
+	.restore = intel_vbtn_pm_resume,
+	.thaw = intel_vbtn_pm_resume,
+};
+
 static struct platform_driver intel_vbtn_pl_driver = {
 	.driver = {
 		.name = "intel-vbtn",
 		.acpi_match_table = intel_vbtn_ids,
+		.pm = &intel_vbtn_pm_ops,
 	},
 	.probe = intel_vbtn_probe,
 	.remove = intel_vbtn_remove,
