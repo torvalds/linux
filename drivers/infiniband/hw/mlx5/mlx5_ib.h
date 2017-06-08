@@ -383,6 +383,7 @@ struct mlx5_ib_qp {
 	struct list_head	cq_recv_list;
 	struct list_head	cq_send_list;
 	u32			rate_limit;
+	u32                     underlay_qpn;
 };
 
 struct mlx5_ib_cq_buf {
@@ -404,6 +405,7 @@ enum mlx5_ib_qp_flags {
 	MLX5_IB_QP_CAP_SCATTER_FCS		= 1 << 7,
 	MLX5_IB_QP_RSS				= 1 << 8,
 	MLX5_IB_QP_CVLAN_STRIPPING		= 1 << 9,
+	MLX5_IB_QP_UNDERLAY			= 1 << 10,
 };
 
 struct mlx5_umr_wr {
