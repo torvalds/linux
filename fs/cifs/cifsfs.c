@@ -1359,7 +1359,7 @@ init_cifs(void)
 	spin_lock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&GlobalMid_Lock);
 
-	get_random_bytes(&cifs_lock_secret, sizeof(cifs_lock_secret));
+	cifs_lock_secret = get_random_u32();
 
 	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;
