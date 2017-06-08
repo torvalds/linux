@@ -339,13 +339,6 @@ int mmc_send_cid(struct mmc_host *host, u32 *cid)
 	int ret, i;
 	__be32 *cid_tmp;
 
-	if (!mmc_host_is_spi(host)) {
-		if (!host->card)
-			return -EINVAL;
-		return mmc_send_cxd_native(host, host->card->rca << 16,
-				cid, MMC_SEND_CID);
-	}
-
 	cid_tmp = kzalloc(16, GFP_KERNEL);
 	if (!cid_tmp)
 		return -ENOMEM;
