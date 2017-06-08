@@ -1819,17 +1819,16 @@ void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_bridge_port_put(mlxsw_sp->bridge, bridge_port);
 }
 
-static void mlxsw_sp_fdb_call_notifiers(bool adding,
-					char *mac, u16 vid,
-					struct net_device *dev)
+static void
+mlxsw_sp_fdb_call_notifiers(enum switchdev_notifier_type type,
+			    const char *mac, u16 vid,
+			    struct net_device *dev)
 {
 	struct switchdev_notifier_fdb_info info;
-	unsigned long notifier_type;
 
 	info.addr = mac;
 	info.vid = vid;
-	notifier_type = adding ? SWITCHDEV_FDB_ADD_TO_BRIDGE : SWITCHDEV_FDB_DEL_TO_BRIDGE;
-	call_switchdev_notifiers(notifier_type, dev, &info.info);
+	call_switchdev_notifiers(type, dev, &info.info);
 }
 
 static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
@@ -1840,6 +1839,7 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct mlxsw_sp_bridge_port *bridge_port;
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	enum switchdev_notifier_type type;
 	char mac[ETH_ALEN];
 	u8 local_port;
 	u16 vid, fid;
@@ -1878,7 +1878,8 @@ do_fdb_op:
 
 	if (!do_notification)
 		return;
-	mlxsw_sp_fdb_call_notifiers(adding, mac, vid, bridge_port->dev);
+	type = adding ? SWITCHDEV_FDB_ADD_TO_BRIDGE : SWITCHDEV_FDB_DEL_TO_BRIDGE;
+	mlxsw_sp_fdb_call_notifiers(type, mac, vid, bridge_port->dev);
 
 	return;
 
@@ -1896,6 +1897,7 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct mlxsw_sp_bridge_port *bridge_port;
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	enum switchdev_notifier_type type;
 	char mac[ETH_ALEN];
 	u16 lag_vid = 0;
 	u16 lag_id;
@@ -1936,7 +1938,8 @@ do_fdb_op:
 
 	if (!do_notification)
 		return;
-	mlxsw_sp_fdb_call_notifiers(adding, mac, vid, bridge_port->dev);
+	type = adding ? SWITCHDEV_FDB_ADD_TO_BRIDGE : SWITCHDEV_FDB_DEL_TO_BRIDGE;
+	mlxsw_sp_fdb_call_notifiers(type, mac, vid, bridge_port->dev);
 
 	return;
 
