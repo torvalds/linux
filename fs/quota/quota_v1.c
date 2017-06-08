@@ -83,9 +83,7 @@ static int v1_commit_dqblk(struct dquot *dquot)
 	short type = dquot->dq_id.type;
 	ssize_t ret;
 	struct v1_disk_dqblk dqblk;
-	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 
-	down_write(&dqopt->dqio_sem);
 	v1_mem2disk_dqblk(&dqblk, &dquot->dq_dqb);
 	if (((type == USRQUOTA) && uid_eq(dquot->dq_id.uid, GLOBAL_ROOT_UID)) ||
 	    ((type == GRPQUOTA) && gid_eq(dquot->dq_id.gid, GLOBAL_ROOT_GID))) {
@@ -99,7 +97,6 @@ static int v1_commit_dqblk(struct dquot *dquot)
 		ret = dquot->dq_sb->s_op->quota_write(dquot->dq_sb, type,
 			(char *)&dqblk, sizeof(struct v1_disk_dqblk),
 			v1_dqoff(from_kqid(&init_user_ns, dquot->dq_id)));
-	up_write(&dqopt->dqio_sem);
 	if (ret != sizeof(struct v1_disk_dqblk)) {
 		quota_error(dquot->dq_sb, "dquota write failed");
 		if (ret >= 0)
