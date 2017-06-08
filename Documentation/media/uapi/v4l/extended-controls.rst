@@ -3021,6 +3021,13 @@ Image Process Control IDs
     The video deinterlacing mode (such as Bob, Weave, ...). The menu items are
     driver specific and are documented in :ref:`v4l-drivers`.
 
+``V4L2_CID_DIGITAL_GAIN (integer)``
+    Digital gain is the value by which all colour components
+    are multiplied by. Typically the digital gain applied is the
+    control value divided by e.g. 0x100, meaning that to get no
+    digital gain the control value needs to be 0x100. The no-gain
+    configuration is also typically the default.
+
 
 .. _dv-controls:
 
