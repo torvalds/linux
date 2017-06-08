@@ -678,8 +678,6 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request,
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	struct rb_node *parent, **p;
-	bool first;
 	u32 seqno;
 
 	/* Note that we may be called from an interrupt handler on another
@@ -714,27 +712,36 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request,
 	 */
 	wakeup &= __intel_engine_add_wait(engine, &request->signaling.wait);
 
-	/* Now insert ourselves into the retirement ordered list of signals
-	 * on this engine. We track the oldest seqno as that will be the
-	 * first signal to complete.
-	 */
-	parent = NULL;
-	first = true;
-	p = &b->signals.rb_node;
-	while (*p) {
-		parent = *p;
-		if (i915_seqno_passed(seqno,
-				      to_signaler(parent)->signaling.wait.seqno)) {
-			p = &parent->rb_right;
-			first = false;
-		} else {
-			p = &parent->rb_left;
+	if (!__i915_gem_request_completed(request, seqno)) {
+		struct rb_node *parent, **p;
+		bool first;
+
+		/* Now insert ourselves into the retirement ordered list of
+		 * signals on this engine. We track the oldest seqno as that
+		 * will be the first signal to complete.
+		 */
+		parent = NULL;
+		first = true;
+		p = &b->signals.rb_node;
+		while (*p) {
+			parent = *p;
+			if (i915_seqno_passed(seqno,
+					      to_signaler(parent)->signaling.wait.seqno)) {
+				p = &parent->rb_right;
+				first = false;
+			} else {
+				p = &parent->rb_left;
+			}
 		}
+		rb_link_node(&request->signaling.node, parent, p);
+		rb_insert_color(&request->signaling.node, &b->signals);
+		if (first)
+			rcu_assign_pointer(b->first_signal, request);
+	} else {
+		__intel_engine_remove_wait(engine, &request->signaling.wait);
+		i915_gem_request_put(request);
+		wakeup = false;
 	}
-	rb_link_node(&request->signaling.node, parent, p);
-	rb_insert_color(&request->signaling.node, &b->signals);
-	if (first)
-		rcu_assign_pointer(b->first_signal, request);
 
 	spin_unlock(&b->rb_lock);
 
