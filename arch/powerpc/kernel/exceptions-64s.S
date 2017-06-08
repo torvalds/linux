@@ -821,46 +821,80 @@ EXC_VIRT(trap_0b, 0x4b00, 0x100, 0xb00)
 TRAMP_KVM(PACA_EXGEN, 0xb00)
 EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 
+/*
+ * system call / hypercall (0xc00, 0x4c00)
+ *
+ * The system call exception is invoked with "sc 0" and does not alter HV bit.
+ * There is support for kernel code to invoke system calls but there are no
+ * in-tree users.
+ *
+ * The hypercall is invoked with "sc 1" and sets HV=1.
+ *
+ * In HPT, sc 1 always goes to 0xc00 real mode. In RADIX, sc 1 can go to
+ * 0x4c00 virtual mode.
+ *
+ * Call convention:
+ *
+ * syscall register convention is in Documentation/powerpc/syscall64-abi.txt
+ *
+ * For hypercalls, the register convention is as follows:
+ * r0 volatile
+ * r1-2 nonvolatile
+ * r3 volatile parameter and return value for status
+ * r4-r10 volatile input and output value
+ * r11 volatile hypercall number and output value
+ * r12 volatile
+ * r13-r31 nonvolatile
+ * LR nonvolatile
+ * CTR volatile
+ * XER volatile
+ * CR0-1 CR5-7 volatile
+ * CR2-4 nonvolatile
+ * Other registers nonvolatile
+ *
+ * The intersection of volatile registers that don't contain possible
+ * inputs is: r12, cr0, xer, ctr. We may use these as scratch regs
+ * upon entry without saving.
+ */
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-	 /*
-	  * If CONFIG_KVM_BOOK3S_64_HANDLER is set, save the PPR (on systems
-	  * that support it) before changing to HMT_MEDIUM. That allows the KVM
-	  * code to save that value into the guest state (it is the guest's PPR
-	  * value). Otherwise just change to HMT_MEDIUM as userspace has
-	  * already saved the PPR.
-	  */
+	/*
+	 * There is a little bit of juggling to get syscall and hcall
+	 * working well. Save r10 in ctr to be restored in case it is a
+	 * hcall.
+	 *
+	 * Userspace syscalls have already saved the PPR, hcalls must save
+	 * it before setting HMT_MEDIUM.
+	 */
 #define SYSCALL_KVMTEST							\
-	SET_SCRATCH0(r13);						\
+	mr	r12,r13;						\
 	GET_PACA(r13);							\
-	std	r9,PACA_EXGEN+EX_R9(r13);				\
-	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR);			\
+	mtctr	r10;							\
+	KVMTEST_PR(0xc00); /* uses r10, branch to do_kvm_0xc00_system_call */ \
 	HMT_MEDIUM;							\
-	std	r10,PACA_EXGEN+EX_R10(r13);				\
-	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r9, CPU_FTR_HAS_PPR);	\
-	mfcr	r9;							\
-	KVMTEST_PR(0xc00);						\
-	GET_SCRATCH0(r13)
+	mr	r9,r12;							\
 
 #else
 #define SYSCALL_KVMTEST							\
-	HMT_MEDIUM
+	HMT_MEDIUM;							\
+	mr	r9,r13;							\
+	GET_PACA(r13);
 #endif
 	
 #define LOAD_SYSCALL_HANDLER(reg)					\
 	__LOAD_HANDLER(reg, system_call_common)
 
-/* Syscall routine is used twice, in reloc-off and reloc-on paths */
-#define SYSCALL_PSERIES_1 					\
+#define SYSCALL_FASTENDIAN_TEST					\
 BEGIN_FTR_SECTION						\
 	cmpdi	r0,0x1ebe ; 					\
 	beq-	1f ;						\
 END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
-	mr	r9,r13 ;					\
-	GET_PACA(r13) ;						\
-	mfspr	r11,SPRN_SRR0 ;					\
-0:
 
-#define SYSCALL_PSERIES_2_RFID 					\
+/*
+ * After SYSCALL_KVMTEST, we reach here with PACA in r13, r13 in r9,
+ * and HMT_MEDIUM.
+ */
+#define SYSCALL_REAL	 					\
+	mfspr	r11,SPRN_SRR0 ;					\
 	mfspr	r12,SPRN_SRR1 ;					\
 	LOAD_SYSCALL_HANDLER(r10) ; 				\
 	mtspr	SPRN_SRR0,r10 ; 				\
@@ -869,11 +903,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	rfid ; 							\
 	b	. ;	/* prevent speculative execution */
 
-#define SYSCALL_PSERIES_3					\
+#define SYSCALL_FASTENDIAN					\
 	/* Fast LE/BE switch system call */			\
 1:	mfspr	r12,SPRN_SRR1 ;					\
 	xori	r12,r12,MSR_LE ;				\
 	mtspr	SPRN_SRR1,r12 ;					\
+	mr	r13,r9 ;					\
 	rfid ;		/* return to userspace */		\
 	b	. ;	/* prevent speculative execution */
 
@@ -882,16 +917,18 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	 * We can't branch directly so we do it via the CTR which
 	 * is volatile across system calls.
 	 */
-#define SYSCALL_PSERIES_2_DIRECT				\
-	LOAD_SYSCALL_HANDLER(r12) ;				\
-	mtctr	r12 ;						\
+#define SYSCALL_VIRT						\
+	LOAD_SYSCALL_HANDLER(r10) ;				\
+	mtctr	r10 ;						\
+	mfspr	r11,SPRN_SRR0 ;					\
 	mfspr	r12,SPRN_SRR1 ;					\
 	li	r10,MSR_RI ;					\
 	mtmsrd 	r10,1 ;						\
 	bctr ;
 #else
 	/* We can branch directly */
-#define SYSCALL_PSERIES_2_DIRECT				\
+#define SYSCALL_VIRT						\
+	mfspr	r11,SPRN_SRR0 ;					\
 	mfspr	r12,SPRN_SRR1 ;					\
 	li	r10,MSR_RI ;					\
 	mtmsrd 	r10,1 ;			/* Set RI (EE=0) */	\
@@ -899,20 +936,43 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 #endif
 
 EXC_REAL_BEGIN(system_call, 0xc00, 0x100)
-	SYSCALL_KVMTEST
-	SYSCALL_PSERIES_1
-	SYSCALL_PSERIES_2_RFID
-	SYSCALL_PSERIES_3
+	SYSCALL_KVMTEST /* loads PACA into r13, and saves r13 to r9 */
+	SYSCALL_FASTENDIAN_TEST
+	SYSCALL_REAL
+	SYSCALL_FASTENDIAN
 EXC_REAL_END(system_call, 0xc00, 0x100)
 
 EXC_VIRT_BEGIN(system_call, 0x4c00, 0x100)
-	SYSCALL_KVMTEST
-	SYSCALL_PSERIES_1
-	SYSCALL_PSERIES_2_DIRECT
-	SYSCALL_PSERIES_3
+	SYSCALL_KVMTEST /* loads PACA into r13, and saves r13 to r9 */
+	SYSCALL_FASTENDIAN_TEST
+	SYSCALL_VIRT
+	SYSCALL_FASTENDIAN
 EXC_VIRT_END(system_call, 0x4c00, 0x100)
 
-TRAMP_KVM(PACA_EXGEN, 0xc00)
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+	/*
+	 * This is a hcall, so register convention is as above, with these
+	 * differences:
+	 * r13 = PACA
+	 * r12 = orig r13
+	 * ctr = orig r10
+	 */
+TRAMP_KVM_BEGIN(do_kvm_0xc00)
+	 /*
+	  * Save the PPR (on systems that support it) before changing to
+	  * HMT_MEDIUM. That allows the KVM code to save that value into the
+	  * guest state (it is the guest's PPR value).
+	  */
+	OPT_GET_SPR(r0, SPRN_PPR, CPU_FTR_HAS_PPR)
+	HMT_MEDIUM
+	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r0, CPU_FTR_HAS_PPR)
+	mfctr	r10
+	SET_SCRATCH0(r12)
+	std	r9,PACA_EXGEN+EX_R9(r13)
+	mfcr	r9
+	std	r10,PACA_EXGEN+EX_R10(r13)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xc00)
+#endif
 
 
 EXC_REAL(single_step, 0xd00, 0x100)
