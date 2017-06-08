@@ -228,8 +228,10 @@ int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,
 int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port);
 int mv88e6095_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port);
 int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port);
-int mv88e6097_port_pause_config(struct mv88e6xxx_chip *chip, int port);
-int mv88e6390_port_pause_config(struct mv88e6xxx_chip *chip, int port);
+int mv88e6097_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
+			       u8 out);
+int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
+			       u8 out);
 int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode);
 int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode);

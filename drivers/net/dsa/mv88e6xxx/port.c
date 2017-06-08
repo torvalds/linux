@@ -376,22 +376,24 @@ int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
  * the remote end or the period of time that this port can pause the
  * remote end.
  */
-int mv88e6097_port_pause_config(struct mv88e6xxx_chip *chip, int port)
+int mv88e6097_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
+			       u8 out)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL, 0x0000);
+	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL, out << 8 | in);
 }
 
-int mv88e6390_port_pause_config(struct mv88e6xxx_chip *chip, int port)
+int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
+			       u8 out)
 {
 	int err;
 
 	err = mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
-				   PORT_FLOW_CTRL_LIMIT_IN | 0);
+				   PORT_FLOW_CTRL_LIMIT_IN | in);
 	if (err)
 		return err;
 
 	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
-				    PORT_FLOW_CTRL_LIMIT_OUT | 0);
+				    PORT_FLOW_CTRL_LIMIT_OUT | out);
 }
 
 /* Offset 0x04: Port Control Register */

@@ -425,7 +425,8 @@ struct mv88e6xxx_ops {
 	int (*port_jumbo_config)(struct mv88e6xxx_chip *chip, int port);
 
 	int (*port_egress_rate_limiting)(struct mv88e6xxx_chip *chip, int port);
-	int (*port_pause_config)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_pause_limit)(struct mv88e6xxx_chip *chip, int port, u8 in,
+				u8 out);
 	int (*port_disable_learn_limit)(struct mv88e6xxx_chip *chip, int port);
 	int (*port_disable_pri_override)(struct mv88e6xxx_chip *chip, int port);
 
