@@ -86,6 +86,9 @@ struct mem_input_funcs {
 			struct _vcs_dpi_display_ttu_regs_st *ttu_regs,
 			struct _vcs_dpi_display_rq_regs_st *rq_regs,
 			struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
+
+	void (*dcc_control)(struct mem_input *mem_input, bool enable,
+			bool independent_64b_blks);
 #endif
 
 	void (*mem_input_program_display_marks)(

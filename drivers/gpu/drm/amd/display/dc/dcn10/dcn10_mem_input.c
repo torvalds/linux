@@ -369,16 +369,22 @@ static bool mem_input_program_surface_flip_and_addr(
 	return true;
 }
 
-static void program_control(struct dcn10_mem_input *mi,
-		struct dc_plane_dcc_param *dcc)
+static void dcc_control(struct mem_input *mem_input, bool enable,
+		bool independent_64b_blks)
 {
-	uint32_t dcc_en = dcc->enable ? 1 : 0;
-	uint32_t dcc_ind_64b_blk = dcc->grph.independent_64b_blks ? 1 : 0;
+	uint32_t dcc_en = enable ? 1 : 0;
+	uint32_t dcc_ind_64b_blk = independent_64b_blks ? 1 : 0;
+	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 
 	REG_UPDATE_2(DCSURF_SURFACE_CONTROL,
 			PRIMARY_SURFACE_DCC_EN, dcc_en,
 			PRIMARY_SURFACE_DCC_IND_64B_BLK, dcc_ind_64b_blk);
+}
 
+static void program_control(struct dcn10_mem_input *mi,
+		struct dc_plane_dcc_param *dcc)
+{
+	dcc_control(&mi->base, dcc->enable, dcc->grph.independent_64b_blks);
 }
 
 static void mem_input_program_surface_config(
@@ -1072,6 +1078,7 @@ static struct mem_input_funcs dcn10_mem_input_funcs = {
 	.mem_input_update_dchub = mem_input_update_dchub,
 	.mem_input_program_pte_vm = dcn_mem_input_program_pte_vm,
 	.set_blank = dcn_mi_set_blank,
+	.dcc_control = dcc_control,
 };
 
 

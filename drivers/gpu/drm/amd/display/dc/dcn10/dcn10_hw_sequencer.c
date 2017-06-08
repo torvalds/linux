@@ -825,6 +825,8 @@ static void reset_front_end_for_pipe(
 	if (!pipe_ctx->surface)
 		return;
 
+	pipe_ctx->mi->funcs->dcc_control(pipe_ctx->mi, false, false);
+
 	lock_otg_master_update(dc->ctx, pipe_ctx->tg->inst);
 
 	/* TODO: build stream pipes group id. For now, use stream otg
