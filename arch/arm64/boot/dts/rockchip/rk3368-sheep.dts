@@ -497,6 +497,10 @@
 	logic-supply = <&vdd_logic>;
 };
 
+&rockchip_suspend {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 

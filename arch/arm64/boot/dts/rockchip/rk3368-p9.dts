@@ -239,6 +239,10 @@
 	logic-supply = <&vdd_logic>;
 };
 
+&rockchip_suspend {
+	status = "okay";
+};
+
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
