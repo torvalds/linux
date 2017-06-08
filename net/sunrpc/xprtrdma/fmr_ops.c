@@ -255,24 +255,26 @@ out_maperr:
  * Sleeps until it is safe for the host CPU to access the
  * previously mapped memory regions.
  *
- * Caller ensures that req->rl_registered is not empty.
+ * Caller ensures that @mws is not empty before the call. This
+ * function empties the list.
  */
 static void
-fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
+fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mws)
 {
 	struct rpcrdma_mw *mw, *tmp;
 	LIST_HEAD(unmap_list);
 	int rc;
-
-	dprintk("RPC:       %s: req %p\n", __func__, req);
 
 	/* ORDER: Invalidate all of the req's MRs first
 	 *
 	 * ib_unmap_fmr() is slow, so use a single call instead
 	 * of one call per mapped FMR.
 	 */
-	list_for_each_entry(mw, &req->rl_registered, mw_list)
+	list_for_each_entry(mw, mws, mw_list) {
+		dprintk("RPC:       %s: unmapping fmr %p\n",
+			__func__, &mw->fmr);
 		list_add_tail(&mw->fmr.fm_mr->list, &unmap_list);
+	}
 	r_xprt->rx_stats.local_inv_needed++;
 	rc = ib_unmap_fmr(&unmap_list);
 	if (rc)
@@ -281,7 +283,7 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	/* ORDER: Now DMA unmap all of the req's MRs, and return
 	 * them to the free MW list.
 	 */
-	list_for_each_entry_safe(mw, tmp, &req->rl_registered, mw_list) {
+	list_for_each_entry_safe(mw, tmp, mws, mw_list) {
 		list_del_init(&mw->mw_list);
 		list_del_init(&mw->fmr.fm_mr->list);
 		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
@@ -294,7 +296,7 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 out_reset:
 	pr_err("rpcrdma: ib_unmap_fmr failed (%i)\n", rc);
 
-	list_for_each_entry_safe(mw, tmp, &req->rl_registered, mw_list) {
+	list_for_each_entry_safe(mw, tmp, mws, mw_list) {
 		list_del_init(&mw->mw_list);
 		list_del_init(&mw->fmr.fm_mr->list);
 		fmr_op_recover_mr(mw);

@@ -995,6 +995,7 @@ rpcrdma_reply_handler(struct work_struct *work)
 	__be32 *iptr;
 	int rdmalen, status, rmerr;
 	unsigned long cwnd;
+	struct list_head mws;
 
 	dprintk("RPC:       %s: incoming rep %p\n", __func__, rep);
 
@@ -1024,7 +1025,8 @@ rpcrdma_reply_handler(struct work_struct *work)
 	/* Sanity checking has passed. We are now committed
 	 * to complete this transaction.
 	 */
-	rpcrdma_mark_remote_invalidation(&req->rl_registered, rep);
+	list_replace_init(&req->rl_registered, &mws);
+	rpcrdma_mark_remote_invalidation(&mws, rep);
 	list_del_init(&rqst->rq_list);
 	req->rl_reply = rep;
 	spin_unlock_bh(&xprt->transport_lock);
@@ -1042,12 +1044,9 @@ rpcrdma_reply_handler(struct work_struct *work)
 	case rdma_msg:
 		/* never expect read chunks */
 		/* never expect reply chunks (two ways to check) */
-		/* never expect write chunks without having offered RDMA */
 		if (headerp->rm_body.rm_chunks[0] != xdr_zero ||
 		    (headerp->rm_body.rm_chunks[1] == xdr_zero &&
-		     headerp->rm_body.rm_chunks[2] != xdr_zero) ||
-		    (headerp->rm_body.rm_chunks[1] != xdr_zero &&
-		     list_empty(&req->rl_registered)))
+		     headerp->rm_body.rm_chunks[2] != xdr_zero))
 			goto badheader;
 		if (headerp->rm_body.rm_chunks[1] != xdr_zero) {
 			/* count any expected write chunks in read reply */
@@ -1084,8 +1083,7 @@ rpcrdma_reply_handler(struct work_struct *work)
 		/* never expect read or write chunks, always reply chunks */
 		if (headerp->rm_body.rm_chunks[0] != xdr_zero ||
 		    headerp->rm_body.rm_chunks[1] != xdr_zero ||
-		    headerp->rm_body.rm_chunks[2] != xdr_one ||
-		    list_empty(&req->rl_registered))
+		    headerp->rm_body.rm_chunks[2] != xdr_one)
 			goto badheader;
 		iptr = (__be32 *)((unsigned char *)headerp +
 							RPCRDMA_HDRLEN_MIN);
@@ -1118,8 +1116,8 @@ out:
 	 * control: waking the next RPC waits until this RPC has
 	 * relinquished all its Send Queue entries.
 	 */
-	if (!list_empty(&req->rl_registered))
-		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt, req);
+	if (!list_empty(&mws))
+		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt, &mws);
 
 	spin_lock_bh(&xprt->transport_lock);
 	cwnd = xprt->cwnd;

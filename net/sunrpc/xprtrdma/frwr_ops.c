@@ -458,10 +458,11 @@ out_senderr:
  * Sleeps until it is safe for the host CPU to access the
  * previously mapped memory regions.
  *
- * Caller ensures that req->rl_registered is not empty.
+ * Caller ensures that @mws is not empty before the call. This
+ * function empties the list.
  */
 static void
-frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
+frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mws)
 {
 	struct ib_send_wr *first, **prev, *last, *bad_wr;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
@@ -469,9 +470,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	struct rpcrdma_mw *mw;
 	int count, rc;
 
-	dprintk("RPC:       %s: req %p\n", __func__, req);
-
-	/* ORDER: Invalidate all of the req's MRs first
+	/* ORDER: Invalidate all of the MRs first
 	 *
 	 * Chain the LOCAL_INV Work Requests and post them with
 	 * a single ib_post_send() call.
@@ -479,7 +478,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	f = NULL;
 	count = 0;
 	prev = &first;
-	list_for_each_entry(mw, &req->rl_registered, mw_list) {
+	list_for_each_entry(mw, mws, mw_list) {
 		mw->frmr.fr_state = FRMR_IS_INVALID;
 
 		if (mw->mw_flags & RPCRDMA_MW_F_RI)
@@ -528,12 +527,12 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 	wait_for_completion(&f->fr_linv_done);
 
-	/* ORDER: Now DMA unmap all of the req's MRs, and return
+	/* ORDER: Now DMA unmap all of the MRs, and return
 	 * them to the free MW list.
 	 */
 unmap:
-	while (!list_empty(&req->rl_registered)) {
-		mw = rpcrdma_pop_mw(&req->rl_registered);
+	while (!list_empty(mws)) {
+		mw = rpcrdma_pop_mw(mws);
 		dprintk("RPC:       %s: DMA unmapping frmr %p\n",
 			__func__, &mw->frmr);
 		ib_dma_unmap_sg(ia->ri_device,
@@ -549,7 +548,7 @@ reset_mrs:
 	/* Find and reset the MRs in the LOCAL_INV WRs that did not
 	 * get posted. This is synchronous, and slow.
 	 */
-	list_for_each_entry(mw, &req->rl_registered, mw_list) {
+	list_for_each_entry(mw, mws, mw_list) {
 		f = &mw->frmr;
 		if (mw->mw_handle == bad_wr->ex.invalidate_rkey) {
 			__frwr_reset_mr(ia, mw);
