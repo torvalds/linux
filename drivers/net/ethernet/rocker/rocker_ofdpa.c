@@ -1959,7 +1959,6 @@ static int ofdpa_port_fdb_learn(struct ofdpa_port *ofdpa_port,
 	u32 out_pport = ofdpa_port->pport;
 	u32 tunnel_id = 0;
 	u32 group_id = ROCKER_GROUP_NONE;
-	bool syncing = !!(ofdpa_port->brport_flags & BR_LEARNING_SYNC);
 	bool copy_to_cpu = false;
 	int err;
 
@@ -1973,9 +1972,6 @@ static int ofdpa_port_fdb_learn(struct ofdpa_port *ofdpa_port,
 		if (err)
 			return err;
 	}
-
-	if (!syncing)
-		return 0;
 
 	if (!ofdpa_port_is_bridged(ofdpa_port))
 		return 0;
@@ -2550,7 +2546,7 @@ static int ofdpa_port_pre_init(struct rocker_port *rocker_port)
 	ofdpa_port->rocker_port = rocker_port;
 	ofdpa_port->dev = rocker_port->dev;
 	ofdpa_port->pport = rocker_port->pport;
-	ofdpa_port->brport_flags = BR_LEARNING | BR_LEARNING_SYNC;
+	ofdpa_port->brport_flags = BR_LEARNING;
 	ofdpa_port->ageing_time = BR_DEFAULT_AGEING_TIME;
 	return 0;
 }
