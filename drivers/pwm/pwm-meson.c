@@ -103,6 +103,7 @@ struct meson_pwm_channel {
 
 struct meson_pwm_data {
 	const char * const *parent_names;
+	unsigned int num_parents;
 };
 
 struct meson_pwm {
@@ -381,6 +382,7 @@ static const char * const pwm_meson8b_parent_names[] = {
 
 static const struct meson_pwm_data pwm_meson8b_data = {
 	.parent_names = pwm_meson8b_parent_names,
+	.num_parents = ARRAY_SIZE(pwm_meson8b_parent_names),
 };
 
 static const char * const pwm_gxbb_parent_names[] = {
@@ -389,11 +391,35 @@ static const char * const pwm_gxbb_parent_names[] = {
 
 static const struct meson_pwm_data pwm_gxbb_data = {
 	.parent_names = pwm_gxbb_parent_names,
+	.num_parents = ARRAY_SIZE(pwm_gxbb_parent_names),
+};
+
+/*
+ * Only the 2 first inputs of the GXBB AO PWMs are valid
+ * The last 2 are grounded
+ */
+static const char * const pwm_gxbb_ao_parent_names[] = {
+	"xtal", "clk81"
+};
+
+static const struct meson_pwm_data pwm_gxbb_ao_data = {
+	.parent_names = pwm_gxbb_ao_parent_names,
+	.num_parents = ARRAY_SIZE(pwm_gxbb_ao_parent_names),
 };
 
 static const struct of_device_id meson_pwm_matches[] = {
-	{ .compatible = "amlogic,meson8b-pwm", .data = &pwm_meson8b_data },
-	{ .compatible = "amlogic,meson-gxbb-pwm", .data = &pwm_gxbb_data },
+	{
+		.compatible = "amlogic,meson8b-pwm",
+		.data = &pwm_meson8b_data
+	},
+	{
+		.compatible = "amlogic,meson-gxbb-pwm",
+		.data = &pwm_gxbb_data
+	},
+	{
+		.compatible = "amlogic,meson-gxbb-ao-pwm",
+		.data = &pwm_gxbb_ao_data
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, meson_pwm_matches);
@@ -417,7 +443,7 @@ static int meson_pwm_init_channels(struct meson_pwm *meson,
 		init.ops = &clk_mux_ops;
 		init.flags = CLK_IS_BASIC;
 		init.parent_names = meson->data->parent_names;
-		init.num_parents = 1 << MISC_CLK_SEL_WIDTH;
+		init.num_parents = meson->data->num_parents;
 
 		channel->mux.reg = meson->base + REG_MISC_AB;
 		channel->mux.shift = mux_reg_shifts[i];
