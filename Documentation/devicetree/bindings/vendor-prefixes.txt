@@ -219,6 +219,7 @@ nexbox	Nexbox
 newhaven	Newhaven Display International
 ni	National Instruments
 nintendo	Nintendo
+nlt	NLT Technologies, Ltd.
 nokia	Nokia
 nordic	Nordic Semiconductor
 nuvoton	Nuvoton Technology Corporation
