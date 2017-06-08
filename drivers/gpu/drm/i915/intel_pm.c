@@ -3373,19 +3373,25 @@ skl_plane_downscale_amount(const struct intel_crtc_state *cstate,
 
 	/* n.b., src is 16.16 fixed point, dst is whole integer */
 	if (plane->id == PLANE_CURSOR) {
+		/*
+		 * Cursors only support 0/180 degree rotation,
+		 * hence no need to account for rotation here.
+		 */
 		src_w = pstate->base.src_w;
 		src_h = pstate->base.src_h;
 		dst_w = pstate->base.crtc_w;
 		dst_h = pstate->base.crtc_h;
 	} else {
+		/*
+		 * Src coordinates are already rotated by 270 degrees for
+		 * the 90/270 degree plane rotation cases (to match the
+		 * GTT mapping), hence no need to account for rotation here.
+		 */
 		src_w = drm_rect_width(&pstate->base.src);
 		src_h = drm_rect_height(&pstate->base.src);
 		dst_w = drm_rect_width(&pstate->base.dst);
 		dst_h = drm_rect_height(&pstate->base.dst);
 	}
-
-	if (drm_rotation_90_or_270(pstate->base.rotation))
-		swap(dst_w, dst_h);
 
 	downscale_h = max(src_h / dst_h, (uint32_t)DRM_PLANE_HELPER_NO_SCALING);
 	downscale_w = max(src_w / dst_w, (uint32_t)DRM_PLANE_HELPER_NO_SCALING);
@@ -3417,11 +3423,13 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 	if (y && format != DRM_FORMAT_NV12)
 		return 0;
 
+	/*
+	 * Src coordinates are already rotated by 270 degrees for
+	 * the 90/270 degree plane rotation cases (to match the
+	 * GTT mapping), hence no need to account for rotation here.
+	 */
 	width = drm_rect_width(&intel_pstate->base.src) >> 16;
 	height = drm_rect_height(&intel_pstate->base.src) >> 16;
-
-	if (drm_rotation_90_or_270(pstate->rotation))
-		swap(width, height);
 
 	/* for planar format */
 	if (format == DRM_FORMAT_NV12) {
@@ -3505,11 +3513,13 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate,
 	    fb->modifier != I915_FORMAT_MOD_Yf_TILED)
 		return 8;
 
+	/*
+	 * Src coordinates are already rotated by 270 degrees for
+	 * the 90/270 degree plane rotation cases (to match the
+	 * GTT mapping), hence no need to account for rotation here.
+	 */
 	src_w = drm_rect_width(&intel_pstate->base.src) >> 16;
 	src_h = drm_rect_height(&intel_pstate->base.src) >> 16;
-
-	if (drm_rotation_90_or_270(pstate->rotation))
-		swap(src_w, src_h);
 
 	/* Halve UV plane width and height for NV12 */
 	if (fb->format->format == DRM_FORMAT_NV12 && !y) {
@@ -3794,12 +3804,14 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		width = intel_pstate->base.crtc_w;
 		height = intel_pstate->base.crtc_h;
 	} else {
+		/*
+		 * Src coordinates are already rotated by 270 degrees for
+		 * the 90/270 degree plane rotation cases (to match the
+		 * GTT mapping), hence no need to account for rotation here.
+		 */
 		width = drm_rect_width(&intel_pstate->base.src) >> 16;
 		height = drm_rect_height(&intel_pstate->base.src) >> 16;
 	}
-
-	if (drm_rotation_90_or_270(pstate->rotation))
-		swap(width, height);
 
 	cpp = fb->format->cpp[0];
 	plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate, intel_pstate);
