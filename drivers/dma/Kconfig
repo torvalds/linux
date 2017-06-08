@@ -354,7 +354,7 @@ config MV_XOR_V2
 
 config MXS_DMA
 	bool "MXS DMA support"
-	depends on SOC_IMX23 || SOC_IMX28 || SOC_IMX6Q || SOC_IMX6UL
+	depends on ARCH_MXS || ARCH_MXC || COMPILE_TEST
 	select STMP_DEVICE
 	select DMA_ENGINE
 	help
