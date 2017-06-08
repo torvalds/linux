@@ -1680,7 +1680,6 @@ static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)
 	return container_of(bdev, struct amdgpu_device, mman.bdev);
 }
 
-bool amdgpu_device_is_px(struct drm_device *dev);
 int amdgpu_device_init(struct amdgpu_device *adev,
 		       struct drm_device *ddev,
 		       struct pci_dev *pdev,
