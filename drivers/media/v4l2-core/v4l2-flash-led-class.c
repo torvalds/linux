@@ -18,7 +18,7 @@
 #include <media/v4l2-flash-led-class.h>
 
 #define has_flash_op(v4l2_flash, op)				\
-	(v4l2_flash && v4l2_flash->ops->op)
+	(v4l2_flash && v4l2_flash->ops && v4l2_flash->ops->op)
 
 #define call_flash_op(v4l2_flash, op, arg)			\
 		(has_flash_op(v4l2_flash, op) ?			\
@@ -299,7 +299,6 @@ static void __fill_ctrl_init_data(struct v4l2_flash *v4l2_flash,
 			  struct v4l2_flash_ctrl_data *ctrl_init_data)
 {
 	struct led_classdev_flash *fled_cdev = v4l2_flash->fled_cdev;
-	const struct led_flash_ops *fled_cdev_ops = fled_cdev->ops;
 	struct led_classdev *led_cdev = &fled_cdev->led_cdev;
 	struct v4l2_ctrl_config *ctrl_cfg;
 	u32 mask;
@@ -376,7 +375,7 @@ static void __fill_ctrl_init_data(struct v4l2_flash *v4l2_flash,
 	}
 
 	/* Init STROBE_STATUS ctrl data */
-	if (fled_cdev_ops->strobe_get) {
+	if (has_flash_op(fled_cdev, strobe_get)) {
 		ctrl_init_data[STROBE_STATUS].cid =
 					V4L2_CID_FLASH_STROBE_STATUS;
 		ctrl_cfg = &ctrl_init_data[STROBE_STATUS].config;
@@ -386,7 +385,7 @@ static void __fill_ctrl_init_data(struct v4l2_flash *v4l2_flash,
 	}
 
 	/* Init FLASH_TIMEOUT ctrl data */
-	if (fled_cdev_ops->timeout_set) {
+	if (has_flash_op(fled_cdev, timeout_set)) {
 		ctrl_init_data[FLASH_TIMEOUT].cid = V4L2_CID_FLASH_TIMEOUT;
 		ctrl_cfg = &ctrl_init_data[FLASH_TIMEOUT].config;
 		__lfs_to_v4l2_ctrl_config(&fled_cdev->timeout, ctrl_cfg);
@@ -394,7 +393,7 @@ static void __fill_ctrl_init_data(struct v4l2_flash *v4l2_flash,
 	}
 
 	/* Init FLASH_INTENSITY ctrl data */
-	if (fled_cdev_ops->flash_brightness_set) {
+	if (has_flash_op(fled_cdev, flash_brightness_set)) {
 		ctrl_init_data[FLASH_INTENSITY].cid = V4L2_CID_FLASH_INTENSITY;
 		ctrl_cfg = &ctrl_init_data[FLASH_INTENSITY].config;
 		__lfs_to_v4l2_ctrl_config(&fled_cdev->brightness, ctrl_cfg);
@@ -618,7 +617,7 @@ struct v4l2_flash *v4l2_flash_init(
 	struct v4l2_subdev *sd;
 	int ret;
 
-	if (!fled_cdev || !ops || !config)
+	if (!fled_cdev || !config)
 		return ERR_PTR(-EINVAL);
 
 	led_cdev = &fled_cdev->led_cdev;
