@@ -143,12 +143,6 @@ int lirc_register_device(struct lirc_dev *d)
 		return -EINVAL;
 	}
 
-	if (d->code_length < 1 || d->code_length > (BUFLEN * 8)) {
-		dev_err(&d->dev, "code length must be less than %d bits\n",
-			BUFLEN * 8);
-		return -EBADRQC;
-	}
-
 	if (!d->buf && !(d->fops && d->fops->read &&
 			 d->fops->poll && d->fops->unlocked_ioctl)) {
 		dev_err(&d->dev, "undefined read, poll, ioctl\n");
@@ -157,9 +151,6 @@ int lirc_register_device(struct lirc_dev *d)
 
 	/* some safety check 8-) */
 	d->name[sizeof(d->name) - 1] = '\0';
-
-	if (d->features == 0)
-		d->features = LIRC_CAN_REC_LIRCCODE;
 
 	if (LIRC_CAN_REC(d->features)) {
 		err = lirc_allocate_buffer(d);
@@ -348,9 +339,6 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		 * FIXME: We should actually set the mode somehow but
 		 * for now, lirc_serial doesn't support mode changing either
 		 */
-		break;
-	case LIRC_GET_LENGTH:
-		result = put_user(d->code_length, (__u32 __user *)arg);
 		break;
 	default:
 		result = -ENOTTY;

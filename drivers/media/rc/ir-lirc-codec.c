@@ -388,7 +388,6 @@ static int ir_lirc_register(struct rc_dev *dev)
 	ldev->features = features;
 	ldev->data = &dev->raw->lirc;
 	ldev->buf = NULL;
-	ldev->code_length = sizeof(struct ir_raw_event) * 8;
 	ldev->chunk_size = sizeof(int);
 	ldev->buffer_size = LIRCBUF_SIZE;
 	ldev->fops = &lirc_fops;
