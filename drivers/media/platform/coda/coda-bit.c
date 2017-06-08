@@ -393,8 +393,8 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 	int ret;
 	int i;
 
-	if (ctx->codec && (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
-	     ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264)) {
+	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
+	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264) {
 		width = round_up(q_data->width, 16);
 		height = round_up(q_data->height, 16);
 	} else {
