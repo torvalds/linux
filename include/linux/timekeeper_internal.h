@@ -29,7 +29,6 @@
  */
 struct tk_read_base {
 	struct clocksource	*clock;
-	u64			(*read)(struct clocksource *cs);
 	u64			mask;
 	u64			cycle_last;
 	u32			mult;
