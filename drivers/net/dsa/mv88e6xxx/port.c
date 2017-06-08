@@ -425,7 +425,7 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 }
 
 int mv88e6xxx_port_set_egress_mode(struct mv88e6xxx_chip *chip, int port,
-				   u16 mode)
+				   enum mv88e6xxx_egress_mode mode)
 {
 	int err;
 	u16 reg;
@@ -435,7 +435,23 @@ int mv88e6xxx_port_set_egress_mode(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	reg &= ~PORT_CONTROL_EGRESS_MASK;
-	reg |= mode;
+
+	switch (mode) {
+	case MV88E6XXX_EGRESS_MODE_UNMODIFIED:
+		reg |= PORT_CONTROL_EGRESS_UNMODIFIED;
+		break;
+	case MV88E6XXX_EGRESS_MODE_UNTAGGED:
+		reg |= PORT_CONTROL_EGRESS_UNTAGGED;
+		break;
+	case MV88E6XXX_EGRESS_MODE_TAGGED:
+		reg |= PORT_CONTROL_EGRESS_TAGGED;
+		break;
+	case MV88E6XXX_EGRESS_MODE_ETHERTYPE:
+		reg |= PORT_CONTROL_EGRESS_ADD_TAG;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
 }

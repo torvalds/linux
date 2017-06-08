@@ -1722,8 +1722,8 @@ static int mv88e6xxx_switch_reset(struct mv88e6xxx_chip *chip)
 }
 
 static int mv88e6xxx_set_port_mode(struct mv88e6xxx_chip *chip, int port,
-				   enum mv88e6xxx_frame_mode frame, u16 egress,
-				   u16 etype)
+				   enum mv88e6xxx_frame_mode frame,
+				   enum mv88e6xxx_egress_mode egress, u16 etype)
 {
 	int err;
 
@@ -1747,14 +1747,14 @@ static int mv88e6xxx_set_port_mode(struct mv88e6xxx_chip *chip, int port,
 static int mv88e6xxx_set_port_mode_normal(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_set_port_mode(chip, port, MV88E6XXX_FRAME_MODE_NORMAL,
-				       PORT_CONTROL_EGRESS_UNMODIFIED,
+				       MV88E6XXX_EGRESS_MODE_UNMODIFIED,
 				       PORT_ETH_TYPE_DEFAULT);
 }
 
 static int mv88e6xxx_set_port_mode_dsa(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_set_port_mode(chip, port, MV88E6XXX_FRAME_MODE_DSA,
-				       PORT_CONTROL_EGRESS_UNMODIFIED,
+				       MV88E6XXX_EGRESS_MODE_UNMODIFIED,
 				       PORT_ETH_TYPE_DEFAULT);
 }
 
@@ -1762,7 +1762,8 @@ static int mv88e6xxx_set_port_mode_edsa(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_set_port_mode(chip, port,
 				       MV88E6XXX_FRAME_MODE_ETHERTYPE,
-				       PORT_CONTROL_EGRESS_ADD_TAG, ETH_P_EDSA);
+				       MV88E6XXX_EGRESS_MODE_ETHERTYPE,
+				       ETH_P_EDSA);
 }
 
 static int mv88e6xxx_setup_port_mode(struct mv88e6xxx_chip *chip, int port)
