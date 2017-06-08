@@ -169,7 +169,8 @@ struct net_bridge_fdb_entry {
 	unsigned char			is_local:1,
 					is_static:1,
 					added_by_user:1,
-					added_by_external_learn:1;
+					added_by_external_learn:1,
+					offloaded:1;
 
 	/* write-heavy members should not affect lookups */
 	unsigned long			updated ____cacheline_aligned_in_smp;
@@ -282,6 +283,12 @@ static inline struct net_bridge_port *br_port_get_rtnl(const struct net_device *
 {
 	return br_port_exists(dev) ?
 		rtnl_dereference(dev->rx_handler_data) : NULL;
+}
+
+static inline struct net_bridge_port *br_port_get_rtnl_rcu(const struct net_device *dev)
+{
+	return br_port_exists(dev) ?
+		rcu_dereference_rtnl(dev->rx_handler_data) : NULL;
 }
 
 struct net_bridge {
@@ -530,6 +537,8 @@ int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid);
 int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid);
+void br_fdb_offloaded_set(struct net_bridge *br, struct net_bridge_port *p,
+			  const unsigned char *addr, u16 vid);
 
 /* br_forward.c */
 enum br_pkt_type {
@@ -1076,6 +1085,11 @@ void nbp_switchdev_frame_mark(const struct net_bridge_port *p,
 			      struct sk_buff *skb);
 bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
 				  const struct sk_buff *skb);
+int br_switchdev_set_port_flag(struct net_bridge_port *p,
+			       unsigned long flags,
+			       unsigned long mask);
+void br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb,
+			     int type);
 #else
 static inline int nbp_switchdev_mark_set(struct net_bridge_port *p)
 {
@@ -1091,6 +1105,18 @@ static inline bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
 						const struct sk_buff *skb)
 {
 	return true;
+}
+
+static inline int br_switchdev_set_port_flag(struct net_bridge_port *p,
+					     unsigned long flags,
+					     unsigned long mask)
+{
+	return 0;
+}
+
+static inline void
+br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
+{
 }
 #endif /* CONFIG_NET_SWITCHDEV */
 
