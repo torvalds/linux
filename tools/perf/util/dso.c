@@ -412,8 +412,10 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 		return -EINVAL;
 	}
 
-	if (!is_regular_file(name))
+	if (!is_regular_file(name)) {
+		free(name);
 		return -EINVAL;
+	}
 
 	fd = do_open(name);
 	free(name);
