@@ -1867,7 +1867,7 @@ static void mlxsw_sp_fdb_call_notifiers(bool learning_sync, bool adding,
 	if (learning_sync) {
 		info.addr = mac;
 		info.vid = vid;
-		notifier_type = adding ? SWITCHDEV_FDB_ADD : SWITCHDEV_FDB_DEL;
+		notifier_type = adding ? SWITCHDEV_FDB_ADD_TO_BRIDGE : SWITCHDEV_FDB_DEL_TO_BRIDGE;
 		call_switchdev_notifiers(notifier_type, dev, &info.info);
 	}
 }

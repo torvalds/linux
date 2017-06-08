@@ -690,6 +690,8 @@ static void fdb_notify(struct net_bridge *br,
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
+	br_switchdev_fdb_notify(fdb, type);
+
 	skb = nlmsg_new(fdb_nlmsg_size(), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;

@@ -1085,6 +1085,8 @@ bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
 int br_switchdev_set_port_flag(struct net_bridge_port *p,
 			       unsigned long flags,
 			       unsigned long mask);
+void br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb,
+			     int type);
 #else
 static inline int nbp_switchdev_mark_set(struct net_bridge_port *p)
 {
@@ -1107,6 +1109,11 @@ static inline int br_switchdev_set_port_flag(struct net_bridge_port *p,
 					     unsigned long mask)
 {
 	return 0;
+}
+
+static inline void
+br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
+{
 }
 #endif /* CONFIG_NET_SWITCHDEV */
 

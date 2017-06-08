@@ -155,8 +155,10 @@ struct switchdev_ops {
 };
 
 enum switchdev_notifier_type {
-	SWITCHDEV_FDB_ADD = 1,
-	SWITCHDEV_FDB_DEL,
+	SWITCHDEV_FDB_ADD_TO_BRIDGE = 1,
+	SWITCHDEV_FDB_DEL_TO_BRIDGE,
+	SWITCHDEV_FDB_ADD_TO_DEVICE,
+	SWITCHDEV_FDB_DEL_TO_DEVICE,
 };
 
 struct switchdev_notifier_info {
