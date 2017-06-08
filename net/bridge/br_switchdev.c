@@ -55,3 +55,46 @@ bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
 	return !skb->offload_fwd_mark ||
 	       BR_INPUT_SKB_CB(skb)->offload_fwd_mark != p->offload_fwd_mark;
 }
+
+/* Flags that can be offloaded to hardware */
+#define BR_PORT_FLAGS_HW_OFFLOAD (BR_LEARNING | BR_FLOOD | \
+				  BR_MCAST_FLOOD | BR_BCAST_FLOOD)
+
+int br_switchdev_set_port_flag(struct net_bridge_port *p,
+			       unsigned long flags,
+			       unsigned long mask)
+{
+	struct switchdev_attr attr = {
+		.orig_dev = p->dev,
+		.id = SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS_SUPPORT,
+	};
+	int err;
+
+	if (mask & ~BR_PORT_FLAGS_HW_OFFLOAD)
+		return 0;
+
+	err = switchdev_port_attr_get(p->dev, &attr);
+	if (err == -EOPNOTSUPP)
+		return 0;
+	if (err)
+		return err;
+
+	/* Check if specific bridge flag attribute offload is supported */
+	if (!(attr.u.brport_flags_support & mask)) {
+		br_warn(p->br, "bridge flag offload is not supported %u(%s)\n",
+			(unsigned int)p->port_no, p->dev->name);
+		return -EOPNOTSUPP;
+	}
+
+	attr.id = SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS;
+	attr.flags = SWITCHDEV_F_DEFER;
+	attr.u.brport_flags = flags;
+	err = switchdev_port_attr_set(p->dev, &attr);
+	if (err) {
+		br_warn(p->br, "error setting offload flag on port %u(%s)\n",
+			(unsigned int)p->port_no, p->dev->name);
+		return err;
+	}
+
+	return 0;
+}

@@ -1076,6 +1076,9 @@ void nbp_switchdev_frame_mark(const struct net_bridge_port *p,
 			      struct sk_buff *skb);
 bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
 				  const struct sk_buff *skb);
+int br_switchdev_set_port_flag(struct net_bridge_port *p,
+			       unsigned long flags,
+			       unsigned long mask);
 #else
 static inline int nbp_switchdev_mark_set(struct net_bridge_port *p)
 {
@@ -1091,6 +1094,13 @@ static inline bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
 						const struct sk_buff *skb)
 {
 	return true;
+}
+
+static inline int br_switchdev_set_port_flag(struct net_bridge_port *p,
+					     unsigned long flags,
+					     unsigned long mask)
+{
+	return 0;
 }
 #endif /* CONFIG_NET_SWITCHDEV */
 
