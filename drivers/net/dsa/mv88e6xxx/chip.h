@@ -456,8 +456,8 @@ struct mv88e6xxx_ops {
 	void (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
 	void (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
 				uint64_t *data);
-	int (*g1_set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
-	int (*g1_set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+	int (*set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
+	int (*set_egress_port)(struct mv88e6xxx_chip *chip, int port);
 	const struct mv88e6xxx_irq_ops *watchdog_ops;
 
 	/* Can be either in g1 or g2, so don't use a prefix */
