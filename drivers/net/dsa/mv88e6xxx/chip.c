@@ -915,28 +915,10 @@ static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 					 u8 state)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	int stp_state;
 	int err;
 
-	switch (state) {
-	case BR_STATE_DISABLED:
-		stp_state = PORT_CONTROL_STATE_DISABLED;
-		break;
-	case BR_STATE_BLOCKING:
-	case BR_STATE_LISTENING:
-		stp_state = PORT_CONTROL_STATE_BLOCKING;
-		break;
-	case BR_STATE_LEARNING:
-		stp_state = PORT_CONTROL_STATE_LEARNING;
-		break;
-	case BR_STATE_FORWARDING:
-	default:
-		stp_state = PORT_CONTROL_STATE_FORWARDING;
-		break;
-	}
-
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_port_set_state(chip, port, stp_state);
+	err = mv88e6xxx_port_set_state(chip, port, state);
 	mutex_unlock(&chip->reg_lock);
 
 	if (err)
@@ -1694,8 +1676,7 @@ static int mv88e6xxx_disable_ports(struct mv88e6xxx_chip *chip)
 
 	/* Set all ports to the Disabled state */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
-		err = mv88e6xxx_port_set_state(chip, i,
-					       PORT_CONTROL_STATE_DISABLED);
+		err = mv88e6xxx_port_set_state(chip, i, BR_STATE_DISABLED);
 		if (err)
 			return err;
 	}

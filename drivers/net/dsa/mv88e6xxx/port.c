@@ -12,6 +12,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/if_bridge.h>
 #include <linux/phy.h>
 
 #include "chip.h"
@@ -412,6 +413,25 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 		return err;
 
 	reg &= ~PORT_CONTROL_STATE_MASK;
+
+	switch (state) {
+	case BR_STATE_DISABLED:
+		state = PORT_CONTROL_STATE_DISABLED;
+		break;
+	case BR_STATE_BLOCKING:
+	case BR_STATE_LISTENING:
+		state = PORT_CONTROL_STATE_BLOCKING;
+		break;
+	case BR_STATE_LEARNING:
+		state = PORT_CONTROL_STATE_LEARNING;
+		break;
+	case BR_STATE_FORWARDING:
+		state = PORT_CONTROL_STATE_FORWARDING;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	reg |= state;
 
 	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
