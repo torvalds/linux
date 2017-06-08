@@ -1571,6 +1571,10 @@ static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
 	u16 sid, qdep;
 	unsigned long flags;
 	struct device_domain_info *info;
+	
+	/* device has already been flushed/unmapped? */
+	if (WARN_ON(!domain))
+		return;
 
 	if (!domain->has_iotlb_device)
 		return;
