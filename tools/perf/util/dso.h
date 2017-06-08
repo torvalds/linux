@@ -244,6 +244,12 @@ bool is_supported_compression(const char *ext);
 bool is_kernel_module(const char *pathname, int cpumode);
 bool decompress_to_file(const char *ext, const char *filename, int output_fd);
 bool dso__needs_decompress(struct dso *dso);
+int dso__decompress_kmodule_fd(struct dso *dso, const char *name);
+int dso__decompress_kmodule_path(struct dso *dso, const char *name,
+				 char *pathname, size_t len);
+
+#define KMOD_DECOMP_NAME  "/tmp/perf-kmod-XXXXXX"
+#define KMOD_DECOMP_LEN   sizeof(KMOD_DECOMP_NAME)
 
 struct kmod_path {
 	char *name;
