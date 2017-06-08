@@ -2058,8 +2058,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	amdgpu_check_arguments(adev);
 
-	/* Registers mapping */
-	/* TODO: block userspace mapping of io register */
 	spin_lock_init(&adev->mmio_idx_lock);
 	spin_lock_init(&adev->smc_idx_lock);
 	spin_lock_init(&adev->pcie_idx_lock);
@@ -2080,6 +2078,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	INIT_DELAYED_WORK(&adev->late_init_work, amdgpu_late_init_func_handler);
 
+	/* Registers mapping */
+	/* TODO: block userspace mapping of io register */
 	if (adev->asic_type >= CHIP_BONAIRE) {
 		adev->rmmio_base = pci_resource_start(adev->pdev, 5);
 		adev->rmmio_size = pci_resource_len(adev->pdev, 5);
