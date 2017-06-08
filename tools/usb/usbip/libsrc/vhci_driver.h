@@ -11,6 +11,7 @@
 #include "usbip_common.h"
 
 #define USBIP_VHCI_BUS_TYPE "platform"
+#define USBIP_VHCI_DEVICE_NAME "vhci_hcd.0"
 #define MAXNPORT 128
 
 struct usbip_imported_device {

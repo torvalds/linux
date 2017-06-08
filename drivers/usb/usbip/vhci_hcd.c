@@ -1178,24 +1178,6 @@ static struct platform_driver vhci_driver = {
 	},
 };
 
-static int add_platform_device(int id)
-{
-	struct platform_device *pdev;
-	int dev_nr;
-
-	if (id == 0)
-		dev_nr = -1;
-	else
-		dev_nr = id;
-
-	pdev = platform_device_register_simple(driver_name, dev_nr, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	vhcis[id].pdev = pdev;
-	return 0;
-}
-
 static void del_platform_devices(void)
 {
 	struct platform_device *pdev;
@@ -1224,23 +1206,46 @@ static int __init vhci_hcd_init(void)
 	if (vhcis == NULL)
 		return -ENOMEM;
 
+	for (i = 0; i < vhci_num_controllers; i++) {
+		vhcis[i].pdev = platform_device_alloc(driver_name, i);
+		if (!vhcis[i].pdev) {
+			i--;
+			while (i >= 0)
+				platform_device_put(vhcis[i--].pdev);
+			ret = -ENOMEM;
+			goto err_device_alloc;
+		}
+	}
+	for (i = 0; i < vhci_num_controllers; i++) {
+		void *vhci = &vhcis[i];
+		ret = platform_device_add_data(vhcis[i].pdev, &vhci, sizeof(void *));
+		if (ret)
+			goto err_driver_register;
+	}
+
 	ret = platform_driver_register(&vhci_driver);
 	if (ret)
 		goto err_driver_register;
 
 	for (i = 0; i < vhci_num_controllers; i++) {
-		ret = add_platform_device(i);
-		if (ret)
-			goto err_platform_device_register;
+		ret = platform_device_add(vhcis[i].pdev);
+		if (ret < 0) {
+			i--;
+			while (i >= 0)
+				platform_device_del(vhcis[i--].pdev);
+			goto err_add_hcd;
+		}
 	}
 
 	pr_info(DRIVER_DESC " v" USBIP_VERSION "\n");
 	return ret;
 
-err_platform_device_register:
-	del_platform_devices();
+err_add_hcd:
 	platform_driver_unregister(&vhci_driver);
 err_driver_register:
+	for (i = 0; i < vhci_num_controllers; i++)
+		platform_device_put(vhcis[i].pdev);
+err_device_alloc:
 	kfree(vhcis);
 	return ret;
 }

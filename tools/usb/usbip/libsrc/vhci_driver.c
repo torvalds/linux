@@ -248,7 +248,7 @@ int usbip_vhci_driver_open(void)
 	vhci_driver->hc_device =
 		udev_device_new_from_subsystem_sysname(udev_context,
 						       USBIP_VHCI_BUS_TYPE,
-						       USBIP_VHCI_DRV_NAME);
+						       USBIP_VHCI_DEVICE_NAME);
 	if (!vhci_driver->hc_device) {
 		err("udev_device_new_from_subsystem_sysname failed");
 		goto err;
