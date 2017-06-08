@@ -80,12 +80,6 @@ static int bcm_ns_usb3_phy_init_ns_bx(struct bcm_ns_usb3 *usb3)
 {
 	int err;
 
-	/* Enable MDIO. Setting MDCDIV as 26  */
-	writel(0x0000009a, usb3->ccb_mii + BCMA_CCB_MII_MNG_CTL);
-
-	/* Wait for MDIO? */
-	udelay(2);
-
 	/* USB3 PLL Block */
 	err = bcm_ns_usb3_mdio_phy_write(usb3, BCM_NS_USB3_PHY_BASE_ADDR_REG,
 					 BCM_NS_USB3_PHY_PLL30_BLOCK);
@@ -133,12 +127,6 @@ static int bcm_ns_usb3_phy_init_ns_bx(struct bcm_ns_usb3 *usb3)
 static int bcm_ns_usb3_phy_init_ns_ax(struct bcm_ns_usb3 *usb3)
 {
 	int err;
-
-	/* Enable MDIO. Setting MDCDIV as 26  */
-	writel(0x0000009a, usb3->ccb_mii + BCMA_CCB_MII_MNG_CTL);
-
-	/* Wait for MDIO? */
-	udelay(2);
 
 	/* PLL30 block */
 	err = bcm_ns_usb3_mdio_phy_write(usb3, BCM_NS_USB3_PHY_BASE_ADDR_REG,
@@ -277,6 +265,12 @@ static int bcm_ns_usb3_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to map ChipCommon B MII regs\n");
 		return PTR_ERR(usb3->ccb_mii);
 	}
+
+	/* Enable MDIO. Setting MDCDIV as 26  */
+	writel(0x0000009a, usb3->ccb_mii + BCMA_CCB_MII_MNG_CTL);
+
+	/* Wait for MDIO? */
+	udelay(2);
 
 	usb3->phy_write = bcm_ns_usb3_platform_phy_write;
 
