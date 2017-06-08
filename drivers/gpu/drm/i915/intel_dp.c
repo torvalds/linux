@@ -334,19 +334,20 @@ static int intel_dp_common_len_rate_limit(struct intel_dp *intel_dp,
 	return 0;
 }
 
-static bool intel_dp_link_params_valid(struct intel_dp *intel_dp)
+static bool intel_dp_link_params_valid(struct intel_dp *intel_dp, int link_rate,
+				       uint8_t lane_count)
 {
 	/*
 	 * FIXME: we need to synchronize the current link parameters with
 	 * hardware readout. Currently fast link training doesn't work on
 	 * boot-up.
 	 */
-	if (intel_dp->link_rate == 0 ||
-	    intel_dp->link_rate > intel_dp->max_link_rate)
+	if (link_rate == 0 ||
+	    link_rate > intel_dp->max_link_rate)
 		return false;
 
-	if (intel_dp->lane_count == 0 ||
-	    intel_dp->lane_count > intel_dp_max_lane_count(intel_dp))
+	if (lane_count == 0 ||
+	    lane_count > intel_dp_max_lane_count(intel_dp))
 		return false;
 
 	return true;
@@ -4275,7 +4276,8 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	 * Validate the cached values of intel_dp->link_rate and
 	 * intel_dp->lane_count before attempting to retrain.
 	 */
-	if (!intel_dp_link_params_valid(intel_dp))
+	if (!intel_dp_link_params_valid(intel_dp, intel_dp->link_rate,
+					intel_dp->lane_count))
 		return;
 
 	/* Retrain if Channel EQ or CR not ok */
