@@ -1690,12 +1690,18 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
 		int index;
 
-		index = intel_dp_rate_index(intel_dp->common_rates,
-					    intel_dp->num_common_rates,
-					    intel_dp->compliance.test_link_rate);
-		if (index >= 0)
-			min_clock = max_clock = index;
-		min_lane_count = max_lane_count = intel_dp->compliance.test_lane_count;
+		/* Validate the compliance test data since max values
+		 * might have changed due to link train fallback.
+		 */
+		if (intel_dp_link_params_valid(intel_dp, intel_dp->compliance.test_link_rate,
+					       intel_dp->compliance.test_lane_count)) {
+			index = intel_dp_rate_index(intel_dp->common_rates,
+						    intel_dp->num_common_rates,
+						    intel_dp->compliance.test_link_rate);
+			if (index >= 0)
+				min_clock = max_clock = index;
+			min_lane_count = max_lane_count = intel_dp->compliance.test_lane_count;
+		}
 	}
 	DRM_DEBUG_KMS("DP link computation with max lane count %i "
 		      "max bw %d pixel clock %iKHz\n",
@@ -3976,8 +3982,7 @@ intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 static uint8_t intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 {
 	int status = 0;
-	int min_lane_count = 1;
-	int link_rate_index, test_link_rate;
+	int test_link_rate;
 	uint8_t test_lane_count, test_link_bw;
 	/* (DP CTS 1.2)
 	 * 4.3.1.11
@@ -3991,10 +3996,6 @@ static uint8_t intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 		return DP_TEST_NAK;
 	}
 	test_lane_count &= DP_MAX_LANE_COUNT_MASK;
-	/* Validate the requested lane count */
-	if (test_lane_count < min_lane_count ||
-	    test_lane_count > intel_dp->max_link_lane_count)
-		return DP_TEST_NAK;
 
 	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_LINK_RATE,
 				   &test_link_bw);
@@ -4002,12 +4003,11 @@ static uint8_t intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 		DRM_DEBUG_KMS("Link Rate read failed\n");
 		return DP_TEST_NAK;
 	}
-	/* Validate the requested link rate */
 	test_link_rate = drm_dp_bw_code_to_link_rate(test_link_bw);
-	link_rate_index = intel_dp_rate_index(intel_dp->common_rates,
-					      intel_dp->num_common_rates,
-					      test_link_rate);
-	if (link_rate_index < 0)
+
+	/* Validate the requested link rate and lane count */
+	if (!intel_dp_link_params_valid(intel_dp, test_link_rate,
+					test_lane_count))
 		return DP_TEST_NAK;
 
 	intel_dp->compliance.test_lane_count = test_lane_count;
