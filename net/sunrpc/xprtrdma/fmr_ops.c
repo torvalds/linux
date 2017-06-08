@@ -91,7 +91,7 @@ __fmr_unmap(struct rpcrdma_mw *mw)
 
 	list_add(&mw->fmr.fm_mr->list, &l);
 	rc = ib_unmap_fmr(&l);
-	list_del_init(&mw->fmr.fm_mr->list);
+	list_del(&mw->fmr.fm_mr->list);
 	return rc;
 }
 
@@ -261,7 +261,7 @@ out_maperr:
 static void
 fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mws)
 {
-	struct rpcrdma_mw *mw, *tmp;
+	struct rpcrdma_mw *mw;
 	LIST_HEAD(unmap_list);
 	int rc;
 
@@ -283,9 +283,11 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mws)
 	/* ORDER: Now DMA unmap all of the req's MRs, and return
 	 * them to the free MW list.
 	 */
-	list_for_each_entry_safe(mw, tmp, mws, mw_list) {
-		list_del_init(&mw->mw_list);
-		list_del_init(&mw->fmr.fm_mr->list);
+	while (!list_empty(mws)) {
+		mw = rpcrdma_pop_mw(mws);
+		dprintk("RPC:       %s: DMA unmapping fmr %p\n",
+			__func__, &mw->fmr);
+		list_del(&mw->fmr.fm_mr->list);
 		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
 				mw->mw_sg, mw->mw_nents, mw->mw_dir);
 		rpcrdma_put_mw(r_xprt, mw);
@@ -296,9 +298,9 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mws)
 out_reset:
 	pr_err("rpcrdma: ib_unmap_fmr failed (%i)\n", rc);
 
-	list_for_each_entry_safe(mw, tmp, mws, mw_list) {
-		list_del_init(&mw->mw_list);
-		list_del_init(&mw->fmr.fm_mr->list);
+	while (!list_empty(mws)) {
+		mw = rpcrdma_pop_mw(mws);
+		list_del(&mw->fmr.fm_mr->list);
 		fmr_op_recover_mr(mw);
 	}
 }
