@@ -2079,9 +2079,9 @@ int dquot_get_next_id(struct super_block *sb, struct kqid *qid)
 		return -ESRCH;
 	if (!dqopt->ops[qid->type]->get_next_id)
 		return -ENOSYS;
-	down_write(&dqopt->dqio_sem);
+	down_read(&dqopt->dqio_sem);
 	err = dqopt->ops[qid->type]->get_next_id(sb, qid);
-	up_write(&dqopt->dqio_sem);
+	up_read(&dqopt->dqio_sem);
 	return err;
 }
 EXPORT_SYMBOL(dquot_get_next_id);
