@@ -422,7 +422,8 @@ struct mv88e6xxx_ops {
 				      bool unicast, bool multicast);
 	int (*port_set_ether_type)(struct mv88e6xxx_chip *chip, int port,
 				   u16 etype);
-	int (*port_jumbo_config)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_set_jumbo_size)(struct mv88e6xxx_chip *chip, int port,
+				   size_t size);
 
 	int (*port_egress_rate_limiting)(struct mv88e6xxx_chip *chip, int port);
 	int (*port_pause_limit)(struct mv88e6xxx_chip *chip, int port, u8 in,

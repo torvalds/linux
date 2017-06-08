@@ -816,7 +816,8 @@ int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port)
 	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
 }
 
-int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port)
+int mv88e6165_port_set_jumbo_size(struct mv88e6xxx_chip *chip, int port,
+				  size_t size)
 {
 	u16 reg;
 	int err;
@@ -825,7 +826,16 @@ int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	reg |= PORT_CONTROL_2_JUMBO_10240;
+	reg &= ~PORT_CONTROL_2_JUMBO_MASK;
+
+	if (size <= 1522)
+		reg |= PORT_CONTROL_2_JUMBO_1522;
+	else if (size <= 2048)
+		reg |= PORT_CONTROL_2_JUMBO_2048;
+	else if (size <= 10240)
+		reg |= PORT_CONTROL_2_JUMBO_10240;
+	else
+		return -ERANGE;
 
 	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
 }

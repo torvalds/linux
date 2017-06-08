@@ -133,6 +133,7 @@
 #define PORT_CONTROL_2_VTU_PRI_OVERRIDE	BIT(14)
 #define PORT_CONTROL_2_SA_PRIO_OVERRIDE	BIT(13)
 #define PORT_CONTROL_2_DA_PRIO_OVERRIDE	BIT(12)
+#define PORT_CONTROL_2_JUMBO_MASK	(0x03 << 12)
 #define PORT_CONTROL_2_JUMBO_1522	(0x00 << 12)
 #define PORT_CONTROL_2_JUMBO_2048	(0x01 << 12)
 #define PORT_CONTROL_2_JUMBO_10240	(0x02 << 12)
@@ -225,7 +226,8 @@ int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
 				  u16 etype);
 int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,
 				    bool message_port);
-int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port);
+int mv88e6165_port_set_jumbo_size(struct mv88e6xxx_chip *chip, int port,
+				  size_t size);
 int mv88e6095_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port);
 int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port);
 int mv88e6097_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
