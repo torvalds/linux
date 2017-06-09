@@ -150,6 +150,8 @@ struct qedr_dev {
 	u32			dp_module;
 	u8			dp_level;
 	u8			num_hwfns;
+	u8			gsi_ll2_handle;
+
 	uint			wq_multiplier;
 	u8			gsi_ll2_mac_address[ETH_ALEN];
 	int			gsi_qp_created;

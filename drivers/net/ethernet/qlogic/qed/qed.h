@@ -552,7 +552,6 @@ struct qed_hwfn {
 #endif
 
 	struct z_stream_s		*stream;
-	struct qed_roce_ll2_info	*ll2;
 };
 
 struct pci_params {
