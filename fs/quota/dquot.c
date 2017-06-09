@@ -389,7 +389,9 @@ static inline int clear_dquot_dirty(struct dquot *dquot)
 
 void mark_info_dirty(struct super_block *sb, int type)
 {
-	set_bit(DQF_INFO_DIRTY_B, &sb_dqopt(sb)->info[type].dqi_flags);
+	spin_lock(&dq_data_lock);
+	sb_dqopt(sb)->info[type].dqi_flags |= DQF_INFO_DIRTY;
+	spin_unlock(&dq_data_lock);
 }
 EXPORT_SYMBOL(mark_info_dirty);
 
@@ -2316,8 +2318,11 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 	error = dqopt->ops[type]->read_file_info(sb, type);
 	if (error < 0)
 		goto out_file_init;
-	if (dqopt->flags & DQUOT_QUOTA_SYS_FILE)
+	if (dqopt->flags & DQUOT_QUOTA_SYS_FILE) {
+		spin_lock(&dq_data_lock);
 		dqopt->info[type].dqi_flags |= DQF_SYS_FILE;
+		spin_unlock(&dq_data_lock);
+	}
 	spin_lock(&dq_state_lock);
 	dqopt->flags |= dquot_state_flag(flags, type);
 	spin_unlock(&dq_state_lock);
