@@ -700,6 +700,13 @@ static void lio_set_msglevel(struct net_device *netdev, u32 msglvl)
 	lio->msg_enable = msglvl;
 }
 
+static void lio_vf_set_msglevel(struct net_device *netdev, u32 msglvl)
+{
+	struct lio *lio = GET_LIO(netdev);
+
+	lio->msg_enable = msglvl;
+}
+
 static void
 lio_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 {
@@ -2611,7 +2618,7 @@ static const struct ethtool_ops lio_vf_ethtool_ops = {
 	.get_regs_len		= lio_get_regs_len,
 	.get_regs		= lio_get_regs,
 	.get_msglevel		= lio_get_msglevel,
-	.set_msglevel		= lio_set_msglevel,
+	.set_msglevel		= lio_vf_set_msglevel,
 	.get_sset_count		= lio_vf_get_sset_count,
 	.get_coalesce		= lio_get_intr_coalesce,
 	.set_coalesce		= lio_set_intr_coalesce,
