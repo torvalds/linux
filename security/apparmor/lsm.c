@@ -417,6 +417,10 @@ static int common_file_perm(const char *op, struct file *file, u32 mask)
 	struct aa_profile *profile, *fprofile;
 	int error = 0;
 
+	/* don't reaudit files closed during inheritance */
+	if (file->f_path.dentry == aa_null.dentry)
+		return -EACCES;
+
 	fprofile = aa_cred_raw_profile(file->f_cred);
 	AA_BUG(!fprofile);
 
@@ -599,6 +603,8 @@ static void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
 	if ((new_ctx->profile == profile) ||
 	    (unconfined(new_ctx->profile)))
 		return;
+
+	aa_inherit_files(bprm->cred, current->files);
 
 	current->pdeath_signal = 0;
 

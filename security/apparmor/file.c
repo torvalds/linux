@@ -12,8 +12,13 @@
  * License.
  */
 
+#include <linux/tty.h>
+#include <linux/fdtable.h>
+#include <linux/file.h>
+
 #include "include/apparmor.h"
 #include "include/audit.h"
+#include "include/context.h"
 #include "include/file.h"
 #include "include/match.h"
 #include "include/path.h"
@@ -444,4 +449,71 @@ int aa_file_perm(const char *op, struct aa_profile *profile, struct file *file,
 
 	return aa_path_perm(op, profile, &file->f_path, PATH_DELEGATE_DELETED,
 			    request, &cond);
+}
+
+static void revalidate_tty(struct aa_profile *profile)
+{
+	struct tty_struct *tty;
+	int drop_tty = 0;
+
+	tty = get_current_tty();
+	if (!tty)
+		return;
+
+	spin_lock(&tty->files_lock);
+	if (!list_empty(&tty->tty_files)) {
+		struct tty_file_private *file_priv;
+		struct file *file;
+		/* TODO: Revalidate access to controlling tty. */
+		file_priv = list_first_entry(&tty->tty_files,
+					     struct tty_file_private, list);
+		file = file_priv->file;
+
+		if (aa_file_perm(OP_INHERIT, profile, file,
+				 MAY_READ | MAY_WRITE))
+			drop_tty = 1;
+	}
+	spin_unlock(&tty->files_lock);
+	tty_kref_put(tty);
+
+	if (drop_tty)
+		no_tty();
+}
+
+static int match_file(const void *p, struct file *file, unsigned int fd)
+{
+	struct aa_profile *profile = (struct aa_profile *)p;
+
+	if (aa_file_perm(OP_INHERIT, profile, file,
+			 aa_map_file_to_perms(file)))
+		return fd + 1;
+	return 0;
+}
+
+
+/* based on selinux's flush_unauthorized_files */
+void aa_inherit_files(const struct cred *cred, struct files_struct *files)
+{
+	struct aa_profile *profile = aa_get_newest_cred_profile(cred);
+	struct file *devnull = NULL;
+	unsigned int n;
+
+	revalidate_tty(profile);
+
+	/* Revalidate access to inherited open files. */
+	n = iterate_fd(files, 0, match_file, profile);
+	if (!n) /* none found? */
+		goto out;
+
+	devnull = dentry_open(&aa_null, O_RDWR, cred);
+	if (IS_ERR(devnull))
+		devnull = NULL;
+	/* replace all the matching ones with this */
+	do {
+		replace_fd(n - 1, devnull, 0);
+	} while ((n = iterate_fd(files, n, match_file, profile)) != 0);
+	if (devnull)
+		fput(devnull);
+out:
+	aa_put_profile(profile);
 }

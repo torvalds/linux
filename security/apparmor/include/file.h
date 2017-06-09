@@ -186,6 +186,8 @@ int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
 int aa_file_perm(const char *op, struct aa_profile *profile, struct file *file,
 		 u32 request);
 
+void aa_inherit_files(const struct cred *cred, struct files_struct *files);
+
 static inline void aa_free_file_rules(struct aa_file_rules *rules)
 {
 	aa_put_dfa(rules->dfa);

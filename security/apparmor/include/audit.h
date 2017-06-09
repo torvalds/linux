@@ -69,6 +69,7 @@ enum audit_type {
 #define OP_FLOCK "file_lock"
 #define OP_FMMAP "file_mmap"
 #define OP_FMPROT "file_mprotect"
+#define OP_INHERIT "file_inherit"
 
 #define OP_CREATE "create"
 #define OP_POST_CREATE "post_create"
