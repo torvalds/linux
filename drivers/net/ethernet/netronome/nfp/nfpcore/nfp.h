@@ -46,7 +46,9 @@
 
 /* Implemented in nfp_hwinfo.c */
 
-const char *nfp_hwinfo_lookup(struct nfp_cpp *cpp, const char *lookup);
+struct nfp_hwinfo;
+struct nfp_hwinfo *nfp_hwinfo_read(struct nfp_cpp *cpp);
+const char *nfp_hwinfo_lookup(struct nfp_hwinfo *hwinfo, const char *lookup);
 
 /* Implemented in nfp_nsp.c, low level functions */
 

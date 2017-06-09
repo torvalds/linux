@@ -76,10 +76,6 @@ struct nfp_cpp_resource {
  * @serial:		chip serial number
  * @imb_cat_table:	CPP Mapping Table
  *
- * Following fields can be used only in probe() or with rtnl held:
- * @hwinfo:		HWInfo database fetched from the device
- * @rtsym:		firmware run time symbols
- *
  * Following fields use explicit locking:
  * @resource_list:	NFP CPP resource list
  * @resource_lock:	protects @resource_list
@@ -107,9 +103,6 @@ struct nfp_cpp {
 
 	struct mutex area_cache_mutex;
 	struct list_head area_cache_list;
-
-	void *hwinfo;
-	void *rtsym;
 };
 
 /* Element of the area_cache_list */
@@ -233,9 +226,6 @@ void nfp_cpp_free(struct nfp_cpp *cpp)
 	if (cpp->op->free)
 		cpp->op->free(cpp);
 
-	kfree(cpp->hwinfo);
-	kfree(cpp->rtsym);
-
 	device_unregister(&cpp->dev);
 
 	kfree(cpp);
@@ -274,39 +264,6 @@ int nfp_cpp_serial(struct nfp_cpp *cpp, const u8 **serial)
 {
 	*serial = &cpp->serial[0];
 	return sizeof(cpp->serial);
-}
-
-void *nfp_hwinfo_cache(struct nfp_cpp *cpp)
-{
-	return cpp->hwinfo;
-}
-
-void nfp_hwinfo_cache_set(struct nfp_cpp *cpp, void *val)
-{
-	cpp->hwinfo = val;
-}
-
-void *nfp_rtsym_cache(struct nfp_cpp *cpp)
-{
-	return cpp->rtsym;
-}
-
-void nfp_rtsym_cache_set(struct nfp_cpp *cpp, void *val)
-{
-	cpp->rtsym = val;
-}
-
-/**
- * nfp_nffw_cache_flush() - Flush cached firmware information
- * @cpp:	NFP CPP handle
- *
- * Flush cached firmware information.  This function should be called
- * every time firmware is loaded on unloaded.
- */
-void nfp_nffw_cache_flush(struct nfp_cpp *cpp)
-{
-	kfree(nfp_rtsym_cache(cpp));
-	nfp_rtsym_cache_set(cpp, NULL);
 }
 
 /**

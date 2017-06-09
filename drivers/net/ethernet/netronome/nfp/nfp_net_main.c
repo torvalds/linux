@@ -63,13 +63,13 @@
 
 #define NFP_PF_CSR_SLICE_SIZE	(32 * 1024)
 
-static int nfp_is_ready(struct nfp_cpp *cpp)
+static int nfp_is_ready(struct nfp_pf *pf)
 {
 	const char *cp;
 	long state;
 	int err;
 
-	cp = nfp_hwinfo_lookup(cpp, "board.state");
+	cp = nfp_hwinfo_lookup(pf->hwinfo, "board.state");
 	if (!cp)
 		return 0;
 
@@ -134,15 +134,15 @@ err_area:
 
 /**
  * nfp_net_get_mac_addr() - Get the MAC address.
+ * @pf:       NFP PF handle
  * @nn:       NFP Network structure
- * @cpp:      NFP CPP handle
  * @id:	      NFP port id
  *
  * First try to get the MAC address from NSP ETH table. If that
  * fails try HWInfo.  As a last resort generate a random address.
  */
 void
-nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_cpp *cpp, unsigned int id)
+nfp_net_get_mac_addr(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 {
 	struct nfp_eth_table_port *eth_port;
 	struct nfp_net_dp *dp = &nn->dp;
@@ -159,7 +159,7 @@ nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_cpp *cpp, unsigned int id)
 
 	snprintf(name, sizeof(name), "eth%d.mac", id);
 
-	mac_str = nfp_hwinfo_lookup(cpp, name);
+	mac_str = nfp_hwinfo_lookup(pf->hwinfo, name);
 	if (!mac_str) {
 		dev_warn(dp->dev, "Can't lookup MAC address. Generate\n");
 		eth_hw_addr_random(dp->netdev);
@@ -201,7 +201,7 @@ nfp_net_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
 
 	snprintf(name, sizeof(name), format, nfp_cppcore_pcie_unit(pf->cpp));
 
-	val = nfp_rtsym_read_le(pf->cpp, name, &err);
+	val = nfp_rtsym_read_le(pf->rtbl, name, &err);
 	if (err) {
 		if (err == -ENOENT)
 			return default_val;
@@ -234,7 +234,7 @@ nfp_net_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 	snprintf(pf_symbol, sizeof(pf_symbol), sym_fmt,
 		 nfp_cppcore_pcie_unit(pf->cpp));
 
-	sym = nfp_rtsym_lookup(pf->cpp, pf_symbol);
+	sym = nfp_rtsym_lookup(pf->rtbl, pf_symbol);
 	if (!sym) {
 		nfp_err(pf->cpp, "Failed to find PF symbol %s\n", pf_symbol);
 		return (u8 __iomem *)ERR_PTR(-ENOENT);
@@ -713,7 +713,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	INIT_WORK(&pf->port_refresh_work, nfp_net_refresh_vnics);
 
 	/* Verify that the board has completed initialization */
-	if (!nfp_is_ready(pf->cpp)) {
+	if (!nfp_is_ready(pf)) {
 		nfp_err(pf->cpp, "NFP is not ready for NIC operation.\n");
 		return -EINVAL;
 	}
@@ -813,6 +813,7 @@ err_ctrl_unmap:
 	nfp_cpp_area_release_free(pf->data_vnic_bar);
 err_unlock:
 	mutex_unlock(&pf->lock);
+	cancel_work_sync(&pf->port_refresh_work);
 	return err;
 }
 
