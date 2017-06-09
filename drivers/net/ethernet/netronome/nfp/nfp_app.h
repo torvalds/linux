@@ -216,6 +216,7 @@ static inline void nfp_app_ctrl_rx(struct nfp_app *app, struct sk_buff *skb)
 	app->type->ctrl_msg_rx(app, skb);
 }
 
+const char *nfp_app_mip_name(struct nfp_app *app);
 struct sk_buff *nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size);
 
 struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id);

@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 
 #include "nfpcore/nfp_cpp.h"
+#include "nfpcore/nfp_nffw.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
 
@@ -42,6 +43,13 @@ static const struct nfp_app_type *apps[] = {
 	&app_nic,
 	&app_bpf,
 };
+
+const char *nfp_app_mip_name(struct nfp_app *app)
+{
+	if (!app || !app->pf->mip)
+		return "";
+	return nfp_mip_name(app->pf->mip);
+}
 
 struct sk_buff *nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size)
 {
