@@ -1480,6 +1480,11 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		adev->gfx.config.double_offchip_lds_buf =
 			le32_to_cpu(gpu_info_fw->gc_double_offchip_lds_buffer);
 		adev->gfx.cu_info.wave_front_size = le32_to_cpu(gpu_info_fw->gc_wave_size);
+		adev->gfx.cu_info.max_waves_per_simd =
+			le32_to_cpu(gpu_info_fw->gc_max_waves_per_simd);
+		adev->gfx.cu_info.max_scratch_slots_per_cu =
+			le32_to_cpu(gpu_info_fw->gc_max_scratch_slots_per_cu);
+		adev->gfx.cu_info.lds_size = le32_to_cpu(gpu_info_fw->gc_lds_size);
 		break;
 	}
 	default:

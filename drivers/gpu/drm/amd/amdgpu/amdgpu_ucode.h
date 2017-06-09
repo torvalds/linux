@@ -127,6 +127,9 @@ struct gpu_info_firmware_v1_0 {
 	uint32_t gc_parameter_cache_depth;
 	uint32_t gc_double_offchip_lds_buffer;
 	uint32_t gc_wave_size;
+	uint32_t gc_max_waves_per_simd;
+	uint32_t gc_max_scratch_slots_per_cu;
+	uint32_t gc_lds_size;
 };
 
 /* version_major=1, version_minor=0 */
