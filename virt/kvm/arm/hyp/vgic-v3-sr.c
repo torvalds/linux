@@ -882,9 +882,11 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	is_read = (esr & ESR_ELx_SYS64_ISS_DIR_MASK) == ESR_ELx_SYS64_ISS_DIR_READ;
 
 	switch (sysreg) {
+	case SYS_ICC_IAR0_EL1:
 	case SYS_ICC_IAR1_EL1:
 		fn = __vgic_v3_read_iar;
 		break;
+	case SYS_ICC_EOIR0_EL1:
 	case SYS_ICC_EOIR1_EL1:
 		fn = __vgic_v3_write_eoir;
 		break;
@@ -900,30 +902,35 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 		else
 			fn = __vgic_v3_write_bpr1;
 		break;
+	case SYS_ICC_AP0Rn_EL1(0):
 	case SYS_ICC_AP1Rn_EL1(0):
 		if (is_read)
 			fn = __vgic_v3_read_apxr0;
 		else
 			fn = __vgic_v3_write_apxr0;
 		break;
+	case SYS_ICC_AP0Rn_EL1(1):
 	case SYS_ICC_AP1Rn_EL1(1):
 		if (is_read)
 			fn = __vgic_v3_read_apxr1;
 		else
 			fn = __vgic_v3_write_apxr1;
 		break;
+	case SYS_ICC_AP0Rn_EL1(2):
 	case SYS_ICC_AP1Rn_EL1(2):
 		if (is_read)
 			fn = __vgic_v3_read_apxr2;
 		else
 			fn = __vgic_v3_write_apxr2;
 		break;
+	case SYS_ICC_AP0Rn_EL1(3):
 	case SYS_ICC_AP1Rn_EL1(3):
 		if (is_read)
 			fn = __vgic_v3_read_apxr3;
 		else
 			fn = __vgic_v3_write_apxr3;
 		break;
+	case SYS_ICC_HPPIR0_EL1:
 	case SYS_ICC_HPPIR1_EL1:
 		fn = __vgic_v3_read_hppir;
 		break;
