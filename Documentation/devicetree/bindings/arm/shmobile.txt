@@ -86,6 +86,8 @@ Boards:
     compatible = "renesas,salvator-x", "renesas,r8a7795";
   - Salvator-X (RTP0RC7796SIPB0011S)
     compatible = "renesas,salvator-x", "renesas,r8a7796";
+  - Salvator-XS (Salvator-X 2nd version, RTP0RC7795SIPB0012S)
+    compatible = "renesas,salvator-xs", "renesas,r8a7795";
   - SILK (RTP0RC7794LCB00011S)
     compatible = "renesas,silk", "renesas,r8a7794"
   - SK-RZG1E (YR8A77450S000BE)
