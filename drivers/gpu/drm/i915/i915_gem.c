@@ -2337,8 +2337,8 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	struct page *page;
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
 	unsigned int max_segment;
+	gfp_t noreclaim;
 	int ret;
-	gfp_t gfp;
 
 	/* Assert that the object is not currently in any GPU domain. As it
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
@@ -2367,22 +2367,31 @@ rebuild_st:
 	 * Fail silently without starting the shrinker
 	 */
 	mapping = obj->base.filp->f_mapping;
-	gfp = mapping_gfp_constraint(mapping, ~(__GFP_IO | __GFP_RECLAIM));
-	gfp |= __GFP_NORETRY | __GFP_NOWARN;
+	noreclaim = mapping_gfp_constraint(mapping,
+					   ~(__GFP_IO | __GFP_RECLAIM));
+	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
+
 	sg = st->sgl;
 	st->nents = 0;
 	for (i = 0; i < page_count; i++) {
-		page = shmem_read_mapping_page_gfp(mapping, i, gfp);
-		if (unlikely(IS_ERR(page))) {
-			i915_gem_shrink(dev_priv,
-					page_count,
-					I915_SHRINK_BOUND |
-					I915_SHRINK_UNBOUND |
-					I915_SHRINK_PURGEABLE);
+		const unsigned int shrink[] = {
+			I915_SHRINK_BOUND | I915_SHRINK_UNBOUND | I915_SHRINK_PURGEABLE,
+			0,
+		}, *s = shrink;
+		gfp_t gfp = noreclaim;
+
+		do {
 			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
-		}
-		if (unlikely(IS_ERR(page))) {
-			gfp_t reclaim;
+			if (likely(!IS_ERR(page)))
+				break;
+
+			if (!*s) {
+				ret = PTR_ERR(page);
+				goto err_sg;
+			}
+
+			i915_gem_shrink(dev_priv, 2 * page_count, *s++);
+			cond_resched();
 
 			/* We've tried hard to allocate the memory by reaping
 			 * our own buffer, now let the real VM do its job and
@@ -2392,15 +2401,13 @@ rebuild_st:
 			 * defer the oom here by reporting the ENOMEM back
 			 * to userspace.
 			 */
-			reclaim = mapping_gfp_mask(mapping);
-			reclaim |= __GFP_NORETRY; /* reclaim, but no oom */
-
-			page = shmem_read_mapping_page_gfp(mapping, i, reclaim);
-			if (IS_ERR(page)) {
-				ret = PTR_ERR(page);
-				goto err_sg;
+			if (!*s) {
+				/* reclaim and warn, but no oom */
+				gfp = mapping_gfp_mask(mapping);
+				gfp |= __GFP_NORETRY;
 			}
-		}
+		} while (1);
+
 		if (!i ||
 		    sg->length >= max_segment ||
 		    page_to_pfn(page) != last_pfn + 1) {
@@ -4285,6 +4292,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 
 	mapping = obj->base.filp->f_mapping;
 	mapping_set_gfp_mask(mapping, mask);
+	GEM_BUG_ON(!(mapping_gfp_mask(mapping) & __GFP_RECLAIM));
 
 	i915_gem_object_init(obj, &i915_gem_object_ops);
 
