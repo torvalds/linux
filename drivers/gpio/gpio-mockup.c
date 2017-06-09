@@ -334,7 +334,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	int ret, i, base, ngpio;
 	char *chip_name;
 
-	if (gpio_mockup_params_nr < 2)
+	if (gpio_mockup_params_nr < 2 || (gpio_mockup_params_nr % 2))
 		return -EINVAL;
 
 	chips = devm_kzalloc(dev,
