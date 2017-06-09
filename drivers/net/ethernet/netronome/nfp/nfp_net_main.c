@@ -813,6 +813,7 @@ err_ctrl_unmap:
 	nfp_cpp_area_release_free(pf->data_vnic_bar);
 err_unlock:
 	mutex_unlock(&pf->lock);
+	cancel_work_sync(&pf->port_refresh_work);
 	return err;
 }
 
