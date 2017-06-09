@@ -642,6 +642,7 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh,
 		rtnl_net_notifyid(net, RTM_NEWNSID, err);
 		err = 0;
 	} else if (err == -ENOSPC && nsid >= 0) {
+		err = -EEXIST;
 		NL_SET_BAD_ATTR(extack, tb[NETNSA_NSID]);
 		NL_SET_ERR_MSG(extack, "The specified nsid is already used");
 	}
