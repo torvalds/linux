@@ -1060,6 +1060,12 @@ int nvdimm_has_flush(struct nd_region *nd_region)
 }
 EXPORT_SYMBOL_GPL(nvdimm_has_flush);
 
+int nvdimm_has_cache(struct nd_region *nd_region)
+{
+	return is_nd_pmem(&nd_region->dev);
+}
+EXPORT_SYMBOL_GPL(nvdimm_has_cache);
+
 void __exit nd_region_devs_exit(void)
 {
 	ida_destroy(&region_ida);
