@@ -136,7 +136,6 @@ static void save_platform_config_fields(struct hfi1_devdata *dd)
 void get_platform_config(struct hfi1_devdata *dd)
 {
 	int ret = 0;
-	unsigned long size = 0;
 	u8 *temp_platform_config = NULL;
 	u32 esize;
 
@@ -158,15 +157,6 @@ void get_platform_config(struct hfi1_devdata *dd)
 			/* success */
 			dd->platform_config.data = temp_platform_config;
 			dd->platform_config.size = esize;
-			return;
-		}
-		/* fail, try EFI variable */
-
-		ret = read_hfi1_efi_var(dd, "configuration", &size,
-					(void **)&temp_platform_config);
-		if (!ret) {
-			dd->platform_config.data = temp_platform_config;
-			dd->platform_config.size = size;
 			return;
 		}
 	}
