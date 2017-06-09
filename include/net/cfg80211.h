@@ -2112,6 +2112,8 @@ struct cfg80211_bss_selection {
  * @fils_erp_rrk: ERP re-authentication Root Key (rRK) used to derive additional
  *	keys in FILS or %NULL if not specified.
  * @fils_erp_rrk_len: Length of @fils_erp_rrk in octets.
+ * @want_1x: indicates user-space supports and wants to use 802.1X driver
+ *	offload of 4-way handshake.
  */
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
@@ -2144,6 +2146,7 @@ struct cfg80211_connect_params {
 	u16 fils_erp_next_seq_num;
 	const u8 *fils_erp_rrk;
 	size_t fils_erp_rrk_len;
+	bool want_1x;
 };
 
 /**
@@ -2566,6 +2569,23 @@ struct cfg80211_nan_func {
 };
 
 /**
+ * struct cfg80211_pmk_conf - PMK configuration
+ *
+ * @aa: authenticator address
+ * @pmk_len: PMK length in bytes.
+ * @pmk: the PMK material
+ * @pmk_r0_name: PMK-R0 Name. NULL if not applicable (i.e., the PMK
+ *	is not PMK-R0). When pmk_r0_name is not NULL, the pmk field
+ *	holds PMK-R0.
+ */
+struct cfg80211_pmk_conf {
+	const u8 *aa;
+	u8 pmk_len;
+	const u8 *pmk;
+	const u8 *pmk_r0_name;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -2881,6 +2901,13 @@ struct cfg80211_nan_func {
  *	All other parameters must be ignored.
  *
  * @set_multicast_to_unicast: configure multicast to unicast conversion for BSS
+ *
+ * @set_pmk: configure the PMK to be used for offloaded 802.1X 4-Way handshake.
+ *	If not deleted through @del_pmk the PMK remains valid until disconnect
+ *	upon which the driver should clear it.
+ *	(invoked with the wireless_dev mutex held)
+ * @del_pmk: delete the previously configured PMK for the given authenticator.
+ *	(invoked with the wireless_dev mutex held)
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -3169,6 +3196,11 @@ struct cfg80211_ops {
 	int	(*set_multicast_to_unicast)(struct wiphy *wiphy,
 					    struct net_device *dev,
 					    const bool enabled);
+
+	int	(*set_pmk)(struct wiphy *wiphy, struct net_device *dev,
+			   const struct cfg80211_pmk_conf *conf);
+	int	(*del_pmk)(struct wiphy *wiphy, struct net_device *dev,
+			   const u8 *aa);
 };
 
 /*
