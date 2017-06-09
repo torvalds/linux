@@ -884,6 +884,13 @@ spurious:
 	vcpu_set_reg(vcpu, rt, lr_val & ICH_LR_VIRTUAL_ID_MASK);
 }
 
+static void __hyp_text __vgic_v3_read_rpr(struct kvm_vcpu *vcpu,
+					  u32 vmcr, int rt)
+{
+	u32 val = __vgic_v3_get_highest_active_priority();
+	vcpu_set_reg(vcpu, rt, val);
+}
+
 int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 {
 	int rt;
@@ -972,6 +979,9 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 		break;
 	case SYS_ICC_DIR_EL1:
 		fn = __vgic_v3_write_dir;
+		break;
+	case SYS_ICC_RPR_EL1:
+		fn = __vgic_v3_read_rpr;
 		break;
 	default:
 		return 0;
