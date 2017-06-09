@@ -43,6 +43,18 @@
 #include <linux/slab.h>
 #include <linux/qed/qed_if.h>
 
+enum qed_ll2_roce_flavor_type {
+	QED_LL2_ROCE,
+	QED_LL2_RROCE,
+	MAX_QED_LL2_ROCE_FLAVOR_TYPE
+};
+
+enum qed_ll2_tx_dest {
+	QED_LL2_TX_DEST_NW, /* Light L2 TX Destination to the Network */
+	QED_LL2_TX_DEST_LB, /* Light L2 TX Destination to the Loopback */
+	QED_LL2_TX_DEST_MAX
+};
+
 struct qed_ll2_stats {
 	u64 gsi_invalid_hdr;
 	u64 gsi_invalid_pkt_length;
@@ -65,6 +77,21 @@ struct qed_ll2_stats {
 	u64 sent_ucast_pkts;
 	u64 sent_mcast_pkts;
 	u64 sent_bcast_pkts;
+};
+
+struct qed_ll2_tx_pkt_info {
+	void *cookie;
+	dma_addr_t first_frag;
+	enum qed_ll2_tx_dest tx_dest;
+	enum qed_ll2_roce_flavor_type qed_roce_flavor;
+	u16 vlan;
+	u16 l4_hdr_offset_w;	/* from start of packet */
+	u16 first_frag_len;
+	u8 num_of_bds;
+	u8 bd_flags;
+	bool enable_ip_cksum;
+	bool enable_l4_cksum;
+	bool calc_ip_len;
 };
 
 #define QED_LL2_UNUSED_HANDLE   (0xff)

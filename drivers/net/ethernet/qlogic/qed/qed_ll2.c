@@ -740,12 +740,13 @@ static void
 qed_ooo_submit_tx_buffers(struct qed_hwfn *p_hwfn,
 			  struct qed_ll2_info *p_ll2_conn)
 {
+	struct qed_ll2_tx_pkt_info tx_pkt;
 	struct qed_ooo_buffer *p_buffer;
-	int rc;
 	u16 l4_hdr_offset_w;
 	dma_addr_t first_frag;
 	u16 parse_flags;
 	u8 bd_flags;
+	int rc;
 
 	/* Submit Tx buffers here */
 	while ((p_buffer = qed_ooo_get_ready_buffer(p_hwfn,
@@ -760,13 +761,18 @@ qed_ooo_submit_tx_buffers(struct qed_hwfn *p_hwfn,
 		SET_FIELD(bd_flags, CORE_TX_BD_DATA_FORCE_VLAN_MODE, 1);
 		SET_FIELD(bd_flags, CORE_TX_BD_DATA_L4_PROTOCOL, 1);
 
-		rc = qed_ll2_prepare_tx_packet(p_hwfn, p_ll2_conn->my_id, 1,
-					       p_buffer->vlan, bd_flags,
-					       l4_hdr_offset_w,
-					       p_ll2_conn->conn.tx_dest, 0,
-					       first_frag,
-					       p_buffer->packet_length,
-					       p_buffer, true);
+		memset(&tx_pkt, 0, sizeof(tx_pkt));
+		tx_pkt.num_of_bds = 1;
+		tx_pkt.vlan = p_buffer->vlan;
+		tx_pkt.bd_flags = bd_flags;
+		tx_pkt.l4_hdr_offset_w = l4_hdr_offset_w;
+		tx_pkt.tx_dest = p_ll2_conn->conn.tx_dest;
+		tx_pkt.first_frag = first_frag;
+		tx_pkt.first_frag_len = p_buffer->packet_length;
+		tx_pkt.cookie = p_buffer;
+
+		rc = qed_ll2_prepare_tx_packet(p_hwfn, p_ll2_conn->my_id,
+					       &tx_pkt, true);
 		if (rc) {
 			qed_ooo_put_ready_buffer(p_hwfn, p_hwfn->p_ooo_info,
 						 p_buffer, false);
@@ -1593,20 +1599,18 @@ out:
 static void qed_ll2_prepare_tx_packet_set(struct qed_hwfn *p_hwfn,
 					  struct qed_ll2_tx_queue *p_tx,
 					  struct qed_ll2_tx_packet *p_curp,
-					  u8 num_of_bds,
-					  dma_addr_t first_frag,
-					  u16 first_frag_len, void *p_cookie,
+					  struct qed_ll2_tx_pkt_info *pkt,
 					  u8 notify_fw)
 {
 	list_del(&p_curp->list_entry);
-	p_curp->cookie = p_cookie;
-	p_curp->bd_used = num_of_bds;
+	p_curp->cookie = pkt->cookie;
+	p_curp->bd_used = pkt->num_of_bds;
 	p_curp->notify_fw = notify_fw;
 	p_tx->cur_send_packet = p_curp;
 	p_tx->cur_send_frag_num = 0;
 
-	p_curp->bds_set[p_tx->cur_send_frag_num].tx_frag = first_frag;
-	p_curp->bds_set[p_tx->cur_send_frag_num].frag_len = first_frag_len;
+	p_curp->bds_set[p_tx->cur_send_frag_num].tx_frag = pkt->first_frag;
+	p_curp->bds_set[p_tx->cur_send_frag_num].frag_len = pkt->first_frag_len;
 	p_tx->cur_send_frag_num++;
 }
 
@@ -1614,32 +1618,33 @@ static void
 qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 				 struct qed_ll2_info *p_ll2,
 				 struct qed_ll2_tx_packet *p_curp,
-				 u8 num_of_bds,
-				 enum core_tx_dest tx_dest,
-				 u16 vlan,
-				 u8 bd_flags,
-				 u16 l4_hdr_offset_w,
-				 enum core_roce_flavor_type roce_flavor,
-				 dma_addr_t first_frag,
-				 u16 first_frag_len)
+				 struct qed_ll2_tx_pkt_info *pkt)
 {
 	struct qed_chain *p_tx_chain = &p_ll2->tx_queue.txq_chain;
 	u16 prod_idx = qed_chain_get_prod_idx(p_tx_chain);
 	struct core_tx_bd *start_bd = NULL;
+	enum core_roce_flavor_type roce_flavor;
+	enum core_tx_dest tx_dest;
 	u16 bd_data = 0, frag_idx;
 
+	roce_flavor = (pkt->qed_roce_flavor == QED_LL2_ROCE) ? CORE_ROCE
+							     : CORE_RROCE;
+
+	tx_dest = (pkt->tx_dest == QED_LL2_TX_DEST_NW) ? CORE_TX_DEST_NW
+						       : CORE_TX_DEST_LB;
+
 	start_bd = (struct core_tx_bd *)qed_chain_produce(p_tx_chain);
-	start_bd->nw_vlan_or_lb_echo = cpu_to_le16(vlan);
+	start_bd->nw_vlan_or_lb_echo = cpu_to_le16(pkt->vlan);
 	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_L4_HDR_OFFSET_W,
-		  cpu_to_le16(l4_hdr_offset_w));
+		  cpu_to_le16(pkt->l4_hdr_offset_w));
 	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_TX_DST, tx_dest);
-	bd_data |= bd_flags;
+	bd_data |= pkt->bd_flags;
 	SET_FIELD(bd_data, CORE_TX_BD_DATA_START_BD, 0x1);
-	SET_FIELD(bd_data, CORE_TX_BD_DATA_NBDS, num_of_bds);
+	SET_FIELD(bd_data, CORE_TX_BD_DATA_NBDS, pkt->num_of_bds);
 	SET_FIELD(bd_data, CORE_TX_BD_DATA_ROCE_FLAV, roce_flavor);
 	start_bd->bd_data.as_bitfield = cpu_to_le16(bd_data);
-	DMA_REGPAIR_LE(start_bd->addr, first_frag);
-	start_bd->nbytes = cpu_to_le16(first_frag_len);
+	DMA_REGPAIR_LE(start_bd->addr, pkt->first_frag);
+	start_bd->nbytes = cpu_to_le16(pkt->first_frag_len);
 
 	DP_VERBOSE(p_hwfn,
 		   (NETIF_MSG_TX_QUEUED | QED_MSG_LL2),
@@ -1648,17 +1653,17 @@ qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 		   p_ll2->cid,
 		   p_ll2->conn.conn_type,
 		   prod_idx,
-		   first_frag_len,
-		   num_of_bds,
+		   pkt->first_frag_len,
+		   pkt->num_of_bds,
 		   le32_to_cpu(start_bd->addr.hi),
 		   le32_to_cpu(start_bd->addr.lo));
 
-	if (p_ll2->tx_queue.cur_send_frag_num == num_of_bds)
+	if (p_ll2->tx_queue.cur_send_frag_num == pkt->num_of_bds)
 		return;
 
 	/* Need to provide the packet with additional BDs for frags */
 	for (frag_idx = p_ll2->tx_queue.cur_send_frag_num;
-	     frag_idx < num_of_bds; frag_idx++) {
+	     frag_idx < pkt->num_of_bds; frag_idx++) {
 		struct core_tx_bd **p_bd = &p_curp->bds_set[frag_idx].txq_bd;
 
 		*p_bd = (struct core_tx_bd *)qed_chain_produce(p_tx_chain);
@@ -1726,21 +1731,13 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 
 int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 			      u8 connection_handle,
-			      u8 num_of_bds,
-			      u16 vlan,
-			      u8 bd_flags,
-			      u16 l4_hdr_offset_w,
-			      enum qed_ll2_tx_dest e_tx_dest,
-			      enum qed_ll2_roce_flavor_type qed_roce_flavor,
-			      dma_addr_t first_frag,
-			      u16 first_frag_len, void *cookie, u8 notify_fw)
+			      struct qed_ll2_tx_pkt_info *pkt,
+			      bool notify_fw)
 {
 	struct qed_ll2_tx_packet *p_curp = NULL;
 	struct qed_ll2_info *p_ll2_conn = NULL;
-	enum core_roce_flavor_type roce_flavor;
 	struct qed_ll2_tx_queue *p_tx;
 	struct qed_chain *p_tx_chain;
-	enum core_tx_dest tx_dest;
 	unsigned long flags;
 	int rc = 0;
 
@@ -1750,7 +1747,7 @@ int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 	p_tx = &p_ll2_conn->tx_queue;
 	p_tx_chain = &p_tx->txq_chain;
 
-	if (num_of_bds > CORE_LL2_TX_MAX_BDS_PER_PACKET)
+	if (pkt->num_of_bds > CORE_LL2_TX_MAX_BDS_PER_PACKET)
 		return -EIO;
 
 	spin_lock_irqsave(&p_tx->lock, flags);
@@ -1763,7 +1760,7 @@ int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 	if (!list_empty(&p_tx->free_descq))
 		p_curp = list_first_entry(&p_tx->free_descq,
 					  struct qed_ll2_tx_packet, list_entry);
-	if (p_curp && qed_chain_get_elem_left(p_tx_chain) < num_of_bds)
+	if (p_curp && qed_chain_get_elem_left(p_tx_chain) < pkt->num_of_bds)
 		p_curp = NULL;
 
 	if (!p_curp) {
@@ -1771,26 +1768,10 @@ int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 		goto out;
 	}
 
-	tx_dest = e_tx_dest == QED_LL2_TX_DEST_NW ? CORE_TX_DEST_NW :
-						    CORE_TX_DEST_LB;
-	if (qed_roce_flavor == QED_LL2_ROCE) {
-		roce_flavor = CORE_ROCE;
-	} else if (qed_roce_flavor == QED_LL2_RROCE) {
-		roce_flavor = CORE_RROCE;
-	} else {
-		rc = -EINVAL;
-		goto out;
-	}
-
 	/* Prepare packet and BD, and perhaps send a doorbell to FW */
-	qed_ll2_prepare_tx_packet_set(p_hwfn, p_tx, p_curp,
-				      num_of_bds, first_frag,
-				      first_frag_len, cookie, notify_fw);
-	qed_ll2_prepare_tx_packet_set_bd(p_hwfn, p_ll2_conn, p_curp,
-					 num_of_bds, tx_dest,
-					 vlan, bd_flags, l4_hdr_offset_w,
-					 roce_flavor,
-					 first_frag, first_frag_len);
+	qed_ll2_prepare_tx_packet_set(p_hwfn, p_tx, p_curp, pkt, notify_fw);
+
+	qed_ll2_prepare_tx_packet_set_bd(p_hwfn, p_ll2_conn, p_curp, pkt);
 
 	qed_ll2_tx_packet_notify(p_hwfn, p_ll2_conn);
 
@@ -2245,6 +2226,7 @@ fail:
 
 static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb)
 {
+	struct qed_ll2_tx_pkt_info pkt;
 	const skb_frag_t *frag;
 	int rc = -EINVAL, i;
 	dma_addr_t mapping;
@@ -2279,12 +2261,17 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb)
 		flags |= BIT(CORE_TX_BD_DATA_VLAN_INSERTION_SHIFT);
 	}
 
-	rc = qed_ll2_prepare_tx_packet(QED_LEADING_HWFN(cdev),
-				       cdev->ll2->handle,
-				       1 + skb_shinfo(skb)->nr_frags,
-				       vlan, flags, 0, QED_LL2_TX_DEST_NW,
-				       0 /* RoCE FLAVOR */,
-				       mapping, skb->len, skb, 1);
+	memset(&pkt, 0, sizeof(pkt));
+	pkt.num_of_bds = 1 + skb_shinfo(skb)->nr_frags;
+	pkt.vlan = vlan;
+	pkt.bd_flags = flags;
+	pkt.tx_dest = QED_LL2_TX_DEST_NW;
+	pkt.first_frag = mapping;
+	pkt.first_frag_len = skb->len;
+	pkt.cookie = skb;
+
+	rc = qed_ll2_prepare_tx_packet(&cdev->hwfns[0], cdev->ll2->handle,
+				       &pkt, 1);
 	if (rc)
 		goto err;
 

@@ -47,12 +47,6 @@
 
 #define QED_MAX_NUM_OF_LL2_CONNECTIONS                    (4)
 
-enum qed_ll2_roce_flavor_type {
-	QED_LL2_ROCE,
-	QED_LL2_RROCE,
-	MAX_QED_LL2_ROCE_FLAVOR_TYPE
-};
-
 enum qed_ll2_conn_type {
 	QED_LL2_TYPE_FCOE,
 	QED_LL2_TYPE_ISCSI,
@@ -62,12 +56,6 @@ enum qed_ll2_conn_type {
 	QED_LL2_TYPE_ROCE,
 	QED_LL2_TYPE_RESERVED3,
 	MAX_QED_LL2_RX_CONN_TYPE
-};
-
-enum qed_ll2_tx_dest {
-	QED_LL2_TX_DEST_NW, /* Light L2 TX Destination to the Network */
-	QED_LL2_TX_DEST_LB, /* Light L2 TX Destination to the Loopback */
-	QED_LL2_TX_DEST_MAX
 };
 
 struct qed_ll2_rx_packet {
@@ -216,35 +204,16 @@ int qed_ll2_post_rx_buffer(struct qed_hwfn *p_hwfn,
  *				      to prepare Tx packet submission to FW.
  *
  * @param p_hwfn
- * @param connection_handle	LL2 connection's handle obtained from
- *				qed_ll2_require_connection
- * @param num_of_bds		a number of requested BD equals a number of
- *				fragments in Tx packet
- * @param vlan			VLAN to insert to packet (if insertion set)
- * @param bd_flags
- * @param l4_hdr_offset_w	L4 Header Offset from start of packet
- *				(in words). This is needed if both l4_csum
- *				and ipv6_ext are set
- * @param e_tx_dest             indicates if the packet is to be transmitted via
- *                              loopback or to the network
- * @param first_frag
- * @param first_frag_len
- * @param cookie
- *
- * @param notify_fw
+ * @param connection_handle
+ * @param pkt - info regarding the tx packet
+ * @param notify_fw - issue doorbell to fw for this packet
  *
  * @return 0 on success, failure otherwise
  */
 int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 			      u8 connection_handle,
-			      u8 num_of_bds,
-			      u16 vlan,
-			      u8 bd_flags,
-			      u16 l4_hdr_offset_w,
-			      enum qed_ll2_tx_dest e_tx_dest,
-			      enum qed_ll2_roce_flavor_type qed_roce_flavor,
-			      dma_addr_t first_frag,
-			      u16 first_frag_len, void *cookie, u8 notify_fw);
+			      struct qed_ll2_tx_pkt_info *pkt,
+			      bool notify_fw);
 
 /**
  * @brief qed_ll2_release_connection -	releases resources

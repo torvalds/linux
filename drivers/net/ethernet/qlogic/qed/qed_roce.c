@@ -2937,6 +2937,7 @@ static int qed_roce_ll2_tx(struct qed_dev *cdev,
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_roce_ll2_info *roce_ll2 = hwfn->ll2;
 	enum qed_ll2_roce_flavor_type qed_roce_flavor;
+	struct qed_ll2_tx_pkt_info ll2_pkt;
 	u8 flags = 0;
 	int rc;
 	int i;
@@ -2955,11 +2956,18 @@ static int qed_roce_ll2_tx(struct qed_dev *cdev,
 		flags |= BIT(CORE_TX_BD_DATA_IP_CSUM_SHIFT);
 
 	/* Tx header */
-	rc = qed_ll2_prepare_tx_packet(QED_LEADING_HWFN(cdev), roce_ll2->handle,
-				       1 + pkt->n_seg, 0, flags, 0,
-				       QED_LL2_TX_DEST_NW,
-				       qed_roce_flavor, pkt->header.baddr,
-				       pkt->header.len, pkt, 1);
+	memset(&ll2_pkt, 0, sizeof(ll2_pkt));
+	ll2_pkt.num_of_bds = 1 + pkt->n_seg;
+	ll2_pkt.bd_flags = flags;
+	ll2_pkt.tx_dest = QED_LL2_TX_DEST_NW;
+	ll2_pkt.qed_roce_flavor = qed_roce_flavor;
+	ll2_pkt.first_frag = pkt->header.baddr;
+	ll2_pkt.first_frag_len = pkt->header.len;
+	ll2_pkt.cookie = pkt;
+
+	rc = qed_ll2_prepare_tx_packet(QED_LEADING_HWFN(cdev),
+				       roce_ll2->handle,
+				       &ll2_pkt, 1);
 	if (rc) {
 		DP_ERR(cdev, "roce ll2 tx: header failed (rc=%d)\n", rc);
 		return QED_ROCE_TX_HEAD_FAILURE;
