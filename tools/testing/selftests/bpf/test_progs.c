@@ -23,7 +23,7 @@ typedef __u16 __sum16;
 #include <sys/wait.h>
 #include <sys/resource.h>
 #include <sys/types.h>
-#include <pwd.h>
+#include <fcntl.h>
 
 #include <linux/bpf.h>
 #include <linux/err.h>
@@ -297,6 +297,7 @@ static void test_bpf_obj_id(void)
 	const __u32 array_key = 0;
 	const int nr_iters = 2;
 	const char *file = "./test_obj_id.o";
+	const char *jit_sysctl = "/proc/sys/net/core/bpf_jit_enable";
 
 	struct bpf_object *objs[nr_iters];
 	int prog_fds[nr_iters], map_fds[nr_iters];
@@ -305,8 +306,17 @@ static void test_bpf_obj_id(void)
 	struct bpf_map_info map_infos[nr_iters + 1];
 	char jited_insns[128], xlated_insns[128];
 	__u32 i, next_id, info_len, nr_id_found, duration = 0;
-	int err = 0;
+	int sysctl_fd, jit_enabled = 0, err = 0;
 	__u64 array_value;
+
+	sysctl_fd = open(jit_sysctl, 0, O_RDONLY);
+	if (sysctl_fd != -1) {
+		char tmpc;
+
+		if (read(sysctl_fd, &tmpc, sizeof(tmpc)) == 1)
+			jit_enabled = (tmpc != '0');
+		close(sysctl_fd);
+	}
 
 	err = bpf_prog_get_fd_by_id(0);
 	CHECK(err >= 0 || errno != ENOENT,
@@ -339,13 +349,14 @@ static void test_bpf_obj_id(void)
 		if (CHECK(err ||
 			  prog_infos[i].type != BPF_PROG_TYPE_SOCKET_FILTER ||
 			  info_len != sizeof(struct bpf_prog_info) ||
-			  !prog_infos[i].jited_prog_len ||
+			  (jit_enabled && !prog_infos[i].jited_prog_len) ||
 			  !prog_infos[i].xlated_prog_len,
 			  "get-prog-info(fd)",
-			  "err %d errno %d i %d type %d(%d) info_len %u(%lu) jited_prog_len %u xlated_prog_len %u\n",
+			  "err %d errno %d i %d type %d(%d) info_len %u(%lu) jit_enabled %d jited_prog_len %u xlated_prog_len %u\n",
 			  err, errno, i,
 			  prog_infos[i].type, BPF_PROG_TYPE_SOCKET_FILTER,
 			  info_len, sizeof(struct bpf_prog_info),
+			  jit_enabled,
 			  prog_infos[i].jited_prog_len,
 			  prog_infos[i].xlated_prog_len))
 			goto done;
