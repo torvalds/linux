@@ -1303,6 +1303,76 @@ static inline int _loop(struct pl330_dmac *pl330, unsigned dry_run, u8 buf[],
 	return off;
 }
 
+/* Returns bytes consumed */
+static inline int _loop_cyclic(struct pl330_dmac *pl330, unsigned dry_run,
+		u8 buf[], unsigned long bursts, const struct _xfer_spec *pxs, int ev)
+{
+	int cyc, off;
+	unsigned lcnt0, lcnt1, ljmp0, ljmp1, ljmpfe;
+	struct _arg_LPEND lpend;
+	struct pl330_xfer *x = &pxs->desc->px;
+
+	off = 0;
+	ljmpfe = off;
+	lcnt0 = pxs->desc->num_periods;
+
+	if (bursts > 256) {
+		lcnt1 = 256;
+		cyc = bursts / 256;
+	} else {
+		lcnt1 = bursts;
+		cyc = 1;
+	}
+
+	/* forever loop */
+	off += _emit_MOV(dry_run, &buf[off], SAR, x->src_addr);
+	off += _emit_MOV(dry_run, &buf[off], DAR, x->dst_addr);
+
+	/* loop0 */
+	off += _emit_LP(dry_run, &buf[off], 0,  lcnt0);
+	ljmp0 = off;
+
+	/* loop1 */
+	off += _emit_LP(dry_run, &buf[off], 1, lcnt1);
+	ljmp1 = off;
+	off += _bursts(pl330, dry_run, &buf[off], pxs, cyc);
+	lpend.cond = ALWAYS;
+	lpend.forever = false;
+	lpend.loop = 1;
+	lpend.bjump = off - ljmp1;
+	off += _emit_LPEND(dry_run, &buf[off], &lpend);
+
+	/* remainder */
+	lcnt1 = bursts - (lcnt1 * cyc);
+
+	if (lcnt1) {
+		off += _emit_LP(dry_run, &buf[off], 1, lcnt1);
+		ljmp1 = off;
+		off += _bursts(pl330, dry_run, &buf[off], pxs, 1);
+		lpend.cond = ALWAYS;
+		lpend.forever = false;
+		lpend.loop = 1;
+		lpend.bjump = off - ljmp1;
+		off += _emit_LPEND(dry_run, &buf[off], &lpend);
+	}
+
+	off += _emit_SEV(dry_run, &buf[off], ev);
+
+	lpend.cond = ALWAYS;
+	lpend.forever = false;
+	lpend.loop = 0;
+	lpend.bjump = off - ljmp0;
+	off += _emit_LPEND(dry_run, &buf[off], &lpend);
+
+	lpend.cond = ALWAYS;
+	lpend.forever = true;
+	lpend.loop = 1;
+	lpend.bjump = off - ljmpfe;
+	off +=  _emit_LPEND(dry_run, &buf[off], &lpend);
+
+	return off;
+}
+
 static inline int _setup_loops(struct pl330_dmac *pl330,
 			       unsigned dry_run, u8 buf[],
 			       const struct _xfer_spec *pxs)
@@ -1322,19 +1392,16 @@ static inline int _setup_loops(struct pl330_dmac *pl330,
 }
 
 static inline int _setup_xfer(struct pl330_dmac *pl330,
-			      unsigned dry_run, u8 buf[], u32 period,
+			      unsigned dry_run, u8 buf[],
 			      const struct _xfer_spec *pxs)
 {
 	struct pl330_xfer *x = &pxs->desc->px;
-	struct pl330_reqcfg *rqcfg = &pxs->desc->rqcfg;
 	int off = 0;
 
 	/* DMAMOV SAR, x->src_addr */
-	off += _emit_MOV(dry_run, &buf[off], SAR,
-			 x->src_addr + rqcfg->src_inc * period * x->bytes);
+	off += _emit_MOV(dry_run, &buf[off], SAR, x->src_addr);
 	/* DMAMOV DAR, x->dst_addr */
-	off += _emit_MOV(dry_run, &buf[off], DAR,
-			 x->dst_addr + rqcfg->dst_inc * period * x->bytes);
+	off += _emit_MOV(dry_run, &buf[off], DAR, x->dst_addr);
 
 	/* Setup Loop(s) */
 	off += _setup_loops(pl330, dry_run, &buf[off], pxs);
@@ -1356,6 +1423,20 @@ static inline int _setup_xfer(struct pl330_dmac *pl330,
 	return off;
 }
 
+static inline int _setup_xfer_cyclic(struct pl330_dmac *pl330, unsigned dry_run,
+		u8 buf[], const struct _xfer_spec *pxs, int ev)
+{
+	struct pl330_xfer *x = &pxs->desc->px;
+	u32 ccr = pxs->ccr;
+	unsigned long bursts = BYTE_TO_BURST(x->bytes, ccr);
+	int off = 0;
+
+	/* Setup Loop(s) */
+	off += _loop_cyclic(pl330, dry_run, &buf[off], bursts, pxs, ev);
+
+	return off;
+}
+
 /*
  * A req is a sequence of one or more xfer units.
  * Returns the number of bytes taken to setup the MC for the req.
@@ -1368,42 +1449,34 @@ static int _setup_req(struct pl330_dmac *pl330, unsigned dry_run,
 	struct pl330_xfer *x;
 	u8 *buf = req->mc_cpu;
 	int off = 0;
-	int period;
-	int again_off;
 
 	PL330_DBGMC_START(req->mc_bus);
 
 	/* DMAMOV CCR, ccr */
 	off += _emit_MOV(dry_run, &buf[off], CCR, pxs->ccr);
-	again_off = off;
 
 	x = &pxs->desc->px;
-	if (pl330->peripherals_req_type != BURST) {
-		/* Error if xfer length is not aligned at burst size */
-		if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
-			return -EINVAL;
-	}
 
-	for (period = 0; period < pxs->desc->num_periods; period++) {
-		off += _setup_xfer(pl330, dry_run, &buf[off], period, pxs);
+	if (!pxs->desc->cyclic) {
+		if (pl330->peripherals_req_type != BURST) {
+			/* Error if xfer length is not aligned at burst size */
+			if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
+				return -EINVAL;
+		}
+
+		off += _setup_xfer(pl330, dry_run, &buf[off], pxs);
 
 		/* DMASEV peripheral/event */
 		off += _emit_SEV(dry_run, &buf[off], thrd->ev);
-	}
-
-	if (!pxs->desc->cyclic) {
 		/* DMAEND */
 		off += _emit_END(dry_run, &buf[off]);
 	} else {
-		struct _arg_LPEND lpend;
-		/* LP */
-		off += _emit_LP(dry_run, &buf[off], 0, 255);
-		/* LPEND */
-		lpend.cond = ALWAYS;
-		lpend.forever = false;
-		lpend.loop = 0;
-		lpend.bjump = off - again_off;
-		off += _emit_LPEND(dry_run, &buf[off], &lpend);
+		/* Error if xfer length is not aligned at burst size */
+		if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
+			return -EINVAL;
+
+		off += _setup_xfer_cyclic(pl330, dry_run, &buf[off],
+						pxs, thrd->ev);
 	}
 
 	return off;
@@ -2583,6 +2656,7 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 {
 	struct dma_pl330_desc *desc = NULL;
 	struct dma_pl330_chan *pch = to_pchan(chan);
+	struct pl330_dmac *pl330 = pch->dmac;
 	dma_addr_t dst;
 	dma_addr_t src;
 
@@ -2621,7 +2695,12 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 
 	desc->rqtype = direction;
 	desc->rqcfg.brst_size = pch->burst_sz;
-	desc->rqcfg.brst_len = pch->burst_len;
+
+	if (pl330->peripherals_req_type == BURST)
+		desc->rqcfg.brst_len = pch->burst_len;
+	else
+		desc->rqcfg.brst_len = 1;
+
 	desc->bytes_requested = len;
 	fill_px(&desc->px, dst, src, period_len);
 
