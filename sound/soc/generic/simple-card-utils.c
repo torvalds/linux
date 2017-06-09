@@ -110,6 +110,22 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);
 
+static void asoc_simple_card_clk_register(struct asoc_simple_dai *dai,
+					  struct clk *clk)
+{
+	dai->clk = clk;
+}
+
+int asoc_simple_card_clk_enable(struct asoc_simple_dai *dai)
+{
+	return clk_prepare_enable(dai->clk);
+}
+
+void asoc_simple_card_clk_disable(struct asoc_simple_dai *dai)
+{
+	clk_disable_unprepare(dai->clk);
+}
+
 int asoc_simple_card_parse_clk(struct device *dev,
 			       struct device_node *node,
 			       struct device_node *dai_of_node,
@@ -128,7 +144,8 @@ int asoc_simple_card_parse_clk(struct device *dev,
 	clk = devm_get_clk_from_child(dev, node, NULL);
 	if (!IS_ERR(clk)) {
 		simple_dai->sysclk = clk_get_rate(clk);
-		simple_dai->clk = clk;
+
+		asoc_simple_card_clk_register(simple_dai, clk);
 	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
 		simple_dai->sysclk = val;
 	} else {

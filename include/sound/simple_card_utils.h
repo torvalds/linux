@@ -45,6 +45,8 @@ int asoc_simple_card_parse_clk(struct device *dev,
 			       struct device_node *dai_of_node,
 			       struct asoc_simple_dai *simple_dai,
 			       const char *name);
+int asoc_simple_card_clk_enable(struct asoc_simple_dai *dai);
+void asoc_simple_card_clk_disable(struct asoc_simple_dai *dai);
 
 #define asoc_simple_card_parse_cpu(node, dai_link,				\
 				   list_name, cells_name, is_single_link)	\
