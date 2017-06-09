@@ -50,6 +50,7 @@ static int spk_ttyio_receive_buf2(struct tty_struct *tty,
 
 	if (spk_ttyio_synth->read_buff_add) {
 		int i;
+
 		for (i = 0; i < count; i++)
 			spk_ttyio_synth->read_buff_add(cp[i]);
 
@@ -162,6 +163,7 @@ static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)
 {
 	if (in_synth->alive && speakup_tty && speakup_tty->ops->write) {
 		int ret = speakup_tty->ops->write(speakup_tty, &ch, 1);
+
 		if (ret == 0)
 			/* No room */
 			return 0;
