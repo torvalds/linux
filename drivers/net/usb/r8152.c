@@ -2551,13 +2551,13 @@ static void rtl_runtime_suspend_enable(struct r8152 *tp, bool enable)
 
 static void rtl8153_runtime_enable(struct r8152 *tp, bool enable)
 {
-	rtl_runtime_suspend_enable(tp, enable);
-
 	if (enable) {
 		r8153_u1u2en(tp, false);
 		r8153_u2p3en(tp, false);
 		r8153_mac_clk_spd(tp, true);
+		rtl_runtime_suspend_enable(tp, true);
 	} else {
+		rtl_runtime_suspend_enable(tp, false);
 		r8153_mac_clk_spd(tp, false);
 		r8153_u2p3en(tp, true);
 		r8153_u1u2en(tp, true);
