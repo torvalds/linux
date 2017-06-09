@@ -995,14 +995,7 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 		}
 	}
 	list_for_each_entry(ent, &lh, list) {
-		if (ent->old) {
-			/* inherit old interface files */
-
-			/* if (ent->rename)
-				TODO: support rename */
-		/* } else if (ent->rename) {
-			TODO: support rename */
-		} else {
+		if (!ent->old) {
 			struct dentry *parent;
 			if (rcu_access_pointer(ent->new->parent)) {
 				struct aa_profile *p;
@@ -1014,7 +1007,7 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 		}
 
 		if (error) {
-			info = "failed to create ";
+			info = "failed to create";
 			goto fail_lock;
 		}
 	}
@@ -1044,34 +1037,6 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 		if (ent->old) {
 			share_name(ent->old, ent->new);
 			__replace_profile(ent->old, ent->new, 1);
-			if (ent->rename) {
-				/* aafs interface uses proxy */
-				struct aa_proxy *r = ent->new->proxy;
-				rcu_assign_pointer(r->profile,
-						   aa_get_profile(ent->new));
-				__replace_profile(ent->rename, ent->new, 0);
-			}
-		} else if (ent->rename) {
-			/* aafs interface uses proxy */
-			rcu_assign_pointer(ent->new->proxy->profile,
-					   aa_get_profile(ent->new));
-			__replace_profile(ent->rename, ent->new, 0);
-		} else if (ent->new->parent) {
-			struct aa_profile *parent, *newest;
-			parent = aa_deref_parent(ent->new);
-			newest = aa_get_newest_profile(parent);
-
-			/* parent replaced in this atomic set? */
-			if (newest != parent) {
-				aa_get_profile(newest);
-				rcu_assign_pointer(ent->new->parent, newest);
-				aa_put_profile(parent);
-			}
-			/* aafs interface uses proxy */
-			rcu_assign_pointer(ent->new->proxy->profile,
-					   aa_get_profile(ent->new));
-			__list_add_profile(&newest->base.profiles, ent->new);
-			aa_put_profile(newest);
 		} else {
 			struct list_head *lh;
 
