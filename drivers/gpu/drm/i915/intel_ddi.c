@@ -544,7 +544,7 @@ kbl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
 	if (IS_KBL_ULX(dev_priv)) {
 		*n_entries = ARRAY_SIZE(kbl_y_ddi_translations_dp);
 		return kbl_y_ddi_translations_dp;
-	} else if (IS_KBL_ULT(dev_priv)) {
+	} else if (IS_KBL_ULT(dev_priv) || IS_CFL_ULT(dev_priv)) {
 		*n_entries = ARRAY_SIZE(kbl_u_ddi_translations_dp);
 		return kbl_u_ddi_translations_dp;
 	} else {
@@ -560,7 +560,8 @@ skl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 		if (IS_SKL_ULX(dev_priv) || IS_KBL_ULX(dev_priv)) {
 			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
 			return skl_y_ddi_translations_edp;
-		} else if (IS_SKL_ULT(dev_priv) || IS_KBL_ULT(dev_priv)) {
+		} else if (IS_SKL_ULT(dev_priv) || IS_KBL_ULT(dev_priv) ||
+			   IS_CFL_ULT(dev_priv)) {
 			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_edp);
 			return skl_u_ddi_translations_edp;
 		} else {
@@ -569,7 +570,7 @@ skl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 		}
 	}
 
-	if (IS_KABYLAKE(dev_priv))
+	if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
 		return kbl_get_buf_trans_dp(dev_priv, n_entries);
 	else
 		return skl_get_buf_trans_dp(dev_priv, n_entries);
@@ -625,7 +626,7 @@ static const struct ddi_buf_trans *
 intel_ddi_get_buf_trans_dp(struct drm_i915_private *dev_priv,
 			   int *n_entries)
 {
-	if (IS_KABYLAKE(dev_priv)) {
+	if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
 		return kbl_get_buf_trans_dp(dev_priv, n_entries);
 	} else if (IS_SKYLAKE(dev_priv)) {
 		return skl_get_buf_trans_dp(dev_priv, n_entries);
@@ -645,7 +646,7 @@ static const struct ddi_buf_trans *
 intel_ddi_get_buf_trans_edp(struct drm_i915_private *dev_priv,
 			    int *n_entries)
 {
-	if (IS_KABYLAKE(dev_priv) || IS_SKYLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv)) {
 		return skl_get_buf_trans_edp(dev_priv, n_entries);
 	} else if (IS_BROADWELL(dev_priv)) {
 		return bdw_get_buf_trans_edp(dev_priv, n_entries);
@@ -1618,7 +1619,7 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder, u32 level)
 		if (dp_iboost) {
 			iboost = dp_iboost;
 		} else {
-			if (IS_KABYLAKE(dev_priv))
+			if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
 				ddi_translations = kbl_get_buf_trans_dp(dev_priv,
 									&n_entries);
 			else
