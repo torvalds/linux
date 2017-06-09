@@ -844,7 +844,9 @@ void ufs_evict_inode(struct inode * inode)
 	truncate_inode_pages_final(&inode->i_data);
 	if (want_delete) {
 		inode->i_size = 0;
-		if (inode->i_blocks)
+		if (inode->i_blocks &&
+		    (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+		     S_ISLNK(inode->i_mode)))
 			ufs_truncate_blocks(inode);
 	}
 
@@ -1103,7 +1105,7 @@ out:
        return err;
 }
 
-static void __ufs_truncate_blocks(struct inode *inode)
+static void ufs_truncate_blocks(struct inode *inode)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -1186,22 +1188,12 @@ static int ufs_truncate(struct inode *inode, loff_t size)
 
 	truncate_setsize(inode, size);
 
-	__ufs_truncate_blocks(inode);
+	ufs_truncate_blocks(inode);
 	inode->i_mtime = inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 out:
 	UFSD("EXIT: err %d\n", err);
 	return err;
-}
-
-static void ufs_truncate_blocks(struct inode *inode)
-{
-	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
-	      S_ISLNK(inode->i_mode)))
-		return;
-	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
-		return;
-	__ufs_truncate_blocks(inode);
 }
 
 int ufs_setattr(struct dentry *dentry, struct iattr *attr)
