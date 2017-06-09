@@ -3579,6 +3579,19 @@ static void r8153_init(struct r8152 *tp)
 	ocp_write_word(tp, MCU_TYPE_USB, USB_USB_CTRL, ocp_data);
 
 	rtl_tally_reset(tp);
+
+	switch (tp->udev->speed) {
+	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
+		tp->coalesce = COALESCE_SUPER;
+		break;
+	case USB_SPEED_HIGH:
+		tp->coalesce = COALESCE_HIGH;
+		break;
+	default:
+		tp->coalesce = COALESCE_SLOW;
+		break;
+	}
 }
 
 static int rtl8152_pre_reset(struct usb_interface *intf)
@@ -4523,19 +4536,6 @@ static int rtl8152_probe(struct usb_interface *intf,
 	tp->mii.phy_id_mask = 0x3f;
 	tp->mii.reg_num_mask = 0x1f;
 	tp->mii.phy_id = R8152_PHY_ID;
-
-	switch (udev->speed) {
-	case USB_SPEED_SUPER:
-	case USB_SPEED_SUPER_PLUS:
-		tp->coalesce = COALESCE_SUPER;
-		break;
-	case USB_SPEED_HIGH:
-		tp->coalesce = COALESCE_HIGH;
-		break;
-	default:
-		tp->coalesce = COALESCE_SLOW;
-		break;
-	}
 
 	tp->autoneg = AUTONEG_ENABLE;
 	tp->speed = tp->mii.supports_gmii ? SPEED_1000 : SPEED_100;
