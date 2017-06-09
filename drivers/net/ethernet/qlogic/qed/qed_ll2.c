@@ -1902,6 +1902,27 @@ void qed_ll2_free(struct qed_hwfn *p_hwfn)
 	p_hwfn->p_ll2_info = NULL;
 }
 
+static void _qed_ll2_get_port_stats(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt,
+				    struct qed_ll2_stats *p_stats)
+{
+	struct core_ll2_port_stats port_stats;
+
+	memset(&port_stats, 0, sizeof(port_stats));
+	qed_memcpy_from(p_hwfn, p_ptt, &port_stats,
+			BAR0_MAP_REG_TSDM_RAM +
+			TSTORM_LL2_PORT_STAT_OFFSET(MFW_PORT(p_hwfn)),
+			sizeof(port_stats));
+
+	p_stats->gsi_invalid_hdr = HILO_64_REGPAIR(port_stats.gsi_invalid_hdr);
+	p_stats->gsi_invalid_pkt_length =
+	    HILO_64_REGPAIR(port_stats.gsi_invalid_pkt_length);
+	p_stats->gsi_unsupported_pkt_typ =
+	    HILO_64_REGPAIR(port_stats.gsi_unsupported_pkt_typ);
+	p_stats->gsi_crcchksm_error =
+	    HILO_64_REGPAIR(port_stats.gsi_crcchksm_error);
+}
+
 static void _qed_ll2_get_tstats(struct qed_hwfn *p_hwfn,
 				struct qed_ptt *p_ptt,
 				struct qed_ll2_info *p_ll2_conn,
@@ -1986,6 +2007,8 @@ int qed_ll2_get_stats(void *cxt,
 		return -EINVAL;
 	}
 
+	if (p_ll2_conn->input.gsi_enable)
+		_qed_ll2_get_port_stats(p_hwfn, p_ptt, p_stats);
 	_qed_ll2_get_tstats(p_hwfn, p_ptt, p_ll2_conn, p_stats);
 	_qed_ll2_get_ustats(p_hwfn, p_ptt, p_ll2_conn, p_stats);
 	if (p_ll2_conn->tx_stats_en)
