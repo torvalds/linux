@@ -1012,14 +1012,15 @@ static struct flag_table dc8051_info_err_flags[] = {
  */
 static struct flag_table dc8051_info_host_msg_flags[] = {
 	FLAG_ENTRY0("Host request done", 0x0001),
-	FLAG_ENTRY0("BC SMA message", 0x0002),
-	FLAG_ENTRY0("BC PWR_MGM message", 0x0004),
+	FLAG_ENTRY0("BC PWR_MGM message", 0x0002),
+	FLAG_ENTRY0("BC SMA message", 0x0004),
 	FLAG_ENTRY0("BC Unknown message (BCC)", 0x0008),
 	FLAG_ENTRY0("BC Unknown message (LCB)", 0x0010),
 	FLAG_ENTRY0("External device config request", 0x0020),
 	FLAG_ENTRY0("VerifyCap all frames received", 0x0040),
 	FLAG_ENTRY0("LinkUp achieved", 0x0080),
 	FLAG_ENTRY0("Link going down", 0x0100),
+	FLAG_ENTRY0("Link width downgraded", 0x0200),
 };
 
 static u32 encoded_size(u32 size);
