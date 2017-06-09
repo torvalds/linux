@@ -5169,13 +5169,15 @@ sriov:
 			      &v, &port_vec);
 	if (err < 0) {
 		dev_err(adapter->pdev_dev, "Could not fetch port params\n");
-		goto free_adapter;
+		goto free_mbox_log;
 	}
 
 	adapter->params.nports = hweight32(port_vec);
 	pci_set_drvdata(pdev, adapter);
 	return 0;
 
+free_mbox_log:
+	kfree(adapter->mbox_log);
  free_adapter:
 	kfree(adapter);
  free_pci_region:
@@ -5275,6 +5277,7 @@ static void remove_one(struct pci_dev *pdev)
 			unregister_netdev(adapter->port[0]);
 		iounmap(adapter->regs);
 		kfree(adapter->vfinfo);
+		kfree(adapter->mbox_log);
 		kfree(adapter);
 		pci_disable_sriov(pdev);
 		pci_release_regions(pdev);
@@ -5321,6 +5324,7 @@ static void shutdown_one(struct pci_dev *pdev)
 			unregister_netdev(adapter->port[0]);
 		iounmap(adapter->regs);
 		kfree(adapter->vfinfo);
+		kfree(adapter->mbox_log);
 		kfree(adapter);
 		pci_disable_sriov(pdev);
 		pci_release_regions(pdev);
