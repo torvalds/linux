@@ -745,7 +745,7 @@ static int stmfts_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int stmfts_runtime_suspend(struct device *dev)
+static int __maybe_unused stmfts_runtime_suspend(struct device *dev)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
 	int ret;
@@ -757,7 +757,7 @@ static int stmfts_runtime_suspend(struct device *dev)
 	return ret;
 }
 
-static int stmfts_runtime_resume(struct device *dev)
+static int __maybe_unused stmfts_runtime_resume(struct device *dev)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
 	int ret;
