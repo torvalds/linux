@@ -124,7 +124,8 @@ static void tusb1210_remove(struct ulpi *ulpi)
 #define TI_VENDOR_ID 0x0451
 
 static const struct ulpi_device_id tusb1210_ulpi_id[] = {
-	{ TI_VENDOR_ID, 0x1507, },
+	{ TI_VENDOR_ID, 0x1507, },  /* TUSB1210 */
+	{ TI_VENDOR_ID, 0x1508, },  /* TUSB1211 */
 	{ },
 };
 MODULE_DEVICE_TABLE(ulpi, tusb1210_ulpi_id);
