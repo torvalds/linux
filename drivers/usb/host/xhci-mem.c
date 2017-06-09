@@ -2119,11 +2119,12 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 {
 	u32 temp, port_offset, port_count;
 	int i;
-	u8 major_revision;
+	u8 major_revision, minor_revision;
 	struct xhci_hub *rhub;
 
 	temp = readl(addr);
 	major_revision = XHCI_EXT_PORT_MAJOR(temp);
+	minor_revision = XHCI_EXT_PORT_MINOR(temp);
 
 	if (major_revision == 0x03) {
 		rhub = &xhci->usb3_rhub;
@@ -2137,7 +2138,9 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 		return;
 	}
 	rhub->maj_rev = XHCI_EXT_PORT_MAJOR(temp);
-	rhub->min_rev = XHCI_EXT_PORT_MINOR(temp);
+
+	if (rhub->min_rev < minor_revision)
+		rhub->min_rev = minor_revision;
 
 	/* Port offset and count in the third dword, see section 7.2 */
 	temp = readl(addr + 2);
