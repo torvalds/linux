@@ -2367,8 +2367,7 @@ rebuild_st:
 	 * Fail silently without starting the shrinker
 	 */
 	mapping = obj->base.filp->f_mapping;
-	noreclaim = mapping_gfp_constraint(mapping,
-					   ~(__GFP_IO | __GFP_RECLAIM));
+	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
 	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
 
 	sg = st->sgl;
