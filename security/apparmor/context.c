@@ -79,7 +79,7 @@ struct aa_profile *aa_get_task_profile(struct task_struct *task)
 	struct aa_profile *p;
 
 	rcu_read_lock();
-	p = aa_get_profile(__aa_task_profile(task));
+	p = aa_get_newest_profile(__aa_task_raw_profile(task));
 	rcu_read_unlock();
 
 	return p;

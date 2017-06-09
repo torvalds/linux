@@ -407,7 +407,10 @@ static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 {
 	ssize_t error;
 	struct aa_loaddata *data;
-	struct aa_profile *profile = aa_current_profile();
+	struct aa_profile *profile;
+
+	profile = begin_current_profile_crit_section();
+
 	/* high level check about policy management - fine grained in
 	 * below after unpack
 	 */
@@ -421,6 +424,7 @@ static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 		error = aa_replace_profiles(ns, profile, mask, data);
 		aa_put_loaddata(data);
 	}
+	end_current_profile_crit_section(profile);
 
 	return error;
 }
@@ -468,7 +472,7 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	ssize_t error;
 	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
 
-	profile = aa_current_profile();
+	profile = begin_current_profile_crit_section();
 	/* high level check about policy management - fine grained in
 	 * below after unpack
 	 */
@@ -489,6 +493,7 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 		aa_put_loaddata(data);
 	}
  out:
+	end_current_profile_crit_section(profile);
 	aa_put_ns(ns);
 	return error;
 }
@@ -667,8 +672,9 @@ static ssize_t query_data(char *buf, size_t buf_len,
 	if (buf_len < sizeof(bytes) + sizeof(blocks))
 		return -EINVAL; /* not enough space */
 
-	curr = aa_current_profile();
+	curr = begin_current_profile_crit_section();
 	profile = aa_fqlookupn_profile(curr, query, strnlen(query, query_len));
+	end_current_profile_crit_section(curr);
 	if (!profile)
 		return -ENOENT;
 
@@ -754,8 +760,9 @@ static ssize_t query_label(char *buf, size_t buf_len,
 	match_str = label_name + label_name_len + 1;
 	match_len = query_len - label_name_len - 1;
 
-	curr = aa_current_profile();
+	curr = begin_current_profile_crit_section();
 	profile = aa_fqlookupn_profile(curr, label_name, label_name_len);
+	end_current_profile_crit_section(curr);
 	if (!profile)
 		return -ENOENT;
 
@@ -1094,18 +1101,22 @@ static const struct file_operations seq_ns_ ##NAME ##_fops = {	      \
 
 static int seq_ns_level_show(struct seq_file *seq, void *v)
 {
-	struct aa_ns *ns = aa_current_profile()->ns;
+	struct aa_profile *profile;
 
-	seq_printf(seq, "%d\n", ns->level);
+	profile = begin_current_profile_crit_section();
+	seq_printf(seq, "%d\n", profile->ns->level);
+	end_current_profile_crit_section(profile);
 
 	return 0;
 }
 
 static int seq_ns_name_show(struct seq_file *seq, void *v)
 {
-	struct aa_ns *ns = aa_current_profile()->ns;
+	struct aa_profile *profile;
 
-	seq_printf(seq, "%s\n", aa_ns_name(ns, ns, true));
+	profile = begin_current_profile_crit_section();
+	seq_printf(seq, "%s\n", aa_ns_name(profile->ns, profile->ns, true));
+	end_current_profile_crit_section(profile);
 
 	return 0;
 }
@@ -1530,9 +1541,9 @@ static int ns_mkdir_op(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct aa_ns *ns, *parent;
 	/* TODO: improve permission check */
-	struct aa_profile *profile = aa_current_profile();
+	struct aa_profile *profile = begin_current_profile_crit_section();
 	int error = aa_may_manage_policy(profile, NULL, AA_MAY_LOAD_POLICY);
-
+	end_current_profile_crit_section(profile);
 	if (error)
 		return error;
 
@@ -1576,9 +1587,9 @@ static int ns_rmdir_op(struct inode *dir, struct dentry *dentry)
 {
 	struct aa_ns *ns, *parent;
 	/* TODO: improve permission check */
-	struct aa_profile *profile = aa_current_profile();
+	struct aa_profile *profile = begin_current_profile_crit_section();
 	int error = aa_may_manage_policy(profile, NULL, AA_MAY_LOAD_POLICY);
-
+	end_current_profile_crit_section(profile);
 	if (error)
 		return error;
 
@@ -1922,10 +1933,9 @@ static struct aa_profile *next_profile(struct aa_ns *root,
 static void *p_start(struct seq_file *f, loff_t *pos)
 {
 	struct aa_profile *profile = NULL;
-	struct aa_ns *root = aa_current_profile()->ns;
+	struct aa_ns *root = aa_get_current_ns();
 	loff_t l = *pos;
-	f->private = aa_get_ns(root);
-
+	f->private = root;
 
 	/* find the first profile */
 	mutex_lock(&root->lock);

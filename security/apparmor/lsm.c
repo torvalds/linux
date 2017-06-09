@@ -120,7 +120,7 @@ static int apparmor_capget(struct task_struct *target, kernel_cap_t *effective,
 
 	rcu_read_lock();
 	cred = __task_cred(target);
-	profile = aa_cred_profile(cred);
+	profile = aa_get_newest_cred_profile(cred);
 
 	/*
 	 * cap_capget is stacked ahead of this and will
@@ -131,6 +131,7 @@ static int apparmor_capget(struct task_struct *target, kernel_cap_t *effective,
 		*permitted = cap_intersect(*permitted, profile->caps.allow);
 	}
 	rcu_read_unlock();
+	aa_put_profile(profile);
 
 	return 0;
 }
@@ -141,9 +142,11 @@ static int apparmor_capable(const struct cred *cred, struct user_namespace *ns,
 	struct aa_profile *profile;
 	int error = 0;
 
-	profile = aa_cred_profile(cred);
+	profile = aa_get_newest_cred_profile(cred);
 	if (!unconfined(profile))
 		error = aa_capable(profile, cap, audit);
+	aa_put_profile(profile);
+
 	return error;
 }
 
@@ -162,9 +165,10 @@ static int common_perm(const char *op, const struct path *path, u32 mask,
 	struct aa_profile *profile;
 	int error = 0;
 
-	profile = __aa_current_profile();
+	profile = __begin_current_profile_crit_section();
 	if (!unconfined(profile))
 		error = aa_path_perm(op, profile, path, 0, mask, cond);
+	__end_current_profile_crit_section(profile);
 
 	return error;
 }
@@ -297,9 +301,11 @@ static int apparmor_path_link(struct dentry *old_dentry, const struct path *new_
 	if (!path_mediated_fs(old_dentry))
 		return 0;
 
-	profile = aa_current_profile();
+	profile = begin_current_profile_crit_section();
 	if (!unconfined(profile))
 		error = aa_path_link(profile, old_dentry, new_dir, new_dentry);
+	end_current_profile_crit_section(profile);
+
 	return error;
 }
 
@@ -312,7 +318,7 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 	if (!path_mediated_fs(old_dentry))
 		return 0;
 
-	profile = aa_current_profile();
+	profile = begin_current_profile_crit_section();
 	if (!unconfined(profile)) {
 		struct path old_path = { .mnt = old_dir->mnt,
 					 .dentry = old_dentry };
@@ -332,6 +338,8 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 					     AA_MAY_CREATE, &cond);
 
 	}
+	end_current_profile_crit_section(profile);
+
 	return error;
 }
 
@@ -369,7 +377,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
 		return 0;
 	}
 
-	profile = aa_cred_profile(cred);
+	profile = aa_get_newest_cred_profile(cred);
 	if (!unconfined(profile)) {
 		struct inode *inode = file_inode(file);
 		struct path_cond cond = { inode->i_uid, inode->i_mode };
@@ -379,18 +387,23 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
 		/* todo cache full allowed permissions set and state */
 		fctx->allow = aa_map_file_to_perms(file);
 	}
+	aa_put_profile(profile);
 
 	return error;
 }
 
 static int apparmor_file_alloc_security(struct file *file)
 {
+	int error = 0;
+
 	/* freed by apparmor_file_free_security */
+	struct aa_profile *profile = begin_current_profile_crit_section();
 	file->f_security = aa_alloc_file_context(GFP_KERNEL);
 	if (!file->f_security)
 		return -ENOMEM;
-	return 0;
+	end_current_profile_crit_section(profile);
 
+	return error;
 }
 
 static void apparmor_file_free_security(struct file *file)
@@ -403,16 +416,17 @@ static void apparmor_file_free_security(struct file *file)
 static int common_file_perm(const char *op, struct file *file, u32 mask)
 {
 	struct aa_file_ctx *fctx = file->f_security;
-	struct aa_profile *profile, *fprofile = aa_cred_profile(file->f_cred);
+	struct aa_profile *profile, *fprofile;
 	int error = 0;
 
+	fprofile = aa_cred_raw_profile(file->f_cred);
 	AA_BUG(!fprofile);
 
 	if (!file->f_path.mnt ||
 	    !path_mediated_fs(file->f_path.dentry))
 		return 0;
 
-	profile = __aa_current_profile();
+	profile = __begin_current_profile_crit_section();
 
 	/* revalidate access, if task is unconfined, or the cached cred
 	 * doesn't match or if the request is for more permissions than
@@ -424,6 +438,7 @@ static int common_file_perm(const char *op, struct file *file, u32 mask)
 	if (!unconfined(profile) && !unconfined(fprofile) &&
 	    ((fprofile != profile) || (mask & ~fctx->allow)))
 		error = aa_file_perm(op, profile, file, mask);
+	__end_current_profile_crit_section(profile);
 
 	return error;
 }
@@ -568,10 +583,11 @@ out:
 	return error;
 
 fail:
-	aad(&sa)->profile = aa_current_profile();
+	aad(&sa)->profile = begin_current_profile_crit_section();
 	aad(&sa)->info = name;
 	aad(&sa)->error = error = -EINVAL;
 	aa_audit_msg(AUDIT_APPARMOR_DENIED, &sa, NULL);
+	end_current_profile_crit_section(aad(&sa)->profile);
 	goto out;
 }
 
@@ -581,7 +597,7 @@ fail:
  */
 static void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
 {
-	struct aa_profile *profile = __aa_current_profile();
+	struct aa_profile *profile = aa_current_raw_profile();
 	struct aa_task_ctx *new_ctx = cred_ctx(bprm->cred);
 
 	/* bail out if unconfined or not changing profile */
@@ -608,11 +624,12 @@ static void apparmor_bprm_committed_creds(struct linux_binprm *bprm)
 static int apparmor_task_setrlimit(struct task_struct *task,
 		unsigned int resource, struct rlimit *new_rlim)
 {
-	struct aa_profile *profile = __aa_current_profile();
+	struct aa_profile *profile = __begin_current_profile_crit_section();
 	int error = 0;
 
 	if (!unconfined(profile))
 		error = aa_task_setrlimit(profile, task, resource, new_rlim);
+	__end_current_profile_crit_section(profile);
 
 	return error;
 }

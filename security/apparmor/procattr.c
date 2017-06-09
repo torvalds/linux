@@ -41,7 +41,7 @@ int aa_getprocattr(struct aa_profile *profile, char **string)
 	const char *mode_str = aa_profile_mode_names[profile->mode];
 	const char *ns_name = NULL;
 	struct aa_ns *ns = profile->ns;
-	struct aa_ns *current_ns = __aa_current_profile()->ns;
+	struct aa_ns *current_ns = aa_get_current_ns();
 	char *s;
 
 	if (!aa_ns_visible(current_ns, ns, true))
@@ -75,6 +75,7 @@ int aa_getprocattr(struct aa_profile *profile, char **string)
 	else
 		sprintf(s, "%s (%s)\n", profile->base.hname, mode_str);
 	*string = str;
+	aa_put_ns(current_ns);
 
 	/* NOTE: len does not include \0 of string, not saved as part of file */
 	return len;

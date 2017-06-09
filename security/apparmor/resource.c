@@ -90,7 +90,7 @@ int aa_task_setrlimit(struct aa_profile *profile, struct task_struct *task,
 	int error = 0;
 
 	rcu_read_lock();
-	task_profile = aa_get_profile(aa_cred_profile(__task_cred(task)));
+	task_profile = aa_get_newest_cred_profile((__task_cred(task)));
 	rcu_read_unlock();
 
 	/* TODO: extend resource control to handle other (non current)

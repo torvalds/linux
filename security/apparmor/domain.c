@@ -594,7 +594,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 	/* released below */
 	cred = get_current_cred();
 	ctx = cred_ctx(cred);
-	profile = aa_get_newest_profile(aa_cred_profile(cred));
+	profile = aa_get_newest_cred_profile(cred);
 	previous_profile = aa_get_newest_profile(ctx->previous);
 
 	if (unconfined(profile)) {
@@ -737,7 +737,7 @@ int aa_change_profile(const char *fqname, bool onexec,
 	}
 
 	cred = get_current_cred();
-	profile = aa_cred_profile(cred);
+	profile = aa_get_newest_cred_profile(cred);
 
 	/*
 	 * Fail explicitly requested domain transitions if no_new_privs
@@ -795,6 +795,7 @@ audit:
 				      fqname, GLOBAL_ROOT_UID, info, error);
 
 	aa_put_profile(target);
+	aa_put_profile(profile);
 	put_cred(cred);
 
 	return error;
