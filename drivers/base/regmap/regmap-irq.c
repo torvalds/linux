@@ -394,7 +394,7 @@ static int regmap_irq_map(struct irq_domain *h, unsigned int virq,
 
 static const struct irq_domain_ops regmap_domain_ops = {
 	.map	= regmap_irq_map,
-	.xlate	= irq_domain_xlate_twocell,
+	.xlate	= irq_domain_xlate_onetwocell,
 };
 
 /**
