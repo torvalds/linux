@@ -168,5 +168,7 @@ disp_timings: display-timings {
 		swap-rb = <0>;
 		swap-rg = <0>;
 		swap-gb = <0>;
+		screen-width = <68>;
+		screen-hight = <120>;
 	};
 };
