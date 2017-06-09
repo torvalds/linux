@@ -1136,6 +1136,7 @@ static enum bp_result get_ss_info_v4_2(
 {
 	enum bp_result result = BP_RESULT_OK;
 	struct atom_display_controller_info_v4_2 *disp_cntl_tbl = NULL;
+	struct atom_smu_info_v3_1 *smu_info = NULL;
 
 	if (!ss_info)
 		return BP_RESULT_BADINPUT;
@@ -1143,9 +1144,16 @@ static enum bp_result get_ss_info_v4_2(
 	if (!DATA_TABLES(dce_info))
 		return BP_RESULT_BADBIOSTABLE;
 
+	if (!DATA_TABLES(smu_info))
+		return BP_RESULT_BADBIOSTABLE;
+
 	disp_cntl_tbl =  GET_IMAGE(struct atom_display_controller_info_v4_2,
 							DATA_TABLES(dce_info));
 	if (!disp_cntl_tbl)
+		return BP_RESULT_BADBIOSTABLE;
+
+	smu_info =  GET_IMAGE(struct atom_smu_info_v3_1, DATA_TABLES(smu_info));
+	if (!smu_info)
 		return BP_RESULT_BADBIOSTABLE;
 
 	ss_info->type.STEP_AND_DELAY_INFO = false;
@@ -1173,10 +1181,10 @@ static enum bp_result get_ss_info_v4_2(
 	/* TODO LVDS not support anymore? */
 	case AS_SIGNAL_TYPE_DISPLAY_PORT:
 		ss_info->spread_spectrum_percentage =
-				disp_cntl_tbl->dp_ss_percentage;
+				smu_info->gpuclk_ss_percentage;
 		ss_info->spread_spectrum_range =
-				disp_cntl_tbl->dp_ss_rate_10hz * 10;
-		if (disp_cntl_tbl->dp_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
+				smu_info->gpuclk_ss_rate_10hz * 10;
+		if (smu_info->gpuclk_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
 			ss_info->type.CENTER_MODE = true;
 		break;
 	case AS_SIGNAL_TYPE_GPU_PLL:
