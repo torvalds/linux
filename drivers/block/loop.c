@@ -1147,10 +1147,11 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 	    ((lo->lo_flags & LO_FLAGS_BLOCKSIZE) &&
 	     lo->lo_logical_blocksize != LO_INFO_BLOCKSIZE(info))) {
 		if (figure_loop_size(lo, info->lo_offset, info->lo_sizelimit,
-				     LO_INFO_BLOCKSIZE(info)))
+				     LO_INFO_BLOCKSIZE(info))) {
 			err = -EFBIG;
 			goto exit;
 		}
+	}
 
 	loop_config_discard(lo);
 
