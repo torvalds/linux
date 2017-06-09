@@ -373,8 +373,9 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 		}
 
 		if (ret) {
-			dev_err(dev, "gpio<%d..%d> add failed\n",
-				base, base < 0 ? ngpio : base + ngpio);
+			dev_err(dev,
+				"adding gpiochip failed: %d (base: %d, ngpio: %d)\n",
+				ret, base, base < 0 ? ngpio : base + ngpio);
 
 			return ret;
 		}
