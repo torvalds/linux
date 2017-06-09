@@ -118,6 +118,9 @@ struct snd_soc_tplg_ops {
 	int (*widget_load)(struct snd_soc_component *,
 		struct snd_soc_dapm_widget *,
 		struct snd_soc_tplg_dapm_widget *);
+	int (*widget_ready)(struct snd_soc_component *,
+		struct snd_soc_dapm_widget *,
+		struct snd_soc_tplg_dapm_widget *);
 	int (*widget_unload)(struct snd_soc_component *,
 		struct snd_soc_dobj *);
 
