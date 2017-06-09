@@ -1264,59 +1264,6 @@ static struct amdgpu_bo *amdgpu_vm_get_pt(struct amdgpu_pte_update_params *p,
 }
 
 /**
- * amdgpu_vm_update_ptes_cpu - Update the page tables in the range
- *  start - @end using CPU.
- * See amdgpu_vm_update_ptes for parameter description.
- *
- */
-static int amdgpu_vm_update_ptes_cpu(struct amdgpu_pte_update_params *params,
-				     uint64_t start, uint64_t end,
-				     uint64_t dst, uint64_t flags)
-{
-	struct amdgpu_device *adev = params->adev;
-	const uint64_t mask = AMDGPU_VM_PTE_COUNT(adev) - 1;
-	void *pe_ptr;
-	uint64_t addr;
-	struct amdgpu_bo *pt;
-	unsigned int nptes;
-	int r;
-
-	/* initialize the variables */
-	addr = start;
-
-	/* walk over the address space and update the page tables */
-	while (addr < end) {
-		pt = amdgpu_vm_get_pt(params, addr);
-		if (!pt) {
-			pr_err("PT not found, aborting update_ptes\n");
-			return -EINVAL;
-		}
-
-		WARN_ON(params->shadow);
-
-		r = amdgpu_bo_kmap(pt, &pe_ptr);
-		if (r)
-			return r;
-
-		pe_ptr += (addr & mask) * 8;
-
-		if ((addr & ~mask) == (end & ~mask))
-			nptes = end - addr;
-		else
-			nptes = AMDGPU_VM_PTE_COUNT(adev) - (addr & mask);
-
-		params->func(params, (uint64_t)pe_ptr, dst, nptes,
-			     AMDGPU_GPU_PAGE_SIZE, flags);
-
-		amdgpu_bo_kunmap(pt);
-		addr += nptes;
-		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
-	}
-
-	return 0;
-}
-
-/**
  * amdgpu_vm_update_ptes - make sure that page tables are valid
  *
  * @params: see amdgpu_pte_update_params definition
@@ -1339,10 +1286,9 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	uint64_t addr, pe_start;
 	struct amdgpu_bo *pt;
 	unsigned nptes;
+	int r;
+	bool use_cpu_update = (params->func == amdgpu_vm_cpu_set_ptes);
 
-	if (params->func == amdgpu_vm_cpu_set_ptes)
-		return amdgpu_vm_update_ptes_cpu(params, start, end,
-						 dst, flags);
 
 	/* walk over the address space and update the page tables */
 	for (addr = start; addr < end; addr += nptes) {
@@ -1353,6 +1299,10 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		}
 
 		if (params->shadow) {
+			if (WARN_ONCE(use_cpu_update,
+				"CPU VM update doesn't suuport shadow pages"))
+				return 0;
+
 			if (!pt->shadow)
 				return 0;
 			pt = pt->shadow;
@@ -1363,13 +1313,22 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		else
 			nptes = AMDGPU_VM_PTE_COUNT(adev) - (addr & mask);
 
-		pe_start = amdgpu_bo_gpu_offset(pt);
+		if (use_cpu_update) {
+			r = amdgpu_bo_kmap(pt, (void *)&pe_start);
+			if (r)
+				return r;
+		} else
+			pe_start = amdgpu_bo_gpu_offset(pt);
+
 		pe_start += (addr & mask) * 8;
 
 		params->func(params, pe_start, dst, nptes,
 			     AMDGPU_GPU_PAGE_SIZE, flags);
 
 		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
+
+		if (use_cpu_update)
+			amdgpu_bo_kunmap(pt);
 	}
 
 	return 0;
