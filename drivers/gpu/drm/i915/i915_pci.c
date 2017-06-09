@@ -426,6 +426,7 @@ static const struct intel_device_info intel_kabylake_gt3_info = {
 	BDW_FEATURES, \
 	.gen = 9, \
 	.platform = INTEL_COFFEELAKE, \
+	.has_csr = 1, \
 	.has_guc = 1, \
 	.ddb_size = 896
 
