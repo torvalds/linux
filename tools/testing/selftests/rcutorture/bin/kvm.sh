@@ -212,6 +212,7 @@ do
 	then
 		cpu_count=`configNR_CPUS.sh $CONFIGFRAG/$CF1`
 		cpu_count=`configfrag_boot_cpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
+		cpu_count=`configfrag_boot_maxcpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
 		for ((cur_rep=0;cur_rep<$config_reps;cur_rep++))
 		do
 			echo $CF1 $cpu_count >> $T/cfgcpu
