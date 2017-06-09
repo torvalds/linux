@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2011 - 2017 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
  * All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
@@ -2148,7 +2149,7 @@ static int qib_setup_7220_reset(struct qib_devdata *dd)
 
 bail:
 	if (ret) {
-		if (qib_pcie_params(dd, dd->lbus_width, NULL, NULL))
+		if (qib_pcie_params(dd, dd->lbus_width, NULL))
 			qib_dev_err(dd,
 				"Reset failed to setup PCIe or interrupts; continuing anyway\n");
 
@@ -3309,7 +3310,7 @@ static int qib_7220_intr_fallback(struct qib_devdata *dd)
 	qib_devinfo(dd->pcidev,
 		"MSI interrupt not detected, trying INTx interrupts\n");
 	qib_7220_free_irq(dd);
-	qib_enable_intx(dd->pcidev);
+	qib_enable_intx(dd);
 	/*
 	 * Some newer kernels require free_irq before disable_msi,
 	 * and irq can be changed during disable and INTx enable
@@ -4619,7 +4620,7 @@ struct qib_devdata *qib_init_iba7220_funcs(struct pci_dev *pdev,
 		minwidth = 8; /* x8 capable boards */
 		break;
 	}
-	if (qib_pcie_params(dd, minwidth, NULL, NULL))
+	if (qib_pcie_params(dd, minwidth, NULL))
 		qib_dev_err(dd,
 			"Failed to setup PCIe or interrupts; continuing anyway\n");
 
