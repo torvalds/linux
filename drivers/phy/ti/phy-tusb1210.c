@@ -11,6 +11,7 @@
  */
 #include <linux/module.h>
 #include <linux/ulpi/driver.h>
+#include <linux/ulpi/regs.h>
 #include <linux/gpio/consumer.h>
 #include <linux/phy/ulpi_phy.h>
 
@@ -52,9 +53,43 @@ static int tusb1210_power_off(struct phy *phy)
 	return 0;
 }
 
+static int tusb1210_set_mode(struct phy *phy, enum phy_mode mode)
+{
+	struct tusb1210 *tusb = phy_get_drvdata(phy);
+	int ret;
+
+	ret = ulpi_read(tusb->ulpi, ULPI_OTG_CTRL);
+	if (ret < 0)
+		return ret;
+
+	switch (mode) {
+	case PHY_MODE_USB_HOST:
+		ret |= (ULPI_OTG_CTRL_DRVVBUS_EXT
+			| ULPI_OTG_CTRL_ID_PULLUP
+			| ULPI_OTG_CTRL_DP_PULLDOWN
+			| ULPI_OTG_CTRL_DM_PULLDOWN);
+		ulpi_write(tusb->ulpi, ULPI_OTG_CTRL, ret);
+		ret |= ULPI_OTG_CTRL_DRVVBUS;
+		break;
+	case PHY_MODE_USB_DEVICE:
+		ret &= ~(ULPI_OTG_CTRL_DRVVBUS
+			 | ULPI_OTG_CTRL_DP_PULLDOWN
+			 | ULPI_OTG_CTRL_DM_PULLDOWN);
+		ulpi_write(tusb->ulpi, ULPI_OTG_CTRL, ret);
+		ret &= ~ULPI_OTG_CTRL_DRVVBUS_EXT;
+		break;
+	default:
+		/* nothing */
+		return 0;
+	}
+
+	return ulpi_write(tusb->ulpi, ULPI_OTG_CTRL, ret);
+}
+
 static const struct phy_ops phy_ops = {
 	.power_on = tusb1210_power_on,
 	.power_off = tusb1210_power_off,
+	.set_mode = tusb1210_set_mode,
 	.owner = THIS_MODULE,
 };
 
