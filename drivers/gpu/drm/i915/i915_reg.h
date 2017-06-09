@@ -1693,6 +1693,146 @@ enum skl_disp_power_wells {
 #define   OCL2_LDOFUSE_PWR_DIS		(1 << 6)
 #define BXT_PORT_CL1CM_DW30(phy)	_BXT_PHY((phy), _PORT_CL1CM_DW30_BC)
 
+#define _CNL_PORT_PCS_DW1_GRP_AE	0x162304
+#define _CNL_PORT_PCS_DW1_GRP_B		0x162384
+#define _CNL_PORT_PCS_DW1_GRP_C		0x162B04
+#define _CNL_PORT_PCS_DW1_GRP_D		0x162B84
+#define _CNL_PORT_PCS_DW1_GRP_F		0x162A04
+#define _CNL_PORT_PCS_DW1_LN0_AE	0x162404
+#define _CNL_PORT_PCS_DW1_LN0_B		0x162604
+#define _CNL_PORT_PCS_DW1_LN0_C		0x162C04
+#define _CNL_PORT_PCS_DW1_LN0_D		0x162E04
+#define _CNL_PORT_PCS_DW1_LN0_F		0x162804
+#define CNL_PORT_PCS_DW1_GRP(port)	_MMIO_PORT6(port, \
+						    _CNL_PORT_PCS_DW1_GRP_AE, \
+						    _CNL_PORT_PCS_DW1_GRP_B, \
+						    _CNL_PORT_PCS_DW1_GRP_C, \
+						    _CNL_PORT_PCS_DW1_GRP_D, \
+						    _CNL_PORT_PCS_DW1_GRP_AE, \
+						    _CNL_PORT_PCS_DW1_GRP_F)
+#define CNL_PORT_PCS_DW1_LN0(port)	_MMIO_PORT6(port, \
+						    _CNL_PORT_PCS_DW1_LN0_AE, \
+						    _CNL_PORT_PCS_DW1_LN0_B, \
+						    _CNL_PORT_PCS_DW1_LN0_C, \
+						    _CNL_PORT_PCS_DW1_LN0_D, \
+						    _CNL_PORT_PCS_DW1_LN0_AE, \
+						    _CNL_PORT_PCS_DW1_LN0_F)
+#define   COMMON_KEEPER_EN		(1 << 26)
+
+#define _CNL_PORT_TX_DW2_GRP_AE		0x162348
+#define _CNL_PORT_TX_DW2_GRP_B		0x1623C8
+#define _CNL_PORT_TX_DW2_GRP_C		0x162B48
+#define _CNL_PORT_TX_DW2_GRP_D		0x162BC8
+#define _CNL_PORT_TX_DW2_GRP_F		0x162A48
+#define _CNL_PORT_TX_DW2_LN0_AE		0x162448
+#define _CNL_PORT_TX_DW2_LN0_B		0x162648
+#define _CNL_PORT_TX_DW2_LN0_C		0x162C48
+#define _CNL_PORT_TX_DW2_LN0_D		0x162E48
+#define _CNL_PORT_TX_DW2_LN0_F		0x162A48
+#define CNL_PORT_TX_DW2_GRP(port)	_MMIO_PORT6(port, \
+						    _CNL_PORT_TX_DW2_GRP_AE, \
+						    _CNL_PORT_TX_DW2_GRP_B, \
+						    _CNL_PORT_TX_DW2_GRP_C, \
+						    _CNL_PORT_TX_DW2_GRP_D, \
+						    _CNL_PORT_TX_DW2_GRP_AE, \
+						    _CNL_PORT_TX_DW2_GRP_F)
+#define CNL_PORT_TX_DW2_LN0(port)	_MMIO_PORT6(port, \
+						    _CNL_PORT_TX_DW2_LN0_AE, \
+						    _CNL_PORT_TX_DW2_LN0_B, \
+						    _CNL_PORT_TX_DW2_LN0_C, \
+						    _CNL_PORT_TX_DW2_LN0_D, \
+						    _CNL_PORT_TX_DW2_LN0_AE, \
+						    _CNL_PORT_TX_DW2_LN0_F)
+#define   SWING_SEL_UPPER(x)		((x >> 3) << 15)
+#define   SWING_SEL_LOWER(x)		((x & 0x7) << 11)
+#define   RCOMP_SCALAR(x)		((x) << 0)
+
+#define _CNL_PORT_TX_DW4_GRP_AE		0x162350
+#define _CNL_PORT_TX_DW4_GRP_B		0x1623D0
+#define _CNL_PORT_TX_DW4_GRP_C		0x162B50
+#define _CNL_PORT_TX_DW4_GRP_D		0x162BD0
+#define _CNL_PORT_TX_DW4_GRP_F		0x162A50
+#define _CNL_PORT_TX_DW4_LN0_AE		0x162450
+#define _CNL_PORT_TX_DW4_LN1_AE		0x1624D0
+#define _CNL_PORT_TX_DW4_LN0_B		0x162650
+#define _CNL_PORT_TX_DW4_LN0_C		0x162C50
+#define _CNL_PORT_TX_DW4_LN0_D		0x162E50
+#define _CNL_PORT_TX_DW4_LN0_F		0x162850
+#define CNL_PORT_TX_DW4_GRP(port)       _MMIO_PORT6(port, \
+						    _CNL_PORT_TX_DW4_GRP_AE, \
+						    _CNL_PORT_TX_DW4_GRP_B, \
+						    _CNL_PORT_TX_DW4_GRP_C, \
+						    _CNL_PORT_TX_DW4_GRP_D, \
+						    _CNL_PORT_TX_DW4_GRP_AE, \
+						    _CNL_PORT_TX_DW4_GRP_F)
+#define CNL_PORT_TX_DW4_LN(port, ln)       _MMIO_PORT6_LN(port, ln,	\
+						    _CNL_PORT_TX_DW4_LN0_AE, \
+						    _CNL_PORT_TX_DW4_LN1_AE, \
+						    _CNL_PORT_TX_DW4_LN0_B, \
+						    _CNL_PORT_TX_DW4_LN0_C, \
+						    _CNL_PORT_TX_DW4_LN0_D, \
+						    _CNL_PORT_TX_DW4_LN0_AE, \
+						    _CNL_PORT_TX_DW4_LN0_F)
+#define   LOADGEN_SELECT		(1 << 31)
+#define   POST_CURSOR_1(x)		((x) << 12)
+#define   POST_CURSOR_2(x)		((x) << 6)
+#define   CURSOR_COEFF(x)		((x) << 0)
+
+#define _CNL_PORT_TX_DW5_GRP_AE		0x162354
+#define _CNL_PORT_TX_DW5_GRP_B		0x1623D4
+#define _CNL_PORT_TX_DW5_GRP_C		0x162B54
+#define _CNL_PORT_TX_DW5_GRP_D		0x162BD4
+#define _CNL_PORT_TX_DW5_GRP_F		0x162A54
+#define _CNL_PORT_TX_DW5_LN0_AE		0x162454
+#define _CNL_PORT_TX_DW5_LN0_B		0x162654
+#define _CNL_PORT_TX_DW5_LN0_C		0x162C54
+#define _CNL_PORT_TX_DW5_LN0_D		0x162ED4
+#define _CNL_PORT_TX_DW5_LN0_F		0x162854
+#define CNL_PORT_TX_DW5_GRP(port)	_MMIO_PORT6(port, \
+						    _CNL_PORT_TX_DW5_GRP_AE, \
+						    _CNL_PORT_TX_DW5_GRP_B, \
+						    _CNL_PORT_TX_DW5_GRP_C, \
+						    _CNL_PORT_TX_DW5_GRP_D, \
+						    _CNL_PORT_TX_DW5_GRP_AE, \
+						    _CNL_PORT_TX_DW5_GRP_F)
+#define CNL_PORT_TX_DW5_LN0(port)	_MMIO_PORT6(port, \
+						    _CNL_PORT_TX_DW5_LN0_AE, \
+						    _CNL_PORT_TX_DW5_LN0_B, \
+						    _CNL_PORT_TX_DW5_LN0_C, \
+						    _CNL_PORT_TX_DW5_LN0_D, \
+						    _CNL_PORT_TX_DW5_LN0_AE, \
+						    _CNL_PORT_TX_DW5_LN0_F)
+#define   TX_TRAINING_EN		(1 << 31)
+#define   TAP3_DISABLE			(1 << 29)
+#define   SCALING_MODE_SEL(x)		((x) << 18)
+#define   RTERM_SELECT(x)		((x) << 3)
+
+#define _CNL_PORT_TX_DW7_GRP_AE		0x16235C
+#define _CNL_PORT_TX_DW7_GRP_B		0x1623DC
+#define _CNL_PORT_TX_DW7_GRP_C		0x162B5C
+#define _CNL_PORT_TX_DW7_GRP_D		0x162BDC
+#define _CNL_PORT_TX_DW7_GRP_F		0x162A5C
+#define _CNL_PORT_TX_DW7_LN0_AE		0x16245C
+#define _CNL_PORT_TX_DW7_LN0_B		0x16265C
+#define _CNL_PORT_TX_DW7_LN0_C		0x162C5C
+#define _CNL_PORT_TX_DW7_LN0_D		0x162EDC
+#define _CNL_PORT_TX_DW7_LN0_F		0x16285C
+#define CNL_PORT_TX_DW7_GRP(port)	_MMIO_PORT6(port, \
+						    _CNL_PORT_TX_DW7_GRP_AE, \
+						    _CNL_PORT_TX_DW7_GRP_B, \
+						    _CNL_PORT_TX_DW7_GRP_C, \
+						    _CNL_PORT_TX_DW7_GRP_D, \
+						    _CNL_PORT_TX_DW7_GRP_AE, \
+						    _CNL_PORT_TX_DW7_GRP_F)
+#define CNL_PORT_TX_DW7_LN0(port)	_MMIO_PORT6(port, \
+						    _CNL_PORT_TX_DW7_LN0_AE, \
+						    _CNL_PORT_TX_DW7_LN0_B, \
+						    _CNL_PORT_TX_DW7_LN0_C, \
+						    _CNL_PORT_TX_DW7_LN0_D, \
+						    _CNL_PORT_TX_DW7_LN0_AE, \
+						    _CNL_PORT_TX_DW7_LN0_F)
+#define   N_SCALAR(x)			((x) << 24)
+
 /* The spec defines this only for BXT PHY0, but lets assume that this
  * would exist for PHY1 too if it had a second channel.
  */
