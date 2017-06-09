@@ -92,7 +92,47 @@ struct aa_perms {
 extern struct aa_perms nullperms;
 extern struct aa_perms allperms;
 
-struct aa_profile;
+
+#define xcheck(FN1, FN2)	\
+({				\
+	int e, error = FN1;	\
+	e = FN2;		\
+	if (e)			\
+		error = e;	\
+	error;			\
+})
+
+
+/*
+ * TODO: update for labels pointing to labels instead of profiles
+ * TODO: optimize the walk, currently does subwalk of L2 for each P in L1
+ * gah this doesn't allow for label compound check!!!!
+ */
+#define xcheck_ns_profile_profile(P1, P2, FN, args...)		\
+({								\
+	int ____e = 0;						\
+	if (P1->ns == P2->ns)					\
+		____e = FN((P1), (P2), args);			\
+	(____e);						\
+})
+
+#define xcheck_ns_profile_label(P, L, FN, args...)		\
+({								\
+	struct aa_profile *__p2;				\
+	fn_for_each((L), __p2,					\
+		    xcheck_ns_profile_profile((P), __p2, (FN), args));	\
+})
+
+#define xcheck_ns_labels(L1, L2, FN, args...)			\
+({								\
+	struct aa_profile *__p1;				\
+	fn_for_each((L1), __p1, FN(__p1, (L2), args));		\
+})
+
+/* Do the cross check but applying FN at the profiles level */
+#define xcheck_labels_profiles(L1, L2, FN, args...)		\
+	xcheck_ns_labels((L1), (L2), xcheck_ns_profile_label, (FN), args)
+
 
 void aa_perm_mask_to_str(char *str, const char *chrs, u32 mask);
 void aa_audit_perm_names(struct audit_buffer *ab, const char **names, u32 mask);
