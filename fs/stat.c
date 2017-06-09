@@ -454,6 +454,7 @@ void __inode_add_bytes(struct inode *inode, loff_t bytes)
 		inode->i_bytes -= 512;
 	}
 }
+EXPORT_SYMBOL(__inode_add_bytes);
 
 void inode_add_bytes(struct inode *inode, loff_t bytes)
 {
