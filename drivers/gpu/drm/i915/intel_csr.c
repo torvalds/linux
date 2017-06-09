@@ -37,6 +37,9 @@
 #define I915_CSR_GLK "i915/glk_dmc_ver1_04.bin"
 #define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
 
+#define I915_CSR_CNL "i915/cnl_dmc_ver1_04.bin"
+#define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
+
 #define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"
 MODULE_FIRMWARE(I915_CSR_KBL);
 #define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
@@ -289,7 +292,9 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	csr->version = css_header->version;
 
-	if (IS_GEMINILAKE(dev_priv)) {
+	if (IS_CANNONLAKE(dev_priv)) {
+		required_version = CNL_CSR_VERSION_REQUIRED;
+	} else if (IS_GEMINILAKE(dev_priv)) {
 		required_version = GLK_CSR_VERSION_REQUIRED;
 	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
 		required_version = KBL_CSR_VERSION_REQUIRED;
@@ -438,7 +443,9 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (!HAS_CSR(dev_priv))
 		return;
 
-	if (IS_GEMINILAKE(dev_priv))
+	if (IS_CANNONLAKE(dev_priv))
+		csr->fw_path = I915_CSR_CNL;
+	else if (IS_GEMINILAKE(dev_priv))
 		csr->fw_path = I915_CSR_GLK;
 	else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
 		csr->fw_path = I915_CSR_KBL;

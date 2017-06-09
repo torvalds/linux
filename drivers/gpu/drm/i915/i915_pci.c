@@ -445,6 +445,7 @@ static const struct intel_device_info intel_cannonlake_info = {
 	.platform = INTEL_CANNONLAKE,
 	.gen = 10,
 	.ddb_size = 1024,
+	.has_csr = 1,
 };
 
 /*
