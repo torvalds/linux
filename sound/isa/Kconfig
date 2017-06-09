@@ -384,6 +384,12 @@ config SND_SBAWE
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sbawe.
 
+# select SEQ stuff to min(SND_SEQUENCER,SND_XXX)
+config SND_SBAWE_SEQ
+	def_tristate SND_SEQUENCER && SND_SBAWE
+	select SND_SEQ_MIDI_EMUL
+	select SND_SEQ_VIRMIDI
+
 config SND_SB16_CSP
 	bool "Sound Blaster 16/AWE CSP support"
 	depends on (SND_SB16 || SND_SBAWE) && (BROKEN || !PPC)

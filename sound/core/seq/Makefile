@@ -15,15 +15,10 @@ snd-seq-dummy-objs := seq_dummy.o
 snd-seq-virmidi-objs := seq_virmidi.o
 
 obj-$(CONFIG_SND_SEQUENCER) += snd-seq.o snd-seq-device.o
-obj-$(CONFIG_SND_SEQUENCER_OSS) += snd-seq-midi-event.o
 obj-$(CONFIG_SND_SEQUENCER_OSS) += oss/
 
 obj-$(CONFIG_SND_SEQ_DUMMY) += snd-seq-dummy.o
-
-# Toplevel Module Dependency
-obj-$(CONFIG_SND_VIRMIDI) += snd-seq-virmidi.o snd-seq-midi-event.o
-obj-$(CONFIG_SND_RAWMIDI_SEQ) += snd-seq-midi.o snd-seq-midi-event.o
-obj-$(CONFIG_SND_OPL3_LIB_SEQ) += snd-seq-midi-event.o snd-seq-midi-emul.o
-obj-$(CONFIG_SND_OPL4_LIB_SEQ) += snd-seq-midi-event.o snd-seq-midi-emul.o
-obj-$(CONFIG_SND_SBAWE_SEQ) += snd-seq-midi-emul.o snd-seq-virmidi.o
-obj-$(CONFIG_SND_EMU10K1_SEQ) += snd-seq-midi-emul.o snd-seq-virmidi.o
+obj-$(CONFIG_SND_SEQ_MIDI) += snd-seq-midi.o
+obj-$(CONFIG_SND_SEQ_MIDI_EMUL) += snd-seq-midi-emul.o
+obj-$(CONFIG_SND_SEQ_MIDI_EVENT) += snd-seq-midi-event.o
+obj-$(CONFIG_SND_SEQ_VIRMIDI) += snd-seq-virmidi.o
