@@ -67,6 +67,7 @@
 #include "aspm.h"
 #include "affinity.h"
 #include "vnic.h"
+#include "exp_rcv.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -221,6 +222,9 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 		hfi1_cdbg(PROC, "setting up context %u\n", ctxt);
 
 		INIT_LIST_HEAD(&rcd->qp_wait_list);
+		hfi1_exp_tid_group_init(&rcd->tid_group_list);
+		hfi1_exp_tid_group_init(&rcd->tid_used_list);
+		hfi1_exp_tid_group_init(&rcd->tid_full_list);
 		rcd->ppd = ppd;
 		rcd->dd = dd;
 		__set_bit(0, rcd->in_use_ctxts);

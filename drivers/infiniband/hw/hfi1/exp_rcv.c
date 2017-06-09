@@ -69,10 +69,6 @@ int hfi1_alloc_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd)
 	struct tid_group *grp;
 	int i;
 
-	hfi1_exp_tid_group_init(&rcd->tid_group_list);
-	hfi1_exp_tid_group_init(&rcd->tid_used_list);
-	hfi1_exp_tid_group_init(&rcd->tid_full_list);
-
 	tidbase = rcd->expected_base;
 	for (i = 0; i < rcd->expected_count /
 		     dd->rcv_entries.group_size; i++) {
