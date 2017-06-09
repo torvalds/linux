@@ -27,6 +27,11 @@
 
 #define GPIO_MOCKUP_NAME	"gpio-mockup"
 #define	GPIO_MOCKUP_MAX_GC	10
+/*
+ * We're storing two values per chip: the GPIO base and the number
+ * of GPIO lines.
+ */
+#define GPIO_MOCKUP_MAX_RANGES	(GPIO_MOCKUP_MAX_GC * 2)
 
 enum {
 	GPIO_MOCKUP_DIR_OUT = 0,
@@ -62,7 +67,7 @@ struct gpio_mockup_dbgfs_private {
 	int offset;
 };
 
-static int gpio_mockup_ranges[GPIO_MOCKUP_MAX_GC << 1];
+static int gpio_mockup_ranges[GPIO_MOCKUP_MAX_RANGES];
 static int gpio_mockup_params_nr;
 module_param_array(gpio_mockup_ranges, int, &gpio_mockup_params_nr, 0400);
 
@@ -329,23 +334,24 @@ static int gpio_mockup_add(struct device *dev,
 
 static int gpio_mockup_probe(struct platform_device *pdev)
 {
-	struct gpio_mockup_chip *chips;
+	int ret, i, base, ngpio, num_chips;
 	struct device *dev = &pdev->dev;
-	int ret, i, base, ngpio;
+	struct gpio_mockup_chip *chips;
 	char *chip_name;
 
 	if (gpio_mockup_params_nr < 2 || (gpio_mockup_params_nr % 2))
 		return -EINVAL;
 
-	chips = devm_kzalloc(dev,
-			     sizeof(*chips) * (gpio_mockup_params_nr >> 1),
-			     GFP_KERNEL);
+	/* Each chip is described by two values. */
+	num_chips = gpio_mockup_params_nr / 2;
+
+	chips = devm_kzalloc(dev, sizeof(*chips) * num_chips, GFP_KERNEL);
 	if (!chips)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, chips);
 
-	for (i = 0; i < gpio_mockup_params_nr >> 1; i++) {
+	for (i = 0; i < num_chips; i++) {
 		base = gpio_mockup_ranges[i * 2];
 
 		if (base == -1)
