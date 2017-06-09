@@ -32,7 +32,7 @@ Optional properties
   I2C master controller.
 - clock-names: See dw_hdmi.txt. The "cec" clock is optional.
 - clock-names: May contain "cec" as defined in dw_hdmi.txt.
-
+- clock-names: May contain "vpll", external clock for some hdmi phy.
 
 Example:
 
