@@ -4040,6 +4040,7 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ MBHOSTPARERR_F, "CIM mailbox host parity error", -1, 1 },
 		{ TIEQINPARERRINT_F, "CIM TIEQ outgoing parity error", -1, 1 },
 		{ TIEQOUTPARERRINT_F, "CIM TIEQ incoming parity error", -1, 1 },
+		{ TIMER0INT_F, "CIM TIMER0 interrupt", -1, 1 },
 		{ 0 }
 	};
 	static const struct intr_info cim_upintr_info[] = {
@@ -4074,10 +4075,26 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ 0 }
 	};
 
+	u32 val, fw_err;
 	int fat;
 
-	if (t4_read_reg(adapter, PCIE_FW_A) & PCIE_FW_ERR_F)
+	fw_err = t4_read_reg(adapter, PCIE_FW_A);
+	if (fw_err & PCIE_FW_ERR_F)
 		t4_report_fw_error(adapter);
+
+	/* When the Firmware detects an internal error which normally
+	 * wouldn't raise a Host Interrupt, it forces a CIM Timer0 interrupt
+	 * in order to make sure the Host sees the Firmware Crash.  So
+	 * if we have a Timer0 interrupt and don't see a Firmware Crash,
+	 * ignore the Timer0 interrupt.
+	 */
+
+	val = t4_read_reg(adapter, CIM_HOST_INT_CAUSE_A);
+	if (val & TIMER0INT_F)
+		if (!(fw_err & PCIE_FW_ERR_F) ||
+		    (PCIE_FW_EVAL_G(fw_err) != PCIE_FW_EVAL_CRASH))
+			t4_write_reg(adapter, CIM_HOST_INT_CAUSE_A,
+				     TIMER0INT_F);
 
 	fat = t4_handle_intr_status(adapter, CIM_HOST_INT_CAUSE_A,
 				    cim_intr_info) +
