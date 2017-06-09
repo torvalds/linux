@@ -196,8 +196,7 @@ static int common_perm(const char *op, const struct path *path, u32 mask,
 
 	label = __begin_current_label_crit_section();
 	if (!unconfined(label))
-		error = aa_path_perm(op, labels_profile(label), path, 0, mask,
-				     cond);
+		error = aa_path_perm(op, label, path, 0, mask, cond);
 	__end_current_label_crit_section(label);
 
 	return error;
@@ -359,15 +358,12 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 					  d_backing_inode(old_dentry)->i_mode
 		};
 
-		error = aa_path_perm(OP_RENAME_SRC, labels_profile(label),
-				     &old_path, 0,
+		error = aa_path_perm(OP_RENAME_SRC, label, &old_path, 0,
 				     MAY_READ | AA_MAY_GETATTR | MAY_WRITE |
 				     AA_MAY_SETATTR | AA_MAY_DELETE,
 				     &cond);
 		if (!error)
-			error = aa_path_perm(OP_RENAME_DEST,
-					     labels_profile(label),
-					     &new_path,
+			error = aa_path_perm(OP_RENAME_DEST, label, &new_path,
 					     0, MAY_WRITE | AA_MAY_SETATTR |
 					     AA_MAY_CREATE, &cond);
 
@@ -416,8 +412,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
 		struct inode *inode = file_inode(file);
 		struct path_cond cond = { inode->i_uid, inode->i_mode };
 
-		error = aa_path_perm(OP_OPEN, labels_profile(label),
-				     &file->f_path, 0,
+		error = aa_path_perm(OP_OPEN, label, &file->f_path, 0,
 				     aa_map_file_to_perms(file), &cond);
 		/* todo cache full allowed permissions set and state */
 		fctx->allow = aa_map_file_to_perms(file);

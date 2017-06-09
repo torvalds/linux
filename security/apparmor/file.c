@@ -153,6 +153,39 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 }
 
 /**
+ * is_deleted - test if a file has been completely unlinked
+ * @dentry: dentry of file to test for deletion  (NOT NULL)
+ *
+ * Returns: %1 if deleted else %0
+ */
+static inline bool is_deleted(struct dentry *dentry)
+{
+	if (d_unlinked(dentry) && d_backing_inode(dentry)->i_nlink == 0)
+		return 1;
+	return 0;
+}
+
+static int path_name(const char *op, struct aa_label *label,
+		     const struct path *path, int flags, char *buffer,
+		     const char **name, struct path_cond *cond, u32 request)
+{
+	struct aa_profile *profile;
+	const char *info = NULL;
+	int error;
+
+	error = aa_path_name(path, flags, buffer, name, &info,
+			     labels_profile(label)->disconnected);
+	if (error) {
+		fn_for_each_confined(label, profile,
+			aa_audit_file(profile, &nullperms, op, request, *name,
+				      NULL, NULL, cond->uid, info, error));
+		return error;
+	}
+
+	return 0;
+}
+
+/**
  * map_old_perms - map old file perms layout to the new layout
  * @old: permission set in old mapping
  *
@@ -249,23 +282,46 @@ unsigned int aa_str_perms(struct aa_dfa *dfa, unsigned int start,
 	return state;
 }
 
-/**
- * is_deleted - test if a file has been completely unlinked
- * @dentry: dentry of file to test for deletion  (NOT NULL)
- *
- * Returns: %1 if deleted else %0
- */
-static inline bool is_deleted(struct dentry *dentry)
+int __aa_path_perm(const char *op, struct aa_profile *profile, const char *name,
+		   u32 request, struct path_cond *cond, int flags,
+		   struct aa_perms *perms)
 {
-	if (d_unlinked(dentry) && d_backing_inode(dentry)->i_nlink == 0)
-		return 1;
-	return 0;
+	int e = 0;
+
+	if (profile_unconfined(profile))
+		return 0;
+	aa_str_perms(profile->file.dfa, profile->file.start, name, cond, perms);
+	if (request & ~perms->allow)
+		e = -EACCES;
+	return aa_audit_file(profile, perms, op, request, name, NULL, NULL,
+			     cond->uid, NULL, e);
+}
+
+
+static int profile_path_perm(const char *op, struct aa_profile *profile,
+			     const struct path *path, char *buffer, u32 request,
+			     struct path_cond *cond, int flags,
+			     struct aa_perms *perms)
+{
+	const char *name;
+	int error;
+
+	if (profile_unconfined(profile))
+		return 0;
+
+	error = path_name(op, &profile->label, path,
+			  flags | profile->path_flags, buffer, &name, cond,
+			  request);
+	if (error)
+		return error;
+	return __aa_path_perm(op, profile, name, request, cond, flags,
+			      perms);
 }
 
 /**
  * aa_path_perm - do permissions check & audit for @path
  * @op: operation being checked
- * @profile: profile being enforced  (NOT NULL)
+ * @label: profile being enforced  (NOT NULL)
  * @path: path to check permissions of  (NOT NULL)
  * @flags: any additional path flags beyond what the profile specifies
  * @request: requested permissions
@@ -273,36 +329,22 @@ static inline bool is_deleted(struct dentry *dentry)
  *
  * Returns: %0 else error if access denied or other error
  */
-int aa_path_perm(const char *op, struct aa_profile *profile,
+int aa_path_perm(const char *op, struct aa_label *label,
 		 const struct path *path, int flags, u32 request,
 		 struct path_cond *cond)
 {
-	char *buffer = NULL;
 	struct aa_perms perms = {};
-	const char *name, *info = NULL;
+	struct aa_profile *profile;
+	char *buffer = NULL;
 	int error;
 
-	flags |= profile->path_flags | (S_ISDIR(cond->mode) ? PATH_IS_DIR : 0);
+	flags |= PATH_DELEGATE_DELETED | (S_ISDIR(cond->mode) ? PATH_IS_DIR :
+								0);
 	get_buffers(buffer);
-	error = aa_path_name(path, flags, buffer, &name, &info,
-			     profile->disconnected);
-	if (error) {
-		if (error == -ENOENT && is_deleted(path->dentry)) {
-			/* Access to open files that are deleted are
-			 * give a pass (implicit delegation)
-			 */
-			error = 0;
-			info = NULL;
-			perms.allow = request;
-		}
-	} else {
-		aa_str_perms(profile->file.dfa, profile->file.start, name, cond,
-			     &perms);
-		if (request & ~perms.allow)
-			error = -EACCES;
-	}
-	error = aa_audit_file(profile, &perms, op, request, name, NULL, NULL,
-			      cond->uid, info, error);
+	error = fn_for_each_confined(label, profile,
+			profile_path_perm(op, profile, path, buffer, request,
+					  cond, flags, &perms));
+
 	put_buffers(buffer);
 
 	return error;
@@ -482,7 +524,7 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 	/* TODO: label cross check */
 
 	if (file->f_path.mnt && path_mediated_fs(file->f_path.dentry))
-		error = aa_path_perm(op, labels_profile(label), &file->f_path,
+		error = aa_path_perm(op, label, &file->f_path,
 				     PATH_DELEGATE_DELETED, request, &cond);
 
 done:
