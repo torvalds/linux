@@ -366,17 +366,14 @@ static int __wl12xx_spi_raw_write(struct device *child, int addr,
 static int __must_check wl12xx_spi_raw_write(struct device *child, int addr,
 					     void *buf, size_t len, bool fixed)
 {
-	int ret;
-
 	/* The ELP wakeup write may fail the first time due to internal
 	 * hardware latency. It is safer to send the wakeup command twice to
 	 * avoid unexpected failures.
 	 */
 	if (addr == HW_ACCESS_ELP_CTRL_REG)
-		ret = __wl12xx_spi_raw_write(child, addr, buf, len, fixed);
-	ret = __wl12xx_spi_raw_write(child, addr, buf, len, fixed);
+		__wl12xx_spi_raw_write(child, addr, buf, len, fixed);
 
-	return ret;
+	return __wl12xx_spi_raw_write(child, addr, buf, len, fixed);
 }
 
 /**
