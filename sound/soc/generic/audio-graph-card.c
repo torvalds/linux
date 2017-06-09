@@ -44,13 +44,13 @@ static int asoc_graph_card_startup(struct snd_pcm_substream *substream)
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, rtd->num);
 	int ret;
 
-	ret = clk_prepare_enable(dai_props->cpu_dai.clk);
+	ret = asoc_simple_card_clk_enable(&dai_props->cpu_dai);
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(dai_props->codec_dai.clk);
+	ret = asoc_simple_card_clk_enable(&dai_props->codec_dai);
 	if (ret)
-		clk_disable_unprepare(dai_props->cpu_dai.clk);
+		asoc_simple_card_clk_disable(&dai_props->cpu_dai);
 
 	return ret;
 }
@@ -61,9 +61,9 @@ static void asoc_graph_card_shutdown(struct snd_pcm_substream *substream)
 	struct graph_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, rtd->num);
 
-	clk_disable_unprepare(dai_props->cpu_dai.clk);
+	asoc_simple_card_clk_disable(&dai_props->cpu_dai);
 
-	clk_disable_unprepare(dai_props->codec_dai.clk);
+	asoc_simple_card_clk_disable(&dai_props->codec_dai);
 }
 
 static struct snd_soc_ops asoc_graph_card_ops = {
