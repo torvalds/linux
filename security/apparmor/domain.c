@@ -563,7 +563,7 @@ static char *new_compound_name(const char *n1, const char *n2)
  * @hats: vector of hat names to try changing into (MAYBE NULL if @count == 0)
  * @count: number of hat names in @hats
  * @token: magic value to validate the hat change
- * @permtest: true if this is just a permission test
+ * @flags: flags affecting behavior of the change
  *
  * Change to the first profile specified in @hats that exists, and store
  * the @hat_magic in the current task context.  If the count == 0 and the
@@ -572,7 +572,7 @@ static char *new_compound_name(const char *n1, const char *n2)
  *
  * Returns %0 on success, error otherwise.
  */
-int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
+int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 {
 	const struct cred *cred;
 	struct aa_task_ctx *ctx;
@@ -616,7 +616,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 			/* released below */
 			hat = aa_find_child(root, hats[i]);
 		if (!hat) {
-			if (!COMPLAIN_MODE(root) || permtest) {
+			if (!COMPLAIN_MODE(root) || (flags & AA_CHANGE_TEST)) {
 				if (list_empty(&root->base.profiles))
 					error = -ECHILD;
 				else
@@ -663,7 +663,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 			goto audit;
 		}
 
-		if (!permtest) {
+		if (!(flags & AA_CHANGE_TEST)) {
 			error = aa_set_current_hat(hat, token);
 			if (error == -EACCES)
 				/* kill task in case of brute force attacks */
@@ -684,7 +684,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 		goto out;
 
 audit:
-	if (!permtest)
+	if (!(flags & AA_CHANGE_TEST))
 		error = aa_audit_file(profile, &perms, OP_CHANGE_HAT,
 				      AA_MAY_CHANGEHAT, NULL, target,
 				      GLOBAL_ROOT_UID, info, error);
@@ -703,7 +703,7 @@ out:
  * aa_change_profile - perform a one-way profile transition
  * @fqname: name of profile may include namespace (NOT NULL)
  * @onexec: whether this transition is to take place immediately or at exec
- * @permtest: true if this is just a permission test
+ * @flags: flags affecting change behavior
  *
  * Change to new profile @name.  Unlike with hats, there is no way
  * to change back.  If @name isn't specified the current profile name is
@@ -713,8 +713,7 @@ out:
  *
  * Returns %0 on success, error otherwise.
  */
-int aa_change_profile(const char *fqname, bool onexec,
-		      bool permtest, bool stack)
+int aa_change_profile(const char *fqname, int flags)
 {
 	const struct cred *cred;
 	struct aa_profile *profile, *target = NULL;
@@ -728,7 +727,7 @@ int aa_change_profile(const char *fqname, bool onexec,
 		return -EINVAL;
 	}
 
-	if (onexec) {
+	if (flags & AA_CHANGE_ONEXEC) {
 		request = AA_MAY_ONEXEC;
 		op = OP_CHANGE_ONEXEC;
 	} else {
@@ -755,7 +754,8 @@ int aa_change_profile(const char *fqname, bool onexec,
 	if (!target) {
 		info = "profile not found";
 		error = -ENOENT;
-		if (permtest || !COMPLAIN_MODE(profile))
+		if ((flags & AA_CHANGE_TEST) ||
+		    !COMPLAIN_MODE(profile))
 			goto audit;
 		/* released below */
 		target = aa_new_null_profile(profile, false, fqname,
@@ -781,16 +781,16 @@ int aa_change_profile(const char *fqname, bool onexec,
 		goto audit;
 	}
 
-	if (permtest)
+	if (flags & AA_CHANGE_TEST)
 		goto audit;
 
-	if (onexec)
+	if (flags & AA_CHANGE_ONEXEC)
 		error = aa_set_current_onexec(target);
 	else
 		error = aa_replace_current_profile(target);
 
 audit:
-	if (!permtest)
+	if (!(flags & AA_CHANGE_TEST))
 		error = aa_audit_file(profile, &perms, op, request, NULL,
 				      fqname, GLOBAL_ROOT_UID, info, error);
 

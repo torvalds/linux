@@ -109,11 +109,11 @@ static char *split_token_from_name(const char *op, char *args, u64 *token)
  * aa_setprocattr_chagnehat - handle procattr interface to change_hat
  * @args: args received from writing to /proc/<pid>/attr/current (NOT NULL)
  * @size: size of the args
- * @test: true if this is a test of change_hat permissions
+ * @flags: set of flags governing behavior
  *
  * Returns: %0 or error code if change_hat fails
  */
-int aa_setprocattr_changehat(char *args, size_t size, int test)
+int aa_setprocattr_changehat(char *args, size_t size, int flags)
 {
 	char *hat;
 	u64 token;
@@ -148,5 +148,5 @@ int aa_setprocattr_changehat(char *args, size_t size, int test)
 		AA_DEBUG("%s: (pid %d) Magic 0x%llx count %d Hat '%s'\n",
 			 __func__, current->pid, token, count, "<NULL>");
 
-	return aa_change_hat(hats, count, token, test);
+	return aa_change_hat(hats, count, token, flags);
 }
