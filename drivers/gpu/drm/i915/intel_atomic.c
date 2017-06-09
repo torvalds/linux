@@ -325,7 +325,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 		}
 
 		/* set scaler mode */
-		if (IS_GEMINILAKE(dev_priv)) {
+		if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 			scaler_state->scalers[*scaler_id].mode = 0;
 		} else if (num_scalers_need == 1 && intel_crtc->pipe != PIPE_C) {
 			/*
