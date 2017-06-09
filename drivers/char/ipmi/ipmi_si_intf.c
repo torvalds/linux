@@ -1942,7 +1942,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 				info->io.regspacing = DEFAULT_REGSPACING;
 			info->io.regsize = regsize;
 			if (!info->io.regsize)
-				info->io.regsize = DEFAULT_REGSPACING;
+				info->io.regsize = DEFAULT_REGSIZE;
 			info->io.regshift = regshift;
 			info->irq = irq;
 			if (info->irq)
@@ -2036,7 +2036,7 @@ static int hardcode_find_bmc(void)
 			info->io.regspacing = DEFAULT_REGSPACING;
 		info->io.regsize = regsizes[i];
 		if (!info->io.regsize)
-			info->io.regsize = DEFAULT_REGSPACING;
+			info->io.regsize = DEFAULT_REGSIZE;
 		info->io.regshift = regshifts[i];
 		info->irq = irqs[i];
 		if (info->irq)
@@ -2395,7 +2395,7 @@ static void try_init_dmi(struct dmi_ipmi_data *ipmi_data)
 	info->io.regspacing = ipmi_data->offset;
 	if (!info->io.regspacing)
 		info->io.regspacing = DEFAULT_REGSPACING;
-	info->io.regsize = DEFAULT_REGSPACING;
+	info->io.regsize = DEFAULT_REGSIZE;
 	info->io.regshift = 0;
 
 	info->slave_addr = ipmi_data->slave_addr;
@@ -2761,7 +2761,7 @@ static int acpi_ipmi_probe(struct platform_device *dev)
 			info->io.regspacing =
 				res_second->start - info->io.addr_data;
 	}
-	info->io.regsize = DEFAULT_REGSPACING;
+	info->io.regsize = DEFAULT_REGSIZE;
 	info->io.regshift = 0;
 
 	/* If _GPE exists, use it; otherwise use standard interrupts */
