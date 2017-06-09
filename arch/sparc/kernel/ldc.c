@@ -1950,6 +1950,8 @@ int ldc_read(struct ldc_channel *lp, void *buf, unsigned int size)
 	unsigned long flags;
 	int err;
 
+	ldcdbg(RX, "%s: entered size=%d\n", __func__, size);
+
 	if (!buf)
 		return -EINVAL;
 
@@ -1964,6 +1966,9 @@ int ldc_read(struct ldc_channel *lp, void *buf, unsigned int size)
 		err = lp->mops->read(lp, buf, size);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
+
+	ldcdbg(RX, "%s: mode=%d, head=%lu, tail=%lu rv=%d\n", __func__,
+	       lp->cfg.mode, lp->rx_head, lp->rx_tail, err);
 
 	return err;
 }
