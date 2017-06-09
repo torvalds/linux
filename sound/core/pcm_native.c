@@ -440,12 +440,45 @@ retry:
 	return 0;
 }
 
+static int fixup_unreferenced_params(struct snd_pcm_substream *substream,
+				     struct snd_pcm_hw_params *params)
+{
+	const struct snd_interval *i;
+	const struct snd_mask *m;
+	int err;
+
+	if (!params->msbits) {
+		i = hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
+		if (snd_interval_single(i))
+			params->msbits = snd_interval_value(i);
+	}
+
+	if (!params->rate_den) {
+		i = hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_RATE);
+		if (snd_interval_single(i)) {
+			params->rate_num = snd_interval_value(i);
+			params->rate_den = 1;
+		}
+	}
+
+	if (!params->fifo_size) {
+		m = hw_param_mask_c(params, SNDRV_PCM_HW_PARAM_FORMAT);
+		i = hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+		if (snd_mask_single(m) && snd_interval_single(i)) {
+			err = substream->ops->ioctl(substream,
+					SNDRV_PCM_IOCTL1_FIFO_SIZE, params);
+			if (err < 0)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
 int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		      struct snd_pcm_hw_params *params)
 {
 	struct snd_pcm_hardware *hw;
-	const struct snd_interval *i;
-	const struct snd_mask *m;
 	int err;
 
 	params->info = 0;
@@ -469,20 +502,6 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	if (!params->msbits) {
-		i = hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
-		if (snd_interval_single(i))
-			params->msbits = snd_interval_value(i);
-	}
-
-	if (!params->rate_den) {
-		i = hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_RATE);
-		if (snd_interval_single(i)) {
-			params->rate_num = snd_interval_value(i);
-			params->rate_den = 1;
-		}
-	}
-
 	hw = &substream->runtime->hw;
 	if (!params->info) {
 		params->info = hw->info & ~(SNDRV_PCM_INFO_FIFO_IN_FRAMES |
@@ -491,16 +510,7 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 			params->info &= ~(SNDRV_PCM_INFO_MMAP |
 					  SNDRV_PCM_INFO_MMAP_VALID);
 	}
-	if (!params->fifo_size) {
-		m = hw_param_mask_c(params, SNDRV_PCM_HW_PARAM_FORMAT);
-		i = hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_CHANNELS);
-		if (snd_mask_single(m) && snd_interval_single(i)) {
-			err = substream->ops->ioctl(substream,
-					SNDRV_PCM_IOCTL1_FIFO_SIZE, params);
-			if (err < 0)
-				return err;
-		}
-	}
+
 	params->rmask = 0;
 	return 0;
 }
@@ -517,6 +527,8 @@ static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
 		return PTR_ERR(params);
 
 	err = snd_pcm_hw_refine(substream, params);
+	if (err >= 0)
+		err = fixup_unreferenced_params(substream, params);
 	if (copy_to_user(_params, params, sizeof(*params))) {
 		if (!err)
 			err = -EFAULT;
@@ -593,6 +605,10 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 		goto _error;
 
 	err = snd_pcm_hw_params_choose(substream, params);
+	if (err < 0)
+		goto _error;
+
+	err = fixup_unreferenced_params(substream, params);
 	if (err < 0)
 		goto _error;
 
@@ -3621,6 +3637,8 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 	}
 	snd_pcm_hw_convert_from_old_params(params, oparams);
 	err = snd_pcm_hw_refine(substream, params);
+	if (err >= 0)
+		err = fixup_unreferenced_params(substream, params);
 	snd_pcm_hw_convert_to_old_params(oparams, params);
 	if (copy_to_user(_oparams, oparams, sizeof(*oparams))) {
 		if (!err)
