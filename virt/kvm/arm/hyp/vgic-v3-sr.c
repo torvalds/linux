@@ -980,6 +980,8 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 		break;
 	case SYS_ICC_EOIR0_EL1:
 	case SYS_ICC_EOIR1_EL1:
+		if (unlikely(is_read))
+			return 0;
 		fn = __vgic_v3_write_eoir;
 		break;
 	case SYS_ICC_GRPEN1_EL1:
@@ -1039,6 +1041,8 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 			fn = __vgic_v3_write_bpr0;
 		break;
 	case SYS_ICC_DIR_EL1:
+		if (unlikely(is_read))
+			return 0;
 		fn = __vgic_v3_write_dir;
 		break;
 	case SYS_ICC_RPR_EL1:
