@@ -164,6 +164,10 @@
 
 #include "axp22x.dtsi"
 
+&battery_power_supply {
+	status = "okay";
+};
+
 &reg_aldo3 {
 	regulator-always-on;
 	regulator-min-microvolt = <2700000>;
