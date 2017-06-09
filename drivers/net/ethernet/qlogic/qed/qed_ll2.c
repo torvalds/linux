@@ -73,7 +73,6 @@ struct qed_cb_ll2_info {
 	int rx_cnt;
 	u32 rx_size;
 	u8 handle;
-	bool frags_mapped;
 
 	/* Lock protecting LL2 buffer lists in sleepless context */
 	spinlock_t lock;
@@ -107,12 +106,6 @@ static void qed_ll2b_complete_tx_packet(void *cxt,
 	if (cdev->ll2->cbs && cdev->ll2->cbs->tx_cb)
 		cdev->ll2->cbs->tx_cb(cdev->ll2->cb_cookie, skb,
 				      b_last_fragment);
-
-	if (cdev->ll2->frags_mapped)
-		/* Case where mapped frags were received, need to
-		 * free skb with nr_frags marked as 0
-		 */
-		skb_shinfo(skb)->nr_frags = 0;
 
 	dev_kfree_skb_any(skb);
 }
@@ -2100,7 +2093,6 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 	spin_lock_init(&cdev->ll2->lock);
 	cdev->ll2->rx_size = NET_SKB_PAD + ETH_HLEN +
 			     L1_CACHE_BYTES + params->mtu;
-	cdev->ll2->frags_mapped = params->frags_mapped;
 
 	/*Allocate memory for LL2 */
 	DP_INFO(cdev, "Allocating LL2 buffers of size %08x bytes\n",
@@ -2313,21 +2305,14 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb)
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		frag = &skb_shinfo(skb)->frags[i];
-		if (!cdev->ll2->frags_mapped) {
-			mapping = skb_frag_dma_map(&cdev->pdev->dev, frag, 0,
-						   skb_frag_size(frag),
-						   DMA_TO_DEVICE);
 
-			if (unlikely(dma_mapping_error(&cdev->pdev->dev,
-						       mapping))) {
-				DP_NOTICE(cdev,
-					  "Unable to map frag - dropping packet\n");
-				rc = -ENOMEM;
-				goto err;
-			}
-		} else {
-			mapping = page_to_phys(skb_frag_page(frag)) |
-			    frag->page_offset;
+		mapping = skb_frag_dma_map(&cdev->pdev->dev, frag, 0,
+					   skb_frag_size(frag), DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(&cdev->pdev->dev, mapping))) {
+			DP_NOTICE(cdev,
+				  "Unable to map frag - dropping packet\n");
+			goto err;
 		}
 
 		rc = qed_ll2_set_fragment_of_tx_packet(QED_LEADING_HWFN(cdev),
