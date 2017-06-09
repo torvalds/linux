@@ -403,7 +403,9 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 
 	if (!create) {
 		phys64 = ufs_frag_map(inode, offsets, depth);
-		goto out;
+		if (phys64)
+			map_bh(bh_result, sb, phys64 + frag);
+		return 0;
 	}
 
         /* This code entered only while writing ....? */
