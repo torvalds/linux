@@ -1813,6 +1813,10 @@ static int rx_bottom(struct r8152 *tp, int budget)
 			unsigned int pkt_len;
 			struct sk_buff *skb;
 
+			/* limite the skb numbers for rx_queue */
+			if (unlikely(skb_queue_len(&tp->rx_queue) >= 1000))
+				break;
+
 			pkt_len = le32_to_cpu(rx_desc->opts1) & RX_LEN_MASK;
 			if (pkt_len < ETH_ZLEN)
 				break;
