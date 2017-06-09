@@ -196,7 +196,8 @@ xr17v35x_register_gpio(struct pci_dev *pcidev)
 	if (!pdev)
 		return NULL;
 
-	platform_set_drvdata(pdev, pcidev);
+	pdev->dev.parent = &pcidev->dev;
+
 	if (platform_device_add(pdev) < 0) {
 		platform_device_put(pdev);
 		return NULL;
