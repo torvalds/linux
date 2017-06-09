@@ -6,11 +6,13 @@ config SND_OPL3_LIB
 	tristate
 	select SND_TIMER
 	select SND_HWDEP
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 
 config SND_OPL4_LIB
 	tristate
 	select SND_TIMER
 	select SND_HWDEP
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 
 # select SEQ stuff to min(SND_SEQUENCER,SND_XXX)
 config SND_OPL3_LIB_SEQ

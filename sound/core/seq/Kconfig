@@ -1,6 +1,7 @@
 config SND_SEQUENCER
 	tristate "Sequencer support"
 	select SND_TIMER
+	select SND_SEQ_DEVICE
 	help
 	  Say Y or M to enable MIDI sequencer and router support.  This
 	  feature allows routing and enqueueing of MIDI events.  Events
@@ -59,4 +60,3 @@ config SND_SEQ_VIRMIDI
 	tristate
 
 endif # SND_SEQUENCER
-

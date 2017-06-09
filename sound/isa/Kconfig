@@ -377,6 +377,7 @@ config SND_SBAWE
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_SB16_DSP
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 	help
 	  Say Y here to include support for Sound Blaster AWE soundcards
 	  (including the Plug and Play version).

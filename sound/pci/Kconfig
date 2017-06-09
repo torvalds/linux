@@ -465,6 +465,7 @@ config SND_EMU10K1
 	select SND_RAWMIDI
 	select SND_AC97_CODEC
 	select SND_TIMER
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 	depends on ZONE_DMA
 	help
 	  Say Y to include support for Sound Blaster PCI 512, Live!,

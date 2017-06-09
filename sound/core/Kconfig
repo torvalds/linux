@@ -18,8 +18,12 @@ config SND_DMAENGINE_PCM
 config SND_HWDEP
 	tristate
 
+config SND_SEQ_DEVICE
+	tristate
+
 config SND_RAWMIDI
 	tristate
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 
 config SND_COMPRESS_OFFLOAD
 	tristate
