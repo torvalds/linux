@@ -138,7 +138,8 @@ TRACE_EVENT(hfi1_receive_interrupt,
 		      )
 );
 
-TRACE_EVENT(hfi1_exp_tid_reg,
+DECLARE_EVENT_CLASS(
+	    hfi1_exp_tid_reg_unreg,
 	    TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr,
 		     u32 npages, unsigned long va, unsigned long pa,
 		     dma_addr_t dma),
@@ -172,38 +173,17 @@ TRACE_EVENT(hfi1_exp_tid_reg,
 		      )
 	);
 
-TRACE_EVENT(hfi1_exp_tid_unreg,
-	    TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr, u32 npages,
-		     unsigned long va, unsigned long pa, dma_addr_t dma),
-	    TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma),
-	    TP_STRUCT__entry(
-			     __field(unsigned int, ctxt)
-			     __field(u16, subctxt)
-			     __field(u32, rarr)
-			     __field(u32, npages)
-			     __field(unsigned long, va)
-			     __field(unsigned long, pa)
-			     __field(dma_addr_t, dma)
-			     ),
-	    TP_fast_assign(
-			   __entry->ctxt = ctxt;
-			   __entry->subctxt = subctxt;
-			   __entry->rarr = rarr;
-			   __entry->npages = npages;
-			   __entry->va = va;
-			   __entry->pa = pa;
-			   __entry->dma = dma;
-			   ),
-	    TP_printk("[%u:%u] entry:%u, %u pages @ 0x%lx, va:0x%lx dma:0x%llx",
-		      __entry->ctxt,
-		      __entry->subctxt,
-		      __entry->rarr,
-		      __entry->npages,
-		      __entry->pa,
-		      __entry->va,
-		      __entry->dma
-		      )
-	);
+DEFINE_EVENT(
+	hfi1_exp_tid_reg_unreg, hfi1_exp_tid_unreg,
+	TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr, u32 npages,
+		 unsigned long va, unsigned long pa, dma_addr_t dma),
+	TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma));
+
+DEFINE_EVENT(
+	hfi1_exp_tid_reg_unreg, hfi1_exp_tid_reg,
+	TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr, u32 npages,
+		 unsigned long va, unsigned long pa, dma_addr_t dma),
+	TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma));
 
 TRACE_EVENT(hfi1_exp_tid_inval,
 	    TP_PROTO(unsigned int ctxt, u16 subctxt, unsigned long va, u32 rarr,
