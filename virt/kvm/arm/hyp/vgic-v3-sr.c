@@ -891,6 +891,46 @@ static void __hyp_text __vgic_v3_read_rpr(struct kvm_vcpu *vcpu,
 	vcpu_set_reg(vcpu, rt, val);
 }
 
+static void __hyp_text __vgic_v3_read_ctlr(struct kvm_vcpu *vcpu,
+					   u32 vmcr, int rt)
+{
+	u32 vtr, val;
+
+	vtr = read_gicreg(ICH_VTR_EL2);
+	/* PRIbits */
+	val = ((vtr >> 29) & 7) << ICC_CTLR_EL1_PRI_BITS_SHIFT;
+	/* IDbits */
+	val |= ((vtr >> 23) & 7) << ICC_CTLR_EL1_ID_BITS_SHIFT;
+	/* SEIS */
+	val |= ((vtr >> 22) & 1) << ICC_CTLR_EL1_SEIS_SHIFT;
+	/* A3V */
+	val |= ((vtr >> 21) & 1) << ICC_CTLR_EL1_A3V_SHIFT;
+	/* EOImode */
+	val |= ((vmcr & ICH_VMCR_EOIM_MASK) >> ICH_VMCR_EOIM_SHIFT) << ICC_CTLR_EL1_EOImode_SHIFT;
+	/* CBPR */
+	val |= (vmcr & ICH_VMCR_CBPR_MASK) >> ICH_VMCR_CBPR_SHIFT;
+
+	vcpu_set_reg(vcpu, rt, val);
+}
+
+static void __hyp_text __vgic_v3_write_ctlr(struct kvm_vcpu *vcpu,
+					    u32 vmcr, int rt)
+{
+	u32 val = vcpu_get_reg(vcpu, rt);
+
+	if (val & ICC_CTLR_EL1_CBPR_MASK)
+		vmcr |= ICH_VMCR_CBPR_MASK;
+	else
+		vmcr &= ~ICH_VMCR_CBPR_MASK;
+
+	if (val & ICC_CTLR_EL1_EOImode_MASK)
+		vmcr |= ICH_VMCR_EOIM_MASK;
+	else
+		vmcr &= ~ICH_VMCR_EOIM_MASK;
+
+	write_gicreg(vmcr, ICH_VMCR_EL2);
+}
+
 int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 {
 	int rt;
@@ -982,6 +1022,12 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 		break;
 	case SYS_ICC_RPR_EL1:
 		fn = __vgic_v3_read_rpr;
+		break;
+	case SYS_ICC_CTLR_EL1:
+		if (is_read)
+			fn = __vgic_v3_read_ctlr;
+		else
+			fn = __vgic_v3_write_ctlr;
 		break;
 	default:
 		return 0;
