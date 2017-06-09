@@ -162,7 +162,8 @@ static inline u16 dfa_map_xindex(u16 mask)
 
 int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 		  const char *op, u32 request, const char *name,
-		  const char *target, kuid_t ouid, const char *info, int error);
+		  const char *target, struct aa_label *tlabel, kuid_t ouid,
+		  const char *info, int error);
 
 /**
  * struct aa_file_rules - components used for file rule permissions

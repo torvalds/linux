@@ -75,7 +75,11 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
 				 from_kuid(&init_user_ns, aad(sa)->fs.ouid));
 	}
 
-	if (aad(sa)->fs.target) {
+	if (aad(sa)->peer) {
+		audit_log_format(ab, " target=");
+		aa_label_xaudit(ab, labels_ns(aad(sa)->label), aad(sa)->peer,
+				FLAG_VIEW_SUBNS, GFP_ATOMIC);
+	} else if (aad(sa)->fs.target) {
 		audit_log_format(ab, " target=");
 		audit_log_untrustedstring(ab, aad(sa)->fs.target);
 	}
@@ -85,11 +89,11 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
  * aa_audit_file - handle the auditing of file operations
  * @profile: the profile being enforced  (NOT NULL)
  * @perms: the permissions computed for the request (NOT NULL)
- * @gfp: allocation flags
  * @op: operation being mediated
  * @request: permissions requested
  * @name: name of object being mediated (MAYBE NULL)
  * @target: name of target (MAYBE NULL)
+ * @tlabel: target label (MAY BE NULL)
  * @ouid: object uid
  * @info: extra information message (MAYBE NULL)
  * @error: 0 if operation allowed else failure error code
@@ -98,7 +102,8 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
  */
 int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 		  const char *op, u32 request, const char *name,
-		  const char *target, kuid_t ouid, const char *info, int error)
+		  const char *target, struct aa_label *tlabel,
+		  kuid_t ouid, const char *info, int error)
 {
 	int type = AUDIT_APPARMOR_AUTO;
 	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_TASK, op);
@@ -107,6 +112,7 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 	aad(&sa)->request = request;
 	aad(&sa)->name = name;
 	aad(&sa)->fs.target = target;
+	aad(&sa)->peer = tlabel;
 	aad(&sa)->fs.ouid = ouid;
 	aad(&sa)->info = info;
 	aad(&sa)->error = error;
@@ -139,7 +145,7 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 			aad(&sa)->request &= ~perms->quiet;
 
 		if (!aad(&sa)->request)
-			return COMPLAIN_MODE(profile) ? 0 : aad(&sa)->error;
+			return aad(&sa)->error;
 	}
 
 	aad(&sa)->denied = aad(&sa)->request & ~perms->allow;
@@ -295,7 +301,7 @@ int aa_path_perm(const char *op, struct aa_profile *profile,
 		if (request & ~perms.allow)
 			error = -EACCES;
 	}
-	error = aa_audit_file(profile, &perms, op, request, name, NULL,
+	error = aa_audit_file(profile, &perms, op, request, name, NULL, NULL,
 			      cond->uid, info, error);
 	put_buffers(buffer);
 
@@ -425,7 +431,7 @@ done_tests:
 
 audit:
 	error = aa_audit_file(profile, &lperms, OP_LINK, request,
-			      lname, tname, cond.uid, info, error);
+			      lname, tname, NULL, cond.uid, info, error);
 	put_buffers(buffer, buffer2);
 
 	return error;

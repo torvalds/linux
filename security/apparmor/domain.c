@@ -518,6 +518,7 @@ x_clear:
 audit:
 	error = aa_audit_file(profile, &perms, OP_EXEC, MAY_EXEC, name,
 			      new_profile ? new_profile->base.hname : NULL,
+			      new_profile ? &new_profile->label : NULL,
 			      cond.uid, info, error);
 
 cleanup:
@@ -694,7 +695,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 audit:
 	if (!(flags & AA_CHANGE_TEST))
 		error = aa_audit_file(profile, &perms, OP_CHANGE_HAT,
-				      AA_MAY_CHANGEHAT, NULL, target,
+				      AA_MAY_CHANGEHAT, NULL, target, NULL,
 				      GLOBAL_ROOT_UID, info, error);
 
 out:
@@ -802,7 +803,8 @@ int aa_change_profile(const char *fqname, int flags)
 audit:
 	if (!(flags & AA_CHANGE_TEST))
 		error = aa_audit_file(profile, &perms, op, request, NULL,
-				      fqname, GLOBAL_ROOT_UID, info, error);
+				      fqname, NULL, GLOBAL_ROOT_UID, info,
+				      error);
 
 	aa_put_profile(target);
 	aa_put_label(label);
