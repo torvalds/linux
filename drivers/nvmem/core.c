@@ -532,6 +532,7 @@ int nvmem_unregister(struct nvmem_device *nvmem)
 
 	nvmem_device_remove_all_cells(nvmem);
 	device_del(&nvmem->dev);
+	put_device(&nvmem->dev);
 
 	return 0;
 }
