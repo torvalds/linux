@@ -614,11 +614,13 @@ static bool dce_apply_clock_voltage_request(
 	}
 	if (send_request) {
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	struct core_dc *core_dc = DC_TO_CORE(clk->ctx->dc);
-	/*use dcfclk request voltage*/
-		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-		clock_voltage_req.clocks_in_khz =
+		if (clk->ctx->dce_version == DCN_VERSION_1_0) {
+			struct core_dc *core_dc = DC_TO_CORE(clk->ctx->dc);
+			/*use dcfclk request voltage*/
+			clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
+			clock_voltage_req.clocks_in_khz =
 				dcn_find_dcfclk_suits_all(core_dc, &clk->cur_clocks_value);
+		}
 #endif
 		dm_pp_apply_clock_for_voltage_request(
 			clk->ctx, &clock_voltage_req);

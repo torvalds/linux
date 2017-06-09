@@ -1633,7 +1633,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 	apply_min_clocks(dc, context, &clocks_state, true);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (resource_parse_asic_id(dc->ctx->asic_id) == DCN_VERSION_1_0) {
+	if (dc->ctx->dce_version == DCN_VERSION_1_0) {
 		if (context->bw.dcn.calc_clk.fclk_khz
 				> dc->current_context->bw.dcn.cur_clk.fclk_khz) {
 			struct dm_pp_clock_for_voltage_req clock;
