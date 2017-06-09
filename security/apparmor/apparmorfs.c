@@ -33,6 +33,7 @@
 #include "include/context.h"
 #include "include/crypto.h"
 #include "include/policy_ns.h"
+#include "include/label.h"
 #include "include/policy.h"
 #include "include/policy_ns.h"
 #include "include/resource.h"
@@ -629,6 +630,7 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 			tmp = nullperms;
 	}
 	aa_apply_modes_to_perms(profile, &tmp);
+	aa_perms_accum_raw(perms, &tmp);
 }
 
 
@@ -655,7 +657,9 @@ static ssize_t query_data(char *buf, size_t buf_len,
 {
 	char *out;
 	const char *key;
+	struct label_it i;
 	struct aa_label *label, *curr;
+	struct aa_profile *profile;
 	struct aa_data *data;
 	u32 bytes, blocks;
 	__le32 outle32;
@@ -690,13 +694,16 @@ static ssize_t query_data(char *buf, size_t buf_len,
 	out = buf + sizeof(bytes) + sizeof(blocks);
 
 	blocks = 0;
-	if (labels_profile(label)->data) {
-		data = rhashtable_lookup_fast(labels_profile(label)->data, &key,
-					      labels_profile(label)->data->p);
+	label_for_each_confined(i, label, profile) {
+		if (!profile->data)
+			continue;
+
+		data = rhashtable_lookup_fast(profile->data, &key,
+					      profile->data->p);
 
 		if (data) {
-			if (out + sizeof(outle32) + data->size >
-			    buf + buf_len) {
+			if (out + sizeof(outle32) + data->size > buf +
+			    buf_len) {
 				aa_put_label(label);
 				return -EINVAL; /* not enough space */
 			}
@@ -741,10 +748,12 @@ static ssize_t query_data(char *buf, size_t buf_len,
 static ssize_t query_label(char *buf, size_t buf_len,
 			   char *query, size_t query_len, bool view_only)
 {
+	struct aa_profile *profile;
 	struct aa_label *label, *curr;
 	char *label_name, *match_str;
 	size_t label_name_len, match_len;
 	struct aa_perms perms;
+	struct label_it i;
 
 	if (!query_len)
 		return -EINVAL;
@@ -770,7 +779,16 @@ static ssize_t query_label(char *buf, size_t buf_len,
 		return PTR_ERR(label);
 
 	perms = allperms;
-	profile_query_cb(labels_profile(label), &perms, match_str, match_len);
+	if (view_only) {
+		label_for_each_in_ns(i, labels_ns(label), label, profile) {
+			profile_query_cb(profile, &perms, match_str, match_len);
+		}
+	} else {
+		label_for_each(i, label, profile) {
+			profile_query_cb(profile, &perms, match_str, match_len);
+		}
+	}
+	aa_put_label(label);
 
 	return scnprintf(buf, buf_len,
 		      "allow 0x%08x\ndeny 0x%08x\naudit 0x%08x\nquiet 0x%08x\n",
@@ -877,9 +895,12 @@ static int multi_transaction_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#define QUERY_CMD_LABEL		"label\0"
+#define QUERY_CMD_LABEL_LEN	6
 #define QUERY_CMD_PROFILE	"profile\0"
 #define QUERY_CMD_PROFILE_LEN	8
-
+#define QUERY_CMD_LABELALL	"labelall\0"
+#define QUERY_CMD_LABELALL_LEN	9
 #define QUERY_CMD_DATA		"data\0"
 #define QUERY_CMD_DATA_LEN	5
 
@@ -922,6 +943,17 @@ static ssize_t aa_write_access(struct file *file, const char __user *ubuf,
 		len = query_label(t->data, MULTI_TRANSACTION_LIMIT,
 				  t->data + QUERY_CMD_PROFILE_LEN,
 				  count - QUERY_CMD_PROFILE_LEN, true);
+	} else if (count > QUERY_CMD_LABEL_LEN &&
+		   !memcmp(t->data, QUERY_CMD_LABEL, QUERY_CMD_LABEL_LEN)) {
+		len = query_label(t->data, MULTI_TRANSACTION_LIMIT,
+				  t->data + QUERY_CMD_LABEL_LEN,
+				  count - QUERY_CMD_LABEL_LEN, true);
+	} else if (count > QUERY_CMD_LABELALL_LEN &&
+		   !memcmp(t->data, QUERY_CMD_LABELALL,
+			   QUERY_CMD_LABELALL_LEN)) {
+		len = query_label(t->data, MULTI_TRANSACTION_LIMIT,
+				  t->data + QUERY_CMD_LABELALL_LEN,
+				  count - QUERY_CMD_LABELALL_LEN, false);
 	} else if (count > QUERY_CMD_DATA_LEN &&
 		   !memcmp(t->data, QUERY_CMD_DATA, QUERY_CMD_DATA_LEN)) {
 		len = query_data(t->data, MULTI_TRANSACTION_LIMIT,
