@@ -100,7 +100,7 @@ int aa_task_setrlimit(struct aa_profile *profile, struct task_struct *task,
 	 * task has CAP_SYS_RESOURCE.
 	 */
 	if ((profile != labels_profile(task_label) &&
-	     aa_capable(profile, CAP_SYS_RESOURCE, 1)) ||
+	     aa_capable(&profile->label, CAP_SYS_RESOURCE, 1)) ||
 	    (profile->rlimits.mask & (1 << resource) &&
 	     new_rlim->rlim_max > profile->rlimits.limits[resource].rlim_max))
 		error = -EACCES;

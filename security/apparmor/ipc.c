@@ -68,7 +68,7 @@ int aa_may_ptrace(struct aa_profile *tracer, struct aa_profile *tracee,
 	if (profile_unconfined(tracer) || tracer == tracee)
 		return 0;
 	/* log this capability request */
-	return aa_capable(tracer, CAP_SYS_PTRACE, 1);
+	return aa_capable(&tracer->label, CAP_SYS_PTRACE, 1);
 }
 
 /**

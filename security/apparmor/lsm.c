@@ -117,20 +117,28 @@ static int apparmor_capget(struct task_struct *target, kernel_cap_t *effective,
 			   kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
 	struct aa_label *label;
-	struct aa_profile *profile;
 	const struct cred *cred;
 
 	rcu_read_lock();
 	cred = __task_cred(target);
 	label = aa_get_newest_cred_label(cred);
-	profile = labels_profile(label);
+
 	/*
 	 * cap_capget is stacked ahead of this and will
 	 * initialize effective and permitted.
 	 */
-	if (!profile_unconfined(profile) && !COMPLAIN_MODE(profile)) {
-		*effective = cap_intersect(*effective, profile->caps.allow);
-		*permitted = cap_intersect(*permitted, profile->caps.allow);
+	if (!unconfined(label)) {
+		struct aa_profile *profile;
+		struct label_it i;
+
+		label_for_each_confined(i, label, profile) {
+			if (COMPLAIN_MODE(profile))
+				continue;
+			*effective = cap_intersect(*effective,
+						   profile->caps.allow);
+			*permitted = cap_intersect(*permitted,
+						   profile->caps.allow);
+		}
 	}
 	rcu_read_unlock();
 	aa_put_label(label);
@@ -146,7 +154,7 @@ static int apparmor_capable(const struct cred *cred, struct user_namespace *ns,
 
 	label = aa_get_newest_cred_label(cred);
 	if (!unconfined(label))
-		error = aa_capable(labels_profile(label), cap, audit);
+		error = aa_capable(label, cap, audit);
 	aa_put_label(label);
 
 	return error;
