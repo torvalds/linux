@@ -525,10 +525,6 @@ static void qed_ll2_rxq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
 	p_rx = &p_ll2_conn->rx_queue;
 
 	while (!list_empty(&p_rx->active_descq)) {
-		dma_addr_t rx_buf_addr;
-		void *cookie;
-		bool b_last;
-
 		p_pkt = list_first_entry(&p_rx->active_descq,
 					 struct qed_ll2_rx_packet, list_entry);
 		if (!p_pkt)
@@ -543,10 +539,15 @@ static void qed_ll2_rxq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
 			qed_ooo_put_free_buffer(p_hwfn, p_hwfn->p_ooo_info,
 						p_buffer);
 		} else {
-			rx_buf_addr = p_pkt->rx_buf_addr;
-			cookie = p_pkt->cookie;
+			dma_addr_t rx_buf_addr = p_pkt->rx_buf_addr;
+			void *cookie = p_pkt->cookie;
+			bool b_last;
 
 			b_last = list_empty(&p_rx->active_descq);
+			p_ll2_conn->cbs.rx_release_cb(p_ll2_conn->cbs.cookie,
+						      p_ll2_conn->my_id,
+						      cookie,
+						      rx_buf_addr, b_last);
 		}
 	}
 }
