@@ -250,7 +250,6 @@ static int read_partition_platform_config(struct hfi1_devdata *dd, void **data,
 {
 	void *buffer;
 	void *p;
-	u32 length;
 	int ret;
 
 	buffer = kmalloc(P1_SIZE, GFP_KERNEL);
@@ -265,13 +264,13 @@ static int read_partition_platform_config(struct hfi1_devdata *dd, void **data,
 
 	/* scan for image magic that may trail the actual data */
 	p = strnstr(buffer, IMAGE_TRAIL_MAGIC, P1_SIZE);
-	if (p)
-		length = p - buffer;
-	else
-		length = P1_SIZE;
+	if (!p) {
+		kfree(buffer);
+		return -ENOENT;
+	}
 
 	*data = buffer;
-	*size = length;
+	*size = p - buffer;
 	return 0;
 }
 
