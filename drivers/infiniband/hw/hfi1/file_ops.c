@@ -804,7 +804,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 
 	dd->rcd[uctxt->ctxt] = NULL;
 
-	hfi1_user_exp_rcv_grp_free(uctxt);
+	hfi1_free_ctxt_rcv_groups(uctxt);
 	hfi1_clear_ctxt_pkey(dd, uctxt);
 
 	uctxt->rcvwait_to = 0;
@@ -1260,7 +1260,7 @@ static int setup_base_ctxt(struct hfi1_filedata *fd)
 	if (ret)
 		goto setup_failed;
 
-	ret = hfi1_user_exp_rcv_grp_init(fd);
+	ret = hfi1_alloc_ctxt_rcv_groups(uctxt);
 	if (ret)
 		goto setup_failed;
 

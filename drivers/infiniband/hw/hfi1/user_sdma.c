@@ -94,43 +94,12 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 /* Number of BTH.PSN bits used for sequence number in expected rcvs */
 #define BTH_SEQ_MASK 0x7ffull
 
-/*
- * Define fields in the KDETH header so we can update the header
- * template.
- */
-#define KDETH_OFFSET_SHIFT        0
-#define KDETH_OFFSET_MASK         0x7fff
-#define KDETH_OM_SHIFT            15
-#define KDETH_OM_MASK             0x1
-#define KDETH_TID_SHIFT           16
-#define KDETH_TID_MASK            0x3ff
-#define KDETH_TIDCTRL_SHIFT       26
-#define KDETH_TIDCTRL_MASK        0x3
-#define KDETH_INTR_SHIFT          28
-#define KDETH_INTR_MASK           0x1
-#define KDETH_SH_SHIFT            29
-#define KDETH_SH_MASK             0x1
-#define KDETH_HCRC_UPPER_SHIFT    16
-#define KDETH_HCRC_UPPER_MASK     0xff
-#define KDETH_HCRC_LOWER_SHIFT    24
-#define KDETH_HCRC_LOWER_MASK     0xff
-
 #define AHG_KDETH_INTR_SHIFT 12
 #define AHG_KDETH_SH_SHIFT   13
 #define AHG_KDETH_ARRAY_SIZE  9
 
 #define PBC2LRH(x) ((((x) & 0xfff) << 2) - 4)
 #define LRH2PBC(x) ((((x) >> 2) + 1) & 0xfff)
-
-#define KDETH_GET(val, field)						\
-	(((le32_to_cpu((val))) >> KDETH_##field##_SHIFT) & KDETH_##field##_MASK)
-#define KDETH_SET(dw, field, val) do {					\
-		u32 dwval = le32_to_cpu(dw);				\
-		dwval &= ~(KDETH_##field##_MASK << KDETH_##field##_SHIFT); \
-		dwval |= (((val) & KDETH_##field##_MASK) << \
-			  KDETH_##field##_SHIFT);			\
-		dw = cpu_to_le32(dwval);				\
-	} while (0)
 
 #define AHG_HEADER_SET(arr, idx, dw, bit, width, value)			\
 	do {								\
@@ -141,13 +110,6 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 		else							\
 			return -ERANGE;					\
 	} while (0)
-
-/* KDETH OM multipliers and switch over point */
-#define KDETH_OM_SMALL     4
-#define KDETH_OM_SMALL_SHIFT     2
-#define KDETH_OM_LARGE     64
-#define KDETH_OM_LARGE_SHIFT     6
-#define KDETH_OM_MAX_SIZE  (1 << ((KDETH_OM_LARGE / KDETH_OM_SMALL) + 1))
 
 /* Tx request flag bits */
 #define TXREQ_FLAGS_REQ_ACK   BIT(0)      /* Set the ACK bit in the header */
