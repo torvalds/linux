@@ -38,16 +38,21 @@
 static bool shrinker_lock(struct drm_i915_private *dev_priv, bool *unlock)
 {
 	switch (mutex_trylock_recursive(&dev_priv->drm.struct_mutex)) {
-	case MUTEX_TRYLOCK_FAILED:
-		return false;
-
-	case MUTEX_TRYLOCK_SUCCESS:
-		*unlock = true;
-		return true;
-
 	case MUTEX_TRYLOCK_RECURSIVE:
 		*unlock = false;
 		return true;
+
+	case MUTEX_TRYLOCK_FAILED:
+		do {
+			cpu_relax();
+			if (mutex_trylock(&dev_priv->drm.struct_mutex)) {
+	case MUTEX_TRYLOCK_SUCCESS:
+				*unlock = true;
+				return true;
+			}
+		} while (!need_resched());
+
+		return false;
 	}
 
 	BUG();
