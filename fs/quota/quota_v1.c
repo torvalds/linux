@@ -161,6 +161,7 @@ static int v1_read_file_info(struct super_block *sb, int type)
 	struct v1_disk_dqblk dqblk;
 	int ret;
 
+	down_read(&dqopt->dqio_sem);
 	ret = sb->s_op->quota_read(sb, type, (char *)&dqblk,
 				sizeof(struct v1_disk_dqblk), v1_dqoff(0));
 	if (ret != sizeof(struct v1_disk_dqblk)) {
@@ -177,6 +178,7 @@ static int v1_read_file_info(struct super_block *sb, int type)
 	dqopt->info[type].dqi_bgrace =
 			dqblk.dqb_btime ? dqblk.dqb_btime : MAX_DQ_TIME;
 out:
+	up_read(&dqopt->dqio_sem);
 	return ret;
 }
 
