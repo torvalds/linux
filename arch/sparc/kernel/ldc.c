@@ -34,7 +34,6 @@
 
 static char version[] =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
-#define LDC_PACKET_SIZE		64
 
 /* Packet header layout for unreliable and reliable mode frames.
  * When in RAW mode, packets are simply straight 64-byte payloads
@@ -194,15 +193,6 @@ static const char *state_to_str(u8 state)
 	default:
 		return "<UNKNOWN>";
 	}
-}
-
-static void ldc_set_state(struct ldc_channel *lp, u8 state)
-{
-	ldcdbg(STATE, "STATE (%s) --> (%s)\n",
-	       state_to_str(lp->state),
-	       state_to_str(state));
-
-	lp->state = state;
 }
 
 static unsigned long __advance(unsigned long off, unsigned long num_entries)
@@ -829,7 +819,7 @@ static irqreturn_t ldc_rx(int irq, void *dev_id)
 	 * everything.
 	 */
 	if (lp->flags & LDC_FLAG_RESET) {
-		(void) __set_rx_head(lp, lp->rx_tail);
+		(void) ldc_rx_reset(lp);
 		goto out;
 	}
 
@@ -1447,6 +1437,38 @@ int ldc_state(struct ldc_channel *lp)
 }
 EXPORT_SYMBOL(ldc_state);
 
+void ldc_set_state(struct ldc_channel *lp, u8 state)
+{
+	ldcdbg(STATE, "STATE (%s) --> (%s)\n",
+	       state_to_str(lp->state),
+	       state_to_str(state));
+
+	lp->state = state;
+}
+
+int ldc_mode(struct ldc_channel *lp)
+{
+	return lp->cfg.mode;
+}
+
+int ldc_rx_reset(struct ldc_channel *lp)
+{
+	return __set_rx_head(lp, lp->rx_tail);
+}
+
+void __ldc_print(struct ldc_channel *lp, const char *caller)
+{
+	pr_info("%s: id=0x%lx flags=0x%x state=%s cstate=0x%lx hsstate=0x%x\n"
+		"\trx_h=0x%lx rx_t=0x%lx rx_n=%ld\n"
+		"\ttx_h=0x%lx tx_t=0x%lx tx_n=%ld\n"
+		"\trcv_nxt=%u snd_nxt=%u\n",
+		caller, lp->id, lp->flags, state_to_str(lp->state),
+		lp->chan_state, lp->hs_state,
+		lp->rx_head, lp->rx_tail, lp->rx_num_entries,
+		lp->tx_head, lp->tx_tail, lp->tx_num_entries,
+		lp->rcv_nxt, lp->snd_nxt);
+}
+
 static int write_raw(struct ldc_channel *lp, const void *buf, unsigned int size)
 {
 	struct ldc_packet *p;
@@ -1592,7 +1614,7 @@ static int rx_bad_seq(struct ldc_channel *lp, struct ldc_packet *p,
 	if (err)
 		return err;
 
-	err = __set_rx_head(lp, lp->rx_tail);
+	err = ldc_rx_reset(lp);
 	if (err < 0)
 		return ldc_abort(lp);
 
