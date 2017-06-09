@@ -134,6 +134,24 @@ void aa_info_message(const char *str)
 	printk(KERN_INFO "AppArmor: %s\n", str);
 }
 
+__counted char *aa_str_alloc(int size, gfp_t gfp)
+{
+	struct counted_str *str;
+
+	str = kmalloc(sizeof(struct counted_str) + size, gfp);
+	if (!str)
+		return NULL;
+
+	kref_init(&str->count);
+	return str->name;
+}
+
+void aa_str_kref(struct kref *kref)
+{
+	kfree(container_of(kref, struct counted_str, count));
+}
+
+
 const char aa_file_perm_chrs[] = "xwracd         km l     ";
 const char *aa_file_perm_names[] = {
 	"exec",
@@ -296,6 +314,7 @@ void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
  * @policy: policy to initialize  (NOT NULL)
  * @prefix: prefix name if any is required.  (MAYBE NULL)
  * @name: name of the policy, init will make a copy of it  (NOT NULL)
+ * @gfp: allocation mode
  *
  * Note: this fn creates a copy of strings passed in
  *
@@ -304,16 +323,21 @@ void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
 bool aa_policy_init(struct aa_policy *policy, const char *prefix,
 		    const char *name, gfp_t gfp)
 {
+	char *hname;
+
 	/* freed by policy_free */
 	if (prefix) {
-		policy->hname = kmalloc(strlen(prefix) + strlen(name) + 3,
-					gfp);
-		if (policy->hname)
-			sprintf((char *)policy->hname, "%s//%s", prefix, name);
-	} else
-		policy->hname = kstrdup(name, gfp);
-	if (!policy->hname)
+		hname = aa_str_alloc(strlen(prefix) + strlen(name) + 3, gfp);
+		if (hname)
+			sprintf(hname, "%s//%s", prefix, name);
+	} else {
+		hname = aa_str_alloc(strlen(name) + 1, gfp);
+		if (hname)
+			strcpy(hname, name);
+	}
+	if (!hname)
 		return false;
+	policy->hname = hname;
 	/* base.name is a substring of fqname */
 	policy->name = basename(policy->hname);
 	INIT_LIST_HEAD(&policy->list);
@@ -332,5 +356,5 @@ void aa_policy_destroy(struct aa_policy *policy)
 	AA_BUG(on_list_rcu(&policy->list));
 
 	/* don't free name as its a subset of hname */
-	kzfree(policy->hname);
+	aa_put_str(policy->hname);
 }

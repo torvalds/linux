@@ -100,6 +100,36 @@ static inline bool path_mediated_fs(struct dentry *dentry)
 	return !(dentry->d_sb->s_flags & MS_NOUSER);
 }
 
+
+struct counted_str {
+	struct kref count;
+	char name[];
+};
+
+#define str_to_counted(str) \
+	((struct counted_str *)(str - offsetof(struct counted_str, name)))
+
+#define __counted	/* atm just a notation */
+
+void aa_str_kref(struct kref *kref);
+char *aa_str_alloc(int size, gfp_t gfp);
+
+
+static inline __counted char *aa_get_str(__counted char *str)
+{
+	if (str)
+		kref_get(&(str_to_counted(str)->count));
+
+	return str;
+}
+
+static inline void aa_put_str(__counted char *str)
+{
+	if (str)
+		kref_put(&str_to_counted(str)->count, aa_str_kref);
+}
+
+
 /* struct aa_policy - common part of both namespaces and profiles
  * @name: name of the object
  * @hname - The hierarchical name
@@ -108,7 +138,7 @@ static inline bool path_mediated_fs(struct dentry *dentry)
  */
 struct aa_policy {
 	const char *name;
-	const char *hname;
+	__counted char *hname;
 	struct list_head list;
 	struct list_head profiles;
 };

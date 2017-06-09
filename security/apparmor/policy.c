@@ -829,6 +829,14 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
 	return 0;
 }
 
+static void share_name(struct aa_profile *old, struct aa_profile *new)
+{
+	aa_put_str(new->base.hname);
+	aa_get_str(old->base.hname);
+	new->base.hname = old->base.hname;
+	new->base.name = old->base.name;
+}
+
 /**
  * aa_replace_profiles - replace profile(s) on the profile list
  * @policy_ns: namespace load is occurring on
@@ -1013,6 +1021,7 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 			     NULL, error);
 
 		if (ent->old) {
+			share_name(ent->old, ent->new);
 			__replace_profile(ent->old, ent->new, 1);
 			if (ent->rename) {
 				/* aafs interface uses proxy */
