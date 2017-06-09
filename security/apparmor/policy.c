@@ -837,6 +837,27 @@ static void share_name(struct aa_profile *old, struct aa_profile *new)
 	new->base.name = old->base.name;
 }
 
+/* Update to newest version of parent after previous replacements
+ * Returns: unrefcount newest version of parent
+ */
+static struct aa_profile *update_to_newest_parent(struct aa_profile *new)
+{
+	struct aa_profile *parent, *newest;
+
+	parent = rcu_dereference_protected(new->parent,
+					   mutex_is_locked(&new->ns->lock));
+	newest = aa_get_newest_profile(parent);
+
+	/* parent replaced in this atomic set? */
+	if (newest != parent) {
+		aa_put_profile(parent);
+		rcu_assign_pointer(new->parent, newest);
+	} else
+		aa_put_profile(newest);
+
+	return newest;
+}
+
 /**
  * aa_replace_profiles - replace profile(s) on the profile list
  * @policy_ns: namespace load is occurring on
@@ -1052,10 +1073,16 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 			__list_add_profile(&newest->base.profiles, ent->new);
 			aa_put_profile(newest);
 		} else {
-			/* aafs interface uses proxy */
-			rcu_assign_pointer(ent->new->proxy->profile,
-					   aa_get_profile(ent->new));
-			__list_add_profile(&ns->base.profiles, ent->new);
+			struct list_head *lh;
+
+			if (rcu_access_pointer(ent->new->parent)) {
+				struct aa_profile *parent;
+
+				parent = update_to_newest_parent(ent->new);
+				lh = &parent->base.profiles;
+			} else
+				lh = &ns->base.profiles;
+			__list_add_profile(lh, ent->new);
 		}
 	skip:
 		aa_load_ent_free(ent);
