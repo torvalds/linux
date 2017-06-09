@@ -289,44 +289,44 @@ static LIST_HEAD(cfspi_list);
 static spinlock_t cfspi_list_lock;
 
 /* SPI uplink head alignment. */
-static ssize_t show_up_head_align(struct device_driver *driver, char *buf)
+static ssize_t up_head_align_show(struct device_driver *driver, char *buf)
 {
 	return sprintf(buf, "%d\n", spi_up_head_align);
 }
 
-static DRIVER_ATTR(up_head_align, S_IRUSR, show_up_head_align, NULL);
+static DRIVER_ATTR_RO(up_head_align);
 
 /* SPI uplink tail alignment. */
-static ssize_t show_up_tail_align(struct device_driver *driver, char *buf)
+static ssize_t up_tail_align_show(struct device_driver *driver, char *buf)
 {
 	return sprintf(buf, "%d\n", spi_up_tail_align);
 }
 
-static DRIVER_ATTR(up_tail_align, S_IRUSR, show_up_tail_align, NULL);
+static DRIVER_ATTR_RO(up_tail_align);
 
 /* SPI downlink head alignment. */
-static ssize_t show_down_head_align(struct device_driver *driver, char *buf)
+static ssize_t down_head_align_show(struct device_driver *driver, char *buf)
 {
 	return sprintf(buf, "%d\n", spi_down_head_align);
 }
 
-static DRIVER_ATTR(down_head_align, S_IRUSR, show_down_head_align, NULL);
+static DRIVER_ATTR_RO(down_head_align);
 
 /* SPI downlink tail alignment. */
-static ssize_t show_down_tail_align(struct device_driver *driver, char *buf)
+static ssize_t down_tail_align_show(struct device_driver *driver, char *buf)
 {
 	return sprintf(buf, "%d\n", spi_down_tail_align);
 }
 
-static DRIVER_ATTR(down_tail_align, S_IRUSR, show_down_tail_align, NULL);
+static DRIVER_ATTR_RO(down_tail_align);
 
 /* SPI frame alignment. */
-static ssize_t show_frame_align(struct device_driver *driver, char *buf)
+static ssize_t frame_align_show(struct device_driver *driver, char *buf)
 {
 	return sprintf(buf, "%d\n", spi_frm_align);
 }
 
-static DRIVER_ATTR(frame_align, S_IRUSR, show_frame_align, NULL);
+static DRIVER_ATTR_RO(frame_align);
 
 int cfspi_xmitfrm(struct cfspi *cfspi, u8 *buf, size_t len)
 {
