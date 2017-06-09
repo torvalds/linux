@@ -43,6 +43,17 @@
 #include <linux/slab.h>
 #include <linux/qed/qed_if.h>
 
+enum qed_ll2_conn_type {
+	QED_LL2_TYPE_FCOE,
+	QED_LL2_TYPE_ISCSI,
+	QED_LL2_TYPE_TEST,
+	QED_LL2_TYPE_ISCSI_OOO,
+	QED_LL2_TYPE_RESERVED2,
+	QED_LL2_TYPE_ROCE,
+	QED_LL2_TYPE_RESERVED3,
+	MAX_QED_LL2_RX_CONN_TYPE
+};
+
 enum qed_ll2_roce_flavor_type {
 	QED_LL2_ROCE,
 	QED_LL2_RROCE,
@@ -53,6 +64,12 @@ enum qed_ll2_tx_dest {
 	QED_LL2_TX_DEST_NW, /* Light L2 TX Destination to the Network */
 	QED_LL2_TX_DEST_LB, /* Light L2 TX Destination to the Loopback */
 	QED_LL2_TX_DEST_MAX
+};
+
+enum qed_ll2_error_handle {
+	QED_LL2_DROP_PACKET,
+	QED_LL2_DO_NOTHING,
+	QED_LL2_ASSERT,
 };
 
 struct qed_ll2_stats {
@@ -103,6 +120,28 @@ struct qed_ll2_comp_rx_data {
 		u8 placement_offset;
 		u8 data_length_error;
 	} u;
+};
+
+struct qed_ll2_acquire_data_inputs {
+	enum qed_ll2_conn_type conn_type;
+	u16 mtu;
+	u16 rx_num_desc;
+	u16 rx_num_ooo_buffers;
+	u8 rx_drop_ttl0_flg;
+	u8 rx_vlan_removal_en;
+	u16 tx_num_desc;
+	u8 tx_max_bds_per_packet;
+	u8 tx_tc;
+	enum qed_ll2_tx_dest tx_dest;
+	enum qed_ll2_error_handle ai_err_packet_too_big;
+	enum qed_ll2_error_handle ai_err_no_buf;
+	u8 gsi_enable;
+};
+
+struct qed_ll2_acquire_data {
+	struct qed_ll2_acquire_data_inputs input;
+	/* Output container for LL2 connection's handle */
+	u8 *p_connection_handle;
 };
 
 struct qed_ll2_tx_pkt_info {

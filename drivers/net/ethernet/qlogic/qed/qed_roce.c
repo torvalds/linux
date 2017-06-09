@@ -2818,7 +2818,7 @@ static int qed_roce_ll2_start(struct qed_dev *cdev,
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_roce_ll2_info *roce_ll2;
-	struct qed_ll2_conn ll2_params;
+	struct qed_ll2_acquire_data data;
 	int rc;
 
 	if (!params) {
@@ -2844,25 +2844,26 @@ static int qed_roce_ll2_start(struct qed_dev *cdev,
 		DP_ERR(cdev, "qed roce ll2 start: failed memory allocation\n");
 		return -ENOMEM;
 	}
+
 	roce_ll2->handle = QED_LL2_UNUSED_HANDLE;
 	roce_ll2->cbs = params->cbs;
 	roce_ll2->cb_cookie = params->cb_cookie;
 	mutex_init(&roce_ll2->lock);
 
-	memset(&ll2_params, 0, sizeof(ll2_params));
-	ll2_params.conn_type = QED_LL2_TYPE_ROCE;
-	ll2_params.mtu = params->mtu;
-	ll2_params.rx_drop_ttl0_flg = true;
-	ll2_params.rx_vlan_removal_en = false;
-	ll2_params.tx_dest = CORE_TX_DEST_NW;
-	ll2_params.ai_err_packet_too_big = LL2_DROP_PACKET;
-	ll2_params.ai_err_no_buf = LL2_DROP_PACKET;
-	ll2_params.gsi_enable = true;
+	memset(&data, 0, sizeof(data));
+	data.input.conn_type = QED_LL2_TYPE_ROCE;
+	data.input.mtu = params->mtu;
+	data.input.rx_num_desc = params->max_rx_buffers;
+	data.input.tx_num_desc = params->max_tx_buffers;
+	data.input.rx_drop_ttl0_flg = true;
+	data.input.rx_vlan_removal_en = false;
+	data.input.tx_dest = QED_LL2_TX_DEST_NW;
+	data.input.ai_err_packet_too_big = LL2_DROP_PACKET;
+	data.input.ai_err_no_buf = LL2_DROP_PACKET;
+	data.p_connection_handle = &roce_ll2->handle;
+	data.input.gsi_enable = true;
 
-	rc = qed_ll2_acquire_connection(QED_LEADING_HWFN(cdev), &ll2_params,
-					params->max_rx_buffers,
-					params->max_tx_buffers,
-					&roce_ll2->handle);
+	rc = qed_ll2_acquire_connection(QED_LEADING_HWFN(cdev), &data);
 	if (rc) {
 		DP_ERR(cdev,
 		       "qed roce ll2 start: failed to acquire LL2 connection (rc=%d)\n",

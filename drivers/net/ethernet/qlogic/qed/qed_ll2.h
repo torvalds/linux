@@ -47,17 +47,6 @@
 
 #define QED_MAX_NUM_OF_LL2_CONNECTIONS                    (4)
 
-enum qed_ll2_conn_type {
-	QED_LL2_TYPE_FCOE,
-	QED_LL2_TYPE_ISCSI,
-	QED_LL2_TYPE_TEST,
-	QED_LL2_TYPE_ISCSI_OOO,
-	QED_LL2_TYPE_RESERVED2,
-	QED_LL2_TYPE_ROCE,
-	QED_LL2_TYPE_RESERVED3,
-	MAX_QED_LL2_RX_CONN_TYPE
-};
-
 struct qed_ll2_rx_packet {
 	struct list_head list_entry;
 	struct core_rx_bd_with_buff_len *rxq_bd;
@@ -123,27 +112,17 @@ struct qed_ll2_tx_queue {
 	bool b_completing_packet;
 };
 
-struct qed_ll2_conn {
-	enum qed_ll2_conn_type conn_type;
-	u16 mtu;
-	u8 rx_drop_ttl0_flg;
-	u8 rx_vlan_removal_en;
-	u8 tx_tc;
-	enum core_tx_dest tx_dest;
-	enum core_error_handle ai_err_packet_too_big;
-	enum core_error_handle ai_err_no_buf;
-	u8 gsi_enable;
-};
-
 struct qed_ll2_info {
 	/* Lock protecting the state of LL2 */
 	struct mutex mutex;
-	struct qed_ll2_conn conn;
+
+	struct qed_ll2_acquire_data_inputs input;
 	u32 cid;
 	u8 my_id;
 	u8 queue_id;
 	u8 tx_stats_id;
 	bool b_active;
+	enum core_tx_dest tx_dest;
 	u8 tx_stats_en;
 	struct qed_ll2_rx_queue rx_queue;
 	struct qed_ll2_tx_queue tx_queue;
@@ -154,20 +133,13 @@ struct qed_ll2_info {
  *        starts rx & tx (if relevant) queues pair. Provides
  *        connecion handler as output parameter.
  *
+ *
  * @param p_hwfn
- * @param p_params		Contain various configuration properties
- * @param rx_num_desc
- * @param tx_num_desc
- *
- * @param p_connection_handle  Output container for LL2 connection's handle
- *
- * @return 0 on success, failure otherwise
+ * @param data - describes connection parameters
+ * @return int
  */
 int qed_ll2_acquire_connection(struct qed_hwfn *p_hwfn,
-			       struct qed_ll2_conn *p_params,
-			       u16 rx_num_desc,
-			       u16 tx_num_desc,
-			       u8 *p_connection_handle);
+			       struct qed_ll2_acquire_data *data);
 
 /**
  * @brief qed_ll2_establish_connection - start previously
