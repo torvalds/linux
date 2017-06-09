@@ -1485,7 +1485,6 @@ static void cnl_cdclk_pll_enable(struct drm_i915_private *dev_priv, int vco)
 	dev_priv->cdclk.hw.vco = vco;
 }
 
-__attribute__((unused))
 static void cnl_set_cdclk(struct drm_i915_private *dev_priv,
 			  const struct intel_cdclk_state *cdclk_state)
 {
@@ -1556,6 +1555,113 @@ static void cnl_set_cdclk(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_update_cdclk(dev_priv);
+}
+
+static int cnl_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
+{
+	int ratio;
+
+	if (cdclk == dev_priv->cdclk.hw.ref)
+		return 0;
+
+	switch (cdclk) {
+	default:
+		MISSING_CASE(cdclk);
+	case 168000:
+	case 336000:
+		ratio = dev_priv->cdclk.hw.ref == 19200 ? 35 : 28;
+		break;
+	case 528000:
+		ratio = dev_priv->cdclk.hw.ref == 19200 ? 55 : 44;
+		break;
+	}
+
+	return dev_priv->cdclk.hw.ref * ratio;
+}
+
+static void cnl_sanitize_cdclk(struct drm_i915_private *dev_priv)
+{
+	u32 cdctl, expected;
+
+	intel_update_cdclk(dev_priv);
+
+	if (dev_priv->cdclk.hw.vco == 0 ||
+	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.ref)
+		goto sanitize;
+
+	/* DPLL okay; verify the cdclock
+	 *
+	 * Some BIOS versions leave an incorrect decimal frequency value and
+	 * set reserved MBZ bits in CDCLK_CTL at least during exiting from S4,
+	 * so sanitize this register.
+	 */
+	cdctl = I915_READ(CDCLK_CTL);
+	/*
+	 * Let's ignore the pipe field, since BIOS could have configured the
+	 * dividers both synching to an active pipe, or asynchronously
+	 * (PIPE_NONE).
+	 */
+	cdctl &= ~BXT_CDCLK_CD2X_PIPE_NONE;
+
+	expected = (cdctl & BXT_CDCLK_CD2X_DIV_SEL_MASK) |
+		   skl_cdclk_decimal(dev_priv->cdclk.hw.cdclk);
+
+	if (cdctl == expected)
+		/* All well; nothing to sanitize */
+		return;
+
+sanitize:
+	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
+
+	/* force cdclk programming */
+	dev_priv->cdclk.hw.cdclk = 0;
+
+	/* force full PLL disable + enable */
+	dev_priv->cdclk.hw.vco = -1;
+}
+
+/**
+ * cnl_init_cdclk - Initialize CDCLK on CNL
+ * @dev_priv: i915 device
+ *
+ * Initialize CDCLK for CNL. This is generally
+ * done only during the display core initialization sequence,
+ * after which the DMC will take care of turning CDCLK off/on
+ * as needed.
+ */
+void cnl_init_cdclk(struct drm_i915_private *dev_priv)
+{
+	struct intel_cdclk_state cdclk_state;
+
+	cnl_sanitize_cdclk(dev_priv);
+
+	if (dev_priv->cdclk.hw.cdclk != 0 &&
+	    dev_priv->cdclk.hw.vco != 0)
+		return;
+
+	cdclk_state = dev_priv->cdclk.hw;
+
+	cdclk_state.cdclk = 168000;
+	cdclk_state.vco = cnl_cdclk_pll_vco(dev_priv, cdclk_state.cdclk);
+
+	cnl_set_cdclk(dev_priv, &cdclk_state);
+}
+
+/**
+ * cnl_uninit_cdclk - Uninitialize CDCLK on CNL
+ * @dev_priv: i915 device
+ *
+ * Uninitialize CDCLK for CNL. This is done only
+ * during the display core uninitialization sequence.
+ */
+void cnl_uninit_cdclk(struct drm_i915_private *dev_priv)
+{
+	struct intel_cdclk_state cdclk_state = dev_priv->cdclk.hw;
+
+	cdclk_state.cdclk = cdclk_state.ref;
+	cdclk_state.vco = 0;
+
+	cnl_set_cdclk(dev_priv, &cdclk_state);
 }
 
 /**
