@@ -24,9 +24,6 @@ void snd_interval_mulkdiv(const struct snd_interval *a, unsigned int k,
 int snd_pcm_hw_constraints_init(struct snd_pcm_substream *substream);
 int snd_pcm_hw_constraints_complete(struct snd_pcm_substream *substream);
 
-int snd_pcm_hw_params_choose(struct snd_pcm_substream *substream,
-			     struct snd_pcm_hw_params *params);
-
 int snd_pcm_hw_constraint_mask(struct snd_pcm_runtime *runtime,
 			       snd_pcm_hw_param_t var, u_int32_t mask);
 
