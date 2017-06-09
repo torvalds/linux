@@ -3492,7 +3492,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 	if (HAS_DDI(dev_priv)) {
 		signal_levels = ddi_signal_levels(intel_dp);
 
-		if (IS_GEN9_LP(dev_priv))
+		if (IS_GEN9_LP(dev_priv) || IS_CANNONLAKE(dev_priv))
 			signal_levels = 0;
 		else
 			mask = DDI_BUF_EMP_MASK;

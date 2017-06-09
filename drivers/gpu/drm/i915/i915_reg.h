@@ -1668,6 +1668,7 @@ enum skl_disp_power_wells {
 
 #define CNL_PORT_CL1CM_DW5		_MMIO(0x162014)
 #define   CL_POWER_DOWN_ENABLE		(1 << 4)
+#define   SUS_CLOCK_CONFIG		(3 << 0)
 
 #define _PORT_CL1CM_DW9_A		0x162024
 #define _PORT_CL1CM_DW9_BC		0x6C024

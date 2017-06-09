@@ -1720,6 +1720,173 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 		DP_TRAIN_VOLTAGE_SWING_MASK;
 }
 
+static const struct cnl_ddi_buf_trans *
+cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv,
+		       u32 voltage, int *n_entries)
+{
+	if (voltage == VOLTAGE_INFO_0_85V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_0_85V);
+		return cnl_ddi_translations_hdmi_0_85V;
+	} else if (voltage == VOLTAGE_INFO_0_95V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_0_95V);
+		return cnl_ddi_translations_hdmi_0_95V;
+	} else if (voltage == VOLTAGE_INFO_1_05V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_1_05V);
+		return cnl_ddi_translations_hdmi_1_05V;
+	}
+	return NULL;
+}
+
+static const struct cnl_ddi_buf_trans *
+cnl_get_buf_trans_dp(struct drm_i915_private *dev_priv,
+		     u32 voltage, int *n_entries)
+{
+	if (voltage == VOLTAGE_INFO_0_85V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_0_85V);
+		return cnl_ddi_translations_dp_0_85V;
+	} else if (voltage == VOLTAGE_INFO_0_95V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_0_95V);
+		return cnl_ddi_translations_dp_0_95V;
+	} else if (voltage == VOLTAGE_INFO_1_05V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_1_05V);
+		return cnl_ddi_translations_dp_1_05V;
+	}
+	return NULL;
+}
+
+static const struct cnl_ddi_buf_trans *
+cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv,
+		      u32 voltage, int *n_entries)
+{
+	if (dev_priv->vbt.edp.low_vswing) {
+		if (voltage == VOLTAGE_INFO_0_85V) {
+			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_85V);
+			return cnl_ddi_translations_dp_0_85V;
+		} else if (voltage == VOLTAGE_INFO_0_95V) {
+			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_95V);
+			return cnl_ddi_translations_edp_0_95V;
+		} else if (voltage == VOLTAGE_INFO_1_05V) {
+			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_1_05V);
+			return cnl_ddi_translations_edp_1_05V;
+		}
+		return NULL;
+	} else {
+		return cnl_get_buf_trans_dp(dev_priv, voltage, n_entries);
+	}
+}
+
+static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
+				    u32 level, enum port port, int type)
+{
+	const struct cnl_ddi_buf_trans *ddi_translations = NULL;
+	u32 n_entries, val, voltage;
+	int ln;
+
+	/*
+	 * Values for each port type are listed in
+	 * voltage swing programming tables.
+	 * Vccio voltage found in PORT_COMP_DW3.
+	 */
+	voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
+
+	if (type == INTEL_OUTPUT_HDMI) {
+		ddi_translations = cnl_get_buf_trans_hdmi(dev_priv,
+							  voltage, &n_entries);
+	} else if (type == INTEL_OUTPUT_DP) {
+		ddi_translations = cnl_get_buf_trans_dp(dev_priv,
+							voltage, &n_entries);
+	} else if (type == INTEL_OUTPUT_EDP) {
+		ddi_translations = cnl_get_buf_trans_edp(dev_priv,
+							 voltage, &n_entries);
+	}
+
+	if (ddi_translations == NULL) {
+		MISSING_CASE(voltage);
+		return;
+	}
+
+	if (level >= n_entries) {
+		DRM_DEBUG_KMS("DDI translation not found for level %d. Using %d instead.", level, n_entries - 1);
+		level = n_entries - 1;
+	}
+
+	/* Set PORT_TX_DW5 Scaling Mode Sel to 010b. */
+	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
+	val |= SCALING_MODE_SEL(2);
+	I915_WRITE(CNL_PORT_TX_DW5_GRP(port), val);
+
+	/* Program PORT_TX_DW2 */
+	val = I915_READ(CNL_PORT_TX_DW2_LN0(port));
+	val |= SWING_SEL_UPPER(ddi_translations[level].dw2_swing_sel);
+	val |= SWING_SEL_LOWER(ddi_translations[level].dw2_swing_sel);
+	/* Rcomp scalar is fixed as 0x98 for every table entry */
+	val |= RCOMP_SCALAR(0x98);
+	I915_WRITE(CNL_PORT_TX_DW2_GRP(port), val);
+
+        /* Program PORT_TX_DW4 */
+	/* We cannot write to GRP. It would overrite individual loadgen */
+	for (ln = 0; ln < 4; ln++) {
+		val = I915_READ(CNL_PORT_TX_DW4_LN(port, ln));
+		val |= POST_CURSOR_1(ddi_translations[level].dw4_post_cursor_1);
+		val |= POST_CURSOR_2(ddi_translations[level].dw4_post_cursor_2);
+		val |= CURSOR_COEFF(ddi_translations[level].dw4_cursor_coeff);
+		I915_WRITE(CNL_PORT_TX_DW4_LN(port, ln), val);
+	}
+
+        /* Program PORT_TX_DW5 */
+	/* All DW5 values are fixed for every table entry */
+	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
+	val |= RTERM_SELECT(6);
+	val |= TAP3_DISABLE;
+	I915_WRITE(CNL_PORT_TX_DW5_GRP(port), val);
+
+        /* Program PORT_TX_DW7 */
+	val = I915_READ(CNL_PORT_TX_DW7_LN0(port));
+	val |= N_SCALAR(ddi_translations[level].dw7_n_scalar);
+	I915_WRITE(CNL_PORT_TX_DW7_GRP(port), val);
+}
+
+static void cnl_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
+				    u32 level, enum port port, int type)
+{
+	u32 val;
+
+	/*
+	 * 1. If port type is eDP or DP,
+	 * set PORT_PCS_DW1 cmnkeeper_enable to 1b,
+	 * else clear to 0b.
+	 */
+	val = I915_READ(CNL_PORT_PCS_DW1_LN0(port));
+	if (type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP)
+		val |= COMMON_KEEPER_EN;
+	else
+		val &= ~COMMON_KEEPER_EN;
+	I915_WRITE(CNL_PORT_PCS_DW1_GRP(port), val);
+
+	/* 2. Program loadgen select */
+	/*
+	 * FIXME: Program PORT_TX_DW4_LN depending on Bit rate and used lanes
+	 */
+
+	/* 3. Set PORT_CL_DW5 SUS Clock Config to 11b */
+	val = I915_READ(CNL_PORT_CL1CM_DW5);
+	val |= SUS_CLOCK_CONFIG;
+	I915_WRITE(CNL_PORT_CL1CM_DW5, val);
+
+	/* 4. Clear training enable to change swing values */
+	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
+	val &= ~TX_TRAINING_EN;
+	I915_WRITE(CNL_PORT_TX_DW5_GRP(port), val);
+
+	/* 5. Program swing and de-emphasis */
+	cnl_ddi_vswing_program(dev_priv, level, port, type);
+
+	/* 6. Set training enable to trigger update */
+	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
+	val |= TX_TRAINING_EN;
+	I915_WRITE(CNL_PORT_TX_DW5_GRP(port), val);
+}
+
 static uint32_t translate_signal_level(int signal_levels)
 {
 	int i;
@@ -1752,7 +1919,11 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 		skl_ddi_set_iboost(encoder, level);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
-
+	else if (IS_CANNONLAKE(dev_priv)) {
+		cnl_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
+		/* DDI_BUF_CTL bits 27:24 are reserved on CNL */
+		return 0;
+	}
 	return DDI_BUF_TRANS_SELECT(level);
 }
 
@@ -1849,6 +2020,9 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 		skl_ddi_set_iboost(encoder, level);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_vswing_sequence(dev_priv, level, port,
+					INTEL_OUTPUT_HDMI);
+	else if (IS_CANNONLAKE(dev_priv))
+		cnl_ddi_vswing_sequence(dev_priv, level, port,
 					INTEL_OUTPUT_HDMI);
 
 	intel_hdmi->set_infoframes(drm_encoder,
