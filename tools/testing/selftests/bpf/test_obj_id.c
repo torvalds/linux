@@ -23,8 +23,8 @@ struct bpf_map_def SEC("maps") test_map_id = {
 	.max_entries = 1,
 };
 
-SEC("test_prog_id")
-int test_prog_id(struct __sk_buff *skb)
+SEC("test_obj_id_dummy")
+int test_obj_id(struct __sk_buff *skb)
 {
 	__u32 key = 0;
 	__u64 *value;
