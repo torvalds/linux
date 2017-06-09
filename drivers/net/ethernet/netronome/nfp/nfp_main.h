@@ -56,6 +56,7 @@ struct nfp_cpp_area;
 struct nfp_eth_table;
 struct nfp_net;
 struct nfp_nsp_identify;
+struct nfp_rtsym_table;
 
 /**
  * struct nfp_pf - NFP PF-specific device structure
@@ -70,6 +71,7 @@ struct nfp_nsp_identify;
  * @num_vfs:		Number of SR-IOV VFs enabled
  * @fw_loaded:		Is the firmware loaded?
  * @ctrl_vnic:		Pointer to the control vNIC if available
+ * @rtbl:		RTsym table
  * @eth_tbl:		NSP ETH table
  * @nspi:		NSP identification info
  * @hwmon_dev:		pointer to hwmon device
@@ -101,6 +103,7 @@ struct nfp_pf {
 
 	struct nfp_net *ctrl_vnic;
 
+	struct nfp_rtsym_table *rtbl;
 	struct nfp_eth_table *eth_tbl;
 	struct nfp_nsp_identify *nspi;
 

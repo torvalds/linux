@@ -87,9 +87,14 @@ struct nfp_rtsym {
 	int domain;
 };
 
-int nfp_rtsym_count(struct nfp_cpp *cpp);
-const struct nfp_rtsym *nfp_rtsym_get(struct nfp_cpp *cpp, int idx);
-const struct nfp_rtsym *nfp_rtsym_lookup(struct nfp_cpp *cpp, const char *name);
-u64 nfp_rtsym_read_le(struct nfp_cpp *cpp, const char *name, int *error);
+struct nfp_rtsym_table;
+
+struct nfp_rtsym_table *nfp_rtsym_table_read(struct nfp_cpp *cpp);
+int nfp_rtsym_count(struct nfp_rtsym_table *rtbl);
+const struct nfp_rtsym *nfp_rtsym_get(struct nfp_rtsym_table *rtbl, int idx);
+const struct nfp_rtsym *
+nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl, const char *name);
+u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
+		      int *error);
 
 #endif /* NFP_NFFW_H */

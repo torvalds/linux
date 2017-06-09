@@ -474,13 +474,7 @@ int nfp_nsp_wait(struct nfp_nsp *state)
 
 int nfp_nsp_device_soft_reset(struct nfp_nsp *state)
 {
-	int err;
-
-	err = nfp_nsp_command(state, SPCODE_SOFT_RESET, 0, 0, 0);
-
-	nfp_nffw_cache_flush(state->cpp);
-
-	return err;
+	return nfp_nsp_command(state, SPCODE_SOFT_RESET, 0, 0, 0);
 }
 
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw)

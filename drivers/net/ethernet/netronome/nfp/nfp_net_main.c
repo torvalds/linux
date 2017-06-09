@@ -201,7 +201,7 @@ nfp_net_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
 
 	snprintf(name, sizeof(name), format, nfp_cppcore_pcie_unit(pf->cpp));
 
-	val = nfp_rtsym_read_le(pf->cpp, name, &err);
+	val = nfp_rtsym_read_le(pf->rtbl, name, &err);
 	if (err) {
 		if (err == -ENOENT)
 			return default_val;
@@ -234,7 +234,7 @@ nfp_net_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 	snprintf(pf_symbol, sizeof(pf_symbol), sym_fmt,
 		 nfp_cppcore_pcie_unit(pf->cpp));
 
-	sym = nfp_rtsym_lookup(pf->cpp, pf_symbol);
+	sym = nfp_rtsym_lookup(pf->rtbl, pf_symbol);
 	if (!sym) {
 		nfp_err(pf->cpp, "Failed to find PF symbol %s\n", pf_symbol);
 		return (u8 __iomem *)ERR_PTR(-ENOENT);
