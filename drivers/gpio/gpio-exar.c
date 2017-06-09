@@ -139,7 +139,7 @@ static int gpio_exar_probe(struct platform_device *pdev)
 	if (!p)
 		return -ENOMEM;
 
-	exar_gpio = devm_kzalloc(&pcidev->dev, sizeof(*exar_gpio), GFP_KERNEL);
+	exar_gpio = devm_kzalloc(&pdev->dev, sizeof(*exar_gpio), GFP_KERNEL);
 	if (!exar_gpio)
 		return -ENOMEM;
 
@@ -160,7 +160,7 @@ static int gpio_exar_probe(struct platform_device *pdev)
 	exar_gpio->regs = p;
 	exar_gpio->index = index;
 
-	ret = devm_gpiochip_add_data(&pcidev->dev,
+	ret = devm_gpiochip_add_data(&pdev->dev,
 				     &exar_gpio->gpio_chip, exar_gpio);
 	if (ret)
 		goto err_destroy;
