@@ -2020,8 +2020,8 @@ out_netdev:
 	return NULL;
 }
 
-static ssize_t conn_write(struct device_driver *drv,
-			  const char *buf, size_t count)
+static ssize_t connection_store(struct device_driver *drv, const char *buf,
+				size_t count)
 {
 	char username[9];
 	char userdata[17];
@@ -2082,11 +2082,10 @@ out_free_ndev:
 	netiucv_free_netdevice(dev);
 	return rc;
 }
+static DRIVER_ATTR_WO(connection);
 
-static DRIVER_ATTR(connection, 0200, NULL, conn_write);
-
-static ssize_t remove_write (struct device_driver *drv,
-			     const char *buf, size_t count)
+static ssize_t remove_store(struct device_driver *drv, const char *buf,
+			    size_t count)
 {
 	struct iucv_connection *cp;
         struct net_device *ndev;
@@ -2132,8 +2131,7 @@ static ssize_t remove_write (struct device_driver *drv,
 	IUCV_DBF_TEXT(data, 2, "remove_write: unknown device\n");
         return -EINVAL;
 }
-
-static DRIVER_ATTR(remove, 0200, NULL, remove_write);
+static DRIVER_ATTR_WO(remove);
 
 static struct attribute * netiucv_drv_attrs[] = {
 	&driver_attr_connection.attr,

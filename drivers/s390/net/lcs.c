@@ -2411,14 +2411,14 @@ static struct ccwgroup_driver lcs_group_driver = {
 	.restore     = lcs_restore,
 };
 
-static ssize_t lcs_driver_group_store(struct device_driver *ddrv,
-				      const char *buf, size_t count)
+static ssize_t group_store(struct device_driver *ddrv, const char *buf,
+			   size_t count)
 {
 	int err;
 	err = ccwgroup_create_dev(lcs_root_dev, &lcs_group_driver, 2, buf);
 	return err ? err : count;
 }
-static DRIVER_ATTR(group, 0200, NULL, lcs_driver_group_store);
+static DRIVER_ATTR_WO(group);
 
 static struct attribute *lcs_drv_attrs[] = {
 	&driver_attr_group.attr,
