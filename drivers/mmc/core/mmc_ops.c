@@ -19,6 +19,7 @@
 #include <linux/mmc/mmc.h>
 
 #include "core.h"
+#include "card.h"
 #include "host.h"
 #include "mmc_ops.h"
 
@@ -843,6 +844,118 @@ int mmc_send_hpi_cmd(struct mmc_card *card, u32 *status)
 int mmc_can_ext_csd(struct mmc_card *card)
 {
 	return (card && card->csd.mmca_vsn > CSD_SPEC_VER_3);
+}
+
+/**
+ *	mmc_stop_bkops - stop ongoing BKOPS
+ *	@card: MMC card to check BKOPS
+ *
+ *	Send HPI command to stop ongoing background operations to
+ *	allow rapid servicing of foreground operations, e.g. read/
+ *	writes. Wait until the card comes out of the programming state
+ *	to avoid errors in servicing read/write requests.
+ */
+int mmc_stop_bkops(struct mmc_card *card)
+{
+	int err = 0;
+
+	err = mmc_interrupt_hpi(card);
+
+	/*
+	 * If err is EINVAL, we can't issue an HPI.
+	 * It should complete the BKOPS.
+	 */
+	if (!err || (err == -EINVAL)) {
+		mmc_card_clr_doing_bkops(card);
+		mmc_retune_release(card->host);
+		err = 0;
+	}
+
+	return err;
+}
+
+static int mmc_read_bkops_status(struct mmc_card *card)
+{
+	int err;
+	u8 *ext_csd;
+
+	mmc_claim_host(card->host);
+	err = mmc_get_ext_csd(card, &ext_csd);
+	mmc_release_host(card->host);
+	if (err)
+		return err;
+
+	card->ext_csd.raw_bkops_status = ext_csd[EXT_CSD_BKOPS_STATUS];
+	card->ext_csd.raw_exception_status = ext_csd[EXT_CSD_EXP_EVENTS_STATUS];
+	kfree(ext_csd);
+	return 0;
+}
+
+/**
+ *	mmc_start_bkops - start BKOPS for supported cards
+ *	@card: MMC card to start BKOPS
+ *	@form_exception: A flag to indicate if this function was
+ *			 called due to an exception raised by the card
+ *
+ *	Start background operations whenever requested.
+ *	When the urgent BKOPS bit is set in a R1 command response
+ *	then background operations should be started immediately.
+*/
+void mmc_start_bkops(struct mmc_card *card, bool from_exception)
+{
+	int err;
+	int timeout;
+	bool use_busy_signal;
+
+	if (!card->ext_csd.man_bkops_en || mmc_card_doing_bkops(card))
+		return;
+
+	err = mmc_read_bkops_status(card);
+	if (err) {
+		pr_err("%s: Failed to read bkops status: %d\n",
+		       mmc_hostname(card->host), err);
+		return;
+	}
+
+	if (!card->ext_csd.raw_bkops_status)
+		return;
+
+	if (card->ext_csd.raw_bkops_status < EXT_CSD_BKOPS_LEVEL_2 &&
+	    from_exception)
+		return;
+
+	mmc_claim_host(card->host);
+	if (card->ext_csd.raw_bkops_status >= EXT_CSD_BKOPS_LEVEL_2) {
+		timeout = MMC_OPS_TIMEOUT_MS;
+		use_busy_signal = true;
+	} else {
+		timeout = 0;
+		use_busy_signal = false;
+	}
+
+	mmc_retune_hold(card->host);
+
+	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			EXT_CSD_BKOPS_START, 1, timeout, 0,
+			use_busy_signal, true, false);
+	if (err) {
+		pr_warn("%s: Error %d starting bkops\n",
+			mmc_hostname(card->host), err);
+		mmc_retune_release(card->host);
+		goto out;
+	}
+
+	/*
+	 * For urgent bkops status (LEVEL_2 and more)
+	 * bkops executed synchronously, otherwise
+	 * the operation is in progress
+	 */
+	if (!use_busy_signal)
+		mmc_card_set_doing_bkops(card);
+	else
+		mmc_retune_release(card->host);
+out:
+	mmc_release_host(card->host);
 }
 
 static int mmc_cmdq_switch(struct mmc_card *card, bool enable)
