@@ -30,6 +30,8 @@ struct path;
 				 AA_MAY_CHMOD | AA_MAY_CHOWN | AA_MAY_LOCK | \
 				 AA_EXEC_MMAP | AA_MAY_LINK)
 
+#define file_ctx(X) ((struct aa_file_ctx *)(X)->f_security)
+
 /* struct aa_file_ctx - the AppArmor context the file was opened in
  * @perms: the permission the file was opened with
  *
@@ -42,21 +44,26 @@ struct aa_file_ctx {
 };
 
 /**
- * aa_alloc_file_context - allocate file_ctx
+ * aa_alloc_file_ctx - allocate file_ctx
+ * @label: initial label of task creating the file
  * @gfp: gfp flags for allocation
  *
  * Returns: file_ctx or NULL on failure
  */
-static inline struct aa_file_ctx *aa_alloc_file_context(gfp_t gfp)
+static inline struct aa_file_ctx *aa_alloc_file_ctx(gfp_t gfp)
 {
-	return kzalloc(sizeof(struct aa_file_ctx), gfp);
+	struct aa_file_ctx *ctx;
+
+	ctx = kzalloc(sizeof(struct aa_file_ctx), gfp);
+
+	return ctx;
 }
 
 /**
- * aa_free_file_context - free a file_ctx
+ * aa_free_file_ctx - free a file_ctx
  * @ctx: file_ctx to free  (MAYBE_NULL)
  */
-static inline void aa_free_file_context(struct aa_file_ctx *ctx)
+static inline void aa_free_file_ctx(struct aa_file_ctx *ctx)
 {
 	if (ctx)
 		kzfree(ctx);

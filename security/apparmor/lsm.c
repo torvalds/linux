@@ -398,9 +398,9 @@ static int apparmor_file_alloc_security(struct file *file)
 
 	/* freed by apparmor_file_free_security */
 	struct aa_profile *profile = begin_current_profile_crit_section();
-	file->f_security = aa_alloc_file_context(GFP_KERNEL);
-	if (!file->f_security)
-		return -ENOMEM;
+	file->f_security = aa_alloc_file_ctx(GFP_KERNEL);
+	if (!file_ctx(file))
+		error = -ENOMEM;
 	end_current_profile_crit_section(profile);
 
 	return error;
@@ -408,9 +408,7 @@ static int apparmor_file_alloc_security(struct file *file)
 
 static void apparmor_file_free_security(struct file *file)
 {
-	struct aa_file_ctx *ctx = file->f_security;
-
-	aa_free_file_context(ctx);
+	aa_free_file_ctx(file_ctx(file));
 }
 
 static int common_file_perm(const char *op, struct file *file, u32 mask)
