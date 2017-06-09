@@ -62,6 +62,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MMIO_PORT3(pipe, a, b, c) _MMIO(_PICK(pipe, a, b, c))
 #define _PLL(pll, a, b) ((a) + (pll)*((b)-(a)))
 #define _MMIO_PLL(pll, a, b) _MMIO(_PLL(pll, a, b))
+#define _MMIO_PORT6(port, a, b, c, d, e, f) _MMIO(_PICK(port, a, b, c, d, e, f))
+#define _MMIO_PORT6_LN(port, ln, a0, a1, b, c, d, e, f)			\
+	_MMIO(_PICK(port, a0, b, c, d, e, f) + (ln * (a1 - a0)))
 #define _PHY3(phy, ...) _PICK(phy, __VA_ARGS__)
 #define _MMIO_PHY3(phy, a, b, c) _MMIO(_PHY3(phy, a, b, c))
 
