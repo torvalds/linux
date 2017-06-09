@@ -492,6 +492,80 @@ int aa_path_link(struct aa_label *label, struct dentry *old_dentry,
 	return error;
 }
 
+static void update_file_ctx(struct aa_file_ctx *fctx, struct aa_label *label,
+			    u32 request)
+{
+	struct aa_label *l, *old;
+
+	/* update caching of label on file_ctx */
+	spin_lock(&fctx->lock);
+	old = rcu_dereference_protected(fctx->label,
+					spin_is_locked(&fctx->lock));
+	l = aa_label_merge(old, label, GFP_ATOMIC);
+	if (l) {
+		if (l != old) {
+			rcu_assign_pointer(fctx->label, l);
+			aa_put_label(old);
+		} else
+			aa_put_label(l);
+		fctx->allow |= request;
+	}
+	spin_unlock(&fctx->lock);
+}
+
+static int __file_path_perm(const char *op, struct aa_label *label,
+			    struct aa_label *flabel, struct file *file,
+			    u32 request, u32 denied)
+{
+	struct aa_profile *profile;
+	struct aa_perms perms = {};
+	struct path_cond cond = {
+		.uid = file_inode(file)->i_uid,
+		.mode = file_inode(file)->i_mode
+	};
+	char *buffer;
+	int flags, error;
+
+	/* revalidation due to label out of date. No revocation at this time */
+	if (!denied && aa_label_is_subset(flabel, label))
+		/* TODO: check for revocation on stale profiles */
+		return 0;
+
+	flags = PATH_DELEGATE_DELETED | (S_ISDIR(cond.mode) ? PATH_IS_DIR : 0);
+	get_buffers(buffer);
+
+	/* check every profile in task label not in current cache */
+	error = fn_for_each_not_in_set(flabel, label, profile,
+			profile_path_perm(op, profile, &file->f_path, buffer,
+					  request, &cond, flags, &perms));
+	if (denied && !error) {
+		/*
+		 * check every profile in file label that was not tested
+		 * in the initial check above.
+		 *
+		 * TODO: cache full perms so this only happens because of
+		 * conditionals
+		 * TODO: don't audit here
+		 */
+		if (label == flabel)
+			error = fn_for_each(label, profile,
+				profile_path_perm(op, profile, &file->f_path,
+						  buffer, request, &cond, flags,
+						  &perms));
+		else
+			error = fn_for_each_not_in_set(label, flabel, profile,
+				profile_path_perm(op, profile, &file->f_path,
+						  buffer, request, &cond, flags,
+						  &perms));
+	}
+	if (!error)
+		update_file_ctx(file_ctx(file), label, request);
+
+	put_buffers(buffer);
+
+	return error;
+}
+
 /**
  * aa_file_perm - do permission revalidation check & audit for @file
  * @op: operation being checked
@@ -504,10 +578,6 @@ int aa_path_link(struct aa_label *label, struct dentry *old_dentry,
 int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 		 u32 request)
 {
-	struct path_cond cond = {
-		.uid = file_inode(file)->i_uid,
-		.mode = file_inode(file)->i_mode
-	};
 	struct aa_file_ctx *fctx;
 	struct aa_label *flabel;
 	u32 denied;
@@ -537,8 +607,8 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 	/* TODO: label cross check */
 
 	if (file->f_path.mnt && path_mediated_fs(file->f_path.dentry))
-		error = aa_path_perm(op, label, &file->f_path,
-				     PATH_DELEGATE_DELETED, request, &cond);
+		error = __file_path_perm(op, label, flabel, file, request,
+					 denied);
 
 done:
 	rcu_read_unlock();
