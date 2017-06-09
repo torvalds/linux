@@ -52,6 +52,13 @@
 
 #include "hfi.h"
 
+#define tidtype_name(type) { PT_##type, #type }
+#define show_tidtype(type)                   \
+__print_symbolic(type,                       \
+	tidtype_name(EXPECTED),              \
+	tidtype_name(EAGER),                 \
+	tidtype_name(INVALID))               \
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM hfi1_rx
 
@@ -184,6 +191,34 @@ DEFINE_EVENT(
 	TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr, u32 npages,
 		 unsigned long va, unsigned long pa, dma_addr_t dma),
 	TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma));
+
+TRACE_EVENT(
+	hfi1_put_tid,
+	TP_PROTO(struct hfi1_devdata *dd,
+		 u32 index, u32 type, unsigned long pa, u16 order),
+	TP_ARGS(dd, index, type, pa, order),
+	TP_STRUCT__entry(
+		DD_DEV_ENTRY(dd)
+		__field(unsigned long, pa);
+		__field(u32, index);
+		__field(u32, type);
+		__field(u16, order);
+	),
+	TP_fast_assign(
+		DD_DEV_ASSIGN(dd);
+		__entry->pa = pa;
+		__entry->index = index;
+		__entry->type = type;
+		__entry->order = order;
+	),
+	TP_printk("[%s] type %s pa %lx index %u order %u",
+		  __get_str(dev),
+		  show_tidtype(__entry->type),
+		  __entry->pa,
+		  __entry->index,
+		  __entry->order
+	)
+);
 
 TRACE_EVENT(hfi1_exp_tid_inval,
 	    TP_PROTO(unsigned int ctxt, u16 subctxt, unsigned long va, u32 rarr,

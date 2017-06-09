@@ -9745,17 +9745,6 @@ static inline int init_cpu_counters(struct hfi1_devdata *dd)
 	return 0;
 }
 
-static const char * const pt_names[] = {
-	"expected",
-	"eager",
-	"invalid"
-};
-
-static const char *pt_name(u32 type)
-{
-	return type >= ARRAY_SIZE(pt_names) ? "unknown" : pt_names[type];
-}
-
 /*
  * index is the index into the receive array
  */
@@ -9777,15 +9766,14 @@ void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 			   type, index);
 		goto done;
 	}
-
-	hfi1_cdbg(TID, "type %s, index 0x%x, pa 0x%lx, bsize 0x%lx",
-		  pt_name(type), index, pa, (unsigned long)order);
+	trace_hfi1_put_tid(dd, index, type, pa, order);
 
 #define RT_ADDR_SHIFT 12	/* 4KB kernel address boundary */
 	reg = RCV_ARRAY_RT_WRITE_ENABLE_SMASK
 		| (u64)order << RCV_ARRAY_RT_BUF_SIZE_SHIFT
 		| ((pa >> RT_ADDR_SHIFT) & RCV_ARRAY_RT_ADDR_MASK)
 					<< RCV_ARRAY_RT_ADDR_SHIFT;
+	trace_hfi1_write_rcvarray(base + (index * 8), reg);
 	writeq(reg, base + (index * 8));
 
 	if (type == PT_EAGER)
