@@ -51,10 +51,12 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 	reset_control_assert(tdev->rst);
 	udelay(10);
 
-	ret = tegra_powergate_remove_clamping(TEGRA_POWERGATE_3D);
-	if (ret)
-		goto err_clamp;
-	udelay(10);
+	if (!tdev->pdev->dev.pm_domain) {
+		ret = tegra_powergate_remove_clamping(TEGRA_POWERGATE_3D);
+		if (ret)
+			goto err_clamp;
+		udelay(10);
+	}
 
 	reset_control_deassert(tdev->rst);
 	udelay(10);
