@@ -779,6 +779,7 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 	gfp_t gfp_flags = GFP_KERNEL;
 
 	pagecount = nfs_page_array_len(mirror->pg_base, mirror->pg_count);
+	pg_array->npages = pagecount;
 
 	if (pagecount <= ARRAY_SIZE(pg_array->page_array))
 		pg_array->pagevec = pg_array->page_array;
