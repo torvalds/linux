@@ -210,24 +210,23 @@ static ssize_t gpio_mockup_event_write(struct file *file,
 	struct gpio_chip *gc;
 	int rv, val;
 
-	sfile = file->private_data;
-	priv = sfile->private;
-	desc = priv->desc;
-	chip = priv->chip;
-	gc = &chip->gc;
-
 	rv = kstrtoint_from_user(usr_buf, size, 0, &val);
 	if (rv)
 		return rv;
 	if (val != 0 && val != 1)
 		return -EINVAL;
 
-	if (!chip->lines[priv->offset].irq_enabled)
-		return size;
+	sfile = file->private_data;
+	priv = sfile->private;
+	desc = priv->desc;
+	chip = priv->chip;
+	gc = &chip->gc;
 
-	gpiod_set_value_cansleep(desc, val);
-	priv->chip->irq_ctx.irq = gc->irq_base + priv->offset;
-	irq_work_queue(&priv->chip->irq_ctx.work);
+	if (chip->lines[priv->offset].irq_enabled) {
+		gpiod_set_value_cansleep(desc, val);
+		priv->chip->irq_ctx.irq = gc->irq_base + priv->offset;
+		irq_work_queue(&priv->chip->irq_ctx.work);
+	}
 
 	return size;
 }
