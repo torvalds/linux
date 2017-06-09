@@ -110,7 +110,7 @@ static int rbtn_rfkill_set_block(void *data, bool blocked)
 	return -EINVAL;
 }
 
-static struct rfkill_ops rbtn_ops = {
+static const struct rfkill_ops rbtn_ops = {
 	.query = rbtn_rfkill_query,
 	.set_block = rbtn_rfkill_set_block,
 };
