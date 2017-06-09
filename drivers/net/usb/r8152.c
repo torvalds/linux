@@ -2468,7 +2468,7 @@ static void r8153_u2p3en(struct r8152 *tp, bool enable)
 	u32 ocp_data;
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_U2P3_CTRL);
-	if (enable && tp->version != RTL_VER_03 && tp->version != RTL_VER_04)
+	if (enable)
 		ocp_data |= U2P3_ENABLE;
 	else
 		ocp_data &= ~U2P3_ENABLE;
@@ -2559,7 +2559,18 @@ static void rtl8153_runtime_enable(struct r8152 *tp, bool enable)
 	} else {
 		rtl_runtime_suspend_enable(tp, false);
 		r8153_mac_clk_spd(tp, false);
-		r8153_u2p3en(tp, true);
+
+		switch (tp->version) {
+		case RTL_VER_03:
+		case RTL_VER_04:
+			break;
+		case RTL_VER_05:
+		case RTL_VER_06:
+		default:
+			r8153_u2p3en(tp, true);
+			break;
+		}
+
 		r8153_u1u2en(tp, true);
 	}
 }
@@ -2898,6 +2909,17 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 	r8153_aldps_en(tp, true);
 	r8152b_enable_fc(tp);
 
+	switch (tp->version) {
+	case RTL_VER_03:
+	case RTL_VER_04:
+		break;
+	case RTL_VER_05:
+	case RTL_VER_06:
+	default:
+		r8153_u2p3en(tp, true);
+		break;
+	}
+
 	set_bit(PHY_RESET, &tp->flags);
 }
 
@@ -3143,10 +3165,22 @@ static void rtl8153_up(struct r8152 *tp)
 		return;
 
 	r8153_u1u2en(tp, false);
+	r8153_u2p3en(tp, false);
 	r8153_aldps_en(tp, false);
 	r8153_first_init(tp);
 	r8153_aldps_en(tp, true);
-	r8153_u2p3en(tp, true);
+
+	switch (tp->version) {
+	case RTL_VER_03:
+	case RTL_VER_04:
+		break;
+	case RTL_VER_05:
+	case RTL_VER_06:
+	default:
+		r8153_u2p3en(tp, true);
+		break;
+	}
+
 	r8153_u1u2en(tp, true);
 }
 
@@ -3545,7 +3579,6 @@ static void r8153_init(struct r8152 *tp)
 	ocp_write_word(tp, MCU_TYPE_USB, USB_USB_CTRL, ocp_data);
 
 	rtl_tally_reset(tp);
-	r8153_u2p3en(tp, true);
 }
 
 static int rtl8152_pre_reset(struct usb_interface *intf)
