@@ -763,8 +763,7 @@ struct netvsc_device {
 
 	refcount_t sc_offered;
 
-	/* Holds rndis device info */
-	void *extension;
+	struct rndis_device *extension;
 
 	int ring_size;
 
