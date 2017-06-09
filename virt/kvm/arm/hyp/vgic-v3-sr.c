@@ -720,6 +720,76 @@ static void __hyp_text __vgic_v3_write_bpr1(struct kvm_vcpu *vcpu, u32 vmcr, int
 	__vgic_v3_write_vmcr(vmcr);
 }
 
+static void __hyp_text __vgic_v3_read_apxrn(struct kvm_vcpu *vcpu, int rt, int n)
+{
+	u32 val;
+
+	if (!__vgic_v3_get_group(vcpu))
+		val = __vgic_v3_read_ap0rn(n);
+	else
+		val = __vgic_v3_read_ap1rn(n);
+
+	vcpu_set_reg(vcpu, rt, val);
+}
+
+static void __hyp_text __vgic_v3_write_apxrn(struct kvm_vcpu *vcpu, int rt, int n)
+{
+	u32 val = vcpu_get_reg(vcpu, rt);
+
+	if (!__vgic_v3_get_group(vcpu))
+		__vgic_v3_write_ap0rn(val, n);
+	else
+		__vgic_v3_write_ap1rn(val, n);
+}
+
+static void __hyp_text __vgic_v3_read_apxr0(struct kvm_vcpu *vcpu,
+					    u32 vmcr, int rt)
+{
+	__vgic_v3_read_apxrn(vcpu, rt, 0);
+}
+
+static void __hyp_text __vgic_v3_read_apxr1(struct kvm_vcpu *vcpu,
+					    u32 vmcr, int rt)
+{
+	__vgic_v3_read_apxrn(vcpu, rt, 1);
+}
+
+static void __hyp_text __vgic_v3_read_apxr2(struct kvm_vcpu *vcpu,
+					    u32 vmcr, int rt)
+{
+	__vgic_v3_read_apxrn(vcpu, rt, 2);
+}
+
+static void __hyp_text __vgic_v3_read_apxr3(struct kvm_vcpu *vcpu,
+					    u32 vmcr, int rt)
+{
+	__vgic_v3_read_apxrn(vcpu, rt, 3);
+}
+
+static void __hyp_text __vgic_v3_write_apxr0(struct kvm_vcpu *vcpu,
+					     u32 vmcr, int rt)
+{
+	__vgic_v3_write_apxrn(vcpu, rt, 0);
+}
+
+static void __hyp_text __vgic_v3_write_apxr1(struct kvm_vcpu *vcpu,
+					     u32 vmcr, int rt)
+{
+	__vgic_v3_write_apxrn(vcpu, rt, 1);
+}
+
+static void __hyp_text __vgic_v3_write_apxr2(struct kvm_vcpu *vcpu,
+					     u32 vmcr, int rt)
+{
+	__vgic_v3_write_apxrn(vcpu, rt, 2);
+}
+
+static void __hyp_text __vgic_v3_write_apxr3(struct kvm_vcpu *vcpu,
+					     u32 vmcr, int rt)
+{
+	__vgic_v3_write_apxrn(vcpu, rt, 3);
+}
+
 int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 {
 	int rt;
@@ -759,6 +829,30 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 			fn = __vgic_v3_read_bpr1;
 		else
 			fn = __vgic_v3_write_bpr1;
+		break;
+	case SYS_ICC_AP1Rn_EL1(0):
+		if (is_read)
+			fn = __vgic_v3_read_apxr0;
+		else
+			fn = __vgic_v3_write_apxr0;
+		break;
+	case SYS_ICC_AP1Rn_EL1(1):
+		if (is_read)
+			fn = __vgic_v3_read_apxr1;
+		else
+			fn = __vgic_v3_write_apxr1;
+		break;
+	case SYS_ICC_AP1Rn_EL1(2):
+		if (is_read)
+			fn = __vgic_v3_read_apxr2;
+		else
+			fn = __vgic_v3_write_apxr2;
+		break;
+	case SYS_ICC_AP1Rn_EL1(3):
+		if (is_read)
+			fn = __vgic_v3_read_apxr3;
+		else
+			fn = __vgic_v3_write_apxr3;
 		break;
 	default:
 		return 0;
