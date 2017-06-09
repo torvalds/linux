@@ -1910,8 +1910,6 @@ static void tracing_stop_tr(struct trace_array *tr)
 	raw_spin_unlock_irqrestore(&tr->start_lock, flags);
 }
 
-void trace_stop_cmdline_recording(void);
-
 static int trace_save_cmdline(struct task_struct *tsk)
 {
 	unsigned pid, idx;
