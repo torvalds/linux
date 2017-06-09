@@ -341,7 +341,7 @@ static int mvebu_gpio_direction_input(struct gpio_chip *chip, unsigned int pin)
 		return ret;
 
 	regmap_update_bits(mvchip->regs, GPIO_IO_CONF_OFF,
-			   BIT(pin), 1);
+			   BIT(pin), BIT(pin));
 
 	return 0;
 }
@@ -503,7 +503,7 @@ static int mvebu_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_EDGE_FALLING:
 	case IRQ_TYPE_LEVEL_LOW:
 		regmap_update_bits(mvchip->regs, GPIO_IN_POL_OFF,
-				   BIT(pin), 1);
+				   BIT(pin), BIT(pin));
 		break;
 	case IRQ_TYPE_EDGE_BOTH: {
 		u32 data_in, in_pol, val;
