@@ -2086,6 +2086,11 @@ static struct aa_sfs_entry aa_sfs_entry_file[] = {
 	{ }
 };
 
+static struct aa_sfs_entry aa_sfs_entry_ptrace[] = {
+	AA_SFS_FILE_STRING("mask", "read trace"),
+	{ }
+};
+
 static struct aa_sfs_entry aa_sfs_entry_domain[] = {
 	AA_SFS_FILE_BOOLEAN("change_hat",	1),
 	AA_SFS_FILE_BOOLEAN("change_hatv",	1),
@@ -2125,6 +2130,7 @@ static struct aa_sfs_entry aa_sfs_entry_features[] = {
 	AA_SFS_FILE_U64("capability",		VFS_CAP_FLAGS_MASK),
 	AA_SFS_DIR("rlimit",			aa_sfs_entry_rlimit),
 	AA_SFS_DIR("caps",			aa_sfs_entry_caps),
+	AA_SFS_DIR("ptrace",			aa_sfs_entry_ptrace),
 	AA_SFS_DIR("query",			aa_sfs_entry_query),
 	{ }
 };

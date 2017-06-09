@@ -21,6 +21,12 @@ struct aa_profile;
 
 #define AA_PTRACE_TRACE		MAY_WRITE
 #define AA_PTRACE_READ		MAY_READ
+#define AA_MAY_BE_TRACED	AA_MAY_APPEND
+#define AA_MAY_BE_READ		AA_MAY_CREATE
+#define PTRACE_PERM_SHIFT	2
+
+#define AA_PTRACE_PERM_MASK (AA_PTRACE_READ | AA_PTRACE_TRACE | \
+			     AA_MAY_BE_READ | AA_MAY_BE_TRACED)
 
 int aa_may_ptrace(struct aa_label *tracer, struct aa_label *tracee,
 		  u32 request);
