@@ -984,7 +984,7 @@ static void amdgpu_vm_cpu_set_ptes(struct amdgpu_pte_update_params *params,
 		value = params->pages_addr ?
 			amdgpu_vm_map_gart(params->pages_addr, addr) :
 			addr;
-		amdgpu_gart_set_pte_pde(params->adev, (void *)pe,
+		amdgpu_gart_set_pte_pde(params->adev, (void *)(uintptr_t)pe,
 					i, value, flags);
 		addr += incr;
 	}
@@ -1023,11 +1023,11 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 				  unsigned level)
 {
 	struct amdgpu_bo *shadow;
-	struct amdgpu_ring *ring;
-	uint64_t pd_addr, shadow_addr;
+	struct amdgpu_ring *ring = NULL;
+	uint64_t pd_addr, shadow_addr = 0;
 	uint32_t incr = amdgpu_vm_bo_size(adev, level + 1);
 	uint64_t last_pde = ~0, last_pt = ~0, last_shadow = ~0;
-	unsigned count = 0, pt_idx, ndw;
+	unsigned count = 0, pt_idx, ndw = 0;
 	struct amdgpu_job *job;
 	struct amdgpu_pte_update_params params;
 	struct dma_fence *fence = NULL;
