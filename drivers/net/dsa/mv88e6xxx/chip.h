@@ -39,6 +39,13 @@
 #define MV88E6XXX_MAX_PVT_SWITCHES	32
 #define MV88E6XXX_MAX_PVT_PORTS		16
 
+enum mv88e6xxx_egress_mode {
+	MV88E6XXX_EGRESS_MODE_UNMODIFIED,
+	MV88E6XXX_EGRESS_MODE_UNTAGGED,
+	MV88E6XXX_EGRESS_MODE_TAGGED,
+	MV88E6XXX_EGRESS_MODE_ETHERTYPE,
+};
+
 enum mv88e6xxx_frame_mode {
 	MV88E6XXX_FRAME_MODE_NORMAL,
 	MV88E6XXX_FRAME_MODE_DSA,
@@ -415,10 +422,12 @@ struct mv88e6xxx_ops {
 				      bool unicast, bool multicast);
 	int (*port_set_ether_type)(struct mv88e6xxx_chip *chip, int port,
 				   u16 etype);
-	int (*port_jumbo_config)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_set_jumbo_size)(struct mv88e6xxx_chip *chip, int port,
+				   size_t size);
 
 	int (*port_egress_rate_limiting)(struct mv88e6xxx_chip *chip, int port);
-	int (*port_pause_config)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_pause_limit)(struct mv88e6xxx_chip *chip, int port, u8 in,
+				u8 out);
 	int (*port_disable_learn_limit)(struct mv88e6xxx_chip *chip, int port);
 	int (*port_disable_pri_override)(struct mv88e6xxx_chip *chip, int port);
 
@@ -449,8 +458,8 @@ struct mv88e6xxx_ops {
 	void (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
 	void (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
 				uint64_t *data);
-	int (*g1_set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
-	int (*g1_set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+	int (*set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
+	int (*set_egress_port)(struct mv88e6xxx_chip *chip, int port);
 	const struct mv88e6xxx_irq_ops *watchdog_ops;
 
 	/* Can be either in g1 or g2, so don't use a prefix */

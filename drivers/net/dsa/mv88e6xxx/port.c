@@ -12,6 +12,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/if_bridge.h>
 #include <linux/phy.h>
 
 #include "chip.h"
@@ -76,9 +77,9 @@ static int mv88e6xxx_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	netdev_dbg(chip->ds->ports[port].netdev, "delay RXCLK %s, TXCLK %s\n",
-		   reg & PORT_PCS_CTRL_RGMII_DELAY_RXCLK ? "yes" : "no",
-		   reg & PORT_PCS_CTRL_RGMII_DELAY_TXCLK ? "yes" : "no");
+	dev_dbg(chip->dev, "p%d: delay RXCLK %s, TXCLK %s\n", port,
+		reg & PORT_PCS_CTRL_RGMII_DELAY_RXCLK ? "yes" : "no",
+		reg & PORT_PCS_CTRL_RGMII_DELAY_TXCLK ? "yes" : "no");
 
 	return 0;
 }
@@ -130,9 +131,9 @@ int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
 	if (err)
 		return err;
 
-	netdev_dbg(chip->ds->ports[port].netdev, "%s link %s\n",
-		   reg & PORT_PCS_CTRL_FORCE_LINK ? "Force" : "Unforce",
-		   reg & PORT_PCS_CTRL_LINK_UP ? "up" : "down");
+	dev_dbg(chip->dev, "p%d: %s link %s\n", port,
+		reg & PORT_PCS_CTRL_FORCE_LINK ? "Force" : "Unforce",
+		reg & PORT_PCS_CTRL_LINK_UP ? "up" : "down");
 
 	return 0;
 }
@@ -166,9 +167,9 @@ int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup)
 	if (err)
 		return err;
 
-	netdev_dbg(chip->ds->ports[port].netdev, "%s %s duplex\n",
-		   reg & PORT_PCS_CTRL_FORCE_DUPLEX ? "Force" : "Unforce",
-		   reg & PORT_PCS_CTRL_DUPLEX_FULL ? "full" : "half");
+	dev_dbg(chip->dev, "p%d: %s %s duplex\n", port,
+		reg & PORT_PCS_CTRL_FORCE_DUPLEX ? "Force" : "Unforce",
+		reg & PORT_PCS_CTRL_DUPLEX_FULL ? "full" : "half");
 
 	return 0;
 }
@@ -226,10 +227,9 @@ static int mv88e6xxx_port_set_speed(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	if (speed)
-		netdev_dbg(chip->ds->ports[port].netdev,
-			   "Speed set to %d Mbps\n", speed);
+		dev_dbg(chip->dev, "p%d: Speed set to %d Mbps\n", port, speed);
 	else
-		netdev_dbg(chip->ds->ports[port].netdev, "Speed unforced\n");
+		dev_dbg(chip->dev, "p%d: Speed unforced\n", port);
 
 	return 0;
 }
@@ -376,22 +376,24 @@ int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
  * the remote end or the period of time that this port can pause the
  * remote end.
  */
-int mv88e6097_port_pause_config(struct mv88e6xxx_chip *chip, int port)
+int mv88e6097_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
+			       u8 out)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL, 0x0000);
+	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL, out << 8 | in);
 }
 
-int mv88e6390_port_pause_config(struct mv88e6xxx_chip *chip, int port)
+int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
+			       u8 out)
 {
 	int err;
 
 	err = mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
-				   PORT_FLOW_CTRL_LIMIT_IN | 0);
+				   PORT_FLOW_CTRL_LIMIT_IN | in);
 	if (err)
 		return err;
 
 	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
-				    PORT_FLOW_CTRL_LIMIT_OUT | 0);
+				    PORT_FLOW_CTRL_LIMIT_OUT | out);
 }
 
 /* Offset 0x04: Port Control Register */
@@ -413,20 +415,39 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 		return err;
 
 	reg &= ~PORT_CONTROL_STATE_MASK;
+
+	switch (state) {
+	case BR_STATE_DISABLED:
+		state = PORT_CONTROL_STATE_DISABLED;
+		break;
+	case BR_STATE_BLOCKING:
+	case BR_STATE_LISTENING:
+		state = PORT_CONTROL_STATE_BLOCKING;
+		break;
+	case BR_STATE_LEARNING:
+		state = PORT_CONTROL_STATE_LEARNING;
+		break;
+	case BR_STATE_FORWARDING:
+		state = PORT_CONTROL_STATE_FORWARDING;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	reg |= state;
 
 	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
 	if (err)
 		return err;
 
-	netdev_dbg(chip->ds->ports[port].netdev, "PortState set to %s\n",
-		   mv88e6xxx_port_state_names[state]);
+	dev_dbg(chip->dev, "p%d: PortState set to %s\n", port,
+		mv88e6xxx_port_state_names[state]);
 
 	return 0;
 }
 
 int mv88e6xxx_port_set_egress_mode(struct mv88e6xxx_chip *chip, int port,
-				   u16 mode)
+				   enum mv88e6xxx_egress_mode mode)
 {
 	int err;
 	u16 reg;
@@ -436,7 +457,23 @@ int mv88e6xxx_port_set_egress_mode(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	reg &= ~PORT_CONTROL_EGRESS_MASK;
-	reg |= mode;
+
+	switch (mode) {
+	case MV88E6XXX_EGRESS_MODE_UNMODIFIED:
+		reg |= PORT_CONTROL_EGRESS_UNMODIFIED;
+		break;
+	case MV88E6XXX_EGRESS_MODE_UNTAGGED:
+		reg |= PORT_CONTROL_EGRESS_UNTAGGED;
+		break;
+	case MV88E6XXX_EGRESS_MODE_TAGGED:
+		reg |= PORT_CONTROL_EGRESS_TAGGED;
+		break;
+	case MV88E6XXX_EGRESS_MODE_ETHERTYPE:
+		reg |= PORT_CONTROL_EGRESS_ADD_TAG;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
 }
@@ -580,8 +617,7 @@ int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map)
 	if (err)
 		return err;
 
-	netdev_dbg(chip->ds->ports[port].netdev, "VLANTable set to %.3x\n",
-		   map);
+	dev_dbg(chip->dev, "p%d: VLANTable set to %.3x\n", port, map);
 
 	return 0;
 }
@@ -646,7 +682,7 @@ int mv88e6xxx_port_set_fid(struct mv88e6xxx_chip *chip, int port, u16 fid)
 			return err;
 	}
 
-	netdev_dbg(chip->ds->ports[port].netdev, "FID set to %u\n", fid);
+	dev_dbg(chip->dev, "p%d: FID set to %u\n", port, fid);
 
 	return 0;
 }
@@ -683,8 +719,7 @@ int mv88e6xxx_port_set_pvid(struct mv88e6xxx_chip *chip, int port, u16 pvid)
 	if (err)
 		return err;
 
-	netdev_dbg(chip->ds->ports[port].netdev, "DefaultVID set to %u\n",
-		   pvid);
+	dev_dbg(chip->dev, "p%d: DefaultVID set to %u\n", port, pvid);
 
 	return 0;
 }
@@ -761,8 +796,8 @@ int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	netdev_dbg(chip->ds->ports[port].netdev, "802.1QMode set to %s\n",
-		   mv88e6xxx_port_8021q_mode_names[mode]);
+	dev_dbg(chip->dev, "p%d: 802.1QMode set to %s\n", port,
+		mv88e6xxx_port_8021q_mode_names[mode]);
 
 	return 0;
 }
@@ -781,7 +816,8 @@ int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port)
 	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
 }
 
-int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port)
+int mv88e6165_port_set_jumbo_size(struct mv88e6xxx_chip *chip, int port,
+				  size_t size)
 {
 	u16 reg;
 	int err;
@@ -790,7 +826,16 @@ int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	reg |= PORT_CONTROL_2_JUMBO_10240;
+	reg &= ~PORT_CONTROL_2_JUMBO_MASK;
+
+	if (size <= 1522)
+		reg |= PORT_CONTROL_2_JUMBO_1522;
+	else if (size <= 2048)
+		reg |= PORT_CONTROL_2_JUMBO_2048;
+	else if (size <= 10240)
+		reg |= PORT_CONTROL_2_JUMBO_10240;
+	else
+		return -ERANGE;
 
 	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
 }
