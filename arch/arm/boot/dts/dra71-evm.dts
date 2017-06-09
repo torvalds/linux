@@ -172,7 +172,7 @@
 };
 
 &mmc1 {
-	vmmc_aux-supply = <&vpo_sd_1v8_3v3>;
+	vqmmc-supply = <&vpo_sd_1v8_3v3>;
 };
 
 &mmc2 {

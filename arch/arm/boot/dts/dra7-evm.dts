@@ -446,7 +446,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_default>;
 	vmmc-supply = <&evm_3v3_sd>;
-	vmmc_aux-supply = <&ldo1_reg>;
+	vqmmc-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	/*
 	 * SDCD signal is not being used here - using the fact that GPIO mode

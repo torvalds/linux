@@ -79,7 +79,7 @@
 &mmc1 {
 	status = "okay";
 	vmmc-supply = <&v3_3d>;
-	vmmc_aux-supply = <&ldo1_reg>;
+	vqmmc-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	cd-gpios = <&gpio6 27 0>; /* gpio 219 */
 };
