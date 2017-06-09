@@ -472,14 +472,6 @@ config MPROFILE_KERNEL
 	depends on PPC64 && CPU_LITTLE_ENDIAN
 	def_bool !DISABLE_MPROFILE_KERNEL
 
-config USE_THIN_ARCHIVES
-	bool "Build the kernel using thin archives"
-	default n
-	select THIN_ARCHIVES
-	help
-	  Build the kernel using thin archives.
-	  If you're unsure say N.
-
 config IOMMU_HELPER
 	def_bool PPC64
 
