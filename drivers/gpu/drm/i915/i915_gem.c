@@ -2404,7 +2404,20 @@ rebuild_st:
 			if (!*s) {
 				/* reclaim and warn, but no oom */
 				gfp = mapping_gfp_mask(mapping);
-				gfp |= __GFP_NORETRY;
+
+				/* Our bo are always dirty and so we require
+				 * kswapd to reclaim our pages (direct reclaim
+				 * does not effectively begin pageout of our
+				 * buffers on its own). However, direct reclaim
+				 * only waits for kswapd when under allocation
+				 * congestion. So as a result __GFP_RECLAIM is
+				 * unreliable and fails to actually reclaim our
+				 * dirty pages -- unless you try over and over
+				 * again with !__GFP_NORETRY. However, we still
+				 * want to fail this allocation rather than
+				 * trigger the out-of-memory killer and for
+				 * this we want the future __GFP_MAYFAIL.
+				 */
 			}
 		} while (1);
 
