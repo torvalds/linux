@@ -1105,6 +1105,11 @@ static inline u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 	return 0;
 }
 
+static inline void qed_vf_set_sb_info(struct qed_hwfn *p_hwfn, u16 sb_id,
+				      struct qed_sb_info *p_sb)
+{
+}
+
 static inline int qed_vf_pf_vport_start(struct qed_hwfn *p_hwfn,
 					u8 vport_id,
 					u16 mtu,
