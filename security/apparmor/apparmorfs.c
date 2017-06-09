@@ -650,7 +650,7 @@ static ssize_t query_data(char *buf, size_t buf_len,
 {
 	char *out;
 	const char *key;
-	struct aa_profile *profile;
+	struct aa_profile *profile, *curr;
 	struct aa_data *data;
 	u32 bytes, blocks;
 	__le32 outle32;
@@ -667,7 +667,10 @@ static ssize_t query_data(char *buf, size_t buf_len,
 	if (buf_len < sizeof(bytes) + sizeof(blocks))
 		return -EINVAL; /* not enough space */
 
-	profile = aa_current_profile();
+	curr = aa_current_profile();
+	profile = aa_fqlookupn_profile(curr, query, strnlen(query, query_len));
+	if (!profile)
+		return -ENOENT;
 
 	/* We are going to leave space for two numbers. The first is the total
 	 * number of bytes we are writing after the first number. This is so
@@ -696,6 +699,7 @@ static ssize_t query_data(char *buf, size_t buf_len,
 			blocks++;
 		}
 	}
+	aa_put_profile(profile);
 
 	outle32 = __cpu_to_le32(out - buf - sizeof(bytes));
 	memcpy(buf, &outle32, sizeof(outle32));
