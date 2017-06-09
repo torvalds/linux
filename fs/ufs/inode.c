@@ -235,7 +235,8 @@ ufs_extend_tail(struct inode *inode, u64 writes_to,
 
 	p = ufs_get_direct_data_ptr(uspi, ufsi, block);
 	tmp = ufs_new_fragments(inode, p, lastfrag, ufs_data_ptr_to_cpu(sb, p),
-				new_size, err, locked_page);
+				new_size - (lastfrag & uspi->s_fpbmask), err,
+				locked_page);
 	return tmp != 0;
 }
 
