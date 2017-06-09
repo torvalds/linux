@@ -571,6 +571,68 @@ static inline void snd_pcm_timer_notify(struct snd_pcm_substream *substream,
 #endif
 }
 
+/**
+ * snd_pcm_hw_param_choose - choose a configuration defined by @params
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ *
+ * Choose one configuration from configuration space defined by @params.
+ * The configuration chosen is that obtained fixing in this order:
+ * first access, first format, first subformat, min channels,
+ * min rate, min period time, max buffer size, min tick time
+ *
+ * Return: Zero if successful, or a negative error code on failure.
+ */
+static int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
+				    struct snd_pcm_hw_params *params)
+{
+	static const int vars[] = {
+		SNDRV_PCM_HW_PARAM_ACCESS,
+		SNDRV_PCM_HW_PARAM_FORMAT,
+		SNDRV_PCM_HW_PARAM_SUBFORMAT,
+		SNDRV_PCM_HW_PARAM_CHANNELS,
+		SNDRV_PCM_HW_PARAM_RATE,
+		SNDRV_PCM_HW_PARAM_PERIOD_TIME,
+		SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+		SNDRV_PCM_HW_PARAM_TICK_TIME,
+		-1
+	};
+	const int *v;
+	struct snd_mask old_mask;
+	struct snd_interval old_interval;
+	int err;
+
+	for (v = vars; *v != -1; v++) {
+		/* Keep old parameter to trace. */
+		if (trace_hw_mask_param_enabled()) {
+			if (hw_is_mask(*v))
+				old_mask = *hw_param_mask(params, *v);
+		}
+		if (trace_hw_interval_param_enabled()) {
+			if (hw_is_interval(*v))
+				old_interval = *hw_param_interval(params, *v);
+		}
+		if (*v != SNDRV_PCM_HW_PARAM_BUFFER_SIZE)
+			err = snd_pcm_hw_param_first(pcm, params, *v, NULL);
+		else
+			err = snd_pcm_hw_param_last(pcm, params, *v, NULL);
+		if (snd_BUG_ON(err < 0))
+			return err;
+
+		/* Trace the parameter. */
+		if (hw_is_mask(*v)) {
+			trace_hw_mask_param(pcm, *v, 0, &old_mask,
+					    hw_param_mask(params, *v));
+		}
+		if (hw_is_interval(*v)) {
+			trace_hw_interval_param(pcm, *v, 0, &old_interval,
+						hw_param_interval(params, *v));
+		}
+	}
+
+	return 0;
+}
+
 static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
