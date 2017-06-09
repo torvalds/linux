@@ -2067,16 +2067,12 @@ EXPORT_SYMBOL(dquot_commit_info);
 int dquot_get_next_id(struct super_block *sb, struct kqid *qid)
 {
 	struct quota_info *dqopt = sb_dqopt(sb);
-	int err;
 
 	if (!sb_has_quota_active(sb, qid->type))
 		return -ESRCH;
 	if (!dqopt->ops[qid->type]->get_next_id)
 		return -ENOSYS;
-	down_read(&dqopt->dqio_sem);
-	err = dqopt->ops[qid->type]->get_next_id(sb, qid);
-	up_read(&dqopt->dqio_sem);
-	return err;
+	return dqopt->ops[qid->type]->get_next_id(sb, qid);
 }
 EXPORT_SYMBOL(dquot_get_next_id);
 

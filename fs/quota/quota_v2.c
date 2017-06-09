@@ -340,7 +340,13 @@ static int v2_free_file_info(struct super_block *sb, int type)
 
 static int v2_get_next_id(struct super_block *sb, struct kqid *qid)
 {
-	return qtree_get_next_id(sb_dqinfo(sb, qid->type)->dqi_priv, qid);
+	struct quota_info *dqopt = sb_dqopt(sb);
+	int ret;
+
+	down_read(&dqopt->dqio_sem);
+	ret = qtree_get_next_id(sb_dqinfo(sb, qid->type)->dqi_priv, qid);
+	up_read(&dqopt->dqio_sem);
+	return ret;
 }
 
 static const struct quota_format_ops v2_format_ops = {
