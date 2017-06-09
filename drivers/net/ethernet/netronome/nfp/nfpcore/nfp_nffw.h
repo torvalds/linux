@@ -90,6 +90,8 @@ struct nfp_rtsym {
 struct nfp_rtsym_table;
 
 struct nfp_rtsym_table *nfp_rtsym_table_read(struct nfp_cpp *cpp);
+struct nfp_rtsym_table *
+__nfp_rtsym_table_read(struct nfp_cpp *cpp, const struct nfp_mip *mip);
 int nfp_rtsym_count(struct nfp_rtsym_table *rtbl);
 const struct nfp_rtsym *nfp_rtsym_get(struct nfp_rtsym_table *rtbl, int idx);
 const struct nfp_rtsym *

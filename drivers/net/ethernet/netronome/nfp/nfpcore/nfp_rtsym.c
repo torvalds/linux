@@ -109,21 +109,31 @@ nfp_rtsym_sw_entry_init(struct nfp_rtsym_table *cache, u32 strtab_size,
 
 struct nfp_rtsym_table *nfp_rtsym_table_read(struct nfp_cpp *cpp)
 {
+	struct nfp_rtsym_table *rtbl;
+	const struct nfp_mip *mip;
+
+	mip = nfp_mip_open(cpp);
+	rtbl = __nfp_rtsym_table_read(cpp, mip);
+	nfp_mip_close(mip);
+
+	return rtbl;
+}
+
+struct nfp_rtsym_table *
+__nfp_rtsym_table_read(struct nfp_cpp *cpp, const struct nfp_mip *mip)
+{
 	const u32 dram = NFP_CPP_ID(NFP_CPP_TARGET_MU, NFP_CPP_ACTION_RW, 0) |
 		NFP_ISL_EMEM0;
 	u32 strtab_addr, symtab_addr, strtab_size, symtab_size;
 	struct nfp_rtsym_entry *rtsymtab;
 	struct nfp_rtsym_table *cache;
-	const struct nfp_mip *mip;
 	int err, n, size;
 
-	mip = nfp_mip_open(cpp);
 	if (!mip)
 		return NULL;
 
 	nfp_mip_strtab(mip, &strtab_addr, &strtab_size);
 	nfp_mip_symtab(mip, &symtab_addr, &symtab_size);
-	nfp_mip_close(mip);
 
 	if (!symtab_size || !strtab_size || symtab_size % sizeof(*rtsymtab))
 		return NULL;

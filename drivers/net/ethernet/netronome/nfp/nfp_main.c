@@ -375,7 +375,8 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_devlink_unreg;
 
-	pf->rtbl = nfp_rtsym_table_read(pf->cpp);
+	pf->mip = nfp_mip_open(pf->cpp);
+	pf->rtbl = __nfp_rtsym_table_read(pf->cpp, pf->mip);
 
 	err = nfp_pcie_sriov_read_nfd_limit(pf);
 	if (err)
@@ -399,6 +400,7 @@ err_sriov_unlimit:
 	pci_sriov_set_totalvfs(pf->pdev, 0);
 err_fw_unload:
 	kfree(pf->rtbl);
+	nfp_mip_close(pf->mip);
 	if (pf->fw_loaded)
 		nfp_fw_unload(pf);
 	kfree(pf->eth_tbl);
@@ -437,6 +439,7 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 	devlink_unregister(devlink);
 
 	kfree(pf->rtbl);
+	nfp_mip_close(pf->mip);
 	if (pf->fw_loaded)
 		nfp_fw_unload(pf);
 
