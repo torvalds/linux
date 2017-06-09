@@ -241,7 +241,7 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	u32 *payload = dev_priv->csr.dmc_payload;
 	uint32_t i, fw_size;
 
-	if (!IS_GEN9(dev_priv)) {
+	if (!HAS_CSR(dev_priv)) {
 		DRM_ERROR("No CSR support available for this platform\n");
 		return;
 	}
