@@ -512,7 +512,7 @@ static int ideapad_rfk_set(void *data, bool blocked)
 	return write_ec_cmd(priv->priv->adev->handle, opcode, !blocked);
 }
 
-static struct rfkill_ops ideapad_rfk_ops = {
+static const struct rfkill_ops ideapad_rfk_ops = {
 	.set_block = ideapad_rfk_set,
 };
 
