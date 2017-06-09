@@ -165,41 +165,33 @@ static void qed_ll2_kill_buffers(struct qed_dev *cdev)
 }
 
 static void qed_ll2b_complete_rx_packet(struct qed_hwfn *p_hwfn,
-					u8 connection_handle,
-					struct qed_ll2_rx_packet *p_pkt,
-					struct core_rx_fast_path_cqe *p_cqe,
-					bool b_last_packet)
+				 struct qed_ll2_comp_rx_data *data)
 {
-	u16 packet_length = le16_to_cpu(p_cqe->packet_length);
-	struct qed_ll2_buffer *buffer = p_pkt->cookie;
+	struct qed_ll2_buffer *buffer = data->cookie;
 	struct qed_dev *cdev = p_hwfn->cdev;
-	u16 vlan = le16_to_cpu(p_cqe->vlan);
-	u32 opaque_data_0, opaque_data_1;
-	u8 pad = p_cqe->placement_offset;
 	dma_addr_t new_phys_addr;
 	struct sk_buff *skb;
 	bool reuse = false;
 	int rc = -EINVAL;
 	u8 *new_data;
 
-	opaque_data_0 = le32_to_cpu(p_cqe->opaque_data.data[0]);
-	opaque_data_1 = le32_to_cpu(p_cqe->opaque_data.data[1]);
-
 	DP_VERBOSE(p_hwfn,
 		   (NETIF_MSG_RX_STATUS | QED_MSG_STORAGE | NETIF_MSG_PKTDATA),
 		   "Got an LL2 Rx completion: [Buffer at phys 0x%llx, offset 0x%02x] Length 0x%04x Parse_flags 0x%04x vlan 0x%04x Opaque data [0x%08x:0x%08x]\n",
-		   (u64)p_pkt->rx_buf_addr, pad, packet_length,
-		   le16_to_cpu(p_cqe->parse_flags.flags), vlan,
-		   opaque_data_0, opaque_data_1);
+		   (u64)data->rx_buf_addr,
+		   data->u.placement_offset,
+		   data->length.packet_length,
+		   data->parse_flags,
+		   data->vlan, data->opaque_data_0, data->opaque_data_1);
 
 	if ((cdev->dp_module & NETIF_MSG_PKTDATA) && buffer->data) {
 		print_hex_dump(KERN_INFO, "",
 			       DUMP_PREFIX_OFFSET, 16, 1,
-			       buffer->data, packet_length, false);
+			       buffer->data, data->length.packet_length, false);
 	}
 
 	/* Determine if data is valid */
-	if (packet_length < ETH_HLEN)
+	if (data->length.packet_length < ETH_HLEN)
 		reuse = true;
 
 	/* Allocate a replacement for buffer; Reuse upon failure */
@@ -219,9 +211,9 @@ static void qed_ll2b_complete_rx_packet(struct qed_hwfn *p_hwfn,
 		goto out_post;
 	}
 
-	pad += NET_SKB_PAD;
-	skb_reserve(skb, pad);
-	skb_put(skb, packet_length);
+	data->u.placement_offset += NET_SKB_PAD;
+	skb_reserve(skb, data->u.placement_offset);
+	skb_put(skb, data->length.packet_length);
 	skb_checksum_none_assert(skb);
 
 	/* Get parital ethernet information instead of eth_type_trans(),
@@ -232,10 +224,12 @@ static void qed_ll2b_complete_rx_packet(struct qed_hwfn *p_hwfn,
 
 	/* Pass SKB onward */
 	if (cdev->ll2->cbs && cdev->ll2->cbs->rx_cb) {
-		if (vlan)
-			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
+		if (data->vlan)
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       data->vlan);
 		cdev->ll2->cbs->rx_cb(cdev->ll2->cb_cookie, skb,
-				      opaque_data_0, opaque_data_1);
+				      data->opaque_data_0,
+				      data->opaque_data_1);
 	}
 
 	/* Update Buffer information and update FW producer */
@@ -472,33 +466,55 @@ qed_ll2_rxq_completion_gsi(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-static int qed_ll2_rxq_completion_reg(struct qed_hwfn *p_hwfn,
-				      struct qed_ll2_info *p_ll2_conn,
-				      union core_rx_cqe_union *p_cqe,
-				      unsigned long *p_lock_flags,
-				      bool b_last_cqe)
+static void qed_ll2_rxq_parse_reg(struct qed_hwfn *p_hwfn,
+				  union core_rx_cqe_union *p_cqe,
+				  struct qed_ll2_comp_rx_data *data)
+{
+	data->parse_flags = le16_to_cpu(p_cqe->rx_cqe_fp.parse_flags.flags);
+	data->length.packet_length =
+	    le16_to_cpu(p_cqe->rx_cqe_fp.packet_length);
+	data->vlan = le16_to_cpu(p_cqe->rx_cqe_fp.vlan);
+	data->opaque_data_0 = le32_to_cpu(p_cqe->rx_cqe_fp.opaque_data.data[0]);
+	data->opaque_data_1 = le32_to_cpu(p_cqe->rx_cqe_fp.opaque_data.data[1]);
+	data->u.placement_offset = p_cqe->rx_cqe_fp.placement_offset;
+}
+
+static int
+qed_ll2_rxq_handle_completion(struct qed_hwfn *p_hwfn,
+			      struct qed_ll2_info *p_ll2_conn,
+			      union core_rx_cqe_union *p_cqe,
+			      unsigned long *p_lock_flags, bool b_last_cqe)
 {
 	struct qed_ll2_rx_queue *p_rx = &p_ll2_conn->rx_queue;
 	struct qed_ll2_rx_packet *p_pkt = NULL;
+	struct qed_ll2_comp_rx_data data;
 
 	if (!list_empty(&p_rx->active_descq))
 		p_pkt = list_first_entry(&p_rx->active_descq,
 					 struct qed_ll2_rx_packet, list_entry);
 	if (!p_pkt) {
 		DP_NOTICE(p_hwfn,
-			  "LL2 Rx completion but active_descq is empty\n");
+			  "[%d] LL2 Rx completion but active_descq is empty\n",
+			  p_ll2_conn->conn.conn_type);
+
 		return -EIO;
 	}
 	list_del(&p_pkt->list_entry);
 
+	qed_ll2_rxq_parse_reg(p_hwfn, p_cqe, &data);
 	if (qed_chain_consume(&p_rx->rxq_chain) != p_pkt->rxq_bd)
 		DP_NOTICE(p_hwfn,
 			  "Mismatch between active_descq and the LL2 Rx chain\n");
+
 	list_add_tail(&p_pkt->list_entry, &p_rx->free_descq);
 
+	data.connection_handle = p_ll2_conn->my_id;
+	data.cookie = p_pkt->cookie;
+	data.rx_buf_addr = p_pkt->rx_buf_addr;
+	data.b_last_packet = b_last_cqe;
+
 	spin_unlock_irqrestore(&p_rx->lock, *p_lock_flags);
-	qed_ll2b_complete_rx_packet(p_hwfn, p_ll2_conn->my_id,
-				    p_pkt, &p_cqe->rx_cqe_fp, b_last_cqe);
+	qed_ll2b_complete_rx_packet(p_hwfn, &data);
 	spin_lock_irqsave(&p_rx->lock, *p_lock_flags);
 
 	return 0;
@@ -538,9 +554,9 @@ static int qed_ll2_rxq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 							cqe, flags, b_last_cqe);
 			break;
 		case CORE_RX_CQE_TYPE_REGULAR:
-			rc = qed_ll2_rxq_completion_reg(p_hwfn, p_ll2_conn,
-							cqe, &flags,
-							b_last_cqe);
+			rc = qed_ll2_rxq_handle_completion(p_hwfn, p_ll2_conn,
+							   cqe, &flags,
+							   b_last_cqe);
 			break;
 		default:
 			rc = -EIO;
