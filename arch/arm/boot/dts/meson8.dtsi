@@ -116,6 +116,13 @@
 				function = "i2c_mst_ao";
 			};
 		};
+
+		ir_recv_pins: remote {
+			mux {
+				groups = "remote_input";
+				function = "remote";
+			};
+		};
 	};
 };
 
@@ -148,13 +155,6 @@
 			mux {
 				groups = "nor_d", "nor_q", "nor_c", "nor_cs";
 				function = "nor";
-			};
-		};
-
-		ir_recv_pins: remote {
-			mux {
-				groups = "remote_input";
-				function = "remote";
 			};
 		};
 
