@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/kfifo.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -99,6 +100,8 @@ struct rmi_2d_sensor_platform_data {
 	bool topbuttonpad;
 	bool kernel_tracking;
 	int dmax;
+	int dribble;
+	int palm_detect;
 };
 
 /**
@@ -106,7 +109,7 @@ struct rmi_2d_sensor_platform_data {
  * @buttonpad - the touchpad is a buttonpad, so enable only the first actual
  * button that is found.
  * @trackstick_buttons - Set when the function 30 is handling the physical
- * buttons of the trackstick (as a PD/2 passthrough device.
+ * buttons of the trackstick (as a PS/2 passthrough device).
  * @disable - the touchpad incorrectly reports F30 and it should be ignored.
  * This is a special case which is due to misconfigured firmware.
  */
@@ -116,14 +119,17 @@ struct rmi_f30_data {
 	bool disable;
 };
 
-/**
- * struct rmi_f01_power - override default power management settings.
- *
+
+/*
+ * Set the state of a register
+ *	DEFAULT - use the default value set by the firmware config
+ *	OFF - explicitly disable the register
+ *	ON - explicitly enable the register
  */
-enum rmi_f01_nosleep {
-	RMI_F01_NOSLEEP_DEFAULT = 0,
-	RMI_F01_NOSLEEP_OFF = 1,
-	RMI_F01_NOSLEEP_ON = 2
+enum rmi_reg_state {
+	RMI_REG_STATE_DEFAULT = 0,
+	RMI_REG_STATE_OFF = 1,
+	RMI_REG_STATE_ON = 2
 };
 
 /**
@@ -143,7 +149,7 @@ enum rmi_f01_nosleep {
  * when the touch sensor is in doze mode, in units of 10ms.
  */
 struct rmi_f01_power_management {
-	enum rmi_f01_nosleep nosleep;
+	enum rmi_reg_state nosleep;
 	u8 wakeup_threshold;
 	u8 doze_holdoff;
 	u8 doze_interval;
@@ -204,16 +210,18 @@ struct rmi_device_platform_data_spi {
  * @reset_delay_ms - after issuing a reset command to the touch sensor, the
  * driver waits a few milliseconds to give the firmware a chance to
  * to re-initialize.  You can override the default wait period here.
+ * @irq: irq associated with the attn gpio line, or negative
  */
 struct rmi_device_platform_data {
 	int reset_delay_ms;
+	int irq;
 
 	struct rmi_device_platform_data_spi spi_data;
 
 	/* function handler pdata */
-	struct rmi_2d_sensor_platform_data *sensor_pdata;
+	struct rmi_2d_sensor_platform_data sensor_pdata;
 	struct rmi_f01_power_management power_management;
-	struct rmi_f30_data *f30_data;
+	struct rmi_f30_data f30_data;
 };
 
 /**
@@ -264,9 +272,6 @@ struct rmi_transport_dev {
 	struct rmi_device_platform_data pdata;
 
 	struct input_dev *input;
-
-	void *attn_data;
-	int attn_size;
 };
 
 /**
@@ -324,17 +329,24 @@ struct rmi_device {
 
 };
 
+struct rmi4_attn_data {
+	unsigned long irq_status;
+	size_t size;
+	void *data;
+};
+
 struct rmi_driver_data {
 	struct list_head function_list;
 
 	struct rmi_device *rmi_dev;
 
 	struct rmi_function *f01_container;
-	bool f01_bootloader_mode;
+	struct rmi_function *f34_container;
+	bool bootloader_mode;
 
-	u32 attn_count;
 	int num_of_irq_regs;
 	int irq_count;
+	void *irq_memory;
 	unsigned long *irq_status;
 	unsigned long *fn_irq_bits;
 	unsigned long *current_irq_mask;
@@ -343,17 +355,23 @@ struct rmi_driver_data {
 	struct input_dev *input;
 
 	u8 pdt_props;
-	u8 bsr;
+
+	u8 num_rx_electrodes;
+	u8 num_tx_electrodes;
 
 	bool enabled;
+	struct mutex enabled_mutex;
 
-	void *data;
+	struct rmi4_attn_data attn_data;
+	DECLARE_KFIFO(attn_fifo, struct rmi4_attn_data, 16);
 };
 
 int rmi_register_transport_device(struct rmi_transport_dev *xport);
 void rmi_unregister_transport_device(struct rmi_transport_dev *xport);
-int rmi_process_interrupt_requests(struct rmi_device *rmi_dev);
 
-int rmi_driver_suspend(struct rmi_device *rmi_dev);
-int rmi_driver_resume(struct rmi_device *rmi_dev);
+void rmi_set_attn_data(struct rmi_device *rmi_dev, unsigned long irq_status,
+		       void *data, size_t size);
+
+int rmi_driver_suspend(struct rmi_device *rmi_dev, bool enable_wake);
+int rmi_driver_resume(struct rmi_device *rmi_dev, bool clear_wake);
 #endif

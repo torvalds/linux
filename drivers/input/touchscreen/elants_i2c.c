@@ -914,9 +914,9 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 
 		case QUEUE_HEADER_NORMAL:
 			report_count = ts->buf[FW_HDR_COUNT];
-			if (report_count > 3) {
+			if (report_count == 0 || report_count > 3) {
 				dev_err(&client->dev,
-					"too large report count: %*ph\n",
+					"bad report count: %*ph\n",
 					HEADER_SIZE, ts->buf);
 				break;
 			}
@@ -1259,8 +1259,6 @@ static int elants_i2c_probe(struct i2c_client *client,
 	input_set_abs_params(ts->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_X, ts->x_res);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_Y, ts->y_res);
-
-	input_set_drvdata(ts->input, ts);
 
 	error = input_register_device(ts->input);
 	if (error) {

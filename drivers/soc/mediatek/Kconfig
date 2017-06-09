@@ -23,7 +23,7 @@ config MTK_PMIC_WRAP
 config MTK_SCPSYS
 	bool "MediaTek SCPSYS Support"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
-	default ARM64 && ARCH_MEDIATEK
+	default ARCH_MEDIATEK
 	select REGMAP
 	select MTK_INFRACFG
 	select PM_GENERIC_DOMAINS if PM

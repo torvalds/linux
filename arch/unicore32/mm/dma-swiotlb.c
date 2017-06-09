@@ -31,7 +31,7 @@ static void unicore_swiotlb_free_coherent(struct device *dev, size_t size,
 	swiotlb_free_coherent(dev, size, vaddr, dma_addr);
 }
 
-struct dma_map_ops swiotlb_dma_map_ops = {
+const struct dma_map_ops swiotlb_dma_map_ops = {
 	.alloc = unicore_swiotlb_alloc_coherent,
 	.free = unicore_swiotlb_free_coherent,
 	.map_sg = swiotlb_map_sg_attrs,

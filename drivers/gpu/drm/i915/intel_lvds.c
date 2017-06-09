@@ -91,12 +91,11 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
-	enum intel_display_power_domain power_domain;
 	u32 tmp;
 	bool ret;
 
-	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv,
+						encoder->power_domain))
 		return false;
 
 	ret = false;
@@ -114,7 +113,7 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 	ret = true;
 
 out:
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return ret;
 }
@@ -460,13 +459,13 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 static enum drm_connector_status
 intel_lvds_detect(struct drm_connector *connector, bool force)
 {
-	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	enum drm_connector_status status;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
-	status = intel_panel_detect(dev);
+	status = intel_panel_detect(dev_priv);
 	if (status != connector_status_unknown)
 		return status;
 
@@ -971,9 +970,9 @@ static bool intel_lvds_supported(struct drm_i915_private *dev_priv)
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).
  */
-void intel_lvds_init(struct drm_device *dev)
+void intel_lvds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_device *dev = &dev_priv->drm;
 	struct intel_lvds_encoder *lvds_encoder;
 	struct intel_encoder *intel_encoder;
 	struct intel_lvds_connector *lvds_connector;
@@ -1066,6 +1065,7 @@ void intel_lvds_init(struct drm_device *dev)
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
 	intel_encoder->type = INTEL_OUTPUT_LVDS;
+	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 	intel_encoder->port = PORT_NONE;
 	intel_encoder->cloneable = 0;
 	if (HAS_PCH_SPLIT(dev_priv))

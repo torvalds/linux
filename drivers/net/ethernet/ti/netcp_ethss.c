@@ -81,7 +81,6 @@
 #define GBENU_CPTS_OFFSET		0x1d000
 #define GBENU_ALE_OFFSET		0x1e000
 #define GBENU_HOST_PORT_NUM		0
-#define GBENU_NUM_ALE_ENTRIES		1024
 #define GBENU_SGMII_MODULE_SIZE		0x100
 
 /* 10G Ethernet SS defines */
@@ -94,6 +93,7 @@
 
 /* offset relative to base of XGBE_SS_REG_INDEX */
 #define XGBE10_SGMII_MODULE_OFFSET	0x100
+#define IS_SS_ID_XGBE(d)		((d)->ss_version == XGBE_SS_VERSION_10)
 /* offset relative to base of XGBE_SM_REG_INDEX */
 #define XGBE10_HOST_PORT_OFFSET		0x34
 #define XGBE10_SLAVE_PORT_OFFSET	0x64
@@ -102,7 +102,7 @@
 #define XGBE10_ALE_OFFSET		0x700
 #define XGBE10_HW_STATS_OFFSET		0x800
 #define XGBE10_HOST_PORT_NUM		0
-#define XGBE10_NUM_ALE_ENTRIES		1024
+#define XGBE10_NUM_ALE_ENTRIES		2048
 
 #define	GBE_TIMER_INTERVAL			(HZ / 2)
 
@@ -121,6 +121,7 @@
 #define MACSL_FULLDUPLEX			BIT(0)
 
 #define GBE_CTL_P0_ENABLE			BIT(2)
+#define ETH_SW_CTL_P0_TX_CRC_REMOVE		BIT(13)
 #define GBE13_REG_VAL_STAT_ENABLE_ALL		0xff
 #define XGBE_REG_VAL_STAT_ENABLE_ALL		0xf
 #define GBE_STATS_CD_SEL			BIT(28)
@@ -1746,6 +1747,17 @@ static void keystone_set_msglevel(struct net_device *ndev, u32 value)
 	netcp->msg_enable = value;
 }
 
+static struct gbe_intf *keystone_get_intf_data(struct netcp_intf *netcp)
+{
+	struct gbe_intf *gbe_intf;
+
+	gbe_intf = netcp_module_get_intf_data(&gbe_module, netcp);
+	if (!gbe_intf)
+		gbe_intf = netcp_module_get_intf_data(&xgbe_module, netcp);
+
+	return gbe_intf;
+}
+
 static void keystone_get_stat_strings(struct net_device *ndev,
 				      uint32_t stringset, uint8_t *data)
 {
@@ -1754,7 +1766,7 @@ static void keystone_get_stat_strings(struct net_device *ndev,
 	struct gbe_priv *gbe_dev;
 	int i;
 
-	gbe_intf = netcp_module_get_intf_data(&gbe_module, netcp);
+	gbe_intf = keystone_get_intf_data(netcp);
 	if (!gbe_intf)
 		return;
 	gbe_dev = gbe_intf->gbe_dev;
@@ -1778,7 +1790,7 @@ static int keystone_get_sset_count(struct net_device *ndev, int stringset)
 	struct gbe_intf *gbe_intf;
 	struct gbe_priv *gbe_dev;
 
-	gbe_intf = netcp_module_get_intf_data(&gbe_module, netcp);
+	gbe_intf = keystone_get_intf_data(netcp);
 	if (!gbe_intf)
 		return -EINVAL;
 	gbe_dev = gbe_intf->gbe_dev;
@@ -1896,7 +1908,7 @@ static void keystone_get_ethtool_stats(struct net_device *ndev,
 	struct gbe_intf *gbe_intf;
 	struct gbe_priv *gbe_dev;
 
-	gbe_intf = netcp_module_get_intf_data(&gbe_module, netcp);
+	gbe_intf = keystone_get_intf_data(netcp);
 	if (!gbe_intf)
 		return;
 
@@ -1920,7 +1932,7 @@ static int keystone_get_link_ksettings(struct net_device *ndev,
 	if (!phy)
 		return -EINVAL;
 
-	gbe_intf = netcp_module_get_intf_data(&gbe_module, netcp);
+	gbe_intf = keystone_get_intf_data(netcp);
 	if (!gbe_intf)
 		return -EINVAL;
 
@@ -1953,7 +1965,7 @@ static int keystone_set_link_ksettings(struct net_device *ndev,
 	if (!phy)
 		return -EINVAL;
 
-	gbe_intf = netcp_module_get_intf_data(&gbe_module, netcp);
+	gbe_intf = keystone_get_intf_data(netcp);
 	if (!gbe_intf)
 		return -EINVAL;
 
@@ -2301,7 +2313,6 @@ static int gbe_slave_open(struct gbe_intf *gbe_intf)
 		dev_dbg(priv->dev, "phy found: id is: 0x%s\n",
 			phydev_name(slave->phy));
 		phy_start(slave->phy);
-		phy_read_status(slave->phy);
 	}
 	return 0;
 }
@@ -2311,7 +2322,7 @@ static void gbe_init_host_port(struct gbe_priv *priv)
 	int bypass_en = 1;
 
 	/* Host Tx Pri */
-	if (IS_SS_ID_NU(priv))
+	if (IS_SS_ID_NU(priv) || IS_SS_ID_XGBE(priv))
 		writel(HOST_TX_PRI_MAP_DEFAULT,
 		       GBE_REG_ADDR(priv, host_port_regs, tx_pri_map));
 
@@ -2640,7 +2651,6 @@ static int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_NONE:
 		cpts_rx_enable(cpts, 0);
 		break;
-	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
@@ -2809,7 +2819,7 @@ static int gbe_open(void *intf_priv, struct net_device *ndev)
 	struct netcp_intf *netcp = netdev_priv(ndev);
 	struct gbe_slave *slave = gbe_intf->slave;
 	int port_num = slave->port_num;
-	u32 reg;
+	u32 reg, val;
 	int ret;
 
 	reg = readl(GBE_REG_ADDR(gbe_dev, switch_regs, id_ver));
@@ -2839,7 +2849,12 @@ static int gbe_open(void *intf_priv, struct net_device *ndev)
 	writel(0, GBE_REG_ADDR(gbe_dev, switch_regs, ptype));
 
 	/* Control register */
-	writel(GBE_CTL_P0_ENABLE, GBE_REG_ADDR(gbe_dev, switch_regs, control));
+	val = GBE_CTL_P0_ENABLE;
+	if (IS_SS_ID_MU(gbe_dev)) {
+		val |= ETH_SW_CTL_P0_TX_CRC_REMOVE;
+		netcp->hw_cap = ETH_SW_CAN_REMOVE_ETH_FCS;
+	}
+	writel(val, GBE_REG_ADDR(gbe_dev, switch_regs, control));
 
 	/* All statistics enabled and STAT AB visible by default */
 	writel(gbe_dev->stats_en_mask, GBE_REG_ADDR(gbe_dev, switch_regs,
@@ -2918,7 +2933,9 @@ static int init_slave(struct gbe_priv *gbe_dev, struct gbe_slave *slave,
 	}
 
 	slave->open = false;
-	slave->phy_node = of_parse_phandle(node, "phy-handle", 0);
+	if ((slave->link_interface == SGMII_LINK_MAC_PHY) ||
+	    (slave->link_interface == XGMII_LINK_MAC_PHY))
+		slave->phy_node = of_parse_phandle(node, "phy-handle", 0);
 	slave->port_num = gbe_get_slave_port(gbe_dev, slave->slave_num);
 
 	if (slave->link_interface >= XGMII_LINK_MAC_PHY)
@@ -3030,8 +3047,7 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 	for_each_child_of_node(node, port) {
 		slave = devm_kzalloc(dev, sizeof(*slave), GFP_KERNEL);
 		if (!slave) {
-			dev_err(dev,
-				"memomry alloc failed for secondary port(%s), skipping...\n",
+			dev_err(dev, "memory alloc failed for secondary port(%s), skipping...\n",
 				port->name);
 			continue;
 		}
@@ -3100,7 +3116,6 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 			dev_dbg(dev, "phy found: id is: 0x%s\n",
 				phydev_name(slave->phy));
 			phy_start(slave->phy);
-			phy_read_status(slave->phy);
 		}
 	}
 }
@@ -3421,7 +3436,6 @@ static int set_gbenu_ethss_priv(struct gbe_priv *gbe_dev,
 	gbe_dev->ale_reg = gbe_dev->switch_regs + GBENU_ALE_OFFSET;
 	gbe_dev->ale_ports = gbe_dev->max_num_ports;
 	gbe_dev->host_port = GBENU_HOST_PORT_NUM;
-	gbe_dev->ale_entries = GBE13_NUM_ALE_ENTRIES;
 	gbe_dev->stats_en_mask = (1 << (gbe_dev->max_num_ports)) - 1;
 
 	/* Subsystem registers */
@@ -3589,7 +3603,10 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	ale_params.ale_ageout	= GBE_DEFAULT_ALE_AGEOUT;
 	ale_params.ale_entries	= gbe_dev->ale_entries;
 	ale_params.ale_ports	= gbe_dev->ale_ports;
-
+	if (IS_SS_ID_MU(gbe_dev)) {
+		ale_params.major_ver_mask = 0x7;
+		ale_params.nu_switch_ale = true;
+	}
 	gbe_dev->ale = cpsw_ale_create(&ale_params);
 	if (!gbe_dev->ale) {
 		dev_err(gbe_dev->dev, "error initializing ale engine\n");

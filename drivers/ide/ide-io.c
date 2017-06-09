@@ -51,7 +51,7 @@
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 int ide_end_rq(ide_drive_t *drive, struct request *rq, int error,
@@ -102,12 +102,12 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 			drive->dev_flags |= IDE_DFLAG_PARKED;
 	}
 
-	if (rq && rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
+	if (rq && ata_taskfile_request(rq)) {
 		struct ide_cmd *orig_cmd = rq->special;
 
 		if (cmd->tf_flags & IDE_TFLAG_DYN)
 			kfree(orig_cmd);
-		else
+		else if (cmd != orig_cmd)
 			memcpy(orig_cmd, cmd, sizeof(*cmd));
 	}
 }
@@ -135,18 +135,18 @@ EXPORT_SYMBOL(ide_complete_rq);
 
 void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 {
-	u8 drv_req = (rq->cmd_type == REQ_TYPE_DRV_PRIV) && rq->rq_disk;
+	u8 drv_req = ata_misc_request(rq) && rq->rq_disk;
 	u8 media = drive->media;
 
 	drive->failed_pc = NULL;
 
 	if ((media == ide_floppy || media == ide_tape) && drv_req) {
-		rq->errors = 0;
+		scsi_req(rq)->result = 0;
 	} else {
 		if (media == ide_tape)
-			rq->errors = IDE_DRV_ERROR_GENERAL;
-		else if (rq->cmd_type != REQ_TYPE_FS && rq->errors == 0)
-			rq->errors = -EIO;
+			scsi_req(rq)->result = IDE_DRV_ERROR_GENERAL;
+		else if (blk_rq_is_passthrough(rq) && scsi_req(rq)->result == 0)
+			scsi_req(rq)->result = -EIO;
 	}
 
 	ide_complete_rq(drive, -EIO, blk_rq_bytes(rq));
@@ -271,7 +271,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 #ifdef DEBUG
  	printk("%s: DRIVE_CMD (null)\n", drive->name);
 #endif
-	rq->errors = 0;
+	scsi_req(rq)->result = 0;
 	ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 
  	return ide_stopped;
@@ -279,7 +279,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 
 static ide_startstop_t ide_special_rq(ide_drive_t *drive, struct request *rq)
 {
-	u8 cmd = rq->cmd[0];
+	u8 cmd = scsi_req(rq)->cmd[0];
 
 	switch (cmd) {
 	case REQ_PARK_HEADS:
@@ -340,7 +340,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		if (drive->current_speed == 0xff)
 			ide_config_drive_speed(drive, drive->desired_speed);
 
-		if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
+		if (ata_taskfile_request(rq))
 			return execute_drive_cmd(drive, rq);
 		else if (ata_pm_request(rq)) {
 			struct ide_pm_state *pm = rq->special;
@@ -353,7 +353,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			    pm->pm_step == IDE_PM_COMPLETED)
 				ide_complete_pm_rq(drive, rq);
 			return startstop;
-		} else if (!rq->rq_disk && rq->cmd_type == REQ_TYPE_DRV_PRIV)
+		} else if (!rq->rq_disk && ata_misc_request(rq))
 			/*
 			 * TODO: Once all ULDs have been modified to
 			 * check for specific op codes rather than
@@ -545,6 +545,7 @@ repeat:
 			goto plug_device;
 		}
 
+		scsi_req(rq)->resid_len = blk_rq_bytes(rq);
 		hwif->rq = rq;
 
 		spin_unlock_irq(&hwif->lock);

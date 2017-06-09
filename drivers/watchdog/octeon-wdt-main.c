@@ -56,7 +56,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/miscdevice.h>
 #include <linux/interrupt.h>
 #include <linux/watchdog.h>
 #include <linux/cpumask.h>

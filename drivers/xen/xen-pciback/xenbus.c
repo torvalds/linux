@@ -652,7 +652,7 @@ out:
 }
 
 static void xen_pcibk_be_watch(struct xenbus_watch *watch,
-			     const char **vec, unsigned int len)
+			       const char *path, const char *token)
 {
 	struct xen_pcibk_device *pdev =
 	    container_of(watch, struct xen_pcibk_device, be_watch);

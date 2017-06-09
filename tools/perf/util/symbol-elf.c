@@ -10,8 +10,9 @@
 #include "demangle-rust.h"
 #include "machine.h"
 #include "vdso.h"
-#include <symbol/kallsyms.h>
 #include "debug.h"
+#include "sane_ctype.h"
+#include <symbol/kallsyms.h>
 
 #ifndef EM_AARCH64
 #define EM_AARCH64	183  /* ARM 64 bit */
@@ -213,7 +214,7 @@ static bool want_demangle(bool is_kernel_sym)
 
 static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 {
-	int demangle_flags = verbose ? (DMGL_PARAMS | DMGL_ANSI) : DMGL_NO_OPTS;
+	int demangle_flags = verbose > 0 ? (DMGL_PARAMS | DMGL_ANSI) : DMGL_NO_OPTS;
 	char *demangled = NULL;
 
 	/*
@@ -390,6 +391,11 @@ out_elf_end:
 	return 0;
 }
 
+char *dso__demangle_sym(struct dso *dso, int kmodule, char *elf_name)
+{
+	return demangle_sym(dso, kmodule, elf_name);
+}
+
 /*
  * Align offset to 4 bytes as needed for note name and descriptor data.
  */
@@ -537,6 +543,12 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
 				break;
 		} else {
 			int n = namesz + descsz;
+
+			if (n > (int)sizeof(bf)) {
+				n = sizeof(bf);
+				pr_debug("%s: truncating reading of build id in sysfs file %s: n_namesz=%u, n_descsz=%u.\n",
+					 __func__, filename, nhdr.n_namesz, nhdr.n_descsz);
+			}
 			if (read(fd, bf, n) != n)
 				break;
 		}
@@ -1822,7 +1834,7 @@ void kcore_extract__delete(struct kcore_extract *kce)
 static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 			     struct list_head *sdt_notes)
 {
-	const char *provider, *name;
+	const char *provider, *name, *args;
 	struct sdt_note *tmp = NULL;
 	GElf_Ehdr ehdr;
 	GElf_Addr base_off = 0;
@@ -1881,6 +1893,25 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 		goto out_free_prov;
 	}
 
+	args = memchr(name, '\0', data + len - name);
+
+	/*
+	 * There is no argument if:
+	 * - We reached the end of the note;
+	 * - There is not enough room to hold a potential string;
+	 * - The argument string is empty or just contains ':'.
+	 */
+	if (args == NULL || data + len - args < 2 ||
+		args[1] == ':' || args[1] == '\0')
+		tmp->args = NULL;
+	else {
+		tmp->args = strdup(++args);
+		if (!tmp->args) {
+			ret = -ENOMEM;
+			goto out_free_name;
+		}
+	}
+
 	if (gelf_getclass(*elf) == ELFCLASS32) {
 		memcpy(&tmp->addr, &buf, 3 * sizeof(Elf32_Addr));
 		tmp->bit32 = true;
@@ -1892,7 +1923,7 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	if (!gelf_getehdr(*elf, &ehdr)) {
 		pr_debug("%s : cannot get elf header.\n", __func__);
 		ret = -EBADF;
-		goto out_free_name;
+		goto out_free_args;
 	}
 
 	/* Adjust the prelink effect :
@@ -1917,6 +1948,8 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	list_add_tail(&tmp->note_list, sdt_notes);
 	return 0;
 
+out_free_args:
+	free(tmp->args);
 out_free_name:
 	free(tmp->name);
 out_free_prov:

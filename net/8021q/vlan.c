@@ -34,7 +34,7 @@
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/if_vlan.h>
 #include "vlan.h"

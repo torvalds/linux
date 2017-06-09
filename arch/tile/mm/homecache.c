@@ -47,7 +47,7 @@
  * The noallocl2 option suppresses all use of the L2 cache to cache
  * locally from a remote home.
  */
-static int __write_once noallocl2;
+static int __ro_after_init noallocl2;
 static int __init set_noallocl2(char *str)
 {
 	noallocl2 = 1;

@@ -30,7 +30,7 @@
 #include <linux/proc_fs.h>
 #include <linux/list.h>
 #include <linux/security.h>
-#include <linux/sched.h>
+#include <linux/sched/wake_q.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
 #include <linux/seq_file.h>
@@ -763,7 +763,10 @@ static inline int convert_mode(long *msgtyp, int msgflg)
 	if (*msgtyp == 0)
 		return SEARCH_ANY;
 	if (*msgtyp < 0) {
-		*msgtyp = -*msgtyp;
+		if (*msgtyp == LONG_MIN) /* -LONG_MIN is undefined */
+			*msgtyp = LONG_MAX;
+		else
+			*msgtyp = -*msgtyp;
 		return SEARCH_LESSEQUAL;
 	}
 	if (msgflg & MSG_EXCEPT)

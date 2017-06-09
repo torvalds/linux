@@ -736,6 +736,7 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 	for (i = 0; i < pix->num_planes; ++i) {
 		struct v4l2_plane_pix_format *plane_fmt = &pix->plane_fmt[i];
 		u32 bpl = plane_fmt->bytesperline;
+		u32 sizeimage;
 
 		if (fmt->colplanes > 1 && (bpl == 0 || bpl < pix->width))
 			bpl = pix->width; /* Planar */
@@ -755,8 +756,17 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 			bytesperline /= 2;
 
 		plane_fmt->bytesperline = bytesperline;
-		plane_fmt->sizeimage = max((pix->width * pix->height *
-				   fmt->depth[i]) / 8, plane_fmt->sizeimage);
+		sizeimage = pix->width * pix->height * fmt->depth[i] / 8;
+
+		/* Ensure full last row for tiled formats */
+		if (tiled_fmt(fmt)) {
+			/* 64 * 32 * plane_fmt->bytesperline / 64 */
+			u32 row_size = plane_fmt->bytesperline * 32;
+
+			sizeimage = roundup(sizeimage, row_size);
+		}
+
+		plane_fmt->sizeimage = max(sizeimage, plane_fmt->sizeimage);
 	}
 }
 

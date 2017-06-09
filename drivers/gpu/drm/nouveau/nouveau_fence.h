@@ -99,6 +99,7 @@ struct nv84_fence_priv {
 	struct nouveau_bo *bo;
 	struct nouveau_bo *bo_gart;
 	u32 *suspend;
+	struct mutex mutex;
 };
 
 int  nv84_fence_context_new(struct nouveau_channel *);

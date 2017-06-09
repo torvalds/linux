@@ -331,9 +331,8 @@ static ssize_t adt7x10_show_alarm(struct device *dev,
 	return sprintf(buf, "%d\n", !!(ret & attr->index));
 }
 
-static ssize_t adt7x10_show_name(struct device *dev,
-				 struct device_attribute *da,
-				 char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *da,
+			 char *buf)
 {
 	struct adt7x10_data *data = dev_get_drvdata(dev);
 
@@ -359,7 +358,7 @@ static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, adt7x10_show_alarm,
 			  NULL, ADT7X10_STAT_T_HIGH);
 static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, adt7x10_show_alarm,
 			  NULL, ADT7X10_STAT_T_CRIT);
-static DEVICE_ATTR(name, S_IRUGO, adt7x10_show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 static struct attribute *adt7x10_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

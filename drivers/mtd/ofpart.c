@@ -108,6 +108,7 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 
 		parts[i].offset = of_read_number(reg, a_cells);
 		parts[i].size = of_read_number(reg + a_cells, s_cells);
+		parts[i].of_node = pp;
 
 		partname = of_get_property(pp, "label", &len);
 		if (!partname)
@@ -165,8 +166,8 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
 	if (!part)
 		return 0; /* No partitions found */
 
-	pr_warning("Device tree uses obsolete partition map binding: %s\n",
-			dp->full_name);
+	pr_warn("Device tree uses obsolete partition map binding: %s\n",
+		dp->full_name);
 
 	nr_parts = plen / sizeof(part[0]);
 

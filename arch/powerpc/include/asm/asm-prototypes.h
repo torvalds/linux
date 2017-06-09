@@ -13,11 +13,12 @@
  */
 
 #include <linux/threads.h>
-#include <linux/kprobes.h>
 #include <asm/cacheflush.h>
 #include <asm/checksum.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/epapr_hcalls.h>
+#include <asm/dcr.h>
+#include <asm/mmu_context.h>
 
 #include <uapi/asm/ucontext.h>
 
@@ -120,5 +121,9 @@ extern s64 __ashldi3(s64, int);
 extern s64 __ashrdi3(s64, int);
 extern int __cmpdi2(s64, s64);
 extern int __ucmpdi2(u64, u64);
+
+/* tracing */
+void _mcount(void);
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip);
 
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */

@@ -19,6 +19,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/syscalls.h>
 #include <linux/fs.h>
 #include <linux/iomap.h>
@@ -43,11 +44,11 @@
 #include <linux/bitops.h>
 #include <linux/mpage.h>
 #include <linux/bit_spinlock.h>
+#include <linux/pagevec.h>
 #include <trace/events/block.h>
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
 static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
-			 unsigned long bio_flags,
 			 struct writeback_control *wbc);
 
 #define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_buffers)
@@ -1604,37 +1605,80 @@ void create_empty_buffers(struct page *page,
 }
 EXPORT_SYMBOL(create_empty_buffers);
 
-/*
- * We are taking a block for data and we don't want any output from any
- * buffer-cache aliases starting from return from that function and
- * until the moment when something will explicitly mark the buffer
- * dirty (hopefully that will not happen until we will free that block ;-)
- * We don't even need to mark it not-uptodate - nobody can expect
- * anything from a newly allocated buffer anyway. We used to used
- * unmap_buffer() for such invalidation, but that was wrong. We definitely
- * don't want to mark the alias unmapped, for example - it would confuse
- * anyone who might pick it with bread() afterwards...
+/**
+ * clean_bdev_aliases: clean a range of buffers in block device
+ * @bdev: Block device to clean buffers in
+ * @block: Start of a range of blocks to clean
+ * @len: Number of blocks to clean
  *
- * Also..  Note that bforget() doesn't lock the buffer.  So there can
- * be writeout I/O going on against recently-freed buffers.  We don't
- * wait on that I/O in bforget() - it's more efficient to wait on the I/O
- * only if we really need to.  That happens here.
+ * We are taking a range of blocks for data and we don't want writeback of any
+ * buffer-cache aliases starting from return from this function and until the
+ * moment when something will explicitly mark the buffer dirty (hopefully that
+ * will not happen until we will free that block ;-) We don't even need to mark
+ * it not-uptodate - nobody can expect anything from a newly allocated buffer
+ * anyway. We used to use unmap_buffer() for such invalidation, but that was
+ * wrong. We definitely don't want to mark the alias unmapped, for example - it
+ * would confuse anyone who might pick it with bread() afterwards...
+ *
+ * Also..  Note that bforget() doesn't lock the buffer.  So there can be
+ * writeout I/O going on against recently-freed buffers.  We don't wait on that
+ * I/O in bforget() - it's more efficient to wait on the I/O only if we really
+ * need to.  That happens here.
  */
-void unmap_underlying_metadata(struct block_device *bdev, sector_t block)
+void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 {
-	struct buffer_head *old_bh;
+	struct inode *bd_inode = bdev->bd_inode;
+	struct address_space *bd_mapping = bd_inode->i_mapping;
+	struct pagevec pvec;
+	pgoff_t index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
+	pgoff_t end;
+	int i;
+	struct buffer_head *bh;
+	struct buffer_head *head;
 
-	might_sleep();
+	end = (block + len - 1) >> (PAGE_SHIFT - bd_inode->i_blkbits);
+	pagevec_init(&pvec, 0);
+	while (index <= end && pagevec_lookup(&pvec, bd_mapping, index,
+			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			struct page *page = pvec.pages[i];
 
-	old_bh = __find_get_block_slow(bdev, block);
-	if (old_bh) {
-		clear_buffer_dirty(old_bh);
-		wait_on_buffer(old_bh);
-		clear_buffer_req(old_bh);
-		__brelse(old_bh);
+			index = page->index;
+			if (index > end)
+				break;
+			if (!page_has_buffers(page))
+				continue;
+			/*
+			 * We use page lock instead of bd_mapping->private_lock
+			 * to pin buffers here since we can afford to sleep and
+			 * it scales better than a global spinlock lock.
+			 */
+			lock_page(page);
+			/* Recheck when the page is locked which pins bhs */
+			if (!page_has_buffers(page))
+				goto unlock_page;
+			head = page_buffers(page);
+			bh = head;
+			do {
+				if (!buffer_mapped(bh) || (bh->b_blocknr < block))
+					goto next;
+				if (bh->b_blocknr >= block + len)
+					break;
+				clear_buffer_dirty(bh);
+				wait_on_buffer(bh);
+				clear_buffer_req(bh);
+next:
+				bh = bh->b_this_page;
+			} while (bh != head);
+unlock_page:
+			unlock_page(page);
+		}
+		pagevec_release(&pvec);
+		cond_resched();
+		index++;
 	}
 }
-EXPORT_SYMBOL(unmap_underlying_metadata);
+EXPORT_SYMBOL(clean_bdev_aliases);
 
 /*
  * Size is a power-of-two in the range 512..PAGE_SIZE,
@@ -1745,8 +1789,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 			if (buffer_new(bh)) {
 				/* blockdev mappings never come here */
 				clear_buffer_new(bh);
-				unmap_underlying_metadata(bh->b_bdev,
-							bh->b_blocknr);
+				clean_bdev_bh_alias(bh);
 			}
 		}
 		bh = bh->b_this_page;
@@ -1786,7 +1829,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
-			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh, 0, wbc);
+			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -1840,7 +1883,7 @@ recover:
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			clear_buffer_dirty(bh);
-			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh, 0, wbc);
+			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -1992,8 +2035,7 @@ int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
 			}
 
 			if (buffer_new(bh)) {
-				unmap_underlying_metadata(bh->b_bdev,
-							bh->b_blocknr);
+				clean_bdev_bh_alias(bh);
 				if (PageUptodate(page)) {
 					clear_buffer_new(bh);
 					set_buffer_uptodate(bh);
@@ -2336,8 +2378,7 @@ int generic_cont_expand_simple(struct inode *inode, loff_t size)
 		goto out;
 
 	err = pagecache_write_begin(NULL, mapping, size, 0,
-				AOP_FLAG_UNINTERRUPTIBLE|AOP_FLAG_CONT_EXPAND,
-				&page, &fsdata);
+				    AOP_FLAG_CONT_EXPAND, &page, &fsdata);
 	if (err)
 		goto out;
 
@@ -2353,7 +2394,7 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 			    loff_t pos, loff_t *bytes)
 {
 	struct inode *inode = mapping->host;
-	unsigned blocksize = 1 << inode->i_blkbits;
+	unsigned int blocksize = i_blocksize(inode);
 	struct page *page;
 	void *fsdata;
 	pgoff_t index, curidx;
@@ -2372,9 +2413,8 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 		}
 		len = PAGE_SIZE - zerofrom;
 
-		err = pagecache_write_begin(file, mapping, curpos, len,
-						AOP_FLAG_UNINTERRUPTIBLE,
-						&page, &fsdata);
+		err = pagecache_write_begin(file, mapping, curpos, len, 0,
+					    &page, &fsdata);
 		if (err)
 			goto out;
 		zero_user(page, zerofrom, len);
@@ -2406,9 +2446,8 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 		}
 		len = offset - zerofrom;
 
-		err = pagecache_write_begin(file, mapping, curpos, len,
-						AOP_FLAG_UNINTERRUPTIBLE,
-						&page, &fsdata);
+		err = pagecache_write_begin(file, mapping, curpos, len, 0,
+					    &page, &fsdata);
 		if (err)
 			goto out;
 		zero_user(page, zerofrom, len);
@@ -2433,8 +2472,8 @@ int cont_write_begin(struct file *file, struct address_space *mapping,
 			get_block_t *get_block, loff_t *bytes)
 {
 	struct inode *inode = mapping->host;
-	unsigned blocksize = 1 << inode->i_blkbits;
-	unsigned zerofrom;
+	unsigned int blocksize = i_blocksize(inode);
+	unsigned int zerofrom;
 	int err;
 
 	err = cont_expand_zero(file, mapping, pos, bytes);
@@ -2633,7 +2672,7 @@ int nobh_write_begin(struct address_space *mapping,
 		if (!buffer_mapped(bh))
 			is_mapped_to_disk = 0;
 		if (buffer_new(bh))
-			unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+			clean_bdev_bh_alias(bh);
 		if (PageUptodate(page)) {
 			set_buffer_uptodate(bh);
 			continue;
@@ -2796,7 +2835,7 @@ int nobh_truncate_page(struct address_space *mapping,
 	struct buffer_head map_bh;
 	int err;
 
-	blocksize = 1 << inode->i_blkbits;
+	blocksize = i_blocksize(inode);
 	length = offset & (blocksize - 1);
 
 	/* Block boundary? Nothing to do */
@@ -2874,7 +2913,7 @@ int block_truncate_page(struct address_space *mapping,
 	struct buffer_head *bh;
 	int err;
 
-	blocksize = 1 << inode->i_blkbits;
+	blocksize = i_blocksize(inode);
 	length = offset & (blocksize - 1);
 
 	/* Block boundary? Nothing to do */
@@ -2986,7 +3025,7 @@ sector_t generic_block_bmap(struct address_space *mapping, sector_t block,
 	struct inode *inode = mapping->host;
 	tmp.b_state = 0;
 	tmp.b_blocknr = 0;
-	tmp.b_size = 1 << inode->i_blkbits;
+	tmp.b_size = i_blocksize(inode);
 	get_block(inode, block, &tmp, 0);
 	return tmp.b_blocknr;
 }
@@ -3052,7 +3091,7 @@ void guard_bio_eod(int op, struct bio *bio)
 }
 
 static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
-			 unsigned long bio_flags, struct writeback_control *wbc)
+			 struct writeback_control *wbc)
 {
 	struct bio *bio;
 
@@ -3087,7 +3126,6 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 
 	bio->bi_end_io = end_bio_bh_io_sync;
 	bio->bi_private = bh;
-	bio->bi_flags |= bio_flags;
 
 	/* Take care of bh's that straddle the end of the device */
 	guard_bio_eod(op, bio);
@@ -3102,16 +3140,9 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 	return 0;
 }
 
-int _submit_bh(int op, int op_flags, struct buffer_head *bh,
-	       unsigned long bio_flags)
+int submit_bh(int op, int op_flags, struct buffer_head *bh)
 {
-	return submit_bh_wbc(op, op_flags, bh, bio_flags, NULL);
-}
-EXPORT_SYMBOL_GPL(_submit_bh);
-
-int submit_bh(int op, int op_flags,  struct buffer_head *bh)
-{
-	return submit_bh_wbc(op, op_flags, bh, 0, NULL);
+	return submit_bh_wbc(op, op_flags, bh, NULL);
 }
 EXPORT_SYMBOL(submit_bh);
 

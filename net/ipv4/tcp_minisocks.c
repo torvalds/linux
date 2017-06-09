@@ -26,14 +26,9 @@
 #include <net/tcp.h>
 #include <net/inet_common.h>
 #include <net/xfrm.h>
+#include <net/busy_poll.h>
 
 int sysctl_tcp_abort_on_overflow __read_mostly;
-
-struct inet_timewait_death_row tcp_death_row = {
-	.sysctl_max_tw_buckets = NR_FILE * 2,
-	.hashinfo	= &tcp_hashinfo,
-};
-EXPORT_SYMBOL_GPL(tcp_death_row);
 
 static bool tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 {
@@ -106,7 +101,8 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		tcp_parse_options(skb, &tmp_opt, 0, NULL);
 
 		if (tmp_opt.saw_tstamp) {
-			tmp_opt.rcv_tsecr	-= tcptw->tw_ts_offset;
+			if (tmp_opt.rcv_tsecr)
+				tmp_opt.rcv_tsecr -= tcptw->tw_ts_offset;
 			tmp_opt.ts_recent	= tcptw->tw_ts_recent;
 			tmp_opt.ts_recent_stamp	= tcptw->tw_ts_recent_stamp;
 			paws_reject = tcp_paws_reject(&tmp_opt, th->rst);
@@ -153,12 +149,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 			tcptw->tw_ts_recent	  = tmp_opt.rcv_tsval;
 		}
 
-		if (tcp_death_row.sysctl_tw_recycle &&
-		    tcptw->tw_ts_recent_stamp &&
-		    tcp_tw_remember_stamp(tw))
-			inet_twsk_reschedule(tw, tw->tw_timeout);
-		else
-			inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
+		inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
 		return TCP_TW_ACK;
 	}
 
@@ -263,12 +254,9 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_timewait_sock *tw;
-	bool recycle_ok = false;
+	struct inet_timewait_death_row *tcp_death_row = &sock_net(sk)->ipv4.tcp_death_row;
 
-	if (tcp_death_row.sysctl_tw_recycle && tp->rx_opt.ts_recent_stamp)
-		recycle_ok = tcp_remember_stamp(sk);
-
-	tw = inet_twsk_alloc(sk, &tcp_death_row, state);
+	tw = inet_twsk_alloc(sk, tcp_death_row, state);
 
 	if (tw) {
 		struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
@@ -320,13 +308,9 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		if (timeo < rto)
 			timeo = rto;
 
-		if (recycle_ok) {
-			tw->tw_timeout = rto;
-		} else {
-			tw->tw_timeout = TCP_TIMEWAIT_LEN;
-			if (state == TCP_TIME_WAIT)
-				timeo = TCP_TIMEWAIT_LEN;
-		}
+		tw->tw_timeout = TCP_TIMEWAIT_LEN;
+		if (state == TCP_TIME_WAIT)
+			timeo = TCP_TIMEWAIT_LEN;
 
 		inet_twsk_schedule(tw, timeo);
 		/* Linkage updates. */
@@ -364,15 +348,12 @@ void tcp_openreq_init_rwin(struct request_sock *req,
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 	const struct tcp_sock *tp = tcp_sk(sk_listener);
-	u16 user_mss = READ_ONCE(tp->rx_opt.user_mss);
 	int full_space = tcp_full_space(sk_listener);
-	int mss = dst_metric_advmss(dst);
 	u32 window_clamp;
 	__u8 rcv_wscale;
+	int mss;
 
-	if (user_mss && user_mss < mss)
-		mss = user_mss;
-
+	mss = tcp_mss_clamp(tp, dst_metric_advmss(dst));
 	window_clamp = READ_ONCE(tp->window_clamp);
 	/* Set this up on the first call only */
 	req->rsk_window_clamp = window_clamp ? : dst_metric(dst, RTAX_WINDOW);
@@ -466,13 +447,13 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
 		minmax_reset(&newtp->rtt_min, tcp_time_stamp, ~0U);
 		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
+		newicsk->icsk_ack.lrcvtime = tcp_time_stamp;
 
 		newtp->packets_out = 0;
 		newtp->retrans_out = 0;
 		newtp->sacked_out = 0;
 		newtp->fackets_out = 0;
 		newtp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
-		tcp_enable_early_retrans(newtp);
 		newtp->tlp_high_seq = 0;
 		newtp->lsndtime = treq->snt_synack.stamp_jiffies;
 		newsk->sk_txhash = treq->txhash;
@@ -542,6 +523,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 			newicsk->icsk_ack.last_seg_size = skb->len - newtp->tcp_header_len;
 		newtp->rx_opt.mss_clamp = req->mss;
 		tcp_ecn_openreq_child(newtp, req);
+		newtp->fastopen_req = NULL;
 		newtp->fastopen_rsk = NULL;
 		newtp->syn_data_acked = 0;
 		newtp->rack.mstamp.v64 = 0;
@@ -818,6 +800,9 @@ int tcp_child_process(struct sock *parent, struct sock *child,
 {
 	int ret = 0;
 	int state = child->sk_state;
+
+	/* record NAPI ID of child */
+	sk_mark_napi_id(child, skb);
 
 	tcp_segs_in(tcp_sk(child), skb);
 	if (!sock_owned_by_user(child)) {

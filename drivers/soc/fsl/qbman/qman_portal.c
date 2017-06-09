@@ -30,6 +30,9 @@
 
 #include "qman_priv.h"
 
+struct qman_portal *qman_dma_portal;
+EXPORT_SYMBOL(qman_dma_portal);
+
 /* Enable portal interupts (as opposed to polling mode) */
 #define CONFIG_FSL_DPA_PIRQ_SLOW  1
 #define CONFIG_FSL_DPA_PIRQ_FAST  1
@@ -150,6 +153,10 @@ static struct qman_portal *init_pcfg(struct qm_portal_config *pcfg)
 		/* all assigned portals are initialized now */
 		qman_init_cgr_all();
 	}
+
+	if (!qman_dma_portal)
+		qman_dma_portal = p;
+
 	spin_unlock(&qman_lock);
 
 	dev_info(pcfg->dev, "Portal initialised, cpu %d\n", pcfg->cpu);
@@ -217,9 +224,9 @@ static int qman_portal_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct qm_portal_config *pcfg;
 	struct resource *addr_phys[2];
-	const u32 *channel;
 	void __iomem *va;
-	int irq, len, cpu;
+	int irq, cpu, err;
+	u32 val;
 
 	pcfg = devm_kmalloc(dev, sizeof(*pcfg), GFP_KERNEL);
 	if (!pcfg)
@@ -243,13 +250,13 @@ static int qman_portal_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	channel = of_get_property(node, "cell-index", &len);
-	if (!channel || (len != 4)) {
+	err = of_property_read_u32(node, "cell-index", &val);
+	if (err) {
 		dev_err(dev, "Can't get %s property 'cell-index'\n",
 			node->full_name);
-		return -ENXIO;
+		return err;
 	}
-	pcfg->channel = *channel;
+	pcfg->channel = val;
 	pcfg->cpu = -1;
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
@@ -259,15 +266,19 @@ static int qman_portal_probe(struct platform_device *pdev)
 	pcfg->irq = irq;
 
 	va = ioremap_prot(addr_phys[0]->start, resource_size(addr_phys[0]), 0);
-	if (!va)
+	if (!va) {
+		dev_err(dev, "ioremap::CE failed\n");
 		goto err_ioremap1;
+	}
 
 	pcfg->addr_virt[DPAA_PORTAL_CE] = va;
 
 	va = ioremap_prot(addr_phys[1]->start, resource_size(addr_phys[1]),
 			  _PAGE_GUARDED | _PAGE_NO_CACHE);
-	if (!va)
+	if (!va) {
+		dev_err(dev, "ioremap::CI failed\n");
 		goto err_ioremap2;
+	}
 
 	pcfg->addr_virt[DPAA_PORTAL_CI] = va;
 
@@ -285,8 +296,15 @@ static int qman_portal_probe(struct platform_device *pdev)
 	spin_unlock(&qman_lock);
 	pcfg->cpu = cpu;
 
-	if (!init_pcfg(pcfg))
-		goto err_ioremap2;
+	if (dma_set_mask(dev, DMA_BIT_MASK(40))) {
+		dev_err(dev, "dma_set_mask() failed\n");
+		goto err_portal_init;
+	}
+
+	if (!init_pcfg(pcfg)) {
+		dev_err(dev, "portal init failed\n");
+		goto err_portal_init;
+	}
 
 	/* clear irq affinity if assigned cpu is offline */
 	if (!cpu_online(cpu))
@@ -294,10 +312,11 @@ static int qman_portal_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_portal_init:
+	iounmap(pcfg->addr_virt[DPAA_PORTAL_CI]);
 err_ioremap2:
 	iounmap(pcfg->addr_virt[DPAA_PORTAL_CE]);
 err_ioremap1:
-	dev_err(dev, "ioremap failed\n");
 	return -ENXIO;
 }
 

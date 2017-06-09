@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -371,6 +371,7 @@ struct acpi_table_desc {
 	union acpi_name_union signature;
 	acpi_owner_id owner_id;
 	u8 flags;
+	u16 validation_count;
 };
 
 /* Masks for Flags field above */

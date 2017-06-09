@@ -19,6 +19,30 @@
 #include <uapi/linux/uuid.h>
 
 /*
+ * V1 (time-based) UUID definition [RFC 4122].
+ * - the timestamp is a 60-bit value, split 32/16/12, and goes in 100ns
+ *   increments since midnight 15th October 1582
+ *   - add AFS_UUID_TO_UNIX_TIME to convert unix time in 100ns units to UUID
+ *     time
+ * - the clock sequence is a 14-bit counter to avoid duplicate times
+ */
+struct uuid_v1 {
+	__be32		time_low;			/* low part of timestamp */
+	__be16		time_mid;			/* mid part of timestamp */
+	__be16		time_hi_and_version;		/* high part of timestamp and version  */
+#define UUID_TO_UNIX_TIME	0x01b21dd213814000ULL
+#define UUID_TIMEHI_MASK	0x0fff
+#define UUID_VERSION_TIME	0x1000	/* time-based UUID */
+#define UUID_VERSION_NAME	0x3000	/* name-based UUID */
+#define UUID_VERSION_RANDOM	0x4000	/* (pseudo-)random generated UUID */
+	u8		clock_seq_hi_and_reserved;	/* clock seq hi and variant */
+#define UUID_CLOCKHI_MASK	0x3f
+#define UUID_VARIANT_STD	0x80
+	u8		clock_seq_low;			/* clock seq low */
+	u8		node[6];			/* spatially unique node ID (MAC addr) */
+};
+
+/*
  * The length of a UUID string ("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
  * not including trailing NUL.
  */

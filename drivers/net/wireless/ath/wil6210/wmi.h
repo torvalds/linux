@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2006-2012 Wilocity
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -56,6 +56,9 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_PS_CONFIG		= 1,
 	WMI_FW_CAPABILITY_RF_SECTORS		= 2,
 	WMI_FW_CAPABILITY_MGMT_RETRY_LIMIT	= 3,
+	WMI_FW_CAPABILITY_DISABLE_AP_SME	= 4,
+	WMI_FW_CAPABILITY_WMI_ONLY		= 5,
+	WMI_FW_CAPABILITY_THERMAL_THROTTLING	= 7,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -140,8 +143,6 @@ enum wmi_command_id {
 	WMI_MAINTAIN_RESUME_CMDID			= 0x851,
 	WMI_RS_MGMT_CMDID				= 0x852,
 	WMI_RF_MGMT_CMDID				= 0x853,
-	WMI_THERMAL_THROTTLING_CTRL_CMDID		= 0x854,
-	WMI_THERMAL_THROTTLING_GET_STATUS_CMDID		= 0x855,
 	WMI_OTP_READ_CMDID				= 0x856,
 	WMI_OTP_WRITE_CMDID				= 0x857,
 	WMI_LED_CFG_CMDID				= 0x858,
@@ -185,8 +186,13 @@ enum wmi_command_id {
 	WMI_RS_CFG_CMDID				= 0x921,
 	WMI_GET_DETAILED_RS_RES_CMDID			= 0x922,
 	WMI_AOA_MEAS_CMDID				= 0x923,
+	WMI_BRP_SET_ANT_LIMIT_CMDID			= 0x924,
 	WMI_SET_MGMT_RETRY_LIMIT_CMDID			= 0x930,
 	WMI_GET_MGMT_RETRY_LIMIT_CMDID			= 0x931,
+	WMI_NEW_STA_CMDID				= 0x935,
+	WMI_DEL_STA_CMDID				= 0x936,
+	WMI_SET_THERMAL_THROTTLING_CFG_CMDID		= 0x940,
+	WMI_GET_THERMAL_THROTTLING_CFG_CMDID		= 0x941,
 	WMI_TOF_SESSION_START_CMDID			= 0x991,
 	WMI_TOF_GET_CAPABILITIES_CMDID			= 0x992,
 	WMI_TOF_SET_LCR_CMDID				= 0x993,
@@ -433,16 +439,6 @@ struct wmi_rf_mgmt_cmd {
 	__le32 rf_mgmt_type;
 } __packed;
 
-/* WMI_THERMAL_THROTTLING_CTRL_CMDID */
-#define THERMAL_THROTTLING_USE_DEFAULT_MAX_TXOP_LENGTH	(0xFFFFFFFF)
-
-/* WMI_THERMAL_THROTTLING_CTRL_CMDID */
-struct wmi_thermal_throttling_ctrl_cmd {
-	__le32 time_on_usec;
-	__le32 time_off_usec;
-	__le32 max_txop_length_usec;
-} __packed;
-
 /* WMI_RF_RX_TEST_CMDID */
 struct wmi_rf_rx_test_cmd {
 	__le32 sector;
@@ -543,7 +539,10 @@ struct wmi_pcp_start_cmd {
 	u8 pcp_max_assoc_sta;
 	u8 hidden_ssid;
 	u8 is_go;
-	u8 reserved0[7];
+	u8 reserved0[5];
+	/* A-BFT length override if non-0 */
+	u8 abft_len;
+	u8 disable_ap_sme;
 	u8 network_type;
 	u8 channel;
 	u8 disable_sec_offload;
@@ -902,6 +901,51 @@ struct wmi_set_mgmt_retry_limit_cmd {
 	u8 reserved[3];
 } __packed;
 
+/* Zones: HIGH, MAX, CRITICAL */
+#define WMI_NUM_OF_TT_ZONES	(3)
+
+struct wmi_tt_zone_limits {
+	/* Above this temperature this zone is active */
+	u8 temperature_high;
+	/* Below this temperature the adjacent lower zone is active */
+	u8 temperature_low;
+	u8 reserved[2];
+} __packed;
+
+/* Struct used for both configuration and status commands of thermal
+ * throttling
+ */
+struct wmi_tt_data {
+	/* Enable/Disable TT algorithm for baseband */
+	u8 bb_enabled;
+	u8 reserved0[3];
+	/* Define zones for baseband */
+	struct wmi_tt_zone_limits bb_zones[WMI_NUM_OF_TT_ZONES];
+	/* Enable/Disable TT algorithm for radio */
+	u8 rf_enabled;
+	u8 reserved1[3];
+	/* Define zones for all radio chips */
+	struct wmi_tt_zone_limits rf_zones[WMI_NUM_OF_TT_ZONES];
+} __packed;
+
+/* WMI_SET_THERMAL_THROTTLING_CFG_CMDID */
+struct wmi_set_thermal_throttling_cfg_cmd {
+	/* Command data */
+	struct wmi_tt_data tt_data;
+} __packed;
+
+/* WMI_NEW_STA_CMDID */
+struct wmi_new_sta_cmd {
+	u8 dst_mac[WMI_MAC_LEN];
+	u8 aid;
+} __packed;
+
+/* WMI_DEL_STA_CMDID */
+struct wmi_del_sta_cmd {
+	u8 dst_mac[WMI_MAC_LEN];
+	__le16 disconnect_reason;
+} __packed;
+
 enum wmi_tof_burst_duration {
 	WMI_TOF_BURST_DURATION_250_USEC		= 2,
 	WMI_TOF_BURST_DURATION_500_USEC		= 3,
@@ -1020,7 +1064,6 @@ enum wmi_event_id {
 	WMI_BF_RXSS_MGMT_DONE_EVENTID			= 0x1839,
 	WMI_RS_MGMT_DONE_EVENTID			= 0x1852,
 	WMI_RF_MGMT_STATUS_EVENTID			= 0x1853,
-	WMI_THERMAL_THROTTLING_STATUS_EVENTID		= 0x1855,
 	WMI_BF_SM_MGMT_DONE_EVENTID			= 0x1838,
 	WMI_RX_MGMT_PACKET_EVENTID			= 0x1840,
 	WMI_TX_MGMT_PACKET_EVENTID			= 0x1841,
@@ -1067,8 +1110,11 @@ enum wmi_event_id {
 	WMI_RS_CFG_DONE_EVENTID				= 0x1921,
 	WMI_GET_DETAILED_RS_RES_EVENTID			= 0x1922,
 	WMI_AOA_MEAS_EVENTID				= 0x1923,
+	WMI_BRP_SET_ANT_LIMIT_EVENTID			= 0x1924,
 	WMI_SET_MGMT_RETRY_LIMIT_EVENTID		= 0x1930,
 	WMI_GET_MGMT_RETRY_LIMIT_EVENTID		= 0x1931,
+	WMI_SET_THERMAL_THROTTLING_CFG_EVENTID		= 0x1940,
+	WMI_GET_THERMAL_THROTTLING_CFG_EVENTID		= 0x1941,
 	WMI_TOF_SESSION_END_EVENTID			= 0x1991,
 	WMI_TOF_GET_CAPABILITIES_EVENTID		= 0x1992,
 	WMI_TOF_SET_LCR_EVENTID				= 0x1993,
@@ -1110,13 +1156,6 @@ enum wmi_rf_status {
 /* WMI_RF_MGMT_STATUS_EVENTID */
 struct wmi_rf_mgmt_status_event {
 	__le32 rf_status;
-} __packed;
-
-/* WMI_THERMAL_THROTTLING_STATUS_EVENTID */
-struct wmi_thermal_throttling_status_event {
-	__le32 time_on_usec;
-	__le32 time_off_usec;
-	__le32 max_txop_length_usec;
 } __packed;
 
 /* WMI_GET_STATUS_DONE_EVENTID */
@@ -1287,12 +1326,13 @@ struct wmi_connect_event {
 	u8 assoc_req_len;
 	u8 assoc_resp_len;
 	u8 cid;
-	u8 reserved2[3];
+	u8 aid;
+	u8 reserved2[2];
 	/* not in use */
 	u8 assoc_info[0];
 } __packed;
 
-/* WMI_DISCONNECT_EVENTID */
+/* disconnect_reason */
 enum wmi_disconnect_reason {
 	WMI_DIS_REASON_NO_NETWORK_AVAIL		= 0x01,
 	/* bmiss */
@@ -1310,6 +1350,7 @@ enum wmi_disconnect_reason {
 	WMI_DIS_REASON_IBSS_MERGE		= 0x0E,
 };
 
+/* WMI_DISCONNECT_EVENTID */
 struct wmi_disconnect_event {
 	/* reason code, see 802.11 spec. */
 	__le16 protocol_reason_status;
@@ -1759,6 +1800,42 @@ struct wmi_get_detailed_rs_res_event {
 	u8 reserved[3];
 } __packed;
 
+/* BRP antenna limit mode */
+enum wmi_brp_ant_limit_mode {
+	/* Disable BRP force antenna limit */
+	WMI_BRP_ANT_LIMIT_MODE_DISABLE		= 0x00,
+	/* Define maximal antennas limit. Only effective antennas will be
+	 * actually used
+	 */
+	WMI_BRP_ANT_LIMIT_MODE_EFFECTIVE	= 0x01,
+	/* Force a specific number of antennas */
+	WMI_BRP_ANT_LIMIT_MODE_FORCE		= 0x02,
+	/* number of BRP antenna limit modes */
+	WMI_BRP_ANT_LIMIT_MODES_NUM		= 0x03,
+};
+
+/* WMI_BRP_SET_ANT_LIMIT_CMDID */
+struct wmi_brp_set_ant_limit_cmd {
+	/* connection id */
+	u8 cid;
+	/* enum wmi_brp_ant_limit_mode */
+	u8 limit_mode;
+	/* antenna limit count, 1-27
+	 * disable_mode - ignored
+	 * effective_mode - upper limit to number of antennas to be used
+	 * force_mode - exact number of antennas to be used
+	 */
+	u8 ant_limit;
+	u8 reserved;
+} __packed;
+
+/* WMI_BRP_SET_ANT_LIMIT_EVENTID */
+struct wmi_brp_set_ant_limit_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
 /* broadcast connection ID */
 #define WMI_LINK_MAINTAIN_CFG_CID_BROADCAST	(0xFFFFFFFF)
 
@@ -2145,6 +2222,19 @@ struct wmi_tof_get_capabilities_event {
 	__le16 max_ftm_burst_duration;
 	/* AOA supported types */
 	__le32 aoa_supported_types;
+} __packed;
+
+/* WMI_SET_THERMAL_THROTTLING_CFG_EVENTID */
+struct wmi_set_thermal_throttling_cfg_event {
+	/* wmi_fw_status */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_GET_THERMAL_THROTTLING_CFG_EVENTID */
+struct wmi_get_thermal_throttling_cfg_event {
+	/* Status data */
+	struct wmi_tt_data tt_data;
 } __packed;
 
 enum wmi_tof_session_end_status {

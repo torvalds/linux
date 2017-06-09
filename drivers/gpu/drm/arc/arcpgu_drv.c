@@ -135,8 +135,7 @@ static int arcpgu_load(struct drm_device *drm)
 	drm_kms_helper_poll_init(drm);
 
 	arcpgu->fbdev = drm_fbdev_cma_init(drm, 16,
-					      drm->mode_config.num_crtc,
-					      drm->mode_config.num_connector);
+					   drm->mode_config.num_connector);
 	if (IS_ERR(arcpgu->fbdev)) {
 		ret = PTR_ERR(arcpgu->fbdev);
 		arcpgu->fbdev = NULL;
@@ -176,7 +175,6 @@ static struct drm_driver arcpgu_drm_driver = {
 	.dumb_create = drm_gem_cma_dumb_create,
 	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,

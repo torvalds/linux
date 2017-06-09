@@ -77,7 +77,6 @@
 #define THIN_SUPERBLOCK_MAGIC 27022010
 #define THIN_SUPERBLOCK_LOCATION 0
 #define THIN_VERSION 2
-#define THIN_METADATA_CACHE_SIZE 64
 #define SECTOR_TO_BLOCK_SHIFT 3
 
 /*
@@ -485,11 +484,11 @@ static int __write_initial_superblock(struct dm_pool_metadata *pmd)
 	if (r < 0)
 		return r;
 
-	r = save_sm_roots(pmd);
+	r = dm_tm_pre_commit(pmd->tm);
 	if (r < 0)
 		return r;
 
-	r = dm_tm_pre_commit(pmd->tm);
+	r = save_sm_roots(pmd);
 	if (r < 0)
 		return r;
 
@@ -686,7 +685,6 @@ static int __create_persistent_data_objects(struct dm_pool_metadata *pmd, bool f
 	int r;
 
 	pmd->bm = dm_block_manager_create(pmd->bdev, THIN_METADATA_BLOCK_SIZE << SECTOR_SHIFT,
-					  THIN_METADATA_CACHE_SIZE,
 					  THIN_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(pmd->bm)) {
 		DMERR("could not create block manager");

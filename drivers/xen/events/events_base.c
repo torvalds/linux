@@ -1312,6 +1312,9 @@ static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 	if (!VALID_EVTCHN(evtchn))
 		return -1;
 
+	if (!xen_support_evtchn_rebind())
+		return -1;
+
 	/* Send future instances of this interrupt to other vcpu. */
 	bind_vcpu.port = evtchn;
 	bind_vcpu.vcpu = xen_vcpu_nr(tcpu);
@@ -1646,14 +1649,20 @@ void xen_callback_vector(void)
 	int rc;
 	uint64_t callback_via;
 
-	callback_via = HVM_CALLBACK_VECTOR(HYPERVISOR_CALLBACK_VECTOR);
-	rc = xen_set_callback_via(callback_via);
-	BUG_ON(rc);
-	pr_info("Xen HVM callback vector for event delivery is enabled\n");
-	/* in the restore case the vector has already been allocated */
-	if (!test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors))
-		alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
-				xen_hvm_callback_vector);
+	if (xen_have_vector_callback) {
+		callback_via = HVM_CALLBACK_VECTOR(HYPERVISOR_CALLBACK_VECTOR);
+		rc = xen_set_callback_via(callback_via);
+		if (rc) {
+			pr_err("Request for Xen HVM callback vector failed\n");
+			xen_have_vector_callback = 0;
+			return;
+		}
+		pr_info("Xen HVM callback vector for event delivery is enabled\n");
+		/* in the restore case the vector has already been allocated */
+		if (!test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors))
+			alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
+					xen_hvm_callback_vector);
+	}
 }
 #else
 void xen_callback_vector(void) {}
@@ -1704,7 +1713,6 @@ void __init xen_init_IRQ(void)
 		pirq_eoi_map = (void *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
 		eoi_gmfn.gmfn = virt_to_gfn(pirq_eoi_map);
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_pirq_eoi_gmfn_v2, &eoi_gmfn);
-		/* TODO: No PVH support for PIRQ EOI */
 		if (rc != 0) {
 			free_page((unsigned long) pirq_eoi_map);
 			pirq_eoi_map = NULL;

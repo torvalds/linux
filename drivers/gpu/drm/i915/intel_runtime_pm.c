@@ -49,19 +49,6 @@
  * present for a given platform.
  */
 
-#define for_each_power_well(i, power_well, domain_mask, power_domains)	\
-	for (i = 0;							\
-	     i < (power_domains)->power_well_count &&			\
-		 ((power_well) = &(power_domains)->power_wells[i]);	\
-	     i++)							\
-		for_each_if ((power_well)->domains & (domain_mask))
-
-#define for_each_power_well_rev(i, power_well, domain_mask, power_domains) \
-	for (i = (power_domains)->power_well_count - 1;			 \
-	     i >= 0 && ((power_well) = &(power_domains)->power_wells[i]);\
-	     i--)							 \
-		for_each_if ((power_well)->domains & (domain_mask))
-
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 				    int power_well_id);
 
@@ -106,6 +93,16 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "PORT_DDI_D_LANES";
 	case POWER_DOMAIN_PORT_DDI_E_LANES:
 		return "PORT_DDI_E_LANES";
+	case POWER_DOMAIN_PORT_DDI_A_IO:
+		return "PORT_DDI_A_IO";
+	case POWER_DOMAIN_PORT_DDI_B_IO:
+		return "PORT_DDI_B_IO";
+	case POWER_DOMAIN_PORT_DDI_C_IO:
+		return "PORT_DDI_C_IO";
+	case POWER_DOMAIN_PORT_DDI_D_IO:
+		return "PORT_DDI_D_IO";
+	case POWER_DOMAIN_PORT_DDI_E_IO:
+		return "PORT_DDI_E_IO";
 	case POWER_DOMAIN_PORT_DSI:
 		return "PORT_DSI";
 	case POWER_DOMAIN_PORT_CRT:
@@ -198,19 +195,15 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				      enum intel_display_power_domain domain)
 {
-	struct i915_power_domains *power_domains;
 	struct i915_power_well *power_well;
 	bool is_enabled;
-	int i;
 
 	if (dev_priv->pm.suspended)
 		return false;
 
-	power_domains = &dev_priv->power_domains;
-
 	is_enabled = true;
 
-	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
+	for_each_power_domain_well_rev(dev_priv, power_well, BIT_ULL(domain)) {
 		if (power_well->always_on)
 			continue;
 
@@ -385,73 +378,121 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 }
 
 #define SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_TRANSCODER_A) |		\
-	BIT(POWER_DOMAIN_PIPE_B) |			\
-	BIT(POWER_DOMAIN_TRANSCODER_B) |		\
-	BIT(POWER_DOMAIN_PIPE_C) |			\
-	BIT(POWER_DOMAIN_TRANSCODER_C) |		\
-	BIT(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_D_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_E_LANES) |		\
-	BIT(POWER_DOMAIN_AUX_B) |                       \
-	BIT(POWER_DOMAIN_AUX_C) |			\
-	BIT(POWER_DOMAIN_AUX_D) |			\
-	BIT(POWER_DOMAIN_AUDIO) |			\
-	BIT(POWER_DOMAIN_VGA) |				\
-	BIT(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_DDI_A_E_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_E_LANES) |		\
-	BIT(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_DDI_B_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
-	BIT(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_DDI_C_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
-	BIT(POWER_DOMAIN_INIT))
-#define SKL_DISPLAY_DDI_D_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_PORT_DDI_D_LANES) |		\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_A) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_B) |			\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_B) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_C) |			\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_C) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_D_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_E_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |                       \
+	BIT_ULL(POWER_DOMAIN_AUX_C) |			\
+	BIT_ULL(POWER_DOMAIN_AUX_D) |			\
+	BIT_ULL(POWER_DOMAIN_AUDIO) |			\
+	BIT_ULL(POWER_DOMAIN_VGA) |				\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define SKL_DISPLAY_DDI_IO_A_E_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_A_IO) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_E_IO) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define SKL_DISPLAY_DDI_IO_B_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_IO) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define SKL_DISPLAY_DDI_IO_C_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_IO) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define SKL_DISPLAY_DDI_IO_D_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_D_IO) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
 #define SKL_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
-	BIT(POWER_DOMAIN_MODESET) |			\
-	BIT(POWER_DOMAIN_AUX_A) |			\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_MODESET) |			\
+	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_TRANSCODER_A) |		\
-	BIT(POWER_DOMAIN_PIPE_B) |			\
-	BIT(POWER_DOMAIN_TRANSCODER_B) |		\
-	BIT(POWER_DOMAIN_PIPE_C) |			\
-	BIT(POWER_DOMAIN_TRANSCODER_C) |		\
-	BIT(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
-	BIT(POWER_DOMAIN_AUX_B) |			\
-	BIT(POWER_DOMAIN_AUX_C) |			\
-	BIT(POWER_DOMAIN_AUDIO) |			\
-	BIT(POWER_DOMAIN_VGA) |				\
-	BIT(POWER_DOMAIN_GMBUS) |			\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_A) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_B) |			\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_B) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_C) |			\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_C) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |			\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |			\
+	BIT_ULL(POWER_DOMAIN_AUDIO) |			\
+	BIT_ULL(POWER_DOMAIN_VGA) |				\
+	BIT_ULL(POWER_DOMAIN_GMBUS) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
 #define BXT_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
-	BIT(POWER_DOMAIN_MODESET) |			\
-	BIT(POWER_DOMAIN_AUX_A) |			\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_MODESET) |			\
+	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
 #define BXT_DPIO_CMN_A_POWER_DOMAINS (			\
-	BIT(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
-	BIT(POWER_DOMAIN_AUX_A) |			\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
 #define BXT_DPIO_CMN_BC_POWER_DOMAINS (			\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
-	BIT(POWER_DOMAIN_AUX_B) |			\
-	BIT(POWER_DOMAIN_AUX_C) |			\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |			\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
+
+#define GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_A) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_B) |			\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_B) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_C) |			\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_C) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |                       \
+	BIT_ULL(POWER_DOMAIN_AUX_C) |			\
+	BIT_ULL(POWER_DOMAIN_AUDIO) |			\
+	BIT_ULL(POWER_DOMAIN_VGA) |				\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_DDI_IO_A_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_A_IO))
+#define GLK_DISPLAY_DDI_IO_B_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_IO))
+#define GLK_DISPLAY_DDI_IO_C_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_IO))
+#define GLK_DPIO_CMN_A_POWER_DOMAINS (			\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define GLK_DPIO_CMN_B_POWER_DOMAINS (			\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define GLK_DPIO_CMN_C_POWER_DOMAINS (			\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_AUX_A_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_AUX_A) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_AUX_B_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_AUX_C_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_DC_OFF_POWER_DOMAINS (		\
+	GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT_ULL(POWER_DOMAIN_MODESET) |			\
+	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 {
@@ -530,7 +571,7 @@ static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 	u32 mask;
 
 	mask = DC_STATE_EN_UPTO_DC5;
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		mask |= DC_STATE_EN_DC9;
 	else
 		mask |= DC_STATE_EN_UPTO_DC6;
@@ -681,7 +722,7 @@ gen9_sanitize_power_well_requests(struct drm_i915_private *dev_priv,
 	 * other request bits to be set, so WARN for those.
 	 */
 	if (power_well_id == SKL_DISP_PW_1 ||
-	    ((IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
+	    (IS_GEN9_BC(dev_priv) &&
 	     power_well_id == SKL_DISP_PW_MISC_IO))
 		DRM_DEBUG_DRIVER("Clearing auxiliary requests for %s forced on "
 				 "by DMC\n", power_well->name);
@@ -694,7 +735,7 @@ gen9_sanitize_power_well_requests(struct drm_i915_private *dev_priv,
 }
 
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
-			struct i915_power_well *power_well, bool enable)
+			       struct i915_power_well *power_well, bool enable)
 {
 	uint32_t tmp, fuse_status;
 	uint32_t req_mask, state_mask;
@@ -720,11 +761,14 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			return;
 		}
 		break;
-	case SKL_DISP_PW_DDI_A_E:
+	case SKL_DISP_PW_MISC_IO:
+	case SKL_DISP_PW_DDI_A_E: /* GLK_DISP_PW_DDI_A */
 	case SKL_DISP_PW_DDI_B:
 	case SKL_DISP_PW_DDI_C:
 	case SKL_DISP_PW_DDI_D:
-	case SKL_DISP_PW_MISC_IO:
+	case GLK_DISP_PW_AUX_A:
+	case GLK_DISP_PW_AUX_B:
+	case GLK_DISP_PW_AUX_C:
 		break;
 	default:
 		WARN(1, "Unknown power well %lu\n", power_well->id);
@@ -793,14 +837,14 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
-	hsw_set_power_well(dev_priv, power_well, power_well->count > 0);
-
-	/*
-	 * We're taking over the BIOS, so clear any requests made by it since
-	 * the driver is in charge now.
-	 */
-	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE_REQUEST)
+	/* Take over the request bit if set by BIOS. */
+	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE_REQUEST) {
+		if (!(I915_READ(HSW_PWR_WELL_DRIVER) &
+		      HSW_PWR_WELL_ENABLE_REQUEST))
+			I915_WRITE(HSW_PWR_WELL_DRIVER,
+				   HSW_PWR_WELL_ENABLE_REQUEST);
 		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
+	}
 }
 
 static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
@@ -827,10 +871,17 @@ static bool skl_power_well_enabled(struct drm_i915_private *dev_priv,
 static void skl_power_well_sync_hw(struct drm_i915_private *dev_priv,
 				struct i915_power_well *power_well)
 {
-	skl_set_power_well(dev_priv, power_well, power_well->count > 0);
+	uint32_t mask = SKL_POWER_WELL_REQ(power_well->id);
+	uint32_t bios_req = I915_READ(HSW_PWR_WELL_BIOS);
 
-	/* Clear any request made by BIOS as driver is taking over */
-	I915_WRITE(HSW_PWR_WELL_BIOS, 0);
+	/* Take over the request bit if set by BIOS. */
+	if (bios_req & mask) {
+		uint32_t drv_req = I915_READ(HSW_PWR_WELL_DRIVER);
+
+		if (!(drv_req & mask))
+			I915_WRITE(HSW_PWR_WELL_DRIVER, drv_req | mask);
+		I915_WRITE(HSW_PWR_WELL_BIOS, bios_req & ~mask);
+	}
 }
 
 static void skl_power_well_enable(struct drm_i915_private *dev_priv,
@@ -863,16 +914,6 @@ static bool bxt_dpio_cmn_power_well_enabled(struct drm_i915_private *dev_priv,
 	return bxt_ddi_phy_is_enabled(dev_priv, power_well->data);
 }
 
-static void bxt_dpio_cmn_power_well_sync_hw(struct drm_i915_private *dev_priv,
-					    struct i915_power_well *power_well)
-{
-	if (power_well->count > 0)
-		bxt_dpio_cmn_power_well_enable(dev_priv, power_well);
-	else
-		bxt_dpio_cmn_power_well_disable(dev_priv, power_well);
-}
-
-
 static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *power_well;
@@ -884,6 +925,12 @@ static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 	power_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_BC);
 	if (power_well->count > 0)
 		bxt_ddi_phy_verify_state(dev_priv, power_well->data);
+
+	if (IS_GEMINILAKE(dev_priv)) {
+		power_well = lookup_power_well(dev_priv, GLK_DPIO_CMN_C);
+		if (power_well->count > 0)
+			bxt_ddi_phy_verify_state(dev_priv, power_well->data);
+	}
 }
 
 static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
@@ -904,14 +951,16 @@ static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
 static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 					  struct i915_power_well *power_well)
 {
+	struct intel_cdclk_state cdclk_state = {};
+
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
-	WARN_ON(dev_priv->cdclk_freq !=
-		dev_priv->display.get_display_clock_speed(dev_priv));
+	dev_priv->display.get_cdclk(dev_priv, &cdclk_state);
+	WARN_ON(!intel_cdclk_state_compare(&dev_priv->cdclk.hw, &cdclk_state));
 
 	gen9_assert_dbuf_enabled(dev_priv);
 
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		bxt_verify_ddi_phy_power_wells(dev_priv);
 }
 
@@ -927,13 +976,9 @@ static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 		gen9_enable_dc5(dev_priv);
 }
 
-static void gen9_dc_off_power_well_sync_hw(struct drm_i915_private *dev_priv,
-					   struct i915_power_well *power_well)
+static void i9xx_power_well_sync_hw_noop(struct drm_i915_private *dev_priv,
+					 struct i915_power_well *power_well)
 {
-	if (power_well->count > 0)
-		gen9_dc_off_power_well_enable(dev_priv, power_well);
-	else
-		gen9_dc_off_power_well_disable(dev_priv, power_well);
 }
 
 static void i9xx_always_on_power_well_noop(struct drm_i915_private *dev_priv,
@@ -981,12 +1026,6 @@ static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 
 out:
 	mutex_unlock(&dev_priv->rps.hw_lock);
-}
-
-static void vlv_power_well_sync_hw(struct drm_i915_private *dev_priv,
-				   struct i915_power_well *power_well)
-{
-	vlv_set_power_well(dev_priv, power_well, power_well->count > 0);
 }
 
 static void vlv_power_well_enable(struct drm_i915_private *dev_priv,
@@ -1039,7 +1078,18 @@ static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 
 static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
+	u32 val;
+
+	/*
+	 * On driver load, a pipe may be active and driving a DSI display.
+	 * Preserve DPOUNIT_CLOCK_GATE_DISABLE to avoid the pipe getting stuck
+	 * (and never recovering) in this case. intel_dsi_post_disable() will
+	 * clear it when we turn off the display.
+	 */
+	val = I915_READ(DSPCLK_GATE_D);
+	val &= DPOUNIT_CLOCK_GATE_DISABLE;
+	val |= VRHUNIT_CLOCK_GATE_DISABLE;
+	I915_WRITE(DSPCLK_GATE_D, val);
 
 	/*
 	 * Disable trickle feed and enable pnd deadline calculation
@@ -1178,7 +1228,7 @@ static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	vlv_set_power_well(dev_priv, power_well, false);
 }
 
-#define POWER_DOMAIN_MASK (BIT(POWER_DOMAIN_NUM) - 1)
+#define POWER_DOMAIN_MASK (GENMASK_ULL(POWER_DOMAIN_NUM - 1, 0))
 
 static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_priv,
 						 int power_well_id)
@@ -1588,14 +1638,6 @@ out:
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
-static void chv_pipe_power_well_sync_hw(struct drm_i915_private *dev_priv,
-					struct i915_power_well *power_well)
-{
-	WARN_ON_ONCE(power_well->id != PIPE_A);
-
-	chv_set_pipe_power_well(dev_priv, power_well, power_well->count > 0);
-}
-
 static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
@@ -1622,9 +1664,8 @@ __intel_display_power_get_domain(struct drm_i915_private *dev_priv,
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *power_well;
-	int i;
 
-	for_each_power_well(i, power_well, BIT(domain), power_domains)
+	for_each_power_domain_well(dev_priv, power_well, BIT_ULL(domain))
 		intel_power_well_get(dev_priv, power_well);
 
 	power_domains->domain_use_count[domain]++;
@@ -1708,7 +1749,6 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 {
 	struct i915_power_domains *power_domains;
 	struct i915_power_well *power_well;
-	int i;
 
 	power_domains = &dev_priv->power_domains;
 
@@ -1719,7 +1759,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	     intel_display_power_domain_str(domain));
 	power_domains->domain_use_count[domain]--;
 
-	for_each_power_well_rev(i, power_well, BIT(domain), power_domains)
+	for_each_power_domain_well_rev(dev_priv, power_well, BIT_ULL(domain))
 		intel_power_well_put(dev_priv, power_well);
 
 	mutex_unlock(&power_domains->lock);
@@ -1728,134 +1768,134 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 }
 
 #define HSW_DISPLAY_POWER_DOMAINS (			\
-	BIT(POWER_DOMAIN_PIPE_B) |			\
-	BIT(POWER_DOMAIN_PIPE_C) |			\
-	BIT(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_TRANSCODER_A) |		\
-	BIT(POWER_DOMAIN_TRANSCODER_B) |		\
-	BIT(POWER_DOMAIN_TRANSCODER_C) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_D_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_CRT) | /* DDI E */	\
-	BIT(POWER_DOMAIN_VGA) |				\
-	BIT(POWER_DOMAIN_AUDIO) |			\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PIPE_B) |			\
+	BIT_ULL(POWER_DOMAIN_PIPE_C) |			\
+	BIT_ULL(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_A) |		\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_B) |		\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_C) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_D_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_CRT) | /* DDI E */	\
+	BIT_ULL(POWER_DOMAIN_VGA) |				\
+	BIT_ULL(POWER_DOMAIN_AUDIO) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define BDW_DISPLAY_POWER_DOMAINS (			\
-	BIT(POWER_DOMAIN_PIPE_B) |			\
-	BIT(POWER_DOMAIN_PIPE_C) |			\
-	BIT(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_TRANSCODER_A) |		\
-	BIT(POWER_DOMAIN_TRANSCODER_B) |		\
-	BIT(POWER_DOMAIN_TRANSCODER_C) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_D_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_CRT) | /* DDI E */	\
-	BIT(POWER_DOMAIN_VGA) |				\
-	BIT(POWER_DOMAIN_AUDIO) |			\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PIPE_B) |			\
+	BIT_ULL(POWER_DOMAIN_PIPE_C) |			\
+	BIT_ULL(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_A) |		\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_B) |		\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_C) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_D_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_CRT) | /* DDI E */	\
+	BIT_ULL(POWER_DOMAIN_VGA) |				\
+	BIT_ULL(POWER_DOMAIN_AUDIO) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define VLV_DISPLAY_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_PIPE_A) |		\
-	BIT(POWER_DOMAIN_PIPE_B) |		\
-	BIT(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |	\
-	BIT(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |	\
-	BIT(POWER_DOMAIN_TRANSCODER_A) |	\
-	BIT(POWER_DOMAIN_TRANSCODER_B) |	\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
-	BIT(POWER_DOMAIN_PORT_DSI) |		\
-	BIT(POWER_DOMAIN_PORT_CRT) |		\
-	BIT(POWER_DOMAIN_VGA) |			\
-	BIT(POWER_DOMAIN_AUDIO) |		\
-	BIT(POWER_DOMAIN_AUX_B) |		\
-	BIT(POWER_DOMAIN_AUX_C) |		\
-	BIT(POWER_DOMAIN_GMBUS) |		\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PIPE_A) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_B) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |	\
+	BIT_ULL(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |	\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_A) |	\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_B) |	\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_PORT_DSI) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_CRT) |		\
+	BIT_ULL(POWER_DOMAIN_VGA) |			\
+	BIT_ULL(POWER_DOMAIN_AUDIO) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |		\
+	BIT_ULL(POWER_DOMAIN_GMBUS) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_CMN_BC_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
-	BIT(POWER_DOMAIN_PORT_CRT) |		\
-	BIT(POWER_DOMAIN_AUX_B) |		\
-	BIT(POWER_DOMAIN_AUX_C) |		\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_PORT_CRT) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_B_LANES_01_POWER_DOMAINS (	\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
-	BIT(POWER_DOMAIN_AUX_B) |		\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_B_LANES_23_POWER_DOMAINS (	\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
-	BIT(POWER_DOMAIN_AUX_B) |		\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS (	\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
-	BIT(POWER_DOMAIN_AUX_C) |		\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS (	\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
-	BIT(POWER_DOMAIN_AUX_C) |		\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define CHV_DISPLAY_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_PIPE_A) |		\
-	BIT(POWER_DOMAIN_PIPE_B) |		\
-	BIT(POWER_DOMAIN_PIPE_C) |		\
-	BIT(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |	\
-	BIT(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |	\
-	BIT(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |	\
-	BIT(POWER_DOMAIN_TRANSCODER_A) |	\
-	BIT(POWER_DOMAIN_TRANSCODER_B) |	\
-	BIT(POWER_DOMAIN_TRANSCODER_C) |	\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
-	BIT(POWER_DOMAIN_PORT_DDI_D_LANES) |	\
-	BIT(POWER_DOMAIN_PORT_DSI) |		\
-	BIT(POWER_DOMAIN_VGA) |			\
-	BIT(POWER_DOMAIN_AUDIO) |		\
-	BIT(POWER_DOMAIN_AUX_B) |		\
-	BIT(POWER_DOMAIN_AUX_C) |		\
-	BIT(POWER_DOMAIN_AUX_D) |		\
-	BIT(POWER_DOMAIN_GMBUS) |		\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PIPE_A) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_B) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_C) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |	\
+	BIT_ULL(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |	\
+	BIT_ULL(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |	\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_A) |	\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_B) |	\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_C) |	\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_D_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_PORT_DSI) |		\
+	BIT_ULL(POWER_DOMAIN_VGA) |			\
+	BIT_ULL(POWER_DOMAIN_AUDIO) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_D) |		\
+	BIT_ULL(POWER_DOMAIN_GMBUS) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define CHV_DPIO_CMN_BC_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
-	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
-	BIT(POWER_DOMAIN_AUX_B) |		\
-	BIT(POWER_DOMAIN_AUX_C) |		\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_AUX_B) |		\
+	BIT_ULL(POWER_DOMAIN_AUX_C) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define CHV_DPIO_CMN_D_POWER_DOMAINS (		\
-	BIT(POWER_DOMAIN_PORT_DDI_D_LANES) |	\
-	BIT(POWER_DOMAIN_AUX_D) |		\
-	BIT(POWER_DOMAIN_INIT))
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_D_LANES) |	\
+	BIT_ULL(POWER_DOMAIN_AUX_D) |		\
+	BIT_ULL(POWER_DOMAIN_INIT))
 
 static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
-	.sync_hw = i9xx_always_on_power_well_noop,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = i9xx_always_on_power_well_noop,
 	.disable = i9xx_always_on_power_well_noop,
 	.is_enabled = i9xx_always_on_power_well_enabled,
 };
 
 static const struct i915_power_well_ops chv_pipe_power_well_ops = {
-	.sync_hw = chv_pipe_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = chv_pipe_power_well_enable,
 	.disable = chv_pipe_power_well_disable,
 	.is_enabled = chv_pipe_power_well_enabled,
 };
 
 static const struct i915_power_well_ops chv_dpio_cmn_power_well_ops = {
-	.sync_hw = vlv_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = chv_dpio_cmn_power_well_enable,
 	.disable = chv_dpio_cmn_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
@@ -1885,14 +1925,14 @@ static const struct i915_power_well_ops skl_power_well_ops = {
 };
 
 static const struct i915_power_well_ops gen9_dc_off_power_well_ops = {
-	.sync_hw = gen9_dc_off_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = gen9_dc_off_power_well_enable,
 	.disable = gen9_dc_off_power_well_disable,
 	.is_enabled = gen9_dc_off_power_well_enabled,
 };
 
 static const struct i915_power_well_ops bxt_dpio_cmn_power_well_ops = {
-	.sync_hw = bxt_dpio_cmn_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = bxt_dpio_cmn_power_well_enable,
 	.disable = bxt_dpio_cmn_power_well_disable,
 	.is_enabled = bxt_dpio_cmn_power_well_enabled,
@@ -1927,21 +1967,21 @@ static struct i915_power_well bdw_power_wells[] = {
 };
 
 static const struct i915_power_well_ops vlv_display_power_well_ops = {
-	.sync_hw = vlv_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = vlv_display_power_well_enable,
 	.disable = vlv_display_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
 };
 
 static const struct i915_power_well_ops vlv_dpio_cmn_power_well_ops = {
-	.sync_hw = vlv_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = vlv_dpio_cmn_power_well_enable,
 	.disable = vlv_dpio_cmn_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
 };
 
 static const struct i915_power_well_ops vlv_dpio_power_well_ops = {
-	.sync_hw = vlv_power_well_sync_hw,
+	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = vlv_power_well_enable,
 	.disable = vlv_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
@@ -2084,26 +2124,26 @@ static struct i915_power_well skl_power_wells[] = {
 		.id = SKL_DISP_PW_2,
 	},
 	{
-		.name = "DDI A/E power well",
-		.domains = SKL_DISPLAY_DDI_A_E_POWER_DOMAINS,
+		.name = "DDI A/E IO power well",
+		.domains = SKL_DISPLAY_DDI_IO_A_E_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_DDI_A_E,
 	},
 	{
-		.name = "DDI B power well",
-		.domains = SKL_DISPLAY_DDI_B_POWER_DOMAINS,
+		.name = "DDI B IO power well",
+		.domains = SKL_DISPLAY_DDI_IO_B_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_DDI_B,
 	},
 	{
-		.name = "DDI C power well",
-		.domains = SKL_DISPLAY_DDI_C_POWER_DOMAINS,
+		.name = "DDI C IO power well",
+		.domains = SKL_DISPLAY_DDI_IO_C_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_DDI_C,
 	},
 	{
-		.name = "DDI D power well",
-		.domains = SKL_DISPLAY_DDI_D_POWER_DOMAINS,
+		.name = "DDI D IO power well",
+		.domains = SKL_DISPLAY_DDI_IO_D_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_DDI_D,
 	},
@@ -2150,6 +2190,91 @@ static struct i915_power_well bxt_power_wells[] = {
 	},
 };
 
+static struct i915_power_well glk_power_wells[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = POWER_DOMAIN_MASK,
+		.ops = &i9xx_always_on_power_well_ops,
+	},
+	{
+		.name = "power well 1",
+		/* Handled by the DMC firmware */
+		.domains = 0,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_1,
+	},
+	{
+		.name = "DC off",
+		.domains = GLK_DISPLAY_DC_OFF_POWER_DOMAINS,
+		.ops = &gen9_dc_off_power_well_ops,
+		.id = SKL_DISP_PW_DC_OFF,
+	},
+	{
+		.name = "power well 2",
+		.domains = GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_2,
+	},
+	{
+		.name = "dpio-common-a",
+		.domains = GLK_DPIO_CMN_A_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.id = BXT_DPIO_CMN_A,
+		.data = DPIO_PHY1,
+	},
+	{
+		.name = "dpio-common-b",
+		.domains = GLK_DPIO_CMN_B_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.id = BXT_DPIO_CMN_BC,
+		.data = DPIO_PHY0,
+	},
+	{
+		.name = "dpio-common-c",
+		.domains = GLK_DPIO_CMN_C_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.id = GLK_DPIO_CMN_C,
+		.data = DPIO_PHY2,
+	},
+	{
+		.name = "AUX A",
+		.domains = GLK_DISPLAY_AUX_A_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_AUX_A,
+	},
+	{
+		.name = "AUX B",
+		.domains = GLK_DISPLAY_AUX_B_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_AUX_B,
+	},
+	{
+		.name = "AUX C",
+		.domains = GLK_DISPLAY_AUX_C_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_AUX_C,
+	},
+	{
+		.name = "DDI A IO power well",
+		.domains = GLK_DISPLAY_DDI_IO_A_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_DDI_A,
+	},
+	{
+		.name = "DDI B IO power well",
+		.domains = GLK_DISPLAY_DDI_IO_B_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_DDI_B,
+	},
+	{
+		.name = "DDI C IO power well",
+		.domains = GLK_DISPLAY_DDI_IO_C_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_DDI_C,
+	},
+};
+
 static int
 sanitize_disable_power_well_option(const struct drm_i915_private *dev_priv,
 				   int disable_power_well)
@@ -2167,10 +2292,10 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	int requested_dc;
 	int max_dc;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv)) {
 		max_dc = 2;
 		mask = 0;
-	} else if (IS_BROXTON(dev_priv)) {
+	} else if (IS_GEN9_LP(dev_priv)) {
 		max_dc = 1;
 		/*
 		 * DC9 has a separate HW flow from the rest of the DC states,
@@ -2230,7 +2355,7 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	dev_priv->csr.allowed_dc_mask = get_allowed_dc_mask(dev_priv,
 							    i915.enable_dc);
 
-	BUILD_BUG_ON(POWER_DOMAIN_NUM > 31);
+	BUILD_BUG_ON(POWER_DOMAIN_NUM > 64);
 
 	mutex_init(&power_domains->lock);
 
@@ -2242,10 +2367,12 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		set_power_wells(power_domains, hsw_power_wells);
 	} else if (IS_BROADWELL(dev_priv)) {
 		set_power_wells(power_domains, bdw_power_wells);
-	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	} else if (IS_GEN9_BC(dev_priv)) {
 		set_power_wells(power_domains, skl_power_wells);
 	} else if (IS_BROXTON(dev_priv)) {
 		set_power_wells(power_domains, bxt_power_wells);
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		set_power_wells(power_domains, glk_power_wells);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		set_power_wells(power_domains, chv_power_wells);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
@@ -2296,10 +2423,9 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *power_well;
-	int i;
 
 	mutex_lock(&power_domains->lock);
-	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
+	for_each_power_well(dev_priv, power_well) {
 		power_well->ops->sync_hw(dev_priv, power_well);
 		power_well->hw_enabled = power_well->ops->is_enabled(dev_priv,
 								     power_well);
@@ -2564,7 +2690,10 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
  * @resume: Called from resume code paths or not
  *
  * This function initializes the hardware power domain state and enables all
- * power domains using intel_display_set_init_power().
+ * power wells belonging to the INIT power domain. Power wells in other
+ * domains (and not in the INIT domain) are referenced or disabled during the
+ * modeset state HW readout. After that the reference count of each power well
+ * must match its HW enabled state, see intel_power_domains_verify_state().
  */
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 {
@@ -2572,9 +2701,9 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 
 	power_domains->initializing = true;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv)) {
 		skl_display_core_init(dev_priv, resume);
-	} else if (IS_BROXTON(dev_priv)) {
+	} else if (IS_GEN9_LP(dev_priv)) {
 		bxt_display_core_init(dev_priv, resume);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		mutex_lock(&power_domains->lock);
@@ -2611,10 +2740,90 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
 	if (!i915.disable_power_well)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+	if (IS_GEN9_BC(dev_priv))
 		skl_display_core_uninit(dev_priv);
-	else if (IS_BROXTON(dev_priv))
+	else if (IS_GEN9_LP(dev_priv))
 		bxt_display_core_uninit(dev_priv);
+}
+
+static void intel_power_domains_dump_info(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
+
+	for_each_power_well(dev_priv, power_well) {
+		enum intel_display_power_domain domain;
+
+		DRM_DEBUG_DRIVER("%-25s %d\n",
+				 power_well->name, power_well->count);
+
+		for_each_power_domain(domain, power_well->domains)
+			DRM_DEBUG_DRIVER("  %-23s %d\n",
+					 intel_display_power_domain_str(domain),
+					 power_domains->domain_use_count[domain]);
+	}
+}
+
+/**
+ * intel_power_domains_verify_state - verify the HW/SW state for all power wells
+ * @dev_priv: i915 device instance
+ *
+ * Verify if the reference count of each power well matches its HW enabled
+ * state and the total refcount of the domains it belongs to. This must be
+ * called after modeset HW state sanitization, which is responsible for
+ * acquiring reference counts for any power wells in use and disabling the
+ * ones left on by BIOS but not required by any active output.
+ */
+void intel_power_domains_verify_state(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
+	bool dump_domain_info;
+
+	mutex_lock(&power_domains->lock);
+
+	dump_domain_info = false;
+	for_each_power_well(dev_priv, power_well) {
+		enum intel_display_power_domain domain;
+		int domains_count;
+		bool enabled;
+
+		/*
+		 * Power wells not belonging to any domain (like the MISC_IO
+		 * and PW1 power wells) are under FW control, so ignore them,
+		 * since their state can change asynchronously.
+		 */
+		if (!power_well->domains)
+			continue;
+
+		enabled = power_well->ops->is_enabled(dev_priv, power_well);
+		if ((power_well->count || power_well->always_on) != enabled)
+			DRM_ERROR("power well %s state mismatch (refcount %d/enabled %d)",
+				  power_well->name, power_well->count, enabled);
+
+		domains_count = 0;
+		for_each_power_domain(domain, power_well->domains)
+			domains_count += power_domains->domain_use_count[domain];
+
+		if (power_well->count != domains_count) {
+			DRM_ERROR("power well %s refcount/domain refcount mismatch "
+				  "(refcount %d/domains refcount %d)\n",
+				  power_well->name, power_well->count,
+				  domains_count);
+			dump_domain_info = true;
+		}
+	}
+
+	if (dump_domain_info) {
+		static bool dumped;
+
+		if (!dumped) {
+			intel_power_domains_dump_info(dev_priv);
+			dumped = true;
+		}
+	}
+
+	mutex_unlock(&power_domains->lock);
 }
 
 /**
@@ -2631,8 +2840,10 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct device *kdev = &pdev->dev;
+	int ret;
 
-	pm_runtime_get_sync(kdev);
+	ret = pm_runtime_get_sync(kdev);
+	WARN_ONCE(ret < 0, "pm_runtime_get_sync() failed: %d\n", ret);
 
 	atomic_inc(&dev_priv->pm.wakeref_count);
 	assert_rpm_wakelock_held(dev_priv);
@@ -2662,7 +2873,8 @@ bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
 		 * function, since the power state is undefined. This applies
 		 * atm to the late/early system suspend/resume handlers.
 		 */
-		WARN_ON_ONCE(ret < 0);
+		WARN_ONCE(ret < 0,
+			  "pm_runtime_get_if_in_use() failed: %d\n", ret);
 		if (ret <= 0)
 			return false;
 	}
@@ -2746,8 +2958,11 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	 * platforms without RPM support.
 	 */
 	if (!HAS_RUNTIME_PM(dev_priv)) {
+		int ret;
+
 		pm_runtime_dont_use_autosuspend(kdev);
-		pm_runtime_get_sync(kdev);
+		ret = pm_runtime_get_sync(kdev);
+		WARN(ret < 0, "pm_runtime_get_sync() failed: %d\n", ret);
 	} else {
 		pm_runtime_use_autosuspend(kdev);
 	}

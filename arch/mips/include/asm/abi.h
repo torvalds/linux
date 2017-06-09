@@ -9,6 +9,8 @@
 #ifndef _ASM_ABI_H
 #define _ASM_ABI_H
 
+#include <linux/signal_types.h>
+
 #include <asm/signal.h>
 #include <asm/siginfo.h>
 #include <asm/vdso.h>

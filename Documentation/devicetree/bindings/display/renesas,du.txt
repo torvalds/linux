@@ -36,6 +36,9 @@ Required Properties:
       When supplied they must be named "dclkin.x" with "x" being the input
       clock numerical index.
 
+  - vsps: A list of phandles to the VSP nodes that handle the memory
+    interfaces for the DU channels.
+
 Required nodes:
 
 The connections to the DU output video ports are modeled using the OF graph

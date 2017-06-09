@@ -35,6 +35,7 @@
 #include <rdma/ib_user_verbs.h>
 #include <linux/netdevice.h>
 #include <linux/iommu.h>
+#include <linux/pci.h>
 #include <net/addrconf.h>
 #include <linux/qed/qede_roce.h>
 #include <linux/qed/qed_chain.h>
@@ -170,7 +171,7 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.get_port_immutable = qedr_port_immutable;
 	dev->ibdev.get_netdev = qedr_get_netdev;
 
-	dev->ibdev.dma_device = &dev->pdev->dev;
+	dev->ibdev.dev.parent = &dev->pdev->dev;
 
 	dev->ibdev.get_link_layer = qedr_link_layer;
 	dev->ibdev.get_dev_fw_str = qedr_get_dev_fw_str;
@@ -340,43 +341,58 @@ static void qedr_remove_sysfiles(struct qedr_dev *dev)
 static void qedr_pci_set_atomic(struct qedr_dev *dev, struct pci_dev *pdev)
 {
 	struct pci_dev *bridge;
-	u32 val;
-
-	dev->atomic_cap = IB_ATOMIC_NONE;
+	u32 ctl2, cap2;
+	u16 flags;
+	int rc;
 
 	bridge = pdev->bus->self;
 	if (!bridge)
-		return;
+		goto disable;
 
-	/* Check whether we are connected directly or via a switch */
-	while (bridge && bridge->bus->parent) {
-		DP_DEBUG(dev, QEDR_MSG_INIT,
-			 "Device is not connected directly to root. bridge->bus->number=%d primary=%d\n",
-			 bridge->bus->number, bridge->bus->primary);
-		/* Need to check Atomic Op Routing Supported all the way to
-		 * root complex.
-		 */
-		pcie_capability_read_dword(bridge, PCI_EXP_DEVCAP2, &val);
-		if (!(val & PCI_EXP_DEVCAP2_ATOMIC_ROUTE)) {
-			pcie_capability_clear_word(pdev,
-						   PCI_EXP_DEVCTL2,
-						   PCI_EXP_DEVCTL2_ATOMIC_REQ);
-			return;
-		}
+	/* Check atomic routing support all the way to root complex */
+	while (bridge->bus->parent) {
+		rc = pcie_capability_read_word(bridge, PCI_EXP_FLAGS, &flags);
+		if (rc || ((flags & PCI_EXP_FLAGS_VERS) < 2))
+			goto disable;
+
+		rc = pcie_capability_read_dword(bridge, PCI_EXP_DEVCAP2, &cap2);
+		if (rc)
+			goto disable;
+
+		rc = pcie_capability_read_dword(bridge, PCI_EXP_DEVCTL2, &ctl2);
+		if (rc)
+			goto disable;
+
+		if (!(cap2 & PCI_EXP_DEVCAP2_ATOMIC_ROUTE) ||
+		    (ctl2 & PCI_EXP_DEVCTL2_ATOMIC_EGRESS_BLOCK))
+			goto disable;
 		bridge = bridge->bus->parent->self;
 	}
-	bridge = pdev->bus->self;
 
-	/* according to bridge capability */
-	pcie_capability_read_dword(bridge, PCI_EXP_DEVCAP2, &val);
-	if (val & PCI_EXP_DEVCAP2_ATOMIC_COMP64) {
-		pcie_capability_set_word(pdev, PCI_EXP_DEVCTL2,
-					 PCI_EXP_DEVCTL2_ATOMIC_REQ);
-		dev->atomic_cap = IB_ATOMIC_GLOB;
-	} else {
-		pcie_capability_clear_word(pdev, PCI_EXP_DEVCTL2,
-					   PCI_EXP_DEVCTL2_ATOMIC_REQ);
-	}
+	rc = pcie_capability_read_word(bridge, PCI_EXP_FLAGS, &flags);
+	if (rc || ((flags & PCI_EXP_FLAGS_VERS) < 2))
+		goto disable;
+
+	rc = pcie_capability_read_dword(bridge, PCI_EXP_DEVCAP2, &cap2);
+	if (rc || !(cap2 & PCI_EXP_DEVCAP2_ATOMIC_COMP64))
+		goto disable;
+
+	/* Set atomic operations */
+	pcie_capability_set_word(pdev, PCI_EXP_DEVCTL2,
+				 PCI_EXP_DEVCTL2_ATOMIC_REQ);
+	dev->atomic_cap = IB_ATOMIC_GLOB;
+
+	DP_DEBUG(dev, QEDR_MSG_INIT, "Atomic capability enabled\n");
+
+	return;
+
+disable:
+	pcie_capability_clear_word(pdev, PCI_EXP_DEVCTL2,
+				   PCI_EXP_DEVCTL2_ATOMIC_REQ);
+	dev->atomic_cap = IB_ATOMIC_NONE;
+
+	DP_DEBUG(dev, QEDR_MSG_INIT, "Atomic capability disabled\n");
+
 }
 
 static const struct qed_rdma_ops *qed_ops;
@@ -423,14 +439,21 @@ static irqreturn_t qedr_irq_handler(int irq, void *handle)
 
 		cq->arm_flags = 0;
 
-		if (cq->ibcq.comp_handler)
+		if (!cq->destroyed && cq->ibcq.comp_handler)
 			(*cq->ibcq.comp_handler)
 				(&cq->ibcq, cq->ibcq.cq_context);
+
+		/* The CQ's CNQ notification counter is checked before
+		 * destroying the CQ in a busy-wait loop that waits for all of
+		 * the CQ's CNQ interrupts to be processed. It is increased
+		 * here, only after the completion handler, to ensure that the
+		 * the handler is not running when the CQ is destroyed.
+		 */
+		cq->cnq_notif++;
 
 		sw_comp_cons = qed_chain_get_cons_idx(&cnq->pbl);
 
 		cnq->n_comp++;
-
 	}
 
 	qed_ops->rdma_cnq_prod_update(cnq->dev->rdma_ctx, cnq->index,
@@ -576,8 +599,7 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 	return 0;
 }
 
-void qedr_unaffiliated_event(void *context,
-			     u8 event_code)
+void qedr_unaffiliated_event(void *context, u8 event_code)
 {
 	pr_err("unaffiliated event not implemented yet\n");
 }
@@ -588,9 +610,8 @@ void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 #define EVENT_TYPE_CQ		1
 #define EVENT_TYPE_QP		2
 	struct qedr_dev *dev = (struct qedr_dev *)context;
-	union event_ring_data *data = fw_handle;
-	u64 roce_handle64 = ((u64)data->roce_handle.hi << 32) +
-			    data->roce_handle.lo;
+	struct regpair *async_handle = (struct regpair *)fw_handle;
+	u64 roce_handle64 = ((u64) async_handle->hi << 32) + async_handle->lo;
 	u8 event_type = EVENT_TYPE_NOT_DEFINED;
 	struct ib_event event;
 	struct ib_cq *ibcq;
@@ -792,6 +813,9 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 		if (device_create_file(&dev->ibdev.dev, qedr_attributes[i]))
 			goto sysfs_err;
 
+	if (!test_and_set_bit(QEDR_ENET_STATE_BIT, &dev->enet_state))
+		qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_PORT_ACTIVE);
+
 	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr driver loaded successfully\n");
 	return dev;
 
@@ -824,17 +848,22 @@ static void qedr_remove(struct qedr_dev *dev)
 	ib_dealloc_device(&dev->ibdev);
 }
 
-static int qedr_close(struct qedr_dev *dev)
+static void qedr_close(struct qedr_dev *dev)
 {
-	qedr_ib_dispatch_event(dev, 1, IB_EVENT_PORT_ERR);
-
-	return 0;
+	if (test_and_clear_bit(QEDR_ENET_STATE_BIT, &dev->enet_state))
+		qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_PORT_ERR);
 }
 
 static void qedr_shutdown(struct qedr_dev *dev)
 {
 	qedr_close(dev);
 	qedr_remove(dev);
+}
+
+static void qedr_open(struct qedr_dev *dev)
+{
+	if (!test_and_set_bit(QEDR_ENET_STATE_BIT, &dev->enet_state))
+		qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_PORT_ACTIVE);
 }
 
 static void qedr_mac_address_change(struct qedr_dev *dev)
@@ -863,7 +892,7 @@ static void qedr_mac_address_change(struct qedr_dev *dev)
 
 	ether_addr_copy(dev->gsi_ll2_mac_address, dev->ndev->dev_addr);
 
-	qedr_ib_dispatch_event(dev, 1, IB_EVENT_GID_CHANGE);
+	qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_GID_CHANGE);
 
 	if (rc)
 		DP_ERR(dev, "Error updating mac filter\n");
@@ -877,7 +906,7 @@ static void qedr_notify(struct qedr_dev *dev, enum qede_roce_event event)
 {
 	switch (event) {
 	case QEDE_UP:
-		qedr_ib_dispatch_event(dev, 1, IB_EVENT_PORT_ACTIVE);
+		qedr_open(dev);
 		break;
 	case QEDE_DOWN:
 		qedr_close(dev);

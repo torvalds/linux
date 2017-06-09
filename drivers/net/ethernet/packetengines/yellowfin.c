@@ -100,7 +100,7 @@ static int gx_fix;
 #include <linux/ethtool.h>
 #include <linux/crc32.h>
 #include <linux/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/unaligned.h>
 #include <asm/io.h>

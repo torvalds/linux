@@ -28,7 +28,6 @@
 #include <linux/of_address.h>
 #include <linux/regmap.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 #define EDAC_MOD_STR			"xgene_edac"
@@ -1597,7 +1596,7 @@ static void xgene_edac_pa_report(struct edac_device_ctl_info *edac_dev)
 	reg = readl(ctx->dev_csr + IOBPATRANSERRINTSTS);
 	if (!reg)
 		goto chk_iob_axi0;
-	dev_err(edac_dev->dev, "IOB procesing agent (PA) transaction error\n");
+	dev_err(edac_dev->dev, "IOB processing agent (PA) transaction error\n");
 	if (reg & IOBPA_RDATA_CORRUPT_MASK)
 		dev_err(edac_dev->dev, "IOB PA read data RAM error\n");
 	if (reg & IOBPA_M_RDATA_CORRUPT_MASK)

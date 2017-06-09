@@ -774,10 +774,8 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	}
 
 	ret = nand_scan_ident(mtd, max_chips, NULL);
-	if (ret) {
-		ret = -ENODEV;
+	if (ret)
 		goto err_res;
-	}
 
 	host->buffer = dmam_alloc_coherent(dev, mtd->writesize + mtd->oobsize,
 		&host->dma_buffer, GFP_KERNEL);

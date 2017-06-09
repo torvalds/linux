@@ -50,11 +50,13 @@ struct record_opts {
 	bool	     running_time;
 	bool	     full_auxtrace;
 	bool	     auxtrace_snapshot_mode;
+	bool	     record_namespaces;
 	bool	     record_switch_events;
 	bool	     all_kernel;
 	bool	     all_user;
 	bool	     tail_synthesize;
 	bool	     overwrite;
+	bool	     ignore_missing_thread;
 	unsigned int freq;
 	unsigned int mmap_pages;
 	unsigned int auxtrace_mmap_pages;

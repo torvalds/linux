@@ -119,23 +119,23 @@ static void sw_i2c_scl(unsigned char value)
 	unsigned long gpio_data;
 	unsigned long gpio_dir;
 
-	gpio_dir = PEEK32(sw_i2c_clk_gpio_data_dir_reg);
+	gpio_dir = peek32(sw_i2c_clk_gpio_data_dir_reg);
 	if (value) {    /* High */
 		/*
 		 * Set direction as input. This will automatically
 		 * pull the signal up.
 		 */
 		gpio_dir &= ~(1 << sw_i2c_clk_gpio);
-		POKE32(sw_i2c_clk_gpio_data_dir_reg, gpio_dir);
+		poke32(sw_i2c_clk_gpio_data_dir_reg, gpio_dir);
 	} else {        /* Low */
 		/* Set the signal down */
-		gpio_data = PEEK32(sw_i2c_clk_gpio_data_reg);
+		gpio_data = peek32(sw_i2c_clk_gpio_data_reg);
 		gpio_data &= ~(1 << sw_i2c_clk_gpio);
-		POKE32(sw_i2c_clk_gpio_data_reg, gpio_data);
+		poke32(sw_i2c_clk_gpio_data_reg, gpio_data);
 
 		/* Set direction as output */
 		gpio_dir |= (1 << sw_i2c_clk_gpio);
-		POKE32(sw_i2c_clk_gpio_data_dir_reg, gpio_dir);
+		poke32(sw_i2c_clk_gpio_data_dir_reg, gpio_dir);
 	}
 }
 
@@ -156,23 +156,23 @@ static void sw_i2c_sda(unsigned char value)
 	unsigned long gpio_data;
 	unsigned long gpio_dir;
 
-	gpio_dir = PEEK32(sw_i2c_data_gpio_data_dir_reg);
+	gpio_dir = peek32(sw_i2c_data_gpio_data_dir_reg);
 	if (value) {    /* High */
 		/*
 		 * Set direction as input. This will automatically
 		 * pull the signal up.
 		 */
 		gpio_dir &= ~(1 << sw_i2c_data_gpio);
-		POKE32(sw_i2c_data_gpio_data_dir_reg, gpio_dir);
+		poke32(sw_i2c_data_gpio_data_dir_reg, gpio_dir);
 	} else {        /* Low */
 		/* Set the signal down */
-		gpio_data = PEEK32(sw_i2c_data_gpio_data_reg);
+		gpio_data = peek32(sw_i2c_data_gpio_data_reg);
 		gpio_data &= ~(1 << sw_i2c_data_gpio);
-		POKE32(sw_i2c_data_gpio_data_reg, gpio_data);
+		poke32(sw_i2c_data_gpio_data_reg, gpio_data);
 
 		/* Set direction as output */
 		gpio_dir |= (1 << sw_i2c_data_gpio);
-		POKE32(sw_i2c_data_gpio_data_dir_reg, gpio_dir);
+		poke32(sw_i2c_data_gpio_data_dir_reg, gpio_dir);
 	}
 }
 
@@ -189,14 +189,14 @@ static unsigned char sw_i2c_read_sda(void)
 	unsigned long dir_mask = 1 << sw_i2c_data_gpio;
 
 	/* Make sure that the direction is input (High) */
-	gpio_dir = PEEK32(sw_i2c_data_gpio_data_dir_reg);
+	gpio_dir = peek32(sw_i2c_data_gpio_data_dir_reg);
 	if ((gpio_dir & dir_mask) != ~dir_mask) {
 		gpio_dir &= ~(1 << sw_i2c_data_gpio);
-		POKE32(sw_i2c_data_gpio_data_dir_reg, gpio_dir);
+		poke32(sw_i2c_data_gpio_data_dir_reg, gpio_dir);
 	}
 
 	/* Now read the SDA line */
-	gpio_data = PEEK32(sw_i2c_data_gpio_data_reg);
+	gpio_data = peek32(sw_i2c_data_gpio_data_reg);
 	if (gpio_data & (1 << sw_i2c_data_gpio))
 		return 1;
 	else
@@ -422,10 +422,10 @@ long sm750_sw_i2c_init(
 	sw_i2c_data_gpio = data_gpio;
 
 	/* Enable the GPIO pins for the i2c Clock and Data (GPIO MUX) */
-	POKE32(sw_i2c_clk_gpio_mux_reg,
-	       PEEK32(sw_i2c_clk_gpio_mux_reg) & ~(1 << sw_i2c_clk_gpio));
-	POKE32(sw_i2c_data_gpio_mux_reg,
-	       PEEK32(sw_i2c_data_gpio_mux_reg) & ~(1 << sw_i2c_data_gpio));
+	poke32(sw_i2c_clk_gpio_mux_reg,
+	       peek32(sw_i2c_clk_gpio_mux_reg) & ~(1 << sw_i2c_clk_gpio));
+	poke32(sw_i2c_data_gpio_mux_reg,
+	       peek32(sw_i2c_data_gpio_mux_reg) & ~(1 << sw_i2c_data_gpio));
 
 	/* Enable GPIO power */
 	sm750_enable_gpio(1);

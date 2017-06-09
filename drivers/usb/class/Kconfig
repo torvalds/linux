@@ -12,7 +12,7 @@ config USB_ACM
 	  Please read <file:Documentation/usb/acm.txt> for details.
 
 	  If your modem only reports "Cls=ff(vend.)" in the descriptors in
-	  /proc/bus/usb/devices, then your modem will not work with this
+	  /sys/kernel/debug/usb/devices, then your modem will not work with this
 	  driver.
 
 	  To compile this driver as a module, choose M here: the

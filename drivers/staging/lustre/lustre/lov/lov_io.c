@@ -424,21 +424,23 @@ static int lov_io_iter_init(const struct lu_env *env,
 
 		end = lov_offset_mod(end, 1);
 		sub = lov_sub_get(env, lio, stripe);
-		if (!IS_ERR(sub)) {
-			lov_io_sub_inherit(sub->sub_io, lio, stripe,
-					   start, end);
-			rc = cl_io_iter_init(sub->sub_env, sub->sub_io);
-			lov_sub_put(sub);
-			CDEBUG(D_VFSTRACE, "shrink: %d [%llu, %llu)\n",
-			       stripe, start, end);
-		} else {
+		if (IS_ERR(sub)) {
 			rc = PTR_ERR(sub);
+			break;
 		}
 
-		if (!rc)
-			list_add_tail(&sub->sub_linkage, &lio->lis_active);
-		else
+		lov_io_sub_inherit(sub->sub_io, lio, stripe, start, end);
+		rc = cl_io_iter_init(sub->sub_env, sub->sub_io);
+		if (rc)
+			cl_io_iter_fini(sub->sub_env, sub->sub_io);
+		lov_sub_put(sub);
+		if (rc)
 			break;
+
+		CDEBUG(D_VFSTRACE, "shrink: %d [%llu, %llu)\n",
+		       stripe, start, end);
+
+		list_add_tail(&sub->sub_linkage, &lio->lis_active);
 	}
 	return rc;
 }
@@ -1056,9 +1058,12 @@ int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
 		 * - in setattr, for truncate
 		 */
 		/* the truncate is for size > 0 so triggers a restore */
-		if (cl_io_is_trunc(io))
+		if (cl_io_is_trunc(io)) {
 			io->ci_restore_needed = 1;
-		result = -ENODATA;
+			result = -ENODATA;
+		} else {
+			result = 1;
+		}
 		break;
 	case CIT_READ:
 	case CIT_WRITE:

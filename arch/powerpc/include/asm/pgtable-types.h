@@ -66,4 +66,11 @@ static inline bool pte_xchg(pte_t *ptep, pte_t old, pte_t new)
 }
 #endif
 
+typedef struct { unsigned long pd; } hugepd_t;
+#define __hugepd(x) ((hugepd_t) { (x) })
+static inline unsigned long hpd_val(hugepd_t x)
+{
+	return x.pd;
+}
+
 #endif /* _ASM_POWERPC_PGTABLE_TYPES_H */

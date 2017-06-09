@@ -121,7 +121,7 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 
 	hi_fbdev->fb = hibmc_framebuffer_init(priv->dev, &mode_cmd, gobj);
 	if (IS_ERR(hi_fbdev->fb)) {
-		ret = PTR_ERR(info);
+		ret = PTR_ERR(hi_fbdev->fb);
 		DRM_ERROR("failed to initialize framebuffer: %d\n", ret);
 		goto out_release_fbi;
 	}
@@ -135,7 +135,7 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	info->fbops = &hibmc_drm_fb_ops;
 
 	drm_fb_helper_fill_fix(info, hi_fbdev->fb->fb.pitches[0],
-			       hi_fbdev->fb->fb.depth);
+			       hi_fbdev->fb->fb.format->depth);
 	drm_fb_helper_fill_var(info, &priv->fbdev->helper, sizes->fb_width,
 			       sizes->fb_height);
 
@@ -147,7 +147,6 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	return 0;
 
 out_release_fbi:
-	drm_fb_helper_release_fbi(helper);
 	ret1 = ttm_bo_reserve(&bo->bo, true, false, NULL);
 	if (ret1) {
 		DRM_ERROR("failed to rsv ttm_bo when release fbi: %d\n", ret1);
@@ -170,7 +169,6 @@ static void hibmc_fbdev_destroy(struct hibmc_fbdev *fbdev)
 	struct drm_fb_helper *fbh = &fbdev->helper;
 
 	drm_fb_helper_unregister_fbi(fbh);
-	drm_fb_helper_release_fbi(fbh);
 
 	drm_fb_helper_fini(fbh);
 
@@ -200,8 +198,7 @@ int hibmc_fbdev_init(struct hibmc_drm_private *priv)
 			      &hibmc_fbdev_helper_funcs);
 
 	/* Now just one crtc and one channel */
-	ret = drm_fb_helper_init(priv->dev,
-				 &hifbdev->helper, 1, 1);
+	ret = drm_fb_helper_init(priv->dev, &hifbdev->helper, 1);
 	if (ret) {
 		DRM_ERROR("failed to initialize fb helper: %d\n", ret);
 		return ret;

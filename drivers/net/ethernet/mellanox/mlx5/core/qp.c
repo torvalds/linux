@@ -143,95 +143,6 @@ void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type)
 	mlx5_core_put_rsc(common);
 }
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-void mlx5_eq_pagefault(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe)
-{
-	struct mlx5_eqe_page_fault *pf_eqe = &eqe->data.page_fault;
-	int qpn = be32_to_cpu(pf_eqe->flags_qpn) & MLX5_QPN_MASK;
-	struct mlx5_core_rsc_common *common = mlx5_get_rsc(dev, qpn);
-	struct mlx5_core_qp *qp =
-		container_of(common, struct mlx5_core_qp, common);
-	struct mlx5_pagefault pfault;
-
-	if (!qp) {
-		mlx5_core_warn(dev, "ODP event for non-existent QP %06x\n",
-			       qpn);
-		return;
-	}
-
-	pfault.event_subtype = eqe->sub_type;
-	pfault.flags = (be32_to_cpu(pf_eqe->flags_qpn) >> MLX5_QPN_BITS) &
-		(MLX5_PFAULT_REQUESTOR | MLX5_PFAULT_WRITE | MLX5_PFAULT_RDMA);
-	pfault.bytes_committed = be32_to_cpu(
-		pf_eqe->bytes_committed);
-
-	mlx5_core_dbg(dev,
-		      "PAGE_FAULT: subtype: 0x%02x, flags: 0x%02x,\n",
-		      eqe->sub_type, pfault.flags);
-
-	switch (eqe->sub_type) {
-	case MLX5_PFAULT_SUBTYPE_RDMA:
-		/* RDMA based event */
-		pfault.rdma.r_key =
-			be32_to_cpu(pf_eqe->rdma.r_key);
-		pfault.rdma.packet_size =
-			be16_to_cpu(pf_eqe->rdma.packet_length);
-		pfault.rdma.rdma_op_len =
-			be32_to_cpu(pf_eqe->rdma.rdma_op_len);
-		pfault.rdma.rdma_va =
-			be64_to_cpu(pf_eqe->rdma.rdma_va);
-		mlx5_core_dbg(dev,
-			      "PAGE_FAULT: qpn: 0x%06x, r_key: 0x%08x,\n",
-			      qpn, pfault.rdma.r_key);
-		mlx5_core_dbg(dev,
-			      "PAGE_FAULT: rdma_op_len: 0x%08x,\n",
-			      pfault.rdma.rdma_op_len);
-		mlx5_core_dbg(dev,
-			      "PAGE_FAULT: rdma_va: 0x%016llx,\n",
-			      pfault.rdma.rdma_va);
-		mlx5_core_dbg(dev,
-			      "PAGE_FAULT: bytes_committed: 0x%06x\n",
-			      pfault.bytes_committed);
-		break;
-
-	case MLX5_PFAULT_SUBTYPE_WQE:
-		/* WQE based event */
-		pfault.wqe.wqe_index =
-			be16_to_cpu(pf_eqe->wqe.wqe_index);
-		pfault.wqe.packet_size =
-			be16_to_cpu(pf_eqe->wqe.packet_length);
-		mlx5_core_dbg(dev,
-			      "PAGE_FAULT: qpn: 0x%06x, wqe_index: 0x%04x,\n",
-			      qpn, pfault.wqe.wqe_index);
-		mlx5_core_dbg(dev,
-			      "PAGE_FAULT: bytes_committed: 0x%06x\n",
-			      pfault.bytes_committed);
-		break;
-
-	default:
-		mlx5_core_warn(dev,
-			       "Unsupported page fault event sub-type: 0x%02hhx, QP %06x\n",
-			       eqe->sub_type, qpn);
-		/* Unsupported page faults should still be resolved by the
-		 * page fault handler
-		 */
-	}
-
-	if (qp->pfault_handler) {
-		qp->pfault_handler(qp, &pfault);
-	} else {
-		mlx5_core_err(dev,
-			      "ODP event for QP %08x, without a fault handler in QP\n",
-			      qpn);
-		/* Page fault will remain unresolved. QP will hang until it is
-		 * destroyed
-		 */
-	}
-
-	mlx5_core_put_rsc(common);
-}
-#endif
-
 static int create_qprqsq_common(struct mlx5_core_dev *dev,
 				struct mlx5_core_qp *qp,
 				int rsc_type)
@@ -505,31 +416,6 @@ int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn)
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL_GPL(mlx5_core_xrcd_dealloc);
-
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-int mlx5_core_page_fault_resume(struct mlx5_core_dev *dev, u32 qpn,
-				u8 flags, int error)
-{
-	u32 out[MLX5_ST_SZ_DW(page_fault_resume_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(page_fault_resume_in)]   = {0};
-
-	MLX5_SET(page_fault_resume_in, in, opcode,
-		 MLX5_CMD_OP_PAGE_FAULT_RESUME);
-	MLX5_SET(page_fault_resume_in, in, qpn, qpn);
-
-	if (flags & MLX5_PAGE_FAULT_RESUME_REQUESTOR)
-		MLX5_SET(page_fault_resume_in, in, req_res, 1);
-	if (flags & MLX5_PAGE_FAULT_RESUME_WRITE)
-		MLX5_SET(page_fault_resume_in, in, read_write, 1);
-	if (flags & MLX5_PAGE_FAULT_RESUME_RDMA)
-		MLX5_SET(page_fault_resume_in, in, rdma, 1);
-	if (error)
-		MLX5_SET(page_fault_resume_in, in, error, 1);
-
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-}
-EXPORT_SYMBOL_GPL(mlx5_core_page_fault_resume);
-#endif
 
 int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 				struct mlx5_core_qp *rq)

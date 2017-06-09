@@ -579,8 +579,7 @@ static unsigned char XGINew_CheckFrequence(struct vb_device_info *pVBInfo)
 
 	if ((data & 0x10) == 0) {
 		data = xgifb_reg_get(pVBInfo->P3c4, 0x39);
-		data = (data & 0x02) >> 1;
-		return data;
+		return (data & 0x02) >> 1;
 	}
 	return data & 0x01;
 }

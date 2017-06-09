@@ -62,20 +62,65 @@ static struct pci_driver qxl_pci_driver;
 static int
 qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct qxl_device *qdev;
+	int ret;
+
 	if (pdev->revision < 4) {
 		DRM_ERROR("qxl too old, doesn't support client_monitors_config,"
 			  " use xf86-video-qxl in user mode");
 		return -EINVAL; /* TODO: ENODEV ? */
 	}
-	return drm_get_pci_dev(pdev, ent, &qxl_driver);
+
+	qdev = kzalloc(sizeof(struct qxl_device), GFP_KERNEL);
+	if (!qdev)
+		return -ENOMEM;
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		goto free_dev;
+
+	ret = qxl_device_init(qdev, &qxl_driver, pdev);
+	if (ret)
+		goto disable_pci;
+
+	ret = qxl_modeset_init(qdev);
+	if (ret)
+		goto unload;
+
+	drm_kms_helper_poll_init(&qdev->ddev);
+
+	/* Complete initialization. */
+	ret = drm_dev_register(&qdev->ddev, ent->driver_data);
+	if (ret)
+		goto modeset_cleanup;
+
+	return 0;
+
+modeset_cleanup:
+	qxl_modeset_fini(qdev);
+unload:
+	qxl_device_fini(qdev);
+disable_pci:
+	pci_disable_device(pdev);
+free_dev:
+	kfree(qdev);
+	return ret;
 }
 
 static void
 qxl_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct qxl_device *qdev = dev->dev_private;
 
-	drm_put_dev(dev);
+	drm_dev_unregister(dev);
+
+	qxl_modeset_fini(qdev);
+	qxl_device_fini(qdev);
+
+	dev->dev_private = NULL;
+	kfree(qdev);
+	drm_dev_unref(dev);
 }
 
 static const struct file_operations qxl_fops = {
@@ -196,21 +241,6 @@ static int qxl_pm_restore(struct device *dev)
 	return qxl_drm_resume(drm_dev, false);
 }
 
-static u32 qxl_noop_get_vblank_counter(struct drm_device *dev,
-				       unsigned int pipe)
-{
-	return 0;
-}
-
-static int qxl_noop_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	return 0;
-}
-
-static void qxl_noop_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-}
-
 static const struct dev_pm_ops qxl_pm_ops = {
 	.suspend = qxl_pm_suspend,
 	.resume = qxl_pm_resume,
@@ -229,12 +259,8 @@ static struct pci_driver qxl_pci_driver = {
 
 static struct drm_driver qxl_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
-			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
-	.load = qxl_driver_load,
-	.unload = qxl_driver_unload,
-	.get_vblank_counter = qxl_noop_get_vblank_counter,
-	.enable_vblank = qxl_noop_enable_vblank,
-	.disable_vblank = qxl_noop_disable_vblank,
+			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
+			   DRIVER_ATOMIC,
 
 	.set_busid = drm_pci_set_busid,
 
@@ -243,7 +269,6 @@ static struct drm_driver qxl_driver = {
 	.dumb_destroy = drm_gem_dumb_destroy,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = qxl_debugfs_init,
-	.debugfs_cleanup = qxl_debugfs_takedown,
 #endif
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,

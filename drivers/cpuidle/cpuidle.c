@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/notifier.h>
 #include <linux/pm_qos.h>
 #include <linux/cpu.h>
@@ -110,7 +111,8 @@ void cpuidle_use_deepest_state(bool enable)
 
 	preempt_disable();
 	dev = cpuidle_get_device();
-	dev->use_deepest_state = enable;
+	if (dev)
+		dev->use_deepest_state = enable;
 	preempt_enable();
 }
 

@@ -182,7 +182,7 @@ static ssize_t charger_state_show(struct device *dev,
 	return sprintf(buf, "%s\n", charge);
 }
 
-static DEVICE_ATTR(charger_state, 0444, charger_state_show, NULL);
+static DEVICE_ATTR_RO(charger_state);
 
 static irqreturn_t wm8350_charger_handler(int irq, void *data)
 {

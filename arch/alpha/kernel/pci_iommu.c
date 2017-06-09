@@ -939,7 +939,7 @@ static int alpha_pci_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	return dma_addr == 0;
 }
 
-struct dma_map_ops alpha_pci_ops = {
+const struct dma_map_ops alpha_pci_ops = {
 	.alloc			= alpha_pci_alloc_coherent,
 	.free			= alpha_pci_free_coherent,
 	.map_page		= alpha_pci_map_page,
@@ -950,5 +950,5 @@ struct dma_map_ops alpha_pci_ops = {
 	.dma_supported		= alpha_pci_supported,
 };
 
-struct dma_map_ops *dma_ops = &alpha_pci_ops;
+const struct dma_map_ops *dma_ops = &alpha_pci_ops;
 EXPORT_SYMBOL(dma_ops);

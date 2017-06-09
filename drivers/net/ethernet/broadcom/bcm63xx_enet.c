@@ -511,7 +511,7 @@ static int bcm_enet_poll(struct napi_struct *napi, int budget)
 
 	/* no more packet in rx/tx queue, remove device from poll
 	 * queue */
-	napi_complete(napi);
+	napi_complete_done(napi, rx_work_done);
 
 	/* restore rx/tx interrupt */
 	enet_dmac_writel(priv, priv->dma_chan_int_mask,
@@ -817,7 +817,7 @@ static void bcm_enet_adjust_phy_link(struct net_device *dev)
 			rx_pause_en = 1;
 			tx_pause_en = 1;
 		} else if (!priv->pause_auto) {
-			/* pause setting overrided by user */
+			/* pause setting overridden by user */
 			rx_pause_en = priv->pause_rx;
 			tx_pause_en = priv->pause_tx;
 		} else {
@@ -913,6 +913,8 @@ static int bcm_enet_open(struct net_device *dev)
 		priv->old_link = 0;
 		priv->old_duplex = -1;
 		priv->old_pause = -1;
+	} else {
+		phydev = NULL;
 	}
 
 	/* mask all interrupts and request them */
@@ -1083,7 +1085,7 @@ static int bcm_enet_open(struct net_device *dev)
 	enet_dmac_writel(priv, priv->dma_chan_int_mask,
 			 ENETDMAC_IRMASK, priv->tx_chan);
 
-	if (priv->has_phy)
+	if (phydev)
 		phy_start(phydev);
 	else
 		bcm_enet_adjust_link(dev);
@@ -1126,7 +1128,7 @@ out_freeirq:
 	free_irq(dev->irq, dev);
 
 out_phy_disconnect:
-	if (priv->has_phy)
+	if (phydev)
 		phy_disconnect(phydev);
 
 	return ret;

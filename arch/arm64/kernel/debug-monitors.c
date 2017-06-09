@@ -26,6 +26,7 @@
 #include <linux/kprobes.h>
 #include <linux/stat.h>
 #include <linux/uaccess.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
@@ -35,7 +36,7 @@
 /* Determine debug architecture. */
 u8 debug_monitors_arch(void)
 {
-	return cpuid_feature_extract_unsigned_field(read_system_reg(SYS_ID_AA64DFR0_EL1),
+	return cpuid_feature_extract_unsigned_field(read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1),
 						ID_AA64DFR0_DEBUGVER_SHIFT);
 }
 
@@ -140,7 +141,7 @@ static int clear_os_lock(unsigned int cpu)
 static int debug_monitors_init(void)
 {
 	return cpuhp_setup_state(CPUHP_AP_ARM64_DEBUG_MONITORS_STARTING,
-				 "CPUHP_AP_ARM64_DEBUG_MONITORS_STARTING",
+				 "arm64/debug_monitors:starting",
 				 clear_os_lock, NULL);
 }
 postcore_initcall(debug_monitors_init);

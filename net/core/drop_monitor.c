@@ -75,6 +75,7 @@ static struct sk_buff *reset_per_cpu_data(struct per_cpu_dm_data *data)
 	struct nlattr *nla;
 	struct sk_buff *skb;
 	unsigned long flags;
+	void *msg_header;
 
 	al = sizeof(struct net_dm_alert_msg);
 	al += dm_hit_limit * sizeof(struct net_dm_drop_point);
@@ -82,20 +83,40 @@ static struct sk_buff *reset_per_cpu_data(struct per_cpu_dm_data *data)
 
 	skb = genlmsg_new(al, GFP_KERNEL);
 
-	if (skb) {
-		genlmsg_put(skb, 0, 0, &net_drop_monitor_family,
-				0, NET_DM_CMD_ALERT);
-		nla = nla_reserve(skb, NLA_UNSPEC,
-				  sizeof(struct net_dm_alert_msg));
-		msg = nla_data(nla);
-		memset(msg, 0, al);
-	} else {
-		mod_timer(&data->send_timer, jiffies + HZ / 10);
-	}
+	if (!skb)
+		goto err;
 
+	msg_header = genlmsg_put(skb, 0, 0, &net_drop_monitor_family,
+				 0, NET_DM_CMD_ALERT);
+	if (!msg_header) {
+		nlmsg_free(skb);
+		skb = NULL;
+		goto err;
+	}
+	nla = nla_reserve(skb, NLA_UNSPEC,
+			  sizeof(struct net_dm_alert_msg));
+	if (!nla) {
+		nlmsg_free(skb);
+		skb = NULL;
+		goto err;
+	}
+	msg = nla_data(nla);
+	memset(msg, 0, al);
+	goto out;
+
+err:
+	mod_timer(&data->send_timer, jiffies + HZ / 10);
+out:
 	spin_lock_irqsave(&data->lock, flags);
 	swap(data->skb, skb);
 	spin_unlock_irqrestore(&data->lock, flags);
+
+	if (skb) {
+		struct nlmsghdr *nlh = (struct nlmsghdr *)skb->data;
+		struct genlmsghdr *gnlh = (struct genlmsghdr *)nlmsg_data(nlh);
+
+		genlmsg_end(skb, genlmsg_data(gnlh));
+	}
 
 	return skb;
 }
@@ -391,9 +412,8 @@ static int __init init_net_drop_monitor(void)
 	for_each_possible_cpu(cpu) {
 		data = &per_cpu(dm_cpu_data, cpu);
 		INIT_WORK(&data->dm_alert_work, send_dm_alert);
-		init_timer(&data->send_timer);
-		data->send_timer.data = (unsigned long)data;
-		data->send_timer.function = sched_send_work;
+		setup_timer(&data->send_timer, sched_send_work,
+			    (unsigned long)data);
 		spin_lock_init(&data->lock);
 		reset_per_cpu_data(data);
 	}

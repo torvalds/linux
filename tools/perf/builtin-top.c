@@ -27,19 +27,20 @@
 #include "util/drv_configs.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/event.h"
 #include "util/machine.h"
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/thread_map.h"
 #include "util/top.h"
-#include "util/util.h"
 #include <linux/rbtree.h>
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/cpumap.h"
 #include "util/xyarray.h"
 #include "util/sort.h"
+#include "util/term.h"
 #include "util/intlist.h"
 #include "util/parse-branch-options.h"
 #include "arch/common.h"
@@ -58,6 +59,7 @@
 #include <errno.h>
 #include <time.h>
 #include <sched.h>
+#include <signal.h>
 
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
@@ -71,6 +73,8 @@
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include <linux/types.h>
+
+#include "sane_ctype.h"
 
 static volatile int done;
 
@@ -643,7 +647,7 @@ repeat:
 		case -1:
 			if (errno == EINTR)
 				continue;
-			/* Fall trhu */
+			__fallthrough;
 		default:
 			c = getc(stdin);
 			tcsetattr(0, TCSAFLUSH, &save);
@@ -859,7 +863,7 @@ static void perf_top__mmap_read(struct perf_top *top)
 
 static int perf_top__start_counters(struct perf_top *top)
 {
-	char msg[512];
+	char msg[BUFSIZ];
 	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
@@ -871,7 +875,7 @@ try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {
 			if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
-				if (verbose)
+				if (verbose > 0)
 					ui__warning("%s\n", msg);
 				goto try_again;
 			}
@@ -1075,7 +1079,7 @@ parse_percent_limit(const struct option *opt, const char *arg,
 const char top_callchain_help[] = CALLCHAIN_RECORD_HELP CALLCHAIN_REPORT_HELP
 	"\n\t\t\t\tDefault: fp,graph,0.5,caller,function";
 
-int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_top(int argc, const char **argv)
 {
 	char errbuf[BUFSIZ];
 	struct perf_top top = {
@@ -1216,7 +1220,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (top.evlist == NULL)
 		return -ENOMEM;
 
-	perf_config(perf_top_config, &top);
+	status = perf_config(perf_top_config, &top);
+	if (status)
+		return status;
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)

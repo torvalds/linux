@@ -62,7 +62,7 @@ static inline void *memchr(const void * s, int c, size_t n)
 		"	jl	1f\n"
 		"	la	%0,0\n"
 		"1:"
-		: "+a" (ret), "+&a" (s) : "d" (r0) : "cc");
+		: "+a" (ret), "+&a" (s) : "d" (r0) : "cc", "memory");
 	return (void *) ret;
 }
 
@@ -74,7 +74,7 @@ static inline void *memscan(void *s, int c, size_t n)
 	asm volatile(
 		"0:	srst	%0,%1\n"
 		"	jo	0b\n"
-		: "+a" (ret), "+&a" (s) : "d" (r0) : "cc");
+		: "+a" (ret), "+&a" (s) : "d" (r0) : "cc", "memory");
 	return (void *) ret;
 }
 
@@ -115,7 +115,7 @@ static inline size_t strlen(const char *s)
 	asm volatile(
 		"0:	srst	%0,%1\n"
 		"	jo	0b"
-		: "+d" (r0), "+a" (tmp) :  : "cc");
+		: "+d" (r0), "+a" (tmp) :  : "cc", "memory");
 	return r0 - (unsigned long) s;
 }
 
@@ -128,7 +128,7 @@ static inline size_t strnlen(const char * s, size_t n)
 	asm volatile(
 		"0:	srst	%0,%1\n"
 		"	jo	0b"
-		: "+a" (end), "+a" (tmp) : "d" (r0)  : "cc");
+		: "+a" (end), "+a" (tmp) : "d" (r0)  : "cc", "memory");
 	return end - s;
 }
 #else /* IN_ARCH_STRING_C */

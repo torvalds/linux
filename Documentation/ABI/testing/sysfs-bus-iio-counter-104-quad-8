@@ -1,24 +1,16 @@
-What:		/sys/bus/iio/devices/iio:deviceX/in_count_count_direction_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_count_count_mode_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_count_noise_error_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_count_quadrature_mode_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_index_index_polarity_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_index_synchronous_mode_available
-KernelVersion:	4.9
+KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Discrete set of available values for the respective counter
 		configuration are listed in this file.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_countY_count_direction
-KernelVersion:	4.9
-Contact:	linux-iio@vger.kernel.org
-Description:
-		Read-only attribute that indicates whether the counter for
-		channel Y is counting up or down.
-
 What:		/sys/bus/iio/devices/iio:deviceX/in_countY_count_mode
-KernelVersion:	4.9
+KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Count mode for channel Y. Four count modes are available:
@@ -52,7 +44,7 @@ Description:
 			continuously throughout.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_countY_noise_error
-KernelVersion:	4.9
+KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Read-only attribute that indicates whether excessive noise is
@@ -60,14 +52,14 @@ Description:
 		irrelevant in non-quadrature clock mode.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_countY_preset
-KernelVersion:	4.9
+KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		If the counter device supports preset registers, the preset
 		count for channel Y is provided by this attribute.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_countY_quadrature_mode
-KernelVersion:	4.9
+KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Configure channel Y counter for non-quadrature or quadrature
@@ -88,7 +80,7 @@ Description:
 			decoded for UP/DN clock.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_countY_set_to_preset_on_index
-KernelVersion:	4.9
+KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Whether to set channel Y counter with channel Y preset value
@@ -96,14 +88,14 @@ Description:
 		Valid attribute values are boolean.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_indexY_index_polarity
-KernelVersion:	4.9
+KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Active level of channel Y index input; irrelevant in
 		non-synchronous load mode.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_indexY_synchronous_mode
-KernelVersion:	4.9
+KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Configure channel Y counter for non-synchronous or synchronous

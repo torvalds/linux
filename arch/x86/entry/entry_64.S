@@ -211,7 +211,7 @@ entry_SYSCALL_64_fastpath:
 	 * If we see that no exit work is required (which we are required
 	 * to check with IRQs off), then we can go straight to SYSRET64.
 	 */
-	DISABLE_INTERRUPTS(CLBR_NONE)
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	movq	PER_CPU_VAR(current_task), %r11
 	testl	$_TIF_ALLWORK_MASK, TASK_TI_flags(%r11)
@@ -232,7 +232,7 @@ entry_SYSCALL_64_fastpath:
 	 * raise(3) will trigger this, for example.  IRQs are off.
 	 */
 	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
+	ENABLE_INTERRUPTS(CLBR_ANY)
 	SAVE_EXTRA_REGS
 	movq	%rsp, %rdi
 	call	syscall_return_slowpath	/* returns with IRQs disabled */
@@ -264,12 +264,9 @@ return_from_SYSCALL_64:
 	 *
 	 * If width of "canonical tail" ever becomes variable, this will need
 	 * to be updated to remain correct on both old and new CPUs.
+	 *
+	 * Change top 16 bits to be the sign-extension of 47th bit
 	 */
-	.ifne __VIRTUAL_MASK_SHIFT - 47
-	.error "virtual address width changed -- SYSRET checks need update"
-	.endif
-
-	/* Change top 16 bits to be the sign-extension of 47th bit */
 	shl	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
 	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
 
@@ -342,7 +339,7 @@ ENTRY(stub_ptregs_64)
 	 * Called from fast path -- disable IRQs again, pop return address
 	 * and jump to slow path
 	 */
-	DISABLE_INTERRUPTS(CLBR_NONE)
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	popq	%rax
 	jmp	entry_SYSCALL64_slow_path
@@ -515,7 +512,7 @@ common_interrupt:
 	interrupt do_IRQ
 	/* 0(%rsp): old RSP */
 ret_from_intr:
-	DISABLE_INTERRUPTS(CLBR_NONE)
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	decl	PER_CPU_VAR(irq_count)
 
@@ -1048,7 +1045,7 @@ END(paranoid_entry)
  * On entry, ebx is "no swapgs" flag (1: don't need swapgs, 0: need it)
  */
 ENTRY(paranoid_exit)
-	DISABLE_INTERRUPTS(CLBR_NONE)
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF_DEBUG
 	testl	%ebx, %ebx			/* swapgs needed? */
 	jnz	paranoid_exit_no_swapgs
@@ -1153,10 +1150,9 @@ END(error_entry)
  *   0: user gsbase is loaded, we need SWAPGS and standard preparation for return to usermode
  */
 ENTRY(error_exit)
-	movl	%ebx, %eax
-	DISABLE_INTERRUPTS(CLBR_NONE)
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
-	testl	%eax, %eax
+	testl	%ebx, %ebx
 	jnz	retint_kernel
 	jmp	retint_user
 END(error_exit)

@@ -351,7 +351,7 @@ struct l2t_entry *t3_l2t_get(struct t3cdev *cdev, struct dst_entry *dst,
 		e->smt_idx = smt_idx;
 		atomic_set(&e->refcnt, 1);
 		neigh_replace(e, neigh);
-		if (neigh->dev->priv_flags & IFF_802_1Q_VLAN)
+		if (is_vlan_dev(neigh->dev))
 			e->vlan = vlan_dev_vlan_id(neigh->dev);
 		else
 			e->vlan = VLAN_NONE;
@@ -444,7 +444,7 @@ struct l2t_data *t3_init_l2t(unsigned int l2t_capacity)
 	struct l2t_data *d;
 	int i, size = sizeof(*d) + l2t_capacity * sizeof(struct l2t_entry);
 
-	d = cxgb_alloc_mem(size);
+	d = kvzalloc(size, GFP_KERNEL);
 	if (!d)
 		return NULL;
 
@@ -462,9 +462,3 @@ struct l2t_data *t3_init_l2t(unsigned int l2t_capacity)
 	}
 	return d;
 }
-
-void t3_free_l2t(struct l2t_data *d)
-{
-	cxgb_free_mem(d);
-}
-

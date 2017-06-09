@@ -23,14 +23,14 @@ static inline void __smp_threshold_interrupt(void)
 	mce_threshold_vector();
 }
 
-asmlinkage __visible void smp_threshold_interrupt(void)
+asmlinkage __visible void __irq_entry smp_threshold_interrupt(void)
 {
 	entering_irq();
 	__smp_threshold_interrupt();
 	exiting_ack_irq();
 }
 
-asmlinkage __visible void smp_trace_threshold_interrupt(void)
+asmlinkage __visible void __irq_entry smp_trace_threshold_interrupt(void)
 {
 	entering_irq();
 	trace_threshold_apic_entry(THRESHOLD_APIC_VECTOR);

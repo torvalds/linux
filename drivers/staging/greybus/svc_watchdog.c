@@ -11,7 +11,7 @@
 #include <linux/workqueue.h>
 #include "greybus.h"
 
-#define SVC_WATCHDOG_PERIOD	(2*HZ)
+#define SVC_WATCHDOG_PERIOD	(2 * HZ)
 
 struct gb_svc_watchdog {
 	struct delayed_work	work;
@@ -44,19 +44,19 @@ static int svc_watchdog_pm_notifier(struct notifier_block *notifier,
 
 static void greybus_reset(struct work_struct *work)
 {
-	static char start_path[256] = "/system/bin/start";
+	static char const start_path[] = "/system/bin/start";
 	static char *envp[] = {
 		"HOME=/",
 		"PATH=/sbin:/vendor/bin:/system/sbin:/system/bin:/system/xbin",
 		NULL,
 	};
 	static char *argv[] = {
-		start_path,
+		(char *)start_path,
 		"unipro_reset",
 		NULL,
 	};
 
-	printk(KERN_ERR "svc_watchdog: calling \"%s %s\" to reset greybus network!\n",
+	pr_err("svc_watchdog: calling \"%s %s\" to reset greybus network!\n",
 	       argv[0], argv[1]);
 	call_usermodehelper(start_path, argv, envp, UMH_WAIT_EXEC);
 }

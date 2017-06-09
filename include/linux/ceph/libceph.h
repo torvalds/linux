@@ -14,6 +14,7 @@
 #include <linux/wait.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
+#include <linux/refcount.h>
 
 #include <linux/ceph/types.h>
 #include <linux/ceph/messenger.h>
@@ -48,6 +49,7 @@ struct ceph_options {
 	unsigned long mount_timeout;		/* jiffies */
 	unsigned long osd_idle_ttl;		/* jiffies */
 	unsigned long osd_keepalive_timeout;	/* jiffies */
+	unsigned long osd_request_timeout;	/* jiffies */
 
 	/*
 	 * any type that can't be simply compared or doesn't need need
@@ -68,6 +70,7 @@ struct ceph_options {
 #define CEPH_MOUNT_TIMEOUT_DEFAULT	msecs_to_jiffies(60 * 1000)
 #define CEPH_OSD_KEEPALIVE_DEFAULT	msecs_to_jiffies(5 * 1000)
 #define CEPH_OSD_IDLE_TTL_DEFAULT	msecs_to_jiffies(60 * 1000)
+#define CEPH_OSD_REQUEST_TIMEOUT_DEFAULT 0  /* no timeout */
 
 #define CEPH_MONC_HUNT_INTERVAL		msecs_to_jiffies(3 * 1000)
 #define CEPH_MONC_PING_INTERVAL		msecs_to_jiffies(10 * 1000)
@@ -159,7 +162,7 @@ struct ceph_client {
  * dirtied.
  */
 struct ceph_snap_context {
-	atomic_t nref;
+	refcount_t nref;
 	u64 seq;
 	u32 num_snaps;
 	u64 snaps[];
@@ -260,10 +263,7 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client);
 extern void ceph_destroy_options(struct ceph_options *opt);
 extern int ceph_compare_options(struct ceph_options *new_opt,
 				struct ceph_client *client);
-extern struct ceph_client *ceph_create_client(struct ceph_options *opt,
-					      void *private,
-					      u64 supported_features,
-					      u64 required_features);
+struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private);
 struct ceph_entity_addr *ceph_client_addr(struct ceph_client *client);
 u64 ceph_client_gid(struct ceph_client *client);
 extern void ceph_destroy_client(struct ceph_client *client);

@@ -32,7 +32,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/types.h>
 
 #include "ucc_geth.h"

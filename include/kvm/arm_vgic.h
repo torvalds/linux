@@ -71,6 +71,8 @@ struct vgic_global {
 
 	/* GIC system register CPU interface */
 	struct static_key_false gicv3_cpuif;
+
+	u32			ich_vtr_el2;
 };
 
 extern struct vgic_global kvm_vgic_global_state;
@@ -101,9 +103,10 @@ struct vgic_irq {
 					 */
 
 	u32 intid;			/* Guest visible INTID */
-	bool pending;
 	bool line_level;		/* Level only */
-	bool soft_pending;		/* Level only */
+	bool pending_latch;		/* The pending latch state used to calculate
+					 * the pending state for both level
+					 * and edge triggered IRQs. */
 	bool active;			/* not used for LPIs */
 	bool enabled;
 	bool hw;			/* Tied to HW IRQ */
@@ -145,7 +148,6 @@ struct vgic_its {
 	gpa_t			vgic_its_base;
 
 	bool			enabled;
-	bool			initialized;
 	struct vgic_io_device	iodev;
 	struct kvm_device	*dev;
 
@@ -159,11 +161,16 @@ struct vgic_its {
 	u32			creadr;
 	u32			cwriter;
 
+	/* migration ABI revision in use */
+	u32			abi_rev;
+
 	/* Protects the device and collection lists */
 	struct mutex		its_lock;
 	struct list_head	device_list;
 	struct list_head	collection_list;
 };
+
+struct vgic_state_iter;
 
 struct vgic_dist {
 	bool			in_kernel;
@@ -188,7 +195,10 @@ struct vgic_dist {
 		/* either a GICv2 CPU interface */
 		gpa_t			vgic_cpu_base;
 		/* or a number of GICv3 redistributor regions */
-		gpa_t			vgic_redist_base;
+		struct {
+			gpa_t		vgic_redist_base;
+			gpa_t		vgic_redist_free_offset;
+		};
 	};
 
 	/* distributor enabled */
@@ -212,13 +222,14 @@ struct vgic_dist {
 	spinlock_t		lpi_list_lock;
 	struct list_head	lpi_list_head;
 	int			lpi_list_count;
+
+	/* used by vgic-debug */
+	struct vgic_state_iter *iter;
 };
 
 struct vgic_v2_cpu_if {
 	u32		vgic_hcr;
 	u32		vgic_vmcr;
-	u32		vgic_misr;	/* Saved only */
-	u64		vgic_eisr;	/* Saved only */
 	u64		vgic_elrsr;	/* Saved only */
 	u32		vgic_apr;
 	u32		vgic_lr[VGIC_V2_MAX_LRS];
@@ -228,8 +239,6 @@ struct vgic_v3_cpu_if {
 	u32		vgic_hcr;
 	u32		vgic_vmcr;
 	u32		vgic_sre;	/* Restored only, change ignored */
-	u32		vgic_misr;	/* Saved only */
-	u32		vgic_eisr;	/* Saved only */
 	u32		vgic_elrsr;	/* Saved only */
 	u32		vgic_ap0r[4];
 	u32		vgic_ap1r[4];
@@ -256,8 +265,6 @@ struct vgic_cpu {
 	 */
 	struct list_head ap_list_head;
 
-	u64 live_lrs;
-
 	/*
 	 * Members below are used with GICv3 emulation only and represent
 	 * parts of the redistributor.
@@ -269,18 +276,26 @@ struct vgic_cpu {
 	u64 pendbaser;
 
 	bool lpis_enabled;
+
+	/* Cache guest priority bits */
+	u32 num_pri_bits;
+
+	/* Cache guest interrupt ID bits */
+	u32 num_id_bits;
 };
 
 extern struct static_key_false vgic_v2_cpuif_trap;
 
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
 void kvm_vgic_early_init(struct kvm *kvm);
+int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu);
 int kvm_vgic_create(struct kvm *kvm, u32 type);
 void kvm_vgic_destroy(struct kvm *kvm);
 void kvm_vgic_vcpu_early_init(struct kvm_vcpu *vcpu);
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu);
 int kvm_vgic_map_resources(struct kvm *kvm);
 int kvm_vgic_hyp_init(void);
+void kvm_vgic_init_cpu_hardware(void);
 
 int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
 			bool level);
@@ -291,6 +306,9 @@ int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int virt_irq);
 bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, unsigned int virt_irq);
 
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
+
+void kvm_vgic_load(struct kvm_vcpu *vcpu);
+void kvm_vgic_put(struct kvm_vcpu *vcpu);
 
 #define irqchip_in_kernel(k)	(!!((k)->arch.vgic.in_kernel))
 #define vgic_initialized(k)	((k)->arch.vgic.initialized)

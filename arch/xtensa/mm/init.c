@@ -26,6 +26,7 @@
 #include <linux/nodemask.h>
 #include <linux/mm.h>
 #include <linux/of_fdt.h>
+#include <linux/dma-contiguous.h>
 
 #include <asm/bootparam.h>
 #include <asm/page.h>
@@ -60,6 +61,7 @@ void __init bootmem_init(void)
 	max_low_pfn = min(max_pfn, MAX_LOW_PFN);
 
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
+	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 
 	memblock_dump_all();
 }

@@ -954,7 +954,7 @@ static int s3c_hsudc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	return 0;
 }
 
-static struct usb_ep_ops s3c_hsudc_ep_ops = {
+static const struct usb_ep_ops s3c_hsudc_ep_ops = {
 	.enable = s3c_hsudc_ep_enable,
 	.disable = s3c_hsudc_ep_disable,
 	.alloc_request = s3c_hsudc_alloc_request,

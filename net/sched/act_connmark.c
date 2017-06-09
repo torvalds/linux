@@ -109,9 +109,13 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 	if (!nla)
 		return -EINVAL;
 
-	ret = nla_parse_nested(tb, TCA_CONNMARK_MAX, nla, connmark_policy);
+	ret = nla_parse_nested(tb, TCA_CONNMARK_MAX, nla, connmark_policy,
+			       NULL);
 	if (ret < 0)
 		return ret;
+
+	if (!tb[TCA_CONNMARK_PARMS])
+		return -EINVAL;
 
 	parm = nla_data(tb[TCA_CONNMARK_PARMS]);
 

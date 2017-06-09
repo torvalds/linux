@@ -187,7 +187,7 @@ static const struct pinconf_generic_params dt_params[] = {
  * @ncfg:	Number of entries in @cfg
  *
  * Parse the config options described in @params from @np and puts the result
- * in @cfg. @cfg does not need to be empty, entries are added beggining at
+ * in @cfg. @cfg does not need to be empty, entries are added beginning at
  * @ncfg. @ncfg is updated to reflect the number of entries after parsing. @cfg
  * needs to have enough memory allocated to hold all possible entries.
  */

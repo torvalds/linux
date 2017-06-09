@@ -279,7 +279,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	pr_debug("name = %s, mtu = %u\n", dev->name, mtu);
 
 	if (size > mtu) {
-		pr_debug("size = %Zu, mtu = %u\n", size, mtu);
+		pr_debug("size = %zu, mtu = %u\n", size, mtu);
 		err = -EMSGSIZE;
 		goto out_dev;
 	}
@@ -645,7 +645,7 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	pr_debug("name = %s, mtu = %u\n", dev->name, mtu);
 
 	if (size > mtu) {
-		pr_debug("size = %Zu, mtu = %u\n", size, mtu);
+		pr_debug("size = %zu, mtu = %u\n", size, mtu);
 		err = -EMSGSIZE;
 		goto out_dev;
 	}

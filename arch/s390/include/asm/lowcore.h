@@ -85,53 +85,56 @@ struct lowcore {
 	__u64	mcck_enter_timer;		/* 0x02c0 */
 	__u64	exit_timer;			/* 0x02c8 */
 	__u64	user_timer;			/* 0x02d0 */
-	__u64	system_timer;			/* 0x02d8 */
-	__u64	steal_timer;			/* 0x02e0 */
-	__u64	last_update_timer;		/* 0x02e8 */
-	__u64	last_update_clock;		/* 0x02f0 */
-	__u64	int_clock;			/* 0x02f8 */
-	__u64	mcck_clock;			/* 0x0300 */
-	__u64	clock_comparator;		/* 0x0308 */
+	__u64	guest_timer;			/* 0x02d8 */
+	__u64	system_timer;			/* 0x02e0 */
+	__u64	hardirq_timer;			/* 0x02e8 */
+	__u64	softirq_timer;			/* 0x02f0 */
+	__u64	steal_timer;			/* 0x02f8 */
+	__u64	last_update_timer;		/* 0x0300 */
+	__u64	last_update_clock;		/* 0x0308 */
+	__u64	int_clock;			/* 0x0310 */
+	__u64	mcck_clock;			/* 0x0318 */
+	__u64	clock_comparator;		/* 0x0320 */
 
 	/* Current process. */
-	__u64	current_task;			/* 0x0310 */
-	__u8	pad_0x318[0x320-0x318];		/* 0x0318 */
-	__u64	kernel_stack;			/* 0x0320 */
+	__u64	current_task;			/* 0x0328 */
+	__u8	pad_0x318[0x320-0x318];		/* 0x0330 */
+	__u64	kernel_stack;			/* 0x0338 */
 
 	/* Interrupt, panic and restart stack. */
-	__u64	async_stack;			/* 0x0328 */
-	__u64	panic_stack;			/* 0x0330 */
-	__u64	restart_stack;			/* 0x0338 */
+	__u64	async_stack;			/* 0x0340 */
+	__u64	panic_stack;			/* 0x0348 */
+	__u64	restart_stack;			/* 0x0350 */
 
 	/* Restart function and parameter. */
-	__u64	restart_fn;			/* 0x0340 */
-	__u64	restart_data;			/* 0x0348 */
-	__u64	restart_source;			/* 0x0350 */
+	__u64	restart_fn;			/* 0x0358 */
+	__u64	restart_data;			/* 0x0360 */
+	__u64	restart_source;			/* 0x0368 */
 
 	/* Address space pointer. */
-	__u64	kernel_asce;			/* 0x0358 */
-	__u64	user_asce;			/* 0x0360 */
+	__u64	kernel_asce;			/* 0x0370 */
+	__u64	user_asce;			/* 0x0378 */
 
 	/*
 	 * The lpp and current_pid fields form a
 	 * 64-bit value that is set as program
 	 * parameter with the LPP instruction.
 	 */
-	__u32	lpp;				/* 0x0368 */
-	__u32	current_pid;			/* 0x036c */
+	__u32	lpp;				/* 0x0380 */
+	__u32	current_pid;			/* 0x0384 */
 
 	/* SMP info area */
-	__u32	cpu_nr;				/* 0x0370 */
-	__u32	softirq_pending;		/* 0x0374 */
-	__u64	percpu_offset;			/* 0x0378 */
-	__u64	vdso_per_cpu_data;		/* 0x0380 */
-	__u64	machine_flags;			/* 0x0388 */
-	__u32	preempt_count;			/* 0x0390 */
-	__u8	pad_0x0394[0x0398-0x0394];	/* 0x0394 */
-	__u64	gmap;				/* 0x0398 */
-	__u32	spinlock_lockval;		/* 0x03a0 */
-	__u32	fpu_flags;			/* 0x03a4 */
-	__u8	pad_0x03a8[0x0400-0x03a8];	/* 0x03a8 */
+	__u32	cpu_nr;				/* 0x0388 */
+	__u32	softirq_pending;		/* 0x038c */
+	__u64	percpu_offset;			/* 0x0390 */
+	__u64	vdso_per_cpu_data;		/* 0x0398 */
+	__u64	machine_flags;			/* 0x03a0 */
+	__u32	preempt_count;			/* 0x03a8 */
+	__u8	pad_0x03ac[0x03b0-0x03ac];	/* 0x03ac */
+	__u64	gmap;				/* 0x03b0 */
+	__u32	spinlock_lockval;		/* 0x03b8 */
+	__u32	fpu_flags;			/* 0x03bc */
+	__u8	pad_0x03c0[0x0400-0x03c0];	/* 0x03c0 */
 
 	/* Per cpu primary space access list */
 	__u32	paste[16];			/* 0x0400 */
@@ -154,8 +157,8 @@ struct lowcore {
 	__u64	stfle_fac_list[32];		/* 0x0f00 */
 	__u8	pad_0x1000[0x11b0-0x1000];	/* 0x1000 */
 
-	/* Pointer to vector register save area */
-	__u64	vector_save_area_addr;		/* 0x11b0 */
+	/* Pointer to the machine check extended save area */
+	__u64	mcesad;				/* 0x11b0 */
 
 	/* 64 bit extparam used for pfault/diag 250: defined by architecture */
 	__u64	ext_params2;			/* 0x11B8 */
@@ -179,10 +182,7 @@ struct lowcore {
 
 	/* Transaction abort diagnostic block */
 	__u8	pgm_tdb[256];			/* 0x1800 */
-	__u8	pad_0x1900[0x1c00-0x1900];	/* 0x1900 */
-
-	/* Software defined save area for vector registers */
-	__u8	vector_save_area[1024];		/* 0x1c00 */
+	__u8	pad_0x1900[0x2000-0x1900];	/* 0x1900 */
 } __packed;
 
 #define S390_lowcore (*((struct lowcore *) 0))

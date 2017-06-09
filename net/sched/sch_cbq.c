@@ -19,6 +19,7 @@
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 
 /*	Class-Based Queueing (CBQ) algorithm.
@@ -509,7 +510,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 	if (delay) {
 		ktime_t time;
 
-		time = ktime_set(0, 0);
+		time = 0;
 		time = ktime_add_ns(time, PSCHED_TICKS2NS(now + delay));
 		hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS_PINNED);
 	}
@@ -1136,7 +1137,7 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	struct tc_ratespec *r;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy);
+	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -1160,6 +1161,8 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 				      sch->handle);
 	if (!q->link.q)
 		q->link.q = &noop_qdisc;
+	else
+		qdisc_hash_add(q->link.q, true);
 
 	q->link.priority = TC_CBQ_MAXPRIO - 1;
 	q->link.priority2 = TC_CBQ_MAXPRIO - 1;
@@ -1471,7 +1474,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy);
+	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -1599,6 +1602,9 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	cl->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid);
 	if (!cl->q)
 		cl->q = &noop_qdisc;
+	else
+		qdisc_hash_add(cl->q, true);
+
 	cl->common.classid = classid;
 	cl->tparent = parent;
 	cl->qdisc = sch;

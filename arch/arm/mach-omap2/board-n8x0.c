@@ -117,7 +117,7 @@ static struct musb_hdrc_platform_data tusb_data = {
 static void __init n8x0_usb_init(void)
 {
 	int ret = 0;
-	static char	announce[] __initdata = KERN_INFO "TUSB 6010\n";
+	static const char announce[] __initconst = KERN_INFO "TUSB 6010\n";
 
 	/* PM companion chip power control pin */
 	ret = gpio_request_one(TUSB6010_GPIO_ENABLE, GPIOF_OUT_INIT_LOW,

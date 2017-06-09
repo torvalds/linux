@@ -103,6 +103,7 @@ static struct ll_sb_info *ll_init_sbi(struct super_block *sb)
 	sbi->ll_flags |= LL_SBI_CHECKSUM;
 
 	sbi->ll_flags |= LL_SBI_LRU_RESIZE;
+	sbi->ll_flags |= LL_SBI_LAZYSTATFS;
 
 	for (i = 0; i <= LL_PROCESS_HIST_MAX; i++) {
 		spin_lock_init(&sbi->ll_rw_extents_info.pp_extents[i].
@@ -303,6 +304,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	sb->s_magic = LL_SUPER_MAGIC;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sbi->ll_namelen = osfs->os_namelen;
+	sbi->ll_mnt.mnt = current->fs->root.mnt;
 
 	if ((sbi->ll_flags & LL_SBI_USER_XATTR) &&
 	    !(data->ocd_connect_flags & OBD_CONNECT_XATTR)) {
@@ -861,15 +863,6 @@ void ll_lli_init(struct ll_inode_info *lli)
 	mutex_init(&lli->lli_layout_mutex);
 }
 
-static inline int ll_bdi_register(struct backing_dev_info *bdi)
-{
-	static atomic_t ll_bdi_num = ATOMIC_INIT(0);
-
-	bdi->name = "lustre";
-	return bdi_register(bdi, NULL, "lustre-%d",
-			    atomic_inc_return(&ll_bdi_num));
-}
-
 int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 {
 	struct lustre_profile *lprof = NULL;
@@ -879,6 +872,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	char  *profilenm = get_profile_name(sb);
 	struct config_llog_instance *cfg;
 	int    err;
+	static atomic_t ll_bdi_num = ATOMIC_INIT(0);
 
 	CDEBUG(D_VFSTRACE, "VFS Op: sb %p\n", sb);
 
@@ -901,16 +895,11 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	if (err)
 		goto out_free;
 
-	err = bdi_init(&lsi->lsi_bdi);
-	if (err)
-		goto out_free;
-	lsi->lsi_flags |= LSI_BDI_INITIALIZED;
-	lsi->lsi_bdi.capabilities = 0;
-	err = ll_bdi_register(&lsi->lsi_bdi);
+	err = super_setup_bdi_name(sb, "lustre-%d",
+				   atomic_inc_return(&ll_bdi_num));
 	if (err)
 		goto out_free;
 
-	sb->s_bdi = &lsi->lsi_bdi;
 	/* kernel >= 2.6.38 store dentry operations in sb->s_d_op. */
 	sb->s_d_op = &ll_d_ops;
 
@@ -1030,11 +1019,6 @@ void ll_put_super(struct super_block *sb)
 
 	if (profilenm)
 		class_del_profile(profilenm);
-
-	if (lsi->lsi_flags & LSI_BDI_INITIALIZED) {
-		bdi_destroy(&lsi->lsi_bdi);
-		lsi->lsi_flags &= ~LSI_BDI_INITIALIZED;
-	}
 
 	ll_free_sbi(sb);
 	lsi->lsi_llsbi = NULL;
@@ -1402,7 +1386,11 @@ static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data)
 	 * cache is not cleared yet.
 	 */
 	op_data->op_attr.ia_valid &= ~(TIMES_SET_FLAGS | ATTR_SIZE);
+	if (S_ISREG(inode->i_mode))
+		inode_lock(inode);
 	rc = simple_setattr(dentry, &op_data->op_attr);
+	if (S_ISREG(inode->i_mode))
+		inode_unlock(inode);
 	op_data->op_attr.ia_valid = ia_valid;
 
 	rc = ll_update_inode(inode, &md);
@@ -1431,7 +1419,6 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	struct inode *inode = d_inode(dentry);
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct md_op_data *op_data = NULL;
-	bool file_is_released = false;
 	int rc = 0;
 
 	CDEBUG(D_VFSTRACE, "%s: setattr inode "DFID"(%p) from %llu to %llu, valid %x, hsm_import %d\n",
@@ -1467,17 +1454,17 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 
 	/* We mark all of the fields "set" so MDS/OST does not re-set them */
 	if (attr->ia_valid & ATTR_CTIME) {
-		attr->ia_ctime = CURRENT_TIME;
+		attr->ia_ctime = current_time(inode);
 		attr->ia_valid |= ATTR_CTIME_SET;
 	}
 	if (!(attr->ia_valid & ATTR_ATIME_SET) &&
 	    (attr->ia_valid & ATTR_ATIME)) {
-		attr->ia_atime = CURRENT_TIME;
+		attr->ia_atime = current_time(inode);
 		attr->ia_valid |= ATTR_ATIME_SET;
 	}
 	if (!(attr->ia_valid & ATTR_MTIME_SET) &&
 	    (attr->ia_valid & ATTR_MTIME)) {
-		attr->ia_mtime = CURRENT_TIME;
+		attr->ia_mtime = current_time(inode);
 		attr->ia_valid |= ATTR_MTIME_SET;
 	}
 
@@ -1486,76 +1473,36 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		       LTIME_S(attr->ia_mtime), LTIME_S(attr->ia_ctime),
 		       (s64)ktime_get_real_seconds());
 
-	/* We always do an MDS RPC, even if we're only changing the size;
-	 * only the MDS knows whether truncate() should fail with -ETXTBUSY
-	 */
-
-	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
-	if (!op_data)
-		return -ENOMEM;
-
-	if (!S_ISDIR(inode->i_mode))
+	if (S_ISREG(inode->i_mode))
 		inode_unlock(inode);
 
-	/* truncate on a released file must failed with -ENODATA,
-	 * so size must not be set on MDS for released file
-	 * but other attributes must be set
+	/*
+	 * We always do an MDS RPC, even if we're only changing the size;
+	 * only the MDS knows whether truncate() should fail with -ETXTBUSY
 	 */
-	if (S_ISREG(inode->i_mode)) {
-		struct cl_layout cl = {
-			.cl_is_released = false,
-		};
-		struct lu_env *env;
-		int refcheck;
-		__u32 gen;
-
-		rc = ll_layout_refresh(inode, &gen);
-		if (rc < 0)
-			goto out;
-
-		/*
-		 * XXX: the only place we need to know the layout type,
-		 * this will be removed by a later patch. -Jinshan
-		 */
-		env = cl_env_get(&refcheck);
-		if (IS_ERR(env)) {
-			rc = PTR_ERR(env);
-			goto out;
-		}
-
-		rc = cl_object_layout_get(env, lli->lli_clob, &cl);
-		cl_env_put(env, &refcheck);
-		if (rc < 0)
-			goto out;
-
-		file_is_released = cl.cl_is_released;
-
-		if (!hsm_import && attr->ia_valid & ATTR_SIZE) {
-			if (file_is_released) {
-				rc = ll_layout_restore(inode, 0, attr->ia_size);
-				if (rc < 0)
-					goto out;
-
-				file_is_released = false;
-				ll_layout_refresh(inode, &gen);
-			}
-
-			/*
-			 * If we are changing file size, file content is
-			 * modified, flag it.
-			 */
-			attr->ia_valid |= MDS_OPEN_OWNEROVERRIDE;
-			op_data->op_bias |= MDS_DATA_MODIFIED;
-		}
+	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	if (!op_data) {
+		rc = -ENOMEM;
+		goto out;
 	}
 
-	memcpy(&op_data->op_attr, attr, sizeof(*attr));
+	if (!hsm_import && attr->ia_valid & ATTR_SIZE) {
+		/*
+		 * If we are changing file size, file content is
+		 * modified, flag it.
+		 */
+		attr->ia_valid |= MDS_OPEN_OWNEROVERRIDE;
+		op_data->op_bias |= MDS_DATA_MODIFIED;
+		clear_bit(LLIF_DATA_MODIFIED, &lli->lli_flags);
+	}
+
+	op_data->op_attr = *attr;
 
 	rc = ll_md_setattr(dentry, op_data);
 	if (rc)
 		goto out;
 
-	if (!S_ISREG(inode->i_mode) || file_is_released) {
+	if (!S_ISREG(inode->i_mode) || hsm_import) {
 		rc = 0;
 		goto out;
 	}
@@ -1572,11 +1519,47 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 */
 		rc = cl_setattr_ost(ll_i2info(inode)->lli_clob, attr, 0);
 	}
+
+	/*
+	 * If the file was restored, it needs to set dirty flag.
+	 *
+	 * We've already sent MDS_DATA_MODIFIED flag in
+	 * ll_md_setattr() for truncate. However, the MDT refuses to
+	 * set the HS_DIRTY flag on released files, so we have to set
+	 * it again if the file has been restored. Please check how
+	 * LLIF_DATA_MODIFIED is set in vvp_io_setattr_fini().
+	 *
+	 * Please notice that if the file is not released, the previous
+	 * MDS_DATA_MODIFIED has taken effect and usually
+	 * LLIF_DATA_MODIFIED is not set(see vvp_io_setattr_fini()).
+	 * This way we can save an RPC for common open + trunc
+	 * operation.
+	 */
+	if (test_and_clear_bit(LLIF_DATA_MODIFIED, &lli->lli_flags)) {
+		struct hsm_state_set hss = {
+			.hss_valid = HSS_SETMASK,
+			.hss_setmask = HS_DIRTY,
+		};
+		int rc2;
+
+		rc2 = ll_hsm_state_set(inode, &hss);
+		/*
+		 * truncate and write can happen at the same time, so that
+		 * the file can be set modified even though the file is not
+		 * restored from released state, and ll_hsm_state_set() is
+		 * not applicable for the file, and rc2 < 0 is normal in this
+		 * case.
+		 */
+		if (rc2 < 0)
+			CDEBUG(D_INFO, DFID "HSM set dirty failed: rc2 = %d\n",
+			       PFID(ll_inode2fid(inode)), rc2);
+	}
+
 out:
 	if (op_data)
 		ll_finish_md_op_data(op_data);
 
-	if (!S_ISDIR(inode->i_mode)) {
+	if (S_ISREG(inode->i_mode)) {
 		inode_lock(inode);
 		if ((attr->ia_valid & ATTR_SIZE) && !hsm_import)
 			inode_dio_wait(inode);
@@ -1599,7 +1582,7 @@ int ll_setattr(struct dentry *de, struct iattr *attr)
 	if (((attr->ia_valid & (ATTR_MODE | ATTR_FORCE | ATTR_SIZE)) ==
 			       (ATTR_SIZE | ATTR_MODE)) &&
 	    (((mode & S_ISUID) && !(attr->ia_mode & S_ISUID)) ||
-	     (((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) &&
+	     (((mode & (S_ISGID | 0010)) == (S_ISGID | 0010)) &&
 	      !(attr->ia_mode & S_ISGID))))
 		attr->ia_valid |= ATTR_FORCE;
 
@@ -1610,7 +1593,7 @@ int ll_setattr(struct dentry *de, struct iattr *attr)
 		attr->ia_valid |= ATTR_KILL_SUID;
 
 	if ((attr->ia_valid & ATTR_MODE) &&
-	    ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) &&
+	    ((mode & (S_ISGID | 0010)) == (S_ISGID | 0010)) &&
 	    !(attr->ia_mode & S_ISGID) &&
 	    !(attr->ia_valid & ATTR_KILL_SGID))
 		attr->ia_valid |= ATTR_KILL_SGID;
@@ -1998,6 +1981,8 @@ void ll_umount_begin(struct super_block *sb)
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct obd_device *obd;
 	struct obd_ioctl_data *ioc_data;
+	wait_queue_head_t waitq;
+	struct l_wait_info lwi;
 
 	CDEBUG(D_VFSTRACE, "VFS Op: superblock %p count %d active %d\n", sb,
 	       sb->s_count, atomic_read(&sb->s_active));
@@ -2030,9 +2015,14 @@ void ll_umount_begin(struct super_block *sb)
 	}
 
 	/* Really, we'd like to wait until there are no requests outstanding,
-	 * and then continue.  For now, we just invalidate the requests,
-	 * schedule() and sleep one second if needed, and hope.
+	 * and then continue. For now, we just periodically checking for vfs
+	 * to decrement mnt_cnt and hope to finish it within 10sec.
 	 */
+	init_waitqueue_head(&waitq);
+	lwi = LWI_TIMEOUT_INTERVAL(cfs_time_seconds(10),
+				   cfs_time_seconds(1), NULL, NULL);
+	l_wait_event(waitq, may_umount(sbi->ll_mnt.mnt), &lwi);
+
 	schedule();
 }
 
@@ -2504,7 +2494,7 @@ no_kbuf:
 void ll_compute_rootsquash_state(struct ll_sb_info *sbi)
 {
 	struct root_squash_info *squash = &sbi->ll_squash;
-	lnet_process_id_t id;
+	struct lnet_process_id id;
 	bool matched;
 	int i;
 

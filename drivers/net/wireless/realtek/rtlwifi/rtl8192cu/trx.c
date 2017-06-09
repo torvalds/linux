@@ -241,7 +241,7 @@ u16 rtl8192cu_mq_to_hwq(__le16 fc, u16 mac80211_queue_index)
 		break;
 	default:
 		hw_queue_index = RTL_TXQ_BE;
-		RT_ASSERT(false, "QSLT_BE queue, skb_queue:%d\n",
+		WARN_ONCE(true, "rtl8192cu: QSLT_BE queue, skb_queue:%d\n",
 			  mac80211_queue_index);
 		break;
 	}
@@ -329,9 +329,9 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 	if (!GET_RX_DESC_SWDEC(pdesc))
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 	if (GET_RX_DESC_BW(pdesc))
-		rx_status->flag |= RX_FLAG_40MHZ;
+		rx_status->bw = RATE_INFO_BW_40;
 	if (GET_RX_DESC_RX_HT(pdesc))
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 	if (stats->decrypted)
 		rx_status->flag |= RX_FLAG_DECRYPTED;
@@ -398,9 +398,9 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (!GET_RX_DESC_SWDEC(rxdesc))
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 	if (GET_RX_DESC_BW(rxdesc))
-		rx_status->flag |= RX_FLAG_40MHZ;
+		rx_status->bw = RATE_INFO_BW_40;
 	if (GET_RX_DESC_RX_HT(rxdesc))
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 	/* Data rate */
 	rx_status->rate_idx = rtlwifi_rate_mapping(hw, stats.is_ht,
 						   false, stats.rate);
@@ -477,14 +477,14 @@ static void _rtl_fill_usb_tx_desc(u8 *txdesc)
  */
 static void _rtl_tx_desc_checksum(u8 *txdesc)
 {
-	u16 *ptr = (u16 *)txdesc;
+	__le16 *ptr = (__le16 *)txdesc;
 	u16	checksum = 0;
 	u32 index;
 
 	/* Clear first */
 	SET_TX_DESC_TX_DESC_CHECKSUM(txdesc, 0);
 	for (index = 0; index < 16; index++)
-		checksum = checksum ^ (*(ptr + index));
+		checksum = checksum ^ le16_to_cpu(*(ptr + index));
 	SET_TX_DESC_TX_DESC_CHECKSUM(txdesc, checksum);
 }
 

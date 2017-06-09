@@ -24,29 +24,25 @@ config DRM_DUMB_VGA_DAC
 	help
 	  Support for RGB to VGA DAC based bridges
 
-config DRM_DW_HDMI
-	tristate
+config DRM_LVDS_ENCODER
+	tristate "Transparent parallel to LVDS encoder support"
+	depends on OF
 	select DRM_KMS_HELPER
-
-config DRM_DW_HDMI_AHB_AUDIO
-	tristate "Synopsis Designware AHB Audio interface"
-	depends on DRM_DW_HDMI && SND
-	select SND_PCM
-	select SND_PCM_ELD
-	select SND_PCM_IEC958
+	select DRM_PANEL
 	help
-	  Support the AHB Audio interface which is part of the Synopsis
-	  Designware HDMI block.  This is used in conjunction with
-	  the i.MX6 HDMI driver.
+	  Support for transparent parallel to LVDS encoders that don't require
+	  any configuration.
 
-config DRM_DW_HDMI_I2S_AUDIO
-	tristate "Synopsis Designware I2S Audio interface"
-	depends on SND_SOC
-	depends on DRM_DW_HDMI
-	select SND_SOC_HDMI_CODEC
-	help
-	  Support the I2S Audio interface which is part of the Synopsis
-	  Designware HDMI block.
+config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
+	tristate "MegaChips stdp4028-ge-b850v3-fw and stdp2690-ge-b850v3-fw"
+	depends on OF
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	---help---
+          This is a driver for the display bridges of
+          GE B850v3 that convert dual channel LVDS
+          to DP++. This is used with the i.MX6 imx-ldb
+          driver. You are likely to say N here.
 
 config DRM_NXP_PTN3460
 	tristate "NXP PTN3460 DP/LVDS bridge"
@@ -100,5 +96,7 @@ config DRM_TI_TFP410
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 source "drivers/gpu/drm/bridge/adv7511/Kconfig"
+
+source "drivers/gpu/drm/bridge/synopsys/Kconfig"
 
 endmenu

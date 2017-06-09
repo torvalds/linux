@@ -1,22 +1,22 @@
 /*
-   This files contains card eeprom (93c46 or 93c56) programming routines,
-   memory is addressed by 16 bits words.
-
-   This is part of rtl8180 OpenSource driver.
-   Copyright (C) Andrea Merello 2004  <andrea.merello@gmail.com>
-   Released under the terms of GPL (General Public Licence)
-
-   Parts of this driver are based on the GPL part of the
-   official realtek driver.
-
-   Parts of this driver are based on the rtl8180 driver skeleton
-   from Patric Schenke & Andres Salomon.
-
-   Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
-
-   We want to thank the Authors of those projects and the Ndiswrapper
-   project Authors.
-*/
+ *  This files contains card eeprom (93c46 or 93c56) programming routines,
+ *  memory is addressed by 16 bits words.
+ *
+ *  This is part of rtl8180 OpenSource driver.
+ *  Copyright (C) Andrea Merello 2004  <andrea.merello@gmail.com>
+ *  Released under the terms of GPL (General Public Licence)
+ *
+ *  Parts of this driver are based on the GPL part of the
+ *  official realtek driver.
+ *
+ *  Parts of this driver are based on the rtl8180 driver skeleton
+ *  from Patric Schenke & Andres Salomon.
+ *
+ *  Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
+ *
+ *  We want to thank the Authors of those projects and the Ndiswrapper
+ *  project Authors.
+ */
 
 #include "r8180_93cx6.h"
 

@@ -1,12 +1,12 @@
 /***********************************************************************
-**
-** Implementation of the Skein hash function.
-**
-** Source code author: Doug Whiting, 2008.
-**
-** This algorithm and source code is released to the public domain.
-**
-************************************************************************/
+ **
+ ** Implementation of the Skein hash function.
+ **
+ ** Source code author: Doug Whiting, 2008.
+ **
+ ** This algorithm and source code is released to the public domain.
+ **
+ ************************************************************************/
 
 #include <linux/string.h>       /* get the memcpy/memset functions */
 #include <linux/export.h>

@@ -12,8 +12,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/mfd/syscon/exynos4-pmu.h>
-#include <linux/mfd/syscon/exynos5-pmu.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -21,6 +19,7 @@
 #include <linux/phy/phy.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
+#include <linux/soc/samsung/exynos-regs-pmu.h>
 #include <linux/mfd/syscon.h>
 
 enum exynos_mipi_phy_id {
@@ -64,7 +63,7 @@ static const struct mipi_phy_device_desc s5pv210_mipi_phy = {
 		{
 			/* EXYNOS_MIPI_PHY_ID_CSIS0 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_DSIM0,
-			.enable_val = EXYNOS4_MIPI_PHY_ENABLE,
+			.enable_val = EXYNOS4_PHY_ENABLE,
 			.enable_reg = EXYNOS4_MIPI_PHY_CONTROL(0),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
 			.resetn_val = EXYNOS4_MIPI_PHY_SRESETN,
@@ -73,7 +72,7 @@ static const struct mipi_phy_device_desc s5pv210_mipi_phy = {
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_DSIM0 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_CSIS0,
-			.enable_val = EXYNOS4_MIPI_PHY_ENABLE,
+			.enable_val = EXYNOS4_PHY_ENABLE,
 			.enable_reg = EXYNOS4_MIPI_PHY_CONTROL(0),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
 			.resetn_val = EXYNOS4_MIPI_PHY_MRESETN,
@@ -82,7 +81,7 @@ static const struct mipi_phy_device_desc s5pv210_mipi_phy = {
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_CSIS1 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_DSIM1,
-			.enable_val = EXYNOS4_MIPI_PHY_ENABLE,
+			.enable_val = EXYNOS4_PHY_ENABLE,
 			.enable_reg = EXYNOS4_MIPI_PHY_CONTROL(1),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
 			.resetn_val = EXYNOS4_MIPI_PHY_SRESETN,
@@ -91,7 +90,7 @@ static const struct mipi_phy_device_desc s5pv210_mipi_phy = {
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_DSIM1 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_CSIS1,
-			.enable_val = EXYNOS4_MIPI_PHY_ENABLE,
+			.enable_val = EXYNOS4_PHY_ENABLE,
 			.enable_reg = EXYNOS4_MIPI_PHY_CONTROL(1),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
 			.resetn_val = EXYNOS4_MIPI_PHY_MRESETN,
@@ -109,47 +108,47 @@ static const struct mipi_phy_device_desc exynos5420_mipi_phy = {
 		{
 			/* EXYNOS_MIPI_PHY_ID_CSIS0 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_DSIM0,
-			.enable_val = EXYNOS5_PHY_ENABLE,
-			.enable_reg = EXYNOS5420_MIPI_PHY0_CONTROL,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS5420_MIPI_PHY_CONTROL(0),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
-			.resetn_val = EXYNOS5_MIPI_PHY_S_RESETN,
-			.resetn_reg = EXYNOS5420_MIPI_PHY0_CONTROL,
+			.resetn_val = EXYNOS4_MIPI_PHY_SRESETN,
+			.resetn_reg = EXYNOS5420_MIPI_PHY_CONTROL(0),
 			.resetn_map = EXYNOS_MIPI_REGMAP_PMU,
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_DSIM0 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_CSIS0,
-			.enable_val = EXYNOS5_PHY_ENABLE,
-			.enable_reg = EXYNOS5420_MIPI_PHY0_CONTROL,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS5420_MIPI_PHY_CONTROL(0),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
-			.resetn_val = EXYNOS5_MIPI_PHY_M_RESETN,
-			.resetn_reg = EXYNOS5420_MIPI_PHY0_CONTROL,
+			.resetn_val = EXYNOS4_MIPI_PHY_MRESETN,
+			.resetn_reg = EXYNOS5420_MIPI_PHY_CONTROL(0),
 			.resetn_map = EXYNOS_MIPI_REGMAP_PMU,
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_CSIS1 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_DSIM1,
-			.enable_val = EXYNOS5_PHY_ENABLE,
-			.enable_reg = EXYNOS5420_MIPI_PHY1_CONTROL,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS5420_MIPI_PHY_CONTROL(1),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
-			.resetn_val = EXYNOS5_MIPI_PHY_S_RESETN,
-			.resetn_reg = EXYNOS5420_MIPI_PHY1_CONTROL,
+			.resetn_val = EXYNOS4_MIPI_PHY_SRESETN,
+			.resetn_reg = EXYNOS5420_MIPI_PHY_CONTROL(1),
 			.resetn_map = EXYNOS_MIPI_REGMAP_PMU,
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_DSIM1 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_CSIS1,
-			.enable_val = EXYNOS5_PHY_ENABLE,
-			.enable_reg = EXYNOS5420_MIPI_PHY1_CONTROL,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS5420_MIPI_PHY_CONTROL(1),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
-			.resetn_val = EXYNOS5_MIPI_PHY_M_RESETN,
-			.resetn_reg = EXYNOS5420_MIPI_PHY1_CONTROL,
+			.resetn_val = EXYNOS4_MIPI_PHY_MRESETN,
+			.resetn_reg = EXYNOS5420_MIPI_PHY_CONTROL(1),
 			.resetn_map = EXYNOS_MIPI_REGMAP_PMU,
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_CSIS2 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_NONE,
-			.enable_val = EXYNOS5_PHY_ENABLE,
-			.enable_reg = EXYNOS5420_MIPI_PHY2_CONTROL,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS5420_MIPI_PHY_CONTROL(2),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
-			.resetn_val = EXYNOS5_MIPI_PHY_S_RESETN,
-			.resetn_reg = EXYNOS5420_MIPI_PHY2_CONTROL,
+			.resetn_val = EXYNOS4_MIPI_PHY_SRESETN,
+			.resetn_reg = EXYNOS5420_MIPI_PHY_CONTROL(2),
 			.resetn_map = EXYNOS_MIPI_REGMAP_PMU,
 		},
 	},
@@ -172,8 +171,8 @@ static const struct mipi_phy_device_desc exynos5433_mipi_phy = {
 		{
 			/* EXYNOS_MIPI_PHY_ID_CSIS0 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_DSIM0,
-			.enable_val = EXYNOS5_PHY_ENABLE,
-			.enable_reg = EXYNOS5433_MIPI_PHY0_CONTROL,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS4_MIPI_PHY_CONTROL(0),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
 			.resetn_val = BIT(0),
 			.resetn_reg = EXYNOS5433_SYSREG_CAM0_MIPI_DPHY_CON,
@@ -181,8 +180,8 @@ static const struct mipi_phy_device_desc exynos5433_mipi_phy = {
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_DSIM0 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_CSIS0,
-			.enable_val = EXYNOS5_PHY_ENABLE,
-			.enable_reg = EXYNOS5433_MIPI_PHY0_CONTROL,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS4_MIPI_PHY_CONTROL(0),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
 			.resetn_val = BIT(0),
 			.resetn_reg = EXYNOS5433_SYSREG_DISP_MIPI_PHY,
@@ -190,8 +189,8 @@ static const struct mipi_phy_device_desc exynos5433_mipi_phy = {
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_CSIS1 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_NONE,
-			.enable_val = EXYNOS5_PHY_ENABLE,
-			.enable_reg = EXYNOS5433_MIPI_PHY1_CONTROL,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS4_MIPI_PHY_CONTROL(1),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
 			.resetn_val = BIT(1),
 			.resetn_reg = EXYNOS5433_SYSREG_CAM0_MIPI_DPHY_CON,
@@ -199,8 +198,8 @@ static const struct mipi_phy_device_desc exynos5433_mipi_phy = {
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_DSIM1 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_NONE,
-			.enable_val = EXYNOS5_PHY_ENABLE,
-			.enable_reg = EXYNOS5433_MIPI_PHY1_CONTROL,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS4_MIPI_PHY_CONTROL(1),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
 			.resetn_val = BIT(1),
 			.resetn_reg = EXYNOS5433_SYSREG_DISP_MIPI_PHY,
@@ -208,8 +207,8 @@ static const struct mipi_phy_device_desc exynos5433_mipi_phy = {
 		}, {
 			/* EXYNOS_MIPI_PHY_ID_CSIS2 */
 			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_NONE,
-			.enable_val = EXYNOS5_PHY_ENABLE,
-			.enable_reg = EXYNOS5433_MIPI_PHY2_CONTROL,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS4_MIPI_PHY_CONTROL(2),
 			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
 			.resetn_val = BIT(0),
 			.resetn_reg = EXYNOS5433_SYSREG_CAM1_MIPI_DPHY_CON,

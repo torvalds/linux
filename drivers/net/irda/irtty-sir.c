@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 

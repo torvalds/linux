@@ -20,7 +20,7 @@ static __inline__ int udplite_getfrag(void *from, char *to, int  offset,
 				      int len, int odd, struct sk_buff *skb)
 {
 	struct msghdr *msg = from;
-	return copy_from_iter(to, len, &msg->msg_iter) != len ? -EFAULT : 0;
+	return copy_from_iter_full(to, len, &msg->msg_iter) ? 0 : -EFAULT;
 }
 
 /* Designate sk as UDP-Lite socket */

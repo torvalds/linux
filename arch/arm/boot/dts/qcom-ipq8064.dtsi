@@ -65,13 +65,13 @@
 		cxo_board {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <19200000>;
+			clock-frequency = <25000000>;
 		};
 
 		pxo_board {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <27000000>;
+			clock-frequency = <25000000>;
 		};
 
 		sleep_clk: sleep_clk {

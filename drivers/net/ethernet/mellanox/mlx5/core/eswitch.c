@@ -53,13 +53,6 @@ struct esw_uc_addr {
 	u32                vport;
 };
 
-/* E-Switch MC FDB table hash node */
-struct esw_mc_addr { /* SRIOV only */
-	struct l2addr_node     node;
-	struct mlx5_flow_handle *uplink_rule; /* Forward to uplink rule */
-	u32                    refcnt;
-};
-
 /* Vport UC/MC hash node */
 struct vport_addr {
 	struct l2addr_node     node;
@@ -133,7 +126,7 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 
 	if (!MLX5_CAP_ESW(dev, vport_cvlan_strip) ||
 	    !MLX5_CAP_ESW(dev, vport_cvlan_insert_if_not_exist))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	esw_debug(dev, "Set Vport[%d] VLAN %d qos %d set=%x\n",
 		  vport, vlan, qos, set_flags);
@@ -337,6 +330,7 @@ esw_fdb_set_vport_promisc_rule(struct mlx5_eswitch *esw, u32 vport)
 static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_flow_namespace *root_ns;
 	struct mlx5_flow_table *fdb;
@@ -353,7 +347,7 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get FDB flow namespace\n");
-		return -ENOMEM;
+		return -EOPNOTSUPP;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
@@ -362,7 +356,9 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	memset(flow_group_in, 0, inlen);
 
 	table_size = BIT(MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
-	fdb = mlx5_create_flow_table(root_ns, 0, table_size, 0, 0);
+
+	ft_attr.max_fte = table_size;
+	fdb = mlx5_create_flow_table(root_ns, &ft_attr);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
 		esw_warn(dev, "Failed to create FDB Table err %d\n", err);
@@ -814,7 +810,7 @@ static void esw_update_vport_mc_promisc(struct mlx5_eswitch *esw, u32 vport_num)
 static void esw_apply_vport_rx_mode(struct mlx5_eswitch *esw, u32 vport_num,
 				    bool promisc, bool mc_promisc)
 {
-	struct esw_mc_addr *allmulti_addr = esw->mc_promisc;
+	struct esw_mc_addr *allmulti_addr = &esw->mc_promisc;
 	struct mlx5_vport *vport = &esw->vports[vport_num];
 
 	if (IS_ERR_OR_NULL(vport->allmulti_rule) != mc_promisc)
@@ -962,7 +958,7 @@ static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch egress flow namespace\n");
-		return -EIO;
+		return -EOPNOTSUPP;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
@@ -979,7 +975,7 @@ static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 
 	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
 	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
-	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.vlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.cvlan_tag);
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.first_vid);
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 0);
@@ -1079,7 +1075,7 @@ static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch ingress flow namespace\n");
-		return -EIO;
+		return -EOPNOTSUPP;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
@@ -1098,7 +1094,7 @@ static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
 
 	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
-	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.vlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.cvlan_tag);
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.smac_47_16);
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.smac_15_0);
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
@@ -1115,7 +1111,7 @@ static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 
 	memset(flow_group_in, 0, inlen);
 	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
-	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.vlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.cvlan_tag);
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 1);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 1);
 
@@ -1254,7 +1250,7 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 	}
 
 	if (vport->info.vlan || vport->info.qos)
-		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.vlan_tag);
+		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
 
 	if (vport->info.spoofchk) {
 		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.smac_47_16);
@@ -1335,8 +1331,8 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 	}
 
 	/* Allowed vlan rule */
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.vlan_tag);
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_value, outer_headers.vlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_value, outer_headers.cvlan_tag);
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.first_vid);
 	MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid, vport->info.vlan);
 
@@ -1415,7 +1411,7 @@ static void esw_destroy_tsar(struct mlx5_eswitch *esw)
 }
 
 static int esw_vport_enable_qos(struct mlx5_eswitch *esw, int vport_num,
-				u32 initial_max_rate)
+				u32 initial_max_rate, u32 initial_bw_share)
 {
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
 	struct mlx5_vport *vport = &esw->vports[vport_num];
@@ -1439,6 +1435,7 @@ static int esw_vport_enable_qos(struct mlx5_eswitch *esw, int vport_num,
 		 esw->qos.root_tsar_id);
 	MLX5_SET(scheduling_context, &sched_ctx, max_average_bw,
 		 initial_max_rate);
+	MLX5_SET(scheduling_context, &sched_ctx, bw_share, initial_bw_share);
 
 	err = mlx5_create_scheduling_element_cmd(dev,
 						 SCHEDULING_HIERARCHY_E_SWITCH,
@@ -1473,7 +1470,7 @@ static void esw_vport_disable_qos(struct mlx5_eswitch *esw, int vport_num)
 }
 
 static int esw_vport_qos_config(struct mlx5_eswitch *esw, int vport_num,
-				u32 max_rate)
+				u32 max_rate, u32 bw_share)
 {
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
 	struct mlx5_vport *vport = &esw->vports[vport_num];
@@ -1497,7 +1494,9 @@ static int esw_vport_qos_config(struct mlx5_eswitch *esw, int vport_num,
 		 esw->qos.root_tsar_id);
 	MLX5_SET(scheduling_context, &sched_ctx, max_average_bw,
 		 max_rate);
+	MLX5_SET(scheduling_context, &sched_ctx, bw_share, bw_share);
 	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW;
+	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_BW_SHARE;
 
 	err = mlx5_modify_scheduling_element_cmd(dev,
 						 SCHEDULING_HIERARCHY_E_SWITCH,
@@ -1563,7 +1562,8 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 	esw_apply_vport_conf(esw, vport);
 
 	/* Attach vport to the eswitch rate limiter */
-	if (esw_vport_enable_qos(esw, vport_num, vport->info.max_rate))
+	if (esw_vport_enable_qos(esw, vport_num, vport->info.max_rate,
+				 vport->qos.bw_share))
 		esw_warn(esw->dev, "Failed to attach vport %d to eswitch rate limiter", vport_num);
 
 	/* Sync with current vport context */
@@ -1630,7 +1630,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	if (!MLX5_CAP_GEN(esw->dev, eswitch_flow_table) ||
 	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ft_support)) {
 		esw_warn(esw->dev, "E-Switch FDB is not supported, aborting ...\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	if (!MLX5_CAP_ESW_INGRESS_ACL(esw->dev, ft_support))
@@ -1681,7 +1681,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	esw_info(esw->dev, "disable SRIOV: active vports(%d) mode(%d)\n",
 		 esw->enabled_vports, esw->mode);
 
-	mc_promisc = esw->mc_promisc;
+	mc_promisc = &esw->mc_promisc;
 	nvports = esw->enabled_vports;
 
 	for (i = 0; i < esw->total_vports; i++)
@@ -1725,7 +1725,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 {
 	int l2_table_size = 1 << MLX5_CAP_GEN(dev, log_max_l2_table);
 	int total_vports = MLX5_TOTAL_VPORTS(dev);
-	struct esw_mc_addr *mc_promisc;
 	struct mlx5_eswitch *esw;
 	int vport_num;
 	int err;
@@ -1753,13 +1752,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		goto abort;
 	}
 	esw->l2_table.size = l2_table_size;
-
-	mc_promisc = kzalloc(sizeof(*mc_promisc), GFP_KERNEL);
-	if (!mc_promisc) {
-		err = -ENOMEM;
-		goto abort;
-	}
-	esw->mc_promisc = mc_promisc;
 
 	esw->work_queue = create_singlethread_workqueue("mlx5_esw_wq");
 	if (!esw->work_queue) {
@@ -1799,6 +1791,11 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	esw->enabled_vports = 0;
 	esw->mode = SRIOV_NONE;
 	esw->offloads.inline_mode = MLX5_INLINE_MODE_NONE;
+	if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev, encap) &&
+	    MLX5_CAP_ESW_FLOWTABLE_FDB(dev, decap))
+		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_BASIC;
+	else
+		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 
 	dev->priv.eswitch = esw;
 	return 0;
@@ -1823,7 +1820,6 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
 	kfree(esw->l2_table.bitmap);
-	kfree(esw->mc_promisc);
 	kfree(esw->offloads.vport_reps);
 	kfree(esw->vports);
 	kfree(esw);
@@ -1860,7 +1856,7 @@ int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 
 	if (!ESW_ALLOWED(esw))
 		return -EPERM;
-	if (!LEGAL_VPORT(esw, vport))
+	if (!LEGAL_VPORT(esw, vport) || is_multicast_ether_addr(mac))
 		return -EINVAL;
 
 	mutex_lock(&esw->state_lock);
@@ -1952,6 +1948,7 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 	ivi->qos = evport->info.qos;
 	ivi->spoofchk = evport->info.spoofchk;
 	ivi->trusted = evport->info.trusted;
+	ivi->min_tx_rate = evport->info.min_rate;
 	ivi->max_tx_rate = evport->info.max_rate;
 	mutex_unlock(&esw->state_lock);
 
@@ -2046,23 +2043,103 @@ int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
 	return 0;
 }
 
-int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw,
-				int vport, u32 max_rate)
+static u32 calculate_vports_min_rate_divider(struct mlx5_eswitch *esw)
 {
+	u32 fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
 	struct mlx5_vport *evport;
+	u32 max_guarantee = 0;
+	int i;
+
+	for (i = 0; i <= esw->total_vports; i++) {
+		evport = &esw->vports[i];
+		if (!evport->enabled || evport->info.min_rate < max_guarantee)
+			continue;
+		max_guarantee = evport->info.min_rate;
+	}
+
+	return max_t(u32, max_guarantee / fw_max_bw_share, 1);
+}
+
+static int normalize_vports_min_rate(struct mlx5_eswitch *esw, u32 divider)
+{
+	u32 fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
+	struct mlx5_vport *evport;
+	u32 vport_max_rate;
+	u32 vport_min_rate;
+	u32 bw_share;
+	int err;
+	int i;
+
+	for (i = 0; i <= esw->total_vports; i++) {
+		evport = &esw->vports[i];
+		if (!evport->enabled)
+			continue;
+		vport_min_rate = evport->info.min_rate;
+		vport_max_rate = evport->info.max_rate;
+		bw_share = MLX5_MIN_BW_SHARE;
+
+		if (vport_min_rate)
+			bw_share = MLX5_RATE_TO_BW_SHARE(vport_min_rate,
+							 divider,
+							 fw_max_bw_share);
+
+		if (bw_share == evport->qos.bw_share)
+			continue;
+
+		err = esw_vport_qos_config(esw, i, vport_max_rate,
+					   bw_share);
+		if (!err)
+			evport->qos.bw_share = bw_share;
+		else
+			return err;
+	}
+
+	return 0;
+}
+
+int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, int vport,
+				u32 max_rate, u32 min_rate)
+{
+	u32 fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
+	bool min_rate_supported = MLX5_CAP_QOS(esw->dev, esw_bw_share) &&
+					fw_max_bw_share >= MLX5_MIN_BW_SHARE;
+	bool max_rate_supported = MLX5_CAP_QOS(esw->dev, esw_rate_limit);
+	struct mlx5_vport *evport;
+	u32 previous_min_rate;
+	u32 divider;
 	int err = 0;
 
 	if (!ESW_ALLOWED(esw))
 		return -EPERM;
 	if (!LEGAL_VPORT(esw, vport))
 		return -EINVAL;
+	if ((min_rate && !min_rate_supported) || (max_rate && !max_rate_supported))
+		return -EOPNOTSUPP;
 
 	mutex_lock(&esw->state_lock);
 	evport = &esw->vports[vport];
-	err = esw_vport_qos_config(esw, vport, max_rate);
+
+	if (min_rate == evport->info.min_rate)
+		goto set_max_rate;
+
+	previous_min_rate = evport->info.min_rate;
+	evport->info.min_rate = min_rate;
+	divider = calculate_vports_min_rate_divider(esw);
+	err = normalize_vports_min_rate(esw, divider);
+	if (err) {
+		evport->info.min_rate = previous_min_rate;
+		goto unlock;
+	}
+
+set_max_rate:
+	if (max_rate == evport->info.max_rate)
+		goto unlock;
+
+	err = esw_vport_qos_config(esw, vport, max_rate, evport->qos.bw_share);
 	if (!err)
 		evport->info.max_rate = max_rate;
 
+unlock:
 	mutex_unlock(&esw->state_lock);
 	return err;
 }

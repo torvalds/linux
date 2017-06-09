@@ -25,6 +25,7 @@
 #include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -842,8 +843,11 @@ struct device_node *of_find_node_opts_by_path(const char *path, const char **opt
 	if (!np)
 		np = of_node_get(of_root);
 	while (np && *path == '/') {
+		struct device_node *tmp = np;
+
 		path++; /* Increment past '/' delimiter */
 		np = __of_find_node_by_path(np, path);
+		of_node_put(tmp);
 		path = strchrnul(path, '/');
 		if (separator && separator < path)
 			break;
@@ -1209,6 +1213,37 @@ int of_property_read_u32_index(const struct device_node *np,
 EXPORT_SYMBOL_GPL(of_property_read_u32_index);
 
 /**
+ * of_property_read_u64_index - Find and read a u64 from a multi-value property.
+ *
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ * @index:	index of the u64 in the list of values
+ * @out_value:	pointer to return value, modified only if no error.
+ *
+ * Search for a property in a device node and read nth 64-bit value from
+ * it. Returns 0 on success, -EINVAL if the property does not exist,
+ * -ENODATA if property does not have a value, and -EOVERFLOW if the
+ * property data isn't large enough.
+ *
+ * The out_value is modified only if a valid u64 value can be decoded.
+ */
+int of_property_read_u64_index(const struct device_node *np,
+				       const char *propname,
+				       u32 index, u64 *out_value)
+{
+	const u64 *val = of_find_property_value_of_size(np, propname,
+					((index + 1) * sizeof(*out_value)),
+					0, NULL);
+
+	if (IS_ERR(val))
+		return PTR_ERR(val);
+
+	*out_value = be64_to_cpup(((__be64 *)val) + index);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_property_read_u64_index);
+
+/**
  * of_property_read_variable_u8_array - Find and read an array of u8 from a
  * property, with bounds on the minimum and maximum array size.
  *
@@ -1534,9 +1569,12 @@ void of_print_phandle_args(const char *msg, const struct of_phandle_args *args)
 {
 	int i;
 	printk("%s %s", msg, of_node_full_name(args->np));
-	for (i = 0; i < args->args_count; i++)
-		printk(i ? ",%08x" : ":%08x", args->args[i]);
-	printk("\n");
+	for (i = 0; i < args->args_count; i++) {
+		const char delim = i ? ',' : ':';
+
+		pr_cont("%c%08x", delim, args->args[i]);
+	}
+	pr_cont("\n");
 }
 
 int of_phandle_iterator_init(struct of_phandle_iterator *it,
@@ -2109,7 +2147,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 			continue;
 
 		/* Allocate an alias_prop with enough space for the stem */
-		ap = dt_alloc(sizeof(*ap) + len + 1, 4);
+		ap = dt_alloc(sizeof(*ap) + len + 1, __alignof__(*ap));
 		if (!ap)
 			continue;
 		memset(ap, 0, sizeof(*ap) + len + 1);
@@ -2243,15 +2281,14 @@ EXPORT_SYMBOL_GPL(of_console_check);
  */
 struct device_node *of_find_next_cache_node(const struct device_node *np)
 {
-	struct device_node *child;
-	const phandle *handle;
+	struct device_node *child, *cache_node;
 
-	handle = of_get_property(np, "l2-cache", NULL);
-	if (!handle)
-		handle = of_get_property(np, "next-level-cache", NULL);
+	cache_node = of_parse_phandle(np, "l2-cache", 0);
+	if (!cache_node)
+		cache_node = of_parse_phandle(np, "next-level-cache", 0);
 
-	if (handle)
-		return of_find_node_by_phandle(be32_to_cpup(handle));
+	if (cache_node)
+		return cache_node;
 
 	/* OF on pmac has nodes instead of properties named "l2-cache"
 	 * beneath CPU nodes.
@@ -2262,6 +2299,31 @@ struct device_node *of_find_next_cache_node(const struct device_node *np)
 				return child;
 
 	return NULL;
+}
+
+/**
+ * of_find_last_cache_level - Find the level at which the last cache is
+ * 		present for the given logical cpu
+ *
+ * @cpu: cpu number(logical index) for which the last cache level is needed
+ *
+ * Returns the the level at which the last cache is present. It is exactly
+ * same as  the total number of cache levels for the given logical cpu.
+ */
+int of_find_last_cache_level(unsigned int cpu)
+{
+	u32 cache_level = 0;
+	struct device_node *prev = NULL, *np = of_cpu_device_node_get(cpu);
+
+	while (np) {
+		prev = np;
+		of_node_put(np);
+		np = of_find_next_cache_node(np);
+	}
+
+	of_property_read_u32(prev, "cache-level", &cache_level);
+
+	return cache_level;
 }
 
 /**
@@ -2466,3 +2528,40 @@ struct device_node *of_graph_get_remote_port(const struct device_node *node)
 	return of_get_next_parent(np);
 }
 EXPORT_SYMBOL(of_graph_get_remote_port);
+
+/**
+ * of_graph_get_remote_node() - get remote parent device_node for given port/endpoint
+ * @node: pointer to parent device_node containing graph port/endpoint
+ * @port: identifier (value of reg property) of the parent port node
+ * @endpoint: identifier (value of reg property) of the endpoint node
+ *
+ * Return: Remote device node associated with remote endpoint node linked
+ *	   to @node. Use of_node_put() on it when done.
+ */
+struct device_node *of_graph_get_remote_node(const struct device_node *node,
+					     u32 port, u32 endpoint)
+{
+	struct device_node *endpoint_node, *remote;
+
+	endpoint_node = of_graph_get_endpoint_by_regs(node, port, endpoint);
+	if (!endpoint_node) {
+		pr_debug("no valid endpoint (%d, %d) for node %s\n",
+			 port, endpoint, node->full_name);
+		return NULL;
+	}
+
+	remote = of_graph_get_remote_port_parent(endpoint_node);
+	of_node_put(endpoint_node);
+	if (!remote) {
+		pr_debug("no valid remote node\n");
+		return NULL;
+	}
+
+	if (!of_device_is_available(remote)) {
+		pr_debug("not available for remote node\n");
+		return NULL;
+	}
+
+	return remote;
+}
+EXPORT_SYMBOL(of_graph_get_remote_node);

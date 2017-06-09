@@ -494,6 +494,8 @@ add_hp_mic (bool)
 hp_mic_detect (bool)
     enable/disable the hp/mic shared input for a single built-in mic
     case; default true
+vmaster (bool)
+    enable/disable the virtual Master control; default true
 mixer_nid (int)
     specifies the widget NID of the analog-loopback mixer
 
@@ -697,7 +699,7 @@ If it's a regression, at best, send alsa-info outputs of both working
 and non-working kernels.  This is really helpful because we can
 compare the codec registers directly.
 
-Send a bug report either the followings:
+Send a bug report either the following:
 
 kernel-bugzilla
     https://bugzilla.kernel.org/

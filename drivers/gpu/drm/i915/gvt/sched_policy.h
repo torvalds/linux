@@ -43,6 +43,8 @@ struct intel_gvt_sched_policy_ops {
 	void (*stop_schedule)(struct intel_vgpu *vgpu);
 };
 
+void intel_gvt_schedule(struct intel_gvt *gvt);
+
 int intel_gvt_init_sched_policy(struct intel_gvt *gvt);
 
 void intel_gvt_clean_sched_policy(struct intel_gvt *gvt);

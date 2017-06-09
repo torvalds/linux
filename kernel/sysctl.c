@@ -63,11 +63,12 @@
 #include <linux/capability.h>
 #include <linux/binfmts.h>
 #include <linux/sched/sysctl.h>
+#include <linux/sched/coredump.h>
 #include <linux/kexec.h>
 #include <linux/bpf.h>
 #include <linux/mount.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>
 
 #ifdef CONFIG_X86
@@ -416,7 +417,7 @@ static struct ctl_table kern_table[] = {
 	},
 	{
 		.procname	= "sched_rr_timeslice_ms",
-		.data		= &sched_rr_timeslice,
+		.data		= &sysctl_sched_rr_timeslice,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= sched_rr_handler,
@@ -627,7 +628,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &tracepoint_printk,
 		.maxlen		= sizeof(tracepoint_printk),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= tracepoint_printk_sysctl,
 	},
 #endif
 #ifdef CONFIG_KEXEC_CORE
@@ -1175,6 +1176,8 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= timer_migration_handler,
+		.extra1		= &zero,
+		.extra2		= &one,
 	},
 #endif
 #ifdef CONFIG_BPF_SYSCALL
@@ -2132,9 +2135,12 @@ static int do_proc_douintvec_conv(bool *negp, unsigned long *lvalp,
 	if (write) {
 		if (*negp)
 			return -EINVAL;
+		if (*lvalp > UINT_MAX)
+			return -EINVAL;
 		*valp = *lvalp;
 	} else {
 		unsigned int val = *valp;
+		*negp = false;
 		*lvalp = (unsigned long)val;
 	}
 	return 0;
@@ -2389,9 +2395,11 @@ static void validate_coredump_safety(void)
 #ifdef CONFIG_COREDUMP
 	if (suid_dumpable == SUID_DUMP_ROOT &&
 	    core_pattern[0] != '/' && core_pattern[0] != '|') {
-		printk(KERN_WARNING "Unsafe core_pattern used with "\
-			"suid_dumpable=2. Pipe handler or fully qualified "\
-			"core dump path required.\n");
+		printk(KERN_WARNING
+"Unsafe core_pattern used with fs.suid_dumpable=2.\n"
+"Pipe handler or fully qualified core dump path required.\n"
+"Set kernel.core_pattern before fs.suid_dumpable.\n"
+		);
 	}
 #endif
 }
@@ -2473,6 +2481,7 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int 
 				break;
 			if (neg)
 				continue;
+			val = convmul * val / convdiv;
 			if ((min && val < *min) || (max && val > *max))
 				continue;
 			*i = val;
@@ -2567,7 +2576,7 @@ static int do_proc_dointvec_jiffies_conv(bool *negp, unsigned long *lvalp,
 					 int write, void *data)
 {
 	if (write) {
-		if (*lvalp > LONG_MAX / HZ)
+		if (*lvalp > INT_MAX / HZ)
 			return 1;
 		*valp = *negp ? -(*lvalp*HZ) : (*lvalp*HZ);
 	} else {

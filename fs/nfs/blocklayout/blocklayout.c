@@ -381,7 +381,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 	struct blk_plug plug;
 	int i;
 
-	dprintk("%s enter, %Zu@%lld\n", __func__, count, offset);
+	dprintk("%s enter, %zu@%lld\n", __func__, count, offset);
 
 	/* At this point, header->page_aray is a (sequential) list of nfs_pages.
 	 * We want to write each, and if there is an error set pnfs_error

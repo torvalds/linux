@@ -559,7 +559,7 @@ void send_cleanup_vector(struct irq_cfg *cfg)
 		__send_cleanup_vector(data);
 }
 
-asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
+asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
 {
 	unsigned vector, me;
 

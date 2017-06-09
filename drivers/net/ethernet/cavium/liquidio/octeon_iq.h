@@ -152,7 +152,7 @@ struct octeon_instr_queue {
 	struct oct_iq_stats stats;
 
 	/** DMA mapped base address of the input descriptor ring. */
-	u64 base_addr_dma;
+	dma_addr_t base_addr_dma;
 
 	/** Application context */
 	void *app_ctx;
@@ -369,5 +369,5 @@ int octeon_setup_iq(struct octeon_device *oct, int ifidx,
 		    void *app_ctx);
 int
 octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
-		u32 pending_thresh, u32 napi_budget);
+		u32 napi_budget);
 #endif				/* __OCTEON_IQ_H__ */

@@ -22,11 +22,11 @@ Coding style
 ************
 
 The kernel has long had a standard coding style, described in
-Documentation/process/coding-style.rst.  For much of that time, the policies described
-in that file were taken as being, at most, advisory.  As a result, there is
-a substantial amount of code in the kernel which does not meet the coding
-style guidelines.  The presence of that code leads to two independent
-hazards for kernel developers.
+:ref:`Documentation/process/coding-style.rst <codingstyle>`.  For much of
+that time, the policies described in that file were taken as being, at most,
+advisory.  As a result, there is a substantial amount of code in the kernel
+which does not meet the coding style guidelines.  The presence of that code
+leads to two independent hazards for kernel developers.
 
 The first of these is to believe that the kernel coding standards do not
 matter and are not enforced.  The truth of the matter is that adding new
@@ -343,9 +343,10 @@ user-space developers to know what they are working with.  See
 Documentation/ABI/README for a description of how this documentation should
 be formatted and what information needs to be provided.
 
-The file Documentation/admin-guide/kernel-parameters.rst describes all of the kernel's
-boot-time parameters.  Any patch which adds new parameters should add the
-appropriate entries to this file.
+The file :ref:`Documentation/admin-guide/kernel-parameters.rst
+<kernelparameters>` describes all of the kernel's boot-time parameters.
+Any patch which adds new parameters should add the appropriate entries to
+this file.
 
 Any new configuration options must be accompanied by help text which
 clearly explains the options and when the user might want to select them.

@@ -33,6 +33,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -125,7 +126,6 @@ static void da8xx_musb_disable(struct musb *musb)
 	musb_writel(reg_base, DA8XX_USB_INTR_MASK_CLEAR_REG,
 		    DA8XX_INTR_USB_MASK |
 		    DA8XX_INTR_TX_MASK | DA8XX_INTR_RX_MASK);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_writel(reg_base, DA8XX_USB_END_OF_INTR_REG, 0);
 }
 
@@ -457,15 +457,40 @@ static inline u8 get_vbus_power(struct device *dev)
 	return current_uA / 1000 / 2;
 }
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+static void da8xx_dma_controller_callback(struct dma_controller *c)
+{
+	struct musb *musb = c->musb;
+	void __iomem *reg_base = musb->ctrl_base;
+
+	musb_writel(reg_base, DA8XX_USB_END_OF_INTR_REG, 0);
+}
+
+static struct dma_controller *
+da8xx_dma_controller_create(struct musb *musb, void __iomem *base)
+{
+	struct dma_controller *controller;
+
+	controller = cppi41_dma_controller_create(musb, base);
+	if (IS_ERR_OR_NULL(controller))
+		return controller;
+
+	controller->dma_callback = da8xx_dma_controller_callback;
+
+	return controller;
+}
+#endif
+
 static const struct musb_platform_ops da8xx_ops = {
-	.quirks		= MUSB_DMA_CPPI | MUSB_INDEXED_EP,
+	.quirks		= MUSB_INDEXED_EP | MUSB_PRESERVE_SESSION |
+			  MUSB_DMA_CPPI41 | MUSB_DA8XX,
 	.init		= da8xx_musb_init,
 	.exit		= da8xx_musb_exit,
 
 	.fifo_mode	= 2,
-#ifdef CONFIG_USB_TI_CPPI_DMA
-	.dma_init	= cppi_dma_controller_create,
-	.dma_exit	= cppi_dma_controller_destroy,
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+	.dma_init	= da8xx_dma_controller_create,
+	.dma_exit	= cppi41_dma_controller_destroy,
 #endif
 	.enable		= da8xx_musb_enable,
 	.disable	= da8xx_musb_disable,
@@ -486,6 +511,12 @@ static const struct musb_hdrc_config da8xx_config = {
 	.ram_bits = 10,
 	.num_eps = 5,
 	.multipoint = 1,
+};
+
+static struct of_dev_auxdata da8xx_auxdata_lookup[] = {
+	OF_DEV_AUXDATA("ti,da830-cppi41", 0x01e01000, "cppi41-dmaengine",
+		       NULL),
+	{}
 };
 
 static int da8xx_probe(struct platform_device *pdev)
@@ -538,6 +569,11 @@ static int da8xx_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, glue);
 
+	ret = of_platform_populate(pdev->dev.of_node, NULL,
+				   da8xx_auxdata_lookup, &pdev->dev);
+	if (ret)
+		return ret;
+
 	memset(musb_resources, 0x00, sizeof(*musb_resources) *
 			ARRAY_SIZE(musb_resources));
 
@@ -578,6 +614,34 @@ static int da8xx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int da8xx_suspend(struct device *dev)
+{
+	int ret;
+	struct da8xx_glue *glue = dev_get_drvdata(dev);
+
+	ret = phy_power_off(glue->phy);
+	if (ret)
+		return ret;
+	clk_disable_unprepare(glue->clk);
+
+	return 0;
+}
+
+static int da8xx_resume(struct device *dev)
+{
+	int ret;
+	struct da8xx_glue *glue = dev_get_drvdata(dev);
+
+	ret = clk_prepare_enable(glue->clk);
+	if (ret)
+		return ret;
+	return phy_power_on(glue->phy);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(da8xx_pm_ops, da8xx_suspend, da8xx_resume);
+
 #ifdef CONFIG_OF
 static const struct of_device_id da8xx_id_table[] = {
 	{
@@ -593,6 +657,7 @@ static struct platform_driver da8xx_driver = {
 	.remove		= da8xx_remove,
 	.driver		= {
 		.name	= "musb-da8xx",
+		.pm = &da8xx_pm_ops,
 		.of_match_table = of_match_ptr(da8xx_id_table),
 	},
 };

@@ -237,7 +237,7 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev,
 	struct p80211_hdr_a3 *hdr;
 
 	hdr = (struct p80211_hdr_a3 *)skb->data;
-	if (p80211_rx_typedrop(wlandev, hdr->fc))
+	if (p80211_rx_typedrop(wlandev, le16_to_cpu(hdr->fc)))
 		return CONV_TO_ETHER_SKIPPED;
 
 	/* perform mcast filtering: allow my local address through but reject
@@ -252,7 +252,6 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev,
 	}
 
 	if (skb_p80211_to_ether(wlandev, wlandev->ethconv, skb) == 0) {
-		skb->dev->last_rx = jiffies;
 		wlandev->netdev->stats.rx_packets++;
 		wlandev->netdev->stats.rx_bytes += skb->len;
 		netif_rx_ni(skb);
@@ -287,7 +286,6 @@ static void p80211netdev_rx_bh(unsigned long arg)
 				skb->ip_summed = CHECKSUM_NONE;
 				skb->pkt_type = PACKET_OTHERHOST;
 				skb->protocol = htons(ETH_P_80211_RAW);
-				dev->last_rx = jiffies;
 
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += skb->len;

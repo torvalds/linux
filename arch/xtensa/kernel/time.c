@@ -34,9 +34,9 @@
 unsigned long ccount_freq;		/* ccount Hz */
 EXPORT_SYMBOL(ccount_freq);
 
-static cycle_t ccount_read(struct clocksource *cs)
+static u64 ccount_read(struct clocksource *cs)
 {
-	return (cycle_t)get_ccount();
+	return (u64)get_ccount();
 }
 
 static u64 notrace ccount_sched_clock_read(void)

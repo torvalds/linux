@@ -95,6 +95,7 @@ struct spi_imx_data {
 	unsigned int spi_bus_clk;
 
 	unsigned int bytes_per_word;
+	unsigned int spi_drctl;
 
 	unsigned int count;
 	void (*tx)(struct spi_imx_data *);
@@ -211,7 +212,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 			 struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-	unsigned int bpw;
+	unsigned int bpw, i;
 
 	if (!master->dma_rx)
 		return false;
@@ -228,11 +229,15 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 	if (bpw != 1 && bpw != 2 && bpw != 4)
 		return false;
 
-	if (transfer->len < spi_imx->wml * bpw)
+	for (i = spi_imx_get_fifosize(spi_imx) / 2; i > 0; i--) {
+		if (!(transfer->len % (i * bpw)))
+			break;
+	}
+
+	if (i == 0)
 		return false;
 
-	if (transfer->len % (spi_imx->wml * bpw))
-		return false;
+	spi_imx->wml = i;
 
 	return true;
 }
@@ -242,6 +247,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 #define MX51_ECSPI_CTRL_XCH		(1 <<  2)
 #define MX51_ECSPI_CTRL_SMC		(1 << 3)
 #define MX51_ECSPI_CTRL_MODE_MASK	(0xf << 4)
+#define MX51_ECSPI_CTRL_DRCTL(drctl)	((drctl) << 16)
 #define MX51_ECSPI_CTRL_POSTDIV_OFFSET	8
 #define MX51_ECSPI_CTRL_PREDIV_OFFSET	12
 #define MX51_ECSPI_CTRL_CS(cs)		((cs) << 18)
@@ -350,6 +356,12 @@ static int mx51_ecspi_config(struct spi_device *spi,
 	 * So set master mode for all channels as we do not support slave mode.
 	 */
 	ctrl |= MX51_ECSPI_CTRL_MODE_MASK;
+
+	/*
+	 * Enable SPI_RDY handling (falling edge/level triggered).
+	 */
+	if (spi->mode & SPI_READY)
+		ctrl |= MX51_ECSPI_CTRL_DRCTL(spi_imx->spi_drctl);
 
 	/* set clock speed */
 	ctrl |= mx51_ecspi_clkdiv(spi_imx, config->speed_hz, &clk);
@@ -837,10 +849,6 @@ static int spi_imx_dma_configure(struct spi_master *master,
 	struct dma_slave_config rx = {}, tx = {};
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
 
-	if (bytes_per_word == spi_imx->bytes_per_word)
-		/* Same as last time */
-		return 0;
-
 	switch (bytes_per_word) {
 	case 4:
 		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -1173,7 +1181,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct spi_imx_data *spi_imx;
 	struct resource *res;
-	int i, ret, irq;
+	int i, ret, irq, spi_drctl;
 
 	if (!np && !mxc_platform_info) {
 		dev_err(&pdev->dev, "can't get the platform data\n");
@@ -1181,6 +1189,12 @@ static int spi_imx_probe(struct platform_device *pdev)
 	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct spi_imx_data));
+	ret = of_property_read_u32(np, "fsl,spi-rdy-drctl", &spi_drctl);
+	if ((ret < 0) || (spi_drctl >= 0x3)) {
+		/* '11' is reserved */
+		spi_drctl = 0;
+	}
+
 	if (!master)
 		return -ENOMEM;
 
@@ -1216,7 +1230,9 @@ static int spi_imx_probe(struct platform_device *pdev)
 	spi_imx->bitbang.master->unprepare_message = spi_imx_unprepare_message;
 	spi_imx->bitbang.master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	if (is_imx35_cspi(spi_imx) || is_imx51_ecspi(spi_imx))
-		spi_imx->bitbang.master->mode_bits |= SPI_LOOP;
+		spi_imx->bitbang.master->mode_bits |= SPI_LOOP | SPI_READY;
+
+	spi_imx->spi_drctl = spi_drctl;
 
 	init_completion(&spi_imx->xfer_done);
 

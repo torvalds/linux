@@ -157,9 +157,8 @@ bool rtl92c_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
 			break;
 		if (count > POLLING_LLT_THRESHOLD) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Failed to polling write LLT done at address %d! _LLT_OP_VALUE(%x)\n",
-				 address, _LLT_OP_VALUE(value));
+			pr_err("Failed to polling write LLT done at address %d! _LLT_OP_VALUE(%x)\n",
+			       address, _LLT_OP_VALUE(value));
 			status = false;
 			break;
 		}
@@ -262,8 +261,7 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "illegal switch case\n");
+			pr_err("illegal switch case\n");
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -280,9 +278,7 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id = rtl_cam_get_free_entry(hw,
 								 p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						RT_TRACE(rtlpriv, COMP_SEC,
-							 DBG_EMERG,
-							 "Can not find free hw security cam entry\n");
+						pr_err("Can not find free hw security cam entry\n");
 						return;
 					}
 				} else {

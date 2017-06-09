@@ -1119,9 +1119,9 @@ int cl_sync_io_wait(const struct lu_env *env, struct cl_sync_io *anchor,
 	LASSERT(atomic_read(&anchor->csi_sync_nr) == 0);
 
 	/* wait until cl_sync_io_note() has done wakeup */
-	while (unlikely(atomic_read(&anchor->csi_barrier) != 0)) {
+	while (unlikely(atomic_read(&anchor->csi_barrier) != 0))
 		cpu_relax();
-	}
+
 
 	return rc;
 }

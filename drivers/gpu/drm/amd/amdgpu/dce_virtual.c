@@ -122,8 +122,9 @@ static void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
-	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		dce_v11_0_disable_dce(adev);
 		break;
 	case CHIP_TOPAZ:
@@ -164,7 +165,8 @@ static void dce_virtual_bandwidth_update(struct amdgpu_device *adev)
 }
 
 static int dce_virtual_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
-				      u16 *green, u16 *blue, uint32_t size)
+				      u16 *green, u16 *blue, uint32_t size,
+				      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	int i;
@@ -202,6 +204,9 @@ static void dce_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	unsigned type;
+
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -243,7 +248,7 @@ static void dce_virtual_crtc_disable(struct drm_crtc *crtc)
 
 		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
 		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
-		r = amdgpu_bo_reserve(abo, false);
+		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r))
 			DRM_ERROR("failed to reserve abo before unpin\n");
 		else {
@@ -463,7 +468,7 @@ static int dce_virtual_sw_init(void *handle)
 	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_irq_add_id(adev, 229, &adev->crtc_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 229, &adev->crtc_irq);
 	if (r)
 		return r;
 
@@ -627,11 +632,8 @@ static const struct drm_encoder_helper_funcs dce_virtual_encoder_helper_funcs = 
 
 static void dce_virtual_encoder_destroy(struct drm_encoder *encoder)
 {
-	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
-
-	kfree(amdgpu_encoder->enc_priv);
 	drm_encoder_cleanup(encoder);
-	kfree(amdgpu_encoder);
+	kfree(encoder);
 }
 
 static const struct drm_encoder_funcs dce_virtual_encoder_funcs = {
@@ -752,7 +754,7 @@ static enum hrtimer_restart dce_virtual_vblank_timer_handle(struct hrtimer *vbla
 
 	drm_handle_vblank(ddev, amdgpu_crtc->crtc_id);
 	dce_virtual_pageflip(adev, amdgpu_crtc->crtc_id);
-	hrtimer_start(vblank_timer, ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD),
+	hrtimer_start(vblank_timer, DCE_VIRTUAL_VBLANK_PERIOD,
 		      HRTIMER_MODE_REL);
 
 	return HRTIMER_NORESTART;
@@ -772,11 +774,11 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 		hrtimer_init(&adev->mode_info.crtcs[crtc]->vblank_timer,
 			     CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		hrtimer_set_expires(&adev->mode_info.crtcs[crtc]->vblank_timer,
-				    ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD));
+				    DCE_VIRTUAL_VBLANK_PERIOD);
 		adev->mode_info.crtcs[crtc]->vblank_timer.function =
 			dce_virtual_vblank_timer_handle;
 		hrtimer_start(&adev->mode_info.crtcs[crtc]->vblank_timer,
-			      ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD), HRTIMER_MODE_REL);
+			      DCE_VIRTUAL_VBLANK_PERIOD, HRTIMER_MODE_REL);
 	} else if (!state && adev->mode_info.crtcs[crtc]->vsync_timer_enabled) {
 		DRM_DEBUG("Disable software vsync timer\n");
 		hrtimer_cancel(&adev->mode_info.crtcs[crtc]->vblank_timer);

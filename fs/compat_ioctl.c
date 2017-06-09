@@ -76,7 +76,7 @@
 #include <scsi/sg.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/if_bonding.h>
@@ -833,7 +833,7 @@ static int compat_ioctl_preallocate(struct file *file,
  */
 #define XFORM(i) (((i) ^ ((i) << 27) ^ ((i) << 17)) & 0xffffffff)
 
-#define COMPATIBLE_IOCTL(cmd) XFORM(cmd),
+#define COMPATIBLE_IOCTL(cmd) XFORM((u32)cmd),
 /* ioctl should not be warned about even if it's not implemented.
    Valid reasons to use this:
    - It is implemented with ->compat_ioctl on some device, but programs

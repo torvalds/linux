@@ -5,6 +5,8 @@
  */
 
 #include <linux/slab.h>
+#include <linux/rculist.h>
+
 #include "common.h"
 
 /* Lock for protecting policy. */

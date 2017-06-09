@@ -1250,7 +1250,7 @@ static int o2hb_thread(void *data)
 
 		mlog(ML_HEARTBEAT,
 		     "start = %lld, end = %lld, msec = %u, ret = %d\n",
-		     before_hb.tv64, after_hb.tv64, elapsed_msec, ret);
+		     before_hb, after_hb, elapsed_msec, ret);
 
 		if (!kthread_should_stop() &&
 		    elapsed_msec < reg->hr_timeout_ms) {
@@ -2242,13 +2242,13 @@ unlock:
 	spin_unlock(&o2hb_live_lock);
 }
 
-static ssize_t o2hb_heartbeat_group_threshold_show(struct config_item *item,
+static ssize_t o2hb_heartbeat_group_dead_threshold_show(struct config_item *item,
 		char *page)
 {
 	return sprintf(page, "%u\n", o2hb_dead_threshold);
 }
 
-static ssize_t o2hb_heartbeat_group_threshold_store(struct config_item *item,
+static ssize_t o2hb_heartbeat_group_dead_threshold_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	unsigned long tmp;
@@ -2297,11 +2297,11 @@ static ssize_t o2hb_heartbeat_group_mode_store(struct config_item *item,
 
 }
 
-CONFIGFS_ATTR(o2hb_heartbeat_group_, threshold);
+CONFIGFS_ATTR(o2hb_heartbeat_group_, dead_threshold);
 CONFIGFS_ATTR(o2hb_heartbeat_group_, mode);
 
 static struct configfs_attribute *o2hb_heartbeat_group_attrs[] = {
-	&o2hb_heartbeat_group_attr_threshold,
+	&o2hb_heartbeat_group_attr_dead_threshold,
 	&o2hb_heartbeat_group_attr_mode,
 	NULL,
 };

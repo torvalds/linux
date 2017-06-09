@@ -48,6 +48,7 @@
 #include <scsi/osd_sense.h>
 
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_request.h>
 
 #include "osd_debug.h"
 
@@ -476,17 +477,22 @@ static void _set_error_resid(struct osd_request *or, struct request *req,
 			     int error)
 {
 	or->async_error = error;
-	or->req_errors = req->errors ? : error;
-	or->sense_len = req->sense_len;
+	or->req_errors = scsi_req(req)->result ? : error;
+	or->sense_len = scsi_req(req)->sense_len;
+	if (or->sense_len)
+		memcpy(or->sense, scsi_req(req)->sense, or->sense_len);
 	if (or->out.req)
-		or->out.residual = or->out.req->resid_len;
+		or->out.residual = scsi_req(or->out.req)->resid_len;
 	if (or->in.req)
-		or->in.residual = or->in.req->resid_len;
+		or->in.residual = scsi_req(or->in.req)->resid_len;
 }
 
 int osd_execute_request(struct osd_request *or)
 {
-	int error = blk_execute_rq(or->request->q, NULL, or->request, 0);
+	int error;
+
+	blk_execute_rq(or->request->q, NULL, or->request, 0);
+	error = scsi_req(or->request)->result ? -EIO : 0;
 
 	_set_error_resid(or, or->request, error);
 	return error;
@@ -1287,7 +1293,7 @@ int osd_req_add_get_attr_list(struct osd_request *or,
 	or->enc_get_attr.total_bytes = total_bytes;
 
 	OSD_DEBUG(
-	       "get_attr.total_bytes=%u(%u) enc_get_attr.total_bytes=%u(%Zu)\n",
+	       "get_attr.total_bytes=%u(%u) enc_get_attr.total_bytes=%u(%zu)\n",
 	       or->get_attr.total_bytes,
 	       or->get_attr.total_bytes - _osd_req_sizeof_alist_header(or),
 	       or->enc_get_attr.total_bytes,
@@ -1562,10 +1568,11 @@ static struct request *_make_request(struct request_queue *q, bool has_write,
 	struct bio *bio = oii->bio;
 	int ret;
 
-	req = blk_get_request(q, has_write ? WRITE : READ, flags);
+	req = blk_get_request(q, has_write ? REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN,
+			flags);
 	if (IS_ERR(req))
 		return req;
-	blk_rq_set_block_pc(req);
+	scsi_req_init(req);
 
 	for_each_bio(bio) {
 		struct bio *bounce_bio = bio;
@@ -1598,9 +1605,7 @@ static int _init_blk_request(struct osd_request *or,
 	req->rq_flags |= RQF_QUIET;
 
 	req->timeout = or->timeout;
-	req->retries = or->retries;
-	req->sense = or->sense;
-	req->sense_len = 0;
+	scsi_req(req)->retries = or->retries;
 
 	if (has_out) {
 		or->out.req = req;
@@ -1612,7 +1617,7 @@ static int _init_blk_request(struct osd_request *or,
 				ret = PTR_ERR(req);
 				goto out;
 			}
-			blk_rq_set_block_pc(req);
+			scsi_req_init(req);
 			or->in.req = or->request->next_rq = req;
 		}
 	} else if (has_in)
@@ -1675,7 +1680,7 @@ int osd_finalize_request(struct osd_request *or,
 		}
 	} else {
 		/* TODO: I think that for the GET_ATTR command these 2 should
-		 * be reversed to keep them in execution order (for embeded
+		 * be reversed to keep them in execution order (for embedded
 		 * targets with low memory footprint)
 		 */
 		ret = _osd_req_finalize_set_attr_list(or);
@@ -1699,8 +1704,8 @@ int osd_finalize_request(struct osd_request *or,
 
 	osd_sec_sign_cdb(&or->cdb, cap_key);
 
-	or->request->cmd = or->cdb.buff;
-	or->request->cmd_len = _osd_req_cdb_len(or);
+	scsi_req(or->request)->cmd = or->cdb.buff;
+	scsi_req(or->request)->cmd_len = _osd_req_cdb_len(or);
 
 	return 0;
 }

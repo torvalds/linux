@@ -3575,7 +3575,7 @@ static int et131x_poll(struct napi_struct *napi, int budget)
 	et131x_handle_send_pkts(adapter);
 
 	if (work_done < budget) {
-		napi_complete(&adapter->napi);
+		napi_complete_done(&adapter->napi, work_done);
 		et131x_enable_interrupts(adapter);
 	}
 

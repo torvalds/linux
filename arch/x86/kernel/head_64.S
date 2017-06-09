@@ -269,10 +269,8 @@ ENTRY(secondary_startup_64)
 	/* rsi is pointer to real mode structure with interesting info.
 	   pass it to C */
 	movq	%rsi, %rdi
-	jmp	start_cpu
-ENDPROC(secondary_startup_64)
 
-ENTRY(start_cpu)
+.Ljump_to_C_code:
 	/*
 	 * Jump to run C code and to be on a real kernel address.
 	 * Since we are running on identity-mapped space we have to jump
@@ -298,13 +296,14 @@ ENTRY(start_cpu)
 	 *	REX.W + FF /5 JMP m16:64 Jump far, absolute indirect,
 	 *		address given in m16:64.
 	 */
-	call	1f		# put return address on stack for unwinder
-1:	xorq	%rbp, %rbp	# clear frame pointer
+	pushq	$.Lafter_lret	# put return address on stack for unwinder
+	xorq	%rbp, %rbp	# clear frame pointer
 	movq	initial_code(%rip), %rax
 	pushq	$__KERNEL_CS	# set correct cs
 	pushq	%rax		# target address in negative space
 	lretq
-ENDPROC(start_cpu)
+.Lafter_lret:
+ENDPROC(secondary_startup_64)
 
 #include "verify_cpu.S"
 
@@ -312,11 +311,11 @@ ENDPROC(start_cpu)
 /*
  * Boot CPU0 entry point. It's called from play_dead(). Everything has been set
  * up already except stack. We just set up stack here. Then call
- * start_secondary() via start_cpu().
+ * start_secondary() via .Ljump_to_C_code.
  */
 ENTRY(start_cpu0)
 	movq	initial_stack(%rip), %rsp
-	jmp	start_cpu
+	jmp	.Ljump_to_C_code
 ENDPROC(start_cpu0)
 #endif
 

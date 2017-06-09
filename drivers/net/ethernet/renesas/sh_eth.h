@@ -265,22 +265,38 @@ enum EESR_BIT {
 				 EESR_RTO)
 #define DEFAULT_EESR_ERR_CHECK	(EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE | \
 				 EESR_RDE | EESR_RFRMER | EESR_ADE | \
-				 EESR_TFE | EESR_TDE | EESR_ECI)
+				 EESR_TFE | EESR_TDE)
 
 /* EESIPR */
-enum DMAC_IM_BIT {
-	DMAC_M_TWB = 0x40000000, DMAC_M_TABT = 0x04000000,
-	DMAC_M_RABT = 0x02000000,
-	DMAC_M_RFRMER = 0x01000000, DMAC_M_ADF = 0x00800000,
-	DMAC_M_ECI = 0x00400000, DMAC_M_FTC = 0x00200000,
-	DMAC_M_TDE = 0x00100000, DMAC_M_TFE = 0x00080000,
-	DMAC_M_FRC = 0x00040000, DMAC_M_RDE = 0x00020000,
-	DMAC_M_RFE = 0x00010000, DMAC_M_TINT4 = 0x00000800,
-	DMAC_M_TINT3 = 0x00000400, DMAC_M_TINT2 = 0x00000200,
-	DMAC_M_TINT1 = 0x00000100, DMAC_M_RINT8 = 0x00000080,
-	DMAC_M_RINT5 = 0x00000010, DMAC_M_RINT4 = 0x00000008,
-	DMAC_M_RINT3 = 0x00000004, DMAC_M_RINT2 = 0x00000002,
-	DMAC_M_RINT1 = 0x00000001,
+enum EESIPR_BIT {
+	EESIPR_TWB1IP	= 0x80000000,
+	EESIPR_TWBIP	= 0x40000000,	/* same as TWB0IP */
+	EESIPR_TC1IP	= 0x20000000,
+	EESIPR_TUCIP	= 0x10000000,
+	EESIPR_ROCIP	= 0x08000000,
+	EESIPR_TABTIP	= 0x04000000,
+	EESIPR_RABTIP	= 0x02000000,
+	EESIPR_RFCOFIP	= 0x01000000,
+	EESIPR_ADEIP	= 0x00800000,
+	EESIPR_ECIIP	= 0x00400000,
+	EESIPR_FTCIP	= 0x00200000,	/* same as TC0IP */
+	EESIPR_TDEIP	= 0x00100000,
+	EESIPR_TFUFIP	= 0x00080000,
+	EESIPR_FRIP	= 0x00040000,
+	EESIPR_RDEIP	= 0x00020000,
+	EESIPR_RFOFIP	= 0x00010000,
+	EESIPR_CNDIP	= 0x00000800,
+	EESIPR_DLCIP	= 0x00000400,
+	EESIPR_CDIP	= 0x00000200,
+	EESIPR_TROIP	= 0x00000100,
+	EESIPR_RMAFIP	= 0x00000080,
+	EESIPR_CEEFIP	= 0x00000040,
+	EESIPR_CELFIP	= 0x00000020,
+	EESIPR_RRFIP	= 0x00000010,
+	EESIPR_RTLFIP	= 0x00000008,
+	EESIPR_RTSFIP	= 0x00000004,
+	EESIPR_PREIP	= 0x00000002,
+	EESIPR_CERFIP	= 0x00000001,
 };
 
 /* Receive descriptor 0 bits */
@@ -339,7 +355,7 @@ enum FELIC_MODE_BIT {
 	ECMR_DPAD = 0x00200000, ECMR_RZPF = 0x00100000,
 	ECMR_ZPF = 0x00080000, ECMR_PFR = 0x00040000, ECMR_RXF = 0x00020000,
 	ECMR_TXF = 0x00010000, ECMR_MCT = 0x00002000, ECMR_PRCEF = 0x00001000,
-	ECMR_PMDE = 0x00000200, ECMR_RE = 0x00000040, ECMR_TE = 0x00000020,
+	ECMR_MPDE = 0x00000200, ECMR_RE = 0x00000040, ECMR_TE = 0x00000020,
 	ECMR_RTM = 0x00000010, ECMR_ILB = 0x00000008, ECMR_ELB = 0x00000004,
 	ECMR_DM = 0x00000002, ECMR_PRM = 0x00000001,
 };
@@ -488,11 +504,11 @@ struct sh_eth_cpu_data {
 	unsigned rpadir:1;	/* E-DMAC have RPADIR */
 	unsigned no_trimd:1;	/* E-DMAC DO NOT have TRIMD */
 	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
-	unsigned hw_crc:1;	/* E-DMAC have CSMR */
+	unsigned hw_checksum:1;	/* E-DMAC has CSMR */
 	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
-	unsigned shift_rd0:1;	/* shift Rx descriptor word 0 right by 16 */
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 	unsigned rtrate:1;	/* EtherC has RTRATE register */
+	unsigned magic:1;	/* EtherC has ECMR.MPDE and ECSR.MPD */
 };
 
 struct sh_eth_private {
@@ -501,6 +517,7 @@ struct sh_eth_private {
 	const u16 *reg_offset;
 	void __iomem *addr;
 	void __iomem *tsu_addr;
+	struct clk *clk;
 	u32 num_rx_ring;
 	u32 num_tx_ring;
 	dma_addr_t rx_desc_dma;
@@ -529,6 +546,7 @@ struct sh_eth_private {
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;
 	unsigned is_opened:1;
+	unsigned wol_enabled:1;
 };
 
 static inline void sh_eth_soft_swap(char *src, int len)

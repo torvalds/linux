@@ -420,6 +420,7 @@
 #define MASK_MODE_RST_TN                      0x20
 #define MASK_LINE_REKEY                       0x10
 #define MASK_AUTO_CLR                         0x04
+#define MASK_MANUAL_AUTHENTICATION            0x02 /* Not in REF_01 */
 
 #define HDCP_REG1                             0x8563 /* Not in REF_01 */
 #define MASK_AUTH_UNAUTH_SEL                  0x70

@@ -12,6 +12,7 @@
 #include <linux/perf_event.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -311,12 +312,34 @@ static noinline void do_sigbus(struct pt_regs *regs)
 	force_sig_info(SIGBUS, &si, tsk);
 }
 
-static noinline void do_fault_error(struct pt_regs *regs, int fault)
+static noinline int signal_return(struct pt_regs *regs)
+{
+	u16 instruction;
+	int rc;
+
+	rc = __get_user(instruction, (u16 __user *) regs->psw.addr);
+	if (rc)
+		return rc;
+	if (instruction == 0x0a77) {
+		set_pt_regs_flag(regs, PIF_SYSCALL);
+		regs->int_code = 0x00040077;
+		return 0;
+	} else if (instruction == 0x0aad) {
+		set_pt_regs_flag(regs, PIF_SYSCALL);
+		regs->int_code = 0x000400ad;
+		return 0;
+	}
+	return -EACCES;
+}
+
+static noinline void do_fault_error(struct pt_regs *regs, int access, int fault)
 {
 	int si_code;
 
 	switch (fault) {
 	case VM_FAULT_BADACCESS:
+		if (access == VM_EXEC && signal_return(regs) == 0)
+			break;
 	case VM_FAULT_BADMAP:
 		/* Bad memory access. Check if it is kernel or user space. */
 		if (user_mode(regs)) {
@@ -324,7 +347,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
 			si_code = (fault == VM_FAULT_BADMAP) ?
 				SEGV_MAPERR : SEGV_ACCERR;
 			do_sigsegv(regs, si_code);
-			return;
+			break;
 		}
 	case VM_FAULT_BADCONTEXT:
 	case VM_FAULT_PFAULT:
@@ -525,7 +548,7 @@ out:
 void do_protection_exception(struct pt_regs *regs)
 {
 	unsigned long trans_exc_code;
-	int fault;
+	int access, fault;
 
 	trans_exc_code = regs->int_parm_long;
 	/*
@@ -544,9 +567,17 @@ void do_protection_exception(struct pt_regs *regs)
 		do_low_address(regs);
 		return;
 	}
-	fault = do_exception(regs, VM_WRITE);
+	if (unlikely(MACHINE_HAS_NX && (trans_exc_code & 0x80))) {
+		regs->int_parm_long = (trans_exc_code & ~PAGE_MASK) |
+					(regs->psw.addr & PAGE_MASK);
+		access = VM_EXEC;
+		fault = VM_FAULT_BADACCESS;
+	} else {
+		access = VM_WRITE;
+		fault = do_exception(regs, access);
+	}
 	if (unlikely(fault))
-		do_fault_error(regs, fault);
+		do_fault_error(regs, access, fault);
 }
 NOKPROBE_SYMBOL(do_protection_exception);
 
@@ -557,7 +588,7 @@ void do_dat_exception(struct pt_regs *regs)
 	access = VM_READ | VM_EXEC | VM_WRITE;
 	fault = do_exception(regs, access);
 	if (unlikely(fault))
-		do_fault_error(regs, fault);
+		do_fault_error(regs, access, fault);
 }
 NOKPROBE_SYMBOL(do_dat_exception);
 

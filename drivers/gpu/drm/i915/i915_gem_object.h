@@ -33,6 +33,8 @@
 
 #include <drm/i915_drm.h>
 
+#include "i915_selftest.h"
+
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
 #define I915_GEM_OBJECT_HAS_STRUCT_PAGE 0x1
@@ -53,6 +55,9 @@ struct drm_i915_gem_object_ops {
 	 */
 	struct sg_table *(*get_pages)(struct drm_i915_gem_object *);
 	void (*put_pages)(struct drm_i915_gem_object *, struct sg_table *);
+
+	int (*pwrite)(struct drm_i915_gem_object *,
+		      const struct drm_i915_gem_pwrite *);
 
 	int (*dmabuf_export)(struct drm_i915_gem_object *);
 	void (*release)(struct drm_i915_gem_object *);
@@ -84,6 +89,7 @@ struct drm_i915_gem_object {
 	struct list_head obj_exec_link;
 
 	struct list_head batch_pool_link;
+	I915_SELFTEST_DECLARE(struct list_head st_link);
 
 	unsigned long flags;
 
@@ -162,19 +168,23 @@ struct drm_i915_gem_object {
 	struct reservation_object *resv;
 
 	/** References from framebuffers, locks out tiling changes. */
-	unsigned long framebuffer_references;
+	unsigned int framebuffer_references;
 
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
 
-	struct i915_gem_userptr {
-		uintptr_t ptr;
-		unsigned read_only :1;
+	union {
+		struct i915_gem_userptr {
+			uintptr_t ptr;
+			unsigned read_only :1;
 
-		struct i915_mm_struct *mm;
-		struct i915_mmu_object *mmu_object;
-		struct work_struct *work;
-	} userptr;
+			struct i915_mm_struct *mm;
+			struct i915_mmu_object *mmu_object;
+			struct work_struct *work;
+		} userptr;
+
+		unsigned long scratch;
+	};
 
 	/** for phys allocated objects */
 	struct drm_dma_handle *phys_handle;
@@ -253,10 +263,14 @@ extern void drm_gem_object_unreference(struct drm_gem_object *);
 __deprecated
 extern void drm_gem_object_unreference_unlocked(struct drm_gem_object *);
 
-static inline bool
-i915_gem_object_is_dead(const struct drm_i915_gem_object *obj)
+static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 {
-	return atomic_read(&obj->base.refcount.refcount) == 0;
+	reservation_object_lock(obj->resv, NULL);
+}
+
+static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
+{
+	reservation_object_unlock(obj->resv);
 }
 
 static inline bool
@@ -299,6 +313,12 @@ i915_gem_object_clear_active_reference(struct drm_i915_gem_object *obj)
 
 void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj);
 
+static inline bool
+i915_gem_object_is_framebuffer(const struct drm_i915_gem_object *obj)
+{
+	return READ_ONCE(obj->framebuffer_references);
+}
+
 static inline unsigned int
 i915_gem_object_get_tiling(struct drm_i915_gem_object *obj)
 {
@@ -317,6 +337,29 @@ i915_gem_object_get_stride(struct drm_i915_gem_object *obj)
 	return obj->tiling_and_stride & STRIDE_MASK;
 }
 
+static inline unsigned int
+i915_gem_tile_height(unsigned int tiling)
+{
+	GEM_BUG_ON(!tiling);
+	return tiling == I915_TILING_Y ? 32 : 8;
+}
+
+static inline unsigned int
+i915_gem_object_get_tile_height(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_tile_height(i915_gem_object_get_tiling(obj));
+}
+
+static inline unsigned int
+i915_gem_object_get_tile_row_size(struct drm_i915_gem_object *obj)
+{
+	return (i915_gem_object_get_stride(obj) *
+		i915_gem_object_get_tile_height(obj));
+}
+
+int i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
+			       unsigned int tiling, unsigned int stride);
+
 static inline struct intel_engine_cs *
 i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 {
@@ -333,6 +376,8 @@ i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 
 	return engine;
 }
+
+void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
 
 #endif
 

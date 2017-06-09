@@ -1067,22 +1067,22 @@ struct gb_camera_debugfs_entry {
 static const struct gb_camera_debugfs_entry gb_camera_debugfs_entries[] = {
 	{
 		.name = "capabilities",
-		.mask = S_IFREG | S_IRUGO,
+		.mask = S_IFREG | 0444,
 		.buffer = GB_CAMERA_DEBUGFS_BUFFER_CAPABILITIES,
 		.execute = gb_camera_debugfs_capabilities,
 	}, {
 		.name = "configure_streams",
-		.mask = S_IFREG | S_IRUGO | S_IWUGO,
+		.mask = S_IFREG | 0666,
 		.buffer = GB_CAMERA_DEBUGFS_BUFFER_STREAMS,
 		.execute = gb_camera_debugfs_configure_streams,
 	}, {
 		.name = "capture",
-		.mask = S_IFREG | S_IRUGO | S_IWUGO,
+		.mask = S_IFREG | 0666,
 		.buffer = GB_CAMERA_DEBUGFS_BUFFER_CAPTURE,
 		.execute = gb_camera_debugfs_capture,
 	}, {
 		.name = "flush",
-		.mask = S_IFREG | S_IRUGO | S_IWUGO,
+		.mask = S_IFREG | 0666,
 		.buffer = GB_CAMERA_DEBUGFS_BUFFER_FLUSH,
 		.execute = gb_camera_debugfs_flush,
 	},
@@ -1092,12 +1092,12 @@ static ssize_t gb_camera_debugfs_read(struct file *file, char __user *buf,
 				      size_t len, loff_t *offset)
 {
 	const struct gb_camera_debugfs_entry *op = file->private_data;
-	struct gb_camera *gcam = file->f_inode->i_private;
+	struct gb_camera *gcam = file_inode(file)->i_private;
 	struct gb_camera_debugfs_buffer *buffer;
 	ssize_t ret;
 
 	/* For read-only entries the operation is triggered by a read. */
-	if (!(op->mask & S_IWUGO)) {
+	if (!(op->mask & 0222)) {
 		ret = op->execute(gcam, NULL, 0);
 		if (ret < 0)
 			return ret;
@@ -1114,7 +1114,7 @@ static ssize_t gb_camera_debugfs_write(struct file *file,
 				       loff_t *offset)
 {
 	const struct gb_camera_debugfs_entry *op = file->private_data;
-	struct gb_camera *gcam = file->f_inode->i_private;
+	struct gb_camera *gcam = file_inode(file)->i_private;
 	ssize_t ret;
 	char *kbuf;
 

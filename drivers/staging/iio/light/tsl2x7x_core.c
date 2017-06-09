@@ -854,7 +854,7 @@ void tsl2x7x_prox_calculate(int *data, int length,
 		tmp = data[i] - statP->mean;
 		sample_sum += tmp * tmp;
 	}
-	statP->stddev = int_sqrt((long)sample_sum) / length;
+	statP->stddev = int_sqrt((long)sample_sum / length);
 }
 
 /**
@@ -1676,7 +1676,7 @@ static const struct attribute_group tsl2X7X_device_attr_group_tbl[] = {
 	},
 };
 
-static struct attribute_group tsl2X7X_event_attr_group_tbl[] = {
+static const struct attribute_group tsl2X7X_event_attr_group_tbl[] = {
 	[ALS] = {
 		.attrs = tsl2X7X_ALS_event_attrs,
 		.name = "events",

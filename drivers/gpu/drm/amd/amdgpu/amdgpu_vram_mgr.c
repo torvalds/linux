@@ -93,12 +93,10 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 			       const struct ttm_place *place,
 			       struct ttm_mem_reg *mem)
 {
-	struct amdgpu_bo *bo = container_of(tbo, struct amdgpu_bo, tbo);
 	struct amdgpu_vram_mgr *mgr = man->priv;
 	struct drm_mm *mm = &mgr->mm;
 	struct drm_mm_node *nodes;
-	enum drm_mm_search_flags sflags = DRM_MM_SEARCH_DEFAULT;
-	enum drm_mm_allocator_flags aflags = DRM_MM_CREATE_DEFAULT;
+	enum drm_mm_insert_mode mode;
 	unsigned long lpfn, num_nodes, pages_per_node, pages_left;
 	unsigned i;
 	int r;
@@ -107,8 +105,8 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	if (!lpfn)
 		lpfn = man->size;
 
-	if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS ||
-	    place->lpfn || amdgpu_vram_page_split == -1) {
+	if (place->flags & TTM_PL_FLAG_CONTIGUOUS ||
+	    amdgpu_vram_page_split == -1) {
 		pages_per_node = ~0ul;
 		num_nodes = 1;
 	} else {
@@ -121,35 +119,42 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	if (!nodes)
 		return -ENOMEM;
 
-	if (place->flags & TTM_PL_FLAG_TOPDOWN) {
-		sflags = DRM_MM_SEARCH_BELOW;
-		aflags = DRM_MM_CREATE_TOP;
-	}
+	mode = DRM_MM_INSERT_BEST;
+	if (place->flags & TTM_PL_FLAG_TOPDOWN)
+		mode = DRM_MM_INSERT_HIGH;
 
+	mem->start = 0;
 	pages_left = mem->num_pages;
 
 	spin_lock(&mgr->lock);
 	for (i = 0; i < num_nodes; ++i) {
 		unsigned long pages = min(pages_left, pages_per_node);
 		uint32_t alignment = mem->page_alignment;
+		unsigned long start;
 
 		if (pages == pages_per_node)
 			alignment = pages_per_node;
-		else
-			sflags |= DRM_MM_SEARCH_BEST;
 
-		r = drm_mm_insert_node_in_range_generic(mm, &nodes[i], pages,
-							alignment, 0,
-							place->fpfn, lpfn,
-							sflags, aflags);
+		r = drm_mm_insert_node_in_range(mm, &nodes[i],
+						pages, alignment, 0,
+						place->fpfn, lpfn,
+						mode);
 		if (unlikely(r))
 			goto error;
 
+		/* Calculate a virtual BO start address to easily check if
+		 * everything is CPU accessible.
+		 */
+		start = nodes[i].start + nodes[i].size;
+		if (start > mem->num_pages)
+			start -= mem->num_pages;
+		else
+			start = 0;
+		mem->start = max(mem->start, start);
 		pages_left -= pages;
 	}
 	spin_unlock(&mgr->lock);
 
-	mem->start = num_nodes == 1 ? nodes[0].start : AMDGPU_BO_INVALID_OFFSET;
 	mem->mm_node = nodes;
 
 	return 0;
@@ -207,16 +212,17 @@ static void amdgpu_vram_mgr_debug(struct ttm_mem_type_manager *man,
 				  const char *prefix)
 {
 	struct amdgpu_vram_mgr *mgr = man->priv;
+	struct drm_printer p = drm_debug_printer(prefix);
 
 	spin_lock(&mgr->lock);
-	drm_mm_debug_table(&mgr->mm, prefix);
+	drm_mm_print(&mgr->mm, &p);
 	spin_unlock(&mgr->lock);
 }
 
 const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func = {
-	amdgpu_vram_mgr_init,
-	amdgpu_vram_mgr_fini,
-	amdgpu_vram_mgr_new,
-	amdgpu_vram_mgr_del,
-	amdgpu_vram_mgr_debug
+	.init		= amdgpu_vram_mgr_init,
+	.takedown	= amdgpu_vram_mgr_fini,
+	.get_node	= amdgpu_vram_mgr_new,
+	.put_node	= amdgpu_vram_mgr_del,
+	.debug		= amdgpu_vram_mgr_debug
 };

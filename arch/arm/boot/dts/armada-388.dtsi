@@ -50,13 +50,8 @@
 	model = "Marvell Armada 388 family SoC";
 	compatible = "marvell,armada388", "marvell,armada385",
 		"marvell,armada380";
-
 	soc {
 		internal-regs {
-			pinctrl@18000 {
-				compatible = "marvell,mv88f6828-pinctrl";
-			};
-
 			sata@e0000 {
 				compatible = "marvell,armada-380-ahci";
 				reg = <0xe0000 0x2000>;
@@ -67,4 +62,8 @@
 
 		};
 	};
+};
+
+&pinctrl {
+	compatible = "marvell,mv88f6828-pinctrl";
 };

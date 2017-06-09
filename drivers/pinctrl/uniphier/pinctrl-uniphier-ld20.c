@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Socionext Inc.
+ * Copyright (C) 2016-2017 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -14,7 +14,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
 
@@ -561,7 +561,7 @@ static const int ether_rgmii_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 					  0, 0, 0, 0};
 static const unsigned ether_rmii_pins[] = {30, 31, 32, 33, 34, 35, 36, 37, 39,
 					   41, 42, 45};
-static const int ether_rmii_muxvals[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+static const int ether_rmii_muxvals[] = {0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
 static const unsigned i2c0_pins[] = {63, 64};
 static const int i2c0_muxvals[] = {0, 0};
 static const unsigned i2c1_pins[] = {65, 66};
@@ -1034,7 +1034,6 @@ static const struct of_device_id uniphier_ld20_pinctrl_match[] = {
 	{ .compatible = "socionext,uniphier-ld20-pinctrl" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, uniphier_ld20_pinctrl_match);
 
 static struct platform_driver uniphier_ld20_pinctrl_driver = {
 	.probe = uniphier_ld20_pinctrl_probe,
@@ -1043,8 +1042,4 @@ static struct platform_driver uniphier_ld20_pinctrl_driver = {
 		.of_match_table = uniphier_ld20_pinctrl_match,
 	},
 };
-module_platform_driver(uniphier_ld20_pinctrl_driver);
-
-MODULE_AUTHOR("Masahiro Yamada <yamada.masahiro@socionext.com>");
-MODULE_DESCRIPTION("UniPhier PH1-LD20 pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(uniphier_ld20_pinctrl_driver);

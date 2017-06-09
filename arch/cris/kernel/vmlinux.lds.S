@@ -68,6 +68,8 @@ SECTIONS
 	__edata = . ;			/* End of data section. */
 	_edata = . ;
 
+	BUG_TABLE
+
 	INIT_TASK_DATA_SECTION(PAGE_SIZE)
 
 	. = ALIGN(PAGE_SIZE);		/* Init code and data. */

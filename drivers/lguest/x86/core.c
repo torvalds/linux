@@ -45,7 +45,7 @@
 #include <asm/desc.h>
 #include <asm/setup.h>
 #include <asm/lguest.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/fpu/internal.h>
 #include <asm/tlbflush.h>
 #include "../lg.h"
@@ -504,7 +504,7 @@ void __init lguest_arch_host_init(void)
 		 * byte, not the size, hence the "-1").
 		 */
 		state->host_gdt_desc.size = GDT_SIZE-1;
-		state->host_gdt_desc.address = (long)get_cpu_gdt_table(i);
+		state->host_gdt_desc.address = (long)get_cpu_gdt_rw(i);
 
 		/*
 		 * All CPUs on the Host use the same Interrupt Descriptor
@@ -554,8 +554,8 @@ void __init lguest_arch_host_init(void)
 		 * The Host needs to be able to use the LGUEST segments on this
 		 * CPU, too, so put them in the Host GDT.
 		 */
-		get_cpu_gdt_table(i)[GDT_ENTRY_LGUEST_CS] = FULL_EXEC_SEGMENT;
-		get_cpu_gdt_table(i)[GDT_ENTRY_LGUEST_DS] = FULL_SEGMENT;
+		get_cpu_gdt_rw(i)[GDT_ENTRY_LGUEST_CS] = FULL_EXEC_SEGMENT;
+		get_cpu_gdt_rw(i)[GDT_ENTRY_LGUEST_DS] = FULL_SEGMENT;
 	}
 
 	/*

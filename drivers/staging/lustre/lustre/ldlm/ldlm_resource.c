@@ -806,7 +806,7 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 
 		unlock_res(res);
 		ldlm_lock2handle(lock, &lockh);
-		rc = ldlm_cli_cancel(&lockh, LCF_ASYNC);
+		rc = ldlm_cli_cancel(&lockh, LCF_LOCAL);
 		if (rc)
 			CERROR("ldlm_cli_cancel: %d\n", rc);
 		LDLM_LOCK_RELEASE(lock);
@@ -1368,7 +1368,7 @@ void ldlm_resource_dump(int level, struct ldlm_resource *res)
 	struct ldlm_lock *lock;
 	unsigned int granted = 0;
 
-	CLASSERT(RES_NAME_SIZE == 4);
+	BUILD_BUG_ON(RES_NAME_SIZE != 4);
 
 	if (!((libcfs_debug | D_ERROR) & level))
 		return;

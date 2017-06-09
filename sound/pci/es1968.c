@@ -126,7 +126,7 @@ MODULE_SUPPORTED_DEVICE("{{ESS,Maestro 2e},"
 		"{ESS,Maestro 1},"
 		"{TerraTec,DMX}}");
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1
 #endif
 

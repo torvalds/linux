@@ -16,14 +16,11 @@
 
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
+#include <linux/thread_info.h>
 #include <asm/sections.h>
-
-enum {
-	BAD_STACK = -1,
-	NOT_STACK = 0,
-	GOOD_FRAME,
-	GOOD_STACK,
-};
 
 /*
  * Checks if a given pointer and length is contained by the current
@@ -108,13 +105,13 @@ static inline const char *check_kernel_text_object(const void *ptr,
 	 * __pa() is not just the reverse of __va(). This can be detected
 	 * and checked:
 	 */
-	textlow_linear = (unsigned long)__va(__pa(textlow));
+	textlow_linear = (unsigned long)lm_alias(textlow);
 	/* No different mapping: we're done. */
 	if (textlow_linear == textlow)
 		return NULL;
 
 	/* Check the secondary mapping... */
-	texthigh_linear = (unsigned long)__va(__pa(texthigh));
+	texthigh_linear = (unsigned long)lm_alias(texthigh);
 	if (overlaps(ptr, n, textlow_linear, texthigh_linear))
 		return "<linear kernel text>";
 
@@ -202,17 +199,6 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
 					    bool to_user)
 {
 	struct page *page;
-
-	/*
-	 * Some architectures (arm64) return true for virt_addr_valid() on
-	 * vmalloced addresses. Work around this by checking for vmalloc
-	 * first.
-	 *
-	 * We also need to check for module addresses explicitly since we
-	 * may copy static data from modules to userspace
-	 */
-	if (is_vmalloc_or_module_addr(ptr))
-		return NULL;
 
 	if (!virt_addr_valid(ptr))
 		return NULL;

@@ -86,14 +86,17 @@ enum nouveau_drm_handle {
 
 struct nouveau_cli {
 	struct nvif_client base;
+	struct drm_device *dev;
+	struct mutex mutex;
+
+	struct nvif_device device;
+
 	struct nvkm_vm *vm; /*XXX*/
 	struct list_head head;
-	struct mutex mutex;
 	void *abi16;
 	struct list_head objects;
 	struct list_head notifys;
 	char name[32];
-	struct drm_device *dev;
 };
 
 static inline struct nouveau_cli *
@@ -111,7 +114,6 @@ struct nouveau_drm {
 	struct nouveau_cli client;
 	struct drm_device *dev;
 
-	struct nvif_device device;
 	struct list_head clients;
 
 	struct {
@@ -165,6 +167,8 @@ struct nouveau_drm {
 	struct backlight_device *backlight;
 	struct list_head bl_connectors;
 	struct work_struct hpd_work;
+	struct work_struct fbcon_work;
+	int fbcon_new_state;
 #ifdef CONFIG_ACPI
 	struct notifier_block acpi_nb;
 #endif

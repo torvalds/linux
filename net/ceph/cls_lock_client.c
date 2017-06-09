@@ -69,8 +69,8 @@ int ceph_cls_lock(struct ceph_osd_client *osdc,
 	dout("%s lock_name %s type %d cookie %s tag %s desc %s flags 0x%x\n",
 	     __func__, lock_name, type, cookie, tag, desc, flags);
 	ret = ceph_osdc_call(osdc, oid, oloc, "lock", "lock",
-			     CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			     lock_op_page, lock_op_buf_size, NULL, NULL);
+			     CEPH_OSD_FLAG_WRITE, lock_op_page,
+			     lock_op_buf_size, NULL, NULL);
 
 	dout("%s: status %d\n", __func__, ret);
 	__free_page(lock_op_page);
@@ -117,8 +117,8 @@ int ceph_cls_unlock(struct ceph_osd_client *osdc,
 
 	dout("%s lock_name %s cookie %s\n", __func__, lock_name, cookie);
 	ret = ceph_osdc_call(osdc, oid, oloc, "lock", "unlock",
-			     CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			     unlock_op_page, unlock_op_buf_size, NULL, NULL);
+			     CEPH_OSD_FLAG_WRITE, unlock_op_page,
+			     unlock_op_buf_size, NULL, NULL);
 
 	dout("%s: status %d\n", __func__, ret);
 	__free_page(unlock_op_page);
@@ -170,14 +170,65 @@ int ceph_cls_break_lock(struct ceph_osd_client *osdc,
 	dout("%s lock_name %s cookie %s locker %s%llu\n", __func__, lock_name,
 	     cookie, ENTITY_NAME(*locker));
 	ret = ceph_osdc_call(osdc, oid, oloc, "lock", "break_lock",
-			     CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			     break_op_page, break_op_buf_size, NULL, NULL);
+			     CEPH_OSD_FLAG_WRITE, break_op_page,
+			     break_op_buf_size, NULL, NULL);
 
 	dout("%s: status %d\n", __func__, ret);
 	__free_page(break_op_page);
 	return ret;
 }
 EXPORT_SYMBOL(ceph_cls_break_lock);
+
+int ceph_cls_set_cookie(struct ceph_osd_client *osdc,
+			struct ceph_object_id *oid,
+			struct ceph_object_locator *oloc,
+			char *lock_name, u8 type, char *old_cookie,
+			char *tag, char *new_cookie)
+{
+	int cookie_op_buf_size;
+	int name_len = strlen(lock_name);
+	int old_cookie_len = strlen(old_cookie);
+	int tag_len = strlen(tag);
+	int new_cookie_len = strlen(new_cookie);
+	void *p, *end;
+	struct page *cookie_op_page;
+	int ret;
+
+	cookie_op_buf_size = name_len + sizeof(__le32) +
+			     old_cookie_len + sizeof(__le32) +
+			     tag_len + sizeof(__le32) +
+			     new_cookie_len + sizeof(__le32) +
+			     sizeof(u8) + CEPH_ENCODING_START_BLK_LEN;
+	if (cookie_op_buf_size > PAGE_SIZE)
+		return -E2BIG;
+
+	cookie_op_page = alloc_page(GFP_NOIO);
+	if (!cookie_op_page)
+		return -ENOMEM;
+
+	p = page_address(cookie_op_page);
+	end = p + cookie_op_buf_size;
+
+	/* encode cls_lock_set_cookie_op struct */
+	ceph_start_encoding(&p, 1, 1,
+			    cookie_op_buf_size - CEPH_ENCODING_START_BLK_LEN);
+	ceph_encode_string(&p, end, lock_name, name_len);
+	ceph_encode_8(&p, type);
+	ceph_encode_string(&p, end, old_cookie, old_cookie_len);
+	ceph_encode_string(&p, end, tag, tag_len);
+	ceph_encode_string(&p, end, new_cookie, new_cookie_len);
+
+	dout("%s lock_name %s type %d old_cookie %s tag %s new_cookie %s\n",
+	     __func__, lock_name, type, old_cookie, tag, new_cookie);
+	ret = ceph_osdc_call(osdc, oid, oloc, "lock", "set_cookie",
+			     CEPH_OSD_FLAG_WRITE, cookie_op_page,
+			     cookie_op_buf_size, NULL, NULL);
+
+	dout("%s: status %d\n", __func__, ret);
+	__free_page(cookie_op_page);
+	return ret;
+}
+EXPORT_SYMBOL(ceph_cls_set_cookie);
 
 void ceph_free_lockers(struct ceph_locker *lockers, u32 num_lockers)
 {
@@ -278,7 +329,7 @@ int ceph_cls_lock_info(struct ceph_osd_client *osdc,
 	int get_info_op_buf_size;
 	int name_len = strlen(lock_name);
 	struct page *get_info_op_page, *reply_page;
-	size_t reply_len;
+	size_t reply_len = PAGE_SIZE;
 	void *p, *end;
 	int ret;
 

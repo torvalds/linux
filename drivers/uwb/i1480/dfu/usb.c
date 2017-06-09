@@ -341,6 +341,7 @@ error_submit_ep1:
 static
 int i1480_usb_probe(struct usb_interface *iface, const struct usb_device_id *id)
 {
+	struct usb_device *udev = interface_to_usbdev(iface);
 	struct i1480_usb *i1480_usb;
 	struct i1480 *i1480;
 	struct device *dev = &iface->dev;
@@ -352,8 +353,8 @@ int i1480_usb_probe(struct usb_interface *iface, const struct usb_device_id *id)
 			iface->cur_altsetting->desc.bInterfaceNumber);
 		goto error;
 	}
-	if (iface->num_altsetting > 1
-	    && interface_to_usbdev(iface)->descriptor.idProduct == 0xbabe) {
+	if (iface->num_altsetting > 1 &&
+			le16_to_cpu(udev->descriptor.idProduct) == 0xbabe) {
 		/* Need altsetting #1 [HW QUIRK] or EP1 won't work */
 		result = usb_set_interface(interface_to_usbdev(iface), 0, 1);
 		if (result < 0)
@@ -361,6 +362,9 @@ int i1480_usb_probe(struct usb_interface *iface, const struct usb_device_id *id)
 				 "can't set altsetting 1 on iface 0: %d\n",
 				 result);
 	}
+
+	if (iface->cur_altsetting->desc.bNumEndpoints < 1)
+		return -ENODEV;
 
 	result = -ENOMEM;
 	i1480_usb = kzalloc(sizeof(*i1480_usb), GFP_KERNEL);

@@ -126,7 +126,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x0013, 0x0000); /* VDV[4:0] for VCOM amplitude */
 	mdelay(200); /* Dis-charge capacitor power voltage */
 	write_reg(par, 0x0010, /* SAP, BT[3:0], AP, DSTB, SLP, STB */
-		(1 << 12) | (bt << 8) | (1 << 7) | (0x01 << 4));
+		BIT(12) | (bt << 8) | BIT(7) | BIT(4));
 	write_reg(par, 0x0011, 0x220 | vc); /* DC1[2:0], DC0[2:0], VC[2:0] */
 	mdelay(50); /* Delay 50ms */
 	write_reg(par, 0x0012, vrh); /* Internal reference voltage= Vci; */
@@ -215,7 +215,7 @@ static int set_var(struct fbtft_par *par)
  *  VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
  */
 #define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long mask[] = {
 		0x1f, 0x1f, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,

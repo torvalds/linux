@@ -114,7 +114,7 @@ static const struct key_entry dell_wmi_keymap_type_0000[] __initconst = {
 	{ KE_IGNORE, 0xe00e, { KEY_RESERVED } },
 
 	/* Wifi Catcher */
-	{ KE_KEY,    0xe011, { KEY_PROG2 } },
+	{ KE_KEY,    0xe011, { KEY_WLAN } },
 
 	/* Ambient light sensor toggle */
 	{ KE_IGNORE, 0xe013, { KEY_RESERVED } },
@@ -274,6 +274,16 @@ static const struct key_entry dell_wmi_keymap_type_0010[] __initconst = {
 
 	/* Stealth mode toggle */
 	{ KE_IGNORE, 0x155, { KEY_RESERVED } },
+
+	/* Rugged magnetic dock attach/detach events */
+	{ KE_IGNORE, 0x156, { KEY_RESERVED } },
+	{ KE_IGNORE, 0x157, { KEY_RESERVED } },
+
+	/* Rugged programmable (P1/P2/P3 keys) */
+	{ KE_KEY,    0x850, { KEY_PROG1 } },
+	{ KE_KEY,    0x851, { KEY_PROG2 } },
+	{ KE_KEY,    0x852, { KEY_PROG3 } },
+
 };
 
 /*
@@ -318,6 +328,10 @@ static void dell_wmi_process_key(int type, int code)
 
 	if (type == 0x0000 && code == 0xe025 && !wmi_requires_smbios_request)
 		return;
+
+	if (key->keycode == KEY_KBDILLUMTOGGLE)
+		dell_laptop_call_notifier(
+			DELL_LAPTOP_KBD_BACKLIGHT_BRIGHTNESS_CHANGED, NULL);
 
 	sparse_keymap_report_entry(dell_wmi_input_dev, key, 1, true);
 }
@@ -593,21 +607,13 @@ static int __init dell_wmi_input_setup(void)
 
 	err = input_register_device(dell_wmi_input_dev);
 	if (err)
-		goto err_free_keymap;
+		goto err_free_dev;
 
 	return 0;
 
- err_free_keymap:
-	sparse_keymap_free(dell_wmi_input_dev);
  err_free_dev:
 	input_free_device(dell_wmi_input_dev);
 	return err;
-}
-
-static void dell_wmi_input_destroy(void)
-{
-	sparse_keymap_free(dell_wmi_input_dev);
-	input_unregister_device(dell_wmi_input_dev);
 }
 
 /*
@@ -730,7 +736,7 @@ static int __init dell_wmi_init(void)
 	status = wmi_install_notify_handler(DELL_EVENT_GUID,
 					 dell_wmi_notify, NULL);
 	if (ACPI_FAILURE(status)) {
-		dell_wmi_input_destroy();
+		input_unregister_device(dell_wmi_input_dev);
 		pr_err("Unable to register notify handler - %d\n", status);
 		return -ENODEV;
 	}
@@ -742,7 +748,7 @@ static int __init dell_wmi_init(void)
 		if (err) {
 			pr_err("Failed to enable WMI events\n");
 			wmi_remove_notify_handler(DELL_EVENT_GUID);
-			dell_wmi_input_destroy();
+			input_unregister_device(dell_wmi_input_dev);
 			return err;
 		}
 	}
@@ -756,6 +762,6 @@ static void __exit dell_wmi_exit(void)
 	if (wmi_requires_smbios_request)
 		dell_wmi_events_set_enabled(false);
 	wmi_remove_notify_handler(DELL_EVENT_GUID);
-	dell_wmi_input_destroy();
+	input_unregister_device(dell_wmi_input_dev);
 }
 module_exit(dell_wmi_exit);

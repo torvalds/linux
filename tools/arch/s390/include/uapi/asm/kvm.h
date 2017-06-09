@@ -26,6 +26,8 @@
 #define KVM_DEV_FLIC_ADAPTER_REGISTER	6
 #define KVM_DEV_FLIC_ADAPTER_MODIFY	7
 #define KVM_DEV_FLIC_CLEAR_IO_IRQ	8
+#define KVM_DEV_FLIC_AISM		9
+#define KVM_DEV_FLIC_AIRQ_INJECT	10
 /*
  * We can have up to 4*64k pending subchannels + 8 adapter interrupts,
  * as well as up  to ASYNC_PF_PER_VCPU*KVM_MAX_VCPUS pfault done interrupts.
@@ -41,7 +43,14 @@ struct kvm_s390_io_adapter {
 	__u8 isc;
 	__u8 maskable;
 	__u8 swap;
-	__u8 pad;
+	__u8 flags;
+};
+
+#define KVM_S390_ADAPTER_SUPPRESSIBLE 0x01
+
+struct kvm_s390_ais_req {
+	__u8 isc;
+	__u16 mode;
 };
 
 #define KVM_S390_IO_ADAPTER_MASK 1
@@ -110,6 +119,7 @@ struct kvm_s390_vm_cpu_machine {
 #define KVM_S390_VM_CPU_FEAT_CMMA	10
 #define KVM_S390_VM_CPU_FEAT_PFMFI	11
 #define KVM_S390_VM_CPU_FEAT_SIGPIF	12
+#define KVM_S390_VM_CPU_FEAT_KSS	13
 struct kvm_s390_vm_cpu_feat {
 	__u64 feat[16];
 };
@@ -131,7 +141,8 @@ struct kvm_s390_vm_cpu_subfunc {
 	__u8 kmo[16];		/* with MSA4 */
 	__u8 pcc[16];		/* with MSA4 */
 	__u8 ppno[16];		/* with MSA5 */
-	__u8 reserved[1824];
+	__u8 kma[16];		/* with MSA8 */
+	__u8 reserved[1808];
 };
 
 /* kvm attributes for crypto */
@@ -197,6 +208,10 @@ struct kvm_guest_debug_arch {
 #define KVM_SYNC_VRS    (1UL << 6)
 #define KVM_SYNC_RICCB  (1UL << 7)
 #define KVM_SYNC_FPRS   (1UL << 8)
+#define KVM_SYNC_GSCB   (1UL << 9)
+/* length and alignment of the sdnx as a power of two */
+#define SDNXC 8
+#define SDNXL (1UL << SDNXC)
 /* definition of registers in kvm_run */
 struct kvm_sync_regs {
 	__u64 prefix;	/* prefix register */
@@ -217,8 +232,16 @@ struct kvm_sync_regs {
 	};
 	__u8  reserved[512];	/* for future vector expansion */
 	__u32 fpc;		/* valid on KVM_SYNC_VRS or KVM_SYNC_FPRS */
-	__u8 padding[52];	/* riccb needs to be 64byte aligned */
+	__u8 padding1[52];	/* riccb needs to be 64byte aligned */
 	__u8 riccb[64];		/* runtime instrumentation controls block */
+	__u8 padding2[192];	/* sdnx needs to be 256byte aligned */
+	union {
+		__u8 sdnx[SDNXL];  /* state description annex */
+		struct {
+			__u64 reserved1[2];
+			__u64 gscb[4];
+		};
+	};
 };
 
 #define KVM_REG_S390_TODPR	(KVM_REG_S390 | KVM_REG_SIZE_U32 | 0x1)

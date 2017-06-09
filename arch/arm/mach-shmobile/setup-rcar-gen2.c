@@ -24,27 +24,10 @@
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 #include "common.h"
 #include "rcar-gen2.h"
-
-#define MODEMR 0xe6160060
-
-u32 rcar_gen2_read_mode_pins(void)
-{
-	static u32 mode;
-	static bool mode_valid;
-
-	if (!mode_valid) {
-		void __iomem *modemr = ioremap_nocache(MODEMR, 4);
-		BUG_ON(!modemr);
-		mode = ioread32(modemr);
-		iounmap(modemr);
-		mode_valid = true;
-	}
-
-	return mode;
-}
 
 static unsigned int __init get_extal_freq(void)
 {
@@ -202,3 +185,36 @@ void __init rcar_gen2_reserve(void)
 	}
 #endif
 }
+
+static const char * const rcar_gen2_boards_compat_dt[] __initconst = {
+	/*
+	 * R8A7790 and R8A7791 can't be handled here as long as they need SMP
+	 * initialization fallback.
+	 */
+	"renesas,r8a7792",
+	"renesas,r8a7793",
+	"renesas,r8a7794",
+	NULL,
+};
+
+DT_MACHINE_START(RCAR_GEN2_DT, "Generic R-Car Gen2 (Flattened Device Tree)")
+	.init_early	= shmobile_init_delay,
+	.init_late	= shmobile_init_late,
+	.init_time	= rcar_gen2_timer_init,
+	.reserve	= rcar_gen2_reserve,
+	.dt_compat	= rcar_gen2_boards_compat_dt,
+MACHINE_END
+
+static const char * const rz_g1_boards_compat_dt[] __initconst = {
+	"renesas,r8a7743",
+	"renesas,r8a7745",
+	NULL,
+};
+
+DT_MACHINE_START(RZ_G1_DT, "Generic RZ/G1 (Flattened Device Tree)")
+	.init_early	= shmobile_init_delay,
+	.init_late	= shmobile_init_late,
+	.init_time	= rcar_gen2_timer_init,
+	.reserve	= rcar_gen2_reserve,
+	.dt_compat	= rz_g1_boards_compat_dt,
+MACHINE_END

@@ -16,6 +16,7 @@
 #include <asm/cachectl.h>
 #include <asm/fixmap.h>
 
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 
 extern int temp_tlb_entry;

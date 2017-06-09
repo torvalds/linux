@@ -45,6 +45,12 @@
 #define AR_DB			(1 << 22)
 #define AR_G			(1 << 23)
 
+#ifdef __x86_64__
+# define INT80_CLOBBERS "r8", "r9", "r10", "r11"
+#else
+# define INT80_CLOBBERS
+#endif
+
 static int nerrs;
 
 /* Points to an array of 1024 ints, each holding its own index. */
@@ -403,6 +409,51 @@ static void *threadproc(void *ctx)
 	}
 }
 
+#ifdef __i386__
+
+#ifndef SA_RESTORE
+#define SA_RESTORER 0x04000000
+#endif
+
+/*
+ * The UAPI header calls this 'struct sigaction', which conflicts with
+ * glibc.  Sigh.
+ */
+struct fake_ksigaction {
+	void *handler;  /* the real type is nasty */
+	unsigned long sa_flags;
+	void (*sa_restorer)(void);
+	unsigned char sigset[8];
+};
+
+static void fix_sa_restorer(int sig)
+{
+	struct fake_ksigaction ksa;
+
+	if (syscall(SYS_rt_sigaction, sig, NULL, &ksa, 8) == 0) {
+		/*
+		 * glibc has a nasty bug: it sometimes writes garbage to
+		 * sa_restorer.  This interacts quite badly with anything
+		 * that fiddles with SS because it can trigger legacy
+		 * stack switching.  Patch it up.  See:
+		 *
+		 * https://sourceware.org/bugzilla/show_bug.cgi?id=21269
+		 */
+		if (!(ksa.sa_flags & SA_RESTORER) && ksa.sa_restorer) {
+			ksa.sa_restorer = NULL;
+			if (syscall(SYS_rt_sigaction, sig, &ksa, NULL,
+				    sizeof(ksa.sigset)) != 0)
+				err(1, "rt_sigaction");
+		}
+	}
+}
+#else
+static void fix_sa_restorer(int sig)
+{
+	/* 64-bit glibc works fine. */
+}
+#endif
+
 static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 		       int flags)
 {
@@ -414,6 +465,7 @@ static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 	if (sigaction(sig, &sa, 0))
 		err(1, "sigaction");
 
+	fix_sa_restorer(sig);
 }
 
 static jmp_buf jmpbuf;
@@ -588,7 +640,7 @@ static int invoke_set_thread_area(void)
 	asm volatile ("int $0x80"
 		      : "=a" (ret), "+m" (low_user_desc) :
 			"a" (243), "b" (low_user_desc)
-		      : "flags");
+		      : INT80_CLOBBERS);
 	return ret;
 }
 
@@ -657,7 +709,7 @@ static void test_gdt_invalidation(void)
 			"+a" (eax)
 		      : "m" (low_user_desc_clear),
 			[arg1] "r" ((unsigned int)(unsigned long)low_user_desc_clear)
-		      : "flags");
+		      : INT80_CLOBBERS);
 
 	if (sel != 0) {
 		result = "FAIL";
@@ -688,7 +740,7 @@ static void test_gdt_invalidation(void)
 			"+a" (eax)
 		      : "m" (low_user_desc_clear),
 			[arg1] "r" ((unsigned int)(unsigned long)low_user_desc_clear)
-		      : "flags");
+		      : INT80_CLOBBERS);
 
 	if (sel != 0) {
 		result = "FAIL";
@@ -721,7 +773,7 @@ static void test_gdt_invalidation(void)
 			"+a" (eax)
 		      : "m" (low_user_desc_clear),
 			[arg1] "r" ((unsigned int)(unsigned long)low_user_desc_clear)
-		      : "flags");
+		      : INT80_CLOBBERS);
 
 #ifdef __x86_64__
 	syscall(SYS_arch_prctl, ARCH_GET_FS, &new_base);
@@ -774,7 +826,7 @@ static void test_gdt_invalidation(void)
 			"+a" (eax)
 		      : "m" (low_user_desc_clear),
 			[arg1] "r" ((unsigned int)(unsigned long)low_user_desc_clear)
-		      : "flags");
+		      : INT80_CLOBBERS);
 
 #ifdef __x86_64__
 	syscall(SYS_arch_prctl, ARCH_GET_GS, &new_base);

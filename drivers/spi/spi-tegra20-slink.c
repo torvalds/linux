@@ -824,7 +824,7 @@ static int tegra_slink_transfer_one(struct spi_master *master,
 					  SLINK_DMA_TIMEOUT);
 	if (WARN_ON(ret == 0)) {
 		dev_err(tspi->dev,
-			"spi trasfer timeout, err %d\n", ret);
+			"spi transfer timeout, err %d\n", ret);
 		return -EIO;
 	}
 

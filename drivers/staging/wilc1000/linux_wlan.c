@@ -213,7 +213,7 @@ static void deinit_irq(struct net_device *dev)
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
 
-	/* Deintialize IRQ */
+	/* Deinitialize IRQ */
 	if (wilc->dev_irq_num) {
 		free_irq(wilc->dev_irq_num, wilc);
 		gpio_free(wilc->gpio);
@@ -364,7 +364,7 @@ static int linux_wlan_start_firmware(struct net_device *dev)
 		return ret;
 
 	if (!wait_for_completion_timeout(&wilc->sync_event,
-					msecs_to_jiffies(5000)))
+					 msecs_to_jiffies(5000)))
 		return -ETIME;
 
 	return 0;
@@ -992,7 +992,7 @@ int wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	tx_data->skb  = skb;
 
 	eth_h = (struct ethhdr *)(skb->data);
-	if (eth_h->h_proto == 0x8e88)
+	if (eth_h->h_proto == cpu_to_be16(0x8e88))
 		netdev_dbg(ndev, "EAPOL transmitted\n");
 
 	ih = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
@@ -1074,7 +1074,7 @@ static int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
 	u8 *buff = NULL;
 	s8 rssi;
-	u32 size = 0, length = 0;
+	u32 size = 0;
 	struct wilc_vif *vif;
 	s32 ret = 0;
 	struct wilc *wilc;
@@ -1098,7 +1098,7 @@ static int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 			if (IS_ERR(buff))
 				return PTR_ERR(buff);
 
-			if (strncasecmp(buff, "RSSI", length) == 0) {
+			if (strncasecmp(buff, "RSSI", size) == 0) {
 				ret = wilc_get_rssi(vif, &rssi);
 				netdev_info(ndev, "RSSI :%d\n", rssi);
 
@@ -1251,11 +1251,12 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		else
 			strcpy(ndev->name, "p2p%d");
 
-		vif->idx = wl->vif_num;
 		vif->wilc = *wilc;
 		vif->ndev = ndev;
 		wl->vif[i] = vif;
 		wl->vif_num = i;
+		vif->idx = wl->vif_num;
+
 		ndev->netdev_ops = &wilc_netdev_ops;
 
 		{

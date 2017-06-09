@@ -317,35 +317,6 @@ ssize_t nd_sector_size_store(struct device *dev, const char *buf,
 	}
 }
 
-void __nd_iostat_start(struct bio *bio, unsigned long *start)
-{
-	struct gendisk *disk = bio->bi_bdev->bd_disk;
-	const int rw = bio_data_dir(bio);
-	int cpu = part_stat_lock();
-
-	*start = jiffies;
-	part_round_stats(cpu, &disk->part0);
-	part_stat_inc(cpu, &disk->part0, ios[rw]);
-	part_stat_add(cpu, &disk->part0, sectors[rw], bio_sectors(bio));
-	part_inc_in_flight(&disk->part0, rw);
-	part_stat_unlock();
-}
-EXPORT_SYMBOL(__nd_iostat_start);
-
-void nd_iostat_end(struct bio *bio, unsigned long start)
-{
-	struct gendisk *disk = bio->bi_bdev->bd_disk;
-	unsigned long duration = jiffies - start;
-	const int rw = bio_data_dir(bio);
-	int cpu = part_stat_lock();
-
-	part_stat_add(cpu, &disk->part0, ticks[rw], duration);
-	part_round_stats(cpu, &disk->part0);
-	part_dec_in_flight(&disk->part0, rw);
-	part_stat_unlock();
-}
-EXPORT_SYMBOL(nd_iostat_end);
-
 static ssize_t commands_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -547,6 +518,15 @@ void nvdimm_badblocks_populate(struct nd_region *nd_region,
 }
 EXPORT_SYMBOL_GPL(nvdimm_badblocks_populate);
 
+static void append_poison_entry(struct nvdimm_bus *nvdimm_bus,
+		struct nd_poison *pl, u64 addr, u64 length)
+{
+	lockdep_assert_held(&nvdimm_bus->poison_lock);
+	pl->start = addr;
+	pl->length = length;
+	list_add_tail(&pl->list, &nvdimm_bus->poison_list);
+}
+
 static int add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length,
 			gfp_t flags)
 {
@@ -556,19 +536,24 @@ static int add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length,
 	if (!pl)
 		return -ENOMEM;
 
-	pl->start = addr;
-	pl->length = length;
-	list_add_tail(&pl->list, &nvdimm_bus->poison_list);
-
+	append_poison_entry(nvdimm_bus, pl, addr, length);
 	return 0;
 }
 
 static int bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 {
-	struct nd_poison *pl;
+	struct nd_poison *pl, *pl_new;
 
-	if (list_empty(&nvdimm_bus->poison_list))
-		return add_poison(nvdimm_bus, addr, length, GFP_KERNEL);
+	spin_unlock(&nvdimm_bus->poison_lock);
+	pl_new = kzalloc(sizeof(*pl_new), GFP_KERNEL);
+	spin_lock(&nvdimm_bus->poison_lock);
+
+	if (list_empty(&nvdimm_bus->poison_list)) {
+		if (!pl_new)
+			return -ENOMEM;
+		append_poison_entry(nvdimm_bus, pl_new, addr, length);
+		return 0;
+	}
 
 	/*
 	 * There is a chance this is a duplicate, check for those first.
@@ -580,6 +565,7 @@ static int bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 			/* If length has changed, update this list entry */
 			if (pl->length != length)
 				pl->length = length;
+			kfree(pl_new);
 			return 0;
 		}
 
@@ -588,29 +574,33 @@ static int bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 	 * as any overlapping ranges will get resolved when the list is consumed
 	 * and converted to badblocks
 	 */
-	return add_poison(nvdimm_bus, addr, length, GFP_KERNEL);
+	if (!pl_new)
+		return -ENOMEM;
+	append_poison_entry(nvdimm_bus, pl_new, addr, length);
+
+	return 0;
 }
 
 int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 {
 	int rc;
 
-	nvdimm_bus_lock(&nvdimm_bus->dev);
+	spin_lock(&nvdimm_bus->poison_lock);
 	rc = bus_add_poison(nvdimm_bus, addr, length);
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
+	spin_unlock(&nvdimm_bus->poison_lock);
 
 	return rc;
 }
 EXPORT_SYMBOL_GPL(nvdimm_bus_add_poison);
 
-void nvdimm_clear_from_poison_list(struct nvdimm_bus *nvdimm_bus,
-		phys_addr_t start, unsigned int len)
+void nvdimm_forget_poison(struct nvdimm_bus *nvdimm_bus, phys_addr_t start,
+		unsigned int len)
 {
 	struct list_head *poison_list = &nvdimm_bus->poison_list;
 	u64 clr_end = start + len - 1;
 	struct nd_poison *pl, *next;
 
-	nvdimm_bus_lock(&nvdimm_bus->dev);
+	spin_lock(&nvdimm_bus->poison_lock);
 	WARN_ON_ONCE(list_empty(poison_list));
 
 	/*
@@ -657,15 +647,15 @@ void nvdimm_clear_from_poison_list(struct nvdimm_bus *nvdimm_bus,
 			u64 new_len = pl_end - new_start + 1;
 
 			/* Add new entry covering the right half */
-			add_poison(nvdimm_bus, new_start, new_len, GFP_NOIO);
+			add_poison(nvdimm_bus, new_start, new_len, GFP_NOWAIT);
 			/* Adjust this entry to cover the left half */
 			pl->length = start - pl->start;
 			continue;
 		}
 	}
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
+	spin_unlock(&nvdimm_bus->poison_lock);
 }
-EXPORT_SYMBOL_GPL(nvdimm_clear_from_poison_list);
+EXPORT_SYMBOL_GPL(nvdimm_forget_poison);
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)

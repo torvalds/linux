@@ -1,0 +1,34 @@
+/*
+ * dts file for Hisilicon HiKey960 Development Board
+ *
+ * Copyright (C) 2016, Hisilicon Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "hi3660.dtsi"
+#include "hikey960-pinctrl.dtsi"
+
+/ {
+	model = "HiKey960";
+	compatible = "hisilicon,hi3660";
+
+	aliases {
+		serial5 = &uart5;       /* console UART */
+	};
+
+	chosen {
+		stdout-path = "serial5:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		/* rewrite this at bootloader */
+		reg = <0x0 0x0 0x0 0x0>;
+	};
+};
+
+&uart5 {
+	status = "okay";
+};

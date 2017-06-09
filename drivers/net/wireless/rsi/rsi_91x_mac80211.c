@@ -877,7 +877,7 @@ static void rsi_perform_cqm(struct rsi_common *common,
 
 	common->cqm_info.last_cqm_event_rssi = rssi;
 	rsi_dbg(INFO_ZONE, "CQM: Notifying event: %d\n", event);
-	ieee80211_cqm_rssi_notify(adapter->vifs[0], event, GFP_KERNEL);
+	ieee80211_cqm_rssi_notify(adapter->vifs[0], event, rssi, GFP_KERNEL);
 
 	return;
 }
@@ -1260,6 +1260,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 		&adapter->sbands[NL80211_BAND_5GHZ];
 
 	wiphy->reg_notifier = rsi_reg_notify;
+
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	status = ieee80211_register_hw(hw);
 	if (status)

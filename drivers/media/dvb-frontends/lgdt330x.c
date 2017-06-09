@@ -13,10 +13,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 /*
@@ -405,8 +401,7 @@ static int lgdt330x_set_parameters(struct dvb_frontend *fe)
 			return -1;
 		}
 		if (err < 0)
-			printk(KERN_WARNING "lgdt330x: %s: error blasting "
-			       "bytes to lgdt3303 for modulation type(%d)\n",
+			printk(KERN_WARNING "lgdt330x: %s: error blasting bytes to lgdt3303 for modulation type(%d)\n",
 			       __func__, p->modulation);
 
 		/*
@@ -729,8 +724,8 @@ static void lgdt330x_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops lgdt3302_ops;
-static struct dvb_frontend_ops lgdt3303_ops;
+static const struct dvb_frontend_ops lgdt3302_ops;
+static const struct dvb_frontend_ops lgdt3303_ops;
 
 struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 				     struct i2c_adapter* i2c)
@@ -775,7 +770,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops lgdt3302_ops = {
+static const struct dvb_frontend_ops lgdt3302_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name= "LG Electronics LGDT3302 VSB/QAM Frontend",
@@ -798,7 +793,7 @@ static struct dvb_frontend_ops lgdt3302_ops = {
 	.release              = lgdt330x_release,
 };
 
-static struct dvb_frontend_ops lgdt3303_ops = {
+static const struct dvb_frontend_ops lgdt3303_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name= "LG Electronics LGDT3303 VSB/QAM Frontend",

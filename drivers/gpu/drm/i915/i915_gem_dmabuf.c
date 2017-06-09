@@ -141,7 +141,7 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 	if (!obj->base.filp)
 		return -ENODEV;
 
-	ret = obj->base.filp->f_op->mmap(obj->base.filp, vma);
+	ret = call_mmap(obj->base.filp, vma);
 	if (ret)
 		return ret;
 
@@ -200,10 +200,10 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.map_dma_buf = i915_gem_map_dma_buf,
 	.unmap_dma_buf = i915_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,
-	.kmap = i915_gem_dmabuf_kmap,
-	.kmap_atomic = i915_gem_dmabuf_kmap_atomic,
-	.kunmap = i915_gem_dmabuf_kunmap,
-	.kunmap_atomic = i915_gem_dmabuf_kunmap_atomic,
+	.map = i915_gem_dmabuf_kmap,
+	.map_atomic = i915_gem_dmabuf_kmap_atomic,
+	.unmap = i915_gem_dmabuf_kunmap,
+	.unmap_atomic = i915_gem_dmabuf_kunmap_atomic,
 	.mmap = i915_gem_dmabuf_mmap,
 	.vmap = i915_gem_dmabuf_vmap,
 	.vunmap = i915_gem_dmabuf_vunmap,
@@ -278,7 +278,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 
 	get_dma_buf(dma_buf);
 
-	obj = i915_gem_object_alloc(dev);
+	obj = i915_gem_object_alloc(to_i915(dev));
 	if (obj == NULL) {
 		ret = -ENOMEM;
 		goto fail_detach;
@@ -307,3 +307,8 @@ fail_detach:
 
 	return ERR_PTR(ret);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/mock_dmabuf.c"
+#include "selftests/i915_gem_dmabuf.c"
+#endif

@@ -52,6 +52,9 @@
 #define FIRMWARE_STONEY		"amdgpu/stoney_vce.bin"
 #define FIRMWARE_POLARIS10	"amdgpu/polaris10_vce.bin"
 #define FIRMWARE_POLARIS11         "amdgpu/polaris11_vce.bin"
+#define FIRMWARE_POLARIS12         "amdgpu/polaris12_vce.bin"
+
+#define FIRMWARE_VEGA10		"amdgpu/vega10_vce.bin"
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
@@ -66,6 +69,9 @@ MODULE_FIRMWARE(FIRMWARE_FIJI);
 MODULE_FIRMWARE(FIRMWARE_STONEY);
 MODULE_FIRMWARE(FIRMWARE_POLARIS10);
 MODULE_FIRMWARE(FIRMWARE_POLARIS11);
+MODULE_FIRMWARE(FIRMWARE_POLARIS12);
+
+MODULE_FIRMWARE(FIRMWARE_VEGA10);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 
@@ -120,6 +126,12 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 		break;
 	case CHIP_POLARIS11:
 		fw_name = FIRMWARE_POLARIS11;
+		break;
+	case CHIP_VEGA10:
+		fw_name = FIRMWARE_VEGA10;
+		break;
+	case CHIP_POLARIS12:
+		fw_name = FIRMWARE_POLARIS12;
 		break;
 
 	default:
@@ -308,6 +320,9 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 		container_of(work, struct amdgpu_device, vce.idle_work.work);
 	unsigned i, count = 0;
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	for (i = 0; i < adev->vce.num_rings; i++)
 		count += amdgpu_fence_count_emitted(&adev->vce.ring[i]);
 
@@ -316,6 +331,10 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 			amdgpu_dpm_enable_vce(adev, false);
 		} else {
 			amdgpu_asic_set_vce_clocks(adev, 0, 0);
+			amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							    AMD_PG_STATE_GATE);
+			amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							    AMD_CG_STATE_GATE);
 		}
 	} else {
 		schedule_delayed_work(&adev->vce.idle_work, VCE_IDLE_TIMEOUT);
@@ -334,6 +353,9 @@ void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	bool set_clocks;
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	mutex_lock(&adev->vce.idle_mutex);
 	set_clocks = !cancel_delayed_work_sync(&adev->vce.idle_work);
 	if (set_clocks) {
@@ -341,6 +363,11 @@ void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring)
 			amdgpu_dpm_enable_vce(adev, true);
 		} else {
 			amdgpu_asic_set_vce_clocks(adev, 53300, 40000);
+			amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							    AMD_CG_STATE_UNGATE);
+			amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							    AMD_PG_STATE_UNGATE);
+
 		}
 	}
 	mutex_unlock(&adev->vce.idle_mutex);
@@ -450,7 +477,7 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
 	job->fence = dma_fence_get(f);
 	if (r)
 		goto err;
@@ -513,7 +540,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 		ib->ptr[i] = 0x0;
 
 	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
 		job->fence = dma_fence_get(f);
 		if (r)
 			goto err;
@@ -568,13 +595,13 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 	}
 
 	if ((addr + (uint64_t)size) >
-	    ((uint64_t)mapping->it.last + 1) * AMDGPU_GPU_PAGE_SIZE) {
+	    (mapping->last + 1) * AMDGPU_GPU_PAGE_SIZE) {
 		DRM_ERROR("BO to small for addr 0x%010Lx %d %d\n",
 			  addr, lo, hi);
 		return -EINVAL;
 	}
 
-	addr -= ((uint64_t)mapping->it.start) * AMDGPU_GPU_PAGE_SIZE;
+	addr -= mapping->start * AMDGPU_GPU_PAGE_SIZE;
 	addr += amdgpu_bo_gpu_offset(bo);
 	addr -= ((uint64_t)size) * ((uint64_t)index);
 
@@ -928,7 +955,11 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t rptr = amdgpu_ring_get_rptr(ring);
 	unsigned i;
-	int r;
+	int r, timeout = adev->usec_timeout;
+
+	/* workaround VCE ring test slow issue for sriov*/
+	if (amdgpu_sriov_vf(adev))
+		timeout *= 10;
 
 	r = amdgpu_ring_alloc(ring, 16);
 	if (r) {
@@ -939,13 +970,13 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, VCE_CMD_END);
 	amdgpu_ring_commit(ring);
 
-	for (i = 0; i < adev->usec_timeout; i++) {
+	for (i = 0; i < timeout; i++) {
 		if (amdgpu_ring_get_rptr(ring) != rptr)
 			break;
 		DRM_UDELAY(1);
 	}
 
-	if (i < adev->usec_timeout) {
+	if (i < timeout) {
 		DRM_INFO("ring test on %d succeeded in %d usecs\n",
 			 ring->idx, i);
 	} else {

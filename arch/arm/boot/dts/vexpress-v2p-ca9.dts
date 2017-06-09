@@ -300,7 +300,7 @@
 		};
 	};
 
-	smb@04000000 {
+	smb@4000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;

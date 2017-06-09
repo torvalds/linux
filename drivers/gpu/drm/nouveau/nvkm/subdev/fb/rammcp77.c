@@ -39,7 +39,7 @@ mcp77_ram_init(struct nvkm_ram *base)
 	u32 flush  = ((ram->base.size - (ram->poller_base + 0x40)) >> 5) - 1;
 
 	/* Enable NISO poller for various clients and set their associated
-	 * read address, only for MCP77/78 and MCP79/7A. (fd#25701)
+	 * read address, only for MCP77/78 and MCP79/7A. (fd#27501)
 	 */
 	nvkm_wr32(device, 0x100c18, dniso);
 	nvkm_mask(device, 0x100c14, 0x00000000, 0x00000001);

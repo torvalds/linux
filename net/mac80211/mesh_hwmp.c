@@ -16,6 +16,7 @@
 #define TEST_FRAME_LEN	8192
 #define MAX_METRIC	0xffffffff
 #define ARITH_SHIFT	8
+#define LINK_FAIL_THRESH 95
 
 #define MAX_PREQ_QUEUE_LEN	64
 
@@ -307,10 +308,12 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 
 	failed = !(txinfo->flags & IEEE80211_TX_STAT_ACK);
 
-	/* moving average, scaled to 100 */
-	sta->mesh->fail_avg =
-		((80 * sta->mesh->fail_avg + 5) / 100 + 20 * failed);
-	if (sta->mesh->fail_avg > 95)
+	/* moving average, scaled to 100.
+	 * feed failure as 100 and success as 0
+	 */
+	ewma_mesh_fail_avg_add(&sta->mesh->fail_avg, failed * 100);
+	if (ewma_mesh_fail_avg_read(&sta->mesh->fail_avg) >
+			LINK_FAIL_THRESH)
 		mesh_plink_broken(sta);
 }
 
@@ -325,6 +328,8 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 	int rate, err;
 	u32 tx_time, estimated_retx;
 	u64 result;
+	unsigned long fail_avg =
+		ewma_mesh_fail_avg_read(&sta->mesh->fail_avg);
 
 	/* Try to get rate based on HW/SW RC algorithm.
 	 * Rate is returned in units of Kbps, correct this
@@ -336,7 +341,7 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 	if (rate) {
 		err = 0;
 	} else {
-		if (sta->mesh->fail_avg >= 100)
+		if (fail_avg > LINK_FAIL_THRESH)
 			return MAX_METRIC;
 
 		sta_set_rate_info_tx(sta, &sta->tx_stats.last_rate, &rinfo);
@@ -344,7 +349,7 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 		if (WARN_ON(!rate))
 			return MAX_METRIC;
 
-		err = (sta->mesh->fail_avg << ARITH_SHIFT) / 100;
+		err = (fail_avg << ARITH_SHIFT) / 100;
 	}
 
 	/* bitrate is in units of 100 Kbps, while we need rate in units of
@@ -484,6 +489,9 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 					  ?  mpath->exp_time : exp_time;
 			mesh_path_activate(mpath);
 			spin_unlock_bh(&mpath->state_lock);
+			ewma_mesh_fail_avg_init(&sta->mesh->fail_avg);
+			/* init it at a low value - 0 start is tricky */
+			ewma_mesh_fail_avg_add(&sta->mesh->fail_avg, 1);
 			mesh_path_tx_pending(mpath);
 			/* draft says preq_id should be saved to, but there does
 			 * not seem to be any use for it, skipping by now
@@ -522,6 +530,9 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 					  ?  mpath->exp_time : exp_time;
 			mesh_path_activate(mpath);
 			spin_unlock_bh(&mpath->state_lock);
+			ewma_mesh_fail_avg_init(&sta->mesh->fail_avg);
+			/* init it at a low value - 0 start is tricky */
+			ewma_mesh_fail_avg_add(&sta->mesh->fail_avg, 1);
 			mesh_path_tx_pending(mpath);
 		} else
 			spin_unlock_bh(&mpath->state_lock);

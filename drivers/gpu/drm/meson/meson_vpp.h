@@ -23,6 +23,8 @@
 
 /* Mux VIU/VPP to ENCI */
 #define MESON_VIU_VPP_MUX_ENCI	0x5
+/* Mux VIU/VPP to ENCP */
+#define MESON_VIU_VPP_MUX_ENCP	0xA
 
 void meson_vpp_setup_mux(struct meson_drm *priv, unsigned int mux);
 

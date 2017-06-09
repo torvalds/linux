@@ -16,10 +16,6 @@
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *   General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/slab.h>
@@ -255,8 +251,8 @@ static int cx24123_i2c_writereg(struct cx24123_state *state,
 
 	err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
-		printk("%s: writereg error(err == %i, reg == 0x%02x,"
-			 " data == 0x%02x)\n", __func__, err, reg, data);
+		printk("%s: writereg error(err == %i, reg == 0x%02x, data == 0x%02x)\n",
+		       __func__, err, reg, data);
 		return err;
 	}
 
@@ -653,7 +649,7 @@ static int cx24123_pll_tune(struct dvb_frontend *fe)
 	dprintk("frequency=%i\n", p->frequency);
 
 	if (cx24123_pll_calculate(fe) != 0) {
-		err("%s: cx24123_pll_calcutate failed\n", __func__);
+		err("%s: cx24123_pll_calculate failed\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1049,7 +1045,7 @@ struct i2c_adapter *
 }
 EXPORT_SYMBOL(cx24123_get_tuner_i2c_adapter);
 
-static struct dvb_frontend_ops cx24123_ops;
+static const struct dvb_frontend_ops cx24123_ops;
 
 struct dvb_frontend *cx24123_attach(const struct cx24123_config *config,
 				    struct i2c_adapter *i2c)
@@ -1111,7 +1107,7 @@ error:
 }
 EXPORT_SYMBOL(cx24123_attach);
 
-static struct dvb_frontend_ops cx24123_ops = {
+static const struct dvb_frontend_ops cx24123_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Conexant CX24123/CX24109",

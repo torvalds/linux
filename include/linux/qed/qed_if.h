@@ -1,10 +1,33 @@
 /* QLogic qed NIC Driver
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * Copyright (c) 2015 QLogic Corporation
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_IF_H
@@ -36,7 +59,6 @@ enum dcbx_protocol_type {
 
 #define QED_ROCE_PROTOCOL_INDEX (3)
 
-#ifdef CONFIG_DCB
 #define QED_LLDP_CHASSIS_ID_STAT_LEN 4
 #define QED_LLDP_PORT_ID_STAT_LEN 4
 #define QED_DCBX_MAX_APP_PROTOCOL 32
@@ -122,6 +144,7 @@ struct qed_dcbx_operational_params {
 	bool enabled;
 	bool ieee;
 	bool cee;
+	bool local;
 	u32 err;
 };
 
@@ -132,7 +155,6 @@ struct qed_dcbx_get {
 	struct qed_dcbx_remote_params remote;
 	struct qed_dcbx_admin_params local;
 };
-#endif
 
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
@@ -157,6 +179,44 @@ struct qed_eth_pf_params {
 	 * to update_pf_params routine invoked before slowpath start
 	 */
 	u16 num_cons;
+
+	/* To enable arfs, previous to HW-init a positive number needs to be
+	 * set [as filters require allocated searcher ILT memory].
+	 * This will set the maximal number of configured steering-filters.
+	 */
+	u32 num_arfs_filters;
+};
+
+struct qed_fcoe_pf_params {
+	/* The following parameters are used during protocol-init */
+	u64 glbl_q_params_addr;
+	u64 bdq_pbl_base_addr[2];
+
+	/* The following parameters are used during HW-init
+	 * and these parameters need to be passed as arguments
+	 * to update_pf_params routine invoked before slowpath start
+	 */
+	u16 num_cons;
+	u16 num_tasks;
+
+	/* The following parameters are used during protocol-init */
+	u16 sq_num_pbl_pages;
+
+	u16 cq_num_entries;
+	u16 cmdq_num_entries;
+	u16 rq_buffer_log_size;
+	u16 mtu;
+	u16 dummy_icid;
+	u16 bdq_xoff_threshold[2];
+	u16 bdq_xon_threshold[2];
+	u16 rq_buffer_size;
+	u8 num_cqs;		/* num of global CQs */
+	u8 log_page_size;
+	u8 gl_rq_pi;
+	u8 gl_cmd_pi;
+	u8 debug_mode;
+	u8 is_target;
+	u8 bdq_pbl_num_entries[2];
 };
 
 /* Most of the the parameters below are described in the FW iSCSI / TCP HSI */
@@ -210,7 +270,6 @@ struct qed_rdma_pf_params {
 	 * the doorbell BAR).
 	 */
 	u32 min_dpis;		/* number of requested DPIs */
-	u32 num_mrs;		/* number of requested memory regions */
 	u32 num_qps;		/* number of requested Queue Pairs */
 	u32 num_srqs;		/* number of requested SRQ */
 	u8 roce_edpm_mode;	/* see QED_ROCE_EDPM_MODE_ENABLE */
@@ -222,6 +281,7 @@ struct qed_rdma_pf_params {
 
 struct qed_pf_params {
 	struct qed_eth_pf_params eth_pf_params;
+	struct qed_fcoe_pf_params fcoe_pf_params;
 	struct qed_iscsi_pf_params iscsi_pf_params;
 	struct qed_rdma_pf_params rdma_pf_params;
 };
@@ -244,6 +304,11 @@ struct qed_sb_info {
 #define QED_SB_INFO_SETUP       0x2
 
 	struct qed_dev		*cdev;
+};
+
+enum qed_dev_type {
+	QED_DEV_TYPE_BB,
+	QED_DEV_TYPE_AH,
 };
 
 struct qed_dev_info {
@@ -271,6 +336,13 @@ struct qed_dev_info {
 	u16		mtu;
 
 	bool wol_support;
+
+	enum qed_dev_type dev_type;
+
+	/* Output parameters for qede */
+	bool		vxlan_enable;
+	bool		gre_enable;
+	bool		geneve_enable;
 };
 
 enum qed_sb_type {
@@ -282,6 +354,7 @@ enum qed_sb_type {
 enum qed_protocol {
 	QED_PROTOCOL_ETH,
 	QED_PROTOCOL_ISCSI,
+	QED_PROTOCOL_FCOE,
 };
 
 enum qed_link_mode_bits {
@@ -366,8 +439,10 @@ struct qed_int_info {
 };
 
 struct qed_common_cb_ops {
+	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
 	void	(*link_update)(void			*dev,
 			       struct qed_link_output	*link);
+	void	(*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
 };
 
 struct qed_selftest_ops {
@@ -471,6 +546,10 @@ struct qed_common_ops {
 
 	void		(*simd_handler_clean)(struct qed_dev *cdev,
 					      int index);
+	int (*dbg_grc)(struct qed_dev *cdev,
+		       void *buffer, u32 *num_dumped_bytes);
+
+	int (*dbg_grc_size)(struct qed_dev *cdev);
 
 	int (*dbg_all_data) (struct qed_dev *cdev, void *buffer);
 
@@ -556,7 +635,7 @@ struct qed_common_ops {
  * @return 0 on success, error otherwise.
  */
 	int (*set_coalesce)(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
-			    u8 qid, u16 sb_id);
+			    u16 qid, u16 sb_id);
 
 /**
  * @brief set_led - Configure LED mode
@@ -692,7 +771,7 @@ enum qed_mf_mode {
 	QED_MF_NPAR,
 };
 
-struct qed_eth_stats {
+struct qed_eth_stats_common {
 	u64	no_buff_discards;
 	u64	packet_too_big_discard;
 	u64	ttl0_discard;
@@ -724,11 +803,6 @@ struct qed_eth_stats {
 	u64	rx_256_to_511_byte_packets;
 	u64	rx_512_to_1023_byte_packets;
 	u64	rx_1024_to_1518_byte_packets;
-	u64	rx_1519_to_1522_byte_packets;
-	u64	rx_1519_to_2047_byte_packets;
-	u64	rx_2048_to_4095_byte_packets;
-	u64	rx_4096_to_9216_byte_packets;
-	u64	rx_9217_to_16383_byte_packets;
 	u64	rx_crc_errors;
 	u64	rx_mac_crtl_frames;
 	u64	rx_pause_frames;
@@ -745,14 +819,8 @@ struct qed_eth_stats {
 	u64	tx_256_to_511_byte_packets;
 	u64	tx_512_to_1023_byte_packets;
 	u64	tx_1024_to_1518_byte_packets;
-	u64	tx_1519_to_2047_byte_packets;
-	u64	tx_2048_to_4095_byte_packets;
-	u64	tx_4096_to_9216_byte_packets;
-	u64	tx_9217_to_16383_byte_packets;
 	u64	tx_pause_frames;
 	u64	tx_pfc_frames;
-	u64	tx_lpi_entry_count;
-	u64	tx_total_collisions;
 	u64	brb_truncates;
 	u64	brb_discards;
 	u64	rx_mac_bytes;
@@ -765,6 +833,34 @@ struct qed_eth_stats {
 	u64	tx_mac_mc_packets;
 	u64	tx_mac_bc_packets;
 	u64	tx_mac_ctrl_frames;
+};
+
+struct qed_eth_stats_bb {
+	u64 rx_1519_to_1522_byte_packets;
+	u64 rx_1519_to_2047_byte_packets;
+	u64 rx_2048_to_4095_byte_packets;
+	u64 rx_4096_to_9216_byte_packets;
+	u64 rx_9217_to_16383_byte_packets;
+	u64 tx_1519_to_2047_byte_packets;
+	u64 tx_2048_to_4095_byte_packets;
+	u64 tx_4096_to_9216_byte_packets;
+	u64 tx_9217_to_16383_byte_packets;
+	u64 tx_lpi_entry_count;
+	u64 tx_total_collisions;
+};
+
+struct qed_eth_stats_ah {
+	u64 rx_1519_to_max_byte_packets;
+	u64 tx_1519_to_max_byte_packets;
+};
+
+struct qed_eth_stats {
+	struct qed_eth_stats_common common;
+
+	union {
+		struct qed_eth_stats_bb bb;
+		struct qed_eth_stats_ah ah;
+	};
 };
 
 #define QED_SB_IDX              0x0002

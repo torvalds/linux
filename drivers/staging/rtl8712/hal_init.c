@@ -117,16 +117,16 @@ static void fill_fwpriv(struct _adapter *padapter, struct fw_priv *pfwpriv)
 
 static void update_fwhdr(struct fw_hdr	*pfwhdr, const u8 *pmappedfw)
 {
-	pfwhdr->signature = le16_to_cpu(*(u16 *)pmappedfw);
-	pfwhdr->version = le16_to_cpu(*(u16 *)(pmappedfw + 2));
+	pfwhdr->signature = le16_to_cpu(*(__le16 *)pmappedfw);
+	pfwhdr->version = le16_to_cpu(*(__le16 *)(pmappedfw + 2));
 	/* define the size of boot loader */
-	pfwhdr->dmem_size = le32_to_cpu(*(uint *)(pmappedfw + 4));
+	pfwhdr->dmem_size = le32_to_cpu(*(__le32 *)(pmappedfw + 4));
 	/* define the size of FW in IMEM */
-	pfwhdr->img_IMEM_size = le32_to_cpu(*(uint *)(pmappedfw + 8));
+	pfwhdr->img_IMEM_size = le32_to_cpu(*(__le32 *)(pmappedfw + 8));
 	/* define the size of FW in SRAM */
-	pfwhdr->img_SRAM_size = le32_to_cpu(*(uint *)(pmappedfw + 12));
+	pfwhdr->img_SRAM_size = le32_to_cpu(*(__le32 *)(pmappedfw + 12));
 	/* define the size of DMEM variable */
-	pfwhdr->fw_priv_sz = le32_to_cpu(*(uint *)(pmappedfw + 16));
+	pfwhdr->fw_priv_sz = le32_to_cpu(*(__le32 *)(pmappedfw + 16));
 }
 
 static u8 chk_fwhdr(struct fw_hdr *pfwhdr, u32 ulfilelength)

@@ -1108,12 +1108,6 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 		i++;
 	} while (i < 1024);
 
-	if (retval != STATUS_SUCCESS) {
-		kfree(buf);
-		rtsx_trace(chip);
-		return STATUS_FAIL;
-	}
-
 	if ((buf[0] != 0xa5) && (buf[1] != 0xc3)) {
 		/* Signature code is wrong */
 		kfree(buf);
@@ -2600,7 +2594,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 	u16 start, end, phy_blk, log_blk, tmp_blk, idx;
 	u8 extra[MS_EXTRA_SIZE], us1, us2;
 
-	dev_dbg(rtsx_dev(chip), "ms_build_l2p_tbl: %d\n", seg_no);
+	dev_dbg(rtsx_dev(chip), "%s: %d\n", __func__, seg_no);
 
 	if (!ms_card->segment) {
 		retval = ms_init_l2p_tbl(chip);

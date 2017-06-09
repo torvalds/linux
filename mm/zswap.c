@@ -76,9 +76,17 @@ static u64 zswap_duplicate_entry;
 * tunables
 **********************************/
 
+#define ZSWAP_PARAM_UNSET ""
+
 /* Enable/disable zswap (disabled by default) */
 static bool zswap_enabled;
-module_param_named(enabled, zswap_enabled, bool, 0644);
+static int zswap_enabled_param_set(const char *,
+				   const struct kernel_param *);
+static struct kernel_param_ops zswap_enabled_param_ops = {
+	.set =		zswap_enabled_param_set,
+	.get =		param_get_bool,
+};
+module_param_cb(enabled, &zswap_enabled_param_ops, &zswap_enabled, 0644);
 
 /* Crypto compressor to use */
 #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
@@ -175,6 +183,12 @@ static atomic_t zswap_pools_count = ATOMIC_INIT(0);
 
 /* used by param callback function */
 static bool zswap_init_started;
+
+/* fatal error during init */
+static bool zswap_init_failed;
+
+/* init completed, but couldn't create the initial pool */
+static bool zswap_has_pool;
 
 /*********************************
 * helpers and fwd declarations
@@ -415,7 +429,8 @@ static struct zswap_pool *__zswap_pool_current(void)
 	struct zswap_pool *pool;
 
 	pool = list_first_or_null_rcu(&zswap_pools, typeof(*pool), list);
-	WARN_ON(!pool);
+	WARN_ONCE(!pool && zswap_has_pool,
+		  "%s: no page storage pool!\n", __func__);
 
 	return pool;
 }
@@ -434,7 +449,7 @@ static struct zswap_pool *zswap_pool_current_get(void)
 	rcu_read_lock();
 
 	pool = __zswap_pool_current();
-	if (!pool || !zswap_pool_get(pool))
+	if (!zswap_pool_get(pool))
 		pool = NULL;
 
 	rcu_read_unlock();
@@ -450,7 +465,9 @@ static struct zswap_pool *zswap_pool_last_get(void)
 
 	list_for_each_entry_rcu(pool, &zswap_pools, list)
 		last = pool;
-	if (!WARN_ON(!last) && !zswap_pool_get(last))
+	WARN_ONCE(!last && zswap_has_pool,
+		  "%s: no page storage pool!\n", __func__);
+	if (!zswap_pool_get(last))
 		last = NULL;
 
 	rcu_read_unlock();
@@ -485,6 +502,17 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 	char name[38]; /* 'zswap' + 32 char (max) num + \0 */
 	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
 	int ret;
+
+	if (!zswap_has_pool) {
+		/* if either are unset, pool initialization failed, and we
+		 * need both params to be set correctly before trying to
+		 * create a pool.
+		 */
+		if (!strcmp(type, ZSWAP_PARAM_UNSET))
+			return NULL;
+		if (!strcmp(compressor, ZSWAP_PARAM_UNSET))
+			return NULL;
+	}
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool) {
@@ -535,28 +563,40 @@ error:
 
 static __init struct zswap_pool *__zswap_pool_create_fallback(void)
 {
-	if (!crypto_has_comp(zswap_compressor, 0, 0)) {
-		if (!strcmp(zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT)) {
-			pr_err("default compressor %s not available\n",
-			       zswap_compressor);
-			return NULL;
-		}
+	bool has_comp, has_zpool;
+
+	has_comp = crypto_has_comp(zswap_compressor, 0, 0);
+	if (!has_comp && strcmp(zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT)) {
 		pr_err("compressor %s not available, using default %s\n",
 		       zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT);
 		param_free_charp(&zswap_compressor);
 		zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+		has_comp = crypto_has_comp(zswap_compressor, 0, 0);
 	}
-	if (!zpool_has_pool(zswap_zpool_type)) {
-		if (!strcmp(zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT)) {
-			pr_err("default zpool %s not available\n",
-			       zswap_zpool_type);
-			return NULL;
-		}
+	if (!has_comp) {
+		pr_err("default compressor %s not available\n",
+		       zswap_compressor);
+		param_free_charp(&zswap_compressor);
+		zswap_compressor = ZSWAP_PARAM_UNSET;
+	}
+
+	has_zpool = zpool_has_pool(zswap_zpool_type);
+	if (!has_zpool && strcmp(zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT)) {
 		pr_err("zpool %s not available, using default %s\n",
 		       zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT);
 		param_free_charp(&zswap_zpool_type);
 		zswap_zpool_type = ZSWAP_ZPOOL_DEFAULT;
+		has_zpool = zpool_has_pool(zswap_zpool_type);
 	}
+	if (!has_zpool) {
+		pr_err("default zpool %s not available\n",
+		       zswap_zpool_type);
+		param_free_charp(&zswap_zpool_type);
+		zswap_zpool_type = ZSWAP_PARAM_UNSET;
+	}
+
+	if (!has_comp || !has_zpool)
+		return NULL;
 
 	return zswap_pool_create(zswap_zpool_type, zswap_compressor);
 }
@@ -573,6 +613,9 @@ static void zswap_pool_destroy(struct zswap_pool *pool)
 
 static int __must_check zswap_pool_get(struct zswap_pool *pool)
 {
+	if (!pool)
+		return 0;
+
 	return kref_get_unless_zero(&pool->kref);
 }
 
@@ -624,8 +667,13 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	char *s = strstrip((char *)val);
 	int ret;
 
+	if (zswap_init_failed) {
+		pr_err("can't set param, initialization failed\n");
+		return -ENODEV;
+	}
+
 	/* no change required */
-	if (!strcmp(s, *(char **)kp->arg))
+	if (!strcmp(s, *(char **)kp->arg) && zswap_has_pool)
 		return 0;
 
 	/* if this is load-time (pre-init) param setting,
@@ -656,21 +704,26 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	pool = zswap_pool_find_get(type, compressor);
 	if (pool) {
 		zswap_pool_debug("using existing", pool);
+		WARN_ON(pool == zswap_pool_current());
 		list_del_rcu(&pool->list);
-	} else {
-		spin_unlock(&zswap_pools_lock);
-		pool = zswap_pool_create(type, compressor);
-		spin_lock(&zswap_pools_lock);
 	}
+
+	spin_unlock(&zswap_pools_lock);
+
+	if (!pool)
+		pool = zswap_pool_create(type, compressor);
 
 	if (pool)
 		ret = param_set_charp(s, kp);
 	else
 		ret = -EINVAL;
 
+	spin_lock(&zswap_pools_lock);
+
 	if (!ret) {
 		put_pool = zswap_pool_current();
 		list_add_rcu(&pool->list, &zswap_pools);
+		zswap_has_pool = true;
 	} else if (pool) {
 		/* add the possibly pre-existing pool to the end of the pools
 		 * list; if it's new (and empty) then it'll be removed and
@@ -681,6 +734,17 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	}
 
 	spin_unlock(&zswap_pools_lock);
+
+	if (!zswap_has_pool && !pool) {
+		/* if initial pool creation failed, and this pool creation also
+		 * failed, maybe both compressor and zpool params were bad.
+		 * Allow changing this param, so pool creation will succeed
+		 * when the other param is changed. We already verified this
+		 * param is ok in the zpool_has_pool() or crypto_has_comp()
+		 * checks above.
+		 */
+		ret = param_set_charp(s, kp);
+	}
 
 	/* drop the ref from either the old current pool,
 	 * or the new pool we failed to add
@@ -701,6 +765,21 @@ static int zswap_zpool_param_set(const char *val,
 				 const struct kernel_param *kp)
 {
 	return __zswap_param_set(val, kp, NULL, zswap_compressor);
+}
+
+static int zswap_enabled_param_set(const char *val,
+				   const struct kernel_param *kp)
+{
+	if (zswap_init_failed) {
+		pr_err("can't enable, initialization failed\n");
+		return -ENODEV;
+	}
+	if (!zswap_has_pool && zswap_init_started) {
+		pr_err("can't enable, no pool configured\n");
+		return -ENODEV;
+	}
+
+	return param_set_bool(val, kp);
 }
 
 /*********************************
@@ -1180,27 +1259,29 @@ static int __init init_zswap(void)
 		goto hp_fail;
 
 	pool = __zswap_pool_create_fallback();
-	if (!pool) {
+	if (pool) {
+		pr_info("loaded using pool %s/%s\n", pool->tfm_name,
+			zpool_get_type(pool->zpool));
+		list_add(&pool->list, &zswap_pools);
+		zswap_has_pool = true;
+	} else {
 		pr_err("pool creation failed\n");
-		goto pool_fail;
+		zswap_enabled = false;
 	}
-	pr_info("loaded using pool %s/%s\n", pool->tfm_name,
-		zpool_get_type(pool->zpool));
-
-	list_add(&pool->list, &zswap_pools);
 
 	frontswap_register_ops(&zswap_frontswap_ops);
 	if (zswap_debugfs_init())
 		pr_warn("debugfs initialization failed\n");
 	return 0;
 
-pool_fail:
-	cpuhp_remove_state_nocalls(CPUHP_MM_ZSWP_POOL_PREPARE);
 hp_fail:
 	cpuhp_remove_state(CPUHP_MM_ZSWP_MEM_PREPARE);
 dstmem_fail:
 	zswap_entry_cache_destroy();
 cache_fail:
+	/* if built-in, we aren't unloaded on failure; don't allow use */
+	zswap_init_failed = true;
+	zswap_enabled = false;
 	return -ENOMEM;
 }
 /* must be late so crypto has time to come up */

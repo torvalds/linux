@@ -53,12 +53,12 @@ static inline bool radeon_has_atpx(void) { return false; }
  * the rest of the device (CP, writeback, etc.).
  * Returns 0 on success.
  */
-int radeon_driver_unload_kms(struct drm_device *dev)
+void radeon_driver_unload_kms(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
 	if (rdev == NULL)
-		return 0;
+		return;
 
 	if (rdev->rmmio == NULL)
 		goto done_free;
@@ -78,7 +78,6 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 done_free:
 	kfree(rdev);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 /**
@@ -106,7 +105,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = (void *)rdev;
 
 	/* update BUS flag */
-	if (drm_pci_device_is_agp(dev)) {
+	if (pci_find_capability(dev->pdev, PCI_CAP_ID_AGP)) {
 		flags |= RADEON_IS_AGP;
 	} else if (pci_is_pcie(dev->pdev)) {
 		flags |= RADEON_IS_PCIE;
@@ -116,7 +115,8 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 
 	if ((radeon_runtime_pm != 0) &&
 	    radeon_has_atpx() &&
-	    ((flags & RADEON_IS_IGP) == 0))
+	    ((flags & RADEON_IS_IGP) == 0) &&
+	    !pci_is_thunderbolt_attached(dev->pdev))
 		flags |= RADEON_IS_PX;
 
 	/* radeon_device_init should report only fatal error
@@ -692,12 +692,25 @@ out_suspend:
  * @dev: drm dev pointer
  * @file_priv: drm file
  *
- * On device post close, tear down vm on cayman+ (all asics).
+ * On device close, tear down hyperz and cmask filps on r1xx-r5xx
+ * (all asics).  And tear down vm on cayman+ (all asics).
  */
 void radeon_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv)
 {
 	struct radeon_device *rdev = dev->dev_private;
+
+	pm_runtime_get_sync(dev->dev);
+
+	mutex_lock(&rdev->gem.mutex);
+	if (rdev->hyperz_filp == file_priv)
+		rdev->hyperz_filp = NULL;
+	if (rdev->cmask_filp == file_priv)
+		rdev->cmask_filp = NULL;
+	mutex_unlock(&rdev->gem.mutex);
+
+	radeon_uvd_free_handles(rdev, file_priv);
+	radeon_vce_free_handles(rdev, file_priv);
 
 	/* new gpu have virtual address space support */
 	if (rdev->family >= CHIP_CAYMAN && file_priv->driver_priv) {
@@ -720,33 +733,6 @@ void radeon_driver_postclose_kms(struct drm_device *dev,
 	}
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
-}
-
-/**
- * radeon_driver_preclose_kms - drm callback for pre close
- *
- * @dev: drm dev pointer
- * @file_priv: drm file
- *
- * On device pre close, tear down hyperz and cmask filps on r1xx-r5xx
- * (all asics).
- */
-void radeon_driver_preclose_kms(struct drm_device *dev,
-				struct drm_file *file_priv)
-{
-	struct radeon_device *rdev = dev->dev_private;
-
-	pm_runtime_get_sync(dev->dev);
-
-	mutex_lock(&rdev->gem.mutex);
-	if (rdev->hyperz_filp == file_priv)
-		rdev->hyperz_filp = NULL;
-	if (rdev->cmask_filp == file_priv)
-		rdev->cmask_filp = NULL;
-	mutex_unlock(&rdev->gem.mutex);
-
-	radeon_uvd_free_handles(rdev, file_priv);
-	radeon_vce_free_handles(rdev, file_priv);
 }
 
 /*

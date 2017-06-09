@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -11,6 +12,7 @@
 #include "thread_map.h"
 #include "symbol.h"
 #include "thread.h"
+#include "util.h"
 
 #define THREADS 4
 

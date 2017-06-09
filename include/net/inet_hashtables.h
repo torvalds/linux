@@ -74,13 +74,21 @@ struct inet_ehash_bucket {
  * users logged onto your box, isn't it nice to know that new data
  * ports are created in O(1) time?  I thought so. ;-)	-DaveM
  */
+#define FASTREUSEPORT_ANY	1
+#define FASTREUSEPORT_STRICT	2
+
 struct inet_bind_bucket {
 	possible_net_t		ib_net;
 	unsigned short		port;
 	signed char		fastreuse;
 	signed char		fastreuseport;
 	kuid_t			fastuid;
-	int			num_owners;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct in6_addr		fast_v6_rcv_saddr;
+#endif
+	__be32			fast_rcv_saddr;
+	unsigned short		fast_sk_family;
+	bool			fast_ipv6_only;
 	struct hlist_node	node;
 	struct hlist_head	owners;
 };
@@ -203,10 +211,7 @@ void inet_hashinfo_init(struct inet_hashinfo *h);
 
 bool inet_ehash_insert(struct sock *sk, struct sock *osk);
 bool inet_ehash_nolisten(struct sock *sk, struct sock *osk);
-int __inet_hash(struct sock *sk, struct sock *osk,
-		int (*saddr_same)(const struct sock *sk1,
-				  const struct sock *sk2,
-				  bool match_wildcard));
+int __inet_hash(struct sock *sk, struct sock *osk);
 int inet_hash(struct sock *sk);
 void inet_unhash(struct sock *sk);
 

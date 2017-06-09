@@ -8,8 +8,15 @@ config PINCTRL
 menu "Pin controllers"
 	depends on PINCTRL
 
+config GENERIC_PINCTRL_GROUPS
+	bool
+
 config PINMUX
 	bool "Support pin multiplexing controllers" if COMPILE_TEST
+
+config GENERIC_PINMUX_FUNCTIONS
+	bool
+	select PINMUX
 
 config PINCONF
 	bool "Support pin configuration controllers" if COMPILE_TEST
@@ -33,6 +40,17 @@ config PINCTRL_ADI2
 	  This is the pin controller and gpio driver for ADI BF54x, BF60x and
 	  future processors. This option is selected automatically when specific
 	  machine and arch are selected to build.
+
+config PINCTRL_ARTPEC6
+        bool "Axis ARTPEC-6 pin controller driver"
+        depends on MACH_ARTPEC6
+        select PINMUX
+        select GENERIC_PINCONF
+        help
+          This is the driver for the Axis ARTPEC-6 pin controller. This driver
+          supports pin function multiplexing as well as pin bias and drive
+          strength configuration. Device tree integration instructions can be
+          found in Documentation/devicetree/bindings/pinctrl/axis,artpec6-pinctrl.txt
 
 config PINCTRL_AS3722
 	tristate "Pinctrl and GPIO driver for ams AS3722 PMIC"
@@ -159,8 +177,8 @@ config PINCTRL_ROCKCHIP
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
 	depends on OF
-	select PINMUX
-	select PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
 	help
 	  This selects the device tree based generic pinctrl driver.
@@ -293,6 +311,7 @@ source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/stm32/Kconfig"
 source "drivers/pinctrl/sunxi/Kconfig"
 source "drivers/pinctrl/tegra/Kconfig"
+source "drivers/pinctrl/ti/Kconfig"
 source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"

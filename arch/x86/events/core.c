@@ -20,7 +20,8 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/kdebug.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/clock.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
@@ -505,6 +506,10 @@ int x86_pmu_hw_config(struct perf_event *event)
 
 		if (event->attr.precise_ip > precise)
 			return -EOPNOTSUPP;
+
+		/* There's no sense in having PEBS for non sampling events: */
+		if (!is_sampling_event(event))
+			return -EINVAL;
 	}
 	/*
 	 * check that PEBS LBR correction does not conflict with
@@ -1820,18 +1825,18 @@ static int __init init_hw_perf_events(void)
 	 * Install callbacks. Core will call them for each online
 	 * cpu.
 	 */
-	err = cpuhp_setup_state(CPUHP_PERF_X86_PREPARE, "PERF_X86_PREPARE",
+	err = cpuhp_setup_state(CPUHP_PERF_X86_PREPARE, "perf/x86:prepare",
 				x86_pmu_prepare_cpu, x86_pmu_dead_cpu);
 	if (err)
 		return err;
 
 	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_STARTING,
-				"AP_PERF_X86_STARTING", x86_pmu_starting_cpu,
+				"perf/x86:starting", x86_pmu_starting_cpu,
 				x86_pmu_dying_cpu);
 	if (err)
 		goto out;
 
-	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_ONLINE, "AP_PERF_X86_ONLINE",
+	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_ONLINE, "perf/x86:online",
 				x86_pmu_online_cpu, NULL);
 	if (err)
 		goto out1;
@@ -2096,14 +2101,26 @@ static int x86_pmu_event_init(struct perf_event *event)
 
 static void refresh_pce(void *ignored)
 {
-	if (current->mm)
-		load_mm_cr4(current->mm);
+	if (current->active_mm)
+		load_mm_cr4(current->active_mm);
 }
 
 static void x86_pmu_event_mapped(struct perf_event *event)
 {
 	if (!(event->hw.flags & PERF_X86_EVENT_RDPMC_ALLOWED))
 		return;
+
+	/*
+	 * This function relies on not being called concurrently in two
+	 * tasks in the same mm.  Otherwise one task could observe
+	 * perf_rdpmc_allowed > 1 and return all the way back to
+	 * userspace with CR4.PCE clear while another task is still
+	 * doing on_each_cpu_mask() to propagate CR4.PCE.
+	 *
+	 * For now, this can't happen because all callers hold mmap_sem
+	 * for write.  If this changes, we'll need a different solution.
+	 */
+	lockdep_assert_held_exclusive(&current->mm->mmap_sem);
 
 	if (atomic_inc_return(&current->mm->context.perf_rdpmc_allowed) == 1)
 		on_each_cpu_mask(mm_cpumask(current->mm), refresh_pce, NULL, 1);
@@ -2239,6 +2256,7 @@ void arch_perf_update_userpage(struct perf_event *event,
 			       struct perf_event_mmap_page *userpg, u64 now)
 {
 	struct cyc2ns_data *data;
+	u64 offset;
 
 	userpg->cap_user_time = 0;
 	userpg->cap_user_time_zero = 0;
@@ -2246,10 +2264,12 @@ void arch_perf_update_userpage(struct perf_event *event,
 		!!(event->hw.flags & PERF_X86_EVENT_RDPMC_ALLOWED);
 	userpg->pmc_width = x86_pmu.cntval_bits;
 
-	if (!sched_clock_stable())
+	if (!using_native_sched_clock() || !sched_clock_stable())
 		return;
 
 	data = cyc2ns_read_begin();
+
+	offset = data->cyc2ns_offset + __sched_clock_offset;
 
 	/*
 	 * Internal timekeeping for enabled/running/stopped times
@@ -2258,7 +2278,7 @@ void arch_perf_update_userpage(struct perf_event *event,
 	userpg->cap_user_time = 1;
 	userpg->time_mult = data->cyc2ns_mul;
 	userpg->time_shift = data->cyc2ns_shift;
-	userpg->time_offset = data->cyc2ns_offset - now;
+	userpg->time_offset = offset - now;
 
 	/*
 	 * cap_user_time_zero doesn't make sense when we're using a different
@@ -2266,7 +2286,7 @@ void arch_perf_update_userpage(struct perf_event *event,
 	 */
 	if (!event->attr.use_clockid) {
 		userpg->cap_user_time_zero = 1;
-		userpg->time_zero = data->cyc2ns_offset;
+		userpg->time_zero = offset;
 	}
 
 	cyc2ns_read_end(data);

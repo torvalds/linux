@@ -77,7 +77,6 @@ struct ufs_qcom_phy_vreg {
 	int min_uV;
 	int max_uV;
 	bool enabled;
-	bool is_always_on;
 };
 
 struct ufs_qcom_phy {
@@ -141,11 +140,8 @@ struct ufs_qcom_phy_specific_ops {
 struct ufs_qcom_phy *get_ufs_qcom_phy(struct phy *generic_phy);
 int ufs_qcom_phy_power_on(struct phy *generic_phy);
 int ufs_qcom_phy_power_off(struct phy *generic_phy);
-int ufs_qcom_phy_exit(struct phy *generic_phy);
-int ufs_qcom_phy_init_clks(struct phy *generic_phy,
-			struct ufs_qcom_phy *phy_common);
-int ufs_qcom_phy_init_vregulators(struct phy *generic_phy,
-			struct ufs_qcom_phy *phy_common);
+int ufs_qcom_phy_init_clks(struct ufs_qcom_phy *phy_common);
+int ufs_qcom_phy_init_vregulators(struct ufs_qcom_phy *phy_common);
 int ufs_qcom_phy_remove(struct phy *generic_phy,
 		       struct ufs_qcom_phy *ufs_qcom_phy);
 struct phy *ufs_qcom_phy_generic_probe(struct platform_device *pdev,

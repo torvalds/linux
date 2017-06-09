@@ -14,12 +14,13 @@
 #include <linux/moduleparam.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/sched/debug.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 
 #include <asm/cp15.h>

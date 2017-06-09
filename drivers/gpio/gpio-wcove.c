@@ -51,6 +51,8 @@
 #define GROUP1_NR_IRQS		6
 #define IRQ_MASK_BASE		0x4e19
 #define IRQ_STATUS_BASE		0x4e0b
+#define GPIO_IRQ0_MASK		GENMASK(6, 0)
+#define GPIO_IRQ1_MASK		GENMASK(5, 0)
 #define UPDATE_IRQ_TYPE		BIT(0)
 #define UPDATE_IRQ_MASK		BIT(1)
 
@@ -202,17 +204,16 @@ static void wcove_gpio_set(struct gpio_chip *chip,
 		regmap_update_bits(wg->regmap, to_reg(gpio, CTRL_OUT), 1, 0);
 }
 
-static int wcove_gpio_set_single_ended(struct gpio_chip *chip,
-					unsigned int gpio,
-					enum single_ended_mode mode)
+static int wcove_gpio_set_config(struct gpio_chip *chip, unsigned int gpio,
+				 unsigned long config)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
 
-	switch (mode) {
-	case LINE_MODE_OPEN_DRAIN:
+	switch (pinconf_to_config_param(config)) {
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		return regmap_update_bits(wg->regmap, to_reg(gpio, CTRL_OUT),
 						CTLO_DRV_MASK, CTLO_DRV_OD);
-	case LINE_MODE_PUSH_PULL:
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		return regmap_update_bits(wg->regmap, to_reg(gpio, CTRL_OUT),
 						CTLO_DRV_MASK, CTLO_DRV_CMOS);
 	default:
@@ -310,7 +311,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	pending = p[0] | (p[1] << 8);
+	pending = (p[0] & GPIO_IRQ0_MASK) | ((p[1] & GPIO_IRQ1_MASK) << 7);
 	if (!pending)
 		return IRQ_NONE;
 
@@ -318,7 +319,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 	while (pending) {
 		/* One iteration is for all pending bits */
 		for_each_set_bit(gpio, (const unsigned long *)&pending,
-						 GROUP0_NR_IRQS) {
+						 WCOVE_GPIO_NUM) {
 			offset = (gpio > GROUP0_NR_IRQS) ? 1 : 0;
 			mask = (offset == 1) ? BIT(gpio - GROUP0_NR_IRQS) :
 								BIT(gpio);
@@ -334,7 +335,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 			break;
 		}
 
-		pending = p[0] | (p[1] << 8);
+		pending = (p[0] & GPIO_IRQ0_MASK) | ((p[1] & GPIO_IRQ1_MASK) << 7);
 	}
 
 	return IRQ_HANDLED;
@@ -411,7 +412,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	wg->chip.get_direction = wcove_gpio_get_direction;
 	wg->chip.get = wcove_gpio_get;
 	wg->chip.set = wcove_gpio_set;
-	wg->chip.set_single_ended = wcove_gpio_set_single_ended,
+	wg->chip.set_config = wcove_gpio_set_config,
 	wg->chip.base = -1;
 	wg->chip.ngpio = WCOVE_VGPIO_NUM;
 	wg->chip.can_sleep = true;

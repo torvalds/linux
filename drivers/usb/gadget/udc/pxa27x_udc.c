@@ -1473,7 +1473,7 @@ static int pxa_ep_disable(struct usb_ep *_ep)
 	return 0;
 }
 
-static struct usb_ep_ops pxa_ep_ops = {
+static const struct usb_ep_ops pxa_ep_ops = {
 	.enable		= pxa_ep_enable,
 	.disable	= pxa_ep_disable,
 
@@ -1607,9 +1607,6 @@ static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
 		udc_disable(udc);
 	return 0;
 }
-
-static void udc_enable(struct pxa_udc *udc);
-static void udc_disable(struct pxa_udc *udc);
 
 /**
  * pxa_udc_vbus_session - Called by external transceiver to enable/disable udc
@@ -2534,9 +2531,10 @@ static int pxa_udc_remove(struct platform_device *_dev)
 	usb_del_gadget_udc(&udc->gadget);
 	pxa_cleanup_debugfs(udc);
 
-	if (!IS_ERR_OR_NULL(udc->transceiver))
+	if (!IS_ERR_OR_NULL(udc->transceiver)) {
 		usb_unregister_notifier(udc->transceiver, &pxa27x_udc_phy);
-	usb_put_phy(udc->transceiver);
+		usb_put_phy(udc->transceiver);
+	}
 
 	udc->transceiver = NULL;
 	the_controller = NULL;

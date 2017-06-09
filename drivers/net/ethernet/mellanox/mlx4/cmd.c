@@ -43,6 +43,7 @@
 #include <linux/semaphore.h>
 #include <rdma/ib_smi.h>
 #include <linux/delay.h>
+#include <linux/etherdevice.h>
 
 #include <asm/io.h>
 
@@ -1788,9 +1789,17 @@ static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
 	}
 
 	if (err) {
-		if (!(dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR))
-			mlx4_warn(dev, "vhcr command:0x%x slave:%d failed with error:%d, status %d\n",
-				  vhcr->op, slave, vhcr->errno, err);
+		if (!(dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR)) {
+			if (vhcr->op == MLX4_CMD_ALLOC_RES &&
+			    (vhcr->in_modifier & 0xff) == RES_COUNTER &&
+			    err == -EDQUOT)
+				mlx4_dbg(dev,
+					 "Unable to allocate counter for slave %d (%d)\n",
+					 slave, err);
+			else
+				mlx4_warn(dev, "vhcr command:0x%x slave:%d failed with error:%d, status %d\n",
+					  vhcr->op, slave, vhcr->errno, err);
+		}
 		vhcr_cmd->status = mlx4_errno_to_status(err);
 		goto out_status;
 	}
@@ -2304,6 +2313,17 @@ static int sync_toggles(struct mlx4_dev *dev)
 		rd_toggle = swab32(readl(&priv->mfunc.comm->slave_read));
 		if (wr_toggle == 0xffffffff || rd_toggle == 0xffffffff) {
 			/* PCI might be offline */
+
+			/* If device removal has been requested,
+			 * do not continue retrying.
+			 */
+			if (dev->persist->interface_state &
+			    MLX4_INTERFACE_STATE_NOWAIT) {
+				mlx4_warn(dev,
+					  "communication channel is offline\n");
+				return -EIO;
+			}
+
 			msleep(100);
 			wr_toggle = swab32(readl(&priv->mfunc.comm->
 					   slave_write));
@@ -2955,7 +2975,7 @@ static bool mlx4_valid_vf_state_change(struct mlx4_dev *dev, int port,
 	return false;
 }
 
-int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
+int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u8 *mac)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_vport_state *s_info;
@@ -2964,13 +2984,22 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 	if (!mlx4_is_master(dev))
 		return -EPROTONOSUPPORT;
 
+	if (is_multicast_ether_addr(mac))
+		return -EINVAL;
+
 	slave = mlx4_get_slave_indx(dev, vf);
 	if (slave < 0)
 		return -EINVAL;
 
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
-	s_info->mac = mac;
+
+	if (s_info->spoofchk && is_zero_ether_addr(mac)) {
+		mlx4_info(dev, "MAC invalidation is not allowed when spoofchk is on\n");
+		return -EPERM;
+	}
+
+	s_info->mac = mlx4_mac_to_u64(mac);
 	mlx4_info(dev, "default mac on vf %d port %d to %llX will take effect only after vf restart\n",
 		  vf, port, s_info->mac);
 	return 0;
@@ -3143,6 +3172,7 @@ int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_vport_state *s_info;
 	int slave;
+	u8 mac[ETH_ALEN];
 
 	if ((!mlx4_is_master(dev)) ||
 	    !(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FSM))
@@ -3154,6 +3184,13 @@ int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
+
+	mlx4_u64_to_mac(mac, s_info->mac);
+	if (setting && !is_valid_ether_addr(mac)) {
+		mlx4_info(dev, "Illegal MAC with spoofchk\n");
+		return -EPERM;
+	}
+
 	s_info->spoofchk = setting;
 
 	return 0;

@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/kallsyms.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/debug_locks.h>
 
 #include <asm/exceptions.h>

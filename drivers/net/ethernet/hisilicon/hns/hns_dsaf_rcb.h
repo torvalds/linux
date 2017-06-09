@@ -35,12 +35,23 @@ struct rcb_common_cb;
 
 #define HNS_RCB_REG_OFFSET			0x10000
 
+#define HNS_RCB_TX_FRAMES_LOW		1
+#define HNS_RCB_RX_FRAMES_LOW		1
+#define HNS_RCB_TX_FRAMES_HIGH		1023
+#define HNS_RCB_RX_FRAMES_HIGH		1023
+#define HNS_RCB_TX_USECS_LOW		1
+#define HNS_RCB_RX_USECS_LOW		1
+#define HNS_RCB_TX_USECS_HIGH		1023
+#define HNS_RCB_RX_USECS_HIGH		1023
 #define HNS_RCB_MAX_COALESCED_FRAMES		1023
 #define HNS_RCB_MIN_COALESCED_FRAMES		1
-#define HNS_RCB_DEF_COALESCED_FRAMES		50
+#define HNS_RCB_DEF_RX_COALESCED_FRAMES		50
+#define HNS_RCB_DEF_TX_COALESCED_FRAMES		1
 #define HNS_RCB_CLK_FREQ_MHZ			350
 #define HNS_RCB_MAX_COALESCED_USECS		0x3ff
-#define HNS_RCB_DEF_COALESCED_USECS		50
+#define HNS_RCB_DEF_COALESCED_USECS		30
+#define HNS_RCB_DEF_GAP_TIME_USECS		20
+#define HNS_RCB_TX_PKTLINE_OFFSET		8
 
 #define HNS_RCB_COMMON_ENDIAN			1
 
@@ -110,7 +121,7 @@ int hns_rcb_common_get_cfg(struct dsaf_device *dsaf_dev, int comm_index);
 void hns_rcb_common_free_cfg(struct dsaf_device *dsaf_dev, u32 comm_index);
 int hns_rcb_common_init_hw(struct rcb_common_cb *rcb_common);
 void hns_rcb_start(struct hnae_queue *q, u32 val);
-void hns_rcb_get_cfg(struct rcb_common_cb *rcb_common);
+int hns_rcb_get_cfg(struct rcb_common_cb *rcb_common);
 void hns_rcb_get_queue_mode(enum dsaf_mode dsaf_mode,
 			    u16 *max_vfn, u16 *max_q_per_vf);
 
@@ -125,13 +136,17 @@ void hns_rcbv2_int_clr_hw(struct hnae_queue *q, u32 flag);
 void hns_rcb_init_hw(struct ring_pair_cb *ring);
 void hns_rcb_reset_ring_hw(struct hnae_queue *q);
 void hns_rcb_wait_fbd_clean(struct hnae_queue **qs, int q_num, u32 flag);
-u32 hns_rcb_get_coalesced_frames(
+u32 hns_rcb_get_rx_coalesced_frames(
+	struct rcb_common_cb *rcb_common, u32 port_idx);
+u32 hns_rcb_get_tx_coalesced_frames(
 	struct rcb_common_cb *rcb_common, u32 port_idx);
 u32 hns_rcb_get_coalesce_usecs(
 	struct rcb_common_cb *rcb_common, u32 port_idx);
 int hns_rcb_set_coalesce_usecs(
 	struct rcb_common_cb *rcb_common, u32 port_idx, u32 timeout);
-int hns_rcb_set_coalesced_frames(
+int hns_rcb_set_rx_coalesced_frames(
+	struct rcb_common_cb *rcb_common, u32 port_idx, u32 coalesced_frames);
+int hns_rcb_set_tx_coalesced_frames(
 	struct rcb_common_cb *rcb_common, u32 port_idx, u32 coalesced_frames);
 void hns_rcb_update_stats(struct hnae_queue *queue);
 
@@ -146,4 +161,7 @@ int hns_rcb_get_ring_regs_count(void);
 void hns_rcb_get_ring_regs(struct hnae_queue *queue, void *data);
 
 void hns_rcb_get_strings(int stringset, u8 *data, int index);
+void hns_rcb_set_rx_ring_bs(struct hnae_queue *q, u32 buf_size);
+void hns_rcb_set_tx_ring_bs(struct hnae_queue *q, u32 buf_size);
+
 #endif /* _HNS_DSAF_RCB_H */

@@ -116,8 +116,8 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
  * to SI there was just a DE IB.
  */
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
-		       struct amdgpu_ib *ibs, struct dma_fence *last_vm_update,
-		       struct amdgpu_job *job, struct dma_fence **f)
+		       struct amdgpu_ib *ibs, struct amdgpu_job *job,
+		       struct dma_fence **f)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib *ib = &ibs[0];
@@ -160,9 +160,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
 	}
-
-	if (ring->funcs->init_cond_exec)
-		patch_offset = amdgpu_ring_init_cond_exec(ring);
+	if (ring->funcs->emit_pipeline_sync && job && job->need_pipeline_sync)
+		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (vm) {
 		r = amdgpu_vm_flush(ring, job);
@@ -172,11 +171,15 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		}
 	}
 
-	if (ring->funcs->emit_hdp_flush)
-		amdgpu_ring_emit_hdp_flush(ring);
+	if (ring->funcs->init_cond_exec)
+		patch_offset = amdgpu_ring_init_cond_exec(ring);
 
-	/* always set cond_exec_polling to CONTINUE */
-	*ring->cond_exe_cpu_addr = 1;
+	if (ring->funcs->emit_hdp_flush
+#ifdef CONFIG_X86_64
+	    && !(adev->flags & AMD_IS_APU)
+#endif
+	   )
+		amdgpu_ring_emit_hdp_flush(ring);
 
 	skip_preamble = ring->current_ctx == fence_ctx;
 	need_ctx_switch = ring->current_ctx != fence_ctx;
@@ -184,6 +187,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		if (need_ctx_switch)
 			status |= AMDGPU_HAVE_CTX_SWITCH;
 		status |= job->preamble_status;
+
+		if (vm)
+			status |= AMDGPU_VM_DOMAIN;
 		amdgpu_ring_emit_cntxcntl(ring, status);
 	}
 
@@ -193,7 +199,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		/* drop preamble IBs if we don't have a context switch */
 		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) &&
 			skip_preamble &&
-			!(status & AMDGPU_PREAMBLE_IB_PRESENT_FIRST))
+			!(status & AMDGPU_PREAMBLE_IB_PRESENT_FIRST) &&
+			!amdgpu_sriov_vf(adev)) /* for SRIOV preemption, Preamble CE ib must be inserted anyway */
 			continue;
 
 		amdgpu_ring_emit_ib(ring, ib, job ? job->vm_id : 0,
@@ -201,17 +208,25 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		need_ctx_switch = false;
 	}
 
-	if (ring->funcs->emit_hdp_invalidate)
+	if (ring->funcs->emit_hdp_invalidate
+#ifdef CONFIG_X86_64
+	    && !(adev->flags & AMD_IS_APU)
+#endif
+	   )
 		amdgpu_ring_emit_hdp_invalidate(ring);
 
 	r = amdgpu_fence_emit(ring, f);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		if (job && job->vm_id)
-			amdgpu_vm_reset_id(adev, job->vm_id);
+			amdgpu_vm_reset_id(adev, ring->funcs->vmhub,
+					   job->vm_id);
 		amdgpu_ring_undo(ring);
 		return r;
 	}
+
+	if (ring->funcs->insert_end)
+		ring->funcs->insert_end(ring);
 
 	/* wrap the last IB with fence */
 	if (job && job->uf_addr) {
@@ -223,7 +238,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);
 
 	ring->current_ctx = fence_ctx;
-	if (ring->funcs->emit_switch_buffer)
+	if (vm && ring->funcs->emit_switch_buffer)
 		amdgpu_ring_emit_switch_buffer(ring);
 	amdgpu_ring_commit(ring);
 	return 0;

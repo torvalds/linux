@@ -16,6 +16,7 @@
 #ifndef DRIVERS_PCI_ECAM_H
 #define DRIVERS_PCI_ECAM_H
 
+#include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
@@ -59,7 +60,16 @@ void __iomem *pci_ecam_map_bus(struct pci_bus *bus, unsigned int devfn,
 /* default ECAM ops */
 extern struct pci_ecam_ops pci_generic_ecam_ops;
 
-#ifdef CONFIG_PCI_HOST_GENERIC
+#if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
+extern struct pci_ecam_ops pci_32b_ops;		/* 32-bit accesses only */
+extern struct pci_ecam_ops hisi_pcie_ops;	/* HiSilicon */
+extern struct pci_ecam_ops thunder_pem_ecam_ops; /* Cavium ThunderX 1.x & 2.x */
+extern struct pci_ecam_ops pci_thunder_ecam_ops; /* Cavium ThunderX 1.x */
+extern struct pci_ecam_ops xgene_v1_pcie_ecam_ops; /* APM X-Gene PCIe v1 */
+extern struct pci_ecam_ops xgene_v2_pcie_ecam_ops; /* APM X-Gene PCIe v2.x */
+#endif
+
+#ifdef CONFIG_PCI_HOST_COMMON
 /* for DT-based PCI controllers that support ECAM */
 int pci_host_common_probe(struct platform_device *pdev,
 			  struct pci_ecam_ops *ops);

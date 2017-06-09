@@ -2310,7 +2310,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 {
 	struct iwl_priv *priv = file->private_data;
 	bool restart_fw = iwlwifi_mod_params.restart_fw;
-	int ret;
+	int __maybe_unused ret;
 
 	iwlwifi_mod_params.restart_fw = true;
 

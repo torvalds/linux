@@ -20,6 +20,7 @@
 
 #include "vc4_drv.h"
 #include "vc4_regs.h"
+#include "drm_atomic.h"
 #include "drm_atomic_helper.h"
 #include "drm_fb_cma_helper.h"
 #include "drm_plane_helper.h"
@@ -295,8 +296,8 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
 	u32 subpixel_src_mask = (1 << 16) - 1;
-	u32 format = fb->pixel_format;
-	int num_planes = drm_format_num_planes(format);
+	u32 format = fb->format->format;
+	int num_planes = fb->format->num_planes;
 	u32 h_subsample = 1;
 	u32 v_subsample = 1;
 	int i;
@@ -369,7 +370,7 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	 */
 	if (vc4_state->crtc_x < 0) {
 		for (i = 0; i < num_planes; i++) {
-			u32 cpp = drm_format_plane_cpp(fb->pixel_format, i);
+			u32 cpp = fb->format->cpp[i];
 			u32 subs = ((i == 0) ? 1 : h_subsample);
 
 			vc4_state->offsets[i] += (cpp *
@@ -496,7 +497,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	u32 ctl0_offset = vc4_state->dlist_count;
-	const struct hvs_format *format = vc4_get_hvs_format(fb->pixel_format);
+	const struct hvs_format *format = vc4_get_hvs_format(fb->format->format);
 	int num_planes = drm_format_num_planes(format->drm);
 	u32 scl0, scl1;
 	u32 lbm_size;
@@ -514,9 +515,9 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	if (lbm_size) {
 		if (!vc4_state->lbm.allocated) {
 			spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
-			ret = drm_mm_insert_node(&vc4->hvs->lbm_mm,
-						 &vc4_state->lbm,
-						 lbm_size, 32, 0);
+			ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
+							 &vc4_state->lbm,
+							 lbm_size, 32, 0, 0);
 			spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
 		} else {
 			WARN_ON_ONCE(lbm_size != vc4_state->lbm.size);
@@ -755,7 +756,8 @@ vc4_update_plane(struct drm_plane *plane,
 		 int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t src_x, uint32_t src_y,
-		 uint32_t src_w, uint32_t src_h)
+		 uint32_t src_w, uint32_t src_h,
+		 struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_plane_state *plane_state;
 	struct vc4_plane_state *vc4_state;
@@ -769,18 +771,17 @@ vc4_update_plane(struct drm_plane *plane,
 	if (!plane_state)
 		goto out;
 
-	/* If we're changing the cursor contents, do that in the
-	 * normal vblank-synced atomic path.
-	 */
-	if (fb != plane_state->fb)
-		goto out;
-
 	/* No configuring new scaling in the fast path. */
 	if (crtc_w != plane_state->crtc_w ||
 	    crtc_h != plane_state->crtc_h ||
 	    src_w != plane_state->src_w ||
 	    src_h != plane_state->src_h) {
 		goto out;
+	}
+
+	if (fb != plane_state->fb) {
+		drm_atomic_set_fb_for_plane(plane->state, fb);
+		vc4_plane_async_set_fb(plane, fb);
 	}
 
 	/* Set the cursor's position on the screen.  This is the
@@ -817,7 +818,8 @@ out:
 					      crtc_x, crtc_y,
 					      crtc_w, crtc_h,
 					      src_x, src_y,
-					      src_w, src_h);
+					      src_w, src_h,
+					      ctx);
 }
 
 static const struct drm_plane_funcs vc4_plane_funcs = {
@@ -842,10 +844,8 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 
 	vc4_plane = devm_kzalloc(dev->dev, sizeof(*vc4_plane),
 				 GFP_KERNEL);
-	if (!vc4_plane) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!vc4_plane)
+		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++) {
 		/* Don't allow YUV in cursor planes, since that means
@@ -858,7 +858,7 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 		}
 	}
 	plane = &vc4_plane->base;
-	ret = drm_universal_plane_init(dev, plane, 0xff,
+	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vc4_plane_funcs,
 				       formats, num_formats,
 				       type, NULL);
@@ -866,9 +866,4 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 
 	return plane;
-fail:
-	if (plane)
-		vc4_plane_destroy(plane);
-
-	return ERR_PTR(ret);
 }

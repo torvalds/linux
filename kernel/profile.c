@@ -25,6 +25,8 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/sched/stat.h>
+
 #include <asm/sections.h>
 #include <asm/irq_regs.h>
 #include <asm/ptrace.h>
@@ -408,7 +410,7 @@ void profile_tick(int type)
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int prof_cpu_mask_proc_show(struct seq_file *m, void *v)
 {

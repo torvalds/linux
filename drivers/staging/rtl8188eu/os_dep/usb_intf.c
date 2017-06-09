@@ -83,6 +83,7 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 
 	for (i = 0; i < piface_desc->bNumEndpoints; i++) {
 		int ep_num;
+
 		pendp_desc = &phost_iface->endpoint[i].desc;
 
 		ep_num = usb_endpoint_num(pendp_desc);

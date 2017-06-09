@@ -231,9 +231,29 @@ static noinline __init void detect_machine_type(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
 }
 
+/* Remove leading, trailing and double whitespace. */
+static inline void strim_all(char *str)
+{
+	char *s;
+
+	s = strim(str);
+	if (s != str)
+		memmove(str, s, strlen(s));
+	while (*str) {
+		if (!isspace(*str++))
+			continue;
+		if (isspace(*str)) {
+			s = skip_spaces(str);
+			memmove(str, s, strlen(s) + 1);
+		}
+	}
+}
+
 static noinline __init void setup_arch_string(void)
 {
 	struct sysinfo_1_1_1 *mach = (struct sysinfo_1_1_1 *)&sysinfo_page;
+	struct sysinfo_3_2_2 *vm = (struct sysinfo_3_2_2 *)&sysinfo_page;
+	char mstr[80], hvstr[17];
 
 	if (stsi(mach, 1, 1, 1))
 		return;
@@ -241,14 +261,21 @@ static noinline __init void setup_arch_string(void)
 	EBCASC(mach->type, sizeof(mach->type));
 	EBCASC(mach->model, sizeof(mach->model));
 	EBCASC(mach->model_capacity, sizeof(mach->model_capacity));
-	dump_stack_set_arch_desc("%-16.16s %-4.4s %-16.16s %-16.16s (%s)",
-				 mach->manufacturer,
-				 mach->type,
-				 mach->model,
-				 mach->model_capacity,
-				 MACHINE_IS_LPAR ? "LPAR" :
-				 MACHINE_IS_VM ? "z/VM" :
-				 MACHINE_IS_KVM ? "KVM" : "unknown");
+	sprintf(mstr, "%-16.16s %-4.4s %-16.16s %-16.16s",
+		mach->manufacturer, mach->type,
+		mach->model, mach->model_capacity);
+	strim_all(mstr);
+	if (stsi(vm, 3, 2, 2) == 0 && vm->count) {
+		EBCASC(vm->vm[0].cpi, sizeof(vm->vm[0].cpi));
+		sprintf(hvstr, "%-16.16s", vm->vm[0].cpi);
+		strim_all(hvstr);
+	} else {
+		sprintf(hvstr, "%s",
+			MACHINE_IS_LPAR ? "LPAR" :
+			MACHINE_IS_VM ? "z/VM" :
+			MACHINE_IS_KVM ? "KVM" : "unknown");
+	}
+	dump_stack_set_arch_desc("%s (%s)", mstr, hvstr);
 }
 
 static __init void setup_topology(void)
@@ -354,6 +381,12 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
 		__ctl_set_bit(0, 17);
 	}
+	if (test_facility(130)) {
+		S390_lowcore.machine_flags |= MACHINE_FLAG_NX;
+		__ctl_set_bit(0, 20);
+	}
+	if (test_facility(133))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_GS;
 }
 
 static inline void save_vector_registers(void)
@@ -364,6 +397,18 @@ static inline void save_vector_registers(void)
 #endif
 }
 
+static int __init topology_setup(char *str)
+{
+	bool enabled;
+	int rc;
+
+	rc = kstrtobool(str, &enabled);
+	if (!rc && !enabled)
+		S390_lowcore.machine_flags &= ~MACHINE_FLAG_TOPOLOGY;
+	return rc;
+}
+early_param("topology", topology_setup);
+
 static int __init disable_vector_extension(char *str)
 {
 	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
@@ -372,25 +417,33 @@ static int __init disable_vector_extension(char *str)
 }
 early_param("novx", disable_vector_extension);
 
+static int __init noexec_setup(char *str)
+{
+	bool enabled;
+	int rc;
+
+	rc = kstrtobool(str, &enabled);
+	if (!rc && !enabled) {
+		/* Disable no-execute support */
+		S390_lowcore.machine_flags &= ~MACHINE_FLAG_NX;
+		__ctl_clear_bit(0, 20);
+	}
+	return rc;
+}
+early_param("noexec", noexec_setup);
+
 static int __init cad_setup(char *str)
 {
-	int val;
+	bool enabled;
+	int rc;
 
-	get_option(&str, &val);
-	if (val && test_facility(128))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_CAD;
-	return 0;
-}
-early_param("cad", cad_setup);
-
-static int __init cad_init(void)
-{
-	if (MACHINE_HAS_CAD)
+	rc = kstrtobool(str, &enabled);
+	if (!rc && enabled && test_facility(128))
 		/* Enable problem state CAD. */
 		__ctl_set_bit(2, 3);
-	return 0;
+	return rc;
 }
-early_initcall(cad_init);
+early_param("cad", cad_setup);
 
 static __init void memmove_early(void *dst, const void *src, size_t n)
 {
@@ -417,7 +470,7 @@ static __init void memmove_early(void *dst, const void *src, size_t n)
 		"	brctg	%[n],0b\n"
 		"1:\n"
 		: [addr] "=&d" (addr),
-		  [psw_pgm_addr] "=&Q" (S390_lowcore.program_new_psw.addr),
+		  [psw_pgm_addr] "=Q" (S390_lowcore.program_new_psw.addr),
 		  [dst] "+&a" (dst), [src] "+&a" (src),  [n] "+d" (n)
 		: [incr] "d" (incr)
 		: "cc", "memory");

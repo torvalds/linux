@@ -1311,16 +1311,18 @@ static void ks_set_msglevel(struct net_device *netdev, u32 to)
 	ks->msg_enable = to;
 }
 
-static int ks_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
+static int ks_get_link_ksettings(struct net_device *netdev,
+				 struct ethtool_link_ksettings *cmd)
 {
 	struct ks_net *ks = netdev_priv(netdev);
-	return mii_ethtool_gset(&ks->mii, cmd);
+	return mii_ethtool_get_link_ksettings(&ks->mii, cmd);
 }
 
-static int ks_set_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
+static int ks_set_link_ksettings(struct net_device *netdev,
+				 const struct ethtool_link_ksettings *cmd)
 {
 	struct ks_net *ks = netdev_priv(netdev);
-	return mii_ethtool_sset(&ks->mii, cmd);
+	return mii_ethtool_set_link_ksettings(&ks->mii, cmd);
 }
 
 static u32 ks_get_link(struct net_device *netdev)
@@ -1339,10 +1341,10 @@ static const struct ethtool_ops ks_ethtool_ops = {
 	.get_drvinfo	= ks_get_drvinfo,
 	.get_msglevel	= ks_get_msglevel,
 	.set_msglevel	= ks_set_msglevel,
-	.get_settings	= ks_get_settings,
-	.set_settings	= ks_set_settings,
 	.get_link	= ks_get_link,
 	.nway_reset	= ks_nway_reset,
+	.get_link_ksettings = ks_get_link_ksettings,
+	.set_link_ksettings = ks_set_link_ksettings,
 };
 
 /* MII interface controls */

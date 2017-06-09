@@ -96,6 +96,12 @@ enum tpm_atmel_addr {
 	TPM_ATMEL_BASE_ADDR_HI = 0x09
 };
 
+static inline int tpm_read_index(int base, int index)
+{
+	outb(index, base);
+	return inb(base+1) & 0xFF;
+}
+
 /* Verify this is a 1.1 Atmel TPM */
 static int atmel_verify_tpm11(void)
 {

@@ -76,8 +76,18 @@ gp100_ram_init(struct nvkm_ram *ram)
 	return 0;
 }
 
+static u32
+gp100_ram_probe_fbpa(struct nvkm_device *device, int fbpa)
+{
+	return nvkm_rd32(device, 0x90020c + (fbpa * 0x4000));
+}
+
 static const struct nvkm_ram_func
-gp100_ram_func = {
+gp100_ram = {
+	.upper = 0x1000000000,
+	.probe_fbp = gm107_ram_probe_fbp,
+	.probe_fbp_amount = gm200_ram_probe_fbp_amount,
+	.probe_fbpa_amount = gp100_ram_probe_fbpa,
 	.init = gp100_ram_init,
 	.get = gf100_ram_get,
 	.put = gf100_ram_put,
@@ -87,60 +97,10 @@ int
 gp100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
 	struct nvkm_ram *ram;
-	struct nvkm_subdev *subdev = &fb->subdev;
-	struct nvkm_device *device = subdev->device;
-	enum nvkm_ram_type type = nvkm_fb_bios_memtype(device->bios);
-	const u32 rsvd_head = ( 256 * 1024); /* vga memory */
-	const u32 rsvd_tail = (1024 * 1024); /* vbios etc */
-	u32 fbpa_num = nvkm_rd32(device, 0x02243c), fbpa;
-	u32 fbio_opt = nvkm_rd32(device, 0x021c14);
-	u64 part, size = 0, comm = ~0ULL;
-	bool mixed = false;
-	int ret;
 
-	nvkm_debug(subdev, "02243c: %08x\n", fbpa_num);
-	nvkm_debug(subdev, "021c14: %08x\n", fbio_opt);
-	for (fbpa = 0; fbpa < fbpa_num; fbpa++) {
-		if (!(fbio_opt & (1 << fbpa))) {
-			part = nvkm_rd32(device, 0x90020c + (fbpa * 0x4000));
-			nvkm_debug(subdev, "fbpa %02x: %lld MiB\n", fbpa, part);
-			part = part << 20;
-			if (part != comm) {
-				if (comm != ~0ULL)
-					mixed = true;
-				comm = min(comm, part);
-			}
-			size = size + part;
-		}
-	}
+	if (!(ram = *pram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+		return -ENOMEM;
 
-	ret = nvkm_ram_new_(&gp100_ram_func, fb, type, size, 0, &ram);
-	*pram = ram;
-	if (ret)
-		return ret;
+	return gf100_ram_ctor(&gp100_ram, fb, ram);
 
-	nvkm_mm_fini(&ram->vram);
-
-	if (mixed) {
-		ret = nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
-				   ((comm * fbpa_num) - rsvd_head) >>
-				   NVKM_RAM_MM_SHIFT, 1);
-		if (ret)
-			return ret;
-
-		ret = nvkm_mm_init(&ram->vram, (0x1000000000ULL + comm) >>
-				   NVKM_RAM_MM_SHIFT,
-				   (size - (comm * fbpa_num) - rsvd_tail) >>
-				   NVKM_RAM_MM_SHIFT, 1);
-		if (ret)
-			return ret;
-	} else {
-		ret = nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
-				   (size - rsvd_head - rsvd_tail) >>
-				   NVKM_RAM_MM_SHIFT, 1);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
 }

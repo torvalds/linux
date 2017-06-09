@@ -3,6 +3,7 @@ Device Tree Clock bindings for cpu clock of Marvell EBU platforms
 Required properties:
 - compatible : shall be one of the following:
 	"marvell,armada-xp-cpu-clock" - cpu clocks for Armada XP
+	"marvell,mv98dx3236-cpu-clock" - cpu clocks for 98DX3236 SoC
 - reg : Address and length of the clock complex register set, followed
         by address and length of the PMU DFS registers
 - #clock-cells : should be set to 1.

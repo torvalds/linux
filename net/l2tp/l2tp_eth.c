@@ -30,6 +30,9 @@
 #include <net/xfrm.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/udp.h>
 
 #include "l2tp_core.h"
 
@@ -106,8 +109,8 @@ static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static struct rtnl_link_stats64 *l2tp_eth_get_stats64(struct net_device *dev,
-						      struct rtnl_link_stats64 *stats)
+static void l2tp_eth_get_stats64(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats)
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 
@@ -117,9 +120,7 @@ static struct rtnl_link_stats64 *l2tp_eth_get_stats64(struct net_device *dev,
 	stats->rx_bytes   = atomic_long_read(&priv->rx_bytes);
 	stats->rx_packets = atomic_long_read(&priv->rx_packets);
 	stats->rx_errors  = atomic_long_read(&priv->rx_errors);
-	return stats;
 }
-
 
 static const struct net_device_ops l2tp_eth_netdev_ops = {
 	.ndo_init		= l2tp_eth_dev_init,
@@ -129,8 +130,13 @@ static const struct net_device_ops l2tp_eth_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
+static struct device_type l2tpeth_type = {
+	.name = "l2tpeth",
+};
+
 static void l2tp_eth_dev_setup(struct net_device *dev)
 {
+	SET_NETDEV_DEVTYPE(dev, &l2tpeth_type);
 	ether_setup(dev);
 	dev->priv_flags		&= ~IFF_TX_SKB_SHARING;
 	dev->features		|= NETIF_F_LLTX;
@@ -206,8 +212,58 @@ static void l2tp_eth_show(struct seq_file *m, void *arg)
 }
 #endif
 
+static void l2tp_eth_adjust_mtu(struct l2tp_tunnel *tunnel,
+				struct l2tp_session *session,
+				struct net_device *dev)
+{
+	unsigned int overhead = 0;
+	struct dst_entry *dst;
+	u32 l3_overhead = 0;
+
+	/* if the encap is UDP, account for UDP header size */
+	if (tunnel->encap == L2TP_ENCAPTYPE_UDP) {
+		overhead += sizeof(struct udphdr);
+		dev->needed_headroom += sizeof(struct udphdr);
+	}
+	if (session->mtu != 0) {
+		dev->mtu = session->mtu;
+		dev->needed_headroom += session->hdr_len;
+		return;
+	}
+	lock_sock(tunnel->sock);
+	l3_overhead = kernel_sock_ip_overhead(tunnel->sock);
+	release_sock(tunnel->sock);
+	if (l3_overhead == 0) {
+		/* L3 Overhead couldn't be identified, this could be
+		 * because tunnel->sock was NULL or the socket's
+		 * address family was not IPv4 or IPv6,
+		 * dev mtu stays at 1500.
+		 */
+		return;
+	}
+	/* Adjust MTU, factor overhead - underlay L3, overlay L2 hdr
+	 * UDP overhead, if any, was already factored in above.
+	 */
+	overhead += session->hdr_len + ETH_HLEN + l3_overhead;
+
+	/* If PMTU discovery was enabled, use discovered MTU on L2TP device */
+	dst = sk_dst_get(tunnel->sock);
+	if (dst) {
+		/* dst_mtu will use PMTU if found, else fallback to intf MTU */
+		u32 pmtu = dst_mtu(dst);
+
+		if (pmtu != 0)
+			dev->mtu = pmtu;
+		dst_release(dst);
+	}
+	session->mtu = dev->mtu - overhead;
+	dev->mtu = session->mtu;
+	dev->needed_headroom += session->hdr_len;
+}
+
 static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 peer_session_id, struct l2tp_session_cfg *cfg)
 {
+	unsigned char name_assign_type;
 	struct net_device *dev;
 	char name[IFNAMSIZ];
 	struct l2tp_tunnel *tunnel;
@@ -223,31 +279,22 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 		goto out;
 	}
 
-	session = l2tp_session_find(net, tunnel, session_id);
-	if (session) {
-		rc = -EEXIST;
-		goto out;
-	}
-
 	if (cfg->ifname) {
-		dev = dev_get_by_name(net, cfg->ifname);
-		if (dev) {
-			dev_put(dev);
-			rc = -EEXIST;
-			goto out;
-		}
 		strlcpy(name, cfg->ifname, IFNAMSIZ);
-	} else
+		name_assign_type = NET_NAME_USER;
+	} else {
 		strcpy(name, L2TP_ETH_DEV_NAME);
+		name_assign_type = NET_NAME_ENUM;
+	}
 
 	session = l2tp_session_create(sizeof(*spriv), tunnel, session_id,
 				      peer_session_id, cfg);
-	if (!session) {
-		rc = -ENOMEM;
+	if (IS_ERR(session)) {
+		rc = PTR_ERR(session);
 		goto out;
 	}
 
-	dev = alloc_netdev(sizeof(*priv), name, NET_NAME_UNKNOWN,
+	dev = alloc_netdev(sizeof(*priv), name, name_assign_type,
 			   l2tp_eth_dev_setup);
 	if (!dev) {
 		rc = -ENOMEM;
@@ -255,12 +302,9 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 	}
 
 	dev_net_set(dev, net);
-	if (session->mtu == 0)
-		session->mtu = dev->mtu - session->hdr_len;
-	dev->mtu = session->mtu;
-	dev->needed_headroom += session->hdr_len;
 	dev->min_mtu = 0;
 	dev->max_mtu = ETH_MAX_MTU;
+	l2tp_eth_adjust_mtu(tunnel, session, dev);
 
 	priv = netdev_priv(dev);
 	priv->dev = dev;

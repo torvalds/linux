@@ -1,6 +1,8 @@
 #ifndef __PERF_COLOR_H
 #define __PERF_COLOR_H
 
+#include <stdio.h>
+
 /* "\033[1;38;5;2xx;48;5;2xxm\0" is 23 bytes */
 #define COLOR_MAXLEN 24
 

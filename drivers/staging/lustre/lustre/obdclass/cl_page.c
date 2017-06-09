@@ -482,6 +482,7 @@ void cl_page_disown0(const struct lu_env *env,
 int cl_page_is_owned(const struct cl_page *pg, const struct cl_io *io)
 {
 	struct cl_io *top = cl_io_top((struct cl_io *)io);
+
 	LINVRNT(cl_object_same(pg->cp_obj, io->ci_obj));
 	return pg->cp_state == CPS_OWNED && pg->cp_owner == top;
 }

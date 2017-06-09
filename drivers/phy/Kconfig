@@ -331,6 +331,14 @@ config PHY_EXYNOS5_USBDRD
 	  This driver provides PHY interface for USB 3.0 DRD controller
 	  present on Exynos5 SoC series.
 
+config PHY_EXYNOS_PCIE
+	bool "Exynos PCIe PHY driver"
+	depends on OF && (ARCH_EXYNOS || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  Enable PCIe PHY support for Exynos SoC series.
+	  This driver provides PHY interface for Exynos PCIe controller.
+
 config PHY_PISTACHIO_USB
 	tristate "IMG Pistachio USB2.0 PHY driver"
 	depends on MACH_PISTACHIO
@@ -363,6 +371,7 @@ config PHY_ROCKCHIP_INNO_USB2
 	tristate "Rockchip INNO USB2PHY Driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
 	depends on COMMON_CLK
+	depends on EXTCON
 	depends on USB_SUPPORT
 	select GENERIC_PHY
 	select USB_COMMON
@@ -430,12 +439,47 @@ config PHY_STIH407_USB
 	  Enable this support to enable the picoPHY device used by USB2
 	  and USB3 controllers on STMicroelectronics STiH407 SoC families.
 
+config PHY_QCOM_QMP
+	tristate "Qualcomm QMP PHY Driver"
+	depends on OF && COMMON_CLK && (ARCH_QCOM || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  Enable this to support the QMP PHY transceiver that is used
+	  with controllers such as PCIe, UFS, and USB on Qualcomm chips.
+
+config PHY_QCOM_QUSB2
+	tristate "Qualcomm QUSB2 PHY Driver"
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
+	depends on NVMEM || !NVMEM
+	select GENERIC_PHY
+	help
+	  Enable this to support the HighSpeed QUSB2 PHY transceiver for USB
+	  controllers on Qualcomm chips. This driver supports the high-speed
+	  PHY which is usually paired with either the ChipIdea or Synopsys DWC3
+	  USB IPs on MSM SOCs.
+
 config PHY_QCOM_UFS
 	tristate "Qualcomm UFS PHY driver"
 	depends on OF && ARCH_QCOM
 	select GENERIC_PHY
 	help
 	  Support for UFS PHY on QCOM chipsets.
+
+config PHY_QCOM_USB_HS
+	tristate "Qualcomm USB HS PHY module"
+	depends on USB_ULPI_BUS
+	depends on EXTCON || !EXTCON # if EXTCON=m, this cannot be built-in
+	select GENERIC_PHY
+	help
+	  Support for the USB high-speed ULPI compliant phy on Qualcomm
+	  chipsets.
+
+config PHY_QCOM_USB_HSIC
+	tristate "Qualcomm USB HSIC ULPI PHY module"
+	depends on USB_ULPI_BUS
+	select GENERIC_PHY
+	help
+	  Support for the USB HSIC ULPI compliant PHY on QCOM chipsets.
 
 config PHY_TUSB1210
 	tristate "TI TUSB1210 ULPI PHY module"

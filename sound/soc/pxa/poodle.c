@@ -129,7 +129,7 @@ static int poodle_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops poodle_ops = {
+static const struct snd_soc_ops poodle_ops = {
 	.startup = poodle_startup,
 	.hw_params = poodle_hw_params,
 	.shutdown = poodle_shutdown,
@@ -209,8 +209,8 @@ static const struct snd_soc_dapm_route poodle_audio_map[] = {
 	{"MICIN", NULL, "Microphone"},
 };
 
-static const char *jack_function[] = {"Off", "Headphone"};
-static const char *spk_function[] = {"Off", "On"};
+static const char * const jack_function[] = {"Off", "Headphone"};
+static const char * const spk_function[] = {"Off", "On"};
 static const struct soc_enum poodle_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, jack_function),
 	SOC_ENUM_SINGLE_EXT(2, spk_function),

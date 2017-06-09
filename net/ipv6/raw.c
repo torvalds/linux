@@ -591,7 +591,11 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 	}
 
 	offset += skb_transport_offset(skb);
-	BUG_ON(skb_copy_bits(skb, offset, &csum, 2));
+	err = skb_copy_bits(skb, offset, &csum, 2);
+	if (err < 0) {
+		ip6_flush_pending_frames(sk);
+		goto out;
+	}
 
 	/* in case cksum was not initialized */
 	if (unlikely(csum))
@@ -628,6 +632,8 @@ static int rawv6_send_hdrinc(struct sock *sk, struct msghdr *msg, int length,
 		ipv6_local_error(sk, EMSGSIZE, fl6, rt->dst.dev->mtu);
 		return -EMSGSIZE;
 	}
+	if (length < sizeof(struct ipv6hdr))
+		return -EINVAL;
 	if (flags&MSG_PROBE)
 		goto out;
 
@@ -649,6 +655,9 @@ static int rawv6_send_hdrinc(struct sock *sk, struct msghdr *msg, int length,
 	iph = ipv6_hdr(skb);
 
 	skb->ip_summed = CHECKSUM_NONE;
+
+	if (flags & MSG_CONFIRM)
+		skb_set_dst_pending_confirm(skb, 1);
 
 	skb->transport_header = skb->network_header;
 	err = memcpy_from_msg(iph, msg, length);
@@ -930,7 +939,8 @@ out:
 	txopt_put(opt_to_free);
 	return err < 0 ? err : len;
 do_confirm:
-	dst_confirm(dst);
+	if (msg->msg_flags & MSG_PROBE)
+		dst_confirm_neigh(dst, &fl6.daddr);
 	if (!(msg->msg_flags & MSG_PROBE) || len)
 		goto back_from_confirm;
 	err = 0;
@@ -1170,8 +1180,7 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		spin_lock_bh(&sk->sk_receive_queue.lock);
 		skb = skb_peek(&sk->sk_receive_queue);
 		if (skb)
-			amount = skb_tail_pointer(skb) -
-				skb_transport_header(skb);
+			amount = skb->len;
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
 		return put_user(amount, (int __user *)arg);
 	}
@@ -1329,7 +1338,7 @@ void raw6_proc_exit(void)
 #endif	/* CONFIG_PROC_FS */
 
 /* Same as inet6_dgram_ops, sans udp_poll.  */
-static const struct proto_ops inet6_sockraw_ops = {
+const struct proto_ops inet6_sockraw_ops = {
 	.family		   = PF_INET6,
 	.owner		   = THIS_MODULE,
 	.release	   = inet6_release,

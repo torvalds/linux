@@ -97,18 +97,18 @@
  *   2.46.0 - Add PFP_SYNC_ME support on evergreen
  *   2.47.0 - Add UVD_NO_OP register support
  *   2.48.0 - TA_CS_BC_BASE_ADDR allowed on SI
+ *   2.49.0 - DRM_RADEON_GEM_INFO ioctl returns correct vram_size/visible values
+ *   2.50.0 - Allows unaligned shader loads on CIK. (needed by OpenGL)
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	48
+#define KMS_DRIVER_MINOR	50
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
-int radeon_driver_unload_kms(struct drm_device *dev);
+void radeon_driver_unload_kms(struct drm_device *dev);
 void radeon_driver_lastclose_kms(struct drm_device *dev);
 int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv);
 void radeon_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv);
-void radeon_driver_preclose_kms(struct drm_device *dev,
-				struct drm_file *file_priv);
 int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 		       bool fbcon, bool freeze);
 int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
@@ -366,11 +366,10 @@ static void
 radeon_pci_shutdown(struct pci_dev *pdev)
 {
 	/* if we are running in a VM, make sure the device
-	 * torn down properly on reboot/shutdown.
-	 * unfortunately we can't detect certain
-	 * hypervisors so just do this all the time.
+	 * torn down properly on reboot/shutdown
 	 */
-	radeon_pci_remove(pdev);
+	if (radeon_device_is_virtual())
+		radeon_pci_remove(pdev);
 }
 
 static int radeon_pmops_suspend(struct device *dev)
@@ -538,7 +537,6 @@ static struct drm_driver kms_driver = {
 	    DRIVER_PRIME | DRIVER_RENDER,
 	.load = radeon_driver_load_kms,
 	.open = radeon_driver_open_kms,
-	.preclose = radeon_driver_preclose_kms,
 	.postclose = radeon_driver_postclose_kms,
 	.lastclose = radeon_driver_lastclose_kms,
 	.set_busid = drm_pci_set_busid,

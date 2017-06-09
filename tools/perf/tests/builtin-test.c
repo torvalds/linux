@@ -3,8 +3,10 @@
  *
  * Builtin regression testing command: ever growing number of sanity tests
  */
+#include <errno.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 #include "builtin.h"
 #include "hist.h"
 #include "intlist.h"
@@ -13,6 +15,7 @@
 #include "color.h"
 #include <subcmd/parse-options.h>
 #include "symbol.h"
+#include <linux/kernel.h>
 
 static bool dont_fork;
 
@@ -42,6 +45,10 @@ static struct test generic_tests[] = {
 	{
 		.desc = "Parse event definition strings",
 		.func = test__parse_events,
+	},
+	{
+		.desc = "Simple expression parser",
+		.func = test__expr,
 	},
 	{
 		.desc = "PERF_RECORD_* events & perf_sample fields",
@@ -186,6 +193,10 @@ static struct test generic_tests[] = {
 		.func = test__thread_map_synthesize,
 	},
 	{
+		.desc = "Remove thread map",
+		.func = test__thread_map_remove,
+	},
+	{
 		.desc = "Synthesize cpu map",
 		.func = test__cpu_map_synthesize,
 	},
@@ -243,6 +254,10 @@ static struct test generic_tests[] = {
 		}
 	},
 	{
+		.desc = "unit_number__scnprintf",
+		.func = test__unit_number__scnprint,
+	},
+	{
 		.func = NULL,
 	},
 };
@@ -291,7 +306,7 @@ static int run_test(struct test *test, int subtest)
 		if (!dont_fork) {
 			pr_debug("test child forked, pid %d\n", getpid());
 
-			if (!verbose) {
+			if (verbose <= 0) {
 				int nullfd = open("/dev/null", O_WRONLY);
 
 				if (nullfd >= 0) {
@@ -452,7 +467,7 @@ static int perf_test__list(int argc, const char **argv)
 	return 0;
 }
 
-int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_test(int argc, const char **argv)
 {
 	const char *test_usage[] = {
 	"perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]",

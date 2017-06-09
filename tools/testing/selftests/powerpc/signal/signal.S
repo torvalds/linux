@@ -7,7 +7,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include "../basic_asm.h"
+#include "basic_asm.h"
 
 /* long signal_self(pid_t pid, int sig); */
 FUNC_START(signal_self)

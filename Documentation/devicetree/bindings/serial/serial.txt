@@ -23,7 +23,8 @@ Optional properties:
     they are available for use (wired and enabled by pinmux configuration).
     This depends on both the UART hardware and the board wiring.
     Note that this property is mutually-exclusive with "cts-gpios" and
-    "rts-gpios" above.
+    "rts-gpios" above, unless support is provided to switch between modes
+    dynamically.
 
 
 Examples:

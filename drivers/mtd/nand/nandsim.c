@@ -40,6 +40,7 @@
 #include <linux/list.h>
 #include <linux/random.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
@@ -525,24 +526,20 @@ static int nandsim_debugfs_create(struct nandsim *dev)
 {
 	struct nandsim_debug_info *dbg = &dev->dbg;
 	struct dentry *dent;
-	int err;
 
 	if (!IS_ENABLED(CONFIG_DEBUG_FS))
 		return 0;
 
 	dent = debugfs_create_dir("nandsim", NULL);
-	if (IS_ERR_OR_NULL(dent)) {
-		int err = dent ? -ENODEV : PTR_ERR(dent);
-
-		NS_ERR("cannot create \"nandsim\" debugfs directory, err %d\n",
-			err);
-		return err;
+	if (!dent) {
+		NS_ERR("cannot create \"nandsim\" debugfs directory\n");
+		return -ENODEV;
 	}
 	dbg->dfs_root = dent;
 
 	dent = debugfs_create_file("wear_report", S_IRUSR,
 				   dbg->dfs_root, dev, &dfs_fops);
-	if (IS_ERR_OR_NULL(dent))
+	if (!dent)
 		goto out_remove;
 	dbg->dfs_wear_report = dent;
 
@@ -550,8 +547,7 @@ static int nandsim_debugfs_create(struct nandsim *dev)
 
 out_remove:
 	debugfs_remove_recursive(dbg->dfs_root);
-	err = dent ? PTR_ERR(dent) : -ENODEV;
-	return err;
+	return -ENODEV;
 }
 
 /**
@@ -906,7 +902,7 @@ static int parse_weakpages(void)
 		zero_ok = (*w == '0' ? 1 : 0);
 		page_no = simple_strtoul(w, &w, 0);
 		if (!zero_ok && !page_no) {
-			NS_ERR("invalid weakpagess.\n");
+			NS_ERR("invalid weakpages.\n");
 			return -EINVAL;
 		}
 		max_writes = 3;
@@ -1373,31 +1369,18 @@ static int get_pages(struct nandsim *ns, struct file *file, size_t count, loff_t
 	return 0;
 }
 
-static int set_memalloc(void)
-{
-	if (current->flags & PF_MEMALLOC)
-		return 0;
-	current->flags |= PF_MEMALLOC;
-	return 1;
-}
-
-static void clear_memalloc(int memalloc)
-{
-	if (memalloc)
-		current->flags &= ~PF_MEMALLOC;
-}
-
 static ssize_t read_file(struct nandsim *ns, struct file *file, void *buf, size_t count, loff_t pos)
 {
 	ssize_t tx;
-	int err, memalloc;
+	int err;
+	unsigned int noreclaim_flag;
 
 	err = get_pages(ns, file, count, pos);
 	if (err)
 		return err;
-	memalloc = set_memalloc();
+	noreclaim_flag = memalloc_noreclaim_save();
 	tx = kernel_read(file, pos, buf, count);
-	clear_memalloc(memalloc);
+	memalloc_noreclaim_restore(noreclaim_flag);
 	put_pages(ns);
 	return tx;
 }
@@ -1405,14 +1388,15 @@ static ssize_t read_file(struct nandsim *ns, struct file *file, void *buf, size_
 static ssize_t write_file(struct nandsim *ns, struct file *file, void *buf, size_t count, loff_t pos)
 {
 	ssize_t tx;
-	int err, memalloc;
+	int err;
+	unsigned int noreclaim_flag;
 
 	err = get_pages(ns, file, count, pos);
 	if (err)
 		return err;
-	memalloc = set_memalloc();
+	noreclaim_flag = memalloc_noreclaim_save();
 	tx = kernel_write(file, buf, count, pos);
-	clear_memalloc(memalloc);
+	memalloc_noreclaim_restore(noreclaim_flag);
 	put_pages(ns);
 	return tx;
 }
@@ -2313,8 +2297,6 @@ static int __init ns_init_module(void)
 	retval = nand_scan_ident(nsmtd, 1, NULL);
 	if (retval) {
 		NS_ERR("cannot scan NAND Simulator device\n");
-		if (retval > 0)
-			retval = -ENXIO;
 		goto error;
 	}
 
@@ -2350,8 +2332,6 @@ static int __init ns_init_module(void)
 	retval = nand_scan_tail(nsmtd);
 	if (retval) {
 		NS_ERR("can't register NAND Simulator\n");
-		if (retval > 0)
-			retval = -ENXIO;
 		goto error;
 	}
 

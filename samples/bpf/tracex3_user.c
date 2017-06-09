@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <linux/bpf.h>
+#include <sys/resource.h>
 
 #include "libbpf.h"
 #include "bpf_load.h"
@@ -28,7 +29,7 @@ static void clear_stats(int fd)
 
 	memset(values, 0, sizeof(values));
 	for (key = 0; key < SLOTS; key++)
-		bpf_update_elem(fd, &key, values, BPF_ANY);
+		bpf_map_update_elem(fd, &key, values, BPF_ANY);
 }
 
 const char *color[] = {
@@ -89,7 +90,7 @@ static void print_hist(int fd)
 	int i;
 
 	for (key = 0; key < SLOTS; key++) {
-		bpf_lookup_elem(fd, &key, values);
+		bpf_map_lookup_elem(fd, &key, values);
 		value = 0;
 		for (i = 0; i < nr_cpus; i++)
 			value += values[i];
@@ -112,10 +113,16 @@ static void print_hist(int fd)
 
 int main(int ac, char **argv)
 {
+	struct rlimit r = {1024*1024, RLIM_INFINITY};
 	char filename[256];
 	int i;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return 1;
+	}
 
 	if (load_bpf_file(filename)) {
 		printf("%s", bpf_log_buf);

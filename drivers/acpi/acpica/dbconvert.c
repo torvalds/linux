@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -242,7 +242,7 @@ acpi_status acpi_db_convert_to_package(char *string, union acpi_object *object)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Convert a typed and tokenized string to an union acpi_object. Typing:
+ * DESCRIPTION: Convert a typed and tokenized string to a union acpi_object. Typing:
  *              1) String objects were surrounded by quotes.
  *              2) Buffer objects were surrounded by parentheses.
  *              3) Package objects were surrounded by brackets "[]".

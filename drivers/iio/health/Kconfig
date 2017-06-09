@@ -46,6 +46,19 @@ config MAX30100
 	  To compile this driver as a module, choose M here: the
 	  module will be called max30100.
 
+config MAX30102
+	tristate "MAX30102 heart rate and pulse oximeter sensor"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Say Y here to build I2C interface support for the Maxim
+	  MAX30102 heart rate, and pulse oximeter sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max30102.
+
 endmenu
 
 endmenu

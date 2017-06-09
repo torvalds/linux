@@ -27,6 +27,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/sched/signal.h>
 #include <sound/core.h>
 #include <sound/timer.h>
 #include <sound/control.h>
@@ -1276,6 +1277,7 @@ static void snd_timer_user_tinterrupt(struct snd_timer_instance *timeri,
 	struct timespec tstamp;
 	int prev, append = 0;
 
+	memset(&r1, 0, sizeof(r1));
 	memset(&tstamp, 0, sizeof(tstamp));
 	spin_lock(&tu->qlock);
 	if ((tu->filter & ((1 << SNDRV_TIMER_EVENT_RESOLUTION) |
@@ -1291,7 +1293,6 @@ static void snd_timer_user_tinterrupt(struct snd_timer_instance *timeri,
 	}
 	if ((tu->filter & (1 << SNDRV_TIMER_EVENT_RESOLUTION)) &&
 	    tu->last_resolution != resolution) {
-		memset(&r1, 0, sizeof(r1));
 		r1.event = SNDRV_TIMER_EVENT_RESOLUTION;
 		r1.tstamp = tstamp;
 		r1.val = resolution;
@@ -1429,18 +1430,13 @@ static int snd_timer_user_next_device(struct snd_timer_id __user *_tid)
 			if (id.card < 0) {
 				id.card = 0;
 			} else {
-				if (id.card < 0) {
-					id.card = 0;
+				if (id.device < 0) {
+					id.device = 0;
 				} else {
-					if (id.device < 0) {
-						id.device = 0;
-					} else {
-						if (id.subdevice < 0) {
-							id.subdevice = 0;
-						} else {
-							id.subdevice++;
-						}
-					}
+					if (id.subdevice < 0)
+						id.subdevice = 0;
+					else
+						id.subdevice++;
 				}
 			}
 			list_for_each(p, &snd_timer_list) {
@@ -1702,9 +1698,21 @@ static int snd_timer_user_params(struct file *file,
 		return -EBADFD;
 	if (copy_from_user(&params, _params, sizeof(params)))
 		return -EFAULT;
-	if (!(t->hw.flags & SNDRV_TIMER_HW_SLAVE) && params.ticks < 1) {
-		err = -EINVAL;
-		goto _end;
+	if (!(t->hw.flags & SNDRV_TIMER_HW_SLAVE)) {
+		u64 resolution;
+
+		if (params.ticks < 1) {
+			err = -EINVAL;
+			goto _end;
+		}
+
+		/* Don't allow resolution less than 1ms */
+		resolution = snd_timer_resolution(tu->timeri);
+		resolution *= params.ticks;
+		if (resolution < 1000000) {
+			err = -EINVAL;
+			goto _end;
+		}
 	}
 	if (params.queue_size > 0 &&
 	    (params.queue_size < 32 || params.queue_size > 1024)) {

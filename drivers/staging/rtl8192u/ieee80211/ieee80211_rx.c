@@ -345,7 +345,7 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 		return 0;
 	if (ieee->hwsec_active)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
 	}
 	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
@@ -392,7 +392,7 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee, struct sk_buff *s
 		return 0;
 	if (ieee->hwsec_active)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
 	}
 
@@ -559,10 +559,8 @@ void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_
 				memcpy(skb_push(sub_skb, ETH_ALEN), prxb->src, ETH_ALEN);
 				memcpy(skb_push(sub_skb, ETH_ALEN), prxb->dst, ETH_ALEN);
 			} else {
-				u16 len;
 			/* Leave Ethernet header part of hdr and full payload */
-				len = htons(sub_skb->len);
-				memcpy(skb_push(sub_skb, 2), &len, 2);
+				put_unaligned_be16(sub_skb->len, skb_push(sub_skb, 2));
 				memcpy(skb_push(sub_skb, ETH_ALEN), prxb->src, ETH_ALEN);
 				memcpy(skb_push(sub_skb, ETH_ALEN), prxb->dst, ETH_ALEN);
 			}
@@ -920,7 +918,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	int i;
 	struct ieee80211_rxb *rxb = NULL;
-	// cheat the the hdr type
+	// cheat the hdr type
 	hdr = (struct rtl_80211_hdr_4addr *)skb->data;
 	stats = &ieee->stats;
 
@@ -941,7 +939,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (HTCCheck(ieee, skb->data))
 	{
 		if(net_ratelimit())
-		printk("find HTCControl\n");
+			printk("find HTCControl\n");
 		hdrlen += 4;
 		rx_stats->bContainHTC = true;
 	}
@@ -1103,11 +1101,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		stats = hostap_get_stats(dev);
 		from_assoc_ap = 1;
 	}
-#endif
 
-	dev->last_rx = jiffies;
-
-#ifdef NOT_YET
 	if ((ieee->iw_mode == IW_MODE_MASTER ||
 	     ieee->iw_mode == IW_MODE_REPEAT) &&
 	    !from_assoc_ap) {
@@ -1321,7 +1315,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 				} else {
 					u16 len;
 					/* Leave Ethernet header part of hdr and full payload */
-					len = htons(sub_skb->len);
+					len = be16_to_cpu(htons(sub_skb->len));
 					memcpy(skb_push(sub_skb, 2), &len, 2);
 					memcpy(skb_push(sub_skb, ETH_ALEN), src, ETH_ALEN);
 					memcpy(skb_push(sub_skb, ETH_ALEN), dst, ETH_ALEN);
@@ -1484,13 +1478,15 @@ static int ieee80211_qos_convert_ac_to_parameters(struct
 		/* WMM spec P.11: The minimum value for AIFSN shall be 2 */
 		qos_param->aifs[aci] = (qos_param->aifs[aci] < 2) ? 2:qos_param->aifs[aci];
 
-		qos_param->cw_min[aci] = ac_params->ecw_min_max & 0x0F;
+		qos_param->cw_min[aci] =
+		    cpu_to_le16(ac_params->ecw_min_max & 0x0F);
 
-		qos_param->cw_max[aci] = (ac_params->ecw_min_max & 0xF0) >> 4;
+		qos_param->cw_max[aci] =
+		    cpu_to_le16((ac_params->ecw_min_max & 0xF0) >> 4);
 
 		qos_param->flag[aci] =
 		    (ac_params->aci_aifsn & 0x10) ? 0x01 : 0x00;
-		qos_param->tx_op_limit[aci] = le16_to_cpu(ac_params->tx_op_limit);
+		qos_param->tx_op_limit[aci] = ac_params->tx_op_limit;
 	}
 	return 0;
 }
@@ -2398,39 +2394,41 @@ static inline void ieee80211_process_probe_response(
 #ifdef CONFIG_IEEE80211_DEBUG
 	struct ieee80211_info_element *info_element = &beacon->info_element[0];
 #endif
+	int fc = WLAN_FC_GET_STYPE(le16_to_cpu(beacon->header.frame_ctl));
 	unsigned long flags;
 	short renew;
+	u16 capability;
 	//u8 wmm_info;
 
 	memset(&network, 0, sizeof(struct ieee80211_network));
+	capability = le16_to_cpu(beacon->capability);
 	IEEE80211_DEBUG_SCAN(
 		"'%s' (%pM): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
 		escape_essid(info_element->data, info_element->len),
 		beacon->header.addr3,
-		(beacon->capability & (1<<0xf)) ? '1' : '0',
-		(beacon->capability & (1<<0xe)) ? '1' : '0',
-		(beacon->capability & (1<<0xd)) ? '1' : '0',
-		(beacon->capability & (1<<0xc)) ? '1' : '0',
-		(beacon->capability & (1<<0xb)) ? '1' : '0',
-		(beacon->capability & (1<<0xa)) ? '1' : '0',
-		(beacon->capability & (1<<0x9)) ? '1' : '0',
-		(beacon->capability & (1<<0x8)) ? '1' : '0',
-		(beacon->capability & (1<<0x7)) ? '1' : '0',
-		(beacon->capability & (1<<0x6)) ? '1' : '0',
-		(beacon->capability & (1<<0x5)) ? '1' : '0',
-		(beacon->capability & (1<<0x4)) ? '1' : '0',
-		(beacon->capability & (1<<0x3)) ? '1' : '0',
-		(beacon->capability & (1<<0x2)) ? '1' : '0',
-		(beacon->capability & (1<<0x1)) ? '1' : '0',
-		(beacon->capability & (1<<0x0)) ? '1' : '0');
+		(capability & (1 << 0xf)) ? '1' : '0',
+		(capability & (1 << 0xe)) ? '1' : '0',
+		(capability & (1 << 0xd)) ? '1' : '0',
+		(capability & (1 << 0xc)) ? '1' : '0',
+		(capability & (1 << 0xb)) ? '1' : '0',
+		(capability & (1 << 0xa)) ? '1' : '0',
+		(capability & (1 << 0x9)) ? '1' : '0',
+		(capability & (1 << 0x8)) ? '1' : '0',
+		(capability & (1 << 0x7)) ? '1' : '0',
+		(capability & (1 << 0x6)) ? '1' : '0',
+		(capability & (1 << 0x5)) ? '1' : '0',
+		(capability & (1 << 0x4)) ? '1' : '0',
+		(capability & (1 << 0x3)) ? '1' : '0',
+		(capability & (1 << 0x2)) ? '1' : '0',
+		(capability & (1 << 0x1)) ? '1' : '0',
+		(capability & (1 << 0x0)) ? '1' : '0');
 
 	if (ieee80211_network_init(ieee, beacon, &network, stats)) {
 		IEEE80211_DEBUG_SCAN("Dropped '%s' (%pM) via %s.\n",
 				     escape_essid(info_element->data,
 						  info_element->len),
 				     beacon->header.addr3,
-				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
-				     IEEE80211_STYPE_PROBE_RESP ?
+				     fc == IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 		return;
 	}
@@ -2446,7 +2444,7 @@ static inline void ieee80211_process_probe_response(
 		return;
 	if (ieee->bGlobalDomain)
 	{
-		if (WLAN_FC_GET_STYPE(beacon->header.frame_ctl) == IEEE80211_STYPE_PROBE_RESP)
+		if (fc == IEEE80211_STYPE_PROBE_RESP)
 		{
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
@@ -2553,8 +2551,7 @@ static inline void ieee80211_process_probe_response(
 				     escape_essid(network.ssid,
 						  network.ssid_len),
 				     network.bssid,
-				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
-				     IEEE80211_STYPE_PROBE_RESP ?
+				     fc == IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 #endif
 		memcpy(target, &network, sizeof(*target));
@@ -2566,8 +2563,7 @@ static inline void ieee80211_process_probe_response(
 				     escape_essid(target->ssid,
 						  target->ssid_len),
 				     target->bssid,
-				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
-				     IEEE80211_STYPE_PROBE_RESP ?
+				     fc == IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 
 		/* we have an entry and we are going to update it. But this entry may
@@ -2604,11 +2600,11 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		      struct rtl_80211_hdr_4addr *header,
 		      struct ieee80211_rx_stats *stats)
 {
-	switch (WLAN_FC_GET_STYPE(header->frame_ctl)) {
+	switch (WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl))) {
 
 	case IEEE80211_STYPE_BEACON:
 		IEEE80211_DEBUG_MGMT("received BEACON (%d)\n",
-				     WLAN_FC_GET_STYPE(header->frame_ctl));
+			WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		IEEE80211_DEBUG_SCAN("Beacon\n");
 		ieee80211_process_probe_response(
 			ieee, (struct ieee80211_probe_response *)header, stats);
@@ -2616,7 +2612,7 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 
 	case IEEE80211_STYPE_PROBE_RESP:
 		IEEE80211_DEBUG_MGMT("received PROBE RESPONSE (%d)\n",
-				     WLAN_FC_GET_STYPE(header->frame_ctl));
+			WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		IEEE80211_DEBUG_SCAN("Probe response\n");
 		ieee80211_process_probe_response(
 			ieee, (struct ieee80211_probe_response *)header, stats);

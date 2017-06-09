@@ -59,7 +59,7 @@ void __iomem *zynq_scu_base;
 static void __init zynq_memory_init(void)
 {
 	if (!__pa(PAGE_OFFSET))
-		memblock_reserve(__pa(PAGE_OFFSET), __pa(swapper_pg_dir));
+		memblock_reserve(__pa(PAGE_OFFSET), 0x80000);
 }
 
 static struct platform_device zynq_cpuidle_device = {

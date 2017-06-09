@@ -182,12 +182,8 @@ void qib_get_eeprom_info(struct qib_devdata *dd)
 	 * */
 	len = sizeof(struct qib_flash);
 	buf = vmalloc(len);
-	if (!buf) {
-		qib_dev_err(dd,
-			"Couldn't allocate memory to read %u bytes from eeprom for GUID\n",
-			len);
+	if (!buf)
 		goto bail;
-	}
 
 	/*
 	 * Use "public" eeprom read function, which does locking and

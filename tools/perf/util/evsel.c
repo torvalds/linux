@@ -8,16 +8,20 @@
  */
 
 #include <byteswap.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <linux/bitops.h>
 #include <api/fs/tracing_path.h>
 #include <traceevent/event-parse.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
 #include <linux/err.h>
+#include <sys/ioctl.h>
 #include <sys/resource.h>
 #include "asm/bug.h"
 #include "callchain.h"
 #include "cgroup.h"
+#include "event.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "util.h"
@@ -29,6 +33,8 @@
 #include "trace-event.h"
 #include "stat.h"
 #include "util/parse-branch-options.h"
+
+#include "sane_ctype.h"
 
 static struct {
 	bool sample_id_all;
@@ -236,6 +242,10 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);
 	perf_evsel__calc_id_pos(evsel);
 	evsel->cmdline_group_boundary = false;
+	evsel->metric_expr   = NULL;
+	evsel->metric_name   = NULL;
+	evsel->metric_events = NULL;
+	evsel->collect_stat  = false;
 }
 
 struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
@@ -932,6 +942,9 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	attr->mmap2 = track && !perf_missing_features.mmap2;
 	attr->comm  = track;
 
+	if (opts->record_namespaces)
+		attr->namespaces  = track;
+
 	if (opts->record_switch_events)
 		attr->context_switch = track;
 
@@ -990,6 +1003,8 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	 * it overloads any global configuration.
 	 */
 	apply_config_terms(evsel, opts);
+
+	evsel->ignore_missing_thread = opts->ignore_missing_thread;
 }
 
 static int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -1230,7 +1245,7 @@ int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
 	if (FD(evsel, cpu, thread) < 0)
 		return -EINVAL;
 
-	if (readn(FD(evsel, cpu, thread), count, sizeof(*count)) < 0)
+	if (readn(FD(evsel, cpu, thread), count, sizeof(*count)) <= 0)
 		return -errno;
 
 	return 0;
@@ -1248,7 +1263,7 @@ int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 	if (evsel->counts == NULL && perf_evsel__alloc_counts(evsel, cpu + 1, thread + 1) < 0)
 		return -ENOMEM;
 
-	if (readn(FD(evsel, cpu, thread), &count, nv * sizeof(u64)) < 0)
+	if (readn(FD(evsel, cpu, thread), &count, nv * sizeof(u64)) <= 0)
 		return -errno;
 
 	perf_evsel__compute_deltas(evsel, cpu, thread, &count);
@@ -1419,8 +1434,35 @@ static int __open_attr__fprintf(FILE *fp, const char *name, const char *val,
 	return fprintf(fp, "  %-32s %s\n", name, val);
 }
 
-static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-			      struct thread_map *threads)
+static bool ignore_missing_thread(struct perf_evsel *evsel,
+				  struct thread_map *threads,
+				  int thread, int err)
+{
+	if (!evsel->ignore_missing_thread)
+		return false;
+
+	/* The system wide setup does not work with threads. */
+	if (evsel->system_wide)
+		return false;
+
+	/* The -ESRCH is perf event syscall errno for pid's not found. */
+	if (err != -ESRCH)
+		return false;
+
+	/* If there's only one thread, let it fail. */
+	if (threads->nr == 1)
+		return false;
+
+	if (thread_map__remove(threads, thread))
+		return false;
+
+	pr_warning("WARNING: Ignored open failure for pid %d\n",
+		   thread_map__pid(threads, thread));
+	return true;
+}
+
+int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
+		     struct thread_map *threads)
 {
 	int cpu, thread, nthreads;
 	unsigned long flags = PERF_FLAG_FD_CLOEXEC;
@@ -1429,6 +1471,30 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 
 	if (perf_missing_features.write_backward && evsel->attr.write_backward)
 		return -EINVAL;
+
+	if (cpus == NULL) {
+		static struct cpu_map *empty_cpu_map;
+
+		if (empty_cpu_map == NULL) {
+			empty_cpu_map = cpu_map__dummy_new();
+			if (empty_cpu_map == NULL)
+				return -ENOMEM;
+		}
+
+		cpus = empty_cpu_map;
+	}
+
+	if (threads == NULL) {
+		static struct thread_map *empty_thread_map;
+
+		if (empty_thread_map == NULL) {
+			empty_thread_map = thread_map__new_by_tid(-1);
+			if (empty_thread_map == NULL)
+				return -ENOMEM;
+		}
+
+		threads = empty_thread_map;
+	}
 
 	if (evsel->system_wide)
 		nthreads = 1;
@@ -1474,7 +1540,7 @@ retry_sample_id:
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 
 		for (thread = 0; thread < nthreads; thread++) {
-			int group_fd;
+			int fd, group_fd;
 
 			if (!evsel->cgrp && !evsel->system_wide)
 				pid = thread_map__pid(threads, thread);
@@ -1484,21 +1550,37 @@ retry_open:
 			pr_debug2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
 				  pid, cpus->map[cpu], group_fd, flags);
 
-			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
-								     pid,
-								     cpus->map[cpu],
-								     group_fd, flags);
-			if (FD(evsel, cpu, thread) < 0) {
+			fd = sys_perf_event_open(&evsel->attr, pid, cpus->map[cpu],
+						 group_fd, flags);
+
+			FD(evsel, cpu, thread) = fd;
+
+			if (fd < 0) {
 				err = -errno;
+
+				if (ignore_missing_thread(evsel, threads, thread, err)) {
+					/*
+					 * We just removed 1 thread, so take a step
+					 * back on thread index and lower the upper
+					 * nthreads limit.
+					 */
+					nthreads--;
+					thread--;
+
+					/* ... and pretend like nothing have happened. */
+					err = 0;
+					continue;
+				}
+
 				pr_debug2("\nsys_perf_event_open failed, error %d\n",
 					  err);
 				goto try_fallback;
 			}
 
-			pr_debug2(" = %d\n", FD(evsel, cpu, thread));
+			pr_debug2(" = %d\n", fd);
 
 			if (evsel->bpf_fd >= 0) {
-				int evt_fd = FD(evsel, cpu, thread);
+				int evt_fd = fd;
 				int bpf_fd = evsel->bpf_fd;
 
 				err = ioctl(evt_fd,
@@ -1610,46 +1692,16 @@ void perf_evsel__close(struct perf_evsel *evsel, int ncpus, int nthreads)
 	perf_evsel__free_fd(evsel);
 }
 
-static struct {
-	struct cpu_map map;
-	int cpus[1];
-} empty_cpu_map = {
-	.map.nr	= 1,
-	.cpus	= { -1, },
-};
-
-static struct {
-	struct thread_map map;
-	int threads[1];
-} empty_thread_map = {
-	.map.nr	 = 1,
-	.threads = { -1, },
-};
-
-int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-		     struct thread_map *threads)
-{
-	if (cpus == NULL) {
-		/* Work around old compiler warnings about strict aliasing */
-		cpus = &empty_cpu_map.map;
-	}
-
-	if (threads == NULL)
-		threads = &empty_thread_map.map;
-
-	return __perf_evsel__open(evsel, cpus, threads);
-}
-
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
 			     struct cpu_map *cpus)
 {
-	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map);
+	return perf_evsel__open(evsel, cpus, NULL);
 }
 
 int perf_evsel__open_per_thread(struct perf_evsel *evsel,
 				struct thread_map *threads)
 {
-	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads);
+	return perf_evsel__open(evsel, NULL, threads);
 }
 
 static int perf_evsel__parse_id_sample(const struct perf_evsel *evsel,
@@ -2411,11 +2463,17 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 			      int err, char *msg, size_t size)
 {
 	char sbuf[STRERR_BUFSIZE];
+	int printed = 0;
 
 	switch (err) {
 	case EPERM:
 	case EACCES:
-		return scnprintf(msg, size,
+		if (err == EPERM)
+			printed = scnprintf(msg, size,
+				"No permission to enable %s event.\n\n",
+				perf_evsel__name(evsel));
+
+		return scnprintf(msg + printed, size - printed,
 		 "You may not have permission to collect %sstats.\n\n"
 		 "Consider tweaking /proc/sys/kernel/perf_event_paranoid,\n"
 		 "which controls use of the performance events system by\n"
@@ -2424,7 +2482,9 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 		 "  -1: Allow use of (almost) all events by all users\n"
 		 ">= 0: Disallow raw tracepoint access by users without CAP_IOC_LOCK\n"
 		 ">= 1: Disallow CPU event access by users without CAP_SYS_ADMIN\n"
-		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN",
+		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN\n\n"
+		 "To make this setting permanent, edit /etc/sysctl.conf too, e.g.:\n\n"
+		 "	kernel.perf_event_paranoid = -1\n" ,
 				 target->system_wide ? "system-wide " : "",
 				 perf_event_paranoid());
 	case ENOENT:

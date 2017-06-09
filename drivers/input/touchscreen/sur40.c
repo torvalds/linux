@@ -369,7 +369,7 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		 * packet ID will usually increase in the middle of a series
 		 * instead of at the end.
 		 */
-		if (packet_id != header->packet_id)
+		if (packet_id != le32_to_cpu(header->packet_id))
 			dev_dbg(sur40->dev, "packet ID mismatch\n");
 
 		packet_blobs = result / sizeof(struct sur40_blob);
@@ -525,6 +525,9 @@ static int sur40_probe(struct usb_interface *interface,
 	/* Check if we really have the right interface. */
 	iface_desc = &interface->altsetting[0];
 	if (iface_desc->desc.bInterfaceClass != 0xFF)
+		return -ENODEV;
+
+	if (iface_desc->desc.bNumEndpoints < 5)
 		return -ENODEV;
 
 	/* Use endpoint #4 (0x86). */

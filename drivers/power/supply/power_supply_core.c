@@ -280,13 +280,19 @@ static inline int power_supply_check_supplies(struct power_supply *psy)
 }
 #endif
 
-static int __power_supply_am_i_supplied(struct device *dev, void *data)
+struct psy_am_i_supplied_data {
+	struct power_supply *psy;
+	unsigned int count;
+};
+
+static int __power_supply_am_i_supplied(struct device *dev, void *_data)
 {
 	union power_supply_propval ret = {0,};
-	struct power_supply *psy = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
+	struct psy_am_i_supplied_data *data = _data;
 
-	if (__power_supply_is_supplied_by(epsy, psy))
+	data->count++;
+	if (__power_supply_is_supplied_by(epsy, data->psy))
 		if (!epsy->desc->get_property(epsy, POWER_SUPPLY_PROP_ONLINE,
 					&ret))
 			return ret.intval;
@@ -296,12 +302,16 @@ static int __power_supply_am_i_supplied(struct device *dev, void *data)
 
 int power_supply_am_i_supplied(struct power_supply *psy)
 {
+	struct psy_am_i_supplied_data data = { psy, 0 };
 	int error;
 
-	error = class_for_each_device(power_supply_class, NULL, psy,
+	error = class_for_each_device(power_supply_class, NULL, &data,
 				      __power_supply_am_i_supplied);
 
-	dev_dbg(&psy->dev, "%s %d\n", __func__, error);
+	dev_dbg(&psy->dev, "%s count %u err %d\n", __func__, data.count, error);
+
+	if (data.count == 0)
+		return -ENODEV;
 
 	return error;
 }
@@ -413,7 +423,7 @@ static int power_supply_match_device_node(struct device *dev, const void *data)
 /**
  * power_supply_get_by_phandle() - Search for a power supply and returns its ref
  * @np: Pointer to device node holding phandle property
- * @phandle_name: Name of property holding a power supply name
+ * @property: Name of property holding a power supply name
  *
  * If power supply was found, it increases reference count for the
  * internal power supply's device. The user should power_supply_put()
@@ -458,7 +468,7 @@ static void devm_power_supply_put(struct device *dev, void *res)
  * devm_power_supply_get_by_phandle() - Resource managed version of
  *  power_supply_get_by_phandle()
  * @dev: Pointer to device holding phandle property
- * @phandle_name: Name of property holding a power supply phandle
+ * @property: Name of property holding a power supply phandle
  *
  * Return: On success returns a reference to a power supply with
  * matching name equals to value under @property, NULL or ERR_PTR otherwise.

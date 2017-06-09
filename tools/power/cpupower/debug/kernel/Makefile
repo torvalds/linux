@@ -1,7 +1,6 @@
 obj-m	:=
 
 KDIR	:= /lib/modules/$(shell uname -r)/build
-PWD		:= $(shell pwd)
 KMISC   := /lib/modules/$(shell uname -r)/cpufrequtils/
 
 ifeq ("$(CONFIG_X86_TSC)", "y")
@@ -9,7 +8,7 @@ ifeq ("$(CONFIG_X86_TSC)", "y")
 endif
 
 default:
-	$(MAKE) -C $(KDIR) M=$(PWD)
+	$(MAKE) -C $(KDIR) M=$(CURDIR)
 
 clean:
 	- rm -rf *.o *.ko .tmp-versions .*.cmd .*.mod.* *.mod.c

@@ -22,7 +22,7 @@
 #include <linux/fb.h>
 
 #include <asm/machvec.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/hd64461.h>

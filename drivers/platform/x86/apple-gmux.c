@@ -60,6 +60,7 @@ struct apple_gmux_data {
 	/* switcheroo data */
 	acpi_handle dhandle;
 	int gpe;
+	bool external_switchable;
 	enum vga_switcheroo_client_id switch_state_display;
 	enum vga_switcheroo_client_id switch_state_ddc;
 	enum vga_switcheroo_client_id switch_state_external;
@@ -358,6 +359,19 @@ static const struct backlight_ops gmux_bl_ops = {
  * ports while the discrete GPU is asleep, but currently we do not make use
  * of this feature.
  *
+ * Our switching policy for the external port is that on those generations
+ * which are able to switch it fully, the port is switched together with the
+ * panel when IGD / DIS commands are issued to vga_switcheroo. It is thus
+ * possible to drive e.g. a beamer on battery power with the integrated GPU.
+ * The user may manually switch to the discrete GPU if more performance is
+ * needed.
+ *
+ * On all newer generations, the external port can only be driven by the
+ * discrete GPU. If a display is plugged in while the panel is switched to
+ * the integrated GPU, *both* GPUs will be in use for maximum performance.
+ * To decrease power consumption, the user may manually switch to the
+ * discrete GPU, thereby suspending the integrated GPU.
+ *
  * gmux' initial switch state on bootup is user configurable via the EFI
  * variable ``gpu-power-prefs-fa4ce28d-b62f-4c99-9cc3-6815686e30f9`` (5th byte,
  * 1 = IGD, 0 = DIS). Based on this setting, the EFI firmware tells gmux to
@@ -414,7 +428,8 @@ static int gmux_switchto(enum vga_switcheroo_client_id id)
 {
 	apple_gmux_data->switch_state_ddc = id;
 	apple_gmux_data->switch_state_display = id;
-	apple_gmux_data->switch_state_external = id;
+	if (apple_gmux_data->external_switchable)
+		apple_gmux_data->switch_state_external = id;
 
 	gmux_write_switch_state(apple_gmux_data);
 
@@ -601,6 +616,11 @@ static struct pci_dev *gmux_get_io_pdev(void)
 	return NULL;
 }
 
+static int is_thunderbolt(struct device *dev, void *data)
+{
+	return to_pci_dev(dev)->is_thunderbolt;
+}
+
 static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 {
 	struct apple_gmux_data *gmux_data;
@@ -754,6 +774,15 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 		pr_warn("No GPE found for gmux\n");
 		gmux_data->gpe = -1;
 	}
+
+	/*
+	 * If Thunderbolt is present, the external DP port is not fully
+	 * switchable. Force its AUX channel to the discrete GPU.
+	 */
+	gmux_data->external_switchable =
+		!bus_for_each_dev(&pci_bus_type, NULL, NULL, is_thunderbolt);
+	if (!gmux_data->external_switchable)
+		gmux_write8(gmux_data, GMUX_PORT_SWITCH_EXTERNAL, 3);
 
 	apple_gmux_data = gmux_data;
 	init_completion(&gmux_data->powerchange_done);

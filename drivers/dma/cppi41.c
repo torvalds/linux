@@ -68,7 +68,6 @@
 #define QMGR_MEMCTRL_IDX_SH	16
 #define QMGR_MEMCTRL_DESC_SH	8
 
-#define QMGR_NUM_PEND	5
 #define QMGR_PEND(x)	(0x90 + (x) * 4)
 
 #define QMGR_PENDING_SLOT_Q(x)	(x / 32)
@@ -78,14 +77,6 @@
 #define QMGR_QUEUE_B(n)	(0x2004 + (n) * 0x10)
 #define QMGR_QUEUE_C(n)	(0x2008 + (n) * 0x10)
 #define QMGR_QUEUE_D(n)	(0x200c + (n) * 0x10)
-
-/* Glue layer specific */
-/* USBSS  / USB AM335x */
-#define USBSS_IRQ_STATUS	0x28
-#define USBSS_IRQ_ENABLER	0x2c
-#define USBSS_IRQ_CLEARR	0x30
-
-#define USBSS_IRQ_PD_COMP	(1 <<  2)
 
 /* Packet Descriptor */
 #define PD2_ZERO_LENGTH		(1 << 19)
@@ -139,7 +130,6 @@ struct cppi41_dd {
 	u32 first_td_desc;
 	struct cppi41_channel *chan_busy[ALLOC_DECS_NUM];
 
-	void __iomem *usbss_mem;
 	void __iomem *ctrl_mem;
 	void __iomem *sched_mem;
 	void __iomem *qmgr_mem;
@@ -147,16 +137,21 @@ struct cppi41_dd {
 	const struct chan_queues *queues_rx;
 	const struct chan_queues *queues_tx;
 	struct chan_queues td_queue;
+	u16 first_completion_queue;
+	u16 qmgr_num_pend;
+	u32 n_chans;
+	u8 platform;
 
 	struct list_head pending;	/* Pending queued transfers */
 	spinlock_t lock;		/* Lock for pending list */
 
 	/* context for suspend/resume */
 	unsigned int dma_tdfdq;
+
+	bool is_suspended;
 };
 
-#define FIST_COMPLETION_QUEUE	93
-static struct chan_queues usb_queues_tx[] = {
+static struct chan_queues am335x_usb_queues_tx[] = {
 	/* USB0 ENDP 1 */
 	[ 0] = { .submit = 32, .complete =  93},
 	[ 1] = { .submit = 34, .complete =  94},
@@ -192,7 +187,7 @@ static struct chan_queues usb_queues_tx[] = {
 	[29] = { .submit = 90, .complete = 139},
 };
 
-static const struct chan_queues usb_queues_rx[] = {
+static const struct chan_queues am335x_usb_queues_rx[] = {
 	/* USB0 ENDP 1 */
 	[ 0] = { .submit =  1, .complete = 109},
 	[ 1] = { .submit =  2, .complete = 110},
@@ -228,11 +223,26 @@ static const struct chan_queues usb_queues_rx[] = {
 	[29] = { .submit = 30, .complete = 155},
 };
 
+static const struct chan_queues da8xx_usb_queues_tx[] = {
+	[0] = { .submit =  16, .complete = 24},
+	[1] = { .submit =  18, .complete = 24},
+	[2] = { .submit =  20, .complete = 24},
+	[3] = { .submit =  22, .complete = 24},
+};
+
+static const struct chan_queues da8xx_usb_queues_rx[] = {
+	[0] = { .submit =  1, .complete = 26},
+	[1] = { .submit =  3, .complete = 26},
+	[2] = { .submit =  5, .complete = 26},
+	[3] = { .submit =  7, .complete = 26},
+};
+
 struct cppi_glue_infos {
-	irqreturn_t (*isr)(int irq, void *data);
 	const struct chan_queues *queues_rx;
 	const struct chan_queues *queues_tx;
 	struct chan_queues td_queue;
+	u16 first_completion_queue;
+	u16 qmgr_num_pend;
 };
 
 static struct cppi41_channel *to_cpp41_chan(struct dma_chan *c)
@@ -257,6 +267,10 @@ static struct cppi41_channel *desc_to_chan(struct cppi41_dd *cdd, u32 desc)
 	BUG_ON(desc_num >= ALLOC_DECS_NUM);
 	c = cdd->chan_busy[desc_num];
 	cdd->chan_busy[desc_num] = NULL;
+
+	/* Usecount for chan_busy[], paired with push_desc_queue() */
+	pm_runtime_put(cdd->ddev.dev);
+
 	return c;
 }
 
@@ -287,25 +301,21 @@ static u32 cppi41_pop_desc(struct cppi41_dd *cdd, unsigned queue_num)
 static irqreturn_t cppi41_irq(int irq, void *data)
 {
 	struct cppi41_dd *cdd = data;
+	u16 first_completion_queue = cdd->first_completion_queue;
+	u16 qmgr_num_pend = cdd->qmgr_num_pend;
 	struct cppi41_channel *c;
-	u32 status;
 	int i;
 
-	status = cppi_readl(cdd->usbss_mem + USBSS_IRQ_STATUS);
-	if (!(status & USBSS_IRQ_PD_COMP))
-		return IRQ_NONE;
-	cppi_writel(status, cdd->usbss_mem + USBSS_IRQ_STATUS);
-
-	for (i = QMGR_PENDING_SLOT_Q(FIST_COMPLETION_QUEUE); i < QMGR_NUM_PEND;
+	for (i = QMGR_PENDING_SLOT_Q(first_completion_queue); i < qmgr_num_pend;
 			i++) {
 		u32 val;
 		u32 q_num;
 
 		val = cppi_readl(cdd->qmgr_mem + QMGR_PEND(i));
-		if (i == QMGR_PENDING_SLOT_Q(FIST_COMPLETION_QUEUE) && val) {
+		if (i == QMGR_PENDING_SLOT_Q(first_completion_queue) && val) {
 			u32 mask;
 			/* set corresponding bit for completetion Q 93 */
-			mask = 1 << QMGR_PENDING_BIT_Q(FIST_COMPLETION_QUEUE);
+			mask = 1 << QMGR_PENDING_BIT_Q(first_completion_queue);
 			/* not set all bits for queues less than Q 93 */
 			mask--;
 			/* now invert and keep only Q 93+ set */
@@ -317,12 +327,12 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 
 		while (val) {
 			u32 desc, len;
-			int error;
 
-			error = pm_runtime_get(cdd->ddev.dev);
-			if (error < 0)
-				dev_err(cdd->ddev.dev, "%s pm runtime get: %i\n",
-					__func__, error);
+			/*
+			 * This should never trigger, see the comments in
+			 * push_desc_queue()
+			 */
+			WARN_ON(cdd->is_suspended);
 
 			q_num = __fls(val);
 			val &= ~(1 << q_num);
@@ -343,9 +353,6 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 			c->residue = pd_trans_len(c->desc->pd6) - len;
 			dma_cookie_complete(&c->txd);
 			dmaengine_desc_get_callback_invoke(&c->txd, NULL);
-
-			pm_runtime_mark_last_busy(cdd->ddev.dev);
-			pm_runtime_put_autosuspend(cdd->ddev.dev);
 		}
 	}
 	return IRQ_HANDLED;
@@ -413,11 +420,9 @@ static enum dma_status cppi41_dma_tx_status(struct dma_chan *chan,
 	struct cppi41_channel *c = to_cpp41_chan(chan);
 	enum dma_status ret;
 
-	/* lock */
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (txstate && ret == DMA_COMPLETE)
-		txstate->residue = c->residue;
-	/* unlock */
+
+	dma_set_residue(txstate, c->residue);
 
 	return ret;
 }
@@ -447,6 +452,15 @@ static void push_desc_queue(struct cppi41_channel *c)
 	 */
 	__iowmb();
 
+	/*
+	 * DMA transfers can take at least 200ms to complete with USB mass
+	 * storage connected. To prevent autosuspend timeouts, we must use
+	 * pm_runtime_get/put() when chan_busy[] is modified. This will get
+	 * cleared in desc_to_chan() or cppi41_stop_chan() depending on the
+	 * outcome of the transfer.
+	 */
+	pm_runtime_get(cdd->ddev.dev);
+
 	desc_phys = lower_32_bits(c->desc_phys);
 	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
 	WARN_ON(cdd->chan_busy[desc_num]);
@@ -457,20 +471,26 @@ static void push_desc_queue(struct cppi41_channel *c)
 	cppi_writel(reg, cdd->qmgr_mem + QMGR_QUEUE_D(c->q_num));
 }
 
-static void pending_desc(struct cppi41_channel *c)
+/*
+ * Caller must hold cdd->lock to prevent push_desc_queue()
+ * getting called out of order. We have both cppi41_dma_issue_pending()
+ * and cppi41_runtime_resume() call this function.
+ */
+static void cppi41_run_queue(struct cppi41_dd *cdd)
 {
-	struct cppi41_dd *cdd = c->cdd;
-	unsigned long flags;
+	struct cppi41_channel *c, *_c;
 
-	spin_lock_irqsave(&cdd->lock, flags);
-	list_add_tail(&c->node, &cdd->pending);
-	spin_unlock_irqrestore(&cdd->lock, flags);
+	list_for_each_entry_safe(c, _c, &cdd->pending, node) {
+		push_desc_queue(c);
+		list_del(&c->node);
+	}
 }
 
 static void cppi41_dma_issue_pending(struct dma_chan *chan)
 {
 	struct cppi41_channel *c = to_cpp41_chan(chan);
 	struct cppi41_dd *cdd = c->cdd;
+	unsigned long flags;
 	int error;
 
 	error = pm_runtime_get(cdd->ddev.dev);
@@ -482,10 +502,11 @@ static void cppi41_dma_issue_pending(struct dma_chan *chan)
 		return;
 	}
 
-	if (likely(pm_runtime_active(cdd->ddev.dev)))
-		push_desc_queue(c);
-	else
-		pending_desc(c);
+	spin_lock_irqsave(&cdd->lock, flags);
+	list_add_tail(&c->node, &cdd->pending);
+	if (!cdd->is_suspended)
+		cppi41_run_queue(cdd);
+	spin_unlock_irqrestore(&cdd->lock, flags);
 
 	pm_runtime_mark_last_busy(cdd->ddev.dev);
 	pm_runtime_put_autosuspend(cdd->ddev.dev);
@@ -599,6 +620,7 @@ static void cppi41_compute_td_desc(struct cppi41_desc *d)
 
 static int cppi41_tear_down_chan(struct cppi41_channel *c)
 {
+	struct dmaengine_result abort_result;
 	struct cppi41_dd *cdd = c->cdd;
 	struct cppi41_desc *td;
 	u32 reg;
@@ -624,7 +646,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 		if (!c->is_tx) {
 			reg |= GCR_STARV_RETRY;
 			reg |= GCR_DESC_TYPE_HOST;
-			reg |= c->q_comp_num;
+			reg |= cdd->td_queue.complete;
 		}
 		reg |= GCR_TEARDOWN;
 		cppi_writel(reg, c->gcr_reg);
@@ -635,7 +657,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 	if (!c->td_seen || !c->td_desc_seen) {
 
 		desc_phys = cppi41_pop_desc(cdd, cdd->td_queue.complete);
-		if (!desc_phys)
+		if (!desc_phys && c->is_tx)
 			desc_phys = cppi41_pop_desc(cdd, c->q_comp_num);
 
 		if (desc_phys == c->desc_phys) {
@@ -682,6 +704,12 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 	c->td_seen = 0;
 	c->td_desc_seen = 0;
 	cppi_writel(0, c->gcr_reg);
+
+	/* Invoke the callback to do the necessary clean-up */
+	abort_result.result = DMA_TRANS_ABORTED;
+	dma_cookie_complete(&c->txd);
+	dmaengine_desc_get_callback_invoke(&c->txd, &abort_result);
+
 	return 0;
 }
 
@@ -705,42 +733,30 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 	WARN_ON(!cdd->chan_busy[desc_num]);
 	cdd->chan_busy[desc_num] = NULL;
 
+	/* Usecount for chan_busy[], paired with push_desc_queue() */
+	pm_runtime_put(cdd->ddev.dev);
+
 	return 0;
-}
-
-static void cleanup_chans(struct cppi41_dd *cdd)
-{
-	while (!list_empty(&cdd->ddev.channels)) {
-		struct cppi41_channel *cchan;
-
-		cchan = list_first_entry(&cdd->ddev.channels,
-				struct cppi41_channel, chan.device_node);
-		list_del(&cchan->chan.device_node);
-		kfree(cchan);
-	}
 }
 
 static int cppi41_add_chans(struct device *dev, struct cppi41_dd *cdd)
 {
-	struct cppi41_channel *cchan;
+	struct cppi41_channel *cchan, *chans;
 	int i;
-	int ret;
-	u32 n_chans;
+	u32 n_chans = cdd->n_chans;
 
-	ret = of_property_read_u32(dev->of_node, "#dma-channels",
-			&n_chans);
-	if (ret)
-		return ret;
 	/*
 	 * The channels can only be used as TX or as RX. So we add twice
 	 * that much dma channels because USB can only do RX or TX.
 	 */
 	n_chans *= 2;
 
+	chans = devm_kcalloc(dev, n_chans, sizeof(*chans), GFP_KERNEL);
+	if (!chans)
+		return -ENOMEM;
+
 	for (i = 0; i < n_chans; i++) {
-		cchan = kzalloc(sizeof(*cchan), GFP_KERNEL);
-		if (!cchan)
-			goto err;
+		cchan = &chans[i];
 
 		cchan->cdd = cdd;
 		if (i & 1) {
@@ -760,9 +776,6 @@ static int cppi41_add_chans(struct device *dev, struct cppi41_dd *cdd)
 	cdd->first_td_desc = n_chans;
 
 	return 0;
-err:
-	cleanup_chans(cdd);
-	return -ENOMEM;
 }
 
 static void purge_descs(struct device *dev, struct cppi41_dd *cdd)
@@ -844,7 +857,7 @@ static void init_sched(struct cppi41_dd *cdd)
 
 	word = 0;
 	cppi_writel(0, cdd->sched_mem + DMA_SCHED_CTRL);
-	for (ch = 0; ch < 15 * 2; ch += 2) {
+	for (ch = 0; ch < cdd->n_chans; ch += 2) {
 
 		reg = SCHED_ENTRY0_CHAN(ch);
 		reg |= SCHED_ENTRY1_CHAN(ch) | SCHED_ENTRY1_IS_RX;
@@ -854,7 +867,7 @@ static void init_sched(struct cppi41_dd *cdd)
 		cppi_writel(reg, cdd->sched_mem + DMA_SCHED_WORD(word));
 		word++;
 	}
-	reg = 15 * 2 * 2 - 1;
+	reg = cdd->n_chans * 2 - 1;
 	reg |= DMA_SCHED_CTRL_EN;
 	cppi_writel(reg, cdd->sched_mem + DMA_SCHED_CTRL);
 }
@@ -870,7 +883,7 @@ static int init_cppi41(struct device *dev, struct cppi41_dd *cdd)
 		return -ENOMEM;
 
 	cppi_writel(cdd->scratch_phys, cdd->qmgr_mem + QMGR_LRAM0_BASE);
-	cppi_writel(QMGR_SCRATCH_SIZE, cdd->qmgr_mem + QMGR_LRAM_SIZE);
+	cppi_writel(TOTAL_DESCS_NUM, cdd->qmgr_mem + QMGR_LRAM_SIZE);
 	cppi_writel(0, cdd->qmgr_mem + QMGR_LRAM1_BASE);
 
 	ret = init_descs(dev, cdd);
@@ -879,6 +892,7 @@ static int init_cppi41(struct device *dev, struct cppi41_dd *cdd)
 
 	cppi_writel(cdd->td_queue.submit, cdd->ctrl_mem + DMA_TDFDQ);
 	init_sched(cdd);
+
 	return 0;
 err_td:
 	deinit_cppi41(dev, cdd);
@@ -918,8 +932,9 @@ static bool cpp41_dma_filter_fn(struct dma_chan *chan, void *param)
 	else
 		queues = cdd->queues_rx;
 
-	BUILD_BUG_ON(ARRAY_SIZE(usb_queues_rx) != ARRAY_SIZE(usb_queues_tx));
-	if (WARN_ON(cchan->port_num > ARRAY_SIZE(usb_queues_rx)))
+	BUILD_BUG_ON(ARRAY_SIZE(am335x_usb_queues_rx) !=
+		     ARRAY_SIZE(am335x_usb_queues_tx));
+	if (WARN_ON(cchan->port_num > ARRAY_SIZE(am335x_usb_queues_rx)))
 		return false;
 
 	cchan->q_num = queues[cchan->port_num].submit;
@@ -947,15 +962,25 @@ static struct dma_chan *cppi41_dma_xlate(struct of_phandle_args *dma_spec,
 			&dma_spec->args[0]);
 }
 
-static const struct cppi_glue_infos usb_infos = {
-	.isr = cppi41_irq,
-	.queues_rx = usb_queues_rx,
-	.queues_tx = usb_queues_tx,
+static const struct cppi_glue_infos am335x_usb_infos = {
+	.queues_rx = am335x_usb_queues_rx,
+	.queues_tx = am335x_usb_queues_tx,
 	.td_queue = { .submit = 31, .complete = 0 },
+	.first_completion_queue = 93,
+	.qmgr_num_pend = 5,
+};
+
+static const struct cppi_glue_infos da8xx_usb_infos = {
+	.queues_rx = da8xx_usb_queues_rx,
+	.queues_tx = da8xx_usb_queues_tx,
+	.td_queue = { .submit = 31, .complete = 0 },
+	.first_completion_queue = 24,
+	.qmgr_num_pend = 2,
 };
 
 static const struct of_device_id cppi41_dma_ids[] = {
-	{ .compatible = "ti,am3359-cppi41", .data = &usb_infos},
+	{ .compatible = "ti,am3359-cppi41", .data = &am335x_usb_infos},
+	{ .compatible = "ti,da830-cppi41", .data = &da8xx_usb_infos},
 	{},
 };
 MODULE_DEVICE_TABLE(of, cppi41_dma_ids);
@@ -980,6 +1005,8 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	struct cppi41_dd *cdd;
 	struct device *dev = &pdev->dev;
 	const struct cppi_glue_infos *glue_info;
+	struct resource *mem;
+	int index;
 	int irq;
 	int ret;
 
@@ -1006,18 +1033,30 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&cdd->ddev.channels);
 	cpp41_dma_info.dma_cap = cdd->ddev.cap_mask;
 
-	cdd->usbss_mem = of_iomap(dev->of_node, 0);
-	cdd->ctrl_mem = of_iomap(dev->of_node, 1);
-	cdd->sched_mem = of_iomap(dev->of_node, 2);
-	cdd->qmgr_mem = of_iomap(dev->of_node, 3);
+	index = of_property_match_string(dev->of_node,
+					 "reg-names", "controller");
+	if (index < 0)
+		return index;
+
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, index);
+	cdd->ctrl_mem = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(cdd->ctrl_mem))
+		return PTR_ERR(cdd->ctrl_mem);
+
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, index + 1);
+	cdd->sched_mem = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(cdd->sched_mem))
+		return PTR_ERR(cdd->sched_mem);
+
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, index + 2);
+	cdd->qmgr_mem = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(cdd->qmgr_mem))
+		return PTR_ERR(cdd->qmgr_mem);
+
 	spin_lock_init(&cdd->lock);
 	INIT_LIST_HEAD(&cdd->pending);
 
 	platform_set_drvdata(pdev, cdd);
-
-	if (!cdd->usbss_mem || !cdd->ctrl_mem || !cdd->sched_mem ||
-			!cdd->qmgr_mem)
-		return -ENXIO;
 
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, 100);
@@ -1029,6 +1068,13 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	cdd->queues_rx = glue_info->queues_rx;
 	cdd->queues_tx = glue_info->queues_tx;
 	cdd->td_queue = glue_info->td_queue;
+	cdd->qmgr_num_pend = glue_info->qmgr_num_pend;
+	cdd->first_completion_queue = glue_info->first_completion_queue;
+
+	ret = of_property_read_u32(dev->of_node,
+				   "#dma-channels", &cdd->n_chans);
+	if (ret)
+		goto err_get_n_chans;
 
 	ret = init_cppi41(dev, cdd);
 	if (ret)
@@ -1041,20 +1087,18 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq) {
 		ret = -EINVAL;
-		goto err_irq;
+		goto err_chans;
 	}
 
-	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
-
-	ret = devm_request_irq(&pdev->dev, irq, glue_info->isr, IRQF_SHARED,
+	ret = devm_request_irq(&pdev->dev, irq, cppi41_irq, IRQF_SHARED,
 			dev_name(dev), cdd);
 	if (ret)
-		goto err_irq;
+		goto err_chans;
 	cdd->irq = irq;
 
 	ret = dma_async_device_register(&cdd->ddev);
 	if (ret)
-		goto err_dma_reg;
+		goto err_chans;
 
 	ret = of_dma_controller_register(dev->of_node,
 			cppi41_dma_xlate, &cpp41_dma_info);
@@ -1067,21 +1111,14 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	return 0;
 err_of:
 	dma_async_device_unregister(&cdd->ddev);
-err_dma_reg:
-err_irq:
-	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
-	cleanup_chans(cdd);
 err_chans:
 	deinit_cppi41(dev, cdd);
 err_init_cppi:
 	pm_runtime_dont_use_autosuspend(dev);
+err_get_n_chans:
 err_get_sync:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-	iounmap(cdd->usbss_mem);
-	iounmap(cdd->ctrl_mem);
-	iounmap(cdd->sched_mem);
-	iounmap(cdd->qmgr_mem);
 	return ret;
 }
 
@@ -1097,14 +1134,8 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&cdd->ddev);
 
-	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	devm_free_irq(&pdev->dev, cdd->irq, cdd);
-	cleanup_chans(cdd);
 	deinit_cppi41(&pdev->dev, cdd);
-	iounmap(cdd->usbss_mem);
-	iounmap(cdd->ctrl_mem);
-	iounmap(cdd->sched_mem);
-	iounmap(cdd->qmgr_mem);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1116,7 +1147,6 @@ static int __maybe_unused cppi41_suspend(struct device *dev)
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
 
 	cdd->dma_tdfdq = cppi_readl(cdd->ctrl_mem + DMA_TDFDQ);
-	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	disable_sched(cdd);
 
 	return 0;
@@ -1142,16 +1172,18 @@ static int __maybe_unused cppi41_resume(struct device *dev)
 	cppi_writel(QMGR_SCRATCH_SIZE, cdd->qmgr_mem + QMGR_LRAM_SIZE);
 	cppi_writel(0, cdd->qmgr_mem + QMGR_LRAM1_BASE);
 
-	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
-
 	return 0;
 }
 
 static int __maybe_unused cppi41_runtime_suspend(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
+	unsigned long flags;
 
+	spin_lock_irqsave(&cdd->lock, flags);
+	cdd->is_suspended = true;
 	WARN_ON(!list_empty(&cdd->pending));
+	spin_unlock_irqrestore(&cdd->lock, flags);
 
 	return 0;
 }
@@ -1159,14 +1191,11 @@ static int __maybe_unused cppi41_runtime_suspend(struct device *dev)
 static int __maybe_unused cppi41_runtime_resume(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
-	struct cppi41_channel *c, *_c;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cdd->lock, flags);
-	list_for_each_entry_safe(c, _c, &cdd->pending, node) {
-		push_desc_queue(c);
-		list_del(&c->node);
-	}
+	cdd->is_suspended = false;
+	cppi41_run_queue(cdd);
 	spin_unlock_irqrestore(&cdd->lock, flags);
 
 	return 0;

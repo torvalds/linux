@@ -269,7 +269,7 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 
 /*
  * Register our undef instruction hooks with ARM undef core.
- * We regsiter a hook specifically looking for the KGB break inst
+ * We register a hook specifically looking for the KGB break inst
  * and we handle the normal undef case within the do_undefinstr
  * handler.
  */

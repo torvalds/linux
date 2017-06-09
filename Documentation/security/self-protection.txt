@@ -51,10 +51,16 @@ kernel, they are implemented in a way where the memory is temporarily
 made writable during the update, and then returned to the original
 permissions.)
 
-In support of this are (the poorly named) CONFIG_DEBUG_RODATA and
-CONFIG_DEBUG_SET_MODULE_RONX, which seek to make sure that code is not
+In support of this are CONFIG_STRICT_KERNEL_RWX and
+CONFIG_STRICT_MODULE_RWX, which seek to make sure that code is not
 writable, data is not executable, and read-only data is neither writable
 nor executable.
+
+Most architectures have these options on by default and not user selectable.
+For some architectures like arm that wish to have these be selectable,
+the architecture Kconfig can select ARCH_OPTIONAL_KERNEL_RWX to enable
+a Kconfig prompt. CONFIG_ARCH_OPTIONAL_KERNEL_RWX_DEFAULT determines
+the default setting when ARCH_OPTIONAL_KERNEL_RWX is enabled.
 
 #### Function pointers and sensitive variables must not be writable
 

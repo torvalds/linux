@@ -664,13 +664,13 @@ static const struct v4l2_subdev_core_ops noon010_core_ops = {
 	.log_status	= noon010_log_status,
 };
 
-static struct v4l2_subdev_pad_ops noon010_pad_ops = {
+static const struct v4l2_subdev_pad_ops noon010_pad_ops = {
 	.enum_mbus_code	= noon010_enum_mbus_code,
 	.get_fmt	= noon010_get_fmt,
 	.set_fmt	= noon010_set_fmt,
 };
 
-static struct v4l2_subdev_video_ops noon010_video_ops = {
+static const struct v4l2_subdev_video_ops noon010_video_ops = {
 	.s_stream	= noon010_s_stream,
 };
 

@@ -117,7 +117,7 @@ ecryptfs_get_key_payload_data(struct key *key)
 
 	auth_tok = ecryptfs_get_encrypted_key_payload_data(key);
 	if (!auth_tok)
-		return (struct ecryptfs_auth_tok *)user_key_payload(key)->data;
+		return (struct ecryptfs_auth_tok *)user_key_payload_locked(key)->data;
 	else
 		return auth_tok;
 }
@@ -349,7 +349,6 @@ struct ecryptfs_mount_crypt_stat {
 struct ecryptfs_sb_info {
 	struct super_block *wsi_sb;
 	struct ecryptfs_mount_crypt_stat mount_crypt_stat;
-	struct backing_dev_info bdi;
 };
 
 /* file private data. */

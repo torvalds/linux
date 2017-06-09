@@ -13,6 +13,7 @@
 #define __RT5514_H__
 
 #include <linux/clk.h>
+#include <sound/rt5514.h>
 
 #define RT5514_DEVICE_ID			0x10ec5514
 
@@ -243,6 +244,7 @@ enum {
 };
 
 struct rt5514_priv {
+	struct rt5514_platform_data pdata;
 	struct snd_soc_codec *codec;
 	struct regmap *i2c_regmap, *regmap;
 	struct clk *mclk;

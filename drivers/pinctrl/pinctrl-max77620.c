@@ -402,7 +402,7 @@ static int max77620_pinconf_set(struct pinctrl_dev *pctldev,
 	struct device *dev = mpci->dev;
 	struct max77620_fps_config *fps_config;
 	int param;
-	u16 param_val;
+	u32 param_val;
 	unsigned int val;
 	unsigned int pu_val;
 	unsigned int pd_val;

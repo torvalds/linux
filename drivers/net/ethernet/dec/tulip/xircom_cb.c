@@ -30,7 +30,7 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #ifdef CONFIG_NET_POLL_CONTROLLER
 #include <asm/irq.h>

@@ -1295,7 +1295,7 @@ static int emac_poll(struct napi_struct *napi, int budget)
 					&emac_rxhost_errcodes[cause][0], ch);
 		}
 	} else if (num_rx_pkts < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, num_rx_pkts);
 		emac_int_enable(priv);
 	}
 

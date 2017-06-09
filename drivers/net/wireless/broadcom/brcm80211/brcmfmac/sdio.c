@@ -22,7 +22,7 @@
 #include <linux/pci_ids.h>
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
@@ -44,6 +44,7 @@
 #include "firmware.h"
 #include "core.h"
 #include "common.h"
+#include "bcdc.h"
 
 #define DCMD_RESP_TIMEOUT	msecs_to_jiffies(2500)
 #define CTL_DONE_TIMEOUT	msecs_to_jiffies(2500)
@@ -539,7 +540,11 @@ static int qcount[NUMPRIO];
 /* Limit on rounding up frames */
 static const uint max_roundup = 512;
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+#define ALIGNMENT  8
+#else
 #define ALIGNMENT  4
+#endif
 
 enum brcmf_sdio_frmtype {
 	BRCMF_SDIO_FT_NORMAL,
@@ -1661,7 +1666,7 @@ static u8 brcmf_sdio_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 					   pfirst->len, pfirst->next,
 					   pfirst->prev);
 			skb_unlink(pfirst, &bus->glom);
-			if (brcmf_sdio_fromevntchan(pfirst->data))
+			if (brcmf_sdio_fromevntchan(&dptr[SDPCM_HWHDR_LEN]))
 				brcmf_rx_event(bus->sdiodev->dev, pfirst);
 			else
 				brcmf_rx_frame(bus->sdiodev->dev, pfirst,
@@ -2265,7 +2270,8 @@ done:
 		bus->tx_seq = (bus->tx_seq + pktq->qlen) % SDPCM_SEQ_WRAP;
 	skb_queue_walk_safe(pktq, pkt_next, tmp) {
 		__skb_unlink(pkt_next, pktq);
-		brcmf_txcomplete(bus->sdiodev->dev, pkt_next, ret == 0);
+		brcmf_proto_bcdc_txcomplete(bus->sdiodev->dev, pkt_next,
+					    ret == 0);
 	}
 	return ret;
 }
@@ -2328,7 +2334,7 @@ static uint brcmf_sdio_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	if ((bus->sdiodev->state == BRCMF_SDIOD_DATA) &&
 	    bus->txoff && (pktq_len(&bus->txq) < TXLOW)) {
 		bus->txoff = false;
-		brcmf_txflowblock(bus->sdiodev->dev, false);
+		brcmf_proto_bcdc_txflowblock(bus->sdiodev->dev, false);
 	}
 
 	return cnt;
@@ -2753,7 +2759,7 @@ static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 
 	if (pktq_len(&bus->txq) >= TXHI) {
 		bus->txoff = true;
-		brcmf_txflowblock(dev, true);
+		brcmf_proto_bcdc_txflowblock(dev, true);
 	}
 	spin_unlock_bh(&bus->txq_lock);
 
@@ -3416,7 +3422,7 @@ static int brcmf_sdio_bus_preinit(struct device *dev)
 		/* otherwise, set txglomalign */
 		value = sdiodev->settings->bus.sdio.sd_sgentry_align;
 		/* SDIO ADMA requires at least 32 bit alignment */
-		value = max_t(u32, value, 4);
+		value = max_t(u32, value, ALIGNMENT);
 		err = brcmf_iovar_data_set(dev, "bus:txglomalign", &value,
 					   sizeof(u32));
 	}
@@ -4065,7 +4071,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev,
 
 	sdio_release_host(sdiodev->func[1]);
 
-	err = brcmf_bus_start(dev);
+	err = brcmf_bus_started(dev);
 	if (err != 0) {
 		brcmf_err("dongle is not responding\n");
 		goto fail;

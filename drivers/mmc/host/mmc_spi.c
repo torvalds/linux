@@ -888,10 +888,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 	u32			clock_rate;
 	unsigned long		timeout;
 
-	if (data->flags & MMC_DATA_READ)
-		direction = DMA_FROM_DEVICE;
-	else
-		direction = DMA_TO_DEVICE;
+	direction = mmc_get_dma_dir(data);
 	mmc_spi_setup_data_message(host, multiple, direction);
 	t = &host->t;
 

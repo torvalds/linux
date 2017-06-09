@@ -122,11 +122,11 @@ static void hibmc_plane_atomic_update(struct drm_plane *plane,
 
 	writel(gpu_addr, priv->mmio + HIBMC_CRT_FB_ADDRESS);
 
-	reg = state->fb->width * (state->fb->bits_per_pixel / 8);
+	reg = state->fb->width * (state->fb->format->cpp[0]);
 	/* now line_pad is 16 */
 	reg = PADDING(16, reg);
 
-	line_l = state->fb->width * state->fb->bits_per_pixel / 8;
+	line_l = state->fb->width * state->fb->format->cpp[0];
 	line_l = PADDING(16, line_l);
 	writel(HIBMC_FIELD(HIBMC_CRT_FB_WIDTH_WIDTH, reg) |
 	       HIBMC_FIELD(HIBMC_CRT_FB_WIDTH_OFFS, line_l),
@@ -136,7 +136,7 @@ static void hibmc_plane_atomic_update(struct drm_plane *plane,
 	reg = readl(priv->mmio + HIBMC_CRT_DISP_CTL);
 	reg &= ~HIBMC_CRT_DISP_CTL_FORMAT_MASK;
 	reg |= HIBMC_FIELD(HIBMC_CRT_DISP_CTL_FORMAT,
-			   state->fb->bits_per_pixel / 16);
+			   state->fb->format->cpp[0] * 8 / 16);
 	writel(reg, priv->mmio + HIBMC_CRT_DISP_CTL);
 }
 
@@ -423,6 +423,24 @@ static void hibmc_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 }
 
+static int hibmc_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct hibmc_drm_private *priv = crtc->dev->dev_private;
+
+	writel(HIBMC_RAW_INTERRUPT_EN_VBLANK(1),
+	       priv->mmio + HIBMC_RAW_INTERRUPT_EN);
+
+	return 0;
+}
+
+static void hibmc_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct hibmc_drm_private *priv = crtc->dev->dev_private;
+
+	writel(HIBMC_RAW_INTERRUPT_EN_VBLANK(0),
+	       priv->mmio + HIBMC_RAW_INTERRUPT_EN);
+}
+
 static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.set_config = drm_atomic_helper_set_config,
@@ -430,6 +448,8 @@ static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state =  drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = hibmc_crtc_enable_vblank,
+	.disable_vblank = hibmc_crtc_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs hibmc_crtc_helper_funcs = {

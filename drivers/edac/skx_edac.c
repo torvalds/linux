@@ -29,7 +29,7 @@
 #include <asm/processor.h>
 #include <asm/mce.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 #define SKX_REVISION    " Ver: 1.0 "
 
@@ -971,7 +971,7 @@ static int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mem_ctl_info *mci;
 	char *type;
 
-	if (get_edac_report_status() == EDAC_REPORTING_DISABLED)
+	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
 		return NOTIFY_DONE;
 
 	/* ignore unless this is memory related with an address */
@@ -1007,7 +1007,8 @@ static int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 }
 
 static struct notifier_block skx_mce_dec = {
-	.notifier_call = skx_mce_check_error,
+	.notifier_call	= skx_mce_check_error,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 static void skx_remove(void)

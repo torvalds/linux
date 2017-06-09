@@ -655,7 +655,7 @@ static void terminate_monitor(struct cm4000_dev *dev)
  * monitor the card every 50msec. as a side-effect, retrieve the
  * atr once a card is inserted. another side-effect of retrieving the
  * atr is that the card will be powered on, so there is no need to
- * power on the card explictely from the application: the driver
+ * power on the card explicitly from the application: the driver
  * is already doing that for you.
  */
 
@@ -1037,7 +1037,7 @@ release_io:
 	clear_bit(LOCK_IO, &dev->flags);
 	wake_up_interruptible(&dev->ioq);
 
-	DEBUGP(2, dev, "<- cmm_read returns: rc = %Zi\n",
+	DEBUGP(2, dev, "<- cmm_read returns: rc = %zi\n",
 	       (rc < 0 ? rc : count));
 	return rc < 0 ? rc : count;
 }

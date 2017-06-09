@@ -422,9 +422,8 @@ static enum port intel_dvo_port(i915_reg_t dvo_reg)
 		return PORT_C;
 }
 
-void intel_dvo_init(struct drm_device *dev)
+void intel_dvo_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_encoder *intel_encoder;
 	struct intel_dvo *intel_dvo;
 	struct intel_connector *intel_connector;
@@ -511,11 +510,12 @@ void intel_dvo_init(struct drm_device *dev)
 			continue;
 
 		port = intel_dvo_port(dvo->dvo_reg);
-		drm_encoder_init(dev, &intel_encoder->base,
+		drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
 				 &intel_dvo_enc_funcs, encoder_type,
 				 "DVO %c", port_name(port));
 
 		intel_encoder->type = INTEL_OUTPUT_DVO;
+		intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 		intel_encoder->port = port;
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 
@@ -523,14 +523,14 @@ void intel_dvo_init(struct drm_device *dev)
 		case INTEL_DVO_CHIP_TMDS:
 			intel_encoder->cloneable = (1 << INTEL_OUTPUT_ANALOG) |
 				(1 << INTEL_OUTPUT_DVO);
-			drm_connector_init(dev, connector,
+			drm_connector_init(&dev_priv->drm, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_DVII);
 			encoder_type = DRM_MODE_ENCODER_TMDS;
 			break;
 		case INTEL_DVO_CHIP_LVDS:
 			intel_encoder->cloneable = 0;
-			drm_connector_init(dev, connector,
+			drm_connector_init(&dev_priv->drm, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_LVDS);
 			encoder_type = DRM_MODE_ENCODER_LVDS;

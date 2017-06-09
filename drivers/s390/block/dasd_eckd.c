@@ -26,7 +26,7 @@
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
 #include <asm/itcw.h>
@@ -2543,8 +2543,8 @@ dasd_eckd_build_format(struct dasd_device *base,
 						DASD_ECKD_CCW_WRITE_CKD_MT;
 				ccw->flags = CCW_FLAG_SLI;
 				ccw->count = 8;
-					ccw->cda = (__u32)(addr_t) ect;
-					ccw++;
+				ccw->cda = (__u32)(addr_t) ect;
+				ccw++;
 			}
 		}
 	}
@@ -4864,7 +4864,7 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 			break;
 		case 3: /* tsa_intrg */
 			len += sprintf(page + len, PRINTK_HEADER
-				      " tsb->tsa.intrg.: not supportet yet\n");
+				      " tsb->tsa.intrg.: not supported yet\n");
 			break;
 		}
 
@@ -4927,10 +4927,14 @@ static void dasd_eckd_dump_sense(struct dasd_device *device,
 		dasd_eckd_dump_sense_tcw(device, req, irb);
 	} else {
 		/*
-		 * In some cases the 'No Record Found' error might be expected
-		 * and log messages shouldn't be written then. Check if the
-		 * according suppress bit is set.
+		 * In some cases the 'Command Reject' or 'No Record Found'
+		 * error might be expected and log messages shouldn't be
+		 * written then. Check if the according suppress bit is set.
 		 */
+		if (sense && sense[0] & SNS0_CMD_REJECT &&
+		    test_bit(DASD_CQR_SUPPRESS_CR, &req->flags))
+			return;
+
 		if (sense && sense[1] & SNS1_NO_REC_FOUND &&
 		    test_bit(DASD_CQR_SUPPRESS_NRF, &req->flags))
 			return;
@@ -5172,6 +5176,10 @@ static int dasd_eckd_query_host_access(struct dasd_device *device,
 	if (!device->block && private->lcu->pav == HYPER_PAV)
 		return -EOPNOTSUPP;
 
+	/* may not be supported by the storage server */
+	if (!(private->features.feature[14] & 0x80))
+		return -EOPNOTSUPP;
+
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1 /* PSF */	+ 1 /* RSSD */,
 				   sizeof(struct dasd_psf_prssd_data) + 1,
 				   device);
@@ -5219,6 +5227,8 @@ static int dasd_eckd_query_host_access(struct dasd_device *device,
 
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
+	/* the command might not be supported, suppress error message */
+	__set_bit(DASD_CQR_SUPPRESS_CR, &cqr->flags);
 	rc = dasd_sleep_on_interruptible(cqr);
 	if (rc == 0) {
 		*data = *host_access;

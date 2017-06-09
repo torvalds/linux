@@ -22,6 +22,8 @@
 #include <linux/mmc/sd.h>
 
 #include "core.h"
+#include "card.h"
+#include "host.h"
 #include "bus.h"
 #include "mmc_ops.h"
 #include "sd.h"
@@ -223,6 +225,7 @@ static int mmc_decode_scr(struct mmc_card *card)
 static int mmc_read_ssr(struct mmc_card *card)
 {
 	unsigned int au, es, et, eo;
+	__be32 *raw_ssr;
 	int i;
 
 	if (!(card->csd.cmdclass & CCC_APP_SPEC)) {
@@ -231,14 +234,21 @@ static int mmc_read_ssr(struct mmc_card *card)
 		return 0;
 	}
 
-	if (mmc_app_sd_status(card, card->raw_ssr)) {
+	raw_ssr = kmalloc(sizeof(card->raw_ssr), GFP_KERNEL);
+	if (!raw_ssr)
+		return -ENOMEM;
+
+	if (mmc_app_sd_status(card, raw_ssr)) {
 		pr_warn("%s: problem reading SD Status register\n",
 			mmc_hostname(card->host));
+		kfree(raw_ssr);
 		return 0;
 	}
 
 	for (i = 0; i < 16; i++)
-		card->raw_ssr[i] = be32_to_cpu(card->raw_ssr[i]);
+		card->raw_ssr[i] = be32_to_cpu(raw_ssr[i]);
+
+	kfree(raw_ssr);
 
 	/*
 	 * UNSTUFF_BITS only works with four u32s so we have to offset the
@@ -778,8 +788,7 @@ try_again:
 	 */
 	if (!mmc_host_is_spi(host) && rocr &&
 	   ((*rocr & 0x41000000) == 0x41000000)) {
-		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180,
-					pocr);
+		err = mmc_set_uhs_voltage(host, pocr);
 		if (err == -EAGAIN) {
 			retries--;
 			goto try_again;
@@ -844,7 +853,7 @@ int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 		/*
 		 * Fetch SCR from card.
 		 */
-		err = mmc_app_send_scr(card, card->raw_scr);
+		err = mmc_app_send_scr(card);
 		if (err)
 			return err;
 

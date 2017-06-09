@@ -46,13 +46,13 @@ enum {
 		(LOCKF_USED_IN_HARDIRQ_READ | LOCKF_USED_IN_SOFTIRQ_READ)
 
 /*
- * CONFIG_PROVE_LOCKING_SMALL is defined for sparc. Sparc requires .text,
+ * CONFIG_LOCKDEP_SMALL is defined for sparc. Sparc requires .text,
  * .data and .bss to fit in required 32MB limit for the kernel. With
- * PROVE_LOCKING we could go over this limit and cause system boot-up problems.
+ * CONFIG_LOCKDEP we could go over this limit and cause system boot-up problems.
  * So, reduce the static allocations for lockdeps related structures so that
  * everything fits in current required size limit.
  */
-#ifdef CONFIG_PROVE_LOCKING_SMALL
+#ifdef CONFIG_LOCKDEP_SMALL
 /*
  * MAX_LOCKDEP_ENTRIES is the maximum number of lock dependencies
  * we track.

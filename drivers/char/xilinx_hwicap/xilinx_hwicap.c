@@ -88,7 +88,7 @@
 #include <linux/slab.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_OF
 /* For open firmware. */

@@ -9,6 +9,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/sched/mm.h>
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>

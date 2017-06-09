@@ -697,6 +697,7 @@
 	status = "okay";
 };
 
+/* eMMC flash */
 &mmc_0 {
 	status = "okay";
 	num-slots = <1>;
@@ -714,6 +715,7 @@
 	bus-width = <8>;
 };
 
+/* WiFi SDIO module */
 &mmc_1 {
 	status = "okay";
 	num-slots = <1>;
@@ -733,6 +735,7 @@
 	vqmmc-supply = <&buck10_reg>;
 };
 
+/* uSD card */
 &mmc_2 {
 	status = "okay";
 	num-slots = <1>;

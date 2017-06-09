@@ -53,6 +53,9 @@ bool seg6_validate_srh(struct ipv6_sr_hdr *srh, int len)
 		struct sr6_tlv *tlv;
 		unsigned int tlv_len;
 
+		if (trailing < sizeof(*tlv))
+			return false;
+
 		tlv = (struct sr6_tlv *)((unsigned char *)srh + tlv_offset);
 		tlv_len = sizeof(*tlv) + tlv->len;
 
@@ -176,6 +179,8 @@ static int seg6_genl_set_tunsrc(struct sk_buff *skb, struct genl_info *info)
 
 	val = nla_data(info->attrs[SEG6_ATTR_DST]);
 	t_new = kmemdup(val, sizeof(*val), GFP_KERNEL);
+	if (!t_new)
+		return -ENOMEM;
 
 	mutex_lock(&sdata->lock);
 

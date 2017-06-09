@@ -36,7 +36,10 @@ static inline void prepare_switch_to(struct task_struct *prev,
 
 asmlinkage void ret_from_fork(void);
 
-/* data that is pointed to by thread.sp */
+/*
+ * This is the structure pointed to by thread.sp for an inactive task.  The
+ * order of the fields must match the code in __switch_to_asm().
+ */
 struct inactive_task_frame {
 #ifdef CONFIG_X86_64
 	unsigned long r15;
@@ -48,6 +51,11 @@ struct inactive_task_frame {
 	unsigned long di;
 #endif
 	unsigned long bx;
+
+	/*
+	 * These two fields must be together.  They form a stack frame header,
+	 * needed by get_frame_pointer().
+	 */
 	unsigned long bp;
 	unsigned long ret_addr;
 };

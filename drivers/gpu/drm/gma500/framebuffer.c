@@ -77,7 +77,7 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	    (transp << info->var.transp.offset);
 
 	if (regno < 16) {
-		switch (fb->bits_per_pixel) {
+		switch (fb->format->cpp[0] * 8) {
 		case 16:
 			((uint32_t *) info->pseudo_palette)[regno] = v;
 			break;
@@ -111,8 +111,9 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
         return 0;
 }
 
-static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int psbfb_vm_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -125,7 +126,7 @@ static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 				  psbfb->gtt->offset;
 
 	page_num = vma_pages(vma);
-	address = (unsigned long)vmf->virtual_address - (vmf->pgoff << PAGE_SHIFT);
+	address = vmf->address - (vmf->pgoff << PAGE_SHIFT);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
@@ -244,7 +245,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
 
-	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
 	fb->gtt = gt;
 	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
 	if (ret) {
@@ -392,7 +393,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info = drm_fb_helper_alloc_fbi(&fbdev->psb_fb_helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
-		goto err_free_range;
+		goto out;
 	}
 	info->par = fbdev;
 
@@ -400,14 +401,14 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	ret = psb_framebuffer_init(dev, psbfb, &mode_cmd, backing);
 	if (ret)
-		goto err_release;
+		goto out;
 
 	fb = &psbfb->base;
 	psbfb->fbdev = info;
 
 	fbdev->psb_fb_helper.fb = fb;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	strcpy(info->fix.id, "psbdrmfb");
 
 	info->flags = FBINFO_DEFAULT;
@@ -445,9 +446,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 					psbfb->base.width, psbfb->base.height);
 
 	return 0;
-err_release:
-	drm_fb_helper_release_fbi(&fbdev->psb_fb_helper);
-err_free_range:
+out:
 	psb_gtt_free_range(dev, backing);
 	return ret;
 }
@@ -536,7 +535,6 @@ static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
 
 	drm_fb_helper_unregister_fbi(&fbdev->psb_fb_helper);
-	drm_fb_helper_release_fbi(&fbdev->psb_fb_helper);
 
 	drm_fb_helper_fini(&fbdev->psb_fb_helper);
 	drm_framebuffer_unregister_private(&psbfb->base);
@@ -564,7 +562,7 @@ int psb_fbdev_init(struct drm_device *dev)
 	drm_fb_helper_prepare(dev, &fbdev->psb_fb_helper, &psb_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, &fbdev->psb_fb_helper,
-				 dev_priv->ops->crtcs, INTELFB_CONN_LIMIT);
+				 INTELFB_CONN_LIMIT);
 	if (ret)
 		goto free;
 

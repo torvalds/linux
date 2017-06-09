@@ -22,7 +22,9 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <net/sctp/checksum.h>
 
+#include <net/netfilter/nf_log.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
@@ -505,6 +507,51 @@ static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
+static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
+		      unsigned int dataoff,
+		      u8 pf, unsigned int hooknum)
+{
+	const struct sctphdr *sh;
+	const char *logmsg;
+
+	if (skb->len < dataoff + sizeof(struct sctphdr)) {
+		logmsg = "nf_ct_sctp: short packet ";
+		goto out_invalid;
+	}
+	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
+	    skb->ip_summed == CHECKSUM_NONE) {
+		if (!skb_make_writable(skb, dataoff + sizeof(struct sctphdr))) {
+			logmsg = "nf_ct_sctp: failed to read header ";
+			goto out_invalid;
+		}
+		sh = (const struct sctphdr *)(skb->data + dataoff);
+		if (sh->checksum != sctp_compute_cksum(skb, dataoff)) {
+			logmsg = "nf_ct_sctp: bad CRC ";
+			goto out_invalid;
+		}
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
+	return NF_ACCEPT;
+out_invalid:
+	if (LOG_INVALID(net, IPPROTO_SCTP))
+		nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL, "%s", logmsg);
+	return -NF_ACCEPT;
+}
+
+static bool sctp_can_early_drop(const struct nf_conn *ct)
+{
+	switch (ct->proto.sctp.state) {
+	case SCTP_CONNTRACK_SHUTDOWN_SENT:
+	case SCTP_CONNTRACK_SHUTDOWN_RECD:
+	case SCTP_CONNTRACK_SHUTDOWN_ACK_SENT:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -554,10 +601,8 @@ static int nlattr_to_sctp(struct nlattr *cda[], struct nf_conn *ct)
 	if (!attr)
 		return 0;
 
-	err = nla_parse_nested(tb,
-			       CTA_PROTOINFO_SCTP_MAX,
-			       attr,
-			       sctp_nla_policy);
+	err = nla_parse_nested(tb, CTA_PROTOINFO_SCTP_MAX, attr,
+			       sctp_nla_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -752,6 +797,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.packet 		= sctp_packet,
 	.get_timeouts		= sctp_get_timeouts,
 	.new 			= sctp_new,
+	.error			= sctp_error,
+	.can_early_drop		= sctp_can_early_drop,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= sctp_to_nlattr,
@@ -786,6 +833,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.packet 		= sctp_packet,
 	.get_timeouts		= sctp_get_timeouts,
 	.new 			= sctp_new,
+	.error			= sctp_error,
+	.can_early_drop		= sctp_can_early_drop,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= sctp_to_nlattr,

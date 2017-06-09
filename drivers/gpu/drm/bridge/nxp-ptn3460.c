@@ -20,8 +20,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <linux/of_graph.h>
 
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
 #include "drm_crtc.h"
@@ -292,7 +292,6 @@ static int ptn3460_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	struct ptn3460_bridge *ptn_bridge;
-	struct device_node *endpoint, *panel_node;
 	int ret;
 
 	ptn_bridge = devm_kzalloc(dev, sizeof(*ptn_bridge), GFP_KERNEL);
@@ -300,16 +299,9 @@ static int ptn3460_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (endpoint) {
-		panel_node = of_graph_get_remote_port_parent(endpoint);
-		if (panel_node) {
-			ptn_bridge->panel = of_drm_find_panel(panel_node);
-			of_node_put(panel_node);
-			if (!ptn_bridge->panel)
-				return -EPROBE_DEFER;
-		}
-	}
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &ptn_bridge->panel, NULL);
+	if (ret)
+		return ret;
 
 	ptn_bridge->client = client;
 

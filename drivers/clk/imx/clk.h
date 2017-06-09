@@ -34,6 +34,7 @@ enum imx_pllv3_type {
 	IMX_PLLV3_AV,
 	IMX_PLLV3_ENET,
 	IMX_PLLV3_ENET_IMX7,
+	IMX_PLLV3_SYS_VF610,
 };
 
 struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,

@@ -932,9 +932,10 @@ static void volume_control_quirks(struct usb_mixer_elem_info *cval,
 	case USB_ID(0x046d, 0x0826): /* HD Webcam c525 */
 	case USB_ID(0x046d, 0x08ca): /* Logitech Quickcam Fusion */
 	case USB_ID(0x046d, 0x0991):
+	case USB_ID(0x046d, 0x09a2): /* QuickCam Communicate Deluxe/S7500 */
 	/* Most audio usb devices lie about volume resolution.
 	 * Most Logitech webcams have res = 384.
-	 * Proboly there is some logitech magic behind this number --fishor
+	 * Probably there is some logitech magic behind this number --fishor
 	 */
 		if (!strcmp(kctl->id.name, "Mic Capture Volume")) {
 			usb_audio_info(chip,
@@ -1171,7 +1172,7 @@ static struct snd_kcontrol_new usb_feature_unit_ctl = {
 };
 
 /* the read-only variant */
-static struct snd_kcontrol_new usb_feature_unit_ctl_ro = {
+static const struct snd_kcontrol_new usb_feature_unit_ctl_ro = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "", /* will be filled later manually */
 	.info = mixer_ctl_feature_info,
@@ -1744,7 +1745,7 @@ static int mixer_ctl_procunit_put(struct snd_kcontrol *kcontrol,
 }
 
 /* alsa control interface for processing/extension unit */
-static struct snd_kcontrol_new mixer_procunit_ctl = {
+static const struct snd_kcontrol_new mixer_procunit_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "", /* will be filled later */
 	.info = mixer_ctl_feature_info,
@@ -2032,7 +2033,7 @@ static int mixer_ctl_selector_put(struct snd_kcontrol *kcontrol,
 }
 
 /* alsa control interface for selector unit */
-static struct snd_kcontrol_new mixer_selectunit_ctl = {
+static const struct snd_kcontrol_new mixer_selectunit_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "", /* will be filled later */
 	.info = mixer_ctl_selector_info,

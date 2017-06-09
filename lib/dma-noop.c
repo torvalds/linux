@@ -1,7 +1,7 @@
 /*
  *	lib/dma-noop.c
  *
- * Simple DMA noop-ops that map 1:1 with memory
+ * DMA operations that map to physical addresses without flushing memory.
  */
 #include <linux/export.h>
 #include <linux/mm.h>
@@ -64,7 +64,7 @@ static int dma_noop_supported(struct device *dev, u64 mask)
 	return 1;
 }
 
-struct dma_map_ops dma_noop_ops = {
+const struct dma_map_ops dma_noop_ops = {
 	.alloc			= dma_noop_alloc,
 	.free			= dma_noop_free,
 	.map_page		= dma_noop_map_page,

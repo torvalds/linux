@@ -1,8 +1,5 @@
 CFLAGS = -Wall
-BINARIES = sas
-all: $(BINARIES)
+TEST_GEN_PROGS = sas
 
 include ../lib.mk
 
-clean:
-	rm -rf $(BINARIES)

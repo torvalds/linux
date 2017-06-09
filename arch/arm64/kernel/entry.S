@@ -31,7 +31,7 @@
 #include <asm/memory.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
-#include <asm/uaccess.h>
+#include <asm/asm-uaccess.h>
 #include <asm/unistd.h>
 
 /*
@@ -428,12 +428,13 @@ el1_da:
 	/*
 	 * Data abort handling
 	 */
-	mrs	x0, far_el1
+	mrs	x3, far_el1
 	enable_dbg
 	// re-enable interrupts if they were enabled in the aborted context
 	tbnz	x23, #7, 1f			// PSR_I_BIT
 	enable_irq
 1:
+	clear_address_tag x0, x3
 	mov	x2, sp				// struct pt_regs
 	bl	do_mem_abort
 
@@ -594,7 +595,7 @@ el0_da:
 	// enable interrupts before calling the main handler
 	enable_dbg_and_irq
 	ct_user_exit
-	bic	x0, x26, #(0xff << 56)
+	clear_address_tag x0, x26
 	mov	x1, x25
 	mov	x2, sp
 	bl	do_mem_abort
@@ -683,7 +684,7 @@ el0_inv:
 	mov	x0, sp
 	mov	x1, #BAD_SYNC
 	mov	x2, x25
-	bl	bad_mode
+	bl	bad_el0_sync
 	b	ret_to_user
 ENDPROC(el0_sync)
 

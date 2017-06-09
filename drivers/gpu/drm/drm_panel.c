@@ -137,7 +137,7 @@ EXPORT_SYMBOL(drm_panel_detach);
  * Return: A pointer to the panel registered for the specified device tree
  * node or NULL if no panel matching the device tree node can be found.
  */
-struct drm_panel *of_drm_find_panel(struct device_node *np)
+struct drm_panel *of_drm_find_panel(const struct device_node *np)
 {
 	struct drm_panel *panel;
 

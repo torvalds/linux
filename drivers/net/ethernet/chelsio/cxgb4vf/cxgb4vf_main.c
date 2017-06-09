@@ -158,20 +158,23 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 		netif_carrier_on(dev);
 
 		switch (pi->link_cfg.speed) {
-		case 40000:
-			s = "40Gbps";
+		case 100:
+			s = "100Mbps";
 			break;
-
+		case 1000:
+			s = "1Gbps";
+			break;
 		case 10000:
 			s = "10Gbps";
 			break;
-
-		case 1000:
-			s = "1000Mbps";
+		case 25000:
+			s = "25Gbps";
 			break;
-
-		case 100:
-			s = "100Mbps";
+		case 40000:
+			s = "40Gbps";
+			break;
+		case 100000:
+			s = "100Gbps";
 			break;
 
 		default:

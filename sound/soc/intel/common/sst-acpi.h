@@ -15,13 +15,28 @@
 #include <linux/stddef.h>
 #include <linux/acpi.h>
 
-/* translation fron HID to I2C name, needed for DAI codec_name */
+struct sst_acpi_package_context {
+	char *name;           /* package name */
+	int length;           /* number of elements */
+	struct acpi_buffer *format;
+	struct acpi_buffer *state;
+	bool data_valid;
+};
+
 #if IS_ENABLED(CONFIG_ACPI)
+/* translation fron HID to I2C name, needed for DAI codec_name */
 const char *sst_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN]);
+bool sst_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
+				    struct sst_acpi_package_context *ctx);
 #else
 static inline const char *sst_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN])
 {
 	return NULL;
+}
+static inline bool sst_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
+					   struct sst_acpi_package_context *ctx)
+{
+	return false;
 }
 #endif
 

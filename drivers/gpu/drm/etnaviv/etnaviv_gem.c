@@ -16,6 +16,8 @@
 
 #include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"
@@ -175,8 +177,9 @@ int etnaviv_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return obj->ops->mmap(obj, vma);
 }
 
-int etnaviv_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int etnaviv_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct page **pages, *page;
@@ -202,15 +205,14 @@ int etnaviv_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	/* We don't use vmf->pgoff since that has the fake offset: */
-	pgoff = ((unsigned long)vmf->virtual_address -
-			vma->vm_start) >> PAGE_SHIFT;
+	pgoff = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
 	page = pages[pgoff];
 
-	VERB("Inserting %p pfn %lx, pa %lx", vmf->virtual_address,
+	VERB("Inserting %p pfn %lx, pa %lx", (void *)vmf->address,
 	     page_to_pfn(page), page_to_pfn(page) << PAGE_SHIFT);
 
-	ret = vm_insert_page(vma, (unsigned long)vmf->virtual_address, page);
+	ret = vm_insert_page(vma, vmf->address, page);
 
 out:
 	switch (ret) {
@@ -487,7 +489,7 @@ static void etnaviv_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 
 	seq_printf(m, "%08x: %c %2d (%2d) %08lx %p %zd\n",
 			etnaviv_obj->flags, is_active(etnaviv_obj) ? 'A' : 'I',
-			obj->name, obj->refcount.refcount.counter,
+			obj->name, kref_read(&obj->refcount),
 			off, etnaviv_obj->vaddr, obj->size);
 
 	rcu_read_lock();
@@ -759,7 +761,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 	down_read(&mm->mmap_sem);
 	while (pinned < npages) {
 		ret = get_user_pages_remote(task, mm, ptr, npages - pinned,
-					    flags, pvec + pinned, NULL);
+					    flags, pvec + pinned, NULL, NULL);
 		if (ret < 0)
 			break;
 

@@ -43,14 +43,11 @@
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
 
-#include "qedr_hsi.h"
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_roce_if.h>
 #include "qedr.h"
-#include "qedr_hsi.h"
 #include "verbs.h"
 #include <rdma/qedr-abi.h>
-#include "qedr_hsi.h"
 #include "qedr_cm.h"
 
 void qedr_inc_sw_gsi_cons(struct qedr_qp_hwq_info *info)
@@ -87,11 +84,8 @@ void qedr_ll2_tx_cb(void *_qdev, struct qed_roce_ll2_packet *pkt)
 	qedr_inc_sw_gsi_cons(&qp->sq);
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 
-	if (cq->ibcq.comp_handler) {
-		spin_lock_irqsave(&cq->comp_handler_lock, flags);
+	if (cq->ibcq.comp_handler)
 		(*cq->ibcq.comp_handler) (&cq->ibcq, cq->ibcq.cq_context);
-		spin_unlock_irqrestore(&cq->comp_handler_lock, flags);
-	}
 }
 
 void qedr_ll2_rx_cb(void *_dev, struct qed_roce_ll2_packet *pkt,
@@ -113,11 +107,8 @@ void qedr_ll2_rx_cb(void *_dev, struct qed_roce_ll2_packet *pkt,
 
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 
-	if (cq->ibcq.comp_handler) {
-		spin_lock_irqsave(&cq->comp_handler_lock, flags);
+	if (cq->ibcq.comp_handler)
 		(*cq->ibcq.comp_handler) (&cq->ibcq, cq->ibcq.cq_context);
-		spin_unlock_irqrestore(&cq->comp_handler_lock, flags);
-	}
 }
 
 static void qedr_destroy_gsi_cq(struct qedr_dev *dev,
@@ -252,8 +243,8 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 					int *roce_mode)
 {
 	bool has_vlan = false, has_grh_ipv6 = true;
-	struct ib_ah_attr *ah_attr = &get_qedr_ah(ud_wr(swr)->ah)->attr;
-	struct ib_global_route *grh = &ah_attr->grh;
+	struct rdma_ah_attr *ah_attr = &get_qedr_ah(ud_wr(swr)->ah)->attr;
+	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	union ib_gid sgid;
 	int send_size = 0;
 	u16 vlan_id = 0;
@@ -269,31 +260,34 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 	for (i = 0; i < swr->num_sge; ++i)
 		send_size += swr->sg_list[i].length;
 
-	rc = ib_get_cached_gid(qp->ibqp.device, ah_attr->port_num,
+	rc = ib_get_cached_gid(qp->ibqp.device, rdma_ah_get_port_num(ah_attr),
 			       grh->sgid_index, &sgid, &sgid_attr);
 	if (rc) {
 		DP_ERR(dev,
 		       "gsi post send: failed to get cached GID (port=%d, ix=%d)\n",
-		       ah_attr->port_num, grh->sgid_index);
+		       rdma_ah_get_port_num(ah_attr),
+		       grh->sgid_index);
 		return rc;
 	}
 
-	vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
-	if (vlan_id < VLAN_CFI_MASK)
-		has_vlan = true;
-	if (sgid_attr.ndev)
+	if (sgid_attr.ndev) {
+		vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
+		if (vlan_id < VLAN_CFI_MASK)
+			has_vlan = true;
+
 		dev_put(sgid_attr.ndev);
+	}
 
 	if (!memcmp(&sgid, &zgid, sizeof(sgid))) {
 		DP_ERR(dev, "gsi post send: GID not found GID index %d\n",
-		       ah_attr->grh.sgid_index);
+		       grh->sgid_index);
 		return -ENOENT;
 	}
 
 	has_udp = (sgid_attr.gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP);
 	if (!has_udp) {
 		/* RoCE v1 */
-		ether_type = ETH_P_ROCE;
+		ether_type = ETH_P_IBOE;
 		*roce_mode = ROCE_V1;
 	} else if (ipv6_addr_v4mapped((struct in6_addr *)&sgid)) {
 		/* RoCE v2 IPv4 */
@@ -316,7 +310,7 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 	}
 
 	/* ENET + VLAN headers */
-	ether_addr_copy(udh->eth.dmac_h, ah_attr->dmac);
+	ether_addr_copy(udh->eth.dmac_h, ah_attr->roce.dmac);
 	ether_addr_copy(udh->eth.smac_h, dev->ndev->dev_addr);
 	if (has_vlan) {
 		udh->eth.type = htons(ETH_P_8021Q);
@@ -350,13 +344,13 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 		u32 ipv4_addr;
 
 		udh->ip4.protocol = IPPROTO_UDP;
-		udh->ip4.tos = htonl(ah_attr->grh.flow_label);
+		udh->ip4.tos = htonl(grh->flow_label);
 		udh->ip4.frag_off = htons(IP_DF);
-		udh->ip4.ttl = ah_attr->grh.hop_limit;
+		udh->ip4.ttl = grh->hop_limit;
 
 		ipv4_addr = qedr_get_ipv4_from_gid(sgid.raw);
 		udh->ip4.saddr = ipv4_addr;
-		ipv4_addr = qedr_get_ipv4_from_gid(ah_attr->grh.dgid.raw);
+		ipv4_addr = qedr_get_ipv4_from_gid(grh->dgid.raw);
 		udh->ip4.daddr = ipv4_addr;
 		/* note: checksum is calculated by the device */
 	}
@@ -404,9 +398,9 @@ static inline int qedr_gsi_build_packet(struct qedr_dev *dev,
 	}
 
 	if (ether_addr_equal(udh.eth.smac_h, udh.eth.dmac_h))
-		packet->tx_dest = QED_ROCE_LL2_TX_DEST_NW;
-	else
 		packet->tx_dest = QED_ROCE_LL2_TX_DEST_LB;
+	else
+		packet->tx_dest = QED_ROCE_LL2_TX_DEST_NW;
 
 	packet->roce_mode = roce_mode;
 	memcpy(packet->header.vaddr, ud_header_buffer, header_size);

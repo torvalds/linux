@@ -41,7 +41,7 @@
 #include <linux/atomic.h>
 #include <asm/byteorder.h>
 #include <asm/current.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ioctls.h>
 #include <linux/stddef.h>
 #include <linux/slab.h>
@@ -358,6 +358,9 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 			       rt->dst.dev->mtu);
 		return -EMSGSIZE;
 	}
+	if (length < sizeof(struct iphdr))
+		return -EINVAL;
+
 	if (flags&MSG_PROBE)
 		goto out;
 
@@ -382,6 +385,9 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 	skb->ip_summed = CHECKSUM_NONE;
 
 	sock_tx_timestamp(sk, sockc->tsflags, &skb_shinfo(skb)->tx_flags);
+
+	if (flags & MSG_CONFIRM)
+		skb_set_dst_pending_confirm(skb, 1);
 
 	skb->transport_header = skb->network_header;
 	err = -EFAULT;
@@ -666,7 +672,8 @@ out:
 	return len;
 
 do_confirm:
-	dst_confirm(&rt->dst);
+	if (msg->msg_flags & MSG_PROBE)
+		dst_confirm_neigh(&rt->dst, &fl4.daddr);
 	if (!(msg->msg_flags & MSG_PROBE) || len)
 		goto back_from_confirm;
 	err = 0;
@@ -678,7 +685,9 @@ static void raw_close(struct sock *sk, long timeout)
 	/*
 	 * Raw sockets may have direct kernel references. Kill them.
 	 */
+	rtnl_lock();
 	ip_ra_control(sk, 0, NULL);
+	rtnl_unlock();
 
 	sk_common_release(sk);
 }

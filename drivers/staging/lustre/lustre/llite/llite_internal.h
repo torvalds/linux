@@ -35,7 +35,6 @@
 #include "../include/lustre_debug.h"
 #include "../include/lustre_ver.h"
 #include "../include/lustre_disk.h"	/* for s2sbi */
-#include "../include/lustre_eacl.h"
 #include "../include/lustre_linkea.h"
 
 /* for struct cl_lock_descr and struct cl_io */
@@ -281,10 +280,8 @@ static inline struct ll_inode_info *ll_i2info(struct inode *inode)
 	return container_of(inode, struct ll_inode_info, lli_vfs_inode);
 }
 
-/* default to about 40meg of readahead on a given system.  That much tied
- * up in 512k readahead requests serviced at 40ms each is about 1GB/s.
- */
-#define SBI_DEFAULT_READAHEAD_MAX (40UL << (20 - PAGE_SHIFT))
+/* default to about 64M of readahead on a given system. */
+#define SBI_DEFAULT_READAHEAD_MAX	(64UL << (20 - PAGE_SHIFT))
 
 /* default to read-ahead full files smaller than 2MB on the second read */
 #define SBI_DEFAULT_READAHEAD_WHOLE_MAX (2UL << (20 - PAGE_SHIFT))
@@ -321,6 +318,9 @@ struct ll_ra_info {
 struct ra_io_arg {
 	unsigned long ria_start;  /* start offset of read-ahead*/
 	unsigned long ria_end;    /* end offset of read-ahead*/
+	unsigned long ria_reserved; /* reserved pages for read-ahead */
+	unsigned long ria_end_min;  /* minimum end to cover current read */
+	bool ria_eof;		    /* reach end of file */
 	/* If stride read pattern is detected, ria_stoff means where
 	 * stride read is started. Note: for normal read-ahead, the
 	 * value here is meaningless, and also it will not be accessed
@@ -505,6 +505,7 @@ struct ll_sb_info {
 						 */
 	/* root squash */
 	struct root_squash_info	  ll_squash;
+	struct path		 ll_mnt;
 
 	__kernel_fsid_t		  ll_fsid;
 	struct kobject		 ll_kobj; /* sysfs object */
@@ -550,6 +551,11 @@ struct ll_readahead_state {
 	 * PTLRPC_MAX_BRW_PAGES chunks up to ->ra_max_pages.
 	 */
 	unsigned long   ras_window_start, ras_window_len;
+	/*
+	 * Optimal RPC size. It decides how many pages will be sent
+	 * for each read-ahead.
+	 */
+	unsigned long	ras_rpc_size;
 	/*
 	 * Where next read-ahead should start at. This lies within read-ahead
 	 * window. Read-ahead window is read in pieces rather than at once
@@ -743,7 +749,8 @@ int ll_file_open(struct inode *inode, struct file *file);
 int ll_file_release(struct inode *inode, struct file *file);
 int ll_release_openhandle(struct inode *, struct lookup_intent *);
 int ll_md_real_close(struct inode *inode, fmode_t fmode);
-int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat);
+int ll_getattr(const struct path *path, struct kstat *stat,
+	       u32 request_mask, unsigned int flags);
 struct posix_acl *ll_get_acl(struct inode *inode, int type);
 int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 	       const char *name, int namelen);
@@ -766,10 +773,10 @@ int ll_merge_attr(const struct lu_env *env, struct inode *inode);
 int ll_fid2path(struct inode *inode, void __user *arg);
 int ll_data_version(struct inode *inode, __u64 *data_version, int flags);
 int ll_hsm_release(struct inode *inode);
+int ll_hsm_state_set(struct inode *inode, struct hsm_state_set *hss);
 
 /* llite/dcache.c */
 
-int ll_d_init(struct dentry *de);
 extern const struct dentry_operations ll_d_ops;
 void ll_intent_drop_lock(struct lookup_intent *);
 void ll_intent_release(struct lookup_intent *);
@@ -1148,7 +1155,7 @@ dentry_may_statahead(struct inode *dir, struct dentry *dentry)
 	 * 'lld_sa_generation == lli->lli_sa_generation'.
 	 */
 	ldd = ll_d2d(dentry);
-	if (ldd && ldd->lld_sa_generation == lli->lli_sa_generation)
+	if (ldd->lld_sa_generation == lli->lli_sa_generation)
 		return false;
 
 	return true;
@@ -1267,17 +1274,7 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 
 static inline int d_lustre_invalid(const struct dentry *dentry)
 {
-	struct ll_dentry_data *lld = ll_d2d(dentry);
-
-	return !lld || lld->lld_invalid;
-}
-
-static inline void __d_lustre_invalidate(struct dentry *dentry)
-{
-	struct ll_dentry_data *lld = ll_d2d(dentry);
-
-	if (lld)
-		lld->lld_invalid = 1;
+	return ll_d2d(dentry)->lld_invalid;
 }
 
 /*
@@ -1293,7 +1290,7 @@ static inline void d_lustre_invalidate(struct dentry *dentry, int nested)
 
 	spin_lock_nested(&dentry->d_lock,
 			 nested ? DENTRY_D_LOCK_NESTED : DENTRY_D_LOCK_NORMAL);
-	__d_lustre_invalidate(dentry);
+	ll_d2d(dentry)->lld_invalid = 1;
 	/*
 	 * We should be careful about dentries created by d_obtain_alias().
 	 * These dentries are not put in the dentry tree, instead they are
@@ -1332,7 +1329,7 @@ int cl_setattr_ost(struct cl_object *obj, const struct iattr *attr,
 		   unsigned int attr_flags);
 
 extern struct lu_env *cl_inode_fini_env;
-extern int cl_inode_fini_refcheck;
+extern u16 cl_inode_fini_refcheck;
 
 int cl_file_inode_init(struct inode *inode, struct lustre_md *md);
 void cl_inode_fini(struct inode *inode);

@@ -2019,7 +2019,7 @@ static int mt2063_get_status(struct dvb_frontend *fe, u32 *tuner_status)
 	return 0;
 }
 
-static int mt2063_release(struct dvb_frontend *fe)
+static void mt2063_release(struct dvb_frontend *fe)
 {
 	struct mt2063_state *state = fe->tuner_priv;
 
@@ -2027,8 +2027,6 @@ static int mt2063_release(struct dvb_frontend *fe)
 
 	fe->tuner_priv = NULL;
 	kfree(state);
-
-	return 0;
 }
 
 static int mt2063_set_analog_params(struct dvb_frontend *fe,

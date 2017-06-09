@@ -45,10 +45,10 @@ struct drm_device;
  *   drm_object_attach_property() before the object is visible to userspace.
  *
  * - For objects with dynamic lifetimes (as indicated by a non-NULL @free_cb) it
- *   provides reference counting through drm_mode_object_reference() and
- *   drm_mode_object_unreference(). This is used by &drm_framebuffer,
- *   &drm_connector and &drm_property_blob. These objects provide specialized
- *   reference counting wrappers.
+ *   provides reference counting through drm_mode_object_get() and
+ *   drm_mode_object_put(). This is used by &drm_framebuffer, &drm_connector
+ *   and &drm_property_blob. These objects provide specialized reference
+ *   counting wrappers.
  */
 struct drm_mode_object {
 	uint32_t id;
@@ -86,10 +86,15 @@ struct drm_object_properties {
 	 *
 	 * Note that atomic drivers do not store mutable properties in this
 	 * array, but only the decoded values in the corresponding state
-	 * structure. The decoding is done using the ->atomic_get_property and
-	 * ->atomic_set_property hooks of the corresponding object. Hence atomic
-	 * drivers should not use drm_object_property_set_value() and
-	 * drm_object_property_get_value() on mutable objects, i.e. those
+	 * structure. The decoding is done using the &drm_crtc.atomic_get_property and
+	 * &drm_crtc.atomic_set_property hooks for &struct drm_crtc. For
+	 * &struct drm_plane the hooks are &drm_plane_funcs.atomic_get_property and
+	 * &drm_plane_funcs.atomic_set_property. And for &struct drm_connector
+	 * the hooks are &drm_connector_funcs.atomic_get_property and
+	 * &drm_connector_funcs.atomic_set_property .
+	 *
+	 * Hence atomic drivers should not use drm_object_property_set_value()
+	 * and drm_object_property_get_value() on mutable objects, i.e. those
 	 * without the DRM_MODE_PROP_IMMUTABLE flag set.
 	 */
 	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
@@ -109,8 +114,32 @@ struct drm_object_properties {
 
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 					     uint32_t id, uint32_t type);
-void drm_mode_object_reference(struct drm_mode_object *obj);
-void drm_mode_object_unreference(struct drm_mode_object *obj);
+void drm_mode_object_get(struct drm_mode_object *obj);
+void drm_mode_object_put(struct drm_mode_object *obj);
+
+/**
+ * drm_mode_object_reference - acquire a mode object reference
+ * @obj: DRM mode object
+ *
+ * This is a compatibility alias for drm_mode_object_get() and should not be
+ * used by new code.
+ */
+static inline void drm_mode_object_reference(struct drm_mode_object *obj)
+{
+	drm_mode_object_get(obj);
+}
+
+/**
+ * drm_mode_object_unreference - release a mode object reference
+ * @obj: DRM mode object
+ *
+ * This is a compatibility alias for drm_mode_object_put() and should not be
+ * used by new code.
+ */
+static inline void drm_mode_object_unreference(struct drm_mode_object *obj)
+{
+	drm_mode_object_put(obj);
+}
 
 int drm_object_property_set_value(struct drm_mode_object *obj,
 				  struct drm_property *property,

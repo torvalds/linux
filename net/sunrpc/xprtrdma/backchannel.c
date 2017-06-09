@@ -55,7 +55,8 @@ static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
 	if (IS_ERR(rb))
 		goto out_fail;
 	req->rl_sendbuf = rb;
-	xdr_buf_init(&rqst->rq_snd_buf, rb->rg_base, size);
+	xdr_buf_init(&rqst->rq_snd_buf, rb->rg_base,
+		     min_t(size_t, size, PAGE_SIZE));
 	rpcrdma_set_xprtdata(rqst, req);
 	return 0;
 
@@ -118,11 +119,9 @@ int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 
 	for (i = 0; i < (reqs << 1); i++) {
 		rqst = kzalloc(sizeof(*rqst), GFP_KERNEL);
-		if (!rqst) {
-			pr_err("RPC:       %s: Failed to create bc rpc_rqst\n",
-			       __func__);
+		if (!rqst)
 			goto out_free;
-		}
+
 		dprintk("RPC:       %s: new rqst %p\n", __func__, rqst);
 
 		rqst->rq_xprt = &r_xprt->rx_xprt;
@@ -191,6 +190,7 @@ size_t xprt_rdma_bc_maxpayload(struct rpc_xprt *xprt)
 	size_t maxmsg;
 
 	maxmsg = min_t(unsigned int, cdata->inline_rsize, cdata->inline_wsize);
+	maxmsg = min_t(unsigned int, maxmsg, PAGE_SIZE);
 	return maxmsg - RPCRDMA_HDRLEN_MIN;
 }
 

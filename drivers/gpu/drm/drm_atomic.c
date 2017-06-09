@@ -35,19 +35,14 @@
 
 #include "drm_crtc_internal.h"
 
-static void crtc_commit_free(struct kref *kref)
+void __drm_crtc_commit_free(struct kref *kref)
 {
 	struct drm_crtc_commit *commit =
 		container_of(kref, struct drm_crtc_commit, ref);
 
 	kfree(commit);
 }
-
-void drm_crtc_commit_put(struct drm_crtc_commit *commit)
-{
-	kref_put(&commit->ref, crtc_commit_free);
-}
-EXPORT_SYMBOL(drm_crtc_commit_put);
+EXPORT_SYMBOL(__drm_crtc_commit_free);
 
 /**
  * drm_atomic_state_default_release -
@@ -155,7 +150,7 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 						       state->connectors[i].state);
 		state->connectors[i].ptr = NULL;
 		state->connectors[i].state = NULL;
-		drm_connector_unreference(connector);
+		drm_connector_put(connector);
 	}
 
 	for (i = 0; i < config->num_crtc; i++) {
@@ -200,8 +195,8 @@ EXPORT_SYMBOL(drm_atomic_state_default_clear);
  * all locks. So someone else could sneak in and change the current modeset
  * configuration. Which means that all the state assembled in @state is no
  * longer an atomic update to the current state, but to some arbitrary earlier
- * state. Which could break assumptions the driver's ->atomic_check likely
- * relies on.
+ * state. Which could break assumptions the driver's
+ * &drm_mode_config_funcs.atomic_check likely relies on.
  *
  * Hence we must clear all cached state and completely start over, using this
  * function.
@@ -280,6 +275,8 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 		return ERR_PTR(-ENOMEM);
 
 	state->crtcs[index].state = crtc_state;
+	state->crtcs[index].old_state = crtc->state;
+	state->crtcs[index].new_state = crtc_state;
 	state->crtcs[index].ptr = crtc;
 	crtc_state->state = state;
 
@@ -291,15 +288,15 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_get_crtc_state);
 
 static void set_out_fence_for_crtc(struct drm_atomic_state *state,
-				   struct drm_crtc *crtc, s64 __user *fence_ptr)
+				   struct drm_crtc *crtc, s32 __user *fence_ptr)
 {
 	state->crtcs[drm_crtc_index(crtc)].out_fence_ptr = fence_ptr;
 }
 
-static s64 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
+static s32 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
 					  struct drm_crtc *crtc)
 {
-	s64 __user *fence_ptr;
+	s32 __user *fence_ptr;
 
 	fence_ptr = state->crtcs[drm_crtc_index(crtc)].out_fence_ptr;
 	state->crtcs[drm_crtc_index(crtc)].out_fence_ptr = NULL;
@@ -312,9 +309,8 @@ static s64 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
  * @state: the CRTC whose incoming state to update
  * @mode: kernel-internal mode to use for the CRTC, or NULL to disable
  *
- * Set a mode (originating from the kernel) on the desired CRTC state. Does
- * not change any other state properties, including enable, active, or
- * mode_changed.
+ * Set a mode (originating from the kernel) on the desired CRTC state and update
+ * the enable property.
  *
  * RETURNS:
  * Zero on success, error code on failure. Cannot return -EDEADLK.
@@ -328,7 +324,7 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 	if (mode && memcmp(&state->mode, mode, sizeof(*mode)) == 0)
 		return 0;
 
-	drm_property_unreference_blob(state->mode_blob);
+	drm_property_blob_put(state->mode_blob);
 	state->mode_blob = NULL;
 
 	if (mode) {
@@ -374,7 +370,7 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 	if (blob == state->mode_blob)
 		return 0;
 
-	drm_property_unreference_blob(state->mode_blob);
+	drm_property_blob_put(state->mode_blob);
 	state->mode_blob = NULL;
 
 	memset(&state->mode, 0, sizeof(state->mode));
@@ -386,7 +382,7 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 		                            blob->data))
 			return -EINVAL;
 
-		state->mode_blob = drm_property_reference_blob(blob);
+		state->mode_blob = drm_property_blob_get(blob);
 		state->enable = true;
 		DRM_DEBUG_ATOMIC("Set [MODE:%s] for CRTC state %p\n",
 				 state->mode.name, state);
@@ -419,9 +415,9 @@ drm_atomic_replace_property_blob(struct drm_property_blob **blob,
 	if (old_blob == new_blob)
 		return;
 
-	drm_property_unreference_blob(old_blob);
+	drm_property_blob_put(old_blob);
 	if (new_blob)
-		drm_property_reference_blob(new_blob);
+		drm_property_blob_get(new_blob);
 	*blob = new_blob;
 	*replaced = true;
 
@@ -443,13 +439,13 @@ drm_atomic_replace_property_blob_from_id(struct drm_crtc *crtc,
 			return -EINVAL;
 
 		if (expected_size > 0 && expected_size != new_blob->length) {
-			drm_property_unreference_blob(new_blob);
+			drm_property_blob_put(new_blob);
 			return -EINVAL;
 		}
 	}
 
 	drm_atomic_replace_property_blob(blob, new_blob, replaced);
-	drm_property_unreference_blob(new_blob);
+	drm_property_blob_put(new_blob);
 
 	return 0;
 }
@@ -461,11 +457,10 @@ drm_atomic_replace_property_blob_from_id(struct drm_crtc *crtc,
  * @property: the property to set
  * @val: the new property value
  *
- * Use this instead of calling crtc->atomic_set_property directly.
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_set_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_crtc_funcs.atomic_set_property for driver properties. To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -485,7 +480,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		struct drm_property_blob *mode =
 			drm_property_lookup_blob(dev, val);
 		ret = drm_atomic_set_mode_prop_for_crtc(state, mode);
-		drm_property_unreference_blob(mode);
+		drm_property_blob_put(mode);
 		return ret;
 	} else if (property == config->degamma_lut_property) {
 		ret = drm_atomic_replace_property_blob_from_id(crtc,
@@ -512,7 +507,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		state->color_mgmt_changed |= replaced;
 		return ret;
 	} else if (property == config->prop_out_fence_ptr) {
-		s64 __user *fence_ptr = u64_to_user_ptr(val);
+		s32 __user *fence_ptr = u64_to_user_ptr(val);
 
 		if (!fence_ptr)
 			return 0;
@@ -537,10 +532,10 @@ EXPORT_SYMBOL(drm_atomic_crtc_set_property);
  * @property: the property to set
  * @val: return location for the property value
  *
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_get_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_crtc_funcs.atomic_get_property for driver properties. To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -628,8 +623,8 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 * pipe.
 	 */
 	if (state->event && !state->active && !crtc->state->active) {
-		DRM_DEBUG_ATOMIC("[CRTC:%d] requesting event but off\n",
-				 crtc->base.id);
+		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] requesting event but off\n",
+				 crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 
@@ -696,6 +691,8 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 
 	state->planes[index].state = plane_state;
 	state->planes[index].ptr = plane;
+	state->planes[index].old_state = plane->state;
+	state->planes[index].new_state = plane_state;
 	plane_state->state = state;
 
 	DRM_DEBUG_ATOMIC("Added [PLANE:%d:%s] %p state to %p\n",
@@ -721,11 +718,10 @@ EXPORT_SYMBOL(drm_atomic_get_plane_state);
  * @property: the property to set
  * @val: the new property value
  *
- * Use this instead of calling plane->atomic_set_property directly.
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_set_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_plane_funcs.atomic_set_property for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -741,7 +737,7 @@ int drm_atomic_plane_set_property(struct drm_plane *plane,
 		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, val);
 		drm_atomic_set_fb_for_plane(state, fb);
 		if (fb)
-			drm_framebuffer_unreference(fb);
+			drm_framebuffer_put(fb);
 	} else if (property == config->prop_in_fence_fd) {
 		if (state->fence)
 			return -EINVAL;
@@ -796,10 +792,10 @@ EXPORT_SYMBOL(drm_atomic_plane_set_property);
  * @property: the property to set
  * @val: return location for the property value
  *
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_get_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_plane_funcs.atomic_get_property for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -902,11 +898,11 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, state->fb->pixel_format);
+	ret = drm_plane_check_pixel_format(plane, state->fb->format->format);
 	if (ret) {
 		struct drm_format_name_buf format_name;
 		DRM_DEBUG_ATOMIC("Invalid pixel format %s\n",
-		                 drm_get_format_name(state->fb->pixel_format,
+		                 drm_get_format_name(state->fb->format->format,
 		                                     &format_name));
 		return ret;
 	}
@@ -960,11 +956,11 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 	drm_printf(p, "\tfb=%u\n", state->fb ? state->fb->base.id : 0);
 	if (state->fb) {
 		struct drm_framebuffer *fb = state->fb;
-		int i, n = drm_format_num_planes(fb->pixel_format);
+		int i, n = fb->format->num_planes;
 		struct drm_format_name_buf format_name;
 
 		drm_printf(p, "\t\tformat=%s\n",
-		              drm_get_format_name(fb->pixel_format, &format_name));
+		              drm_get_format_name(fb->format->format, &format_name));
 		drm_printf(p, "\t\t\tmodifier=0x%llx\n", fb->modifier);
 		drm_printf(p, "\t\tsize=%dx%d\n", fb->width, fb->height);
 		drm_printf(p, "\t\tlayers:\n");
@@ -1034,13 +1030,16 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 	if (!connector_state)
 		return ERR_PTR(-ENOMEM);
 
-	drm_connector_reference(connector);
+	drm_connector_get(connector);
 	state->connectors[index].state = connector_state;
+	state->connectors[index].old_state = connector->state;
+	state->connectors[index].new_state = connector_state;
 	state->connectors[index].ptr = connector;
 	connector_state->state = state;
 
-	DRM_DEBUG_ATOMIC("Added [CONNECTOR:%d] %p state to %p\n",
-			 connector->base.id, connector_state, state);
+	DRM_DEBUG_ATOMIC("Added [CONNECTOR:%d:%s] %p state to %p\n",
+			 connector->base.id, connector->name,
+			 connector_state, state);
 
 	if (connector_state->crtc) {
 		struct drm_crtc_state *crtc_state;
@@ -1062,11 +1061,10 @@ EXPORT_SYMBOL(drm_atomic_get_connector_state);
  * @property: the property to set
  * @val: the new property value
  *
- * Use this instead of calling connector->atomic_set_property directly.
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_set_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_connector_funcs.atomic_set_property for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -1111,6 +1109,20 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 		state->tv.saturation = val;
 	} else if (property == config->tv_hue_property) {
 		state->tv.hue = val;
+	} else if (property == config->link_status_property) {
+		/* Never downgrade from GOOD to BAD on userspace's request here,
+		 * only hw issues can do that.
+		 *
+		 * For an atomic property the userspace doesn't need to be able
+		 * to understand all the properties, but needs to be able to
+		 * restore the state it wants on VT switch. So if the userspace
+		 * tries to change the link_status from GOOD to BAD, driver
+		 * silently rejects it and returns a 0. This prevents userspace
+		 * from accidently breaking  the display when it restores the
+		 * state.
+		 */
+		if (state->link_status != DRM_LINK_STATUS_GOOD)
+			state->link_status = val;
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
@@ -1141,10 +1153,10 @@ static void drm_atomic_connector_print_state(struct drm_printer *p,
  * @property: the property to set
  * @val: return location for the property value
  *
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_get_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_connector_funcs.atomic_get_property for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -1185,6 +1197,8 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = state->tv.saturation;
 	} else if (property == config->tv_hue_property) {
 		*val = state->tv.hue;
+	} else if (property == config->link_status_property) {
+		*val = state->link_status;
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);
@@ -1317,12 +1331,11 @@ EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
  * implicit or explicit fencing.
  *
  * This function will not set the fence to the state if it was set
- * via explicit fencing interfaces on the atomic ioctl. It will
- * all drope the reference to the fence as we not storing it
- * anywhere.
- *
- * Otherwise, if plane_state->fence is not set this function we
- * just set it with the received implict fence.
+ * via explicit fencing interfaces on the atomic ioctl. In that case it will
+ * drop the reference to the fence as we are not storing it anywhere.
+ * Otherwise, if &drm_plane_state.fence is not set this function we just set it
+ * with the received implicit fence. In both cases this function consumes a
+ * reference for @fence.
  */
 void
 drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
@@ -1361,13 +1374,13 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 		return 0;
 
 	if (conn_state->crtc) {
-		crtc_state = drm_atomic_get_existing_crtc_state(conn_state->state,
-								conn_state->crtc);
+		crtc_state = drm_atomic_get_new_crtc_state(conn_state->state,
+							   conn_state->crtc);
 
 		crtc_state->connector_mask &=
 			~(1 << drm_connector_index(conn_state->connector));
 
-		drm_connector_unreference(conn_state->connector);
+		drm_connector_put(conn_state->connector);
 		conn_state->crtc = NULL;
 	}
 
@@ -1379,7 +1392,7 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 		crtc_state->connector_mask |=
 			1 << drm_connector_index(conn_state->connector);
 
-		drm_connector_reference(conn_state->connector);
+		drm_connector_get(conn_state->connector);
 		conn_state->crtc = crtc;
 
 		DRM_DEBUG_ATOMIC("Link connector state %p to [CRTC:%d:%s]\n",
@@ -1417,7 +1430,13 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 	struct drm_mode_config *config = &state->dev->mode_config;
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_crtc_state *crtc_state;
 	int ret;
+
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
 
 	ret = drm_modeset_lock(&config->connection_mutex, state->acquire_ctx);
 	if (ret)
@@ -1427,17 +1446,21 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 			 crtc->base.id, crtc->name, state);
 
 	/*
-	 * Changed connectors are already in @state, so only need to look at the
-	 * current configuration.
+	 * Changed connectors are already in @state, so only need to look
+	 * at the connector_mask in crtc_state.
 	 */
-	drm_for_each_connector(connector, state->dev) {
-		if (connector->state->crtc != crtc)
+	drm_connector_list_iter_begin(state->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (!(crtc_state->connector_mask & (1 << drm_connector_index(connector))))
 			continue;
 
 		conn_state = drm_atomic_get_connector_state(state, connector);
-		if (IS_ERR(conn_state))
+		if (IS_ERR(conn_state)) {
+			drm_connector_list_iter_end(&conn_iter);
 			return PTR_ERR(conn_state);
+		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	return 0;
 }
@@ -1469,7 +1492,7 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 {
 	struct drm_plane *plane;
 
-	WARN_ON(!drm_atomic_get_existing_crtc_state(state, crtc));
+	WARN_ON(!drm_atomic_get_new_crtc_state(state, crtc));
 
 	drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
 		struct drm_plane_state *plane_state =
@@ -1493,18 +1516,8 @@ EXPORT_SYMBOL(drm_atomic_add_affected_planes);
 void drm_atomic_legacy_backoff(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
-	unsigned crtc_mask = 0;
-	struct drm_crtc *crtc;
 	int ret;
 	bool global = false;
-
-	drm_for_each_crtc(crtc, dev) {
-		if (crtc->acquire_ctx != state->acquire_ctx)
-			continue;
-
-		crtc_mask |= drm_crtc_mask(crtc);
-		crtc->acquire_ctx = NULL;
-	}
 
 	if (WARN_ON(dev->mode_config.acquire_ctx == state->acquire_ctx)) {
 		global = true;
@@ -1518,10 +1531,6 @@ retry:
 	ret = drm_modeset_lock_all_ctx(dev, state->acquire_ctx);
 	if (ret)
 		goto retry;
-
-	drm_for_each_crtc(crtc, dev)
-		if (drm_crtc_mask(crtc) & crtc_mask)
-			crtc->acquire_ctx = state->acquire_ctx;
 
 	if (global)
 		dev->mode_config.acquire_ctx = state->acquire_ctx;
@@ -1551,7 +1560,7 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 
 	DRM_DEBUG_ATOMIC("checking %p\n", state);
 
-	for_each_plane_in_state(state, plane, plane_state, i) {
+	for_each_new_plane_in_state(state, plane, plane_state, i) {
 		ret = drm_atomic_plane_check(plane, plane_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] atomic core check failed\n",
@@ -1560,7 +1569,7 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		}
 	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		ret = drm_atomic_crtc_check(crtc, crtc_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic core check failed\n",
@@ -1573,7 +1582,7 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		ret = config->funcs->atomic_check(state->dev, state);
 
 	if (!state->allow_modeset) {
-		for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 			if (drm_atomic_crtc_needs_modeset(crtc_state)) {
 				DRM_DEBUG_ATOMIC("[CRTC:%d:%s] requires full modeset\n",
 						 crtc->base.id, crtc->name);
@@ -1594,10 +1603,8 @@ EXPORT_SYMBOL(drm_atomic_check_only);
  * more locks but encountered a deadlock. The caller must then do the usual w/w
  * backoff dance and restart. All other errors are fatal.
  *
- * Also note that on successful execution ownership of @state is transferred
- * from the caller of this function to the function itself. The caller must not
- * free or in any other way access @state. If the function fails then the caller
- * must clean up @state itself.
+ * This function will take its own reference on @state.
+ * Callers should always release their reference with drm_atomic_state_put().
  *
  * Returns:
  * 0 on success, negative error code on failure.
@@ -1618,17 +1625,15 @@ int drm_atomic_commit(struct drm_atomic_state *state)
 EXPORT_SYMBOL(drm_atomic_commit);
 
 /**
- * drm_atomic_nonblocking_commit - atomic&nonblocking configuration commit
+ * drm_atomic_nonblocking_commit - atomic nonblocking commit
  * @state: atomic configuration to check
  *
  * Note that this function can return -EDEADLK if the driver needed to acquire
  * more locks but encountered a deadlock. The caller must then do the usual w/w
  * backoff dance and restart. All other errors are fatal.
  *
- * Also note that on successful execution ownership of @state is transferred
- * from the caller of this function to the function itself. The caller must not
- * free or in any other way access @state. If the function fails then the caller
- * must clean up @state itself.
+ * This function will take its own reference on @state.
+ * Callers should always release their reference with drm_atomic_state_put().
  *
  * Returns:
  * 0 on success, negative error code on failure.
@@ -1661,14 +1666,52 @@ static void drm_atomic_print_state(const struct drm_atomic_state *state)
 
 	DRM_DEBUG_ATOMIC("checking %p\n", state);
 
-	for_each_plane_in_state(state, plane, plane_state, i)
+	for_each_new_plane_in_state(state, plane, plane_state, i)
 		drm_atomic_plane_print_state(&p, plane_state);
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
 		drm_atomic_crtc_print_state(&p, crtc_state);
 
-	for_each_connector_in_state(state, connector, connector_state, i)
+	for_each_new_connector_in_state(state, connector, connector_state, i)
 		drm_atomic_connector_print_state(&p, connector_state);
+}
+
+static void __drm_state_dump(struct drm_device *dev, struct drm_printer *p,
+			     bool take_locks)
+{
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+
+	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+		return;
+
+	list_for_each_entry(plane, &config->plane_list, head) {
+		if (take_locks)
+			drm_modeset_lock(&plane->mutex, NULL);
+		drm_atomic_plane_print_state(p, plane->state);
+		if (take_locks)
+			drm_modeset_unlock(&plane->mutex);
+	}
+
+	list_for_each_entry(crtc, &config->crtc_list, head) {
+		if (take_locks)
+			drm_modeset_lock(&crtc->mutex, NULL);
+		drm_atomic_crtc_print_state(p, crtc->state);
+		if (take_locks)
+			drm_modeset_unlock(&crtc->mutex);
+	}
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	if (take_locks)
+		drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	drm_for_each_connector_iter(connector, &conn_iter)
+		drm_atomic_connector_print_state(p, connector->state);
+	if (take_locks)
+		drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	drm_connector_list_iter_end(&conn_iter);
 }
 
 /**
@@ -1688,22 +1731,7 @@ static void drm_atomic_print_state(const struct drm_atomic_state *state)
  */
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
 {
-	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_plane *plane;
-	struct drm_crtc *crtc;
-	struct drm_connector *connector;
-
-	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
-		return;
-
-	list_for_each_entry(plane, &config->plane_list, head)
-		drm_atomic_plane_print_state(p, plane->state);
-
-	list_for_each_entry(crtc, &config->crtc_list, head)
-		drm_atomic_crtc_print_state(p, crtc->state);
-
-	list_for_each_entry(connector, &config->connector_list, head)
-		drm_atomic_connector_print_state(p, connector->state);
+	__drm_state_dump(dev, p, false);
 }
 EXPORT_SYMBOL(drm_state_dump);
 
@@ -1714,9 +1742,7 @@ static int drm_state_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	drm_modeset_lock_all(dev);
-	drm_state_dump(dev, &p);
-	drm_modeset_unlock_all(dev);
+	__drm_state_dump(dev, &p, true);
 
 	return 0;
 }
@@ -1731,13 +1757,6 @@ int drm_atomic_debugfs_init(struct drm_minor *minor)
 	return drm_debugfs_create_files(drm_atomic_debugfs_list,
 			ARRAY_SIZE(drm_atomic_debugfs_list),
 			minor->debugfs_root, minor);
-}
-
-int drm_atomic_debugfs_cleanup(struct drm_minor *minor)
-{
-	return drm_debugfs_remove_files(drm_atomic_debugfs_list,
-					ARRAY_SIZE(drm_atomic_debugfs_list),
-					minor);
 }
 #endif
 
@@ -1830,10 +1849,10 @@ static int atomic_set_prop(struct drm_atomic_state *state,
  * @plane_mask: plane mask for planes that were updated.
  * @ret: return value, can be -EDEADLK for a retry.
  *
- * Before doing an update plane->old_fb is set to plane->fb,
- * but before dropping the locks old_fb needs to be set to NULL
- * and plane->fb updated. This is a common operation for each
- * atomic update, so this call is split off as a helper.
+ * Before doing an update &drm_plane.old_fb is set to &drm_plane.fb, but before
+ * dropping the locks old_fb needs to be set to NULL and plane->fb updated. This
+ * is a common operation for each atomic update, so this call is split off as a
+ * helper.
  */
 void drm_atomic_clean_old_fb(struct drm_device *dev,
 			     unsigned plane_mask,
@@ -1850,12 +1869,12 @@ void drm_atomic_clean_old_fb(struct drm_device *dev,
 		if (ret == 0) {
 			struct drm_framebuffer *new_fb = plane->state->fb;
 			if (new_fb)
-				drm_framebuffer_reference(new_fb);
+				drm_framebuffer_get(new_fb);
 			plane->fb = new_fb;
 			plane->crtc = plane->state->crtc;
 
 			if (plane->old_fb)
-				drm_framebuffer_unreference(plane->old_fb);
+				drm_framebuffer_put(plane->old_fb);
 		}
 		plane->old_fb = NULL;
 	}
@@ -1874,7 +1893,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  * As a contrast, with implicit fencing the kernel keeps track of any
  * ongoing rendering, and automatically ensures that the atomic update waits
  * for any pending rendering to complete. For shared buffers represented with
- * a struct &dma_buf this is tracked in &reservation_object structures.
+ * a &struct dma_buf this is tracked in &struct reservation_object.
  * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
  * whereas explicit fencing is what Android wants.
  *
@@ -1890,7 +1909,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  *	it will only check if the Sync File is a valid one.
  *
  *	On the driver side the fence is stored on the @fence parameter of
- *	struct &drm_plane_state. Drivers which also support implicit fencing
+ *	&struct drm_plane_state. Drivers which also support implicit fencing
  *	should set the implicit fence using drm_atomic_set_fence_for_plane(),
  *	to make sure there's consistent behaviour between drivers in precedence
  *	of implicit vs. explicit fencing.
@@ -1909,13 +1928,13 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  *	DRM_MODE_ATOMIC_TEST_ONLY flag the out fence will also be set to -1.
  *
  *	Note that out-fences don't have a special interface to drivers and are
- *	internally represented by a struct &drm_pending_vblank_event in struct
+ *	internally represented by a &struct drm_pending_vblank_event in struct
  *	&drm_crtc_state, which is also used by the nonblocking atomic commit
  *	helpers and for the DRM event handling for existing userspace.
  */
 
 struct drm_out_fence_state {
-	s64 __user *out_fence_ptr;
+	s32 __user *out_fence_ptr;
 	struct sync_file *sync_file;
 	int fd;
 };
@@ -1951,8 +1970,8 @@ static int prepare_crtc_signaling(struct drm_device *dev,
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)
 		return 0;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		u64 __user *fence_ptr;
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		s32 __user *fence_ptr;
 
 		fence_ptr = get_out_fence_for_crtc(crtc_state->state, crtc);
 
@@ -2031,14 +2050,17 @@ static void complete_crtc_signaling(struct drm_device *dev,
 		return;
 	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		struct drm_pending_vblank_event *event = crtc_state->event;
 		/*
-		 * TEST_ONLY and PAGE_FLIP_EVENT are mutually
-		 * exclusive, if they weren't, this code should be
-		 * called on success for TEST_ONLY too.
+		 * Free the allocated event. drm_atomic_helper_setup_commit
+		 * can allocate an event too, so only free it if it's ours
+		 * to prevent a double free in drm_atomic_state_clear.
 		 */
-		if (crtc_state->event)
-			drm_event_cancel_free(dev, &crtc_state->event->base);
+		if (event && (event->base.fence || event->base.file_priv)) {
+			drm_event_cancel_free(dev, &event->base);
+			crtc_state->event = NULL;
+		}
 	}
 
 	if (!fence_state)
@@ -2132,13 +2154,13 @@ retry:
 		}
 
 		if (!obj->properties) {
-			drm_mode_object_unreference(obj);
+			drm_mode_object_put(obj);
 			ret = -ENOENT;
 			goto out;
 		}
 
 		if (get_user(count_props, count_props_ptr + copied_objs)) {
-			drm_mode_object_unreference(obj);
+			drm_mode_object_put(obj);
 			ret = -EFAULT;
 			goto out;
 		}
@@ -2151,14 +2173,14 @@ retry:
 			struct drm_property *prop;
 
 			if (get_user(prop_id, props_ptr + copied_props)) {
-				drm_mode_object_unreference(obj);
+				drm_mode_object_put(obj);
 				ret = -EFAULT;
 				goto out;
 			}
 
 			prop = drm_mode_obj_find_prop_id(obj, prop_id);
 			if (!prop) {
-				drm_mode_object_unreference(obj);
+				drm_mode_object_put(obj);
 				ret = -ENOENT;
 				goto out;
 			}
@@ -2166,14 +2188,14 @@ retry:
 			if (copy_from_user(&prop_value,
 					   prop_values_ptr + copied_props,
 					   sizeof(prop_value))) {
-				drm_mode_object_unreference(obj);
+				drm_mode_object_put(obj);
 				ret = -EFAULT;
 				goto out;
 			}
 
 			ret = atomic_set_prop(state, obj, prop, prop_value);
 			if (ret) {
-				drm_mode_object_unreference(obj);
+				drm_mode_object_put(obj);
 				goto out;
 			}
 
@@ -2186,7 +2208,7 @@ retry:
 			plane_mask |= (1 << drm_plane_index(plane));
 			plane->old_fb = plane->fb;
 		}
-		drm_mode_object_unreference(obj);
+		drm_mode_object_put(obj);
 	}
 
 	ret = prepare_crtc_signaling(dev, state, arg, file_priv, &fence_state,
@@ -2195,10 +2217,6 @@ retry:
 		goto out;
 
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) {
-		/*
-		 * Unlike commit, check_only does not clean up state.
-		 * Below we call drm_atomic_state_put for it.
-		 */
 		ret = drm_atomic_check_only(state);
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_nonblocking_commit(state);

@@ -45,6 +45,8 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
 		return true;
 	if (IS_SKYLAKE(dev_priv))
 		return true;
+	if (IS_KABYLAKE(dev_priv) && INTEL_DEVID(dev_priv) == 0x591D)
+		return true;
 	return false;
 }
 
@@ -67,8 +69,18 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 		return 0;
 	}
 
+	if (intel_vgpu_active(dev_priv)) {
+		DRM_DEBUG_DRIVER("GVT-g is disabled for guest\n");
+		goto bail;
+	}
+
 	if (!is_supported_device(dev_priv)) {
 		DRM_DEBUG_DRIVER("Unsupported device. GVT-g is disabled\n");
+		goto bail;
+	}
+
+	if (!i915.enable_execlists) {
+		DRM_INFO("GPU guest virtualisation [GVT-g] disabled due to disabled execlist submission [i915.enable_execlists module parameter]\n");
 		goto bail;
 	}
 

@@ -9,6 +9,8 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/topology.h>
+#include <linux/sched/task.h>
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
 #include <linux/mm.h>
@@ -40,7 +42,7 @@ static inline void cpuset_dec(void)
 
 extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
-extern void cpuset_update_active_cpus(bool cpu_online);
+extern void cpuset_update_active_cpus(void);
 extern void cpuset_cpus_allowed(struct task_struct *p, struct cpumask *mask);
 extern void cpuset_cpus_allowed_fallback(struct task_struct *p);
 extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
@@ -153,7 +155,7 @@ static inline bool cpusets_enabled(void) { return false; }
 static inline int cpuset_init(void) { return 0; }
 static inline void cpuset_init_smp(void) {}
 
-static inline void cpuset_update_active_cpus(bool cpu_online)
+static inline void cpuset_update_active_cpus(void)
 {
 	partition_sched_domains(1, NULL, NULL);
 }

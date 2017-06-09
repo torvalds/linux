@@ -16,6 +16,8 @@
 #include <linux/export.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
+#include <linux/sched/stat.h>
+
 #include <asm/processor.h>
 #include <asm/user.h>
 #include <asm/fpu/xstate.h>
@@ -122,8 +124,6 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 	best = kvm_find_cpuid_entry(vcpu, 0xD, 1);
 	if (best && (best->eax & (F(XSAVES) | F(XSAVEC))))
 		best->ebx = xstate_required_size(vcpu->arch.xcr0, true);
-
-	kvm_x86_ops->fpu_activate(vcpu);
 
 	/*
 	 * The existing code assumes virtual address is 48-bit in the canonical
@@ -373,16 +373,17 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	const u32 kvm_cpuid_7_0_ebx_x86_features =
 		F(FSGSBASE) | F(BMI1) | F(HLE) | F(AVX2) | F(SMEP) |
 		F(BMI2) | F(ERMS) | f_invpcid | F(RTM) | f_mpx | F(RDSEED) |
-		F(ADX) | F(SMAP) | F(AVX512F) | F(AVX512PF) | F(AVX512ER) |
-		F(AVX512CD) | F(CLFLUSHOPT) | F(CLWB) | F(AVX512DQ) |
-		F(AVX512BW) | F(AVX512VL);
+		F(ADX) | F(SMAP) | F(AVX512IFMA) | F(AVX512F) | F(AVX512PF) |
+		F(AVX512ER) | F(AVX512CD) | F(CLFLUSHOPT) | F(CLWB) | F(AVX512DQ) |
+		F(SHA_NI) | F(AVX512BW) | F(AVX512VL);
 
 	/* cpuid 0xD.1.eax */
 	const u32 kvm_cpuid_D_1_eax_x86_features =
 		F(XSAVEOPT) | F(XSAVEC) | F(XGETBV1) | f_xsaves;
 
 	/* cpuid 7.0.ecx*/
-	const u32 kvm_cpuid_7_0_ecx_x86_features = F(PKU) | 0 /*OSPKE*/;
+	const u32 kvm_cpuid_7_0_ecx_x86_features =
+		F(AVX512VBMI) | F(PKU) | 0 /*OSPKE*/ | F(AVX512_VPOPCNTDQ);
 
 	/* cpuid 7.0.edx*/
 	const u32 kvm_cpuid_7_0_edx_x86_features =
@@ -860,12 +861,6 @@ void kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 	if (!best)
 		best = check_cpuid_limit(vcpu, function, index);
 
-	/*
-	 * Perfmon not yet supported for L2 guest.
-	 */
-	if (is_guest_mode(vcpu) && function == 0xa)
-		best = NULL;
-
 	if (best) {
 		*eax = best->eax;
 		*ebx = best->ebx;
@@ -880,6 +875,9 @@ EXPORT_SYMBOL_GPL(kvm_cpuid);
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
 	u32 eax, ebx, ecx, edx;
+
+	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
+		return 1;
 
 	eax = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	ecx = kvm_register_read(vcpu, VCPU_REGS_RCX);

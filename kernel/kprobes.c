@@ -52,20 +52,11 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 #include <asm/errno.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define KPROBE_HASH_BITS 6
 #define KPROBE_TABLE_SIZE (1 << KPROBE_HASH_BITS)
 
-
-/*
- * Some oddball architectures like 64bit powerpc have function descriptors
- * so this must be overridable.
- */
-#ifndef kprobe_lookup_name
-#define kprobe_lookup_name(name, addr) \
-	addr = ((kprobe_opcode_t *)(kallsyms_lookup_name(name)))
-#endif
 
 static int kprobes_initialized;
 static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
@@ -80,6 +71,12 @@ static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 static struct {
 	raw_spinlock_t lock ____cacheline_aligned_in_smp;
 } kretprobe_table_locks[KPROBE_TABLE_SIZE];
+
+kprobe_opcode_t * __weak kprobe_lookup_name(const char *name,
+					unsigned int __unused)
+{
+	return ((kprobe_opcode_t *)(kallsyms_lookup_name(name)));
+}
 
 static raw_spinlock_t *kretprobe_table_lock_ptr(unsigned long hash)
 {
@@ -125,7 +122,7 @@ static void *alloc_insn_page(void)
 	return module_alloc(PAGE_SIZE);
 }
 
-static void free_insn_page(void *page)
+void __weak free_insn_page(void *page)
 {
 	module_memfree(page);
 }
@@ -149,9 +146,11 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 	struct kprobe_insn_page *kip;
 	kprobe_opcode_t *slot = NULL;
 
+	/* Since the slot array is not protected by rcu, we need a mutex */
 	mutex_lock(&c->mutex);
  retry:
-	list_for_each_entry(kip, &c->pages, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(kip, &c->pages, list) {
 		if (kip->nused < slots_per_page(c)) {
 			int i;
 			for (i = 0; i < slots_per_page(c); i++) {
@@ -159,6 +158,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 					kip->slot_used[i] = SLOT_USED;
 					kip->nused++;
 					slot = kip->insns + (i * c->insn_size);
+					rcu_read_unlock();
 					goto out;
 				}
 			}
@@ -167,6 +167,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 			WARN_ON(1);
 		}
 	}
+	rcu_read_unlock();
 
 	/* If there are any garbage slots, collect it and try again. */
 	if (c->nr_garbage && collect_garbage_slots(c) == 0)
@@ -193,7 +194,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 	kip->nused = 1;
 	kip->ngarbage = 0;
 	kip->cache = c;
-	list_add(&kip->list, &c->pages);
+	list_add_rcu(&kip->list, &c->pages);
 	slot = kip->insns;
 out:
 	mutex_unlock(&c->mutex);
@@ -213,7 +214,8 @@ static int collect_one_slot(struct kprobe_insn_page *kip, int idx)
 		 * next time somebody inserts a probe.
 		 */
 		if (!list_is_singular(&kip->list)) {
-			list_del(&kip->list);
+			list_del_rcu(&kip->list);
+			synchronize_rcu();
 			kip->cache->free(kip->insns);
 			kfree(kip);
 		}
@@ -235,8 +237,7 @@ static int collect_garbage_slots(struct kprobe_insn_cache *c)
 			continue;
 		kip->ngarbage = 0;	/* we will collect all garbages */
 		for (i = 0; i < slots_per_page(c); i++) {
-			if (kip->slot_used[i] == SLOT_DIRTY &&
-			    collect_one_slot(kip, i))
+			if (kip->slot_used[i] == SLOT_DIRTY && collect_one_slot(kip, i))
 				break;
 		}
 	}
@@ -248,27 +249,58 @@ void __free_insn_slot(struct kprobe_insn_cache *c,
 		      kprobe_opcode_t *slot, int dirty)
 {
 	struct kprobe_insn_page *kip;
+	long idx;
 
 	mutex_lock(&c->mutex);
-	list_for_each_entry(kip, &c->pages, list) {
-		long idx = ((long)slot - (long)kip->insns) /
-				(c->insn_size * sizeof(kprobe_opcode_t));
-		if (idx >= 0 && idx < slots_per_page(c)) {
-			WARN_ON(kip->slot_used[idx] != SLOT_USED);
-			if (dirty) {
-				kip->slot_used[idx] = SLOT_DIRTY;
-				kip->ngarbage++;
-				if (++c->nr_garbage > slots_per_page(c))
-					collect_garbage_slots(c);
-			} else
-				collect_one_slot(kip, idx);
+	rcu_read_lock();
+	list_for_each_entry_rcu(kip, &c->pages, list) {
+		idx = ((long)slot - (long)kip->insns) /
+			(c->insn_size * sizeof(kprobe_opcode_t));
+		if (idx >= 0 && idx < slots_per_page(c))
 			goto out;
+	}
+	/* Could not find this slot. */
+	WARN_ON(1);
+	kip = NULL;
+out:
+	rcu_read_unlock();
+	/* Mark and sweep: this may sleep */
+	if (kip) {
+		/* Check double free */
+		WARN_ON(kip->slot_used[idx] != SLOT_USED);
+		if (dirty) {
+			kip->slot_used[idx] = SLOT_DIRTY;
+			kip->ngarbage++;
+			if (++c->nr_garbage > slots_per_page(c))
+				collect_garbage_slots(c);
+		} else {
+			collect_one_slot(kip, idx);
 		}
 	}
-	/* Could not free this slot. */
-	WARN_ON(1);
-out:
 	mutex_unlock(&c->mutex);
+}
+
+/*
+ * Check given address is on the page of kprobe instruction slots.
+ * This will be used for checking whether the address on a stack
+ * is on a text area or not.
+ */
+bool __is_insn_slot_addr(struct kprobe_insn_cache *c, unsigned long addr)
+{
+	struct kprobe_insn_page *kip;
+	bool ret = false;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(kip, &c->pages, list) {
+		if (addr >= (unsigned long)kip->insns &&
+		    addr < (unsigned long)kip->insns + PAGE_SIZE) {
+			ret = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return ret;
 }
 
 #ifdef CONFIG_OPTPROBES
@@ -563,7 +595,7 @@ static void kprobe_optimizer(struct work_struct *work)
 }
 
 /* Wait for completing optimization and unoptimization */
-static void wait_for_kprobe_optimizer(void)
+void wait_for_kprobe_optimizer(void)
 {
 	mutex_lock(&kprobe_mutex);
 
@@ -711,13 +743,20 @@ static void kill_optimized_kprobe(struct kprobe *p)
 	arch_remove_optimized_kprobe(op);
 }
 
+static inline
+void __prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
+{
+	if (!kprobe_ftrace(p))
+		arch_prepare_optimized_kprobe(op, p);
+}
+
 /* Try to prepare optimized instructions */
 static void prepare_optimized_kprobe(struct kprobe *p)
 {
 	struct optimized_kprobe *op;
 
 	op = container_of(p, struct optimized_kprobe, kp);
-	arch_prepare_optimized_kprobe(op, p);
+	__prepare_optimized_kprobe(op, p);
 }
 
 /* Allocate new optimized_kprobe and try to prepare optimized instructions */
@@ -731,7 +770,7 @@ static struct kprobe *alloc_aggr_kprobe(struct kprobe *p)
 
 	INIT_LIST_HEAD(&op->list);
 	op->kp.addr = p->addr;
-	arch_prepare_optimized_kprobe(op, p);
+	__prepare_optimized_kprobe(op, p);
 
 	return &op->kp;
 }
@@ -1356,26 +1395,29 @@ bool within_kprobe_blacklist(unsigned long addr)
  * This returns encoded errors if it fails to look up symbol or invalid
  * combination of parameters.
  */
-static kprobe_opcode_t *kprobe_addr(struct kprobe *p)
+static kprobe_opcode_t *_kprobe_addr(kprobe_opcode_t *addr,
+			const char *symbol_name, unsigned int offset)
 {
-	kprobe_opcode_t *addr = p->addr;
-
-	if ((p->symbol_name && p->addr) ||
-	    (!p->symbol_name && !p->addr))
+	if ((symbol_name && addr) || (!symbol_name && !addr))
 		goto invalid;
 
-	if (p->symbol_name) {
-		kprobe_lookup_name(p->symbol_name, addr);
+	if (symbol_name) {
+		addr = kprobe_lookup_name(symbol_name, offset);
 		if (!addr)
 			return ERR_PTR(-ENOENT);
 	}
 
-	addr = (kprobe_opcode_t *)(((char *)addr) + p->offset);
+	addr = (kprobe_opcode_t *)(((char *)addr) + offset);
 	if (addr)
 		return addr;
 
 invalid:
 	return ERR_PTR(-EINVAL);
+}
+
+static kprobe_opcode_t *kprobe_addr(struct kprobe *p)
+{
+	return _kprobe_addr(p->addr, p->symbol_name, p->offset);
 }
 
 /* Check passed kprobe is valid and return kprobe in kprobe_table. */
@@ -1705,6 +1747,13 @@ void unregister_kprobes(struct kprobe **kps, int num)
 }
 EXPORT_SYMBOL_GPL(unregister_kprobes);
 
+int __weak kprobe_exceptions_notify(struct notifier_block *self,
+					unsigned long val, void *data)
+{
+	return NOTIFY_DONE;
+}
+NOKPROBE_SYMBOL(kprobe_exceptions_notify);
+
 static struct notifier_block kprobe_exceptions_nb = {
 	.notifier_call = kprobe_exceptions_notify,
 	.priority = 0x7fffffff /* we need to be notified first */
@@ -1834,12 +1883,34 @@ static int pre_handler_kretprobe(struct kprobe *p, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(pre_handler_kretprobe);
 
+bool __weak arch_function_offset_within_entry(unsigned long offset)
+{
+	return !offset;
+}
+
+bool function_offset_within_entry(kprobe_opcode_t *addr, const char *sym, unsigned long offset)
+{
+	kprobe_opcode_t *kp_addr = _kprobe_addr(addr, sym, offset);
+
+	if (IS_ERR(kp_addr))
+		return false;
+
+	if (!kallsyms_lookup_size_offset((unsigned long)kp_addr, NULL, &offset) ||
+						!arch_function_offset_within_entry(offset))
+		return false;
+
+	return true;
+}
+
 int register_kretprobe(struct kretprobe *rp)
 {
 	int ret = 0;
 	struct kretprobe_instance *inst;
 	int i;
 	void *addr;
+
+	if (!function_offset_within_entry(rp->kp.addr, rp->kp.symbol_name, rp->kp.offset))
+		return -EINVAL;
 
 	if (kretprobe_blacklist_size) {
 		addr = kprobe_addr(&rp->kp);
@@ -2112,6 +2183,12 @@ static int kprobes_module_callback(struct notifier_block *nb,
 				 * The vaddr this probe is installed will soon
 				 * be vfreed buy not synced to disk. Hence,
 				 * disarming the breakpoint isn't needed.
+				 *
+				 * Note, this will also move any optimized probes
+				 * that are pending to be removed from their
+				 * corresponding lists to the freeing_list and
+				 * will not be touched by the delayed
+				 * kprobe_optimizer work handler.
 				 */
 				kill_kprobe(p);
 			}
@@ -2151,8 +2228,8 @@ static int __init init_kprobes(void)
 	if (kretprobe_blacklist_size) {
 		/* lookup the function address from its name */
 		for (i = 0; kretprobe_blacklist[i].name != NULL; i++) {
-			kprobe_lookup_name(kretprobe_blacklist[i].name,
-					   kretprobe_blacklist[i].addr);
+			kretprobe_blacklist[i].addr =
+				kprobe_lookup_name(kretprobe_blacklist[i].name, 0);
 			if (!kretprobe_blacklist[i].addr)
 				printk("kretprobe: lookup failed: %s\n",
 				       kretprobe_blacklist[i].name);

@@ -8,7 +8,7 @@
  * option) any later version.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/bootinfo.h>
 
 #include <loongson.h>

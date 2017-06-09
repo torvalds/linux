@@ -168,7 +168,7 @@ GET_AVG(latency_avg);
 GET_AVG(apbridge_unipro_latency_avg);
 GET_AVG(gbphy_firmware_latency_avg);
 
-void abort()
+void abort(void)
 {
 	_exit(1);
 }
@@ -476,7 +476,7 @@ int format_output(struct loopback_test *t,
 			r->gbphy_firmware_latency_jitter);
 
 	} else {
-		len += snprintf(&buf[len], buf_len- len, ",%s,%s,%u,%u,%u",
+		len += snprintf(&buf[len], buf_len - len, ",%s,%s,%u,%u,%u",
 			t->test_name, dev_name, t->size, t->iteration_max,
 			r->error);
 
@@ -521,7 +521,6 @@ static int log_results(struct loopback_test *t)
 	int fd, i, len, ret;
 	struct tm tm;
 	time_t local_time;
-	mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 	char file_name[MAX_SYSFS_PATH];
 	char data[CSV_MAX_LINE];
 
@@ -538,7 +537,7 @@ static int log_results(struct loopback_test *t)
 		snprintf(file_name, sizeof(file_name), "%s_%d_%d.csv",
 			t->test_name, t->size, t->iteration_max);
 
-		fd = open(file_name, O_WRONLY | O_CREAT | O_APPEND, mode);
+		fd = open(file_name, O_WRONLY | O_CREAT | O_APPEND, 0644);
 		if (fd < 0) {
 			fprintf(stderr, "unable to open %s for appendation\n", file_name);
 			abort();
@@ -637,7 +636,7 @@ int find_loopback_devices(struct loopback_test *t)
 	ret = 0;
 done:
 	for (i = 0; i < n; i++)
-		free(namelist[n]);
+		free(namelist[i]);
 	free(namelist);
 baddir:
 	return ret;
@@ -675,7 +674,7 @@ static int open_poll_files(struct loopback_test *t)
 
 err:
 	for (i = 0; i < fds_idx; i++)
-		close(t->fds[fds_idx].fd);
+		close(t->fds[i].fd);
 
 	return -1;
 }

@@ -232,7 +232,8 @@ void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 }
 
 static int radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				 u16 *blue, uint32_t size)
+				 u16 *blue, uint32_t size,
+				 struct drm_modeset_acquire_ctx *ctx)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	int i;
@@ -485,7 +486,8 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 					struct drm_framebuffer *fb,
 					struct drm_pending_vblank_event *event,
 					uint32_t page_flip_flags,
-					uint32_t target)
+					uint32_t target,
+					struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -549,19 +551,19 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	if (!ASIC_IS_AVIVO(rdev)) {
 		/* crtc offset is from display base addr not FB location */
 		base -= radeon_crtc->legacy_display_base_addr;
-		pitch_pixels = fb->pitches[0] / (fb->bits_per_pixel / 8);
+		pitch_pixels = fb->pitches[0] / fb->format->cpp[0];
 
 		if (tiling_flags & RADEON_TILING_MACRO) {
 			if (ASIC_IS_R300(rdev)) {
 				base &= ~0x7ff;
 			} else {
-				int byteshift = fb->bits_per_pixel >> 4;
+				int byteshift = fb->format->cpp[0] * 8 >> 4;
 				int tile_addr = (((crtc->y >> 3) * pitch_pixels +  crtc->x) >> (8 - byteshift)) << 11;
 				base += tile_addr + ((crtc->x << byteshift) % 256) + ((crtc->y % 8) << 8);
 			}
 		} else {
 			int offset = crtc->y * pitch_pixels + crtc->x;
-			switch (fb->bits_per_pixel) {
+			switch (fb->format->cpp[0] * 8) {
 			case 8:
 			default:
 				offset *= 1;
@@ -623,7 +625,8 @@ cleanup:
 }
 
 static int
-radeon_crtc_set_config(struct drm_mode_set *set)
+radeon_crtc_set_config(struct drm_mode_set *set,
+		       struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev;
 	struct radeon_device *rdev;
@@ -640,7 +643,7 @@ radeon_crtc_set_config(struct drm_mode_set *set)
 	if (ret < 0)
 		return ret;
 
-	ret = drm_crtc_helper_set_config(set);
+	ret = drm_crtc_helper_set_config(set, ctx);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		if (crtc->enabled)
@@ -1327,7 +1330,7 @@ radeon_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 	rfb->obj = obj;
-	drm_helper_mode_fill_fb_struct(&rfb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &rfb->base, &radeon_fb_funcs);
 	if (ret) {
 		rfb->obj = NULL;
@@ -1350,6 +1353,12 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
 			"can't create framebuffer\n", mode_cmd->handles[0]);
 		return ERR_PTR(-ENOENT);
+	}
+
+	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
+	if (obj->import_attach) {
+		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
+		return ERR_PTR(-EINVAL);
 	}
 
 	radeon_fb = kzalloc(sizeof(*radeon_fb), GFP_KERNEL);

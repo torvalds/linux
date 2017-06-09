@@ -157,12 +157,12 @@ static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 static const struct dw_dma_platform_data qrk_serial_dma_pdata = {
 	.nr_channels = 2,
 	.is_private = true,
-	.is_nollp = true,
 	.chan_allocation_order = CHAN_ALLOCATION_ASCENDING,
 	.chan_priority = CHAN_PRIORITY_ASCENDING,
 	.block_size = 4095,
 	.nr_masters = 1,
 	.data_width = {4},
+	.multi_block = {0},
 };
 
 static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
@@ -183,7 +183,6 @@ static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
 	if (ret)
 		return;
 
-	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
 	/* Special DMA address for UART */
@@ -215,6 +214,8 @@ static int qrk_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 {
 	struct pci_dev *pdev = to_pci_dev(port->dev);
 	int ret;
+
+	pci_set_master(pdev);
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
@@ -332,10 +333,10 @@ static void lpss8250_remove(struct pci_dev *pdev)
 {
 	struct lpss8250 *lpss = pci_get_drvdata(pdev);
 
+	serial8250_unregister_port(lpss->line);
+
 	if (lpss->board->exit)
 		lpss->board->exit(lpss);
-
-	serial8250_unregister_port(lpss->line);
 }
 
 static const struct lpss8250_board byt_board = {

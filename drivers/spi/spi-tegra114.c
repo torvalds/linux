@@ -837,7 +837,7 @@ static int tegra_spi_transfer_one_message(struct spi_master *master,
 						SPI_DMA_TIMEOUT);
 		if (WARN_ON(ret == 0)) {
 			dev_err(tspi->dev,
-				"spi trasfer timeout, err %d\n", ret);
+				"spi transfer timeout, err %d\n", ret);
 			ret = -EIO;
 			goto complete_xfer;
 		}

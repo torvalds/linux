@@ -826,7 +826,7 @@ static int switchdev_port_br_setlink_protinfo(struct net_device *dev,
 	int err;
 
 	err = nla_validate_nested(protinfo, IFLA_BRPORT_MAX,
-				  switchdev_port_bridge_policy);
+				  switchdev_port_bridge_policy, NULL);
 	if (err)
 		return err;
 

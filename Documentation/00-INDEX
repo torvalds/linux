@@ -152,8 +152,6 @@ driver-model/
 	- directory with info about Linux driver model.
 early-userspace/
 	- info about initramfs, klibc, and userspace early during boot.
-edac.txt
-	- information on EDAC - Error Detection And Correction
 efi-stub.txt
 	- How to use the EFI boot stub to bypass GRUB or elilo on EFI systems.
 eisa.txt
@@ -272,8 +270,8 @@ m68k/
 	- directory with info about Linux on Motorola 68k architecture.
 mailbox.txt
 	- How to write drivers for the common mailbox framework (IPC).
-md-cluster.txt
-	- info on shared-device RAID MD cluster.
+md/
+	- directory with info about Linux Software RAID
 media/
 	- info on media drivers: uAPI, kAPI and driver documentation.
 memory-barriers.txt
@@ -414,6 +412,8 @@ sysctl/
 	- directory with info on the /proc/sys/* files.
 target/
 	- directory with info on generating TCM v4 fabric .ko modules
+tee.txt
+	- info on the TEE subsystem and drivers
 this_cpu_ops.txt
 	- List rationale behind and the way to use this_cpu operations.
 thermal/

@@ -37,14 +37,16 @@
 #define SIO_F71869A_ID		0x1007	/* F71869A chipset ID */
 #define SIO_F71882_ID		0x0541	/* F71882 chipset ID */
 #define SIO_F71889_ID		0x0909	/* F71889 chipset ID */
+#define SIO_F71889A_ID		0x1005	/* F71889A chipset ID */
 #define SIO_F81866_ID		0x1010	/* F81866 chipset ID */
 
-enum chips { f71869, f71869a, f71882fg, f71889f, f81866 };
+enum chips { f71869, f71869a, f71882fg, f71889a, f71889f, f81866 };
 
 static const char * const f7188x_names[] = {
 	"f71869",
 	"f71869a",
 	"f71882fg",
+	"f71889a",
 	"f71889f",
 	"f81866",
 };
@@ -131,9 +133,8 @@ static int f7188x_gpio_get(struct gpio_chip *chip, unsigned offset);
 static int f7188x_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value);
 static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value);
-static int f7188x_gpio_set_single_ended(struct gpio_chip *gc,
-					unsigned offset,
-					enum single_ended_mode mode);
+static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
+				  unsigned long config);
 
 #define F7188X_GPIO_BANK(_base, _ngpio, _regbase)			\
 	{								\
@@ -145,7 +146,7 @@ static int f7188x_gpio_set_single_ended(struct gpio_chip *gc,
 			.get              = f7188x_gpio_get,		\
 			.direction_output = f7188x_gpio_direction_out,	\
 			.set              = f7188x_gpio_set,		\
-			.set_single_ended = f7188x_gpio_set_single_ended, \
+			.set_config	  = f7188x_gpio_set_config,	\
 			.base             = _base,			\
 			.ngpio            = _ngpio,			\
 			.can_sleep        = true,			\
@@ -186,6 +187,17 @@ static struct f7188x_gpio_bank f71882_gpio_bank[] = {
 	F7188X_GPIO_BANK(20, 8, 0xD0),
 	F7188X_GPIO_BANK(30, 4, 0xC0),
 	F7188X_GPIO_BANK(40, 4, 0xB0),
+};
+
+static struct f7188x_gpio_bank f71889a_gpio_bank[] = {
+	F7188X_GPIO_BANK(0, 7, 0xF0),
+	F7188X_GPIO_BANK(10, 7, 0xE0),
+	F7188X_GPIO_BANK(20, 8, 0xD0),
+	F7188X_GPIO_BANK(30, 8, 0xC0),
+	F7188X_GPIO_BANK(40, 8, 0xB0),
+	F7188X_GPIO_BANK(50, 5, 0xA0),
+	F7188X_GPIO_BANK(60, 8, 0x90),
+	F7188X_GPIO_BANK(70, 8, 0x80),
 };
 
 static struct f7188x_gpio_bank f71889_gpio_bank[] = {
@@ -326,17 +338,17 @@ static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	superio_exit(sio->addr);
 }
 
-static int f7188x_gpio_set_single_ended(struct gpio_chip *chip,
-					unsigned offset,
-					enum single_ended_mode mode)
+static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
+				  unsigned long config)
 {
 	int err;
+	enum pin_config_param param = pinconf_to_config_param(config);
 	struct f7188x_gpio_bank *bank = gpiochip_get_data(chip);
 	struct f7188x_sio *sio = bank->data->sio;
 	u8 data;
 
-	if (mode != LINE_MODE_OPEN_DRAIN &&
-	    mode != LINE_MODE_PUSH_PULL)
+	if (param != PIN_CONFIG_DRIVE_OPEN_DRAIN &&
+	    param != PIN_CONFIG_DRIVE_PUSH_PULL)
 		return -ENOTSUPP;
 
 	err = superio_enter(sio->addr);
@@ -345,7 +357,7 @@ static int f7188x_gpio_set_single_ended(struct gpio_chip *chip,
 	superio_select(sio->addr, SIO_LD_GPIO);
 
 	data = superio_inb(sio->addr, gpio_out_mode(bank->regbase));
-	if (mode == LINE_MODE_OPEN_DRAIN)
+	if (param == PIN_CONFIG_DRIVE_OPEN_DRAIN)
 		data &= ~BIT(offset);
 	else
 		data |= BIT(offset);
@@ -382,6 +394,10 @@ static int f7188x_gpio_probe(struct platform_device *pdev)
 	case f71882fg:
 		data->nr_bank = ARRAY_SIZE(f71882_gpio_bank);
 		data->bank = f71882_gpio_bank;
+		break;
+	case f71889a:
+		data->nr_bank = ARRAY_SIZE(f71889a_gpio_bank);
+		data->bank = f71889a_gpio_bank;
 		break;
 	case f71889f:
 		data->nr_bank = ARRAY_SIZE(f71889_gpio_bank);
@@ -443,6 +459,9 @@ static int __init f7188x_find(int addr, struct f7188x_sio *sio)
 		break;
 	case SIO_F71882_ID:
 		sio->type = f71882fg;
+		break;
+	case SIO_F71889A_ID:
+		sio->type = f71889a;
 		break;
 	case SIO_F71889_ID:
 		sio->type = f71889f;
@@ -539,6 +558,6 @@ static void __exit f7188x_gpio_exit(void)
 }
 module_exit(f7188x_gpio_exit);
 
-MODULE_DESCRIPTION("GPIO driver for Super-I/O chips F71869, F71869A, F71882FG, F71889F and F81866");
+MODULE_DESCRIPTION("GPIO driver for Super-I/O chips F71869, F71869A, F71882FG, F71889A, F71889F and F81866");
 MODULE_AUTHOR("Simon Guinot <simon.guinot@sequanux.org>");
 MODULE_LICENSE("GPL");

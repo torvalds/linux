@@ -1,0 +1,25 @@
+menu "Tegra firmware driver"
+
+config TEGRA_IVC
+	bool "Tegra IVC protocol"
+	depends on ARCH_TEGRA
+	help
+	  IVC (Inter-VM Communication) protocol is part of the IPC
+	  (Inter Processor Communication) framework on Tegra. It maintains the
+	  data and the different commuication channels in SysRAM or RAM and
+	  keeps the content is synchronization between host CPU and remote
+	  processors.
+
+config TEGRA_BPMP
+	bool "Tegra BPMP driver"
+	depends on ARCH_TEGRA && TEGRA_HSP_MBOX && TEGRA_IVC
+	help
+	  BPMP (Boot and Power Management Processor) is designed to off-loading
+	  the PM functions which include clock/DVFS/thermal/power from the CPU.
+	  It needs HSP as the HW synchronization and notification module and
+	  IVC module as the message communication protocol.
+
+	  This driver manages the IPC interface between host CPU and the
+	  firmware running on BPMP.
+
+endmenu

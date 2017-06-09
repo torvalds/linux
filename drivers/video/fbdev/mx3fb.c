@@ -33,7 +33,7 @@
 #include <linux/platform_data/video-mx3fb.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define MX3FB_NAME		"mx3_sdc_fb"
 

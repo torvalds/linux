@@ -119,6 +119,9 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 		credits = DIV_ROUND_UP(skb->len, htc->target_credit_size);
 		spin_lock_bh(&htc->tx_lock);
 		if (ep->tx_credits < credits) {
+			ath10k_dbg(ar, ATH10K_DBG_HTC,
+				   "htc insufficient credits ep %d required %d available %d\n",
+				   eid, credits, ep->tx_credits);
 			spin_unlock_bh(&htc->tx_lock);
 			ret = -EAGAIN;
 			goto err_pull;
@@ -419,7 +422,8 @@ static void ath10k_htc_control_rx_complete(struct ath10k *ar,
 					   struct sk_buff *skb)
 {
 	/* This is unexpected. FW is not supposed to send regular rx on this
-	 * endpoint. */
+	 * endpoint.
+	 */
 	ath10k_warn(ar, "unexpected htc rx\n");
 	kfree_skb(skb);
 }
@@ -474,33 +478,16 @@ static void ath10k_htc_reset_endpoint_states(struct ath10k_htc *htc)
 	}
 }
 
-static void ath10k_htc_setup_target_buffer_assignments(struct ath10k_htc *htc)
-{
-	struct ath10k_htc_svc_tx_credits *entry;
-
-	entry = &htc->service_tx_alloc[0];
-
-	/*
-	 * for PCIE allocate all credists/HTC buffers to WMI.
-	 * no buffers are used/required for data. data always
-	 * remains on host.
-	 */
-	entry++;
-	entry->service_id = ATH10K_HTC_SVC_ID_WMI_CONTROL;
-	entry->credit_allocation = htc->total_transmit_credits;
-}
-
 static u8 ath10k_htc_get_credit_allocation(struct ath10k_htc *htc,
 					   u16 service_id)
 {
 	u8 allocation = 0;
-	int i;
 
-	for (i = 0; i < ATH10K_HTC_EP_COUNT; i++) {
-		if (htc->service_tx_alloc[i].service_id == service_id)
-			allocation =
-			    htc->service_tx_alloc[i].credit_allocation;
-	}
+	/* The WMI control service is the only service with flow control.
+	 * Let it have all transmit credits.
+	 */
+	if (service_id == ATH10K_HTC_SVC_ID_WMI_CONTROL)
+		allocation = htc->total_transmit_credits;
 
 	return allocation;
 }
@@ -573,8 +560,6 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 		ath10k_err(ar, "Invalid credit size received\n");
 		return -ECOMM;
 	}
-
-	ath10k_htc_setup_target_buffer_assignments(htc);
 
 	/* setup our pseudo HTC control endpoint connection */
 	memset(&conn_req, 0, sizeof(conn_req));
@@ -726,12 +711,6 @@ setup:
 	ep->max_tx_queue_depth = conn_req->max_send_queue_depth;
 	ep->max_ep_message_len = __le16_to_cpu(resp_msg->max_msg_size);
 	ep->tx_credits = tx_alloc;
-	ep->tx_credit_size = htc->target_credit_size;
-	ep->tx_credits_per_max_message = ep->max_ep_message_len /
-					 htc->target_credit_size;
-
-	if (ep->max_ep_message_len % htc->target_credit_size)
-		ep->tx_credits_per_max_message++;
 
 	/* copy all the callbacks */
 	ep->ep_ops = conn_req->ep_ops;

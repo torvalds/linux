@@ -16,6 +16,8 @@
 #include <linux/export.h>
 #include <linux/user_namespace.h>
 #include <linux/net_namespace.h>
+#include <linux/sched/task.h>
+
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/net_namespace.h>
@@ -33,7 +35,8 @@ LIST_HEAD(net_namespace_list);
 EXPORT_SYMBOL_GPL(net_namespace_list);
 
 struct net init_net = {
-	.dev_base_head = LIST_HEAD_INIT(init_net.dev_base_head),
+	.count		= ATOMIC_INIT(1),
+	.dev_base_head	= LIST_HEAD_INIT(init_net.dev_base_head),
 };
 EXPORT_SYMBOL(init_net);
 
@@ -218,16 +221,15 @@ static void rtnl_net_notifyid(struct net *net, int cmd, int id);
  */
 int peernet2id_alloc(struct net *net, struct net *peer)
 {
-	unsigned long flags;
 	bool alloc;
 	int id;
 
 	if (atomic_read(&net->count) == 0)
 		return NETNSA_NSID_NOT_ASSIGNED;
-	spin_lock_irqsave(&net->nsid_lock, flags);
+	spin_lock_bh(&net->nsid_lock);
 	alloc = atomic_read(&peer->count) == 0 ? false : true;
 	id = __peernet2id_alloc(net, peer, &alloc);
-	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	spin_unlock_bh(&net->nsid_lock);
 	if (alloc && id >= 0)
 		rtnl_net_notifyid(net, RTM_NEWNSID, id);
 	return id;
@@ -236,12 +238,11 @@ int peernet2id_alloc(struct net *net, struct net *peer)
 /* This function returns, if assigned, the id of a peer netns. */
 int peernet2id(struct net *net, struct net *peer)
 {
-	unsigned long flags;
 	int id;
 
-	spin_lock_irqsave(&net->nsid_lock, flags);
+	spin_lock_bh(&net->nsid_lock);
 	id = __peernet2id(net, peer);
-	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	spin_unlock_bh(&net->nsid_lock);
 	return id;
 }
 EXPORT_SYMBOL(peernet2id);
@@ -256,18 +257,17 @@ bool peernet_has_id(struct net *net, struct net *peer)
 
 struct net *get_net_ns_by_id(struct net *net, int id)
 {
-	unsigned long flags;
 	struct net *peer;
 
 	if (id < 0)
 		return NULL;
 
 	rcu_read_lock();
-	spin_lock_irqsave(&net->nsid_lock, flags);
+	spin_lock_bh(&net->nsid_lock);
 	peer = idr_find(&net->netns_ids, id);
 	if (peer)
 		get_net(peer);
-	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	spin_unlock_bh(&net->nsid_lock);
 	rcu_read_unlock();
 
 	return peer;
@@ -315,6 +315,25 @@ out_undo:
 	goto out;
 }
 
+static int __net_init net_defaults_init_net(struct net *net)
+{
+	net->core.sysctl_somaxconn = SOMAXCONN;
+	return 0;
+}
+
+static struct pernet_operations net_defaults_ops = {
+	.init = net_defaults_init_net,
+};
+
+static __init int net_defaults_init(void)
+{
+	if (register_pernet_subsys(&net_defaults_ops))
+		panic("Cannot initialize net default settings");
+
+	return 0;
+}
+
+core_initcall(net_defaults_init);
 
 #ifdef CONFIG_NET_NS
 static struct ucounts *inc_net_namespaces(struct user_namespace *ns)
@@ -437,17 +456,17 @@ static void cleanup_net(struct work_struct *work)
 		for_each_net(tmp) {
 			int id;
 
-			spin_lock_irq(&tmp->nsid_lock);
+			spin_lock_bh(&tmp->nsid_lock);
 			id = __peernet2id(tmp, net);
 			if (id >= 0)
 				idr_remove(&tmp->netns_ids, id);
-			spin_unlock_irq(&tmp->nsid_lock);
+			spin_unlock_bh(&tmp->nsid_lock);
 			if (id >= 0)
 				rtnl_net_notifyid(tmp, RTM_DELNSID, id);
 		}
-		spin_lock_irq(&net->nsid_lock);
+		spin_lock_bh(&net->nsid_lock);
 		idr_destroy(&net->netns_ids);
-		spin_unlock_irq(&net->nsid_lock);
+		spin_unlock_bh(&net->nsid_lock);
 
 	}
 	rtnl_unlock();
@@ -572,16 +591,16 @@ static const struct nla_policy rtnl_net_policy[NETNSA_MAX + 1] = {
 	[NETNSA_FD]		= { .type = NLA_U32 },
 };
 
-static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[NETNSA_MAX + 1];
-	unsigned long flags;
 	struct net *peer;
 	int nsid, err;
 
 	err = nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, NETNSA_MAX,
-			  rtnl_net_policy);
+			  rtnl_net_policy, extack);
 	if (err < 0)
 		return err;
 	if (!tb[NETNSA_NSID])
@@ -597,15 +616,15 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (IS_ERR(peer))
 		return PTR_ERR(peer);
 
-	spin_lock_irqsave(&net->nsid_lock, flags);
+	spin_lock_bh(&net->nsid_lock);
 	if (__peernet2id(net, peer) >= 0) {
-		spin_unlock_irqrestore(&net->nsid_lock, flags);
+		spin_unlock_bh(&net->nsid_lock);
 		err = -EEXIST;
 		goto out;
 	}
 
 	err = alloc_netid(net, peer, nsid);
-	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	spin_unlock_bh(&net->nsid_lock);
 	if (err >= 0) {
 		rtnl_net_notifyid(net, RTM_NEWNSID, err);
 		err = 0;
@@ -646,7 +665,8 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[NETNSA_MAX + 1];
@@ -655,7 +675,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	int err, id;
 
 	err = nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, NETNSA_MAX,
-			  rtnl_net_policy);
+			  rtnl_net_policy, extack);
 	if (err < 0)
 		return err;
 	if (tb[NETNSA_PID])
@@ -727,11 +747,10 @@ static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 		.idx = 0,
 		.s_idx = cb->args[0],
 	};
-	unsigned long flags;
 
-	spin_lock_irqsave(&net->nsid_lock, flags);
+	spin_lock_bh(&net->nsid_lock);
 	idr_for_each(&net->netns_ids, rtnl_net_dumpid_one, &net_cb);
-	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	spin_unlock_bh(&net->nsid_lock);
 
 	cb->args[0] = net_cb.idx;
 	return skb->len;

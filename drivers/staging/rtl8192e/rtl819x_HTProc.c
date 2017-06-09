@@ -489,7 +489,7 @@ u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
 				if ((bitMap%2) != 0) {
 					if (HTMcsToDataRate(ieee, (8*i+j)) >
 					    HTMcsToDataRate(ieee, mcsRate))
-						mcsRate = (8*i+j);
+						mcsRate = 8 * i + j;
 				}
 				bitMap >>= 1;
 			}

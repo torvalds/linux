@@ -2,7 +2,7 @@
  * R-Car SYSC Power management support
  *
  * Copyright (C) 2014  Magnus Damm
- * Copyright (C) 2015-2016 Glider bvba
+ * Copyright (C) 2015-2017 Glider bvba
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -275,6 +275,12 @@ finalize:
 }
 
 static const struct of_device_id rcar_sysc_matches[] = {
+#ifdef CONFIG_ARCH_R8A7743
+	{ .compatible = "renesas,r8a7743-sysc", .data = &r8a7743_sysc_info },
+#endif
+#ifdef CONFIG_ARCH_R8A7745
+	{ .compatible = "renesas,r8a7745-sysc", .data = &r8a7745_sysc_info },
+#endif
 #ifdef CONFIG_ARCH_R8A7779
 	{ .compatible = "renesas,r8a7779-sysc", .data = &r8a7779_sysc_info },
 #endif
@@ -328,6 +334,12 @@ static int __init rcar_sysc_pd_init(void)
 
 	info = match->data;
 
+	if (info->init) {
+		error = info->init();
+		if (error)
+			return error;
+	}
+
 	has_cpg_mstp = of_find_compatible_node(NULL, NULL,
 					       "renesas,cpg-mstp-clocks");
 
@@ -371,6 +383,11 @@ static int __init rcar_sysc_pd_init(void)
 		const struct rcar_sysc_area *area = &info->areas[i];
 		struct rcar_sysc_pd *pd;
 
+		if (!area->name) {
+			/* Skip NULLified area */
+			continue;
+		}
+
 		pd = kzalloc(sizeof(*pd) + strlen(area->name) + 1, GFP_KERNEL);
 		if (!pd) {
 			error = -ENOMEM;
@@ -399,6 +416,18 @@ out_put:
 	return error;
 }
 early_initcall(rcar_sysc_pd_init);
+
+void __init rcar_sysc_nullify(struct rcar_sysc_area *areas,
+			      unsigned int num_areas, u8 id)
+{
+	unsigned int i;
+
+	for (i = 0; i < num_areas; i++)
+		if (areas[i].isr_bit == id) {
+			areas[i].name = NULL;
+			return;
+		}
+}
 
 void __init rcar_sysc_init(phys_addr_t base, u32 syscier)
 {

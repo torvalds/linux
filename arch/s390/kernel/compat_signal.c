@@ -10,6 +10,7 @@
 
 #include <linux/compat.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
@@ -23,7 +24,7 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/lowcore.h>
 #include <asm/switch_to.h>
 #include "compat_linux.h"

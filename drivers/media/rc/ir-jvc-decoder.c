@@ -170,9 +170,48 @@ out:
 	return -EINVAL;
 }
 
+static const struct ir_raw_timings_pd ir_jvc_timings = {
+	.header_pulse  = JVC_HEADER_PULSE,
+	.header_space  = JVC_HEADER_SPACE,
+	.bit_pulse     = JVC_BIT_PULSE,
+	.bit_space[0]  = JVC_BIT_0_SPACE,
+	.bit_space[1]  = JVC_BIT_1_SPACE,
+	.trailer_pulse = JVC_TRAILER_PULSE,
+	.trailer_space = JVC_TRAILER_SPACE,
+	.msb_first     = 1,
+};
+
+/**
+ * ir_jvc_encode() - Encode a scancode as a stream of raw events
+ *
+ * @protocol:	protocol to encode
+ * @scancode:	scancode to encode
+ * @events:	array of raw ir events to write into
+ * @max:	maximum size of @events
+ *
+ * Returns:	The number of events written.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		encoding. In this case all @max events will have been written.
+ */
+static int ir_jvc_encode(enum rc_type protocol, u32 scancode,
+			 struct ir_raw_event *events, unsigned int max)
+{
+	struct ir_raw_event *e = events;
+	int ret;
+	u32 raw = (bitrev8((scancode >> 8) & 0xff) << 8) |
+		  (bitrev8((scancode >> 0) & 0xff) << 0);
+
+	ret = ir_raw_gen_pd(&e, max, &ir_jvc_timings, JVC_NBITS, raw);
+	if (ret < 0)
+		return ret;
+
+	return e - events;
+}
+
 static struct ir_raw_handler jvc_handler = {
 	.protocols	= RC_BIT_JVC,
 	.decode		= ir_jvc_decode,
+	.encode		= ir_jvc_encode,
 };
 
 static int __init ir_jvc_decode_init(void)

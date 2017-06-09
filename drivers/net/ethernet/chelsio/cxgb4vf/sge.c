@@ -1889,7 +1889,7 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	u32 val;
 
 	if (likely(work_done < budget)) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		intr_params = rspq->next_intr_params;
 		rspq->next_intr_params = rspq->intr_params;
 	} else

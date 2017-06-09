@@ -205,6 +205,7 @@ static struct platform_device_id max77620_wdt_devtype[] = {
 	{ .name = "max77620-watchdog", },
 	{ },
 };
+MODULE_DEVICE_TABLE(platform, max77620_wdt_devtype);
 
 static struct platform_driver max77620_wdt_driver = {
 	.driver	= {

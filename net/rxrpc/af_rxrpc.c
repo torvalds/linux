@@ -224,6 +224,14 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 		else
 			sk->sk_max_ack_backlog = old;
 		break;
+	case RXRPC_SERVER_LISTENING:
+		if (backlog == 0) {
+			rx->sk.sk_state = RXRPC_SERVER_LISTEN_DISABLED;
+			sk->sk_max_ack_backlog = 0;
+			rxrpc_discard_prealloc(rx);
+			ret = 0;
+			break;
+		}
 	default:
 		ret = -EBUSY;
 		break;
@@ -282,10 +290,11 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	cp.exclusive		= false;
 	cp.service_id		= srx->srx_service;
 	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, gfp);
+	/* The socket has been unlocked. */
 	if (!IS_ERR(call))
 		call->notify_rx = notify_rx;
 
-	release_sock(&rx->sk);
+	mutex_unlock(&call->user_mutex);
 	_leave(" = %p", call);
 	return call;
 }
@@ -302,7 +311,10 @@ EXPORT_SYMBOL(rxrpc_kernel_begin_call);
 void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 {
 	_enter("%d{%d}", call->debug_id, atomic_read(&call->usage));
+
+	mutex_lock(&call->user_mutex);
 	rxrpc_release_call(rxrpc_sk(sock->sk), call);
+	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put_kernel);
 }
 EXPORT_SYMBOL(rxrpc_kernel_end_call);
@@ -442,14 +454,16 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 	case RXRPC_SERVER_BOUND:
 	case RXRPC_SERVER_LISTENING:
 		ret = rxrpc_do_sendmsg(rx, m, len);
-		break;
+		/* The socket has been unlocked */
+		goto out;
 	default:
 		ret = -EINVAL;
-		break;
+		goto error_unlock;
 	}
 
 error_unlock:
 	release_sock(&rx->sk);
+out:
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -762,16 +776,17 @@ static const struct net_proto_family rxrpc_family_ops = {
 static int __init af_rxrpc_init(void)
 {
 	int ret = -1;
+	unsigned int tmp;
 
 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	get_random_bytes(&rxrpc_epoch, sizeof(rxrpc_epoch));
 	rxrpc_epoch |= RXRPC_RANDOM_EPOCH;
-	get_random_bytes(&rxrpc_client_conn_ids.cur,
-			 sizeof(rxrpc_client_conn_ids.cur));
-	rxrpc_client_conn_ids.cur &= 0x3fffffff;
-	if (rxrpc_client_conn_ids.cur == 0)
-		rxrpc_client_conn_ids.cur = 1;
+	get_random_bytes(&tmp, sizeof(tmp));
+	tmp &= 0x3fffffff;
+	if (tmp == 0)
+		tmp = 1;
+	idr_set_cursor(&rxrpc_client_conn_ids, tmp);
 
 	ret = -ENOMEM;
 	rxrpc_call_jar = kmem_cache_create(

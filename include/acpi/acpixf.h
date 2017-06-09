@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20160930
+#define ACPI_CA_VERSION                 0x20170303
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -513,10 +513,12 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_get_table(acpi_string signature, u32 instance,
 					    struct acpi_table_header
 					    **out_table))
+ACPI_EXTERNAL_RETURN_VOID(void acpi_put_table(struct acpi_table_header *table))
+
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
-			     acpi_get_table_by_index(u32 table_index,
-						     struct acpi_table_header
-						     **out_table))
+			    acpi_get_table_by_index(u32 table_index,
+						    struct acpi_table_header
+						    **out_table))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_install_table_handler(acpi_table_handler
 							handler, void *context))
@@ -965,15 +967,6 @@ void acpi_terminate_debugger(void);
 /*
  * Divergences
  */
-ACPI_GLOBAL(u8, acpi_gbl_permanent_mmap);
-
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status
-			    acpi_get_table_with_size(acpi_string signature,
-						     u32 instance,
-						     struct acpi_table_header
-						     **out_table,
-						     acpi_size *tbl_size))
-
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_get_data_full(acpi_handle object,
 					       acpi_object_handler handler,

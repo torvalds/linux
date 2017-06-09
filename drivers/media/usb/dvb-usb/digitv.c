@@ -33,6 +33,9 @@ static int digitv_ctrl_msg(struct dvb_usb_device *d,
 
 	wo = (rbuf == NULL || rlen == 0); /* write-only */
 
+	if (wlen > 4 || rlen > 4)
+		return -EIO;
+
 	memset(st->sndbuf, 0, 7);
 	memset(st->rcvbuf, 0, 7);
 

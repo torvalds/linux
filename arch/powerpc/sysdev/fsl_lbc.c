@@ -31,7 +31,7 @@
 #include <asm/prom.h>
 #include <asm/fsl_lbc.h>
 
-static spinlock_t fsl_lbc_lock = __SPIN_LOCK_UNLOCKED(fsl_lbc_lock);
+static DEFINE_SPINLOCK(fsl_lbc_lock);
 struct fsl_lbc_ctrl *fsl_lbc_ctrl_dev;
 EXPORT_SYMBOL(fsl_lbc_ctrl_dev);
 

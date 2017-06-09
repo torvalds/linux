@@ -64,16 +64,134 @@ struct drm_mode_create_dumb;
  * structure for GEM drivers.
  */
 struct drm_driver {
+	/**
+	 * @load:
+	 *
+	 * Backward-compatible driver callback to complete
+	 * initialization steps after the driver is registered.  For
+	 * this reason, may suffer from race conditions and its use is
+	 * deprecated for new drivers.  It is therefore only supported
+	 * for existing drivers not yet converted to the new scheme.
+	 * See drm_dev_init() and drm_dev_register() for proper and
+	 * race-free way to set up a &struct drm_device.
+	 *
+	 * This is deprecated, do not use!
+	 *
+	 * Returns:
+	 *
+	 * Zero on success, non-zero value on failure.
+	 */
 	int (*load) (struct drm_device *, unsigned long flags);
-	int (*firstopen) (struct drm_device *);
+
+	/**
+	 * @open:
+	 *
+	 * Driver callback when a new &struct drm_file is opened. Useful for
+	 * setting up driver-private data structures like buffer allocators,
+	 * execution contexts or similar things. Such driver-private resources
+	 * must be released again in @postclose.
+	 *
+	 * Since the display/modeset side of DRM can only be owned by exactly
+	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
+	 * there should never be a need to set up any modeset related resources
+	 * in this callback. Doing so would be a driver design bug.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success, a negative error code on failure, which will be
+	 * promoted to userspace as the result of the open() system call.
+	 */
 	int (*open) (struct drm_device *, struct drm_file *);
+
+	/**
+	 * @preclose:
+	 *
+	 * One of the driver callbacks when a new &struct drm_file is closed.
+	 * Useful for tearing down driver-private data structures allocated in
+	 * @open like buffer allocators, execution contexts or similar things.
+	 *
+	 * Since the display/modeset side of DRM can only be owned by exactly
+	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
+	 * there should never be a need to tear down any modeset related
+	 * resources in this callback. Doing so would be a driver design bug.
+	 *
+	 * FIXME: It is not really clear why there's both @preclose and
+	 * @postclose. Without a really good reason, use @postclose only.
+	 */
 	void (*preclose) (struct drm_device *, struct drm_file *file_priv);
+
+	/**
+	 * @postclose:
+	 *
+	 * One of the driver callbacks when a new &struct drm_file is closed.
+	 * Useful for tearing down driver-private data structures allocated in
+	 * @open like buffer allocators, execution contexts or similar things.
+	 *
+	 * Since the display/modeset side of DRM can only be owned by exactly
+	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
+	 * there should never be a need to tear down any modeset related
+	 * resources in this callback. Doing so would be a driver design bug.
+	 *
+	 * FIXME: It is not really clear why there's both @preclose and
+	 * @postclose. Without a really good reason, use @postclose only.
+	 */
 	void (*postclose) (struct drm_device *, struct drm_file *);
+
+	/**
+	 * @lastclose:
+	 *
+	 * Called when the last &struct drm_file has been closed and there's
+	 * currently no userspace client for the &struct drm_device.
+	 *
+	 * Modern drivers should only use this to force-restore the fbdev
+	 * framebuffer using drm_fb_helper_restore_fbdev_mode_unlocked().
+	 * Anything else would indicate there's something seriously wrong.
+	 * Modern drivers can also use this to execute delayed power switching
+	 * state changes, e.g. in conjunction with the :ref:`vga_switcheroo`
+	 * infrastructure.
+	 *
+	 * This is called after @preclose and @postclose have been called.
+	 *
+	 * NOTE:
+	 *
+	 * All legacy drivers use this callback to de-initialize the hardware.
+	 * This is purely because of the shadow-attach model, where the DRM
+	 * kernel driver does not really own the hardware. Instead ownershipe is
+	 * handled with the help of userspace through an inheritedly racy dance
+	 * to set/unset the VT into raw mode.
+	 *
+	 * Legacy drivers initialize the hardware in the @firstopen callback,
+	 * which isn't even called for modern drivers.
+	 */
 	void (*lastclose) (struct drm_device *);
-	int (*unload) (struct drm_device *);
-	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
-	int (*dma_quiescent) (struct drm_device *);
-	int (*context_dtor) (struct drm_device *dev, int context);
+
+	/**
+	 * @unload:
+	 *
+	 * Reverse the effects of the driver load callback.  Ideally,
+	 * the clean up performed by the driver should happen in the
+	 * reverse order of the initialization.  Similarly to the load
+	 * hook, this handler is deprecated and its usage should be
+	 * dropped in favor of an open-coded teardown function at the
+	 * driver layer.  See drm_dev_unregister() and drm_dev_unref()
+	 * for the proper way to remove a &struct drm_device.
+	 *
+	 * The unload() hook is called right after unregistering
+	 * the device.
+	 *
+	 */
+	void (*unload) (struct drm_device *);
+
+	/**
+	 * @release:
+	 *
+	 * Optional callback for destroying device data after the final
+	 * reference is released, i.e. the device is being destroyed. Drivers
+	 * using this callback are responsible for calling drm_dev_fini()
+	 * to finalize the device and then freeing the struct themselves.
+	 */
+	void (*release) (struct drm_device *);
+
 	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
 
 	/**
@@ -81,15 +199,17 @@ struct drm_driver {
 	 *
 	 * Driver callback for fetching a raw hardware vblank counter for the
 	 * CRTC specified with the pipe argument.  If a device doesn't have a
-	 * hardware counter, the driver can simply use
-	 * drm_vblank_no_hw_counter() function. The DRM core will account for
-	 * missed vblank events while interrupts where disabled based on system
-	 * timestamps.
+	 * hardware counter, the driver can simply leave the hook as NULL.
+	 * The DRM core will account for missed vblank events while interrupts
+	 * where disabled based on system timestamps.
 	 *
 	 * Wraparound handling and loss of events due to modesetting is dealt
 	 * with in the DRM core code, as long as drivers call
 	 * drm_crtc_vblank_off() and drm_crtc_vblank_on() when disabling or
 	 * enabling a CRTC.
+	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.get_vblank_counter instead.
 	 *
 	 * Returns:
 	 *
@@ -103,6 +223,9 @@ struct drm_driver {
 	 * Enable vblank interrupts for the CRTC specified with the pipe
 	 * argument.
 	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.enable_vblank instead.
+	 *
 	 * Returns:
 	 *
 	 * Zero on success, appropriate errno if the given @crtc's vblank
@@ -115,22 +238,11 @@ struct drm_driver {
 	 *
 	 * Disable vblank interrupts for the CRTC specified with the pipe
 	 * argument.
+	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.disable_vblank instead.
 	 */
 	void (*disable_vblank) (struct drm_device *dev, unsigned int pipe);
-
-	/**
-	 * @device_is_agp:
-	 *
-	 * Called by drm_device_is_agp().  Typically used to determine if a card
-	 * is really attached to AGP or not.
-	 *
-	 * Returns:
-	 *
-	 * One of three values is returned depending on whether or not the
-	 * card is absolutely not AGP (return of 0), absolutely is AGP
-	 * (return of 1), or may or may not be AGP (return of 2).
-	 */
-	int (*device_is_agp) (struct drm_device *dev);
 
 	/**
 	 * @get_scanout_position:
@@ -269,7 +381,6 @@ struct drm_driver {
 	void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv);
 
 	int (*debugfs_init)(struct drm_minor *minor);
-	void (*debugfs_cleanup)(struct drm_minor *minor);
 
 	/**
 	 * @gem_free_object: deconstructor for drm_gem_objects
@@ -282,7 +393,7 @@ struct drm_driver {
 	/**
 	 * @gem_free_object_unlocked: deconstructor for drm_gem_objects
 	 *
-	 * This is for drivers which are not encumbered with dev->struct_mutex
+	 * This is for drivers which are not encumbered with &drm_device.struct_mutex
 	 * legacy locking schemes. Use this hook instead of @gem_free_object.
 	 */
 	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
@@ -326,9 +437,6 @@ struct drm_driver {
 	void (*gem_prime_vunmap)(struct drm_gem_object *obj, void *vaddr);
 	int (*gem_prime_mmap)(struct drm_gem_object *obj,
 				struct vm_area_struct *vma);
-
-	/* vga arb irq handler */
-	void (*vgaarb_irq)(struct drm_device *dev, bool state);
 
 	/**
 	 * @dumb_create:
@@ -398,20 +506,27 @@ struct drm_driver {
 	char *date;
 
 	u32 driver_features;
-	int dev_priv_size;
 	const struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
 	const struct file_operations *fops;
 
+	/* Everything below here is for legacy driver, never use! */
+	/* private: */
+
 	/* List of devices hanging off this driver with stealth attach. */
 	struct list_head legacy_dev_list;
+	int (*firstopen) (struct drm_device *);
+	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
+	int (*dma_quiescent) (struct drm_device *);
+	int (*context_dtor) (struct drm_device *dev, int context);
+	int dev_priv_size;
 };
 
-extern __printf(6, 7)
+__printf(6, 7)
 void drm_dev_printk(const struct device *dev, const char *level,
 		    unsigned int category, const char *function_name,
 		    const char *prefix, const char *format, ...);
-extern __printf(3, 4)
+__printf(3, 4)
 void drm_printk(const char *level, unsigned int category,
 		const char *format, ...);
 extern unsigned int drm_debug;
@@ -419,6 +534,8 @@ extern unsigned int drm_debug;
 int drm_dev_init(struct drm_device *dev,
 		 struct drm_driver *driver,
 		 struct device *parent);
+void drm_dev_fini(struct drm_device *dev);
+
 struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 				 struct device *parent);
 int drm_dev_register(struct drm_device *dev, unsigned long flags);

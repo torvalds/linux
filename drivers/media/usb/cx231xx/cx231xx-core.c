@@ -241,8 +241,7 @@ static int __usb_control_msg(struct cx231xx *dev, unsigned int pipe,
 	int rc, i;
 
 	if (reg_debug) {
-		printk(KERN_DEBUG "%s: (pipe 0x%08x): "
-				"%s:  %02x %02x %02x %02x %02x %02x %02x %02x ",
+		printk(KERN_DEBUG "%s: (pipe 0x%08x): %s:  %02x %02x %02x %02x %02x %02x %02x %02x ",
 				dev->name,
 				pipe,
 				(requesttype & USB_DIR_IN) ? "IN" : "OUT",
@@ -356,7 +355,12 @@ int cx231xx_send_vendor_cmd(struct cx231xx *dev,
 	 */
 	if ((ven_req->wLength > 4) && ((ven_req->bRequest == 0x4) ||
 					(ven_req->bRequest == 0x5) ||
-					(ven_req->bRequest == 0x6))) {
+					(ven_req->bRequest == 0x6) ||
+
+					/* Internal Master 3 Bus can send
+					 * and receive only 4 bytes per time
+					 */
+					(ven_req->bRequest == 0x2))) {
 		unsend_size = 0;
 		pdata = ven_req->pBuff;
 
@@ -441,8 +445,7 @@ int cx231xx_write_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg, char *buf,
 	if (reg_debug) {
 		int byte;
 
-		cx231xx_isocdbg("(pipe 0x%08x): "
-			"OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
+		cx231xx_isocdbg("(pipe 0x%08x): OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
 			pipe,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			req, 0, val, reg & 0xff,
@@ -600,8 +603,8 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 			return -1;
 	}
 
-	cx231xx_coredbg("setting alternate %d with wMaxPacketSize=%u,"
-			"Interface = %d\n", alt, max_pkt_size,
+	cx231xx_coredbg("setting alternate %d with wMaxPacketSize=%u,Interface = %d\n",
+			alt, max_pkt_size,
 			usb_interface_index);
 
 	if (usb_interface_index > 0) {

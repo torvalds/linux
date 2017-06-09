@@ -20,6 +20,7 @@
 
 #include <linux/irq.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kdebug.h>
 #include <linux/kgdb.h>
 

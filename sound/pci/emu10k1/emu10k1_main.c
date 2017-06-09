@@ -32,7 +32,6 @@
  */
 
 #include <linux/sched.h>
-#include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -662,7 +661,7 @@ static int snd_emu10k1_cardbus_init(struct snd_emu10k1 *emu)
 	return 0;
 }
 
-static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu,
+static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 				     const struct firmware *fw_entry)
 {
 	int n, i;
@@ -708,98 +707,104 @@ static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu,
 	return 0;
 }
 
-static int emu1010_firmware_thread(void *data)
+/* firmware file names, per model, init-fw and dock-fw (optional) */
+static const char * const firmware_names[5][2] = {
+	[EMU_MODEL_EMU1010] = {
+		HANA_FILENAME, DOCK_FILENAME
+	},
+	[EMU_MODEL_EMU1010B] = {
+		EMU1010B_FILENAME, MICRO_DOCK_FILENAME
+	},
+	[EMU_MODEL_EMU1616] = {
+		EMU1010_NOTEBOOK_FILENAME, MICRO_DOCK_FILENAME
+	},
+	[EMU_MODEL_EMU0404] = {
+		EMU0404_FILENAME, NULL
+	},
+};
+
+static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu, int dock,
+				     const struct firmware **fw)
 {
-	struct snd_emu10k1 *emu = data;
-	u32 tmp, tmp2, reg;
-	u32 last_reg = 0;
+	const char *filename;
 	int err;
 
-	for (;;) {
-		/* Delay to allow Audio Dock to settle */
-		msleep_interruptible(1000);
-		if (kthread_should_stop())
-			break;
-#ifdef CONFIG_PM_SLEEP
-		if (emu->suspend)
-			continue;
-#endif
-		snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp); /* IRQ Status */
-		snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg); /* OPTIONS: Which cards are attached to the EMU */
-		if (reg & EMU_HANA_OPTION_DOCK_OFFLINE) {
-			/* Audio Dock attached */
-			/* Return to Audio Dock programming mode */
-			dev_info(emu->card->dev,
-				 "emu1010: Loading Audio Dock Firmware\n");
-			snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, EMU_HANA_FPGA_CONFIG_AUDIODOCK);
-
-			if (!emu->dock_fw) {
-				const char *filename = NULL;
-				switch (emu->card_capabilities->emu_model) {
-				case EMU_MODEL_EMU1010:
-					filename = DOCK_FILENAME;
-					break;
-				case EMU_MODEL_EMU1010B:
-					filename = MICRO_DOCK_FILENAME;
-					break;
-				case EMU_MODEL_EMU1616:
-					filename = MICRO_DOCK_FILENAME;
-					break;
-				}
-				if (filename) {
-					err = request_firmware(&emu->dock_fw,
-							       filename,
-							       &emu->pci->dev);
-					if (err)
-						continue;
-				}
-			}
-
-			if (emu->dock_fw) {
-				err = snd_emu1010_load_firmware(emu, emu->dock_fw);
-				if (err)
-					continue;
-			}
-
-			snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0);
-			snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &reg);
-			dev_info(emu->card->dev,
-				 "emu1010: EMU_HANA+DOCK_IRQ_STATUS = 0x%x\n",
-				 reg);
-			/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
-			snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg);
-			dev_info(emu->card->dev,
-				 "emu1010: EMU_HANA+DOCK_ID = 0x%x\n", reg);
-			if ((reg & 0x1f) != 0x15) {
-				/* FPGA failed to be programmed */
-				dev_info(emu->card->dev,
-					 "emu1010: Loading Audio Dock Firmware file failed, reg = 0x%x\n",
-					 reg);
-				continue;
-			}
-			dev_info(emu->card->dev,
-				 "emu1010: Audio Dock Firmware loaded\n");
-			snd_emu1010_fpga_read(emu, EMU_DOCK_MAJOR_REV, &tmp);
-			snd_emu1010_fpga_read(emu, EMU_DOCK_MINOR_REV, &tmp2);
-			dev_info(emu->card->dev, "Audio Dock ver: %u.%u\n",
-				   tmp, tmp2);
-			/* Sync clocking between 1010 and Dock */
-			/* Allow DLL to settle */
-			msleep(10);
-			/* Unmute all. Default is muted after a firmware load */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
-		} else if (!reg && last_reg) {
-			/* Audio Dock removed */
-			dev_info(emu->card->dev,
-				 "emu1010: Audio Dock detached\n");
-			/* Unmute all */
-			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
-		}
-
-		last_reg = reg;
+	if (!*fw) {
+		filename = firmware_names[emu->card_capabilities->emu_model][dock];
+		if (!filename)
+			return 0;
+		err = request_firmware(fw, filename, &emu->pci->dev);
+		if (err)
+			return err;
 	}
-	dev_info(emu->card->dev, "emu1010: firmware thread stopping\n");
-	return 0;
+
+	return snd_emu1010_load_firmware_entry(emu, *fw);
+}
+
+static void emu1010_firmware_work(struct work_struct *work)
+{
+	struct snd_emu10k1 *emu;
+	u32 tmp, tmp2, reg;
+	int err;
+
+	emu = container_of(work, struct snd_emu10k1,
+			   emu1010.firmware_work.work);
+	if (emu->card->shutdown)
+		return;
+#ifdef CONFIG_PM_SLEEP
+	if (emu->suspend)
+		return;
+#endif
+	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp); /* IRQ Status */
+	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg); /* OPTIONS: Which cards are attached to the EMU */
+	if (reg & EMU_HANA_OPTION_DOCK_OFFLINE) {
+		/* Audio Dock attached */
+		/* Return to Audio Dock programming mode */
+		dev_info(emu->card->dev,
+			 "emu1010: Loading Audio Dock Firmware\n");
+		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG,
+				       EMU_HANA_FPGA_CONFIG_AUDIODOCK);
+		err = snd_emu1010_load_firmware(emu, 1, &emu->dock_fw);
+		if (err < 0)
+			goto next;
+
+		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0);
+		snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp);
+		dev_info(emu->card->dev,
+			 "emu1010: EMU_HANA+DOCK_IRQ_STATUS = 0x%x\n", tmp);
+		/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
+		snd_emu1010_fpga_read(emu, EMU_HANA_ID, &tmp);
+		dev_info(emu->card->dev,
+			 "emu1010: EMU_HANA+DOCK_ID = 0x%x\n", tmp);
+		if ((tmp & 0x1f) != 0x15) {
+			/* FPGA failed to be programmed */
+			dev_info(emu->card->dev,
+				 "emu1010: Loading Audio Dock Firmware file failed, reg = 0x%x\n",
+				 tmp);
+			goto next;
+		}
+		dev_info(emu->card->dev,
+			 "emu1010: Audio Dock Firmware loaded\n");
+		snd_emu1010_fpga_read(emu, EMU_DOCK_MAJOR_REV, &tmp);
+		snd_emu1010_fpga_read(emu, EMU_DOCK_MINOR_REV, &tmp2);
+		dev_info(emu->card->dev, "Audio Dock ver: %u.%u\n", tmp, tmp2);
+		/* Sync clocking between 1010 and Dock */
+		/* Allow DLL to settle */
+		msleep(10);
+		/* Unmute all. Default is muted after a firmware load */
+		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
+	} else if (!reg && emu->emu1010.last_reg) {
+		/* Audio Dock removed */
+		dev_info(emu->card->dev, "emu1010: Audio Dock detached\n");
+		/* Unmute all */
+		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
+	}
+
+ next:
+	emu->emu1010.last_reg = reg;
+	if (!emu->card->shutdown)
+		schedule_delayed_work(&emu->emu1010.firmware_work,
+				      msecs_to_jiffies(1000));
 }
 
 /*
@@ -881,39 +886,8 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	}
 	dev_info(emu->card->dev, "emu1010: EMU_HANA_ID = 0x%x\n", reg);
 
-	if (!emu->firmware) {
-		const char *filename;
-		switch (emu->card_capabilities->emu_model) {
-		case EMU_MODEL_EMU1010:
-			filename = HANA_FILENAME;
-			break;
-		case EMU_MODEL_EMU1010B:
-			filename = EMU1010B_FILENAME;
-			break;
-		case EMU_MODEL_EMU1616:
-			filename = EMU1010_NOTEBOOK_FILENAME;
-			break;
-		case EMU_MODEL_EMU0404:
-			filename = EMU0404_FILENAME;
-			break;
-		default:
-			return -ENODEV;
-		}
-
-		err = request_firmware(&emu->firmware, filename, &emu->pci->dev);
-		if (err != 0) {
-			dev_info(emu->card->dev,
-				 "emu1010: firmware: %s not found. Err = %d\n",
-				 filename, err);
-			return err;
-		}
-		dev_info(emu->card->dev,
-			 "emu1010: firmware file = %s, size = 0x%zx\n",
-			   filename, emu->firmware->size);
-	}
-
-	err = snd_emu1010_load_firmware(emu, emu->firmware);
-	if (err != 0) {
+	err = snd_emu1010_load_firmware(emu, 0, &emu->firmware);
+	if (err < 0) {
 		dev_info(emu->card->dev, "emu1010: Loading Firmware failed\n");
 		return err;
 	}
@@ -1136,22 +1110,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	snd_emu1010_fpga_read(emu, EMU_HANA_SPDIF_MODE, &tmp);
 	snd_emu1010_fpga_write(emu, EMU_HANA_SPDIF_MODE, 0x10); /* SPDIF Format spdif  (or 0x11 for aes/ebu) */
 
-	/* Start Micro/Audio Dock firmware loader thread */
-	if (!emu->emu1010.firmware_thread) {
-		emu->emu1010.firmware_thread =
-			kthread_create(emu1010_firmware_thread, emu,
-				       "emu1010_firmware");
-		if (IS_ERR(emu->emu1010.firmware_thread)) {
-			err = PTR_ERR(emu->emu1010.firmware_thread);
-			emu->emu1010.firmware_thread = NULL;
-			dev_info(emu->card->dev,
-					"emu1010: Creating thread failed\n");
-			return err;
-		}
-
-		wake_up_process(emu->emu1010.firmware_thread);
-	}
-
 #if 0
 	snd_emu1010_fpga_link_dst_src_write(emu,
 		EMU_DST_HAMOA_DAC_LEFT1, EMU_SRC_ALICE_EMU32B + 2); /* ALICE2 bus 0xa2 */
@@ -1309,8 +1267,7 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 		/* Disable 48Volt power to Audio Dock */
 		snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_PWR, 0);
 	}
-	if (emu->emu1010.firmware_thread)
-		kthread_stop(emu->emu1010.firmware_thread);
+	cancel_delayed_work_sync(&emu->emu1010.firmware_work);
 	release_firmware(emu->firmware);
 	release_firmware(emu->dock_fw);
 	if (emu->irq >= 0)
@@ -1852,6 +1809,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	emu->irq = -1;
 	emu->synth = NULL;
 	emu->get_synth_voice = NULL;
+	INIT_DELAYED_WORK(&emu->emu1010.firmware_work, emu1010_firmware_work);
 	/* read revision & serial */
 	emu->revision = pci->revision;
 	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &emu->serial);

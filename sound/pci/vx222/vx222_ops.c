@@ -269,12 +269,12 @@ static void vx2_dma_write(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 
 	/* Transfer using pseudo-dma.
 	 */
-	if (offset + count > pipe->buffer_bytes) {
+	if (offset + count >= pipe->buffer_bytes) {
 		int length = pipe->buffer_bytes - offset;
 		count -= length;
 		length >>= 2; /* in 32bit words */
 		/* Transfer using pseudo-dma. */
-		while (length-- > 0) {
+		for (; length > 0; length--) {
 			outl(cpu_to_le32(*addr), port);
 			addr++;
 		}
@@ -284,7 +284,7 @@ static void vx2_dma_write(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	pipe->hw_ptr += count;
 	count >>= 2; /* in 32bit words */
 	/* Transfer using pseudo-dma. */
-	while (count-- > 0) {
+	for (; count > 0; count--) {
 		outl(cpu_to_le32(*addr), port);
 		addr++;
 	}
@@ -307,12 +307,12 @@ static void vx2_dma_read(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	vx2_setup_pseudo_dma(chip, 0);
 	/* Transfer using pseudo-dma.
 	 */
-	if (offset + count > pipe->buffer_bytes) {
+	if (offset + count >= pipe->buffer_bytes) {
 		int length = pipe->buffer_bytes - offset;
 		count -= length;
 		length >>= 2; /* in 32bit words */
 		/* Transfer using pseudo-dma. */
-		while (length-- > 0)
+		for (; length > 0; length--)
 			*addr++ = le32_to_cpu(inl(port));
 		addr = (u32 *)runtime->dma_area;
 		pipe->hw_ptr = 0;
@@ -320,7 +320,7 @@ static void vx2_dma_read(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	pipe->hw_ptr += count;
 	count >>= 2; /* in 32bit words */
 	/* Transfer using pseudo-dma. */
-	while (count-- > 0)
+	for (; count > 0; count--)
 		*addr++ = le32_to_cpu(inl(port));
 
 	vx2_release_pseudo_dma(chip);
@@ -945,7 +945,7 @@ static int vx_mic_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 	return 0;
 }
 
-static struct snd_kcontrol_new vx_control_input_level = {
+static const struct snd_kcontrol_new vx_control_input_level = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -956,7 +956,7 @@ static struct snd_kcontrol_new vx_control_input_level = {
 	.tlv = { .p = db_scale_mic },
 };
 
-static struct snd_kcontrol_new vx_control_mic_level = {
+static const struct snd_kcontrol_new vx_control_mic_level = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),

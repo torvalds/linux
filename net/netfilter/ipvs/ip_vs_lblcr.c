@@ -204,7 +204,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 		      IP_VS_DBG_ADDR(least->af, &least->addr),
 		      ntohs(least->port),
 		      atomic_read(&least->activeconns),
-		      atomic_read(&least->refcnt),
+		      refcount_read(&least->refcnt),
 		      atomic_read(&least->weight), loh);
 	return least;
 }
@@ -249,7 +249,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
 		      __func__,
 		      IP_VS_DBG_ADDR(most->af, &most->addr), ntohs(most->port),
 		      atomic_read(&most->activeconns),
-		      atomic_read(&most->refcnt),
+		      refcount_read(&most->refcnt),
 		      atomic_read(&most->weight), moh);
 	return most;
 }
@@ -519,7 +519,7 @@ static int ip_vs_lblcr_init_svc(struct ip_vs_service *svc)
 		return -ENOMEM;
 
 	svc->sched_data = tbl;
-	IP_VS_DBG(6, "LBLCR hash table (memory=%Zdbytes) allocated for "
+	IP_VS_DBG(6, "LBLCR hash table (memory=%zdbytes) allocated for "
 		  "current service\n", sizeof(*tbl));
 
 	/*
@@ -556,7 +556,7 @@ static void ip_vs_lblcr_done_svc(struct ip_vs_service *svc)
 
 	/* release the table itself */
 	kfree_rcu(tbl, rcu_head);
-	IP_VS_DBG(6, "LBLCR hash table (memory=%Zdbytes) released\n",
+	IP_VS_DBG(6, "LBLCR hash table (memory=%zdbytes) released\n",
 		  sizeof(*tbl));
 }
 
@@ -612,7 +612,7 @@ __ip_vs_lblcr_schedule(struct ip_vs_service *svc)
 		      IP_VS_DBG_ADDR(least->af, &least->addr),
 		      ntohs(least->port),
 		      atomic_read(&least->activeconns),
-		      atomic_read(&least->refcnt),
+		      refcount_read(&least->refcnt),
 		      atomic_read(&least->weight), loh);
 
 	return least;

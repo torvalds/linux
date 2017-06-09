@@ -295,7 +295,6 @@ DSA currently leverages the following subsystems:
 - MDIO/PHY library: drivers/net/phy/phy.c, mdio_bus.c
 - Switchdev: net/switchdev/*
 - Device Tree for various of_* functions
-- HWMON: drivers/hwmon/*
 
 MDIO/PHY library
 ----------------
@@ -348,12 +347,6 @@ DSA features a standardized binding which is documented in
 Documentation/devicetree/bindings/net/dsa/dsa.txt. PHY/MDIO library helper
 functions such as of_get_phy_mode(), of_phy_connect() are also used to query
 per-port PHY specific details: interface connection, MDIO bus location etc..
-
-HWMON
------
-
-Some switch drivers feature internal temperature sensors which are exposed as
-regular HWMON devices in /sys/class/hwmon/.
 
 Driver development
 ==================
@@ -494,23 +487,6 @@ Power management
   fully disabling a given switch port. DSA takes care of marking the port with
   BR_STATE_DISABLED and propagating changes to the hardware if this port is
   disabled while being a bridge member
-
-Hardware monitoring
--------------------
-
-These callbacks are only available if CONFIG_NET_DSA_HWMON is enabled:
-
-- get_temp: this function queries the given switch for its temperature
-
-- get_temp_limit: this function returns the switch current maximum temperature
-  limit
-
-- set_temp_limit: this function configures the maximum temperature limit allowed
-
-- get_temp_alarm: this function returns the critical temperature threshold
-  returning an alarm notification
-
-See Documentation/hwmon/sysfs-interface for details.
 
 Bridge layer
 ------------

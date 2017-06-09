@@ -557,7 +557,6 @@ config SOC_VF610
 	bool "Vybrid Family VF610 support"
 	select ARM_GIC if ARCH_MULTI_V7
 	select PINCTRL_VF610
-	select PL310_ERRATA_769419 if CACHE_L2X0
 
 	help
 	  This enables support for Freescale Vybrid VF610 processor.

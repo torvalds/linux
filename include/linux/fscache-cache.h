@@ -360,6 +360,7 @@ struct fscache_object {
 #define FSCACHE_OBJECT_IS_AVAILABLE	5	/* T if object has become active */
 #define FSCACHE_OBJECT_RETIRED		6	/* T if object was retired on relinquishment */
 #define FSCACHE_OBJECT_KILLED_BY_CACHE	7	/* T if object was killed by the cache */
+#define FSCACHE_OBJECT_RUN_AFTER_DEAD	8	/* T if object has been dispatched after death */
 
 	struct list_head	cache_link;	/* link in cache->object_list */
 	struct hlist_node	cookie_link;	/* link in cookie->backing_objects */

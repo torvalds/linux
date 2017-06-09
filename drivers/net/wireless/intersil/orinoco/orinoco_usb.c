@@ -403,8 +403,7 @@ static void ezusb_ctx_complete(struct request_context *ctx)
 
 		if ((ctx->out_rid == EZUSB_RID_TX) && upriv->dev) {
 			struct net_device *dev = upriv->dev;
-			struct orinoco_private *priv = ndev_priv(dev);
-			struct net_device_stats *stats = &priv->stats;
+			struct net_device_stats *stats = &dev->stats;
 
 			if (ctx->state != EZUSB_CTX_COMPLETE)
 				stats->tx_errors++;
@@ -770,18 +769,31 @@ static int ezusb_submit_in_urb(struct ezusb_priv *upriv)
 
 static inline int ezusb_8051_cpucs(struct ezusb_priv *upriv, int reset)
 {
-	u8 res_val = reset;	/* avoid argument promotion */
+	int ret;
+	u8 *res_val = NULL;
 
 	if (!upriv->udev) {
 		err("%s: !upriv->udev", __func__);
 		return -EFAULT;
 	}
-	return usb_control_msg(upriv->udev,
+
+	res_val = kmalloc(sizeof(*res_val), GFP_KERNEL);
+
+	if (!res_val)
+		return -ENOMEM;
+
+	*res_val = reset;	/* avoid argument promotion */
+
+	ret =  usb_control_msg(upriv->udev,
 			       usb_sndctrlpipe(upriv->udev, 0),
 			       EZUSB_REQUEST_FW_TRANS,
 			       USB_TYPE_VENDOR | USB_RECIP_DEVICE |
-			       USB_DIR_OUT, EZUSB_CPUCS_REG, 0, &res_val,
-			       sizeof(res_val), DEF_TIMEOUT);
+			       USB_DIR_OUT, EZUSB_CPUCS_REG, 0, res_val,
+			       sizeof(*res_val), DEF_TIMEOUT);
+
+	kfree(res_val);
+
+	return ret;
 }
 
 static int ezusb_firmware_download(struct ezusb_priv *upriv,
@@ -1183,7 +1195,7 @@ static int ezusb_program(struct hermes *hw, const char *buf,
 static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct ezusb_priv *upriv = priv->card;
 	u8 mic[MICHAEL_MIC_LEN + 1];
 	int err = 0;
@@ -1556,7 +1568,6 @@ static const struct net_device_ops ezusb_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= orinoco_tx_timeout,
-	.ndo_get_stats		= orinoco_get_stats,
 };
 
 static int ezusb_probe(struct usb_interface *interface,

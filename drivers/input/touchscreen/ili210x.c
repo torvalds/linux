@@ -256,7 +256,6 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	input_set_abs_params(input, ABS_MT_POSITION_X, 0, xmax, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, ymax, 0, 0);
 
-	input_set_drvdata(input, priv);
 	i2c_set_clientdata(client, priv);
 
 	error = request_irq(client->irq, ili210x_irq, pdata->irq_flags,
@@ -280,7 +279,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 		goto err_remove_sysfs;
 	}
 
-	device_init_wakeup(&client->dev, 1);
+	device_init_wakeup(dev, 1);
 
 	dev_dbg(dev,
 		"ILI210x initialized (IRQ: %d), firmware version %d.%d.%d",

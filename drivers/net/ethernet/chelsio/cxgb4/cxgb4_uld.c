@@ -408,10 +408,9 @@ static void enable_rx(struct adapter *adap, struct sge_rspq *q)
 	if (!q)
 		return;
 
-	if (q->handler) {
-		cxgb_busy_poll_init_lock(q);
+	if (q->handler)
 		napi_enable(&q->napi);
-	}
+
 	/* 0-increment GTS to start the timer and enable interrupts */
 	t4_write_reg(adap, MYPF_REG(SGE_PF_GTS_A),
 		     SEINTARM_V(q->intr_params) |
@@ -420,13 +419,8 @@ static void enable_rx(struct adapter *adap, struct sge_rspq *q)
 
 static void quiesce_rx(struct adapter *adap, struct sge_rspq *q)
 {
-	if (q && q->handler) {
+	if (q && q->handler)
 		napi_disable(&q->napi);
-		local_bh_disable();
-		while (!cxgb_poll_lock_napi(q))
-			mdelay(1);
-		local_bh_enable();
-	}
 }
 
 static void enable_rx_uld(struct adapter *adap, unsigned int uld_type)
@@ -597,7 +591,6 @@ void t4_uld_mem_free(struct adapter *adap)
 
 void t4_uld_clean_up(struct adapter *adap)
 {
-	struct sge_uld_rxq_info *rxq_info;
 	unsigned int i;
 
 	if (!adap->uld)
@@ -605,7 +598,6 @@ void t4_uld_clean_up(struct adapter *adap)
 	for (i = 0; i < CXGB4_ULD_MAX; i++) {
 		if (!adap->uld[i].handle)
 			continue;
-		rxq_info = adap->sge.uld_rxq_info[i];
 		if (adap->flags & FULL_INIT_DONE)
 			quiesce_rx_uld(adap, i);
 		if (adap->flags & USING_MSIX)

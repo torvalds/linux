@@ -442,7 +442,6 @@ static void clean_buf(const struct ubifs_info *c, void **buf, int lnum,
 {
 	int empty_offs, pad_len;
 
-	lnum = lnum;
 	dbg_rcvry("cleaning corruption at %d:%d", lnum, *offs);
 
 	ubifs_assert(!(*offs & 7));

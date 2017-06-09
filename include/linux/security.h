@@ -133,6 +133,10 @@ extern unsigned long dac_mmap_min_addr;
 /* setfsuid or setfsgid, id0 == fsuid or fsgid */
 #define LSM_SETID_FS	8
 
+/* Flags for security_task_prlimit(). */
+#define LSM_PRLIMIT_READ  1
+#define LSM_PRLIMIT_WRITE 2
+
 /* forward declares to avoid warnings */
 struct sched_param;
 struct request_sock;
@@ -140,8 +144,7 @@ struct request_sock;
 /* bprm->unsafe reasons */
 #define LSM_UNSAFE_SHARE	1
 #define LSM_UNSAFE_PTRACE	2
-#define LSM_UNSAFE_PTRACE_CAP	4
-#define LSM_UNSAFE_NO_NEW_PRIVS	8
+#define LSM_UNSAFE_NO_NEW_PRIVS	4
 
 #ifdef CONFIG_MMU
 extern int mmap_min_addr_handler(struct ctl_table *table, int write,
@@ -305,6 +308,7 @@ int security_file_send_sigiotask(struct task_struct *tsk,
 int security_file_receive(struct file *file);
 int security_file_open(struct file *file, const struct cred *cred);
 int security_task_create(unsigned long clone_flags);
+int security_task_alloc(struct task_struct *task, unsigned long clone_flags);
 void security_task_free(struct task_struct *task);
 int security_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 void security_cred_free(struct cred *cred);
@@ -325,6 +329,8 @@ void security_task_getsecid(struct task_struct *p, u32 *secid);
 int security_task_setnice(struct task_struct *p, int nice);
 int security_task_setioprio(struct task_struct *p, int ioprio);
 int security_task_getioprio(struct task_struct *p);
+int security_task_prlimit(const struct cred *cred, const struct cred *tcred,
+			  unsigned int flags);
 int security_task_setrlimit(struct task_struct *p, unsigned int resource,
 		struct rlimit *new_rlim);
 int security_task_setscheduler(struct task_struct *p);
@@ -332,7 +338,6 @@ int security_task_getscheduler(struct task_struct *p);
 int security_task_movememory(struct task_struct *p);
 int security_task_kill(struct task_struct *p, struct siginfo *info,
 			int sig, u32 secid);
-int security_task_wait(struct task_struct *p);
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			unsigned long arg4, unsigned long arg5);
 void security_task_to_inode(struct task_struct *p, struct inode *inode);
@@ -361,7 +366,7 @@ int security_sem_semop(struct sem_array *sma, struct sembuf *sops,
 			unsigned nsops, int alter);
 void security_d_instantiate(struct dentry *dentry, struct inode *inode);
 int security_getprocattr(struct task_struct *p, char *name, char **value);
-int security_setprocattr(struct task_struct *p, char *name, void *value, size_t size);
+int security_setprocattr(const char *name, void *value, size_t size);
 int security_netlink_send(struct sock *sk, struct sk_buff *skb);
 int security_ismaclabel(const char *name);
 int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen);
@@ -857,6 +862,12 @@ static inline int security_task_create(unsigned long clone_flags)
 	return 0;
 }
 
+static inline int security_task_alloc(struct task_struct *task,
+				      unsigned long clone_flags)
+{
+	return 0;
+}
+
 static inline void security_task_free(struct task_struct *task)
 { }
 
@@ -951,6 +962,13 @@ static inline int security_task_getioprio(struct task_struct *p)
 	return 0;
 }
 
+static inline int security_task_prlimit(const struct cred *cred,
+					const struct cred *tcred,
+					unsigned int flags)
+{
+	return 0;
+}
+
 static inline int security_task_setrlimit(struct task_struct *p,
 					  unsigned int resource,
 					  struct rlimit *new_rlim)
@@ -976,11 +994,6 @@ static inline int security_task_movememory(struct task_struct *p)
 static inline int security_task_kill(struct task_struct *p,
 				     struct siginfo *info, int sig,
 				     u32 secid)
-{
-	return 0;
-}
-
-static inline int security_task_wait(struct task_struct *p)
 {
 	return 0;
 }
@@ -1106,7 +1119,7 @@ static inline int security_getprocattr(struct task_struct *p, char *name, char *
 	return -EINVAL;
 }
 
-static inline int security_setprocattr(struct task_struct *p, char *name, void *value, size_t size)
+static inline int security_setprocattr(char *name, void *value, size_t size)
 {
 	return -EINVAL;
 }

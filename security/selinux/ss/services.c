@@ -72,7 +72,9 @@
 
 int selinux_policycap_netpeer;
 int selinux_policycap_openperm;
+int selinux_policycap_extsockclass;
 int selinux_policycap_alwaysnetwork;
+int selinux_policycap_cgroupseclabel;
 
 static DEFINE_RWLOCK(policy_rwlock);
 
@@ -155,7 +157,7 @@ static int selinux_set_mapping(struct policydb *pol,
 		}
 
 		k = 0;
-		while (p_in->perms && p_in->perms[k]) {
+		while (p_in->perms[k]) {
 			/* An empty permission string skips ahead */
 			if (!*p_in->perms[k]) {
 				k++;
@@ -1988,8 +1990,13 @@ static void security_load_policycaps(void)
 						  POLICYDB_CAPABILITY_NETPEER);
 	selinux_policycap_openperm = ebitmap_get_bit(&policydb.policycaps,
 						  POLICYDB_CAPABILITY_OPENPERM);
+	selinux_policycap_extsockclass = ebitmap_get_bit(&policydb.policycaps,
+					  POLICYDB_CAPABILITY_EXTSOCKCLASS);
 	selinux_policycap_alwaysnetwork = ebitmap_get_bit(&policydb.policycaps,
 						  POLICYDB_CAPABILITY_ALWAYSNETWORK);
+	selinux_policycap_cgroupseclabel =
+		ebitmap_get_bit(&policydb.policycaps,
+				POLICYDB_CAPABILITY_CGROUPSECLABEL);
 }
 
 static int security_preserve_bools(struct policydb *p);

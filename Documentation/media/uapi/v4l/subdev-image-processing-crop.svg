@@ -7,9 +7,9 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="43cm"
-   height="10cm"
-   viewBox="-194 128 844 196"
+   width="42.799767cm"
+   height="9.9348345cm"
+   viewBox="-194 128 840.06984 194.72276"
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
@@ -22,6 +22,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -40,23 +41,27 @@
      inkscape:window-height="997"
      id="namedview96"
      showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
      inkscape:zoom="0.3649199"
-     inkscape:cx="767.29168"
-     inkscape:cy="177.16535"
+     inkscape:cx="764.40286"
+     inkscape:cy="176.91347"
      inkscape:window-x="1920"
      inkscape:window-y="30"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg2" />
   <rect
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-     x="-8"
-     y="130"
-     width="469.774"
+     style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+     x="-9.6002426"
+     y="128.86047"
+     width="469.77399"
      height="193"
      id="rect4" />
   <g
      id="g6"
-     style="">
+     transform="translate(-1.6002426,-1.1395339)">
     <rect
        style="fill:#ffffff"
        x="4.5"
@@ -65,7 +70,7 @@
        height="104"
        id="rect8" />
     <rect
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#a52a2a"
+       style="fill:none;fill-opacity:0;stroke:#a52a2a;stroke-width:2"
        x="4.5"
        y="189"
        width="159"
@@ -74,7 +79,7 @@
   </g>
   <g
      id="g12"
-     style="">
+     transform="translate(-1.6002426,-1.1395339)">
     <rect
        style="fill:#ffffff"
        x="63.5"
@@ -83,7 +88,7 @@
        height="77"
        id="rect14" />
     <rect
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#0000ff"
+       style="fill:none;fill-opacity:0;stroke:#0000ff;stroke-width:2"
        x="63.5"
        y="211"
        width="94"
@@ -91,223 +96,207 @@
        id="rect16" />
   </g>
   <text
-     style="fill:#0000ff;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="74.5"
-     y="227.75"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#0000ff"
+     x="72.899757"
+     y="226.61047"
      id="text18">
     <tspan
-       x="74.5"
-       y="227.75"
-       id="tspan20"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">sink</tspan>
+       x="72.899757"
+       y="226.61047"
+       id="tspan20">sink</tspan>
     <tspan
-       x="74.5"
-       y="243.75"
-       id="tspan22"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">crop</tspan>
+       x="72.899757"
+       y="242.61047"
+       id="tspan22">crop</tspan>
     <tspan
-       x="74.5"
-       y="259.75"
-       id="tspan24"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">selection</tspan>
+       x="72.899757"
+       y="258.61047"
+       id="tspan24">selection</tspan>
   </text>
   <text
-     style="fill:#000000;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="29.5"
-     y="158"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     x="27.899757"
+     y="156.86047"
      id="text26">
     <tspan
-       x="29.5"
-       y="158"
-       id="tspan28"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;" />
+       x="27.899757"
+       y="156.86047"
+       id="tspan28" />
   </text>
   <text
-     style="fill:#a52a2a;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="8.53836"
-     y="157.914"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#a52a2a"
+     x="6.938117"
+     y="156.77448"
      id="text30">
     <tspan
-       x="8.53836"
-       y="157.914"
-       id="tspan32"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">sink media</tspan>
+       x="6.938117"
+       y="156.77448"
+       id="tspan32">sink media</tspan>
     <tspan
-       x="8.53836"
-       y="173.914"
-       id="tspan34"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">bus format</tspan>
+       x="6.938117"
+       y="172.77448"
+       id="tspan34">bus format</tspan>
   </text>
   <text
-     style="fill:#8b6914;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="349.774"
-     y="155"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#8b6914"
+     x="348.17374"
+     y="153.86047"
      id="text36">
     <tspan
-       x="349.774"
-       y="155"
-       id="tspan38"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">source media</tspan>
+       x="348.17374"
+       y="153.86047"
+       id="tspan38">source media</tspan>
     <tspan
-       x="349.774"
-       y="171"
-       id="tspan40"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">bus format</tspan>
+       x="348.17374"
+       y="169.86047"
+       id="tspan40">bus format</tspan>
   </text>
   <g
      id="g42"
-     style="">
+     transform="translate(-1.6002426,-1.1395339)">
     <rect
        style="fill:#ffffff"
-       x="350.488"
+       x="350.48801"
        y="190.834"
-       width="93.2863"
+       width="93.286301"
        height="75.166"
        id="rect44" />
     <rect
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#8b6914"
-       x="350.488"
+       style="fill:none;fill-opacity:0;stroke:#8b6914;stroke-width:2"
+       x="350.48801"
        y="190.834"
-       width="93.2863"
+       width="93.286301"
        height="75.166"
        id="rect46" />
   </g>
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="350.488"
-     y1="266"
-     x2="63.5"
-     y2="288"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="348.88776"
+     y1="264.86047"
+     x2="61.899757"
+     y2="286.86047"
      id="line48" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="350.488"
-     y1="190.834"
-     x2="63.5"
-     y2="211"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="348.88776"
+     y1="189.69447"
+     x2="61.899757"
+     y2="209.86047"
      id="line50" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="443.774"
-     y1="266"
-     x2="157.5"
-     y2="288"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="442.17374"
+     y1="264.86047"
+     x2="155.89977"
+     y2="286.86047"
      id="line52" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="443.774"
-     y1="190.834"
-     x2="157.5"
-     y2="211"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="442.17374"
+     y1="189.69447"
+     x2="155.89977"
+     y2="209.86047"
      id="line54" />
   <g
      id="g56"
-     style="">
-    <ellipse
+     transform="translate(-1.6002426,-1.1395339)">
+    <circle
        style="fill:#ffffff"
-       cx="473.1"
-       cy="219.984"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse58" />
-    <ellipse
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       cx="473.1"
-       cy="219.984"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse60" />
-    <ellipse
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       cx="473.1"
-       cy="219.984"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse62" />
+       cx="473.10001"
+       cy="219.98399"
+       id="ellipse58"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="473.10001"
+       cy="219.98399"
+       id="ellipse60"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="473.10001"
+       cy="219.98399"
+       id="ellipse62"
+       r="8.5" />
   </g>
   <g
      id="g64"
-     style="">
+     transform="translate(-1.6002426,-1.1395339)">
     <line
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       x1="481.6"
-       y1="219.984"
-       x2="637.934"
-       y2="220.012"
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       x1="481.60001"
+       y1="219.98399"
+       x2="637.93402"
+       y2="220.01199"
        id="line66" />
     <polygon
        style="fill:#000000"
-       points="645.434,220.014 635.433,225.012 637.934,220.012 635.435,215.012 "
+       points="635.435,215.012 645.434,220.014 635.433,225.012 637.934,220.012 "
        id="polygon68" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       points="645.434,220.014 635.433,225.012 637.934,220.012 635.435,215.012 "
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       points="635.435,215.012 645.434,220.014 635.433,225.012 637.934,220.012 "
        id="polygon70" />
   </g>
   <text
-     style="fill:#000000;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="506.908"
-     y="209.8"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     x="505.30774"
+     y="208.66048"
      id="text72">
     <tspan
-       x="506.908"
-       y="209.8"
-       id="tspan74"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">pad 1 (source)</tspan>
+       x="505.30774"
+       y="208.66048"
+       id="tspan74">pad 1 (source)</tspan>
   </text>
   <g
      id="g76"
-     style="">
-    <ellipse
+     transform="translate(-1.6002426,-1.1395339)">
+    <circle
        style="fill:#ffffff"
-       cx="-20.3982"
-       cy="241.512"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse78" />
-    <ellipse
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       cx="-20.3982"
-       cy="241.512"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse80" />
-    <ellipse
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       cx="-20.3982"
-       cy="241.512"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse82" />
+       cx="-20.398199"
+       cy="241.51199"
+       id="ellipse78"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="-20.398199"
+       cy="241.51199"
+       id="ellipse80"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="-20.398199"
+       cy="241.51199"
+       id="ellipse82"
+       r="8.5" />
   </g>
   <g
      id="g84"
-     style="">
+     transform="translate(-1.6002426,-1.1395339)">
     <line
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       x1="-192.398"
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       x1="-192.39799"
        y1="241.8"
        x2="-38.6343"
-       y2="241.529"
+       y2="241.52901"
        id="line86" />
     <polygon
        style="fill:#000000"
-       points="-31.1343,241.516 -41.1254,246.534 -38.6343,241.529 -41.1431,236.534 "
+       points="-41.1431,236.534 -31.1343,241.516 -41.1254,246.534 -38.6343,241.529 "
        id="polygon88" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       points="-31.1343,241.516 -41.1254,246.534 -38.6343,241.529 -41.1431,236.534 "
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       points="-41.1431,236.534 -31.1343,241.516 -41.1254,246.534 -38.6343,241.529 "
        id="polygon90" />
   </g>
   <text
-     style="fill:#000000;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="-147.858"
-     y="229.8"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     x="-149.45824"
+     y="228.66048"
      id="text92">
     <tspan
-       x="-147.858"
-       y="229.8"
-       id="tspan94"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">pad 0 (sink)</tspan>
+       x="-149.45824"
+       y="228.66048"
+       id="tspan94">pad 0 (sink)</tspan>
   </text>
 </svg>

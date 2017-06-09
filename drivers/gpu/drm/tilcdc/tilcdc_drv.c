@@ -245,7 +245,6 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	if (IS_ERR(ddev))
 		return PTR_ERR(ddev);
 
-	ddev->platformdev = pdev;
 	ddev->dev_private = priv;
 	platform_set_drvdata(pdev, ddev);
 	drm_mode_config_init(ddev);
@@ -403,8 +402,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	drm_mode_config_reset(ddev);
 
 	priv->fbdev = drm_fbdev_cma_init(ddev, bpp,
-			ddev->mode_config.num_crtc,
-			ddev->mode_config.num_connector);
+					 ddev->mode_config.num_connector);
 	if (IS_ERR(priv->fbdev)) {
 		ret = PTR_ERR(priv->fbdev);
 		goto init_failed;
@@ -436,16 +434,6 @@ static irqreturn_t tilcdc_irq(int irq, void *arg)
 	struct drm_device *dev = arg;
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	return tilcdc_crtc_irq(priv->crtc);
-}
-
-static int tilcdc_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	return 0;
-}
-
-static void tilcdc_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	return;
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -507,7 +495,9 @@ static int tilcdc_mm_show(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	return drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
+	struct drm_printer p = drm_seq_file_printer(m);
+	drm_mm_print(&dev->vma_offset_manager->vm_addr_space_mm, &p);
+	return 0;
 }
 
 static struct drm_info_list tilcdc_debugfs_list[] = {
@@ -537,39 +527,15 @@ static int tilcdc_debugfs_init(struct drm_minor *minor)
 
 	return ret;
 }
-
-static void tilcdc_debugfs_cleanup(struct drm_minor *minor)
-{
-	struct tilcdc_module *mod;
-	drm_debugfs_remove_files(tilcdc_debugfs_list,
-			ARRAY_SIZE(tilcdc_debugfs_list), minor);
-
-	list_for_each_entry(mod, &module_list, list)
-		if (mod->funcs->debugfs_cleanup)
-			mod->funcs->debugfs_cleanup(mod, minor);
-}
 #endif
 
-static const struct file_operations fops = {
-	.owner              = THIS_MODULE,
-	.open               = drm_open,
-	.release            = drm_release,
-	.unlocked_ioctl     = drm_ioctl,
-	.compat_ioctl       = drm_compat_ioctl,
-	.poll               = drm_poll,
-	.read               = drm_read,
-	.llseek             = no_llseek,
-	.mmap               = drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver tilcdc_driver = {
 	.driver_features    = (DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET |
 			       DRIVER_PRIME | DRIVER_ATOMIC),
 	.lastclose          = tilcdc_lastclose,
 	.irq_handler        = tilcdc_irq,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
-	.enable_vblank      = tilcdc_enable_vblank,
-	.disable_vblank     = tilcdc_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops         = &drm_gem_cma_vm_ops,
 	.dumb_create        = drm_gem_cma_dumb_create,
@@ -587,7 +553,6 @@ static struct drm_driver tilcdc_driver = {
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = tilcdc_debugfs_init,
-	.debugfs_cleanup    = tilcdc_debugfs_cleanup,
 #endif
 	.fops               = &fops,
 	.name               = "tilcdc",

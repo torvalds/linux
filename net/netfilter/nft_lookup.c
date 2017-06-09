@@ -49,7 +49,8 @@ static void nft_lookup_eval(const struct nft_expr *expr,
 }
 
 static const struct nla_policy nft_lookup_policy[NFTA_LOOKUP_MAX + 1] = {
-	[NFTA_LOOKUP_SET]	= { .type = NLA_STRING },
+	[NFTA_LOOKUP_SET]	= { .type = NLA_STRING,
+				    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_LOOKUP_SET_ID]	= { .type = NLA_U32 },
 	[NFTA_LOOKUP_SREG]	= { .type = NLA_U32 },
 	[NFTA_LOOKUP_DREG]	= { .type = NLA_U32 },
@@ -70,16 +71,10 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	    tb[NFTA_LOOKUP_SREG] == NULL)
 		return -EINVAL;
 
-	set = nf_tables_set_lookup(ctx->table, tb[NFTA_LOOKUP_SET], genmask);
-	if (IS_ERR(set)) {
-		if (tb[NFTA_LOOKUP_SET_ID]) {
-			set = nf_tables_set_lookup_byid(ctx->net,
-							tb[NFTA_LOOKUP_SET_ID],
-							genmask);
-		}
-		if (IS_ERR(set))
-			return PTR_ERR(set);
-	}
+	set = nft_set_lookup(ctx->net, ctx->table, tb[NFTA_LOOKUP_SET],
+			     tb[NFTA_LOOKUP_SET_ID], genmask);
+	if (IS_ERR(set))
+		return PTR_ERR(set);
 
 	if (set->flags & NFT_SET_EVAL)
 		return -EOPNOTSUPP;

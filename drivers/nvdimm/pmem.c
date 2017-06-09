@@ -25,9 +25,11 @@
 #include <linux/badblocks.h>
 #include <linux/memremap.h>
 #include <linux/vmalloc.h>
+#include <linux/blk-mq.h>
 #include <linux/pfn_t.h>
 #include <linux/slab.h>
 #include <linux/pmem.h>
+#include <linux/dax.h>
 #include <linux/nd.h>
 #include "pmem.h"
 #include "pfn.h"
@@ -53,21 +55,24 @@ static int pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
 	struct device *dev = to_dev(pmem);
 	sector_t sector;
 	long cleared;
+	int rc = 0;
 
 	sector = (offset - pmem->data_offset) / 512;
-	cleared = nvdimm_clear_poison(dev, pmem->phys_addr + offset, len);
 
+	cleared = nvdimm_clear_poison(dev, pmem->phys_addr + offset, len);
+	if (cleared < len)
+		rc = -EIO;
 	if (cleared > 0 && cleared / 512) {
-		dev_dbg(dev, "%s: %#llx clear %ld sector%s\n",
-				__func__, (unsigned long long) sector,
-				cleared / 512, cleared / 512 > 1 ? "s" : "");
-		badblocks_clear(&pmem->bb, sector, cleared / 512);
-	} else {
-		return -EIO;
+		cleared /= 512;
+		dev_dbg(dev, "%s: %#llx clear %ld sector%s\n", __func__,
+				(unsigned long long) sector, cleared,
+				cleared > 1 ? "s" : "");
+		badblocks_clear(&pmem->bb, sector, cleared);
 	}
 
 	invalidate_pmem(pmem->virt_addr + offset, len);
-	return 0;
+
+	return rc;
 }
 
 static void write_pmem(void *pmem_addr, struct page *page,
@@ -85,9 +90,11 @@ static int read_pmem(struct page *page, unsigned int off,
 	int rc;
 	void *mem = kmap_atomic(page);
 
-	rc = memcpy_from_pmem(mem + off, pmem_addr, len);
+	rc = memcpy_mcsafe(mem + off, pmem_addr, len);
 	kunmap_atomic(mem);
-	return rc;
+	if (rc)
+		return -EIO;
+	return 0;
 }
 
 static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
@@ -194,13 +201,13 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 }
 
 /* see "strong" declaration in tools/testing/nvdimm/pmem-dax.c */
-__weak long pmem_direct_access(struct block_device *bdev, sector_t sector,
-		      void **kaddr, pfn_t *pfn, long size)
+__weak long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn)
 {
-	struct pmem_device *pmem = bdev->bd_queue->queuedata;
-	resource_size_t offset = sector * 512 + pmem->data_offset;
+	resource_size_t offset = PFN_PHYS(pgoff) + pmem->data_offset;
 
-	if (unlikely(is_bad_pmem(&pmem->bb, sector, size)))
+	if (unlikely(is_bad_pmem(&pmem->bb, PFN_PHYS(pgoff) / 512,
+					PFN_PHYS(nr_pages))))
 		return -EIO;
 	*kaddr = pmem->virt_addr + offset;
 	*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
@@ -210,15 +217,26 @@ __weak long pmem_direct_access(struct block_device *bdev, sector_t sector,
 	 * requested range.
 	 */
 	if (unlikely(pmem->bb.count))
-		return size;
-	return pmem->size - pmem->pfn_pad - offset;
+		return nr_pages;
+	return PHYS_PFN(pmem->size - pmem->pfn_pad - offset);
 }
 
 static const struct block_device_operations pmem_fops = {
 	.owner =		THIS_MODULE,
 	.rw_page =		pmem_rw_page,
-	.direct_access =	pmem_direct_access,
 	.revalidate_disk =	nvdimm_revalidate_disk,
+};
+
+static long pmem_dax_direct_access(struct dax_device *dax_dev,
+		pgoff_t pgoff, long nr_pages, void **kaddr, pfn_t *pfn)
+{
+	struct pmem_device *pmem = dax_get_private(dax_dev);
+
+	return __pmem_direct_access(pmem, pgoff, nr_pages, kaddr, pfn);
+}
+
+static const struct dax_operations pmem_dax_ops = {
+	.direct_access = pmem_dax_direct_access,
 };
 
 static void pmem_release_queue(void *q)
@@ -226,10 +244,19 @@ static void pmem_release_queue(void *q)
 	blk_cleanup_queue(q);
 }
 
-static void pmem_release_disk(void *disk)
+static void pmem_freeze_queue(void *q)
 {
-	del_gendisk(disk);
-	put_disk(disk);
+	blk_freeze_queue_start(q);
+}
+
+static void pmem_release_disk(void *__pmem)
+{
+	struct pmem_device *pmem = __pmem;
+
+	kill_dax(pmem->dax_dev);
+	put_dax(pmem->dax_dev);
+	del_gendisk(pmem->disk);
+	put_disk(pmem->disk);
 }
 
 static int pmem_attach_disk(struct device *dev,
@@ -240,6 +267,7 @@ static int pmem_attach_disk(struct device *dev,
 	struct vmem_altmap __altmap, *altmap = NULL;
 	struct resource *res = &nsio->res;
 	struct nd_pfn *nd_pfn = NULL;
+	struct dax_device *dax_dev;
 	int nid = dev_to_node(dev);
 	struct nd_pfn_sb *pfn_sb;
 	struct pmem_device *pmem;
@@ -270,13 +298,16 @@ static int pmem_attach_disk(struct device *dev,
 		dev_warn(dev, "unable to guarantee persistence of writes\n");
 
 	if (!devm_request_mem_region(dev, res->start, resource_size(res),
-				dev_name(dev))) {
+				dev_name(&ndns->dev))) {
 		dev_warn(dev, "could not reserve region %pR\n", res);
 		return -EBUSY;
 	}
 
 	q = blk_alloc_queue_node(GFP_KERNEL, dev_to_node(dev));
 	if (!q)
+		return -ENOMEM;
+
+	if (devm_add_action_or_reset(dev, pmem_release_queue, q))
 		return -ENOMEM;
 
 	pmem->pfn_flags = PFN_DEV;
@@ -298,10 +329,10 @@ static int pmem_attach_disk(struct device *dev,
 				pmem->size, ARCH_MEMREMAP_PMEM);
 
 	/*
-	 * At release time the queue must be dead before
+	 * At release time the queue must be frozen before
 	 * devm_memremap_pages is unwound
 	 */
-	if (devm_add_action_or_reset(dev, pmem_release_queue, q))
+	if (devm_add_action_or_reset(dev, pmem_freeze_queue, q))
 		return -ENOMEM;
 
 	if (IS_ERR(addr))
@@ -320,6 +351,7 @@ static int pmem_attach_disk(struct device *dev,
 	disk = alloc_disk_node(0, nid);
 	if (!disk)
 		return -ENOMEM;
+	pmem->disk = disk;
 
 	disk->fops		= &pmem_fops;
 	disk->queue		= q;
@@ -331,9 +363,16 @@ static int pmem_attach_disk(struct device *dev,
 		return -ENOMEM;
 	nvdimm_badblocks_populate(nd_region, &pmem->bb, res);
 	disk->bb = &pmem->bb;
-	device_add_disk(dev, disk);
 
-	if (devm_add_action_or_reset(dev, pmem_release_disk, disk))
+	dax_dev = alloc_dax(pmem, disk->disk_name, &pmem_dax_ops);
+	if (!dax_dev) {
+		put_disk(disk);
+		return -ENOMEM;
+	}
+	pmem->dax_dev = dax_dev;
+
+	device_add_disk(dev, disk);
+	if (devm_add_action_or_reset(dev, pmem_release_disk, pmem))
 		return -ENOMEM;
 
 	revalidate_disk(disk);
@@ -383,12 +422,12 @@ static void nd_pmem_shutdown(struct device *dev)
 
 static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 {
-	struct pmem_device *pmem = dev_get_drvdata(dev);
-	struct nd_region *nd_region = to_region(pmem);
+	struct nd_region *nd_region;
 	resource_size_t offset = 0, end_trunc = 0;
 	struct nd_namespace_common *ndns;
 	struct nd_namespace_io *nsio;
 	struct resource res;
+	struct badblocks *bb;
 
 	if (event != NVDIMM_REVALIDATE_POISON)
 		return;
@@ -397,20 +436,33 @@ static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 		struct nd_btt *nd_btt = to_nd_btt(dev);
 
 		ndns = nd_btt->ndns;
-	} else if (is_nd_pfn(dev)) {
-		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
-		struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
+		nd_region = to_nd_region(ndns->dev.parent);
+		nsio = to_nd_namespace_io(&ndns->dev);
+		bb = &nsio->bb;
+	} else {
+		struct pmem_device *pmem = dev_get_drvdata(dev);
 
-		ndns = nd_pfn->ndns;
-		offset = pmem->data_offset + __le32_to_cpu(pfn_sb->start_pad);
-		end_trunc = __le32_to_cpu(pfn_sb->end_trunc);
-	} else
-		ndns = to_ndns(dev);
+		nd_region = to_region(pmem);
+		bb = &pmem->bb;
 
-	nsio = to_nd_namespace_io(&ndns->dev);
+		if (is_nd_pfn(dev)) {
+			struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+			struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
+
+			ndns = nd_pfn->ndns;
+			offset = pmem->data_offset +
+					__le32_to_cpu(pfn_sb->start_pad);
+			end_trunc = __le32_to_cpu(pfn_sb->end_trunc);
+		} else {
+			ndns = to_ndns(dev);
+		}
+
+		nsio = to_nd_namespace_io(&ndns->dev);
+	}
+
 	res.start = nsio->res.start + offset;
 	res.end = nsio->res.end - end_trunc;
-	nvdimm_badblocks_populate(nd_region, &pmem->bb, &res);
+	nvdimm_badblocks_populate(nd_region, bb, &res);
 }
 
 MODULE_ALIAS("pmem");

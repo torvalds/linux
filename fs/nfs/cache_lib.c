@@ -141,8 +141,7 @@ int nfs_cache_register_net(struct net *net, struct cache_detail *cd)
 
 void nfs_cache_unregister_sb(struct super_block *sb, struct cache_detail *cd)
 {
-	if (cd->u.pipefs.dir)
-		sunrpc_cache_unregister_pipefs(cd);
+	sunrpc_cache_unregister_pipefs(cd);
 }
 
 void nfs_cache_unregister_net(struct net *net, struct cache_detail *cd)

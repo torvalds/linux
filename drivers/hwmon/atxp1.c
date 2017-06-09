@@ -81,8 +81,8 @@ static struct atxp1_data *atxp1_update_device(struct device *dev)
 }
 
 /* sys file functions for cpu0_vid */
-static ssize_t atxp1_showvcore(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t cpu0_vid_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	int size;
 	struct atxp1_data *data;
@@ -95,9 +95,9 @@ static ssize_t atxp1_showvcore(struct device *dev,
 	return size;
 }
 
-static ssize_t atxp1_storevcore(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t cpu0_vid_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	struct atxp1_data *data = atxp1_update_device(dev);
 	struct i2c_client *client = data->client;
@@ -154,12 +154,11 @@ static ssize_t atxp1_storevcore(struct device *dev,
  * CPU core reference voltage
  * unit: millivolt
  */
-static DEVICE_ATTR(cpu0_vid, S_IRUGO | S_IWUSR, atxp1_showvcore,
-		   atxp1_storevcore);
+static DEVICE_ATTR_RW(cpu0_vid);
 
 /* sys file functions for GPIO1 */
-static ssize_t atxp1_showgpio1(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t gpio1_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	int size;
 	struct atxp1_data *data;
@@ -171,9 +170,8 @@ static ssize_t atxp1_showgpio1(struct device *dev,
 	return size;
 }
 
-static ssize_t atxp1_storegpio1(struct device *dev,
-				struct device_attribute *attr, const char *buf,
-				size_t count)
+static ssize_t gpio1_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct atxp1_data *data = atxp1_update_device(dev);
 	struct i2c_client *client = data->client;
@@ -201,11 +199,11 @@ static ssize_t atxp1_storegpio1(struct device *dev,
  * GPIO1 data register
  * unit: Four bit as hex (e.g. 0x0f)
  */
-static DEVICE_ATTR(gpio1, S_IRUGO | S_IWUSR, atxp1_showgpio1, atxp1_storegpio1);
+static DEVICE_ATTR_RW(gpio1);
 
 /* sys file functions for GPIO2 */
-static ssize_t atxp1_showgpio2(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t gpio2_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	int size;
 	struct atxp1_data *data;
@@ -217,9 +215,8 @@ static ssize_t atxp1_showgpio2(struct device *dev,
 	return size;
 }
 
-static ssize_t atxp1_storegpio2(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t gpio2_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct atxp1_data *data = atxp1_update_device(dev);
 	struct i2c_client *client = data->client;
@@ -246,7 +243,7 @@ static ssize_t atxp1_storegpio2(struct device *dev,
  * GPIO2 data register
  * unit: Eight bit as hex (e.g. 0xff)
  */
-static DEVICE_ATTR(gpio2, S_IRUGO | S_IWUSR, atxp1_showgpio2, atxp1_storegpio2);
+static DEVICE_ATTR_RW(gpio2);
 
 static struct attribute *atxp1_attrs[] = {
 	&dev_attr_gpio1.attr,

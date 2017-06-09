@@ -33,7 +33,7 @@
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/delay.h>
-#include <linux/sched.h>	/* signal_pending(), struct timer_list */
+#include <linux/sched/signal.h>	/* signal_pending(), struct timer_list */
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 

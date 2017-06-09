@@ -18,6 +18,7 @@
 #include <linux/acpi.h>
 #include <linux/bootmem.h>
 #include <linux/cpumask.h>
+#include <linux/efi-bgrt.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -132,14 +133,13 @@ static int __init acpi_fadt_sanity_check(void)
 	struct acpi_table_header *table;
 	struct acpi_table_fadt *fadt;
 	acpi_status status;
-	acpi_size tbl_size;
 	int ret = 0;
 
 	/*
 	 * FADT is required on arm64; retrieve it to check its presence
 	 * and carry out revision and ACPI HW reduced compliancy tests
 	 */
-	status = acpi_get_table_with_size(ACPI_SIG_FADT, 0, &table, &tbl_size);
+	status = acpi_get_table(ACPI_SIG_FADT, 0, &table);
 	if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);
 
@@ -170,10 +170,10 @@ static int __init acpi_fadt_sanity_check(void)
 
 out:
 	/*
-	 * acpi_get_table_with_size() creates FADT table mapping that
+	 * acpi_get_table() creates FADT table mapping that
 	 * should be released after parsing and before resuming boot
 	 */
-	early_acpi_os_unmap_memory(table, tbl_size);
+	acpi_put_table(table);
 	return ret;
 }
 
@@ -234,6 +234,8 @@ done:
 			early_init_dt_scan_chosen_stdout();
 	} else {
 		parse_spcr(earlycon_init_is_deferred);
+		if (IS_ENABLED(CONFIG_ACPI_BGRT))
+			acpi_table_parse(ACPI_SIG_BGRT, acpi_parse_bgrt);
 	}
 }
 

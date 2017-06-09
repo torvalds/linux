@@ -352,8 +352,7 @@
  *	Return 0 if permission is granted.
  * @inode_getattr:
  *	Check permission before obtaining file attributes.
- *	@mnt is the vfsmount where the dentry was looked up
- *	@dentry contains the dentry structure for the file.
+ *	@path contains the path structure for the file.
  *	Return 0 if permission is granted.
  * @inode_setxattr:
  *	Check permission before setting the extended attributes
@@ -534,8 +533,13 @@
  *	manual page for definitions of the @clone_flags.
  *	@clone_flags contains the flags indicating what should be shared.
  *	Return 0 if permission is granted.
+ * @task_alloc:
+ *	@task task being allocated.
+ *	@clone_flags contains the flags indicating what should be shared.
+ *	Handle allocation of task-related resources.
+ *	Returns a zero on success, negative values on failure.
  * @task_free:
- *	@task task being freed
+ *	@task task about to be freed.
  *	Handle release of task-related resources. (Note that this can be called
  *	from interrupt context.)
  * @cred_alloc_blank:
@@ -631,10 +635,19 @@
  *	Check permission before getting the ioprio value of @p.
  *	@p contains the task_struct of process.
  *	Return 0 if permission is granted.
+ * @task_prlimit:
+ *	Check permission before getting and/or setting the resource limits of
+ *	another task.
+ *	@cred points to the cred structure for the current task.
+ *	@tcred points to the cred structure for the target task.
+ *	@flags contains the LSM_PRLIMIT_* flag bits indicating whether the
+ *	resource limits are being read, modified, or both.
+ *	Return 0 if permission is granted.
  * @task_setrlimit:
- *	Check permission before setting the resource limits of the current
- *	process for @resource to @new_rlim.  The old resource limit values can
- *	be examined by dereferencing (current->signal->rlim + resource).
+ *	Check permission before setting the resource limits of process @p
+ *	for @resource to @new_rlim.  The old resource limit values can
+ *	be examined by dereferencing (p->signal->rlim + resource).
+ *	@p points to the task_struct for the target task's group leader.
  *	@resource contains the resource whose limit is being set.
  *	@new_rlim contains the new limits for @resource.
  *	Return 0 if permission is granted.
@@ -665,11 +678,6 @@
  *	@info contains the signal information.
  *	@sig contains the signal value.
  *	@secid contains the sid of the process where the signal originated
- *	Return 0 if permission is granted.
- * @task_wait:
- *	Check permission before allowing a process to reap a child process @p
- *	and collect its status information.
- *	@p contains the task_struct for process.
  *	Return 0 if permission is granted.
  * @task_prctl:
  *	Check permission before performing a process control operation on the
@@ -1479,6 +1487,7 @@ union security_list_options {
 	int (*file_open)(struct file *file, const struct cred *cred);
 
 	int (*task_create)(unsigned long clone_flags);
+	int (*task_alloc)(struct task_struct *task, unsigned long clone_flags);
 	void (*task_free)(struct task_struct *task);
 	int (*cred_alloc_blank)(struct cred *cred, gfp_t gfp);
 	void (*cred_free)(struct cred *cred);
@@ -1500,6 +1509,8 @@ union security_list_options {
 	int (*task_setnice)(struct task_struct *p, int nice);
 	int (*task_setioprio)(struct task_struct *p, int ioprio);
 	int (*task_getioprio)(struct task_struct *p);
+	int (*task_prlimit)(const struct cred *cred, const struct cred *tcred,
+			    unsigned int flags);
 	int (*task_setrlimit)(struct task_struct *p, unsigned int resource,
 				struct rlimit *new_rlim);
 	int (*task_setscheduler)(struct task_struct *p);
@@ -1507,7 +1518,6 @@ union security_list_options {
 	int (*task_movememory)(struct task_struct *p);
 	int (*task_kill)(struct task_struct *p, struct siginfo *info,
 				int sig, u32 secid);
-	int (*task_wait)(struct task_struct *p);
 	int (*task_prctl)(int option, unsigned long arg2, unsigned long arg3,
 				unsigned long arg4, unsigned long arg5);
 	void (*task_to_inode)(struct task_struct *p, struct inode *inode);
@@ -1547,8 +1557,7 @@ union security_list_options {
 	void (*d_instantiate)(struct dentry *dentry, struct inode *inode);
 
 	int (*getprocattr)(struct task_struct *p, char *name, char **value);
-	int (*setprocattr)(struct task_struct *p, char *name, void *value,
-				size_t size);
+	int (*setprocattr)(const char *name, void *value, size_t size);
 	int (*ismaclabel)(const char *name);
 	int (*secid_to_secctx)(u32 secid, char **secdata, u32 *seclen);
 	int (*secctx_to_secid)(const char *secdata, u32 seclen, u32 *secid);
@@ -1745,6 +1754,7 @@ struct security_hook_heads {
 	struct list_head file_receive;
 	struct list_head file_open;
 	struct list_head task_create;
+	struct list_head task_alloc;
 	struct list_head task_free;
 	struct list_head cred_alloc_blank;
 	struct list_head cred_free;
@@ -1763,12 +1773,12 @@ struct security_hook_heads {
 	struct list_head task_setnice;
 	struct list_head task_setioprio;
 	struct list_head task_getioprio;
+	struct list_head task_prlimit;
 	struct list_head task_setrlimit;
 	struct list_head task_setscheduler;
 	struct list_head task_getscheduler;
 	struct list_head task_movememory;
 	struct list_head task_kill;
-	struct list_head task_wait;
 	struct list_head task_prctl;
 	struct list_head task_to_inode;
 	struct list_head ipc_permission;
@@ -1876,6 +1886,7 @@ struct security_hook_list {
 	struct list_head		list;
 	struct list_head		*head;
 	union security_list_options	hook;
+	char				*lsm;
 };
 
 /*
@@ -1888,15 +1899,10 @@ struct security_hook_list {
 	{ .head = &security_hook_heads.HEAD, .hook = { .HEAD = HOOK } }
 
 extern struct security_hook_heads security_hook_heads;
+extern char *lsm_names;
 
-static inline void security_add_hooks(struct security_hook_list *hooks,
-				      int count)
-{
-	int i;
-
-	for (i = 0; i < count; i++)
-		list_add_tail_rcu(&hooks[i].list, hooks[i].head);
-}
+extern void security_add_hooks(struct security_hook_list *hooks, int count,
+				char *lsm);
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 /*
@@ -1920,6 +1926,13 @@ static inline void security_delete_hooks(struct security_hook_list *hooks,
 		list_del_rcu(&hooks[i].list);
 }
 #endif /* CONFIG_SECURITY_SELINUX_DISABLE */
+
+/* Currently required to handle SELinux runtime hook disable. */
+#ifdef CONFIG_SECURITY_WRITABLE_HOOKS
+#define __lsm_ro_after_init
+#else
+#define __lsm_ro_after_init	__ro_after_init
+#endif /* CONFIG_SECURITY_WRITABLE_HOOKS */
 
 extern int __init security_module_enable(const char *module);
 extern void __init capability_add_hooks(void);

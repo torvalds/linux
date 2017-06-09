@@ -14,6 +14,7 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
+#define NR_CPU_IRQS	32	/* number of irq lines coming in */
 #define TIMER0_IRQ	3	/* Fixed by ISA */
 
 /*
@@ -57,7 +58,7 @@ static void arc_irq_mask(struct irq_data *data)
 	unsigned int ienb;
 
 	ienb = read_aux_reg(AUX_IENABLE);
-	ienb &= ~(1 << data->irq);
+	ienb &= ~(1 << data->hwirq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 
@@ -66,7 +67,7 @@ static void arc_irq_unmask(struct irq_data *data)
 	unsigned int ienb;
 
 	ienb = read_aux_reg(AUX_IENABLE);
-	ienb |= (1 << data->irq);
+	ienb |= (1 << data->hwirq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 

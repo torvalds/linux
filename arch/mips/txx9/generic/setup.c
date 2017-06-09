@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>

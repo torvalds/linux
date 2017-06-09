@@ -312,7 +312,7 @@ information out of a register+stack dump printed by the kernel on
 protection faults (so-called "kernel oops").
 
 If you run into some kind of deadlock, you can try to dump a call trace
-for each process using sysrq-t (see Documentation/sysrq.txt).
+for each process using sysrq-t (see Documentation/admin-guide/sysrq.rst).
 This way it is possible to figure where *exactly* some process in "D"
 state is stuck.
 

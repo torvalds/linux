@@ -605,6 +605,13 @@ static int coretemp_cpu_online(unsigned int cpu)
 	struct platform_data *pdata;
 
 	/*
+	 * Don't execute this on resume as the offline callback did
+	 * not get executed on suspend.
+	 */
+	if (cpuhp_tasks_frozen)
+		return 0;
+
+	/*
 	 * CPUID.06H.EAX[0] indicates whether the CPU has thermal
 	 * sensors. We check this bit only, all the early CPUs
 	 * without thermal sensors will be filtered out.
@@ -653,6 +660,13 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	struct platform_data *pd;
 	struct temp_data *tdata;
 	int indx, target;
+
+	/*
+	 * Don't execute this on suspend as the device remove locks
+	 * up the machine.
+	 */
+	if (cpuhp_tasks_frozen)
+		return 0;
 
 	/* If the physical CPU device does not exist, just return */
 	if (!pdev)

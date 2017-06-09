@@ -97,7 +97,7 @@ static void timrot_irq_acknowledge(void)
 		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_CLR);
 }
 
-static cycle_t timrotv1_get_cycles(struct clocksource *cs)
+static u64 timrotv1_get_cycles(struct clocksource *cs)
 {
 	return ~((__raw_readl(mxs_timrot_base + HW_TIMROT_TIMCOUNTn(1))
 			& 0xffff0000) >> 16);

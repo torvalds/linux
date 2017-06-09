@@ -75,12 +75,6 @@ enum bcm2835_pinconf_param {
 	BCM2835_PINCONF_PARAM_PULL,
 };
 
-enum bcm2835_pinconf_pull {
-	BCM2835_PINCONFIG_PULL_NONE,
-	BCM2835_PINCONFIG_PULL_DOWN,
-	BCM2835_PINCONFIG_PULL_UP,
-};
-
 #define BCM2835_PINCONF_PACK(_param_, _arg_) ((_param_) << 16 | (_arg_))
 #define BCM2835_PINCONF_UNPACK_PARAM(_conf_) ((_conf_) >> 16)
 #define BCM2835_PINCONF_UNPACK_ARG(_conf_) ((_conf_) & 0xffff)

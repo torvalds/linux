@@ -26,6 +26,7 @@
 #include <xen/interface/xen.h>
 #include <xen/interface/platform.h>
 #include <xen/xen.h>
+#include <xen/xen-ops.h>
 
 #include <asm/page.h>
 
@@ -263,3 +264,20 @@ efi_status_t xen_efi_query_capsule_caps(efi_capsule_header_t **capsules,
 	return efi_data(op).status;
 }
 EXPORT_SYMBOL_GPL(xen_efi_query_capsule_caps);
+
+void xen_efi_reset_system(int reset_type, efi_status_t status,
+			  unsigned long data_size, efi_char16_t *data)
+{
+	switch (reset_type) {
+	case EFI_RESET_COLD:
+	case EFI_RESET_WARM:
+		xen_reboot(SHUTDOWN_reboot);
+		break;
+	case EFI_RESET_SHUTDOWN:
+		xen_reboot(SHUTDOWN_poweroff);
+		break;
+	default:
+		BUG();
+	}
+}
+EXPORT_SYMBOL_GPL(xen_efi_reset_system);

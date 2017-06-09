@@ -968,7 +968,7 @@ static void goku_fifo_flush(struct usb_ep *_ep)
 		command(regs, COMMAND_FIFO_CLEAR, ep->num);
 }
 
-static struct usb_ep_ops goku_ep_ops = {
+static const struct usb_ep_ops goku_ep_ops = {
 	.enable		= goku_ep_enable,
 	.disable	= goku_ep_disable,
 

@@ -49,6 +49,7 @@
 #include <net/xfrm.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+#include <linux/etherdevice.h>
 
 #define IP6_VTI_HASH_SIZE_SHIFT  5
 #define IP6_VTI_HASH_SIZE (1 << IP6_VTI_HASH_SIZE_SHIFT)
@@ -189,12 +190,12 @@ static int vti6_tnl_create2(struct net_device *dev)
 	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
 	int err;
 
+	dev->rtnl_link_ops = &vti6_link_ops;
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto out;
 
 	strcpy(t->parms.name, dev->name);
-	dev->rtnl_link_ops = &vti6_link_ops;
 
 	dev_hold(dev);
 	vti6_tnl_link(ip6n, t);
@@ -484,11 +485,15 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 	if (!skb->ignore_df && skb->len > mtu) {
 		skb_dst(skb)->ops->update_pmtu(dst, NULL, skb, mtu);
 
-		if (skb->protocol == htons(ETH_P_IPV6))
+		if (skb->protocol == htons(ETH_P_IPV6)) {
+			if (mtu < IPV6_MIN_MTU)
+				mtu = IPV6_MIN_MTU;
+
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
-		else
+		} else {
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 				  htonl(mtu));
+		}
 
 		return -EMSGSIZE;
 	}
@@ -652,6 +657,7 @@ vti6_tnl_change(struct ip6_tnl *t, const struct __ip6_tnl_parm *p)
 	t->parms.i_key = p->i_key;
 	t->parms.o_key = p->o_key;
 	t->parms.proto = p->proto;
+	t->parms.fwmark = p->fwmark;
 	dst_cache_reset(&t->dst_cache);
 	vti6_link_config(t);
 	return 0;
@@ -692,6 +698,10 @@ vti6_parm_to_user(struct ip6_tnl_parm2 *u, const struct __ip6_tnl_parm *p)
 	u->link = p->link;
 	u->i_key = p->i_key;
 	u->o_key = p->o_key;
+	if (u->i_key)
+		u->i_flags |= GRE_KEY;
+	if (u->o_key)
+		u->o_flags |= GRE_KEY;
 	u->proto = p->proto;
 
 	memcpy(u->name, p->name, sizeof(u->name));
@@ -842,6 +852,9 @@ static void vti6_dev_setup(struct net_device *dev)
 	dev->flags |= IFF_NOARP;
 	dev->addr_len = sizeof(struct in6_addr);
 	netif_keep_dst(dev);
+	/* This perm addr will be used as interface identifier by IPv6 */
+	dev->addr_assign_type = NET_ADDR_RANDOM;
+	eth_random_addr(dev->perm_addr);
 }
 
 /**
@@ -921,6 +934,9 @@ static void vti6_netlink_parms(struct nlattr *data[],
 
 	if (data[IFLA_VTI_OKEY])
 		parms->o_key = nla_get_be32(data[IFLA_VTI_OKEY]);
+
+	if (data[IFLA_VTI_FWMARK])
+		parms->fwmark = nla_get_u32(data[IFLA_VTI_FWMARK]);
 }
 
 static int vti6_newlink(struct net *src_net, struct net_device *dev,
@@ -986,6 +1002,8 @@ static size_t vti6_get_size(const struct net_device *dev)
 		nla_total_size(4) +
 		/* IFLA_VTI_OKEY */
 		nla_total_size(4) +
+		/* IFLA_VTI_FWMARK */
+		nla_total_size(4) +
 		0;
 }
 
@@ -998,7 +1016,8 @@ static int vti6_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_in6_addr(skb, IFLA_VTI_LOCAL, &parm->laddr) ||
 	    nla_put_in6_addr(skb, IFLA_VTI_REMOTE, &parm->raddr) ||
 	    nla_put_be32(skb, IFLA_VTI_IKEY, parm->i_key) ||
-	    nla_put_be32(skb, IFLA_VTI_OKEY, parm->o_key))
+	    nla_put_be32(skb, IFLA_VTI_OKEY, parm->o_key) ||
+	    nla_put_u32(skb, IFLA_VTI_FWMARK, parm->fwmark))
 		goto nla_put_failure;
 	return 0;
 
@@ -1012,6 +1031,7 @@ static const struct nla_policy vti6_policy[IFLA_VTI_MAX + 1] = {
 	[IFLA_VTI_REMOTE]	= { .len = sizeof(struct in6_addr) },
 	[IFLA_VTI_IKEY]		= { .type = NLA_U32 },
 	[IFLA_VTI_OKEY]		= { .type = NLA_U32 },
+	[IFLA_VTI_FWMARK]	= { .type = NLA_U32 },
 };
 
 static struct rtnl_link_ops vti6_link_ops __read_mostly = {

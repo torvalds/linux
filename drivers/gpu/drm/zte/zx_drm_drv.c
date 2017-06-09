@@ -53,27 +53,12 @@ static void zx_drm_lastclose(struct drm_device *drm)
 	drm_fbdev_cma_restore_mode(priv->fbdev);
 }
 
-static const struct file_operations zx_drm_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = drm_compat_ioctl,
-#endif
-	.poll = drm_poll,
-	.read = drm_read,
-	.llseek = noop_llseek,
-	.mmap = drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(zx_drm_fops);
 
 static struct drm_driver zx_drm_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
 	.lastclose = zx_drm_lastclose,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
-	.enable_vblank = zx_vou_enable_vblank,
-	.disable_vblank = zx_vou_disable_vblank,
 	.gem_free_object = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
@@ -141,7 +126,7 @@ static int zx_drm_bind(struct device *dev)
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
 
-	priv->fbdev = drm_fbdev_cma_init(drm, 32, drm->mode_config.num_crtc,
+	priv->fbdev = drm_fbdev_cma_init(drm, 32,
 					 drm->mode_config.num_connector);
 	if (IS_ERR(priv->fbdev)) {
 		ret = PTR_ERR(priv->fbdev);
@@ -247,6 +232,7 @@ static struct platform_driver zx_drm_platform_driver = {
 static struct platform_driver *drivers[] = {
 	&zx_crtc_driver,
 	&zx_hdmi_driver,
+	&zx_tvenc_driver,
 	&zx_drm_platform_driver,
 };
 

@@ -100,7 +100,6 @@ static const struct fb_videomode lynx750_ext[] = {
 	 FB_VMODE_NONINTERLACED},
 };
 
-
 /* no hardware cursor supported under version 2.6.10, kernel bug */
 static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 {
@@ -420,7 +419,7 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 		if (ret) {
 			dev_err(&pdev->dev,
 				"error:%d occurred in pci_save_state\n", ret);
-			return ret;
+			goto lynxfb_suspend_err;
 		}
 
 		ret = pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
@@ -428,11 +427,13 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 			dev_err(&pdev->dev,
 				"error:%d occurred in pci_set_power_state\n",
 				ret);
-			return ret;
+			goto lynxfb_suspend_err;
 		}
 	}
 
 	pdev->dev.power.power_state = mesg;
+
+lynxfb_suspend_err:
 	console_unlock();
 	return ret;
 }
@@ -457,7 +458,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 			"error:%d occurred in pci_set_power_state\n", ret);
-		return ret;
+		goto lynxfb_resume_err;
 	}
 
 	if (pdev->dev.power.power_state.event != PM_EVENT_FREEZE) {
@@ -467,7 +468,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 			dev_err(&pdev->dev,
 				"error:%d occurred in pci_enable_device\n",
 				ret);
-			return ret;
+			goto lynxfb_resume_err;
 		}
 		pci_set_master(pdev);
 	}
@@ -499,6 +500,8 @@ static int lynxfb_resume(struct pci_dev *pdev)
 	}
 
 	pdev->dev.power.power_state.event = PM_EVENT_RESUME;
+
+lynxfb_resume_err:
 	console_unlock();
 	return ret;
 }
@@ -807,7 +810,6 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	}
 
 	for (i = 0; i < 3; i++) {
-
 		ret = fb_find_mode(var, info, g_fbmode[index],
 				   pdb[i], cdb[i], NULL, 8);
 
@@ -835,15 +837,15 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	/* some member of info->var had been set by fb_find_mode */
 
-	pr_info("Member of info->var is :\n\
-		xres=%d\n\
-		yres=%d\n\
-		xres_virtual=%d\n\
-		yres_virtual=%d\n\
-		xoffset=%d\n\
-		yoffset=%d\n\
-		bits_per_pixel=%d\n \
-		...\n",
+	pr_info("Member of info->var is :\n"
+		"xres=%d\n"
+		"yres=%d\n"
+		"xres_virtual=%d\n"
+		"yres_virtual=%d\n"
+		"xoffset=%d\n"
+		"yoffset=%d\n"
+		"bits_per_pixel=%d\n"
+		" ...\n",
 		var->xres,
 		var->yres,
 		var->xres_virtual,
@@ -955,29 +957,31 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 		dev_info(&sm750_dev->pdev->dev, "opt=%s\n", opt);
 		dev_info(&sm750_dev->pdev->dev, "src=%s\n", src);
 
-		if (!strncmp(opt, "swap", strlen("swap")))
+		if (!strncmp(opt, "swap", strlen("swap"))) {
 			swap = 1;
-		else if (!strncmp(opt, "nocrt", strlen("nocrt")))
+		} else if (!strncmp(opt, "nocrt", strlen("nocrt"))) {
 			sm750_dev->nocrt = 1;
-		else if (!strncmp(opt, "36bit", strlen("36bit")))
+		} else if (!strncmp(opt, "36bit", strlen("36bit"))) {
 			sm750_dev->pnltype = sm750_doubleTFT;
-		else if (!strncmp(opt, "18bit", strlen("18bit")))
+		} else if (!strncmp(opt, "18bit", strlen("18bit"))) {
 			sm750_dev->pnltype = sm750_dualTFT;
-		else if (!strncmp(opt, "24bit", strlen("24bit")))
+		} else if (!strncmp(opt, "24bit", strlen("24bit"))) {
 			sm750_dev->pnltype = sm750_24TFT;
-		else if (!strncmp(opt, "nohwc0", strlen("nohwc0")))
+		} else if (!strncmp(opt, "nohwc0", strlen("nohwc0"))) {
 			g_hwcursor &= ~0x1;
-		else if (!strncmp(opt, "nohwc1", strlen("nohwc1")))
+		} else if (!strncmp(opt, "nohwc1", strlen("nohwc1"))) {
 			g_hwcursor &= ~0x2;
-		else if (!strncmp(opt, "nohwc", strlen("nohwc")))
+		} else if (!strncmp(opt, "nohwc", strlen("nohwc"))) {
 			g_hwcursor = 0;
-		else {
+		} else {
 			if (!g_fbmode[0]) {
 				g_fbmode[0] = opt;
-				dev_info(&sm750_dev->pdev->dev, "find fbmode0 : %s\n", g_fbmode[0]);
+				dev_info(&sm750_dev->pdev->dev,
+					 "find fbmode0 : %s\n", g_fbmode[0]);
 			} else if (!g_fbmode[1]) {
 				g_fbmode[1] = opt;
-				dev_info(&sm750_dev->pdev->dev, "find fbmode1 : %s\n", g_fbmode[1]);
+				dev_info(&sm750_dev->pdev->dev,
+					 "find fbmode1 : %s\n", g_fbmode[1]);
 			} else {
 				dev_warn(&sm750_dev->pdev->dev, "How many view you wann set?\n");
 			}
@@ -1167,13 +1171,13 @@ static int __init lynxfb_setup(char *options)
 	 */
 	while ((opt = strsep(&options, ":")) != NULL) {
 		/* options that mean for any lynx chips are configured here */
-		if (!strncmp(opt, "noaccel", strlen("noaccel")))
+		if (!strncmp(opt, "noaccel", strlen("noaccel"))) {
 			g_noaccel = 1;
-		else if (!strncmp(opt, "nomtrr", strlen("nomtrr")))
+		} else if (!strncmp(opt, "nomtrr", strlen("nomtrr"))) {
 			g_nomtrr = 1;
-		else if (!strncmp(opt, "dual", strlen("dual")))
+		} else if (!strncmp(opt, "dual", strlen("dual"))) {
 			g_dualview = 1;
-		else {
+		} else {
 			strcat(tmp, opt);
 			tmp += strlen(opt);
 			if (options)
@@ -1228,7 +1232,7 @@ static void __exit lynxfb_exit(void)
 }
 module_exit(lynxfb_exit);
 
-module_param(g_option, charp, S_IRUGO);
+module_param(g_option, charp, 0444);
 
 MODULE_PARM_DESC(g_option,
 		 "\n\t\tCommon options:\n"

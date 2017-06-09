@@ -54,7 +54,7 @@ static bool mid_pci_need_resume(struct pci_dev *dev)
 	return false;
 }
 
-static struct pci_platform_pm_ops mid_pci_platform_pm = {
+static const struct pci_platform_pm_ops mid_pci_platform_pm = {
 	.is_manageable	= mid_pci_power_manageable,
 	.set_state	= mid_pci_set_power_state,
 	.get_state	= mid_pci_get_power_state,

@@ -10,9 +10,9 @@
 #include <linux/export.h>
 #include <linux/uaccess.h>
 
-asm(".global	__copy_from_user\n"
-	"   .type __copy_from_user, @function\n"
-	"__copy_from_user:\n"
+asm(".global	raw_copy_from_user\n"
+	"   .type raw_copy_from_user, @function\n"
+	"raw_copy_from_user:\n"
 	"   movi  r2,7\n"
 	"   mov   r3,r4\n"
 	"   bge   r2,r6,1f\n"
@@ -65,12 +65,12 @@ asm(".global	__copy_from_user\n"
 	".word 7b,13b\n"
 	".previous\n"
 	);
-EXPORT_SYMBOL(__copy_from_user);
+EXPORT_SYMBOL(raw_copy_from_user);
 
 asm(
-	"   .global __copy_to_user\n"
-	"   .type __copy_to_user, @function\n"
-	"__copy_to_user:\n"
+	"   .global raw_copy_to_user\n"
+	"   .type raw_copy_to_user, @function\n"
+	"raw_copy_to_user:\n"
 	"   movi  r2,7\n"
 	"   mov   r3,r4\n"
 	"   bge   r2,r6,1f\n"
@@ -127,37 +127,4 @@ asm(
 	".word 11b,13b\n"
 	".word 12b,13b\n"
 	".previous\n");
-EXPORT_SYMBOL(__copy_to_user);
-
-long strncpy_from_user(char *__to, const char __user *__from, long __len)
-{
-	int l = strnlen_user(__from, __len);
-	int is_zt = 1;
-
-	if (l > __len) {
-		is_zt = 0;
-		l = __len;
-	}
-
-	if (l == 0 || copy_from_user(__to, __from, l))
-		return -EFAULT;
-
-	if (is_zt)
-		l--;
-	return l;
-}
-
-long strnlen_user(const char __user *s, long n)
-{
-	long i;
-
-	for (i = 0; i < n; i++) {
-		char c;
-
-		if (get_user(c, s + i) == -EFAULT)
-			return 0;
-		if (c == 0)
-			return i + 1;
-	}
-	return n + 1;
-}
+EXPORT_SYMBOL(raw_copy_to_user);

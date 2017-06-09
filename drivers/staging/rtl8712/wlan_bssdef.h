@@ -53,9 +53,9 @@ struct NDIS_802_11_CONFIGURATION_FH {
 };
 
 /*
-	FW will only save the channel number in DSConfig.
-	ODI Handler will convert the channel number to freq. number.
-*/
+ * FW will only save the channel number in DSConfig.
+ * ODI Handler will convert the channel number to freq. number.
+ */
 struct NDIS_802_11_CONFIGURATION {
 	u32 Length;             /* Length of structure */
 	u32 BeaconPeriod;       /* units are Kusec */
@@ -83,7 +83,7 @@ struct wlan_bssid_ex {
 	unsigned char  MacAddress[6];
 	u8  Reserved[2];
 	struct ndis_802_11_ssid  Ssid;
-	u32 Privacy;
+	__le32 Privacy;
 	s32 Rssi;
 	enum NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
 	struct NDIS_802_11_CONFIGURATION  Configuration;

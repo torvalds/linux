@@ -91,14 +91,14 @@
 
 struct tx_desc {
 	/*DWORD 0*/
-	unsigned int txdw0;
-	unsigned int txdw1;
-	unsigned int txdw2;
-	unsigned int txdw3;
-	unsigned int txdw4;
-	unsigned int txdw5;
-	unsigned int txdw6;
-	unsigned int txdw7;
+	__le32 txdw0;
+	__le32 txdw1;
+	__le32 txdw2;
+	__le32 txdw3;
+	__le32 txdw4;
+	__le32 txdw5;
+	__le32 txdw6;
+	__le32 txdw7;
 };
 
 

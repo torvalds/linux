@@ -85,7 +85,7 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	ht_dbg(sta->sdata,
 	       "Rx BA session stop requested for %pM tid %u %s reason: %d\n",
 	       sta->sta.addr, tid,
-	       initiator == WLAN_BACK_RECIPIENT ? "recipient" : "inititator",
+	       initiator == WLAN_BACK_RECIPIENT ? "recipient" : "initiator",
 	       (int)reason);
 
 	if (drv_ampdu_action(local, sta->sdata, &params))
@@ -357,14 +357,14 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	spin_lock_init(&tid_agg_rx->reorder_lock);
 
 	/* rx timer */
-	tid_agg_rx->session_timer.function = sta_rx_agg_session_timer_expired;
-	tid_agg_rx->session_timer.data = (unsigned long)&sta->timer_to_tid[tid];
-	init_timer_deferrable(&tid_agg_rx->session_timer);
+	setup_deferrable_timer(&tid_agg_rx->session_timer,
+			       sta_rx_agg_session_timer_expired,
+			       (unsigned long)&sta->timer_to_tid[tid]);
 
 	/* rx reorder timer */
-	tid_agg_rx->reorder_timer.function = sta_rx_agg_reorder_timer_expired;
-	tid_agg_rx->reorder_timer.data = (unsigned long)&sta->timer_to_tid[tid];
-	init_timer(&tid_agg_rx->reorder_timer);
+	setup_timer(&tid_agg_rx->reorder_timer,
+		    sta_rx_agg_reorder_timer_expired,
+		    (unsigned long)&sta->timer_to_tid[tid]);
 
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
@@ -398,6 +398,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	tid_agg_rx->timeout = timeout;
 	tid_agg_rx->stored_mpdu_num = 0;
 	tid_agg_rx->auto_seq = auto_seq;
+	tid_agg_rx->started = false;
 	tid_agg_rx->reorder_buf_filtered = 0;
 	status = WLAN_STATUS_SUCCESS;
 

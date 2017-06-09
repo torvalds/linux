@@ -14,6 +14,7 @@
 /dts-v1/;
 
 #include "am335x-baltos.dtsi"
+#include "am335x-baltos-leds.dtsi"
 
 / {
 	model = "OnRISC Baltos iR 3220";
@@ -109,9 +110,9 @@
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <7>;
 	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <2>;
+	phy-handle = <&phy1>;
 };
 
 &phy_sel {

@@ -200,7 +200,7 @@ static void *slim_rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 	return va;
 }
 
-static struct rproc_ops slim_rproc_ops = {
+static const struct rproc_ops slim_rproc_ops = {
 	.start		= slim_rproc_start,
 	.stop		= slim_rproc_stop,
 	.da_to_va       = slim_rproc_da_to_va,

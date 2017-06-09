@@ -203,7 +203,9 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 	abo = container_of(bo, struct amdgpu_bo, tbo);
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		if (adev->mman.buffer_funcs_ring->ready == false) {
+		if (adev->mman.buffer_funcs &&
+		    adev->mman.buffer_funcs_ring &&
+		    adev->mman.buffer_funcs_ring->ready == false) {
 			amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_CPU);
 		} else {
 			amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_GTT);
@@ -466,10 +468,6 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 
 	adev = amdgpu_ttm_adev(bo->bdev);
 
-	/* remember the eviction */
-	if (evict)
-		atomic64_inc(&adev->num_evictions);
-
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		amdgpu_move_null(bo, new_mem);
 		return 0;
@@ -539,29 +537,6 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 			return -EINVAL;
 		mem->bus.base = adev->mc.aper_base;
 		mem->bus.is_iomem = true;
-#ifdef __alpha__
-		/*
-		 * Alpha: use bus.addr to hold the ioremap() return,
-		 * so we can modify bus.base below.
-		 */
-		if (mem->placement & TTM_PL_FLAG_WC)
-			mem->bus.addr =
-				ioremap_wc(mem->bus.base + mem->bus.offset,
-					   mem->bus.size);
-		else
-			mem->bus.addr =
-				ioremap_nocache(mem->bus.base + mem->bus.offset,
-						mem->bus.size);
-
-		/*
-		 * Alpha: Use just the bus offset plus
-		 * the hose/domain memory base for bus.base.
-		 * It then can be used to build PTEs for VRAM
-		 * access, as done in ttm_bo_vm_fault().
-		 */
-		mem->bus.base = (mem->bus.base & 0x0ffffffffUL) +
-			adev->ddev->hose->dense_mem_base;
-#endif
 		break;
 	default:
 		return -EINVAL;
@@ -571,6 +546,18 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 
 static void amdgpu_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
+}
+
+static unsigned long amdgpu_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
+					   unsigned long page_offset)
+{
+	struct drm_mm_node *mm = bo->mem.mm_node;
+	uint64_t size = mm->size;
+	uint64_t offset = page_offset;
+
+	page_offset = do_div(offset, size);
+	mm += offset;
+	return (bo->mem.bus.base >> PAGE_SHIFT) + mm->start + page_offset;
 }
 
 /*
@@ -745,7 +732,7 @@ int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem)
 {
 	struct ttm_tt *ttm = bo->ttm;
 	struct amdgpu_ttm_tt *gtt = (void *)bo->ttm;
-	uint32_t flags;
+	uint64_t flags;
 	int r;
 
 	if (!ttm || amdgpu_ttm_is_bound(ttm))
@@ -778,7 +765,7 @@ int amdgpu_ttm_recover_gart(struct amdgpu_device *adev)
 {
 	struct amdgpu_ttm_tt *gtt, *tmp;
 	struct ttm_mem_reg bo_mem;
-	uint32_t flags;
+	uint64_t flags;
 	int r;
 
 	bo_mem.mem_type = TTM_PL_TT;
@@ -1026,10 +1013,10 @@ bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm)
 	return !!(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY);
 }
 
-uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
+uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 				 struct ttm_mem_reg *mem)
 {
-	uint32_t flags = 0;
+	uint64_t flags = 0;
 
 	if (mem && mem->mem_type != TTM_PL_SYSTEM)
 		flags |= AMDGPU_PTE_VALID;
@@ -1041,9 +1028,7 @@ uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 			flags |= AMDGPU_PTE_SNOOPED;
 	}
 
-	if (adev->asic_type >= CHIP_TONGA)
-		flags |= AMDGPU_PTE_EXECUTABLE;
-
+	flags |= adev->gart.gart_pte_flags;
 	flags |= AMDGPU_PTE_READABLE;
 
 	if (!amdgpu_ttm_tt_is_readonly(ttm))
@@ -1052,64 +1037,20 @@ uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 	return flags;
 }
 
-static void amdgpu_ttm_lru_removal(struct ttm_buffer_object *tbo)
-{
-	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
-	unsigned i, j;
-
-	for (i = 0; i < AMDGPU_TTM_LRU_SIZE; ++i) {
-		struct amdgpu_mman_lru *lru = &adev->mman.log2_size[i];
-
-		for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
-			if (&tbo->lru == lru->lru[j])
-				lru->lru[j] = tbo->lru.prev;
-
-		if (&tbo->swap == lru->swap_lru)
-			lru->swap_lru = tbo->swap.prev;
-	}
-}
-
-static struct amdgpu_mman_lru *amdgpu_ttm_lru(struct ttm_buffer_object *tbo)
-{
-	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
-	unsigned log2_size = min(ilog2(tbo->num_pages),
-				 AMDGPU_TTM_LRU_SIZE - 1);
-
-	return &adev->mman.log2_size[log2_size];
-}
-
-static struct list_head *amdgpu_ttm_lru_tail(struct ttm_buffer_object *tbo)
-{
-	struct amdgpu_mman_lru *lru = amdgpu_ttm_lru(tbo);
-	struct list_head *res = lru->lru[tbo->mem.mem_type];
-
-	lru->lru[tbo->mem.mem_type] = &tbo->lru;
-	while ((++lru)->lru[tbo->mem.mem_type] == res)
-		lru->lru[tbo->mem.mem_type] = &tbo->lru;
-
-	return res;
-}
-
-static struct list_head *amdgpu_ttm_swap_lru_tail(struct ttm_buffer_object *tbo)
-{
-	struct amdgpu_mman_lru *lru = amdgpu_ttm_lru(tbo);
-	struct list_head *res = lru->swap_lru;
-
-	lru->swap_lru = &tbo->swap;
-	while ((++lru)->swap_lru == res)
-		lru->swap_lru = &tbo->swap;
-
-	return res;
-}
-
 static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 					    const struct ttm_place *place)
 {
-	if (bo->mem.mem_type == TTM_PL_VRAM &&
-	    bo->mem.start == AMDGPU_BO_INVALID_OFFSET) {
-		unsigned long num_pages = bo->mem.num_pages;
-		struct drm_mm_node *node = bo->mem.mm_node;
+	unsigned long num_pages = bo->mem.num_pages;
+	struct drm_mm_node *node = bo->mem.mm_node;
 
+	if (bo->mem.start != AMDGPU_BO_INVALID_OFFSET)
+		return ttm_bo_eviction_valuable(bo, place);
+
+	switch (bo->mem.mem_type) {
+	case TTM_PL_TT:
+		return true;
+
+	case TTM_PL_VRAM:
 		/* Check each drm MM node individually */
 		while (num_pages) {
 			if (place->fpfn < (node->start + node->size) &&
@@ -1119,8 +1060,10 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			num_pages -= node->size;
 			++node;
 		}
+		break;
 
-		return false;
+	default:
+		break;
 	}
 
 	return ttm_bo_eviction_valuable(bo, place);
@@ -1140,14 +1083,11 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.fault_reserve_notify = &amdgpu_bo_fault_reserve_notify,
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
 	.io_mem_free = &amdgpu_ttm_io_mem_free,
-	.lru_removal = &amdgpu_ttm_lru_removal,
-	.lru_tail = &amdgpu_ttm_lru_tail,
-	.swap_lru_tail = &amdgpu_ttm_swap_lru_tail,
+	.io_mem_pfn = amdgpu_ttm_io_mem_pfn,
 };
 
 int amdgpu_ttm_init(struct amdgpu_device *adev)
 {
-	unsigned i, j;
 	int r;
 
 	r = amdgpu_ttm_global_init(adev);
@@ -1165,19 +1105,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;
 	}
-
-	for (i = 0; i < AMDGPU_TTM_LRU_SIZE; ++i) {
-		struct amdgpu_mman_lru *lru = &adev->mman.log2_size[i];
-
-		for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
-			lru->lru[j] = &adev->mman.bdev.man[j].lru;
-		lru->swap_lru = &adev->mman.bdev.glob->swap_lru;
-	}
-
-	for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
-		adev->mman.guard.lru[j] = NULL;
-	adev->mman.guard.swap_lru = NULL;
-
 	adev->mman.initialized = true;
 	r = ttm_bo_init_mm(&adev->mman.bdev, TTM_PL_VRAM,
 				adev->mc.real_vram_size >> PAGE_SHIFT);
@@ -1226,27 +1153,33 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	adev->gds.oa.gfx_partition_size = adev->gds.oa.gfx_partition_size << AMDGPU_OA_SHIFT;
 	adev->gds.oa.cs_partition_size = adev->gds.oa.cs_partition_size << AMDGPU_OA_SHIFT;
 	/* GDS Memory */
-	r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GDS,
-				adev->gds.mem.total_size >> PAGE_SHIFT);
-	if (r) {
-		DRM_ERROR("Failed initializing GDS heap.\n");
-		return r;
+	if (adev->gds.mem.total_size) {
+		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GDS,
+				   adev->gds.mem.total_size >> PAGE_SHIFT);
+		if (r) {
+			DRM_ERROR("Failed initializing GDS heap.\n");
+			return r;
+		}
 	}
 
 	/* GWS */
-	r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GWS,
-				adev->gds.gws.total_size >> PAGE_SHIFT);
-	if (r) {
-		DRM_ERROR("Failed initializing gws heap.\n");
-		return r;
+	if (adev->gds.gws.total_size) {
+		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GWS,
+				   adev->gds.gws.total_size >> PAGE_SHIFT);
+		if (r) {
+			DRM_ERROR("Failed initializing gws heap.\n");
+			return r;
+		}
 	}
 
 	/* OA */
-	r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_OA,
-				adev->gds.oa.total_size >> PAGE_SHIFT);
-	if (r) {
-		DRM_ERROR("Failed initializing oa heap.\n");
-		return r;
+	if (adev->gds.oa.total_size) {
+		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_OA,
+				   adev->gds.oa.total_size >> PAGE_SHIFT);
+		if (r) {
+			DRM_ERROR("Failed initializing oa heap.\n");
+			return r;
+		}
 	}
 
 	r = amdgpu_ttm_debugfs_init(adev);
@@ -1265,7 +1198,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 		return;
 	amdgpu_ttm_debugfs_fini(adev);
 	if (adev->stollen_vga_memory) {
-		r = amdgpu_bo_reserve(adev->stollen_vga_memory, false);
+		r = amdgpu_bo_reserve(adev->stollen_vga_memory, true);
 		if (r == 0) {
 			amdgpu_bo_unpin(adev->stollen_vga_memory);
 			amdgpu_bo_unreserve(adev->stollen_vga_memory);
@@ -1274,9 +1207,12 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	}
 	ttm_bo_clean_mm(&adev->mman.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&adev->mman.bdev, TTM_PL_TT);
-	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GDS);
-	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GWS);
-	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_OA);
+	if (adev->gds.mem.total_size)
+		ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GDS);
+	if (adev->gds.gws.total_size)
+		ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GWS);
+	if (adev->gds.oa.total_size)
+		ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_OA);
 	ttm_bo_device_release(&adev->mman.bdev);
 	amdgpu_gart_fini(adev);
 	amdgpu_ttm_global_fini(adev);
@@ -1365,7 +1301,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	WARN_ON(job->ibs[0].length_dw > num_dw);
 	if (direct_submit) {
 		r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs,
-				       NULL, NULL, fence);
+				       NULL, fence);
 		job->fence = dma_fence_get(*fence);
 		if (r)
 			DRM_ERROR("Error scheduling IBs (%d)\n", r);
@@ -1475,6 +1411,8 @@ error_free:
 
 #if defined(CONFIG_DEBUG_FS)
 
+extern void amdgpu_gtt_mgr_print(struct seq_file *m, struct ttm_mem_type_manager
+				 *man);
 static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
@@ -1482,18 +1420,24 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_mm *mm = (struct drm_mm *)adev->mman.bdev.man[ttm_pl].priv;
-	int ret;
 	struct ttm_bo_global *glob = adev->mman.bdev.glob;
+	struct drm_printer p = drm_seq_file_printer(m);
 
 	spin_lock(&glob->lru_lock);
-	ret = drm_mm_dump_table(m, mm);
+	drm_mm_print(mm, &p);
 	spin_unlock(&glob->lru_lock);
-	if (ttm_pl == TTM_PL_VRAM)
+	switch (ttm_pl) {
+	case TTM_PL_VRAM:
 		seq_printf(m, "man size:%llu pages, ram usage:%lluMB, vis usage:%lluMB\n",
 			   adev->mman.bdev.man[ttm_pl].size,
 			   (u64)atomic64_read(&adev->vram_usage) >> 20,
 			   (u64)atomic64_read(&adev->vram_vis_usage) >> 20);
-	return ret;
+		break;
+	case TTM_PL_TT:
+		amdgpu_gtt_mgr_print(m, &adev->mman.bdev.man[TTM_PL_TT]);
+		break;
+	}
+	return 0;
 }
 
 static int ttm_pl_vram = TTM_PL_VRAM;
@@ -1511,7 +1455,7 @@ static const struct drm_info_list amdgpu_ttm_debugfs_list[] = {
 static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 				    size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -1555,7 +1499,7 @@ static const struct file_operations amdgpu_ttm_vram_fops = {
 static ssize_t amdgpu_ttm_gtt_read(struct file *f, char __user *buf,
 				   size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 

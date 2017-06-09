@@ -44,17 +44,18 @@
 #include "ocfs2_trace.h"
 
 
-static int ocfs2_fault(struct vm_area_struct *area, struct vm_fault *vmf)
+static int ocfs2_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	sigset_t oldset;
 	int ret;
 
 	ocfs2_block_signals(&oldset);
-	ret = filemap_fault(area, vmf);
+	ret = filemap_fault(vmf);
 	ocfs2_unblock_signals(&oldset);
 
-	trace_ocfs2_fault(OCFS2_I(area->vm_file->f_mapping->host)->ip_blkno,
-			  area, vmf->page, vmf->pgoff);
+	trace_ocfs2_fault(OCFS2_I(vma->vm_file->f_mapping->host)->ip_blkno,
+			  vma, vmf->page, vmf->pgoff);
 	return ret;
 }
 
@@ -127,10 +128,10 @@ out:
 	return ret;
 }
 
-static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ocfs2_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct buffer_head *di_bh = NULL;
 	sigset_t oldset;
 	int ret;
@@ -160,7 +161,7 @@ static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
-	ret = __ocfs2_page_mkwrite(vma->vm_file, di_bh, page);
+	ret = __ocfs2_page_mkwrite(vmf->vma->vm_file, di_bh, page);
 
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 

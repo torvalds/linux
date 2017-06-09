@@ -1,4 +1,8 @@
+#include <errno.h>
+#include <inttypes.h>
 #include "util.h"
+#include "string2.h"
+#include <sys/param.h>
 #include <sys/types.h>
 #include <byteswap.h>
 #include <unistd.h>
@@ -7,11 +11,15 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
+#include <unistd.h>
 
 #include "evlist.h"
 #include "evsel.h"
 #include "header.h"
+#include "memswap.h"
 #include "../perf.h"
 #include "trace-event.h"
 #include "session.h"
@@ -25,6 +33,8 @@
 #include "data.h"
 #include <api/fs/fs.h>
 #include "asm/bug.h"
+
+#include "sane_ctype.h"
 
 /*
  * magic2 = "PERFILE2"
@@ -40,6 +50,8 @@ static const u64 __perf_magic2    = 0x32454c4946524550ULL;
 static const u64 __perf_magic2_sw = 0x50455246494c4532ULL;
 
 #define PERF_MAGIC	__perf_magic2
+
+const char perf_version_string[] = PERF_VERSION;
 
 struct perf_file_attr {
 	struct perf_event_attr	attr;
@@ -293,11 +305,7 @@ static int write_nrcpus(int fd, struct perf_header *h __maybe_unused,
 	u32 nrc, nra;
 	int ret;
 
-	nr = sysconf(_SC_NPROCESSORS_CONF);
-	if (nr < 0)
-		return -1;
-
-	nrc = (u32)(nr & UINT_MAX);
+	nrc = cpu__max_present_cpu();
 
 	nr = sysconf(_SC_NPROCESSORS_ONLN);
 	if (nr < 0)
@@ -372,15 +380,11 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 			 struct perf_evlist *evlist __maybe_unused)
 {
 	char buf[MAXPATHLEN];
-	char proc[32];
 	u32 n;
 	int i, ret;
 
-	/*
-	 * actual atual path to perf binary
-	 */
-	sprintf(proc, "/proc/%d/exe", getpid());
-	ret = readlink(proc, buf, sizeof(buf));
+	/* actual path to perf binary */
+	ret = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
 	if (ret <= 0)
 		return -1;
 
@@ -503,24 +507,29 @@ static void free_cpu_topo(struct cpu_topo *tp)
 
 static struct cpu_topo *build_cpu_topology(void)
 {
-	struct cpu_topo *tp;
+	struct cpu_topo *tp = NULL;
 	void *addr;
 	u32 nr, i;
 	size_t sz;
 	long ncpus;
 	int ret = -1;
+	struct cpu_map *map;
 
-	ncpus = sysconf(_SC_NPROCESSORS_CONF);
-	if (ncpus < 0)
+	ncpus = cpu__max_present_cpu();
+
+	/* build online CPU map */
+	map = cpu_map__new(NULL);
+	if (map == NULL) {
+		pr_debug("failed to get system cpumap\n");
 		return NULL;
+	}
 
 	nr = (u32)(ncpus & UINT_MAX);
 
 	sz = nr * sizeof(char *);
-
 	addr = calloc(1, sizeof(*tp) + 2 * sz);
 	if (!addr)
-		return NULL;
+		goto out_free;
 
 	tp = addr;
 	tp->cpu_nr = nr;
@@ -530,10 +539,16 @@ static struct cpu_topo *build_cpu_topology(void)
 	tp->thread_siblings = addr;
 
 	for (i = 0; i < nr; i++) {
+		if (!cpu_map__has(map, i))
+			continue;
+
 		ret = build_cpu_topo(tp, i);
 		if (ret < 0)
 			break;
 	}
+
+out_free:
+	cpu_map__put(map);
 	if (ret) {
 		free_cpu_topo(tp);
 		tp = NULL;
@@ -1124,7 +1139,7 @@ static void print_cpu_topology(struct perf_header *ph, int fd __maybe_unused,
 {
 	int nr, i;
 	char *str;
-	int cpu_nr = ph->env.nr_cpus_online;
+	int cpu_nr = ph->env.nr_cpus_avail;
 
 	nr = ph->env.nr_sibling_cores;
 	str = ph->env.sibling_cores;
@@ -1779,7 +1794,7 @@ static int process_cpu_topology(struct perf_file_section *section,
 	u32 nr, i;
 	char *str;
 	struct strbuf sb;
-	int cpu_nr = ph->env.nr_cpus_online;
+	int cpu_nr = ph->env.nr_cpus_avail;
 	u64 size = 0;
 
 	ph->env.cpu = calloc(cpu_nr, sizeof(*ph->env.cpu));
@@ -1860,7 +1875,7 @@ static int process_cpu_topology(struct perf_file_section *section,
 		if (ph->needs_swap)
 			nr = bswap_32(nr);
 
-		if (nr > (u32)cpu_nr) {
+		if (nr != (u32)-1 && nr > (u32)cpu_nr) {
 			pr_debug("socket_id number is too big."
 				 "You may need to upgrade the perf tool.\n");
 			goto free_cpu;
@@ -2264,6 +2279,9 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 
 	perf_header__process_sections(header, fd, &hd,
 				      perf_file_section__fprintf_info);
+
+	if (session->file->is_pipe)
+		return 0;
 
 	fprintf(fp, "# missing features: ");
 	for_each_clear_bit(bit, header->adds_features, HEADER_LAST_FEATURE) {
@@ -2801,8 +2819,10 @@ static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
 	}
 
 	event = pevent_find_event(pevent, evsel->attr.config);
-	if (event == NULL)
+	if (event == NULL) {
+		pr_debug("cannot find event format for %d\n", (int)evsel->attr.config);
 		return -1;
+	}
 
 	if (!evsel->name) {
 		snprintf(bf, sizeof(bf), "%s:%s", event->system, event->name);
@@ -3201,6 +3221,7 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 	case PERF_EVENT_UPDATE__SCALE:
 		ev_scale = (struct event_update_event_scale *) ev->data;
 		evsel->scale = ev_scale->scale;
+		break;
 	case PERF_EVENT_UPDATE__CPUS:
 		ev_cpus = (struct event_update_event_cpus *) ev->data;
 

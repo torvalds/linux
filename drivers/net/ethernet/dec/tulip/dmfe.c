@@ -90,7 +90,7 @@
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq.h>
 
 #ifdef CONFIG_TULIP_DM910X

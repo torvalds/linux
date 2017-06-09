@@ -78,4 +78,14 @@ config SND_ATMEL_SOC_PDMIC
 	help
 	  Say Y if you want to add support for Atmel ASoC driver for boards using
 	  PDMIC.
+
+config SND_ATMEL_SOC_TSE850_PCM5142
+	tristate "ASoC driver for the Axentia TSE-850"
+	depends on ARCH_AT91 && OF
+	depends on ATMEL_SSC && I2C
+	select SND_ATMEL_SOC_SSC_DMA
+	select SND_SOC_PCM512x_I2C
+	help
+	  Say Y if you want to add support for the ASoC driver for the
+	  Axentia TSE-850 with a PCM5142 codec.
 endif

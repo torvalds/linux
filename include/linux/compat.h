@@ -295,6 +295,13 @@ struct compat_old_sigaction {
 };
 #endif
 
+struct compat_keyctl_kdf_params {
+	compat_uptr_t hashname;
+	compat_uptr_t otherinfo;
+	__u32 otherinfolen;
+	__u32 __spare[8];
+};
+
 struct compat_statfs;
 struct compat_statfs64;
 struct compat_old_linux_dirent;
@@ -528,11 +535,6 @@ asmlinkage long compat_sys_old_readdir(unsigned int fd,
 asmlinkage long compat_sys_getdents(unsigned int fd,
 				    struct compat_linux_dirent __user *dirent,
 				    unsigned int count);
-#ifdef __ARCH_WANT_COMPAT_SYS_GETDENTS64
-asmlinkage long compat_sys_getdents64(unsigned int fd,
-				      struct linux_dirent64 __user *dirent,
-				      unsigned int count);
-#endif
 asmlinkage long compat_sys_vmsplice(int fd, const struct compat_iovec __user *,
 				    unsigned int nr_segs, unsigned int flags);
 asmlinkage long compat_sys_open(const char __user *filename, int flags,
@@ -711,8 +713,10 @@ int __compat_save_altstack(compat_stack_t __user *, unsigned long);
 	compat_stack_t __user *__uss = uss; \
 	struct task_struct *t = current; \
 	put_user_ex(ptr_to_compat((void __user *)t->sas_ss_sp), &__uss->ss_sp); \
-	put_user_ex(sas_ss_flags(sp), &__uss->ss_flags); \
+	put_user_ex(t->sas_ss_flags, &__uss->ss_flags); \
 	put_user_ex(t->sas_ss_size, &__uss->ss_size); \
+	if (t->sas_ss_flags & SS_AUTODISARM) \
+		sas_ss_reset(t); \
 } while (0);
 
 asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
@@ -720,6 +724,8 @@ asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 
 asmlinkage long compat_sys_fanotify_mark(int, unsigned int, __u32, __u32,
 					    int, const char __user *);
+
+asmlinkage long compat_sys_arch_prctl(int option, unsigned long arg2);
 
 /*
  * For most but not all architectures, "am I in a compat syscall?" and
@@ -731,7 +737,25 @@ asmlinkage long compat_sys_fanotify_mark(int, unsigned int, __u32, __u32,
 static inline bool in_compat_syscall(void) { return is_compat_task(); }
 #endif
 
-#else
+/**
+ * ns_to_compat_timeval - Compat version of ns_to_timeval
+ * @nsec:	the nanoseconds value to be converted
+ *
+ * Returns the compat_timeval representation of the nsec parameter.
+ */
+static inline struct compat_timeval ns_to_compat_timeval(s64 nsec)
+{
+	struct timeval tv;
+	struct compat_timeval ctv;
+
+	tv = ns_to_timeval(nsec);
+	ctv.tv_sec = tv.tv_sec;
+	ctv.tv_usec = tv.tv_usec;
+
+	return ctv;
+}
+
+#else /* !CONFIG_COMPAT */
 
 #define is_compat_task() (0)
 static inline bool in_compat_syscall(void) { return false; }

@@ -40,9 +40,8 @@
  * sub-pixel accuracy, which is scaled up to a pixel-aligned destination
  * rectangle in the visible area of a &drm_crtc. The visible area of a CRTC is
  * defined by the horizontal and vertical visible pixels (stored in @hdisplay
- * and @vdisplay) of the requested mode (stored in @mode in the
- * &drm_crtc_state). These two rectangles are both stored in the
- * &drm_plane_state.
+ * and @vdisplay) of the requested mode (stored in &drm_crtc_state.mode). These
+ * two rectangles are both stored in the &drm_plane_state.
  *
  * For the atomic ioctl the following standard (atomic) properties on the plane object
  * encode the basic plane composition model:
@@ -215,7 +214,7 @@ EXPORT_SYMBOL(drm_rotation_simplify);
  * for it in drm core. Drivers can then attach this property to planes to enable
  * support for configurable planes arrangement during blending operation.
  * Once mutable zpos property has been enabled, the DRM core will automatically
- * calculate drm_plane_state->normalized_zpos values. Usually min should be set
+ * calculate &drm_plane_state.normalized_zpos values. Usually min should be set
  * to 0 and max to maximal number of planes for given crtc - 1.
  *
  * If zpos of some planes cannot be changed (like fixed background or
@@ -367,8 +366,8 @@ done:
  * For every CRTC this function checks new states of all planes assigned to
  * it and calculates normalized zpos value for these planes. Planes are compared
  * first by their zpos values, then by plane id (if zpos is equal). The plane
- * with lowest zpos value is at the bottom. The plane_state->normalized_zpos is
- * then filled with unique values from 0 to number of active planes in crtc
+ * with lowest zpos value is at the bottom. The &drm_plane_state.normalized_zpos
+ * is then filled with unique values from 0 to number of active planes in crtc
  * minus one.
  *
  * RETURNS
@@ -378,27 +377,26 @@ int drm_atomic_normalize_zpos(struct drm_device *dev,
 			      struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	int i, ret = 0;
 
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		crtc = plane_state->crtc;
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+		crtc = new_plane_state->crtc;
 		if (!crtc)
 			continue;
-		if (plane->state->zpos != plane_state->zpos) {
-			crtc_state =
-				drm_atomic_get_existing_crtc_state(state, crtc);
-			crtc_state->zpos_changed = true;
+		if (old_plane_state->zpos != new_plane_state->zpos) {
+			new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+			new_crtc_state->zpos_changed = true;
 		}
 	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (crtc_state->plane_mask != crtc->state->plane_mask ||
-		    crtc_state->zpos_changed) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		if (old_crtc_state->plane_mask != new_crtc_state->plane_mask ||
+		    new_crtc_state->zpos_changed) {
 			ret = drm_atomic_helper_crtc_normalize_zpos(crtc,
-								    crtc_state);
+								    new_crtc_state);
 			if (ret)
 				return ret;
 		}

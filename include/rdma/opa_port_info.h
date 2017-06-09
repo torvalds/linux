@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2014-2017 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -127,6 +127,7 @@
 #define OPA_LINK_WIDTH_3X            0x0004
 #define OPA_LINK_WIDTH_4X            0x0008
 
+#define OPA_CAP_MASK3_IsEthOnFabricSupported      (1 << 13)
 #define OPA_CAP_MASK3_IsSnoopSupported            (1 << 7)
 #define OPA_CAP_MASK3_IsAsyncSC2VLSupported       (1 << 6)
 #define OPA_CAP_MASK3_IsAddrRangeConfigSupported  (1 << 5)

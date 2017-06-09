@@ -236,8 +236,7 @@ struct ttm_bo_driver mgag200_bo_driver = {
 	.verify_access = mgag200_bo_verify_access,
 	.io_mem_reserve = &mgag200_ttm_io_mem_reserve,
 	.io_mem_free = &mgag200_ttm_io_mem_free,
-	.lru_tail = &ttm_bo_default_lru_tail,
-	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
+	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
 
 int mgag200_mm_init(struct mga_device *mdev)

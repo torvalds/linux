@@ -22,12 +22,9 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -45,22 +42,9 @@ MODULE_DESCRIPTION("i2c Hauppauge eeprom decoder driver");
 MODULE_AUTHOR("John Klar");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
-
 #define STRM(array, i) \
 	(i < sizeof(array) / sizeof(char *) ? array[i] : "unknown")
 
-#define tveeprom_info(fmt, arg...) \
-	v4l_printk(KERN_INFO, "tveeprom", c->adapter, c->addr, fmt , ## arg)
-#define tveeprom_warn(fmt, arg...) \
-	v4l_printk(KERN_WARNING, "tveeprom", c->adapter, c->addr, fmt , ## arg)
-#define tveeprom_dbg(fmt, arg...) do { \
-	if (debug) \
-		v4l_printk(KERN_DEBUG, "tveeprom", \
-				c->adapter, c->addr, fmt , ## arg); \
-	} while (0)
 
 /*
  * The Hauppauge eeprom uses an 8bit field to determine which
@@ -436,8 +420,8 @@ static int hasRadioTuner(int tunerType)
 	return 0;
 }
 
-void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
-				unsigned char *eeprom_data)
+void tveeprom_hauppauge_analog(struct tveeprom *tvee,
+			       unsigned char *eeprom_data)
 {
 	/* ----------------------------------------------
 	** The hauppauge eeprom format is tagged
@@ -510,19 +494,13 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			len = eeprom_data[i] & 0x07;
 			++i;
 		} else {
-			tveeprom_warn("Encountered bad packet header [%02x]. "
-				"Corrupt or not a Hauppauge eeprom.\n",
+			pr_warn("Encountered bad packet header [%02x]. Corrupt or not a Hauppauge eeprom.\n",
 				eeprom_data[i]);
 			return;
 		}
 
-		if (debug) {
-			tveeprom_info("Tag [%02x] + %d bytes:",
-					eeprom_data[i], len - 1);
-			for (j = 1; j < len; j++)
-				printk(KERN_CONT " %02x", eeprom_data[i + j]);
-			printk(KERN_CONT "\n");
-		}
+		pr_debug("Tag [%02x] + %d bytes: %*ph\n",
+			eeprom_data[i], len - 1, len, &eeprom_data[i]);
 
 		/* process by tag */
 		tag = eeprom_data[i];
@@ -662,14 +640,14 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 		/* case 0x12: tag 'InfoBits' */
 
 		default:
-			tveeprom_dbg("Not sure what to do with tag [%02x]\n",
+			pr_debug("Not sure what to do with tag [%02x]\n",
 					tag);
 			/* dump the rest of the packet? */
 		}
 	}
 
 	if (!done) {
-		tveeprom_warn("Ran out of data!\n");
+		pr_warn("Ran out of data!\n");
 		return;
 	}
 
@@ -682,8 +660,8 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 	}
 
 	if (hasRadioTuner(tuner1) && !tvee->has_radio) {
-		tveeprom_info("The eeprom says no radio is present, but the tuner type\n");
-		tveeprom_info("indicates otherwise. I will assume that radio is present.\n");
+		pr_info("The eeprom says no radio is present, but the tuner type\n");
+		pr_info("indicates otherwise. I will assume that radio is present.\n");
 		tvee->has_radio = 1;
 	}
 
@@ -718,46 +696,46 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 		}
 	}
 
-	tveeprom_info("Hauppauge model %d, rev %s, serial# %u\n",
+	pr_info("Hauppauge model %d, rev %s, serial# %u\n",
 		tvee->model, tvee->rev_str, tvee->serial_number);
 	if (tvee->has_MAC_address == 1)
-		tveeprom_info("MAC address is %pM\n", tvee->MAC_address);
-	tveeprom_info("tuner model is %s (idx %d, type %d)\n",
+		pr_info("MAC address is %pM\n", tvee->MAC_address);
+	pr_info("tuner model is %s (idx %d, type %d)\n",
 		t_name1, tuner1, tvee->tuner_type);
-	tveeprom_info("TV standards%s%s%s%s%s%s%s%s (eeprom 0x%02x)\n",
+	pr_info("TV standards%s%s%s%s%s%s%s%s (eeprom 0x%02x)\n",
 		t_fmt_name1[0], t_fmt_name1[1], t_fmt_name1[2],
 		t_fmt_name1[3],	t_fmt_name1[4], t_fmt_name1[5],
 		t_fmt_name1[6], t_fmt_name1[7],	t_format1);
 	if (tuner2)
-		tveeprom_info("second tuner model is %s (idx %d, type %d)\n",
+		pr_info("second tuner model is %s (idx %d, type %d)\n",
 					t_name2, tuner2, tvee->tuner2_type);
 	if (t_format2)
-		tveeprom_info("TV standards%s%s%s%s%s%s%s%s (eeprom 0x%02x)\n",
+		pr_info("TV standards%s%s%s%s%s%s%s%s (eeprom 0x%02x)\n",
 			t_fmt_name2[0], t_fmt_name2[1], t_fmt_name2[2],
 			t_fmt_name2[3],	t_fmt_name2[4], t_fmt_name2[5],
 			t_fmt_name2[6], t_fmt_name2[7], t_format2);
 	if (audioic < 0) {
-		tveeprom_info("audio processor is unknown (no idx)\n");
+		pr_info("audio processor is unknown (no idx)\n");
 		tvee->audio_processor = TVEEPROM_AUDPROC_OTHER;
 	} else {
 		if (audioic < ARRAY_SIZE(audio_ic))
-			tveeprom_info("audio processor is %s (idx %d)\n",
+			pr_info("audio processor is %s (idx %d)\n",
 					audio_ic[audioic].name, audioic);
 		else
-			tveeprom_info("audio processor is unknown (idx %d)\n",
+			pr_info("audio processor is unknown (idx %d)\n",
 								audioic);
 	}
 	if (tvee->decoder_processor)
-		tveeprom_info("decoder processor is %s (idx %d)\n",
+		pr_info("decoder processor is %s (idx %d)\n",
 			STRM(decoderIC, tvee->decoder_processor),
 			tvee->decoder_processor);
 	if (tvee->has_ir)
-		tveeprom_info("has %sradio, has %sIR receiver, has %sIR transmitter\n",
+		pr_info("has %sradio, has %sIR receiver, has %sIR transmitter\n",
 				tvee->has_radio ? "" : "no ",
 				(tvee->has_ir & 2) ? "" : "no ",
 				(tvee->has_ir & 4) ? "" : "no ");
 	else
-		tveeprom_info("has %sradio\n",
+		pr_info("has %sradio\n",
 				tvee->has_radio ? "" : "no ");
 }
 EXPORT_SYMBOL(tveeprom_hauppauge_analog);
@@ -773,26 +751,17 @@ int tveeprom_read(struct i2c_client *c, unsigned char *eedata, int len)
 	buf = 0;
 	err = i2c_master_send(c, &buf, 1);
 	if (err != 1) {
-		tveeprom_info("Huh, no eeprom present (err=%d)?\n", err);
+		pr_info("Huh, no eeprom present (err=%d)?\n", err);
 		return -1;
 	}
 	err = i2c_master_recv(c, eedata, len);
 	if (err != len) {
-		tveeprom_warn("i2c eeprom read error (err=%d)\n", err);
+		pr_warn("i2c eeprom read error (err=%d)\n", err);
 		return -1;
 	}
-	if (debug) {
-		int i;
 
-		tveeprom_info("full 256-byte eeprom dump:\n");
-		for (i = 0; i < len; i++) {
-			if (0 == (i % 16))
-				tveeprom_info("%02x:", i);
-			printk(KERN_CONT " %02x", eedata[i]);
-			if (15 == (i % 16))
-				printk(KERN_CONT "\n");
-		}
-	}
+	print_hex_dump_debug("full 256-byte eeprom dump:", DUMP_PREFIX_NONE,
+			     16, 1, eedata, len, true);
 	return 0;
 }
 EXPORT_SYMBOL(tveeprom_read);

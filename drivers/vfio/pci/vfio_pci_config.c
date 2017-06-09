@@ -31,8 +31,6 @@
 
 #include "vfio_pci_private.h"
 
-#define PCI_CFG_SPACE_SIZE	256
-
 /* Fake capability ID for standard config space */
 #define PCI_CAP_ID_BASIC	0
 

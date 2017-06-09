@@ -16,10 +16,7 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info,2=fw,4=fwdata,8=data (or-ab
 static int nb_packet_buffer_size = 21;
 module_param(nb_packet_buffer_size, int, 0644);
 MODULE_PARM_DESC(nb_packet_buffer_size,
-	"Set the dib0700 driver data buffer size. This parameter "
-	"corresponds to the number of TS packets. The actual size of "
-	"the data buffer corresponds to this parameter "
-	"multiplied by 188 (default: 21)");
+	"Set the dib0700 driver data buffer size. This parameter corresponds to the number of TS packets. The actual size of the data buffer corresponds to this parameter multiplied by 188 (default: 21)");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -811,6 +808,9 @@ int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf)
 		return 0;
 
 	/* Starting in firmware 1.20, the RC info is provided on a bulk pipe */
+
+	if (intf->altsetting[0].desc.bNumEndpoints < rc_ep + 1)
+		return -ENODEV;
 
 	purb = usb_alloc_urb(0, GFP_KERNEL);
 	if (purb == NULL)

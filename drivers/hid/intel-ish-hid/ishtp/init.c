@@ -16,7 +16,6 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <linux/miscdevice.h>
 #include "ishtp-dev.h"
 #include "hbm.h"
 #include "client.h"

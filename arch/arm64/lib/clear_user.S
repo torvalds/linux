@@ -17,7 +17,7 @@
  */
 #include <linux/linkage.h>
 
-#include <asm/uaccess.h>
+#include <asm/asm-uaccess.h>
 
 	.text
 

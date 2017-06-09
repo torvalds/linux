@@ -823,7 +823,7 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 	}
 
 	/* Check online status of the CPU to which the event is pinned */
-	if (event->cpu >= nr_cpumask_bits ||
+	if ((unsigned int)event->cpu >= nr_cpumask_bits ||
 	    (event->cpu >= 0 && !cpu_online(event->cpu)))
 		return -ENODEV;
 
@@ -1009,8 +1009,8 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	 * sample. Some early samples or samples from guests without
 	 * lpp usage would be misaccounted to the host. We use the asn
 	 * value as an addon heuristic to detect most of these guest samples.
-	 * If the value differs from the host hpp value, we assume to be a
-	 * KVM guest.
+	 * If the value differs from 0xffff (the host value), we assume to
+	 * be a KVM guest.
 	 */
 	switch (sfr->basic.CL) {
 	case 1: /* logical partition */
@@ -1020,8 +1020,7 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 		sde_regs->in_guest = 1;
 		break;
 	default: /* old machine, use heuristics */
-		if (sfr->basic.gpp ||
-		    sfr->basic.prim_asn != (u16)sfr->basic.hpp)
+		if (sfr->basic.gpp || sfr->basic.prim_asn != 0xffff)
 			sde_regs->in_guest = 1;
 		break;
 	}
@@ -1623,7 +1622,7 @@ static int __init init_cpum_sampling_pmu(void)
 		goto out;
 	}
 
-	cpuhp_setup_state(CPUHP_AP_PERF_S390_SF_ONLINE, "AP_PERF_S390_SF_ONLINE",
+	cpuhp_setup_state(CPUHP_AP_PERF_S390_SF_ONLINE, "perf/s390/sf:online",
 			  s390_pmu_sf_online_cpu, s390_pmu_sf_offline_cpu);
 out:
 	return err;

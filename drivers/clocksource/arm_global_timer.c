@@ -195,7 +195,7 @@ static int gt_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static cycle_t gt_clocksource_read(struct clocksource *cs)
+static u64 gt_clocksource_read(struct clocksource *cs)
 {
 	return gt_counter_read();
 }
@@ -316,7 +316,7 @@ static int __init global_timer_of_register(struct device_node *np)
 		goto out_irq;
 	
 	err = cpuhp_setup_state(CPUHP_AP_ARM_GLOBAL_TIMER_STARTING,
-				"AP_ARM_GLOBAL_TIMER_STARTING",
+				"clockevents/arm/global_timer:starting",
 				gt_starting_cpu, gt_dying_cpu);
 	if (err)
 		goto out_irq;

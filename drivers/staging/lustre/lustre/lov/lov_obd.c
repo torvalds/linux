@@ -68,7 +68,6 @@ static void lov_getref(struct obd_device *obd)
 	mutex_lock(&lov->lov_lock);
 	atomic_inc(&lov->lov_refcount);
 	mutex_unlock(&lov->lov_lock);
-	return;
 }
 
 static void __lov_del_obd(struct obd_device *obd, struct lov_tgt_desc *tgt);
@@ -591,8 +590,6 @@ static int lov_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 
 	CDEBUG(D_CONFIG, "idx=%d ltd_gen=%d ld_tgt_count=%d\n",
 	       index, tgt->ltd_gen, lov->desc.ld_tgt_count);
-
-	rc = obd_notify(obd, tgt_obd, OBD_NOTIFY_CREATE, &index);
 
 	if (lov->lov_connects == 0) {
 		/* lov_connect hasn't been called yet. We'll do the

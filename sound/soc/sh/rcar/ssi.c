@@ -228,6 +228,15 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	for (j = 0; j < ARRAY_SIZE(ssi_clk_mul_table); j++) {
 
 		/*
+		 * It will set SSIWSR.CONT here, but SSICR.CKDV = 000
+		 * with it is not allowed. (SSIWSR.WS_MODE with
+		 * SSICR.CKDV = 000 is not allowed either).
+		 * Skip it. See SSICR.CKDV
+		 */
+		if (j == 0)
+			continue;
+
+		/*
 		 * this driver is assuming that
 		 * system word is 32bit x chan
 		 * see rsnd_ssi_init()
@@ -417,11 +426,14 @@ static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
 	int chan = params_channels(params);
 
 	/*
-	 * Already working.
-	 * It will happen if SSI has parent/child connection.
+	 * snd_pcm_ops::hw_params will be called *before*
+	 * snd_soc_dai_ops::trigger. Thus, ssi->usrcnt is 0
+	 * in 1st call.
 	 */
-	if (ssi->usrcnt > 1) {
+	if (ssi->usrcnt) {
 		/*
+		 * Already working.
+		 * It will happen if SSI has parent/child connection.
 		 * it is error if child <-> parent SSI uses
 		 * different channels.
 		 */
@@ -644,10 +656,14 @@ static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	ret = devm_request_irq(dev, ssi->irq,
-			       rsnd_ssi_interrupt,
-			       IRQF_SHARED,
-			       dev_name(dev), mod);
+	/*
+	 * SSI might be called again as PIO fallback
+	 * It is easy to manual handling for IRQ request/free
+	 */
+	ret = request_irq(ssi->irq,
+			  rsnd_ssi_interrupt,
+			  IRQF_SHARED,
+			  dev_name(dev), mod);
 
 	return ret;
 }
@@ -669,7 +685,6 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 			      struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	int dma_id = 0; /* not needed */
 	int ret;
 
 	/*
@@ -684,7 +699,7 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 		return ret;
 
 	/* SSI probe might be called many times in MUX multi path */
-	ret = rsnd_dma_attach(io, mod, &ssi->dma, dma_id);
+	ret = rsnd_dma_attach(io, mod, &ssi->dma);
 
 	return ret;
 }
@@ -694,11 +709,9 @@ static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 			       struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	int irq = ssi->irq;
 
 	/* PIO will request IRQ again */
-	devm_free_irq(dev, irq, mod);
+	free_irq(ssi->irq, mod);
 
 	return 0;
 }

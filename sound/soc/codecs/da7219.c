@@ -823,6 +823,85 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 	}
 }
 
+static int da7219_settling_event(struct snd_soc_dapm_widget *w,
+				 struct snd_kcontrol *kcontrol, int event)
+{
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_POST_PMD:
+		msleep(DA7219_SETTLING_DELAY);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int da7219_mixout_event(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	u8 hp_ctrl, min_gain_mask;
+
+	switch (w->reg) {
+	case DA7219_MIXOUT_L_CTRL:
+		hp_ctrl = DA7219_HP_L_CTRL;
+		min_gain_mask = DA7219_HP_L_AMP_MIN_GAIN_EN_MASK;
+		break;
+	case DA7219_MIXOUT_R_CTRL:
+		hp_ctrl = DA7219_HP_R_CTRL;
+		min_gain_mask = DA7219_HP_R_AMP_MIN_GAIN_EN_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMD:
+		/* Enable minimum gain on HP to avoid pops */
+		snd_soc_update_bits(codec, hp_ctrl, min_gain_mask,
+				    min_gain_mask);
+
+		msleep(DA7219_MIN_GAIN_DELAY);
+
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		/* Remove minimum gain on HP */
+		snd_soc_update_bits(codec, hp_ctrl, min_gain_mask, 0);
+
+		break;
+	}
+
+	return 0;
+}
+
+static int da7219_gain_ramp_event(struct snd_soc_dapm_widget *w,
+				  struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_PRE_PMD:
+		/* Ensure nominal gain ramping for DAPM sequence */
+		da7219->gain_ramp_ctrl =
+			snd_soc_read(codec, DA7219_GAIN_RAMP_CTRL);
+		snd_soc_write(codec, DA7219_GAIN_RAMP_CTRL,
+			      DA7219_GAIN_RAMP_RATE_NOMINAL);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_POST_PMD:
+		/* Restore previous gain ramp settings */
+		snd_soc_write(codec, DA7219_GAIN_RAMP_CTRL,
+			      da7219->gain_ramp_ctrl);
+		break;
+	}
+
+	return 0;
+}
+
 
 /*
  * DAPM Widgets
@@ -907,30 +986,46 @@ static const struct snd_soc_dapm_widget da7219_dapm_widgets[] = {
 			   ARRAY_SIZE(da7219_st_out_filtr_mix_controls)),
 
 	/* DACs */
-	SND_SOC_DAPM_DAC("DACL", NULL, DA7219_DAC_L_CTRL, DA7219_DAC_L_EN_SHIFT,
-			 DA7219_NO_INVERT),
-	SND_SOC_DAPM_DAC("DACR", NULL, DA7219_DAC_R_CTRL, DA7219_DAC_R_EN_SHIFT,
-			 DA7219_NO_INVERT),
+	SND_SOC_DAPM_DAC_E("DACL", NULL, DA7219_DAC_L_CTRL,
+			   DA7219_DAC_L_EN_SHIFT, DA7219_NO_INVERT,
+			   da7219_settling_event,
+			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_DAC_E("DACR", NULL, DA7219_DAC_R_CTRL,
+			   DA7219_DAC_R_EN_SHIFT, DA7219_NO_INVERT,
+			   da7219_settling_event,
+			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Output PGAs */
-	SND_SOC_DAPM_PGA("Mixout Left PGA", DA7219_MIXOUT_L_CTRL,
-			 DA7219_MIXOUT_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
-			 NULL, 0),
-	SND_SOC_DAPM_PGA("Mixout Right PGA", DA7219_MIXOUT_R_CTRL,
-			 DA7219_MIXOUT_R_AMP_EN_SHIFT, DA7219_NO_INVERT,
-			 NULL, 0),
-	SND_SOC_DAPM_PGA("Headphone Left PGA", DA7219_HP_L_CTRL,
-			 DA7219_HP_L_AMP_EN_SHIFT, DA7219_NO_INVERT, NULL, 0),
-	SND_SOC_DAPM_PGA("Headphone Right PGA", DA7219_HP_R_CTRL,
-			 DA7219_HP_R_AMP_EN_SHIFT, DA7219_NO_INVERT, NULL, 0),
+	SND_SOC_DAPM_PGA_E("Mixout Left PGA", DA7219_MIXOUT_L_CTRL,
+			   DA7219_MIXOUT_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			   NULL, 0, da7219_mixout_event,
+			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_PGA_E("Mixout Right PGA", DA7219_MIXOUT_R_CTRL,
+			   DA7219_MIXOUT_R_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			   NULL, 0, da7219_mixout_event,
+			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_SUPPLY_S("Headphone Left PGA", 1, DA7219_HP_L_CTRL,
+			      DA7219_HP_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			      da7219_settling_event,
+			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("Headphone Right PGA", 1, DA7219_HP_R_CTRL,
+			      DA7219_HP_R_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			      da7219_settling_event,
+			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Output Supplies */
-	SND_SOC_DAPM_SUPPLY("Charge Pump", DA7219_CP_CTRL, DA7219_CP_EN_SHIFT,
-			    DA7219_NO_INVERT, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("Charge Pump", 0, DA7219_CP_CTRL,
+			      DA7219_CP_EN_SHIFT, DA7219_NO_INVERT,
+			      da7219_settling_event,
+			      SND_SOC_DAPM_POST_PMU),
 
 	/* Outputs */
 	SND_SOC_DAPM_OUTPUT("HPL"),
 	SND_SOC_DAPM_OUTPUT("HPR"),
+
+	/* Pre/Post Power */
+	SND_SOC_DAPM_PRE("Pre Power Gain Ramp", da7219_gain_ramp_event),
+	SND_SOC_DAPM_POST("Post Power Gain Ramp", da7219_gain_ramp_event),
 };
 
 
@@ -1003,8 +1098,8 @@ static const struct snd_soc_dapm_route da7219_audio_map[] = {
 	{"Mixout Left PGA", NULL, "DACL"},
 	{"Mixout Right PGA", NULL, "DACR"},
 
-	{"Headphone Left PGA", NULL, "Mixout Left PGA"},
-	{"Headphone Right PGA", NULL, "Mixout Right PGA"},
+	{"HPL", NULL, "Mixout Left PGA"},
+	{"HPR", NULL, "Mixout Right PGA"},
 
 	{"HPL", NULL, "Headphone Left PGA"},
 	{"HPR", NULL, "Headphone Right PGA"},
@@ -1711,6 +1806,14 @@ static int da7219_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, DA7219_HP_R_CTRL,
 			    DA7219_HP_R_AMP_RAMP_EN_MASK,
 			    DA7219_HP_R_AMP_RAMP_EN_MASK);
+
+	/* Default minimum gain on HP to avoid pops during DAPM sequencing */
+	snd_soc_update_bits(codec, DA7219_HP_L_CTRL,
+			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK,
+			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK);
+	snd_soc_update_bits(codec, DA7219_HP_R_CTRL,
+			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK,
+			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK);
 
 	/* Default infinite tone gen, start/stop by Kcontrol */
 	snd_soc_write(codec, DA7219_TONE_GEN_CYCLES, DA7219_BEEP_CYCLES_MASK);

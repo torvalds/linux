@@ -25,6 +25,7 @@
 
 #define PCI_DEVICE_ID_IBM_CORSA		0x04F0
 #define PCI_DEVICE_ID_IBM_FLASH_GT	0x0600
+#define PCI_DEVICE_ID_IBM_BRIARD	0x0624
 
 /* Since there is only one target, make it 0 */
 #define CXLFLASH_TARGET		0
@@ -35,8 +36,6 @@
 #define CXLFLASH_MAX_NUM_LUNS_PER_TARGET	65536
 
 #define CXLFLASH_PCI_ERROR_RECOVERY_TIMEOUT	(120 * HZ)
-
-#define NUM_FC_PORTS	CXLFLASH_NUM_FC_PORTS	/* ports per AFU */
 
 /* FC defines */
 #define FC_MTIP_CMDCONFIG 0x010

@@ -119,7 +119,6 @@ struct pp_eventmgr {
 	void (*pp_eventmgr_fini)(struct pp_eventmgr *eventmgr);
 };
 
-int eventmgr_init(struct pp_instance *handle);
-int eventmgr_fini(struct pp_eventmgr *eventmgr);
+int eventmgr_early_init(struct pp_instance *handle);
 
 #endif /* _EVENTMGR_H_ */

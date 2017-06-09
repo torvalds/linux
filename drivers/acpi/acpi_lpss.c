@@ -18,8 +18,10 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/clk-lpss.h>
+#include <linux/platform_data/x86/pmc_atom.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
+#include <linux/pwm.h>
 #include <linux/delay.h>
 
 #include "internal.h"
@@ -31,7 +33,6 @@ ACPI_MODULE_NAME("acpi_lpss");
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/iosf_mbi.h>
-#include <asm/pmc_atom.h>
 
 #define LPSS_ADDR(desc) ((unsigned long)&desc)
 
@@ -142,6 +143,22 @@ static void lpss_deassert_reset(struct lpss_private_data *pdata)
 	writel(val, pdata->mmio_base + offset);
 }
 
+/*
+ * BYT PWM used for backlight control by the i915 driver on systems without
+ * the Crystal Cove PMIC.
+ */
+static struct pwm_lookup byt_pwm_lookup[] = {
+	PWM_LOOKUP_WITH_MODULE("80860F09:00", 0, "0000:00:02.0",
+			       "pwm_backlight", 0, PWM_POLARITY_NORMAL,
+			       "pwm-lpss-platform"),
+};
+
+static void byt_pwm_setup(struct lpss_private_data *pdata)
+{
+	if (!acpi_dev_present("INT33FD", NULL, -1))
+		pwm_add_table(byt_pwm_lookup, ARRAY_SIZE(byt_pwm_lookup));
+}
+
 #define LPSS_I2C_ENABLE			0x6c
 
 static void byt_i2c_setup(struct lpss_private_data *pdata)
@@ -152,6 +169,18 @@ static void byt_i2c_setup(struct lpss_private_data *pdata)
 		pdata->fixed_clk_rate = 133000000;
 
 	writel(0, pdata->mmio_base + LPSS_I2C_ENABLE);
+}
+
+/* BSW PWM used for backlight control by the i915 driver */
+static struct pwm_lookup bsw_pwm_lookup[] = {
+	PWM_LOOKUP_WITH_MODULE("80862288:00", 0, "0000:00:02.0",
+			       "pwm_backlight", 0, PWM_POLARITY_NORMAL,
+			       "pwm-lpss-platform"),
+};
+
+static void bsw_pwm_setup(struct lpss_private_data *pdata)
+{
+	pwm_add_table(bsw_pwm_lookup, ARRAY_SIZE(bsw_pwm_lookup));
 }
 
 static const struct lpss_device_desc lpt_dev_desc = {
@@ -187,10 +216,12 @@ static const struct lpss_device_desc lpt_sdio_dev_desc = {
 
 static const struct lpss_device_desc byt_pwm_dev_desc = {
 	.flags = LPSS_SAVE_CTX,
+	.setup = byt_pwm_setup,
 };
 
 static const struct lpss_device_desc bsw_pwm_dev_desc = {
 	.flags = LPSS_SAVE_CTX | LPSS_NO_D3_DELAY,
+	.setup = bsw_pwm_setup,
 };
 
 static const struct lpss_device_desc byt_uart_dev_desc = {

@@ -86,7 +86,7 @@
 #define DSIM_SYNC_INFORM		(1 << 27)
 #define DSIM_EOT_DISABLE		(1 << 28)
 #define DSIM_MFLUSH_VS			(1 << 29)
-/* This flag is valid only for exynos3250/3472/4415/5260/5430 */
+/* This flag is valid only for exynos3250/3472/5260/5430 */
 #define DSIM_CLKLANE_STOP		(1 << 30)
 
 /* DSIM_ESCMODE */
@@ -473,17 +473,6 @@ static const struct exynos_dsi_driver_data exynos4_dsi_driver_data = {
 	.reg_values = reg_values,
 };
 
-static const struct exynos_dsi_driver_data exynos4415_dsi_driver_data = {
-	.reg_ofs = exynos_reg_ofs,
-	.plltmr_reg = 0x58,
-	.has_clklane_stop = 1,
-	.num_clks = 2,
-	.max_freq = 1000,
-	.wait_for_reset = 1,
-	.num_bits_resol = 11,
-	.reg_values = reg_values,
-};
-
 static const struct exynos_dsi_driver_data exynos5_dsi_driver_data = {
 	.reg_ofs = exynos_reg_ofs,
 	.plltmr_reg = 0x58,
@@ -521,8 +510,6 @@ static const struct of_device_id exynos_dsi_of_match[] = {
 	  .data = &exynos3_dsi_driver_data },
 	{ .compatible = "samsung,exynos4210-mipi-dsi",
 	  .data = &exynos4_dsi_driver_data },
-	{ .compatible = "samsung,exynos4415-mipi-dsi",
-	  .data = &exynos4415_dsi_driver_data },
 	{ .compatible = "samsung,exynos5410-mipi-dsi",
 	  .data = &exynos5_dsi_driver_data },
 	{ .compatible = "samsung,exynos5422-mipi-dsi",
@@ -979,7 +966,7 @@ static void exynos_dsi_send_to_fifo(struct exynos_dsi *dsi,
 	bool first = !xfer->tx_done;
 	u32 reg;
 
-	dev_dbg(dev, "< xfer %p: tx len %u, done %u, rx len %u, done %u\n",
+	dev_dbg(dev, "< xfer %pK: tx len %u, done %u, rx len %u, done %u\n",
 		xfer, length, xfer->tx_done, xfer->rx_len, xfer->rx_done);
 
 	if (length > DSI_TX_FIFO_SIZE)
@@ -1177,7 +1164,7 @@ static bool exynos_dsi_transfer_finish(struct exynos_dsi *dsi)
 	spin_unlock_irqrestore(&dsi->transfer_lock, flags);
 
 	dev_dbg(dsi->dev,
-		"> xfer %p, tx_len %zu, tx_done %u, rx_len %u, rx_done %u\n",
+		"> xfer %pK, tx_len %zu, tx_done %u, rx_len %u, rx_done %u\n",
 		xfer, xfer->packet.payload_length, xfer->tx_done, xfer->rx_len,
 		xfer->rx_done);
 
@@ -1348,9 +1335,12 @@ static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi)
 	int te_gpio_irq;
 
 	dsi->te_gpio = of_get_named_gpio(dsi->panel_node, "te-gpios", 0);
+	if (dsi->te_gpio == -ENOENT)
+		return 0;
+
 	if (!gpio_is_valid(dsi->te_gpio)) {
-		dev_err(dsi->dev, "no te-gpios specified\n");
 		ret = dsi->te_gpio;
+		dev_err(dsi->dev, "cannot get te-gpios, %d\n", ret);
 		goto out;
 	}
 
@@ -1587,7 +1577,6 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 	}
 
 	drm_connector_helper_add(connector, &exynos_dsi_connector_helper_funcs);
-	drm_connector_register(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return 0;
@@ -1644,7 +1633,6 @@ static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 {
 	struct device *dev = dsi->dev;
 	struct device_node *node = dev->of_node;
-	struct device_node *ep;
 	int ret;
 
 	ret = exynos_dsi_of_read_u32(node, "samsung,pll-clock-frequency",
@@ -1652,39 +1640,21 @@ static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 	if (ret < 0)
 		return ret;
 
-	ep = of_graph_get_endpoint_by_regs(node, DSI_PORT_OUT, 0);
-	if (!ep) {
-		dev_err(dev, "no output port with endpoint specified\n");
-		return -EINVAL;
-	}
-
-	ret = exynos_dsi_of_read_u32(ep, "samsung,burst-clock-frequency",
+	ret = exynos_dsi_of_read_u32(node, "samsung,burst-clock-frequency",
 				     &dsi->burst_clk_rate);
 	if (ret < 0)
-		goto end;
+		return ret;
 
-	ret = exynos_dsi_of_read_u32(ep, "samsung,esc-clock-frequency",
+	ret = exynos_dsi_of_read_u32(node, "samsung,esc-clock-frequency",
 				     &dsi->esc_clk_rate);
 	if (ret < 0)
-		goto end;
+		return ret;
 
-	of_node_put(ep);
+	dsi->bridge_node = of_graph_get_remote_node(node, DSI_PORT_OUT, 0);
+	if (!dsi->bridge_node)
+		return -EINVAL;
 
-	ep = of_graph_get_next_endpoint(node, NULL);
-	if (!ep) {
-		ret = -EINVAL;
-		goto end;
-	}
-
-	dsi->bridge_node = of_graph_get_remote_port_parent(ep);
-	if (!dsi->bridge_node) {
-		ret = -EINVAL;
-		goto end;
-	}
-end:
-	of_node_put(ep);
-
-	return ret;
+	return 0;
 }
 
 static int exynos_dsi_bind(struct device *dev, struct device *master,
@@ -1718,10 +1688,8 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	}
 
 	bridge = of_drm_find_bridge(dsi->bridge_node);
-	if (bridge) {
-		encoder->bridge = bridge;
-		drm_bridge_attach(drm_dev, bridge);
-	}
+	if (bridge)
+		drm_bridge_attach(encoder, bridge, NULL);
 
 	return mipi_dsi_host_register(&dsi->dsi_host);
 }
@@ -1837,6 +1805,10 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 
 static int exynos_dsi_remove(struct platform_device *pdev)
 {
+	struct exynos_dsi *dsi = platform_get_drvdata(pdev);
+
+	of_node_put(dsi->bridge_node);
+
 	pm_runtime_disable(&pdev->dev);
 
 	component_del(&pdev->dev, &exynos_dsi_component_ops);

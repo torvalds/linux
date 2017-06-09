@@ -164,13 +164,7 @@ static inline void add_frag_mem_limit(struct netns_frags *nf, int i)
 
 static inline unsigned int sum_frag_mem_limit(struct netns_frags *nf)
 {
-	unsigned int res;
-
-	local_bh_disable();
-	res = percpu_counter_sum_positive(&nf->mem);
-	local_bh_enable();
-
-	return res;
+	return percpu_counter_sum_positive(&nf->mem);
 }
 
 /* RFC 3168 support :

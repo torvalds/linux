@@ -38,7 +38,8 @@ static unsigned int ecdh_supported_curve(unsigned int curve_id)
 	}
 }
 
-static int ecdh_set_secret(struct crypto_kpp *tfm, void *buf, unsigned int len)
+static int ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
+			   unsigned int len)
 {
 	struct ecdh_ctx *ctx = ecdh_get_ctx(tfm);
 	struct ecdh params;

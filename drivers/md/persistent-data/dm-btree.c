@@ -272,7 +272,12 @@ int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 	int r;
 	struct del_stack *s;
 
-	s = kmalloc(sizeof(*s), GFP_NOIO);
+	/*
+	 * dm_btree_del() is called via an ioctl, as such should be
+	 * considered an FS op.  We can't recurse back into the FS, so we
+	 * allocate GFP_NOFS.
+	 */
+	s = kmalloc(sizeof(*s), GFP_NOFS);
 	if (!s)
 		return -ENOMEM;
 	s->info = info;
@@ -897,8 +902,12 @@ static int find_key(struct ro_spine *s, dm_block_t block, bool find_highest,
 		else
 			*result_key = le64_to_cpu(ro_node(s)->keys[0]);
 
-		if (next_block || flags & INTERNAL_NODE)
-			block = value64(ro_node(s), i);
+		if (next_block || flags & INTERNAL_NODE) {
+			if (find_highest)
+				block = value64(ro_node(s), i);
+			else
+				block = value64(ro_node(s), 0);
+		}
 
 	} while (flags & INTERNAL_NODE);
 
@@ -1138,6 +1147,17 @@ int dm_btree_cursor_next(struct dm_btree_cursor *c)
 	return r;
 }
 EXPORT_SYMBOL_GPL(dm_btree_cursor_next);
+
+int dm_btree_cursor_skip(struct dm_btree_cursor *c, uint32_t count)
+{
+	int r = 0;
+
+	while (count-- && !r)
+		r = dm_btree_cursor_next(c);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_btree_cursor_skip);
 
 int dm_btree_cursor_get_value(struct dm_btree_cursor *c, uint64_t *key, void *value_le)
 {

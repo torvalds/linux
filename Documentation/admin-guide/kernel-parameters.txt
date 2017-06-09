@@ -106,6 +106,16 @@
 			use by PCI
 			Format: <irq>,<irq>...
 
+	acpi_mask_gpe=  [HW,ACPI]
+			Due to the existence of _Lxx/_Exx, some GPEs triggered
+			by unsupported hardware/firmware features can result in
+                        GPE floodings that cannot be automatically disabled by
+                        the GPE dispatcher.
+			This facility can be used to prevent such uncontrolled
+			GPE floodings.
+			Format: <int>
+			Support masking of GPEs numbered from 0x00 to 0x7f.
+
 	acpi_no_auto_serialize	[HW,ACPI]
 			Disable auto-serialization of AML methods
 			AML control methods that contain the opcodes to create
@@ -521,7 +531,6 @@
 			[ACPI] acpi_pm
 			[ARM] imx_timer1,OSTS,netx_timer,mpu_timer2,
 				pxa_timer,timer3,32k_counter,timer0_1
-			[AVR32] avr32
 			[X86-32] pit,hpet,tsc;
 				scx200_hrt on Geode; cyclone on IBM x440
 			[MIPS] MIPS
@@ -538,15 +547,6 @@
 			architected timer so that code using WFE-based polling
 			loops can be debugged more effectively on production
 			systems.
-
-	clocksource.arm_arch_timer.fsl-a008585=
-			[ARM64]
-			Format: <bool>
-			Enable/disable the workaround of Freescale/NXP
-			erratum A-008585.  This can be useful for KVM
-			guests, if the guest device tree doesn't show the
-			erratum.  If unspecified, the workaround is
-			enabled based on the device tree.
 
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
@@ -651,6 +651,9 @@
 
 	cpuidle.off=1	[CPU_IDLE]
 			disable the cpuidle sub-system
+
+	cpufreq.off=1	[CPU_FREQ]
+			disable the cpufreq sub-system
 
 	cpu_init_udelay=N
 			[X86] Delay for N microsec between assert and de-assert
@@ -863,6 +866,15 @@
 
 	dscc4.setup=	[NET]
 
+	dt_cpu_ftrs=	[PPC]
+			Format: {"off" | "known"}
+			Control how the dt_cpu_ftrs device-tree binding is
+			used for CPU feature discovery and setup (if it
+			exists).
+			off: Do not use it, fall back to legacy cpu table.
+			known: Do not pass through unknown features to guests
+			or userspace, only those that the kernel is aware of.
+
 	dump_apple_properties	[X86]
 			Dump name and content of EFI device properties on
 			x86 Macs.  Useful for driver authors to determine
@@ -956,6 +968,12 @@
 			serial port must already be setup and configured.
 			Options are not yet supported.
 
+		lantiq,<addr>
+			Start an early, polled-mode console on a lantiq serial
+			(lqasc) port at the specified address. The serial port
+			must already be setup and configured. Options are not
+			yet supported.
+
 		lpuart,<addr>
 		lpuart32,<addr>
 			Use early console provided by Freescale LP UART driver
@@ -963,21 +981,23 @@
 			A valid base address must be provided, and the serial
 			port must already be setup and configured.
 
-		armada3700_uart,<addr>
+		ar3700_uart,<addr>
 			Start an early, polled-mode console on the
 			Armada 3700 serial port at the specified
 			address. The serial port must already be setup
 			and configured. Options are not yet supported.
 
-	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]
+	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k,S390]
 			earlyprintk=vga
 			earlyprintk=efi
+			earlyprintk=sclp
 			earlyprintk=xen
 			earlyprintk=serial[,ttySn[,baudrate]]
 			earlyprintk=serial[,0x...[,baudrate]]
 			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
 			earlyprintk=pciserial,bus:device.function[,baudrate]
+			earlyprintk=xdbc[xhciController#]
 
 			earlyprintk is useful when the kernel crashes before
 			the normal console is initialized. It is not enabled by
@@ -1005,6 +1025,8 @@
 			the real console.
 
 			The xen output can only be used by Xen PV guests.
+
+			The sclp output can only be used on s390.
 
 	edac_report=	[HW,EDAC] Control how to report EDAC event
 			Format: {"on" | "off" | "force"}
@@ -1173,6 +1195,12 @@
 			functions that can be changed at run time by the
 			set_graph_notrace file in the debugfs tracing directory.
 
+	ftrace_graph_max_depth=<uint>
+			[FTRACE] Used with the function graph tracer. This is
+			the max depth it will trace into a function. This value
+			can be changed at run time by the max_graph_depth file
+			in the tracefs tracing directory. default: 0 (no limit)
+
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
 			support via parallel port (up to 5 devices per port)
@@ -1190,6 +1218,10 @@
 			debugfs, even when the module is unloaded/reloaded.
 			When zero, profiling data is discarded and associated
 			debugfs files are removed at module unload time.
+
+	goldfish	[X86] Enable the goldfish android emulator platform.
+			Don't use this when you are not running on the
+			android emulator
 
 	gpt		[EFI] Forces disk with valid GPT signature but
 			invalid Protective MBR to be treated as GPT. If the
@@ -1441,6 +1473,10 @@
 			The builtin appraise policy appraises all files
 			owned by uid=0.
 
+	ima_canonical_fmt [IMA]
+			Use the canonical format for the binary runtime
+			measurements, instead of host native format.
+
 	ima_hash=	[IMA]
 			Format: { md5 | sha1 | rmd160 | sha256 | sha384
 				   | sha512 | ... }
@@ -1551,6 +1587,15 @@
 			extended tables themselves, and also PASID support. With
 			this option set, extended tables will not be used even
 			on hardware which claims to support them.
+		tboot_noforce [Default Off]
+			Do not force the Intel IOMMU enabled under tboot.
+			By default, tboot will force Intel IOMMU on, which
+			could harm performance of some high-throughput
+			devices like 40GBit network cards, even if identity
+			mapping is enabled.
+			Note that using this option lowers the security
+			provided by tboot because it makes the system
+			vulnerable to DMA attacks.
 
 	intel_idle.max_cstate=	[KNL,HW,ACPI,X86]
 			0	disables intel_idle and fall back on acpi_idle.
@@ -1617,6 +1662,12 @@
 		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
 
+	iommu.passthrough=
+			[ARM64] Configure DMA to bypass the IOMMU by default.
+			Format: { "0" | "1" }
+			0 - Use IOMMU translation for DMA.
+			1 - Bypass the IOMMU for DMA.
+			unset - Use IOMMU translation for DMA.
 
 	io7=		[HW] IO7 for Marvel based alpha systems
 			See comment before marvel_specify_io7 in
@@ -1697,6 +1748,12 @@
 			When CONFIG_RANDOMIZE_BASE is set, this disables
 			kernel and module base offset ASLR (Address Space
 			Layout Randomization).
+
+	kasan_multi_shot
+			[KNL] Enforce KASAN (Kernel Address Sanitizer) to print
+			report on every invalid memory access. Without this
+			parameter KASAN will print report only for the first
+			invalid access.
 
 	keepinitrd	[HW,ARM]
 
@@ -2386,13 +2443,7 @@
 			and gids from such clients.  This is intended to ease
 			migration from NFSv2/v3.
 
-	objlayoutdriver.osd_login_prog=
-			[NFS] [OBJLAYOUT] sets the pathname to the program which
-			is used to automatically discover and login into new
-			osd-targets. Please see:
-			Documentation/filesystems/pnfs.txt for more explanations
-
-	nmi_debug=	[KNL,AVR32,SH] Specify one or more actions to take
+	nmi_debug=	[KNL,SH] Specify one or more actions to take
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
 
@@ -3145,6 +3196,12 @@
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/blockdev/ramdisk.txt.
 
+	ras=option[,option,...]	[KNL] RAS-specific options
+
+		cec_disable	[X86]
+				Disable the Correctable Errors Collector,
+				see CONFIG_RAS_CEC help text.
+
 	rcu_nocbs=	[KNL]
 			The argument is a cpu list, as described above.
 
@@ -3263,6 +3320,13 @@
 			only "lazy" RCU callbacks (RCU_FAST_NO_HZ=y).
 			Lazy RCU callbacks are those which RCU can
 			prove do nothing more than free memory.
+
+	rcutree.rcu_kick_kthreads= [KNL]
+			Cause the grace-period kthread to get an extra
+			wake_up() if it sleeps three times longer than
+			it should at force-quiescent-state time.
+			This wake_up() will be accompanied by a
+			WARN_ONCE() splat and an ftrace_dump().
 
 	rcuperf.gp_exp= [KNL]
 			Measure performance of expedited synchronous
@@ -3549,6 +3613,10 @@
 	rhash_entries=	[KNL,NET]
 			Set number of hash buckets for route cache
 
+	ring3mwait=disable
+			[KNL] Disable ring 3 MONITOR/MWAIT feature on supported
+			CPUs.
+
 	ro		[KNL] Mount root device read-only on boot
 
 	rodata=		[KNL]
@@ -3665,6 +3733,14 @@
 			last alloc / free. For more information see
 			Documentation/vm/slub.txt.
 
+	slub_memcg_sysfs=	[MM, SLUB]
+			Determines whether to enable sysfs directories for
+			memory cgroup sub-caches. 1 to enable, 0 to disable.
+			The default is determined by CONFIG_SLUB_MEMCG_SYSFS_ON.
+			Enabling this can lead to a very high number of	debug
+			directories and files being created under
+			/sys/kernel/slub.
+
 	slub_max_order= [MM, SLUB]
 			Determines the maximum allowed order for slabs.
 			A high setting may cause OOMs due to memory
@@ -3726,6 +3802,14 @@
 	spia_fio_base=
 	spia_pedr=
 	spia_peddr=
+
+	srcutree.exp_holdoff [KNL]
+			Specifies how many nanoseconds must elapse
+			since the end of the last SRCU grace period for
+			a given srcu_struct until the next normal SRCU
+			grace period will be considered for automatic
+			expediting.  Set to zero to disable automatic
+			expediting.
 
 	stacktrace	[FTRACE]
 			Enabled the stack tracer on boot up.
@@ -3807,10 +3891,11 @@
 			it if 0 is given (See Documentation/cgroup-v1/memory.txt)
 
 	swiotlb=	[ARM,IA-64,PPC,MIPS,X86]
-			Format: { <int> | force }
+			Format: { <int> | force | noforce }
 			<int> -- Number of I/O TLB slabs
 			force -- force using of bounce buffers even if they
 			         wouldn't be automatically used by the kernel
+			noforce -- Never use bounce buffers (for debugging)
 
 	switches=	[HW,M68k]
 
@@ -4067,6 +4152,9 @@
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
+
+	usbhid.jspoll=
+			[USBHID] The interval which joysticks are to be polled at.
 
 	usb-storage.delay_use=
 			[UMS] The delay in seconds before a new device is

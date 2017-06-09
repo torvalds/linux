@@ -261,8 +261,7 @@ static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
 }
 
 /*
- * Guts of ath10k_ce_send, used by both ath10k_ce_send and
- * ath10k_ce_sendlist_send.
+ * Guts of ath10k_ce_send.
  * The caller takes responsibility for any needed locking.
  */
 int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
@@ -958,23 +957,16 @@ ath10k_ce_alloc_dest_ring(struct ath10k *ar, unsigned int ce_id,
 	 * coherent DMA are unsupported
 	 */
 	dest_ring->base_addr_owner_space_unaligned =
-		dma_alloc_coherent(ar->dev,
-				   (nentries * sizeof(struct ce_desc) +
-				    CE_DESC_RING_ALIGN),
-				   &base_addr, GFP_KERNEL);
+		dma_zalloc_coherent(ar->dev,
+				    (nentries * sizeof(struct ce_desc) +
+				     CE_DESC_RING_ALIGN),
+				    &base_addr, GFP_KERNEL);
 	if (!dest_ring->base_addr_owner_space_unaligned) {
 		kfree(dest_ring);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	dest_ring->base_addr_ce_space_unaligned = base_addr;
-
-	/*
-	 * Correctly initialize memory to 0 to prevent garbage
-	 * data crashing system when download firmware
-	 */
-	memset(dest_ring->base_addr_owner_space_unaligned, 0,
-	       nentries * sizeof(struct ce_desc) + CE_DESC_RING_ALIGN);
 
 	dest_ring->base_addr_owner_space = PTR_ALIGN(
 			dest_ring->base_addr_owner_space_unaligned,
@@ -1059,7 +1051,7 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 	 */
 	BUILD_BUG_ON(2 * TARGET_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
-	BUILD_BUG_ON(2 * TARGET_10X_NUM_MSDU_DESC >
+	BUILD_BUG_ON(2 * TARGET_10_4_NUM_MSDU_DESC_PFC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
 	BUILD_BUG_ON(2 * TARGET_TLV_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
@@ -1129,4 +1121,43 @@ void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id)
 
 	ce_state->src_ring = NULL;
 	ce_state->dest_ring = NULL;
+}
+
+void ath10k_ce_dump_registers(struct ath10k *ar,
+			      struct ath10k_fw_crash_data *crash_data)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct ath10k_ce_crash_data ce;
+	u32 addr, id;
+
+	lockdep_assert_held(&ar->data_lock);
+
+	ath10k_err(ar, "Copy Engine register dump:\n");
+
+	spin_lock_bh(&ar_pci->ce_lock);
+	for (id = 0; id < CE_COUNT; id++) {
+		addr = ath10k_ce_base_address(ar, id);
+		ce.base_addr = cpu_to_le32(addr);
+
+		ce.src_wr_idx =
+			cpu_to_le32(ath10k_ce_src_ring_write_index_get(ar, addr));
+		ce.src_r_idx =
+			cpu_to_le32(ath10k_ce_src_ring_read_index_get(ar, addr));
+		ce.dst_wr_idx =
+			cpu_to_le32(ath10k_ce_dest_ring_write_index_get(ar, addr));
+		ce.dst_r_idx =
+			cpu_to_le32(ath10k_ce_dest_ring_read_index_get(ar, addr));
+
+		if (crash_data)
+			crash_data->ce_crash_data[id] = ce;
+
+		ath10k_err(ar, "[%02d]: 0x%08x %3u %3u %3u %3u", id,
+			   le32_to_cpu(ce.base_addr),
+			   le32_to_cpu(ce.src_wr_idx),
+			   le32_to_cpu(ce.src_r_idx),
+			   le32_to_cpu(ce.dst_wr_idx),
+			   le32_to_cpu(ce.dst_r_idx));
+	}
+
+	spin_unlock_bh(&ar_pci->ce_lock);
 }

@@ -394,6 +394,13 @@ static void keyring_destroy(struct key *keyring)
 		write_unlock(&keyring_name_lock);
 	}
 
+	if (keyring->restrict_link) {
+		struct key_restriction *keyres = keyring->restrict_link;
+
+		key_put(keyres->key);
+		kfree(keyres);
+	}
+
 	assoc_array_destroy(&keyring->keys, &keyring_assoc_array_ops);
 }
 
@@ -492,9 +499,7 @@ static long keyring_read(const struct key *keyring,
 struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 			  const struct cred *cred, key_perm_t perm,
 			  unsigned long flags,
-			  int (*restrict_link)(struct key *,
-					       const struct key_type *,
-					       const union key_payload *),
+			  struct key_restriction *restrict_link,
 			  struct key *dest)
 {
 	struct key *keyring;
@@ -519,17 +524,19 @@ EXPORT_SYMBOL(keyring_alloc);
  * @keyring: The keyring being added to.
  * @type: The type of key being added.
  * @payload: The payload of the key intended to be added.
+ * @data: Additional data for evaluating restriction.
  *
  * Reject the addition of any links to a keyring.  It can be overridden by
  * passing KEY_ALLOC_BYPASS_RESTRICTION to key_instantiate_and_link() when
  * adding a key to a keyring.
  *
- * This is meant to be passed as the restrict_link parameter to
- * keyring_alloc().
+ * This is meant to be stored in a key_restriction structure which is passed
+ * in the restrict_link parameter to keyring_alloc().
  */
 int restrict_link_reject(struct key *keyring,
 			 const struct key_type *type,
-			 const union key_payload *payload)
+			 const union key_payload *payload,
+			 struct key *restriction_key)
 {
 	return -EPERM;
 }
@@ -940,6 +947,111 @@ key_ref_t keyring_search(key_ref_t keyring,
 }
 EXPORT_SYMBOL(keyring_search);
 
+static struct key_restriction *keyring_restriction_alloc(
+	key_restrict_link_func_t check)
+{
+	struct key_restriction *keyres =
+		kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
+
+	if (!keyres)
+		return ERR_PTR(-ENOMEM);
+
+	keyres->check = check;
+
+	return keyres;
+}
+
+/*
+ * Semaphore to serialise restriction setup to prevent reference count
+ * cycles through restriction key pointers.
+ */
+static DECLARE_RWSEM(keyring_serialise_restrict_sem);
+
+/*
+ * Check for restriction cycles that would prevent keyring garbage collection.
+ * keyring_serialise_restrict_sem must be held.
+ */
+static bool keyring_detect_restriction_cycle(const struct key *dest_keyring,
+					     struct key_restriction *keyres)
+{
+	while (keyres && keyres->key &&
+	       keyres->key->type == &key_type_keyring) {
+		if (keyres->key == dest_keyring)
+			return true;
+
+		keyres = keyres->key->restrict_link;
+	}
+
+	return false;
+}
+
+/**
+ * keyring_restrict - Look up and apply a restriction to a keyring
+ *
+ * @keyring: The keyring to be restricted
+ * @restriction: The restriction options to apply to the keyring
+ */
+int keyring_restrict(key_ref_t keyring_ref, const char *type,
+		     const char *restriction)
+{
+	struct key *keyring;
+	struct key_type *restrict_type = NULL;
+	struct key_restriction *restrict_link;
+	int ret = 0;
+
+	keyring = key_ref_to_ptr(keyring_ref);
+	key_check(keyring);
+
+	if (keyring->type != &key_type_keyring)
+		return -ENOTDIR;
+
+	if (!type) {
+		restrict_link = keyring_restriction_alloc(restrict_link_reject);
+	} else {
+		restrict_type = key_type_lookup(type);
+
+		if (IS_ERR(restrict_type))
+			return PTR_ERR(restrict_type);
+
+		if (!restrict_type->lookup_restriction) {
+			ret = -ENOENT;
+			goto error;
+		}
+
+		restrict_link = restrict_type->lookup_restriction(restriction);
+	}
+
+	if (IS_ERR(restrict_link)) {
+		ret = PTR_ERR(restrict_link);
+		goto error;
+	}
+
+	down_write(&keyring->sem);
+	down_write(&keyring_serialise_restrict_sem);
+
+	if (keyring->restrict_link)
+		ret = -EEXIST;
+	else if (keyring_detect_restriction_cycle(keyring, restrict_link))
+		ret = -EDEADLK;
+	else
+		keyring->restrict_link = restrict_link;
+
+	up_write(&keyring_serialise_restrict_sem);
+	up_write(&keyring->sem);
+
+	if (ret < 0) {
+		key_put(restrict_link->key);
+		kfree(restrict_link);
+	}
+
+error:
+	if (restrict_type)
+		key_type_put(restrict_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(keyring_restrict);
+
 /*
  * Search the given keyring for a key that might be updated.
  *
@@ -1033,7 +1145,7 @@ struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 			/* we've got a match but we might end up racing with
 			 * key_cleanup() if the keyring is currently 'dead'
 			 * (ie. it has a zero usage count) */
-			if (!atomic_inc_not_zero(&keyring->usage))
+			if (!refcount_inc_not_zero(&keyring->usage))
 				continue;
 			keyring->last_used_at = current_kernel_time().tv_sec;
 			goto out;
@@ -1220,9 +1332,10 @@ void __key_link_end(struct key *keyring,
  */
 static int __key_link_check_restriction(struct key *keyring, struct key *key)
 {
-	if (!keyring->restrict_link)
+	if (!keyring->restrict_link || !keyring->restrict_link->check)
 		return 0;
-	return keyring->restrict_link(keyring, key->type, &key->payload);
+	return keyring->restrict_link->check(keyring, key->type, &key->payload,
+					     keyring->restrict_link->key);
 }
 
 /**
@@ -1250,14 +1363,14 @@ int key_link(struct key *keyring, struct key *key)
 	struct assoc_array_edit *edit;
 	int ret;
 
-	kenter("{%d,%d}", keyring->serial, atomic_read(&keyring->usage));
+	kenter("{%d,%d}", keyring->serial, refcount_read(&keyring->usage));
 
 	key_check(keyring);
 	key_check(key);
 
 	ret = __key_link_begin(keyring, &key->index_key, &edit);
 	if (ret == 0) {
-		kdebug("begun {%d,%d}", keyring->serial, atomic_read(&keyring->usage));
+		kdebug("begun {%d,%d}", keyring->serial, refcount_read(&keyring->usage));
 		ret = __key_link_check_restriction(keyring, key);
 		if (ret == 0)
 			ret = __key_link_check_live_key(keyring, key);
@@ -1266,7 +1379,7 @@ int key_link(struct key *keyring, struct key *key)
 		__key_link_end(keyring, &key->index_key, edit);
 	}
 
-	kleave(" = %d {%d,%d}", ret, keyring->serial, atomic_read(&keyring->usage));
+	kleave(" = %d {%d,%d}", ret, keyring->serial, refcount_read(&keyring->usage));
 	return ret;
 }
 EXPORT_SYMBOL(key_link);
@@ -1425,4 +1538,54 @@ do_gc:
 		       keyring_gc_select_iterator, &limit);
 	up_write(&keyring->sem);
 	kleave(" [gc]");
+}
+
+/*
+ * Garbage collect restriction pointers from a keyring.
+ *
+ * Keyring restrictions are associated with a key type, and must be cleaned
+ * up if the key type is unregistered. The restriction is altered to always
+ * reject additional keys so a keyring cannot be opened up by unregistering
+ * a key type.
+ *
+ * Not called with any keyring locks held. The keyring's key struct will not
+ * be deallocated under us as only our caller may deallocate it.
+ *
+ * The caller is required to hold key_types_sem and dead_type->sem. This is
+ * fulfilled by key_gc_keytype() holding the locks on behalf of
+ * key_garbage_collector(), which it invokes on a workqueue.
+ */
+void keyring_restriction_gc(struct key *keyring, struct key_type *dead_type)
+{
+	struct key_restriction *keyres;
+
+	kenter("%x{%s}", keyring->serial, keyring->description ?: "");
+
+	/*
+	 * keyring->restrict_link is only assigned at key allocation time
+	 * or with the key type locked, so the only values that could be
+	 * concurrently assigned to keyring->restrict_link are for key
+	 * types other than dead_type. Given this, it's ok to check
+	 * the key type before acquiring keyring->sem.
+	 */
+	if (!dead_type || !keyring->restrict_link ||
+	    keyring->restrict_link->keytype != dead_type) {
+		kleave(" [no restriction gc]");
+		return;
+	}
+
+	/* Lock the keyring to ensure that a link is not in progress */
+	down_write(&keyring->sem);
+
+	keyres = keyring->restrict_link;
+
+	keyres->check = restrict_link_reject;
+
+	key_put(keyres->key);
+	keyres->key = NULL;
+	keyres->keytype = NULL;
+
+	up_write(&keyring->sem);
+
+	kleave(" [restriction gc]");
 }

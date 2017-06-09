@@ -52,9 +52,6 @@ struct minstrel_mcs_group_data {
 	u8 index;
 	u8 column;
 
-	/* bitfield of supported MCS rates of this group */
-	u16 supported;
-
 	/* sorted rate set within a MCS group*/
 	u16 max_group_tp_rate[MAX_THR_RATES];
 	u16 max_group_prob_rate;
@@ -100,6 +97,9 @@ struct minstrel_ht_sta {
 
 	u8 cck_supported;
 	u8 cck_supported_short;
+
+	/* Bitfield of supported MCS rates of all groups */
+	u16 supported[MINSTREL_GROUPS_NB];
 
 	/* MCS rate group info and statistics */
 	struct minstrel_mcs_group_data groups[MINSTREL_GROUPS_NB];

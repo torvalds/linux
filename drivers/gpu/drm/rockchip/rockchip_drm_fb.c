@@ -92,7 +92,7 @@ rockchip_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2 *mode_cm
 	if (!rockchip_fb)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(&rockchip_fb->fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &rockchip_fb->fb, mode_cmd);
 
 	for (i = 0; i < num_planes; i++)
 		rockchip_fb->obj[i] = obj[i];
@@ -193,7 +193,7 @@ rockchip_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_cleanup_planes(dev, state);
 }
 
-static struct drm_mode_config_helper_funcs rockchip_mode_config_helpers = {
+static const struct drm_mode_config_helper_funcs rockchip_mode_config_helpers = {
 	.atomic_commit_tail = rockchip_atomic_commit_tail,
 };
 
@@ -213,7 +213,7 @@ rockchip_drm_framebuffer_init(struct drm_device *dev,
 
 	rockchip_fb = rockchip_fb_alloc(dev, mode_cmd, &obj, 1);
 	if (IS_ERR(rockchip_fb))
-		return NULL;
+		return ERR_CAST(rockchip_fb);
 
 	return &rockchip_fb->fb;
 }

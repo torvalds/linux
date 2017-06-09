@@ -703,7 +703,7 @@ int ptlrpc_connect_import(struct obd_import *imp)
 	ptlrpc_request_set_replen(request);
 	request->rq_interpret_reply = ptlrpc_connect_interpret;
 
-	CLASSERT(sizeof(*aa) <= sizeof(request->rq_async_args));
+	BUILD_BUG_ON(sizeof(*aa) > sizeof(request->rq_async_args));
 	aa = ptlrpc_req_async_args(request);
 	memset(aa, 0, sizeof(*aa));
 

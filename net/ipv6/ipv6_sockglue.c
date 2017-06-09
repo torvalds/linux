@@ -54,7 +54,7 @@
 #include <net/compat.h>
 #include <net/seg6.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 struct ip6_ra_chain *ip6_ra_chain;
 DEFINE_RWLOCK(ip6_ra_lock);
@@ -595,16 +595,24 @@ done:
 
 		if (val) {
 			struct net_device *dev;
+			int midx;
 
-			if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != val)
-				goto e_inval;
+			rcu_read_lock();
 
-			dev = dev_get_by_index(net, val);
+			dev = dev_get_by_index_rcu(net, val);
 			if (!dev) {
+				rcu_read_unlock();
 				retv = -ENODEV;
 				break;
 			}
-			dev_put(dev);
+			midx = l3mdev_master_ifindex_rcu(dev);
+
+			rcu_read_unlock();
+
+			if (sk->sk_bound_dev_if &&
+			    sk->sk_bound_dev_if != val &&
+			    (!midx || midx != sk->sk_bound_dev_if))
+				goto e_inval;
 		}
 		np->mcast_oif = val;
 		retv = 0;

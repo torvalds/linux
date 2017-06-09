@@ -1879,6 +1879,14 @@
 #define TW5864_INDIR_IN_PIC_HEIGHT(channel) (0x201 + 4 * channel)
 #define TW5864_INDIR_OUT_PIC_WIDTH(channel) (0x202 + 4 * channel)
 #define TW5864_INDIR_OUT_PIC_HEIGHT(channel) (0x203 + 4 * channel)
+
+/* Some registers skipped */
+
+#define TW5864_INDIR_CROP_ETC 0x260
+/* Define controls in register TW5864_INDIR_CROP_ETC */
+/* Enable cropping from 720 to 704 */
+#define TW5864_INDIR_CROP_ETC_CROP_EN 0x4
+
 /*
  * Interrupt status register from the front-end. Write "1" to each bit to clear
  * the interrupt

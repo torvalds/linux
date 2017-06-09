@@ -141,9 +141,11 @@ enum v4l2_field
 Field Order, Top Field First Transmitted
 ========================================
 
-.. figure::  fieldseq_tb.*
-    :alt:    fieldseq_tb.pdf / fieldseq_tb.svg
+.. kernel-figure:: fieldseq_tb.svg
+    :alt:    fieldseq_tb.svg
     :align:  center
+
+    Field Order, Top Field First Transmitted
 
 
 .. _fieldseq-bt:
@@ -151,7 +153,8 @@ Field Order, Top Field First Transmitted
 Field Order, Bottom Field First Transmitted
 ===========================================
 
-.. figure::  fieldseq_bt.*
-    :alt:    fieldseq_bt.pdf / fieldseq_bt.svg
+.. kernel-figure:: fieldseq_bt.svg
+    :alt:    fieldseq_bt.svg
     :align:  center
 
+    Field Order, Bottom Field First Transmitted

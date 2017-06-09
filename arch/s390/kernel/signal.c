@@ -10,6 +10,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
@@ -26,7 +27,7 @@
 #include <linux/syscalls.h>
 #include <linux/compat.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/lowcore.h>
 #include <asm/switch_to.h>
 #include "entry.h"

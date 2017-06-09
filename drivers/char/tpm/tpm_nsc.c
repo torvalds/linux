@@ -278,6 +278,18 @@ static struct platform_driver nsc_drv = {
 	},
 };
 
+static inline int tpm_read_index(int base, int index)
+{
+	outb(index, base);
+	return inb(base+1) & 0xFF;
+}
+
+static inline void tpm_write_index(int base, int index, int value)
+{
+	outb(index, base);
+	outb(value & 0xFF, base+1);
+}
+
 static int __init init_nsc(void)
 {
 	int rc = 0;

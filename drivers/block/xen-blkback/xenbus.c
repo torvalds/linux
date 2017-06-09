@@ -38,8 +38,8 @@ struct backend_info {
 static struct kmem_cache *xen_blkif_cachep;
 static void connect(struct backend_info *);
 static int connect_ring(struct backend_info *);
-static void backend_changed(struct xenbus_watch *, const char **,
-			    unsigned int);
+static void backend_changed(struct xenbus_watch *, const char *,
+			    const char *);
 static void xen_blkif_free(struct xen_blkif *blkif);
 static void xen_vbd_free(struct xen_vbd *vbd);
 
@@ -504,11 +504,13 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 
 	dev_set_drvdata(&dev->dev, NULL);
 
-	if (be->blkif)
+	if (be->blkif) {
 		xen_blkif_disconnect(be->blkif);
 
-	/* Put the reference we set in xen_blkif_alloc(). */
-	xen_blkif_put(be->blkif);
+		/* Put the reference we set in xen_blkif_alloc(). */
+		xen_blkif_put(be->blkif);
+	}
+
 	kfree(be->mode);
 	kfree(be);
 	return 0;
@@ -661,7 +663,7 @@ fail:
  * ready, connect.
  */
 static void backend_changed(struct xenbus_watch *watch,
-			    const char **vec, unsigned int len)
+			    const char *path, const char *token)
 {
 	int err;
 	unsigned major;

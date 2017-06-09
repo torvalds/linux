@@ -130,7 +130,7 @@ Additional Configurations
   version 1.6 or later is required for this functionality.
 
   The latest release of ethtool can be found from
-  http://ftp.kernel.org/pub/software/network/ethtool/
+  https://www.kernel.org/pub/software/network/ethtool/
 
   Enabling Wake on LAN* (WoL)
   ---------------------------

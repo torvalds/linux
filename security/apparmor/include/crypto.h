@@ -18,9 +18,14 @@
 
 #ifdef CONFIG_SECURITY_APPARMOR_HASH
 unsigned int aa_hash_size(void);
+char *aa_calc_hash(void *data, size_t len);
 int aa_calc_profile_hash(struct aa_profile *profile, u32 version, void *start,
 			 size_t len);
 #else
+static inline char *aa_calc_hash(void *data, size_t len)
+{
+	return NULL;
+}
 static inline int aa_calc_profile_hash(struct aa_profile *profile, u32 version,
 				       void *start, size_t len)
 {

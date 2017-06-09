@@ -9,6 +9,7 @@
  */
 
 /* For the CLR_() macros */
+#include <string.h>
 #include <pthread.h>
 
 #include <signal.h>
@@ -114,8 +115,7 @@ static void toggle_done(int sig __maybe_unused,
 	done = true;
 }
 
-int bench_futex_wake(int argc, const char **argv,
-		     const char *prefix __maybe_unused)
+int bench_futex_wake(int argc, const char **argv)
 {
 	int ret = 0;
 	unsigned int i, j;
@@ -129,7 +129,6 @@ int bench_futex_wake(int argc, const char **argv,
 	}
 
 	ncpus = sysconf(_SC_NPROCESSORS_ONLN);
-	nwakes = futexbench_sanitize_numeric(nwakes);
 
 	sigfillset(&act.sa_mask);
 	act.sa_sigaction = toggle_done;
@@ -137,8 +136,6 @@ int bench_futex_wake(int argc, const char **argv,
 
 	if (!nthreads)
 		nthreads = ncpus;
-	else
-		nthreads = futexbench_sanitize_numeric(nthreads);
 
 	worker = calloc(nthreads, sizeof(*worker));
 	if (!worker)

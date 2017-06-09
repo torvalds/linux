@@ -22,46 +22,18 @@
 #include <asm/kernel-pgtable.h>
 #include <asm/sysreg.h>
 
-#ifndef __ASSEMBLY__
-
 /*
  * User space memory access functions
  */
 #include <linux/bitops.h>
 #include <linux/kasan-checks.h>
 #include <linux/string.h>
-#include <linux/thread_info.h>
 
 #include <asm/cpufeature.h>
 #include <asm/ptrace.h>
-#include <asm/errno.h>
 #include <asm/memory.h>
 #include <asm/compiler.h>
-
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
-
-/*
- * The exception table consists of pairs of relative offsets: the first
- * is the relative offset to an instruction that is allowed to fault,
- * and the second is the relative offset at which the program should
- * continue. No registers are modified, so it is entirely up to the
- * continuation code to figure out what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry
-{
-	int insn, fixup;
-};
-
-#define ARCH_HAS_RELATIVE_EXTABLE
-
-extern int fixup_exception(struct pt_regs *regs);
+#include <asm/extable.h>
 
 #define KERNEL_DS	(-1UL)
 #define get_ds()	(KERNEL_DS)
@@ -97,20 +69,21 @@ static inline void set_fs(mm_segment_t fs)
  */
 #define __range_ok(addr, size)						\
 ({									\
+	unsigned long __addr = (unsigned long __force)(addr);		\
 	unsigned long flag, roksum;					\
 	__chk_user_ptr(addr);						\
 	asm("adds %1, %1, %3; ccmp %1, %4, #2, cc; cset %0, ls"		\
 		: "=&r" (flag), "=&r" (roksum)				\
-		: "1" (addr), "Ir" (size),				\
+		: "1" (__addr), "Ir" (size),				\
 		  "r" (current_thread_info()->addr_limit)		\
 		: "cc");						\
 	flag;								\
 })
 
 /*
- * When dealing with data aborts or instruction traps we may end up with
- * a tagged userland pointer. Clear the tag to get a sane pointer to pass
- * on to access_ok(), for instance.
+ * When dealing with data aborts, watchpoints, or instruction traps we may end
+ * up with a tagged userland pointer. Clear the tag to get a sane pointer to
+ * pass on to access_ok(), for instance.
  */
 #define untagged_addr(addr)		sign_extend64(addr, 55)
 
@@ -258,7 +231,7 @@ do {									\
 			       (err), ARM64_HAS_UAO);			\
 		break;							\
 	case 8:								\
-		__get_user_asm("ldr", "ldtr", "%",  __gu_val, (ptr),	\
+		__get_user_asm("ldr", "ldtr", "%x",  __gu_val, (ptr),	\
 			       (err), ARM64_HAS_UAO);			\
 		break;							\
 	default:							\
@@ -325,7 +298,7 @@ do {									\
 			       (err), ARM64_HAS_UAO);			\
 		break;							\
 	case 8:								\
-		__put_user_asm("str", "sttr", "%", __pu_val, (ptr),	\
+		__put_user_asm("str", "sttr", "%x", __pu_val, (ptr),	\
 			       (err), ARM64_HAS_UAO);			\
 		break;							\
 	default:							\
@@ -359,58 +332,13 @@ do {									\
 })
 
 extern unsigned long __must_check __arch_copy_from_user(void *to, const void __user *from, unsigned long n);
+#define raw_copy_from_user __arch_copy_from_user
 extern unsigned long __must_check __arch_copy_to_user(void __user *to, const void *from, unsigned long n);
-extern unsigned long __must_check __copy_in_user(void __user *to, const void __user *from, unsigned long n);
+#define raw_copy_to_user __arch_copy_to_user
+extern unsigned long __must_check raw_copy_in_user(void __user *to, const void __user *from, unsigned long n);
 extern unsigned long __must_check __clear_user(void __user *addr, unsigned long n);
-
-static inline unsigned long __must_check __copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	kasan_check_write(to, n);
-	check_object_size(to, n, false);
-	return __arch_copy_from_user(to, from, n);
-}
-
-static inline unsigned long __must_check __copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	kasan_check_read(from, n);
-	check_object_size(from, n, true);
-	return __arch_copy_to_user(to, from, n);
-}
-
-static inline unsigned long __must_check copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	unsigned long res = n;
-	kasan_check_write(to, n);
-
-	if (access_ok(VERIFY_READ, from, n)) {
-		check_object_size(to, n, false);
-		res = __arch_copy_from_user(to, from, n);
-	}
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
-}
-
-static inline unsigned long __must_check copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	kasan_check_read(from, n);
-
-	if (access_ok(VERIFY_WRITE, to, n)) {
-		check_object_size(from, n, true);
-		n = __arch_copy_to_user(to, from, n);
-	}
-	return n;
-}
-
-static inline unsigned long __must_check copy_in_user(void __user *to, const void __user *from, unsigned long n)
-{
-	if (access_ok(VERIFY_READ, from, n) && access_ok(VERIFY_WRITE, to, n))
-		n = __copy_in_user(to, from, n);
-	return n;
-}
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+#define INLINE_COPY_TO_USER
+#define INLINE_COPY_FROM_USER
 
 static inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
 {
@@ -423,67 +351,5 @@ extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
 extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
-
-#else	/* __ASSEMBLY__ */
-
-#include <asm/assembler.h>
-
-/*
- * User access enabling/disabling macros.
- */
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
-	.macro	__uaccess_ttbr0_disable, tmp1
-	mrs	\tmp1, ttbr1_el1		// swapper_pg_dir
-	add	\tmp1, \tmp1, #SWAPPER_DIR_SIZE	// reserved_ttbr0 at the end of swapper_pg_dir
-	msr	ttbr0_el1, \tmp1		// set reserved TTBR0_EL1
-	isb
-	.endm
-
-	.macro	__uaccess_ttbr0_enable, tmp1
-	get_thread_info \tmp1
-	ldr	\tmp1, [\tmp1, #TSK_TI_TTBR0]	// load saved TTBR0_EL1
-	msr	ttbr0_el1, \tmp1		// set the non-PAN TTBR0_EL1
-	isb
-	.endm
-
-	.macro	uaccess_ttbr0_disable, tmp1
-alternative_if_not ARM64_HAS_PAN
-	__uaccess_ttbr0_disable \tmp1
-alternative_else_nop_endif
-	.endm
-
-	.macro	uaccess_ttbr0_enable, tmp1, tmp2
-alternative_if_not ARM64_HAS_PAN
-	save_and_disable_irq \tmp2		// avoid preemption
-	__uaccess_ttbr0_enable \tmp1
-	restore_irq \tmp2
-alternative_else_nop_endif
-	.endm
-#else
-	.macro	uaccess_ttbr0_disable, tmp1
-	.endm
-
-	.macro	uaccess_ttbr0_enable, tmp1, tmp2
-	.endm
-#endif
-
-/*
- * These macros are no-ops when UAO is present.
- */
-	.macro	uaccess_disable_not_uao, tmp1
-	uaccess_ttbr0_disable \tmp1
-alternative_if ARM64_ALT_PAN_NOT_UAO
-	SET_PSTATE_PAN(1)
-alternative_else_nop_endif
-	.endm
-
-	.macro	uaccess_enable_not_uao, tmp1, tmp2
-	uaccess_ttbr0_enable \tmp1, \tmp2
-alternative_if ARM64_ALT_PAN_NOT_UAO
-	SET_PSTATE_PAN(0)
-alternative_else_nop_endif
-	.endm
-
-#endif	/* __ASSEMBLY__ */
 
 #endif /* __ASM_UACCESS_H */

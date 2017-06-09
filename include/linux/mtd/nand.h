@@ -142,6 +142,12 @@ enum nand_ecc_algo {
  */
 #define NAND_ECC_GENERIC_ERASED_CHECK	BIT(0)
 #define NAND_ECC_MAXIMIZE		BIT(1)
+/*
+ * If your controller already sends the required NAND commands when
+ * reading or writing a page, then the framework is not supposed to
+ * send READ0 and SEQIN/PAGEPROG respectively.
+ */
+#define NAND_ECC_CUSTOM_PAGE_ACCESS	BIT(2)
 
 /* Bit mask for flags passed to do_nand_read_ecc */
 #define NAND_GET_DEVICE		0x80
@@ -186,6 +192,7 @@ enum nand_ecc_algo {
 /* Macros to identify the above */
 #define NAND_HAS_CACHEPROG(chip) ((chip->options & NAND_CACHEPRG))
 #define NAND_HAS_SUBPAGE_READ(chip) ((chip->options & NAND_SUBPAGE_READ))
+#define NAND_HAS_SUBPAGE_WRITE(chip) !((chip)->options & NAND_NO_SUBPAGE_WRITE)
 
 /* Non chip related options */
 /* This option skips the bbt scan during initialization. */
@@ -209,6 +216,16 @@ enum nand_ecc_algo {
  * kmap'ed, vmalloc'ed highmem buffers being passed from upper layers
  */
 #define NAND_USE_BOUNCE_BUFFER	0x00100000
+
+/*
+ * In case your controller is implementing ->cmd_ctrl() and is relying on the
+ * default ->cmdfunc() implementation, you may want to let the core handle the
+ * tCCS delay which is required when a column change (RNDIN or RNDOUT) is
+ * requested.
+ * If your controller already takes care of this delay, you don't need to set
+ * this flag.
+ */
+#define NAND_WAIT_TCCS		0x00200000
 
 /* Options set by nand scan */
 /* Nand scan has allocated controller struct */
@@ -349,26 +366,6 @@ struct onfi_ext_param_page {
 	 */
 } __packed;
 
-struct nand_onfi_vendor_micron {
-	u8 two_plane_read;
-	u8 read_cache;
-	u8 read_unique_id;
-	u8 dq_imped;
-	u8 dq_imped_num_settings;
-	u8 dq_imped_feat_addr;
-	u8 rb_pulldown_strength;
-	u8 rb_pulldown_strength_feat_addr;
-	u8 rb_pulldown_strength_num_settings;
-	u8 otp_mode;
-	u8 otp_page_start;
-	u8 otp_data_prot_addr;
-	u8 otp_num_pages;
-	u8 otp_feat_addr;
-	u8 read_retry_options;
-	u8 reserved[72];
-	u8 param_revision;
-} __packed;
-
 struct jedec_ecc_info {
 	u8 ecc_bits;
 	u8 codeword_size;
@@ -448,6 +445,17 @@ struct nand_jedec_params {
 } __packed;
 
 /**
+ * struct nand_id - NAND id structure
+ * @data: buffer containing the id bytes. Currently 8 bytes large, but can
+ *	  be extended if required.
+ * @len: ID length.
+ */
+struct nand_id {
+	u8 data[8];
+	int len;
+};
+
+/**
  * struct nand_hw_control - Control structure for hardware controller (e.g ECC generator) shared among independent devices
  * @lock:               protection lock
  * @active:		the mtd device which holds the controller currently
@@ -508,7 +516,7 @@ static inline void nand_hw_control_init(struct nand_hw_control *nfc)
  *			out-of-band data).
  * @read_page:	function to read a page according to the ECC generator
  *		requirements; returns maximum number of bitflips corrected in
- *		any single ECC step, 0 if bitflips uncorrectable, -EIO hw error
+ *		any single ECC step, -EIO hw error
  * @read_subpage:	function to read parts of the page covered by ECC;
  *			returns same as read_page()
  * @write_subpage:	function to write parts of the page covered by ECC.
@@ -558,6 +566,11 @@ struct nand_ecc_ctrl {
 			int page);
 };
 
+static inline int nand_standard_page_accessors(struct nand_ecc_ctrl *ecc)
+{
+	return !(ecc->options & NAND_ECC_CUSTOM_PAGE_ACCESS);
+}
+
 /**
  * struct nand_buffers - buffer structure for read/write
  * @ecccalc:	buffer pointer for calculated ECC, size is oobsize.
@@ -584,12 +597,16 @@ struct nand_buffers {
  *
  * All these timings are expressed in picoseconds.
  *
+ * @tBERS_max: Block erase time
+ * @tCCS_min: Change column setup time
+ * @tPROG_max: Page program time
+ * @tR_max: Page read time
  * @tALH_min: ALE hold time
  * @tADL_min: ALE to data loading time
  * @tALS_min: ALE setup time
  * @tAR_min: ALE to RE# delay
  * @tCEA_max: CE# access time
- * @tCEH_min:
+ * @tCEH_min: CE# high hold time
  * @tCH_min:  CE# hold time
  * @tCHZ_max: CE# high to output hi-Z
  * @tCLH_min: CLE hold time
@@ -621,6 +638,10 @@ struct nand_buffers {
  * @tWW_min: WP# transition to WE# low
  */
 struct nand_sdr_timings {
+	u32 tBERS_max;
+	u32 tCCS_min;
+	u32 tPROG_max;
+	u32 tR_max;
 	u32 tALH_min;
 	u32 tADL_min;
 	u32 tALS_min;
@@ -691,6 +712,20 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
 }
 
 /**
+ * struct nand_manufacturer_ops - NAND Manufacturer operations
+ * @detect: detect the NAND memory organization and capabilities
+ * @init: initialize all vendor specific fields (like the ->read_retry()
+ *	  implementation) if any.
+ * @cleanup: the ->init() function may have allocated resources, ->cleanup()
+ *	     is here to let vendor specific code release those resources.
+ */
+struct nand_manufacturer_ops {
+	void (*detect)(struct nand_chip *chip);
+	int (*init)(struct nand_chip *chip);
+	void (*cleanup)(struct nand_chip *chip);
+};
+
+/**
  * struct nand_chip - NAND Private Flash Chip Data
  * @mtd:		MTD device registered to the MTD framework
  * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the
@@ -720,6 +755,7 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
  *			setting the read-retry mode. Mostly needed for MLC NAND.
  * @ecc:		[BOARDSPECIFIC] ECC control structure
  * @buffers:		buffer structure for read/write
+ * @buf_align:		minimum buffer alignment required by a platform
  * @hwcontrol:		platform-specific hardware control structure
  * @erase:		[REPLACEABLE] erase function
  * @scan_bbt:		[REPLACEABLE] function to scan bad block table
@@ -763,6 +799,7 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
  * @pagebuf_bitflips:	[INTERN] holds the bitflip count for the page which is
  *			currently in data_buf.
  * @subpagesize:	[INTERN] holds the subpagesize
+ * @id:			[INTERN] holds NAND ID
  * @onfi_version:	[INTERN] holds the chip ONFI version (BCD encoded),
  *			non 0 if ONFI supported.
  * @jedec_version:	[INTERN] holds the chip JEDEC version (BCD encoded),
@@ -771,6 +808,10 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
  *			supported, 0 otherwise.
  * @jedec_params:	[INTERN] holds the JEDEC parameter page when JEDEC is
  *			supported, 0 otherwise.
+ * @max_bb_per_die:	[INTERN] the max number of bad blocks each die of a
+ *			this nand device will encounter their life times.
+ * @blocks_per_die:	[INTERN] The number of PEBs in a die
+ * @data_interface:	[INTERN] NAND interface timing information
  * @read_retries:	[INTERN] the number of read retry modes supported
  * @onfi_set_features:	[REPLACEABLE] set the features for ONFI nand
  * @onfi_get_features:	[REPLACEABLE] get the features for ONFI nand
@@ -788,7 +829,7 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
  * @errstat:		[OPTIONAL] hardware specific function to perform
  *			additional error status checks (determine if errors are
  *			correctable).
- * @write_page:		[REPLACEABLE] High-level page write function
+ * @manufacturer:	[INTERN] Contains manufacturer information
  */
 
 struct nand_chip {
@@ -813,9 +854,6 @@ struct nand_chip {
 	int (*scan_bbt)(struct mtd_info *mtd);
 	int (*errstat)(struct mtd_info *mtd, struct nand_chip *this, int state,
 			int status, int page);
-	int (*write_page)(struct mtd_info *mtd, struct nand_chip *chip,
-			uint32_t offset, int data_len, const uint8_t *buf,
-			int oob_required, int page, int cached, int raw);
 	int (*onfi_set_features)(struct mtd_info *mtd, struct nand_chip *chip,
 			int feature_addr, uint8_t *subfeature_para);
 	int (*onfi_get_features)(struct mtd_info *mtd, struct nand_chip *chip,
@@ -847,12 +885,15 @@ struct nand_chip {
 	int badblockpos;
 	int badblockbits;
 
+	struct nand_id id;
 	int onfi_version;
 	int jedec_version;
 	union {
 		struct nand_onfi_params	onfi_params;
 		struct nand_jedec_params jedec_params;
 	};
+	u16 max_bb_per_die;
+	u32 blocks_per_die;
 
 	struct nand_data_interface *data_interface;
 
@@ -865,6 +906,7 @@ struct nand_chip {
 
 	struct nand_ecc_ctrl ecc;
 	struct nand_buffers *buffers;
+	unsigned long buf_align;
 	struct nand_hw_control hwcontrol;
 
 	uint8_t *bbt;
@@ -874,6 +916,11 @@ struct nand_chip {
 	struct nand_bbt_descr *badblock_pattern;
 
 	void *priv;
+
+	struct {
+		const struct nand_manufacturer *desc;
+		void *priv;
+	} manufacturer;
 };
 
 extern const struct mtd_ooblayout_ops nand_ooblayout_sp_ops;
@@ -910,6 +957,17 @@ static inline void nand_set_controller_data(struct nand_chip *chip, void *priv)
 	chip->priv = priv;
 }
 
+static inline void nand_set_manufacturer_data(struct nand_chip *chip,
+					      void *priv)
+{
+	chip->manufacturer.priv = priv;
+}
+
+static inline void *nand_get_manufacturer_data(struct nand_chip *chip)
+{
+	return chip->manufacturer.priv;
+}
+
 /*
  * NAND Flash Manufacturer ID Codes
  */
@@ -928,6 +986,7 @@ static inline void nand_set_controller_data(struct nand_chip *chip, void *priv)
 #define NAND_MFR_SANDISK	0x45
 #define NAND_MFR_INTEL		0x89
 #define NAND_MFR_ATO		0x9b
+#define NAND_MFR_WINBOND	0xef
 
 /* The maximum expected count of bytes in the NAND ID sequence */
 #define NAND_MAX_ID_LEN 8
@@ -1012,17 +1071,33 @@ struct nand_flash_dev {
 };
 
 /**
- * struct nand_manufacturers - NAND Flash Manufacturer ID Structure
+ * struct nand_manufacturer - NAND Flash Manufacturer structure
  * @name:	Manufacturer name
  * @id:		manufacturer ID code of device.
+ * @ops:	manufacturer operations
 */
-struct nand_manufacturers {
+struct nand_manufacturer {
 	int id;
 	char *name;
+	const struct nand_manufacturer_ops *ops;
 };
 
+const struct nand_manufacturer *nand_get_manufacturer(u8 id);
+
+static inline const char *
+nand_manufacturer_name(const struct nand_manufacturer *manufacturer)
+{
+	return manufacturer ? manufacturer->name : "Unknown";
+}
+
 extern struct nand_flash_dev nand_flash_ids[];
-extern struct nand_manufacturers nand_manuf_ids[];
+
+extern const struct nand_manufacturer_ops toshiba_nand_manuf_ops;
+extern const struct nand_manufacturer_ops samsung_nand_manuf_ops;
+extern const struct nand_manufacturer_ops hynix_nand_manuf_ops;
+extern const struct nand_manufacturer_ops micron_nand_manuf_ops;
+extern const struct nand_manufacturer_ops amd_nand_manuf_ops;
+extern const struct nand_manufacturer_ops macronix_nand_manuf_ops;
 
 int nand_default_bbt(struct mtd_info *mtd);
 int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs);
@@ -1189,4 +1264,6 @@ int nand_reset(struct nand_chip *chip, int chipnr);
 /* Free resources held by the NAND device */
 void nand_cleanup(struct nand_chip *chip);
 
+/* Default extended ID decoding function */
+void nand_decode_ext_id(struct nand_chip *chip);
 #endif /* __LINUX_MTD_NAND_H */

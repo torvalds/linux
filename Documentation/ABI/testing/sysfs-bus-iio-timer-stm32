@@ -1,0 +1,92 @@
+What:		/sys/bus/iio/devices/triggerX/master_mode_available
+KernelVersion:	4.11
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the list possible master modes which are:
+		- "reset"     :	The UG bit from the TIMx_EGR register is
+				used as trigger output (TRGO).
+		- "enable"    : The Counter Enable signal CNT_EN is used
+				as trigger output.
+		- "update"    : The update event is selected as trigger output.
+				For instance a master timer can then be used
+				as a prescaler for a slave timer.
+		- "compare_pulse" : The trigger output send a positive pulse
+				    when the CC1IF flag is to be set.
+		- "OC1REF"    : OC1REF signal is used as trigger output.
+		- "OC2REF"    : OC2REF signal is used as trigger output.
+		- "OC3REF"    : OC3REF signal is used as trigger output.
+		- "OC4REF"    : OC4REF signal is used as trigger output.
+
+What:		/sys/bus/iio/devices/triggerX/master_mode
+KernelVersion:	4.11
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the current master modes.
+		Writing set the master mode
+
+What:		/sys/bus/iio/devices/triggerX/sampling_frequency
+KernelVersion:	4.11
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the current sampling frequency.
+		Writing an value different of 0 set and start sampling.
+		Writing 0 stop sampling.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count0_preset
+KernelVersion:	4.12
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the current preset value.
+		Writing sets the preset value.
+		When counting up the counter starts from 0 and fires an
+		event when reach preset value.
+		When counting down the counter start from preset value
+		and fire event when reach 0.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_quadrature_mode_available
+KernelVersion:	4.12
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the list possible quadrature modes.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count0_quadrature_mode
+KernelVersion:	4.12
+Contact:	benjamin.gaignard@st.com
+Description:
+		Configure the device counter quadrature modes:
+		channel_A:
+			Encoder A input servers as the count input and B as
+			the UP/DOWN direction control input.
+
+		channel_B:
+			Encoder B input serves as the count input and A as
+			the UP/DOWN direction control input.
+
+		quadrature:
+			Encoder A and B inputs are mixed to get direction
+			and count with a scale of 0.25.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_enable_mode_available
+KernelVersion:	4.12
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the list possible enable modes.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count0_enable_mode
+KernelVersion:	4.12
+Contact:	benjamin.gaignard@st.com
+Description:
+		Configure the device counter enable modes, in all case
+		counting direction is set by in_count0_count_direction
+		attribute and the counter is clocked by the internal clock.
+		always:
+			Counter is always ON.
+
+		gated:
+			Counting is enabled when connected trigger signal
+			level is high else counting is disabled.
+
+		triggered:
+			Counting is enabled on rising edge of the connected
+			trigger, and remains enabled for the duration of this
+			selected mode.

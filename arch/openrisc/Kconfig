@@ -12,6 +12,7 @@ config OPENRISC
 	select HAVE_MEMBLOCK
 	select GPIOLIB
         select HAVE_ARCH_TRACEHOOK
+	select SPARSE_IRQ
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW

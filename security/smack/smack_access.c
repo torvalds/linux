@@ -36,11 +36,6 @@ struct smack_known smack_known_floor = {
 	.smk_secid	= 5,
 };
 
-struct smack_known smack_known_invalid = {
-	.smk_known	= "",
-	.smk_secid	= 6,
-};
-
 struct smack_known smack_known_web = {
 	.smk_known	= "@",
 	.smk_secid	= 7,
@@ -509,7 +504,7 @@ int smk_netlbl_mls(int level, char *catset, struct netlbl_lsm_secattr *sap,
 			if ((m & *cp) == 0)
 				continue;
 			rc = netlbl_catmap_setbit(&sap->attr.mls.cat,
-						  cat, GFP_ATOMIC);
+						  cat, GFP_KERNEL);
 			if (rc < 0) {
 				netlbl_catmap_free(sap->attr.mls.cat);
 				return rc;
@@ -615,7 +610,7 @@ struct smack_known *smack_from_secid(const u32 secid)
 	 * of a secid that is not on the list.
 	 */
 	rcu_read_unlock();
-	return &smack_known_invalid;
+	return &smack_known_huh;
 }
 
 /*

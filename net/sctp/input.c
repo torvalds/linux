@@ -401,10 +401,10 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 
 	if (t->param_flags & SPP_PMTUD_ENABLE) {
 		/* Update transports view of the MTU */
-		sctp_transport_update_pmtu(sk, t, pmtu);
+		sctp_transport_update_pmtu(t, pmtu);
 
 		/* Update association pmtu. */
-		sctp_assoc_sync_pmtu(sk, asoc);
+		sctp_assoc_sync_pmtu(asoc);
 	}
 
 	/* Retransmit with the new pmtu setting.
@@ -473,15 +473,14 @@ struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *skb,
 			     struct sctp_association **app,
 			     struct sctp_transport **tpp)
 {
+	struct sctp_init_chunk *chunkhdr, _chunkhdr;
 	union sctp_addr saddr;
 	union sctp_addr daddr;
 	struct sctp_af *af;
 	struct sock *sk = NULL;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport = NULL;
-	struct sctp_init_chunk *chunkhdr;
 	__u32 vtag = ntohl(sctphdr->vtag);
-	int len = skb->len - ((void *)sctphdr - (void *)skb->data);
 
 	*app = NULL; *tpp = NULL;
 
@@ -516,13 +515,16 @@ struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *skb,
 	 * discard the packet.
 	 */
 	if (vtag == 0) {
-		chunkhdr = (void *)sctphdr + sizeof(struct sctphdr);
-		if (len < sizeof(struct sctphdr) + sizeof(sctp_chunkhdr_t)
-			  + sizeof(__be32) ||
+		/* chunk header + first 4 octects of init header */
+		chunkhdr = skb_header_pointer(skb, skb_transport_offset(skb) +
+					      sizeof(struct sctphdr),
+					      sizeof(struct sctp_chunkhdr) +
+					      sizeof(__be32), &_chunkhdr);
+		if (!chunkhdr ||
 		    chunkhdr->chunk_hdr.type != SCTP_CID_INIT ||
-		    ntohl(chunkhdr->init_hdr.init_tag) != asoc->c.my_vtag) {
+		    ntohl(chunkhdr->init_hdr.init_tag) != asoc->c.my_vtag)
 			goto out;
-		}
+
 	} else if (vtag != asoc->c.peer_vtag) {
 		goto out;
 	}
@@ -872,6 +874,8 @@ void sctp_transport_hashtable_destroy(void)
 
 int sctp_hash_transport(struct sctp_transport *t)
 {
+	struct sctp_transport *transport;
+	struct rhlist_head *tmp, *list;
 	struct sctp_hash_cmp_arg arg;
 	int err;
 
@@ -882,8 +886,22 @@ int sctp_hash_transport(struct sctp_transport *t)
 	arg.paddr = &t->ipaddr;
 	arg.lport = htons(t->asoc->base.bind_addr.port);
 
+	rcu_read_lock();
+	list = rhltable_lookup(&sctp_transport_hashtable, &arg,
+			       sctp_hash_params);
+
+	rhl_for_each_entry_rcu(transport, tmp, list, node)
+		if (transport->asoc->ep == t->asoc->ep) {
+			rcu_read_unlock();
+			err = -EEXIST;
+			goto out;
+		}
+	rcu_read_unlock();
+
 	err = rhltable_insert_key(&sctp_transport_hashtable, &arg,
 				  &t->node, sctp_hash_params);
+
+out:
 	if (err)
 		pr_err_once("insert transport fail, errno %d\n", err);
 
@@ -1229,13 +1247,26 @@ static struct sctp_association *__sctp_rcv_lookup(struct net *net,
 	struct sctp_association *asoc;
 
 	asoc = __sctp_lookup_association(net, laddr, paddr, transportp);
+	if (asoc)
+		goto out;
 
 	/* Further lookup for INIT/INIT-ACK packets.
 	 * SCTP Implementors Guide, 2.18 Handling of address
 	 * parameters within the INIT or INIT-ACK.
 	 */
-	if (!asoc)
-		asoc = __sctp_rcv_lookup_harder(net, skb, laddr, transportp);
+	asoc = __sctp_rcv_lookup_harder(net, skb, laddr, transportp);
+	if (asoc)
+		goto out;
 
+	if (paddr->sa.sa_family == AF_INET)
+		pr_debug("sctp: asoc not found for src:%pI4:%d dst:%pI4:%d\n",
+			 &laddr->v4.sin_addr, ntohs(laddr->v4.sin_port),
+			 &paddr->v4.sin_addr, ntohs(paddr->v4.sin_port));
+	else
+		pr_debug("sctp: asoc not found for src:%pI6:%d dst:%pI6:%d\n",
+			 &laddr->v6.sin6_addr, ntohs(laddr->v6.sin6_port),
+			 &paddr->v6.sin6_addr, ntohs(paddr->v6.sin6_port));
+
+out:
 	return asoc;
 }

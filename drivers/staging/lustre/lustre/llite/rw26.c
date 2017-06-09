@@ -156,32 +156,6 @@ static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 
 #define MAX_DIRECTIO_SIZE (2 * 1024 * 1024 * 1024UL)
 
-static inline int ll_get_user_pages(int rw, unsigned long user_addr,
-				    size_t size, struct page ***pages,
-				    int *max_pages)
-{
-	int result = -ENOMEM;
-
-	/* set an arbitrary limit to prevent arithmetic overflow */
-	if (size > MAX_DIRECTIO_SIZE) {
-		*pages = NULL;
-		return -EFBIG;
-	}
-
-	*max_pages = (user_addr + size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	*max_pages -= user_addr >> PAGE_SHIFT;
-
-	*pages = libcfs_kvzalloc(*max_pages * sizeof(**pages), GFP_NOFS);
-	if (*pages) {
-		result = get_user_pages_fast(user_addr, *max_pages,
-					     (rw == READ), *pages);
-		if (unlikely(result <= 0))
-			kvfree(*pages);
-	}
-
-	return result;
-}
-
 /*  ll_free_user_pages - tear down page struct array
  *  @pages: array of page struct pointers underlying target buffer
  */
@@ -344,6 +318,10 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter)
 	ssize_t count = iov_iter_count(iter);
 	ssize_t tot_bytes = 0, result = 0;
 	long size = MAX_DIO_SIZE;
+
+	/* Check EOF by ourselves */
+	if (iov_iter_rw(iter) == READ && file_offset >= i_size_read(inode))
+		return 0;
 
 	/* FIXME: io smaller than PAGE_SIZE is broken on ia64 ??? */
 	if ((file_offset & ~PAGE_MASK) || (count & ~PAGE_MASK))

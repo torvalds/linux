@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/random.h>
+#include <linux/bsg-lib.h>
 #include <scsi/fc/fc_els.h>
 #include <scsi/libfc.h>
 #include "zfcp_ext.h"
@@ -885,26 +886,30 @@ out_free:
 
 static void zfcp_fc_ct_els_job_handler(void *data)
 {
-	struct fc_bsg_job *job = data;
+	struct bsg_job *job = data;
 	struct zfcp_fsf_ct_els *zfcp_ct_els = job->dd_data;
 	struct fc_bsg_reply *jr = job->reply;
 
 	jr->reply_payload_rcv_len = job->reply_payload.payload_len;
 	jr->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
 	jr->result = zfcp_ct_els->status ? -EIO : 0;
-	job->job_done(job);
+	bsg_job_done(job, jr->result, jr->reply_payload_rcv_len);
 }
 
-static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct fc_bsg_job *job)
+static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct bsg_job *job)
 {
 	u32 preamble_word1;
 	u8 gs_type;
 	struct zfcp_adapter *adapter;
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_rport *rport = fc_bsg_to_rport(job);
+	struct Scsi_Host *shost;
 
-	preamble_word1 = job->request->rqst_data.r_ct.preamble_word1;
+	preamble_word1 = bsg_request->rqst_data.r_ct.preamble_word1;
 	gs_type = (preamble_word1 & 0xff000000) >> 24;
 
-	adapter = (struct zfcp_adapter *) job->shost->hostdata[0];
+	shost = rport ? rport_to_shost(rport) : fc_bsg_to_shost(job);
+	adapter = (struct zfcp_adapter *) shost->hostdata[0];
 
 	switch (gs_type) {
 	case FC_FST_ALIAS:
@@ -924,7 +929,7 @@ static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct fc_bsg_job *job)
 
 static void zfcp_fc_ct_job_handler(void *data)
 {
-	struct fc_bsg_job *job = data;
+	struct bsg_job *job = data;
 	struct zfcp_fc_wka_port *wka_port;
 
 	wka_port = zfcp_fc_job_wka_port(job);
@@ -933,11 +938,12 @@ static void zfcp_fc_ct_job_handler(void *data)
 	zfcp_fc_ct_els_job_handler(data);
 }
 
-static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
+static int zfcp_fc_exec_els_job(struct bsg_job *job,
 				struct zfcp_adapter *adapter)
 {
 	struct zfcp_fsf_ct_els *els = job->dd_data;
-	struct fc_rport *rport = job->rport;
+	struct fc_rport *rport = fc_bsg_to_rport(job);
+	struct fc_bsg_request *bsg_request = job->request;
 	struct zfcp_port *port;
 	u32 d_id;
 
@@ -949,13 +955,13 @@ static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
 		d_id = port->d_id;
 		put_device(&port->dev);
 	} else
-		d_id = ntoh24(job->request->rqst_data.h_els.port_id);
+		d_id = ntoh24(bsg_request->rqst_data.h_els.port_id);
 
 	els->handler = zfcp_fc_ct_els_job_handler;
 	return zfcp_fsf_send_els(adapter, d_id, els, job->req->timeout / HZ);
 }
 
-static int zfcp_fc_exec_ct_job(struct fc_bsg_job *job,
+static int zfcp_fc_exec_ct_job(struct bsg_job *job,
 			       struct zfcp_adapter *adapter)
 {
 	int ret;
@@ -978,13 +984,15 @@ static int zfcp_fc_exec_ct_job(struct fc_bsg_job *job,
 	return ret;
 }
 
-int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
+int zfcp_fc_exec_bsg_job(struct bsg_job *job)
 {
 	struct Scsi_Host *shost;
 	struct zfcp_adapter *adapter;
 	struct zfcp_fsf_ct_els *ct_els = job->dd_data;
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_rport *rport = fc_bsg_to_rport(job);
 
-	shost = job->rport ? rport_to_shost(job->rport) : job->shost;
+	shost = rport ? rport_to_shost(rport) : fc_bsg_to_shost(job);
 	adapter = (struct zfcp_adapter *)shost->hostdata[0];
 
 	if (!(atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_OPEN))
@@ -994,7 +1002,7 @@ int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
 	ct_els->resp = job->reply_payload.sg_list;
 	ct_els->handler_data = job;
 
-	switch (job->request->msgcode) {
+	switch (bsg_request->msgcode) {
 	case FC_BSG_RPT_ELS:
 	case FC_BSG_HST_ELS_NOLOGIN:
 		return zfcp_fc_exec_els_job(job, adapter);
@@ -1006,7 +1014,7 @@ int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
 	}
 }
 
-int zfcp_fc_timeout_bsg_job(struct fc_bsg_job *job)
+int zfcp_fc_timeout_bsg_job(struct bsg_job *job)
 {
 	/* hardware tracks timeout, reset bsg timeout to not interfere */
 	return -EAGAIN;

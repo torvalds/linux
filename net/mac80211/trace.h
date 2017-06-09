@@ -1736,21 +1736,21 @@ TRACE_EVENT(drv_start_nan,
 		LOCAL_ENTRY
 		VIF_ENTRY
 		__field(u8, master_pref)
-		__field(u8, dual)
+		__field(u8, bands)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		__entry->master_pref = conf->master_pref;
-		__entry->dual = conf->dual;
+		__entry->bands = conf->bands;
 	),
 
 	TP_printk(
 		LOCAL_PR_FMT  VIF_PR_FMT
-		", master preference: %u, dual: %d",
+		", master preference: %u, bands: 0x%0x",
 		LOCAL_PR_ARG, VIF_PR_ARG, __entry->master_pref,
-		__entry->dual
+		__entry->bands
 	)
 );
 
@@ -1787,7 +1787,7 @@ TRACE_EVENT(drv_nan_change_conf,
 		LOCAL_ENTRY
 		VIF_ENTRY
 		__field(u8, master_pref)
-		__field(u8, dual)
+		__field(u8, bands)
 		__field(u32, changes)
 	),
 
@@ -1795,15 +1795,15 @@ TRACE_EVENT(drv_nan_change_conf,
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		__entry->master_pref = conf->master_pref;
-		__entry->dual = conf->dual;
+		__entry->bands = conf->bands;
 		__entry->changes = changes;
 	),
 
 	TP_printk(
 		LOCAL_PR_FMT  VIF_PR_FMT
-		", master preference: %u, dual: %d, changes: 0x%x",
+		", master preference: %u, bands: 0x%0x, changes: 0x%x",
 		LOCAL_PR_ARG, VIF_PR_ARG, __entry->master_pref,
-		__entry->dual, __entry->changes
+		__entry->bands, __entry->changes
 	)
 );
 
@@ -1996,23 +1996,26 @@ TRACE_EVENT(api_connection_loss,
 
 TRACE_EVENT(api_cqm_rssi_notify,
 	TP_PROTO(struct ieee80211_sub_if_data *sdata,
-		 enum nl80211_cqm_rssi_threshold_event rssi_event),
+		 enum nl80211_cqm_rssi_threshold_event rssi_event,
+		 s32 rssi_level),
 
-	TP_ARGS(sdata, rssi_event),
+	TP_ARGS(sdata, rssi_event, rssi_level),
 
 	TP_STRUCT__entry(
 		VIF_ENTRY
 		__field(u32, rssi_event)
+		__field(s32, rssi_level)
 	),
 
 	TP_fast_assign(
 		VIF_ASSIGN;
 		__entry->rssi_event = rssi_event;
+		__entry->rssi_level = rssi_level;
 	),
 
 	TP_printk(
-		VIF_PR_FMT " event:%d",
-		VIF_PR_ARG, __entry->rssi_event
+		VIF_PR_FMT " event:%d rssi:%d",
+		VIF_PR_ARG, __entry->rssi_event, __entry->rssi_level
 	)
 );
 

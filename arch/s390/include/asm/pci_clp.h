@@ -85,9 +85,10 @@ struct clp_rsp_query_pci {
 	u32 fid;			/* pci function id */
 	u8 bar_size[PCI_BAR_COUNT];
 	u16 pchid;
-	u32 bar[PCI_BAR_COUNT];
+	__le32 bar[PCI_BAR_COUNT];
 	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
-	u32			: 24;
+	u32			: 16;
+	u8 fmb_len;
 	u8 pft;				/* pci function type */
 	u64 sdma;			/* start dma as */
 	u64 edma;			/* end dma as */

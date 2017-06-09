@@ -148,7 +148,7 @@ static unsigned int sbus_cycles_offset(void)
 	return offset;
 }
 
-static cycle_t timer_cs_read(struct clocksource *cs)
+static u64 timer_cs_read(struct clocksource *cs)
 {
 	unsigned int seq, offset;
 	u64 cycles;
@@ -228,7 +228,9 @@ void register_percpu_ce(int cpu)
 	ce->mult           = div_sc(sparc_config.clock_rate, NSEC_PER_SEC,
 	                            ce->shift);
 	ce->max_delta_ns   = clockevent_delta2ns(sparc_config.clock_rate, ce);
+	ce->max_delta_ticks = (unsigned long)sparc_config.clock_rate;
 	ce->min_delta_ns   = clockevent_delta2ns(100, ce);
+	ce->min_delta_ticks = 100;
 
 	clockevents_register_device(ce);
 }

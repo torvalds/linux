@@ -41,7 +41,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/wait.h>
 #include <linux/spinlock.h>
 #include <linux/poll.h>

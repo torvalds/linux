@@ -7,10 +7,12 @@
  * publishhed by the Free Software Foundation.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/hix5hd2-clock.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		serial0 = &uart0;
 	};
@@ -436,7 +438,7 @@
 		};
 
 		gmac0: ethernet@1840000 {
-			compatible = "hisilicon,hix5hd2-gemac", "hisilicon,hisi-gemac-v1";
+			compatible = "hisilicon,hix5hd2-gmac", "hisilicon,hisi-gmac-v1";
 			reg = <0x1840000 0x1000>,<0x184300c 0x4>;
 			interrupts = <0 71 4>;
 			clocks = <&clock HIX5HD2_MAC0_CLK>;
@@ -445,7 +447,7 @@
 		};
 
 		gmac1: ethernet@1841000 {
-			compatible = "hisilicon,hix5hd2-gemac", "hisilicon,hisi-gemac-v1";
+			compatible = "hisilicon,hix5hd2-gmac", "hisilicon,hisi-gmac-v1";
 			reg = <0x1841000 0x1000>,<0x1843010 0x4>;
 			interrupts = <0 72 4>;
 			clocks = <&clock HIX5HD2_MAC1_CLK>;

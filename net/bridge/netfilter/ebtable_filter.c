@@ -93,13 +93,13 @@ static struct nf_hook_ops ebt_ops_filter[] __read_mostly = {
 
 static int __net_init frame_filter_net_init(struct net *net)
 {
-	net->xt.frame_filter = ebt_register_table(net, &frame_filter);
+	net->xt.frame_filter = ebt_register_table(net, &frame_filter, ebt_ops_filter);
 	return PTR_ERR_OR_ZERO(net->xt.frame_filter);
 }
 
 static void __net_exit frame_filter_net_exit(struct net *net)
 {
-	ebt_unregister_table(net, net->xt.frame_filter);
+	ebt_unregister_table(net, net->xt.frame_filter, ebt_ops_filter);
 }
 
 static struct pernet_operations frame_filter_net_ops = {
@@ -109,20 +109,11 @@ static struct pernet_operations frame_filter_net_ops = {
 
 static int __init ebtable_filter_init(void)
 {
-	int ret;
-
-	ret = register_pernet_subsys(&frame_filter_net_ops);
-	if (ret < 0)
-		return ret;
-	ret = nf_register_hooks(ebt_ops_filter, ARRAY_SIZE(ebt_ops_filter));
-	if (ret < 0)
-		unregister_pernet_subsys(&frame_filter_net_ops);
-	return ret;
+	return register_pernet_subsys(&frame_filter_net_ops);
 }
 
 static void __exit ebtable_filter_fini(void)
 {
-	nf_unregister_hooks(ebt_ops_filter, ARRAY_SIZE(ebt_ops_filter));
 	unregister_pernet_subsys(&frame_filter_net_ops);
 }
 

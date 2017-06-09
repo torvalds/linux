@@ -357,6 +357,16 @@ static inline void paravirt_release_pud(unsigned long pfn)
 	PVOP_VCALL1(pv_mmu_ops.release_pud, pfn);
 }
 
+static inline void paravirt_alloc_p4d(struct mm_struct *mm, unsigned long pfn)
+{
+	PVOP_VCALL2(pv_mmu_ops.alloc_p4d, mm, pfn);
+}
+
+static inline void paravirt_release_p4d(unsigned long pfn)
+{
+	PVOP_VCALL1(pv_mmu_ops.release_p4d, pfn);
+}
+
 static inline void pte_update(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep)
 {
@@ -475,6 +485,17 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 			    native_pmd_val(pmd));
 }
 
+static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
+			      pud_t *pudp, pud_t pud)
+{
+	if (sizeof(pudval_t) > sizeof(long))
+		/* 5 arg words */
+		pv_mmu_ops.set_pud_at(mm, addr, pudp, pud);
+	else
+		PVOP_VCALL4(pv_mmu_ops.set_pud_at, mm, addr, pudp,
+			    native_pud_val(pud));
+}
+
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
 	pmdval_t val = native_pmd_val(pmd);
@@ -525,7 +546,7 @@ static inline void set_pud(pud_t *pudp, pud_t pud)
 		PVOP_VCALL2(pv_mmu_ops.set_pud, pudp,
 			    val);
 }
-#if CONFIG_PGTABLE_LEVELS == 4
+#if CONFIG_PGTABLE_LEVELS >= 4
 static inline pud_t __pud(pudval_t val)
 {
 	pudval_t ret;
@@ -554,16 +575,42 @@ static inline pudval_t pud_val(pud_t pud)
 	return ret;
 }
 
+static inline void pud_clear(pud_t *pudp)
+{
+	set_pud(pudp, __pud(0));
+}
+
+static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
+{
+	p4dval_t val = native_p4d_val(p4d);
+
+	if (sizeof(p4dval_t) > sizeof(long))
+		PVOP_VCALL3(pv_mmu_ops.set_p4d, p4dp,
+			    val, (u64)val >> 32);
+	else
+		PVOP_VCALL2(pv_mmu_ops.set_p4d, p4dp,
+			    val);
+}
+
+#if CONFIG_PGTABLE_LEVELS >= 5
+
+static inline p4d_t __p4d(p4dval_t val)
+{
+	p4dval_t ret = PVOP_CALLEE1(p4dval_t, pv_mmu_ops.make_p4d, val);
+
+	return (p4d_t) { ret };
+}
+
+static inline p4dval_t p4d_val(p4d_t p4d)
+{
+	return PVOP_CALLEE1(p4dval_t, pv_mmu_ops.p4d_val, p4d.p4d);
+}
+
 static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
 	pgdval_t val = native_pgd_val(pgd);
 
-	if (sizeof(pgdval_t) > sizeof(long))
-		PVOP_VCALL3(pv_mmu_ops.set_pgd, pgdp,
-			    val, (u64)val >> 32);
-	else
-		PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp,
-			    val);
+	PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, val);
 }
 
 static inline void pgd_clear(pgd_t *pgdp)
@@ -571,9 +618,11 @@ static inline void pgd_clear(pgd_t *pgdp)
 	set_pgd(pgdp, __pgd(0));
 }
 
-static inline void pud_clear(pud_t *pudp)
+#endif  /* CONFIG_PGTABLE_LEVELS == 5 */
+
+static inline void p4d_clear(p4d_t *p4dp)
 {
-	set_pud(pudp, __pud(0));
+	set_p4d(p4dp, __p4d(0));
 }
 
 #endif	/* CONFIG_PGTABLE_LEVELS == 4 */
@@ -673,7 +722,7 @@ static __always_inline void pv_kick(int cpu)
 	PVOP_VCALL1(pv_lock_ops.kick, cpu);
 }
 
-static __always_inline bool pv_vcpu_is_preempted(int cpu)
+static __always_inline bool pv_vcpu_is_preempted(long cpu)
 {
 	return PVOP_CALLEE1(bool, pv_lock_ops.vcpu_is_preempted, cpu);
 }

@@ -163,7 +163,7 @@ static int ufshcd_populate_vreg(struct device *dev, const char *name,
 	if (ret) {
 		dev_err(dev, "%s: unable to find %s err %d\n",
 				__func__, prop_name, ret);
-		goto out_free;
+		goto out;
 	}
 
 	vreg->min_uA = 0;
@@ -185,9 +185,6 @@ static int ufshcd_populate_vreg(struct device *dev, const char *name,
 
 	goto out;
 
-out_free:
-	devm_kfree(dev, vreg);
-	vreg = NULL;
 out:
 	if (!ret)
 		*out_vreg = vreg;
@@ -312,8 +309,8 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mmio_base = devm_ioremap_resource(dev, mem_res);
-	if (IS_ERR(*(void **)&mmio_base)) {
-		err = PTR_ERR(*(void **)&mmio_base);
+	if (IS_ERR(mmio_base)) {
+		err = PTR_ERR(mmio_base);
 		goto out;
 	}
 

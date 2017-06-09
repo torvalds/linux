@@ -25,7 +25,7 @@
 int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 {
 	int err;
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	if (WARN_ON(card && card->host != host))
 		return -EINVAL;
@@ -68,7 +68,7 @@ EXPORT_SYMBOL_GPL(mmc_app_cmd);
 int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 	struct mmc_command *cmd, int retries)
 {
-	struct mmc_request mrq = {NULL};
+	struct mmc_request mrq = {};
 
 	int i, err;
 
@@ -120,7 +120,7 @@ EXPORT_SYMBOL(mmc_wait_for_app_cmd);
 
 int mmc_app_set_bus_width(struct mmc_card *card, int width)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	cmd.opcode = SD_APP_SET_BUS_WIDTH;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
@@ -141,7 +141,7 @@ int mmc_app_set_bus_width(struct mmc_card *card, int width)
 
 int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 	int i, err = 0;
 
 	cmd.opcode = SD_APP_OP_COND;
@@ -185,7 +185,7 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 
 int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 {
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 	int err;
 	static const u8 test_pattern = 0xAA;
 	u8 result_pattern;
@@ -217,7 +217,7 @@ int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 int mmc_send_relative_addr(struct mmc_host *host, unsigned int *rca)
 {
 	int err;
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	cmd.opcode = SD_SEND_RELATIVE_ADDR;
 	cmd.arg = 0;
@@ -232,14 +232,14 @@ int mmc_send_relative_addr(struct mmc_host *host, unsigned int *rca)
 	return 0;
 }
 
-int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
+int mmc_app_send_scr(struct mmc_card *card)
 {
 	int err;
-	struct mmc_request mrq = {NULL};
-	struct mmc_command cmd = {0};
-	struct mmc_data data = {0};
+	struct mmc_request mrq = {};
+	struct mmc_command cmd = {};
+	struct mmc_data data = {};
 	struct scatterlist sg;
-	void *data_buf;
+	__be32 *scr;
 
 	/* NOTE: caller guarantees scr is heap-allocated */
 
@@ -250,8 +250,8 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 	/* dma onto stack is unsafe/nonportable, but callers to this
 	 * routine normally provide temporary on-stack buffers ...
 	 */
-	data_buf = kmalloc(sizeof(card->raw_scr), GFP_KERNEL);
-	if (data_buf == NULL)
+	scr = kmalloc(sizeof(card->raw_scr), GFP_KERNEL);
+	if (!scr)
 		return -ENOMEM;
 
 	mrq.cmd = &cmd;
@@ -267,22 +267,21 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 	data.sg = &sg;
 	data.sg_len = 1;
 
-	sg_init_one(&sg, data_buf, 8);
+	sg_init_one(&sg, scr, 8);
 
 	mmc_set_data_timeout(&data, card);
 
 	mmc_wait_for_req(card->host, &mrq);
 
-	memcpy(scr, data_buf, sizeof(card->raw_scr));
-	kfree(data_buf);
+	card->raw_scr[0] = be32_to_cpu(scr[0]);
+	card->raw_scr[1] = be32_to_cpu(scr[1]);
+
+	kfree(scr);
 
 	if (cmd.error)
 		return cmd.error;
 	if (data.error)
 		return data.error;
-
-	scr[0] = be32_to_cpu(scr[0]);
-	scr[1] = be32_to_cpu(scr[1]);
 
 	return 0;
 }
@@ -290,9 +289,9 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 	u8 value, u8 *resp)
 {
-	struct mmc_request mrq = {NULL};
-	struct mmc_command cmd = {0};
-	struct mmc_data data = {0};
+	struct mmc_request mrq = {};
+	struct mmc_command cmd = {};
+	struct mmc_data data = {};
 	struct scatterlist sg;
 
 	/* NOTE: caller guarantees resp is heap-allocated */
@@ -332,9 +331,9 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 int mmc_app_sd_status(struct mmc_card *card, void *ssr)
 {
 	int err;
-	struct mmc_request mrq = {NULL};
-	struct mmc_command cmd = {0};
-	struct mmc_data data = {0};
+	struct mmc_request mrq = {};
+	struct mmc_command cmd = {};
+	struct mmc_data data = {};
 	struct scatterlist sg;
 
 	/* NOTE: caller guarantees ssr is heap-allocated */

@@ -239,6 +239,7 @@ static void ath10k_htt_tx_free_cont_txbuf(struct ath10k_htt *htt)
 
 	size = htt->max_num_pending_tx * sizeof(struct ath10k_htt_txbuf);
 	dma_free_coherent(ar->dev, size, htt->txbuf.vaddr, htt->txbuf.paddr);
+	htt->txbuf.vaddr = NULL;
 }
 
 static int ath10k_htt_tx_alloc_cont_txbuf(struct ath10k_htt *htt)
@@ -268,6 +269,7 @@ static void ath10k_htt_tx_free_cont_frag_desc(struct ath10k_htt *htt)
 			  size,
 			  htt->frag_desc.vaddr,
 			  htt->frag_desc.paddr);
+	htt->frag_desc.vaddr = NULL;
 }
 
 static int ath10k_htt_tx_alloc_cont_frag_desc(struct ath10k_htt *htt)
@@ -524,7 +526,8 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
 	memset(req, 0, sizeof(*req));
 
 	/* currently we support only max 8 bit masks so no need to worry
-	 * about endian support */
+	 * about endian support
+	 */
 	req->upload_types[0] = mask;
 	req->reset_types[0] = mask;
 	req->stat_type = HTT_STATS_REQ_CFG_STAT_TYPE_INVALID;
@@ -1006,7 +1009,8 @@ int ath10k_htt_tx(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
 	 * There is simply no point in pushing HTT TX_FRM through HTC tx path
 	 * as it's a waste of resources. By bypassing HTC it is possible to
 	 * avoid extra memory allocations, compress data structures and thus
-	 * improve performance. */
+	 * improve performance.
+	 */
 
 	txbuf->htc_hdr.eid = htt->eid;
 	txbuf->htc_hdr.len = __cpu_to_le16(sizeof(txbuf->cmd_hdr) +

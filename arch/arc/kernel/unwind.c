@@ -845,7 +845,7 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 				    * state->dataAlign;
 				break;
 			case DW_CFA_def_cfa_register:
-				unw_debug("cfa_def_cfa_regsiter: ");
+				unw_debug("cfa_def_cfa_register: ");
 				state->cfa.reg = get_uleb128(&ptr.p8, end);
 				break;
 				/*todo case DW_CFA_def_cfa_expression: */
@@ -1051,9 +1051,9 @@ int arc_unwind(struct unwind_frame_info *frame)
 		++ptr;
 	}
 	if (cie != NULL) {
-		/* get code aligment factor */
+		/* get code alignment factor */
 		state.codeAlign = get_uleb128(&ptr, end);
-		/* get data aligment factor */
+		/* get data alignment factor */
 		state.dataAlign = get_sleb128(&ptr, end);
 		if (state.codeAlign == 0 || state.dataAlign == 0 || ptr >= end)
 			cie = NULL;

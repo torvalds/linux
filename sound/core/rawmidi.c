@@ -22,7 +22,7 @@
 #include <sound/core.h>
 #include <linux/major.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/wait.h>
@@ -1610,7 +1610,7 @@ static int snd_rawmidi_dev_free(struct snd_device *device)
 	return snd_rawmidi_free(rmidi);
 }
 
-#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
+#if IS_REACHABLE(CONFIG_SND_SEQUENCER)
 static void snd_rawmidi_dev_seq_free(struct snd_seq_device *device)
 {
 	struct snd_rawmidi *rmidi = device->private_data;
@@ -1691,7 +1691,7 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 		}
 	}
 	rmidi->proc_entry = entry;
-#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
+#if IS_REACHABLE(CONFIG_SND_SEQUENCER)
 	if (!rmidi->ops || !rmidi->ops->dev_register) { /* own registration mechanism */
 		if (snd_seq_device_new(rmidi->card, rmidi->device, SNDRV_SEQ_DEV_ID_MIDISYNTH, 0, &rmidi->seq_dev) >= 0) {
 			rmidi->seq_dev->private_data = rmidi;
@@ -1749,7 +1749,7 @@ static int snd_rawmidi_dev_disconnect(struct snd_device *device)
  * Sets the rawmidi operators for the given stream direction.
  */
 void snd_rawmidi_set_ops(struct snd_rawmidi *rmidi, int stream,
-			 struct snd_rawmidi_ops *ops)
+			 const struct snd_rawmidi_ops *ops)
 {
 	struct snd_rawmidi_substream *substream;
 	

@@ -88,7 +88,7 @@
 #include <linux/eisa.h>
 #include <linux/bitops.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -1371,7 +1371,7 @@ el3_resume(struct device *pdev)
 #endif /* CONFIG_PM */
 
 module_param(debug,int, 0);
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 module_param(max_interrupt_work, int, 0);
 MODULE_PARM_DESC(debug, "debug level (0-6)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (assigned)");

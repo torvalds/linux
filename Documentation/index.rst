@@ -24,6 +24,18 @@ trying to get it to work optimally on a given system.
 
    admin-guide/index
 
+Application-developer documentation
+-----------------------------------
+
+The user-space API manual gathers together documents describing aspects of
+the kernel interface as seen by application developers.
+
+.. toctree::
+   :maxdepth: 2
+
+   userspace-api/index	      
+
+
 Introduction to kernel development
 ----------------------------------
 
@@ -47,7 +59,7 @@ These books get into the details of how specific kernel subsystems work
 from the point of view of a kernel developer.  Much of the information here
 is taken directly from the kernel source, with supplemental material added
 as needed (or at least as we managed to add it — probably *not* all that is
-needed). 
+needed).
 
 .. toctree::
    :maxdepth: 2
@@ -55,9 +67,11 @@ needed).
    driver-api/index
    core-api/index
    media/index
+   input/index
    gpu/index
    security/index
    sound/index
+   crypto/index
 
 Korean translations
 -------------------
@@ -66,6 +80,22 @@ Korean translations
    :maxdepth: 1
 
    translations/ko_KR/index
+
+Chinese translations
+--------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   translations/zh_CN/index
+
+Japanese translations
+---------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   translations/ja_JP/index
 
 Indices and tables
 ==================

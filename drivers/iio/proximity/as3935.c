@@ -50,7 +50,6 @@
 #define AS3935_TUNE_CAP		0x08
 #define AS3935_CALIBRATE	0x3D
 
-#define AS3935_WRITE_DATA	BIT(15)
 #define AS3935_READ_DATA	BIT(14)
 #define AS3935_ADDRESS(x)	((x) << 8)
 
@@ -105,7 +104,7 @@ static int as3935_write(struct as3935_state *st,
 {
 	u8 *buf = st->buf;
 
-	buf[0] = (AS3935_WRITE_DATA | AS3935_ADDRESS(reg)) >> 8;
+	buf[0] = AS3935_ADDRESS(reg) >> 8;
 	buf[1] = val;
 
 	return spi_write(st->spi, buf, 2);
@@ -155,7 +154,7 @@ static struct attribute *as3935_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group as3935_attribute_group = {
+static const struct attribute_group as3935_attribute_group = {
 	.attrs = as3935_attributes,
 };
 

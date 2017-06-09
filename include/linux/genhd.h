@@ -146,15 +146,6 @@ enum {
 	DISK_EVENT_EJECT_REQUEST		= 1 << 1, /* eject requested */
 };
 
-#define BLK_SCSI_MAX_CMDS	(256)
-#define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
-
-struct blk_scsi_cmd_filter {
-	unsigned long read_ok[BLK_SCSI_CMD_PER_LONG];
-	unsigned long write_ok[BLK_SCSI_CMD_PER_LONG];
-	struct kobject kobj;
-};
-
 struct disk_part_tbl {
 	struct rcu_head rcu_head;
 	int len;
@@ -168,11 +159,11 @@ struct badblocks;
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 
 struct blk_integrity {
-	struct blk_integrity_profile	*profile;
-	unsigned char			flags;
-	unsigned char			tuple_size;
-	unsigned char			interval_exp;
-	unsigned char			tag_size;
+	const struct blk_integrity_profile	*profile;
+	unsigned char				flags;
+	unsigned char				tuple_size;
+	unsigned char				interval_exp;
+	unsigned char				tag_size;
 };
 
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
@@ -731,11 +722,9 @@ static inline void part_nr_sects_write(struct hd_struct *part, sector_t size)
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 extern void blk_integrity_add(struct gendisk *);
 extern void blk_integrity_del(struct gendisk *);
-extern void blk_integrity_revalidate(struct gendisk *);
 #else	/* CONFIG_BLK_DEV_INTEGRITY */
 static inline void blk_integrity_add(struct gendisk *disk) { }
 static inline void blk_integrity_del(struct gendisk *disk) { }
-static inline void blk_integrity_revalidate(struct gendisk *disk) { }
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
 
 #else /* CONFIG_BLOCK */

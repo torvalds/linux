@@ -24,13 +24,14 @@
 #define DRM_IF_MAJOR 1
 #define DRM_IF_MINOR 4
 
-/* drm_fops.c */
+/* drm_file.c */
 extern struct mutex drm_global_mutex;
 void drm_lastclose(struct drm_device *dev);
 
 /* drm_pci.c */
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
+void drm_pci_agp_destroy(struct drm_device *dev);
 
 /* drm_prime.c */
 int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
@@ -58,10 +59,10 @@ extern unsigned int drm_timestamp_monotonic;
 /* IOCTLS */
 int drm_wait_vblank(struct drm_device *dev, void *data,
 		    struct drm_file *filp);
-int drm_control(struct drm_device *dev, void *data,
-		struct drm_file *file_priv);
-int drm_modeset_ctl(struct drm_device *dev, void *data,
-		    struct drm_file *file_priv);
+int drm_legacy_irq_control(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
+int drm_legacy_modeset_ctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
 
 /* drm_auth.c */
 int drm_getmagic(struct drm_device *dev, void *data,
@@ -99,7 +100,7 @@ int drm_gem_open_ioctl(struct drm_device *dev, void *data,
 void drm_gem_open(struct drm_device *dev, struct drm_file *file_private);
 void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
 
-/* drm_debugfs.c */
+/* drm_debugfs.c drm_debugfs_crc.c */
 #if defined(CONFIG_DEBUG_FS)
 int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		     struct dentry *root);

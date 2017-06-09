@@ -180,11 +180,11 @@ static void nvmet_execute_write_zeroes(struct nvmet_req *req)
 
 	sector = le64_to_cpu(write_zeroes->slba) <<
 		(req->ns->blksize_shift - 9);
-	nr_sector = (((sector_t)le32_to_cpu(write_zeroes->length)) <<
+	nr_sector = (((sector_t)le16_to_cpu(write_zeroes->length)) <<
 		(req->ns->blksize_shift - 9)) + 1;
 
 	if (__blkdev_issue_zeroout(req->ns->bdev, sector, nr_sector,
-				GFP_KERNEL, &bio, true))
+				GFP_KERNEL, &bio, 0))
 		status = NVME_SC_INTERNAL | NVME_SC_DNR;
 
 	if (bio) {
@@ -196,26 +196,19 @@ static void nvmet_execute_write_zeroes(struct nvmet_req *req)
 	}
 }
 
-int nvmet_parse_io_cmd(struct nvmet_req *req)
+u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
+	u16 ret;
 
-	if (unlikely(!(req->sq->ctrl->cc & NVME_CC_ENABLE))) {
-		pr_err("nvmet: got io cmd %d while CC.EN == 0\n",
-				cmd->common.opcode);
+	ret = nvmet_check_ctrl_status(req, cmd);
+	if (unlikely(ret)) {
 		req->ns = NULL;
-		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
-	}
-
-	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
-		pr_err("nvmet: got io cmd %d while CSTS.RDY == 0\n",
-				cmd->common.opcode);
-		req->ns = NULL;
-		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
+		return ret;
 	}
 
 	req->ns = nvmet_find_namespace(req->sq->ctrl, cmd->rw.nsid);
-	if (!req->ns)
+	if (unlikely(!req->ns))
 		return NVME_SC_INVALID_NS | NVME_SC_DNR;
 
 	switch (cmd->common.opcode) {
@@ -230,14 +223,15 @@ int nvmet_parse_io_cmd(struct nvmet_req *req)
 		return 0;
 	case nvme_cmd_dsm:
 		req->execute = nvmet_execute_dsm;
-		req->data_len = le32_to_cpu(cmd->dsm.nr + 1) *
+		req->data_len = (le32_to_cpu(cmd->dsm.nr) + 1) *
 			sizeof(struct nvme_dsm_range);
 		return 0;
 	case nvme_cmd_write_zeroes:
 		req->execute = nvmet_execute_write_zeroes;
 		return 0;
 	default:
-		pr_err("nvmet: unhandled cmd %d\n", cmd->common.opcode);
+		pr_err("unhandled cmd %d on qid %d\n", cmd->common.opcode,
+		       req->sq->qid);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
 }

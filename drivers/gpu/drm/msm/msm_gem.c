@@ -54,8 +54,7 @@ static struct page **get_pages_vram(struct drm_gem_object *obj,
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
-	ret = drm_mm_insert_node(&priv->vram.mm, msm_obj->vram_node,
-			npages, 0, DRM_MM_SEARCH_DEFAULT);
+	ret = drm_mm_insert_node(&priv->vram.mm, msm_obj->vram_node, npages);
 	if (ret) {
 		drm_free_large(p);
 		return ERR_PTR(ret);
@@ -192,8 +191,9 @@ int msm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return msm_gem_mmap_obj(vma->vm_private_data, vma);
 }
 
-int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int msm_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct drm_device *dev = obj->dev;
 	struct msm_drm_private *priv = dev->dev_private;
@@ -225,16 +225,14 @@ int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	/* We don't use vmf->pgoff since that has the fake offset: */
-	pgoff = ((unsigned long)vmf->virtual_address -
-			vma->vm_start) >> PAGE_SHIFT;
+	pgoff = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
 	pfn = page_to_pfn(pages[pgoff]);
 
-	VERB("Inserting %p pfn %lx, pa %lx", vmf->virtual_address,
+	VERB("Inserting %p pfn %lx, pa %lx", (void *)vmf->address,
 			pfn, pfn << PAGE_SHIFT);
 
-	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
-			__pfn_to_pfn_t(pfn, PFN_DEV));
+	ret = vm_insert_mixed(vma, vmf->address, __pfn_to_pfn_t(pfn, PFN_DEV));
 
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
@@ -296,6 +294,8 @@ put_iova(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	for (id = 0; id < ARRAY_SIZE(msm_obj->domain); id++) {
+		if (!priv->aspace[id])
+			continue;
 		msm_gem_unmap_vma(priv->aspace[id],
 				&msm_obj->domain[id], msm_obj->sgt);
 	}
@@ -642,7 +642,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 
 	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p\t",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
-			obj->name, obj->refcount.refcount.counter,
+			obj->name, kref_read(&obj->refcount),
 			off, msm_obj->vaddr);
 
 	for (id = 0; id < priv->num_aspaces; id++)
@@ -758,6 +758,8 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	struct msm_gem_object *msm_obj;
 	bool use_vram = false;
 
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
 	switch (flags & MSM_BO_CACHE_MASK) {
 	case MSM_BO_UNCACHED:
 	case MSM_BO_CACHED:
@@ -812,6 +814,12 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 
 	size = PAGE_ALIGN(size);
 
+	/* Disallow zero sized objects as they make the underlying
+	 * infrastructure grumpy
+	 */
+	if (size == 0)
+		return ERR_PTR(-EINVAL);
+
 	ret = msm_gem_new_impl(dev, size, flags, NULL, &obj);
 	if (ret)
 		goto fail;
@@ -847,7 +855,11 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 
 	size = PAGE_ALIGN(dmabuf->size);
 
+	/* Take mutex so we can modify the inactive list in msm_gem_new_impl */
+	mutex_lock(&dev->struct_mutex);
 	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, dmabuf->resv, &obj);
+	mutex_unlock(&dev->struct_mutex);
+
 	if (ret)
 		goto fail;
 

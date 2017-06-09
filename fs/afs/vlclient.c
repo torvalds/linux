@@ -147,7 +147,7 @@ int afs_vl_get_entry_by_name(struct in_addr *addr,
 			     struct key *key,
 			     const char *volname,
 			     struct afs_cache_vlocation *entry,
-			     const struct afs_wait_mode *wait_mode)
+			     bool async)
 {
 	struct afs_call *call;
 	size_t volnamesz, reqsz, padsz;
@@ -177,7 +177,7 @@ int afs_vl_get_entry_by_name(struct in_addr *addr,
 		memset((void *) bp + volnamesz, 0, padsz);
 
 	/* initiate the call */
-	return afs_make_call(addr, call, GFP_KERNEL, wait_mode);
+	return afs_make_call(addr, call, GFP_KERNEL, async);
 }
 
 /*
@@ -188,7 +188,7 @@ int afs_vl_get_entry_by_id(struct in_addr *addr,
 			   afs_volid_t volid,
 			   afs_voltype_t voltype,
 			   struct afs_cache_vlocation *entry,
-			   const struct afs_wait_mode *wait_mode)
+			   bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -211,5 +211,5 @@ int afs_vl_get_entry_by_id(struct in_addr *addr,
 	*bp   = htonl(voltype);
 
 	/* initiate the call */
-	return afs_make_call(addr, call, GFP_KERNEL, wait_mode);
+	return afs_make_call(addr, call, GFP_KERNEL, async);
 }

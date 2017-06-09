@@ -13,6 +13,8 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/module.h>

@@ -14,6 +14,9 @@
 #ifndef _UAPI_LINUX_SEG6_H
 #define _UAPI_LINUX_SEG6_H
 
+#include <linux/types.h>
+#include <linux/in6.h>		/* For struct in6_addr. */
+
 /*
  * SRH
  */
@@ -23,14 +26,12 @@ struct ipv6_sr_hdr {
 	__u8	type;
 	__u8	segments_left;
 	__u8	first_segment;
-	__u8	flag_1;
-	__u8	flag_2;
-	__u8	reserved;
+	__u8	flags;
+	__u16	reserved;
 
 	struct in6_addr segments[0];
 };
 
-#define SR6_FLAG1_CLEANUP	(1 << 7)
 #define SR6_FLAG1_PROTECTED	(1 << 6)
 #define SR6_FLAG1_OAM		(1 << 5)
 #define SR6_FLAG1_ALERT		(1 << 4)
@@ -42,8 +43,7 @@ struct ipv6_sr_hdr {
 #define SR6_TLV_PADDING		4
 #define SR6_TLV_HMAC		5
 
-#define sr_has_cleanup(srh) ((srh)->flag_1 & SR6_FLAG1_CLEANUP)
-#define sr_has_hmac(srh) ((srh)->flag_1 & SR6_FLAG1_HMAC)
+#define sr_has_hmac(srh) ((srh)->flags & SR6_FLAG1_HMAC)
 
 struct sr6_tlv {
 	__u8 type;

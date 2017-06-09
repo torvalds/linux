@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
@@ -218,39 +218,17 @@ dis_clk_reg:
 	return ret;
 }
 
-static int lpc18xx_rgu_remove(struct platform_device *pdev)
-{
-	struct lpc18xx_rgu_data *rc = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = unregister_restart_handler(&rc->restart_nb);
-	if (ret)
-		dev_warn(&pdev->dev, "failed to unregister restart handler\n");
-
-	reset_controller_unregister(&rc->rcdev);
-
-	clk_disable_unprepare(rc->clk_delay);
-	clk_disable_unprepare(rc->clk_reg);
-
-	return 0;
-}
-
 static const struct of_device_id lpc18xx_rgu_match[] = {
 	{ .compatible = "nxp,lpc1850-rgu" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, lpc18xx_rgu_match);
 
 static struct platform_driver lpc18xx_rgu_driver = {
 	.probe	= lpc18xx_rgu_probe,
-	.remove	= lpc18xx_rgu_remove,
 	.driver	= {
-		.name		= "lpc18xx-reset",
-		.of_match_table	= lpc18xx_rgu_match,
+		.name			= "lpc18xx-reset",
+		.of_match_table		= lpc18xx_rgu_match,
+		.suppress_bind_attrs	= true,
 	},
 };
-module_platform_driver(lpc18xx_rgu_driver);
-
-MODULE_AUTHOR("Joachim Eastwood <manabian@gmail.com>");
-MODULE_DESCRIPTION("Reset driver for LPC18xx/43xx RGU");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(lpc18xx_rgu_driver);

@@ -51,8 +51,8 @@ struct drm_pending_vblank_event {
  *
  * Note that for historical reasons - the vblank handling code is still shared
  * with legacy/non-kms drivers - this is a free-standing structure not directly
- * connected to struct &drm_crtc. But all public interface functions are taking
- * a struct &drm_crtc to hide this implementation detail.
+ * connected to &struct drm_crtc. But all public interface functions are taking
+ * a &struct drm_crtc to hide this implementation detail.
  */
 struct drm_vblank_crtc {
 	/**
@@ -67,7 +67,7 @@ struct drm_vblank_crtc {
 	 * @disable_timer: Disable timer for the delayed vblank disabling
 	 * hysteresis logic. Vblank disabling is controlled through the
 	 * drm_vblank_offdelay module option and the setting of the
-	 * max_vblank_count value in the &drm_device structure.
+	 * &drm_device.max_vblank_count value.
 	 */
 	struct timer_list disable_timer;
 
@@ -92,7 +92,7 @@ struct drm_vblank_crtc {
 	 */
 	atomic_t refcount;		/* number of users of vblank interruptsper crtc */
 	/**
-	 * @last: Protected by dev->vbl_lock, used for wraparound handling.
+	 * @last: Protected by &drm_device.vbl_lock, used for wraparound handling.
 	 */
 	u32 last;
 	/**
@@ -152,7 +152,6 @@ void drm_crtc_vblank_reset(struct drm_crtc *crtc);
 void drm_crtc_vblank_on(struct drm_crtc *crtc);
 void drm_vblank_cleanup(struct drm_device *dev);
 u32 drm_accurate_vblank_count(struct drm_crtc *crtc);
-u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe);
 
 int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 					  unsigned int pipe, int *max_error,

@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/scatterlist.h>
+#include <linux/gpio.h>
 #include <linux/spi/spi.h>
 
 #include <linux/platform_data/dma-ep93xx.h>
@@ -105,16 +106,6 @@ struct ep93xx_spi {
 	struct sg_table			rx_sgt;
 	struct sg_table			tx_sgt;
 	void				*zeropage;
-};
-
-/**
- * struct ep93xx_spi_chip - SPI device hardware settings
- * @spi: back pointer to the SPI device
- * @ops: private chip operations
- */
-struct ep93xx_spi_chip {
-	const struct spi_device		*spi;
-	struct ep93xx_spi_chip_ops	*ops;
 };
 
 /* converts bits per word to CR0.DSS value */
@@ -229,104 +220,36 @@ static int ep93xx_spi_calc_divisors(const struct ep93xx_spi *espi,
 	return -EINVAL;
 }
 
-static void ep93xx_spi_cs_control(struct spi_device *spi, bool control)
+static void ep93xx_spi_cs_control(struct spi_device *spi, bool enable)
 {
-	struct ep93xx_spi_chip *chip = spi_get_ctldata(spi);
-	int value = (spi->mode & SPI_CS_HIGH) ? control : !control;
+	if (spi->mode & SPI_CS_HIGH)
+		enable = !enable;
 
-	if (chip->ops && chip->ops->cs_control)
-		chip->ops->cs_control(spi, value);
+	if (gpio_is_valid(spi->cs_gpio))
+		gpio_set_value(spi->cs_gpio, !enable);
 }
 
-/**
- * ep93xx_spi_setup() - setup an SPI device
- * @spi: SPI device to setup
- *
- * This function sets up SPI device mode, speed etc. Can be called multiple
- * times for a single device. Returns %0 in case of success, negative error in
- * case of failure. When this function returns success, the device is
- * deselected.
- */
-static int ep93xx_spi_setup(struct spi_device *spi)
-{
-	struct ep93xx_spi *espi = spi_master_get_devdata(spi->master);
-	struct ep93xx_spi_chip *chip;
-
-	chip = spi_get_ctldata(spi);
-	if (!chip) {
-		dev_dbg(&espi->pdev->dev, "initial setup for %s\n",
-			spi->modalias);
-
-		chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-		if (!chip)
-			return -ENOMEM;
-
-		chip->spi = spi;
-		chip->ops = spi->controller_data;
-
-		if (chip->ops && chip->ops->setup) {
-			int ret = chip->ops->setup(spi);
-
-			if (ret) {
-				kfree(chip);
-				return ret;
-			}
-		}
-
-		spi_set_ctldata(spi, chip);
-	}
-
-	ep93xx_spi_cs_control(spi, false);
-	return 0;
-}
-
-/**
- * ep93xx_spi_cleanup() - cleans up master controller specific state
- * @spi: SPI device to cleanup
- *
- * This function releases master controller specific state for given @spi
- * device.
- */
-static void ep93xx_spi_cleanup(struct spi_device *spi)
-{
-	struct ep93xx_spi_chip *chip;
-
-	chip = spi_get_ctldata(spi);
-	if (chip) {
-		if (chip->ops && chip->ops->cleanup)
-			chip->ops->cleanup(spi);
-		spi_set_ctldata(spi, NULL);
-		kfree(chip);
-	}
-}
-
-/**
- * ep93xx_spi_chip_setup() - configures hardware according to given @chip
- * @espi: ep93xx SPI controller struct
- * @chip: chip specific settings
- * @speed_hz: transfer speed
- * @bits_per_word: transfer bits_per_word
- */
 static int ep93xx_spi_chip_setup(const struct ep93xx_spi *espi,
-				 const struct ep93xx_spi_chip *chip,
-				 u32 speed_hz, u8 bits_per_word)
+				 struct spi_device *spi,
+				 struct spi_transfer *xfer)
 {
-	u8 dss = bits_per_word_to_dss(bits_per_word);
+	u8 dss = bits_per_word_to_dss(xfer->bits_per_word);
 	u8 div_cpsr = 0;
 	u8 div_scr = 0;
 	u16 cr0;
 	int err;
 
-	err = ep93xx_spi_calc_divisors(espi, speed_hz, &div_cpsr, &div_scr);
+	err = ep93xx_spi_calc_divisors(espi, xfer->speed_hz,
+				       &div_cpsr, &div_scr);
 	if (err)
 		return err;
 
 	cr0 = div_scr << SSPCR0_SCR_SHIFT;
-	cr0 |= (chip->spi->mode & (SPI_CPHA|SPI_CPOL)) << SSPCR0_MODE_SHIFT;
+	cr0 |= (spi->mode & (SPI_CPHA | SPI_CPOL)) << SSPCR0_MODE_SHIFT;
 	cr0 |= dss;
 
 	dev_dbg(&espi->pdev->dev, "setup: mode %d, cpsr %d, scr %d, dss %d\n",
-		chip->spi->mode, div_cpsr, div_scr, dss);
+		spi->mode, div_cpsr, div_scr, dss);
 	dev_dbg(&espi->pdev->dev, "setup: cr0 %#x\n", cr0);
 
 	ep93xx_spi_write_u8(espi, SSPCPSR, div_cpsr);
@@ -603,12 +526,11 @@ static void ep93xx_spi_process_transfer(struct ep93xx_spi *espi,
 					struct spi_message *msg,
 					struct spi_transfer *t)
 {
-	struct ep93xx_spi_chip *chip = spi_get_ctldata(msg->spi);
 	int err;
 
 	msg->state = t;
 
-	err = ep93xx_spi_chip_setup(espi, chip, t->speed_hz, t->bits_per_word);
+	err = ep93xx_spi_chip_setup(espi, msg->spi, t);
 	if (err) {
 		dev_err(&espi->pdev->dev,
 			"failed to setup chip for transfer\n");
@@ -863,8 +785,13 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	int error;
+	int i;
 
 	info = dev_get_platdata(&pdev->dev);
+	if (!info) {
+		dev_err(&pdev->dev, "missing platform data\n");
+		return -EINVAL;
+	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -882,13 +809,35 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
-	master->setup = ep93xx_spi_setup;
 	master->transfer_one_message = ep93xx_spi_transfer_one_message;
-	master->cleanup = ep93xx_spi_cleanup;
 	master->bus_num = pdev->id;
-	master->num_chipselect = info->num_chipselect;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
+
+	master->num_chipselect = info->num_chipselect;
+	master->cs_gpios = devm_kzalloc(&master->dev,
+					sizeof(int) * master->num_chipselect,
+					GFP_KERNEL);
+	if (!master->cs_gpios) {
+		error = -ENOMEM;
+		goto fail_release_master;
+	}
+
+	for (i = 0; i < master->num_chipselect; i++) {
+		master->cs_gpios[i] = info->chipselect[i];
+
+		if (!gpio_is_valid(master->cs_gpios[i]))
+			continue;
+
+		error = devm_gpio_request_one(&pdev->dev, master->cs_gpios[i],
+					      GPIOF_OUT_INIT_HIGH,
+					      "ep93xx-spi");
+		if (error) {
+			dev_err(&pdev->dev, "could not request cs gpio %d\n",
+				master->cs_gpios[i]);
+			goto fail_release_master;
+		}
+	}
 
 	platform_set_drvdata(pdev, master);
 

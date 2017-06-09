@@ -57,6 +57,8 @@ static void __init of_numa_parse_cpu_nodes(void)
 		else
 			node_set(nid, numa_nodes_parsed);
 	}
+
+	of_node_put(cpus);
 }
 
 static int __init of_numa_parse_memory_nodes(void)
@@ -176,7 +178,12 @@ int of_node_to_nid(struct device_node *device)
 			np->name);
 	of_node_put(np);
 
-	if (!r)
+	/*
+	 * If numa=off passed on command line, or with a defective
+	 * device tree, the nid may not be in the set of possible
+	 * nodes.  Check for this case and return NUMA_NO_NODE.
+	 */
+	if (!r && nid < MAX_NUMNODES && node_possible(nid))
 		return nid;
 
 	return NUMA_NO_NODE;

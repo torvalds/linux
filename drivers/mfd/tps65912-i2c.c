@@ -27,6 +27,7 @@ static const struct of_device_id tps65912_i2c_of_match_table[] = {
 	{ .compatible = "ti,tps65912", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, tps65912_i2c_of_match_table);
 
 static int tps65912_i2c_probe(struct i2c_client *client,
 			      const struct i2c_device_id *ids)

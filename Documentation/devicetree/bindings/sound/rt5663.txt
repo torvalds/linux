@@ -1,10 +1,10 @@
-RT5663/RT5668 audio CODEC
+RT5663 audio CODEC
 
 This device supports I2C only.
 
 Required properties:
 
-- compatible : One of "realtek,rt5663" or "realtek,rt5668".
+- compatible : "realtek,rt5663".
 
 - reg : The I2C address of the device.
 
@@ -12,7 +12,7 @@ Required properties:
 
 Optional properties:
 
-Pins on the device (for linking into audio routes) for RT5663/RT5668:
+Pins on the device (for linking into audio routes) for RT5663:
 
   * IN1P
   * IN1N

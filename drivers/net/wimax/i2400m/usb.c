@@ -467,6 +467,9 @@ int i2400mu_probe(struct usb_interface *iface,
 	struct i2400mu *i2400mu;
 	struct usb_device *usb_dev = interface_to_usbdev(iface);
 
+	if (iface->cur_altsetting->desc.bNumEndpoints < 4)
+		return -ENODEV;
+
 	if (usb_dev->speed != USB_SPEED_HIGH)
 		dev_err(dev, "device not connected as high speed\n");
 

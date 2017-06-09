@@ -40,9 +40,9 @@ extern int nr_cpu_ids;
 #ifdef CONFIG_CPUMASK_OFFSTACK
 /* Assuming NR_CPUS is huge, a runtime limit is more efficient.  Also,
  * not all bits may be allocated. */
-#define nr_cpumask_bits	nr_cpu_ids
+#define nr_cpumask_bits	((unsigned int)nr_cpu_ids)
 #else
-#define nr_cpumask_bits	NR_CPUS
+#define nr_cpumask_bits	((unsigned int)NR_CPUS)
 #endif
 
 /*
@@ -560,7 +560,7 @@ static inline void cpumask_copy(struct cpumask *dstp,
 static inline int cpumask_parse_user(const char __user *buf, int len,
 				     struct cpumask *dstp)
 {
-	return bitmap_parse_user(buf, len, cpumask_bits(dstp), nr_cpu_ids);
+	return bitmap_parse_user(buf, len, cpumask_bits(dstp), nr_cpumask_bits);
 }
 
 /**
@@ -575,7 +575,7 @@ static inline int cpumask_parselist_user(const char __user *buf, int len,
 				     struct cpumask *dstp)
 {
 	return bitmap_parselist_user(buf, len, cpumask_bits(dstp),
-				     nr_cpu_ids);
+				     nr_cpumask_bits);
 }
 
 /**
@@ -590,7 +590,7 @@ static inline int cpumask_parse(const char *buf, struct cpumask *dstp)
 	char *nl = strchr(buf, '\n');
 	unsigned int len = nl ? (unsigned int)(nl - buf) : strlen(buf);
 
-	return bitmap_parse(buf, len, cpumask_bits(dstp), nr_cpu_ids);
+	return bitmap_parse(buf, len, cpumask_bits(dstp), nr_cpumask_bits);
 }
 
 /**
@@ -602,7 +602,7 @@ static inline int cpumask_parse(const char *buf, struct cpumask *dstp)
  */
 static inline int cpulist_parse(const char *buf, struct cpumask *dstp)
 {
-	return bitmap_parselist(buf, cpumask_bits(dstp), nr_cpu_ids);
+	return bitmap_parselist(buf, cpumask_bits(dstp), nr_cpumask_bits);
 }
 
 /**
@@ -649,11 +649,15 @@ static inline size_t cpumask_size(void)
  * used. Please use this_cpu_cpumask_var_t in those cases. The direct use
  * of this_cpu_ptr() or this_cpu_read() will lead to failures when the
  * other type of cpumask_var_t implementation is configured.
+ *
+ * Please also note that __cpumask_var_read_mostly can be used to declare
+ * a cpumask_var_t variable itself (not its content) as read mostly.
  */
 #ifdef CONFIG_CPUMASK_OFFSTACK
 typedef struct cpumask *cpumask_var_t;
 
-#define this_cpu_cpumask_var_ptr(x) this_cpu_read(x)
+#define this_cpu_cpumask_var_ptr(x)	this_cpu_read(x)
+#define __cpumask_var_read_mostly	__read_mostly
 
 bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node);
 bool alloc_cpumask_var(cpumask_var_t *mask, gfp_t flags);
@@ -663,10 +667,16 @@ void alloc_bootmem_cpumask_var(cpumask_var_t *mask);
 void free_cpumask_var(cpumask_var_t mask);
 void free_bootmem_cpumask_var(cpumask_var_t mask);
 
+static inline bool cpumask_available(cpumask_var_t mask)
+{
+	return mask != NULL;
+}
+
 #else
 typedef struct cpumask cpumask_var_t[1];
 
 #define this_cpu_cpumask_var_ptr(x) this_cpu_ptr(x)
+#define __cpumask_var_read_mostly
 
 static inline bool alloc_cpumask_var(cpumask_var_t *mask, gfp_t flags)
 {
@@ -703,6 +713,11 @@ static inline void free_cpumask_var(cpumask_var_t mask)
 static inline void free_bootmem_cpumask_var(cpumask_var_t mask)
 {
 }
+
+static inline bool cpumask_available(cpumask_var_t mask)
+{
+	return true;
+}
 #endif /* CONFIG_CPUMASK_OFFSTACK */
 
 /* It's common to want to use cpu_all_mask in struct member initializers,
@@ -721,6 +736,11 @@ extern const DECLARE_BITMAP(cpu_all_bits, NR_CPUS);
 void init_cpu_present(const struct cpumask *src);
 void init_cpu_possible(const struct cpumask *src);
 void init_cpu_online(const struct cpumask *src);
+
+static inline void reset_cpu_possible_mask(void)
+{
+	bitmap_zero(cpumask_bits(&__cpu_possible_mask), NR_CPUS);
+}
 
 static inline void
 set_cpu_possible(unsigned int cpu, bool possible)

@@ -312,21 +312,20 @@ more menu type controls.
 
 .. _enum_all_controls:
 
-Example: Enumerating all user controls
-======================================
+Example: Enumerating all controls
+=================================
 
 .. code-block:: c
-
 
     struct v4l2_queryctrl queryctrl;
     struct v4l2_querymenu querymenu;
 
-    static void enumerate_menu(void)
+    static void enumerate_menu(__u32 id)
     {
 	printf("  Menu items:\\n");
 
 	memset(&querymenu, 0, sizeof(querymenu));
-	querymenu.id = queryctrl.id;
+	querymenu.id = id;
 
 	for (querymenu.index = queryctrl.minimum;
 	     querymenu.index <= queryctrl.maximum;
@@ -336,6 +335,55 @@ Example: Enumerating all user controls
 	    }
 	}
     }
+
+    memset(&queryctrl, 0, sizeof(queryctrl));
+
+    queryctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
+    while (0 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
+	if (!(queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)) {
+	    printf("Control %s\\n", queryctrl.name);
+
+	    if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
+	        enumerate_menu(queryctrl.id);
+        }
+
+	queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+    }
+    if (errno != EINVAL) {
+	perror("VIDIOC_QUERYCTRL");
+	exit(EXIT_FAILURE);
+    }
+
+Example: Enumerating all controls including compound controls
+=============================================================
+
+.. code-block:: c
+
+    struct v4l2_query_ext_ctrl query_ext_ctrl;
+
+    memset(&query_ext_ctrl, 0, sizeof(query_ext_ctrl));
+
+    query_ext_ctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND;
+    while (0 == ioctl(fd, VIDIOC_QUERY_EXT_CTRL, &query_ext_ctrl)) {
+	if (!(query_ext_ctrl.flags & V4L2_CTRL_FLAG_DISABLED)) {
+	    printf("Control %s\\n", query_ext_ctrl.name);
+
+	    if (query_ext_ctrl.type == V4L2_CTRL_TYPE_MENU)
+	        enumerate_menu(query_ext_ctrl.id);
+        }
+
+	query_ext_ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND;
+    }
+    if (errno != EINVAL) {
+	perror("VIDIOC_QUERY_EXT_CTRL");
+	exit(EXIT_FAILURE);
+    }
+
+Example: Enumerating all user controls (old style)
+==================================================
+
+.. code-block:: c
+
 
     memset(&queryctrl, 0, sizeof(queryctrl));
 
@@ -349,7 +397,7 @@ Example: Enumerating all user controls
 	    printf("Control %s\\n", queryctrl.name);
 
 	    if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-		enumerate_menu();
+		enumerate_menu(queryctrl.id);
 	} else {
 	    if (errno == EINVAL)
 		continue;
@@ -368,7 +416,7 @@ Example: Enumerating all user controls
 	    printf("Control %s\\n", queryctrl.name);
 
 	    if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-		enumerate_menu();
+		enumerate_menu(queryctrl.id);
 	} else {
 	    if (errno == EINVAL)
 		break;
@@ -378,32 +426,6 @@ Example: Enumerating all user controls
 	}
     }
 
-
-Example: Enumerating all user controls (alternative)
-====================================================
-
-.. code-block:: c
-
-    memset(&queryctrl, 0, sizeof(queryctrl));
-
-    queryctrl.id = V4L2_CTRL_CLASS_USER | V4L2_CTRL_FLAG_NEXT_CTRL;
-    while (0 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
-	if (V4L2_CTRL_ID2CLASS(queryctrl.id) != V4L2_CTRL_CLASS_USER)
-	    break;
-	if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
-	    continue;
-
-	printf("Control %s\\n", queryctrl.name);
-
-	if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-	    enumerate_menu();
-
-	queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
-    }
-    if (errno != EINVAL) {
-	perror("VIDIOC_QUERYCTRL");
-	exit(EXIT_FAILURE);
-    }
 
 Example: Changing controls
 ==========================

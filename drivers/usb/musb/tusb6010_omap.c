@@ -56,7 +56,6 @@ struct tusb_omap_dma_ch {
 
 struct tusb_omap_dma {
 	struct dma_controller		controller;
-	struct musb			*musb;
 	void __iomem			*tbase;
 
 	int				ch;
@@ -220,6 +219,7 @@ static int tusb_omap_dma_program(struct dma_channel *channel, u16 packet_sz,
 	u32				dma_remaining;
 	int				src_burst, dst_burst;
 	u16				csr;
+	u32				psize;
 	int				ch;
 	s8				dmareq;
 	s8				sync_dev;
@@ -391,15 +391,19 @@ static int tusb_omap_dma_program(struct dma_channel *channel, u16 packet_sz,
 
 	if (chdat->tx) {
 		/* Send transfer_packet_sz packets at a time */
-		musb_writel(ep_conf, TUSB_EP_MAX_PACKET_SIZE_OFFSET,
-			chdat->transfer_packet_sz);
+		psize = musb_readl(ep_conf, TUSB_EP_MAX_PACKET_SIZE_OFFSET);
+		psize &= ~0x7ff;
+		psize |= chdat->transfer_packet_sz;
+		musb_writel(ep_conf, TUSB_EP_MAX_PACKET_SIZE_OFFSET, psize);
 
 		musb_writel(ep_conf, TUSB_EP_TX_OFFSET,
 			TUSB_EP_CONFIG_XFR_SIZE(chdat->transfer_len));
 	} else {
 		/* Receive transfer_packet_sz packets at a time */
-		musb_writel(ep_conf, TUSB_EP_MAX_PACKET_SIZE_OFFSET,
-			chdat->transfer_packet_sz << 16);
+		psize = musb_readl(ep_conf, TUSB_EP_MAX_PACKET_SIZE_OFFSET);
+		psize &= ~(0x7ff << 16);
+		psize |= (chdat->transfer_packet_sz << 16);
+		musb_writel(ep_conf, TUSB_EP_MAX_PACKET_SIZE_OFFSET, psize);
 
 		musb_writel(ep_conf, TUSB_EP_RX_OFFSET,
 			TUSB_EP_CONFIG_XFR_SIZE(chdat->transfer_len));
@@ -497,7 +501,7 @@ tusb_omap_dma_allocate(struct dma_controller *c,
 	u32			reg;
 
 	tusb_dma = container_of(c, struct tusb_omap_dma, controller);
-	musb = tusb_dma->musb;
+	musb = tusb_dma->controller.musb;
 	tbase = musb->ctrl_base;
 
 	reg = musb_readl(tbase, TUSB_DMA_INT_MASK);
@@ -534,7 +538,7 @@ tusb_omap_dma_allocate(struct dma_controller *c,
 		dev_name = "TUSB receive";
 	}
 
-	chdat->musb = tusb_dma->musb;
+	chdat->musb = tusb_dma->controller.musb;
 	chdat->tbase = tusb_dma->tbase;
 	chdat->hw_ep = hw_ep;
 	chdat->epnum = hw_ep->epnum;
@@ -667,7 +671,7 @@ tusb_dma_controller_create(struct musb *musb, void __iomem *base)
 	if (!tusb_dma)
 		goto out;
 
-	tusb_dma->musb = musb;
+	tusb_dma->controller.musb = musb;
 	tusb_dma->tbase = musb->ctrl_base;
 
 	tusb_dma->ch = -1;

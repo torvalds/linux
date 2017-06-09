@@ -58,21 +58,17 @@ static volatile unsigned long *iommu_pte = (unsigned long *)SUN3X_IOMMU;
 					 ((addr & 0x03c00000) >>     \
 						(DVMA_PAGE_SHIFT+4)))
 
-#undef DEBUG
-
 #ifdef DEBUG
 /* code to print out a dvma mapping for debugging purposes */
 void dvma_print (unsigned long dvma_addr)
 {
 
-        unsigned long index;
+	unsigned long index;
 
-        index = dvma_addr >> DVMA_PAGE_SHIFT;
+	index = dvma_addr >> DVMA_PAGE_SHIFT;
 
-        printk("idx %lx dvma_addr %08lx paddr %08lx\n", index, dvma_addr,
-               dvma_entry_paddr(index));
-
-
+	pr_info("idx %lx dvma_addr %08lx paddr %08lx\n", index, dvma_addr,
+		dvma_entry_paddr(index));
 }
 #endif
 
@@ -91,10 +87,7 @@ inline int dvma_map_cpu(unsigned long kaddr,
 
 	end = PAGE_ALIGN(vaddr + len);
 
-#ifdef DEBUG
-	printk("dvma: mapping kern %08lx to virt %08lx\n",
-	       kaddr, vaddr);
-#endif
+	pr_debug("dvma: mapping kern %08lx to virt %08lx\n", kaddr, vaddr);
 	pgd = pgd_offset_k(vaddr);
 
 	do {
@@ -126,10 +119,8 @@ inline int dvma_map_cpu(unsigned long kaddr,
 				end3 = end2;
 
 			do {
-#ifdef DEBUG
-				printk("mapping %08lx phys to %08lx\n",
-				       __pa(kaddr), vaddr);
-#endif
+				pr_debug("mapping %08lx phys to %08lx\n",
+					 __pa(kaddr), vaddr);
 				set_pte(pte, pfn_pte(virt_to_pfn(kaddr),
 						     PAGE_KERNEL));
 				pte++;
@@ -162,7 +153,8 @@ inline int dvma_map_iommu(unsigned long kaddr, unsigned long baddr,
 	for(; index < end ; index++) {
 //		if(dvma_entry_use(index))
 //			BUG();
-//		printk("mapping pa %lx to ba %lx\n", __pa(kaddr), index << DVMA_PAGE_SHIFT);
+//		pr_info("mapping pa %lx to ba %lx\n", __pa(kaddr),
+//			index << DVMA_PAGE_SHIFT);
 
 		dvma_entry_set(index, __pa(kaddr));
 
@@ -190,13 +182,12 @@ void dvma_unmap_iommu(unsigned long baddr, int len)
 	end = (DVMA_PAGE_ALIGN(baddr+len) >> DVMA_PAGE_SHIFT);
 
 	for(; index < end ; index++) {
-#ifdef DEBUG
-		printk("freeing bus mapping %08x\n", index << DVMA_PAGE_SHIFT);
-#endif
+		pr_debug("freeing bus mapping %08x\n",
+			 index << DVMA_PAGE_SHIFT);
 #if 0
 		if(!dvma_entry_use(index))
-			printk("dvma_unmap freeing unused entry %04x\n",
-			       index);
+			pr_info("dvma_unmap freeing unused entry %04x\n",
+				index);
 		else
 			dvma_entry_dec(index);
 #endif

@@ -1,5 +1,5 @@
-#ifndef _SCHED_PRIO_H
-#define _SCHED_PRIO_H
+#ifndef _LINUX_SCHED_PRIO_H
+#define _LINUX_SCHED_PRIO_H
 
 #define MAX_NICE	19
 #define MIN_NICE	-20
@@ -57,4 +57,4 @@ static inline long rlimit_to_nice(long prio)
 	return (MAX_NICE - prio + 1);
 }
 
-#endif /* _SCHED_PRIO_H */
+#endif /* _LINUX_SCHED_PRIO_H */

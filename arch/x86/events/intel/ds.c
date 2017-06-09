@@ -1222,7 +1222,7 @@ get_next_pebs_record_by_bit(void *base, void *top, int bit)
 
 			/* clear non-PEBS bit and re-check */
 			pebs_status = p->status & cpuc->pebs_enabled;
-			pebs_status &= (1ULL << MAX_PEBS_EVENTS) - 1;
+			pebs_status &= PEBS_COUNTER_MASK;
 			if (pebs_status == (1 << bit))
 				return at;
 		}
@@ -1389,8 +1389,12 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 			continue;
 
 		/* log dropped samples number */
-		if (error[bit])
+		if (error[bit]) {
 			perf_log_lost_samples(event, error[bit]);
+
+			if (perf_event_account_interrupt(event))
+				x86_pmu_stop(event, 0);
+		}
 
 		if (counts[bit]) {
 			__intel_pmu_pebs_event(event, iregs, base,

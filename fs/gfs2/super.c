@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bio.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -793,7 +793,8 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 
 	if (!(flags & (I_DIRTY_DATASYNC|I_DIRTY_SYNC)))
 		return;
-
+	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		return;
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 		if (ret) {
@@ -1538,8 +1539,7 @@ static void gfs2_evict_inode(struct inode *inode)
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, &gh);
 	if (unlikely(error)) {
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-		gfs2_glock_dq_wait(&ip->i_iopen_gh);
-		gfs2_holder_uninit(&ip->i_iopen_gh);
+		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 		goto out;
 	}
 
@@ -1617,7 +1617,7 @@ out_unlock:
 	if (gfs2_holder_initialized(&ip->i_iopen_gh)) {
 		if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
 			ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-			gfs2_glock_dq_wait(&ip->i_iopen_gh);
+			gfs2_glock_dq(&ip->i_iopen_gh);
 		}
 		gfs2_holder_uninit(&ip->i_iopen_gh);
 	}
@@ -1639,8 +1639,7 @@ out:
 	if (gfs2_holder_initialized(&ip->i_iopen_gh)) {
 		ip->i_iopen_gh.gh_gl->gl_object = NULL;
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-		gfs2_glock_dq_wait(&ip->i_iopen_gh);
-		gfs2_holder_uninit(&ip->i_iopen_gh);
+		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 	}
 }
 

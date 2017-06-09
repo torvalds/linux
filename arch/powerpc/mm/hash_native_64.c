@@ -123,8 +123,9 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 		va |= ssize << 8;
 		sllp = get_sllp_encoding(apsize);
 		va |= sllp << 5;
-		asm volatile(".long 0x7c000224 | (%0 << 11) | (0 << 21)"
-			     : : "r"(va) : "memory");
+		asm volatile(ASM_FTR_IFSET("tlbiel %0", "tlbiel %0,0", %1)
+			     : : "r" (va), "i" (CPU_FTR_ARCH_206)
+			     : "memory");
 		break;
 	default:
 		/* We need 14 to 14 + i bits of va */
@@ -141,8 +142,9 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 		 */
 		va |= (vpn & 0xfe);
 		va |= 1; /* L */
-		asm volatile(".long 0x7c000224 | (%0 << 11) | (1 << 21)"
-			     : : "r"(va) : "memory");
+		asm volatile(ASM_FTR_IFSET("tlbiel %0", "tlbiel %0,1", %1)
+			     : : "r" (va), "i" (CPU_FTR_ARCH_206)
+			     : "memory");
 		break;
 	}
 
@@ -636,6 +638,10 @@ static void native_flush_hash_range(unsigned long number, int local)
 	unsigned long psize = batch->psize;
 	int ssize = batch->ssize;
 	int i;
+	unsigned int use_local;
+
+	use_local = local && mmu_has_feature(MMU_FTR_TLBIEL) &&
+		mmu_psize_defs[psize].tlbiel && !cxl_ctx_in_use();
 
 	local_irq_save(flags);
 
@@ -665,8 +671,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 		} pte_iterate_hashed_end();
 	}
 
-	if (mmu_has_feature(MMU_FTR_TLBIEL) &&
-	    mmu_psize_defs[psize].tlbiel && local) {
+	if (use_local) {
 		asm volatile("ptesync":::"memory");
 		for (i = 0; i < number; i++) {
 			vpn = batch->vpn[i];

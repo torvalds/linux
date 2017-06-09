@@ -12,6 +12,7 @@
 #include "llvm-utils.h"
 #include "config.h"
 #include "util.h"
+#include <sys/wait.h>
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\
@@ -48,8 +49,10 @@ int perf_llvm_config(const char *var, const char *value)
 		llvm_param.kbuild_opts = strdup(value);
 	else if (!strcmp(var, "dump-obj"))
 		llvm_param.dump_obj = !!perf_config_bool(var, value);
-	else
+	else {
+		pr_debug("Invalid LLVM config option: %s\n", value);
 		return -1;
+	}
 	llvm_param.user_set_param = true;
 	return 0;
 }

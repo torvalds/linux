@@ -14,10 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7134.h"
@@ -2149,9 +2145,8 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	dev->automute       = 0;
 
 	INIT_LIST_HEAD(&dev->video_q.queue);
-	init_timer(&dev->video_q.timeout);
-	dev->video_q.timeout.function = saa7134_buffer_timeout;
-	dev->video_q.timeout.data     = (unsigned long)(&dev->video_q);
+	setup_timer(&dev->video_q.timeout, saa7134_buffer_timeout,
+		    (unsigned long)(&dev->video_q));
 	dev->video_q.dev              = dev;
 	dev->fmt = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 	dev->width    = 720;

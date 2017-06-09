@@ -18,7 +18,6 @@ struct scsi_nl_hdr;
 /*
  * Scsi Error Handler Flags
  */
-#define SCSI_EH_CANCEL_CMD	0x0001	/* Cancel this cmd */
 #define SCSI_EH_ABORT_SCHEDULED	0x0002	/* Abort has been scheduled */
 
 #define SCSI_SENSE_VALID(scmd) \
@@ -30,8 +29,8 @@ extern void scsi_exit_hosts(void);
 
 /* scsi.c */
 extern bool scsi_use_blk_mq;
-extern int scsi_setup_command_freelist(struct Scsi_Host *shost);
-extern void scsi_destroy_command_freelist(struct Scsi_Host *shost);
+int scsi_init_sense_cache(struct Scsi_Host *shost);
+void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd);
 #ifdef CONFIG_SCSI_LOGGING
 void scsi_log_send(struct scsi_cmnd *cmd);
 void scsi_log_completion(struct scsi_cmnd *cmd, int disposition);
@@ -72,7 +71,7 @@ extern enum blk_eh_timer_return scsi_times_out(struct request *req);
 extern int scsi_error_handler(void *host);
 extern int scsi_decide_disposition(struct scsi_cmnd *cmd);
 extern void scsi_eh_wakeup(struct Scsi_Host *shost);
-extern int scsi_eh_scmd_add(struct scsi_cmnd *, int);
+extern void scsi_eh_scmd_add(struct scsi_cmnd *);
 void scsi_eh_ready_devs(struct Scsi_Host *shost,
 			struct list_head *work_q,
 			struct list_head *done_q);
@@ -96,7 +95,6 @@ extern void scsi_exit_queue(void);
 extern void scsi_evt_thread(struct work_struct *work);
 struct request_queue;
 struct request;
-extern struct kmem_cache *scsi_sdb_cache;
 
 /* scsi_proc.c */
 #ifdef CONFIG_SCSI_PROC_FS
@@ -189,8 +187,5 @@ static inline void scsi_dh_remove_device(struct scsi_device *sdev) { }
  */
 
 #define SCSI_DEVICE_BLOCK_MAX_TIMEOUT	600	/* units in seconds */
-extern int scsi_internal_device_block(struct scsi_device *sdev);
-extern int scsi_internal_device_unblock(struct scsi_device *sdev,
-					enum scsi_device_state new_state);
 
 #endif /* _SCSI_PRIV_H */

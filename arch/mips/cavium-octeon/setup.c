@@ -374,14 +374,8 @@ void octeon_write_lcd(const char *s)
  */
 int octeon_get_boot_uart(void)
 {
-	int uart;
-#ifdef CONFIG_CAVIUM_OCTEON_2ND_KERNEL
-	uart = 1;
-#else
-	uart = (octeon_boot_desc_ptr->flags & OCTEON_BL_FLAG_CONSOLE_UART1) ?
+	return (octeon_boot_desc_ptr->flags & OCTEON_BL_FLAG_CONSOLE_UART1) ?
 		1 : 0;
-#endif
-	return uart;
 }
 
 /**
@@ -901,14 +895,10 @@ void __init prom_init(void)
 	}
 
 	if (strstr(arcs_cmdline, "console=") == NULL) {
-#ifdef CONFIG_CAVIUM_OCTEON_2ND_KERNEL
-		strcat(arcs_cmdline, " console=ttyS0,115200");
-#else
 		if (octeon_uart == 1)
 			strcat(arcs_cmdline, " console=ttyS1,115200");
 		else
 			strcat(arcs_cmdline, " console=ttyS0,115200");
-#endif
 	}
 
 	mips_hpt_frequency = octeon_get_clock_rate();
@@ -948,6 +938,29 @@ static __init void memory_exclude_page(u64 addr, u64 *mem, u64 *size)
 	}
 }
 #endif /* CONFIG_CRASH_DUMP */
+
+void __init fw_init_cmdline(void)
+{
+	int i;
+
+	octeon_boot_desc_ptr = (struct octeon_boot_descriptor *)fw_arg3;
+	for (i = 0; i < octeon_boot_desc_ptr->argc; i++) {
+		const char *arg =
+			cvmx_phys_to_ptr(octeon_boot_desc_ptr->argv[i]);
+		if (strlen(arcs_cmdline) + strlen(arg) + 1 <
+			   sizeof(arcs_cmdline) - 1) {
+			strcat(arcs_cmdline, " ");
+			strcat(arcs_cmdline, arg);
+		}
+	}
+}
+
+void __init *plat_get_fdt(void)
+{
+	octeon_bootinfo =
+		cvmx_phys_to_ptr(octeon_boot_desc_ptr->cvmx_desc_vaddr);
+	return phys_to_virt(octeon_bootinfo->fdt_addr);
+}
 
 void __init plat_mem_setup(void)
 {

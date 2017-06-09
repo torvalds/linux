@@ -55,7 +55,7 @@ static char version[] = "sb1000.c:v1.1.2 6/01/98 (fventuri@mediaone.net)\n";
 
 #include <asm/io.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef SB1000_DEBUG
 static int sb1000_debug = SB1000_DEBUG;

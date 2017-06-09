@@ -20,7 +20,7 @@
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/fd.h>
@@ -34,7 +34,7 @@
 #include <asm/io.h>
 #include <asm/dbdma.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mediabay.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
@@ -343,8 +343,8 @@ static void start_request(struct floppy_state *fs)
 			  req->rq_disk->disk_name, req->cmd,
 			  (long)blk_rq_pos(req), blk_rq_sectors(req),
 			  bio_data(req->bio));
-		swim3_dbg("           errors=%d current_nr_sectors=%u\n",
-			  req->errors, blk_rq_cur_sectors(req));
+		swim3_dbg("           current_nr_sectors=%u\n",
+			  blk_rq_cur_sectors(req));
 #endif
 
 		if (blk_rq_pos(req) >= fs->total_secs) {

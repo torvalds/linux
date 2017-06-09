@@ -159,6 +159,8 @@ static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
 		container_of(fwnode, struct device_node, fwnode) : NULL;
 }
 
+#define of_fwnode_handle(node) (&(node)->fwnode)
+
 static inline bool of_have_populated_dt(void)
 {
 	return of_root != NULL;
@@ -280,6 +282,7 @@ extern struct device_node *of_get_child_by_name(const struct device_node *node,
 
 /* cache lookup */
 extern struct device_node *of_find_next_cache_node(const struct device_node *);
+extern int of_find_last_cache_level(unsigned int cpu);
 extern struct device_node *of_find_node_with_property(
 	struct device_node *from, const char *prop_name);
 
@@ -291,6 +294,9 @@ extern int of_property_count_elems_of_size(const struct device_node *np,
 extern int of_property_read_u32_index(const struct device_node *np,
 				       const char *propname,
 				       u32 index, u32 *out_value);
+extern int of_property_read_u64_index(const struct device_node *np,
+				       const char *propname,
+				       u32 index, u64 *out_value);
 extern int of_property_read_variable_u8_array(const struct device_node *np,
 					const char *propname, u8 *out_values,
 					size_t sz_min, size_t sz_max);
@@ -600,6 +606,8 @@ static inline struct device_node *of_find_node_with_property(
 {
 	return NULL;
 }
+
+#define of_fwnode_handle(node) NULL
 
 static inline bool of_have_populated_dt(void)
 {

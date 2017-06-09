@@ -170,12 +170,12 @@ static int a3700_spi_pin_mode_set(struct a3700_spi *a3700_spi,
 	val &= ~(A3700_SPI_DATA_PIN0 | A3700_SPI_DATA_PIN1);
 
 	switch (pin_mode) {
-	case 1:
+	case SPI_NBITS_SINGLE:
 		break;
-	case 2:
+	case SPI_NBITS_DUAL:
 		val |= A3700_SPI_DATA_PIN0;
 		break;
-	case 4:
+	case SPI_NBITS_QUAD:
 		val |= A3700_SPI_DATA_PIN1;
 		break;
 	default:
@@ -340,8 +340,7 @@ static irqreturn_t a3700_spi_interrupt(int irq, void *dev_id)
 	spireg_write(a3700_spi, A3700_SPI_INT_STAT_REG, cause);
 
 	/* Wake up the transfer */
-	if (a3700_spi->wait_mask & cause)
-		complete(&a3700_spi->done);
+	complete(&a3700_spi->done);
 
 	return IRQ_HANDLED;
 }
@@ -421,7 +420,7 @@ static void a3700_spi_fifo_thres_set(struct a3700_spi *a3700_spi,
 }
 
 static void a3700_spi_transfer_setup(struct spi_device *spi,
-				    struct spi_transfer *xfer)
+				     struct spi_transfer *xfer)
 {
 	struct a3700_spi *a3700_spi;
 	unsigned int byte_len;
@@ -562,6 +561,7 @@ static int a3700_spi_fifo_read(struct a3700_spi *a3700_spi)
 		val = spireg_read(a3700_spi, A3700_SPI_DATA_IN_REG);
 		if (a3700_spi->buf_len >= 4) {
 			u32 data = le32_to_cpu(val);
+
 			memcpy(a3700_spi->rx_buf, &data, 4);
 
 			a3700_spi->buf_len -= 4;
@@ -800,7 +800,7 @@ static int a3700_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct a3700_spi *spi;
 	u32 num_cs = 0;
-	int ret = 0;
+	int irq, ret = 0;
 
 	master = spi_alloc_master(dev, sizeof(*spi));
 	if (!master) {
@@ -825,7 +825,7 @@ static int a3700_spi_probe(struct platform_device *pdev)
 	master->unprepare_message = a3700_spi_unprepare_message;
 	master->set_cs = a3700_spi_set_cs;
 	master->flags = SPI_MASTER_HALF_DUPLEX;
-	master->mode_bits |= (SPI_RX_DUAL | SPI_RX_DUAL |
+	master->mode_bits |= (SPI_RX_DUAL | SPI_TX_DUAL |
 			      SPI_RX_QUAD | SPI_TX_QUAD);
 
 	platform_set_drvdata(pdev, master);
@@ -846,12 +846,13 @@ static int a3700_spi_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	spi->irq = platform_get_irq(pdev, 0);
-	if (spi->irq < 0) {
-		dev_err(dev, "could not get irq: %d\n", spi->irq);
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(dev, "could not get irq: %d\n", irq);
 		ret = -ENXIO;
 		goto error;
 	}
+	spi->irq = irq;
 
 	init_completion(&spi->done);
 
@@ -900,7 +901,6 @@ static int a3700_spi_remove(struct platform_device *pdev)
 	struct a3700_spi *spi = spi_master_get_devdata(master);
 
 	clk_unprepare(spi->clk);
-	spi_master_put(master);
 
 	return 0;
 }
@@ -908,7 +908,6 @@ static int a3700_spi_remove(struct platform_device *pdev)
 static struct platform_driver a3700_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(a3700_spi_dt_ids),
 	},
 	.probe		= a3700_spi_probe,

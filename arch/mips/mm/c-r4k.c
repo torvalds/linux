@@ -1452,6 +1452,7 @@ static void probe_pcache(void)
 	switch (current_cpu_type()) {
 	case CPU_20KC:
 	case CPU_25KF:
+	case CPU_I6400:
 	case CPU_SB1:
 	case CPU_SB1A:
 	case CPU_XLR:
@@ -1478,7 +1479,6 @@ static void probe_pcache(void)
 	case CPU_PROAPTIV:
 	case CPU_M5150:
 	case CPU_QEMU_GENERIC:
-	case CPU_I6400:
 	case CPU_P6600:
 	case CPU_M6250:
 		if (!(read_c0_config7() & MIPS_CONF7_IAR) &&
@@ -1496,6 +1496,10 @@ static void probe_pcache(void)
 		if (has_74k_erratum || c->dcache.waysize > PAGE_SIZE)
 			c->dcache.flags |= MIPS_CACHE_ALIASES;
 	}
+
+	/* Physically indexed caches don't suffer from virtual aliasing */
+	if (c->dcache.flags & MIPS_CACHE_PINDEX)
+		c->dcache.flags &= ~MIPS_CACHE_ALIASES;
 
 	switch (current_cpu_type()) {
 	case CPU_20KC:
@@ -1558,6 +1562,7 @@ static void probe_vcache(void)
 	vcache_size = c->vcache.sets * c->vcache.ways * c->vcache.linesz;
 
 	c->vcache.waybit = 0;
+	c->vcache.waysize = vcache_size / c->vcache.ways;
 
 	pr_info("Unified victim cache %ldkB %s, linesize %d bytes.\n",
 		vcache_size >> 10, way_string[c->vcache.ways], c->vcache.linesz);
@@ -1660,6 +1665,7 @@ static void __init loongson3_sc_init(void)
 	/* Loongson-3 has 4 cores, 1MB scache for each. scaches are shared */
 	scache_size *= 4;
 	c->scache.waybit = 0;
+	c->scache.waysize = scache_size / c->scache.ways;
 	pr_info("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
 	       scache_size >> 10, way_string[c->scache.ways], c->scache.linesz);
 	if (scache_size)

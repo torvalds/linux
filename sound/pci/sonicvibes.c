@@ -45,7 +45,7 @@ MODULE_DESCRIPTION("S3 SonicVibes PCI");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{S3,SonicVibes PCI}}");
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1
 #endif
 
@@ -66,7 +66,7 @@ module_param_array(reverb, bool, NULL, 0444);
 MODULE_PARM_DESC(reverb, "Enable reverb (SRAM is present) for S3 SonicVibes soundcard.");
 module_param_array(mge, bool, NULL, 0444);
 MODULE_PARM_DESC(mge, "MIC Gain Enable for S3 SonicVibes soundcard.");
-module_param(dmaio, uint, 0444);
+module_param_hw(dmaio, uint, ioport, 0444);
 MODULE_PARM_DESC(dmaio, "DDMA i/o base address for S3 SonicVibes soundcard.");
 
 /*

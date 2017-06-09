@@ -386,6 +386,31 @@ static void panel_simple_shutdown(struct device *dev)
 	panel_simple_disable(&panel->base);
 }
 
+static const struct drm_display_mode ampire_am_480272h3tmqw_t01h_mode = {
+	.clock = 9000,
+	.hdisplay = 480,
+	.hsync_start = 480 + 2,
+	.hsync_end = 480 + 2 + 41,
+	.htotal = 480 + 2 + 41 + 2,
+	.vdisplay = 272,
+	.vsync_start = 272 + 2,
+	.vsync_end = 272 + 2 + 10,
+	.vtotal = 272 + 2 + 10 + 2,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
+};
+
+static const struct panel_desc ampire_am_480272h3tmqw_t01h = {
+	.modes = &ampire_am_480272h3tmqw_t01h_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 105,
+		.height = 67,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
 static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
 	.clock = 33333,
 	.hdisplay = 800,
@@ -668,6 +693,48 @@ static const struct panel_desc avic_tm070ddh03 = {
 	},
 };
 
+static const struct drm_display_mode boe_nv101wxmn51_modes[] = {
+	{
+		.clock = 71900,
+		.hdisplay = 1280,
+		.hsync_start = 1280 + 48,
+		.hsync_end = 1280 + 48 + 32,
+		.htotal = 1280 + 48 + 32 + 80,
+		.vdisplay = 800,
+		.vsync_start = 800 + 3,
+		.vsync_end = 800 + 3 + 5,
+		.vtotal = 800 + 3 + 5 + 24,
+		.vrefresh = 60,
+	},
+	{
+		.clock = 57500,
+		.hdisplay = 1280,
+		.hsync_start = 1280 + 48,
+		.hsync_end = 1280 + 48 + 32,
+		.htotal = 1280 + 48 + 32 + 80,
+		.vdisplay = 800,
+		.vsync_start = 800 + 3,
+		.vsync_end = 800 + 3 + 5,
+		.vtotal = 800 + 3 + 5 + 24,
+		.vrefresh = 48,
+	},
+};
+
+static const struct panel_desc boe_nv101wxmn51 = {
+	.modes = boe_nv101wxmn51_modes,
+	.num_modes = ARRAY_SIZE(boe_nv101wxmn51_modes),
+	.bpc = 8,
+	.size = {
+		.width = 217,
+		.height = 136,
+	},
+	.delay = {
+		.prepare = 210,
+		.enable = 50,
+		.unprepare = 160,
+	},
+};
+
 static const struct drm_display_mode chunghwa_claa070wp03xg_mode = {
 	.clock = 66770,
 	.hdisplay = 800,
@@ -760,6 +827,8 @@ static const struct panel_desc edt_et057090dhu = {
 		.width = 115,
 		.height = 86,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_NEGEDGE,
 };
 
 static const struct drm_display_mode edt_etm0700g0dh6_mode = {
@@ -784,6 +853,8 @@ static const struct panel_desc edt_etm0700g0dh6 = {
 		.width = 152,
 		.height = 91,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_NEGEDGE,
 };
 
 static const struct drm_display_mode foxlink_fl500wvr00_a0t_mode = {
@@ -1277,6 +1348,29 @@ static const struct panel_desc nec_nl4827hc19_05b = {
 	.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
 };
 
+static const struct drm_display_mode netron_dy_e231732_mode = {
+	.clock = 66000,
+	.hdisplay = 1024,
+	.hsync_start = 1024 + 160,
+	.hsync_end = 1024 + 160 + 70,
+	.htotal = 1024 + 160 + 70 + 90,
+	.vdisplay = 600,
+	.vsync_start = 600 + 127,
+	.vsync_end = 600 + 127 + 20,
+	.vtotal = 600 + 127 + 20 + 3,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc netron_dy_e231732 = {
+	.modes = &netron_dy_e231732_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 154,
+		.height = 87,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct drm_display_mode nvd_9128_mode = {
 	.clock = 29500,
 	.hdisplay = 800,
@@ -1632,6 +1726,30 @@ static const struct panel_desc starry_kr122ea0sra = {
 	},
 };
 
+static const struct display_timing tianma_tm070jdhg30_timing = {
+	.pixelclock = { 62600000, 68200000, 78100000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 15, 64, 159 },
+	.hback_porch = { 5, 5, 5 },
+	.hsync_len = { 1, 1, 256 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 3, 40, 99 },
+	.vback_porch = { 2, 2, 2 },
+	.vsync_len = { 1, 1, 128 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc tianma_tm070jdhg30 = {
+	.timings = &tianma_tm070jdhg30_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 151,
+		.height = 95,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct drm_display_mode tpk_f07a_0102_mode = {
 	.clock = 33260,
 	.hdisplay = 800,
@@ -1713,8 +1831,36 @@ static const struct panel_desc urt_umsh_8596md_parallel = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
+static const struct drm_display_mode winstar_wf35ltiacd_mode = {
+	.clock = 6410,
+	.hdisplay = 320,
+	.hsync_start = 320 + 20,
+	.hsync_end = 320 + 20 + 30,
+	.htotal = 320 + 20 + 30 + 38,
+	.vdisplay = 240,
+	.vsync_start = 240 + 4,
+	.vsync_end = 240 + 4 + 3,
+	.vtotal = 240 + 4 + 3 + 15,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc winstar_wf35ltiacd = {
+	.modes = &winstar_wf35ltiacd_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 70,
+		.height = 53,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
 static const struct of_device_id platform_of_match[] = {
 	{
+		.compatible = "ampire,am-480272h3tmqw-t01h",
+		.data = &ampire_am_480272h3tmqw_t01h,
+	}, {
 		.compatible = "ampire,am800480r3tmqwa1h",
 		.data = &ampire_am800480r3tmqwa1h,
 	}, {
@@ -1747,6 +1893,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "avic,tm070ddh03",
 		.data = &avic_tm070ddh03,
+	}, {
+		.compatible = "boe,nv101wxmn51",
+		.data = &boe_nv101wxmn51,
 	}, {
 		.compatible = "chunghwa,claa070wp03xg",
 		.data = &chunghwa_claa070wp03xg,
@@ -1826,6 +1975,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "nec,nl4827hc19-05b",
 		.data = &nec_nl4827hc19_05b,
 	}, {
+		.compatible = "netron-dy,e231732",
+		.data = &netron_dy_e231732,
+	}, {
 		.compatible = "nvd,9128",
 		.data = &nvd_9128,
 	}, {
@@ -1868,6 +2020,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "starry,kr122ea0sra",
 		.data = &starry_kr122ea0sra,
 	}, {
+		.compatible = "tianma,tm070jdhg30",
+		.data = &tianma_tm070jdhg30,
+	}, {
 		.compatible = "tpk,f07a-0102",
 		.data = &tpk_f07a_0102,
 	}, {
@@ -1891,6 +2046,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "urt,umsh-8596md-20t",
 		.data = &urt_umsh_8596md_parallel,
+	}, {
+		.compatible = "winstar,wf35ltiacd",
+		.data = &winstar_wf35ltiacd,
 	}, {
 		/* sentinel */
 	}

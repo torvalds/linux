@@ -19,7 +19,7 @@
 #include <linux/tick.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PROMOTION_COUNT 4
 #define DEMOTION_COUNT 1

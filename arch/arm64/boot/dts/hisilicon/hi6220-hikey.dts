@@ -81,6 +81,45 @@
 		};
 	};
 
+	reg_sys_5v: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "SYS_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_vdd_3v3: regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&reg_sys_5v>;
+	};
+
+	reg_5v_hub: regulator@2 {
+		compatible = "regulator-fixed";
+		regulator-name = "5V_HUB";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		gpio = <&gpio0 7 0>;
+		regulator-always-on;
+		vin-supply = <&reg_sys_5v>;
+	};
+
+	wl1835_pwrseq: wl1835-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		/* WLAN_EN GPIO */
+		reset-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+		clocks = <&pmic>;
+		clock-names = "ext_clock";
+		power-off-delay-us = <10>;
+	};
+
 	soc {
 		spi0: spi@f7106000 {
 			status = "ok";
@@ -98,6 +137,11 @@
 			assigned-clocks = <&sys_ctrl HI6220_UART1_SRC>;
 			assigned-clock-rates = <150000000>;
 			status = "ok";
+
+			bluetooth {
+				compatible = "ti,wl1835-st";
+				enable-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+			};
 		};
 
 		uart2: uart@f7112000 {
@@ -251,11 +295,31 @@
 
 		/* GPIO blocks 16 thru 19 do not appear to be routed to pins */
 
-		dwmmc_2: dwmmc2@f723f000 {
-			ti,non-removable;
+		dwmmc_0: dwmmc0@f723d000 {
+			cap-mmc-highspeed;
 			non-removable;
-			/* WL_EN */
-			vmmc-supply = <&wlan_en_reg>;
+			bus-width = <0x8>;
+			vmmc-supply = <&ldo19>;
+		};
+
+		dwmmc_1: dwmmc1@f723e000 {
+			card-detect-delay = <200>;
+			cap-sd-highspeed;
+			sd-uhs-sdr12;
+			sd-uhs-sdr25;
+			sd-uhs-sdr50;
+			vqmmc-supply = <&ldo7>;
+			vmmc-supply = <&ldo10>;
+			bus-width = <0x4>;
+			disable-wp;
+			cd-gpios = <&gpio1 0 1>;
+		};
+
+		dwmmc_2: dwmmc2@f723f000 {
+			bus-width = <0x4>;
+			non-removable;
+			vmmc-supply = <&reg_vdd_3v3>;
+			mmc-pwrseq = <&wl1835_pwrseq>;
 
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
@@ -266,18 +330,6 @@
 				interrupt-parent = <&gpio1>;
 				interrupts = <3 IRQ_TYPE_EDGE_RISING>;
 			};
-		};
-
-		wlan_en_reg: regulator@1 {
-			compatible = "regulator-fixed";
-			regulator-name = "wlan-en-regulator";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			/* WLAN_EN GPIO */
-			gpio = <&gpio0 5 0>;
-			/* WLAN card specific delay */
-			startup-delay-us = <70000>;
-			enable-active-high;
 		};
 	};
 
@@ -325,6 +377,7 @@
 	pmic: pmic@f8000000 {
 		compatible = "hisilicon,hi655x-pmic";
 		reg = <0x0 0xf8000000 0x0 0x1000>;
+		#clock-cells = <0>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		pmic-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
@@ -404,6 +457,13 @@
 				regulator-always-on;
 				regulator-enable-ramp-delay = <120>;
 			};
+		};
+	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
 		};
 	};
 };

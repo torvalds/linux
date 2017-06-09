@@ -211,7 +211,7 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 			return -ENOMEM;
 		foo = wep_encrypt(wlandev, skb->data, p80211_wep->data,
 				  skb->len,
-				  (wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK),
+				  wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK,
 				  p80211_wep->iv, p80211_wep->icv);
 		if (foo) {
 			netdev_warn(wlandev->netdev,
@@ -387,7 +387,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		   (((memcmp(e_snap->oui, oui_rfc1042,
 		   WLAN_IEEE_OUI_LEN) == 0) &&
 		   (ethconv == WLAN_ETHCONV_8021h) &&
-		   (p80211_stt_findproto(le16_to_cpu(e_snap->type)))) ||
+		   (p80211_stt_findproto(be16_to_cpu(e_snap->type)))) ||
 		   (memcmp(e_snap->oui, oui_rfc1042, WLAN_IEEE_OUI_LEN) !=
 			0))) {
 		pr_debug("SNAP+RFC1042 len: %d\n", payload_length);

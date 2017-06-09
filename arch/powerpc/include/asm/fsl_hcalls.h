@@ -109,7 +109,7 @@ static inline unsigned int fh_send_nmi(unsigned int vcpu_mask)
 #define FH_DTPROP_MAX_PROPLEN 32768
 
 /**
- * fh_partiton_get_dtprop - get a property from a guest device tree.
+ * fh_partition_get_dtprop - get a property from a guest device tree.
  * @handle: handle of partition whose device tree is to be accessed
  * @dtpath_addr: physical address of device tree path to access
  * @propname_addr: physical address of name of property

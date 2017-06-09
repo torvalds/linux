@@ -23,13 +23,14 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/syscalls.h>
 #include <linux/perf_event.h>
 
 #include <asm/opcodes.h>
 #include <asm/system_info.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Error-checking SWP macros implemented using ldrex{b}/strex{b}

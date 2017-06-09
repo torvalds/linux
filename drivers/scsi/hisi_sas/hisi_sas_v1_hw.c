@@ -508,6 +508,8 @@ static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
 	struct device *dev = &hisi_hba->pdev->dev;
 	u64 qw0, device_id = sas_dev->device_id;
 	struct hisi_sas_itct *itct = &hisi_hba->itct[device_id];
+	struct asd_sas_port *sas_port = device->port;
+	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 
 	memset(itct, 0, sizeof(*itct));
 
@@ -528,7 +530,7 @@ static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
 		(1 << ITCT_HDR_AWT_CONTROL_OFF) |
 		(device->max_linkrate << ITCT_HDR_MAX_CONN_RATE_OFF) |
 		(1 << ITCT_HDR_VALID_LINK_NUM_OFF) |
-		(device->port->id << ITCT_HDR_PORT_ID_OFF));
+		(port->id << ITCT_HDR_PORT_ID_OFF));
 	itct->qw0 = cpu_to_le64(qw0);
 
 	/* qw1 */
@@ -843,6 +845,49 @@ static void sl_notify_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, sl_control);
 }
 
+static enum sas_linkrate phy_get_max_linkrate_v1_hw(void)
+{
+	return SAS_LINK_RATE_6_0_GBPS;
+}
+
+static void phy_set_linkrate_v1_hw(struct hisi_hba *hisi_hba, int phy_no,
+		struct sas_phy_linkrates *r)
+{
+	u32 prog_phy_link_rate =
+		hisi_sas_phy_read32(hisi_hba, phy_no, PROG_PHY_LINK_RATE);
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	int i;
+	enum sas_linkrate min, max;
+	u32 rate_mask = 0;
+
+	if (r->maximum_linkrate == SAS_LINK_RATE_UNKNOWN) {
+		max = sas_phy->phy->maximum_linkrate;
+		min = r->minimum_linkrate;
+	} else if (r->minimum_linkrate == SAS_LINK_RATE_UNKNOWN) {
+		max = r->maximum_linkrate;
+		min = sas_phy->phy->minimum_linkrate;
+	} else
+		return;
+
+	sas_phy->phy->maximum_linkrate = max;
+	sas_phy->phy->minimum_linkrate = min;
+
+	min -= SAS_LINK_RATE_1_5_GBPS;
+	max -= SAS_LINK_RATE_1_5_GBPS;
+
+	for (i = 0; i <= max; i++)
+		rate_mask |= 1 << (i * 2);
+
+	prog_phy_link_rate &= ~0xff;
+	prog_phy_link_rate |= rate_mask;
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, PROG_PHY_LINK_RATE,
+			prog_phy_link_rate);
+
+	phy_hard_reset_v1_hw(hisi_hba, phy_no);
+}
+
 static int get_wideport_bitmap_v1_hw(struct hisi_hba *hisi_hba, int port_id)
 {
 	int i, bitmap = 0;
@@ -862,29 +907,23 @@ static int get_wideport_bitmap_v1_hw(struct hisi_hba *hisi_hba, int port_id)
  * The callpath to this function and upto writing the write
  * queue pointer should be safe from interruption.
  */
-static int get_free_slot_v1_hw(struct hisi_hba *hisi_hba, int *q, int *s)
+static int get_free_slot_v1_hw(struct hisi_hba *hisi_hba, u32 dev_id,
+				int *q, int *s)
 {
 	struct device *dev = &hisi_hba->pdev->dev;
 	struct hisi_sas_dq *dq;
 	u32 r, w;
-	int queue = hisi_hba->queue;
+	int queue = dev_id % hisi_hba->queue_count;
 
-	while (1) {
-		dq = &hisi_hba->dq[queue];
-		w = dq->wr_point;
-		r = hisi_sas_read32_relaxed(hisi_hba,
-				    DLVRY_Q_0_RD_PTR + (queue * 0x14));
-		if (r == (w+1) % HISI_SAS_QUEUE_SLOTS) {
-			queue = (queue + 1) % hisi_hba->queue_count;
-			if (queue == hisi_hba->queue) {
-				dev_warn(dev, "could not find free slot\n");
-				return -EAGAIN;
-			}
-			continue;
-		}
-		break;
+	dq = &hisi_hba->dq[queue];
+	w = dq->wr_point;
+	r = hisi_sas_read32_relaxed(hisi_hba,
+				DLVRY_Q_0_RD_PTR + (queue * 0x14));
+	if (r == (w+1) % HISI_SAS_QUEUE_SLOTS) {
+		dev_warn(dev, "could not find free slot\n");
+		return -EAGAIN;
 	}
-	hisi_hba->queue = (queue + 1) % hisi_hba->queue_count;
+
 	*q = queue;
 	*s = w;
 	return 0;
@@ -1238,7 +1277,7 @@ static void slot_err_v1_hw(struct hisi_hba *hisi_hba,
 }
 
 static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
-			       struct hisi_sas_slot *slot, int abort)
+			       struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *sas_dev;
@@ -1249,6 +1288,7 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_complete_v1_hdr *complete_queue =
 			hisi_hba->complete_hdr[slot->cmplt_queue];
 	struct hisi_sas_complete_v1_hdr *complete_hdr;
+	unsigned long flags;
 	u32 cmplt_hdr_data;
 
 	complete_hdr = &complete_queue[slot->cmplt_queue_slot];
@@ -1261,16 +1301,17 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	device = task->dev;
 	sas_dev = device->lldd_dev;
 
+	spin_lock_irqsave(&task->task_state_lock, flags);
 	task->task_state_flags &=
 		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	memset(ts, 0, sizeof(*ts));
 	ts->resp = SAS_TASK_COMPLETE;
 
-	if (unlikely(!sas_dev || abort)) {
-		if (!sas_dev)
-			dev_dbg(dev, "slot complete: port has not device\n");
+	if (unlikely(!sas_dev)) {
+		dev_dbg(dev, "slot complete: port has no device\n");
 		ts->stat = SAS_PHY_DOWN;
 		goto out;
 	}
@@ -1372,8 +1413,8 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	}
 
 out:
-	if (sas_dev && sas_dev->running_req)
-		sas_dev->running_req--;
+	if (sas_dev)
+		atomic64_dec(&sas_dev->running_req);
 
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
 	sts = ts->stat;
@@ -1559,6 +1600,7 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 			hisi_hba->complete_hdr[queue];
 	u32 irq_value, rd_point = cq->rd_point, wr_point;
 
+	spin_lock(&hisi_hba->lock);
 	irq_value = hisi_sas_read32(hisi_hba, OQ_INT_SRC);
 
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
@@ -1582,7 +1624,7 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 		 */
 		slot->cmplt_queue_slot = rd_point;
 		slot->cmplt_queue = queue;
-		slot_complete_v1_hw(hisi_hba, slot, 0);
+		slot_complete_v1_hw(hisi_hba, slot);
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
@@ -1591,6 +1633,7 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+	spin_unlock(&hisi_hba->lock);
 
 	return IRQ_HANDLED;
 }
@@ -1806,8 +1849,6 @@ static int hisi_sas_v1_init(struct hisi_hba *hisi_hba)
 	if (rc)
 		return rc;
 
-	phys_init_v1_hw(hisi_hba);
-
 	return 0;
 }
 
@@ -1821,9 +1862,12 @@ static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.get_free_slot = get_free_slot_v1_hw,
 	.start_delivery = start_delivery_v1_hw,
 	.slot_complete = slot_complete_v1_hw,
+	.phys_init = phys_init_v1_hw,
 	.phy_enable = enable_phy_v1_hw,
 	.phy_disable = disable_phy_v1_hw,
 	.phy_hard_reset = phy_hard_reset_v1_hw,
+	.phy_set_linkrate = phy_set_linkrate_v1_hw,
+	.phy_get_max_linkrate = phy_get_max_linkrate_v1_hw,
 	.get_wideport_bitmap = get_wideport_bitmap_v1_hw,
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V1_HW,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v1_hdr),

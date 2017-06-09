@@ -106,7 +106,7 @@ static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 	}
 	if (!domain) {
 		/* Do nothings */
-		printk(KERN_WARNING "Set domain without domain !\n");
+		pr_warn("Set domain without domain !\n");
 		return 0;
 	}
 	if (domain == RADEON_GEM_DOMAIN_CPU) {
@@ -116,9 +116,13 @@ static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 			r = -EBUSY;
 
 		if (r < 0 && r != -EINTR) {
-			printk(KERN_ERR "Failed to wait for object: %li\n", r);
+			pr_err("Failed to wait for object: %li\n", r);
 			return r;
 		}
+	}
+	if (domain == RADEON_GEM_DOMAIN_VRAM && robj->prime_shared_count) {
+		/* A BO that is associated with a dma-buf cannot be sensibly migrated to VRAM */
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -220,8 +224,8 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 
 	man = &rdev->mman.bdev.man[TTM_PL_VRAM];
 
-	args->vram_size = rdev->mc.real_vram_size;
-	args->vram_visible = (u64)man->size << PAGE_SHIFT;
+	args->vram_size = (u64)man->size << PAGE_SHIFT;
+	args->vram_visible = rdev->mc.visible_vram_size;
 	args->vram_visible -= rdev->vram_pin_size;
 	args->gart_size = rdev->mc.gtt_size;
 	args->gart_size -= rdev->gart_pin_size;

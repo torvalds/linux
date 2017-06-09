@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/intr.h>

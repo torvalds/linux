@@ -12,6 +12,7 @@
  * option) any later version.
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -1528,12 +1529,23 @@ static int da7213_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+#if defined(CONFIG_OF)
 /* DT */
 static const struct of_device_id da7213_of_match[] = {
 	{ .compatible = "dlg,da7213", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, da7213_of_match);
+#endif
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id da7213_acpi_match[] = {
+	{ "DLGS7212", 0},
+	{ "DLGS7213", 0},
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, da7213_acpi_match);
+#endif
 
 static enum da7213_micbias_voltage
 	da7213_of_micbias_lvl(struct snd_soc_codec *codec, u32 val)
@@ -1844,6 +1856,7 @@ static struct i2c_driver da7213_i2c_driver = {
 	.driver = {
 		.name = "da7213",
 		.of_match_table = of_match_ptr(da7213_of_match),
+		.acpi_match_table = ACPI_PTR(da7213_acpi_match),
 	},
 	.probe		= da7213_i2c_probe,
 	.remove		= da7213_remove,

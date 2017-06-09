@@ -39,6 +39,7 @@
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/component.h>
 
@@ -527,7 +528,7 @@ static inline int wait_for_bit_change(struct platform_device *dsidev,
 	return !value;
 }
 
-u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
+static u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 {
 	switch (fmt) {
 	case OMAP_DSS_DSI_FMT_RGB888:
@@ -582,15 +583,14 @@ static void dsi_perf_show(struct platform_device *dsidev, const char *name)
 
 	total_bytes = dsi->update_bytes;
 
-	printk(KERN_INFO "DSI(%s): %u us + %u us = %u us (%uHz), "
-			"%u bytes, %u kbytes/sec\n",
-			name,
-			setup_us,
-			trans_us,
-			total_us,
-			1000*1000 / total_us,
-			total_bytes,
-			total_bytes * 1000 / total_us);
+	pr_info("DSI(%s): %u us + %u us = %u us (%uHz), %u bytes, %u kbytes/sec\n",
+		name,
+		setup_us,
+		trans_us,
+		total_us,
+		1000 * 1000 / total_us,
+		total_bytes,
+		total_bytes * 1000 / total_us);
 }
 #else
 static inline void dsi_perf_mark_setup(struct platform_device *dsidev)
@@ -4336,7 +4336,7 @@ static void print_dsi_vm(const char *str,
 
 	wc = DIV_ROUND_UP(t->hact * t->bitspp, 8);
 	pps = DIV_ROUND_UP(wc + 6, t->ndl); /* pixel packet size */
-	bl = t->hss + t->hsa + t->hse + t->hbp + t->hfront_porch;
+	bl = t->hss + t->hsa + t->hse + t->hbp + t->hfp;
 	tot = bl + pps;
 
 #define TO_DSI_T(x) ((u32)div64_u64((u64)x * 1000000000llu, byteclk))
@@ -4345,14 +4345,14 @@ static void print_dsi_vm(const char *str,
 			"%u/%u/%u/%u/%u/%u = %u + %u = %u\n",
 			str,
 			byteclk,
-			t->hss, t->hsa, t->hse, t->hbp, pps, t->hfront_porch,
+			t->hss, t->hsa, t->hse, t->hbp, pps, t->hfp,
 			bl, pps, tot,
 			TO_DSI_T(t->hss),
 			TO_DSI_T(t->hsa),
 			TO_DSI_T(t->hse),
 			TO_DSI_T(t->hbp),
 			TO_DSI_T(pps),
-			TO_DSI_T(t->hfront_porch),
+			TO_DSI_T(t->hfp),
 
 			TO_DSI_T(bl),
 			TO_DSI_T(pps),
@@ -4367,7 +4367,7 @@ static void print_dispc_vm(const char *str, const struct videomode *vm)
 	int hact, bl, tot;
 
 	hact = vm->hactive;
-	bl = vm->hsync_len + vm->hbp + vm->hfront_porch;
+	bl = vm->hsync_len + vm->hback_porch + vm->hfront_porch;
 	tot = hact + bl;
 
 #define TO_DISPC_T(x) ((u32)div64_u64((u64)x * 1000000000llu, pck))
@@ -4376,10 +4376,10 @@ static void print_dispc_vm(const char *str, const struct videomode *vm)
 			"%u/%u/%u/%u = %u + %u = %u\n",
 			str,
 			pck,
-			vm->hsync_len, vm->hbp, hact, vm->hfront_porch,
+			vm->hsync_len, vm->hback_porch, hact, vm->hfront_porch,
 			bl, hact, tot,
 			TO_DISPC_T(vm->hsync_len),
-			TO_DISPC_T(vm->hbp),
+			TO_DISPC_T(vm->hback_porch),
 			TO_DISPC_T(hact),
 			TO_DISPC_T(vm->hfront_porch),
 			TO_DISPC_T(bl),
@@ -4401,12 +4401,12 @@ static void print_dsi_dispc_vm(const char *str,
 	dsi_tput = (u64)byteclk * t->ndl * 8;
 	pck = (u32)div64_u64(dsi_tput, t->bitspp);
 	dsi_hact = DIV_ROUND_UP(DIV_ROUND_UP(t->hact * t->bitspp, 8) + 6, t->ndl);
-	dsi_htot = t->hss + t->hsa + t->hse + t->hbp + dsi_hact + t->hfront_porch;
+	dsi_htot = t->hss + t->hsa + t->hse + t->hbp + dsi_hact + t->hfp;
 
 	vm.pixelclock = pck;
 	vm.hsync_len = div64_u64((u64)(t->hsa + t->hse) * pck, byteclk);
-	vm.hbp = div64_u64((u64)t->hbp * pck, byteclk);
-	vm.hfront_porch = div64_u64((u64)t->hfront_porch * pck, byteclk);
+	vm.hback_porch = div64_u64((u64)t->hbp * pck, byteclk);
+	vm.hfront_porch = div64_u64((u64)t->hfp * pck, byteclk);
 	vm.hactive = t->hact;
 
 	print_dispc_vm(str, &vm);
@@ -5091,7 +5091,7 @@ static int dsi_probe_of(struct platform_device *pdev)
 	struct device_node *ep;
 	struct omap_dsi_pin_config pin_cfg;
 
-	ep = omapdss_of_get_first_endpoint(node);
+	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
 	if (!ep)
 		return 0;
 

@@ -489,10 +489,8 @@ static int s3c64xx_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 
 	data = devm_kzalloc(dev, sizeof(*data)
 			+ nr_domains * sizeof(*data->domains), GFP_KERNEL);
-	if (!data) {
-		dev_err(dev, "failed to allocate handler data\n");
+	if (!data)
 		return -ENOMEM;
-	}
 	data->drvdata = d;
 
 	bank = d->pin_banks;
@@ -715,10 +713,8 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 		return -ENODEV;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(dev, "could not allocate memory for wkup eint data\n");
+	if (!data)
 		return -ENOMEM;
-	}
 	data->drvdata = d;
 
 	for (i = 0; i < NUM_EINT0_IRQ; ++i) {
@@ -751,10 +747,8 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 
 		ddata = devm_kzalloc(dev,
 				sizeof(*ddata) + nr_eints, GFP_KERNEL);
-		if (!ddata) {
-			dev_err(dev, "failed to allocate domain data\n");
+		if (!ddata)
 			return -ENOMEM;
-		}
 		ddata->bank = bank;
 
 		bank->irq_domain = irq_domain_add_linear(bank->of_node,

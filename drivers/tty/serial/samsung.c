@@ -859,8 +859,7 @@ static void s3c24xx_serial_break_ctl(struct uart_port *port, int break_state)
 static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 {
 	struct s3c24xx_uart_dma	*dma = p->dma;
-	dma_cap_mask_t mask;
-	unsigned long flags;
+	int ret;
 
 	/* Default slave configuration parameters */
 	dma->rx_conf.direction		= DMA_DEV_TO_MEM;
@@ -876,21 +875,17 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	else
 		dma->tx_conf.dst_maxburst = 1;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
+	dma->rx_chan = dma_request_chan(p->port.dev, "rx");
 
-	dma->rx_chan = dma_request_slave_channel_compat(mask, dma->fn,
-					dma->rx_param, p->port.dev, "rx");
-	if (!dma->rx_chan)
-		return -ENODEV;
+	if (IS_ERR(dma->rx_chan))
+		return PTR_ERR(dma->rx_chan);
 
 	dmaengine_slave_config(dma->rx_chan, &dma->rx_conf);
 
-	dma->tx_chan = dma_request_slave_channel_compat(mask, dma->fn,
-					dma->tx_param, p->port.dev, "tx");
-	if (!dma->tx_chan) {
-		dma_release_channel(dma->rx_chan);
-		return -ENODEV;
+	dma->tx_chan = dma_request_chan(p->port.dev, "tx");
+	if (IS_ERR(dma->tx_chan)) {
+		ret = PTR_ERR(dma->tx_chan);
+		goto err_release_rx;
 	}
 
 	dmaengine_slave_config(dma->tx_chan, &dma->tx_conf);
@@ -899,26 +894,38 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	dma->rx_size = PAGE_SIZE;
 
 	dma->rx_buf = kmalloc(dma->rx_size, GFP_KERNEL);
-
 	if (!dma->rx_buf) {
-		dma_release_channel(dma->rx_chan);
-		dma_release_channel(dma->tx_chan);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_release_tx;
 	}
 
-	dma->rx_addr = dma_map_single(dma->rx_chan->device->dev, dma->rx_buf,
+	dma->rx_addr = dma_map_single(p->port.dev, dma->rx_buf,
 				dma->rx_size, DMA_FROM_DEVICE);
-
-	spin_lock_irqsave(&p->port.lock, flags);
+	if (dma_mapping_error(p->port.dev, dma->rx_addr)) {
+		ret = -EIO;
+		goto err_free_rx;
+	}
 
 	/* TX buffer */
-	dma->tx_addr = dma_map_single(dma->tx_chan->device->dev,
-				p->port.state->xmit.buf,
+	dma->tx_addr = dma_map_single(p->port.dev, p->port.state->xmit.buf,
 				UART_XMIT_SIZE, DMA_TO_DEVICE);
-
-	spin_unlock_irqrestore(&p->port.lock, flags);
+	if (dma_mapping_error(p->port.dev, dma->tx_addr)) {
+		ret = -EIO;
+		goto err_unmap_rx;
+	}
 
 	return 0;
+
+err_unmap_rx:
+	dma_unmap_single(p->port.dev, dma->rx_addr, dma->rx_size,
+			 DMA_FROM_DEVICE);
+err_free_rx:
+	kfree(dma->rx_buf);
+err_release_tx:
+	dma_release_channel(dma->tx_chan);
+err_release_rx:
+	dma_release_channel(dma->rx_chan);
+	return ret;
 }
 
 static void s3c24xx_serial_release_dma(struct s3c24xx_uart_port *p)
@@ -927,7 +934,7 @@ static void s3c24xx_serial_release_dma(struct s3c24xx_uart_port *p)
 
 	if (dma->rx_chan) {
 		dmaengine_terminate_all(dma->rx_chan);
-		dma_unmap_single(dma->rx_chan->device->dev, dma->rx_addr,
+		dma_unmap_single(p->port.dev, dma->rx_addr,
 				dma->rx_size, DMA_FROM_DEVICE);
 		kfree(dma->rx_buf);
 		dma_release_channel(dma->rx_chan);
@@ -936,7 +943,7 @@ static void s3c24xx_serial_release_dma(struct s3c24xx_uart_port *p)
 
 	if (dma->tx_chan) {
 		dmaengine_terminate_all(dma->tx_chan);
-		dma_unmap_single(dma->tx_chan->device->dev, dma->tx_addr,
+		dma_unmap_single(p->port.dev, dma->tx_addr,
 				UART_XMIT_SIZE, DMA_TO_DEVICE);
 		dma_release_channel(dma->tx_chan);
 		dma->tx_chan = NULL;
@@ -1036,8 +1043,10 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	if (ourport->dma) {
 		ret = s3c24xx_serial_request_dma(ourport);
 		if (ret < 0) {
-			dev_warn(port->dev, "DMA request failed\n");
-			return ret;
+			dev_warn(port->dev,
+				 "DMA request failed, DMA will not be used\n");
+			devm_kfree(port->dev, ourport->dma);
+			ourport->dma = NULL;
 		}
 	}
 
@@ -1921,6 +1930,7 @@ static int s3c24xx_serial_resume(struct device *dev)
 static int s3c24xx_serial_resume_noirq(struct device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (port) {
 		/* restore IRQ mask */
@@ -1930,7 +1940,9 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 				uintm &= ~S3C64XX_UINTM_TXD_MSK;
 			if (rx_enabled(port))
 				uintm &= ~S3C64XX_UINTM_RXD_MSK;
+			clk_prepare_enable(ourport->clk);
 			wr_regl(port, S3C64XX_UINTM, uintm);
+			clk_disable_unprepare(ourport->clk);
 		}
 	}
 

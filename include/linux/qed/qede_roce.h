@@ -1,5 +1,5 @@
 /* QLogic qedr NIC Driver
- * Copyright (c) 2015-2016  QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU

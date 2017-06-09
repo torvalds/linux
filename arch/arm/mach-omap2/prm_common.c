@@ -295,10 +295,8 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 		GFP_KERNEL);
 
 	if (!prcm_irq_chips || !prcm_irq_setup->saved_mask ||
-	    !prcm_irq_setup->priority_mask) {
-		pr_err("PRCM: kzalloc failed\n");
+	    !prcm_irq_setup->priority_mask)
 		goto err;
-	}
 
 	memset(mask, 0, sizeof(mask));
 
@@ -713,7 +711,7 @@ static struct omap_prcm_init_data scrm_data __initdata = {
 };
 #endif
 
-static const struct of_device_id const omap_prcm_dt_match_table[] __initconst = {
+static const struct of_device_id omap_prcm_dt_match_table[] __initconst = {
 #ifdef CONFIG_SOC_AM33XX
 	{ .compatible = "ti,am3-prcm", .data = &am3_prm_data },
 #endif

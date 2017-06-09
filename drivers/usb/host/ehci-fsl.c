@@ -96,8 +96,8 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 	}
 	irq = res->start;
 
-	hcd = usb_create_hcd(&fsl_ehci_hc_driver, &pdev->dev,
-				dev_name(&pdev->dev));
+	hcd = __usb_create_hcd(&fsl_ehci_hc_driver, pdev->dev.parent,
+			       &pdev->dev, dev_name(&pdev->dev), NULL);
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err1;
@@ -600,7 +600,7 @@ static int ehci_fsl_drv_restore(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops ehci_fsl_pm_ops = {
+static const struct dev_pm_ops ehci_fsl_pm_ops = {
 	.suspend = ehci_fsl_drv_suspend,
 	.resume = ehci_fsl_drv_resume,
 	.restore = ehci_fsl_drv_restore,

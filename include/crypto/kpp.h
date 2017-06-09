@@ -71,10 +71,10 @@ struct crypto_kpp {
  *
  * @reqsize:		Request context size required by algorithm
  *			implementation
- * @base		Common crypto API algorithm data structure
+ * @base:		Common crypto API algorithm data structure
  */
 struct kpp_alg {
-	int (*set_secret)(struct crypto_kpp *tfm, void *buffer,
+	int (*set_secret)(struct crypto_kpp *tfm, const void *buffer,
 			  unsigned int len);
 	int (*generate_public_key)(struct kpp_request *req);
 	int (*compute_shared_secret)(struct kpp_request *req);
@@ -89,7 +89,7 @@ struct kpp_alg {
 };
 
 /**
- * DOC: Generic Key-agreement Protocol Primitevs API
+ * DOC: Generic Key-agreement Protocol Primitives API
  *
  * The KPP API is used with the algorithm type
  * CRYPTO_ALG_TYPE_KPP (listed as type "kpp" in /proc/crypto)
@@ -264,11 +264,17 @@ struct kpp_secret {
  * Function invokes the specific kpp operation for a given alg.
  *
  * @tfm:	tfm handle
+ * @buffer:	Buffer holding the packet representation of the private
+ *		key. The structure of the packet key depends on the particular
+ *		KPP implementation. Packing and unpacking helpers are provided
+ *		for ECDH and DH (see the respective header files for those
+ *		implementations).
+ * @len:	Length of the packet private key buffer.
  *
  * Return: zero on success; error code in case of error
  */
-static inline int crypto_kpp_set_secret(struct crypto_kpp *tfm, void *buffer,
-					unsigned int len)
+static inline int crypto_kpp_set_secret(struct crypto_kpp *tfm,
+					const void *buffer, unsigned int len)
 {
 	struct kpp_alg *alg = crypto_kpp_alg(tfm);
 
@@ -279,7 +285,10 @@ static inline int crypto_kpp_set_secret(struct crypto_kpp *tfm, void *buffer,
  * crypto_kpp_generate_public_key() - Invoke kpp operation
  *
  * Function invokes the specific kpp operation for generating the public part
- * for a given kpp algorithm
+ * for a given kpp algorithm.
+ *
+ * To generate a private key, the caller should use a random number generator.
+ * The output of the requested length serves as the private key.
  *
  * @req:	kpp key request
  *

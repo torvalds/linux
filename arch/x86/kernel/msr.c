@@ -224,7 +224,6 @@ static int __init msr_init(void)
 	return 0;
 
 out_class:
-	cpuhp_remove_state(cpuhp_msr_state);
 	class_destroy(msr_class);
 out_chrdev:
 	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");

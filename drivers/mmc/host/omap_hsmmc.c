@@ -935,15 +935,6 @@ omap_hsmmc_start_command(struct omap_hsmmc_host *host, struct mmc_command *cmd,
 	OMAP_HSMMC_WRITE(host->base, CMD, cmdreg);
 }
 
-static int
-omap_hsmmc_get_dma_dir(struct omap_hsmmc_host *host, struct mmc_data *data)
-{
-	if (data->flags & MMC_DATA_WRITE)
-		return DMA_TO_DEVICE;
-	else
-		return DMA_FROM_DEVICE;
-}
-
 static struct dma_chan *omap_hsmmc_get_dma_chan(struct omap_hsmmc_host *host,
 	struct mmc_data *data)
 {
@@ -1055,7 +1046,7 @@ static void omap_hsmmc_dma_cleanup(struct omap_hsmmc_host *host, int errno)
 		dmaengine_terminate_all(chan);
 		dma_unmap_sg(chan->device->dev,
 			host->data->sg, host->data->sg_len,
-			omap_hsmmc_get_dma_dir(host, host->data));
+			mmc_get_dma_dir(host->data));
 
 		host->data->host_cookie = 0;
 	}
@@ -1162,7 +1153,7 @@ static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status)
 	if (status & ERR_EN) {
 		omap_hsmmc_dbg_report_irq(host, status);
 
-		if (status & (CTO_EN | CCRC_EN))
+		if (status & (CTO_EN | CCRC_EN | CEB_EN))
 			end_cmd = 1;
 		if (host->data || host->response_busy) {
 			end_trans = !end_cmd;
@@ -1350,7 +1341,7 @@ static void omap_hsmmc_dma_callback(void *param)
 	if (!data->host_cookie)
 		dma_unmap_sg(chan->device->dev,
 			     data->sg, data->sg_len,
-			     omap_hsmmc_get_dma_dir(host, data));
+			     mmc_get_dma_dir(data));
 
 	req_in_progress = host->req_in_progress;
 	host->dma_ch = -1;
@@ -1383,7 +1374,7 @@ static int omap_hsmmc_pre_dma_transfer(struct omap_hsmmc_host *host,
 	/* Check if next job is already prepared */
 	if (next || data->host_cookie != host->next_data.cookie) {
 		dma_len = dma_map_sg(chan->device->dev, data->sg, data->sg_len,
-				     omap_hsmmc_get_dma_dir(host, data));
+				     mmc_get_dma_dir(data));
 
 	} else {
 		dma_len = host->next_data.dma_len;
@@ -1469,10 +1460,11 @@ static int omap_hsmmc_setup_dma_transfer(struct omap_hsmmc_host *host,
 }
 
 static void set_data_timeout(struct omap_hsmmc_host *host,
-			     unsigned int timeout_ns,
+			     unsigned long long timeout_ns,
 			     unsigned int timeout_clks)
 {
-	unsigned int timeout, cycle_ns;
+	unsigned long long timeout = timeout_ns;
+	unsigned int cycle_ns;
 	uint32_t reg, clkd, dto = 0;
 
 	reg = OMAP_HSMMC_READ(host->base, SYSCTL);
@@ -1481,7 +1473,7 @@ static void set_data_timeout(struct omap_hsmmc_host *host,
 		clkd = 1;
 
 	cycle_ns = 1000000000 / (host->clk_rate / clkd);
-	timeout = timeout_ns / cycle_ns;
+	do_div(timeout, cycle_ns);
 	timeout += timeout_clks;
 	if (timeout) {
 		while ((timeout & 0x80000000) == 0) {
@@ -1527,16 +1519,24 @@ static int
 omap_hsmmc_prepare_data(struct omap_hsmmc_host *host, struct mmc_request *req)
 {
 	int ret;
+	unsigned long long timeout;
+
 	host->data = req->data;
 
 	if (req->data == NULL) {
 		OMAP_HSMMC_WRITE(host->base, BLK, 0);
-		/*
-		 * Set an arbitrary 100ms data timeout for commands with
-		 * busy signal.
-		 */
-		if (req->cmd->flags & MMC_RSP_BUSY)
-			set_data_timeout(host, 100000000U, 0);
+		if (req->cmd->flags & MMC_RSP_BUSY) {
+			timeout = req->cmd->busy_timeout * NSEC_PER_MSEC;
+
+			/*
+			 * Set an arbitrary 100ms data timeout for commands with
+			 * busy signal and no indication of busy_timeout.
+			 */
+			if (!timeout)
+				timeout = 100000000U;
+
+			set_data_timeout(host, timeout, 0);
+		}
 		return 0;
 	}
 
@@ -1560,7 +1560,7 @@ static void omap_hsmmc_post_req(struct mmc_host *mmc, struct mmc_request *mrq,
 		struct dma_chan *c = omap_hsmmc_get_dma_chan(host, data);
 
 		dma_unmap_sg(c->device->dev, data->sg, data->sg_len,
-			     omap_hsmmc_get_dma_dir(host, data));
+			     mmc_get_dma_dir(data));
 		data->host_cookie = 0;
 	}
 }
@@ -1761,8 +1761,8 @@ static int omap_hsmmc_configure_wake_irq(struct omap_hsmmc_host *host)
 	 */
 	if (host->pdata->controller_flags & OMAP_HSMMC_SWAKEUP_MISSING) {
 		struct pinctrl *p = devm_pinctrl_get(host->dev);
-		if (!p) {
-			ret = -ENODEV;
+		if (IS_ERR(p)) {
+			ret = PTR_ERR(p);
 			goto err_free_irq;
 		}
 		if (IS_ERR(pinctrl_lookup_state(p, PINCTRL_STATE_DEFAULT))) {

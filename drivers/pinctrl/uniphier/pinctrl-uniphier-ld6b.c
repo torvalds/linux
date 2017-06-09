@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2017 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,7 +14,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
 
@@ -1290,10 +1291,8 @@ static int uniphier_ld6b_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id uniphier_ld6b_pinctrl_match[] = {
 	{ .compatible = "socionext,uniphier-ld6b-pinctrl" },
-	{ .compatible = "socionext,ph1-ld6b-pinctrl" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, uniphier_ld6b_pinctrl_match);
 
 static struct platform_driver uniphier_ld6b_pinctrl_driver = {
 	.probe = uniphier_ld6b_pinctrl_probe,
@@ -1302,8 +1301,4 @@ static struct platform_driver uniphier_ld6b_pinctrl_driver = {
 		.of_match_table = uniphier_ld6b_pinctrl_match,
 	},
 };
-module_platform_driver(uniphier_ld6b_pinctrl_driver);
-
-MODULE_AUTHOR("Masahiro Yamada <yamada.masahiro@socionext.com>");
-MODULE_DESCRIPTION("UniPhier PH1-LD6b pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(uniphier_ld6b_pinctrl_driver);

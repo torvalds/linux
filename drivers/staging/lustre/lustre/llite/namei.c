@@ -432,17 +432,10 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
  */
 struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 {
-	struct dentry *new;
-	int rc;
-
 	if (inode) {
-		new = ll_find_alias(inode, de);
+		struct dentry *new = ll_find_alias(inode, de);
+
 		if (new) {
-			rc = ll_d_init(new);
-			if (rc < 0) {
-				dput(new);
-				return ERR_PTR(rc);
-			}
 			d_move(new, de);
 			iput(inode);
 			CDEBUG(D_DENTRY,
@@ -451,9 +444,6 @@ struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 			return new;
 		}
 	}
-	rc = ll_d_init(de);
-	if (rc < 0)
-		return ERR_PTR(rc);
 	d_add(de, inode);
 	CDEBUG(D_DENTRY, "Add dentry %p inode %p refc %d flags %#x\n",
 	       de, d_inode(de), d_count(de), de->d_flags);
@@ -1005,11 +995,6 @@ static int ll_create_nd(struct inode *dir, struct dentry *dentry,
 	return rc;
 }
 
-/* ll_unlink() doesn't update the inode with the new link count.
- * Instead, ll_ddelete() and ll_d_iput() will update it based upon if there
- * is any lock existing. They will recycle dentries and inodes based upon locks
- * too. b=20433
- */
 static int ll_unlink(struct inode *dir, struct dentry *dchild)
 {
 	struct ptlrpc_request *request = NULL;
@@ -1052,7 +1037,7 @@ static int ll_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	if (!IS_POSIXACL(dir) || !exp_connect_umask(ll_i2mdexp(dir)))
 		mode &= ~current_umask();
-	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
+	mode = (mode & (0777 | S_ISVTX)) | S_IFDIR;
 
 	err = ll_new_node(dir, dentry, NULL, mode, 0, LUSTRE_OPC_MKDIR);
 	if (!err)
@@ -1100,7 +1085,7 @@ static int ll_symlink(struct inode *dir, struct dentry *dentry,
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir="DFID"(%p),target=%.*s\n",
 	       dentry, PFID(ll_inode2fid(dir)), dir, 3000, oldname);
 
-	err = ll_new_node(dir, dentry, oldname, S_IFLNK | S_IRWXUGO,
+	err = ll_new_node(dir, dentry, oldname, S_IFLNK | 0777,
 			  0, LUSTRE_OPC_SYMLINK);
 
 	if (!err)

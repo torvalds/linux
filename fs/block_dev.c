@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/blkpg.h>
 #include <linux/magic.h>
+#include <linux/dax.h>
 #include <linux/buffer_head.h>
 #include <linux/swap.h>
 #include <linux/pagevec.h>
@@ -32,7 +33,7 @@
 #include <linux/badblocks.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/falloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "internal.h"
 
 struct bdev_inode {
@@ -103,12 +104,11 @@ void invalidate_bdev(struct block_device *bdev)
 {
 	struct address_space *mapping = bdev->bd_inode->i_mapping;
 
-	if (mapping->nrpages == 0)
-		return;
-
-	invalidate_bh_lrus();
-	lru_add_drain_all();	/* make sure all lru add caches are flushed */
-	invalidate_mapping_pages(mapping, 0, -1);
+	if (mapping->nrpages) {
+		invalidate_bh_lrus();
+		lru_add_drain_all();	/* make sure all lru add caches are flushed */
+		invalidate_mapping_pages(mapping, 0, -1);
+	}
 	/* 99% of the time, we don't need to flush the cleancache on the bdev.
 	 * But, for the strange corners, lets be cautious
 	 */
@@ -264,7 +264,6 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 
 	if (unlikely(bio.bi_error))
 		return bio.bi_error;
-	iocb->ki_pos += ret;
 	return ret;
 }
 
@@ -329,9 +328,10 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = bdev_file_inode(file);
 	struct block_device *bdev = I_BDEV(inode);
+	struct blk_plug plug;
 	struct blkdev_dio *dio;
 	struct bio *bio;
-	bool is_read = (iov_iter_rw(iter) == READ);
+	bool is_read = (iov_iter_rw(iter) == READ), is_sync;
 	loff_t pos = iocb->ki_pos;
 	blk_qc_t qc = BLK_QC_T_NONE;
 	int ret;
@@ -344,7 +344,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	bio_get(bio); /* extra ref for the completion handler */
 
 	dio = container_of(bio, struct blkdev_dio, bio);
-	dio->is_sync = is_sync_kiocb(iocb);
+	dio->is_sync = is_sync = is_sync_kiocb(iocb);
 	if (dio->is_sync)
 		dio->waiter = current;
 	else
@@ -354,6 +354,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	dio->multi_bio = false;
 	dio->should_dirty = is_read && (iter->type == ITER_IOVEC);
 
+	blk_start_plug(&plug);
 	for (;;) {
 		bio->bi_bdev = bdev;
 		bio->bi_iter.bi_sector = pos >> 9;
@@ -395,8 +396,9 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		submit_bio(bio);
 		bio = bio_alloc(GFP_KERNEL, nr_pages);
 	}
+	blk_finish_plug(&plug);
 
-	if (!dio->is_sync)
+	if (!is_sync)
 		return -EIOCBQUEUED;
 
 	for (;;) {
@@ -411,10 +413,8 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	__set_current_state(TASK_RUNNING);
 
 	ret = dio->bio.bi_error;
-	if (likely(!ret)) {
+	if (likely(!ret))
 		ret = dio->size;
-		iocb->ki_pos += ret;
-	}
 
 	bio_put(&dio->bio);
 	return ret;
@@ -717,120 +717,6 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 }
 EXPORT_SYMBOL_GPL(bdev_write_page);
 
-/**
- * bdev_direct_access() - Get the address for directly-accessibly memory
- * @bdev: The device containing the memory
- * @dax: control and output parameters for ->direct_access
- *
- * If a block device is made up of directly addressable memory, this function
- * will tell the caller the PFN and the address of the memory.  The address
- * may be directly dereferenced within the kernel without the need to call
- * ioremap(), kmap() or similar.  The PFN is suitable for inserting into
- * page tables.
- *
- * Return: negative errno if an error occurs, otherwise the number of bytes
- * accessible at this address.
- */
-long bdev_direct_access(struct block_device *bdev, struct blk_dax_ctl *dax)
-{
-	sector_t sector = dax->sector;
-	long avail, size = dax->size;
-	const struct block_device_operations *ops = bdev->bd_disk->fops;
-
-	/*
-	 * The device driver is allowed to sleep, in order to make the
-	 * memory directly accessible.
-	 */
-	might_sleep();
-
-	if (size < 0)
-		return size;
-	if (!blk_queue_dax(bdev_get_queue(bdev)) || !ops->direct_access)
-		return -EOPNOTSUPP;
-	if ((sector + DIV_ROUND_UP(size, 512)) >
-					part_nr_sects_read(bdev->bd_part))
-		return -ERANGE;
-	sector += get_start_sect(bdev);
-	if (sector % (PAGE_SIZE / 512))
-		return -EINVAL;
-	avail = ops->direct_access(bdev, sector, &dax->addr, &dax->pfn, size);
-	if (!avail)
-		return -ERANGE;
-	if (avail > 0 && avail & ~PAGE_MASK)
-		return -ENXIO;
-	return min(avail, size);
-}
-EXPORT_SYMBOL_GPL(bdev_direct_access);
-
-/**
- * bdev_dax_supported() - Check if the device supports dax for filesystem
- * @sb: The superblock of the device
- * @blocksize: The block size of the device
- *
- * This is a library function for filesystems to check if the block device
- * can be mounted with dax option.
- *
- * Return: negative errno if unsupported, 0 if supported.
- */
-int bdev_dax_supported(struct super_block *sb, int blocksize)
-{
-	struct blk_dax_ctl dax = {
-		.sector = 0,
-		.size = PAGE_SIZE,
-	};
-	int err;
-
-	if (blocksize != PAGE_SIZE) {
-		vfs_msg(sb, KERN_ERR, "error: unsupported blocksize for dax");
-		return -EINVAL;
-	}
-
-	err = bdev_direct_access(sb->s_bdev, &dax);
-	if (err < 0) {
-		switch (err) {
-		case -EOPNOTSUPP:
-			vfs_msg(sb, KERN_ERR,
-				"error: device does not support dax");
-			break;
-		case -EINVAL:
-			vfs_msg(sb, KERN_ERR,
-				"error: unaligned partition for dax");
-			break;
-		default:
-			vfs_msg(sb, KERN_ERR,
-				"error: dax access failed (%d)", err);
-		}
-		return err;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(bdev_dax_supported);
-
-/**
- * bdev_dax_capable() - Return if the raw device is capable for dax
- * @bdev: The device for raw block device access
- */
-bool bdev_dax_capable(struct block_device *bdev)
-{
-	struct blk_dax_ctl dax = {
-		.size = PAGE_SIZE,
-	};
-
-	if (!IS_ENABLED(CONFIG_FS_DAX))
-		return false;
-
-	dax.sector = 0;
-	if (bdev_direct_access(bdev, &dax) < 0)
-		return false;
-
-	dax.sector = bdev->bd_part->nr_sects - (PAGE_SIZE / 512);
-	if (bdev_direct_access(bdev, &dax) < 0)
-		return false;
-
-	return true;
-}
-
 /*
  * pseudo-fs
  */
@@ -870,6 +756,7 @@ static void init_once(void *foo)
 #ifdef CONFIG_SYSFS
 	INIT_LIST_HEAD(&bdev->bd_holder_disks);
 #endif
+	bdev->bd_bdi = &noop_backing_dev_info;
 	inode_init_once(&ei->vfs_inode);
 	/* Initialize mutex for freeze. */
 	mutex_init(&bdev->bd_fsfreeze_mutex);
@@ -884,6 +771,12 @@ static void bdev_evict_inode(struct inode *inode)
 	spin_lock(&bdev_lock);
 	list_del_init(&bdev->bd_list);
 	spin_unlock(&bdev_lock);
+	/* Detach inode from wb early as bdi_put() may free bdi->wb */
+	inode_detach_wb(inode);
+	if (bdev->bd_bdi != &noop_backing_dev_info) {
+		bdi_put(bdev->bd_bdi);
+		bdev->bd_bdi = &noop_backing_dev_info;
+	}
 }
 
 static const struct super_operations bdev_sops = {
@@ -954,6 +847,21 @@ static int bdev_set(struct inode *inode, void *data)
 
 static LIST_HEAD(all_bdevs);
 
+/*
+ * If there is a bdev inode for this device, unhash it so that it gets evicted
+ * as soon as last inode reference is dropped.
+ */
+void bdev_unhash_inode(dev_t dev)
+{
+	struct inode *inode;
+
+	inode = ilookup5(blockdev_superblock, hash(dev), bdev_test, &dev);
+	if (inode) {
+		remove_inode_hash(inode);
+		iput(inode);
+	}
+}
+
 struct block_device *bdget(dev_t dev)
 {
 	struct block_device *bdev;
@@ -971,7 +879,7 @@ struct block_device *bdget(dev_t dev)
 		bdev->bd_contains = NULL;
 		bdev->bd_super = NULL;
 		bdev->bd_inode = inode;
-		bdev->bd_block_size = (1 << inode->i_blkbits);
+		bdev->bd_block_size = i_blocksize(inode);
 		bdev->bd_part_count = 0;
 		bdev->bd_invalidated = 0;
 		inode->i_mode = S_IFBLK;
@@ -1025,12 +933,21 @@ static struct block_device *bd_acquire(struct inode *inode)
 
 	spin_lock(&bdev_lock);
 	bdev = inode->i_bdev;
-	if (bdev) {
+	if (bdev && !inode_unhashed(bdev->bd_inode)) {
 		bdgrab(bdev);
 		spin_unlock(&bdev_lock);
 		return bdev;
 	}
 	spin_unlock(&bdev_lock);
+
+	/*
+	 * i_bdev references block device inode that was already shut down
+	 * (corresponding device got removed).  Remove the reference and look
+	 * up block device inode again just in case new device got
+	 * reestablished under the same device number.
+	 */
+	if (bdev)
+		bd_forget(inode);
 
 	bdev = bdget(inode->i_rdev);
 	if (bdev) {
@@ -1089,7 +1006,7 @@ static bool bd_may_claim(struct block_device *bdev, struct block_device *whole,
 		return true;	 /* already a holder */
 	else if (bdev->bd_holder != NULL)
 		return false; 	 /* held by someone else */
-	else if (bdev->bd_contains == bdev)
+	else if (whole == bdev)
 		return true;  	 /* is a whole device which isn't held */
 
 	else if (whole->bd_holder == bd_may_claim)
@@ -1422,7 +1339,6 @@ int revalidate_disk(struct gendisk *disk)
 
 	if (disk->fops->revalidate_disk)
 		ret = disk->fops->revalidate_disk(disk);
-	blk_integrity_revalidate(disk);
 	bdev = bdget_disk(disk, 0);
 	if (!bdev)
 		return ret;
@@ -1591,6 +1507,9 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			}
 			bd_set_size(bdev, (loff_t)bdev->bd_part->nr_sects << 9);
 		}
+
+		if (bdev->bd_bdi == &noop_backing_dev_info)
+			bdev->bd_bdi = bdi_get(disk->queue->backing_dev_info);
 	} else {
 		if (bdev->bd_contains == bdev) {
 			ret = 0;
@@ -1843,12 +1762,6 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 		kill_bdev(bdev);
 
 		bdev_write_inode(bdev);
-		/*
-		 * Detaching bdev inode from its wb in __destroy_inode()
-		 * is too late: the queue which embeds its bdi (along with
-		 * root wb) can be gone as soon as we put_disk() below.
-		 */
-		inode_detach_wb(bdev->bd_inode);
 	}
 	if (bdev->bd_contains == bdev) {
 		if (disk->fops->release)
@@ -2041,7 +1954,6 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 			     loff_t len)
 {
 	struct block_device *bdev = I_BDEV(bdev_file_inode(file));
-	struct request_queue *q = bdev_get_queue(bdev);
 	struct address_space *mapping;
 	loff_t end = start + len - 1;
 	loff_t isize;
@@ -2077,18 +1989,13 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 	case FALLOC_FL_ZERO_RANGE:
 	case FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE:
 		error = blkdev_issue_zeroout(bdev, start >> 9, len >> 9,
-					    GFP_KERNEL, false);
+					    GFP_KERNEL, BLKDEV_ZERO_NOUNMAP);
 		break;
 	case FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE:
-		/* Only punch if the device can do zeroing discard. */
-		if (!blk_queue_discard(q) || !q->limits.discard_zeroes_data)
-			return -EOPNOTSUPP;
-		error = blkdev_issue_discard(bdev, start >> 9, len >> 9,
-					     GFP_KERNEL, 0);
+		error = blkdev_issue_zeroout(bdev, start >> 9, len >> 9,
+					     GFP_KERNEL, BLKDEV_ZERO_NOFALLBACK);
 		break;
 	case FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE | FALLOC_FL_NO_HIDE_STALE:
-		if (!blk_queue_discard(q))
-			return -EOPNOTSUPP;
 		error = blkdev_issue_discard(bdev, start >> 9, len >> 9,
 					     GFP_KERNEL, 0);
 		break;

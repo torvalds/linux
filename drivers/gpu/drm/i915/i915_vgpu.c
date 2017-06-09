@@ -116,22 +116,20 @@ void intel_vgt_deballoon(struct drm_i915_private *dev_priv)
 	memset(&bl_info, 0, sizeof(bl_info));
 }
 
-static int vgt_balloon_space(struct drm_mm *mm,
+static int vgt_balloon_space(struct i915_ggtt *ggtt,
 			     struct drm_mm_node *node,
 			     unsigned long start, unsigned long end)
 {
 	unsigned long size = end - start;
 
-	if (start == end)
+	if (start >= end)
 		return -EINVAL;
 
 	DRM_INFO("balloon space: range [ 0x%lx - 0x%lx ] %lu KiB.\n",
 		 start, end, size / 1024);
-
-	node->start = start;
-	node->size = size;
-
-	return drm_mm_reserve_node(mm, node);
+	return i915_gem_gtt_reserve(&ggtt->base, node,
+				    size, start, I915_COLOR_UNEVICTABLE,
+				    0);
 }
 
 /**
@@ -181,7 +179,7 @@ static int vgt_balloon_space(struct drm_mm *mm,
 int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	unsigned long ggtt_end = ggtt->base.start + ggtt->base.total;
+	unsigned long ggtt_end = ggtt->base.total;
 
 	unsigned long mappable_base, mappable_size, mappable_end;
 	unsigned long unmappable_base, unmappable_size, unmappable_end;
@@ -204,8 +202,7 @@ int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 	DRM_INFO("Unmappable graphic memory: base 0x%lx size %ldKiB\n",
 		 unmappable_base, unmappable_size / 1024);
 
-	if (mappable_base < ggtt->base.start ||
-	    mappable_end > ggtt->mappable_end ||
+	if (mappable_end > ggtt->mappable_end ||
 	    unmappable_base < ggtt->mappable_end ||
 	    unmappable_end > ggtt_end) {
 		DRM_ERROR("Invalid ballooning configuration!\n");
@@ -214,43 +211,32 @@ int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 
 	/* Unmappable graphic memory ballooning */
 	if (unmappable_base > ggtt->mappable_end) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[2],
-					ggtt->mappable_end,
-					unmappable_base);
+		ret = vgt_balloon_space(ggtt, &bl_info.space[2],
+					ggtt->mappable_end, unmappable_base);
 
 		if (ret)
 			goto err;
 	}
 
-	/*
-	 * No need to partition out the last physical page,
-	 * because it is reserved to the guard page.
-	 */
-	if (unmappable_end < ggtt_end - PAGE_SIZE) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[3],
-					unmappable_end,
-					ggtt_end - PAGE_SIZE);
+	if (unmappable_end < ggtt_end) {
+		ret = vgt_balloon_space(ggtt, &bl_info.space[3],
+					unmappable_end, ggtt_end);
 		if (ret)
 			goto err;
 	}
 
 	/* Mappable graphic memory ballooning */
-	if (mappable_base > ggtt->base.start) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[0],
-					ggtt->base.start, mappable_base);
+	if (mappable_base) {
+		ret = vgt_balloon_space(ggtt, &bl_info.space[0],
+					0, mappable_base);
 
 		if (ret)
 			goto err;
 	}
 
 	if (mappable_end < ggtt->mappable_end) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[1],
-					mappable_end,
-					ggtt->mappable_end);
+		ret = vgt_balloon_space(ggtt, &bl_info.space[1],
+					mappable_end, ggtt->mappable_end);
 
 		if (ret)
 			goto err;

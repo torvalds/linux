@@ -116,6 +116,7 @@
 #include	<linux/kmemcheck.h>
 #include	<linux/memory.h>
 #include	<linux/prefetch.h>
+#include	<linux/sched/task_stack.h>
 
 #include	<net/sock.h>
 
@@ -1288,7 +1289,8 @@ void __init kmem_cache_init(void)
 	 * Initialize the caches that provide memory for the  kmem_cache_node
 	 * structures first.  Without this, further allocations will bug.
 	 */
-	kmalloc_caches[INDEX_NODE] = create_kmalloc_cache("kmalloc-node",
+	kmalloc_caches[INDEX_NODE] = create_kmalloc_cache(
+				kmalloc_info[INDEX_NODE].name,
 				kmalloc_size(INDEX_NODE), ARCH_KMALLOC_FLAGS);
 	slab_state = PARTIAL_NODE;
 	setup_kmalloc_cache_index_table();
@@ -1726,7 +1728,7 @@ static void slab_destroy(struct kmem_cache *cachep, struct page *page)
 
 	freelist = page->freelist;
 	slab_destroy_debugcheck(cachep, page);
-	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
+	if (unlikely(cachep->flags & SLAB_TYPESAFE_BY_RCU))
 		call_rcu(&page->rcu_head, kmem_rcu_free);
 	else
 		kmem_freepages(cachep, page);
@@ -1922,7 +1924,7 @@ static bool set_objfreelist_slab_cache(struct kmem_cache *cachep,
 
 	cachep->num = 0;
 
-	if (cachep->ctor || flags & SLAB_DESTROY_BY_RCU)
+	if (cachep->ctor || flags & SLAB_TYPESAFE_BY_RCU)
 		return false;
 
 	left = calculate_slab_order(cachep, size,
@@ -2028,7 +2030,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 	if (size < 4096 || fls(size - 1) == fls(size-1 + REDZONE_ALIGN +
 						2 * sizeof(unsigned long long)))
 		flags |= SLAB_RED_ZONE | SLAB_STORE_USER;
-	if (!(flags & SLAB_DESTROY_BY_RCU))
+	if (!(flags & SLAB_TYPESAFE_BY_RCU))
 		flags |= SLAB_POISON;
 #endif
 #endif
@@ -2332,6 +2334,13 @@ int __kmem_cache_shrink(struct kmem_cache *cachep)
 	return (ret ? 1 : 0);
 }
 
+#ifdef CONFIG_MEMCG
+void __kmemcg_cache_deactivate(struct kmem_cache *cachep)
+{
+	__kmem_cache_shrink(cachep);
+}
+#endif
+
 int __kmem_cache_shutdown(struct kmem_cache *cachep)
 {
 	return __kmem_cache_shrink(cachep);
@@ -2457,7 +2466,6 @@ union freelist_init_state {
 		unsigned int pos;
 		unsigned int *list;
 		unsigned int count;
-		unsigned int rand;
 	};
 	struct rnd_state rnd_state;
 };
@@ -2483,8 +2491,7 @@ static bool freelist_state_initialize(union freelist_init_state *state,
 	} else {
 		state->list = cachep->random_seq;
 		state->count = count;
-		state->pos = 0;
-		state->rand = rand;
+		state->pos = rand % count;
 		ret = true;
 	}
 	return ret;
@@ -2493,7 +2500,9 @@ static bool freelist_state_initialize(union freelist_init_state *state,
 /* Get the next entry on the list and randomize it using a random shift */
 static freelist_idx_t next_random_slot(union freelist_init_state *state)
 {
-	return (state->list[state->pos++] + state->rand) % state->count;
+	if (state->pos >= state->count)
+		state->pos = 0;
+	return state->list[state->pos++];
 }
 
 /* Swap two freelist entries */
@@ -3870,7 +3879,12 @@ static int __do_tune_cpucache(struct kmem_cache *cachep, int limit,
 
 	prev = cachep->cpu_cache;
 	cachep->cpu_cache = cpu_cache;
-	kick_all_cpus_sync();
+	/*
+	 * Without a previous cpu_cache there's no need to synchronize remote
+	 * cpus, so skip the IPIs.
+	 */
+	if (prev)
+		kick_all_cpus_sync();
 
 	check_irq_on();
 	cachep->batchcount = batchcount;

@@ -51,28 +51,25 @@ struct btrfs_free_space_op {
 
 struct btrfs_io_ctl;
 
-struct inode *lookup_free_space_inode(struct btrfs_root *root,
+struct inode *lookup_free_space_inode(struct btrfs_fs_info *fs_info,
 				      struct btrfs_block_group_cache
 				      *block_group, struct btrfs_path *path);
-int create_free_space_inode(struct btrfs_root *root,
+int create_free_space_inode(struct btrfs_fs_info *fs_info,
 			    struct btrfs_trans_handle *trans,
 			    struct btrfs_block_group_cache *block_group,
 			    struct btrfs_path *path);
 
-int btrfs_check_trunc_cache_free_space(struct btrfs_root *root,
+int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
 				       struct btrfs_block_rsv *rsv);
-int btrfs_truncate_free_space_cache(struct btrfs_root *root,
-				    struct btrfs_trans_handle *trans,
+int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 				    struct btrfs_block_group_cache *block_group,
 				    struct inode *inode);
 int load_free_space_cache(struct btrfs_fs_info *fs_info,
 			  struct btrfs_block_group_cache *block_group);
-int btrfs_wait_cache_io(struct btrfs_root *root,
-			struct btrfs_trans_handle *trans,
+int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
 			struct btrfs_block_group_cache *block_group,
-			struct btrfs_io_ctl *io_ctl,
-			struct btrfs_path *path, u64 offset);
-int btrfs_write_out_cache(struct btrfs_root *root,
+			struct btrfs_path *path);
+int btrfs_write_out_cache(struct btrfs_fs_info *fs_info,
 			  struct btrfs_trans_handle *trans,
 			  struct btrfs_block_group_cache *block_group,
 			  struct btrfs_path *path);
@@ -111,7 +108,7 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 u64 btrfs_find_ino_for_alloc(struct btrfs_root *fs_root);
 void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 			   u64 bytes);
-int btrfs_find_space_cluster(struct btrfs_root *root,
+int btrfs_find_space_cluster(struct btrfs_fs_info *fs_info,
 			     struct btrfs_block_group_cache *block_group,
 			     struct btrfs_free_cluster *cluster,
 			     u64 offset, u64 bytes, u64 empty_size);

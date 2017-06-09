@@ -487,6 +487,8 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 	if (desc->irq_data.domain)
 		seq_printf(p, " %*d", prec, (int) desc->irq_data.hwirq);
+	else
+		seq_printf(p, " %*s", prec, "");
 #ifdef CONFIG_GENERIC_IRQ_SHOW_LEVEL
 	seq_printf(p, " %-8s", irqd_is_level_type(&desc->irq_data) ? "Level" : "Edge");
 #endif

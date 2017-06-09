@@ -16,6 +16,9 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -730,6 +733,28 @@ static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
 		mtspr(SPRN_DABRX, dabrx);
 	return 0;
 }
+#elif defined(CONFIG_PPC_8xx)
+static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
+{
+	unsigned long addr = dabr & ~HW_BRK_TYPE_DABR;
+	unsigned long lctrl1 = 0x90000000; /* compare type: equal on E & F */
+	unsigned long lctrl2 = 0x8e000002; /* watchpoint 1 on cmp E | F */
+
+	if ((dabr & HW_BRK_TYPE_RDWR) == HW_BRK_TYPE_READ)
+		lctrl1 |= 0xa0000;
+	else if ((dabr & HW_BRK_TYPE_RDWR) == HW_BRK_TYPE_WRITE)
+		lctrl1 |= 0xf0000;
+	else if ((dabr & HW_BRK_TYPE_RDWR) == 0)
+		lctrl2 = 0;
+
+	mtspr(SPRN_LCTRL2, 0);
+	mtspr(SPRN_CMPE, addr);
+	mtspr(SPRN_CMPF, addr + 4);
+	mtspr(SPRN_LCTRL1, lctrl1);
+	mtspr(SPRN_LCTRL2, lctrl2);
+
+	return 0;
+}
 #else
 static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
 {
@@ -838,6 +863,25 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 	 */
 	if (!MSR_TM_SUSPENDED(mfmsr()))
 		return;
+
+	/*
+	 * If we are in a transaction and FP is off then we can't have
+	 * used FP inside that transaction. Hence the checkpointed
+	 * state is the same as the live state. We need to copy the
+	 * live state to the checkpointed state so that when the
+	 * transaction is restored, the checkpointed state is correct
+	 * and the aborted transaction sees the correct state. We use
+	 * ckpt_regs.msr here as that's what tm_reclaim will use to
+	 * determine if it's going to write the checkpointed state or
+	 * not. So either this will write the checkpointed registers,
+	 * or reclaim will. Similarly for VMX.
+	 */
+	if ((thr->ckpt_regs.msr & MSR_FP) == 0)
+		memcpy(&thr->ckfp_state, &thr->fp_state,
+		       sizeof(struct thread_fp_state));
+	if ((thr->ckpt_regs.msr & MSR_VEC) == 0)
+		memcpy(&thr->ckvr_state, &thr->vr_state,
+		       sizeof(struct thread_vr_state));
 
 	giveup_all(container_of(thr, struct task_struct, thread));
 
@@ -1051,14 +1095,6 @@ static inline void save_sprs(struct thread_struct *t)
 		 */
 		t->tar = mfspr(SPRN_TAR);
 	}
-
-	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-		/* Conditionally save Load Monitor registers, if enabled */
-		if (t->fscr & FSCR_LM) {
-			t->lmrr = mfspr(SPRN_LMRR);
-			t->lmser = mfspr(SPRN_LMSER);
-		}
-	}
 #endif
 }
 
@@ -1093,16 +1129,6 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 
 		if (old_thread->tar != new_thread->tar)
 			mtspr(SPRN_TAR, new_thread->tar);
-	}
-
-	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-		/* Conditionally restore Load Monitor registers, if enabled */
-		if (new_thread->fscr & FSCR_LM) {
-			if (old_thread->lmrr != new_thread->lmrr)
-				mtspr(SPRN_LMRR, new_thread->lmrr);
-			if (old_thread->lmser != new_thread->lmser)
-				mtspr(SPRN_LMSER, new_thread->lmser);
-		}
 	}
 #endif
 }
@@ -1640,6 +1666,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 #ifdef CONFIG_VSX
 	current->thread.used_vsr = 0;
 #endif
+	current->thread.load_fp = 0;
 	memset(&current->thread.fp_state, 0, sizeof(current->thread.fp_state));
 	current->thread.fp_save_area = NULL;
 #ifdef CONFIG_ALTIVEC
@@ -1648,6 +1675,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.vr_save_area = NULL;
 	current->thread.vrsave = 0;
 	current->thread.used_vr = 0;
+	current->thread.load_vec = 0;
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_SPE
 	memset(current->thread.evr, 0, sizeof(current->thread.evr));
@@ -1659,6 +1687,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.tm_tfhar = 0;
 	current->thread.tm_texasr = 0;
 	current->thread.tm_tfiar = 0;
+	current->thread.load_tm = 0;
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 }
 EXPORT_SYMBOL(start_thread);

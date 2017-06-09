@@ -8,6 +8,7 @@
  */
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/sched/clock.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/ktime.h>
@@ -37,9 +38,13 @@ static const u64 cfq_target_latency = (u64)NSEC_PER_SEC * 3/10; /* 300 ms */
 static const int cfq_hist_divisor = 4;
 
 /*
- * offset from end of service tree
+ * offset from end of queue service tree for idle class
  */
 #define CFQ_IDLE_DELAY		(NSEC_PER_SEC / 5)
+/* offset from end of group service tree under time slice mode */
+#define CFQ_SLICE_MODE_GROUP_DELAY (NSEC_PER_SEC / 5)
+/* offset from end of group service under IOPS mode */
+#define CFQ_IOPS_MODE_GROUP_DELAY (HZ / 5)
 
 /*
  * below this threshold, we consider thinktime immediate
@@ -1361,6 +1366,14 @@ cfq_group_service_tree_add(struct cfq_rb_root *st, struct cfq_group *cfqg)
 	cfqg->vfraction = max_t(unsigned, vfr, 1);
 }
 
+static inline u64 cfq_get_cfqg_vdisktime_delay(struct cfq_data *cfqd)
+{
+	if (!iops_mode(cfqd))
+		return CFQ_SLICE_MODE_GROUP_DELAY;
+	else
+		return CFQ_IOPS_MODE_GROUP_DELAY;
+}
+
 static void
 cfq_group_notify_queue_add(struct cfq_data *cfqd, struct cfq_group *cfqg)
 {
@@ -1380,7 +1393,8 @@ cfq_group_notify_queue_add(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	n = rb_last(&st->rb);
 	if (n) {
 		__cfqg = rb_entry_cfqg(n);
-		cfqg->vdisktime = __cfqg->vdisktime + CFQ_IDLE_DELAY;
+		cfqg->vdisktime = __cfqg->vdisktime +
+			cfq_get_cfqg_vdisktime_delay(cfqd);
 	} else
 		cfqg->vdisktime = st->min_vdisktime;
 	cfq_group_service_tree_add(st, cfqg);
@@ -2528,7 +2542,7 @@ static void cfq_remove_request(struct request *rq)
 	}
 }
 
-static int cfq_merge(struct request_queue *q, struct request **req,
+static enum elv_merge cfq_merge(struct request_queue *q, struct request **req,
 		     struct bio *bio)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
@@ -2544,7 +2558,7 @@ static int cfq_merge(struct request_queue *q, struct request **req,
 }
 
 static void cfq_merged_request(struct request_queue *q, struct request *req,
-			       int type)
+			       enum elv_merge type)
 {
 	if (type == ELEVATOR_FRONT_MERGE) {
 		struct cfq_queue *cfqq = RQ_CFQQ(req);
@@ -2749,9 +2763,11 @@ static struct cfq_queue *cfq_get_next_queue_forced(struct cfq_data *cfqd)
 	if (!cfqg)
 		return NULL;
 
-	for_each_cfqg_st(cfqg, i, j, st)
-		if ((cfqq = cfq_rb_first(st)) != NULL)
+	for_each_cfqg_st(cfqg, i, j, st) {
+		cfqq = cfq_rb_first(st);
+		if (cfqq)
 			return cfqq;
+	}
 	return NULL;
 }
 
@@ -3763,11 +3779,9 @@ static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 	struct cfq_data *cfqd = cic_to_cfqd(cic);
 	struct cfq_queue *cfqq;
 	uint64_t serial_nr;
-	bool nonroot_cg;
 
 	rcu_read_lock();
 	serial_nr = bio_blkcg(bio)->css.serial_nr;
-	nonroot_cg = bio_blkcg(bio) != &blkcg_root;
 	rcu_read_unlock();
 
 	/*
@@ -3776,14 +3790,6 @@ static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 	 */
 	if (unlikely(!cfqd) || likely(cic->blkcg_serial_nr == serial_nr))
 		return;
-
-	/*
-	 * If we have a non-root cgroup, we can depend on that to
-	 * do proper throttling of writes. Turn off wbt for that
-	 * case, if it was enabled by default.
-	 */
-	if (nonroot_cg)
-		wbt_disable_default(cfqd->queue);
 
 	/*
 	 * Drop reference to queues.  New queues will be assigned in new
@@ -3806,7 +3812,9 @@ static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 	cic->blkcg_serial_nr = serial_nr;
 }
 #else
-static inline void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio) { }
+static inline void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
+{
+}
 #endif  /* CONFIG_CFQ_GROUP_IOSCHED */
 
 static struct cfq_queue **
@@ -3864,6 +3872,8 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct cfq_io_cq *cic,
 		goto out;
 	}
 
+	/* cfq_init_cfqq() assumes cfqq->ioprio_class is initialized. */
+	cfqq->ioprio_class = IOPRIO_CLASS_NONE;
 	cfq_init_cfqq(cfqd, cfqq, current->pid, is_sync);
 	cfq_init_prio_data(cfqq, cic);
 	cfq_link_cfqq_cfqg(cfqq, cfqg);
@@ -4488,6 +4498,7 @@ new_queue:
 	rq->elv.priv[0] = cfqq;
 	rq->elv.priv[1] = cfqq->cfqg;
 	spin_unlock_irq(q->queue_lock);
+
 	return 0;
 }
 
@@ -4700,6 +4711,7 @@ static void cfq_registered_queue(struct request_queue *q)
 	 */
 	if (blk_queue_nonrot(q))
 		cfqd->cfq_slice_idle = 0;
+	wbt_disable_default(q);
 }
 
 /*
@@ -4837,7 +4849,7 @@ static struct elv_fs_entry cfq_attrs[] = {
 };
 
 static struct elevator_type iosched_cfq = {
-	.ops = {
+	.ops.sq = {
 		.elevator_merge_fn = 		cfq_merge,
 		.elevator_merged_fn =		cfq_merged_request,
 		.elevator_merge_req_fn =	cfq_merged_requests,

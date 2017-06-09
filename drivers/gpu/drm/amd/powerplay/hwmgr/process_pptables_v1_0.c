@@ -20,13 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 
 #include "process_pptables_v1_0.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
-#include "pp_debug.h"
 #include "hwmgr.h"
 #include "cgs_common.h"
 #include "pptable_v1_0.h"
@@ -535,7 +535,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			printk(KERN_ERR "[ powerplay ] Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
 			Disregarding the excess entries... \n");
 
 		pcie_table->count = pcie_count;
@@ -577,7 +577,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			printk(KERN_ERR "[ powerplay ] Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
 			Disregarding the excess entries... \n");
 
 		pcie_table->count = pcie_count;

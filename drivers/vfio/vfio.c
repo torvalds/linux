@@ -403,6 +403,7 @@ static void vfio_group_release(struct kref *kref)
 	struct iommu_group *iommu_group = group->iommu_group;
 
 	WARN_ON(!list_empty(&group->device_list));
+	WARN_ON(group->notifier.head);
 
 	list_for_each_entry_safe(unbound, tmp,
 				 &group->unbound_list, unbound_next) {
@@ -1573,6 +1574,10 @@ static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 		return -EBUSY;
 	}
 
+	/* Warn if previous user didn't cleanup and re-init to drop them */
+	if (WARN_ON(group->notifier.head))
+		BLOCKING_INIT_NOTIFIER_HEAD(&group->notifier);
+
 	filep->private_data = group;
 
 	return 0;
@@ -1583,9 +1588,6 @@ static int vfio_group_fops_release(struct inode *inode, struct file *filep)
 	struct vfio_group *group = filep->private_data;
 
 	filep->private_data = NULL;
-
-	/* Any user didn't unregister? */
-	WARN_ON(group->notifier.head);
 
 	vfio_group_try_dissolve_container(group);
 
@@ -1917,7 +1919,7 @@ EXPORT_SYMBOL(vfio_set_irqs_validate_and_prepare);
  * Pin a set of guest PFNs and return their associated host PFNs for local
  * domain only.
  * @dev [in]     : device
- * @user_pfn [in]: array of user/guest PFNs to be unpinned.
+ * @user_pfn [in]: array of user/guest PFNs to be pinned.
  * @npage [in]   : count of elements in user_pfn array.  This count should not
  *		   be greater VFIO_PIN_PAGES_MAX_ENTRIES.
  * @prot [in]    : protection flags
@@ -2250,14 +2252,6 @@ static int __init vfio_init(void)
 
 	pr_info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
-	/*
-	 * Attempt to load known iommu-drivers.  This gives us a working
-	 * environment without the user needing to explicitly load iommu
-	 * drivers.
-	 */
-	request_module_nowait("vfio_iommu_type1");
-	request_module_nowait("vfio_iommu_spapr_tce");
-
 #ifdef CONFIG_VFIO_NOIOMMU
 	vfio_register_iommu_driver(&vfio_noiommu_ops);
 #endif
@@ -2297,3 +2291,4 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_ALIAS_MISCDEV(VFIO_MINOR);
 MODULE_ALIAS("devname:vfio/vfio");
+MODULE_SOFTDEP("post: vfio_iommu_type1 vfio_iommu_spapr_tce");

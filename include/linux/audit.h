@@ -147,7 +147,7 @@ extern void		    audit_log_d_path(struct audit_buffer *ab,
 extern void		    audit_log_key(struct audit_buffer *ab,
 					  char *key);
 extern void		    audit_log_link_denied(const char *operation,
-						  struct path *link);
+						  const struct path *link);
 extern void		    audit_log_lost(const char *message);
 #ifdef CONFIG_SECURITY
 extern void 		    audit_log_secctx(struct audit_buffer *ab, u32 secid);
@@ -163,8 +163,7 @@ extern void audit_log_task_info(struct audit_buffer *ab,
 extern int		    audit_update_lsm_rules(void);
 
 				/* Private API (for audit.c only) */
-extern int audit_rule_change(int type, __u32 portid, int seq,
-				void *data, size_t datasz);
+extern int audit_rule_change(int type, int seq, void *data, size_t datasz);
 extern int audit_list_rules_send(struct sk_buff *request_skb, int seq);
 
 extern u32 audit_enabled;
@@ -332,7 +331,7 @@ static inline void audit_ptrace(struct task_struct *t)
 				/* Private API (for audit.c only) */
 extern unsigned int audit_serial(void);
 extern int auditsc_get_stamp(struct audit_context *ctx,
-			      struct timespec *t, unsigned int *serial);
+			      struct timespec64 *t, unsigned int *serial);
 extern int audit_set_loginuid(kuid_t loginuid);
 
 static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
@@ -360,6 +359,7 @@ extern int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 				  const struct cred *old);
 extern void __audit_log_capset(const struct cred *new, const struct cred *old);
 extern void __audit_mmap_fd(int fd, int flags);
+extern void __audit_log_kern_module(char *name);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -387,6 +387,20 @@ static inline int audit_socketcall(int nargs, unsigned long *args)
 		return __audit_socketcall(nargs, args);
 	return 0;
 }
+
+static inline int audit_socketcall_compat(int nargs, u32 *args)
+{
+	unsigned long a[AUDITSC_ARGS];
+	int i;
+
+	if (audit_dummy_context())
+		return 0;
+
+	for (i = 0; i < nargs; i++)
+		a[i] = (unsigned long)args[i];
+	return __audit_socketcall(nargs, a);
+}
+
 static inline int audit_sockaddr(int len, void *addr)
 {
 	if (unlikely(!audit_dummy_context()))
@@ -434,6 +448,12 @@ static inline void audit_mmap_fd(int fd, int flags)
 {
 	if (unlikely(!audit_dummy_context()))
 		__audit_mmap_fd(fd, flags);
+}
+
+static inline void audit_log_kern_module(char *name)
+{
+	if (!audit_dummy_context())
+		__audit_log_kern_module(name);
 }
 
 extern int audit_n_rules;
@@ -490,7 +510,7 @@ static inline void __audit_seccomp(unsigned long syscall, long signr, int code)
 static inline void audit_seccomp(unsigned long syscall, long signr, int code)
 { }
 static inline int auditsc_get_stamp(struct audit_context *ctx,
-			      struct timespec *t, unsigned int *serial)
+			      struct timespec64 *t, unsigned int *serial)
 {
 	return 0;
 }
@@ -513,6 +533,12 @@ static inline int audit_socketcall(int nargs, unsigned long *args)
 {
 	return 0;
 }
+
+static inline int audit_socketcall_compat(int nargs, u32 *args)
+{
+	return 0;
+}
+
 static inline void audit_fd_pair(int fd1, int fd2)
 { }
 static inline int audit_sockaddr(int len, void *addr)
@@ -541,6 +567,11 @@ static inline void audit_log_capset(const struct cred *new,
 { }
 static inline void audit_mmap_fd(int fd, int flags)
 { }
+
+static inline void audit_log_kern_module(char *name)
+{
+}
+
 static inline void audit_ptrace(struct task_struct *t)
 { }
 #define audit_n_rules 0

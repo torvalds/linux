@@ -19,37 +19,88 @@
 #include <linux/platform_device.h>
 #include "emac-mac.h"
 #include "emac-phy.h"
+#include "emac-sgmii.h"
 
 /* EMAC base register offsets */
-#define EMAC_DMA_MAS_CTRL                                     0x001400
-#define EMAC_IRQ_MOD_TIM_INIT                                 0x001408
-#define EMAC_BLK_IDLE_STS                                     0x00140c
-#define EMAC_PHY_LINK_DELAY                                   0x00141c
-#define EMAC_SYS_ALIV_CTRL                                    0x001434
-#define EMAC_MAC_IPGIFG_CTRL                                  0x001484
-#define EMAC_MAC_STA_ADDR0                                    0x001488
-#define EMAC_MAC_STA_ADDR1                                    0x00148c
-#define EMAC_HASH_TAB_REG0                                    0x001490
-#define EMAC_HASH_TAB_REG1                                    0x001494
-#define EMAC_MAC_HALF_DPLX_CTRL                               0x001498
-#define EMAC_MAX_FRAM_LEN_CTRL                                0x00149c
-#define EMAC_INT_STATUS                                       0x001600
-#define EMAC_INT_MASK                                         0x001604
-#define EMAC_RXMAC_STATC_REG0                                 0x001700
-#define EMAC_RXMAC_STATC_REG22                                0x001758
-#define EMAC_TXMAC_STATC_REG0                                 0x001760
-#define EMAC_TXMAC_STATC_REG24                                0x0017c0
-#define EMAC_CORE_HW_VERSION                                  0x001974
-#define EMAC_IDT_TABLE0                                       0x001b00
-#define EMAC_RXMAC_STATC_REG23                                0x001bc8
-#define EMAC_RXMAC_STATC_REG24                                0x001bcc
-#define EMAC_TXMAC_STATC_REG25                                0x001bd0
-#define EMAC_INT1_MASK                                        0x001bf0
-#define EMAC_INT1_STATUS                                      0x001bf4
-#define EMAC_INT2_MASK                                        0x001bf8
-#define EMAC_INT2_STATUS                                      0x001bfc
-#define EMAC_INT3_MASK                                        0x001c00
-#define EMAC_INT3_STATUS                                      0x001c04
+#define EMAC_DMA_MAS_CTRL		0x1400
+#define EMAC_IRQ_MOD_TIM_INIT		0x1408
+#define EMAC_BLK_IDLE_STS		0x140c
+#define EMAC_PHY_LINK_DELAY		0x141c
+#define EMAC_SYS_ALIV_CTRL		0x1434
+#define EMAC_MAC_CTRL			0x1480
+#define EMAC_MAC_IPGIFG_CTRL		0x1484
+#define EMAC_MAC_STA_ADDR0		0x1488
+#define EMAC_MAC_STA_ADDR1		0x148c
+#define EMAC_HASH_TAB_REG0		0x1490
+#define EMAC_HASH_TAB_REG1		0x1494
+#define EMAC_MAC_HALF_DPLX_CTRL		0x1498
+#define EMAC_MAX_FRAM_LEN_CTRL		0x149c
+#define EMAC_WOL_CTRL0			0x14a0
+#define EMAC_RSS_KEY0			0x14b0
+#define EMAC_H1TPD_BASE_ADDR_LO		0x14e0
+#define EMAC_H2TPD_BASE_ADDR_LO		0x14e4
+#define EMAC_H3TPD_BASE_ADDR_LO		0x14e8
+#define EMAC_INTER_SRAM_PART9		0x1534
+#define EMAC_DESC_CTRL_0		0x1540
+#define EMAC_DESC_CTRL_1		0x1544
+#define EMAC_DESC_CTRL_2		0x1550
+#define EMAC_DESC_CTRL_10		0x1554
+#define EMAC_DESC_CTRL_12		0x1558
+#define EMAC_DESC_CTRL_13		0x155c
+#define EMAC_DESC_CTRL_3		0x1560
+#define EMAC_DESC_CTRL_4		0x1564
+#define EMAC_DESC_CTRL_5		0x1568
+#define EMAC_DESC_CTRL_14		0x156c
+#define EMAC_DESC_CTRL_15		0x1570
+#define EMAC_DESC_CTRL_16		0x1574
+#define EMAC_DESC_CTRL_6		0x1578
+#define EMAC_DESC_CTRL_8		0x1580
+#define EMAC_DESC_CTRL_9		0x1584
+#define EMAC_DESC_CTRL_11		0x1588
+#define EMAC_TXQ_CTRL_0			0x1590
+#define EMAC_TXQ_CTRL_1			0x1594
+#define EMAC_TXQ_CTRL_2			0x1598
+#define EMAC_RXQ_CTRL_0			0x15a0
+#define EMAC_RXQ_CTRL_1			0x15a4
+#define EMAC_RXQ_CTRL_2			0x15a8
+#define EMAC_RXQ_CTRL_3			0x15ac
+#define EMAC_BASE_CPU_NUMBER		0x15b8
+#define EMAC_DMA_CTRL			0x15c0
+#define EMAC_MAILBOX_0			0x15e0
+#define EMAC_MAILBOX_5			0x15e4
+#define EMAC_MAILBOX_6			0x15e8
+#define EMAC_MAILBOX_13			0x15ec
+#define EMAC_MAILBOX_2			0x15f4
+#define EMAC_MAILBOX_3			0x15f8
+#define EMAC_INT_STATUS			0x1600
+#define EMAC_INT_MASK			0x1604
+#define EMAC_MAILBOX_11			0x160c
+#define EMAC_AXI_MAST_CTRL		0x1610
+#define EMAC_MAILBOX_12			0x1614
+#define EMAC_MAILBOX_9			0x1618
+#define EMAC_MAILBOX_10			0x161c
+#define EMAC_ATHR_HEADER_CTRL		0x1620
+#define EMAC_RXMAC_STATC_REG0		0x1700
+#define EMAC_RXMAC_STATC_REG22		0x1758
+#define EMAC_TXMAC_STATC_REG0		0x1760
+#define EMAC_TXMAC_STATC_REG24		0x17c0
+#define EMAC_CLK_GATE_CTRL		0x1814
+#define EMAC_CORE_HW_VERSION		0x1974
+#define EMAC_MISC_CTRL			0x1990
+#define EMAC_MAILBOX_7			0x19e0
+#define EMAC_MAILBOX_8			0x19e4
+#define EMAC_IDT_TABLE0			0x1b00
+#define EMAC_RXMAC_STATC_REG23		0x1bc8
+#define EMAC_RXMAC_STATC_REG24		0x1bcc
+#define EMAC_TXMAC_STATC_REG25		0x1bd0
+#define EMAC_MAILBOX_15			0x1bd4
+#define EMAC_MAILBOX_16			0x1bd8
+#define EMAC_INT1_MASK			0x1bf0
+#define EMAC_INT1_STATUS		0x1bf4
+#define EMAC_INT2_MASK			0x1bf8
+#define EMAC_INT2_STATUS		0x1bfc
+#define EMAC_INT3_MASK			0x1c00
+#define EMAC_INT3_STATUS		0x1c04
 
 /* EMAC_DMA_MAS_CTRL */
 #define DEV_ID_NUM_BMSK                                     0x7f000000
@@ -165,10 +216,6 @@ enum emac_clk_id {
 #define EMAC_LINK_SPEED_1GB_FULL                                BIT(5)
 
 #define EMAC_MAX_SETUP_LNK_CYCLE                                   100
-
-/* Wake On Lan */
-#define EMAC_WOL_PHY                     0x00000001 /* PHY Status Change */
-#define EMAC_WOL_MAGIC                   0x00000002 /* Magic Packet */
 
 struct emac_stats {
 	/* rx */
@@ -291,7 +338,7 @@ struct emac_adapter {
 	void __iomem			*base;
 	void __iomem			*csr;
 
-	struct emac_phy			phy;
+	struct emac_sgmii		phy;
 	struct emac_stats		stats;
 
 	struct emac_irq			irq;
@@ -308,6 +355,13 @@ struct emac_adapter {
 	unsigned int			tpd_size; /* in quad words */
 
 	unsigned int			rxbuf_size;
+
+	/* Flow control / pause frames support. If automatic=True, do whatever
+	 * the PHY does. Otherwise, use tx_flow_control and rx_flow_control.
+	 */
+	bool				automatic;
+	bool				tx_flow_control;
+	bool				rx_flow_control;
 
 	/* Ring parameter */
 	u8				tpd_burst;
@@ -330,6 +384,8 @@ struct emac_adapter {
 
 int emac_reinit_locked(struct emac_adapter *adpt);
 void emac_reg_update32(void __iomem *addr, u32 mask, u32 val);
-irqreturn_t emac_isr(int irq, void *data);
+
+void emac_set_ethtool_ops(struct net_device *netdev);
+void emac_update_hw_stats(struct emac_adapter *adpt);
 
 #endif /* _EMAC_H_ */

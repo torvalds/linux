@@ -526,6 +526,7 @@ static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_SKL_IDS(&gen9_early_ops),
 	INTEL_BXT_IDS(&gen9_early_ops),
 	INTEL_KBL_IDS(&gen9_early_ops),
+	INTEL_GLK_IDS(&gen9_early_ops),
 };
 
 static void __init
@@ -546,8 +547,8 @@ intel_graphics_stolen(int num, int slot, int func,
 	       &base, &end);
 
 	/* Mark this space as reserved */
-	e820_add_region(base, size, E820_RESERVED);
-	sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
+	e820__range_add(base, size, E820_TYPE_RESERVED);
+	e820__update_table(e820_table);
 }
 
 static void __init intel_graphics_quirks(int num, int slot, int func)

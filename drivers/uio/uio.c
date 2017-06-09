@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/idr.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/string.h>
 #include <linux/kobject.h>
 #include <linux/cdev.h>
@@ -66,7 +66,7 @@ static ssize_t map_size_show(struct uio_mem *mem, char *buf)
 
 static ssize_t map_offset_show(struct uio_mem *mem, char *buf)
 {
-	return sprintf(buf, "0x%llx\n", (unsigned long long)mem->addr & ~PAGE_MASK);
+	return sprintf(buf, "0x%llx\n", (unsigned long long)mem->offs);
 }
 
 struct map_sysfs_entry {
@@ -279,7 +279,7 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 		map = kzalloc(sizeof(*map), GFP_KERNEL);
 		if (!map) {
 			ret = -ENOMEM;
-			goto err_map_kobj;
+			goto err_map;
 		}
 		kobject_init(&map->kobj, &map_attr_type);
 		map->mem = mem;
@@ -289,7 +289,7 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 			goto err_map_kobj;
 		ret = kobject_uevent(&map->kobj, KOBJ_ADD);
 		if (ret)
-			goto err_map;
+			goto err_map_kobj;
 	}
 
 	for (pi = 0; pi < MAX_UIO_PORT_REGIONS; pi++) {
@@ -308,7 +308,7 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 		portio = kzalloc(sizeof(*portio), GFP_KERNEL);
 		if (!portio) {
 			ret = -ENOMEM;
-			goto err_portio_kobj;
+			goto err_portio;
 		}
 		kobject_init(&portio->kobj, &portio_attr_type);
 		portio->port = port;
@@ -319,7 +319,7 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 			goto err_portio_kobj;
 		ret = kobject_uevent(&portio->kobj, KOBJ_ADD);
 		if (ret)
-			goto err_portio;
+			goto err_portio_kobj;
 	}
 
 	return 0;
@@ -597,14 +597,14 @@ static int uio_find_mem_index(struct vm_area_struct *vma)
 	return -1;
 }
 
-static int uio_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int uio_vma_fault(struct vm_fault *vmf)
 {
-	struct uio_device *idev = vma->vm_private_data;
+	struct uio_device *idev = vmf->vma->vm_private_data;
 	struct page *page;
 	unsigned long offset;
 	void *addr;
 
-	int mi = uio_find_mem_index(vma);
+	int mi = uio_find_mem_index(vmf->vma);
 	if (mi < 0)
 		return VM_FAULT_SIGBUS;
 

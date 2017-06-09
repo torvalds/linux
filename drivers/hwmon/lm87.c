@@ -66,6 +66,7 @@
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/regulator/consumer.h>
 
 /*
  * Addresses to scan
@@ -73,8 +74,6 @@
  */
 
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
-
-enum chips { lm87, adm1024 };
 
 /*
  * The LM87 registers
@@ -445,23 +444,23 @@ set_temp(1);
 set_temp(2);
 set_temp(3);
 
-static ssize_t show_temp_crit_int(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t temp1_crit_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_crit_int));
 }
 
-static ssize_t show_temp_crit_ext(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t temp2_crit_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_crit_ext));
 }
 
-static DEVICE_ATTR(temp1_crit, S_IRUGO, show_temp_crit_int, NULL);
-static DEVICE_ATTR(temp2_crit, S_IRUGO, show_temp_crit_ext, NULL);
-static DEVICE_ATTR(temp3_crit, S_IRUGO, show_temp_crit_ext, NULL);
+static DEVICE_ATTR_RO(temp1_crit);
+static DEVICE_ATTR_RO(temp2_crit);
+static DEVICE_ATTR(temp3_crit, S_IRUGO, temp2_crit_show, NULL);
 
 static ssize_t show_fan_input(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -586,30 +585,30 @@ static SENSOR_DEVICE_ATTR(fan##offset##_div, S_IRUGO | S_IWUSR, \
 set_fan(1);
 set_fan(2);
 
-static ssize_t show_alarms(struct device *dev, struct device_attribute *attr,
+static ssize_t alarms_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", data->alarms);
 }
-static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
+static DEVICE_ATTR_RO(alarms);
 
-static ssize_t show_vid(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t cpu0_vid_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
-static ssize_t show_vrm(struct device *dev, struct device_attribute *attr,
+static ssize_t vrm_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	struct lm87_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", data->vrm);
 }
-static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
-		       const char *buf, size_t count)
+static ssize_t vrm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct lm87_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -625,16 +624,17 @@ static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
 	data->vrm = val;
 	return count;
 }
-static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm, set_vrm);
+static DEVICE_ATTR_RW(vrm);
 
-static ssize_t show_aout(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+static ssize_t aout_output_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", AOUT_FROM_REG(data->aout));
 }
-static ssize_t set_aout(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t aout_output_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct i2c_client *client = dev_get_drvdata(dev);
 	struct lm87_data *data = i2c_get_clientdata(client);
@@ -651,7 +651,7 @@ static ssize_t set_aout(struct device *dev, struct device_attribute *attr,
 	mutex_unlock(&data->update_lock);
 	return count;
 }
-static DEVICE_ATTR(aout_output, S_IRUGO | S_IWUSR, show_aout, set_aout);
+static DEVICE_ATTR_RW(aout_output);
 
 static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 			  char *buf)
@@ -854,8 +854,26 @@ static int lm87_init_client(struct i2c_client *client)
 {
 	struct lm87_data *data = i2c_get_clientdata(client);
 	int rc;
+	struct device_node *of_node = client->dev.of_node;
+	u8 val = 0;
+	struct regulator *vcc = NULL;
 
-	if (dev_get_platdata(&client->dev)) {
+	if (of_node) {
+		if (of_property_read_bool(of_node, "has-temp3"))
+			val |= CHAN_TEMP3;
+		if (of_property_read_bool(of_node, "has-in6"))
+			val |= CHAN_NO_FAN(0);
+		if (of_property_read_bool(of_node, "has-in7"))
+			val |= CHAN_NO_FAN(1);
+		vcc = devm_regulator_get_optional(&client->dev, "vcc");
+		if (!IS_ERR(vcc)) {
+			if (regulator_get_voltage(vcc) == 5000000)
+				val |= CHAN_VCC_5V;
+		}
+		data->channel = val;
+		lm87_write_value(client,
+				LM87_REG_CHANNEL_MODE, data->channel);
+	} else if (dev_get_platdata(&client->dev)) {
 		data->channel = *(u8 *)dev_get_platdata(&client->dev);
 		lm87_write_value(client,
 				 LM87_REG_CHANNEL_MODE, data->channel);
@@ -961,16 +979,24 @@ static int lm87_probe(struct i2c_client *client, const struct i2c_device_id *id)
  */
 
 static const struct i2c_device_id lm87_id[] = {
-	{ "lm87", lm87 },
-	{ "adm1024", adm1024 },
+	{ "lm87", 0 },
+	{ "adm1024", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm87_id);
+
+static const struct of_device_id lm87_of_match[] = {
+	{ .compatible = "ti,lm87" },
+	{ .compatible = "adi,adm1024" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, lm87_of_match);
 
 static struct i2c_driver lm87_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm87",
+		.of_match_table = lm87_of_match,
 	},
 	.probe		= lm87_probe,
 	.id_table	= lm87_id,
