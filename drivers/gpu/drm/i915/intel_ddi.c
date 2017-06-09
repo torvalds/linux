@@ -1846,10 +1846,24 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
 	I915_WRITE(CNL_PORT_TX_DW7_GRP(port), val);
 }
 
-static void cnl_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
-				    u32 level, enum port port, int type)
+static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder, u32 level)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	enum port port = intel_ddi_get_encoder_port(encoder);
+	int type = encoder->type;
+	int width = 0;
+	int rate = 0;
 	u32 val;
+	int ln = 0;
+
+	if ((intel_dp) && (type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP)) {
+		width = intel_dp->lane_count;
+		rate = intel_dp->link_rate;
+	} else {
+		width = 4;
+		/* Rate is always < than 6GHz for HDMI */
+	}
 
 	/*
 	 * 1. If port type is eDP or DP,
@@ -1865,8 +1879,21 @@ static void cnl_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
 
 	/* 2. Program loadgen select */
 	/*
-	 * FIXME: Program PORT_TX_DW4_LN depending on Bit rate and used lanes
+	 * Program PORT_TX_DW4_LN depending on Bit rate and used lanes
+	 * <= 6 GHz and 4 lanes (LN0=0, LN1=1, LN2=1, LN3=1)
+	 * <= 6 GHz and 1,2 lanes (LN0=0, LN1=1, LN2=1, LN3=0)
+	 * > 6 GHz (LN0=0, LN1=0, LN2=0, LN3=0)
 	 */
+	for (ln = 0; ln <= 3; ln++) {
+		val = I915_READ(CNL_PORT_TX_DW4_LN(port, ln));
+		val &= ~LOADGEN_SELECT;
+
+		if (((rate < 600000) && (width == 4) && (ln >= 1))  ||
+		    ((rate < 600000) && (width < 4) && ((ln == 1) || (ln == 2)))) {
+			val |= LOADGEN_SELECT;
+		}
+		I915_WRITE(CNL_PORT_TX_DW4_LN(port, ln), val);
+	}
 
 	/* 3. Set PORT_CL_DW5 SUS Clock Config to 11b */
 	val = I915_READ(CNL_PORT_CL1CM_DW5);
@@ -1920,7 +1947,7 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
 	else if (IS_CANNONLAKE(dev_priv)) {
-		cnl_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
+		cnl_ddi_vswing_sequence(encoder, level);
 		/* DDI_BUF_CTL bits 27:24 are reserved on CNL */
 		return 0;
 	}
@@ -2022,8 +2049,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 		bxt_ddi_vswing_sequence(dev_priv, level, port,
 					INTEL_OUTPUT_HDMI);
 	else if (IS_CANNONLAKE(dev_priv))
-		cnl_ddi_vswing_sequence(dev_priv, level, port,
-					INTEL_OUTPUT_HDMI);
+		cnl_ddi_vswing_sequence(encoder, level);
 
 	intel_hdmi->set_infoframes(drm_encoder,
 				   has_hdmi_sink,
