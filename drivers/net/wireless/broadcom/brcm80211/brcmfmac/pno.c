@@ -43,6 +43,7 @@
 struct brcmf_pno_info {
 	int n_reqs;
 	struct cfg80211_sched_scan_request *reqs[BRCMF_PNO_MAX_BUCKETS];
+	struct mutex req_lock;
 };
 
 #define ifp_to_pno(_ifp)	((_ifp)->drvr->config->pno)
@@ -55,13 +56,17 @@ static int brcmf_pno_store_request(struct brcmf_pno_info *pi,
 		return -ENOSPC;
 
 	brcmf_dbg(SCAN, "reqid=%llu\n", req->reqid);
+	mutex_lock(&pi->req_lock);
 	pi->reqs[pi->n_reqs++] = req;
+	mutex_unlock(&pi->req_lock);
 	return 0;
 }
 
 static int brcmf_pno_remove_request(struct brcmf_pno_info *pi, u64 reqid)
 {
-	int i;
+	int i, err = 0;
+
+	mutex_lock(&pi->req_lock);
 
 	/* find request */
 	for (i = 0; i < pi->n_reqs; i++) {
@@ -70,7 +75,8 @@ static int brcmf_pno_remove_request(struct brcmf_pno_info *pi, u64 reqid)
 	}
 	/* request not found */
 	if (WARN(i == pi->n_reqs, "reqid not found\n")) {
-		return -ENOENT;
+		err = -ENOENT;
+		goto done;
 	}
 
 	brcmf_dbg(SCAN, "reqid=%llu\n", reqid);
@@ -78,14 +84,17 @@ static int brcmf_pno_remove_request(struct brcmf_pno_info *pi, u64 reqid)
 
 	/* if last we are done */
 	if (!pi->n_reqs || i == pi->n_reqs)
-		return 0;
+		goto done;
 
 	/* fill the gap with remaining requests */
 	while (i <= pi->n_reqs - 1) {
 		pi->reqs[i] = pi->reqs[i + 1];
 		i++;
 	}
-	return 0;
+
+done:
+	mutex_unlock(&pi->req_lock);
+	return err;
 }
 
 static int brcmf_pno_channel_config(struct brcmf_if *ifp,
@@ -488,6 +497,7 @@ int brcmf_pno_attach(struct brcmf_cfg80211_info *cfg)
 		return -ENOMEM;
 
 	cfg->pno = pi;
+	mutex_init(&pi->req_lock);
 	return 0;
 }
 
@@ -500,6 +510,7 @@ void brcmf_pno_detach(struct brcmf_cfg80211_info *cfg)
 	cfg->pno = NULL;
 
 	WARN_ON(pi->n_reqs);
+	mutex_destroy(&pi->req_lock);
 	kfree(pi);
 }
 
@@ -515,11 +526,15 @@ void brcmf_pno_wiphy_params(struct wiphy *wiphy, bool gscan)
 
 u64 brcmf_pno_find_reqid_by_bucket(struct brcmf_pno_info *pi, u32 bucket)
 {
-	/* bucket appears to be gone */
-	if (bucket >= pi->n_reqs)
-		return 0;
+	u64 reqid = 0;
 
-	return pi->reqs[bucket]->reqid;
+	mutex_lock(&pi->req_lock);
+
+	if (bucket < pi->n_reqs)
+		reqid = pi->reqs[bucket]->reqid;
+
+	mutex_unlock(&pi->req_lock);
+	return reqid;
 }
 
 u32 brcmf_pno_get_bucket_map(struct brcmf_pno_info *pi,
@@ -530,6 +545,7 @@ u32 brcmf_pno_get_bucket_map(struct brcmf_pno_info *pi,
 	u32 bucket_map = 0;
 	int i, j;
 
+	mutex_lock(&pi->req_lock);
 	for (i = 0; i < pi->n_reqs; i++) {
 		req = pi->reqs[i];
 
@@ -544,5 +560,6 @@ u32 brcmf_pno_get_bucket_map(struct brcmf_pno_info *pi,
 			}
 		}
 	}
+	mutex_unlock(&pi->req_lock);
 	return bucket_map;
 }
