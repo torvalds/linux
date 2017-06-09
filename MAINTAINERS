@@ -7247,7 +7247,8 @@ M:	Shuah Khan <shuah@kernel.org>
 L:	linux-kselftest@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shuah/linux-kselftest.git
 S:	Maintained
-F:	tools/testing/selftests
+F:	tools/testing/selftests/
+F:	Documentation/dev-tools/kselftest*
 
 KERNEL VIRTUAL MACHINE (KVM)
 M:	Paolo Bonzini <pbonzini@redhat.com>
