@@ -19,7 +19,7 @@ if MULTIPLEXER
 
 config MUX_ADG792A
 	tristate "Analog Devices ADG792A/ADG792G Multiplexers"
-	depends on I2C || COMPILE_TEST
+	depends on I2C
 	help
 	  ADG792A and ADG792G Wide Bandwidth Triple 4:1 Multiplexers
 
