@@ -65,6 +65,16 @@ static bool read_from_write_only(struct kvm_vcpu *vcpu,
 	return false;
 }
 
+static bool write_to_read_only(struct kvm_vcpu *vcpu,
+			       struct sys_reg_params *params,
+			       const struct sys_reg_desc *r)
+{
+	WARN_ONCE(1, "Unexpected sys_reg write to read-only register\n");
+	print_sys_reg_instr(params);
+	kvm_inject_undefined(vcpu);
+	return false;
+}
+
 /* 3 bits per cache level, as per CLIDR, but non-existent caches always 0 */
 static u32 cache_levels;
 
@@ -954,10 +964,15 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	{ SYS_DESC(SYS_VBAR_EL1), NULL, reset_val, VBAR_EL1, 0 },
 
+	{ SYS_DESC(SYS_ICC_IAR0_EL1), write_to_read_only },
 	{ SYS_DESC(SYS_ICC_EOIR0_EL1), read_from_write_only },
+	{ SYS_DESC(SYS_ICC_HPPIR0_EL1), write_to_read_only },
 	{ SYS_DESC(SYS_ICC_DIR_EL1), read_from_write_only },
+	{ SYS_DESC(SYS_ICC_RPR_EL1), write_to_read_only },
 	{ SYS_DESC(SYS_ICC_SGI1R_EL1), access_gic_sgi },
+	{ SYS_DESC(SYS_ICC_IAR1_EL1), write_to_read_only },
 	{ SYS_DESC(SYS_ICC_EOIR1_EL1), read_from_write_only },
+	{ SYS_DESC(SYS_ICC_HPPIR1_EL1), write_to_read_only },
 	{ SYS_DESC(SYS_ICC_SRE_EL1), access_gic_sre },
 
 	{ SYS_DESC(SYS_CONTEXTIDR_EL1), access_vm_reg, reset_val, CONTEXTIDR_EL1, 0 },

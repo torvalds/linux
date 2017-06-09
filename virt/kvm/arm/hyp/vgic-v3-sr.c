@@ -976,6 +976,8 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	switch (sysreg) {
 	case SYS_ICC_IAR0_EL1:
 	case SYS_ICC_IAR1_EL1:
+		if (unlikely(!is_read))
+			return 0;
 		fn = __vgic_v3_read_iar;
 		break;
 	case SYS_ICC_EOIR0_EL1:
@@ -1026,6 +1028,8 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 		break;
 	case SYS_ICC_HPPIR0_EL1:
 	case SYS_ICC_HPPIR1_EL1:
+		if (unlikely(!is_read))
+			return 0;
 		fn = __vgic_v3_read_hppir;
 		break;
 	case SYS_ICC_GRPEN0_EL1:
@@ -1046,6 +1050,8 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 		fn = __vgic_v3_write_dir;
 		break;
 	case SYS_ICC_RPR_EL1:
+		if (unlikely(!is_read))
+			return 0;
 		fn = __vgic_v3_read_rpr;
 		break;
 	case SYS_ICC_CTLR_EL1:
