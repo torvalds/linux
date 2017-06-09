@@ -217,7 +217,7 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 	}
 
 	if (state)
-		pm_wakeup_hard_event(&device->dev);
+		pm_wakeup_event(&device->dev, 0);
 
 	ret = blocking_notifier_call_chain(&acpi_lid_notifier, state, device);
 	if (ret == NOTIFY_DONE)
@@ -402,7 +402,7 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 		} else {
 			int keycode;
 
-			pm_wakeup_hard_event(&device->dev);
+			pm_wakeup_event(&device->dev, 0);
 			if (button->suspended)
 				break;
 
@@ -534,7 +534,6 @@ static int acpi_button_add(struct acpi_device *device)
 		lid_device = device;
 	}
 
-	device_init_wakeup(&device->dev, true);
 	printk(KERN_INFO PREFIX "%s [%s]\n", name, acpi_device_bid(device));
 	return 0;
 
