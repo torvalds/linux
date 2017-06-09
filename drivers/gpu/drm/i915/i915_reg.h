@@ -60,6 +60,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MMIO_PORT(port, a, b) _MMIO(_PORT(port, a, b))
 #define _MMIO_PIPE3(pipe, a, b, c) _MMIO(_PICK(pipe, a, b, c))
 #define _MMIO_PORT3(pipe, a, b, c) _MMIO(_PICK(pipe, a, b, c))
+#define _PLL(pll, a, b) ((a) + (pll)*((b)-(a)))
+#define _MMIO_PLL(pll, a, b) _MMIO(_PLL(pll, a, b))
 #define _PHY3(phy, ...) _PICK(phy, __VA_ARGS__)
 #define _MMIO_PHY3(phy, a, b, c) _MMIO(_PHY3(phy, a, b, c))
 
@@ -8142,6 +8144,52 @@ enum {
 #define  DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port)	(3 << ((port)*2))
 #define  DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port)	((port)*2)
 #define  DPCLKA_CFGCR0_DDI_CLK_SEL(pll, port)	((pll) << ((port)*2))
+
+/* CNL PLL */
+#define DPLL0_ENABLE		0x46010
+#define DPLL1_ENABLE		0x46014
+#define  PLL_ENABLE		(1 << 31)
+#define  PLL_LOCK		(1 << 30)
+#define  PLL_POWER_ENABLE	(1 << 27)
+#define  PLL_POWER_STATE	(1 << 26)
+#define CNL_DPLL_ENABLE(pll)	_MMIO_PLL(pll, DPLL0_ENABLE, DPLL1_ENABLE)
+
+#define _CNL_DPLL0_CFGCR0		0x6C000
+#define _CNL_DPLL1_CFGCR0		0x6C080
+#define  DPLL_CFGCR0_HDMI_MODE		(1 << 30)
+#define  DPLL_CFGCR0_SSC_ENABLE		(1 << 29)
+#define  DPLL_CFGCR0_LINK_RATE_MASK	(0xf << 25)
+#define  DPLL_CFGCR0_LINK_RATE_2700	(0 << 25)
+#define  DPLL_CFGCR0_LINK_RATE_1350	(1 << 25)
+#define  DPLL_CFGCR0_LINK_RATE_810	(2 << 25)
+#define  DPLL_CFGCR0_LINK_RATE_1620	(3 << 25)
+#define  DPLL_CFGCR0_LINK_RATE_1080	(4 << 25)
+#define  DPLL_CFGCR0_LINK_RATE_2160	(5 << 25)
+#define  DPLL_CFGCR0_LINK_RATE_3240	(6 << 25)
+#define  DPLL_CFGCR0_LINK_RATE_4050	(7 << 25)
+#define  DPLL_CFGCR0_DCO_FRACTION_MASK	(0x7fff << 10)
+#define  DPLL_CFGCR0_DCO_FRACTION(x)	((x) << 10)
+#define  DPLL_CFGCR0_DCO_INTEGER_MASK	(0x3ff)
+#define CNL_DPLL_CFGCR0(pll)		_MMIO_PLL(pll, _CNL_DPLL0_CFGCR0, _CNL_DPLL1_CFGCR0)
+
+#define _CNL_DPLL0_CFGCR1		0x6C004
+#define _CNL_DPLL1_CFGCR1		0x6C084
+#define  DPLL_CFGCR1_QDIV_RATIO_MASK	(0xff << 10)
+#define  DPLL_CFGCR1_QDIV_RATIO(x)	((x) << 10)
+#define  DPLL_CFGCR1_QDIV_MODE(x)	((x) << 9)
+#define  DPLL_CFGCR1_KDIV_MASK		(7 << 6)
+#define  DPLL_CFGCR1_KDIV(x)		((x) << 6)
+#define  DPLL_CFGCR1_KDIV_1		(1 << 6)
+#define  DPLL_CFGCR1_KDIV_2		(2 << 6)
+#define  DPLL_CFGCR1_KDIV_4		(4 << 6)
+#define  DPLL_CFGCR1_PDIV_MASK		(0xf << 2)
+#define  DPLL_CFGCR1_PDIV(x)		((x) << 2)
+#define  DPLL_CFGCR1_PDIV_2		(1 << 2)
+#define  DPLL_CFGCR1_PDIV_3		(2 << 2)
+#define  DPLL_CFGCR1_PDIV_5		(4 << 2)
+#define  DPLL_CFGCR1_PDIV_7		(8 << 2)
+#define  DPLL_CFGCR1_CENTRAL_FREQ	(3 << 0)
+#define CNL_DPLL_CFGCR1(pll)		_MMIO_PLL(pll, _CNL_DPLL0_CFGCR1, _CNL_DPLL1_CFGCR1)
 
 /* BXT display engine PLL */
 #define BXT_DE_PLL_CTL			_MMIO(0x6d000)
