@@ -1938,7 +1938,8 @@ static int r8152_poll(struct napi_struct *napi, int budget)
 	bottom_half(tp);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		if (!napi_complete_done(napi, work_done))
+			goto out;
 		if (!list_empty(&tp->rx_done))
 			napi_schedule(napi);
 		else if (!skb_queue_empty(&tp->tx_queue) &&
@@ -1946,6 +1947,7 @@ static int r8152_poll(struct napi_struct *napi, int budget)
 			napi_schedule(napi);
 	}
 
+out:
 	return work_done;
 }
 
