@@ -82,9 +82,6 @@ nvkm_device_tegra_power_down(struct nvkm_device_tegra *tdev)
 {
 	int ret;
 
-	reset_control_assert(tdev->rst);
-	udelay(10);
-
 	clk_disable_unprepare(tdev->clk_pwr);
 	if (tdev->clk_ref)
 		clk_disable_unprepare(tdev->clk_ref);
