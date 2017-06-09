@@ -261,9 +261,11 @@ static void __do_user_fault(struct task_struct *tsk, unsigned long addr,
 
 	if (unhandled_signal(tsk, sig) && show_unhandled_signals_ratelimited()) {
 		inf = esr_to_fault_info(esr);
-		pr_info("%s[%d]: unhandled %s (%d) at 0x%08lx, esr 0x%03x\n",
+		pr_info("%s[%d]: unhandled %s (%d) at 0x%08lx, esr 0x%03x",
 			tsk->comm, task_pid_nr(tsk), inf->name, sig,
 			addr, esr);
+		print_vma_addr(KERN_CONT ", in ", regs->pc);
+		pr_cont("\n");
 		__show_regs(regs);
 	}
 
