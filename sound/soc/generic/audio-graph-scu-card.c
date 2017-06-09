@@ -45,7 +45,7 @@ static int asoc_graph_card_startup(struct snd_pcm_substream *substream)
 	struct graph_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct asoc_simple_dai *dai_props = graph_priv_to_props(priv, rtd->num);
 
-	return clk_prepare_enable(dai_props->clk);
+	return asoc_simple_card_clk_enable(dai_props);
 }
 
 static void asoc_graph_card_shutdown(struct snd_pcm_substream *substream)
@@ -54,7 +54,7 @@ static void asoc_graph_card_shutdown(struct snd_pcm_substream *substream)
 	struct graph_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct asoc_simple_dai *dai_props = graph_priv_to_props(priv, rtd->num);
 
-	clk_disable_unprepare(dai_props->clk);
+	asoc_simple_card_clk_disable(dai_props);
 }
 
 static struct snd_soc_ops asoc_graph_card_ops = {
