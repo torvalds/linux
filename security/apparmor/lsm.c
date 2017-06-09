@@ -575,6 +575,36 @@ fail:
 	goto out;
 }
 
+/**
+ * apparmor_bprm_committing_creds - do task cleanup on committing new creds
+ * @bprm: binprm for the exec  (NOT NULL)
+ */
+static void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
+{
+	struct aa_profile *profile = __aa_current_profile();
+	struct aa_task_ctx *new_ctx = cred_ctx(bprm->cred);
+
+	/* bail out if unconfined or not changing profile */
+	if ((new_ctx->profile == profile) ||
+	    (unconfined(new_ctx->profile)))
+		return;
+
+	current->pdeath_signal = 0;
+
+	/* reset soft limits and set hard limits for the new profile */
+	__aa_transition_rlimits(profile, new_ctx->profile);
+}
+
+/**
+ * apparmor_bprm_committed_cred - do cleanup after new creds committed
+ * @bprm: binprm for the exec  (NOT NULL)
+ */
+static void apparmor_bprm_committed_creds(struct linux_binprm *bprm)
+{
+	/* TODO: cleanup signals - ipc mediation */
+	return;
+}
+
 static int apparmor_task_setrlimit(struct task_struct *task,
 		unsigned int resource, struct rlimit *new_rlim)
 {
