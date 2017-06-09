@@ -625,8 +625,7 @@ static void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
 	current->pdeath_signal = 0;
 
 	/* reset soft limits and set hard limits for the new label */
-	__aa_transition_rlimits(labels_profile(label),
-				labels_profile(new_ctx->label));
+	__aa_transition_rlimits(label, new_ctx->label);
 }
 
 /**
@@ -646,8 +645,7 @@ static int apparmor_task_setrlimit(struct task_struct *task,
 	int error = 0;
 
 	if (!unconfined(label))
-		error = aa_task_setrlimit(labels_profile(label), task,
-					  resource, new_rlim);
+		error = aa_task_setrlimit(label, task, resource, new_rlim);
 	__end_current_label_crit_section(label);
 
 	return error;
