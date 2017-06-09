@@ -50,7 +50,7 @@ archive_builtin()
 	if [ -n "${CONFIG_THIN_ARCHIVES}" ]; then
 		info AR built-in.o
 		rm -f built-in.o;
-		${AR} rcsT${KBUILD_ARFLAGS} built-in.o			\
+		${AR} rcsTP${KBUILD_ARFLAGS} built-in.o			\
 					${KBUILD_VMLINUX_INIT}		\
 					${KBUILD_VMLINUX_MAIN}
 	fi
