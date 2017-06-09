@@ -1837,6 +1837,10 @@
 			[KVM,ARM] Trap guest accesses to GICv3 group-1
 			system registers
 
+	kvm-arm.vgic_v3_common_trap=
+			[KVM,ARM] Trap guest accesses to GICv3 common
+			system registers
+
 	kvm-intel.ept=	[KVM,Intel] Disable extended page tables
 			(virtualized MMU) support on capable Intel chips.
 			Default is 1 (enabled)
