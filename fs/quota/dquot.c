@@ -415,10 +415,8 @@ int dquot_acquire(struct dquot *dquot)
 		ret = dqopt->ops[dquot->dq_id.type]->commit_dqblk(dquot);
 		/* Write the info if needed */
 		if (info_dirty(&dqopt->info[dquot->dq_id.type])) {
-			down_write(&dqopt->dqio_sem);
 			ret2 = dqopt->ops[dquot->dq_id.type]->write_file_info(
 					dquot->dq_sb, dquot->dq_id.type);
-			up_write(&dqopt->dqio_sem);
 		}
 		if (ret < 0)
 			goto out_iolock;
@@ -482,10 +480,8 @@ int dquot_release(struct dquot *dquot)
 		ret = dqopt->ops[dquot->dq_id.type]->release_dqblk(dquot);
 		/* Write the info */
 		if (info_dirty(&dqopt->info[dquot->dq_id.type])) {
-			down_write(&dqopt->dqio_sem);
 			ret2 = dqopt->ops[dquot->dq_id.type]->write_file_info(
 						dquot->dq_sb, dquot->dq_id.type);
-			up_write(&dqopt->dqio_sem);
 		}
 		if (ret >= 0)
 			ret = ret2;
@@ -2054,13 +2050,9 @@ EXPORT_SYMBOL(dquot_transfer);
  */
 int dquot_commit_info(struct super_block *sb, int type)
 {
-	int ret;
 	struct quota_info *dqopt = sb_dqopt(sb);
 
-	down_write(&dqopt->dqio_sem);
-	ret = dqopt->ops[type]->write_file_info(sb, type);
-	up_write(&dqopt->dqio_sem);
-	return ret;
+	return dqopt->ops[type]->write_file_info(sb, type);
 }
 EXPORT_SYMBOL(dquot_commit_info);
 

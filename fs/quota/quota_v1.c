@@ -186,6 +186,7 @@ static int v1_write_file_info(struct super_block *sb, int type)
 	struct v1_disk_dqblk dqblk;
 	int ret;
 
+	down_write(&dqopt->dqio_sem);
 	dqopt->info[type].dqi_flags &= ~DQF_INFO_DIRTY;
 	ret = sb->s_op->quota_read(sb, type, (char *)&dqblk,
 				sizeof(struct v1_disk_dqblk), v1_dqoff(0));
@@ -203,6 +204,7 @@ static int v1_write_file_info(struct super_block *sb, int type)
 	else if (ret > 0)
 		ret = -EIO;
 out:
+	up_write(&dqopt->dqio_sem);
 	return ret;
 }
 

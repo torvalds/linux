@@ -154,10 +154,12 @@ static int v2_read_file_info(struct super_block *sb, int type)
 static int v2_write_file_info(struct super_block *sb, int type)
 {
 	struct v2_disk_dqinfo dinfo;
-	struct mem_dqinfo *info = sb_dqinfo(sb, type);
+	struct quota_info *dqopt = sb_dqopt(sb);
+	struct mem_dqinfo *info = &dqopt->info[type];
 	struct qtree_mem_dqinfo *qinfo = info->dqi_priv;
 	ssize_t size;
 
+	down_write(&dqopt->dqio_sem);
 	spin_lock(&dq_data_lock);
 	info->dqi_flags &= ~DQF_INFO_DIRTY;
 	dinfo.dqi_bgrace = cpu_to_le32(info->dqi_bgrace);
@@ -170,6 +172,7 @@ static int v2_write_file_info(struct super_block *sb, int type)
 	dinfo.dqi_free_entry = cpu_to_le32(qinfo->dqi_free_entry);
 	size = sb->s_op->quota_write(sb, type, (char *)&dinfo,
 	       sizeof(struct v2_disk_dqinfo), V2_DQINFOOFF);
+	up_write(&dqopt->dqio_sem);
 	if (size != sizeof(struct v2_disk_dqinfo)) {
 		quota_error(sb, "Can't write info structure");
 		return -1;
