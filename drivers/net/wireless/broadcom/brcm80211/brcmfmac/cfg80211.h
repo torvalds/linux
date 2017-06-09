@@ -117,7 +117,8 @@ struct brcmf_cfg80211_security {
 
 enum brcmf_profile_fwsup {
 	BRCMF_PROFILE_FWSUP_NONE,
-	BRCMF_PROFILE_FWSUP_PSK
+	BRCMF_PROFILE_FWSUP_PSK,
+	BRCMF_PROFILE_FWSUP_1X
 };
 
 /**
