@@ -429,6 +429,8 @@ out:
 	return ret;
 }
 
+DEFINE_STATIC_KEY_FALSE(vgic_v3_cpuif_trap);
+
 /**
  * vgic_v3_probe - probe for a GICv3 compatible interrupt controller in DT
  * @node:	pointer to the DT node

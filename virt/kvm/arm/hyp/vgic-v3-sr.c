@@ -19,6 +19,7 @@
 #include <linux/irqchip/arm-gic-v3.h>
 #include <linux/kvm_host.h>
 
+#include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
 
 #define vtr_to_max_lr_idx(v)		((v) & 0xf)
@@ -371,3 +372,40 @@ void __hyp_text __vgic_v3_write_vmcr(u32 vmcr)
 {
 	write_gicreg(vmcr, ICH_VMCR_EL2);
 }
+
+#ifdef CONFIG_ARM64
+
+int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
+{
+	int rt;
+	u32 esr;
+	u32 vmcr;
+	void (*fn)(struct kvm_vcpu *, u32, int);
+	bool is_read;
+	u32 sysreg;
+
+	esr = kvm_vcpu_get_hsr(vcpu);
+	if (vcpu_mode_is_32bit(vcpu)) {
+		if (!kvm_condition_valid(vcpu))
+			return 1;
+
+		sysreg = esr_cp15_to_sysreg(esr);
+	} else {
+		sysreg = esr_sys64_to_sysreg(esr);
+	}
+
+	is_read = (esr & ESR_ELx_SYS64_ISS_DIR_MASK) == ESR_ELx_SYS64_ISS_DIR_READ;
+
+	switch (sysreg) {
+	default:
+		return 0;
+	}
+
+	vmcr = __vgic_v3_read_vmcr();
+	rt = kvm_vcpu_sys_get_rt(vcpu);
+	fn(vcpu, vmcr, rt);
+
+	return 1;
+}
+
+#endif

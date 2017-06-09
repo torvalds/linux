@@ -292,6 +292,7 @@ struct vgic_cpu {
 };
 
 extern struct static_key_false vgic_v2_cpuif_trap;
+extern struct static_key_false vgic_v3_cpuif_trap;
 
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
 void kvm_vgic_early_init(struct kvm *kvm);

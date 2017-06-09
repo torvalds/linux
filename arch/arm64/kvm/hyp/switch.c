@@ -350,6 +350,20 @@ again:
 		}
 	}
 
+	if (static_branch_unlikely(&vgic_v3_cpuif_trap) &&
+	    exit_code == ARM_EXCEPTION_TRAP &&
+	    (kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_SYS64 ||
+	     kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_CP15_32)) {
+		int ret = __vgic_v3_perform_cpuif_access(vcpu);
+
+		if (ret == 1) {
+			__skip_instr(vcpu);
+			goto again;
+		}
+
+		/* 0 falls through to be handled out of EL2 */
+	}
+
 	fp_enabled = __fpsimd_enabled();
 
 	__sysreg_save_guest_state(guest_ctxt);
