@@ -15,10 +15,9 @@ snd-seq-dummy-objs := seq_dummy.o
 snd-seq-virmidi-objs := seq_virmidi.o
 
 obj-$(CONFIG_SND_SEQUENCER) += snd-seq.o snd-seq-device.o
-ifeq ($(CONFIG_SND_SEQUENCER_OSS),y)
-  obj-$(CONFIG_SND_SEQUENCER) += snd-seq-midi-event.o
-  obj-$(CONFIG_SND_SEQUENCER) += oss/
-endif
+obj-$(CONFIG_SND_SEQUENCER_OSS) += snd-seq-midi-event.o
+obj-$(CONFIG_SND_SEQUENCER_OSS) += oss/
+
 obj-$(CONFIG_SND_SEQ_DUMMY) += snd-seq-dummy.o
 
 # Toplevel Module Dependency
