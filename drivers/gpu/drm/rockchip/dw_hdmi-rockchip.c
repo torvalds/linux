@@ -47,6 +47,7 @@ struct rockchip_hdmi {
 	struct drm_encoder encoder;
 	const struct rockchip_hdmi_chip_data *chip_data;
 	struct clk *vpll_clk;
+	struct clk *grf_clk;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -181,6 +182,16 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		return PTR_ERR(hdmi->vpll_clk);
 	}
 
+	hdmi->grf_clk = devm_clk_get(hdmi->dev, "grf");
+	if (PTR_ERR(hdmi->grf_clk) == -ENOENT) {
+		hdmi->grf_clk = NULL;
+	} else if (PTR_ERR(hdmi->grf_clk) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (IS_ERR(hdmi->grf_clk)) {
+		dev_err(hdmi->dev, "failed to get grf clock\n");
+		return PTR_ERR(hdmi->grf_clk);
+	}
+
 	ret = clk_prepare_enable(hdmi->vpll_clk);
 	if (ret) {
 		dev_err(hdmi->dev, "Failed to enable HDMI vpll: %d\n", ret);
@@ -246,10 +257,17 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	else
 		val = hdmi->chip_data->lcdsel_big;
 
+	ret = clk_prepare_enable(hdmi->grf_clk);
+	if (ret < 0) {
+		dev_err(hdmi->dev, "failed to enable grfclk %d\n", ret);
+		return;
+	}
+
 	ret = regmap_write(hdmi->regmap, hdmi->chip_data->lcdsel_grf_reg, val);
 	if (ret != 0)
 		dev_err(hdmi->dev, "Could not write to GRF: %d\n", ret);
 
+	clk_disable_unprepare(hdmi->grf_clk);
 	dev_dbg(hdmi->dev, "vop %s output to hdmi\n",
 		ret ? "LIT" : "BIG");
 }
