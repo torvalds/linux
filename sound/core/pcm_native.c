@@ -472,13 +472,21 @@ static int fixup_unreferenced_params(struct snd_pcm_substream *substream,
 		}
 	}
 
+	if (!params->info) {
+		params->info = substream->runtime->hw.info;
+		params->info &= ~(SNDRV_PCM_INFO_FIFO_IN_FRAMES |
+				  SNDRV_PCM_INFO_DRAIN_TRIGGER);
+		if (!hw_support_mmap(substream))
+			params->info &= ~(SNDRV_PCM_INFO_MMAP |
+					  SNDRV_PCM_INFO_MMAP_VALID);
+	}
+
 	return 0;
 }
 
 int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		      struct snd_pcm_hw_params *params)
 {
-	struct snd_pcm_hardware *hw;
 	int err;
 
 	params->info = 0;
@@ -502,16 +510,8 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	hw = &substream->runtime->hw;
-	if (!params->info) {
-		params->info = hw->info & ~(SNDRV_PCM_INFO_FIFO_IN_FRAMES |
-					    SNDRV_PCM_INFO_DRAIN_TRIGGER);
-		if (!hw_support_mmap(substream))
-			params->info &= ~(SNDRV_PCM_INFO_MMAP |
-					  SNDRV_PCM_INFO_MMAP_VALID);
-	}
-
 	params->rmask = 0;
+
 	return 0;
 }
 EXPORT_SYMBOL(snd_pcm_hw_refine);
