@@ -2428,6 +2428,29 @@ static void __rtl_set_wol(struct r8152 *tp, u32 wolopts)
 		device_set_wakeup_enable(&tp->udev->dev, false);
 }
 
+static void r8153_mac_clk_spd(struct r8152 *tp, bool enable)
+{
+	/* MAC clock speed down */
+	if (enable) {
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL,
+			       ALDPS_SPDWN_RATIO);
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL2,
+			       EEE_SPDWN_RATIO);
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL3,
+			       PKT_AVAIL_SPDWN_EN | SUSPEND_SPDWN_EN |
+			       U1U2_SPDWN_EN | L1_SPDWN_EN);
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL4,
+			       PWRSAVE_SPDWN_EN | RXDV_SPDWN_EN | TX10MIDLE_EN |
+			       TP100_SPDWN_EN | TP500_SPDWN_EN | EEE_SPDWN_EN |
+			       TP1000_SPDWN_EN);
+	} else {
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL, 0);
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL2, 0);
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL3, 0);
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL4, 0);
+	}
+}
+
 static void r8153_u1u2en(struct r8152 *tp, bool enable)
 {
 	u8 u1u2[8];
@@ -2533,7 +2556,9 @@ static void rtl8153_runtime_enable(struct r8152 *tp, bool enable)
 	if (enable) {
 		r8153_u1u2en(tp, false);
 		r8153_u2p3en(tp, false);
+		r8153_mac_clk_spd(tp, true);
 	} else {
+		r8153_mac_clk_spd(tp, false);
 		r8153_u2p3en(tp, true);
 		r8153_u1u2en(tp, true);
 	}
@@ -2881,6 +2906,7 @@ static void r8153_first_init(struct r8152 *tp)
 	u32 ocp_data;
 	int i;
 
+	r8153_mac_clk_spd(tp, false);
 	rxdy_gated_en(tp, true);
 	r8153_teredo_off(tp);
 
@@ -2946,6 +2972,8 @@ static void r8153_enter_oob(struct r8152 *tp)
 {
 	u32 ocp_data;
 	int i;
+
+	r8153_mac_clk_spd(tp, true);
 
 	ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL);
 	ocp_data &= ~NOW_IS_OOB;
@@ -3513,13 +3541,9 @@ static void r8153_init(struct r8152 *tp)
 
 	r8153_power_cut_en(tp, false);
 	r8153_u1u2en(tp, true);
+	r8153_mac_clk_spd(tp, false);
 	usb_enable_lpm(tp->udev);
 
-	/* MAC clock speed down */
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL, 0);
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL2, 0);
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL3, 0);
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL4, 0);
 
 	rtl_tally_reset(tp);
 	r8153_u2p3en(tp, true);
