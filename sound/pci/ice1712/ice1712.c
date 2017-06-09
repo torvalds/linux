@@ -932,10 +932,10 @@ static int snd_ice1712_pcm_ds(struct snd_ice1712 *ice, int device)
  *  PCM code - professional part (multitrack)
  */
 
-static unsigned int rates[] = { 8000, 9600, 11025, 12000, 16000, 22050, 24000,
+static const unsigned int rates[] = { 8000, 9600, 11025, 12000, 16000, 22050, 24000,
 				32000, 44100, 48000, 64000, 88200, 96000 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0,

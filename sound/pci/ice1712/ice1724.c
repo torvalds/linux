@@ -521,25 +521,25 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
  *  PCM code - professional part (multitrack)
  */
 
-static unsigned int rates[] = {
+static const unsigned int rates[] = {
 	8000, 9600, 11025, 12000, 16000, 22050, 24000,
 	32000, 44100, 48000, 64000, 88200, 96000,
 	176400, 192000,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_rates_96 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates_96 = {
 	.count = ARRAY_SIZE(rates) - 2, /* up to 96000 */
 	.list = rates,
 	.mask = 0,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_rates_48 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates_48 = {
 	.count = ARRAY_SIZE(rates) - 5, /* up to 48000 */
 	.list = rates,
 	.mask = 0,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_rates_192 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates_192 = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0,

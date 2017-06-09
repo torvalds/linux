@@ -436,7 +436,7 @@ static void snd_es1938_reset_fifo(struct es1938 *chip)
 	outb(0, SLSB_REG(chip, RESET));
 }
 
-static struct snd_ratnum clocks[2] = {
+static const struct snd_ratnum clocks[2] = {
 	{
 		.num = 793800,
 		.den_min = 1,
@@ -451,7 +451,7 @@ static struct snd_ratnum clocks[2] = {
 	}
 };
 
-static struct snd_pcm_hw_constraint_ratnums hw_constraints_clocks = {
+static const struct snd_pcm_hw_constraint_ratnums hw_constraints_clocks = {
 	.nrats = 2,
 	.rats = clocks,
 };

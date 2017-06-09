@@ -334,23 +334,23 @@ static unsigned short snd_fm801_codec_read(struct snd_ac97 *ac97, unsigned short
 	return fm801_readw(chip, AC97_DATA);
 }
 
-static unsigned int rates[] = {
+static const unsigned int rates[] = {
   5500,  8000,  9600, 11025,
   16000, 19200, 22050, 32000,
   38400, 44100, 48000
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0,
 };
 
-static unsigned int channels[] = {
+static const unsigned int channels[] = {
   2, 4, 6
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_channels = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels = {
 	.count = ARRAY_SIZE(channels),
 	.list = channels,
 	.mask = 0,

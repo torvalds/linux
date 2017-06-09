@@ -836,10 +836,9 @@ static irqreturn_t snd_rme32_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static unsigned int period_bytes[] = { RME32_BLOCK_SIZE };
+static const unsigned int period_bytes[] = { RME32_BLOCK_SIZE };
 
-
-static struct snd_pcm_hw_constraint_list hw_constraints_period_bytes = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_period_bytes = {
 	.count = ARRAY_SIZE(period_bytes),
 	.list = period_bytes,
 	.mask = 0
