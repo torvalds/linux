@@ -389,6 +389,7 @@ config SND_SBAWE_SEQ
 	def_tristate SND_SEQUENCER && SND_SBAWE
 	select SND_SEQ_MIDI_EMUL
 	select SND_SEQ_VIRMIDI
+	select SND_SYNTH_EMUX
 
 config SND_SB16_CSP
 	bool "Sound Blaster 16/AWE CSP support"
