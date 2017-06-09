@@ -310,6 +310,24 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	u32 val = 0x76543210;
 	u32 mask = ~0;
 
+	/*
+	 * *Hardware* L/R and *Software* L/R are inverted.
+	 * We need to care about inversion timing to control
+	 * Playback/Capture correctly.
+	 * The point is [DVC] needs *Hardware* L/R, [MEM] needs *Software* L/R
+	 *
+	 * sL/R : software L/R
+	 * hL/R : hardware L/R
+	 * (*)  : conversion timing
+	 *
+	 * Playback
+	 *	     sL/R (*) hL/R     hL/R     hL/R      hL/R     hL/R
+	 *	[MEM] -> [SRC] -> [DVC] -> [CMD] -> [SSIU] -> [SSI] -> codec
+	 *
+	 * Capture
+	 *	     hL/R     hL/R      hL/R     hL/R     hL/R (*) sL/R
+	 *	codec -> [SSI] -> [SSIU] -> [SRC] -> [DVC] -> [CMD] -> [MEM]
+	 */
 	if (rsnd_io_is_play(io)) {
 		struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 
