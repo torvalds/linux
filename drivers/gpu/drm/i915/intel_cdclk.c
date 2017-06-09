@@ -1400,6 +1400,58 @@ void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
 	bxt_set_cdclk(dev_priv, &cdclk_state);
 }
 
+static void cnl_cdclk_pll_update(struct drm_i915_private *dev_priv,
+				 struct intel_cdclk_state *cdclk_state)
+{
+	u32 val;
+
+	if (I915_READ(SKL_DSSM) & CNL_DSSM_CDCLK_PLL_REFCLK_24MHz)
+		cdclk_state->ref = 24000;
+	else
+		cdclk_state->ref = 19200;
+
+	cdclk_state->vco = 0;
+
+	val = I915_READ(BXT_DE_PLL_ENABLE);
+	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0)
+		return;
+
+	if (WARN_ON((val & BXT_DE_PLL_LOCK) == 0))
+		return;
+
+	cdclk_state->vco = (val & CNL_CDCLK_PLL_RATIO_MASK) * cdclk_state->ref;
+}
+
+static void cnl_get_cdclk(struct drm_i915_private *dev_priv,
+			 struct intel_cdclk_state *cdclk_state)
+{
+	u32 divider;
+	int div;
+
+	cnl_cdclk_pll_update(dev_priv, cdclk_state);
+
+	cdclk_state->cdclk = cdclk_state->ref;
+
+	if (cdclk_state->vco == 0)
+		return;
+
+	divider = I915_READ(CDCLK_CTL) & BXT_CDCLK_CD2X_DIV_SEL_MASK;
+
+	switch (divider) {
+	case BXT_CDCLK_CD2X_DIV_SEL_1:
+		div = 2;
+		break;
+	case BXT_CDCLK_CD2X_DIV_SEL_2:
+		div = 4;
+		break;
+	default:
+		MISSING_CASE(divider);
+		return;
+	}
+
+	cdclk_state->cdclk = DIV_ROUND_CLOSEST(cdclk_state->vco, div);
+}
+
 /**
  * intel_cdclk_state_compare - Determine if two CDCLK states differ
  * @a: first CDCLK state
@@ -1895,7 +1947,9 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 			skl_modeset_calc_cdclk;
 	}
 
-	if (IS_GEN9_BC(dev_priv))
+	if (IS_CANNONLAKE(dev_priv))
+		dev_priv->display.get_cdclk = cnl_get_cdclk;
+	else if (IS_GEN9_BC(dev_priv))
 		dev_priv->display.get_cdclk = skl_get_cdclk;
 	else if (IS_GEN9_LP(dev_priv))
 		dev_priv->display.get_cdclk = bxt_get_cdclk;

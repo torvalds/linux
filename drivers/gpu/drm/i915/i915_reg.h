@@ -6550,6 +6550,9 @@ enum {
 #define SKL_DFSM_PIPE_B_DISABLE		(1 << 21)
 #define SKL_DFSM_PIPE_C_DISABLE		(1 << 28)
 
+#define SKL_DSSM			_MMIO(0x51004)
+#define CNL_DSSM_CDCLK_PLL_REFCLK_24MHz	(1 << 31)
+
 #define GEN7_FF_SLICE_CS_CHICKEN1	_MMIO(0x20e0)
 #define   GEN9_FFSC_PERCTX_PREEMPT_CTRL	(1<<14)
 
@@ -8116,6 +8119,8 @@ enum {
 #define BXT_DE_PLL_ENABLE		_MMIO(0x46070)
 #define   BXT_DE_PLL_PLL_ENABLE		(1 << 31)
 #define   BXT_DE_PLL_LOCK		(1 << 30)
+#define   CNL_CDCLK_PLL_RATIO(x)	(x)
+#define   CNL_CDCLK_PLL_RATIO_MASK	0xff
 
 /* GEN9 DC */
 #define DC_STATE_EN			_MMIO(0x45504)
