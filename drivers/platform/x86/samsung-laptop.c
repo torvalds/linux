@@ -591,7 +591,7 @@ static int seclinux_rfkill_set(void *data, bool blocked)
 				 !blocked);
 }
 
-static struct rfkill_ops seclinux_rfkill_ops = {
+static const struct rfkill_ops seclinux_rfkill_ops = {
 	.set_block = seclinux_rfkill_set,
 };
 
@@ -651,7 +651,7 @@ static void swsmi_rfkill_query(struct rfkill *rfkill, void *priv)
 	rfkill_set_sw_state(rfkill, !ret);
 }
 
-static struct rfkill_ops swsmi_rfkill_ops = {
+static const struct rfkill_ops swsmi_rfkill_ops = {
 	.set_block = swsmi_rfkill_set,
 	.query = swsmi_rfkill_query,
 };
