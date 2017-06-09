@@ -15,6 +15,8 @@
 #ifndef __AA_FILE_H
 #define __AA_FILE_H
 
+#include <linux/spinlock.h>
+
 #include "domain.h"
 #include "match.h"
 #include "perms.h"
@@ -33,13 +35,13 @@ struct path;
 #define file_ctx(X) ((struct aa_file_ctx *)(X)->f_security)
 
 /* struct aa_file_ctx - the AppArmor context the file was opened in
+ * @lock: lock to update the ctx
+ * @label: label currently cached on the ctx
  * @perms: the permission the file was opened with
- *
- * The file_ctx could currently be directly stored in file->f_security
- * as the profile reference is now stored in the f_cred.  However the
- * ctx struct will expand in the future so we keep the struct.
  */
 struct aa_file_ctx {
+	spinlock_t lock;
+	struct aa_label __rcu *label;
 	u32 allow;
 };
 
@@ -50,12 +52,16 @@ struct aa_file_ctx {
  *
  * Returns: file_ctx or NULL on failure
  */
-static inline struct aa_file_ctx *aa_alloc_file_ctx(gfp_t gfp)
+static inline struct aa_file_ctx *aa_alloc_file_ctx(struct aa_label *label,
+						    gfp_t gfp)
 {
 	struct aa_file_ctx *ctx;
 
 	ctx = kzalloc(sizeof(struct aa_file_ctx), gfp);
-
+	if (ctx) {
+		spin_lock_init(&ctx->lock);
+		rcu_assign_pointer(ctx->label, aa_get_label(label));
+	}
 	return ctx;
 }
 
@@ -65,8 +71,15 @@ static inline struct aa_file_ctx *aa_alloc_file_ctx(gfp_t gfp)
  */
 static inline void aa_free_file_ctx(struct aa_file_ctx *ctx)
 {
-	if (ctx)
+	if (ctx) {
+		aa_put_label(rcu_access_pointer(ctx->label));
 		kzfree(ctx);
+	}
+}
+
+static inline struct aa_label *aa_get_file_label(struct aa_file_ctx *ctx)
+{
+	return aa_get_label_rcu(&ctx->label);
 }
 
 /*
@@ -183,7 +196,7 @@ int aa_path_perm(const char *op, struct aa_profile *profile,
 int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
 		 const struct path *new_dir, struct dentry *new_dentry);
 
-int aa_file_perm(const char *op, struct aa_profile *profile, struct file *file,
+int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 		 u32 request);
 
 void aa_inherit_files(const struct cred *cred, struct files_struct *files);

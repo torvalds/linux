@@ -433,7 +433,7 @@ static int apparmor_file_alloc_security(struct file *file)
 
 	/* freed by apparmor_file_free_security */
 	struct aa_label *label = begin_current_label_crit_section();
-	file->f_security = aa_alloc_file_ctx(GFP_KERNEL);
+	file->f_security = aa_alloc_file_ctx(label, GFP_KERNEL);
 	if (!file_ctx(file))
 		error = -ENOMEM;
 	end_current_label_crit_section(label);
@@ -448,33 +448,15 @@ static void apparmor_file_free_security(struct file *file)
 
 static int common_file_perm(const char *op, struct file *file, u32 mask)
 {
-	struct aa_file_ctx *fctx = file->f_security;
-	struct aa_label *label, *flabel;
+	struct aa_label *label;
 	int error = 0;
 
 	/* don't reaudit files closed during inheritance */
 	if (file->f_path.dentry == aa_null.dentry)
 		return -EACCES;
 
-	flabel = aa_cred_raw_label(file->f_cred);
-	AA_BUG(!flabel);
-
-	if (!file->f_path.mnt ||
-	    !path_mediated_fs(file->f_path.dentry))
-		return 0;
-
 	label = __begin_current_label_crit_section();
-
-	/* revalidate access, if task is unconfined, or the cached cred
-	 * doesn't match or if the request is for more permissions than
-	 * was granted.
-	 *
-	 * Note: the test for !unconfined(fprofile) is to handle file
-	 *       delegation from unconfined tasks
-	 */
-	if (!unconfined(label) && !unconfined(flabel) &&
-	    ((flabel != label) || (mask & ~fctx->allow)))
-		error = aa_file_perm(op, labels_profile(label), file, mask);
+	error = aa_file_perm(op, label, file, mask);
 	__end_current_label_crit_section(label);
 
 	return error;

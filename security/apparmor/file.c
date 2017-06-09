@@ -23,6 +23,7 @@
 #include "include/match.h"
 #include "include/path.h"
 #include "include/policy.h"
+#include "include/label.h"
 
 static u32 map_mask_to_chr_mask(u32 mask)
 {
@@ -433,22 +434,55 @@ audit:
 /**
  * aa_file_perm - do permission revalidation check & audit for @file
  * @op: operation being checked
- * @profile: profile being enforced   (NOT NULL)
+ * @label: label being enforced   (NOT NULL)
  * @file: file to revalidate access permissions on  (NOT NULL)
  * @request: requested permissions
  *
  * Returns: %0 if access allowed else error
  */
-int aa_file_perm(const char *op, struct aa_profile *profile, struct file *file,
+int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 		 u32 request)
 {
 	struct path_cond cond = {
 		.uid = file_inode(file)->i_uid,
 		.mode = file_inode(file)->i_mode
 	};
+	struct aa_file_ctx *fctx;
+	struct aa_label *flabel;
+	u32 denied;
+	int error = 0;
 
-	return aa_path_perm(op, profile, &file->f_path, PATH_DELEGATE_DELETED,
-			    request, &cond);
+	AA_BUG(!label);
+	AA_BUG(!file);
+
+	fctx = file_ctx(file);
+
+	rcu_read_lock();
+	flabel  = rcu_dereference(fctx->label);
+	AA_BUG(!flabel);
+
+	/* revalidate access, if task is unconfined, or the cached cred
+	 * doesn't match or if the request is for more permissions than
+	 * was granted.
+	 *
+	 * Note: the test for !unconfined(flabel) is to handle file
+	 *       delegation from unconfined tasks
+	 */
+	denied = request & ~fctx->allow;
+	if (unconfined(label) || unconfined(flabel) ||
+	    (!denied && aa_label_is_subset(flabel, label)))
+		goto done;
+
+	/* TODO: label cross check */
+
+	if (file->f_path.mnt && path_mediated_fs(file->f_path.dentry))
+		error = aa_path_perm(op, labels_profile(label), &file->f_path,
+				     PATH_DELEGATE_DELETED, request, &cond);
+
+done:
+	rcu_read_unlock();
+
+	return error;
 }
 
 static void revalidate_tty(struct aa_label *label)
@@ -469,8 +503,7 @@ static void revalidate_tty(struct aa_label *label)
 					     struct tty_file_private, list);
 		file = file_priv->file;
 
-		if (aa_file_perm(OP_INHERIT, labels_profile(label), file,
-				 MAY_READ | MAY_WRITE))
+		if (aa_file_perm(OP_INHERIT, label, file, MAY_READ | MAY_WRITE))
 			drop_tty = 1;
 	}
 	spin_unlock(&tty->files_lock);
@@ -484,8 +517,7 @@ static int match_file(const void *p, struct file *file, unsigned int fd)
 {
 	struct aa_label *label = (struct aa_label *)p;
 
-	if (aa_file_perm(OP_INHERIT, labels_profile(label), file,
-			 aa_map_file_to_perms(file)))
+	if (aa_file_perm(OP_INHERIT, label, file, aa_map_file_to_perms(file)))
 		return fd + 1;
 	return 0;
 }
