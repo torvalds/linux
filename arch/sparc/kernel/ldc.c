@@ -813,9 +813,14 @@ static irqreturn_t ldc_rx(int irq, void *dev_id)
 		lp->hs_state = LDC_HS_COMPLETE;
 		ldc_set_state(lp, LDC_STATE_CONNECTED);
 
-		event_mask |= LDC_EVENT_UP;
-
-		orig_state = lp->chan_state;
+		/*
+		 * Generate an LDC_EVENT_UP event if the channel
+		 * was not already up.
+		 */
+		if (orig_state != LDC_CHANNEL_UP) {
+			event_mask |= LDC_EVENT_UP;
+			orig_state = lp->chan_state;
+		}
 	}
 
 	/* If we are in reset state, flush the RX queue and ignore
@@ -929,7 +934,14 @@ static irqreturn_t ldc_tx(int irq, void *dev_id)
 		lp->hs_state = LDC_HS_COMPLETE;
 		ldc_set_state(lp, LDC_STATE_CONNECTED);
 
-		event_mask |= LDC_EVENT_UP;
+		/*
+		 * Generate an LDC_EVENT_UP event if the channel
+		 * was not already up.
+		 */
+		if (orig_state != LDC_CHANNEL_UP) {
+			event_mask |= LDC_EVENT_UP;
+			orig_state = lp->chan_state;
+		}
 	}
 
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -1475,8 +1487,16 @@ void __ldc_print(struct ldc_channel *lp, const char *caller)
 static int write_raw(struct ldc_channel *lp, const void *buf, unsigned int size)
 {
 	struct ldc_packet *p;
-	unsigned long new_tail;
+	unsigned long new_tail, hv_err;
 	int err;
+
+	hv_err = sun4v_ldc_tx_get_state(lp->id, &lp->tx_head, &lp->tx_tail,
+					&lp->chan_state);
+	if (unlikely(hv_err))
+		return -EBUSY;
+
+	if (unlikely(lp->chan_state != LDC_CHANNEL_UP))
+		return LDC_ABORT(lp);
 
 	if (size > LDC_PACKET_SIZE)
 		return -EMSGSIZE;
