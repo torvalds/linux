@@ -213,11 +213,9 @@ struct hfi1_ctxtdata {
 
 	/* dynamic receive available interrupt timeout */
 	u32 rcvavail_timeout;
-	/*
-	 * number of opens (including slave sub-contexts) on this instance
-	 * (ignoring forks, dup, etc. for now)
-	 */
-	int cnt;
+	/* Reference count the base context usage */
+	struct kref kref;
+
 	/* Device context index */
 	unsigned ctxt;
 	/*
@@ -1291,7 +1289,8 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
-
+int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
+void hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
 int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread);

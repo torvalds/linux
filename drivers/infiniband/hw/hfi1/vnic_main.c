@@ -156,11 +156,11 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 	return ret;
 bail:
 	/*
-	 * hfi1_free_ctxtdata() also releases send_context
-	 * structure if uctxt->sc is not null
+	 * hfi1_rcd_put() will call hfi1_free_ctxtdata(), which will
+	 * release send_context structure if uctxt->sc is not null
 	 */
 	dd->rcd[uctxt->ctxt] = NULL;
-	hfi1_free_ctxtdata(dd, uctxt);
+	hfi1_rcd_put(uctxt);
 	dd_dev_dbg(dd, "vnic allocation failed. rc %d\n", ret);
 	return ret;
 }
@@ -208,7 +208,7 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 	hfi1_clear_ctxt_pkey(dd, uctxt);
 
 	hfi1_stats.sps_ctxts--;
-	hfi1_free_ctxtdata(dd, uctxt);
+	hfi1_rcd_put(uctxt);
 }
 
 void hfi1_vnic_setup(struct hfi1_devdata *dd)
@@ -751,6 +751,7 @@ static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
 		rc = hfi1_vnic_allot_ctxt(dd, &dd->vnic.ctxt[i]);
 		if (rc)
 			break;
+		hfi1_rcd_get(dd->vnic.ctxt[i]);
 		dd->vnic.ctxt[i]->vnic_q_idx = i;
 	}
 
@@ -762,6 +763,7 @@ static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
 		 */
 		while (i-- > dd->vnic.num_ctxt) {
 			deallocate_vnic_ctxt(dd, dd->vnic.ctxt[i]);
+			hfi1_rcd_put(dd->vnic.ctxt[i]);
 			dd->vnic.ctxt[i] = NULL;
 		}
 		goto alloc_fail;
@@ -791,6 +793,7 @@ static void hfi1_vnic_deinit(struct hfi1_vnic_vport_info *vinfo)
 	if (--dd->vnic.num_vports == 0) {
 		for (i = 0; i < dd->vnic.num_ctxt; i++) {
 			deallocate_vnic_ctxt(dd, dd->vnic.ctxt[i]);
+			hfi1_rcd_put(dd->vnic.ctxt[i]);
 			dd->vnic.ctxt[i] = NULL;
 		}
 		hfi1_deinit_vnic_rsm(dd);
