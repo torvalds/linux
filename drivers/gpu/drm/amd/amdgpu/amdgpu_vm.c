@@ -718,6 +718,11 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 	return vm_flush_needed || gds_switch_needed;
 }
 
+static bool amdgpu_vm_is_large_bar(struct amdgpu_device *adev)
+{
+	return (adev->mc.real_vram_size == adev->mc.visible_vram_size);
+}
+
 /**
  * amdgpu_vm_flush - hardware flush the vm
  *
@@ -2268,10 +2273,12 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size)
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
+ * @vm_context: Indicates if it GFX or Compute context
  *
  * Init @vm fields.
  */
-int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
+int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+		   int vm_context)
 {
 	const unsigned align = min(AMDGPU_VM_PTB_ALIGN_SIZE,
 		AMDGPU_VM_PTE_COUNT(adev) * 8);
@@ -2300,6 +2307,16 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	if (r)
 		return r;
 
+	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE)
+		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
+						AMDGPU_VM_USE_CPU_FOR_COMPUTE);
+	else
+		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
+						AMDGPU_VM_USE_CPU_FOR_GFX);
+	DRM_DEBUG_DRIVER("VM update mode is %s\n",
+			 vm->use_cpu_for_update ? "CPU" : "SDMA");
+	WARN_ONCE((vm->use_cpu_for_update & !amdgpu_vm_is_large_bar(adev)),
+		  "CPU update of VM recommended only for large BAR system\n");
 	vm->last_dir_update = NULL;
 
 	r = amdgpu_bo_create(adev, amdgpu_vm_bo_size(adev, 0), align, true,
@@ -2432,6 +2449,23 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 	atomic64_set(&adev->vm_manager.client_counter, 0);
 	spin_lock_init(&adev->vm_manager.prt_lock);
 	atomic_set(&adev->vm_manager.num_prt_users, 0);
+
+	/* If not overridden by the user, by default, only in large BAR systems
+	 * Compute VM tables will be updated by CPU
+	 */
+#ifdef CONFIG_X86_64
+	if (amdgpu_vm_update_mode == -1) {
+		if (amdgpu_vm_is_large_bar(adev))
+			adev->vm_manager.vm_update_mode =
+				AMDGPU_VM_USE_CPU_FOR_COMPUTE;
+		else
+			adev->vm_manager.vm_update_mode = 0;
+	} else
+		adev->vm_manager.vm_update_mode = amdgpu_vm_update_mode;
+#else
+	adev->vm_manager.vm_update_mode = 0;
+#endif
+
 }
 
 /**
