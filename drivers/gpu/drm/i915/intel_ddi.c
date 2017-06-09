@@ -1621,13 +1621,27 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_ddi_get_encoder_port(encoder);
+	uint32_t val;
 
 	if (WARN_ON(!pll))
 		return;
 
-	if (IS_GEN9_BC(dev_priv)) {
-		uint32_t val;
+	if (IS_CANNONLAKE(dev_priv)) {
+		/* Configure DPCLKA_CFGCR0 to map the DPLL to the DDI. */
+		val = I915_READ(DPCLKA_CFGCR0);
+		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->id, port);
+		I915_WRITE(DPCLKA_CFGCR0, val);
 
+		/*
+		 * Configure DPCLKA_CFGCR0 to turn on the clock for the DDI.
+		 * This step and the step before must be done with separate
+		 * register writes.
+		 */
+		val = I915_READ(DPCLKA_CFGCR0);
+		val &= ~(DPCLKA_CFGCR0_DDI_CLK_OFF(port) |
+			 DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port));
+		I915_WRITE(DPCLKA_CFGCR0, val);
+	} else if (IS_GEN9_BC(dev_priv)) {
 		/* DDI -> PLL mapping  */
 		val = I915_READ(DPLL_CTRL2);
 
@@ -1767,7 +1781,10 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 	if (dig_port)
 		intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
 
-	if (IS_GEN9_BC(dev_priv))
+	if (IS_CANNONLAKE(dev_priv))
+		I915_WRITE(DPCLKA_CFGCR0, I915_READ(DPCLKA_CFGCR0) |
+			   DPCLKA_CFGCR0_DDI_CLK_OFF(port));
+	else if (IS_GEN9_BC(dev_priv))
 		I915_WRITE(DPLL_CTRL2, (I915_READ(DPLL_CTRL2) |
 					DPLL_CTRL2_DDI_CLK_OFF(port)));
 	else if (INTEL_GEN(dev_priv) < 9)
