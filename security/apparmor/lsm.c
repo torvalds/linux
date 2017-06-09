@@ -332,8 +332,7 @@ static int apparmor_path_link(struct dentry *old_dentry, const struct path *new_
 
 	label = begin_current_label_crit_section();
 	if (!unconfined(label))
-		error = aa_path_link(labels_profile(label), old_dentry, new_dir,
-				     new_dentry);
+		error = aa_path_link(label, old_dentry, new_dir, new_dentry);
 	end_current_label_crit_section(label);
 
 	return error;

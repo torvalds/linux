@@ -370,66 +370,40 @@ static inline bool xindex_is_subset(u32 link, u32 target)
 	return 1;
 }
 
-/**
- * aa_path_link - Handle hard link permission check
- * @profile: the profile being enforced  (NOT NULL)
- * @old_dentry: the target dentry  (NOT NULL)
- * @new_dir: directory the new link will be created in  (NOT NULL)
- * @new_dentry: the link being created  (NOT NULL)
- *
- * Handle the permission test for a link & target pair.  Permission
- * is encoded as a pair where the link permission is determined
- * first, and if allowed, the target is tested.  The target test
- * is done from the point of the link match (not start of DFA)
- * making the target permission dependent on the link permission match.
- *
- * The subset test if required forces that permissions granted
- * on link are a subset of the permission granted to target.
- *
- * Returns: %0 if allowed else error
- */
-int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
-		 const struct path *new_dir, struct dentry *new_dentry)
+static int profile_path_link(struct aa_profile *profile,
+			     const struct path *link, char *buffer,
+			     const struct path *target, char *buffer2,
+			     struct path_cond *cond)
 {
-	struct path link = { .mnt = new_dir->mnt, .dentry = new_dentry };
-	struct path target = { .mnt = new_dir->mnt, .dentry = old_dentry };
-	struct path_cond cond = {
-		d_backing_inode(old_dentry)->i_uid,
-		d_backing_inode(old_dentry)->i_mode
-	};
-	char *buffer = NULL, *buffer2 = NULL;
-	const char *lname, *tname = NULL, *info = NULL;
-	struct aa_perms lperms, perms;
+	const char *lname, *tname = NULL;
+	struct aa_perms lperms = {}, perms;
+	const char *info = NULL;
 	u32 request = AA_MAY_LINK;
 	unsigned int state;
 	int error;
 
-	get_buffers(buffer, buffer2);
-	lperms = nullperms;
-
-	/* buffer freed below, lname is pointer in buffer */
-	error = aa_path_name(&link, profile->path_flags, buffer, &lname,
-			     &info, profile->disconnected);
+	error = path_name(OP_LINK, &profile->label, link, profile->path_flags,
+			  buffer, &lname, cond, AA_MAY_LINK);
 	if (error)
 		goto audit;
 
 	/* buffer2 freed below, tname is pointer in buffer2 */
-	error = aa_path_name(&target, profile->path_flags, buffer2, &tname,
-			     &info, profile->disconnected);
+	error = path_name(OP_LINK, &profile->label, target, profile->path_flags,
+			  buffer2, &tname, cond, AA_MAY_LINK);
 	if (error)
 		goto audit;
 
 	error = -EACCES;
 	/* aa_str_perms - handles the case of the dfa being NULL */
 	state = aa_str_perms(profile->file.dfa, profile->file.start, lname,
-			     &cond, &lperms);
+			     cond, &lperms);
 
 	if (!(lperms.allow & AA_MAY_LINK))
 		goto audit;
 
 	/* test to see if target can be paired with link */
 	state = aa_dfa_null_transition(profile->file.dfa, state);
-	aa_str_perms(profile->file.dfa, state, tname, &cond, &perms);
+	aa_str_perms(profile->file.dfa, state, tname, cond, &perms);
 
 	/* force audit/quiet masks for link are stored in the second entry
 	 * in the link pair.
@@ -440,6 +414,7 @@ int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
 
 	if (!(perms.allow & AA_MAY_LINK)) {
 		info = "target restricted";
+		lperms = perms;
 		goto audit;
 	}
 
@@ -447,10 +422,10 @@ int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
 	if (!(perms.allow & AA_LINK_SUBSET))
 		goto done_tests;
 
-	/* Do link perm subset test requiring allowed permission on link are a
-	 * subset of the allowed permissions on target.
+	/* Do link perm subset test requiring allowed permission on link are
+	 * a subset of the allowed permissions on target.
 	 */
-	aa_str_perms(profile->file.dfa, profile->file.start, tname, &cond,
+	aa_str_perms(profile->file.dfa, profile->file.start, tname, cond,
 		     &perms);
 
 	/* AA_MAY_LINK is not considered in the subset test */
@@ -472,8 +447,46 @@ done_tests:
 	error = 0;
 
 audit:
-	error = aa_audit_file(profile, &lperms, OP_LINK, request,
-			      lname, tname, NULL, cond.uid, info, error);
+	return aa_audit_file(profile, &lperms, OP_LINK, request, lname, tname,
+			     NULL, cond->uid, info, error);
+}
+
+/**
+ * aa_path_link - Handle hard link permission check
+ * @label: the label being enforced  (NOT NULL)
+ * @old_dentry: the target dentry  (NOT NULL)
+ * @new_dir: directory the new link will be created in  (NOT NULL)
+ * @new_dentry: the link being created  (NOT NULL)
+ *
+ * Handle the permission test for a link & target pair.  Permission
+ * is encoded as a pair where the link permission is determined
+ * first, and if allowed, the target is tested.  The target test
+ * is done from the point of the link match (not start of DFA)
+ * making the target permission dependent on the link permission match.
+ *
+ * The subset test if required forces that permissions granted
+ * on link are a subset of the permission granted to target.
+ *
+ * Returns: %0 if allowed else error
+ */
+int aa_path_link(struct aa_label *label, struct dentry *old_dentry,
+		 const struct path *new_dir, struct dentry *new_dentry)
+{
+	struct path link = { new_dir->mnt, new_dentry };
+	struct path target = { new_dir->mnt, old_dentry };
+	struct path_cond cond = {
+		d_backing_inode(old_dentry)->i_uid,
+		d_backing_inode(old_dentry)->i_mode
+	};
+	char *buffer = NULL, *buffer2 = NULL;
+	struct aa_profile *profile;
+	int error;
+
+	/* buffer freed below, lname is pointer in buffer */
+	get_buffers(buffer, buffer2);
+	error = fn_for_each_confined(label, profile,
+			profile_path_link(profile, &link, buffer, &target,
+					  buffer2, &cond));
 	put_buffers(buffer, buffer2);
 
 	return error;
