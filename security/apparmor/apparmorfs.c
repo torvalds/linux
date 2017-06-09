@@ -1105,7 +1105,7 @@ static int seq_ns_name_show(struct seq_file *seq, void *v)
 {
 	struct aa_ns *ns = aa_current_profile()->ns;
 
-	seq_printf(seq, "%s\n", ns->base.name);
+	seq_printf(seq, "%s\n", aa_ns_name(ns, ns, true));
 
 	return 0;
 }
