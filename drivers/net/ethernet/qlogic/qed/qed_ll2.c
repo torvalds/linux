@@ -896,36 +896,6 @@ static int qed_ll2_lb_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 	return 0;
 }
 
-static void
-qed_ll2_establish_connection_ooo(struct qed_hwfn *p_hwfn,
-				 struct qed_ll2_info *p_ll2_conn)
-{
-	if (p_ll2_conn->input.conn_type != QED_LL2_TYPE_ISCSI_OOO)
-		return;
-
-	qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
-	qed_ooo_submit_rx_buffers(p_hwfn, p_ll2_conn);
-}
-
-static void qed_ll2_release_connection_ooo(struct qed_hwfn *p_hwfn,
-					   struct qed_ll2_info *p_ll2_conn)
-{
-	struct qed_ooo_buffer *p_buffer;
-
-	if (p_ll2_conn->input.conn_type != QED_LL2_TYPE_ISCSI_OOO)
-		return;
-
-	qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
-	while ((p_buffer = qed_ooo_get_free_buffer(p_hwfn,
-						   p_hwfn->p_ooo_info))) {
-		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
-				  p_buffer->rx_buffer_size,
-				  p_buffer->rx_buffer_virt_addr,
-				  p_buffer->rx_buffer_phys_addr);
-		kfree(p_buffer);
-	}
-}
-
 static void qed_ll2_stop_ooo(struct qed_dev *cdev)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
@@ -1397,6 +1367,16 @@ static int qed_ll2_establish_connection_rx(struct qed_hwfn *p_hwfn,
 	return qed_sp_ll2_rx_queue_start(p_hwfn, p_ll2_conn, action_on_error);
 }
 
+static void
+qed_ll2_establish_connection_ooo(struct qed_hwfn *p_hwfn,
+				 struct qed_ll2_info *p_ll2_conn)
+{
+	if (p_ll2_conn->input.conn_type != QED_LL2_TYPE_ISCSI_OOO)
+		return;
+
+	qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
+	qed_ooo_submit_rx_buffers(p_hwfn, p_ll2_conn);
+}
 int qed_ll2_establish_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 {
 	struct qed_ll2_info *p_ll2_conn;
@@ -1857,6 +1837,24 @@ out:
 	return rc;
 }
 
+static void qed_ll2_release_connection_ooo(struct qed_hwfn *p_hwfn,
+					   struct qed_ll2_info *p_ll2_conn)
+{
+	struct qed_ooo_buffer *p_buffer;
+
+	if (p_ll2_conn->input.conn_type != QED_LL2_TYPE_ISCSI_OOO)
+		return;
+
+	qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
+	while ((p_buffer = qed_ooo_get_free_buffer(p_hwfn,
+						   p_hwfn->p_ooo_info))) {
+		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+				  p_buffer->rx_buffer_size,
+				  p_buffer->rx_buffer_virt_addr,
+				  p_buffer->rx_buffer_phys_addr);
+		kfree(p_buffer);
+	}
+}
 void qed_ll2_release_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 {
 	struct qed_ll2_info *p_ll2_conn = NULL;
