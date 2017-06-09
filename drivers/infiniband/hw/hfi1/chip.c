@@ -9376,13 +9376,13 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 
 	if ((qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_ALARM) ||
 	    (qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_WARNING))
-		dd_dev_info(dd, "%s: QSFP cable temperature too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP cable temperature too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[0] & QSFP_LOW_TEMP_ALARM) ||
 	    (qsfp_interrupt_status[0] & QSFP_LOW_TEMP_WARNING))
-		dd_dev_info(dd, "%s: QSFP cable temperature too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP cable temperature too low\n",
+			   __func__);
 
 	/*
 	 * The remaining alarms/warnings don't matter if the link is down.
@@ -9392,75 +9392,75 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 
 	if ((qsfp_interrupt_status[1] & QSFP_HIGH_VCC_ALARM) ||
 	    (qsfp_interrupt_status[1] & QSFP_HIGH_VCC_WARNING))
-		dd_dev_info(dd, "%s: QSFP supply voltage too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP supply voltage too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[1] & QSFP_LOW_VCC_ALARM) ||
 	    (qsfp_interrupt_status[1] & QSFP_LOW_VCC_WARNING))
-		dd_dev_info(dd, "%s: QSFP supply voltage too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP supply voltage too low\n",
+			   __func__);
 
 	/* Byte 2 is vendor specific */
 
 	if ((qsfp_interrupt_status[3] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[3] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 1/2 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 1/2 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[3] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[3] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 1/2 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 1/2 power too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[4] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[4] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 3/4 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 3/4 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[4] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[4] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 3/4 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 3/4 power too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[5] & QSFP_HIGH_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[5] & QSFP_HIGH_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 bias too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 bias too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[5] & QSFP_LOW_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[5] & QSFP_LOW_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 bias too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 bias too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[6] & QSFP_HIGH_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[6] & QSFP_HIGH_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 bias too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 bias too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[6] & QSFP_LOW_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[6] & QSFP_LOW_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 bias too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 bias too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[7] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[7] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[7] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[7] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 power too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[8] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[8] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[8] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[8] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 power too low\n",
+			   __func__);
 
 	/* Bytes 9-10 and 11-12 are reserved */
 	/* Bytes 13-15 are vendor specific */
