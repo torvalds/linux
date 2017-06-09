@@ -101,20 +101,9 @@ const char *const aa_profile_mode_names[] = {
 	"unconfined",
 };
 
-/* requires profile list write lock held */
-void __aa_update_proxy(struct aa_profile *orig, struct aa_profile *new)
-{
-	struct aa_profile *tmp;
-
-	tmp = rcu_dereference_protected(orig->proxy->profile,
-					mutex_is_locked(&orig->ns->lock));
-	rcu_assign_pointer(orig->proxy->profile, aa_get_profile(new));
-	orig->flags |= PFLAG_STALE;
-	aa_put_profile(tmp);
-}
 
 /**
- * __list_add_profile - add a profile to a list
+ * __add_profile - add a profiles to list and label tree
  * @list: list to add it to  (NOT NULL)
  * @profile: the profile to add  (NOT NULL)
  *
@@ -122,12 +111,21 @@ void __aa_update_proxy(struct aa_profile *orig, struct aa_profile *new)
  *
  * Requires: namespace lock be held, or list not be shared
  */
-static void __list_add_profile(struct list_head *list,
-			       struct aa_profile *profile)
+static void __add_profile(struct list_head *list, struct aa_profile *profile)
 {
+	struct aa_label *l;
+
+	AA_BUG(!list);
+	AA_BUG(!profile);
+	AA_BUG(!profile->ns);
+	AA_BUG(!mutex_is_locked(&profile->ns->lock));
+
 	list_add_rcu(&profile->base.list, list);
 	/* get list reference */
 	aa_get_profile(profile);
+	l = aa_label_insert(&profile->ns->labels, &profile->label);
+	AA_BUG(l != &profile->label);
+	aa_put_label(l);
 }
 
 /**
@@ -144,6 +142,10 @@ static void __list_add_profile(struct list_head *list,
  */
 static void __list_remove_profile(struct aa_profile *profile)
 {
+	AA_BUG(!profile);
+	AA_BUG(!profile->ns);
+	AA_BUG(!mutex_is_locked(&profile->ns->lock));
+
 	list_del_rcu(&profile->base.list);
 	aa_put_profile(profile);
 }
@@ -156,10 +158,14 @@ static void __list_remove_profile(struct aa_profile *profile)
  */
 static void __remove_profile(struct aa_profile *profile)
 {
+	AA_BUG(!profile);
+	AA_BUG(!profile->ns);
+	AA_BUG(!mutex_is_locked(&profile->ns->lock));
+
 	/* release any children lists first */
 	__aa_profile_list_release(&profile->base.profiles);
 	/* released by free_profile */
-	__aa_update_proxy(profile, profile->ns->unconfined);
+	aa_label_remove(&profile->label);
 	__aafs_profile_rmdir(profile);
 	__list_remove_profile(profile);
 }
@@ -175,24 +181,6 @@ void __aa_profile_list_release(struct list_head *head)
 	struct aa_profile *profile, *tmp;
 	list_for_each_entry_safe(profile, tmp, head, base.list)
 		__remove_profile(profile);
-}
-
-
-static void free_proxy(struct aa_proxy *p)
-{
-	if (p) {
-		/* r->profile will not be updated any more as r is dead */
-		aa_put_profile(rcu_dereference_protected(p->profile, true));
-		kzfree(p);
-	}
-}
-
-
-void aa_free_proxy_kref(struct kref *kref)
-{
-	struct aa_proxy *p = container_of(kref, struct aa_proxy, count);
-
-	free_proxy(p);
 }
 
 /**
@@ -242,7 +230,6 @@ void aa_free_profile(struct aa_profile *profile)
 	kzfree(profile->dirname);
 	aa_put_dfa(profile->xmatch);
 	aa_put_dfa(profile->policy.dfa);
-	aa_put_proxy(profile->proxy);
 
 	if (profile->data) {
 		rht = profile->data;
@@ -253,30 +240,8 @@ void aa_free_profile(struct aa_profile *profile)
 
 	kzfree(profile->hash);
 	aa_put_loaddata(profile->rawdata);
+
 	kzfree(profile);
-}
-
-/**
- * aa_free_profile_rcu - free aa_profile by rcu (called by aa_free_profile_kref)
- * @head: rcu_head callback for freeing of a profile  (NOT NULL)
- */
-static void aa_free_profile_rcu(struct rcu_head *head)
-{
-	struct aa_profile *p = container_of(head, struct aa_profile, rcu);
-	if (p->flags & PFLAG_NS_COUNT)
-		aa_free_ns(p->ns);
-	else
-		aa_free_profile(p);
-}
-
-/**
- * aa_free_profile_kref - free aa_profile by kref (called by aa_put_profile)
- * @kr: kref callback for freeing of a profile  (NOT NULL)
- */
-void aa_free_profile_kref(struct kref *kref)
-{
-	struct aa_profile *p = container_of(kref, struct aa_profile, count);
-	call_rcu(&p->rcu, aa_free_profile_rcu);
 }
 
 /**
@@ -286,30 +251,40 @@ void aa_free_profile_kref(struct kref *kref)
  *
  * Returns: refcount profile or NULL on failure
  */
-struct aa_profile *aa_alloc_profile(const char *hname, gfp_t gfp)
+struct aa_profile *aa_alloc_profile(const char *hname, struct aa_proxy *proxy,
+				    gfp_t gfp)
 {
 	struct aa_profile *profile;
 
 	/* freed by free_profile - usually through aa_put_profile */
-	profile = kzalloc(sizeof(*profile), gfp);
+	profile = kzalloc(sizeof(*profile) + sizeof(struct aa_profile *) * 2,
+			  gfp);
 	if (!profile)
 		return NULL;
 
-	profile->proxy = kzalloc(sizeof(struct aa_proxy), gfp);
-	if (!profile->proxy)
-		goto fail;
-	kref_init(&profile->proxy->count);
-
 	if (!aa_policy_init(&profile->base, NULL, hname, gfp))
 		goto fail;
-	kref_init(&profile->count);
+	if (!aa_label_init(&profile->label, 1))
+		goto fail;
+
+	/* update being set needed by fs interface */
+	if (!proxy) {
+		proxy = aa_alloc_proxy(&profile->label, gfp);
+		if (!proxy)
+			goto fail;
+	} else
+		aa_get_proxy(proxy);
+	profile->label.proxy = proxy;
+
+	profile->label.hname = profile->base.hname;
+	profile->label.flags |= FLAG_PROFILE;
+	profile->label.vec[0] = profile;
 
 	/* refcount released by caller */
 	return profile;
 
 fail:
-	kzfree(profile->proxy);
-	kzfree(profile);
+	aa_free_profile(profile);
 
 	return NULL;
 }
@@ -362,14 +337,14 @@ name:
 	if (profile)
 		goto out;
 
-	profile = aa_alloc_profile(name, gfp);
+	profile = aa_alloc_profile(name, NULL, gfp);
 	if (!profile)
 		goto fail;
 
 	profile->mode = APPARMOR_COMPLAIN;
-	profile->flags |= PFLAG_NULL;
+	profile->label.flags |= FLAG_NULL;
 	if (hat)
-		profile->flags |= PFLAG_HAT;
+		profile->label.flags |= FLAG_HAT;
 	profile->path_flags = parent->path_flags;
 
 	/* released on free_profile */
@@ -379,7 +354,7 @@ name:
 	profile->policy.dfa = aa_get_dfa(nulldfa);
 
 	mutex_lock(&profile->ns->lock);
-	__list_add_profile(&parent->base.profiles, profile);
+	__add_profile(&parent->base.profiles, profile);
 	mutex_unlock(&profile->ns->lock);
 
 	/* refcount released by caller */
@@ -389,7 +364,6 @@ out:
 	return profile;
 
 fail:
-	kfree(name);
 	aa_free_profile(profile);
 	return NULL;
 }
@@ -556,7 +530,7 @@ struct aa_profile *aa_lookup_profile(struct aa_ns *ns, const char *hname)
 	return aa_lookupn_profile(ns, hname, strlen(hname));
 }
 
-struct aa_profile *aa_fqlookupn_profile(struct aa_profile *base,
+struct aa_profile *aa_fqlookupn_profile(struct aa_label *base,
 					const char *fqname, size_t n)
 {
 	struct aa_profile *profile;
@@ -566,11 +540,11 @@ struct aa_profile *aa_fqlookupn_profile(struct aa_profile *base,
 
 	name = aa_splitn_fqname(fqname, n, &ns_name, &ns_len);
 	if (ns_name) {
-		ns = aa_lookupn_ns(base->ns, ns_name, ns_len);
+		ns = aa_lookupn_ns(labels_ns(base), ns_name, ns_len);
 		if (!ns)
 			return NULL;
 	} else
-		ns = aa_get_ns(base->ns);
+		ns = aa_get_ns(labels_ns(base));
 
 	if (name)
 		profile = aa_lookupn_profile(ns, name, n - (name - fqname));
@@ -596,7 +570,7 @@ static int replacement_allowed(struct aa_profile *profile, int noreplace,
 			       const char **info)
 {
 	if (profile) {
-		if (profile->flags & PFLAG_IMMUTABLE) {
+		if (profile->label.flags & FLAG_IMMUTIBLE) {
 			*info = "cannot replace immutible profile";
 			return -EPERM;
 		} else if (noreplace) {
@@ -619,29 +593,31 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 }
 
 /**
- * aa_audit_policy - Do auditing of policy changes
- * @profile: profile to check if it can manage policy
+ * audit_policy - Do auditing of policy changes
+ * @label: label to check if it can manage policy
  * @op: policy operation being performed
- * @gfp: memory allocation flags
- * @nsname: name of the ns being manipulated (MAY BE NULL)
+ * @ns_name: name of namespace being manipulated
  * @name: name of profile being manipulated (NOT NULL)
  * @info: any extra information to be audited (MAYBE NULL)
  * @error: error code
  *
  * Returns: the error to be returned after audit is done
  */
-static int audit_policy(struct aa_profile *profile, const char *op,
-			const char *nsname, const char *name,
+static int audit_policy(struct aa_label *label, const char *op,
+			const char *ns_name, const char *name,
 			const char *info, int error)
 {
 	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, op);
 
-	aad(&sa)->iface.ns = nsname;
+	aad(&sa)->iface.ns = ns_name;
 	aad(&sa)->name = name;
 	aad(&sa)->info = info;
 	aad(&sa)->error = error;
+	aad(&sa)->label = label;
 
-	return aa_audit(AUDIT_APPARMOR_STATUS, profile, &sa, audit_cb);
+	aa_audit_msg(AUDIT_APPARMOR_STATUS, &sa, audit_cb);
+
+	return error;
 }
 
 /**
@@ -685,12 +661,12 @@ bool policy_admin_capable(struct aa_ns *ns)
 
 /**
  * aa_may_manage_policy - can the current task manage policy
- * @profile: profile to check if it can manage policy
+ * @label: label to check if it can manage policy
  * @op: the policy manipulation operation being done
  *
  * Returns: 0 if the task is allowed to manipulate policy else error
  */
-int aa_may_manage_policy(struct aa_profile *profile, struct aa_ns *ns, u32 mask)
+int aa_may_manage_policy(struct aa_label *label, struct aa_ns *ns, u32 mask)
 {
 	const char *op;
 
@@ -703,11 +679,11 @@ int aa_may_manage_policy(struct aa_profile *profile, struct aa_ns *ns, u32 mask)
 
 	/* check if loading policy is locked out */
 	if (aa_g_lock_policy)
-		return audit_policy(profile, op, NULL, NULL, "policy_locked",
+		return audit_policy(label, op, NULL, NULL, "policy_locked",
 				    -EACCES);
 
 	if (!policy_admin_capable(ns))
-		return audit_policy(profile, op, NULL, NULL, "not policy admin",
+		return audit_policy(label, op, NULL, NULL, "not policy admin",
 				    -EACCES);
 
 	/* TODO: add fine grained mediation of policy loads */
@@ -750,8 +726,7 @@ static struct aa_profile *__list_lookup_parent(struct list_head *lh,
  *
  * Requires: namespace list lock be held, or list not be shared
  */
-static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
-			      bool share_proxy)
+static void __replace_profile(struct aa_profile *old, struct aa_profile *new)
 {
 	struct aa_profile *child, *tmp;
 
@@ -766,7 +741,7 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
 			p = __find_child(&new->base.profiles, child->base.name);
 			if (p) {
 				/* @p replaces @child  */
-				__replace_profile(child, p, share_proxy);
+				__replace_profile(child, p);
 				continue;
 			}
 
@@ -784,14 +759,8 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
 		struct aa_profile *parent = aa_deref_parent(old);
 		rcu_assign_pointer(new->parent, aa_get_profile(parent));
 	}
-	__aa_update_proxy(old, new);
-	if (share_proxy) {
-		aa_put_proxy(new->proxy);
-		new->proxy = aa_get_proxy(old->proxy);
-	} else if (!rcu_access_pointer(new->proxy->profile))
-		/* aafs interface uses proxy */
-		rcu_assign_pointer(new->proxy->profile,
-				   aa_get_profile(new));
+	aa_label_replace(&old->label, &new->label);
+	/* migrate dents must come after label replacement b/c update */
 	__aafs_profile_migrate_dents(old, new);
 
 	if (list_empty(&new->base.list)) {
@@ -835,6 +804,7 @@ static void share_name(struct aa_profile *old, struct aa_profile *new)
 	aa_get_str(old->base.hname);
 	new->base.hname = old->base.hname;
 	new->base.name = old->base.name;
+	new->label.hname = old->label.hname;
 }
 
 /* Update to newest version of parent after previous replacements
@@ -871,7 +841,7 @@ static struct aa_profile *update_to_newest_parent(struct aa_profile *new)
  *
  * Returns: size of data consumed else error code on failure.
  */
-ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
+ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 			    u32 mask, struct aa_loaddata *udata)
 {
 	const char *ns_name, *info = NULL;
@@ -914,7 +884,7 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 			count++;
 	}
 	if (ns_name) {
-		ns = aa_prepare_ns(policy_ns ? policy_ns : profile->ns,
+		ns = aa_prepare_ns(policy_ns ? policy_ns : labels_ns(label),
 				   ns_name);
 		if (IS_ERR(ns)) {
 			op = OP_PROF_LOAD;
@@ -925,7 +895,7 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 			goto fail;
 		}
 	} else
-		ns = aa_get_ns(policy_ns ? policy_ns : profile->ns);
+		ns = aa_get_ns(policy_ns ? policy_ns : labels_ns(label));
 
 	mutex_lock(&ns->lock);
 	/* check for duplicate rawdata blobs: space and file dedup */
@@ -955,8 +925,8 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 
 		if (ent->new->rename) {
 			error = __lookup_replace(ns, ent->new->rename,
-					!(mask & AA_MAY_REPLACE_POLICY),
-					 &ent->rename, &info);
+						!(mask & AA_MAY_REPLACE_POLICY),
+						&ent->rename, &info);
 			if (error)
 				goto fail_lock;
 		}
@@ -1021,7 +991,7 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 
 		if (ent->old && ent->old->rawdata == ent->new->rawdata) {
 			/* dedup actual profile replacement */
-			audit_policy(profile, op, ns_name, ent->new->base.hname,
+			audit_policy(label, op, ns_name, ent->new->base.hname,
 				     "same as current profile, skipping",
 				     error);
 			goto skip;
@@ -1031,12 +1001,12 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 		 * TODO: finer dedup based on profile range in data. Load set
 		 * can differ but profile may remain unchanged
 		 */
-		audit_policy(profile, op, NULL, ent->new->base.hname,
-			     NULL, error);
+		audit_policy(label, op, ns_name, ent->new->base.hname, NULL,
+			     error);
 
 		if (ent->old) {
 			share_name(ent->old, ent->new);
-			__replace_profile(ent->old, ent->new, 1);
+			__replace_profile(ent->old, ent->new);
 		} else {
 			struct list_head *lh;
 
@@ -1047,11 +1017,12 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 				lh = &parent->base.profiles;
 			} else
 				lh = &ns->base.profiles;
-			__list_add_profile(lh, ent->new);
+			__add_profile(lh, ent->new);
 		}
 	skip:
 		aa_load_ent_free(ent);
 	}
+	__aa_labelset_update_subtree(ns);
 	mutex_unlock(&ns->lock);
 
 out:
@@ -1068,8 +1039,8 @@ fail_lock:
 	/* audit cause of failure */
 	op = (ent && !ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
 fail:
-	audit_policy(profile, op, ns_name, ent ? ent->new->base.hname : NULL,
-		     info, error);
+	  audit_policy(label, op, ns_name, ent ? ent->new->base.hname : NULL,
+		       info, error);
 	/* audit status that rest of profiles in the atomic set failed too */
 	info = "valid profile in failed atomic policy load";
 	list_for_each_entry(tmp, &lh, list) {
@@ -1079,8 +1050,8 @@ fail:
 			continue;
 		}
 		op = (!tmp->old) ? OP_PROF_LOAD : OP_PROF_REPL;
-		audit_policy(profile, op, ns_name,
-			     tmp->new->base.hname, info, error);
+		audit_policy(label, op, ns_name, tmp->new->base.hname, info,
+			     error);
 	}
 	list_for_each_entry_safe(ent, tmp, &lh, list) {
 		list_del_init(&ent->list);
@@ -1093,7 +1064,7 @@ fail:
 /**
  * aa_remove_profiles - remove profile(s) from the system
  * @policy_ns: namespace the remove is being done from
- * @subj: profile attempting to remove policy
+ * @subj: label attempting to remove policy
  * @fqname: name of the profile or namespace to remove  (NOT NULL)
  * @size: size of the name
  *
@@ -1104,7 +1075,7 @@ fail:
  *
  * Returns: size of data consume else error code if fails
  */
-ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_profile *subj,
+ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_label *subj,
 			   char *fqname, size_t size)
 {
 	struct aa_ns *ns = NULL;
@@ -1124,8 +1095,8 @@ ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_profile *subj,
 
 		name = aa_splitn_fqname(fqname, size, &ns_name, &ns_len);
 		/* released below */
-		ns = aa_lookupn_ns(policy_ns ? policy_ns : subj->ns, ns_name,
-				   ns_len);
+		ns = aa_lookupn_ns(policy_ns ? policy_ns : labels_ns(subj),
+				   ns_name, ns_len);
 		if (!ns) {
 			info = "namespace does not exist";
 			error = -ENOENT;
@@ -1133,7 +1104,7 @@ ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_profile *subj,
 		}
 	} else
 		/* released below */
-		ns = aa_get_ns(policy_ns ? policy_ns : subj->ns);
+		ns = aa_get_ns(policy_ns ? policy_ns : labels_ns(subj));
 
 	if (!name) {
 		/* remove namespace - can only happen if fqname[0] == ':' */
@@ -1152,6 +1123,7 @@ ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_profile *subj,
 		}
 		name = profile->base.hname;
 		__remove_profile(profile);
+		__aa_labelset_update_subtree(ns);
 		__aa_bump_ns_revision(ns);
 		mutex_unlock(&ns->lock);
 	}

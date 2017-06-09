@@ -19,6 +19,7 @@
 
 #include "apparmor.h"
 #include "apparmorfs.h"
+#include "label.h"
 #include "policy.h"
 
 
@@ -71,6 +72,7 @@ struct aa_ns {
 	long revision;
 	wait_queue_head_t wait;
 
+	struct aa_labelset labels;
 	struct list_head rawdata_list;
 
 	struct dentry *dents[AAFS_NS_SIZEOF];
@@ -79,6 +81,8 @@ struct aa_ns {
 extern struct aa_ns *root_ns;
 
 extern const char *aa_hidden_ns_name;
+
+#define ns_unconfined(NS) (&(NS)->unconfined->label)
 
 bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view, bool subns);
 const char *aa_ns_name(struct aa_ns *parent, struct aa_ns *child, bool subns);

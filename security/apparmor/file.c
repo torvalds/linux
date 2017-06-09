@@ -451,7 +451,7 @@ int aa_file_perm(const char *op, struct aa_profile *profile, struct file *file,
 			    request, &cond);
 }
 
-static void revalidate_tty(struct aa_profile *profile)
+static void revalidate_tty(struct aa_label *label)
 {
 	struct tty_struct *tty;
 	int drop_tty = 0;
@@ -469,7 +469,7 @@ static void revalidate_tty(struct aa_profile *profile)
 					     struct tty_file_private, list);
 		file = file_priv->file;
 
-		if (aa_file_perm(OP_INHERIT, profile, file,
+		if (aa_file_perm(OP_INHERIT, labels_profile(label), file,
 				 MAY_READ | MAY_WRITE))
 			drop_tty = 1;
 	}
@@ -482,9 +482,9 @@ static void revalidate_tty(struct aa_profile *profile)
 
 static int match_file(const void *p, struct file *file, unsigned int fd)
 {
-	struct aa_profile *profile = (struct aa_profile *)p;
+	struct aa_label *label = (struct aa_label *)p;
 
-	if (aa_file_perm(OP_INHERIT, profile, file,
+	if (aa_file_perm(OP_INHERIT, labels_profile(label), file,
 			 aa_map_file_to_perms(file)))
 		return fd + 1;
 	return 0;
@@ -494,14 +494,14 @@ static int match_file(const void *p, struct file *file, unsigned int fd)
 /* based on selinux's flush_unauthorized_files */
 void aa_inherit_files(const struct cred *cred, struct files_struct *files)
 {
-	struct aa_profile *profile = aa_get_newest_cred_profile(cred);
+	struct aa_label *label = aa_get_newest_cred_label(cred);
 	struct file *devnull = NULL;
 	unsigned int n;
 
-	revalidate_tty(profile);
+	revalidate_tty(label);
 
 	/* Revalidate access to inherited open files. */
-	n = iterate_fd(files, 0, match_file, profile);
+	n = iterate_fd(files, 0, match_file, label);
 	if (!n) /* none found? */
 		goto out;
 
@@ -511,9 +511,9 @@ void aa_inherit_files(const struct cred *cred, struct files_struct *files)
 	/* replace all the matching ones with this */
 	do {
 		replace_fd(n - 1, devnull, 0);
-	} while ((n = iterate_fd(files, n, match_file, profile)) != 0);
+	} while ((n = iterate_fd(files, n, match_file, label)) != 0);
 	if (devnull)
 		fput(devnull);
 out:
-	aa_put_profile(profile);
+	aa_put_label(label);
 }

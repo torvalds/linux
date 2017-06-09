@@ -22,8 +22,7 @@
 #include <linux/slab.h>
 
 #include "file.h"
-
-struct aa_profile;
+#include "label.h"
 
 extern const char *const audit_mode_names[];
 #define AUDIT_MAX_INDEX 5
@@ -103,9 +102,9 @@ enum audit_type {
 
 struct apparmor_audit_data {
 	int error;
-	const char *op;
 	int type;
-	void *profile;
+	const char *op;
+	struct aa_label *label;
 	const char *name;
 	const char *info;
 	u32 request;
@@ -113,7 +112,7 @@ struct apparmor_audit_data {
 	union {
 		/* these entries require a custom callback fn */
 		struct {
-			struct aa_profile *peer;
+			struct aa_label *peer;
 			struct {
 				const char *target;
 				kuid_t ouid;

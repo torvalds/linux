@@ -26,6 +26,7 @@
 #include "include/context.h"
 #include "include/crypto.h"
 #include "include/match.h"
+#include "include/path.h"
 #include "include/policy.h"
 #include "include/policy_unpack.h"
 
@@ -107,7 +108,7 @@ static int audit_iface(struct aa_profile *new, const char *ns_name,
 		       const char *name, const char *info, struct aa_ext *e,
 		       int error)
 {
-	struct aa_profile *profile = aa_current_raw_profile();
+	struct aa_profile *profile = labels_profile(aa_current_raw_label());
 	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, NULL);
 	if (e)
 		aad(&sa)->iface.pos = e->pos - e->start;
@@ -602,7 +603,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		name = tmpname;
 	}
 
-	profile = aa_alloc_profile(name, GFP_KERNEL);
+	profile = aa_alloc_profile(name, NULL, GFP_KERNEL);
 	if (!profile)
 		return ERR_PTR(-ENOMEM);
 
@@ -635,7 +636,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
 	if (tmp & PACKED_FLAG_HAT)
-		profile->flags |= PFLAG_HAT;
+		profile->label.flags |= FLAG_HAT;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
 	if (tmp == PACKED_MODE_COMPLAIN || (e->version & FORCE_COMPLAIN_FLAG))
@@ -654,10 +655,11 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 
 	/* path_flags is optional */
 	if (unpack_u32(e, &profile->path_flags, "path_flags"))
-		profile->path_flags |= profile->flags & PFLAG_MEDIATE_DELETED;
+		profile->path_flags |= profile->label.flags &
+			PATH_MEDIATE_DELETED;
 	else
 		/* set a default value if path_flags field is not present */
-		profile->path_flags = PFLAG_MEDIATE_DELETED;
+		profile->path_flags = PATH_MEDIATE_DELETED;
 
 	if (!unpack_u32(e, &(profile->caps.allow.cap[0]), NULL))
 		goto fail;

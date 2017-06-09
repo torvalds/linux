@@ -55,7 +55,7 @@ int aa_getprocattr(struct aa_profile *profile, char **string)
 		ns_len += 4;
 
 	/* unconfined profiles don't have a mode string appended */
-	if (!unconfined(profile))
+	if (!profile_unconfined(profile))
 		mode_len = strlen(mode_str) + 3;	/* + 3 for _() */
 
 	name_len = strlen(profile->base.hname);
@@ -69,7 +69,7 @@ int aa_getprocattr(struct aa_profile *profile, char **string)
 		sprintf(s, ":%s://", ns_name);
 		s += ns_len;
 	}
-	if (unconfined(profile))
+	if (profile_unconfined(profile))
 		/* mode string not being appended */
 		sprintf(s, "%s\n", profile->base.hname);
 	else

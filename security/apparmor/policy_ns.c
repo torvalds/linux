@@ -23,6 +23,7 @@
 #include "include/apparmor.h"
 #include "include/context.h"
 #include "include/policy_ns.h"
+#include "include/label.h"
 #include "include/policy.h"
 
 /* root profile namespace */
@@ -104,18 +105,20 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 	init_waitqueue_head(&ns->wait);
 
 	/* released by aa_free_ns() */
-	ns->unconfined = aa_alloc_profile("unconfined", GFP_KERNEL);
+	ns->unconfined = aa_alloc_profile("unconfined", NULL, GFP_KERNEL);
 	if (!ns->unconfined)
 		goto fail_unconfined;
 
-	ns->unconfined->flags = PFLAG_IX_ON_NAME_ERROR |
-		PFLAG_IMMUTABLE | PFLAG_NS_COUNT;
+	ns->unconfined->label.flags |= FLAG_IX_ON_NAME_ERROR |
+		FLAG_IMMUTIBLE | FLAG_NS_COUNT | FLAG_UNCONFINED;
 	ns->unconfined->mode = APPARMOR_UNCONFINED;
 
 	/* ns and ns->unconfined share ns->unconfined refcount */
 	ns->unconfined->ns = ns;
 
 	atomic_set(&ns->uniq_null, 0);
+
+	aa_labelset_init(&ns->labels);
 
 	return ns;
 
@@ -139,6 +142,7 @@ void aa_free_ns(struct aa_ns *ns)
 		return;
 
 	aa_policy_destroy(&ns->base);
+	aa_labelset_destroy(&ns->labels);
 	aa_put_ns(ns->parent);
 
 	ns->unconfined->ns = NULL;
@@ -337,8 +341,14 @@ static void destroy_ns(struct aa_ns *ns)
 	/* release all sub namespaces */
 	__ns_list_release(&ns->sub_ns);
 
-	if (ns->parent)
-		__aa_update_proxy(ns->unconfined, ns->parent->unconfined);
+	if (ns->parent) {
+		unsigned long flags;
+
+		write_lock_irqsave(&ns->labels.lock, flags);
+		__aa_proxy_redirect(ns_unconfined(ns),
+				    ns_unconfined(ns->parent));
+		write_unlock_irqrestore(&ns->labels.lock, flags);
+	}
 	__aafs_ns_rmdir(ns);
 	mutex_unlock(&ns->lock);
 }

@@ -22,11 +22,12 @@
 #include "include/ipc.h"
 
 /* call back to audit ptrace fields */
-static void audit_cb(struct audit_buffer *ab, void *va)
+static void audit_ptrace_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
 	audit_log_format(ab, " peer=");
-	audit_log_untrustedstring(ab, aad(sa)->peer->base.hname);
+	aa_label_xaudit(ab, labels_ns(aad(sa)->label), aad(sa)->peer,
+			FLAGS_NONE, GFP_ATOMIC);
 }
 
 /**
@@ -42,10 +43,10 @@ static int aa_audit_ptrace(struct aa_profile *profile,
 {
 	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, OP_PTRACE);
 
-	aad(&sa)->peer = target;
+	aad(&sa)->peer = &target->label;
 	aad(&sa)->error = error;
 
-	return aa_audit(AUDIT_APPARMOR_AUTO, profile, &sa, audit_cb);
+	return aa_audit(AUDIT_APPARMOR_AUTO, profile, &sa, audit_ptrace_cb);
 }
 
 /**
@@ -64,7 +65,7 @@ int aa_may_ptrace(struct aa_profile *tracer, struct aa_profile *tracee,
 	 *       Test mode for PTRACE_MODE_READ || PTRACE_MODE_ATTACH
 	 */
 
-	if (unconfined(tracer) || tracer == tracee)
+	if (profile_unconfined(tracer) || tracer == tracee)
 		return 0;
 	/* log this capability request */
 	return aa_capable(tracer, CAP_SYS_PTRACE, 1);
@@ -90,18 +91,22 @@ int aa_ptrace(struct task_struct *tracer, struct task_struct *tracee,
 	 *       - tracer profile has CAP_SYS_PTRACE
 	 */
 
-	struct aa_profile *tracer_p = aa_get_task_profile(tracer);
+	struct aa_label *tracer_l = aa_get_task_label(tracer);
 	int error = 0;
 
-	if (!unconfined(tracer_p)) {
-		struct aa_profile *tracee_p = aa_get_task_profile(tracee);
+	if (!unconfined(tracer_l)) {
+		struct aa_label *tracee_l = aa_get_task_label(tracee);
 
-		error = aa_may_ptrace(tracer_p, tracee_p, mode);
-		error = aa_audit_ptrace(tracer_p, tracee_p, error);
+		error = aa_may_ptrace(labels_profile(tracer_l),
+				      labels_profile(tracee_l),
+				      mode);
+		error = aa_audit_ptrace(labels_profile(tracer_l),
+					labels_profile(tracee_l),
+					error);
 
-		aa_put_profile(tracee_p);
+		aa_put_label(tracee_l);
 	}
-	aa_put_profile(tracer_p);
+	aa_put_label(tracer_l);
 
 	return error;
 }

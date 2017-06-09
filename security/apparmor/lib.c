@@ -247,6 +247,32 @@ void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
 }
 
 /**
+ * aa_audit_perms_cb - generic callback fn for auditing perms
+ * @ab: audit buffer (NOT NULL)
+ * @va: audit struct to audit values of (NOT NULL)
+ */
+static void aa_audit_perms_cb(struct audit_buffer *ab, void *va)
+{
+	struct common_audit_data *sa = va;
+
+	if (aad(sa)->request) {
+		audit_log_format(ab, " requested_mask=");
+		aa_audit_perm_mask(ab, aad(sa)->request, aa_file_perm_chrs,
+				   PERMS_CHRS_MASK, aa_file_perm_names,
+				   PERMS_NAMES_MASK);
+	}
+	if (aad(sa)->denied) {
+		audit_log_format(ab, "denied_mask=");
+		aa_audit_perm_mask(ab, aad(sa)->denied, aa_file_perm_chrs,
+				   PERMS_CHRS_MASK, aa_file_perm_names,
+				   PERMS_NAMES_MASK);
+	}
+	audit_log_format(ab, " peer=");
+	aa_label_xaudit(ab, labels_ns(aad(sa)->label), aad(sa)->peer,
+				      FLAGS_NONE, GFP_ATOMIC);
+}
+
+/**
  * aa_apply_modes_to_perms - apply namespace and profile flags to perms
  * @profile: that perms where computed from
  * @perms: perms to apply mode modifiers to
@@ -308,6 +334,143 @@ void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
 	perms->quiet |= map_other(dfa_other_quiet(dfa, state));
 //	perms->xindex = dfa_user_xindex(dfa, state);
 }
+
+/**
+ * aa_perms_accum_raw - accumulate perms with out masking off overlapping perms
+ * @accum - perms struct to accumulate into
+ * @addend - perms struct to add to @accum
+ */
+void aa_perms_accum_raw(struct aa_perms *accum, struct aa_perms *addend)
+{
+	accum->deny |= addend->deny;
+	accum->allow &= addend->allow & ~addend->deny;
+	accum->audit |= addend->audit & addend->allow;
+	accum->quiet &= addend->quiet & ~addend->allow;
+	accum->kill |= addend->kill & ~addend->allow;
+	accum->stop |= addend->stop & ~addend->allow;
+	accum->complain |= addend->complain & ~addend->allow & ~addend->deny;
+	accum->cond |= addend->cond & ~addend->allow & ~addend->deny;
+	accum->hide &= addend->hide & ~addend->allow;
+	accum->prompt |= addend->prompt & ~addend->allow & ~addend->deny;
+}
+
+/**
+ * aa_perms_accum - accumulate perms, masking off overlapping perms
+ * @accum - perms struct to accumulate into
+ * @addend - perms struct to add to @accum
+ */
+void aa_perms_accum(struct aa_perms *accum, struct aa_perms *addend)
+{
+	accum->deny |= addend->deny;
+	accum->allow &= addend->allow & ~accum->deny;
+	accum->audit |= addend->audit & accum->allow;
+	accum->quiet &= addend->quiet & ~accum->allow;
+	accum->kill |= addend->kill & ~accum->allow;
+	accum->stop |= addend->stop & ~accum->allow;
+	accum->complain |= addend->complain & ~accum->allow & ~accum->deny;
+	accum->cond |= addend->cond & ~accum->allow & ~accum->deny;
+	accum->hide &= addend->hide & ~accum->allow;
+	accum->prompt |= addend->prompt & ~accum->allow & ~accum->deny;
+}
+
+void aa_profile_match_label(struct aa_profile *profile, struct aa_label *label,
+			    int type, u32 request, struct aa_perms *perms)
+{
+	/* TODO: doesn't yet handle extended types */
+	unsigned int state;
+
+	state = aa_dfa_next(profile->policy.dfa,
+			    profile->policy.start[AA_CLASS_LABEL],
+			    type);
+	aa_label_match(profile, label, state, false, request, perms);
+}
+
+
+/* currently unused */
+int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
+			  u32 request, int type, u32 *deny,
+			  struct common_audit_data *sa)
+{
+	struct aa_perms perms;
+
+	aad(sa)->label = &profile->label;
+	aad(sa)->peer = &target->label;
+	aad(sa)->request = request;
+
+	aa_profile_match_label(profile, &target->label, type, request, &perms);
+	aa_apply_modes_to_perms(profile, &perms);
+	*deny |= request & perms.deny;
+	return aa_check_perms(profile, &perms, request, sa, aa_audit_perms_cb);
+}
+
+/**
+ * aa_check_perms - do audit mode selection based on perms set
+ * @profile: profile being checked
+ * @perms: perms computed for the request
+ * @request: requested perms
+ * @deny: Returns: explicit deny set
+ * @sa: initialized audit structure (MAY BE NULL if not auditing)
+ * @cb: callback fn for tpye specific fields (MAY BE NULL)
+ *
+ * Returns: 0 if permission else error code
+ *
+ * Note: profile audit modes need to be set before calling by setting the
+ *       perm masks appropriately.
+ *
+ *       If not auditing then complain mode is not enabled and the
+ *       error code will indicate whether there was an explicit deny
+ *	 with a positive value.
+ */
+int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
+		   u32 request, struct common_audit_data *sa,
+		   void (*cb)(struct audit_buffer *, void *))
+{
+	int type, error;
+	bool stop = false;
+	u32 denied = request & (~perms->allow | perms->deny);
+
+	if (likely(!denied)) {
+		/* mask off perms that are not being force audited */
+		request &= perms->audit;
+		if (!request || !sa)
+			return 0;
+
+		type = AUDIT_APPARMOR_AUDIT;
+		error = 0;
+	} else {
+		error = -EACCES;
+
+		if (denied & perms->kill)
+			type = AUDIT_APPARMOR_KILL;
+		else if (denied == (denied & perms->complain))
+			type = AUDIT_APPARMOR_ALLOWED;
+		else
+			type = AUDIT_APPARMOR_DENIED;
+
+		if (denied & perms->stop)
+			stop = true;
+		if (denied == (denied & perms->hide))
+			error = -ENOENT;
+
+		denied &= ~perms->quiet;
+		if (!sa || !denied)
+			return error;
+	}
+
+	if (sa) {
+		aad(sa)->label = &profile->label;
+		aad(sa)->request = request;
+		aad(sa)->denied = denied;
+		aad(sa)->error = error;
+		aa_audit_msg(type, sa, cb);
+	}
+
+	if (type == AUDIT_APPARMOR_ALLOWED)
+		error = 0;
+
+	return error;
+}
+
 
 /**
  * aa_policy_init - initialize a policy structure

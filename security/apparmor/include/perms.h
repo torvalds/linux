@@ -15,6 +15,7 @@
 #define __AA_PERM_H
 
 #include <linux/fs.h>
+#include "label.h"
 
 #define AA_MAY_EXEC		MAY_EXEC
 #define AA_MAY_WRITE		MAY_WRITE
@@ -101,5 +102,14 @@ void aa_apply_modes_to_perms(struct aa_profile *profile,
 			     struct aa_perms *perms);
 void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
 		      struct aa_perms *perms);
-
+void aa_perms_accum(struct aa_perms *accum, struct aa_perms *addend);
+void aa_perms_accum_raw(struct aa_perms *accum, struct aa_perms *addend);
+void aa_profile_match_label(struct aa_profile *profile, struct aa_label *label,
+			    int type, u32 request, struct aa_perms *perms);
+int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
+			  u32 request, int type, u32 *deny,
+			  struct common_audit_data *sa);
+int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
+		   u32 request, struct common_audit_data *sa,
+		   void (*cb)(struct audit_buffer *, void *));
 #endif /* __AA_PERM_H */
