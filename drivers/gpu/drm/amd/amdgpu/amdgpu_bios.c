@@ -104,7 +104,7 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 
 	adev->bios = NULL;
 	vram_base = pci_resource_start(adev->pdev, 0);
-	bios = ioremap(vram_base, size);
+	bios = ioremap_wc(vram_base, size);
 	if (!bios) {
 		return false;
 	}
