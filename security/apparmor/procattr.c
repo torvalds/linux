@@ -34,51 +34,41 @@
  *
  * Returns: size of string placed in @string else error code on failure
  */
-int aa_getprocattr(struct aa_profile *profile, char **string)
+int aa_getprocattr(struct aa_label *label, char **string)
 {
-	char *str;
-	int len = 0, mode_len = 0, ns_len = 0, name_len;
-	const char *mode_str = aa_profile_mode_names[profile->mode];
-	const char *ns_name = NULL;
-	struct aa_ns *ns = profile->ns;
+	struct aa_ns *ns = labels_ns(label);
 	struct aa_ns *current_ns = aa_get_current_ns();
-	char *s;
+	int len;
 
-	if (!aa_ns_visible(current_ns, ns, true))
+	if (!aa_ns_visible(current_ns, ns, true)) {
+		aa_put_ns(current_ns);
 		return -EACCES;
-
-	ns_name = aa_ns_name(current_ns, ns, true);
-	ns_len = strlen(ns_name);
-
-	/* if the visible ns_name is > 0 increase size for : :// seperator */
-	if (ns_len)
-		ns_len += 4;
-
-	/* unconfined profiles don't have a mode string appended */
-	if (!profile_unconfined(profile))
-		mode_len = strlen(mode_str) + 3;	/* + 3 for _() */
-
-	name_len = strlen(profile->base.hname);
-	len = mode_len + ns_len + name_len + 1;	    /* + 1 for \n */
-	s = str = kmalloc(len + 1, GFP_KERNEL);	    /* + 1 \0 */
-	if (!str)
-		return -ENOMEM;
-
-	if (ns_len) {
-		/* skip over prefix current_ns->base.hname and separating // */
-		sprintf(s, ":%s://", ns_name);
-		s += ns_len;
 	}
-	if (profile_unconfined(profile))
-		/* mode string not being appended */
-		sprintf(s, "%s\n", profile->base.hname);
-	else
-		sprintf(s, "%s (%s)\n", profile->base.hname, mode_str);
-	*string = str;
-	aa_put_ns(current_ns);
 
-	/* NOTE: len does not include \0 of string, not saved as part of file */
-	return len;
+	len = aa_label_snxprint(NULL, 0, current_ns, label,
+				FLAG_SHOW_MODE | FLAG_VIEW_SUBNS |
+				FLAG_HIDDEN_UNCONFINED);
+	AA_BUG(len < 0);
+
+	*string = kmalloc(len + 2, GFP_KERNEL);
+	if (!*string) {
+		aa_put_ns(current_ns);
+		return -ENOMEM;
+	}
+
+	len = aa_label_snxprint(*string, len + 2, current_ns, label,
+				FLAG_SHOW_MODE | FLAG_VIEW_SUBNS |
+				FLAG_HIDDEN_UNCONFINED);
+	if (len < 0) {
+		aa_put_ns(current_ns);
+		return len;
+	}
+
+	(*string)[len] = '\n';
+	(*string)[len + 1] = 0;
+
+	aa_put_ns(current_ns);
+	return len + 1;
 }
 
 /**

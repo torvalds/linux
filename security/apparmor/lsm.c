@@ -522,7 +522,7 @@ static int apparmor_getprocattr(struct task_struct *task, char *name,
 		error = -EINVAL;
 
 	if (label)
-		error = aa_getprocattr(labels_profile(label), value);
+		error = aa_getprocattr(label, value);
 
 	aa_put_label(label);
 	put_cred(cred);
