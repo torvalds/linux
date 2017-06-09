@@ -128,7 +128,7 @@ static int gpio_mockup_name_lines(struct device *dev,
 	char **names;
 	int i;
 
-	names = devm_kzalloc(dev, sizeof(char *) * gc->ngpio, GFP_KERNEL);
+	names = devm_kcalloc(dev, gc->ngpio, sizeof(char *), GFP_KERNEL);
 	if (!names)
 		return -ENOMEM;
 
@@ -308,8 +308,8 @@ static int gpio_mockup_add(struct device *dev,
 	gc->get_direction = gpio_mockup_get_direction;
 	gc->to_irq = gpio_mockup_to_irq;
 
-	chip->lines = devm_kzalloc(dev, sizeof(*chip->lines) * gc->ngpio,
-				   GFP_KERNEL);
+	chip->lines = devm_kcalloc(dev, gc->ngpio,
+				   sizeof(*chip->lines), GFP_KERNEL);
 	if (!chip->lines)
 		return -ENOMEM;
 
@@ -346,7 +346,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	/* Each chip is described by two values. */
 	num_chips = gpio_mockup_params_nr / 2;
 
-	chips = devm_kzalloc(dev, sizeof(*chips) * num_chips, GFP_KERNEL);
+	chips = devm_kcalloc(dev, num_chips, sizeof(*chips), GFP_KERNEL);
 	if (!chips)
 		return -ENOMEM;
 
