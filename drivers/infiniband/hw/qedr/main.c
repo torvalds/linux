@@ -886,9 +886,9 @@ static void qedr_mac_address_change(struct qedr_dev *dev)
 	memcpy(&sgid->raw[8], guid, sizeof(guid));
 
 	/* Update LL2 */
-	rc = dev->ops->roce_ll2_set_mac_filter(dev->cdev,
-					       dev->gsi_ll2_mac_address,
-					       dev->ndev->dev_addr);
+	rc = dev->ops->ll2_set_mac_filter(dev->cdev,
+					  dev->gsi_ll2_mac_address,
+					  dev->ndev->dev_addr);
 
 	ether_addr_copy(dev->gsi_ll2_mac_address, dev->ndev->dev_addr);
 

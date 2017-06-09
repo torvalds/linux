@@ -122,6 +122,40 @@ struct qed_ll2_comp_rx_data {
 	} u;
 };
 
+typedef
+void (*qed_ll2_complete_rx_packet_cb)(void *cxt,
+				      struct qed_ll2_comp_rx_data *data);
+
+typedef
+void (*qed_ll2_release_rx_packet_cb)(void *cxt,
+				     u8 connection_handle,
+				     void *cookie,
+				     dma_addr_t rx_buf_addr,
+				     bool b_last_packet);
+
+typedef
+void (*qed_ll2_complete_tx_packet_cb)(void *cxt,
+				      u8 connection_handle,
+				      void *cookie,
+				      dma_addr_t first_frag_addr,
+				      bool b_last_fragment,
+				      bool b_last_packet);
+
+typedef
+void (*qed_ll2_release_tx_packet_cb)(void *cxt,
+				     u8 connection_handle,
+				     void *cookie,
+				     dma_addr_t first_frag_addr,
+				     bool b_last_fragment, bool b_last_packet);
+
+struct qed_ll2_cbs {
+	qed_ll2_complete_rx_packet_cb rx_comp_cb;
+	qed_ll2_release_rx_packet_cb rx_release_cb;
+	qed_ll2_complete_tx_packet_cb tx_comp_cb;
+	qed_ll2_release_tx_packet_cb tx_release_cb;
+	void *cookie;
+};
+
 struct qed_ll2_acquire_data_inputs {
 	enum qed_ll2_conn_type conn_type;
 	u16 mtu;
@@ -140,6 +174,8 @@ struct qed_ll2_acquire_data_inputs {
 
 struct qed_ll2_acquire_data {
 	struct qed_ll2_acquire_data_inputs input;
+	const struct qed_ll2_cbs *cbs;
+
 	/* Output container for LL2 connection's handle */
 	u8 *p_connection_handle;
 };

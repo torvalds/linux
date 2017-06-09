@@ -170,53 +170,10 @@ struct qed_rdma_qp {
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 void qed_roce_async_event(struct qed_hwfn *p_hwfn,
 			  u8 fw_event_code, union rdma_eqe_data *rdma_data);
-void qed_ll2b_complete_tx_gsi_packet(struct qed_hwfn *p_hwfn,
-				     u8 connection_handle,
-				     void *cookie,
-				     dma_addr_t first_frag_addr,
-				     bool b_last_fragment, bool b_last_packet);
-void qed_ll2b_release_tx_gsi_packet(struct qed_hwfn *p_hwfn,
-				    u8 connection_handle,
-				    void *cookie,
-				    dma_addr_t first_frag_addr,
-				    bool b_last_fragment, bool b_last_packet);
-void qed_ll2b_complete_rx_gsi_packet(struct qed_hwfn *p_hwfn,
-				     u8 connection_handle,
-				     void *cookie,
-				     dma_addr_t rx_buf_addr,
-				     u16 data_length,
-				     u8 data_length_error,
-				     u16 parse_flags,
-				     u16 vlan,
-				     u32 src_mac_addr_hi,
-				     u16 src_mac_addr_lo, bool b_last_packet);
 #else
 static inline void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt) {}
 static inline void qed_roce_async_event(struct qed_hwfn *p_hwfn,
 					u8 fw_event_code,
 					union rdma_eqe_data *rdma_data) {}
-static inline void qed_ll2b_complete_tx_gsi_packet(struct qed_hwfn *p_hwfn,
-						   u8 connection_handle,
-						   void *cookie,
-						   dma_addr_t first_frag_addr,
-						   bool b_last_fragment,
-						   bool b_last_packet) {}
-static inline void qed_ll2b_release_tx_gsi_packet(struct qed_hwfn *p_hwfn,
-						  u8 connection_handle,
-						  void *cookie,
-						  dma_addr_t first_frag_addr,
-						  bool b_last_fragment,
-						  bool b_last_packet) {}
-static inline void qed_ll2b_complete_rx_gsi_packet(struct qed_hwfn *p_hwfn,
-						   u8 connection_handle,
-						   void *cookie,
-						   dma_addr_t rx_buf_addr,
-						   u16 data_length,
-						   u8 data_length_error,
-						   u16 parse_flags,
-						   u16 vlan,
-						   u32 src_mac_addr_hi,
-						   u16 src_mac_addr_lo,
-						   bool b_last_packet) {}
 #endif
 #endif
