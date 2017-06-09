@@ -727,7 +727,7 @@ nouveau_pmops_thaw(struct device *dev)
 }
 
 bool
-nouveau_pmops_runtime()
+nouveau_pmops_runtime(void)
 {
 	if (nouveau_runtime_pm == -1)
 		return nouveau_is_optimus() || nouveau_is_v1_dsm();
