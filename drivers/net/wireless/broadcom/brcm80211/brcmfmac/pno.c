@@ -119,7 +119,6 @@ static int brcmf_pno_config(struct brcmf_if *ifp, u32 scan_freq,
 
 	/* set extra pno params */
 	flags = BIT(BRCMF_PNO_IMMEDIATE_SCAN_BIT) |
-		BIT(BRCMF_PNO_REPORT_SEPARATELY_BIT) |
 		BIT(BRCMF_PNO_ENABLE_ADAPTSCAN_BIT);
 	pfn_param.repeat = BRCMF_PNO_REPEAT;
 	pfn_param.exp = BRCMF_PNO_FREQ_EXPO_MAX;
@@ -204,6 +203,7 @@ static int brcmf_pno_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
 			      bool active)
 {
 	struct brcmf_pno_net_param_le pfn;
+	int err;
 
 	pfn.auth = cpu_to_le32(WLAN_AUTH_OPEN);
 	pfn.wpa_auth = cpu_to_le32(BRCMF_PNO_WPA_AUTH_ANY);
@@ -214,7 +214,28 @@ static int brcmf_pno_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
 		pfn.flags = cpu_to_le32(1 << BRCMF_PNO_HIDDEN_BIT);
 	pfn.ssid.SSID_len = cpu_to_le32(ssid->ssid_len);
 	memcpy(pfn.ssid.SSID, ssid->ssid, ssid->ssid_len);
-	return brcmf_fil_iovar_data_set(ifp, "pfn_add", &pfn, sizeof(pfn));
+
+	brcmf_dbg(SCAN, "adding ssid=%.32s (active=%d)\n", ssid->ssid, active);
+	err = brcmf_fil_iovar_data_set(ifp, "pfn_add", &pfn, sizeof(pfn));
+	if (err < 0)
+		brcmf_err("adding failed: err=%d\n", err);
+	return err;
+}
+
+static int brcmf_pno_add_bssid(struct brcmf_if *ifp, const u8 *bssid)
+{
+	struct brcmf_pno_bssid_le bssid_cfg;
+	int err;
+
+	memcpy(bssid_cfg.bssid, bssid, ETH_ALEN);
+	bssid_cfg.flags = 0;
+
+	brcmf_dbg(SCAN, "adding bssid=%pM\n", bssid);
+	err = brcmf_fil_iovar_data_set(ifp, "pfn_add_bssid", &bssid_cfg,
+				       sizeof(bssid_cfg));
+	if (err < 0)
+		brcmf_err("adding failed: err=%d\n", err);
+	return err;
 }
 
 static bool brcmf_is_ssid_active(struct cfg80211_ssid *ssid,
@@ -341,29 +362,29 @@ fail:
 	return err;
 }
 
-static int brcmf_pno_config_ssids(struct brcmf_if *ifp,
-				  struct brcmf_pno_info *pi)
+static int brcmf_pno_config_networks(struct brcmf_if *ifp,
+				     struct brcmf_pno_info *pi)
 {
 	struct cfg80211_sched_scan_request *r;
 	struct cfg80211_match_set *ms;
 	bool active;
-	int i, j, err;
+	int i, j, err = 0;
 
 	for (i = 0; i < pi->n_reqs; i++) {
 		r = pi->reqs[i];
 
 		for (j = 0; j < r->n_match_sets; j++) {
 			ms = &r->match_sets[j];
-			if (!ms->ssid.ssid_len)
-				continue;
-			active = brcmf_is_ssid_active(&ms->ssid, r);
-			brcmf_dbg(SCAN, "adding %.32s (active=%d)\n",
-				  ms->ssid.ssid, active);
-			err = brcmf_pno_add_ssid(ifp, &ms->ssid, active);
-			if (err < 0) {
-				brcmf_err("adding failed: err=%d\n", err);
-				return err;
+			if (ms->ssid.ssid_len) {
+				active = brcmf_is_ssid_active(&ms->ssid, r);
+				err = brcmf_pno_add_ssid(ifp, &ms->ssid,
+							 active);
 			}
+			if (!err && is_valid_ether_addr(ms->bssid))
+				err = brcmf_pno_add_bssid(ifp, ms->bssid);
+
+			if (err < 0)
+				return err;
 		}
 	}
 	return 0;
@@ -427,7 +448,7 @@ static int brcmf_pno_config_sched_scans(struct brcmf_if *ifp)
 	if (err < 0)
 		goto clean;
 
-	err = brcmf_pno_config_ssids(ifp, pi);
+	err = brcmf_pno_config_networks(ifp, pi);
 	if (err < 0)
 		goto clean;
 
@@ -554,7 +575,12 @@ u32 brcmf_pno_get_bucket_map(struct brcmf_pno_info *pi,
 		for (j = 0; j < req->n_match_sets; j++) {
 			ms = &req->match_sets[j];
 			if (ms->ssid.ssid_len == ni->SSID_len &&
-			    !strncmp(ms->ssid.ssid, ni->SSID, ni->SSID_len)) {
+			    !memcmp(ms->ssid.ssid, ni->SSID, ni->SSID_len)) {
+				bucket_map |= BIT(i);
+				break;
+			}
+			if (is_valid_ether_addr(ms->bssid) &&
+			    !memcmp(ms->bssid, ni->bssid, ETH_ALEN)) {
 				bucket_map |= BIT(i);
 				break;
 			}

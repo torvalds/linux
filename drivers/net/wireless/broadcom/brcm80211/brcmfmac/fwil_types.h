@@ -806,6 +806,17 @@ struct brcmf_pno_macaddr_le {
 };
 
 /**
+ * struct brcmf_pno_bssid_le - bssid configuration for PNO scan.
+ *
+ * @bssid: BSS network identifier.
+ * @flags: flags for this BSSID.
+ */
+struct brcmf_pno_bssid_le {
+	u8 bssid[ETH_ALEN];
+	__le16 flags;
+};
+
+/**
  * struct brcmf_pktcnt_le - packet counters.
  *
  * @rx_good_pkt: packets (MSDUs & MMPDUs) received from this station
