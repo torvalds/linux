@@ -142,10 +142,17 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 	__ret;								\
 })
 
+extern unsigned long __cmpxchg_small(volatile void *ptr, unsigned long old,
+				     unsigned long new, unsigned int size);
+
 static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 				      unsigned long new, unsigned int size)
 {
 	switch (size) {
+	case 1:
+	case 2:
+		return __cmpxchg_small(ptr, old, new, size);
+
 	case 4:
 		return __cmpxchg_asm("ll", "sc", (volatile u32 *)ptr, old, new);
 
