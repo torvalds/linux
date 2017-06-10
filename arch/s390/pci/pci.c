@@ -161,19 +161,28 @@ static int mod_pci(struct zpci_dev *zdev, int fn, u8 dmaas, struct mod_pci_args 
 int zpci_register_ioat(struct zpci_dev *zdev, u8 dmaas,
 		       u64 base, u64 limit, u64 iota)
 {
-	struct mod_pci_args args = { base, limit, iota, 0 };
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, dmaas, ZPCI_MOD_FC_REG_IOAT);
+	struct zpci_fib fib = {0};
+	u8 status;
 
 	WARN_ON_ONCE(iota & 0x3fff);
-	args.iota |= ZPCI_IOTA_RTTO_FLAG;
-	return mod_pci(zdev, ZPCI_MOD_FC_REG_IOAT, dmaas, &args);
+	fib.pba = base;
+	fib.pal = limit;
+	fib.iota = iota | ZPCI_IOTA_RTTO_FLAG;
+	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;
 }
 
 /* Modify PCI: Unregister I/O address translation parameters */
 int zpci_unregister_ioat(struct zpci_dev *zdev, u8 dmaas)
 {
-	struct mod_pci_args args = { 0, 0, 0, 0 };
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, dmaas, ZPCI_MOD_FC_DEREG_IOAT);
+	struct zpci_fib fib = {0};
+	u8 cc, status;
 
-	return mod_pci(zdev, ZPCI_MOD_FC_DEREG_IOAT, dmaas, &args);
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc == 3) /* Function already gone. */
+		cc = 0;
+	return cc ? -EIO : 0;
 }
 
 /* Modify PCI: Set PCI function measurement parameters */
