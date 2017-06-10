@@ -108,6 +108,7 @@ static int zpci_set_airq(struct zpci_dev *zdev)
 {
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_REG_INT);
 	struct zpci_fib fib = {0};
+	u8 status;
 
 	fib.isc = PCI_ISC;
 	fib.sum = 1;		/* enable summary notifications */
@@ -117,7 +118,22 @@ static int zpci_set_airq(struct zpci_dev *zdev)
 	fib.aisb = (unsigned long) zpci_aisb_iv->vector + (zdev->aisb/64)*8;
 	fib.aisbo = zdev->aisb & 63;
 
-	return zpci_mod_fc(req, &fib);
+	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;
+}
+
+/* Modify PCI: Unregister adapter interruptions */
+static int zpci_clear_airq(struct zpci_dev *zdev)
+{
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_DEREG_INT);
+	struct zpci_fib fib = {0};
+	u8 cc, status;
+
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc == 3 || (cc == 1 && status == 24))
+		/* Function already gone or IRQs already deregistered. */
+		cc = 0;
+
+	return cc ? -EIO : 0;
 }
 
 struct mod_pci_args {
@@ -131,13 +147,14 @@ static int mod_pci(struct zpci_dev *zdev, int fn, u8 dmaas, struct mod_pci_args 
 {
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, dmaas, fn);
 	struct zpci_fib fib = {0};
+	u8 status;
 
 	fib.pba = args->base;
 	fib.pal = args->limit;
 	fib.iota = args->iota;
 	fib.fmb_addr = args->fmb_addr;
 
-	return zpci_mod_fc(req, &fib);
+	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;
 }
 
 /* Modify PCI: Register I/O address translation parameters */
@@ -157,14 +174,6 @@ int zpci_unregister_ioat(struct zpci_dev *zdev, u8 dmaas)
 	struct mod_pci_args args = { 0, 0, 0, 0 };
 
 	return mod_pci(zdev, ZPCI_MOD_FC_DEREG_IOAT, dmaas, &args);
-}
-
-/* Modify PCI: Unregister adapter interruptions */
-static int zpci_clear_airq(struct zpci_dev *zdev)
-{
-	struct mod_pci_args args = { 0, 0, 0, 0 };
-
-	return mod_pci(zdev, ZPCI_MOD_FC_DEREG_INT, 0, &args);
 }
 
 /* Modify PCI: Set PCI function measurement parameters */
