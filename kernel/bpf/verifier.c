@@ -1346,8 +1346,8 @@ static void clear_all_pkt_pointers(struct bpf_verifier_env *env)
 		if (reg->type != PTR_TO_PACKET &&
 		    reg->type != PTR_TO_PACKET_END)
 			continue;
-		reg->type = UNKNOWN_VALUE;
-		reg->imm = 0;
+		__mark_reg_unknown_value(state->spilled_regs,
+					 i / BPF_REG_SIZE);
 	}
 }
 
@@ -1952,6 +1952,7 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 			 */
 			regs[insn->dst_reg].type = CONST_IMM;
 			regs[insn->dst_reg].imm = insn->imm;
+			regs[insn->dst_reg].id = 0;
 			regs[insn->dst_reg].max_value = insn->imm;
 			regs[insn->dst_reg].min_value = insn->imm;
 			regs[insn->dst_reg].min_align = calc_align(insn->imm);
@@ -2409,6 +2410,7 @@ static int check_ld_imm(struct bpf_verifier_env *env, struct bpf_insn *insn)
 
 		regs[insn->dst_reg].type = CONST_IMM;
 		regs[insn->dst_reg].imm = imm;
+		regs[insn->dst_reg].id = 0;
 		return 0;
 	}
 
@@ -2827,6 +2829,8 @@ static bool states_equal(struct bpf_verifier_env *env,
 			 */
 			return false;
 		if (i % BPF_REG_SIZE)
+			continue;
+		if (old->stack_slot_type[i] != STACK_SPILL)
 			continue;
 		if (memcmp(&old->spilled_regs[i / BPF_REG_SIZE],
 			   &cur->spilled_regs[i / BPF_REG_SIZE],

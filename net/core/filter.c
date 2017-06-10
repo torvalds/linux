@@ -1874,6 +1874,24 @@ static const struct bpf_func_proto bpf_set_hash_invalid_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 };
 
+BPF_CALL_2(bpf_set_hash, struct sk_buff *, skb, u32, hash)
+{
+	/* Set user specified hash as L4(+), so that it gets returned
+	 * on skb_get_hash() call unless BPF prog later on triggers a
+	 * skb_clear_hash().
+	 */
+	__skb_set_sw_hash(skb, hash, true);
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_set_hash_proto = {
+	.func		= bpf_set_hash,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+};
+
 BPF_CALL_3(bpf_skb_vlan_push, struct sk_buff *, skb, __be16, vlan_proto,
 	   u16, vlan_tci)
 {
@@ -2744,6 +2762,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_hash_recalc_proto;
 	case BPF_FUNC_set_hash_invalid:
 		return &bpf_set_hash_invalid_proto;
+	case BPF_FUNC_set_hash:
+		return &bpf_set_hash_proto;
 	case BPF_FUNC_perf_event_output:
 		return &bpf_skb_event_output_proto;
 	case BPF_FUNC_get_smp_processor_id:
@@ -2772,12 +2792,6 @@ xdp_func_proto(enum bpf_func_id func_id)
 	default:
 		return bpf_base_func_proto(func_id);
 	}
-}
-
-static const struct bpf_func_proto *
-cg_skb_func_proto(enum bpf_func_id func_id)
-{
-	return sk_filter_func_proto(func_id);
 }
 
 static const struct bpf_func_proto *
@@ -3344,7 +3358,7 @@ const struct bpf_verifier_ops xdp_prog_ops = {
 };
 
 const struct bpf_verifier_ops cg_skb_prog_ops = {
-	.get_func_proto		= cg_skb_func_proto,
+	.get_func_proto		= sk_filter_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
 	.test_run		= bpf_prog_test_run_skb,
