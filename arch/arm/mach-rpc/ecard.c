@@ -789,7 +789,7 @@ static ssize_t resource_show(struct device *dev, struct device_attribute *attr, 
 
 	return str - buf;
 }
-static DEVICE_ATTR_RO(resource_show)
+static DEVICE_ATTR_RO(resource)
 
 static ssize_t vendor_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
