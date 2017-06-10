@@ -2103,6 +2103,8 @@ static struct aa_sfs_entry aa_sfs_entry_domain[] = {
 
 static struct aa_sfs_entry aa_sfs_entry_versions[] = {
 	AA_SFS_FILE_BOOLEAN("v5",	1),
+	AA_SFS_FILE_BOOLEAN("v6",	1),
+	AA_SFS_FILE_BOOLEAN("v7",	1),
 	{ }
 };
 

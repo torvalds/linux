@@ -466,7 +466,7 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 		profile->file.trans.size = size;
 		for (i = 0; i < size; i++) {
 			char *str;
-			int c, j, size2 = unpack_strdup(e, &str, NULL);
+			int c, j, pos, size2 = unpack_strdup(e, &str, NULL);
 			/* unpack_strdup verifies that the last character is
 			 * null termination byte.
 			 */
@@ -478,19 +478,25 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 				goto fail;
 
 			/* count internal #  of internal \0 */
-			for (c = j = 0; j < size2 - 2; j++) {
-				if (!str[j])
+			for (c = j = 0; j < size2 - 1; j++) {
+				if (!str[j]) {
+					pos = j;
 					c++;
+				}
 			}
 			if (*str == ':') {
+				/* first character after : must be valid */
+				if (!str[1])
+					goto fail;
 				/* beginning with : requires an embedded \0,
 				 * verify that exactly 1 internal \0 exists
 				 * trailing \0 already verified by unpack_strdup
+				 *
+				 * convert \0 back to : for label_parse
 				 */
-				if (c != 1)
-					goto fail;
-				/* first character after : must be valid */
-				if (!str[1])
+				if (c == 1)
+					str[pos] = ':';
+				else if (c > 1)
 					goto fail;
 			} else if (c)
 				/* fail - all other cases with embedded \0 */
