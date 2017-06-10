@@ -884,19 +884,153 @@ int apparmor_bprm_secureexec(struct linux_binprm *bprm)
  * Functions for self directed profile change
  */
 
-/**
- * new_compound_name - create an hname with @n2 appended to @n1
- * @n1: base of hname  (NOT NULL)
- * @n2: name to append (NOT NULL)
+
+/* helper fn for change_hat
  *
- * Returns: new name or NULL on error
+ * Returns: label for hat transition OR ERR_PTR.  Does NOT return NULL
  */
-static char *new_compound_name(const char *n1, const char *n2)
+static struct aa_label *build_change_hat(struct aa_profile *profile,
+					 const char *name, bool sibling)
 {
-	char *name = kmalloc(strlen(n1) + strlen(n2) + 3, GFP_KERNEL);
-	if (name)
-		sprintf(name, "%s//%s", n1, n2);
-	return name;
+	struct aa_profile *root, *hat = NULL;
+	const char *info = NULL;
+	int error = 0;
+
+	if (sibling && PROFILE_IS_HAT(profile)) {
+		root = aa_get_profile_rcu(&profile->parent);
+	} else if (!sibling && !PROFILE_IS_HAT(profile)) {
+		root = aa_get_profile(profile);
+	} else {
+		info = "conflicting target types";
+		error = -EPERM;
+		goto audit;
+	}
+
+	hat = aa_find_child(root, name);
+	if (!hat) {
+		error = -ENOENT;
+		if (COMPLAIN_MODE(profile)) {
+			hat = aa_new_null_profile(profile, true, name,
+						  GFP_KERNEL);
+			if (!hat) {
+				info = "failed null profile create";
+				error = -ENOMEM;
+			}
+		}
+	}
+	aa_put_profile(root);
+
+audit:
+	aa_audit_file(profile, &nullperms, OP_CHANGE_HAT, AA_MAY_CHANGEHAT,
+		      name, hat ? hat->base.hname : NULL,
+		      hat ? &hat->label : NULL, GLOBAL_ROOT_UID, NULL,
+		      error);
+	if (!hat || (error && error != -ENOENT))
+		return ERR_PTR(error);
+	/* if hat && error - complain mode, already audited and we adjust for
+	 * complain mode allow by returning hat->label
+	 */
+	return &hat->label;
+}
+
+/* helper fn for changing into a hat
+ *
+ * Returns: label for hat transition or ERR_PTR. Does not return NULL
+ */
+static struct aa_label *change_hat(struct aa_label *label, const char *hats[],
+				   int count, int flags)
+{
+	struct aa_profile *profile, *root, *hat = NULL;
+	struct aa_label *new;
+	struct label_it it;
+	bool sibling = false;
+	const char *name, *info = NULL;
+	int i, error;
+
+	AA_BUG(!label);
+	AA_BUG(!hats);
+	AA_BUG(count < 1);
+
+	if (PROFILE_IS_HAT(labels_profile(label)))
+		sibling = true;
+
+	/*find first matching hat */
+	for (i = 0; i < count && !hat; i++) {
+		name = hats[i];
+		label_for_each_in_ns(it, labels_ns(label), label, profile) {
+			if (sibling && PROFILE_IS_HAT(profile)) {
+				root = aa_get_profile_rcu(&profile->parent);
+			} else if (!sibling && !PROFILE_IS_HAT(profile)) {
+				root = aa_get_profile(profile);
+			} else {	/* conflicting change type */
+				info = "conflicting targets types";
+				error = -EPERM;
+				goto fail;
+			}
+			hat = aa_find_child(root, name);
+			aa_put_profile(root);
+			if (!hat) {
+				if (!COMPLAIN_MODE(profile))
+					goto outer_continue;
+				/* complain mode succeed as if hat */
+			} else if (!PROFILE_IS_HAT(hat)) {
+				info = "target not hat";
+				error = -EPERM;
+				aa_put_profile(hat);
+				goto fail;
+			}
+			aa_put_profile(hat);
+		}
+		/* found a hat for all profiles in ns */
+		goto build;
+outer_continue:
+	;
+	}
+	/* no hats that match, find appropriate error
+	 *
+	 * In complain mode audit of the failure is based off of the first
+	 * hat supplied.  This is done due how userspace interacts with
+	 * change_hat.
+	 */
+	name = NULL;
+	label_for_each_in_ns(it, labels_ns(label), label, profile) {
+		if (!list_empty(&profile->base.profiles)) {
+			info = "hat not found";
+			error = -ENOENT;
+			goto fail;
+		}
+	}
+	info = "no hats defined";
+	error = -ECHILD;
+
+fail:
+	label_for_each_in_ns(it, labels_ns(label), label, profile) {
+		/*
+		 * no target as it has failed to be found or built
+		 *
+		 * change_hat uses probing and should not log failures
+		 * related to missing hats
+		 */
+		/* TODO: get rid of GLOBAL_ROOT_UID */
+		if (count > 1 || COMPLAIN_MODE(profile)) {
+			aa_audit_file(profile, &nullperms, OP_CHANGE_HAT,
+				      AA_MAY_CHANGEHAT, name, NULL, NULL,
+				      GLOBAL_ROOT_UID, info, error);
+		}
+	}
+	return ERR_PTR(error);
+
+build:
+	new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
+				   build_change_hat(profile, name, sibling),
+				   aa_get_label(&profile->label));
+	if (!new) {
+		info = "label build failed";
+		error = -ENOMEM;
+		goto fail;
+	} /* else if (IS_ERR) build_change_hat has logged error so return new */
+
+	return new;
 }
 
 /**
@@ -906,23 +1040,24 @@ static char *new_compound_name(const char *n1, const char *n2)
  * @token: magic value to validate the hat change
  * @flags: flags affecting behavior of the change
  *
+ * Returns %0 on success, error otherwise.
+ *
  * Change to the first profile specified in @hats that exists, and store
  * the @hat_magic in the current task context.  If the count == 0 and the
  * @token matches that stored in the current task context, return to the
  * top level profile.
  *
- * Returns %0 on success, error otherwise.
+ * change_hat only applies to profiles in the current ns, and each profile
+ * in the ns must make the same transition otherwise change_hat will fail.
  */
 int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 {
 	const struct cred *cred;
 	struct aa_task_ctx *ctx;
-	struct aa_label *label, *previous_label;
-	struct aa_profile *profile, *hat = NULL;
-	char *name = NULL;
-	int i;
+	struct aa_label *label, *previous, *new = NULL, *target = NULL;
+	struct aa_profile *profile;
 	struct aa_perms perms = {};
-	const char *target = NULL, *info = NULL;
+	const char *info = NULL;
 	int error = 0;
 
 	/*
@@ -930,117 +1065,81 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 	 * There is no exception for unconfined as change_hat is not
 	 * available.
 	 */
-	if (task_no_new_privs(current))
+	if (task_no_new_privs(current)) {
+		/* not an apparmor denial per se, so don't log it */
+		AA_DEBUG("no_new_privs - change_hat denied");
 		return -EPERM;
+	}
 
 	/* released below */
 	cred = get_current_cred();
 	ctx = cred_ctx(cred);
 	label = aa_get_newest_cred_label(cred);
-	previous_label = aa_get_newest_label(ctx->previous);
-	profile = labels_profile(label);
+	previous = aa_get_newest_label(ctx->previous);
 
 	if (unconfined(label)) {
-		info = "unconfined";
+		info = "unconfined can not change_hat";
 		error = -EPERM;
-		goto audit;
+		goto fail;
 	}
 
 	if (count) {
-		/* attempting to change into a new hat or switch to a sibling */
-		struct aa_profile *root;
-		if (PROFILE_IS_HAT(profile))
-			root = aa_get_profile_rcu(&profile->parent);
-		else
-			root = aa_get_profile(profile);
-
-		/* find first matching hat */
-		for (i = 0; i < count && !hat; i++)
-			/* released below */
-			hat = aa_find_child(root, hats[i]);
-		if (!hat) {
-			if (!COMPLAIN_MODE(root) || (flags & AA_CHANGE_TEST)) {
-				if (list_empty(&root->base.profiles))
-					error = -ECHILD;
-				else
-					error = -ENOENT;
-				aa_put_profile(root);
-				goto out;
-			}
-
-			/*
-			 * In complain mode and failed to match any hats.
-			 * Audit the failure is based off of the first hat
-			 * supplied.  This is done due how userspace
-			 * interacts with change_hat.
-			 *
-			 * TODO: Add logging of all failed hats
-			 */
-
-			/* freed below */
-			name = new_compound_name(root->base.hname, hats[0]);
-			aa_put_profile(root);
-			target = name;
-			/* released below */
-			hat = aa_new_null_profile(profile, true, hats[0],
-						  GFP_KERNEL);
-			if (!hat) {
-				info = "failed null profile create";
-				error = -ENOMEM;
-				goto audit;
-			}
-		} else {
-			aa_put_profile(root);
-			target = hat->base.hname;
-			if (!PROFILE_IS_HAT(hat)) {
-				info = "target not hat";
-				error = -EPERM;
-				goto audit;
-			}
+		new = change_hat(label, hats, count, flags);
+		AA_BUG(!new);
+		if (IS_ERR(new)) {
+			error = PTR_ERR(new);
+			new = NULL;
+			/* already audited */
+			goto out;
 		}
 
-		error = may_change_ptraced_domain(&hat->label, &info);
-		if (error) {
-			info = "ptraced";
-			error = -EPERM;
-			goto audit;
-		}
+		error = may_change_ptraced_domain(new, &info);
+		if (error)
+			goto fail;
 
-		if (!(flags & AA_CHANGE_TEST)) {
-			error = aa_set_current_hat(&hat->label, token);
-			if (error == -EACCES)
-				/* kill task in case of brute force attacks */
-				perms.kill = AA_MAY_CHANGEHAT;
-			else if (name && !error)
-				/* reset error for learning of new hats */
-				error = -ENOENT;
-		}
-	} else if (previous_label) {
-		/* Return to saved profile.  Kill task if restore fails
+		if (flags & AA_CHANGE_TEST)
+			goto out;
+
+		target = new;
+		error = aa_set_current_hat(new, token);
+		if (error == -EACCES)
+			/* kill task in case of brute force attacks */
+			goto kill;
+	} else if (previous && !(flags & AA_CHANGE_TEST)) {
+		/* Return to saved label.  Kill task if restore fails
 		 * to avoid brute force attacks
 		 */
-		target = previous_label->hname;
+		target = previous;
 		error = aa_restore_previous_label(token);
-		perms.kill = AA_MAY_CHANGEHAT;
-	} else
-		/* ignore restores when there is no saved profile */
-		goto out;
-
-audit:
-	if (!(flags & AA_CHANGE_TEST))
-		error = aa_audit_file(profile, &perms, OP_CHANGE_HAT,
-				      AA_MAY_CHANGEHAT, NULL, target, NULL,
-				      GLOBAL_ROOT_UID, info, error);
+		if (error) {
+			if (error == -EACCES)
+				goto kill;
+			goto fail;
+		}
+	} /* else ignore @flags && restores when there is no saved profile */
 
 out:
-	aa_put_profile(hat);
-	kfree(name);
+	aa_put_label(new);
+	aa_put_label(previous);
 	aa_put_label(label);
-	aa_put_label(previous_label);
 	put_cred(cred);
 
 	return error;
+
+kill:
+	info = "failed token match";
+	perms.kill = AA_MAY_CHANGEHAT;
+
+fail:
+	fn_for_each_in_ns(label, profile,
+		aa_audit_file(profile, &perms, OP_CHANGE_HAT,
+			      AA_MAY_CHANGEHAT, NULL, NULL, target,
+			      GLOBAL_ROOT_UID, info, error));
+
+	goto out;
 }
+
+
 
 /**
  * aa_change_profile - perform a one-way profile transition
