@@ -3657,6 +3657,7 @@ static void hns_roce_v1_destroy_qp_work_fn(struct work_struct *work)
 	struct hns_roce_dev *hr_dev;
 	struct hns_roce_qp *hr_qp;
 	struct device *dev;
+	unsigned long qpn;
 	int ret;
 
 	qp_work_entry = container_of(work, struct hns_roce_qp_work, work);
@@ -3664,8 +3665,9 @@ static void hns_roce_v1_destroy_qp_work_fn(struct work_struct *work)
 	dev = &hr_dev->pdev->dev;
 	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
 	hr_qp = qp_work_entry->qp;
+	qpn = hr_qp->qpn;
 
-	dev_dbg(dev, "Schedule destroy QP(0x%lx) work.\n", hr_qp->qpn);
+	dev_dbg(dev, "Schedule destroy QP(0x%lx) work.\n", qpn);
 
 	qp_work_entry->sche_cnt++;
 
@@ -3676,7 +3678,7 @@ static void hns_roce_v1_destroy_qp_work_fn(struct work_struct *work)
 					 &qp_work_entry->db_wait_stage);
 	if (ret) {
 		dev_err(dev, "Check QP(0x%lx) db process status failed!\n",
-			hr_qp->qpn);
+			qpn);
 		return;
 	}
 
@@ -3690,7 +3692,7 @@ static void hns_roce_v1_destroy_qp_work_fn(struct work_struct *work)
 	ret = hns_roce_v1_modify_qp(&hr_qp->ibqp, NULL, 0, hr_qp->state,
 				    IB_QPS_RESET);
 	if (ret) {
-		dev_err(dev, "Modify QP(0x%lx) to RST failed!\n", hr_qp->qpn);
+		dev_err(dev, "Modify QP(0x%lx) to RST failed!\n", qpn);
 		return;
 	}
 
@@ -3699,14 +3701,14 @@ static void hns_roce_v1_destroy_qp_work_fn(struct work_struct *work)
 
 	if (hr_qp->ibqp.qp_type == IB_QPT_RC) {
 		/* RC QP, release QPN */
-		hns_roce_release_range_qp(hr_dev, hr_qp->qpn, 1);
+		hns_roce_release_range_qp(hr_dev, qpn, 1);
 		kfree(hr_qp);
 	} else
 		kfree(hr_to_hr_sqp(hr_qp));
 
 	kfree(qp_work_entry);
 
-	dev_dbg(dev, "Accomplished destroy QP(0x%lx) work.\n", hr_qp->qpn);
+	dev_dbg(dev, "Accomplished destroy QP(0x%lx) work.\n", qpn);
 }
 
 int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
