@@ -131,8 +131,6 @@ int ipu_pre_get(struct ipu_pre *pre)
 	if (pre->in_use)
 		return -EBUSY;
 
-	clk_prepare_enable(pre->clk_axi);
-
 	/* first get the engine out of reset and remove clock gating */
 	writel(0, pre->regs + IPU_PRE_CTRL);
 
@@ -149,12 +147,7 @@ int ipu_pre_get(struct ipu_pre *pre)
 
 void ipu_pre_put(struct ipu_pre *pre)
 {
-	u32 val;
-
-	val = IPU_PRE_CTRL_SFTRST | IPU_PRE_CTRL_CLKGATE;
-	writel(val, pre->regs + IPU_PRE_CTRL);
-
-	clk_disable_unprepare(pre->clk_axi);
+	writel(IPU_PRE_CTRL_SFTRST, pre->regs + IPU_PRE_CTRL);
 
 	pre->in_use = false;
 }
@@ -249,6 +242,8 @@ static int ipu_pre_probe(struct platform_device *pdev)
 	if (!pre->buffer_virt)
 		return -ENOMEM;
 
+	clk_prepare_enable(pre->clk_axi);
+
 	pre->dev = dev;
 	platform_set_drvdata(pdev, pre);
 	mutex_lock(&ipu_pre_list_mutex);
@@ -267,6 +262,8 @@ static int ipu_pre_remove(struct platform_device *pdev)
 	list_del(&pre->list);
 	available_pres--;
 	mutex_unlock(&ipu_pre_list_mutex);
+
+	clk_disable_unprepare(pre->clk_axi);
 
 	if (pre->buffer_virt)
 		gen_pool_free(pre->iram, (unsigned long)pre->buffer_virt,
