@@ -421,9 +421,10 @@ EXPORT_SYMBOL_GPL(wmi_set_block);
 static void wmi_dump_wdg(const struct guid_block *g)
 {
 	pr_info("%pUL:\n", g->guid);
-	pr_info("\tobject_id: %c%c\n", g->object_id[0], g->object_id[1]);
-	pr_info("\tnotify_id: %02X\n", g->notify_id);
-	pr_info("\treserved: %02X\n", g->reserved);
+	if (g->flags & ACPI_WMI_EVENT)
+		pr_info("\tnotify_id: 0x%02X\n", g->notify_id);
+	else
+		pr_info("\tobject_id: %2pE\n", g->object_id);
 	pr_info("\tinstance_count: %d\n", g->instance_count);
 	pr_info("\tflags: %#x", g->flags);
 	if (g->flags) {
