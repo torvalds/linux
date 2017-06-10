@@ -301,26 +301,6 @@ static int change_profile_perms(struct aa_profile *profile,
 	return label_match(profile, target, stack, start, true, request, perms);
 }
 
-static struct aa_perms change_profile_perms_wrapper(struct aa_profile *profile,
-						    struct aa_profile *target,
-						    u32 request,
-						    unsigned int start)
-{
-	struct aa_perms perms;
-
-	if (profile_unconfined(profile)) {
-		perms.allow = AA_MAY_CHANGE_PROFILE | AA_MAY_ONEXEC;
-		perms.audit = perms.quiet = perms.kill = 0;
-		return perms;
-	}
-
-	if (change_profile_perms(profile, &target->label, false, request,
-				 start, &perms))
-		return nullperms;
-
-	return perms;
-}
-
 /**
  * __attach_match_ - find an attachment match
  * @name - to match against  (NOT NULL)
@@ -1140,6 +1120,39 @@ fail:
 }
 
 
+static int change_profile_perms_wrapper(const char *op, const char *name,
+					struct aa_profile *profile,
+					struct aa_label *target, bool stack,
+					u32 request, struct aa_perms *perms)
+{
+	const char *info = NULL;
+	int error = 0;
+
+	/*
+	 * Fail explicitly requested domain transitions when no_new_privs
+	 * and not unconfined OR the transition results in a stack on
+	 * the current label.
+	 * Stacking domain transitions and transitions from unconfined are
+	 * allowed even when no_new_privs is set because this aways results
+	 * in a reduction of permissions.
+	 */
+	if (task_no_new_privs(current) && !stack &&
+	    !profile_unconfined(profile) &&
+	    !aa_label_is_subset(target, &profile->label)) {
+		info = "no new privs";
+		error = -EPERM;
+	}
+
+	if (!error)
+		error = change_profile_perms(profile, target, stack, request,
+					     profile->file.start, perms);
+	if (error)
+		error = aa_audit_file(profile, perms, op, request, name,
+				      NULL, target, GLOBAL_ROOT_UID, info,
+				      error);
+
+	return error;
+}
 
 /**
  * aa_change_profile - perform a one-way profile transition
@@ -1157,12 +1170,14 @@ fail:
  */
 int aa_change_profile(const char *fqname, int flags)
 {
-	const struct cred *cred;
-	struct aa_label *label;
-	struct aa_profile *profile, *target = NULL;
+	struct aa_label *label, *new = NULL, *target = NULL;
+	struct aa_profile *profile;
 	struct aa_perms perms = {};
-	const char *info = NULL, *op;
+	const char *info = NULL;
+	const char *auditname = fqname;		/* retain leading & if stack */
+	bool stack = flags & AA_CHANGE_STACK;
 	int error = 0;
+	char *op;
 	u32 request;
 
 	if (!fqname || !*fqname) {
@@ -1172,76 +1187,116 @@ int aa_change_profile(const char *fqname, int flags)
 
 	if (flags & AA_CHANGE_ONEXEC) {
 		request = AA_MAY_ONEXEC;
-		op = OP_CHANGE_ONEXEC;
+		if (stack)
+			op = OP_STACK_ONEXEC;
+		else
+			op = OP_CHANGE_ONEXEC;
 	} else {
 		request = AA_MAY_CHANGE_PROFILE;
-		op = OP_CHANGE_PROFILE;
+		if (stack)
+			op = OP_STACK;
+		else
+			op = OP_CHANGE_PROFILE;
 	}
 
-	cred = get_current_cred();
-	label = aa_get_newest_cred_label(cred);
-	profile = labels_profile(label);
+	label = aa_get_current_label();
 
-	/*
-	 * Fail explicitly requested domain transitions if no_new_privs
-	 * and not unconfined.
-	 * Domain transitions from unconfined are allowed even when
-	 * no_new_privs is set because this aways results in a reduction
-	 * of permissions.
-	 */
-	if (task_no_new_privs(current) && !profile_unconfined(profile)) {
-		put_cred(cred);
-		return -EPERM;
+	if (*fqname == '&') {
+		stack = true;
+		/* don't have label_parse() do stacking */
+		fqname++;
 	}
+	target = aa_label_parse(label, fqname, GFP_KERNEL, true, false);
+	if (IS_ERR(target)) {
+		struct aa_profile *tprofile;
 
-	target = aa_fqlookupn_profile(label, fqname, strlen(fqname));
-	if (!target) {
-		info = "profile not found";
-		error = -ENOENT;
+		info = "label not found";
+		error = PTR_ERR(target);
+		target = NULL;
+		/*
+		 * TODO: fixme using labels_profile is not right - do profile
+		 * per complain profile
+		 */
 		if ((flags & AA_CHANGE_TEST) ||
-		    !COMPLAIN_MODE(profile))
+		    !COMPLAIN_MODE(labels_profile(label)))
 			goto audit;
 		/* released below */
-		target = aa_new_null_profile(profile, false, fqname,
-					     GFP_KERNEL);
-		if (!target) {
+		tprofile = aa_new_null_profile(labels_profile(label), false,
+					       fqname, GFP_KERNEL);
+		if (!tprofile) {
 			info = "failed null profile create";
 			error = -ENOMEM;
 			goto audit;
 		}
+		target = &tprofile->label;
+		goto check;
 	}
 
-	perms = change_profile_perms_wrapper(profile, target, request,
-					     profile->file.start);
-	if (!(perms.allow & request)) {
-		error = -EACCES;
-		goto audit;
-	}
+	/*
+	 * self directed transitions only apply to current policy ns
+	 * TODO: currently requiring perms for stacking and straight change
+	 *       stacking doesn't strictly need this. Determine how much
+	 *       we want to loosen this restriction for stacking
+	 *
+	 * if (!stack) {
+	 */
+	error = fn_for_each_in_ns(label, profile,
+			change_profile_perms_wrapper(op, auditname,
+						     profile, target, stack,
+						     request, &perms));
+	if (error)
+		/* auditing done in change_profile_perms_wrapper */
+		goto out;
 
+	/* } */
+
+check:
 	/* check if tracing task is allowed to trace target domain */
-	error = may_change_ptraced_domain(&target->label, &info);
-	if (error) {
-		info = "ptrace prevents transition";
+	error = may_change_ptraced_domain(target, &info);
+	if (error && !fn_for_each_in_ns(label, profile,
+					COMPLAIN_MODE(profile)))
 		goto audit;
-	}
 
+	/* TODO: add permission check to allow this
+	 * if ((flags & AA_CHANGE_ONEXEC) && !current_is_single_threaded()) {
+	 *      info = "not a single threaded task";
+	 *      error = -EACCES;
+	 *      goto audit;
+	 * }
+	 */
 	if (flags & AA_CHANGE_TEST)
-		goto audit;
+		goto out;
 
-	if (flags & AA_CHANGE_ONEXEC)
-		error = aa_set_current_onexec(&target->label, 0);
-	else
-		error = aa_replace_current_label(&target->label);
+	if (!(flags & AA_CHANGE_ONEXEC)) {
+		/* only transition profiles in the current ns */
+		if (stack)
+			new = aa_label_merge(label, target, GFP_KERNEL);
+		else
+			new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
+					aa_get_label(target),
+					aa_get_label(&profile->label));
+		if (IS_ERR_OR_NULL(new)) {
+			info = "failed to build target label";
+			error = PTR_ERR(new);
+			new = NULL;
+			perms.allow = 0;
+			goto audit;
+		}
+		error = aa_replace_current_label(new);
+	} else
+		/* full transition will be built in exec path */
+		error = aa_set_current_onexec(target, stack);
 
 audit:
-	if (!(flags & AA_CHANGE_TEST))
-		error = aa_audit_file(profile, &perms, op, request, NULL,
-				      fqname, NULL, GLOBAL_ROOT_UID, info,
-				      error);
+	error = fn_for_each_in_ns(label, profile,
+			aa_audit_file(profile, &perms, op, request, auditname,
+				      NULL, new ? new : target,
+				      GLOBAL_ROOT_UID, info, error));
 
-	aa_put_profile(target);
+out:
+	aa_put_label(new);
+	aa_put_label(target);
 	aa_put_label(label);
-	put_cred(cred);
 
 	return error;
 }
