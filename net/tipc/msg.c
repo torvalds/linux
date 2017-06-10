@@ -508,7 +508,7 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 	}
 
 	if (skb_cloned(_skb) &&
-	    pskb_expand_head(_skb, BUF_HEADROOM, BUF_TAILROOM, GFP_KERNEL))
+	    pskb_expand_head(_skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
 		goto exit;
 
 	/* Now reverse the concerned fields */
