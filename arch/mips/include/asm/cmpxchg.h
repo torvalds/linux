@@ -70,40 +70,18 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 	__ret;								\
 })
 
-static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
-{
-	__u32 retval;
-
-	smp_mb__before_llsc();
-	retval = __xchg_asm("ll", "sc", m, val);
-	smp_llsc_mb();
-
-	return retval;
-}
-
-#ifdef CONFIG_64BIT
-static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
-{
-	__u64 retval;
-
-	smp_mb__before_llsc();
-	retval = __xchg_asm("lld", "scd", m, val);
-	smp_llsc_mb();
-
-	return retval;
-}
-#else
-extern __u64 __xchg_u64_unsupported_on_32bit_kernels(volatile __u64 * m, __u64 val);
-#define __xchg_u64 __xchg_u64_unsupported_on_32bit_kernels
-#endif
-
 static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
 {
 	switch (size) {
 	case 4:
-		return __xchg_u32(ptr, x);
+		return __xchg_asm("ll", "sc", (volatile u32 *)ptr, x);
+
 	case 8:
-		return __xchg_u64(ptr, x);
+		if (!IS_ENABLED(CONFIG_64BIT))
+			return __xchg_called_with_bad_pointer();
+
+		return __xchg_asm("lld", "scd", (volatile u64 *)ptr, x);
+
 	default:
 		return __xchg_called_with_bad_pointer();
 	}
@@ -111,10 +89,18 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 
 #define xchg(ptr, x)							\
 ({									\
+	__typeof__(*(ptr)) __res;					\
+									\
 	BUILD_BUG_ON(sizeof(*(ptr)) & ~0xc);				\
 									\
-	((__typeof__(*(ptr)))						\
-		__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))));	\
+	smp_mb__before_llsc();						\
+									\
+	__res = (__typeof__(*(ptr)))					\
+		__xchg((unsigned long)(x), (ptr), sizeof(*(ptr)));	\
+									\
+	smp_llsc_mb();							\
+									\
+	__res;								\
 })
 
 #define __cmpxchg_asm(ld, st, m, old, new)				\
