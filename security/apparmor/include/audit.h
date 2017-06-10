@@ -64,6 +64,7 @@ enum audit_type {
 #define OP_GETATTR "getattr"
 #define OP_OPEN "open"
 
+#define OP_FRECEIVE "file_receive"
 #define OP_FPERM "file_perm"
 #define OP_FLOCK "file_lock"
 #define OP_FMMAP "file_mmap"

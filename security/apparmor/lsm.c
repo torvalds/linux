@@ -456,6 +456,11 @@ static int common_file_perm(const char *op, struct file *file, u32 mask)
 	return error;
 }
 
+static int apparmor_file_receive(struct file *file)
+{
+	return common_file_perm(OP_FRECEIVE, file, aa_map_file_to_perms(file));
+}
+
 static int apparmor_file_permission(struct file *file, int mask)
 {
 	return common_file_perm(OP_FPERM, file, mask);
@@ -665,6 +670,7 @@ static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(inode_getattr, apparmor_inode_getattr),
 
 	LSM_HOOK_INIT(file_open, apparmor_file_open),
+	LSM_HOOK_INIT(file_receive, apparmor_file_receive),
 	LSM_HOOK_INIT(file_permission, apparmor_file_permission),
 	LSM_HOOK_INIT(file_alloc_security, apparmor_file_alloc_security),
 	LSM_HOOK_INIT(file_free_security, apparmor_file_free_security),
