@@ -29,6 +29,9 @@
 #define __KVM_HAVE_IRQ_LINE
 #define __KVM_HAVE_GUEST_DEBUG
 
+/* Not always available, but if it is, this is the correct offset.  */
+#define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+
 struct kvm_regs {
 	__u64 pc;
 	__u64 cr;

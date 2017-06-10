@@ -3008,7 +3008,8 @@ static int pl330_remove(struct amba_device *adev)
 
 	for (i = 0; i < AMBA_NR_IRQS; i++) {
 		irq = adev->irq[i];
-		devm_free_irq(&adev->dev, irq, pl330);
+		if (irq)
+			devm_free_irq(&adev->dev, irq, pl330);
 	}
 
 	dma_async_device_unregister(&pl330->ddma);

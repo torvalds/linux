@@ -118,6 +118,7 @@ static const struct iommu_ops
 
 	ops = iommu_ops_from_fwnode(fwnode);
 	if ((ops && !ops->of_xlate) ||
+	    !of_device_is_available(iommu_spec->np) ||
 	    (!ops && !of_iommu_driver_present(iommu_spec->np)))
 		return NULL;
 
@@ -234,6 +235,12 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 
 		if (err)
 			ops = ERR_PTR(err);
+	}
+
+	/* Ignore all other errors apart from EPROBE_DEFER */
+	if (IS_ERR(ops) && (PTR_ERR(ops) != -EPROBE_DEFER)) {
+		dev_dbg(dev, "Adding to IOMMU failed: %ld\n", PTR_ERR(ops));
+		ops = NULL;
 	}
 
 	return ops;

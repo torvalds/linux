@@ -512,16 +512,19 @@ static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
 		      u8 pf, unsigned int hooknum)
 {
 	const struct sctphdr *sh;
-	struct sctphdr _sctph;
 	const char *logmsg;
 
-	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
-	if (!sh) {
+	if (skb->len < dataoff + sizeof(struct sctphdr)) {
 		logmsg = "nf_ct_sctp: short packet ";
 		goto out_invalid;
 	}
 	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    skb->ip_summed == CHECKSUM_NONE) {
+		if (!skb_make_writable(skb, dataoff + sizeof(struct sctphdr))) {
+			logmsg = "nf_ct_sctp: failed to read header ";
+			goto out_invalid;
+		}
+		sh = (const struct sctphdr *)(skb->data + dataoff);
 		if (sh->checksum != sctp_compute_cksum(skb, dataoff)) {
 			logmsg = "nf_ct_sctp: bad CRC ";
 			goto out_invalid;

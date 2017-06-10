@@ -443,10 +443,7 @@ enum i40iw_status_code i40iw_vchnl_recv_pf(struct i40iw_sc_dev *dev,
 	if (!dev->vchnl_up)
 		return I40IW_ERR_NOT_READY;
 	if (vchnl_msg->iw_op_code == I40IW_VCHNL_OP_GET_VER) {
-		if (vchnl_msg->iw_op_ver != I40IW_VCHNL_OP_GET_VER_V0)
-			vchnl_pf_send_get_ver_resp(dev, vf_id, vchnl_msg);
-		else
-			vchnl_pf_send_get_ver_resp(dev, vf_id, vchnl_msg);
+		vchnl_pf_send_get_ver_resp(dev, vf_id, vchnl_msg);
 		return I40IW_SUCCESS;
 	}
 	for (iw_vf_idx = 0; iw_vf_idx < I40IW_MAX_PE_ENABLED_VF_COUNT; iw_vf_idx++) {
