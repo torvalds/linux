@@ -228,14 +228,14 @@ int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			switch (wr->opcode) {
 			case IB_WR_RDMA_READ:
 				ps_opcode = HNS_ROCE_WQE_OPCODE_RDMA_READ;
-				set_raddr_seg(wqe, atomic_wr(wr)->remote_addr,
-					      atomic_wr(wr)->rkey);
+				set_raddr_seg(wqe,  rdma_wr(wr)->remote_addr,
+					       rdma_wr(wr)->rkey);
 				break;
 			case IB_WR_RDMA_WRITE:
 			case IB_WR_RDMA_WRITE_WITH_IMM:
 				ps_opcode = HNS_ROCE_WQE_OPCODE_RDMA_WRITE;
-				set_raddr_seg(wqe, atomic_wr(wr)->remote_addr,
-					      atomic_wr(wr)->rkey);
+				set_raddr_seg(wqe,  rdma_wr(wr)->remote_addr,
+					      rdma_wr(wr)->rkey);
 				break;
 			case IB_WR_SEND:
 			case IB_WR_SEND_WITH_INV:
