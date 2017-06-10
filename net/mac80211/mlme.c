@@ -4392,15 +4392,19 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			return -ENOMEM;
 	}
 
-	if (new_sta || override) {
-		err = ieee80211_prep_channel(sdata, cbss);
-		if (err) {
-			if (new_sta)
-				sta_info_free(local, new_sta);
-			return -EINVAL;
-		}
-	}
-
+	/*
+	 * Set up the information for the new channel before setting the
+	 * new channel. We can't - completely race-free - change the basic
+	 * rates bitmap and the channel (sband) that it refers to, but if
+	 * we set it up before we at least avoid calling into the driver's
+	 * bss_info_changed() method with invalid information (since we do
+	 * call that from changing the channel - only for IDLE and perhaps
+	 * some others, but ...).
+	 *
+	 * So to avoid that, just set up all the new information before the
+	 * channel, but tell the driver to apply it only afterwards, since
+	 * it might need the new channel for that.
+	 */
 	if (new_sta) {
 		u32 rates = 0, basic_rates = 0;
 		bool have_higher_than_11mbit;
@@ -4471,8 +4475,22 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			sdata->vif.bss_conf.sync_dtim_count = 0;
 		}
 		rcu_read_unlock();
+	}
 
-		/* tell driver about BSSID, basic rates and timing */
+	if (new_sta || override) {
+		err = ieee80211_prep_channel(sdata, cbss);
+		if (err) {
+			if (new_sta)
+				sta_info_free(local, new_sta);
+			return -EINVAL;
+		}
+	}
+
+	if (new_sta) {
+		/*
+		 * tell driver about BSSID, basic rates and timing
+		 * this was set up above, before setting the channel
+		 */
 		ieee80211_bss_info_change_notify(sdata,
 			BSS_CHANGED_BSSID | BSS_CHANGED_BASIC_RATES |
 			BSS_CHANGED_BEACON_INT);
