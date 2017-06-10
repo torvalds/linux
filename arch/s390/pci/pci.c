@@ -136,27 +136,6 @@ static int zpci_clear_airq(struct zpci_dev *zdev)
 	return cc ? -EIO : 0;
 }
 
-struct mod_pci_args {
-	u64 base;
-	u64 limit;
-	u64 iota;
-	u64 fmb_addr;
-};
-
-static int mod_pci(struct zpci_dev *zdev, int fn, u8 dmaas, struct mod_pci_args *args)
-{
-	u64 req = ZPCI_CREATE_REQ(zdev->fh, dmaas, fn);
-	struct zpci_fib fib = {0};
-	u8 status;
-
-	fib.pba = args->base;
-	fib.pal = args->limit;
-	fib.iota = args->iota;
-	fib.fmb_addr = args->fmb_addr;
-
-	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;
-}
-
 /* Modify PCI: Register I/O address translation parameters */
 int zpci_register_ioat(struct zpci_dev *zdev, u8 dmaas,
 		       u64 base, u64 limit, u64 iota)
@@ -188,7 +167,9 @@ int zpci_unregister_ioat(struct zpci_dev *zdev, u8 dmaas)
 /* Modify PCI: Set PCI function measurement parameters */
 int zpci_fmb_enable_device(struct zpci_dev *zdev)
 {
-	struct mod_pci_args args = { 0, 0, 0, 0 };
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_SET_MEASURE);
+	struct zpci_fib fib = {0};
+	u8 cc, status;
 
 	if (zdev->fmb || sizeof(*zdev->fmb) < zdev->fmb_length)
 		return -EINVAL;
@@ -203,25 +184,35 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 	atomic64_set(&zdev->mapped_pages, 0);
 	atomic64_set(&zdev->unmapped_pages, 0);
 
-	args.fmb_addr = virt_to_phys(zdev->fmb);
-	return mod_pci(zdev, ZPCI_MOD_FC_SET_MEASURE, 0, &args);
+	fib.fmb_addr = virt_to_phys(zdev->fmb);
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc) {
+		kmem_cache_free(zdev_fmb_cache, zdev->fmb);
+		zdev->fmb = NULL;
+	}
+	return cc ? -EIO : 0;
 }
 
 /* Modify PCI: Disable PCI function measurement */
 int zpci_fmb_disable_device(struct zpci_dev *zdev)
 {
-	struct mod_pci_args args = { 0, 0, 0, 0 };
-	int rc;
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_SET_MEASURE);
+	struct zpci_fib fib = {0};
+	u8 cc, status;
 
 	if (!zdev->fmb)
 		return -EINVAL;
 
 	/* Function measurement is disabled if fmb address is zero */
-	rc = mod_pci(zdev, ZPCI_MOD_FC_SET_MEASURE, 0, &args);
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc == 3) /* Function already gone. */
+		cc = 0;
 
-	kmem_cache_free(zdev_fmb_cache, zdev->fmb);
-	zdev->fmb = NULL;
-	return rc;
+	if (!cc) {
+		kmem_cache_free(zdev_fmb_cache, zdev->fmb);
+		zdev->fmb = NULL;
+	}
+	return cc ? -EIO : 0;
 }
 
 static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
