@@ -109,7 +109,7 @@ struct zpci_dev {
 	u64		msi_addr;	/* MSI address */
 	unsigned int	max_msi;	/* maximum number of MSI's */
 	struct airq_iv *aibv;		/* adapter interrupt bit vector */
-	unsigned int	aisb;		/* number of the summary bit */
+	unsigned long	aisb;		/* number of the summary bit */
 
 	/* DMA stuff */
 	unsigned long	*dma_table;

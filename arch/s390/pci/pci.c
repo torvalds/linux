@@ -372,22 +372,21 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	struct msi_msg msg;
 	int rc, irq;
 
+	zdev->aisb = -1UL;
 	if (type == PCI_CAP_ID_MSI && nvec > 1)
 		return 1;
 	msi_vecs = min_t(unsigned int, nvec, zdev->max_msi);
 
 	/* Allocate adapter summary indicator bit */
-	rc = -EIO;
 	aisb = airq_iv_alloc_bit(zpci_aisb_iv);
 	if (aisb == -1UL)
-		goto out;
+		return -EIO;
 	zdev->aisb = aisb;
 
 	/* Create adapter interrupt vector */
-	rc = -ENOMEM;
 	zdev->aibv = airq_iv_create(msi_vecs, AIRQ_IV_DATA | AIRQ_IV_BITLOCK);
 	if (!zdev->aibv)
-		goto out_si;
+		return -ENOMEM;
 
 	/* Wire up shortcut pointer */
 	zpci_aibv[aisb] = zdev->aibv;
@@ -398,10 +397,10 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		rc = -EIO;
 		irq = irq_alloc_desc(0);	/* Alloc irq on node 0 */
 		if (irq < 0)
-			goto out_msi;
+			return -ENOMEM;
 		rc = irq_set_msi_desc(irq, msi);
 		if (rc)
-			goto out_msi;
+			return rc;
 		irq_set_chip_and_handler(irq, &zpci_irq_chip,
 					 handle_simple_irq);
 		msg.data = hwirq;
@@ -415,27 +414,9 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	/* Enable adapter interrupts */
 	rc = zpci_set_airq(zdev);
 	if (rc)
-		goto out_msi;
+		return rc;
 
 	return (msi_vecs == nvec) ? 0 : msi_vecs;
-
-out_msi:
-	for_each_pci_msi_entry(msi, pdev) {
-		if (hwirq-- == 0)
-			break;
-		irq_set_msi_desc(msi->irq, NULL);
-		irq_free_desc(msi->irq);
-		msi->msg.address_lo = 0;
-		msi->msg.address_hi = 0;
-		msi->msg.data = 0;
-		msi->irq = 0;
-	}
-	zpci_aibv[aisb] = NULL;
-	airq_iv_release(zdev->aibv);
-out_si:
-	airq_iv_free_bit(zpci_aisb_iv, aisb);
-out:
-	return rc;
 }
 
 void arch_teardown_msi_irqs(struct pci_dev *pdev)
@@ -451,6 +432,8 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 
 	/* Release MSI interrupts */
 	for_each_pci_msi_entry(msi, pdev) {
+		if (!msi->irq)
+			continue;
 		if (msi->msi_attrib.is_msix)
 			__pci_msix_desc_mask_irq(msi, 1);
 		else
@@ -463,9 +446,15 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 		msi->irq = 0;
 	}
 
-	zpci_aibv[zdev->aisb] = NULL;
-	airq_iv_release(zdev->aibv);
-	airq_iv_free_bit(zpci_aisb_iv, zdev->aisb);
+	if (zdev->aisb != -1UL) {
+		zpci_aibv[zdev->aisb] = NULL;
+		airq_iv_free_bit(zpci_aisb_iv, zdev->aisb);
+		zdev->aisb = -1UL;
+	}
+	if (zdev->aibv) {
+		airq_iv_release(zdev->aibv);
+		zdev->aibv = NULL;
+	}
 }
 
 static void zpci_map_resources(struct pci_dev *pdev)
