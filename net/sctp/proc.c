@@ -218,8 +218,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 		return -ENOMEM;
 
 	head = &sctp_ep_hashtable[hash];
-	local_bh_disable();
-	read_lock(&head->lock);
+	read_lock_bh(&head->lock);
 	sctp_for_each_hentry(epb, &head->chain) {
 		ep = sctp_ep(epb);
 		sk = epb->sk;
@@ -234,8 +233,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 		sctp_seq_dump_local_addrs(seq, epb);
 		seq_printf(seq, "\n");
 	}
-	read_unlock(&head->lock);
-	local_bh_enable();
+	read_unlock_bh(&head->lock);
 
 	return 0;
 }
