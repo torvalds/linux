@@ -2828,6 +2828,8 @@ static bool states_equal(struct bpf_verifier_env *env,
 			return false;
 		if (i % BPF_REG_SIZE)
 			continue;
+		if (old->stack_slot_type[i] != STACK_SPILL)
+			continue;
 		if (memcmp(&old->spilled_regs[i / BPF_REG_SIZE],
 			   &cur->spilled_regs[i / BPF_REG_SIZE],
 			   sizeof(old->spilled_regs[0])))
