@@ -24,6 +24,21 @@
 # define __scbeqz "beqz"
 #endif
 
+/*
+ * These functions doesn't exist, so if they are called you'll either:
+ *
+ * - Get an error at compile-time due to __compiletime_error, if supported by
+ *   your compiler.
+ *
+ * or:
+ *
+ * - Get an error at link-time due to the call to the missing function.
+ */
+extern void __cmpxchg_called_with_bad_pointer(void)
+	__compiletime_error("Bad argument size for cmpxchg");
+extern unsigned long __xchg_called_with_bad_pointer(void)
+	__compiletime_error("Bad argument size for xchg");
+
 #define __xchg_asm(ld, st, m, val)					\
 ({									\
 	__typeof(*(m)) __ret;						\
@@ -89,9 +104,9 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		return __xchg_u32(ptr, x);
 	case 8:
 		return __xchg_u64(ptr, x);
+	default:
+		return __xchg_called_with_bad_pointer();
 	}
-
-	return x;
 }
 
 #define xchg(ptr, x)							\
@@ -135,19 +150,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 									\
 	__ret;								\
 })
-
-/*
- * This function doesn't exist, so if it is called you'll either:
- *
- * - Get an error at compile-time due to __compiletime_error, if supported by
- *   your compiler.
- *
- * or:
- *
- * - Get an error at link-time due to the call to the missing function.
- */
-extern void __cmpxchg_called_with_bad_pointer(void)
-	__compiletime_error("Bad argument size for cmpxchg");
 
 #define __cmpxchg(ptr, old, new, pre_barrier, post_barrier)		\
 ({									\
