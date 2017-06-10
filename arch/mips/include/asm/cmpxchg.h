@@ -73,7 +73,8 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 extern unsigned long __xchg_small(volatile void *ptr, unsigned long val,
 				  unsigned int size);
 
-static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
+static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
+				   int size)
 {
 	switch (size) {
 	case 1:
@@ -101,7 +102,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 	smp_mb__before_llsc();						\
 									\
 	__res = (__typeof__(*(ptr)))					\
-		__xchg((unsigned long)(x), (ptr), sizeof(*(ptr)));	\
+		__xchg((ptr), (unsigned long)(x), sizeof(*(ptr)));	\
 									\
 	smp_llsc_mb();							\
 									\
