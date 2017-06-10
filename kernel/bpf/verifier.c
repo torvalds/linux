@@ -1346,8 +1346,8 @@ static void clear_all_pkt_pointers(struct bpf_verifier_env *env)
 		if (reg->type != PTR_TO_PACKET &&
 		    reg->type != PTR_TO_PACKET_END)
 			continue;
-		reg->type = UNKNOWN_VALUE;
-		reg->imm = 0;
+		__mark_reg_unknown_value(state->spilled_regs,
+					 i / BPF_REG_SIZE);
 	}
 }
 
