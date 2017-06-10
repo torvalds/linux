@@ -2197,7 +2197,7 @@ static int hns_roce_v1_poll_one(struct hns_roce_cq *hr_cq,
 		}
 		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
 		++wq->tail;
-		} else {
+	} else {
 		/* RQ conrespond to CQE */
 		wc->byte_len = le32_to_cpu(cqe->byte_cnt);
 		opcode = roce_get_field(cqe->cqe_byte_4,
@@ -3549,10 +3549,12 @@ static int check_qp_db_process_status(struct hns_roce_dev *hr_dev,
 					old_cnt = roce_get_field(old_send,
 					ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
 					ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S);
-					if (cur_cnt - old_cnt > SDB_ST_CMP_VAL)
+					if (cur_cnt - old_cnt >
+					    SDB_ST_CMP_VAL) {
 						success_flags = 1;
-					else {
-					    send_ptr = roce_get_field(old_send,
+					} else {
+						send_ptr =
+							roce_get_field(old_send,
 					    ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_M,
 					    ROCEE_SDB_SEND_PTR_SDB_SEND_PTR_S) +
 					    roce_get_field(sdb_retry_cnt,
