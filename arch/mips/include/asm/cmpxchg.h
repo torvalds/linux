@@ -70,9 +70,16 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 	__ret;								\
 })
 
+extern unsigned long __xchg_small(volatile void *ptr, unsigned long val,
+				  unsigned int size);
+
 static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
 {
 	switch (size) {
+	case 1:
+	case 2:
+		return __xchg_small(ptr, x, size);
+
 	case 4:
 		return __xchg_asm("ll", "sc", (volatile u32 *)ptr, x);
 
@@ -90,8 +97,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 #define xchg(ptr, x)							\
 ({									\
 	__typeof__(*(ptr)) __res;					\
-									\
-	BUILD_BUG_ON(sizeof(*(ptr)) & ~0xc);				\
 									\
 	smp_mb__before_llsc();						\
 									\
