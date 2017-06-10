@@ -1181,12 +1181,8 @@ void sctp_assoc_update(struct sctp_association *asoc,
 		if (sctp_state(asoc, COOKIE_WAIT))
 			sctp_stream_update(&asoc->stream, &new->stream);
 
-		if (!asoc->assoc_id) {
-			/* get a new association id since we don't have one
-			 * yet.
-			 */
-			sctp_assoc_set_id(asoc, GFP_ATOMIC);
-		}
+		/* get a new assoc id if we don't have one yet. */
+		sctp_assoc_set_id(asoc, GFP_ATOMIC);
 	}
 
 	/* SCTP-AUTH: Save the peer parameters from the new associations
