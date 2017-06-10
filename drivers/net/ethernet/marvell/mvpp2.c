@@ -3719,7 +3719,7 @@ static void mvpp2_bm_bufs_get_addrs(struct device *dev, struct mvpp2 *priv,
 				    dma_addr_t *dma_addr,
 				    phys_addr_t *phys_addr)
 {
-	int cpu = smp_processor_id();
+	int cpu = get_cpu();
 
 	*dma_addr = mvpp2_percpu_read(priv, cpu,
 				      MVPP2_BM_PHY_ALLOC_REG(bm_pool->id));
@@ -3740,6 +3740,8 @@ static void mvpp2_bm_bufs_get_addrs(struct device *dev, struct mvpp2 *priv,
 		if (sizeof(phys_addr_t) == 8)
 			*phys_addr |= (u64)phys_addr_highbits << 32;
 	}
+
+	put_cpu();
 }
 
 /* Free all buffers from the pool */
@@ -3925,7 +3927,7 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 				     dma_addr_t buf_dma_addr,
 				     phys_addr_t buf_phys_addr)
 {
-	int cpu = smp_processor_id();
+	int cpu = get_cpu();
 
 	if (port->priv->hw_version == MVPP22) {
 		u32 val = 0;
@@ -3952,6 +3954,8 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 			   MVPP2_BM_VIRT_RLS_REG, buf_phys_addr);
 	mvpp2_percpu_write(port->priv, cpu,
 			   MVPP2_BM_PHY_RLS_REG(pool), buf_dma_addr);
+
+	put_cpu();
 }
 
 /* Refill BM pool */
@@ -4732,7 +4736,7 @@ static void mvpp2_txp_max_tx_size_set(struct mvpp2_port *port)
 static void mvpp2_rx_pkts_coal_set(struct mvpp2_port *port,
 				   struct mvpp2_rx_queue *rxq)
 {
-	int cpu = smp_processor_id();
+	int cpu = get_cpu();
 
 	if (rxq->pkts_coal > MVPP2_OCCUPIED_THRESH_MASK)
 		rxq->pkts_coal = MVPP2_OCCUPIED_THRESH_MASK;
@@ -4740,6 +4744,8 @@ static void mvpp2_rx_pkts_coal_set(struct mvpp2_port *port,
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_RXQ_NUM_REG, rxq->id);
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_RXQ_THRESH_REG,
 			   rxq->pkts_coal);
+
+	put_cpu();
 }
 
 static u32 mvpp2_usec_to_cycles(u32 usec, unsigned long clk_hz)
@@ -4920,7 +4926,7 @@ static int mvpp2_rxq_init(struct mvpp2_port *port,
 	mvpp2_write(port->priv, MVPP2_RXQ_STATUS_REG(rxq->id), 0);
 
 	/* Set Rx descriptors queue starting address - indirect access */
-	cpu = smp_processor_id();
+	cpu = get_cpu();
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_RXQ_NUM_REG, rxq->id);
 	if (port->priv->hw_version == MVPP21)
 		rxq_dma = rxq->descs_dma;
@@ -4929,6 +4935,7 @@ static int mvpp2_rxq_init(struct mvpp2_port *port,
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_RXQ_DESC_ADDR_REG, rxq_dma);
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_RXQ_DESC_SIZE_REG, rxq->size);
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_RXQ_INDEX_REG, 0);
+	put_cpu();
 
 	/* Set Offset */
 	mvpp2_rxq_offset_set(port, rxq->id, NET_SKB_PAD);
@@ -4991,10 +4998,11 @@ static void mvpp2_rxq_deinit(struct mvpp2_port *port,
 	 * free descriptor number
 	 */
 	mvpp2_write(port->priv, MVPP2_RXQ_STATUS_REG(rxq->id), 0);
-	cpu = smp_processor_id();
+	cpu = get_cpu();
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_RXQ_NUM_REG, rxq->id);
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_RXQ_DESC_ADDR_REG, 0);
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_RXQ_DESC_SIZE_REG, 0);
+	put_cpu();
 }
 
 /* Create and initialize a Tx queue */
@@ -5017,7 +5025,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	txq->last_desc = txq->size - 1;
 
 	/* Set Tx descriptors queue starting address - indirect access */
-	cpu = smp_processor_id();
+	cpu = get_cpu();
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_TXQ_NUM_REG, txq->id);
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_TXQ_DESC_ADDR_REG,
 			   txq->descs_dma);
@@ -5042,6 +5050,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_TXQ_PREF_BUF_REG,
 			   MVPP2_PREF_BUF_PTR(desc) | MVPP2_PREF_BUF_SIZE_16 |
 			   MVPP2_PREF_BUF_THRESH(desc_per_txq / 2));
+	put_cpu();
 
 	/* WRR / EJP configuration - indirect access */
 	tx_port_num = mvpp2_egress_port(port);
@@ -5112,10 +5121,11 @@ static void mvpp2_txq_deinit(struct mvpp2_port *port,
 	mvpp2_write(port->priv, MVPP2_TXQ_SCHED_TOKEN_CNTR_REG(txq->id), 0);
 
 	/* Set Tx descriptors queue starting address and size */
-	cpu = smp_processor_id();
+	cpu = get_cpu();
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_TXQ_NUM_REG, txq->id);
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_TXQ_DESC_ADDR_REG, 0);
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_TXQ_DESC_SIZE_REG, 0);
+	put_cpu();
 }
 
 /* Cleanup Tx ports */
@@ -5125,7 +5135,7 @@ static void mvpp2_txq_clean(struct mvpp2_port *port, struct mvpp2_tx_queue *txq)
 	int delay, pending, cpu;
 	u32 val;
 
-	cpu = smp_processor_id();
+	cpu = get_cpu();
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_TXQ_NUM_REG, txq->id);
 	val = mvpp2_percpu_read(port->priv, cpu, MVPP2_TXQ_PREF_BUF_REG);
 	val |= MVPP2_TXQ_DRAIN_EN_MASK;
@@ -5152,6 +5162,7 @@ static void mvpp2_txq_clean(struct mvpp2_port *port, struct mvpp2_tx_queue *txq)
 
 	val &= ~MVPP2_TXQ_DRAIN_EN_MASK;
 	mvpp2_percpu_write(port->priv, cpu, MVPP2_TXQ_PREF_BUF_REG, val);
+	put_cpu();
 
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
