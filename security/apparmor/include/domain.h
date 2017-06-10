@@ -27,6 +27,7 @@ struct aa_domain {
 #define AA_CHANGE_TEST 1
 #define AA_CHANGE_CHILD 2
 #define AA_CHANGE_ONEXEC  4
+#define AA_CHANGE_STACK 8
 
 int apparmor_bprm_set_creds(struct linux_binprm *bprm);
 int apparmor_bprm_secureexec(struct linux_binprm *bprm);

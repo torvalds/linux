@@ -92,6 +92,8 @@ enum audit_type {
 #define OP_CHANGE_HAT "change_hat"
 #define OP_CHANGE_PROFILE "change_profile"
 #define OP_CHANGE_ONEXEC "change_onexec"
+#define OP_STACK "stack"
+#define OP_STACK_ONEXEC "stack_onexec"
 
 #define OP_SETPROCATTR "setprocattr"
 #define OP_SETRLIMIT "setrlimit"

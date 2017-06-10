@@ -1138,6 +1138,40 @@ static const struct file_operations seq_ns_ ##NAME ##_fops = {	      \
 	.release	= single_release,				      \
 }									      \
 
+static int seq_ns_stacked_show(struct seq_file *seq, void *v)
+{
+	struct aa_label *label;
+
+	label = begin_current_label_crit_section();
+	seq_printf(seq, "%s\n", label->size > 1 ? "yes" : "no");
+	end_current_label_crit_section(label);
+
+	return 0;
+}
+
+static int seq_ns_nsstacked_show(struct seq_file *seq, void *v)
+{
+	struct aa_label *label;
+	struct aa_profile *profile;
+	struct label_it it;
+	int count = 1;
+
+	label = begin_current_label_crit_section();
+
+	if (label->size > 1) {
+		label_for_each(it, label, profile)
+			if (profile->ns != labels_ns(label)) {
+				count++;
+				break;
+			}
+	}
+
+	seq_printf(seq, "%s\n", count > 1 ? "yes" : "no");
+	end_current_label_crit_section(label);
+
+	return 0;
+}
+
 static int seq_ns_level_show(struct seq_file *seq, void *v)
 {
 	struct aa_label *label;
@@ -1160,6 +1194,8 @@ static int seq_ns_name_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+SEQ_NS_FOPS(stacked);
+SEQ_NS_FOPS(nsstacked);
 SEQ_NS_FOPS(level);
 SEQ_NS_FOPS(name);
 
