@@ -137,10 +137,17 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 })
 
 /*
- * This function doesn't exist, so you'll get a linker error
- * if something tries to do an invalid cmpxchg().
+ * This function doesn't exist, so if it is called you'll either:
+ *
+ * - Get an error at compile-time due to __compiletime_error, if supported by
+ *   your compiler.
+ *
+ * or:
+ *
+ * - Get an error at link-time due to the call to the missing function.
  */
-extern void __cmpxchg_called_with_bad_pointer(void);
+extern void __cmpxchg_called_with_bad_pointer(void)
+	__compiletime_error("Bad argument size for cmpxchg");
 
 #define __cmpxchg(ptr, old, new, pre_barrier, post_barrier)		\
 ({									\
