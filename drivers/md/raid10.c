@@ -3611,6 +3611,9 @@ static int raid10_run(struct mddev *mddev)
 	int first = 1;
 	bool discard_supported = false;
 
+	if (mddev_init_writes_pending(mddev) < 0)
+		return -ENOMEM;
+
 	if (mddev->private == NULL) {
 		conf = setup_conf(mddev);
 		if (IS_ERR(conf))
