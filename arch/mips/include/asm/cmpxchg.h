@@ -34,7 +34,7 @@
  *
  * - Get an error at link-time due to the call to the missing function.
  */
-extern void __cmpxchg_called_with_bad_pointer(void)
+extern unsigned long __cmpxchg_called_with_bad_pointer(void)
 	__compiletime_error("Bad argument size for cmpxchg");
 extern unsigned long __xchg_called_with_bad_pointer(void)
 	__compiletime_error("Bad argument size for xchg");
@@ -137,37 +137,42 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 	__ret;								\
 })
 
-#define __cmpxchg(ptr, old, new, pre_barrier, post_barrier)		\
+static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
+				      unsigned long new, unsigned int size)
+{
+	switch (size) {
+	case 4:
+		return __cmpxchg_asm("ll", "sc", (volatile u32 *)ptr, old, new);
+
+	case 8:
+		/* lld/scd are only available for MIPS64 */
+		if (!IS_ENABLED(CONFIG_64BIT))
+			return __cmpxchg_called_with_bad_pointer();
+
+		return __cmpxchg_asm("lld", "scd", (volatile u64 *)ptr, old, new);
+
+	default:
+		return __cmpxchg_called_with_bad_pointer();
+	}
+}
+
+#define cmpxchg_local(ptr, old, new)					\
+	((__typeof__(*(ptr)))						\
+		__cmpxchg((ptr),					\
+			  (unsigned long)(__typeof__(*(ptr)))(old),	\
+			  (unsigned long)(__typeof__(*(ptr)))(new),	\
+			  sizeof(*(ptr))))
+
+#define cmpxchg(ptr, old, new)						\
 ({									\
-	__typeof__(ptr) __ptr = (ptr);					\
-	__typeof__(*(ptr)) __old = (old);				\
-	__typeof__(*(ptr)) __new = (new);				\
-	__typeof__(*(ptr)) __res = 0;					\
+	__typeof__(*(ptr)) __res;					\
 									\
-	pre_barrier;							\
-									\
-	switch (sizeof(*(__ptr))) {					\
-	case 4:								\
-		__res = __cmpxchg_asm("ll", "sc", __ptr, __old, __new); \
-		break;							\
-	case 8:								\
-		if (sizeof(long) == 8) {				\
-			__res = __cmpxchg_asm("lld", "scd", __ptr,	\
-					   __old, __new);		\
-			break;						\
-		}							\
-	default:							\
-		__cmpxchg_called_with_bad_pointer();			\
-		break;							\
-	}								\
-									\
-	post_barrier;							\
+	smp_mb__before_llsc();						\
+	__res = cmpxchg_local((ptr), (old), (new));			\
+	smp_llsc_mb();							\
 									\
 	__res;								\
 })
-
-#define cmpxchg(ptr, old, new)		__cmpxchg(ptr, old, new, smp_mb__before_llsc(), smp_llsc_mb())
-#define cmpxchg_local(ptr, old, new)	__cmpxchg(ptr, old, new, , )
 
 #ifdef CONFIG_64BIT
 #define cmpxchg64_local(ptr, o, n)					\
