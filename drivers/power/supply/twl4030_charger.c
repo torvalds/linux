@@ -153,7 +153,7 @@ struct twl4030_bci {
 };
 
 /* strings for 'usb_mode' values */
-static char *modes[] = { "off", "auto", "continuous" };
+static const char *modes[] = { "off", "auto", "continuous" };
 
 /*
  * clear and set bits on an given register on a given module
@@ -669,14 +669,10 @@ twl4030_bci_mode_store(struct device *dev, struct device_attribute *attr,
 	int mode;
 	int status;
 
-	if (sysfs_streq(buf, modes[0]))
-		mode = 0;
-	else if (sysfs_streq(buf, modes[1]))
-		mode = 1;
-	else if (sysfs_streq(buf, modes[2]))
-		mode = 2;
-	else
-		return -EINVAL;
+	mode = sysfs_match_string(modes, buf);
+	if (mode < 0)
+		return mode;
+
 	if (dev == &bci->ac->dev) {
 		if (mode == 2)
 			return -EINVAL;
