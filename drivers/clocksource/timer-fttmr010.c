@@ -91,11 +91,14 @@ static inline struct fttmr010 *to_fttmr010(struct clock_event_device *evt)
 	return container_of(evt, struct fttmr010, clkevt);
 }
 
-static u64 notrace fttmr010_read_sched_clock(void)
+static u64 notrace fttmr010_read_sched_clock_up(void)
 {
-	if (local_fttmr->count_down)
-		return ~readl(local_fttmr->base + TIMER2_COUNT);
 	return readl(local_fttmr->base + TIMER2_COUNT);
+}
+
+static u64 notrace fttmr010_read_sched_clock_down(void)
+{
+	return ~readl(local_fttmr->base + TIMER2_COUNT);
 }
 
 static int fttmr010_timer_set_next_event(unsigned long cycles,
@@ -302,15 +305,17 @@ static int __init fttmr010_common_init(struct device_node *np, bool is_aspeed)
 				      "FTTMR010-TIMER2",
 				      fttmr010->tick_rate,
 				      300, 32, clocksource_mmio_readl_down);
+		sched_clock_register(fttmr010_read_sched_clock_down, 32,
+				     fttmr010->tick_rate);
 	} else {
 		writel(0, fttmr010->base + TIMER2_LOAD);
 		clocksource_mmio_init(fttmr010->base + TIMER2_COUNT,
 				      "FTTMR010-TIMER2",
 				      fttmr010->tick_rate,
 				      300, 32, clocksource_mmio_readl_up);
+		sched_clock_register(fttmr010_read_sched_clock_up, 32,
+				     fttmr010->tick_rate);
 	}
-	sched_clock_register(fttmr010_read_sched_clock, 32,
-			     fttmr010->tick_rate);
 
 	/*
 	 * Setup clockevent timer (interrupt-driven) on timer 1.
