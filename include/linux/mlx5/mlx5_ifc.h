@@ -7745,6 +7745,18 @@ struct mlx5_ifc_mcam_enhanced_features_bits {
 	u8         pcie_performance_group[0x1];
 };
 
+struct mlx5_ifc_mcam_access_reg_bits {
+	u8         reserved_at_0[0x1c];
+	u8         mcda[0x1];
+	u8         mcc[0x1];
+	u8         mcqi[0x1];
+	u8         reserved_at_1f[0x1];
+
+	u8         regs_95_to_64[0x20];
+	u8         regs_63_to_32[0x20];
+	u8         regs_31_to_0[0x20];
+};
+
 struct mlx5_ifc_mcam_reg_bits {
 	u8         reserved_at_0[0x8];
 	u8         feature_group[0x8];
@@ -7754,6 +7766,7 @@ struct mlx5_ifc_mcam_reg_bits {
 	u8         reserved_at_20[0x20];
 
 	union {
+		struct mlx5_ifc_mcam_access_reg_bits access_regs;
 		u8         reserved_at_0[0x80];
 	} mng_access_reg_cap_mask;
 
