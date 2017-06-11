@@ -61,6 +61,8 @@
 
 #define ENA_MMIO_READ_TIMEOUT 0xFFFFFFFF
 
+#define ENA_REGS_ADMIN_INTR_MASK 1
+
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
@@ -1454,6 +1456,12 @@ void ena_com_admin_destroy(struct ena_com_dev *ena_dev)
 
 void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling)
 {
+	u32 mask_value = 0;
+
+	if (polling)
+		mask_value = ENA_REGS_ADMIN_INTR_MASK;
+
+	writel(mask_value, ena_dev->reg_bar + ENA_REGS_INTR_MASK_OFF);
 	ena_dev->admin_queue.polling = polling;
 }
 
