@@ -94,7 +94,7 @@
 #define CLKID_SDHC		27
 #define CLKID_STREAM		28
 #define CLKID_ASYNC_FIFO	29
-#define CLKID_SDIO		30
+/* #define CLKID_SDIO */
 #define CLKID_ABUF		31
 #define CLKID_HIU_IFACE		32
 #define CLKID_ASSIST_MISC	33
