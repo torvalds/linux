@@ -22,7 +22,7 @@
 #include <asm/kvm_hyp.h>
 
 #define vtr_to_max_lr_idx(v)		((v) & 0xf)
-#define vtr_to_nr_pre_bits(v)		(((u32)(v) >> 26) + 1)
+#define vtr_to_nr_pre_bits(v)		((((u32)(v) >> 26) & 7) + 1)
 
 static u64 __hyp_text __gic_v3_get_lr(unsigned int lr)
 {
