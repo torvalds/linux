@@ -888,6 +888,8 @@ inserted:
 			else {
 				u32 ref;
 
+				WARN_ON_ONCE(dquot_initialize_needed(inode));
+
 				/* The old block is released after updating
 				   the inode. */
 				error = dquot_alloc_block(inode,
@@ -953,6 +955,8 @@ inserted:
 		} else {
 			/* We need to allocate a new block */
 			ext4_fsblk_t goal, block;
+
+			WARN_ON_ONCE(dquot_initialize_needed(inode));
 
 			goal = ext4_group_first_block_no(sb,
 						EXT4_I(inode)->i_block_group);
@@ -1166,6 +1170,7 @@ ext4_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 		return -EINVAL;
 	if (strlen(name) > 255)
 		return -ERANGE;
+
 	ext4_write_lock_xattr(inode, &no_expand);
 
 	error = ext4_reserve_inode_write(handle, inode, &is.iloc);
@@ -1267,6 +1272,9 @@ ext4_xattr_set(struct inode *inode, int name_index, const char *name,
 	int error, retries = 0;
 	int credits = ext4_jbd2_credits_xattr(inode);
 
+	error = dquot_initialize(inode);
+	if (error)
+		return error;
 retry:
 	handle = ext4_journal_start(inode, EXT4_HT_XATTR, credits);
 	if (IS_ERR(handle)) {
