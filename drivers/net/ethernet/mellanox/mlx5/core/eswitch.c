@@ -1611,13 +1611,14 @@ static void esw_disable_vport(struct mlx5_eswitch *esw, int vport_num)
 }
 
 /* Public E-Switch API */
+#define ESW_ALLOWED(esw) ((esw) && MLX5_VPORT_MANAGER((esw)->dev))
+
 int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 {
 	int err;
 	int i, enabled_events;
 
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+	if (!ESW_ALLOWED(esw))
 		return 0;
 
 	if (!MLX5_CAP_GEN(esw->dev, eswitch_flow_table) ||
@@ -1667,9 +1668,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	int nvports;
 	int i;
 
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH ||
-	    esw->mode == SRIOV_NONE)
+	if (!ESW_ALLOWED(esw) || esw->mode == SRIOV_NONE)
 		return;
 
 	esw_info(esw->dev, "disable SRIOV: active vports(%d) mode(%d)\n",
@@ -1698,8 +1697,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 
 void mlx5_eswitch_attach(struct mlx5_eswitch *esw)
 {
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+	if (!ESW_ALLOWED(esw))
 		return;
 
 	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
@@ -1708,8 +1706,7 @@ void mlx5_eswitch_attach(struct mlx5_eswitch *esw)
 
 void mlx5_eswitch_detach(struct mlx5_eswitch *esw)
 {
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+	if (!ESW_ALLOWED(esw))
 		return;
 
 	esw_disable_vport(esw, 0);
@@ -1723,8 +1720,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	int vport_num;
 	int err;
 
-	if (!MLX5_CAP_GEN(dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+	if (!MLX5_VPORT_MANAGER(dev))
 		return 0;
 
 	esw_info(dev,
@@ -1806,8 +1802,7 @@ abort:
 
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 {
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+	if (!esw || !MLX5_VPORT_MANAGER(esw->dev))
 		return;
 
 	esw_info(esw->dev, "cleanup\n");
@@ -1838,8 +1833,6 @@ void mlx5_eswitch_vport_event(struct mlx5_eswitch *esw, struct mlx5_eqe *eqe)
 }
 
 /* Vport Administration */
-#define ESW_ALLOWED(esw) \
-	(esw && MLX5_CAP_GEN(esw->dev, vport_group_manager) && mlx5_core_is_pf(esw->dev))
 #define LEGAL_VPORT(esw, vport) (vport >= 0 && vport < esw->total_vports)
 
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,

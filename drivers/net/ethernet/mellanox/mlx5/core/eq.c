@@ -688,9 +688,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	u64 async_event_mask = MLX5_ASYNC_EVENT_MASK;
 	int err;
 
-	if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH &&
-	    MLX5_CAP_GEN(dev, vport_group_manager) &&
-	    mlx5_core_is_pf(dev))
+	if (MLX5_VPORT_MANAGER(dev))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_NIC_VPORT_CHANGE);
 
 	if (MLX5_CAP_GEN(dev, port_module_event))
