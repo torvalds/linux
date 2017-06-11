@@ -124,7 +124,7 @@ struct amdtp_stream {
 	/* For a PCM substream processing. */
 	struct snd_pcm_substream *pcm;
 	struct tasklet_struct period_tasklet;
-	unsigned int pcm_buffer_pointer;
+	snd_pcm_uframes_t pcm_buffer_pointer;
 	unsigned int pcm_period_pointer;
 
 	/* To wait for first packet. */
