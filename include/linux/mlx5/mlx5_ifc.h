@@ -6627,6 +6627,24 @@ struct mlx5_ifc_create_flow_table_out_bits {
 	u8         reserved_at_60[0x20];
 };
 
+struct mlx5_ifc_flow_table_context_bits {
+	u8         encap_en[0x1];
+	u8         decap_en[0x1];
+	u8         reserved_at_2[0x2];
+	u8         table_miss_action[0x4];
+	u8         level[0x8];
+	u8         reserved_at_10[0x8];
+	u8         log_size[0x8];
+
+	u8         reserved_at_20[0x8];
+	u8         table_miss_id[0x18];
+
+	u8         reserved_at_40[0x8];
+	u8         lag_master_next_table_id[0x18];
+
+	u8         reserved_at_60[0xe0];
+};
+
 struct mlx5_ifc_create_flow_table_in_bits {
 	u8         opcode[0x10];
 	u8         reserved_at_10[0x10];
@@ -6645,21 +6663,7 @@ struct mlx5_ifc_create_flow_table_in_bits {
 
 	u8         reserved_at_a0[0x20];
 
-	u8         encap_en[0x1];
-	u8         decap_en[0x1];
-	u8         reserved_at_c2[0x2];
-	u8         table_miss_mode[0x4];
-	u8         level[0x8];
-	u8         reserved_at_d0[0x8];
-	u8         log_size[0x8];
-
-	u8         reserved_at_e0[0x8];
-	u8         table_miss_id[0x18];
-
-	u8         reserved_at_100[0x8];
-	u8         lag_master_next_table_id[0x18];
-
-	u8         reserved_at_120[0x80];
+	struct mlx5_ifc_flow_table_context_bits flow_table_context;
 };
 
 struct mlx5_ifc_create_flow_group_out_bits {
@@ -7291,7 +7295,8 @@ struct mlx5_ifc_ptys_reg_bits {
 	u8         ib_link_width_oper[0x10];
 	u8         ib_proto_oper[0x10];
 
-	u8         reserved_at_160[0x20];
+	u8         reserved_at_160[0x1c];
+	u8         connector_type[0x4];
 
 	u8         eth_proto_lp_advertise[0x20];
 
@@ -7694,8 +7699,10 @@ struct mlx5_ifc_peir_reg_bits {
 };
 
 struct mlx5_ifc_pcam_enhanced_features_bits {
-	u8         reserved_at_0[0x7e];
+	u8         reserved_at_0[0x7c];
 
+	u8         ptys_connector_type[0x1];
+	u8         reserved_at_7d[0x1];
 	u8         ppcnt_discard_group[0x1];
 	u8         ppcnt_statistical_group[0x1];
 };
@@ -8277,17 +8284,7 @@ struct mlx5_ifc_modify_flow_table_in_bits {
 	u8         reserved_at_a0[0x8];
 	u8         table_id[0x18];
 
-	u8         reserved_at_c0[0x4];
-	u8         table_miss_mode[0x4];
-	u8         reserved_at_c8[0x18];
-
-	u8         reserved_at_e0[0x8];
-	u8         table_miss_id[0x18];
-
-	u8         reserved_at_100[0x8];
-	u8         lag_master_next_table_id[0x18];
-
-	u8         reserved_at_120[0x80];
+	struct mlx5_ifc_flow_table_context_bits flow_table_context;
 };
 
 struct mlx5_ifc_ets_tcn_config_reg_bits {

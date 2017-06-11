@@ -723,24 +723,81 @@ static void ptys2ethtool_adver_link(unsigned long *advertising_modes,
 			  __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static void ptys2ethtool_supported_port(struct ethtool_link_ksettings *link_ksettings,
-					u32 eth_proto_cap)
+static void ptys2ethtool_supported_advertised_port(struct ethtool_link_ksettings *link_ksettings,
+						   u32 eth_proto_cap,
+						   u8 connector_type)
 {
-	if (eth_proto_cap & (MLX5E_PROT_MASK(MLX5E_10GBASE_CR)
-			   | MLX5E_PROT_MASK(MLX5E_10GBASE_SR)
-			   | MLX5E_PROT_MASK(MLX5E_40GBASE_CR4)
-			   | MLX5E_PROT_MASK(MLX5E_40GBASE_SR4)
-			   | MLX5E_PROT_MASK(MLX5E_100GBASE_SR4)
-			   | MLX5E_PROT_MASK(MLX5E_1000BASE_CX_SGMII))) {
-		ethtool_link_ksettings_add_link_mode(link_ksettings, supported, FIBRE);
+	if (!connector_type || connector_type >= MLX5E_CONNECTOR_TYPE_NUMBER) {
+		if (eth_proto_cap & (MLX5E_PROT_MASK(MLX5E_10GBASE_CR)
+				   | MLX5E_PROT_MASK(MLX5E_10GBASE_SR)
+				   | MLX5E_PROT_MASK(MLX5E_40GBASE_CR4)
+				   | MLX5E_PROT_MASK(MLX5E_40GBASE_SR4)
+				   | MLX5E_PROT_MASK(MLX5E_100GBASE_SR4)
+				   | MLX5E_PROT_MASK(MLX5E_1000BASE_CX_SGMII))) {
+			ethtool_link_ksettings_add_link_mode(link_ksettings,
+							     supported,
+							     FIBRE);
+			ethtool_link_ksettings_add_link_mode(link_ksettings,
+							     advertising,
+							     FIBRE);
+		}
+
+		if (eth_proto_cap & (MLX5E_PROT_MASK(MLX5E_100GBASE_KR4)
+				   | MLX5E_PROT_MASK(MLX5E_40GBASE_KR4)
+				   | MLX5E_PROT_MASK(MLX5E_10GBASE_KR)
+				   | MLX5E_PROT_MASK(MLX5E_10GBASE_KX4)
+				   | MLX5E_PROT_MASK(MLX5E_1000BASE_KX))) {
+			ethtool_link_ksettings_add_link_mode(link_ksettings,
+							     supported,
+							     Backplane);
+			ethtool_link_ksettings_add_link_mode(link_ksettings,
+							     advertising,
+							     Backplane);
+		}
+		return;
 	}
 
-	if (eth_proto_cap & (MLX5E_PROT_MASK(MLX5E_100GBASE_KR4)
-			   | MLX5E_PROT_MASK(MLX5E_40GBASE_KR4)
-			   | MLX5E_PROT_MASK(MLX5E_10GBASE_KR)
-			   | MLX5E_PROT_MASK(MLX5E_10GBASE_KX4)
-			   | MLX5E_PROT_MASK(MLX5E_1000BASE_KX))) {
-		ethtool_link_ksettings_add_link_mode(link_ksettings, supported, Backplane);
+	switch (connector_type) {
+	case MLX5E_PORT_TP:
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     supported, TP);
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     advertising, TP);
+		break;
+	case MLX5E_PORT_AUI:
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     supported, AUI);
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     advertising, AUI);
+		break;
+	case MLX5E_PORT_BNC:
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     supported, BNC);
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     advertising, BNC);
+		break;
+	case MLX5E_PORT_MII:
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     supported, MII);
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     advertising, MII);
+		break;
+	case MLX5E_PORT_FIBRE:
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     supported, FIBRE);
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     advertising, FIBRE);
+		break;
+	case MLX5E_PORT_DA:
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     supported, Backplane);
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     advertising, Backplane);
+		break;
+	case MLX5E_PORT_NONE:
+	case MLX5E_PORT_OTHER:
+	default:
+		break;
 	}
 }
 
@@ -791,7 +848,6 @@ static void get_supported(u32 eth_proto_cap,
 {
 	unsigned long *supported = link_ksettings->link_modes.supported;
 
-	ptys2ethtool_supported_port(link_ksettings, eth_proto_cap);
 	ptys2ethtool_supported_link(supported, eth_proto_cap);
 	ethtool_link_ksettings_add_link_mode(link_ksettings, supported, Pause);
 }
@@ -809,8 +865,23 @@ static void get_advertising(u32 eth_proto_cap, u8 tx_pause,
 		ethtool_link_ksettings_add_link_mode(link_ksettings, advertising, Asym_Pause);
 }
 
-static u8 get_connector_port(u32 eth_proto)
+static int ptys2connector_type[MLX5E_CONNECTOR_TYPE_NUMBER] = {
+		[MLX5E_PORT_UNKNOWN]            = PORT_OTHER,
+		[MLX5E_PORT_NONE]               = PORT_NONE,
+		[MLX5E_PORT_TP]                 = PORT_TP,
+		[MLX5E_PORT_AUI]                = PORT_AUI,
+		[MLX5E_PORT_BNC]                = PORT_BNC,
+		[MLX5E_PORT_MII]                = PORT_MII,
+		[MLX5E_PORT_FIBRE]              = PORT_FIBRE,
+		[MLX5E_PORT_DA]                 = PORT_DA,
+		[MLX5E_PORT_OTHER]              = PORT_OTHER,
+	};
+
+static u8 get_connector_port(u32 eth_proto, u8 connector_type)
 {
+	if (connector_type && connector_type < MLX5E_CONNECTOR_TYPE_NUMBER)
+		return ptys2connector_type[connector_type];
+
 	if (eth_proto & (MLX5E_PROT_MASK(MLX5E_10GBASE_SR)
 			 | MLX5E_PROT_MASK(MLX5E_40GBASE_SR4)
 			 | MLX5E_PROT_MASK(MLX5E_100GBASE_SR4)
@@ -856,6 +927,7 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 	u32 eth_proto_oper;
 	u8 an_disable_admin;
 	u8 an_status;
+	u8 connector_type;
 	int err;
 
 	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
@@ -871,6 +943,7 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 	eth_proto_lp     = MLX5_GET(ptys_reg, out, eth_proto_lp_advertise);
 	an_disable_admin = MLX5_GET(ptys_reg, out, an_disable_admin);
 	an_status        = MLX5_GET(ptys_reg, out, an_status);
+	connector_type   = MLX5_GET(ptys_reg, out, connector_type);
 
 	mlx5_query_port_pause(mdev, &rx_pause, &tx_pause);
 
@@ -883,7 +956,10 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 
 	eth_proto_oper = eth_proto_oper ? eth_proto_oper : eth_proto_cap;
 
-	link_ksettings->base.port = get_connector_port(eth_proto_oper);
+	link_ksettings->base.port = get_connector_port(eth_proto_oper,
+						       connector_type);
+	ptys2ethtool_supported_advertised_port(link_ksettings, eth_proto_admin,
+					       connector_type);
 	get_lp_advertising(eth_proto_lp, link_ksettings);
 
 	if (an_status == MLX5_AN_COMPLETE)
