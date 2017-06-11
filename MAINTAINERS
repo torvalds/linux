@@ -9439,6 +9439,13 @@ M:	Harald Welte <laforge@gnumonks.org>
 S:	Maintained
 F:	drivers/char/pcmcia/cm4040_cs.*
 
+OMNIVISION OV5640 SENSOR DRIVER
+M:	Steve Longerbeam <slongerbeam@gmail.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/ov5640.c
+
 OMNIVISION OV5647 SENSOR DRIVER
 M:	Ramiro Oliveira <roliveir@synopsys.com>
 L:	linux-media@vger.kernel.org
