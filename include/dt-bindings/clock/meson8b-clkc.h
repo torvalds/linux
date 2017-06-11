@@ -22,6 +22,7 @@
 #define CLKID_MPEG_SEL		14
 #define CLKID_MPEG_DIV		15
 #define CLKID_SAR_ADC		23
+#define CLKID_RNG0		25
 #define CLKID_SDIO		30
 #define CLKID_SANA		69
 
