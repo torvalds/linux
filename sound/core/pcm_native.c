@@ -276,14 +276,14 @@ static int constrain_mask_params(struct snd_pcm_substream *substream,
 			old_mask = *m;
 
 		changed = snd_mask_refine(m, constrs_mask(constrs, k));
-
-		trace_hw_mask_param(substream, k, 0, &old_mask, m);
-
-		/* Set corresponding flag so that the caller gets it. */
-		if (changed)
-			params->cmask |= 1 << k;
 		if (changed < 0)
 			return changed;
+		if (changed == 0)
+			continue;
+
+		/* Set corresponding flag so that the caller gets it. */
+		trace_hw_mask_param(substream, k, 0, &old_mask, m);
+		params->cmask |= 1 << k;
 	}
 
 	return 0;
@@ -312,14 +312,14 @@ static int constrain_interval_params(struct snd_pcm_substream *substream,
 			old_interval = *i;
 
 		changed = snd_interval_refine(i, constrs_interval(constrs, k));
-
-		trace_hw_interval_param(substream, k, 0, &old_interval, i);
-
-		/* Set corresponding flag so that the caller gets it. */
-		if (changed)
-			params->cmask |= 1 << k;
 		if (changed < 0)
 			return changed;
+		if (changed == 0)
+			continue;
+
+		/* Set corresponding flag so that the caller gets it. */
+		trace_hw_interval_param(substream, k, 0, &old_interval, i);
+		params->cmask |= 1 << k;
 	}
 
 	return 0;
@@ -406,31 +406,32 @@ retry:
 		}
 
 		changed = r->func(params, r);
-
-		if (hw_is_mask(r->var)) {
-			trace_hw_mask_param(substream, r->var, k + 1,
-				&old_mask, hw_param_mask(params, r->var));
-		}
-		if (hw_is_interval(r->var)) {
-			trace_hw_interval_param(substream, r->var, k + 1,
-				&old_interval, hw_param_interval(params, r->var));
-		}
-
-		rstamps[k] = stamp;
+		if (changed < 0)
+			return changed;
 
 		/*
-		 * When the parameters is changed, notify it to the caller
+		 * When the parameter is changed, notify it to the caller
 		 * by corresponding returned bit, then preparing for next
 		 * iteration.
 		 */
 		if (changed && r->var >= 0) {
+			if (hw_is_mask(r->var)) {
+				trace_hw_mask_param(substream, r->var,
+					k + 1, &old_mask,
+					hw_param_mask(params, r->var));
+			}
+			if (hw_is_interval(r->var)) {
+				trace_hw_interval_param(substream, r->var,
+					k + 1, &old_interval,
+					hw_param_interval(params, r->var));
+			}
+
 			params->cmask |= (1 << r->var);
 			vstamps[r->var] = stamp;
 			again = true;
 		}
-		if (changed < 0)
-			return changed;
-		stamp++;
+
+		rstamps[k] = stamp++;
 	}
 
 	/* Iterate to evaluate all rules till no parameters are changed. */
@@ -527,13 +528,16 @@ static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
 		return PTR_ERR(params);
 
 	err = snd_pcm_hw_refine(substream, params);
-	if (err >= 0)
-		err = fixup_unreferenced_params(substream, params);
-	if (copy_to_user(_params, params, sizeof(*params))) {
-		if (!err)
-			err = -EFAULT;
-	}
+	if (err < 0)
+		goto end;
 
+	err = fixup_unreferenced_params(substream, params);
+	if (err < 0)
+		goto end;
+
+	if (copy_to_user(_params, params, sizeof(*params)))
+		err = -EFAULT;
+end:
 	kfree(params);
 	return err;
 }
@@ -600,7 +604,7 @@ static int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
 	const int *v;
 	struct snd_mask old_mask;
 	struct snd_interval old_interval;
-	int err;
+	int changed;
 
 	for (v = vars; *v != -1; v++) {
 		/* Keep old parameter to trace. */
@@ -613,13 +617,15 @@ static int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
 				old_interval = *hw_param_interval(params, *v);
 		}
 		if (*v != SNDRV_PCM_HW_PARAM_BUFFER_SIZE)
-			err = snd_pcm_hw_param_first(pcm, params, *v, NULL);
+			changed = snd_pcm_hw_param_first(pcm, params, *v, NULL);
 		else
-			err = snd_pcm_hw_param_last(pcm, params, *v, NULL);
-		if (snd_BUG_ON(err < 0))
-			return err;
+			changed = snd_pcm_hw_param_last(pcm, params, *v, NULL);
+		if (snd_BUG_ON(changed < 0))
+			return changed;
+		if (changed == 0)
+			continue;
 
-		/* Trace the parameter. */
+		/* Trace the changed parameter. */
 		if (hw_is_mask(*v)) {
 			trace_hw_mask_param(pcm, *v, 0, &old_mask,
 					    hw_param_mask(params, *v));
@@ -749,11 +755,12 @@ static int snd_pcm_hw_params_user(struct snd_pcm_substream *substream,
 		return PTR_ERR(params);
 
 	err = snd_pcm_hw_params(substream, params);
-	if (copy_to_user(_params, params, sizeof(*params))) {
-		if (!err)
-			err = -EFAULT;
-	}
+	if (err < 0)
+		goto end;
 
+	if (copy_to_user(_params, params, sizeof(*params)))
+		err = -EFAULT;
+end:
 	kfree(params);
 	return err;
 }
@@ -3699,14 +3706,17 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 	}
 	snd_pcm_hw_convert_from_old_params(params, oparams);
 	err = snd_pcm_hw_refine(substream, params);
-	if (err >= 0)
-		err = fixup_unreferenced_params(substream, params);
-	snd_pcm_hw_convert_to_old_params(oparams, params);
-	if (copy_to_user(_oparams, oparams, sizeof(*oparams))) {
-		if (!err)
-			err = -EFAULT;
-	}
+	if (err < 0)
+		goto out_old;
 
+	err = fixup_unreferenced_params(substream, params);
+	if (err < 0)
+		goto out_old;
+
+	snd_pcm_hw_convert_to_old_params(oparams, params);
+	if (copy_to_user(_oparams, oparams, sizeof(*oparams)))
+		err = -EFAULT;
+out_old:
 	kfree(oparams);
 out:
 	kfree(params);
@@ -3729,14 +3739,16 @@ static int snd_pcm_hw_params_old_user(struct snd_pcm_substream *substream,
 		err = PTR_ERR(oparams);
 		goto out;
 	}
+
 	snd_pcm_hw_convert_from_old_params(params, oparams);
 	err = snd_pcm_hw_params(substream, params);
-	snd_pcm_hw_convert_to_old_params(oparams, params);
-	if (copy_to_user(_oparams, oparams, sizeof(*oparams))) {
-		if (!err)
-			err = -EFAULT;
-	}
+	if (err < 0)
+		goto out_old;
 
+	snd_pcm_hw_convert_to_old_params(oparams, params);
+	if (copy_to_user(_oparams, oparams, sizeof(*oparams)))
+		err = -EFAULT;
+out_old:
 	kfree(oparams);
 out:
 	kfree(params);
