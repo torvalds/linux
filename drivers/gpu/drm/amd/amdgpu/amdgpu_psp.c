@@ -440,6 +440,8 @@ static int psp_hw_fini(void *handle)
 			      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
 	amdgpu_bo_free_kernel(&psp->fence_buf_bo,
 			      &psp->fence_buf_mc_addr, &psp->fence_buf);
+	amdgpu_bo_free_kernel(&psp->asd_shared_bo, &psp->asd_shared_mc_addr,
+			      &psp->asd_shared_buf);
 
 	kfree(psp->cmd);
 	psp->cmd = NULL;
