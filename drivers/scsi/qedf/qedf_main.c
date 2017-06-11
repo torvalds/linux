@@ -2671,8 +2671,9 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 		qedf->global_queues[i] = kzalloc(sizeof(struct global_queue),
 		    GFP_KERNEL);
 		if (!qedf->global_queues[i]) {
-			QEDF_WARN(&(qedf->dbg_ctx), "Unable to allocation "
+			QEDF_WARN(&(qedf->dbg_ctx), "Unable to allocate "
 				   "global queue %d.\n", i);
+			status = -ENOMEM;
 			goto mem_alloc_failure;
 		}
 
