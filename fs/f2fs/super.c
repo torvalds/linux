@@ -1977,8 +1977,10 @@ try_onemore:
 
 		sbi->write_io[i] = kmalloc(n * sizeof(struct f2fs_bio_info),
 								GFP_KERNEL);
-		if (!sbi->write_io[i])
+		if (!sbi->write_io[i]) {
+			err = -ENOMEM;
 			goto free_options;
+		}
 
 		for (j = HOT; j < n; j++) {
 			init_rwsem(&sbi->write_io[i][j].io_rwsem);
