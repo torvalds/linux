@@ -1995,6 +1995,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_info->tx_descs = nb_hw_desc;
 	tx_info->last_jiffies = jiffies;
+	tx_info->print_once = 0;
 
 	tx_ring->next_to_use = ENA_TX_RING_IDX_NEXT(next_to_use,
 		tx_ring->ring_size);
@@ -2564,13 +2565,44 @@ err:
 		"Reset attempt failed. Can not reset the device\n");
 }
 
-static void check_for_missing_tx_completions(struct ena_adapter *adapter)
+static int check_missing_comp_in_queue(struct ena_adapter *adapter,
+				       struct ena_ring *tx_ring)
 {
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
+	u32 missed_tx = 0;
+	int i;
+
+	for (i = 0; i < tx_ring->ring_size; i++) {
+		tx_buf = &tx_ring->tx_buffer_info[i];
+		last_jiffies = tx_buf->last_jiffies;
+		if (unlikely(last_jiffies &&
+			     time_is_before_jiffies(last_jiffies + TX_TIMEOUT))) {
+			if (!tx_buf->print_once)
+				netif_notice(adapter, tx_err, adapter->netdev,
+					     "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
+					     tx_ring->qid, i);
+
+			tx_buf->print_once = 1;
+			missed_tx++;
+
+			if (unlikely(missed_tx > MAX_NUM_OF_TIMEOUTED_PACKETS)) {
+				netif_err(adapter, tx_err, adapter->netdev,
+					  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
+					  missed_tx, MAX_NUM_OF_TIMEOUTED_PACKETS);
+				set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+				return -EIO;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void check_for_missing_tx_completions(struct ena_adapter *adapter)
+{
 	struct ena_ring *tx_ring;
-	int i, j, budget;
-	u32 missed_tx;
+	int i, budget, rc;
 
 	/* Make sure the driver doesn't turn the device in other process */
 	smp_rmb();
@@ -2586,31 +2618,9 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 	for (i = adapter->last_monitored_tx_qid; i < adapter->num_queues; i++) {
 		tx_ring = &adapter->tx_ring[i];
 
-		for (j = 0; j < tx_ring->ring_size; j++) {
-			tx_buf = &tx_ring->tx_buffer_info[j];
-			last_jiffies = tx_buf->last_jiffies;
-			if (unlikely(last_jiffies && time_is_before_jiffies(last_jiffies + TX_TIMEOUT))) {
-				netif_notice(adapter, tx_err, adapter->netdev,
-					     "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
-					     tx_ring->qid, j);
-
-				u64_stats_update_begin(&tx_ring->syncp);
-				missed_tx = tx_ring->tx_stats.missing_tx_comp++;
-				u64_stats_update_end(&tx_ring->syncp);
-
-				/* Clear last jiffies so the lost buffer won't
-				 * be counted twice.
-				 */
-				tx_buf->last_jiffies = 0;
-
-				if (unlikely(missed_tx > MAX_NUM_OF_TIMEOUTED_PACKETS)) {
-					netif_err(adapter, tx_err, adapter->netdev,
-						  "The number of lost tx completion is above the threshold (%d > %d). Reset the device\n",
-						  missed_tx, MAX_NUM_OF_TIMEOUTED_PACKETS);
-					set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
-				}
-			}
-		}
+		rc = check_missing_comp_in_queue(adapter, tx_ring);
+		if (unlikely(rc))
+			return;
 
 		budget--;
 		if (!budget)

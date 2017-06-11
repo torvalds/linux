@@ -146,7 +146,18 @@ struct ena_tx_buffer {
 	u32 tx_descs;
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
-	/* Save the last jiffies to detect missing tx packets */
+
+	/* Used for detect missing tx packets to limit the number of prints */
+	u32 print_once;
+	/* Save the last jiffies to detect missing tx packets
+	 *
+	 * sets to non zero value on ena_start_xmit and set to zero on
+	 * napi and timer_Service_routine.
+	 *
+	 * while this value is not protected by lock,
+	 * a given packet is not expected to be handled by ena_start_xmit
+	 * and by napi/timer_service at the same time.
+	 */
 	unsigned long last_jiffies;
 	struct ena_com_buf bufs[ENA_PKT_MAX_BUFS];
 } ____cacheline_aligned;
@@ -170,7 +181,6 @@ struct ena_stats_tx {
 	u64 napi_comp;
 	u64 tx_poll;
 	u64 doorbells;
-	u64 missing_tx_comp;
 	u64 bad_req_id;
 };
 
