@@ -87,7 +87,7 @@
 #define CLKID_PERIPHS		20
 #define CLKID_SPICC		21
 #define CLKID_I2C		22
-#define CLKID_SAR_ADC		23
+/* #define CLKID_SAR_ADC */
 #define CLKID_SMART_CARD	24
 #define CLKID_RNG0		25
 #define CLKID_UART0		26
@@ -133,7 +133,7 @@
 #define CLKID_MMC_PCLK		66
 #define CLKID_DVIN		67
 #define CLKID_UART2		68
-#define CLKID_SANA		69
+/* #define CLKID_SANA */
 #define CLKID_VPU_INTR		70
 #define CLKID_SEC_AHB_AHB3_BRIDGE	71
 #define CLKID_CLK81_A9		72
