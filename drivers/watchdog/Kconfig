@@ -1069,6 +1069,7 @@ config IT8712F_WDT
 config IT87_WDT
 	tristate "IT87 Watchdog Timer"
 	depends on X86
+	select WATCHDOG_CORE
 	---help---
 	  This is the driver for the hardware watchdog on the ITE IT8620,
 	  IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 and IT8728
