@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 
 /*
  * Register definitions for the timers
@@ -81,9 +82,15 @@ struct fttmr010 {
 	bool count_down;
 	u32 t1_enable_val;
 	struct clock_event_device clkevt;
+#ifdef CONFIG_ARM
+	struct delay_timer delay_timer;
+#endif
 };
 
-/* A local singleton used by sched_clock, which is stateless */
+/*
+ * A local singleton used by sched_clock and delay timer reads, which are
+ * fast and stateless
+ */
 static struct fttmr010 *local_fttmr;
 
 static inline struct fttmr010 *to_fttmr010(struct clock_event_device *evt)
@@ -100,6 +107,20 @@ static u64 notrace fttmr010_read_sched_clock_down(void)
 {
 	return ~readl(local_fttmr->base + TIMER2_COUNT);
 }
+
+#ifdef CONFIG_ARM
+
+static unsigned long fttmr010_read_current_timer_up(void)
+{
+	return readl(local_fttmr->base + TIMER2_COUNT);
+}
+
+static unsigned long fttmr010_read_current_timer_down(void)
+{
+	return ~readl(local_fttmr->base + TIMER2_COUNT);
+}
+
+#endif
 
 static int fttmr010_timer_set_next_event(unsigned long cycles,
 				       struct clock_event_device *evt)
@@ -346,6 +367,18 @@ static int __init fttmr010_common_init(struct device_node *np, bool is_aspeed)
 	clockevents_config_and_register(&fttmr010->clkevt,
 					fttmr010->tick_rate,
 					1, 0xffffffff);
+
+#ifdef CONFIG_ARM
+	/* Also use this timer for delays */
+	if (fttmr010->count_down)
+		fttmr010->delay_timer.read_current_timer =
+			fttmr010_read_current_timer_down;
+	else
+		fttmr010->delay_timer.read_current_timer =
+			fttmr010_read_current_timer_up;
+	fttmr010->delay_timer.freq = fttmr010->tick_rate;
+	register_current_timer_delay(&fttmr010->delay_timer);
+#endif
 
 	return 0;
 
