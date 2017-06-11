@@ -94,6 +94,7 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
 	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
+	ENA_STAT_RX_ENTRY(empty_rx_ring),
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {

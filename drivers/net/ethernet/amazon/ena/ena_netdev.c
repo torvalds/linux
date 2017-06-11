@@ -190,6 +190,7 @@ static void ena_init_io_rings(struct ena_adapter *adapter)
 		rxr->sgl_size = adapter->max_rx_sgl_size;
 		rxr->smoothed_interval =
 			ena_com_get_nonadaptive_moderation_interval_rx(ena_dev);
+		rxr->empty_rx_queue = 0;
 	}
 }
 
@@ -2619,6 +2620,58 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 	adapter->last_monitored_tx_qid = i % adapter->num_queues;
 }
 
+/* trigger napi schedule after 2 consecutive detections */
+#define EMPTY_RX_REFILL 2
+/* For the rare case where the device runs out of Rx descriptors and the
+ * napi handler failed to refill new Rx descriptors (due to a lack of memory
+ * for example).
+ * This case will lead to a deadlock:
+ * The device won't send interrupts since all the new Rx packets will be dropped
+ * The napi handler won't allocate new Rx descriptors so the device will be
+ * able to send new packets.
+ *
+ * This scenario can happen when the kernel's vm.min_free_kbytes is too small.
+ * It is recommended to have at least 512MB, with a minimum of 128MB for
+ * constrained environment).
+ *
+ * When such a situation is detected - Reschedule napi
+ */
+static void check_for_empty_rx_ring(struct ena_adapter *adapter)
+{
+	struct ena_ring *rx_ring;
+	int i, refill_required;
+
+	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
+		return;
+
+	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
+		return;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		rx_ring = &adapter->rx_ring[i];
+
+		refill_required =
+			ena_com_sq_empty_space(rx_ring->ena_com_io_sq);
+		if (unlikely(refill_required == (rx_ring->ring_size - 1))) {
+			rx_ring->empty_rx_queue++;
+
+			if (rx_ring->empty_rx_queue >= EMPTY_RX_REFILL) {
+				u64_stats_update_begin(&rx_ring->syncp);
+				rx_ring->rx_stats.empty_rx_ring++;
+				u64_stats_update_end(&rx_ring->syncp);
+
+				netif_err(adapter, drv, adapter->netdev,
+					  "trigger refill for ring %d\n", i);
+
+				napi_schedule(rx_ring->napi);
+				rx_ring->empty_rx_queue = 0;
+			}
+		} else {
+			rx_ring->empty_rx_queue = 0;
+		}
+	}
+}
+
 /* Check for keep alive expiration */
 static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 {
@@ -2672,6 +2725,8 @@ static void ena_timer_service(unsigned long data)
 	check_for_admin_com_state(adapter);
 
 	check_for_missing_tx_completions(adapter);
+
+	check_for_empty_rx_ring(adapter);
 
 	if (debug_area)
 		ena_dump_stats_to_buf(adapter, debug_area);
