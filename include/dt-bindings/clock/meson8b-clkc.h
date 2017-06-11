@@ -24,6 +24,7 @@
 #define CLKID_SAR_ADC		23
 #define CLKID_RNG0		25
 #define CLKID_SDIO		30
+#define CLKID_ETH		36
 #define CLKID_USB0		50
 #define CLKID_USB1		51
 #define CLKID_USB		55
