@@ -12,8 +12,9 @@
  *		    http://www.ite.com.tw/
  *
  *	Support of the watchdog timers, which are available on
- *	IT8620, IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726,
- *	IT8728 and IT8783.
+ *	IT8607, IT8620, IT8622, IT8625, IT8628, IT8655, IT8665, IT8686,
+ *	IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726, IT8728,
+ *	and IT8783.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -57,7 +58,14 @@
 
 /* Chip Id numbers */
 #define NO_DEV_ID	0xffff
+#define IT8607_ID	0x8607
 #define IT8620_ID	0x8620
+#define IT8622_ID	0x8622
+#define IT8625_ID	0x8625
+#define IT8628_ID	0x8628
+#define IT8655_ID	0x8655
+#define IT8665_ID	0x8665
+#define IT8686_ID	0x8686
 #define IT8702_ID	0x8702
 #define IT8705_ID	0x8705
 #define IT8712_ID	0x8712
@@ -282,7 +290,14 @@ static int __init it87_wdt_init(void)
 	case IT8726_ID:
 		max_units = 65535;
 		break;
+	case IT8607_ID:
 	case IT8620_ID:
+	case IT8622_ID:
+	case IT8625_ID:
+	case IT8628_ID:
+	case IT8655_ID:
+	case IT8665_ID:
+	case IT8686_ID:
 	case IT8718_ID:
 	case IT8720_ID:
 	case IT8721_ID:

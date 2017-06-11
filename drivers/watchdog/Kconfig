@@ -1071,9 +1071,10 @@ config IT87_WDT
 	depends on X86
 	select WATCHDOG_CORE
 	---help---
-	  This is the driver for the hardware watchdog on the ITE IT8620,
-	  IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 and IT8728
-	  Super I/O chips.
+	  This is the driver for the hardware watchdog on the ITE IT8607,
+	  IT8620, IT8622, IT8625, IT8628, IT8655, IT8665, IT8686, IT8702,
+	  IT8712, IT8716, IT8718, IT8720, IT8721, IT8726, IT8728, and
+	  IT8783 Super I/O chips.
 
 	  This watchdog simply watches your kernel to make sure it doesn't
 	  freeze, and if it does, it reboots your computer after a certain
