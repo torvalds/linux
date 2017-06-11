@@ -105,6 +105,8 @@ struct sun4i_gpadc_iio {
 	bool				no_irq;
 	/* prevents concurrent reads of temperature and ADC */
 	struct mutex			mutex;
+	struct thermal_zone_device	*tzd;
+	struct device			*sensor_device;
 };
 
 #define SUN4I_GPADC_ADC_CHANNEL(_channel, _name) {		\
@@ -502,7 +504,6 @@ static int sun4i_gpadc_probe_dt(struct platform_device *pdev,
 {
 	struct sun4i_gpadc_iio *info = iio_priv(indio_dev);
 	const struct of_device_id *of_dev;
-	struct thermal_zone_device *tzd;
 	struct resource *mem;
 	void __iomem *base;
 	int ret;
@@ -532,13 +533,14 @@ static int sun4i_gpadc_probe_dt(struct platform_device *pdev,
 	if (!IS_ENABLED(CONFIG_THERMAL_OF))
 		return 0;
 
-	tzd = devm_thermal_zone_of_sensor_register(&pdev->dev, 0, info,
-						   &sun4i_ts_tz_ops);
-	if (IS_ERR(tzd))
+	info->sensor_device = &pdev->dev;
+	info->tzd = thermal_zone_of_sensor_register(info->sensor_device, 0,
+						    info, &sun4i_ts_tz_ops);
+	if (IS_ERR(info->tzd))
 		dev_err(&pdev->dev, "could not register thermal sensor: %ld\n",
-			PTR_ERR(tzd));
+			PTR_ERR(info->tzd));
 
-	return PTR_ERR_OR_ZERO(tzd);
+	return PTR_ERR_OR_ZERO(info->tzd);
 }
 
 static int sun4i_gpadc_probe_mfd(struct platform_device *pdev,
@@ -584,15 +586,15 @@ static int sun4i_gpadc_probe_mfd(struct platform_device *pdev,
 		 * of_node, and the device from this driver as third argument to
 		 * return the temperature.
 		 */
-		struct thermal_zone_device *tzd;
-		tzd = devm_thermal_zone_of_sensor_register(pdev->dev.parent, 0,
-							   info,
-							   &sun4i_ts_tz_ops);
-		if (IS_ERR(tzd)) {
+		info->sensor_device = pdev->dev.parent;
+		info->tzd = thermal_zone_of_sensor_register(info->sensor_device,
+							    0, info,
+							    &sun4i_ts_tz_ops);
+		if (IS_ERR(info->tzd)) {
 			dev_err(&pdev->dev,
 				"could not register thermal sensor: %ld\n",
-				PTR_ERR(tzd));
-			return PTR_ERR(tzd);
+				PTR_ERR(info->tzd));
+			return PTR_ERR(info->tzd);
 		}
 	} else {
 		indio_dev->num_channels =
@@ -688,7 +690,13 @@ static int sun4i_gpadc_remove(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	if (!info->no_irq && IS_ENABLED(CONFIG_THERMAL_OF))
+
+	if (!IS_ENABLED(CONFIG_THERMAL_OF))
+		return 0;
+
+	thermal_zone_of_sensor_unregister(info->sensor_device, info->tzd);
+
+	if (!info->no_irq)
 		iio_map_array_unregister(indio_dev);
 
 	return 0;
@@ -700,6 +708,7 @@ static const struct platform_device_id sun4i_gpadc_id[] = {
 	{ "sun6i-a31-gpadc-iio", (kernel_ulong_t)&sun6i_gpadc_data },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(platform, sun4i_gpadc_id);
 
 static struct platform_driver sun4i_gpadc_driver = {
 	.driver = {
@@ -711,6 +720,7 @@ static struct platform_driver sun4i_gpadc_driver = {
 	.probe = sun4i_gpadc_probe,
 	.remove = sun4i_gpadc_remove,
 };
+MODULE_DEVICE_TABLE(of, sun4i_gpadc_of_id);
 
 module_platform_driver(sun4i_gpadc_driver);
 
