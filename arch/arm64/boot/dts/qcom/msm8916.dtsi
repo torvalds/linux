@@ -88,6 +88,11 @@
 			no-map;
 		};
 
+		venus_mem: venus@89900000 {
+			reg = <0x0 0x89900000 0x0 0x600000>;
+			no-map;
+		};
+
 		mba_mem: mba@8ea00000 {
 			no-map;
 			reg = <0 0x8ea00000 0 0x100000>;
@@ -1240,6 +1245,27 @@
 				etm3_out: endpoint {
 					remote-endpoint = <&funnel1_in3>;
 				};
+			};
+		};
+
+		venus: video-codec@1d00000 {
+			compatible = "qcom,msm8916-venus";
+			reg = <0x01d00000 0xff000>;
+			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&gcc VENUS_GDSC>;
+			clocks = <&gcc GCC_VENUS0_VCODEC0_CLK>,
+				 <&gcc GCC_VENUS0_AHB_CLK>,
+				 <&gcc GCC_VENUS0_AXI_CLK>;
+			clock-names = "core", "iface", "bus";
+			memory-region = <&venus_mem>;
+			status = "okay";
+
+			video-decoder {
+				compatible = "venus-decoder";
+			};
+
+			video-encoder {
+				compatible = "venus-encoder";
 			};
 		};
 	};
