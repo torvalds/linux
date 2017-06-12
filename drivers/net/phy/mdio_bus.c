@@ -354,16 +354,12 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	mutex_init(&bus->mdio_lock);
 
 	/* de-assert bus level PHY GPIO reset */
-	gpiod = devm_gpiod_get(&bus->dev, "reset", GPIOD_OUT_LOW);
+	gpiod = devm_gpiod_get_optional(&bus->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(gpiod)) {
-		err = PTR_ERR(gpiod);
-		if (err != -ENOENT) {
-			dev_err(&bus->dev,
-				"mii_bus %s couldn't get reset GPIO\n",
-				bus->id);
-			return err;
-		}
-	} else	{
+		dev_err(&bus->dev, "mii_bus %s couldn't get reset GPIO\n",
+			bus->id);
+		return PTR_ERR(gpiod);
+	} else	if (gpiod) {
 		bus->reset_gpiod = gpiod;
 
 		gpiod_set_value_cansleep(gpiod, 1);
