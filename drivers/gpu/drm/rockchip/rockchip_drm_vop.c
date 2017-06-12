@@ -212,6 +212,8 @@ struct vop {
 	struct clk *dclk;
 	/* vop share memory frequency */
 	struct clk *aclk;
+	/* vop source handling, optional */
+	struct clk *dclk_source;
 
 	/* vop dclk reset */
 	struct reset_control *dclk_rst;
@@ -1665,6 +1667,13 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ?
 		   0 : BIT(VSYNC_POSITIVE);
 	VOP_CTRL_SET(vop, pin_pol, val);
+
+	if (vop->dclk_source && s->pll && s->pll->pll) {
+		if (!clk_set_parent(vop->dclk_source, s->pll->pll))
+			DRM_DEV_ERROR(vop->dev,
+				      "failed to set dclk's parents\n");
+	}
+
 	switch (s->output_type) {
 	case DRM_MODE_CONNECTOR_LVDS:
 		VOP_CTRL_SET(vop, rgb_en, 1);
@@ -1858,6 +1867,40 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
+static void vop_dclk_source_generate(struct drm_crtc *crtc,
+				     struct drm_crtc_state *crtc_state)
+{
+	struct rockchip_drm_private *private = crtc->dev->dev_private;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_crtc_state *old_s = to_rockchip_crtc_state(crtc->state);
+	struct vop *vop = to_vop(crtc);
+
+	if (!vop->dclk_source)
+		return;
+
+	if (crtc_state->active) {
+		WARN_ON(s->pll && !s->pll->use_count);
+		if (!s->pll || s->pll->use_count > 1 ||
+		    s->output_type != old_s->output_type) {
+			if (s->pll)
+				s->pll->use_count--;
+
+			if (s->output_type != DRM_MODE_CONNECTOR_HDMIA &&
+			    !private->default_pll.use_count)
+				s->pll = &private->default_pll;
+			else
+				s->pll = &private->hdmi_pll;
+
+			s->pll->use_count++;
+		}
+	} else if (s->pll) {
+		s->pll->use_count--;
+		s->pll = NULL;
+	}
+	if (s->pll && s->pll != old_s->pll)
+		crtc_state->mode_changed = true;
+}
+
 static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 				 struct drm_crtc_state *crtc_state)
 {
@@ -1931,6 +1974,8 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	s->dsp_layer_sel = dsp_layer_sel;
+
+	vop_dclk_source_generate(crtc, crtc_state);
 
 err_free_pzpos:
 	kfree(pzpos);
@@ -2744,6 +2789,16 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(vop->dclk)) {
 		dev_err(vop->dev, "failed to get dclk source\n");
 		return PTR_ERR(vop->dclk);
+	}
+
+	vop->dclk_source = devm_clk_get(vop->dev, "dclk_source");
+	if (PTR_ERR(vop->dclk_source) == -ENOENT) {
+		vop->dclk_source = NULL;
+	} else if (PTR_ERR(vop->dclk_source) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (IS_ERR(vop->dclk_source)) {
+		dev_err(vop->dev, "failed to get dclk source parent\n");
+		return PTR_ERR(vop->dclk_source);
 	}
 
 	irq = platform_get_irq(pdev, 0);
