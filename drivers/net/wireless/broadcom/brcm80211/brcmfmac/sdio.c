@@ -3985,14 +3985,14 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 	u8 saveclk;
 
 	brcmf_dbg(TRACE, "Enter: dev=%s, err=%d\n", dev_name(dev), err);
+	bus_if = dev_get_drvdata(dev);
+	sdiodev = bus_if->bus_priv.sdio;
 	if (err)
 		goto fail;
 
-	bus_if = dev_get_drvdata(dev);
 	if (!bus_if->drvr)
 		return;
 
-	sdiodev = bus_if->bus_priv.sdio;
 	bus = sdiodev->bus;
 
 	/* try to download image and nvram to the dongle */
@@ -4081,6 +4081,7 @@ release:
 fail:
 	brcmf_dbg(TRACE, "failed: dev=%s, err=%d\n", dev_name(dev), err);
 	device_release_driver(dev);
+	device_release_driver(&sdiodev->func[2]->dev);
 }
 
 struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
