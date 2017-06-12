@@ -203,6 +203,34 @@ static inline u8 int_word_to_isc(u32 int_word)
 	return (int_word & 0x38000000) >> 27;
 }
 
+/*
+ * To use atomic bitmap functions, we have to provide a bitmap address
+ * that is u64 aligned. However, the ipm might be u32 aligned.
+ * Therefore, we logically start the bitmap at the very beginning of the
+ * struct and fixup the bit number.
+ */
+#define IPM_BIT_OFFSET (offsetof(struct kvm_s390_gisa, ipm) * BITS_PER_BYTE)
+
+static inline void kvm_s390_gisa_set_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
+{
+	set_bit_inv(IPM_BIT_OFFSET + gisc, (unsigned long *) gisa);
+}
+
+static inline u8 kvm_s390_gisa_get_ipm(struct kvm_s390_gisa *gisa)
+{
+	return READ_ONCE(gisa->ipm);
+}
+
+static inline void kvm_s390_gisa_clear_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
+{
+	clear_bit_inv(IPM_BIT_OFFSET + gisc, (unsigned long *) gisa);
+}
+
+static inline int kvm_s390_gisa_tac_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
+{
+	return test_and_clear_bit_inv(IPM_BIT_OFFSET + gisc, (unsigned long *) gisa);
+}
+
 static inline unsigned long pending_irqs(struct kvm_vcpu *vcpu)
 {
 	return vcpu->kvm->arch.float_int.pending_irqs |
