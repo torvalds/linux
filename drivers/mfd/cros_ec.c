@@ -183,6 +183,9 @@ int cros_ec_remove(struct cros_ec_device *ec_dev)
 
 	cros_ec_acpi_remove_gpe_handler();
 
+	if (ec_dev->irq)
+		free_irq(ec_dev->irq, ec_dev);
+
 	return 0;
 }
 EXPORT_SYMBOL(cros_ec_remove);
