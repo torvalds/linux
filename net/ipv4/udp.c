@@ -1359,7 +1359,8 @@ void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len)
 		sk_peek_offset_bwd(sk, len);
 		unlock_sock_fast(sk, slow);
 	}
-	consume_skb(skb);
+
+	consume_stateless_skb(skb);
 }
 EXPORT_SYMBOL_GPL(skb_consume_udp);
 
@@ -1738,6 +1739,9 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	} else {
 		sk_mark_napi_id_once(sk, skb);
 	}
+
+	/* clear all pending head states while they are hot in the cache */
+	skb_release_head_state(skb);
 
 	rc = __udp_enqueue_schedule_skb(sk, skb);
 	if (rc < 0) {
