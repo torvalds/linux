@@ -322,33 +322,33 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 
 	switch (mode) {
 	case PHY_INTERFACE_MODE_1000BASEX:
-		cmode = PORT_STATUS_CMODE_1000BASE_X;
+		cmode = MV88E6XXX_PORT_STS_CMODE_1000BASE_X;
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
-		cmode = PORT_STATUS_CMODE_SGMII;
+		cmode = MV88E6XXX_PORT_STS_CMODE_SGMII;
 		break;
 	case PHY_INTERFACE_MODE_2500BASEX:
-		cmode = PORT_STATUS_CMODE_2500BASEX;
+		cmode = MV88E6XXX_PORT_STS_CMODE_2500BASEX;
 		break;
 	case PHY_INTERFACE_MODE_XGMII:
-		cmode = PORT_STATUS_CMODE_XAUI;
+		cmode = MV88E6XXX_PORT_STS_CMODE_XAUI;
 		break;
 	case PHY_INTERFACE_MODE_RXAUI:
-		cmode = PORT_STATUS_CMODE_RXAUI;
+		cmode = MV88E6XXX_PORT_STS_CMODE_RXAUI;
 		break;
 	default:
 		cmode = 0;
 	}
 
 	if (cmode) {
-		err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
+		err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 		if (err)
 			return err;
 
-		reg &= ~PORT_STATUS_CMODE_MASK;
+		reg &= ~MV88E6XXX_PORT_STS_CMODE_MASK;
 		reg |= cmode;
 
-		err = mv88e6xxx_port_write(chip, port, PORT_STATUS, reg);
+		err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_STS, reg);
 		if (err)
 			return err;
 	}
@@ -361,11 +361,11 @@ int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 	if (err)
 		return err;
 
-	*cmode = reg & PORT_STATUS_CMODE_MASK;
+	*cmode = reg & MV88E6XXX_PORT_STS_CMODE_MASK;
 
 	return 0;
 }

@@ -828,11 +828,11 @@ static int mv88e6xxx_get_eee(struct dsa_switch *ds, int port,
 	e->eee_enabled = !!(reg & 0x0200);
 	e->tx_lpi_enabled = !!(reg & 0x0100);
 
-	err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 	if (err)
 		goto out;
 
-	e->eee_active = !!(reg & PORT_STATUS_EEE);
+	e->eee_active = !!(reg & MV88E6352_PORT_STS_EEE);
 out:
 	mutex_unlock(&chip->reg_lock);
 
