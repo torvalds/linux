@@ -400,8 +400,8 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
 
 	if (adev->wakeup.flags.notifier_present) {
 		__pm_wakeup_event(adev->wakeup.ws, 0);
-		if (adev->wakeup.context.work.func)
-			queue_pm_work(&adev->wakeup.context.work);
+		if (adev->wakeup.context.func)
+			adev->wakeup.context.func(&adev->wakeup.context);
 	}
 
 	mutex_unlock(&acpi_pm_notifier_lock);
@@ -413,7 +413,7 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
  * acpi_add_pm_notifier - Register PM notify handler for given ACPI device.
  * @adev: ACPI device to add the notify handler for.
  * @dev: Device to generate a wakeup event for while handling the notification.
- * @work_func: Work function to execute when handling the notification.
+ * @func: Work function to execute when handling the notification.
  *
  * NOTE: @adev need not be a run-wake or wakeup device to be a valid source of
  * PM wakeup events.  For example, wakeup events may be generated for bridges
@@ -421,11 +421,11 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
  * bridge itself doesn't have a wakeup GPE associated with it.
  */
 acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
-				 void (*work_func)(struct work_struct *work))
+			void (*func)(struct acpi_device_wakeup_context *context))
 {
 	acpi_status status = AE_ALREADY_EXISTS;
 
-	if (!dev && !work_func)
+	if (!dev && !func)
 		return AE_BAD_PARAMETER;
 
 	mutex_lock(&acpi_pm_notifier_lock);
@@ -435,8 +435,7 @@ acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
 
 	adev->wakeup.ws = wakeup_source_register(dev_name(&adev->dev));
 	adev->wakeup.context.dev = dev;
-	if (work_func)
-		INIT_WORK(&adev->wakeup.context.work, work_func);
+	adev->wakeup.context.func = func;
 
 	status = acpi_install_notify_handler(adev->handle, ACPI_SYSTEM_NOTIFY,
 					     acpi_pm_notify_handler, NULL);
@@ -469,10 +468,7 @@ acpi_status acpi_remove_pm_notifier(struct acpi_device *adev)
 	if (ACPI_FAILURE(status))
 		goto out;
 
-	if (adev->wakeup.context.work.func) {
-		cancel_work_sync(&adev->wakeup.context.work);
-		adev->wakeup.context.work.func = NULL;
-	}
+	adev->wakeup.context.func = NULL;
 	adev->wakeup.context.dev = NULL;
 	wakeup_source_unregister(adev->wakeup.ws);
 
@@ -658,16 +654,15 @@ EXPORT_SYMBOL(acpi_pm_device_sleep_state);
 
 /**
  * acpi_pm_notify_work_func - ACPI devices wakeup notification work function.
- * @work: Work item to handle.
+ * @context: Device wakeup context.
  */
-static void acpi_pm_notify_work_func(struct work_struct *work)
+static void acpi_pm_notify_work_func(struct acpi_device_wakeup_context *context)
 {
-	struct device *dev;
+	struct device *dev = context->dev;
 
-	dev = container_of(work, struct acpi_device_wakeup_context, work)->dev;
 	if (dev) {
 		pm_wakeup_event(dev, 0);
-		pm_runtime_resume(dev);
+		pm_request_resume(dev);
 	}
 }
 

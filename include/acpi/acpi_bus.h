@@ -319,7 +319,7 @@ struct acpi_device_wakeup_flags {
 };
 
 struct acpi_device_wakeup_context {
-	struct work_struct work;
+	void (*func)(struct acpi_device_wakeup_context *context);
 	struct device *dev;
 };
 
@@ -599,7 +599,7 @@ static inline bool acpi_device_always_present(struct acpi_device *adev)
 
 #ifdef CONFIG_PM
 acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
-				 void (*work_func)(struct work_struct *work));
+			void (*func)(struct acpi_device_wakeup_context *context));
 acpi_status acpi_remove_pm_notifier(struct acpi_device *adev);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 int acpi_pm_device_run_wake(struct device *, bool);

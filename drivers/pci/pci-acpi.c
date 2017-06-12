@@ -395,29 +395,26 @@ bool pciehp_is_native(struct pci_dev *pdev)
 
 /**
  * pci_acpi_wake_bus - Root bus wakeup notification fork function.
- * @work: Work item to handle.
+ * @context: Device wakeup context.
  */
-static void pci_acpi_wake_bus(struct work_struct *work)
+static void pci_acpi_wake_bus(struct acpi_device_wakeup_context *context)
 {
 	struct acpi_device *adev;
 	struct acpi_pci_root *root;
 
-	adev = container_of(work, struct acpi_device, wakeup.context.work);
+	adev = container_of(context, struct acpi_device, wakeup.context);
 	root = acpi_driver_data(adev);
 	pci_pme_wakeup_bus(root->bus);
 }
 
 /**
  * pci_acpi_wake_dev - PCI device wakeup notification work function.
- * @handle: ACPI handle of a device the notification is for.
- * @work: Work item to handle.
+ * @context: Device wakeup context.
  */
-static void pci_acpi_wake_dev(struct work_struct *work)
+static void pci_acpi_wake_dev(struct acpi_device_wakeup_context *context)
 {
-	struct acpi_device_wakeup_context *context;
 	struct pci_dev *pci_dev;
 
-	context = container_of(work, struct acpi_device_wakeup_context, work);
 	pci_dev = to_pci_dev(context->dev);
 
 	if (pci_dev->pme_poll)
@@ -425,7 +422,7 @@ static void pci_acpi_wake_dev(struct work_struct *work)
 
 	if (pci_dev->current_state == PCI_D3cold) {
 		pci_wakeup_event(pci_dev);
-		pm_runtime_resume(&pci_dev->dev);
+		pm_request_resume(&pci_dev->dev);
 		return;
 	}
 
@@ -434,7 +431,7 @@ static void pci_acpi_wake_dev(struct work_struct *work)
 		pci_check_pme_status(pci_dev);
 
 	pci_wakeup_event(pci_dev);
-	pm_runtime_resume(&pci_dev->dev);
+	pm_request_resume(&pci_dev->dev);
 
 	pci_pme_wakeup_bus(pci_dev->subordinate);
 }
