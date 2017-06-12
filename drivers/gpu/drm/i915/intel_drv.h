@@ -288,9 +288,10 @@ struct intel_panel {
 		/* Connector and platform specific backlight functions */
 		int (*setup)(struct intel_connector *connector, enum pipe pipe);
 		uint32_t (*get)(struct intel_connector *connector);
-		void (*set)(struct intel_connector *connector, uint32_t level);
-		void (*disable)(struct intel_connector *connector);
-		void (*enable)(struct intel_connector *connector);
+		void (*set)(const struct drm_connector_state *conn_state, uint32_t level);
+		void (*disable)(const struct drm_connector_state *conn_state);
+		void (*enable)(const struct intel_crtc_state *crtc_state,
+			       const struct drm_connector_state *conn_state);
 		uint32_t (*hz_to_pwm)(struct intel_connector *connector,
 				      uint32_t hz);
 		void (*power)(struct intel_connector *, bool enable);
