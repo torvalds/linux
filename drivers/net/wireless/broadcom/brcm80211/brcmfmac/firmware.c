@@ -442,7 +442,7 @@ struct brcmf_fw {
 	const char *nvram_name;
 	u16 domain_nr;
 	u16 bus_nr;
-	void (*done)(struct device *dev, const struct firmware *fw,
+	void (*done)(struct device *dev, int err, const struct firmware *fw,
 		     void *nvram_image, u32 nvram_len);
 };
 
@@ -477,7 +477,7 @@ static void brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 	if (!nvram && !(fwctx->flags & BRCMF_FW_REQ_NV_OPTIONAL))
 		goto fail;
 
-	fwctx->done(fwctx->dev, fwctx->code, nvram, nvram_length);
+	fwctx->done(fwctx->dev, 0, fwctx->code, nvram, nvram_length);
 	kfree(fwctx);
 	return;
 
@@ -499,7 +499,7 @@ static void brcmf_fw_request_code_done(const struct firmware *fw, void *ctx)
 
 	/* only requested code so done here */
 	if (!(fwctx->flags & BRCMF_FW_REQUEST_NVRAM)) {
-		fwctx->done(fwctx->dev, fw, NULL, 0);
+		fwctx->done(fwctx->dev, 0, fw, NULL, 0);
 		kfree(fwctx);
 		return;
 	}
@@ -522,7 +522,7 @@ fail:
 
 int brcmf_fw_get_firmwares_pcie(struct device *dev, u16 flags,
 				const char *code, const char *nvram,
-				void (*fw_cb)(struct device *dev,
+				void (*fw_cb)(struct device *dev, int err,
 					      const struct firmware *fw,
 					      void *nvram_image, u32 nvram_len),
 				u16 domain_nr, u16 bus_nr)
@@ -555,7 +555,7 @@ int brcmf_fw_get_firmwares_pcie(struct device *dev, u16 flags,
 
 int brcmf_fw_get_firmwares(struct device *dev, u16 flags,
 			   const char *code, const char *nvram,
-			   void (*fw_cb)(struct device *dev,
+			   void (*fw_cb)(struct device *dev, int err,
 					 const struct firmware *fw,
 					 void *nvram_image, u32 nvram_len))
 {
