@@ -2744,18 +2744,6 @@ static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
 	return blk_status_to_errno(ret);
 }
 
-static int merge_bio(struct extent_io_tree *tree, struct page *page,
-		     unsigned long offset, size_t size, struct bio *bio,
-		     unsigned long bio_flags)
-{
-	int ret = 0;
-	if (tree->ops)
-		ret = tree->ops->merge_bio_hook(page, offset, size, bio,
-						bio_flags);
-	return ret;
-
-}
-
 /*
  * @opf:	bio REQ_OP_* and REQ_* flags as one value
  * @bio_ret:	must be valid pointer, newly allocated bio will be stored there
@@ -2774,23 +2762,27 @@ static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
 {
 	int ret = 0;
 	struct bio *bio;
-	int contig = 0;
-	int old_compressed = prev_bio_flags & EXTENT_BIO_COMPRESSED;
 	size_t page_size = min_t(size_t, size, PAGE_SIZE);
 	sector_t sector = offset >> 9;
 
 	ASSERT(bio_ret);
 
 	if (*bio_ret) {
+		bool contig;
+		bool can_merge = true;
+
 		bio = *bio_ret;
-		if (old_compressed)
+		if (prev_bio_flags & EXTENT_BIO_COMPRESSED)
 			contig = bio->bi_iter.bi_sector == sector;
 		else
 			contig = bio_end_sector(bio) == sector;
 
-		if (prev_bio_flags != bio_flags || !contig ||
+		if (tree->ops && tree->ops->merge_bio_hook(page, offset,
+					page_size, bio, bio_flags))
+			can_merge = false;
+
+		if (prev_bio_flags != bio_flags || !contig || !can_merge ||
 		    force_bio_submit ||
-		    merge_bio(tree, page, pg_offset, page_size, bio, bio_flags) ||
 		    bio_add_page(bio, page, page_size, pg_offset) < page_size) {
 			ret = submit_one_bio(bio, mirror_num, prev_bio_flags);
 			if (ret < 0) {
