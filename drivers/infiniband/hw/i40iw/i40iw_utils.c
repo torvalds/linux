@@ -757,23 +757,6 @@ void i40iw_qp_suspend_resume(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp, b
 }
 
 /**
- * i40iw_qp_mss_modify - modify mss for qp
- * @dev: hardware control device structure
- * @qp: hardware control qp
- */
-void i40iw_qp_mss_modify(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp)
-{
-	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
-	struct i40iw_qp *iwqp = (struct i40iw_qp *)qp->back_qp;
-	struct i40iw_modify_qp_info info;
-
-	memset(&info, 0, sizeof(info));
-	info.mss_change = true;
-	info.new_mss = qp->vsi->mss;
-	i40iw_hw_modify_qp(iwdev, iwqp, &info, false);
-}
-
-/**
  * i40iw_term_modify_qp - modify qp for term message
  * @qp: hardware control qp
  * @next_state: qp's next state

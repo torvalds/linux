@@ -562,7 +562,8 @@ struct intel_link_m_n {
 
 void intel_link_compute_m_n(int bpp, int nlanes,
 			    int pixel_clock, int link_clock,
-			    struct intel_link_m_n *m_n);
+			    struct intel_link_m_n *m_n,
+			    bool reduce_m_n);
 
 /* Interface history:
  *
@@ -2985,6 +2986,16 @@ static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
 {
 #ifdef CONFIG_INTEL_IOMMU
 	if (INTEL_GEN(dev_priv) >= 6 && intel_iommu_gfx_mapped)
+		return true;
+#endif
+	return false;
+}
+
+static inline bool
+intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
+{
+#ifdef CONFIG_INTEL_IOMMU
+	if (IS_BROXTON(dev_priv) && intel_iommu_gfx_mapped)
 		return true;
 #endif
 	return false;

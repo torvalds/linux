@@ -730,6 +730,8 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 		return -EIO;
 	}
 
+	memset(&elreq, 0, sizeof(elreq));
+
 	elreq.req_sg_cnt = dma_map_sg(&ha->pdev->dev,
 		bsg_job->request_payload.sg_list, bsg_job->request_payload.sg_cnt,
 		DMA_TO_DEVICE);
@@ -795,10 +797,9 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 
 	if (atomic_read(&vha->loop_state) == LOOP_READY &&
 	    (ha->current_topology == ISP_CFG_F ||
-	    ((IS_QLA81XX(ha) || IS_QLA8031(ha) || IS_QLA8044(ha)) &&
-	    le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE
-	    && req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
-		elreq.options == EXTERNAL_LOOPBACK) {
+	    (le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE &&
+	     req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
+	    elreq.options == EXTERNAL_LOOPBACK) {
 		type = "FC_BSG_HST_VENDOR_ECHO_DIAG";
 		ql_dbg(ql_dbg_user, vha, 0x701e,
 		    "BSG request type: %s.\n", type);

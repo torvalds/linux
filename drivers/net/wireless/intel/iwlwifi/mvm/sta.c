@@ -2120,7 +2120,8 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (!iwl_mvm_is_dqa_supported(mvm))
 		return 0;
 
-	if (WARN_ON(vif->type != NL80211_IFTYPE_AP))
+	if (WARN_ON(vif->type != NL80211_IFTYPE_AP &&
+		    vif->type != NL80211_IFTYPE_ADHOC))
 		return -ENOTSUPP;
 
 	/*
@@ -2155,6 +2156,16 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		mvmvif->cab_queue = queue;
 	} else if (!fw_has_api(&mvm->fw->ucode_capa,
 			       IWL_UCODE_TLV_API_STA_TYPE)) {
+		/*
+		 * In IBSS, ieee80211_check_queues() sets the cab_queue to be
+		 * invalid, so make sure we use the queue we want.
+		 * Note that this is done here as we want to avoid making DQA
+		 * changes in mac80211 layer.
+		 */
+		if (vif->type == NL80211_IFTYPE_ADHOC) {
+			vif->cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
+			mvmvif->cab_queue = vif->cab_queue;
+		}
 		iwl_mvm_enable_txq(mvm, vif->cab_queue, vif->cab_queue, 0,
 				   &cfg, timeout);
 	}
@@ -3321,18 +3332,15 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 
 	/* Get the station from the mvm local station table */
 	mvm_sta = iwl_mvm_get_key_sta(mvm, vif, sta);
-	if (!mvm_sta) {
-		IWL_ERR(mvm, "Failed to find station\n");
-		return -EINVAL;
-	}
-	sta_id = mvm_sta->sta_id;
+	if (mvm_sta)
+		sta_id = mvm_sta->sta_id;
 
 	IWL_DEBUG_WEP(mvm, "mvm remove dynamic key: idx=%d sta=%d\n",
 		      keyconf->keyidx, sta_id);
 
-	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
-	    keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
-	    keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256)
+	if (mvm_sta && (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
+			keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
+			keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256))
 		return iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id, true);
 
 	if (!__test_and_clear_bit(keyconf->hw_key_idx, mvm->fw_key_table)) {

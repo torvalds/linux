@@ -1590,7 +1590,7 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 	wait_for_completion(&priv->ntbl.deleted);
 }
 
-void ipoib_dev_uninit_default(struct net_device *dev)
+static void ipoib_dev_uninit_default(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 

@@ -4504,6 +4504,44 @@ static struct bpf_test tests[] = {
 		{ },
 		{ { 0, 1 } },
 	},
+	{
+		"JMP_JSGE_K: Signed jump: value walk 1",
+		.u.insns_int = {
+			BPF_ALU32_IMM(BPF_MOV, R0, 0),
+			BPF_LD_IMM64(R1, -3),
+			BPF_JMP_IMM(BPF_JSGE, R1, 0, 6),
+			BPF_ALU64_IMM(BPF_ADD, R1, 1),
+			BPF_JMP_IMM(BPF_JSGE, R1, 0, 4),
+			BPF_ALU64_IMM(BPF_ADD, R1, 1),
+			BPF_JMP_IMM(BPF_JSGE, R1, 0, 2),
+			BPF_ALU64_IMM(BPF_ADD, R1, 1),
+			BPF_JMP_IMM(BPF_JSGE, R1, 0, 1),
+			BPF_EXIT_INSN(),		/* bad exit */
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),	/* good exit */
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 1 } },
+	},
+	{
+		"JMP_JSGE_K: Signed jump: value walk 2",
+		.u.insns_int = {
+			BPF_ALU32_IMM(BPF_MOV, R0, 0),
+			BPF_LD_IMM64(R1, -3),
+			BPF_JMP_IMM(BPF_JSGE, R1, 0, 4),
+			BPF_ALU64_IMM(BPF_ADD, R1, 2),
+			BPF_JMP_IMM(BPF_JSGE, R1, 0, 2),
+			BPF_ALU64_IMM(BPF_ADD, R1, 2),
+			BPF_JMP_IMM(BPF_JSGE, R1, 0, 1),
+			BPF_EXIT_INSN(),		/* bad exit */
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),	/* good exit */
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 1 } },
+	},
 	/* BPF_JMP | BPF_JGT | BPF_K */
 	{
 		"JMP_JGT_K: if (3 > 2) return 1",

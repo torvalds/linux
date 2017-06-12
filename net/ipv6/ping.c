@@ -192,7 +192,7 @@ static struct inet_protosw pingv6_protosw = {
 	.type =      SOCK_DGRAM,
 	.protocol =  IPPROTO_ICMPV6,
 	.prot =      &pingv6_prot,
-	.ops =       &inet6_dgram_ops,
+	.ops =       &inet6_sockraw_ops,
 	.flags =     INET_PROTOSW_REUSE,
 };
 

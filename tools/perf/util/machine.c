@@ -572,16 +572,7 @@ static struct dso *machine__findnew_module_dso(struct machine *machine,
 		if (dso == NULL)
 			goto out_unlock;
 
-		if (machine__is_host(machine))
-			dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
-		else
-			dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
-
-		/* _KMODULE_COMP should be next to _KMODULE */
-		if (m->kmod && m->comp)
-			dso->symtab_type++;
-
-		dso__set_short_name(dso, strdup(m->name), true);
+		dso__set_module_info(dso, m, machine);
 		dso__set_long_name(dso, strdup(filename), true);
 	}
 

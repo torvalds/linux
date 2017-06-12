@@ -108,7 +108,7 @@ config MDIO_MOXART
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
 	depends on 64BIT
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && OF_MDIO
 	select MDIO_CAVIUM
 	help
 	  This module provides a driver for the Octeon and ThunderX MDIO

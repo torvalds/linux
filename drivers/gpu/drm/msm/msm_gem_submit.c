@@ -410,12 +410,11 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		if (!in_fence)
 			return -EINVAL;
 
-		/* TODO if we get an array-fence due to userspace merging multiple
-		 * fences, we need a way to determine if all the backing fences
-		 * are from our own context..
+		/*
+		 * Wait if the fence is from a foreign context, or if the fence
+		 * array contains any fence from a foreign context.
 		 */
-
-		if (in_fence->context != gpu->fctx->context) {
+		if (!dma_fence_match_context(in_fence, gpu->fctx->context)) {
 			ret = dma_fence_wait(in_fence, true);
 			if (ret)
 				return ret;
@@ -496,8 +495,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 			goto out;
 		}
 
-		if ((submit_cmd.size + submit_cmd.submit_offset) >=
-				msm_obj->base.size) {
+		if (!submit_cmd.size ||
+			((submit_cmd.size + submit_cmd.submit_offset) >
+				msm_obj->base.size)) {
 			DRM_ERROR("invalid cmdstream size: %u\n", submit_cmd.size);
 			ret = -EINVAL;
 			goto out;

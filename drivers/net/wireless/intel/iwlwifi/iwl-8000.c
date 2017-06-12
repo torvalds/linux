@@ -74,8 +74,8 @@
 #define IWL8265_UCODE_API_MAX	30
 
 /* Lowest firmware API version supported */
-#define IWL8000_UCODE_API_MIN	17
-#define IWL8265_UCODE_API_MIN	20
+#define IWL8000_UCODE_API_MIN	22
+#define IWL8265_UCODE_API_MIN	22
 
 /* NVM versions */
 #define IWL8000_NVM_VERSION		0x0a1d
