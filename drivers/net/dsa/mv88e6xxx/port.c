@@ -408,10 +408,10 @@ int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 /* Offset 0x04: Port Control Register */
 
 static const char * const mv88e6xxx_port_state_names[] = {
-	[PORT_CONTROL_STATE_DISABLED] = "Disabled",
-	[PORT_CONTROL_STATE_BLOCKING] = "Blocking/Listening",
-	[PORT_CONTROL_STATE_LEARNING] = "Learning",
-	[PORT_CONTROL_STATE_FORWARDING] = "Forwarding",
+	[MV88E6XXX_PORT_CTL0_STATE_DISABLED] = "Disabled",
+	[MV88E6XXX_PORT_CTL0_STATE_BLOCKING] = "Blocking/Listening",
+	[MV88E6XXX_PORT_CTL0_STATE_LEARNING] = "Learning",
+	[MV88E6XXX_PORT_CTL0_STATE_FORWARDING] = "Forwarding",
 };
 
 int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
@@ -419,25 +419,25 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_STATE_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL0_STATE_MASK;
 
 	switch (state) {
 	case BR_STATE_DISABLED:
-		state = PORT_CONTROL_STATE_DISABLED;
+		state = MV88E6XXX_PORT_CTL0_STATE_DISABLED;
 		break;
 	case BR_STATE_BLOCKING:
 	case BR_STATE_LISTENING:
-		state = PORT_CONTROL_STATE_BLOCKING;
+		state = MV88E6XXX_PORT_CTL0_STATE_BLOCKING;
 		break;
 	case BR_STATE_LEARNING:
-		state = PORT_CONTROL_STATE_LEARNING;
+		state = MV88E6XXX_PORT_CTL0_STATE_LEARNING;
 		break;
 	case BR_STATE_FORWARDING:
-		state = PORT_CONTROL_STATE_FORWARDING;
+		state = MV88E6XXX_PORT_CTL0_STATE_FORWARDING;
 		break;
 	default:
 		return -EINVAL;
@@ -445,7 +445,7 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 
 	reg |= state;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 	if (err)
 		return err;
 
@@ -461,30 +461,30 @@ int mv88e6xxx_port_set_egress_mode(struct mv88e6xxx_chip *chip, int port,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_EGRESS_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL0_EGRESS_MODE_MASK;
 
 	switch (mode) {
 	case MV88E6XXX_EGRESS_MODE_UNMODIFIED:
-		reg |= PORT_CONTROL_EGRESS_UNMODIFIED;
+		reg |= MV88E6XXX_PORT_CTL0_EGRESS_MODE_UNMODIFIED;
 		break;
 	case MV88E6XXX_EGRESS_MODE_UNTAGGED:
-		reg |= PORT_CONTROL_EGRESS_UNTAGGED;
+		reg |= MV88E6XXX_PORT_CTL0_EGRESS_MODE_UNTAGGED;
 		break;
 	case MV88E6XXX_EGRESS_MODE_TAGGED:
-		reg |= PORT_CONTROL_EGRESS_TAGGED;
+		reg |= MV88E6XXX_PORT_CTL0_EGRESS_MODE_TAGGED;
 		break;
 	case MV88E6XXX_EGRESS_MODE_ETHERTYPE:
-		reg |= PORT_CONTROL_EGRESS_ADD_TAG;
+		reg |= MV88E6XXX_PORT_CTL0_EGRESS_MODE_ETHER_TYPE_DSA;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
 int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
@@ -493,24 +493,24 @@ int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_FRAME_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL0_FRAME_MODE_MASK;
 
 	switch (mode) {
 	case MV88E6XXX_FRAME_MODE_NORMAL:
-		reg |= PORT_CONTROL_FRAME_MODE_NORMAL;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_NORMAL;
 		break;
 	case MV88E6XXX_FRAME_MODE_DSA:
-		reg |= PORT_CONTROL_FRAME_MODE_DSA;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_DSA;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
 int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
@@ -519,30 +519,30 @@ int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_FRAME_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL0_FRAME_MODE_MASK;
 
 	switch (mode) {
 	case MV88E6XXX_FRAME_MODE_NORMAL:
-		reg |= PORT_CONTROL_FRAME_MODE_NORMAL;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_NORMAL;
 		break;
 	case MV88E6XXX_FRAME_MODE_DSA:
-		reg |= PORT_CONTROL_FRAME_MODE_DSA;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_DSA;
 		break;
 	case MV88E6XXX_FRAME_MODE_PROVIDER:
-		reg |= PORT_CONTROL_FRAME_MODE_PROVIDER;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_PROVIDER;
 		break;
 	case MV88E6XXX_FRAME_MODE_ETHERTYPE:
-		reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_ETHER_TYPE_DSA;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
 static int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
@@ -551,16 +551,16 @@ static int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
 	if (unicast)
-		reg |= PORT_CONTROL_FORWARD_UNKNOWN;
+		reg |= MV88E6185_PORT_CTL0_FORWARD_UNKNOWN;
 	else
-		reg &= ~PORT_CONTROL_FORWARD_UNKNOWN;
+		reg &= ~MV88E6185_PORT_CTL0_FORWARD_UNKNOWN;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
 int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
@@ -569,22 +569,22 @@ int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_EGRESS_FLOODS_MASK;
+	reg &= ~MV88E6352_PORT_CTL0_EGRESS_FLOODS_MASK;
 
 	if (unicast && multicast)
-		reg |= PORT_CONTROL_EGRESS_FLOODS_ALL_UNKNOWN_DA;
+		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_ALL_UNKNOWN_DA;
 	else if (unicast)
-		reg |= PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_MC_DA;
+		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_MC_DA;
 	else if (multicast)
-		reg |= PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_UC_DA;
+		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_UC_DA;
 	else
-		reg |= PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_DA;
+		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_DA;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
 /* Offset 0x05: Port Control 1 */
