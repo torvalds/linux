@@ -1892,7 +1892,8 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (dsa_is_cpu_port(ds, port))
 		reg = 0;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_ASSOC_VECTOR, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_ASSOC_VECTOR,
+				   reg);
 	if (err)
 		return err;
 
