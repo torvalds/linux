@@ -551,27 +551,7 @@ enum dc_timing_standard {
 	TIMING_STANDARD_MAX
 };
 
-enum dc_timing_3d_format {
-	TIMING_3D_FORMAT_NONE,
-	TIMING_3D_FORMAT_FRAME_ALTERNATE, /* No stereosync at all*/
-	TIMING_3D_FORMAT_INBAND_FA, /* Inband Frame Alternate (DVI/DP)*/
-	TIMING_3D_FORMAT_DP_HDMI_INBAND_FA, /* Inband FA to HDMI Frame Pack*/
-	/* for active DP-HDMI dongle*/
-	TIMING_3D_FORMAT_SIDEBAND_FA, /* Sideband Frame Alternate (eDP)*/
-	TIMING_3D_FORMAT_HW_FRAME_PACKING,
-	TIMING_3D_FORMAT_SW_FRAME_PACKING,
-	TIMING_3D_FORMAT_ROW_INTERLEAVE,
-	TIMING_3D_FORMAT_COLUMN_INTERLEAVE,
-	TIMING_3D_FORMAT_PIXEL_INTERLEAVE,
-	TIMING_3D_FORMAT_SIDE_BY_SIDE,
-	TIMING_3D_FORMAT_TOP_AND_BOTTOM,
-	TIMING_3D_FORMAT_SBS_SW_PACKED,
-	/* Side-by-side, packed by application/driver into 2D frame*/
-	TIMING_3D_FORMAT_TB_SW_PACKED,
-	/* Top-and-bottom, packed by application/driver into 2D frame*/
 
-	TIMING_3D_FORMAT_MAX,
-};
 
 enum dc_color_depth {
 	COLOR_DEPTH_UNDEFINED,
@@ -642,6 +622,29 @@ struct dc_crtc_timing_flags {
 	uint32_t LTE_340MCSC_SCRAMBLE:1;
 
 };
+
+enum dc_timing_3d_format {
+	TIMING_3D_FORMAT_NONE,
+	TIMING_3D_FORMAT_FRAME_ALTERNATE, /* No stereosync at all*/
+	TIMING_3D_FORMAT_INBAND_FA, /* Inband Frame Alternate (DVI/DP)*/
+	TIMING_3D_FORMAT_DP_HDMI_INBAND_FA, /* Inband FA to HDMI Frame Pack*/
+	/* for active DP-HDMI dongle*/
+	TIMING_3D_FORMAT_SIDEBAND_FA, /* Sideband Frame Alternate (eDP)*/
+	TIMING_3D_FORMAT_HW_FRAME_PACKING,
+	TIMING_3D_FORMAT_SW_FRAME_PACKING,
+	TIMING_3D_FORMAT_ROW_INTERLEAVE,
+	TIMING_3D_FORMAT_COLUMN_INTERLEAVE,
+	TIMING_3D_FORMAT_PIXEL_INTERLEAVE,
+	TIMING_3D_FORMAT_SIDE_BY_SIDE,
+	TIMING_3D_FORMAT_TOP_AND_BOTTOM,
+	TIMING_3D_FORMAT_SBS_SW_PACKED,
+	/* Side-by-side, packed by application/driver into 2D frame*/
+	TIMING_3D_FORMAT_TB_SW_PACKED,
+	/* Top-and-bottom, packed by application/driver into 2D frame*/
+
+	TIMING_3D_FORMAT_MAX,
+};
+
 
 struct dc_crtc_timing {
 

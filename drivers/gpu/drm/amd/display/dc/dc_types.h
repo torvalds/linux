@@ -272,6 +272,15 @@ enum dc_timing_source {
 	TIMING_SOURCE_COUNT
 };
 
+
+struct stereo_3d_features {
+	bool supported			;
+	bool allTimings			;
+	bool cloneMode			;
+	bool scaling			;
+	bool singleFrameSWPacked;
+};
+
 enum dc_timing_support_method {
 	TIMING_SUPPORT_METHOD_UNDEFINED,
 	TIMING_SUPPORT_METHOD_EXPLICIT,

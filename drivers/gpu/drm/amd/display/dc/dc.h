@@ -787,13 +787,7 @@ struct dc_container_id {
 	unsigned short productCode;
 };
 
-struct stereo_3d_features {
-	bool supported			;
-	bool allTimings			;
-	bool cloneMode			;
-	bool scaling			;
-	bool singleFrameSWPacked;
-};
+
 
 /*
  * The sink structure contains EDID and other display device properties
