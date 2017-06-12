@@ -828,6 +828,8 @@ SYSCALL_DEFINE4(timer_settime, timer_t, timer_id, int, flags,
 	if (!timespec64_valid(&new_spec64.it_interval) ||
 	    !timespec64_valid(&new_spec64.it_value))
 		return -EINVAL;
+	if (rtn)
+		memset(rtn, 0, sizeof(*rtn));
 retry:
 	timr = lock_timer(timer_id, &flag);
 	if (!timr)
