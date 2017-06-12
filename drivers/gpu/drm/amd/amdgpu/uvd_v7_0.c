@@ -749,11 +749,9 @@ static int uvd_v7_0_sriov_start(struct amdgpu_device *adev)
 		init_table += header->uvd_table_offset;
 
 		ring = &adev->uvd.ring;
+		ring->wptr = 0;
 		size = AMDGPU_GPU_PAGE_ALIGN(adev->uvd.fw->size + 4);
 
-		/* disable clock gating */
-		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_POWER_STATUS),
-						   ~UVD_POWER_STATUS__UVD_PG_MODE_MASK, 0);
 		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_STATUS),
 						   0xFFFFFFFF, 0x00000004);
 		/* mc resume*/
@@ -790,12 +788,6 @@ static int uvd_v7_0_sriov_start(struct amdgpu_device *adev)
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CACHE_SIZE2),
 					    AMDGPU_UVD_STACK_SIZE + (AMDGPU_UVD_SESSION_SIZE * 40));
 
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_UDEC_ADDR_CONFIG),
-					    adev->gfx.config.gb_addr_config);
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_UDEC_DB_ADDR_CONFIG),
-					    adev->gfx.config.gb_addr_config);
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_UDEC_DBW_ADDR_CONFIG),
-					    adev->gfx.config.gb_addr_config);
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_GP_SCRATCH4), adev->uvd.max_handles);
 		/* mc resume end*/
 
@@ -832,17 +824,6 @@ static int uvd_v7_0_sriov_start(struct amdgpu_device *adev)
 						       UVD_LMI_CTRL__REQ_MODE_MASK |
 						       0x00100000L));
 
-		/* disable byte swapping */
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_SWAP_CNTL), 0);
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MP_SWAP_CNTL), 0);
-
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_MUXA0), 0x40c2040);
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_MUXA1), 0x0);
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_MUXB0), 0x40c2040);
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_MUXB1), 0x0);
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_ALU), 0);
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_MUX), 0x88);
-
 		/* take all subblocks out of reset, except VCPU */
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_SOFT_RESET),
 					    UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
@@ -850,15 +831,6 @@ static int uvd_v7_0_sriov_start(struct amdgpu_device *adev)
 		/* enable VCPU clock */
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CNTL),
 					    UVD_VCPU_CNTL__CLK_EN_MASK);
-
-		/* enable UMC */
-		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL2),
-						   ~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK, 0);
-
-		/* boot up the VCPU */
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_SOFT_RESET), 0);
-
-		MMSCH_V1_0_INSERT_DIRECT_POLL(SOC15_REG_OFFSET(UVD, 0, mmUVD_STATUS), 0x02, 0x02);
 
 		/* enable master interrupt */
 		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN),
@@ -872,31 +844,23 @@ static int uvd_v7_0_sriov_start(struct amdgpu_device *adev)
 		/* force RBC into idle state */
 		size = order_base_2(ring->ring_size);
 		tmp = REG_SET_FIELD(0, UVD_RBC_RB_CNTL, RB_BUFSZ, size);
-		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BLKSZ, 1);
 		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_FETCH, 1);
-		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_WPTR_POLL_EN, 0);
-		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_UPDATE, 1);
-		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_RPTR_WR_EN, 1);
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_CNTL), tmp);
 
-		/* set the write pointer delay */
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_WPTR_CNTL), 0);
-
-		/* set the wb address */
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_RPTR_ADDR),
-					    (upper_32_bits(ring->gpu_addr) >> 2));
-
-		/* programm the RB_BASE for ring buffer */
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_RB_64BIT_BAR_LOW),
-					    lower_32_bits(ring->gpu_addr));
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_RB_64BIT_BAR_HIGH),
-					    upper_32_bits(ring->gpu_addr));
-
-		ring->wptr = 0;
 		ring = &adev->uvd.ring_enc[0];
+		ring->wptr = 0;
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_BASE_LO), ring->gpu_addr);
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_BASE_HI), upper_32_bits(ring->gpu_addr));
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_SIZE), ring->ring_size / 4);
+
+		/* boot up the VCPU */
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_SOFT_RESET), 0);
+
+		/* enable UMC */
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL2),
+										   ~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK, 0);
+
+		MMSCH_V1_0_INSERT_DIRECT_POLL(SOC15_REG_OFFSET(UVD, 0, mmUVD_STATUS), 0x02, 0x02);
 
 		/* add end packet */
 		memcpy((void *)init_table, &end, sizeof(struct mmsch_v1_0_cmd_end));
