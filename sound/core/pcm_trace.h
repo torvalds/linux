@@ -34,9 +34,9 @@ TRACE_EVENT(hwptr,
 		__entry->old_hw_ptr = (substream)->runtime->status->hw_ptr;
 		__entry->hw_ptr_base = (substream)->runtime->hw_ptr_base;
 	),
-	TP_printk("pcmC%dD%d%c/sub%d: %s: pos=%lu, old=%lu, base=%lu, period=%lu, buf=%lu",
+	TP_printk("pcmC%dD%d%s/sub%d: %s: pos=%lu, old=%lu, base=%lu, period=%lu, buf=%lu",
 		  __entry->card, __entry->device,
-		  __entry->stream == SNDRV_PCM_STREAM_PLAYBACK ? 'p' : 'c',
+		  __entry->stream == SNDRV_PCM_STREAM_PLAYBACK ? "p" : "c",
 		  __entry->number,
 		  __entry->in_interrupt ? "IRQ" : "POS",
 		  (unsigned long)__entry->pos,
@@ -69,9 +69,9 @@ TRACE_EVENT(xrun,
 		__entry->old_hw_ptr = (substream)->runtime->status->hw_ptr;
 		__entry->hw_ptr_base = (substream)->runtime->hw_ptr_base;
 	),
-	TP_printk("pcmC%dD%d%c/sub%d: XRUN: old=%lu, base=%lu, period=%lu, buf=%lu",
+	TP_printk("pcmC%dD%d%s/sub%d: XRUN: old=%lu, base=%lu, period=%lu, buf=%lu",
 		  __entry->card, __entry->device,
-		  __entry->stream == SNDRV_PCM_STREAM_PLAYBACK ? 'p' : 'c',
+		  __entry->stream == SNDRV_PCM_STREAM_PLAYBACK ? "p" : "c",
 		  __entry->number,
 		  (unsigned long)__entry->old_hw_ptr,
 		  (unsigned long)__entry->hw_ptr_base,
@@ -96,9 +96,9 @@ TRACE_EVENT(hw_ptr_error,
 		__entry->stream = (substream)->stream;
 		__entry->reason = (why);
 	),
-	TP_printk("pcmC%dD%d%c/sub%d: ERROR: %s",
+	TP_printk("pcmC%dD%d%s/sub%d: ERROR: %s",
 		  __entry->card, __entry->device,
-		  __entry->stream == SNDRV_PCM_STREAM_PLAYBACK ? 'p' : 'c',
+		  __entry->stream == SNDRV_PCM_STREAM_PLAYBACK ? "p" : "c",
 		  __entry->number, __entry->reason)
 );
 
