@@ -615,14 +615,14 @@ int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_BASE_VLAN, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_BASE_VLAN, &reg);
 	if (err)
 		return err;
 
 	reg &= ~mask;
 	reg |= map & mask;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_BASE_VLAN, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_BASE_VLAN, reg);
 	if (err)
 		return err;
 
@@ -638,7 +638,7 @@ int mv88e6xxx_port_get_fid(struct mv88e6xxx_chip *chip, int port, u16 *fid)
 	int err;
 
 	/* Port's default FID lower 4 bits are located in reg 0x06, offset 12 */
-	err = mv88e6xxx_port_read(chip, port, PORT_BASE_VLAN, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_BASE_VLAN, &reg);
 	if (err)
 		return err;
 
@@ -667,14 +667,14 @@ int mv88e6xxx_port_set_fid(struct mv88e6xxx_chip *chip, int port, u16 fid)
 		return -EINVAL;
 
 	/* Port's default FID lower 4 bits are located in reg 0x06, offset 12 */
-	err = mv88e6xxx_port_read(chip, port, PORT_BASE_VLAN, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_BASE_VLAN, &reg);
 	if (err)
 		return err;
 
 	reg &= 0x0fff;
 	reg |= (fid & 0x000f) << 12;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_BASE_VLAN, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_BASE_VLAN, reg);
 	if (err)
 		return err;
 
