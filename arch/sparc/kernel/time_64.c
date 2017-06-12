@@ -392,6 +392,7 @@ static struct sparc64_tick_ops hbtick_operations __read_mostly = {
 };
 
 static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
+static unsigned long timer_offset __read_mostly;
 
 unsigned long cmos_regs;
 EXPORT_SYMBOL(cmos_regs);
@@ -786,6 +787,10 @@ void __init time_init(void)
 	timer_ticks_per_nsec_quotient =
 		clocksource_hz2mult(freq, SPARC64_NSEC_PER_CYC_SHIFT);
 
+	timer_offset = (tick_operations.get_tick()
+			* timer_ticks_per_nsec_quotient)
+			>> SPARC64_NSEC_PER_CYC_SHIFT;
+
 	clocksource_tick.name = tick_operations.name;
 	clocksource_tick.read = clocksource_tick_read;
 
@@ -813,8 +818,9 @@ unsigned long long sched_clock(void)
 {
 	unsigned long ticks = tick_operations.get_tick();
 
-	return (ticks * timer_ticks_per_nsec_quotient)
-		>> SPARC64_NSEC_PER_CYC_SHIFT;
+	return ((ticks * timer_ticks_per_nsec_quotient)
+		>> SPARC64_NSEC_PER_CYC_SHIFT)
+		- timer_offset;
 }
 
 int read_current_timer(unsigned long *timer_val)
