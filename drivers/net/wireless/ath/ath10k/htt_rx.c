@@ -829,6 +829,19 @@ static void ath10k_htt_rx_h_signal(struct ath10k *ar,
 				   struct ieee80211_rx_status *status,
 				   struct htt_rx_desc *rxd)
 {
+	int i;
+
+	for (i = 0; i < IEEE80211_MAX_CHAINS ; i++) {
+		status->chains &= ~BIT(i);
+
+		if (rxd->ppdu_start.rssi_chains[i].pri20_mhz != 0x80) {
+			status->chain_signal[i] = ATH10K_DEFAULT_NOISE_FLOOR +
+				rxd->ppdu_start.rssi_chains[i].pri20_mhz;
+
+			status->chains |= BIT(i);
+		}
+	}
+
 	/* FIXME: Get real NF */
 	status->signal = ATH10K_DEFAULT_NOISE_FLOOR +
 			 rxd->ppdu_start.rssi_comb;
