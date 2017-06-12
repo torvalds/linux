@@ -42,10 +42,8 @@ static void set_breakpoint_addr(void *addr, int n)
 
 	ret = ptrace(PTRACE_POKEUSER, child_pid,
 		     offsetof(struct user, u_debugreg[n]), addr);
-	if (ret) {
-		perror("Can't set breakpoint addr\n");
-		ksft_exit_fail();
-	}
+	if (ret)
+		ksft_exit_fail_msg("Can't set breakpoint addr");
 }
 
 static void toggle_breakpoint(int n, int type, int len,
@@ -105,10 +103,8 @@ static void toggle_breakpoint(int n, int type, int len,
 
 	ret = ptrace(PTRACE_POKEUSER, child_pid,
 		     offsetof(struct user, u_debugreg[7]), dr7);
-	if (ret) {
-		perror("Can't set dr7");
-		ksft_exit_fail();
-	}
+	if (ret)
+		ksft_exit_fail_msg("Can't set dr7");
 }
 
 /* Dummy variables to test read/write accesses */
@@ -264,26 +260,29 @@ static void check_success(const char *msg)
 	const char *msg2;
 	int child_nr_tests;
 	int status;
+	int ret;
 
 	/* Wait for the child to SIGTRAP */
 	wait(&status);
 
 	msg2 = "Failed";
+	ret = 0;
 
 	if (WSTOPSIG(status) == SIGTRAP) {
 		child_nr_tests = ptrace(PTRACE_PEEKDATA, child_pid,
 					&nr_tests, 0);
 		if (child_nr_tests == nr_tests)
-			msg2 = "Ok";
-		if (ptrace(PTRACE_POKEDATA, child_pid, &trapped, 1)) {
-			perror("Can't poke\n");
-			ksft_exit_fail();
-		}
+			ret = 1;
+		if (ptrace(PTRACE_POKEDATA, child_pid, &trapped, 1))
+			ksft_exit_fail_msg("Can't poke");
 	}
 
 	nr_tests++;
 
-	printf("%s [%s]\n", msg, msg2);
+	if (ret)
+		ksft_test_result_pass(msg);
+	else
+		ksft_test_result_fail(msg);
 }
 
 static void launch_instruction_breakpoints(char *buf, int local, int global)
@@ -377,6 +376,8 @@ int main(int argc, char **argv)
 {
 	pid_t pid;
 	int ret;
+
+	ksft_print_header();
 
 	pid = fork();
 	if (!pid) {
