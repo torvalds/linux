@@ -2847,6 +2847,8 @@ static int rt5663_resume(struct snd_soc_codec *codec)
 	regcache_cache_only(rt5663->regmap, false);
 	regcache_sync(rt5663->regmap);
 
+	rt5663_irq(0, rt5663);
+
 	return 0;
 }
 #else
