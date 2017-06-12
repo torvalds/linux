@@ -873,14 +873,14 @@ int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
 
 int mv88e6xxx_port_disable_learn_limit(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_ATU_CONTROL, 0);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_ATU_CTL, 0);
 }
 
 /* Offset 0x0D: (Priority) Override Register */
 
 int mv88e6xxx_port_disable_pri_override(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_PRI_OVERRIDE, 0);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_PRI_OVERRIDE, 0);
 }
 
 /* Offset 0x0f: Port Ether type */
@@ -888,7 +888,7 @@ int mv88e6xxx_port_disable_pri_override(struct mv88e6xxx_chip *chip, int port)
 int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
 				  u16 etype)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_ETH_TYPE, etype);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_ETH_TYPE, etype);
 }
 
 /* Offset 0x18: Port IEEE Priority Remapping Registers [0-3]

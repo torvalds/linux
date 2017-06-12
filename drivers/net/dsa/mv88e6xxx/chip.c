@@ -1729,14 +1729,14 @@ static int mv88e6xxx_set_port_mode_normal(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_set_port_mode(chip, port, MV88E6XXX_FRAME_MODE_NORMAL,
 				       MV88E6XXX_EGRESS_MODE_UNMODIFIED,
-				       PORT_ETH_TYPE_DEFAULT);
+				       MV88E6XXX_PORT_ETH_TYPE_DEFAULT);
 }
 
 static int mv88e6xxx_set_port_mode_dsa(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_set_port_mode(chip, port, MV88E6XXX_FRAME_MODE_DSA,
 				       MV88E6XXX_EGRESS_MODE_UNMODIFIED,
-				       PORT_ETH_TYPE_DEFAULT);
+				       MV88E6XXX_PORT_ETH_TYPE_DEFAULT);
 }
 
 static int mv88e6xxx_set_port_mode_edsa(struct mv88e6xxx_chip *chip, int port)

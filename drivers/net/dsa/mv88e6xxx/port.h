@@ -191,14 +191,33 @@
 #define MV88E6XXX_PORT_ASSOC_VECTOR_IGNORE_WRONG	0x1000
 #define MV88E6XXX_PORT_ASSOC_VECTOR_REFRESH_LOCKED	0x0800
 
-#define PORT_ATU_CONTROL	0x0c
-#define PORT_PRI_OVERRIDE	0x0d
-#define PORT_ETH_TYPE		0x0f
-#define PORT_ETH_TYPE_DEFAULT	0x9100
-#define PORT_IN_DISCARD_LO	0x10
-#define PORT_IN_DISCARD_HI	0x11
-#define PORT_IN_FILTERED	0x12
-#define PORT_OUT_FILTERED	0x13
+/* Offset 0x0C: Port ATU Control */
+#define MV88E6XXX_PORT_ATU_CTL		0x0c
+
+/* Offset 0x0D: Priority Override Register */
+#define MV88E6XXX_PORT_PRI_OVERRIDE	0x0d
+
+/* Offset 0x0E: Policy Control Register */
+#define MV88E6XXX_PORT_POLICY_CTL	0x0e
+
+/* Offset 0x0F: Port Special Ether Type */
+#define MV88E6XXX_PORT_ETH_TYPE		0x0f
+#define MV88E6XXX_PORT_ETH_TYPE_DEFAULT	0x9100
+
+/* Offset 0x10: InDiscards Low Counter */
+#define MV88E6XXX_PORT_IN_DISCARD_LO	0x10
+
+/* Offset 0x11: InDiscards High Counter */
+#define MV88E6XXX_PORT_IN_DISCARD_HI	0x11
+
+/* Offset 0x12: InFiltered Counter */
+#define MV88E6XXX_PORT_IN_FILTERED	0x12
+
+/* Offset 0x13: OutFiltered Counter */
+#define MV88E6XXX_PORT_OUT_FILTERED	0x13
+
+/* Offset 0x16: LED Control */
+#define MV88E6XXX_PORT_LED_CONTROL	0x16
 
 /* Offset 0x18: IEEE Priority Mapping Table */
 #define MV88E6390_PORT_IEEE_PRIO_MAP_TABLE			0x18
