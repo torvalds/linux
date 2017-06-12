@@ -931,7 +931,7 @@ int emac_mac_up(struct emac_adapter *adpt)
 	emac_mac_config(adpt);
 	emac_mac_rx_descs_refill(adpt, &adpt->rx_q);
 
-	adpt->phydev->irq = PHY_IGNORE_INTERRUPT;
+	adpt->phydev->irq = PHY_POLL;
 	ret = phy_connect_direct(netdev, adpt->phydev, emac_adjust_link,
 				 PHY_INTERFACE_MODE_SGMII);
 	if (ret) {

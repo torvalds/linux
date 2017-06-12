@@ -2159,8 +2159,11 @@ send_last:
 		ret = hfi1_rvt_get_rwqe(qp, 1);
 		if (ret < 0)
 			goto nack_op_err;
-		if (!ret)
+		if (!ret) {
+			/* peer will send again */
+			rvt_put_ss(&qp->r_sge);
 			goto rnr_nak;
+		}
 		wc.ex.imm_data = ohdr->u.rc.imm_data;
 		wc.wc_flags = IB_WC_WITH_IMM;
 		goto send_last;

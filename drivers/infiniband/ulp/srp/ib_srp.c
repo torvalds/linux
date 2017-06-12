@@ -320,7 +320,7 @@ static int srp_new_cm_id(struct srp_rdma_ch *ch)
 	ch->path.sgid = target->sgid;
 	ch->path.dgid = target->orig_dgid;
 	ch->path.pkey = target->pkey;
-	sa_path_set_service_id(&ch->path, target->service_id);
+	ch->path.service_id = target->service_id;
 
 	return 0;
 }
@@ -575,7 +575,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	return 0;
 
 err_qp:
-	srp_destroy_qp(ch, qp);
+	ib_destroy_qp(qp);
 
 err_send_cq:
 	ib_free_cq(send_cq);

@@ -1062,7 +1062,7 @@ static int mtk_hdmi_setup_vendor_specific_infoframe(struct mtk_hdmi *hdmi,
 	}
 
 	err = hdmi_vendor_infoframe_pack(&frame, buffer, sizeof(buffer));
-	if (err) {
+	if (err < 0) {
 		dev_err(hdmi->dev, "Failed to pack vendor infoframe: %zd\n",
 			err);
 		return err;

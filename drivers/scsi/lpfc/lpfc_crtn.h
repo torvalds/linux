@@ -127,7 +127,7 @@ int lpfc_disc_state_machine(struct lpfc_vport *, struct lpfc_nodelist *, void *,
 void lpfc_do_scr_ns_plogi(struct lpfc_hba *, struct lpfc_vport *);
 int lpfc_check_sparm(struct lpfc_vport *, struct lpfc_nodelist *,
 		     struct serv_parm *, uint32_t, int);
-int lpfc_els_abort(struct lpfc_hba *, struct lpfc_nodelist *);
+void lpfc_els_abort(struct lpfc_hba *, struct lpfc_nodelist *);
 void lpfc_more_plogi(struct lpfc_vport *);
 void lpfc_more_adisc(struct lpfc_vport *);
 void lpfc_end_rscn(struct lpfc_vport *);

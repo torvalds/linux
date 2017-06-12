@@ -1084,10 +1084,6 @@ config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
 
-config KEYS_COMPAT
-	def_bool y
-	depends on COMPAT && KEYS
-
 endmenu
 
 menu "Power management options"

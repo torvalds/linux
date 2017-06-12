@@ -59,8 +59,6 @@ struct drm_i915_gem_request;
  *                available in the work queue (note, the queue is shared,
  *                not per-engine). It is OK for this to be nonzero, but
  *                it should not be huge!
- *   q_fail: failed to enqueue a work item. This should never happen,
- *           because we check for space beforehand.
  *   b_fail: failed to ring the doorbell. This should never happen, unless
  *           somehow the hardware misbehaves, or maybe if the GuC firmware
  *           crashes? We probably need to reset the GPU to recover.

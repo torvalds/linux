@@ -158,9 +158,7 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 
 		kfree(key->description);
 
-#ifdef KEY_DEBUGGING
-		key->magic = KEY_DEBUG_MAGIC_X;
-#endif
+		memzero_explicit(key, sizeof(*key));
 		kmem_cache_free(key_jar, key);
 	}
 }
