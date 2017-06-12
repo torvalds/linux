@@ -84,6 +84,11 @@
 	};
 };
 
+&cdn_dp {
+	extcon = <&fusb0>, <&fusb1>;
+	status = "okay";
+};
+
 &route_mipi {
 	status = "okay";
 };
