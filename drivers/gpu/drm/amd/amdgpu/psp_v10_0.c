@@ -133,21 +133,21 @@ int psp_v10_0_ring_init(struct psp_context *psp, enum psp_ring_type ring_type)
 
 	/* Write low address of the ring to C2PMSG_69 */
 	psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_69), psp_ring_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, psp_ring_reg);
 	/* Write high address of the ring to C2PMSG_70 */
 	psp_ring_reg = upper_32_bits(ring->ring_mem_mc_addr);
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_70), psp_ring_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, psp_ring_reg);
 	/* Write size of ring to C2PMSG_71 */
 	psp_ring_reg = ring->ring_size;
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_71), psp_ring_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_71, psp_ring_reg);
 	/* Write the ring initialization command to C2PMSG_64 */
 	psp_ring_reg = ring_type;
 	psp_ring_reg = psp_ring_reg << 16;
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64), psp_ring_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, psp_ring_reg);
 	/* Wait for response flag (bit 31) in C2PMSG_64 */
 	psp_ring_reg = 0;
 	while ((psp_ring_reg & 0x80000000) == 0) {
-		psp_ring_reg = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64));
+		psp_ring_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64);
 	}
 
 	return 0;
@@ -164,7 +164,7 @@ int psp_v10_0_cmd_submit(struct psp_context *psp,
 	struct amdgpu_device *adev = psp->adev;
 
 	/* KM (GPCOM) prepare write pointer */
-	psp_write_ptr_reg = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_67));
+	psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
 
 	/* Update KM RB frame pointer to new frame */
 	if ((psp_write_ptr_reg % ring->ring_size) == 0)
@@ -182,7 +182,7 @@ int psp_v10_0_cmd_submit(struct psp_context *psp,
 	/* Update the write Pointer in DWORDs */
 	psp_write_ptr_reg += sizeof(struct psp_gfx_rb_frame) / 4;
 	psp_write_ptr_reg = (psp_write_ptr_reg >= ring->ring_size) ? 0 : psp_write_ptr_reg;
-	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_67), psp_write_ptr_reg);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, psp_write_ptr_reg);
 
 	return 0;
 }
