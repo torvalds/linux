@@ -252,6 +252,10 @@
 					compatible = "marvell,ap806-clock";
 					#clock-cells = <1>;
 				};
+
+				ap_pinctrl: pinctrl {
+					compatible = "marvell,ap806-pinctrl";
+				};
 			};
 		};
 	};
