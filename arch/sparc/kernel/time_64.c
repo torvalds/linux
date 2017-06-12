@@ -47,14 +47,12 @@
 #include <asm/cpudata.h>
 #include <linux/uaccess.h>
 #include <asm/irq_regs.h>
+#include <asm/cacheflush.h>
 
 #include "entry.h"
 #include "kernel.h"
 
 DEFINE_SPINLOCK(rtc_lock);
-
-#define TICK_PRIV_BIT	(1UL << 63)
-#define TICKCMP_IRQ_BIT	(1UL << 63)
 
 #ifdef CONFIG_SMP
 unsigned long profile_pc(struct pt_regs *regs)
@@ -290,9 +288,6 @@ static struct sparc64_tick_ops stick_operations __read_mostly = {
  * 2) write high
  * 3) write low
  */
-#define HBIRD_STICKCMP_ADDR	0x1fe0000f060UL
-#define HBIRD_STICK_ADDR	0x1fe0000f070UL
-
 static unsigned long __hbird_read_stick(void)
 {
 	unsigned long ret, tmp1, tmp2, tmp3;
@@ -777,6 +772,26 @@ static u64 clocksource_tick_read(struct clocksource *cs)
 	return tick_operations.get_tick();
 }
 
+static void __init get_tick_patch(void)
+{
+	unsigned int *addr, *instr, i;
+	struct get_tick_patch *p;
+
+	if (tlb_type == spitfire && is_hummingbird())
+		return;
+
+	for (p = &__get_tick_patch; p < &__get_tick_patch_end; p++) {
+		instr = (tlb_type == spitfire) ? p->tick : p->stick;
+		addr = (unsigned int *)(unsigned long)p->addr;
+		for (i = 0; i < GET_TICK_NINSTR; i++) {
+			addr[i] = instr[i];
+			/* ensure that address is modified before flush */
+			wmb();
+			flushi(&addr[i]);
+		}
+	}
+}
+
 static void init_tick_ops(struct sparc64_tick_ops *ops)
 {
 	unsigned long freq, quotient, tick;
@@ -789,6 +804,7 @@ static void init_tick_ops(struct sparc64_tick_ops *ops)
 	ops->ticks_per_nsec_quotient = quotient;
 	ops->frequency = freq;
 	tick_operations = *ops;
+	get_tick_patch();
 }
 
 void __init time_init_early(void)
