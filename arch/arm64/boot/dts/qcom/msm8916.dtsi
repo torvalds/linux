@@ -710,6 +710,59 @@
 			#thermal-sensor-cells = <1>;
 		};
 
+		apps_iommu: iommu@1ef0000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#iommu-cells = <1>;
+			compatible = "qcom,msm8916-iommu", "qcom,msm-iommu-v1";
+			ranges = <0 0x1e20000 0x40000>;
+			reg = <0x1ef0000 0x3000>;
+			clocks = <&gcc GCC_SMMU_CFG_CLK>,
+				 <&gcc GCC_APSS_TCU_CLK>;
+			clock-names = "iface", "bus";
+			qcom,iommu-secure-id = <17>;
+
+			// mdp_0:
+			iommu-ctx@4000 {
+				compatible = "qcom,msm-iommu-v1-ns";
+				reg = <0x4000 0x1000>;
+				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			// venus_ns:
+			iommu-ctx@5000 {
+				compatible = "qcom,msm-iommu-v1-sec";
+				reg = <0x5000 0x1000>;
+				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gpu_iommu: iommu@1f08000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#iommu-cells = <1>;
+			compatible = "qcom,msm8916-iommu", "qcom,msm-iommu-v1";
+			ranges = <0 0x1f08000 0x10000>;
+			clocks = <&gcc GCC_SMMU_CFG_CLK>,
+				 <&gcc GCC_GFX_TCU_CLK>;
+			clock-names = "iface", "bus";
+			qcom,iommu-secure-id = <18>;
+
+			// gfx3d_user:
+			iommu-ctx@1000 {
+				compatible = "qcom,msm-iommu-v1-ns";
+				reg = <0x1000 0x1000>;
+				interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			// gfx3d_priv:
+			iommu-ctx@2000 {
+				compatible = "qcom,msm-iommu-v1-ns";
+				reg = <0x2000 0x1000>;
+				interrupts = <GIC_SPI 242 0>;
+			};
+		};
+
 		gpu@1c00000 {
 			compatible = "qcom,adreno-306.0", "qcom,adreno";
 			reg = <0x01c00000 0x20000>;
@@ -732,6 +785,7 @@
 			    <&gcc GFX3D_CLK_SRC>;
 			power-domains = <&gcc OXILI_GDSC>;
 			operating-points-v2 = <&gpu_opp_table>;
+			iommus = <&gpu_iommu 1>, <&gpu_iommu 2>;
 		};
 
 		mdss: mdss@1a00000 {
@@ -774,6 +828,8 @@
 					      "bus_clk",
 					      "core_clk",
 					      "vsync_clk";
+
+				iommus = <&apps_iommu 4>;
 
 				ports {
 					#address-cells = <1>;
@@ -1257,6 +1313,7 @@
 				 <&gcc GCC_VENUS0_AHB_CLK>,
 				 <&gcc GCC_VENUS0_AXI_CLK>;
 			clock-names = "core", "iface", "bus";
+			iommus = <&apps_iommu 5>;
 			memory-region = <&venus_mem>;
 			status = "okay";
 
