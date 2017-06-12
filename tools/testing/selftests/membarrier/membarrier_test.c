@@ -21,36 +21,42 @@ static int sys_membarrier(int cmd, int flags)
 static enum test_membarrier_status test_membarrier_cmd_fail(void)
 {
 	int cmd = -1, flags = 0;
+	const char *test_name = "membarrier command fail";
 
 	if (sys_membarrier(cmd, flags) != -1) {
-		printf("membarrier: Wrong command should fail but passed.\n");
+		ksft_test_result_fail(test_name);
 		return TEST_MEMBARRIER_FAIL;
 	}
+
+	ksft_test_result_pass(test_name);
 	return TEST_MEMBARRIER_PASS;
 }
 
 static enum test_membarrier_status test_membarrier_flags_fail(void)
 {
 	int cmd = MEMBARRIER_CMD_QUERY, flags = 1;
+	const char *test_name = "Wrong flags should fail";
 
 	if (sys_membarrier(cmd, flags) != -1) {
-		printf("membarrier: Wrong flags should fail but passed.\n");
+		ksft_test_result_fail(test_name);
 		return TEST_MEMBARRIER_FAIL;
 	}
+
+	ksft_test_result_pass(test_name);
 	return TEST_MEMBARRIER_PASS;
 }
 
 static enum test_membarrier_status test_membarrier_success(void)
 {
 	int cmd = MEMBARRIER_CMD_SHARED, flags = 0;
+	const char *test_name = "execute MEMBARRIER_CMD_SHARED";
 
 	if (sys_membarrier(cmd, flags) != 0) {
-		printf("membarrier: Executing MEMBARRIER_CMD_SHARED failed. %s.\n",
-				strerror(errno));
+		ksft_test_result_fail(test_name);
 		return TEST_MEMBARRIER_FAIL;
 	}
 
-	printf("membarrier: MEMBARRIER_CMD_SHARED success.\n");
+	ksft_test_result_pass(test_name);
 	return TEST_MEMBARRIER_PASS;
 }
 
@@ -74,32 +80,30 @@ static enum test_membarrier_status test_membarrier_query(void)
 {
 	int flags = 0, ret;
 
-	printf("membarrier MEMBARRIER_CMD_QUERY ");
 	ret = sys_membarrier(MEMBARRIER_CMD_QUERY, flags);
 	if (ret < 0) {
-		printf("failed. %s.\n", strerror(errno));
-		switch (errno) {
-		case ENOSYS:
+		if (errno == ENOSYS) {
 			/*
 			 * It is valid to build a kernel with
 			 * CONFIG_MEMBARRIER=n. However, this skips the tests.
 			 */
-			return TEST_MEMBARRIER_SKIP;
-		case EINVAL:
-		default:
-			return TEST_MEMBARRIER_FAIL;
+			ksft_test_result_skip("CONFIG_MEMBARRIER is not enabled\n");
+			return ksft_exit_skip();
 		}
-	}
-	if (!(ret & MEMBARRIER_CMD_SHARED)) {
-		printf("command MEMBARRIER_CMD_SHARED is not supported.\n");
+		ksft_test_result_fail("sys_membarrier() failed\n");
 		return TEST_MEMBARRIER_FAIL;
 	}
-	printf("syscall available.\n");
+	if (!(ret & MEMBARRIER_CMD_SHARED)) {
+		ksft_test_result_fail("command MEMBARRIER_CMD_SHARED is not supported.\n");
+		return TEST_MEMBARRIER_FAIL;
+	}
+	ksft_test_result_pass("sys_membarrier available");
 	return TEST_MEMBARRIER_PASS;
 }
 
 int main(int argc, char **argv)
 {
+	ksft_print_header();
 	switch (test_membarrier_query()) {
 	case TEST_MEMBARRIER_FAIL:
 		return ksft_exit_fail();
@@ -113,6 +117,5 @@ int main(int argc, char **argv)
 		return ksft_exit_skip();
 	}
 
-	printf("membarrier: tests done!\n");
 	return ksft_exit_pass();
 }
