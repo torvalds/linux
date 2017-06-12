@@ -624,7 +624,7 @@ static void nvme_keep_alive_work(struct work_struct *work)
 	if (nvme_keep_alive(ctrl)) {
 		/* allocation failure, reset the controller */
 		dev_err(ctrl->device, "keep-alive failed\n");
-		nvme_reset_ctrl_sync(ctrl);
+		nvme_reset_ctrl(ctrl);
 		return;
 	}
 }
