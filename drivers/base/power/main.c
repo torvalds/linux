@@ -417,6 +417,7 @@ static void pm_dev_err(struct device *dev, pm_message_t state, char *info,
 		dev_name(dev), pm_verb(state.event), info, error);
 }
 
+#ifdef CONFIG_PM_DEBUG
 static void dpm_show_time(ktime_t starttime, pm_message_t state, char *info)
 {
 	ktime_t calltime;
@@ -433,6 +434,9 @@ static void dpm_show_time(ktime_t starttime, pm_message_t state, char *info)
 		info ?: "", info ? " " : "", pm_verb(state.event),
 		usecs / USEC_PER_MSEC, usecs % USEC_PER_MSEC);
 }
+#else
+static inline void dpm_show_time(ktime_t starttime, pm_message_t state, char *info) {}
+#endif /* CONFIG_PM_DEBUG */
 
 static int dpm_run_callback(pm_callback_t cb, struct device *dev,
 			    pm_message_t state, char *info)
