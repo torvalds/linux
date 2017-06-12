@@ -17,6 +17,7 @@ struct pmem_device {
 	size_t			size;
 	/* trim size when namespace capacity has been section aligned */
 	u32			pfn_pad;
+	struct kernfs_node	*bb_state;
 	struct badblocks	bb;
 	struct dax_device	*dax_dev;
 	struct gendisk		*disk;

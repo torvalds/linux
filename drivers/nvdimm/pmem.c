@@ -68,6 +68,8 @@ static int pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
 				(unsigned long long) sector, cleared,
 				cleared > 1 ? "s" : "");
 		badblocks_clear(&pmem->bb, sector, cleared);
+		if (pmem->bb_state)
+			sysfs_notify_dirent(pmem->bb_state);
 	}
 
 	invalidate_pmem(pmem->virt_addr + offset, len);
@@ -378,6 +380,13 @@ static int pmem_attach_disk(struct device *dev,
 
 	revalidate_disk(disk);
 
+	pmem->bb_state = sysfs_get_dirent(disk_to_dev(disk)->kobj.sd,
+					  "badblocks");
+	if (pmem->bb_state)
+		sysfs_put(pmem->bb_state);
+	else
+		dev_warn(dev, "sysfs_get_dirent 'badblocks' failed\n");
+
 	return 0;
 }
 
@@ -429,6 +438,7 @@ static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 	struct nd_namespace_io *nsio;
 	struct resource res;
 	struct badblocks *bb;
+	struct kernfs_node *bb_state;
 
 	if (event != NVDIMM_REVALIDATE_POISON)
 		return;
@@ -440,11 +450,13 @@ static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 		nd_region = to_nd_region(ndns->dev.parent);
 		nsio = to_nd_namespace_io(&ndns->dev);
 		bb = &nsio->bb;
+		bb_state = NULL;
 	} else {
 		struct pmem_device *pmem = dev_get_drvdata(dev);
 
 		nd_region = to_region(pmem);
 		bb = &pmem->bb;
+		bb_state = pmem->bb_state;
 
 		if (is_nd_pfn(dev)) {
 			struct nd_pfn *nd_pfn = to_nd_pfn(dev);
@@ -464,6 +476,8 @@ static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 	res.start = nsio->res.start + offset;
 	res.end = nsio->res.end - end_trunc;
 	nvdimm_badblocks_populate(nd_region, bb, &res);
+	if (bb_state)
+		sysfs_notify_dirent(bb_state);
 }
 
 MODULE_ALIAS("pmem");

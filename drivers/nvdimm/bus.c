@@ -198,6 +198,9 @@ static int nvdimm_clear_badblocks_region(struct device *dev, void *data)
 	sector = (ctx->phys - nd_region->ndr_start) / 512;
 	badblocks_clear(&nd_region->bb, sector, ctx->cleared / 512);
 
+	if (nd_region->bb_state)
+		sysfs_notify_dirent(nd_region->bb_state);
+
 	return 0;
 }
 
