@@ -89,8 +89,6 @@
 
 void *xen_initial_gdt;
 
-RESERVE_BRK(shared_info_page_brk, PAGE_SIZE);
-
 static int xen_cpu_up_prepare_pv(unsigned int cpu);
 static int xen_cpu_dead_pv(unsigned int cpu);
 

@@ -1,5 +1,6 @@
 #include <linux/cpu.h>
 #include <linux/kexec.h>
+#include <linux/memblock.h>
 
 #include <xen/features.h>
 #include <xen/events.h>
@@ -10,9 +11,11 @@
 #include <asm/reboot.h>
 #include <asm/setup.h>
 #include <asm/hypervisor.h>
+#include <asm/e820/api.h>
 
 #include <asm/xen/cpuid.h>
 #include <asm/xen/hypervisor.h>
+#include <asm/xen/page.h>
 
 #include "xen-ops.h"
 #include "mmu.h"
@@ -21,19 +24,33 @@
 void __ref xen_hvm_init_shared_info(void)
 {
 	struct xen_add_to_physmap xatp;
-	static struct shared_info *shared_info_page;
+	u64 pa;
 
-	if (!shared_info_page)
-		shared_info_page = (struct shared_info *)
-			extend_brk(PAGE_SIZE, PAGE_SIZE);
+	if (HYPERVISOR_shared_info == &xen_dummy_shared_info) {
+		/*
+		 * Search for a free page starting at 4kB physical address.
+		 * Low memory is preferred to avoid an EPT large page split up
+		 * by the mapping.
+		 * Starting below X86_RESERVE_LOW (usually 64kB) is fine as
+		 * the BIOS used for HVM guests is well behaved and won't
+		 * clobber memory other than the first 4kB.
+		 */
+		for (pa = PAGE_SIZE;
+		     !e820__mapped_all(pa, pa + PAGE_SIZE, E820_TYPE_RAM) ||
+		     memblock_is_reserved(pa);
+		     pa += PAGE_SIZE)
+			;
+
+		memblock_reserve(pa, PAGE_SIZE);
+		HYPERVISOR_shared_info = __va(pa);
+	}
+
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
 	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = __pa(shared_info_page) >> PAGE_SHIFT;
+	xatp.gpfn = virt_to_pfn(HYPERVISOR_shared_info);
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 		BUG();
-
-	HYPERVISOR_shared_info = (struct shared_info *)shared_info_page;
 }
 
 static void __init init_hvm_pv_info(void)
