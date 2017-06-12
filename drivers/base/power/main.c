@@ -62,7 +62,7 @@ static pm_message_t pm_transition;
 
 static int async_error;
 
-static char *pm_verb(int event)
+static const char *pm_verb(int event)
 {
 	switch (event) {
 	case PM_EVENT_SUSPEND:
