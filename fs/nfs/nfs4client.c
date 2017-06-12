@@ -582,7 +582,6 @@ int nfs40_walk_client_list(struct nfs_client *new,
 			 */
 			nfs4_schedule_path_down_recovery(pos);
 		default:
-			spin_lock(&nn->nfs_client_lock);
 			goto out;
 		}
 

@@ -7,7 +7,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015-2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -741,7 +741,47 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 	ieee80211_agg_start_txq(sta, tid, true);
 }
 
-void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
+void ieee80211_start_tx_ba_cb(struct sta_info *sta, int tid,
+			      struct tid_ampdu_tx *tid_tx)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
+
+	if (WARN_ON(test_and_set_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state)))
+		return;
+
+	if (test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state))
+		ieee80211_agg_tx_operational(local, sta, tid);
+}
+
+static struct tid_ampdu_tx *
+ieee80211_lookup_tid_tx(struct ieee80211_sub_if_data *sdata,
+			const u8 *ra, u16 tid, struct sta_info **sta)
+{
+	struct tid_ampdu_tx *tid_tx;
+
+	if (tid >= IEEE80211_NUM_TIDS) {
+		ht_dbg(sdata, "Bad TID value: tid = %d (>= %d)\n",
+		       tid, IEEE80211_NUM_TIDS);
+		return NULL;
+	}
+
+	*sta = sta_info_get_bss(sdata, ra);
+	if (!*sta) {
+		ht_dbg(sdata, "Could not find station: %pM\n", ra);
+		return NULL;
+	}
+
+	tid_tx = rcu_dereference((*sta)->ampdu_mlme.tid_tx[tid]);
+
+	if (WARN_ON(!tid_tx))
+		ht_dbg(sdata, "addBA was not requested!\n");
+
+	return tid_tx;
+}
+
+void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,
+				      const u8 *ra, u16 tid)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
@@ -750,57 +790,15 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 
 	trace_api_start_tx_ba_cb(sdata, ra, tid);
 
-	if (tid >= IEEE80211_NUM_TIDS) {
-		ht_dbg(sdata, "Bad TID value: tid = %d (>= %d)\n",
-		       tid, IEEE80211_NUM_TIDS);
-		return;
-	}
+	rcu_read_lock();
+	tid_tx = ieee80211_lookup_tid_tx(sdata, ra, tid, &sta);
+	if (!tid_tx)
+		goto out;
 
-	mutex_lock(&local->sta_mtx);
-	sta = sta_info_get_bss(sdata, ra);
-	if (!sta) {
-		mutex_unlock(&local->sta_mtx);
-		ht_dbg(sdata, "Could not find station: %pM\n", ra);
-		return;
-	}
-
-	mutex_lock(&sta->ampdu_mlme.mtx);
-	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
-
-	if (WARN_ON(!tid_tx)) {
-		ht_dbg(sdata, "addBA was not requested!\n");
-		goto unlock;
-	}
-
-	if (WARN_ON(test_and_set_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state)))
-		goto unlock;
-
-	if (test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state))
-		ieee80211_agg_tx_operational(local, sta, tid);
-
- unlock:
-	mutex_unlock(&sta->ampdu_mlme.mtx);
-	mutex_unlock(&local->sta_mtx);
-}
-
-void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,
-				      const u8 *ra, u16 tid)
-{
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_ra_tid *ra_tid;
-	struct sk_buff *skb = dev_alloc_skb(0);
-
-	if (unlikely(!skb))
-		return;
-
-	ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
-	memcpy(&ra_tid->ra, ra, ETH_ALEN);
-	ra_tid->tid = tid;
-
-	skb->pkt_type = IEEE80211_SDATA_QUEUE_AGG_START;
-	skb_queue_tail(&sdata->skb_queue, skb);
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	set_bit(HT_AGG_STATE_START_CB, &tid_tx->state);
+	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
+ out:
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_start_tx_ba_cb_irqsafe);
 
@@ -860,37 +858,18 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 }
 EXPORT_SYMBOL(ieee80211_stop_tx_ba_session);
 
-void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
+void ieee80211_stop_tx_ba_cb(struct sta_info *sta, int tid,
+			     struct tid_ampdu_tx *tid_tx)
 {
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
-	struct tid_ampdu_tx *tid_tx;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	bool send_delba = false;
 
-	trace_api_stop_tx_ba_cb(sdata, ra, tid);
+	ht_dbg(sdata, "Stopping Tx BA session for %pM tid %d\n",
+	       sta->sta.addr, tid);
 
-	if (tid >= IEEE80211_NUM_TIDS) {
-		ht_dbg(sdata, "Bad TID value: tid = %d (>= %d)\n",
-		       tid, IEEE80211_NUM_TIDS);
-		return;
-	}
-
-	ht_dbg(sdata, "Stopping Tx BA session for %pM tid %d\n", ra, tid);
-
-	mutex_lock(&local->sta_mtx);
-
-	sta = sta_info_get_bss(sdata, ra);
-	if (!sta) {
-		ht_dbg(sdata, "Could not find station: %pM\n", ra);
-		goto unlock;
-	}
-
-	mutex_lock(&sta->ampdu_mlme.mtx);
 	spin_lock_bh(&sta->lock);
-	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 
-	if (!tid_tx || !test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
+	if (!test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
 		ht_dbg(sdata,
 		       "unexpected callback to A-MPDU stop for %pM tid %d\n",
 		       sta->sta.addr, tid);
@@ -906,12 +885,8 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	spin_unlock_bh(&sta->lock);
 
 	if (send_delba)
-		ieee80211_send_delba(sdata, ra, tid,
+		ieee80211_send_delba(sdata, sta->sta.addr, tid,
 			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
-
-	mutex_unlock(&sta->ampdu_mlme.mtx);
- unlock:
-	mutex_unlock(&local->sta_mtx);
 }
 
 void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,
@@ -919,19 +894,20 @@ void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_ra_tid *ra_tid;
-	struct sk_buff *skb = dev_alloc_skb(0);
+	struct sta_info *sta;
+	struct tid_ampdu_tx *tid_tx;
 
-	if (unlikely(!skb))
-		return;
+	trace_api_stop_tx_ba_cb(sdata, ra, tid);
 
-	ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
-	memcpy(&ra_tid->ra, ra, ETH_ALEN);
-	ra_tid->tid = tid;
+	rcu_read_lock();
+	tid_tx = ieee80211_lookup_tid_tx(sdata, ra, tid, &sta);
+	if (!tid_tx)
+		goto out;
 
-	skb->pkt_type = IEEE80211_SDATA_QUEUE_AGG_STOP;
-	skb_queue_tail(&sdata->skb_queue, skb);
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	set_bit(HT_AGG_STATE_STOP_CB, &tid_tx->state);
+	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
+ out:
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_stop_tx_ba_cb_irqsafe);
 

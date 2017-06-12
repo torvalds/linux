@@ -1,6 +1,6 @@
 config CRYPTO_DEV_CCREE
 	tristate "Support for ARM TrustZone CryptoCell C7XX family of Crypto accelerators"
-	depends on CRYPTO_HW && OF && HAS_DMA
+	depends on CRYPTO && CRYPTO_HW && OF && HAS_DMA
 	default n
 	select CRYPTO_HASH
 	select CRYPTO_BLKCIPHER

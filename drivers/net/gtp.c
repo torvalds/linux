@@ -873,7 +873,7 @@ static struct gtp_dev *gtp_find_dev(struct net *src_net, struct nlattr *nla[])
 
 	/* Check if there's an existing gtpX device to configure */
 	dev = dev_get_by_index_rcu(net, nla_get_u32(nla[GTPA_LINK]));
-	if (dev->netdev_ops == &gtp_netdev_ops)
+	if (dev && dev->netdev_ops == &gtp_netdev_ops)
 		gtp = netdev_priv(dev);
 
 	put_net(net);

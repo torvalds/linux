@@ -971,7 +971,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		 devp->rdev.lldi.sge_egrstatuspagesize);
 
 	devp->rdev.hw_queue.t4_eq_status_entries =
-		devp->rdev.lldi.sge_ingpadboundary > 64 ? 2 : 1;
+		devp->rdev.lldi.sge_egrstatuspagesize / 64;
 	devp->rdev.hw_queue.t4_max_eq_size = 65520;
 	devp->rdev.hw_queue.t4_max_iq_size = 65520;
 	devp->rdev.hw_queue.t4_max_rq_size = 8192 -

@@ -615,6 +615,7 @@ static int altera_uart_remove(struct platform_device *pdev)
 	if (port) {
 		uart_remove_one_port(&altera_uart_driver, port);
 		port->mapbase = 0;
+		iounmap(port->membase);
 	}
 
 	return 0;

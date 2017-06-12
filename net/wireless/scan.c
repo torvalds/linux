@@ -322,9 +322,9 @@ cfg80211_find_sched_scan_req(struct cfg80211_registered_device *rdev, u64 reqid)
 {
 	struct cfg80211_sched_scan_request *pos;
 
-	ASSERT_RTNL();
+	WARN_ON_ONCE(!rcu_read_lock_held() && !lockdep_rtnl_is_held());
 
-	list_for_each_entry(pos, &rdev->sched_scan_req_list, list) {
+	list_for_each_entry_rcu(pos, &rdev->sched_scan_req_list, list) {
 		if (pos->reqid == reqid)
 			return pos;
 	}
@@ -398,13 +398,13 @@ void cfg80211_sched_scan_results(struct wiphy *wiphy, u64 reqid)
 	trace_cfg80211_sched_scan_results(wiphy, reqid);
 	/* ignore if we're not scanning */
 
-	rtnl_lock();
+	rcu_read_lock();
 	request = cfg80211_find_sched_scan_req(rdev, reqid);
 	if (request) {
 		request->report_results = true;
 		queue_work(cfg80211_wq, &rdev->sched_scan_res_wk);
 	}
-	rtnl_unlock();
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_results);
 

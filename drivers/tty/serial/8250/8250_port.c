@@ -47,6 +47,7 @@
 /*
  * These are definitions for the Exar XR17V35X and XR17(C|D)15X
  */
+#define UART_EXAR_INT0		0x80
 #define UART_EXAR_SLEEP		0x8b	/* Sleep mode */
 #define UART_EXAR_DVID		0x8d	/* Device identification */
 
@@ -1337,7 +1338,7 @@ out_lock:
 	/*
 	 * Check if the device is a Fintek F81216A
 	 */
-	if (port->type == PORT_16550A)
+	if (port->type == PORT_16550A && port->iotype == UPIO_PORT)
 		fintek_8250_probe(up);
 
 	if (up->capabilities != old_capabilities) {
@@ -1869,17 +1870,13 @@ static int serial8250_default_handle_irq(struct uart_port *port)
 static int exar_handle_irq(struct uart_port *port)
 {
 	unsigned int iir = serial_port_in(port, UART_IIR);
-	int ret;
+	int ret = 0;
 
-	ret = serial8250_handle_irq(port, iir);
+	if (((port->type == PORT_XR17V35X) || (port->type == PORT_XR17D15X)) &&
+	    serial_port_in(port, UART_EXAR_INT0) != 0)
+		ret = 1;
 
-	if ((port->type == PORT_XR17V35X) ||
-	   (port->type == PORT_XR17D15X)) {
-		serial_port_in(port, 0x80);
-		serial_port_in(port, 0x81);
-		serial_port_in(port, 0x82);
-		serial_port_in(port, 0x83);
-	}
+	ret |= serial8250_handle_irq(port, iir);
 
 	return ret;
 }
@@ -2177,6 +2174,8 @@ int serial8250_do_startup(struct uart_port *port)
 	serial_port_in(port, UART_RX);
 	serial_port_in(port, UART_IIR);
 	serial_port_in(port, UART_MSR);
+	if ((port->type == PORT_XR17V35X) || (port->type == PORT_XR17D15X))
+		serial_port_in(port, UART_EXAR_INT0);
 
 	/*
 	 * At this point, there's no way the LSR could still be 0xff;
@@ -2335,6 +2334,8 @@ dont_test_tx_en:
 	serial_port_in(port, UART_RX);
 	serial_port_in(port, UART_IIR);
 	serial_port_in(port, UART_MSR);
+	if ((port->type == PORT_XR17V35X) || (port->type == PORT_XR17D15X))
+		serial_port_in(port, UART_EXAR_INT0);
 	up->lsr_saved_flags = 0;
 	up->msr_saved_flags = 0;
 

@@ -496,7 +496,8 @@ retry_tsb_alloc:
 		extern void copy_tsb(unsigned long old_tsb_base,
 				     unsigned long old_tsb_size,
 				     unsigned long new_tsb_base,
-				     unsigned long new_tsb_size);
+				     unsigned long new_tsb_size,
+				     unsigned long page_size_shift);
 		unsigned long old_tsb_base = (unsigned long) old_tsb;
 		unsigned long new_tsb_base = (unsigned long) new_tsb;
 
@@ -504,7 +505,9 @@ retry_tsb_alloc:
 			old_tsb_base = __pa(old_tsb_base);
 			new_tsb_base = __pa(new_tsb_base);
 		}
-		copy_tsb(old_tsb_base, old_size, new_tsb_base, new_size);
+		copy_tsb(old_tsb_base, old_size, new_tsb_base, new_size,
+			tsb_index == MM_TSB_BASE ?
+			PAGE_SHIFT : REAL_HPAGE_SHIFT);
 	}
 
 	mm->context.tsb_block[tsb_index].tsb = new_tsb;
