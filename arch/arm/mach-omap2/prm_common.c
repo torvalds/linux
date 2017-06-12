@@ -267,10 +267,9 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 {
 	int nr_regs;
 	u32 mask[OMAP_PRCM_MAX_NR_PENDING_REG];
-	int offset, i;
+	int offset, i, irq;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
-	unsigned int irq;
 
 	if (!irq_setup)
 		return -EINVAL;
@@ -344,10 +343,8 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 		prcm_irq_chips[i] = gc;
 	}
 
-	if (of_have_populated_dt()) {
-		int irq = omap_prcm_event_to_irq("io");
-		omap_pcs_legacy_init(irq, irq_setup->reconfigure_io_chain);
-	}
+	irq = omap_prcm_event_to_irq("io");
+	omap_pcs_legacy_init(irq, irq_setup->reconfigure_io_chain);
 
 	return 0;
 
