@@ -2160,7 +2160,7 @@ static int modify_ais_mode(struct kvm *kvm, struct kvm_device_attr *attr)
 	struct kvm_s390_ais_req req;
 	int ret = 0;
 
-	if (!fi->ais_enabled)
+	if (!test_kvm_facility(kvm, 72))
 		return -ENOTSUPP;
 
 	if (copy_from_user(&req, (void __user *)attr->addr, sizeof(req)))
@@ -2204,7 +2204,7 @@ static int kvm_s390_inject_airq(struct kvm *kvm,
 	};
 	int ret = 0;
 
-	if (!fi->ais_enabled || !adapter->suppressible)
+	if (!test_kvm_facility(kvm, 72) || !adapter->suppressible)
 		return kvm_s390_inject_vm(kvm, &s390int);
 
 	mutex_lock(&fi->ais_lock);

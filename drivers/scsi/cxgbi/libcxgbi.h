@@ -187,6 +187,7 @@ enum cxgbi_sock_flags {
 	CTPF_HAS_ATID,		/* reserved atid */
 	CTPF_HAS_TID,		/* reserved hw tid */
 	CTPF_OFFLOAD_DOWN,	/* offload function off */
+	CTPF_LOGOUT_RSP_RCVD,   /* received logout response */
 };
 
 struct cxgbi_skb_rx_cb {
