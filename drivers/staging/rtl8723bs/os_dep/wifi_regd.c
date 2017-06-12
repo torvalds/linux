@@ -96,12 +96,10 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 
 		ch = ieee80211_get_channel(wiphy, freq);
 		if (ch) {
-			if (channel_set[i].ScanType == SCAN_PASSIVE) {
+			if (channel_set[i].ScanType == SCAN_PASSIVE)
 				ch->flags = IEEE80211_CHAN_NO_IR;
-			}
-			else {
+			else
 				ch->flags = 0;
-			}
 		}
 	}
 }
