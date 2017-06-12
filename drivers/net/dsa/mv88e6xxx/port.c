@@ -706,11 +706,12 @@ int mv88e6xxx_port_get_pvid(struct mv88e6xxx_chip *chip, int port, u16 *pvid)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_DEFAULT_VLAN, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_DEFAULT_VLAN,
+				  &reg);
 	if (err)
 		return err;
 
-	*pvid = reg & PORT_DEFAULT_VLAN_MASK;
+	*pvid = reg & MV88E6XXX_PORT_DEFAULT_VLAN_MASK;
 
 	return 0;
 }
@@ -720,14 +721,16 @@ int mv88e6xxx_port_set_pvid(struct mv88e6xxx_chip *chip, int port, u16 pvid)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_DEFAULT_VLAN, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_DEFAULT_VLAN,
+				  &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_DEFAULT_VLAN_MASK;
-	reg |= pvid & PORT_DEFAULT_VLAN_MASK;
+	reg &= ~MV88E6XXX_PORT_DEFAULT_VLAN_MASK;
+	reg |= pvid & MV88E6XXX_PORT_DEFAULT_VLAN_MASK;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_DEFAULT_VLAN, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_DEFAULT_VLAN,
+				   reg);
 	if (err)
 		return err;
 
