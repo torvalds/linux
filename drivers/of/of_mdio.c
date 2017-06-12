@@ -226,7 +226,6 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	/* Get bus level PHY reset GPIO details */
 	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
 	of_property_read_u32(np, "reset-delay-us", &mdio->reset_delay_us);
-	mdio->num_reset_gpios = of_gpio_named_count(np, "reset-gpios");
 
 	/* Register the MDIO bus */
 	rc = mdiobus_register(mdio);
