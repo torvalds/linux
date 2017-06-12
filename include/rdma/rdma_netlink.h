@@ -7,6 +7,12 @@
 
 struct ibnl_client_cbs {
 	int (*dump)(struct sk_buff *skb, struct netlink_callback *nlcb);
+	u8 flags;
+};
+
+enum rdma_nl_flags {
+	/* Require CAP_NET_ADMIN */
+	RDMA_NL_ADMIN_PERM	= 1 << 0,
 };
 
 /**

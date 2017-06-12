@@ -171,6 +171,10 @@ static int rdma_nl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!is_nl_valid(index, op))
 		return -EINVAL;
 
+	if ((rdma_nl_types[index].cb_table[op].flags & RDMA_NL_ADMIN_PERM) &&
+	    !netlink_capable(skb, CAP_NET_ADMIN))
+		return -EPERM;
+
 	/*
 	 * For response or local service set_timeout request,
 	 * there is no need to use netlink_dump_start.

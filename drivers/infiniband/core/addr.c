@@ -134,8 +134,7 @@ int ib_nl_handle_ip_res_resp(struct sk_buff *skb,
 	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
 
 	if ((nlh->nlmsg_flags & NLM_F_REQUEST) ||
-	    !(NETLINK_CB(skb).sk) ||
-	    !netlink_capable(skb, CAP_NET_ADMIN))
+	    !(NETLINK_CB(skb).sk))
 		return -EPERM;
 
 	if (ib_nl_is_good_ip_resp(nlh))
