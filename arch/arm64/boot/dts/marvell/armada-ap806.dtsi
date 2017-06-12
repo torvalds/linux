@@ -57,6 +57,7 @@
 	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
+		gpio0 = &ap_gpio;
 	};
 
 	psci {
@@ -255,6 +256,15 @@
 
 				ap_pinctrl: pinctrl {
 					compatible = "marvell,ap806-pinctrl";
+				};
+
+				ap_gpio: gpio {
+					compatible = "marvell,armada-8k-gpio";
+					offset = <0x1040>;
+					ngpios = <19>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&ap_pinctrl 0 0 19>;
 				};
 			};
 		};

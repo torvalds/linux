@@ -121,6 +121,28 @@
 					compatible = "marvell,cp110-clock";
 					#clock-cells = <2>;
 				};
+
+				cps_gpio1: gpio@100 {
+					compatible = "marvell,armada-8k-gpio";
+					offset = <0x100>;
+					ngpios = <32>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&cps_pinctrl 0 0 32>;
+					status = "disabled";
+
+				};
+
+				cps_gpio2: gpio@140 {
+					compatible = "marvell,armada-8k-gpio";
+					offset = <0x140>;
+					ngpios = <31>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&cps_pinctrl 0 32 31>;
+					status = "disabled";
+				};
+
 			};
 
 			cps_sata0: sata@540000 {

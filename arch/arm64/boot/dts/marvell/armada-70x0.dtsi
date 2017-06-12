@@ -46,6 +46,21 @@
 
 #include "armada-cp110-master.dtsi"
 
+/ {
+	aliases {
+		gpio1 = &cpm_gpio1;
+		gpio2 = &cpm_gpio2;
+	};
+};
+
+&cpm_gpio1 {
+	status = "okay";
+};
+
+&cpm_gpio2 {
+	status = "okay";
+};
+
 &cpm_syscon0 {
 	cpm_pinctrl: pinctrl {
 		compatible = "marvell,armada-7k-pinctrl";

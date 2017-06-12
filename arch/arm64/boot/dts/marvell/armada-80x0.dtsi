@@ -47,6 +47,22 @@
 #include "armada-cp110-master.dtsi"
 #include "armada-cp110-slave.dtsi"
 
+/ {
+	aliases {
+		gpio1 = &cps_gpio1;
+		gpio2 = &cpm_gpio2;
+	};
+};
+
+/* The 80x0 has two CP blocks, but uses only one block from each. */
+&cps_gpio1 {
+	status = "okay";
+};
+
+&cpm_gpio2 {
+	status = "okay";
+};
+
 &cpm_syscon0 {
 	cpm_pinctrl: pinctrl {
 		compatible = "marvell,armada-8k-cpm-pinctrl";
