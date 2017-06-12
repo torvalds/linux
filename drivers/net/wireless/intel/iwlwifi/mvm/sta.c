@@ -1619,10 +1619,11 @@ static void iwl_mvm_disable_sta_queues(struct iwl_mvm *mvm,
 int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
 				  struct iwl_mvm_sta *mvm_sta)
 {
-	int i, ret;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mvm_sta->tid_data); i++) {
 		u16 txq_id;
+		int ret;
 
 		spin_lock_bh(&mvm_sta->lock);
 		txq_id = mvm_sta->tid_data[i].txq_id;
@@ -1633,10 +1634,10 @@ int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
 
 		ret = iwl_trans_wait_txq_empty(mvm->trans, txq_id);
 		if (ret)
-			break;
+			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
