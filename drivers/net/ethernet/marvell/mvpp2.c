@@ -345,9 +345,15 @@
 /* Per-port XGMAC registers. PPv2.2 only, only for GOP port 0,
  * relative to port->base.
  */
+#define MVPP22_XLG_CTRL0_REG			0x100
+#define      MVPP22_XLG_CTRL0_PORT_EN		BIT(0)
+#define      MVPP22_XLG_CTRL0_MAC_RESET_DIS	BIT(1)
+#define      MVPP22_XLG_CTRL0_MIB_CNT_DIS	BIT(14)
+
 #define MVPP22_XLG_CTRL3_REG			0x11c
 #define      MVPP22_XLG_CTRL3_MACMODESELECT_MASK	(7 << 13)
 #define      MVPP22_XLG_CTRL3_MACMODESELECT_GMAC	(0 << 13)
+#define      MVPP22_XLG_CTRL3_MACMODESELECT_10G		(1 << 13)
 
 /* SMI registers. PPv2.2 only, relative to priv->iface_base. */
 #define MVPP22_SMI_MISC_CFG_REG			0x1204
@@ -4192,7 +4198,13 @@ static void mvpp22_port_mii_set(struct mvpp2_port *port)
 	if (port->gop_id == 0) {
 		val = readl(port->base + MVPP22_XLG_CTRL3_REG);
 		val &= ~MVPP22_XLG_CTRL3_MACMODESELECT_MASK;
-		val |= MVPP22_XLG_CTRL3_MACMODESELECT_GMAC;
+
+		if (port->phy_interface == PHY_INTERFACE_MODE_XAUI ||
+		    port->phy_interface == PHY_INTERFACE_MODE_10GKR)
+			val |= MVPP22_XLG_CTRL3_MACMODESELECT_10G;
+		else
+			val |= MVPP22_XLG_CTRL3_MACMODESELECT_GMAC;
+
 		writel(val, port->base + MVPP22_XLG_CTRL3_REG);
 	}
 
@@ -4242,19 +4254,40 @@ static void mvpp2_port_enable(struct mvpp2_port *port)
 {
 	u32 val;
 
-	val = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
-	val |= MVPP2_GMAC_PORT_EN_MASK;
-	val |= MVPP2_GMAC_MIB_CNTR_EN_MASK;
-	writel(val, port->base + MVPP2_GMAC_CTRL_0_REG);
+	/* Only GOP port 0 has an XLG MAC */
+	if (port->gop_id == 0 &&
+	    (port->phy_interface == PHY_INTERFACE_MODE_XAUI ||
+	     port->phy_interface == PHY_INTERFACE_MODE_10GKR)) {
+		val = readl(port->base + MVPP22_XLG_CTRL0_REG);
+		val |= MVPP22_XLG_CTRL0_PORT_EN |
+		       MVPP22_XLG_CTRL0_MAC_RESET_DIS;
+		val &= ~MVPP22_XLG_CTRL0_MIB_CNT_DIS;
+		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
+	} else {
+		val = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
+		val |= MVPP2_GMAC_PORT_EN_MASK;
+		val |= MVPP2_GMAC_MIB_CNTR_EN_MASK;
+		writel(val, port->base + MVPP2_GMAC_CTRL_0_REG);
+	}
 }
 
 static void mvpp2_port_disable(struct mvpp2_port *port)
 {
 	u32 val;
 
-	val = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
-	val &= ~(MVPP2_GMAC_PORT_EN_MASK);
-	writel(val, port->base + MVPP2_GMAC_CTRL_0_REG);
+	/* Only GOP port 0 has an XLG MAC */
+	if (port->gop_id == 0 &&
+	    (port->phy_interface == PHY_INTERFACE_MODE_XAUI ||
+	     port->phy_interface == PHY_INTERFACE_MODE_10GKR)) {
+		val = readl(port->base + MVPP22_XLG_CTRL0_REG);
+		val &= ~(MVPP22_XLG_CTRL0_PORT_EN |
+			 MVPP22_XLG_CTRL0_MAC_RESET_DIS);
+		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
+	} else {
+		val = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
+		val &= ~(MVPP2_GMAC_PORT_EN_MASK);
+		writel(val, port->base + MVPP2_GMAC_CTRL_0_REG);
+	}
 }
 
 /* Set IEEE 802.3x Flow Control Xon Packet Transmission Mode */
