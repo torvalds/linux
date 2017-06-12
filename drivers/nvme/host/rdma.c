@@ -1435,8 +1435,8 @@ nvme_rdma_timeout(struct request *rq, bool reserved)
 /*
  * We cannot accept any other command until the Connect command has completed.
  */
-static inline int nvme_rdma_queue_is_ready(struct nvme_rdma_queue *queue,
-		struct request *rq)
+static inline blk_status_t
+nvme_rdma_queue_is_ready(struct nvme_rdma_queue *queue, struct request *rq)
 {
 	if (unlikely(!test_bit(NVME_RDMA_Q_LIVE, &queue->flags))) {
 		struct nvme_command *cmd = nvme_req(rq)->cmd;
@@ -1452,9 +1452,8 @@ static inline int nvme_rdma_queue_is_ready(struct nvme_rdma_queue *queue,
 			 * failover.
 			 */
 			if (queue->ctrl->ctrl.state == NVME_CTRL_RECONNECTING)
-				return -EIO;
-			else
-				return -EAGAIN;
+				return BLK_STS_IOERR;
+			return BLK_STS_RESOURCE; /* try again later */
 		}
 	}
 
@@ -1479,7 +1478,7 @@ static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	ret = nvme_rdma_queue_is_ready(queue, rq);
 	if (unlikely(ret))
-		goto err;
+		return ret;
 
 	dev = queue->device->dev;
 	ib_dma_sync_single_for_cpu(dev, sqe->dma,
