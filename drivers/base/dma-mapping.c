@@ -148,26 +148,6 @@ void *dmam_alloc_noncoherent(struct device *dev, size_t size,
 }
 EXPORT_SYMBOL(dmam_alloc_noncoherent);
 
-/**
- * dmam_free_coherent - Managed dma_free_noncoherent()
- * @dev: Device to free noncoherent memory for
- * @size: Size of allocation
- * @vaddr: Virtual address of the memory to free
- * @dma_handle: DMA handle of the memory to free
- *
- * Managed dma_free_noncoherent().
- */
-void dmam_free_noncoherent(struct device *dev, size_t size, void *vaddr,
-			   dma_addr_t dma_handle)
-{
-	struct dma_devres match_data = { size, vaddr, dma_handle };
-
-	dma_free_noncoherent(dev, size, vaddr, dma_handle);
-	WARN_ON(!devres_destroy(dev, dmam_noncoherent_release, dmam_match,
-				&match_data));
-}
-EXPORT_SYMBOL(dmam_free_noncoherent);
-
 #ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
 
 static void dmam_coherent_decl_release(struct device *dev, void *res)

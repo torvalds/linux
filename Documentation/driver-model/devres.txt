@@ -243,7 +243,6 @@ DMA
   dmam_alloc_noncoherent()
   dmam_declare_coherent_memory()
   dmam_free_coherent()
-  dmam_free_noncoherent()
   dmam_pool_create()
   dmam_pool_destroy()
 
