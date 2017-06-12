@@ -2027,15 +2027,16 @@ static const struct usb_gadget_ops dwc3_gadget_ops = {
 
 /* -------------------------------------------------------------------------- */
 
-static int dwc3_gadget_init_endpoints(struct dwc3 *dwc, u8 num)
+static int dwc3_gadget_init_endpoints(struct dwc3 *dwc, u8 total)
 {
 	struct dwc3_ep			*dep;
 	u8				epnum;
 
 	INIT_LIST_HEAD(&dwc->gadget.ep_list);
 
-	for (epnum = 0; epnum < num; epnum++) {
+	for (epnum = 0; epnum < total; epnum++) {
 		bool			direction = epnum & 1;
+		u8			num = epnum >> 1;
 
 		dep = kzalloc(sizeof(*dep), GFP_KERNEL);
 		if (!dep)
@@ -2047,7 +2048,7 @@ static int dwc3_gadget_init_endpoints(struct dwc3 *dwc, u8 num)
 		dep->regs = dwc->regs + DWC3_DEP_BASE(epnum);
 		dwc->eps[epnum] = dep;
 
-		snprintf(dep->name, sizeof(dep->name), "ep%d%s", epnum >> 1,
+		snprintf(dep->name, sizeof(dep->name), "ep%u%s", num,
 				direction ? "in" : "out");
 
 		dep->endpoint.name = dep->name;
@@ -2059,39 +2060,39 @@ static int dwc3_gadget_init_endpoints(struct dwc3 *dwc, u8 num)
 
 		spin_lock_init(&dep->lock);
 
-		if (epnum == 0 || epnum == 1) {
+		if (num == 0) {
 			usb_ep_set_maxpacket_limit(&dep->endpoint, 512);
 			dep->endpoint.maxburst = 1;
 			dep->endpoint.ops = &dwc3_gadget_ep0_ops;
-			if (!epnum)
+			if (!direction)
 				dwc->gadget.ep0 = &dep->endpoint;
 		} else if (direction) {
 			int mdwidth;
+			int kbytes;
 			int size;
 			int ret;
-			int num;
 
 			mdwidth = DWC3_MDWIDTH(dwc->hwparams.hwparams0);
 			/* MDWIDTH is represented in bits, we need it in bytes */
 			mdwidth /= 8;
 
-			size = dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(epnum >> 1));
+			size = dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(num));
 			size = DWC3_GTXFIFOSIZ_TXFDEF(size);
 
 			/* FIFO Depth is in MDWDITH bytes. Multiply */
 			size *= mdwidth;
 
-			num = size / 1024;
-			if (num == 0)
-				num = 1;
+			kbytes = size / 1024;
+			if (kbytes == 0)
+				kbytes = 1;
 
 			/*
-			 * FIFO sizes account an extra MDWIDTH * (num + 1) bytes for
+			 * FIFO sizes account an extra MDWIDTH * (kbytes + 1) bytes for
 			 * internal overhead. We don't really know how these are used,
 			 * but documentation say it exists.
 			 */
-			size -= mdwidth * (num + 1);
-			size /= num;
+			size -= mdwidth * (kbytes + 1);
+			size /= kbytes;
 
 			usb_ep_set_maxpacket_limit(&dep->endpoint, size);
 
@@ -2117,7 +2118,7 @@ static int dwc3_gadget_init_endpoints(struct dwc3 *dwc, u8 num)
 				return ret;
 		}
 
-		if (epnum == 0 || epnum == 1) {
+		if (num == 0) {
 			dep->endpoint.caps.type_control = true;
 		} else {
 			dep->endpoint.caps.type_iso = true;
