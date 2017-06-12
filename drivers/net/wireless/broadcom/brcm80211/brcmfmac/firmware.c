@@ -484,39 +484,38 @@ static void brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 fail:
 	brcmf_dbg(TRACE, "failed: dev=%s\n", dev_name(fwctx->dev));
 	release_firmware(fwctx->code);
-	device_release_driver(fwctx->dev);
+	fwctx->done(fwctx->dev, -ENOENT, NULL, NULL, 0);
 	kfree(fwctx);
 }
 
 static void brcmf_fw_request_code_done(const struct firmware *fw, void *ctx)
 {
 	struct brcmf_fw *fwctx = ctx;
-	int ret;
+	int ret = 0;
 
 	brcmf_dbg(TRACE, "enter: dev=%s\n", dev_name(fwctx->dev));
-	if (!fw)
+	if (!fw) {
+		ret = -ENOENT;
 		goto fail;
-
-	/* only requested code so done here */
-	if (!(fwctx->flags & BRCMF_FW_REQUEST_NVRAM)) {
-		fwctx->done(fwctx->dev, 0, fw, NULL, 0);
-		kfree(fwctx);
-		return;
 	}
+	/* only requested code so done here */
+	if (!(fwctx->flags & BRCMF_FW_REQUEST_NVRAM))
+		goto done;
+
 	fwctx->code = fw;
 	ret = request_firmware_nowait(THIS_MODULE, true, fwctx->nvram_name,
 				      fwctx->dev, GFP_KERNEL, fwctx,
 				      brcmf_fw_request_nvram_done);
 
-	if (!ret)
-		return;
-
-	brcmf_fw_request_nvram_done(NULL, fwctx);
+	/* pass NULL to nvram callback for bcm47xx fallback */
+	if (ret)
+		brcmf_fw_request_nvram_done(NULL, fwctx);
 	return;
 
 fail:
 	brcmf_dbg(TRACE, "failed: dev=%s\n", dev_name(fwctx->dev));
-	device_release_driver(fwctx->dev);
+done:
+	fwctx->done(fwctx->dev, ret, fw, NULL, 0);
 	kfree(fwctx);
 }
 
