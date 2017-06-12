@@ -984,7 +984,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_printf(seq, ",io_size=%uKB", F2FS_IO_SIZE_KB(sbi));
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (test_opt(sbi, FAULT_INJECTION))
-		seq_puts(seq, ",fault_injection");
+		seq_printf(seq, ",fault_injection=%u",
+				sbi->fault_info.inject_rate);
 #endif
 
 	return 0;
