@@ -45,7 +45,7 @@ module_param_named(io_timeout, nvme_io_timeout, byte, 0644);
 MODULE_PARM_DESC(io_timeout, "timeout in seconds for I/O");
 EXPORT_SYMBOL_GPL(nvme_io_timeout);
 
-unsigned char shutdown_timeout = 5;
+static unsigned char shutdown_timeout = 5;
 module_param(shutdown_timeout, byte, 0644);
 MODULE_PARM_DESC(shutdown_timeout, "timeout in seconds for controller shutdown");
 
@@ -1357,7 +1357,7 @@ EXPORT_SYMBOL_GPL(nvme_enable_ctrl);
 
 int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl)
 {
-	unsigned long timeout = SHUTDOWN_TIMEOUT + jiffies;
+	unsigned long timeout = jiffies + (shutdown_timeout * HZ);
 	u32 csts;
 	int ret;
 

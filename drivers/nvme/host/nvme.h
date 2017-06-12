@@ -27,9 +27,6 @@ extern unsigned char nvme_io_timeout;
 extern unsigned char admin_timeout;
 #define ADMIN_TIMEOUT	(admin_timeout * HZ)
 
-extern unsigned char shutdown_timeout;
-#define SHUTDOWN_TIMEOUT	(shutdown_timeout * HZ)
-
 #define NVME_DEFAULT_KATO	5
 #define NVME_KATO_GRACE		10
 
