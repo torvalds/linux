@@ -3656,6 +3656,8 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 	return rc;
 }
 
+static struct device_attribute dev_attr_failover;
+
 static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
 	struct ibmvnic_adapter *adapter;
@@ -3712,9 +3714,16 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 
+	rc = device_create_file(&dev->dev, &dev_attr_failover);
+	if (rc) {
+		free_netdev(netdev);
+		return rc;
+	}
+
 	rc = register_netdev(netdev);
 	if (rc) {
 		dev_err(&dev->dev, "failed to register netdev rc=%d\n", rc);
+		device_remove_file(&dev->dev, &dev_attr_failover);
 		free_netdev(netdev);
 		return rc;
 	}
@@ -3740,11 +3749,48 @@ static int ibmvnic_remove(struct vio_dev *dev)
 	adapter->state = VNIC_REMOVED;
 
 	mutex_unlock(&adapter->reset_lock);
+	device_remove_file(&dev->dev, &dev_attr_failover);
 	free_netdev(netdev);
 	dev_set_drvdata(&dev->dev, NULL);
 
 	return 0;
 }
+
+static ssize_t failover_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct net_device *netdev = dev_get_drvdata(dev);
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	__be64 session_token;
+	long rc;
+
+	if (!sysfs_streq(buf, "1"))
+		return -EINVAL;
+
+	rc = plpar_hcall(H_VIOCTL, retbuf, adapter->vdev->unit_address,
+			 H_GET_SESSION_TOKEN, 0, 0, 0);
+	if (rc) {
+		netdev_err(netdev, "Couldn't retrieve session token, rc %ld\n",
+			   rc);
+		return -EINVAL;
+	}
+
+	session_token = (__be64)retbuf[0];
+	netdev_dbg(netdev, "Initiating client failover, session id %llx\n",
+		   be64_to_cpu(session_token));
+	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
+				H_SESSION_ERR_DETECTED, session_token, 0, 0);
+	if (rc) {
+		netdev_err(netdev, "Client initiated failover failed, rc %ld\n",
+			   rc);
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(failover, 0200, NULL, failover_store);
 
 static unsigned long ibmvnic_get_desired_dma(struct vio_dev *vdev)
 {
