@@ -598,15 +598,19 @@ static inline bool acpi_device_always_present(struct acpi_device *adev)
 #endif
 
 #ifdef CONFIG_PM
+void acpi_pm_wakeup_event(struct device *dev);
 acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
 			void (*func)(struct acpi_device_wakeup_context *context));
 acpi_status acpi_remove_pm_notifier(struct acpi_device *adev);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 int acpi_pm_device_run_wake(struct device *, bool);
 #else
+static inline void acpi_pm_wakeup_event(struct device *dev)
+{
+}
 static inline acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
 					       struct device *dev,
-				               void (*work_func)(struct work_struct *work))
+					       void (*func)(struct acpi_device_wakeup_context *context))
 {
 	return AE_SUPPORT;
 }
