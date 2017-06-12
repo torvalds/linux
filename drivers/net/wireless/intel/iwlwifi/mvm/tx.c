@@ -554,12 +554,15 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
 		/*
-		 * Handle legacy hostapd as well, where station may be added
-		 * only after assoc. Take care of the case where we send a
-		 * deauth to a station that we don't have.
+		 * Handle legacy hostapd as well, where station will be added
+		 * only just before sending the association response.
+		 * Also take care of the case where we send a deauth to a
+		 * station that we don't have, or similarly an association
+		 * response (with non-success status) for a station we can't
+		 * accept.
 		 */
 		if (ieee80211_is_probe_resp(fc) || ieee80211_is_auth(fc) ||
-		    ieee80211_is_deauth(fc))
+		    ieee80211_is_deauth(fc) || ieee80211_is_assoc_resp(fc))
 			return mvm->probe_queue;
 		if (info->hw_queue == info->control.vif->cab_queue)
 			return info->hw_queue;
