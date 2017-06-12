@@ -754,6 +754,8 @@ struct iwl_mvm {
 
 	struct work_struct roc_done_wk;
 
+	unsigned long init_status;
+
 	unsigned long status;
 
 	u32 queue_sync_cookie;
@@ -765,7 +767,6 @@ struct iwl_mvm {
 	struct iwl_mvm_vif *bf_allowed_vif;
 
 	enum iwl_ucode_type cur_ucode;
-	bool ucode_loaded;
 	bool hw_registered;
 	bool calibrating;
 	u32 error_event_table[2];
@@ -1086,6 +1087,15 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_ROC_AUX_RUNNING,
 	IWL_MVM_STATUS_D3_RECONFIG,
 	IWL_MVM_STATUS_DUMPING_FW_LOG,
+	IWL_MVM_STATUS_FIRMWARE_RUNNING,
+};
+
+/* Keep track of completed init configuration */
+enum iwl_mvm_init_status {
+	IWL_MVM_INIT_STATUS_THERMAL_INIT_COMPLETE = BIT(0),
+	IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE = BIT(1),
+	IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE = BIT(2),
+	IWL_MVM_INIT_STATUS_TOF_INIT_COMPLETE = BIT(3),
 };
 
 static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
@@ -1097,6 +1107,11 @@ static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
 static inline bool iwl_mvm_is_radio_hw_killed(struct iwl_mvm *mvm)
 {
 	return test_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
+}
+
+static inline bool iwl_mvm_firmware_running(struct iwl_mvm *mvm)
+{
+	return test_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 }
 
 /* Must be called with rcu_read_lock() held and it can only be
@@ -1188,7 +1203,7 @@ static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 	 * Enable LAR only if it is supported by the FW (TLV) &&
 	 * enabled in the NVM
 	 */
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+	if (mvm->cfg->ext_nvm)
 		return nvm_lar && tlv_lar;
 	else
 		return tlv_lar;
@@ -1355,6 +1370,8 @@ const char *iwl_mvm_get_tx_fail_reason(u32 status);
 static inline const char *iwl_mvm_get_tx_fail_reason(u32 status) { return ""; }
 #endif
 int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags);
+int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool int_sta, u32 flags);
+
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm);
 
 static inline void iwl_mvm_set_tx_cmd_ccmp(struct ieee80211_tx_info *info,
@@ -1381,7 +1398,9 @@ void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm);
 
 /* NVM */
 int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic);
+int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm);
 int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm);
+int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm);
 
 static inline u8 iwl_mvm_get_valid_tx_ant(struct iwl_mvm *mvm)
 {
@@ -1755,7 +1774,7 @@ static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 {
 	if (!iwl_mvm_has_new_tx_api(mvm))
 		iwl_free_fw_paging(mvm);
-	mvm->ucode_loaded = false;
+	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 	mvm->fw_dbg_conf = FW_DBG_INVALID;
 	iwl_trans_stop_device(mvm->trans);
 }

@@ -244,6 +244,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  * @IWL_UCODE_TLV_API_TKIP_MIC_KEYS: This ucode supports version 2 of
  *	ADD_MODIFY_STA_KEY_API_S_VER_2.
  * @IWL_UCODE_TLV_API_STA_TYPE: This ucode supports station type assignement.
+ * @IWL_UCODE_TLV_API_NAN2_VER2: This ucode supports NAN API version 2
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -255,6 +256,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_SCAN_TSF_REPORT	= (__force iwl_ucode_tlv_api_t)28,
 	IWL_UCODE_TLV_API_TKIP_MIC_KEYS		= (__force iwl_ucode_tlv_api_t)29,
 	IWL_UCODE_TLV_API_STA_TYPE		= (__force iwl_ucode_tlv_api_t)30,
+	IWL_UCODE_TLV_API_NAN2_VER2		= (__force iwl_ucode_tlv_api_t)31,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
@@ -395,8 +397,8 @@ enum iwl_ucode_tlv_capa {
 #define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
 #define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
 
-/*
- * Calibration control struct.
+/**
+ * struct iwl_tlv_calib_ctrl - Calibration control struct.
  * Sent as part of the phy configuration command.
  * @flow_trigger: bitmap for which calibrations to perform according to
  *		flow triggers.
@@ -468,7 +470,7 @@ enum iwl_fw_dbg_reg_operator {
 /**
  * struct iwl_fw_dbg_reg_op - an operation on a register
  *
- * @op: %enum iwl_fw_dbg_reg_operator
+ * @op: &enum iwl_fw_dbg_reg_operator
  * @addr: offset of the register
  * @val: value
  */
@@ -526,7 +528,7 @@ struct iwl_fw_dbg_mem_seg_tlv {
  * struct iwl_fw_dbg_dest_tlv - configures the destination of the debug data
  *
  * @version: version of the TLV - currently 0
- * @monitor_mode: %enum iwl_fw_dbg_monitor_mode
+ * @monitor_mode: &enum iwl_fw_dbg_monitor_mode
  * @size_power: buffer size will be 2^(size_power + 11)
  * @base_reg: addr of the base addr register (PRPH)
  * @end_reg:  addr of the end addr register (PRPH)
@@ -595,15 +597,15 @@ enum iwl_fw_dbg_trigger_vif_type {
 
 /**
  * struct iwl_fw_dbg_trigger_tlv - a TLV that describes the trigger
- * @id: %enum iwl_fw_dbg_trigger
- * @vif_type: %enum iwl_fw_dbg_trigger_vif_type
+ * @id: &enum iwl_fw_dbg_trigger
+ * @vif_type: &enum iwl_fw_dbg_trigger_vif_type
  * @stop_conf_ids: bitmap of configurations this trigger relates to.
  *	if the mode is %IWL_FW_DBG_TRIGGER_STOP, then if the bit corresponding
  *	to the currently running configuration is set, the data should be
  *	collected.
  * @stop_delay: how many milliseconds to wait before collecting the data
  *	after the STOP trigger fires.
- * @mode: %enum iwl_fw_dbg_trigger_mode - can be stop / start of both
+ * @mode: &enum iwl_fw_dbg_trigger_mode - can be stop / start of both
  * @start_conf_id: if mode is %IWL_FW_DBG_TRIGGER_START, this defines what
  *	configuration should be applied when the triggers kicks in.
  * @occurrences: number of occurrences. 0 means the trigger will never fire.

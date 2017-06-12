@@ -384,20 +384,23 @@ static int iwl_save_fw_paging(struct iwl_mvm *mvm,
 /* send paging cmd to FW in case CPU2 has paging image */
 static int iwl_send_paging_cmd(struct iwl_mvm *mvm, const struct fw_img *fw)
 {
-	struct iwl_fw_paging_cmd paging_cmd = {
-		.flags =
+	union {
+		struct iwl_fw_paging_cmd v2;
+		struct iwl_fw_paging_cmd_v1 v1;
+	} paging_cmd = {
+		.v2.flags =
 			cpu_to_le32(PAGING_CMD_IS_SECURED |
 				    PAGING_CMD_IS_ENABLED |
 				    (mvm->num_of_pages_in_last_blk <<
 				    PAGING_CMD_NUM_OF_PAGES_IN_LAST_GRP_POS)),
-		.block_size = cpu_to_le32(BLOCK_2_EXP_SIZE),
-		.block_num = cpu_to_le32(mvm->num_of_paging_blk),
+		.v2.block_size = cpu_to_le32(BLOCK_2_EXP_SIZE),
+		.v2.block_num = cpu_to_le32(mvm->num_of_paging_blk),
 	};
-	int blk_idx, size = sizeof(paging_cmd);
+	int blk_idx, size = sizeof(paging_cmd.v2);
 
 	/* A bit hard coded - but this is the old API and will be deprecated */
 	if (!iwl_mvm_has_new_tx_api(mvm))
-		size -= NUM_OF_FW_PAGING_BLOCKS * 4;
+		size = sizeof(paging_cmd.v1);
 
 	/* loop for for all paging blocks + CSS block */
 	for (blk_idx = 0; blk_idx < mvm->num_of_paging_blk + 1; blk_idx++) {
@@ -408,11 +411,11 @@ static int iwl_send_paging_cmd(struct iwl_mvm *mvm, const struct fw_img *fw)
 		if (iwl_mvm_has_new_tx_api(mvm)) {
 			__le64 phy_addr = cpu_to_le64(addr);
 
-			paging_cmd.device_phy_addr.addr64[blk_idx] = phy_addr;
+			paging_cmd.v2.device_phy_addr[blk_idx] = phy_addr;
 		} else {
 			__le32 phy_addr = cpu_to_le32(addr);
 
-			paging_cmd.device_phy_addr.addr32[blk_idx] = phy_addr;
+			paging_cmd.v1.device_phy_addr[blk_idx] = phy_addr;
 		}
 	}
 
@@ -619,7 +622,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	if (WARN_ON(!fw))
 		return -EINVAL;
 	mvm->cur_ucode = ucode_type;
-	mvm->ucode_loaded = false;
+	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 
 	iwl_init_notification_wait(&mvm->notif_wait, &alive_wait,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),
@@ -641,12 +644,12 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	if (ret) {
 		struct iwl_trans *trans = mvm->trans;
 
-		if (trans->cfg->gen2)
+		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_A000)
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
 				iwl_read_prph(trans, UMAG_SB_CPU_1_STATUS),
 				iwl_read_prph(trans, UMAG_SB_CPU_2_STATUS));
-		else if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		else if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_8000)
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
 				iwl_read_prph(trans, SB_CPU_1_STATUS),
@@ -693,7 +696,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
 		atomic_set(&mvm->mac80211_queue_stop_count[i], 0);
 
-	mvm->ucode_loaded = true;
+	set_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 
 	return 0;
 }
@@ -738,23 +741,19 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto error;
 	}
 
-	/* Read the NVM only at driver load time, no need to do this twice */
-	if (read_nvm) {
-		/* Read nvm */
+	/* Load NVM to NIC if needed */
+	if (mvm->nvm_file_name) {
+		iwl_mvm_read_external_nvm(mvm);
+		iwl_mvm_load_nvm_to_nic(mvm);
+	}
+
+	if (IWL_MVM_PARSE_NVM && read_nvm) {
 		ret = iwl_nvm_init(mvm, true);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
 			goto error;
 		}
 	}
-
-	/* In case we read the NVM from external file, load it to the NIC */
-	if (mvm->nvm_file_name)
-		iwl_mvm_load_nvm_to_nic(mvm);
-
-	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
-	if (WARN_ON(ret))
-		goto error;
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						NVM_ACCESS_COMPLETE), 0,
@@ -766,8 +765,21 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	}
 
 	/* We wait for the INIT complete notification */
-	return iwl_wait_notification(&mvm->notif_wait, &init_wait,
-				     MVM_UCODE_ALIVE_TIMEOUT);
+	ret = iwl_wait_notification(&mvm->notif_wait, &init_wait,
+				    MVM_UCODE_ALIVE_TIMEOUT);
+	if (ret)
+		return ret;
+
+	/* Read the NVM only at driver load time, no need to do this twice */
+	if (!IWL_MVM_PARSE_NVM && read_nvm) {
+		ret = iwl_mvm_nvm_get_from_fw(mvm);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
 
 error:
 	iwl_remove_notification(&mvm->notif_wait, &init_wait);
@@ -1627,7 +1639,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:
-	iwl_mvm_stop_device(mvm);
+	if (!iwlmvm_mod_params.init_dbg)
+		iwl_mvm_stop_device(mvm);
 	return ret;
 }
 

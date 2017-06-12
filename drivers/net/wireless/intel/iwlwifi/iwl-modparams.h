@@ -114,7 +114,7 @@ enum iwl_uapsd_disable {
  * @debug_level: levels are IWL_DL_*
  * @ant_coupling: antenna coupling in dB, default = 0
  * @nvm_file: specifies a external NVM file
- * @uapsd_disable: disable U-APSD, see %enum iwl_uapsd_disable, default =
+ * @uapsd_disable: disable U-APSD, see &enum iwl_uapsd_disable, default =
  *	IWL_DISABLE_UAPSD_BSS | IWL_DISABLE_UAPSD_P2P_CLIENT
  * @d0i3_disable: disable d0i3, default = 1,
  * @d0i3_entry_delay: time to wait after no refs are taken before

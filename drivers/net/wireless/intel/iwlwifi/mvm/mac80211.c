@@ -735,6 +735,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ret = ieee80211_register_hw(mvm->hw);
 	if (ret)
 		iwl_mvm_leds_exit(mvm);
+	mvm->init_status |= IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE;
 
 	if (mvm->cfg->vht_mu_mimo_supported)
 		wiphy_ext_feature_set(hw->wiphy,
@@ -1243,6 +1244,17 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	flush_work(&mvm->d0i3_exit_work);
 	flush_work(&mvm->async_handlers_wk);
 	flush_work(&mvm->add_stream_wk);
+
+	/*
+	 * Lock and clear the firmware running bit here already, so that
+	 * new commands coming in elsewhere, e.g. from debugfs, will not
+	 * be able to proceed. This is important here because one of those
+	 * debugfs files causes the fw_dump_wk to be triggered, and if we
+	 * don't stop debugfs accesses before canceling that it could be
+	 * retriggered after we flush it but before we've cleared the bit.
+	 */
+	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
+
 	cancel_delayed_work_sync(&mvm->fw_dump_wk);
 	cancel_delayed_work_sync(&mvm->cs_tx_unblock_dwork);
 	cancel_delayed_work_sync(&mvm->scan_timeout_dwork);
@@ -1451,7 +1463,7 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 {
 	u32 tfd_msk = iwl_mvm_mac_get_queues_mask(vif);
 
-	if (tfd_msk) {
+	if (tfd_msk && !iwl_mvm_is_dqa_supported(mvm)) {
 		/*
 		 * mac80211 first removes all the stations of the vif and
 		 * then removes the vif. When it removes a station it also
@@ -1460,6 +1472,8 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 * of these AMPDU sessions are properly closed.
 		 * We still need to take care of the shared queues of the vif.
 		 * Flush them here.
+		 * For DQA mode there is no need - broacast and multicast queue
+		 * are flushed separately.
 		 */
 		mutex_lock(&mvm->mutex);
 		iwl_mvm_flush_tx_path(mvm, tfd_msk, 0);
@@ -3988,21 +4002,23 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 		/* make sure only TDLS peers or the AP are flushed */
 		WARN_ON(i != mvmvif->ap_sta_id && !sta->tdls);
 
-		msk |= mvmsta->tfd_queue_msk;
+		if (drop) {
+			if (iwl_mvm_flush_sta(mvm, mvmsta, false, 0))
+				IWL_ERR(mvm, "flush request fail\n");
+		} else {
+			msk |= mvmsta->tfd_queue_msk;
+			if (iwl_mvm_has_new_tx_api(mvm))
+				iwl_mvm_wait_sta_queues_empty(mvm, mvmsta);
+		}
 	}
 
-	if (drop) {
-		if (iwl_mvm_flush_tx_path(mvm, msk, 0))
-			IWL_ERR(mvm, "flush request fail\n");
-		mutex_unlock(&mvm->mutex);
-	} else {
-		mutex_unlock(&mvm->mutex);
+	mutex_unlock(&mvm->mutex);
 
-		/* this can take a while, and we may need/want other operations
-		 * to succeed while doing this, so do it without the mutex held
-		 */
+	/* this can take a while, and we may need/want other operations
+	 * to succeed while doing this, so do it without the mutex held
+	 */
+	if (!drop && !iwl_mvm_has_new_tx_api(mvm))
 		iwl_trans_wait_tx_queues_empty(mvm->trans, msk);
-	}
 }
 
 static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
@@ -4023,7 +4039,7 @@ static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 
 	mutex_lock(&mvm->mutex);
 
-	if (mvm->ucode_loaded) {
+	if (iwl_mvm_firmware_running(mvm)) {
 		ret = iwl_mvm_request_statistics(mvm, false);
 		if (ret)
 			goto out;

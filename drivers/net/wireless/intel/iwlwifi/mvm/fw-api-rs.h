@@ -392,7 +392,7 @@ enum {
 struct iwl_lq_cmd {
 	u8 sta_id;
 	u8 reduced_tpc;
-	u16 control;
+	__le16 control;
 	/* LINK_QUAL_GENERAL_PARAMS_API_S_VER_1 */
 	u8 flags;
 	u8 mimo_delim;
