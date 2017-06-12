@@ -894,9 +894,7 @@ ENTRY(save_fpu_regs)
 	oi	__LC_CPU_FLAGS+7,_CIF_FPU
 	br	%r14
 .Lsave_fpu_regs_end:
-#if IS_ENABLED(CONFIG_KVM)
 EXPORT_SYMBOL(save_fpu_regs)
-#endif
 
 /*
  * Load floating-point controls and floating-point or vector registers.
