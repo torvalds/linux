@@ -169,7 +169,7 @@ static int tcs3472_write_raw(struct iio_dev *indio_dev,
 		for (i = 0; i < 256; i++) {
 			if (val2 == (256 - i) * 2400) {
 				data->atime = i;
-				return i2c_smbus_write_word_data(
+				return i2c_smbus_write_byte_data(
 					data->client, TCS3472_ATIME,
 					data->atime);
 			}
