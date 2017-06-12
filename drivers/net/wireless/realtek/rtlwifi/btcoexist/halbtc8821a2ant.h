@@ -54,6 +54,9 @@ enum _BT_8821A_2ANT_BT_STATUS {
 	BT_8821A_2ANT_BT_STATUS_IDLE		= 0x0,
 	BT_8821A_2ANT_BT_STATUS_CON_IDLE	= 0x1,
 	BT_8821A_2ANT_BT_STATUS_NON_IDLE	= 0x2,
+	BT_8821A_2ANT_BT_STATUS_ACL_BUSY	= 0x3,
+	BT_8821A_2ANT_BT_STATUS_SCO_BUSY	= 0x4,
+	BT_8821A_2ANT_BT_STATUS_ACL_SCO_BUSY	= 0x5,
 	BT_8821A_2ANT_BT_STATUS_MAX
 };
 
@@ -76,10 +79,6 @@ struct coex_dm_8821a_2ant {
 	/* fw mechanism */
 	bool		pre_dec_bt_pwr_lvl;
 	bool		cur_dec_bt_pwr_lvl;
-	bool		pre_bt_lna_constrain;
-	bool		cur_bt_lna_constrain;
-	u8		pre_bt_psd_mode;
-	u8		cur_bt_psd_mode;
 	u8		pre_fw_dac_swing_lvl;
 	u8		cur_fw_dac_swing_lvl;
 	bool		cur_ignore_wlan_act;
@@ -143,6 +142,7 @@ struct coex_sta_8821a_2ant {
 	u32	low_priority_tx;
 	u32	low_priority_rx;
 	u8	bt_rssi;
+	bool	bt_tx_rx_mask;
 	u8	pre_bt_rssi_state;
 	u8	pre_wifi_rssi_state[4];
 	bool	c2h_bt_info_req_sent;
@@ -164,6 +164,8 @@ struct coex_sta_8821a_2ant {
 
 	u8	coex_table_type;
 	bool	force_lps_on;
+
+	u8	dis_ver_info_cnt;
 };
 
 /*===========================================

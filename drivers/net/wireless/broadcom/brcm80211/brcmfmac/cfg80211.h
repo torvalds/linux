@@ -24,6 +24,8 @@
 #include "fwil_types.h"
 #include "p2p.h"
 
+#define BRCMF_SCAN_IE_LEN_MAX		2048
+
 #define WL_NUM_SCAN_MAX			10
 #define WL_TLV_INFO_MAX			1024
 #define WL_BSS_INFO_MAX			2048

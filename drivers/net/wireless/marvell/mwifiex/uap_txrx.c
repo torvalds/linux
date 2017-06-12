@@ -468,8 +468,7 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
 	int pad;
 	u16 pkt_type, pkt_offset;
-	int hroom = (priv->adapter->iface_type == MWIFIEX_USB) ? 0 :
-		       INTF_HEADER_LEN;
+	int hroom = adapter->intf_hdr_len;
 
 	if (!skb->len) {
 		mwifiex_dbg(adapter, ERROR,
@@ -521,7 +520,7 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 
 	txpd->tx_pkt_offset = cpu_to_le16(pkt_offset);
 
-	/* make space for INTF_HEADER_LEN */
+	/* make space for adapter->intf_hdr_len */
 	skb_push(skb, hroom);
 
 	if (!txpd->tx_control)

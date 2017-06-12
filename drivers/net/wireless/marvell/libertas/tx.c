@@ -70,8 +70,6 @@ netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	uint16_t pkt_len;
 	netdev_tx_t ret = NETDEV_TX_OK;
 
-	lbs_deb_enter(LBS_DEB_TX);
-
 	/* We need to protect against the queues being restarted before
 	   we get round to stopping them */
 	spin_lock_irqsave(&priv->driver_lock, flags);
@@ -166,7 +164,6 @@ netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 	wake_up(&priv->waitq);
 
-	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
 	return ret;
 }
 

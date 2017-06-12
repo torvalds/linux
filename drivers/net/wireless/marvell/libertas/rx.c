@@ -65,8 +65,6 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 		0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00
 	};
 
-	lbs_deb_enter(LBS_DEB_RX);
-
 	BUG_ON(!skb);
 
 	skb->ip_summed = CHECKSUM_NONE;
@@ -158,7 +156,6 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 
 	ret = 0;
 done:
-	lbs_deb_leave_args(LBS_DEB_RX, "ret %d", ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lbs_process_rxed_packet);
@@ -221,8 +218,6 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	struct rx_radiotap_hdr radiotap_hdr;
 	struct rx_radiotap_hdr *pradiotap_hdr;
 
-	lbs_deb_enter(LBS_DEB_RX);
-
 	p_rx_pkt = (struct rx80211packethdr *) skb->data;
 	prxpd = &p_rx_pkt->rx_pd;
 
@@ -281,6 +276,5 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	ret = 0;
 
 done:
-	lbs_deb_leave_args(LBS_DEB_RX, "ret %d", ret);
 	return ret;
 }

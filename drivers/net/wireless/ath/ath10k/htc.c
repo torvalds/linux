@@ -57,8 +57,8 @@ static inline void ath10k_htc_restore_tx_skb(struct ath10k_htc *htc,
 	skb_pull(skb, sizeof(struct ath10k_htc_hdr));
 }
 
-static void ath10k_htc_notify_tx_completion(struct ath10k_htc_ep *ep,
-					    struct sk_buff *skb)
+void ath10k_htc_notify_tx_completion(struct ath10k_htc_ep *ep,
+				     struct sk_buff *skb)
 {
 	struct ath10k *ar = ep->htc->ar;
 
@@ -75,6 +75,7 @@ static void ath10k_htc_notify_tx_completion(struct ath10k_htc_ep *ep,
 
 	ep->ep_ops.ep_tx_complete(ep->htc->ar, skb);
 }
+EXPORT_SYMBOL(ath10k_htc_notify_tx_completion);
 
 static void ath10k_htc_prepare_tx_skb(struct ath10k_htc_ep *ep,
 				      struct sk_buff *skb)
@@ -230,11 +231,78 @@ ath10k_htc_process_credit_report(struct ath10k_htc *htc,
 	spin_unlock_bh(&htc->tx_lock);
 }
 
-static int ath10k_htc_process_trailer(struct ath10k_htc *htc,
-				      u8 *buffer,
-				      int length,
-				      enum ath10k_htc_ep_id src_eid)
+static int
+ath10k_htc_process_lookahead(struct ath10k_htc *htc,
+			     const struct ath10k_htc_lookahead_report *report,
+			     int len,
+			     enum ath10k_htc_ep_id eid,
+			     void *next_lookaheads,
+			     int *next_lookaheads_len)
 {
+	struct ath10k *ar = htc->ar;
+
+	/* Invalid lookahead flags are actually transmitted by
+	 * the target in the HTC control message.
+	 * Since this will happen at every boot we silently ignore
+	 * the lookahead in this case
+	 */
+	if (report->pre_valid != ((~report->post_valid) & 0xFF))
+		return 0;
+
+	if (next_lookaheads && next_lookaheads_len) {
+		ath10k_dbg(ar, ATH10K_DBG_HTC,
+			   "htc rx lookahead found pre_valid 0x%x post_valid 0x%x\n",
+			   report->pre_valid, report->post_valid);
+
+		/* look ahead bytes are valid, copy them over */
+		memcpy((u8 *)next_lookaheads, report->lookahead, 4);
+
+		*next_lookaheads_len = 1;
+	}
+
+	return 0;
+}
+
+static int
+ath10k_htc_process_lookahead_bundle(struct ath10k_htc *htc,
+				    const struct ath10k_htc_lookahead_bundle *report,
+				    int len,
+				    enum ath10k_htc_ep_id eid,
+				    void *next_lookaheads,
+				    int *next_lookaheads_len)
+{
+	struct ath10k *ar = htc->ar;
+	int bundle_cnt = len / sizeof(*report);
+
+	if (!bundle_cnt || (bundle_cnt > HTC_HOST_MAX_MSG_PER_BUNDLE)) {
+		ath10k_warn(ar, "Invalid lookahead bundle count: %d\n",
+			    bundle_cnt);
+		return -EINVAL;
+	}
+
+	if (next_lookaheads && next_lookaheads_len) {
+		int i;
+
+		for (i = 0; i < bundle_cnt; i++) {
+			memcpy(((u8 *)next_lookaheads) + 4 * i,
+			       report->lookahead, 4);
+			report++;
+		}
+
+		*next_lookaheads_len = bundle_cnt;
+	}
+
+	return 0;
+}
+
+int ath10k_htc_process_trailer(struct ath10k_htc *htc,
+			       u8 *buffer,
+			       int length,
+			       enum ath10k_htc_ep_id src_eid,
+			       void *next_lookaheads,
+			       int *next_lookaheads_len)
+{
+	struct ath10k_htc_lookahead_bundle *bundle;
 	struct ath10k *ar = htc->ar;
 	int status = 0;
 	struct ath10k_htc_record *record;
@@ -274,6 +342,29 @@ static int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 							 record->hdr.len,
 							 src_eid);
 			break;
+		case ATH10K_HTC_RECORD_LOOKAHEAD:
+			len = sizeof(struct ath10k_htc_lookahead_report);
+			if (record->hdr.len < len) {
+				ath10k_warn(ar, "Lookahead report too long\n");
+				status = -EINVAL;
+				break;
+			}
+			status = ath10k_htc_process_lookahead(htc,
+							      record->lookahead_report,
+							      record->hdr.len,
+							      src_eid,
+							      next_lookaheads,
+							      next_lookaheads_len);
+			break;
+		case ATH10K_HTC_RECORD_LOOKAHEAD_BUNDLE:
+			bundle = record->lookahead_bundle;
+			status = ath10k_htc_process_lookahead_bundle(htc,
+								     bundle,
+								     record->hdr.len,
+								     src_eid,
+								     next_lookaheads,
+								     next_lookaheads_len);
+			break;
 		default:
 			ath10k_warn(ar, "Unhandled record: id:%d length:%d\n",
 				    record->hdr.id, record->hdr.len);
@@ -294,6 +385,7 @@ static int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 
 	return status;
 }
+EXPORT_SYMBOL(ath10k_htc_process_trailer);
 
 void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 {
@@ -360,7 +452,8 @@ void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 		trailer += payload_len;
 		trailer -= trailer_len;
 		status = ath10k_htc_process_trailer(htc, trailer,
-						    trailer_len, hdr->eid);
+						    trailer_len, hdr->eid,
+						    NULL, NULL);
 		if (status)
 			goto out;
 
@@ -370,42 +463,6 @@ void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 	if (((int)payload_len - (int)trailer_len) <= 0)
 		/* zero length packet with trailer data, just drop these */
 		goto out;
-
-	if (eid == ATH10K_HTC_EP_0) {
-		struct ath10k_htc_msg *msg = (struct ath10k_htc_msg *)skb->data;
-
-		switch (__le16_to_cpu(msg->hdr.message_id)) {
-		case ATH10K_HTC_MSG_READY_ID:
-		case ATH10K_HTC_MSG_CONNECT_SERVICE_RESP_ID:
-			/* handle HTC control message */
-			if (completion_done(&htc->ctl_resp)) {
-				/*
-				 * this is a fatal error, target should not be
-				 * sending unsolicited messages on the ep 0
-				 */
-				ath10k_warn(ar, "HTC rx ctrl still processing\n");
-				complete(&htc->ctl_resp);
-				goto out;
-			}
-
-			htc->control_resp_len =
-				min_t(int, skb->len,
-				      ATH10K_HTC_MAX_CTRL_MSG_LEN);
-
-			memcpy(htc->control_resp_buffer, skb->data,
-			       htc->control_resp_len);
-
-			complete(&htc->ctl_resp);
-			break;
-		case ATH10K_HTC_MSG_SEND_SUSPEND_COMPLETE:
-			htc->htc_ops.target_send_suspend_complete(ar);
-			break;
-		default:
-			ath10k_warn(ar, "ignoring unsolicited htc ep0 event\n");
-			break;
-		}
-		goto out;
-	}
 
 	ath10k_dbg(ar, ATH10K_DBG_HTC, "htc rx completion ep %d skb %pK\n",
 		   eid, skb);
@@ -421,10 +478,40 @@ EXPORT_SYMBOL(ath10k_htc_rx_completion_handler);
 static void ath10k_htc_control_rx_complete(struct ath10k *ar,
 					   struct sk_buff *skb)
 {
-	/* This is unexpected. FW is not supposed to send regular rx on this
-	 * endpoint.
-	 */
-	ath10k_warn(ar, "unexpected htc rx\n");
+	struct ath10k_htc *htc = &ar->htc;
+	struct ath10k_htc_msg *msg = (struct ath10k_htc_msg *)skb->data;
+
+	switch (__le16_to_cpu(msg->hdr.message_id)) {
+	case ATH10K_HTC_MSG_READY_ID:
+	case ATH10K_HTC_MSG_CONNECT_SERVICE_RESP_ID:
+		/* handle HTC control message */
+		if (completion_done(&htc->ctl_resp)) {
+			/* this is a fatal error, target should not be
+			 * sending unsolicited messages on the ep 0
+			 */
+			ath10k_warn(ar, "HTC rx ctrl still processing\n");
+			complete(&htc->ctl_resp);
+			goto out;
+		}
+
+		htc->control_resp_len =
+			min_t(int, skb->len,
+			      ATH10K_HTC_MAX_CTRL_MSG_LEN);
+
+		memcpy(htc->control_resp_buffer, skb->data,
+		       htc->control_resp_len);
+
+		complete(&htc->ctl_resp);
+		break;
+	case ATH10K_HTC_MSG_SEND_SUSPEND_COMPLETE:
+		htc->htc_ops.target_send_suspend_complete(ar);
+		break;
+	default:
+		ath10k_warn(ar, "ignoring unsolicited htc ep0 event\n");
+		break;
+	}
+
+out:
 	kfree_skb(skb);
 }
 
@@ -497,12 +584,8 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 	struct ath10k *ar = htc->ar;
 	int i, status = 0;
 	unsigned long time_left;
-	struct ath10k_htc_svc_conn_req conn_req;
-	struct ath10k_htc_svc_conn_resp conn_resp;
 	struct ath10k_htc_msg *msg;
 	u16 message_id;
-	u16 credit_count;
-	u16 credit_size;
 
 	time_left = wait_for_completion_timeout(&htc->ctl_resp,
 						ATH10K_HTC_WAIT_TIMEOUT_HZ);
@@ -539,16 +622,14 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 
 	msg = (struct ath10k_htc_msg *)htc->control_resp_buffer;
 	message_id   = __le16_to_cpu(msg->hdr.message_id);
-	credit_count = __le16_to_cpu(msg->ready.credit_count);
-	credit_size  = __le16_to_cpu(msg->ready.credit_size);
 
 	if (message_id != ATH10K_HTC_MSG_READY_ID) {
 		ath10k_err(ar, "Invalid HTC ready msg: 0x%x\n", message_id);
 		return -ECOMM;
 	}
 
-	htc->total_transmit_credits = credit_count;
-	htc->target_credit_size = credit_size;
+	htc->total_transmit_credits = __le16_to_cpu(msg->ready.credit_count);
+	htc->target_credit_size = __le16_to_cpu(msg->ready.credit_size);
 
 	ath10k_dbg(ar, ATH10K_DBG_HTC,
 		   "Target ready! transmit resources: %d size:%d\n",
@@ -561,20 +642,17 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 		return -ECOMM;
 	}
 
-	/* setup our pseudo HTC control endpoint connection */
-	memset(&conn_req, 0, sizeof(conn_req));
-	memset(&conn_resp, 0, sizeof(conn_resp));
-	conn_req.ep_ops.ep_tx_complete = ath10k_htc_control_tx_complete;
-	conn_req.ep_ops.ep_rx_complete = ath10k_htc_control_rx_complete;
-	conn_req.max_send_queue_depth = ATH10K_NUM_CONTROL_TX_BUFFERS;
-	conn_req.service_id = ATH10K_HTC_SVC_ID_RSVD_CTRL;
-
-	/* connect fake service */
-	status = ath10k_htc_connect_service(htc, &conn_req, &conn_resp);
-	if (status) {
-		ath10k_err(ar, "could not connect to htc service (%d)\n",
-			   status);
-		return status;
+	/* The only way to determine if the ready message is an extended
+	 * message is from the size.
+	 */
+	if (htc->control_resp_len >=
+	    sizeof(msg->hdr) + sizeof(msg->ready_ext)) {
+		htc->max_msgs_per_htc_bundle =
+			min_t(u8, msg->ready_ext.max_msgs_per_htc_bundle,
+			      HTC_HOST_MAX_MSG_PER_BUNDLE);
+		ath10k_dbg(ar, ATH10K_DBG_HTC,
+			   "Extended ready message. RX bundle size: %d\n",
+			   htc->max_msgs_per_htc_bundle);
 	}
 
 	return 0;
@@ -772,6 +850,13 @@ int ath10k_htc_start(struct ath10k_htc *htc)
 	msg->hdr.message_id =
 		__cpu_to_le16(ATH10K_HTC_MSG_SETUP_COMPLETE_EX_ID);
 
+	if (ar->hif.bus == ATH10K_BUS_SDIO) {
+		/* Extra setup params used by SDIO */
+		msg->setup_complete_ext.flags =
+			__cpu_to_le32(ATH10K_HTC_SETUP_COMPLETE_FLAGS_RX_BNDL_EN);
+		msg->setup_complete_ext.max_msgs_per_bundled_recv =
+			htc->max_msgs_per_htc_bundle;
+	}
 	ath10k_dbg(ar, ATH10K_DBG_HTC, "HTC is using TX credit flow control\n");
 
 	status = ath10k_htc_send(htc, ATH10K_HTC_EP_0, skb);
@@ -786,8 +871,10 @@ int ath10k_htc_start(struct ath10k_htc *htc)
 /* registered target arrival callback from the HIF layer */
 int ath10k_htc_init(struct ath10k *ar)
 {
-	struct ath10k_htc_ep *ep = NULL;
+	int status;
 	struct ath10k_htc *htc = &ar->htc;
+	struct ath10k_htc_svc_conn_req conn_req;
+	struct ath10k_htc_svc_conn_resp conn_resp;
 
 	spin_lock_init(&htc->tx_lock);
 
@@ -795,10 +882,21 @@ int ath10k_htc_init(struct ath10k *ar)
 
 	htc->ar = ar;
 
-	/* Get HIF default pipe for HTC message exchange */
-	ep = &htc->endpoint[ATH10K_HTC_EP_0];
+	/* setup our pseudo HTC control endpoint connection */
+	memset(&conn_req, 0, sizeof(conn_req));
+	memset(&conn_resp, 0, sizeof(conn_resp));
+	conn_req.ep_ops.ep_tx_complete = ath10k_htc_control_tx_complete;
+	conn_req.ep_ops.ep_rx_complete = ath10k_htc_control_rx_complete;
+	conn_req.max_send_queue_depth = ATH10K_NUM_CONTROL_TX_BUFFERS;
+	conn_req.service_id = ATH10K_HTC_SVC_ID_RSVD_CTRL;
 
-	ath10k_hif_get_default_pipe(ar, &ep->ul_pipe_id, &ep->dl_pipe_id);
+	/* connect fake service */
+	status = ath10k_htc_connect_service(htc, &conn_req, &conn_resp);
+	if (status) {
+		ath10k_err(ar, "could not connect to htc service (%d)\n",
+			   status);
+		return status;
+	}
 
 	init_completion(&htc->ctl_resp);
 

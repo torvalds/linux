@@ -37,4 +37,12 @@ int brcmf_pno_clean(struct brcmf_if *ifp);
 int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
 			       struct cfg80211_sched_scan_request *req);
 
+/**
+ * brcmf_pno_wiphy_params - fill scheduled scan parameters in wiphy instance.
+ *
+ * @wiphy: wiphy instance to be used.
+ * @gscan: indicates whether the device has support for g-scan feature.
+ */
+void brcmf_pno_wiphy_params(struct wiphy *wiphy, bool gscan);
+
 #endif /* _BRCMF_PNO_H */

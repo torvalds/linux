@@ -164,7 +164,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	int pad = 0, aggr_num = 0, ret;
 	struct mwifiex_tx_param tx_param;
 	struct txpd *ptx_pd = NULL;
-	int headroom = adapter->iface_type == MWIFIEX_USB ? 0 : INTF_HEADER_LEN;
+	int headroom = adapter->intf_hdr_len;
 
 	skb_src = skb_peek(&pra_list->skb_head);
 	if (!skb_src) {
@@ -250,15 +250,15 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		return 0;
 	}
 
+	if (skb_src)
+		tx_param.next_pkt_len = skb_src->len + sizeof(struct txpd);
+	else
+		tx_param.next_pkt_len = 0;
+
 	if (adapter->iface_type == MWIFIEX_USB) {
 		ret = adapter->if_ops.host_to_card(adapter, priv->usb_port,
-						   skb_aggr, NULL);
+						   skb_aggr, &tx_param);
 	} else {
-		if (skb_src)
-			tx_param.next_pkt_len =
-					skb_src->len + sizeof(struct txpd);
-		else
-			tx_param.next_pkt_len = 0;
 
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
 						   skb_aggr, &tx_param);

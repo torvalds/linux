@@ -145,7 +145,7 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 		return -ENODEV;
 
 	for (i = 0; i < REGISTER_USB_BUSY_COUNT; i++) {
-		rt2x00usb_register_read_lock(rt2x00dev, offset, reg);
+		*reg = rt2x00usb_register_read_lock(rt2x00dev, offset);
 		if (!rt2x00_get_field32(*reg, field))
 			return 1;
 		udelay(REGISTER_BUSY_DELAY);

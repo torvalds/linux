@@ -153,7 +153,7 @@ static int ath9k_tx99_init(struct ath_softc *sc)
 		sc->tx99_power,
 		sc->tx99_power / 2);
 
-	/* We leave the harware awake as it will be chugging on */
+	/* We leave the hardware awake as it will be chugging on */
 
 	return 0;
 }

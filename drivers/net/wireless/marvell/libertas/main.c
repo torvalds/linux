@@ -180,7 +180,6 @@ static int lbs_dev_open(struct net_device *dev)
 	struct lbs_private *priv = dev->ml_priv;
 	int ret = 0;
 
-	lbs_deb_enter(LBS_DEB_NET);
 	if (!priv->iface_running) {
 		ret = lbs_start_iface(priv);
 		if (ret)
@@ -197,7 +196,6 @@ static int lbs_dev_open(struct net_device *dev)
 	spin_unlock_irq(&priv->driver_lock);
 
 out:
-	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
 }
 
@@ -215,8 +213,6 @@ int lbs_stop_iface(struct lbs_private *priv)
 {
 	unsigned long flags;
 	int ret = 0;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	priv->iface_running = false;
@@ -236,7 +232,6 @@ int lbs_stop_iface(struct lbs_private *priv)
 	if (priv->power_save)
 		ret = priv->power_save(priv);
 
-	lbs_deb_leave(LBS_DEB_MAIN);
 	return ret;
 }
 
@@ -249,8 +244,6 @@ int lbs_stop_iface(struct lbs_private *priv)
 static int lbs_eth_stop(struct net_device *dev)
 {
 	struct lbs_private *priv = dev->ml_priv;
-
-	lbs_deb_enter(LBS_DEB_NET);
 
 	if (priv->connect_status == LBS_CONNECTED)
 		lbs_disconnect(priv, WLAN_REASON_DEAUTH_LEAVING);
@@ -269,15 +262,12 @@ static int lbs_eth_stop(struct net_device *dev)
 	if (!lbs_iface_active(priv))
 		lbs_stop_iface(priv);
 
-	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
 }
 
 void lbs_host_to_card_done(struct lbs_private *priv)
 {
 	unsigned long flags;
-
-	lbs_deb_enter(LBS_DEB_THREAD);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	del_timer(&priv->tx_lockup_timer);
@@ -291,7 +281,6 @@ void lbs_host_to_card_done(struct lbs_private *priv)
 	}
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
-	lbs_deb_leave(LBS_DEB_THREAD);
 }
 EXPORT_SYMBOL_GPL(lbs_host_to_card_done);
 
@@ -300,8 +289,6 @@ int lbs_set_mac_address(struct net_device *dev, void *addr)
 	int ret = 0;
 	struct lbs_private *priv = dev->ml_priv;
 	struct sockaddr *phwaddr = addr;
-
-	lbs_deb_enter(LBS_DEB_NET);
 
 	/*
 	 * Can only set MAC address when all interfaces are down, to be written
@@ -318,7 +305,6 @@ int lbs_set_mac_address(struct net_device *dev, void *addr)
 	if (priv->mesh_dev)
 		memcpy(priv->mesh_dev->dev_addr, phwaddr->sa_data, ETH_ALEN);
 
-	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
 }
 
@@ -378,8 +364,6 @@ void lbs_update_mcast(struct lbs_private *priv)
 	int nr_addrs;
 	int old_mac_control = priv->mac_control;
 
-	lbs_deb_enter(LBS_DEB_NET);
-
 	if (netif_running(priv->dev))
 		dev_flags |= priv->dev->flags;
 	if (priv->mesh_dev && netif_running(priv->mesh_dev))
@@ -424,8 +408,6 @@ void lbs_update_mcast(struct lbs_private *priv)
  out_set_mac_control:
 	if (priv->mac_control != old_mac_control)
 		lbs_set_mac_control(priv);
-
-	lbs_deb_leave(LBS_DEB_NET);
 }
 
 static void lbs_set_mcast_worker(struct work_struct *work)
@@ -454,8 +436,6 @@ static int lbs_thread(void *data)
 	struct net_device *dev = data;
 	struct lbs_private *priv = dev->ml_priv;
 	wait_queue_t wait;
-
-	lbs_deb_enter(LBS_DEB_THREAD);
 
 	init_waitqueue_entry(&wait, current);
 
@@ -648,7 +628,6 @@ static int lbs_thread(void *data)
 	del_timer(&priv->tx_lockup_timer);
 	del_timer(&priv->auto_deepsleep_timer);
 
-	lbs_deb_leave(LBS_DEB_THREAD);
 	return 0;
 }
 
@@ -663,8 +642,6 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 {
 	int ret = -1;
 	s16 curlevel = 0, minlevel = 0, maxlevel = 0;
-
-	lbs_deb_enter(LBS_DEB_FW);
 
 	/* Read MAC address from firmware */
 	eth_broadcast_addr(priv->current_addr);
@@ -687,15 +664,12 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 
 	ret = lbs_set_mac_control_sync(priv);
 done:
-	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
 	return ret;
 }
 
 int lbs_suspend(struct lbs_private *priv)
 {
 	int ret;
-
-	lbs_deb_enter(LBS_DEB_FW);
 
 	if (priv->is_deep_sleep) {
 		ret = lbs_set_deep_sleep(priv, 0);
@@ -713,7 +687,6 @@ int lbs_suspend(struct lbs_private *priv)
 	if (priv->mesh_dev)
 		netif_device_detach(priv->mesh_dev);
 
-	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lbs_suspend);
@@ -721,8 +694,6 @@ EXPORT_SYMBOL_GPL(lbs_suspend);
 int lbs_resume(struct lbs_private *priv)
 {
 	int ret;
-
-	lbs_deb_enter(LBS_DEB_FW);
 
 	ret = lbs_set_host_sleep(priv, 0);
 
@@ -741,7 +712,6 @@ int lbs_resume(struct lbs_private *priv)
 	if (priv->setup_fw_on_resume)
 		ret = lbs_setup_firmware(priv);
 
-	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lbs_resume);
@@ -757,7 +727,6 @@ static void lbs_cmd_timeout_handler(unsigned long data)
 	struct lbs_private *priv = (struct lbs_private *)data;
 	unsigned long flags;
 
-	lbs_deb_enter(LBS_DEB_CMD);
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	if (!priv->cur_cmd)
@@ -778,7 +747,6 @@ static void lbs_cmd_timeout_handler(unsigned long data)
 	wake_up(&priv->waitq);
 out:
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
-	lbs_deb_leave(LBS_DEB_CMD);
 }
 
 /**
@@ -793,7 +761,6 @@ static void lbs_tx_lockup_handler(unsigned long data)
 	struct lbs_private *priv = (struct lbs_private *)data;
 	unsigned long flags;
 
-	lbs_deb_enter(LBS_DEB_TX);
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	netdev_info(priv->dev, "TX lockup detected\n");
@@ -804,7 +771,6 @@ static void lbs_tx_lockup_handler(unsigned long data)
 	wake_up_interruptible(&priv->waitq);
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
-	lbs_deb_leave(LBS_DEB_TX);
 }
 
 /**
@@ -816,8 +782,6 @@ static void lbs_tx_lockup_handler(unsigned long data)
 static void auto_deepsleep_timer_fn(unsigned long data)
 {
 	struct lbs_private *priv = (struct lbs_private *)data;
-
-	lbs_deb_enter(LBS_DEB_CMD);
 
 	if (priv->is_activity_detected) {
 		priv->is_activity_detected = 0;
@@ -836,40 +800,31 @@ static void auto_deepsleep_timer_fn(unsigned long data)
 	}
 	mod_timer(&priv->auto_deepsleep_timer , jiffies +
 				(priv->auto_deep_sleep_timeout * HZ)/1000);
-	lbs_deb_leave(LBS_DEB_CMD);
 }
 
 int lbs_enter_auto_deep_sleep(struct lbs_private *priv)
 {
-	lbs_deb_enter(LBS_DEB_SDIO);
-
 	priv->is_auto_deep_sleep_enabled = 1;
 	if (priv->is_deep_sleep)
 		priv->wakeup_dev_required = 1;
 	mod_timer(&priv->auto_deepsleep_timer ,
 			jiffies + (priv->auto_deep_sleep_timeout * HZ)/1000);
 
-	lbs_deb_leave(LBS_DEB_SDIO);
 	return 0;
 }
 
 int lbs_exit_auto_deep_sleep(struct lbs_private *priv)
 {
-	lbs_deb_enter(LBS_DEB_SDIO);
-
 	priv->is_auto_deep_sleep_enabled = 0;
 	priv->auto_deep_sleep_timeout = 0;
 	del_timer(&priv->auto_deepsleep_timer);
 
-	lbs_deb_leave(LBS_DEB_SDIO);
 	return 0;
 }
 
 static int lbs_init_adapter(struct lbs_private *priv)
 {
 	int ret;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
 
 	eth_broadcast_addr(priv->current_addr);
 
@@ -921,22 +876,16 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	}
 
 out:
-	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
-
 	return ret;
 }
 
 static void lbs_free_adapter(struct lbs_private *priv)
 {
-	lbs_deb_enter(LBS_DEB_MAIN);
-
 	lbs_free_cmd_buffer(priv);
 	kfifo_free(&priv->event_fifo);
 	del_timer(&priv->command_timer);
 	del_timer(&priv->tx_lockup_timer);
 	del_timer(&priv->auto_deepsleep_timer);
-
-	lbs_deb_leave(LBS_DEB_MAIN);
 }
 
 static const struct net_device_ops lbs_netdev_ops = {
@@ -961,8 +910,6 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	struct net_device *dev;
 	struct wireless_dev *wdev;
 	struct lbs_private *priv = NULL;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
 
 	/* Allocate an Ethernet device and register it */
 	wdev = lbs_cfg_alloc(dmdev);
@@ -1031,7 +978,6 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	priv = NULL;
 
 done:
-	lbs_deb_leave_args(LBS_DEB_MAIN, "priv %p", priv);
 	return priv;
 }
 EXPORT_SYMBOL_GPL(lbs_add_card);
@@ -1040,8 +986,6 @@ EXPORT_SYMBOL_GPL(lbs_add_card);
 void lbs_remove_card(struct lbs_private *priv)
 {
 	struct net_device *dev = priv->dev;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
 
 	lbs_remove_mesh(priv);
 
@@ -1083,8 +1027,6 @@ void lbs_remove_card(struct lbs_private *priv)
 	lbs_free_adapter(priv);
 	lbs_cfg_free(priv);
 	free_netdev(dev);
-
-	lbs_deb_leave(LBS_DEB_MAIN);
 }
 EXPORT_SYMBOL_GPL(lbs_remove_card);
 
@@ -1104,8 +1046,6 @@ int lbs_start_card(struct lbs_private *priv)
 {
 	struct net_device *dev = priv->dev;
 	int ret = -1;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
 
 	/* poke the firmware */
 	ret = lbs_setup_firmware(priv);
@@ -1133,7 +1073,6 @@ int lbs_start_card(struct lbs_private *priv)
 	ret = 0;
 
 done:
-	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lbs_start_card);
@@ -1143,16 +1082,14 @@ void lbs_stop_card(struct lbs_private *priv)
 {
 	struct net_device *dev;
 
-	lbs_deb_enter(LBS_DEB_MAIN);
-
 	if (!priv)
-		goto out;
+		return;
 	dev = priv->dev;
 
 	/* If the netdev isn't registered, it means that lbs_start_card() was
 	 * never called so we have nothing to do here. */
 	if (dev->reg_state != NETREG_REGISTERED)
-		goto out;
+		return;
 
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
@@ -1160,9 +1097,6 @@ void lbs_stop_card(struct lbs_private *priv)
 	lbs_debugfs_remove_one(priv);
 	lbs_deinit_mesh(priv);
 	unregister_netdev(dev);
-
-out:
-	lbs_deb_leave(LBS_DEB_MAIN);
 }
 EXPORT_SYMBOL_GPL(lbs_stop_card);
 
@@ -1171,7 +1105,6 @@ void lbs_queue_event(struct lbs_private *priv, u32 event)
 {
 	unsigned long flags;
 
-	lbs_deb_enter(LBS_DEB_THREAD);
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	if (priv->psstate == PS_STATE_SLEEP)
@@ -1182,14 +1115,11 @@ void lbs_queue_event(struct lbs_private *priv, u32 event)
 	wake_up(&priv->waitq);
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
-	lbs_deb_leave(LBS_DEB_THREAD);
 }
 EXPORT_SYMBOL_GPL(lbs_queue_event);
 
 void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx)
 {
-	lbs_deb_enter(LBS_DEB_THREAD);
-
 	if (priv->psstate == PS_STATE_SLEEP)
 		priv->psstate = PS_STATE_AWAKE;
 
@@ -1198,28 +1128,23 @@ void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx)
 	priv->resp_idx = resp_idx;
 
 	wake_up(&priv->waitq);
-
-	lbs_deb_leave(LBS_DEB_THREAD);
 }
 EXPORT_SYMBOL_GPL(lbs_notify_command_response);
 
 static int __init lbs_init_module(void)
 {
-	lbs_deb_enter(LBS_DEB_MAIN);
 	memset(&confirm_sleep, 0, sizeof(confirm_sleep));
 	confirm_sleep.hdr.command = cpu_to_le16(CMD_802_11_PS_MODE);
 	confirm_sleep.hdr.size = cpu_to_le16(sizeof(confirm_sleep));
 	confirm_sleep.action = cpu_to_le16(PS_MODE_ACTION_SLEEP_CONFIRMED);
 	lbs_debugfs_init();
-	lbs_deb_leave(LBS_DEB_MAIN);
+
 	return 0;
 }
 
 static void __exit lbs_exit_module(void)
 {
-	lbs_deb_enter(LBS_DEB_MAIN);
 	lbs_debugfs_remove();
-	lbs_deb_leave(LBS_DEB_MAIN);
 }
 
 module_init(lbs_init_module);
