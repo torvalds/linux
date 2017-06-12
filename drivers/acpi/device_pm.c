@@ -756,8 +756,8 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 
 	error = acpi_device_wakeup(adev, acpi_target_system_state(), enable);
 	if (!error)
-		dev_info(dev, "System wakeup %s by ACPI\n",
-				enable ? "enabled" : "disabled");
+		dev_dbg(dev, "System wakeup %s by ACPI\n",
+			enable ? "enabled" : "disabled");
 
 	return error;
 }
