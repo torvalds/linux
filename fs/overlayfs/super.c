@@ -165,6 +165,27 @@ static const struct dentry_operations ovl_reval_dentry_operations = {
 	.d_weak_revalidate = ovl_dentry_weak_revalidate,
 };
 
+static struct kmem_cache *ovl_inode_cachep;
+
+static struct inode *ovl_alloc_inode(struct super_block *sb)
+{
+	struct ovl_inode *oi = kmem_cache_alloc(ovl_inode_cachep, GFP_KERNEL);
+
+	return &oi->vfs_inode;
+}
+
+static void ovl_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+
+	kmem_cache_free(ovl_inode_cachep, OVL_I(inode));
+}
+
+static void ovl_destroy_inode(struct inode *inode)
+{
+	call_rcu(&inode->i_rcu, ovl_i_callback);
+}
+
 static void ovl_put_super(struct super_block *sb)
 {
 	struct ovl_fs *ufs = sb->s_fs_info;
@@ -263,12 +284,14 @@ static int ovl_remount(struct super_block *sb, int *flags, char *data)
 }
 
 static const struct super_operations ovl_super_operations = {
+	.alloc_inode	= ovl_alloc_inode,
+	.destroy_inode	= ovl_destroy_inode,
+	.drop_inode	= generic_delete_inode,
 	.put_super	= ovl_put_super,
 	.sync_fs	= ovl_sync_fs,
 	.statfs		= ovl_statfs,
 	.show_options	= ovl_show_options,
 	.remount_fs	= ovl_remount,
-	.drop_inode	= generic_delete_inode,
 };
 
 enum {
@@ -1038,14 +1061,43 @@ static struct file_system_type ovl_fs_type = {
 };
 MODULE_ALIAS_FS("overlay");
 
+static void ovl_inode_init_once(void *foo)
+{
+	struct ovl_inode *oi = foo;
+
+	inode_init_once(&oi->vfs_inode);
+}
+
 static int __init ovl_init(void)
 {
-	return register_filesystem(&ovl_fs_type);
+	int err;
+
+	ovl_inode_cachep = kmem_cache_create("ovl_inode",
+					     sizeof(struct ovl_inode), 0,
+					     (SLAB_RECLAIM_ACCOUNT|
+					      SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+					     ovl_inode_init_once);
+	if (ovl_inode_cachep == NULL)
+		return -ENOMEM;
+
+	err = register_filesystem(&ovl_fs_type);
+	if (err)
+		kmem_cache_destroy(ovl_inode_cachep);
+
+	return err;
 }
 
 static void __exit ovl_exit(void)
 {
 	unregister_filesystem(&ovl_fs_type);
+
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
+	kmem_cache_destroy(ovl_inode_cachep);
+
 }
 
 module_init(ovl_init);
