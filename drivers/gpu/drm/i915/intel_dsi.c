@@ -835,7 +835,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 		intel_dsi_port_enable(encoder);
 	}
 
-	intel_panel_enable_backlight(intel_dsi->attached_connector);
+	intel_panel_enable_backlight(pipe_config, conn_state);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
@@ -866,7 +866,7 @@ static void intel_dsi_disable(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("\n");
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
-	intel_panel_disable_backlight(intel_dsi->attached_connector);
+	intel_panel_disable_backlight(old_conn_state);
 
 	/*
 	 * Disable Device ready before the port shutdown in order

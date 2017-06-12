@@ -1845,7 +1845,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 		if (port == PORT_A && INTEL_GEN(dev_priv) < 9)
 			intel_dp_stop_link_train(intel_dp);
 
-		intel_edp_backlight_on(intel_dp);
+		intel_edp_backlight_on(pipe_config, conn_state);
 		intel_psr_enable(intel_dp);
 		intel_edp_drrs_enable(intel_dp, pipe_config);
 	}
@@ -1875,7 +1875,7 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder,
 
 		intel_edp_drrs_disable(intel_dp, old_crtc_state);
 		intel_psr_disable(intel_dp);
-		intel_edp_backlight_off(intel_dp);
+		intel_edp_backlight_off(old_conn_state);
 	}
 }
 

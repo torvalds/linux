@@ -311,8 +311,6 @@ static void intel_enable_lvds(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
-	struct intel_connector *intel_connector =
-		&lvds_encoder->attached_connector->base;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) | LVDS_PORT_EN);
@@ -322,7 +320,7 @@ static void intel_enable_lvds(struct intel_encoder *encoder,
 	if (intel_wait_for_register(dev_priv, PP_STATUS(0), PP_ON, PP_ON, 1000))
 		DRM_ERROR("timed out waiting for panel to power on\n");
 
-	intel_panel_enable_backlight(intel_connector);
+	intel_panel_enable_backlight(pipe_config, conn_state);
 }
 
 static void intel_disable_lvds(struct intel_encoder *encoder,
@@ -345,11 +343,7 @@ static void gmch_disable_lvds(struct intel_encoder *encoder,
 			      struct drm_connector_state *old_conn_state)
 
 {
-	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
-	struct intel_connector *intel_connector =
-		&lvds_encoder->attached_connector->base;
-
-	intel_panel_disable_backlight(intel_connector);
+	intel_panel_disable_backlight(old_conn_state);
 
 	intel_disable_lvds(encoder, old_crtc_state, old_conn_state);
 }
@@ -358,11 +352,7 @@ static void pch_disable_lvds(struct intel_encoder *encoder,
 			     struct intel_crtc_state *old_crtc_state,
 			     struct drm_connector_state *old_conn_state)
 {
-	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
-	struct intel_connector *intel_connector =
-		&lvds_encoder->attached_connector->base;
-
-	intel_panel_disable_backlight(intel_connector);
+	intel_panel_disable_backlight(old_conn_state);
 }
 
 static void pch_post_disable_lvds(struct intel_encoder *encoder,

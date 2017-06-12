@@ -2338,14 +2338,17 @@ static void _intel_edp_backlight_on(struct intel_dp *intel_dp)
 }
 
 /* Enable backlight PWM and backlight PP control. */
-void intel_edp_backlight_on(struct intel_dp *intel_dp)
+void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
+			    const struct drm_connector_state *conn_state)
 {
+	struct intel_dp *intel_dp = enc_to_intel_dp(conn_state->best_encoder);
+
 	if (!is_edp(intel_dp))
 		return;
 
 	DRM_DEBUG_KMS("\n");
 
-	intel_panel_enable_backlight(intel_dp->attached_connector);
+	intel_panel_enable_backlight(crtc_state, conn_state);
 	_intel_edp_backlight_on(intel_dp);
 }
 
@@ -2377,15 +2380,17 @@ static void _intel_edp_backlight_off(struct intel_dp *intel_dp)
 }
 
 /* Disable backlight PP control and backlight PWM. */
-void intel_edp_backlight_off(struct intel_dp *intel_dp)
+void intel_edp_backlight_off(const struct drm_connector_state *old_conn_state)
 {
+	struct intel_dp *intel_dp = enc_to_intel_dp(old_conn_state->best_encoder);
+
 	if (!is_edp(intel_dp))
 		return;
 
 	DRM_DEBUG_KMS("\n");
 
 	_intel_edp_backlight_off(intel_dp);
-	intel_panel_disable_backlight(intel_dp->attached_connector);
+	intel_panel_disable_backlight(old_conn_state);
 }
 
 /*
@@ -2681,7 +2686,7 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
 	intel_edp_panel_vdd_on(intel_dp);
-	intel_edp_backlight_off(intel_dp);
+	intel_edp_backlight_off(old_conn_state);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	intel_edp_panel_off(intel_dp);
 
@@ -2895,10 +2900,8 @@ static void g4x_enable_dp(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config,
 			  struct drm_connector_state *conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-
 	intel_enable_dp(encoder, pipe_config, conn_state);
-	intel_edp_backlight_on(intel_dp);
+	intel_edp_backlight_on(pipe_config, conn_state);
 }
 
 static void vlv_enable_dp(struct intel_encoder *encoder,
@@ -2907,7 +2910,7 @@ static void vlv_enable_dp(struct intel_encoder *encoder,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-	intel_edp_backlight_on(intel_dp);
+	intel_edp_backlight_on(pipe_config, conn_state);
 	intel_psr_enable(intel_dp);
 }
 

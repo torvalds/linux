@@ -819,8 +819,9 @@ static void pwm_disable_backlight(struct intel_connector *connector)
 	pwm_disable(panel->backlight.pwm);
 }
 
-void intel_panel_disable_backlight(struct intel_connector *connector)
+void intel_panel_disable_backlight(const struct drm_connector_state *old_conn_state)
 {
+	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
 
@@ -1136,17 +1137,18 @@ static void pwm_enable_backlight(struct intel_connector *connector)
 	intel_panel_actually_set_backlight(connector, panel->backlight.level);
 }
 
-void intel_panel_enable_backlight(struct intel_connector *connector)
+void intel_panel_enable_backlight(const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state)
 {
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
-	enum pipe pipe = intel_get_pipe_from_connector(connector);
+	enum pipe pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
 
 	if (!panel->backlight.present)
 		return;
 
-	if (!WARN_ON_ONCE(pipe == INVALID_PIPE))
-		DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
+	DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
 
 	mutex_lock(&dev_priv->backlight_lock);
 
