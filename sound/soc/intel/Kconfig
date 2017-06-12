@@ -214,6 +214,18 @@ config SND_SOC_INTEL_BYT_CHT_DA7213_MACH
 	  platforms with DA7212/7213 audio codec.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_BYT_CHT_ES8316_MACH
+	tristate "ASoC Audio driver for Intel Baytrail & Cherrytrail with ES8316 codec"
+	depends on X86_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_ES8316
+	select SND_SST_ATOM_HIFI2_PLATFORM
+	select SND_SST_IPC_ACPI
+	select SND_SOC_INTEL_SST_MATCH if ACPI
+	help
+	  This adds support for ASoC machine driver for Intel(R) Baytrail &
+	  Cherrytrail platforms with ES8316 audio codec.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
 	tristate "ASoC Audio driver for Intel Baytrail & Cherrytrail platform with no codec (MinnowBoard MAX, Up)"
 	depends on X86_INTEL_LPSS && I2C && ACPI

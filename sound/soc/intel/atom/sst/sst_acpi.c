@@ -611,6 +611,13 @@ static struct sst_acpi_mach sst_acpi_chv[] = {
 		.board = "bytcht_da7213",
 		.pdata = &chv_platform_data
 	},
+	{
+		.id = "ESSX8316",
+		.drv_name = "bytcht_es8316",
+		.fw_filename = "intel/fw_sst_22a8.bin",
+		.board = "bytcht_es8316",
+		.pdata = &chv_platform_data
+	},
 	/* some CHT-T platforms rely on RT5640, use Baytrail machine driver */
 	{
 		.id = "10EC5640",
