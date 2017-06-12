@@ -112,3 +112,15 @@ Date:		January 2016
 Contact:	"Shuoran Liu" <liushuoran@huawei.com>
 Description:
 		 Shows total written kbytes issued to disk.
+
+What:		/sys/fs/f2fs/<disk>/inject_rate
+Date:		May 2016
+Contact:	"Sheng Yong" <shengyong1@huawei.com>
+Description:
+		 Controls the injection rate.
+
+What:		/sys/fs/f2fs/<disk>/inject_type
+Date:		May 2016
+Contact:	"Sheng Yong" <shengyong1@huawei.com>
+Description:
+		 Controls the injection type.
