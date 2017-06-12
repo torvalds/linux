@@ -752,12 +752,10 @@ static unsigned long tb_ticks_per_usec __read_mostly;
 
 void __delay(unsigned long loops)
 {
-	unsigned long bclock, now;
+	unsigned long bclock = get_tick();
 
-	bclock = tick_operations.get_tick();
-	do {
-		now = tick_operations.get_tick();
-	} while ((now-bclock) < loops);
+	while ((get_tick() - bclock) < loops)
+		;
 }
 EXPORT_SYMBOL(__delay);
 
@@ -769,7 +767,7 @@ EXPORT_SYMBOL(udelay);
 
 static u64 clocksource_tick_read(struct clocksource *cs)
 {
-	return tick_operations.get_tick();
+	return get_tick();
 }
 
 static void __init get_tick_patch(void)
@@ -853,13 +851,19 @@ unsigned long long sched_clock(void)
 {
 	unsigned long quotient = tick_operations.ticks_per_nsec_quotient;
 	unsigned long offset = tick_operations.offset;
-	unsigned long ticks = tick_operations.get_tick();
 
-	return ((ticks * quotient) >> SPARC64_NSEC_PER_CYC_SHIFT) - offset;
+	/* Use barrier so the compiler emits the loads first and overlaps load
+	 * latency with reading tick, because reading %tick/%stick is a
+	 * post-sync instruction that will flush and restart subsequent
+	 * instructions after it commits.
+	 */
+	barrier();
+
+	return ((get_tick() * quotient) >> SPARC64_NSEC_PER_CYC_SHIFT) - offset;
 }
 
 int read_current_timer(unsigned long *timer_val)
 {
-	*timer_val = tick_operations.get_tick();
+	*timer_val = get_tick();
 	return 0;
 }
