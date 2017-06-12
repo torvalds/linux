@@ -8131,6 +8131,18 @@ S:	Supported
 F:	Documentation/devicetree/bindings/media/renesas,drif.txt
 F:	drivers/media/platform/rcar_drif.c
 
+MEDIA DRIVERS FOR FREESCALE IMX
+M:	Steve Longerbeam <slongerbeam@gmail.com>
+M:	Philipp Zabel <p.zabel@pengutronix.de>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/imx.txt
+F:	Documentation/media/v4l-drivers/imx.rst
+F:	drivers/staging/media/imx/
+F:	include/linux/imx-media.h
+F:	include/media/imx.h
+
 MEDIA DRIVERS FOR RENESAS - FCP
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
