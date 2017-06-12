@@ -605,10 +605,9 @@ static void auditd_reset(const struct auditd_connection *ac)
 	if (ac_old)
 		call_rcu(&ac_old->rcu, auditd_conn_free);
 
-	/* flush all of the main and retry queues to the hold queue */
+	/* flush the retry queue to the hold queue, but don't touch the main
+	 * queue since we need to process that normally for multicast */
 	while ((skb = skb_dequeue(&audit_retry_queue)))
-		kauditd_hold_skb(skb);
-	while ((skb = skb_dequeue(&audit_queue)))
 		kauditd_hold_skb(skb);
 }
 
