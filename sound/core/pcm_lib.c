@@ -42,6 +42,7 @@
 #define trace_hwptr(substream, pos, in_interrupt)
 #define trace_xrun(substream)
 #define trace_hw_ptr_error(substream, reason)
+#define trace_applptr(substream, prev, curr)
 #endif
 
 static int fill_silence_frames(struct snd_pcm_substream *substream,
@@ -2101,6 +2102,30 @@ static int pcm_accessible_state(struct snd_pcm_runtime *runtime)
 	}
 }
 
+/* update to the given appl_ptr and call ack callback if needed;
+ * when an error is returned, take back to the original value
+ */
+int pcm_lib_apply_appl_ptr(struct snd_pcm_substream *substream,
+			   snd_pcm_uframes_t appl_ptr)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	snd_pcm_uframes_t old_appl_ptr = runtime->control->appl_ptr;
+	int ret;
+
+	runtime->control->appl_ptr = appl_ptr;
+	if (substream->ops->ack) {
+		ret = substream->ops->ack(substream);
+		if (ret < 0) {
+			runtime->control->appl_ptr = old_appl_ptr;
+			return ret;
+		}
+	}
+
+	trace_applptr(substream, old_appl_ptr, appl_ptr);
+
+	return 0;
+}
+
 /* the common loop for read/write data */
 snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 				     void *data, bool interleaved,
@@ -2220,9 +2245,9 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 		appl_ptr += frames;
 		if (appl_ptr >= runtime->boundary)
 			appl_ptr -= runtime->boundary;
-		runtime->control->appl_ptr = appl_ptr;
-		if (substream->ops->ack)
-			substream->ops->ack(substream);
+		err = pcm_lib_apply_appl_ptr(substream, appl_ptr);
+		if (err < 0)
+			goto _end_unlock;
 
 		offset += frames;
 		size -= frames;
