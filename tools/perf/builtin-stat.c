@@ -1578,6 +1578,7 @@ static void print_header(int argc, const char **argv)
 static void print_footer(void)
 {
 	FILE *output = stat_config.output;
+	int n;
 
 	if (!null_run)
 		fprintf(output, "\n");
@@ -1590,7 +1591,9 @@ static void print_footer(void)
 	}
 	fprintf(output, "\n\n");
 
-	if (print_free_counters_hint)
+	if (print_free_counters_hint &&
+	    sysctl__read_int("kernel/nmi_watchdog", &n) >= 0 &&
+	    n > 0)
 		fprintf(output,
 "Some events weren't counted. Try disabling the NMI watchdog:\n"
 "	echo 0 > /proc/sys/kernel/nmi_watchdog\n"

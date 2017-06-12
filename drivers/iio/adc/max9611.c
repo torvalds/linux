@@ -438,10 +438,10 @@ static ssize_t max9611_shunt_resistor_show(struct device *dev,
 	struct max9611_dev *max9611 = iio_priv(dev_to_iio_dev(dev));
 	unsigned int i, r;
 
-	i = max9611->shunt_resistor_uohm / 1000;
-	r = max9611->shunt_resistor_uohm % 1000;
+	i = max9611->shunt_resistor_uohm / 1000000;
+	r = max9611->shunt_resistor_uohm % 1000000;
 
-	return sprintf(buf, "%u.%03u\n", i, r);
+	return sprintf(buf, "%u.%06u\n", i, r);
 }
 
 static IIO_DEVICE_ATTR(in_power_shunt_resistor, 0444,
@@ -536,8 +536,8 @@ static int max9611_probe(struct i2c_client *client,
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*max9611));
-	if (IS_ERR(indio_dev))
-		return PTR_ERR(indio_dev);
+	if (!indio_dev)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, indio_dev);
 

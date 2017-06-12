@@ -571,9 +571,10 @@ static inline void update_turbo_state(void)
 static int min_perf_pct_min(void)
 {
 	struct cpudata *cpu = all_cpu_data[0];
+	int turbo_pstate = cpu->pstate.turbo_pstate;
 
-	return DIV_ROUND_UP(cpu->pstate.min_pstate * 100,
-			    cpu->pstate.turbo_pstate);
+	return turbo_pstate ?
+		DIV_ROUND_UP(cpu->pstate.min_pstate * 100, turbo_pstate) : 0;
 }
 
 static s16 intel_pstate_get_epb(struct cpudata *cpu_data)

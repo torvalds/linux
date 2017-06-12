@@ -747,7 +747,7 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 		set = U32_MAX;
 	else
 		return -EINVAL;
-	writel_relaxed(0, mvebu_gpioreg_blink_counter_select(mvchip));
+	writel_relaxed(set, mvebu_gpioreg_blink_counter_select(mvchip));
 
 	mvpwm = devm_kzalloc(dev, sizeof(struct mvebu_pwm), GFP_KERNEL);
 	if (!mvpwm)
@@ -768,6 +768,13 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 	mvpwm->chip.dev = dev;
 	mvpwm->chip.ops = &mvebu_pwm_ops;
 	mvpwm->chip.npwm = mvchip->chip.ngpio;
+	/*
+	 * There may already be some PWM allocated, so we can't force
+	 * mvpwm->chip.base to a fixed point like mvchip->chip.base.
+	 * So, we let pwmchip_add() do the numbering and take the next free
+	 * region.
+	 */
+	mvpwm->chip.base = -1;
 
 	spin_lock_init(&mvpwm->lock);
 

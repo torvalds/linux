@@ -948,8 +948,6 @@ retry:
 	}
 
 out:
-	if (ret && crtc->funcs->page_flip_target)
-		drm_crtc_vblank_put(crtc);
 	if (fb)
 		drm_framebuffer_put(fb);
 	if (crtc->primary->old_fb)
@@ -963,6 +961,9 @@ out:
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
+
+	if (ret && crtc->funcs->page_flip_target)
+		drm_crtc_vblank_put(crtc);
 
 	return ret;
 }
