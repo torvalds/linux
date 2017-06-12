@@ -859,12 +859,14 @@ int mv88e6165_port_set_jumbo_size(struct mv88e6xxx_chip *chip, int port,
 
 int mv88e6095_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_RATE_CONTROL, 0x0000);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_EGRESS_RATE_CTL1,
+				    0x0000);
 }
 
 int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_RATE_CONTROL, 0x0001);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_EGRESS_RATE_CTL1,
+				    0x0001);
 }
 
 /* Offset 0x0C: Port ATU Control */
