@@ -1213,8 +1213,8 @@ static int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
 					 bool vlan_filtering)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	u16 mode = vlan_filtering ? PORT_CONTROL_2_8021Q_SECURE :
-		PORT_CONTROL_2_8021Q_DISABLED;
+	u16 mode = vlan_filtering ? MV88E6XXX_PORT_CTL2_8021Q_MODE_SECURE :
+		MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED;
 	int err;
 
 	if (!chip->info->max_vid)
@@ -1872,7 +1872,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	}
 
 	err = mv88e6xxx_port_set_8021q_mode(chip, port,
-					    PORT_CONTROL_2_8021Q_DISABLED);
+				MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED);
 	if (err)
 		return err;
 

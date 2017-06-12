@@ -742,10 +742,10 @@ int mv88e6xxx_port_set_pvid(struct mv88e6xxx_chip *chip, int port, u16 pvid)
 /* Offset 0x08: Port Control 2 Register */
 
 static const char * const mv88e6xxx_port_8021q_mode_names[] = {
-	[PORT_CONTROL_2_8021Q_DISABLED] = "Disabled",
-	[PORT_CONTROL_2_8021Q_FALLBACK] = "Fallback",
-	[PORT_CONTROL_2_8021Q_CHECK] = "Check",
-	[PORT_CONTROL_2_8021Q_SECURE] = "Secure",
+	[MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED] = "Disabled",
+	[MV88E6XXX_PORT_CTL2_8021Q_MODE_FALLBACK] = "Fallback",
+	[MV88E6XXX_PORT_CTL2_8021Q_MODE_CHECK] = "Check",
+	[MV88E6XXX_PORT_CTL2_8021Q_MODE_SECURE] = "Secure",
 };
 
 static int mv88e6185_port_set_default_forward(struct mv88e6xxx_chip *chip,
@@ -754,16 +754,16 @@ static int mv88e6185_port_set_default_forward(struct mv88e6xxx_chip *chip,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
 	if (err)
 		return err;
 
 	if (multicast)
-		reg |= PORT_CONTROL_2_DEFAULT_FORWARD;
+		reg |= MV88E6XXX_PORT_CTL2_DEFAULT_FORWARD;
 	else
-		reg &= ~PORT_CONTROL_2_DEFAULT_FORWARD;
+		reg &= ~MV88E6XXX_PORT_CTL2_DEFAULT_FORWARD;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }
 
 int mv88e6185_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
@@ -784,14 +784,14 @@ int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_2_UPSTREAM_MASK;
+	reg &= ~MV88E6095_PORT_CTL2_CPU_PORT_MASK;
 	reg |= upstream_port;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }
 
 int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
@@ -800,14 +800,14 @@ int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_2_8021Q_MASK;
-	reg |= mode & PORT_CONTROL_2_8021Q_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL2_8021Q_MODE_MASK;
+	reg |= mode & MV88E6XXX_PORT_CTL2_8021Q_MODE_MASK;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 	if (err)
 		return err;
 
@@ -822,13 +822,13 @@ int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
 	if (err)
 		return err;
 
-	reg |= PORT_CONTROL_2_MAP_DA;
+	reg |= MV88E6XXX_PORT_CTL2_MAP_DA;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }
 
 int mv88e6165_port_set_jumbo_size(struct mv88e6xxx_chip *chip, int port,
@@ -837,22 +837,22 @@ int mv88e6165_port_set_jumbo_size(struct mv88e6xxx_chip *chip, int port,
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_2_JUMBO_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL2_JUMBO_MODE_MASK;
 
 	if (size <= 1522)
-		reg |= PORT_CONTROL_2_JUMBO_1522;
+		reg |= MV88E6XXX_PORT_CTL2_JUMBO_MODE_1522;
 	else if (size <= 2048)
-		reg |= PORT_CONTROL_2_JUMBO_2048;
+		reg |= MV88E6XXX_PORT_CTL2_JUMBO_MODE_2048;
 	else if (size <= 10240)
-		reg |= PORT_CONTROL_2_JUMBO_10240;
+		reg |= MV88E6XXX_PORT_CTL2_JUMBO_MODE_10240;
 	else
 		return -ERANGE;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }
 
 /* Offset 0x09: Port Rate Control */
