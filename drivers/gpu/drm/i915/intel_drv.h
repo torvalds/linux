@@ -1712,7 +1712,7 @@ void intel_pch_panel_fitting(struct intel_crtc *crtc,
 void intel_gmch_panel_fitting(struct intel_crtc *crtc,
 			      struct intel_crtc_state *pipe_config,
 			      int fitting_mode);
-void intel_panel_set_backlight_acpi(struct intel_connector *connector,
+void intel_panel_set_backlight_acpi(const struct drm_connector_state *conn_state,
 				    u32 level, u32 max);
 int intel_panel_setup_backlight(struct drm_connector *connector,
 				enum pipe pipe);

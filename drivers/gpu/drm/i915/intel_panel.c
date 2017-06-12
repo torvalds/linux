@@ -671,21 +671,21 @@ static void intel_panel_set_backlight(struct intel_connector *connector,
 /* set backlight brightness to level in range [0..max], assuming hw min is
  * respected.
  */
-void intel_panel_set_backlight_acpi(struct intel_connector *connector,
+void intel_panel_set_backlight_acpi(const struct drm_connector_state *conn_state,
 				    u32 user_level, u32 user_max)
 {
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
-	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	u32 hw_level;
 
 	/*
-	 * INVALID_PIPE may occur during driver init because
+	 * Lack of crtc may occur during driver init because
 	 * connection_mutex isn't held across the entire backlight
 	 * setup + modeset readout, and the BIOS can issue the
 	 * requests at any time.
 	 */
-	if (!panel->backlight.present || pipe == INVALID_PIPE)
+	if (!panel->backlight.present || !conn_state->crtc)
 		return;
 
 	mutex_lock(&dev_priv->backlight_lock);
