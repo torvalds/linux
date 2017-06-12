@@ -1805,6 +1805,23 @@ static void __pci_pme_active(struct pci_dev *dev, bool enable)
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
 }
 
+static void pci_pme_restore(struct pci_dev *dev)
+{
+	u16 pmcsr;
+
+	if (!dev->pme_support)
+		return;
+
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	if (dev->wakeup_prepared) {
+		pmcsr |= PCI_PM_CTRL_PME_ENABLE;
+	} else {
+		pmcsr &= ~PCI_PM_CTRL_PME_ENABLE;
+		pmcsr |= PCI_PM_CTRL_PME_STATUS;
+	}
+	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
+}
+
 /**
  * pci_pme_active - enable or disable PCI device's PME# function
  * @dev: PCI device to handle.
@@ -1899,9 +1916,14 @@ int __pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 	if (enable && !runtime && !device_may_wakeup(&dev->dev))
 		return -EINVAL;
 
-	/* Don't do the same thing twice in a row for one device. */
-	if (!!enable == !!dev->wakeup_prepared)
+	/*
+	 * Don't do the same thing twice in a row for one device, but restore
+	 * PME Enable in case it has been updated by config space restoration.
+	 */
+	if (!!enable == !!dev->wakeup_prepared) {
+		pci_pme_restore(dev);
 		return 0;
+	}
 
 	/*
 	 * According to "PCI System Architecture" 4th ed. by Tom Shanley & Don
