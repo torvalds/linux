@@ -276,6 +276,17 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 	return ret;
 }
 
+static void ipoib_get_stats(struct net_device *dev,
+			    struct rtnl_link_stats64 *stats)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+
+	if (priv->rn_ops->ndo_get_stats64)
+		priv->rn_ops->ndo_get_stats64(dev, stats);
+	else
+		netdev_stats_to_stats64(stats, &dev->stats);
+}
+
 /* Called with an RCU read lock taken */
 static bool ipoib_is_dev_match_addr_rcu(const struct sockaddr *addr,
 					struct net_device *dev)
@@ -1823,6 +1834,7 @@ static const struct net_device_ops ipoib_netdev_ops_pf = {
 	.ndo_get_vf_stats	 = ipoib_get_vf_stats,
 	.ndo_set_vf_guid	 = ipoib_set_vf_guid,
 	.ndo_set_mac_address	 = ipoib_set_mac,
+	.ndo_get_stats64	 = ipoib_get_stats,
 };
 
 static const struct net_device_ops ipoib_netdev_ops_vf = {
