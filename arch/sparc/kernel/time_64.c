@@ -164,7 +164,7 @@ static unsigned long tick_add_tick(unsigned long adj)
 	return new_tick;
 }
 
-static struct sparc64_tick_ops tick_operations __read_mostly = {
+static struct sparc64_tick_ops tick_operations __cacheline_aligned = {
 	.name		=	"tick",
 	.init_tick	=	tick_init_tick,
 	.disable_irq	=	tick_disable_irq,
@@ -390,9 +390,6 @@ static struct sparc64_tick_ops hbtick_operations __read_mostly = {
 	.add_compare	=	hbtick_add_compare,
 	.softint_mask	=	1UL << 0,
 };
-
-static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
-static unsigned long timer_offset __read_mostly;
 
 unsigned long cmos_regs;
 EXPORT_SYMBOL(cmos_regs);
@@ -784,11 +781,11 @@ void __init time_init(void)
 
 	tb_ticks_per_usec = freq / USEC_PER_SEC;
 
-	timer_ticks_per_nsec_quotient =
+	tick_operations.ticks_per_nsec_quotient =
 		clocksource_hz2mult(freq, SPARC64_NSEC_PER_CYC_SHIFT);
 
-	timer_offset = (tick_operations.get_tick()
-			* timer_ticks_per_nsec_quotient)
+	tick_operations.offset = (tick_operations.get_tick()
+			* tick_operations.ticks_per_nsec_quotient)
 			>> SPARC64_NSEC_PER_CYC_SHIFT;
 
 	clocksource_tick.name = tick_operations.name;
@@ -816,11 +813,11 @@ void __init time_init(void)
 
 unsigned long long sched_clock(void)
 {
+	unsigned long quotient = tick_operations.ticks_per_nsec_quotient;
+	unsigned long offset = tick_operations.offset;
 	unsigned long ticks = tick_operations.get_tick();
 
-	return ((ticks * timer_ticks_per_nsec_quotient)
-		>> SPARC64_NSEC_PER_CYC_SHIFT)
-		- timer_offset;
+	return ((ticks * quotient) >> SPARC64_NSEC_PER_CYC_SHIFT) - offset;
 }
 
 int read_current_timer(unsigned long *timer_val)

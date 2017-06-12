@@ -9,7 +9,12 @@
 #include <linux/types.h>
 #include <linux/init.h>
 
+/* The most frequently accessed fields should be first,
+ * to fit into the same cacheline.
+ */
 struct sparc64_tick_ops {
+	unsigned long ticks_per_nsec_quotient;
+	unsigned long offset;
 	unsigned long long (*get_tick)(void);
 	int (*add_compare)(unsigned long);
 	unsigned long softint_mask;
