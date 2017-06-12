@@ -900,11 +900,15 @@ int mv88e6095_port_tag_remap(struct mv88e6xxx_chip *chip, int port)
 	int err;
 
 	/* Use a direct priority mapping for all IEEE tagged frames */
-	err = mv88e6xxx_port_write(chip, port, PORT_TAG_REGMAP_0123, 0x3210);
+	err = mv88e6xxx_port_write(chip, port,
+				   MV88E6095_PORT_IEEE_PRIO_REMAP_0123,
+				   0x3210);
 	if (err)
 		return err;
 
-	return mv88e6xxx_port_write(chip, port, PORT_TAG_REGMAP_4567, 0x7654);
+	return mv88e6xxx_port_write(chip, port,
+				    MV88E6095_PORT_IEEE_PRIO_REMAP_4567,
+				    0x7654);
 }
 
 static int mv88e6xxx_port_ieeepmt_write(struct mv88e6xxx_chip *chip,
@@ -913,40 +917,39 @@ static int mv88e6xxx_port_ieeepmt_write(struct mv88e6xxx_chip *chip,
 {
 	u16 reg;
 
-	reg = PORT_IEEE_PRIO_MAP_TABLE_UPDATE |
+	reg = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_UPDATE |
 		table |
-		(pointer << PORT_IEEE_PRIO_MAP_TABLE_POINTER_SHIFT) |
+		(pointer << MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_POINTER_SHIFT) |
 		data;
 
-	return mv88e6xxx_port_write(chip, port, PORT_IEEE_PRIO_MAP_TABLE, reg);
+	return mv88e6xxx_port_write(chip, port,
+				    MV88E6390_PORT_IEEE_PRIO_MAP_TABLE, reg);
 }
 
 int mv88e6390_port_tag_remap(struct mv88e6xxx_chip *chip, int port)
 {
 	int err, i;
+	u16 table;
 
 	for (i = 0; i <= 7; i++) {
-		err = mv88e6xxx_port_ieeepmt_write(
-			chip, port, PORT_IEEE_PRIO_MAP_TABLE_INGRESS_PCP,
-			i, (i | i << 4));
+		table = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_INGRESS_PCP;
+		err = mv88e6xxx_port_ieeepmt_write(chip, port, table, i,
+						   (i | i << 4));
 		if (err)
 			return err;
 
-		err = mv88e6xxx_port_ieeepmt_write(
-			chip, port, PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_PCP,
-			i, i);
+		table = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_PCP;
+		err = mv88e6xxx_port_ieeepmt_write(chip, port, table, i, i);
 		if (err)
 			return err;
 
-		err = mv88e6xxx_port_ieeepmt_write(
-			chip, port, PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_PCP,
-			i, i);
+		table = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_PCP;
+		err = mv88e6xxx_port_ieeepmt_write(chip, port, table, i, i);
 		if (err)
 			return err;
 
-		err = mv88e6xxx_port_ieeepmt_write(
-			chip, port, PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_PCP,
-			i, i);
+		table = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_PCP;
+		err = mv88e6xxx_port_ieeepmt_write(chip, port, table, i, i);
 		if (err)
 			return err;
 	}
