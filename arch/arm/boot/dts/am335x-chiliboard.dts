@@ -195,7 +195,6 @@
 	};
 
 	pwrbutton {
-		interrupts = <2>;
 		status = "okay";
 	};
 };

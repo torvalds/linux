@@ -25,6 +25,7 @@
 
 	pwrbutton {
 		compatible = "ti,tps65217-pwrbutton";
+		interrupts = <2>;
 		status = "disabled";
 	};
 
