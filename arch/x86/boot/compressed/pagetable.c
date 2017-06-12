@@ -92,7 +92,7 @@ void initialize_identity_maps(void)
 	 * and we must append to the existing area instead of entirely
 	 * overwriting it.
 	 */
-	level4p = read_cr3();
+	level4p = read_cr3_pa();
 	if (level4p == (unsigned long)_pgtable) {
 		debug_putstr("booted via startup_32()\n");
 		pgt_data.pgt_buf = _pgtable + BOOT_INIT_PGT_SIZE;

@@ -156,7 +156,7 @@ static inline void __native_flush_tlb(void)
 	 * back:
 	 */
 	preempt_disable();
-	native_write_cr3(native_read_cr3());
+	native_write_cr3(__native_read_cr3());
 	preempt_enable();
 }
 
@@ -264,7 +264,7 @@ static inline void reset_lazy_tlbstate(void)
 	this_cpu_write(cpu_tlbstate.state, 0);
 	this_cpu_write(cpu_tlbstate.loaded_mm, &init_mm);
 
-	WARN_ON(read_cr3() != __pa_symbol(swapper_pg_dir));
+	WARN_ON(read_cr3_pa() != __pa_symbol(swapper_pg_dir));
 }
 
 static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,

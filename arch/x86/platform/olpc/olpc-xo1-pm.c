@@ -77,7 +77,7 @@ static int xo1_power_state_enter(suspend_state_t pm_state)
 
 asmlinkage __visible int xo1_do_sleep(u8 sleep_state)
 {
-	void *pgd_addr = __va(read_cr3());
+	void *pgd_addr = __va(read_cr3_pa());
 
 	/* Program wakeup mask (using dword access to CS5536_PM1_EN) */
 	outl(wakeup_mask << 16, acpi_base + CS5536_PM1_STS);

@@ -231,6 +231,14 @@ native_cpuid_reg(ebx)
 native_cpuid_reg(ecx)
 native_cpuid_reg(edx)
 
+/*
+ * Friendlier CR3 helpers.
+ */
+static inline unsigned long read_cr3_pa(void)
+{
+	return __read_cr3() & CR3_ADDR_MASK;
+}
+
 static inline void load_cr3(pgd_t *pgdir)
 {
 	write_cr3(__pa(pgdir));

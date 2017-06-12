@@ -55,7 +55,8 @@ int __init early_make_pgtable(unsigned long address)
 	pmdval_t pmd, *pmd_p;
 
 	/* Invalid address or early pgt is done ?  */
-	if (physaddr >= MAXMEM || read_cr3() != __pa_nodebug(early_level4_pgt))
+	if (physaddr >= MAXMEM ||
+	    read_cr3_pa() != __pa_nodebug(early_level4_pgt))
 		return -1;
 
 again:

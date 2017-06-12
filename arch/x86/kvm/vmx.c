@@ -5024,7 +5024,7 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 	 * Save the most likely value for this task's CR3 in the VMCS.
 	 * We can't use __get_current_cr3_fast() because we're not atomic.
 	 */
-	cr3 = read_cr3();
+	cr3 = __read_cr3();
 	vmcs_writel(HOST_CR3, cr3);		/* 22.2.3  FIXME: shadow tables */
 	vmx->host_state.vmcs_host_cr3 = cr3;
 

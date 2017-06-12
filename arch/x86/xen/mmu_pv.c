@@ -2017,7 +2017,7 @@ static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
 	pmd_t pmd;
 	pte_t pte;
 
-	pa = read_cr3();
+	pa = read_cr3_pa();
 	pgd = native_make_pgd(xen_read_phys_ulong(pa + pgd_index(vaddr) *
 						       sizeof(pgd)));
 	if (!pgd_present(pgd))
@@ -2097,7 +2097,7 @@ void __init xen_relocate_p2m(void)
 	pt_phys = pmd_phys + PFN_PHYS(n_pmd);
 	p2m_pfn = PFN_DOWN(pt_phys) + n_pt;
 
-	pgd = __va(read_cr3());
+	pgd = __va(read_cr3_pa());
 	new_p2m = (unsigned long *)(2 * PGDIR_SIZE);
 	idx_p4d = 0;
 	save_pud = n_pud;
@@ -2204,7 +2204,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
 {
 	unsigned long pfn = PFN_DOWN(__pa(swapper_pg_dir));
 
-	BUG_ON(read_cr3() != __pa(initial_page_table));
+	BUG_ON(read_cr3_pa() != __pa(initial_page_table));
 	BUG_ON(cr3 != __pa(swapper_pg_dir));
 
 	/*
