@@ -49,6 +49,7 @@
 #include <asm/irq_regs.h>
 
 #include "entry.h"
+#include "kernel.h"
 
 DEFINE_SPINLOCK(rtc_lock);
 
@@ -258,9 +259,7 @@ static int stick_add_compare(unsigned long adj)
 
 static unsigned long stick_get_frequency(void)
 {
-	struct device_node *dp = of_find_node_by_path("/");
-
-	return of_getintprop_default(dp, "stick-frequency", 0);
+	return prom_getint(prom_root_node, "stick-frequency");
 }
 
 static struct sparc64_tick_ops stick_operations __read_mostly = {
@@ -792,10 +791,8 @@ static void init_tick_ops(struct sparc64_tick_ops *ops)
 	tick_operations = *ops;
 }
 
-void __init time_init(void)
+void __init time_init_early(void)
 {
-	unsigned long freq;
-
 	if (tlb_type == spitfire) {
 		if (is_hummingbird())
 			init_tick_ops(&hbtick_operations);
@@ -804,16 +801,14 @@ void __init time_init(void)
 	} else {
 		init_tick_ops(&stick_operations);
 	}
+}
+
+void __init time_init(void)
+{
+	unsigned long freq;
 
 	freq = tick_operations.frequency;
 	tb_ticks_per_usec = freq / USEC_PER_SEC;
-
-	tick_operations.ticks_per_nsec_quotient =
-		clocksource_hz2mult(freq, SPARC64_NSEC_PER_CYC_SHIFT);
-
-	tick_operations.offset = (tick_operations.get_tick()
-			* tick_operations.ticks_per_nsec_quotient)
-			>> SPARC64_NSEC_PER_CYC_SHIFT;
 
 	clocksource_tick.name = tick_operations.name;
 	clocksource_tick.read = clocksource_tick_read;

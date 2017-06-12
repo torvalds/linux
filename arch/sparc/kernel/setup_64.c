@@ -365,6 +365,7 @@ void __init start_early_boot(void)
 	}
 	current_thread_info()->cpu = cpu;
 
+	time_init_early();
 	prom_init_report();
 	start_kernel();
 }
