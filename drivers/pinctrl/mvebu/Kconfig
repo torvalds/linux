@@ -28,6 +28,10 @@ config PINCTRL_ARMADA_39X
 	bool
 	select PINCTRL_MVEBU
 
+config PINCTRL_ARMADA_AP806
+	bool
+	select PINCTRL_MVEBU
+
 config PINCTRL_ARMADA_XP
 	bool
 	select PINCTRL_MVEBU
