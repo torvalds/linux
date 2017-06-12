@@ -165,6 +165,9 @@ static int uvd_v7_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	r = amdgpu_ring_alloc(ring, 16);
 	if (r) {
 		DRM_ERROR("amdgpu: uvd enc failed to lock ring %d (%d).\n",

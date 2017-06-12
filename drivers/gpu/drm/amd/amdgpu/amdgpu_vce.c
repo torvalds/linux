@@ -937,9 +937,9 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r, timeout = adev->usec_timeout;
 
-	/* workaround VCE ring test slow issue for sriov*/
+	/* skip ring test for sriov*/
 	if (amdgpu_sriov_vf(adev))
-		timeout *= 10;
+		return 0;
 
 	r = amdgpu_ring_alloc(ring, 16);
 	if (r) {
