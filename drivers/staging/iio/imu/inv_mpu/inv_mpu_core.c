@@ -1762,6 +1762,7 @@ int inv_check_chip_type(struct inv_mpu_iio_s *st, const char *name)
 	struct inv_reg_map_s *reg;
 	int result;
 	int t_ind;
+	int timeout = 10;
 
 	if (!strcmp(name, "itg3500"))
 		st->chip_type = INV_ITG3500;
@@ -1787,9 +1788,14 @@ int inv_check_chip_type(struct inv_mpu_iio_s *st, const char *name)
 	reg = &st->reg;
 	st->setup_reg(reg);
 	/* reset to make sure previous state are not there */
-	result = inv_plat_single_write(st, reg->pwr_mgmt_1, BIT_H_RESET);
-	if (result)
-		return result;
+	while (timeout) {
+		result = inv_plat_single_write(st, reg->pwr_mgmt_1, BIT_H_RESET);
+		if (!result)
+			break;
+		pr_err("inv_mpu: reset chip failed, err = %d\n", result);
+		timeout--;
+		msleep(POWER_UP_TIME);
+	}
 	msleep(POWER_UP_TIME);
 	/* toggle power state */
 	result = st->set_power_state(st, false);

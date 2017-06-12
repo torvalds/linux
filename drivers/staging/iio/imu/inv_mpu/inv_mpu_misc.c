@@ -345,7 +345,7 @@ int inv_get_silicon_rev_mpu6500(struct inv_mpu_iio_s *st)
 		if (result)
 			return result;
 		if (whoami != MPU6500_ID && whoami != MPU9250_ID &&
-				whoami != MPU6515_ID)
+				whoami != MPU6515_ID && whoami != MPU6880_ID)
 			return -EINVAL;
 
 		/*memory read need more time after power up */
