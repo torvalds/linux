@@ -173,6 +173,11 @@ static int vce_v4_0_mmsch_start(struct amdgpu_device *adev,
 	/* 4, set resp to zero */
 	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_RESP), 0);
 
+	WDOORBELL32(adev->vce.ring[0].doorbell_index, 0);
+	adev->wb.wb[adev->vce.ring[0].wptr_offs] = 0;
+	adev->vce.ring[0].wptr = 0;
+	adev->vce.ring[0].wptr_old = 0;
+
 	/* 5, kick off the initialization and wait until VCE_MMSCH_VF_MAILBOX_RESP becomes non-zero */
 	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_HOST), 0x10000001);
 
@@ -190,7 +195,6 @@ static int vce_v4_0_mmsch_start(struct amdgpu_device *adev,
 		dev_err(adev->dev, "failed to init MMSCH, mmVCE_MMSCH_VF_MAILBOX_RESP = %x\n", data);
 		return -EBUSY;
 	}
-	WDOORBELL32(adev->vce.ring[0].doorbell_index, 0);
 
 	return 0;
 }
