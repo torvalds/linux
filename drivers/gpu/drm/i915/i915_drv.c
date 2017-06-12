@@ -1235,6 +1235,15 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_fini;
 
 	pci_set_drvdata(pdev, &dev_priv->drm);
+	/*
+	 * Disable the system suspend direct complete optimization, which can
+	 * leave the device suspended skipping the driver's suspend handlers
+	 * if the device was already runtime suspended. This is needed due to
+	 * the difference in our runtime and system suspend sequence and
+	 * becaue the HDA driver may require us to enable the audio power
+	 * domain during system suspend.
+	 */
+	pdev->dev_flags |= PCI_DEV_FLAGS_NEEDS_RESUME;
 
 	ret = i915_driver_init_early(dev_priv, ent);
 	if (ret < 0)

@@ -73,6 +73,7 @@ enum rsnd_reg {
 	RSND_REG_SCU_SYS_INT_EN0,
 	RSND_REG_SCU_SYS_INT_EN1,
 	RSND_REG_CMD_CTRL,
+	RSND_REG_CMD_BUSIF_MODE,
 	RSND_REG_CMD_BUSIF_DALIGN,
 	RSND_REG_CMD_ROUTE_SLCT,
 	RSND_REG_CMDOUT_TIMSEL,
@@ -204,6 +205,7 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
 		    u32 mask, u32 data);
 u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
 u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
+u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
 
 /*
  *	R-Car DMA

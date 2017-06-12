@@ -760,7 +760,7 @@ static int dsi_parse_dt(struct platform_device *pdev, struct dw_dsi *dsi)
 	 * Get the endpoint node. In our case, dsi has one output port1
 	 * to which the external HDMI bridge is connected.
 	 */
-	ret = drm_of_find_panel_or_bridge(np, 0, 0, NULL, &dsi->bridge);
+	ret = drm_of_find_panel_or_bridge(np, 1, 0, NULL, &dsi->bridge);
 	if (ret)
 		return ret;
 

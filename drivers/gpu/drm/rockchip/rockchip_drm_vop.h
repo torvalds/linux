@@ -142,6 +142,9 @@ struct vop_data {
 	const struct vop_intr *intr;
 	const struct vop_win_data *win;
 	unsigned int win_size;
+
+#define VOP_FEATURE_OUTPUT_RGB10	BIT(0)
+	u64 feature;
 };
 
 /* interrupt define */

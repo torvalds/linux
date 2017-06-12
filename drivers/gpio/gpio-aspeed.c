@@ -646,6 +646,9 @@ static int enable_debounce(struct gpio_chip *chip, unsigned int offset,
 	int rc;
 	int i;
 
+	if (!gpio->clk)
+		return -EINVAL;
+
 	rc = usecs_to_cycles(gpio, usecs, &requested_cycles);
 	if (rc < 0) {
 		dev_warn(chip->parent, "Failed to convert %luus to cycles at %luHz: %d\n",
