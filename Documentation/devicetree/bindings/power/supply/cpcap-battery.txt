@@ -8,6 +8,9 @@ Required properties:
 - io-channels: IIO ADC channel specifier for each name in io-channel-names
 - io-channel-names: Should contain the following entries:
 		    "battdetb", "battp", "chg_isense", "batti"
+- power-supplies: List of phandles for power-supplying devices, as
+		  described in power_supply.txt. Typically a reference
+		  to cpcap_charger.
 
 Example:
 
@@ -24,4 +27,5 @@ cpcap_battery: battery {
 		       &cpcap_adc 5 &cpcap_adc 6>;
 	io-channel-names = "battdetb", "battp",
 			   "chg_isense", "batti";
+	power-supplies = <&cpcap_charger>;
 };
