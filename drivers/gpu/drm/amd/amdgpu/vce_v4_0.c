@@ -445,12 +445,14 @@ static int vce_v4_0_sw_init(void *handle)
 		if (amdgpu_sriov_vf(adev)) {
 			/* DOORBELL only works under SRIOV */
 			ring->use_doorbell = true;
+
+			/* currently only use the first encoding ring for sriov,
+			 * so set unused location for other unused rings.
+			 */
 			if (i == 0)
-				ring->doorbell_index = AMDGPU_DOORBELL64_RING0_1 * 2;
-			else if (i == 1)
-				ring->doorbell_index = AMDGPU_DOORBELL64_RING2_3 * 2;
+				ring->doorbell_index = AMDGPU_DOORBELL64_VCE_RING0_1 * 2;
 			else
-				ring->doorbell_index = AMDGPU_DOORBELL64_RING2_3 * 2 + 1;
+				ring->doorbell_index = AMDGPU_DOORBELL64_VCE_RING2_3 * 2 + 1;
 		}
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0);
 		if (r)

@@ -678,15 +678,15 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	/* overlap the doorbell assignment with VCN as they are  mutually exclusive
 	 * VCE engine's doorbell is 32 bit and two VCE ring share one QWORD
 	 */
-	AMDGPU_DOORBELL64_RING0_1                 = 0xF8,
-	AMDGPU_DOORBELL64_RING2_3                 = 0xF9,
-	AMDGPU_DOORBELL64_RING4_5                 = 0xFA,
-	AMDGPU_DOORBELL64_RING6_7                 = 0xFB,
+	AMDGPU_DOORBELL64_UVD_RING0_1             = 0xF8,
+	AMDGPU_DOORBELL64_UVD_RING2_3             = 0xF9,
+	AMDGPU_DOORBELL64_UVD_RING4_5             = 0xFA,
+	AMDGPU_DOORBELL64_UVD_RING6_7             = 0xFB,
 
-	AMDGPU_DOORBELL64_UVD_RING0_1             = 0xFC,
-	AMDGPU_DOORBELL64_UVD_RING2_3             = 0xFD,
-	AMDGPU_DOORBELL64_UVD_RING4_5             = 0xFE,
-	AMDGPU_DOORBELL64_UVD_RING6_7             = 0xFF,
+	AMDGPU_DOORBELL64_VCE_RING0_1             = 0xFC,
+	AMDGPU_DOORBELL64_VCE_RING2_3             = 0xFD,
+	AMDGPU_DOORBELL64_VCE_RING4_5             = 0xFE,
+	AMDGPU_DOORBELL64_VCE_RING6_7             = 0xFF,
 
 	AMDGPU_DOORBELL64_MAX_ASSIGNMENT          = 0xFF,
 	AMDGPU_DOORBELL64_INVALID                 = 0xFFFF

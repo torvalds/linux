@@ -435,13 +435,19 @@ static int uvd_v7_0_sw_init(void *handle)
 			return r;
 	}
 
-
 	for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
 		ring = &adev->uvd.ring_enc[i];
 		sprintf(ring->name, "uvd_enc%d", i);
 		if (amdgpu_sriov_vf(adev)) {
 			ring->use_doorbell = true;
-			ring->doorbell_index = AMDGPU_DOORBELL64_UVD_RING0_1 * 2;
+
+			/* currently only use the first enconding ring for
+			 * sriov, so set unused location for other unused rings.
+			 */
+			if (i == 0)
+				ring->doorbell_index = AMDGPU_DOORBELL64_UVD_RING0_1 * 2;
+			else
+				ring->doorbell_index = AMDGPU_DOORBELL64_UVD_RING2_3 * 2 + 1;
 		}
 		r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.irq, 0);
 		if (r)
