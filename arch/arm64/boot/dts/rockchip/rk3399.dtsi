@@ -1716,8 +1716,8 @@
 		compatible = "rockchip,rk3399-vop-lit";
 		reg = <0x0 0xff8f0000 0x0 0x1ffc>, <0x0 0xff8f2000 0x0 0x400>;
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH 0>;
-		clocks = <&cru ACLK_VOP1>, <&cru DCLK_VOP1>, <&cru HCLK_VOP1>;
-		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		clocks = <&cru ACLK_VOP1>, <&cru DCLK_VOP1>, <&cru HCLK_VOP1>, <&cru DCLK_VOP1_DIV>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop", "dclk_source";
 		resets = <&cru SRST_A_VOP1>, <&cru SRST_H_VOP1>, <&cru SRST_D_VOP1>;
 		reset-names = "axi", "ahb", "dclk";
 		power-domains = <&power RK3399_PD_VOPL>;
@@ -1777,8 +1777,8 @@
 		compatible = "rockchip,rk3399-vop-big";
 		reg = <0x0 0xff900000 0x0 0x1ffc>, <0x0 0xff902000 0x0 0x1000>;
 		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH 0>;
-		clocks = <&cru ACLK_VOP0>, <&cru DCLK_VOP0>, <&cru HCLK_VOP0>;
-		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		clocks = <&cru ACLK_VOP0>, <&cru DCLK_VOP0>, <&cru HCLK_VOP0>, <&cru DCLK_VOP0_DIV>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop", "dclk_source";
 		resets = <&cru SRST_A_VOP0>, <&cru SRST_H_VOP0>, <&cru SRST_D_VOP0>;
 		reset-names = "axi", "ahb", "dclk";
 		power-domains = <&power RK3399_PD_VOPB>;
@@ -1962,6 +1962,8 @@
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vopl_out>, <&vopb_out>;
+		clocks = <&cru PLL_VPLL>, <&cru PLL_CPLL>;
+		clock-names = "hdmi-tmds-pll", "default-vop-pll";
 		status = "disabled";
 	};
 
