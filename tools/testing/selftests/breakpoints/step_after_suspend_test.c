@@ -135,28 +135,21 @@ void suspend(void)
 	struct itimerspec spec = {};
 
 	power_state_fd = open("/sys/power/state", O_RDWR);
-	if (power_state_fd < 0) {
-		perror("open(\"/sys/power/state\") failed (is this test running as root?)");
-		ksft_exit_fail();
-	}
+	if (power_state_fd < 0)
+		ksft_exit_fail_msg(
+			"open(\"/sys/power/state\") failed (is this test running as root?)");
 
 	timerfd = timerfd_create(CLOCK_BOOTTIME_ALARM, 0);
-	if (timerfd < 0) {
-		perror("timerfd_create() failed");
-		ksft_exit_fail();
-	}
+	if (timerfd < 0)
+		ksft_exit_fail_msg("timerfd_create() failed");
 
 	spec.it_value.tv_sec = 5;
 	err = timerfd_settime(timerfd, 0, &spec, NULL);
-	if (err < 0) {
-		perror("timerfd_settime() failed");
-		ksft_exit_fail();
-	}
+	if (err < 0)
+		ksft_exit_fail_msg("timerfd_settime() failed");
 
-	if (write(power_state_fd, "mem", strlen("mem")) != strlen("mem")) {
-		perror("entering suspend failed");
-		ksft_exit_fail();
-	}
+	if (write(power_state_fd, "mem", strlen("mem")) != strlen("mem"))
+		ksft_exit_fail_msg("entering suspend failed");
 
 	close(timerfd);
 	close(power_state_fd);
@@ -170,6 +163,9 @@ int main(int argc, char **argv)
 	cpu_set_t available_cpus;
 	int err;
 	int cpu;
+	char buf[10];
+
+	ksft_print_header();
 
 	while ((opt = getopt(argc, argv, "n")) != -1) {
 		switch (opt) {
@@ -187,10 +183,8 @@ int main(int argc, char **argv)
 		suspend();
 
 	err = sched_getaffinity(0, sizeof(available_cpus), &available_cpus);
-	if (err < 0) {
-		perror("sched_getaffinity() failed");
-		ksft_exit_fail();
-	}
+	if (err < 0)
+		ksft_exit_fail_msg("sched_getaffinity() failed");
 
 	for (cpu = 0; cpu < CPU_SETSIZE; cpu++) {
 		bool test_success;
@@ -199,18 +193,15 @@ int main(int argc, char **argv)
 			continue;
 
 		test_success = run_test(cpu);
-		printf("CPU %d: ", cpu);
+		sprintf(buf, "CPU %d", cpu);
 		if (test_success) {
-			printf("[OK]\n");
-			ksft_inc_pass_cnt();
+			ksft_test_result_pass(buf);
 		} else {
-			printf("[FAILED]\n");
-			ksft_inc_fail_cnt();
+			ksft_test_result_fail(buf);
 			succeeded = false;
 		}
 	}
 
-	ksft_print_cnts();
 	if (succeeded)
 		ksft_exit_pass();
 	else
