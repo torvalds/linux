@@ -48,6 +48,7 @@ enum {
 #define MLX5_UMR_ALIGN 2048
 
 static int clean_mr(struct mlx5_ib_mr *mr);
+static int max_umr_order(struct mlx5_ib_dev *dev);
 static int use_umr(struct mlx5_ib_dev *dev, int order);
 static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 
@@ -491,16 +492,18 @@ static struct mlx5_ib_mr *alloc_cached_mr(struct mlx5_ib_dev *dev, int order)
 	struct mlx5_mr_cache *cache = &dev->cache;
 	struct mlx5_ib_mr *mr = NULL;
 	struct mlx5_cache_ent *ent;
+	int last_umr_cache_entry;
 	int c;
 	int i;
 
 	c = order2idx(dev, order);
-	if (c < 0 || c > MAX_UMR_CACHE_ENTRY) {
+	last_umr_cache_entry = order2idx(dev, max_umr_order(dev));
+	if (c < 0 || c > last_umr_cache_entry) {
 		mlx5_ib_warn(dev, "order %d, cache index %d\n", order, c);
 		return NULL;
 	}
 
-	for (i = c; i < MAX_UMR_CACHE_ENTRY; i++) {
+	for (i = c; i <= last_umr_cache_entry; i++) {
 		ent = &cache->ent[i];
 
 		mlx5_ib_dbg(dev, "order %d, cache index %d\n", ent->order, i);
@@ -816,11 +819,16 @@ static int get_octo_len(u64 addr, u64 len, int page_size)
 	return (npages + 1) / 2;
 }
 
-static int use_umr(struct mlx5_ib_dev *dev, int order)
+static int max_umr_order(struct mlx5_ib_dev *dev)
 {
 	if (MLX5_CAP_GEN(dev->mdev, umr_extended_translation_offset))
-		return order <= MAX_UMR_CACHE_ENTRY + 2;
-	return order <= MLX5_MAX_UMR_SHIFT;
+		return MAX_UMR_CACHE_ENTRY + 2;
+	return MLX5_MAX_UMR_SHIFT;
+}
+
+static int use_umr(struct mlx5_ib_dev *dev, int order)
+{
+	return order <= max_umr_order(dev);
 }
 
 static int mr_umem_get(struct ib_pd *pd, u64 start, u64 length,
