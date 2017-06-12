@@ -376,7 +376,7 @@ int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 	return 0;
 }
 
-/* Offset 0x02: Pause Control
+/* Offset 0x02: Jamming Control
  *
  * Do not limit the period of time that this port can be paused for by
  * the remote end or the period of time that this port can pause the
@@ -385,7 +385,8 @@ int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 int mv88e6097_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 			       u8 out)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL, out << 8 | in);
+	return mv88e6xxx_port_write(chip, port, MV88E6097_PORT_JAM_CTL,
+				    out << 8 | in);
 }
 
 int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
@@ -393,13 +394,15 @@ int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 {
 	int err;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
-				   PORT_FLOW_CTRL_LIMIT_IN | in);
+	err = mv88e6xxx_port_write(chip, port, MV88E6390_PORT_FLOW_CTL,
+				   MV88E6390_PORT_FLOW_CTL_UPDATE |
+				   MV88E6390_PORT_FLOW_CTL_LIMIT_IN | in);
 	if (err)
 		return err;
 
-	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
-				    PORT_FLOW_CTRL_LIMIT_OUT | out);
+	return mv88e6xxx_port_write(chip, port, MV88E6390_PORT_FLOW_CTL,
+				    MV88E6390_PORT_FLOW_CTL_UPDATE |
+				    MV88E6390_PORT_FLOW_CTL_LIMIT_OUT | out);
 }
 
 /* Offset 0x04: Port Control Register */
