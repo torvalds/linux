@@ -595,16 +595,16 @@ int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,
 	u16 val;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &val);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL1, &val);
 	if (err)
 		return err;
 
 	if (message_port)
-		val |= PORT_CONTROL_1_MESSAGE_PORT;
+		val |= MV88E6XXX_PORT_CTL1_MESSAGE_PORT;
 	else
-		val &= ~PORT_CONTROL_1_MESSAGE_PORT;
+		val &= ~MV88E6XXX_PORT_CTL1_MESSAGE_PORT;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_1, val);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL1, val);
 }
 
 /* Offset 0x06: Port Based VLAN Map */
@@ -646,7 +646,8 @@ int mv88e6xxx_port_get_fid(struct mv88e6xxx_chip *chip, int port, u16 *fid)
 
 	/* Port's default FID upper bits are located in reg 0x05, offset 0 */
 	if (upper_mask) {
-		err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &reg);
+		err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL1,
+					  &reg);
 		if (err)
 			return err;
 
@@ -679,14 +680,16 @@ int mv88e6xxx_port_set_fid(struct mv88e6xxx_chip *chip, int port, u16 fid)
 
 	/* Port's default FID upper bits are located in reg 0x05, offset 0 */
 	if (upper_mask) {
-		err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &reg);
+		err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL1,
+					  &reg);
 		if (err)
 			return err;
 
 		reg &= ~upper_mask;
 		reg |= (fid >> 4) & upper_mask;
 
-		err = mv88e6xxx_port_write(chip, port, PORT_CONTROL_1, reg);
+		err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL1,
+					   reg);
 		if (err)
 			return err;
 	}
