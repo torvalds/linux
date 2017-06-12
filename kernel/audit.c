@@ -575,12 +575,16 @@ static void kauditd_retry_skb(struct sk_buff *skb)
 
 /**
  * auditd_reset - Disconnect the auditd connection
+ * @ac: auditd connection state
  *
  * Description:
  * Break the auditd/kauditd connection and move all the queued records into the
- * hold queue in case auditd reconnects.
+ * hold queue in case auditd reconnects.  It is important to note that the @ac
+ * pointer should never be dereferenced inside this function as it may be NULL
+ * or invalid, you can only compare the memory address!  If @ac is NULL then
+ * the connection will always be reset.
  */
-static void auditd_reset(void)
+static void auditd_reset(const struct auditd_connection *ac)
 {
 	unsigned long flags;
 	struct sk_buff *skb;
@@ -590,6 +594,11 @@ static void auditd_reset(void)
 	spin_lock_irqsave(&auditd_conn_lock, flags);
 	ac_old = rcu_dereference_protected(auditd_conn,
 					   lockdep_is_held(&auditd_conn_lock));
+	if (ac && ac != ac_old) {
+		/* someone already registered a new auditd connection */
+		spin_unlock_irqrestore(&auditd_conn_lock, flags);
+		return;
+	}
 	rcu_assign_pointer(auditd_conn, NULL);
 	spin_unlock_irqrestore(&auditd_conn_lock, flags);
 
@@ -649,8 +658,8 @@ static int auditd_send_unicast_skb(struct sk_buff *skb)
 	return rc;
 
 err:
-	if (rc == -ECONNREFUSED)
-		auditd_reset();
+	if (ac && rc == -ECONNREFUSED)
+		auditd_reset(ac);
 	return rc;
 }
 
@@ -795,9 +804,9 @@ static int kauditd_thread(void *dummy)
 		rc = kauditd_send_queue(sk, portid,
 					&audit_hold_queue, UNICAST_RETRIES,
 					NULL, kauditd_rehold_skb);
-		if (rc < 0) {
+		if (ac && rc < 0) {
 			sk = NULL;
-			auditd_reset();
+			auditd_reset(ac);
 			goto main_queue;
 		}
 
@@ -805,9 +814,9 @@ static int kauditd_thread(void *dummy)
 		rc = kauditd_send_queue(sk, portid,
 					&audit_retry_queue, UNICAST_RETRIES,
 					NULL, kauditd_hold_skb);
-		if (rc < 0) {
+		if (ac && rc < 0) {
 			sk = NULL;
-			auditd_reset();
+			auditd_reset(ac);
 			goto main_queue;
 		}
 
@@ -815,12 +824,13 @@ main_queue:
 		/* process the main queue - do the multicast send and attempt
 		 * unicast, dump failed record sends to the retry queue; if
 		 * sk == NULL due to previous failures we will just do the
-		 * multicast send and move the record to the retry queue */
+		 * multicast send and move the record to the hold queue */
 		rc = kauditd_send_queue(sk, portid, &audit_queue, 1,
 					kauditd_send_multicast_skb,
-					kauditd_retry_skb);
-		if (sk == NULL || rc < 0)
-			auditd_reset();
+					(sk ?
+					 kauditd_retry_skb : kauditd_hold_skb));
+		if (ac && rc < 0)
+			auditd_reset(ac);
 		sk = NULL;
 
 		/* drop our netns reference, no auditd sends past this line */
@@ -1230,7 +1240,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 								auditd_pid, 1);
 
 				/* unregister the auditd connection */
-				auditd_reset();
+				auditd_reset(NULL);
 			}
 		}
 		if (s.mask & AUDIT_STATUS_RATE_LIMIT) {
