@@ -332,6 +332,16 @@
 	};
 };
 
+&mux {
+	mux-reg-masks = <0x04 0x00080000>, /* MIPI_IPU1_MUX */
+			<0x04 0x00100000>, /* MIPI_IPU2_MUX */
+			<0x0c 0x0000000c>, /* HDMI_MUX_CTL */
+			<0x0c 0x000000c0>, /* LVDS0_MUX_CTL */
+			<0x0c 0x00000300>, /* LVDS1_MUX_CTL */
+			<0x28 0x00000003>, /* DCIC1_MUX_CTL */
+			<0x28 0x0000000c>; /* DCIC2_MUX_CTL */
+};
+
 &vpu {
 	compatible = "fsl,imx6q-vpu", "cnm,coda960";
 };
