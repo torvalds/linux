@@ -1158,7 +1158,14 @@
 			};
 
 			mipi_csi: mipi@021dc000 {
+				compatible = "fsl,imx6-mipi-csi2";
 				reg = <0x021dc000 0x4000>;
+				interrupts = <0 100 0x04>, <0 101 0x04>;
+				clocks = <&clks IMX6QDL_CLK_HSI_TX>,
+					 <&clks IMX6QDL_CLK_VIDEO_27M>,
+					 <&clks IMX6QDL_CLK_EIM_PODF>;
+				clock-names = "dphy", "ref", "pix";
+				status = "disabled";
 			};
 
 			mipi_dsi: mipi@021e0000 {
