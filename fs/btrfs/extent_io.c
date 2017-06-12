@@ -1987,7 +1987,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	ASSERT(!(fs_info->sb->s_flags & MS_RDONLY));
 	BUG_ON(!mirror_num);
 
-	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
+	bio = btrfs_io_bio_alloc(1);
 	bio->bi_iter.bi_size = 0;
 	map_length = length;
 
@@ -2331,7 +2331,7 @@ struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
 	struct btrfs_io_bio *btrfs_failed_bio;
 	struct btrfs_io_bio *btrfs_bio;
 
-	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
+	bio = btrfs_io_bio_alloc(1);
 	bio->bi_end_io = endio_func;
 	bio->bi_iter.bi_sector = failrec->logical >> 9;
 	bio->bi_bdev = fs_info->fs_devices->latest_bdev;
@@ -2692,12 +2692,12 @@ struct bio *btrfs_bio_clone(struct bio *bio)
 	return new;
 }
 
-struct bio *btrfs_io_bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
+struct bio *btrfs_io_bio_alloc(unsigned int nr_iovecs)
 {
 	struct bio *bio;
 
 	/* Bio allocation backed by a bioset does not fail */
-	bio = bio_alloc_bioset(gfp_mask, nr_iovecs, btrfs_bioset);
+	bio = bio_alloc_bioset(GFP_NOFS, nr_iovecs, btrfs_bioset);
 	btrfs_io_bio_init(btrfs_io_bio(bio));
 	return bio;
 }

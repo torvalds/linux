@@ -3532,7 +3532,7 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 	 * caller
 	 */
 	device->flush_bio = NULL;
-	bio = btrfs_io_bio_alloc(GFP_NOFS, 0);
+	bio = btrfs_io_bio_alloc(0);
 	bio->bi_end_io = btrfs_end_empty_barrier;
 	bio->bi_bdev = device->bdev;
 	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH;

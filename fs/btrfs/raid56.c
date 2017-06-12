@@ -1098,7 +1098,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	}
 
 	/* put a new bio on the list */
-	bio = btrfs_io_bio_alloc(GFP_NOFS, bio_max_len >> PAGE_SHIFT?:1);
+	bio = btrfs_io_bio_alloc(bio_max_len >> PAGE_SHIFT ?: 1);
 	bio->bi_iter.bi_size = 0;
 	bio->bi_bdev = stripe->dev->bdev;
 	bio->bi_iter.bi_sector = disk_start >> 9;
