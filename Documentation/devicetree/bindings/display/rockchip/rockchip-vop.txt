@@ -32,6 +32,7 @@ Required properties:
 		aclk_vop: for ddr buffer transfer.
 		hclk_vop: for ahb bus to R/W the phy regs.
 		dclk_vop: pixel clock.
+		dclk_source: optinal, dclk sources from display plls.
 
 - resets: Must contain an entry for each entry in reset-names.
   See ../reset/reset.txt for details.
