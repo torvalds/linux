@@ -1158,13 +1158,15 @@ fail:
 	return ret;
 }
 
-static void brcmf_usb_probe_phase2(struct device *dev,
+static void brcmf_usb_probe_phase2(struct device *dev, int ret,
 				   const struct firmware *fw,
 				   void *nvram, u32 nvlen)
 {
 	struct brcmf_bus *bus = dev_get_drvdata(dev);
 	struct brcmf_usbdev_info *devinfo;
-	int ret;
+
+	if (ret)
+		goto error;
 
 	brcmf_dbg(USB, "Start fw downloading\n");
 

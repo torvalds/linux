@@ -1618,16 +1618,23 @@ static const struct brcmf_buscore_ops brcmf_pcie_buscore_ops = {
 	.write32 = brcmf_pcie_buscore_write32,
 };
 
-static void brcmf_pcie_setup(struct device *dev, const struct firmware *fw,
+static void brcmf_pcie_setup(struct device *dev, int ret,
+			     const struct firmware *fw,
 			     void *nvram, u32 nvram_len)
 {
-	struct brcmf_bus *bus = dev_get_drvdata(dev);
-	struct brcmf_pciedev *pcie_bus_dev = bus->bus_priv.pcie;
-	struct brcmf_pciedev_info *devinfo = pcie_bus_dev->devinfo;
+	struct brcmf_bus *bus;
+	struct brcmf_pciedev *pcie_bus_dev;
+	struct brcmf_pciedev_info *devinfo;
 	struct brcmf_commonring **flowrings;
-	int ret;
 	u32 i;
 
+	/* check firmware loading result */
+	if (ret)
+		goto fail;
+
+	bus = dev_get_drvdata(dev);
+	pcie_bus_dev = bus->bus_priv.pcie;
+	devinfo = pcie_bus_dev->devinfo;
 	brcmf_pcie_attach(devinfo);
 
 	/* Some of the firmwares have the size of the memory of the device
