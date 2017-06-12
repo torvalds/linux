@@ -22,6 +22,8 @@ struct sparc64_tick_ops {
 
 	void (*init_tick)(void);
 	unsigned long (*add_tick)(unsigned long);
+	unsigned long (*get_frequency)(void);
+	unsigned long frequency;
 
 	char *name;
 };
