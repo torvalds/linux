@@ -8267,6 +8267,11 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/mediatek/mt7601u/
 
+MEDIATEK RANDOM NUMBER GENERATOR SUPPORT
+M:      Sean Wang <sean.wang@mediatek.com>
+S:      Maintained
+F:      drivers/char/hw_random/mtk-rng.c
+
 MEGACHIPS STDPXXXX-GE-B850V3-FW LVDS/DP++ BRIDGES
 M:	Peter Senna Tschudin <peter.senna@collabora.com>
 M:	Martin Donnelly <martin.donnelly@ge.com>
