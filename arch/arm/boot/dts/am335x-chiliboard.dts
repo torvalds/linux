@@ -191,8 +191,6 @@
 	interrupts = <7>; /* NNMI */
 
 	charger {
-		interrupts = <0>, <1>;
-		interrupt-names = "USB", "AC";
 		status = "okay";
 	};
 
