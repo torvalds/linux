@@ -2654,22 +2654,28 @@ readpage_ok:
 }
 
 /*
+ * Initialize the members up to but not including 'bio'. Use after allocating a
+ * new bio by bio_alloc_bioset as it does not initialize the bytes outside of
+ * 'bio' because use of __GFP_ZERO is not supported.
+ */
+static inline void btrfs_io_bio_init(struct btrfs_io_bio *btrfs_bio)
+{
+	memset(btrfs_bio, 0, offsetof(struct btrfs_io_bio, bio));
+}
+
+/*
  * The following helpers allocate a bio. As it's backed by a bioset, it'll
  * never fail.  We're returning a bio right now but you can call btrfs_io_bio
  * for the appropriate container_of magic
  */
 struct bio *btrfs_bio_alloc(struct block_device *bdev, u64 first_byte)
 {
-	struct btrfs_io_bio *btrfs_bio;
 	struct bio *bio;
 
 	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_PAGES, btrfs_bioset);
 	bio->bi_bdev = bdev;
 	bio->bi_iter.bi_sector = first_byte >> 9;
-	btrfs_bio = btrfs_io_bio(bio);
-	btrfs_bio->csum = NULL;
-	btrfs_bio->csum_allocated = NULL;
-	btrfs_bio->end_io = NULL;
+	btrfs_io_bio_init(btrfs_io_bio(bio));
 	return bio;
 }
 
@@ -2681,24 +2687,18 @@ struct bio *btrfs_bio_clone(struct bio *bio)
 	/* Bio allocation backed by a bioset does not fail */
 	new = bio_clone_fast(bio, GFP_NOFS, btrfs_bioset);
 	btrfs_bio = btrfs_io_bio(new);
-	btrfs_bio->csum = NULL;
-	btrfs_bio->csum_allocated = NULL;
-	btrfs_bio->end_io = NULL;
+	btrfs_io_bio_init(btrfs_bio);
 	btrfs_bio->iter = bio->bi_iter;
 	return new;
 }
 
 struct bio *btrfs_io_bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
 {
-	struct btrfs_io_bio *btrfs_bio;
 	struct bio *bio;
 
 	/* Bio allocation backed by a bioset does not fail */
 	bio = bio_alloc_bioset(gfp_mask, nr_iovecs, btrfs_bioset);
-	btrfs_bio = btrfs_io_bio(bio);
-	btrfs_bio->csum = NULL;
-	btrfs_bio->csum_allocated = NULL;
-	btrfs_bio->end_io = NULL;
+	btrfs_io_bio_init(btrfs_io_bio(bio));
 	return bio;
 }
 
@@ -2712,9 +2712,7 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, int offset, int size)
 	ASSERT(bio);
 
 	btrfs_bio = btrfs_io_bio(bio);
-	btrfs_bio->csum = NULL;
-	btrfs_bio->csum_allocated = NULL;
-	btrfs_bio->end_io = NULL;
+	btrfs_io_bio_init(btrfs_bio);
 
 	bio_trim(bio, offset >> 9, size >> 9);
 	btrfs_bio->iter = bio->bi_iter;
