@@ -468,6 +468,8 @@ static int cpcap_usb_init_optional_pins(struct cpcap_phy_ddata *ddata)
 		dev_info(ddata->dev, "default pins not configured: %ld\n",
 			 PTR_ERR(ddata->pins));
 		ddata->pins = NULL;
+
+		return 0;
 	}
 
 	ddata->pins_ulpi = pinctrl_lookup_state(ddata->pins, "ulpi");
