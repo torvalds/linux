@@ -281,6 +281,10 @@ struct btrfs_io_bio {
 	u8 *csum_allocated;
 	btrfs_io_bio_end_io_t *end_io;
 	struct bvec_iter iter;
+	/*
+	 * This member must come last, bio_alloc_bioset will allocate enough
+	 * bytes for entire btrfs_io_bio but relies on bio being last.
+	 */
 	struct bio bio;
 };
 
