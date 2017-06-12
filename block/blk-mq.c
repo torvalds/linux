@@ -1406,7 +1406,7 @@ static void __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		.last = true,
 	};
 	blk_qc_t new_cookie;
-	int ret;
+	blk_status_t ret;
 	bool run_queue = true;
 
 	if (blk_mq_hctx_stopped(hctx)) {
