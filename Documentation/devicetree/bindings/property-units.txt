@@ -28,6 +28,7 @@ Electricity
 -ohms		: Ohms
 -micro-ohms	: micro Ohms
 -microvolt	: micro volts
+-picofarads	: picofarads
 
 Temperature
 ----------------------------------------
