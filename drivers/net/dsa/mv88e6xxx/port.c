@@ -49,23 +49,23 @@ static int mv88e6xxx_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~(PORT_PCS_CTRL_RGMII_DELAY_RXCLK |
-		 PORT_PCS_CTRL_RGMII_DELAY_TXCLK);
+	reg &= ~(MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK |
+		 MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK);
 
 	switch (mode) {
 	case PHY_INTERFACE_MODE_RGMII_RXID:
-		reg |= PORT_PCS_CTRL_RGMII_DELAY_RXCLK;
+		reg |= MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		reg |= PORT_PCS_CTRL_RGMII_DELAY_TXCLK;
+		reg |= MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_ID:
-		reg |= PORT_PCS_CTRL_RGMII_DELAY_RXCLK |
-			PORT_PCS_CTRL_RGMII_DELAY_TXCLK;
+		reg |= MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK |
+			MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK;
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 		break;
@@ -73,13 +73,13 @@ static int mv88e6xxx_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 		return 0;
 	}
 
-	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_MAC_CTL, reg);
 	if (err)
 		return err;
 
 	dev_dbg(chip->dev, "p%d: delay RXCLK %s, TXCLK %s\n", port,
-		reg & PORT_PCS_CTRL_RGMII_DELAY_RXCLK ? "yes" : "no",
-		reg & PORT_PCS_CTRL_RGMII_DELAY_TXCLK ? "yes" : "no");
+		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK ? "yes" : "no",
+		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK ? "yes" : "no");
 
 	return 0;
 }
@@ -107,18 +107,20 @@ int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~(PORT_PCS_CTRL_FORCE_LINK | PORT_PCS_CTRL_LINK_UP);
+	reg &= ~(MV88E6XXX_PORT_MAC_CTL_FORCE_LINK |
+		 MV88E6XXX_PORT_MAC_CTL_LINK_UP);
 
 	switch (link) {
 	case LINK_FORCED_DOWN:
-		reg |= PORT_PCS_CTRL_FORCE_LINK;
+		reg |= MV88E6XXX_PORT_MAC_CTL_FORCE_LINK;
 		break;
 	case LINK_FORCED_UP:
-		reg |= PORT_PCS_CTRL_FORCE_LINK | PORT_PCS_CTRL_LINK_UP;
+		reg |= MV88E6XXX_PORT_MAC_CTL_FORCE_LINK |
+			MV88E6XXX_PORT_MAC_CTL_LINK_UP;
 		break;
 	case LINK_UNFORCED:
 		/* normal link detection */
@@ -127,13 +129,13 @@ int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
 		return -EINVAL;
 	}
 
-	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_MAC_CTL, reg);
 	if (err)
 		return err;
 
 	dev_dbg(chip->dev, "p%d: %s link %s\n", port,
-		reg & PORT_PCS_CTRL_FORCE_LINK ? "Force" : "Unforce",
-		reg & PORT_PCS_CTRL_LINK_UP ? "up" : "down");
+		reg & MV88E6XXX_PORT_MAC_CTL_FORCE_LINK ? "Force" : "Unforce",
+		reg & MV88E6XXX_PORT_MAC_CTL_LINK_UP ? "up" : "down");
 
 	return 0;
 }
@@ -143,18 +145,20 @@ int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~(PORT_PCS_CTRL_FORCE_DUPLEX | PORT_PCS_CTRL_DUPLEX_FULL);
+	reg &= ~(MV88E6XXX_PORT_MAC_CTL_FORCE_DUPLEX |
+		 MV88E6XXX_PORT_MAC_CTL_DUPLEX_FULL);
 
 	switch (dup) {
 	case DUPLEX_HALF:
-		reg |= PORT_PCS_CTRL_FORCE_DUPLEX;
+		reg |= MV88E6XXX_PORT_MAC_CTL_FORCE_DUPLEX;
 		break;
 	case DUPLEX_FULL:
-		reg |= PORT_PCS_CTRL_FORCE_DUPLEX | PORT_PCS_CTRL_DUPLEX_FULL;
+		reg |= MV88E6XXX_PORT_MAC_CTL_FORCE_DUPLEX |
+			MV88E6XXX_PORT_MAC_CTL_DUPLEX_FULL;
 		break;
 	case DUPLEX_UNFORCED:
 		/* normal duplex detection */
@@ -163,13 +167,13 @@ int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup)
 		return -EINVAL;
 	}
 
-	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_MAC_CTL, reg);
 	if (err)
 		return err;
 
 	dev_dbg(chip->dev, "p%d: %s %s duplex\n", port,
-		reg & PORT_PCS_CTRL_FORCE_DUPLEX ? "Force" : "Unforce",
-		reg & PORT_PCS_CTRL_DUPLEX_FULL ? "full" : "half");
+		reg & MV88E6XXX_PORT_MAC_CTL_FORCE_DUPLEX ? "Force" : "Unforce",
+		reg & MV88E6XXX_PORT_MAC_CTL_DUPLEX_FULL ? "full" : "half");
 
 	return 0;
 }
@@ -182,47 +186,49 @@ static int mv88e6xxx_port_set_speed(struct mv88e6xxx_chip *chip, int port,
 
 	switch (speed) {
 	case 10:
-		ctrl = PORT_PCS_CTRL_SPEED_10;
+		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_10;
 		break;
 	case 100:
-		ctrl = PORT_PCS_CTRL_SPEED_100;
+		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_100;
 		break;
 	case 200:
 		if (alt_bit)
-			ctrl = PORT_PCS_CTRL_SPEED_100 | PORT_PCS_CTRL_ALTSPEED;
+			ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_100 |
+				MV88E6390_PORT_MAC_CTL_ALTSPEED;
 		else
-			ctrl = PORT_PCS_CTRL_SPEED_200;
+			ctrl = MV88E6065_PORT_MAC_CTL_SPEED_200;
 		break;
 	case 1000:
-		ctrl = PORT_PCS_CTRL_SPEED_1000;
+		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_1000;
 		break;
 	case 2500:
-		ctrl = PORT_PCS_CTRL_SPEED_10000 | PORT_PCS_CTRL_ALTSPEED;
+		ctrl = MV88E6390_PORT_MAC_CTL_SPEED_10000 |
+			MV88E6390_PORT_MAC_CTL_ALTSPEED;
 		break;
 	case 10000:
 		/* all bits set, fall through... */
 	case SPEED_UNFORCED:
-		ctrl = PORT_PCS_CTRL_SPEED_UNFORCED;
+		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_UNFORCED;
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_PCS_CTRL_SPEED_MASK;
+	reg &= ~MV88E6XXX_PORT_MAC_CTL_SPEED_MASK;
 	if (alt_bit)
-		reg &= ~PORT_PCS_CTRL_ALTSPEED;
+		reg &= ~MV88E6390_PORT_MAC_CTL_ALTSPEED;
 	if (force_bit) {
-		reg &= ~PORT_PCS_CTRL_FORCE_SPEED;
+		reg &= ~MV88E6390_PORT_MAC_CTL_FORCE_SPEED;
 		if (speed != SPEED_UNFORCED)
-			ctrl |= PORT_PCS_CTRL_FORCE_SPEED;
+			ctrl |= MV88E6390_PORT_MAC_CTL_FORCE_SPEED;
 	}
 	reg |= ctrl;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_MAC_CTL, reg);
 	if (err)
 		return err;
 
