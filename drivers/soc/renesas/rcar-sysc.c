@@ -181,17 +181,6 @@ static int rcar_sysc_pd_power_off(struct generic_pm_domain *genpd)
 	struct rcar_sysc_pd *pd = to_rcar_pd(genpd);
 
 	pr_debug("%s: %s\n", __func__, genpd->name);
-
-	if (pd->flags & PD_NO_CR) {
-		pr_debug("%s: Cannot control %s\n", __func__, genpd->name);
-		return -EBUSY;
-	}
-
-	if (pd->flags & PD_BUSY) {
-		pr_debug("%s: %s busy\n", __func__, genpd->name);
-		return -EBUSY;
-	}
-
 	return rcar_sysc_power_down(&pd->ch);
 }
 
@@ -200,12 +189,6 @@ static int rcar_sysc_pd_power_on(struct generic_pm_domain *genpd)
 	struct rcar_sysc_pd *pd = to_rcar_pd(genpd);
 
 	pr_debug("%s: %s\n", __func__, genpd->name);
-
-	if (pd->flags & PD_NO_CR) {
-		pr_debug("%s: Cannot control %s\n", __func__, genpd->name);
-		return 0;
-	}
-
 	return rcar_sysc_power_up(&pd->ch);
 }
 
@@ -223,8 +206,7 @@ static void __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		 * only be turned off if the CPU is not in use.
 		 */
 		pr_debug("PM domain %s contains %s\n", name, "CPU");
-		pd->flags |= PD_BUSY;
-		gov = &pm_domain_always_on_gov;
+		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	} else if (pd->flags & PD_SCU) {
 		/*
 		 * This domain contains an SCU and cache-controller, and
@@ -232,19 +214,17 @@ static void __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		 * not in use.
 		 */
 		pr_debug("PM domain %s contains %s\n", name, "SCU");
-		pd->flags |= PD_BUSY;
-		gov = &pm_domain_always_on_gov;
+		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	} else if (pd->flags & PD_NO_CR) {
 		/*
 		 * This domain cannot be turned off.
 		 */
-		pd->flags |= PD_BUSY;
-		gov = &pm_domain_always_on_gov;
+		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	}
 
 	if (!(pd->flags & (PD_CPU | PD_SCU))) {
 		/* Enable Clock Domain for I/O devices */
-		genpd->flags = GENPD_FLAG_PM_CLK;
+		genpd->flags |= GENPD_FLAG_PM_CLK;
 		if (has_cpg_mstp) {
 			genpd->attach_dev = cpg_mstp_attach_dev;
 			genpd->detach_dev = cpg_mstp_detach_dev;
