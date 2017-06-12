@@ -585,6 +585,7 @@ fs_initcall(clock_init);
 /* This is gets the master TICK_INT timer going. */
 static unsigned long sparc64_init_timers(void)
 {
+	struct sparc64_tick_ops *ops = NULL;
 	struct device_node *dp;
 	unsigned long freq;
 
@@ -598,16 +599,17 @@ static unsigned long sparc64_init_timers(void)
 		impl = ((ver >> 32) & 0xffff);
 		if (manuf == 0x17 && impl == 0x13) {
 			/* Hummingbird, aka Ultra-IIe */
-			tick_ops = &hbtick_operations;
+			ops = &hbtick_operations;
 			freq = of_getintprop_default(dp, "stick-frequency", 0);
 		} else {
-			tick_ops = &tick_operations;
 			freq = local_cpu_data().clock_tick;
 		}
 	} else {
-		tick_ops = &stick_operations;
+		ops = &stick_operations;
 		freq = of_getintprop_default(dp, "stick-frequency", 0);
 	}
+	if (ops)
+		memcpy(&tick_operations, ops, sizeof(struct sparc64_tick_ops));
 
 	return freq;
 }
@@ -671,12 +673,12 @@ core_initcall(register_sparc64_cpufreq_notifier);
 static int sparc64_next_event(unsigned long delta,
 			      struct clock_event_device *evt)
 {
-	return tick_ops->add_compare(delta) ? -ETIME : 0;
+	return tick_operations.add_compare(delta) ? -ETIME : 0;
 }
 
 static int sparc64_timer_shutdown(struct clock_event_device *evt)
 {
-	tick_ops->disable_irq();
+	tick_operations.disable_irq();
 	return 0;
 }
 
@@ -693,7 +695,7 @@ static DEFINE_PER_CPU(struct clock_event_device, sparc64_events);
 void __irq_entry timer_interrupt(int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	unsigned long tick_mask = tick_ops->softint_mask;
+	unsigned long tick_mask = tick_operations.softint_mask;
 	int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(sparc64_events, cpu);
 
@@ -728,7 +730,7 @@ void setup_sparc64_timer(void)
 			     : "=r" (pstate)
 			     : "i" (PSTATE_IE));
 
-	tick_ops->init_tick();
+	tick_operations.init_tick();
 
 	/* Restore PSTATE_IE. */
 	__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
@@ -757,9 +759,9 @@ void __delay(unsigned long loops)
 {
 	unsigned long bclock, now;
 
-	bclock = tick_ops->get_tick();
+	bclock = tick_operations.get_tick();
 	do {
-		now = tick_ops->get_tick();
+		now = tick_operations.get_tick();
 	} while ((now-bclock) < loops);
 }
 EXPORT_SYMBOL(__delay);
@@ -772,7 +774,7 @@ EXPORT_SYMBOL(udelay);
 
 static u64 clocksource_tick_read(struct clocksource *cs)
 {
-	return tick_ops->get_tick();
+	return tick_operations.get_tick();
 }
 
 void __init time_init(void)
@@ -784,14 +786,14 @@ void __init time_init(void)
 	timer_ticks_per_nsec_quotient =
 		clocksource_hz2mult(freq, SPARC64_NSEC_PER_CYC_SHIFT);
 
-	clocksource_tick.name = tick_ops->name;
+	clocksource_tick.name = tick_operations.name;
 	clocksource_tick.read = clocksource_tick_read;
 
 	clocksource_register_hz(&clocksource_tick, freq);
 	printk("clocksource: mult[%x] shift[%d]\n",
 	       clocksource_tick.mult, clocksource_tick.shift);
 
-	sparc64_clockevent.name = tick_ops->name;
+	sparc64_clockevent.name = tick_operations.name;
 	clockevents_calc_mult_shift(&sparc64_clockevent, freq, 4);
 
 	sparc64_clockevent.max_delta_ns =
@@ -809,7 +811,7 @@ void __init time_init(void)
 
 unsigned long long sched_clock(void)
 {
-	unsigned long ticks = tick_ops->get_tick();
+	unsigned long ticks = tick_operations.get_tick();
 
 	return (ticks * timer_ticks_per_nsec_quotient)
 		>> SPARC64_NSEC_PER_CYC_SHIFT;
@@ -817,6 +819,6 @@ unsigned long long sched_clock(void)
 
 int read_current_timer(unsigned long *timer_val)
 {
-	*timer_val = tick_ops->get_tick();
+	*timer_val = tick_operations.get_tick();
 	return 0;
 }
