@@ -1876,8 +1876,10 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		bu_init(c);
 	else {
 		dbg_gen("disable bulk-read");
+		mutex_lock(&c->bu_mutex);
 		kfree(c->bu.buf);
 		c->bu.buf = NULL;
+		mutex_unlock(&c->bu_mutex);
 	}
 
 	ubifs_assert(c->lst.taken_empty_lebs > 0);
