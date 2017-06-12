@@ -550,3 +550,28 @@ config VIDEO_STM32_HDMI_CEC
          between compatible devices.
 
 endif #CEC_PLATFORM_DRIVERS
+
+menuconfig SDR_PLATFORM_DRIVERS
+	bool "SDR platform devices"
+	depends on MEDIA_SDR_SUPPORT
+	default n
+	---help---
+	  Say Y here to enable support for platform-specific SDR Drivers.
+
+if SDR_PLATFORM_DRIVERS
+
+config VIDEO_RCAR_DRIF
+	tristate "Renesas Digitial Radio Interface (DRIF)"
+	depends on VIDEO_V4L2 && HAS_DMA
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select VIDEOBUF2_VMALLOC
+	---help---
+	  Say Y if you want to enable R-Car Gen3 DRIF support. DRIF is Digital
+	  Radio Interface that interfaces with an RF front end chip. It is a
+	  receiver of digital data which uses DMA to transfer received data to
+	  a configured location for an application to use.
+
+	  To compile this driver as a module, choose M here; the module
+	  will be called rcar_drif.
+
+endif # SDR_PLATFORM_DRIVERS
