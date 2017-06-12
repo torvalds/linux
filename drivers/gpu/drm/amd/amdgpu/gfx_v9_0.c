@@ -635,7 +635,7 @@ static void gfx_v9_0_get_csb_buffer(struct amdgpu_device *adev,
 
 static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 {
-	uint32_t data = 0;
+	uint32_t data;
 
 	/* set mmRLC_LB_THR_CONFIG_1/2/3/4 */
 	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_1, 0x0000007F);
@@ -655,12 +655,9 @@ static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmRLC_LB_INIT_CU_MASK, 0xffffffff);
 
 	/* set mmRLC_LB_PARAMS = 0x003F_1006 */
-	data |= (0x0003 << RLC_LB_PARAMS__FIFO_SAMPLES__SHIFT) &
-		RLC_LB_PARAMS__FIFO_SAMPLES_MASK;
-	data |= (0x0010 << RLC_LB_PARAMS__PG_IDLE_SAMPLES__SHIFT) &
-		RLC_LB_PARAMS__PG_IDLE_SAMPLES_MASK;
-	data |= (0x033F << RLC_LB_PARAMS__PG_IDLE_SAMPLE_INTERVAL__SHIFT) &
-		RLC_LB_PARAMS__PG_IDLE_SAMPLE_INTERVAL_MASK;
+	data = REG_SET_FIELD(0, RLC_LB_PARAMS, FIFO_SAMPLES, 0x0003);
+	data |= REG_SET_FIELD(data, RLC_LB_PARAMS, PG_IDLE_SAMPLES, 0x0010);
+	data |= REG_SET_FIELD(data, RLC_LB_PARAMS, PG_IDLE_SAMPLE_INTERVAL, 0x033F);
 	WREG32_SOC15(GC, 0, mmRLC_LB_PARAMS, data);
 
 	/* set mmRLC_GPM_GENERAL_7[31-16] = 0x00C0 */
@@ -675,24 +672,15 @@ static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 	/* set RLC_LB_CNTL = 0x8000_0095, 31 bit is reserved,
 	 * but used for RLC_LB_CNTL configuration */
 	data = RLC_LB_CNTL__LB_CNT_SPIM_ACTIVE_MASK;
-	data |= (0x09 << RLC_LB_CNTL__CU_MASK_USED_OFF_HYST__SHIFT) &
-		RLC_LB_CNTL__CU_MASK_USED_OFF_HYST_MASK;
-	data |= (0x80000 << RLC_LB_CNTL__RESERVED__SHIFT) &
-		RLC_LB_CNTL__RESERVED_MASK;
+	data |= REG_SET_FIELD(data, RLC_LB_CNTL, CU_MASK_USED_OFF_HYST, 0x09);
+	data |= REG_SET_FIELD(data, RLC_LB_CNTL, RESERVED, 0x80000);
 	WREG32_SOC15(GC, 0, mmRLC_LB_CNTL, data);
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
 static void gfx_v9_0_enable_lbpw(struct amdgpu_device *adev, bool enable)
 {
-        uint32_t data = 0;
-
-        data = RREG32_SOC15(GC, 0, mmRLC_LB_CNTL);
-        if (enable)
-                data |= RLC_LB_CNTL__LOAD_BALANCE_ENABLE_MASK;
-        else
-                data &= ~RLC_LB_CNTL__LOAD_BALANCE_ENABLE_MASK;
-        WREG32_SOC15(GC, 0, mmRLC_LB_CNTL, data);
+	WREG32_FIELD15(GC, 0, RLC_LB_CNTL, LOAD_BALANCE_ENABLE, enable ? 1 : 0);
 }
 
 static void rv_init_cp_jump_table(struct amdgpu_device *adev)
