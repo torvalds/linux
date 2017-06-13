@@ -867,49 +867,53 @@ static void log_error_thresholding(unsigned int bank, u64 misc)
 	_log_error_bank(bank, msr_ops.status(bank), msr_ops.addr(bank), misc);
 }
 
+static void log_and_reset_block(struct threshold_block *block)
+{
+	struct thresh_restart tr;
+	u32 low = 0, high = 0;
+
+	if (!block)
+		return;
+
+	if (rdmsr_safe(block->address, &low, &high))
+		return;
+
+	if (!(high & MASK_OVERFLOW_HI))
+		return;
+
+	/* Log the MCE which caused the threshold event. */
+	log_error_thresholding(block->bank, ((u64)high << 32) | low);
+
+	/* Reset threshold block after logging error. */
+	memset(&tr, 0, sizeof(tr));
+	tr.b = block;
+	threshold_restart_bank(&tr);
+}
+
 /*
  * Threshold interrupt handler will service THRESHOLD_APIC_VECTOR. The interrupt
  * goes off when error_count reaches threshold_limit.
  */
 static void amd_threshold_interrupt(void)
 {
-	u32 low = 0, high = 0, address = 0;
-	unsigned int bank, block, cpu = smp_processor_id();
-	struct thresh_restart tr;
+	struct threshold_block *first_block = NULL, *block = NULL, *tmp = NULL;
+	unsigned int bank, cpu = smp_processor_id();
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
-		for (block = 0; block < NR_BLOCKS; ++block) {
-			address = get_block_address(cpu, address, low, high, bank, block);
-			if (!address)
-				break;
 
-			if (rdmsr_safe(address, &low, &high))
-				break;
+		first_block = per_cpu(threshold_banks, cpu)[bank]->blocks;
+		if (!first_block)
+			continue;
 
-			if (!(high & MASK_VALID_HI)) {
-				if (block)
-					continue;
-				else
-					break;
-			}
-
-			if (!(high & MASK_CNTP_HI)  ||
-			     (high & MASK_LOCKED_HI))
-				continue;
-
-			if (!(high & MASK_OVERFLOW_HI))
-				continue;
-
-			/* Log the MCE which caused the threshold event. */
-			log_error_thresholding(bank, ((u64)high << 32) | low);
-
-			/* Reset threshold block after logging error. */
-			memset(&tr, 0, sizeof(tr));
-			tr.b = &per_cpu(threshold_banks, cpu)[bank]->blocks[block];
-			threshold_restart_bank(&tr);
-		}
+		/*
+		 * The first block is also the head of the list. Check it first
+		 * before iterating over the rest.
+		 */
+		log_and_reset_block(first_block);
+		list_for_each_entry_safe(block, tmp, &first_block->miscj, miscj)
+			log_and_reset_block(block);
 	}
 }
 
