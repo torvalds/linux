@@ -324,12 +324,8 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj,
 		if (IS_ERR(pages))
 			return PTR_ERR(pages);
 
-		if (iommu_present(&platform_bus_type)) {
-			ret = msm_gem_map_vma(priv->aspace[id], &msm_obj->domain[id],
-					msm_obj->sgt, obj->size >> PAGE_SHIFT);
-		} else {
-			msm_obj->domain[id].iova = physaddr(obj);
-		}
+		ret = msm_gem_map_vma(priv->aspace[id], &msm_obj->domain[id],
+				msm_obj->sgt, obj->size >> PAGE_SHIFT);
 	}
 
 	if (!ret)
@@ -765,7 +761,6 @@ static int msm_gem_new_impl(struct drm_device *dev,
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_object *msm_obj;
-	bool use_vram = false;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
@@ -780,20 +775,9 @@ static int msm_gem_new_impl(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	if (!iommu_present(&platform_bus_type))
-		use_vram = true;
-	else if ((flags & MSM_BO_STOLEN) && priv->vram.size)
-		use_vram = true;
-
-	if (WARN_ON(use_vram && !priv->vram.size))
-		return -EINVAL;
-
 	msm_obj = kzalloc(sizeof(*msm_obj), GFP_KERNEL);
 	if (!msm_obj)
 		return -ENOMEM;
-
-	if (use_vram)
-		msm_obj->vram_node = &msm_obj->domain[0].node;
 
 	msm_obj->flags = flags;
 	msm_obj->madv = MSM_MADV_WILLNEED;
@@ -816,12 +800,22 @@ static int msm_gem_new_impl(struct drm_device *dev,
 struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 		uint32_t size, uint32_t flags)
 {
+	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_gem_object *obj = NULL;
+	bool use_vram = false;
 	int ret;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	size = PAGE_ALIGN(size);
+
+	if (!iommu_present(&platform_bus_type))
+		use_vram = true;
+	else if ((flags & MSM_BO_STOLEN) && priv->vram.size)
+		use_vram = true;
+
+	if (WARN_ON(use_vram && !priv->vram.size))
+		return ERR_PTR(-EINVAL);
 
 	/* Disallow zero sized objects as they make the underlying
 	 * infrastructure grumpy
@@ -833,12 +827,24 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	if (use_pages(obj)) {
+	if (use_vram) {
+		struct msm_gem_object *msm_obj = to_msm_bo(obj);
+		struct page **pages;
+
+		msm_obj->vram_node = &msm_obj->domain[0].node;
+		drm_gem_private_object_init(dev, obj, size);
+
+		msm_obj->pages = get_pages(obj);
+		pages = get_pages(obj);
+		if (IS_ERR(pages)) {
+			ret = PTR_ERR(pages);
+			goto fail;
+		}
+		msm_obj->domain[0].iova = physaddr(obj);
+	} else {
 		ret = drm_gem_object_init(dev, obj, size);
 		if (ret)
 			goto fail;
-	} else {
-		drm_gem_private_object_init(dev, obj, size);
 	}
 
 	return obj;
