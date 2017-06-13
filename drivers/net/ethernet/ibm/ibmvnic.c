@@ -1364,7 +1364,9 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		napi_schedule(&adapter->napi[i]);
 
-	netdev_notify_peers(netdev);
+	if (adapter->reset_reason != VNIC_RESET_FAILOVER)
+		netdev_notify_peers(netdev);
+
 	return 0;
 }
 
