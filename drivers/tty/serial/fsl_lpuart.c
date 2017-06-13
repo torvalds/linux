@@ -140,6 +140,8 @@
 #define UARTBAUD_SBNS		0x00002000
 #define UARTBAUD_SBR		0x00000000
 #define UARTBAUD_SBR_MASK	0x1fff
+#define UARTBAUD_OSR_MASK       0x1f
+#define UARTBAUD_OSR_SHIFT      24
 
 #define UARTSTAT_LBKDIF		0x80000000
 #define UARTSTAT_RXEDGIF	0x40000000
@@ -1511,6 +1513,75 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 }
 
 static void
+lpuart32_serial_setbrg(struct lpuart_port *sport, unsigned int baudrate)
+{
+	u32 sbr, osr, baud_diff, tmp_osr, tmp_sbr, tmp_diff, tmp;
+	u32 clk = sport->port.uartclk;
+
+	/*
+	 * The idea is to use the best OSR (over-sampling rate) possible.
+	 * Note, OSR is typically hard-set to 16 in other LPUART instantiations.
+	 * Loop to find the best OSR value possible, one that generates minimum
+	 * baud_diff iterate through the rest of the supported values of OSR.
+	 *
+	 * Calculation Formula:
+	 *  Baud Rate = baud clock / ((OSR+1) × SBR)
+	 */
+	baud_diff = baudrate;
+	osr = 0;
+	sbr = 0;
+
+	for (tmp_osr = 4; tmp_osr <= 32; tmp_osr++) {
+		/* calculate the temporary sbr value  */
+		tmp_sbr = (clk / (baudrate * tmp_osr));
+		if (tmp_sbr == 0)
+			tmp_sbr = 1;
+
+		/*
+		 * calculate the baud rate difference based on the temporary
+		 * osr and sbr values
+		 */
+		tmp_diff = clk / (tmp_osr * tmp_sbr) - baudrate;
+
+		/* select best values between sbr and sbr+1 */
+		tmp = clk / (tmp_osr * (tmp_sbr + 1));
+		if (tmp_diff > (baudrate - tmp)) {
+			tmp_diff = baudrate - tmp;
+			tmp_sbr++;
+		}
+
+		if (tmp_diff <= baud_diff) {
+			baud_diff = tmp_diff;
+			osr = tmp_osr;
+			sbr = tmp_sbr;
+
+			if (!baud_diff)
+				break;
+		}
+	}
+
+	/* handle buadrate outside acceptable rate */
+	if (baud_diff > ((baudrate / 100) * 3))
+		dev_warn(sport->port.dev,
+			 "unacceptable baud rate difference of more than 3%%\n");
+
+	tmp = lpuart32_read(&sport->port, UARTBAUD);
+
+	if ((osr > 3) && (osr < 8))
+		tmp |= UARTBAUD_BOTHEDGE;
+
+	tmp &= ~(UARTBAUD_OSR_MASK << UARTBAUD_OSR_SHIFT);
+	tmp |= (((osr-1) & UARTBAUD_OSR_MASK) << UARTBAUD_OSR_SHIFT);
+
+	tmp &= ~UARTBAUD_SBR_MASK;
+	tmp |= sbr & UARTBAUD_SBR_MASK;
+
+	tmp &= ~(UARTBAUD_TDMAE | UARTBAUD_RDMAE);
+
+	lpuart32_write(&sport->port, tmp, UARTBAUD);
+}
+
+static void
 lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 		   struct ktermios *old)
 {
@@ -1519,7 +1590,6 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned long ctrl, old_ctrl, bd, modem;
 	unsigned int  baud;
 	unsigned int old_csize = old ? old->c_cflag & CSIZE : CS8;
-	unsigned int sbr;
 
 	ctrl = old_ctrl = lpuart32_read(&sport->port, UARTCTRL);
 	bd = lpuart32_read(&sport->port, UARTBAUD);
@@ -1616,12 +1686,7 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 	lpuart32_write(&sport->port, old_ctrl & ~(UARTCTRL_TE | UARTCTRL_RE),
 		       UARTCTRL);
 
-	sbr = sport->port.uartclk / (16 * baud);
-	bd &= ~UARTBAUD_SBR_MASK;
-	bd |= sbr & UARTBAUD_SBR_MASK;
-	bd |= UARTBAUD_BOTHEDGE;
-	bd &= ~(UARTBAUD_TDMAE | UARTBAUD_RDMAE);
-	lpuart32_write(&sport->port, bd, UARTBAUD);
+	lpuart32_serial_setbrg(sport, baud);
 	lpuart32_write(&sport->port, modem, UARTMODIR);
 	lpuart32_write(&sport->port, ctrl, UARTCTRL);
 	/* restore control register */
