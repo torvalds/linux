@@ -1054,8 +1054,11 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 	fixed20_12 a, b, c;
 
 	if (amdgpu_crtc->base.enabled && num_heads && mode) {
-		active_time = 1000000UL * (u32)mode->crtc_hdisplay / (u32)mode->clock;
-		line_time = min((u32) (1000000UL * (u32)mode->crtc_htotal / (u32)mode->clock), (u32)65535);
+		active_time = (u32) div_u64((u64)mode->crtc_hdisplay * 1000000,
+					    (u32)mode->clock);
+		line_time = (u32) div_u64((u64)mode->crtc_htotal * 1000000,
+					  (u32)mode->clock);
+		line_time = min(line_time, (u32)65535);
 		priority_a_cnt = 0;
 		priority_b_cnt = 0;
 
