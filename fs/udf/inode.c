@@ -1243,8 +1243,8 @@ int udf_setsize(struct inode *inode, loff_t newsize)
 			return err;
 		}
 set_size:
-		truncate_setsize(inode, newsize);
 		up_write(&iinfo->i_data_sem);
+		truncate_setsize(inode, newsize);
 	} else {
 		if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 			down_write(&iinfo->i_data_sem);
@@ -1261,9 +1261,9 @@ set_size:
 					  udf_get_block);
 		if (err)
 			return err;
+		truncate_setsize(inode, newsize);
 		down_write(&iinfo->i_data_sem);
 		udf_clear_extent_cache(inode);
-		truncate_setsize(inode, newsize);
 		udf_truncate_extents(inode);
 		up_write(&iinfo->i_data_sem);
 	}
