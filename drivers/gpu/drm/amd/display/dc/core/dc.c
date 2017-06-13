@@ -1404,15 +1404,18 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	if (!surface_count)  /* reset */
 		core_dc->hwss.apply_ctx_for_surface(core_dc, NULL, context);
 
-	/* Lock pipes for provided surfaces */
+	/* Lock pipes for provided surfaces, or all active if full update*/
 	for (i = 0; i < surface_count; i++) {
 		struct core_surface *surface = DC_SURFACE_TO_CORE(srf_updates[i].surface);
 
 		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-			if (pipe_ctx->surface != surface)
+			if (update_type != UPDATE_TYPE_FULL && pipe_ctx->surface != surface)
 				continue;
+			if (!pipe_ctx->surface || pipe_ctx->top_pipe)
+				continue;
+
 			if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
 				core_dc->hwss.pipe_control_lock(
 						core_dc,
@@ -1420,22 +1423,49 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 						true);
 			}
 		}
+		if (update_type == UPDATE_TYPE_FULL)
+			break;
 	}
+
+	/* Full fe update*/
+	for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+		struct pipe_ctx *cur_pipe_ctx = &core_dc->current_context->res_ctx.pipe_ctx[j];
+		bool is_new_pipe_surface = cur_pipe_ctx->surface != pipe_ctx->surface;
+		struct dc_cursor_position position = { 0 };
+
+		if (update_type != UPDATE_TYPE_FULL || !pipe_ctx->surface)
+			continue;
+
+		if (!pipe_ctx->top_pipe)
+			core_dc->hwss.apply_ctx_for_surface(
+					core_dc, pipe_ctx->surface, context);
+
+		/* TODO: this is a hack w/a for switching from mpo to pipe split */
+		dc_stream_set_cursor_position(&pipe_ctx->stream->public, &position);
+
+		if (is_new_pipe_surface) {
+			core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
+			core_dc->hwss.set_input_transfer_func(
+					pipe_ctx, pipe_ctx->surface);
+			core_dc->hwss.set_output_transfer_func(
+					pipe_ctx, pipe_ctx->stream);
+		}
+	}
+
+	if (update_type > UPDATE_TYPE_FAST)
+		context_timing_trace(dc, &context->res_ctx);
 
 	/* Perform requested Updates */
 	for (i = 0; i < surface_count; i++) {
 		struct core_surface *surface = DC_SURFACE_TO_CORE(srf_updates[i].surface);
 
-		if (update_type >= UPDATE_TYPE_MED) {
-				core_dc->hwss.apply_ctx_for_surface(
-						core_dc, surface, context);
-				context_timing_trace(dc, &context->res_ctx);
-		}
+		if (update_type == UPDATE_TYPE_MED)
+			core_dc->hwss.apply_ctx_for_surface(
+					core_dc, surface, context);
 
 		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
-			struct pipe_ctx *cur_pipe_ctx;
-			bool is_new_pipe_surface = true;
 
 			if (pipe_ctx->surface != surface)
 				continue;
@@ -1446,19 +1476,12 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
 
-			cur_pipe_ctx = &core_dc->current_context->res_ctx.pipe_ctx[j];
-			if (cur_pipe_ctx->surface == pipe_ctx->surface)
-				is_new_pipe_surface = false;
-
-			if (is_new_pipe_surface ||
-					srf_updates[i].in_transfer_func)
+			if (srf_updates[i].in_transfer_func)
 				core_dc->hwss.set_input_transfer_func(
 						pipe_ctx, pipe_ctx->surface);
 
-			if (is_new_pipe_surface ||
-				(stream_update != NULL &&
-					stream_update->out_transfer_func !=
-							NULL)) {
+			if (stream_update != NULL &&
+					stream_update->out_transfer_func != NULL) {
 				core_dc->hwss.set_output_transfer_func(
 						pipe_ctx, pipe_ctx->stream);
 			}
@@ -1475,15 +1498,19 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		for (j = 0; j < surface_count; j++) {
-			if (srf_updates[j].surface == &pipe_ctx->surface->public) {
-				if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
-					core_dc->hwss.pipe_control_lock(
-							core_dc,
-							pipe_ctx,
-							false);
-				}
-				break;
+			if (update_type != UPDATE_TYPE_FULL &&
+					srf_updates[j].surface != &pipe_ctx->surface->public)
+				continue;
+			if (!pipe_ctx->surface || pipe_ctx->top_pipe)
+				continue;
+
+			if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
+				core_dc->hwss.pipe_control_lock(
+						core_dc,
+						pipe_ctx,
+						false);
 			}
+			break;
 		}
 	}
 
