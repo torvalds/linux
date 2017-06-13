@@ -72,11 +72,14 @@
 #define GLOBAL_INT_ENABLE			0xf0
 #define     GLOBAL_INT_EN_FLAG				BIT(0)
 
-#define WE_2_RE					0x100
-#define     WE_2_RE__VALUE				GENMASK(5, 0)
+#define TWHR2_AND_WE_2_RE			0x100
+#define     TWHR2_AND_WE_2_RE__WE_2_RE			GENMASK(5, 0)
+#define     TWHR2_AND_WE_2_RE__TWHR2			GENMASK(13, 8)
 
-#define ADDR_2_DATA				0x110
-#define     ADDR_2_DATA__VALUE				GENMASK(5, 0)
+#define TCWAW_AND_ADDR_2_DATA			0x110
+/* The width of ADDR_2_DATA is 6 bit for old IP, 7 bit for new IP */
+#define     TCWAW_AND_ADDR_2_DATA__ADDR_2_DATA		GENMASK(6, 0)
+#define     TCWAW_AND_ADDR_2_DATA__TCWAW		GENMASK(13, 8)
 
 #define RE_2_WE					0x120
 #define     RE_2_WE__VALUE				GENMASK(5, 0)
@@ -128,6 +131,7 @@
 
 #define CS_SETUP_CNT				0x220
 #define     CS_SETUP_CNT__VALUE				GENMASK(4, 0)
+#define     CS_SETUP_CNT__TWB				GENMASK(17, 12)
 
 #define SPARE_AREA_SKIP_BYTES			0x230
 #define     SPARE_AREA_SKIP_BYTES__VALUE		GENMASK(5, 0)
@@ -294,15 +298,7 @@
 #define     CHNL_ACTIVE__CHANNEL2			BIT(2)
 #define     CHNL_ACTIVE__CHANNEL3			BIT(3)
 
-#define FAIL 1                  /*failed flag*/
 #define PASS 0                  /*success flag*/
-
-#define CLK_X  5
-#define CLK_MULTI 4
-
-#define ONFI_BLOOM_TIME         1
-#define MODE5_WORKAROUND        0
-
 
 #define MODE_00    0x00000000
 #define MODE_01    0x04000000
@@ -316,14 +312,10 @@ struct nand_buf {
 	dma_addr_t dma_buf;
 };
 
-#define INTEL_CE4100	1
-#define INTEL_MRST	2
-#define DT		3
-
 struct denali_nand_info {
 	struct nand_chip nand;
+	unsigned long clk_x_rate;	/* bus interface clock rate */
 	int flash_bank; /* currently selected chip */
-	int platform;
 	struct nand_buf buf;
 	struct device *dev;
 	int page;

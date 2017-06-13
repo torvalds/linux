@@ -96,7 +96,6 @@ static int denali_dt_probe(struct platform_device *pdev)
 		denali->ecc_caps = data->ecc_caps;
 	}
 
-	denali->platform = DT;
 	denali->dev = &pdev->dev;
 	denali->irq = platform_get_irq(pdev, 0);
 	if (denali->irq < 0) {
@@ -120,6 +119,8 @@ static int denali_dt_probe(struct platform_device *pdev)
 		return PTR_ERR(dt->clk);
 	}
 	clk_prepare_enable(dt->clk);
+
+	denali->clk_x_rate = clk_get_rate(dt->clk);
 
 	ret = denali_init(denali);
 	if (ret)
