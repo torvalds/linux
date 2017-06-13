@@ -353,7 +353,7 @@
 /*-------------------------------------------------------------*/
 /* Commonly used basic types */
 struct hfa384x_bytestr {
-	u16 len;
+	__le16 len;
 	u8 data[0];
 } __packed;
 
@@ -419,7 +419,7 @@ struct hfa384x_authenticate_station_data {
 
 /*-- Configuration Record: WPAData       (data portion only) --*/
 struct hfa384x_wpa_data {
-	u16 datalen;
+	__le16 datalen;
 	u8 data[0];		/* max 80 */
 } __packed;
 
