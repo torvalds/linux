@@ -695,7 +695,7 @@ static int write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			const uint8_t *buf, int page, bool raw_xfer)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
-	dma_addr_t addr = denali->buf.dma_buf;
+	dma_addr_t addr = denali->dma_addr;
 	size_t size = mtd->writesize + mtd->oobsize;
 	uint32_t irq_status;
 	uint32_t irq_mask = INTR__DMA_CMD_COMP | INTR__PROGRAM_FAIL;
@@ -709,11 +709,11 @@ static int write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	setup_ecc_for_xfer(denali, !raw_xfer, raw_xfer);
 
 	/* copy buffer into DMA buffer */
-	memcpy(denali->buf.buf, buf, mtd->writesize);
+	memcpy(denali->buf, buf, mtd->writesize);
 
 	if (raw_xfer) {
 		/* transfer the data to the spare area */
-		memcpy(denali->buf.buf + mtd->writesize,
+		memcpy(denali->buf + mtd->writesize,
 			chip->oob_poi,
 			mtd->oobsize);
 	}
@@ -790,7 +790,7 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			    uint8_t *buf, int oob_required, int page)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
-	dma_addr_t addr = denali->buf.dma_buf;
+	dma_addr_t addr = denali->dma_addr;
 	size_t size = mtd->writesize + mtd->oobsize;
 	uint32_t irq_status;
 	uint32_t irq_mask = denali->caps & DENALI_CAP_HW_ECC_FIXUP ?
@@ -812,7 +812,7 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	dma_sync_single_for_cpu(denali->dev, addr, size, DMA_FROM_DEVICE);
 
-	memcpy(buf, denali->buf.buf, mtd->writesize);
+	memcpy(buf, denali->buf, mtd->writesize);
 
 	if (denali->caps & DENALI_CAP_HW_ECC_FIXUP)
 		stat = denali_hw_ecc_fixup(mtd, denali, &uncor_ecc_flags);
@@ -837,7 +837,7 @@ static int denali_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				uint8_t *buf, int oob_required, int page)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
-	dma_addr_t addr = denali->buf.dma_buf;
+	dma_addr_t addr = denali->dma_addr;
 	size_t size = mtd->writesize + mtd->oobsize;
 	uint32_t irq_mask = INTR__DMA_CMD_COMP;
 	uint32_t irq_status;
@@ -859,8 +859,8 @@ static int denali_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 
 	denali_enable_dma(denali, false);
 
-	memcpy(buf, denali->buf.buf, mtd->writesize);
-	memcpy(chip->oob_poi, denali->buf.buf + mtd->writesize, mtd->oobsize);
+	memcpy(buf, denali->buf, mtd->writesize);
+	memcpy(chip->oob_poi, denali->buf + mtd->writesize, mtd->oobsize);
 
 	return 0;
 }
@@ -1280,10 +1280,9 @@ int denali_init(struct denali_nand_info *denali)
 	if (ret)
 		goto disable_irq;
 
-	denali->buf.buf = devm_kzalloc(denali->dev,
-			     mtd->writesize + mtd->oobsize,
-			     GFP_KERNEL);
-	if (!denali->buf.buf) {
+	denali->buf = devm_kzalloc(denali->dev, mtd->writesize + mtd->oobsize,
+				   GFP_KERNEL);
+	if (!denali->buf) {
 		ret = -ENOMEM;
 		goto disable_irq;
 	}
@@ -1296,10 +1295,10 @@ int denali_init(struct denali_nand_info *denali)
 		goto disable_irq;
 	}
 
-	denali->buf.dma_buf = dma_map_single(denali->dev, denali->buf.buf,
+	denali->dma_addr = dma_map_single(denali->dev, denali->buf,
 			     mtd->writesize + mtd->oobsize,
 			     DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(denali->dev, denali->buf.dma_buf)) {
+	if (dma_mapping_error(denali->dev, denali->dma_addr)) {
 		dev_err(denali->dev, "Failed to map DMA buffer\n");
 		ret = -EIO;
 		goto disable_irq;
@@ -1400,7 +1399,7 @@ void denali_remove(struct denali_nand_info *denali)
 
 	nand_release(mtd);
 	denali_disable_irq(denali);
-	dma_unmap_single(denali->dev, denali->buf.dma_buf, bufsize,
+	dma_unmap_single(denali->dev, denali->dma_addr, bufsize,
 			 DMA_BIDIRECTIONAL);
 }
 EXPORT_SYMBOL(denali_remove);

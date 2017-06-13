@@ -305,16 +305,10 @@
 #define MODE_10    0x08000000
 #define MODE_11    0x0C000000
 
-struct nand_buf {
-	uint8_t *buf;
-	dma_addr_t dma_buf;
-};
-
 struct denali_nand_info {
 	struct nand_chip nand;
 	unsigned long clk_x_rate;	/* bus interface clock rate */
 	int flash_bank; /* currently selected chip */
-	struct nand_buf buf;
 	struct device *dev;
 	void __iomem *flash_reg;	/* Register Interface */
 	void __iomem *flash_mem;	/* Host Data/Command Interface */
@@ -326,6 +320,8 @@ struct denali_nand_info {
 	uint32_t irq_status;
 	int irq;
 
+	void *buf;
+	dma_addr_t dma_addr;
 	int devnum;	/* represent how many nands connected */
 	int bbtskipbytes;
 	int max_banks;
