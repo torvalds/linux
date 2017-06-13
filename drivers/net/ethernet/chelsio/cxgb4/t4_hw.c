@@ -4462,7 +4462,7 @@ static void pl_intr_handler(struct adapter *adap)
 #define PF_INTR_MASK (PFSW_F)
 #define GLBL_INTR_MASK (CIM_F | MPS_F | PL_F | PCIE_F | MC_F | EDC0_F | \
 		EDC1_F | LE_F | TP_F | MA_F | PM_TX_F | PM_RX_F | ULP_RX_F | \
-		CPL_SWITCH_F | SGE_F | ULP_TX_F)
+		CPL_SWITCH_F | SGE_F | ULP_TX_F | SF_F)
 
 /**
  *	t4_slow_intr_handler - control path interrupt handler
