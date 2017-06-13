@@ -399,7 +399,7 @@ static int nitrox_show(struct seq_file *s, void *v)
 	struct nitrox_device *ndev = s->private;
 
 	seq_printf(s, "NITROX-5 [idx: %d]\n", ndev->idx);
-	seq_printf(s, "  Revsion ID: 0x%0x\n", ndev->hw.revision_id);
+	seq_printf(s, "  Revision ID: 0x%0x\n", ndev->hw.revision_id);
 	seq_printf(s, "  Cores [AE: %u  SE: %u]\n",
 		   ndev->hw.ae_cores, ndev->hw.se_cores);
 	seq_printf(s, "  Number of Queues: %u\n", ndev->nr_queues);
