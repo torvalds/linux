@@ -659,7 +659,7 @@ static int byt_sd_probe_slot(struct sdhci_pci_slot *slot)
 {
 	byt_read_dsm(slot);
 	slot->host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY |
-				 MMC_CAP_AGGRESSIVE_PM;
+				 MMC_CAP_AGGRESSIVE_PM | MMC_CAP_CD_WAKE;
 	slot->cd_idx = 0;
 	slot->cd_override_level = true;
 	if (slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_BXT_SD ||
