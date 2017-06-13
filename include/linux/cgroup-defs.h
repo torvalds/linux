@@ -166,6 +166,9 @@ struct css_set {
 	/* the default cgroup associated with this css_set */
 	struct cgroup *dfl_cgrp;
 
+	/* internal task count, protected by css_set_lock */
+	int nr_tasks;
+
 	/*
 	 * Lists running through all tasks using this cgroup group.
 	 * mg_tasks lists tasks which belong to this cset but are in the
