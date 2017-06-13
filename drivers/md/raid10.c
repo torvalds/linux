@@ -3295,7 +3295,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			biolist = bio;
 			bio->bi_end_io = end_sync_read;
 			bio_set_op_attrs(bio, REQ_OP_READ, 0);
-			if (test_bit(FailFast, &conf->mirrors[d].rdev->flags))
+			if (test_bit(FailFast, &rdev->flags))
 				bio->bi_opf |= MD_FAILFAST;
 			bio->bi_iter.bi_sector = sector + rdev->data_offset;
 			bio->bi_bdev = rdev->bdev;
@@ -3307,7 +3307,6 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 				continue;
 			}
 			atomic_inc(&rdev->nr_pending);
-			rcu_read_unlock();
 
 			/* Need to set up for writing to the replacement */
 			bio = r10_bio->devs[i].repl_bio;
@@ -3318,11 +3317,12 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			biolist = bio;
 			bio->bi_end_io = end_sync_write;
 			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-			if (test_bit(FailFast, &conf->mirrors[d].rdev->flags))
+			if (test_bit(FailFast, &rdev->flags))
 				bio->bi_opf |= MD_FAILFAST;
 			bio->bi_iter.bi_sector = sector + rdev->data_offset;
 			bio->bi_bdev = rdev->bdev;
 			count++;
+			rcu_read_unlock();
 		}
 
 		if (count < 2) {
