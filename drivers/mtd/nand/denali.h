@@ -298,8 +298,6 @@
 #define     CHNL_ACTIVE__CHANNEL2			BIT(2)
 #define     CHNL_ACTIVE__CHANNEL3			BIT(3)
 
-#define PASS 0                  /*success flag*/
-
 #define MODE_00    0x00000000
 #define MODE_01    0x04000000
 #define MODE_10    0x08000000
@@ -322,6 +320,7 @@ struct denali_nand_info {
 
 	void *buf;
 	dma_addr_t dma_addr;
+	int dma_avail;
 	int devnum;	/* represent how many nands connected */
 	int bbtskipbytes;
 	int max_banks;
