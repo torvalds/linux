@@ -294,15 +294,15 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	 */
 	bosize = (cmds_size + (cmds_size / TYPE4_MAX_PAYLOAD) + 1) << 2;
 
-	a5xx_gpu->gpmu_bo = msm_gem_new(drm, bosize, MSM_BO_UNCACHED);
+	a5xx_gpu->gpmu_bo = msm_gem_new_locked(drm, bosize, MSM_BO_UNCACHED);
 	if (IS_ERR(a5xx_gpu->gpmu_bo))
 		goto err;
 
-	if (msm_gem_get_iova_locked(a5xx_gpu->gpmu_bo, gpu->aspace,
+	if (msm_gem_get_iova(a5xx_gpu->gpmu_bo, gpu->aspace,
 			&a5xx_gpu->gpmu_iova))
 		goto err;
 
-	ptr = msm_gem_get_vaddr_locked(a5xx_gpu->gpmu_bo);
+	ptr = msm_gem_get_vaddr(a5xx_gpu->gpmu_bo);
 	if (!ptr)
 		goto err;
 
@@ -321,7 +321,7 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 		cmds_size -= _size;
 	}
 
-	msm_gem_put_vaddr_locked(a5xx_gpu->gpmu_bo);
+	msm_gem_put_vaddr(a5xx_gpu->gpmu_bo);
 	a5xx_gpu->gpmu_dwords = dwords;
 
 	goto out;

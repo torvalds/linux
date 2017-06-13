@@ -297,18 +297,18 @@ static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
 	struct drm_gem_object *bo;
 	void *ptr;
 
-	bo = msm_gem_new(drm, fw->size - 4, MSM_BO_UNCACHED);
+	bo = msm_gem_new_locked(drm, fw->size - 4, MSM_BO_UNCACHED);
 	if (IS_ERR(bo))
 		return bo;
 
-	ptr = msm_gem_get_vaddr_locked(bo);
+	ptr = msm_gem_get_vaddr(bo);
 	if (!ptr) {
 		drm_gem_object_unreference(bo);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	if (iova) {
-		int ret = msm_gem_get_iova_locked(bo, gpu->aspace, iova);
+		int ret = msm_gem_get_iova(bo, gpu->aspace, iova);
 
 		if (ret) {
 			drm_gem_object_unreference(bo);
@@ -318,7 +318,7 @@ static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
 
 	memcpy(ptr, &fw->data[4], fw->size - 4);
 
-	msm_gem_put_vaddr_locked(bo);
+	msm_gem_put_vaddr(bo);
 	return bo;
 }
 
