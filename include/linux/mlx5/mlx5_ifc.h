@@ -4620,6 +4620,7 @@ enum {
 	MLX5_ACTION_IN_FIELD_OUT_DIPV6_31_0    = 0x14,
 	MLX5_ACTION_IN_FIELD_OUT_SIPV4         = 0x15,
 	MLX5_ACTION_IN_FIELD_OUT_DIPV4         = 0x16,
+	MLX5_ACTION_IN_FIELD_OUT_IPV6_HOPLIMIT = 0x47,
 };
 
 struct mlx5_ifc_alloc_modify_header_context_out_bits {

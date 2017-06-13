@@ -1081,6 +1081,7 @@ static struct mlx5_fields fields[] = {
 	OFFLOAD(DIPV6_95_64,  4, ip6.daddr.s6_addr32[1], 0),
 	OFFLOAD(DIPV6_63_32,  4, ip6.daddr.s6_addr32[2], 0),
 	OFFLOAD(DIPV6_31_0,   4, ip6.daddr.s6_addr32[3], 0),
+	OFFLOAD(IPV6_HOPLIMIT, 1, ip6.hop_limit, 0),
 
 	OFFLOAD(TCP_SPORT, 2, tcp.source,  0),
 	OFFLOAD(TCP_DPORT, 2, tcp.dest,    0),
