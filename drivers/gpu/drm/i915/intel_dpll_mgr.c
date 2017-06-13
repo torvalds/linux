@@ -2292,8 +2292,9 @@ static bool cnl_ddi_hdmi_pll_dividers(struct intel_crtc *crtc,
 	return true;
 }
 
-bool cnl_ddi_dp_set_dpll_hw_state(int clock,
-				  struct intel_dpll_hw_state *dpll_hw_state)
+static bool
+cnl_ddi_dp_set_dpll_hw_state(int clock,
+			     struct intel_dpll_hw_state *dpll_hw_state)
 {
 	uint32_t cfgcr0;
 
