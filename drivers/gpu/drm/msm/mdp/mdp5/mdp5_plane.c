@@ -22,8 +22,6 @@
 struct mdp5_plane {
 	struct drm_plane base;
 
-	spinlock_t pipe_lock;     /* protect REG_MDP5_PIPE_* registers */
-
 	uint32_t nformats;
 	uint32_t formats[32];
 };
@@ -881,7 +879,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		struct drm_rect *src, struct drm_rect *dest)
 {
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct drm_plane_state *pstate = plane->state;
 	struct mdp5_hw_pipe *hwpipe = to_mdp5_plane_state(pstate)->hwpipe;
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
@@ -902,7 +899,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	uint32_t src_img_w, src_img_h;
 	uint32_t src_x_r;
 	int crtc_x_r;
-	unsigned long flags;
 	int ret;
 
 	nplanes = fb->format->num_planes;
@@ -981,8 +977,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	hflip = !!(rotation & DRM_MODE_REFLECT_X);
 	vflip = !!(rotation & DRM_MODE_REFLECT_Y);
 
-	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
-
 	mdp5_hwpipe_mode_set(mdp5_kms, hwpipe, fb, &step, &pe,
 			     config, hdecm, vdecm, hflip, vflip,
 			     crtc_x, crtc_y, crtc_w, crtc_h,
@@ -994,8 +988,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 				     crtc_x_r, crtc_y, crtc_w, crtc_h,
 				     src_img_w, src_img_h,
 				     src_x_r, src_y, src_w, src_h);
-
-	spin_unlock_irqrestore(&mdp5_plane->pipe_lock, flags);
 
 	plane->fb = fb;
 
@@ -1138,8 +1130,6 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 
 	mdp5_plane->nformats = mdp_get_formats(mdp5_plane->formats,
 		ARRAY_SIZE(mdp5_plane->formats), false);
-
-	spin_lock_init(&mdp5_plane->pipe_lock);
 
 	if (type == DRM_PLANE_TYPE_CURSOR)
 		ret = drm_universal_plane_init(dev, plane, 0xff,
