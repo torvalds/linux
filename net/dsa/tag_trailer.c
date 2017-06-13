@@ -61,11 +61,10 @@ static struct sk_buff *trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 				   struct net_device *orig_dev)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds;
+	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
+	struct dsa_switch *ds = cpu_dp->ds;
 	u8 *trailer;
 	int source_port;
-
-	ds = dst->cpu_dp->ds;
 
 	if (skb_linearize(skb))
 		return NULL;

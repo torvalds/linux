@@ -101,8 +101,11 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	struct dsa_switch_tree *dst = ds->dst;
 	struct dsa_chip_data *cd = ds->cd;
 	bool valid_name_found = false;
+	struct net_device *master;
 	int index = ds->index;
 	int i, ret;
+
+	master = dst->cpu_dp->netdev;
 
 	/*
 	 * Validate supplied switch configuration.
@@ -116,7 +119,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 
 		if (!strcmp(name, "cpu")) {
 			if (dst->cpu_dp) {
-				netdev_err(dst->master_netdev,
+				netdev_err(master,
 					   "multiple cpu ports?!\n");
 				return -EINVAL;
 			}
@@ -126,6 +129,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 			ds->dsa_port_mask |= 1 << i;
 		} else {
 			ds->enabled_port_mask |= 1 << i;
+			ds->ports[i].cpu_dp = dst->cpu_dp;
 		}
 		valid_name_found = true;
 	}
@@ -168,7 +172,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 		return ret;
 
 	if (ops->set_addr) {
-		ret = ops->set_addr(ds, dst->master_netdev->dev_addr);
+		ret = ops->set_addr(ds, master->dev_addr);
 		if (ret < 0)
 			return ret;
 	}
@@ -195,14 +199,14 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 
 		ret = dsa_slave_create(ds, parent, i, cd->port_names[i]);
 		if (ret < 0)
-			netdev_err(dst->master_netdev, "[%d]: can't create dsa slave device for port %d(%s): %d\n",
+			netdev_err(master, "[%d]: can't create dsa slave device for port %d(%s): %d\n",
 				   index, i, cd->port_names[i], ret);
 	}
 
 	/* Perform configuration of the CPU and DSA ports */
 	ret = dsa_cpu_dsa_setups(ds, parent);
 	if (ret < 0)
-		netdev_err(dst->master_netdev, "[%d] : can't configure CPU and DSA ports\n",
+		netdev_err(master, "[%d] : can't configure CPU and DSA ports\n",
 			   index);
 
 	ret = dsa_cpu_port_ethtool_setup(ds->dst->cpu_dp);
@@ -217,6 +221,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 		 struct device *parent, struct device *host_dev)
 {
 	struct dsa_chip_data *cd = dst->pd->chip + index;
+	struct net_device *master = dst->cpu_dp->netdev;
 	const struct dsa_switch_ops *ops;
 	struct dsa_switch *ds;
 	int ret;
@@ -228,11 +233,11 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	 */
 	ops = dsa_switch_probe(parent, host_dev, cd->sw_addr, &name, &priv);
 	if (!ops) {
-		netdev_err(dst->master_netdev, "[%d]: could not detect attached switch\n",
+		netdev_err(master, "[%d]: could not detect attached switch\n",
 			   index);
 		return ERR_PTR(-EINVAL);
 	}
-	netdev_info(dst->master_netdev, "[%d]: detected a %s switch\n",
+	netdev_info(master, "[%d]: detected a %s switch\n",
 		    index, name);
 
 
@@ -575,7 +580,7 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 	unsigned configured = 0;
 
 	dst->pd = pd;
-	dst->master_netdev = dev;
+	dst->cpu_dp->netdev = dev;
 
 	for (i = 0; i < pd->nr_chips; i++) {
 		struct dsa_switch *ds;
@@ -671,7 +676,7 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 {
 	int i;
 
-	dst->master_netdev->dsa_ptr = NULL;
+	dst->cpu_dp->netdev->dsa_ptr = NULL;
 
 	/* If we used a tagging format that doesn't have an ethertype
 	 * field, make sure that all packets from this point get sent
@@ -688,7 +693,7 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 
 	dsa_cpu_port_ethtool_restore(dst->cpu_dp);
 
-	dev_put(dst->master_netdev);
+	dev_put(dst->cpu_dp->netdev);
 }
 
 static int dsa_remove(struct platform_device *pdev)
