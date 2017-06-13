@@ -158,5 +158,7 @@ static const u16 chrg_cur_input_array[] = {
 };
 
 void kernel_power_off(void);
+int rk818_bat_temp_notifier_register(struct notifier_block *nb);
+int rk818_bat_temp_notifier_unregister(struct notifier_block *nb);
 
 #endif

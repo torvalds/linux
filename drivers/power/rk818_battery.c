@@ -2511,6 +2511,23 @@ static int rk818_bat_get_ntc_res(struct rk818_battery *di)
 	return val;
 }
 
+static BLOCKING_NOTIFIER_HEAD(rk818_bat_notifier_chain);
+
+int rk818_bat_temp_notifier_register(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&rk818_bat_notifier_chain, nb);
+}
+
+int rk818_bat_temp_notifier_unregister(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&rk818_bat_notifier_chain, nb);
+}
+
+static void rk818_bat_temp_notifier_callback(int temp)
+{
+	blocking_notifier_call_chain(&rk818_bat_notifier_chain, temp, NULL);
+}
+
 static void rk818_bat_update_temperature(struct rk818_battery *di)
 {
 	u32 ntc_size, *ntc_table;
@@ -2532,6 +2549,7 @@ static void rk818_bat_update_temperature(struct rk818_battery *di)
 					break;
 			}
 			di->temperature = (i + di->pdata->ntc_degree_from) * 10;
+			rk818_bat_temp_notifier_callback(di->temperature / 10);
 		}
 	}
 }
