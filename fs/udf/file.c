@@ -43,10 +43,15 @@ static void __udf_adinicb_readpage(struct page *page)
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
 	struct udf_inode_info *iinfo = UDF_I(inode);
+	loff_t isize = i_size_read(inode);
 
+	/*
+	 * We have to be careful here as truncate can change i_size under us.
+	 * So just sample it once and use the same value everywhere.
+	 */
 	kaddr = kmap_atomic(page);
-	memcpy(kaddr, iinfo->i_ext.i_data + iinfo->i_lenEAttr, inode->i_size);
-	memset(kaddr + inode->i_size, 0, PAGE_SIZE - inode->i_size);
+	memcpy(kaddr, iinfo->i_ext.i_data + iinfo->i_lenEAttr, isize);
+	memset(kaddr + isize, 0, PAGE_SIZE - isize);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
 	kunmap_atomic(kaddr);
