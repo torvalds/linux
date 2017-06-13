@@ -684,33 +684,33 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	rs->regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(rs->regs)) {
 		ret =  PTR_ERR(rs->regs);
-		goto err_ioremap_resource;
+		goto err_put_master;
 	}
 
 	rs->apb_pclk = devm_clk_get(&pdev->dev, "apb_pclk");
 	if (IS_ERR(rs->apb_pclk)) {
 		dev_err(&pdev->dev, "Failed to get apb_pclk\n");
 		ret = PTR_ERR(rs->apb_pclk);
-		goto err_ioremap_resource;
+		goto err_put_master;
 	}
 
 	rs->spiclk = devm_clk_get(&pdev->dev, "spiclk");
 	if (IS_ERR(rs->spiclk)) {
 		dev_err(&pdev->dev, "Failed to get spi_pclk\n");
 		ret = PTR_ERR(rs->spiclk);
-		goto err_ioremap_resource;
+		goto err_put_master;
 	}
 
 	ret = clk_prepare_enable(rs->apb_pclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to enable apb_pclk\n");
-		goto err_ioremap_resource;
+		goto err_put_master;
 	}
 
 	ret = clk_prepare_enable(rs->spiclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to enable spi_clk\n");
-		goto err_spiclk_enable;
+		goto err_disable_apbclk;
 	}
 
 	spi_enable_chip(rs, 0);
@@ -728,7 +728,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	if (!rs->fifo_len) {
 		dev_err(&pdev->dev, "Failed to get fifo length\n");
 		ret = -EINVAL;
-		goto err_get_fifo_len;
+		goto err_disable_spiclk;
 	}
 
 	spin_lock_init(&rs->lock);
@@ -755,7 +755,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		/* Check tx to see if we need defer probing driver */
 		if (PTR_ERR(rs->dma_tx.ch) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;
-			goto err_get_fifo_len;
+			goto err_disable_pm_runtime;
 		}
 		dev_warn(rs->dev, "Failed to request TX DMA channel\n");
 		rs->dma_tx.ch = NULL;
@@ -786,23 +786,24 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register master\n");
-		goto err_register_master;
+		goto err_free_dma_rx;
 	}
 
 	return 0;
 
-err_register_master:
-	pm_runtime_disable(&pdev->dev);
+err_free_dma_rx:
 	if (rs->dma_rx.ch)
 		dma_release_channel(rs->dma_rx.ch);
 err_free_dma_tx:
 	if (rs->dma_tx.ch)
 		dma_release_channel(rs->dma_tx.ch);
-err_get_fifo_len:
+err_disable_pm_runtime:
+	pm_runtime_disable(&pdev->dev);
+err_disable_spiclk:
 	clk_disable_unprepare(rs->spiclk);
-err_spiclk_enable:
+err_disable_apbclk:
 	clk_disable_unprepare(rs->apb_pclk);
-err_ioremap_resource:
+err_put_master:
 	spi_master_put(master);
 
 	return ret;
