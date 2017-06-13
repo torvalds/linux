@@ -900,9 +900,9 @@
 			ctrl-module = <&omap_control_usbotg>;
 		};
 
-		aes: aes@4b501000 {
+		aes1: aes@4b501000 {
 			compatible = "ti,omap4-aes";
-			ti,hwmods = "aes";
+			ti,hwmods = "aes1";
 			reg = <0x4b501000 0xa0>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&sdma 111>, <&sdma 110>;
