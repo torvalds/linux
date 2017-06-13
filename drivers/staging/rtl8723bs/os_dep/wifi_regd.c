@@ -148,6 +148,7 @@ int rtw_regd_init(struct adapter *padapter,
 				       struct regulatory_request *request))
 {
 	struct wiphy *wiphy = padapter->rtw_wdev->wiphy;
+
 	_rtw_regd_init_wiphy(NULL, wiphy, reg_notifier);
 
 	return 0;
