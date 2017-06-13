@@ -652,6 +652,13 @@ enum iwl_system_subcmd_ids {
 	 * @INIT_EXTENDED_CFG_CMD: &struct iwl_init_extended_cfg_cmd
 	 */
 	INIT_EXTENDED_CFG_CMD = 0x03,
+
+	/**
+	 * @FSEQ_VER_MISMATCH_NTF: Notification about fseq version
+	 *	mismatch during init.  The format is specified in
+	 *	&struct iwl_fseq_ver_mismatch_ntf.
+	 */
+	FSEQ_VER_MISMATCH_NTF = 0xFF,
 };
 
 #endif /* __iwl_fw_api_commands_h__ */
