@@ -1411,10 +1411,8 @@ USE_TEXT_SECTION()
 	.balign	IFETCH_ALIGN_BYTES
 do_hash_page:
 #ifdef CONFIG_PPC_STD_MMU_64
-	andis.	r0,r4,0xa410		/* weird error? */
+	andis.	r0,r4,0xa450		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
-	andis.  r0,r4,DSISR_DABRMATCH@h
-	bne-    handle_dabr_fault
 	CURRENT_THREAD_INFO(r11, r1)
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
 	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
@@ -1438,11 +1436,16 @@ do_hash_page:
 
 	/* Error */
 	blt-	13f
+
+	/* Reload DSISR into r4 for the DABR check below */
+	ld      r4,_DSISR(r1)
 #endif /* CONFIG_PPC_STD_MMU_64 */
 
 /* Here we have a page fault that hash_page can't handle. */
 handle_page_fault:
-11:	ld	r4,_DAR(r1)
+11:	andis.  r0,r4,DSISR_DABRMATCH@h
+	bne-    handle_dabr_fault
+	ld	r4,_DAR(r1)
 	ld	r5,_DSISR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_page_fault
