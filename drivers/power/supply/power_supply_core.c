@@ -748,7 +748,7 @@ static int ps_set_cur_charge_cntl_limit(struct thermal_cooling_device *tcd,
 	return ret;
 }
 
-static struct thermal_cooling_device_ops psy_tcd_ops = {
+static const struct thermal_cooling_device_ops psy_tcd_ops = {
 	.get_max_state = ps_get_max_charge_cntl_limit,
 	.get_cur_state = ps_get_cur_chrage_cntl_limit,
 	.set_cur_state = ps_set_cur_charge_cntl_limit,
