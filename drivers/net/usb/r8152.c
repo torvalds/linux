@@ -4355,13 +4355,6 @@ static int rtl8152_runtime_suspend(struct r8152 *tp)
 	if (netif_running(netdev) && test_bit(WORK_ENABLE, &tp->flags)) {
 		u32 rcr = 0;
 
-		if (delay_autosuspend(tp)) {
-			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
-			smp_mb__after_atomic();
-			ret = -EBUSY;
-			goto out1;
-		}
-
 		if (netif_carrier_ok(netdev)) {
 			u32 ocp_data;
 
@@ -4394,6 +4387,11 @@ static int rtl8152_runtime_suspend(struct r8152 *tp)
 			rxdy_gated_en(tp, false);
 			ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, rcr);
 			napi_enable(napi);
+		}
+
+		if (delay_autosuspend(tp)) {
+			rtl8152_runtime_resume(tp);
+			ret = -EBUSY;
 		}
 	}
 
