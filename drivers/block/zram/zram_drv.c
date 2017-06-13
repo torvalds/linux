@@ -1293,7 +1293,7 @@ static ssize_t hot_add_show(struct class *class,
 		return ret;
 	return scnprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
-static CLASS_ATTR(hot_add, 0400, hot_add_show, NULL);
+static CLASS_ATTR_RO(hot_add);
 
 static ssize_t hot_remove_store(struct class *class,
 			struct class_attribute *attr,
