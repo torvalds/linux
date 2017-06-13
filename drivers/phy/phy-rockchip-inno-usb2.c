@@ -440,6 +440,61 @@ static int rockchip_usb2phy_extcon_register(struct rockchip_usb2phy *rphy)
 	return 0;
 }
 
+/* The caller must hold rport->mutex lock */
+static int rockchip_usb2phy_enable_id_irq(struct rockchip_usb2phy *rphy,
+					  struct rockchip_usb2phy_port *rport,
+					  bool en)
+{
+	int ret;
+
+	ret = property_enable(rphy, &rport->port_cfg->idfall_det_clr, true);
+	if (ret)
+		goto out;
+
+	ret = property_enable(rphy, &rport->port_cfg->idfall_det_en, en);
+	if (ret)
+		goto out;
+
+	ret = property_enable(rphy, &rport->port_cfg->idrise_det_clr, true);
+	if (ret)
+		goto out;
+
+	ret = property_enable(rphy, &rport->port_cfg->idrise_det_en, en);
+out:
+	return ret;
+}
+
+/* The caller must hold rport->mutex lock */
+static int rockchip_usb2phy_enable_vbus_irq(struct rockchip_usb2phy *rphy,
+					    struct rockchip_usb2phy_port *rport,
+					    bool en)
+{
+	int ret;
+
+	ret = property_enable(rphy, &rport->port_cfg->bvalid_det_clr, true);
+	if (ret)
+		goto out;
+
+	ret = property_enable(rphy, &rport->port_cfg->bvalid_det_en, en);
+out:
+	return ret;
+}
+
+static int rockchip_usb2phy_enable_line_irq(struct rockchip_usb2phy *rphy,
+					    struct rockchip_usb2phy_port *rport,
+					    bool en)
+{
+	int ret;
+
+	ret = property_enable(rphy, &rport->port_cfg->ls_det_clr, true);
+	if (ret)
+		goto out;
+
+	ret = property_enable(rphy, &rport->port_cfg->ls_det_en, en);
+out:
+	return ret;
+}
+
 static int rockchip_usb2phy_init(struct phy *phy)
 {
 	struct rockchip_usb2phy_port *rport = phy_get_drvdata(phy);
@@ -448,70 +503,36 @@ static int rockchip_usb2phy_init(struct phy *phy)
 
 	mutex_lock(&rport->mutex);
 
-	if (rport->port_id == USB2PHY_PORT_OTG) {
-		if (rport->mode != USB_DR_MODE_HOST &&
-		    rport->mode != USB_DR_MODE_UNKNOWN &&
-		    !rport->vbus_always_on) {
-			/* clear bvalid status and enable bvalid detect irq */
-			ret = property_enable(rphy,
-					      &rport->port_cfg->
-					      bvalid_det_clr,
-					      true);
-			if (ret)
-				goto out;
-
-			ret = property_enable(rphy,
-					      &rport->port_cfg->
-					      bvalid_det_en,
-					      true);
-			if (ret)
-				goto out;
-
-			if (rphy->edev_self) {
-				ret = property_enable(rphy,
-						      &rport->port_cfg->
-						      idfall_det_clr,
-						      true);
-				if (ret)
-					goto out;
-
-				ret = property_enable(rphy,
-						      &rport->port_cfg->
-						      idfall_det_en,
-						      true);
-				if (ret)
-					goto out;
-
-				ret = property_enable(rphy,
-						      &rport->port_cfg->
-						      idrise_det_clr,
-						      true);
-				if (ret)
-					goto out;
-
-				ret = property_enable(rphy,
-						      &rport->port_cfg->
-						      idrise_det_en,
-						      true);
-				if (ret)
-					goto out;
-			}
-
-			schedule_delayed_work(&rport->otg_sm_work,
-					      OTG_SCHEDULE_DELAY * 3);
-		} else {
-			/* If OTG works in host only mode, do nothing. */
-			dev_dbg(&rport->phy->dev, "mode %d\n", rport->mode);
+	if (rport->port_id == USB2PHY_PORT_OTG &&
+	    rport->bvalid_irq > 0) {
+		/* clear bvalid status and enable bvalid detect irq */
+		ret = rockchip_usb2phy_enable_vbus_irq(rphy, rport, true);
+		if (ret) {
+			dev_err(rphy->dev,
+				"failed to enable bvalid irq\n");
+			goto out;
 		}
+
+		/* clear id status and enable id detect irq */
+		if (rport->id_irq > 0) {
+			ret = rockchip_usb2phy_enable_id_irq(rphy, rport,
+							     true);
+			if (ret) {
+				dev_err(rphy->dev,
+					"failed to enable id irq\n");
+				goto out;
+			}
+		}
+
+		schedule_delayed_work(&rport->otg_sm_work,
+				      OTG_SCHEDULE_DELAY * 3);
 	} else if (rport->port_id == USB2PHY_PORT_HOST) {
 		/* clear linestate and enable linestate detect irq */
-		ret = property_enable(rphy, &rport->port_cfg->ls_det_clr, true);
-		if (ret)
+		ret = rockchip_usb2phy_enable_line_irq(rphy, rport, true);
+		if (ret) {
+			dev_err(rphy->dev, "failed to enable linestate irq\n");
 			goto out;
-
-		ret = property_enable(rphy, &rport->port_cfg->ls_det_en, true);
-		if (ret)
-			goto out;
+		}
 
 		schedule_delayed_work(&rport->sm_work, SCHEDULE_DELAY);
 	}
@@ -1164,8 +1185,7 @@ static void rockchip_usb2phy_sm_work(struct work_struct *work)
 		 * activate the linestate detection to get the next device
 		 * plug-in irq.
 		 */
-		property_enable(rphy, &rport->port_cfg->ls_det_clr, true);
-		property_enable(rphy, &rport->port_cfg->ls_det_en, true);
+		rockchip_usb2phy_enable_line_irq(rphy, rport, true);
 
 		/*
 		 * we don't need to rearm the delayed work when the phy port
@@ -1196,8 +1216,7 @@ static irqreturn_t rockchip_usb2phy_linestate_irq(int irq, void *data)
 	mutex_lock(&rport->mutex);
 
 	/* disable linestate detect irq and clear its status */
-	property_enable(rphy, &rport->port_cfg->ls_det_en, false);
-	property_enable(rphy, &rport->port_cfg->ls_det_clr, true);
+	rockchip_usb2phy_enable_line_irq(rphy, rport, false);
 
 	mutex_unlock(&rport->mutex);
 
@@ -1701,27 +1720,67 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(dev);
 	struct rockchip_usb2phy_port *rport;
 	int index;
+	int ret = 0;
 
 	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
 		rport = &rphy->ports[index];
 		if (!rport->phy)
 			continue;
 
+		if (rport->port_id == USB2PHY_PORT_OTG &&
+		    rport->id_irq > 0) {
+			mutex_lock(&rport->mutex);
+			ret = rockchip_usb2phy_enable_id_irq(rphy, rport,
+							     false);
+			mutex_unlock(&rport->mutex);
+			if (ret) {
+				dev_err(rphy->dev,
+					"failed to disable id irq\n");
+				return ret;
+			}
+		}
+
 		/* activate the linestate to detect the next interrupt. */
-		property_enable(rphy, &rport->port_cfg->ls_det_clr, true);
-		property_enable(rphy, &rport->port_cfg->ls_det_en, true);
+		mutex_lock(&rport->mutex);
+		ret = rockchip_usb2phy_enable_line_irq(rphy, rport, true);
+		mutex_unlock(&rport->mutex);
+		if (ret) {
+			dev_err(rphy->dev, "failed to enable linestate irq\n");
+			return ret;
+		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static int rockchip_usb2phy_pm_resume(struct device *dev)
 {
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(dev);
+	struct rockchip_usb2phy_port *rport;
+	int index;
 	int ret = 0;
 
 	if (rphy->phy_cfg->phy_tuning)
 		ret = rphy->phy_cfg->phy_tuning(rphy);
+
+	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
+		rport = &rphy->ports[index];
+		if (!rport->phy)
+			continue;
+
+		if (rport->port_id == USB2PHY_PORT_OTG &&
+		    rport->id_irq > 0) {
+			mutex_lock(&rport->mutex);
+			ret = rockchip_usb2phy_enable_id_irq(rphy, rport,
+							     true);
+			mutex_unlock(&rport->mutex);
+			if (ret) {
+				dev_err(rphy->dev,
+					"failed to enable id irq\n");
+				return ret;
+			}
+		}
+	}
 
 	return ret;
 }
