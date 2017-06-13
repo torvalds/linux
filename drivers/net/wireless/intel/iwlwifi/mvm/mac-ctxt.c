@@ -80,6 +80,13 @@ const u8 iwl_mvm_ac_to_tx_fifo[] = {
 	IWL_MVM_TX_FIFO_BK,
 };
 
+const u8 iwl_mvm_ac_to_gen2_tx_fifo[] = {
+	IWL_GEN2_EDCA_TX_FIFO_VO,
+	IWL_GEN2_EDCA_TX_FIFO_VI,
+	IWL_GEN2_EDCA_TX_FIFO_BE,
+	IWL_GEN2_EDCA_TX_FIFO_BK,
+};
+
 struct iwl_mvm_mac_iface_iterator_data {
 	struct iwl_mvm *mvm;
 	struct ieee80211_vif *vif;
@@ -774,7 +781,7 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP);
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		u8 txf = iwl_mvm_ac_to_tx_fifo[i];
+		u8 txf = iwl_mvm_mac_ac_to_tx_fifo(mvm, i);
 
 		cmd->ac[txf].cw_min =
 			cpu_to_le16(mvmvif->queue_params[i].cw_min);

@@ -315,7 +315,7 @@ static int iwl_mvm_tdls_sta_init(struct iwl_mvm *mvm,
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		iwl_mvm_enable_ac_txq(mvm, mvmsta->hw_queue[ac],
 				      mvmsta->hw_queue[ac],
-				      iwl_mvm_ac_to_tx_fifo[ac], 0,
+				      iwl_mvm_mac_ac_to_tx_fifo(mvm, ac), 0,
 				      wdg_timeout);
 		mvmsta->tfd_queue_msk |= BIT(mvmsta->hw_queue[ac]);
 	}
@@ -745,7 +745,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_trans_txq_scd_cfg cfg = {
-		.fifo = iwl_mvm_ac_to_tx_fifo[ac],
+		.fifo = iwl_mvm_mac_ac_to_tx_fifo(mvm, ac),
 		.sta_id = mvmsta->sta_id,
 		.tid = tid,
 		.frame_limit = IWL_FRAME_LIMIT,
@@ -1303,7 +1303,7 @@ static void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 			u16 seq = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 
 			cfg.tid = i;
-			cfg.fifo = iwl_mvm_ac_to_tx_fifo[ac];
+			cfg.fifo = iwl_mvm_mac_ac_to_tx_fifo(mvm, ac);
 			cfg.aggregate = (txq_id >= IWL_MVM_DQA_MIN_DATA_QUEUE ||
 					 txq_id ==
 					 IWL_MVM_DQA_BSS_CLIENT_QUEUE);

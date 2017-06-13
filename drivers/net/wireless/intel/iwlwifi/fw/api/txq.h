@@ -111,6 +111,18 @@ enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_CMD = 7,
 };
 
+enum iwl_gen2_tx_fifo {
+	IWL_GEN2_TX_FIFO_CMD = 0,
+	IWL_GEN2_EDCA_TX_FIFO_BK,
+	IWL_GEN2_EDCA_TX_FIFO_BE,
+	IWL_GEN2_EDCA_TX_FIFO_VI,
+	IWL_GEN2_EDCA_TX_FIFO_VO,
+	IWL_GEN2_TRIG_TX_FIFO_BK,
+	IWL_GEN2_TRIG_TX_FIFO_BE,
+	IWL_GEN2_TRIG_TX_FIFO_VI,
+	IWL_GEN2_TRIG_TX_FIFO_VO,
+};
+
 /**
  * enum iwl_tx_queue_cfg_actions - TXQ config options
  * @TX_QUEUE_CFG_ENABLE_QUEUE: enable a queue

@@ -1291,6 +1291,14 @@ static inline bool iwl_mvm_is_ctdp_supported(struct iwl_mvm *mvm)
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
+extern const u8 iwl_mvm_ac_to_gen2_tx_fifo[];
+
+static inline u8 iwl_mvm_mac_ac_to_tx_fifo(struct iwl_mvm *mvm,
+					   enum ieee80211_ac_numbers ac)
+{
+	return iwl_mvm_has_new_tx_api(mvm) ?
+		iwl_mvm_ac_to_gen2_tx_fifo[ac] : iwl_mvm_ac_to_tx_fifo[ac];
+}
 
 struct iwl_rate_info {
 	u8 plcp;	/* uCode API:  IWL_RATE_6M_PLCP, etc. */

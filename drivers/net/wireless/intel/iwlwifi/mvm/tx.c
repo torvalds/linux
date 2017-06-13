@@ -751,7 +751,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	max_amsdu_len = sta->max_amsdu_len;
 
 	/* the Tx FIFO to which this A-MSDU will be routed */
-	txf = iwl_mvm_ac_to_tx_fifo[tid_to_mac80211_ac[tid]];
+	txf = iwl_mvm_mac_ac_to_tx_fifo(mvm, tid_to_mac80211_ac[tid]);
 
 	/*
 	 * Don't send an AMSDU that will be longer than the TXF.
