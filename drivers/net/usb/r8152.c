@@ -4289,6 +4289,61 @@ static bool delay_autosuspend(struct r8152 *tp)
 		return false;
 }
 
+static int rtl8152_runtime_resume(struct r8152 *tp)
+{
+	struct net_device *netdev = tp->netdev;
+
+	if (netif_running(netdev) && netdev->flags & IFF_UP) {
+		struct napi_struct *napi = &tp->napi;
+
+		tp->rtl_ops.autosuspend_en(tp, false);
+		napi_disable(napi);
+		set_bit(WORK_ENABLE, &tp->flags);
+
+		if (netif_carrier_ok(netdev)) {
+			if (rtl8152_get_speed(tp) & LINK_STATUS) {
+				rtl_start_rx(tp);
+			} else {
+				netif_carrier_off(netdev);
+				tp->rtl_ops.disable(tp);
+				netif_info(tp, link, netdev, "linking down\n");
+			}
+		}
+
+		napi_enable(napi);
+		clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+		smp_mb__after_atomic();
+
+		if (!list_empty(&tp->rx_done))
+			napi_schedule(&tp->napi);
+
+		usb_submit_urb(tp->intr_urb, GFP_NOIO);
+	} else {
+		if (netdev->flags & IFF_UP)
+			tp->rtl_ops.autosuspend_en(tp, false);
+
+		clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+	}
+
+	return 0;
+}
+
+static int rtl8152_system_resume(struct r8152 *tp)
+{
+	struct net_device *netdev = tp->netdev;
+
+	netif_device_attach(netdev);
+
+	if (netif_running(netdev) && netdev->flags & IFF_UP) {
+		tp->rtl_ops.up(tp);
+		netif_carrier_off(netdev);
+		set_bit(WORK_ENABLE, &tp->flags);
+		usb_submit_urb(tp->intr_urb, GFP_NOIO);
+	}
+
+	return 0;
+}
+
 static int rtl8152_runtime_suspend(struct r8152 *tp)
 {
 	struct net_device *netdev = tp->netdev;
@@ -4387,50 +4442,18 @@ static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
 static int rtl8152_resume(struct usb_interface *intf)
 {
 	struct r8152 *tp = usb_get_intfdata(intf);
-	struct net_device *netdev = tp->netdev;
+	int ret;
 
 	mutex_lock(&tp->control);
 
-	if (!test_bit(SELECTIVE_SUSPEND, &tp->flags))
-		netif_device_attach(netdev);
-
-	if (netif_running(netdev) && netdev->flags & IFF_UP) {
-		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
-			struct napi_struct *napi = &tp->napi;
-
-			tp->rtl_ops.autosuspend_en(tp, false);
-			napi_disable(napi);
-			set_bit(WORK_ENABLE, &tp->flags);
-			if (netif_carrier_ok(netdev)) {
-				if (rtl8152_get_speed(tp) & LINK_STATUS) {
-					rtl_start_rx(tp);
-				} else {
-					netif_carrier_off(netdev);
-					tp->rtl_ops.disable(tp);
-					netif_info(tp, link, netdev,
-						   "linking down\n");
-				}
-			}
-			napi_enable(napi);
-			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
-			smp_mb__after_atomic();
-			if (!list_empty(&tp->rx_done))
-				napi_schedule(&tp->napi);
-		} else {
-			tp->rtl_ops.up(tp);
-			netif_carrier_off(netdev);
-			set_bit(WORK_ENABLE, &tp->flags);
-		}
-		usb_submit_urb(tp->intr_urb, GFP_KERNEL);
-	} else if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
-		if (netdev->flags & IFF_UP)
-			tp->rtl_ops.autosuspend_en(tp, false);
-		clear_bit(SELECTIVE_SUSPEND, &tp->flags);
-	}
+	if (test_bit(SELECTIVE_SUSPEND, &tp->flags))
+		ret = rtl8152_runtime_resume(tp);
+	else
+		ret = rtl8152_system_resume(tp);
 
 	mutex_unlock(&tp->control);
 
-	return 0;
+	return ret;
 }
 
 static int rtl8152_reset_resume(struct usb_interface *intf)
