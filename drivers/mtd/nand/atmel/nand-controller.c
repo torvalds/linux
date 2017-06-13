@@ -65,7 +65,6 @@
 #include <linux/of_platform.h>
 #include <linux/iopoll.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/atmel.h>
 #include <linux/regmap.h>
 
 #include "pmecc.h"
