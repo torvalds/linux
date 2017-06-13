@@ -283,42 +283,24 @@ static void __maybe_unused raise_mce(struct mce *m)
 	}
 }
 
-#ifdef CONFIG_X86_MCELOG_LEGACY
-/* Error injection interface */
-static ssize_t mce_write(struct file *filp, const char __user *ubuf,
-			 size_t usize, loff_t *off)
+static int mce_inject_raise(struct notifier_block *nb, unsigned long val,
+			    void *data)
 {
-	struct mce m;
+	struct mce *m = (struct mce *)data;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	/*
-	 * There are some cases where real MSR reads could slip
-	 * through.
-	 */
-	if (!boot_cpu_has(X86_FEATURE_MCE) || !boot_cpu_has(X86_FEATURE_MCA))
-		return -EIO;
-
-	if ((unsigned long)usize > sizeof(struct mce))
-		usize = sizeof(struct mce);
-	if (copy_from_user(&m, ubuf, usize))
-		return -EFAULT;
-
-	if (m.extcpu >= num_possible_cpus() || !cpu_online(m.extcpu))
-		return -EINVAL;
-
-	/*
-	 * Need to give user space some time to set everything up,
-	 * so do it a jiffie or two later everywhere.
-	 */
-	schedule_timeout(2);
+	if (!m)
+		return NOTIFY_DONE;
 
 	mutex_lock(&mce_inject_mutex);
-	raise_mce(&m);
+	raise_mce(m);
 	mutex_unlock(&mce_inject_mutex);
-	return usize;
+
+	return NOTIFY_DONE;
 }
-#endif /* CONFIG_X86_MCELOG_LEGACY */
+
+static struct notifier_block inject_nb = {
+	.notifier_call  = mce_inject_raise,
+};
 
 /*
  * Caller needs to be make sure this cpu doesn't disappear
@@ -719,44 +701,34 @@ static int __init inject_init(void)
 	if (!alloc_cpumask_var(&mce_inject_cpumask, GFP_KERNEL))
 		return -ENOMEM;
 
-#ifdef CONFIG_X86_MCELOG_LEGACY
-		register_mce_write_callback(mce_write);
-#endif
-
-	register_nmi_handler(NMI_LOCAL, mce_raise_notify, 0, "mce_notify");
-
 	err = debugfs_init();
 	if (err) {
 		free_cpumask_var(mce_inject_cpumask);
 		return err;
 	}
 
+	register_nmi_handler(NMI_LOCAL, mce_raise_notify, 0, "mce_notify");
+	mce_register_injector_chain(&inject_nb);
+
 	pr_info("Machine check injector initialized\n");
 
 	return 0;
 }
 
-module_init(inject_init);
-
-/*
- * Cannot tolerate unloading currently because we cannot
- * guarantee all openers of mce_chrdev will get a reference to us.
- */
-#ifndef CONFIG_X86_MCELOG_LEGACY
 static void __exit inject_exit(void)
 {
+
+	mce_unregister_injector_chain(&inject_nb);
+	unregister_nmi_handler(NMI_LOCAL, "mce_notify");
 
 	debugfs_remove_recursive(dfs_inj);
 	dfs_inj = NULL;
 
 	memset(&dfs_fls, 0, sizeof(dfs_fls));
 
-	unregister_nmi_handler(NMI_LOCAL, "mce_notify");
-
 	free_cpumask_var(mce_inject_cpumask);
 }
 
+module_init(inject_init);
 module_exit(inject_exit);
-#endif
-
 MODULE_LICENSE("GPL");
