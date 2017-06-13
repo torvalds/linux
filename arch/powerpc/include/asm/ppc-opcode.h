@@ -220,6 +220,7 @@
 #define PPC_INST_MSGCLR			0x7c0001dc
 #define PPC_INST_MSGSYNC		0x7c0006ec
 #define PPC_INST_MSGSNDP		0x7c00011c
+#define PPC_INST_MSGCLRP		0x7c00015c
 #define PPC_INST_MTTMR			0x7c0003dc
 #define PPC_INST_NOP			0x60000000
 #define PPC_INST_PASTE			0x7c20070d
@@ -408,6 +409,8 @@
 #define PPC_MSGCLR(b)		stringify_in_c(.long PPC_INST_MSGCLR | \
 					___PPC_RB(b))
 #define PPC_MSGSNDP(b)		stringify_in_c(.long PPC_INST_MSGSNDP | \
+					___PPC_RB(b))
+#define PPC_MSGCLRP(b)		stringify_in_c(.long PPC_INST_MSGCLRP | \
 					___PPC_RB(b))
 #define PPC_POPCNTB(a, s)	stringify_in_c(.long PPC_INST_POPCNTB | \
 					__PPC_RA(a) | __PPC_RS(s))

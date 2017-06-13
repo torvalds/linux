@@ -1612,6 +1612,25 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	b	1b
 
 /*
+ * When doorbell is triggered from system reset wakeup, the message is
+ * not cleared, so it would fire again when EE is enabled.
+ *
+ * When coming from local_irq_enable, there may be the same problem if
+ * we were hard disabled.
+ *
+ * Execute msgclr to clear pending exceptions before handling it.
+ */
+h_doorbell_common_msgclr:
+	LOAD_REG_IMMEDIATE(r3, PPC_DBELL_MSGTYPE << (63-36))
+	PPC_MSGCLR(3)
+	b 	h_doorbell_common
+
+doorbell_super_common_msgclr:
+	LOAD_REG_IMMEDIATE(r3, PPC_DBELL_MSGTYPE << (63-36))
+	PPC_MSGCLRP(3)
+	b 	doorbell_super_common
+
+/*
  * Called from arch_local_irq_enable when an interrupt needs
  * to be resent. r3 contains 0x500, 0x900, 0xa00 or 0xe80 to indicate
  * which kind of interrupt. MSR:EE is already off. We generate a
@@ -1636,13 +1655,13 @@ _GLOBAL(__replay_interrupt)
 	beq	hardware_interrupt_common
 BEGIN_FTR_SECTION
 	cmpwi	r3,0xe80
-	beq	h_doorbell_common
+	beq	h_doorbell_common_msgclr
 	cmpwi	r3,0xea0
 	beq	h_virt_irq_common
 	cmpwi	r3,0xe60
 	beq	hmi_exception_common
 FTR_SECTION_ELSE
 	cmpwi	r3,0xa00
-	beq	doorbell_super_common
+	beq	doorbell_super_common_msgclr
 ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
 	blr
