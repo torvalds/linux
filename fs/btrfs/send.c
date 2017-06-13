@@ -2776,6 +2776,13 @@ struct recorded_ref {
 	int name_len;
 };
 
+static void set_ref_path(struct recorded_ref *ref, struct fs_path *path)
+{
+	ref->full_path = path;
+	ref->name = (char *)kbasename(ref->full_path->start);
+	ref->name_len = ref->full_path->end - ref->name;
+}
+
 /*
  * We need to process new refs before deleted refs, but compare_tree gives us
  * everything mixed. So we first record all refs and later process them.
@@ -2792,11 +2799,7 @@ static int __record_ref(struct list_head *head, u64 dir,
 
 	ref->dir = dir;
 	ref->dir_gen = dir_gen;
-	ref->full_path = path;
-
-	ref->name = (char *)kbasename(ref->full_path->start);
-	ref->name_len = ref->full_path->end - ref->name;
-
+	set_ref_path(ref, path);
 	list_add_tail(&ref->list, head);
 	return 0;
 }
@@ -3691,6 +3694,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	int is_orphan = 0;
 	u64 last_dir_ino_rm = 0;
 	bool can_rename = true;
+	bool orphanized_ancestor = false;
 
 	btrfs_debug(fs_info, "process_recorded_refs %llu", sctx->cur_ino);
 
@@ -3846,6 +3850,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 						  ow_inode, ow_gen,
 						  sctx->cur_ino, NULL);
 				if (ret > 0) {
+					orphanized_ancestor = true;
 					fs_path_reset(valid_path);
 					ret = get_cur_path(sctx, sctx->cur_ino,
 							   sctx->cur_inode_gen,
@@ -3971,6 +3976,43 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 			if (ret < 0)
 				goto out;
 			if (!ret) {
+				/*
+				 * If we orphanized any ancestor before, we need
+				 * to recompute the full path for deleted names,
+				 * since any such path was computed before we
+				 * processed any references and orphanized any
+				 * ancestor inode.
+				 */
+				if (orphanized_ancestor) {
+					struct fs_path *new_path;
+
+					/*
+					 * Our reference's name member points to
+					 * its full_path member string, so we
+					 * use here a new path.
+					 */
+					new_path = fs_path_alloc();
+					if (!new_path) {
+						ret = -ENOMEM;
+						goto out;
+					}
+					ret = get_cur_path(sctx, cur->dir,
+							   cur->dir_gen,
+							   new_path);
+					if (ret < 0) {
+						fs_path_free(new_path);
+						goto out;
+					}
+					ret = fs_path_add(new_path,
+							  cur->name,
+							  cur->name_len);
+					if (ret < 0) {
+						fs_path_free(new_path);
+						goto out;
+					}
+					fs_path_free(cur->full_path);
+					set_ref_path(cur, new_path);
+				}
 				ret = send_unlink(sctx, cur->full_path);
 				if (ret < 0)
 					goto out;
