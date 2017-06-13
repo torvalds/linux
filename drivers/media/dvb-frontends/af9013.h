@@ -33,6 +33,7 @@
  * @tuner: Used tuner model.
  * @if_frequency: IF frequency.
  * @ts_mode: TS mode.
+ * @ts_output_pin: TS output pin.
  * @spec_inv: Input spectrum inverted.
  * @api_version: Firmware API version.
  * @gpio: GPIOs.
@@ -62,6 +63,7 @@ struct af9013_platform_data {
 #define AF9013_TS_MODE_PARALLEL  1
 #define AF9013_TS_MODE_SERIAL    2
 	u8 ts_mode;
+	u8 ts_output_pin;
 	bool spec_inv;
 	u8 api_version[4];
 #define AF9013_GPIO_ON (1 << 0)

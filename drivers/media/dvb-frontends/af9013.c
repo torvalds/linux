@@ -28,6 +28,7 @@ struct af9013_state {
 	u8 tuner;
 	u32 if_frequency;
 	u8 ts_mode;
+	u8 ts_output_pin;
 	bool spec_inv;
 	u8 api_version[4];
 	u8 gpio[4];
@@ -956,17 +957,12 @@ static int af9013_init(struct dvb_frontend *fe)
 		goto err;
 
 	/* settings for mp2if */
-	if (state->ts_mode == AF9013_TS_USB) {
+	if (state->ts_mode == AF9013_TS_MODE_USB) {
 		/* AF9015 split PSB to 1.5k + 0.5k */
 		ret = regmap_update_bits(state->regmap, 0xd50b, 0x04, 0x04);
 		if (ret)
 			goto err;
 	} else {
-		/* AF9013 change the output bit to data7 */
-		ret = regmap_update_bits(state->regmap, 0xd500, 0x08, 0x08);
-		if (ret)
-			goto err;
-
 		/* AF9013 set mpeg to full speed */
 		ret = regmap_update_bits(state->regmap, 0xd502, 0x10, 0x10);
 		if (ret)
@@ -1047,9 +1043,12 @@ static int af9013_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	/* TS mode */
-	ret = regmap_update_bits(state->regmap, 0xd500, 0x06,
-				 state->ts_mode << 1);
+	/* TS interface */
+	if (state->ts_output_pin == 7)
+		utmp = 1 << 3 | state->ts_mode << 1;
+	else
+		utmp = 0 << 3 | state->ts_mode << 1;
+	ret = regmap_update_bits(state->regmap, 0xd500, 0x0e, utmp);
 	if (ret)
 		goto err;
 
@@ -1148,7 +1147,7 @@ static int af9013_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	if (state->i2c_gate_state == enable)
 		return 0;
 
-	if (state->ts_mode == AF9013_TS_USB)
+	if (state->ts_mode == AF9013_TS_MODE_USB)
 		ret = regmap_update_bits(state->regmap, 0xd417, 0x08,
 					 enable << 3);
 	else
@@ -1298,6 +1297,7 @@ struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 	pdata.tuner = config->tuner;
 	pdata.if_frequency = config->if_frequency;
 	pdata.ts_mode = config->ts_mode;
+	pdata.ts_output_pin = 7;
 	pdata.spec_inv = config->spec_inv;
 	memcpy(&pdata.api_version, config->api_version, sizeof(pdata.api_version));
 	memcpy(&pdata.gpio, config->gpio, sizeof(pdata.gpio));
@@ -1451,7 +1451,7 @@ static int af9013_regmap_write(void *context, const void *data, size_t count)
 	u8 *val = &((u8 *)data)[2];
 	const unsigned int len = count - 2;
 
-	if (state->ts_mode == AF9013_TS_USB && (reg & 0xff00) != 0xae00) {
+	if (state->ts_mode == AF9013_TS_MODE_USB && (reg & 0xff00) != 0xae00) {
 		cmd = 0 << 7|0 << 6|(len - 1) << 2|1 << 1|1 << 0;
 		ret = af9013_wregs(client, cmd, reg, val, len);
 		if (ret)
@@ -1488,7 +1488,7 @@ static int af9013_regmap_read(void *context, const void *reg_buf,
 	u8 *val = &((u8 *)val_buf)[0];
 	const unsigned int len = val_size;
 
-	if (state->ts_mode == AF9013_TS_USB && (reg & 0xff00) != 0xae00) {
+	if (state->ts_mode == AF9013_TS_MODE_USB && (reg & 0xff00) != 0xae00) {
 		cmd = 0 << 7|0 << 6|(len - 1) << 2|1 << 1|0 << 0;
 		ret = af9013_rregs(client, cmd, reg, val_buf, len);
 		if (ret)
@@ -1538,6 +1538,7 @@ static int af9013_probe(struct i2c_client *client,
 	state->tuner = pdata->tuner;
 	state->if_frequency = pdata->if_frequency;
 	state->ts_mode = pdata->ts_mode;
+	state->ts_output_pin = pdata->ts_output_pin;
 	state->spec_inv = pdata->spec_inv;
 	memcpy(&state->api_version, pdata->api_version, sizeof(state->api_version));
 	memcpy(&state->gpio, pdata->gpio, sizeof(state->gpio));
@@ -1550,7 +1551,7 @@ static int af9013_probe(struct i2c_client *client,
 	}
 
 	/* Download firmware */
-	if (state->ts_mode != AF9013_TS_USB) {
+	if (state->ts_mode != AF9013_TS_MODE_USB) {
 		ret = af9013_download_firmware(state);
 		if (ret)
 			goto err_regmap_exit;
