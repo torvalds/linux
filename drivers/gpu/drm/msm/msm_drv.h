@@ -123,14 +123,6 @@ struct msm_drm_private {
 	uint32_t pending_crtcs;
 	wait_queue_head_t pending_crtcs_event;
 
-	/* Registered address spaces.. currently this is fixed per # of
-	 * iommu's.  Ie. one for display block and one for gpu block.
-	 * Eventually, to do per-process gpu pagetables, we'll want one
-	 * of these per-process.
-	 */
-	unsigned int num_aspaces;
-	struct msm_gem_address_space *aspace[NUM_DOMAINS];
-
 	unsigned int num_planes;
 	struct drm_plane *planes[16];
 
@@ -182,9 +174,6 @@ int msm_atomic_commit(struct drm_device *dev,
 struct drm_atomic_state *msm_atomic_state_alloc(struct drm_device *dev);
 void msm_atomic_state_clear(struct drm_atomic_state *state);
 void msm_atomic_state_free(struct drm_atomic_state *state);
-
-int msm_register_address_space(struct drm_device *dev,
-		struct msm_gem_address_space *aspace);
 
 void msm_gem_unmap_vma(struct msm_gem_address_space *aspace,
 		struct msm_gem_vma *vma, struct sg_table *sgt);

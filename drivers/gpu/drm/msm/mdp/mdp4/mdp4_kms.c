@@ -522,13 +522,6 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		aspace = NULL;
 	}
 
-	kms->id = msm_register_address_space(dev, aspace);
-	if (kms->id < 0) {
-		ret = kms->id;
-		dev_err(dev->dev, "failed to register mdp4 iommu: %d\n", ret);
-		goto fail;
-	}
-
 	ret = modeset_init(mdp4_kms);
 	if (ret) {
 		dev_err(dev->dev, "modeset_init failed: %d\n", ret);
