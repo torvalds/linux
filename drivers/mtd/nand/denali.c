@@ -85,33 +85,6 @@ static void index_addr(struct denali_nand_info *denali,
 	iowrite32(data, denali->flash_mem + 0x10);
 }
 
-/* Reset the flash controller */
-static uint16_t denali_nand_reset(struct denali_nand_info *denali)
-{
-	int i;
-
-	for (i = 0; i < denali->max_banks; i++)
-		iowrite32(INTR__RST_COMP | INTR__TIME_OUT,
-		denali->flash_reg + INTR_STATUS(i));
-
-	for (i = 0; i < denali->max_banks; i++) {
-		iowrite32(1 << i, denali->flash_reg + DEVICE_RESET);
-		while (!(ioread32(denali->flash_reg + INTR_STATUS(i)) &
-			(INTR__RST_COMP | INTR__TIME_OUT)))
-			cpu_relax();
-		if (ioread32(denali->flash_reg + INTR_STATUS(i)) &
-			INTR__TIME_OUT)
-			dev_dbg(denali->dev,
-			"NAND Reset operation timed out on bank %d\n", i);
-	}
-
-	for (i = 0; i < denali->max_banks; i++)
-		iowrite32(INTR__RST_COMP | INTR__TIME_OUT,
-			  denali->flash_reg + INTR_STATUS(i));
-
-	return PASS;
-}
-
 /*
  * Use the configuration feature register to determine the maximum number of
  * banks that the hardware supports.
@@ -1053,7 +1026,28 @@ static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
 	return 0;
 }
 
-/* Initialization code to bring the device up to a known good state */
+static void denali_reset_banks(struct denali_nand_info *denali)
+{
+	int i;
+
+	denali_clear_irq_all(denali);
+
+	for (i = 0; i < denali->max_banks; i++) {
+		iowrite32(1 << i, denali->flash_reg + DEVICE_RESET);
+		while (!(ioread32(denali->flash_reg + INTR_STATUS(i)) &
+			(INTR__RST_COMP | INTR__TIME_OUT)))
+			cpu_relax();
+		if (!(ioread32(denali->flash_reg + INTR_STATUS(i)) &
+		      INTR__INT_ACT))
+			break;
+	}
+
+	dev_dbg(denali->dev, "%d chips connected\n", i);
+	denali->max_banks = i;
+
+	denali_clear_irq_all(denali);
+}
+
 static void denali_hw_init(struct denali_nand_info *denali)
 {
 	/*
@@ -1073,7 +1067,7 @@ static void denali_hw_init(struct denali_nand_info *denali)
 	denali->bbtskipbytes = ioread32(denali->flash_reg +
 						SPARE_AREA_SKIP_BYTES);
 	detect_max_banks(denali);
-	denali_nand_reset(denali);
+	denali_reset_banks(denali);
 	iowrite32(0x0F, denali->flash_reg + RB_PIN_ENABLED);
 	iowrite32(CHIP_EN_DONT_CARE__FLAG,
 			denali->flash_reg + CHIP_ENABLE_DONT_CARE);
