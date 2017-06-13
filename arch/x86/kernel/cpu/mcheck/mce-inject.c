@@ -103,6 +103,13 @@ DEFINE_SIMPLE_ATTRIBUTE(misc_fops, inj_misc_get, inj_misc_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(addr_fops, inj_addr_get, inj_addr_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(synd_fops, inj_synd_get, inj_synd_set, "%llx\n");
 
+static void setup_inj_struct(struct mce *m)
+{
+	memset(m, 0, sizeof(struct mce));
+
+	m->cpuvendor = boot_cpu_data.x86_vendor;
+}
+
 /* Update fake mce registers on current CPU. */
 static void inject_mce(struct mce *m)
 {
@@ -699,6 +706,8 @@ static int __init inject_init(void)
 
 	register_nmi_handler(NMI_LOCAL, mce_raise_notify, 0, "mce_notify");
 	mce_register_injector_chain(&inject_nb);
+
+	setup_inj_struct(&i_mce);
 
 	pr_info("Machine check injector initialized\n");
 
