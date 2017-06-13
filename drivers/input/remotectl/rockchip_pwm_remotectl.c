@@ -1,5 +1,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -11,6 +14,8 @@
 #include <linux/workqueue.h>
 #include <linux/wakelock.h>
 #include <linux/slab.h>
+#include <linux/rockchip/rockchip_sip.h>
+
 #include "rockchip_pwm_remotectl.h"
 
 
@@ -65,6 +70,7 @@ struct rkxx_remotectl_drvdata {
 	int handle_cpu_id;
 	int wakeup;
 	int clk_rate;
+	int support_psci;
 	unsigned long period;
 	unsigned long temp_period;
 	int pwm_freq_nstime;
@@ -385,8 +391,10 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	struct input_dev *input;
 	struct clk *clk;
 	struct cpumask cpumask;
+	struct irq_desc *desc;
 	int num;
 	int irq;
+	int hwirq;
 	int ret;
 	int i, j;
 	int cpu_id;
@@ -411,23 +419,39 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
 	clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Can't get bus clk: %d\n", ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't enable bus clk: %d\n", ret);
+		return ret;
+	}
 	platform_set_drvdata(pdev, ddata);
 	num = rk_remotectl_get_irkeybd_count(pdev);
 	if (num == 0) {
 		pr_err("remotectl: no ir keyboard add in dts!!\n");
-		return -1;
+		ret = -EINVAL;
+		goto error_clk;
 	}
 	ddata->maxkeybdnum = num;
-	remotectl_button = kmalloc(
+	remotectl_button = devm_kzalloc(&pdev->dev,
 					num*sizeof(struct rkxx_remotectl_button),
 					GFP_KERNEL);
 	if (!remotectl_button) {
 		pr_err("failed to malloc remote button memory\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error_clk;
 	}
-	input = input_allocate_device();
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input) {
+		pr_err("failed to allocate input device\n");
+		ret = -ENOMEM;
+		goto error_clk;
+	}
 	input->name = pdev->name;
 	input->phys = "gpio-keys/remotectl";
 	input->dev.parent = &pdev->dev;
@@ -437,15 +461,10 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	input->id.version = 0x0100;
 	ddata->input = input;
 	ddata->input = input;
-	wake_lock_init(&ddata->remotectl_wake_lock,
-		       WAKE_LOCK_SUSPEND, "rk29_pwm_remote");
-	ret = clk_prepare_enable(clk);
-	if (ret)
-		return ret;
 	irq = platform_get_irq(pdev, 0);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
-		return ret;
+		goto error_clk;
 	}
 	ddata->irq = irq;
 	ddata->wakeup = 1;
@@ -475,7 +494,8 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	enable_irq_wake(irq);
 	setup_timer(&ddata->timer, rk_pwm_remotectl_timer,
 		    (unsigned long)ddata);
-	//mod_timer(&ddata->timer, jiffies + msecs_to_jiffies(1000));
+	wake_lock_init(&ddata->remotectl_wake_lock,
+		       WAKE_LOCK_SUSPEND, "rockchip_pwm_remote");
 	cpumask_clear(&cpumask);
 	cpumask_set_cpu(cpu_id, &cpumask);
 	irq_set_affinity(irq, &cpumask);
@@ -483,11 +503,58 @@ static int rk_pwm_probe(struct platform_device *pdev)
 			       IRQF_NO_SUSPEND, "rk_pwm_irq", ddata);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", irq);
-		return ret;
+		goto error_irq;
 	}
 	rk_pwm_remotectl_hw_init(ddata);
 	pwm_freq = clk_get_rate(clk) / 64;
 	ddata->pwm_freq_nstime = 1000000000 / pwm_freq;
+	if (of_property_read_u32(np, "remote_support_psci",
+				 &ddata->support_psci)) {
+		dev_err(&pdev->dev, "Missing psci property in the DT.\n");
+		goto end;
+	}
+	DBG("support_psci=0x%x\n", ddata->support_psci);
+	if (ddata->support_psci == 0)
+		goto end;
+	desc = irq_to_desc(irq);
+	if (!desc || !desc->irq_data.domain)
+		goto end;
+	hwirq = desc->irq_data.hwirq;
+	ret = sip_smc_remotectl_config(REMOTECTL_SET_IRQ, hwirq);
+	if (ret) {
+		ddata->support_psci = 0;
+		dev_err(&pdev->dev, "set irq err, set support_psci to 0 !!\n");
+		/*
+		 * if atf doesn't support, return probe success to abandon atf
+		 * function and still use kernel pwm parse function
+		 */
+		goto end;
+	}
+	sip_smc_remotectl_config(REMOTECTL_SET_PWM_CH, pwm_id);
+	for (j = 0; j < num; j++) {
+		for (i = 0; i < remotectl_button[j].nbuttons; i++) {
+			int scancode, pwrkey;
+
+			if (remotectl_button[j].key_table[i].keycode
+			    != KEY_POWER)
+				continue;
+			scancode = remotectl_button[j].key_table[i].scancode;
+			DBG("usercode=%x, key=%x\n",
+			    remotectl_button[j].usercode, scancode);
+			pwrkey = (remotectl_button[j].usercode & 0xffff) << 16;
+			pwrkey |= (scancode & 0xff) << 8;
+			DBG("deliver: key=%x\n", pwrkey);
+			sip_smc_remotectl_config(REMOTECTL_SET_PWRKEY,
+							pwrkey);
+		}
+	}
+	sip_smc_remotectl_config(REMOTECTL_ENABLE, 1);
+end:
+	return 0;
+error_irq:
+	wake_lock_destroy(&ddata->remotectl_wake_lock);
+error_clk:
+	clk_unprepare(clk);
 	return ret;
 }
 
@@ -516,10 +583,22 @@ static int remotectl_resume(struct device *dev)
 	struct cpumask cpumask;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rkxx_remotectl_drvdata *ddata = platform_get_drvdata(pdev);
+	int state;
 
 	cpumask_clear(&cpumask);
 	cpumask_set_cpu(ddata->handle_cpu_id, &cpumask);
 	irq_set_affinity(ddata->irq, &cpumask);
+	if (ddata->support_psci) {
+		/* loop wakeup state */
+		state = sip_smc_remotectl_config(
+					REMOTECTL_GET_WAKEUP_STATE, 0);
+		if (state == REMOTECTL_PWRKEY_WAKEUP) {
+			input_event(ddata->input, EV_KEY, KEY_POWER, 1);
+			input_event(ddata->input, EV_KEY, KEY_POWER, 0);
+			input_sync(ddata->input);
+		}
+	}
+
 	return 0;
 }
 
@@ -544,10 +623,9 @@ static struct platform_driver rk_pwm_driver = {
 		.pm = &remotectl_pm_ops,
 #endif
 	},
-	.probe = rk_pwm_probe,
 	.remove = rk_pwm_remove,
 };
 
-module_platform_driver(rk_pwm_driver);
+module_platform_driver_probe(rk_pwm_driver, rk_pwm_probe);
 
 MODULE_LICENSE("GPL");
