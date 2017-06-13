@@ -1817,8 +1817,8 @@ again:
 	}
 
 	if (bio->bi_bdev && bio_flagged(bio, BIO_TRACE_COMPLETION)) {
-		trace_block_bio_complete(bdev_get_queue(bio->bi_bdev),
-					 bio, bio->bi_status);
+		trace_block_bio_complete(bdev_get_queue(bio->bi_bdev), bio,
+					 blk_status_to_errno(bio->bi_status));
 		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
 	}
 

@@ -91,7 +91,7 @@ static blk_status_t t10_pi_verify(struct blk_integrity_iter *iter,
 				       "(rcvd %u)\n", iter->disk_name,
 				       (unsigned long long)
 				       iter->seed, be32_to_cpu(pi->ref_tag));
-				return -EILSEQ;
+				return BLK_STS_PROTECTION;
 			}
 			break;
 		case 3:
