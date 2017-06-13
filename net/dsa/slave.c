@@ -524,10 +524,10 @@ static void dsa_cpu_port_get_ethtool_stats(struct net_device *dev,
 	s8 cpu_port = dst->cpu_dp->index;
 	int count = 0;
 
-	if (dst->master_ethtool_ops.get_sset_count) {
-		count = dst->master_ethtool_ops.get_sset_count(dev,
+	if (dst->cpu_dp->ethtool_ops.get_sset_count) {
+		count = dst->cpu_dp->ethtool_ops.get_sset_count(dev,
 							       ETH_SS_STATS);
-		dst->master_ethtool_ops.get_ethtool_stats(dev, stats, data);
+		dst->cpu_dp->ethtool_ops.get_ethtool_stats(dev, stats, data);
 	}
 
 	if (ds->ops->get_ethtool_stats)
@@ -540,8 +540,8 @@ static int dsa_cpu_port_get_sset_count(struct net_device *dev, int sset)
 	struct dsa_switch *ds = dst->cpu_dp->ds;
 	int count = 0;
 
-	if (dst->master_ethtool_ops.get_sset_count)
-		count += dst->master_ethtool_ops.get_sset_count(dev, sset);
+	if (dst->cpu_dp->ethtool_ops.get_sset_count)
+		count += dst->cpu_dp->ethtool_ops.get_sset_count(dev, sset);
 
 	if (sset == ETH_SS_STATS && ds->ops->get_sset_count)
 		count += ds->ops->get_sset_count(ds);
@@ -565,10 +565,10 @@ static void dsa_cpu_port_get_strings(struct net_device *dev,
 	/* We do not want to be NULL-terminated, since this is a prefix */
 	pfx[sizeof(pfx) - 1] = '_';
 
-	if (dst->master_ethtool_ops.get_sset_count) {
-		mcount = dst->master_ethtool_ops.get_sset_count(dev,
+	if (dst->cpu_dp->ethtool_ops.get_sset_count) {
+		mcount = dst->cpu_dp->ethtool_ops.get_sset_count(dev,
 								ETH_SS_STATS);
-		dst->master_ethtool_ops.get_strings(dev, stringset, data);
+		dst->cpu_dp->ethtool_ops.get_strings(dev, stringset, data);
 	}
 
 	if (stringset == ETH_SS_STATS && ds->ops->get_strings) {

@@ -122,23 +122,11 @@ struct dsa_switch_tree {
 	 */
 	struct dsa_platform_data	*pd;
 
-	/*
-	 * Reference to network device to use, and which tagging
-	 * protocol to use.
-	 */
-	struct net_device	*master_netdev;
-
 	/* Copy of tag_ops->rcv for faster access in hot path */
 	struct sk_buff *	(*rcv)(struct sk_buff *skb,
 				       struct net_device *dev,
 				       struct packet_type *pt,
 				       struct net_device *orig_dev);
-
-	/*
-	 * Original copy of the master netdev ethtool_ops
-	 */
-	struct ethtool_ops	master_ethtool_ops;
-	const struct ethtool_ops *master_orig_ethtool_ops;
 
 	/*
 	 * The switch port to which the CPU is attached.
@@ -189,6 +177,11 @@ struct dsa_port {
 	u8			stp_state;
 	struct net_device	*bridge_dev;
 	struct devlink_port	devlink_port;
+	/*
+	 * Original copy of the master netdev ethtool_ops
+	 */
+	struct ethtool_ops	ethtool_ops;
+	const struct ethtool_ops *orig_ethtool_ops;
 };
 
 struct dsa_switch {
