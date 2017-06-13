@@ -55,10 +55,8 @@
 #include <sound/hwdep.h>
 #include <sound/timer.h>
 #include <sound/seq_midi_emul.h>
-#ifdef CONFIG_SND_SEQUENCER_OSS
 #include <sound/seq_oss.h>
 #include <sound/seq_oss_legacy.h>
-#endif
 #include <sound/seq_device.h>
 #include <sound/asound_fm.h>
 
@@ -330,7 +328,7 @@ struct snd_opl3 {
 	struct snd_seq_device *seq_dev;	/* sequencer device */
 	struct snd_midi_channel_set * chset;
 
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	struct snd_seq_device *oss_seq_dev;	/* OSS sequencer device */
 	struct snd_midi_channel_set * oss_chset;
 #endif
