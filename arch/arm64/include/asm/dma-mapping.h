@@ -48,8 +48,6 @@ void arch_teardown_dma_ops(struct device *dev);
 /* do not use this function in a driver */
 static inline bool is_device_dma_coherent(struct device *dev)
 {
-	if (!dev)
-		return false;
 	return dev->archdata.dma_coherent;
 }
 
