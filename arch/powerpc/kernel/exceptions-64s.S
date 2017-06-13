@@ -130,6 +130,7 @@ EXC_VIRT_NONE(0x4100, 0x100)
 
 #ifdef CONFIG_PPC_P7_NAP
 EXC_COMMON_BEGIN(system_reset_idle_common)
+	mfspr	r12,SPRN_SRR1
 	b	pnv_powersave_wakeup
 #endif
 

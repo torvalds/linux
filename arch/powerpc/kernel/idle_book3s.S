@@ -111,7 +111,7 @@ core_idle_lock_held:
  *	r3 - PNV_THREAD_NAP/SLEEP/WINKLE in POWER8
  *	   - Requested PSSCR value in POWER9
  *
- * Address of idle handler to 'rfid' to in r4
+ * Address of idle handler to branch to in realmode in r4
  */
 pnv_powersave_common:
 	/* Use r3 to pass state nap/sleep/winkle */
@@ -121,13 +121,13 @@ pnv_powersave_common:
 	 * need to save PC, some CR bits and the NV GPRs,
 	 * but for now an interrupt frame will do.
 	 */
+	mtctr	r4
+
 	mflr	r0
 	std	r0,16(r1)
 	stdu	r1,-INT_FRAME_SIZE(r1)
 	std	r0,_LINK(r1)
 	std	r0,_NIP(r1)
-
-	mfmsr   r9
 
 	/* We haven't lost state ... yet */
 	li	r0,0
@@ -138,7 +138,6 @@ pnv_powersave_common:
 	SAVE_NVGPRS(r1)
 	mfcr	r5
 	std	r5,_CCR(r1)
-	std	r9,_MSR(r1)
 	std	r1,PACAR1(r13)
 
 	/*
@@ -148,12 +147,8 @@ pnv_powersave_common:
 	 * the MMU context to the guest.
 	 */
 	LOAD_REG_IMMEDIATE(r7, MSR_IDLE)
-	li	r6, MSR_RI
-	andc	r6, r9, r6
-	mtmsrd	r6, 1		/* clear RI before setting SRR0/1 */
-	mtspr	SPRN_SRR0, r4
-	mtspr	SPRN_SRR1, r7
-	rfid
+	mtmsrd	r7,0
+	bctr
 
 	.globl pnv_enter_arch207_idle_mode
 pnv_enter_arch207_idle_mode:
@@ -305,11 +300,10 @@ _GLOBAL(power7_idle_insn)
 	b	pnv_powersave_common
 
 #define CHECK_HMI_INTERRUPT						\
-	mfspr	r0,SPRN_SRR1;						\
 BEGIN_FTR_SECTION_NESTED(66);						\
-	rlwinm	r0,r0,45-31,0xf;  /* extract wake reason field (P8) */	\
+	rlwinm	r0,r12,45-31,0xf;  /* extract wake reason field (P8) */	\
 FTR_SECTION_ELSE_NESTED(66);						\
-	rlwinm	r0,r0,45-31,0xe;  /* P7 wake reason field is 3 bits */	\
+	rlwinm	r0,r12,45-31,0xe;  /* P7 wake reason field is 3 bits */	\
 ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 	cmpwi	r0,0xa;			/* Hypervisor maintenance ? */	\
 	bne	20f;							\
@@ -388,17 +382,17 @@ pnv_powersave_wakeup_mce:
 
 	/*
 	 * Now put the original SRR1 with SRR1_WAKEMCE_RESVD as the wake
-	 * reason into SRR1, which allows reuse of the system reset wakeup
+	 * reason into r12, which allows reuse of the system reset wakeup
 	 * code without being mistaken for another type of wakeup.
 	 */
-	oris	r3,r3,SRR1_WAKEMCE_RESVD@h
-	mtspr	SPRN_SRR1,r3
+	oris	r12,r3,SRR1_WAKEMCE_RESVD@h
 
 	b	pnv_powersave_wakeup
 
 /*
  * Called from reset vector for powersave wakeups.
  * cr3 - set to gt if waking up with partial/complete hypervisor state loss
+ * r12 - SRR1
  */
 .global pnv_powersave_wakeup
 pnv_powersave_wakeup:
@@ -416,6 +410,8 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 	li	r0,PNV_THREAD_RUNNING
 	stb	r0,PACA_THREAD_IDLE_STATE(r13)	/* Clear thread state */
 
+	mr	r3,r12
+
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	li	r0,KVM_HWTHREAD_IN_KERNEL
 	stb	r0,HSTATE_HWTHREAD_STATE(r13)
@@ -429,7 +425,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 #endif
 
 	/* Return SRR1 from power7_nap() */
-	mfspr	r3,SPRN_SRR1
 	blt	cr3,pnv_wakeup_noloss
 	b	pnv_wakeup_loss
 
@@ -529,9 +524,9 @@ pnv_wakeup_tb_loss:
 	 * is required to return back to reset vector after hypervisor state
 	 * restore is complete.
 	 */
+	mr	r19,r12
 	mr	r18,r4
 	mflr	r17
-	mfspr	r16,SPRN_SRR1
 BEGIN_FTR_SECTION
 	CHECK_HMI_INTERRUPT
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
@@ -781,7 +776,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 hypervisor_state_restored:
 
-	mtspr	SPRN_SRR1,r16
+	mr	r12,r19
 	mtlr	r17
 	blr		/* return to pnv_powersave_wakeup */
 
@@ -794,6 +789,7 @@ fastsleep_workaround_at_exit:
 /*
  * R3 here contains the value that will be returned to the caller
  * of power7_nap.
+ * R12 contains SRR1 for CHECK_HMI_INTERRUPT.
  */
 .global pnv_wakeup_loss
 pnv_wakeup_loss:
@@ -803,32 +799,33 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	REST_NVGPRS(r1)
 	REST_GPR(2, r1)
+	ld	r4,PACAKMSR(r13)
+	ld	r5,_LINK(r1)
 	ld	r6,_CCR(r1)
-	ld	r4,_MSR(r1)
-	ld	r5,_NIP(r1)
 	addi	r1,r1,INT_FRAME_SIZE
+	mtlr	r5
 	mtcr	r6
-	mtspr	SPRN_SRR1,r4
-	mtspr	SPRN_SRR0,r5
-	rfid
+	mtmsrd	r4
+	blr
 
 /*
  * R3 here contains the value that will be returned to the caller
  * of power7_nap.
+ * R12 contains SRR1 for CHECK_HMI_INTERRUPT.
  */
 pnv_wakeup_noloss:
 	lbz	r0,PACA_NAPSTATELOST(r13)
 	cmpwi	r0,0
 	bne	pnv_wakeup_loss
+	ld	r1,PACAR1(r13)
 BEGIN_FTR_SECTION
 	CHECK_HMI_INTERRUPT
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
-	ld	r1,PACAR1(r13)
-	ld	r6,_CCR(r1)
-	ld	r4,_MSR(r1)
+	ld	r4,PACAKMSR(r13)
 	ld	r5,_NIP(r1)
+	ld	r6,_CCR(r1)
 	addi	r1,r1,INT_FRAME_SIZE
+	mtlr	r5
 	mtcr	r6
-	mtspr	SPRN_SRR1,r4
-	mtspr	SPRN_SRR0,r5
-	rfid
+	mtmsrd	r4
+	blr
