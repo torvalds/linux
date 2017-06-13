@@ -254,7 +254,7 @@ inno_dw_hdmi_phy_init(struct dw_hdmi *dw_hdmi, void *data,
 		return -EINVAL;
 
 	/* set pdata_en to 0 */
-	inno_phy_modeb(hdmi, 0, 1, 0x01);
+	inno_phy_modeb(hdmi, 0, 1, 0x02);
 	/* Power off post PLL */
 	inno_phy_modeb(hdmi, 1, 1, 0xaa);
 
@@ -272,14 +272,6 @@ inno_dw_hdmi_phy_init(struct dw_hdmi *dw_hdmi, void *data,
 		      inno_pll_config->nd;
 		inno_phy_writel(hdmi, 0xab, val);
 		inno_phy_writel(hdmi, 0xaa, 0x0e);
-	}
-	/* Power up post PLL */
-	inno_phy_modeb(hdmi, 0, 1, 0xaa);
-	/* Wait for post PLL lock */
-	for (i = 0; i < 5; ++i) {
-		if (inno_phy_readl(hdmi, 0xaf) & 1)
-			break;
-		usleep_range(1000, 2000);
 	}
 
 	for (i = 0; i < 14; i++)
@@ -317,13 +309,26 @@ inno_dw_hdmi_phy_init(struct dw_hdmi *dw_hdmi, void *data,
 		inno_phy_writel(hdmi, 0xc5, 0x81);
 	}
 
-	if (inno_phy_config->tmdsclock > 340000000)
-		msleep(100);
-
+	/* Power up post PLL */
+	inno_phy_modeb(hdmi, 0, 1, 0xaa);
+	/* Power up tmds driver */
 	inno_phy_modeb(hdmi, 4, 4, 0xb0);
 	inno_phy_writel(hdmi, 0xb2, 0x0f);
+
+	/* Wait for post PLL lock */
+	for (i = 0; i < 5; ++i) {
+		if (inno_phy_readl(hdmi, 0xaf) & 1)
+			break;
+		usleep_range(1000, 2000);
+	}
+	if (!(inno_phy_readl(hdmi, 0xaf) & 1)) {
+		dev_err(hdmi->dev, "HDMI PHY Post PLL unlock\n");
+		return -ETIMEDOUT;
+	}
+	if (inno_phy_config->tmdsclock > 340000000)
+		msleep(100);
 	/* set pdata_en to 1 */
-	inno_phy_modeb(hdmi, 1, 1, 0x01);
+	inno_phy_modeb(hdmi, 1, 1, 0x02);
 	return 0;
 }
 
@@ -386,7 +391,7 @@ static int inno_dw_hdmi_phy_is_prepared(struct clk_hw *hw)
 
 static unsigned long
 inno_dw_hdmi_phy_pll_recalc_rate(struct clk_hw *hw,
-				  unsigned long parent_rate)
+				 unsigned long parent_rate)
 {
 	struct rockchip_hdmi *hdmi =
 		container_of(hw, struct rockchip_hdmi, hdmiphy_clkhw);
