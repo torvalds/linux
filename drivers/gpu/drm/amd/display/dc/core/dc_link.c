@@ -987,6 +987,9 @@ static bool construct(
 	enc_init_data.connector = link->link_id;
 	enc_init_data.channel = get_ddc_line(link);
 	enc_init_data.hpd_source = get_hpd_line(link);
+
+	link->public.hpd_src = enc_init_data.hpd_source;
+
 	enc_init_data.transmitter =
 			translate_encoder_to_transmitter(enc_init_data.encoder);
 	link->link_enc = link->dc->res_pool->funcs->link_enc_create(

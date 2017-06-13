@@ -658,6 +658,9 @@ struct dc_link {
 	struct dc_lane_settings cur_lane_setting;
 
 	uint8_t ddc_hw_inst;
+
+	uint8_t hpd_src;
+
 	uint8_t link_enc_hw_inst;
 
 	bool test_pattern_enabled;
