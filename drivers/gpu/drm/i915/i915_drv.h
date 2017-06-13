@@ -2418,8 +2418,8 @@ struct drm_i915_private {
 
 			int metrics_set;
 
-			const struct i915_oa_reg *mux_regs[2];
-			int mux_regs_lens[2];
+			const struct i915_oa_reg *mux_regs[6];
+			int mux_regs_lens[6];
 			int n_mux_configs;
 
 			const struct i915_oa_reg *b_counter_regs;
