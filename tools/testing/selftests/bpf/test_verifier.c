@@ -5418,7 +5418,7 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 	}
 
 	printf("Summary: %d PASSED, %d FAILED\n", passes, errors);
-	return errors ? -errors : 0;
+	return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 int main(int argc, char **argv)

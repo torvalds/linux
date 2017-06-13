@@ -428,7 +428,7 @@ static int do_test(unsigned int from, unsigned int to)
 	}
 	printf("Results: %d pass %d fail\n",
 	       all_pass, all_fail);
-	return 0;
+	return all_fail ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 int main(int argc, char **argv)
