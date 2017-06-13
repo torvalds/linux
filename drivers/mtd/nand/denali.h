@@ -306,8 +306,6 @@
 #define MODE_11    0x0C000000
 
 struct nand_buf {
-	int head;
-	int tail;
 	uint8_t *buf;
 	dma_addr_t dma_buf;
 };
