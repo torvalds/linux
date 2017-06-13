@@ -14,8 +14,8 @@
  */
 
 /*
- *Only these channels all allow active
- *scan on all world regulatory domains
+ * Only these channels all allow active
+ * scan on all world regulatory domains
  */
 
 /* 2G chan 01 - chan 11 */
@@ -23,8 +23,8 @@
 	REG_RULE(2412 - 10, 2462 + 10, 40, 0, 20, 0)
 
 /*
- *We enable active scan on these a case
- *by case basis by regulatory domain
+ * We enable active scan on these a case
+ * by case basis by regulatory domain
  */
 
 /* 2G chan 12 - chan 13, PASSIV SCAN */
@@ -49,7 +49,8 @@ static const struct ieee80211_regdomain rtw_regdom_rd = {
 static int rtw_ieee80211_channel_to_frequency(int chan, int band)
 {
 	/* see 802.11 17.3.8.3.2 and Annex J
-	 * there are overlapping channel numbers in 5GHz and 2GHz bands */
+	 * there are overlapping channel numbers in 5GHz and 2GHz bands
+	 */
 
 	/* NL80211_BAND_2GHZ */
 	if (chan == 14)
@@ -73,7 +74,7 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 	u16 channel;
 	u32 freq;
 
-	/*  all channels disable */
+	/* all channels disable */
 	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		sband = wiphy->bands[i];
 
@@ -87,7 +88,7 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 		}
 	}
 
-	/*  channels apply by channel plans. */
+	/* channels apply by channel plans. */
 	for (i = 0; i < max_chan_nums; i++) {
 		channel = channel_set[i].ChannelNum;
 		freq =
@@ -145,7 +146,6 @@ int rtw_regd_init(struct adapter *padapter,
 		  void (*reg_notifier) (struct wiphy * wiphy,
 				       struct regulatory_request *request))
 {
-	/* struct registry_priv  *registrypriv = &padapter->registrypriv; */
 	struct wiphy *wiphy = padapter->rtw_wdev->wiphy;
 	_rtw_regd_init_wiphy(NULL, wiphy, reg_notifier);
 
