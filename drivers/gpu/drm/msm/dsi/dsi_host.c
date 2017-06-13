@@ -32,6 +32,7 @@
 #include "dsi.xml.h"
 #include "sfpb.xml.h"
 #include "dsi_cfg.h"
+#include "msm_kms.h"
 
 static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 {
@@ -975,6 +976,7 @@ static void dsi_wait4video_eng_busy(struct msm_dsi_host *msm_host)
 static int dsi_tx_buf_alloc(struct msm_dsi_host *msm_host, int size)
 {
 	struct drm_device *dev = msm_host->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
 	uint64_t iova;
@@ -991,7 +993,8 @@ static int dsi_tx_buf_alloc(struct msm_dsi_host *msm_host, int size)
 			return ret;
 		}
 
-		ret = msm_gem_get_iova_locked(msm_host->tx_gem_obj, 0, &iova);
+		ret = msm_gem_get_iova_locked(msm_host->tx_gem_obj,
+				priv->kms->id, &iova);
 		mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			pr_err("%s: failed to get iova, %d\n", __func__, ret);
@@ -1141,12 +1144,15 @@ static int dsi_long_read_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 {
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+	struct drm_device *dev = msm_host->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
 	uint64_t dma_base;
 	bool triggered;
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
-		ret = msm_gem_get_iova(msm_host->tx_gem_obj, 0, &dma_base);
+		ret = msm_gem_get_iova(msm_host->tx_gem_obj,
+				priv->kms->id, &dma_base);
 		if (ret) {
 			pr_err("%s: failed to get iova: %d\n", __func__, ret);
 			return ret;

@@ -272,26 +272,28 @@ static int mdp5_plane_prepare_fb(struct drm_plane *plane,
 				 struct drm_plane_state *new_state)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	struct msm_kms *kms = &mdp5_kms->base.base;
 	struct drm_framebuffer *fb = new_state->fb;
 
 	if (!new_state->fb)
 		return 0;
 
 	DBG("%s: prepare: FB[%u]", plane->name, fb->base.id);
-	return msm_framebuffer_prepare(fb, mdp5_kms->id);
+	return msm_framebuffer_prepare(fb, kms->id);
 }
 
 static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 				  struct drm_plane_state *old_state)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	struct msm_kms *kms = &mdp5_kms->base.base;
 	struct drm_framebuffer *fb = old_state->fb;
 
 	if (!fb)
 		return;
 
 	DBG("%s: cleanup: FB[%u]", plane->name, fb->base.id);
-	msm_framebuffer_cleanup(fb, mdp5_kms->id);
+	msm_framebuffer_cleanup(fb, kms->id);
 }
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
@@ -498,6 +500,8 @@ static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
 			       enum mdp5_pipe pipe,
 			       struct drm_framebuffer *fb)
 {
+	struct msm_kms *kms = &mdp5_kms->base.base;
+
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_STRIDE_A(pipe),
 			MDP5_PIPE_SRC_STRIDE_A_P0(fb->pitches[0]) |
 			MDP5_PIPE_SRC_STRIDE_A_P1(fb->pitches[1]));
@@ -507,13 +511,13 @@ static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
 			MDP5_PIPE_SRC_STRIDE_B_P3(fb->pitches[3]));
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC0_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 0));
+			msm_framebuffer_iova(fb, kms->id, 0));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC1_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 1));
+			msm_framebuffer_iova(fb, kms->id, 1));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC2_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 2));
+			msm_framebuffer_iova(fb, kms->id, 2));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC3_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 3));
+			msm_framebuffer_iova(fb, kms->id, 3));
 }
 
 /* Note: mdp5_plane->pipe_lock must be locked */

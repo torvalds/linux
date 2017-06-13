@@ -160,10 +160,10 @@ static void mdp4_destroy(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	struct device *dev = mdp4_kms->dev->dev;
-	struct msm_gem_address_space *aspace = mdp4_kms->aspace;
+	struct msm_gem_address_space *aspace = kms->aspace;
 
 	if (mdp4_kms->blank_cursor_iova)
-		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
+		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, kms->id);
 	drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
 
 	if (aspace) {
@@ -510,7 +510,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 			goto fail;
 		}
 
-		mdp4_kms->aspace = aspace;
+		kms->aspace = aspace;
 
 		ret = aspace->mmu->funcs->attach(aspace->mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
@@ -522,9 +522,9 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		aspace = NULL;
 	}
 
-	mdp4_kms->id = msm_register_address_space(dev, aspace);
-	if (mdp4_kms->id < 0) {
-		ret = mdp4_kms->id;
+	kms->id = msm_register_address_space(dev, aspace);
+	if (kms->id < 0) {
+		ret = kms->id;
 		dev_err(dev->dev, "failed to register mdp4 iommu: %d\n", ret);
 		goto fail;
 	}
@@ -545,7 +545,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	ret = msm_gem_get_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id,
+	ret = msm_gem_get_iova(mdp4_kms->blank_cursor_bo, kms->id,
 			&mdp4_kms->blank_cursor_iova);
 	if (ret) {
 		dev_err(dev->dev, "could not pin blank-cursor bo: %d\n", ret);

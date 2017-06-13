@@ -20,6 +20,7 @@
 
 #include "msm_drv.h"
 #include "msm_gem.h"
+#include "msm_kms.h"
 
 extern int msm_gem_mmap_obj(struct drm_gem_object *obj,
 					struct vm_area_struct *vma);
@@ -73,6 +74,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 {
 	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
 	struct drm_device *dev = helper->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb = NULL;
 	struct fb_info *fbi = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = {0};
@@ -124,7 +126,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	 * in panic (ie. lock-safe, etc) we could avoid pinning the
 	 * buffer now:
 	 */
-	ret = msm_gem_get_iova_locked(fbdev->bo, 0, &paddr);
+	ret = msm_gem_get_iova_locked(fbdev->bo, priv->kms->id, &paddr);
 	if (ret) {
 		dev_err(dev->dev, "failed to get buffer obj iova: %d\n", ret);
 		goto fail_unlock;

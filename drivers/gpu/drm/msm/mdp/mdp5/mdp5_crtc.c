@@ -160,8 +160,9 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	struct mdp5_crtc *mdp5_crtc =
 		container_of(work, struct mdp5_crtc, unref_cursor_work);
 	struct mdp5_kms *mdp5_kms = get_kms(&mdp5_crtc->base);
+	struct msm_kms *kms = &mdp5_kms->base.base;
 
-	msm_gem_put_iova(val, mdp5_kms->id);
+	msm_gem_put_iova(val, kms->id);
 	drm_gem_object_unreference_unlocked(val);
 }
 
@@ -724,6 +725,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	struct mdp5_pipeline *pipeline = &mdp5_cstate->pipeline;
 	struct drm_device *dev = crtc->dev;
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct msm_kms *kms = &mdp5_kms->base.base;
 	struct drm_gem_object *cursor_bo, *old_bo = NULL;
 	uint32_t blendcfg, stride;
 	uint64_t cursor_addr;
@@ -758,7 +760,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!cursor_bo)
 		return -ENOENT;
 
-	ret = msm_gem_get_iova(cursor_bo, mdp5_kms->id, &cursor_addr);
+	ret = msm_gem_get_iova(cursor_bo, kms->id, &cursor_addr);
 	if (ret)
 		return -EINVAL;
 
