@@ -762,7 +762,7 @@ struct ngene {
 
 	wait_queue_head_t     cmd_wq;
 	int                   cmd_done;
-	struct semaphore      cmd_mutex;
+	struct mutex          cmd_mutex;
 	struct semaphore      stream_mutex;
 	struct semaphore      pll_mutex;
 	struct semaphore      i2c_switch_mutex;
