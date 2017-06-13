@@ -514,7 +514,7 @@ EXPORT_SYMBOL(dpaa2_io_service_acquire);
  * The size of the storage is "max_frames*sizeof(struct dpaa2_dq)".
  * The 'dpaa2_io_store' returned is a DPIO service managed object.
  *
- * Return pointer to dpaa2_io_store struct for successfuly created storage
+ * Return pointer to dpaa2_io_store struct for successfully created storage
  * memory, or NULL on error.
  */
 struct dpaa2_io_store *dpaa2_io_store_create(unsigned int max_frames,
