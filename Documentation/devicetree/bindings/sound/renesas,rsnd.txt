@@ -83,11 +83,11 @@ SRC can convert [xx]Hz to [yy]Hz. Then, it has below 2 modes
 **     Asynchronous mode
 ------------------
 
-You need to use "renesas,rsrc-card" sound card for it.
+You need to use "simple-scu-audio-card" sound card for it.
 example)
 
 	sound {
-		compatible = "renesas,rsrc-card";
+		compatible = "simple-scu-audio-card";
 		...
 		/*
 		 * SRC Asynchronous mode setting
@@ -97,12 +97,12 @@ example)
 		 * Inputed 48kHz data will be converted to
 		 * system specified Hz
 		 */
-		convert-rate = <48000>;
+		simple-audio-card,convert-rate = <48000>;
 		...
-		cpu {
+		simple-audio-card,cpu {
 			sound-dai = <&rcar_sound>;
 		};
-		codec {
+		simple-audio-card,codec {
 			...
 		};
 	};
@@ -141,23 +141,23 @@ For more detail information, see below
 	${LINUX}/sound/soc/sh/rcar/ctu.c
 	 - comment of header
 
-You need to use "renesas,rsrc-card" sound card for it.
+You need to use "simple-scu-audio-card" sound card for it.
 example)
 
 	sound {
-		compatible = "renesas,rsrc-card";
+		compatible = "simple-scu-audio-card";
 		...
 		/*
 		 * CTU setting
 		 * All input data will be converted to 2ch
 		 * as output data
 		 */
-		convert-channels = <2>;
+		simple-audio-card,convert-channels = <2>;
 		...
-		cpu {
+		simple-audio-card,cpu {
 			sound-dai = <&rcar_sound>;
 		};
-		codec {
+		simple-audio-card,codec {
 			...
 		};
 	};
@@ -190,22 +190,22 @@ and these sounds will be merged by MIX.
 	aplay -D plughw:0,0 xxxx.wav &
 	aplay -D plughw:0,1 yyyy.wav
 
-You need to use "renesas,rsrc-card" sound card for it.
+You need to use "simple-scu-audio-card" sound card for it.
 Ex)
 	[MEM] -> [SRC1] -> [CTU02] -+-> [MIX0] -> [DVC0] -> [SSI0]
 	                            |
 	[MEM] -> [SRC2] -> [CTU03] -+
 
 	sound {
-		compatible = "renesas,rsrc-card";
+		compatible = "simple-scu-audio-card";
 		...
-		cpu@0 {
+		simple-audio-card,cpu@0 {
 			sound-dai = <&rcar_sound 0>;
 		};
-		cpu@1 {
+		simple-audio-card,cpu@1 {
 			sound-dai = <&rcar_sound 1>;
 		};
-		codec {
+		simple-audio-card,codec {
 			...
 		};
 	};
@@ -368,6 +368,10 @@ Required properties:
 				  see below for detail.
 - #sound-dai-cells		: it must be 0 if your system is using single DAI
 				  it must be 1 if your system is using multi  DAI
+- clocks			: References to SSI/SRC/MIX/CTU/DVC/AUDIO_CLK clocks.
+- clock-names			: List of necessary clock names.
+				  "ssi-all", "ssi.X", "src.X", "mix.X", "ctu.X",
+				  "dvc.X", "clk_a", "clk_b", "clk_c", "clk_i"
 
 Optional properties:
 - #clock-cells			: it must be 0 if your system has audio_clkout
@@ -375,6 +379,9 @@ Optional properties:
 - clock-frequency		: for all audio_clkout0/1/2/3
 - clkout-lr-asynchronous	: boolean property. it indicates that audio_clkoutn
 				  is asynchronizes with lr-clock.
+- resets			: References to SSI resets.
+- reset-names			: List of valid reset names.
+				  "ssi-all", "ssi.X"
 
 SSI subnode properties:
 - interrupts			: Should contain SSI interrupt for PIO transfer

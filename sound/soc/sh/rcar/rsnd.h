@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 #include <linux/of_irq.h>
 #include <linux/sh_dma.h>
 #include <linux/workqueue.h>
@@ -73,6 +74,7 @@ enum rsnd_reg {
 	RSND_REG_SCU_SYS_INT_EN0,
 	RSND_REG_SCU_SYS_INT_EN1,
 	RSND_REG_CMD_CTRL,
+	RSND_REG_CMD_BUSIF_MODE,
 	RSND_REG_CMD_BUSIF_DALIGN,
 	RSND_REG_CMD_ROUTE_SLCT,
 	RSND_REG_CMDOUT_TIMSEL,
@@ -169,6 +171,8 @@ enum rsnd_reg {
 	RSND_REG_SSI_SYS_STATUS5,
 	RSND_REG_SSI_SYS_STATUS6,
 	RSND_REG_SSI_SYS_STATUS7,
+	RSND_REG_HDMI0_SEL,
+	RSND_REG_HDMI1_SEL,
 
 	/* SSI */
 	RSND_REG_SSICR,
@@ -204,6 +208,7 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
 		    u32 mask, u32 data);
 u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
 u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
+u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
 
 /*
  *	R-Car DMA
@@ -266,6 +271,9 @@ struct rsnd_mod_ops {
 			 struct rsnd_dai_stream *io,
 			 struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params);
+	int (*pointer)(struct rsnd_mod *mod,
+		       struct rsnd_dai_stream *io,
+		       snd_pcm_uframes_t *pointer);
 	int (*fallback)(struct rsnd_mod *mod,
 			struct rsnd_dai_stream *io,
 			struct rsnd_priv *priv);
@@ -303,6 +311,7 @@ struct rsnd_mod {
  * H	0: pcm_new
  * H	0: fallback
  * H	0: hw_params
+ * H	0: pointer
  */
 #define __rsnd_mod_shift_nolock_start	0
 #define __rsnd_mod_shift_nolock_stop	0
@@ -316,6 +325,7 @@ struct rsnd_mod {
 #define __rsnd_mod_shift_pcm_new	28 /* always called */
 #define __rsnd_mod_shift_fallback	28 /* always called */
 #define __rsnd_mod_shift_hw_params	28 /* always called */
+#define __rsnd_mod_shift_pointer	28 /* always called */
 
 #define __rsnd_mod_add_probe		0
 #define __rsnd_mod_add_remove		0
@@ -329,6 +339,7 @@ struct rsnd_mod {
 #define __rsnd_mod_add_pcm_new		0
 #define __rsnd_mod_add_fallback		0
 #define __rsnd_mod_add_hw_params	0
+#define __rsnd_mod_add_pointer		0
 
 #define __rsnd_mod_call_probe		0
 #define __rsnd_mod_call_remove		0
@@ -340,6 +351,7 @@ struct rsnd_mod {
 #define __rsnd_mod_call_pcm_new		0
 #define __rsnd_mod_call_fallback	0
 #define __rsnd_mod_call_hw_params	0
+#define __rsnd_mod_call_pointer		0
 #define __rsnd_mod_call_nolock_start	0
 #define __rsnd_mod_call_nolock_stop	1
 
@@ -418,13 +430,8 @@ struct rsnd_dai_stream {
 	char name[RSND_DAI_NAME_SIZE];
 	struct snd_pcm_substream *substream;
 	struct rsnd_mod *mod[RSND_MOD_MAX];
-	struct rsnd_dai_path_info *info; /* rcar_snd.h */
 	struct rsnd_dai *rdai;
 	u32 parent_ssi_status;
-	int byte_pos;
-	int period_pos;
-	int byte_per_period;
-	int next_period_byte;
 };
 #define rsnd_io_to_mod(io, i)	((i) < RSND_MOD_MAX ? (io)->mod[(i)] : NULL)
 #define rsnd_io_to_mod_ssi(io)	rsnd_io_to_mod((io), RSND_MOD_SSI)
@@ -469,13 +476,10 @@ struct rsnd_dai {
 
 struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id);
 
-bool rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
 void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io);
-int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
 int rsnd_dai_connect(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
 		     enum rsnd_mod_type type);
-#define rsnd_dai_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_DAI)
 
 /*
  *	R-Car Gen1/Gen2
@@ -645,6 +649,13 @@ struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io);
 u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io);
+
+#define RSND_SSI_HDMI_PORT0	0xf0
+#define RSND_SSI_HDMI_PORT1	0xf1
+int rsnd_ssi_hdmi_port(struct rsnd_dai_stream *io);
+void rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
+				    struct device_node *endpoint,
+				    int dai_i);
 
 #define rsnd_ssi_is_pin_sharing(io)	\
 	__rsnd_ssi_is_pin_sharing(rsnd_io_to_mod_ssi(io))

@@ -38,7 +38,7 @@ Optional CPU/CODEC subnodes properties:
 
 - clocks / system-clock-frequency	: see simple-audio-card.txt
 
-Example 1. Sampling Rate Covert
+Example 1. Sampling Rate Conversion
 
 sound {
 	compatible = "simple-scu-audio-card";

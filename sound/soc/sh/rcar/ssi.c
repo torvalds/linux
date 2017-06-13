@@ -11,6 +11,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <sound/simple_card_utils.h>
 #include <linux/delay.h>
 #include "rsnd.h"
 #define RSND_SSI_NAME_SIZE 16
@@ -76,11 +77,18 @@ struct rsnd_ssi {
 	int rate;
 	int irq;
 	unsigned int usrcnt;
+
+	int byte_pos;
+	int period_pos;
+	int byte_per_period;
+	int next_period_byte;
 };
 
 /* flags */
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 0)
 #define RSND_SSI_NO_BUSIF		(1 << 1) /* SSI+DMA without BUSIF */
+#define RSND_SSI_HDMI0			(1 << 2) /* for HDMI0 */
+#define RSND_SSI_HDMI1			(1 << 3) /* for HDMI1 */
 
 #define for_each_rsnd_ssi(pos, priv, i)					\
 	for (i = 0;							\
@@ -98,6 +106,20 @@ struct rsnd_ssi {
 	(rsnd_ssi_multi_slaves(io) & (1 << rsnd_mod_id(mod)))
 #define rsnd_ssi_is_run_mods(mod, io) \
 	(rsnd_ssi_run_mods(io) & (1 << rsnd_mod_id(mod)))
+
+int rsnd_ssi_hdmi_port(struct rsnd_dai_stream *io)
+{
+	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	if (rsnd_ssi_mode_flags(ssi) & RSND_SSI_HDMI0)
+		return RSND_SSI_HDMI_PORT0;
+
+	if (rsnd_ssi_mode_flags(ssi) & RSND_SSI_HDMI1)
+		return RSND_SSI_HDMI_PORT1;
+
+	return 0;
+}
 
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 {
@@ -302,7 +324,7 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	 * always use 32bit system word.
 	 * see also rsnd_ssi_master_clk_enable()
 	 */
-	cr_own = FORCE | SWL_32 | PDTA;
+	cr_own = FORCE | SWL_32;
 
 	if (rdai->bit_clk_inv)
 		cr_own |= SCKP;
@@ -357,6 +379,59 @@ static void rsnd_ssi_register_setup(struct rsnd_mod *mod)
 					ssi->cr_mode); /* without EN */
 }
 
+static void rsnd_ssi_pointer_init(struct rsnd_mod *mod,
+				  struct rsnd_dai_stream *io)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+
+	ssi->byte_pos		= 0;
+	ssi->period_pos		= 0;
+	ssi->byte_per_period	= runtime->period_size *
+				  runtime->channels *
+				  samples_to_bytes(runtime, 1);
+	ssi->next_period_byte	= ssi->byte_per_period;
+}
+
+static int rsnd_ssi_pointer_offset(struct rsnd_mod *mod,
+				   struct rsnd_dai_stream *io,
+				   int additional)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	int pos = ssi->byte_pos + additional;
+
+	pos %= (runtime->periods * ssi->byte_per_period);
+
+	return pos;
+}
+
+static bool rsnd_ssi_pointer_update(struct rsnd_mod *mod,
+				    struct rsnd_dai_stream *io,
+				    int byte)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	ssi->byte_pos += byte;
+
+	if (ssi->byte_pos >= ssi->next_period_byte) {
+		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+
+		ssi->period_pos++;
+		ssi->next_period_byte += ssi->byte_per_period;
+
+		if (ssi->period_pos >= runtime->periods) {
+			ssi->byte_pos = 0;
+			ssi->period_pos = 0;
+			ssi->next_period_byte = ssi->byte_per_period;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 /*
  *	SSI mod common functions
  */
@@ -369,6 +444,8 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 
 	if (!rsnd_ssi_is_run_mods(mod, io))
 		return 0;
+
+	rsnd_ssi_pointer_init(mod, io);
 
 	ssi->usrcnt++;
 
@@ -549,7 +626,14 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 	if (!is_dma && (status & DIRQ)) {
 		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 		u32 *buf = (u32 *)(runtime->dma_area +
-				   rsnd_dai_pointer_offset(io, 0));
+				   rsnd_ssi_pointer_offset(mod, io, 0));
+		int shift = 0;
+
+		switch (runtime->sample_bits) {
+		case 32:
+			shift = 8;
+			break;
+		}
 
 		/*
 		 * 8/16/32 data can be assesse to TDR/RDR register
@@ -557,11 +641,11 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 		 * see rsnd_ssi_init()
 		 */
 		if (rsnd_io_is_play(io))
-			rsnd_mod_write(mod, SSITDR, *buf);
+			rsnd_mod_write(mod, SSITDR, (*buf) << shift);
 		else
-			*buf = rsnd_mod_read(mod, SSIRDR);
+			*buf = (rsnd_mod_read(mod, SSIRDR) >> shift);
 
-		elapsed = rsnd_dai_pointer_update(io, sizeof(*buf));
+		elapsed = rsnd_ssi_pointer_update(mod, io, sizeof(*buf));
 	}
 
 	/* DMA only */
@@ -668,6 +752,18 @@ static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
 	return ret;
 }
 
+static int rsnd_ssi_pointer(struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io,
+			    snd_pcm_uframes_t *pointer)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+
+	*pointer = bytes_to_frames(runtime, ssi->byte_pos);
+
+	return 0;
+}
+
 static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.name	= SSI_NAME,
 	.probe	= rsnd_ssi_common_probe,
@@ -676,6 +772,7 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.start	= rsnd_ssi_start,
 	.stop	= rsnd_ssi_stop,
 	.irq	= rsnd_ssi_irq,
+	.pointer= rsnd_ssi_pointer,
 	.pcm_new = rsnd_ssi_pcm_new,
 	.hw_params = rsnd_ssi_hw_params,
 };
@@ -709,6 +806,11 @@ static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 			       struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
+
+	/* Do nothing for SSI parent mod */
+	if (ssi_parent_mod == mod)
+		return 0;
 
 	/* PIO will request IRQ again */
 	free_irq(ssi->irq, mod);
@@ -775,13 +877,6 @@ int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
 
 
 /*
- *		Non SSI
- */
-static struct rsnd_mod_ops rsnd_ssi_non_ops = {
-	.name	= SSI_NAME,
-};
-
-/*
  *		ssi mod function
  */
 static void rsnd_ssi_connect(struct rsnd_mod *mod,
@@ -833,6 +928,47 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 	}
 
 	of_node_put(node);
+}
+
+static void __rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
+					     struct rsnd_dai_stream *io,
+					     struct device_node *remote_ep)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
+	struct rsnd_ssi *ssi;
+
+	if (!mod)
+		return;
+
+	ssi  = rsnd_mod_to_ssi(mod);
+
+	if (strstr(remote_ep->full_name, "hdmi0")) {
+		ssi->flags |= RSND_SSI_HDMI0;
+		dev_dbg(dev, "%s[%d] connected to HDMI0\n",
+			 rsnd_mod_name(mod), rsnd_mod_id(mod));
+	}
+
+	if (strstr(remote_ep->full_name, "hdmi1")) {
+		ssi->flags |= RSND_SSI_HDMI1;
+		dev_dbg(dev, "%s[%d] connected to HDMI1\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
+	}
+}
+
+void rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
+				    struct device_node *endpoint,
+				    int dai_i)
+{
+	struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+	struct device_node *remote_ep;
+
+	remote_ep = of_graph_get_remote_endpoint(endpoint);
+	if (!remote_ep)
+		return;
+
+	__rsnd_ssi_parse_hdmi_connection(priv, &rdai->playback, remote_ep);
+	__rsnd_ssi_parse_hdmi_connection(priv, &rdai->capture,  remote_ep);
 }
 
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
@@ -940,7 +1076,6 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 			goto rsnd_ssi_probe_done;
 		}
 
-		ops = &rsnd_ssi_non_ops;
 		if (of_property_read_bool(np, "pio-transfer"))
 			ops = &rsnd_ssi_pio_ops;
 		else
