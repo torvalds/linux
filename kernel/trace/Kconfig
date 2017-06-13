@@ -224,7 +224,7 @@ config HWLAT_TRACER
 	select GENERIC_TRACER
 	help
 	 This tracer, when enabled will create one or more kernel threads,
-	 depening on what the cpumask file is set to, which each thread
+	 depending on what the cpumask file is set to, which each thread
 	 spinning in a loop looking for interruptions caused by
 	 something other than the kernel. For example, if a
 	 System Management Interrupt (SMI) takes a noticeable amount of
@@ -239,7 +239,7 @@ config HWLAT_TRACER
 				     iteration
 
 	 A kernel thread is created that will spin with interrupts disabled
-	 for "width" microseconds in every "widow" cycle. It will not spin
+	 for "width" microseconds in every "window" cycle. It will not spin
 	 for "window - width" microseconds, where the system can
 	 continue to operate.
 
