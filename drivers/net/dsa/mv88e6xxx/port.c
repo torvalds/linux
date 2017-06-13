@@ -49,23 +49,23 @@ static int mv88e6xxx_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~(PORT_PCS_CTRL_RGMII_DELAY_RXCLK |
-		 PORT_PCS_CTRL_RGMII_DELAY_TXCLK);
+	reg &= ~(MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK |
+		 MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK);
 
 	switch (mode) {
 	case PHY_INTERFACE_MODE_RGMII_RXID:
-		reg |= PORT_PCS_CTRL_RGMII_DELAY_RXCLK;
+		reg |= MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		reg |= PORT_PCS_CTRL_RGMII_DELAY_TXCLK;
+		reg |= MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_ID:
-		reg |= PORT_PCS_CTRL_RGMII_DELAY_RXCLK |
-			PORT_PCS_CTRL_RGMII_DELAY_TXCLK;
+		reg |= MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK |
+			MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK;
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 		break;
@@ -73,13 +73,13 @@ static int mv88e6xxx_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 		return 0;
 	}
 
-	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_MAC_CTL, reg);
 	if (err)
 		return err;
 
 	dev_dbg(chip->dev, "p%d: delay RXCLK %s, TXCLK %s\n", port,
-		reg & PORT_PCS_CTRL_RGMII_DELAY_RXCLK ? "yes" : "no",
-		reg & PORT_PCS_CTRL_RGMII_DELAY_TXCLK ? "yes" : "no");
+		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK ? "yes" : "no",
+		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK ? "yes" : "no");
 
 	return 0;
 }
@@ -107,18 +107,20 @@ int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~(PORT_PCS_CTRL_FORCE_LINK | PORT_PCS_CTRL_LINK_UP);
+	reg &= ~(MV88E6XXX_PORT_MAC_CTL_FORCE_LINK |
+		 MV88E6XXX_PORT_MAC_CTL_LINK_UP);
 
 	switch (link) {
 	case LINK_FORCED_DOWN:
-		reg |= PORT_PCS_CTRL_FORCE_LINK;
+		reg |= MV88E6XXX_PORT_MAC_CTL_FORCE_LINK;
 		break;
 	case LINK_FORCED_UP:
-		reg |= PORT_PCS_CTRL_FORCE_LINK | PORT_PCS_CTRL_LINK_UP;
+		reg |= MV88E6XXX_PORT_MAC_CTL_FORCE_LINK |
+			MV88E6XXX_PORT_MAC_CTL_LINK_UP;
 		break;
 	case LINK_UNFORCED:
 		/* normal link detection */
@@ -127,13 +129,13 @@ int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
 		return -EINVAL;
 	}
 
-	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_MAC_CTL, reg);
 	if (err)
 		return err;
 
 	dev_dbg(chip->dev, "p%d: %s link %s\n", port,
-		reg & PORT_PCS_CTRL_FORCE_LINK ? "Force" : "Unforce",
-		reg & PORT_PCS_CTRL_LINK_UP ? "up" : "down");
+		reg & MV88E6XXX_PORT_MAC_CTL_FORCE_LINK ? "Force" : "Unforce",
+		reg & MV88E6XXX_PORT_MAC_CTL_LINK_UP ? "up" : "down");
 
 	return 0;
 }
@@ -143,18 +145,20 @@ int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~(PORT_PCS_CTRL_FORCE_DUPLEX | PORT_PCS_CTRL_DUPLEX_FULL);
+	reg &= ~(MV88E6XXX_PORT_MAC_CTL_FORCE_DUPLEX |
+		 MV88E6XXX_PORT_MAC_CTL_DUPLEX_FULL);
 
 	switch (dup) {
 	case DUPLEX_HALF:
-		reg |= PORT_PCS_CTRL_FORCE_DUPLEX;
+		reg |= MV88E6XXX_PORT_MAC_CTL_FORCE_DUPLEX;
 		break;
 	case DUPLEX_FULL:
-		reg |= PORT_PCS_CTRL_FORCE_DUPLEX | PORT_PCS_CTRL_DUPLEX_FULL;
+		reg |= MV88E6XXX_PORT_MAC_CTL_FORCE_DUPLEX |
+			MV88E6XXX_PORT_MAC_CTL_DUPLEX_FULL;
 		break;
 	case DUPLEX_UNFORCED:
 		/* normal duplex detection */
@@ -163,13 +167,13 @@ int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup)
 		return -EINVAL;
 	}
 
-	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_MAC_CTL, reg);
 	if (err)
 		return err;
 
 	dev_dbg(chip->dev, "p%d: %s %s duplex\n", port,
-		reg & PORT_PCS_CTRL_FORCE_DUPLEX ? "Force" : "Unforce",
-		reg & PORT_PCS_CTRL_DUPLEX_FULL ? "full" : "half");
+		reg & MV88E6XXX_PORT_MAC_CTL_FORCE_DUPLEX ? "Force" : "Unforce",
+		reg & MV88E6XXX_PORT_MAC_CTL_DUPLEX_FULL ? "full" : "half");
 
 	return 0;
 }
@@ -182,47 +186,49 @@ static int mv88e6xxx_port_set_speed(struct mv88e6xxx_chip *chip, int port,
 
 	switch (speed) {
 	case 10:
-		ctrl = PORT_PCS_CTRL_SPEED_10;
+		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_10;
 		break;
 	case 100:
-		ctrl = PORT_PCS_CTRL_SPEED_100;
+		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_100;
 		break;
 	case 200:
 		if (alt_bit)
-			ctrl = PORT_PCS_CTRL_SPEED_100 | PORT_PCS_CTRL_ALTSPEED;
+			ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_100 |
+				MV88E6390_PORT_MAC_CTL_ALTSPEED;
 		else
-			ctrl = PORT_PCS_CTRL_SPEED_200;
+			ctrl = MV88E6065_PORT_MAC_CTL_SPEED_200;
 		break;
 	case 1000:
-		ctrl = PORT_PCS_CTRL_SPEED_1000;
+		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_1000;
 		break;
 	case 2500:
-		ctrl = PORT_PCS_CTRL_SPEED_10000 | PORT_PCS_CTRL_ALTSPEED;
+		ctrl = MV88E6390_PORT_MAC_CTL_SPEED_10000 |
+			MV88E6390_PORT_MAC_CTL_ALTSPEED;
 		break;
 	case 10000:
 		/* all bits set, fall through... */
 	case SPEED_UNFORCED:
-		ctrl = PORT_PCS_CTRL_SPEED_UNFORCED;
+		ctrl = MV88E6XXX_PORT_MAC_CTL_SPEED_UNFORCED;
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_MAC_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_PCS_CTRL_SPEED_MASK;
+	reg &= ~MV88E6XXX_PORT_MAC_CTL_SPEED_MASK;
 	if (alt_bit)
-		reg &= ~PORT_PCS_CTRL_ALTSPEED;
+		reg &= ~MV88E6390_PORT_MAC_CTL_ALTSPEED;
 	if (force_bit) {
-		reg &= ~PORT_PCS_CTRL_FORCE_SPEED;
+		reg &= ~MV88E6390_PORT_MAC_CTL_FORCE_SPEED;
 		if (speed != SPEED_UNFORCED)
-			ctrl |= PORT_PCS_CTRL_FORCE_SPEED;
+			ctrl |= MV88E6390_PORT_MAC_CTL_FORCE_SPEED;
 	}
 	reg |= ctrl;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_MAC_CTL, reg);
 	if (err)
 		return err;
 
@@ -322,33 +328,33 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 
 	switch (mode) {
 	case PHY_INTERFACE_MODE_1000BASEX:
-		cmode = PORT_STATUS_CMODE_1000BASE_X;
+		cmode = MV88E6XXX_PORT_STS_CMODE_1000BASE_X;
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
-		cmode = PORT_STATUS_CMODE_SGMII;
+		cmode = MV88E6XXX_PORT_STS_CMODE_SGMII;
 		break;
 	case PHY_INTERFACE_MODE_2500BASEX:
-		cmode = PORT_STATUS_CMODE_2500BASEX;
+		cmode = MV88E6XXX_PORT_STS_CMODE_2500BASEX;
 		break;
 	case PHY_INTERFACE_MODE_XGMII:
-		cmode = PORT_STATUS_CMODE_XAUI;
+		cmode = MV88E6XXX_PORT_STS_CMODE_XAUI;
 		break;
 	case PHY_INTERFACE_MODE_RXAUI:
-		cmode = PORT_STATUS_CMODE_RXAUI;
+		cmode = MV88E6XXX_PORT_STS_CMODE_RXAUI;
 		break;
 	default:
 		cmode = 0;
 	}
 
 	if (cmode) {
-		err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
+		err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 		if (err)
 			return err;
 
-		reg &= ~PORT_STATUS_CMODE_MASK;
+		reg &= ~MV88E6XXX_PORT_STS_CMODE_MASK;
 		reg |= cmode;
 
-		err = mv88e6xxx_port_write(chip, port, PORT_STATUS, reg);
+		err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_STS, reg);
 		if (err)
 			return err;
 	}
@@ -361,16 +367,16 @@ int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 	if (err)
 		return err;
 
-	*cmode = reg & PORT_STATUS_CMODE_MASK;
+	*cmode = reg & MV88E6XXX_PORT_STS_CMODE_MASK;
 
 	return 0;
 }
 
-/* Offset 0x02: Pause Control
+/* Offset 0x02: Jamming Control
  *
  * Do not limit the period of time that this port can be paused for by
  * the remote end or the period of time that this port can pause the
@@ -379,7 +385,8 @@ int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
 int mv88e6097_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 			       u8 out)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL, out << 8 | in);
+	return mv88e6xxx_port_write(chip, port, MV88E6097_PORT_JAM_CTL,
+				    out << 8 | in);
 }
 
 int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
@@ -387,22 +394,24 @@ int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 {
 	int err;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
-				   PORT_FLOW_CTRL_LIMIT_IN | in);
+	err = mv88e6xxx_port_write(chip, port, MV88E6390_PORT_FLOW_CTL,
+				   MV88E6390_PORT_FLOW_CTL_UPDATE |
+				   MV88E6390_PORT_FLOW_CTL_LIMIT_IN | in);
 	if (err)
 		return err;
 
-	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
-				    PORT_FLOW_CTRL_LIMIT_OUT | out);
+	return mv88e6xxx_port_write(chip, port, MV88E6390_PORT_FLOW_CTL,
+				    MV88E6390_PORT_FLOW_CTL_UPDATE |
+				    MV88E6390_PORT_FLOW_CTL_LIMIT_OUT | out);
 }
 
 /* Offset 0x04: Port Control Register */
 
 static const char * const mv88e6xxx_port_state_names[] = {
-	[PORT_CONTROL_STATE_DISABLED] = "Disabled",
-	[PORT_CONTROL_STATE_BLOCKING] = "Blocking/Listening",
-	[PORT_CONTROL_STATE_LEARNING] = "Learning",
-	[PORT_CONTROL_STATE_FORWARDING] = "Forwarding",
+	[MV88E6XXX_PORT_CTL0_STATE_DISABLED] = "Disabled",
+	[MV88E6XXX_PORT_CTL0_STATE_BLOCKING] = "Blocking/Listening",
+	[MV88E6XXX_PORT_CTL0_STATE_LEARNING] = "Learning",
+	[MV88E6XXX_PORT_CTL0_STATE_FORWARDING] = "Forwarding",
 };
 
 int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
@@ -410,25 +419,25 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_STATE_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL0_STATE_MASK;
 
 	switch (state) {
 	case BR_STATE_DISABLED:
-		state = PORT_CONTROL_STATE_DISABLED;
+		state = MV88E6XXX_PORT_CTL0_STATE_DISABLED;
 		break;
 	case BR_STATE_BLOCKING:
 	case BR_STATE_LISTENING:
-		state = PORT_CONTROL_STATE_BLOCKING;
+		state = MV88E6XXX_PORT_CTL0_STATE_BLOCKING;
 		break;
 	case BR_STATE_LEARNING:
-		state = PORT_CONTROL_STATE_LEARNING;
+		state = MV88E6XXX_PORT_CTL0_STATE_LEARNING;
 		break;
 	case BR_STATE_FORWARDING:
-		state = PORT_CONTROL_STATE_FORWARDING;
+		state = MV88E6XXX_PORT_CTL0_STATE_FORWARDING;
 		break;
 	default:
 		return -EINVAL;
@@ -436,7 +445,7 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 
 	reg |= state;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 	if (err)
 		return err;
 
@@ -452,30 +461,30 @@ int mv88e6xxx_port_set_egress_mode(struct mv88e6xxx_chip *chip, int port,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_EGRESS_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL0_EGRESS_MODE_MASK;
 
 	switch (mode) {
 	case MV88E6XXX_EGRESS_MODE_UNMODIFIED:
-		reg |= PORT_CONTROL_EGRESS_UNMODIFIED;
+		reg |= MV88E6XXX_PORT_CTL0_EGRESS_MODE_UNMODIFIED;
 		break;
 	case MV88E6XXX_EGRESS_MODE_UNTAGGED:
-		reg |= PORT_CONTROL_EGRESS_UNTAGGED;
+		reg |= MV88E6XXX_PORT_CTL0_EGRESS_MODE_UNTAGGED;
 		break;
 	case MV88E6XXX_EGRESS_MODE_TAGGED:
-		reg |= PORT_CONTROL_EGRESS_TAGGED;
+		reg |= MV88E6XXX_PORT_CTL0_EGRESS_MODE_TAGGED;
 		break;
 	case MV88E6XXX_EGRESS_MODE_ETHERTYPE:
-		reg |= PORT_CONTROL_EGRESS_ADD_TAG;
+		reg |= MV88E6XXX_PORT_CTL0_EGRESS_MODE_ETHER_TYPE_DSA;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
 int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
@@ -484,24 +493,24 @@ int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_FRAME_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL0_FRAME_MODE_MASK;
 
 	switch (mode) {
 	case MV88E6XXX_FRAME_MODE_NORMAL:
-		reg |= PORT_CONTROL_FRAME_MODE_NORMAL;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_NORMAL;
 		break;
 	case MV88E6XXX_FRAME_MODE_DSA:
-		reg |= PORT_CONTROL_FRAME_MODE_DSA;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_DSA;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
 int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
@@ -510,30 +519,30 @@ int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_FRAME_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL0_FRAME_MODE_MASK;
 
 	switch (mode) {
 	case MV88E6XXX_FRAME_MODE_NORMAL:
-		reg |= PORT_CONTROL_FRAME_MODE_NORMAL;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_NORMAL;
 		break;
 	case MV88E6XXX_FRAME_MODE_DSA:
-		reg |= PORT_CONTROL_FRAME_MODE_DSA;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_DSA;
 		break;
 	case MV88E6XXX_FRAME_MODE_PROVIDER:
-		reg |= PORT_CONTROL_FRAME_MODE_PROVIDER;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_PROVIDER;
 		break;
 	case MV88E6XXX_FRAME_MODE_ETHERTYPE:
-		reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA;
+		reg |= MV88E6XXX_PORT_CTL0_FRAME_MODE_ETHER_TYPE_DSA;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
 static int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
@@ -542,16 +551,16 @@ static int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
 	if (unicast)
-		reg |= PORT_CONTROL_FORWARD_UNKNOWN;
+		reg |= MV88E6185_PORT_CTL0_FORWARD_UNKNOWN;
 	else
-		reg &= ~PORT_CONTROL_FORWARD_UNKNOWN;
+		reg &= ~MV88E6185_PORT_CTL0_FORWARD_UNKNOWN;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
 int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
@@ -560,22 +569,22 @@ int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_EGRESS_FLOODS_MASK;
+	reg &= ~MV88E6352_PORT_CTL0_EGRESS_FLOODS_MASK;
 
 	if (unicast && multicast)
-		reg |= PORT_CONTROL_EGRESS_FLOODS_ALL_UNKNOWN_DA;
+		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_ALL_UNKNOWN_DA;
 	else if (unicast)
-		reg |= PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_MC_DA;
+		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_MC_DA;
 	else if (multicast)
-		reg |= PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_UC_DA;
+		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_UC_DA;
 	else
-		reg |= PORT_CONTROL_EGRESS_FLOODS_NO_UNKNOWN_DA;
+		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_DA;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
 /* Offset 0x05: Port Control 1 */
@@ -586,16 +595,16 @@ int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,
 	u16 val;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &val);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL1, &val);
 	if (err)
 		return err;
 
 	if (message_port)
-		val |= PORT_CONTROL_1_MESSAGE_PORT;
+		val |= MV88E6XXX_PORT_CTL1_MESSAGE_PORT;
 	else
-		val &= ~PORT_CONTROL_1_MESSAGE_PORT;
+		val &= ~MV88E6XXX_PORT_CTL1_MESSAGE_PORT;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_1, val);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL1, val);
 }
 
 /* Offset 0x06: Port Based VLAN Map */
@@ -606,14 +615,14 @@ int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_BASE_VLAN, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_BASE_VLAN, &reg);
 	if (err)
 		return err;
 
 	reg &= ~mask;
 	reg |= map & mask;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_BASE_VLAN, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_BASE_VLAN, reg);
 	if (err)
 		return err;
 
@@ -629,7 +638,7 @@ int mv88e6xxx_port_get_fid(struct mv88e6xxx_chip *chip, int port, u16 *fid)
 	int err;
 
 	/* Port's default FID lower 4 bits are located in reg 0x06, offset 12 */
-	err = mv88e6xxx_port_read(chip, port, PORT_BASE_VLAN, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_BASE_VLAN, &reg);
 	if (err)
 		return err;
 
@@ -637,7 +646,8 @@ int mv88e6xxx_port_get_fid(struct mv88e6xxx_chip *chip, int port, u16 *fid)
 
 	/* Port's default FID upper bits are located in reg 0x05, offset 0 */
 	if (upper_mask) {
-		err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &reg);
+		err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL1,
+					  &reg);
 		if (err)
 			return err;
 
@@ -657,27 +667,29 @@ int mv88e6xxx_port_set_fid(struct mv88e6xxx_chip *chip, int port, u16 fid)
 		return -EINVAL;
 
 	/* Port's default FID lower 4 bits are located in reg 0x06, offset 12 */
-	err = mv88e6xxx_port_read(chip, port, PORT_BASE_VLAN, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_BASE_VLAN, &reg);
 	if (err)
 		return err;
 
 	reg &= 0x0fff;
 	reg |= (fid & 0x000f) << 12;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_BASE_VLAN, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_BASE_VLAN, reg);
 	if (err)
 		return err;
 
 	/* Port's default FID upper bits are located in reg 0x05, offset 0 */
 	if (upper_mask) {
-		err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &reg);
+		err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL1,
+					  &reg);
 		if (err)
 			return err;
 
 		reg &= ~upper_mask;
 		reg |= (fid >> 4) & upper_mask;
 
-		err = mv88e6xxx_port_write(chip, port, PORT_CONTROL_1, reg);
+		err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL1,
+					   reg);
 		if (err)
 			return err;
 	}
@@ -694,11 +706,12 @@ int mv88e6xxx_port_get_pvid(struct mv88e6xxx_chip *chip, int port, u16 *pvid)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_DEFAULT_VLAN, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_DEFAULT_VLAN,
+				  &reg);
 	if (err)
 		return err;
 
-	*pvid = reg & PORT_DEFAULT_VLAN_MASK;
+	*pvid = reg & MV88E6XXX_PORT_DEFAULT_VLAN_MASK;
 
 	return 0;
 }
@@ -708,14 +721,16 @@ int mv88e6xxx_port_set_pvid(struct mv88e6xxx_chip *chip, int port, u16 pvid)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_DEFAULT_VLAN, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_DEFAULT_VLAN,
+				  &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_DEFAULT_VLAN_MASK;
-	reg |= pvid & PORT_DEFAULT_VLAN_MASK;
+	reg &= ~MV88E6XXX_PORT_DEFAULT_VLAN_MASK;
+	reg |= pvid & MV88E6XXX_PORT_DEFAULT_VLAN_MASK;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_DEFAULT_VLAN, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_DEFAULT_VLAN,
+				   reg);
 	if (err)
 		return err;
 
@@ -727,10 +742,10 @@ int mv88e6xxx_port_set_pvid(struct mv88e6xxx_chip *chip, int port, u16 pvid)
 /* Offset 0x08: Port Control 2 Register */
 
 static const char * const mv88e6xxx_port_8021q_mode_names[] = {
-	[PORT_CONTROL_2_8021Q_DISABLED] = "Disabled",
-	[PORT_CONTROL_2_8021Q_FALLBACK] = "Fallback",
-	[PORT_CONTROL_2_8021Q_CHECK] = "Check",
-	[PORT_CONTROL_2_8021Q_SECURE] = "Secure",
+	[MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED] = "Disabled",
+	[MV88E6XXX_PORT_CTL2_8021Q_MODE_FALLBACK] = "Fallback",
+	[MV88E6XXX_PORT_CTL2_8021Q_MODE_CHECK] = "Check",
+	[MV88E6XXX_PORT_CTL2_8021Q_MODE_SECURE] = "Secure",
 };
 
 static int mv88e6185_port_set_default_forward(struct mv88e6xxx_chip *chip,
@@ -739,16 +754,16 @@ static int mv88e6185_port_set_default_forward(struct mv88e6xxx_chip *chip,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
 	if (err)
 		return err;
 
 	if (multicast)
-		reg |= PORT_CONTROL_2_DEFAULT_FORWARD;
+		reg |= MV88E6XXX_PORT_CTL2_DEFAULT_FORWARD;
 	else
-		reg &= ~PORT_CONTROL_2_DEFAULT_FORWARD;
+		reg &= ~MV88E6XXX_PORT_CTL2_DEFAULT_FORWARD;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }
 
 int mv88e6185_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
@@ -769,14 +784,14 @@ int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
 	int err;
 	u16 reg;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_2_UPSTREAM_MASK;
+	reg &= ~MV88E6095_PORT_CTL2_CPU_PORT_MASK;
 	reg |= upstream_port;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }
 
 int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
@@ -785,14 +800,14 @@ int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_2_8021Q_MASK;
-	reg |= mode & PORT_CONTROL_2_8021Q_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL2_8021Q_MODE_MASK;
+	reg |= mode & MV88E6XXX_PORT_CTL2_8021Q_MODE_MASK;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 	if (err)
 		return err;
 
@@ -807,13 +822,13 @@ int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
 	if (err)
 		return err;
 
-	reg |= PORT_CONTROL_2_MAP_DA;
+	reg |= MV88E6XXX_PORT_CTL2_MAP_DA;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }
 
 int mv88e6165_port_set_jumbo_size(struct mv88e6xxx_chip *chip, int port,
@@ -822,48 +837,50 @@ int mv88e6165_port_set_jumbo_size(struct mv88e6xxx_chip *chip, int port,
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_2_JUMBO_MASK;
+	reg &= ~MV88E6XXX_PORT_CTL2_JUMBO_MODE_MASK;
 
 	if (size <= 1522)
-		reg |= PORT_CONTROL_2_JUMBO_1522;
+		reg |= MV88E6XXX_PORT_CTL2_JUMBO_MODE_1522;
 	else if (size <= 2048)
-		reg |= PORT_CONTROL_2_JUMBO_2048;
+		reg |= MV88E6XXX_PORT_CTL2_JUMBO_MODE_2048;
 	else if (size <= 10240)
-		reg |= PORT_CONTROL_2_JUMBO_10240;
+		reg |= MV88E6XXX_PORT_CTL2_JUMBO_MODE_10240;
 	else
 		return -ERANGE;
 
-	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }
 
 /* Offset 0x09: Port Rate Control */
 
 int mv88e6095_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_RATE_CONTROL, 0x0000);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_EGRESS_RATE_CTL1,
+				    0x0000);
 }
 
 int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_RATE_CONTROL, 0x0001);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_EGRESS_RATE_CTL1,
+				    0x0001);
 }
 
 /* Offset 0x0C: Port ATU Control */
 
 int mv88e6xxx_port_disable_learn_limit(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_ATU_CONTROL, 0);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_ATU_CTL, 0);
 }
 
 /* Offset 0x0D: (Priority) Override Register */
 
 int mv88e6xxx_port_disable_pri_override(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_PRI_OVERRIDE, 0);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_PRI_OVERRIDE, 0);
 }
 
 /* Offset 0x0f: Port Ether type */
@@ -871,7 +888,7 @@ int mv88e6xxx_port_disable_pri_override(struct mv88e6xxx_chip *chip, int port)
 int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
 				  u16 etype)
 {
-	return mv88e6xxx_port_write(chip, port, PORT_ETH_TYPE, etype);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_ETH_TYPE, etype);
 }
 
 /* Offset 0x18: Port IEEE Priority Remapping Registers [0-3]
@@ -883,11 +900,15 @@ int mv88e6095_port_tag_remap(struct mv88e6xxx_chip *chip, int port)
 	int err;
 
 	/* Use a direct priority mapping for all IEEE tagged frames */
-	err = mv88e6xxx_port_write(chip, port, PORT_TAG_REGMAP_0123, 0x3210);
+	err = mv88e6xxx_port_write(chip, port,
+				   MV88E6095_PORT_IEEE_PRIO_REMAP_0123,
+				   0x3210);
 	if (err)
 		return err;
 
-	return mv88e6xxx_port_write(chip, port, PORT_TAG_REGMAP_4567, 0x7654);
+	return mv88e6xxx_port_write(chip, port,
+				    MV88E6095_PORT_IEEE_PRIO_REMAP_4567,
+				    0x7654);
 }
 
 static int mv88e6xxx_port_ieeepmt_write(struct mv88e6xxx_chip *chip,
@@ -896,40 +917,39 @@ static int mv88e6xxx_port_ieeepmt_write(struct mv88e6xxx_chip *chip,
 {
 	u16 reg;
 
-	reg = PORT_IEEE_PRIO_MAP_TABLE_UPDATE |
+	reg = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_UPDATE |
 		table |
-		(pointer << PORT_IEEE_PRIO_MAP_TABLE_POINTER_SHIFT) |
+		(pointer << MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_POINTER_SHIFT) |
 		data;
 
-	return mv88e6xxx_port_write(chip, port, PORT_IEEE_PRIO_MAP_TABLE, reg);
+	return mv88e6xxx_port_write(chip, port,
+				    MV88E6390_PORT_IEEE_PRIO_MAP_TABLE, reg);
 }
 
 int mv88e6390_port_tag_remap(struct mv88e6xxx_chip *chip, int port)
 {
 	int err, i;
+	u16 table;
 
 	for (i = 0; i <= 7; i++) {
-		err = mv88e6xxx_port_ieeepmt_write(
-			chip, port, PORT_IEEE_PRIO_MAP_TABLE_INGRESS_PCP,
-			i, (i | i << 4));
+		table = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_INGRESS_PCP;
+		err = mv88e6xxx_port_ieeepmt_write(chip, port, table, i,
+						   (i | i << 4));
 		if (err)
 			return err;
 
-		err = mv88e6xxx_port_ieeepmt_write(
-			chip, port, PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_PCP,
-			i, i);
+		table = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_PCP;
+		err = mv88e6xxx_port_ieeepmt_write(chip, port, table, i, i);
 		if (err)
 			return err;
 
-		err = mv88e6xxx_port_ieeepmt_write(
-			chip, port, PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_PCP,
-			i, i);
+		table = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_PCP;
+		err = mv88e6xxx_port_ieeepmt_write(chip, port, table, i, i);
 		if (err)
 			return err;
 
-		err = mv88e6xxx_port_ieeepmt_write(
-			chip, port, PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_PCP,
-			i, i);
+		table = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_PCP;
+		err = mv88e6xxx_port_ieeepmt_write(chip, port, table, i, i);
 		if (err)
 			return err;
 	}

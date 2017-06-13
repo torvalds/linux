@@ -828,11 +828,11 @@ static int mv88e6xxx_get_eee(struct dsa_switch *ds, int port,
 	e->eee_enabled = !!(reg & 0x0200);
 	e->tx_lpi_enabled = !!(reg & 0x0100);
 
-	err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 	if (err)
 		goto out;
 
-	e->eee_active = !!(reg & PORT_STATUS_EEE);
+	e->eee_active = !!(reg & MV88E6352_PORT_STS_EEE);
 out:
 	mutex_unlock(&chip->reg_lock);
 
@@ -1213,8 +1213,8 @@ static int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
 					 bool vlan_filtering)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	u16 mode = vlan_filtering ? PORT_CONTROL_2_8021Q_SECURE :
-		PORT_CONTROL_2_8021Q_DISABLED;
+	u16 mode = vlan_filtering ? MV88E6XXX_PORT_CTL2_8021Q_MODE_SECURE :
+		MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED;
 	int err;
 
 	if (!chip->info->max_vid)
@@ -1729,14 +1729,14 @@ static int mv88e6xxx_set_port_mode_normal(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_set_port_mode(chip, port, MV88E6XXX_FRAME_MODE_NORMAL,
 				       MV88E6XXX_EGRESS_MODE_UNMODIFIED,
-				       PORT_ETH_TYPE_DEFAULT);
+				       MV88E6XXX_PORT_ETH_TYPE_DEFAULT);
 }
 
 static int mv88e6xxx_set_port_mode_dsa(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_set_port_mode(chip, port, MV88E6XXX_FRAME_MODE_DSA,
 				       MV88E6XXX_EGRESS_MODE_UNMODIFIED,
-				       PORT_ETH_TYPE_DEFAULT);
+				       MV88E6XXX_PORT_ETH_TYPE_DEFAULT);
 }
 
 static int mv88e6xxx_set_port_mode_edsa(struct mv88e6xxx_chip *chip, int port)
@@ -1828,10 +1828,10 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * If this is the upstream port for this switch, enable
 	 * forwarding of unknown unicasts and multicasts.
 	 */
-	reg = PORT_CONTROL_IGMP_MLD_SNOOP |
-		PORT_CONTROL_USE_TAG | PORT_CONTROL_USE_IP |
-		PORT_CONTROL_STATE_FORWARDING;
-	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+	reg = MV88E6XXX_PORT_CTL0_IGMP_MLD_SNOOP |
+		MV88E6185_PORT_CTL0_USE_TAG | MV88E6185_PORT_CTL0_USE_IP |
+		MV88E6XXX_PORT_CTL0_STATE_FORWARDING;
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 	if (err)
 		return err;
 
@@ -1872,7 +1872,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	}
 
 	err = mv88e6xxx_port_set_8021q_mode(chip, port,
-					    PORT_CONTROL_2_8021Q_DISABLED);
+				MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED);
 	if (err)
 		return err;
 
@@ -1892,12 +1892,14 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (dsa_is_cpu_port(ds, port))
 		reg = 0;
 
-	err = mv88e6xxx_port_write(chip, port, PORT_ASSOC_VECTOR, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_ASSOC_VECTOR,
+				   reg);
 	if (err)
 		return err;
 
 	/* Egress rate control 2: disable egress rate control. */
-	err = mv88e6xxx_port_write(chip, port, PORT_RATE_CONTROL_2, 0x0000);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_EGRESS_RATE_CTL2,
+				   0x0000);
 	if (err)
 		return err;
 
@@ -1950,7 +1952,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	/* Default VLAN ID and priority: don't set a default VLAN
 	 * ID, and set the default packet priority to zero.
 	 */
-	return mv88e6xxx_port_write(chip, port, PORT_DEFAULT_VLAN, 0x0000);
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_DEFAULT_VLAN, 0);
 }
 
 static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
@@ -2181,7 +2183,7 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 		 * the mv88e6390 family model number instead.
 		 */
 		if (!(val & 0x3f0))
-			val |= PORT_SWITCH_ID_PROD_NUM_6390;
+			val |= MV88E6XXX_PORT_SWITCH_ID_PROD_6390 >> 4;
 	}
 
 	return err ? err : val;
@@ -3162,7 +3164,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 
 static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	[MV88E6085] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6085,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6085,
 		.family = MV88E6XXX_FAMILY_6097,
 		.name = "Marvell 88E6085",
 		.num_databases = 4096,
@@ -3180,7 +3182,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6095] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6095,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6095,
 		.family = MV88E6XXX_FAMILY_6095,
 		.name = "Marvell 88E6095/88E6095F",
 		.num_databases = 256,
@@ -3197,7 +3199,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6097] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6097,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6097,
 		.family = MV88E6XXX_FAMILY_6097,
 		.name = "Marvell 88E6097/88E6097F",
 		.num_databases = 4096,
@@ -3215,7 +3217,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6123] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6123,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6123,
 		.family = MV88E6XXX_FAMILY_6165,
 		.name = "Marvell 88E6123",
 		.num_databases = 4096,
@@ -3233,7 +3235,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6131] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6131,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6131,
 		.family = MV88E6XXX_FAMILY_6185,
 		.name = "Marvell 88E6131",
 		.num_databases = 256,
@@ -3250,7 +3252,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6141] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6141,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6141,
 		.family = MV88E6XXX_FAMILY_6341,
 		.name = "Marvell 88E6341",
 		.num_databases = 4096,
@@ -3267,7 +3269,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6161] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6161,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6161,
 		.family = MV88E6XXX_FAMILY_6165,
 		.name = "Marvell 88E6161",
 		.num_databases = 4096,
@@ -3285,7 +3287,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6165] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6165,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6165,
 		.family = MV88E6XXX_FAMILY_6165,
 		.name = "Marvell 88E6165",
 		.num_databases = 4096,
@@ -3303,7 +3305,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6171] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6171,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6171,
 		.family = MV88E6XXX_FAMILY_6351,
 		.name = "Marvell 88E6171",
 		.num_databases = 4096,
@@ -3321,7 +3323,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6172] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6172,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6172,
 		.family = MV88E6XXX_FAMILY_6352,
 		.name = "Marvell 88E6172",
 		.num_databases = 4096,
@@ -3339,7 +3341,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6175] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6175,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6175,
 		.family = MV88E6XXX_FAMILY_6351,
 		.name = "Marvell 88E6175",
 		.num_databases = 4096,
@@ -3357,7 +3359,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6176] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6176,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6176,
 		.family = MV88E6XXX_FAMILY_6352,
 		.name = "Marvell 88E6176",
 		.num_databases = 4096,
@@ -3375,7 +3377,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6185] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6185,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6185,
 		.family = MV88E6XXX_FAMILY_6185,
 		.name = "Marvell 88E6185",
 		.num_databases = 256,
@@ -3392,7 +3394,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6190] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6190,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6190,
 		.family = MV88E6XXX_FAMILY_6390,
 		.name = "Marvell 88E6190",
 		.num_databases = 4096,
@@ -3410,7 +3412,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6190X] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6190X,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6190X,
 		.family = MV88E6XXX_FAMILY_6390,
 		.name = "Marvell 88E6190X",
 		.num_databases = 4096,
@@ -3428,7 +3430,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6191] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6191,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6191,
 		.family = MV88E6XXX_FAMILY_6390,
 		.name = "Marvell 88E6191",
 		.num_databases = 4096,
@@ -3446,7 +3448,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6240] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6240,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6240,
 		.family = MV88E6XXX_FAMILY_6352,
 		.name = "Marvell 88E6240",
 		.num_databases = 4096,
@@ -3464,7 +3466,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6290] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6290,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6290,
 		.family = MV88E6XXX_FAMILY_6390,
 		.name = "Marvell 88E6290",
 		.num_databases = 4096,
@@ -3482,7 +3484,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6320] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6320,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6320,
 		.family = MV88E6XXX_FAMILY_6320,
 		.name = "Marvell 88E6320",
 		.num_databases = 4096,
@@ -3500,7 +3502,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6321] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6321,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6321,
 		.family = MV88E6XXX_FAMILY_6320,
 		.name = "Marvell 88E6321",
 		.num_databases = 4096,
@@ -3517,7 +3519,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6341] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6341,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6341,
 		.family = MV88E6XXX_FAMILY_6341,
 		.name = "Marvell 88E6341",
 		.num_databases = 4096,
@@ -3534,7 +3536,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6350] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6350,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6350,
 		.family = MV88E6XXX_FAMILY_6351,
 		.name = "Marvell 88E6350",
 		.num_databases = 4096,
@@ -3552,7 +3554,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6351] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6351,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6351,
 		.family = MV88E6XXX_FAMILY_6351,
 		.name = "Marvell 88E6351",
 		.num_databases = 4096,
@@ -3570,7 +3572,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	},
 
 	[MV88E6352] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6352,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6352,
 		.family = MV88E6XXX_FAMILY_6352,
 		.name = "Marvell 88E6352",
 		.num_databases = 4096,
@@ -3587,7 +3589,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.ops = &mv88e6352_ops,
 	},
 	[MV88E6390] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6390,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6390,
 		.family = MV88E6XXX_FAMILY_6390,
 		.name = "Marvell 88E6390",
 		.num_databases = 4096,
@@ -3604,7 +3606,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.ops = &mv88e6390_ops,
 	},
 	[MV88E6390X] = {
-		.prod_num = PORT_SWITCH_ID_PROD_NUM_6390X,
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6390X,
 		.family = MV88E6XXX_FAMILY_6390,
 		.name = "Marvell 88E6390X",
 		.num_databases = 4096,
@@ -3641,13 +3643,13 @@ static int mv88e6xxx_detect(struct mv88e6xxx_chip *chip)
 	int err;
 
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_port_read(chip, 0, PORT_SWITCH_ID, &id);
+	err = mv88e6xxx_port_read(chip, 0, MV88E6XXX_PORT_SWITCH_ID, &id);
 	mutex_unlock(&chip->reg_lock);
 	if (err)
 		return err;
 
-	prod_num = (id & 0xfff0) >> 4;
-	rev = id & 0x000f;
+	prod_num = id & MV88E6XXX_PORT_SWITCH_ID_PROD_MASK;
+	rev = id & MV88E6XXX_PORT_SWITCH_ID_REV_MASK;
 
 	info = mv88e6xxx_lookup_info(prod_num);
 	if (!info)
