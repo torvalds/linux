@@ -1058,32 +1058,36 @@ struct mlx5_fields {
 	u32 offset;
 };
 
+#define OFFLOAD(fw_field, size, field, off) \
+		{MLX5_ACTION_IN_FIELD_OUT_ ## fw_field, size, offsetof(struct pedit_headers, field) + (off)}
+
 static struct mlx5_fields fields[] = {
-	{MLX5_ACTION_IN_FIELD_OUT_DMAC_47_16, 4, offsetof(struct pedit_headers, eth.h_dest[0])},
-	{MLX5_ACTION_IN_FIELD_OUT_DMAC_15_0,  2, offsetof(struct pedit_headers, eth.h_dest[4])},
-	{MLX5_ACTION_IN_FIELD_OUT_SMAC_47_16, 4, offsetof(struct pedit_headers, eth.h_source[0])},
-	{MLX5_ACTION_IN_FIELD_OUT_SMAC_15_0,  2, offsetof(struct pedit_headers, eth.h_source[4])},
-	{MLX5_ACTION_IN_FIELD_OUT_ETHERTYPE,  2, offsetof(struct pedit_headers, eth.h_proto)},
+	OFFLOAD(DMAC_47_16, 4, eth.h_dest[0], 0),
+	OFFLOAD(DMAC_47_16, 4, eth.h_dest[0], 0),
+	OFFLOAD(DMAC_15_0,  2, eth.h_dest[4], 0),
+	OFFLOAD(SMAC_47_16, 4, eth.h_source[0], 0),
+	OFFLOAD(SMAC_15_0,  2, eth.h_source[4], 0),
+	OFFLOAD(ETHERTYPE,  2, eth.h_proto, 0),
 
-	{MLX5_ACTION_IN_FIELD_OUT_IP_TTL,  1, offsetof(struct pedit_headers, ip4.ttl)},
-	{MLX5_ACTION_IN_FIELD_OUT_SIPV4,   4, offsetof(struct pedit_headers, ip4.saddr)},
-	{MLX5_ACTION_IN_FIELD_OUT_DIPV4,   4, offsetof(struct pedit_headers, ip4.daddr)},
+	OFFLOAD(IP_TTL, 1, ip4.ttl,   0),
+	OFFLOAD(SIPV4,  4, ip4.saddr, 0),
+	OFFLOAD(DIPV4,  4, ip4.daddr, 0),
 
-	{MLX5_ACTION_IN_FIELD_OUT_SIPV6_127_96, 4, offsetof(struct pedit_headers, ip6.saddr.s6_addr32[0])},
-	{MLX5_ACTION_IN_FIELD_OUT_SIPV6_95_64,  4, offsetof(struct pedit_headers, ip6.saddr.s6_addr32[1])},
-	{MLX5_ACTION_IN_FIELD_OUT_SIPV6_63_32,  4, offsetof(struct pedit_headers, ip6.saddr.s6_addr32[2])},
-	{MLX5_ACTION_IN_FIELD_OUT_SIPV6_31_0,   4, offsetof(struct pedit_headers, ip6.saddr.s6_addr32[3])},
-	{MLX5_ACTION_IN_FIELD_OUT_DIPV6_127_96, 4, offsetof(struct pedit_headers, ip6.daddr.s6_addr32[0])},
-	{MLX5_ACTION_IN_FIELD_OUT_DIPV6_95_64,  4, offsetof(struct pedit_headers, ip6.daddr.s6_addr32[1])},
-	{MLX5_ACTION_IN_FIELD_OUT_DIPV6_63_32,  4, offsetof(struct pedit_headers, ip6.daddr.s6_addr32[2])},
-	{MLX5_ACTION_IN_FIELD_OUT_DIPV6_31_0,   4, offsetof(struct pedit_headers, ip6.daddr.s6_addr32[3])},
+	OFFLOAD(SIPV6_127_96, 4, ip6.saddr.s6_addr32[0], 0),
+	OFFLOAD(SIPV6_95_64,  4, ip6.saddr.s6_addr32[1], 0),
+	OFFLOAD(SIPV6_63_32,  4, ip6.saddr.s6_addr32[2], 0),
+	OFFLOAD(SIPV6_31_0,   4, ip6.saddr.s6_addr32[3], 0),
+	OFFLOAD(DIPV6_127_96, 4, ip6.daddr.s6_addr32[0], 0),
+	OFFLOAD(DIPV6_95_64,  4, ip6.daddr.s6_addr32[1], 0),
+	OFFLOAD(DIPV6_63_32,  4, ip6.daddr.s6_addr32[2], 0),
+	OFFLOAD(DIPV6_31_0,   4, ip6.daddr.s6_addr32[3], 0),
 
-	{MLX5_ACTION_IN_FIELD_OUT_TCP_SPORT, 2, offsetof(struct pedit_headers, tcp.source)},
-	{MLX5_ACTION_IN_FIELD_OUT_TCP_DPORT, 2, offsetof(struct pedit_headers, tcp.dest)},
-	{MLX5_ACTION_IN_FIELD_OUT_TCP_FLAGS, 1, offsetof(struct pedit_headers, tcp.ack_seq) + 5},
+	OFFLOAD(TCP_SPORT, 2, tcp.source,  0),
+	OFFLOAD(TCP_DPORT, 2, tcp.dest,    0),
+	OFFLOAD(TCP_FLAGS, 1, tcp.ack_seq, 5),
 
-	{MLX5_ACTION_IN_FIELD_OUT_UDP_SPORT, 2, offsetof(struct pedit_headers, udp.source)},
-	{MLX5_ACTION_IN_FIELD_OUT_UDP_DPORT, 2, offsetof(struct pedit_headers, udp.dest)},
+	OFFLOAD(UDP_SPORT, 2, udp.source, 0),
+	OFFLOAD(UDP_DPORT, 2, udp.dest,   0),
 };
 
 /* On input attr->num_mod_hdr_actions tells how many HW actions can be parsed at
