@@ -69,6 +69,15 @@ int sip_smc_virtual_poweroff(void)
 	return res.a0;
 }
 
+int sip_smc_remotectl_config(u32 func, u32 data)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_REMOTECTL_CFG, func, data, 0);
+
+	return res.a0;
+}
+
 u32 sip_smc_secure_reg_read(u32 addr_phy)
 {
 	struct arm_smccc_res res;
