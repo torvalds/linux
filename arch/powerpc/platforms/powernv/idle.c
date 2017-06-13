@@ -291,9 +291,9 @@ static unsigned long __power7_idle_type(unsigned long type)
 	if (!prep_irq_for_idle_irqsoff())
 		return 0;
 
-	ppc64_runlatch_off();
+	__ppc64_runlatch_off();
 	srr1 = power7_idle_insn(type);
-	ppc64_runlatch_on();
+	__ppc64_runlatch_on();
 
 	fini_irq_for_idle_irqsoff();
 
@@ -328,9 +328,9 @@ static unsigned long __power9_idle_type(unsigned long stop_psscr_val,
 	psscr = mfspr(SPRN_PSSCR);
 	psscr = (psscr & ~stop_psscr_mask) | stop_psscr_val;
 
-	ppc64_runlatch_off();
+	__ppc64_runlatch_off();
 	srr1 = power9_idle_stop(psscr);
-	ppc64_runlatch_on();
+	__ppc64_runlatch_on();
 
 	fini_irq_for_idle_irqsoff();
 
@@ -365,7 +365,7 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 	unsigned long srr1;
 	u32 idle_states = pnv_get_supported_cpuidle_states();
 
-	ppc64_runlatch_off();
+	__ppc64_runlatch_off();
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300) && deepest_stop_found) {
 		unsigned long psscr;
@@ -392,7 +392,7 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 		HMT_medium();
 	}
 
-	ppc64_runlatch_on();
+	__ppc64_runlatch_on();
 
 	return srr1;
 }
