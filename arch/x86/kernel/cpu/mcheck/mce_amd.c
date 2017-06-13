@@ -815,7 +815,7 @@ _log_error_bank(unsigned int bank, u32 msr_stat, u32 msr_addr, u64 misc)
 
 	__log_error(bank, status, addr, misc);
 
-	wrmsrl(status, 0);
+	wrmsrl(msr_stat, 0);
 
 	return status & MCI_STATUS_DEFERRED;
 }
