@@ -202,6 +202,8 @@
 #include "i915_oa_sklgt3.h"
 #include "i915_oa_sklgt4.h"
 #include "i915_oa_bxt.h"
+#include "i915_oa_kblgt2.h"
+#include "i915_oa_kblgt3.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -1802,7 +1804,8 @@ static int gen8_enable_metric_set(struct drm_i915_private *dev_priv)
 	 * be read back from automatically triggered reports, as part of the
 	 * RPT_ID field.
 	 */
-	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv) ||
+	    IS_KABYLAKE(dev_priv)) {
 		I915_WRITE(GEN8_OA_DEBUG,
 			   _MASKED_BIT_ENABLE(GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
 					      GEN9_OA_DEBUG_INCLUDE_CLK_RATIO));
@@ -2887,6 +2890,15 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 	} else if (IS_BROXTON(dev_priv)) {
 		if (i915_perf_register_sysfs_bxt(dev_priv))
 			goto sysfs_error;
+	} else if (IS_KABYLAKE(dev_priv)) {
+		if (IS_KBL_GT2(dev_priv)) {
+			if (i915_perf_register_sysfs_kblgt2(dev_priv))
+				goto sysfs_error;
+		} else if (IS_KBL_GT3(dev_priv)) {
+			if (i915_perf_register_sysfs_kblgt3(dev_priv))
+				goto sysfs_error;
+		} else
+			goto sysfs_error;
 	}
 
 	goto exit;
@@ -2928,6 +2940,12 @@ void i915_perf_unregister(struct drm_i915_private *dev_priv)
 			i915_perf_unregister_sysfs_sklgt4(dev_priv);
 	} else if (IS_BROXTON(dev_priv))
 		i915_perf_unregister_sysfs_bxt(dev_priv);
+	else if (IS_KABYLAKE(dev_priv)) {
+		if (IS_KBL_GT2(dev_priv))
+			i915_perf_unregister_sysfs_kblgt2(dev_priv);
+		else if (IS_KBL_GT3(dev_priv))
+			i915_perf_unregister_sysfs_kblgt3(dev_priv);
+	}
 
 	kobject_put(dev_priv->perf.metrics_kobj);
 	dev_priv->perf.metrics_kobj = NULL;
@@ -3061,6 +3079,16 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 					i915_oa_n_builtin_metric_sets_bxt;
 				dev_priv->perf.oa.ops.select_metric_set =
 					i915_oa_select_metric_set_bxt;
+			} else if (IS_KBL_GT2(dev_priv)) {
+				dev_priv->perf.oa.n_builtin_sets =
+					i915_oa_n_builtin_metric_sets_kblgt2;
+				dev_priv->perf.oa.ops.select_metric_set =
+					i915_oa_select_metric_set_kblgt2;
+			} else if (IS_KBL_GT3(dev_priv)) {
+				dev_priv->perf.oa.n_builtin_sets =
+					i915_oa_n_builtin_metric_sets_kblgt3;
+				dev_priv->perf.oa.ops.select_metric_set =
+					i915_oa_select_metric_set_kblgt3;
 			}
 		}
 

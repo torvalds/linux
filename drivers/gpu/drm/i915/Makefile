@@ -135,7 +135,9 @@ i915-y += i915_perf.o \
 	  i915_oa_sklgt2.o \
 	  i915_oa_sklgt3.o \
 	  i915_oa_sklgt4.o \
-	  i915_oa_bxt.o
+	  i915_oa_bxt.o \
+	  i915_oa_kblgt2.o \
+	  i915_oa_kblgt3.o
 
 ifeq ($(CONFIG_DRM_I915_GVT),y)
 i915-y += intel_gvt.o
