@@ -233,13 +233,19 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	snprintf(prop, sizeof(prop), "%scpu", prefix);
 	cpu = of_get_child_by_name(node, prop);
 
+	if (!cpu) {
+		ret = -EINVAL;
+		dev_err(dev, "%s: Can't find %s DT node\n", __func__, prop);
+		goto dai_link_of_err;
+	}
+
 	snprintf(prop, sizeof(prop), "%splat", prefix);
 	plat = of_get_child_by_name(node, prop);
 
 	snprintf(prop, sizeof(prop), "%scodec", prefix);
 	codec = of_get_child_by_name(node, prop);
 
-	if (!cpu || !codec) {
+	if (!codec) {
 		ret = -EINVAL;
 		dev_err(dev, "%s: Can't find %s DT node\n", __func__, prop);
 		goto dai_link_of_err;
@@ -350,12 +356,12 @@ static int asoc_simple_card_parse_aux_devs(struct device_node *node,
 	return 0;
 }
 
-static int asoc_simple_card_parse_of(struct device_node *node,
-				     struct simple_card_data *priv)
+static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct device_node *dai_link;
+	struct device_node *node = dev->of_node;
 	int ret;
 
 	if (!node)
@@ -454,7 +460,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 
 	if (np && of_device_is_available(np)) {
 
-		ret = asoc_simple_card_parse_of(np, priv);
+		ret = asoc_simple_card_parse_of(priv);
 		if (ret < 0) {
 			if (ret != -EPROBE_DEFER)
 				dev_err(dev, "parse error %d\n", ret);
