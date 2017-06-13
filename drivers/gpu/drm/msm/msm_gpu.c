@@ -203,6 +203,8 @@ int msm_gpu_hw_init(struct msm_gpu *gpu)
 {
 	int ret;
 
+	WARN_ON(!mutex_is_locked(&gpu->dev->struct_mutex));
+
 	if (!gpu->needs_hw_init)
 		return 0;
 

@@ -297,31 +297,28 @@ static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
 	struct drm_gem_object *bo;
 	void *ptr;
 
-	mutex_lock(&drm->struct_mutex);
 	bo = msm_gem_new(drm, fw->size - 4, MSM_BO_UNCACHED);
-	mutex_unlock(&drm->struct_mutex);
-
 	if (IS_ERR(bo))
 		return bo;
 
-	ptr = msm_gem_get_vaddr(bo);
+	ptr = msm_gem_get_vaddr_locked(bo);
 	if (!ptr) {
-		drm_gem_object_unreference_unlocked(bo);
+		drm_gem_object_unreference(bo);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	if (iova) {
-		int ret = msm_gem_get_iova(bo, gpu->id, iova);
+		int ret = msm_gem_get_iova_locked(bo, gpu->id, iova);
 
 		if (ret) {
-			drm_gem_object_unreference_unlocked(bo);
+			drm_gem_object_unreference(bo);
 			return ERR_PTR(ret);
 		}
 	}
 
 	memcpy(ptr, &fw->data[4], fw->size - 4);
 
-	msm_gem_put_vaddr(bo);
+	msm_gem_put_vaddr_locked(bo);
 	return bo;
 }
 

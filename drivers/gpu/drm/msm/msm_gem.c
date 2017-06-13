@@ -314,6 +314,8 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret = 0;
 
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
+
 	if (!msm_obj->domain[id].iova) {
 		struct msm_drm_private *priv = obj->dev->dev_private;
 		struct page **pages = get_pages(obj);
@@ -345,6 +347,7 @@ int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint64_t *iova)
 	 * bo is deleted:
 	 */
 	if (msm_obj->domain[id].iova) {
+		might_lock(&obj->dev->struct_mutex);
 		*iova = msm_obj->domain[id].iova;
 		return 0;
 	}

@@ -64,7 +64,7 @@ int adreno_hw_init(struct msm_gpu *gpu)
 
 	DBG("%s", gpu->name);
 
-	ret = msm_gem_get_iova(gpu->rb->bo, gpu->id, &gpu->rb_iova);
+	ret = msm_gem_get_iova_locked(gpu->rb->bo, gpu->id, &gpu->rb_iova);
 	if (ret) {
 		gpu->rb_iova = 0;
 		dev_err(gpu->dev->dev, "could not map ringbuffer: %d\n", ret);
