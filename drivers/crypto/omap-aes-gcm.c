@@ -214,7 +214,7 @@ static int do_encrypt_iv(struct aead_request *req, u32 *tag, u32 *iv)
 		}
 		/* fall through */
 	default:
-		pr_err("Encryptio of IV failed for GCM mode");
+		pr_err("Encryption of IV failed for GCM mode");
 		break;
 	}
 
