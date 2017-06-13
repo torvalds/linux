@@ -337,6 +337,24 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 			}
 		}
 		break;
+
+	case NVME_SC_CONNECT_INVALID_HOST:
+		dev_err(ctrl->device,
+			"Connect for subsystem %s is not allowed, hostnqn: %s\n",
+			data->subsysnqn, data->hostnqn);
+		break;
+
+	case NVME_SC_CONNECT_CTRL_BUSY:
+		dev_err(ctrl->device,
+			"Connect command failed: controller is busy or not available\n");
+		break;
+
+	case NVME_SC_CONNECT_FORMAT:
+		dev_err(ctrl->device,
+			"Connect incompatible format: %d",
+			cmd->connect.recfmt);
+		break;
+
 	default:
 		dev_err(ctrl->device,
 			"Connect command failed, error wo/DNR bit: %d\n",
