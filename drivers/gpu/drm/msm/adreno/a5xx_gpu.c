@@ -308,7 +308,7 @@ static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
 	}
 
 	if (iova) {
-		int ret = msm_gem_get_iova_locked(bo, gpu->id, iova);
+		int ret = msm_gem_get_iova_locked(bo, gpu->aspace, iova);
 
 		if (ret) {
 			drm_gem_object_unreference(bo);
@@ -696,19 +696,19 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 
 	if (a5xx_gpu->pm4_bo) {
 		if (a5xx_gpu->pm4_iova)
-			msm_gem_put_iova(a5xx_gpu->pm4_bo, gpu->id);
+			msm_gem_put_iova(a5xx_gpu->pm4_bo, gpu->aspace);
 		drm_gem_object_unreference_unlocked(a5xx_gpu->pm4_bo);
 	}
 
 	if (a5xx_gpu->pfp_bo) {
 		if (a5xx_gpu->pfp_iova)
-			msm_gem_put_iova(a5xx_gpu->pfp_bo, gpu->id);
+			msm_gem_put_iova(a5xx_gpu->pfp_bo, gpu->aspace);
 		drm_gem_object_unreference_unlocked(a5xx_gpu->pfp_bo);
 	}
 
 	if (a5xx_gpu->gpmu_bo) {
 		if (a5xx_gpu->gpmu_iova)
-			msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->id);
+			msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
 		drm_gem_object_unreference_unlocked(a5xx_gpu->gpmu_bo);
 	}
 

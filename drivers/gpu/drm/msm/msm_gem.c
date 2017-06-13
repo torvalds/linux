@@ -308,10 +308,11 @@ put_iova(struct drm_gem_object *obj)
  * That means when I do eventually need to add support for unpinning
  * the refcnt counter needs to be atomic_t.
  */
-int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
-		uint64_t *iova)
+int msm_gem_get_iova_locked(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace, uint64_t *iova)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	int id = aspace ? aspace->id : 0;
 	int ret = 0;
 
 	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
@@ -338,9 +339,11 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 }
 
 /* get iova, taking a reference.  Should have a matching put */
-int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint64_t *iova)
+int msm_gem_get_iova(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace, uint64_t *iova)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	int id = aspace ? aspace->id : 0;
 	int ret;
 
 	/* this is safe right now because we don't unmap until the
@@ -353,7 +356,7 @@ int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint64_t *iova)
 	}
 
 	mutex_lock(&obj->dev->struct_mutex);
-	ret = msm_gem_get_iova_locked(obj, id, iova);
+	ret = msm_gem_get_iova_locked(obj, aspace, iova);
 	mutex_unlock(&obj->dev->struct_mutex);
 	return ret;
 }
@@ -361,14 +364,17 @@ int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint64_t *iova)
 /* get iova without taking a reference, used in places where you have
  * already done a 'msm_gem_get_iova()'.
  */
-uint64_t msm_gem_iova(struct drm_gem_object *obj, int id)
+uint64_t msm_gem_iova(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	int id = aspace ? aspace->id : 0;
 	WARN_ON(!msm_obj->domain[id].iova);
 	return msm_obj->domain[id].iova;
 }
 
-void msm_gem_put_iova(struct drm_gem_object *obj, int id)
+void msm_gem_put_iova(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace)
 {
 	// XXX TODO ..
 	// NOTE: probably don't need a _locked() version.. we wouldn't

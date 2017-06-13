@@ -279,7 +279,7 @@ static int mdp5_plane_prepare_fb(struct drm_plane *plane,
 		return 0;
 
 	DBG("%s: prepare: FB[%u]", plane->name, fb->base.id);
-	return msm_framebuffer_prepare(fb, kms->id);
+	return msm_framebuffer_prepare(fb, kms->aspace);
 }
 
 static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
@@ -293,7 +293,7 @@ static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 		return;
 
 	DBG("%s: cleanup: FB[%u]", plane->name, fb->base.id);
-	msm_framebuffer_cleanup(fb, kms->id);
+	msm_framebuffer_cleanup(fb, kms->aspace);
 }
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
@@ -511,13 +511,13 @@ static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
 			MDP5_PIPE_SRC_STRIDE_B_P3(fb->pitches[3]));
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC0_ADDR(pipe),
-			msm_framebuffer_iova(fb, kms->id, 0));
+			msm_framebuffer_iova(fb, kms->aspace, 0));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC1_ADDR(pipe),
-			msm_framebuffer_iova(fb, kms->id, 1));
+			msm_framebuffer_iova(fb, kms->aspace, 1));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC2_ADDR(pipe),
-			msm_framebuffer_iova(fb, kms->id, 2));
+			msm_framebuffer_iova(fb, kms->aspace, 2));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC3_ADDR(pipe),
-			msm_framebuffer_iova(fb, kms->id, 3));
+			msm_framebuffer_iova(fb, kms->aspace, 3));
 }
 
 /* Note: mdp5_plane->pipe_lock must be locked */

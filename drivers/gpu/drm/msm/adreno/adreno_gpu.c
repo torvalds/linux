@@ -64,7 +64,7 @@ int adreno_hw_init(struct msm_gpu *gpu)
 
 	DBG("%s", gpu->name);
 
-	ret = msm_gem_get_iova_locked(gpu->rb->bo, gpu->id, &gpu->rb_iova);
+	ret = msm_gem_get_iova_locked(gpu->rb->bo, gpu->aspace, &gpu->rb_iova);
 	if (ret) {
 		gpu->rb_iova = 0;
 		dev_err(gpu->dev->dev, "could not map ringbuffer: %d\n", ret);
@@ -414,7 +414,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	ret = msm_gem_get_iova(adreno_gpu->memptrs_bo, gpu->id,
+	ret = msm_gem_get_iova(adreno_gpu->memptrs_bo, gpu->aspace,
 			&adreno_gpu->memptrs_iova);
 	if (ret) {
 		dev_err(drm->dev, "could not map memptrs: %d\n", ret);
@@ -433,7 +433,7 @@ void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
 			msm_gem_put_vaddr(adreno_gpu->memptrs_bo);
 
 		if (adreno_gpu->memptrs_iova)
-			msm_gem_put_iova(adreno_gpu->memptrs_bo, gpu->id);
+			msm_gem_put_iova(adreno_gpu->memptrs_bo, gpu->aspace);
 
 		drm_gem_object_unreference_unlocked(adreno_gpu->memptrs_bo);
 	}

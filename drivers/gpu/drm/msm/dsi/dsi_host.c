@@ -994,7 +994,7 @@ static int dsi_tx_buf_alloc(struct msm_dsi_host *msm_host, int size)
 		}
 
 		ret = msm_gem_get_iova_locked(msm_host->tx_gem_obj,
-				priv->kms->id, &iova);
+				priv->kms->aspace, &iova);
 		mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			pr_err("%s: failed to get iova, %d\n", __func__, ret);
@@ -1152,7 +1152,7 @@ static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
 		ret = msm_gem_get_iova(msm_host->tx_gem_obj,
-				priv->kms->id, &dma_base);
+				priv->kms->aspace, &dma_base);
 		if (ret) {
 			pr_err("%s: failed to get iova: %d\n", __func__, ret);
 			return ret;

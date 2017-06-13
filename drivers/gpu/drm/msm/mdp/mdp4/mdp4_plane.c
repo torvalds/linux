@@ -110,7 +110,7 @@ static int mdp4_plane_prepare_fb(struct drm_plane *plane,
 		return 0;
 
 	DBG("%s: prepare: FB[%u]", mdp4_plane->name, fb->base.id);
-	return msm_framebuffer_prepare(fb, kms->id);
+	return msm_framebuffer_prepare(fb, kms->aspace);
 }
 
 static void mdp4_plane_cleanup_fb(struct drm_plane *plane,
@@ -125,7 +125,7 @@ static void mdp4_plane_cleanup_fb(struct drm_plane *plane,
 		return;
 
 	DBG("%s: cleanup: FB[%u]", mdp4_plane->name, fb->base.id);
-	msm_framebuffer_cleanup(fb, kms->id);
+	msm_framebuffer_cleanup(fb, kms->aspace);
 }
 
 
@@ -175,13 +175,13 @@ static void mdp4_plane_set_scanout(struct drm_plane *plane,
 			MDP4_PIPE_SRC_STRIDE_B_P3(fb->pitches[3]));
 
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRCP0_BASE(pipe),
-			msm_framebuffer_iova(fb, kms->id, 0));
+			msm_framebuffer_iova(fb, kms->aspace, 0));
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRCP1_BASE(pipe),
-			msm_framebuffer_iova(fb, kms->id, 1));
+			msm_framebuffer_iova(fb, kms->aspace, 1));
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRCP2_BASE(pipe),
-			msm_framebuffer_iova(fb, kms->id, 2));
+			msm_framebuffer_iova(fb, kms->aspace, 2));
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRCP3_BASE(pipe),
-			msm_framebuffer_iova(fb, kms->id, 3));
+			msm_framebuffer_iova(fb, kms->aspace, 3));
 
 	plane->fb = fb;
 }

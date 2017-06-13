@@ -51,6 +51,7 @@ static const struct drm_mode_config_funcs mode_config_funcs = {
 	.atomic_state_free = msm_atomic_state_free,
 };
 
+#include "msm_gem.h"  /* temporary */
 int msm_register_address_space(struct drm_device *dev,
 		struct msm_gem_address_space *aspace)
 {
@@ -61,7 +62,9 @@ int msm_register_address_space(struct drm_device *dev,
 
 	priv->aspace[priv->num_aspaces] = aspace;
 
-	return priv->num_aspaces++;
+	aspace->id = priv->num_aspaces++;
+
+	return aspace->id;
 }
 
 #ifdef CONFIG_DRM_MSM_REGISTER_LOGGING
@@ -707,7 +710,7 @@ static int msm_ioctl_gem_info_iova(struct drm_device *dev,
 	if (!priv->gpu)
 		return -EINVAL;
 
-	return msm_gem_get_iova(obj, priv->gpu->id, iova);
+	return msm_gem_get_iova(obj, priv->gpu->aspace, iova);
 }
 
 static int msm_ioctl_gem_info(struct drm_device *dev, void *data,

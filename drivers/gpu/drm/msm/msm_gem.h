@@ -33,6 +33,7 @@ struct msm_gem_address_space {
 	struct drm_mm mm;
 	struct msm_mmu *mmu;
 	struct kref kref;
+	int id;    /* temporary */
 };
 
 struct msm_gem_vma {
