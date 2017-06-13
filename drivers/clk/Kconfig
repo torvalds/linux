@@ -164,13 +164,6 @@ config COMMON_CLK_XGENE
 	---help---
 	  Sypport for the APM X-Gene SoC reference, PLL, and device clocks.
 
-config COMMON_CLK_KEYSTONE
-	tristate "Clock drivers for Keystone based SOCs"
-	depends on (ARCH_KEYSTONE || COMPILE_TEST) && OF
-	---help---
-          Supports clock drivers for Keystone based SOCs. These SOCs have local
-	  a power sleep control module that gate the clock to the IPs and PLLs.
-
 config COMMON_CLK_NXP
 	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
 	select REGMAP_MMIO if ARCH_LPC32XX
@@ -219,6 +212,7 @@ config COMMON_CLK_VC5
 
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
+source "drivers/clk/keystone/Kconfig"
 source "drivers/clk/mediatek/Kconfig"
 source "drivers/clk/meson/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
