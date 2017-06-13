@@ -1076,16 +1076,16 @@ static int ravb_get_link_ksettings(struct net_device *ndev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
-	int error = -ENODEV;
 	unsigned long flags;
 
-	if (ndev->phydev) {
-		spin_lock_irqsave(&priv->lock, flags);
-		error = phy_ethtool_ksettings_get(ndev->phydev, cmd);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
+	if (!ndev->phydev)
+		return -ENODEV;
 
-	return error;
+	spin_lock_irqsave(&priv->lock, flags);
+	phy_ethtool_ksettings_get(ndev->phydev, cmd);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
 }
 
 static int ravb_set_link_ksettings(struct net_device *ndev,

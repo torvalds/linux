@@ -1453,7 +1453,10 @@ static int bcm_enet_get_link_ksettings(struct net_device *dev,
 	if (priv->has_phy) {
 		if (!dev->phydev)
 			return -ENODEV;
-		return phy_ethtool_ksettings_get(dev->phydev, cmd);
+
+		phy_ethtool_ksettings_get(dev->phydev, cmd);
+
+		return 0;
 	} else {
 		cmd->base.autoneg = 0;
 		cmd->base.speed = (priv->force_speed_100) ?

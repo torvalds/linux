@@ -1915,16 +1915,15 @@ static int sh_eth_get_link_ksettings(struct net_device *ndev,
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
-	int ret;
 
 	if (!ndev->phydev)
 		return -ENODEV;
 
 	spin_lock_irqsave(&mdp->lock, flags);
-	ret = phy_ethtool_ksettings_get(ndev->phydev, cmd);
+	phy_ethtool_ksettings_get(ndev->phydev, cmd);
 	spin_unlock_irqrestore(&mdp->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static int sh_eth_set_link_ksettings(struct net_device *ndev,

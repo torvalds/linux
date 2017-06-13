@@ -150,7 +150,7 @@ static int hns_nic_get_link_ksettings(struct net_device *net_dev,
 	cmd->base.duplex = duplex;
 
 	if (net_dev->phydev)
-		(void)phy_ethtool_ksettings_get(net_dev->phydev, cmd);
+		phy_ethtool_ksettings_get(net_dev->phydev, cmd);
 
 	link_stat = hns_nic_get_link(net_dev);
 	if (!link_stat) {

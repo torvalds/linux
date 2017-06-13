@@ -477,7 +477,9 @@ static int bcmgenet_get_link_ksettings(struct net_device *dev,
 	if (!priv->phydev)
 		return -ENODEV;
 
-	return phy_ethtool_ksettings_get(priv->phydev, cmd);
+	phy_ethtool_ksettings_get(priv->phydev, cmd);
+
+	return 0;
 }
 
 static int bcmgenet_set_link_ksettings(struct net_device *dev,

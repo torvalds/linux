@@ -131,13 +131,17 @@ static int xgene_get_link_ksettings(struct net_device *ndev,
 		if (phydev == NULL)
 			return -ENODEV;
 
-		return phy_ethtool_ksettings_get(phydev, cmd);
+		phy_ethtool_ksettings_get(phydev, cmd);
+
+		return 0;
 	} else if (pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
 		if (pdata->mdio_driver) {
 			if (!phydev)
 				return -ENODEV;
 
-			return phy_ethtool_ksettings_get(phydev, cmd);
+			phy_ethtool_ksettings_get(phydev, cmd);
+
+			return 0;
 		}
 
 		supported = SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg |

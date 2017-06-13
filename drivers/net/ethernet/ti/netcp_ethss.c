@@ -1927,7 +1927,6 @@ static int keystone_get_link_ksettings(struct net_device *ndev,
 	struct netcp_intf *netcp = netdev_priv(ndev);
 	struct phy_device *phy = ndev->phydev;
 	struct gbe_intf *gbe_intf;
-	int ret;
 
 	if (!phy)
 		return -EINVAL;
@@ -1939,11 +1938,10 @@ static int keystone_get_link_ksettings(struct net_device *ndev,
 	if (!gbe_intf->slave)
 		return -EINVAL;
 
-	ret = phy_ethtool_ksettings_get(phy, cmd);
-	if (!ret)
-		cmd->base.port = gbe_intf->slave->phy_port_t;
+	phy_ethtool_ksettings_get(phy, cmd);
+	cmd->base.port = gbe_intf->slave->phy_port_t;
 
-	return ret;
+	return 0;
 }
 
 static int keystone_set_link_ksettings(struct net_device *ndev,
