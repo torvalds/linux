@@ -353,33 +353,18 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 
 	mutex_init(&bus->mdio_lock);
 
-	/* de-assert bus level PHY GPIO resets */
-	if (bus->num_reset_gpios > 0) {
-		bus->reset_gpiod = devm_kcalloc(&bus->dev,
-						 bus->num_reset_gpios,
-						 sizeof(struct gpio_desc *),
-						 GFP_KERNEL);
-		if (!bus->reset_gpiod)
-			return -ENOMEM;
-	}
+	/* de-assert bus level PHY GPIO reset */
+	gpiod = devm_gpiod_get_optional(&bus->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(gpiod)) {
+		dev_err(&bus->dev, "mii_bus %s couldn't get reset GPIO\n",
+			bus->id);
+		return PTR_ERR(gpiod);
+	} else	if (gpiod) {
+		bus->reset_gpiod = gpiod;
 
-	for (i = 0; i < bus->num_reset_gpios; i++) {
-		gpiod = devm_gpiod_get_index(&bus->dev, "reset", i,
-					     GPIOD_OUT_LOW);
-		if (IS_ERR(gpiod)) {
-			err = PTR_ERR(gpiod);
-			if (err != -ENOENT) {
-				dev_err(&bus->dev,
-					"mii_bus %s couldn't get reset GPIO\n",
-					bus->id);
-				return err;
-			}
-		} else {
-			bus->reset_gpiod[i] = gpiod;
-			gpiod_set_value_cansleep(gpiod, 1);
-			udelay(bus->reset_delay_us);
-			gpiod_set_value_cansleep(gpiod, 0);
-		}
+		gpiod_set_value_cansleep(gpiod, 1);
+		udelay(bus->reset_delay_us);
+		gpiod_set_value_cansleep(gpiod, 0);
 	}
 
 	if (bus->reset)
@@ -414,10 +399,8 @@ error:
 	}
 
 	/* Put PHYs in RESET to save power */
-	for (i = 0; i < bus->num_reset_gpios; i++) {
-		if (bus->reset_gpiod[i])
-			gpiod_set_value_cansleep(bus->reset_gpiod[i], 1);
-	}
+	if (bus->reset_gpiod)
+		gpiod_set_value_cansleep(bus->reset_gpiod, 1);
 
 	device_del(&bus->dev);
 	return err;
@@ -442,10 +425,8 @@ void mdiobus_unregister(struct mii_bus *bus)
 	}
 
 	/* Put PHYs in RESET to save power */
-	for (i = 0; i < bus->num_reset_gpios; i++) {
-		if (bus->reset_gpiod[i])
-			gpiod_set_value_cansleep(bus->reset_gpiod[i], 1);
-	}
+	if (bus->reset_gpiod)
+		gpiod_set_value_cansleep(bus->reset_gpiod, 1);
 
 	device_del(&bus->dev);
 }
