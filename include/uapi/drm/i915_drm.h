@@ -421,6 +421,11 @@ typedef struct drm_i915_irq_wait {
 /* Query the mask of slices available for this system */
 #define I915_PARAM_SLICE_MASK		 46
 
+/* Assuming it's uniform for each slice, this queries the mask of subslices
+ * per-slice for this system.
+ */
+#define I915_PARAM_SUBSLICE_MASK	 47
+
 typedef struct drm_i915_getparam {
 	__s32 param;
 	/*
