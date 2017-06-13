@@ -183,4 +183,9 @@ extern const struct dsa_device_ops qca_netdev_ops;
 /* tag_trailer.c */
 extern const struct dsa_device_ops trailer_netdev_ops;
 
+static inline struct net_device *dsa_master_netdev(struct dsa_slave_priv *p)
+{
+	return p->dp->ds->dst->cpu_dp->netdev;
+}
+
 #endif

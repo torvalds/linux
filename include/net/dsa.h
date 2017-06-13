@@ -227,11 +227,6 @@ struct dsa_switch {
 	s8		rtable[DSA_MAX_SWITCHES];
 
 	/*
-	 * The lower device this switch uses to talk to the host
-	 */
-	struct net_device *master_netdev;
-
-	/*
 	 * Slave mii_bus and devices for the individual ports.
 	 */
 	u32			dsa_port_mask;

@@ -118,10 +118,7 @@ int dsa_cpu_port_ethtool_setup(struct dsa_port *cpu_dp)
 	struct net_device *master;
 	struct ethtool_ops *cpu_ops;
 
-	master = ds->dst->master_netdev;
-	if (ds->master_netdev)
-		master = ds->master_netdev;
-
+	master = ds->dst->cpu_dp->netdev;
 	cpu_ops = devm_kzalloc(ds->dev, sizeof(*cpu_ops), GFP_KERNEL);
 	if (!cpu_ops)
 		return -ENOMEM;
@@ -142,9 +139,7 @@ void dsa_cpu_port_ethtool_restore(struct dsa_port *cpu_dp)
 	struct dsa_switch *ds = cpu_dp->ds;
 	struct net_device *master;
 
-	master = ds->dst->master_netdev;
-	if (ds->master_netdev)
-		master = ds->master_netdev;
+	master = ds->dst->cpu_dp->netdev;
 
 	master->ethtool_ops = ds->dst->master_orig_ethtool_ops;
 }
