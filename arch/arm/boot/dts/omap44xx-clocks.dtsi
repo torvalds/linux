@@ -975,22 +975,6 @@
 		ti,max-div = <2>;
 	};
 
-	aes1_fck: aes1_fck@15a0 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&l3_div_ck>;
-		ti,bit-shift = <1>;
-		reg = <0x15a0>;
-	};
-
-	aes2_fck: aes2_fck@15a8 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&l3_div_ck>;
-		ti,bit-shift = <1>;
-		reg = <0x15a8>;
-	};
-
 	dss_sys_clk: dss_sys_clk@1120 {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
