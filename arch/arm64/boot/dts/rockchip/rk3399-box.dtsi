@@ -622,6 +622,7 @@
 	compatible = "rockchip,remotectl-pwm";
 	remote_pwm_id = <3>;
 	handle_cpu_id = <1>;
+	remote_support_psci = <1>;
 
 	ir_key1 {
 		rockchip,usercode = <0x4040>;
