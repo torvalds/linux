@@ -4907,6 +4907,7 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.set_sclk_od = vega10_set_sclk_od,
 	.get_mclk_od = vega10_get_mclk_od,
 	.set_mclk_od = vega10_set_mclk_od,
+	.avfs_control = vega10_avfs_enable,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
