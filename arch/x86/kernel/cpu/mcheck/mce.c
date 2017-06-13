@@ -1550,7 +1550,7 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 			 */
 			clear_bit(10, (unsigned long *)&mce_banks[4].ctl);
 		}
-		if (c->x86 < 17 && cfg->bootlog < 0) {
+		if (c->x86 < 0x11 && cfg->bootlog < 0) {
 			/*
 			 * Lots of broken BIOS around that don't clear them
 			 * by default and leave crap in there. Don't log:
@@ -1832,7 +1832,8 @@ void mce_disable_bank(int bank)
  * mce=TOLERANCELEVEL[,monarchtimeout] (number, see above)
  *	monarchtimeout is how long to wait for other CPUs on machine
  *	check, or 0 to not wait
- * mce=bootlog Log MCEs from before booting. Disabled by default on AMD.
+ * mce=bootlog Log MCEs from before booting. Disabled by default on AMD Fam10h
+	and older.
  * mce=nobootlog Don't log MCEs from before booting.
  * mce=bios_cmci_threshold Don't program the CMCI threshold
  * mce=recovery force enable memcpy_mcsafe()
