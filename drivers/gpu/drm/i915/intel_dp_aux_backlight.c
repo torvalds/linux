@@ -80,10 +80,6 @@ static uint32_t intel_dp_aux_get_backlight(struct intel_connector *connector)
 static void
 intel_dp_aux_set_backlight(const struct drm_connector_state *conn_state, u32 level)
 {
-	/*
-	 * conn_state->best_encoder is likely NULL when called from
-	 * intel_dp_aux_setup_backlight()
-	 */
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
 	uint8_t vals[2] = { 0x0 };
@@ -106,10 +102,6 @@ static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_st
 					  const struct drm_connector_state *conn_state)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
-	/*
-	 * conn_state->best_encoder (and crtc_state) are NULL when called from
-	 * intel_dp_aux_setup_backlight()
-	 */
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
 	uint8_t dpcd_buf = 0;
 	uint8_t edp_backlight_mode = 0;
@@ -155,8 +147,6 @@ static int intel_dp_aux_setup_backlight(struct intel_connector *connector,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
 	struct intel_panel *panel = &connector->panel;
-
-	intel_dp_aux_enable_backlight(NULL, connector->base.state);
 
 	if (intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_BYTE_COUNT)
 		panel->backlight.max = 0xFFFF;
