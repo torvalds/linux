@@ -703,10 +703,8 @@ static int macvlan_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	if (vlan->mode == MACVLAN_MODE_PASSTHRU) {
-		dev_set_mac_address(vlan->lowerdev, addr);
-		return 0;
-	}
+	if (vlan->mode == MACVLAN_MODE_PASSTHRU)
+		return dev_set_mac_address(vlan->lowerdev, addr);
 
 	return macvlan_sync_address(dev, addr->sa_data);
 }
