@@ -1094,10 +1094,12 @@ static enum surface_update_type get_plane_info_update_type(
 		const struct dc_surface_update *u,
 		int surface_index)
 {
-	struct dc_plane_info temp_plane_info = { 0 };
+	struct dc_plane_info temp_plane_info;
 
 	if (!u->plane_info)
 		return UPDATE_TYPE_FAST;
+
+	temp_plane_info = *u->plane_info;
 
 	/* Copy all parameters that will cause a full update
 	 * from current surface, the rest of the parameters
@@ -1114,10 +1116,6 @@ static enum surface_update_type get_plane_info_update_type(
 	temp_plane_info.rotation = u->surface->rotation;
 	temp_plane_info.stereo_format = u->surface->stereo_format;
 	temp_plane_info.tiling_info = u->surface->tiling_info;
-
-	/* Special Validation parameters */
-	temp_plane_info.format = u->plane_info->format;
-	temp_plane_info.per_pixel_alpha = u->plane_info->per_pixel_alpha;
 
 	if (surface_index == 0)
 		temp_plane_info.visible = u->plane_info->visible;
