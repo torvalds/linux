@@ -438,6 +438,11 @@ static int sbs_get_battery_property(struct i2c_client *client,
 	} else {
 		if (psp == POWER_SUPPLY_PROP_STATUS)
 			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+		else if (psp == POWER_SUPPLY_PROP_CAPACITY)
+			/* sbs spec says that this can be >100 %
+			 * even if max value is 100 %
+			 */
+			val->intval = min(ret, 100);
 		else
 			val->intval = 0;
 	}
@@ -548,12 +553,7 @@ static int sbs_get_battery_capacity(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	if (psp == POWER_SUPPLY_PROP_CAPACITY) {
-		/* sbs spec says that this can be >100 %
-		* even if max value is 100 % */
-		val->intval = min(ret, 100);
-	} else
-		val->intval = ret;
+	val->intval = ret;
 
 	ret = sbs_set_battery_mode(client, mode);
 	if (ret < 0)
@@ -618,7 +618,6 @@ static int sbs_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-	case POWER_SUPPLY_PROP_CAPACITY:
 		ret = sbs_get_property_index(client, psp);
 		if (ret < 0)
 			break;
@@ -646,6 +645,7 @@ static int sbs_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_AVG:
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
+	case POWER_SUPPLY_PROP_CAPACITY:
 		ret = sbs_get_property_index(client, psp);
 		if (ret < 0)
 			break;
