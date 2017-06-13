@@ -560,6 +560,9 @@ static int denali_pio_read(struct denali_nand_info *denali, void *buf,
 	if (!(irq_status & INTR__PAGE_XFER_INC))
 		return -EIO;
 
+	if (irq_status & INTR__ERASED_PAGE)
+		memset(buf, 0xff, size);
+
 	return irq_status & ecc_err_mask ? -EBADMSG : 0;
 }
 
@@ -634,6 +637,9 @@ static int denali_dma_xfer(struct denali_nand_info *denali, void *buf,
 
 	denali_enable_dma(denali, false);
 	dma_sync_single_for_cpu(denali->dev, dma_addr, size, dir);
+
+	if (irq_status & INTR__ERASED_PAGE)
+		memset(buf, 0xff, size);
 
 	return ret;
 }
@@ -1406,7 +1412,8 @@ int denali_init(struct denali_nand_info *denali)
 		"chosen ECC settings: step=%d, strength=%d, bytes=%d\n",
 		chip->ecc.size, chip->ecc.strength, chip->ecc.bytes);
 
-	iowrite32(chip->ecc.strength, denali->flash_reg + ECC_CORRECTION);
+	iowrite32(MAKE_ECC_CORRECTION(chip->ecc.strength, 1),
+		  denali->flash_reg + ECC_CORRECTION);
 	iowrite32(mtd->erasesize / mtd->writesize,
 		  denali->flash_reg + PAGES_PER_BLOCK);
 	iowrite32(chip->options & NAND_BUSWIDTH_16 ? 1 : 0,

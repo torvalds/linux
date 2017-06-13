@@ -110,6 +110,10 @@
 
 #define ECC_CORRECTION				0x1b0
 #define     ECC_CORRECTION__VALUE			GENMASK(4, 0)
+#define     ECC_CORRECTION__ERASE_THRESHOLD		GENMASK(31, 16)
+#define     MAKE_ECC_CORRECTION(val, thresh)		\
+			(((val) & (ECC_CORRECTION__VALUE)) | \
+			(((thresh) << 16) & (ECC_CORRECTION__ERASE_THRESHOLD)))
 
 #define READ_MODE				0x1c0
 #define     READ_MODE__VALUE				GENMASK(3, 0)
@@ -233,6 +237,7 @@
 #define     INTR__RST_COMP				BIT(13)
 #define     INTR__PIPE_CMD_ERR				BIT(14)
 #define     INTR__PAGE_XFER_INC				BIT(15)
+#define     INTR__ERASED_PAGE				BIT(16)
 
 #define PAGE_CNT(bank)				(0x430 + (bank) * 0x50)
 #define ERR_PAGE_ADDR(bank)			(0x440 + (bank) * 0x50)
