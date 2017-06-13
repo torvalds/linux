@@ -81,10 +81,9 @@ mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 {
 	struct nvkm_subdev *subdev = &mxm->subdev;
 	struct nvkm_device *device = subdev->device;
-	static char muid[] = {
-		0x00, 0xA4, 0x04, 0x40, 0x7D, 0x91, 0xF2, 0x4C,
-		0xB8, 0x9C, 0x79, 0xB6, 0x2F, 0xD5, 0x56, 0x65
-	};
+	static guid_t muid =
+		GUID_INIT(0x4004A400, 0x917D, 0x4CF2,
+			  0xB8, 0x9C, 0x79, 0xB6, 0x2F, 0xD5, 0x56, 0x65);
 	u32 mxms_args[] = { 0x00000000 };
 	union acpi_object argv4 = {
 		.buffer.type = ACPI_TYPE_BUFFER,
@@ -105,7 +104,7 @@ mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 	 * unless you pass in exactly the version it supports..
 	 */
 	rev = (version & 0xf0) << 4 | (version & 0x0f);
-	obj = acpi_evaluate_dsm(handle, muid, rev, 0x00000010, &argv4);
+	obj = acpi_evaluate_dsm(handle, &muid, rev, 0x00000010, &argv4);
 	if (!obj) {
 		nvkm_debug(subdev, "DSM MXMS failed\n");
 		return false;

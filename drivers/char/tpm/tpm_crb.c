@@ -27,10 +27,9 @@
 
 #define ACPI_SIG_TPM2 "TPM2"
 
-static const u8 CRB_ACPI_START_UUID[] = {
-	/* 0000 */ 0xAB, 0x6C, 0xBF, 0x6B, 0x63, 0x54, 0x14, 0x47,
-	/* 0008 */ 0xB7, 0xCD, 0xF0, 0x20, 0x3C, 0x03, 0x68, 0xD4
-};
+static const guid_t crb_acpi_start_guid =
+	GUID_INIT(0x6BBF6CAB, 0x5463, 0x4714,
+		  0xB7, 0xCD, 0xF0, 0x20, 0x3C, 0x03, 0x68, 0xD4);
 
 enum crb_defaults {
 	CRB_ACPI_START_REVISION_ID = 1,
@@ -266,7 +265,7 @@ static int crb_do_acpi_start(struct tpm_chip *chip)
 	int rc;
 
 	obj = acpi_evaluate_dsm(chip->acpi_dev_handle,
-				CRB_ACPI_START_UUID,
+				&crb_acpi_start_guid,
 				CRB_ACPI_START_REVISION_ID,
 				CRB_ACPI_START_INDEX,
 				NULL);

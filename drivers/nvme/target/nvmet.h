@@ -21,6 +21,7 @@
 #include <linux/percpu-refcount.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/uuid.h>
 #include <linux/nvme.h>
 #include <linux/configfs.h>
 #include <linux/rcupdate.h>

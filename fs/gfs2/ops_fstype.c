@@ -203,7 +203,7 @@ static void gfs2_sb_in(struct gfs2_sbd *sdp, const void *buf)
 
 	memcpy(sb->sb_lockproto, str->sb_lockproto, GFS2_LOCKNAME_LEN);
 	memcpy(sb->sb_locktable, str->sb_locktable, GFS2_LOCKNAME_LEN);
-	memcpy(s->s_uuid, str->sb_uuid, 16);
+	memcpy(&s->s_uuid, str->sb_uuid, 16);
 }
 
 /**

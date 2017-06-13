@@ -213,13 +213,12 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 #ifdef CONFIG_ACPI
 static void xhci_pme_acpi_rtd3_enable(struct pci_dev *dev)
 {
-	static const u8 intel_dsm_uuid[] = {
-		0xb7, 0x0c, 0x34, 0xac,	0x01, 0xe9, 0xbf, 0x45,
-		0xb7, 0xe6, 0x2b, 0x34, 0xec, 0x93, 0x1e, 0x23,
-	};
+	static const guid_t intel_dsm_guid =
+		GUID_INIT(0xac340cb7, 0xe901, 0x45bf,
+			  0xb7, 0xe6, 0x2b, 0x34, 0xec, 0x93, 0x1e, 0x23);
 	union acpi_object *obj;
 
-	obj = acpi_evaluate_dsm(ACPI_HANDLE(&dev->dev), intel_dsm_uuid, 3, 1,
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(&dev->dev), &intel_dsm_guid, 3, 1,
 				NULL);
 	ACPI_FREE(obj);
 }

@@ -1559,7 +1559,7 @@ static unsigned long nfit_ctl_handle;
 union acpi_object *result;
 
 static union acpi_object *nfit_test_evaluate_dsm(acpi_handle handle,
-		const u8 *uuid, u64 rev, u64 func, union acpi_object *argv4)
+		const guid_t *guid, u64 rev, u64 func, union acpi_object *argv4)
 {
 	if (handle != &nfit_ctl_handle)
 		return ERR_PTR(-ENXIO);

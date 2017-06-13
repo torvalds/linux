@@ -31,7 +31,7 @@ static char *rootcell;
 module_param(rootcell, charp, 0);
 MODULE_PARM_DESC(rootcell, "root AFS cell name and VL server IP addr list");
 
-struct uuid_v1 afs_uuid;
+struct afs_uuid afs_uuid;
 struct workqueue_struct *afs_wq;
 
 /*
