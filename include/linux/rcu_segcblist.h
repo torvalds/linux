@@ -1,6 +1,10 @@
 /*
  * RCU segmented callback lists
  *
+ * This seemingly RCU-private file must be available to SRCU users
+ * because the size of the TREE SRCU srcu_struct structure depends
+ * on these definitions.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or

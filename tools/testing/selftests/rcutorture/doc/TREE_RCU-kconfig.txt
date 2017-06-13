@@ -9,28 +9,20 @@ CONFIG_DEBUG_OBJECTS_RCU_HEAD -- Do one.
 CONFIG_HOTPLUG_CPU -- Do half.  (Every second.)
 CONFIG_HZ_PERIODIC -- Do one.
 CONFIG_NO_HZ_IDLE -- Do those not otherwise specified. (Groups of two.)
-CONFIG_NO_HZ_FULL -- Do two, one with CONFIG_NO_HZ_FULL_SYSIDLE.
-CONFIG_NO_HZ_FULL_SYSIDLE -- Do one.
+CONFIG_NO_HZ_FULL -- Do two, one with partial CPU enablement.
 CONFIG_PREEMPT -- Do half.  (First three and #8.)
 CONFIG_PROVE_LOCKING -- Do several, covering CONFIG_DEBUG_LOCK_ALLOC=y and not.
 CONFIG_PROVE_RCU -- Hardwired to CONFIG_PROVE_LOCKING.
-CONFIG_PROVE_RCU_REPEATEDLY -- Do one.
 CONFIG_RCU_BOOST -- one of PREEMPT_RCU.
-CONFIG_RCU_KTHREAD_PRIO -- set to 2 for _BOOST testing.
 CONFIG_RCU_FANOUT -- Cover hierarchy, but overlap with others.
 CONFIG_RCU_FANOUT_LEAF -- Do one non-default.
-CONFIG_RCU_FAST_NO_HZ -- Do one, but not with CONFIG_RCU_NOCB_CPU_ALL.
-CONFIG_RCU_NOCB_CPU -- Do three, see below.
-CONFIG_RCU_NOCB_CPU_ALL -- Do one.
-CONFIG_RCU_NOCB_CPU_NONE -- Do one.
-CONFIG_RCU_NOCB_CPU_ZERO -- Do one.
+CONFIG_RCU_FAST_NO_HZ -- Do one, but not with all nohz_full CPUs.
+CONFIG_RCU_NOCB_CPU -- Do three, one with no rcu_nocbs CPUs, one with
+	rcu_nocbs=0, and one with all rcu_nocbs CPUs.
 CONFIG_RCU_TRACE -- Do half.
 CONFIG_SMP -- Need one !SMP for PREEMPT_RCU.
 CONFIG_RCU_EXPERT=n -- Do a few, but these have to be vanilla configurations.
 CONFIG_RCU_EQS_DEBUG -- Do at least one for CONFIG_NO_HZ_FULL and not.
-CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP -- Do for all but a couple TREE scenarios.
-CONFIG_RCU_TORTURE_TEST_SLOW_INIT -- Do for all but a couple TREE scenarios.
-CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT -- Do for all but a couple TREE scenarios.
 
 RCU-bh: Do one with PREEMPT and one with !PREEMPT.
 RCU-sched: Do one with PREEMPT but not BOOST.
@@ -51,10 +43,6 @@ Kconfig Parameters Ignored:
 CONFIG_64BIT
 
 	Used only to check CONFIG_RCU_FANOUT value, inspection suffices.
-
-CONFIG_NO_HZ_FULL_SYSIDLE_SMALL
-
-	Defer until Frederic uses this.
 
 CONFIG_PREEMPT_COUNT
 CONFIG_PREEMPT_RCU
@@ -78,30 +66,16 @@ CONFIG_RCU_TORTURE_TEST_RUNNABLE
 
 	Always used in KVM testing.
 
-CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT_DELAY
-CONFIG_RCU_TORTURE_TEST_SLOW_INIT_DELAY
-CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP_DELAY
-
-	Inspection suffices, ignore.
-
 CONFIG_PREEMPT_RCU
 CONFIG_TREE_RCU
 CONFIG_TINY_RCU
 
 	These are controlled by CONFIG_PREEMPT and/or CONFIG_SMP.
 
-CONFIG_SPARSE_RCU_POINTER
-
-	Makes sense only for sparse runs, not for kernel builds.
-
 CONFIG_SRCU
 CONFIG_TASKS_RCU
 
 	Selected by CONFIG_RCU_TORTURE_TEST, so cannot disable.
-
-CONFIG_RCU_TRACE
-
-	Implied by CONFIG_RCU_TRACE for Tree RCU.
 
 
 boot parameters ignored: TBD
