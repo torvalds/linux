@@ -326,7 +326,6 @@ struct denali_nand_info {
 	int platform;
 	struct nand_buf buf;
 	struct device *dev;
-	int total_used_banks;
 	int page;
 	void __iomem *flash_reg;	/* Register Interface */
 	void __iomem *flash_mem;	/* Host Data/Command Interface */

@@ -338,51 +338,6 @@ static void get_samsung_nand_para(struct denali_nand_info *denali,
 }
 
 /*
- * determines how many NAND chips are connected to the controller. Note for
- * Intel CE4100 devices we don't support more than one device.
- */
-static void find_valid_banks(struct denali_nand_info *denali)
-{
-	uint32_t id[denali->max_banks];
-	int i;
-
-	denali->total_used_banks = 1;
-	for (i = 0; i < denali->max_banks; i++) {
-		index_addr(denali, MODE_11 | (i << 24) | 0, 0x90);
-		index_addr(denali, MODE_11 | (i << 24) | 1, 0);
-		index_addr_read_data(denali, MODE_11 | (i << 24) | 2, &id[i]);
-
-		dev_dbg(denali->dev,
-			"Return 1st ID for bank[%d]: %x\n", i, id[i]);
-
-		if (i == 0) {
-			if (!(id[i] & 0x0ff))
-				break; /* WTF? */
-		} else {
-			if ((id[i] & 0x0ff) == (id[0] & 0x0ff))
-				denali->total_used_banks++;
-			else
-				break;
-		}
-	}
-
-	if (denali->platform == INTEL_CE4100) {
-		/*
-		 * Platform limitations of the CE4100 device limit
-		 * users to a single chip solution for NAND.
-		 * Multichip support is not enabled.
-		 */
-		if (denali->total_used_banks != 1) {
-			dev_err(denali->dev,
-				"Sorry, Intel CE4100 only supports a single NAND device.\n");
-			BUG();
-		}
-	}
-	dev_dbg(denali->dev,
-		"denali->total_used_banks: %d\n", denali->total_used_banks);
-}
-
-/*
  * Use the configuration feature register to determine the maximum number of
  * banks that the hardware supports.
  */
@@ -438,8 +393,6 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 			ioread32(denali->flash_reg + RDWR_EN_LO_CNT),
 			ioread32(denali->flash_reg + RDWR_EN_HI_CNT),
 			ioread32(denali->flash_reg + CS_SETUP_CNT));
-
-	find_valid_banks(denali);
 
 	/*
 	 * If the user specified to override the default timings
