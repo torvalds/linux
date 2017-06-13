@@ -108,12 +108,14 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 	int ret = 0;
 	u8 data;
 	u32 addr, gpiocontrol;
-	unsigned long flags;
 
 	pdata = &sdiodev->settings->bus.sdio;
 	if (pdata->oob_irq_supported) {
 		brcmf_dbg(SDIO, "Enter, register OOB IRQ %d\n",
 			  pdata->oob_irq_nr);
+		spin_lock_init(&sdiodev->irq_en_lock);
+		sdiodev->irq_en = true;
+
 		ret = request_irq(pdata->oob_irq_nr, brcmf_sdiod_oob_irqhandler,
 				  pdata->oob_irq_flags, "brcmf_oob_intr",
 				  &sdiodev->func[1]->dev);
@@ -122,10 +124,6 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 			return ret;
 		}
 		sdiodev->oob_irq_requested = true;
-		spin_lock_init(&sdiodev->irq_en_lock);
-		spin_lock_irqsave(&sdiodev->irq_en_lock, flags);
-		sdiodev->irq_en = true;
-		spin_unlock_irqrestore(&sdiodev->irq_en_lock, flags);
 
 		ret = enable_irq_wake(pdata->oob_irq_nr);
 		if (ret != 0) {
