@@ -352,25 +352,31 @@ void power9_idle(void)
 /*
  * pnv_cpu_offline: A function that puts the CPU into the deepest
  * available platform idle state on a CPU-Offline.
+ * interrupts hard disabled and no lazy irq pending.
  */
 unsigned long pnv_cpu_offline(unsigned int cpu)
 {
 	unsigned long srr1;
-
 	u32 idle_states = pnv_get_supported_cpuidle_states();
 
+	ppc64_runlatch_off();
+
 	if (cpu_has_feature(CPU_FTR_ARCH_300) && deepest_stop_found) {
-		srr1 = __power9_idle_type(pnv_deepest_stop_psscr_val,
-					pnv_deepest_stop_psscr_mask);
+		unsigned long psscr;
+
+		psscr = mfspr(SPRN_PSSCR);
+		psscr = (psscr & ~pnv_deepest_stop_psscr_mask) |
+						pnv_deepest_stop_psscr_val;
+		srr1 = power9_idle_stop(psscr);
+
 	} else if (idle_states & OPAL_PM_WINKLE_ENABLED) {
-		srr1 = __power7_idle_type(PNV_THREAD_WINKLE);
+		srr1 = power7_idle_insn(PNV_THREAD_WINKLE);
 	} else if ((idle_states & OPAL_PM_SLEEP_ENABLED) ||
 		   (idle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
-		srr1 = __power7_idle_type(PNV_THREAD_SLEEP);
+		srr1 = power7_idle_insn(PNV_THREAD_SLEEP);
 	} else if (idle_states & OPAL_PM_NAP_ENABLED) {
-		srr1 = __power7_idle_type(PNV_THREAD_NAP);
+		srr1 = power7_idle_insn(PNV_THREAD_NAP);
 	} else {
-		ppc64_runlatch_off();
 		/* This is the fallback method. We emulate snooze */
 		while (!generic_check_cpu_restart(cpu)) {
 			HMT_low();
@@ -378,8 +384,9 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 		}
 		srr1 = 0;
 		HMT_medium();
-		ppc64_runlatch_on();
 	}
+
+	ppc64_runlatch_on();
 
 	return srr1;
 }

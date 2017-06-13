@@ -144,7 +144,14 @@ static void pnv_smp_cpu_kill_self(void)
 	unsigned long srr1, wmask;
 
 	/* Standard hot unplug procedure */
-	local_irq_disable();
+	/*
+	 * This hard disables local interurpts, ensuring we have no lazy
+	 * irqs pending.
+	 */
+	WARN_ON(irqs_disabled());
+	hard_irq_disable();
+	WARN_ON(lazy_irq_pending());
+
 	idle_task_exit();
 	current->active_mm = NULL; /* for sanity */
 	cpu = smp_processor_id();
@@ -162,16 +169,6 @@ static void pnv_smp_cpu_kill_self(void)
 	 */
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
 
-	/*
-	 * Hard-disable interrupts, and then clear irq_happened flags
-	 * that we can safely ignore while off-line, since they
-	 * are for things for which we do no processing when off-line
-	 * (or in the case of HMI, all the processing we need to do
-	 * is done in lower-level real-mode code).
-	 */
-	hard_irq_disable();
-	local_paca->irq_happened &= ~(PACA_IRQ_DEC | PACA_IRQ_HMI);
-
 	while (!generic_check_cpu_restart(cpu)) {
 		/*
 		 * Clear IPI flag, since we don't handle IPIs while
@@ -183,6 +180,8 @@ static void pnv_smp_cpu_kill_self(void)
 		kvmppc_set_host_ipi(cpu, 0);
 
 		srr1 = pnv_cpu_offline(cpu);
+
+		WARN_ON(lazy_irq_pending());
 
 		/*
 		 * If the SRR1 value indicates that we woke up due to
@@ -196,8 +195,7 @@ static void pnv_smp_cpu_kill_self(void)
 		 * contains 0.
 		 */
 		if (((srr1 & wmask) == SRR1_WAKEEE) ||
-		    ((srr1 & wmask) == SRR1_WAKEHVI) ||
-		    (local_paca->irq_happened & PACA_IRQ_EE)) {
+		    ((srr1 & wmask) == SRR1_WAKEHVI)) {
 			if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 				if (xive_enabled())
 					xive_flush_interrupt();
@@ -209,14 +207,15 @@ static void pnv_smp_cpu_kill_self(void)
 			unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 			asm volatile(PPC_MSGCLR(%0) : : "r" (msg));
 		}
-		local_paca->irq_happened &= ~(PACA_IRQ_EE | PACA_IRQ_DBELL);
 		smp_mb();
 
 		if (cpu_core_split_required())
 			continue;
 
 		if (srr1 && !generic_check_cpu_restart(cpu))
-			DBG("CPU%d Unexpected exit while offline !\n", cpu);
+			DBG("CPU%d Unexpected exit while offline srr1=%lx!\n",
+					cpu, srr1);
+
 	}
 
 	/* Re-enable decrementer interrupts */
