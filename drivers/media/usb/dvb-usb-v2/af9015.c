@@ -1132,10 +1132,21 @@ static int af9015_init_endpoint(struct dvb_usb_device *d)
 	}
 
 	/* enable / disable mp2if2 */
-	if (state->dual_mode)
+	if (state->dual_mode) {
 		ret = af9015_set_reg_bit(d, 0xd50b, 0);
-	else
+		if (ret)
+			goto error;
+		ret = af9015_set_reg_bit(d, 0xd520, 4);
+		if (ret)
+			goto error;
+	} else {
 		ret = af9015_clear_reg_bit(d, 0xd50b, 0);
+		if (ret)
+			goto error;
+		ret = af9015_clear_reg_bit(d, 0xd520, 4);
+		if (ret)
+			goto error;
+	}
 
 error:
 	if (ret)
