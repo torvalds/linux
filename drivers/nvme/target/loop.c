@@ -232,15 +232,10 @@ static int nvme_loop_init_request(struct blk_mq_tag_set *set,
 		struct request *req, unsigned int hctx_idx,
 		unsigned int numa_node)
 {
-	return nvme_loop_init_iod(set->driver_data, blk_mq_rq_to_pdu(req),
-			hctx_idx + 1);
-}
+	struct nvme_loop_ctrl *ctrl = set->driver_data;
 
-static int nvme_loop_init_admin_request(struct blk_mq_tag_set *set,
-		struct request *req, unsigned int hctx_idx,
-		unsigned int numa_node)
-{
-	return nvme_loop_init_iod(set->driver_data, blk_mq_rq_to_pdu(req), 0);
+	return nvme_loop_init_iod(ctrl, blk_mq_rq_to_pdu(req),
+			(set == &ctrl->tag_set) ? hctx_idx + 1 : 0);
 }
 
 static int nvme_loop_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
@@ -278,7 +273,7 @@ static const struct blk_mq_ops nvme_loop_mq_ops = {
 static const struct blk_mq_ops nvme_loop_admin_mq_ops = {
 	.queue_rq	= nvme_loop_queue_rq,
 	.complete	= nvme_loop_complete_rq,
-	.init_request	= nvme_loop_init_admin_request,
+	.init_request	= nvme_loop_init_request,
 	.init_hctx	= nvme_loop_init_admin_hctx,
 	.timeout	= nvme_loop_timeout,
 };
