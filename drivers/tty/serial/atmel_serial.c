@@ -2443,8 +2443,6 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 	return 0;
 }
 
-struct platform_device *atmel_default_console_device;	/* the serial console device */
-
 #ifdef CONFIG_SERIAL_ATMEL_CONSOLE
 static void atmel_console_putchar(struct uart_port *port, int ch)
 {
@@ -2576,47 +2574,6 @@ static struct console atmel_console = {
 };
 
 #define ATMEL_CONSOLE_DEVICE	(&atmel_console)
-
-/*
- * Early console initialization (before VM subsystem initialized).
- */
-static int __init atmel_console_init(void)
-{
-	int ret;
-	if (atmel_default_console_device) {
-		struct atmel_uart_data *pdata =
-			dev_get_platdata(&atmel_default_console_device->dev);
-		int id = pdata->num;
-		struct atmel_uart_port *atmel_port = &atmel_ports[id];
-
-		atmel_port->backup_imr = 0;
-		atmel_port->uart.line = id;
-
-		add_preferred_console(ATMEL_DEVICENAME, id, NULL);
-		ret = atmel_init_port(atmel_port, atmel_default_console_device);
-		if (ret)
-			return ret;
-		register_console(&atmel_console);
-	}
-
-	return 0;
-}
-
-console_initcall(atmel_console_init);
-
-/*
- * Late console initialization.
- */
-static int __init atmel_late_console_init(void)
-{
-	if (atmel_default_console_device
-	    && !(atmel_console.flags & CON_ENABLED))
-		register_console(&atmel_console);
-
-	return 0;
-}
-
-core_initcall(atmel_late_console_init);
 
 static inline bool atmel_is_console_port(struct uart_port *port)
 {
