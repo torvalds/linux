@@ -1864,7 +1864,7 @@ void cec_monitor_all_cnt_dec(struct cec_adapter *adap)
 		WARN_ON(call_op(adap, adap_monitor_all_enable, 0));
 }
 
-#ifdef CONFIG_MEDIA_CEC_DEBUG
+#ifdef CONFIG_DEBUG_FS
 /*
  * Log the current state of the CEC adapter.
  * Very useful for debugging.

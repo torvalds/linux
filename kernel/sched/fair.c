@@ -3563,7 +3563,7 @@ static inline void check_schedstat_required(void)
 			trace_sched_stat_runtime_enabled())  {
 		printk_deferred_once("Scheduler tracepoints stat_sleep, stat_iowait, "
 			     "stat_blocked and stat_runtime require the "
-			     "kernel parameter schedstats=enabled or "
+			     "kernel parameter schedstats=enable or "
 			     "kernel.sched_schedstats=1\n");
 	}
 #endif

@@ -173,7 +173,7 @@ struct cec_adapter {
 	bool passthrough;
 	struct cec_log_addrs log_addrs;
 
-#ifdef CONFIG_MEDIA_CEC_NOTIFIER
+#ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier *notifier;
 #endif
 
@@ -300,7 +300,7 @@ u16 cec_phys_addr_for_input(u16 phys_addr, u8 input);
  */
 int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port);
 
-#ifdef CONFIG_MEDIA_CEC_NOTIFIER
+#ifdef CONFIG_CEC_NOTIFIER
 void cec_register_cec_notifier(struct cec_adapter *adap,
 			       struct cec_notifier *notifier);
 #endif

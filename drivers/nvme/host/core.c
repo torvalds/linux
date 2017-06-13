@@ -56,7 +56,7 @@ MODULE_PARM_DESC(max_retries, "max number of retries a command may have");
 static int nvme_char_major;
 module_param(nvme_char_major, int, 0);
 
-static unsigned long default_ps_max_latency_us = 25000;
+static unsigned long default_ps_max_latency_us = 100000;
 module_param(default_ps_max_latency_us, ulong, 0644);
 MODULE_PARM_DESC(default_ps_max_latency_us,
 		 "max power saving latency for new devices; use PM QOS to change per device");
@@ -1342,7 +1342,7 @@ static void nvme_configure_apst(struct nvme_ctrl *ctrl)
 	 * transitioning between power states.  Therefore, when running
 	 * in any given state, we will enter the next lower-power
 	 * non-operational state after waiting 50 * (enlat + exlat)
-	 * microseconds, as long as that state's total latency is under
+	 * microseconds, as long as that state's exit latency is under
 	 * the requested maximum latency.
 	 *
 	 * We will not autonomously enter any non-operational state for
@@ -1387,7 +1387,7 @@ static void nvme_configure_apst(struct nvme_ctrl *ctrl)
 		 * lowest-power state, not the number of states.
 		 */
 		for (state = (int)ctrl->npss; state >= 0; state--) {
-			u64 total_latency_us, transition_ms;
+			u64 total_latency_us, exit_latency_us, transition_ms;
 
 			if (target)
 				table->entries[state] = target;
@@ -1408,11 +1408,14 @@ static void nvme_configure_apst(struct nvme_ctrl *ctrl)
 			      NVME_PS_FLAGS_NON_OP_STATE))
 				continue;
 
-			total_latency_us =
-				(u64)le32_to_cpu(ctrl->psd[state].entry_lat) +
-				+ le32_to_cpu(ctrl->psd[state].exit_lat);
-			if (total_latency_us > ctrl->ps_max_latency_us)
+			exit_latency_us =
+				(u64)le32_to_cpu(ctrl->psd[state].exit_lat);
+			if (exit_latency_us > ctrl->ps_max_latency_us)
 				continue;
+
+			total_latency_us =
+				exit_latency_us +
+				le32_to_cpu(ctrl->psd[state].entry_lat);
 
 			/*
 			 * This state is good.  Use it as the APST idle
@@ -2438,6 +2441,10 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 	struct nvme_ns *ns;
 
 	mutex_lock(&ctrl->namespaces_mutex);
+
+	/* Forcibly start all queues to avoid having stuck requests */
+	blk_mq_start_hw_queues(ctrl->admin_q);
+
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
 		/*
 		 * Revalidating a dead namespace sets capacity to 0. This will
