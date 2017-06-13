@@ -150,7 +150,7 @@ effect_get_offset(struct snd_midi_channel *chan, int lo, int hi, int mode)
 	return addr;
 }
 
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 /* change effects - for OSS sequencer compatibility */
 void
 snd_emux_send_effect_oss(struct snd_emux_port *port,

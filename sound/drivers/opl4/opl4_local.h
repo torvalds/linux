@@ -184,7 +184,7 @@ struct snd_opl4 {
 #endif
 	struct mutex access_mutex;
 
-#if IS_REACHABLE(CONFIG_SND_SEQUENCER)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	int used;
 
 	int seq_dev_num;
