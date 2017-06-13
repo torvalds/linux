@@ -264,8 +264,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		band = sband->band;
 
 		/* capability info */
-		pos = skb_put(skb, 2);
-		memset(pos, 0, 2);
+		pos = skb_put_zero(skb, 2);
 		if (action == WLAN_SP_MESH_PEERING_CONFIRM) {
 			/* AID */
 			pos = skb_put(skb, 2);

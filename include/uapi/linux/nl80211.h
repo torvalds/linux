@@ -173,6 +173,29 @@
  */
 
 /**
+ * DOC: WPA/WPA2 EAPOL handshake offload
+ *
+ * By setting @NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_PSK flag drivers
+ * can indicate they support offloading EAPOL handshakes for WPA/WPA2
+ * preshared key authentication. In %NL80211_CMD_CONNECT the preshared
+ * key should be specified using %NL80211_ATTR_PMK. Drivers supporting
+ * this offload may reject the %NL80211_CMD_CONNECT when no preshared
+ * key material is provided, for example when that driver does not
+ * support setting the temporal keys through %CMD_NEW_KEY.
+ *
+ * Similarly @NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_1X flag can be
+ * set by drivers indicating offload support of the PTK/GTK EAPOL
+ * handshakes during 802.1X authentication. In order to use the offload
+ * the %NL80211_CMD_CONNECT should have %NL80211_ATTR_WANT_1X_4WAY_HS
+ * attribute flag. Drivers supporting this offload may reject the
+ * %NL80211_CMD_CONNECT when the attribute flag is not present.
+ *
+ * For 802.1X the PMK or PMK-R0 are set by providing %NL80211_ATTR_PMK
+ * using %NL80211_CMD_SET_PMK. For offloaded FT support also
+ * %NL80211_ATTR_PMKR0_NAME must be provided.
+ */
+
+/**
  * DOC: FILS shared key authentication offload
  *
  * FILS shared key authentication offload can be advertized by drivers by
@@ -546,8 +569,13 @@
  *	authentication/association or not receiving a response from the AP.
  *	Non-zero %NL80211_ATTR_STATUS_CODE value is indicated in that case as
  *	well to remain backwards compatible.
- * @NL80211_CMD_ROAM: request that the card roam (currently not implemented),
- *	sent as an event when the card/driver roamed by itself.
+ * @NL80211_CMD_ROAM: notifcation indicating the card/driver roamed by itself.
+ *	When the driver roamed in a network that requires 802.1X authentication,
+ *	%NL80211_ATTR_PORT_AUTHORIZED should be set if the 802.1X authentication
+ *	was done by the driver or if roaming was done using Fast Transition
+ *	protocol (in which case 802.1X authentication is not needed). If
+ *	%NL80211_ATTR_PORT_AUTHORIZED is not set, user space is responsible for
+ *	the 802.1X authentication.
  * @NL80211_CMD_DISCONNECT: drop a given connection; also used to notify
  *	userspace that a connection was dropped by the AP or due to other
  *	reasons, for this the %NL80211_ATTR_DISCONNECTED_BY_AP and
@@ -947,6 +975,14 @@
  *	does not result in a change for the current association. Currently,
  *	only the %NL80211_ATTR_IE data is used and updated with this command.
  *
+ * @NL80211_CMD_SET_PMK: For offloaded 4-Way handshake, set the PMK or PMK-R0
+ *	for the given authenticator address (specified with &NL80211_ATTR_MAC).
+ *	When &NL80211_ATTR_PMKR0_NAME is set, &NL80211_ATTR_PMK specifies the
+ *	PMK-R0, otherwise it specifies the PMK.
+ * @NL80211_CMD_DEL_PMK: For offloaded 4-Way handshake, delete the previously
+ *	configured PMK for the authenticator address identified by
+ *	&NL80211_ATTR_MAC.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1145,6 +1181,9 @@ enum nl80211_commands {
 	NL80211_CMD_SET_MULTICAST_TO_UNICAST,
 
 	NL80211_CMD_UPDATE_CONNECT_PARAMS,
+
+	NL80211_CMD_SET_PMK,
+	NL80211_CMD_DEL_PMK,
 
 	/* add new commands above here */
 
@@ -2080,13 +2119,26 @@ enum nl80211_commands {
  *	identifying the scope of PMKSAs. This is used with
  *	@NL80211_CMD_SET_PMKSA and @NL80211_CMD_DEL_PMKSA.
  *
- * @NL80211_ATTR_PMK: PMK for the PMKSA identified by %NL80211_ATTR_PMKID.
- *	This is used with @NL80211_CMD_SET_PMKSA.
+ * @NL80211_ATTR_PMK: attribute for passing PMK key material. Used with
+ *	%NL80211_CMD_SET_PMKSA for the PMKSA identified by %NL80211_ATTR_PMKID.
+ *	For %NL80211_CMD_CONNECT it is used to provide PSK for offloading 4-way
+ *	handshake for WPA/WPA2-PSK networks. For 802.1X authentication it is
+ *	used with %NL80211_CMD_SET_PMK. For offloaded FT support this attribute
+ *	specifies the PMK-R0 if NL80211_ATTR_PMKR0_NAME is included as well.
  *
  * @NL80211_ATTR_SCHED_SCAN_MULTI: flag attribute which user-space shall use to
  *	indicate that it supports multiple active scheduled scan requests.
  * @NL80211_ATTR_SCHED_SCAN_MAX_REQS: indicates maximum number of scheduled
  *	scan request that may be active for the device (u32).
+ *
+ * @NL80211_ATTR_WANT_1X_4WAY_HS: flag attribute which user-space can include
+ *	in %NL80211_CMD_CONNECT to indicate that for 802.1X authentication it
+ *	wants to use the supported offload of the 4-way handshake.
+ * @NL80211_ATTR_PMKR0_NAME: PMK-R0 Name for offloaded FT.
+ * @NL80211_ATTR_PORT_AUTHORIZED: flag attribute used in %NL80211_CMD_ROAMED
+ *	notification indicating that that 802.1X authentication was done by
+ *	the driver or is not needed (because roaming used the Fast Transition
+ *	protocol).
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -2509,6 +2561,10 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_SCHED_SCAN_MULTI,
 	NL80211_ATTR_SCHED_SCAN_MAX_REQS,
+
+	NL80211_ATTR_WANT_1X_4WAY_HS,
+	NL80211_ATTR_PMKR0_NAME,
+	NL80211_ATTR_PORT_AUTHORIZED,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -4852,6 +4908,13 @@ enum nl80211_feature_flags {
  *	RSSI threshold values to monitor rather than exactly one threshold.
  * @NL80211_EXT_FEATURE_FILS_SK_OFFLOAD: Driver SME supports FILS shared key
  *	authentication with %NL80211_CMD_CONNECT.
+ * @NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_PSK: Device wants to do 4-way
+ *	handshake with PSK in station mode (PSK is passed as part of the connect
+ *	and associate commands), doing it in the host might not be supported.
+ * @NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_1X: Device wants to do doing 4-way
+ *	handshake with 802.1X in station mode (will pass EAP frames to the host
+ *	and accept the set_pmk/del_pmk commands), doing it in the host might not
+ *	be supported.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -4872,6 +4935,8 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_SCHED_SCAN_RELATIVE_RSSI,
 	NL80211_EXT_FEATURE_CQM_RSSI_LIST,
 	NL80211_EXT_FEATURE_FILS_SK_OFFLOAD,
+	NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_PSK,
+	NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_1X,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

@@ -2400,7 +2400,11 @@ enum ieee80211_sa_query_action {
 
 #define WLAN_MAX_KEY_LEN		32
 
+#define WLAN_PMK_NAME_LEN		16
 #define WLAN_PMKID_LEN			16
+#define WLAN_PMK_LEN_EAP_LEAP		16
+#define WLAN_PMK_LEN			32
+#define WLAN_PMK_LEN_SUITE_B_192	48
 
 #define WLAN_OUI_WFA			0x506f9a
 #define WLAN_OUI_TYPE_WFA_P2P		9
