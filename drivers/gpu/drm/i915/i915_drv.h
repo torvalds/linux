@@ -2396,8 +2396,6 @@ struct drm_i915_private {
 		struct mutex lock;
 		struct list_head streams;
 
-		spinlock_t hook_lock;
-
 		struct {
 			struct i915_perf_stream *exclusive_stream;
 
