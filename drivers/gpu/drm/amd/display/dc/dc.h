@@ -262,8 +262,7 @@ struct dc_hdr_static_metadata {
 enum dc_transfer_func_type {
 	TF_TYPE_PREDEFINED,
 	TF_TYPE_DISTRIBUTED_POINTS,
-	TF_TYPE_BYPASS,
-	TF_TYPE_UNKNOWN
+	TF_TYPE_BYPASS
 };
 
 struct dc_transfer_func_distributed_points {
@@ -409,12 +408,6 @@ bool dc_commit_surfaces_to_stream(
 		struct dc *dc,
 		const struct dc_surface **dc_surfaces,
 		uint8_t surface_count,
-		const struct dc_stream *stream);
-
-bool dc_pre_update_surfaces_to_stream(
-		struct dc *dc,
-		const struct dc_surface *const *new_surfaces,
-		uint8_t new_surface_count,
 		const struct dc_stream *stream);
 
 bool dc_post_update_surfaces_to_stream(

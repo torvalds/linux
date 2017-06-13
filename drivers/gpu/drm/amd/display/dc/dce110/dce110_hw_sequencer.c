@@ -2538,17 +2538,12 @@ static void dce110_apply_ctx_for_surface(
 
 static void dce110_power_down_fe(struct core_dc *dc, struct pipe_ctx *pipe)
 {
-	int i;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (&dc->current_context->res_ctx.pipe_ctx[i] == pipe)
-			break;
-
-	if (i == dc->res_pool->pipe_count)
+	/* Do not power down fe when stream is active on dce*/
+	if (pipe->stream)
 		return;
 
 	dc->hwss.enable_display_power_gating(
-		dc, i, dc->ctx->dc_bios, PIPE_GATING_CONTROL_ENABLE);
+		dc, pipe->pipe_idx, dc->ctx->dc_bios, PIPE_GATING_CONTROL_ENABLE);
 	if (pipe->xfm)
 		pipe->xfm->funcs->transform_reset(pipe->xfm);
 	memset(&pipe->scl_data, 0, sizeof(struct scaler_data));

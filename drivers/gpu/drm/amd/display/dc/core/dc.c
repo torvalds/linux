@@ -953,15 +953,6 @@ context_alloc_fail:
 	return (result == DC_OK);
 }
 
-bool dc_pre_update_surfaces_to_stream(
-		struct dc *dc,
-		const struct dc_surface *const *new_surfaces,
-		uint8_t new_surface_count,
-		const struct dc_stream *dc_stream)
-{
-	return true;
-}
-
 bool dc_post_update_surfaces_to_stream(struct dc *dc)
 {
 	int i;
@@ -971,14 +962,19 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	post_surface_trace(dc);
 
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++)
-		if (context->res_ctx.pipe_ctx[i].stream == NULL) {
+		if (context->res_ctx.pipe_ctx[i].stream == NULL
+				|| context->res_ctx.pipe_ctx[i].surface == NULL) {
 			context->res_ctx.pipe_ctx[i].pipe_idx = i;
 			core_dc->hwss.power_down_front_end(
 					core_dc, &context->res_ctx.pipe_ctx[i]);
 		}
 
+	/* 3rd param should be true, temp w/a for RV*/
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	core_dc->hwss.set_bandwidth(core_dc, context, core_dc->ctx->dce_version != DCN_VERSION_1_0);
+#else
 	core_dc->hwss.set_bandwidth(core_dc, context, true);
-
+#endif
 	return true;
 }
 
@@ -1262,17 +1258,12 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 		if (stream_update->out_transfer_func &&
 				stream_update->out_transfer_func !=
-				dc_stream->out_transfer_func) {
-			if (stream_update->out_transfer_func->type !=
-					TF_TYPE_UNKNOWN) {
-				if (dc_stream->out_transfer_func != NULL)
-					dc_transfer_func_release
-					(dc_stream->out_transfer_func);
-				dc_transfer_func_retain(stream_update->
-					out_transfer_func);
-				stream->public.out_transfer_func =
-					stream_update->out_transfer_func;
-			}
+						dc_stream->out_transfer_func) {
+			if (dc_stream->out_transfer_func != NULL)
+				dc_transfer_func_release(dc_stream->out_transfer_func);
+			dc_transfer_func_retain(stream_update->out_transfer_func);
+			stream->public.out_transfer_func =
+				stream_update->out_transfer_func;
 		}
 	}
 
