@@ -264,11 +264,9 @@ static void malidp_de_set_plane_pitches(struct malidp_plane *mp,
 static void malidp_de_plane_update(struct drm_plane *plane,
 				   struct drm_plane_state *old_state)
 {
-	struct drm_gem_cma_object *obj;
 	struct malidp_plane *mp;
 	const struct malidp_hw_regmap *map;
 	struct malidp_plane_state *ms = to_malidp_plane_state(plane->state);
-	u16 ptr;
 	u32 src_w, src_h, dest_w, dest_h, val;
 	int i;
 
@@ -285,12 +283,12 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 
 	for (i = 0; i < ms->n_planes; i++) {
 		/* calculate the offset for the layer's plane registers */
-		ptr = mp->layer->ptr + (i << 4);
+		u16 ptr = mp->layer->ptr + (i << 4);
+		dma_addr_t fb_addr = drm_fb_cma_get_gem_addr(plane->state->fb,
+							     plane->state, i);
 
-		obj = drm_fb_cma_get_gem_obj(plane->state->fb, i);
-		obj->paddr += plane->state->fb->offsets[i];
-		malidp_hw_write(mp->hwdev, lower_32_bits(obj->paddr), ptr);
-		malidp_hw_write(mp->hwdev, upper_32_bits(obj->paddr), ptr + 4);
+		malidp_hw_write(mp->hwdev, lower_32_bits(fb_addr), ptr);
+		malidp_hw_write(mp->hwdev, upper_32_bits(fb_addr), ptr + 4);
 	}
 	malidp_de_set_plane_pitches(mp, ms->n_planes,
 				    plane->state->fb->pitches);
