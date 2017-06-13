@@ -656,6 +656,12 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define GEN8_OACTXID _MMIO(0x2364)
 
+#define GEN8_OA_DEBUG _MMIO(0x2B04)
+#define  GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS    (1<<5)
+#define  GEN9_OA_DEBUG_INCLUDE_CLK_RATIO	    (1<<6)
+#define  GEN9_OA_DEBUG_DISABLE_GO_1_0_REPORTS	    (1<<2)
+#define  GEN9_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS   (1<<1)
+
 #define GEN8_OACONTROL _MMIO(0x2B00)
 #define  GEN8_OA_REPORT_FORMAT_A12	    (0<<2)
 #define  GEN8_OA_REPORT_FORMAT_A12_B8_C8    (2<<2)
@@ -677,6 +683,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define  GEN7_OABUFFER_STOP_RESUME_ENABLE   (1<<1)
 #define  GEN7_OABUFFER_RESUME		    (1<<0)
 
+#define GEN8_OABUFFER_UDW _MMIO(0x23b4)
 #define GEN8_OABUFFER _MMIO(0x2b14)
 
 #define GEN7_OASTATUS1 _MMIO(0x2364)
@@ -695,7 +702,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define  GEN8_OASTATUS_REPORT_LOST	    (1<<0)
 
 #define GEN8_OAHEADPTR _MMIO(0x2B0C)
+#define GEN8_OAHEADPTR_MASK    0xffffffc0
 #define GEN8_OATAILPTR _MMIO(0x2B10)
+#define GEN8_OATAILPTR_MASK    0xffffffc0
 
 #define OABUFFER_SIZE_128K  (0<<3)
 #define OABUFFER_SIZE_256K  (1<<3)
@@ -708,7 +717,17 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define OA_MEM_SELECT_GGTT  (1<<0)
 
+/*
+ * Flexible, Aggregate EU Counter Registers.
+ * Note: these aren't contiguous
+ */
 #define EU_PERF_CNTL0	    _MMIO(0xe458)
+#define EU_PERF_CNTL1	    _MMIO(0xe558)
+#define EU_PERF_CNTL2	    _MMIO(0xe658)
+#define EU_PERF_CNTL3	    _MMIO(0xe758)
+#define EU_PERF_CNTL4	    _MMIO(0xe45c)
+#define EU_PERF_CNTL5	    _MMIO(0xe55c)
+#define EU_PERF_CNTL6	    _MMIO(0xe65c)
 
 #define GDT_CHICKEN_BITS    _MMIO(0x9840)
 #define GT_NOA_ENABLE	    0x00000080
@@ -2493,6 +2512,9 @@ enum skl_disp_power_wells {
 #define   GEN6_PSMI_SLEEP_MSG_DISABLE	(1 << 0)
 #define   GEN8_RC_SEMA_IDLE_MSG_DISABLE	(1 << 12)
 #define   GEN8_FF_DOP_CLOCK_GATE_DISABLE	(1<<10)
+
+#define GEN6_RCS_PWR_FSM _MMIO(0x22ac)
+#define GEN9_RCS_FE_FSM2 _MMIO(0x22a4)
 
 /* Fuse readout registers for GT */
 #define CHV_FUSE_GT			_MMIO(VLV_DISPLAY_BASE + 0x2168)

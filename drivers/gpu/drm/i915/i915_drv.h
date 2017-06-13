@@ -2018,9 +2018,17 @@ struct i915_oa_ops {
 	void (*init_oa_buffer)(struct drm_i915_private *dev_priv);
 
 	/**
-	 * @enable_metric_set: Applies any MUX configuration to set up the
-	 * Boolean and Custom (B/C) counters that are part of the counter
-	 * reports being sampled. May apply system constraints such as
+	 * @select_metric_set: The auto generated code that checks whether a
+	 * requested OA config is applicable to the system and if so sets up
+	 * the mux, oa and flex eu register config pointers according to the
+	 * current dev_priv->perf.oa.metrics_set.
+	 */
+	int (*select_metric_set)(struct drm_i915_private *dev_priv);
+
+	/**
+	 * @enable_metric_set: Selects and applies any MUX configuration to set
+	 * up the Boolean and Custom (B/C) counters that are part of the
+	 * counter reports being sampled. May apply system constraints such as
 	 * disabling EU clock gating as required.
 	 */
 	int (*enable_metric_set)(struct drm_i915_private *dev_priv);
@@ -2051,20 +2059,13 @@ struct i915_oa_ops {
 		    size_t *offset);
 
 	/**
-	 * @oa_buffer_check: Check for OA buffer data + update tail
+	 * @oa_hw_tail_read: read the OA tail pointer register
 	 *
-	 * This is either called via fops or the poll check hrtimer (atomic
-	 * ctx) without any locks taken.
-	 *
-	 * It's safe to read OA config state here unlocked, assuming that this
-	 * is only called while the stream is enabled, while the global OA
-	 * configuration can't be modified.
-	 *
-	 * Efficiency is more important than avoiding some false positives
-	 * here, which will be handled gracefully - likely resulting in an
-	 * %EAGAIN error for userspace.
+	 * In particular this enables us to share all the fiddly code for
+	 * handling the OA unit tail pointer race that affects multiple
+	 * generations.
 	 */
-	bool (*oa_buffer_check)(struct drm_i915_private *dev_priv);
+	u32 (*oa_hw_tail_read)(struct drm_i915_private *dev_priv);
 };
 
 struct intel_cdclk_state {
@@ -2429,6 +2430,7 @@ struct drm_i915_private {
 			struct {
 				struct i915_vma *vma;
 				u8 *vaddr;
+				u32 last_ctx_id;
 				int format;
 				int format_size;
 
@@ -2498,6 +2500,15 @@ struct drm_i915_private {
 			} oa_buffer;
 
 			u32 gen7_latched_oastatus1;
+			u32 ctx_oactxctrl_offset;
+			u32 ctx_flexeu0_offset;
+
+			/**
+			 * The RPT_ID/reason field for Gen8+ includes a bit
+			 * to determine if the CTX ID in the report is valid
+			 * but the specific bit differs between Gen 8 and 9
+			 */
+			u32 gen8_valid_ctx_bit;
 
 			struct i915_oa_ops ops;
 			const struct i915_oa_format *oa_formats;
@@ -2810,6 +2821,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define IS_KBL_ULX(dev_priv)	(INTEL_DEVID(dev_priv) == 0x590E || \
 				 INTEL_DEVID(dev_priv) == 0x5915 || \
 				 INTEL_DEVID(dev_priv) == 0x591E)
+#define IS_SKL_GT2(dev_priv)	(IS_SKYLAKE(dev_priv) && \
+				 (INTEL_DEVID(dev_priv) & 0x00F0) == 0x0010)
 #define IS_SKL_GT3(dev_priv)	(IS_SKYLAKE(dev_priv) && \
 				 (INTEL_DEVID(dev_priv) & 0x00F0) == 0x0020)
 #define IS_SKL_GT4(dev_priv)	(IS_SKYLAKE(dev_priv) && \
@@ -3554,6 +3567,9 @@ i915_gem_context_lookup_timeline(struct i915_gem_context *ctx,
 
 int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file);
+void i915_oa_init_reg_state(struct intel_engine_cs *engine,
+			    struct i915_gem_context *ctx,
+			    uint32_t *reg_state);
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct i915_address_space *vm,

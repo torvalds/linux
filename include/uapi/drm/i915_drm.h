@@ -1316,13 +1316,18 @@ struct drm_i915_gem_context_param {
 };
 
 enum drm_i915_oa_format {
-	I915_OA_FORMAT_A13 = 1,
-	I915_OA_FORMAT_A29,
-	I915_OA_FORMAT_A13_B8_C8,
-	I915_OA_FORMAT_B4_C8,
-	I915_OA_FORMAT_A45_B8_C8,
-	I915_OA_FORMAT_B4_C8_A16,
-	I915_OA_FORMAT_C4_B8,
+	I915_OA_FORMAT_A13 = 1,	    /* HSW only */
+	I915_OA_FORMAT_A29,	    /* HSW only */
+	I915_OA_FORMAT_A13_B8_C8,   /* HSW only */
+	I915_OA_FORMAT_B4_C8,	    /* HSW only */
+	I915_OA_FORMAT_A45_B8_C8,   /* HSW only */
+	I915_OA_FORMAT_B4_C8_A16,   /* HSW only */
+	I915_OA_FORMAT_C4_B8,	    /* HSW+ */
+
+	/* Gen8+ */
+	I915_OA_FORMAT_A12,
+	I915_OA_FORMAT_A12_B8_C8,
+	I915_OA_FORMAT_A32u40_A4u32_B8_C8,
 
 	I915_OA_FORMAT_MAX	    /* non-ABI */
 };
