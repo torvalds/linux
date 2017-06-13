@@ -25,20 +25,10 @@
 
 #include <linux/cpu.h>
 #include <linux/debugfs.h>
-#include <linux/device.h>
-#include <linux/fs.h>
-#include <linux/gfp.h>
-#include <linux/kdebug.h>
 #include <linux/kernel.h>
-#include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/pci.h>
-#include <linux/preempt.h>
-#include <linux/sched.h>
-#include <linux/smp.h>
-#include <linux/string.h>
-#include <linux/timer.h>
 #include <linux/uaccess.h>
 
 #include <asm/amd_nb.h>
