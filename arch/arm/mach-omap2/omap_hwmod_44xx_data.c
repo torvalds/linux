@@ -880,6 +880,33 @@ static struct omap_hwmod omap44xx_dss_venc_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(dss_venc_opt_clks),
 };
 
+/* sha0 HIB2 (the 'P' (public) device) */
+static struct omap_hwmod_class_sysconfig omap44xx_sha0_sysc = {
+	.rev_offs	= 0x100,
+	.sysc_offs	= 0x110,
+	.syss_offs	= 0x114,
+	.sysc_flags	= SYSS_HAS_RESET_STATUS,
+};
+
+static struct omap_hwmod_class omap44xx_sha0_hwmod_class = {
+	.name		= "sham",
+	.sysc		= &omap44xx_sha0_sysc,
+};
+
+struct omap_hwmod omap44xx_sha0_hwmod = {
+	.name		= "sham",
+	.class		= &omap44xx_sha0_hwmod_class,
+	.clkdm_name	= "l4_secure_clkdm",
+	.main_clk	= "l3_div_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = OMAP4_CM_L4SEC_SHA2MD51_CLKCTRL_OFFSET,
+			.context_offs = OMAP4_RM_L4SEC_SHA2MD51_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
 /*
  * 'elm' class
  * bch error location module
@@ -3987,6 +4014,14 @@ static struct omap_hwmod_ocp_if omap44xx_l4_per__dss_venc = {
 	.user		= OCP_USER_MPU,
 };
 
+/* l3_main_2 -> sham */
+static struct omap_hwmod_ocp_if omap44xx_l3_main_2__sha0 = {
+	.master		= &omap44xx_l3_main_2_hwmod,
+	.slave		= &omap44xx_sha0_hwmod,
+	.clk		= "l3_div_ck",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 /* l4_per -> elm */
 static struct omap_hwmod_ocp_if omap44xx_l4_per__elm = {
 	.master		= &omap44xx_l4_per_hwmod,
@@ -4901,6 +4936,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l3_main_2__aes1,
 	&omap44xx_l3_main_2__aes2,
 	&omap44xx_l3_main_2__des,
+	&omap44xx_l3_main_2__sha0,
 	NULL,
 };
 
