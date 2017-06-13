@@ -1141,7 +1141,7 @@ out_free:
 		}
 
 #if OBD_OCD_VERSION(2, 9, 50, 0) > LUSTRE_VERSION_CODE
-		mode = data->ioc_type != 0 ? data->ioc_type : S_IRWXUGO;
+		mode = data->ioc_type != 0 ? data->ioc_type : 0777;
 #else
 		mode = data->ioc_type;
 #endif
