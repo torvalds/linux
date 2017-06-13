@@ -719,8 +719,7 @@ qcaspi_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	qcafrm_create_header(ptmp, frame_len);
 
 	if (pad_len) {
-		ptmp = skb_put(skb, pad_len);
-		memset(ptmp, 0, pad_len);
+		ptmp = skb_put_zero(skb, pad_len);
 	}
 
 	ptmp = skb_put(skb, QCAFRM_FOOTER_LEN);

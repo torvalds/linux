@@ -1043,8 +1043,7 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 	get_random_bytes(felica + 2, 6);
 
 	/* NFCID3 */
-	nfcid3 = skb_put(skb, 10);
-	memset(nfcid3, 0, 10);
+	nfcid3 = skb_put_zero(skb, 10);
 	memcpy(nfcid3, felica, 8);
 
 	/* General bytes */
