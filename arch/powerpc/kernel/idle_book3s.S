@@ -306,7 +306,7 @@ FTR_SECTION_ELSE_NESTED(66);						\
 	rlwinm	r0,r12,45-31,0xe;  /* P7 wake reason field is 3 bits */	\
 ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 	cmpwi	r0,0xa;			/* Hypervisor maintenance ? */	\
-	bne	20f;							\
+	bne+	20f;							\
 	/* Invoke opal call to handle hmi */				\
 	ld	r2,PACATOC(r13);					\
 	ld	r1,PACAR1(r13);						\
