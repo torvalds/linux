@@ -25,6 +25,15 @@
 #define MT_CTRL_ST_CNT		0xF
 #define NPS_NUM_HW_THREADS	0x10
 
+#ifdef CONFIG_EZNPS_MEM_ERROR_ALIGN
+int do_memory_error(unsigned long address, struct pt_regs *regs)
+{
+	die("Invalid Mem Access", regs, address);
+
+	return 1;
+}
+#endif
+
 static void mtm_init_nat(int cpu)
 {
 	struct nps_host_reg_mtm_cfg mtm_cfg;
