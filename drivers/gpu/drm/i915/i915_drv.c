@@ -374,6 +374,11 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		 */
 		value = 1;
 		break;
+	case I915_PARAM_SLICE_MASK:
+		value = INTEL_INFO(dev_priv)->sseu.slice_mask;
+		if (!value)
+			return -ENODEV;
+		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
