@@ -927,6 +927,15 @@
 			dma-names = "tx", "rx";
 		};
 
+		sham: sham@4b100000 {
+			compatible = "ti,omap4-sham";
+			ti,hwmods = "sham";
+			reg = <0x4b100000 0x300>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&sdma 119>;
+			dma-names = "rx";
+		};
+
 		abb_mpu: regulator-abb-mpu {
 			compatible = "ti,abb-v2";
 			regulator-name = "abb_mpu";
