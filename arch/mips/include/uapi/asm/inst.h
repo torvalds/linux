@@ -276,9 +276,16 @@ enum lx_func {
  */
 enum bshfl_func {
 	wsbh_op = 0x2,
-	dshd_op = 0x5,
 	seb_op  = 0x10,
 	seh_op  = 0x18,
+};
+
+/*
+ * DBSHFL opcodes
+ */
+enum dbshfl_func {
+	dsbh_op = 0x2,
+	dshd_op = 0x5,
 };
 
 /*
