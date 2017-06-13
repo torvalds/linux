@@ -348,6 +348,7 @@ bool prep_irq_for_idle(void)
 	return true;
 }
 
+#ifdef CONFIG_PPC_BOOK3S
 /*
  * This is for idle sequences that return with IRQs off, but the
  * idle state itself wakes on interrupt. Tell the irq tracer that
@@ -377,6 +378,34 @@ bool prep_irq_for_idle_irqsoff(void)
 
 	return true;
 }
+
+/*
+ * Take the SRR1 wakeup reason, index into this table to find the
+ * appropriate irq_happened bit.
+ */
+static const u8 srr1_to_lazyirq[0x10] = {
+	0, 0, 0,
+	PACA_IRQ_DBELL,
+	0,
+	PACA_IRQ_DBELL,
+	PACA_IRQ_DEC,
+	0,
+	PACA_IRQ_EE,
+	PACA_IRQ_EE,
+	PACA_IRQ_HMI,
+	0, 0, 0, 0, 0 };
+
+void irq_set_pending_from_srr1(unsigned long srr1)
+{
+	unsigned int idx = (srr1 & SRR1_WAKEMASK_P8) >> 18;
+
+	/*
+	 * The 0 index (SRR1[42:45]=b0000) must always evaluate to 0,
+	 * so this can be called unconditionally with srr1 wake reason.
+	 */
+	local_paca->irq_happened |= srr1_to_lazyirq[idx];
+}
+#endif /* CONFIG_PPC_BOOK3S */
 
 /*
  * Force a replay of the external interrupt handler on this CPU.

@@ -302,7 +302,10 @@ static unsigned long __power7_idle_type(unsigned long type)
 
 void power7_idle_type(unsigned long type)
 {
-	__power7_idle_type(type);
+	unsigned long srr1;
+
+	srr1 = __power7_idle_type(type);
+	irq_set_pending_from_srr1(srr1);
 }
 
 void power7_idle(void)
@@ -337,7 +340,10 @@ static unsigned long __power9_idle_type(unsigned long stop_psscr_val,
 void power9_idle_type(unsigned long stop_psscr_val,
 				      unsigned long stop_psscr_mask)
 {
-	__power9_idle_type(stop_psscr_val, stop_psscr_mask);
+	unsigned long srr1;
+
+	srr1 = __power9_idle_type(stop_psscr_val, stop_psscr_mask);
+	irq_set_pending_from_srr1(srr1);
 }
 
 /*
