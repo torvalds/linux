@@ -1047,6 +1047,7 @@ static void config_oa_regs(struct drm_i915_private *dev_priv,
 static int hsw_enable_metric_set(struct drm_i915_private *dev_priv)
 {
 	int ret = i915_oa_select_metric_set_hsw(dev_priv);
+	int i;
 
 	if (ret)
 		return ret;
@@ -1068,8 +1069,10 @@ static int hsw_enable_metric_set(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_UCGCTL1, (I915_READ(GEN6_UCGCTL1) |
 				  GEN6_CSUNIT_CLOCK_GATE_DISABLE));
 
-	config_oa_regs(dev_priv, dev_priv->perf.oa.mux_regs,
-		       dev_priv->perf.oa.mux_regs_len);
+	for (i = 0; i < dev_priv->perf.oa.n_mux_configs; i++) {
+		config_oa_regs(dev_priv, dev_priv->perf.oa.mux_regs[i],
+			       dev_priv->perf.oa.mux_regs_lens[i]);
+	}
 
 	/* It apparently takes a fairly long time for a new MUX
 	 * configuration to be be applied after these register writes.
