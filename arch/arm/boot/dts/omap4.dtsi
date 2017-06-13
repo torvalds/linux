@@ -909,6 +909,15 @@
 			dma-names = "tx", "rx";
 		};
 
+		aes2: aes@4b701000 {
+			compatible = "ti,omap4-aes";
+			ti,hwmods = "aes2";
+			reg = <0x4b701000 0xa0>;
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&sdma 114>, <&sdma 113>;
+			dma-names = "tx", "rx";
+		};
+
 		des: des@480a5000 {
 			compatible = "ti,omap4-des";
 			ti,hwmods = "des";
