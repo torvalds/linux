@@ -98,18 +98,6 @@ static inline struct fttmr010 *to_fttmr010(struct clock_event_device *evt)
 	return container_of(evt, struct fttmr010, clkevt);
 }
 
-static u64 notrace fttmr010_read_sched_clock_up(void)
-{
-	return readl(local_fttmr->base + TIMER2_COUNT);
-}
-
-static u64 notrace fttmr010_read_sched_clock_down(void)
-{
-	return ~readl(local_fttmr->base + TIMER2_COUNT);
-}
-
-#ifdef CONFIG_ARM
-
 static unsigned long fttmr010_read_current_timer_up(void)
 {
 	return readl(local_fttmr->base + TIMER2_COUNT);
@@ -120,7 +108,15 @@ static unsigned long fttmr010_read_current_timer_down(void)
 	return ~readl(local_fttmr->base + TIMER2_COUNT);
 }
 
-#endif
+static u64 notrace fttmr010_read_sched_clock_up(void)
+{
+	return fttmr010_read_current_timer_up();
+}
+
+static u64 notrace fttmr010_read_sched_clock_down(void)
+{
+	return fttmr010_read_current_timer_down();
+}
 
 static int fttmr010_timer_set_next_event(unsigned long cycles,
 				       struct clock_event_device *evt)
