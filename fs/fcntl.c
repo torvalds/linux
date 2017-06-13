@@ -109,7 +109,7 @@ void __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
 }
 EXPORT_SYMBOL(__f_setown);
 
-void f_setown(struct file *filp, unsigned long arg, int force)
+int f_setown(struct file *filp, unsigned long arg, int force)
 {
 	enum pid_type type;
 	struct pid *pid;
@@ -123,6 +123,8 @@ void f_setown(struct file *filp, unsigned long arg, int force)
 	pid = find_vpid(who);
 	__f_setown(filp, pid, type, force);
 	rcu_read_unlock();
+
+	return 0;
 }
 EXPORT_SYMBOL(f_setown);
 
@@ -305,8 +307,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		force_successful_syscall_return();
 		break;
 	case F_SETOWN:
-		f_setown(filp, arg, 1);
-		err = 0;
+		err = f_setown(filp, arg, 1);
 		break;
 	case F_GETOWN_EX:
 		err = f_getown_ex(filp, arg);
