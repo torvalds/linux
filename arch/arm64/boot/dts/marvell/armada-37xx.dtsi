@@ -163,7 +163,7 @@
 
 			pinctrl_nb: pinctrl@13800 {
 				compatible = "marvell,armada3710-nb-pinctrl",
-				"syscon", "simple-mfd";
+					     "syscon", "simple-mfd";
 				reg = <0x13800 0x100>, <0x13C00 0x20>;
 				gpionb: gpio {
 					#gpio-cells = <2>;
@@ -219,7 +219,7 @@
 
 			pinctrl_sb: pinctrl@18800 {
 				compatible = "marvell,armada3710-sb-pinctrl",
-				"syscon", "simple-mfd";
+					     "syscon", "simple-mfd";
 				reg = <0x18800 0x100>, <0x18C00 0x20>;
 				gpiosb: gpio {
 					#gpio-cells = <2>;
@@ -294,7 +294,7 @@
 
 			sdhci0: sdhci@d8000 {
 				compatible = "marvell,armada-3700-sdhci",
-				"marvell,sdhci-xenon";
+					     "marvell,sdhci-xenon";
 				reg = <0xd8000 0x300
 				       0x17808 0x4>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
