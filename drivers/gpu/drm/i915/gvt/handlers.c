@@ -366,21 +366,24 @@ static int lcpll_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int dpy_reg_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	*(u32 *)p_data = (1 << 17);
-	return 0;
-}
+	switch (offset) {
+	case 0xe651c:
+	case 0xe661c:
+	case 0xe671c:
+	case 0xe681c:
+		vgpu_vreg(vgpu, offset) = 1 << 17;
+		break;
+	case 0xe6c04:
+		vgpu_vreg(vgpu, offset) = 0x3;
+		break;
+	case 0xe6e1c:
+		vgpu_vreg(vgpu, offset) = 0x2f << 16;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-static int dpy_reg_mmio_read_2(struct intel_vgpu *vgpu, unsigned int offset,
-		void *p_data, unsigned int bytes)
-{
-	*(u32 *)p_data = 3;
-	return 0;
-}
-
-static int dpy_reg_mmio_read_3(struct intel_vgpu *vgpu, unsigned int offset,
-		void *p_data, unsigned int bytes)
-{
-	*(u32 *)p_data = (0x2f << 16);
+	read_vreg(vgpu, offset, p_data, bytes);
 	return 0;
 }
 
@@ -1991,8 +1994,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(0xe661c, D_ALL, dpy_reg_mmio_read, NULL);
 	MMIO_DH(0xe671c, D_ALL, dpy_reg_mmio_read, NULL);
 	MMIO_DH(0xe681c, D_ALL, dpy_reg_mmio_read, NULL);
-	MMIO_DH(0xe6c04, D_ALL, dpy_reg_mmio_read_2, NULL);
-	MMIO_DH(0xe6e1c, D_ALL, dpy_reg_mmio_read_3, NULL);
+	MMIO_DH(0xe6c04, D_ALL, dpy_reg_mmio_read, NULL);
+	MMIO_DH(0xe6e1c, D_ALL, dpy_reg_mmio_read, NULL);
 
 	MMIO_RO(PCH_PORT_HOTPLUG, D_ALL, 0,
 		PORTA_HOTPLUG_STATUS_MASK
