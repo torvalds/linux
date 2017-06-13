@@ -23,6 +23,7 @@
 #include <asm/cpuidle.h>
 #include <asm/code-patching.h>
 #include <asm/smp.h>
+#include <asm/runlatch.h>
 
 #include "powernv.h"
 #include "subcore.h"
@@ -283,12 +284,68 @@ static DEVICE_ATTR(fastsleep_workaround_applyonce, 0600,
 			show_fastsleep_workaround_applyonce,
 			store_fastsleep_workaround_applyonce);
 
+static unsigned long __power7_idle_type(unsigned long type)
+{
+	unsigned long srr1;
+
+	if (!prep_irq_for_idle_irqsoff())
+		return 0;
+
+	ppc64_runlatch_off();
+	srr1 = power7_idle_insn(type);
+	ppc64_runlatch_on();
+
+	fini_irq_for_idle_irqsoff();
+
+	return srr1;
+}
+
+void power7_idle_type(unsigned long type)
+{
+	__power7_idle_type(type);
+}
+
+void power7_idle(void)
+{
+	if (!powersave_nap)
+		return;
+
+	power7_idle_type(PNV_THREAD_NAP);
+}
+
+static unsigned long __power9_idle_type(unsigned long stop_psscr_val,
+				      unsigned long stop_psscr_mask)
+{
+	unsigned long psscr;
+	unsigned long srr1;
+
+	if (!prep_irq_for_idle_irqsoff())
+		return 0;
+
+	psscr = mfspr(SPRN_PSSCR);
+	psscr = (psscr & ~stop_psscr_mask) | stop_psscr_val;
+
+	ppc64_runlatch_off();
+	srr1 = power9_idle_stop(psscr);
+	ppc64_runlatch_on();
+
+	fini_irq_for_idle_irqsoff();
+
+	return srr1;
+}
+
+void power9_idle_type(unsigned long stop_psscr_val,
+				      unsigned long stop_psscr_mask)
+{
+	__power9_idle_type(stop_psscr_val, stop_psscr_mask);
+}
+
 /*
  * Used for ppc_md.power_save which needs a function with no parameters
  */
-static void power9_idle(void)
+void power9_idle(void)
 {
-	power9_idle_stop(pnv_default_stop_val, pnv_default_stop_mask);
+	power9_idle_type(pnv_default_stop_val, pnv_default_stop_mask);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -303,16 +360,17 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 	u32 idle_states = pnv_get_supported_cpuidle_states();
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300) && deepest_stop_found) {
-		srr1 = power9_idle_stop(pnv_deepest_stop_psscr_val,
+		srr1 = __power9_idle_type(pnv_deepest_stop_psscr_val,
 					pnv_deepest_stop_psscr_mask);
 	} else if (idle_states & OPAL_PM_WINKLE_ENABLED) {
-		srr1 = power7_winkle();
+		srr1 = __power7_idle_type(PNV_THREAD_WINKLE);
 	} else if ((idle_states & OPAL_PM_SLEEP_ENABLED) ||
 		   (idle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
-		srr1 = power7_sleep();
+		srr1 = __power7_idle_type(PNV_THREAD_SLEEP);
 	} else if (idle_states & OPAL_PM_NAP_ENABLED) {
-		srr1 = power7_nap(1);
+		srr1 = __power7_idle_type(PNV_THREAD_NAP);
 	} else {
+		ppc64_runlatch_off();
 		/* This is the fallback method. We emulate snooze */
 		while (!generic_check_cpu_restart(cpu)) {
 			HMT_low();
@@ -320,6 +378,7 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 		}
 		srr1 = 0;
 		HMT_medium();
+		ppc64_runlatch_on();
 	}
 
 	return srr1;

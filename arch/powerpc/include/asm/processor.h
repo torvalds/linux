@@ -481,11 +481,11 @@ extern unsigned long cpuidle_disable;
 enum idle_boot_override {IDLE_NO_OVERRIDE = 0, IDLE_POWERSAVE_OFF};
 
 extern int powersave_nap;	/* set if nap mode can be used in idle loop */
-extern unsigned long power7_nap(int check_irq);
-extern unsigned long power7_sleep(void);
-extern unsigned long power7_winkle(void);
-extern unsigned long power9_idle_stop(unsigned long stop_psscr_val,
-				      unsigned long stop_psscr_mask);
+extern unsigned long power7_idle_insn(unsigned long type); /* PNV_THREAD_NAP/etc*/
+extern void power7_idle_type(unsigned long type);
+extern unsigned long power9_idle_stop(unsigned long psscr_val);
+extern void power9_idle_type(unsigned long stop_psscr_val,
+			      unsigned long stop_psscr_mask);
 
 extern void flush_instruction_cache(void);
 extern void hard_reset_now(void);

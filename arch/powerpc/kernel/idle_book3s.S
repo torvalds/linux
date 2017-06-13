@@ -109,13 +109,9 @@ core_idle_lock_held:
 /*
  * Pass requested state in r3:
  *	r3 - PNV_THREAD_NAP/SLEEP/WINKLE in POWER8
- *	   - Requested STOP state in POWER9
+ *	   - Requested PSSCR value in POWER9
  *
- * To check IRQ_HAPPENED in r4
- * 	0 - don't check
- * 	1 - check
- *
- * Address to 'rfid' to in r5
+ * Address of idle handler to 'rfid' to in r4
  */
 pnv_powersave_common:
 	/* Use r3 to pass state nap/sleep/winkle */
@@ -131,30 +127,7 @@ pnv_powersave_common:
 	std	r0,_LINK(r1)
 	std	r0,_NIP(r1)
 
-	/* Hard disable interrupts */
-	mfmsr	r9
-	rldicl	r9,r9,48,1
-	rotldi	r9,r9,16
-	mtmsrd	r9,1			/* hard-disable interrupts */
-
-	/* Check if something happened while soft-disabled */
-	lbz	r0,PACAIRQHAPPENED(r13)
-	andi.	r0,r0,~PACA_IRQ_HARD_DIS@l
-	beq	1f
-	cmpwi	cr0,r4,0
-	beq	1f
-	addi	r1,r1,INT_FRAME_SIZE
-	ld	r0,16(r1)
-	li	r3,0			/* Return 0 (no nap) */
-	mtlr	r0
-	blr
-
-1:	/* We mark irqs hard disabled as this is the state we'll
-	 * be in when returning and we need to tell arch_local_irq_restore()
-	 * about it
-	 */
-	li	r0,PACA_IRQ_HARD_DIS
-	stb	r0,PACAIRQHAPPENED(r13)
+	mfmsr   r9
 
 	/* We haven't lost state ... yet */
 	li	r0,0
@@ -163,8 +136,8 @@ pnv_powersave_common:
 	/* Continue saving state */
 	SAVE_GPR(2, r1)
 	SAVE_NVGPRS(r1)
-	mfcr	r4
-	std	r4,_CCR(r1)
+	mfcr	r5
+	std	r5,_CCR(r1)
 	std	r9,_MSR(r1)
 	std	r1,PACAR1(r13)
 
@@ -178,7 +151,7 @@ pnv_powersave_common:
 	li	r6, MSR_RI
 	andc	r6, r9, r6
 	mtmsrd	r6, 1		/* clear RI before setting SRR0/1 */
-	mtspr	SPRN_SRR0, r5
+	mtspr	SPRN_SRR0, r4
 	mtspr	SPRN_SRR1, r7
 	rfid
 
@@ -322,35 +295,14 @@ lwarx_loop_stop:
 
 	IDLE_STATE_ENTER_SEQ_NORET(PPC_STOP)
 
-_GLOBAL(power7_idle)
+/*
+ * Entered with MSR[EE]=0 and no soft-masked interrupts pending.
+ * r3 contains desired idle state (PNV_THREAD_NAP/SLEEP/WINKLE).
+ */
+_GLOBAL(power7_idle_insn)
 	/* Now check if user or arch enabled NAP mode */
-	LOAD_REG_ADDRBASE(r3,powersave_nap)
-	lwz	r4,ADDROFF(powersave_nap)(r3)
-	cmpwi	0,r4,0
-	beqlr
-	li	r3, 1
-	/* fall through */
-
-_GLOBAL(power7_nap)
-	mr	r4,r3
-	li	r3,PNV_THREAD_NAP
-	LOAD_REG_ADDR(r5, pnv_enter_arch207_idle_mode)
+	LOAD_REG_ADDR(r4, pnv_enter_arch207_idle_mode)
 	b	pnv_powersave_common
-	/* No return */
-
-_GLOBAL(power7_sleep)
-	li	r3,PNV_THREAD_SLEEP
-	li	r4,1
-	LOAD_REG_ADDR(r5, pnv_enter_arch207_idle_mode)
-	b	pnv_powersave_common
-	/* No return */
-
-_GLOBAL(power7_winkle)
-	li	r3,PNV_THREAD_WINKLE
-	li	r4,1
-	LOAD_REG_ADDR(r5, pnv_enter_arch207_idle_mode)
-	b	pnv_powersave_common
-	/* No return */
 
 #define CHECK_HMI_INTERRUPT						\
 	mfspr	r0,SPRN_SRR1;						\
@@ -372,17 +324,13 @@ ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 20:	nop;
 
 /*
- * r3 - The PSSCR value corresponding to the stop state.
- * r4 - The PSSCR mask corrresonding to the stop state.
+ * Entered with MSR[EE]=0 and no soft-masked interrupts pending.
+ * r3 contains desired PSSCR register value.
  */
 _GLOBAL(power9_idle_stop)
-	mfspr   r5,SPRN_PSSCR
-	andc    r5,r5,r4
-	or      r3,r3,r5
 	std	r3, PACA_REQ_PSSCR(r13)
 	mtspr 	SPRN_PSSCR,r3
-	LOAD_REG_ADDR(r5,power_enter_stop)
-	li	r4,1
+	LOAD_REG_ADDR(r4,power_enter_stop)
 	b	pnv_powersave_common
 	/* No return */
 

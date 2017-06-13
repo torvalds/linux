@@ -182,9 +182,7 @@ static void pnv_smp_cpu_kill_self(void)
 		 */
 		kvmppc_set_host_ipi(cpu, 0);
 
-		ppc64_runlatch_off();
 		srr1 = pnv_cpu_offline(cpu);
-		ppc64_runlatch_on();
 
 		/*
 		 * If the SRR1 value indicates that we woke up due to

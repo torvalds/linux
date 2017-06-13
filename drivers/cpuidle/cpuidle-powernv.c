@@ -73,9 +73,8 @@ static int nap_loop(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			int index)
 {
-	ppc64_runlatch_off();
-	power7_idle();
-	ppc64_runlatch_on();
+	power7_idle_type(PNV_THREAD_NAP);
+
 	return index;
 }
 
@@ -98,7 +97,8 @@ static int fastsleep_loop(struct cpuidle_device *dev,
 	new_lpcr &= ~LPCR_PECE1;
 
 	mtspr(SPRN_LPCR, new_lpcr);
-	power7_sleep();
+
+	power7_idle_type(PNV_THREAD_SLEEP);
 
 	mtspr(SPRN_LPCR, old_lpcr);
 
@@ -110,10 +110,8 @@ static int stop_loop(struct cpuidle_device *dev,
 		     struct cpuidle_driver *drv,
 		     int index)
 {
-	ppc64_runlatch_off();
-	power9_idle_stop(stop_psscr_table[index].val,
+	power9_idle_type(stop_psscr_table[index].val,
 			 stop_psscr_table[index].mask);
-	ppc64_runlatch_on();
 	return index;
 }
 

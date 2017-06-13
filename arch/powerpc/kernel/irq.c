@@ -322,7 +322,8 @@ bool prep_irq_for_idle(void)
 	 * First we need to hard disable to ensure no interrupt
 	 * occurs before we effectively enter the low power state
 	 */
-	hard_irq_disable();
+	__hard_irq_disable();
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 
 	/*
 	 * If anything happened while we were soft-disabled,
@@ -344,6 +345,36 @@ bool prep_irq_for_idle(void)
 	local_paca->soft_enabled = 1;
 
 	/* Tell the caller to enter the low power state */
+	return true;
+}
+
+/*
+ * This is for idle sequences that return with IRQs off, but the
+ * idle state itself wakes on interrupt. Tell the irq tracer that
+ * IRQs are enabled for the duration of idle so it does not get long
+ * off times. Must be paired with fini_irq_for_idle_irqsoff.
+ */
+bool prep_irq_for_idle_irqsoff(void)
+{
+	WARN_ON(!irqs_disabled());
+
+	/*
+	 * First we need to hard disable to ensure no interrupt
+	 * occurs before we effectively enter the low power state
+	 */
+	__hard_irq_disable();
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+
+	/*
+	 * If anything happened while we were soft-disabled,
+	 * we return now and do not enter the low power state.
+	 */
+	if (lazy_irq_pending())
+		return false;
+
+	/* Tell lockdep we are about to re-enable */
+	trace_hardirqs_on();
+
 	return true;
 }
 
