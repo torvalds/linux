@@ -288,10 +288,12 @@ static u32 i915_perf_stream_paranoid = true;
 
 /* For sysctl proc_dointvec_minmax of i915_oa_max_sample_rate
  *
- * 160ns is the smallest sampling period we can theoretically program the OA
- * unit with on Haswell, corresponding to 6.25MHz.
+ * The highest sampling frequency we can theoretically program the OA unit
+ * with is always half the timestamp frequency: E.g. 6.25Mhz for Haswell.
+ *
+ * Initialized just before we register the sysctl parameter.
  */
-static int oa_sample_rate_hard_limit = 6250000;
+static int oa_sample_rate_hard_limit;
 
 /* Theoretically we can program the OA unit to sample every 160ns but don't
  * allow that by default unless root...
@@ -2642,6 +2644,12 @@ err:
 	return ret;
 }
 
+static u64 oa_exponent_to_ns(struct drm_i915_private *dev_priv, int exponent)
+{
+	return div_u64(1000000000ULL * (2ULL << exponent),
+		       dev_priv->perf.oa.timestamp_frequency);
+}
+
 /**
  * read_properties_unlocked - validate + copy userspace stream open properties
  * @dev_priv: i915 device instance
@@ -2738,16 +2746,13 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 			}
 
 			/* Theoretically we can program the OA unit to sample
-			 * every 160ns but don't allow that by default unless
-			 * root.
-			 *
-			 * On Haswell the period is derived from the exponent
-			 * as:
-			 *
-			 *   period = 80ns * 2^(exponent + 1)
+			 * e.g. every 160ns for HSW, 167ns for BDW/SKL or 104ns
+			 * for BXT. We don't allow such high sampling
+			 * frequencies by default unless root.
 			 */
+
 			BUILD_BUG_ON(sizeof(oa_period) != 8);
-			oa_period = 80ull * (2ull << value);
+			oa_period = oa_exponent_to_ns(dev_priv, value);
 
 			/* This check is primarily to ensure that oa_period <=
 			 * UINT32_MAX (before passing to do_div which only
@@ -3003,6 +3008,8 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		dev_priv->perf.oa.ops.oa_hw_tail_read =
 			gen7_oa_hw_tail_read;
 
+		dev_priv->perf.oa.timestamp_frequency = 12500000;
+
 		dev_priv->perf.oa.oa_formats = hsw_oa_formats;
 
 		dev_priv->perf.oa.n_builtin_sets =
@@ -3018,6 +3025,9 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		if (IS_GEN8(dev_priv)) {
 			dev_priv->perf.oa.ctx_oactxctrl_offset = 0x120;
 			dev_priv->perf.oa.ctx_flexeu0_offset = 0x2ce;
+
+			dev_priv->perf.oa.timestamp_frequency = 12500000;
+
 			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<25);
 
 			if (IS_BROADWELL(dev_priv)) {
@@ -3034,6 +3044,9 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		} else if (IS_GEN9(dev_priv)) {
 			dev_priv->perf.oa.ctx_oactxctrl_offset = 0x128;
 			dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
+
+			dev_priv->perf.oa.timestamp_frequency = 12000000;
+
 			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
 
 			if (IS_SKL_GT2(dev_priv)) {
@@ -3052,6 +3065,8 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 				dev_priv->perf.oa.ops.select_metric_set =
 					i915_oa_select_metric_set_sklgt4;
 			} else if (IS_BROXTON(dev_priv)) {
+				dev_priv->perf.oa.timestamp_frequency = 19200000;
+
 				dev_priv->perf.oa.n_builtin_sets =
 					i915_oa_n_builtin_metric_sets_bxt;
 				dev_priv->perf.oa.ops.select_metric_set =
@@ -3086,6 +3101,8 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		spin_lock_init(&dev_priv->perf.hook_lock);
 		spin_lock_init(&dev_priv->perf.oa.oa_buffer.ptr_lock);
 
+		oa_sample_rate_hard_limit =
+			dev_priv->perf.oa.timestamp_frequency / 2;
 		dev_priv->perf.sysctl_header = register_sysctl_table(dev_root);
 
 		dev_priv->perf.initialized = true;
