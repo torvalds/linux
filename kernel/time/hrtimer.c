@@ -1510,7 +1510,7 @@ static long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
 	return ret;
 }
 
-long hrtimer_nanosleep(struct timespec64 *rqtp,
+long hrtimer_nanosleep(const struct timespec64 *rqtp,
 		       const enum hrtimer_mode mode, const clockid_t clockid)
 {
 	struct restart_block *restart;
