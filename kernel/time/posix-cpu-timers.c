@@ -1227,10 +1227,11 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 }
 
 static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
-			    struct timespec64 *rqtp)
+			    const struct timespec64 *rqtp)
 {
-	struct k_itimer timer;
 	struct itimerspec64 it;
+	struct k_itimer timer;
+	u64 expires;
 	int error;
 
 	/*
@@ -1279,7 +1280,7 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		/*
 		 * We were interrupted by a signal.
 		 */
-		*rqtp = ns_to_timespec64(timer.it.cpu.expires);
+		expires = timer.it.cpu.expires;
 		error = posix_cpu_timer_set(&timer, 0, &zero_it, &it);
 		if (!error) {
 			/*
@@ -1312,7 +1313,7 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		 * Report back to the user the time still remaining.
 		 */
 		restart = &current->restart_block;
-		restart->nanosleep.expires = timespec64_to_ns(rqtp);
+		restart->nanosleep.expires = expires;
 		if (restart->nanosleep.type != TT_NONE) {
 			struct timespec ts;
 
