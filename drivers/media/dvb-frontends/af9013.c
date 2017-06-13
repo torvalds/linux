@@ -895,11 +895,6 @@ static int af9013_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	/* enable ADC */
-	ret = regmap_write(state->regmap, 0xd73a, 0xa4);
-	if (ret)
-		goto err;
-
 	/* write API version to firmware */
 	ret = regmap_bulk_write(state->regmap, 0x9bf2, state->api_version, 4);
 	if (ret)
@@ -933,43 +928,6 @@ static int af9013_init(struct dvb_frontend *fe)
 	buf[1] = (utmp >>  8) & 0xff;
 	buf[2] = (utmp >> 16) & 0xff;
 	ret = regmap_bulk_write(state->regmap, 0xd180, buf, 3);
-	if (ret)
-		goto err;
-
-	/* set I2C master clock */
-	ret = regmap_write(state->regmap, 0xd416, 0x14);
-	if (ret)
-		goto err;
-
-	/* set 16 embx */
-	ret = regmap_update_bits(state->regmap, 0xd700, 0x02, 0x02);
-	if (ret)
-		goto err;
-
-	/* set no trigger */
-	ret = regmap_update_bits(state->regmap, 0xd700, 0x04, 0x00);
-	if (ret)
-		goto err;
-
-	/* set read-update bit for constellation */
-	ret = regmap_update_bits(state->regmap, 0xd371, 0x02, 0x02);
-	if (ret)
-		goto err;
-
-	/* settings for mp2if */
-	if (state->ts_mode == AF9013_TS_MODE_USB) {
-		/* AF9015 split PSB to 1.5k + 0.5k */
-		ret = regmap_update_bits(state->regmap, 0xd50b, 0x04, 0x04);
-		if (ret)
-			goto err;
-	} else {
-		/* AF9013 set mpeg to full speed */
-		ret = regmap_update_bits(state->regmap, 0xd502, 0x10, 0x10);
-		if (ret)
-			goto err;
-	}
-
-	ret = regmap_update_bits(state->regmap, 0xd520, 0x10, 0x10);
 	if (ret)
 		goto err;
 
