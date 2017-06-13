@@ -520,14 +520,14 @@ static void dsa_cpu_port_get_ethtool_stats(struct net_device *dev,
 					   uint64_t *data)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds = dst->cpu_dp->ds;
-	s8 cpu_port = dst->cpu_dp->index;
+	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
+	struct dsa_switch *ds = cpu_dp->ds;
+	s8 cpu_port = cpu_dp->index;
 	int count = 0;
 
-	if (dst->cpu_dp->ethtool_ops.get_sset_count) {
-		count = dst->cpu_dp->ethtool_ops.get_sset_count(dev,
-							       ETH_SS_STATS);
-		dst->cpu_dp->ethtool_ops.get_ethtool_stats(dev, stats, data);
+	if (cpu_dp->ethtool_ops.get_sset_count) {
+		count = cpu_dp->ethtool_ops.get_sset_count(dev, ETH_SS_STATS);
+		cpu_dp->ethtool_ops.get_ethtool_stats(dev, stats, data);
 	}
 
 	if (ds->ops->get_ethtool_stats)
@@ -537,11 +537,12 @@ static void dsa_cpu_port_get_ethtool_stats(struct net_device *dev,
 static int dsa_cpu_port_get_sset_count(struct net_device *dev, int sset)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds = dst->cpu_dp->ds;
+	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
+	struct dsa_switch *ds = cpu_dp->ds;
 	int count = 0;
 
-	if (dst->cpu_dp->ethtool_ops.get_sset_count)
-		count += dst->cpu_dp->ethtool_ops.get_sset_count(dev, sset);
+	if (cpu_dp->ethtool_ops.get_sset_count)
+		count += cpu_dp->ethtool_ops.get_sset_count(dev, sset);
 
 	if (sset == ETH_SS_STATS && ds->ops->get_sset_count)
 		count += ds->ops->get_sset_count(ds);
@@ -553,8 +554,9 @@ static void dsa_cpu_port_get_strings(struct net_device *dev,
 				     uint32_t stringset, uint8_t *data)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds = dst->cpu_dp->ds;
-	s8 cpu_port = dst->cpu_dp->index;
+	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
+	struct dsa_switch *ds = cpu_dp->ds;
+	s8 cpu_port = cpu_dp->index;
 	int len = ETH_GSTRING_LEN;
 	int mcount = 0, count;
 	unsigned int i;
@@ -565,10 +567,9 @@ static void dsa_cpu_port_get_strings(struct net_device *dev,
 	/* We do not want to be NULL-terminated, since this is a prefix */
 	pfx[sizeof(pfx) - 1] = '_';
 
-	if (dst->cpu_dp->ethtool_ops.get_sset_count) {
-		mcount = dst->cpu_dp->ethtool_ops.get_sset_count(dev,
-								ETH_SS_STATS);
-		dst->cpu_dp->ethtool_ops.get_strings(dev, stringset, data);
+	if (cpu_dp->ethtool_ops.get_sset_count) {
+		mcount = cpu_dp->ethtool_ops.get_sset_count(dev, ETH_SS_STATS);
+		cpu_dp->ethtool_ops.get_strings(dev, stringset, data);
 	}
 
 	if (stringset == ETH_SS_STATS && ds->ops->get_strings) {
