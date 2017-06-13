@@ -129,7 +129,13 @@ i915-y += i915_vgpu.o
 
 # perf code
 i915-y += i915_perf.o \
-	  i915_oa_hsw.o
+	  i915_oa_hsw.o \
+	  i915_oa_bdw.o \
+	  i915_oa_chv.o \
+	  i915_oa_sklgt2.o \
+	  i915_oa_sklgt3.o \
+	  i915_oa_sklgt4.o \
+	  i915_oa_bxt.o
 
 ifeq ($(CONFIG_DRM_I915_GVT),y)
 i915-y += intel_gvt.o

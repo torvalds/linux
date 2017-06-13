@@ -2417,12 +2417,14 @@ struct drm_i915_private {
 
 			int metrics_set;
 
-			const struct i915_oa_reg *mux_regs[1];
-			int mux_regs_lens[1];
+			const struct i915_oa_reg *mux_regs[2];
+			int mux_regs_lens[2];
 			int n_mux_configs;
 
 			const struct i915_oa_reg *b_counter_regs;
 			int b_counter_regs_len;
+			const struct i915_oa_reg *flex_regs;
+			int flex_regs_len;
 
 			struct {
 				struct i915_vma *vma;
