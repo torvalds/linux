@@ -1095,6 +1095,59 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
+		"check skb->hash byte load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash)),
+#else
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 3),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"check skb->hash byte load not permitted 1",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 1),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_context access",
+		.result = REJECT,
+	},
+	{
+		"check skb->hash byte load not permitted 2",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 2),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_context access",
+		.result = REJECT,
+	},
+	{
+		"check skb->hash byte load not permitted 3",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 3),
+#else
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash)),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_context access",
+		.result = REJECT,
+	},
+	{
 		"check cb access: byte, wrong type",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
@@ -1182,6 +1235,37 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_STX_MEM(BPF_H, BPF_REG_1, BPF_REG_0,
 				    offsetof(struct __sk_buff, tc_index) + 2),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_context access",
+		.result = REJECT,
+	},
+	{
+		"check skb->hash half load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 2),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"check skb->hash half load not permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 2),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash)),
+#endif
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
@@ -5102,6 +5186,98 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period byte load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+#else
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period) + 7),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period half load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period) + 6),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period word load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+#else
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period) + 4),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period dword load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check skb->data half load not permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, data) + 2),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = REJECT,
+		.errstr = "invalid bpf_context access",
+	},
+	{
+		"check skb->tc_classid half load not permitted for lwt prog",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, tc_classid)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, tc_classid) + 2),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = REJECT,
+		.errstr = "invalid bpf_context access",
+		.prog_type = BPF_PROG_TYPE_LWT_IN,
 	},
 };
 
