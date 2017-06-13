@@ -325,6 +325,7 @@ struct denali_nand_info {
 	/* elements used by ISR */
 	struct completion complete;
 	spinlock_t irq_lock;
+	uint32_t irq_mask;
 	uint32_t irq_status;
 	int irq;
 
