@@ -490,6 +490,8 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 	enum dsa_tag_protocol tag_protocol;
 	struct net_device *ethernet_dev;
 	struct device_node *ethernet;
+	struct dsa_port *p;
+	unsigned int i;
 
 	if (port->dn) {
 		ethernet = of_parse_phandle(port->dn, "ethernet", 0);
@@ -507,6 +509,15 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 	if (!dst->cpu_dp) {
 		dst->cpu_dp = port;
 		dst->cpu_dp->netdev = ethernet_dev;
+
+		for (i = 0; i < ds->num_ports; i++) {
+			p = &ds->ports[i];
+			if (!dsa_port_is_valid(p) ||
+			    i == index)
+				continue;
+
+			p->cpu_dp = port;
+		}
 	}
 
 	tag_protocol = ds->ops->get_tag_protocol(ds);

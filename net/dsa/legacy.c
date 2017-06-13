@@ -129,6 +129,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 			ds->dsa_port_mask |= 1 << i;
 		} else {
 			ds->enabled_port_mask |= 1 << i;
+			ds->ports[i].cpu_dp = dst->cpu_dp;
 		}
 		valid_name_found = true;
 	}
