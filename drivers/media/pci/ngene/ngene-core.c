@@ -1345,7 +1345,7 @@ static int ngene_start(struct ngene *dev)
 	mutex_init(&dev->cmd_mutex);
 	mutex_init(&dev->stream_mutex);
 	sema_init(&dev->pll_mutex, 1);
-	sema_init(&dev->i2c_switch_mutex, 1);
+	mutex_init(&dev->i2c_switch_mutex);
 	spin_lock_init(&dev->cmd_lock);
 	for (i = 0; i < MAX_STREAM; i++)
 		spin_lock_init(&dev->channel[i].state_lock);

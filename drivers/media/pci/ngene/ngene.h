@@ -765,7 +765,7 @@ struct ngene {
 	struct mutex          cmd_mutex;
 	struct mutex          stream_mutex;
 	struct semaphore      pll_mutex;
-	struct semaphore      i2c_switch_mutex;
+	struct mutex          i2c_switch_mutex;
 	int                   i2c_current_channel;
 	int                   i2c_current_bus;
 	spinlock_t            cmd_lock;
