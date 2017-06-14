@@ -647,7 +647,6 @@ int f2fs_getattr(struct vfsmount *mnt,
 {
 	struct inode *inode = d_inode(dentry);
 	generic_fillattr(inode, stat);
-	stat->blocks <<= 3;
 	return 0;
 }
 
