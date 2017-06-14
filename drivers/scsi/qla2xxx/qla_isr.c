@@ -2653,7 +2653,8 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 	int res = DID_ERROR << 16;
 
 	ql_dbg(ql_dbg_async, vha, 0x502a,
-	    "type of error status in response: 0x%x\n", pkt->entry_status);
+	    "iocb type %xh with error status %xh, handle %xh, rspq id %d\n",
+	    pkt->entry_type, pkt->entry_status, pkt->handle, rsp->id);
 
 	if (que >= ha->max_req_queues || !ha->req_q_map[que])
 		goto fatal;
@@ -2805,7 +2806,8 @@ process_err:
 		case ABTS_RECV_24XX:
 			if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
 				/* ensure that the ATIO queue is empty */
-				qlt_handle_abts_recv(vha, (response_t *)pkt);
+				qlt_handle_abts_recv(vha, rsp,
+				    (response_t *)pkt);
 				break;
 			} else {
 				/* drop through */
@@ -2814,11 +2816,12 @@ process_err:
 		case ABTS_RESP_24XX:
 		case CTIO_TYPE7:
 		case CTIO_CRC2:
-			qlt_response_pkt_all_vps(vha, (response_t *)pkt);
+			qlt_response_pkt_all_vps(vha, rsp, (response_t *)pkt);
 			break;
 		case NOTIFY_ACK_TYPE:
 			if (pkt->handle == QLA_TGT_SKIP_HANDLE)
-				qlt_response_pkt_all_vps(vha, (response_t *)pkt);
+				qlt_response_pkt_all_vps(vha, rsp,
+				    (response_t *)pkt);
 			else
 				qla24xxx_nack_iocb_entry(vha, rsp->req,
 					(struct nack_to_isp *)pkt);

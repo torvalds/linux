@@ -389,6 +389,13 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 		ha->base_qpair->rsp = rsp;
 	}
 
+	rsp->qpair = ha->base_qpair;
+	rsp->req = req;
+	ha->base_qpair->vha = vha;
+	ha->base_qpair->qp_lock_ptr = &ha->hardware_lock;
+	ha->queue_pair_map[0] = ha->base_qpair;
+	set_bit(0, ha->qpair_qid_map);
+
 	/*
 	 * Make sure we record at least the request and response queue zero in
 	 * case we need to free them if part of the probe fails.
@@ -399,9 +406,10 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 	set_bit(0, ha->req_qid_map);
 	return 1;
 
-fail_base_qpair:
-	kfree(ha->queue_pair_map);
 fail_qpair_map:
+	kfree(ha->base_qpair);
+	ha->base_qpair = NULL;
+fail_base_qpair:
 	kfree(ha->rsp_q_map);
 	ha->rsp_q_map = NULL;
 fail_rsp_map:
@@ -450,6 +458,15 @@ static void qla2x00_free_queues(struct qla_hw_data *ha)
 	struct rsp_que *rsp;
 	int cnt;
 	unsigned long flags;
+
+	if (ha->queue_pair_map) {
+		kfree(ha->queue_pair_map);
+		ha->queue_pair_map = NULL;
+	}
+	if (ha->base_qpair) {
+		kfree(ha->base_qpair);
+		ha->base_qpair = NULL;
+	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (cnt = 0; cnt < ha->max_req_queues; cnt++) {
@@ -3113,7 +3130,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		/* Create start of day qpairs for Block MQ */
 		if (shost_use_blk_mq(host)) {
 			for (i = 0; i < ha->max_qpairs; i++)
-				qla2xxx_create_qpair(base_vha, 5, 0);
+				qla2xxx_create_qpair(base_vha, 5,  0, true);
 		}
 	}
 

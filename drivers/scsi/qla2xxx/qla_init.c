@@ -7578,7 +7578,8 @@ qla24xx_update_all_fcp_prio(scsi_qla_host_t *vha)
 	return ret;
 }
 
-struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos, int vp_idx)
+struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
+	int vp_idx, bool startqp)
 {
 	int rsp_id = 0;
 	int  req_id = 0;
@@ -7605,6 +7606,8 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos, int v
 
 		qpair->hw = vha->hw;
 		qpair->vha = vha;
+		qpair->qp_lock_ptr = &qpair->qp_lock;
+		spin_lock_init(&qpair->qp_lock);
 
 		/* Assign available que pair id */
 		mutex_lock(&ha->mq_lock);
@@ -7642,7 +7645,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos, int v
 		mutex_unlock(&ha->mq_lock);
 
 		/* Create response queue first */
-		rsp_id = qla25xx_create_rsp_que(ha, 0, 0, 0, qpair);
+		rsp_id = qla25xx_create_rsp_que(ha, 0, 0, 0, qpair, startqp);
 		if (!rsp_id) {
 			ql_log(ql_log_warn, vha, 0x0185,
 			    "Failed to create response queue.\n");
@@ -7652,7 +7655,8 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos, int v
 		qpair->rsp = ha->rsp_q_map[rsp_id];
 
 		/* Create request queue */
-		req_id = qla25xx_create_req_que(ha, 0, vp_idx, 0, rsp_id, qos);
+		req_id = qla25xx_create_req_que(ha, 0, vp_idx, 0, rsp_id, qos,
+		    startqp);
 		if (!req_id) {
 			ql_log(ql_log_warn, vha, 0x0186,
 			    "Failed to create request queue.\n");
@@ -7661,6 +7665,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos, int v
 
 		qpair->req = ha->req_q_map[req_id];
 		qpair->rsp->req = qpair->req;
+		qpair->rsp->qpair = qpair;
 
 		if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif) {
 			if (ha->fw_attributes & BIT_4)

@@ -2096,7 +2096,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	}
 
 	if (qos) {
-		qpair = qla2xxx_create_qpair(vha, qos, vha->vp_idx);
+		qpair = qla2xxx_create_qpair(vha, qos, vha->vp_idx, true);
 		if (!qpair)
 			ql_log(ql_log_warn, vha, 0x7084,
 			    "Can't create qpair for VP[%d]\n",

@@ -2109,20 +2109,13 @@ queuing_error:
 /* Generic Control-SRB manipulation functions. */
 
 /* hardware_lock assumed to be held. */
-void *
-qla2x00_alloc_iocbs_ready(scsi_qla_host_t *vha, srb_t *sp)
-{
-	if (qla2x00_reset_active(vha))
-		return NULL;
-
-	return qla2x00_alloc_iocbs(vha, sp);
-}
 
 void *
-qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
+__qla2x00_alloc_iocbs(struct qla_qpair *qpair, srb_t *sp)
 {
+	scsi_qla_host_t *vha = qpair->vha;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = ha->req_q_map[0];
+	struct req_que *req = qpair->req;
 	device_reg_t *reg = ISP_QUE_REG(ha, req->id);
 	uint32_t index, handle;
 	request_t *pkt;
@@ -2198,6 +2191,23 @@ skip_cmd_array:
 queuing_error:
 	vha->tgt_counters.num_alloc_iocb_failed++;
 	return pkt;
+}
+
+void *
+qla2x00_alloc_iocbs_ready(struct qla_qpair *qpair, srb_t *sp)
+{
+	scsi_qla_host_t *vha = qpair->vha;
+
+	if (qla2x00_reset_active(vha))
+		return NULL;
+
+	return __qla2x00_alloc_iocbs(qpair, sp);
+}
+
+void *
+qla2x00_alloc_iocbs(struct scsi_qla_host *vha, srb_t *sp)
+{
+	return __qla2x00_alloc_iocbs(vha->hw->base_qpair, sp);
 }
 
 static void

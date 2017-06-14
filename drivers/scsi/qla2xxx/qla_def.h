@@ -3182,6 +3182,9 @@ struct qla_tc_param {
 #define QLA_PRECONFIG_VPORTS 32
 #define QLA_MAX_VPORTS_QLA24XX	128
 #define QLA_MAX_VPORTS_QLA25XX	256
+
+struct qla_qpair;
+
 /* Response queue data structure */
 struct rsp_que {
 	dma_addr_t  dma;
@@ -3201,6 +3204,7 @@ struct rsp_que {
 	struct qla_msix_entry *msix;
 	struct req_que *req;
 	srb_t *status_srb; /* status continuation entry */
+	struct qla_qpair *qpair;
 
 	dma_addr_t  dma_fx00;
 	response_t *ring_fx00;
@@ -3241,6 +3245,14 @@ struct req_que {
 struct qla_qpair {
 	spinlock_t qp_lock;
 	atomic_t ref_count;
+
+	/*
+	 * For qpair 0, qp_lock_ptr will point at hardware_lock due to
+	 * legacy code. For other Qpair(s), it will point at qp_lock.
+	 */
+	spinlock_t *qp_lock_ptr;
+	struct scsi_qla_host *vha;
+
 	/* distill these fields down to 'online=0/1'
 	 * ha->flags.eeh_busy
 	 * ha->flags.pci_channel_io_perm_failure
@@ -3252,10 +3264,7 @@ struct qla_qpair {
 	uint32_t delete_in_progress:1;
 
 	uint16_t id;			/* qp number used with FW */
-	uint16_t num_active_cmd;	/* cmds down at firmware */
-	cpumask_t cpu_mask; /* CPU mask for cpu affinity operation */
 	uint16_t vp_idx;		/* vport ID */
-
 	mempool_t *srb_mempool;
 
 	/* to do: New driver: move queues to here instead of pointers */
@@ -3266,7 +3275,7 @@ struct qla_qpair {
 	struct qla_hw_data *hw;
 	struct work_struct q_work;
 	struct list_head qp_list_elem; /* vha->qp_list */
-	struct scsi_qla_host *vha;
+	uint16_t cpuid;
 };
 
 /* Place holder for FW buffer parameters */

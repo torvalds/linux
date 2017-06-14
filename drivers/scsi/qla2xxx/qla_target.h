@@ -73,7 +73,7 @@
 #define QLA_TGT_NULL_HANDLE	0
 
 #define QLA_TGT_HANDLE_MASK  0xF0000000
-#define QLA_QPID_HANDLE_MASK 0x000F0000 /* qpair id mask */
+#define QLA_QPID_HANDLE_MASK 0x00FF0000 /* qpair id mask */
 #define QLA_CMD_HANDLE_MASK  0x0000FFFF
 #define QLA_TGT_SKIP_HANDLE	(0xFFFFFFFF & ~QLA_TGT_HANDLE_MASK)
 
@@ -837,6 +837,7 @@ struct qla_tgt_sess_op {
 	struct work_struct work;
 	struct list_head cmd_list;
 	bool aborted;
+	struct rsp_que *rsp;
 };
 
 enum trace_flags {
@@ -871,6 +872,7 @@ struct qla_tgt_cmd {
 	uint8_t pad[7];
 	struct se_cmd se_cmd;
 	struct fc_port *sess;
+	struct qla_qpair *qpair;
 	int state;
 	struct work_struct work;
 	/* Sense buffer that will be mapped into outgoing status */
@@ -948,6 +950,7 @@ struct qla_tgt_mgmt_cmd {
 	uint16_t tmr_func;
 	uint8_t fc_tm_rsp;
 	struct fc_port *sess;
+	struct qla_qpair *qpair;
 	struct se_cmd se_cmd;
 	struct work_struct free_work;
 	unsigned int flags;
@@ -1049,7 +1052,8 @@ static inline void sid_to_portid(const uint8_t *s_id, port_id_t *p)
 /*
  * Exported symbols from qla_target.c LLD logic used by qla2xxx code..
  */
-extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, response_t *);
+extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, struct rsp_que *,
+	response_t *);
 extern int qlt_rdy_to_xfer(struct qla_tgt_cmd *);
 extern int qlt_xmit_response(struct qla_tgt_cmd *, int, uint8_t);
 extern int qlt_abort_cmd(struct qla_tgt_cmd *);
@@ -1082,7 +1086,7 @@ extern int qlt_stop_phase1(struct qla_tgt *);
 extern void qlt_stop_phase2(struct qla_tgt *);
 extern irqreturn_t qla83xx_msix_atio_q(int, void *);
 extern void qlt_83xx_iospace_config(struct qla_hw_data *);
-extern int qlt_free_qfull_cmds(struct scsi_qla_host *);
+extern int qlt_free_qfull_cmds(struct qla_qpair *);
 extern void qlt_logo_completion_handler(fc_port_t *, int);
 extern void qlt_do_generation_tick(struct scsi_qla_host *, int *);
 
