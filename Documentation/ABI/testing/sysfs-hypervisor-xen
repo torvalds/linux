@@ -1,8 +1,19 @@
+What:		/sys/hypervisor/guest_type
+Date:		May 2017
+KernelVersion:	4.13
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Type of guest:
+		"Xen": standard guest type on arm
+		"HVM": fully virtualized guest (x86)
+		"PV": paravirtualized guest (x86)
+		"PVH": fully virtualized guest without legacy emulation (x86)
+
 What:		/sys/hypervisor/pmu/pmu_mode
 Date:		August 2015
 KernelVersion:	4.3
 Contact:	Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Description:
+Description:	If running under Xen:
 		Describes mode that Xen's performance-monitoring unit (PMU)
 		uses. Accepted values are
 			"off"  -- PMU is disabled
@@ -17,7 +28,7 @@ What:           /sys/hypervisor/pmu/pmu_features
 Date:           August 2015
 KernelVersion:  4.3
 Contact:        Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Description:
+Description:	If running under Xen:
 		Describes Xen PMU features (as an integer). A set bit indicates
 		that the corresponding feature is enabled. See
 		include/xen/interface/xenpmu.h for available features
