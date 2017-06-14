@@ -107,15 +107,15 @@ struct hisi_sas_dq {
 };
 
 struct hisi_sas_device {
-	enum sas_device_type	dev_type;
 	struct hisi_hba		*hisi_hba;
 	struct domain_device	*sas_device;
-	u64 attached_phy;
-	u64 device_id;
-	atomic64_t running_req;
 	struct list_head	list;
-	u8 dev_status;
+	u64 attached_phy;
+	atomic64_t running_req;
+	enum sas_device_type	dev_type;
+	int device_id;
 	int sata_idx;
+	u8 dev_status;
 };
 
 struct hisi_sas_slot {

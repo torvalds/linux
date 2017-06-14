@@ -209,7 +209,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 
 	if (DEV_IS_GONE(sas_dev)) {
 		if (sas_dev)
-			dev_info(dev, "task prep: device %llu not ready\n",
+			dev_info(dev, "task prep: device %d not ready\n",
 				 sas_dev->device_id);
 		else
 			dev_info(dev, "task prep: device %016llx not ready\n",
@@ -627,9 +627,9 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = &hisi_hba->pdev->dev;
-	u64 dev_id = sas_dev->device_id;
+	int dev_id = sas_dev->device_id;
 
-	dev_info(dev, "found dev[%lld:%x] is gone\n",
+	dev_info(dev, "found dev[%d:%x] is gone\n",
 		 sas_dev->device_id, sas_dev->dev_type);
 
 	hisi_sas_internal_task_abort(hisi_hba, device,
@@ -1082,7 +1082,7 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 	}
 out:
 	if (rc != TMF_RESP_FUNC_COMPLETE)
-		dev_err(dev, "lu_reset: for device[%llx]:rc= %d\n",
+		dev_err(dev, "lu_reset: for device[%d]:rc= %d\n",
 			     sas_dev->device_id, rc);
 	return rc;
 }
@@ -1129,7 +1129,7 @@ static int hisi_sas_query_task(struct sas_task *task)
 }
 
 static int
-hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, u64 device_id,
+hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 				  struct sas_task *task, int abort_flag,
 				  int task_tag)
 {
