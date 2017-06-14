@@ -2713,3 +2713,104 @@ ql_dump_buffer(uint32_t level, scsi_qla_host_t *vha, int32_t id,
 			       buf + cnt, min(16U, size - cnt), false);
 	}
 }
+
+/*
+ * This function is for formatting and logging log messages.
+ * It is to be used when vha is available. It formats the message
+ * and logs it to the messages file. All the messages will be logged
+ * irrespective of value of ql2xextended_error_logging.
+ * parameters:
+ * level: The level of the log messages to be printed in the
+ *        messages file.
+ * vha:   Pointer to the scsi_qla_host_t
+ * id:    This is a unique id for the level. It identifies the
+ *        part of the code from where the message originated.
+ * msg:   The message to be displayed.
+ */
+void
+ql_log_qp(uint32_t level, struct qla_qpair *qpair, int32_t id,
+    const char *fmt, ...)
+{
+	va_list va;
+	struct va_format vaf;
+	char pbuf[128];
+
+	if (level > ql_errlev)
+		return;
+
+	if (qpair != NULL) {
+		const struct pci_dev *pdev = qpair->pdev;
+		/* <module-name> <msg-id>:<host> Message */
+		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: ",
+			QL_MSGHDR, dev_name(&(pdev->dev)), id);
+	} else {
+		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: : ",
+			QL_MSGHDR, "0000:00:00.0", id);
+	}
+	pbuf[sizeof(pbuf) - 1] = 0;
+
+	va_start(va, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &va;
+
+	switch (level) {
+	case ql_log_fatal: /* FATAL LOG */
+		pr_crit("%s%pV", pbuf, &vaf);
+		break;
+	case ql_log_warn:
+		pr_err("%s%pV", pbuf, &vaf);
+		break;
+	case ql_log_info:
+		pr_warn("%s%pV", pbuf, &vaf);
+		break;
+	default:
+		pr_info("%s%pV", pbuf, &vaf);
+		break;
+	}
+
+	va_end(va);
+}
+
+/*
+ * This function is for formatting and logging debug information.
+ * It is to be used when vha is available. It formats the message
+ * and logs it to the messages file.
+ * parameters:
+ * level: The level of the debug messages to be printed.
+ *        If ql2xextended_error_logging value is correctly set,
+ *        this message will appear in the messages file.
+ * vha:   Pointer to the scsi_qla_host_t.
+ * id:    This is a unique identifier for the level. It identifies the
+ *        part of the code from where the message originated.
+ * msg:   The message to be displayed.
+ */
+void
+ql_dbg_qp(uint32_t level, struct qla_qpair *qpair, int32_t id,
+    const char *fmt, ...)
+{
+	va_list va;
+	struct va_format vaf;
+
+	if (!ql_mask_match(level))
+		return;
+
+	va_start(va, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &va;
+
+	if (qpair != NULL) {
+		const struct pci_dev *pdev = qpair->pdev;
+		/* <module-name> <pci-name> <msg-id>:<host> Message */
+		pr_warn("%s [%s]-%04x: %pV",
+		    QL_MSGHDR, dev_name(&(pdev->dev)), id + ql_dbg_offset,
+		    &vaf);
+	} else {
+		pr_warn("%s [%s]-%04x: : %pV",
+			QL_MSGHDR, "0000:00:00.0", id + ql_dbg_offset, &vaf);
+	}
+
+	va_end(va);
+
+}

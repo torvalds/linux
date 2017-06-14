@@ -2263,7 +2263,7 @@ static int qlt_pci_map_calc_cnt(struct qla_tgt_prm *prm)
 	return 0;
 
 out_err:
-	ql_dbg(ql_dbg_tgt, prm->cmd->vha, 0xe04d,
+	ql_dbg_qp(ql_dbg_tgt, prm->cmd->qpair, 0xe04d,
 	    "qla_target(%d): PCI mapping failed: sg_cnt=%d",
 	    0, prm->cmd->sg_cnt);
 	return -1;
@@ -2379,7 +2379,6 @@ static int qlt_24xx_build_ctio_pkt(struct qla_qpair *qpair,
 	struct ctio7_to_24xx *pkt;
 	struct atio_from_isp *atio = &prm->cmd->atio;
 	uint16_t temp;
-	struct scsi_qla_host *vha = prm->cmd->vha;
 
 	pkt = (struct ctio7_to_24xx *)qpair->req->ring_ptr;
 	prm->pkt = pkt;
@@ -2387,7 +2386,7 @@ static int qlt_24xx_build_ctio_pkt(struct qla_qpair *qpair,
 
 	pkt->entry_type = CTIO_TYPE7;
 	pkt->entry_count = (uint8_t)prm->req_cnt;
-	pkt->vp_index = vha->vp_idx;
+	pkt->vp_index = prm->cmd->vp_idx;
 
 	h = qlt_make_handle(qpair);
 	if (unlikely(h == QLA_TGT_NULL_HANDLE)) {
@@ -2583,6 +2582,7 @@ static int qlt_pre_xmit_response(struct qla_tgt_cmd *cmd,
 	uint32_t *full_req_cnt)
 {
 	struct se_cmd *se_cmd = &cmd->se_cmd;
+	struct qla_qpair *qpair = cmd->qpair;
 
 	prm->cmd = cmd;
 	prm->tgt = cmd->tgt;
@@ -2608,7 +2608,7 @@ static int qlt_pre_xmit_response(struct qla_tgt_cmd *cmd,
 
 	if (se_cmd->se_cmd_flags & SCF_UNDERFLOW_BIT) {
 		prm->residual = se_cmd->residual_count;
-		ql_dbg(ql_dbg_io + ql_dbg_verbose, cmd->vha, 0x305c,
+		ql_dbg_qp(ql_dbg_io + ql_dbg_verbose, qpair, 0x305c,
 		    "Residual underflow: %d (tag %lld, op %x, bufflen %d, rq_result %x)\n",
 		       prm->residual, se_cmd->tag,
 		       se_cmd->t_task_cdb ? se_cmd->t_task_cdb[0] : 0,
@@ -2616,7 +2616,7 @@ static int qlt_pre_xmit_response(struct qla_tgt_cmd *cmd,
 		prm->rq_result |= SS_RESIDUAL_UNDER;
 	} else if (se_cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
 		prm->residual = se_cmd->residual_count;
-		ql_dbg(ql_dbg_io, cmd->vha, 0x305d,
+		ql_dbg_qp(ql_dbg_io, qpair, 0x305d,
 		    "Residual overflow: %d (tag %lld, op %x, bufflen %d, rq_result %x)\n",
 		       prm->residual, se_cmd->tag, se_cmd->t_task_cdb ?
 		       se_cmd->t_task_cdb[0] : 0, cmd->bufflen, prm->rq_result);
@@ -2672,7 +2672,7 @@ static void qlt_24xx_init_ctio_to_isp(struct ctio7_to_24xx *ctio,
 
 		if (qlt_need_explicit_conf(prm->cmd, 1)) {
 			if ((prm->rq_result & SS_SCSI_STATUS_BYTE) != 0) {
-				ql_dbg(ql_dbg_tgt, prm->cmd->vha, 0xe017,
+				ql_dbg_qp(ql_dbg_tgt, prm->cmd->qpair, 0xe017,
 				    "Skipping EXPLICIT_CONFORM and "
 				    "CTIO7_FLAGS_CONFORM_REQ for FCP READ w/ "
 				    "non GOOD status\n");
@@ -2867,9 +2867,9 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 	prm->pkt = pkt;
 	memset(pkt, 0, sizeof(*pkt));
 
-	ql_dbg(ql_dbg_tgt, vha, 0xe071,
+	ql_dbg_qp(ql_dbg_tgt, cmd->qpair, 0xe071,
 		"qla_target(%d):%s: se_cmd[%p] CRC2 prot_op[0x%x] cmd prot sg:cnt[%p:%x] lba[%llu]\n",
-		vha->vp_idx, __func__, se_cmd, se_cmd->prot_op,
+		cmd->vp_idx, __func__, se_cmd, se_cmd->prot_op,
 		prm->prot_sg, prm->prot_seg_cnt, se_cmd->t_task_lba);
 
 	if ((se_cmd->prot_op == TARGET_PROT_DIN_INSERT) ||
@@ -2932,7 +2932,7 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 	/* Update entry type to indicate Command Type CRC_2 IOCB */
 	pkt->entry_type  = CTIO_CRC2;
 	pkt->entry_count = 1;
-	pkt->vp_index = vha->vp_idx;
+	pkt->vp_index = cmd->vp_idx;
 
 	h = qlt_make_handle(qpair);
 	if (unlikely(h == QLA_TGT_NULL_HANDLE)) {
@@ -3080,7 +3080,7 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 		return 0;
 	}
 
-	ql_dbg(ql_dbg_tgt, cmd->vha, 0xe018,
+	ql_dbg_qp(ql_dbg_tgt, qpair, 0xe018,
 	    "is_send_status=%d, cmd->bufflen=%d, cmd->sg_cnt=%d, cmd->dma_data_direction=%d se_cmd[%p] qp %d\n",
 	    (xmit_type & QLA_TGT_XMIT_STATUS) ?
 	    1 : 0, cmd->bufflen, cmd->sg_cnt, cmd->dma_data_direction,
@@ -3106,7 +3106,7 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 		 */
 		cmd->state = QLA_TGT_STATE_PROCESSED;
 		qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
-		ql_dbg(ql_dbg_async, vha, 0xe101,
+		ql_dbg_qp(ql_dbg_async, qpair, 0xe101,
 			"RESET-RSP online/active/old-count/new-count = %d/%d/%d/%d.\n",
 			vha->flags.online, qla2x00_reset_active(vha),
 			cmd->reset_count, qpair->chip_reset);
@@ -3164,7 +3164,7 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 				(struct ctio7_to_24xx *)qlt_get_req_pkt(
 				    qpair->req);
 
-			ql_dbg(ql_dbg_tgt, vha, 0x305e,
+			ql_dbg_qp(ql_dbg_tgt, qpair, 0x305e,
 			    "Building additional status packet 0x%p.\n",
 			    ctio);
 
@@ -3191,7 +3191,6 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 			 */
 			qlt_24xx_init_ctio_to_isp((struct ctio7_to_24xx *)ctio,
 			    &prm);
-			pr_debug("Status CTIO7: %p\n", ctio);
 		}
 	} else
 		qlt_24xx_init_ctio_to_isp(pkt, &prm);
@@ -3246,7 +3245,7 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 		 */
 		cmd->state = QLA_TGT_STATE_NEED_DATA;
 		qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
-		ql_dbg(ql_dbg_async, vha, 0xe102,
+		ql_dbg_qp(ql_dbg_async, qpair, 0xe102,
 			"RESET-XFR online/active/old-count/new-count = %d/%d/%d/%d.\n",
 			vha->flags.online, qla2x00_reset_active(vha),
 			cmd->reset_count, qpair->chip_reset);
@@ -4222,6 +4221,7 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 	    (struct scsi_lun *)&atio->u.isp24.fcp_cmnd.lun);
 	qlt_assign_qpair(vha, cmd);
 	cmd->reset_count = vha->hw->base_qpair->chip_reset;
+	cmd->vp_idx = vha->vp_idx;
 
 	return cmd;
 }
