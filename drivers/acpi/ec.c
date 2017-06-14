@@ -459,8 +459,10 @@ static bool acpi_ec_submit_flushable_request(struct acpi_ec *ec)
 
 static void acpi_ec_submit_query(struct acpi_ec *ec)
 {
-	if (acpi_ec_event_enabled(ec) &&
-	    !test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
+	acpi_ec_set_storm(ec, EC_FLAGS_COMMAND_STORM);
+	if (!acpi_ec_event_enabled(ec))
+		return;
+	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
 		ec_dbg_evt("Command(%s) submitted/blocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 		ec->nr_pending_queries++;
@@ -470,11 +472,10 @@ static void acpi_ec_submit_query(struct acpi_ec *ec)
 
 static void acpi_ec_complete_query(struct acpi_ec *ec)
 {
-	if (test_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
-		clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
+	if (test_and_clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
 		ec_dbg_evt("Command(%s) unblocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
-	}
+	acpi_ec_clear_storm(ec, EC_FLAGS_COMMAND_STORM);
 }
 
 static inline void __acpi_ec_enable_event(struct acpi_ec *ec)
