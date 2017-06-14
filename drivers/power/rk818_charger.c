@@ -99,7 +99,7 @@ static const u16 chrg_cur_sel_array[] = {
 };
 
 static const u16 chrg_cur_input_array[] = {
-	450, 800, 850, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000
+	450, 80, 850, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000
 };
 
 enum charger_t {
@@ -638,7 +638,7 @@ static void rk818_cg_dc_det_worker(struct work_struct *work)
 
 static u8 rk818_cg_decode_chrg_vol(struct rk818_charger *cg)
 {
-	u8 val, index;
+	u8 val = 0, index;
 	u32 chrg_vol;
 
 	chrg_vol = cg->pdata->max_chrg_voltage;
@@ -654,14 +654,22 @@ static u8 rk818_cg_decode_chrg_vol(struct rk818_charger *cg)
 
 static u8 rk818_cg_decode_input_current(struct rk818_charger *cg)
 {
-	u8 val, index;
+	u8 val = 0, index;
 	u32 input_current;
 
 	input_current = cg->pdata->max_input_current;
-	for (index = 0; index < ARRAY_SIZE(chrg_cur_input_array); index++) {
-		if (input_current < chrg_cur_input_array[index])
+	for (index = 2; index < ARRAY_SIZE(chrg_cur_input_array); index++) {
+		if (input_current < 850 && input_current > 80) {
+			val = 0x0;	/* 450mA */
 			break;
-		val = index <<  0;
+		} else if (input_current <= 80) {
+			val = 0x1;	/* 80mA */
+			break;
+		} else {
+			if (input_current < chrg_cur_input_array[index])
+				break;
+			val = index <<  0;
+		}
 	}
 
 	DBG("<%s>. input=0x%x\n", __func__, val);
@@ -670,7 +678,7 @@ static u8 rk818_cg_decode_input_current(struct rk818_charger *cg)
 
 static u8 rk818_cg_decode_chrg_current(struct rk818_charger *cg)
 {
-	u8 val, index;
+	u8 val = 0, index;
 	u32 chrg_current;
 
 	chrg_current = cg->pdata->max_chrg_current;
