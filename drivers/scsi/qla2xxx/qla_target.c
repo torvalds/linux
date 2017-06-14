@@ -2288,7 +2288,8 @@ static int qlt_check_reserve_free_req(struct qla_qpair *qpair,
 	struct req_que *req = qpair->req;
 
 	if (req->cnt < (req_cnt + 2)) {
-		cnt = (uint16_t)RD_REG_DWORD(req->req_q_out);
+		cnt = (uint16_t)(qpair->use_shadow_reg ? *req->out_ptr :
+		    RD_REG_DWORD_RELAXED(req->req_q_out));
 
 		if  (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;

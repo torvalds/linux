@@ -384,6 +384,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 	ha->base_qpair->rsp = rsp;
 	ha->base_qpair->vha = vha;
 	ha->base_qpair->qp_lock_ptr = &ha->hardware_lock;
+	ha->base_qpair->use_shadow_reg = IS_SHADOW_REG_CAPABLE(ha) ? 1 : 0;
 	/* init qpair to this cpu. Will adjust at run time. */
 	ha->base_qpair->msix = &ha->msix_entries[QLA_MSIX_RSP_Q];
 	INIT_LIST_HEAD(&ha->base_qpair->hints_list);
