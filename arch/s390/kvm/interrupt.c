@@ -1879,6 +1879,7 @@ void kvm_s390_clear_float_irqs(struct kvm *kvm)
 	for (i = 0; i < FIRQ_MAX_COUNT; i++)
 		fi->counters[i] = 0;
 	spin_unlock(&fi->lock);
+	kvm_s390_gisa_clear(kvm);
 };
 
 static int get_all_floating_irqs(struct kvm *kvm, u8 __user *usrbuf, u64 len)
@@ -1906,6 +1907,22 @@ static int get_all_floating_irqs(struct kvm *kvm, u8 __user *usrbuf, u64 len)
 
 	max_irqs = len / sizeof(struct kvm_s390_irq);
 
+	if (kvm->arch.gisa &&
+	    kvm_s390_gisa_get_ipm(kvm->arch.gisa)) {
+		for (i = 0; i <= MAX_ISC; i++) {
+			if (n == max_irqs) {
+				/* signal userspace to try again */
+				ret = -ENOMEM;
+				goto out_nolock;
+			}
+			if (kvm_s390_gisa_tac_ipm_gisc(kvm->arch.gisa, i)) {
+				irq = (struct kvm_s390_irq *) &buf[n];
+				irq->type = KVM_S390_INT_IO(1, 0, 0, 0);
+				irq->u.io.io_int_word = isc_to_int_word(i);
+				n++;
+			}
+		}
+	}
 	fi = &kvm->arch.float_int;
 	spin_lock(&fi->lock);
 	for (i = 0; i < FIRQ_LIST_COUNT; i++) {
@@ -1944,6 +1961,7 @@ static int get_all_floating_irqs(struct kvm *kvm, u8 __user *usrbuf, u64 len)
 
 out:
 	spin_unlock(&fi->lock);
+out_nolock:
 	if (!ret && n > 0) {
 		if (copy_to_user(usrbuf, buf, sizeof(struct kvm_s390_irq) * n))
 			ret = -EFAULT;
