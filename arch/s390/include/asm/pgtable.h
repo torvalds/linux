@@ -11,18 +11,6 @@
 #ifndef _ASM_S390_PGTABLE_H
 #define _ASM_S390_PGTABLE_H
 
-/*
- * The Linux memory management assumes a three-level page table setup.
- * For s390 64 bit we use up to four of the five levels the hardware
- * provides (region first tables are not used).
- *
- * The "pgd_xxx()" functions are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
- *
- * This file contains the functions and defines necessary to modify and use
- * the S390 page table tree.
- */
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
 #include <linux/mm_types.h>
@@ -79,11 +67,6 @@ extern unsigned long zero_page_mask;
 /* TODO: s390 cannot support io_remap_pfn_range... */
 #endif /* !__ASSEMBLY__ */
 
-/*
- * PMD_SHIFT determines the size of the area a second-level page
- * table can map
- * PGDIR_SHIFT determines what a third-level page table entry can map
- */
 #define PMD_SHIFT	20
 #define PUD_SHIFT	31
 #define P4D_SHIFT	42
@@ -98,12 +81,6 @@ extern unsigned long zero_page_mask;
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-/*
- * entries per page directory level: the S390 is two-level, so
- * we don't really have any PMD directory physically.
- * for S390 segment-table entries are combined to one PGD
- * that leads to 1024 pte per pgd
- */
 #define PTRS_PER_PTE	256
 #define PTRS_PER_PMD	2048
 #define PTRS_PER_PUD	2048
@@ -269,7 +246,7 @@ static inline int is_module_addr(void *addr)
  */
 
 /* Bits in the segment/region table address-space-control-element */
-#define _ASCE_ORIGIN		~0xfffUL/* segment table origin		    */
+#define _ASCE_ORIGIN		~0xfffUL/* region/segment table origin	    */
 #define _ASCE_PRIVATE_SPACE	0x100	/* private space control	    */
 #define _ASCE_ALT_EVENT		0x80	/* storage alteration event control */
 #define _ASCE_SPACE_SWITCH	0x40	/* space switch event		    */
@@ -320,9 +297,9 @@ static inline int is_module_addr(void *addr)
 #define _SEGMENT_ENTRY_BITS	0xfffffffffffffe33UL
 #define _SEGMENT_ENTRY_BITS_LARGE 0xfffffffffff0ff33UL
 #define _SEGMENT_ENTRY_ORIGIN_LARGE ~0xfffffUL /* large page address	    */
-#define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* segment table origin		    */
-#define _SEGMENT_ENTRY_PROTECT	0x200	/* page protection bit		    */
-#define _SEGMENT_ENTRY_NOEXEC	0x100	/* region no-execute bit	    */
+#define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* page table origin		    */
+#define _SEGMENT_ENTRY_PROTECT	0x200	/* segment protection bit	    */
+#define _SEGMENT_ENTRY_NOEXEC	0x100	/* segment no-execute bit	    */
 #define _SEGMENT_ENTRY_INVALID	0x20	/* invalid segment table entry	    */
 
 #define _SEGMENT_ENTRY		(0)
