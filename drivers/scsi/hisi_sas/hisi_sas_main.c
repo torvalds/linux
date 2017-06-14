@@ -168,7 +168,7 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 {
 
 	if (task) {
-		struct device *dev = &hisi_hba->pdev->dev;
+		struct device *dev = hisi_hba->dev;
 		struct domain_device *device = task->dev;
 		struct hisi_sas_device *sas_dev = device->lldd_dev;
 
@@ -245,7 +245,7 @@ static void hisi_sas_slot_abort(struct work_struct *work)
 	struct scsi_cmnd *cmnd = task->uldd_task;
 	struct hisi_sas_tmf_task tmf_task;
 	struct scsi_lun lun;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	int tag = abort_slot->idx;
 	unsigned long flags;
 
@@ -279,7 +279,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 	struct hisi_sas_slot *slot;
 	struct hisi_sas_cmd_hdr	*cmd_hdr_base;
 	struct asd_sas_port *sas_port = device->port;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	int dlvry_queue_slot, dlvry_queue, n_elem = 0, rc, slot_idx;
 	unsigned long flags;
 
@@ -451,7 +451,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	u32 pass = 0;
 	unsigned long flags;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(task->dev);
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	struct domain_device *device = task->dev;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_sas_dq *dq = sas_dev->dq;
@@ -546,7 +546,7 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct domain_device *parent_dev = device->parent;
 	struct hisi_sas_device *sas_dev;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 
 	if (hisi_hba->hw->alloc_dev)
 		sas_dev = hisi_hba->hw->alloc_dev(device);
@@ -731,7 +731,7 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	int dev_id = sas_dev->device_id;
 
 	dev_info(dev, "found dev[%d:%x] is gone\n",
@@ -814,7 +814,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	struct sas_task *task;
 	int res, retry;
 
@@ -931,7 +931,7 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 	struct ata_link *link;
 	int rc = TMF_RESP_FUNC_FAILED;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	int s = sizeof(struct host_to_dev_fis);
 	unsigned long flags;
 
@@ -989,7 +989,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 		return -1;
 
 	if (!test_and_set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags)) {
-		struct device *dev = &hisi_hba->pdev->dev;
+		struct device *dev = hisi_hba->dev;
 		struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 		unsigned long flags;
 
@@ -1022,7 +1022,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 	struct domain_device *device = task->dev;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(task->dev);
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	int rc = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
 
@@ -1151,7 +1151,7 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	unsigned long flags;
 	int rc = TMF_RESP_FUNC_FAILED;
 
@@ -1240,7 +1240,7 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 {
 	struct domain_device *device = task->dev;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	struct hisi_sas_port *port;
 	struct hisi_sas_slot *slot;
 	struct asd_sas_port *sas_port = device->port;
@@ -1337,7 +1337,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 {
 	struct sas_task *task;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	int res;
 
 	if (!hisi_hba->hw->prep_abort)
@@ -1547,8 +1547,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_init_mem);
 
 static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 {
-	struct platform_device *pdev = hisi_hba->pdev;
-	struct device *dev = &pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	int i, s, max_command_entries = hisi_hba->hw->max_command_entries;
 
 	spin_lock_init(&hisi_hba->lock);
@@ -1668,7 +1667,7 @@ err_out:
 
 static void hisi_sas_free(struct hisi_hba *hisi_hba)
 {
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	int i, s, max_command_entries = hisi_hba->hw->max_command_entries;
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
@@ -1749,7 +1748,8 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 
 	INIT_WORK(&hisi_hba->rst_work, hisi_sas_rst_work_handler);
 	hisi_hba->hw = hw;
-	hisi_hba->pdev = pdev;
+	hisi_hba->platform_dev = pdev;
+	hisi_hba->dev = dev;
 	hisi_hba->shost = shost;
 	SHOST_TO_SAS_HA(shost) = &hisi_hba->sha;
 
@@ -1866,7 +1866,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost->cmd_per_lun = hisi_hba->hw->max_command_entries;
 
 	sha->sas_ha_name = DRV_NAME;
-	sha->dev = &hisi_hba->pdev->dev;
+	sha->dev = hisi_hba->dev;
 	sha->lldd_module = THIS_MODULE;
 	sha->sas_addr = &hisi_hba->sas_addr[0];
 	sha->num_phys = hisi_hba->n_phy;

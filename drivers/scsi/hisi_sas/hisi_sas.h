@@ -18,6 +18,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -196,7 +197,10 @@ struct hisi_hba {
 	/* This must be the first element, used by SHOST_TO_SAS_HA */
 	struct sas_ha_struct *p;
 
-	struct platform_device *pdev;
+	struct platform_device *platform_dev;
+	struct pci_dev *pci_dev;
+	struct device *dev;
+
 	void __iomem *regs;
 	struct regmap *ctrl;
 	u32 ctrl_reset_reg;
