@@ -352,3 +352,18 @@ qla_qpair_to_hint(struct qla_tgt *tgt, struct qla_qpair *qpair)
 
 	return NULL;
 }
+
+static inline void
+qla_83xx_start_iocbs(struct qla_qpair *qpair)
+{
+	struct req_que *req = qpair->req;
+
+	req->ring_index++;
+	if (req->ring_index == req->length) {
+		req->ring_index = 0;
+		req->ring_ptr = req->ring;
+	} else
+		req->ring_ptr++;
+
+	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+}

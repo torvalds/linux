@@ -3272,6 +3272,9 @@ struct qla_qpair {
 	uint16_t vp_idx;		/* vport ID */
 	mempool_t *srb_mempool;
 
+	struct pci_dev  *pdev;
+	void (*reqq_start_iocbs)(struct qla_qpair *);
+
 	/* to do: New driver: move queues to here instead of pointers */
 	struct req_que *req;
 	struct rsp_que *rsp;

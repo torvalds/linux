@@ -7653,6 +7653,9 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 
 		qpair->msix->in_use = 1;
 		list_add_tail(&qpair->qp_list_elem, &vha->qp_list);
+		qpair->pdev = ha->pdev;
+		if (IS_QLA27XX(ha) || IS_QLA83XX(ha))
+			qpair->reqq_start_iocbs = qla_83xx_start_iocbs;
 
 		mutex_unlock(&ha->mq_lock);
 

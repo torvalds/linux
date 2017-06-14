@@ -1728,7 +1728,10 @@ static void qlt_24xx_send_abts_resp(struct qla_qpair *qpair,
 
 	/* Memory Barrier */
 	wmb();
-	qla2x00_start_iocbs(vha, qpair->req);
+	if (qpair->reqq_start_iocbs)
+		qpair->reqq_start_iocbs(qpair);
+	else
+		qla2x00_start_iocbs(vha, qpair->req);
 }
 
 /*
@@ -2058,7 +2061,10 @@ static void qlt_24xx_send_task_mgmt_ctio(struct qla_qpair *qpair,
 
 	/* Memory Barrier */
 	wmb();
-	qla2x00_start_iocbs(ha, qpair->req);
+	if (qpair->reqq_start_iocbs)
+		qpair->reqq_start_iocbs(qpair);
+	else
+		qla2x00_start_iocbs(ha, qpair->req);
 }
 
 void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *mcmd)
@@ -2071,12 +2077,13 @@ EXPORT_SYMBOL(qlt_free_mcmd);
  * ha->hardware_lock supposed to be held on entry. Might drop it, then
  * reacquire
  */
-void qlt_send_resp_ctio(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
+void qlt_send_resp_ctio(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
     uint8_t scsi_status, uint8_t sense_key, uint8_t asc, uint8_t ascq)
 {
 	struct atio_from_isp *atio = &cmd->atio;
 	struct ctio7_to_24xx *ctio;
 	uint16_t temp;
+	struct scsi_qla_host *vha = cmd->vha;
 
 	ql_dbg(ql_dbg_tgt_dif, vha, 0x3066,
 	    "Sending response CTIO7 (vha=%p, atio=%p, scsi_status=%02x, "
@@ -2127,7 +2134,11 @@ void qlt_send_resp_ctio(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 	/* Memory Barrier */
 	wmb();
 
-	qla2x00_start_iocbs(vha, vha->req);
+	if (qpair->reqq_start_iocbs)
+		qpair->reqq_start_iocbs(qpair);
+	else
+		qla2x00_start_iocbs(vha, qpair->req);
+
 out:
 	return;
 }
@@ -2205,7 +2216,7 @@ static int qlt_pci_map_calc_cnt(struct qla_tgt_prm *prm)
 	BUG_ON(cmd->sg_cnt == 0);
 
 	prm->sg = (struct scatterlist *)cmd->sg;
-	prm->seg_cnt = pci_map_sg(prm->tgt->ha->pdev, cmd->sg,
+	prm->seg_cnt = pci_map_sg(cmd->qpair->pdev, cmd->sg,
 	    cmd->sg_cnt, cmd->dma_data_direction);
 	if (unlikely(prm->seg_cnt == 0))
 		goto out_err;
@@ -2232,7 +2243,7 @@ static int qlt_pci_map_calc_cnt(struct qla_tgt_prm *prm)
 
 		if (cmd->prot_sg_cnt) {
 			prm->prot_sg      = cmd->prot_sg;
-			prm->prot_seg_cnt = pci_map_sg(prm->tgt->ha->pdev,
+			prm->prot_seg_cnt = pci_map_sg(cmd->qpair->pdev,
 				cmd->prot_sg, cmd->prot_sg_cnt,
 				cmd->dma_data_direction);
 			if (unlikely(prm->prot_seg_cnt == 0))
@@ -2260,21 +2271,24 @@ out_err:
 
 static void qlt_unmap_sg(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
 {
-	struct qla_hw_data *ha = vha->hw;
-
+	struct qla_hw_data *ha;
+	struct qla_qpair *qpair;
 	if (!cmd->sg_mapped)
 		return;
 
-	pci_unmap_sg(ha->pdev, cmd->sg, cmd->sg_cnt, cmd->dma_data_direction);
+	qpair = cmd->qpair;
+
+	pci_unmap_sg(qpair->pdev, cmd->sg, cmd->sg_cnt,
+	    cmd->dma_data_direction);
 	cmd->sg_mapped = 0;
 
 	if (cmd->prot_sg_cnt)
-		pci_unmap_sg(ha->pdev, cmd->prot_sg, cmd->prot_sg_cnt,
+		pci_unmap_sg(qpair->pdev, cmd->prot_sg, cmd->prot_sg_cnt,
 			cmd->dma_data_direction);
 
 	if (!cmd->ctx)
 		return;
-
+	ha = vha->hw;
 	if (cmd->ctx_dsd_alloced)
 		qla2x00_clean_dsd_pool(ha, cmd->ctx);
 
@@ -2324,7 +2338,6 @@ static inline void *qlt_get_req_pkt(struct req_que *req)
 /* ha->hardware_lock supposed to be held on entry */
 static inline uint32_t qlt_make_handle(struct qla_qpair *qpair)
 {
-	struct scsi_qla_host *vha = qpair->vha;
 	uint32_t h;
 	int index;
 	uint8_t found = 0;
@@ -2349,9 +2362,9 @@ static inline uint32_t qlt_make_handle(struct qla_qpair *qpair)
 	if (found) {
 		req->current_outstanding_cmd = h;
 	} else {
-		ql_dbg(ql_dbg_io, vha, 0x305b,
-			"qla_target(%d): Ran out of empty cmd slots\n",
-			vha->vp_idx);
+		ql_dbg(ql_dbg_io, qpair->vha, 0x305b,
+		    "qla_target(%d): Ran out of empty cmd slots\n",
+		    qpair->vha->vp_idx);
 		h = QLA_TGT_NULL_HANDLE;
 	}
 
@@ -3189,7 +3202,10 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 
 	/* Memory Barrier */
 	wmb();
-	qla2x00_start_iocbs(vha, qpair->req);
+	if (qpair->reqq_start_iocbs)
+		qpair->reqq_start_iocbs(qpair);
+	else
+		qla2x00_start_iocbs(vha, qpair->req);
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
 	return 0;
@@ -3264,7 +3280,10 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 
 	/* Memory Barrier */
 	wmb();
-	qla2x00_start_iocbs(vha, qpair->req);
+	if (qpair->reqq_start_iocbs)
+		qpair->reqq_start_iocbs(qpair);
+	else
+		qla2x00_start_iocbs(vha, qpair->req);
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
 	return res;
@@ -3282,7 +3301,7 @@ EXPORT_SYMBOL(qlt_rdy_to_xfer);
  * it is assumed either hardware_lock or qpair lock is held.
  */
 static void
-qlt_handle_dif_error(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd,
+qlt_handle_dif_error(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
 	struct ctio_crc_from_fw *sts)
 {
 	uint8_t		*ap = &sts->actual_dif[0];
@@ -3290,6 +3309,7 @@ qlt_handle_dif_error(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd,
 	uint64_t	lba = cmd->se_cmd.t_task_lba;
 	uint8_t scsi_status, sense_key, asc, ascq;
 	unsigned long flags;
+	struct scsi_qla_host *vha = cmd->vha;
 
 	cmd->trc_flags |= TRC_DIF_ERR;
 
@@ -3370,7 +3390,8 @@ out:
 		}
 		spin_unlock_irqrestore(&cmd->cmd_lock, flags);
 
-		qlt_send_resp_ctio(vha, cmd, scsi_status, sense_key, asc, ascq);
+		qlt_send_resp_ctio(qpair, cmd, scsi_status, sense_key, asc,
+		    ascq);
 		/* assume scsi status gets out on the wire.
 		 * Will not wait for completion.
 		 */
@@ -3525,7 +3546,10 @@ static int __qlt_send_term_exchange(struct qla_qpair *qpair,
 
 	/* Memory Barrier */
 	wmb();
-	qla2x00_start_iocbs(vha, qpair->req);
+	if (qpair->reqq_start_iocbs)
+		qpair->reqq_start_iocbs(qpair);
+	else
+		qla2x00_start_iocbs(vha, qpair->req);
 	return ret;
 }
 
@@ -3883,7 +3907,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 			    *((u64 *)&crc->actual_dif[0]),
 			    *((u64 *)&crc->expected_dif[0]));
 
-			qlt_handle_dif_error(vha, cmd, ctio);
+			qlt_handle_dif_error(qpair, cmd, ctio);
 			return;
 		}
 		default:
@@ -5121,7 +5145,10 @@ static int __qlt_send_busy(struct qla_qpair *qpair,
 	ctio24->u.status1.scsi_status = cpu_to_le16(status);
 	/* Memory Barrier */
 	wmb();
-	qla2x00_start_iocbs(vha, qpair->req);
+	if (qpair->reqq_start_iocbs)
+		qpair->reqq_start_iocbs(qpair);
+	else
+		qla2x00_start_iocbs(vha, qpair->req);
 	return 0;
 }
 

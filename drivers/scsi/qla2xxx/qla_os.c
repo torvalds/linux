@@ -351,6 +351,28 @@ int qla2xxx_mqueuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd,
 	struct qla_qpair *qpair);
 
 /* -------------------------------------------------------------------------- */
+static void qla_init_base_qpair(struct scsi_qla_host *vha, struct req_que *req,
+    struct rsp_que *rsp)
+{
+	struct qla_hw_data *ha = vha->hw;
+	rsp->qpair = ha->base_qpair;
+	rsp->req = req;
+	ha->base_qpair->req = req;
+	ha->base_qpair->rsp = rsp;
+	ha->base_qpair->vha = vha;
+	ha->base_qpair->qp_lock_ptr = &ha->hardware_lock;
+	ha->base_qpair->use_shadow_reg = IS_SHADOW_REG_CAPABLE(ha) ? 1 : 0;
+	ha->base_qpair->msix = &ha->msix_entries[QLA_MSIX_RSP_Q];
+	INIT_LIST_HEAD(&ha->base_qpair->hints_list);
+	ha->base_qpair->enable_class_2 = ql2xenableclass2;
+	/* init qpair to this cpu. Will adjust at run time. */
+	qla_cpu_update(rsp->qpair, smp_processor_id());
+	ha->base_qpair->pdev = ha->pdev;
+
+	if (IS_QLA27XX(ha) || IS_QLA83XX(ha))
+		ha->base_qpair->reqq_start_iocbs = qla_83xx_start_iocbs;
+}
+
 static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 				struct rsp_que *rsp)
 {
@@ -378,18 +400,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 		goto fail_base_qpair;
 	}
 
-	rsp->qpair = ha->base_qpair;
-	rsp->req = req;
-	ha->base_qpair->req = req;
-	ha->base_qpair->rsp = rsp;
-	ha->base_qpair->vha = vha;
-	ha->base_qpair->qp_lock_ptr = &ha->hardware_lock;
-	ha->base_qpair->use_shadow_reg = IS_SHADOW_REG_CAPABLE(ha) ? 1 : 0;
-	/* init qpair to this cpu. Will adjust at run time. */
-	ha->base_qpair->msix = &ha->msix_entries[QLA_MSIX_RSP_Q];
-	INIT_LIST_HEAD(&ha->base_qpair->hints_list);
-	ha->base_qpair->enable_class_2 = ql2xenableclass2;
-	qla_cpu_update(rsp->qpair, smp_processor_id());
+	qla_init_base_qpair(vha, req, rsp);
 
 	if (ql2xmqsupport && ha->max_qpairs) {
 		ha->queue_pair_map = kcalloc(ha->max_qpairs, sizeof(struct qla_qpair *),
