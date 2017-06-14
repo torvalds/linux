@@ -13983,6 +13983,8 @@ F:	drivers/xen/
 F:	arch/x86/include/asm/xen/
 F:	include/xen/
 F:	include/uapi/xen/
+F:	Documentation/ABI/stable/sysfs-hypervisor-xen
+F:	Documentation/ABI/testing/sysfs-hypervisor-pmu
 
 XEN HYPERVISOR ARM
 M:	Stefano Stabellini <sstabellini@kernel.org>
