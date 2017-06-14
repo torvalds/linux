@@ -393,6 +393,8 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	struct drm_tegra_waitchk __user *waitchks =
 		(void __user *)(uintptr_t)args->waitchks;
 	struct drm_tegra_syncpt syncpt;
+	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
+	struct host1x_syncpt *sp;
 	struct host1x_job *job;
 	int err;
 
@@ -519,6 +521,13 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	if (copy_from_user(&syncpt, (void __user *)(uintptr_t)args->syncpts,
 			   sizeof(syncpt))) {
 		err = -EFAULT;
+		goto fail;
+	}
+
+	/* check whether syncpoint ID is valid */
+	sp = host1x_syncpt_get(host1x, syncpt.id);
+	if (!sp) {
+		err = -ENOENT;
 		goto fail;
 	}
 
