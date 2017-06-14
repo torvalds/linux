@@ -1,0 +1,12 @@
+#
+# TLS configuration
+#
+config TLS
+	tristate "Transport Layer Security support"
+	depends on NET
+	default m
+	---help---
+	Enable kernel support for TLS protocol. This allows symmetric
+	encryption handling of the TLS protocol to be done in-kernel.
+
+	If unsure, say M.
