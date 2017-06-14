@@ -3262,6 +3262,7 @@ struct qla_qpair {
 	/* move vha->flags.difdix_supported here */
 	uint32_t difdix_supported:1;
 	uint32_t delete_in_progress:1;
+	uint32_t fw_started:1;
 
 	uint16_t id;			/* qp number used with FW */
 	uint16_t vp_idx;		/* vport ID */
@@ -4182,6 +4183,26 @@ struct qla2_sgx {
 	uint32_t		num_sg;
 	srb_t			*sp;
 };
+
+#define QLA_FW_STARTED(_ha) {			\
+	int i;					\
+	_ha->flags.fw_started = 1;		\
+	_ha->base_qpair->fw_started = 1;	\
+	for (i = 0; i < _ha->max_qpairs; i++) {	\
+	if (_ha->queue_pair_map[i])	\
+	_ha->queue_pair_map[i]->fw_started = 1;	\
+	}					\
+}
+
+#define QLA_FW_STOPPED(_ha) {			\
+	int i;					\
+	_ha->flags.fw_started = 0;		\
+	_ha->base_qpair->fw_started = 0;	\
+	for (i = 0; i < _ha->max_qpairs; i++) {	\
+	if (_ha->queue_pair_map[i])	\
+	_ha->queue_pair_map[i]->fw_started = 0;	\
+	}					\
+}
 
 /*
  * Macros to help code, maintain, etc.

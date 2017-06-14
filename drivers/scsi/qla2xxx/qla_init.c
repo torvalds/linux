@@ -3207,7 +3207,7 @@ next_check:
 	} else {
 		ql_dbg(ql_dbg_init, vha, 0x00d3,
 		    "Init Firmware -- success.\n");
-		ha->flags.fw_started = 1;
+		QLA_FW_STARTED(ha);
 	}
 
 	return (rval);
@@ -6841,7 +6841,7 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *vha)
 		ret = qla2x00_stop_firmware(vha);
 	}
 
-	ha->flags.fw_started = 0;
+	QLA_FW_STOPPED(ha);
 	ha->flags.fw_init_done = 0;
 }
 

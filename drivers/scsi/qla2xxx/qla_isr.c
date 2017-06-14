@@ -710,7 +710,7 @@ skip_rio:
 
 		ha->isp_ops->fw_dump(vha, 1);
 		ha->flags.fw_init_done = 0;
-		ha->flags.fw_started = 0;
+		QLA_FW_STOPPED(ha);
 
 		if (IS_FWI2_CAPABLE(ha)) {
 			if (mb[1] == 0 && mb[2] == 0) {
