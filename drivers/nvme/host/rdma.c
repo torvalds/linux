@@ -1919,12 +1919,14 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	/* sanity check icdoff */
 	if (ctrl->ctrl.icdoff) {
 		dev_err(ctrl->ctrl.device, "icdoff is not supported!\n");
+		ret = -EINVAL;
 		goto out_remove_admin_queue;
 	}
 
 	/* sanity check keyed sgls */
 	if (!(ctrl->ctrl.sgls & (1 << 20))) {
 		dev_err(ctrl->ctrl.device, "Mandatory keyed sgls are not support\n");
+		ret = -EINVAL;
 		goto out_remove_admin_queue;
 	}
 
