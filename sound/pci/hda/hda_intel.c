@@ -263,6 +263,7 @@ enum {
 	AZX_DRIVER_ICH,
 	AZX_DRIVER_PCH,
 	AZX_DRIVER_SCH,
+	AZX_DRIVER_SKL,
 	AZX_DRIVER_HDMI,
 	AZX_DRIVER_ATI,
 	AZX_DRIVER_ATIHDMI,
@@ -364,23 +365,13 @@ enum {
 					((pci)->device == 0x0d0c) || \
 					((pci)->device == 0x160c))
 
-#define IS_SKL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa170)
-#define IS_SKL_LP(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x9d70)
-#define IS_KBL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa171)
-#define IS_KBL_LP(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x9d71)
-#define IS_KBL_H(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa2f0)
 #define IS_BXT(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x5a98)
-#define IS_BXT_T(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x1a98)
-#define IS_GLK(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x3198)
-#define IS_CFL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa348)
-#define IS_SKL_PLUS(pci) (IS_SKL(pci) || IS_SKL_LP(pci) || IS_BXT(pci) || \
-			  IS_BXT_T(pci) || IS_KBL(pci) || IS_KBL_LP(pci) || \
-			  IS_KBL_H(pci)	|| IS_GLK(pci) || IS_CFL(pci))
 
 static char *driver_short_names[] = {
 	[AZX_DRIVER_ICH] = "HDA Intel",
 	[AZX_DRIVER_PCH] = "HDA Intel PCH",
 	[AZX_DRIVER_SCH] = "HDA Intel MID",
+	[AZX_DRIVER_SKL] = "HDA Intel PCH", /* kept old name for compatibility */
 	[AZX_DRIVER_HDMI] = "HDA Intel HDMI",
 	[AZX_DRIVER_ATI] = "HDA ATI SB",
 	[AZX_DRIVER_ATIHDMI] = "HDA ATI HDMI",
@@ -644,13 +635,13 @@ static void hda_intel_init_chip(struct azx *chip, bool full_reset)
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		snd_hdac_set_codec_wakeup(bus, true);
-	if (IS_SKL_PLUS(pci)) {
+	if (chip->driver_type == AZX_DRIVER_SKL) {
 		pci_read_config_dword(pci, INTEL_HDA_CGCTL, &val);
 		val = val & ~INTEL_HDA_CGCTL_MISCBDCGE;
 		pci_write_config_dword(pci, INTEL_HDA_CGCTL, val);
 	}
 	azx_init_chip(chip, full_reset);
-	if (IS_SKL_PLUS(pci)) {
+	if (chip->driver_type == AZX_DRIVER_SKL) {
 		pci_read_config_dword(pci, INTEL_HDA_CGCTL, &val);
 		val = val | INTEL_HDA_CGCTL_MISCBDCGE;
 		pci_write_config_dword(pci, INTEL_HDA_CGCTL, val);
@@ -1075,9 +1066,11 @@ static int azx_resume(struct device *dev)
  */
 static int azx_freeze_noirq(struct device *dev)
 {
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip = card->private_data;
 	struct pci_dev *pci = to_pci_dev(dev);
 
-	if (IS_SKL_PLUS(pci))
+	if (chip->driver_type == AZX_DRIVER_SKL)
 		pci_set_power_state(pci, PCI_D3hot);
 
 	return 0;
@@ -1085,9 +1078,11 @@ static int azx_freeze_noirq(struct device *dev)
 
 static int azx_thaw_noirq(struct device *dev)
 {
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip = card->private_data;
 	struct pci_dev *pci = to_pci_dev(dev);
 
-	if (IS_SKL_PLUS(pci))
+	if (chip->driver_type == AZX_DRIVER_SKL)
 		pci_set_power_state(pci, PCI_D0);
 
 	return 0;
@@ -1497,7 +1492,7 @@ static int check_position_fix(struct azx *chip, int fix)
 		dev_dbg(chip->card->dev, "Using LPIB position fix\n");
 		return POS_FIX_LPIB;
 	}
-	if (IS_SKL_PLUS(chip->pci)) {
+	if (chip->driver_type == AZX_DRIVER_SKL) {
 		dev_dbg(chip->card->dev, "Using SKL position fix\n");
 		return POS_FIX_SKL;
 	}
@@ -1798,7 +1793,7 @@ static int azx_first_init(struct azx *chip)
 		return -ENXIO;
 	}
 
-	if (IS_SKL_PLUS(pci))
+	if (chip->driver_type == AZX_DRIVER_SKL)
 		snd_hdac_bus_parse_capabilities(bus);
 
 	/*
@@ -2367,31 +2362,31 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
 	/* Sunrise Point */
 	{ PCI_DEVICE(0x8086, 0xa170),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Sunrise Point-LP */
 	{ PCI_DEVICE(0x8086, 0x9d70),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Kabylake */
 	{ PCI_DEVICE(0x8086, 0xa171),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Kabylake-LP */
 	{ PCI_DEVICE(0x8086, 0x9d71),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Kabylake-H */
 	{ PCI_DEVICE(0x8086, 0xa2f0),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Coffelake */
 	{ PCI_DEVICE(0x8086, 0xa348),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE},
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
 	/* Broxton-P(Apollolake) */
 	{ PCI_DEVICE(0x8086, 0x5a98),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON },
 	/* Broxton-T */
 	{ PCI_DEVICE(0x8086, 0x1a98),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON },
 	/* Gemini-Lake */
 	{ PCI_DEVICE(0x8086, 0x3198),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON },
 	/* Haswell */
 	{ PCI_DEVICE(0x8086, 0x0a0c),
 	  .driver_data = AZX_DRIVER_HDMI | AZX_DCAPS_INTEL_HASWELL },
