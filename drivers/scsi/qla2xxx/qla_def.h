@@ -3997,6 +3997,8 @@ typedef struct scsi_qla_host {
 		uint32_t	fw_tgt_reported:1;
 		uint32_t	bbcr_enable:1;
 		uint32_t	qpairs_available:1;
+		uint32_t	qpairs_req_created:1;
+		uint32_t	qpairs_rsp_created:1;
 	} flags;
 
 	atomic_t	loop_state;

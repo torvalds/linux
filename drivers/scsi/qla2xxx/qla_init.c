@@ -7719,8 +7719,11 @@ fail_qid_map:
 
 int qla2xxx_delete_qpair(struct scsi_qla_host *vha, struct qla_qpair *qpair)
 {
-	int ret;
+	int ret = QLA_FUNCTION_FAILED;
 	struct qla_hw_data *ha = qpair->hw;
+
+	if (!vha->flags.qpairs_req_created && !vha->flags.qpairs_rsp_created)
+		goto fail;
 
 	qpair->delete_in_progress = 1;
 	while (atomic_read(&qpair->ref_count))
@@ -7738,8 +7741,11 @@ int qla2xxx_delete_qpair(struct scsi_qla_host *vha, struct qla_qpair *qpair)
 	clear_bit(qpair->id, ha->qpair_qid_map);
 	ha->num_qpairs--;
 	list_del(&qpair->qp_list_elem);
-	if (list_empty(&vha->qp_list))
+	if (list_empty(&vha->qp_list)) {
 		vha->flags.qpairs_available = 0;
+		vha->flags.qpairs_req_created = 0;
+		vha->flags.qpairs_rsp_created = 0;
+	}
 	mempool_destroy(qpair->srb_mempool);
 	kfree(qpair);
 	mutex_unlock(&ha->mq_lock);
