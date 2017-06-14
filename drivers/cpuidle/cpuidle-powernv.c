@@ -59,14 +59,21 @@ static int snooze_loop(struct cpuidle_device *dev,
 	ppc64_runlatch_off();
 	HMT_very_low();
 	while (!need_resched()) {
-		if (likely(snooze_timeout_en) && get_tb() > snooze_exit_time)
+		if (likely(snooze_timeout_en) && get_tb() > snooze_exit_time) {
+			/*
+			 * Task has not woken up but we are exiting the polling
+			 * loop anyway. Require a barrier after polling is
+			 * cleared to order subsequent test of need_resched().
+			 */
+			clear_thread_flag(TIF_POLLING_NRFLAG);
+			smp_mb();
 			break;
+		}
 	}
 
 	HMT_medium();
 	ppc64_runlatch_on();
 	clear_thread_flag(TIF_POLLING_NRFLAG);
-	smp_mb();
 
 	return index;
 }
