@@ -914,8 +914,7 @@ struct xfrmdev_ops {
  *
  * int (*ndo_change_mtu)(struct net_device *dev, int new_mtu);
  *	Called when a user wants to change the Maximum Transfer Unit
- *	of a device. If not defined, any request to change MTU will
- *	will return an error.
+ *	of a device.
  *
  * void (*ndo_tx_timeout)(struct net_device *dev);
  *	Callback used when the transmitter has not made any progress
