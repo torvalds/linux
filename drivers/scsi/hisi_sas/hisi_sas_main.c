@@ -691,8 +691,13 @@ static void hisi_sas_task_done(struct sas_task *task)
 static void hisi_sas_tmf_timedout(unsigned long data)
 {
 	struct sas_task *task = (struct sas_task *)data;
+	unsigned long flags;
 
-	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
 	complete(&task->slow_task->completion);
 }
 
@@ -1247,6 +1252,17 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	wait_for_completion(&task->slow_task->completion);
 	res = TMF_RESP_FUNC_FAILED;
 
+	/* Internal abort timed out */
+	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+			struct hisi_sas_slot *slot = task->lldd_task;
+
+			if (slot)
+				slot->task = NULL;
+			dev_err(dev, "internal task abort: timeout.\n");
+		}
+	}
+
 	if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
 		res = TMF_RESP_FUNC_COMPLETE;
@@ -1257,13 +1273,6 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		task->task_status.stat == TMF_RESP_FUNC_SUCC) {
 		res = TMF_RESP_FUNC_SUCC;
 		goto exit;
-	}
-
-	/* Internal abort timed out */
-	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
-		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-			dev_err(dev, "internal task abort: timeout.\n");
-		}
 	}
 
 exit:
