@@ -50,6 +50,10 @@
 #define CFG_ABT_SET_QUERY_IPTT	0xd4
 #define CFG_SET_ABORTED_IPTT_OFF	0
 #define CFG_SET_ABORTED_IPTT_MSK	(0xfff << CFG_SET_ABORTED_IPTT_OFF)
+#define CFG_SET_ABORTED_EN_OFF	12
+#define CFG_ABT_SET_IPTT_DONE	0xd8
+#define CFG_ABT_SET_IPTT_DONE_OFF	0
+#define HGC_IOMB_PROC1_STATUS	0x104
 #define CFG_1US_TIMER_TRSH		0xcc
 #define CHNL_INT_STATUS			0x148
 #define INT_COAL_EN			0x19c
@@ -581,6 +585,29 @@ static void free_device_v3_hw(struct hisi_hba *hisi_hba,
 		hisi_sas_write32(hisi_hba, ITCT_CLR, 0);
 		dev_dbg(dev, "clear ITCT ok\n");
 	}
+}
+
+static void dereg_device_v3_hw(struct hisi_hba *hisi_hba,
+				struct domain_device *device)
+{
+	struct hisi_sas_slot *slot, *slot2;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
+	u32 cfg_abt_set_query_iptt;
+
+	cfg_abt_set_query_iptt = hisi_sas_read32(hisi_hba,
+		CFG_ABT_SET_QUERY_IPTT);
+	list_for_each_entry_safe(slot, slot2, &sas_dev->list, entry) {
+		cfg_abt_set_query_iptt &= ~CFG_SET_ABORTED_IPTT_MSK;
+		cfg_abt_set_query_iptt |= (1 << CFG_SET_ABORTED_EN_OFF) |
+			(slot->idx << CFG_SET_ABORTED_IPTT_OFF);
+		hisi_sas_write32(hisi_hba, CFG_ABT_SET_QUERY_IPTT,
+			cfg_abt_set_query_iptt);
+	}
+	cfg_abt_set_query_iptt &= ~(1 << CFG_SET_ABORTED_EN_OFF);
+	hisi_sas_write32(hisi_hba, CFG_ABT_SET_QUERY_IPTT,
+		cfg_abt_set_query_iptt);
+	hisi_sas_write32(hisi_hba, CFG_ABT_SET_IPTT_DONE,
+					1 << CFG_ABT_SET_IPTT_DONE_OFF);
 }
 
 static int hw_init_v3_hw(struct hisi_hba *hisi_hba)
@@ -1613,6 +1640,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.phy_disable = disable_phy_v3_hw,
 	.phy_hard_reset = phy_hard_reset_v3_hw,
 	.phy_get_max_linkrate = phy_get_max_linkrate_v3_hw,
+	.dereg_device = dereg_device_v3_hw,
 };
 
 static struct Scsi_Host *

@@ -727,6 +727,13 @@ static void hisi_sas_release_tasks(struct hisi_hba *hisi_hba)
 	}
 }
 
+static void hisi_sas_dereg_device(struct hisi_hba *hisi_hba,
+				struct domain_device *device)
+{
+	if (hisi_hba->hw->dereg_device)
+		hisi_hba->hw->dereg_device(hisi_hba, device);
+}
+
 static void hisi_sas_dev_gone(struct domain_device *device)
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
@@ -739,6 +746,8 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 
 	hisi_sas_internal_task_abort(hisi_hba, device,
 				     HISI_SAS_INT_ABT_DEV, 0);
+
+	hisi_sas_dereg_device(hisi_hba, device);
 
 	hisi_hba->hw->free_device(hisi_hba, sas_dev);
 	device->lldd_dev = NULL;
@@ -1071,6 +1080,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		if (task->dev->dev_type == SAS_SATA_DEV) {
 			hisi_sas_internal_task_abort(hisi_hba, device,
 						     HISI_SAS_INT_ABT_DEV, 0);
+			hisi_sas_dereg_device(hisi_hba, device);
 			rc = hisi_sas_softreset_ata_disk(device);
 		}
 	} else if (task->lldd_task && task->task_proto & SAS_PROTOCOL_SMP) {
@@ -1137,6 +1147,10 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 		return TMF_RESP_FUNC_FAILED;
 	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
 
+	hisi_sas_internal_task_abort(hisi_hba, device,
+					HISI_SAS_INT_ABT_DEV, 0);
+	hisi_sas_dereg_device(hisi_hba, device);
+
 	rc = hisi_sas_debug_I_T_nexus_reset(device);
 
 	if (rc == TMF_RESP_FUNC_COMPLETE) {
@@ -1164,6 +1178,7 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 						  HISI_SAS_INT_ABT_DEV, 0);
 		if (rc == TMF_RESP_FUNC_FAILED)
 			goto out;
+		hisi_sas_dereg_device(hisi_hba, device);
 
 		phy = sas_get_local_phy(device);
 

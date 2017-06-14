@@ -188,6 +188,8 @@ struct hisi_sas_hw {
 	void (*free_device)(struct hisi_hba *hisi_hba,
 			    struct hisi_sas_device *dev);
 	int (*get_wideport_bitmap)(struct hisi_hba *hisi_hba, int port_id);
+	void (*dereg_device)(struct hisi_hba *hisi_hba,
+				struct domain_device *device);
 	int (*soft_reset)(struct hisi_hba *hisi_hba);
 	int max_command_entries;
 	int complete_hdr_size;
