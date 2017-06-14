@@ -194,7 +194,14 @@ static int hi6421v530_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id hi6421v530_regulator_table[] = {
+	{ .name = "hi6421v530-regulator" },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, hi6421v530_regulator_table);
+
 static struct platform_driver hi6421v530_regulator_driver = {
+	.id_table = hi6421v530_regulator_table,
 	.driver = {
 		.name	= "hi6421v530-regulator",
 	},
