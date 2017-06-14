@@ -321,6 +321,7 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	case 48000:
 		ctrl2 = DFS_NORMAL_SPEED;
 		break;
+	case 64000:
 	case 88200:
 	case 96000:
 		ctrl2 = DFS_DOUBLE_SPEED;
