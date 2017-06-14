@@ -594,6 +594,7 @@ mlxfw_mfa2_file_component_get(const struct mlxfw_mfa2_file *mfa2_file,
 	if (memcmp(comp_data->buff, mlxfw_mfa2_comp_magic,
 		   mlxfw_mfa2_comp_magic_len) != 0) {
 		pr_err("Component has wrong magic\n");
+		err = -EINVAL;
 		goto err_out;
 	}
 
