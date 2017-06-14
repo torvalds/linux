@@ -523,8 +523,8 @@ unsigned long lprocfs_oh_sum(struct obd_histogram *oh);
 void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 			   struct lprocfs_counter *cnt);
 
-int lprocfs_single_release(struct inode *, struct file *);
-int lprocfs_seq_release(struct inode *, struct file *);
+int lprocfs_single_release(struct inode *inode, struct file *file);
+int lprocfs_seq_release(struct inode *inode, struct file *file);
 
 /* write the name##_seq_show function, call LPROC_SEQ_FOPS_RO for read-only
  * proc entries; otherwise, you will define name##_seq_write function also for

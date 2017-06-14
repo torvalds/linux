@@ -718,14 +718,14 @@ extern const struct inode_operations ll_special_inode_operations;
 struct inode *ll_iget(struct super_block *sb, ino_t hash,
 		      struct lustre_md *lic);
 int ll_test_inode_by_fid(struct inode *inode, void *opaque);
-int ll_md_blocking_ast(struct ldlm_lock *, struct ldlm_lock_desc *,
+int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 		       void *data, int flag);
 struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de);
 void ll_update_times(struct ptlrpc_request *request, struct inode *inode);
 
 /* llite/rw.c */
 int ll_writepage(struct page *page, struct writeback_control *wbc);
-int ll_writepages(struct address_space *, struct writeback_control *wbc);
+int ll_writepages(struct address_space *mapping, struct writeback_control *wbc);
 int ll_readpage(struct file *file, struct page *page);
 void ll_readahead_init(struct inode *inode, struct ll_readahead_state *ras);
 int vvp_io_write_commit(const struct lu_env *env, struct cl_io *io);
@@ -747,7 +747,7 @@ enum ldlm_mode ll_take_md_lock(struct inode *inode, __u64 bits,
 			       enum ldlm_mode mode);
 int ll_file_open(struct inode *inode, struct file *file);
 int ll_file_release(struct inode *inode, struct file *file);
-int ll_release_openhandle(struct inode *, struct lookup_intent *);
+int ll_release_openhandle(struct inode *inode, struct lookup_intent *it);
 int ll_md_real_close(struct inode *inode, fmode_t fmode);
 int ll_getattr(const struct path *path, struct kstat *stat,
 	       u32 request_mask, unsigned int flags);
@@ -778,9 +778,9 @@ int ll_hsm_state_set(struct inode *inode, struct hsm_state_set *hss);
 /* llite/dcache.c */
 
 extern const struct dentry_operations ll_d_ops;
-void ll_intent_drop_lock(struct lookup_intent *);
-void ll_intent_release(struct lookup_intent *);
-void ll_invalidate_aliases(struct inode *);
+void ll_intent_drop_lock(struct lookup_intent *it);
+void ll_intent_release(struct lookup_intent *it);
+void ll_invalidate_aliases(struct inode *inode);
 void ll_lookup_finish_locks(struct lookup_intent *it, struct inode *inode);
 int ll_revalidate_it_finish(struct ptlrpc_request *request,
 			    struct lookup_intent *it, struct inode *inode);
@@ -811,7 +811,7 @@ int ll_remount_fs(struct super_block *sb, int *flags, char *data);
 int ll_show_options(struct seq_file *seq, struct dentry *dentry);
 void ll_dirty_page_discard_warn(struct page *page, int ioret);
 int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
-		  struct super_block *, struct lookup_intent *);
+		  struct super_block *sb, struct lookup_intent *it);
 int ll_obd_statfs(struct inode *inode, void __user *arg);
 int ll_get_max_mdsize(struct ll_sb_info *sbi, int *max_mdsize);
 int ll_get_default_mdsize(struct ll_sb_info *sbi, int *default_mdsize);

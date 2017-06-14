@@ -68,7 +68,7 @@ void ptlrpc_init_xid(void);
 void ptlrpc_set_add_new_req(struct ptlrpcd_ctl *pc,
 			    struct ptlrpc_request *req);
 int ptlrpc_expired_set(void *data);
-int ptlrpc_set_next_timeout(struct ptlrpc_request_set *);
+int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set);
 void ptlrpc_resend_req(struct ptlrpc_request *request);
 void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req);
 void ptlrpc_assign_next_xid_nolock(struct ptlrpc_request *req);
@@ -79,7 +79,7 @@ void ptlrpc_add_unreplied(struct ptlrpc_request *req);
 int ptlrpc_init_portals(void);
 void ptlrpc_exit_portals(void);
 
-void ptlrpc_request_handle_notconn(struct ptlrpc_request *);
+void ptlrpc_request_handle_notconn(struct ptlrpc_request *req);
 void lustre_assert_wire_constants(void);
 int ptlrpc_import_in_recovery(struct obd_import *imp);
 int ptlrpc_set_import_discon(struct obd_import *imp, __u32 conn_cnt);

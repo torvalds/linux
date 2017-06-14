@@ -75,7 +75,7 @@ static void lmv_activate_target(struct lmv_obd *lmv,
 static int lmv_set_mdc_active(struct lmv_obd *lmv, const struct obd_uuid *uuid,
 			      int activate)
 {
-	struct lmv_tgt_desc    *uninitialized_var(tgt);
+	struct lmv_tgt_desc *tgt = NULL;
 	struct obd_device      *obd;
 	u32		     i;
 	int		     rc = 0;
