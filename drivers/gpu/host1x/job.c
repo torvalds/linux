@@ -495,7 +495,6 @@ static int validate(struct host1x_firewall *fw, struct host1x_job_gather *g)
 				goto out;
 			break;
 		case 4:
-		case 5:
 		case 14:
 			break;
 		default:
