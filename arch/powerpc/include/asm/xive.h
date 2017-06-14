@@ -94,11 +94,13 @@ struct xive_q {
  * store at 0 and some ESBs support doing a trigger via a
  * separate trigger page.
  */
-#define XIVE_ESB_GET		0x800
-#define XIVE_ESB_SET_PQ_00	0xc00
-#define XIVE_ESB_SET_PQ_01	0xd00
-#define XIVE_ESB_SET_PQ_10	0xe00
-#define XIVE_ESB_SET_PQ_11	0xf00
+#define XIVE_ESB_STORE_EOI	0x400 /* Store */
+#define XIVE_ESB_LOAD_EOI	0x000 /* Load */
+#define XIVE_ESB_GET		0x800 /* Load */
+#define XIVE_ESB_SET_PQ_00	0xc00 /* Load */
+#define XIVE_ESB_SET_PQ_01	0xd00 /* Load */
+#define XIVE_ESB_SET_PQ_10	0xe00 /* Load */
+#define XIVE_ESB_SET_PQ_11	0xf00 /* Load */
 
 #define XIVE_ESB_VAL_P		0x2
 #define XIVE_ESB_VAL_Q		0x1

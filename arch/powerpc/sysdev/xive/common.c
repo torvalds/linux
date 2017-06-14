@@ -297,7 +297,7 @@ void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
 {
 	/* If the XIVE supports the new "store EOI facility, use it */
 	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
-		out_be64(xd->eoi_mmio, 0);
+		out_be64(xd->eoi_mmio + XIVE_ESB_STORE_EOI, 0);
 	else if (hw_irq && xd->flags & XIVE_IRQ_FLAG_EOI_FW) {
 		/*
 		 * The FW told us to call it. This happens for some
