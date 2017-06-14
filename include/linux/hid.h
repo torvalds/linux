@@ -526,7 +526,6 @@ struct hid_device {							/* device report descriptor */
 	struct hid_report_enum report_enum[HID_REPORT_TYPES];
 	struct work_struct led_work;					/* delayed LED worker */
 
-	struct semaphore driver_lock;					/* protects the current driver, except during input */
 	struct semaphore driver_input_lock;				/* protects the current driver */
 	struct device dev;						/* device */
 	struct hid_driver *driver;
@@ -551,7 +550,7 @@ struct hid_device {							/* device report descriptor */
 	unsigned int status;						/* see STAT flags above */
 	unsigned claimed;						/* Claimed by hidinput, hiddev? */
 	unsigned quirks;						/* Various quirks the device can pull on us */
-	bool io_started;						/* Protected by driver_lock. If IO has started */
+	bool io_started;						/* If IO has started */
 
 	struct list_head inputs;					/* The list of inputs */
 	void *hiddev;							/* The hiddev structure */
