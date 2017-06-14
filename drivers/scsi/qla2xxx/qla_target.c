@@ -66,6 +66,13 @@ MODULE_PARM_DESC(ql_dm_tgt_ex_pct,
 	"the percentage of exchanges/cmds FW will allocate resources "
 	"for Target mode.");
 
+int ql2xuctrlirq = 1;
+module_param(ql2xuctrlirq, int, 0644);
+MODULE_PARM_DESC(ql2xuctrlirq,
+    "User to control IRQ placement via smp_affinity."
+    "Valid with qlini_mode=disabled."
+    "1(default): enable");
+
 int ql2x_ini_mode = QLA2XXX_INI_MODE_EXCLUSIVE;
 
 static int temp_sam_status = SAM_STAT_BUSY;
@@ -4057,6 +4064,31 @@ static void qlt_do_work(struct work_struct *work)
 	spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 
 	__qlt_do_work(cmd);
+}
+
+void qlt_clr_qp_table(struct scsi_qla_host *vha)
+{
+	unsigned long flags;
+	struct qla_hw_data *ha = vha->hw;
+	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
+	void *node;
+	u64 key = 0;
+
+	ql_log(ql_log_info, vha, 0x706c,
+	    "User update Number of Active Qpairs %d\n",
+	    ha->tgt.num_act_qpairs);
+
+	spin_lock_irqsave(&ha->tgt.atio_lock, flags);
+
+	btree_for_each_safe64(&tgt->lun_qpair_map, key, node)
+		btree_remove64(&tgt->lun_qpair_map, key);
+
+	ha->base_qpair->lun_cnt = 0;
+	for (key = 0; key < ha->max_qpairs; key++)
+		if (ha->queue_pair_map[key])
+			ha->queue_pair_map[key]->lun_cnt = 0;
+
+	spin_unlock_irqrestore(&ha->tgt.atio_lock, flags);
 }
 
 static void qlt_assign_qpair(struct scsi_qla_host *vha,

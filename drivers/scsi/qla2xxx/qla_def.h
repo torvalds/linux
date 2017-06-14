@@ -3322,6 +3322,7 @@ struct qlt_hw_data {
 
 	struct dentry *dfs_tgt_sess;
 	struct dentry *dfs_tgt_port_database;
+	struct dentry *dfs_naqp;
 
 	struct list_head q_full_list;
 	uint32_t num_pend_cmds;
@@ -3330,7 +3331,8 @@ struct qlt_hw_data {
 	spinlock_t q_full_lock;
 	uint32_t leak_exchg_thresh_hold;
 	spinlock_t sess_lock;
-	int rspq_vector_cpuid;
+	int num_act_qpairs;
+#define DEFAULT_NAQP 2
 	spinlock_t atio_lock ____cacheline_aligned;
 	struct btree_head32 host_map;
 };
@@ -4277,6 +4279,9 @@ enum nexus_wait_type {
 	WAIT_TARGET,
 	WAIT_LUN,
 };
+
+#define USER_CTRL_IRQ(_ha) (ql2xuctrlirq && QLA_TGT_MODE_ENABLED() && \
+	(IS_QLA27XX(_ha) || IS_QLA83XX(_ha)))
 
 #include "qla_target.h"
 #include "qla_gbl.h"

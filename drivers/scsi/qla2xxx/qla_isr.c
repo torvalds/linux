@@ -3227,9 +3227,14 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		min_vecs++;
 	}
 
-	ret = pci_alloc_irq_vectors_affinity(ha->pdev, min_vecs,
-			ha->msix_count, PCI_IRQ_MSIX | PCI_IRQ_AFFINITY,
-			&desc);
+	if (USER_CTRL_IRQ(ha)) {
+		/* user wants to control IRQ setting for target mode */
+		ret = pci_alloc_irq_vectors(ha->pdev, min_vecs,
+		    ha->msix_count, PCI_IRQ_MSIX);
+	} else
+		ret = pci_alloc_irq_vectors_affinity(ha->pdev, min_vecs,
+		    ha->msix_count, PCI_IRQ_MSIX | PCI_IRQ_AFFINITY,
+		    &desc);
 
 	if (ret < 0) {
 		ql_log(ql_log_fatal, vha, 0x00c7,

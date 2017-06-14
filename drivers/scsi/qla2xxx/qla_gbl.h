@@ -139,6 +139,7 @@ extern int ql2xexchoffld;
 extern int ql2xiniexchg;
 extern int ql2xfwholdabts;
 extern int ql2xmvasynctoatio;
+extern int ql2xuctrlirq;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -856,5 +857,6 @@ void qla24xx_delete_sess_fn(struct work_struct *);
 void qlt_unknown_atio_work_fn(struct work_struct *);
 void qlt_update_host_map(struct scsi_qla_host *, port_id_t);
 void qlt_remove_target_resources(struct qla_hw_data *);
+void qlt_clr_qp_table(struct scsi_qla_host *vha);
 
 #endif /* _QLA_GBL_H */
