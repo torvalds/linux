@@ -31,6 +31,8 @@
 #include "job.h"
 #include "syncpt.h"
 
+#define HOST1X_WAIT_SYNCPT_OFFSET 0x8
+
 struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 				    u32 num_cmdbufs, u32 num_relocs,
 				    u32 num_waitchks)
@@ -337,12 +339,26 @@ static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 	return true;
 }
 
+static bool check_wait(struct host1x_waitchk *wait, struct host1x_bo *cmdbuf,
+		       unsigned int offset)
+{
+	offset *= sizeof(u32);
+
+	if (wait->bo != cmdbuf || wait->offset != offset)
+		return false;
+
+	return true;
+}
+
 struct host1x_firewall {
 	struct host1x_job *job;
 	struct device *dev;
 
 	unsigned int num_relocs;
 	struct host1x_reloc *reloc;
+
+	unsigned int num_waitchks;
+	struct host1x_waitchk *waitchk;
 
 	struct host1x_bo *cmdbuf;
 	unsigned int offset;
@@ -368,6 +384,20 @@ static int check_register(struct host1x_firewall *fw, unsigned long offset)
 
 		fw->num_relocs--;
 		fw->reloc++;
+	}
+
+	if (offset == HOST1X_WAIT_SYNCPT_OFFSET) {
+		if (fw->class != HOST1X_CLASS_HOST1X)
+			return -EINVAL;
+
+		if (!fw->num_waitchks)
+			return -EINVAL;
+
+		if (!check_wait(fw->waitchk, fw->cmdbuf, fw->offset))
+			return -EINVAL;
+
+		fw->num_waitchks--;
+		fw->waitchk++;
 	}
 
 	return 0;
@@ -534,6 +564,8 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 	fw.dev = dev;
 	fw.reloc = job->relocarray;
 	fw.num_relocs = job->num_relocs;
+	fw.waitchk = job->waitchk;
+	fw.num_waitchks = job->num_waitchk;
 	fw.class = job->class;
 
 	for (i = 0; i < job->num_gathers; i++) {
@@ -572,8 +604,8 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 		offset += g->words * sizeof(u32);
 	}
 
-	/* No relocs should remain at this point */
-	if (fw.num_relocs)
+	/* No relocs and waitchks should remain at this point */
+	if (fw.num_relocs || fw.num_waitchks)
 		return -EINVAL;
 
 	return 0;
