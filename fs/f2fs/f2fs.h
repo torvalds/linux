@@ -2674,6 +2674,14 @@ int __init create_extent_cache(void);
 void destroy_extent_cache(void);
 
 /*
+ * sysfs.c
+ */
+int __init f2fs_register_sysfs(void);
+void f2fs_unregister_sysfs(void);
+int f2fs_init_sysfs(struct f2fs_sb_info *sbi);
+void f2fs_exit_sysfs(struct f2fs_sb_info *sbi);
+
+/*
  * crypto support
  */
 static inline bool f2fs_encrypted_inode(struct inode *inode)
