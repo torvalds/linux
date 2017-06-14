@@ -330,6 +330,10 @@ static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 	if (reloc->cmdbuf.bo != cmdbuf || reloc->cmdbuf.offset != offset)
 		return false;
 
+	/* relocation shift value validation isn't implemented yet */
+	if (reloc->shift)
+		return false;
+
 	return true;
 }
 
