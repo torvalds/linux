@@ -480,7 +480,7 @@ static void ufs_setup_cstotal(struct super_block *sb)
 	usb3 = ubh_get_usb_third(uspi);
 
 	if ((mtype == UFS_MOUNT_UFSTYPE_44BSD &&
-	     (usb1->fs_flags & UFS_FLAGS_UPDATED)) ||
+	     (usb2->fs_un.fs_u2.fs_maxbsize == usb1->fs_bsize)) ||
 	    mtype == UFS_MOUNT_UFSTYPE_UFS2) {
 		/*we have statistic in different place, then usual*/
 		uspi->cs_total.cs_ndir = fs64_to_cpu(sb, usb2->fs_un.fs_u2.cs_ndir);
@@ -596,9 +596,7 @@ static void ufs_put_cstotal(struct super_block *sb)
 	usb2 = ubh_get_usb_second(uspi);
 	usb3 = ubh_get_usb_third(uspi);
 
-	if ((mtype == UFS_MOUNT_UFSTYPE_44BSD &&
-	     (usb1->fs_flags & UFS_FLAGS_UPDATED)) ||
-	    mtype == UFS_MOUNT_UFSTYPE_UFS2) {
+	if (mtype == UFS_MOUNT_UFSTYPE_UFS2) {
 		/*we have statistic in different place, then usual*/
 		usb2->fs_un.fs_u2.cs_ndir =
 			cpu_to_fs64(sb, uspi->cs_total.cs_ndir);
@@ -608,16 +606,26 @@ static void ufs_put_cstotal(struct super_block *sb)
 			cpu_to_fs64(sb, uspi->cs_total.cs_nifree);
 		usb3->fs_un1.fs_u2.cs_nffree =
 			cpu_to_fs64(sb, uspi->cs_total.cs_nffree);
-	} else {
-		usb1->fs_cstotal.cs_ndir =
-			cpu_to_fs32(sb, uspi->cs_total.cs_ndir);
-		usb1->fs_cstotal.cs_nbfree =
-			cpu_to_fs32(sb, uspi->cs_total.cs_nbfree);
-		usb1->fs_cstotal.cs_nifree =
-			cpu_to_fs32(sb, uspi->cs_total.cs_nifree);
-		usb1->fs_cstotal.cs_nffree =
-			cpu_to_fs32(sb, uspi->cs_total.cs_nffree);
+		goto out;
 	}
+
+	if (mtype == UFS_MOUNT_UFSTYPE_44BSD &&
+	     (usb2->fs_un.fs_u2.fs_maxbsize == usb1->fs_bsize)) {
+		/* store stats in both old and new places */
+		usb2->fs_un.fs_u2.cs_ndir =
+			cpu_to_fs64(sb, uspi->cs_total.cs_ndir);
+		usb2->fs_un.fs_u2.cs_nbfree =
+			cpu_to_fs64(sb, uspi->cs_total.cs_nbfree);
+		usb3->fs_un1.fs_u2.cs_nifree =
+			cpu_to_fs64(sb, uspi->cs_total.cs_nifree);
+		usb3->fs_un1.fs_u2.cs_nffree =
+			cpu_to_fs64(sb, uspi->cs_total.cs_nffree);
+	}
+	usb1->fs_cstotal.cs_ndir = cpu_to_fs32(sb, uspi->cs_total.cs_ndir);
+	usb1->fs_cstotal.cs_nbfree = cpu_to_fs32(sb, uspi->cs_total.cs_nbfree);
+	usb1->fs_cstotal.cs_nifree = cpu_to_fs32(sb, uspi->cs_total.cs_nifree);
+	usb1->fs_cstotal.cs_nffree = cpu_to_fs32(sb, uspi->cs_total.cs_nffree);
+out:
 	ubh_mark_buffer_dirty(USPI_UBH(uspi));
 	ufs_print_super_stuff(sb, usb1, usb2, usb3);
 	UFSD("EXIT\n");
@@ -995,6 +1003,13 @@ again:
 	    (uspi->s_postblformat != UFS_42POSTBLFMT)) {
 		flags &= ~UFS_ST_MASK;
 		flags |=  UFS_ST_SUN;
+	}
+
+	if ((flags & UFS_ST_MASK) == UFS_ST_44BSD &&
+	    uspi->s_postblformat == UFS_42POSTBLFMT) {
+		if (!silent)
+			pr_err("this is not a 44bsd filesystem");
+		goto failed;
 	}
 
 	/*
