@@ -1,0 +1,43 @@
+Rockchip specific extensions to the TVE
+================================
+
+Required properties:
+- compatible: "rockchip,rk3328-tve";
+- reg: Physical base address and length of the controller's registers.
+- ports: contain a port node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt
+- rockchip,saturation: the value for TVE_COLOR_BUSRT_SAT(0x78)
+- rockchip,brightcontrast: the value for TVE_BRIGHTNESS_CONTRAST(0x90)
+- rockchip,adjtiming: the value for TVE_HOR_TIMING3(0x0c)
+- rockchip,lumafilter0: the value for TVE_LUMA_FILTER1(0x14)
+- rockchip,lumafilter1: the value for TVE_LUMA_FILTER2(0x18)
+- rockchip,lumafilter2: the value for TVE_LUMA_FILTER3(0x1c)
+- rockchip,daclevel: the value is used to adjust the voltage amplitude of the CVBS
+- rockchip,dac1level: only for rv1108 rk322x and rk3328
+
+Example:
+	tve: tve@ff373e00 {
+		compatible = "rockchip,rk3328-tve";
+		reg = <0x0 0xff373e00 0x0 0x100>,
+		      <0x0 0xff420000 0x0 0x10000>;
+		rockchip,saturation = <0x00376749>;
+		rockchip,brightcontrast = <0x0000a305>;
+		rockchip,adjtiming = <0xb6c00880>;
+		rockchip,lumafilter0 = <0x01ff0000>;
+		rockchip,lumafilter1 = <0xf40200fe>;
+		rockchip,lumafilter2 = <0xf332d70c>;
+		rockchip,daclevel = <0x22>;
+		rockchip,dac1level = <0x7>;
+		status = "disabled";
+
+		ports {
+			tve_in: port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				tve_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_tve>;
+				};
+			};
+		};
+	};
