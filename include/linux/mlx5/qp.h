@@ -569,8 +569,6 @@ int mlx5_core_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id);
 int mlx5_core_dealloc_q_counter(struct mlx5_core_dev *dev, u16 counter_id);
 int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
 			      int reset, void *out, int out_size);
-int mlx5_core_query_out_of_buffer(struct mlx5_core_dev *dev, u16 counter_id,
-				  u32 *out_of_buffer);
 
 static inline const char *mlx5_qp_type_str(int type)
 {

@@ -289,12 +289,17 @@ static void mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 static void mlx5e_update_q_counter(struct mlx5e_priv *priv)
 {
 	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
+	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)];
+	int err;
 
 	if (!priv->q_counter)
 		return;
 
-	mlx5_core_query_out_of_buffer(priv->mdev, priv->q_counter,
-				      &qcnt->rx_out_of_buffer);
+	err = mlx5_core_query_q_counter(priv->mdev, priv->q_counter, 0, out, sizeof(out));
+	if (err)
+		return;
+
+	qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out, out, out_of_buffer);
 }
 
 static void mlx5e_update_pcie_counters(struct mlx5e_priv *priv)
