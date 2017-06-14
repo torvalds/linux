@@ -537,8 +537,10 @@ static int truncate_partial_data_page(struct inode *inode, u64 from,
 truncate_out:
 	f2fs_wait_on_page_writeback(page, DATA, true);
 	zero_user(page, offset, PAGE_SIZE - offset);
-	if (!cache_only || !f2fs_encrypted_inode(inode) ||
-					!S_ISREG(inode->i_mode))
+
+	/* An encrypted inode should have a key and truncate the last page. */
+	f2fs_bug_on(F2FS_I_SB(inode), cache_only && f2fs_encrypted_inode(inode));
+	if (!cache_only)
 		set_page_dirty(page);
 	f2fs_put_page(page, 1);
 	return 0;
