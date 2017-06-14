@@ -574,12 +574,20 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 		size += g->words * sizeof(u32);
 	}
 
+	/*
+	 * Try a non-blocking allocation from a higher priority pools first,
+	 * as awaiting for the allocation here is a major performance hit.
+	 */
 	job->gather_copy_mapped = dma_alloc_wc(dev, size, &job->gather_copy,
-					       GFP_KERNEL);
-	if (!job->gather_copy_mapped) {
-		job->gather_copy_mapped = NULL;
+					       GFP_NOWAIT);
+
+	/* the higher priority allocation failed, try the generic-blocking */
+	if (!job->gather_copy_mapped)
+		job->gather_copy_mapped = dma_alloc_wc(dev, size,
+						       &job->gather_copy,
+						       GFP_KERNEL);
+	if (!job->gather_copy_mapped)
 		return -ENOMEM;
-	}
 
 	job->gather_copy_size = size;
 
