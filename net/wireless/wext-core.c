@@ -1035,18 +1035,18 @@ static int ioctl_standard_call(struct net_device *	dev,
 }
 
 
-int wext_handle_ioctl(struct net *net, struct ifreq *ifr, unsigned int cmd,
+int wext_handle_ioctl(struct net *net, struct iwreq *iwr, unsigned int cmd,
 		      void __user *arg)
 {
 	struct iw_request_info info = { .cmd = cmd, .flags = 0 };
 	int ret;
 
-	ret = wext_ioctl_dispatch(net, (void *)ifr, cmd, &info,
+	ret = wext_ioctl_dispatch(net, iwr, cmd, &info,
 				  ioctl_standard_call,
 				  ioctl_private_call);
 	if (ret >= 0 &&
 	    IW_IS_GET(cmd) &&
-	    copy_to_user(arg, ifr, sizeof(struct iwreq)))
+	    copy_to_user(arg, iwr, sizeof(struct iwreq)))
 		return -EFAULT;
 
 	return ret;
