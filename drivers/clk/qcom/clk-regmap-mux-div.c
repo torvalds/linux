@@ -56,20 +56,26 @@ int mux_div_set_src_div(struct clk_regmap_mux_div *md, u32 src, u32 div)
 }
 EXPORT_SYMBOL_GPL(mux_div_set_src_div);
 
-static void mux_div_get_src_div(struct clk_regmap_mux_div *md, u32 *src,
-				u32 *div)
+int mux_div_get_src_div(struct clk_regmap_mux_div *md, u32 *src,
+				  u32 *div)
 {
+	int ret = 0;
 	u32 val, d, s;
 	const char *name = clk_hw_get_name(&md->clkr.hw);
 
-	regmap_read(md->clkr.regmap, CMD_RCGR + md->reg_offset, &val);
+	ret = regmap_read(md->clkr.regmap, CMD_RCGR + md->reg_offset, &val);
+	if (ret)
+		return ret;
 
 	if (val & CMD_RCGR_DIRTY_CFG) {
 		pr_err("%s: RCG configuration is pending\n", name);
-		return;
+		return -EBUSY;
 	}
 
-	regmap_read(md->clkr.regmap, CFG_RCGR + md->reg_offset, &val);
+	ret = regmap_read(md->clkr.regmap, CFG_RCGR + md->reg_offset, &val);
+	if (ret)
+		return ret;
+
 	s = (val >> md->src_shift);
 	s &= BIT(md->src_width) - 1;
 	*src = s;
@@ -77,7 +83,10 @@ static void mux_div_get_src_div(struct clk_regmap_mux_div *md, u32 *src,
 	d = (val >> md->hid_shift);
 	d &= BIT(md->hid_width) - 1;
 	*div = d;
+
+	return ret;
 }
+EXPORT_SYMBOL_GPL(mux_div_get_src_div);
 
 static inline bool is_better_rate(unsigned long req, unsigned long best,
 				  unsigned long new)

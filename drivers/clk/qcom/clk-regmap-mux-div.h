@@ -40,5 +40,6 @@ struct clk_regmap_mux_div {
 
 extern const struct clk_ops clk_regmap_mux_div_ops;
 extern int mux_div_set_src_div(struct clk_regmap_mux_div *md, u32 src, u32 div);
+int mux_div_get_src_div(struct clk_regmap_mux_div *md, u32 *src, u32 *div);
 
 #endif
