@@ -1588,8 +1588,6 @@ vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 
 	if (mode->hdisplay > vop_data->max_output.width)
 		return MODE_BAD_HVALUE;
-	if (mode->vdisplay > vop_data->max_output.height)
-		return MODE_BAD_VVALUE;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		request_clock *= 2;
@@ -1624,8 +1622,7 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 	struct vop *vop = to_vop(crtc);
 	const struct vop_data *vop_data = vop->data;
 
-	if (mode->hdisplay > vop_data->max_output.width ||
-	    mode->vdisplay > vop_data->max_output.height)
+	if (mode->hdisplay > vop_data->max_output.width)
 		return false;
 
 	drm_mode_set_crtcinfo(adj_mode,
