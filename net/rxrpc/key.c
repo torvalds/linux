@@ -217,7 +217,7 @@ static int rxrpc_krb5_decode_principal(struct krb5_principal *princ,
 				       unsigned int *_toklen)
 {
 	const __be32 *xdr = *_xdr;
-	unsigned int toklen = *_toklen, n_parts, loop, tmp;
+	unsigned int toklen = *_toklen, n_parts, loop, tmp, paddedlen;
 
 	/* there must be at least one name, and at least #names+1 length
 	 * words */
@@ -247,16 +247,16 @@ static int rxrpc_krb5_decode_principal(struct krb5_principal *princ,
 		toklen -= 4;
 		if (tmp <= 0 || tmp > AFSTOKEN_STRING_MAX)
 			return -EINVAL;
-		if (tmp > toklen)
+		paddedlen = (tmp + 3) & ~3;
+		if (paddedlen > toklen)
 			return -EINVAL;
 		princ->name_parts[loop] = kmalloc(tmp + 1, GFP_KERNEL);
 		if (!princ->name_parts[loop])
 			return -ENOMEM;
 		memcpy(princ->name_parts[loop], xdr, tmp);
 		princ->name_parts[loop][tmp] = 0;
-		tmp = (tmp + 3) & ~3;
-		toklen -= tmp;
-		xdr += tmp >> 2;
+		toklen -= paddedlen;
+		xdr += paddedlen >> 2;
 	}
 
 	if (toklen < 4)
@@ -265,16 +265,16 @@ static int rxrpc_krb5_decode_principal(struct krb5_principal *princ,
 	toklen -= 4;
 	if (tmp <= 0 || tmp > AFSTOKEN_K5_REALM_MAX)
 		return -EINVAL;
-	if (tmp > toklen)
+	paddedlen = (tmp + 3) & ~3;
+	if (paddedlen > toklen)
 		return -EINVAL;
 	princ->realm = kmalloc(tmp + 1, GFP_KERNEL);
 	if (!princ->realm)
 		return -ENOMEM;
 	memcpy(princ->realm, xdr, tmp);
 	princ->realm[tmp] = 0;
-	tmp = (tmp + 3) & ~3;
-	toklen -= tmp;
-	xdr += tmp >> 2;
+	toklen -= paddedlen;
+	xdr += paddedlen >> 2;
 
 	_debug("%s/...@%s", princ->name_parts[0], princ->realm);
 
@@ -293,7 +293,7 @@ static int rxrpc_krb5_decode_tagged_data(struct krb5_tagged_data *td,
 					 unsigned int *_toklen)
 {
 	const __be32 *xdr = *_xdr;
-	unsigned int toklen = *_toklen, len;
+	unsigned int toklen = *_toklen, len, paddedlen;
 
 	/* there must be at least one tag and one length word */
 	if (toklen <= 8)
@@ -307,15 +307,17 @@ static int rxrpc_krb5_decode_tagged_data(struct krb5_tagged_data *td,
 	toklen -= 8;
 	if (len > max_data_size)
 		return -EINVAL;
+	paddedlen = (len + 3) & ~3;
+	if (paddedlen > toklen)
+		return -EINVAL;
 	td->data_len = len;
 
 	if (len > 0) {
 		td->data = kmemdup(xdr, len, GFP_KERNEL);
 		if (!td->data)
 			return -ENOMEM;
-		len = (len + 3) & ~3;
-		toklen -= len;
-		xdr += len >> 2;
+		toklen -= paddedlen;
+		xdr += paddedlen >> 2;
 	}
 
 	_debug("tag %x len %x", td->tag, td->data_len);
@@ -387,7 +389,7 @@ static int rxrpc_krb5_decode_ticket(u8 **_ticket, u16 *_tktlen,
 				    const __be32 **_xdr, unsigned int *_toklen)
 {
 	const __be32 *xdr = *_xdr;
-	unsigned int toklen = *_toklen, len;
+	unsigned int toklen = *_toklen, len, paddedlen;
 
 	/* there must be at least one length word */
 	if (toklen <= 4)
@@ -399,6 +401,9 @@ static int rxrpc_krb5_decode_ticket(u8 **_ticket, u16 *_tktlen,
 	toklen -= 4;
 	if (len > AFSTOKEN_K5_TIX_MAX)
 		return -EINVAL;
+	paddedlen = (len + 3) & ~3;
+	if (paddedlen > toklen)
+		return -EINVAL;
 	*_tktlen = len;
 
 	_debug("ticket len %u", len);
@@ -407,9 +412,8 @@ static int rxrpc_krb5_decode_ticket(u8 **_ticket, u16 *_tktlen,
 		*_ticket = kmemdup(xdr, len, GFP_KERNEL);
 		if (!*_ticket)
 			return -ENOMEM;
-		len = (len + 3) & ~3;
-		toklen -= len;
-		xdr += len >> 2;
+		toklen -= paddedlen;
+		xdr += paddedlen >> 2;
 	}
 
 	*_xdr = xdr;
@@ -552,7 +556,7 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 {
 	const __be32 *xdr = prep->data, *token;
 	const char *cp;
-	unsigned int len, tmp, loop, ntoken, toklen, sec_ix;
+	unsigned int len, paddedlen, loop, ntoken, toklen, sec_ix;
 	size_t datalen = prep->datalen;
 	int ret;
 
@@ -578,22 +582,21 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 	if (len < 1 || len > AFSTOKEN_CELL_MAX)
 		goto not_xdr;
 	datalen -= 4;
-	tmp = (len + 3) & ~3;
-	if (tmp > datalen)
+	paddedlen = (len + 3) & ~3;
+	if (paddedlen > datalen)
 		goto not_xdr;
 
 	cp = (const char *) xdr;
 	for (loop = 0; loop < len; loop++)
 		if (!isprint(cp[loop]))
 			goto not_xdr;
-	if (len < tmp)
-		for (; loop < tmp; loop++)
-			if (cp[loop])
-				goto not_xdr;
+	for (; loop < paddedlen; loop++)
+		if (cp[loop])
+			goto not_xdr;
 	_debug("cellname: [%u/%u] '%*.*s'",
-	       len, tmp, len, len, (const char *) xdr);
-	datalen -= tmp;
-	xdr += tmp >> 2;
+	       len, paddedlen, len, len, (const char *) xdr);
+	datalen -= paddedlen;
+	xdr += paddedlen >> 2;
 
 	/* get the token count */
 	if (datalen < 12)
@@ -614,10 +617,11 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 		sec_ix = ntohl(*xdr);
 		datalen -= 4;
 		_debug("token: [%x/%zx] %x", toklen, datalen, sec_ix);
-		if (toklen < 20 || toklen > datalen)
+		paddedlen = (toklen + 3) & ~3;
+		if (toklen < 20 || toklen > datalen || paddedlen > datalen)
 			goto not_xdr;
-		datalen -= (toklen + 3) & ~3;
-		xdr += (toklen + 3) >> 2;
+		datalen -= paddedlen;
+		xdr += paddedlen >> 2;
 
 	} while (--loop > 0);
 
