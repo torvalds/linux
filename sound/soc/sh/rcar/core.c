@@ -488,8 +488,7 @@ static int rsnd_status_update(u32 *status,
 
 #define rsnd_dai_call(fn, io, param...)					\
 ({									\
-	struct rsnd_priv *priv = rsnd_io_to_priv(io);			\
-	struct device *dev = rsnd_priv_to_dev(priv);			\
+	struct device *dev = rsnd_priv_to_dev(rsnd_io_to_priv(io));	\
 	struct rsnd_mod *mod;						\
 	int is_play = rsnd_io_is_play(io);				\
 	int ret = 0, i;							\
@@ -741,6 +740,7 @@ static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
 	int ret;
 
@@ -758,6 +758,7 @@ static void rsnd_soc_dai_shutdown(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
 
 	/*
