@@ -13,13 +13,7 @@
 #include <linux/serial_reg.h>
 
 /* OMAP3 serial ports */
-#define OMAP3_UART3_BASE	0x49020000
-#define OMAP3_UART4_BASE	0x49042000	/* Only on 36xx */
 #define OMAP3_UART4_AM35XX_BASE	0x4809E000	/* Only on AM35xx */
-
-/* OMAP4 serial ports */
-#define OMAP4_UART3_BASE	0x48020000
-#define OMAP4_UART4_BASE	0x4806e000
 
 /* TI81XX serial ports */
 #define TI81XX_UART1_BASE	0x48020000
@@ -31,12 +25,6 @@
 
 /* AM33XX serial port */
 #define AM33XX_UART1_BASE	0x44E09000
-
-/* OMAP5 serial ports */
-#define OMAP5_UART3_BASE	OMAP4_UART3_BASE
-#define OMAP5_UART4_BASE	OMAP4_UART4_BASE
-#define OMAP5_UART5_BASE	0x48066000
-#define OMAP5_UART6_BASE	0x48068000
 
 /* External port on Zoom2/3 */
 #define ZOOM_UART_BASE		0x10000000
@@ -68,26 +56,6 @@ omap_uart_lsr:	.word	0
 		bne	100f			@ already configured
 
 		/* Configure the UART offset from the phys/virt base */
-#ifdef CONFIG_DEBUG_OMAP3UART3
-		mov	\rp, #UART_OFFSET(OMAP3_UART1_BASE)
-		add	\rp, \rp, #0x00fb0000
-		add	\rp, \rp, #0x00006000		@ OMAP3_UART3_BASE
-		b	98f
-#endif
-#ifdef CONFIG_DEBUG_OMAP4UART3
-		mov	\rp, #UART_OFFSET(OMAP4_UART3_BASE)
-		b	98f
-#endif
-#ifdef CONFIG_DEBUG_OMAP3UART4
-		mov	\rp, #UART_OFFSET(OMAP3_UART1_BASE)
-		add	\rp, \rp, #0x00fb0000
-		add	\rp, \rp, #0x00028000		@ OMAP3_UART4_BASE
-		b	98f
-#endif
-#ifdef CONFIG_DEBUG_OMAP4UART4
-		mov	\rp, #UART_OFFSET(OMAP4_UART4_BASE)
-		b	98f
-#endif
 #ifdef CONFIG_DEBUG_TI81XXUART1
 		mov	\rp, #UART_OFFSET(TI81XX_UART1_BASE)
 		b	98f
