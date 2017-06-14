@@ -1159,8 +1159,8 @@ magic_found:
 	uspi->s_cgmask = fs32_to_cpu(sb, usb1->fs_cgmask);
 
 	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
-		uspi->s_u2_size  = fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_size);
-		uspi->s_u2_dsize = fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_dsize);
+		uspi->s_size  = fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_size);
+		uspi->s_dsize = fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_dsize);
 	} else {
 		uspi->s_size  =  fs32_to_cpu(sb, usb1->fs_size);
 		uspi->s_dsize =  fs32_to_cpu(sb, usb1->fs_dsize);
@@ -1208,6 +1208,9 @@ magic_found:
 	uspi->s_nrpos = fs32_to_cpu(sb, usb3->fs_nrpos);
 	uspi->s_postbloff = fs32_to_cpu(sb, usb3->fs_postbloff);
 	uspi->s_rotbloff = fs32_to_cpu(sb, usb3->fs_rotbloff);
+
+	uspi->s_root_blocks = mul_u64_u32_div(uspi->s_dsize,
+					      uspi->s_minfree, 100);
 
 	/*
 	 * Compute another frequently used values
@@ -1398,19 +1401,17 @@ static int ufs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	mutex_lock(&UFS_SB(sb)->s_lock);
 	usb3 = ubh_get_usb_third(uspi);
 	
-	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
+	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
 		buf->f_type = UFS2_MAGIC;
-		buf->f_blocks = fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_dsize);
-	} else {
+	else
 		buf->f_type = UFS_MAGIC;
-		buf->f_blocks = uspi->s_dsize;
-	}
-	buf->f_bfree = ufs_blkstofrags(uspi->cs_total.cs_nbfree) +
-		uspi->cs_total.cs_nffree;
+
+	buf->f_blocks = uspi->s_dsize;
+	buf->f_bfree = ufs_freefrags(uspi);
 	buf->f_ffree = uspi->cs_total.cs_nifree;
 	buf->f_bsize = sb->s_blocksize;
-	buf->f_bavail = (buf->f_bfree > (((long)buf->f_blocks / 100) * uspi->s_minfree))
-		? (buf->f_bfree - (((long)buf->f_blocks / 100) * uspi->s_minfree)) : 0;
+	buf->f_bavail = (buf->f_bfree > uspi->s_root_blocks)
+		? (buf->f_bfree - uspi->s_root_blocks) : 0;
 	buf->f_files = uspi->s_ncg * uspi->s_ipg;
 	buf->f_namelen = UFS_MAXNAMLEN;
 	buf->f_fsid.val[0] = (u32)id;
