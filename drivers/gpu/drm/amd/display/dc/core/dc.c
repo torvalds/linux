@@ -628,7 +628,8 @@ static bool is_validation_required(
 			return true;
 
 		for (j = 0; j < set[i].surface_count; j++) {
-			struct dc_surface temp_surf = { 0 };
+			struct dc_surface temp_surf;
+			memset(&temp_surf, 0, sizeof(temp_surf));
 
 			temp_surf = *context->stream_status[i].surfaces[j];
 			temp_surf.clip_rect = set[i].surfaces[j]->clip_rect;
@@ -1095,6 +1096,7 @@ static enum surface_update_type get_plane_info_update_type(
 		int surface_index)
 {
 	struct dc_plane_info temp_plane_info;
+	memset(&temp_plane_info, 0, sizeof(temp_plane_info));
 
 	if (!u->plane_info)
 		return UPDATE_TYPE_FAST;
@@ -1294,7 +1296,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		update_surface_trace(dc, srf_updates, surface_count);
 
 	if (update_type >= UPDATE_TYPE_FULL) {
-		const struct dc_surface *new_surfaces[MAX_SURFACES] = { 0 };
+		const struct dc_surface *new_surfaces[MAX_SURFACES] = {0};
 
 		for (i = 0; i < surface_count; i++)
 			new_surfaces[i] = srf_updates[i].surface;
