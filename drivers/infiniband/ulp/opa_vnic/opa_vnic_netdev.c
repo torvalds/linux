@@ -69,9 +69,9 @@ static void opa_vnic_get_stats64(struct net_device *netdev,
 	struct opa_vnic_stats vstats;
 
 	memset(&vstats, 0, sizeof(vstats));
-	mutex_lock(&adapter->stats_lock);
+	spin_lock(&adapter->stats_lock);
 	adapter->rn_ops->ndo_get_stats64(netdev, &vstats.netstats);
-	mutex_unlock(&adapter->stats_lock);
+	spin_unlock(&adapter->stats_lock);
 	memcpy(stats, &vstats.netstats, sizeof(*stats));
 }
 
@@ -344,7 +344,7 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	netdev->hard_header_len += OPA_VNIC_SKB_HEADROOM;
 	mutex_init(&adapter->lock);
 	mutex_init(&adapter->mactbl_lock);
-	mutex_init(&adapter->stats_lock);
+	spin_lock_init(&adapter->stats_lock);
 
 	SET_NETDEV_DEV(netdev, ibdev->dev.parent);
 
@@ -364,7 +364,6 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 netdev_err:
 	mutex_destroy(&adapter->lock);
 	mutex_destroy(&adapter->mactbl_lock);
-	mutex_destroy(&adapter->stats_lock);
 	kfree(adapter);
 adapter_err:
 	ibdev->free_rdma_netdev(netdev);
@@ -383,7 +382,6 @@ void opa_vnic_rem_netdev(struct opa_vnic_adapter *adapter)
 	opa_vnic_release_mac_tbl(adapter);
 	mutex_destroy(&adapter->lock);
 	mutex_destroy(&adapter->mactbl_lock);
-	mutex_destroy(&adapter->stats_lock);
 	kfree(adapter);
 	ibdev->free_rdma_netdev(netdev);
 }
