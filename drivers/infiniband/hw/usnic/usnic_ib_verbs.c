@@ -226,27 +226,6 @@ static void qp_grp_destroy(struct usnic_ib_qp_grp *qp_grp)
 	spin_unlock(&vf->lock);
 }
 
-static void eth_speed_to_ib_speed(int speed, u8 *active_speed,
-					u8 *active_width)
-{
-	if (speed <= 10000) {
-		*active_width = IB_WIDTH_1X;
-		*active_speed = IB_SPEED_FDR10;
-	} else if (speed <= 20000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_DDR;
-	} else if (speed <= 30000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_QDR;
-	} else if (speed <= 40000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_FDR10;
-	} else {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_EDR;
-	}
-}
-
 static int create_qp_validate_user_data(struct usnic_ib_create_qp_cmd cmd)
 {
 	if (cmd.spec.trans_type <= USNIC_TRANSPORT_UNKNOWN ||
@@ -326,12 +305,16 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 				struct ib_port_attr *props)
 {
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibdev);
-	struct ethtool_link_ksettings cmd;
 
 	usnic_dbg("\n");
 
 	mutex_lock(&us_ibdev->usdev_lock);
-	__ethtool_get_link_ksettings(us_ibdev->netdev, &cmd);
+	if (!ib_get_eth_speed(ibdev, port, &props->active_speed,
+			      &props->active_width)) {
+		mutex_unlock(&us_ibdev->usdev_lock);
+		return -EINVAL;
+	}
+
 	/* props being zeroed by the caller, avoid zeroing it here */
 
 	props->lid = 0;
@@ -355,8 +338,6 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 	props->pkey_tbl_len = 1;
 	props->bad_pkey_cntr = 0;
 	props->qkey_viol_cntr = 0;
-	eth_speed_to_ib_speed(cmd.base.speed, &props->active_speed,
-			      &props->active_width);
 	props->max_mtu = IB_MTU_4096;
 	props->active_mtu = iboe_get_mtu(us_ibdev->ufdev->mtu);
 	/* Userspace will adjust for hdrs */
