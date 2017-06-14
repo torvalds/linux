@@ -173,6 +173,13 @@ enum {
 	HISI_SAS_PHY_INT_NR
 };
 
+static u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
+{
+	void __iomem *regs = hisi_hba->regs + off;
+
+	return readl(regs);
+}
+
 static void hisi_sas_write32(struct hisi_hba *hisi_hba, u32 off, u32 val)
 {
 	void __iomem *regs = hisi_hba->regs + off;
@@ -397,11 +404,278 @@ static void sl_notify_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, sl_control);
 }
 
+static int phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
+{
+	int i, res = 0;
+	u32 context, port_id, link_rate, hard_phy_linkrate;
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct device *dev = hisi_hba->dev;
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_PHY_ENA_MSK, 1);
+
+	port_id = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
+	port_id = (port_id >> (4 * phy_no)) & 0xf;
+	link_rate = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
+	link_rate = (link_rate >> (phy_no * 4)) & 0xf;
+
+	if (port_id == 0xf) {
+		dev_err(dev, "phyup: phy%d invalid portid\n", phy_no);
+		res = IRQ_NONE;
+		goto end;
+	}
+	sas_phy->linkrate = link_rate;
+	hard_phy_linkrate = hisi_sas_phy_read32(hisi_hba, phy_no,
+						HARD_PHY_LINKRATE);
+	phy->maximum_linkrate = hard_phy_linkrate & 0xf;
+	phy->minimum_linkrate = (hard_phy_linkrate >> 4) & 0xf;
+	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
+
+	/* Check for SATA dev */
+	context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
+	if (context & (1 << phy_no)) {
+		struct hisi_sas_initial_fis *initial_fis;
+		struct dev_to_host_fis *fis;
+		u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
+
+		dev_info(dev, "phyup: phy%d link_rate=%d\n", phy_no, link_rate);
+		initial_fis = &hisi_hba->initial_fis[phy_no];
+		fis = &initial_fis->fis;
+		sas_phy->oob_mode = SATA_OOB_MODE;
+		attached_sas_addr[0] = 0x50;
+		attached_sas_addr[7] = phy_no;
+		memcpy(sas_phy->attached_sas_addr,
+		       attached_sas_addr,
+		       SAS_ADDR_SIZE);
+		memcpy(sas_phy->frame_rcvd, fis,
+		       sizeof(struct dev_to_host_fis));
+		phy->phy_type |= PORT_TYPE_SATA;
+		phy->identify.device_type = SAS_SATA_DEV;
+		phy->frame_rcvd_size = sizeof(struct dev_to_host_fis);
+		phy->identify.target_port_protocols = SAS_PROTOCOL_SATA;
+	} else {
+		u32 *frame_rcvd = (u32 *)sas_phy->frame_rcvd;
+		struct sas_identify_frame *id =
+			(struct sas_identify_frame *)frame_rcvd;
+
+		dev_info(dev, "phyup: phy%d link_rate=%d\n", phy_no, link_rate);
+		for (i = 0; i < 6; i++) {
+			u32 idaf = hisi_sas_phy_read32(hisi_hba, phy_no,
+					       RX_IDAF_DWORD0 + (i * 4));
+			frame_rcvd[i] = __swab32(idaf);
+		}
+		sas_phy->oob_mode = SAS_OOB_MODE;
+		memcpy(sas_phy->attached_sas_addr,
+		       &id->sas_addr,
+		       SAS_ADDR_SIZE);
+		phy->phy_type |= PORT_TYPE_SAS;
+		phy->identify.device_type = id->dev_type;
+		phy->frame_rcvd_size = sizeof(struct sas_identify_frame);
+		if (phy->identify.device_type == SAS_END_DEVICE)
+			phy->identify.target_port_protocols =
+				SAS_PROTOCOL_SSP;
+		else if (phy->identify.device_type != SAS_PHY_UNUSED)
+			phy->identify.target_port_protocols =
+				SAS_PROTOCOL_SMP;
+	}
+
+	phy->port_id = port_id;
+	phy->phy_attached = 1;
+	queue_work(hisi_hba->wq, &phy->phyup_ws);
+
+end:
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
+			     CHL_INT0_SL_PHY_ENABLE_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_PHY_ENA_MSK, 0);
+
+	return res;
+}
+
+static int phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
+{
+	int res = 0;
+	u32 phy_state, sl_ctrl, txid_auto;
+	struct device *dev = hisi_hba->dev;
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 1);
+
+	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
+	dev_info(dev, "phydown: phy%d phy_state=0x%x\n", phy_no, phy_state);
+	hisi_sas_phy_down(hisi_hba, phy_no, (phy_state & 1 << phy_no) ? 1 : 0);
+
+	sl_ctrl = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
+	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL,
+						sl_ctrl&(~SL_CTA_MSK));
+
+	txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
+	hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
+						txid_auto | CT3_MSK);
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, CHL_INT0_NOT_RDY_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 0);
+
+	return res;
+}
+
+static void phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
+{
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 1);
+	sas_ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
+			     CHL_INT0_SL_RX_BCST_ACK_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 0);
+}
+
+static irqreturn_t int_phy_up_down_bcast_v3_hw(int irq_no, void *p)
+{
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_msk;
+	int phy_no = 0;
+	irqreturn_t res = IRQ_NONE;
+
+	irq_msk = hisi_sas_read32(hisi_hba, CHNL_INT_STATUS)
+				& 0x11111111;
+	while (irq_msk) {
+		if (irq_msk  & 1) {
+			u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_no,
+							    CHL_INT0);
+			u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
+			int rdy = phy_state & (1 << phy_no);
+
+			if (rdy) {
+				if (irq_value & CHL_INT0_SL_PHY_ENABLE_MSK)
+					/* phy up */
+					if (phy_up_v3_hw(phy_no, hisi_hba)
+							== IRQ_HANDLED)
+						res = IRQ_HANDLED;
+				if (irq_value & CHL_INT0_SL_RX_BCST_ACK_MSK)
+					/* phy bcast */
+					phy_bcast_v3_hw(phy_no, hisi_hba);
+			} else {
+				if (irq_value & CHL_INT0_NOT_RDY_MSK)
+					/* phy down */
+					if (phy_down_v3_hw(phy_no, hisi_hba)
+							== IRQ_HANDLED)
+						res = IRQ_HANDLED;
+			}
+		}
+		irq_msk >>= 4;
+		phy_no++;
+	}
+
+	return res;
+}
+
+static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
+{
+	struct hisi_hba *hisi_hba = p;
+	struct device *dev = hisi_hba->dev;
+	u32 ent_msk, ent_tmp, irq_msk;
+	int phy_no = 0;
+
+	ent_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK3);
+	ent_tmp = ent_msk;
+	ent_msk |= ENT_INT_SRC_MSK3_ENT95_MSK_MSK;
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, ent_msk);
+
+	irq_msk = hisi_sas_read32(hisi_hba, CHNL_INT_STATUS)
+				& 0xeeeeeeee;
+
+	while (irq_msk) {
+		u32 irq_value0 = hisi_sas_phy_read32(hisi_hba, phy_no,
+						     CHL_INT0);
+		u32 irq_value1 = hisi_sas_phy_read32(hisi_hba, phy_no,
+						     CHL_INT1);
+		u32 irq_value2 = hisi_sas_phy_read32(hisi_hba, phy_no,
+						     CHL_INT2);
+
+		if ((irq_msk & (4 << (phy_no * 4))) &&
+						irq_value1) {
+			if (irq_value1 & (CHL_INT1_DMAC_RX_ECC_ERR_MSK |
+					  CHL_INT1_DMAC_TX_ECC_ERR_MSK))
+				panic("%s: DMAC RX/TX ecc bad error! (0x%x)",
+					dev_name(dev), irq_value1);
+
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+					     CHL_INT1, irq_value1);
+		}
+
+		if (irq_msk & (8 << (phy_no * 4)) && irq_value2)
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+					     CHL_INT2, irq_value2);
+
+
+		if (irq_msk & (2 << (phy_no * 4)) && irq_value0) {
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+					CHL_INT0, irq_value0
+					& (~CHL_INT0_HOTPLUG_TOUT_MSK)
+					& (~CHL_INT0_SL_PHY_ENABLE_MSK)
+					& (~CHL_INT0_NOT_RDY_MSK));
+		}
+		irq_msk &= ~(0xe << (phy_no * 4));
+		phy_no++;
+	}
+
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, ent_tmp);
+
+	return IRQ_HANDLED;
+}
+
+static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+	struct pci_dev *pdev = hisi_hba->pci_dev;
+	int vectors, rc;
+	int max_msi = HISI_SAS_MSI_COUNT_V3_HW;
+
+	vectors = pci_alloc_irq_vectors(hisi_hba->pci_dev, 1,
+					max_msi, PCI_IRQ_MSI);
+	if (vectors < max_msi) {
+		dev_err(dev, "could not allocate all msi (%d)\n", vectors);
+		return -ENOENT;
+	}
+
+	rc = devm_request_irq(dev, pci_irq_vector(pdev, 1),
+			      int_phy_up_down_bcast_v3_hw, 0,
+			      DRV_NAME " phy", hisi_hba);
+	if (rc) {
+		dev_err(dev, "could not request phy interrupt, rc=%d\n", rc);
+		rc = -ENOENT;
+		goto free_irq_vectors;
+	}
+
+	rc = devm_request_irq(dev, pci_irq_vector(pdev, 2),
+			      int_chnl_int_v3_hw, 0,
+			      DRV_NAME " channel", hisi_hba);
+	if (rc) {
+		dev_err(dev, "could not request chnl interrupt, rc=%d\n", rc);
+		rc = -ENOENT;
+		goto free_phy_irq;
+	}
+
+
+	return 0;
+
+free_phy_irq:
+	free_irq(pci_irq_vector(pdev, 1), hisi_hba);
+free_irq_vectors:
+	pci_free_irq_vectors(pdev);
+	return rc;
+}
+
 static int hisi_sas_v3_init(struct hisi_hba *hisi_hba)
 {
 	int rc;
 
 	rc = hw_init_v3_hw(hisi_hba);
+	if (rc)
+		return rc;
+
+	rc = interrupt_init_v3_hw(hisi_hba);
 	if (rc)
 		return rc;
 
@@ -563,6 +837,14 @@ err_out:
 	return rc;
 }
 
+static void
+hisi_sas_v3_destroy_irqs(struct pci_dev *pdev, struct hisi_hba *hisi_hba)
+{
+	free_irq(pci_irq_vector(pdev, 1), hisi_hba);
+	free_irq(pci_irq_vector(pdev, 2), hisi_hba);
+	pci_free_irq_vectors(pdev);
+}
+
 static void hisi_sas_v3_remove(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -573,6 +855,7 @@ static void hisi_sas_v3_remove(struct pci_dev *pdev)
 	sas_remove_host(sha->core.shost);
 
 	hisi_sas_free(hisi_hba);
+	hisi_sas_v3_destroy_irqs(pdev, hisi_hba);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
