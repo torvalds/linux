@@ -1356,6 +1356,28 @@ static inline int _loop_cyclic(struct pl330_dmac *pl330, unsigned dry_run,
 		off += _emit_LPEND(dry_run, &buf[off], &lpend);
 	}
 
+	if (pl330->peripherals_req_type == BURST) {
+		unsigned int ccr = pxs->ccr;
+		unsigned long c = 0;
+
+		c = BYTE_MOD_BURST_LEN(x->bytes, pxs->ccr);
+
+		if (c) {
+			ccr &= ~(0xf << CC_SRCBRSTLEN_SHFT);
+			ccr &= ~(0xf << CC_DSTBRSTLEN_SHFT);
+			off += _emit_MOV(dry_run, &buf[off], CCR, ccr);
+			off += _emit_LP(dry_run, &buf[off], 1, c - 1);
+			ljmp1 = off;
+			off += _bursts(pl330, dry_run, &buf[off], pxs, 1);
+			lpend.cond = ALWAYS;
+			lpend.forever = false;
+			lpend.loop = 1;
+			lpend.bjump = off - ljmp1;
+			off += _emit_LPEND(dry_run, &buf[off], &lpend);
+			off += _emit_MOV(dry_run, &buf[off], CCR, pxs->ccr);
+		}
+	}
+
 	off += _emit_SEV(dry_run, &buf[off], ev);
 
 	lpend.cond = ALWAYS;
@@ -1457,13 +1479,13 @@ static int _setup_req(struct pl330_dmac *pl330, unsigned dry_run,
 
 	x = &pxs->desc->px;
 
-	if (!pxs->desc->cyclic) {
-		if (pl330->peripherals_req_type != BURST) {
-			/* Error if xfer length is not aligned at burst size */
-			if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
-				return -EINVAL;
-		}
+	if (pl330->peripherals_req_type != BURST) {
+		/* Error if xfer length is not aligned at burst size */
+		if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
+			return -EINVAL;
+	}
 
+	if (!pxs->desc->cyclic) {
 		off += _setup_xfer(pl330, dry_run, &buf[off], pxs);
 
 		/* DMASEV peripheral/event */
@@ -1471,10 +1493,6 @@ static int _setup_req(struct pl330_dmac *pl330, unsigned dry_run,
 		/* DMAEND */
 		off += _emit_END(dry_run, &buf[off]);
 	} else {
-		/* Error if xfer length is not aligned at burst size */
-		if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
-			return -EINVAL;
-
 		off += _setup_xfer_cyclic(pl330, dry_run, &buf[off],
 						pxs, thrd->ev);
 	}
