@@ -1666,7 +1666,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, pin_pol, val);
 
 	if (vop->dclk_source && s->pll && s->pll->pll) {
-		if (!clk_set_parent(vop->dclk_source, s->pll->pll))
+		if (clk_set_parent(vop->dclk_source, s->pll->pll))
 			DRM_DEV_ERROR(vop->dev,
 				      "failed to set dclk's parents\n");
 	}
