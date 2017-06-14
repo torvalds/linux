@@ -1137,64 +1137,59 @@ static const struct dvb_frontend_ops af9013_ops;
 static int af9013_download_firmware(struct af9013_state *state)
 {
 	struct i2c_client *client = state->client;
-	int ret, i, len, remaining;
+	int ret, i, len, rem;
 	unsigned int utmp;
-	const struct firmware *fw;
+	u8 buf[4];
 	u16 checksum = 0;
-	u8 fw_params[4];
-	u8 *fw_file = AF9013_FIRMWARE;
+	const struct firmware *firmware;
+	const char *name = AF9013_FIRMWARE;
 
-	msleep(100);
-	/* check whether firmware is already running */
+	dev_dbg(&client->dev, "\n");
+
+	/* Check whether firmware is already running */
 	ret = regmap_read(state->regmap, 0x98be, &utmp);
 	if (ret)
 		goto err;
 
 	dev_dbg(&client->dev, "firmware status %02x\n", utmp);
 
-	if (utmp == 0x0c) /* fw is running, no need for download */
+	if (utmp == 0x0c)
 		return 0;
 
 	dev_info(&client->dev, "found a '%s' in cold state, will try to load a firmware\n",
 		 af9013_ops.info.name);
 
-	/* request the firmware, this will block and timeout */
-	ret = request_firmware(&fw, fw_file, &client->dev);
+	/* Request the firmware, will block and timeout */
+	ret = request_firmware(&firmware, name, &client->dev);
 	if (ret) {
 		dev_info(&client->dev, "firmware file '%s' not found %d\n",
-			 fw_file, ret);
+			 name, ret);
 		goto err;
 	}
 
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
-		 fw_file);
+		 name);
 
-	/* calc checksum */
-	for (i = 0; i < fw->size; i++)
-		checksum += fw->data[i];
+	/* Write firmware checksum & size */
+	for (i = 0; i < firmware->size; i++)
+		checksum += firmware->data[i];
 
-	fw_params[0] = checksum >> 8;
-	fw_params[1] = checksum & 0xff;
-	fw_params[2] = fw->size >> 8;
-	fw_params[3] = fw->size & 0xff;
-
-	/* write fw checksum & size */
-	ret = regmap_bulk_write(state->regmap, 0x50fc, fw_params,
-				sizeof(fw_params));
-
+	buf[0] = (checksum >> 8) & 0xff;
+	buf[1] = (checksum >> 0) & 0xff;
+	buf[2] = (firmware->size >> 8) & 0xff;
+	buf[3] = (firmware->size >> 0) & 0xff;
+	ret = regmap_bulk_write(state->regmap, 0x50fc, buf, 4);
 	if (ret)
 		goto err_release_firmware;
 
-	#define FW_ADDR 0x5100 /* firmware start address */
-	#define LEN_MAX 16 /* max packet size */
-	for (remaining = fw->size; remaining > 0; remaining -= LEN_MAX) {
-		len = remaining;
-		if (len > LEN_MAX)
-			len = LEN_MAX;
-
+	/* Download firmware */
+	#define LEN_MAX 16
+	for (rem = firmware->size; rem > 0; rem -= LEN_MAX) {
+		len = min(LEN_MAX, rem);
 		ret = regmap_bulk_write(state->regmap,
-					FW_ADDR + fw->size - remaining,
-					&fw->data[fw->size - remaining], len);
+					0x5100 + firmware->size - rem,
+					&firmware->data[firmware->size - rem],
+					len);
 		if (ret) {
 			dev_err(&client->dev, "firmware download failed %d\n",
 				ret);
@@ -1202,9 +1197,9 @@ static int af9013_download_firmware(struct af9013_state *state)
 		}
 	}
 
-	release_firmware(fw);
+	release_firmware(firmware);
 
-	/* request boot firmware */
+	/* Boot firmware */
 	ret = regmap_write(state->regmap, 0xe205, 0x01);
 	if (ret)
 		goto err;
@@ -1233,7 +1228,7 @@ static int af9013_download_firmware(struct af9013_state *state)
 
 	return 0;
 err_release_firmware:
-	release_firmware(fw);
+	release_firmware(firmware);
 err:
 	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
