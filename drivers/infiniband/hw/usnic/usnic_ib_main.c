@@ -409,6 +409,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.query_port = usnic_ib_query_port;
 	us_ibdev->ib_dev.query_pkey = usnic_ib_query_pkey;
 	us_ibdev->ib_dev.query_gid = usnic_ib_query_gid;
+	us_ibdev->ib_dev.get_netdev = usnic_get_netdev;
 	us_ibdev->ib_dev.get_link_layer = usnic_ib_port_link_layer;
 	us_ibdev->ib_dev.alloc_pd = usnic_ib_alloc_pd;
 	us_ibdev->ib_dev.dealloc_pd = usnic_ib_dealloc_pd;

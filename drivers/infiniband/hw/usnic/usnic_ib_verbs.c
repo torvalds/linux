@@ -424,6 +424,16 @@ int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	return 0;
 }
 
+struct net_device *usnic_get_netdev(struct ib_device *device, u8 port_num)
+{
+	struct usnic_ib_dev *us_ibdev = to_usdev(device);
+
+	if (us_ibdev->netdev)
+		dev_hold(us_ibdev->netdev);
+
+	return us_ibdev->netdev;
+}
+
 int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 				u16 *pkey)
 {
