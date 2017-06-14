@@ -4949,9 +4949,8 @@ btrfs_calc_reclaim_metadata_size(struct btrfs_fs_info *fs_info,
 			   BTRFS_RESERVE_FLUSH_ALL, system_chunk))
 		return 0;
 
-	used = space_info->bytes_used + space_info->bytes_reserved +
-	       space_info->bytes_pinned + space_info->bytes_readonly +
-	       space_info->bytes_may_use;
+	used = btrfs_space_info_used(space_info, true);
+
 	if (can_overcommit(fs_info, space_info, SZ_1M,
 			   BTRFS_RESERVE_FLUSH_ALL, system_chunk))
 		expected = div_factor_fine(space_info->total_bytes, 95);
@@ -5398,9 +5397,7 @@ static void space_info_add_old_bytes(struct btrfs_fs_info *fs_info,
 	 * overcommit, and if we can't then we just need to free up our space
 	 * and not satisfy any requests.
 	 */
-	used = space_info->bytes_used + space_info->bytes_reserved +
-		space_info->bytes_pinned + space_info->bytes_readonly +
-		space_info->bytes_may_use;
+	used = btrfs_space_info_used(space_info, true);
 	if (used - num_bytes >= space_info->total_bytes)
 		check_overcommit = true;
 again:
