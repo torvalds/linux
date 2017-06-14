@@ -720,7 +720,8 @@
 			See also Documentation/input/joystick-parport.txt
 
 	ddebug_query=   [KNL,DYNAMIC_DEBUG] Enable debug messages at early boot
-			time. See Documentation/dynamic-debug-howto.txt for
+			time. See
+			Documentation/admin-guide/dynamic-debug-howto.rst for
 			details.  Deprecated, see dyndbg.
 
 	debug		[KNL] Enable kernel debugging (events log level).
@@ -874,7 +875,8 @@
 	dyndbg[="val"]		[KNL,DYNAMIC_DEBUG]
 	module.dyndbg[="val"]
 			Enable debug messages at boot time.  See
-			Documentation/dynamic-debug-howto.txt for details.
+			Documentation/admin-guide/dynamic-debug-howto.rst
+			for details.
 
 	nompx		[X86] Disables Intel Memory Protection Extensions.
 			See Documentation/x86/intel_mpx.txt for more
