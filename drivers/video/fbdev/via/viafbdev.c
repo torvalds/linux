@@ -1630,16 +1630,14 @@ static void viafb_init_proc(struct viafb_shared *shared)
 }
 static void viafb_remove_proc(struct viafb_shared *shared)
 {
-	struct proc_dir_entry *viafb_entry = shared->proc_entry,
-		*iga1_entry = shared->iga1_proc_entry,
-		*iga2_entry = shared->iga2_proc_entry;
+	struct proc_dir_entry *viafb_entry = shared->proc_entry;
 
 	if (!viafb_entry)
 		return;
 
-	remove_proc_entry("output_devices", iga2_entry);
+	remove_proc_entry("output_devices", shared->iga2_proc_entry);
 	remove_proc_entry("iga2", viafb_entry);
-	remove_proc_entry("output_devices", iga1_entry);
+	remove_proc_entry("output_devices", shared->iga1_proc_entry);
 	remove_proc_entry("iga1", viafb_entry);
 	remove_proc_entry("supported_output_devices", viafb_entry);
 
