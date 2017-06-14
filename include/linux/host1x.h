@@ -249,7 +249,7 @@ struct host1x_job {
 	u8 *gather_copy_mapped;
 
 	/* Check if register is marked as an address reg */
-	int (*is_addr_reg)(struct device *dev, u32 reg, u32 class);
+	int (*is_addr_reg)(struct device *dev, u32 class, u32 reg);
 
 	/* Check if class belongs to the unit */
 	int (*is_valid_class)(u32 class);
