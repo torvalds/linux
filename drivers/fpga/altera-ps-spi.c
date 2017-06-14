@@ -149,12 +149,23 @@ static int altera_ps_write_init(struct fpga_manager *mgr,
 
 static void rev_buf(char *buf, size_t len)
 {
-	const char *fw_end = (buf + len);
+	u32 *fw32 = (u32 *)buf;
+	size_t extra_bytes = (len & 0x03);
+	const u32 *fw_end = (u32 *)(buf + len - extra_bytes);
 
 	/* set buffer to lsb first */
-	while (buf < fw_end) {
-		*buf = bitrev8(*buf);
-		buf++;
+	while (fw32 < fw_end) {
+		*fw32 = bitrev8x4(*fw32);
+		fw32++;
+	}
+
+	if (extra_bytes) {
+		buf = (char *)fw_end;
+		while (extra_bytes) {
+			*buf = bitrev8(*buf);
+			buf++;
+			extra_bytes--;
+		}
 	}
 }
 
