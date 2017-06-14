@@ -310,6 +310,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 	rxrpc_see_call(call);
 	call->conn = conn;
 	call->peer = rxrpc_get_peer(conn->params.peer);
+	call->cong_cwnd = call->peer->cong_cwnd;
 	return call;
 }
 

@@ -193,6 +193,8 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 {
 	struct rxrpc_connection *conn = call->conn;
 
+	call->peer->cong_cwnd = call->cong_cwnd;
+
 	spin_lock_bh(&conn->params.peer->lock);
 	hlist_del_init(&call->error_link);
 	spin_unlock_bh(&conn->params.peer->lock);

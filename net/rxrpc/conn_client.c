@@ -292,6 +292,12 @@ static int rxrpc_get_client_conn(struct rxrpc_call *call,
 	if (!cp->peer)
 		goto error;
 
+	call->cong_cwnd = cp->peer->cong_cwnd;
+	if (call->cong_cwnd >= call->cong_ssthresh)
+		call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
+	else
+		call->cong_mode = RXRPC_CALL_SLOW_START;
+
 	/* If the connection is not meant to be exclusive, search the available
 	 * connections to see if the connection we want to use already exists.
 	 */

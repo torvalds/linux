@@ -300,6 +300,8 @@ struct rxrpc_peer {
 	u64			rtt_cache[RXRPC_RTT_CACHE_SIZE]; /* Determined RTT cache */
 	u8			rtt_cursor;	/* next entry at which to insert */
 	u8			rtt_usage;	/* amount of cache actually used */
+
+	u8			cong_cwnd;	/* Congestion window size */
 };
 
 /*
