@@ -486,11 +486,24 @@ static int tegra_plane_state_add(struct tegra_plane *plane,
 {
 	struct drm_crtc_state *crtc_state;
 	struct tegra_dc_state *tegra;
+	struct drm_rect clip;
+	int err;
 
 	/* Propagate errors from allocation or locking failures. */
 	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
+
+	clip.x1 = 0;
+	clip.y1 = 0;
+	clip.x2 = crtc_state->mode.hdisplay;
+	clip.y2 = crtc_state->mode.vdisplay;
+
+	/* Check plane state for visibility and calculate clipping bounds */
+	err = drm_plane_helper_check_state(state, &clip, 0, INT_MAX,
+					   true, true);
+	if (err < 0)
+		return err;
 
 	tegra = to_dc_state(crtc_state);
 
@@ -561,14 +574,14 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 		return;
 
 	memset(&window, 0, sizeof(window));
-	window.src.x = plane->state->src_x >> 16;
-	window.src.y = plane->state->src_y >> 16;
-	window.src.w = plane->state->src_w >> 16;
-	window.src.h = plane->state->src_h >> 16;
-	window.dst.x = plane->state->crtc_x;
-	window.dst.y = plane->state->crtc_y;
-	window.dst.w = plane->state->crtc_w;
-	window.dst.h = plane->state->crtc_h;
+	window.src.x = plane->state->src.x1 >> 16;
+	window.src.y = plane->state->src.y1 >> 16;
+	window.src.w = drm_rect_width(&plane->state->src) >> 16;
+	window.src.h = drm_rect_height(&plane->state->src) >> 16;
+	window.dst.x = plane->state->dst.x1;
+	window.dst.y = plane->state->dst.y1;
+	window.dst.w = drm_rect_width(&plane->state->dst);
+	window.dst.h = drm_rect_height(&plane->state->dst);
 	window.bits_per_pixel = fb->format->cpp[0] * 8;
 	window.bottom_up = tegra_fb_is_bottom_up(fb);
 
