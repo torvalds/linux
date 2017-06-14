@@ -6,4 +6,12 @@ config SCSI_HISI_SAS
 	select BLK_DEV_INTEGRITY
 	depends on ATA
 	help
-		This driver supports HiSilicon's SAS HBA
+		This driver supports HiSilicon's SAS HBA, including support based
+		on platform device
+
+config SCSI_HISI_SAS_PCI
+	tristate "HiSilicon SAS on PCI bus"
+	depends on SCSI_HISI_SAS
+	depends on PCI
+	help
+		This driver supports HiSilicon's SAS HBA based on PCI device
