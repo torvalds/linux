@@ -493,4 +493,39 @@
 
 #define ACPI_IS_OCTAL_DIGIT(d)              (((char)(d) >= '0') && ((char)(d) <= '7'))
 
+/*
+ * Macors used for the ASL-/ASL+ converter utility
+ */
+#ifdef ACPI_ASL_COMPILER
+
+#define ASL_CV_LABEL_FILENODE(a)         cv_label_file_node(a);
+#define ASL_CV_CAPTURE_COMMENTS_ONLY(a)   cv_capture_comments_only (a);
+#define ASL_CV_CAPTURE_COMMENTS(a)       cv_capture_comments (a);
+#define ASL_CV_TRANSFER_COMMENTS(a)      cv_transfer_comments (a);
+#define ASL_CV_CLOSE_PAREN(a,b)          cv_close_paren_write_comment(a,b);
+#define ASL_CV_CLOSE_BRACE(a,b)          cv_close_brace_write_comment(a,b);
+#define ASL_CV_SWITCH_FILES(a,b)         cv_switch_files(a,b);
+#define ASL_CV_CLEAR_OP_COMMENTS(a)       cv_clear_op_comments(a);
+#define ASL_CV_PRINT_ONE_COMMENT(a,b,c,d) cv_print_one_comment_type (a,b,c,d);
+#define ASL_CV_PRINT_ONE_COMMENT_LIST(a,b) cv_print_one_comment_list (a,b);
+#define ASL_CV_FILE_HAS_SWITCHED(a)       cv_file_has_switched(a)
+#define ASL_CV_INIT_FILETREE(a,b,c)      cv_init_file_tree(a,b,c);
+
+#else
+
+#define ASL_CV_LABEL_FILENODE(a)
+#define ASL_CV_CAPTURE_COMMENTS_ONLY(a)
+#define ASL_CV_CAPTURE_COMMENTS(a)
+#define ASL_CV_TRANSFER_COMMENTS(a)
+#define ASL_CV_CLOSE_PAREN(a,b)          acpi_os_printf (")");
+#define ASL_CV_CLOSE_BRACE(a,b)          acpi_os_printf ("}");
+#define ASL_CV_SWITCH_FILES(a,b)
+#define ASL_CV_CLEAR_OP_COMMENTS(a)
+#define ASL_CV_PRINT_ONE_COMMENT(a,b,c,d)
+#define ASL_CV_PRINT_ONE_COMMENT_LIST(a,b)
+#define ASL_CV_FILE_HAS_SWITCHED(a)       0
+#define ASL_CV_INIT_FILETREE(a,b,c)
+
+#endif
+
 #endif				/* ACMACROS_H */

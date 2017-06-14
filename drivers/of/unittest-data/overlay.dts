@@ -1,0 +1,53 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+
+	fragment@0 {
+		target = <&electric_1>;
+
+		__overlay__ {
+			status = "ok";
+
+			hvac_2: hvac-large-1 {
+				compatible = "ot,hvac-large";
+				heat-range = < 40 75 >;
+				cool-range = < 65 80 >;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&rides_1>;
+
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "ok";
+
+			ride@200 {
+				compatible = "ot,ferris-wheel";
+				reg = < 0x00000200 0x100 >;
+				hvac-provider = < &hvac_2 >;
+				hvac-thermostat = < 27 32 > ;
+				hvac-zones = < 12 5 >;
+				hvac-zone-names = "operator", "snack-bar";
+				spin-controller = < &spin_ctrl_1 3 >;
+				spin-rph = < 30 >;
+				gondolas = < 16 >;
+				gondola-capacity = < 6 >;
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&lights_2>;
+
+		__overlay__ {
+			status = "ok";
+			color = "purple", "white", "red", "green";
+			rate = < 3 256 >;
+		};
+	};
+
+};

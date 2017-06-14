@@ -28,6 +28,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/util_macros.h>
 
@@ -635,6 +636,7 @@ static int ina2xx_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	struct iio_buffer *buffer;
 	unsigned int val;
+	enum ina2xx_ids type;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
@@ -652,7 +654,11 @@ static int ina2xx_probe(struct i2c_client *client,
 		return PTR_ERR(chip->regmap);
 	}
 
-	chip->config = &ina2xx_config[id->driver_data];
+	if (client->dev.of_node)
+		type = (enum ina2xx_ids)of_device_get_match_data(&client->dev);
+	else
+		type = id->driver_data;
+	chip->config = &ina2xx_config[type];
 
 	mutex_init(&chip->state_lock);
 
@@ -726,9 +732,35 @@ static const struct i2c_device_id ina2xx_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ina2xx_id);
 
+static const struct of_device_id ina2xx_of_match[] = {
+	{
+		.compatible = "ti,ina219",
+		.data = (void *)ina219
+	},
+	{
+		.compatible = "ti,ina220",
+		.data = (void *)ina219
+	},
+	{
+		.compatible = "ti,ina226",
+		.data = (void *)ina226
+	},
+	{
+		.compatible = "ti,ina230",
+		.data = (void *)ina226
+	},
+	{
+		.compatible = "ti,ina231",
+		.data = (void *)ina226
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, ina2xx_of_match);
+
 static struct i2c_driver ina2xx_driver = {
 	.driver = {
 		   .name = KBUILD_MODNAME,
+		   .of_match_table = ina2xx_of_match,
 	},
 	.probe = ina2xx_probe,
 	.remove = ina2xx_remove,

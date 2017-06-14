@@ -19,6 +19,20 @@ config MAXIM_THERMOCOUPLE
 	  This driver can also be built as a module. If so, the module will
 	  be called maxim_thermocouple.
 
+config HID_SENSOR_TEMP
+	tristate "HID Environmental temperature sensor"
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
+	help
+	  Say yes here to build support for the HID SENSOR
+	  temperature driver
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hid-sensor-temperature.
+
 config MLX90614
 	tristate "MLX90614 contact-less infrared sensor"
 	depends on I2C

@@ -2364,15 +2364,14 @@ static struct ippp_ccp_reset_state *isdn_ppp_ccp_reset_alloc_state(struct ippp_s
 		       id);
 		return NULL;
 	} else {
-		rs = kzalloc(sizeof(struct ippp_ccp_reset_state), GFP_KERNEL);
+		rs = kzalloc(sizeof(struct ippp_ccp_reset_state), GFP_ATOMIC);
 		if (!rs)
 			return NULL;
 		rs->state = CCPResetIdle;
 		rs->is = is;
 		rs->id = id;
-		init_timer(&rs->timer);
-		rs->timer.data = (unsigned long)rs;
-		rs->timer.function = isdn_ppp_ccp_timer_callback;
+		setup_timer(&rs->timer, isdn_ppp_ccp_timer_callback,
+			    (unsigned long)rs);
 		is->reset->rs[id] = rs;
 	}
 	return rs;

@@ -590,7 +590,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *mipi, int dc,
 		ret = spi_sync(spi, &m);
 		if (ret)
 			return ret;
-	};
+	}
 
 	return 0;
 }
@@ -654,7 +654,7 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *mipi, int dc,
 		ret = spi_sync(spi, &m);
 		if (ret)
 			return ret;
-	};
+	}
 
 	return 0;
 }

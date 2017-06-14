@@ -13,7 +13,6 @@ config MTD_NAND_ECC_SMC
 menuconfig MTD_NAND
 	tristate "NAND Device Support"
 	depends on MTD
-	select MTD_NAND_IDS
 	select MTD_NAND_ECC
 	help
 	  This enables support for accessing all type of NAND flash
@@ -60,17 +59,6 @@ config MTD_NAND_DENALI_DT
 	  Enable the driver for NAND flash on platforms using a Denali NAND
 	  controller as a DT device.
 
-config MTD_NAND_DENALI_SCRATCH_REG_ADDR
-        hex "Denali NAND size scratch register address"
-        default "0xFF108018"
-        depends on MTD_NAND_DENALI_PCI
-        help
-          Some platforms place the NAND chip size in a scratch register
-          because (some versions of) the driver aren't able to automatically
-          determine the size of certain chips. Set the address of the
-          scratch register here to enable this feature. On Intel Moorestown
-          boards, the scratch register is at 0xFF108018.
-
 config MTD_NAND_GPIO
 	tristate "GPIO assisted NAND Flash driver"
 	depends on GPIOLIB || COMPILE_TEST
@@ -108,9 +96,6 @@ config MTD_NAND_OMAP_BCH
 
 config MTD_NAND_OMAP_BCH_BUILD
 	def_tristate MTD_NAND_OMAP2 && MTD_NAND_OMAP_BCH
-
-config MTD_NAND_IDS
-	tristate
 
 config MTD_NAND_RICOH
 	tristate "Ricoh xD card reader"
@@ -321,11 +306,11 @@ config MTD_NAND_CS553X
 	  If you say "m", the module will be called cs553x_nand.
 
 config MTD_NAND_ATMEL
-	tristate "Support for NAND Flash / SmartMedia on AT91 and AVR32"
-	depends on ARCH_AT91 || AVR32
+	tristate "Support for NAND Flash / SmartMedia on AT91"
+	depends on ARCH_AT91
 	help
 	  Enables support for NAND Flash / Smart Media Card interface
-	  on Atmel AT91 and AVR32 processors.
+	  on Atmel AT91 processors.
 
 config MTD_NAND_PXA3xx
 	tristate "NAND support on PXA3xx and Armada 370/XP"
@@ -443,7 +428,7 @@ config MTD_NAND_FSL_ELBC
 
 config MTD_NAND_FSL_IFC
 	tristate "NAND support for Freescale IFC controller"
-	depends on FSL_SOC || ARCH_LAYERSCAPE
+	depends on FSL_SOC || ARCH_LAYERSCAPE || SOC_LS1021A
 	select FSL_IFC
 	select MEMORY
 	help

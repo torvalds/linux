@@ -134,7 +134,8 @@ config FUNCTION_TRACER
 	select KALLSYMS
 	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
-        select GLOB
+	select GLOB
+	select TASKS_RCU if PREEMPT
 	help
 	  Enable the kernel to trace every kernel function. This is done
 	  by using a compiler feature to insert a small, 5-byte No-Operation
@@ -429,7 +430,7 @@ config BLK_DEV_IO_TRACE
 
 	  If unsure, say N.
 
-config KPROBE_EVENT
+config KPROBE_EVENTS
 	depends on KPROBES
 	depends on HAVE_REGS_AND_STACK_ACCESS_API
 	bool "Enable kprobes-based dynamic events"
@@ -447,7 +448,7 @@ config KPROBE_EVENT
 	  This option is also required by perf-probe subcommand of perf tools.
 	  If you want to use perf tools, this option is strongly recommended.
 
-config UPROBE_EVENT
+config UPROBE_EVENTS
 	bool "Enable uprobes-based dynamic events"
 	depends on ARCH_SUPPORTS_UPROBES
 	depends on MMU
@@ -455,7 +456,7 @@ config UPROBE_EVENT
 	select UPROBES
 	select PROBE_EVENTS
 	select TRACING
-	default n
+	default y
 	help
 	  This allows the user to add tracing events on top of userspace
 	  dynamic events (similar to tracepoints) on the fly via the trace
@@ -466,7 +467,7 @@ config UPROBE_EVENT
 
 config BPF_EVENTS
 	depends on BPF_SYSCALL
-	depends on (KPROBE_EVENT || UPROBE_EVENT) && PERF_EVENTS
+	depends on (KPROBE_EVENTS || UPROBE_EVENTS) && PERF_EVENTS
 	bool
 	default y
 	help

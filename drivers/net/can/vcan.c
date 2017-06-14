@@ -1,7 +1,7 @@
 /*
  * vcan.c - Virtual CAN interface
  *
- * Copyright (c) 2002-2007 Volkswagen Group Electronic Research
+ * Copyright (c) 2002-2017 Volkswagen Group Electronic Research
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,9 +50,12 @@
 #include <linux/slab.h>
 #include <net/rtnetlink.h>
 
+#define DRV_NAME "vcan"
+
 MODULE_DESCRIPTION("virtual CAN interface");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Urs Thuermann <urs.thuermann@volkswagen.de>");
+MODULE_ALIAS_RTNL_LINK(DRV_NAME);
 
 
 /*
@@ -164,7 +167,7 @@ static void vcan_setup(struct net_device *dev)
 }
 
 static struct rtnl_link_ops vcan_link_ops __read_mostly = {
-	.kind	= "vcan",
+	.kind	= DRV_NAME,
 	.setup	= vcan_setup,
 };
 

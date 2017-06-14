@@ -293,7 +293,8 @@ failed:
 static inline void init_tunnel_flow(struct flowi4 *fl4,
 				    int proto,
 				    __be32 daddr, __be32 saddr,
-				    __be32 key, __u8 tos, int oif)
+				    __be32 key, __u8 tos, int oif,
+				    __u32 mark)
 {
 	memset(fl4, 0, sizeof(*fl4));
 	fl4->flowi4_oif = oif;
@@ -302,6 +303,7 @@ static inline void init_tunnel_flow(struct flowi4 *fl4,
 	fl4->flowi4_tos = tos;
 	fl4->flowi4_proto = proto;
 	fl4->fl4_gre_key = key;
+	fl4->flowi4_mark = mark;
 }
 
 static int ip_tunnel_bind_dev(struct net_device *dev)
@@ -322,7 +324,8 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 
 		init_tunnel_flow(&fl4, iph->protocol, iph->daddr,
 				 iph->saddr, tunnel->parms.o_key,
-				 RT_TOS(iph->tos), tunnel->parms.link);
+				 RT_TOS(iph->tos), tunnel->parms.link,
+				 tunnel->fwmark);
 		rt = ip_route_output_key(tunnel->net, &fl4);
 
 		if (!IS_ERR(rt)) {
@@ -578,7 +581,7 @@ void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev, u8 proto)
 			tos = ipv6_get_dsfield((const struct ipv6hdr *)inner_iph);
 	}
 	init_tunnel_flow(&fl4, proto, key->u.ipv4.dst, key->u.ipv4.src, 0,
-			 RT_TOS(tos), tunnel->parms.link);
+			 RT_TOS(tos), tunnel->parms.link, tunnel->fwmark);
 	if (tunnel->encap.type != TUNNEL_ENCAP_NONE)
 		goto tx_error;
 	rt = ip_route_output_key(tunnel->net, &fl4);
@@ -707,7 +710,8 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
-			 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link);
+			 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link,
+			 tunnel->fwmark);
 
 	if (ip_tunnel_encap(skb, tunnel, &protocol, &fl4) < 0)
 		goto tx_error;
@@ -795,7 +799,8 @@ static void ip_tunnel_update(struct ip_tunnel_net *itn,
 			     struct ip_tunnel *t,
 			     struct net_device *dev,
 			     struct ip_tunnel_parm *p,
-			     bool set_mtu)
+			     bool set_mtu,
+			     __u32 fwmark)
 {
 	ip_tunnel_del(itn, t);
 	t->parms.iph.saddr = p->iph.saddr;
@@ -812,10 +817,11 @@ static void ip_tunnel_update(struct ip_tunnel_net *itn,
 	t->parms.iph.tos = p->iph.tos;
 	t->parms.iph.frag_off = p->iph.frag_off;
 
-	if (t->parms.link != p->link) {
+	if (t->parms.link != p->link || t->fwmark != fwmark) {
 		int mtu;
 
 		t->parms.link = p->link;
+		t->fwmark = fwmark;
 		mtu = ip_tunnel_bind_dev(dev);
 		if (set_mtu)
 			dev->mtu = mtu;
@@ -893,7 +899,7 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 
 		if (t) {
 			err = 0;
-			ip_tunnel_update(itn, t, dev, p, true);
+			ip_tunnel_update(itn, t, dev, p, true, 0);
 		} else {
 			err = -ENOENT;
 		}
@@ -1066,7 +1072,7 @@ void ip_tunnel_delete_net(struct ip_tunnel_net *itn, struct rtnl_link_ops *ops)
 EXPORT_SYMBOL_GPL(ip_tunnel_delete_net);
 
 int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
-		      struct ip_tunnel_parm *p)
+		      struct ip_tunnel_parm *p, __u32 fwmark)
 {
 	struct ip_tunnel *nt;
 	struct net *net = dev_net(dev);
@@ -1087,6 +1093,7 @@ int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 
 	nt->net = net;
 	nt->parms = *p;
+	nt->fwmark = fwmark;
 	err = register_netdevice(dev);
 	if (err)
 		goto out;
@@ -1105,7 +1112,7 @@ out:
 EXPORT_SYMBOL_GPL(ip_tunnel_newlink);
 
 int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
-			 struct ip_tunnel_parm *p)
+			 struct ip_tunnel_parm *p, __u32 fwmark)
 {
 	struct ip_tunnel *t;
 	struct ip_tunnel *tunnel = netdev_priv(dev);
@@ -1137,7 +1144,7 @@ int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 		}
 	}
 
-	ip_tunnel_update(itn, t, dev, p, !tb[IFLA_MTU]);
+	ip_tunnel_update(itn, t, dev, p, !tb[IFLA_MTU], fwmark);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_changelink);

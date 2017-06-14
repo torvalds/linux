@@ -154,7 +154,7 @@ static struct fc_fcp_pkt *fc_fcp_pkt_alloc(struct fc_lport *lport, gfp_t gfp)
 		memset(fsp, 0, sizeof(*fsp));
 		fsp->lp = lport;
 		fsp->xfer_ddp = FC_XID_UNKNOWN;
-		atomic_set(&fsp->ref_cnt, 1);
+		refcount_set(&fsp->ref_cnt, 1);
 		init_timer(&fsp->timer);
 		fsp->timer.data = (unsigned long)fsp;
 		INIT_LIST_HEAD(&fsp->list);
@@ -175,7 +175,7 @@ static struct fc_fcp_pkt *fc_fcp_pkt_alloc(struct fc_lport *lport, gfp_t gfp)
  */
 static void fc_fcp_pkt_release(struct fc_fcp_pkt *fsp)
 {
-	if (atomic_dec_and_test(&fsp->ref_cnt)) {
+	if (refcount_dec_and_test(&fsp->ref_cnt)) {
 		struct fc_fcp_internal *si = fc_get_scsi_internal(fsp->lp);
 
 		mempool_free(fsp, si->scsi_pkt_pool);
@@ -188,7 +188,7 @@ static void fc_fcp_pkt_release(struct fc_fcp_pkt *fsp)
  */
 static void fc_fcp_pkt_hold(struct fc_fcp_pkt *fsp)
 {
-	atomic_inc(&fsp->ref_cnt);
+	refcount_inc(&fsp->ref_cnt);
 }
 
 /**
@@ -407,11 +407,12 @@ unlock:
  * can_queue. Eventually we will hit the point where we run
  * on all reserved structs.
  */
-static void fc_fcp_can_queue_ramp_down(struct fc_lport *lport)
+static bool fc_fcp_can_queue_ramp_down(struct fc_lport *lport)
 {
 	struct fc_fcp_internal *si = fc_get_scsi_internal(lport);
 	unsigned long flags;
 	int can_queue;
+	bool changed = false;
 
 	spin_lock_irqsave(lport->host->host_lock, flags);
 
@@ -427,9 +428,11 @@ static void fc_fcp_can_queue_ramp_down(struct fc_lport *lport)
 	if (!can_queue)
 		can_queue = 1;
 	lport->host->can_queue = can_queue;
+	changed = true;
 
 unlock:
 	spin_unlock_irqrestore(lport->host->host_lock, flags);
+	return changed;
 }
 
 /*
@@ -1896,11 +1899,11 @@ int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
 
 	if (!fc_fcp_lport_queue_ready(lport)) {
 		if (lport->qfull) {
-			fc_fcp_can_queue_ramp_down(lport);
-			shost_printk(KERN_ERR, lport->host,
-				     "libfc: queue full, "
-				     "reducing can_queue to %d.\n",
-				     lport->host->can_queue);
+			if (fc_fcp_can_queue_ramp_down(lport))
+				shost_printk(KERN_ERR, lport->host,
+					     "libfc: queue full, "
+					     "reducing can_queue to %d.\n",
+					     lport->host->can_queue);
 		}
 		rc = SCSI_MLQUEUE_HOST_BUSY;
 		goto out;

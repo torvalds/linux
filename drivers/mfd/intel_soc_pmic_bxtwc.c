@@ -20,7 +20,8 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/intel_bxtwc.h>
+#include <linux/mfd/intel_soc_pmic.h>
+#include <linux/mfd/intel_soc_pmic_bxtwc.h>
 #include <asm/intel_pmc_ipc.h>
 
 /* PMIC device registers */
@@ -237,15 +238,14 @@ static int regmap_ipc_byte_reg_read(void *context, unsigned int reg,
 	u8 ipc_out[4];
 	struct intel_soc_pmic *pmic = context;
 
+	if (!pmic)
+		return -EINVAL;
+
 	if (reg & REG_ADDR_MASK)
 		i2c_addr = (reg & REG_ADDR_MASK) >> REG_ADDR_SHIFT;
-	else {
+	else
 		i2c_addr = BXTWC_DEVICE1_ADDR;
-		if (!i2c_addr) {
-			dev_err(pmic->dev, "I2C address not set\n");
-			return -EINVAL;
-		}
-	}
+
 	reg &= REG_OFFSET_MASK;
 
 	ipc_in[0] = reg;
@@ -270,15 +270,14 @@ static int regmap_ipc_byte_reg_write(void *context, unsigned int reg,
 	u8 ipc_in[3];
 	struct intel_soc_pmic *pmic = context;
 
+	if (!pmic)
+		return -EINVAL;
+
 	if (reg & REG_ADDR_MASK)
 		i2c_addr = (reg & REG_ADDR_MASK) >> REG_ADDR_SHIFT;
-	else {
+	else
 		i2c_addr = BXTWC_DEVICE1_ADDR;
-		if (!i2c_addr) {
-			dev_err(pmic->dev, "I2C address not set\n");
-			return -EINVAL;
-		}
-	}
+
 	reg &= REG_OFFSET_MASK;
 
 	ipc_in[0] = reg;

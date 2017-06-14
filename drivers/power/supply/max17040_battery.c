@@ -277,9 +277,17 @@ static const struct i2c_device_id max17040_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max17040_id);
 
+static const struct of_device_id max17040_of_match[] = {
+	{ .compatible = "maxim,max17040" },
+	{ .compatible = "maxim,max77836-battery" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, max17040_of_match);
+
 static struct i2c_driver max17040_i2c_driver = {
 	.driver	= {
 		.name	= "max17040",
+		.of_match_table = max17040_of_match,
 		.pm	= MAX17040_PM_OPS,
 	},
 	.probe		= max17040_probe,

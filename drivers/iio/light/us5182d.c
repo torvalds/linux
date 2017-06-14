@@ -972,10 +972,17 @@ static const struct i2c_device_id us5182d_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, us5182d_id);
 
+static const struct of_device_id us5182d_of_match[] = {
+	{ .compatible = "upisemi,usd5182" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, us5182d_of_match);
+
 static struct i2c_driver us5182d_driver = {
 	.driver = {
 		.name = US5182D_DRV_NAME,
 		.pm = &us5182d_pm_ops,
+		.of_match_table = us5182d_of_match,
 		.acpi_match_table = ACPI_PTR(us5182d_acpi_match),
 	},
 	.probe = us5182d_probe,

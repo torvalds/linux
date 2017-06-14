@@ -8,18 +8,57 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/uuid.h>
 
 enum ovl_path_type {
 	__OVL_PATH_UPPER	= (1 << 0),
 	__OVL_PATH_MERGE	= (1 << 1),
+	__OVL_PATH_ORIGIN	= (1 << 2),
 };
 
 #define OVL_TYPE_UPPER(type)	((type) & __OVL_PATH_UPPER)
 #define OVL_TYPE_MERGE(type)	((type) & __OVL_PATH_MERGE)
+#define OVL_TYPE_ORIGIN(type)	((type) & __OVL_PATH_ORIGIN)
 
 #define OVL_XATTR_PREFIX XATTR_TRUSTED_PREFIX "overlay."
 #define OVL_XATTR_OPAQUE OVL_XATTR_PREFIX "opaque"
 #define OVL_XATTR_REDIRECT OVL_XATTR_PREFIX "redirect"
+#define OVL_XATTR_ORIGIN OVL_XATTR_PREFIX "origin"
+#define OVL_XATTR_IMPURE OVL_XATTR_PREFIX "impure"
+
+/*
+ * The tuple (fh,uuid) is a universal unique identifier for a copy up origin,
+ * where:
+ * origin.fh	- exported file handle of the lower file
+ * origin.uuid	- uuid of the lower filesystem
+ */
+#define OVL_FH_VERSION	0
+#define OVL_FH_MAGIC	0xfb
+
+/* CPU byte order required for fid decoding:  */
+#define OVL_FH_FLAG_BIG_ENDIAN	(1 << 0)
+#define OVL_FH_FLAG_ANY_ENDIAN	(1 << 1)
+
+#define OVL_FH_FLAG_ALL (OVL_FH_FLAG_BIG_ENDIAN | OVL_FH_FLAG_ANY_ENDIAN)
+
+#if defined(__LITTLE_ENDIAN)
+#define OVL_FH_FLAG_CPU_ENDIAN 0
+#elif defined(__BIG_ENDIAN)
+#define OVL_FH_FLAG_CPU_ENDIAN OVL_FH_FLAG_BIG_ENDIAN
+#else
+#error Endianness not defined
+#endif
+
+/* On-disk and in-memeory format for redirect by file handle */
+struct ovl_fh {
+	u8 version;	/* 0 */
+	u8 magic;	/* 0xfb */
+	u8 len;		/* size of this header + size of fid */
+	u8 flags;	/* OVL_FH_FLAG_* */
+	u8 type;	/* fid_type of fid */
+	uuid_be uuid;	/* uuid of filesystem */
+	u8 fid[0];	/* file identifier */
+} __packed;
 
 #define OVL_ISUPPER_MASK 1UL
 
@@ -151,6 +190,7 @@ int ovl_want_write(struct dentry *dentry);
 void ovl_drop_write(struct dentry *dentry);
 struct dentry *ovl_workdir(struct dentry *dentry);
 const struct cred *ovl_override_creds(struct super_block *sb);
+struct super_block *ovl_same_sb(struct super_block *sb);
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
 bool ovl_dentry_remote(struct dentry *dentry);
 bool ovl_dentry_weird(struct dentry *dentry);
@@ -164,10 +204,10 @@ struct dentry *ovl_dentry_real(struct dentry *dentry);
 struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry);
 void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache);
 bool ovl_dentry_is_opaque(struct dentry *dentry);
+bool ovl_dentry_is_impure(struct dentry *dentry);
 bool ovl_dentry_is_whiteout(struct dentry *dentry);
 void ovl_dentry_set_opaque(struct dentry *dentry);
 bool ovl_redirect_dir(struct super_block *sb);
-void ovl_clear_redirect_dir(struct super_block *sb);
 const char *ovl_dentry_get_redirect(struct dentry *dentry);
 void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect);
 void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry);
@@ -180,6 +220,17 @@ bool ovl_is_whiteout(struct dentry *dentry);
 struct file *ovl_path_open(struct path *path, int flags);
 int ovl_copy_up_start(struct dentry *dentry);
 void ovl_copy_up_end(struct dentry *dentry);
+bool ovl_check_dir_xattr(struct dentry *dentry, const char *name);
+int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
+		       const char *name, const void *value, size_t size,
+		       int xerr);
+int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry);
+
+static inline bool ovl_is_impuredir(struct dentry *dentry)
+{
+	return ovl_check_dir_xattr(dentry, OVL_XATTR_IMPURE);
+}
+
 
 /* namei.c */
 int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
@@ -197,6 +248,8 @@ void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 
 /* inode.c */
 int ovl_setattr(struct dentry *dentry, struct iattr *attr);
+int ovl_getattr(const struct path *path, struct kstat *stat,
+		u32 request_mask, unsigned int flags);
 int ovl_permission(struct inode *inode, int mask);
 int ovl_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);
@@ -222,7 +275,7 @@ static inline void ovl_copyattr(struct inode *from, struct inode *to)
 
 /* dir.c */
 extern const struct inode_operations ovl_dir_inode_operations;
-struct dentry *ovl_lookup_temp(struct dentry *workdir, struct dentry *dentry);
+struct dentry *ovl_lookup_temp(struct dentry *workdir);
 struct cattr {
 	dev_t rdev;
 	umode_t mode;

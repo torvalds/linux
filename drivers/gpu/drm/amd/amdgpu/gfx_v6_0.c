@@ -378,9 +378,7 @@ static int gfx_v6_0_init_microcode(struct amdgpu_device *adev)
 
 out:
 	if (err) {
-		printk(KERN_ERR
-		       "gfx6: Failed to load firmware \"%s\"\n",
-		       fw_name);
+		pr_err("gfx6: Failed to load firmware \"%s\"\n", fw_name);
 		release_firmware(adev->gfx.pfp_fw);
 		adev->gfx.pfp_fw = NULL;
 		release_firmware(adev->gfx.me_fw);
@@ -1579,6 +1577,11 @@ static void gfx_v6_0_setup_spi(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
+static void gfx_v6_0_config_init(struct amdgpu_device *adev)
+{
+	adev->gfx.config.double_offchip_lds_buf = 0;
+}
+
 static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config = 0;
@@ -1736,6 +1739,7 @@ static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
 	gfx_v6_0_setup_spi(adev);
 
 	gfx_v6_0_get_cu_info(adev);
+	gfx_v6_0_config_init(adev);
 
 	WREG32(mmCP_QUEUE_THRESHOLDS, ((0x16 << CP_QUEUE_THRESHOLDS__ROQ_IB1_START__SHIFT) |
 				       (0x2b << CP_QUEUE_THRESHOLDS__ROQ_IB2_START__SHIFT)));
@@ -2188,12 +2192,12 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
-static u32 gfx_v6_0_ring_get_rptr(struct amdgpu_ring *ring)
+static u64 gfx_v6_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	return ring->adev->wb.wb[ring->rptr_offs];
 }
 
-static u32 gfx_v6_0_ring_get_wptr(struct amdgpu_ring *ring)
+static u64 gfx_v6_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
@@ -2211,7 +2215,7 @@ static void gfx_v6_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	WREG32(mmCP_RB0_WPTR, ring->wptr);
+	WREG32(mmCP_RB0_WPTR, lower_32_bits(ring->wptr));
 	(void)RREG32(mmCP_RB0_WPTR);
 }
 
@@ -2220,10 +2224,10 @@ static void gfx_v6_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring == &adev->gfx.compute_ring[0]) {
-		WREG32(mmCP_RB1_WPTR, ring->wptr);
+		WREG32(mmCP_RB1_WPTR, lower_32_bits(ring->wptr));
 		(void)RREG32(mmCP_RB1_WPTR);
 	} else if (ring == &adev->gfx.compute_ring[1]) {
-		WREG32(mmCP_RB2_WPTR, ring->wptr);
+		WREG32(mmCP_RB2_WPTR, lower_32_bits(ring->wptr));
 		(void)RREG32(mmCP_RB2_WPTR);
 	} else {
 		BUG();
@@ -2433,7 +2437,7 @@ static void gfx_v6_0_rlc_fini(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->gfx.rlc.save_restore_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.save_restore_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.save_restore_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC sr bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.save_restore_obj);
@@ -2444,7 +2448,7 @@ static void gfx_v6_0_rlc_fini(struct amdgpu_device *adev)
 	}
 
 	if (adev->gfx.rlc.clear_state_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC c bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
@@ -2455,7 +2459,7 @@ static void gfx_v6_0_rlc_fini(struct amdgpu_device *adev)
 	}
 
 	if (adev->gfx.rlc.cp_table_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.cp_table_obj);
@@ -3238,15 +3242,15 @@ static int gfx_v6_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i, r;
 
-	r = amdgpu_irq_add_id(adev, 181, &adev->gfx.eop_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, 184, &adev->gfx.priv_reg_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 184, &adev->gfx.priv_reg_irq);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, 185, &adev->gfx.priv_inst_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 185, &adev->gfx.priv_inst_irq);
 	if (r)
 		return r;
 
@@ -3288,7 +3292,7 @@ static int gfx_v6_0_sw_init(void *handle)
 		ring->me = 1;
 		ring->pipe = i;
 		ring->queue = i;
-		sprintf(ring->name, "comp %d.%d.%d", ring->me, ring->pipe, ring->queue);
+		sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->gfx.eop_irq, irq_type);
@@ -3303,10 +3307,6 @@ static int gfx_v6_0_sw_fini(void *handle)
 {
 	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	amdgpu_bo_unref(&adev->gds.oa_gfx_bo);
-	amdgpu_bo_unref(&adev->gds.gws_gfx_bo);
-	amdgpu_bo_unref(&adev->gds.gds_gfx_bo);
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
@@ -3627,6 +3627,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.type = AMDGPU_RING_TYPE_GFX,
 	.align_mask = 0xff,
 	.nop = 0x80000000,
+	.support_64bit_ptrs = false,
 	.get_rptr = gfx_v6_0_ring_get_rptr,
 	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_gfx,

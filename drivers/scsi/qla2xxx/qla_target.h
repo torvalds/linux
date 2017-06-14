@@ -378,6 +378,14 @@ static inline void adjust_corrupted_atio(struct atio_from_isp *atio)
 	atio->u.isp24.fcp_cmnd.add_cdb_len = 0;
 }
 
+static inline int get_datalen_for_atio(struct atio_from_isp *atio)
+{
+	int len = atio->u.isp24.fcp_cmnd.add_cdb_len;
+
+	return (be32_to_cpu(get_unaligned((uint32_t *)
+	    &atio->u.isp24.fcp_cmnd.add_cdb[len * 4])));
+}
+
 #define CTIO_TYPE7 0x12 /* Continue target I/O entry (for 24xx) */
 
 /*
@@ -667,7 +675,6 @@ struct qla_tgt_func_tmpl {
 	int (*handle_cmd)(struct scsi_qla_host *, struct qla_tgt_cmd *,
 			unsigned char *, uint32_t, int, int, int);
 	void (*handle_data)(struct qla_tgt_cmd *);
-	void (*handle_dif_err)(struct qla_tgt_cmd *);
 	int (*handle_tmr)(struct qla_tgt_mgmt_cmd *, uint32_t, uint16_t,
 			uint32_t);
 	void (*free_cmd)(struct qla_tgt_cmd *);
@@ -684,6 +691,9 @@ struct qla_tgt_func_tmpl {
 	void (*clear_nacl_from_fcport_map)(struct fc_port *);
 	void (*put_sess)(struct fc_port *);
 	void (*shutdown_sess)(struct fc_port *);
+	int (*get_dif_tags)(struct qla_tgt_cmd *cmd, uint16_t *pfw_prot_opts);
+	int (*chk_dif_tags)(uint32_t tag);
+	void (*add_target)(struct scsi_qla_host *);
 };
 
 int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
@@ -720,8 +730,8 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define QLA_TGT_ABORT_ALL               0xFFFE
 #define QLA_TGT_NEXUS_LOSS_SESS         0xFFFD
 #define QLA_TGT_NEXUS_LOSS              0xFFFC
-#define QLA_TGT_ABTS					0xFFFB
-#define QLA_TGT_2G_ABORT_TASK			0xFFFA
+#define QLA_TGT_ABTS			0xFFFB
+#define QLA_TGT_2G_ABORT_TASK		0xFFFA
 
 /* Notify Acknowledge flags */
 #define NOTIFY_ACK_RES_COUNT        BIT_8
@@ -845,6 +855,7 @@ enum trace_flags {
 	TRC_CMD_FREE = BIT_17,
 	TRC_DATA_IN = BIT_18,
 	TRC_ABORT = BIT_19,
+	TRC_DIF_ERR = BIT_20,
 };
 
 struct qla_tgt_cmd {
@@ -862,7 +873,6 @@ struct qla_tgt_cmd {
 	unsigned int sg_mapped:1;
 	unsigned int free_sg:1;
 	unsigned int write_data_transferred:1;
-	unsigned int ctx_dsd_alloced:1;
 	unsigned int q_full:1;
 	unsigned int term_exchg:1;
 	unsigned int cmd_sent_to_fw:1;
@@ -885,11 +895,25 @@ struct qla_tgt_cmd {
 	struct list_head cmd_list;
 
 	struct atio_from_isp atio;
-	/* t10dif */
+
+	uint8_t ctx_dsd_alloced;
+
+	/* T10-DIF */
+#define DIF_ERR_NONE 0
+#define DIF_ERR_GRD 1
+#define DIF_ERR_REF 2
+#define DIF_ERR_APP 3
+	int8_t dif_err_code;
 	struct scatterlist *prot_sg;
 	uint32_t prot_sg_cnt;
-	uint32_t blk_sz;
+	uint32_t blk_sz, num_blks;
+	uint8_t scsi_status, sense_key, asc, ascq;
+
 	struct crc_context *ctx;
+	uint8_t		*cdb;
+	uint64_t	lba;
+	uint16_t	a_guard, e_guard, a_app_tag, e_app_tag;
+	uint32_t	a_ref_tag, e_ref_tag;
 
 	uint64_t jiffies_at_alloc;
 	uint64_t jiffies_at_free;
@@ -1052,5 +1076,8 @@ extern void qlt_83xx_iospace_config(struct qla_hw_data *);
 extern int qlt_free_qfull_cmds(struct scsi_qla_host *);
 extern void qlt_logo_completion_handler(fc_port_t *, int);
 extern void qlt_do_generation_tick(struct scsi_qla_host *, int *);
+
+void qlt_send_resp_ctio(scsi_qla_host_t *, struct qla_tgt_cmd *, uint8_t,
+    uint8_t, uint8_t, uint8_t);
 
 #endif /* __QLA_TARGET_H */

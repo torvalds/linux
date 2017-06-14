@@ -333,14 +333,17 @@ static ssize_t acpi_table_show(struct file *filp, struct kobject *kobj,
 	    container_of(bin_attr, struct acpi_table_attr, attr);
 	struct acpi_table_header *table_header = NULL;
 	acpi_status status;
+	ssize_t rc;
 
 	status = acpi_get_table(table_attr->name, table_attr->instance,
 				&table_header);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	return memory_read_from_buffer(buf, count, &offset,
-				       table_header, table_header->length);
+	rc = memory_read_from_buffer(buf, count, &offset, table_header,
+			table_header->length);
+	acpi_put_table(table_header);
+	return rc;
 }
 
 static int acpi_table_attr_init(struct kobject *tables_obj,
@@ -921,7 +924,7 @@ void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
 static ssize_t force_remove_show(struct kobject *kobj,
 				 struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", !!acpi_force_hot_remove);
+	return sprintf(buf, "%d\n", 0);
 }
 
 static ssize_t force_remove_store(struct kobject *kobj,
@@ -935,9 +938,10 @@ static ssize_t force_remove_store(struct kobject *kobj,
 	if (ret < 0)
 		return ret;
 
-	lock_device_hotplug();
-	acpi_force_hot_remove = val;
-	unlock_device_hotplug();
+	if (val) {
+		pr_err("Enabling force_remove is not supported anymore. Please report to linux-acpi@vger.kernel.org if you depend on this functionality\n");
+		return -EINVAL;
+	}
 	return size;
 }
 

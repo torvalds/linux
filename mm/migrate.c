@@ -184,9 +184,9 @@ void putback_movable_pages(struct list_head *l)
 			unlock_page(page);
 			put_page(page);
 		} else {
-			putback_lru_page(page);
 			dec_node_page_state(page, NR_ISOLATED_ANON +
 					page_is_file_cache(page));
+			putback_lru_page(page);
 		}
 	}
 }
@@ -194,7 +194,7 @@ void putback_movable_pages(struct list_head *l)
 /*
  * Restore a potential migration pte to a working pte entry
  */
-static int remove_migration_pte(struct page *page, struct vm_area_struct *vma,
+static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 				 unsigned long addr, void *old)
 {
 	struct page_vma_mapped_walk pvmw = {
@@ -209,8 +209,11 @@ static int remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 
 	VM_BUG_ON_PAGE(PageTail(page), page);
 	while (page_vma_mapped_walk(&pvmw)) {
-		new = page - pvmw.page->index +
-			linear_page_index(vma, pvmw.address);
+		if (PageKsm(page))
+			new = page;
+		else
+			new = page - pvmw.page->index +
+				linear_page_index(vma, pvmw.address);
 
 		get_page(new);
 		pte = pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
@@ -250,7 +253,7 @@ static int remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 		update_mmu_cache(vma, pvmw.address, pvmw.pte);
 	}
 
-	return SWAP_AGAIN;
+	return true;
 }
 
 /*
@@ -1719,9 +1722,6 @@ static bool migrate_balanced_pgdat(struct pglist_data *pgdat,
 {
 	int z;
 
-	if (!pgdat_reclaimable(pgdat))
-		return false;
-
 	for (z = pgdat->nr_zones - 1; z >= 0; z--) {
 		struct zone *zone = pgdat->node_zones + z;
 
@@ -1944,7 +1944,8 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 
 	/* Prepare a page as a migration target */
 	__SetPageLocked(new_page);
-	__SetPageSwapBacked(new_page);
+	if (PageSwapBacked(page))
+		__SetPageSwapBacked(new_page);
 
 	/* anon mapping, we can simply copy page->mapping to the new page: */
 	new_page->mapping = page->mapping;

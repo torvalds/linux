@@ -75,16 +75,33 @@ static const struct {
 	QEDE_TQSTAT(stopped_cnt),
 };
 
-#define QEDE_STAT_OFFSET(stat_name) (offsetof(struct qede_stats, stat_name))
-#define QEDE_STAT_STRING(stat_name) (#stat_name)
-#define _QEDE_STAT(stat_name, pf_only) \
-	 {QEDE_STAT_OFFSET(stat_name), QEDE_STAT_STRING(stat_name), pf_only}
-#define QEDE_PF_STAT(stat_name)	_QEDE_STAT(stat_name, true)
-#define QEDE_STAT(stat_name)	_QEDE_STAT(stat_name, false)
+#define QEDE_STAT_OFFSET(stat_name, type, base) \
+	(offsetof(type, stat_name) + (base))
+#define QEDE_STAT_STRING(stat_name)	(#stat_name)
+#define _QEDE_STAT(stat_name, type, base, attr) \
+	{QEDE_STAT_OFFSET(stat_name, type, base), \
+	 QEDE_STAT_STRING(stat_name), \
+	 attr}
+#define QEDE_STAT(stat_name) \
+	_QEDE_STAT(stat_name, struct qede_stats_common, 0, 0x0)
+#define QEDE_PF_STAT(stat_name) \
+	_QEDE_STAT(stat_name, struct qede_stats_common, 0, \
+		   BIT(QEDE_STAT_PF_ONLY))
+#define QEDE_PF_BB_STAT(stat_name) \
+	_QEDE_STAT(stat_name, struct qede_stats_bb, \
+		   offsetof(struct qede_stats, bb), \
+		   BIT(QEDE_STAT_PF_ONLY) | BIT(QEDE_STAT_BB_ONLY))
+#define QEDE_PF_AH_STAT(stat_name) \
+	_QEDE_STAT(stat_name, struct qede_stats_ah, \
+		   offsetof(struct qede_stats, ah), \
+		   BIT(QEDE_STAT_PF_ONLY) | BIT(QEDE_STAT_AH_ONLY))
 static const struct {
 	u64 offset;
 	char string[ETH_GSTRING_LEN];
-	bool pf_only;
+	unsigned long attr;
+#define QEDE_STAT_PF_ONLY	0
+#define QEDE_STAT_BB_ONLY	1
+#define QEDE_STAT_AH_ONLY	2
 } qede_stats_arr[] = {
 	QEDE_STAT(rx_ucast_bytes),
 	QEDE_STAT(rx_mcast_bytes),
@@ -106,22 +123,23 @@ static const struct {
 	QEDE_PF_STAT(rx_256_to_511_byte_packets),
 	QEDE_PF_STAT(rx_512_to_1023_byte_packets),
 	QEDE_PF_STAT(rx_1024_to_1518_byte_packets),
-	QEDE_PF_STAT(rx_1519_to_1522_byte_packets),
-	QEDE_PF_STAT(rx_1519_to_2047_byte_packets),
-	QEDE_PF_STAT(rx_2048_to_4095_byte_packets),
-	QEDE_PF_STAT(rx_4096_to_9216_byte_packets),
-	QEDE_PF_STAT(rx_9217_to_16383_byte_packets),
+	QEDE_PF_BB_STAT(rx_1519_to_1522_byte_packets),
+	QEDE_PF_BB_STAT(rx_1519_to_2047_byte_packets),
+	QEDE_PF_BB_STAT(rx_2048_to_4095_byte_packets),
+	QEDE_PF_BB_STAT(rx_4096_to_9216_byte_packets),
+	QEDE_PF_BB_STAT(rx_9217_to_16383_byte_packets),
+	QEDE_PF_AH_STAT(rx_1519_to_max_byte_packets),
 	QEDE_PF_STAT(tx_64_byte_packets),
 	QEDE_PF_STAT(tx_65_to_127_byte_packets),
 	QEDE_PF_STAT(tx_128_to_255_byte_packets),
 	QEDE_PF_STAT(tx_256_to_511_byte_packets),
 	QEDE_PF_STAT(tx_512_to_1023_byte_packets),
 	QEDE_PF_STAT(tx_1024_to_1518_byte_packets),
-	QEDE_PF_STAT(tx_1519_to_2047_byte_packets),
-	QEDE_PF_STAT(tx_2048_to_4095_byte_packets),
-	QEDE_PF_STAT(tx_4096_to_9216_byte_packets),
-	QEDE_PF_STAT(tx_9217_to_16383_byte_packets),
-
+	QEDE_PF_BB_STAT(tx_1519_to_2047_byte_packets),
+	QEDE_PF_BB_STAT(tx_2048_to_4095_byte_packets),
+	QEDE_PF_BB_STAT(tx_4096_to_9216_byte_packets),
+	QEDE_PF_BB_STAT(tx_9217_to_16383_byte_packets),
+	QEDE_PF_AH_STAT(tx_1519_to_max_byte_packets),
 	QEDE_PF_STAT(rx_mac_crtl_frames),
 	QEDE_PF_STAT(tx_mac_ctrl_frames),
 	QEDE_PF_STAT(rx_pause_frames),
@@ -136,8 +154,8 @@ static const struct {
 	QEDE_PF_STAT(rx_jabbers),
 	QEDE_PF_STAT(rx_undersize_packets),
 	QEDE_PF_STAT(rx_fragments),
-	QEDE_PF_STAT(tx_lpi_entry_count),
-	QEDE_PF_STAT(tx_total_collisions),
+	QEDE_PF_BB_STAT(tx_lpi_entry_count),
+	QEDE_PF_BB_STAT(tx_total_collisions),
 	QEDE_PF_STAT(brb_truncates),
 	QEDE_PF_STAT(brb_discards),
 	QEDE_STAT(no_buff_discards),
@@ -155,6 +173,12 @@ static const struct {
 };
 
 #define QEDE_NUM_STATS	ARRAY_SIZE(qede_stats_arr)
+#define QEDE_STAT_IS_PF_ONLY(i) \
+	test_bit(QEDE_STAT_PF_ONLY, &qede_stats_arr[i].attr)
+#define QEDE_STAT_IS_BB_ONLY(i) \
+	test_bit(QEDE_STAT_BB_ONLY, &qede_stats_arr[i].attr)
+#define QEDE_STAT_IS_AH_ONLY(i) \
+	test_bit(QEDE_STAT_AH_ONLY, &qede_stats_arr[i].attr)
 
 enum {
 	QEDE_PRI_FLAG_CMT,
@@ -213,6 +237,13 @@ static void qede_get_strings_stats_rxq(struct qede_dev *edev,
 	}
 }
 
+static bool qede_is_irrelevant_stat(struct qede_dev *edev, int stat_index)
+{
+	return (IS_VF(edev) && QEDE_STAT_IS_PF_ONLY(stat_index)) ||
+	       (QEDE_IS_BB(edev) && QEDE_STAT_IS_AH_ONLY(stat_index)) ||
+	       (QEDE_IS_AH(edev) && QEDE_STAT_IS_BB_ONLY(stat_index));
+}
+
 static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 {
 	struct qede_fastpath *fp;
@@ -234,7 +265,7 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 
 	/* Account for non-queue statistics */
 	for (i = 0; i < QEDE_NUM_STATS; i++) {
-		if (IS_VF(edev) && qede_stats_arr[i].pf_only)
+		if (qede_is_irrelevant_stat(edev, i))
 			continue;
 		strcpy(buf, qede_stats_arr[i].string);
 		buf += ETH_GSTRING_LEN;
@@ -309,7 +340,7 @@ static void qede_get_ethtool_stats(struct net_device *dev,
 	}
 
 	for (i = 0; i < QEDE_NUM_STATS; i++) {
-		if (IS_VF(edev) && qede_stats_arr[i].pf_only)
+		if (qede_is_irrelevant_stat(edev, i))
 			continue;
 		*buf = *((u64 *)(((void *)&edev->stats) +
 				 qede_stats_arr[i].offset));
@@ -323,17 +354,13 @@ static void qede_get_ethtool_stats(struct net_device *dev,
 static int qede_get_sset_count(struct net_device *dev, int stringset)
 {
 	struct qede_dev *edev = netdev_priv(dev);
-	int num_stats = QEDE_NUM_STATS;
+	int num_stats = QEDE_NUM_STATS, i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		if (IS_VF(edev)) {
-			int i;
-
-			for (i = 0; i < QEDE_NUM_STATS; i++)
-				if (qede_stats_arr[i].pf_only)
-					num_stats--;
-		}
+		for (i = 0; i < QEDE_NUM_STATS; i++)
+			if (qede_is_irrelevant_stat(edev, i))
+				num_stats--;
 
 		/* Account for the Regular Tx statistics */
 		num_stats += QEDE_TSS_COUNT(edev) * QEDE_NUM_TQSTATS;
@@ -466,6 +493,11 @@ static int qede_set_link_ksettings(struct net_device *dev,
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS;
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_AUTONEG;
 	if (base->autoneg == AUTONEG_ENABLE) {
+		if (!(current_link.supported_caps & QED_LM_Autoneg_BIT)) {
+			DP_INFO(edev, "Auto negotiation is not supported\n");
+			return -EOPNOTSUPP;
+		}
+
 		params.autoneg = true;
 		params.forced_speed = 0;
 		QEDE_ETHTOOL_TO_DRV_CAPS(params.adv_speeds, cmd, advertising)
@@ -679,8 +711,7 @@ static int qede_set_coalesce(struct net_device *dev,
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	int i, rc = 0;
-	u16 rxc, txc;
-	u8 sb_id;
+	u16 rxc, txc, sb_id;
 
 	if (!netif_running(dev)) {
 		DP_INFO(edev, "Interface is down\n");
@@ -702,7 +733,7 @@ static int qede_set_coalesce(struct net_device *dev,
 	for_each_queue(i) {
 		sb_id = edev->fp_array[i].sb_info->igu_sb_id;
 		rc = edev->ops->common->set_coalesce(edev->cdev, rxc, txc,
-						     (u8)i, sb_id);
+						     (u16)i, sb_id);
 		if (rc) {
 			DP_INFO(edev, "Set coalesce error, rc = %d\n", rc);
 			return rc;

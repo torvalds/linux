@@ -232,7 +232,7 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 	if (ret < 0)
 		goto error_ret;
 
-	cfg = ret & ~((0x03 << 5) | (0x1 << 7));
+	cfg = ret & ~((0x03 << 5) | BIT(7));
 
 	switch (type) {
 	case IIO_EV_TYPE_MAG_ADAPTIVE:

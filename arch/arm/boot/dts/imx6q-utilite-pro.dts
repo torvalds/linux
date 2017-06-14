@@ -101,9 +101,11 @@
 
 	hdmi-connector {
 		compatible = "hdmi-connector";
-
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hpd>;
 		type = "a";
 		ddc-i2c-bus = <&i2c_dvi_ddc>;
+		hpd-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 
 		port {
 			hdmi_connector_in: endpoint {
@@ -206,6 +208,12 @@
 	pinctrl_gpio_keys: gpio_keysgrp {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x1b0b0
+		>;
+	};
+
+	pinctrl_hpd: hpdgrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_4__GPIO1_IO04 0x1b0b0
 		>;
 	};
 

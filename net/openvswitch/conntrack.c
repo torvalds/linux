@@ -66,7 +66,9 @@ struct ovs_conntrack_info {
 	u8 commit : 1;
 	u8 nat : 3;                 /* enum ovs_ct_nat */
 	u8 force : 1;
+	u8 have_eventmask : 1;
 	u16 family;
+	u32 eventmask;              /* Mask of 1 << IPCT_*. */
 	struct md_mark mark;
 	struct md_labels labels;
 #ifdef CONFIG_NF_NAT_NEEDED
@@ -373,7 +375,7 @@ static int ovs_ct_init_labels(struct nf_conn *ct, struct sw_flow_key *key,
 	}
 
 	/* Labels are included in the IPCTNL_MSG_CT_NEW event only if the
-	 * IPCT_LABEL bit it set in the event cache.
+	 * IPCT_LABEL bit is set in the event cache.
 	 */
 	nf_conntrack_event_cache(IPCT_LABEL, ct);
 
@@ -514,10 +516,38 @@ ovs_ct_expect_find(struct net *net, const struct nf_conntrack_zone *zone,
 		   u16 proto, const struct sk_buff *skb)
 {
 	struct nf_conntrack_tuple tuple;
+	struct nf_conntrack_expect *exp;
 
 	if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb), proto, net, &tuple))
 		return NULL;
-	return __nf_ct_expect_find(net, zone, &tuple);
+
+	exp = __nf_ct_expect_find(net, zone, &tuple);
+	if (exp) {
+		struct nf_conntrack_tuple_hash *h;
+
+		/* Delete existing conntrack entry, if it clashes with the
+		 * expectation.  This can happen since conntrack ALGs do not
+		 * check for clashes between (new) expectations and existing
+		 * conntrack entries.  nf_conntrack_in() will check the
+		 * expectations only if a conntrack entry can not be found,
+		 * which can lead to OVS finding the expectation (here) in the
+		 * init direction, but which will not be removed by the
+		 * nf_conntrack_in() call, if a matching conntrack entry is
+		 * found instead.  In this case all init direction packets
+		 * would be reported as new related packets, while reply
+		 * direction packets would be reported as un-related
+		 * established packets.
+		 */
+		h = nf_conntrack_find_get(net, zone, &tuple);
+		if (h) {
+			struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
+
+			nf_ct_delete(ct, 0, 0);
+			nf_conntrack_put(&ct->ct_general);
+		}
+	}
+
+	return exp;
 }
 
 /* This replicates logic from nf_conntrack_core.c that is not exported. */
@@ -643,8 +673,8 @@ static bool skb_nfct_cached(struct net *net,
 		 */
 		if (nf_ct_is_confirmed(ct))
 			nf_ct_delete(ct, 0, 0);
-		else
-			nf_conntrack_put(&ct->ct_general);
+
+		nf_conntrack_put(&ct->ct_general);
 		nf_ct_set(skb, NULL, 0);
 		return false;
 	}
@@ -794,11 +824,6 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 {
 	enum nf_nat_manip_type maniptype;
 	int err;
-
-	if (nf_ct_is_untracked(ct)) {
-		/* A NAT action may only be performed on tracked packets. */
-		return NF_ACCEPT;
-	}
 
 	/* Add NAT extension if not confirmed yet. */
 	if (!nf_ct_is_confirmed(ct) && !nf_ct_nat_ext_add(ct))
@@ -1007,6 +1032,20 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 	if (!ct)
 		return 0;
 
+	/* Set the conntrack event mask if given.  NEW and DELETE events have
+	 * their own groups, but the NFNLGRP_CONNTRACK_UPDATE group listener
+	 * typically would receive many kinds of updates.  Setting the event
+	 * mask allows those events to be filtered.  The set event mask will
+	 * remain in effect for the lifetime of the connection unless changed
+	 * by a further CT action with both the commit flag and the eventmask
+	 * option. */
+	if (info->have_eventmask) {
+		struct nf_conntrack_ecache *cache = nf_ct_ecache_find(ct);
+
+		if (cache)
+			cache->ctmask = info->eventmask;
+	}
+
 	/* Apply changes before confirming the connection so that the initial
 	 * conntrack NEW netlink event carries the values given in the CT
 	 * action.
@@ -1084,7 +1123,7 @@ static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
 
 	help = nf_ct_helper_ext_add(info->ct, helper, GFP_KERNEL);
 	if (!help) {
-		module_put(helper->me);
+		nf_conntrack_helper_put(helper);
 		return -ENOMEM;
 	}
 
@@ -1238,6 +1277,8 @@ static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 	/* NAT length is checked when parsing the nested attributes. */
 	[OVS_CT_ATTR_NAT]	= { .minlen = 0, .maxlen = INT_MAX },
 #endif
+	[OVS_CT_ATTR_EVENTMASK]	= { .minlen = sizeof(u32),
+				    .maxlen = sizeof(u32) },
 };
 
 static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
@@ -1316,6 +1357,11 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 			break;
 		}
 #endif
+		case OVS_CT_ATTR_EVENTMASK:
+			info->have_eventmask = true;
+			info->eventmask = nla_get_u32(a);
+			break;
+
 		default:
 			OVS_NLERR(log, "Unknown conntrack attr (%d)",
 				  type);
@@ -1515,6 +1561,10 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 				   ct_info->helper->name))
 			return -EMSGSIZE;
 	}
+	if (ct_info->have_eventmask &&
+	    nla_put_u32(skb, OVS_CT_ATTR_EVENTMASK, ct_info->eventmask))
+		return -EMSGSIZE;
+
 #ifdef CONFIG_NF_NAT_NEEDED
 	if (ct_info->nat && !ovs_ct_nat_to_attr(ct_info, skb))
 		return -EMSGSIZE;
@@ -1534,7 +1584,7 @@ void ovs_ct_free_action(const struct nlattr *a)
 static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 {
 	if (ct_info->helper)
-		module_put(ct_info->helper->me);
+		nf_conntrack_helper_put(ct_info->helper);
 	if (ct_info->ct)
 		nf_ct_tmpl_free(ct_info->ct);
 }

@@ -39,6 +39,7 @@
 
 /* Bits in the SLB VSID word */
 #define SLB_VSID_SHIFT		12
+#define SLB_VSID_SHIFT_256M	SLB_VSID_SHIFT
 #define SLB_VSID_SHIFT_1T	24
 #define SLB_VSID_SSIZE_SHIFT	62
 #define SLB_VSID_B		ASM_CONST(0xc000000000000000)
@@ -408,7 +409,7 @@ static inline unsigned long hpt_vpn(unsigned long ea,
 static inline unsigned long hpt_hash(unsigned long vpn,
 				     unsigned int shift, int ssize)
 {
-	int mask;
+	unsigned long mask;
 	unsigned long hash, vsid;
 
 	/* VPN_SHIFT can be atmost 12 */
@@ -491,13 +492,14 @@ extern void slb_set_size(u16 size);
  * We first generate a 37-bit "proto-VSID". Proto-VSIDs are generated
  * from mmu context id and effective segment id of the address.
  *
- * For user processes max context id is limited to ((1ul << 19) - 5)
- * for kernel space, we use the top 4 context ids to map address as below
+ * For user processes max context id is limited to MAX_USER_CONTEXT.
+
+ * For kernel space, we use context ids 1-4 to map addresses as below:
  * NOTE: each context only support 64TB now.
- * 0x7fffc -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
- * 0x7fffd -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
- * 0x7fffe -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
- * 0x7ffff -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
+ * 0x00001 -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
+ * 0x00002 -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
+ * 0x00003 -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
+ * 0x00004 -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
  *
  * The proto-VSIDs are then scrambled into real VSIDs with the
  * multiplicative hash:
@@ -511,20 +513,28 @@ extern void slb_set_size(u16 size);
  * robust scattering in the hash table (at least based on some initial
  * results).
  *
- * We also consider VSID 0 special. We use VSID 0 for slb entries mapping
- * bad address. This enables us to consolidate bad address handling in
- * hash_page.
+ * We use VSID 0 to indicate an invalid VSID. The means we can't use context id
+ * 0, because a context id of 0 and an EA of 0 gives a proto-VSID of 0, which
+ * will produce a VSID of 0.
  *
  * We also need to avoid the last segment of the last context, because that
  * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
- * because of the modulo operation in vsid scramble. But the vmemmap
- * (which is what uses region 0xf) will never be close to 64TB in size
- * (it's 56 bytes per page of system memory).
+ * because of the modulo operation in vsid scramble.
  */
 
+/*
+ * Max Va bits we support as of now is 68 bits. We want 19 bit
+ * context ID.
+ * Restrictions:
+ * GPU has restrictions of not able to access beyond 128TB
+ * (47 bit effective address). We also cannot do more than 20bit PID.
+ * For p4 and p5 which can only do 65 bit VA, we restrict our CONTEXT_BITS
+ * to 16 bits (ie, we can only have 2^16 pids at the same time).
+ */
+#define VA_BITS			68
 #define CONTEXT_BITS		19
-#define ESID_BITS		18
-#define ESID_BITS_1T		6
+#define ESID_BITS		(VA_BITS - (SID_SHIFT + CONTEXT_BITS))
+#define ESID_BITS_1T		(VA_BITS - (SID_SHIFT_1T + CONTEXT_BITS))
 
 #define ESID_BITS_MASK		((1 << ESID_BITS) - 1)
 #define ESID_BITS_1T_MASK	((1 << ESID_BITS_1T) - 1)
@@ -532,63 +542,70 @@ extern void slb_set_size(u16 size);
 /*
  * 256MB segment
  * The proto-VSID space has 2^(CONTEX_BITS + ESID_BITS) - 1 segments
- * available for user + kernel mapping. The top 4 contexts are used for
- * kernel mapping. Each segment contains 2^28 bytes. Each
- * context maps 2^46 bytes (64TB) so we can support 2^19-1 contexts
- * (19 == 37 + 28 - 46).
+ * available for user + kernel mapping. VSID 0 is reserved as invalid, contexts
+ * 1-4 are used for kernel mapping. Each segment contains 2^28 bytes. Each
+ * context maps 2^49 bytes (512TB).
+ *
+ * We also need to avoid the last segment of the last context, because that
+ * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
+ * because of the modulo operation in vsid scramble.
  */
-#define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 5)
+#define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 2)
+#define MIN_USER_CONTEXT	(5)
+
+/* Would be nice to use KERNEL_REGION_ID here */
+#define KERNEL_REGION_CONTEXT_OFFSET	(0xc - 1)
+
+/*
+ * For platforms that support on 65bit VA we limit the context bits
+ */
+#define MAX_USER_CONTEXT_65BIT_VA ((ASM_CONST(1) << (65 - (SID_SHIFT + ESID_BITS))) - 2)
 
 /*
  * This should be computed such that protovosid * vsid_mulitplier
- * doesn't overflow 64 bits. It should also be co-prime to vsid_modulus
+ * doesn't overflow 64 bits. The vsid_mutliplier should also be
+ * co-prime to vsid_modulus. We also need to make sure that number
+ * of bits in multiplied result (dividend) is less than twice the number of
+ * protovsid bits for our modulus optmization to work.
+ *
+ * The below table shows the current values used.
+ * |-------+------------+----------------------+------------+-------------------|
+ * |       | Prime Bits | proto VSID_BITS_65VA | Total Bits | 2* prot VSID_BITS |
+ * |-------+------------+----------------------+------------+-------------------|
+ * | 1T    |         24 |                   25 |         49 |                50 |
+ * |-------+------------+----------------------+------------+-------------------|
+ * | 256MB |         24 |                   37 |         61 |                74 |
+ * |-------+------------+----------------------+------------+-------------------|
+ *
+ * |-------+------------+----------------------+------------+--------------------|
+ * |       | Prime Bits | proto VSID_BITS_68VA | Total Bits | 2* proto VSID_BITS |
+ * |-------+------------+----------------------+------------+--------------------|
+ * | 1T    |         24 |                   28 |         52 |                 56 |
+ * |-------+------------+----------------------+------------+--------------------|
+ * | 256MB |         24 |                   40 |         64 |                 80 |
+ * |-------+------------+----------------------+------------+--------------------|
+ *
  */
 #define VSID_MULTIPLIER_256M	ASM_CONST(12538073)	/* 24-bit prime */
-#define VSID_BITS_256M		(CONTEXT_BITS + ESID_BITS)
-#define VSID_MODULUS_256M	((1UL<<VSID_BITS_256M)-1)
+#define VSID_BITS_256M		(VA_BITS - SID_SHIFT)
+#define VSID_BITS_65_256M	(65 - SID_SHIFT)
+/*
+ * Modular multiplicative inverse of VSID_MULTIPLIER under modulo VSID_MODULUS
+ */
+#define VSID_MULINV_256M	ASM_CONST(665548017062)
 
 #define VSID_MULTIPLIER_1T	ASM_CONST(12538073)	/* 24-bit prime */
-#define VSID_BITS_1T		(CONTEXT_BITS + ESID_BITS_1T)
-#define VSID_MODULUS_1T		((1UL<<VSID_BITS_1T)-1)
+#define VSID_BITS_1T		(VA_BITS - SID_SHIFT_1T)
+#define VSID_BITS_65_1T		(65 - SID_SHIFT_1T)
+#define VSID_MULINV_1T		ASM_CONST(209034062)
 
-
+/* 1TB VSID reserved for VRMA */
+#define VRMA_VSID	0x1ffffffUL
 #define USER_VSID_RANGE	(1UL << (ESID_BITS + SID_SHIFT))
 
-/*
- * This macro generates asm code to compute the VSID scramble
- * function.  Used in slb_allocate() and do_stab_bolted.  The function
- * computed is: (protovsid*VSID_MULTIPLIER) % VSID_MODULUS
- *
- *	rt = register containing the proto-VSID and into which the
- *		VSID will be stored
- *	rx = scratch register (clobbered)
- *
- * 	- rt and rx must be different registers
- * 	- The answer will end up in the low VSID_BITS bits of rt.  The higher
- * 	  bits may contain other garbage, so you may need to mask the
- * 	  result.
- */
-#define ASM_VSID_SCRAMBLE(rt, rx, size)					\
-	lis	rx,VSID_MULTIPLIER_##size@h;				\
-	ori	rx,rx,VSID_MULTIPLIER_##size@l;				\
-	mulld	rt,rt,rx;		/* rt = rt * MULTIPLIER */	\
-									\
-	srdi	rx,rt,VSID_BITS_##size;					\
-	clrldi	rt,rt,(64-VSID_BITS_##size);				\
-	add	rt,rt,rx;		/* add high and low bits */	\
-	/* NOTE: explanation based on VSID_BITS_##size = 36		\
-	 * Now, r3 == VSID (mod 2^36-1), and lies between 0 and		\
-	 * 2^36-1+2^28-1.  That in particular means that if r3 >=	\
-	 * 2^36-1, then r3+1 has the 2^36 bit set.  So, if r3+1 has	\
-	 * the bit clear, r3 already has the answer we want, if it	\
-	 * doesn't, the answer is the low 36 bits of r3+1.  So in all	\
-	 * cases the answer is the low 36 bits of (r3 + ((r3+1) >> 36))*/\
-	addi	rx,rt,1;						\
-	srdi	rx,rx,VSID_BITS_##size;	/* extract 2^VSID_BITS bit */	\
-	add	rt,rt,rx
-
 /* 4 bits per slice and we have one slice per 1TB */
-#define SLICE_ARRAY_SIZE  (H_PGTABLE_RANGE >> 41)
+#define SLICE_ARRAY_SIZE	(H_PGTABLE_RANGE >> 41)
+#define TASK_SLICE_ARRAY_SZ(x)	((x)->context.addr_limit >> 41)
 
 #ifndef __ASSEMBLY__
 
@@ -634,7 +651,7 @@ static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
 #define vsid_scramble(protovsid, size) \
 	((((protovsid) * VSID_MULTIPLIER_##size) % VSID_MODULUS_##size))
 
-#else /* 1 */
+/* simplified form avoiding mod operation */
 #define vsid_scramble(protovsid, size) \
 	({								 \
 		unsigned long x;					 \
@@ -642,6 +659,21 @@ static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
 		x = (x >> VSID_BITS_##size) + (x & VSID_MODULUS_##size); \
 		(x + ((x+1) >> VSID_BITS_##size)) & VSID_MODULUS_##size; \
 	})
+
+#else /* 1 */
+static inline unsigned long vsid_scramble(unsigned long protovsid,
+				  unsigned long vsid_multiplier, int vsid_bits)
+{
+	unsigned long vsid;
+	unsigned long vsid_modulus = ((1UL << vsid_bits) - 1);
+	/*
+	 * We have same multipler for both 256 and 1T segements now
+	 */
+	vsid = protovsid * vsid_multiplier;
+	vsid = (vsid >> vsid_bits) + (vsid & vsid_modulus);
+	return (vsid + ((vsid + 1) >> vsid_bits)) & vsid_modulus;
+}
+
 #endif /* 1 */
 
 /* Returns the segment size indicator for a user address */
@@ -656,36 +688,56 @@ static inline int user_segment_size(unsigned long addr)
 static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 				     int ssize)
 {
+	unsigned long va_bits = VA_BITS;
+	unsigned long vsid_bits;
+	unsigned long protovsid;
+
 	/*
 	 * Bad address. We return VSID 0 for that
 	 */
 	if ((ea & ~REGION_MASK) >= H_PGTABLE_RANGE)
 		return 0;
 
-	if (ssize == MMU_SEGSIZE_256M)
-		return vsid_scramble((context << ESID_BITS)
-				     | ((ea >> SID_SHIFT) & ESID_BITS_MASK), 256M);
-	return vsid_scramble((context << ESID_BITS_1T)
-			     | ((ea >> SID_SHIFT_1T) & ESID_BITS_1T_MASK), 1T);
+	if (!mmu_has_feature(MMU_FTR_68_BIT_VA))
+		va_bits = 65;
+
+	if (ssize == MMU_SEGSIZE_256M) {
+		vsid_bits = va_bits - SID_SHIFT;
+		protovsid = (context << ESID_BITS) |
+			((ea >> SID_SHIFT) & ESID_BITS_MASK);
+		return vsid_scramble(protovsid, VSID_MULTIPLIER_256M, vsid_bits);
+	}
+	/* 1T segment */
+	vsid_bits = va_bits - SID_SHIFT_1T;
+	protovsid = (context << ESID_BITS_1T) |
+		((ea >> SID_SHIFT_1T) & ESID_BITS_1T_MASK);
+	return vsid_scramble(protovsid, VSID_MULTIPLIER_1T, vsid_bits);
 }
 
 /*
  * This is only valid for addresses >= PAGE_OFFSET
- *
- * For kernel space, we use the top 4 context ids to map address as below
- * 0x7fffc -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
- * 0x7fffd -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
- * 0x7fffe -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
- * 0x7ffff -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
  */
 static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 {
 	unsigned long context;
 
+	if (!is_kernel_addr(ea))
+		return 0;
+
 	/*
-	 * kernel take the top 4 context from the available range
+	 * For kernel space, we use context ids 1-4 to map the address space as
+	 * below:
+	 *
+	 * 0x00001 -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
+	 * 0x00002 -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
+	 * 0x00003 -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
+	 * 0x00004 -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
+	 *
+	 * So we can compute the context from the region (top nibble) by
+	 * subtracting 11, or 0xc - 1.
 	 */
-	context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1;
+	context = (ea >> 60) - KERNEL_REGION_CONTEXT_OFFSET;
+
 	return get_vsid(context, ea, ssize);
 }
 

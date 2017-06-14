@@ -560,12 +560,12 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 void mthca_free_qp(struct mthca_dev *dev, struct mthca_qp *qp);
 int mthca_create_ah(struct mthca_dev *dev,
 		    struct mthca_pd *pd,
-		    struct ib_ah_attr *ah_attr,
+		    struct rdma_ah_attr *ah_attr,
 		    struct mthca_ah *ah);
 int mthca_destroy_ah(struct mthca_dev *dev, struct mthca_ah *ah);
 int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 		  struct ib_ud_header *header);
-int mthca_ah_query(struct ib_ah *ibah, struct ib_ah_attr *attr);
+int mthca_ah_query(struct ib_ah *ibah, struct rdma_ah_attr *attr);
 int mthca_ah_grh_present(struct mthca_ah *ah);
 u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u8 port);
 enum ib_rate mthca_rate_to_ib(struct mthca_dev *dev, u8 mthca_rate, u8 port);

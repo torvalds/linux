@@ -275,9 +275,9 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 		if ((op->common.parent->common.aml_opcode == AML_REGION_OP) ||
 		    (op->common.parent->common.aml_opcode == AML_DATA_REGION_OP)
 		    || (op->common.parent->common.aml_opcode == AML_PACKAGE_OP)
-		    || (op->common.parent->common.aml_opcode ==
-			AML_VAR_PACKAGE_OP)
 		    || (op->common.parent->common.aml_opcode == AML_BUFFER_OP)
+		    || (op->common.parent->common.aml_opcode ==
+			AML_VARIABLE_PACKAGE_OP)
 		    || (op->common.parent->common.aml_opcode ==
 			AML_INT_EVAL_SUBTREE_OP)
 		    || (op->common.parent->common.aml_opcode ==
@@ -551,7 +551,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			 */
 			if (status == AE_NOT_FOUND) {
 				if (parent_op->common.aml_opcode ==
-				    AML_COND_REF_OF_OP) {
+				    AML_CONDITIONAL_REF_OF_OP) {
 					/*
 					 * For the Conditional Reference op, it's OK if
 					 * the name is not found;  We just need a way to
@@ -806,7 +806,7 @@ acpi_status acpi_ds_evaluate_name_path(struct acpi_walk_state *walk_state)
 	}
 
 	if ((op->common.parent->common.aml_opcode == AML_PACKAGE_OP) ||
-	    (op->common.parent->common.aml_opcode == AML_VAR_PACKAGE_OP) ||
+	    (op->common.parent->common.aml_opcode == AML_VARIABLE_PACKAGE_OP) ||
 	    (op->common.parent->common.aml_opcode == AML_REF_OF_OP)) {
 
 		/* TBD: Should we specify this feature as a bit of op_info->Flags of these opcodes? */

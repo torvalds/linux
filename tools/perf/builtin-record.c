@@ -38,11 +38,18 @@
 #include "util/bpf-loader.h"
 #include "util/trigger.h"
 #include "util/perf-hooks.h"
+#include "util/time-utils.h"
+#include "util/units.h"
 #include "asm/bug.h"
 
+#include <errno.h>
+#include <inttypes.h>
+#include <poll.h>
 #include <unistd.h>
 #include <sched.h>
+#include <signal.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <asm/bug.h>
 #include <linux/time64.h>
 
@@ -876,6 +883,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGTERM, sig_handler);
 	signal(SIGSEGV, sigsegv_handler);
 
+	if (rec->opts.record_namespaces)
+		tool->namespace_events = true;
+
 	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output.enabled) {
 		signal(SIGUSR2, snapshot_sig_handler);
 		if (rec->opts.auxtrace_snapshot_mode)
@@ -983,6 +993,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 */
 	if (forks) {
 		union perf_event *event;
+		pid_t tgid;
 
 		event = malloc(sizeof(event->comm) + machine->id_hdr_size);
 		if (event == NULL) {
@@ -996,10 +1007,30 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		 * cannot see a correct process name for those events.
 		 * Synthesize COMM event to prevent it.
 		 */
-		perf_event__synthesize_comm(tool, event,
-					    rec->evlist->workload.pid,
-					    process_synthesized_event,
-					    machine);
+		tgid = perf_event__synthesize_comm(tool, event,
+						   rec->evlist->workload.pid,
+						   process_synthesized_event,
+						   machine);
+		free(event);
+
+		if (tgid == -1)
+			goto out_child;
+
+		event = malloc(sizeof(event->namespaces) +
+			       (NR_NAMESPACES * sizeof(struct perf_ns_link_info)) +
+			       machine->id_hdr_size);
+		if (event == NULL) {
+			err = -ENOMEM;
+			goto out_child;
+		}
+
+		/*
+		 * Synthesize NAMESPACES event for the command specified.
+		 */
+		perf_event__synthesize_namespaces(tool, event,
+						  rec->evlist->workload.pid,
+						  tgid, process_synthesized_event,
+						  machine);
 		free(event);
 
 		perf_evlist__start_workload(rec->evlist);
@@ -1497,6 +1528,7 @@ static struct record record = {
 		.fork		= perf_event__process_fork,
 		.exit		= perf_event__process_exit,
 		.comm		= perf_event__process_comm,
+		.namespaces	= perf_event__process_namespaces,
 		.mmap		= perf_event__process_mmap,
 		.mmap2		= perf_event__process_mmap2,
 		.ordered_events	= true,
@@ -1611,6 +1643,8 @@ static struct option __record_options[] = {
 			  "opts", "AUX area tracing Snapshot Mode", ""),
 	OPT_UINTEGER(0, "proc-map-timeout", &record.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
+	OPT_BOOLEAN(0, "namespaces", &record.opts.record_namespaces,
+		    "Record namespaces events"),
 	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
 		    "Record context switch events"),
 	OPT_BOOLEAN_FLAG(0, "all-kernel", &record.opts.all_kernel,
@@ -1640,7 +1674,7 @@ static struct option __record_options[] = {
 
 struct option *record_options = __record_options;
 
-int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_record(int argc, const char **argv)
 {
 	int err;
 	struct record *rec = &record;

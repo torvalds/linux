@@ -44,6 +44,7 @@
 #define CTRL_DATA_SELECT		(1 << 16)
 #define CTRL_SET_BUS_WIDTH(x)		(((x) & 0x3) << 10)
 #define CTRL_GET_BUS_WIDTH(x)		(((x) >> 10) & 0x3)
+#define CTRL_BUS_WIDTH_MASK		(0x3 << 10)
 #define CTRL_SET_WORD_LENGTH(x)		(((x) & 0x3) << 8)
 #define CTRL_GET_WORD_LENGTH(x)		(((x) >> 8) & 0x3)
 #define CTRL_MASTER			(1 << 5)

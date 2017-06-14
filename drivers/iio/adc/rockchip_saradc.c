@@ -109,7 +109,7 @@ static int rockchip_saradc_read_raw(struct iio_dev *indio_dev,
 
 static irqreturn_t rockchip_saradc_isr(int irq, void *dev_id)
 {
-	struct rockchip_saradc *info = (struct rockchip_saradc *)dev_id;
+	struct rockchip_saradc *info = dev_id;
 
 	/* Read value */
 	info->last_val = readl_relaxed(info->regs + SARADC_DATA);

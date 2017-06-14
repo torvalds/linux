@@ -71,7 +71,8 @@ int mlx5_cmd_delete_fte(struct mlx5_core_dev *dev,
 			unsigned int index);
 
 int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
-			    struct mlx5_flow_table *ft);
+			    struct mlx5_flow_table *ft,
+			    u32 underlay_qpn);
 
 int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u16 *id);
 int mlx5_cmd_fc_free(struct mlx5_core_dev *dev, u16 id);

@@ -1,5 +1,5 @@
 /*
- * perf_event_intel_cstate.c: support cstate residency counters
+ * Support cstate residency counters
  *
  * Copyright (C) 2015, Intel Corp.
  * Author: Kan Liang (kan.liang@intel.com)

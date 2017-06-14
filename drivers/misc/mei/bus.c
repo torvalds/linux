@@ -763,8 +763,10 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
+	u8 version = mei_me_cl_ver(cldev->me_cl);
 
-	return scnprintf(buf, PAGE_SIZE, "mei:%s:%pUl:", cldev->name, uuid);
+	return scnprintf(buf, PAGE_SIZE, "mei:%s:%pUl:%02X:",
+			 cldev->name, uuid, version);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -1076,12 +1078,6 @@ void mei_cl_bus_rescan_work(struct work_struct *work)
 {
 	struct mei_device *bus =
 		container_of(work, struct mei_device, bus_rescan_work);
-	struct mei_me_client *me_cl;
-
-	me_cl = mei_me_cl_by_uuid(bus, &mei_amthif_guid);
-	if (me_cl)
-		mei_amthif_host_init(bus, me_cl);
-	mei_me_cl_put(me_cl);
 
 	mei_cl_bus_rescan(bus);
 }

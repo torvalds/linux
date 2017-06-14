@@ -47,16 +47,6 @@ EXPORT_SYMBOL(__cmpxchg_u64);
 EXPORT_SYMBOL(lclear_user);
 EXPORT_SYMBOL(lstrnlen_user);
 
-/* Global fixups - defined as int to avoid creation of function pointers */
-extern int fixup_get_user_skip_1;
-extern int fixup_get_user_skip_2;
-extern int fixup_put_user_skip_1;
-extern int fixup_put_user_skip_2;
-EXPORT_SYMBOL(fixup_get_user_skip_1);
-EXPORT_SYMBOL(fixup_get_user_skip_2);
-EXPORT_SYMBOL(fixup_put_user_skip_1);
-EXPORT_SYMBOL(fixup_put_user_skip_2);
-
 #ifndef CONFIG_64BIT
 /* Needed so insmod can set dp value */
 extern int $global$;

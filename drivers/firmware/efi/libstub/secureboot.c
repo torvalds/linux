@@ -12,12 +12,14 @@
 #include <linux/efi.h>
 #include <asm/efi.h>
 
+#include "efistub.h"
+
 /* BIOS variables */
 static const efi_guid_t efi_variable_guid = EFI_GLOBAL_VARIABLE_GUID;
-static const efi_char16_t const efi_SecureBoot_name[] = {
+static const efi_char16_t efi_SecureBoot_name[] = {
 	'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 0
 };
-static const efi_char16_t const efi_SetupMode_name[] = {
+static const efi_char16_t efi_SetupMode_name[] = {
 	'S', 'e', 't', 'u', 'p', 'M', 'o', 'd', 'e', 0
 };
 
@@ -45,6 +47,8 @@ enum efi_secureboot_mode efi_get_secureboot(efi_system_table_t *sys_table_arg)
 	size = sizeof(secboot);
 	status = get_efi_var(efi_SecureBoot_name, &efi_variable_guid,
 			     NULL, &size, &secboot);
+	if (status == EFI_NOT_FOUND)
+		return efi_secureboot_mode_disabled;
 	if (status != EFI_SUCCESS)
 		goto out_efi_err;
 
@@ -78,7 +82,5 @@ secure_boot_enabled:
 
 out_efi_err:
 	pr_efi_err(sys_table_arg, "Could not determine UEFI Secure Boot status.\n");
-	if (status == EFI_NOT_FOUND)
-		return efi_secureboot_mode_disabled;
 	return efi_secureboot_mode_unknown;
 }

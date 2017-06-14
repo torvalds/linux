@@ -89,19 +89,20 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	struct vm_unmapped_area_info info;
+	int rc;
 
 	if (len > TASK_SIZE - mmap_min_addr)
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED)
-		return addr;
+		goto check_asce_limit;
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
 		    (!vma || addr + len <= vma->vm_start))
-			return addr;
+			goto check_asce_limit;
 	}
 
 	info.flags = 0;
@@ -113,7 +114,18 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	else
 		info.align_mask = 0;
 	info.align_offset = pgoff << PAGE_SHIFT;
-	return vm_unmapped_area(&info);
+	addr = vm_unmapped_area(&info);
+	if (addr & ~PAGE_MASK)
+		return addr;
+
+check_asce_limit:
+	if (addr + len > current->mm->context.asce_limit) {
+		rc = crst_table_upgrade(mm);
+		if (rc)
+			return (unsigned long) rc;
+	}
+
+	return addr;
 }
 
 unsigned long
@@ -125,13 +137,14 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	struct mm_struct *mm = current->mm;
 	unsigned long addr = addr0;
 	struct vm_unmapped_area_info info;
+	int rc;
 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE - mmap_min_addr)
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED)
-		return addr;
+		goto check_asce_limit;
 
 	/* requesting a specific address */
 	if (addr) {
@@ -139,7 +152,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
 				(!vma || addr + len <= vma->vm_start))
-			return addr;
+			goto check_asce_limit;
 	}
 
 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
@@ -165,65 +178,20 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = TASK_SIZE;
 		addr = vm_unmapped_area(&info);
+		if (addr & ~PAGE_MASK)
+			return addr;
+	}
+
+check_asce_limit:
+	if (addr + len > current->mm->context.asce_limit) {
+		rc = crst_table_upgrade(mm);
+		if (rc)
+			return (unsigned long) rc;
 	}
 
 	return addr;
 }
 
-int s390_mmap_check(unsigned long addr, unsigned long len, unsigned long flags)
-{
-	if (is_compat_task() || TASK_SIZE >= TASK_MAX_SIZE)
-		return 0;
-	if (!(flags & MAP_FIXED))
-		addr = 0;
-	if ((addr + len) >= TASK_SIZE)
-		return crst_table_upgrade(current->mm);
-	return 0;
-}
-
-static unsigned long
-s390_get_unmapped_area(struct file *filp, unsigned long addr,
-		unsigned long len, unsigned long pgoff, unsigned long flags)
-{
-	struct mm_struct *mm = current->mm;
-	unsigned long area;
-	int rc;
-
-	area = arch_get_unmapped_area(filp, addr, len, pgoff, flags);
-	if (!(area & ~PAGE_MASK))
-		return area;
-	if (area == -ENOMEM && !is_compat_task() && TASK_SIZE < TASK_MAX_SIZE) {
-		/* Upgrade the page table to 4 levels and retry. */
-		rc = crst_table_upgrade(mm);
-		if (rc)
-			return (unsigned long) rc;
-		area = arch_get_unmapped_area(filp, addr, len, pgoff, flags);
-	}
-	return area;
-}
-
-static unsigned long
-s390_get_unmapped_area_topdown(struct file *filp, const unsigned long addr,
-			  const unsigned long len, const unsigned long pgoff,
-			  const unsigned long flags)
-{
-	struct mm_struct *mm = current->mm;
-	unsigned long area;
-	int rc;
-
-	area = arch_get_unmapped_area_topdown(filp, addr, len, pgoff, flags);
-	if (!(area & ~PAGE_MASK))
-		return area;
-	if (area == -ENOMEM && !is_compat_task() && TASK_SIZE < TASK_MAX_SIZE) {
-		/* Upgrade the page table to 4 levels and retry. */
-		rc = crst_table_upgrade(mm);
-		if (rc)
-			return (unsigned long) rc;
-		area = arch_get_unmapped_area_topdown(filp, addr, len,
-						      pgoff, flags);
-	}
-	return area;
-}
 /*
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:
@@ -241,9 +209,9 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	 */
 	if (mmap_is_legacy()) {
 		mm->mmap_base = mmap_base_legacy(random_factor);
-		mm->get_unmapped_area = s390_get_unmapped_area;
+		mm->get_unmapped_area = arch_get_unmapped_area;
 	} else {
 		mm->mmap_base = mmap_base(random_factor);
-		mm->get_unmapped_area = s390_get_unmapped_area_topdown;
+		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 	}
 }

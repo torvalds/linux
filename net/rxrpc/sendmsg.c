@@ -488,6 +488,7 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	__releases(&rx->sk.sk_lock.slock)
 {
+	enum rxrpc_call_state state;
 	enum rxrpc_command cmd;
 	struct rxrpc_call *call;
 	unsigned long user_call_ID = 0;
@@ -526,13 +527,17 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 			return PTR_ERR(call);
 		/* ... and we have the call lock. */
 	} else {
-		ret = -EBUSY;
-		if (call->state == RXRPC_CALL_UNINITIALISED ||
-		    call->state == RXRPC_CALL_CLIENT_AWAIT_CONN ||
-		    call->state == RXRPC_CALL_SERVER_PREALLOC ||
-		    call->state == RXRPC_CALL_SERVER_SECURING ||
-		    call->state == RXRPC_CALL_SERVER_ACCEPTING)
+		switch (READ_ONCE(call->state)) {
+		case RXRPC_CALL_UNINITIALISED:
+		case RXRPC_CALL_CLIENT_AWAIT_CONN:
+		case RXRPC_CALL_SERVER_PREALLOC:
+		case RXRPC_CALL_SERVER_SECURING:
+		case RXRPC_CALL_SERVER_ACCEPTING:
+			ret = -EBUSY;
 			goto error_release_sock;
+		default:
+			break;
+		}
 
 		ret = mutex_lock_interruptible(&call->user_mutex);
 		release_sock(&rx->sk);
@@ -542,25 +547,26 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		}
 	}
 
+	state = READ_ONCE(call->state);
 	_debug("CALL %d USR %lx ST %d on CONN %p",
-	       call->debug_id, call->user_call_ID, call->state, call->conn);
+	       call->debug_id, call->user_call_ID, state, call->conn);
 
-	if (call->state >= RXRPC_CALL_COMPLETE) {
+	if (state >= RXRPC_CALL_COMPLETE) {
 		/* it's too late for this call */
 		ret = -ESHUTDOWN;
 	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
 		ret = 0;
-		if (rxrpc_abort_call("CMD", call, 0, abort_code, ECONNABORTED))
+		if (rxrpc_abort_call("CMD", call, 0, abort_code, -ECONNABORTED))
 			ret = rxrpc_send_abort_packet(call);
 	} else if (cmd != RXRPC_CMD_SEND_DATA) {
 		ret = -EINVAL;
 	} else if (rxrpc_is_client_call(call) &&
-		   call->state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
+		   state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
 		/* request phase complete for this client call */
 		ret = -EPROTO;
 	} else if (rxrpc_is_service_call(call) &&
-		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
+		   state != RXRPC_CALL_SERVER_ACK_REQUEST &&
+		   state != RXRPC_CALL_SERVER_SEND_REPLY) {
 		/* Reply phase not begun or not complete for service call. */
 		ret = -EPROTO;
 	} else {
@@ -605,14 +611,22 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 	_debug("CALL %d USR %lx ST %d on CONN %p",
 	       call->debug_id, call->user_call_ID, call->state, call->conn);
 
-	if (call->state >= RXRPC_CALL_COMPLETE) {
-		ret = -ESHUTDOWN; /* it's too late for this call */
-	} else if (call->state != RXRPC_CALL_CLIENT_SEND_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
-		ret = -EPROTO; /* request phase complete for this client call */
-	} else {
+	switch (READ_ONCE(call->state)) {
+	case RXRPC_CALL_CLIENT_SEND_REQUEST:
+	case RXRPC_CALL_SERVER_ACK_REQUEST:
+	case RXRPC_CALL_SERVER_SEND_REPLY:
 		ret = rxrpc_send_data(rxrpc_sk(sock->sk), call, msg, len);
+		break;
+	case RXRPC_CALL_COMPLETE:
+		read_lock_bh(&call->state_lock);
+		ret = -call->error;
+		read_unlock_bh(&call->state_lock);
+		break;
+	default:
+		/* Request phase complete for this client call */
+		trace_rxrpc_rx_eproto(call, 0, tracepoint_string("late_send"));
+		ret = -EPROTO;
+		break;
 	}
 
 	mutex_unlock(&call->user_mutex);
@@ -629,20 +643,24 @@ EXPORT_SYMBOL(rxrpc_kernel_send_data);
  * @error: Local error value
  * @why: 3-char string indicating why.
  *
- * Allow a kernel service to abort a call, if it's still in an abortable state.
+ * Allow a kernel service to abort a call, if it's still in an abortable state
+ * and return true if the call was aborted, false if it was already complete.
  */
-void rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
+bool rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
 			     u32 abort_code, int error, const char *why)
 {
+	bool aborted;
+
 	_enter("{%d},%d,%d,%s", call->debug_id, abort_code, error, why);
 
 	mutex_lock(&call->user_mutex);
 
-	if (rxrpc_abort_call(why, call, 0, abort_code, error))
+	aborted = rxrpc_abort_call(why, call, 0, abort_code, error);
+	if (aborted)
 		rxrpc_send_abort_packet(call);
 
 	mutex_unlock(&call->user_mutex);
-	_leave("");
+	return aborted;
 }
 
 EXPORT_SYMBOL(rxrpc_kernel_abort_call);

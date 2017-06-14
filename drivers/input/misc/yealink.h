@@ -28,7 +28,7 @@
 struct yld_ctl_packet {
 	u8	cmd;		/* command code, see below */
 	u8	size;		/* 1-11, size of used data bytes. */
-	u16	offset;		/* internal packet offset */
+	__be16	offset;		/* internal packet offset */
 	u8	data[11];
 	s8	sum;		/* negative sum of 15 preceding bytes */
 } __attribute__ ((packed));

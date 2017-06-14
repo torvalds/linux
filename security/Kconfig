@@ -31,6 +31,11 @@ config SECURITY
 
 	  If you are unsure how to answer this question, answer N.
 
+config SECURITY_WRITABLE_HOOKS
+	depends on SECURITY
+	bool
+	default n
+
 config SECURITYFS
 	bool "Enable the securityfs filesystem"
 	help
@@ -125,17 +130,8 @@ config HAVE_HARDENED_USERCOPY_ALLOCATOR
 	  validating memory ranges against heap object sizes in
 	  support of CONFIG_HARDENED_USERCOPY.
 
-config HAVE_ARCH_HARDENED_USERCOPY
-	bool
-	help
-	  The architecture supports CONFIG_HARDENED_USERCOPY by
-	  calling check_object_size() just before performing the
-	  userspace copies in the low level implementation of
-	  copy_to_user() and copy_from_user().
-
 config HARDENED_USERCOPY
 	bool "Harden memory copies between kernel and userspace"
-	depends on HAVE_ARCH_HARDENED_USERCOPY
 	depends on HAVE_HARDENED_USERCOPY_ALLOCATOR
 	select BUG
 	help

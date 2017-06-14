@@ -90,6 +90,7 @@ void arch_cpu_idle(void)
 }
 
 void (*pm_power_off) (void) = machine_power_off;
+EXPORT_SYMBOL(pm_power_off);
 
 /*
  * When a process does an "exec", machine state like FPU and debug
@@ -165,8 +166,6 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	unsigned long top_of_kernel_stack;
 
 	top_of_kernel_stack = sp;
-
-	p->set_child_tid = p->clear_child_tid = NULL;
 
 	/* Locate userspace context on stack... */
 	sp -= STACK_FRAME_OVERHEAD;	/* redzone */

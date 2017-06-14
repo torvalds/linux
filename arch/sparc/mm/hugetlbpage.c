@@ -143,6 +143,10 @@ static pte_t sun4v_hugepage_shift_to_tte(pte_t entry, unsigned int shift)
 	pte_val(entry) = pte_val(entry) & ~_PAGE_SZALL_4V;
 
 	switch (shift) {
+	case HPAGE_2GB_SHIFT:
+		hugepage_size = _PAGE_SZ2GB_4V;
+		pte_val(entry) |= _PAGE_PMD_HUGE;
+		break;
 	case HPAGE_256MB_SHIFT:
 		hugepage_size = _PAGE_SZ256MB_4V;
 		pte_val(entry) |= _PAGE_PMD_HUGE;
@@ -183,6 +187,9 @@ static unsigned int sun4v_huge_tte_to_shift(pte_t entry)
 	unsigned int shift;
 
 	switch (tte_szbits) {
+	case _PAGE_SZ2GB_4V:
+		shift = HPAGE_2GB_SHIFT;
+		break;
 	case _PAGE_SZ256MB_4V:
 		shift = HPAGE_256MB_SHIFT;
 		break;
@@ -261,7 +268,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 		if (!pmd)
 			return NULL;
 
-		if (sz == PMD_SHIFT)
+		if (sz >= PMD_SIZE)
 			pte = (pte_t *)pmd;
 		else
 			pte = pte_alloc_map(mm, pmd, addr);
@@ -453,6 +460,22 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 {
 	pgd_t *pgd;
 	unsigned long next;
+
+	addr &= PMD_MASK;
+	if (addr < floor) {
+		addr += PMD_SIZE;
+		if (!addr)
+			return;
+	}
+	if (ceiling) {
+		ceiling &= PMD_MASK;
+		if (!ceiling)
+			return;
+	}
+	if (end - 1 > ceiling - 1)
+		end -= PMD_SIZE;
+	if (addr > end - 1)
+		return;
 
 	pgd = pgd_offset(tlb->mm, addr);
 	do {

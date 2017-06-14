@@ -173,7 +173,7 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_RED_MAX, opt, red_policy);
+	err = nla_parse_nested(tb, TCA_RED_MAX, opt, red_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -191,6 +191,8 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 			return PTR_ERR(child);
 	}
 
+	if (child != &noop_qdisc)
+		qdisc_hash_add(child, true);
 	sch_tree_lock(sch);
 	q->flags = ctl->flags;
 	q->limit = ctl->limit;

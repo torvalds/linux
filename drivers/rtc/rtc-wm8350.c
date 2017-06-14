@@ -30,8 +30,6 @@
 #define WM8350_SET_TIME_RETRIES	5
 #define WM8350_GET_TIME_RETRIES	5
 
-#define to_wm8350_from_rtc_dev(d) container_of(d, struct wm8350, rtc.pdev.dev)
-
 /*
  * Read current time and date in RTC
  */

@@ -41,6 +41,7 @@ struct hvutil_transport {
 	int outmsg_len;                     /* its length */
 	wait_queue_head_t outmsg_q;         /* poll/read wait queue */
 	struct mutex lock;                  /* protects struct members */
+	struct completion release;          /* synchronize with fd release */
 };
 
 struct hvutil_transport *hvutil_transport_init(const char *name,

@@ -33,6 +33,7 @@
 #include "dpaa_sys.h"
 
 #include <soc/fsl/qman.h>
+#include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 
 #if defined(CONFIG_FSL_PAMU)
@@ -88,67 +89,6 @@ static inline u64 qm_mcr_querycgr_a_get64(const struct qm_mcr_querycgr *q)
 {
 	return ((u64)q->a_bcnt_hi << 32) | be32_to_cpu(q->a_bcnt_lo);
 }
-
-/* "Query FQ Non-Programmable Fields" */
-
-struct qm_mcr_queryfq_np {
-	u8 verb;
-	u8 result;
-	u8 __reserved1;
-	u8 state;		/* QM_MCR_NP_STATE_*** */
-	u32 fqd_link;		/* 24-bit, _res2[24-31] */
-	u16 odp_seq;		/* 14-bit, _res3[14-15] */
-	u16 orp_nesn;		/* 14-bit, _res4[14-15] */
-	u16 orp_ea_hseq;	/* 15-bit, _res5[15] */
-	u16 orp_ea_tseq;	/* 15-bit, _res6[15] */
-	u32 orp_ea_hptr;	/* 24-bit, _res7[24-31] */
-	u32 orp_ea_tptr;	/* 24-bit, _res8[24-31] */
-	u32 pfdr_hptr;		/* 24-bit, _res9[24-31] */
-	u32 pfdr_tptr;		/* 24-bit, _res10[24-31] */
-	u8 __reserved2[5];
-	u8 is;			/* 1-bit, _res12[1-7] */
-	u16 ics_surp;
-	u32 byte_cnt;
-	u32 frm_cnt;		/* 24-bit, _res13[24-31] */
-	u32 __reserved3;
-	u16 ra1_sfdr;		/* QM_MCR_NP_RA1_*** */
-	u16 ra2_sfdr;		/* QM_MCR_NP_RA2_*** */
-	u16 __reserved4;
-	u16 od1_sfdr;		/* QM_MCR_NP_OD1_*** */
-	u16 od2_sfdr;		/* QM_MCR_NP_OD2_*** */
-	u16 od3_sfdr;		/* QM_MCR_NP_OD3_*** */
-} __packed;
-
-#define QM_MCR_NP_STATE_FE		0x10
-#define QM_MCR_NP_STATE_R		0x08
-#define QM_MCR_NP_STATE_MASK		0x07	/* Reads FQD::STATE; */
-#define QM_MCR_NP_STATE_OOS		0x00
-#define QM_MCR_NP_STATE_RETIRED		0x01
-#define QM_MCR_NP_STATE_TEN_SCHED	0x02
-#define QM_MCR_NP_STATE_TRU_SCHED	0x03
-#define QM_MCR_NP_STATE_PARKED		0x04
-#define QM_MCR_NP_STATE_ACTIVE		0x05
-#define QM_MCR_NP_PTR_MASK		0x07ff	/* for RA[12] & OD[123] */
-#define QM_MCR_NP_RA1_NRA(v)		(((v) >> 14) & 0x3)	/* FQD::NRA */
-#define QM_MCR_NP_RA2_IT(v)		(((v) >> 14) & 0x1)	/* FQD::IT */
-#define QM_MCR_NP_OD1_NOD(v)		(((v) >> 14) & 0x3)	/* FQD::NOD */
-#define QM_MCR_NP_OD3_NPC(v)		(((v) >> 14) & 0x3)	/* FQD::NPC */
-
-enum qm_mcr_queryfq_np_masks {
-	qm_mcr_fqd_link_mask = BIT(24)-1,
-	qm_mcr_odp_seq_mask = BIT(14)-1,
-	qm_mcr_orp_nesn_mask = BIT(14)-1,
-	qm_mcr_orp_ea_hseq_mask = BIT(15)-1,
-	qm_mcr_orp_ea_tseq_mask = BIT(15)-1,
-	qm_mcr_orp_ea_hptr_mask = BIT(24)-1,
-	qm_mcr_orp_ea_tptr_mask = BIT(24)-1,
-	qm_mcr_pfdr_hptr_mask = BIT(24)-1,
-	qm_mcr_pfdr_tptr_mask = BIT(24)-1,
-	qm_mcr_is_mask = BIT(1)-1,
-	qm_mcr_frm_cnt_mask = BIT(24)-1,
-};
-#define qm_mcr_np_get(np, field) \
-	((np)->field & (qm_mcr_##field##_mask))
 
 /* Congestion Groups */
 
@@ -270,42 +210,6 @@ const struct qm_portal_config *qman_destroy_affine_portal(void);
  * @fqd: storage for the queried FQD fields
  */
 int qman_query_fq(struct qman_fq *fq, struct qm_fqd *fqd);
-
-/*
- * For qman_volatile_dequeue(); Choose one PRECEDENCE. EXACT is optional. Use
- * NUMFRAMES(n) (6-bit) or NUMFRAMES_TILLEMPTY to fill in the frame-count. Use
- * FQID(n) to fill in the frame queue ID.
- */
-#define QM_VDQCR_PRECEDENCE_VDQCR	0x0
-#define QM_VDQCR_PRECEDENCE_SDQCR	0x80000000
-#define QM_VDQCR_EXACT			0x40000000
-#define QM_VDQCR_NUMFRAMES_MASK		0x3f000000
-#define QM_VDQCR_NUMFRAMES_SET(n)	(((n) & 0x3f) << 24)
-#define QM_VDQCR_NUMFRAMES_GET(n)	(((n) >> 24) & 0x3f)
-#define QM_VDQCR_NUMFRAMES_TILLEMPTY	QM_VDQCR_NUMFRAMES_SET(0)
-
-#define QMAN_VOLATILE_FLAG_WAIT	     0x00000001 /* wait if VDQCR is in use */
-#define QMAN_VOLATILE_FLAG_WAIT_INT  0x00000002 /* if wait, interruptible? */
-#define QMAN_VOLATILE_FLAG_FINISH    0x00000004 /* wait till VDQCR completes */
-
-/*
- * qman_volatile_dequeue - Issue a volatile dequeue command
- * @fq: the frame queue object to dequeue from
- * @flags: a bit-mask of QMAN_VOLATILE_FLAG_*** options
- * @vdqcr: bit mask of QM_VDQCR_*** options, as per qm_dqrr_vdqcr_set()
- *
- * Attempts to lock access to the portal's VDQCR volatile dequeue functionality.
- * The function will block and sleep if QMAN_VOLATILE_FLAG_WAIT is specified and
- * the VDQCR is already in use, otherwise returns non-zero for failure. If
- * QMAN_VOLATILE_FLAG_FINISH is specified, the function will only return once
- * the VDQCR command has finished executing (ie. once the callback for the last
- * DQRR entry resulting from the VDQCR command has been called). If not using
- * the FINISH flag, completion can be determined either by detecting the
- * presence of the QM_DQRR_STAT_UNSCHEDULED and QM_DQRR_STAT_DQCR_EXPIRED bits
- * in the "stat" parameter passed to the FQ's dequeue callback, or by waiting
- * for the QMAN_FQ_STATE_VDQCR bit to disappear.
- */
-int qman_volatile_dequeue(struct qman_fq *fq, u32 flags, u32 vdqcr);
 
 int qman_alloc_fq_table(u32 num_fqids);
 

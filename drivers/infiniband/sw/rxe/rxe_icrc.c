@@ -87,10 +87,10 @@ u32 rxe_icrc_hdr(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 	bth->qpn |= cpu_to_be32(~BTH_QPN_MASK);
 
 	length = hdr_size + RXE_BTH_BYTES;
-	crc = crc32_le(crc, pshdr, length);
+	crc = rxe_crc32(pkt->rxe, crc, pshdr, length);
 
 	/* And finish to compute the CRC on the remainder of the headers. */
-	crc = crc32_le(crc, pkt->hdr + RXE_BTH_BYTES,
-		       rxe_opcode[pkt->opcode].length - RXE_BTH_BYTES);
+	crc = rxe_crc32(pkt->rxe, crc, pkt->hdr + RXE_BTH_BYTES,
+			rxe_opcode[pkt->opcode].length - RXE_BTH_BYTES);
 	return crc;
 }

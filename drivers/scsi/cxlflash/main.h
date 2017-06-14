@@ -37,8 +37,6 @@
 
 #define CXLFLASH_PCI_ERROR_RECOVERY_TIMEOUT	(120 * HZ)
 
-#define NUM_FC_PORTS	CXLFLASH_NUM_FC_PORTS	/* ports per AFU */
-
 /* FC defines */
 #define FC_MTIP_CMDCONFIG 0x010
 #define FC_MTIP_STATUS 0x018

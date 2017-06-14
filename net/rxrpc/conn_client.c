@@ -550,6 +550,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	call->cid	= conn->proto.cid | channel;
 	call->call_id	= call_id;
 
+	trace_rxrpc_connect_call(call);
 	_net("CONNECT call %08x:%08x as call %d on conn %d",
 	     call->cid, call->call_id, call->debug_id, conn->debug_id);
 

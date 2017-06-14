@@ -814,7 +814,7 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	struct device_node *np = ofdev->dev.of_node;
 	struct spi_master *master;
 	struct resource mem;
-	int irq, type;
+	int irq = 0, type;
 	int ret = -ENOMEM;
 
 	ret = of_mpc8xxx_spi_probe(ofdev);
@@ -847,6 +847,7 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	return 0;
 
 err:
+	irq_dispose_mapping(irq);
 	if (type == TYPE_FSL)
 		of_fsl_spi_free_chipselects(dev);
 	return ret;

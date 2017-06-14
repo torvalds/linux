@@ -63,16 +63,16 @@ BBuGetFrameTime(
 	unsigned short wRate
 );
 
-void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
-		       u16 tx_rate, u8 pkt_type, struct vnt_phy_field *);
+void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
+		       u16 tx_rate, u8 pkt_type, struct vnt_phy_field *phy);
 
-bool BBbReadEmbedded(struct vnt_private *, unsigned char byBBAddr,
+bool BBbReadEmbedded(struct vnt_private *priv, unsigned char byBBAddr,
 		     unsigned char *pbyData);
-bool BBbWriteEmbedded(struct vnt_private *, unsigned char byBBAddr,
+bool BBbWriteEmbedded(struct vnt_private *priv, unsigned char byBBAddr,
 		      unsigned char byData);
 
-void BBvSetShortSlotTime(struct vnt_private *);
-void BBvSetVGAGainOffset(struct vnt_private *, unsigned char byData);
+void BBvSetShortSlotTime(struct vnt_private *priv);
+void BBvSetVGAGainOffset(struct vnt_private *priv, unsigned char byData);
 
 /* VT3253 Baseband */
 bool BBbVT3253Init(struct vnt_private *priv);

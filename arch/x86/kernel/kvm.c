@@ -161,8 +161,8 @@ void kvm_async_pf_task_wait(u32 token)
 			 */
 			rcu_irq_exit();
 			native_safe_halt();
-			rcu_irq_enter();
 			local_irq_disable();
+			rcu_irq_enter();
 		}
 	}
 	if (!n.halted)
@@ -396,9 +396,9 @@ static u64 kvm_steal_clock(int cpu)
 	src = &per_cpu(steal_time, cpu);
 	do {
 		version = src->version;
-		rmb();
+		virt_rmb();
 		steal = src->steal;
-		rmb();
+		virt_rmb();
 	} while ((version & 1) || (version != src->version));
 
 	return steal;

@@ -856,8 +856,8 @@ SIG_EXPR_DECL(VPIG3, VPI18, VPI18_DESC, AB1_DESC);
 SIG_EXPR_DECL(VPIG3, VPI24, VPI24_DESC, AB1_DESC);
 SIG_EXPR_DECL(VPIG3, VPI30, VPI30_DESC, AB1_DESC);
 SIG_EXPR_LIST_DECL(VPIG3, SIG_EXPR_PTR(VPIG3, VPI18),
-		SIG_EXPR_PTR(VPIG2, VPI24),
-		SIG_EXPR_PTR(VPIG2, VPI30));
+		SIG_EXPR_PTR(VPIG3, VPI24),
+		SIG_EXPR_PTR(VPIG3, VPI30));
 SIG_EXPR_LIST_DECL_SINGLE(PWM3, PWM3, AB1_DESC);
 MS_PIN_DECL(AB1, GPION3, VPIG3, PWM3);
 FUNC_GROUP_DECL(PWM3, AB1);
@@ -868,8 +868,8 @@ SIG_EXPR_DECL(VPIG4, VPI18, VPI18_DESC, W5_DESC);
 SIG_EXPR_DECL(VPIG4, VPI24, VPI24_DESC, W5_DESC);
 SIG_EXPR_DECL(VPIG4, VPI30, VPI30_DESC, W5_DESC);
 SIG_EXPR_LIST_DECL(VPIG4, SIG_EXPR_PTR(VPIG4, VPI18),
-		SIG_EXPR_PTR(VPIG2, VPI24),
-		SIG_EXPR_PTR(VPIG2, VPI30));
+		SIG_EXPR_PTR(VPIG4, VPI24),
+		SIG_EXPR_PTR(VPIG4, VPI30));
 SIG_EXPR_LIST_DECL_SINGLE(PWM4, PWM4, W5_DESC);
 MS_PIN_DECL(W5, GPION4, VPIG4, PWM4);
 FUNC_GROUP_DECL(PWM4, W5);
@@ -880,8 +880,8 @@ SIG_EXPR_DECL(VPIG5, VPI18, VPI18_DESC, Y4_DESC);
 SIG_EXPR_DECL(VPIG5, VPI24, VPI24_DESC, Y4_DESC);
 SIG_EXPR_DECL(VPIG5, VPI30, VPI30_DESC, Y4_DESC);
 SIG_EXPR_LIST_DECL(VPIG5, SIG_EXPR_PTR(VPIG5, VPI18),
-		SIG_EXPR_PTR(VPIG2, VPI24),
-		SIG_EXPR_PTR(VPIG2, VPI30));
+		SIG_EXPR_PTR(VPIG5, VPI24),
+		SIG_EXPR_PTR(VPIG5, VPI30));
 SIG_EXPR_LIST_DECL_SINGLE(PWM5, PWM5, Y4_DESC);
 MS_PIN_DECL(Y4, GPION5, VPIG5, PWM5);
 FUNC_GROUP_DECL(PWM5, Y4);
@@ -2234,6 +2234,110 @@ static const struct aspeed_pin_function aspeed_g4_functions[] = {
 	ASPEED_PINCTRL_FUNC(WDTRST2),
 };
 
+static const struct aspeed_pin_config aspeed_g4_configs[] = {
+	/* GPIO banks ranges [A, B], [D, J], [M, R] */
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { D6,  D5  }, SCU8C, 16 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { D6,  D5  }, SCU8C, 16 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { J21, E18 }, SCU8C, 17 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { J21, E18 }, SCU8C, 17 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { A18, E15 }, SCU8C, 19 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { A18, E15 }, SCU8C, 19 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { D15, B14 }, SCU8C, 20 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { D15, B14 }, SCU8C, 20 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { D18, C17 }, SCU8C, 21 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { D18, C17 }, SCU8C, 21 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { A14, U18 }, SCU8C, 22 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { A14, U18 }, SCU8C, 22 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { A8,  E7  }, SCU8C, 23 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { A8,  E7  }, SCU8C, 23 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { C22, E20 }, SCU8C, 24 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { C22, E20 }, SCU8C, 24 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { J5,  T1  }, SCU8C, 25 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { J5,  T1  }, SCU8C, 25 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { U1,  U5  }, SCU8C, 26 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { U1,  U5  }, SCU8C, 26 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { V3,  V5  }, SCU8C, 27 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { V3,  V5  }, SCU8C, 27 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { W4,  AB2 }, SCU8C, 28 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { W4,  AB2 }, SCU8C, 28 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { V6,  V7  }, SCU8C, 29 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { V6,  V7  }, SCU8C, 29 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { Y6,  AB7 }, SCU8C, 30 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { Y6,  AB7 }, SCU8C, 30 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { V20, A5  }, SCU8C, 31 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { V20, A5  }, SCU8C, 31 },
+
+	/* GPIOs T[0-5] (RGMII1 Tx pins) */
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A12, A13 }, SCU90, 9  },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { A12, A13 }, SCU90, 12 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { A12, A13 }, SCU90, 12 },
+
+	/* GPIOs T[6-7], U[0-3] (RGMII2 TX pins) */
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D9,  D10 }, SCU90, 11 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { D9,  D10 }, SCU90, 14 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { D9,  D10 }, SCU90, 14 },
+
+	/* GPIOs U[4-7], V[0-1] (RGMII1 Rx pins) */
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { E11, E10 }, SCU90, 13 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { E11, E10 }, SCU90, 13 },
+
+	/* GPIOs V[2-7] (RGMII2 Rx pins) */
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { C9,  C8  }, SCU90, 15 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { C9,  C8  }, SCU90, 15 },
+
+	/* ADC pull-downs (SCUA8[19:4]) */
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { L5,  L5  }, SCUA8, 4 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { L5,  L5  }, SCUA8, 4 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { L4,  L4  }, SCUA8, 5 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { L4,  L4  }, SCUA8, 5 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { L3,  L3  }, SCUA8, 6 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { L3,  L3  }, SCUA8, 6 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { L2,  L2  }, SCUA8, 7 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { L2,  L2  }, SCUA8, 7 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { L1,  L1  }, SCUA8, 8 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { L1,  L1  }, SCUA8, 8 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { M5,  M5  }, SCUA8, 9 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { M5,  M5  }, SCUA8, 9 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { M4,  M4  }, SCUA8, 10 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { M4,  M4  }, SCUA8, 10 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { M3,  M3  }, SCUA8, 11 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { M3,  M3  }, SCUA8, 11 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { M2,  M2  }, SCUA8, 12 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { M2,  M2  }, SCUA8, 12 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { M1,  M1  }, SCUA8, 13 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { M1,  M1  }, SCUA8, 13 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { N5,  N5  }, SCUA8, 14 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { N5,  N5  }, SCUA8, 14 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { N4,  N4  }, SCUA8, 15 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { N4,  N4  }, SCUA8, 15 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { N3,  N3  }, SCUA8, 16 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { N3,  N3  }, SCUA8, 16 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { N2,  N2  }, SCUA8, 17 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { N2,  N2  }, SCUA8, 17 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { N1,  N1  }, SCUA8, 18 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { N1,  N1  }, SCUA8, 18 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, { P5,  P5  }, SCUA8, 19 },
+	{ PIN_CONFIG_BIAS_DISABLE,   { P5,  P5  }, SCUA8, 19 },
+
+	/*
+	 * Debounce settings for GPIOs D and E passthrough mode are in
+	 * SCUA8[27:20] and so are managed by pinctrl. Normal GPIO debounce for
+	 * banks D and E is handled by the GPIO driver - GPIO passthrough is
+	 * treated like any other non-GPIO mux function. There is a catch
+	 * however, in that the debounce period is configured in the GPIO
+	 * controller. Due to this tangle between GPIO and pinctrl we don't yet
+	 * fully support pass-through debounce.
+	 */
+	{ PIN_CONFIG_INPUT_DEBOUNCE, { A18, D16 }, SCUA8, 20 },
+	{ PIN_CONFIG_INPUT_DEBOUNCE, { B17, A17 }, SCUA8, 21 },
+	{ PIN_CONFIG_INPUT_DEBOUNCE, { C16, B16 }, SCUA8, 22 },
+	{ PIN_CONFIG_INPUT_DEBOUNCE, { A16, E15 }, SCUA8, 23 },
+	{ PIN_CONFIG_INPUT_DEBOUNCE, { D15, C15 }, SCUA8, 24 },
+	{ PIN_CONFIG_INPUT_DEBOUNCE, { B15, A15 }, SCUA8, 25 },
+	{ PIN_CONFIG_INPUT_DEBOUNCE, { E14, D14 }, SCUA8, 26 },
+	{ PIN_CONFIG_INPUT_DEBOUNCE, { C14, B14 }, SCUA8, 27 },
+};
+
 static struct aspeed_pinctrl_data aspeed_g4_pinctrl_data = {
 	.pins = aspeed_g4_pins,
 	.npins = ARRAY_SIZE(aspeed_g4_pins),
@@ -2241,6 +2345,8 @@ static struct aspeed_pinctrl_data aspeed_g4_pinctrl_data = {
 	.ngroups = ARRAY_SIZE(aspeed_g4_groups),
 	.functions = aspeed_g4_functions,
 	.nfunctions = ARRAY_SIZE(aspeed_g4_functions),
+	.configs = aspeed_g4_configs,
+	.nconfigs = ARRAY_SIZE(aspeed_g4_configs),
 };
 
 static struct pinmux_ops aspeed_g4_pinmux_ops = {
@@ -2257,8 +2363,16 @@ static struct pinctrl_ops aspeed_g4_pinctrl_ops = {
 	.get_group_name = aspeed_pinctrl_get_group_name,
 	.get_group_pins = aspeed_pinctrl_get_group_pins,
 	.pin_dbg_show = aspeed_pinctrl_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
+};
+
+static const struct pinconf_ops aspeed_g4_conf_ops = {
+	.is_generic = true,
+	.pin_config_get = aspeed_pin_config_get,
+	.pin_config_set = aspeed_pin_config_set,
+	.pin_config_group_get = aspeed_pin_config_group_get,
+	.pin_config_group_set = aspeed_pin_config_group_set,
 };
 
 static struct pinctrl_desc aspeed_g4_pinctrl_desc = {
@@ -2267,6 +2381,7 @@ static struct pinctrl_desc aspeed_g4_pinctrl_desc = {
 	.npins = ARRAY_SIZE(aspeed_g4_pins),
 	.pctlops = &aspeed_g4_pinctrl_ops,
 	.pmxops = &aspeed_g4_pinmux_ops,
+	.confops = &aspeed_g4_conf_ops,
 };
 
 static int aspeed_g4_pinctrl_probe(struct platform_device *pdev)

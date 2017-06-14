@@ -64,13 +64,25 @@ void qed_iscsi_setup(struct qed_hwfn *p_hwfn,
 
 void qed_iscsi_free(struct qed_hwfn *p_hwfn,
 		    struct qed_iscsi_info *p_iscsi_info);
+
+/**
+ * @brief - Fills provided statistics struct with statistics.
+ *
+ * @param cdev
+ * @param stats - points to struct that will be filled with statistics.
+ */
+void qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
+				  struct qed_mcp_iscsi_stats *stats);
 #else /* IS_ENABLED(CONFIG_QED_ISCSI) */
 static inline struct qed_iscsi_info *qed_iscsi_alloc(
 		struct qed_hwfn *p_hwfn) { return NULL; }
 static inline void qed_iscsi_setup(struct qed_hwfn *p_hwfn,
 				   struct qed_iscsi_info *p_iscsi_info) {}
 static inline void qed_iscsi_free(struct qed_hwfn *p_hwfn,
-				  struct qed_iscsi_info *p_iscsi_info) {}
+				 struct qed_iscsi_info *p_iscsi_info) {}
+static inline void
+qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
+			     struct qed_mcp_iscsi_stats *stats) {}
 #endif /* IS_ENABLED(CONFIG_QED_ISCSI) */
 
 #endif

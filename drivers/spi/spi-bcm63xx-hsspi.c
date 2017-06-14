@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 
 #define HSSPI_GLOBAL_CTRL_REG			0x0
 #define GLOBAL_CTRL_CS_POLARITY_SHIFT		0
@@ -91,6 +92,7 @@
 
 #define HSSPI_MAX_SYNC_CLOCK			30000000
 
+#define HSSPI_SPI_MAX_CS			8
 #define HSSPI_BUS_NUM				1 /* 0 is legacy SPI */
 
 struct bcm63xx_hsspi {
@@ -332,7 +334,7 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct clk *clk;
 	int irq, ret;
-	u32 reg, rate;
+	u32 reg, rate, num_cs = HSSPI_SPI_MAX_CS;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -351,8 +353,16 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 
 	rate = clk_get_rate(clk);
-	if (!rate)
-		return -EINVAL;
+	if (!rate) {
+		struct clk *pll_clk = devm_clk_get(dev, "pll");
+
+		if (IS_ERR(pll_clk))
+			return PTR_ERR(pll_clk);
+
+		rate = clk_get_rate(pll_clk);
+		if (!rate)
+			return -EINVAL;
+	}
 
 	ret = clk_prepare_enable(clk);
 	if (ret)
@@ -374,8 +384,17 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	mutex_init(&bs->bus_mutex);
 	init_completion(&bs->done);
 
-	master->bus_num = HSSPI_BUS_NUM;
-	master->num_chipselect = 8;
+	master->dev.of_node = dev->of_node;
+	if (!dev->of_node)
+		master->bus_num = HSSPI_BUS_NUM;
+
+	of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+	if (num_cs > 8) {
+		dev_warn(dev, "unsupported number of cs (%i), reducing to 8\n",
+			 num_cs);
+		num_cs = HSSPI_SPI_MAX_CS;
+	}
+	master->num_chipselect = num_cs;
 	master->setup = bcm63xx_hsspi_setup;
 	master->transfer_one_message = bcm63xx_hsspi_transfer_one;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH |
@@ -461,10 +480,16 @@ static int bcm63xx_hsspi_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(bcm63xx_hsspi_pm_ops, bcm63xx_hsspi_suspend,
 			 bcm63xx_hsspi_resume);
 
+static const struct of_device_id bcm63xx_hsspi_of_match[] = {
+	{ .compatible = "brcm,bcm6328-hsspi", },
+	{ },
+};
+
 static struct platform_driver bcm63xx_hsspi_driver = {
 	.driver = {
 		.name	= "bcm63xx-hsspi",
 		.pm	= &bcm63xx_hsspi_pm_ops,
+		.of_match_table = bcm63xx_hsspi_of_match,
 	},
 	.probe		= bcm63xx_hsspi_probe,
 	.remove		= bcm63xx_hsspi_remove,

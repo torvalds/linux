@@ -84,6 +84,8 @@ static const struct qed_eth_ops *qed_ops;
 #define CHIP_NUM_57980S_50		0x1654
 #define CHIP_NUM_57980S_25		0x1656
 #define CHIP_NUM_57980S_IOV		0x1664
+#define CHIP_NUM_AH			0x8070
+#define CHIP_NUM_AH_IOV			0x8090
 
 #ifndef PCI_DEVICE_ID_NX2_57980E
 #define PCI_DEVICE_ID_57980S_40		CHIP_NUM_57980S_40
@@ -93,6 +95,9 @@ static const struct qed_eth_ops *qed_ops;
 #define PCI_DEVICE_ID_57980S_50		CHIP_NUM_57980S_50
 #define PCI_DEVICE_ID_57980S_25		CHIP_NUM_57980S_25
 #define PCI_DEVICE_ID_57980S_IOV	CHIP_NUM_57980S_IOV
+#define PCI_DEVICE_ID_AH		CHIP_NUM_AH
+#define PCI_DEVICE_ID_AH_IOV		CHIP_NUM_AH_IOV
+
 #endif
 
 enum qede_pci_private {
@@ -109,6 +114,10 @@ static const struct pci_device_id qede_pci_tbl[] = {
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_25), QEDE_PRIVATE_PF},
 #ifdef CONFIG_QED_SRIOV
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_IOV), QEDE_PRIVATE_VF},
+#endif
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_AH), QEDE_PRIVATE_PF},
+#ifdef CONFIG_QED_SRIOV
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_AH_IOV), QEDE_PRIVATE_VF},
 #endif
 	{ 0 }
 };
@@ -216,9 +225,13 @@ static struct pci_driver qede_pci_driver = {
 
 static struct qed_eth_cb_ops qede_ll_ops = {
 	{
+#ifdef CONFIG_RFS_ACCEL
+		.arfs_filter_op = qede_arfs_filter_op,
+#endif
 		.link_update = qede_link_update,
 	},
 	.force_mac = qede_force_mac,
+	.ports_update = qede_udp_ports_update,
 };
 
 static int qede_netdev_event(struct notifier_block *this, unsigned long event,
@@ -314,122 +327,135 @@ static int qede_close(struct net_device *ndev);
 
 void qede_fill_by_demand_stats(struct qede_dev *edev)
 {
+	struct qede_stats_common *p_common = &edev->stats.common;
 	struct qed_eth_stats stats;
 
 	edev->ops->get_vport_stats(edev->cdev, &stats);
-	edev->stats.no_buff_discards = stats.no_buff_discards;
-	edev->stats.packet_too_big_discard = stats.packet_too_big_discard;
-	edev->stats.ttl0_discard = stats.ttl0_discard;
-	edev->stats.rx_ucast_bytes = stats.rx_ucast_bytes;
-	edev->stats.rx_mcast_bytes = stats.rx_mcast_bytes;
-	edev->stats.rx_bcast_bytes = stats.rx_bcast_bytes;
-	edev->stats.rx_ucast_pkts = stats.rx_ucast_pkts;
-	edev->stats.rx_mcast_pkts = stats.rx_mcast_pkts;
-	edev->stats.rx_bcast_pkts = stats.rx_bcast_pkts;
-	edev->stats.mftag_filter_discards = stats.mftag_filter_discards;
-	edev->stats.mac_filter_discards = stats.mac_filter_discards;
 
-	edev->stats.tx_ucast_bytes = stats.tx_ucast_bytes;
-	edev->stats.tx_mcast_bytes = stats.tx_mcast_bytes;
-	edev->stats.tx_bcast_bytes = stats.tx_bcast_bytes;
-	edev->stats.tx_ucast_pkts = stats.tx_ucast_pkts;
-	edev->stats.tx_mcast_pkts = stats.tx_mcast_pkts;
-	edev->stats.tx_bcast_pkts = stats.tx_bcast_pkts;
-	edev->stats.tx_err_drop_pkts = stats.tx_err_drop_pkts;
-	edev->stats.coalesced_pkts = stats.tpa_coalesced_pkts;
-	edev->stats.coalesced_events = stats.tpa_coalesced_events;
-	edev->stats.coalesced_aborts_num = stats.tpa_aborts_num;
-	edev->stats.non_coalesced_pkts = stats.tpa_not_coalesced_pkts;
-	edev->stats.coalesced_bytes = stats.tpa_coalesced_bytes;
+	p_common->no_buff_discards = stats.common.no_buff_discards;
+	p_common->packet_too_big_discard = stats.common.packet_too_big_discard;
+	p_common->ttl0_discard = stats.common.ttl0_discard;
+	p_common->rx_ucast_bytes = stats.common.rx_ucast_bytes;
+	p_common->rx_mcast_bytes = stats.common.rx_mcast_bytes;
+	p_common->rx_bcast_bytes = stats.common.rx_bcast_bytes;
+	p_common->rx_ucast_pkts = stats.common.rx_ucast_pkts;
+	p_common->rx_mcast_pkts = stats.common.rx_mcast_pkts;
+	p_common->rx_bcast_pkts = stats.common.rx_bcast_pkts;
+	p_common->mftag_filter_discards = stats.common.mftag_filter_discards;
+	p_common->mac_filter_discards = stats.common.mac_filter_discards;
 
-	edev->stats.rx_64_byte_packets = stats.rx_64_byte_packets;
-	edev->stats.rx_65_to_127_byte_packets = stats.rx_65_to_127_byte_packets;
-	edev->stats.rx_128_to_255_byte_packets =
-				stats.rx_128_to_255_byte_packets;
-	edev->stats.rx_256_to_511_byte_packets =
-				stats.rx_256_to_511_byte_packets;
-	edev->stats.rx_512_to_1023_byte_packets =
-				stats.rx_512_to_1023_byte_packets;
-	edev->stats.rx_1024_to_1518_byte_packets =
-				stats.rx_1024_to_1518_byte_packets;
-	edev->stats.rx_1519_to_1522_byte_packets =
-				stats.rx_1519_to_1522_byte_packets;
-	edev->stats.rx_1519_to_2047_byte_packets =
-				stats.rx_1519_to_2047_byte_packets;
-	edev->stats.rx_2048_to_4095_byte_packets =
-				stats.rx_2048_to_4095_byte_packets;
-	edev->stats.rx_4096_to_9216_byte_packets =
-				stats.rx_4096_to_9216_byte_packets;
-	edev->stats.rx_9217_to_16383_byte_packets =
-				stats.rx_9217_to_16383_byte_packets;
-	edev->stats.rx_crc_errors = stats.rx_crc_errors;
-	edev->stats.rx_mac_crtl_frames = stats.rx_mac_crtl_frames;
-	edev->stats.rx_pause_frames = stats.rx_pause_frames;
-	edev->stats.rx_pfc_frames = stats.rx_pfc_frames;
-	edev->stats.rx_align_errors = stats.rx_align_errors;
-	edev->stats.rx_carrier_errors = stats.rx_carrier_errors;
-	edev->stats.rx_oversize_packets = stats.rx_oversize_packets;
-	edev->stats.rx_jabbers = stats.rx_jabbers;
-	edev->stats.rx_undersize_packets = stats.rx_undersize_packets;
-	edev->stats.rx_fragments = stats.rx_fragments;
-	edev->stats.tx_64_byte_packets = stats.tx_64_byte_packets;
-	edev->stats.tx_65_to_127_byte_packets = stats.tx_65_to_127_byte_packets;
-	edev->stats.tx_128_to_255_byte_packets =
-				stats.tx_128_to_255_byte_packets;
-	edev->stats.tx_256_to_511_byte_packets =
-				stats.tx_256_to_511_byte_packets;
-	edev->stats.tx_512_to_1023_byte_packets =
-				stats.tx_512_to_1023_byte_packets;
-	edev->stats.tx_1024_to_1518_byte_packets =
-				stats.tx_1024_to_1518_byte_packets;
-	edev->stats.tx_1519_to_2047_byte_packets =
-				stats.tx_1519_to_2047_byte_packets;
-	edev->stats.tx_2048_to_4095_byte_packets =
-				stats.tx_2048_to_4095_byte_packets;
-	edev->stats.tx_4096_to_9216_byte_packets =
-				stats.tx_4096_to_9216_byte_packets;
-	edev->stats.tx_9217_to_16383_byte_packets =
-				stats.tx_9217_to_16383_byte_packets;
-	edev->stats.tx_pause_frames = stats.tx_pause_frames;
-	edev->stats.tx_pfc_frames = stats.tx_pfc_frames;
-	edev->stats.tx_lpi_entry_count = stats.tx_lpi_entry_count;
-	edev->stats.tx_total_collisions = stats.tx_total_collisions;
-	edev->stats.brb_truncates = stats.brb_truncates;
-	edev->stats.brb_discards = stats.brb_discards;
-	edev->stats.tx_mac_ctrl_frames = stats.tx_mac_ctrl_frames;
+	p_common->tx_ucast_bytes = stats.common.tx_ucast_bytes;
+	p_common->tx_mcast_bytes = stats.common.tx_mcast_bytes;
+	p_common->tx_bcast_bytes = stats.common.tx_bcast_bytes;
+	p_common->tx_ucast_pkts = stats.common.tx_ucast_pkts;
+	p_common->tx_mcast_pkts = stats.common.tx_mcast_pkts;
+	p_common->tx_bcast_pkts = stats.common.tx_bcast_pkts;
+	p_common->tx_err_drop_pkts = stats.common.tx_err_drop_pkts;
+	p_common->coalesced_pkts = stats.common.tpa_coalesced_pkts;
+	p_common->coalesced_events = stats.common.tpa_coalesced_events;
+	p_common->coalesced_aborts_num = stats.common.tpa_aborts_num;
+	p_common->non_coalesced_pkts = stats.common.tpa_not_coalesced_pkts;
+	p_common->coalesced_bytes = stats.common.tpa_coalesced_bytes;
+
+	p_common->rx_64_byte_packets = stats.common.rx_64_byte_packets;
+	p_common->rx_65_to_127_byte_packets =
+	    stats.common.rx_65_to_127_byte_packets;
+	p_common->rx_128_to_255_byte_packets =
+	    stats.common.rx_128_to_255_byte_packets;
+	p_common->rx_256_to_511_byte_packets =
+	    stats.common.rx_256_to_511_byte_packets;
+	p_common->rx_512_to_1023_byte_packets =
+	    stats.common.rx_512_to_1023_byte_packets;
+	p_common->rx_1024_to_1518_byte_packets =
+	    stats.common.rx_1024_to_1518_byte_packets;
+	p_common->rx_crc_errors = stats.common.rx_crc_errors;
+	p_common->rx_mac_crtl_frames = stats.common.rx_mac_crtl_frames;
+	p_common->rx_pause_frames = stats.common.rx_pause_frames;
+	p_common->rx_pfc_frames = stats.common.rx_pfc_frames;
+	p_common->rx_align_errors = stats.common.rx_align_errors;
+	p_common->rx_carrier_errors = stats.common.rx_carrier_errors;
+	p_common->rx_oversize_packets = stats.common.rx_oversize_packets;
+	p_common->rx_jabbers = stats.common.rx_jabbers;
+	p_common->rx_undersize_packets = stats.common.rx_undersize_packets;
+	p_common->rx_fragments = stats.common.rx_fragments;
+	p_common->tx_64_byte_packets = stats.common.tx_64_byte_packets;
+	p_common->tx_65_to_127_byte_packets =
+	    stats.common.tx_65_to_127_byte_packets;
+	p_common->tx_128_to_255_byte_packets =
+	    stats.common.tx_128_to_255_byte_packets;
+	p_common->tx_256_to_511_byte_packets =
+	    stats.common.tx_256_to_511_byte_packets;
+	p_common->tx_512_to_1023_byte_packets =
+	    stats.common.tx_512_to_1023_byte_packets;
+	p_common->tx_1024_to_1518_byte_packets =
+	    stats.common.tx_1024_to_1518_byte_packets;
+	p_common->tx_pause_frames = stats.common.tx_pause_frames;
+	p_common->tx_pfc_frames = stats.common.tx_pfc_frames;
+	p_common->brb_truncates = stats.common.brb_truncates;
+	p_common->brb_discards = stats.common.brb_discards;
+	p_common->tx_mac_ctrl_frames = stats.common.tx_mac_ctrl_frames;
+
+	if (QEDE_IS_BB(edev)) {
+		struct qede_stats_bb *p_bb = &edev->stats.bb;
+
+		p_bb->rx_1519_to_1522_byte_packets =
+		    stats.bb.rx_1519_to_1522_byte_packets;
+		p_bb->rx_1519_to_2047_byte_packets =
+		    stats.bb.rx_1519_to_2047_byte_packets;
+		p_bb->rx_2048_to_4095_byte_packets =
+		    stats.bb.rx_2048_to_4095_byte_packets;
+		p_bb->rx_4096_to_9216_byte_packets =
+		    stats.bb.rx_4096_to_9216_byte_packets;
+		p_bb->rx_9217_to_16383_byte_packets =
+		    stats.bb.rx_9217_to_16383_byte_packets;
+		p_bb->tx_1519_to_2047_byte_packets =
+		    stats.bb.tx_1519_to_2047_byte_packets;
+		p_bb->tx_2048_to_4095_byte_packets =
+		    stats.bb.tx_2048_to_4095_byte_packets;
+		p_bb->tx_4096_to_9216_byte_packets =
+		    stats.bb.tx_4096_to_9216_byte_packets;
+		p_bb->tx_9217_to_16383_byte_packets =
+		    stats.bb.tx_9217_to_16383_byte_packets;
+		p_bb->tx_lpi_entry_count = stats.bb.tx_lpi_entry_count;
+		p_bb->tx_total_collisions = stats.bb.tx_total_collisions;
+	} else {
+		struct qede_stats_ah *p_ah = &edev->stats.ah;
+
+		p_ah->rx_1519_to_max_byte_packets =
+		    stats.ah.rx_1519_to_max_byte_packets;
+		p_ah->tx_1519_to_max_byte_packets =
+		    stats.ah.tx_1519_to_max_byte_packets;
+	}
 }
 
 static void qede_get_stats64(struct net_device *dev,
 			     struct rtnl_link_stats64 *stats)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	struct qede_stats_common *p_common;
 
 	qede_fill_by_demand_stats(edev);
+	p_common = &edev->stats.common;
 
-	stats->rx_packets = edev->stats.rx_ucast_pkts +
-			    edev->stats.rx_mcast_pkts +
-			    edev->stats.rx_bcast_pkts;
-	stats->tx_packets = edev->stats.tx_ucast_pkts +
-			    edev->stats.tx_mcast_pkts +
-			    edev->stats.tx_bcast_pkts;
+	stats->rx_packets = p_common->rx_ucast_pkts + p_common->rx_mcast_pkts +
+			    p_common->rx_bcast_pkts;
+	stats->tx_packets = p_common->tx_ucast_pkts + p_common->tx_mcast_pkts +
+			    p_common->tx_bcast_pkts;
 
-	stats->rx_bytes = edev->stats.rx_ucast_bytes +
-			  edev->stats.rx_mcast_bytes +
-			  edev->stats.rx_bcast_bytes;
+	stats->rx_bytes = p_common->rx_ucast_bytes + p_common->rx_mcast_bytes +
+			  p_common->rx_bcast_bytes;
+	stats->tx_bytes = p_common->tx_ucast_bytes + p_common->tx_mcast_bytes +
+			  p_common->tx_bcast_bytes;
 
-	stats->tx_bytes = edev->stats.tx_ucast_bytes +
-			  edev->stats.tx_mcast_bytes +
-			  edev->stats.tx_bcast_bytes;
+	stats->tx_errors = p_common->tx_err_drop_pkts;
+	stats->multicast = p_common->rx_mcast_pkts + p_common->rx_bcast_pkts;
 
-	stats->tx_errors = edev->stats.tx_err_drop_pkts;
-	stats->multicast = edev->stats.rx_mcast_pkts +
-			   edev->stats.rx_bcast_pkts;
+	stats->rx_fifo_errors = p_common->no_buff_discards;
 
-	stats->rx_fifo_errors = edev->stats.no_buff_discards;
-
-	stats->collisions = edev->stats.tx_total_collisions;
-	stats->rx_crc_errors = edev->stats.rx_crc_errors;
-	stats->rx_frame_errors = edev->stats.rx_align_errors;
+	if (QEDE_IS_BB(edev))
+		stats->collisions = edev->stats.bb.tx_total_collisions;
+	stats->rx_crc_errors = p_common->rx_crc_errors;
+	stats->rx_frame_errors = p_common->rx_align_errors;
 }
 
 #ifdef CONFIG_QED_SRIOV
@@ -532,6 +558,26 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
 	.ndo_features_check = qede_features_check,
 	.ndo_xdp = qede_xdp,
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer = qede_rx_flow_steer,
+#endif
+};
+
+static const struct net_device_ops qede_netdev_vf_ops = {
+	.ndo_open = qede_open,
+	.ndo_stop = qede_close,
+	.ndo_start_xmit = qede_start_xmit,
+	.ndo_set_rx_mode = qede_set_rx_mode,
+	.ndo_set_mac_address = qede_set_mac_addr,
+	.ndo_validate_addr = eth_validate_addr,
+	.ndo_change_mtu = qede_change_mtu,
+	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
+	.ndo_set_features = qede_set_features,
+	.ndo_get_stats64 = qede_get_stats64,
+	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
+	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
+	.ndo_features_check = qede_features_check,
 };
 
 /* -------------------------------------------------------------------------
@@ -581,7 +627,8 @@ static void qede_init_ndev(struct qede_dev *edev)
 {
 	struct net_device *ndev = edev->ndev;
 	struct pci_dev *pdev = edev->pdev;
-	u32 hw_features;
+	bool udp_tunnel_enable = false;
+	netdev_features_t hw_features;
 
 	pci_set_drvdata(pdev, ndev);
 
@@ -592,7 +639,10 @@ static void qede_init_ndev(struct qede_dev *edev)
 
 	ndev->watchdog_timeo = TX_TIMEOUT;
 
-	ndev->netdev_ops = &qede_netdev_ops;
+	if (IS_VF(edev))
+		ndev->netdev_ops = &qede_netdev_vf_ops;
+	else
+		ndev->netdev_ops = &qede_netdev_ops;
 
 	qede_set_ethtool_ops(ndev);
 
@@ -603,16 +653,33 @@ static void qede_init_ndev(struct qede_dev *edev)
 		      NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		      NETIF_F_TSO | NETIF_F_TSO6;
 
-	/* Encap features*/
-	hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |
-		       NETIF_F_TSO_ECN | NETIF_F_GSO_UDP_TUNNEL_CSUM |
-		       NETIF_F_GSO_GRE_CSUM;
-	ndev->hw_enc_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO_ECN |
-				NETIF_F_TSO6 | NETIF_F_GSO_GRE |
-				NETIF_F_GSO_UDP_TUNNEL | NETIF_F_RXCSUM |
-				NETIF_F_GSO_UDP_TUNNEL_CSUM |
-				NETIF_F_GSO_GRE_CSUM;
+	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1)
+		hw_features |= NETIF_F_NTUPLE;
+
+	if (edev->dev_info.common.vxlan_enable ||
+	    edev->dev_info.common.geneve_enable)
+		udp_tunnel_enable = true;
+
+	if (udp_tunnel_enable || edev->dev_info.common.gre_enable) {
+		hw_features |= NETIF_F_TSO_ECN;
+		ndev->hw_enc_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+					NETIF_F_SG | NETIF_F_TSO |
+					NETIF_F_TSO_ECN | NETIF_F_TSO6 |
+					NETIF_F_RXCSUM;
+	}
+
+	if (udp_tunnel_enable) {
+		hw_features |= (NETIF_F_GSO_UDP_TUNNEL |
+				NETIF_F_GSO_UDP_TUNNEL_CSUM);
+		ndev->hw_enc_features |= (NETIF_F_GSO_UDP_TUNNEL |
+					  NETIF_F_GSO_UDP_TUNNEL_CSUM);
+	}
+
+	if (edev->dev_info.common.gre_enable) {
+		hw_features |= (NETIF_F_GSO_GRE | NETIF_F_GSO_GRE_CSUM);
+		ndev->hw_enc_features |= (NETIF_F_GSO_GRE |
+					  NETIF_F_GSO_GRE_CSUM);
+	}
 
 	ndev->vlan_features = hw_features | NETIF_F_RXHASH | NETIF_F_RXCSUM |
 			      NETIF_F_HIGHDMA;
@@ -750,7 +817,6 @@ static void qede_sp_task(struct work_struct *work)
 {
 	struct qede_dev *edev = container_of(work, struct qede_dev,
 					     sp_task.work);
-	struct qed_dev *cdev = edev->cdev;
 
 	__qede_lock(edev);
 
@@ -758,24 +824,12 @@ static void qede_sp_task(struct work_struct *work)
 		if (edev->state == QEDE_STATE_OPEN)
 			qede_config_rx_mode(edev->ndev);
 
-	if (test_and_clear_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags)) {
-		struct qed_tunn_params tunn_params;
-
-		memset(&tunn_params, 0, sizeof(tunn_params));
-		tunn_params.update_vxlan_port = 1;
-		tunn_params.vxlan_port = edev->vxlan_dst_port;
-		qed_ops->tunn_config(cdev, &tunn_params);
+#ifdef CONFIG_RFS_ACCEL
+	if (test_and_clear_bit(QEDE_SP_ARFS_CONFIG, &edev->sp_flags)) {
+		if (edev->state == QEDE_STATE_OPEN)
+			qede_process_arfs_filters(edev, false);
 	}
-
-	if (test_and_clear_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags)) {
-		struct qed_tunn_params tunn_params;
-
-		memset(&tunn_params, 0, sizeof(tunn_params));
-		tunn_params.update_geneve_port = 1;
-		tunn_params.geneve_port = edev->geneve_dst_port;
-		qed_ops->tunn_config(cdev, &tunn_params);
-	}
-
+#endif
 	__qede_unlock(edev);
 }
 
@@ -786,6 +840,9 @@ static void qede_update_pf_params(struct qed_dev *cdev)
 	/* 64 rx + 64 tx + 64 XDP */
 	memset(&pf_params, 0, sizeof(struct qed_pf_params));
 	pf_params.eth_pf_params.num_cons = (MAX_SB_PER_PF_MIMD - 1) * 3;
+#ifdef CONFIG_RFS_ACCEL
+	pf_params.eth_pf_params.num_arfs_filters = QEDE_RFS_MAX_FLTR;
+#endif
 	qed_ops->common->update_pf_params(cdev, &pf_params);
 }
 
@@ -870,13 +927,8 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	edev->ops->common->set_id(cdev, edev->ndev->name, DRV_MODULE_VERSION);
 
 	/* PTP not supported on VFs */
-	if (!is_vf) {
-		rc = qede_ptp_register_phc(edev);
-		if (rc) {
-			DP_NOTICE(edev, "Cannot register PHC\n");
-			goto err5;
-		}
-	}
+	if (!is_vf)
+		qede_ptp_enable(edev, true);
 
 	edev->ops->register_ops(cdev, &qede_ll_ops, edev);
 
@@ -891,8 +943,6 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	return 0;
 
-err5:
-	unregister_netdev(edev->ndev);
 err4:
 	qede_roce_dev_remove(edev);
 err3:
@@ -940,11 +990,10 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 
 	DP_INFO(edev, "Starting qede_remove\n");
 
+	unregister_netdev(ndev);
 	cancel_delayed_work_sync(&edev->sp_task);
 
-	unregister_netdev(ndev);
-
-	qede_ptp_remove(edev);
+	qede_ptp_disable(edev);
 
 	qede_roce_dev_remove(edev);
 
@@ -1165,9 +1214,11 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 	rxq->num_rx_buffers = edev->q_num_rx_buffers;
 
 	rxq->rx_buf_size = NET_IP_ALIGN + ETH_OVERHEAD + edev->ndev->mtu;
+	rxq->rx_headroom = edev->xdp_prog ? XDP_PACKET_HEADROOM : 0;
 
-	if (rxq->rx_buf_size > PAGE_SIZE)
-		rxq->rx_buf_size = PAGE_SIZE;
+	/* Make sure that the headroom and  payload fit in a single page */
+	if (rxq->rx_buf_size + rxq->rx_headroom > PAGE_SIZE)
+		rxq->rx_buf_size = PAGE_SIZE - rxq->rx_headroom;
 
 	/* Segment size to spilt a page in multiple equal parts,
 	 * unless XDP is used in which case we'd use the entire page.
@@ -1229,7 +1280,7 @@ static void qede_free_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 {
 	/* Free the parallel SW ring */
 	if (txq->is_xdp)
-		kfree(txq->sw_tx_ring.pages);
+		kfree(txq->sw_tx_ring.xdp);
 	else
 		kfree(txq->sw_tx_ring.skbs);
 
@@ -1247,9 +1298,9 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 
 	/* Allocate the parallel driver ring for Tx buffers */
 	if (txq->is_xdp) {
-		size = sizeof(*txq->sw_tx_ring.pages) * TX_RING_SIZE;
-		txq->sw_tx_ring.pages = kzalloc(size, GFP_KERNEL);
-		if (!txq->sw_tx_ring.pages)
+		size = sizeof(*txq->sw_tx_ring.xdp) * TX_RING_SIZE;
+		txq->sw_tx_ring.xdp = kzalloc(size, GFP_KERNEL);
+		if (!txq->sw_tx_ring.xdp)
 			goto err;
 	} else {
 		size = sizeof(*txq->sw_tx_ring.skbs) * TX_RING_SIZE;
@@ -1281,6 +1332,9 @@ static void qede_free_mem_fp(struct qede_dev *edev, struct qede_fastpath *fp)
 
 	if (fp->type & QEDE_FASTPATH_RX)
 		qede_free_mem_rxq(edev, fp->rxq);
+
+	if (fp->type & QEDE_FASTPATH_XDP)
+		qede_free_mem_txq(edev, fp->xdp_tx);
 
 	if (fp->type & QEDE_FASTPATH_TX)
 		qede_free_mem_txq(edev, fp->txq);
@@ -1466,6 +1520,18 @@ static int qede_req_msix_irqs(struct qede_dev *edev)
 	}
 
 	for (i = 0; i < QEDE_QUEUE_CNT(edev); i++) {
+#ifdef CONFIG_RFS_ACCEL
+		struct qede_fastpath *fp = &edev->fp_array[i];
+
+		if (edev->ndev->rx_cpu_rmap && (fp->type & QEDE_FASTPATH_RX)) {
+			rc = irq_cpu_rmap_add(edev->ndev->rx_cpu_rmap,
+					      edev->int_info.msix[i].vector);
+			if (rc) {
+				DP_ERR(edev, "Failed to add CPU rmap\n");
+				qede_free_arfs(edev);
+			}
+		}
+#endif
 		rc = request_irq(edev->int_info.msix[i].vector,
 				 qede_msix_fp_int, 0, edev->fp_array[i].name,
 				 &edev->fp_array[i]);
@@ -1827,8 +1893,6 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 	qede_roce_dev_event_close(edev);
 	edev->state = QEDE_STATE_CLOSED;
 
-	qede_ptp_stop(edev);
-
 	/* Close OS Tx */
 	netif_tx_disable(edev->ndev);
 	netif_carrier_off(edev->ndev);
@@ -1847,7 +1911,12 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 
 	qede_vlan_mark_nonconfigured(edev);
 	edev->ops->fastpath_stop(edev->cdev);
-
+#ifdef CONFIG_RFS_ACCEL
+	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1) {
+		qede_poll_for_freeing_arfs_filters(edev);
+		qede_free_arfs(edev);
+	}
+#endif
 	/* Release the interrupts */
 	qede_sync_free_irqs(edev);
 	edev->ops->common->set_fp_int(edev->cdev, 0);
@@ -1899,6 +1968,13 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 	if (rc)
 		goto err2;
 
+#ifdef CONFIG_RFS_ACCEL
+	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1) {
+		rc = qede_alloc_arfs(edev);
+		if (rc)
+			DP_NOTICE(edev, "aRFS memory allocation failed\n");
+	}
+#endif
 	qede_napi_add_enable(edev);
 	DP_INFO(edev, "Napi added and enabled\n");
 
@@ -1925,12 +2001,9 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 
 	qede_roce_dev_event_open(edev);
 
-	qede_ptp_start(edev, (mode == QEDE_LOAD_NORMAL));
-
 	edev->state = QEDE_STATE_OPEN;
 
 	DP_INFO(edev, "Ending successfully qede load\n");
-
 
 	goto out;
 err4:

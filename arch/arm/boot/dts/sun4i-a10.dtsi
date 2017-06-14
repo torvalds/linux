@@ -47,7 +47,6 @@
 
 #include <dt-bindings/clock/sun4i-a10-pll2.h>
 #include <dt-bindings/dma/sun4i-a10.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	interrupt-parent = <&intc>;
@@ -974,6 +973,11 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
+			can0_pins_a: can0@0 {
+				pins = "PH20", "PH21";
+				function = "can";
+			};
+
 			emac_pins_a: emac0@0 {
 				pins = "PA0", "PA1", "PA2",
 				       "PA3", "PA4", "PA5", "PA6",
@@ -1283,6 +1287,22 @@
 			status = "disabled";
 		};
 
+		ps20: ps2@01c2a000 {
+			compatible = "allwinner,sun4i-a10-ps2";
+			reg = <0x01c2a000 0x400>;
+			interrupts = <62>;
+			clocks = <&apb1_gates 6>;
+			status = "disabled";
+		};
+
+		ps21: ps2@01c2a400 {
+			compatible = "allwinner,sun4i-a10-ps2";
+			reg = <0x01c2a400 0x400>;
+			interrupts = <63>;
+			clocks = <&apb1_gates 7>;
+			status = "disabled";
+		};
+
 		i2c0: i2c@01c2ac00 {
 			compatible = "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2ac00 0x400>;
@@ -1313,19 +1333,11 @@
 			#size-cells = <0>;
 		};
 
-		ps20: ps2@01c2a000 {
-			compatible = "allwinner,sun4i-a10-ps2";
-			reg = <0x01c2a000 0x400>;
-			interrupts = <62>;
-			clocks = <&apb1_gates 6>;
-			status = "disabled";
-		};
-
-		ps21: ps2@01c2a400 {
-			compatible = "allwinner,sun4i-a10-ps2";
-			reg = <0x01c2a400 0x400>;
-			interrupts = <63>;
-			clocks = <&apb1_gates 7>;
+		can0: can@01c2bc00 {
+			compatible = "allwinner,sun4i-a10-can";
+			reg = <0x01c2bc00 0x400>;
+			interrupts = <26>;
+			clocks = <&apb1_gates 4>;
 			status = "disabled";
 		};
 	};

@@ -793,7 +793,7 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 	u32 num_descs = 0;
 	u32 iq_no = 0;
 	union oct_txpciq txpciq;
-	int numa_node = cpu_to_node(iq_no % num_online_cpus());
+	int numa_node = dev_to_node(&oct->pci_dev->dev);
 
 	if (OCTEON_CN6XXX(oct))
 		num_descs =
@@ -837,7 +837,7 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 	u32 num_descs = 0;
 	u32 desc_size = 0;
 	u32 oq_no = 0;
-	int numa_node = cpu_to_node(oq_no % num_online_cpus());
+	int numa_node = dev_to_node(&oct->pci_dev->dev);
 
 	if (OCTEON_CN6XXX(oct)) {
 		num_descs =

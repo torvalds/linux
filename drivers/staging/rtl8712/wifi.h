@@ -370,7 +370,7 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 
 
 /*-----------------------------------------------------------------------------
-			Below is for the security related definition
+ *		Below is for the security related definition
  *-----------------------------------------------------------------------------
  */
 #define _RESERVED_FRAME_TYPE_	0
@@ -415,7 +415,7 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 
 
 /* ---------------------------------------------------------------------------
-					Below is the fixed elements...
+ *			Below is the fixed elements...
  * ---------------------------------------------------------------------------
  */
 #define _AUTH_ALGM_NUM_			2
@@ -444,14 +444,14 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 #define cap_ShortPremble BIT(5)
 
 /*-----------------------------------------------------------------------------
-				Below is the definition for 802.11i / 802.1x
+ *			Below is the definition for 802.11i / 802.1x
  *------------------------------------------------------------------------------
  */
 #define _IEEE8021X_MGT_			1	/*WPA */
 #define _IEEE8021X_PSK_			2	/* WPA with pre-shared key */
 
 /*-----------------------------------------------------------------------------
-				Below is the definition for WMM
+ *			Below is the definition for WMM
  *------------------------------------------------------------------------------
  */
 #define _WMM_IE_Length_				7  /* for WMM STA */
@@ -459,7 +459,7 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 
 
 /*-----------------------------------------------------------------------------
-				Below is the definition for 802.11n
+ *			Below is the definition for 802.11n
  *------------------------------------------------------------------------------
  */
 
@@ -498,7 +498,7 @@ struct ieee80211_bar {
 #define IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA  0x0004
 
 
- /**
+/*
  * struct ieee80211_ht_cap - HT capabilities
  *
  * This structure refers to "HT capabilities element" as

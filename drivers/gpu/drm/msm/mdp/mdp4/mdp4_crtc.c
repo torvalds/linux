@@ -114,15 +114,9 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 	spin_lock_irqsave(&dev->event_lock, flags);
 	event = mdp4_crtc->event;
 	if (event) {
-		/* if regular vblank case (!file) or if cancel-flip from
-		 * preclose on file that requested flip, then send the
-		 * event:
-		 */
-		if (!file || (event->base.file_priv == file)) {
-			mdp4_crtc->event = NULL;
-			DBG("%s: send event: %p", mdp4_crtc->name, event);
-			drm_crtc_send_vblank_event(crtc, event);
-		}
+		mdp4_crtc->event = NULL;
+		DBG("%s: send event: %p", mdp4_crtc->name, event);
+		drm_crtc_send_vblank_event(crtc, event);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }

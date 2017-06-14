@@ -20,10 +20,8 @@
 
 static void _print_addr(void *data, unsigned long address, int reliable)
 {
-	pr_info(" [<%08lx>]", address);
-	pr_cont(" %s", reliable ? "" : "? ");
-	print_symbol("%s", address);
-	pr_cont("\n");
+	pr_info(" [<%08lx>] %s%pF\n", address, reliable ? "" : "? ",
+		(void *)address);
 }
 
 static const struct stacktrace_ops stackops = {

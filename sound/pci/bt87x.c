@@ -598,7 +598,7 @@ static int snd_bt87x_capture_volume_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_bt87x_capture_volume = {
+static const struct snd_kcontrol_new snd_bt87x_capture_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Volume",
 	.info = snd_bt87x_capture_volume_info,
@@ -634,7 +634,7 @@ static int snd_bt87x_capture_boost_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_bt87x_capture_boost = {
+static const struct snd_kcontrol_new snd_bt87x_capture_boost = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Boost",
 	.info = snd_bt87x_capture_boost_info,
@@ -676,7 +676,7 @@ static int snd_bt87x_capture_source_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_bt87x_capture_source = {
+static const struct snd_kcontrol_new snd_bt87x_capture_source = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Source",
 	.info = snd_bt87x_capture_source_info,

@@ -191,6 +191,7 @@ Code  Seq#(hex)	Include File		Comments
 'W'	00-1F	linux/watchdog.h	conflict!
 'W'	00-1F	linux/wanrouter.h	conflict!		(pre 3.9)
 'W'	00-3F	sound/asound.h		conflict!
+'W'	40-5F   drivers/pci/switch/switchtec.c
 'X'	all	fs/xfs/xfs_fs.h		conflict!
 		and fs/xfs/linux-2.6/xfs_ioctl32.h
 		and include/linux/falloc.h
@@ -212,7 +213,7 @@ Code  Seq#(hex)	Include File		Comments
 'c'	00-1F	linux/chio.h		conflict!
 'c'	80-9F	arch/s390/include/asm/chsc.h	conflict!
 'c'	A0-AF   arch/x86/include/asm/msr.h	conflict!
-'d'	00-FF	linux/char/drm/drm/h	conflict!
+'d'	00-FF	linux/char/drm/drm.h	conflict!
 'd'	02-40	pcmcia/ds.h		conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
@@ -308,6 +309,7 @@ Code  Seq#(hex)	Include File		Comments
 0xA3	80-8F	Port ACL		in development:
 					<mailto:tlewis@mindspring.com>
 0xA3	90-9F	linux/dtlk.h
+0xA4	00-1F	uapi/linux/tee.h	Generic TEE subsystem
 0xAA	00-3F	linux/uapi/linux/userfaultfd.h
 0xAB	00-1F	linux/nbd.h
 0xAC	00-1F	linux/raw.h

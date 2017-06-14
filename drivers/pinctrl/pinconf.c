@@ -284,7 +284,7 @@ void pinconf_show_setting(struct seq_file *s,
 	}
 
 	/*
-	 * FIXME: We should really get the pin controler to dump the config
+	 * FIXME: We should really get the pin controller to dump the config
 	 * values, so they can be decoded to something meaningful.
 	 */
 	pinconf_show_config(s, pctldev, setting->data.configs.configs,
@@ -473,7 +473,7 @@ exit:
  *     "config_pin" or "config_group", alternatives like config_mux are not
  *     supported yet.
  * <devicename> <state> <name> are values that should match the pinctrl-maps
- * <newvalue> reflects the new config and is driver dependant
+ * <newvalue> reflects the new config and is driver dependent
  */
 static ssize_t pinconf_dbg_config_write(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)

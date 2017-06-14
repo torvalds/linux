@@ -21,6 +21,8 @@ libdrm Device Lookup
    :doc: getunique and setversion story
 
 
+.. _drm_primary_node:
+
 Primary Nodes, DRM Master and Authentication
 ============================================
 
@@ -103,6 +105,8 @@ is already rather painful for the DRM subsystem, with multiple different uAPIs
 for the same thing co-existing. If we add a few more complete mistakes into the
 mix every year it would be entirely unmanageable.
 
+.. _drm_render_node:
+
 Render nodes
 ============
 
@@ -156,6 +160,20 @@ other hand, a driver requires shared state between clients which is
 visible to user-space and accessible beyond open-file boundaries, they
 cannot support render nodes.
 
+IOCTL Support on Device Nodes
+=============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_ioctl.c
+   :doc: driver specific ioctls
+
+.. kernel-doc:: include/drm/drm_ioctl.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_ioctl.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/drm_ioc32.c
+   :export:
 
 Testing and validation
 ======================
@@ -202,6 +220,28 @@ Display CRC Support
 
 .. kernel-doc:: drivers/gpu/drm/drm_debugfs_crc.c
    :doc: CRC ABI
+
+.. kernel-doc:: drivers/gpu/drm/drm_debugfs_crc.c
+   :export:
+
+Debugfs Support
+---------------
+
+.. kernel-doc:: include/drm/drm_debugfs.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_debugfs.c
+   :export:
+
+Sysfs Support
+=============
+
+.. kernel-doc:: drivers/gpu/drm/drm_sysfs.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_sysfs.c
+   :export:
+
 
 VBlank event handling
 =====================

@@ -113,9 +113,18 @@ Supporting PCI access on new platforms
 --------------------------------------
 
 In order to support PCI resource mapping as described above, Linux platform
-code must define HAVE_PCI_MMAP and provide a pci_mmap_page_range function.
-Platforms are free to only support subsets of the mmap functionality, but
-useful return codes should be provided.
+code should ideally define ARCH_GENERIC_PCI_MMAP_RESOURCE and use the generic
+implementation of that functionality. To support the historical interface of
+mmap() through files in /proc/bus/pci, platforms may also set HAVE_PCI_MMAP.
+
+Alternatively, platforms which set HAVE_PCI_MMAP may provide their own
+implementation of pci_mmap_page_range() instead of defining
+ARCH_GENERIC_PCI_MMAP_RESOURCE.
+
+Platforms which support write-combining maps of PCI resources must define
+arch_can_pci_mmap_wc() which shall evaluate to non-zero at runtime when
+write-combining is permitted. Platforms which support maps of I/O resources
+define arch_can_pci_mmap_io() similarly.
 
 Legacy resources are protected by the HAVE_PCI_LEGACY define.  Platforms
 wishing to support legacy functionality should define it and provide

@@ -81,7 +81,7 @@ xfs_zero_extent(
 	return blkdev_issue_zeroout(xfs_find_bdev_for_inode(VFS_I(ip)),
 		block << (mp->m_super->s_blocksize_bits - 9),
 		count_fsb << (mp->m_super->s_blocksize_bits - 9),
-		GFP_NOFS, true);
+		GFP_NOFS, 0);
 }
 
 int
@@ -448,10 +448,9 @@ xfs_getbmap_adjust_shared(
 	next_map->br_blockcount = 0;
 
 	/* Only written data blocks can be shared. */
-	if (!xfs_is_reflink_inode(ip) || whichfork != XFS_DATA_FORK ||
-	    map->br_startblock == DELAYSTARTBLOCK ||
-	    map->br_startblock == HOLESTARTBLOCK ||
-	    ISUNWRITTEN(map))
+	if (!xfs_is_reflink_inode(ip) ||
+	    whichfork != XFS_DATA_FORK ||
+	    !xfs_bmap_is_real_extent(map))
 		return 0;
 
 	agno = XFS_FSB_TO_AGNO(mp, map->br_startblock);
@@ -583,9 +582,13 @@ xfs_getbmap(
 		}
 		break;
 	default:
+		/* Local format data forks report no extents. */
+		if (ip->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
+			bmv->bmv_entries = 0;
+			return 0;
+		}
 		if (ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS &&
-		    ip->i_d.di_format != XFS_DINODE_FMT_BTREE &&
-		    ip->i_d.di_format != XFS_DINODE_FMT_LOCAL)
+		    ip->i_d.di_format != XFS_DINODE_FMT_BTREE)
 			return -EINVAL;
 
 		if (xfs_get_extsz_hint(ip) ||
@@ -713,7 +716,7 @@ xfs_getbmap(
 			 * extents.
 			 */
 			if (map[i].br_startblock == DELAYSTARTBLOCK &&
-			    map[i].br_startoff <= XFS_B_TO_FSB(mp, XFS_ISIZE(ip)))
+			    map[i].br_startoff < XFS_B_TO_FSB(mp, XFS_ISIZE(ip)))
 				ASSERT((iflags & BMV_IF_DELALLOC) != 0);
 
                         if (map[i].br_startblock == HOLESTARTBLOCK &&
@@ -904,9 +907,9 @@ xfs_can_free_eofblocks(struct xfs_inode *ip, bool force)
 }
 
 /*
- * This is called by xfs_inactive to free any blocks beyond eof
- * when the link count isn't zero and by xfs_dm_punch_hole() when
- * punching a hole to EOF.
+ * This is called to free any blocks beyond eof. The caller must hold
+ * IOLOCK_EXCL unless we are in the inode reclaim path and have the only
+ * reference to the inode.
  */
 int
 xfs_free_eofblocks(
@@ -920,8 +923,6 @@ xfs_free_eofblocks(
 	int			nimaps;
 	struct xfs_bmbt_irec	imap;
 	struct xfs_mount	*mp = ip->i_mount;
-
-	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 
 	/*
 	 * Figure out if there are any blocks beyond the end
@@ -1209,11 +1210,8 @@ xfs_adjust_extent_unmap_boundaries(
 		return error;
 
 	if (nimap && imap.br_startblock != HOLESTARTBLOCK) {
-		xfs_daddr_t	block;
-
 		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
-		block = imap.br_startblock;
-		mod = do_div(block, mp->m_sb.sb_rextsize);
+		mod = do_mod(imap.br_startblock, mp->m_sb.sb_rextsize);
 		if (mod)
 			*startoffset_fsb += mp->m_sb.sb_rextsize - mod;
 	}
@@ -1311,8 +1309,16 @@ xfs_free_file_space(
 	/*
 	 * Now that we've unmap all full blocks we'll have to zero out any
 	 * partial block at the beginning and/or end.  xfs_zero_range is
-	 * smart enough to skip any holes, including those we just created.
+	 * smart enough to skip any holes, including those we just created,
+	 * but we must take care not to zero beyond EOF and enlarge i_size.
 	 */
+
+	if (offset >= XFS_ISIZE(ip))
+		return 0;
+
+	if (offset + len > XFS_ISIZE(ip))
+		len = XFS_ISIZE(ip) - offset;
+
 	return xfs_zero_range(ip, offset, len, NULL);
 }
 

@@ -20,6 +20,7 @@
 /* Defines used for the flags field in the struct generic_pm_domain */
 #define GENPD_FLAG_PM_CLK	(1U << 0) /* PM domain uses PM clk */
 #define GENPD_FLAG_IRQ_SAFE	(1U << 1) /* PM domain operates in atomic */
+#define GENPD_FLAG_ALWAYS_ON	(1U << 2) /* PM domain is always powered on */
 
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */
@@ -117,6 +118,7 @@ struct generic_pm_domain_data {
 	struct pm_domain_data base;
 	struct gpd_timing_data td;
 	struct notifier_block nb;
+	void *data;
 };
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS

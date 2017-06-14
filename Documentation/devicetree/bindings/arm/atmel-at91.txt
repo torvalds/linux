@@ -217,7 +217,8 @@ memory, bridge implementations, processor and other functionality not controlled
 elsewhere.
 
 required properties:
-- compatible: Should be "atmel,<chip>-sfr", "syscon".
+- compatible: Should be "atmel,<chip>-sfr", "syscon" or
+	"atmel,<chip>-sfrbu", "syscon"
   <chip> can be "sama5d3", "sama5d4" or "sama5d2".
 - reg: Should contain registers location and length
 

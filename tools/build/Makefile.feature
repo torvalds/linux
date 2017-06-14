@@ -63,6 +63,7 @@ FEATURE_TESTS_BASIC :=                  \
         lzma                            \
         get_cpuid                       \
         bpf                             \
+        sched_getcpu			\
         sdt
 
 # FEATURE_TESTS_BASIC + FEATURE_TESTS_EXTRA is the complete list

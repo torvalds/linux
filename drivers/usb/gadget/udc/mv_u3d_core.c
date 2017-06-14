@@ -1835,13 +1835,18 @@ static int mv_u3d_probe(struct platform_device *dev)
 	}
 
 	/* we will access controller register, so enable the u3d controller */
-	clk_enable(u3d->clk);
+	retval = clk_enable(u3d->clk);
+	if (retval) {
+		dev_err(&dev->dev, "clk_enable error %d\n", retval);
+		goto err_u3d_enable;
+	}
 
 	if (pdata->phy_init) {
 		retval = pdata->phy_init(u3d->phy_regs);
 		if (retval) {
 			dev_err(&dev->dev, "init phy error %d\n", retval);
-			goto err_u3d_enable;
+			clk_disable(u3d->clk);
+			goto err_phy_init;
 		}
 	}
 
@@ -1974,15 +1979,13 @@ err_alloc_trb_pool:
 	dma_free_coherent(&dev->dev, u3d->ep_context_size,
 		u3d->ep_context, u3d->ep_context_dma);
 err_alloc_ep_context:
-	if (pdata->phy_deinit)
-		pdata->phy_deinit(u3d->phy_regs);
-	clk_disable(u3d->clk);
+err_phy_init:
 err_u3d_enable:
 	iounmap(u3d->cap_regs);
 err_map_cap_regs:
 err_get_cap_regs:
-err_get_clk:
 	clk_put(u3d->clk);
+err_get_clk:
 	kfree(u3d);
 err_alloc_private:
 err_pdata:

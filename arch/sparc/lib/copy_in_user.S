@@ -44,7 +44,7 @@ __retl_o2_plus_1:
 	 * to copy register windows around during thread cloning.
 	 */
 
-ENTRY(___copy_in_user)	/* %o0=dst, %o1=src, %o2=len */
+ENTRY(raw_copy_in_user)	/* %o0=dst, %o1=src, %o2=len */
 	cmp		%o2, 0
 	be,pn		%XCC, 85f
 	 or		%o0, %o1, %o3
@@ -105,5 +105,5 @@ ENTRY(___copy_in_user)	/* %o0=dst, %o1=src, %o2=len */
 	 add		%o0, 1, %o0
 	retl
 	 clr		%o0
-ENDPROC(___copy_in_user)
-EXPORT_SYMBOL(___copy_in_user)
+ENDPROC(raw_copy_in_user)
+EXPORT_SYMBOL(raw_copy_in_user)

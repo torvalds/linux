@@ -442,9 +442,9 @@ static int perf_del_probe_events(struct strfilter *filter)
 	}
 
 	if (ret == -ENOENT && ret2 == -ENOENT)
-		pr_debug("\"%s\" does not hit any event.\n", str);
-		/* Note that this is silently ignored */
-	ret = 0;
+		pr_warning("\"%s\" does not hit any event.\n", str);
+	else
+		ret = 0;
 
 error:
 	if (kfd >= 0)
@@ -468,7 +468,7 @@ out:
 
 
 static int
-__cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
+__cmd_probe(int argc, const char **argv)
 {
 	const char * const probe_usage[] = {
 		"perf probe [<options>] 'PROBEDEF' ['PROBEDEF' ...]",
@@ -486,7 +486,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
 	OPT_BOOLEAN('q', "quiet", &params.quiet,
-		    "be quiet (do not show any mesages)"),
+		    "be quiet (do not show any messages)"),
 	OPT_CALLBACK_DEFAULT('l', "list", NULL, "[GROUP:]EVENT",
 			     "list up probe events",
 			     opt_set_filter_with_command, DEFAULT_LIST_FILTER),
@@ -687,13 +687,13 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	return 0;
 }
 
-int cmd_probe(int argc, const char **argv, const char *prefix)
+int cmd_probe(int argc, const char **argv)
 {
 	int ret;
 
 	ret = init_params();
 	if (!ret) {
-		ret = __cmd_probe(argc, argv, prefix);
+		ret = __cmd_probe(argc, argv);
 		cleanup_params();
 	}
 

@@ -35,10 +35,11 @@
  * Max bus-specific overhead incurred by request/responses.
  * I2C requires 1 additional byte for requests.
  * I2C requires 2 additional bytes for responses.
+ * SPI requires up to 32 additional bytes for responses.
  * */
 #define EC_PROTO_VERSION_UNKNOWN	0
 #define EC_MAX_REQUEST_OVERHEAD		1
-#define EC_MAX_RESPONSE_OVERHEAD	2
+#define EC_MAX_RESPONSE_OVERHEAD	32
 
 /*
  * Command interface between EC and AP, for LPC, I2C and SPI interfaces.
@@ -303,5 +304,23 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev);
 extern struct attribute_group cros_ec_attr_group;
 extern struct attribute_group cros_ec_lightbar_attr_group;
 extern struct attribute_group cros_ec_vbc_attr_group;
+
+/* ACPI GPE handler */
+#ifdef CONFIG_ACPI
+
+int cros_ec_acpi_install_gpe_handler(struct device *dev);
+void cros_ec_acpi_remove_gpe_handler(void);
+void cros_ec_acpi_clear_gpe(void);
+
+#else /* CONFIG_ACPI */
+
+static inline int cros_ec_acpi_install_gpe_handler(struct device *dev)
+{
+	return -ENODEV;
+}
+static inline void cros_ec_acpi_remove_gpe_handler(void) {}
+static inline void cros_ec_acpi_clear_gpe(void) {}
+
+#endif /* CONFIG_ACPI */
 
 #endif /* __LINUX_MFD_CROS_EC_H */

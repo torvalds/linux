@@ -31,6 +31,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/mmu_notifier.h>
+#include <linux/interval_tree.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
 

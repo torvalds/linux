@@ -51,17 +51,18 @@ void cxio_dump_tpt(struct cxio_rdev *rdev, u32 stag)
 	m->mem_id = MEM_PMRX;
 	m->addr = (stag>>8) * 32 + rdev->rnic_info.tpt_base;
 	m->len = size;
-	PDBG("%s TPT addr 0x%x len %d\n", __func__, m->addr, m->len);
+	pr_debug("%s TPT addr 0x%x len %d\n", __func__, m->addr, m->len);
 	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
 	if (rc) {
-		PDBG("%s toectl returned error %d\n", __func__, rc);
+		pr_debug("%s toectl returned error %d\n", __func__, rc);
 		kfree(m);
 		return;
 	}
 
 	data = (u64 *)m->buf;
 	while (size > 0) {
-		PDBG("TPT %08x: %016llx\n", m->addr, (unsigned long long) *data);
+		pr_debug("TPT %08x: %016llx\n",
+			 m->addr, (unsigned long long)*data);
 		size -= 8;
 		data++;
 		m->addr += 8;
@@ -87,18 +88,19 @@ void cxio_dump_pbl(struct cxio_rdev *rdev, u32 pbl_addr, uint len, u8 shift)
 	m->mem_id = MEM_PMRX;
 	m->addr = pbl_addr;
 	m->len = size;
-	PDBG("%s PBL addr 0x%x len %d depth %d\n",
-		__func__, m->addr, m->len, npages);
+	pr_debug("%s PBL addr 0x%x len %d depth %d\n",
+		 __func__, m->addr, m->len, npages);
 	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
 	if (rc) {
-		PDBG("%s toectl returned error %d\n", __func__, rc);
+		pr_debug("%s toectl returned error %d\n", __func__, rc);
 		kfree(m);
 		return;
 	}
 
 	data = (u64 *)m->buf;
 	while (size > 0) {
-		PDBG("PBL %08x: %016llx\n", m->addr, (unsigned long long) *data);
+		pr_debug("PBL %08x: %016llx\n",
+			 m->addr, (unsigned long long)*data);
 		size -= 8;
 		data++;
 		m->addr += 8;
@@ -114,8 +116,8 @@ void cxio_dump_wqe(union t3_wr *wqe)
 	if (size == 0)
 		size = 8;
 	while (size > 0) {
-		PDBG("WQE %p: %016llx\n", data,
-		     (unsigned long long) be64_to_cpu(*data));
+		pr_debug("WQE %p: %016llx\n",
+			 data, (unsigned long long)be64_to_cpu(*data));
 		size--;
 		data++;
 	}
@@ -127,8 +129,8 @@ void cxio_dump_wce(struct t3_cqe *wce)
 	int size = sizeof(*wce);
 
 	while (size > 0) {
-		PDBG("WCE %p: %016llx\n", data,
-		     (unsigned long long) be64_to_cpu(*data));
+		pr_debug("WCE %p: %016llx\n",
+			 data, (unsigned long long)be64_to_cpu(*data));
 		size -= 8;
 		data++;
 	}
@@ -148,17 +150,18 @@ void cxio_dump_rqt(struct cxio_rdev *rdev, u32 hwtid, int nents)
 	m->mem_id = MEM_PMRX;
 	m->addr = ((hwtid)<<10) + rdev->rnic_info.rqt_base;
 	m->len = size;
-	PDBG("%s RQT addr 0x%x len %d\n", __func__, m->addr, m->len);
+	pr_debug("%s RQT addr 0x%x len %d\n", __func__, m->addr, m->len);
 	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
 	if (rc) {
-		PDBG("%s toectl returned error %d\n", __func__, rc);
+		pr_debug("%s toectl returned error %d\n", __func__, rc);
 		kfree(m);
 		return;
 	}
 
 	data = (u64 *)m->buf;
 	while (size > 0) {
-		PDBG("RQT %08x: %016llx\n", m->addr, (unsigned long long) *data);
+		pr_debug("RQT %08x: %016llx\n",
+			 m->addr, (unsigned long long)*data);
 		size -= 8;
 		data++;
 		m->addr += 8;
@@ -180,10 +183,10 @@ void cxio_dump_tcb(struct cxio_rdev *rdev, u32 hwtid)
 	m->mem_id = MEM_CM;
 	m->addr = hwtid * size;
 	m->len = size;
-	PDBG("%s TCB %d len %d\n", __func__, m->addr, m->len);
+	pr_debug("%s TCB %d len %d\n", __func__, m->addr, m->len);
 	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
 	if (rc) {
-		PDBG("%s toectl returned error %d\n", __func__, rc);
+		pr_debug("%s toectl returned error %d\n", __func__, rc);
 		kfree(m);
 		return;
 	}

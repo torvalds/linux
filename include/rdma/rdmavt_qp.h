@@ -2,7 +2,7 @@
 #define DEF_RDMAVT_INCQP_H
 
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016, 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -269,8 +269,8 @@ struct rvt_qp {
 	struct ib_qp ibqp;
 	void *priv; /* Driver private data */
 	/* read mostly fields above and below */
-	struct ib_ah_attr remote_ah_attr;
-	struct ib_ah_attr alt_ah_attr;
+	struct rdma_ah_attr remote_ah_attr;
+	struct rdma_ah_attr alt_ah_attr;
 	struct rvt_qp __rcu *next;           /* link list for QPN hash table */
 	struct rvt_swqe *s_wq;  /* send work queue */
 	struct rvt_mmap_info *ip;
@@ -324,6 +324,7 @@ struct rvt_qp {
 	u8 r_state;             /* opcode of last packet received */
 	u8 r_flags;
 	u8 r_head_ack_queue;    /* index into s_ack_queue[] */
+	u8 r_adefered;          /* defered ack count */
 
 	struct list_head rspwait;       /* link for waiting to respond */
 
@@ -435,9 +436,14 @@ struct rvt_mcast_qp {
 	struct rvt_qp *qp;
 };
 
+struct rvt_mcast_addr {
+	union ib_gid mgid;
+	u16 lid;
+};
+
 struct rvt_mcast {
 	struct rb_node rb_node;
-	union ib_gid mgid;
+	struct rvt_mcast_addr mcast_addr;
 	struct list_head qp_list;
 	wait_queue_head_t wait;
 	atomic_t refcount;
@@ -526,7 +532,6 @@ static inline void rvt_qp_wqe_reserve(
 	struct rvt_qp *qp,
 	struct rvt_swqe *wqe)
 {
-	wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
 	atomic_inc(&qp->s_reserved_used);
 }
 
@@ -550,7 +555,6 @@ static inline void rvt_qp_wqe_unreserve(
 	struct rvt_swqe *wqe)
 {
 	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED)) {
-		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
 		atomic_dec(&qp->s_reserved_used);
 		/* insure no compiler re-order up to s_last change */
 		smp_mb__after_atomic();
@@ -574,6 +578,7 @@ extern const enum ib_wc_opcode ib_rvt_wc_opcode[];
 static inline void rvt_qp_swqe_complete(
 	struct rvt_qp *qp,
 	struct rvt_swqe *wqe,
+	enum ib_wc_opcode opcode,
 	enum ib_wc_status status)
 {
 	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED))
@@ -586,7 +591,7 @@ static inline void rvt_qp_swqe_complete(
 		memset(&wc, 0, sizeof(wc));
 		wc.wr_id = wqe->wr.wr_id;
 		wc.status = status;
-		wc.opcode = ib_rvt_wc_opcode[wqe->wr.opcode];
+		wc.opcode = opcode;
 		wc.qp = &qp->ibqp;
 		wc.byte_len = wqe->length;
 		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc,

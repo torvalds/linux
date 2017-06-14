@@ -362,7 +362,7 @@ static void afs_callback_updater(struct work_struct *work)
 {
 	struct afs_server *server;
 	struct afs_vnode *vnode, *xvnode;
-	time_t now;
+	time64_t now;
 	long timeout;
 	int ret;
 
@@ -370,7 +370,7 @@ static void afs_callback_updater(struct work_struct *work)
 
 	_enter("");
 
-	now = get_seconds();
+	now = ktime_get_real_seconds();
 
 	/* find the first vnode to update */
 	spin_lock(&server->cb_lock);
@@ -424,7 +424,8 @@ static void afs_callback_updater(struct work_struct *work)
 
 	/* and then reschedule */
 	_debug("reschedule");
-	vnode->update_at = get_seconds() + afs_vnode_update_timeout;
+	vnode->update_at = ktime_get_real_seconds() +
+			afs_vnode_update_timeout;
 
 	spin_lock(&server->cb_lock);
 

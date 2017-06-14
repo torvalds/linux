@@ -22,6 +22,18 @@
 #endif
 
 #include <linux/bitops.h>
+
+/*
+ * For per-arch arch_within_stack_frames() implementations, defined in
+ * asm/thread_info.h.
+ */
+enum {
+	BAD_STACK = -1,
+	NOT_STACK = 0,
+	GOOD_FRAME,
+	GOOD_STACK,
+};
+
 #include <asm/thread_info.h>
 
 #ifdef __KERNEL__
@@ -100,6 +112,10 @@ static inline void check_object_size(const void *ptr, unsigned long n,
 				     bool to_user)
 { }
 #endif /* CONFIG_HARDENED_USERCOPY */
+
+#ifndef arch_setup_new_exec
+static inline void arch_setup_new_exec(void) { }
+#endif
 
 #endif	/* __KERNEL__ */
 

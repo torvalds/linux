@@ -1896,10 +1896,15 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 
 	/* Get the header length */
 	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, FD)) {
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       FIRST, 1);
 		rdata->rx.hdr_len = XGMAC_GET_BITS_LE(rdesc->desc2,
 						      RX_NORMAL_DESC2, HL);
 		if (rdata->rx.hdr_len)
 			pdata->ext_stats.rx_split_header_packets++;
+	} else {
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       FIRST, 0);
 	}
 
 	/* Get the RSS hash */
@@ -1922,19 +1927,16 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 		}
 	}
 
-	/* Get the packet length */
-	rdata->rx.len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
-
-	if (!XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, LD)) {
-		/* Not all the data has been transferred for this packet */
-		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
-			       INCOMPLETE, 1);
+	/* Not all the data has been transferred for this packet */
+	if (!XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, LD))
 		return 0;
-	}
 
 	/* This is the last of the data for this packet */
 	XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
-		       INCOMPLETE, 0);
+		       LAST, 1);
+
+	/* Get the packet length */
+	rdata->rx.len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
 
 	/* Set checksum done indicator as appropriate */
 	if (netdev->features & NETIF_F_RXCSUM)

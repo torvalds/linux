@@ -183,6 +183,7 @@ typedef struct xfs_mount {
 	struct workqueue_struct	*m_reclaim_workqueue;
 	struct workqueue_struct	*m_log_workqueue;
 	struct workqueue_struct *m_eofblocks_workqueue;
+	struct workqueue_struct	*m_sync_workqueue;
 
 	/*
 	 * Generation of the filesysyem layout.  This is incremented by each
@@ -312,7 +313,7 @@ void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 static inline xfs_agnumber_t
 xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
 {
-	xfs_daddr_t ld = XFS_BB_TO_FSBT(mp, d);
+	xfs_rfsblock_t ld = XFS_BB_TO_FSBT(mp, d);
 	do_div(ld, mp->m_sb.sb_agblocks);
 	return (xfs_agnumber_t) ld;
 }
@@ -320,7 +321,7 @@ xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
 static inline xfs_agblock_t
 xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 {
-	xfs_daddr_t ld = XFS_BB_TO_FSBT(mp, d);
+	xfs_rfsblock_t ld = XFS_BB_TO_FSBT(mp, d);
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
 }
 

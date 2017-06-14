@@ -311,8 +311,7 @@ static int tps_65023_probe(struct i2c_client *client,
 
 	/* Enable setting output voltage by I2C */
 	regmap_update_bits(tps->regmap, TPS65023_REG_CON_CTRL2,
-					TPS65023_REG_CTRL2_CORE_ADJ,
-					TPS65023_REG_CTRL2_CORE_ADJ);
+			   TPS65023_REG_CTRL2_CORE_ADJ, 0);
 
 	return 0;
 }

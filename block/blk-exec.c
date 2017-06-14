@@ -69,8 +69,7 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 
 	if (unlikely(blk_queue_dying(q))) {
 		rq->rq_flags |= RQF_QUIET;
-		rq->errors = -ENXIO;
-		__blk_end_request_all(rq, rq->errors);
+		__blk_end_request_all(rq, -ENXIO);
 		spin_unlock_irq(q->queue_lock);
 		return;
 	}
@@ -92,11 +91,10 @@ EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
  *    Insert a fully prepared request at the back of the I/O scheduler queue
  *    for execution and wait for completion.
  */
-int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
+void blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 		   struct request *rq, int at_head)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
-	int err = 0;
 	unsigned long hang_check;
 
 	rq->end_io_data = &wait;
@@ -108,10 +106,5 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 		while (!wait_for_completion_io_timeout(&wait, hang_check * (HZ/2)));
 	else
 		wait_for_completion_io(&wait);
-
-	if (rq->errors)
-		err = -EIO;
-
-	return err;
 }
 EXPORT_SYMBOL(blk_execute_rq);

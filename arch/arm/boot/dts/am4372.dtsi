@@ -50,15 +50,14 @@
 			clock-names = "cpu";
 
 			operating-points-v2 = <&cpu0_opp_table>;
-			ti,syscon-efuse = <&scm_conf 0x610 0x3f 0>;
-			ti,syscon-rev = <&scm_conf 0x600>;
 
 			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
 	};
 
-	cpu0_opp_table: opp_table0 {
-		compatible = "operating-points-v2";
+	cpu0_opp_table: opp-table {
+		compatible = "operating-points-v2-ti-cpu";
+		syscon = <&scm_conf>;
 
 		opp50@300000000 {
 			opp-hz = /bits/ 64 <300000000>;

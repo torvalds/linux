@@ -96,7 +96,8 @@ struct ib_fmr_pool {
 						   void *              arg);
 	void                     *flush_arg;
 
-	struct task_struct       *thread;
+	struct kthread_worker	  *worker;
+	struct kthread_work	  work;
 
 	atomic_t                  req_ser;
 	atomic_t                  flush_ser;
@@ -174,29 +175,19 @@ static void ib_fmr_batch_release(struct ib_fmr_pool *pool)
 	spin_unlock_irq(&pool->pool_lock);
 }
 
-static int ib_fmr_cleanup_thread(void *pool_ptr)
+static void ib_fmr_cleanup_func(struct kthread_work *work)
 {
-	struct ib_fmr_pool *pool = pool_ptr;
+	struct ib_fmr_pool *pool = container_of(work, struct ib_fmr_pool, work);
 
-	do {
-		if (atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) < 0) {
-			ib_fmr_batch_release(pool);
+	ib_fmr_batch_release(pool);
+	atomic_inc(&pool->flush_ser);
+	wake_up_interruptible(&pool->force_wait);
 
-			atomic_inc(&pool->flush_ser);
-			wake_up_interruptible(&pool->force_wait);
+	if (pool->flush_function)
+		pool->flush_function(pool, pool->flush_arg);
 
-			if (pool->flush_function)
-				pool->flush_function(pool, pool->flush_arg);
-		}
-
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) >= 0 &&
-		    !kthread_should_stop())
-			schedule();
-		__set_current_state(TASK_RUNNING);
-	} while (!kthread_should_stop());
-
-	return 0;
+	if (atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) < 0)
+		kthread_queue_work(pool->worker, &pool->work);
 }
 
 /**
@@ -265,15 +256,13 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 	atomic_set(&pool->flush_ser, 0);
 	init_waitqueue_head(&pool->force_wait);
 
-	pool->thread = kthread_run(ib_fmr_cleanup_thread,
-				   pool,
-				   "ib_fmr(%s)",
-				   device->name);
-	if (IS_ERR(pool->thread)) {
-		pr_warn(PFX "couldn't start cleanup thread\n");
-		ret = PTR_ERR(pool->thread);
+	pool->worker = kthread_create_worker(0, "ib_fmr(%s)", device->name);
+	if (IS_ERR(pool->worker)) {
+		pr_warn(PFX "couldn't start cleanup kthread worker\n");
+		ret = PTR_ERR(pool->worker);
 		goto out_free_pool;
 	}
+	kthread_init_work(&pool->work, ib_fmr_cleanup_func);
 
 	{
 		struct ib_pool_fmr *fmr;
@@ -338,7 +327,7 @@ void ib_destroy_fmr_pool(struct ib_fmr_pool *pool)
 	LIST_HEAD(fmr_list);
 	int                 i;
 
-	kthread_stop(pool->thread);
+	kthread_destroy_worker(pool->worker);
 	ib_fmr_batch_release(pool);
 
 	i = 0;
@@ -388,7 +377,7 @@ int ib_flush_fmr_pool(struct ib_fmr_pool *pool)
 	spin_unlock_irq(&pool->pool_lock);
 
 	serial = atomic_inc_return(&pool->req_ser);
-	wake_up_process(pool->thread);
+	kthread_queue_work(pool->worker, &pool->work);
 
 	if (wait_event_interruptible(pool->force_wait,
 				     atomic_read(&pool->flush_ser) - serial >= 0))
@@ -502,7 +491,7 @@ int ib_fmr_pool_unmap(struct ib_pool_fmr *fmr)
 			list_add_tail(&fmr->list, &pool->dirty_list);
 			if (++pool->dirty_len >= pool->dirty_watermark) {
 				atomic_inc(&pool->req_ser);
-				wake_up_process(pool->thread);
+				kthread_queue_work(pool->worker, &pool->work);
 			}
 		}
 	}

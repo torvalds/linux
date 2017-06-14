@@ -600,3 +600,9 @@ in your dentry operations instead.
 [recommended]
 	->readlink is optional for symlinks.  Don't set, unless filesystem needs
 	to fake something for readlink(2).
+--
+[mandatory]
+	->getattr() is now passed a struct path rather than a vfsmount and
+	dentry separately, and it now has request_mask and query_flags arguments
+	to specify the fields and sync type requested by statx.  Filesystems not
+	supporting any statx-specific features may ignore the new arguments.

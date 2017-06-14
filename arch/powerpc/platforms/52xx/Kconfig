@@ -33,7 +33,6 @@ config PPC_EFIKA
 	bool "bPlan Efika 5k2. MPC5200B based computer"
 	depends on PPC_MPC52xx
 	select PPC_RTAS
-	select RTAS_PROC
 	select PPC_NATIVE
 
 config PPC_LITE5200

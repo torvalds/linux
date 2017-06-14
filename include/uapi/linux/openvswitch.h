@@ -578,9 +578,24 @@ enum ovs_sample_attr {
 	OVS_SAMPLE_ATTR_PROBABILITY, /* u32 number */
 	OVS_SAMPLE_ATTR_ACTIONS,     /* Nested OVS_ACTION_ATTR_* attributes. */
 	__OVS_SAMPLE_ATTR_MAX,
+
+#ifdef __KERNEL__
+	OVS_SAMPLE_ATTR_ARG          /* struct sample_arg  */
+#endif
 };
 
 #define OVS_SAMPLE_ATTR_MAX (__OVS_SAMPLE_ATTR_MAX - 1)
+
+#ifdef __KERNEL__
+struct sample_arg {
+	bool exec;                   /* When true, actions in sample will not
+				      * change flow keys. False otherwise.
+				      */
+	u32  probability;            /* Same value as
+				      * 'OVS_SAMPLE_ATTR_PROBABILITY'.
+				      */
+};
+#endif
 
 /**
  * enum ovs_userspace_attr - Attributes for %OVS_ACTION_ATTR_USERSPACE action.
@@ -678,6 +693,17 @@ struct ovs_action_hash {
  * nothing if the connection is already committed will check that the current
  * packet is in conntrack entry's original direction.  If directionality does
  * not match, will delete the existing conntrack entry and commit a new one.
+ * @OVS_CT_ATTR_EVENTMASK: Mask of bits indicating which conntrack event types
+ * (enum ip_conntrack_events IPCT_*) should be reported.  For any bit set to
+ * zero, the corresponding event type is not generated.  Default behavior
+ * depends on system configuration, but typically all event types are
+ * generated, hence listening on NFNLGRP_CONNTRACK_UPDATE events may get a lot
+ * of events.  Explicitly passing this attribute allows limiting the updates
+ * received to the events of interest.  The bit 1 << IPCT_NEW, 1 <<
+ * IPCT_RELATED, and 1 << IPCT_DESTROY must be set to ones for those events to
+ * be received on NFNLGRP_CONNTRACK_NEW and NFNLGRP_CONNTRACK_DESTROY groups,
+ * respectively.  Remaining bits control the changes for which an event is
+ * delivered on the NFNLGRP_CONNTRACK_UPDATE group.
  */
 enum ovs_ct_attr {
 	OVS_CT_ATTR_UNSPEC,
@@ -689,6 +715,7 @@ enum ovs_ct_attr {
 				   related connections. */
 	OVS_CT_ATTR_NAT,        /* Nested OVS_NAT_ATTR_* */
 	OVS_CT_ATTR_FORCE_COMMIT,  /* No argument */
+	OVS_CT_ATTR_EVENTMASK,  /* u32 mask of IPCT_* events. */
 	__OVS_CT_ATTR_MAX
 };
 

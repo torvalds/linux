@@ -83,15 +83,12 @@ static inline u8 mei_me_cl_ver(const struct mei_me_client *me_cl)
  * MEI IO Functions
  */
 void mei_io_cb_free(struct mei_cl_cb *priv_cb);
-void mei_io_list_free_fp(struct list_head *head, const struct file *fp);
 
 /*
  * MEI Host Client Functions
  */
 
 struct mei_cl *mei_cl_allocate(struct mei_device *dev);
-void mei_cl_init(struct mei_cl *cl, struct mei_device *dev);
-
 
 int mei_cl_link(struct mei_cl *cl);
 int mei_cl_unlink(struct mei_cl *cl);
@@ -205,8 +202,6 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 		       struct list_head *cmpl_list);
 int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp);
-int mei_cl_irq_read_msg(struct mei_cl *cl, struct mei_msg_hdr *hdr,
-			struct list_head *cmpl_list);
 int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		     struct list_head *cmpl_list);

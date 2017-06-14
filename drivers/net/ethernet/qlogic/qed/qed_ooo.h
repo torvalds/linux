@@ -60,9 +60,7 @@ struct qed_ooo_isle {
 };
 
 struct qed_ooo_archipelago {
-	struct list_head list_entry;
 	struct list_head isles_list;
-	u32 cid;
 };
 
 struct qed_ooo_history {
@@ -75,14 +73,14 @@ struct qed_ooo_info {
 	struct list_head free_buffers_list;
 	struct list_head ready_buffers_list;
 	struct list_head free_isles_list;
-	struct list_head free_archipelagos_list;
-	struct list_head archipelagos_list;
 	struct qed_ooo_archipelago *p_archipelagos_mem;
 	struct qed_ooo_isle *p_isles_mem;
 	struct qed_ooo_history ooo_history;
 	u32 cur_isles_number;
 	u32 max_isles_number;
 	u32 gen_isles_number;
+	u16 max_num_archipelagos;
+	u16 cid_base;
 };
 
 #if IS_ENABLED(CONFIG_QED_ISCSI)

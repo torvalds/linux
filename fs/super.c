@@ -446,6 +446,10 @@ void generic_shutdown_super(struct super_block *sb)
 	hlist_del_init(&sb->s_instances);
 	spin_unlock(&sb_lock);
 	up_write(&sb->s_umount);
+	if (sb->s_bdi != &noop_backing_dev_info) {
+		bdi_put(sb->s_bdi);
+		sb->s_bdi = &noop_backing_dev_info;
+	}
 }
 
 EXPORT_SYMBOL(generic_shutdown_super);
@@ -1049,12 +1053,8 @@ static int set_bdev_super(struct super_block *s, void *data)
 {
 	s->s_bdev = data;
 	s->s_dev = s->s_bdev->bd_dev;
+	s->s_bdi = bdi_get(s->s_bdev->bd_bdi);
 
-	/*
-	 * We set the bdi here to the queue backing, file systems can
-	 * overwrite this in ->fill_super()
-	 */
-	s->s_bdi = bdev_get_queue(s->s_bdev)->backing_dev_info;
 	return 0;
 }
 
@@ -1254,6 +1254,49 @@ out_free_secdata:
 out:
 	return ERR_PTR(error);
 }
+
+/*
+ * Setup private BDI for given superblock. It gets automatically cleaned up
+ * in generic_shutdown_super().
+ */
+int super_setup_bdi_name(struct super_block *sb, char *fmt, ...)
+{
+	struct backing_dev_info *bdi;
+	int err;
+	va_list args;
+
+	bdi = bdi_alloc(GFP_KERNEL);
+	if (!bdi)
+		return -ENOMEM;
+
+	bdi->name = sb->s_type->name;
+
+	va_start(args, fmt);
+	err = bdi_register_va(bdi, fmt, args);
+	va_end(args);
+	if (err) {
+		bdi_put(bdi);
+		return err;
+	}
+	WARN_ON(sb->s_bdi != &noop_backing_dev_info);
+	sb->s_bdi = bdi;
+
+	return 0;
+}
+EXPORT_SYMBOL(super_setup_bdi_name);
+
+/*
+ * Setup private BDI for given superblock. I gets automatically cleaned up
+ * in generic_shutdown_super().
+ */
+int super_setup_bdi(struct super_block *sb)
+{
+	static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
+
+	return super_setup_bdi_name(sb, "%.28s-%ld", sb->s_type->name,
+				    atomic_long_inc_return(&bdi_seq));
+}
+EXPORT_SYMBOL(super_setup_bdi);
 
 /*
  * This is an internal function, please use sb_end_{write,pagefault,intwrite}

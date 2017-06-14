@@ -101,7 +101,7 @@ static irqreturn_t dw_apb_clockevent_irq(int irq, void *data)
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
 
 	if (!evt->event_handler) {
-		pr_info("Spurious APBT timer interrupt %d", irq);
+		pr_info("Spurious APBT timer interrupt %d\n", irq);
 		return IRQ_NONE;
 	}
 
@@ -257,7 +257,9 @@ dw_apb_clockevent_init(int cpu, const char *name, unsigned rating,
 	clockevents_calc_mult_shift(&dw_ced->ced, freq, APBT_MIN_PERIOD);
 	dw_ced->ced.max_delta_ns = clockevent_delta2ns(0x7fffffff,
 						       &dw_ced->ced);
+	dw_ced->ced.max_delta_ticks = 0x7fffffff;
 	dw_ced->ced.min_delta_ns = clockevent_delta2ns(5000, &dw_ced->ced);
+	dw_ced->ced.min_delta_ticks = 5000;
 	dw_ced->ced.cpumask = cpumask_of(cpu);
 	dw_ced->ced.features = CLOCK_EVT_FEAT_PERIODIC |
 				CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_DYNIRQ;

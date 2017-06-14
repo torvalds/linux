@@ -33,8 +33,16 @@ sctp_manip_pkt(struct sk_buff *skb,
 	       enum nf_nat_manip_type maniptype)
 {
 	sctp_sctphdr_t *hdr;
+	int hdrsize = 8;
 
-	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
+	/* This could be an inner header returned in imcp packet; in such
+	 * cases we cannot update the checksum field since it is outside
+	 * of the 8 bytes of transport layer headers we are guaranteed.
+	 */
+	if (skb->len >= hdroff + sizeof(*hdr))
+		hdrsize = sizeof(*hdr);
+
+	if (!skb_make_writable(skb, hdroff + hdrsize))
 		return false;
 
 	hdr = (struct sctphdr *)(skb->data + hdroff);
@@ -46,6 +54,9 @@ sctp_manip_pkt(struct sk_buff *skb,
 		/* Get rid of dst port */
 		hdr->dest = tuple->dst.u.sctp.port;
 	}
+
+	if (hdrsize < sizeof(*hdr))
+		return true;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 		hdr->checksum = sctp_compute_cksum(skb, hdroff);

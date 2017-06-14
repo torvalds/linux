@@ -56,6 +56,21 @@ static uint8_t get_max_exp(s8 max_index, u16 max_magnitude, size_t bin_len,
 	return max_exp;
 }
 
+static inline size_t ath10k_spectral_fix_bin_size(struct ath10k *ar,
+						  size_t bin_len)
+{
+	/* some chipsets reports bin size as 2^n bytes + 'm' bytes in
+	 * report mode 2. First 2^n bytes carries inband tones and last
+	 * 'm' bytes carries band edge detection data mainly used in
+	 * radar detection purpose. Strip last 'm' bytes to make bin size
+	 * as a valid one. 'm' can take possible values of 4, 12.
+	 */
+	if (!is_power_of_2(bin_len))
+		bin_len -= ar->hw_params.spectral_bin_discard;
+
+	return bin_len;
+}
+
 int ath10k_spectral_process_fft(struct ath10k *ar,
 				struct wmi_phyerr_ev_arg *phyerr,
 				const struct phyerr_fft_report *fftr,
@@ -70,17 +85,10 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 
 	fft_sample = (struct fft_sample_ath10k *)&buf;
 
+	bin_len = ath10k_spectral_fix_bin_size(ar, bin_len);
+
 	if (bin_len < 64 || bin_len > SPECTRAL_ATH10K_MAX_NUM_BINS)
 		return -EINVAL;
-
-	/* qca99x0 reports bin size as 68 bytes (64 bytes + 4 bytes) in
-	 * report mode 2. First 64 bytes carries inband tones (-32 to +31)
-	 * and last 4 byte carries band edge detection data (+32) mainly
-	 * used in radar detection purpose. Strip last 4 byte to make bin
-	 * size is valid one.
-	 */
-	if (bin_len == 68)
-		bin_len -= 4;
 
 	reg0 = __le32_to_cpu(fftr->reg0);
 	reg1 = __le32_to_cpu(fftr->reg1);
@@ -536,15 +544,15 @@ int ath10k_spectral_create(struct ath10k *ar)
 						     1140, 2500,
 						     &rfs_spec_scan_cb, NULL);
 	debugfs_create_file("spectral_scan_ctl",
-			    S_IRUSR | S_IWUSR,
+			    0600,
 			    ar->debug.debugfs_phy, ar,
 			    &fops_spec_scan_ctl);
 	debugfs_create_file("spectral_count",
-			    S_IRUSR | S_IWUSR,
+			    0600,
 			    ar->debug.debugfs_phy, ar,
 			    &fops_spectral_count);
 	debugfs_create_file("spectral_bins",
-			    S_IRUSR | S_IWUSR,
+			    0600,
 			    ar->debug.debugfs_phy, ar,
 			    &fops_spectral_bins);
 

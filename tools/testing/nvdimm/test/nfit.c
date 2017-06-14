@@ -132,6 +132,7 @@ static u32 handle[] = {
 	[3] = NFIT_DIMM_HANDLE(0, 0, 1, 0, 1),
 	[4] = NFIT_DIMM_HANDLE(0, 1, 0, 0, 0),
 	[5] = NFIT_DIMM_HANDLE(1, 0, 0, 0, 0),
+	[6] = NFIT_DIMM_HANDLE(1, 0, 0, 0, 1),
 };
 
 static unsigned long dimm_fail_cmd_flags[NUM_DCR];
@@ -728,8 +729,8 @@ static int nfit_test0_alloc(struct nfit_test *t)
 static int nfit_test1_alloc(struct nfit_test *t)
 {
 	size_t nfit_size = sizeof(struct acpi_nfit_system_address) * 2
-		+ sizeof(struct acpi_nfit_memory_map)
-		+ offsetof(struct acpi_nfit_control_region, window_size);
+		+ sizeof(struct acpi_nfit_memory_map) * 2
+		+ offsetof(struct acpi_nfit_control_region, window_size) * 2;
 	int i;
 
 	t->nfit_buf = test_alloc(t, nfit_size, &t->nfit_dma);
@@ -906,6 +907,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->address = 0;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 2;
+	memdev->flags = ACPI_NFIT_MEM_HEALTH_ENABLED;
 
 	/* mem-region2 (spa1, dimm0) */
 	memdev = nfit_buf + offset + sizeof(struct acpi_nfit_memory_map) * 2;
@@ -921,6 +923,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->address = SPA0_SIZE/2;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 4;
+	memdev->flags = ACPI_NFIT_MEM_HEALTH_ENABLED;
 
 	/* mem-region3 (spa1, dimm1) */
 	memdev = nfit_buf + offset + sizeof(struct acpi_nfit_memory_map) * 3;
@@ -951,6 +954,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->address = SPA0_SIZE/2;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 4;
+	memdev->flags = ACPI_NFIT_MEM_HEALTH_ENABLED;
 
 	/* mem-region5 (spa1, dimm3) */
 	memdev = nfit_buf + offset + sizeof(struct acpi_nfit_memory_map) * 5;
@@ -1086,6 +1090,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->address = 0;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 1;
+	memdev->flags = ACPI_NFIT_MEM_HEALTH_ENABLED;
 
 	offset = offset + sizeof(struct acpi_nfit_memory_map) * 14;
 	/* dcr-descriptor0: blk */
@@ -1384,6 +1389,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 		memdev->address = 0;
 		memdev->interleave_index = 0;
 		memdev->interleave_ways = 1;
+		memdev->flags = ACPI_NFIT_MEM_HEALTH_ENABLED;
 
 		/* mem-region16 (spa/bdw4, dimm4) */
 		memdev = nfit_buf + offset +
@@ -1483,6 +1489,34 @@ static void nfit_test1_setup(struct nfit_test *t)
 	dcr->region_index = 0+1;
 	dcr_common_init(dcr);
 	dcr->serial_number = ~handle[5];
+	dcr->code = NFIT_FIC_BYTE;
+	dcr->windows = 0;
+
+	offset += dcr->header.length;
+	memdev = nfit_buf + offset;
+	memdev->header.type = ACPI_NFIT_TYPE_MEMORY_MAP;
+	memdev->header.length = sizeof(*memdev);
+	memdev->device_handle = handle[6];
+	memdev->physical_id = 0;
+	memdev->region_id = 0;
+	memdev->range_index = 0;
+	memdev->region_index = 0+2;
+	memdev->region_size = SPA2_SIZE;
+	memdev->region_offset = 0;
+	memdev->address = 0;
+	memdev->interleave_index = 0;
+	memdev->interleave_ways = 1;
+	memdev->flags = ACPI_NFIT_MEM_MAP_FAILED;
+
+	/* dcr-descriptor1 */
+	offset += sizeof(*memdev);
+	dcr = nfit_buf + offset;
+	dcr->header.type = ACPI_NFIT_TYPE_CONTROL_REGION;
+	dcr->header.length = offsetof(struct acpi_nfit_control_region,
+			window_size);
+	dcr->region_index = 0+2;
+	dcr_common_init(dcr);
+	dcr->serial_number = ~handle[6];
 	dcr->code = NFIT_FIC_BYTE;
 	dcr->windows = 0;
 
@@ -1817,6 +1851,10 @@ static int nfit_test_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
+	rc = devm_add_action_or_reset(&pdev->dev, acpi_nfit_shutdown, acpi_desc);
+	if (rc)
+		return rc;
+
 	if (nfit_test->setup != nfit_test0_setup)
 		return 0;
 
@@ -1907,7 +1945,7 @@ static __init int nfit_test_init(void)
 		case 1:
 			nfit_test->num_pm = 1;
 			nfit_test->dcr_idx = NUM_DCR;
-			nfit_test->num_dcr = 1;
+			nfit_test->num_dcr = 2;
 			nfit_test->alloc = nfit_test1_alloc;
 			nfit_test->setup = nfit_test1_setup;
 			break;
@@ -1924,6 +1962,7 @@ static __init int nfit_test_init(void)
 			put_device(&pdev->dev);
 			goto err_register;
 		}
+		get_device(&pdev->dev);
 
 		rc = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 		if (rc)
@@ -1942,6 +1981,10 @@ static __init int nfit_test_init(void)
 		if (instances[i])
 			platform_device_unregister(&instances[i]->pdev);
 	nfit_test_teardown();
+	for (i = 0; i < NUM_NFITS; i++)
+		if (instances[i])
+			put_device(&instances[i]->pdev.dev);
+
 	return rc;
 }
 
@@ -1949,10 +1992,13 @@ static __exit void nfit_test_exit(void)
 {
 	int i;
 
-	platform_driver_unregister(&nfit_test_driver);
 	for (i = 0; i < NUM_NFITS; i++)
 		platform_device_unregister(&instances[i]->pdev);
+	platform_driver_unregister(&nfit_test_driver);
 	nfit_test_teardown();
+
+	for (i = 0; i < NUM_NFITS; i++)
+		put_device(&instances[i]->pdev.dev);
 	class_destroy(nfit_test_dimm);
 }
 

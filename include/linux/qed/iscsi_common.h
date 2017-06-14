@@ -39,16 +39,8 @@
 /* iSCSI HSI constants */
 #define ISCSI_DEFAULT_MTU       (1500)
 
-/* Current iSCSI HSI version number composed of two fields (16 bit) */
-#define ISCSI_HSI_MAJOR_VERSION (0)
-#define ISCSI_HSI_MINOR_VERSION (0)
-
 /* KWQ (kernel work queue) layer codes */
 #define ISCSI_SLOW_PATH_LAYER_CODE   (6)
-
-/* CQE completion status */
-#define ISCSI_EQE_COMPLETION_SUCCESS (0x0)
-#define ISCSI_EQE_RST_CONN_RCVD (0x1)
 
 /* iSCSI parameter defaults */
 #define ISCSI_DEFAULT_HEADER_DIGEST         (0)
@@ -67,6 +59,10 @@
 #define ISCSI_MAX_VAL_BURST_LENGTH          (0xffffff)
 #define ISCSI_MIN_VAL_MAX_OUTSTANDING_R2T   (1)
 #define ISCSI_MAX_VAL_MAX_OUTSTANDING_R2T   (0xff)
+
+#define ISCSI_AHS_CNTL_SIZE 4
+
+#define ISCSI_WQE_NUM_SGES_SLOWIO           (0xf)
 
 /* iSCSI reserved params */
 #define ISCSI_ITT_ALL_ONES	(0xffffffff)
@@ -173,19 +169,6 @@ struct iscsi_async_msg_hdr {
 	__le32 reserved7;
 };
 
-struct iscsi_sge {
-	struct regpair sge_addr;
-	__le16 sge_len;
-	__le16 reserved0;
-	__le32 reserved1;
-};
-
-struct iscsi_cached_sge_ctx {
-	struct iscsi_sge sge;
-	struct regpair reserved;
-	__le32 dsgl_curr_offset[2];
-};
-
 struct iscsi_cmd_hdr {
 	__le16 reserved1;
 	u8 flags_attr;
@@ -229,8 +212,13 @@ struct iscsi_common_hdr {
 #define ISCSI_COMMON_HDR_DATA_SEG_LEN_SHIFT  0
 #define ISCSI_COMMON_HDR_TOTAL_AHS_LEN_MASK  0xFF
 #define ISCSI_COMMON_HDR_TOTAL_AHS_LEN_SHIFT 24
-	__le32 lun_reserved[4];
-	__le32 data[6];
+	struct regpair lun_reserved;
+	__le32 itt;
+	__le32 ttt;
+	__le32 cmdstat_sn;
+	__le32 exp_statcmd_sn;
+	__le32 max_cmd_sn;
+	__le32 data[3];
 };
 
 struct iscsi_conn_offload_params {
@@ -246,8 +234,10 @@ struct iscsi_conn_offload_params {
 #define ISCSI_CONN_OFFLOAD_PARAMS_TCP_ON_CHIP_1B_SHIFT 0
 #define ISCSI_CONN_OFFLOAD_PARAMS_TARGET_MODE_MASK     0x1
 #define ISCSI_CONN_OFFLOAD_PARAMS_TARGET_MODE_SHIFT    1
-#define ISCSI_CONN_OFFLOAD_PARAMS_RESERVED1_MASK       0x3F
-#define ISCSI_CONN_OFFLOAD_PARAMS_RESERVED1_SHIFT      2
+#define ISCSI_CONN_OFFLOAD_PARAMS_RESTRICTED_MODE_MASK	0x1
+#define ISCSI_CONN_OFFLOAD_PARAMS_RESTRICTED_MODE_SHIFT	2
+#define ISCSI_CONN_OFFLOAD_PARAMS_RESERVED1_MASK	0x1F
+#define ISCSI_CONN_OFFLOAD_PARAMS_RESERVED1_SHIFT	3
 	u8 pbl_page_size_log;
 	u8 pbe_page_size_log;
 	u8 default_cq;
@@ -278,8 +268,12 @@ struct iscsi_conn_update_ramrod_params {
 #define ISCSI_CONN_UPDATE_RAMROD_PARAMS_INITIAL_R2T_SHIFT    2
 #define ISCSI_CONN_UPDATE_RAMROD_PARAMS_IMMEDIATE_DATA_MASK  0x1
 #define ISCSI_CONN_UPDATE_RAMROD_PARAMS_IMMEDIATE_DATA_SHIFT 3
-#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_RESERVED1_MASK       0xF
-#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_RESERVED1_SHIFT      4
+#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_DIF_BLOCK_SIZE_MASK  0x1
+#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_DIF_BLOCK_SIZE_SHIFT 4
+#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_DIF_ON_HOST_EN_MASK  0x1
+#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_DIF_ON_HOST_EN_SHIFT 5
+#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_RESERVED1_MASK       0x3
+#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_RESERVED1_SHIFT      6
 	u8 reserved0[3];
 	__le32 max_seq_size;
 	__le32 max_send_pdu_length;
@@ -312,7 +306,7 @@ struct iscsi_ext_cdb_cmd_hdr {
 	__le32 expected_transfer_length;
 	__le32 cmd_sn;
 	__le32 exp_stat_sn;
-	struct iscsi_sge cdb_sge;
+	struct scsi_sge cdb_sge;
 };
 
 struct iscsi_login_req_hdr {
@@ -519,8 +513,8 @@ struct iscsi_logout_response_hdr {
 	__le32 exp_cmd_sn;
 	__le32 max_cmd_sn;
 	__le32 reserved4;
-	__le16 time2retain;
-	__le16 time2wait;
+	__le16 time_2_retain;
+	__le16 time_2_wait;
 	__le32 reserved5[1];
 };
 
@@ -602,7 +596,7 @@ struct iscsi_tmf_response_hdr {
 #define ISCSI_TMF_RESPONSE_HDR_TOTAL_AHS_LEN_SHIFT 24
 	struct regpair reserved0;
 	__le32 itt;
-	__le32 rtt;
+	__le32 reserved1;
 	__le32 stat_sn;
 	__le32 exp_cmd_sn;
 	__le32 max_cmd_sn;
@@ -641,7 +635,7 @@ struct iscsi_reject_hdr {
 #define ISCSI_REJECT_HDR_TOTAL_AHS_LEN_MASK  0xFF
 #define ISCSI_REJECT_HDR_TOTAL_AHS_LEN_SHIFT 24
 	struct regpair reserved0;
-	__le32 reserved1;
+	__le32 all_ones;
 	__le32 reserved2;
 	__le32 stat_sn;
 	__le32 exp_cmd_sn;
@@ -688,7 +682,9 @@ struct iscsi_cqe_solicited {
 	__le16 itid;
 	u8 task_type;
 	u8 fw_dbg_field;
-	__le32 reserved1[2];
+	u8 caused_conn_err;
+	u8 reserved0[3];
+	__le32 reserved1[1];
 	union iscsi_task_hdr iscsi_hdr;
 };
 
@@ -727,35 +723,6 @@ enum iscsi_cqe_unsolicited_type {
 	MAX_ISCSI_CQE_UNSOLICITED_TYPE
 };
 
-struct iscsi_virt_sgl_ctx {
-	struct regpair sgl_base;
-	struct regpair dsgl_base;
-	__le32 sgl_initial_offset;
-	__le32 dsgl_initial_offset;
-	__le32 dsgl_curr_offset[2];
-};
-
-struct iscsi_sgl_var_params {
-	u8 sgl_ptr;
-	u8 dsgl_ptr;
-	__le16 sge_offset;
-	__le16 dsge_offset;
-};
-
-struct iscsi_phys_sgl_ctx {
-	struct regpair sgl_base;
-	struct regpair dsgl_base;
-	u8 sgl_size;
-	u8 dsgl_size;
-	__le16 reserved;
-	struct iscsi_sgl_var_params var_params[2];
-};
-
-union iscsi_data_desc_ctx {
-	struct iscsi_virt_sgl_ctx virt_sgl;
-	struct iscsi_phys_sgl_ctx phys_sgl;
-	struct iscsi_cached_sge_ctx cached_sge;
-};
 
 struct iscsi_debug_modes {
 	u8 flags;
@@ -771,8 +738,10 @@ struct iscsi_debug_modes {
 #define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_SHIFT 4
 #define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_MASK              0x1
 #define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_SHIFT             5
-#define ISCSI_DEBUG_MODES_RESERVED0_MASK                       0x3
-#define ISCSI_DEBUG_MODES_RESERVED0_SHIFT                      6
+#define ISCSI_DEBUG_MODES_ASSERT_IF_DATA_DIGEST_ERROR_MASK     0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_DATA_DIGEST_ERROR_SHIFT    6
+#define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_ERROR_MASK             0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_ERROR_SHIFT            7
 };
 
 struct iscsi_dif_flags {
@@ -806,7 +775,6 @@ enum iscsi_eqe_opcode {
 	ISCSI_EVENT_TYPE_ASYN_FIN_WAIT2,
 	ISCSI_EVENT_TYPE_ISCSI_CONN_ERROR,
 	ISCSI_EVENT_TYPE_TCP_CONN_ERROR,
-	ISCSI_EVENT_TYPE_ASYN_DELETE_OOO_ISLES,
 	MAX_ISCSI_EQE_OPCODE
 };
 
@@ -856,31 +824,11 @@ enum iscsi_error_types {
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_DIF_TX,
 	ISCSI_CONN_ERROR_SENSE_DATA_LENGTH,
 	ISCSI_CONN_ERROR_DATA_PLACEMENT_ERROR,
+	ISCSI_CONN_ERROR_INVALID_ITT,
 	ISCSI_ERROR_UNKNOWN,
 	MAX_ISCSI_ERROR_TYPES
 };
 
-struct iscsi_mflags {
-	u8 mflags;
-#define ISCSI_MFLAGS_SLOW_IO_MASK     0x1
-#define ISCSI_MFLAGS_SLOW_IO_SHIFT    0
-#define ISCSI_MFLAGS_SINGLE_SGE_MASK  0x1
-#define ISCSI_MFLAGS_SINGLE_SGE_SHIFT 1
-#define ISCSI_MFLAGS_RESERVED_MASK    0x3F
-#define ISCSI_MFLAGS_RESERVED_SHIFT   2
-};
-
-struct iscsi_sgl {
-	struct regpair sgl_addr;
-	__le16 updated_sge_size;
-	__le16 updated_sge_offset;
-	__le32 byte_offset;
-};
-
-union iscsi_mstorm_sgl {
-	struct iscsi_sgl sgl_struct;
-	struct iscsi_sge single_sge;
-};
 
 enum iscsi_ramrod_cmd_id {
 	ISCSI_RAMROD_CMD_ID_UNUSED = 0,
@@ -896,10 +844,10 @@ enum iscsi_ramrod_cmd_id {
 
 struct iscsi_reg1 {
 	__le32 reg1_map;
-#define ISCSI_REG1_NUM_FAST_SGES_MASK  0x7
-#define ISCSI_REG1_NUM_FAST_SGES_SHIFT 0
-#define ISCSI_REG1_RESERVED1_MASK      0x1FFFFFFF
-#define ISCSI_REG1_RESERVED1_SHIFT     3
+#define ISCSI_REG1_NUM_SGES_MASK   0xF
+#define ISCSI_REG1_NUM_SGES_SHIFT  0
+#define ISCSI_REG1_RESERVED1_MASK  0xFFFFFFF
+#define ISCSI_REG1_RESERVED1_SHIFT 4
 };
 
 union iscsi_seq_num {
@@ -967,22 +915,33 @@ struct iscsi_spe_func_init {
 };
 
 struct ystorm_iscsi_task_state {
-	union iscsi_data_desc_ctx sgl_ctx_union;
-	__le32 buffer_offset[2];
-	__le16 bytes_nxt_dif;
-	__le16 rxmit_bytes_nxt_dif;
-	union iscsi_seq_num seq_num_union;
-	u8 dif_bytes_leftover;
-	u8 rxmit_dif_bytes_leftover;
-	__le16 reuse_count;
-	struct iscsi_dif_flags dif_flags;
-	u8 local_comp;
+	struct scsi_cached_sges data_desc;
+	struct scsi_sgl_params sgl_params;
 	__le32 exp_r2t_sn;
-	__le32 sgl_offset[2];
+	__le32 buffer_offset;
+	union iscsi_seq_num seq_num;
+	struct iscsi_dif_flags dif_flags;
+	u8 flags;
+#define YSTORM_ISCSI_TASK_STATE_LOCAL_COMP_MASK  0x1
+#define YSTORM_ISCSI_TASK_STATE_LOCAL_COMP_SHIFT 0
+#define YSTORM_ISCSI_TASK_STATE_SLOW_IO_MASK     0x1
+#define YSTORM_ISCSI_TASK_STATE_SLOW_IO_SHIFT    1
+#define YSTORM_ISCSI_TASK_STATE_RESERVED0_MASK   0x3F
+#define YSTORM_ISCSI_TASK_STATE_RESERVED0_SHIFT  2
+};
+
+struct ystorm_iscsi_task_rxmit_opt {
+	__le32 fast_rxmit_sge_offset;
+	__le32 scan_start_buffer_offset;
+	__le32 fast_rxmit_buffer_offset;
+	u8 scan_start_sgl_index;
+	u8 fast_rxmit_sgl_index;
+	__le16 reserved;
 };
 
 struct ystorm_iscsi_task_st_ctx {
 	struct ystorm_iscsi_task_state state;
+	struct ystorm_iscsi_task_rxmit_opt rxmit_opt;
 	union iscsi_task_hdr pdu_hdr;
 };
 
@@ -1152,25 +1111,16 @@ struct ustorm_iscsi_task_ag_ctx {
 };
 
 struct mstorm_iscsi_task_st_ctx {
-	union iscsi_mstorm_sgl sgl_union;
-	struct iscsi_dif_flags dif_flags;
-	struct iscsi_mflags flags;
-	u8 sgl_size;
-	u8 host_sge_index;
-	__le16 dix_cur_sge_offset;
-	__le16 dix_cur_sge_size;
-	__le32 data_offset_rtid;
-	u8 dif_offset;
-	u8 dix_sgl_size;
-	u8 dix_sge_index;
-	u8 task_type;
-	struct regpair sense_db;
-	struct regpair dix_sgl_cur_sge;
+	struct scsi_cached_sges data_desc;
+	struct scsi_sgl_params sgl_params;
 	__le32 rem_task_size;
-	__le16 reuse_count;
-	__le16 dif_data_residue;
-	u8 reserved0[4];
-	__le32 reserved1[1];
+	__le32 data_buffer_offset;
+	u8 task_type;
+	struct iscsi_dif_flags dif_flags;
+	u8 reserved0[2];
+	struct regpair sense_db;
+	__le32 expected_itt;
+	__le32 reserved1;
 };
 
 struct ustorm_iscsi_task_st_ctx {
@@ -1184,7 +1134,7 @@ struct ustorm_iscsi_task_st_ctx {
 #define USTORM_ISCSI_TASK_ST_CTX_AHS_EXIST_SHIFT            0
 #define USTORM_ISCSI_TASK_ST_CTX_RESERVED1_MASK             0x7F
 #define USTORM_ISCSI_TASK_ST_CTX_RESERVED1_SHIFT            1
-	u8 reserved2;
+	struct iscsi_dif_flags dif_flags;
 	__le16 reserved3;
 	__le32 reserved4;
 	__le32 reserved5;
@@ -1207,10 +1157,10 @@ struct ustorm_iscsi_task_st_ctx {
 #define USTORM_ISCSI_TASK_ST_CTX_LOCAL_COMP_SHIFT           2
 #define USTORM_ISCSI_TASK_ST_CTX_Q0_R2TQE_WRITE_MASK        0x1
 #define USTORM_ISCSI_TASK_ST_CTX_Q0_R2TQE_WRITE_SHIFT       3
-#define USTORM_ISCSI_TASK_ST_CTX_TOTALDATAACKED_DONE_MASK   0x1
-#define USTORM_ISCSI_TASK_ST_CTX_TOTALDATAACKED_DONE_SHIFT  4
-#define USTORM_ISCSI_TASK_ST_CTX_HQSCANNED_DONE_MASK        0x1
-#define USTORM_ISCSI_TASK_ST_CTX_HQSCANNED_DONE_SHIFT       5
+#define USTORM_ISCSI_TASK_ST_CTX_TOTAL_DATA_ACKED_DONE_MASK  0x1
+#define USTORM_ISCSI_TASK_ST_CTX_TOTAL_DATA_ACKED_DONE_SHIFT 4
+#define USTORM_ISCSI_TASK_ST_CTX_HQ_SCANNED_DONE_MASK        0x1
+#define USTORM_ISCSI_TASK_ST_CTX_HQ_SCANNED_DONE_SHIFT       5
 #define USTORM_ISCSI_TASK_ST_CTX_R2T2RECV_DONE_MASK         0x1
 #define USTORM_ISCSI_TASK_ST_CTX_R2T2RECV_DONE_SHIFT        6
 #define USTORM_ISCSI_TASK_ST_CTX_RESERVED0_MASK             0x1
@@ -1220,7 +1170,6 @@ struct ustorm_iscsi_task_st_ctx {
 
 struct iscsi_task_context {
 	struct ystorm_iscsi_task_st_ctx ystorm_st_context;
-	struct regpair ystorm_st_padding[2];
 	struct ystorm_iscsi_task_ag_ctx ystorm_ag_context;
 	struct regpair ystorm_ag_padding[2];
 	struct tdif_task_context tdif_context;
@@ -1272,32 +1221,22 @@ struct iscsi_uhqe {
 #define ISCSI_UHQE_TASK_ID_LO_SHIFT         24
 };
 
-struct iscsi_wqe_field {
-	__le32 contlen_cdbsize_field;
-#define ISCSI_WQE_FIELD_CONT_LEN_MASK  0xFFFFFF
-#define ISCSI_WQE_FIELD_CONT_LEN_SHIFT 0
-#define ISCSI_WQE_FIELD_CDB_SIZE_MASK  0xFF
-#define ISCSI_WQE_FIELD_CDB_SIZE_SHIFT 24
-};
-
-union iscsi_wqe_field_union {
-	struct iscsi_wqe_field cont_field;
-	__le32 prev_tid;
-};
 
 struct iscsi_wqe {
 	__le16 task_id;
 	u8 flags;
 #define ISCSI_WQE_WQE_TYPE_MASK        0x7
 #define ISCSI_WQE_WQE_TYPE_SHIFT       0
-#define ISCSI_WQE_NUM_FAST_SGES_MASK   0x7
-#define ISCSI_WQE_NUM_FAST_SGES_SHIFT  3
-#define ISCSI_WQE_PTU_INVALIDATE_MASK  0x1
-#define ISCSI_WQE_PTU_INVALIDATE_SHIFT 6
+#define ISCSI_WQE_NUM_SGES_MASK  0xF
+#define ISCSI_WQE_NUM_SGES_SHIFT 3
 #define ISCSI_WQE_RESPONSE_MASK        0x1
 #define ISCSI_WQE_RESPONSE_SHIFT       7
 	struct iscsi_dif_flags prot_flags;
-	union iscsi_wqe_field_union cont_prevtid_union;
+	__le32 contlen_cdbsize;
+#define ISCSI_WQE_CONT_LEN_MASK  0xFFFFFF
+#define ISCSI_WQE_CONT_LEN_SHIFT 0
+#define ISCSI_WQE_CDB_SIZE_MASK  0xFF
+#define ISCSI_WQE_CDB_SIZE_SHIFT 24
 };
 
 enum iscsi_wqe_type {
@@ -1318,17 +1257,15 @@ struct iscsi_xhqe {
 	u8 total_ahs_length;
 	u8 opcode;
 	u8 flags;
-#define ISCSI_XHQE_NUM_FAST_SGES_MASK  0x7
-#define ISCSI_XHQE_NUM_FAST_SGES_SHIFT 0
-#define ISCSI_XHQE_FINAL_MASK          0x1
-#define ISCSI_XHQE_FINAL_SHIFT         3
-#define ISCSI_XHQE_SUPER_IO_MASK       0x1
-#define ISCSI_XHQE_SUPER_IO_SHIFT      4
-#define ISCSI_XHQE_STATUS_BIT_MASK     0x1
-#define ISCSI_XHQE_STATUS_BIT_SHIFT    5
-#define ISCSI_XHQE_RESERVED_MASK       0x3
-#define ISCSI_XHQE_RESERVED_SHIFT      6
-	union iscsi_seq_num seq_num_union;
+#define ISCSI_XHQE_FINAL_MASK       0x1
+#define ISCSI_XHQE_FINAL_SHIFT      0
+#define ISCSI_XHQE_STATUS_BIT_MASK  0x1
+#define ISCSI_XHQE_STATUS_BIT_SHIFT 1
+#define ISCSI_XHQE_NUM_SGES_MASK    0xF
+#define ISCSI_XHQE_NUM_SGES_SHIFT   2
+#define ISCSI_XHQE_RESERVED0_MASK   0x3
+#define ISCSI_XHQE_RESERVED0_SHIFT  6
+	union iscsi_seq_num seq_num;
 	__le16 reserved1;
 };
 

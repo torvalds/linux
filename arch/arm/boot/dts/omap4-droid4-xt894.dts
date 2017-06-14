@@ -5,7 +5,9 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "omap443x.dtsi"
+#include "motorola-cpcap-mapphone.dtsi"
 
 / {
 	model = "Motorola Droid 4 XT894";
@@ -15,35 +17,76 @@
 		stdout-path = &uart3;
 	};
 
+	aliases {
+		display0 = &lcd0;
+		display1 = &hdmi0;
+	};
+
 	/*
 	 * We seem to have only 1021 MB accessible, 1021 - 1022 is locked,
-	 * then 1023 - 1024 seems to contain mbm. For SRAM, see the notes
-	 * below about SRAM and L3_ICLK2 being unused by default,
+	 * then 1023 - 1024 seems to contain mbm.
 	 */
 	memory {
 		device_type = "memory";
 		reg = <0x80000000 0x3fd00000>;	/* 1021 MB */
 	};
 
-	/* CPCAP really supports 1650000 to 3400000 range */
-	vmmc: regulator-mmc {
+	/* Poweroff GPIO probably connected to CPCAP */
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&poweroff_gpio>;
+		pinctrl-names = "default";
+		gpios = <&gpio2 18 GPIO_ACTIVE_LOW>;	/* gpio50 */
+	};
+
+	hdmi0: connector {
+		compatible = "hdmi-connector";
+		pinctrl-0 = <&hdmi_hpd_gpio>;
+		pinctrl-names = "default";
+		label = "hdmi";
+		type = "d";
+
+		hpd-gpios = <&gpio2 31 GPIO_ACTIVE_HIGH>;	/* gpio63 */
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_out>;
+			};
+		};
+	};
+
+	/*
+	 * HDMI 5V regulator probably sourced from battery. Let's keep
+	 * keep this as always enabled for HDMI to work until we've
+	 * figured what the encoder chip is.
+	 */
+	hdmi_regulator: regulator-hdmi {
 		compatible = "regulator-fixed";
-		regulator-name = "vmmc";
-		regulator-min-microvolt = <3000000>;
-		regulator-max-microvolt = <3000000>;
+		regulator-name = "hdmi";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio2 27 GPIO_ACTIVE_HIGH>;	/* gpio59 */
+		enable-active-high;
 		regulator-always-on;
 	};
 
-	/* CPCAP really supports 3000000 to 3100000 range */
-	vemmc: regulator-emmc {
-		compatible = "regulator-fixed";
-		regulator-name = "vemmc";
-		regulator-min-microvolt = <3000000>;
-		regulator-max-microvolt = <3000000>;
-		regulator-always-on;
+	/* HS USB Host PHY on PORT 1 */
+	hsusb1_phy: hsusb1_phy {
+		compatible = "usb-nop-xceiv";
 	};
 
-	/* CPCAP really supports 1650000 to 1950000 range */
+	/* LCD regulator from sw5 source */
+	lcd_regulator: regulator-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd";
+		regulator-min-microvolt = <5050000>;
+		regulator-max-microvolt = <5050000>;
+		gpio = <&gpio4 0 GPIO_ACTIVE_HIGH>;	/* gpio96 */
+		enable-active-high;
+		vin-supply = <&sw5>;
+	};
+
+	/* This is probably coming straight from the battery.. */
 	wl12xx_vmmc: regulator-wl12xx {
 		compatible = "regulator-fixed";
 		regulator-name = "vwl1271";
@@ -53,21 +96,195 @@
 		startup-delay-us = <70000>;
 		enable-active-high;
 	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		volume_down {
+			label = "Volume Down";
+			gpios = <&gpio5 26 GPIO_ACTIVE_LOW>; /* gpio154 */
+			linux,code = <KEY_VOLUMEDOWN>;
+			linux,can-disable;
+		};
+
+		slider {
+			label = "Keypad Slide";
+			gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>; /* gpio122 */
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_KEYPAD_SLIDE>;
+			linux,can-disable;
+
+		};
+	};
 };
 
-/* L3_2 interconnect is unused, SRAM, GPMC and L3_ICLK2 disabled */
-&gpmc {
-	status = "disabled";
+&dss {
+	status = "okay";
+};
+
+&gpio6 {
+	touchscreen_reset {
+		gpio-hog;
+		gpios = <13 0>;
+		output-high;
+		line-name = "touchscreen-reset";
+	};
+};
+
+&dsi1 {
+	status = "okay";
+	vdd-supply = <&vcsi>;
+
+	port {
+		dsi1_out_ep: endpoint {
+			remote-endpoint = <&lcd0_in>;
+			lanes = <0 1 2 3 4 5>;
+		};
+	};
+
+	lcd0: display {
+		compatible = "panel-dsi-cm";
+		label = "lcd0";
+		vddi-supply = <&lcd_regulator>;
+		reset-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>;	/* gpio101 */
+
+		panel-timing {
+			clock-frequency = <0>;		/* Calculated by dsi */
+
+			hback-porch = <2>;
+			hactive = <540>;
+			hfront-porch = <0>;
+			hsync-len = <2>;
+
+			vback-porch = <1>;
+			vactive = <960>;
+			vfront-porch = <0>;
+			vsync-len = <1>;
+
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <1>;
+			pixelclk-active = <1>;
+		};
+
+		port {
+			lcd0_in: endpoint {
+				remote-endpoint = <&dsi1_out_ep>;
+			};
+		};
+	};
+};
+
+&hdmi {
+	status = "okay";
+	pinctrl-0 = <&dss_hdmi_pins>;
+	pinctrl-names = "default";
+	vdda-supply = <&vdac>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&hdmi_connector_in>;
+			lanes = <1 0 3 2 5 4 7 6>;
+		};
+	};
+};
+
+&i2c1 {
+	tmp105@48 {
+		compatible = "ti,tmp105";
+		reg = <0x48>;
+		pinctrl-0 = <&tmp105_irq>;
+		pinctrl-names = "default";
+		/* kpd_row0.gpio_178 */
+		interrupts-extended = <&gpio6 18 IRQ_TYPE_EDGE_FALLING
+				       &omap4_pmx_core 0x14e>;
+		interrupt-names = "irq", "wakeup";
+		wakeup-source;
+	};
+};
+
+&keypad {
+	keypad,num-rows = <8>;
+	keypad,num-columns = <8>;
+	linux,keymap = <
+
+	/* Row 1 */
+	MATRIX_KEY(0, 2, KEY_1)
+	MATRIX_KEY(0, 6, KEY_2)
+	MATRIX_KEY(2, 3, KEY_3)
+	MATRIX_KEY(0, 7, KEY_4)
+	MATRIX_KEY(0, 4, KEY_5)
+	MATRIX_KEY(5, 5, KEY_6)
+	MATRIX_KEY(0, 1, KEY_7)
+	MATRIX_KEY(0, 5, KEY_8)
+	MATRIX_KEY(0, 0, KEY_9)
+	MATRIX_KEY(1, 6, KEY_0)
+
+	/* Row 2 */
+	MATRIX_KEY(3, 4, KEY_APOSTROPHE)
+	MATRIX_KEY(7, 6, KEY_Q)
+	MATRIX_KEY(7, 7, KEY_W)
+	MATRIX_KEY(7, 2, KEY_E)
+	MATRIX_KEY(1, 0, KEY_R)
+	MATRIX_KEY(4, 4, KEY_T)
+	MATRIX_KEY(1, 2, KEY_Y)
+	MATRIX_KEY(6, 7, KEY_U)
+	MATRIX_KEY(2, 2, KEY_I)
+	MATRIX_KEY(5, 6, KEY_O)
+	MATRIX_KEY(3, 7, KEY_P)
+	MATRIX_KEY(6, 5, KEY_BACKSPACE)
+
+	/* Row 3 */
+	MATRIX_KEY(5, 4, KEY_TAB)
+	MATRIX_KEY(5, 7, KEY_A)
+	MATRIX_KEY(2, 7, KEY_S)
+	MATRIX_KEY(7, 0, KEY_D)
+	MATRIX_KEY(2, 6, KEY_F)
+	MATRIX_KEY(6, 2, KEY_G)
+	MATRIX_KEY(6, 6, KEY_H)
+	MATRIX_KEY(1, 4, KEY_J)
+	MATRIX_KEY(3, 1, KEY_K)
+	MATRIX_KEY(2, 1, KEY_L)
+	MATRIX_KEY(4, 6, KEY_ENTER)
+
+	/* Row 4 */
+	MATRIX_KEY(3, 6, KEY_LEFTSHIFT)		/* KEY_CAPSLOCK */
+	MATRIX_KEY(6, 1, KEY_Z)
+	MATRIX_KEY(7, 4, KEY_X)
+	MATRIX_KEY(5, 1, KEY_C)
+	MATRIX_KEY(1, 7, KEY_V)
+	MATRIX_KEY(2, 4, KEY_B)
+	MATRIX_KEY(4, 1, KEY_N)
+	MATRIX_KEY(1, 1, KEY_M)
+	MATRIX_KEY(3, 5, KEY_COMMA)
+	MATRIX_KEY(5, 2, KEY_DOT)
+	MATRIX_KEY(6, 3, KEY_UP)
+	MATRIX_KEY(7, 3, KEY_OK)
+
+	/* Row 5 */
+	MATRIX_KEY(2, 5, KEY_LEFTCTRL)		/* KEY_LEFTSHIFT */
+	MATRIX_KEY(4, 5, KEY_LEFTALT)		/* SYM */
+	MATRIX_KEY(6, 0, KEY_MINUS)
+	MATRIX_KEY(4, 7, KEY_EQUAL)
+	MATRIX_KEY(1, 5, KEY_SPACE)
+	MATRIX_KEY(3, 2, KEY_SLASH)
+	MATRIX_KEY(4, 3, KEY_LEFT)
+	MATRIX_KEY(5, 3, KEY_DOWN)
+	MATRIX_KEY(3, 3, KEY_RIGHT)
+
+	/* Side buttons, KEY_VOLUMEDOWN and KEY_PWER are on CPCAP? */
+	MATRIX_KEY(5, 0, KEY_VOLUMEUP)
+	>;
 };
 
 &mmc1 {
-	vmmc-supply = <&vmmc>;
+	vmmc-supply = <&vwlan2>;
 	bus-width = <4>;
-	cd-gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;	/* gpio106 */
+	cd-gpios = <&gpio6 16 GPIO_ACTIVE_LOW>;	/* gpio176 */
 };
 
 &mmc2 {
-	vmmc-supply = <&vemmc>;
+	vmmc-supply = <&vsdio>;
 	bus-width = <8>;
 	non-removable;
 };
@@ -93,16 +310,88 @@
 	};
 };
 
-/* L3_2 interconnect is unused, SRAM, GPMC and L3_ICLK2 disabled */
-&ocmcram {
-	status = "disabled";
+&i2c1 {
+	lm3532@38 {
+		compatible = "ti,lm3532";
+		reg = <0x38>;
+
+		enable-gpios = <&gpio6 12 GPIO_ACTIVE_HIGH>;
+
+		backlight {
+			compatible = "ti,lm3532-backlight";
+
+			lcd {
+				led-sources = <0 1 2>;
+				ramp-up-msec = <1>;
+				ramp-down-msec = <0>;
+			};
+		};
+	};
+};
+
+/*
+ * REVISIT: Add gpio173 reset pin handling to the driver, see gpio-hog above.
+ * If the GPIO reset is used, we probably need to have /lib/firmware/maxtouch.fw
+ * available. See "mxt-app" and "droid4-touchscreen-firmware" tools for more
+ * information.
+ */
+&i2c2 {
+	tsp@4a {
+		compatible = "atmel,maxtouch";
+		reg = <0x4a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touchscreen_pins>;
+
+		/* gpio_183 with sys_nirq2 pad as wakeup */
+		interrupts-extended = <&gpio6 23 IRQ_TYPE_EDGE_FALLING
+				       &omap4_pmx_core 0x160>;
+		interrupt-names = "irq", "wakeup";
+		wakeup-source;
+	};
 };
 
 &omap4_pmx_core {
+
+	/* hdmi_hpd.gpio_63 */
+	hdmi_hpd_gpio: pinmux_hdmi_hpd_pins {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x098, PIN_INPUT | MUX_MODE3)
+		>;
+	};
+
+	/* hdmi_cec.hdmi_cec, hdmi_scl.hdmi_scl, hdmi_sda.hdmi_sda */
+	dss_hdmi_pins: pinmux_dss_hdmi_pins {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x09a, PIN_INPUT_PULLUP | MUX_MODE0)
+		OMAP4_IOPAD(0x09c, PIN_INPUT | MUX_MODE0)
+		OMAP4_IOPAD(0x09e, PIN_INPUT | MUX_MODE0)
+		>;
+	};
+
+	/* gpmc_ncs0.gpio_50 */
+	poweroff_gpio: pinmux_poweroff_pins {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x074, PIN_OUTPUT_PULLUP | MUX_MODE3)
+		>;
+	};
+
+	/* kpd_row0.gpio_178 */
+	tmp105_irq: pinmux_tmp105_irq {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x18e, PIN_INPUT_PULLUP | MUX_MODE3)
+		>;
+	};
+
 	usb_gpio_mux_sel1: pinmux_usb_gpio_mux_sel1_pins {
 		/* gpio_60 */
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x088, PIN_OUTPUT | MUX_MODE3)
+		>;
+	};
+
+	touchscreen_pins: pinmux_touchscreen_pins {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x1a0, PIN_INPUT_PULLUP | MUX_MODE3)
 		>;
 	};
 
@@ -180,9 +469,49 @@
 			       &omap4_pmx_core 0x17c>;
 };
 
+&usbhsehci {
+	phys = <&hsusb1_phy>;
+};
+
+&usbhshost {
+	port1-mode = "ohci-phy-4pin-dpdm";
+	port2-mode = "ehci-tll";
+};
+
 /* Internal UTMI+ PHY used for OTG, CPCAP ULPI PHY for detection and charger */
 &usb_otg_hs {
 	interface-type = <1>;
 	mode = <3>;
 	power = <50>;
+};
+
+&i2c4 {
+	ak8975: magnetometer@c {
+		compatible = "asahi-kasei,ak8975";
+		reg = <0x0c>;
+
+		vdd-supply = <&vhvio>;
+
+		interrupt-parent = <&gpio6>;
+		interrupts = <15 IRQ_TYPE_EDGE_RISING>; /* gpio175 */
+
+		rotation-matrix = "-1", "0", "0",
+				  "0", "1", "0",
+				  "0", "0", "-1";
+
+	};
+
+	lis3dh: accelerometer@18 {
+		compatible = "st,lis3dh-accel";
+		reg = <0x18>;
+
+		vdd-supply = <&vhvio>;
+
+		interrupt-parent = <&gpio2>;
+		interrupts = <2 IRQ_TYPE_EDGE_BOTH>; /* gpio34 */
+
+		rotation-matrix = "0", "-1", "0",
+				  "1", "0", "0",
+				  "0", "0", "1";
+	};
 };

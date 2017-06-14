@@ -124,7 +124,7 @@ struct fbtft_display {
 	unsigned int bpp;
 	unsigned int fps;
 	int txbuflen;
-	s16 *init_sequence;
+	const s16 *init_sequence;
 	char *gamma;
 	int gamma_num;
 	int gamma_len;
@@ -228,7 +228,7 @@ struct fbtft_par {
 		int led[16];
 		int aux[16];
 	} gpio;
-	s16 *init_sequence;
+	const s16 *init_sequence;
 	struct {
 		struct mutex lock;
 		u32 *curves;
@@ -248,6 +248,7 @@ struct fbtft_par {
 	par->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__)
 
 /* fbtft-core.c */
+int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc);
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
 		   void *buf, size_t len, const char *fmt, ...);
 struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,

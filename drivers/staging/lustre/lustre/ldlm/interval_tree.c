@@ -101,11 +101,6 @@ static inline int node_equal(struct interval_node *n1, struct interval_node *n2)
 	return extent_equal(&n1->in_extent, &n2->in_extent);
 }
 
-static inline __u64 max_u64(__u64 x, __u64 y)
-{
-	return x > y ? x : y;
-}
-
 static struct interval_node *interval_first(struct interval_node *node)
 {
 	if (!node)
@@ -134,8 +129,8 @@ static void __rotate_change_maxhigh(struct interval_node *node,
 	rotate->in_max_high = node->in_max_high;
 	left_max = node->in_left ? node->in_left->in_max_high : 0;
 	right_max = node->in_right ? node->in_right->in_max_high : 0;
-	node->in_max_high  = max_u64(interval_high(node),
-				     max_u64(left_max, right_max));
+	node->in_max_high  = max(interval_high(node),
+				 max(left_max, right_max));
 }
 
 /* The left rotation "pivots" around the link from node to node->right, and
@@ -394,8 +389,8 @@ static void update_maxhigh(struct interval_node *node,
 	while (node) {
 		left_max = node->in_left ? node->in_left->in_max_high : 0;
 		right_max = node->in_right ? node->in_right->in_max_high : 0;
-		node->in_max_high = max_u64(interval_high(node),
-					    max_u64(left_max, right_max));
+		node->in_max_high = max(interval_high(node),
+					max(left_max, right_max));
 
 		if (node->in_max_high >= old_maxhigh)
 			break;

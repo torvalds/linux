@@ -196,9 +196,10 @@ static int surface3_button_probe(struct i2c_client *client,
 		    strlen(SURFACE_BUTTON_OBJ_NAME)))
 		return -ENODEV;
 
-	if (gpiod_count(dev, KBUILD_MODNAME) <= 0) {
+	error = gpiod_count(dev, NULL);
+	if (error < 0) {
 		dev_dbg(dev, "no GPIO attached, ignoring...\n");
-		return -ENODEV;
+		return error;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);

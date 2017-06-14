@@ -17,16 +17,6 @@
 
 #include "intel_mid_weak_decls.h"
 
-static void penwell_arch_setup(void);
-/* penwell arch ops */
-static struct intel_mid_ops penwell_ops = {
-	.arch_setup = penwell_arch_setup,
-};
-
-static void mfld_power_off(void)
-{
-}
-
 static unsigned long __init mfld_calibrate_tsc(void)
 {
 	unsigned long fast_calibrate;
@@ -63,8 +53,11 @@ static unsigned long __init mfld_calibrate_tsc(void)
 static void __init penwell_arch_setup(void)
 {
 	x86_platform.calibrate_tsc = mfld_calibrate_tsc;
-	pm_power_off = mfld_power_off;
 }
+
+static struct intel_mid_ops penwell_ops = {
+	.arch_setup = penwell_arch_setup,
+};
 
 void *get_penwell_ops(void)
 {

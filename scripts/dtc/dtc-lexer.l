@@ -62,7 +62,8 @@ static int dts_version = 1;
 
 static void push_input_file(const char *filename);
 static bool pop_input_file(void);
-static void lexical_error(const char *fmt, ...);
+static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
+
 %}
 
 %%

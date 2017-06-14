@@ -104,18 +104,15 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 	struct mm_struct *mm = pvmw->vma->vm_mm;
 	struct page *page = pvmw->page;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 
 	/* The only possible pmd mapping has been handled on last iteration */
 	if (pvmw->pmd && !pvmw->pte)
 		return not_found(pvmw);
 
-	/* Only for THP, seek to next pte entry makes sense */
-	if (pvmw->pte) {
-		if (!PageTransHuge(pvmw->page) || PageHuge(pvmw->page))
-			return not_found(pvmw);
+	if (pvmw->pte)
 		goto next_pte;
-	}
 
 	if (unlikely(PageHuge(pvmw->page))) {
 		/* when pud is not present, pte will be NULL */
@@ -133,7 +130,10 @@ restart:
 	pgd = pgd_offset(mm, pvmw->address);
 	if (!pgd_present(*pgd))
 		return false;
-	pud = pud_offset(pgd, pvmw->address);
+	p4d = p4d_offset(pgd, pvmw->address);
+	if (!p4d_present(*p4d))
+		return false;
+	pud = pud_offset(p4d, pvmw->address);
 	if (!pud_present(*pud))
 		return false;
 	pvmw->pmd = pmd_offset(pud, pvmw->address);
@@ -161,9 +161,14 @@ restart:
 	while (1) {
 		if (check_pte(pvmw))
 			return true;
-next_pte:	do {
+next_pte:
+		/* Seek to next pte only makes sense for THP */
+		if (!PageTransHuge(pvmw->page) || PageHuge(pvmw->page))
+			return not_found(pvmw);
+		do {
 			pvmw->address += PAGE_SIZE;
-			if (pvmw->address >=
+			if (pvmw->address >= pvmw->vma->vm_end ||
+			    pvmw->address >=
 					__vma_address(pvmw->page, pvmw->vma) +
 					hpage_nr_pages(pvmw->page) * PAGE_SIZE)
 				return not_found(pvmw);

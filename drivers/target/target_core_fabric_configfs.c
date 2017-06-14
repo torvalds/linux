@@ -92,6 +92,11 @@ static int target_fabric_mappedlun_link(
 		pr_err("Source se_lun->lun_se_dev does not exist\n");
 		return -EINVAL;
 	}
+	if (lun->lun_shutdown) {
+		pr_err("Unable to create mappedlun symlink because"
+			" lun->lun_shutdown=true\n");
+		return -EINVAL;
+	}
 	se_tpg = lun->lun_tpg;
 
 	nacl_ci = &lun_acl_ci->ci_parent->ci_group->cg_item;

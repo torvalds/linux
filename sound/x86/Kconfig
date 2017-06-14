@@ -1,6 +1,7 @@
 menuconfig SND_X86
-	tristate "X86 sound devices"
+	bool "X86 sound devices"
 	depends on X86
+	default y
 	---help---
 	  X86 sound devices that don't fall under SoC or PCI categories
 

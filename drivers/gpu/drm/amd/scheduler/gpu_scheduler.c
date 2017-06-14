@@ -236,6 +236,23 @@ static void amd_sched_entity_clear_dep(struct dma_fence *f, struct dma_fence_cb 
 	dma_fence_put(f);
 }
 
+bool amd_sched_dependency_optimized(struct dma_fence* fence,
+				    struct amd_sched_entity *entity)
+{
+	struct amd_gpu_scheduler *sched = entity->sched;
+	struct amd_sched_fence *s_fence;
+
+	if (!fence || dma_fence_is_signaled(fence))
+		return false;
+	if (fence->context == entity->fence_context)
+		return true;
+	s_fence = to_amd_sched_fence(fence);
+	if (s_fence && s_fence->sched == sched)
+		return true;
+
+	return false;
+}
+
 static bool amd_sched_entity_add_dependency_cb(struct amd_sched_entity *entity)
 {
 	struct amd_gpu_scheduler *sched = entity->sched;
@@ -387,7 +404,9 @@ void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched)
 
 	spin_lock(&sched->job_list_lock);
 	list_for_each_entry_reverse(s_job, &sched->ring_mirror_list, node) {
-		if (dma_fence_remove_callback(s_job->s_fence->parent, &s_job->s_fence->cb)) {
+		if (s_job->s_fence->parent &&
+		    dma_fence_remove_callback(s_job->s_fence->parent,
+					      &s_job->s_fence->cb)) {
 			dma_fence_put(s_job->s_fence->parent);
 			s_job->s_fence->parent = NULL;
 		}
@@ -462,6 +481,7 @@ int amd_sched_job_init(struct amd_sched_job *job,
 	job->s_fence = amd_sched_fence_create(entity, owner);
 	if (!job->s_fence)
 		return -ENOMEM;
+	job->id = atomic64_inc_return(&sched->job_id_count);
 
 	INIT_WORK(&job->finish_work, amd_sched_job_finish);
 	INIT_LIST_HEAD(&job->node);
@@ -501,7 +521,7 @@ amd_sched_select_entity(struct amd_gpu_scheduler *sched)
 		return NULL;
 
 	/* Kernel run queue has higher priority than normal run queue*/
-	for (i = 0; i < AMD_SCHED_MAX_PRIORITY; i++) {
+	for (i = AMD_SCHED_PRIORITY_MAX - 1; i >= AMD_SCHED_PRIORITY_MIN; i--) {
 		entity = amd_sched_rq_select_entity(&sched->sched_rq[i]);
 		if (entity)
 			break;
@@ -609,7 +629,7 @@ int amd_sched_init(struct amd_gpu_scheduler *sched,
 	sched->hw_submission_limit = hw_submission;
 	sched->name = name;
 	sched->timeout = timeout;
-	for (i = 0; i < AMD_SCHED_MAX_PRIORITY; i++)
+	for (i = AMD_SCHED_PRIORITY_MIN; i < AMD_SCHED_PRIORITY_MAX; i++)
 		amd_sched_rq_init(&sched->sched_rq[i]);
 
 	init_waitqueue_head(&sched->wake_up_worker);
@@ -617,6 +637,7 @@ int amd_sched_init(struct amd_gpu_scheduler *sched,
 	INIT_LIST_HEAD(&sched->ring_mirror_list);
 	spin_lock_init(&sched->job_list_lock);
 	atomic_set(&sched->hw_rq_count, 0);
+	atomic64_set(&sched->job_id_count, 0);
 
 	/* Each scheduler will run on a seperate kernel thread */
 	sched->thread = kthread_run(amd_sched_main, sched, sched->name);

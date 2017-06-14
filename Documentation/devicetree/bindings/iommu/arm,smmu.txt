@@ -60,6 +60,17 @@ conditions.
                   aliases of secure registers have to be used during
                   SMMU configuration.
 
+- stream-match-mask : For SMMUs supporting stream matching and using
+                  #iommu-cells = <1>, specifies a mask of bits to ignore
+		  when matching stream IDs (e.g. this may be programmed
+		  into the SMRn.MASK field of every stream match register
+		  used). For cases where it is desirable to ignore some
+                  portion of every Stream ID (e.g. for certain MMU-500
+                  configurations given globally unique input IDs). This
+                  property is not valid for SMMUs using stream indexing,
+                  or using stream matching with #iommu-cells = <2>, and
+                  may be ignored if present in such cases.
+
 ** Deprecated properties:
 
 - mmu-masters (deprecated in favour of the generic "iommus" binding) :
@@ -108,4 +119,21 @@ conditions.
         /* device with stream IDs 1, 17, 33 and 49 */
         master3 {
                 iommus = <&smmu2 1 0x30>;
+        };
+
+
+        /* ARM MMU-500 with 10-bit stream ID input configuration */
+        smmu3: iommu {
+                compatible = "arm,mmu-500", "arm,smmu-v2";
+                ...
+                #iommu-cells = <1>;
+                /* always ignore appended 5-bit TBU number */
+                stream-match-mask = 0x7c00;
+        };
+
+        bus {
+                /* bus whose child devices emit one unique 10-bit stream
+                   ID each, but may master through multiple SMMU TBUs */
+                iommu-map = <0 &smmu3 0 0x400>;
+                ...
         };

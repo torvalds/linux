@@ -21,6 +21,7 @@
 
 #include <Python.h>
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,6 +46,7 @@
 #include "../call-path.h"
 #include "thread_map.h"
 #include "cpumap.h"
+#include "print_binary.h"
 #include "stat.h"
 
 PyMODINIT_FUNC initperf_trace_context(void);
@@ -1217,7 +1219,7 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 	fprintf(ofp, "# be retrieved using Python functions of the form "
 		"common_*(context).\n");
 
-	fprintf(ofp, "# See the perf-trace-python Documentation for the list "
+	fprintf(ofp, "# See the perf-script-python Documentation for the list "
 		"of available functions.\n\n");
 
 	fprintf(ofp, "import os\n");

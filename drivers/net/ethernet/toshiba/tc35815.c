@@ -23,7 +23,7 @@
  */
 
 #define DRV_VERSION	"1.39"
-static const char *version = "tc35815.c:v" DRV_VERSION "\n";
+static const char version[] = "tc35815.c:v" DRV_VERSION "\n";
 #define MODNAME			"tc35815"
 
 #include <linux/module.h>
@@ -1017,8 +1017,8 @@ tc35815_free_queues(struct net_device *dev)
 			BUG_ON(lp->tx_skbs[i].skb != skb);
 #endif
 			if (skb) {
-				dev_kfree_skb(skb);
 				pci_unmap_single(lp->pci_dev, lp->tx_skbs[i].skb_dma, skb->len, PCI_DMA_TODEVICE);
+				dev_kfree_skb(skb);
 				lp->tx_skbs[i].skb = NULL;
 				lp->tx_skbs[i].skb_dma = 0;
 			}

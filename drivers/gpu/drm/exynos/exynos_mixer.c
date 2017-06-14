@@ -1012,6 +1012,7 @@ static void mixer_atomic_flush(struct exynos_drm_crtc *crtc)
 		return;
 
 	mixer_vsync_set_update(mixer_ctx, true);
+	exynos_crtc_handle_event(crtc);
 }
 
 static void mixer_enable(struct exynos_drm_crtc *crtc)

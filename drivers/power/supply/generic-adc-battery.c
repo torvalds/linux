@@ -383,8 +383,7 @@ static int gab_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int gab_suspend(struct device *dev)
+static int __maybe_unused gab_suspend(struct device *dev)
 {
 	struct gab *adc_bat = dev_get_drvdata(dev);
 
@@ -393,7 +392,7 @@ static int gab_suspend(struct device *dev)
 	return 0;
 }
 
-static int gab_resume(struct device *dev)
+static int __maybe_unused gab_resume(struct device *dev)
 {
 	struct gab *adc_bat = dev_get_drvdata(dev);
 	struct gab_platform_data *pdata = adc_bat->pdata;
@@ -407,20 +406,12 @@ static int gab_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops gab_pm_ops = {
-	.suspend        = gab_suspend,
-	.resume         = gab_resume,
-};
-
-#define GAB_PM_OPS       (&gab_pm_ops)
-#else
-#define GAB_PM_OPS       (NULL)
-#endif
+static SIMPLE_DEV_PM_OPS(gab_pm_ops, gab_suspend, gab_resume);
 
 static struct platform_driver gab_driver = {
 	.driver		= {
 		.name	= "generic-adc-battery",
-		.pm	= GAB_PM_OPS
+		.pm	= &gab_pm_ops,
 	},
 	.probe		= gab_probe,
 	.remove		= gab_remove,

@@ -2456,8 +2456,8 @@ static int qedf_alloc_bdq(struct qedf_ctx *qedf)
 	}
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-	    "BDQ PBL addr=0x%p dma=0x%llx.\n", qedf->bdq_pbl,
-	    qedf->bdq_pbl_dma);
+		  "BDQ PBL addr=0x%p dma=%pad\n",
+		  qedf->bdq_pbl, &qedf->bdq_pbl_dma);
 
 	/*
 	 * Populate BDQ PBL with physical and virtual address of individual
@@ -2803,6 +2803,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		atomic_set(&qedf->num_offloads, 0);
 		qedf->stop_io_on_error = false;
 		pci_set_drvdata(pdev, qedf);
+		init_completion(&qedf->fipvlan_compl);
 
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_INFO,
 		   "QLogic FastLinQ FCoE Module qedf %s, "
@@ -2894,7 +2895,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	slowpath_params.drv_minor = QEDF_DRIVER_MINOR_VER;
 	slowpath_params.drv_rev = QEDF_DRIVER_REV_VER;
 	slowpath_params.drv_eng = QEDF_DRIVER_ENG_VER;
-	memcpy(slowpath_params.name, "qedf", QED_DRV_VER_STR_SIZE);
+	strncpy(slowpath_params.name, "qedf", QED_DRV_VER_STR_SIZE);
 	rc = qed_ops->common->slowpath_start(qedf->cdev, &slowpath_params);
 	if (rc) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Cannot start slowpath.\n");

@@ -33,6 +33,8 @@ struct __ip6_tnl_parm {
 	__be16			o_flags;
 	__be32			i_key;
 	__be32			o_key;
+
+	__u32			fwmark;
 };
 
 /* IPv6 tunnel */

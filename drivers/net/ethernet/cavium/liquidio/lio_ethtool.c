@@ -33,6 +33,19 @@
 
 static int octnet_get_link_stats(struct net_device *netdev);
 
+struct oct_intrmod_context {
+	int octeon_id;
+	wait_queue_head_t wc;
+	int cond;
+	int status;
+};
+
+struct oct_intrmod_resp {
+	u64     rh;
+	struct oct_intrmod_cfg intrmod;
+	u64     status;
+};
+
 struct oct_mdio_cmd_context {
 	int octeon_id;
 	wait_queue_head_t wc;
@@ -213,17 +226,23 @@ static int lio_get_link_ksettings(struct net_device *netdev,
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct oct_link_info *linfo;
-	u32 supported, advertising;
+	u32 supported = 0, advertising = 0;
 
 	linfo = &lio->linfo;
 
 	if (linfo->link.s.if_mode == INTERFACE_MODE_XAUI ||
 	    linfo->link.s.if_mode == INTERFACE_MODE_RXAUI ||
+	    linfo->link.s.if_mode == INTERFACE_MODE_XLAUI ||
 	    linfo->link.s.if_mode == INTERFACE_MODE_XFI) {
 		ecmd->base.port = PORT_FIBRE;
-		supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE |
-			     SUPPORTED_Pause);
-		advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_Pause);
+
+		if (linfo->link.s.speed == SPEED_10000) {
+			supported = SUPPORTED_10000baseT_Full;
+			advertising = ADVERTISED_10000baseT_Full;
+		}
+
+		supported |= SUPPORTED_FIBRE | SUPPORTED_Pause;
+		advertising |= ADVERTISED_Pause;
 		ethtool_convert_legacy_u32_to_link_mode(
 			ecmd->link_modes.supported, supported);
 		ethtool_convert_legacy_u32_to_link_mode(
@@ -1292,95 +1311,101 @@ static int lio_vf_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
-static int lio_get_intr_coalesce(struct net_device *netdev,
-				 struct ethtool_coalesce *intr_coal)
-{
-	struct lio *lio = GET_LIO(netdev);
-	struct octeon_device *oct = lio->oct_dev;
-	struct octeon_instr_queue *iq;
-	struct oct_intrmod_cfg *intrmod_cfg;
-
-	intrmod_cfg = &oct->intrmod;
-
-	switch (oct->chip_id) {
-	case OCTEON_CN23XX_PF_VID:
-	case OCTEON_CN23XX_VF_VID:
-		if (!intrmod_cfg->rx_enable) {
-			intr_coal->rx_coalesce_usecs = intrmod_cfg->rx_usecs;
-			intr_coal->rx_max_coalesced_frames =
-				intrmod_cfg->rx_frames;
-		}
-		if (!intrmod_cfg->tx_enable)
-			intr_coal->tx_max_coalesced_frames =
-				intrmod_cfg->tx_frames;
-		break;
-	case OCTEON_CN68XX:
-	case OCTEON_CN66XX: {
-		struct octeon_cn6xxx *cn6xxx =
-			(struct octeon_cn6xxx *)oct->chip;
-
-		if (!intrmod_cfg->rx_enable) {
-			intr_coal->rx_coalesce_usecs =
-				CFG_GET_OQ_INTR_TIME(cn6xxx->conf);
-			intr_coal->rx_max_coalesced_frames =
-				CFG_GET_OQ_INTR_PKT(cn6xxx->conf);
-		}
-		iq = oct->instr_queue[lio->linfo.txpciq[0].s.q_no];
-		intr_coal->tx_max_coalesced_frames = iq->fill_threshold;
-		break;
-	}
-	default:
-		netif_info(lio, drv, lio->netdev, "Unknown Chip !!\n");
-		return -EINVAL;
-	}
-	if (intrmod_cfg->rx_enable) {
-		intr_coal->use_adaptive_rx_coalesce =
-			intrmod_cfg->rx_enable;
-		intr_coal->rate_sample_interval =
-			intrmod_cfg->check_intrvl;
-		intr_coal->pkt_rate_high =
-			intrmod_cfg->maxpkt_ratethr;
-		intr_coal->pkt_rate_low =
-			intrmod_cfg->minpkt_ratethr;
-		intr_coal->rx_max_coalesced_frames_high =
-			intrmod_cfg->rx_maxcnt_trigger;
-		intr_coal->rx_coalesce_usecs_high =
-			intrmod_cfg->rx_maxtmr_trigger;
-		intr_coal->rx_coalesce_usecs_low =
-			intrmod_cfg->rx_mintmr_trigger;
-		intr_coal->rx_max_coalesced_frames_low =
-		    intrmod_cfg->rx_mincnt_trigger;
-	}
-	if ((OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct)) &&
-	    (intrmod_cfg->tx_enable)) {
-		intr_coal->use_adaptive_tx_coalesce = intrmod_cfg->tx_enable;
-		intr_coal->tx_max_coalesced_frames_high =
-		    intrmod_cfg->tx_maxcnt_trigger;
-		intr_coal->tx_max_coalesced_frames_low =
-		    intrmod_cfg->tx_mincnt_trigger;
-	}
-	return 0;
-}
-
 /* Callback function for intrmod */
 static void octnet_intrmod_callback(struct octeon_device *oct_dev,
 				    u32 status,
 				    void *ptr)
 {
-	struct oct_intrmod_cmd *cmd = ptr;
-	struct octeon_soft_command *sc = cmd->sc;
+	struct octeon_soft_command *sc = (struct octeon_soft_command *)ptr;
+	struct oct_intrmod_context *ctx;
 
-	oct_dev = cmd->oct_dev;
+	ctx  = (struct oct_intrmod_context *)sc->ctxptr;
 
-	if (status)
-		dev_err(&oct_dev->pci_dev->dev, "intrmod config failed. Status: %llx\n",
-			CVM_CAST64(status));
-	else
-		dev_info(&oct_dev->pci_dev->dev,
-			 "Rx-Adaptive Interrupt moderation enabled:%llx\n",
-			 oct_dev->intrmod.rx_enable);
+	ctx->status = status;
+
+	WRITE_ONCE(ctx->cond, 1);
+
+	/* This barrier is required to be sure that the response has been
+	 * written fully before waking up the handler
+	 */
+	wmb();
+
+	wake_up_interruptible(&ctx->wc);
+}
+
+/*  get interrupt moderation parameters */
+static int octnet_get_intrmod_cfg(struct lio *lio,
+				  struct oct_intrmod_cfg *intr_cfg)
+{
+	struct octeon_soft_command *sc;
+	struct oct_intrmod_context *ctx;
+	struct oct_intrmod_resp *resp;
+	int retval;
+	struct octeon_device *oct_dev = lio->oct_dev;
+
+	/* Alloc soft command */
+	sc = (struct octeon_soft_command *)
+		octeon_alloc_soft_command(oct_dev,
+					  0,
+					  sizeof(struct oct_intrmod_resp),
+					  sizeof(struct oct_intrmod_context));
+
+	if (!sc)
+		return -ENOMEM;
+
+	resp = (struct oct_intrmod_resp *)sc->virtrptr;
+	memset(resp, 0, sizeof(struct oct_intrmod_resp));
+
+	ctx = (struct oct_intrmod_context *)sc->ctxptr;
+	memset(ctx, 0, sizeof(struct oct_intrmod_context));
+	WRITE_ONCE(ctx->cond, 0);
+	ctx->octeon_id = lio_get_device_id(oct_dev);
+	init_waitqueue_head(&ctx->wc);
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	octeon_prepare_soft_command(oct_dev, sc, OPCODE_NIC,
+				    OPCODE_NIC_INTRMOD_PARAMS, 0, 0, 0);
+
+	sc->callback = octnet_intrmod_callback;
+	sc->callback_arg = sc;
+	sc->wait_time = 1000;
+
+	retval = octeon_send_soft_command(oct_dev, sc);
+	if (retval == IQ_SEND_FAILED) {
+		octeon_free_soft_command(oct_dev, sc);
+		return -EINVAL;
+	}
+
+	/* Sleep on a wait queue till the cond flag indicates that the
+	 * response arrived or timed-out.
+	 */
+	if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR) {
+		dev_err(&oct_dev->pci_dev->dev, "Wait interrupted\n");
+		goto intrmod_info_wait_intr;
+	}
+
+	retval = ctx->status || resp->status;
+	if (retval) {
+		dev_err(&oct_dev->pci_dev->dev,
+			"Get interrupt moderation parameters failed\n");
+		goto intrmod_info_wait_fail;
+	}
+
+	octeon_swap_8B_data((u64 *)&resp->intrmod,
+			    (sizeof(struct oct_intrmod_cfg)) / 8);
+	memcpy(intr_cfg, &resp->intrmod, sizeof(struct oct_intrmod_cfg));
+	octeon_free_soft_command(oct_dev, sc);
+
+	return 0;
+
+intrmod_info_wait_fail:
 
 	octeon_free_soft_command(oct_dev, sc);
+
+intrmod_info_wait_intr:
+
+	return -ENODEV;
 }
 
 /*  Configure interrupt moderation parameters */
@@ -1388,7 +1413,7 @@ static int octnet_set_intrmod_cfg(struct lio *lio,
 				  struct oct_intrmod_cfg *intr_cfg)
 {
 	struct octeon_soft_command *sc;
-	struct oct_intrmod_cmd *cmd;
+	struct oct_intrmod_context *ctx;
 	struct oct_intrmod_cfg *cfg;
 	int retval;
 	struct octeon_device *oct_dev = lio->oct_dev;
@@ -1398,19 +1423,21 @@ static int octnet_set_intrmod_cfg(struct lio *lio,
 		octeon_alloc_soft_command(oct_dev,
 					  sizeof(struct oct_intrmod_cfg),
 					  0,
-					  sizeof(struct oct_intrmod_cmd));
+					  sizeof(struct oct_intrmod_context));
 
 	if (!sc)
 		return -ENOMEM;
 
-	cmd = (struct oct_intrmod_cmd *)sc->ctxptr;
+	ctx = (struct oct_intrmod_context *)sc->ctxptr;
+
+	WRITE_ONCE(ctx->cond, 0);
+	ctx->octeon_id = lio_get_device_id(oct_dev);
+	init_waitqueue_head(&ctx->wc);
+
 	cfg = (struct oct_intrmod_cfg *)sc->virtdptr;
 
 	memcpy(cfg, intr_cfg, sizeof(struct oct_intrmod_cfg));
 	octeon_swap_8B_data((u64 *)cfg, (sizeof(struct oct_intrmod_cfg)) / 8);
-	cmd->sc = sc;
-	cmd->cfg = cfg;
-	cmd->oct_dev = oct_dev;
 
 	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
 
@@ -1418,7 +1445,7 @@ static int octnet_set_intrmod_cfg(struct lio *lio,
 				    OPCODE_NIC_INTRMOD_CFG, 0, 0, 0);
 
 	sc->callback = octnet_intrmod_callback;
-	sc->callback_arg = cmd;
+	sc->callback_arg = sc;
 	sc->wait_time = 1000;
 
 	retval = octeon_send_soft_command(oct_dev, sc);
@@ -1427,7 +1454,29 @@ static int octnet_set_intrmod_cfg(struct lio *lio,
 		return -EINVAL;
 	}
 
-	return 0;
+	/* Sleep on a wait queue till the cond flag indicates that the
+	 * response arrived or timed-out.
+	 */
+	if (sleep_cond(&ctx->wc, &ctx->cond) != -EINTR) {
+		retval = ctx->status;
+		if (retval)
+			dev_err(&oct_dev->pci_dev->dev,
+				"intrmod config failed. Status: %llx\n",
+				CVM_CAST64(retval));
+		else
+			dev_info(&oct_dev->pci_dev->dev,
+				 "Rx-Adaptive Interrupt moderation %s\n",
+				 (intr_cfg->rx_enable) ?
+				 "enabled" : "disabled");
+
+		octeon_free_soft_command(oct_dev, sc);
+
+		return ((retval) ? -ENODEV : 0);
+	}
+
+	dev_err(&oct_dev->pci_dev->dev, "iq/oq config failed\n");
+
+	return -EINTR;
 }
 
 static void
@@ -1584,80 +1633,106 @@ static int octnet_get_link_stats(struct net_device *netdev)
 	return 0;
 }
 
+static int lio_get_intr_coalesce(struct net_device *netdev,
+				 struct ethtool_coalesce *intr_coal)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octeon_instr_queue *iq;
+	struct oct_intrmod_cfg intrmod_cfg;
+
+	if (octnet_get_intrmod_cfg(lio, &intrmod_cfg))
+		return -ENODEV;
+
+	switch (oct->chip_id) {
+	case OCTEON_CN23XX_PF_VID:
+	case OCTEON_CN23XX_VF_VID: {
+		if (!intrmod_cfg.rx_enable) {
+			intr_coal->rx_coalesce_usecs = oct->rx_coalesce_usecs;
+			intr_coal->rx_max_coalesced_frames =
+				oct->rx_max_coalesced_frames;
+		}
+		if (!intrmod_cfg.tx_enable)
+			intr_coal->tx_max_coalesced_frames =
+				oct->tx_max_coalesced_frames;
+		break;
+	}
+	case OCTEON_CN68XX:
+	case OCTEON_CN66XX: {
+		struct octeon_cn6xxx *cn6xxx =
+			(struct octeon_cn6xxx *)oct->chip;
+
+		if (!intrmod_cfg.rx_enable) {
+			intr_coal->rx_coalesce_usecs =
+				CFG_GET_OQ_INTR_TIME(cn6xxx->conf);
+			intr_coal->rx_max_coalesced_frames =
+				CFG_GET_OQ_INTR_PKT(cn6xxx->conf);
+		}
+		iq = oct->instr_queue[lio->linfo.txpciq[0].s.q_no];
+		intr_coal->tx_max_coalesced_frames = iq->fill_threshold;
+		break;
+	}
+	default:
+		netif_info(lio, drv, lio->netdev, "Unknown Chip !!\n");
+		return -EINVAL;
+	}
+	if (intrmod_cfg.rx_enable) {
+		intr_coal->use_adaptive_rx_coalesce =
+			intrmod_cfg.rx_enable;
+		intr_coal->rate_sample_interval =
+			intrmod_cfg.check_intrvl;
+		intr_coal->pkt_rate_high =
+			intrmod_cfg.maxpkt_ratethr;
+		intr_coal->pkt_rate_low =
+			intrmod_cfg.minpkt_ratethr;
+		intr_coal->rx_max_coalesced_frames_high =
+			intrmod_cfg.rx_maxcnt_trigger;
+		intr_coal->rx_coalesce_usecs_high =
+			intrmod_cfg.rx_maxtmr_trigger;
+		intr_coal->rx_coalesce_usecs_low =
+			intrmod_cfg.rx_mintmr_trigger;
+		intr_coal->rx_max_coalesced_frames_low =
+			intrmod_cfg.rx_mincnt_trigger;
+	}
+	if ((OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct)) &&
+	    (intrmod_cfg.tx_enable)) {
+		intr_coal->use_adaptive_tx_coalesce =
+			intrmod_cfg.tx_enable;
+		intr_coal->tx_max_coalesced_frames_high =
+			intrmod_cfg.tx_maxcnt_trigger;
+		intr_coal->tx_max_coalesced_frames_low =
+			intrmod_cfg.tx_mincnt_trigger;
+	}
+	return 0;
+}
+
 /* Enable/Disable auto interrupt Moderation */
-static int oct_cfg_adaptive_intr(struct lio *lio, struct ethtool_coalesce
-				 *intr_coal)
+static int oct_cfg_adaptive_intr(struct lio *lio,
+				 struct oct_intrmod_cfg *intrmod_cfg,
+				 struct ethtool_coalesce *intr_coal)
 {
 	int ret = 0;
-	struct octeon_device *oct = lio->oct_dev;
-	struct oct_intrmod_cfg *intrmod_cfg;
 
-	intrmod_cfg = &oct->intrmod;
-
-	if (oct->intrmod.rx_enable || oct->intrmod.tx_enable) {
-		if (intr_coal->rate_sample_interval)
-			intrmod_cfg->check_intrvl =
-				intr_coal->rate_sample_interval;
-		else
-			intrmod_cfg->check_intrvl =
-				LIO_INTRMOD_CHECK_INTERVAL;
-
-		if (intr_coal->pkt_rate_high)
-			intrmod_cfg->maxpkt_ratethr =
-				intr_coal->pkt_rate_high;
-		else
-			intrmod_cfg->maxpkt_ratethr =
-				LIO_INTRMOD_MAXPKT_RATETHR;
-
-		if (intr_coal->pkt_rate_low)
-			intrmod_cfg->minpkt_ratethr =
-				intr_coal->pkt_rate_low;
-		else
-			intrmod_cfg->minpkt_ratethr =
-				LIO_INTRMOD_MINPKT_RATETHR;
+	if (intrmod_cfg->rx_enable || intrmod_cfg->tx_enable) {
+		intrmod_cfg->check_intrvl = intr_coal->rate_sample_interval;
+		intrmod_cfg->maxpkt_ratethr = intr_coal->pkt_rate_high;
+		intrmod_cfg->minpkt_ratethr = intr_coal->pkt_rate_low;
 	}
-	if (oct->intrmod.rx_enable) {
-		if (intr_coal->rx_max_coalesced_frames_high)
-			intrmod_cfg->rx_maxcnt_trigger =
-				intr_coal->rx_max_coalesced_frames_high;
-		else
-			intrmod_cfg->rx_maxcnt_trigger =
-				LIO_INTRMOD_RXMAXCNT_TRIGGER;
-
-		if (intr_coal->rx_coalesce_usecs_high)
-			intrmod_cfg->rx_maxtmr_trigger =
-				intr_coal->rx_coalesce_usecs_high;
-		else
-			intrmod_cfg->rx_maxtmr_trigger =
-				LIO_INTRMOD_RXMAXTMR_TRIGGER;
-
-		if (intr_coal->rx_coalesce_usecs_low)
-			intrmod_cfg->rx_mintmr_trigger =
-				intr_coal->rx_coalesce_usecs_low;
-		else
-			intrmod_cfg->rx_mintmr_trigger =
-				LIO_INTRMOD_RXMINTMR_TRIGGER;
-
-		if (intr_coal->rx_max_coalesced_frames_low)
-			intrmod_cfg->rx_mincnt_trigger =
-				intr_coal->rx_max_coalesced_frames_low;
-		else
-			intrmod_cfg->rx_mincnt_trigger =
-				LIO_INTRMOD_RXMINCNT_TRIGGER;
+	if (intrmod_cfg->rx_enable) {
+		intrmod_cfg->rx_maxcnt_trigger =
+			intr_coal->rx_max_coalesced_frames_high;
+		intrmod_cfg->rx_maxtmr_trigger =
+			intr_coal->rx_coalesce_usecs_high;
+		intrmod_cfg->rx_mintmr_trigger =
+			intr_coal->rx_coalesce_usecs_low;
+		intrmod_cfg->rx_mincnt_trigger =
+			intr_coal->rx_max_coalesced_frames_low;
 	}
-	if (oct->intrmod.tx_enable) {
-		if (intr_coal->tx_max_coalesced_frames_high)
-			intrmod_cfg->tx_maxcnt_trigger =
-				intr_coal->tx_max_coalesced_frames_high;
-		else
-			intrmod_cfg->tx_maxcnt_trigger =
-				LIO_INTRMOD_TXMAXCNT_TRIGGER;
-		if (intr_coal->tx_max_coalesced_frames_low)
-			intrmod_cfg->tx_mincnt_trigger =
-				intr_coal->tx_max_coalesced_frames_low;
-		else
-			intrmod_cfg->tx_mincnt_trigger =
-				LIO_INTRMOD_TXMINCNT_TRIGGER;
+	if (intrmod_cfg->tx_enable) {
+		intrmod_cfg->tx_maxcnt_trigger =
+			intr_coal->tx_max_coalesced_frames_high;
+		intrmod_cfg->tx_mincnt_trigger =
+			intr_coal->tx_max_coalesced_frames_low;
 	}
 
 	ret = octnet_set_intrmod_cfg(lio, intrmod_cfg);
@@ -1666,7 +1741,9 @@ static int oct_cfg_adaptive_intr(struct lio *lio, struct ethtool_coalesce
 }
 
 static int
-oct_cfg_rx_intrcnt(struct lio *lio, struct ethtool_coalesce *intr_coal)
+oct_cfg_rx_intrcnt(struct lio *lio,
+		   struct oct_intrmod_cfg *intrmod,
+		   struct ethtool_coalesce *intr_coal)
 {
 	struct octeon_device *oct = lio->oct_dev;
 	u32 rx_max_coalesced_frames;
@@ -1692,7 +1769,7 @@ oct_cfg_rx_intrcnt(struct lio *lio, struct ethtool_coalesce *intr_coal)
 		int q_no;
 
 		if (!intr_coal->rx_max_coalesced_frames)
-			rx_max_coalesced_frames = oct->intrmod.rx_frames;
+			rx_max_coalesced_frames = intrmod->rx_frames;
 		else
 			rx_max_coalesced_frames =
 			    intr_coal->rx_max_coalesced_frames;
@@ -1703,17 +1780,18 @@ oct_cfg_rx_intrcnt(struct lio *lio, struct ethtool_coalesce *intr_coal)
 			    (octeon_read_csr64(
 				 oct, CN23XX_SLI_OQ_PKT_INT_LEVELS(q_no)) &
 			     (0x3fffff00000000UL)) |
-				rx_max_coalesced_frames);
+				(rx_max_coalesced_frames - 1));
 			/*consider setting resend bit*/
 		}
-		oct->intrmod.rx_frames = rx_max_coalesced_frames;
+		intrmod->rx_frames = rx_max_coalesced_frames;
+		oct->rx_max_coalesced_frames = rx_max_coalesced_frames;
 		break;
 	}
 	case OCTEON_CN23XX_VF_VID: {
 		int q_no;
 
 		if (!intr_coal->rx_max_coalesced_frames)
-			rx_max_coalesced_frames = oct->intrmod.rx_frames;
+			rx_max_coalesced_frames = intrmod->rx_frames;
 		else
 			rx_max_coalesced_frames =
 			    intr_coal->rx_max_coalesced_frames;
@@ -1724,9 +1802,10 @@ oct_cfg_rx_intrcnt(struct lio *lio, struct ethtool_coalesce *intr_coal)
 				 oct, CN23XX_VF_SLI_OQ_PKT_INT_LEVELS(q_no)) &
 			     (0x3fffff00000000UL)) |
 				rx_max_coalesced_frames);
-			/* consider writing to resend bit here */
+			/*consider writing to resend bit here*/
 		}
-		oct->intrmod.rx_frames = rx_max_coalesced_frames;
+		intrmod->rx_frames = rx_max_coalesced_frames;
+		oct->rx_max_coalesced_frames = rx_max_coalesced_frames;
 		break;
 	}
 	default:
@@ -1736,6 +1815,7 @@ oct_cfg_rx_intrcnt(struct lio *lio, struct ethtool_coalesce *intr_coal)
 }
 
 static int oct_cfg_rx_intrtime(struct lio *lio,
+			       struct oct_intrmod_cfg *intrmod,
 			       struct ethtool_coalesce *intr_coal)
 {
 	struct octeon_device *oct = lio->oct_dev;
@@ -1766,7 +1846,7 @@ static int oct_cfg_rx_intrtime(struct lio *lio,
 		int q_no;
 
 		if (!intr_coal->rx_coalesce_usecs)
-			rx_coalesce_usecs = oct->intrmod.rx_usecs;
+			rx_coalesce_usecs = intrmod->rx_usecs;
 		else
 			rx_coalesce_usecs = intr_coal->rx_coalesce_usecs;
 		time_threshold =
@@ -1775,11 +1855,12 @@ static int oct_cfg_rx_intrtime(struct lio *lio,
 			q_no += oct->sriov_info.pf_srn;
 			octeon_write_csr64(oct,
 					   CN23XX_SLI_OQ_PKT_INT_LEVELS(q_no),
-					   (oct->intrmod.rx_frames |
-					    (time_threshold << 32)));
+					   (intrmod->rx_frames |
+					    ((u64)time_threshold << 32)));
 			/*consider writing to resend bit here*/
 		}
-		oct->intrmod.rx_usecs = rx_coalesce_usecs;
+		intrmod->rx_usecs = rx_coalesce_usecs;
+		oct->rx_coalesce_usecs = rx_coalesce_usecs;
 		break;
 	}
 	case OCTEON_CN23XX_VF_VID: {
@@ -1787,7 +1868,7 @@ static int oct_cfg_rx_intrtime(struct lio *lio,
 		int q_no;
 
 		if (!intr_coal->rx_coalesce_usecs)
-			rx_coalesce_usecs = oct->intrmod.rx_usecs;
+			rx_coalesce_usecs = intrmod->rx_usecs;
 		else
 			rx_coalesce_usecs = intr_coal->rx_coalesce_usecs;
 
@@ -1796,11 +1877,12 @@ static int oct_cfg_rx_intrtime(struct lio *lio,
 		for (q_no = 0; q_no < oct->num_oqs; q_no++) {
 			octeon_write_csr64(
 				oct, CN23XX_VF_SLI_OQ_PKT_INT_LEVELS(q_no),
-				(oct->intrmod.rx_frames |
-				 (time_threshold << 32)));
-			/* consider setting resend bit */
+				(intrmod->rx_frames |
+				 ((u64)time_threshold << 32)));
+			/*consider setting resend bit*/
 		}
-		oct->intrmod.rx_usecs = rx_coalesce_usecs;
+		intrmod->rx_usecs = rx_coalesce_usecs;
+		oct->rx_coalesce_usecs = rx_coalesce_usecs;
 		break;
 	}
 	default:
@@ -1811,8 +1893,9 @@ static int oct_cfg_rx_intrtime(struct lio *lio,
 }
 
 static int
-oct_cfg_tx_intrcnt(struct lio *lio, struct ethtool_coalesce *intr_coal
-		   __attribute__((unused)))
+oct_cfg_tx_intrcnt(struct lio *lio,
+		   struct oct_intrmod_cfg *intrmod,
+		   struct ethtool_coalesce *intr_coal)
 {
 	struct octeon_device *oct = lio->oct_dev;
 	u32 iq_intr_pkt;
@@ -1839,12 +1922,13 @@ oct_cfg_tx_intrcnt(struct lio *lio, struct ethtool_coalesce *intr_coal
 			val = readq(inst_cnt_reg);
 			/*clear wmark and count.dont want to write count back*/
 			val = (val & 0xFFFF000000000000ULL) |
-			      ((u64)iq_intr_pkt
+			      ((u64)(iq_intr_pkt - 1)
 			       << CN23XX_PKT_IN_DONE_WMARK_BIT_POS);
 			writeq(val, inst_cnt_reg);
 			/*consider setting resend bit*/
 		}
-		oct->intrmod.tx_frames = iq_intr_pkt;
+		intrmod->tx_frames = iq_intr_pkt;
+		oct->tx_max_coalesced_frames = iq_intr_pkt;
 		break;
 	}
 	default:
@@ -1859,6 +1943,7 @@ static int lio_set_intr_coalesce(struct net_device *netdev,
 	struct lio *lio = GET_LIO(netdev);
 	int ret;
 	struct octeon_device *oct = lio->oct_dev;
+	struct oct_intrmod_cfg intrmod = {0};
 	u32 j, q_no;
 	int db_max, db_min;
 
@@ -1877,8 +1962,8 @@ static int lio_set_intr_coalesce(struct net_device *netdev,
 		} else {
 			dev_err(&oct->pci_dev->dev,
 				"LIQUIDIO: Invalid tx-frames:%d. Range is min:%d max:%d\n",
-				intr_coal->tx_max_coalesced_frames, db_min,
-				db_max);
+				intr_coal->tx_max_coalesced_frames,
+				db_min, db_max);
 			return -EINVAL;
 		}
 		break;
@@ -1889,24 +1974,36 @@ static int lio_set_intr_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	oct->intrmod.rx_enable = intr_coal->use_adaptive_rx_coalesce ? 1 : 0;
-	oct->intrmod.tx_enable = intr_coal->use_adaptive_tx_coalesce ? 1 : 0;
+	intrmod.rx_enable = intr_coal->use_adaptive_rx_coalesce ? 1 : 0;
+	intrmod.tx_enable = intr_coal->use_adaptive_tx_coalesce ? 1 : 0;
+	intrmod.rx_frames = CFG_GET_OQ_INTR_PKT(octeon_get_conf(oct));
+	intrmod.rx_usecs = CFG_GET_OQ_INTR_TIME(octeon_get_conf(oct));
+	intrmod.tx_frames = CFG_GET_IQ_INTR_PKT(octeon_get_conf(oct));
 
-	ret = oct_cfg_adaptive_intr(lio, intr_coal);
+	ret = oct_cfg_adaptive_intr(lio, &intrmod, intr_coal);
 
 	if (!intr_coal->use_adaptive_rx_coalesce) {
-		ret = oct_cfg_rx_intrtime(lio, intr_coal);
+		ret = oct_cfg_rx_intrtime(lio, &intrmod, intr_coal);
 		if (ret)
 			goto ret_intrmod;
 
-		ret = oct_cfg_rx_intrcnt(lio, intr_coal);
+		ret = oct_cfg_rx_intrcnt(lio, &intrmod, intr_coal);
 		if (ret)
 			goto ret_intrmod;
+	} else {
+		oct->rx_coalesce_usecs =
+			CFG_GET_OQ_INTR_TIME(octeon_get_conf(oct));
+		oct->rx_max_coalesced_frames =
+			CFG_GET_OQ_INTR_PKT(octeon_get_conf(oct));
 	}
+
 	if (!intr_coal->use_adaptive_tx_coalesce) {
-		ret = oct_cfg_tx_intrcnt(lio, intr_coal);
+		ret = oct_cfg_tx_intrcnt(lio, &intrmod, intr_coal);
 		if (ret)
 			goto ret_intrmod;
+	} else {
+		oct->tx_max_coalesced_frames =
+			CFG_GET_IQ_INTR_PKT(octeon_get_conf(oct));
 	}
 
 	return 0;

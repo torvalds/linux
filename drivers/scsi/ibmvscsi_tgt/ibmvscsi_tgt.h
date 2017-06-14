@@ -168,10 +168,12 @@ struct ibmvscsis_cmd {
 	struct iu_rsp rsp;
 	struct work_struct work;
 	struct scsi_info *adapter;
+	struct ibmvscsis_cmd *abort_cmd;
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char sense_buf[TRANSPORT_SENSE_BUFFER];
 	u64 init_time;
 #define CMD_FAST_FAIL	BIT(0)
+#define DELAY_SEND	BIT(1)
 	u32 flags;
 	char type;
 };

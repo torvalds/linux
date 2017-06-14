@@ -516,13 +516,13 @@ static const struct i2c_device_id max9867_i2c_id[] = {
 	{ "max9867", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, max9867_i2c_id);
 
 static const struct of_device_id max9867_of_match[] = {
 	{ .compatible = "maxim,max9867", },
 	{ }
 };
-
-MODULE_DEVICE_TABLE(i2c, max9867_i2c_id);
+MODULE_DEVICE_TABLE(of, max9867_of_match);
 
 static const struct dev_pm_ops max9867_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(max9867_suspend, max9867_resume)

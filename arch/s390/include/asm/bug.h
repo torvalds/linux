@@ -46,8 +46,8 @@
 	unreachable();					\
 } while (0)
 
-#define __WARN_TAINT(taint) do {			\
-	__EMIT_BUG(BUGFLAG_TAINT(taint));		\
+#define __WARN_FLAGS(flags) do {			\
+	__EMIT_BUG(BUGFLAG_WARNING|(flags));		\
 } while (0)
 
 #define WARN_ON(x) ({					\

@@ -174,9 +174,10 @@ static int do_waitchks(struct host1x_job *job, struct host1x *host,
 	return 0;
 }
 
-static unsigned int pin_job(struct host1x_job *job)
+static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 {
 	unsigned int i;
+	int err;
 
 	job->num_unpins = 0;
 
@@ -186,12 +187,16 @@ static unsigned int pin_job(struct host1x_job *job)
 		dma_addr_t phys_addr;
 
 		reloc->target.bo = host1x_bo_get(reloc->target.bo);
-		if (!reloc->target.bo)
+		if (!reloc->target.bo) {
+			err = -EINVAL;
 			goto unpin;
+		}
 
 		phys_addr = host1x_bo_pin(reloc->target.bo, &sgt);
-		if (!phys_addr)
+		if (!phys_addr) {
+			err = -EINVAL;
 			goto unpin;
+		}
 
 		job->addr_phys[job->num_unpins] = phys_addr;
 		job->unpins[job->num_unpins].bo = reloc->target.bo;
@@ -201,28 +206,67 @@ static unsigned int pin_job(struct host1x_job *job)
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
+		size_t gather_size = 0;
+		struct scatterlist *sg;
 		struct sg_table *sgt;
 		dma_addr_t phys_addr;
+		unsigned long shift;
+		struct iova *alloc;
+		unsigned int j;
 
 		g->bo = host1x_bo_get(g->bo);
-		if (!g->bo)
+		if (!g->bo) {
+			err = -EINVAL;
 			goto unpin;
+		}
 
 		phys_addr = host1x_bo_pin(g->bo, &sgt);
-		if (!phys_addr)
+		if (!phys_addr) {
+			err = -EINVAL;
 			goto unpin;
+		}
 
-		job->addr_phys[job->num_unpins] = phys_addr;
+		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
+			for_each_sg(sgt->sgl, sg, sgt->nents, j)
+				gather_size += sg->length;
+			gather_size = iova_align(&host->iova, gather_size);
+
+			shift = iova_shift(&host->iova);
+			alloc = alloc_iova(&host->iova, gather_size >> shift,
+					   host->iova_end >> shift, true);
+			if (!alloc) {
+				err = -ENOMEM;
+				goto unpin;
+			}
+
+			err = iommu_map_sg(host->domain,
+					iova_dma_addr(&host->iova, alloc),
+					sgt->sgl, sgt->nents, IOMMU_READ);
+			if (err == 0) {
+				__free_iova(&host->iova, alloc);
+				err = -EINVAL;
+				goto unpin;
+			}
+
+			job->addr_phys[job->num_unpins] =
+				iova_dma_addr(&host->iova, alloc);
+			job->unpins[job->num_unpins].size = gather_size;
+		} else {
+			job->addr_phys[job->num_unpins] = phys_addr;
+		}
+
+		job->gather_addr_phys[i] = job->addr_phys[job->num_unpins];
+
 		job->unpins[job->num_unpins].bo = g->bo;
 		job->unpins[job->num_unpins].sgt = sgt;
 		job->num_unpins++;
 	}
 
-	return job->num_unpins;
+	return 0;
 
 unpin:
 	host1x_job_unpin(job);
-	return 0;
+	return err;
 }
 
 static int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
@@ -525,8 +569,8 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 		host1x_syncpt_load(host->syncpt + i);
 
 	/* pin memory */
-	err = pin_job(job);
-	if (!err)
+	err = pin_job(host, job);
+	if (err)
 		goto out;
 
 	/* patch gathers */
@@ -572,10 +616,18 @@ EXPORT_SYMBOL(host1x_job_pin);
 
 void host1x_job_unpin(struct host1x_job *job)
 {
+	struct host1x *host = dev_get_drvdata(job->channel->dev->parent);
 	unsigned int i;
 
 	for (i = 0; i < job->num_unpins; i++) {
 		struct host1x_job_unpin_data *unpin = &job->unpins[i];
+
+		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
+			iommu_unmap(host->domain, job->addr_phys[i],
+				    unpin->size);
+			free_iova(&host->iova,
+				iova_pfn(&host->iova, job->addr_phys[i]));
+		}
 
 		host1x_bo_unpin(unpin->bo, unpin->sgt);
 		host1x_bo_put(unpin->bo);

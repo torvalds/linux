@@ -171,7 +171,7 @@ static enum event_status read_page(int cpu)
 			}
 		}
 	}
-	ring_buffer_free_read_page(buffer, bpage);
+	ring_buffer_free_read_page(buffer, cpu, bpage);
 
 	if (ret < 0)
 		return EVENT_DROPPED;

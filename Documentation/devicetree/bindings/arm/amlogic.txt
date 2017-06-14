@@ -43,8 +43,11 @@ Board compatible values:
   - "wetek,hub" (Meson gxbb)
   - "wetek,play2" (Meson gxbb)
   - "amlogic,p212" (Meson gxl s905x)
+  - "khadas,vim" (Meson gxl s905x)
+
   - "amlogic,p230" (Meson gxl s905d)
   - "amlogic,p231" (Meson gxl s905d)
+  - "hwacom,amazetv" (Meson gxl s905x)
   - "amlogic,q200" (Meson gxm s912)
   - "amlogic,q201" (Meson gxm s912)
   - "nexbox,a95x" (Meson gxbb or Meson gxl s905x)

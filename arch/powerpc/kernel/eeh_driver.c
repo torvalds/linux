@@ -724,7 +724,16 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
  */
 #define MAX_WAIT_FOR_RECOVERY 300
 
-static void eeh_handle_normal_event(struct eeh_pe *pe)
+/**
+ * eeh_handle_normal_event - Handle EEH events on a specific PE
+ * @pe: EEH PE
+ *
+ * Attempts to recover the given PE.  If recovery fails or the PE has failed
+ * too many times, remove the PE.
+ *
+ * Returns true if @pe should no longer be used, else false.
+ */
+static bool eeh_handle_normal_event(struct eeh_pe *pe)
 {
 	struct pci_bus *frozen_bus;
 	struct eeh_dev *edev, *tmp;
@@ -736,13 +745,18 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	if (!frozen_bus) {
 		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
 			__func__, pe->phb->global_number, pe->addr);
-		return;
+		return false;
 	}
 
 	eeh_pe_update_time_stamp(pe);
 	pe->freeze_count++;
-	if (pe->freeze_count > eeh_max_freezes)
-		goto excess_failures;
+	if (pe->freeze_count > eeh_max_freezes) {
+		pr_err("EEH: PHB#%x-PE#%x has failed %d times in the\n"
+		       "last hour and has been permanently disabled.\n",
+		       pe->phb->global_number, pe->addr,
+		       pe->freeze_count);
+		goto hard_fail;
+	}
 	pr_warn("EEH: This PCI device has failed %d times in the last hour\n",
 		pe->freeze_count);
 
@@ -870,27 +884,18 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	pr_info("EEH: Notify device driver to resume\n");
 	eeh_pe_dev_traverse(pe, eeh_report_resume, NULL);
 
-	return;
+	return false;
 
-excess_failures:
+hard_fail:
 	/*
 	 * About 90% of all real-life EEH failures in the field
 	 * are due to poorly seated PCI cards. Only 10% or so are
 	 * due to actual, failed cards.
 	 */
-	pr_err("EEH: PHB#%x-PE#%x has failed %d times in the\n"
-	       "last hour and has been permanently disabled.\n"
-	       "Please try reseating or replacing it.\n",
-		pe->phb->global_number, pe->addr,
-		pe->freeze_count);
-	goto perm_error;
-
-hard_fail:
 	pr_err("EEH: Unable to recover from failure from PHB#%x-PE#%x.\n"
 	       "Please try reseating or replacing it\n",
 		pe->phb->global_number, pe->addr);
 
-perm_error:
 	eeh_slot_error_detail(pe, EEH_LOG_PERM);
 
 	/* Notify all devices that they're about to go down. */
@@ -915,10 +920,21 @@ perm_error:
 			pci_lock_rescan_remove();
 			pci_hp_remove_devices(frozen_bus);
 			pci_unlock_rescan_remove();
+
+			/* The passed PE should no longer be used */
+			return true;
 		}
 	}
+	return false;
 }
 
+/**
+ * eeh_handle_special_event - Handle EEH events without a specific failing PE
+ *
+ * Called when an EEH event is detected but can't be narrowed down to a
+ * specific PE.  Iterates through possible failures and handles them as
+ * necessary.
+ */
 static void eeh_handle_special_event(void)
 {
 	struct eeh_pe *pe, *phb_pe;
@@ -982,7 +998,14 @@ static void eeh_handle_special_event(void)
 		 */
 		if (rc == EEH_NEXT_ERR_FROZEN_PE ||
 		    rc == EEH_NEXT_ERR_FENCED_PHB) {
-			eeh_handle_normal_event(pe);
+			/*
+			 * eeh_handle_normal_event() can make the PE stale if it
+			 * determines that the PE cannot possibly be recovered.
+			 * Don't modify the PE state if that's the case.
+			 */
+			if (eeh_handle_normal_event(pe))
+				continue;
+
 			eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
 		} else {
 			pci_lock_rescan_remove();

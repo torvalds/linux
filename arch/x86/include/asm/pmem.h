@@ -44,18 +44,14 @@ static inline void arch_memcpy_to_pmem(void *dst, const void *src, size_t n)
 		BUG();
 }
 
-static inline int arch_memcpy_from_pmem(void *dst, const void *src, size_t n)
-{
-	return memcpy_mcsafe(dst, src, n);
-}
-
 /**
  * arch_wb_cache_pmem - write back a cache range with CLWB
  * @vaddr:	virtual start address
  * @size:	number of bytes to write back
  *
  * Write back a cache range using the CLWB (cache line write back)
- * instruction.
+ * instruction. Note that @size is internally rounded up to be cache
+ * line size aligned.
  */
 static inline void arch_wb_cache_pmem(void *addr, size_t size)
 {
@@ -67,15 +63,6 @@ static inline void arch_wb_cache_pmem(void *addr, size_t size)
 	for (p = (void *)((unsigned long)addr & ~clflush_mask);
 	     p < vend; p += x86_clflush_size)
 		clwb(p);
-}
-
-/*
- * copy_from_iter_nocache() on x86 only uses non-temporal stores for iovec
- * iterators, so for other types (bvec & kvec) we must do a cache write-back.
- */
-static inline bool __iter_needs_pmem_wb(struct iov_iter *i)
-{
-	return iter_is_iovec(i) == false;
 }
 
 /**
@@ -94,7 +81,35 @@ static inline size_t arch_copy_from_iter_pmem(void *addr, size_t bytes,
 	/* TODO: skip the write-back by always using non-temporal stores */
 	len = copy_from_iter_nocache(addr, bytes, i);
 
-	if (__iter_needs_pmem_wb(i))
+	/*
+	 * In the iovec case on x86_64 copy_from_iter_nocache() uses
+	 * non-temporal stores for the bulk of the transfer, but we need
+	 * to manually flush if the transfer is unaligned. A cached
+	 * memory copy is used when destination or size is not naturally
+	 * aligned. That is:
+	 *   - Require 8-byte alignment when size is 8 bytes or larger.
+	 *   - Require 4-byte alignment when size is 4 bytes.
+	 *
+	 * In the non-iovec case the entire destination needs to be
+	 * flushed.
+	 */
+	if (iter_is_iovec(i)) {
+		unsigned long flushed, dest = (unsigned long) addr;
+
+		if (bytes < 8) {
+			if (!IS_ALIGNED(dest, 4) || (bytes != 4))
+				arch_wb_cache_pmem(addr, bytes);
+		} else {
+			if (!IS_ALIGNED(dest, 8)) {
+				dest = ALIGN(dest, boot_cpu_data.x86_clflush_size);
+				arch_wb_cache_pmem(addr, 1);
+			}
+
+			flushed = dest - (unsigned long) addr;
+			if (bytes > flushed && !IS_ALIGNED(bytes - flushed, 8))
+				arch_wb_cache_pmem(addr + bytes - 1, 1);
+		}
+	} else
 		arch_wb_cache_pmem(addr, bytes);
 
 	return len;

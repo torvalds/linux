@@ -18,8 +18,6 @@ First a few words what not to do (at least not blindly):
 
 - don't be overly strict with the 80 char limit. Only if it REALLY makes the
   code more readable
-- No '#if 0/1' removal unless the surrounding code is understood and removal is
-  really OK. There might be some hints hidden there.
 
 Now the TODOs:
 
@@ -29,6 +27,8 @@ Now the TODOs:
 - fix the 'card removal' event when card is inserted when booting
 - check what other upstream wireless mechanisms can be used instead of the
   custom ones here
+- replace custom Michael MIC implementation with the kernel
+  implementation. This task is only required for a *clean* WEXT interface.
 
 Please send any patches to:
 Greg Kroah-Hartman <gregkh@linuxfoundation.org>

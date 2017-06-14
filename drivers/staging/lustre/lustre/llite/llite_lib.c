@@ -863,15 +863,6 @@ void ll_lli_init(struct ll_inode_info *lli)
 	mutex_init(&lli->lli_layout_mutex);
 }
 
-static inline int ll_bdi_register(struct backing_dev_info *bdi)
-{
-	static atomic_t ll_bdi_num = ATOMIC_INIT(0);
-
-	bdi->name = "lustre";
-	return bdi_register(bdi, NULL, "lustre-%d",
-			    atomic_inc_return(&ll_bdi_num));
-}
-
 int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 {
 	struct lustre_profile *lprof = NULL;
@@ -881,6 +872,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	char  *profilenm = get_profile_name(sb);
 	struct config_llog_instance *cfg;
 	int    err;
+	static atomic_t ll_bdi_num = ATOMIC_INIT(0);
 
 	CDEBUG(D_VFSTRACE, "VFS Op: sb %p\n", sb);
 
@@ -903,16 +895,11 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	if (err)
 		goto out_free;
 
-	err = bdi_init(&lsi->lsi_bdi);
-	if (err)
-		goto out_free;
-	lsi->lsi_flags |= LSI_BDI_INITIALIZED;
-	lsi->lsi_bdi.capabilities = 0;
-	err = ll_bdi_register(&lsi->lsi_bdi);
+	err = super_setup_bdi_name(sb, "lustre-%d",
+				   atomic_inc_return(&ll_bdi_num));
 	if (err)
 		goto out_free;
 
-	sb->s_bdi = &lsi->lsi_bdi;
 	/* kernel >= 2.6.38 store dentry operations in sb->s_d_op. */
 	sb->s_d_op = &ll_d_ops;
 
@@ -1032,11 +1019,6 @@ void ll_put_super(struct super_block *sb)
 
 	if (profilenm)
 		class_del_profile(profilenm);
-
-	if (lsi->lsi_flags & LSI_BDI_INITIALIZED) {
-		bdi_destroy(&lsi->lsi_bdi);
-		lsi->lsi_flags &= ~LSI_BDI_INITIALIZED;
-	}
 
 	ll_free_sbi(sb);
 	lsi->lsi_llsbi = NULL;
@@ -1472,17 +1454,17 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 
 	/* We mark all of the fields "set" so MDS/OST does not re-set them */
 	if (attr->ia_valid & ATTR_CTIME) {
-		attr->ia_ctime = CURRENT_TIME;
+		attr->ia_ctime = current_time(inode);
 		attr->ia_valid |= ATTR_CTIME_SET;
 	}
 	if (!(attr->ia_valid & ATTR_ATIME_SET) &&
 	    (attr->ia_valid & ATTR_ATIME)) {
-		attr->ia_atime = CURRENT_TIME;
+		attr->ia_atime = current_time(inode);
 		attr->ia_valid |= ATTR_ATIME_SET;
 	}
 	if (!(attr->ia_valid & ATTR_MTIME_SET) &&
 	    (attr->ia_valid & ATTR_MTIME)) {
-		attr->ia_mtime = CURRENT_TIME;
+		attr->ia_mtime = current_time(inode);
 		attr->ia_valid |= ATTR_MTIME_SET;
 	}
 
@@ -1504,8 +1486,6 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		goto out;
 	}
 
-	op_data->op_attr = *attr;
-
 	if (!hsm_import && attr->ia_valid & ATTR_SIZE) {
 		/*
 		 * If we are changing file size, file content is
@@ -1513,7 +1493,10 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 */
 		attr->ia_valid |= MDS_OPEN_OWNEROVERRIDE;
 		op_data->op_bias |= MDS_DATA_MODIFIED;
+		clear_bit(LLIF_DATA_MODIFIED, &lli->lli_flags);
 	}
+
+	op_data->op_attr = *attr;
 
 	rc = ll_md_setattr(dentry, op_data);
 	if (rc)
@@ -1560,8 +1543,15 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		int rc2;
 
 		rc2 = ll_hsm_state_set(inode, &hss);
+		/*
+		 * truncate and write can happen at the same time, so that
+		 * the file can be set modified even though the file is not
+		 * restored from released state, and ll_hsm_state_set() is
+		 * not applicable for the file, and rc2 < 0 is normal in this
+		 * case.
+		 */
 		if (rc2 < 0)
-			CERROR(DFID "HSM set dirty failed: rc2 = %d\n",
+			CDEBUG(D_INFO, DFID "HSM set dirty failed: rc2 = %d\n",
 			       PFID(ll_inode2fid(inode)), rc2);
 	}
 
@@ -2504,7 +2494,7 @@ no_kbuf:
 void ll_compute_rootsquash_state(struct ll_sb_info *sbi)
 {
 	struct root_squash_info *squash = &sbi->ll_squash;
-	lnet_process_id_t id;
+	struct lnet_process_id id;
 	bool matched;
 	int i;
 

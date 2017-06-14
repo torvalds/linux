@@ -466,7 +466,7 @@ static bool halbtc_set(void *void_btcoexist, u8 set_type, void *in_buf)
 	case BTC_SET_ACT_DISABLE_LOW_POWER:
 		halbtc_disable_low_power();
 		break;
-	case BTC_SET_ACT_UPDATE_ra_mask:
+	case BTC_SET_ACT_UPDATE_RAMASK:
 		btcoexist->bt_info.ra_mask = *u32_tmp;
 		break;
 	case BTC_SET_ACT_SEND_MIMO_PS:

@@ -13,9 +13,9 @@
 
 static DEFINE_SPINLOCK(reuseport_lock);
 
-static struct sock_reuseport *__reuseport_alloc(u16 max_socks)
+static struct sock_reuseport *__reuseport_alloc(unsigned int max_socks)
 {
-	size_t size = sizeof(struct sock_reuseport) +
+	unsigned int size = sizeof(struct sock_reuseport) +
 		      sizeof(struct sock *) * max_socks;
 	struct sock_reuseport *reuse = kzalloc(size, GFP_ATOMIC);
 

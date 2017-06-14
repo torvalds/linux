@@ -478,7 +478,7 @@ static void aspm_calc_l1ss_info(struct pcie_link_state *link,
 
 static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 {
-	struct pci_dev *child, *parent = link->pdev;
+	struct pci_dev *child = link->downstream, *parent = link->pdev;
 	struct pci_bus *linkbus = parent->subordinate;
 	struct aspm_register_info upreg, dwreg;
 
@@ -491,9 +491,7 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 
 	/* Get upstream/downstream components' register state */
 	pcie_get_aspm_reg(parent, &upreg);
-	child = pci_function_0(linkbus);
 	pcie_get_aspm_reg(child, &dwreg);
-	link->downstream = child;
 
 	/*
 	 * If ASPM not supported, don't mess with the clocks and link,
@@ -800,6 +798,7 @@ static struct pcie_link_state *alloc_pcie_link_state(struct pci_dev *pdev)
 	INIT_LIST_HEAD(&link->children);
 	INIT_LIST_HEAD(&link->link);
 	link->pdev = pdev;
+	link->downstream = pci_function_0(pdev->subordinate);
 
 	/*
 	 * Root Ports and PCI/PCI-X to PCIe Bridges are roots of PCIe

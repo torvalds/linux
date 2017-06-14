@@ -639,7 +639,7 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 		break;
 
 	case AML_PACKAGE_OP:
-	case AML_VAR_PACKAGE_OP:
+	case AML_VARIABLE_PACKAGE_OP:
 
 		status =
 		    acpi_ds_build_internal_package_obj(walk_state, op, length,
@@ -660,7 +660,7 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 		if ((!op->common.parent) ||
 		    ((op->common.parent->common.aml_opcode != AML_PACKAGE_OP) &&
 		     (op->common.parent->common.aml_opcode !=
-		      AML_VAR_PACKAGE_OP)
+		      AML_VARIABLE_PACKAGE_OP)
 		     && (op->common.parent->common.aml_opcode !=
 			 AML_NAME_OP))) {
 			walk_state->result_obj = obj_desc;

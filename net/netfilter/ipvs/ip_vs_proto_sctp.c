@@ -447,7 +447,7 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 				ntohs(cp->cport),
 				sctp_state_name(cp->state),
 				sctp_state_name(next_state),
-				atomic_read(&cp->refcnt));
+				refcount_read(&cp->refcnt));
 		if (dest) {
 			if (!(cp->flags & IP_VS_CONN_F_INACTIVE) &&
 				(next_state != IP_VS_SCTP_S_ESTABLISHED)) {

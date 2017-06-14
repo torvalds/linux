@@ -24,7 +24,12 @@
 
 /*
  * Initialization rules: there are multiple stages to the vgic
- * initialization, both for the distributor and the CPU interfaces.
+ * initialization, both for the distributor and the CPU interfaces.  The basic
+ * idea is that even though the VGIC is not functional or not requested from
+ * user space, the critical path of the run loop can still call VGIC functions
+ * that just won't do anything, without them having to check additional
+ * initialization flags to ensure they don't look at uninitialized data
+ * structures.
  *
  * Distributor:
  *
@@ -39,23 +44,67 @@
  *
  * CPU Interface:
  *
- * - kvm_vgic_cpu_early_init(): initialization of static data that
+ * - kvm_vgic_vcpu_early_init(): initialization of static data that
  *   doesn't depend on any sizing information or emulation type. No
  *   allocation is allowed there.
  */
 
 /* EARLY INIT */
 
-/*
- * Those 2 functions should not be needed anymore but they
- * still are called from arm.c
+/**
+ * kvm_vgic_early_init() - Initialize static VGIC VCPU data structures
+ * @kvm: The VM whose VGIC districutor should be initialized
+ *
+ * Only do initialization of static structures that don't require any
+ * allocation or sizing information from userspace.  vgic_init() called
+ * kvm_vgic_dist_init() which takes care of the rest.
  */
 void kvm_vgic_early_init(struct kvm *kvm)
 {
+	struct vgic_dist *dist = &kvm->arch.vgic;
+
+	INIT_LIST_HEAD(&dist->lpi_list_head);
+	spin_lock_init(&dist->lpi_list_lock);
 }
 
+/**
+ * kvm_vgic_vcpu_early_init() - Initialize static VGIC VCPU data structures
+ * @vcpu: The VCPU whose VGIC data structures whould be initialized
+ *
+ * Only do initialization, but do not actually enable the VGIC CPU interface
+ * yet.
+ */
 void kvm_vgic_vcpu_early_init(struct kvm_vcpu *vcpu)
 {
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	int i;
+
+	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
+	spin_lock_init(&vgic_cpu->ap_list_lock);
+
+	/*
+	 * Enable and configure all SGIs to be edge-triggered and
+	 * configure all PPIs as level-triggered.
+	 */
+	for (i = 0; i < VGIC_NR_PRIVATE_IRQS; i++) {
+		struct vgic_irq *irq = &vgic_cpu->private_irqs[i];
+
+		INIT_LIST_HEAD(&irq->ap_list);
+		spin_lock_init(&irq->irq_lock);
+		irq->intid = i;
+		irq->vcpu = NULL;
+		irq->target_vcpu = vcpu;
+		irq->targets = 1U << vcpu->vcpu_id;
+		kref_init(&irq->refcount);
+		if (vgic_irq_is_sgi(i)) {
+			/* SGIs */
+			irq->enabled = 1;
+			irq->config = VGIC_CONFIG_EDGE;
+		} else {
+			/* PPIs */
+			irq->config = VGIC_CONFIG_LEVEL;
+		}
+	}
 }
 
 /* CREATION */
@@ -148,9 +197,6 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 	struct kvm_vcpu *vcpu0 = kvm_get_vcpu(kvm, 0);
 	int i;
 
-	INIT_LIST_HEAD(&dist->lpi_list_head);
-	spin_lock_init(&dist->lpi_list_lock);
-
 	dist->spis = kcalloc(nr_spis, sizeof(struct vgic_irq), GFP_KERNEL);
 	if (!dist->spis)
 		return  -ENOMEM;
@@ -181,41 +227,31 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 }
 
 /**
- * kvm_vgic_vcpu_init: initialize the vcpu data structures and
- * enable the VCPU interface
- * @vcpu: the VCPU which's VGIC should be initialized
+ * kvm_vgic_vcpu_init() - Register VCPU-specific KVM iodevs
+ * @vcpu: pointer to the VCPU being created and initialized
  */
-static void kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
+int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
-	int i;
+	int ret = 0;
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 
-	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
-	spin_lock_init(&vgic_cpu->ap_list_lock);
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return 0;
 
 	/*
-	 * Enable and configure all SGIs to be edge-triggered and
-	 * configure all PPIs as level-triggered.
+	 * If we are creating a VCPU with a GICv3 we must also register the
+	 * KVM io device for the redistributor that belongs to this VCPU.
 	 */
-	for (i = 0; i < VGIC_NR_PRIVATE_IRQS; i++) {
-		struct vgic_irq *irq = &vgic_cpu->private_irqs[i];
-
-		INIT_LIST_HEAD(&irq->ap_list);
-		spin_lock_init(&irq->irq_lock);
-		irq->intid = i;
-		irq->vcpu = NULL;
-		irq->target_vcpu = vcpu;
-		irq->targets = 1U << vcpu->vcpu_id;
-		kref_init(&irq->refcount);
-		if (vgic_irq_is_sgi(i)) {
-			/* SGIs */
-			irq->enabled = 1;
-			irq->config = VGIC_CONFIG_EDGE;
-		} else {
-			/* PPIs */
-			irq->config = VGIC_CONFIG_LEVEL;
-		}
+	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
+		mutex_lock(&vcpu->kvm->lock);
+		ret = vgic_register_redist_iodev(vcpu);
+		mutex_unlock(&vcpu->kvm->lock);
 	}
+	return ret;
+}
+
+static void kvm_vgic_vcpu_enable(struct kvm_vcpu *vcpu)
+{
 	if (kvm_vgic_global_state.type == VGIC_V2)
 		vgic_v2_enable(vcpu);
 	else
@@ -253,7 +289,7 @@ int vgic_init(struct kvm *kvm)
 		dist->msis_require_devid = true;
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
-		kvm_vgic_vcpu_init(vcpu);
+		kvm_vgic_vcpu_enable(vcpu);
 
 	ret = kvm_vgic_setup_default_irq_routing(kvm);
 	if (ret)
@@ -262,6 +298,18 @@ int vgic_init(struct kvm *kvm)
 	vgic_debug_init(kvm);
 
 	dist->initialized = true;
+
+	/*
+	 * If we're initializing GICv2 on-demand when first running the VCPU
+	 * then we need to load the VGIC state onto the CPU.  We can detect
+	 * this easily by checking if we are in between vcpu_load and vcpu_put
+	 * when we just initialized the VGIC.
+	 */
+	preempt_disable();
+	vcpu = kvm_arm_get_running_vcpu();
+	if (vcpu)
+		kvm_vgic_load(vcpu);
+	preempt_enable();
 out:
 	return ret;
 }
@@ -389,6 +437,25 @@ static irqreturn_t vgic_maintenance_handler(int irq, void *data)
 	 * interrupts on the exit path (see vgic_process_maintenance).
 	 */
 	return IRQ_HANDLED;
+}
+
+/**
+ * kvm_vgic_init_cpu_hardware - initialize the GIC VE hardware
+ *
+ * For a specific CPU, initialize the GIC VE hardware.
+ */
+void kvm_vgic_init_cpu_hardware(void)
+{
+	BUG_ON(preemptible());
+
+	/*
+	 * We want to make sure the list registers start out clear so that we
+	 * only have the program the used registers.
+	 */
+	if (kvm_vgic_global_state.type == VGIC_V2)
+		vgic_v2_init_lrs();
+	else
+		kvm_call_hyp(__vgic_v3_init_lrs);
 }
 
 /**

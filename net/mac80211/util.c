@@ -4,7 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2015-2016	Intel Deutschland GmbH
+ * Copyright (C) 2015-2017	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -828,6 +828,7 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		case WLAN_EID_EXT_CAPABILITY:
 		case WLAN_EID_CHAN_SWITCH_TIMING:
 		case WLAN_EID_LINK_ID:
+		case WLAN_EID_BSS_MAX_IDLE_PERIOD:
 		/*
 		 * not listing WLAN_EID_CHANNEL_SWITCH_WRAPPER -- it seems possible
 		 * that if the content gets bigger it might be needed more than once
@@ -1088,6 +1089,10 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 				elems->timeout_int = (void *)pos;
 			else
 				elem_parse_failed = true;
+			break;
+		case WLAN_EID_BSS_MAX_IDLE_PERIOD:
+			if (elen >= sizeof(*elems->max_idle_period_ie))
+				elems->max_idle_period_ie = (void *)pos;
 			break;
 		default:
 			break;
@@ -1590,13 +1595,13 @@ u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 	size_t num_rates;
 	u32 supp_rates, rate_flags;
 	int i, j, shift;
+
 	sband = sdata->local->hw.wiphy->bands[band];
+	if (WARN_ON(!sband))
+		return 1;
 
 	rate_flags = ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chandef);
 	shift = ieee80211_vif_get_shift(&sdata->vif);
-
-	if (WARN_ON(!sband))
-		return 1;
 
 	num_rates = sband->n_bitrates;
 	supp_rates = 0;
@@ -1983,6 +1988,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			if (sdata->u.mgd.have_beacon)
 				changed |= BSS_CHANGED_BEACON_INFO;
 
+			if (sdata->vif.bss_conf.max_idle_period ||
+			    sdata->vif.bss_conf.protected_keep_alive)
+				changed |= BSS_CHANGED_KEEP_ALIVE;
+
 			sdata_lock(sdata);
 			ieee80211_bss_info_change_notify(sdata, changed);
 			sdata_unlock(sdata);
@@ -2103,7 +2112,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mutex_unlock(&local->mtx);
 
 	if (sched_scan_stopped)
-		cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy);
+		cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy, 0);
 
  wake_up:
 	if (local->in_reconfig) {
@@ -2413,13 +2422,13 @@ u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	*pos++ = WLAN_EID_VHT_OPERATION;
 	*pos++ = sizeof(struct ieee80211_vht_operation);
 	vht_oper = (struct ieee80211_vht_operation *)pos;
-	vht_oper->center_freq_seg1_idx = ieee80211_frequency_to_channel(
+	vht_oper->center_freq_seg0_idx = ieee80211_frequency_to_channel(
 							chandef->center_freq1);
 	if (chandef->center_freq2)
-		vht_oper->center_freq_seg2_idx =
+		vht_oper->center_freq_seg1_idx =
 			ieee80211_frequency_to_channel(chandef->center_freq2);
 	else
-		vht_oper->center_freq_seg2_idx = 0x00;
+		vht_oper->center_freq_seg1_idx = 0x00;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_160:
@@ -2428,11 +2437,11 @@ u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 		 * workaround.
 		 */
 		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_80MHZ;
-		vht_oper->center_freq_seg2_idx = vht_oper->center_freq_seg1_idx;
+		vht_oper->center_freq_seg1_idx = vht_oper->center_freq_seg0_idx;
 		if (chandef->chan->center_freq < chandef->center_freq1)
-			vht_oper->center_freq_seg1_idx -= 8;
+			vht_oper->center_freq_seg0_idx -= 8;
 		else
-			vht_oper->center_freq_seg1_idx += 8;
+			vht_oper->center_freq_seg0_idx += 8;
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
 		/*
@@ -2491,9 +2500,9 @@ bool ieee80211_chandef_vht_oper(const struct ieee80211_vht_operation *oper,
 	if (!oper)
 		return false;
 
-	cf1 = ieee80211_channel_to_frequency(oper->center_freq_seg1_idx,
+	cf1 = ieee80211_channel_to_frequency(oper->center_freq_seg0_idx,
 					     chandef->chan->band);
-	cf2 = ieee80211_channel_to_frequency(oper->center_freq_seg2_idx,
+	cf2 = ieee80211_channel_to_frequency(oper->center_freq_seg1_idx,
 					     chandef->chan->band);
 
 	switch (oper->chan_width) {
@@ -2503,11 +2512,11 @@ bool ieee80211_chandef_vht_oper(const struct ieee80211_vht_operation *oper,
 		new.width = NL80211_CHAN_WIDTH_80;
 		new.center_freq1 = cf1;
 		/* If needed, adjust based on the newer interop workaround. */
-		if (oper->center_freq_seg2_idx) {
+		if (oper->center_freq_seg1_idx) {
 			unsigned int diff;
 
-			diff = abs(oper->center_freq_seg2_idx -
-				   oper->center_freq_seg1_idx);
+			diff = abs(oper->center_freq_seg1_idx -
+				   oper->center_freq_seg0_idx);
 			if (diff == 8) {
 				new.width = NL80211_CHAN_WIDTH_160;
 				new.center_freq1 = cf2;
@@ -2715,42 +2724,39 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 	memset(&ri, 0, sizeof(ri));
 
 	/* Fill cfg80211 rate info */
-	if (status->flag & RX_FLAG_HT) {
+	switch (status->encoding) {
+	case RX_ENC_HT:
 		ri.mcs = status->rate_idx;
 		ri.flags |= RATE_INFO_FLAGS_MCS;
-		if (status->flag & RX_FLAG_40MHZ)
-			ri.bw = RATE_INFO_BW_40;
-		else
-			ri.bw = RATE_INFO_BW_20;
-		if (status->flag & RX_FLAG_SHORT_GI)
+		ri.bw = status->bw;
+		if (status->enc_flags & RX_ENC_FLAG_SHORT_GI)
 			ri.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else if (status->flag & RX_FLAG_VHT) {
+		break;
+	case RX_ENC_VHT:
 		ri.flags |= RATE_INFO_FLAGS_VHT_MCS;
 		ri.mcs = status->rate_idx;
-		ri.nss = status->vht_nss;
-		if (status->flag & RX_FLAG_40MHZ)
-			ri.bw = RATE_INFO_BW_40;
-		else if (status->vht_flag & RX_VHT_FLAG_80MHZ)
-			ri.bw = RATE_INFO_BW_80;
-		else if (status->vht_flag & RX_VHT_FLAG_160MHZ)
-			ri.bw = RATE_INFO_BW_160;
-		else
-			ri.bw = RATE_INFO_BW_20;
-		if (status->flag & RX_FLAG_SHORT_GI)
+		ri.nss = status->nss;
+		ri.bw = status->bw;
+		if (status->enc_flags & RX_ENC_FLAG_SHORT_GI)
 			ri.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else {
+		break;
+	default:
+		WARN_ON(1);
+		/* fall through */
+	case RX_ENC_LEGACY: {
 		struct ieee80211_supported_band *sband;
 		int shift = 0;
 		int bitrate;
 
-		if (status->flag & RX_FLAG_10MHZ) {
+		ri.bw = status->bw;
+
+		switch (status->bw) {
+		case RATE_INFO_BW_10:
 			shift = 1;
-			ri.bw = RATE_INFO_BW_10;
-		} else if (status->flag & RX_FLAG_5MHZ) {
+			break;
+		case RATE_INFO_BW_5:
 			shift = 2;
-			ri.bw = RATE_INFO_BW_5;
-		} else {
-			ri.bw = RATE_INFO_BW_20;
+			break;
 		}
 
 		sband = local->hw.wiphy->bands[status->band];
@@ -2762,11 +2768,13 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 			if (status->band == NL80211_BAND_5GHZ) {
 				ts += 20 << shift;
 				mpdu_offset += 2;
-			} else if (status->flag & RX_FLAG_SHORTPRE) {
+			} else if (status->enc_flags & RX_ENC_FLAG_SHORTPRE) {
 				ts += 96;
 			} else {
 				ts += 192;
 			}
+		}
+		break;
 		}
 	}
 
@@ -2774,7 +2782,7 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 	if (WARN_ONCE(!rate,
 		      "Invalid bitrate: flags=0x%llx, idx=%d, vht_nss=%d\n",
 		      (unsigned long long)status->flag, status->rate_idx,
-		      status->vht_nss))
+		      status->nss))
 		return 0;
 
 	/* rewind from end of MPDU */
@@ -2791,8 +2799,10 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata;
 	struct cfg80211_chan_def chandef;
 
+	/* for interface list, to avoid linking iflist_mtx and chanctx_mtx */
+	ASSERT_RTNL();
+
 	mutex_lock(&local->mtx);
-	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		/* it might be waiting for the local->mtx, but then
 		 * by the time it gets it, sdata->wdev.cac_started
@@ -2809,7 +2819,6 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 					   GFP_KERNEL);
 		}
 	}
-	mutex_unlock(&local->iflist_mtx);
 	mutex_unlock(&local->mtx);
 }
 
@@ -2831,7 +2840,9 @@ void ieee80211_dfs_radar_detected_work(struct work_struct *work)
 	}
 	mutex_unlock(&local->chanctx_mtx);
 
+	rtnl_lock();
 	ieee80211_dfs_cac_cancel(local);
+	rtnl_unlock();
 
 	if (num_chanctx > 1)
 		/* XXX: multi-channel is not supported yet */
@@ -2846,7 +2857,7 @@ void ieee80211_radar_detected(struct ieee80211_hw *hw)
 
 	trace_api_radar_detected(local);
 
-	ieee80211_queue_work(hw, &local->radar_detected_work);
+	schedule_work(&local->radar_detected_work);
 }
 EXPORT_SYMBOL(ieee80211_radar_detected);
 

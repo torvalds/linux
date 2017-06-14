@@ -116,7 +116,7 @@ struct tegra_clk_pll_freq_table {
 	unsigned long	input_rate;
 	unsigned long	output_rate;
 	u32		n;
-	u16		m;
+	u32		m;
 	u8		p;
 	u8		cpcon;
 	u16		sdm_data;
@@ -586,11 +586,11 @@ struct tegra_clk_periph {
 
 extern const struct clk_ops tegra_clk_periph_ops;
 struct clk *tegra_clk_register_periph(const char *name,
-		const char **parent_names, int num_parents,
+		const char * const *parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset, unsigned long flags);
 struct clk *tegra_clk_register_periph_nodiv(const char *name,
-		const char **parent_names, int num_parents,
+		const char * const *parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset);
 
@@ -626,7 +626,7 @@ struct tegra_periph_init_data {
 	const char *name;
 	int clk_id;
 	union {
-		const char **parent_names;
+		const char *const *parent_names;
 		const char *parent_name;
 	} p;
 	int num_parents;
@@ -686,6 +686,8 @@ struct tegra_periph_init_data {
 struct tegra_clk_super_mux {
 	struct clk_hw	hw;
 	void __iomem	*reg;
+	struct tegra_clk_frac_div frac_div;
+	const struct clk_ops	*div_ops;
 	u8		width;
 	u8		flags;
 	u8		div2_index;
@@ -702,7 +704,10 @@ struct clk *tegra_clk_register_super_mux(const char *name,
 		const char **parent_names, u8 num_parents,
 		unsigned long flags, void __iomem *reg, u8 clk_super_flags,
 		u8 width, u8 pllx_index, u8 div2_index, spinlock_t *lock);
-
+struct clk *tegra_clk_register_super_clk(const char *name,
+		const char * const *parent_names, u8 num_parents,
+		unsigned long flags, void __iomem *reg, u8 clk_super_flags,
+		spinlock_t *lock);
 /**
  * struct clk_init_table - clock initialization table
  * @clk_id:	clock id as mentioned in device tree bindings

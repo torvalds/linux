@@ -134,7 +134,7 @@ struct sunxi_pinctrl {
 	unsigned			ngroups;
 	int				*irq;
 	unsigned			*irq_array;
-	spinlock_t			lock;
+	raw_spinlock_t			lock;
 	struct pinctrl_dev		*pctl_dev;
 	unsigned long			variant;
 };

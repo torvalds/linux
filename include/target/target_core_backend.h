@@ -4,7 +4,13 @@
 #include <linux/types.h>
 #include <target/target_core_base.h>
 
-#define TRANSPORT_FLAG_PASSTHROUGH		1
+#define TRANSPORT_FLAG_PASSTHROUGH		0x1
+/*
+ * ALUA commands, state checks and setup operations are handled by the
+ * backend module.
+ */
+#define TRANSPORT_FLAG_PASSTHROUGH_ALUA		0x2
+#define TRANSPORT_FLAG_PASSTHROUGH_PGR          0x4
 
 struct request_queue;
 struct scatterlist;

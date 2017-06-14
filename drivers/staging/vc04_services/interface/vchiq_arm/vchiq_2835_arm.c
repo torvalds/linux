@@ -37,12 +37,11 @@
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
 #include <linux/dma-mapping.h>
-#include <linux/version.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
+#include <linux/mm.h>
 #include <linux/of.h>
-#include <asm/pgtable.h>
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
 #define TOTAL_SLOTS (VCHIQ_SLOT_ZERO_SLOTS + 2 * 32)
@@ -208,6 +207,7 @@ VCHIQ_STATUS_T
 vchiq_platform_init_state(VCHIQ_STATE_T *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
+
 	state->platform_state = kzalloc(sizeof(VCHIQ_2835_ARM_STATE_T), GFP_KERNEL);
 	((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->inited = 1;
 	status = vchiq_arm_init_state(state, &((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->arm_state);
@@ -293,6 +293,7 @@ vchiq_dump_platform_state(void *dump_context)
 {
 	char buf[80];
 	int len;
+
 	len = snprintf(buf, sizeof(buf),
 		"  Platform: 2835 (VC master)");
 	vchiq_dump(dump_context, buf, len + 1);
@@ -406,7 +407,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	dma_addr_t dma_addr;
 
 	offset = ((unsigned int)(unsigned long)buf & (PAGE_SIZE - 1));
-	num_pages = (count + offset + PAGE_SIZE - 1) / PAGE_SIZE;
+	num_pages = DIV_ROUND_UP(count + offset, PAGE_SIZE);
 
 	pagelist_size = sizeof(PAGELIST_T) +
 			(num_pages * sizeof(u32)) +
@@ -501,8 +502,15 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	 */
 	sg_init_table(scatterlist, num_pages);
 	/* Now set the pages for each scatterlist */
-	for (i = 0; i < num_pages; i++)
-		sg_set_page(scatterlist + i, pages[i], PAGE_SIZE, 0);
+	for (i = 0; i < num_pages; i++)	{
+		unsigned int len = PAGE_SIZE - offset;
+
+		if (len > count)
+			len = count;
+		sg_set_page(scatterlist + i, pages[i], len, offset);
+		offset = 0;
+		count -= len;
+	}
 
 	dma_buffers = dma_map_sg(g_dev,
 				 scatterlist,
@@ -523,20 +531,20 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		u32 addr = sg_dma_address(sg);
 
 		/* Note: addrs is the address + page_count - 1
-		 * The firmware expects the block to be page
+		 * The firmware expects blocks after the first to be page-
 		 * aligned and a multiple of the page size
 		 */
 		WARN_ON(len == 0);
-		WARN_ON(len & ~PAGE_MASK);
-		WARN_ON(addr & ~PAGE_MASK);
+		WARN_ON(i && (i != (dma_buffers - 1)) && (len & ~PAGE_MASK));
+		WARN_ON(i && (addr & ~PAGE_MASK));
 		if (k > 0 &&
-		    ((addrs[k - 1] & PAGE_MASK) |
-			((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT)
-		    == addr) {
-			addrs[k - 1] += (len >> PAGE_SHIFT);
-		} else {
-			addrs[k++] = addr | ((len >> PAGE_SHIFT) - 1);
-		}
+		    ((addrs[k - 1] & PAGE_MASK) +
+		     (((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT))
+		    == (addr & PAGE_MASK))
+			addrs[k - 1] += ((len + PAGE_SIZE - 1) >> PAGE_SHIFT);
+		else
+			addrs[k++] = (addr & PAGE_MASK) |
+				(((len + PAGE_SIZE - 1) >> PAGE_SHIFT) - 1);
 	}
 
 	/* Partial cache lines (fragments) require special measures */
@@ -591,6 +599,7 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 			(pagelist->type - PAGELIST_READ_WITH_FRAGMENTS) *
 			g_fragments_size;
 		int head_bytes, tail_bytes;
+
 		head_bytes = (g_cache_line_size - pagelist->offset) &
 			(g_cache_line_size - 1);
 		tail_bytes = (pagelist->offset + actual) &

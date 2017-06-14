@@ -38,78 +38,47 @@ static int msm_iommu_attach(struct msm_mmu *mmu, const char * const *names,
 			    int cnt)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
-	return iommu_attach_device(iommu->domain, mmu->dev);
+	int ret;
+
+	pm_runtime_get_sync(mmu->dev);
+	ret = iommu_attach_device(iommu->domain, mmu->dev);
+	pm_runtime_put_sync(mmu->dev);
+
+	return ret;
 }
 
 static void msm_iommu_detach(struct msm_mmu *mmu, const char * const *names,
 			     int cnt)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
+
+	pm_runtime_get_sync(mmu->dev);
 	iommu_detach_device(iommu->domain, mmu->dev);
+	pm_runtime_put_sync(mmu->dev);
 }
 
 static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
 		struct sg_table *sgt, unsigned len, int prot)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
-	struct iommu_domain *domain = iommu->domain;
-	struct scatterlist *sg;
-	unsigned long da = iova;
-	unsigned int i, j;
-	int ret;
+	size_t ret;
 
-	if (!domain || !sgt)
-		return -EINVAL;
+//	pm_runtime_get_sync(mmu->dev);
+	ret = iommu_map_sg(iommu->domain, iova, sgt->sgl, sgt->nents, prot);
+//	pm_runtime_put_sync(mmu->dev);
+	WARN_ON(ret < 0);
 
-	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
-		dma_addr_t pa = sg_phys(sg) - sg->offset;
-		size_t bytes = sg->length + sg->offset;
-
-		VERB("map[%d]: %08lx %08lx(%zx)", i, da, (unsigned long)pa, bytes);
-
-		ret = iommu_map(domain, da, pa, bytes, prot);
-		if (ret)
-			goto fail;
-
-		da += bytes;
-	}
-
-	return 0;
-
-fail:
-	da = iova;
-
-	for_each_sg(sgt->sgl, sg, i, j) {
-		size_t bytes = sg->length + sg->offset;
-		iommu_unmap(domain, da, bytes);
-		da += bytes;
-	}
-	return ret;
+	return (ret == len) ? 0 : -EINVAL;
 }
 
 static int msm_iommu_unmap(struct msm_mmu *mmu, uint64_t iova,
 		struct sg_table *sgt, unsigned len)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
-	struct iommu_domain *domain = iommu->domain;
-	struct scatterlist *sg;
-	unsigned long da = iova;
-	int i;
 
-	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
-		size_t bytes = sg->length + sg->offset;
-		size_t unmapped;
-
-		unmapped = iommu_unmap(domain, da, bytes);
-		if (unmapped < bytes)
-			return unmapped;
-
-		VERB("unmap[%d]: %08lx(%zx)", i, da, bytes);
-
-		BUG_ON(!PAGE_ALIGNED(bytes));
-
-		da += bytes;
-	}
+	pm_runtime_get_sync(mmu->dev);
+	iommu_unmap(iommu->domain, iova, len);
+	pm_runtime_put_sync(mmu->dev);
 
 	return 0;
 }

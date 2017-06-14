@@ -61,35 +61,85 @@ int dw_pcie_write(void __iomem *addr, int size, u32 val)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-u32 dw_pcie_readl_dbi(struct dw_pcie *pci, u32 reg)
+u32 __dw_pcie_read_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg,
+		       size_t size)
 {
-	if (pci->ops->readl_dbi)
-		return pci->ops->readl_dbi(pci, reg);
+	int ret;
+	u32 val;
 
-	return readl(pci->dbi_base + reg);
+	if (pci->ops->read_dbi)
+		return pci->ops->read_dbi(pci, base, reg, size);
+
+	ret = dw_pcie_read(base + reg, size, &val);
+	if (ret)
+		dev_err(pci->dev, "read DBI address failed\n");
+
+	return val;
 }
 
-void dw_pcie_writel_dbi(struct dw_pcie *pci, u32 reg, u32 val)
+void __dw_pcie_write_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg,
+			 size_t size, u32 val)
 {
-	if (pci->ops->writel_dbi)
-		pci->ops->writel_dbi(pci, reg, val);
-	else
-		writel(val, pci->dbi_base + reg);
+	int ret;
+
+	if (pci->ops->write_dbi) {
+		pci->ops->write_dbi(pci, base, reg, size, val);
+		return;
+	}
+
+	ret = dw_pcie_write(base + reg, size, val);
+	if (ret)
+		dev_err(pci->dev, "write DBI address failed\n");
 }
 
-static u32 dw_pcie_readl_unroll(struct dw_pcie *pci, u32 index, u32 reg)
+static u32 dw_pcie_readl_ob_unroll(struct dw_pcie *pci, u32 index, u32 reg)
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
 
 	return dw_pcie_readl_dbi(pci, offset + reg);
 }
 
-static void dw_pcie_writel_unroll(struct dw_pcie *pci, u32 index, u32 reg,
-				  u32 val)
+static void dw_pcie_writel_ob_unroll(struct dw_pcie *pci, u32 index, u32 reg,
+				     u32 val)
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
 
 	dw_pcie_writel_dbi(pci, offset + reg, val);
+}
+
+void dw_pcie_prog_outbound_atu_unroll(struct dw_pcie *pci, int index, int type,
+				      u64 cpu_addr, u64 pci_addr, u32 size)
+{
+	u32 retries, val;
+
+	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_LOWER_BASE,
+				 lower_32_bits(cpu_addr));
+	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_UPPER_BASE,
+				 upper_32_bits(cpu_addr));
+	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_LIMIT,
+				 lower_32_bits(cpu_addr + size - 1));
+	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_LOWER_TARGET,
+				 lower_32_bits(pci_addr));
+	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_UPPER_TARGET,
+				 upper_32_bits(pci_addr));
+	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL1,
+				 type);
+	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL2,
+				 PCIE_ATU_ENABLE);
+
+	/*
+	 * Make sure ATU enable takes effect before any subsequent config
+	 * and I/O accesses.
+	 */
+	for (retries = 0; retries < LINK_WAIT_MAX_IATU_RETRIES; retries++) {
+		val = dw_pcie_readl_ob_unroll(pci, index,
+					      PCIE_ATU_UNR_REGION_CTRL2);
+		if (val & PCIE_ATU_ENABLE)
+			return;
+
+		usleep_range(LINK_WAIT_IATU_MIN, LINK_WAIT_IATU_MAX);
+	}
+	dev_err(pci->dev, "outbound iATU is not being enabled\n");
 }
 
 void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
@@ -97,55 +147,167 @@ void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
 {
 	u32 retries, val;
 
+	if (pci->ops->cpu_addr_fixup)
+		cpu_addr = pci->ops->cpu_addr_fixup(cpu_addr);
+
 	if (pci->iatu_unroll_enabled) {
-		dw_pcie_writel_unroll(pci, index, PCIE_ATU_UNR_LOWER_BASE,
-				      lower_32_bits(cpu_addr));
-		dw_pcie_writel_unroll(pci, index, PCIE_ATU_UNR_UPPER_BASE,
-				      upper_32_bits(cpu_addr));
-		dw_pcie_writel_unroll(pci, index, PCIE_ATU_UNR_LIMIT,
-				      lower_32_bits(cpu_addr + size - 1));
-		dw_pcie_writel_unroll(pci, index, PCIE_ATU_UNR_LOWER_TARGET,
-				      lower_32_bits(pci_addr));
-		dw_pcie_writel_unroll(pci, index, PCIE_ATU_UNR_UPPER_TARGET,
-				      upper_32_bits(pci_addr));
-		dw_pcie_writel_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL1,
-				      type);
-		dw_pcie_writel_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL2,
-				      PCIE_ATU_ENABLE);
-	} else {
-		dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT,
-				   PCIE_ATU_REGION_OUTBOUND | index);
-		dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_BASE,
-				   lower_32_bits(cpu_addr));
-		dw_pcie_writel_dbi(pci, PCIE_ATU_UPPER_BASE,
-				   upper_32_bits(cpu_addr));
-		dw_pcie_writel_dbi(pci, PCIE_ATU_LIMIT,
-				   lower_32_bits(cpu_addr + size - 1));
-		dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_TARGET,
-				   lower_32_bits(pci_addr));
-		dw_pcie_writel_dbi(pci, PCIE_ATU_UPPER_TARGET,
-				   upper_32_bits(pci_addr));
-		dw_pcie_writel_dbi(pci, PCIE_ATU_CR1, type);
-		dw_pcie_writel_dbi(pci, PCIE_ATU_CR2, PCIE_ATU_ENABLE);
+		dw_pcie_prog_outbound_atu_unroll(pci, index, type, cpu_addr,
+						 pci_addr, size);
+		return;
 	}
+
+	dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT,
+			   PCIE_ATU_REGION_OUTBOUND | index);
+	dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_BASE,
+			   lower_32_bits(cpu_addr));
+	dw_pcie_writel_dbi(pci, PCIE_ATU_UPPER_BASE,
+			   upper_32_bits(cpu_addr));
+	dw_pcie_writel_dbi(pci, PCIE_ATU_LIMIT,
+			   lower_32_bits(cpu_addr + size - 1));
+	dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_TARGET,
+			   lower_32_bits(pci_addr));
+	dw_pcie_writel_dbi(pci, PCIE_ATU_UPPER_TARGET,
+			   upper_32_bits(pci_addr));
+	dw_pcie_writel_dbi(pci, PCIE_ATU_CR1, type);
+	dw_pcie_writel_dbi(pci, PCIE_ATU_CR2, PCIE_ATU_ENABLE);
 
 	/*
 	 * Make sure ATU enable takes effect before any subsequent config
 	 * and I/O accesses.
 	 */
 	for (retries = 0; retries < LINK_WAIT_MAX_IATU_RETRIES; retries++) {
-		if (pci->iatu_unroll_enabled)
-			val = dw_pcie_readl_unroll(pci, index,
-						   PCIE_ATU_UNR_REGION_CTRL2);
-		else
-			val = dw_pcie_readl_dbi(pci, PCIE_ATU_CR2);
-
+		val = dw_pcie_readl_dbi(pci, PCIE_ATU_CR2);
 		if (val == PCIE_ATU_ENABLE)
 			return;
 
 		usleep_range(LINK_WAIT_IATU_MIN, LINK_WAIT_IATU_MAX);
 	}
-	dev_err(pci->dev, "iATU is not being enabled\n");
+	dev_err(pci->dev, "outbound iATU is not being enabled\n");
+}
+
+static u32 dw_pcie_readl_ib_unroll(struct dw_pcie *pci, u32 index, u32 reg)
+{
+	u32 offset = PCIE_GET_ATU_INB_UNR_REG_OFFSET(index);
+
+	return dw_pcie_readl_dbi(pci, offset + reg);
+}
+
+static void dw_pcie_writel_ib_unroll(struct dw_pcie *pci, u32 index, u32 reg,
+				     u32 val)
+{
+	u32 offset = PCIE_GET_ATU_INB_UNR_REG_OFFSET(index);
+
+	dw_pcie_writel_dbi(pci, offset + reg, val);
+}
+
+int dw_pcie_prog_inbound_atu_unroll(struct dw_pcie *pci, int index, int bar,
+				    u64 cpu_addr, enum dw_pcie_as_type as_type)
+{
+	int type;
+	u32 retries, val;
+
+	dw_pcie_writel_ib_unroll(pci, index, PCIE_ATU_UNR_LOWER_TARGET,
+				 lower_32_bits(cpu_addr));
+	dw_pcie_writel_ib_unroll(pci, index, PCIE_ATU_UNR_UPPER_TARGET,
+				 upper_32_bits(cpu_addr));
+
+	switch (as_type) {
+	case DW_PCIE_AS_MEM:
+		type = PCIE_ATU_TYPE_MEM;
+		break;
+	case DW_PCIE_AS_IO:
+		type = PCIE_ATU_TYPE_IO;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dw_pcie_writel_ib_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL1, type);
+	dw_pcie_writel_ib_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL2,
+				 PCIE_ATU_ENABLE |
+				 PCIE_ATU_BAR_MODE_ENABLE | (bar << 8));
+
+	/*
+	 * Make sure ATU enable takes effect before any subsequent config
+	 * and I/O accesses.
+	 */
+	for (retries = 0; retries < LINK_WAIT_MAX_IATU_RETRIES; retries++) {
+		val = dw_pcie_readl_ib_unroll(pci, index,
+					      PCIE_ATU_UNR_REGION_CTRL2);
+		if (val & PCIE_ATU_ENABLE)
+			return 0;
+
+		usleep_range(LINK_WAIT_IATU_MIN, LINK_WAIT_IATU_MAX);
+	}
+	dev_err(pci->dev, "inbound iATU is not being enabled\n");
+
+	return -EBUSY;
+}
+
+int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, int index, int bar,
+			     u64 cpu_addr, enum dw_pcie_as_type as_type)
+{
+	int type;
+	u32 retries, val;
+
+	if (pci->iatu_unroll_enabled)
+		return dw_pcie_prog_inbound_atu_unroll(pci, index, bar,
+						       cpu_addr, as_type);
+
+	dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, PCIE_ATU_REGION_INBOUND |
+			   index);
+	dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_TARGET, lower_32_bits(cpu_addr));
+	dw_pcie_writel_dbi(pci, PCIE_ATU_UPPER_TARGET, upper_32_bits(cpu_addr));
+
+	switch (as_type) {
+	case DW_PCIE_AS_MEM:
+		type = PCIE_ATU_TYPE_MEM;
+		break;
+	case DW_PCIE_AS_IO:
+		type = PCIE_ATU_TYPE_IO;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dw_pcie_writel_dbi(pci, PCIE_ATU_CR1, type);
+	dw_pcie_writel_dbi(pci, PCIE_ATU_CR2, PCIE_ATU_ENABLE
+			   | PCIE_ATU_BAR_MODE_ENABLE | (bar << 8));
+
+	/*
+	 * Make sure ATU enable takes effect before any subsequent config
+	 * and I/O accesses.
+	 */
+	for (retries = 0; retries < LINK_WAIT_MAX_IATU_RETRIES; retries++) {
+		val = dw_pcie_readl_dbi(pci, PCIE_ATU_CR2);
+		if (val & PCIE_ATU_ENABLE)
+			return 0;
+
+		usleep_range(LINK_WAIT_IATU_MIN, LINK_WAIT_IATU_MAX);
+	}
+	dev_err(pci->dev, "inbound iATU is not being enabled\n");
+
+	return -EBUSY;
+}
+
+void dw_pcie_disable_atu(struct dw_pcie *pci, int index,
+			 enum dw_pcie_region_type type)
+{
+	int region;
+
+	switch (type) {
+	case DW_PCIE_REGION_INBOUND:
+		region = PCIE_ATU_REGION_INBOUND;
+		break;
+	case DW_PCIE_REGION_OUTBOUND:
+		region = PCIE_ATU_REGION_OUTBOUND;
+		break;
+	default:
+		return;
+	}
+
+	dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, region | index);
+	dw_pcie_writel_dbi(pci, PCIE_ATU_CR2, ~PCIE_ATU_ENABLE);
 }
 
 int dw_pcie_wait_for_link(struct dw_pcie *pci)

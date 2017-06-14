@@ -39,7 +39,7 @@
 #include "../../include/linux/lnet/lib-lnet.h"
 
 void
-lnet_build_unlink_event(lnet_libmd_t *md, lnet_event_t *ev)
+lnet_build_unlink_event(struct lnet_libmd *md, struct lnet_event *ev)
 {
 	memset(ev, 0, sizeof(*ev));
 
@@ -54,10 +54,10 @@ lnet_build_unlink_event(lnet_libmd_t *md, lnet_event_t *ev)
  * Don't need any lock, must be called after lnet_commit_md
  */
 void
-lnet_build_msg_event(lnet_msg_t *msg, lnet_event_kind_t ev_type)
+lnet_build_msg_event(struct lnet_msg *msg, enum lnet_event_kind ev_type)
 {
 	struct lnet_hdr *hdr = &msg->msg_hdr;
-	lnet_event_t *ev  = &msg->msg_ev;
+	struct lnet_event *ev  = &msg->msg_ev;
 
 	LASSERT(!msg->msg_routing);
 
@@ -129,10 +129,10 @@ lnet_build_msg_event(lnet_msg_t *msg, lnet_event_kind_t ev_type)
 }
 
 void
-lnet_msg_commit(lnet_msg_t *msg, int cpt)
+lnet_msg_commit(struct lnet_msg *msg, int cpt)
 {
 	struct lnet_msg_container *container = the_lnet.ln_msg_containers[cpt];
-	lnet_counters_t *counters  = the_lnet.ln_counters[cpt];
+	struct lnet_counters *counters  = the_lnet.ln_counters[cpt];
 
 	/* routed message can be committed for both receiving and sending */
 	LASSERT(!msg->msg_tx_committed);
@@ -162,10 +162,10 @@ lnet_msg_commit(lnet_msg_t *msg, int cpt)
 }
 
 static void
-lnet_msg_decommit_tx(lnet_msg_t *msg, int status)
+lnet_msg_decommit_tx(struct lnet_msg *msg, int status)
 {
-	lnet_counters_t	*counters;
-	lnet_event_t *ev = &msg->msg_ev;
+	struct lnet_counters	*counters;
+	struct lnet_event *ev = &msg->msg_ev;
 
 	LASSERT(msg->msg_tx_committed);
 	if (status)
@@ -214,10 +214,10 @@ lnet_msg_decommit_tx(lnet_msg_t *msg, int status)
 }
 
 static void
-lnet_msg_decommit_rx(lnet_msg_t *msg, int status)
+lnet_msg_decommit_rx(struct lnet_msg *msg, int status)
 {
-	lnet_counters_t *counters;
-	lnet_event_t *ev = &msg->msg_ev;
+	struct lnet_counters *counters;
+	struct lnet_event *ev = &msg->msg_ev;
 
 	LASSERT(!msg->msg_tx_committed); /* decommitted or never committed */
 	LASSERT(msg->msg_rx_committed);
@@ -272,7 +272,7 @@ lnet_msg_decommit_rx(lnet_msg_t *msg, int status)
 }
 
 void
-lnet_msg_decommit(lnet_msg_t *msg, int cpt, int status)
+lnet_msg_decommit(struct lnet_msg *msg, int cpt, int status)
 {
 	int cpt2 = cpt;
 
@@ -306,7 +306,7 @@ lnet_msg_decommit(lnet_msg_t *msg, int cpt, int status)
 }
 
 void
-lnet_msg_attach_md(lnet_msg_t *msg, lnet_libmd_t *md,
+lnet_msg_attach_md(struct lnet_msg *msg, struct lnet_libmd *md,
 		   unsigned int offset, unsigned int mlen)
 {
 	/* NB: @offset and @len are only useful for receiving */
@@ -336,9 +336,9 @@ lnet_msg_attach_md(lnet_msg_t *msg, lnet_libmd_t *md,
 }
 
 void
-lnet_msg_detach_md(lnet_msg_t *msg, int status)
+lnet_msg_detach_md(struct lnet_msg *msg, int status)
 {
-	lnet_libmd_t *md = msg->msg_md;
+	struct lnet_libmd *md = msg->msg_md;
 	int unlink;
 
 	/* Now it's safe to drop my caller's ref */
@@ -359,7 +359,7 @@ lnet_msg_detach_md(lnet_msg_t *msg, int status)
 }
 
 static int
-lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
+lnet_complete_msg_locked(struct lnet_msg *msg, int cpt)
 {
 	struct lnet_handle_wire ack_wmd;
 	int rc;
@@ -437,7 +437,7 @@ lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 }
 
 void
-lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int status)
+lnet_finalize(struct lnet_ni *ni, struct lnet_msg *msg, int status)
 {
 	struct lnet_msg_container *container;
 	int my_slot;
@@ -502,7 +502,7 @@ lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int status)
 
 	while (!list_empty(&container->msc_finalizing)) {
 		msg = list_entry(container->msc_finalizing.next,
-				 lnet_msg_t, msg_list);
+				 struct lnet_msg, msg_list);
 
 		list_del(&msg->msg_list);
 
@@ -538,9 +538,10 @@ lnet_msg_container_cleanup(struct lnet_msg_container *container)
 		return;
 
 	while (!list_empty(&container->msc_active)) {
-		lnet_msg_t *msg = list_entry(container->msc_active.next,
-					     lnet_msg_t, msg_activelist);
+		struct lnet_msg *msg;
 
+		msg = list_entry(container->msc_active.next,
+				 struct lnet_msg, msg_activelist);
 		LASSERT(msg->msg_onactivelist);
 		msg->msg_onactivelist = 0;
 		list_del(&msg->msg_activelist);

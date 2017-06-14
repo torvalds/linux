@@ -57,6 +57,7 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->vm = vm;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
+	(*job)->need_pipeline_sync = false;
 
 	amdgpu_sync_create(&(*job)->sync);
 
@@ -139,7 +140,7 @@ static struct dma_fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 
 	struct dma_fence *fence = amdgpu_sync_get_fence(&job->sync);
 
-	if (fence == NULL && vm && !job->vm_id) {
+	while (fence == NULL && vm && !job->vm_id) {
 		struct amdgpu_ring *ring = job->ring;
 		int r;
 
@@ -151,6 +152,9 @@ static struct dma_fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 
 		fence = amdgpu_sync_get_fence(&job->sync);
 	}
+
+	if (amd_sched_dependency_optimized(fence, sched_job->s_entity))
+		job->need_pipeline_sync = true;
 
 	return fence;
 }

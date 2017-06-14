@@ -1,6 +1,6 @@
 /* ldmvsw.c: Sun4v LDOM Virtual Switch Driver.
  *
- * Copyright (C) 2016 Oracle. All rights reserved.
+ * Copyright (C) 2016-2017 Oracle. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -41,8 +41,8 @@
 static u8 vsw_port_hwaddr[ETH_ALEN] = {0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 #define DRV_MODULE_NAME		"ldmvsw"
-#define DRV_MODULE_VERSION	"1.1"
-#define DRV_MODULE_RELDATE	"February 3, 2017"
+#define DRV_MODULE_VERSION	"1.2"
+#define DRV_MODULE_RELDATE	"March 4, 2017"
 
 static char version[] =
 	DRV_MODULE_NAME " " DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")";
@@ -123,6 +123,20 @@ static void vsw_set_rx_mode(struct net_device *dev)
 	return sunvnet_set_rx_mode_common(dev, port->vp);
 }
 
+int ldmvsw_open(struct net_device *dev)
+{
+	struct vnet_port *port = netdev_priv(dev);
+	struct vio_driver_state *vio = &port->vio;
+
+	/* reset the channel */
+	vio_link_state_change(vio, LDC_EVENT_RESET);
+	vnet_port_reset(port);
+	vio_port_up(vio);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ldmvsw_open);
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void vsw_poll_controller(struct net_device *dev)
 {
@@ -133,7 +147,7 @@ static void vsw_poll_controller(struct net_device *dev)
 #endif
 
 static const struct net_device_ops vsw_ops = {
-	.ndo_open		= sunvnet_open_common,
+	.ndo_open		= ldmvsw_open,
 	.ndo_stop		= sunvnet_close_common,
 	.ndo_set_rx_mode	= vsw_set_rx_mode,
 	.ndo_set_mac_address	= sunvnet_set_mac_addr_common,
@@ -365,6 +379,11 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	napi_enable(&port->napi);
 	vio_port_up(&port->vio);
 
+	/* assure no carrier until we receive an LDC_EVENT_UP,
+	 * even if the vsw config script tries to force us up
+	 */
+	netif_carrier_off(dev);
+
 	netdev_info(dev, "LDOM vsw-port %pM\n", dev->dev_addr);
 
 	pr_info("%s: PORT ( remote-mac %pM%s )\n", dev->name,
@@ -392,13 +411,14 @@ static int vsw_port_remove(struct vio_dev *vdev)
 
 	if (port) {
 		del_timer_sync(&port->vio.timer);
+		del_timer_sync(&port->clean_timer);
 
 		napi_disable(&port->napi);
+		unregister_netdev(port->dev);
 
 		list_del_rcu(&port->list);
 
 		synchronize_rcu();
-		del_timer_sync(&port->clean_timer);
 		spin_lock_irqsave(&port->vp->lock, flags);
 		sunvnet_port_rm_txq_common(port);
 		spin_unlock_irqrestore(&port->vp->lock, flags);
@@ -408,7 +428,6 @@ static int vsw_port_remove(struct vio_dev *vdev)
 
 		dev_set_drvdata(&vdev->dev, NULL);
 
-		unregister_netdev(port->dev);
 		free_netdev(port->dev);
 	}
 

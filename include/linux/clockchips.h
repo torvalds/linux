@@ -182,7 +182,6 @@ extern u64 clockevent_delta2ns(unsigned long latch, struct clock_event_device *e
 extern void clockevents_register_device(struct clock_event_device *dev);
 extern int clockevents_unbind_device(struct clock_event_device *ced, int cpu);
 
-extern void clockevents_config(struct clock_event_device *dev, u32 freq);
 extern void clockevents_config_and_register(struct clock_event_device *dev,
 					    u32 freq, unsigned long min_delta,
 					    unsigned long max_delta);
@@ -229,7 +228,7 @@ static inline void tick_setup_hrtimer_broadcast(void) { }
 
 #ifdef CONFIG_CLKEVT_PROBE
 extern int clockevent_probe(void);
-#els
+#else
 static inline int clockevent_probe(void) { return 0; }
 #endif
 

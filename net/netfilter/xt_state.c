@@ -28,14 +28,13 @@ state_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	unsigned int statebit;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-	if (!ct)
+	if (ct)
+		statebit = XT_STATE_BIT(ctinfo);
+	else if (ctinfo == IP_CT_UNTRACKED)
+		statebit = XT_STATE_UNTRACKED;
+	else
 		statebit = XT_STATE_INVALID;
-	else {
-		if (nf_ct_is_untracked(ct))
-			statebit = XT_STATE_UNTRACKED;
-		else
-			statebit = XT_STATE_BIT(ctinfo);
-	}
+
 	return (sinfo->statemask & statebit);
 }
 

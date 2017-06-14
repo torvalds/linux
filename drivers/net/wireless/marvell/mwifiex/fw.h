@@ -31,17 +31,35 @@ struct rfc_1042_hdr {
 	u8 llc_ctrl;
 	u8 snap_oui[3];
 	__be16 snap_type;
-};
+} __packed;
 
 struct rx_packet_hdr {
 	struct ethhdr eth803_hdr;
 	struct rfc_1042_hdr rfc1042_hdr;
-};
+} __packed;
 
 struct tx_packet_hdr {
 	struct ethhdr eth803_hdr;
 	struct rfc_1042_hdr rfc1042_hdr;
-};
+} __packed;
+
+struct mwifiex_fw_header {
+	__le32 dnld_cmd;
+	__le32 base_addr;
+	__le32 data_length;
+	__le32 crc;
+} __packed;
+
+struct mwifiex_fw_data {
+	struct mwifiex_fw_header header;
+	__le32 seq_num;
+	u8 data[1];
+} __packed;
+
+#define MWIFIEX_FW_DNLD_CMD_1 0x1
+#define MWIFIEX_FW_DNLD_CMD_5 0x5
+#define MWIFIEX_FW_DNLD_CMD_6 0x6
+#define MWIFIEX_FW_DNLD_CMD_7 0x7
 
 #define B_SUPPORTED_RATES               5
 #define G_SUPPORTED_RATES               9
@@ -707,7 +725,7 @@ struct uap_txpd {
 	u8 reserved1[2];
 	u8 tx_token_id;
 	u8 reserved[2];
-};
+} __packed;
 
 struct uap_rxpd {
 	u8 bss_type;
@@ -723,7 +741,7 @@ struct uap_rxpd {
 	u8 ht_info;
 	u8 reserved[3];
 	u8 flags;
-};
+} __packed;
 
 struct mwifiex_fw_chan_stats {
 	u8 chan_num;
@@ -987,7 +1005,7 @@ struct mwifiex_ps_param {
 	__le16 adhoc_wake_period;
 	__le16 mode;
 	__le16 delay_to_ps;
-};
+} __packed;
 
 #define HS_DEF_WAKE_INTERVAL          100
 #define HS_DEF_INACTIVITY_TIMEOUT      50
@@ -996,7 +1014,7 @@ struct mwifiex_ps_param_in_hs {
 	struct mwifiex_ie_types_header header;
 	__le32 hs_wake_int;
 	__le32 hs_inact_timeout;
-};
+} __packed;
 
 #define BITMAP_AUTO_DS         0x01
 #define BITMAP_STA_PS          0x10
@@ -1062,7 +1080,7 @@ struct host_cmd_ds_802_11_rssi_info {
 	__le16 nbcn;
 	__le16 reserved[9];
 	long long reserved_1;
-};
+} __packed;
 
 struct host_cmd_ds_802_11_rssi_info_rsp {
 	__le16 action;
@@ -1077,12 +1095,12 @@ struct host_cmd_ds_802_11_rssi_info_rsp {
 	__le16 bcn_rssi_avg;
 	__le16 bcn_nf_avg;
 	long long tsf_bcn;
-};
+} __packed;
 
 struct host_cmd_ds_802_11_mac_address {
 	__le16 action;
 	u8 mac_addr[ETH_ALEN];
-};
+} __packed;
 
 struct host_cmd_ds_mac_control {
 	__le32 action;
@@ -1230,7 +1248,7 @@ struct host_cmd_ds_802_11_get_log {
 	__le32 wep_icv_err_cnt[4];
 	__le32 bcn_rcv_cnt;
 	__le32 bcn_miss_cnt;
-};
+} __packed;
 
 /* Enumeration for rate format */
 enum _mwifiex_rate_format {
@@ -1368,12 +1386,12 @@ struct host_cmd_ds_rf_ant_mimo {
 	__le16 tx_ant_mode;
 	__le16 action_rx;
 	__le16 rx_ant_mode;
-};
+} __packed;
 
 struct host_cmd_ds_rf_ant_siso {
 	__le16 action;
 	__le16 ant_mode;
-};
+} __packed;
 
 struct host_cmd_ds_tdls_oper {
 	__le16 tdls_action;
@@ -1383,13 +1401,13 @@ struct host_cmd_ds_tdls_oper {
 
 struct mwifiex_tdls_config {
 	__le16 enable;
-};
+} __packed;
 
 struct mwifiex_tdls_config_cs_params {
 	u8 unit_time;
 	u8 thr_otherlink;
 	u8 thr_directlink;
-};
+} __packed;
 
 struct mwifiex_tdls_init_cs_params {
 	u8 peer_mac[ETH_ALEN];
@@ -1404,7 +1422,7 @@ struct mwifiex_tdls_init_cs_params {
 
 struct mwifiex_tdls_stop_cs_params {
 	u8 peer_mac[ETH_ALEN];
-};
+} __packed;
 
 struct host_cmd_ds_tdls_config {
 	__le16 tdls_action;
@@ -1709,7 +1727,7 @@ struct mwifiex_ie_types_local_pwr_constraint {
 struct mwifiex_ie_types_wmm_param_set {
 	struct mwifiex_ie_types_header header;
 	u8 wmm_ie[1];
-};
+} __packed;
 
 struct mwifiex_ie_types_mgmt_frame {
 	struct mwifiex_ie_types_header header;
@@ -1834,7 +1852,7 @@ struct host_cmd_ds_mem_access {
 	__le16 reserved;
 	__le32 addr;
 	__le32 value;
-};
+} __packed;
 
 struct mwifiex_ie_types_qos_info {
 	struct mwifiex_ie_types_header header;

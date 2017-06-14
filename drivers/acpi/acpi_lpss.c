@@ -143,6 +143,22 @@ static void lpss_deassert_reset(struct lpss_private_data *pdata)
 	writel(val, pdata->mmio_base + offset);
 }
 
+/*
+ * BYT PWM used for backlight control by the i915 driver on systems without
+ * the Crystal Cove PMIC.
+ */
+static struct pwm_lookup byt_pwm_lookup[] = {
+	PWM_LOOKUP_WITH_MODULE("80860F09:00", 0, "0000:00:02.0",
+			       "pwm_backlight", 0, PWM_POLARITY_NORMAL,
+			       "pwm-lpss-platform"),
+};
+
+static void byt_pwm_setup(struct lpss_private_data *pdata)
+{
+	if (!acpi_dev_present("INT33FD", NULL, -1))
+		pwm_add_table(byt_pwm_lookup, ARRAY_SIZE(byt_pwm_lookup));
+}
+
 #define LPSS_I2C_ENABLE			0x6c
 
 static void byt_i2c_setup(struct lpss_private_data *pdata)
@@ -200,6 +216,7 @@ static const struct lpss_device_desc lpt_sdio_dev_desc = {
 
 static const struct lpss_device_desc byt_pwm_dev_desc = {
 	.flags = LPSS_SAVE_CTX,
+	.setup = byt_pwm_setup,
 };
 
 static const struct lpss_device_desc bsw_pwm_dev_desc = {

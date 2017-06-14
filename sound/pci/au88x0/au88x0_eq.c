@@ -757,7 +757,7 @@ snd_vortex_eqtoggle_put(struct snd_kcontrol *kcontrol,
 	return 1;		/* Allways changes */
 }
 
-static struct snd_kcontrol_new vortex_eqtoggle_kcontrol = {
+static const struct snd_kcontrol_new vortex_eqtoggle_kcontrol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "EQ Enable",
 	.index = 0,
@@ -815,7 +815,7 @@ snd_vortex_eq_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucon
 	return changed;
 }
 
-static struct snd_kcontrol_new vortex_eq_kcontrol = {
+static const struct snd_kcontrol_new vortex_eq_kcontrol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "                        .",
 	.index = 0,
@@ -855,7 +855,7 @@ snd_vortex_peaks_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *u
 	return 0;
 }
 
-static struct snd_kcontrol_new vortex_levels_kcontrol = {
+static const struct snd_kcontrol_new vortex_levels_kcontrol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "EQ Peaks",
 	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,

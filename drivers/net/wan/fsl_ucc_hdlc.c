@@ -381,8 +381,8 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 	/* set bd status and length */
 	bd_status = (bd_status & T_W_S) | T_R_S | T_I_S | T_L_S | T_TC_S;
 
-	iowrite16be(bd_status, &bd->status);
 	iowrite16be(skb->len, &bd->length);
+	iowrite16be(bd_status, &bd->status);
 
 	/* Move to next BD in the ring */
 	if (!(bd_status & T_W_S))
@@ -457,7 +457,7 @@ static int hdlc_rx_done(struct ucc_hdlc_private *priv, int rx_work_limit)
 	struct sk_buff *skb;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	struct qe_bd *bd;
-	u32 bd_status;
+	u16 bd_status;
 	u16 length, howmany = 0;
 	u8 *bdbuffer;
 	int i;

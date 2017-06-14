@@ -1,0 +1,56 @@
+/*
+ * Spreadtrum SP9860g board
+ *
+ * Copyright (C) 2017, Spreadtrum Communications Inc.
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+/dts-v1/;
+
+#include "sc9860.dtsi"
+
+/ {
+	model = "Spreadtrum SP9860G 3GFHD Board";
+
+	compatible = "sprd,sp9860g-1h10", "sprd,sc9860";
+
+	aliases {
+		serial0 = &uart0; /* for Bluetooth */
+		serial1 = &uart1; /* UART console */
+		serial2 = &uart2; /* Reserved */
+		serial3 = &uart3; /* for GPS */
+	};
+
+	memory{
+		device_type = "memory";
+		reg = <0x0 0x80000000 0 0x60000000>,
+		      <0x1 0x80000000 0 0x60000000>;
+	};
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};

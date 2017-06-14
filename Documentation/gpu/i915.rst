@@ -222,6 +222,15 @@ Video BIOS Table (VBT)
 .. kernel-doc:: drivers/gpu/drm/i915/intel_vbt_defs.h
    :internal:
 
+Display clocks
+--------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_cdclk.c
+   :doc: CDCLK / RAWCLK
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_cdclk.c
+   :internal:
+
 Display PLLs
 ------------
 

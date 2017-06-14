@@ -949,7 +949,8 @@ start_here_multiplatform:
 	LOAD_REG_ADDR(r3,init_thread_union)
 
 	/* set up a stack pointer */
-	addi	r1,r3,THREAD_SIZE
+	LOAD_REG_IMMEDIATE(r1,THREAD_SIZE)
+	add	r1,r3,r1
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
 

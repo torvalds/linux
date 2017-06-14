@@ -28,40 +28,16 @@ struct device;
 #define EDAC_OPSTATE_INT	2
 
 extern int edac_op_state;
-extern int edac_err_assert;
-extern atomic_t edac_handlers;
 
-extern int edac_handler_set(void);
-extern void edac_atomic_assert_error(void);
-extern struct bus_type *edac_get_sysfs_subsys(void);
+struct bus_type *edac_get_sysfs_subsys(void);
+int edac_get_report_status(void);
+void edac_set_report_status(int new);
 
 enum {
 	EDAC_REPORTING_ENABLED,
 	EDAC_REPORTING_DISABLED,
 	EDAC_REPORTING_FORCE
 };
-
-extern int edac_report_status;
-#ifdef CONFIG_EDAC
-static inline int get_edac_report_status(void)
-{
-	return edac_report_status;
-}
-
-static inline void set_edac_report_status(int new)
-{
-	edac_report_status = new;
-}
-#else
-static inline int get_edac_report_status(void)
-{
-	return EDAC_REPORTING_DISABLED;
-}
-
-static inline void set_edac_report_status(int new)
-{
-}
-#endif
 
 static inline void opstate_init(void)
 {

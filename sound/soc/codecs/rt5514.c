@@ -1084,13 +1084,28 @@ static int rt5514_parse_dt(struct rt5514_priv *rt5514, struct device *dev)
 	return 0;
 }
 
+static __maybe_unused int rt5514_i2c_resume(struct device *dev)
+{
+	struct rt5514_priv *rt5514 = dev_get_drvdata(dev);
+	unsigned int val;
+
+	/*
+	 * Add a bogus read to avoid rt5514's confusion after s2r in case it
+	 * saw glitches on the i2c lines and thought the other side sent a
+	 * start bit.
+	 */
+	regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
+
+	return 0;
+}
+
 static int rt5514_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
 	struct rt5514_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5514_priv *rt5514;
 	int ret;
-	unsigned int val;
+	unsigned int val = ~0;
 
 	rt5514 = devm_kzalloc(&i2c->dev, sizeof(struct rt5514_priv),
 				GFP_KERNEL);
@@ -1120,8 +1135,16 @@ static int rt5514_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
-	if (val != RT5514_DEVICE_ID) {
+	/*
+	 * The rt5514 can get confused if the i2c lines glitch together, as
+	 * can happen at bootup as regulators are turned off and on.  If it's
+	 * in this glitched state the first i2c read will fail, so we'll give
+	 * it one change to retry.
+	 */
+	ret = regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
+	if (ret || val != RT5514_DEVICE_ID)
+		ret = regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
+	if (ret || val != RT5514_DEVICE_ID) {
 		dev_err(&i2c->dev,
 			"Device with ID register %x is not rt5514\n", val);
 		return -ENODEV;
@@ -1149,10 +1172,15 @@ static int rt5514_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-struct i2c_driver rt5514_i2c_driver = {
+static const struct dev_pm_ops rt5514_i2_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(NULL, rt5514_i2c_resume)
+};
+
+static struct i2c_driver rt5514_i2c_driver = {
 	.driver = {
 		.name = "rt5514",
 		.of_match_table = of_match_ptr(rt5514_of_match),
+		.pm = &rt5514_i2_pm_ops,
 	},
 	.probe = rt5514_i2c_probe,
 	.remove   = rt5514_i2c_remove,

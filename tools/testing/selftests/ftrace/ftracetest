@@ -16,6 +16,7 @@ echo "		-k|--keep  Keep passed test logs"
 echo "		-v|--verbose Increase verbosity of test messages"
 echo "		-vv        Alias of -v -v (Show all results in stdout)"
 echo "		-d|--debug Debug mode (trace all shell commands)"
+echo "		-l|--logdir <dir> Save logs on the <dir>"
 exit $1
 }
 
@@ -57,12 +58,16 @@ parse_opts() { # opts
     ;;
     --verbose|-v|-vv)
       VERBOSE=$((VERBOSE + 1))
-      [ $1 == '-vv' ] && VERBOSE=$((VERBOSE + 1))
+      [ $1 = '-vv' ] && VERBOSE=$((VERBOSE + 1))
       shift 1
     ;;
     --debug|-d)
       DEBUG=1
       shift 1
+    ;;
+    --logdir|-l)
+      LOG_DIR=$2
+      shift 2
     ;;
     *.tc)
       if [ -f "$1" ]; then
@@ -145,11 +150,16 @@ XFAILED_CASES=
 UNDEFINED_CASES=
 TOTAL_RESULT=0
 
+INSTANCE=
 CASENO=0
 testcase() { # testfile
   CASENO=$((CASENO+1))
   desc=`grep "^#[ \t]*description:" $1 | cut -f2 -d:`
-  prlog -n "[$CASENO]$desc"
+  prlog -n "[$CASENO]$INSTANCE$desc"
+}
+
+test_on_instance() { # testfile
+  grep -q "^#[ \t]*flags:.*instance" $1
 }
 
 eval_result() { # sigval
@@ -264,6 +274,17 @@ run_test() { # testfile
 # Main loop
 for t in $TEST_CASES; do
   run_test $t
+done
+
+# Test on instance loop
+INSTANCE=" (instance) "
+for t in $TEST_CASES; do
+  test_on_instance $t || continue
+  SAVED_TRACING_DIR=$TRACING_DIR
+  export TRACING_DIR=`mktemp -d $TRACING_DIR/instances/ftracetest.XXXXXX`
+  run_test $t
+  rmdir $TRACING_DIR
+  TRACING_DIR=$SAVED_TRACING_DIR
 done
 
 prlog ""

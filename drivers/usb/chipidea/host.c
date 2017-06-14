@@ -123,7 +123,8 @@ static int host_start(struct ci_hdrc *ci)
 	if (usb_disabled())
 		return -ENODEV;
 
-	hcd = usb_create_hcd(&ci_ehci_hc_driver, ci->dev, dev_name(ci->dev));
+	hcd = __usb_create_hcd(&ci_ehci_hc_driver, ci->dev->parent,
+			       ci->dev, dev_name(ci->dev), NULL);
 	if (!hcd)
 		return -ENOMEM;
 

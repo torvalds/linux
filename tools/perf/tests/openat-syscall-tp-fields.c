@@ -5,6 +5,7 @@
 #include "thread_map.h"
 #include "tests.h"
 #include "debug.h"
+#include <errno.h>
 
 #ifndef O_DIRECTORY
 #define O_DIRECTORY    00200000

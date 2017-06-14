@@ -33,21 +33,21 @@
 #include "ultrainputreport.h"
 
 /* Keyboard channel {c73416d0-b0b8-44af-b304-9d2ae99f1b3d} */
-#define SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID				\
-	UUID_LE(0xc73416d0, 0xb0b8, 0x44af,				\
+#define SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID \
+	UUID_LE(0xc73416d0, 0xb0b8, 0x44af, \
 		0xb3, 0x4, 0x9d, 0x2a, 0xe9, 0x9f, 0x1b, 0x3d)
 #define SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR "c73416d0-b0b8-44af-b304-9d2ae99f1b3d"
 
 /* Mouse channel {addf07d4-94a9-46e2-81c3-61abcdbdbd87} */
-#define SPAR_MOUSE_CHANNEL_PROTOCOL_UUID  \
+#define SPAR_MOUSE_CHANNEL_PROTOCOL_UUID \
 	UUID_LE(0xaddf07d4, 0x94a9, 0x46e2, \
 		0x81, 0xc3, 0x61, 0xab, 0xcd, 0xbd, 0xbd, 0x87)
 #define SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR \
 	"addf07d4-94a9-46e2-81c3-61abcdbdbd87"
 
-#define PIXELS_ACROSS_DEFAULT	800
-#define PIXELS_DOWN_DEFAULT	600
-#define KEYCODE_TABLE_BYTES	256
+#define PIXELS_ACROSS_DEFAULT 800
+#define PIXELS_DOWN_DEFAULT   600
+#define KEYCODE_TABLE_BYTES   256
 
 enum visorinput_device_type {
 	visorinput_keyboard,
@@ -539,13 +539,10 @@ handle_locking_key(struct input_dev *visorinput_dev,
 static int
 scancode_to_keycode(int scancode)
 {
-	int keycode;
-
 	if (scancode > 0xff)
-		keycode = visorkbd_ext_keycode[(scancode >> 8) & 0xff];
-	else
-		keycode = visorkbd_keycode[scancode];
-	return keycode;
+		return visorkbd_ext_keycode[(scancode >> 8) & 0xff];
+
+	return  visorkbd_keycode[scancode];
 }
 
 static int

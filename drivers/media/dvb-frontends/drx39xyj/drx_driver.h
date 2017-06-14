@@ -256,8 +256,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 *
 * The actual DAP implementation may be restricted to only one of the modes.
 * A compiler warning or error will be generated if the DAP implementation
-* overides or cannot handle the mode defined below.
-*
+* overrides or cannot handle the mode defined below.
 */
 #ifndef DRXDAP_SINGLE_MASTER
 #define DRXDAP_SINGLE_MASTER 1
@@ -272,7 +271,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 *
 * This maximum size may be restricted by the actual DAP implementation.
 * A compiler warning or error will be generated if the DAP implementation
-* overides or cannot handle the chunksize defined below.
+* overrides or cannot handle the chunksize defined below.
 *
 * Beware that the DAP uses  DRXDAP_MAX_WCHUNKSIZE to create a temporary data
 * buffer. Do not undefine or choose too large, unless your system is able to
@@ -292,8 +291,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 *
 * This maximum size may be restricted by the actual DAP implementation.
 * A compiler warning or error will be generated if the DAP implementation
-* overides or cannot handle the chunksize defined below.
-*
+* overrides or cannot handle the chunksize defined below.
 */
 #ifndef DRXDAP_MAX_RCHUNKSIZE
 #define  DRXDAP_MAX_RCHUNKSIZE 60

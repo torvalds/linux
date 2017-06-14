@@ -483,7 +483,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 	clk_prepare_enable(clk);
 
 	if (!pdata->gpio_unbanked) {
-		irq = irq_alloc_descs(-1, 0, ngpio, 0);
+		irq = devm_irq_alloc_descs(dev, -1, 0, ngpio, 0);
 		if (irq < 0) {
 			dev_err(dev, "Couldn't allocate IRQ numbers\n");
 			return irq;

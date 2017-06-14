@@ -232,6 +232,12 @@ static int virtio_dev_probe(struct device *_d)
 		if (device_features & (1ULL << i))
 			__virtio_set_bit(dev, i);
 
+	if (drv->validate) {
+		err = drv->validate(dev);
+		if (err)
+			goto err;
+	}
+
 	err = virtio_finalize_features(dev);
 	if (err)
 		goto err;

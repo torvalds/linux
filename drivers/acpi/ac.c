@@ -57,11 +57,22 @@ static int acpi_ac_add(struct acpi_device *device);
 static int acpi_ac_remove(struct acpi_device *device);
 static void acpi_ac_notify(struct acpi_device *device, u32 event);
 
+struct acpi_ac_bl {
+	const char *hid;
+	int hrv;
+};
+
 static const struct acpi_device_id ac_device_ids[] = {
 	{"ACPI0003", 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, ac_device_ids);
+
+/* Lists of PMIC ACPI HIDs with an (often better) native charger driver */
+static const struct acpi_ac_bl acpi_ac_blacklist[] = {
+	{ "INT33F4", -1 }, /* X-Powers AXP288 PMIC */
+	{ "INT34D3",  3 }, /* Intel Cherrytrail Whiskey Cove PMIC */
+};
 
 #ifdef CONFIG_PM_SLEEP
 static int acpi_ac_resume(struct device *dev);
@@ -424,10 +435,19 @@ static int acpi_ac_remove(struct acpi_device *device)
 
 static int __init acpi_ac_init(void)
 {
+	unsigned int i;
 	int result;
 
 	if (acpi_disabled)
 		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(acpi_ac_blacklist); i++)
+		if (acpi_dev_present(acpi_ac_blacklist[i].hid, "1",
+				     acpi_ac_blacklist[i].hrv)) {
+			pr_info(PREFIX "AC: found native %s PMIC, not loading\n",
+				acpi_ac_blacklist[i].hid);
+			return -ENODEV;
+		}
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_ac_dir = acpi_lock_ac_dir();

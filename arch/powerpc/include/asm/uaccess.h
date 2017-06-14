@@ -1,18 +1,11 @@
 #ifndef _ARCH_POWERPC_UACCESS_H
 #define _ARCH_POWERPC_UACCESS_H
 
-#ifdef __KERNEL__
-#ifndef __ASSEMBLY__
-
-#include <linux/sched.h>
-#include <linux/errno.h>
 #include <asm/asm-compat.h>
 #include <asm/ppc_asm.h>
 #include <asm/processor.h>
 #include <asm/page.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
+#include <asm/extable.h>
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -62,31 +55,6 @@
 #define access_ok(type, addr, size)		\
 	(__chk_user_ptr(addr),			\
 	 __access_ok((__force unsigned long)(addr), (size), get_fs()))
-
-/*
- * The exception table consists of pairs of relative addresses: the first is
- * the address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out what
- * to do.
- *
- * All the routines below use bits of fixup code that are out of line with the
- * main instruction path.  This means when everything is well, we don't even
- * have to jump over them.  Further, they do not intrude on our cache or tlb
- * entries.
- */
-
-#define ARCH_HAS_RELATIVE_EXTABLE
-
-struct exception_table_entry {
-	int insn;
-	int fixup;
-};
-
-static inline unsigned long extable_fixup(const struct exception_table_entry *x)
-{
-	return (unsigned long)&x->fixup + x->fixup;
-}
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -301,42 +269,19 @@ extern unsigned long __copy_tofrom_user(void __user *to,
 
 #ifndef __powerpc64__
 
-static inline unsigned long copy_from_user(void *to,
-		const void __user *from, unsigned long n)
-{
-	if (likely(access_ok(VERIFY_READ, from, n))) {
-		check_object_size(to, n, false);
-		return __copy_tofrom_user((__force void __user *)to, from, n);
-	}
-	memset(to, 0, n);
-	return n;
-}
-
-static inline unsigned long copy_to_user(void __user *to,
-		const void *from, unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n)) {
-		check_object_size(from, n, true);
-		return __copy_tofrom_user(to, (__force void __user *)from, n);
-	}
-	return n;
-}
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 #else /* __powerpc64__ */
 
-#define __copy_in_user(to, from, size) \
-	__copy_tofrom_user((to), (from), (size))
-
-extern unsigned long copy_from_user(void *to, const void __user *from,
-				    unsigned long n);
-extern unsigned long copy_to_user(void __user *to, const void *from,
-				  unsigned long n);
-extern unsigned long copy_in_user(void __user *to, const void __user *from,
-				  unsigned long n);
-
+static inline unsigned long
+raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
+{
+	return __copy_tofrom_user(to, from, n);
+}
 #endif /* __powerpc64__ */
 
-static inline unsigned long __copy_from_user_inatomic(void *to,
+static inline unsigned long raw_copy_from_user(void *to,
 		const void __user *from, unsigned long n)
 {
 	if (__builtin_constant_p(n) && (n <= 8)) {
@@ -360,12 +305,10 @@ static inline unsigned long __copy_from_user_inatomic(void *to,
 			return 0;
 	}
 
-	check_object_size(to, n, false);
-
 	return __copy_tofrom_user((__force void __user *)to, from, n);
 }
 
-static inline unsigned long __copy_to_user_inatomic(void __user *to,
+static inline unsigned long raw_copy_to_user(void __user *to,
 		const void *from, unsigned long n)
 {
 	if (__builtin_constant_p(n) && (n <= 8)) {
@@ -389,23 +332,7 @@ static inline unsigned long __copy_to_user_inatomic(void __user *to,
 			return 0;
 	}
 
-	check_object_size(from, n, true);
-
 	return __copy_tofrom_user(to, (__force const void __user *)from, n);
-}
-
-static inline unsigned long __copy_from_user(void *to,
-		const void __user *from, unsigned long size)
-{
-	might_fault();
-	return __copy_from_user_inatomic(to, from, size);
-}
-
-static inline unsigned long __copy_to_user(void __user *to,
-		const void *from, unsigned long size)
-{
-	might_fault();
-	return __copy_to_user_inatomic(to, from, size);
 }
 
 extern unsigned long __clear_user(void __user *addr, unsigned long size);
@@ -421,8 +348,5 @@ static inline unsigned long clear_user(void __user *addr, unsigned long size)
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
-
-#endif  /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 
 #endif	/* _ARCH_POWERPC_UACCESS_H */

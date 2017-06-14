@@ -255,34 +255,6 @@ static int marvell_config_aneg(struct phy_device *phydev)
 {
 	int err;
 
-	/* The Marvell PHY has an errata which requires
-	 * that certain registers get written in order
-	 * to restart autonegotiation */
-	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
-
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, 0x1d, 0x1f);
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, 0x1e, 0x200c);
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, 0x1d, 0x5);
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, 0x1e, 0);
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, 0x1e, 0x100);
-	if (err < 0)
-		return err;
-
 	err = marvell_set_polarity(phydev, phydev->mdix_ctrl);
 	if (err < 0)
 		return err;
@@ -314,6 +286,42 @@ static int marvell_config_aneg(struct phy_device *phydev)
 	}
 
 	return 0;
+}
+
+static int m88e1101_config_aneg(struct phy_device *phydev)
+{
+	int err;
+
+	/* This Marvell PHY has an errata which requires
+	 * that certain registers get written in order
+	 * to restart autonegotiation
+	 */
+	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
+
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, 0x1d, 0x1f);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, 0x1e, 0x200c);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, 0x1d, 0x5);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, 0x1e, 0);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, 0x1e, 0x100);
+	if (err < 0)
+		return err;
+
+	return marvell_config_aneg(phydev);
 }
 
 static int m88e1111_config_aneg(struct phy_device *phydev)
@@ -1119,8 +1127,6 @@ static int marvell_read_status_page(struct phy_device *phydev, int page)
 		if (adv < 0)
 			return adv;
 
-		lpa &= adv;
-
 		if (status & MII_M1011_PHY_STATUS_FULLDUPLEX)
 			phydev->duplex = DUPLEX_FULL;
 		else
@@ -1883,17 +1889,6 @@ static int m88e1510_probe(struct phy_device *phydev)
 	return m88e1510_hwmon_probe(phydev);
 }
 
-static void marvell_remove(struct phy_device *phydev)
-{
-#ifdef CONFIG_HWMON
-
-	struct marvell_priv *priv = phydev->priv;
-
-	if (priv && priv->hwmon_dev)
-		hwmon_device_unregister(priv->hwmon_dev);
-#endif
-}
-
 static struct phy_driver marvell_drivers[] = {
 	{
 		.phy_id = MARVELL_PHY_ID_88E1101,
@@ -1903,7 +1898,7 @@ static struct phy_driver marvell_drivers[] = {
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = marvell_probe,
 		.config_init = &marvell_config_init,
-		.config_aneg = &marvell_config_aneg,
+		.config_aneg = &m88e1101_config_aneg,
 		.read_status = &genphy_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
@@ -1974,7 +1969,6 @@ static struct phy_driver marvell_drivers[] = {
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = &m88e1121_probe,
-		.remove = &marvell_remove,
 		.config_init = &m88e1121_config_init,
 		.config_aneg = &m88e1121_config_aneg,
 		.read_status = &marvell_read_status,
@@ -2087,7 +2081,6 @@ static struct phy_driver marvell_drivers[] = {
 		.features = PHY_GBIT_FEATURES | SUPPORTED_FIBRE,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = &m88e1510_probe,
-		.remove = &marvell_remove,
 		.config_init = &m88e1510_config_init,
 		.config_aneg = &m88e1510_config_aneg,
 		.read_status = &marvell_read_status,
@@ -2109,7 +2102,6 @@ static struct phy_driver marvell_drivers[] = {
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = m88e1510_probe,
-		.remove = &marvell_remove,
 		.config_init = &marvell_config_init,
 		.config_aneg = &m88e1510_config_aneg,
 		.read_status = &marvell_read_status,
@@ -2127,7 +2119,6 @@ static struct phy_driver marvell_drivers[] = {
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1545",
 		.probe = m88e1510_probe,
-		.remove = &marvell_remove,
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.config_init = &marvell_config_init,

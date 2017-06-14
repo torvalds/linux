@@ -432,6 +432,7 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 	trie->map.key_size = attr->key_size;
 	trie->map.value_size = attr->value_size;
 	trie->map.max_entries = attr->max_entries;
+	trie->map.map_flags = attr->map_flags;
 	trie->data_size = attr->key_size -
 			  offsetof(struct bpf_lpm_trie_key, data);
 	trie->max_prefixlen = trie->data_size * 8;
@@ -500,22 +501,16 @@ unlock:
 	raw_spin_unlock(&trie->lock);
 }
 
-static const struct bpf_map_ops trie_ops = {
+static int trie_get_next_key(struct bpf_map *map, void *key, void *next_key)
+{
+	return -ENOTSUPP;
+}
+
+const struct bpf_map_ops trie_map_ops = {
 	.map_alloc = trie_alloc,
 	.map_free = trie_free,
+	.map_get_next_key = trie_get_next_key,
 	.map_lookup_elem = trie_lookup_elem,
 	.map_update_elem = trie_update_elem,
 	.map_delete_elem = trie_delete_elem,
 };
-
-static struct bpf_map_type_list trie_type __ro_after_init = {
-	.ops = &trie_ops,
-	.type = BPF_MAP_TYPE_LPM_TRIE,
-};
-
-static int __init register_trie_map(void)
-{
-	bpf_register_map_type(&trie_type);
-	return 0;
-}
-late_initcall(register_trie_map);

@@ -172,8 +172,16 @@ static void ib_device_release(struct device *device)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
 
-	ib_cache_release_one(dev);
-	kfree(dev->port_immutable);
+	WARN_ON(dev->reg_state == IB_DEV_REGISTERED);
+	if (dev->reg_state == IB_DEV_UNREGISTERED) {
+		/*
+		 * In IB_DEV_UNINITIALIZED state, cache or port table
+		 * is not even created. Free cache and port table only when
+		 * device reaches UNREGISTERED state.
+		 */
+		ib_cache_release_one(dev);
+		kfree(dev->port_immutable);
+	}
 	kfree(dev);
 }
 
@@ -336,12 +344,26 @@ int ib_register_device(struct ib_device *device,
 	struct device *parent = device->dev.parent;
 
 	WARN_ON_ONCE(!parent);
-	if (!device->dev.dma_ops)
-		device->dev.dma_ops = parent->dma_ops;
-	if (!device->dev.dma_mask)
-		device->dev.dma_mask = parent->dma_mask;
-	if (!device->dev.coherent_dma_mask)
-		device->dev.coherent_dma_mask = parent->coherent_dma_mask;
+	WARN_ON_ONCE(device->dma_device);
+	if (device->dev.dma_ops) {
+		/*
+		 * The caller provided custom DMA operations. Copy the
+		 * DMA-related fields that are used by e.g. dma_alloc_coherent()
+		 * into device->dev.
+		 */
+		device->dma_device = &device->dev;
+		if (!device->dev.dma_mask)
+			device->dev.dma_mask = parent->dma_mask;
+		if (!device->dev.coherent_dma_mask)
+			device->dev.coherent_dma_mask =
+				parent->coherent_dma_mask;
+	} else {
+		/*
+		 * The caller did not provide custom DMA operations. Use the
+		 * DMA mapping operations of the parent device.
+		 */
+		device->dma_device = parent;
+	}
 
 	mutex_lock(&device_mutex);
 
@@ -366,32 +388,27 @@ int ib_register_device(struct ib_device *device,
 	ret = ib_cache_setup_one(device);
 	if (ret) {
 		pr_warn("Couldn't set up InfiniBand P_Key/GID cache\n");
-		goto out;
+		goto port_cleanup;
 	}
 
 	ret = ib_device_register_rdmacg(device);
 	if (ret) {
 		pr_warn("Couldn't register device with rdma cgroup\n");
-		ib_cache_cleanup_one(device);
-		goto out;
+		goto cache_cleanup;
 	}
 
 	memset(&device->attrs, 0, sizeof(device->attrs));
 	ret = device->query_device(device, &device->attrs, &uhw);
 	if (ret) {
 		pr_warn("Couldn't query the device attributes\n");
-		ib_device_unregister_rdmacg(device);
-		ib_cache_cleanup_one(device);
-		goto out;
+		goto cache_cleanup;
 	}
 
 	ret = ib_device_register_sysfs(device, port_callback);
 	if (ret) {
 		pr_warn("Couldn't register device %s with driver model\n",
 			device->name);
-		ib_device_unregister_rdmacg(device);
-		ib_cache_cleanup_one(device);
-		goto out;
+		goto cache_cleanup;
 	}
 
 	device->reg_state = IB_DEV_REGISTERED;
@@ -403,6 +420,14 @@ int ib_register_device(struct ib_device *device,
 	down_write(&lists_rwsem);
 	list_add_tail(&device->core_list, &device_list);
 	up_write(&lists_rwsem);
+	mutex_unlock(&device_mutex);
+	return 0;
+
+cache_cleanup:
+	ib_cache_cleanup_one(device);
+	ib_cache_release_one(device);
+port_cleanup:
+	kfree(device->port_immutable);
 out:
 	mutex_unlock(&device_mutex);
 	return ret;
@@ -1015,8 +1040,7 @@ static int __init ib_core_init(void)
 		return -ENOMEM;
 
 	ib_comp_wq = alloc_workqueue("ib-comp-wq",
-			WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM,
-			WQ_UNBOUND_MAX_ACTIVE);
+			WQ_HIGHPRI | WQ_MEM_RECLAIM | WQ_SYSFS, 0);
 	if (!ib_comp_wq) {
 		ret = -ENOMEM;
 		goto err;

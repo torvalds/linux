@@ -1,10 +1,5 @@
 Owner Module/Drivers,Group,Property Name,Type,Property Values,Object attached,Description/Restrictions
 ,,“scaling mode”,ENUM,"{ ""None"", ""Full"", ""Center"", ""Full aspect"" }",Connector,"Supported by: amdgpu, gma500, i915, nouveau and radeon."
-,Connector,“EDID”,BLOB | IMMUTABLE,0,Connector,Contains id of edid blob ptr object.
-,,“DPMS”,ENUM,"{ “On”, “Standby”, “Suspend”, “Off” }",Connector,Contains DPMS operation mode value.
-,,“PATH”,BLOB | IMMUTABLE,0,Connector,Contains topology path to a connector.
-,,“TILE”,BLOB | IMMUTABLE,0,Connector,Contains tiling information for a connector.
-,,“CRTC_ID”,OBJECT,DRM_MODE_OBJECT_CRTC,Connector,CRTC that connector is attached to (atomic)
 ,DVI-I,“subconnector”,ENUM,"{ “Unknown”, “DVI-D”, “DVI-A” }",Connector,TBD
 ,,“select subconnector”,ENUM,"{ “Automatic”, “DVI-D”, “DVI-A” }",Connector,TBD
 ,TV,“subconnector”,ENUM,"{ ""Unknown"", ""Composite"", ""SVIDEO"", ""Component"", ""SCART"" }",Connector,TBD

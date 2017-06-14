@@ -181,7 +181,7 @@ static bool assert_node(struct drm_mm_node *node, struct drm_mm *mm,
 	}
 
 	if (misalignment(node, alignment)) {
-		pr_err("node is misalinged, start %llx rem %llu, expected alignment %llu\n",
+		pr_err("node is misaligned, start %llx rem %llu, expected alignment %llu\n",
 		       node->start, misalignment(node, alignment), alignment);
 		ok = false;
 	}
@@ -839,16 +839,18 @@ static bool assert_contiguous_in_range(struct drm_mm *mm,
 		n++;
 	}
 
-	drm_mm_for_each_node_in_range(node, mm, 0, start) {
-		if (node) {
+	if (start > 0) {
+		node = __drm_mm_interval_first(mm, 0, start - 1);
+		if (node->allocated) {
 			pr_err("node before start: node=%llx+%llu, start=%llx\n",
 			       node->start, node->size, start);
 			return false;
 		}
 	}
 
-	drm_mm_for_each_node_in_range(node, mm, end, U64_MAX) {
-		if (node) {
+	if (end < U64_MAX) {
+		node = __drm_mm_interval_first(mm, end, U64_MAX);
+		if (node->allocated) {
 			pr_err("node after end: node=%llx+%llu, end=%llx\n",
 			       node->start, node->size, end);
 			return false;

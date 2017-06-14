@@ -11,7 +11,7 @@ Last revised: September 5, 2003
 The Zorro bus is the bus used in the Amiga family of computers. Thanks to
 AutoConfig(tm), it's 100% Plug-and-Play.
 
-There are two types of Zorro busses, Zorro II and Zorro III:
+There are two types of Zorro buses, Zorro II and Zorro III:
 
   - The Zorro II address space is 24-bit and lies within the first 16 MB of the
     Amiga's address map.

@@ -151,8 +151,8 @@ int __copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from,
 
 				if (from->si_signo == SIGSEGV) {
 					if (from->si_code == SEGV_BNDERR) {
-						compat_uptr_t lower = (unsigned long)&to->si_lower;
-						compat_uptr_t upper = (unsigned long)&to->si_upper;
+						compat_uptr_t lower = (unsigned long)from->si_lower;
+						compat_uptr_t upper = (unsigned long)from->si_upper;
 						put_user_ex(lower, &to->si_lower);
 						put_user_ex(upper, &to->si_upper);
 					}

@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/rtc/ds1307.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
@@ -38,6 +39,7 @@ enum ds_type {
 	ds_1340,
 	ds_1388,
 	ds_3231,
+	m41t0,
 	m41t00,
 	mcp794xx,
 	rx_8025,
@@ -52,6 +54,7 @@ enum ds_type {
 #	define DS1340_BIT_nEOSC		0x80
 #	define MCP794XX_BIT_ST		0x80
 #define DS1307_REG_MIN		0x01	/* 00-59 */
+#	define M41T0_BIT_OF		0x80
 #define DS1307_REG_HOUR		0x02	/* 00-23, or 1-12{am,pm} */
 #	define DS1307_BIT_12HR		0x40	/* in REG_HOUR */
 #	define DS1307_BIT_PM		0x20	/* in REG_HOUR */
@@ -182,6 +185,7 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1388", ds_1388 },
 	{ "ds1340", ds_1340 },
 	{ "ds3231", ds_3231 },
+	{ "m41t0", m41t0 },
 	{ "m41t00", m41t00 },
 	{ "mcp7940x", mcp794xx },
 	{ "mcp7941x", mcp794xx },
@@ -192,6 +196,69 @@ static const struct i2c_device_id ds1307_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ds1307_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id ds1307_of_match[] = {
+	{
+		.compatible = "dallas,ds1307",
+		.data = (void *)ds_1307
+	},
+	{
+		.compatible = "dallas,ds1337",
+		.data = (void *)ds_1337
+	},
+	{
+		.compatible = "dallas,ds1338",
+		.data = (void *)ds_1338
+	},
+	{
+		.compatible = "dallas,ds1339",
+		.data = (void *)ds_1339
+	},
+	{
+		.compatible = "dallas,ds1388",
+		.data = (void *)ds_1388
+	},
+	{
+		.compatible = "dallas,ds1340",
+		.data = (void *)ds_1340
+	},
+	{
+		.compatible = "maxim,ds3231",
+		.data = (void *)ds_3231
+	},
+	{
+		.compatible = "st,m41t0",
+		.data = (void *)m41t00
+	},
+	{
+		.compatible = "st,m41t00",
+		.data = (void *)m41t00
+	},
+	{
+		.compatible = "microchip,mcp7940x",
+		.data = (void *)mcp794xx
+	},
+	{
+		.compatible = "microchip,mcp7941x",
+		.data = (void *)mcp794xx
+	},
+	{
+		.compatible = "pericom,pt7c4338",
+		.data = (void *)ds_1307
+	},
+	{
+		.compatible = "epson,rx8025",
+		.data = (void *)rx_8025
+	},
+	{
+		.compatible = "isil,isl12057",
+		.data = (void *)ds_1337
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ds1307_of_match);
+#endif
+
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ds1307_acpi_ids[] = {
 	{ .id = "DS1307", .driver_data = ds_1307 },
@@ -201,6 +268,7 @@ static const struct acpi_device_id ds1307_acpi_ids[] = {
 	{ .id = "DS1388", .driver_data = ds_1388 },
 	{ .id = "DS1340", .driver_data = ds_1340 },
 	{ .id = "DS3231", .driver_data = ds_3231 },
+	{ .id = "M41T0", .driver_data = m41t0 },
 	{ .id = "M41T00", .driver_data = m41t00 },
 	{ .id = "MCP7940X", .driver_data = mcp794xx },
 	{ .id = "MCP7941X", .driver_data = mcp794xx },
@@ -395,6 +463,13 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 	}
 
 	dev_dbg(dev, "%s: %7ph\n", "read", ds1307->regs);
+
+	/* if oscillator fail bit is set, no data can be trusted */
+	if (ds1307->type == m41t0 &&
+	    ds1307->regs[DS1307_REG_MIN] & M41T0_BIT_OF) {
+		dev_warn_once(dev, "oscillator failed, set time!\n");
+		return -EINVAL;
+	}
 
 	t->tm_sec = bcd2bin(ds1307->regs[DS1307_REG_SECS] & 0x7f);
 	t->tm_min = bcd2bin(ds1307->regs[DS1307_REG_MIN] & 0x7f);
@@ -1318,7 +1393,12 @@ static int ds1307_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, ds1307);
 
 	ds1307->client	= client;
-	if (id) {
+
+	if (client->dev.of_node) {
+		ds1307->type = (enum ds_type)
+			of_device_get_match_data(&client->dev);
+		chip = &chips[ds1307->type];
+	} else if (id) {
 		chip = &chips[id->driver_data];
 		ds1307->type = id->driver_data;
 	} else {
@@ -1513,6 +1593,7 @@ read_rtc:
 	tmp = ds1307->regs[DS1307_REG_SECS];
 	switch (ds1307->type) {
 	case ds_1307:
+	case m41t0:
 	case m41t00:
 		/* clock halted?  turn it on, so clock can tick. */
 		if (tmp & DS1307_BIT_CH) {
@@ -1577,6 +1658,7 @@ read_rtc:
 	tmp = ds1307->regs[DS1307_REG_HOUR];
 	switch (ds1307->type) {
 	case ds_1340:
+	case m41t0:
 	case m41t00:
 		/*
 		 * NOTE: ignores century bits; fix before deploying
@@ -1711,6 +1793,7 @@ static int ds1307_remove(struct i2c_client *client)
 static struct i2c_driver ds1307_driver = {
 	.driver = {
 		.name	= "rtc-ds1307",
+		.of_match_table = of_match_ptr(ds1307_of_match),
 		.acpi_match_table = ACPI_PTR(ds1307_acpi_ids),
 	},
 	.probe		= ds1307_probe,

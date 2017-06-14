@@ -906,6 +906,12 @@ static bool ci_dpm_vblank_too_short(struct amdgpu_device *adev)
 	u32 vblank_time = amdgpu_dpm_get_vblank_time(adev);
 	u32 switch_limit = adev->mc.vram_type == AMDGPU_VRAM_TYPE_GDDR5 ? 450 : 300;
 
+	/* disable mclk switching if the refresh is >120Hz, even if the
+	 * blanking period would allow it
+	 */
+	if (amdgpu_dpm_get_vrefresh(adev) > 120)
+		return true;
+
 	if (vblank_time < switch_limit)
 		return true;
 	else
@@ -1267,30 +1273,33 @@ static int ci_dpm_set_fan_speed_percent(struct amdgpu_device *adev,
 
 static void ci_dpm_set_fan_control_mode(struct amdgpu_device *adev, u32 mode)
 {
-	if (mode) {
-		/* stop auto-manage */
+	switch (mode) {
+	case AMD_FAN_CTRL_NONE:
 		if (adev->pm.dpm.fan.ucode_fan_control)
 			ci_fan_ctrl_stop_smc_fan_control(adev);
-		ci_fan_ctrl_set_static_mode(adev, mode);
-	} else {
-		/* restart auto-manage */
+		ci_dpm_set_fan_speed_percent(adev, 100);
+		break;
+	case AMD_FAN_CTRL_MANUAL:
+		if (adev->pm.dpm.fan.ucode_fan_control)
+			ci_fan_ctrl_stop_smc_fan_control(adev);
+		break;
+	case AMD_FAN_CTRL_AUTO:
 		if (adev->pm.dpm.fan.ucode_fan_control)
 			ci_thermal_start_smc_fan_control(adev);
-		else
-			ci_fan_ctrl_set_default_mode(adev);
+		break;
+	default:
+		break;
 	}
 }
 
 static u32 ci_dpm_get_fan_control_mode(struct amdgpu_device *adev)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
-	u32 tmp;
 
 	if (pi->fan_is_controlled_by_smc)
-		return 0;
-
-	tmp = RREG32_SMC(ixCG_FDO_CTRL2) & CG_FDO_CTRL2__FDO_PWM_MODE_MASK;
-	return (tmp >> CG_FDO_CTRL2__FDO_PWM_MODE__SHIFT);
+		return AMD_FAN_CTRL_AUTO;
+	else
+		return AMD_FAN_CTRL_MANUAL;
 }
 
 #if 0
@@ -3036,6 +3045,7 @@ static int ci_populate_single_memory_level(struct amdgpu_device *adev,
 						      memory_clock,
 						      &memory_level->MinVddcPhases);
 
+	memory_level->EnabledForActivity = 1;
 	memory_level->EnabledForThrottle = 1;
 	memory_level->UpH = 0;
 	memory_level->DownH = 100;
@@ -3468,8 +3478,6 @@ static int ci_populate_all_memory_levels(struct amdgpu_device *adev)
 			return ret;
 	}
 
-	pi->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
-
 	if ((dpm_table->mclk_table.count >= 2) &&
 	    ((adev->pdev->device == 0x67B0) || (adev->pdev->device == 0x67B1))) {
 		pi->smc_state_table.MemoryLevel[1].MinVddc =
@@ -3681,6 +3689,40 @@ static int ci_find_boot_level(struct ci_single_dpm_table *table,
 	return ret;
 }
 
+static void ci_save_default_power_profile(struct amdgpu_device *adev)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct SMU7_Discrete_GraphicsLevel *levels =
+				pi->smc_state_table.GraphicsLevel;
+	uint32_t min_level = 0;
+
+	pi->default_gfx_power_profile.activity_threshold =
+			be16_to_cpu(levels[0].ActivityLevel);
+	pi->default_gfx_power_profile.up_hyst = levels[0].UpH;
+	pi->default_gfx_power_profile.down_hyst = levels[0].DownH;
+	pi->default_gfx_power_profile.type = AMD_PP_GFX_PROFILE;
+
+	pi->default_compute_power_profile = pi->default_gfx_power_profile;
+	pi->default_compute_power_profile.type = AMD_PP_COMPUTE_PROFILE;
+
+	/* Optimize compute power profile: Use only highest
+	 * 2 power levels (if more than 2 are available), Hysteresis:
+	 * 0ms up, 5ms down
+	 */
+	if (pi->smc_state_table.GraphicsDpmLevelCount > 2)
+		min_level = pi->smc_state_table.GraphicsDpmLevelCount - 2;
+	else if (pi->smc_state_table.GraphicsDpmLevelCount == 2)
+		min_level = 1;
+	pi->default_compute_power_profile.min_sclk =
+			be32_to_cpu(levels[min_level].SclkFrequency);
+
+	pi->default_compute_power_profile.up_hyst = 0;
+	pi->default_compute_power_profile.down_hyst = 5;
+
+	pi->gfx_power_profile = pi->default_gfx_power_profile;
+	pi->compute_power_profile = pi->default_compute_power_profile;
+}
+
 static int ci_init_smc_table(struct amdgpu_device *adev)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
@@ -3825,6 +3867,8 @@ static int ci_init_smc_table(struct amdgpu_device *adev)
 				   pi->sram_end);
 	if (ret)
 		return ret;
+
+	ci_save_default_power_profile(adev);
 
 	return 0;
 }
@@ -5804,9 +5848,7 @@ static int ci_dpm_init_microcode(struct amdgpu_device *adev)
 
 out:
 	if (err) {
-		printk(KERN_ERR
-		       "cik_smc: Failed to load firmware \"%s\"\n",
-		       fw_name);
+		pr_err("cik_smc: Failed to load firmware \"%s\"\n", fw_name);
 		release_firmware(adev->pm.fw);
 		adev->pm.fw = NULL;
 	}
@@ -6250,11 +6292,13 @@ static int ci_dpm_sw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	ret = amdgpu_irq_add_id(adev, 230, &adev->pm.dpm.thermal.irq);
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 230,
+				&adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;
 
-	ret = amdgpu_irq_add_id(adev, 231, &adev->pm.dpm.thermal.irq);
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 231,
+				&adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;
 
@@ -6688,6 +6732,260 @@ static int ci_dpm_set_mclk_od(struct amdgpu_device *adev, uint32_t value)
 	return 0;
 }
 
+static int ci_dpm_get_power_profile_state(struct amdgpu_device *adev,
+		struct amd_pp_profile *query)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+
+	if (!pi || !query)
+		return -EINVAL;
+
+	if (query->type == AMD_PP_GFX_PROFILE)
+		memcpy(query, &pi->gfx_power_profile,
+				sizeof(struct amd_pp_profile));
+	else if (query->type == AMD_PP_COMPUTE_PROFILE)
+		memcpy(query, &pi->compute_power_profile,
+				sizeof(struct amd_pp_profile));
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int ci_populate_requested_graphic_levels(struct amdgpu_device *adev,
+		struct amd_pp_profile *request)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct ci_dpm_table *dpm_table = &(pi->dpm_table);
+	struct SMU7_Discrete_GraphicsLevel *levels =
+			pi->smc_state_table.GraphicsLevel;
+	uint32_t array = pi->dpm_table_start +
+			offsetof(SMU7_Discrete_DpmTable, GraphicsLevel);
+	uint32_t array_size = sizeof(struct SMU7_Discrete_GraphicsLevel) *
+			SMU7_MAX_LEVELS_GRAPHICS;
+	uint32_t i;
+
+	for (i = 0; i < dpm_table->sclk_table.count; i++) {
+		levels[i].ActivityLevel =
+				cpu_to_be16(request->activity_threshold);
+		levels[i].EnabledForActivity = 1;
+		levels[i].UpH = request->up_hyst;
+		levels[i].DownH = request->down_hyst;
+	}
+
+	return amdgpu_ci_copy_bytes_to_smc(adev, array, (uint8_t *)levels,
+				array_size, pi->sram_end);
+}
+
+static void ci_find_min_clock_masks(struct amdgpu_device *adev,
+		uint32_t *sclk_mask, uint32_t *mclk_mask,
+		uint32_t min_sclk, uint32_t min_mclk)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct ci_dpm_table *dpm_table = &(pi->dpm_table);
+	uint32_t i;
+
+	for (i = 0; i < dpm_table->sclk_table.count; i++) {
+		if (dpm_table->sclk_table.dpm_levels[i].enabled &&
+			dpm_table->sclk_table.dpm_levels[i].value >= min_sclk)
+			*sclk_mask |= 1 << i;
+	}
+
+	for (i = 0; i < dpm_table->mclk_table.count; i++) {
+		if (dpm_table->mclk_table.dpm_levels[i].enabled &&
+			dpm_table->mclk_table.dpm_levels[i].value >= min_mclk)
+			*mclk_mask |= 1 << i;
+	}
+}
+
+static int ci_set_power_profile_state(struct amdgpu_device *adev,
+		struct amd_pp_profile *request)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	int tmp_result, result = 0;
+	uint32_t sclk_mask = 0, mclk_mask = 0;
+
+	tmp_result = ci_freeze_sclk_mclk_dpm(adev);
+	if (tmp_result) {
+		DRM_ERROR("Failed to freeze SCLK MCLK DPM!");
+		result = tmp_result;
+	}
+
+	tmp_result = ci_populate_requested_graphic_levels(adev,
+			request);
+	if (tmp_result) {
+		DRM_ERROR("Failed to populate requested graphic levels!");
+		result = tmp_result;
+	}
+
+	tmp_result = ci_unfreeze_sclk_mclk_dpm(adev);
+	if (tmp_result) {
+		DRM_ERROR("Failed to unfreeze SCLK MCLK DPM!");
+		result = tmp_result;
+	}
+
+	ci_find_min_clock_masks(adev, &sclk_mask, &mclk_mask,
+			request->min_sclk, request->min_mclk);
+
+	if (sclk_mask) {
+		if (!pi->sclk_dpm_key_disabled)
+			amdgpu_ci_send_msg_to_smc_with_parameter(
+				adev,
+				PPSMC_MSG_SCLKDPM_SetEnabledMask,
+				pi->dpm_level_enable_mask.
+				sclk_dpm_enable_mask &
+				sclk_mask);
+	}
+
+	if (mclk_mask) {
+		if (!pi->mclk_dpm_key_disabled)
+			amdgpu_ci_send_msg_to_smc_with_parameter(
+				adev,
+				PPSMC_MSG_MCLKDPM_SetEnabledMask,
+				pi->dpm_level_enable_mask.
+				mclk_dpm_enable_mask &
+				mclk_mask);
+	}
+
+
+	return result;
+}
+
+static int ci_dpm_set_power_profile_state(struct amdgpu_device *adev,
+		struct amd_pp_profile *request)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	int ret = -1;
+
+	if (!pi || !request)
+		return -EINVAL;
+
+	if (adev->pm.dpm.forced_level !=
+			AMD_DPM_FORCED_LEVEL_AUTO)
+		return -EINVAL;
+
+	if (request->min_sclk ||
+		request->min_mclk ||
+		request->activity_threshold ||
+		request->up_hyst ||
+		request->down_hyst) {
+		if (request->type == AMD_PP_GFX_PROFILE)
+			memcpy(&pi->gfx_power_profile, request,
+					sizeof(struct amd_pp_profile));
+		else if (request->type == AMD_PP_COMPUTE_PROFILE)
+			memcpy(&pi->compute_power_profile, request,
+					sizeof(struct amd_pp_profile));
+		else
+			return -EINVAL;
+
+		if (request->type == pi->current_power_profile)
+			ret = ci_set_power_profile_state(
+					adev,
+					request);
+	} else {
+		/* set power profile if it exists */
+		switch (request->type) {
+		case AMD_PP_GFX_PROFILE:
+			ret = ci_set_power_profile_state(
+				adev,
+				&pi->gfx_power_profile);
+			break;
+		case AMD_PP_COMPUTE_PROFILE:
+			ret = ci_set_power_profile_state(
+				adev,
+				&pi->compute_power_profile);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	if (!ret)
+		pi->current_power_profile = request->type;
+
+	return 0;
+}
+
+static int ci_dpm_reset_power_profile_state(struct amdgpu_device *adev,
+		struct amd_pp_profile *request)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+
+	if (!pi || !request)
+		return -EINVAL;
+
+	if (request->type == AMD_PP_GFX_PROFILE) {
+		pi->gfx_power_profile = pi->default_gfx_power_profile;
+		return ci_dpm_set_power_profile_state(adev,
+					  &pi->gfx_power_profile);
+	} else if (request->type == AMD_PP_COMPUTE_PROFILE) {
+		pi->compute_power_profile =
+			pi->default_compute_power_profile;
+		return ci_dpm_set_power_profile_state(adev,
+					  &pi->compute_power_profile);
+	} else
+		return -EINVAL;
+}
+
+static int ci_dpm_switch_power_profile(struct amdgpu_device *adev,
+		enum amd_pp_profile_type type)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct amd_pp_profile request = {0};
+
+	if (!pi)
+		return -EINVAL;
+
+	if (pi->current_power_profile != type) {
+		request.type = type;
+		return ci_dpm_set_power_profile_state(adev, &request);
+	}
+
+	return 0;
+}
+
+static int ci_dpm_read_sensor(struct amdgpu_device *adev, int idx,
+			      void *value, int *size)
+{
+	u32 activity_percent = 50;
+	int ret;
+
+	/* size must be at least 4 bytes for all sensors */
+	if (*size < 4)
+		return -EINVAL;
+
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		*((uint32_t *)value) = ci_get_average_sclk_freq(adev);
+		*size = 4;
+		return 0;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		*((uint32_t *)value) = ci_get_average_mclk_freq(adev);
+		*size = 4;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		*((uint32_t *)value) = ci_dpm_get_temp(adev);
+		*size = 4;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		ret = ci_read_smc_soft_register(adev,
+						offsetof(SMU7_SoftRegisters,
+							 AverageGraphicsA),
+						&activity_percent);
+		if (ret == 0) {
+			activity_percent += 0x80;
+			activity_percent >>= 8;
+			activity_percent =
+				activity_percent > 100 ? 100 : activity_percent;
+		}
+		*((uint32_t *)value) = activity_percent;
+		*size = 4;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 const struct amd_ip_funcs ci_dpm_ip_funcs = {
 	.name = "ci_dpm",
 	.early_init = ci_dpm_early_init,
@@ -6730,6 +7028,11 @@ static const struct amdgpu_dpm_funcs ci_dpm_funcs = {
 	.set_mclk_od = ci_dpm_set_mclk_od,
 	.check_state_equal = ci_check_state_equal,
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
+	.get_power_profile_state = ci_dpm_get_power_profile_state,
+	.set_power_profile_state = ci_dpm_set_power_profile_state,
+	.reset_power_profile_state = ci_dpm_reset_power_profile_state,
+	.switch_power_profile = ci_dpm_switch_power_profile,
+	.read_sensor = ci_dpm_read_sensor,
 };
 
 static void ci_dpm_set_dpm_funcs(struct amdgpu_device *adev)

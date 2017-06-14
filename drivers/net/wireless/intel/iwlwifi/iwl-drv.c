@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -211,24 +211,46 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw,
 
 static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 {
-	const char *name_pre = drv->trans->cfg->fw_name_pre;
+	const struct iwl_cfg *cfg = drv->trans->cfg;
 	char tag[8];
+	const char *fw_pre_name;
+
+	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+	    CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_B_STEP)
+		fw_pre_name = cfg->fw_name_pre_next_step;
+	else
+		fw_pre_name = cfg->fw_name_pre;
 
 	if (first) {
-		drv->fw_index = drv->trans->cfg->ucode_api_max;
+		drv->fw_index = cfg->ucode_api_max;
 		sprintf(tag, "%d", drv->fw_index);
 	} else {
 		drv->fw_index--;
 		sprintf(tag, "%d", drv->fw_index);
 	}
 
-	if (drv->fw_index < drv->trans->cfg->ucode_api_min) {
+	if (drv->fw_index < cfg->ucode_api_min) {
 		IWL_ERR(drv, "no suitable firmware found!\n");
+
+		if (cfg->ucode_api_min == cfg->ucode_api_max) {
+			IWL_ERR(drv, "%s%d is required\n", fw_pre_name,
+				cfg->ucode_api_max);
+		} else {
+			IWL_ERR(drv, "minimum version required: %s%d\n",
+				fw_pre_name,
+				cfg->ucode_api_min);
+			IWL_ERR(drv, "maximum version supported: %s%d\n",
+				fw_pre_name,
+				cfg->ucode_api_max);
+		}
+
+		IWL_ERR(drv,
+			"check git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git\n");
 		return -ENOENT;
 	}
 
 	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
-		 name_pre, tag);
+		 fw_pre_name, tag);
 
 	IWL_DEBUG_INFO(drv, "attempting to load firmware '%s'\n",
 		       drv->firmware_name);
@@ -1260,7 +1282,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)
-		return;
+		goto out_free_fw;
 
 	if (!ucode_raw)
 		goto try_again;
@@ -1472,7 +1494,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * or hangs loading.
 	 */
 	if (load_module) {
-		err = request_module("%s", op->name);
+		request_module("%s", op->name);
 #ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
 		if (err)
 			IWL_ERR(drv,
@@ -1490,17 +1512,18 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	goto free;
 
  out_free_fw:
-	IWL_ERR(drv, "failed to allocate pci memory\n");
 	iwl_dealloc_ucode(drv);
 	release_firmware(ucode_raw);
  out_unbind:
 	complete(&drv->request_firmware_complete);
 	device_release_driver(drv->trans->dev);
  free:
-	for (i = 0; i < ARRAY_SIZE(pieces->img); i++)
-		kfree(pieces->img[i].sec);
-	kfree(pieces->dbg_mem_tlv);
-	kfree(pieces);
+	if (pieces) {
+		for (i = 0; i < ARRAY_SIZE(pieces->img); i++)
+			kfree(pieces->img[i].sec);
+		kfree(pieces->dbg_mem_tlv);
+		kfree(pieces);
+	}
 }
 
 struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)

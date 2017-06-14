@@ -26,6 +26,7 @@
 #include <linux/completion.h>
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
 
 /* BCM 6338/6348 SPI core */
 #define SPI_6348_RSET_SIZE		64
@@ -428,6 +429,13 @@ static irqreturn_t bcm63xx_spi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static size_t bcm63xx_spi_max_length(struct spi_device *spi)
+{
+	struct bcm63xx_spi *bs = spi_master_get_devdata(spi->master);
+
+	return bs->fifo_size;
+}
+
 static const unsigned long bcm6348_spi_reg_offsets[] = {
 	[SPI_CMD]		= SPI_6348_CMD,
 	[SPI_INT_STATUS]	= SPI_6348_INT_STATUS,
@@ -477,21 +485,48 @@ static const struct platform_device_id bcm63xx_spi_dev_match[] = {
 	},
 };
 
+static const struct of_device_id bcm63xx_spi_of_match[] = {
+	{ .compatible = "brcm,bcm6348-spi", .data = &bcm6348_spi_reg_offsets },
+	{ .compatible = "brcm,bcm6358-spi", .data = &bcm6358_spi_reg_offsets },
+	{ },
+};
+
 static int bcm63xx_spi_probe(struct platform_device *pdev)
 {
 	struct resource *r;
 	const unsigned long *bcm63xx_spireg;
 	struct device *dev = &pdev->dev;
-	int irq;
+	int irq, bus_num;
 	struct spi_master *master;
 	struct clk *clk;
 	struct bcm63xx_spi *bs;
 	int ret;
+	u32 num_cs = BCM63XX_SPI_MAX_CS;
 
-	if (!pdev->id_entry->driver_data)
+	if (dev->of_node) {
+		const struct of_device_id *match;
+
+		match = of_match_node(bcm63xx_spi_of_match, dev->of_node);
+		if (!match)
+			return -EINVAL;
+		bcm63xx_spireg = match->data;
+
+		of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+		if (num_cs > BCM63XX_SPI_MAX_CS) {
+			dev_warn(dev, "unsupported number of cs (%i), reducing to 8\n",
+				 num_cs);
+			num_cs = BCM63XX_SPI_MAX_CS;
+		}
+
+		bus_num = -1;
+	} else if (pdev->id_entry->driver_data) {
+		const struct platform_device_id *match = pdev->id_entry;
+
+		bcm63xx_spireg = (const unsigned long *)match->driver_data;
+		bus_num = BCM63XX_SPI_BUS_NUM;
+	} else {
 		return -EINVAL;
-
-	bcm63xx_spireg = (const unsigned long *)pdev->id_entry->driver_data;
+	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -536,11 +571,14 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	master->bus_num = BCM63XX_SPI_BUS_NUM;
-	master->num_chipselect = BCM63XX_SPI_MAX_CS;
+	master->dev.of_node = dev->of_node;
+	master->bus_num = bus_num;
+	master->num_chipselect = num_cs;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	master->max_transfer_size = bcm63xx_spi_max_length;
+	master->max_message_size = bcm63xx_spi_max_length;
 	master->auto_runtime_pm = true;
 	bs->msg_type_shift = bs->reg_offsets[SPI_MSG_TYPE_SHIFT];
 	bs->msg_ctl_width = bs->reg_offsets[SPI_MSG_CTL_WIDTH];
@@ -624,6 +662,7 @@ static struct platform_driver bcm63xx_spi_driver = {
 	.driver = {
 		.name	= "bcm63xx-spi",
 		.pm	= &bcm63xx_spi_pm_ops,
+		.of_match_table = bcm63xx_spi_of_match,
 	},
 	.id_table	= bcm63xx_spi_dev_match,
 	.probe		= bcm63xx_spi_probe,

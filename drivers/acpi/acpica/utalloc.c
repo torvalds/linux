@@ -142,6 +142,45 @@ acpi_status acpi_ut_create_caches(void)
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
+#ifdef ACPI_ASL_COMPILER
+	/*
+	 * For use with the ASL-/ASL+ option. This cache keeps track of regular
+	 * 0xA9 0x01 comments.
+	 */
+	status =
+	    acpi_os_create_cache("Acpi-Comment",
+				 sizeof(struct acpi_comment_node),
+				 ACPI_MAX_COMMENT_CACHE_DEPTH,
+				 &acpi_gbl_reg_comment_cache);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	/*
+	 * This cache keeps track of the starting addresses of where the comments
+	 * lie. This helps prevent duplication of comments.
+	 */
+	status =
+	    acpi_os_create_cache("Acpi-Comment-Addr",
+				 sizeof(struct acpi_comment_addr_node),
+				 ACPI_MAX_COMMENT_CACHE_DEPTH,
+				 &acpi_gbl_comment_addr_cache);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	/*
+	 * This cache will be used for nodes that represent files.
+	 */
+	status =
+	    acpi_os_create_cache("Acpi-File", sizeof(struct acpi_file_node),
+				 ACPI_MAX_COMMENT_CACHE_DEPTH,
+				 &acpi_gbl_file_cache);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+#endif
+
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
 	/* Memory allocation lists */
@@ -200,6 +239,17 @@ acpi_status acpi_ut_delete_caches(void)
 
 	(void)acpi_os_delete_cache(acpi_gbl_ps_node_ext_cache);
 	acpi_gbl_ps_node_ext_cache = NULL;
+
+#ifdef ACPI_ASL_COMPILER
+	(void)acpi_os_delete_cache(acpi_gbl_reg_comment_cache);
+	acpi_gbl_reg_comment_cache = NULL;
+
+	(void)acpi_os_delete_cache(acpi_gbl_comment_addr_cache);
+	acpi_gbl_comment_addr_cache = NULL;
+
+	(void)acpi_os_delete_cache(acpi_gbl_file_cache);
+	acpi_gbl_file_cache = NULL;
+#endif
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 

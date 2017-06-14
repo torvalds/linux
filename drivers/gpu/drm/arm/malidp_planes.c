@@ -16,6 +16,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
 
 #include "malidp_hw.h"
 #include "malidp_drv.h"
@@ -24,6 +25,9 @@
 #define MALIDP_LAYER_FORMAT		0x000
 #define MALIDP_LAYER_CONTROL		0x004
 #define   LAYER_ENABLE			(1 << 0)
+#define   LAYER_FLOWCFG_MASK		7
+#define   LAYER_FLOWCFG(x)		(((x) & LAYER_FLOWCFG_MASK) << 1)
+#define     LAYER_FLOWCFG_SCALE_SE	3
 #define   LAYER_ROT_OFFSET		8
 #define   LAYER_H_FLIP			(1 << 10)
 #define   LAYER_V_FLIP			(1 << 11)
@@ -37,6 +41,8 @@
 #define   LAYER_V_VAL(x)		(((x) & 0x1fff) << 16)
 #define MALIDP_LAYER_COMP_SIZE		0x010
 #define MALIDP_LAYER_OFFSET		0x014
+#define MALIDP550_LS_ENABLE		0x01c
+#define MALIDP550_LS_R1_IN_SIZE		0x020
 
 /*
  * This 4-entry look-up-table is used to determine the full 8-bit alpha value
@@ -56,6 +62,27 @@ static void malidp_de_plane_destroy(struct drm_plane *plane)
 	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
 	devm_kfree(plane->dev->dev, mp);
+}
+
+/*
+ * Replicate what the default ->reset hook does: free the state pointer and
+ * allocate a new empty object. We just need enough space to store
+ * a malidp_plane_state instead of a drm_plane_state.
+ */
+static void malidp_plane_reset(struct drm_plane *plane)
+{
+	struct malidp_plane_state *state = to_malidp_plane_state(plane->state);
+
+	if (state)
+		__drm_atomic_helper_plane_destroy_state(&state->base);
+	kfree(state);
+	plane->state = NULL;
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state) {
+		state->base.plane = plane;
+		state->base.rotation = DRM_ROTATE_0;
+		plane->state = &state->base;
+	}
 }
 
 static struct
@@ -88,26 +115,71 @@ static void malidp_destroy_plane_state(struct drm_plane *plane,
 	kfree(m_state);
 }
 
+static void malidp_plane_atomic_print_state(struct drm_printer *p,
+					    const struct drm_plane_state *state)
+{
+	struct malidp_plane_state *ms = to_malidp_plane_state(state);
+
+	drm_printf(p, "\trotmem_size=%u\n", ms->rotmem_size);
+	drm_printf(p, "\tformat_id=%u\n", ms->format);
+	drm_printf(p, "\tn_planes=%u\n", ms->n_planes);
+}
+
 static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = malidp_de_plane_destroy,
-	.reset = drm_atomic_helper_plane_reset,
+	.reset = malidp_plane_reset,
 	.atomic_duplicate_state = malidp_duplicate_plane_state,
 	.atomic_destroy_state = malidp_destroy_plane_state,
+	.atomic_print_state = malidp_plane_atomic_print_state,
 };
+
+static int malidp_se_check_scaling(struct malidp_plane *mp,
+				   struct drm_plane_state *state)
+{
+	struct drm_crtc_state *crtc_state =
+		drm_atomic_get_existing_crtc_state(state->state, state->crtc);
+	struct malidp_crtc_state *mc;
+	struct drm_rect clip = { 0 };
+	u32 src_w, src_h;
+	int ret;
+
+	if (!crtc_state)
+		return -EINVAL;
+
+	clip.x2 = crtc_state->adjusted_mode.hdisplay;
+	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	ret = drm_plane_helper_check_state(state, &clip, 0, INT_MAX, true, true);
+	if (ret)
+		return ret;
+
+	src_w = state->src_w >> 16;
+	src_h = state->src_h >> 16;
+	if ((state->crtc_w == src_w) && (state->crtc_h == src_h)) {
+		/* Scaling not necessary for this plane. */
+		mc->scaled_planes_mask &= ~(mp->layer->id);
+		return 0;
+	}
+
+	if (mp->layer->id & (DE_SMART | DE_GRAPHICS2))
+		return -EINVAL;
+
+	mc = to_malidp_crtc_state(crtc_state);
+
+	mc->scaled_planes_mask |= mp->layer->id;
+	/* Defer scaling requirements calculation to the crtc check. */
+	return 0;
+}
 
 static int malidp_de_plane_check(struct drm_plane *plane,
 				 struct drm_plane_state *state)
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 	struct malidp_plane_state *ms = to_malidp_plane_state(state);
-	struct drm_crtc_state *crtc_state;
 	struct drm_framebuffer *fb;
-	struct drm_rect clip = { 0 };
 	int i, ret;
-	u32 src_w, src_h;
 
 	if (!state->crtc || !state->fb)
 		return 0;
@@ -128,9 +200,6 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 		}
 	}
 
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
-
 	if ((state->crtc_w > mp->hwdev->max_line_size) ||
 	    (state->crtc_h > mp->hwdev->max_line_size) ||
 	    (state->crtc_w < mp->hwdev->min_line_size) ||
@@ -147,21 +216,15 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	    (state->fb->pitches[1] != state->fb->pitches[2]))
 		return -EINVAL;
 
+	ret = malidp_se_check_scaling(mp, state);
+	if (ret)
+		return ret;
+
 	/* packed RGB888 / BGR888 can't be rotated or flipped */
 	if (state->rotation != DRM_ROTATE_0 &&
 	    (fb->format->format == DRM_FORMAT_RGB888 ||
 	     fb->format->format == DRM_FORMAT_BGR888))
 		return -EINVAL;
-
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, state->crtc);
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
-	ret = drm_plane_helper_check_state(state, &clip,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   true, true);
-	if (ret)
-		return ret;
 
 	ms->rotmem_size = 0;
 	if (state->rotation & MALIDP_ROTATED_MASK) {
@@ -242,6 +305,11 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 			LAYER_V_VAL(plane->state->crtc_y),
 			mp->layer->base + MALIDP_LAYER_OFFSET);
 
+	if (mp->layer->id == DE_SMART)
+		malidp_hw_write(mp->hwdev,
+				LAYER_H_VAL(src_w) | LAYER_V_VAL(src_h),
+				mp->layer->base + MALIDP550_LS_R1_IN_SIZE);
+
 	/* first clear the rotation bits */
 	val = malidp_hw_read(mp->hwdev, mp->layer->base + MALIDP_LAYER_CONTROL);
 	val &= ~LAYER_ROT_MASK;
@@ -262,6 +330,16 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	val &= ~LAYER_COMP_MASK;
 	val |= LAYER_COMP_PIXEL;
 
+	val &= ~LAYER_FLOWCFG(LAYER_FLOWCFG_MASK);
+	if (plane->state->crtc) {
+		struct malidp_crtc_state *m =
+			to_malidp_crtc_state(plane->state->crtc->state);
+
+		if (m->scaler_config.scale_enable &&
+		    m->scaler_config.plane_src_id == mp->layer->id)
+			val |= LAYER_FLOWCFG(LAYER_FLOWCFG_SCALE_SE);
+	}
+
 	/* set the 'enable layer' bit */
 	val |= LAYER_ENABLE;
 
@@ -274,7 +352,8 @@ static void malidp_de_plane_disable(struct drm_plane *plane,
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 
-	malidp_hw_clearbits(mp->hwdev, LAYER_ENABLE,
+	malidp_hw_clearbits(mp->hwdev,
+			    LAYER_ENABLE | LAYER_FLOWCFG(LAYER_FLOWCFG_MASK),
 			    mp->layer->base + MALIDP_LAYER_CONTROL);
 }
 
@@ -330,9 +409,16 @@ int malidp_de_planes_init(struct drm_device *drm)
 		plane->hwdev = malidp->dev;
 		plane->layer = &map->layers[i];
 
-		/* Skip the features which the SMART layer doesn't have */
-		if (id == DE_SMART)
+		if (id == DE_SMART) {
+			/*
+			 * Enable the first rectangle in the SMART layer to be
+			 * able to use it as a drm plane.
+			 */
+			malidp_hw_write(malidp->dev, 1,
+					plane->layer->base + MALIDP550_LS_ENABLE);
+			/* Skip the features which the SMART layer doesn't have. */
 			continue;
+		}
 
 		drm_plane_create_rotation_property(&plane->base, DRM_ROTATE_0, flags);
 		malidp_hw_write(malidp->dev, MALIDP_ALPHA_LUT,

@@ -208,6 +208,7 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 			    initiatorname_param->value) &&
 		   (sess_p->sess_ops->SessionType == sessiontype))) {
 			atomic_set(&sess_p->session_reinstatement, 1);
+			atomic_set(&sess_p->session_fall_back_to_erl0, 1);
 			spin_unlock(&sess_p->conn_lock);
 			iscsit_inc_session_usage_count(sess_p);
 			iscsit_stop_time2retain_timer(sess_p);
@@ -1461,6 +1462,10 @@ int iscsi_target_login_thread(void *arg)
 		 */
 		if (ret != 1)
 			break;
+	}
+
+	while (!kthread_should_stop()) {
+		msleep(100);
 	}
 
 	return 0;

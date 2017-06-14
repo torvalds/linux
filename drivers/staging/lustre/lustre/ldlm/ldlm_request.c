@@ -1029,12 +1029,22 @@ int ldlm_cli_cancel(const struct lustre_handle *lockh,
 	struct ldlm_lock *lock;
 	LIST_HEAD(cancels);
 
-	/* concurrent cancels on the same handle can happen */
-	lock = ldlm_handle2lock_long(lockh, LDLM_FL_CANCELING);
+	lock = ldlm_handle2lock_long(lockh, 0);
 	if (!lock) {
 		LDLM_DEBUG_NOLOCK("lock is already being destroyed");
 		return 0;
 	}
+
+	lock_res_and_lock(lock);
+	/* Lock is being canceled and the caller doesn't want to wait */
+	if (ldlm_is_canceling(lock) && (cancel_flags & LCF_ASYNC)) {
+		unlock_res_and_lock(lock);
+		LDLM_LOCK_RELEASE(lock);
+		return 0;
+	}
+
+	ldlm_set_canceling(lock);
+	unlock_res_and_lock(lock);
 
 	rc = ldlm_cli_cancel_local(lock);
 	if (rc == LDLM_FL_LOCAL_ONLY || cancel_flags & LCF_LOCAL) {

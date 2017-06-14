@@ -27,6 +27,7 @@ config ARM
 	select GENERIC_ALLOCATOR
 	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_IRQ_PROBE
@@ -41,7 +42,6 @@ config ARM
 	select HARDIRQS_SW_RESEND
 	select HAVE_ARCH_AUDITSYSCALL if (AEABI && !OABI_COMPAT)
 	select HAVE_ARCH_BITREVERSE if (CPU_32v7M || CPU_32v7) && !CPU_32v6
-	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL && !CPU_ENDIAN_BE32 && MMU
 	select HAVE_ARCH_KGDB if !CPU_ENDIAN_BE32 && MMU
 	select HAVE_ARCH_MMAP_RND_BITS if MMU
@@ -358,15 +358,6 @@ config ARM_SINGLE_ARMV7M
 	select NO_IOPORT_MAP
 	select SPARSE_IRQ
 	select USE_OF
-
-config ARCH_GEMINI
-	bool "Cortina Systems Gemini"
-	select CLKSRC_MMIO
-	select CPU_FA526
-	select GENERIC_CLOCKEVENTS
-	select GPIOLIB
-	help
-	  Support for the Cortina Systems Gemini family SoCs
 
 config ARCH_EBSA110
 	bool "EBSA-110"
@@ -819,6 +810,8 @@ source "arch/arm/mach-spear/Kconfig"
 
 source "arch/arm/mach-sti/Kconfig"
 
+source "arch/arm/mach-stm32/Kconfig"
+
 source "arch/arm/mach-s3c24xx/Kconfig"
 
 source "arch/arm/mach-s3c64xx/Kconfig"
@@ -876,28 +869,6 @@ config ARCH_LPC18XX
 	help
 	  Support for NXP's LPC18xx Cortex-M3 and LPC43xx Cortex-M4
 	  high performance microcontrollers.
-
-config ARCH_STM32
-	bool "STMicrolectronics STM32"
-	depends on ARM_SINGLE_ARMV7M
-	select ARCH_HAS_RESET_CONTROLLER
-	select ARMV7M_SYSTICK
-	select CLKSRC_STM32
-	select PINCTRL
-	select RESET_CONTROLLER
-	select STM32_EXTI
-	help
-	  Support for STMicroelectronics STM32 processors.
-
-config MACH_STM32F429
-	bool "STMicrolectronics STM32F429"
-	depends on ARCH_STM32
-	default y
-
-config MACH_STM32F746
-	bool "STMicrolectronics STM32F746"
-	depends on ARCH_STM32
-	default y
 
 config ARCH_MPS2
 	bool "ARM MPS2 platform"
