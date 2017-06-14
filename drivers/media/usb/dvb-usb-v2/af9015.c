@@ -741,9 +741,6 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 	fw_params[2] = state->firmware_checksum >> 8;
 	fw_params[3] = state->firmware_checksum & 0xff;
 
-	/* wait 2nd demodulator ready */
-	msleep(100);
-
 	ret = af9015_read_reg_i2c(d, state->af9013_config[1].i2c_addr,
 			0x98be, &val);
 	if (ret)
@@ -831,6 +828,9 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 
 		/* copy firmware to 2nd demodulator */
 		if (state->dual_mode) {
+			/* Wait 2nd demodulator ready */
+			msleep(100);
+
 			ret = af9015_copy_firmware(adap_to_d(adap));
 			if (ret) {
 				dev_err(&adap_to_d(adap)->udev->dev,
