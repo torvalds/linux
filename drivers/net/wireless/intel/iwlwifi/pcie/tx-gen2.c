@@ -422,9 +422,9 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);
 
 	if (amsdu) {
-		if (!iwl_pcie_gen2_build_amsdu(trans, skb, tfd,
-					       tb1_len + IWL_FIRST_TB_SIZE,
-					       hdr_len, dev_cmd))
+		if (iwl_pcie_gen2_build_amsdu(trans, skb, tfd,
+					      tb1_len + IWL_FIRST_TB_SIZE,
+					      hdr_len, dev_cmd))
 			goto out_err;
 
 		/*
