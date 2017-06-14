@@ -893,13 +893,17 @@ dev_stop:
 void ipoib_pkey_dev_check_presence(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	struct rdma_netdev *rn = netdev_priv(dev);
 
 	if (!(priv->pkey & 0x7fff) ||
 	    ib_find_pkey(priv->ca, priv->port, priv->pkey,
-			 &priv->pkey_index))
+			 &priv->pkey_index)) {
 		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
-	else
+	} else {
+		if (rn->set_id)
+			rn->set_id(dev, priv->pkey_index);
 		set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
+	}
 }
 
 void ipoib_ib_dev_up(struct net_device *dev)
