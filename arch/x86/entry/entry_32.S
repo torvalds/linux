@@ -252,6 +252,23 @@ ENTRY(__switch_to_asm)
 END(__switch_to_asm)
 
 /*
+ * The unwinder expects the last frame on the stack to always be at the same
+ * offset from the end of the page, which allows it to validate the stack.
+ * Calling schedule_tail() directly would break that convention because its an
+ * asmlinkage function so its argument has to be pushed on the stack.  This
+ * wrapper creates a proper "end of stack" frame header before the call.
+ */
+ENTRY(schedule_tail_wrapper)
+	FRAME_BEGIN
+
+	pushl	%eax
+	call	schedule_tail
+	popl	%eax
+
+	FRAME_END
+	ret
+ENDPROC(schedule_tail_wrapper)
+/*
  * A newly forked process directly context switches into this address.
  *
  * eax: prev task we switched from
@@ -259,24 +276,15 @@ END(__switch_to_asm)
  * edi: kernel thread arg
  */
 ENTRY(ret_from_fork)
-	FRAME_BEGIN		/* help unwinder find end of stack */
-
-	/*
-	 * schedule_tail() is asmlinkage so we have to put its 'prev' argument
-	 * on the stack.
-	 */
-	pushl	%eax
-	call	schedule_tail
-	popl	%eax
+	call	schedule_tail_wrapper
 
 	testl	%ebx, %ebx
 	jnz	1f		/* kernel threads are uncommon */
 
 2:
 	/* When we fork, we trace the syscall return in the child, too. */
-	leal	FRAME_OFFSET(%esp), %eax
+	movl    %esp, %eax
 	call    syscall_return_slowpath
-	FRAME_END
 	jmp     restore_all
 
 	/* kernel thread */

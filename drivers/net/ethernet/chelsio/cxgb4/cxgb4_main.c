@@ -2196,10 +2196,14 @@ static int cxgb_up(struct adapter *adap)
 		if (err)
 			goto irq_err;
 	}
+
+	mutex_lock(&uld_mutex);
 	enable_rx(adap);
 	t4_sge_start(adap);
 	t4_intr_enable(adap);
 	adap->flags |= FULL_INIT_DONE;
+	mutex_unlock(&uld_mutex);
+
 	notify_ulds(adap, CXGB4_STATE_UP);
 #if IS_ENABLED(CONFIG_IPV6)
 	update_clip(adap);
@@ -2770,6 +2774,9 @@ static const struct ethtool_ops cxgb4_mgmt_ethtool_ops = {
 void t4_fatal_err(struct adapter *adap)
 {
 	int port;
+
+	if (pci_channel_offline(adap->pdev))
+		return;
 
 	/* Disable the SGE since ULDs are going to free resources that
 	 * could be exposed to the adapter.  RDMA MWs for example...
@@ -3882,9 +3889,10 @@ static pci_ers_result_t eeh_err_detected(struct pci_dev *pdev,
 	spin_lock(&adap->stats_lock);
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
-
-		netif_device_detach(dev);
-		netif_carrier_off(dev);
+		if (dev) {
+			netif_device_detach(dev);
+			netif_carrier_off(dev);
+		}
 	}
 	spin_unlock(&adap->stats_lock);
 	disable_interrupts(adap);
@@ -3963,12 +3971,13 @@ static void eeh_resume(struct pci_dev *pdev)
 	rtnl_lock();
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
-
-		if (netif_running(dev)) {
-			link_start(dev);
-			cxgb_set_rxmode(dev);
+		if (dev) {
+			if (netif_running(dev)) {
+				link_start(dev);
+				cxgb_set_rxmode(dev);
+			}
+			netif_device_attach(dev);
 		}
-		netif_device_attach(dev);
 	}
 	rtnl_unlock();
 }

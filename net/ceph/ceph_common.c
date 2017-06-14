@@ -56,19 +56,6 @@ static const struct kernel_param_ops param_ops_supported_features = {
 module_param_cb(supported_features, &param_ops_supported_features, NULL,
 		S_IRUGO);
 
-/*
- * find filename portion of a path (/foo/bar/baz -> baz)
- */
-const char *ceph_file_part(const char *s, int len)
-{
-	const char *e = s + len;
-
-	while (e != s && *(e-1) != '/')
-		e--;
-	return e;
-}
-EXPORT_SYMBOL(ceph_file_part);
-
 const char *ceph_msg_type_name(int type)
 {
 	switch (type) {

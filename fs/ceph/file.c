@@ -1671,8 +1671,12 @@ static long ceph_fallocate(struct file *file, int mode,
 	}
 
 	size = i_size_read(inode);
-	if (!(mode & FALLOC_FL_KEEP_SIZE))
+	if (!(mode & FALLOC_FL_KEEP_SIZE)) {
 		endoff = offset + length;
+		ret = inode_newsize_ok(inode, endoff);
+		if (ret)
+			goto unlock;
+	}
 
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;

@@ -937,14 +937,6 @@ static int nbd_reconnect_socket(struct nbd_device *nbd, unsigned long arg)
 	return -ENOSPC;
 }
 
-/* Reset all properties of an NBD device */
-static void nbd_reset(struct nbd_device *nbd)
-{
-	nbd->config = NULL;
-	nbd->tag_set.timeout = 0;
-	queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
-}
-
 static void nbd_bdev_reset(struct block_device *bdev)
 {
 	if (bdev->bd_openers > 1)
@@ -1029,7 +1021,11 @@ static void nbd_config_put(struct nbd_device *nbd)
 			}
 			kfree(config->socks);
 		}
-		nbd_reset(nbd);
+		kfree(nbd->config);
+		nbd->config = NULL;
+
+		nbd->tag_set.timeout = 0;
+		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
 
 		mutex_unlock(&nbd->config_lock);
 		nbd_put(nbd);
@@ -1483,7 +1479,6 @@ static int nbd_dev_add(int index)
 	disk->fops = &nbd_fops;
 	disk->private_data = nbd;
 	sprintf(disk->disk_name, "nbd%d", index);
-	nbd_reset(nbd);
 	add_disk(disk);
 	nbd_total_devices++;
 	return index;

@@ -660,14 +660,11 @@ not_found:
 	goto error;
 
 found:
-	/* pretend it doesn't exist if it is awaiting deletion */
-	if (refcount_read(&key->usage) == 0)
-		goto not_found;
-
-	/* this races with key_put(), but that doesn't matter since key_put()
-	 * doesn't actually change the key
+	/* A key is allowed to be looked up only if someone still owns a
+	 * reference to it - otherwise it's awaiting the gc.
 	 */
-	__key_get(key);
+	if (!refcount_inc_not_zero(&key->usage))
+		goto not_found;
 
 error:
 	spin_unlock(&key_serial_lock);
@@ -966,12 +963,11 @@ int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 	/* the key must be writable */
 	ret = key_permission(key_ref, KEY_NEED_WRITE);
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	/* attempt to update it if supported */
-	ret = -EOPNOTSUPP;
 	if (!key->type->update)
-		goto error;
+		return -EOPNOTSUPP;
 
 	memset(&prep, 0, sizeof(prep));
 	prep.data = payload;

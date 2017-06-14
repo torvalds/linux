@@ -693,15 +693,16 @@ lpfc_work_done(struct lpfc_hba *phba)
 	pring = lpfc_phba_elsring(phba);
 	status = (ha_copy & (HA_RXMASK  << (4*LPFC_ELS_RING)));
 	status >>= (4*LPFC_ELS_RING);
-	if ((status & HA_RXMASK) ||
-	    (pring->flag & LPFC_DEFERRED_RING_EVENT) ||
-	    (phba->hba_flag & HBA_SP_QUEUE_EVT)) {
+	if (pring && (status & HA_RXMASK ||
+		      pring->flag & LPFC_DEFERRED_RING_EVENT ||
+		      phba->hba_flag & HBA_SP_QUEUE_EVT)) {
 		if (pring->flag & LPFC_STOP_IOCB_EVENT) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
 			/* Set the lpfc data pending flag */
 			set_bit(LPFC_DATA_READY, &phba->data_flags);
 		} else {
-			if (phba->link_state >= LPFC_LINK_UP) {
+			if (phba->link_state >= LPFC_LINK_UP ||
+			    phba->link_flag & LS_MDS_LOOPBACK) {
 				pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
 				lpfc_sli_handle_slow_ring_event(phba, pring,
 								(status &
