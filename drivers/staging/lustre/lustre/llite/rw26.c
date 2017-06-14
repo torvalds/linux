@@ -547,7 +547,7 @@ out:
 }
 
 static int ll_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
+			loff_t pos, unsigned int len, unsigned int copied,
 			struct page *vmpage, void *fsdata)
 {
 	struct ll_cl_context *lcc = fsdata;

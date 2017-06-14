@@ -1889,10 +1889,10 @@ struct extent_rpc_data {
 	unsigned int		erd_max_chunks;
 };
 
-static inline unsigned osc_extent_chunks(const struct osc_extent *ext)
+static inline unsigned int osc_extent_chunks(const struct osc_extent *ext)
 {
 	struct client_obd *cli = osc_cli(ext->oe_obj);
-	unsigned ppc_bits = cli->cl_chunkbits - PAGE_SHIFT;
+	unsigned int ppc_bits = cli->cl_chunkbits - PAGE_SHIFT;
 
 	return (ext->oe_end >> ppc_bits) - (ext->oe_start >> ppc_bits) + 1;
 }
@@ -1950,7 +1950,7 @@ static int try_to_add_extent_for_io(struct client_obd *cli,
 	return 1;
 }
 
-static inline unsigned osc_max_write_chunks(const struct client_obd *cli)
+static inline unsigned int osc_max_write_chunks(const struct client_obd *cli)
 {
 	/*
 	 * LU-8135:

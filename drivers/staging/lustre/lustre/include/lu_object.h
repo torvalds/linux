@@ -968,11 +968,11 @@ struct lu_context {
 	 * Version counter used to skip calls to lu_context_refill() when no
 	 * keys were registered.
 	 */
-	unsigned	       lc_version;
+	unsigned int		lc_version;
 	/**
 	 * Debugging cookie.
 	 */
-	unsigned	       lc_cookie;
+	unsigned int		lc_cookie;
 };
 
 /**

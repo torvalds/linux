@@ -678,7 +678,7 @@ static struct dentry *ll_lookup_nd(struct inode *parent, struct dentry *dentry,
  * together.
  */
 static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
-			  struct file *file, unsigned open_flags,
+			  struct file *file, unsigned int open_flags,
 			  umode_t mode, int *opened)
 {
 	struct lookup_intent *it;
