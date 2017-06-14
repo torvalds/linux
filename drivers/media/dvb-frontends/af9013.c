@@ -101,59 +101,6 @@ err:
 	return ret;
 }
 
-static int af9013_power_ctrl(struct af9013_state *state, u8 onoff)
-{
-	struct i2c_client *client = state->client;
-	int ret;
-	unsigned int utmp;
-
-	dev_dbg(&client->dev, "onoff %d\n", onoff);
-
-	/* enable reset */
-	ret = regmap_update_bits(state->regmap, 0xd417, 0x10, 0x10);
-	if (ret)
-		goto err;
-
-	/* start reset mechanism */
-	ret = regmap_write(state->regmap, 0xaeff, 0x01);
-	if (ret)
-		goto err;
-
-	/* wait reset performs */
-	ret = regmap_read_poll_timeout(state->regmap, 0xd417, utmp,
-				       (utmp >> 1) & 0x01, 5000, 1000000);
-	if (ret)
-		goto err;
-
-	if (!((utmp >> 1) & 0x01))
-		return -ETIMEDOUT;
-
-	if (onoff) {
-		/* clear reset */
-		ret = regmap_update_bits(state->regmap, 0xd417, 0x02, 0x00);
-		if (ret)
-			goto err;
-		/* disable reset */
-		ret = regmap_update_bits(state->regmap, 0xd417, 0x10, 0x00);
-		if (ret)
-			goto err;
-		/* power on */
-		ret = regmap_update_bits(state->regmap, 0xd73a, 0x08, 0x00);
-		if (ret)
-			goto err;
-	} else {
-		/* power off */
-		ret = regmap_update_bits(state->regmap, 0xd73a, 0x08, 0x08);
-		if (ret)
-			goto err;
-	}
-
-	return 0;
-err:
-	dev_dbg(&client->dev, "failed %d\n", ret);
-	return ret;
-}
-
 static int af9013_statistics_ber_unc_start(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
@@ -890,8 +837,18 @@ static int af9013_init(struct dvb_frontend *fe)
 
 	dev_dbg(&client->dev, "\n");
 
-	/* power on */
-	ret = af9013_power_ctrl(state, 1);
+	/* ADC on */
+	ret = regmap_update_bits(state->regmap, 0xd73a, 0x08, 0x00);
+	if (ret)
+		goto err;
+
+	/* Clear reset */
+	ret = regmap_update_bits(state->regmap, 0xd417, 0x02, 0x00);
+	if (ret)
+		goto err;
+
+	/* Disable reset */
+	ret = regmap_update_bits(state->regmap, 0xd417, 0x10, 0x00);
 	if (ret)
 		goto err;
 
@@ -1071,6 +1028,7 @@ static int af9013_sleep(struct dvb_frontend *fe)
 	struct af9013_state *state = fe->demodulator_priv;
 	struct i2c_client *client = state->client;
 	int ret;
+	unsigned int utmp;
 
 	dev_dbg(&client->dev, "\n");
 
@@ -1082,8 +1040,29 @@ static int af9013_sleep(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	/* power off */
-	ret = af9013_power_ctrl(state, 0);
+	/* Enable reset */
+	ret = regmap_update_bits(state->regmap, 0xd417, 0x10, 0x10);
+	if (ret)
+		goto err;
+
+	/* Start reset execution */
+	ret = regmap_write(state->regmap, 0xaeff, 0x01);
+	if (ret)
+		goto err;
+
+	/* Wait reset performs */
+	ret = regmap_read_poll_timeout(state->regmap, 0xd417, utmp,
+				       (utmp >> 1) & 0x01, 5000, 1000000);
+	if (ret)
+		goto err;
+
+	if (!((utmp >> 1) & 0x01)) {
+		ret = -ETIMEDOUT;
+		goto err;
+	}
+
+	/* ADC off */
+	ret = regmap_update_bits(state->regmap, 0xd73a, 0x08, 0x08);
 	if (ret)
 		goto err;
 
