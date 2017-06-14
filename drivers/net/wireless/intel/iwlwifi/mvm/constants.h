@@ -140,5 +140,6 @@
 #define IWL_MVM_RS_TPC_SR_FORCE_INCREASE	75	/* percent */
 #define IWL_MVM_RS_TPC_SR_NO_INCREASE		85	/* percent */
 #define IWL_MVM_RS_TPC_TX_POWER_STEP		3
+#define IWL_MVM_ENABLE_EBS			1
 
 #endif /* __MVM_CONSTANTS_H */
