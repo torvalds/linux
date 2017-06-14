@@ -172,13 +172,9 @@ struct pnv_phb {
 		unsigned int		pe_rmap[0x10000];
 	} ioda;
 
-	/* PHB and hub status structure */
-	union {
-		unsigned char			blob[PNV_PCI_DIAG_BUF_SIZE];
-		struct OpalIoP7IOCPhbErrorData	p7ioc;
-		struct OpalIoPhb3ErrorData	phb3;
-		struct OpalIoP7IOCErrorData 	hub_diag;
-	} diag;
+	/* PHB and hub diagnostics */
+	unsigned int		diag_data_size;
+	u8			*diag_data;
 
 	/* Nvlink2 data */
 	struct npu {

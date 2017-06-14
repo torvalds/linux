@@ -456,8 +456,8 @@ static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_no)
 	spin_lock_irqsave(&phb->lock, flags);
 
 	/* Fetch PHB diag-data */
-	rc = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
-					 PNV_PCI_DIAG_BUF_SIZE);
+	rc = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag_data,
+					 phb->diag_data_size);
 	has_diag = (rc == OPAL_SUCCESS);
 
 	/* If PHB supports compound PE, to handle it */
@@ -485,7 +485,7 @@ static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_no)
 	 * with the normal errors generated when probing empty slots
 	 */
 	if (has_diag && ret)
-		pnv_pci_dump_phb_diag_data(phb->hose, phb->diag.blob);
+		pnv_pci_dump_phb_diag_data(phb->hose, phb->diag_data);
 
 	spin_unlock_irqrestore(&phb->lock, flags);
 }
