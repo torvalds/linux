@@ -33,6 +33,9 @@ enum pnv_phb_model {
 #define PNV_IODA_PE_SLAVE	(1 << 4)	/* Slave PE in compound case	*/
 #define PNV_IODA_PE_VF		(1 << 5)	/* PE for one VF 		*/
 
+/* Indicates operations are frozen for a PE: MMIO in PESTA & DMA in PESTB. */
+#define PNV_IODA_STOPPED_STATE	0x8000000000000000
+
 /* Data associated with a PE, including IOMMU tracking etc.. */
 struct pnv_phb;
 struct pnv_ioda_pe {
