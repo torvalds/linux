@@ -980,6 +980,12 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, bci);
 
+	bci->channel_vac = devm_iio_channel_get(&pdev->dev, "vac");
+	if (IS_ERR(bci->channel_vac)) {
+		bci->channel_vac = NULL;
+		dev_warn(&pdev->dev, "could not request vac iio channel");
+	}
+
 	bci->ac = devm_power_supply_register(&pdev->dev, &twl4030_bci_ac_desc,
 					     NULL);
 	if (IS_ERR(bci->ac)) {
@@ -1011,12 +1017,6 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not request irq %d, status %d\n",
 			bci->irq_bci, ret);
 		return ret;
-	}
-
-	bci->channel_vac = devm_iio_channel_get(&pdev->dev, "vac");
-	if (IS_ERR(bci->channel_vac)) {
-		bci->channel_vac = NULL;
-		dev_warn(&pdev->dev, "could not request vac iio channel");
 	}
 
 	INIT_WORK(&bci->work, twl4030_bci_usb_work);
