@@ -161,7 +161,7 @@ static bool qed_eth_queue_qid_usage_add(struct qed_hwfn *p_hwfn,
 
 	mutex_lock(&p_l2_info->lock);
 
-	if (queue_id > p_l2_info->queues) {
+	if (queue_id >= p_l2_info->queues) {
 		DP_NOTICE(p_hwfn,
 			  "Requested to increase usage for qzone %04x out of %08x\n",
 			  queue_id, p_l2_info->queues);
