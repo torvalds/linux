@@ -2538,6 +2538,13 @@ cont_alloc:
 	ha->chain_offset = dump_size;
 	dump_size += mq_size + fce_size;
 
+	if (ha->exchoffld_buf)
+		dump_size += sizeof(struct qla2xxx_offld_chain) +
+			ha->exchoffld_size;
+	if (ha->exlogin_buf)
+		dump_size += sizeof(struct qla2xxx_offld_chain) +
+			ha->exlogin_size;
+
 allocate:
 	ha->fw_dump = vmalloc(dump_size);
 	if (!ha->fw_dump) {
