@@ -48,7 +48,7 @@ static int gr3d_init(struct host1x_client *client)
 
 	client->syncpts[0] = host1x_syncpt_request(client->dev, flags);
 	if (!client->syncpts[0]) {
-		host1x_channel_free(gr3d->channel);
+		host1x_channel_put(gr3d->channel);
 		return -ENOMEM;
 	}
 
@@ -67,7 +67,7 @@ static int gr3d_exit(struct host1x_client *client)
 		return err;
 
 	host1x_syncpt_free(client->syncpts[0]);
-	host1x_channel_free(gr3d->channel);
+	host1x_channel_put(gr3d->channel);
 
 	return 0;
 }
