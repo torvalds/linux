@@ -665,7 +665,6 @@ int f2fs_getattr(const struct path *path, struct kstat *stat,
 				  STATX_ATTR_NODUMP);
 
 	generic_fillattr(inode, stat);
-	stat->blocks <<= 3;
 	return 0;
 }
 
