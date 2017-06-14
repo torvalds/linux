@@ -364,6 +364,8 @@ union hisi_sas_command_table {
 
 extern u8 hisi_sas_get_ata_protocol(u8 cmd, int direction);
 extern struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port);
+extern void hisi_sas_sata_done(struct sas_task *task,
+			    struct hisi_sas_slot *slot);
 extern int hisi_sas_probe(struct platform_device *pdev,
 			  const struct hisi_sas_hw *ops);
 extern int hisi_sas_remove(struct platform_device *pdev);

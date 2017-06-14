@@ -1683,20 +1683,6 @@ static int prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	return 0;
 }
 
-static void sata_done_v2_hw(struct hisi_hba *hisi_hba, struct sas_task *task,
-			    struct hisi_sas_slot *slot)
-{
-	struct task_status_struct *ts = &task->task_status;
-	struct ata_task_resp *resp = (struct ata_task_resp *)ts->buf;
-	struct dev_to_host_fis *d2h = slot->status_buffer +
-				      sizeof(struct hisi_sas_err_record);
-
-	resp->frame_len = sizeof(struct dev_to_host_fis);
-	memcpy(&resp->ending_fis[0], d2h, sizeof(struct dev_to_host_fis));
-
-	ts->buf_valid_size = sizeof(*resp);
-}
-
 #define TRANS_TX_ERR	0
 #define TRANS_RX_ERR	1
 #define DMA_TX_ERR		2
@@ -2189,7 +2175,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			break;
 		}
 		}
-		sata_done_v2_hw(hisi_hba, task, slot);
+		hisi_sas_sata_done(task, slot);
 	}
 		break;
 	default:
@@ -2317,7 +2303,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
 	{
 		ts->stat = SAM_STAT_GOOD;
-		sata_done_v2_hw(hisi_hba, task, slot);
+		hisi_sas_sata_done(task, slot);
 		break;
 	}
 	default:
