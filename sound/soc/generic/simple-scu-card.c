@@ -171,11 +171,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *np,
 					      PREFIX "prefix");
 	}
 
-	ret = snd_soc_of_parse_tdm_slot(np,
-					&dai_props->tx_slot_mask,
-					&dai_props->rx_slot_mask,
-					&dai_props->slots,
-					&dai_props->slot_width);
+	ret = asoc_simple_card_of_parse_tdm(np, dai_props);
 	if (ret)
 		return ret;
 
