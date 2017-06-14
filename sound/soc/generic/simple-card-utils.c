@@ -120,11 +120,13 @@ int asoc_simple_card_clk_enable(struct asoc_simple_dai *dai)
 {
 	return clk_prepare_enable(dai->clk);
 }
+EXPORT_SYMBOL_GPL(asoc_simple_card_clk_enable);
 
 void asoc_simple_card_clk_disable(struct asoc_simple_dai *dai)
 {
 	clk_disable_unprepare(dai->clk);
 }
+EXPORT_SYMBOL_GPL(asoc_simple_card_clk_disable);
 
 int asoc_simple_card_parse_clk(struct device *dev,
 			       struct device_node *node,
