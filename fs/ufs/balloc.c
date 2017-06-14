@@ -400,10 +400,12 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 	/*
 	 * There is not enough space for user on the device
 	 */
-	if (!capable(CAP_SYS_RESOURCE) && ufs_freespace(uspi, UFS_MINFREE) <= 0) {
-		mutex_unlock(&UFS_SB(sb)->s_lock);
-		UFSD("EXIT (FAILED)\n");
-		return 0;
+	if (unlikely(ufs_freespace(uspi, uspi->s_minfree) <= 0)) {
+		if (!capable(CAP_SYS_RESOURCE)) {
+			mutex_unlock(&UFS_SB(sb)->s_lock);
+			UFSD("EXIT (FAILED)\n");
+			return 0;
+		}
 	}
 
 	if (goal >= uspi->s_size) 
