@@ -806,7 +806,7 @@ struct qla_tgt {
 	 */
 	int atio_irq_cmd_count;
 
-	int datasegs_per_cmd, datasegs_per_cont, sg_tablesize;
+	int sg_tablesize;
 
 	/* Target's flags, serialized by pha->hardware_lock */
 	unsigned int link_reinit_iocb_pending:1;

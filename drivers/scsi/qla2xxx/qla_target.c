@@ -2228,10 +2228,10 @@ static int qlt_pci_map_calc_cnt(struct qla_tgt_prm *prm)
 		 * If greater than four sg entries then we need to allocate
 		 * the continuation entries
 		 */
-		if (prm->seg_cnt > prm->tgt->datasegs_per_cmd)
+		if (prm->seg_cnt > QLA_TGT_DATASEGS_PER_CMD_24XX)
 			prm->req_cnt += DIV_ROUND_UP(prm->seg_cnt -
-			prm->tgt->datasegs_per_cmd,
-			prm->tgt->datasegs_per_cont);
+			QLA_TGT_DATASEGS_PER_CMD_24XX,
+			QLA_TGT_DATASEGS_PER_CONT_24XX);
 	} else {
 		/* DIF */
 		if ((cmd->se_cmd.prot_op == TARGET_PROT_DIN_INSERT) ||
@@ -2448,7 +2448,7 @@ static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm)
 
 		/* Load continuation entry data segments */
 		for (cnt = 0;
-		    cnt < prm->tgt->datasegs_per_cont && prm->seg_cnt;
+		    cnt < QLA_TGT_DATASEGS_PER_CONT_24XX && prm->seg_cnt;
 		    cnt++, prm->seg_cnt--) {
 			*dword_ptr++ =
 			    cpu_to_le32(pci_dma_lo32
@@ -2492,7 +2492,7 @@ static void qlt_load_data_segments(struct qla_tgt_prm *prm)
 
 	/* Load command entry data segments */
 	for (cnt = 0;
-	    (cnt < prm->tgt->datasegs_per_cmd) && prm->seg_cnt;
+	    (cnt < QLA_TGT_DATASEGS_PER_CMD_24XX) && prm->seg_cnt;
 	    cnt++, prm->seg_cnt--) {
 		*dword_ptr++ =
 		    cpu_to_le32(pci_dma_lo32(sg_dma_address(prm->sg)));
@@ -6164,8 +6164,6 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 		base_vha->vp_idx);
 	/* 3 is reserved */
 	tgt->sg_tablesize = QLA_TGT_MAX_SG_24XX(base_vha->req->length - 3);
-	tgt->datasegs_per_cmd = QLA_TGT_DATASEGS_PER_CMD_24XX;
-	tgt->datasegs_per_cont = QLA_TGT_DATASEGS_PER_CONT_24XX;
 
 	mutex_lock(&qla_tgt_mutex);
 	list_add_tail(&tgt->tgt_list_entry, &qla_tgt_glist);
