@@ -251,6 +251,9 @@ struct host1x_job {
 	/* Check if register is marked as an address reg */
 	int (*is_addr_reg)(struct device *dev, u32 reg, u32 class);
 
+	/* Check if class belongs to the unit */
+	int (*is_valid_class)(u32 class);
+
 	/* Request a SETCLASS to this class */
 	u32 class;
 

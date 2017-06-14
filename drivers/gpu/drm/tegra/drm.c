@@ -532,6 +532,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	}
 
 	job->is_addr_reg = context->client->ops->is_addr_reg;
+	job->is_valid_class = context->client->ops->is_valid_class;
 	job->syncpt_incrs = syncpt.incrs;
 	job->syncpt_id = syncpt.id;
 	job->timeout = 10000;
