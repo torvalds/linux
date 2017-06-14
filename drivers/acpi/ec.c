@@ -316,7 +316,7 @@ static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 	ec->timestamp = jiffies;
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 static const char *acpi_ec_cmd_string(u8 cmd)
 {
 	switch (cmd) {
