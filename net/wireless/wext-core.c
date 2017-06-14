@@ -914,13 +914,12 @@ int call_commit_handler(struct net_device *dev)
  * Main IOCTl dispatcher.
  * Check the type of IOCTL and call the appropriate wrapper...
  */
-static int wireless_process_ioctl(struct net *net, struct ifreq *ifr,
+static int wireless_process_ioctl(struct net *net, struct iwreq *iwr,
 				  unsigned int cmd,
 				  struct iw_request_info *info,
 				  wext_ioctl_func standard,
 				  wext_ioctl_func private)
 {
-	struct iwreq *iwr = (struct iwreq *) ifr;
 	struct net_device *dev;
 	iw_handler	handler;
 
@@ -928,7 +927,7 @@ static int wireless_process_ioctl(struct net *net, struct ifreq *ifr,
 	 * The copy_to/from_user() of ifr is also dealt with in there */
 
 	/* Make sure the device exist */
-	if ((dev = __dev_get_by_name(net, ifr->ifr_name)) == NULL)
+	if ((dev = __dev_get_by_name(net, iwr->ifr_name)) == NULL)
 		return -ENODEV;
 
 	/* A bunch of special cases, then the generic case...
@@ -974,7 +973,7 @@ static int wext_permission_check(unsigned int cmd)
 }
 
 /* entry point from dev ioctl */
-static int wext_ioctl_dispatch(struct net *net, struct ifreq *ifr,
+static int wext_ioctl_dispatch(struct net *net, struct iwreq *iwr,
 			       unsigned int cmd, struct iw_request_info *info,
 			       wext_ioctl_func standard,
 			       wext_ioctl_func private)
@@ -984,9 +983,9 @@ static int wext_ioctl_dispatch(struct net *net, struct ifreq *ifr,
 	if (ret)
 		return ret;
 
-	dev_load(net, ifr->ifr_name);
+	dev_load(net, iwr->ifr_name);
 	rtnl_lock();
-	ret = wireless_process_ioctl(net, ifr, cmd, info, standard, private);
+	ret = wireless_process_ioctl(net, iwr, cmd, info, standard, private);
 	rtnl_unlock();
 
 	return ret;
@@ -1042,7 +1041,7 @@ int wext_handle_ioctl(struct net *net, struct ifreq *ifr, unsigned int cmd,
 	struct iw_request_info info = { .cmd = cmd, .flags = 0 };
 	int ret;
 
-	ret = wext_ioctl_dispatch(net, ifr, cmd, &info,
+	ret = wext_ioctl_dispatch(net, (void *)ifr, cmd, &info,
 				  ioctl_standard_call,
 				  ioctl_private_call);
 	if (ret >= 0 &&
@@ -1104,7 +1103,7 @@ int compat_wext_handle_ioctl(struct net *net, unsigned int cmd,
 	info.cmd = cmd;
 	info.flags = IW_REQUEST_FLAG_COMPAT;
 
-	ret = wext_ioctl_dispatch(net, (struct ifreq *) &iwr, cmd, &info,
+	ret = wext_ioctl_dispatch(net, &iwr, cmd, &info,
 				  compat_standard_call,
 				  compat_private_call);
 
