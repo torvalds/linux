@@ -157,12 +157,56 @@
 #define SL_RX_BCAST_CHK_MSK		(PORT_BASE + 0x2c0)
 #define PHYCTRL_OOB_RESTART_MSK		(PORT_BASE + 0x2c4)
 
+/* Completion header */
+/* dw0 */
+#define CMPLT_HDR_CMPLT_OFF		0
+#define CMPLT_HDR_CMPLT_MSK		(0x3 << CMPLT_HDR_CMPLT_OFF)
+#define CMPLT_HDR_ERROR_PHASE_OFF   2
+#define CMPLT_HDR_ERROR_PHASE_MSK   (0xff << CMPLT_HDR_ERROR_PHASE_OFF)
+#define CMPLT_HDR_RSPNS_XFRD_OFF	10
+#define CMPLT_HDR_RSPNS_XFRD_MSK	(0x1 << CMPLT_HDR_RSPNS_XFRD_OFF)
+#define CMPLT_HDR_ERX_OFF		12
+#define CMPLT_HDR_ERX_MSK		(0x1 << CMPLT_HDR_ERX_OFF)
+#define CMPLT_HDR_ABORT_STAT_OFF	13
+#define CMPLT_HDR_ABORT_STAT_MSK	(0x7 << CMPLT_HDR_ABORT_STAT_OFF)
+/* abort_stat */
+#define STAT_IO_NOT_VALID		0x1
+#define STAT_IO_NO_DEVICE		0x2
+#define STAT_IO_COMPLETE		0x3
+#define STAT_IO_ABORTED			0x4
+/* dw1 */
+#define CMPLT_HDR_IPTT_OFF		0
+#define CMPLT_HDR_IPTT_MSK		(0xffff << CMPLT_HDR_IPTT_OFF)
+#define CMPLT_HDR_DEV_ID_OFF		16
+#define CMPLT_HDR_DEV_ID_MSK		(0xffff << CMPLT_HDR_DEV_ID_OFF)
+/* dw3 */
+#define CMPLT_HDR_IO_IN_TARGET_OFF	17
+#define CMPLT_HDR_IO_IN_TARGET_MSK	(0x1 << CMPLT_HDR_IO_IN_TARGET_OFF)
+
 struct hisi_sas_complete_v3_hdr {
 	__le32 dw0;
 	__le32 dw1;
 	__le32 act;
 	__le32 dw3;
 };
+
+struct hisi_sas_err_record_v3 {
+	/* dw0 */
+	__le32 trans_tx_fail_type;
+
+	/* dw1 */
+	__le32 trans_rx_fail_type;
+
+	/* dw2 */
+	__le16 dma_tx_err_type;
+	__le16 sipc_rx_err_type;
+
+	/* dw3 */
+	__le32 dma_rx_err_type;
+};
+
+#define RX_DATA_LEN_UNDERFLOW_OFF	6
+#define RX_DATA_LEN_UNDERFLOW_MSK	(1 << RX_DATA_LEN_UNDERFLOW_OFF)
 
 #define HISI_SAS_COMMAND_ENTRIES_V3_HW 4096
 #define HISI_SAS_MSI_COUNT_V3_HW 32
@@ -625,11 +669,275 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
+static void
+slot_err_v3_hw(struct hisi_hba *hisi_hba, struct sas_task *task,
+	       struct hisi_sas_slot *slot)
+{
+	struct task_status_struct *ts = &task->task_status;
+	struct hisi_sas_complete_v3_hdr *complete_queue =
+			hisi_hba->complete_hdr[slot->cmplt_queue];
+	struct hisi_sas_complete_v3_hdr *complete_hdr =
+			&complete_queue[slot->cmplt_queue_slot];
+	struct hisi_sas_err_record_v3 *record =	slot->status_buffer;
+	u32 dma_rx_err_type = record->dma_rx_err_type;
+	u32 trans_tx_fail_type = record->trans_tx_fail_type;
+
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SSP:
+		if (dma_rx_err_type & RX_DATA_LEN_UNDERFLOW_MSK) {
+			ts->residual = trans_tx_fail_type;
+			ts->stat = SAS_DATA_UNDERRUN;
+		} else if (complete_hdr->dw3 & CMPLT_HDR_IO_IN_TARGET_MSK) {
+			ts->stat = SAS_QUEUE_FULL;
+			slot->abort = 1;
+		} else {
+			ts->stat = SAS_OPEN_REJECT;
+			ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
+		}
+		break;
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+		if (dma_rx_err_type & RX_DATA_LEN_UNDERFLOW_MSK) {
+			ts->residual = trans_tx_fail_type;
+			ts->stat = SAS_DATA_UNDERRUN;
+		} else if (complete_hdr->dw3 & CMPLT_HDR_IO_IN_TARGET_MSK) {
+			ts->stat = SAS_PHY_DOWN;
+			slot->abort = 1;
+		} else {
+			ts->stat = SAS_OPEN_REJECT;
+			ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
+		}
+		hisi_sas_sata_done(task, slot);
+		break;
+	case SAS_PROTOCOL_SMP:
+		ts->stat = SAM_STAT_CHECK_CONDITION;
+		break;
+	default:
+		break;
+	}
+}
+
+static int
+slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
+{
+	struct sas_task *task = slot->task;
+	struct hisi_sas_device *sas_dev;
+	struct device *dev = hisi_hba->dev;
+	struct task_status_struct *ts;
+	struct domain_device *device;
+	enum exec_status sts;
+	struct hisi_sas_complete_v3_hdr *complete_queue =
+			hisi_hba->complete_hdr[slot->cmplt_queue];
+	struct hisi_sas_complete_v3_hdr *complete_hdr =
+			&complete_queue[slot->cmplt_queue_slot];
+	int aborted;
+	unsigned long flags;
+
+	if (unlikely(!task || !task->lldd_task || !task->dev))
+		return -EINVAL;
+
+	ts = &task->task_status;
+	device = task->dev;
+	sas_dev = device->lldd_dev;
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	aborted = task->task_state_flags & SAS_TASK_STATE_ABORTED;
+	task->task_state_flags &=
+		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	memset(ts, 0, sizeof(*ts));
+	ts->resp = SAS_TASK_COMPLETE;
+	if (unlikely(aborted)) {
+		ts->stat = SAS_ABORTED_TASK;
+		hisi_sas_slot_task_free(hisi_hba, task, slot);
+		return -1;
+	}
+
+	if (unlikely(!sas_dev)) {
+		dev_dbg(dev, "slot complete: port has not device\n");
+		ts->stat = SAS_PHY_DOWN;
+		goto out;
+	}
+
+	/*
+	 * Use SAS+TMF status codes
+	 */
+	switch ((complete_hdr->dw0 & CMPLT_HDR_ABORT_STAT_MSK)
+			>> CMPLT_HDR_ABORT_STAT_OFF) {
+	case STAT_IO_ABORTED:
+		/* this IO has been aborted by abort command */
+		ts->stat = SAS_ABORTED_TASK;
+		goto out;
+	case STAT_IO_COMPLETE:
+		/* internal abort command complete */
+		ts->stat = TMF_RESP_FUNC_SUCC;
+		goto out;
+	case STAT_IO_NO_DEVICE:
+		ts->stat = TMF_RESP_FUNC_COMPLETE;
+		goto out;
+	case STAT_IO_NOT_VALID:
+		/*
+		 * abort single IO, the controller can't find the IO
+		 */
+		ts->stat = TMF_RESP_FUNC_FAILED;
+		goto out;
+	default:
+		break;
+	}
+
+	/* check for erroneous completion */
+	if ((complete_hdr->dw0 & CMPLT_HDR_CMPLT_MSK) == 0x3) {
+		slot_err_v3_hw(hisi_hba, task, slot);
+		if (unlikely(slot->abort))
+			return ts->stat;
+		goto out;
+	}
+
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SSP: {
+		struct ssp_response_iu *iu = slot->status_buffer +
+			sizeof(struct hisi_sas_err_record);
+
+		sas_ssp_task_response(dev, task, iu);
+		break;
+	}
+	case SAS_PROTOCOL_SMP: {
+		struct scatterlist *sg_resp = &task->smp_task.smp_resp;
+		void *to;
+
+		ts->stat = SAM_STAT_GOOD;
+		to = kmap_atomic(sg_page(sg_resp));
+
+		dma_unmap_sg(dev, &task->smp_task.smp_resp, 1,
+			     DMA_FROM_DEVICE);
+		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
+			     DMA_TO_DEVICE);
+		memcpy(to + sg_resp->offset,
+		       slot->status_buffer +
+		       sizeof(struct hisi_sas_err_record),
+		       sg_dma_len(sg_resp));
+		kunmap_atomic(to);
+		break;
+	}
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+		ts->stat = SAM_STAT_GOOD;
+		hisi_sas_sata_done(task, slot);
+		break;
+	default:
+		ts->stat = SAM_STAT_CHECK_CONDITION;
+		break;
+	}
+
+	if (!slot->port->port_attached) {
+		dev_err(dev, "slot complete: port %d has removed\n",
+			slot->port->sas_port.id);
+		ts->stat = SAS_PHY_DOWN;
+	}
+
+out:
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	task->task_state_flags |= SAS_TASK_STATE_DONE;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+	spin_lock_irqsave(&hisi_hba->lock, flags);
+	hisi_sas_slot_task_free(hisi_hba, task, slot);
+	spin_unlock_irqrestore(&hisi_hba->lock, flags);
+	sts = ts->stat;
+
+	if (task->task_done)
+		task->task_done(task);
+
+	return sts;
+}
+
+static void cq_tasklet_v3_hw(unsigned long val)
+{
+	struct hisi_sas_cq *cq = (struct hisi_sas_cq *)val;
+	struct hisi_hba *hisi_hba = cq->hisi_hba;
+	struct hisi_sas_slot *slot;
+	struct hisi_sas_itct *itct;
+	struct hisi_sas_complete_v3_hdr *complete_queue;
+	u32 rd_point = cq->rd_point, wr_point, dev_id;
+	int queue = cq->id;
+	struct hisi_sas_dq *dq = &hisi_hba->dq[queue];
+
+	complete_queue = hisi_hba->complete_hdr[queue];
+
+	spin_lock(&dq->lock);
+	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
+				   (0x14 * queue));
+
+	while (rd_point != wr_point) {
+		struct hisi_sas_complete_v3_hdr *complete_hdr;
+		int iptt;
+
+		complete_hdr = &complete_queue[rd_point];
+
+		/* Check for NCQ completion */
+		if (complete_hdr->act) {
+			u32 act_tmp = complete_hdr->act;
+			int ncq_tag_count = ffs(act_tmp);
+
+			dev_id = (complete_hdr->dw1 & CMPLT_HDR_DEV_ID_MSK) >>
+				 CMPLT_HDR_DEV_ID_OFF;
+			itct = &hisi_hba->itct[dev_id];
+
+			/* The NCQ tags are held in the itct header */
+			while (ncq_tag_count) {
+				__le64 *ncq_tag = &itct->qw4_15[0];
+
+				ncq_tag_count -= 1;
+				iptt = (ncq_tag[ncq_tag_count / 5]
+					>> (ncq_tag_count % 5) * 12) & 0xfff;
+
+				slot = &hisi_hba->slot_info[iptt];
+				slot->cmplt_queue_slot = rd_point;
+				slot->cmplt_queue = queue;
+				slot_complete_v3_hw(hisi_hba, slot);
+
+				act_tmp &= ~(1 << ncq_tag_count);
+				ncq_tag_count = ffs(act_tmp);
+			}
+		} else {
+			iptt = (complete_hdr->dw1) & CMPLT_HDR_IPTT_MSK;
+			slot = &hisi_hba->slot_info[iptt];
+			slot->cmplt_queue_slot = rd_point;
+			slot->cmplt_queue = queue;
+			slot_complete_v3_hw(hisi_hba, slot);
+		}
+
+		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
+			rd_point = 0;
+	}
+
+	/* update rd_point */
+	cq->rd_point = rd_point;
+	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+	spin_unlock(&dq->lock);
+}
+
+static irqreturn_t cq_interrupt_v3_hw(int irq_no, void *p)
+{
+	struct hisi_sas_cq *cq = p;
+	struct hisi_hba *hisi_hba = cq->hisi_hba;
+	int queue = cq->id;
+
+	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
+
+	tasklet_schedule(&cq->tasklet);
+
+	return IRQ_HANDLED;
+}
+
 static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
 	struct pci_dev *pdev = hisi_hba->pci_dev;
 	int vectors, rc;
+	int i, k;
 	int max_msi = HISI_SAS_MSI_COUNT_V3_HW;
 
 	vectors = pci_alloc_irq_vectors(hisi_hba->pci_dev, 1,
@@ -657,9 +965,34 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 		goto free_phy_irq;
 	}
 
+	/* Init tasklets for cq only */
+	for (i = 0; i < hisi_hba->queue_count; i++) {
+		struct hisi_sas_cq *cq = &hisi_hba->cq[i];
+		struct tasklet_struct *t = &cq->tasklet;
+
+		rc = devm_request_irq(dev, pci_irq_vector(pdev, i+16),
+					  cq_interrupt_v3_hw, 0,
+					  DRV_NAME " cq", cq);
+		if (rc) {
+			dev_err(dev,
+				"could not request cq%d interrupt, rc=%d\n",
+				i, rc);
+			rc = -ENOENT;
+			goto free_cq_irqs;
+		}
+
+		tasklet_init(t, cq_tasklet_v3_hw, (unsigned long)cq);
+	}
 
 	return 0;
 
+free_cq_irqs:
+	for (k = 0; k < i; k++) {
+		struct hisi_sas_cq *cq = &hisi_hba->cq[k];
+
+		free_irq(pci_irq_vector(pdev, k+16), cq);
+	}
+	free_irq(pci_irq_vector(pdev, 2), hisi_hba);
 free_phy_irq:
 	free_irq(pci_irq_vector(pdev, 1), hisi_hba);
 free_irq_vectors:
@@ -840,8 +1173,15 @@ err_out:
 static void
 hisi_sas_v3_destroy_irqs(struct pci_dev *pdev, struct hisi_hba *hisi_hba)
 {
+	int i;
+
 	free_irq(pci_irq_vector(pdev, 1), hisi_hba);
 	free_irq(pci_irq_vector(pdev, 2), hisi_hba);
+	for (i = 0; i < hisi_hba->queue_count; i++) {
+		struct hisi_sas_cq *cq = &hisi_hba->cq[i];
+
+		free_irq(pci_irq_vector(pdev, i+16), cq);
+	}
 	pci_free_irq_vectors(pdev);
 }
 
