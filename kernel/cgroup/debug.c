@@ -38,12 +38,15 @@ static u64 debug_taskcount_read(struct cgroup_subsys_state *css,
 
 static int current_css_set_read(struct seq_file *seq, void *v)
 {
+	struct kernfs_open_file *of = seq->private;
 	struct css_set *cset;
 	struct cgroup_subsys *ss;
 	struct cgroup_subsys_state *css;
 	int i, refcnt;
 
-	mutex_lock(&cgroup_mutex);
+	if (!cgroup_kn_lock_live(of->kn, false))
+		return -ENODEV;
+
 	spin_lock_irq(&css_set_lock);
 	rcu_read_lock();
 	cset = rcu_dereference(current->cgroups);
@@ -65,7 +68,7 @@ static int current_css_set_read(struct seq_file *seq, void *v)
 	}
 	rcu_read_unlock();
 	spin_unlock_irq(&css_set_lock);
-	mutex_unlock(&cgroup_mutex);
+	cgroup_kn_unlock(of->kn);
 	return 0;
 }
 
@@ -174,13 +177,17 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 
 static int cgroup_subsys_states_read(struct seq_file *seq, void *v)
 {
-	struct cgroup *cgrp = seq_css(seq)->cgroup;
+	struct kernfs_open_file *of = seq->private;
+	struct cgroup *cgrp;
 	struct cgroup_subsys *ss;
 	struct cgroup_subsys_state *css;
 	char pbuf[16];
 	int i;
 
-	mutex_lock(&cgroup_mutex);
+	cgrp = cgroup_kn_lock_live(of->kn, false);
+	if (!cgrp)
+		return -ENODEV;
+
 	for_each_subsys(ss, i) {
 		css = rcu_dereference_check(cgrp->subsys[ss->id], true);
 		if (!css)
@@ -196,7 +203,8 @@ static int cgroup_subsys_states_read(struct seq_file *seq, void *v)
 			  (unsigned long)css, css->id,
 			  atomic_read(&css->online_cnt), pbuf);
 	}
-	mutex_unlock(&cgroup_mutex);
+
+	cgroup_kn_unlock(of->kn);
 	return 0;
 }
 
@@ -221,12 +229,17 @@ static void cgroup_masks_read_one(struct seq_file *seq, const char *name,
 
 static int cgroup_masks_read(struct seq_file *seq, void *v)
 {
-	struct cgroup *cgrp = seq_css(seq)->cgroup;
+	struct kernfs_open_file *of = seq->private;
+	struct cgroup *cgrp;
 
-	mutex_lock(&cgroup_mutex);
+	cgrp = cgroup_kn_lock_live(of->kn, false);
+	if (!cgrp)
+		return -ENODEV;
+
 	cgroup_masks_read_one(seq, "subtree_control", cgrp->subtree_control);
 	cgroup_masks_read_one(seq, "subtree_ss_mask", cgrp->subtree_ss_mask);
-	mutex_unlock(&cgroup_mutex);
+
+	cgroup_kn_unlock(of->kn);
 	return 0;
 }
 
