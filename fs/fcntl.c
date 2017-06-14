@@ -112,8 +112,9 @@ EXPORT_SYMBOL(__f_setown);
 int f_setown(struct file *filp, unsigned long arg, int force)
 {
 	enum pid_type type;
-	struct pid *pid;
-	int who = arg;
+	struct pid *pid = NULL;
+	int who = arg, ret = 0;
+
 	type = PIDTYPE_PID;
 	if (who < 0) {
 		/* avoid overflow below */
@@ -123,12 +124,19 @@ int f_setown(struct file *filp, unsigned long arg, int force)
 		type = PIDTYPE_PGID;
 		who = -who;
 	}
+
 	rcu_read_lock();
-	pid = find_vpid(who);
-	__f_setown(filp, pid, type, force);
+	if (who) {
+		pid = find_vpid(who);
+		if (!pid)
+			ret = -ESRCH;
+	}
+
+	if (!ret)
+		__f_setown(filp, pid, type, force);
 	rcu_read_unlock();
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(f_setown);
 
