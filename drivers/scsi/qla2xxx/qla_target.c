@@ -1515,6 +1515,10 @@ EXPORT_SYMBOL(qlt_stop_phase2);
 static void qlt_release(struct qla_tgt *tgt)
 {
 	scsi_qla_host_t *vha = tgt->vha;
+	void *node;
+	u64 key = 0;
+	u16 i;
+	struct qla_qpair_hint *h;
 
 	if ((vha->vha_tgt.qla_tgt != NULL) && !tgt->tgt_stop &&
 	    !tgt->tgt_stopped)
@@ -1522,6 +1526,24 @@ static void qlt_release(struct qla_tgt *tgt)
 
 	if ((vha->vha_tgt.qla_tgt != NULL) && !tgt->tgt_stopped)
 		qlt_stop_phase2(tgt);
+
+	for (i = 0; i < vha->hw->max_qpairs + 1; i++) {
+		unsigned long flags;
+
+		h = &tgt->qphints[i];
+		if (h->qpair) {
+			spin_lock_irqsave(h->qpair->qp_lock_ptr, flags);
+			list_del(&h->hint_elem);
+			spin_unlock_irqrestore(h->qpair->qp_lock_ptr, flags);
+			h->qpair = NULL;
+		}
+	}
+	kfree(tgt->qphints);
+
+	btree_for_each_safe64(&tgt->lun_qpair_map, key, node)
+		btree_remove64(&tgt->lun_qpair_map, key);
+
+	btree_destroy64(&tgt->lun_qpair_map);
 
 	vha->vha_tgt.qla_tgt = NULL;
 
@@ -2354,9 +2376,8 @@ static int qlt_24xx_build_ctio_pkt(struct qla_qpair *qpair,
 		 * the session and, so, the command.
 		 */
 		return -EAGAIN;
-	} else {
-		vha->req->outstanding_cmds[h] = (srb_t *)prm->cmd;
-	}
+	} else
+		qpair->req->outstanding_cmds[h] = (srb_t *)prm->cmd;
 
 	pkt->handle = MAKE_HANDLE(qpair->req->id, h);
 	pkt->handle |= CTIO_COMPLETION_HANDLE_MARK;
@@ -3976,8 +3997,6 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 	spin_lock_init(&cmd->cmd_lock);
 	cdb = &atio->u.isp24.fcp_cmnd.cdb[0];
 	cmd->se_cmd.tag = atio->u.isp24.exchange_addr;
-	cmd->unpacked_lun = scsilun_to_int(
-	    (struct scsi_lun *)&atio->u.isp24.fcp_cmnd.lun);
 
 	if (atio->u.isp24.fcp_cmnd.rddata &&
 	    atio->u.isp24.fcp_cmnd.wrdata) {
@@ -4040,6 +4059,85 @@ static void qlt_do_work(struct work_struct *work)
 	__qlt_do_work(cmd);
 }
 
+static void qlt_assign_qpair(struct scsi_qla_host *vha,
+	struct qla_tgt_cmd *cmd)
+{
+	struct qla_qpair *qpair, *qp;
+	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
+	struct qla_qpair_hint *h;
+
+	if (vha->flags.qpairs_available) {
+		h = btree_lookup64(&tgt->lun_qpair_map, cmd->unpacked_lun);
+		if (unlikely(!h)) {
+			/* spread lun to qpair ratio evently */
+			int lcnt = 0, rc;
+			struct scsi_qla_host *base_vha =
+				pci_get_drvdata(vha->hw->pdev);
+
+			qpair = vha->hw->base_qpair;
+			if (qpair->lun_cnt == 0) {
+				qpair->lun_cnt++;
+				h = qla_qpair_to_hint(tgt, qpair);
+				BUG_ON(!h);
+				rc = btree_insert64(&tgt->lun_qpair_map,
+					cmd->unpacked_lun, h, GFP_ATOMIC);
+				if (rc) {
+					qpair->lun_cnt--;
+					ql_log(ql_log_info, vha, 0xd037,
+					    "Unable to insert lun %llx into lun_qpair_map\n",
+					    cmd->unpacked_lun);
+				}
+				goto out;
+			} else {
+				lcnt = qpair->lun_cnt;
+			}
+
+			h = NULL;
+			list_for_each_entry(qp, &base_vha->qp_list,
+			    qp_list_elem) {
+				if (qp->lun_cnt == 0) {
+					qp->lun_cnt++;
+					h = qla_qpair_to_hint(tgt, qp);
+					BUG_ON(!h);
+					rc = btree_insert64(&tgt->lun_qpair_map,
+					    cmd->unpacked_lun, h, GFP_ATOMIC);
+					if (rc) {
+						qp->lun_cnt--;
+						ql_log(ql_log_info, vha, 0xd038,
+							"Unable to insert lun %llx into lun_qpair_map\n",
+							cmd->unpacked_lun);
+					}
+					qpair = qp;
+					goto out;
+				} else {
+					if (qp->lun_cnt < lcnt) {
+						lcnt = qp->lun_cnt;
+						qpair = qp;
+						continue;
+					}
+				}
+			}
+			BUG_ON(!qpair);
+			qpair->lun_cnt++;
+			h = qla_qpair_to_hint(tgt, qpair);
+			BUG_ON(!h);
+			rc = btree_insert64(&tgt->lun_qpair_map,
+				cmd->unpacked_lun, h, GFP_ATOMIC);
+			if (rc) {
+				qpair->lun_cnt--;
+				ql_log(ql_log_info, vha, 0xd039,
+				   "Unable to insert lun %llx into lun_qpair_map\n",
+				   cmd->unpacked_lun);
+			}
+		}
+	} else {
+		h = &tgt->qphints[0];
+	}
+out:
+	cmd->qpair = h->qpair;
+	cmd->se_cmd.cpuid = h->cpuid;
+}
+
 static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 				       struct fc_port *sess,
 				       struct atio_from_isp *atio)
@@ -4069,8 +4167,9 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 	cmd->jiffies_at_alloc = get_jiffies_64();
 
 	cmd->reset_count = vha->hw->chip_reset;
-	cmd->qpair = vha->hw->base_qpair;
-	cmd->se_cmd.cpuid = cmd->qpair->cpuid;
+	cmd->unpacked_lun = scsilun_to_int(
+	    (struct scsi_lun *)&atio->u.isp24.fcp_cmnd.lun);
+	qlt_assign_qpair(vha, cmd);
 
 	return cmd;
 }
@@ -4218,7 +4317,9 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 	spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 
 	INIT_WORK(&cmd->work, qlt_do_work);
-	if (ha->msix_count) {
+	if (vha->flags.qpairs_available) {
+		queue_work_on(cmd->se_cmd.cpuid, qla_tgt_wq, &cmd->work);
+	} else if (ha->msix_count) {
 		if (cmd->atio.u.isp24.fcp_cmnd.rddata)
 			queue_work_on(smp_processor_id(), qla_tgt_wq,
 			    &cmd->work);
@@ -5944,6 +6045,8 @@ static void qlt_sess_work_fn(struct work_struct *work)
 int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 {
 	struct qla_tgt *tgt;
+	int rc, i;
+	struct qla_qpair_hint *h;
 
 	if (!QLA_TGT_MODE_ENABLED())
 		return 0;
@@ -5966,8 +6069,46 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 		return -ENOMEM;
 	}
 
+	tgt->qphints = kzalloc((ha->max_qpairs + 1) *
+	    sizeof(struct qla_qpair_hint), GFP_KERNEL);
+	if (!tgt->qphints) {
+		kfree(tgt);
+		ql_log(ql_log_warn, base_vha, 0x0197,
+		    "Unable to allocate qpair hints.\n");
+		return -ENOMEM;
+	}
+
 	if (!(base_vha->host->hostt->supported_mode & MODE_TARGET))
 		base_vha->host->hostt->supported_mode |= MODE_TARGET;
+
+	rc = btree_init64(&tgt->lun_qpair_map);
+	if (rc) {
+		kfree(tgt->qphints);
+		kfree(tgt);
+		ql_log(ql_log_info, base_vha, 0x0198,
+			"Unable to initialize lun_qpair_map btree\n");
+		return -EIO;
+	}
+	h = &tgt->qphints[0];
+	h->qpair = ha->base_qpair;
+	INIT_LIST_HEAD(&h->hint_elem);
+	h->cpuid = ha->base_qpair->cpuid;
+	list_add_tail(&h->hint_elem, &ha->base_qpair->hints_list);
+
+	for (i = 0; i < ha->max_qpairs; i++) {
+		unsigned long flags;
+
+		struct qla_qpair *qpair = ha->queue_pair_map[i];
+		h = &tgt->qphints[i + 1];
+		INIT_LIST_HEAD(&h->hint_elem);
+		if (qpair) {
+			h->qpair = qpair;
+			spin_lock_irqsave(qpair->qp_lock_ptr, flags);
+			list_add_tail(&h->hint_elem, &qpair->hints_list);
+			spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
+			h->cpuid = qpair->cpuid;
+		}
+	}
 
 	tgt->ha = ha;
 	tgt->vha = base_vha;

@@ -371,6 +371,23 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 		goto fail_rsp_map;
 	}
 
+	ha->base_qpair = kzalloc(sizeof(struct qla_qpair), GFP_KERNEL);
+	if (ha->base_qpair == NULL) {
+		ql_log(ql_log_warn, vha, 0x00e0,
+		    "Failed to allocate base queue pair memory.\n");
+		goto fail_base_qpair;
+	}
+
+	rsp->qpair = ha->base_qpair;
+	rsp->req = req;
+	ha->base_qpair->req = req;
+	ha->base_qpair->rsp = rsp;
+	ha->base_qpair->vha = vha;
+	ha->base_qpair->qp_lock_ptr = &ha->hardware_lock;
+	ha->base_qpair->msix = &ha->msix_entries[QLA_MSIX_RSP_Q];
+	INIT_LIST_HEAD(&ha->base_qpair->hints_list);
+	qla_cpu_update(rsp->qpair, smp_processor_id());
+
 	if (ql2xmqsupport && ha->max_qpairs) {
 		ha->queue_pair_map = kcalloc(ha->max_qpairs, sizeof(struct qla_qpair *),
 			GFP_KERNEL);
@@ -379,22 +396,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 			    "Unable to allocate memory for queue pair ptrs.\n");
 			goto fail_qpair_map;
 		}
-		ha->base_qpair = kzalloc(sizeof(struct qla_qpair), GFP_KERNEL);
-		if (ha->base_qpair == NULL) {
-			ql_log(ql_log_warn, vha, 0x00e0,
-			    "Failed to allocate base queue pair memory.\n");
-			goto fail_base_qpair;
-		}
-		ha->base_qpair->req = req;
-		ha->base_qpair->rsp = rsp;
 	}
-
-	rsp->qpair = ha->base_qpair;
-	rsp->req = req;
-	ha->base_qpair->vha = vha;
-	ha->base_qpair->qp_lock_ptr = &ha->hardware_lock;
-	ha->queue_pair_map[0] = ha->base_qpair;
-	set_bit(0, ha->qpair_qid_map);
 
 	/*
 	 * Make sure we record at least the request and response queue zero in
@@ -2009,7 +2011,7 @@ qla83xx_iospace_config(struct qla_hw_data *ha)
 		/* Read MSIX vector size of the board */
 		pci_read_config_word(ha->pdev,
 		    QLA_83XX_PCI_MSIX_CONTROL, &msix);
-		ha->msix_count = msix + 1;
+		ha->msix_count = (msix & PCI_MSIX_FLAGS_QSIZE)  + 1;
 		/*
 		 * By default, driver uses at least two msix vectors
 		 * (default & rspq)
@@ -3125,12 +3127,26 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    host->can_queue, base_vha->req,
 	    base_vha->mgmt_svr_loop_id, host->sg_tablesize);
 
-	if (ha->mqenable && qla_ini_mode_enabled(base_vha)) {
+	if (ha->mqenable) {
+		bool mq = false;
+		bool startit = false;
 		ha->wq = alloc_workqueue("qla2xxx_wq", WQ_MEM_RECLAIM, 1);
-		/* Create start of day qpairs for Block MQ */
-		if (shost_use_blk_mq(host)) {
+
+		if (QLA_TGT_MODE_ENABLED()) {
+			mq = true;
+			startit = false;
+		}
+
+		if ((ql2x_ini_mode == QLA2XXX_INI_MODE_ENABLED) &&
+		    shost_use_blk_mq(host)) {
+			mq = true;
+			startit = true;
+		}
+
+		if (mq) {
+			/* Create start of day qpairs for Block MQ */
 			for (i = 0; i < ha->max_qpairs; i++)
-				qla2xxx_create_qpair(base_vha, 5,  0, true);
+				qla2xxx_create_qpair(base_vha, 5, 0, startit);
 		}
 	}
 

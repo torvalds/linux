@@ -787,10 +787,18 @@ struct qla_port_24xx_data {
 	uint16_t reserved;
 };
 
+struct qla_qpair_hint {
+	struct list_head hint_elem;
+	struct qla_qpair *qpair;
+	u16 cpuid;
+	uint8_t cmd_cnt;
+};
+
 struct qla_tgt {
 	struct scsi_qla_host *vha;
 	struct qla_hw_data *ha;
-
+	struct btree_head64 lun_qpair_map;
+	struct qla_qpair_hint *qphints;
 	/*
 	 * To sync between IRQ handlers and qlt_target_release(). Needed,
 	 * because req_pkt() can drop/reaquire HW lock inside. Protected by

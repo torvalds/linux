@@ -324,3 +324,31 @@ qla_is_exch_offld_enabled(struct scsi_qla_host *vha)
 	else
 		return false;
 }
+
+static inline void
+qla_cpu_update(struct qla_qpair *qpair, uint16_t cpuid)
+{
+	qpair->cpuid = cpuid;
+
+	if (!list_empty(&qpair->hints_list)) {
+		struct qla_qpair_hint *h;
+
+		list_for_each_entry(h, &qpair->hints_list, hint_elem)
+			h->cpuid = qpair->cpuid;
+	}
+}
+
+static inline struct qla_qpair_hint *
+qla_qpair_to_hint(struct qla_tgt *tgt, struct qla_qpair *qpair)
+{
+	struct qla_qpair_hint *h;
+	u16 i;
+
+	for (i = 0; i < tgt->ha->max_qpairs + 1; i++) {
+		h = &tgt->qphints[i];
+		if (h->qpair == qpair)
+			return h;
+	}
+
+	return NULL;
+}

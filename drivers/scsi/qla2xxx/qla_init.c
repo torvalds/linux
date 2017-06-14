@@ -7623,6 +7623,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 		ha->queue_pair_map[qpair_id] = qpair;
 		qpair->id = qpair_id;
 		qpair->vp_idx = vp_idx;
+		INIT_LIST_HEAD(&qpair->hints_list);
 
 		for (i = 0; i < ha->msix_count; i++) {
 			msix = &ha->msix_entries[i];
@@ -7666,6 +7667,8 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 		qpair->req = ha->req_q_map[req_id];
 		qpair->rsp->req = qpair->req;
 		qpair->rsp->qpair = qpair;
+		/* init qpair to this cpu. Will adjust at run time. */
+		qla_cpu_update(qpair, smp_processor_id());
 
 		if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif) {
 			if (ha->fw_attributes & BIT_4)

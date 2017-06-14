@@ -3245,7 +3245,7 @@ struct req_que {
 struct qla_qpair {
 	spinlock_t qp_lock;
 	atomic_t ref_count;
-
+	uint32_t lun_cnt;
 	/*
 	 * For qpair 0, qp_lock_ptr will point at hardware_lock due to
 	 * legacy code. For other Qpair(s), it will point at qp_lock.
@@ -3275,6 +3275,7 @@ struct qla_qpair {
 	struct qla_hw_data *hw;
 	struct work_struct q_work;
 	struct list_head qp_list_elem; /* vha->qp_list */
+	struct list_head hints_list;
 	uint16_t cpuid;
 };
 
