@@ -785,9 +785,9 @@ int ingenic_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	jzpc->pctl = devm_pinctrl_register(dev, pctl_desc, jzpc);
-	if (!jzpc->pctl) {
+	if (IS_ERR(jzpc->pctl)) {
 		dev_err(dev, "Failed to register pinctrl\n");
-		return -EINVAL;
+		return PTR_ERR(jzpc->pctl);
 	}
 
 	for (i = 0; i < chip_info->num_groups; i++) {
