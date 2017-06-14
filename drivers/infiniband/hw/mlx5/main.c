@@ -3692,8 +3692,10 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
 	dev->ib_dev.get_port_immutable  = mlx5_port_immutable;
 	dev->ib_dev.get_dev_fw_str      = get_dev_fw_str;
-	dev->ib_dev.alloc_rdma_netdev	= mlx5_ib_alloc_rdma_netdev;
-	dev->ib_dev.free_rdma_netdev	= mlx5_ib_free_rdma_netdev;
+	if (MLX5_CAP_GEN(mdev, ipoib_enhanced_offloads)) {
+		dev->ib_dev.alloc_rdma_netdev	= mlx5_ib_alloc_rdma_netdev;
+		dev->ib_dev.free_rdma_netdev	= mlx5_ib_free_rdma_netdev;
+	}
 	if (mlx5_core_is_pf(mdev)) {
 		dev->ib_dev.get_vf_config	= mlx5_ib_get_vf_config;
 		dev->ib_dev.set_vf_link_state	= mlx5_ib_set_vf_link_state;

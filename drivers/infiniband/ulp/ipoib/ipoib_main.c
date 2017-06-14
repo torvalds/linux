@@ -2301,7 +2301,10 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		flush_workqueue(priv->wq);
 
 		unregister_netdev(priv->dev);
-		free_netdev(priv->dev);
+		if (device->free_rdma_netdev)
+			device->free_rdma_netdev(priv->dev);
+		else
+			free_netdev(priv->dev);
 
 		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list)
 			kfree(cpriv);
