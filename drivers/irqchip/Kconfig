@@ -39,7 +39,6 @@ config ARM_GIC_V3_ITS
 	bool
 	depends on PCI
 	depends on PCI_MSI
-	select ACPI_IORT if ACPI
 
 config ARM_NVIC
 	bool
