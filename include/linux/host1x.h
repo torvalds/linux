@@ -193,6 +193,13 @@ struct host1x_reloc {
 	unsigned long shift;
 };
 
+struct host1x_waitchk {
+	struct host1x_bo *bo;
+	u32 offset;
+	u32 syncpt_id;
+	u32 thresh;
+};
+
 struct host1x_job {
 	/* When refcount goes to zero, job can be freed */
 	struct kref ref;

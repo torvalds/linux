@@ -349,6 +349,36 @@ static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
 	return 0;
 }
 
+static int host1x_waitchk_copy_from_user(struct host1x_waitchk *dest,
+					 struct drm_tegra_waitchk __user *src,
+					 struct drm_file *file)
+{
+	u32 cmdbuf;
+	int err;
+
+	err = get_user(cmdbuf, &src->handle);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->offset, &src->offset);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->syncpt_id, &src->syncpt);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->thresh, &src->thresh);
+	if (err < 0)
+		return err;
+
+	dest->bo = host1x_bo_lookup(file, cmdbuf);
+	if (!dest->bo)
+		return -ENOENT;
+
+	return 0;
+}
+
 int tegra_drm_submit(struct tegra_drm_context *context,
 		     struct drm_tegra_submit *args, struct drm_device *drm,
 		     struct drm_file *file)
@@ -368,6 +398,10 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 	/* We don't yet support other than one syncpt_incr struct per submit */
 	if (args->num_syncpts != 1)
+		return -EINVAL;
+
+	/* We don't yet support waitchks */
+	if (args->num_waitchks != 0)
 		return -EINVAL;
 
 	job = host1x_job_alloc(context->channel, args->num_cmdbufs,
@@ -458,10 +492,28 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		}
 	}
 
-	if (copy_from_user(job->waitchk, waitchks,
-			   sizeof(*waitchks) * num_waitchks)) {
-		err = -EFAULT;
-		goto fail;
+	/* copy and resolve waitchks from submit */
+	while (num_waitchks--) {
+		struct host1x_waitchk *wait = &job->waitchk[num_waitchks];
+		struct tegra_bo *obj;
+
+		err = host1x_waitchk_copy_from_user(wait,
+						    &waitchks[num_waitchks],
+						    file);
+		if (err < 0)
+			goto fail;
+
+		obj = host1x_to_tegra_bo(wait->bo);
+
+		/*
+		 * The unaligned offset will cause an unaligned write during
+		 * of the waitchks patching, corrupting the commands stream.
+		 */
+		if (wait->offset & 3 ||
+		    wait->offset >= obj->gem.size) {
+			err = -EINVAL;
+			goto fail;
+		}
 	}
 
 	if (copy_from_user(&syncpt, (void __user *)(uintptr_t)args->syncpts,
