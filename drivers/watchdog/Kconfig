@@ -775,6 +775,18 @@ config STM32_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called stm32_iwdg.
 
+config UNIPHIER_WATCHDOG
+	tristate "UniPhier watchdog support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && MFD_SYSCON
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support watchdog timer embedded
+	  into the UniPhier system.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uniphier_wdt.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
