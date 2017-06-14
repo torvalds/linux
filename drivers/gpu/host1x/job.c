@@ -504,7 +504,7 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 	fw.dev = dev;
 	fw.reloc = job->relocarray;
 	fw.num_relocs = job->num_relocs;
-	fw.class = 0;
+	fw.class = job->class;
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
