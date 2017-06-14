@@ -959,8 +959,16 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_eswitch_cleanup;
 	}
 
+	err = mlx5_fpga_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init fpga device %d\n", err);
+		goto err_sriov_cleanup;
+	}
+
 	return 0;
 
+err_sriov_cleanup:
+	mlx5_sriov_cleanup(dev);
 err_eswitch_cleanup:
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
@@ -984,6 +992,7 @@ out:
 
 static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 {
+	mlx5_fpga_cleanup(dev);
 	mlx5_sriov_cleanup(dev);
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
@@ -1121,16 +1130,10 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_disable_msix;
 	}
 
-	err = mlx5_fpga_device_init(dev);
-	if (err) {
-		dev_err(&pdev->dev, "fpga device init failed %d\n", err);
-		goto err_put_uars;
-	}
-
 	err = mlx5_start_eqs(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to start pages and async EQs\n");
-		goto err_fpga_init;
+		goto err_put_uars;
 	}
 
 	err = alloc_comp_eqs(dev);
@@ -1205,9 +1208,6 @@ err_affinity_hints:
 err_stop_eqs:
 	mlx5_stop_eqs(dev);
 
-err_fpga_init:
-	mlx5_fpga_device_cleanup(dev);
-
 err_put_uars:
 	mlx5_put_uars_page(dev, priv->uar);
 
@@ -1277,7 +1277,6 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_irq_clear_affinity_hints(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
-	mlx5_fpga_device_cleanup(dev);
 	mlx5_put_uars_page(dev, priv->uar);
 	mlx5_disable_msix(dev);
 	if (cleanup)

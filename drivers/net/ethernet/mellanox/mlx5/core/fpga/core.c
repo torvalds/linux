@@ -135,7 +135,7 @@ out:
 	return err;
 }
 
-int mlx5_fpga_device_init(struct mlx5_core_dev *mdev)
+int mlx5_fpga_init(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_fpga_device *fdev = NULL;
 
@@ -177,7 +177,7 @@ void mlx5_fpga_device_stop(struct mlx5_core_dev *mdev)
 	mlx5_core_unreserve_gids(mdev, max_num_qps);
 }
 
-void mlx5_fpga_device_cleanup(struct mlx5_core_dev *mdev)
+void mlx5_fpga_cleanup(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_fpga_device *fdev = mdev->fpga;
 
