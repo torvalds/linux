@@ -24,6 +24,11 @@
 #define PHY_PORT_NUM_MA			0x28
 #define PHY_CONN_RATE			0x30
 #define AXI_AHB_CLK_CFG			0x3c
+#define ITCT_CLR			0x44
+#define ITCT_CLR_EN_OFF			16
+#define ITCT_CLR_EN_MSK			(0x1 << ITCT_CLR_EN_OFF)
+#define ITCT_DEV_OFF			0
+#define ITCT_DEV_MSK			(0x7ff << ITCT_DEV_OFF)
 #define AXI_USER1			0x48
 #define AXI_USER2			0x4c
 #define IO_SATA_BROKEN_MSG_ADDR_LO	0x58
@@ -225,6 +230,26 @@
 /* dw3 */
 #define CMPLT_HDR_IO_IN_TARGET_OFF	17
 #define CMPLT_HDR_IO_IN_TARGET_MSK	(0x1 << CMPLT_HDR_IO_IN_TARGET_OFF)
+
+/* ITCT header */
+/* qw0 */
+#define ITCT_HDR_DEV_TYPE_OFF		0
+#define ITCT_HDR_DEV_TYPE_MSK		(0x3 << ITCT_HDR_DEV_TYPE_OFF)
+#define ITCT_HDR_VALID_OFF		2
+#define ITCT_HDR_VALID_MSK		(0x1 << ITCT_HDR_VALID_OFF)
+#define ITCT_HDR_MCR_OFF		5
+#define ITCT_HDR_MCR_MSK		(0xf << ITCT_HDR_MCR_OFF)
+#define ITCT_HDR_VLN_OFF		9
+#define ITCT_HDR_VLN_MSK		(0xf << ITCT_HDR_VLN_OFF)
+#define ITCT_HDR_SMP_TIMEOUT_OFF	16
+#define ITCT_HDR_AWT_CONTINUE_OFF	25
+#define ITCT_HDR_PORT_ID_OFF		28
+#define ITCT_HDR_PORT_ID_MSK		(0xf << ITCT_HDR_PORT_ID_OFF)
+/* qw2 */
+#define ITCT_HDR_INLT_OFF		0
+#define ITCT_HDR_INLT_MSK		(0xffffULL << ITCT_HDR_INLT_OFF)
+#define ITCT_HDR_RTOLT_OFF		48
+#define ITCT_HDR_RTOLT_MSK		(0xffffULL << ITCT_HDR_RTOLT_OFF)
 
 struct hisi_sas_complete_v3_hdr {
 	__le32 dw0;
@@ -458,6 +483,93 @@ static void config_id_frame_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 			__swab32(identify_buffer[4]));
 	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD5,
 			__swab32(identify_buffer[5]));
+}
+
+static void setup_itct_v3_hw(struct hisi_hba *hisi_hba,
+			     struct hisi_sas_device *sas_dev)
+{
+	struct domain_device *device = sas_dev->sas_device;
+	struct device *dev = hisi_hba->dev;
+	u64 qw0, device_id = sas_dev->device_id;
+	struct hisi_sas_itct *itct = &hisi_hba->itct[device_id];
+	struct domain_device *parent_dev = device->parent;
+	struct asd_sas_port *sas_port = device->port;
+	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
+
+	memset(itct, 0, sizeof(*itct));
+
+	/* qw0 */
+	qw0 = 0;
+	switch (sas_dev->dev_type) {
+	case SAS_END_DEVICE:
+	case SAS_EDGE_EXPANDER_DEVICE:
+	case SAS_FANOUT_EXPANDER_DEVICE:
+		qw0 = HISI_SAS_DEV_TYPE_SSP << ITCT_HDR_DEV_TYPE_OFF;
+		break;
+	case SAS_SATA_DEV:
+	case SAS_SATA_PENDING:
+		if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type))
+			qw0 = HISI_SAS_DEV_TYPE_STP << ITCT_HDR_DEV_TYPE_OFF;
+		else
+			qw0 = HISI_SAS_DEV_TYPE_SATA << ITCT_HDR_DEV_TYPE_OFF;
+		break;
+	default:
+		dev_warn(dev, "setup itct: unsupported dev type (%d)\n",
+			 sas_dev->dev_type);
+	}
+
+	qw0 |= ((1 << ITCT_HDR_VALID_OFF) |
+		(device->linkrate << ITCT_HDR_MCR_OFF) |
+		(1 << ITCT_HDR_VLN_OFF) |
+		(0xfa << ITCT_HDR_SMP_TIMEOUT_OFF) |
+		(1 << ITCT_HDR_AWT_CONTINUE_OFF) |
+		(port->id << ITCT_HDR_PORT_ID_OFF));
+	itct->qw0 = cpu_to_le64(qw0);
+
+	/* qw1 */
+	memcpy(&itct->sas_addr, device->sas_addr, SAS_ADDR_SIZE);
+	itct->sas_addr = __swab64(itct->sas_addr);
+
+	/* qw2 */
+	if (!dev_is_sata(device))
+		itct->qw2 = cpu_to_le64((5000ULL << ITCT_HDR_INLT_OFF) |
+					(0x1ULL << ITCT_HDR_RTOLT_OFF));
+}
+
+static void free_device_v3_hw(struct hisi_hba *hisi_hba,
+			      struct hisi_sas_device *sas_dev)
+{
+	u64 dev_id = sas_dev->device_id;
+	struct device *dev = hisi_hba->dev;
+	struct hisi_sas_itct *itct = &hisi_hba->itct[dev_id];
+	u32 reg_val = hisi_sas_read32(hisi_hba, ENT_INT_SRC3);
+
+	/* clear the itct interrupt state */
+	if (ENT_INT_SRC3_ITC_INT_MSK & reg_val)
+		hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
+				 ENT_INT_SRC3_ITC_INT_MSK);
+
+	/* clear the itct table*/
+	reg_val = hisi_sas_read32(hisi_hba, ITCT_CLR);
+	reg_val |= ITCT_CLR_EN_MSK | (dev_id & ITCT_DEV_MSK);
+	hisi_sas_write32(hisi_hba, ITCT_CLR, reg_val);
+
+	udelay(10);
+	reg_val = hisi_sas_read32(hisi_hba, ENT_INT_SRC3);
+	if (ENT_INT_SRC3_ITC_INT_MSK & reg_val) {
+		dev_dbg(dev, "got clear ITCT done interrupt\n");
+
+		/* invalid the itct state*/
+		memset(itct, 0, sizeof(struct hisi_sas_itct));
+		hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
+				 ENT_INT_SRC3_ITC_INT_MSK);
+		hisi_hba->devices[dev_id].dev_type = SAS_PHY_UNUSED;
+		hisi_hba->devices[dev_id].dev_status = HISI_SAS_DEV_NORMAL;
+
+		/* clear the itct */
+		hisi_sas_write32(hisi_hba, ITCT_CLR, 0);
+		dev_dbg(dev, "clear ITCT ok\n");
+	}
 }
 
 static int hw_init_v3_hw(struct hisi_hba *hisi_hba)
@@ -1399,8 +1511,10 @@ static int hisi_sas_v3_init(struct hisi_hba *hisi_hba)
 
 static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.hw_init = hisi_sas_v3_init,
+	.setup_itct = setup_itct_v3_hw,
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V3_HW,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v3_hdr),
+	.free_device = free_device_v3_hw,
 	.sl_notify = sl_notify_v3_hw,
 	.prep_ssp = prep_ssp_v3_hw,
 	.prep_smp = prep_smp_v3_hw,
