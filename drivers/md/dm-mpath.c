@@ -625,6 +625,7 @@ static void process_queued_bios(struct work_struct *work)
 		case DM_MAPIO_KILL:
 			bio->bi_status = BLK_STS_IOERR;
 			bio_endio(bio);
+			break;
 		case DM_MAPIO_REQUEUE:
 			bio->bi_status = BLK_STS_DM_REQUEUE;
 			bio_endio(bio);
