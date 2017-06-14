@@ -1305,6 +1305,11 @@
 				status = "okay";
 			};
 
+			sfrbu: sfr@fc05c000 {
+				compatible = "atmel,sama5d2-sfrbu", "syscon";
+				reg = <0xfc05c000 0x20>;
+			};
+
 			chipid@fc069000 {
 				compatible = "atmel,sama5d2-chipid";
 				reg = <0xfc069000 0x8>;

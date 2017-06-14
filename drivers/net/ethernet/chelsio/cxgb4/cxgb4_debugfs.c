@@ -2634,7 +2634,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 	if (count > avail - pos)
 		count = avail - pos;
 
-	data = t4_alloc_mem(count);
+	data = kvzalloc(count, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -2642,12 +2642,12 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 	ret = t4_memory_rw(adap, 0, mem, pos, count, data, T4_MEMORY_READ);
 	spin_unlock(&adap->win0_lock);
 	if (ret) {
-		t4_free_mem(data);
+		kvfree(data);
 		return ret;
 	}
 	ret = copy_to_user(buf, data, count);
 
-	t4_free_mem(data);
+	kvfree(data);
 	if (ret)
 		return -EFAULT;
 
@@ -2753,7 +2753,7 @@ static ssize_t blocked_fl_read(struct file *filp, char __user *ubuf,
 		       adap->sge.egr_sz, adap->sge.blocked_fl);
 	len += sprintf(buf + len, "\n");
 	size = simple_read_from_buffer(ubuf, count, ppos, buf, len);
-	t4_free_mem(buf);
+	kvfree(buf);
 	return size;
 }
 
@@ -2773,7 +2773,7 @@ static ssize_t blocked_fl_write(struct file *filp, const char __user *ubuf,
 		return err;
 
 	bitmap_copy(adap->sge.blocked_fl, t, adap->sge.egr_sz);
-	t4_free_mem(t);
+	kvfree(t);
 	return count;
 }
 

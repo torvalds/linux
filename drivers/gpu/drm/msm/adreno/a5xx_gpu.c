@@ -638,10 +638,8 @@ static void a5xx_cp_err_irq(struct msm_gpu *gpu)
 	}
 }
 
-static void a5xx_rbbm_err_irq(struct msm_gpu *gpu)
+static void a5xx_rbbm_err_irq(struct msm_gpu *gpu, u32 status)
 {
-	u32 status = gpu_read(gpu, REG_A5XX_RBBM_INT_0_STATUS);
-
 	if (status & A5XX_RBBM_INT_0_MASK_RBBM_AHB_ERROR) {
 		u32 val = gpu_read(gpu, REG_A5XX_RBBM_AHB_ERROR_STATUS);
 
@@ -653,6 +651,10 @@ static void a5xx_rbbm_err_irq(struct msm_gpu *gpu)
 
 		/* Clear the error */
 		gpu_write(gpu, REG_A5XX_RBBM_AHB_CMD, (1 << 4));
+
+		/* Clear the interrupt */
+		gpu_write(gpu, REG_A5XX_RBBM_INT_CLEAR_CMD,
+			A5XX_RBBM_INT_0_MASK_RBBM_AHB_ERROR);
 	}
 
 	if (status & A5XX_RBBM_INT_0_MASK_RBBM_TRANSFER_TIMEOUT)
@@ -704,10 +706,16 @@ static irqreturn_t a5xx_irq(struct msm_gpu *gpu)
 {
 	u32 status = gpu_read(gpu, REG_A5XX_RBBM_INT_0_STATUS);
 
-	gpu_write(gpu, REG_A5XX_RBBM_INT_CLEAR_CMD, status);
+	/*
+	 * Clear all the interrupts except RBBM_AHB_ERROR - if we clear it
+	 * before the source is cleared the interrupt will storm.
+	 */
+	gpu_write(gpu, REG_A5XX_RBBM_INT_CLEAR_CMD,
+		status & ~A5XX_RBBM_INT_0_MASK_RBBM_AHB_ERROR);
 
+	/* Pass status to a5xx_rbbm_err_irq because we've already cleared it */
 	if (status & RBBM_ERROR_MASK)
-		a5xx_rbbm_err_irq(gpu);
+		a5xx_rbbm_err_irq(gpu, status);
 
 	if (status & A5XX_RBBM_INT_0_MASK_CP_HW_ERROR)
 		a5xx_cp_err_irq(gpu);
@@ -837,12 +845,8 @@ static int a5xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
 #ifdef CONFIG_DEBUG_FS
 static void a5xx_show(struct msm_gpu *gpu, struct seq_file *m)
 {
-	gpu->funcs->pm_resume(gpu);
-
 	seq_printf(m, "status:   %08x\n",
 			gpu_read(gpu, REG_A5XX_RBBM_STATUS));
-	gpu->funcs->pm_suspend(gpu);
-
 	adreno_show(gpu, m);
 }
 #endif

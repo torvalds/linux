@@ -77,14 +77,12 @@ struct intel_hid_priv {
 	struct input_dev *array;
 };
 
-static int intel_hid_set_enable(struct device *device, int enable)
+static int intel_hid_set_enable(struct device *device, bool enable)
 {
-	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list args = { 1, &arg0 };
 	acpi_status status;
 
-	arg0.integer.value = enable;
-	status = acpi_evaluate_object(ACPI_HANDLE(device), "HDSM", &args, NULL);
+	status = acpi_execute_simple_method(ACPI_HANDLE(device), "HDSM",
+					    enable);
 	if (ACPI_FAILURE(status)) {
 		dev_warn(device, "failed to %sable hotkeys\n",
 			 enable ? "en" : "dis");
@@ -120,7 +118,7 @@ static void intel_button_array_enable(struct device *device, bool enable)
 
 static int intel_hid_pl_suspend_handler(struct device *device)
 {
-	intel_hid_set_enable(device, 0);
+	intel_hid_set_enable(device, false);
 	intel_button_array_enable(device, false);
 
 	return 0;
@@ -128,7 +126,7 @@ static int intel_hid_pl_suspend_handler(struct device *device)
 
 static int intel_hid_pl_resume_handler(struct device *device)
 {
-	intel_hid_set_enable(device, 1);
+	intel_hid_set_enable(device, true);
 	intel_button_array_enable(device, true);
 
 	return 0;
@@ -136,6 +134,7 @@ static int intel_hid_pl_resume_handler(struct device *device)
 
 static const struct dev_pm_ops intel_hid_pl_pm_ops = {
 	.freeze  = intel_hid_pl_suspend_handler,
+	.thaw  = intel_hid_pl_resume_handler,
 	.restore  = intel_hid_pl_resume_handler,
 	.suspend  = intel_hid_pl_suspend_handler,
 	.resume  = intel_hid_pl_resume_handler,
@@ -146,28 +145,18 @@ static int intel_hid_input_setup(struct platform_device *device)
 	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
 	int ret;
 
-	priv->input_dev = input_allocate_device();
+	priv->input_dev = devm_input_allocate_device(&device->dev);
 	if (!priv->input_dev)
 		return -ENOMEM;
 
 	ret = sparse_keymap_setup(priv->input_dev, intel_hid_keymap, NULL);
 	if (ret)
-		goto err_free_device;
+		return ret;
 
-	priv->input_dev->dev.parent = &device->dev;
 	priv->input_dev->name = "Intel HID events";
 	priv->input_dev->id.bustype = BUS_HOST;
-	set_bit(KEY_RFKILL, priv->input_dev->keybit);
 
-	ret = input_register_device(priv->input_dev);
-	if (ret)
-		goto err_free_device;
-
-	return 0;
-
-err_free_device:
-	input_free_device(priv->input_dev);
-	return ret;
+	return input_register_device(priv->input_dev);
 }
 
 static int intel_button_array_input_setup(struct platform_device *device)
@@ -184,18 +173,10 @@ static int intel_button_array_input_setup(struct platform_device *device)
 	if (ret)
 		return ret;
 
-	priv->array->dev.parent = &device->dev;
 	priv->array->name = "Intel HID 5 button array";
 	priv->array->id.bustype = BUS_HOST;
 
 	return input_register_device(priv->array);
-}
-
-static void intel_hid_input_destroy(struct platform_device *device)
-{
-	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
-
-	input_unregister_device(priv->input_dev);
 }
 
 static void notify_handler(acpi_handle handle, u32 event, void *context)
@@ -272,12 +253,10 @@ static int intel_hid_probe(struct platform_device *device)
 					     ACPI_DEVICE_NOTIFY,
 					     notify_handler,
 					     device);
-	if (ACPI_FAILURE(status)) {
-		err = -EBUSY;
-		goto err_remove_input;
-	}
+	if (ACPI_FAILURE(status))
+		return -EBUSY;
 
-	err = intel_hid_set_enable(&device->dev, 1);
+	err = intel_hid_set_enable(&device->dev, true);
 	if (err)
 		goto err_remove_notify;
 
@@ -296,9 +275,6 @@ static int intel_hid_probe(struct platform_device *device)
 err_remove_notify:
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 
-err_remove_input:
-	intel_hid_input_destroy(device);
-
 	return err;
 }
 
@@ -307,8 +283,7 @@ static int intel_hid_remove(struct platform_device *device)
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
-	intel_hid_input_destroy(device);
-	intel_hid_set_enable(&device->dev, 0);
+	intel_hid_set_enable(&device->dev, false);
 	intel_button_array_enable(&device->dev, false);
 
 	/*

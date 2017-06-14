@@ -86,17 +86,62 @@
 
 /* Supported Rx Buffer Sizes */
 #define IXGBE_RXBUFFER_256    256  /* Used for skb receive header */
+#define IXGBE_RXBUFFER_1536  1536
 #define IXGBE_RXBUFFER_2K    2048
 #define IXGBE_RXBUFFER_3K    3072
 #define IXGBE_RXBUFFER_4K    4096
 #define IXGBE_MAX_RXBUFFER  16384  /* largest size for a single descriptor */
 
-#define IXGBE_SKB_PAD		(NET_SKB_PAD + NET_IP_ALIGN)
+/* Attempt to maximize the headroom available for incoming frames.  We
+ * use a 2K buffer for receives and need 1536/1534 to store the data for
+ * the frame.  This leaves us with 512 bytes of room.  From that we need
+ * to deduct the space needed for the shared info and the padding needed
+ * to IP align the frame.
+ *
+ * Note: For cache line sizes 256 or larger this value is going to end
+ *	 up negative.  In these cases we should fall back to the 3K
+ *	 buffers.
+ */
 #if (PAGE_SIZE < 8192)
-#define IXGBE_MAX_FRAME_BUILD_SKB \
-	(SKB_WITH_OVERHEAD(IXGBE_RXBUFFER_2K) - IXGBE_SKB_PAD)
+#define IXGBE_MAX_2K_FRAME_BUILD_SKB (IXGBE_RXBUFFER_1536 - NET_IP_ALIGN)
+#define IXGBE_2K_TOO_SMALL_WITH_PADDING \
+((NET_SKB_PAD + IXGBE_RXBUFFER_1536) > SKB_WITH_OVERHEAD(IXGBE_RXBUFFER_2K))
+
+static inline int ixgbe_compute_pad(int rx_buf_len)
+{
+	int page_size, pad_size;
+
+	page_size = ALIGN(rx_buf_len, PAGE_SIZE / 2);
+	pad_size = SKB_WITH_OVERHEAD(page_size) - rx_buf_len;
+
+	return pad_size;
+}
+
+static inline int ixgbe_skb_pad(void)
+{
+	int rx_buf_len;
+
+	/* If a 2K buffer cannot handle a standard Ethernet frame then
+	 * optimize padding for a 3K buffer instead of a 1.5K buffer.
+	 *
+	 * For a 3K buffer we need to add enough padding to allow for
+	 * tailroom due to NET_IP_ALIGN possibly shifting us out of
+	 * cache-line alignment.
+	 */
+	if (IXGBE_2K_TOO_SMALL_WITH_PADDING)
+		rx_buf_len = IXGBE_RXBUFFER_3K + SKB_DATA_ALIGN(NET_IP_ALIGN);
+	else
+		rx_buf_len = IXGBE_RXBUFFER_1536;
+
+	/* if needed make room for NET_IP_ALIGN */
+	rx_buf_len -= NET_IP_ALIGN;
+
+	return ixgbe_compute_pad(rx_buf_len);
+}
+
+#define IXGBE_SKB_PAD	ixgbe_skb_pad()
 #else
-#define IXGBE_MAX_FRAME_BUILD_SKB IXGBE_RXBUFFER_2K
+#define IXGBE_SKB_PAD	(NET_SKB_PAD + NET_IP_ALIGN)
 #endif
 
 /*
@@ -190,7 +235,11 @@ struct vf_macvlans {
 struct ixgbe_tx_buffer {
 	union ixgbe_adv_tx_desc *next_to_watch;
 	unsigned long time_stamp;
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		/* XDP uses address ptr on irq_clean */
+		void *data;
+	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
 	__be16 protocol;
@@ -243,6 +292,7 @@ enum ixgbe_ring_state_t {
 	__IXGBE_TX_XPS_INIT_DONE,
 	__IXGBE_TX_DETECT_HANG,
 	__IXGBE_HANG_CHECK_ARMED,
+	__IXGBE_TX_XDP_RING,
 };
 
 #define ring_uses_build_skb(ring) \
@@ -269,10 +319,17 @@ struct ixgbe_fwd_adapter {
 	set_bit(__IXGBE_RX_RSC_ENABLED, &(ring)->state)
 #define clear_ring_rsc_enabled(ring) \
 	clear_bit(__IXGBE_RX_RSC_ENABLED, &(ring)->state)
+#define ring_is_xdp(ring) \
+	test_bit(__IXGBE_TX_XDP_RING, &(ring)->state)
+#define set_ring_xdp(ring) \
+	set_bit(__IXGBE_TX_XDP_RING, &(ring)->state)
+#define clear_ring_xdp(ring) \
+	clear_bit(__IXGBE_TX_XDP_RING, &(ring)->state)
 struct ixgbe_ring {
 	struct ixgbe_ring *next;	/* pointer to next ring in q_vector */
 	struct ixgbe_q_vector *q_vector; /* backpointer to host q_vector */
 	struct net_device *netdev;	/* netdev ring belongs to */
+	struct bpf_prog *xdp_prog;
 	struct device *dev;		/* device for DMA mapping */
 	struct ixgbe_fwd_adapter *l2_accel_priv;
 	void *desc;			/* descriptor ring memory */
@@ -334,6 +391,7 @@ enum ixgbe_ring_f_enum {
 #define IXGBE_MAX_FCOE_INDICES		8
 #define MAX_RX_QUEUES			(IXGBE_MAX_FDIR_INDICES + 1)
 #define MAX_TX_QUEUES			(IXGBE_MAX_FDIR_INDICES + 1)
+#define MAX_XDP_QUEUES			(IXGBE_MAX_FDIR_INDICES + 1)
 #define IXGBE_MAX_L2A_QUEUES		4
 #define IXGBE_BAD_L2A_QUEUE		3
 #define IXGBE_MAX_MACVLANS		31
@@ -361,7 +419,7 @@ static inline unsigned int ixgbe_rx_bufsz(struct ixgbe_ring *ring)
 		return IXGBE_RXBUFFER_3K;
 #if (PAGE_SIZE < 8192)
 	if (ring_uses_build_skb(ring))
-		return IXGBE_MAX_FRAME_BUILD_SKB;
+		return IXGBE_MAX_2K_FRAME_BUILD_SKB;
 #endif
 	return IXGBE_RXBUFFER_2K;
 }
@@ -510,6 +568,7 @@ struct ixgbe_adapter {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	/* OS defined structs */
 	struct net_device *netdev;
+	struct bpf_prog *xdp_prog;
 	struct pci_dev *pdev;
 
 	unsigned long state;
@@ -576,6 +635,10 @@ struct ixgbe_adapter {
 	__be16 vxlan_port;
 	__be16 geneve_port;
 
+	/* XDP */
+	int num_xdp_queues;
+	struct ixgbe_ring *xdp_ring[MAX_XDP_QUEUES];
+
 	/* TX */
 	struct ixgbe_ring *tx_ring[MAX_TX_QUEUES] ____cacheline_aligned_in_smp;
 
@@ -622,6 +685,7 @@ struct ixgbe_adapter {
 
 	u64 tx_busy;
 	unsigned int tx_ring_count;
+	unsigned int xdp_ring_count;
 	unsigned int rx_ring_count;
 
 	u32 link_speed;
@@ -705,7 +769,7 @@ struct ixgbe_adapter {
 	u8 rss_indir_tbl[IXGBE_MAX_RETA_ENTRIES];
 
 #define IXGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
-	u32 rss_key[IXGBE_RSS_KEY_SIZE / sizeof(u32)];
+	u32 *rss_key;
 };
 
 static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)
@@ -762,6 +826,7 @@ enum ixgbe_boards {
 	board_X540,
 	board_X550,
 	board_X550EM_x,
+	board_x550em_x_fw,
 	board_x550em_a,
 	board_x550em_a_fw,
 };
@@ -771,6 +836,7 @@ extern const struct ixgbe_info ixgbe_82599_info;
 extern const struct ixgbe_info ixgbe_X540_info;
 extern const struct ixgbe_info ixgbe_X550_info;
 extern const struct ixgbe_info ixgbe_X550EM_x_info;
+extern const struct ixgbe_info ixgbe_x550em_x_fw_info;
 extern const struct ixgbe_info ixgbe_x550em_a_info;
 extern const struct ixgbe_info ixgbe_x550em_a_fw_info;
 #ifdef CONFIG_IXGBE_DCB
@@ -790,7 +856,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter);
 void ixgbe_reinit_locked(struct ixgbe_adapter *adapter);
 void ixgbe_reset(struct ixgbe_adapter *adapter);
 void ixgbe_set_ethtool_ops(struct net_device *netdev);
-int ixgbe_setup_rx_resources(struct ixgbe_ring *);
+int ixgbe_setup_rx_resources(struct ixgbe_adapter *, struct ixgbe_ring *);
 int ixgbe_setup_tx_resources(struct ixgbe_ring *);
 void ixgbe_free_rx_resources(struct ixgbe_ring *);
 void ixgbe_free_tx_resources(struct ixgbe_ring *);

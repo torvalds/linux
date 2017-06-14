@@ -57,3 +57,7 @@
 &i2c0 {
 	status = "okay";
 };
+
+&sata {
+	status = "okay";
+};

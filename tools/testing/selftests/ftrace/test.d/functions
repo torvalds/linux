@@ -30,6 +30,27 @@ reset_events_filter() { # reset all current setting filters
     done
 }
 
+reset_ftrace_filter() { # reset all triggers in set_ftrace_filter
+    echo > set_ftrace_filter
+    grep -v '^#' set_ftrace_filter | while read t; do
+	tr=`echo $t | cut -d: -f2`
+	if [ "$tr" = "" ]; then
+	    continue
+	fi
+	if [ $tr = "enable_event" -o $tr = "disable_event" ]; then
+	    tr=`echo $t | cut -d: -f1-4`
+	    limit=`echo $t | cut -d: -f5`
+	else
+	    tr=`echo $t | cut -d: -f1-2`
+	    limit=`echo $t | cut -d: -f3`
+	fi
+	if [ "$limit" != "unlimited" ]; then
+	    tr="$tr:$limit"
+	fi
+	echo "!$tr" > set_ftrace_filter
+    done
+}
+
 disable_events() {
     echo 0 > events/enable
 }

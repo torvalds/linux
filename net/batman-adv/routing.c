@@ -941,15 +941,17 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct batadv_unicast_packet *unicast_packet;
 	struct batadv_unicast_4addr_packet *unicast_4addr_packet;
-	u8 *orig_addr;
-	struct batadv_orig_node *orig_node = NULL;
+	u8 *orig_addr, *orig_addr_gw;
+	struct batadv_orig_node *orig_node = NULL, *orig_node_gw = NULL;
 	int check, hdr_size = sizeof(*unicast_packet);
 	enum batadv_subtype subtype;
-	bool is4addr;
+	struct ethhdr *ethhdr;
 	int ret = NET_RX_DROP;
+	bool is4addr, is_gw;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 	unicast_4addr_packet = (struct batadv_unicast_4addr_packet *)skb->data;
+	ethhdr = eth_hdr(skb);
 
 	is4addr = unicast_packet->packet_type == BATADV_UNICAST_4ADDR;
 	/* the caller function should have already pulled 2 bytes */
@@ -972,6 +974,23 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 
 	/* packet for me */
 	if (batadv_is_my_mac(bat_priv, unicast_packet->dest)) {
+		/* If this is a unicast packet from another backgone gw,
+		 * drop it.
+		 */
+		orig_addr_gw = ethhdr->h_source;
+		orig_node_gw = batadv_orig_hash_find(bat_priv, orig_addr_gw);
+		if (orig_node_gw) {
+			is_gw = batadv_bla_is_backbone_gw(skb, orig_node_gw,
+							  hdr_size);
+			batadv_orig_node_put(orig_node_gw);
+			if (is_gw) {
+				batadv_dbg(BATADV_DBG_BLA, bat_priv,
+					   "recv_unicast_packet(): Dropped unicast pkt received from another backbone gw %pM.\n",
+					   orig_addr_gw);
+				return NET_RX_DROP;
+			}
+		}
+
 		if (is4addr) {
 			subtype = unicast_4addr_packet->subtype;
 			batadv_dat_inc_counter(bat_priv, subtype);

@@ -20,5 +20,4 @@ TESTS += sync_stress_merge.o
 
 sync_test: $(OBJS) $(TESTS)
 
-clean:
-	$(RM) sync_test $(OBJS) $(TESTS)
+EXTRA_CLEAN := sync_test $(OBJS) $(TESTS)

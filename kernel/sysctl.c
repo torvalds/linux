@@ -1176,6 +1176,8 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= timer_migration_handler,
+		.extra1		= &zero,
+		.extra2		= &one,
 	},
 #endif
 #ifdef CONFIG_BPF_SYSCALL
@@ -2574,7 +2576,7 @@ static int do_proc_dointvec_jiffies_conv(bool *negp, unsigned long *lvalp,
 					 int write, void *data)
 {
 	if (write) {
-		if (*lvalp > LONG_MAX / HZ)
+		if (*lvalp > INT_MAX / HZ)
 			return 1;
 		*valp = *negp ? -(*lvalp*HZ) : (*lvalp*HZ);
 	} else {

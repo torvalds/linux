@@ -13,8 +13,12 @@
 / {
 	interrupt-parent = <&gic>;
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		stdout-path = &uart0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	cpus {
@@ -111,6 +115,10 @@
 				clocks = <&alp>;
 				status = "okay";
 			};
+		};
+
+		pcie0: pcie@2000 {
+			reg = <0x00002000 0x1000>;
 		};
 
 		usb2: usb2@4000 {

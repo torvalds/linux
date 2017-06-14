@@ -102,9 +102,10 @@ static struct spk_synth synth_spkout = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = &spk_serial_io_ops,
 	.probe = spk_serial_synth_probe,
 	.release = spk_serial_release,
-	.synth_immediate = spk_synth_immediate,
+	.synth_immediate = spk_serial_synth_immediate,
 	.catch_up = spk_do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -125,14 +126,7 @@ static struct spk_synth synth_spkout = {
 
 static void synth_flush(struct spk_synth *synth)
 {
-	int timeout = SPK_XMITR_TIMEOUT;
-
-	while (spk_serial_tx_busy()) {
-		if (!--timeout)
-			break;
-		udelay(1);
-	}
-	outb(SYNTH_CLEAR, speakup_info.port_tts);
+	synth->io_ops->send_xchar(SYNTH_CLEAR);
 }
 
 module_param_named(ser, synth_spkout.ser, int, 0444);

@@ -921,11 +921,11 @@ fl_pnfs_update_layout(struct inode *ino,
 	fl = FILELAYOUT_LSEG(lseg);
 
 	status = filelayout_check_deviceid(lo, fl, gfp_flags);
-	if (status)
-		lseg = ERR_PTR(status);
-out:
-	if (IS_ERR(lseg))
+	if (status) {
 		pnfs_put_lseg(lseg);
+		lseg = ERR_PTR(status);
+	}
+out:
 	return lseg;
 }
 
@@ -933,6 +933,7 @@ static void
 filelayout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 			struct nfs_page *req)
 {
+	pnfs_generic_pg_check_layout(pgio);
 	if (!pgio->pg_lseg) {
 		pgio->pg_lseg = fl_pnfs_update_layout(pgio->pg_inode,
 						      req->wb_context,
@@ -959,6 +960,7 @@ filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 	struct nfs_commit_info cinfo;
 	int status;
 
+	pnfs_generic_pg_check_layout(pgio);
 	if (!pgio->pg_lseg) {
 		pgio->pg_lseg = fl_pnfs_update_layout(pgio->pg_inode,
 						      req->wb_context,

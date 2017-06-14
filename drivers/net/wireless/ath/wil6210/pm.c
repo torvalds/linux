@@ -71,6 +71,11 @@ int wil_suspend(struct wil6210_priv *wil, bool is_runtime)
 
 	wil_dbg_pm(wil, "suspend: %s\n", is_runtime ? "runtime" : "system");
 
+	if (test_bit(wil_status_suspended, wil->status)) {
+		wil_dbg_pm(wil, "trying to suspend while suspended\n");
+		return 0;
+	}
+
 	/* if netif up, hardware is alive, shut it down */
 	if (ndev->flags & IFF_UP) {
 		rc = wil_down(wil);
@@ -80,12 +85,24 @@ int wil_suspend(struct wil6210_priv *wil, bool is_runtime)
 		}
 	}
 
-	if (wil->platform_ops.suspend)
+	/* Disable PCIe IRQ to prevent sporadic IRQs when PCIe is suspending */
+	wil_dbg_pm(wil, "Disabling PCIe IRQ before suspending\n");
+	wil_disable_irq(wil);
+
+	if (wil->platform_ops.suspend) {
 		rc = wil->platform_ops.suspend(wil->platform_handle);
+		if (rc) {
+			wil_enable_irq(wil);
+			goto out;
+		}
+	}
+
+	set_bit(wil_status_suspended, wil->status);
 
 out:
 	wil_dbg_pm(wil, "suspend: %s => %d\n",
 		   is_runtime ? "runtime" : "system", rc);
+
 	return rc;
 }
 
@@ -104,12 +121,18 @@ int wil_resume(struct wil6210_priv *wil, bool is_runtime)
 		}
 	}
 
+	wil_dbg_pm(wil, "Enabling PCIe IRQ\n");
+	wil_enable_irq(wil);
+
 	/* if netif up, bring hardware up
 	 * During open(), IFF_UP set after actual device method
-	 * invocation. This prevent recursive call to wil_up()
+	 * invocation. This prevent recursive call to wil_up().
+	 * wil_status_suspended will be cleared in wil_reset
 	 */
 	if (ndev->flags & IFF_UP)
 		rc = wil_up(wil);
+	else
+		clear_bit(wil_status_suspended, wil->status);
 
 out:
 	wil_dbg_pm(wil, "resume: %s => %d\n",

@@ -45,6 +45,13 @@
 #include "nfp_cpp.h"
 #include "nfp6000/nfp6000.h"
 
+#define NFP_RESOURCE_TBL_TARGET		NFP_CPP_TARGET_MU
+#define NFP_RESOURCE_TBL_BASE		0x8100000000ULL
+
+/* NFP Resource Table self-identifier */
+#define NFP_RESOURCE_TBL_NAME		"nfp.res"
+#define NFP_RESOURCE_TBL_KEY		0x00000000 /* Special key for entry 0 */
+
 #define NFP_RESOURCE_ENTRY_NAME_SZ	8
 
 /**
@@ -100,9 +107,11 @@ static int nfp_cpp_resource_find(struct nfp_cpp *cpp, struct nfp_resource *res)
 	strncpy(name_pad, res->name, sizeof(name_pad));
 
 	/* Search for a matching entry */
-	key = NFP_RESOURCE_TBL_KEY;
-	if (memcmp(name_pad, NFP_RESOURCE_TBL_NAME "\0\0\0\0\0\0\0\0", 8))
-		key = crc32_posix(name_pad, sizeof(name_pad));
+	if (!memcmp(name_pad, NFP_RESOURCE_TBL_NAME "\0\0\0\0\0\0\0\0", 8)) {
+		nfp_err(cpp, "Grabbing device lock not supported\n");
+		return -EOPNOTSUPP;
+	}
+	key = crc32_posix(name_pad, sizeof(name_pad));
 
 	for (i = 0; i < NFP_RESOURCE_TBL_ENTRIES; i++) {
 		u64 addr = NFP_RESOURCE_TBL_BASE +

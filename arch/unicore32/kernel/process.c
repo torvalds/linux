@@ -178,7 +178,7 @@ void __show_regs(struct pt_regs *regs)
 		buf, interrupts_enabled(regs) ? "n" : "ff",
 		fast_interrupts_enabled(regs) ? "n" : "ff",
 		processor_modes[processor_mode(regs)],
-		segment_eq(get_fs(), get_ds()) ? "kernel" : "user");
+		uaccess_kernel() ? "kernel" : "user");
 	{
 		unsigned int ctrl;
 

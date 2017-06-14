@@ -299,5 +299,27 @@ What:		/sys/bus/pci/devices/.../revision
 Date:		November 2016
 Contact:	Emil Velikov <emil.l.velikov@gmail.com>
 Description:
-		This file contains the revision field of the the PCI device.
+		This file contains the revision field of the PCI device.
 		The value comes from device config space. The file is read only.
+
+What:		/sys/bus/pci/devices/.../sriov_drivers_autoprobe
+Date:		April 2017
+Contact:	Bodong Wang<bodong@mellanox.com>
+Description:
+		This file is associated with the PF of a device that
+		supports SR-IOV.  It determines whether newly-enabled VFs
+		are immediately bound to a driver.  It initially contains
+		1, which means the kernel automatically binds VFs to a
+		compatible driver immediately after they are enabled.  If
+		an application writes 0 to the file before enabling VFs,
+		the kernel will not bind VFs to a driver.
+
+		A typical use case is to write 0 to this file, then enable
+		VFs, then assign the newly-created VFs to virtual machines.
+		Note that changing this file does not affect already-
+		enabled VFs.  In this scenario, the user must first disable
+		the VFs, write 0 to sriov_drivers_autoprobe, then re-enable
+		the VFs.
+
+		This is similar to /sys/bus/pci/drivers_autoprobe, but
+		affects only the VFs associated with a specific PF.

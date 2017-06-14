@@ -673,19 +673,7 @@ static int ov9740_s_fmt(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov9740_priv *priv = to_ov9740(sd);
-	enum v4l2_colorspace cspace;
-	u32 code = mf->code;
 	int ret;
-
-	ov9740_res_roundup(&mf->width, &mf->height);
-
-	switch (code) {
-	case MEDIA_BUS_FMT_YUYV8_2X8:
-		cspace = V4L2_COLORSPACE_SRGB;
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	ret = ov9740_reg_write_array(client, ov9740_defaults,
 				     ARRAY_SIZE(ov9740_defaults));
@@ -696,11 +684,7 @@ static int ov9740_s_fmt(struct v4l2_subdev *sd,
 	if (ret < 0)
 		return ret;
 
-	mf->code	= code;
-	mf->colorspace	= cspace;
-
-	memcpy(&priv->current_mf, mf, sizeof(struct v4l2_mbus_framefmt));
-
+	priv->current_mf = *mf;
 	return ret;
 }
 
@@ -907,12 +891,12 @@ static int ov9740_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops ov9740_video_ops = {
+static const struct v4l2_subdev_video_ops ov9740_video_ops = {
 	.s_stream	= ov9740_s_stream,
 	.g_mbus_config	= ov9740_g_mbus_config,
 };
 
-static struct v4l2_subdev_core_ops ov9740_core_ops = {
+static const struct v4l2_subdev_core_ops ov9740_core_ops = {
 	.s_power		= ov9740_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register		= ov9740_get_register,
@@ -926,7 +910,7 @@ static const struct v4l2_subdev_pad_ops ov9740_pad_ops = {
 	.set_fmt	= ov9740_set_fmt,
 };
 
-static struct v4l2_subdev_ops ov9740_subdev_ops = {
+static const struct v4l2_subdev_ops ov9740_subdev_ops = {
 	.core	= &ov9740_core_ops,
 	.video	= &ov9740_video_ops,
 	.pad	= &ov9740_pad_ops,

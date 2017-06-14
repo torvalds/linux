@@ -18,7 +18,7 @@ struct group_info *groups_alloc(int gidsetsize)
 	len = sizeof(struct group_info) + sizeof(kgid_t) * gidsetsize;
 	gi = kmalloc(len, GFP_KERNEL_ACCOUNT|__GFP_NOWARN|__GFP_NORETRY);
 	if (!gi)
-		gi = __vmalloc(len, GFP_KERNEL_ACCOUNT|__GFP_HIGHMEM, PAGE_KERNEL);
+		gi = __vmalloc(len, GFP_KERNEL_ACCOUNT, PAGE_KERNEL);
 	if (!gi)
 		return NULL;
 

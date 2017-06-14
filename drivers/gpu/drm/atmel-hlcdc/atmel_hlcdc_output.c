@@ -22,7 +22,7 @@
 #include <linux/of_graph.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_panel.h>
+#include <drm/drm_of.h>
 
 #include "atmel_hlcdc_dc.h"
 
@@ -152,32 +152,18 @@ static const struct drm_connector_funcs atmel_hlcdc_panel_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int atmel_hlcdc_check_endpoint(struct drm_device *dev,
-				      const struct of_endpoint *ep)
-{
-	struct device_node *np;
-	void *obj;
-
-	np = of_graph_get_remote_port_parent(ep->local_node);
-
-	obj = of_drm_find_panel(np);
-	if (!obj)
-		obj = of_drm_find_bridge(np);
-
-	of_node_put(np);
-
-	return obj ? 0 : -EPROBE_DEFER;
-}
-
-static int atmel_hlcdc_attach_endpoint(struct drm_device *dev,
-				       const struct of_endpoint *ep)
+static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
 	struct atmel_hlcdc_rgb_output *output;
-	struct device_node *np;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	int ret;
+
+	ret = drm_of_find_panel_or_bridge(dev->dev->of_node, 0, endpoint,
+					  &panel, &bridge);
+	if (ret)
+		return ret;
 
 	output = devm_kzalloc(dev->dev, sizeof(*output), GFP_KERNEL);
 	if (!output)
@@ -195,13 +181,7 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev,
 
 	output->encoder.possible_crtcs = 0x1;
 
-	np = of_graph_get_remote_port_parent(ep->local_node);
-
-	ret = -EPROBE_DEFER;
-
-	panel = of_drm_find_panel(np);
 	if (panel) {
-		of_node_put(np);
 		output->connector.dpms = DRM_MODE_DPMS_OFF;
 		output->connector.polled = DRM_CONNECTOR_POLL_CONNECT;
 		drm_connector_helper_add(&output->connector,
@@ -226,9 +206,6 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev,
 		return 0;
 	}
 
-	bridge = of_drm_find_bridge(np);
-	of_node_put(np);
-
 	if (bridge) {
 		ret = drm_bridge_attach(&output->encoder, bridge, NULL);
 		if (!ret)
@@ -243,31 +220,14 @@ err_encoder_cleanup:
 
 int atmel_hlcdc_create_outputs(struct drm_device *dev)
 {
-	struct device_node *ep_np = NULL;
-	struct of_endpoint ep;
-	int ret;
+	int endpoint, ret = 0;
 
-	for_each_endpoint_of_node(dev->dev->of_node, ep_np) {
-		ret = of_graph_parse_endpoint(ep_np, &ep);
-		if (!ret)
-			ret = atmel_hlcdc_check_endpoint(dev, &ep);
+	for (endpoint = 0; !ret; endpoint++)
+		ret = atmel_hlcdc_attach_endpoint(dev, endpoint);
 
-		if (ret) {
-			of_node_put(ep_np);
-			return ret;
-		}
-	}
+	/* At least one device was successfully attached.*/
+	if (ret == -ENODEV && endpoint)
+		return 0;
 
-	for_each_endpoint_of_node(dev->dev->of_node, ep_np) {
-		ret = of_graph_parse_endpoint(ep_np, &ep);
-		if (!ret)
-			ret = atmel_hlcdc_attach_endpoint(dev, &ep);
-
-		if (ret) {
-			of_node_put(ep_np);
-			return ret;
-		}
-	}
-
-	return 0;
+	return ret;
 }

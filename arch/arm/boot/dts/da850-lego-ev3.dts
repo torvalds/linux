@@ -123,6 +123,14 @@
 		pinctrl-0 = <&system_power_pin>;
 	};
 
+	sound {
+		compatible = "pwm-beeper";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ehrpwm0b_pins>;
+		pwms = <&ehrpwm0 1 1000000 0>;
+		amp-supply = <&amp>;
+	};
+
 	/*
 	 * This is a 5V current limiting regulator that is shared by USB,
 	 * the sensor (input) ports, the motor (output) ports and the A/DC.
@@ -139,17 +147,35 @@
 		enable-active-high;
 		regulator-boot-on;
 	};
+
+	/*
+	 * This is a simple voltage divider on VCC5V to provide a 2.5V
+	 * reference signal to the ADC.
+	 */
+	adc_ref: regulator2 {
+		compatible = "regulator-fixed";
+		regulator-name = "adc ref";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-boot-on;
+		vin-supply = <&vcc5v>;
+	};
+
+	/*
+	 * This is the amplifier for the speaker.
+	 */
+	amp: regulator3 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&amp_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "amp";
+		gpio = <&gpio 111 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 };
 
 &pmx_core {
 	status = "okay";
-
-	spi0_cs3_pin: pinmux_spi0_cs3_pin {
-		pinctrl-single,bits = <
-			/* CS3 */
-			0xc 0x01000000 0x0f000000
-		>;
-	};
 
 	mmc0_cd_pin: pinmux_mmc0_cd {
 		pinctrl-single,bits = <
@@ -193,6 +219,13 @@
 			0x40 0x00000080 0x000000f0
 			/* GP6[3] */
 			0x4c 0x00008000 0x0000f000
+		>;
+	};
+
+	amp_pins: pinmux_amp_pins {
+		pinctrl-single,bits = <
+			/* GP6[15] */
+			0x34 0x00000008 0x0000000f
 		>;
 	};
 };
@@ -293,6 +326,18 @@
 			};
 		};
 	};
+
+	adc: adc@3 {
+		compatible = "ti,ads7957";
+		reg = <3>;
+		#io-channel-cells = <1>;
+		spi-max-frequency = <10000000>;
+		vref-supply = <&adc_ref>;
+	};
+};
+
+&ehrpwm0 {
+	status = "okay";
 };
 
 &gpio {

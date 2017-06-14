@@ -99,7 +99,7 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 	new->handle = handle;
 	new->tp = tp;
 	err = nla_parse_nested(tb, TCA_CGROUP_MAX, tca[TCA_OPTIONS],
-			       cgroup_policy);
+			       cgroup_policy, NULL);
 	if (err < 0)
 		goto errout;
 
@@ -131,20 +131,16 @@ errout:
 	return err;
 }
 
-static bool cls_cgroup_destroy(struct tcf_proto *tp, bool force)
+static void cls_cgroup_destroy(struct tcf_proto *tp)
 {
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 
-	if (!force)
-		return false;
 	/* Head can still be NULL due to cls_cgroup_init(). */
 	if (head)
 		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
-
-	return true;
 }
 
-static int cls_cgroup_delete(struct tcf_proto *tp, unsigned long arg)
+static int cls_cgroup_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
 {
 	return -EOPNOTSUPP;
 }

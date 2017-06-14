@@ -757,23 +757,6 @@ void i40iw_qp_suspend_resume(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp, b
 }
 
 /**
- * i40iw_qp_mss_modify - modify mss for qp
- * @dev: hardware control device structure
- * @qp: hardware control qp
- */
-void i40iw_qp_mss_modify(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp)
-{
-	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
-	struct i40iw_qp *iwqp = (struct i40iw_qp *)qp->back_qp;
-	struct i40iw_modify_qp_info info;
-
-	memset(&info, 0, sizeof(info));
-	info.mss_change = true;
-	info.new_mss = qp->vsi->mss;
-	i40iw_hw_modify_qp(iwdev, iwqp, &info, false);
-}
-
-/**
  * i40iw_term_modify_qp - modify qp for term message
  * @qp: hardware control qp
  * @next_state: qp's next state
@@ -844,10 +827,9 @@ void i40iw_terminate_start_timer(struct i40iw_sc_qp *qp)
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
 	i40iw_add_ref(&iwqp->ibqp);
-	init_timer(&iwqp->terminate_timer);
-	iwqp->terminate_timer.function = i40iw_terminate_timeout;
+	setup_timer(&iwqp->terminate_timer, i40iw_terminate_timeout,
+		    (unsigned long)iwqp);
 	iwqp->terminate_timer.expires = jiffies + HZ;
-	iwqp->terminate_timer.data = (unsigned long)iwqp;
 	add_timer(&iwqp->terminate_timer);
 }
 
@@ -1436,9 +1418,8 @@ void i40iw_hw_stats_start_timer(struct i40iw_sc_vsi *vsi)
 {
 	struct i40iw_vsi_pestat *devstat = vsi->pestat;
 
-	init_timer(&devstat->stats_timer);
-	devstat->stats_timer.function = i40iw_hw_stats_timeout;
-	devstat->stats_timer.data = (unsigned long)vsi;
+	setup_timer(&devstat->stats_timer, i40iw_hw_stats_timeout,
+		    (unsigned long)vsi);
 	mod_timer(&devstat->stats_timer,
 		  jiffies + msecs_to_jiffies(STATS_TIMER_DELAY));
 }

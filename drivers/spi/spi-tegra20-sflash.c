@@ -341,7 +341,7 @@ static int tegra_sflash_transfer_one_message(struct spi_master *master,
 						SPI_DMA_TIMEOUT);
 		if (WARN_ON(ret == 0)) {
 			dev_err(tsd->dev,
-				"spi trasfer timeout, err %d\n", ret);
+				"spi transfer timeout, err %d\n", ret);
 			ret = -EIO;
 			goto exit;
 		}

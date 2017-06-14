@@ -1,6 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
+ * Copyright (c) 2016-2017 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +18,7 @@
 #include <linux/firmware.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
+#include "bnxt_xdp.h"
 #include "bnxt_ethtool.h"
 #include "bnxt_nvm_defs.h"	/* NVRAM content constant and structure defs */
 #include "bnxt_fw_hdr.h"	/* Firmware hdr constant and structure defs */
@@ -209,6 +211,10 @@ static int bnxt_get_sset_count(struct net_device *dev, int sset)
 
 		return num_stats;
 	}
+	case ETH_SS_TEST:
+		if (!bp->num_tests)
+			return -EOPNOTSUPP;
+		return bp->num_tests;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -305,6 +311,11 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 				buf += ETH_GSTRING_LEN;
 			}
 		}
+		break;
+	case ETH_SS_TEST:
+		if (bp->num_tests)
+			memcpy(buf, bp->test_info->string,
+			       bp->num_tests * ETH_GSTRING_LEN);
 		break;
 	default:
 		netdev_err(bp->dev, "bnxt_get_strings invalid request %x\n",
@@ -824,12 +835,51 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 			sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
 	info->n_stats = BNXT_NUM_STATS * bp->cp_nr_rings;
-	info->testinfo_len = BNXT_NUM_TESTS(bp);
+	info->testinfo_len = bp->num_tests;
 	/* TODO CHIMP_FW: eeprom dump details */
 	info->eedump_len = 0;
 	/* TODO CHIMP FW: reg dump details */
 	info->regdump_len = 0;
 	kfree(pkglog);
+}
+
+static void bnxt_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	wol->supported = 0;
+	wol->wolopts = 0;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
+	if (bp->flags & BNXT_FLAG_WOL_CAP) {
+		wol->supported = WAKE_MAGIC;
+		if (bp->wol)
+			wol->wolopts = WAKE_MAGIC;
+	}
+}
+
+static int bnxt_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (wol->wolopts & ~WAKE_MAGIC)
+		return -EINVAL;
+
+	if (wol->wolopts & WAKE_MAGIC) {
+		if (!(bp->flags & BNXT_FLAG_WOL_CAP))
+			return -EINVAL;
+		if (!bp->wol) {
+			if (bnxt_hwrm_alloc_wol_fltr(bp))
+				return -EBUSY;
+			bp->wol = 1;
+		}
+	} else {
+		if (bp->wol) {
+			if (bnxt_hwrm_free_wol_fltr(bp))
+				return -EBUSY;
+			bp->wol = 0;
+		}
+	}
+	return 0;
 }
 
 u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
@@ -879,6 +929,9 @@ u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_50GB)			\
 		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
 						     50000baseCR2_Full);\
+	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_100GB)			\
+		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
+						     100000baseCR4_Full);\
 	if ((fw_pause) & BNXT_LINK_PAUSE_RX) {				\
 		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
 						     Pause);		\
@@ -915,6 +968,9 @@ u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
 						  50000baseCR2_Full))	\
 		(fw_speeds) |= BNXT_LINK_SPEED_MSK_50GB;		\
+	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
+						  100000baseCR4_Full))	\
+		(fw_speeds) |= BNXT_LINK_SPEED_MSK_100GB;		\
 }
 
 static void bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info,
@@ -977,6 +1033,8 @@ u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
 		return SPEED_40000;
 	case BNXT_LINK_SPEED_50GB:
 		return SPEED_50000;
+	case BNXT_LINK_SPEED_100GB:
+		return SPEED_100000;
 	default:
 		return SPEED_UNKNOWN;
 	}
@@ -1042,7 +1100,7 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 	return 0;
 }
 
-static u32 bnxt_get_fw_speed(struct net_device *dev, u16 ethtool_speed)
+static u32 bnxt_get_fw_speed(struct net_device *dev, u32 ethtool_speed)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info = &bp->link_info;
@@ -1081,6 +1139,10 @@ static u32 bnxt_get_fw_speed(struct net_device *dev, u16 ethtool_speed)
 	case SPEED_50000:
 		if (support_spds & BNXT_LINK_SPEED_MSK_50GB)
 			fw_speed = PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_50GB;
+		break;
+	case SPEED_100000:
+		if (support_spds & BNXT_LINK_SPEED_MSK_100GB)
+			fw_speed = PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_100GB;
 		break;
 	default:
 		netdev_err(dev, "unsupported speed!\n");
@@ -2128,12 +2190,372 @@ static int bnxt_set_phys_id(struct net_device *dev,
 	return rc;
 }
 
+static int bnxt_hwrm_selftest_irq(struct bnxt *bp, u16 cmpl_ring)
+{
+	struct hwrm_selftest_irq_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_SELFTEST_IRQ, cmpl_ring, -1);
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static int bnxt_test_irq(struct bnxt *bp)
+{
+	int i;
+
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		u16 cmpl_ring = bp->grp_info[i].cp_fw_ring_id;
+		int rc;
+
+		rc = bnxt_hwrm_selftest_irq(bp, cmpl_ring);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
+
+static int bnxt_hwrm_mac_loopback(struct bnxt *bp, bool enable)
+{
+	struct hwrm_port_mac_cfg_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_MAC_CFG, -1, -1);
+
+	req.enables = cpu_to_le32(PORT_MAC_CFG_REQ_ENABLES_LPBK);
+	if (enable)
+		req.lpbk = PORT_MAC_CFG_REQ_LPBK_LOCAL;
+	else
+		req.lpbk = PORT_MAC_CFG_REQ_LPBK_NONE;
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static int bnxt_disable_an_for_lpbk(struct bnxt *bp,
+				    struct hwrm_port_phy_cfg_input *req)
+{
+	struct bnxt_link_info *link_info = &bp->link_info;
+	u16 fw_advertising = link_info->advertising;
+	u16 fw_speed;
+	int rc;
+
+	if (!link_info->autoneg)
+		return 0;
+
+	fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_1GB;
+	if (netif_carrier_ok(bp->dev))
+		fw_speed = bp->link_info.link_speed;
+	else if (fw_advertising & BNXT_LINK_SPEED_MSK_10GB)
+		fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_10GB;
+	else if (fw_advertising & BNXT_LINK_SPEED_MSK_25GB)
+		fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_25GB;
+	else if (fw_advertising & BNXT_LINK_SPEED_MSK_40GB)
+		fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_40GB;
+	else if (fw_advertising & BNXT_LINK_SPEED_MSK_50GB)
+		fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_50GB;
+
+	req->force_link_speed = cpu_to_le16(fw_speed);
+	req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE |
+				  PORT_PHY_CFG_REQ_FLAGS_RESET_PHY);
+	rc = hwrm_send_message(bp, req, sizeof(*req), HWRM_CMD_TIMEOUT);
+	req->flags = 0;
+	req->force_link_speed = cpu_to_le16(0);
+	return rc;
+}
+
+static int bnxt_hwrm_phy_loopback(struct bnxt *bp, bool enable)
+{
+	struct hwrm_port_phy_cfg_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_CFG, -1, -1);
+
+	if (enable) {
+		bnxt_disable_an_for_lpbk(bp, &req);
+		req.lpbk = PORT_PHY_CFG_REQ_LPBK_LOCAL;
+	} else {
+		req.lpbk = PORT_PHY_CFG_REQ_LPBK_NONE;
+	}
+	req.enables = cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_LPBK);
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static int bnxt_rx_loopback(struct bnxt *bp, struct bnxt_napi *bnapi,
+			    u32 raw_cons, int pkt_size)
+{
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+	struct bnxt_sw_rx_bd *rx_buf;
+	struct rx_cmp *rxcmp;
+	u16 cp_cons, cons;
+	u8 *data;
+	u32 len;
+	int i;
+
+	cp_cons = RING_CMP(raw_cons);
+	rxcmp = (struct rx_cmp *)
+		&cpr->cp_desc_ring[CP_RING(cp_cons)][CP_IDX(cp_cons)];
+	cons = rxcmp->rx_cmp_opaque;
+	rx_buf = &rxr->rx_buf_ring[cons];
+	data = rx_buf->data_ptr;
+	len = le32_to_cpu(rxcmp->rx_cmp_len_flags_type) >> RX_CMP_LEN_SHIFT;
+	if (len != pkt_size)
+		return -EIO;
+	i = ETH_ALEN;
+	if (!ether_addr_equal(data + i, bnapi->bp->dev->dev_addr))
+		return -EIO;
+	i += ETH_ALEN;
+	for (  ; i < pkt_size; i++) {
+		if (data[i] != (u8)(i & 0xff))
+			return -EIO;
+	}
+	return 0;
+}
+
+static int bnxt_poll_loopback(struct bnxt *bp, int pkt_size)
+{
+	struct bnxt_napi *bnapi = bp->bnapi[0];
+	struct bnxt_cp_ring_info *cpr;
+	struct tx_cmp *txcmp;
+	int rc = -EIO;
+	u32 raw_cons;
+	u32 cons;
+	int i;
+
+	cpr = &bnapi->cp_ring;
+	raw_cons = cpr->cp_raw_cons;
+	for (i = 0; i < 200; i++) {
+		cons = RING_CMP(raw_cons);
+		txcmp = &cpr->cp_desc_ring[CP_RING(cons)][CP_IDX(cons)];
+
+		if (!TX_CMP_VALID(txcmp, raw_cons)) {
+			udelay(5);
+			continue;
+		}
+
+		/* The valid test of the entry must be done first before
+		 * reading any further.
+		 */
+		dma_rmb();
+		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_CMP) {
+			rc = bnxt_rx_loopback(bp, bnapi, raw_cons, pkt_size);
+			raw_cons = NEXT_RAW_CMP(raw_cons);
+			raw_cons = NEXT_RAW_CMP(raw_cons);
+			break;
+		}
+		raw_cons = NEXT_RAW_CMP(raw_cons);
+	}
+	cpr->cp_raw_cons = raw_cons;
+	return rc;
+}
+
+static int bnxt_run_loopback(struct bnxt *bp)
+{
+	struct bnxt_tx_ring_info *txr = &bp->tx_ring[0];
+	int pkt_size, i = 0;
+	struct sk_buff *skb;
+	dma_addr_t map;
+	u8 *data;
+	int rc;
+
+	pkt_size = min(bp->dev->mtu + ETH_HLEN, bp->rx_copy_thresh);
+	skb = netdev_alloc_skb(bp->dev, pkt_size);
+	if (!skb)
+		return -ENOMEM;
+	data = skb_put(skb, pkt_size);
+	eth_broadcast_addr(data);
+	i += ETH_ALEN;
+	ether_addr_copy(&data[i], bp->dev->dev_addr);
+	i += ETH_ALEN;
+	for ( ; i < pkt_size; i++)
+		data[i] = (u8)(i & 0xff);
+
+	map = dma_map_single(&bp->pdev->dev, skb->data, pkt_size,
+			     PCI_DMA_TODEVICE);
+	if (dma_mapping_error(&bp->pdev->dev, map)) {
+		dev_kfree_skb(skb);
+		return -EIO;
+	}
+	bnxt_xmit_xdp(bp, txr, map, pkt_size, 0);
+
+	/* Sync BD data before updating doorbell */
+	wmb();
+
+	writel(DB_KEY_TX | txr->tx_prod, txr->tx_doorbell);
+	writel(DB_KEY_TX | txr->tx_prod, txr->tx_doorbell);
+	rc = bnxt_poll_loopback(bp, pkt_size);
+
+	dma_unmap_single(&bp->pdev->dev, map, pkt_size, PCI_DMA_TODEVICE);
+	dev_kfree_skb(skb);
+	return rc;
+}
+
+static int bnxt_run_fw_tests(struct bnxt *bp, u8 test_mask, u8 *test_results)
+{
+	struct hwrm_selftest_exec_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_selftest_exec_input req = {0};
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_SELFTEST_EXEC, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	resp->test_success = 0;
+	req.flags = test_mask;
+	rc = _hwrm_send_message(bp, &req, sizeof(req), bp->test_info->timeout);
+	*test_results = resp->test_success;
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+#define BNXT_DRV_TESTS			3
+#define BNXT_MACLPBK_TEST_IDX		(bp->num_tests - BNXT_DRV_TESTS)
+#define BNXT_PHYLPBK_TEST_IDX		(BNXT_MACLPBK_TEST_IDX + 1)
+#define BNXT_IRQ_TEST_IDX		(BNXT_MACLPBK_TEST_IDX + 2)
+
+static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
+			   u64 *buf)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	bool offline = false;
+	u8 test_results = 0;
+	u8 test_mask = 0;
+	int rc, i;
+
+	if (!bp->num_tests || !BNXT_SINGLE_PF(bp))
+		return;
+	memset(buf, 0, sizeof(u64) * bp->num_tests);
+	if (!netif_running(dev)) {
+		etest->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
+
+	if (etest->flags & ETH_TEST_FL_OFFLINE) {
+		if (bp->pf.active_vfs) {
+			etest->flags |= ETH_TEST_FL_FAILED;
+			netdev_warn(dev, "Offline tests cannot be run with active VFs\n");
+			return;
+		}
+		offline = true;
+	}
+
+	for (i = 0; i < bp->num_tests - BNXT_DRV_TESTS; i++) {
+		u8 bit_val = 1 << i;
+
+		if (!(bp->test_info->offline_mask & bit_val))
+			test_mask |= bit_val;
+		else if (offline)
+			test_mask |= bit_val;
+	}
+	if (!offline) {
+		bnxt_run_fw_tests(bp, test_mask, &test_results);
+	} else {
+		rc = bnxt_close_nic(bp, false, false);
+		if (rc)
+			return;
+		bnxt_run_fw_tests(bp, test_mask, &test_results);
+
+		buf[BNXT_MACLPBK_TEST_IDX] = 1;
+		bnxt_hwrm_mac_loopback(bp, true);
+		msleep(250);
+		rc = bnxt_half_open_nic(bp);
+		if (rc) {
+			bnxt_hwrm_mac_loopback(bp, false);
+			etest->flags |= ETH_TEST_FL_FAILED;
+			return;
+		}
+		if (bnxt_run_loopback(bp))
+			etest->flags |= ETH_TEST_FL_FAILED;
+		else
+			buf[BNXT_MACLPBK_TEST_IDX] = 0;
+
+		bnxt_hwrm_mac_loopback(bp, false);
+		bnxt_hwrm_phy_loopback(bp, true);
+		msleep(1000);
+		if (bnxt_run_loopback(bp)) {
+			buf[BNXT_PHYLPBK_TEST_IDX] = 1;
+			etest->flags |= ETH_TEST_FL_FAILED;
+		}
+		bnxt_hwrm_phy_loopback(bp, false);
+		bnxt_half_close_nic(bp);
+		bnxt_open_nic(bp, false, true);
+	}
+	if (bnxt_test_irq(bp)) {
+		buf[BNXT_IRQ_TEST_IDX] = 1;
+		etest->flags |= ETH_TEST_FL_FAILED;
+	}
+	for (i = 0; i < bp->num_tests - BNXT_DRV_TESTS; i++) {
+		u8 bit_val = 1 << i;
+
+		if ((test_mask & bit_val) && !(test_results & bit_val)) {
+			buf[i] = 1;
+			etest->flags |= ETH_TEST_FL_FAILED;
+		}
+	}
+}
+
+void bnxt_ethtool_init(struct bnxt *bp)
+{
+	struct hwrm_selftest_qlist_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_selftest_qlist_input req = {0};
+	struct bnxt_test_info *test_info;
+	int i, rc;
+
+	if (bp->hwrm_spec_code < 0x10704 || !BNXT_SINGLE_PF(bp))
+		return;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_SELFTEST_QLIST, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		goto ethtool_init_exit;
+
+	test_info = kzalloc(sizeof(*bp->test_info), GFP_KERNEL);
+	if (!test_info)
+		goto ethtool_init_exit;
+
+	bp->test_info = test_info;
+	bp->num_tests = resp->num_tests + BNXT_DRV_TESTS;
+	if (bp->num_tests > BNXT_MAX_TEST)
+		bp->num_tests = BNXT_MAX_TEST;
+
+	test_info->offline_mask = resp->offline_tests;
+	test_info->timeout = le16_to_cpu(resp->test_timeout);
+	if (!test_info->timeout)
+		test_info->timeout = HWRM_CMD_TIMEOUT;
+	for (i = 0; i < bp->num_tests; i++) {
+		char *str = test_info->string[i];
+		char *fw_str = resp->test0_name + i * 32;
+
+		if (i == BNXT_MACLPBK_TEST_IDX) {
+			strcpy(str, "Mac loopback test (offline)");
+		} else if (i == BNXT_PHYLPBK_TEST_IDX) {
+			strcpy(str, "Phy loopback test (offline)");
+		} else if (i == BNXT_IRQ_TEST_IDX) {
+			strcpy(str, "Interrupt_test (offline)");
+		} else {
+			strlcpy(str, fw_str, ETH_GSTRING_LEN);
+			strncat(str, " test", ETH_GSTRING_LEN - strlen(str));
+			if (test_info->offline_mask & (1 << i))
+				strncat(str, " (offline)",
+					ETH_GSTRING_LEN - strlen(str));
+			else
+				strncat(str, " (online)",
+					ETH_GSTRING_LEN - strlen(str));
+		}
+	}
+
+ethtool_init_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+}
+
+void bnxt_ethtool_free(struct bnxt *bp)
+{
+	kfree(bp->test_info);
+	bp->test_info = NULL;
+}
+
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_link_ksettings	= bnxt_get_link_ksettings,
 	.set_link_ksettings	= bnxt_set_link_ksettings,
 	.get_pauseparam		= bnxt_get_pauseparam,
 	.set_pauseparam		= bnxt_set_pauseparam,
 	.get_drvinfo		= bnxt_get_drvinfo,
+	.get_wol		= bnxt_get_wol,
+	.set_wol		= bnxt_set_wol,
 	.get_coalesce		= bnxt_get_coalesce,
 	.set_coalesce		= bnxt_set_coalesce,
 	.get_msglevel		= bnxt_get_msglevel,
@@ -2161,4 +2583,5 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_module_eeprom	= bnxt_get_module_eeprom,
 	.nway_reset		= bnxt_nway_reset,
 	.set_phys_id		= bnxt_set_phys_id,
+	.self_test		= bnxt_self_test,
 };

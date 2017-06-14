@@ -197,7 +197,7 @@
 			arm,shared-override;
 		};
 
-		pcie: pcie@0x01000000 {
+		pcie: pcie@1ffc000 {
 			compatible = "fsl,imx6q-pcie", "snps,dw-pcie";
 			reg = <0x01ffc000 0x04000>,
 			      <0x01f00000 0x80000>;
@@ -205,6 +205,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
+			bus-range = <0x00 0xff>;
 			ranges = <0x81000000 0 0          0x01f80000 0 0x00010000 /* downstream I/O */
 				  0x82000000 0 0x01000000 0x01000000 0 0x00f00000>; /* non-prefetchable memory */
 			num-lanes = <1>;

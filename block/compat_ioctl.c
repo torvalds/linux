@@ -685,7 +685,7 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case BLKALIGNOFF:
 		return compat_put_int(arg, bdev_alignment_offset(bdev));
 	case BLKDISCARDZEROES:
-		return compat_put_uint(arg, bdev_discard_zeroes_data(bdev));
+		return compat_put_uint(arg, 0);
 	case BLKFLSBUF:
 	case BLKROSET:
 	case BLKDISCARD:

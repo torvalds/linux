@@ -434,6 +434,7 @@ struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 {
 	if (inode) {
 		struct dentry *new = ll_find_alias(inode, de);
+
 		if (new) {
 			d_move(new, de);
 			iput(inode);

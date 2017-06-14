@@ -68,7 +68,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	struct hfi1_ibport *ibp = to_iport(sqp->ibqp.device, sqp->port_num);
 	struct hfi1_pportdata *ppd;
 	struct rvt_qp *qp;
-	struct ib_ah_attr *ah_attr;
+	struct rdma_ah_attr *ah_attr;
 	unsigned long flags;
 	struct rvt_sge_state ssge;
 	struct rvt_sge *sge;
@@ -103,17 +103,17 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	if (qp->ibqp.qp_num > 1) {
 		u16 pkey;
 		u16 slid;
-		u8 sc5 = ibp->sl_to_sc[ah_attr->sl];
+		u8 sc5 = ibp->sl_to_sc[rdma_ah_get_sl(ah_attr)];
 
 		pkey = hfi1_get_pkey(ibp, sqp->s_pkey_index);
-		slid = ppd->lid | (ah_attr->src_path_bits &
+		slid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
 				   ((1 << ppd->lmc) - 1));
 		if (unlikely(ingress_pkey_check(ppd, pkey, sc5,
 						qp->s_pkey_index, slid))) {
 			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY, pkey,
-				       ah_attr->sl,
+				       rdma_ah_get_sl(ah_attr),
 				       sqp->ibqp.qp_num, qp->ibqp.qp_num,
-				       slid, ah_attr->dlid);
+				       slid, rdma_ah_get_dlid(ah_attr));
 			goto drop;
 		}
 	}
@@ -131,13 +131,13 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		if (unlikely(qkey != qp->qkey)) {
 			u16 lid;
 
-			lid = ppd->lid | (ah_attr->src_path_bits &
+			lid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
 					  ((1 << ppd->lmc) - 1));
 			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_Q_KEY, qkey,
-				       ah_attr->sl,
+				       rdma_ah_get_sl(ah_attr),
 				       sqp->ibqp.qp_num, qp->ibqp.qp_num,
 				       lid,
-				       ah_attr->dlid);
+				       rdma_ah_get_dlid(ah_attr));
 			goto drop;
 		}
 	}
@@ -183,11 +183,11 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		goto bail_unlock;
 	}
 
-	if (ah_attr->ah_flags & IB_AH_GRH) {
+	if (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) {
 		struct ib_grh grh;
-		struct ib_global_route grd = ah_attr->grh;
+		const struct ib_global_route *grd = rdma_ah_read_grh(ah_attr);
 
-		hfi1_make_grh(ibp, &grh, &grd, 0, 0);
+		hfi1_make_grh(ibp, &grh, grd, 0, 0);
 		hfi1_copy_sge(&qp->r_sge, &grh,
 			      sizeof(grh), true, false);
 		wc.wc_flags |= IB_WC_GRH;
@@ -243,12 +243,13 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	} else {
 		wc.pkey_index = 0;
 	}
-	wc.slid = ppd->lid | (ah_attr->src_path_bits & ((1 << ppd->lmc) - 1));
+	wc.slid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
+			      ((1 << ppd->lmc) - 1));
 	/* Check for loopback when the port lid is not set */
 	if (wc.slid == 0 && sqp->ibqp.qp_type == IB_QPT_GSI)
 		wc.slid = be16_to_cpu(IB_LID_PERMISSIVE);
-	wc.sl = ah_attr->sl;
-	wc.dlid_path_bits = ah_attr->dlid & ((1 << ppd->lmc) - 1);
+	wc.sl = rdma_ah_get_sl(ah_attr);
+	wc.dlid_path_bits = rdma_ah_get_dlid(ah_attr) & ((1 << ppd->lmc) - 1);
 	wc.port_num = qp->port_num;
 	/* Signal completion event if the solicited bit is set. */
 	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
@@ -272,7 +273,7 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct ib_other_headers *ohdr;
-	struct ib_ah_attr *ah_attr;
+	struct rdma_ah_attr *ah_attr;
 	struct hfi1_pportdata *ppd;
 	struct hfi1_ibport *ibp;
 	struct rvt_swqe *wqe;
@@ -319,9 +320,9 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ppd = ppd_from_ibp(ibp);
 	ah_attr = &ibah_to_rvtah(wqe->ud_wr.ah)->attr;
-	if (ah_attr->dlid < be16_to_cpu(IB_MULTICAST_LID_BASE) ||
-	    ah_attr->dlid == be16_to_cpu(IB_LID_PERMISSIVE)) {
-		lid = ah_attr->dlid & ~((1 << ppd->lmc) - 1);
+	if (rdma_ah_get_dlid(ah_attr) < be16_to_cpu(IB_MULTICAST_LID_BASE) ||
+	    rdma_ah_get_dlid(ah_attr) == be16_to_cpu(IB_LID_PERMISSIVE)) {
+		lid = rdma_ah_get_dlid(ah_attr) & ~((1 << ppd->lmc) - 1);
 		if (unlikely(!loopback &&
 			     (lid == ppd->lid ||
 			      (lid == be16_to_cpu(IB_LID_PERMISSIVE) &&
@@ -356,7 +357,7 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	qp->s_hdrwords = 7;
 	ps->s_txreq->s_cur_size = wqe->length;
 	ps->s_txreq->ss = &qp->s_sge;
-	qp->s_srate = ah_attr->static_rate;
+	qp->s_srate = rdma_ah_get_static_rate(ah_attr);
 	qp->srate_mbps = ib_rate_to_mbps(qp->s_srate);
 	qp->s_wqe = wqe;
 	qp->s_sge.sge = wqe->sg_list[0];
@@ -364,11 +365,11 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	qp->s_sge.num_sge = wqe->wr.num_sge;
 	qp->s_sge.total_len = wqe->length;
 
-	if (ah_attr->ah_flags & IB_AH_GRH) {
+	if (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) {
 		/* Header size in 32-bit words. */
 		qp->s_hdrwords += hfi1_make_grh(ibp,
 						&ps->s_txreq->phdr.hdr.u.l.grh,
-						&ah_attr->grh,
+						rdma_ah_read_grh(ah_attr),
 						qp->s_hdrwords, nwords);
 		lrh0 = HFI1_LRH_GRH;
 		ohdr = &ps->s_txreq->phdr.hdr.u.l.oth;
@@ -388,8 +389,8 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	} else {
 		bth0 = IB_OPCODE_UD_SEND_ONLY << 24;
 	}
-	sc5 = ibp->sl_to_sc[ah_attr->sl];
-	lrh0 |= (ah_attr->sl & 0xf) << 4;
+	sc5 = ibp->sl_to_sc[rdma_ah_get_sl(ah_attr)];
+	lrh0 |= (rdma_ah_get_sl(ah_attr) & 0xf) << 4;
 	if (qp->ibqp.qp_type == IB_QPT_SMI) {
 		lrh0 |= 0xF000; /* Set VL (see ch. 13.5.3.1) */
 		priv->s_sc = 0xf;
@@ -402,15 +403,17 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
 	ps->s_txreq->psc = priv->s_sendcontext;
 	ps->s_txreq->phdr.hdr.lrh[0] = cpu_to_be16(lrh0);
-	ps->s_txreq->phdr.hdr.lrh[1] = cpu_to_be16(ah_attr->dlid);
+	ps->s_txreq->phdr.hdr.lrh[1] =
+		cpu_to_be16(rdma_ah_get_dlid(ah_attr));
 	ps->s_txreq->phdr.hdr.lrh[2] =
 		cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
-	if (ah_attr->dlid == be16_to_cpu(IB_LID_PERMISSIVE)) {
+	if (rdma_ah_get_dlid(ah_attr) == be16_to_cpu(IB_LID_PERMISSIVE)) {
 		ps->s_txreq->phdr.hdr.lrh[3] = IB_LID_PERMISSIVE;
 	} else {
 		lid = ppd->lid;
 		if (lid) {
-			lid |= ah_attr->src_path_bits & ((1 << ppd->lmc) - 1);
+			lid |= rdma_ah_get_path_bits(ah_attr) &
+				((1 << ppd->lmc) - 1);
 			ps->s_txreq->phdr.hdr.lrh[3] = cpu_to_be16(lid);
 		} else {
 			ps->s_txreq->phdr.hdr.lrh[3] = IB_LID_PERMISSIVE;
@@ -537,7 +540,7 @@ void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 	bth0 = pkey | (IB_OPCODE_CNP << 24);
 	ohdr->bth[0] = cpu_to_be32(bth0);
 
-	ohdr->bth[1] = cpu_to_be32(remote_qpn | (1 << HFI1_BECN_SHIFT));
+	ohdr->bth[1] = cpu_to_be32(remote_qpn | (1 << IB_BECN_SHIFT));
 	ohdr->bth[2] = 0; /* PSN 0 */
 
 	hdr.lrh[0] = cpu_to_be16(lrh0);
@@ -680,7 +683,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
 	bool has_grh = rcv_flags & HFI1_HAS_GRH;
-	u8 sc5 = hdr2sc(hdr, packet->rhf);
+	u8 sc5 = hfi1_9B_get_sc5(hdr, packet->rhf);
 	u32 bth1;
 	u8 sl_from_sc, sl;
 	u16 slid;
@@ -688,17 +691,15 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 
 	qkey = be32_to_cpu(ohdr->u.ud.deth[0]);
 	src_qp = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
-	dlid = be16_to_cpu(hdr->lrh[1]);
+	dlid = ib_get_dlid(hdr);
 	bth1 = be32_to_cpu(ohdr->bth[1]);
-	slid = be16_to_cpu(hdr->lrh[3]);
-	pkey = (u16)be32_to_cpu(ohdr->bth[0]);
-	sl = (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xf;
-	extra_bytes = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
+	slid = ib_get_slid(hdr);
+	pkey = ib_bth_get_pkey(ohdr);
+	opcode = ib_bth_get_opcode(ohdr);
+	sl = ib_get_sl(hdr);
+	extra_bytes = ib_bth_get_pad(ohdr);
 	extra_bytes += (SIZE_OF_CRC << 2);
 	sl_from_sc = ibp->sc_to_sl[sc5];
-
-	opcode = be32_to_cpu(ohdr->bth[0]) >> 24;
-	opcode &= 0xff;
 
 	process_ecn(qp, packet, (opcode != IB_OPCODE_CNP));
 	/*

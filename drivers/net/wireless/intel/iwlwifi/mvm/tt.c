@@ -356,7 +356,7 @@ static void iwl_mvm_tt_tx_protection(struct iwl_mvm *mvm, bool enable)
 	struct iwl_mvm_sta *mvmsta;
 	int i, err;
 
-	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
+	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
 		mvmsta = iwl_mvm_sta_from_staid_protected(mvm, i);
 		if (!mvmsta)
 			continue;
@@ -790,10 +790,12 @@ static int iwl_mvm_tcool_set_cur_state(struct thermal_cooling_device *cdev,
 	struct iwl_mvm *mvm = (struct iwl_mvm *)(cdev->devdata);
 	int ret;
 
-	if (!mvm->ucode_loaded || !(mvm->cur_ucode == IWL_UCODE_REGULAR))
-		return -EIO;
-
 	mutex_lock(&mvm->mutex);
+
+	if (!mvm->ucode_loaded || !(mvm->cur_ucode == IWL_UCODE_REGULAR)) {
+		ret = -EIO;
+		goto unlock;
+	}
 
 	if (new_state >= ARRAY_SIZE(iwl_mvm_cdev_budgets)) {
 		ret = -EINVAL;

@@ -28,6 +28,9 @@
  */
 #define MAX_MIDI_RX_BLOCKS	8
 
+/* 3 = MAX(DOT_MIDI_IN_PORTS, DOT_MIDI_OUT_PORTS) + 1. */
+#define MAX_MIDI_PORTS		3
+
 /*
  * The double-oh-three algorithm was discovered by Robin Gareus and Damien
  * Zammit in 2012, with reverse-engineering for Digi 003 Rack.
@@ -42,10 +45,8 @@ struct amdtp_dot {
 	unsigned int pcm_channels;
 	struct dot_state state;
 
-	unsigned int midi_ports;
-	/* 2 = MAX(DOT_MIDI_IN_PORTS, DOT_MIDI_OUT_PORTS) */
-	struct snd_rawmidi_substream *midi[2];
-	int midi_fifo_used[2];
+	struct snd_rawmidi_substream *midi[MAX_MIDI_PORTS];
+	int midi_fifo_used[MAX_MIDI_PORTS];
 	int midi_fifo_limit;
 
 	void (*transfer_samples)(struct amdtp_stream *s,
@@ -124,8 +125,8 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 		return -EBUSY;
 
 	/*
-	 * A first data channel is for MIDI conformant data channel, the rest is
-	 * Multi Bit Linear Audio data channel.
+	 * A first data channel is for MIDI messages, the rest is Multi Bit
+	 * Linear Audio data channel.
 	 */
 	err = amdtp_stream_set_parameters(s, rate, pcm_channels + 1);
 	if (err < 0)
@@ -134,11 +135,6 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	s->fdf = AMDTP_FDF_AM824 | s->sfc;
 
 	p->pcm_channels = pcm_channels;
-
-	if (s->direction == AMDTP_IN_STREAM)
-		p->midi_ports = DOT_MIDI_IN_PORTS;
-	else
-		p->midi_ports = DOT_MIDI_OUT_PORTS;
 
 	/*
 	 * We do not know the actual MIDI FIFO size of most devices.  Just
@@ -281,13 +277,25 @@ static void write_midi_messages(struct amdtp_stream *s, __be32 *buffer,
 		b = (u8 *)&buffer[0];
 
 		len = 0;
-		if (port < p->midi_ports &&
+		if (port < MAX_MIDI_PORTS &&
 		    midi_ratelimit_per_packet(s, port) &&
 		    p->midi[port] != NULL)
 			len = snd_rawmidi_transmit(p->midi[port], b + 1, 2);
 
 		if (len > 0) {
-			b[3] = (0x10 << port) | len;
+			/*
+			 * Upper 4 bits of LSB represent port number.
+			 * - 0000b: physical MIDI port 1.
+			 * - 0010b: physical MIDI port 2.
+			 * - 1110b: console MIDI port.
+			 */
+			if (port == 2)
+				b[3] = 0xe0;
+			else if (port == 1)
+				b[3] = 0x20;
+			else
+				b[3] = 0x00;
+			b[3] |= len;
 			midi_use_bytes(s, port, len);
 		} else {
 			b[1] = 0;
@@ -309,11 +317,22 @@ static void read_midi_messages(struct amdtp_stream *s, __be32 *buffer,
 
 	for (f = 0; f < data_blocks; f++) {
 		b = (u8 *)&buffer[0];
-		port = b[3] >> 4;
-		len = b[3] & 0x0f;
 
-		if (port < p->midi_ports && p->midi[port] && len > 0)
-			snd_rawmidi_receive(p->midi[port], b + 1, len);
+		len = b[3] & 0x0f;
+		if (len > 0) {
+			/*
+			 * Upper 4 bits of LSB represent port number.
+			 * - 0000b: physical MIDI port 1. Use port 0.
+			 * - 1110b: console MIDI port. Use port 2.
+			 */
+			if (b[3] >> 4 > 0)
+				port = 2;
+			else
+				port = 0;
+
+			if (port < MAX_MIDI_PORTS && p->midi[port])
+				snd_rawmidi_receive(p->midi[port], b + 1, len);
+		}
 
 		buffer += s->data_block_quadlets;
 	}
@@ -364,7 +383,7 @@ void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
 {
 	struct amdtp_dot *p = s->protocol;
 
-	if (port < p->midi_ports)
+	if (port < MAX_MIDI_PORTS)
 		ACCESS_ONCE(p->midi[port]) = midi;
 }
 

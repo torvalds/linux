@@ -34,7 +34,6 @@
 #include <linux/screen_info.h>
 #include <linux/apm_bios.h>
 #include <linux/edd.h>
-#include <asm/e820.h>
 #include <asm/ist.h>
 #include <video/edid.h>
 
@@ -111,6 +110,21 @@ struct efi_info {
 	__u32 efi_memmap_hi;
 };
 
+/*
+ * This is the maximum number of entries in struct boot_params::e820_table
+ * (the zeropage), which is part of the x86 boot protocol ABI:
+ */
+#define E820_MAX_ENTRIES_ZEROPAGE 128
+
+/*
+ * The E820 memory region entry of the boot protocol ABI:
+ */
+struct boot_e820_entry {
+	__u64 addr;
+	__u64 size;
+	__u32 type;
+} __attribute__((packed));
+
 /* The so-called "zeropage" */
 struct boot_params {
 	struct screen_info screen_info;			/* 0x000 */
@@ -153,7 +167,7 @@ struct boot_params {
 	struct setup_header hdr;    /* setup header */	/* 0x1f1 */
 	__u8  _pad7[0x290-0x1f1-sizeof(struct setup_header)];
 	__u32 edd_mbr_sig_buffer[EDD_MBR_SIG_MAX];	/* 0x290 */
-	struct e820entry e820_map[E820MAX];		/* 0x2d0 */
+	struct boot_e820_entry e820_table[E820_MAX_ENTRIES_ZEROPAGE]; /* 0x2d0 */
 	__u8  _pad8[48];				/* 0xcd0 */
 	struct edd_info eddbuf[EDDMAXNR];		/* 0xd00 */
 	__u8  _pad9[276];				/* 0xeec */

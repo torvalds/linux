@@ -239,7 +239,7 @@ static bool rt2800mmio_txdone_release_entries(struct queue_entry *entry,
 {
 	if (test_bit(ENTRY_DATA_STATUS_SET, &entry->flags)) {
 		rt2800_txdone_entry(entry, entry->status,
-				    rt2800mmio_get_txwi(entry));
+				    rt2800mmio_get_txwi(entry), true);
 		return false;
 	}
 

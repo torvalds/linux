@@ -498,7 +498,7 @@ static int cs4271_reset(struct snd_soc_codec *codec)
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 
 	if (gpio_is_valid(cs4271->gpio_nreset)) {
-		gpio_set_value(cs4271->gpio_nreset, 0);
+		gpio_direction_output(cs4271->gpio_nreset, 0);
 		mdelay(1);
 		gpio_set_value(cs4271->gpio_nreset, 1);
 		mdelay(1);

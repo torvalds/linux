@@ -325,6 +325,13 @@ static void wacom_post_parse_hid(struct hid_device *hdev,
 
 	if (features->type == HID_GENERIC) {
 		/* Any last-minute generic device setup */
+		if (wacom_wac->has_mode_change) {
+			if (wacom_wac->is_direct_mode)
+				features->device_type |= WACOM_DEVICETYPE_DIRECT;
+			else
+				features->device_type &= ~WACOM_DEVICETYPE_DIRECT;
+		}
+
 		if (features->touch_max > 1) {
 			if (features->device_type & WACOM_DEVICETYPE_DIRECT)
 				input_mt_init_slots(wacom_wac->touch_input,
@@ -2093,8 +2100,10 @@ static void wacom_set_shared_values(struct wacom_wac *wacom_wac)
 		wacom_wac->shared->touch_input = wacom_wac->touch_input;
 	}
 
-	if (wacom_wac->has_mute_touch_switch)
+	if (wacom_wac->has_mute_touch_switch) {
 		wacom_wac->shared->has_mute_touch_switch = true;
+		wacom_wac->shared->is_touch_on = true;
+	}
 
 	if (wacom_wac->shared->has_mute_touch_switch &&
 	    wacom_wac->shared->touch_input) {
@@ -2490,6 +2499,46 @@ static void wacom_remote_work(struct work_struct *work)
 	}
 }
 
+static void wacom_mode_change_work(struct work_struct *work)
+{
+	struct wacom *wacom = container_of(work, struct wacom, mode_change_work);
+	struct wacom_shared *shared = wacom->wacom_wac.shared;
+	struct wacom *wacom1 = NULL;
+	struct wacom *wacom2 = NULL;
+	bool is_direct = wacom->wacom_wac.is_direct_mode;
+	int error = 0;
+
+	if (shared->pen) {
+		wacom1 = hid_get_drvdata(shared->pen);
+		wacom_release_resources(wacom1);
+		hid_hw_stop(wacom1->hdev);
+		wacom1->wacom_wac.has_mode_change = true;
+		wacom1->wacom_wac.is_direct_mode = is_direct;
+	}
+
+	if (shared->touch) {
+		wacom2 = hid_get_drvdata(shared->touch);
+		wacom_release_resources(wacom2);
+		hid_hw_stop(wacom2->hdev);
+		wacom2->wacom_wac.has_mode_change = true;
+		wacom2->wacom_wac.is_direct_mode = is_direct;
+	}
+
+	if (wacom1) {
+		error = wacom_parse_and_register(wacom1, false);
+		if (error)
+			return;
+	}
+
+	if (wacom2) {
+		error = wacom_parse_and_register(wacom2, false);
+		if (error)
+			return;
+	}
+
+	return;
+}
+
 static int wacom_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
@@ -2534,6 +2583,7 @@ static int wacom_probe(struct hid_device *hdev,
 	INIT_WORK(&wacom->wireless_work, wacom_wireless_work);
 	INIT_WORK(&wacom->battery_work, wacom_battery_work);
 	INIT_WORK(&wacom->remote_work, wacom_remote_work);
+	INIT_WORK(&wacom->mode_change_work, wacom_mode_change_work);
 
 	/* ask for the report descriptor to be loaded by HID */
 	error = hid_parse(hdev);
@@ -2576,6 +2626,7 @@ static void wacom_remove(struct hid_device *hdev)
 	cancel_work_sync(&wacom->wireless_work);
 	cancel_work_sync(&wacom->battery_work);
 	cancel_work_sync(&wacom->remote_work);
+	cancel_work_sync(&wacom->mode_change_work);
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
 

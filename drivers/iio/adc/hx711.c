@@ -369,7 +369,7 @@ static struct attribute *hx711_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group hx711_attribute_group = {
+static const struct attribute_group hx711_attribute_group = {
 	.attrs = hx711_attributes,
 };
 

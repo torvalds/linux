@@ -57,10 +57,6 @@
 #define IPC_WRITE_BUFFER	0x80
 #define IPC_READ_BUFFER		0x90
 
-/* PMC Global Control Registers */
-#define GCR_TELEM_DEEP_S0IX_OFFSET	0x1078
-#define GCR_TELEM_SHLW_S0IX_OFFSET	0x1080
-
 /* Residency with clock rate at 19.2MHz to usecs */
 #define S0IX_RESIDENCY_IN_USECS(d, s)		\
 ({						\
@@ -82,7 +78,7 @@
 /* exported resources from IFWI */
 #define PLAT_RESOURCE_IPC_INDEX		0
 #define PLAT_RESOURCE_IPC_SIZE		0x1000
-#define PLAT_RESOURCE_GCR_OFFSET	0x1008
+#define PLAT_RESOURCE_GCR_OFFSET	0x1000
 #define PLAT_RESOURCE_GCR_SIZE		0x1000
 #define PLAT_RESOURCE_BIOS_DATA_INDEX	1
 #define PLAT_RESOURCE_BIOS_IFACE_INDEX	2
@@ -112,6 +108,13 @@
 #define TCO_PMC_OFFSET			0x8
 #define TCO_PMC_SIZE			0x4
 
+/* PMC register bit definitions */
+
+/* PMC_CFG_REG bit masks */
+#define PMC_CFG_NO_REBOOT_MASK		(1 << 4)
+#define PMC_CFG_NO_REBOOT_EN		(1 << 4)
+#define PMC_CFG_NO_REBOOT_DIS		(0 << 4)
+
 static struct intel_pmc_ipc_dev {
 	struct device *dev;
 	void __iomem *ipc_base;
@@ -126,8 +129,7 @@ static struct intel_pmc_ipc_dev {
 	struct platform_device *tco_dev;
 
 	/* gcr */
-	resource_size_t gcr_base;
-	int gcr_size;
+	void __iomem *gcr_mem_base;
 	bool has_gcr_regs;
 
 	/* punit */
@@ -196,7 +198,128 @@ static inline u32 ipc_data_readl(u32 offset)
 
 static inline u64 gcr_data_readq(u32 offset)
 {
-	return readq(ipcdev.ipc_base + offset);
+	return readq(ipcdev.gcr_mem_base + offset);
+}
+
+static inline int is_gcr_valid(u32 offset)
+{
+	if (!ipcdev.has_gcr_regs)
+		return -EACCES;
+
+	if (offset > PLAT_RESOURCE_GCR_SIZE)
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * intel_pmc_gcr_read() - Read PMC GCR register
+ * @offset:	offset of GCR register from GCR address base
+ * @data:	data pointer for storing the register output
+ *
+ * Reads the PMC GCR register of given offset.
+ *
+ * Return:	negative value on error or 0 on success.
+ */
+int intel_pmc_gcr_read(u32 offset, u32 *data)
+{
+	int ret;
+
+	mutex_lock(&ipclock);
+
+	ret = is_gcr_valid(offset);
+	if (ret < 0) {
+		mutex_unlock(&ipclock);
+		return ret;
+	}
+
+	*data = readl(ipcdev.gcr_mem_base + offset);
+
+	mutex_unlock(&ipclock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_pmc_gcr_read);
+
+/**
+ * intel_pmc_gcr_write() - Write PMC GCR register
+ * @offset:	offset of GCR register from GCR address base
+ * @data:	register update value
+ *
+ * Writes the PMC GCR register of given offset with given
+ * value.
+ *
+ * Return:	negative value on error or 0 on success.
+ */
+int intel_pmc_gcr_write(u32 offset, u32 data)
+{
+	int ret;
+
+	mutex_lock(&ipclock);
+
+	ret = is_gcr_valid(offset);
+	if (ret < 0) {
+		mutex_unlock(&ipclock);
+		return ret;
+	}
+
+	writel(data, ipcdev.gcr_mem_base + offset);
+
+	mutex_unlock(&ipclock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_pmc_gcr_write);
+
+/**
+ * intel_pmc_gcr_update() - Update PMC GCR register bits
+ * @offset:	offset of GCR register from GCR address base
+ * @mask:	bit mask for update operation
+ * @val:	update value
+ *
+ * Updates the bits of given GCR register as specified by
+ * @mask and @val.
+ *
+ * Return:	negative value on error or 0 on success.
+ */
+int intel_pmc_gcr_update(u32 offset, u32 mask, u32 val)
+{
+	u32 new_val;
+	int ret = 0;
+
+	mutex_lock(&ipclock);
+
+	ret = is_gcr_valid(offset);
+	if (ret < 0)
+		goto gcr_ipc_unlock;
+
+	new_val = readl(ipcdev.gcr_mem_base + offset);
+
+	new_val &= ~mask;
+	new_val |= val & mask;
+
+	writel(new_val, ipcdev.gcr_mem_base + offset);
+
+	new_val = readl(ipcdev.gcr_mem_base + offset);
+
+	/* check whether the bit update is successful */
+	if ((new_val & mask) != (val & mask)) {
+		ret = -EIO;
+		goto gcr_ipc_unlock;
+	}
+
+gcr_ipc_unlock:
+	mutex_unlock(&ipclock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(intel_pmc_gcr_update);
+
+static int update_no_reboot_bit(void *priv, bool set)
+{
+	u32 value = set ? PMC_CFG_NO_REBOOT_EN : PMC_CFG_NO_REBOOT_DIS;
+
+	return intel_pmc_gcr_update(PMC_GCR_PMC_CFG_REG,
+				    PMC_CFG_NO_REBOOT_MASK, value);
 }
 
 static int intel_pmc_ipc_check_status(void)
@@ -516,15 +639,13 @@ static struct resource tco_res[] = {
 	{
 		.flags = IORESOURCE_IO,
 	},
-	/* GCS */
-	{
-		.flags = IORESOURCE_MEM,
-	},
 };
 
 static struct itco_wdt_platform_data tco_info = {
 	.name = "Apollo Lake SoC",
 	.version = 5,
+	.no_reboot_priv = &ipcdev,
+	.update_no_reboot_bit = update_no_reboot_bit,
 };
 
 #define TELEMETRY_RESOURCE_PUNIT_SSRAM	0
@@ -580,10 +701,6 @@ static int ipc_create_tco_device(void)
 	res = tco_res + TCO_RESOURCE_SMI_EN_IO;
 	res->start = ipcdev.acpi_io_base + SMI_EN_OFFSET;
 	res->end = res->start + SMI_EN_SIZE - 1;
-
-	res = tco_res + TCO_RESOURCE_GCR_MEM;
-	res->start = ipcdev.gcr_base + TCO_PMC_OFFSET;
-	res->end = res->start + TCO_PMC_SIZE - 1;
 
 	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev))
@@ -746,8 +863,7 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 	}
 	ipcdev.ipc_base = addr;
 
-	ipcdev.gcr_base = res->start + PLAT_RESOURCE_GCR_OFFSET;
-	ipcdev.gcr_size = PLAT_RESOURCE_GCR_SIZE;
+	ipcdev.gcr_mem_base = addr + PLAT_RESOURCE_GCR_OFFSET;
 	dev_info(&pdev->dev, "ipc res: %pR\n", res);
 
 	ipcdev.telem_res_inval = 0;
@@ -782,8 +898,8 @@ int intel_pmc_s0ix_counter_read(u64 *data)
 	if (!ipcdev.has_gcr_regs)
 		return -EACCES;
 
-	deep = gcr_data_readq(GCR_TELEM_DEEP_S0IX_OFFSET);
-	shlw = gcr_data_readq(GCR_TELEM_SHLW_S0IX_OFFSET);
+	deep = gcr_data_readq(PMC_GCR_TELEM_DEEP_S0IX_REG);
+	shlw = gcr_data_readq(PMC_GCR_TELEM_SHLW_S0IX_REG);
 
 	*data = S0IX_RESIDENCY_IN_USECS(deep, shlw);
 

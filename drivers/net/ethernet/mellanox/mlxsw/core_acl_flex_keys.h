@@ -54,6 +54,8 @@ enum mlxsw_afk_element {
 	MLXSW_AFK_ELEMENT_DST_IP6_LO,
 	MLXSW_AFK_ELEMENT_DST_L4_PORT,
 	MLXSW_AFK_ELEMENT_SRC_L4_PORT,
+	MLXSW_AFK_ELEMENT_VID,
+	MLXSW_AFK_ELEMENT_PCP,
 	MLXSW_AFK_ELEMENT_MAX,
 };
 
@@ -88,7 +90,7 @@ struct mlxsw_afk_element_info {
 	MLXSW_AFK_ELEMENT_INFO(MLXSW_AFK_ELEMENT_TYPE_BUF,			\
 			       _element, _offset, 0, _size)
 
-/* For the purpose of the driver, define a internal storage scratchpad
+/* For the purpose of the driver, define an internal storage scratchpad
  * that will be used to store key/mask values. For each defined element type
  * define an internal storage geometry.
  */
@@ -98,6 +100,8 @@ static const struct mlxsw_afk_element_info mlxsw_afk_element_infos[] = {
 	MLXSW_AFK_ELEMENT_INFO_BUF(SMAC, 0x0A, 6),
 	MLXSW_AFK_ELEMENT_INFO_U32(ETHERTYPE, 0x00, 0, 16),
 	MLXSW_AFK_ELEMENT_INFO_U32(IP_PROTO, 0x10, 0, 8),
+	MLXSW_AFK_ELEMENT_INFO_U32(VID, 0x10, 8, 12),
+	MLXSW_AFK_ELEMENT_INFO_U32(PCP, 0x10, 20, 3),
 	MLXSW_AFK_ELEMENT_INFO_U32(SRC_IP4, 0x18, 0, 32),
 	MLXSW_AFK_ELEMENT_INFO_U32(DST_IP4, 0x1C, 0, 32),
 	MLXSW_AFK_ELEMENT_INFO_BUF(SRC_IP6_HI, 0x18, 8),

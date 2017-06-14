@@ -29,6 +29,7 @@
 #include <linux/backing-dev.h>
 #include <linux/bug.h>
 #include <linux/module.h>
+#include <linux/sched/mm.h>
 
 #include <trace/events/jbd2.h>
 
@@ -388,6 +389,11 @@ repeat:
 
 	rwsem_acquire_read(&journal->j_trans_commit_map, 0, 0, _THIS_IP_);
 	jbd2_journal_free_transaction(new_transaction);
+	/*
+	 * Ensure that no allocations done while the transaction is open are
+	 * going to recurse back to the fs layer.
+	 */
+	handle->saved_alloc_context = memalloc_nofs_save();
 	return 0;
 }
 
@@ -466,6 +472,7 @@ handle_t *jbd2__journal_start(journal_t *journal, int nblocks, int rsv_blocks,
 	trace_jbd2_handle_start(journal->j_fs_dev->bd_dev,
 				handle->h_transaction->t_tid, type,
 				line_no, nblocks);
+
 	return handle;
 }
 EXPORT_SYMBOL(jbd2__journal_start);
@@ -673,6 +680,12 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, gfp_t gfp_mask)
 
 	rwsem_release(&journal->j_trans_commit_map, 1, _THIS_IP_);
 	handle->h_buffer_credits = nblocks;
+	/*
+	 * Restore the original nofs context because the journal restart
+	 * is basically the same thing as journal stop and start.
+	 * start_this_handle will start a new nofs context.
+	 */
+	memalloc_nofs_restore(handle->saved_alloc_context);
 	ret = start_this_handle(journal, handle, gfp_mask);
 	return ret;
 }
@@ -1760,6 +1773,11 @@ int jbd2_journal_stop(handle_t *handle)
 	if (handle->h_rsv_handle)
 		jbd2_journal_free_reserved(handle->h_rsv_handle);
 free_and_exit:
+	/*
+	 * Scope of the GFP_NOFS context is over here and so we can restore the
+	 * original alloc context.
+	 */
+	memalloc_nofs_restore(handle->saved_alloc_context);
 	jbd2_free_handle(handle);
 	return err;
 }

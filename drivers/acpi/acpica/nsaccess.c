@@ -485,7 +485,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 					  flags));
 			break;
 
-		case AML_MULTI_NAME_PREFIX_OP:
+		case AML_MULTI_NAME_PREFIX:
 
 			/* More than one name_seg, search rules do not apply */
 

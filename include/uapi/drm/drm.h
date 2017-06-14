@@ -647,6 +647,7 @@ struct drm_gem_open {
 #define DRM_CAP_CURSOR_HEIGHT		0x9
 #define DRM_CAP_ADDFB2_MODIFIERS	0x10
 #define DRM_CAP_PAGE_FLIP_TARGET	0x11
+#define DRM_CAP_CRTC_IN_VBLANK_EVENT	0x12
 
 /** DRM_IOCTL_GET_CAP ioctl argument type */
 struct drm_get_cap {
@@ -851,7 +852,7 @@ struct drm_event_vblank {
 	__u32 tv_sec;
 	__u32 tv_usec;
 	__u32 sequence;
-	__u32 reserved;
+	__u32 crtc_id; /* 0 on older kernels that do not support this */
 };
 
 /* typedef area */

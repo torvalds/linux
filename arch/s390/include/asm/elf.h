@@ -105,6 +105,7 @@
 #define HWCAP_S390_VXRS		2048
 #define HWCAP_S390_VXRS_BCD	4096
 #define HWCAP_S390_VXRS_EXT	8192
+#define HWCAP_S390_GS		16384
 
 /* Internal bits, not exposed via elf */
 #define HWCAP_INT_SIE		1UL

@@ -358,7 +358,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 				     "omap4-keypad", keypad_data);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register interrupt\n");
-		goto err_free_input;
+		goto err_free_keymap;
 	}
 
 	device_init_wakeup(&pdev->dev, true);

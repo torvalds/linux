@@ -695,7 +695,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 	case 0x2025e:
 		if (!IS_P3P_TYPE(ha) || vha != base_vha) {
 			ql_log(ql_log_info, vha, 0x7071,
-			    "FCoE ctx reset no supported.\n");
+			    "FCoE ctx reset not supported.\n");
 			return -EPERM;
 		}
 

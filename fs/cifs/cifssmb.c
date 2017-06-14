@@ -478,14 +478,14 @@ decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
 		 * this requirement.
 		 */
 		int val, seconds, remain, result;
-		struct timespec ts, utc;
-		utc = CURRENT_TIME;
+		struct timespec ts;
+		unsigned long utc = ktime_get_real_seconds();
 		ts = cnvrtDosUnixTm(rsp->SrvTime.Date,
 				    rsp->SrvTime.Time, 0);
 		cifs_dbg(FYI, "SrvTime %d sec since 1970 (utc: %d) diff: %d\n",
-			 (int)ts.tv_sec, (int)utc.tv_sec,
-			 (int)(utc.tv_sec - ts.tv_sec));
-		val = (int)(utc.tv_sec - ts.tv_sec);
+			 (int)ts.tv_sec, (int)utc,
+			 (int)(utc - ts.tv_sec));
+		val = (int)(utc - ts.tv_sec);
 		seconds = abs(val);
 		result = (seconds / MIN_TZ_ADJ) * MIN_TZ_ADJ;
 		remain = seconds % MIN_TZ_ADJ;
@@ -697,9 +697,7 @@ cifs_echo_callback(struct mid_q_entry *mid)
 {
 	struct TCP_Server_Info *server = mid->callback_data;
 
-	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
-	mutex_unlock(&server->srv_mutex);
 	add_credits(server, 1, CIFS_ECHO_OP);
 }
 
@@ -717,6 +715,9 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	rc = small_smb_init(SMB_COM_ECHO, 0, NULL, (void **)&smb);
 	if (rc)
 		return rc;
+
+	if (server->capabilities & CAP_UNICODE)
+		smb->hdr.Flags2 |= SMBFLG2_UNICODE;
 
 	/* set up echo request */
 	smb->hdr.Tid = 0xffff;
@@ -1400,9 +1401,9 @@ openRetry:
  * current bigbuf.
  */
 int
-cifs_discard_remaining_data(struct TCP_Server_Info *server, char *buf)
+cifs_discard_remaining_data(struct TCP_Server_Info *server)
 {
-	unsigned int rfclen = get_rfc1002_length(buf);
+	unsigned int rfclen = get_rfc1002_length(server->smallbuf);
 	int remaining = rfclen + 4 - server->total_read;
 
 	while (remaining > 0) {
@@ -1426,8 +1427,10 @@ cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	int length;
 	struct cifs_readdata *rdata = mid->callback_data;
 
-	length = cifs_discard_remaining_data(server, mid->resp_buf);
+	length = cifs_discard_remaining_data(server);
 	dequeue_mid(mid, rdata->result);
+	mid->resp_buf = server->smallbuf;
+	server->smallbuf = NULL;
 	return length;
 }
 
@@ -1459,7 +1462,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 	if (server->ops->is_status_pending &&
 	    server->ops->is_status_pending(buf, server, 0)) {
-		cifs_discard_remaining_data(server, buf);
+		cifs_discard_remaining_data(server);
 		return -1;
 	}
 
@@ -1519,9 +1522,6 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	cifs_dbg(FYI, "0: iov_base=%p iov_len=%u\n",
 		 rdata->iov[0].iov_base, server->total_read);
 
-	mid->resp_buf = server->smallbuf;
-	server->smallbuf = NULL;
-
 	/* how much data is in the response? */
 	data_len = server->ops->read_data_length(buf);
 	if (data_offset + data_len > buflen) {
@@ -1544,6 +1544,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		return cifs_readv_discard(server, mid);
 
 	dequeue_mid(mid, false);
+	mid->resp_buf = server->smallbuf;
+	server->smallbuf = NULL;
 	return length;
 }
 
@@ -1595,9 +1597,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	}
 
 	queue_work(cifsiod_wq, &rdata->work);
-	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
-	mutex_unlock(&server->srv_mutex);
 	add_credits(server, 1, 0);
 }
 
@@ -2054,7 +2054,6 @@ cifs_writev_callback(struct mid_q_entry *mid)
 {
 	struct cifs_writedata *wdata = mid->callback_data;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
-	struct TCP_Server_Info *server = tcon->ses->server;
 	unsigned int written;
 	WRITE_RSP *smb = (WRITE_RSP *)mid->resp_buf;
 
@@ -2091,9 +2090,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 	}
 
 	queue_work(cifsiod_wq, &wdata->work);
-	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
-	mutex_unlock(&server->srv_mutex);
 	add_credits(tcon->ses->server, 1, 0);
 }
 
@@ -6072,11 +6069,13 @@ ssize_t
 CIFSSMBQAllEAs(const unsigned int xid, struct cifs_tcon *tcon,
 		const unsigned char *searchName, const unsigned char *ea_name,
 		char *EAData, size_t buf_size,
-		const struct nls_table *nls_codepage, int remap)
+		struct cifs_sb_info *cifs_sb)
 {
 		/* BB assumes one setup word */
 	TRANSACTION2_QPI_REQ *pSMB = NULL;
 	TRANSACTION2_QPI_RSP *pSMBr = NULL;
+	int remap = cifs_remap(cifs_sb);
+	struct nls_table *nls_codepage = cifs_sb->local_nls;
 	int rc = 0;
 	int bytes_returned;
 	int list_len;

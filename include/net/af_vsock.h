@@ -188,4 +188,17 @@ struct sock *vsock_find_connected_socket(struct sockaddr_vm *src,
 void vsock_remove_sock(struct vsock_sock *vsk);
 void vsock_for_each_connected_socket(void (*fn)(struct sock *sk));
 
+/**** TAP ****/
+
+struct vsock_tap {
+	struct net_device *dev;
+	struct module *module;
+	struct list_head list;
+};
+
+int vsock_init_tap(void);
+int vsock_add_tap(struct vsock_tap *vt);
+int vsock_remove_tap(struct vsock_tap *vt);
+void vsock_deliver_tap(struct sk_buff *build_skb(void *opaque), void *opaque);
+
 #endif /* __AF_VSOCK_H__ */

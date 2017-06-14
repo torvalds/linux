@@ -477,7 +477,7 @@ static void _set_error_resid(struct osd_request *or, struct request *req,
 			     int error)
 {
 	or->async_error = error;
-	or->req_errors = req->errors ? : error;
+	or->req_errors = scsi_req(req)->result ? : error;
 	or->sense_len = scsi_req(req)->sense_len;
 	if (or->sense_len)
 		memcpy(or->sense, scsi_req(req)->sense, or->sense_len);
@@ -489,7 +489,10 @@ static void _set_error_resid(struct osd_request *or, struct request *req,
 
 int osd_execute_request(struct osd_request *or)
 {
-	int error = blk_execute_rq(or->request->q, NULL, or->request, 0);
+	int error;
+
+	blk_execute_rq(or->request->q, NULL, or->request, 0);
+	error = scsi_req(or->request)->result ? -EIO : 0;
 
 	_set_error_resid(or, or->request, error);
 	return error;
@@ -1602,7 +1605,7 @@ static int _init_blk_request(struct osd_request *or,
 	req->rq_flags |= RQF_QUIET;
 
 	req->timeout = or->timeout;
-	req->retries = or->retries;
+	scsi_req(req)->retries = or->retries;
 
 	if (has_out) {
 		or->out.req = req;

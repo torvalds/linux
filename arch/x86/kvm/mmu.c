@@ -1498,6 +1498,21 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 		kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
 }
 
+/**
+ * kvm_arch_write_log_dirty - emulate dirty page logging
+ * @vcpu: Guest mode vcpu
+ *
+ * Emulate arch specific page modification logging for the
+ * nested hypervisor
+ */
+int kvm_arch_write_log_dirty(struct kvm_vcpu *vcpu)
+{
+	if (kvm_x86_ops->write_log_dirty)
+		return kvm_x86_ops->write_log_dirty(vcpu);
+
+	return 0;
+}
+
 bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 				    struct kvm_memory_slot *slot, u64 gfn)
 {
@@ -3683,10 +3698,13 @@ static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn)
 	return kvm_setup_async_pf(vcpu, gva, kvm_vcpu_gfn_to_hva(vcpu, gfn), &arch);
 }
 
-static bool can_do_async_pf(struct kvm_vcpu *vcpu)
+bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu)
 {
 	if (unlikely(!lapic_in_kernel(vcpu) ||
 		     kvm_event_needs_reinjection(vcpu)))
+		return false;
+
+	if (is_guest_mode(vcpu))
 		return false;
 
 	return kvm_x86_ops->interrupt_allowed(vcpu);
@@ -3704,7 +3722,7 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 	if (!async)
 		return false; /* *pfn has correct page already */
 
-	if (!prefault && can_do_async_pf(vcpu)) {
+	if (!prefault && kvm_can_do_async_pf(vcpu)) {
 		trace_kvm_try_async_get_page(gva, gfn);
 		if (kvm_find_async_pf_gfn(vcpu, gfn)) {
 			trace_kvm_async_pf_doublefault(gva, gfn);
@@ -4340,7 +4358,8 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
 
-void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly)
+void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
+			     bool accessed_dirty)
 {
 	struct kvm_mmu *context = &vcpu->arch.mmu;
 
@@ -4349,6 +4368,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly)
 	context->shadow_root_level = kvm_x86_ops->get_tdp_level();
 
 	context->nx = true;
+	context->ept_ad = accessed_dirty;
 	context->page_fault = ept_page_fault;
 	context->gva_to_gpa = ept_gva_to_gpa;
 	context->sync_page = ept_sync_page;

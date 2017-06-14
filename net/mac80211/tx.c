@@ -682,10 +682,6 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	txrc.skb = tx->skb;
 	txrc.reported_rate.idx = -1;
 	txrc.rate_idx_mask = tx->sdata->rc_rateidx_mask[info->band];
-	if (txrc.rate_idx_mask == (1 << sband->n_bitrates) - 1)
-		txrc.max_rate_idx = -1;
-	else
-		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
 
 	if (tx->sdata->rc_has_mcs_mask[info->band])
 		txrc.rate_idx_mcs_mask =
@@ -4249,10 +4245,6 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 	txrc.skb = skb;
 	txrc.reported_rate.idx = -1;
 	txrc.rate_idx_mask = sdata->rc_rateidx_mask[band];
-	if (txrc.rate_idx_mask == (1 << txrc.sband->n_bitrates) - 1)
-		txrc.max_rate_idx = -1;
-	else
-		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
 	txrc.bss = true;
 	rate_control_get_rate(sdata, NULL, &txrc);
 
@@ -4305,7 +4297,10 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		return bcn;
 
 	shift = ieee80211_vif_get_shift(vif);
-	sband = hw->wiphy->bands[ieee80211_get_sdata_band(vif_to_sdata(vif))];
+	sband = ieee80211_get_sband(vif_to_sdata(vif));
+	if (!sband)
+		return bcn;
+
 	ieee80211_tx_monitor(hw_to_local(hw), copy, sband, 1, shift, false);
 
 	return bcn;

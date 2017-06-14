@@ -73,6 +73,7 @@ config TOUCHSCREEN_AD7879
 config TOUCHSCREEN_AD7879_I2C
 	tristate "support I2C bus connection"
 	depends on TOUCHSCREEN_AD7879 && I2C
+	select REGMAP_I2C
 	help
 	  Say Y here if you have AD7879-1/AD7889-1 hooked to an I2C bus.
 
@@ -82,6 +83,7 @@ config TOUCHSCREEN_AD7879_I2C
 config TOUCHSCREEN_AD7879_SPI
 	tristate "support SPI bus connection"
 	depends on TOUCHSCREEN_AD7879 && SPI_MASTER
+	select REGMAP_SPI
 	help
 	  Say Y here if you have AD7879-1/AD7889-1 hooked to a SPI bus.
 
@@ -91,11 +93,11 @@ config TOUCHSCREEN_AD7879_SPI
 	  module will be called ad7879-spi.
 
 config TOUCHSCREEN_AR1021_I2C
-	tristate "Microchip AR1021 i2c touchscreen"
+	tristate "Microchip AR1020/1021 i2c touchscreen"
 	depends on I2C && OF
 	help
-	  Say Y here if you have the Microchip AR1021 touchscreen controller
-	  chip in your system.
+	  Say Y here if you have the Microchip AR1020 or AR1021 touchscreen
+	  controller chip in your system.
 
 	  If unsure, say N.
 
@@ -829,6 +831,16 @@ config TOUCHSCREEN_USB_COMPOSITE
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbtouchscreen.
 
+config TOUCHSCREEN_MXS_LRADC
+	tristate "Freescale i.MX23/i.MX28 LRADC touchscreen"
+	depends on MFD_MXS_LRADC
+	help
+	  Say Y here if you have a touchscreen connected to the low-resolution
+	  analog-to-digital converter (LRADC) on an i.MX23 or i.MX28 processor.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called mxs-lradc-ts.
+
 config TOUCHSCREEN_MX25
 	tristate "Freescale i.MX25 touchscreen input driver"
 	depends on MFD_MX25_TSADC
@@ -1022,6 +1034,16 @@ config TOUCHSCREEN_TSC2007
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tsc2007.
+
+config TOUCHSCREEN_TSC2007_IIO
+	bool "IIO interface for external ADC input and temperature"
+	depends on TOUCHSCREEN_TSC2007
+	depends on IIO=y || IIO=TOUCHSCREEN_TSC2007
+	help
+	  Saying Y here adds an iio interface to the tsc2007 which
+	  provides values for the AUX input (used for e.g. battery
+	  or ambient light monitoring), temperature and raw input
+	  values.
 
 config TOUCHSCREEN_W90X900
 	tristate "W90P910 touchscreen driver"

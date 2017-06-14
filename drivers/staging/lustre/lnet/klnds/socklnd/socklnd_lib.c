@@ -99,7 +99,7 @@ int
 ksocknal_lib_send_kiov(struct ksock_conn *conn, struct ksock_tx *tx)
 {
 	struct socket *sock = conn->ksnc_sock;
-	lnet_kiov_t *kiov = tx->tx_kiov;
+	struct bio_vec *kiov = tx->tx_kiov;
 	int rc;
 	int nob;
 
@@ -215,7 +215,7 @@ int
 ksocknal_lib_recv_kiov(struct ksock_conn *conn)
 {
 	unsigned int niov = conn->ksnc_rx_nkiov;
-	lnet_kiov_t   *kiov = conn->ksnc_rx_kiov;
+	struct bio_vec *kiov = conn->ksnc_rx_kiov;
 	struct msghdr msg = {
 		.msg_flags = 0
 	};

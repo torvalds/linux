@@ -202,7 +202,7 @@ static int kill_l3proto(struct nf_conn *i, void *data)
 static int kill_l4proto(struct nf_conn *i, void *data)
 {
 	struct nf_conntrack_l4proto *l4proto;
-	l4proto = (struct nf_conntrack_l4proto *)data;
+	l4proto = data;
 	return nf_ct_protonum(i) == l4proto->l4proto &&
 	       nf_ct_l3num(i) == l4proto->l3proto;
 }
@@ -441,9 +441,8 @@ EXPORT_SYMBOL_GPL(nf_ct_l4proto_unregister_one);
 void nf_ct_l4proto_pernet_unregister_one(struct net *net,
 					 struct nf_conntrack_l4proto *l4proto)
 {
-	struct nf_proto_net *pn = NULL;
+	struct nf_proto_net *pn = nf_ct_l4proto_net(net, l4proto);
 
-	pn = nf_ct_l4proto_net(net, l4proto);
 	if (pn == NULL)
 		return;
 

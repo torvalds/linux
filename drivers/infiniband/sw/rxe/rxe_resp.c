@@ -149,6 +149,7 @@ static enum resp_states check_psn(struct rxe_qp *qp,
 				  struct rxe_pkt_info *pkt)
 {
 	int diff = psn_compare(pkt->psn, qp->resp.psn);
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 
 	switch (qp_type(qp)) {
 	case IB_QPT_RC:
@@ -157,9 +158,11 @@ static enum resp_states check_psn(struct rxe_qp *qp,
 				return RESPST_CLEANUP;
 
 			qp->resp.sent_psn_nak = 1;
+			rxe_counter_inc(rxe, RXE_CNT_OUT_OF_SEQ_REQ);
 			return RESPST_ERR_PSN_OUT_OF_SEQ;
 
 		} else if (diff < 0) {
+			rxe_counter_inc(rxe, RXE_CNT_DUP_REQ);
 			return RESPST_DUPLICATE_REQUEST;
 		}
 
@@ -478,8 +481,6 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 				state = RESPST_ERR_LENGTH;
 				goto err;
 			}
-
-			qp->resp.resid = mtu;
 		} else {
 			if (pktlen != resid) {
 				state = RESPST_ERR_LENGTH;
@@ -1223,6 +1224,7 @@ void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 int rxe_responder(void *arg)
 {
 	struct rxe_qp *qp = (struct rxe_qp *)arg;
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	enum resp_states state;
 	struct rxe_pkt_info *pkt = NULL;
 	int ret = 0;
@@ -1311,6 +1313,7 @@ int rxe_responder(void *arg)
 			break;
 		case RESPST_ERR_RNR:
 			if (qp_type(qp) == IB_QPT_RC) {
+				rxe_counter_inc(rxe, RXE_CNT_SND_RNR);
 				/* RC - class B */
 				send_ack(qp, pkt, AETH_RNR_NAK |
 					 (~AETH_TYPE_MASK &

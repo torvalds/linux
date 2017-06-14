@@ -1,7 +1,7 @@
 /*
  * Broadcom GENET (Gigabit Ethernet) Wake-on-LAN support
  *
- * Copyright (c) 2014 Broadcom Corporation
+ * Copyright (c) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -127,7 +127,6 @@ int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
 				enum bcmgenet_power_mode mode)
 {
 	struct net_device *dev = priv->dev;
-	u32 cpu_mask_clear;
 	int retries = 0;
 	u32 reg;
 
@@ -173,18 +172,12 @@ int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
 	}
 
-	/* Enable the MPD interrupt */
-	cpu_mask_clear = UMAC_IRQ_MPD_R;
-
-	bcmgenet_intrl2_0_writel(priv, cpu_mask_clear, INTRL2_CPU_MASK_CLEAR);
-
 	return 0;
 }
 
 void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 			       enum bcmgenet_power_mode mode)
 {
-	u32 cpu_mask_set;
 	u32 reg;
 
 	if (mode != GENET_POWER_WOL_MAGIC) {
@@ -201,10 +194,4 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 	reg &= ~CMD_CRC_FWD;
 	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
 	priv->crc_fwd_en = 0;
-
-	/* Stop monitoring magic packet IRQ */
-	cpu_mask_set = UMAC_IRQ_MPD_R;
-
-	/* Stop monitoring magic packet IRQ */
-	bcmgenet_intrl2_0_writel(priv, cpu_mask_set, INTRL2_CPU_MASK_SET);
 }

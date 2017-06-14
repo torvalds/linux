@@ -1315,7 +1315,7 @@ static u32 i9xx_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	if (IS_PINEVIEW(dev_priv))
 		clock = KHz(dev_priv->rawclk_freq);
 	else
-		clock = KHz(dev_priv->cdclk_freq);
+		clock = KHz(dev_priv->cdclk.hw.cdclk);
 
 	return DIV_ROUND_CLOSEST(clock, pwm_freq_hz * 32);
 }
@@ -1333,7 +1333,7 @@ static u32 i965_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	if (IS_G4X(dev_priv))
 		clock = KHz(dev_priv->rawclk_freq);
 	else
-		clock = KHz(dev_priv->cdclk_freq);
+		clock = KHz(dev_priv->cdclk.hw.cdclk);
 
 	return DIV_ROUND_CLOSEST(clock, pwm_freq_hz * 128);
 }

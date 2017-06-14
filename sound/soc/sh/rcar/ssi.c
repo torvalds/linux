@@ -228,6 +228,15 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	for (j = 0; j < ARRAY_SIZE(ssi_clk_mul_table); j++) {
 
 		/*
+		 * It will set SSIWSR.CONT here, but SSICR.CKDV = 000
+		 * with it is not allowed. (SSIWSR.WS_MODE with
+		 * SSICR.CKDV = 000 is not allowed either).
+		 * Skip it. See SSICR.CKDV
+		 */
+		if (j == 0)
+			continue;
+
+		/*
 		 * this driver is assuming that
 		 * system word is 32bit x chan
 		 * see rsnd_ssi_init()
@@ -293,7 +302,7 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	 * always use 32bit system word.
 	 * see also rsnd_ssi_master_clk_enable()
 	 */
-	cr_own = FORCE | SWL_32 | PDTA;
+	cr_own = FORCE | SWL_32;
 
 	if (rdai->bit_clk_inv)
 		cr_own |= SCKP;
@@ -541,6 +550,13 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 		u32 *buf = (u32 *)(runtime->dma_area +
 				   rsnd_dai_pointer_offset(io, 0));
+		int shift = 0;
+
+		switch (runtime->sample_bits) {
+		case 32:
+			shift = 8;
+			break;
+		}
 
 		/*
 		 * 8/16/32 data can be assesse to TDR/RDR register
@@ -548,9 +564,9 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 		 * see rsnd_ssi_init()
 		 */
 		if (rsnd_io_is_play(io))
-			rsnd_mod_write(mod, SSITDR, *buf);
+			rsnd_mod_write(mod, SSITDR, (*buf) << shift);
 		else
-			*buf = rsnd_mod_read(mod, SSIRDR);
+			*buf = (rsnd_mod_read(mod, SSIRDR) >> shift);
 
 		elapsed = rsnd_dai_pointer_update(io, sizeof(*buf));
 	}
@@ -700,6 +716,11 @@ static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 			       struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
+
+	/* Do nothing for SSI parent mod */
+	if (ssi_parent_mod == mod)
+		return 0;
 
 	/* PIO will request IRQ again */
 	free_irq(ssi->irq, mod);

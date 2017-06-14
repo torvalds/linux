@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -53,7 +53,7 @@
 
 struct tid_group {
 	struct list_head list;
-	unsigned base;
+	u32 base;
 	u8 size;
 	u8 used;
 	u8 map;
@@ -82,20 +82,25 @@ struct tid_pageset {
 		 (unsigned long)(len) - 1) & PAGE_MASK) -	       \
 	       ((unsigned long)vaddr & PAGE_MASK)) >> PAGE_SHIFT))
 
-static void unlock_exp_tids(struct hfi1_ctxtdata *, struct exp_tid_set *,
-			    struct hfi1_filedata *);
-static u32 find_phys_blocks(struct page **, unsigned, struct tid_pageset *);
-static int set_rcvarray_entry(struct file *, unsigned long, u32,
-			      struct tid_group *, struct page **, unsigned);
-static int tid_rb_insert(void *, struct mmu_rb_node *);
+static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
+			    struct exp_tid_set *set,
+			    struct hfi1_filedata *fd);
+static u32 find_phys_blocks(struct page **pages, unsigned npages,
+			    struct tid_pageset *list);
+static int set_rcvarray_entry(struct hfi1_filedata *fd, unsigned long vaddr,
+			      u32 rcventry, struct tid_group *grp,
+			      struct page **pages, unsigned npages);
+static int tid_rb_insert(void *arg, struct mmu_rb_node *node);
 static void cacheless_tid_rb_remove(struct hfi1_filedata *fdata,
 				    struct tid_rb_node *tnode);
-static void tid_rb_remove(void *, struct mmu_rb_node *);
-static int tid_rb_invalidate(void *, struct mmu_rb_node *);
-static int program_rcvarray(struct file *, unsigned long, struct tid_group *,
-			    struct tid_pageset *, unsigned, u16, struct page **,
-			    u32 *, unsigned *, unsigned *);
-static int unprogram_rcvarray(struct file *, u32, struct tid_group **);
+static void tid_rb_remove(void *arg, struct mmu_rb_node *node);
+static int tid_rb_invalidate(void *arg, struct mmu_rb_node *mnode);
+static int program_rcvarray(struct hfi1_filedata *fd, unsigned long vaddr,
+			    struct tid_group *grp, struct tid_pageset *sets,
+			    unsigned start, u16 count, struct page **pages,
+			    u32 *tidlist, unsigned *tididx, unsigned *pmapped);
+static int unprogram_rcvarray(struct hfi1_filedata *fd, u32 tidinfo,
+			      struct tid_group **grp);
 static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node);
 
 static struct mmu_rb_ops tid_rb_ops = {
@@ -149,62 +154,72 @@ static inline void tid_group_move(struct tid_group *group,
 	tid_group_add_tail(group, s2);
 }
 
+int hfi1_user_exp_rcv_grp_init(struct hfi1_filedata *fd)
+{
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
+	struct hfi1_devdata *dd = fd->dd;
+	u32 tidbase;
+	u32 i;
+	struct tid_group *grp, *gptr;
+
+	exp_tid_group_init(&uctxt->tid_group_list);
+	exp_tid_group_init(&uctxt->tid_used_list);
+	exp_tid_group_init(&uctxt->tid_full_list);
+
+	tidbase = uctxt->expected_base;
+	for (i = 0; i < uctxt->expected_count /
+		     dd->rcv_entries.group_size; i++) {
+		grp = kzalloc(sizeof(*grp), GFP_KERNEL);
+		if (!grp)
+			goto grp_failed;
+
+		grp->size = dd->rcv_entries.group_size;
+		grp->base = tidbase;
+		tid_group_add_tail(grp, &uctxt->tid_group_list);
+		tidbase += dd->rcv_entries.group_size;
+	}
+
+	return 0;
+
+grp_failed:
+	list_for_each_entry_safe(grp, gptr, &uctxt->tid_group_list.list,
+				 list) {
+		list_del_init(&grp->list);
+		kfree(grp);
+	}
+
+	return -ENOMEM;
+}
+
 /*
  * Initialize context and file private data needed for Expected
  * receive caching. This needs to be done after the context has
  * been configured with the eager/expected RcvEntry counts.
  */
-int hfi1_user_exp_rcv_init(struct file *fp)
+int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd)
 {
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
-	unsigned tidbase;
-	int i, ret = 0;
+	int ret = 0;
 
 	spin_lock_init(&fd->tid_lock);
 	spin_lock_init(&fd->invalid_lock);
 
-	if (!uctxt->subctxt_cnt || !fd->subctxt) {
-		exp_tid_group_init(&uctxt->tid_group_list);
-		exp_tid_group_init(&uctxt->tid_used_list);
-		exp_tid_group_init(&uctxt->tid_full_list);
-
-		tidbase = uctxt->expected_base;
-		for (i = 0; i < uctxt->expected_count /
-			     dd->rcv_entries.group_size; i++) {
-			struct tid_group *grp;
-
-			grp = kzalloc(sizeof(*grp), GFP_KERNEL);
-			if (!grp) {
-				/*
-				 * If we fail here, the groups already
-				 * allocated will be freed by the close
-				 * call.
-				 */
-				ret = -ENOMEM;
-				goto done;
-			}
-			grp->size = dd->rcv_entries.group_size;
-			grp->base = tidbase;
-			tid_group_add_tail(grp, &uctxt->tid_group_list);
-			tidbase += dd->rcv_entries.group_size;
-		}
-	}
-
 	fd->entry_to_rb = kcalloc(uctxt->expected_count,
-				     sizeof(struct rb_node *),
-				     GFP_KERNEL);
+				  sizeof(struct rb_node *),
+				  GFP_KERNEL);
 	if (!fd->entry_to_rb)
 		return -ENOMEM;
 
 	if (!HFI1_CAP_UGET_MASK(uctxt->flags, TID_UNMAP)) {
 		fd->invalid_tid_idx = 0;
-		fd->invalid_tids = kzalloc(uctxt->expected_count *
-					   sizeof(u32), GFP_KERNEL);
+		fd->invalid_tids = kcalloc(uctxt->expected_count,
+					   sizeof(*fd->invalid_tids),
+					   GFP_KERNEL);
 		if (!fd->invalid_tids) {
-			ret = -ENOMEM;
-			goto done;
+			kfree(fd->entry_to_rb);
+			fd->entry_to_rb = NULL;
+			return -ENOMEM;
 		}
 
 		/*
@@ -247,41 +262,44 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 		fd->tid_limit = uctxt->expected_count;
 	}
 	spin_unlock(&fd->tid_lock);
-done:
+
 	return ret;
 }
 
-int hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
+void hfi1_user_exp_rcv_grp_free(struct hfi1_ctxtdata *uctxt)
 {
-	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct tid_group *grp, *gptr;
 
-	if (!test_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags))
-		return 0;
+	list_for_each_entry_safe(grp, gptr, &uctxt->tid_group_list.list,
+				 list) {
+		list_del_init(&grp->list);
+		kfree(grp);
+	}
+	hfi1_clear_tids(uctxt);
+}
+
+void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
+{
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
+
 	/*
 	 * The notifier would have been removed when the process'es mm
 	 * was freed.
 	 */
-	if (fd->handler)
+	if (fd->handler) {
 		hfi1_mmu_rb_unregister(fd->handler);
-
-	kfree(fd->invalid_tids);
-
-	if (!uctxt->cnt) {
+	} else {
 		if (!EXP_TID_SET_EMPTY(uctxt->tid_full_list))
 			unlock_exp_tids(uctxt, &uctxt->tid_full_list, fd);
 		if (!EXP_TID_SET_EMPTY(uctxt->tid_used_list))
 			unlock_exp_tids(uctxt, &uctxt->tid_used_list, fd);
-		list_for_each_entry_safe(grp, gptr, &uctxt->tid_group_list.list,
-					 list) {
-			list_del_init(&grp->list);
-			kfree(grp);
-		}
-		hfi1_clear_tids(uctxt);
 	}
 
+	kfree(fd->invalid_tids);
+	fd->invalid_tids = NULL;
+
 	kfree(fd->entry_to_rb);
-	return 0;
+	fd->entry_to_rb = NULL;
 }
 
 /*
@@ -350,10 +368,10 @@ static inline void rcv_array_wc_fill(struct hfi1_devdata *dd, u32 index)
  *          can fit into the group. If the group becomes fully
  *          used, move it to tid_full_list.
  */
-int hfi1_user_exp_rcv_setup(struct file *fp, struct hfi1_tid_info *tinfo)
+int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
+			    struct hfi1_tid_info *tinfo)
 {
 	int ret = 0, need_group = 0, pinned;
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	unsigned npages, ngroups, pageidx = 0, pageset_count, npagesets,
@@ -450,7 +468,7 @@ int hfi1_user_exp_rcv_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 		struct tid_group *grp =
 			tid_group_pop(&uctxt->tid_group_list);
 
-		ret = program_rcvarray(fp, vaddr, grp, pagesets,
+		ret = program_rcvarray(fd, vaddr, grp, pagesets,
 				       pageidx, dd->rcv_entries.group_size,
 				       pages, tidlist, &tididx, &mapped);
 		/*
@@ -496,7 +514,7 @@ int hfi1_user_exp_rcv_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 			unsigned use = min_t(unsigned, pageset_count - pageidx,
 					     grp->size - grp->used);
 
-			ret = program_rcvarray(fp, vaddr, grp, pagesets,
+			ret = program_rcvarray(fd, vaddr, grp, pagesets,
 					       pageidx, use, pages, tidlist,
 					       &tididx, &mapped);
 			if (ret < 0) {
@@ -546,7 +564,7 @@ nomem:
 			 * everything done so far so we don't leak resources.
 			 */
 			tinfo->tidlist = (unsigned long)&tidlist;
-			hfi1_user_exp_rcv_clear(fp, tinfo);
+			hfi1_user_exp_rcv_clear(fd, tinfo);
 			tinfo->tidlist = 0;
 			ret = -EFAULT;
 			goto bail;
@@ -570,13 +588,16 @@ bail:
 	return ret > 0 ? 0 : ret;
 }
 
-int hfi1_user_exp_rcv_clear(struct file *fp, struct hfi1_tid_info *tinfo)
+int hfi1_user_exp_rcv_clear(struct hfi1_filedata *fd,
+			    struct hfi1_tid_info *tinfo)
 {
 	int ret = 0;
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	u32 *tidinfo;
 	unsigned tididx;
+
+	if (unlikely(tinfo->tidcnt > fd->tid_used))
+		return -EINVAL;
 
 	tidinfo = memdup_user((void __user *)(unsigned long)tinfo->tidlist,
 			      sizeof(tidinfo[0]) * tinfo->tidcnt);
@@ -585,7 +606,7 @@ int hfi1_user_exp_rcv_clear(struct file *fp, struct hfi1_tid_info *tinfo)
 
 	mutex_lock(&uctxt->exp_lock);
 	for (tididx = 0; tididx < tinfo->tidcnt; tididx++) {
-		ret = unprogram_rcvarray(fp, tidinfo[tididx], NULL);
+		ret = unprogram_rcvarray(fd, tidinfo[tididx], NULL);
 		if (ret) {
 			hfi1_cdbg(TID, "Failed to unprogram rcv array %d",
 				  ret);
@@ -602,12 +623,12 @@ int hfi1_user_exp_rcv_clear(struct file *fp, struct hfi1_tid_info *tinfo)
 	return ret;
 }
 
-int hfi1_user_exp_rcv_invalid(struct file *fp, struct hfi1_tid_info *tinfo)
+int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
+			      struct hfi1_tid_info *tinfo)
 {
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	unsigned long *ev = uctxt->dd->events +
-		(((uctxt->ctxt - uctxt->dd->first_user_ctxt) *
+		(((uctxt->ctxt - uctxt->dd->first_dyn_alloc_ctxt) *
 		  HFI1_MAX_SHARED_CTXTS) + fd->subctxt);
 	u32 *array;
 	int ret = 0;
@@ -719,7 +740,7 @@ static u32 find_phys_blocks(struct page **pages, unsigned npages,
 
 /**
  * program_rcvarray() - program an RcvArray group with receive buffers
- * @fp: file pointer
+ * @fd: filedata pointer
  * @vaddr: starting user virtual address
  * @grp: RcvArray group
  * @sets: array of struct tid_pageset holding information on physically
@@ -744,13 +765,12 @@ static u32 find_phys_blocks(struct page **pages, unsigned npages,
  * -ENOMEM or -EFAULT on error from set_rcvarray_entry(), or
  * number of RcvArray entries programmed.
  */
-static int program_rcvarray(struct file *fp, unsigned long vaddr,
+static int program_rcvarray(struct hfi1_filedata *fd, unsigned long vaddr,
 			    struct tid_group *grp,
 			    struct tid_pageset *sets,
 			    unsigned start, u16 count, struct page **pages,
 			    u32 *tidlist, unsigned *tididx, unsigned *pmapped)
 {
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	u16 idx;
@@ -791,7 +811,7 @@ static int program_rcvarray(struct file *fp, unsigned long vaddr,
 		npages = sets[setidx].count;
 		pageidx = sets[setidx].idx;
 
-		ret = set_rcvarray_entry(fp, vaddr + (pageidx * PAGE_SIZE),
+		ret = set_rcvarray_entry(fd, vaddr + (pageidx * PAGE_SIZE),
 					 rcventry, grp, pages + pageidx,
 					 npages);
 		if (ret)
@@ -813,12 +833,11 @@ static int program_rcvarray(struct file *fp, unsigned long vaddr,
 	return idx;
 }
 
-static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
+static int set_rcvarray_entry(struct hfi1_filedata *fd, unsigned long vaddr,
 			      u32 rcventry, struct tid_group *grp,
 			      struct page **pages, unsigned npages)
 {
 	int ret;
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct tid_rb_node *node;
 	struct hfi1_devdata *dd = uctxt->dd;
@@ -872,10 +891,9 @@ static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
 	return 0;
 }
 
-static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
+static int unprogram_rcvarray(struct hfi1_filedata *fd, u32 tidinfo,
 			      struct tid_group **grp)
 {
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	struct tid_rb_node *node;
@@ -1011,8 +1029,8 @@ static int tid_rb_invalidate(void *arg, struct mmu_rb_node *mnode)
 			 * process in question.
 			 */
 			ev = uctxt->dd->events +
-				(((uctxt->ctxt - uctxt->dd->first_user_ctxt) *
-				  HFI1_MAX_SHARED_CTXTS) + fdata->subctxt);
+			  (((uctxt->ctxt - uctxt->dd->first_dyn_alloc_ctxt) *
+			    HFI1_MAX_SHARED_CTXTS) + fdata->subctxt);
 			set_bit(_HFI1_EVENT_TID_MMU_NOTIFY_BIT, ev);
 		}
 		fdata->invalid_tid_idx++;

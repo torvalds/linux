@@ -70,13 +70,7 @@
 	};
 
 	soc {
-		internal-regs {
-			pinctrl@18000 {
-				compatible = "marvell,mv88f6820-pinctrl";
-			};
-		};
-
-		pcie-controller {
+		pciec: pcie-controller {
 			compatible = "marvell,armada-370-pcie";
 			status = "disabled";
 			device_type = "pci";
@@ -106,7 +100,7 @@
 			 * configured in x4 by the bootloader, then
 			 * pcie@4,0 is not available.
 			 */
-			pcie@1,0 {
+			pcie1: pcie@1,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x80000 0 0x2000>;
 				reg = <0x0800 0 0 0 0>;
@@ -124,7 +118,7 @@
 			};
 
 			/* x1 port */
-			pcie@2,0 {
+			pcie2: pcie@2,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
 				reg = <0x1000 0 0 0 0>;
@@ -142,7 +136,7 @@
 			};
 
 			/* x1 port */
-			pcie@3,0 {
+			pcie3: pcie@3,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x44000 0 0x2000>;
 				reg = <0x1800 0 0 0 0>;
@@ -163,7 +157,7 @@
 			 * x1 port only available when pcie@1,0 is
 			 * configured as a x1 port
 			 */
-			pcie@4,0 {
+			pcie4: pcie@4,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x48000 0 0x2000>;
 				reg = <0x2000 0 0 0 0>;
@@ -181,4 +175,8 @@
 			};
 		};
 	};
+};
+
+&pinctrl {
+	compatible = "marvell,mv88f6820-pinctrl";
 };

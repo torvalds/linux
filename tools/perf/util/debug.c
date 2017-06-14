@@ -2,18 +2,25 @@
 
 #include "../perf.h"
 
+#include <inttypes.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <sys/wait.h>
 #include <api/debug.h>
 #include <linux/time64.h>
-
+#ifdef HAVE_BACKTRACE_SUPPORT
+#include <execinfo.h>
+#endif
 #include "cache.h"
 #include "color.h"
 #include "event.h"
 #include "debug.h"
+#include "print_binary.h"
 #include "util.h"
 #include "target.h"
+
+#include "sane_ctype.h"
 
 int verbose;
 bool dump_trace = false, quiet = false;
@@ -243,4 +250,32 @@ DEBUG_WRAPPER(debug, 1);
 void perf_debug_setup(void)
 {
 	libapi_set_print(pr_warning_wrapper, pr_warning_wrapper, pr_debug_wrapper);
+}
+
+/* Obtain a backtrace and print it to stdout. */
+#ifdef HAVE_BACKTRACE_SUPPORT
+void dump_stack(void)
+{
+	void *array[16];
+	size_t size = backtrace(array, ARRAY_SIZE(array));
+	char **strings = backtrace_symbols(array, size);
+	size_t i;
+
+	printf("Obtained %zd stack frames.\n", size);
+
+	for (i = 0; i < size; i++)
+		printf("%s\n", strings[i]);
+
+	free(strings);
+}
+#else
+void dump_stack(void) {}
+#endif
+
+void sighandler_dump_stack(int sig)
+{
+	psignal(sig, "perf");
+	dump_stack();
+	signal(sig, SIG_DFL);
+	raise(sig);
 }

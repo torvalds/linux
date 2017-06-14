@@ -116,11 +116,10 @@ static const struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short fa
 	return afinfo;
 }
 
-static inline struct dst_entry *__xfrm_dst_lookup(struct net *net,
-						  int tos, int oif,
-						  const xfrm_address_t *saddr,
-						  const xfrm_address_t *daddr,
-						  int family)
+struct dst_entry *__xfrm_dst_lookup(struct net *net, int tos, int oif,
+				    const xfrm_address_t *saddr,
+				    const xfrm_address_t *daddr,
+				    int family)
 {
 	const struct xfrm_policy_afinfo *afinfo;
 	struct dst_entry *dst;
@@ -135,6 +134,7 @@ static inline struct dst_entry *__xfrm_dst_lookup(struct net *net,
 
 	return dst;
 }
+EXPORT_SYMBOL(__xfrm_dst_lookup);
 
 static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x,
 						int tos, int oif,
@@ -1006,6 +1006,10 @@ int xfrm_policy_flush(struct net *net, u8 type, bool task_valid)
 		err = -ESRCH;
 out:
 	spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
+
+	if (cnt)
+		xfrm_garbage_collect(net);
+
 	return err;
 }
 EXPORT_SYMBOL(xfrm_policy_flush);
@@ -1793,43 +1797,6 @@ free_dst:
 	goto out;
 }
 
-#ifdef CONFIG_XFRM_SUB_POLICY
-static int xfrm_dst_alloc_copy(void **target, const void *src, int size)
-{
-	if (!*target) {
-		*target = kmalloc(size, GFP_ATOMIC);
-		if (!*target)
-			return -ENOMEM;
-	}
-
-	memcpy(*target, src, size);
-	return 0;
-}
-#endif
-
-static int xfrm_dst_update_parent(struct dst_entry *dst,
-				  const struct xfrm_selector *sel)
-{
-#ifdef CONFIG_XFRM_SUB_POLICY
-	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
-	return xfrm_dst_alloc_copy((void **)&(xdst->partner),
-				   sel, sizeof(*sel));
-#else
-	return 0;
-#endif
-}
-
-static int xfrm_dst_update_origin(struct dst_entry *dst,
-				  const struct flowi *fl)
-{
-#ifdef CONFIG_XFRM_SUB_POLICY
-	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
-	return xfrm_dst_alloc_copy((void **)&(xdst->origin), fl, sizeof(*fl));
-#else
-	return 0;
-#endif
-}
-
 static int xfrm_expand_policies(const struct flowi *fl, u16 family,
 				struct xfrm_policy **pols,
 				int *num_pols, int *num_xfrms)
@@ -1901,16 +1868,6 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 
 	xdst = (struct xfrm_dst *)dst;
 	xdst->num_xfrms = err;
-	if (num_pols > 1)
-		err = xfrm_dst_update_parent(dst, &pols[1]->selector);
-	else
-		err = xfrm_dst_update_origin(dst, fl);
-	if (unlikely(err)) {
-		dst_free(dst);
-		XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTBUNDLECHECKERROR);
-		return ERR_PTR(err);
-	}
-
 	xdst->num_pols = num_pols;
 	memcpy(xdst->pols, pols, sizeof(struct xfrm_policy *) * num_pols);
 	xdst->policy_genid = atomic_read(&pols[0]->genid);
@@ -2929,21 +2886,6 @@ void xfrm_policy_unregister_afinfo(const struct xfrm_policy_afinfo *afinfo)
 }
 EXPORT_SYMBOL(xfrm_policy_unregister_afinfo);
 
-static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
-{
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-
-	switch (event) {
-	case NETDEV_DOWN:
-		xfrm_garbage_collect(dev_net(dev));
-	}
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block xfrm_dev_notifier = {
-	.notifier_call	= xfrm_dev_event,
-};
-
 #ifdef CONFIG_XFRM_STATISTICS
 static int __net_init xfrm_statistics_init(struct net *net)
 {
@@ -3020,7 +2962,7 @@ static int __net_init xfrm_policy_init(struct net *net)
 	INIT_WORK(&net->xfrm.policy_hash_work, xfrm_hash_resize);
 	INIT_WORK(&net->xfrm.policy_hthresh.work, xfrm_hash_rebuild);
 	if (net_eq(net, &init_net))
-		register_netdevice_notifier(&xfrm_dev_notifier);
+		xfrm_dev_init();
 	return 0;
 
 out_bydst:

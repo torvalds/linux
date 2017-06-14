@@ -256,8 +256,12 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 		}
 
 		spin_unlock_irqrestore(&queue->lock, cpu_flags);
-	} while (sk_can_busy_loop(sk) &&
-		 sk_busy_loop(sk, flags & MSG_DONTWAIT));
+
+		if (!sk_can_busy_loop(sk))
+			break;
+
+		sk_busy_loop(sk, flags & MSG_DONTWAIT);
+	} while (!skb_queue_empty(&sk->sk_receive_queue));
 
 	error = -EAGAIN;
 
@@ -398,7 +402,7 @@ int skb_copy_datagram_iter(const struct sk_buff *skb, int offset,
 			   struct iov_iter *to, int len)
 {
 	int start = skb_headlen(skb);
-	int i, copy = start - offset;
+	int i, copy = start - offset, start_off = offset, n;
 	struct sk_buff *frag_iter;
 
 	trace_skb_copy_datagram_iovec(skb, len);
@@ -407,11 +411,12 @@ int skb_copy_datagram_iter(const struct sk_buff *skb, int offset,
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		if (copy_to_iter(skb->data + offset, copy, to) != copy)
+		n = copy_to_iter(skb->data + offset, copy, to);
+		offset += n;
+		if (n != copy)
 			goto short_copy;
 		if ((len -= copy) == 0)
 			return 0;
-		offset += copy;
 	}
 
 	/* Copy paged appendix. Hmm... why does this look so complicated? */
@@ -425,13 +430,14 @@ int skb_copy_datagram_iter(const struct sk_buff *skb, int offset,
 		if ((copy = end - offset) > 0) {
 			if (copy > len)
 				copy = len;
-			if (copy_page_to_iter(skb_frag_page(frag),
+			n = copy_page_to_iter(skb_frag_page(frag),
 					      frag->page_offset + offset -
-					      start, copy, to) != copy)
+					      start, copy, to);
+			offset += n;
+			if (n != copy)
 				goto short_copy;
 			if (!(len -= copy))
 				return 0;
-			offset += copy;
 		}
 		start = end;
 	}
@@ -463,6 +469,7 @@ int skb_copy_datagram_iter(const struct sk_buff *skb, int offset,
 	 */
 
 fault:
+	iov_iter_revert(to, offset - start_off);
 	return -EFAULT;
 
 short_copy:
@@ -613,7 +620,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				      __wsum *csump)
 {
 	int start = skb_headlen(skb);
-	int i, copy = start - offset;
+	int i, copy = start - offset, start_off = offset;
 	struct sk_buff *frag_iter;
 	int pos = 0;
 	int n;
@@ -623,11 +630,11 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 		if (copy > len)
 			copy = len;
 		n = csum_and_copy_to_iter(skb->data + offset, copy, csump, to);
+		offset += n;
 		if (n != copy)
 			goto fault;
 		if ((len -= copy) == 0)
 			return 0;
-		offset += copy;
 		pos = copy;
 	}
 
@@ -649,12 +656,12 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 						  offset - start, copy,
 						  &csum2, to);
 			kunmap(page);
+			offset += n;
 			if (n != copy)
 				goto fault;
 			*csump = csum_block_add(*csump, csum2, pos);
 			if (!(len -= copy))
 				return 0;
-			offset += copy;
 			pos += copy;
 		}
 		start = end;
@@ -687,6 +694,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 		return 0;
 
 fault:
+	iov_iter_revert(to, offset - start_off);
 	return -EFAULT;
 }
 
@@ -756,7 +764,7 @@ int skb_copy_and_csum_datagram_msg(struct sk_buff *skb,
 
 	if (msg_data_left(msg) < chunk) {
 		if (__skb_checksum_complete(skb))
-			goto csum_error;
+			return -EINVAL;
 		if (skb_copy_datagram_msg(skb, hlen, msg, chunk))
 			goto fault;
 	} else {
@@ -764,14 +772,16 @@ int skb_copy_and_csum_datagram_msg(struct sk_buff *skb,
 		if (skb_copy_and_csum_datagram(skb, hlen, &msg->msg_iter,
 					       chunk, &csum))
 			goto fault;
-		if (csum_fold(csum))
-			goto csum_error;
+
+		if (csum_fold(csum)) {
+			iov_iter_revert(&msg->msg_iter, chunk);
+			return -EINVAL;
+		}
+
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE))
 			netdev_rx_csum_fault(skb->dev);
 	}
 	return 0;
-csum_error:
-	return -EINVAL;
 fault:
 	return -EFAULT;
 }

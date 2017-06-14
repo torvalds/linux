@@ -426,4 +426,6 @@ int octeon_droq_process_packets(struct octeon_device *oct,
 int octeon_process_droq_poll_cmd(struct octeon_device *oct, u32 q_no,
 				 int cmd, u32 arg);
 
+void octeon_droq_check_oom(struct octeon_droq *droq);
+
 #endif	/*__OCTEON_DROQ_H__ */

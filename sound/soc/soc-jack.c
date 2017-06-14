@@ -19,7 +19,26 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/suspend.h>
 #include <trace/events/asoc.h>
+
+/**
+ * snd_soc_codec_set_jack - configure codec jack.
+ * @codec: CODEC
+ * @jack: structure to use for the jack
+ * @data: can be used if codec driver need extra data for configuring jack
+ *
+ * Configures and enables jack detection function.
+ */
+int snd_soc_codec_set_jack(struct snd_soc_codec *codec,
+	struct snd_soc_jack *jack, void *data)
+{
+	if (codec->driver->set_jack)
+		return codec->driver->set_jack(codec, jack, data);
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_codec_set_jack);
 
 /**
  * snd_soc_card_jack_new - Create a new jack
@@ -293,6 +312,27 @@ static void gpio_work(struct work_struct *work)
 	snd_soc_jack_gpio_detect(gpio);
 }
 
+static int snd_soc_jack_pm_notifier(struct notifier_block *nb,
+				    unsigned long action, void *data)
+{
+	struct snd_soc_jack_gpio *gpio =
+			container_of(nb, struct snd_soc_jack_gpio, pm_notifier);
+
+	switch (action) {
+	case PM_POST_SUSPEND:
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+		/*
+		 * Use workqueue so we do not have to care about running
+		 * concurrently with work triggered by the interrupt handler.
+		 */
+		queue_delayed_work(system_power_efficient_wq, &gpio->work, 0);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 /**
  * snd_soc_jack_add_gpios - Associate GPIO pins with an ASoC jack
  *
@@ -369,6 +409,13 @@ got_gpio:
 					i, ret);
 		}
 
+		/*
+		 * Register PM notifier so we do not miss state transitions
+		 * happening while system is asleep.
+		 */
+		gpios[i].pm_notifier.notifier_call = snd_soc_jack_pm_notifier;
+		register_pm_notifier(&gpios[i].pm_notifier);
+
 		/* Expose GPIO value over sysfs for diagnostic purposes */
 		gpiod_export(gpios[i].desc, false);
 
@@ -428,6 +475,7 @@ void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 
 	for (i = 0; i < count; i++) {
 		gpiod_unexport(gpios[i].desc);
+		unregister_pm_notifier(&gpios[i].pm_notifier);
 		free_irq(gpiod_to_irq(gpios[i].desc), &gpios[i]);
 		cancel_delayed_work_sync(&gpios[i].work);
 		gpiod_put(gpios[i].desc);

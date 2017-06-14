@@ -16,7 +16,8 @@ The vDSO uses symbol versioning; whenever you request a symbol from the
 vDSO, specify the version you are expecting.
 
 Programs that dynamically link to glibc will use the vDSO automatically.
-Otherwise, you can use the reference parser in Documentation/vDSO/parse_vdso.c.
+Otherwise, you can use the reference parser in
+tools/testing/selftests/vDSO/parse_vdso.c.
 
 Unless otherwise noted, the set of symbols with any given version and the
 ABI of those symbols is considered stable.  It may vary across architectures,

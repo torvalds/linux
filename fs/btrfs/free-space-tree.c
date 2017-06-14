@@ -167,8 +167,7 @@ static u8 *alloc_bitmap(u32 bitmap_size)
 	if (mem)
 		return mem;
 
-	return __vmalloc(bitmap_size, GFP_NOFS | __GFP_HIGHMEM | __GFP_ZERO,
-			 PAGE_KERNEL);
+	return __vmalloc(bitmap_size, GFP_NOFS | __GFP_ZERO, PAGE_KERNEL);
 }
 
 int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,

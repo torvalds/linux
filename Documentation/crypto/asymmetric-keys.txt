@@ -311,3 +311,54 @@ Functions are provided to register and unregister parsers:
 
 Parsers may not have the same name.  The names are otherwise only used for
 displaying in debugging messages.
+
+
+=========================
+KEYRING LINK RESTRICTIONS
+=========================
+
+Keyrings created from userspace using add_key can be configured to check the
+signature of the key being linked.
+
+Several restriction methods are available:
+
+ (1) Restrict using the kernel builtin trusted keyring
+
+     - Option string used with KEYCTL_RESTRICT_KEYRING:
+       - "builtin_trusted"
+
+     The kernel builtin trusted keyring will be searched for the signing
+     key. The ca_keys kernel parameter also affects which keys are used for
+     signature verification.
+
+ (2) Restrict using the kernel builtin and secondary trusted keyrings
+
+     - Option string used with KEYCTL_RESTRICT_KEYRING:
+       - "builtin_and_secondary_trusted"
+
+     The kernel builtin and secondary trusted keyrings will be searched for the
+     signing key. The ca_keys kernel parameter also affects which keys are used
+     for signature verification.
+
+ (3) Restrict using a separate key or keyring
+
+     - Option string used with KEYCTL_RESTRICT_KEYRING:
+       - "key_or_keyring:<key or keyring serial number>[:chain]"
+
+     Whenever a key link is requested, the link will only succeed if the key
+     being linked is signed by one of the designated keys. This key may be
+     specified directly by providing a serial number for one asymmetric key, or
+     a group of keys may be searched for the signing key by providing the
+     serial number for a keyring.
+
+     When the "chain" option is provided at the end of the string, the keys
+     within the destination keyring will also be searched for signing keys.
+     This allows for verification of certificate chains by adding each
+     cert in order (starting closest to the root) to one keyring.
+
+In all of these cases, if the signing key is found the signature of the key to
+be linked will be verified using the signing key.  The requested key is added
+to the keyring only if the signature is successfully verified.  -ENOKEY is
+returned if the parent certificate could not be found, or -EKEYREJECTED is
+returned if the signature check fails or the key is blacklisted.  Other errors
+may be returned if the signature check could not be performed.

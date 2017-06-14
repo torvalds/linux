@@ -2041,6 +2041,9 @@ enum ec_mkbp_event {
 	/* The state of the switches have changed. */
 	EC_MKBP_EVENT_SWITCH = 4,
 
+	/* EC sent a sysrq command */
+	EC_MKBP_EVENT_SYSRQ = 6,
+
 	/* Number of MKBP events */
 	EC_MKBP_EVENT_COUNT,
 };
@@ -2053,6 +2056,7 @@ union ec_response_get_next_data {
 
 	uint32_t   buttons;
 	uint32_t   switches;
+	uint32_t   sysrq;
 } __packed;
 
 struct ec_response_get_next_event {

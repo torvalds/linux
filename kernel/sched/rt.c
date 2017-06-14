@@ -1927,6 +1927,87 @@ static int find_next_push_cpu(struct rq *rq)
 #define RT_PUSH_IPI_EXECUTING		1
 #define RT_PUSH_IPI_RESTART		2
 
+/*
+ * When a high priority task schedules out from a CPU and a lower priority
+ * task is scheduled in, a check is made to see if there's any RT tasks
+ * on other CPUs that are waiting to run because a higher priority RT task
+ * is currently running on its CPU. In this case, the CPU with multiple RT
+ * tasks queued on it (overloaded) needs to be notified that a CPU has opened
+ * up that may be able to run one of its non-running queued RT tasks.
+ *
+ * On large CPU boxes, there's the case that several CPUs could schedule
+ * a lower priority task at the same time, in which case it will look for
+ * any overloaded CPUs that it could pull a task from. To do this, the runqueue
+ * lock must be taken from that overloaded CPU. Having 10s of CPUs all fighting
+ * for a single overloaded CPU's runqueue lock can produce a large latency.
+ * (This has actually been observed on large boxes running cyclictest).
+ * Instead of taking the runqueue lock of the overloaded CPU, each of the
+ * CPUs that scheduled a lower priority task simply sends an IPI to the
+ * overloaded CPU. An IPI is much cheaper than taking an runqueue lock with
+ * lots of contention. The overloaded CPU will look to push its non-running
+ * RT task off, and if it does, it can then ignore the other IPIs coming
+ * in, and just pass those IPIs off to any other overloaded CPU.
+ *
+ * When a CPU schedules a lower priority task, it only sends an IPI to
+ * the "next" CPU that has overloaded RT tasks. This prevents IPI storms,
+ * as having 10 CPUs scheduling lower priority tasks and 10 CPUs with
+ * RT overloaded tasks, would cause 100 IPIs to go out at once.
+ *
+ * The overloaded RT CPU, when receiving an IPI, will try to push off its
+ * overloaded RT tasks and then send an IPI to the next CPU that has
+ * overloaded RT tasks. This stops when all CPUs with overloaded RT tasks
+ * have completed. Just because a CPU may have pushed off its own overloaded
+ * RT task does not mean it should stop sending the IPI around to other
+ * overloaded CPUs. There may be another RT task waiting to run on one of
+ * those CPUs that are of higher priority than the one that was just
+ * pushed.
+ *
+ * An optimization that could possibly be made is to make a CPU array similar
+ * to the cpupri array mask of all running RT tasks, but for the overloaded
+ * case, then the IPI could be sent to only the CPU with the highest priority
+ * RT task waiting, and that CPU could send off further IPIs to the CPU with
+ * the next highest waiting task. Since the overloaded case is much less likely
+ * to happen, the complexity of this implementation may not be worth it.
+ * Instead, just send an IPI around to all overloaded CPUs.
+ *
+ * The rq->rt.push_flags holds the status of the IPI that is going around.
+ * A run queue can only send out a single IPI at a time. The possible flags
+ * for rq->rt.push_flags are:
+ *
+ *    (None or zero):		No IPI is going around for the current rq
+ *    RT_PUSH_IPI_EXECUTING:	An IPI for the rq is being passed around
+ *    RT_PUSH_IPI_RESTART:	The priority of the running task for the rq
+ *				has changed, and the IPI should restart
+ *				circulating the overloaded CPUs again.
+ *
+ * rq->rt.push_cpu contains the CPU that is being sent the IPI. It is updated
+ * before sending to the next CPU.
+ *
+ * Instead of having all CPUs that schedule a lower priority task send
+ * an IPI to the same "first" CPU in the RT overload mask, they send it
+ * to the next overloaded CPU after their own CPU. This helps distribute
+ * the work when there's more than one overloaded CPU and multiple CPUs
+ * scheduling in lower priority tasks.
+ *
+ * When a rq schedules a lower priority task than what was currently
+ * running, the next CPU with overloaded RT tasks is examined first.
+ * That is, if CPU 1 and 5 are overloaded, and CPU 3 schedules a lower
+ * priority task, it will send an IPI first to CPU 5, then CPU 5 will
+ * send to CPU 1 if it is still overloaded. CPU 1 will clear the
+ * rq->rt.push_flags if RT_PUSH_IPI_RESTART is not set.
+ *
+ * The first CPU to notice IPI_RESTART is set, will clear that flag and then
+ * send an IPI to the next overloaded CPU after the rq->cpu and not the next
+ * CPU after push_cpu. That is, if CPU 1, 4 and 5 are overloaded when CPU 3
+ * schedules a lower priority task, and the IPI_RESTART gets set while the
+ * handling is being done on CPU 5, it will clear the flag and send it back to
+ * CPU 4 instead of CPU 1.
+ *
+ * Note, the above logic can be disabled by turning off the sched_feature
+ * RT_PUSH_IPI. Then the rq lock of the overloaded CPU will simply be
+ * taken by the CPU requesting a pull and the waiting RT task will be pulled
+ * by that CPU. This may be fine for machines with few CPUs.
+ */
 static void tell_cpu_to_push(struct rq *rq)
 {
 	int cpu;

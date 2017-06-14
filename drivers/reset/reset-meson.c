@@ -1,4 +1,6 @@
 /*
+ * Amlogic Meson Reset Controller driver
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -53,7 +55,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -95,7 +97,6 @@ static const struct of_device_id meson_reset_dt_ids[] = {
 	 { .compatible = "amlogic,meson-gxbb-reset", },
 	 { /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, meson_reset_dt_ids);
 
 static int meson_reset_probe(struct platform_device *pdev)
 {
@@ -128,9 +129,4 @@ static struct platform_driver meson_reset_driver = {
 		.of_match_table	= meson_reset_dt_ids,
 	},
 };
-
-module_platform_driver(meson_reset_driver);
-
-MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
-MODULE_DESCRIPTION("Amlogic Meson Reset Controller driver");
-MODULE_LICENSE("Dual BSD/GPL");
+builtin_platform_driver(meson_reset_driver);

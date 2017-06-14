@@ -443,7 +443,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	int ret = 0;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_IFE_MAX, nla, ife_policy);
+	err = nla_parse_nested(tb, TCA_IFE_MAX, nla, ife_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -514,7 +514,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 
 	if (tb[TCA_IFE_METALST]) {
 		err = nla_parse_nested(tb2, IFE_META_MAX, tb[TCA_IFE_METALST],
-				       NULL);
+				       NULL, NULL);
 		if (err) {
 metadata_parse_err:
 			if (exists)
@@ -603,8 +603,8 @@ nla_put_failure:
 	return -1;
 }
 
-int find_decode_metaid(struct sk_buff *skb, struct tcf_ife_info *ife,
-		       u16 metaid, u16 mlen, void *mdata)
+static int find_decode_metaid(struct sk_buff *skb, struct tcf_ife_info *ife,
+			      u16 metaid, u16 mlen, void *mdata)
 {
 	struct tcf_meta_info *e;
 

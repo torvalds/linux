@@ -159,15 +159,15 @@ out:
 	nvmet_req_complete(req, status);
 }
 
-int nvmet_parse_discovery_cmd(struct nvmet_req *req)
+u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
 
 	req->ns = NULL;
 
 	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
-		pr_err("nvmet: got cmd %d while not ready\n",
-				cmd->common.opcode);
+		pr_err("got cmd %d while not ready\n",
+		       cmd->common.opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
 
@@ -180,8 +180,8 @@ int nvmet_parse_discovery_cmd(struct nvmet_req *req)
 			req->execute = nvmet_execute_get_disc_log_page;
 			return 0;
 		default:
-			pr_err("nvmet: unsupported get_log_page lid %d\n",
-				cmd->get_log_page.lid);
+			pr_err("unsupported get_log_page lid %d\n",
+			       cmd->get_log_page.lid);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 	case nvme_admin_identify:
@@ -192,17 +192,16 @@ int nvmet_parse_discovery_cmd(struct nvmet_req *req)
 				nvmet_execute_identify_disc_ctrl;
 			return 0;
 		default:
-			pr_err("nvmet: unsupported identify cns %d\n",
-				cmd->identify.cns);
+			pr_err("unsupported identify cns %d\n",
+			       cmd->identify.cns);
 			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 	default:
-		pr_err("nvmet: unsupported cmd %d\n",
-				cmd->common.opcode);
+		pr_err("unsupported cmd %d\n", cmd->common.opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
 
-	pr_err("nvmet: unhandled cmd %d\n", cmd->common.opcode);
+	pr_err("unhandled cmd %d\n", cmd->common.opcode);
 	return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 }
 

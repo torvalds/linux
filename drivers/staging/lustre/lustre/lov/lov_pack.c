@@ -293,17 +293,9 @@ int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
 	size_t lmmk_size;
 	size_t lum_size;
 	int rc;
-	mm_segment_t seg;
 
 	if (!lsm)
 		return -ENODATA;
-
-	/*
-	 * "Switch to kernel segment" to allow copying from kernel space by
-	 * copy_{to,from}_user().
-	 */
-	seg = get_fs();
-	set_fs(KERNEL_DS);
 
 	if (lsm->lsm_magic != LOV_MAGIC_V1 && lsm->lsm_magic != LOV_MAGIC_V3) {
 		CERROR("bad LSM MAGIC: 0x%08X != 0x%08X nor 0x%08X\n",
@@ -406,6 +398,5 @@ int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
 out_free:
 	kvfree(lmmk);
 out:
-	set_fs(seg);
 	return rc;
 }

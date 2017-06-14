@@ -1719,18 +1719,13 @@ int iio_device_register(struct iio_dev *indio_dev)
 
 	cdev_init(&indio_dev->chrdev, &iio_buffer_fileops);
 	indio_dev->chrdev.owner = indio_dev->info->driver_module;
-	indio_dev->chrdev.kobj.parent = &indio_dev->dev.kobj;
-	ret = cdev_add(&indio_dev->chrdev, indio_dev->dev.devt, 1);
+
+	ret = cdev_device_add(&indio_dev->chrdev, &indio_dev->dev);
 	if (ret < 0)
 		goto error_unreg_eventset;
 
-	ret = device_add(&indio_dev->dev);
-	if (ret < 0)
-		goto error_cdev_del;
-
 	return 0;
-error_cdev_del:
-	cdev_del(&indio_dev->chrdev);
+
 error_unreg_eventset:
 	iio_device_unregister_eventset(indio_dev);
 error_free_sysfs:
@@ -1751,10 +1746,8 @@ void iio_device_unregister(struct iio_dev *indio_dev)
 {
 	mutex_lock(&indio_dev->info_exist_lock);
 
-	device_del(&indio_dev->dev);
+	cdev_device_del(&indio_dev->chrdev, &indio_dev->dev);
 
-	if (indio_dev->chrdev.dev)
-		cdev_del(&indio_dev->chrdev);
 	iio_device_unregister_debugfs(indio_dev);
 
 	iio_disable_all_buffers(indio_dev);

@@ -74,7 +74,7 @@
 
 /* Calculate the block/page mapping size at level l for pagetable in d. */
 #define ARM_LPAE_BLOCK_SIZE(l,d)					\
-	(1 << (ilog2(sizeof(arm_lpae_iopte)) +				\
+	(1ULL << (ilog2(sizeof(arm_lpae_iopte)) +			\
 		((ARM_LPAE_MAX_LEVELS - (l)) * (d)->bits_per_level)))
 
 /* Page table bits */

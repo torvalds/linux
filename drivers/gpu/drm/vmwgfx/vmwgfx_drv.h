@@ -41,9 +41,9 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20170221"
+#define VMWGFX_DRIVER_DATE "20170607"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 12
+#define VMWGFX_DRIVER_MINOR 13
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -153,7 +153,6 @@ enum vmw_cmdbuf_res_type {
 struct vmw_cmdbuf_res_manager;
 
 struct vmw_cursor_snooper {
-	struct drm_crtc *crtc;
 	size_t age;
 	uint32_t *image;
 };
@@ -415,6 +414,7 @@ struct vmw_private {
 	unsigned num_implicit;
 	struct vmw_framebuffer *implicit_fb;
 	struct mutex global_kms_state_mutex;
+	spinlock_t cursor_lock;
 
 	/*
 	 * Context and surface management.

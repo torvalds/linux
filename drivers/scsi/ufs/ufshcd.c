@@ -130,19 +130,12 @@ enum {
 	UFSHCD_UIC_DME_ERROR = (1 << 5), /* DME error */
 };
 
-/* Interrupt configuration options */
-enum {
-	UFSHCD_INT_DISABLE,
-	UFSHCD_INT_ENABLE,
-	UFSHCD_INT_CLEAR,
-};
-
 #define ufshcd_set_eh_in_progress(h) \
-	(h->eh_flags |= UFSHCD_EH_IN_PROGRESS)
+	((h)->eh_flags |= UFSHCD_EH_IN_PROGRESS)
 #define ufshcd_eh_in_progress(h) \
-	(h->eh_flags & UFSHCD_EH_IN_PROGRESS)
+	((h)->eh_flags & UFSHCD_EH_IN_PROGRESS)
 #define ufshcd_clear_eh_in_progress(h) \
-	(h->eh_flags &= ~UFSHCD_EH_IN_PROGRESS)
+	((h)->eh_flags &= ~UFSHCD_EH_IN_PROGRESS)
 
 #define ufshcd_set_ufs_dev_active(h) \
 	((h)->curr_dev_pwr_mode = UFS_ACTIVE_PWR_MODE)
@@ -540,15 +533,14 @@ static inline u32 ufshcd_get_intr_mask(struct ufs_hba *hba)
 	case UFSHCI_VERSION_10:
 		intr_mask = INTERRUPT_MASK_ALL_VER_10;
 		break;
-	/* allow fall through */
 	case UFSHCI_VERSION_11:
 	case UFSHCI_VERSION_20:
 		intr_mask = INTERRUPT_MASK_ALL_VER_11;
 		break;
-	/* allow fall through */
 	case UFSHCI_VERSION_21:
 	default:
 		intr_mask = INTERRUPT_MASK_ALL_VER_21;
+		break;
 	}
 
 	return intr_mask;
@@ -573,12 +565,12 @@ static inline u32 ufshcd_get_ufs_version(struct ufs_hba *hba)
  *			      the host controller
  * @hba: pointer to adapter instance
  *
- * Returns 1 if device present, 0 if no device detected
+ * Returns true if device present, false if no device detected
  */
-static inline int ufshcd_is_device_present(struct ufs_hba *hba)
+static inline bool ufshcd_is_device_present(struct ufs_hba *hba)
 {
 	return (ufshcd_readl(hba, REG_CONTROLLER_STATUS) &
-						DEVICE_PRESENT) ? 1 : 0;
+						DEVICE_PRESENT) ? true : false;
 }
 
 /**
@@ -668,16 +660,7 @@ static inline void ufshcd_outstanding_req_clear(struct ufs_hba *hba, int tag)
  */
 static inline int ufshcd_get_lists_status(u32 reg)
 {
-	/*
-	 * The mask 0xFF is for the following HCS register bits
-	 * Bit		Description
-	 *  0		Device Present
-	 *  1		UTRLRDY
-	 *  2		UTMRLRDY
-	 *  3		UCRDY
-	 * 4-7		reserved
-	 */
-	return ((reg & 0xFF) >> 1) ^ 0x07;
+	return !((reg & UFSHCD_STATUS_READY) == UFSHCD_STATUS_READY);
 }
 
 /**
@@ -820,11 +803,12 @@ static inline void ufshcd_hba_start(struct ufs_hba *hba)
  * ufshcd_is_hba_active - Get controller state
  * @hba: per adapter instance
  *
- * Returns zero if controller is active, 1 otherwise
+ * Returns false if controller is active, true otherwise
  */
-static inline int ufshcd_is_hba_active(struct ufs_hba *hba)
+static inline bool ufshcd_is_hba_active(struct ufs_hba *hba)
 {
-	return (ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & 0x1) ? 0 : 1;
+	return (ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & CONTROLLER_ENABLE)
+		? false : true;
 }
 
 static const char *ufschd_uic_link_state_to_string(
@@ -1478,7 +1462,7 @@ start:
 			break;
 		}
 		/*
-		 * If we here, it means gating work is either done or
+		 * If we are here, it means gating work is either done or
 		 * currently running. Hence, fall through to cancel gating
 		 * work and to enable clocks.
 		 */
@@ -3103,18 +3087,7 @@ static inline int ufshcd_read_power_desc(struct ufs_hba *hba,
 					 u8 *buf,
 					 u32 size)
 {
-	int err = 0;
-	int retries;
-
-	for (retries = QUERY_REQ_RETRIES; retries > 0; retries--) {
-		/* Read descriptor*/
-		err = ufshcd_read_desc(hba, QUERY_DESC_IDN_POWER, 0, buf, size);
-		if (!err)
-			break;
-		dev_dbg(hba->dev, "%s: error %d retrying\n", __func__, err);
-	}
-
-	return err;
+	return ufshcd_read_desc(hba, QUERY_DESC_IDN_POWER, 0, buf, size);
 }
 
 static int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size)
@@ -4272,24 +4245,16 @@ static void ufshcd_set_queue_depth(struct scsi_device *sdev)
 {
 	int ret = 0;
 	u8 lun_qdepth;
-	int retries;
 	struct ufs_hba *hba;
 
 	hba = shost_priv(sdev->host);
 
 	lun_qdepth = hba->nutrs;
-	for (retries = QUERY_REQ_RETRIES; retries > 0; retries--) {
-		/* Read descriptor*/
-		ret = ufshcd_read_unit_desc_param(hba,
-				  ufshcd_scsi_to_upiu_lun(sdev->lun),
-				  UNIT_DESC_PARAM_LU_Q_DEPTH,
-				  &lun_qdepth,
-				  sizeof(lun_qdepth));
-		if (!ret || ret == -ENOTSUPP)
-			break;
-
-		dev_dbg(hba->dev, "%s: error %d retrying\n", __func__, ret);
-	}
+	ret = ufshcd_read_unit_desc_param(hba,
+					  ufshcd_scsi_to_upiu_lun(sdev->lun),
+					  UNIT_DESC_PARAM_LU_Q_DEPTH,
+					  &lun_qdepth,
+					  sizeof(lun_qdepth));
 
 	/* Some WLUN doesn't support unit descriptor */
 	if (ret == -EOPNOTSUPP)
@@ -4717,7 +4682,7 @@ static int ufshcd_disable_ee(struct ufs_hba *hba, u16 mask)
 		goto out;
 
 	val = hba->ee_ctrl_mask & ~mask;
-	val &= 0xFFFF; /* 2 bytes */
+	val &= MASK_EE_STATUS;
 	err = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
 			QUERY_ATTR_IDN_EE_CONTROL, 0, 0, &val);
 	if (!err)
@@ -4745,7 +4710,7 @@ static int ufshcd_enable_ee(struct ufs_hba *hba, u16 mask)
 		goto out;
 
 	val = hba->ee_ctrl_mask | mask;
-	val &= 0xFFFF; /* 2 bytes */
+	val &= MASK_EE_STATUS;
 	err = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
 			QUERY_ATTR_IDN_EE_CONTROL, 0, 0, &val);
 	if (!err)
@@ -5960,24 +5925,6 @@ out:
 	return icc_level;
 }
 
-static int ufshcd_set_icc_levels_attr(struct ufs_hba *hba, u32 icc_level)
-{
-	int ret = 0;
-	int retries;
-
-	for (retries = QUERY_REQ_RETRIES; retries > 0; retries--) {
-		/* write attribute */
-		ret = ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
-			QUERY_ATTR_IDN_ACTIVE_ICC_LVL, 0, 0, &icc_level);
-		if (!ret)
-			break;
-
-		dev_dbg(hba->dev, "%s: failed with error %d\n", __func__, ret);
-	}
-
-	return ret;
-}
-
 static void ufshcd_init_icc_levels(struct ufs_hba *hba)
 {
 	int ret;
@@ -5998,8 +5945,9 @@ static void ufshcd_init_icc_levels(struct ufs_hba *hba)
 	dev_dbg(hba->dev, "%s: setting icc_level 0x%x",
 			__func__, hba->init_prefetch_data.icc_level);
 
-	ret = ufshcd_set_icc_levels_attr(hba,
-				 hba->init_prefetch_data.icc_level);
+	ret = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
+		QUERY_ATTR_IDN_ACTIVE_ICC_LVL, 0, 0,
+		&hba->init_prefetch_data.icc_level);
 
 	if (ret)
 		dev_err(hba->dev,
@@ -7750,6 +7698,12 @@ static inline void ufshcd_add_sysfs_nodes(struct ufs_hba *hba)
 	ufshcd_add_spm_lvl_sysfs_nodes(hba);
 }
 
+static inline void ufshcd_remove_sysfs_nodes(struct ufs_hba *hba)
+{
+	device_remove_file(hba->dev, &hba->rpm_lvl_attr);
+	device_remove_file(hba->dev, &hba->spm_lvl_attr);
+}
+
 /**
  * ufshcd_shutdown - shutdown routine
  * @hba: per adapter instance
@@ -7787,6 +7741,7 @@ EXPORT_SYMBOL(ufshcd_shutdown);
  */
 void ufshcd_remove(struct ufs_hba *hba)
 {
+	ufshcd_remove_sysfs_nodes(hba);
 	scsi_remove_host(hba->host);
 	/* disable interrupts */
 	ufshcd_disable_intr(hba, hba->intr_mask);
@@ -8000,7 +7955,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 		INIT_WORK(&hba->clk_scaling.resume_work,
 			  ufshcd_clk_scaling_resume_work);
 
-		snprintf(wq_name, ARRAY_SIZE(wq_name), "ufs_clkscaling_%d",
+		snprintf(wq_name, sizeof(wq_name), "ufs_clkscaling_%d",
 			 host->host_no);
 		hba->clk_scaling.workq = create_singlethread_workqueue(wq_name);
 

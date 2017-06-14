@@ -2289,7 +2289,7 @@ qla2x00_chip_diag(scsi_qla_host_t *vha)
 		goto chip_diag_failed;
 
 	/* Check product ID of chip */
-	ql_dbg(ql_dbg_init, vha, 0x007d, "Checking product Id of chip.\n");
+	ql_dbg(ql_dbg_init, vha, 0x007d, "Checking product ID of chip.\n");
 
 	mb[1] = RD_MAILBOX_REG(ha, reg, 1);
 	mb[2] = RD_MAILBOX_REG(ha, reg, 2);
@@ -7543,12 +7543,13 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos, int v
 		/* Assign available que pair id */
 		mutex_lock(&ha->mq_lock);
 		qpair_id = find_first_zero_bit(ha->qpair_qid_map, ha->max_qpairs);
-		if (qpair_id >= ha->max_qpairs) {
+		if (ha->num_qpairs >= ha->max_qpairs) {
 			mutex_unlock(&ha->mq_lock);
 			ql_log(ql_log_warn, vha, 0x0183,
 			    "No resources to create additional q pair.\n");
 			goto fail_qid_map;
 		}
+		ha->num_qpairs++;
 		set_bit(qpair_id, ha->qpair_qid_map);
 		ha->queue_pair_map[qpair_id] = qpair;
 		qpair->id = qpair_id;
@@ -7635,6 +7636,7 @@ fail_rsp:
 fail_msix:
 	ha->queue_pair_map[qpair_id] = NULL;
 	clear_bit(qpair_id, ha->qpair_qid_map);
+	ha->num_qpairs--;
 	mutex_unlock(&ha->mq_lock);
 fail_qid_map:
 	kfree(qpair);
@@ -7660,6 +7662,7 @@ int qla2xxx_delete_qpair(struct scsi_qla_host *vha, struct qla_qpair *qpair)
 	mutex_lock(&ha->mq_lock);
 	ha->queue_pair_map[qpair->id] = NULL;
 	clear_bit(qpair->id, ha->qpair_qid_map);
+	ha->num_qpairs--;
 	list_del(&qpair->qp_list_elem);
 	if (list_empty(&vha->qp_list))
 		vha->flags.qpairs_available = 0;

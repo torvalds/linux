@@ -67,7 +67,8 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pcie->base = devm_ioremap(dev, reg.start, resource_size(&reg));
+	pcie->base = devm_pci_remap_cfgspace(dev, reg.start,
+					     resource_size(&reg));
 	if (!pcie->base) {
 		dev_err(dev, "unable to map controller registers\n");
 		return -ENOMEM;

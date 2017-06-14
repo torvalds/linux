@@ -82,20 +82,10 @@ static unsigned int get_crtc_fence_y_offset(struct intel_crtc *crtc)
 static void intel_fbc_get_plane_source_size(struct intel_fbc_state_cache *cache,
 					    int *width, int *height)
 {
-	int w, h;
-
-	if (drm_rotation_90_or_270(cache->plane.rotation)) {
-		w = cache->plane.src_h;
-		h = cache->plane.src_w;
-	} else {
-		w = cache->plane.src_w;
-		h = cache->plane.src_h;
-	}
-
 	if (width)
-		*width = w;
+		*width = cache->plane.src_w;
 	if (height)
-		*height = h;
+		*height = cache->plane.src_h;
 }
 
 static int intel_fbc_calculate_cfb_size(struct drm_i915_private *dev_priv,
@@ -537,8 +527,7 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 	 * reserved range size, so it always assumes the maximum (8mb) is used.
 	 * If we enable FBC using a CFB on that memory range we'll get FIFO
 	 * underruns, even if that range is not reserved by the BIOS. */
-	if (IS_BROADWELL(dev_priv) ||
-	    IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+	if (IS_BROADWELL(dev_priv) || IS_GEN9_BC(dev_priv))
 		end = ggtt->stolen_size - 8 * 1024 * 1024;
 	else
 		end = U64_MAX;
@@ -628,7 +617,8 @@ err_fb:
 	kfree(compressed_llb);
 	i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_fb);
 err_llb:
-	pr_info_once("drm: not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
+	if (drm_mm_initialized(&dev_priv->mm.stolen))
+		pr_info_once("drm: not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
 	return -ENOSPC;
 }
 
@@ -743,10 +733,14 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 
 	cache->crtc.mode_flags = crtc_state->base.adjusted_mode.flags;
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		cache->crtc.hsw_bdw_pixel_rate =
-			ilk_pipe_pixel_rate(crtc_state);
+		cache->crtc.hsw_bdw_pixel_rate = crtc_state->pixel_rate;
 
 	cache->plane.rotation = plane_state->base.rotation;
+	/*
+	 * Src coordinates are already rotated by 270 degrees for
+	 * the 90/270 degree plane rotation cases (to match the
+	 * GTT mapping), hence no need to account for rotation here.
+	 */
 	cache->plane.src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	cache->plane.src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	cache->plane.visible = plane_state->base.visible;
@@ -819,7 +813,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 
 	/* WaFbcExceedCdClockThreshold:hsw,bdw */
 	if ((IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) &&
-	    cache->crtc.hsw_bdw_pixel_rate >= dev_priv->cdclk_freq * 95 / 100) {
+	    cache->crtc.hsw_bdw_pixel_rate >= dev_priv->cdclk.hw.cdclk * 95 / 100) {
 		fbc->no_fbc_reason = "pixel rate is too big";
 		return false;
 	}
@@ -1062,7 +1056,7 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 	 * plane. We could go for fancier schemes such as checking the plane
 	 * size, but this would just affect the few platforms that don't tie FBC
 	 * to pipe or plane A. */
-	for_each_plane_in_state(state, plane, plane_state, i) {
+	for_each_new_plane_in_state(state, plane, plane_state, i) {
 		struct intel_plane_state *intel_plane_state =
 			to_intel_plane_state(plane_state);
 		struct intel_crtc_state *intel_crtc_state;

@@ -6,6 +6,12 @@ const struct sample_reg __weak sample_reg_masks[] = {
 	SMPL_REG_END
 };
 
+int __weak arch_sdt_arg_parse_op(char *old_op __maybe_unused,
+				 char **new_op __maybe_unused)
+{
+	return SDT_ARG_SKIP;
+}
+
 #ifdef HAVE_PERF_REGS_SUPPORT
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id)
 {

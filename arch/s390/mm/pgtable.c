@@ -23,6 +23,7 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
+#include <asm/page-states.h>
 
 static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 				      unsigned long addr, pte_t *ptep)
@@ -787,4 +788,156 @@ int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	return 0;
 }
 EXPORT_SYMBOL(get_guest_storage_key);
+
+/**
+ * pgste_perform_essa - perform ESSA actions on the PGSTE.
+ * @mm: the memory context. It must have PGSTEs, no check is performed here!
+ * @hva: the host virtual address of the page whose PGSTE is to be processed
+ * @orc: the specific action to perform, see the ESSA_SET_* macros.
+ * @oldpte: the PTE will be saved there if the pointer is not NULL.
+ * @oldpgste: the old PGSTE will be saved there if the pointer is not NULL.
+ *
+ * Return: 1 if the page is to be added to the CBRL, otherwise 0,
+ *	   or < 0 in case of error. -EINVAL is returned for invalid values
+ *	   of orc, -EFAULT for invalid addresses.
+ */
+int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
+			unsigned long *oldpte, unsigned long *oldpgste)
+{
+	unsigned long pgstev;
+	spinlock_t *ptl;
+	pgste_t pgste;
+	pte_t *ptep;
+	int res = 0;
+
+	WARN_ON_ONCE(orc > ESSA_MAX);
+	if (unlikely(orc > ESSA_MAX))
+		return -EINVAL;
+	ptep = get_locked_pte(mm, hva, &ptl);
+	if (unlikely(!ptep))
+		return -EFAULT;
+	pgste = pgste_get_lock(ptep);
+	pgstev = pgste_val(pgste);
+	if (oldpte)
+		*oldpte = pte_val(*ptep);
+	if (oldpgste)
+		*oldpgste = pgstev;
+
+	switch (orc) {
+	case ESSA_GET_STATE:
+		break;
+	case ESSA_SET_STABLE:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		pgstev |= _PGSTE_GPS_USAGE_STABLE;
+		break;
+	case ESSA_SET_UNUSED:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		pgstev |= _PGSTE_GPS_USAGE_UNUSED;
+		if (pte_val(*ptep) & _PAGE_INVALID)
+			res = 1;
+		break;
+	case ESSA_SET_VOLATILE:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		pgstev |= _PGSTE_GPS_USAGE_VOLATILE;
+		if (pte_val(*ptep) & _PAGE_INVALID)
+			res = 1;
+		break;
+	case ESSA_SET_POT_VOLATILE:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		if (!(pte_val(*ptep) & _PAGE_INVALID)) {
+			pgstev |= _PGSTE_GPS_USAGE_POT_VOLATILE;
+			break;
+		}
+		if (pgstev & _PGSTE_GPS_ZERO) {
+			pgstev |= _PGSTE_GPS_USAGE_VOLATILE;
+			break;
+		}
+		if (!(pgstev & PGSTE_GC_BIT)) {
+			pgstev |= _PGSTE_GPS_USAGE_VOLATILE;
+			res = 1;
+			break;
+		}
+		break;
+	case ESSA_SET_STABLE_RESIDENT:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		pgstev |= _PGSTE_GPS_USAGE_STABLE;
+		/*
+		 * Since the resident state can go away any time after this
+		 * call, we will not make this page resident. We can revisit
+		 * this decision if a guest will ever start using this.
+		 */
+		break;
+	case ESSA_SET_STABLE_IF_RESIDENT:
+		if (!(pte_val(*ptep) & _PAGE_INVALID)) {
+			pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+			pgstev |= _PGSTE_GPS_USAGE_STABLE;
+		}
+		break;
+	default:
+		/* we should never get here! */
+		break;
+	}
+	/* If we are discarding a page, set it to logical zero */
+	if (res)
+		pgstev |= _PGSTE_GPS_ZERO;
+
+	pgste_val(pgste) = pgstev;
+	pgste_set_unlock(ptep, pgste);
+	pte_unmap_unlock(ptep, ptl);
+	return res;
+}
+EXPORT_SYMBOL(pgste_perform_essa);
+
+/**
+ * set_pgste_bits - set specific PGSTE bits.
+ * @mm: the memory context. It must have PGSTEs, no check is performed here!
+ * @hva: the host virtual address of the page whose PGSTE is to be processed
+ * @bits: a bitmask representing the bits that will be touched
+ * @value: the values of the bits to be written. Only the bits in the mask
+ *	   will be written.
+ *
+ * Return: 0 on success, < 0 in case of error.
+ */
+int set_pgste_bits(struct mm_struct *mm, unsigned long hva,
+			unsigned long bits, unsigned long value)
+{
+	spinlock_t *ptl;
+	pgste_t new;
+	pte_t *ptep;
+
+	ptep = get_locked_pte(mm, hva, &ptl);
+	if (unlikely(!ptep))
+		return -EFAULT;
+	new = pgste_get_lock(ptep);
+
+	pgste_val(new) &= ~bits;
+	pgste_val(new) |= value & bits;
+
+	pgste_set_unlock(ptep, new);
+	pte_unmap_unlock(ptep, ptl);
+	return 0;
+}
+EXPORT_SYMBOL(set_pgste_bits);
+
+/**
+ * get_pgste - get the current PGSTE for the given address.
+ * @mm: the memory context. It must have PGSTEs, no check is performed here!
+ * @hva: the host virtual address of the page whose PGSTE is to be processed
+ * @pgstep: will be written with the current PGSTE for the given address.
+ *
+ * Return: 0 on success, < 0 in case of error.
+ */
+int get_pgste(struct mm_struct *mm, unsigned long hva, unsigned long *pgstep)
+{
+	spinlock_t *ptl;
+	pte_t *ptep;
+
+	ptep = get_locked_pte(mm, hva, &ptl);
+	if (unlikely(!ptep))
+		return -EFAULT;
+	*pgstep = pgste_val(pgste_get(ptep));
+	pte_unmap_unlock(ptep, ptl);
+	return 0;
+}
+EXPORT_SYMBOL(get_pgste);
 #endif

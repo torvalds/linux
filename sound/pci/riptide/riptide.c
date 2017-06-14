@@ -137,12 +137,12 @@ MODULE_PARM_DESC(id, "ID string for Riptide soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Riptide soundcard.");
 #ifdef SUPPORT_JOYSTICK
-module_param_array(joystick_port, int, NULL, 0444);
+module_param_hw_array(joystick_port, int, ioport, NULL, 0444);
 MODULE_PARM_DESC(joystick_port, "Joystick port # for Riptide soundcard.");
 #endif
-module_param_array(mpu_port, int, NULL, 0444);
+module_param_hw_array(mpu_port, int, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU401 port # for Riptide driver.");
-module_param_array(opl3_port, int, NULL, 0444);
+module_param_hw_array(opl3_port, int, ioport, NULL, 0444);
 MODULE_PARM_DESC(opl3_port, "OPL3 port # for Riptide driver.");
 
 /*

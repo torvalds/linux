@@ -524,9 +524,8 @@ static ssize_t wil_read_file_ioblob(struct file *file, char __user *user_buf,
 	if (!buf)
 		return -ENOMEM;
 
-	wil_memcpy_fromio_halp_vote(wil_blob->wil, buf,
-				    (const volatile void __iomem *)
-				    wil_blob->blob.data + pos, count);
+	wil_memcpy_fromio_32(buf, (const void __iomem *)
+			     wil_blob->blob.data + pos, count);
 
 	ret = copy_to_user(user_buf, buf, count);
 	kfree(buf);

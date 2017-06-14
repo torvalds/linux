@@ -198,9 +198,19 @@ static int aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 		 * them. This may mean that certain functions cannot be
 		 * deconfigured and is the reason we re-evaluate after writing
 		 * all descriptor bits.
+		 *
+		 * Port D and port E GPIO loopback modes are the only exception
+		 * as those are commonly used with front-panel buttons to allow
+		 * normal operation of the host when the BMC is powered off or
+		 * fails to boot. Once the BMC has booted, the loopback mode
+		 * must be disabled for the BMC to control host power-on and
+		 * reset.
 		 */
-		if ((desc->reg == HW_STRAP1 || desc->reg == HW_STRAP2) &&
-				desc->ip == ASPEED_IP_SCU)
+		if (desc->ip == ASPEED_IP_SCU && desc->reg == HW_STRAP1 &&
+		    !(desc->mask & (BIT(21) | BIT(22))))
+			continue;
+
+		if (desc->ip == ASPEED_IP_SCU && desc->reg == HW_STRAP2)
 			continue;
 
 		ret = regmap_update_bits(maps[desc->ip], desc->reg,
@@ -534,6 +544,217 @@ int aspeed_pinctrl_probe(struct platform_device *pdev,
 	}
 
 	platform_set_drvdata(pdev, pdata);
+
+	return 0;
+}
+
+static inline bool pin_in_config_range(unsigned int offset,
+		const struct aspeed_pin_config *config)
+{
+	return offset >= config->pins[0] && offset <= config->pins[1];
+}
+
+static inline const struct aspeed_pin_config *find_pinconf_config(
+		const struct aspeed_pinctrl_data *pdata,
+		unsigned int offset,
+		enum pin_config_param param)
+{
+	unsigned int i;
+
+	for (i = 0; i < pdata->nconfigs; i++) {
+		if (param == pdata->configs[i].param &&
+				pin_in_config_range(offset, &pdata->configs[i]))
+			return &pdata->configs[i];
+	}
+
+	return NULL;
+}
+
+/**
+ * @param: pinconf configuration parameter
+ * @arg: The supported argument for @param, or -1 if any value is supported
+ * @value: The register value to write to configure @arg for @param
+ *
+ * The map is to be used in conjunction with the configuration array supplied
+ * by the driver implementation.
+ */
+struct aspeed_pin_config_map {
+	enum pin_config_param param;
+	s32 arg;
+	u32 val;
+};
+
+enum aspeed_pin_config_map_type { MAP_TYPE_ARG, MAP_TYPE_VAL };
+
+/* Aspeed consistently both:
+ *
+ * 1. Defines "disable bits" for internal pull-downs
+ * 2. Uses 8mA or 16mA drive strengths
+ */
+static const struct aspeed_pin_config_map pin_config_map[] = {
+	{ PIN_CONFIG_BIAS_PULL_DOWN,  0, 1 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, -1, 0 },
+	{ PIN_CONFIG_BIAS_DISABLE,   -1, 1 },
+	{ PIN_CONFIG_DRIVE_STRENGTH,  8, 0 },
+	{ PIN_CONFIG_DRIVE_STRENGTH, 16, 1 },
+};
+
+static const struct aspeed_pin_config_map *find_pinconf_map(
+		enum pin_config_param param,
+		enum aspeed_pin_config_map_type type,
+		s64 value)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pin_config_map); i++) {
+		const struct aspeed_pin_config_map *elem;
+		bool match;
+
+		elem = &pin_config_map[i];
+
+		switch (type) {
+		case MAP_TYPE_ARG:
+			match = (elem->arg == -1 || elem->arg == value);
+			break;
+		case MAP_TYPE_VAL:
+			match = (elem->val == value);
+			break;
+		}
+
+		if (param == elem->param && match)
+			return elem;
+	}
+
+	return NULL;
+}
+
+int aspeed_pin_config_get(struct pinctrl_dev *pctldev, unsigned int offset,
+		unsigned long *config)
+{
+	const enum pin_config_param param = pinconf_to_config_param(*config);
+	const struct aspeed_pin_config_map *pmap;
+	const struct aspeed_pinctrl_data *pdata;
+	const struct aspeed_pin_config *pconf;
+	unsigned int val;
+	int rc = 0;
+	u32 arg;
+
+	pdata = pinctrl_dev_get_drvdata(pctldev);
+	pconf = find_pinconf_config(pdata, offset, param);
+	if (!pconf)
+		return -ENOTSUPP;
+
+	rc = regmap_read(pdata->maps[ASPEED_IP_SCU], pconf->reg, &val);
+	if (rc < 0)
+		return rc;
+
+	pmap = find_pinconf_map(param, MAP_TYPE_VAL,
+			(val & BIT(pconf->bit)) >> pconf->bit);
+
+	if (!pmap)
+		return -EINVAL;
+
+	if (param == PIN_CONFIG_DRIVE_STRENGTH)
+		arg = (u32) pmap->arg;
+	else if (param == PIN_CONFIG_BIAS_PULL_DOWN)
+		arg = !!pmap->arg;
+	else
+		arg = 1;
+
+	if (!arg)
+		return -EINVAL;
+
+	*config = pinconf_to_config_packed(param, arg);
+
+	return 0;
+}
+
+int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
+		unsigned long *configs, unsigned int num_configs)
+{
+	const struct aspeed_pinctrl_data *pdata;
+	unsigned int i;
+	int rc = 0;
+
+	pdata = pinctrl_dev_get_drvdata(pctldev);
+
+	for (i = 0; i < num_configs; i++) {
+		const struct aspeed_pin_config_map *pmap;
+		const struct aspeed_pin_config *pconf;
+		enum pin_config_param param;
+		unsigned int val;
+		u32 arg;
+
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
+
+		pconf = find_pinconf_config(pdata, offset, param);
+		if (!pconf)
+			return -ENOTSUPP;
+
+		pmap = find_pinconf_map(param, MAP_TYPE_ARG, arg);
+
+		if (unlikely(WARN_ON(!pmap)))
+			return -EINVAL;
+
+		val = pmap->val << pconf->bit;
+
+		rc = regmap_update_bits(pdata->maps[ASPEED_IP_SCU], pconf->reg,
+				BIT(pconf->bit), val);
+
+		if (rc < 0)
+			return rc;
+
+		pr_debug("%s: Set SCU%02X[%d]=%d for param %d(=%d) on pin %d\n",
+				__func__, pconf->reg, pconf->bit, pmap->val,
+				param, arg, offset);
+	}
+
+	return 0;
+}
+
+int aspeed_pin_config_group_get(struct pinctrl_dev *pctldev,
+		unsigned int selector,
+		unsigned long *config)
+{
+	const unsigned int *pins;
+	unsigned int npins;
+	int rc;
+
+	rc = aspeed_pinctrl_get_group_pins(pctldev, selector, &pins, &npins);
+	if (rc < 0)
+		return rc;
+
+	if (!npins)
+		return -ENODEV;
+
+	rc = aspeed_pin_config_get(pctldev, pins[0], config);
+
+	return rc;
+}
+
+int aspeed_pin_config_group_set(struct pinctrl_dev *pctldev,
+		unsigned int selector,
+		unsigned long *configs,
+		unsigned int num_configs)
+{
+	const unsigned int *pins;
+	unsigned int npins;
+	int rc;
+	int i;
+
+	pr_debug("%s: Fetching pins for group selector %d\n",
+			__func__, selector);
+	rc = aspeed_pinctrl_get_group_pins(pctldev, selector, &pins, &npins);
+	if (rc < 0)
+		return rc;
+
+	for (i = 0; i < npins; i++) {
+		rc = aspeed_pin_config_set(pctldev, pins[i], configs,
+				num_configs);
+		if (rc < 0)
+			return rc;
+	}
 
 	return 0;
 }

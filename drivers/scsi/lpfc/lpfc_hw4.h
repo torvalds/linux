@@ -1356,6 +1356,7 @@ struct lpfc_mbx_wq_destroy {
 
 #define LPFC_HDR_BUF_SIZE 128
 #define LPFC_DATA_BUF_SIZE 2048
+#define LPFC_NVMET_DATA_BUF_SIZE 128
 struct rq_context {
 	uint32_t word0;
 #define lpfc_rq_context_rqe_count_SHIFT	16	/* Version 0 Only */
@@ -2720,6 +2721,9 @@ struct lpfc_mbx_request_features {
 #define lpfc_mbx_rq_ftr_rq_ifip_SHIFT		7
 #define lpfc_mbx_rq_ftr_rq_ifip_MASK		0x00000001
 #define lpfc_mbx_rq_ftr_rq_ifip_WORD		word2
+#define lpfc_mbx_rq_ftr_rq_iaar_SHIFT		9
+#define lpfc_mbx_rq_ftr_rq_iaar_MASK		0x00000001
+#define lpfc_mbx_rq_ftr_rq_iaar_WORD		word2
 #define lpfc_mbx_rq_ftr_rq_perfh_SHIFT		11
 #define lpfc_mbx_rq_ftr_rq_perfh_MASK		0x00000001
 #define lpfc_mbx_rq_ftr_rq_perfh_WORD		word2
@@ -3853,6 +3857,7 @@ struct lpfc_acqe_fc_la {
 #define LPFC_FC_LA_TYPE_NO_HARD_ALPA	0x3
 #define LPFC_FC_LA_TYPE_MDS_LINK_DOWN	0x4
 #define LPFC_FC_LA_TYPE_MDS_LOOPBACK	0x5
+#define LPFC_FC_LA_TYPE_UNEXP_WWPN	0x6
 #define lpfc_acqe_fc_la_port_type_SHIFT		6
 #define lpfc_acqe_fc_la_port_type_MASK		0x00000003
 #define lpfc_acqe_fc_la_port_type_WORD		word0
@@ -4416,6 +4421,19 @@ struct fcp_treceive64_wqe {
 };
 #define TXRDY_PAYLOAD_LEN      12
 
+#define CMD_SEND_FRAME	0xE1
+
+struct send_frame_wqe {
+	struct ulp_bde64 bde;          /* words 0-2 */
+	uint32_t frame_len;            /* word 3 */
+	uint32_t fc_hdr_wd0;           /* word 4 */
+	uint32_t fc_hdr_wd1;           /* word 5 */
+	struct wqe_common wqe_com;     /* words 6-11 */
+	uint32_t fc_hdr_wd2;           /* word 12 */
+	uint32_t fc_hdr_wd3;           /* word 13 */
+	uint32_t fc_hdr_wd4;           /* word 14 */
+	uint32_t fc_hdr_wd5;           /* word 15 */
+};
 
 union lpfc_wqe {
 	uint32_t words[16];
@@ -4434,7 +4452,7 @@ union lpfc_wqe {
 	struct fcp_trsp64_wqe fcp_trsp;
 	struct fcp_tsend64_wqe fcp_tsend;
 	struct fcp_treceive64_wqe fcp_treceive;
-
+	struct send_frame_wqe send_frame;
 };
 
 union lpfc_wqe128 {

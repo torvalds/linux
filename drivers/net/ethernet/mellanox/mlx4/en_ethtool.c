@@ -117,7 +117,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	/* port statistics */
 	"tso_packets",
 	"xmit_more",
-	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_failed",
+	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_pages",
 	"rx_csum_good", "rx_csum_none", "rx_csum_complete", "tx_chksum_offload",
 
 	/* pf statistics */

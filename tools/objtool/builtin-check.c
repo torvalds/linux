@@ -36,8 +36,7 @@
 #include "warn.h"
 
 #include <linux/hashtable.h>
-
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#include <linux/kernel.h>
 
 #define STATE_FP_SAVED		0x1
 #define STATE_FP_SETUP		0x2

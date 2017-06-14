@@ -26,7 +26,8 @@ available subsections can be seen below.
    regulator
    iio/index
    input
-   usb
+   usb/index
+   pci
    spi
    i2c
    hsi
@@ -36,6 +37,7 @@ available subsections can be seen below.
    80211/index
    uio-howto
    firmware/index
+   misc_devices
 
 .. only::  subproject and html
 

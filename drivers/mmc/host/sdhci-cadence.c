@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
+#include <linux/of.h>
 
 #include "sdhci-pltfm.h"
 
@@ -40,6 +41,7 @@
 #define   SDHCI_CDNS_HRS06_MODE_MMC_DDR		0x3
 #define   SDHCI_CDNS_HRS06_MODE_MMC_HS200	0x4
 #define   SDHCI_CDNS_HRS06_MODE_MMC_HS400	0x5
+#define   SDHCI_CDNS_HRS06_MODE_MMC_HS400ES	0x6
 
 /* SRS - Slot Register Set (SDHCI-compatible) */
 #define SDHCI_CDNS_SRS_BASE		0x200
@@ -54,6 +56,9 @@
 #define SDHCI_CDNS_PHY_DLY_EMMC_LEGACY	0x06
 #define SDHCI_CDNS_PHY_DLY_EMMC_SDR	0x07
 #define SDHCI_CDNS_PHY_DLY_EMMC_DDR	0x08
+#define SDHCI_CDNS_PHY_DLY_SDCLK	0x0b
+#define SDHCI_CDNS_PHY_DLY_HSMMC	0x0c
+#define SDHCI_CDNS_PHY_DLY_STROBE	0x0d
 
 /*
  * The tuned val register is 6 bit-wide, but not the whole of the range is
@@ -64,13 +69,34 @@
 
 struct sdhci_cdns_priv {
 	void __iomem *hrs_addr;
+	bool enhanced_strobe;
 };
 
-static void sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
-				     u8 addr, u8 data)
+struct sdhci_cdns_phy_cfg {
+	const char *property;
+	u8 addr;
+};
+
+static const struct sdhci_cdns_phy_cfg sdhci_cdns_phy_cfgs[] = {
+	{ "cdns,phy-input-delay-sd-highspeed", SDHCI_CDNS_PHY_DLY_SD_HS, },
+	{ "cdns,phy-input-delay-legacy", SDHCI_CDNS_PHY_DLY_SD_DEFAULT, },
+	{ "cdns,phy-input-delay-sd-uhs-sdr12", SDHCI_CDNS_PHY_DLY_UHS_SDR12, },
+	{ "cdns,phy-input-delay-sd-uhs-sdr25", SDHCI_CDNS_PHY_DLY_UHS_SDR25, },
+	{ "cdns,phy-input-delay-sd-uhs-sdr50", SDHCI_CDNS_PHY_DLY_UHS_SDR50, },
+	{ "cdns,phy-input-delay-sd-uhs-ddr50", SDHCI_CDNS_PHY_DLY_UHS_DDR50, },
+	{ "cdns,phy-input-delay-mmc-highspeed", SDHCI_CDNS_PHY_DLY_EMMC_SDR, },
+	{ "cdns,phy-input-delay-mmc-ddr", SDHCI_CDNS_PHY_DLY_EMMC_DDR, },
+	{ "cdns,phy-dll-delay-sdclk", SDHCI_CDNS_PHY_DLY_SDCLK, },
+	{ "cdns,phy-dll-delay-sdclk-hsmmc", SDHCI_CDNS_PHY_DLY_HSMMC, },
+	{ "cdns,phy-dll-delay-strobe", SDHCI_CDNS_PHY_DLY_STROBE, },
+};
+
+static int sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
+				    u8 addr, u8 data)
 {
 	void __iomem *reg = priv->hrs_addr + SDHCI_CDNS_HRS04;
 	u32 tmp;
+	int ret;
 
 	tmp = (data << SDHCI_CDNS_HRS04_WDATA_SHIFT) |
 	      (addr << SDHCI_CDNS_HRS04_ADDR_SHIFT);
@@ -79,17 +105,36 @@ static void sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
 	tmp |= SDHCI_CDNS_HRS04_WR;
 	writel(tmp, reg);
 
+	ret = readl_poll_timeout(reg, tmp, tmp & SDHCI_CDNS_HRS04_ACK, 0, 10);
+	if (ret)
+		return ret;
+
 	tmp &= ~SDHCI_CDNS_HRS04_WR;
 	writel(tmp, reg);
+
+	return 0;
 }
 
-static void sdhci_cdns_phy_init(struct sdhci_cdns_priv *priv)
+static int sdhci_cdns_phy_init(struct device_node *np,
+			       struct sdhci_cdns_priv *priv)
 {
-	sdhci_cdns_write_phy_reg(priv, SDHCI_CDNS_PHY_DLY_SD_HS, 4);
-	sdhci_cdns_write_phy_reg(priv, SDHCI_CDNS_PHY_DLY_SD_DEFAULT, 4);
-	sdhci_cdns_write_phy_reg(priv, SDHCI_CDNS_PHY_DLY_EMMC_LEGACY, 9);
-	sdhci_cdns_write_phy_reg(priv, SDHCI_CDNS_PHY_DLY_EMMC_SDR, 2);
-	sdhci_cdns_write_phy_reg(priv, SDHCI_CDNS_PHY_DLY_EMMC_DDR, 3);
+	u32 val;
+	int ret, i;
+
+	for (i = 0; i < ARRAY_SIZE(sdhci_cdns_phy_cfgs); i++) {
+		ret = of_property_read_u32(np, sdhci_cdns_phy_cfgs[i].property,
+					   &val);
+		if (ret)
+			continue;
+
+		ret = sdhci_cdns_write_phy_reg(priv,
+					       sdhci_cdns_phy_cfgs[i].addr,
+					       val);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static inline void *sdhci_cdns_priv(struct sdhci_host *host)
@@ -103,16 +148,35 @@ static unsigned int sdhci_cdns_get_timeout_clock(struct sdhci_host *host)
 {
 	/*
 	 * Cadence's spec says the Timeout Clock Frequency is the same as the
-	 * Base Clock Frequency.  Divide it by 1000 to return a value in kHz.
+	 * Base Clock Frequency.
 	 */
-	return host->max_clk / 1000;
+	return host->max_clk;
+}
+
+static void sdhci_cdns_set_emmc_mode(struct sdhci_cdns_priv *priv, u32 mode)
+{
+	u32 tmp;
+
+	/* The speed mode for eMMC is selected by HRS06 register */
+	tmp = readl(priv->hrs_addr + SDHCI_CDNS_HRS06);
+	tmp &= ~SDHCI_CDNS_HRS06_MODE_MASK;
+	tmp |= mode;
+	writel(tmp, priv->hrs_addr + SDHCI_CDNS_HRS06);
+}
+
+static u32 sdhci_cdns_get_emmc_mode(struct sdhci_cdns_priv *priv)
+{
+	u32 tmp;
+
+	tmp = readl(priv->hrs_addr + SDHCI_CDNS_HRS06);
+	return tmp & SDHCI_CDNS_HRS06_MODE_MASK;
 }
 
 static void sdhci_cdns_set_uhs_signaling(struct sdhci_host *host,
 					 unsigned int timing)
 {
 	struct sdhci_cdns_priv *priv = sdhci_cdns_priv(host);
-	u32 mode, tmp;
+	u32 mode;
 
 	switch (timing) {
 	case MMC_TIMING_MMC_HS:
@@ -125,18 +189,17 @@ static void sdhci_cdns_set_uhs_signaling(struct sdhci_host *host,
 		mode = SDHCI_CDNS_HRS06_MODE_MMC_HS200;
 		break;
 	case MMC_TIMING_MMC_HS400:
-		mode = SDHCI_CDNS_HRS06_MODE_MMC_HS400;
+		if (priv->enhanced_strobe)
+			mode = SDHCI_CDNS_HRS06_MODE_MMC_HS400ES;
+		else
+			mode = SDHCI_CDNS_HRS06_MODE_MMC_HS400;
 		break;
 	default:
 		mode = SDHCI_CDNS_HRS06_MODE_SD;
 		break;
 	}
 
-	/* The speed mode for eMMC is selected by HRS06 register */
-	tmp = readl(priv->hrs_addr + SDHCI_CDNS_HRS06);
-	tmp &= ~SDHCI_CDNS_HRS06_MODE_MASK;
-	tmp |= mode;
-	writel(tmp, priv->hrs_addr + SDHCI_CDNS_HRS06);
+	sdhci_cdns_set_emmc_mode(priv, mode);
 
 	/* For SD, fall back to the default handler */
 	if (mode == SDHCI_CDNS_HRS06_MODE_SD)
@@ -213,6 +276,26 @@ static int sdhci_cdns_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	return sdhci_cdns_set_tune_val(host, end_of_streak - max_streak / 2);
 }
 
+static void sdhci_cdns_hs400_enhanced_strobe(struct mmc_host *mmc,
+					     struct mmc_ios *ios)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_cdns_priv *priv = sdhci_cdns_priv(host);
+	u32 mode;
+
+	priv->enhanced_strobe = ios->enhanced_strobe;
+
+	mode = sdhci_cdns_get_emmc_mode(priv);
+
+	if (mode == SDHCI_CDNS_HRS06_MODE_MMC_HS400 && ios->enhanced_strobe)
+		sdhci_cdns_set_emmc_mode(priv,
+					 SDHCI_CDNS_HRS06_MODE_MMC_HS400ES);
+
+	if (mode == SDHCI_CDNS_HRS06_MODE_MMC_HS400ES && !ios->enhanced_strobe)
+		sdhci_cdns_set_emmc_mode(priv,
+					 SDHCI_CDNS_HRS06_MODE_MMC_HS400);
+}
+
 static int sdhci_cdns_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
@@ -220,8 +303,9 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	struct sdhci_cdns_priv *priv;
 	struct clk *clk;
 	int ret;
+	struct device *dev = &pdev->dev;
 
-	clk = devm_clk_get(&pdev->dev, NULL);
+	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
@@ -240,14 +324,21 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 
 	priv = sdhci_cdns_priv(host);
 	priv->hrs_addr = host->ioaddr;
+	priv->enhanced_strobe = false;
 	host->ioaddr += SDHCI_CDNS_SRS_BASE;
 	host->mmc_host_ops.execute_tuning = sdhci_cdns_execute_tuning;
+	host->mmc_host_ops.hs400_enhanced_strobe =
+				sdhci_cdns_hs400_enhanced_strobe;
+
+	sdhci_get_of_property(pdev);
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
 		goto free;
 
-	sdhci_cdns_phy_init(priv);
+	ret = sdhci_cdns_phy_init(dev->of_node, priv);
+	if (ret)
+		goto free;
 
 	ret = sdhci_add_host(host);
 	if (ret)

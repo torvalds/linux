@@ -331,12 +331,15 @@ struct diag_pkt {
 #define FULL_MGMT_P_KEY      0xFFFF
 
 #define DEFAULT_P_KEY LIM_MGMT_P_KEY
-#define HFI1_FECN_SHIFT 31
-#define HFI1_FECN_MASK 1
-#define HFI1_FECN_SMASK BIT(HFI1_FECN_SHIFT)
-#define HFI1_BECN_SHIFT 30
-#define HFI1_BECN_MASK 1
-#define HFI1_BECN_SMASK BIT(HFI1_BECN_SHIFT)
+
+/**
+ * 0xF8 - 4 bits of multicast range and 1 bit for collective range
+ * Example: For 24 bit LID space,
+ * Multicast range: 0xF00000 to 0xF7FFFF
+ * Collective range: 0xF80000 to 0xFFFFFE
+ */
+#define HFI1_MCAST_NR 0x4 /* Number of top bits set */
+#define HFI1_COLLECTIVE_NR 0x1 /* Number of bits after MCAST_NR */
 
 #define HFI1_PSM_IOC_BASE_SEQ 0x0
 

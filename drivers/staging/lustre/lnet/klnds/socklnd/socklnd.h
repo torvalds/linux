@@ -256,11 +256,11 @@ struct ksock_nal_data {
 /*
  * A packet just assembled for transmission is represented by 1 or more
  * struct iovec fragments (the first frag contains the portals header),
- * followed by 0 or more lnet_kiov_t fragments.
+ * followed by 0 or more struct bio_vec fragments.
  *
  * On the receive side, initially 1 struct iovec fragment is posted for
  * receive (the header).  Once the header has been received, the payload is
- * received into either struct iovec or lnet_kiov_t fragments, depending on
+ * received into either struct iovec or struct bio_vec fragments, depending on
  * what the header matched or whether the message needs forwarding.
  */
 struct ksock_conn;  /* forward ref */
@@ -282,17 +282,17 @@ struct ksock_tx {			   /* transmit packet */
 	unsigned short    tx_zc_capable:1; /* payload is large enough for ZC */
 	unsigned short    tx_zc_checked:1; /* Have I checked if I should ZC? */
 	unsigned short    tx_nonblk:1;     /* it's a non-blocking ACK */
-	lnet_kiov_t       *tx_kiov;        /* packet page frags */
+	struct bio_vec	  *tx_kiov;	   /* packet page frags */
 	struct ksock_conn *tx_conn;        /* owning conn */
-	lnet_msg_t        *tx_lnetmsg;     /* lnet message for lnet_finalize()
+	struct lnet_msg        *tx_lnetmsg;     /* lnet message for lnet_finalize()
 					    */
 	unsigned long     tx_deadline;     /* when (in jiffies) tx times out */
-	ksock_msg_t       tx_msg;          /* socklnd message buffer */
+	struct ksock_msg       tx_msg;          /* socklnd message buffer */
 	int               tx_desc_size;    /* size of this descriptor */
 	union {
 		struct {
 			struct kvec iov;     /* virt hdr */
-			lnet_kiov_t kiov[0]; /* paged payload */
+			struct bio_vec kiov[0]; /* paged payload */
 		} paged;
 		struct {
 			struct kvec iov[1];  /* virt hdr + payload */
@@ -310,7 +310,7 @@ struct ksock_tx {			   /* transmit packet */
  */
 union ksock_rxiovspace {
 	struct kvec      iov[LNET_MAX_IOV];
-	lnet_kiov_t      kiov[LNET_MAX_IOV];
+	struct bio_vec	kiov[LNET_MAX_IOV];
 };
 
 #define SOCKNAL_RX_KSM_HEADER   1 /* reading ksock message header */
@@ -362,14 +362,14 @@ struct ksock_conn {
 	int                ksnc_rx_niov;      /* # iovec frags */
 	struct kvec        *ksnc_rx_iov;      /* the iovec frags */
 	int                ksnc_rx_nkiov;     /* # page frags */
-	lnet_kiov_t        *ksnc_rx_kiov;     /* the page frags */
+	struct bio_vec		*ksnc_rx_kiov;	/* the page frags */
 	union ksock_rxiovspace ksnc_rx_iov_space; /* space for frag descriptors */
 	__u32              ksnc_rx_csum;      /* partial checksum for incoming
 					       * data
 					       */
 	void               *ksnc_cookie;      /* rx lnet_finalize passthru arg
 					       */
-	ksock_msg_t        ksnc_msg;          /* incoming message buffer:
+	struct ksock_msg        ksnc_msg;          /* incoming message buffer:
 					       * V2.x message takes the
 					       * whole struct
 					       * V1.x message is a bare
@@ -428,7 +428,7 @@ struct ksock_peer {
 	unsigned long      ksnp_last_alive;     /* when (in jiffies) I was last
 						 * alive
 						 */
-	lnet_process_id_t  ksnp_id;             /* who's on the other end(s) */
+	struct lnet_process_id  ksnp_id;	/* who's on the other end(s) */
 	atomic_t           ksnp_refcount;       /* # users */
 	int                ksnp_sharecount;     /* lconf usage counter */
 	int                ksnp_closing;        /* being closed */
@@ -447,7 +447,7 @@ struct ksock_peer {
 						 * ACK
 						 */
 	unsigned long      ksnp_send_keepalive; /* time to send keepalive */
-	lnet_ni_t          *ksnp_ni;            /* which network */
+	struct lnet_ni	   *ksnp_ni;		/* which network */
 	int                ksnp_n_passive_ips;  /* # of... */
 
 	/* preferred local interfaces */
@@ -456,7 +456,7 @@ struct ksock_peer {
 
 struct ksock_connreq {
 	struct list_head ksncr_list;  /* stash on ksnd_connd_connreqs */
-	lnet_ni_t        *ksncr_ni;   /* chosen NI */
+	struct lnet_ni	 *ksncr_ni;	/* chosen NI */
 	struct socket    *ksncr_sock; /* accepted socket */
 };
 
@@ -474,16 +474,16 @@ struct ksock_proto {
 	int        pro_version;
 
 	/* handshake function */
-	int        (*pro_send_hello)(struct ksock_conn *, ksock_hello_msg_t *);
+	int        (*pro_send_hello)(struct ksock_conn *, struct ksock_hello_msg *);
 
 	/* handshake function */
-	int        (*pro_recv_hello)(struct ksock_conn *, ksock_hello_msg_t *, int);
+	int        (*pro_recv_hello)(struct ksock_conn *, struct ksock_hello_msg *, int);
 
 	/* message pack */
 	void       (*pro_pack)(struct ksock_tx *);
 
 	/* message unpack */
-	void       (*pro_unpack)(ksock_msg_t *);
+	void       (*pro_unpack)(struct ksock_msg *);
 
 	/* queue tx on the connection */
 	struct ksock_tx *(*pro_queue_tx_msg)(struct ksock_conn *, struct ksock_tx *);
@@ -603,7 +603,7 @@ ksocknal_tx_addref(struct ksock_tx *tx)
 }
 
 void ksocknal_tx_prep(struct ksock_conn *, struct ksock_tx *tx);
-void ksocknal_tx_done(lnet_ni_t *ni, struct ksock_tx *tx);
+void ksocknal_tx_done(struct lnet_ni *ni, struct ksock_tx *tx);
 
 static inline void
 ksocknal_tx_decref(struct ksock_tx *tx)
@@ -647,19 +647,22 @@ ksocknal_peer_decref(struct ksock_peer *peer)
 		ksocknal_destroy_peer(peer);
 }
 
-int ksocknal_startup(lnet_ni_t *ni);
-void ksocknal_shutdown(lnet_ni_t *ni);
-int ksocknal_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg);
-int ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg);
-int ksocknal_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg,
+int ksocknal_startup(struct lnet_ni *ni);
+void ksocknal_shutdown(struct lnet_ni *ni);
+int ksocknal_ctl(struct lnet_ni *ni, unsigned int cmd, void *arg);
+int ksocknal_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg);
+int ksocknal_recv(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg,
 		  int delayed, struct iov_iter *to, unsigned int rlen);
-int ksocknal_accept(lnet_ni_t *ni, struct socket *sock);
+int ksocknal_accept(struct lnet_ni *ni, struct socket *sock);
 
-int ksocknal_add_peer(lnet_ni_t *ni, lnet_process_id_t id, __u32 ip, int port);
-struct ksock_peer *ksocknal_find_peer_locked(lnet_ni_t *ni, lnet_process_id_t id);
-struct ksock_peer *ksocknal_find_peer(lnet_ni_t *ni, lnet_process_id_t id);
+int ksocknal_add_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ip,
+		      int port);
+struct ksock_peer *ksocknal_find_peer_locked(struct lnet_ni *ni,
+					     struct lnet_process_id id);
+struct ksock_peer *ksocknal_find_peer(struct lnet_ni *ni,
+				      struct lnet_process_id id);
 void ksocknal_peer_failed(struct ksock_peer *peer);
-int ksocknal_create_conn(lnet_ni_t *ni, struct ksock_route *route,
+int ksocknal_create_conn(struct lnet_ni *ni, struct ksock_route *route,
 			 struct socket *sock, int type);
 void ksocknal_close_conn_locked(struct ksock_conn *conn, int why);
 void ksocknal_terminate_conn(struct ksock_conn *conn);
@@ -667,19 +670,19 @@ void ksocknal_destroy_conn(struct ksock_conn *conn);
 int  ksocknal_close_peer_conns_locked(struct ksock_peer *peer,
 				      __u32 ipaddr, int why);
 int ksocknal_close_conn_and_siblings(struct ksock_conn *conn, int why);
-int ksocknal_close_matching_conns(lnet_process_id_t id, __u32 ipaddr);
+int ksocknal_close_matching_conns(struct lnet_process_id id, __u32 ipaddr);
 struct ksock_conn *ksocknal_find_conn_locked(struct ksock_peer *peer,
 					     struct ksock_tx *tx, int nonblk);
 
-int  ksocknal_launch_packet(lnet_ni_t *ni, struct ksock_tx *tx,
-			    lnet_process_id_t id);
+int  ksocknal_launch_packet(struct lnet_ni *ni, struct ksock_tx *tx,
+			    struct lnet_process_id id);
 struct ksock_tx *ksocknal_alloc_tx(int type, int size);
 void ksocknal_free_tx(struct ksock_tx *tx);
 struct ksock_tx *ksocknal_alloc_tx_noop(__u64 cookie, int nonblk);
 void ksocknal_next_tx_carrier(struct ksock_conn *conn);
 void ksocknal_queue_tx_locked(struct ksock_tx *tx, struct ksock_conn *conn);
-void ksocknal_txlist_done(lnet_ni_t *ni, struct list_head *txlist, int error);
-void ksocknal_notify(lnet_ni_t *ni, lnet_nid_t gw_nid, int alive);
+void ksocknal_txlist_done(struct lnet_ni *ni, struct list_head *txlist, int error);
+void ksocknal_notify(struct lnet_ni *ni, lnet_nid_t gw_nid, int alive);
 void ksocknal_query(struct lnet_ni *ni, lnet_nid_t nid, unsigned long *when);
 int ksocknal_thread_start(int (*fn)(void *arg), void *arg, char *name);
 void ksocknal_thread_fini(void);
@@ -690,10 +693,11 @@ int ksocknal_new_packet(struct ksock_conn *conn, int skip);
 int ksocknal_scheduler(void *arg);
 int ksocknal_connd(void *arg);
 int ksocknal_reaper(void *arg);
-int ksocknal_send_hello(lnet_ni_t *ni, struct ksock_conn *conn,
-			lnet_nid_t peer_nid, ksock_hello_msg_t *hello);
-int ksocknal_recv_hello(lnet_ni_t *ni, struct ksock_conn *conn,
-			ksock_hello_msg_t *hello, lnet_process_id_t *id,
+int ksocknal_send_hello(struct lnet_ni *ni, struct ksock_conn *conn,
+			lnet_nid_t peer_nid, struct ksock_hello_msg *hello);
+int ksocknal_recv_hello(struct lnet_ni *ni, struct ksock_conn *conn,
+			struct ksock_hello_msg *hello,
+			struct lnet_process_id *id,
 			__u64 *incarnation);
 void ksocknal_read_callback(struct ksock_conn *conn);
 void ksocknal_write_callback(struct ksock_conn *conn);

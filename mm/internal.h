@@ -81,11 +81,16 @@ static inline void set_page_refcounted(struct page *page)
 extern unsigned long highest_memmap_pfn;
 
 /*
+ * Maximum number of reclaim retries without progress before the OOM
+ * killer is consider the only way forward.
+ */
+#define MAX_RECLAIM_RETRIES 16
+
+/*
  * in mm/vmscan.c:
  */
 extern int isolate_lru_page(struct page *page);
 extern void putback_lru_page(struct page *page);
-extern bool pgdat_reclaimable(struct pglist_data *pgdat);
 
 /*
  * in mm/rmap.c:
@@ -178,6 +183,7 @@ extern int user_min_free_kbytes;
 struct compact_control {
 	struct list_head freepages;	/* List of free pages to migrate to */
 	struct list_head migratepages;	/* List of pages being migrated */
+	struct zone *zone;
 	unsigned long nr_freepages;	/* Number of isolated free pages */
 	unsigned long nr_migratepages;	/* Number of pages to migrate */
 	unsigned long total_migrate_scanned;
@@ -185,17 +191,18 @@ struct compact_control {
 	unsigned long free_pfn;		/* isolate_freepages search base */
 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
 	unsigned long last_migrated_pfn;/* Not yet flushed page being freed */
+	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+	int order;			/* order a direct compactor needs */
+	int migratetype;		/* migratetype of direct compactor */
+	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
+	const int classzone_idx;	/* zone index of a direct compactor */
 	enum migrate_mode mode;		/* Async or sync migration mode */
 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
 	bool ignore_block_suitable;	/* Scan blocks considered unsuitable */
 	bool direct_compaction;		/* False from kcompactd or /proc/... */
 	bool whole_zone;		/* Whole zone should/has been scanned */
-	int order;			/* order a direct compactor needs */
-	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
-	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
-	const int classzone_idx;	/* zone index of a direct compactor */
-	struct zone *zone;
 	bool contended;			/* Signal lock or sched contention */
+	bool finishing_block;		/* Finishing current pageblock */
 };
 
 unsigned long
@@ -504,5 +511,15 @@ static inline void try_to_unmap_flush_dirty(void)
 extern const struct trace_print_flags pageflag_names[];
 extern const struct trace_print_flags vmaflag_names[];
 extern const struct trace_print_flags gfpflag_names[];
+
+static inline bool is_migrate_highatomic(enum migratetype migratetype)
+{
+	return migratetype == MIGRATE_HIGHATOMIC;
+}
+
+static inline bool is_migrate_highatomic_page(struct page *page)
+{
+	return get_pageblock_migratetype(page) == MIGRATE_HIGHATOMIC;
+}
 
 #endif	/* __MM_INTERNAL_H */

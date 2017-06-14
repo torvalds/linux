@@ -41,6 +41,7 @@ config USB_DWC3_GADGET
 config USB_DWC3_DUAL_ROLE
 	bool "Dual Role mode"
 	depends on ((USB=y || USB=USB_DWC3) && (USB_GADGET=y || USB_GADGET=USB_DWC3))
+	depends on (EXTCON=y || EXTCON=USB_DWC3)
 	help
 	  This is the default mode of working of DWC3 controller where
 	  both host and gadget features are enabled.
@@ -70,7 +71,7 @@ config USB_DWC3_EXYNOS
 
 config USB_DWC3_PCI
 	tristate "PCIe-based Platforms"
-	depends on PCI && ACPI
+	depends on USB_PCI && ACPI
 	default USB_DWC3
 	help
 	  If you're using the DesignWare Core IP with a PCIe, please say

@@ -1130,6 +1130,7 @@ MODULE_DEVICE_TABLE(i2c, cs53l30_id);
 static struct i2c_driver cs53l30_i2c_driver = {
 	.driver = {
 		.name = "cs53l30",
+		.of_match_table = cs53l30_of_match,
 		.pm = &cs53l30_runtime_pm,
 	},
 	.id_table = cs53l30_id,

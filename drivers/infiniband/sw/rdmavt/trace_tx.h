@@ -71,10 +71,20 @@ __print_symbolic(opcode,                                   \
 	wr_opcode_name(RDMA_READ_WITH_INV),                \
 	wr_opcode_name(LOCAL_INV),                         \
 	wr_opcode_name(MASKED_ATOMIC_CMP_AND_SWP),         \
-	wr_opcode_name(MASKED_ATOMIC_FETCH_AND_ADD))
+	wr_opcode_name(MASKED_ATOMIC_FETCH_AND_ADD),       \
+	wr_opcode_name(RESERVED1),                         \
+	wr_opcode_name(RESERVED2),                         \
+	wr_opcode_name(RESERVED3),                         \
+	wr_opcode_name(RESERVED4),                         \
+	wr_opcode_name(RESERVED5),                         \
+	wr_opcode_name(RESERVED6),                         \
+	wr_opcode_name(RESERVED7),                         \
+	wr_opcode_name(RESERVED8),                         \
+	wr_opcode_name(RESERVED9),                         \
+	wr_opcode_name(RESERVED10))
 
 #define POS_PRN \
-"[%s] wr_id %llx qpn %x psn 0x%x lpsn 0x%x length %u opcode 0x%.2x,%s size %u avail %u head %u last %u"
+"[%s] wqe %p wr_id %llx send_flags %x qpn %x qpt %u psn %x lpsn %x ssn %x length %u opcode 0x%.2x,%s size %u avail %u head %u last %u pid %u num_sge %u"
 
 TRACE_EVENT(
 	rvt_post_one_wr,
@@ -83,7 +93,9 @@ TRACE_EVENT(
 	TP_STRUCT__entry(
 		RDI_DEV_ENTRY(ib_to_rvt(qp->ibqp.device))
 		__field(u64, wr_id)
+		__field(struct rvt_swqe *, wqe)
 		__field(u32, qpn)
+		__field(u32, qpt)
 		__field(u32, psn)
 		__field(u32, lpsn)
 		__field(u32, length)
@@ -92,11 +104,17 @@ TRACE_EVENT(
 		__field(u32, avail)
 		__field(u32, head)
 		__field(u32, last)
+		__field(u32, ssn)
+		__field(int, send_flags)
+		__field(pid_t, pid)
+		__field(int, num_sge)
 	),
 	TP_fast_assign(
 		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
+		__entry->wqe = wqe;
 		__entry->wr_id = wqe->wr.wr_id;
 		__entry->qpn = qp->ibqp.qp_num;
+		__entry->qpt = qp->ibqp.qp_type;
 		__entry->psn = wqe->psn;
 		__entry->lpsn = wqe->lpsn;
 		__entry->length = wqe->length;
@@ -105,20 +123,30 @@ TRACE_EVENT(
 		__entry->avail = qp->s_avail;
 		__entry->head = qp->s_head;
 		__entry->last = qp->s_last;
+		__entry->pid = qp->pid;
+		__entry->ssn = wqe->ssn;
+		__entry->send_flags = wqe->wr.send_flags;
+		__entry->num_sge = wqe->wr.num_sge;
 	),
 	TP_printk(
 		POS_PRN,
 		__get_str(dev),
+		__entry->wqe,
 		__entry->wr_id,
+		__entry->send_flags,
 		__entry->qpn,
+		__entry->qpt,
 		__entry->psn,
 		__entry->lpsn,
+		__entry->ssn,
 		__entry->length,
 		__entry->opcode, show_wr_opcode(__entry->opcode),
 		__entry->size,
 		__entry->avail,
 		__entry->head,
-		__entry->last
+		__entry->last,
+		__entry->pid,
+		__entry->num_sge
 	)
 );
 

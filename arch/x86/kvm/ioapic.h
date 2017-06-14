@@ -105,17 +105,13 @@ do {									\
 #define ASSERT(x) do { } while (0)
 #endif
 
-static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
-{
-	return kvm->arch.vioapic;
-}
-
 static inline int ioapic_in_kernel(struct kvm *kvm)
 {
-	int ret;
+	int mode = kvm->arch.irqchip_mode;
 
-	ret = (ioapic_irqchip(kvm) != NULL);
-	return ret;
+	/* Matches smp_wmb() when setting irqchip_mode */
+	smp_rmb();
+	return mode == KVM_IRQCHIP_KERNEL;
 }
 
 void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu);
@@ -132,8 +128,8 @@ void kvm_ioapic_clear_all(struct kvm_ioapic *ioapic, int irq_source_id);
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 			     struct kvm_lapic_irq *irq,
 			     struct dest_map *dest_map);
-int kvm_get_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
-int kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
+void kvm_get_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
+void kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
 void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu,
 			   ulong *ioapic_handled_vectors);
 void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,

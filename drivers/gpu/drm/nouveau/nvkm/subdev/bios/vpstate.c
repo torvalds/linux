@@ -31,7 +31,7 @@ nvbios_vpstate_offset(struct nvkm_bios *b)
 	struct bit_entry bit_P;
 
 	if (!bit_entry(b, 'P', &bit_P)) {
-		if (bit_P.version == 2)
+		if (bit_P.version == 2 && bit_P.length >= 0x3c)
 			return nvbios_rd32(b, bit_P.offset + 0x38);
 	}
 

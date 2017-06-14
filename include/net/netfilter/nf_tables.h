@@ -176,7 +176,7 @@ struct nft_data_desc {
 int nft_data_init(const struct nft_ctx *ctx,
 		  struct nft_data *data, unsigned int size,
 		  struct nft_data_desc *desc, const struct nlattr *nla);
-void nft_data_uninit(const struct nft_data *data, enum nft_data_types type);
+void nft_data_release(const struct nft_data *data, enum nft_data_types type);
 int nft_data_dump(struct sk_buff *skb, int attr, const struct nft_data *data,
 		  enum nft_data_types type, unsigned int len);
 
@@ -413,10 +413,11 @@ static inline struct nft_set *nft_set_container_of(const void *priv)
 	return (void *)priv - offsetof(struct nft_set, data);
 }
 
-struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
-				     const struct nlattr *nla, u8 genmask);
-struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
-					  const struct nlattr *nla, u8 genmask);
+struct nft_set *nft_set_lookup(const struct net *net,
+			       const struct nft_table *table,
+			       const struct nlattr *nla_set_name,
+			       const struct nlattr *nla_set_id,
+			       u8 genmask);
 
 static inline unsigned long nft_set_gc_interval(const struct nft_set *set)
 {
@@ -910,6 +911,11 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 	return container_of(chain, struct nft_base_chain, chain);
 }
 
+static inline bool nft_is_base_chain(const struct nft_chain *chain)
+{
+	return chain->flags & NFT_BASE_CHAIN;
+}
+
 int __nft_release_basechain(struct nft_ctx *ctx);
 
 unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
@@ -1044,7 +1050,8 @@ struct nft_object_type {
 	unsigned int			maxattr;
 	struct module			*owner;
 	const struct nla_policy		*policy;
-	int				(*init)(const struct nlattr * const tb[],
+	int				(*init)(const struct nft_ctx *ctx,
+						const struct nlattr *const tb[],
 						struct nft_object *obj);
 	void				(*destroy)(struct nft_object *obj);
 	int				(*dump)(struct sk_buff *skb,

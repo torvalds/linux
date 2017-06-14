@@ -110,16 +110,17 @@ Type: system ioctl
 Parameters: machine type identifier (KVM_VM_*)
 Returns: a VM fd that can be used to control the new virtual machine.
 
-The new VM has no virtual cpus and no memory.  An mmap() of a VM fd
-will access the virtual machine's physical address space; offset zero
-corresponds to guest physical address zero.  Use of mmap() on a VM fd
-is discouraged if userspace memory allocation (KVM_CAP_USER_MEMORY) is
-available.
-You most certainly want to use 0 as machine type.
+The new VM has no virtual cpus and no memory.
+You probably want to use 0 as machine type.
 
 In order to create user controlled virtual machines on S390, check
 KVM_CAP_S390_UCONTROL and use the flag KVM_VM_S390_UCONTROL as
 privileged user (CAP_SYS_ADMIN).
+
+To use hardware assisted virtualization on MIPS (VZ ASE) rather than
+the default trap & emulate implementation (which changes the virtual
+memory layout to fit in user mode), check KVM_CAP_MIPS_VZ and use the
+flag KVM_VM_MIPS_VZ.
 
 
 4.3 KVM_GET_MSR_INDEX_LIST
@@ -1321,130 +1322,6 @@ The flags bitmap is defined as:
    /* the host supports the ePAPR idle hcall
    #define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
 
-4.48 KVM_ASSIGN_PCI_DEVICE (deprecated)
-
-Capability: none
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_pci_dev (in)
-Returns: 0 on success, -1 on error
-
-Assigns a host PCI device to the VM.
-
-struct kvm_assigned_pci_dev {
-	__u32 assigned_dev_id;
-	__u32 busnr;
-	__u32 devfn;
-	__u32 flags;
-	__u32 segnr;
-	union {
-		__u32 reserved[11];
-	};
-};
-
-The PCI device is specified by the triple segnr, busnr, and devfn.
-Identification in succeeding service requests is done via assigned_dev_id. The
-following flags are specified:
-
-/* Depends on KVM_CAP_IOMMU */
-#define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
-/* The following two depend on KVM_CAP_PCI_2_3 */
-#define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)
-#define KVM_DEV_ASSIGN_MASK_INTX	(1 << 2)
-
-If KVM_DEV_ASSIGN_PCI_2_3 is set, the kernel will manage legacy INTx interrupts
-via the PCI-2.3-compliant device-level mask, thus enable IRQ sharing with other
-assigned devices or host devices. KVM_DEV_ASSIGN_MASK_INTX specifies the
-guest's view on the INTx mask, see KVM_ASSIGN_SET_INTX_MASK for details.
-
-The KVM_DEV_ASSIGN_ENABLE_IOMMU flag is a mandatory option to ensure
-isolation of the device.  Usages not specifying this flag are deprecated.
-
-Only PCI header type 0 devices with PCI BAR resources are supported by
-device assignment.  The user requesting this ioctl must have read/write
-access to the PCI sysfs resource files associated with the device.
-
-Errors:
-  ENOTTY: kernel does not support this ioctl
-
-  Other error conditions may be defined by individual device types or
-  have their standard meanings.
-
-
-4.49 KVM_DEASSIGN_PCI_DEVICE (deprecated)
-
-Capability: none
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_pci_dev (in)
-Returns: 0 on success, -1 on error
-
-Ends PCI device assignment, releasing all associated resources.
-
-See KVM_ASSIGN_PCI_DEVICE for the data structure. Only assigned_dev_id is
-used in kvm_assigned_pci_dev to identify the device.
-
-Errors:
-  ENOTTY: kernel does not support this ioctl
-
-  Other error conditions may be defined by individual device types or
-  have their standard meanings.
-
-4.50 KVM_ASSIGN_DEV_IRQ (deprecated)
-
-Capability: KVM_CAP_ASSIGN_DEV_IRQ
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_irq (in)
-Returns: 0 on success, -1 on error
-
-Assigns an IRQ to a passed-through device.
-
-struct kvm_assigned_irq {
-	__u32 assigned_dev_id;
-	__u32 host_irq; /* ignored (legacy field) */
-	__u32 guest_irq;
-	__u32 flags;
-	union {
-		__u32 reserved[12];
-	};
-};
-
-The following flags are defined:
-
-#define KVM_DEV_IRQ_HOST_INTX    (1 << 0)
-#define KVM_DEV_IRQ_HOST_MSI     (1 << 1)
-#define KVM_DEV_IRQ_HOST_MSIX    (1 << 2)
-
-#define KVM_DEV_IRQ_GUEST_INTX   (1 << 8)
-#define KVM_DEV_IRQ_GUEST_MSI    (1 << 9)
-#define KVM_DEV_IRQ_GUEST_MSIX   (1 << 10)
-
-It is not valid to specify multiple types per host or guest IRQ. However, the
-IRQ type of host and guest can differ or can even be null.
-
-Errors:
-  ENOTTY: kernel does not support this ioctl
-
-  Other error conditions may be defined by individual device types or
-  have their standard meanings.
-
-
-4.51 KVM_DEASSIGN_DEV_IRQ (deprecated)
-
-Capability: KVM_CAP_ASSIGN_DEV_IRQ
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_irq (in)
-Returns: 0 on success, -1 on error
-
-Ends an IRQ assignment to a passed-through device.
-
-See KVM_ASSIGN_DEV_IRQ for the data structure. The target device is specified
-by assigned_dev_id, flags must correspond to the IRQ type specified on
-KVM_ASSIGN_DEV_IRQ. Partial deassignment of host or guest IRQ is allowed.
-
-
 4.52 KVM_SET_GSI_ROUTING
 
 Capability: KVM_CAP_IRQ_ROUTING
@@ -1530,52 +1407,6 @@ struct kvm_irq_routing_hv_sint {
 	__u32 vcpu;
 	__u32 sint;
 };
-
-4.53 KVM_ASSIGN_SET_MSIX_NR (deprecated)
-
-Capability: none
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_msix_nr (in)
-Returns: 0 on success, -1 on error
-
-Set the number of MSI-X interrupts for an assigned device. The number is
-reset again by terminating the MSI-X assignment of the device via
-KVM_DEASSIGN_DEV_IRQ. Calling this service more than once at any earlier
-point will fail.
-
-struct kvm_assigned_msix_nr {
-	__u32 assigned_dev_id;
-	__u16 entry_nr;
-	__u16 padding;
-};
-
-#define KVM_MAX_MSIX_PER_DEV		256
-
-
-4.54 KVM_ASSIGN_SET_MSIX_ENTRY (deprecated)
-
-Capability: none
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_msix_entry (in)
-Returns: 0 on success, -1 on error
-
-Specifies the routing of an MSI-X assigned device interrupt to a GSI. Setting
-the GSI vector to zero means disabling the interrupt.
-
-struct kvm_assigned_msix_entry {
-	__u32 assigned_dev_id;
-	__u32 gsi;
-	__u16 entry; /* The index of entry in the MSI-X table */
-	__u16 padding[3];
-};
-
-Errors:
-  ENOTTY: kernel does not support this ioctl
-
-  Other error conditions may be defined by individual device types or
-  have their standard meanings.
 
 
 4.55 KVM_SET_TSC_KHZ
@@ -1726,40 +1557,6 @@ This avoids any complications with differing word sizes.
 The "num_dirty" field is a performance hint for KVM to determine whether it
 should skip processing the bitmap and just invalidate everything.  It must
 be set to the number of set bits in the bitmap.
-
-
-4.61 KVM_ASSIGN_SET_INTX_MASK (deprecated)
-
-Capability: KVM_CAP_PCI_2_3
-Architectures: x86
-Type: vm ioctl
-Parameters: struct kvm_assigned_pci_dev (in)
-Returns: 0 on success, -1 on error
-
-Allows userspace to mask PCI INTx interrupts from the assigned device.  The
-kernel will not deliver INTx interrupts to the guest between setting and
-clearing of KVM_ASSIGN_SET_INTX_MASK via this interface.  This enables use of
-and emulation of PCI 2.3 INTx disable command register behavior.
-
-This may be used for both PCI 2.3 devices supporting INTx disable natively and
-older devices lacking this support. Userspace is responsible for emulating the
-read value of the INTx disable bit in the guest visible PCI command register.
-When modifying the INTx disable state, userspace should precede updating the
-physical device command register by calling this ioctl to inform the kernel of
-the new intended INTx mask state.
-
-Note that the kernel uses the device INTx disable bit to internally manage the
-device interrupt state for PCI 2.3 devices.  Reads of this register may
-therefore not match the expected value.  Writes should always use the guest
-intended INTx disable value rather than attempting to read-copy-update the
-current physical device state.  Races between user and kernel updates to the
-INTx disable bit are handled lazily in the kernel.  It's possible the device
-may generate unintended interrupts, but they will not be injected into the
-guest.
-
-See KVM_ASSIGN_DEV_IRQ for the data structure.  The target device is specified
-by assigned_dev_id.  In the flags field, only KVM_DEV_ASSIGN_MASK_INTX is
-evaluated.
 
 
 4.62 KVM_CREATE_SPAPR_TCE
@@ -2068,11 +1865,23 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_ENTRYLO0     | 64
   MIPS  | KVM_REG_MIPS_CP0_ENTRYLO1     | 64
   MIPS  | KVM_REG_MIPS_CP0_CONTEXT      | 64
+  MIPS  | KVM_REG_MIPS_CP0_CONTEXTCONFIG| 32
   MIPS  | KVM_REG_MIPS_CP0_USERLOCAL    | 64
+  MIPS  | KVM_REG_MIPS_CP0_XCONTEXTCONFIG| 64
   MIPS  | KVM_REG_MIPS_CP0_PAGEMASK     | 32
+  MIPS  | KVM_REG_MIPS_CP0_PAGEGRAIN    | 32
+  MIPS  | KVM_REG_MIPS_CP0_SEGCTL0      | 64
+  MIPS  | KVM_REG_MIPS_CP0_SEGCTL1      | 64
+  MIPS  | KVM_REG_MIPS_CP0_SEGCTL2      | 64
+  MIPS  | KVM_REG_MIPS_CP0_PWBASE       | 64
+  MIPS  | KVM_REG_MIPS_CP0_PWFIELD      | 64
+  MIPS  | KVM_REG_MIPS_CP0_PWSIZE       | 64
   MIPS  | KVM_REG_MIPS_CP0_WIRED        | 32
+  MIPS  | KVM_REG_MIPS_CP0_PWCTL        | 32
   MIPS  | KVM_REG_MIPS_CP0_HWRENA       | 32
   MIPS  | KVM_REG_MIPS_CP0_BADVADDR     | 64
+  MIPS  | KVM_REG_MIPS_CP0_BADINSTR     | 32
+  MIPS  | KVM_REG_MIPS_CP0_BADINSTRP    | 32
   MIPS  | KVM_REG_MIPS_CP0_COUNT        | 32
   MIPS  | KVM_REG_MIPS_CP0_ENTRYHI      | 64
   MIPS  | KVM_REG_MIPS_CP0_COMPARE      | 32
@@ -2089,6 +1898,7 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_CONFIG4      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG5      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG7      | 32
+  MIPS  | KVM_REG_MIPS_CP0_XCONTEXT     | 64
   MIPS  | KVM_REG_MIPS_CP0_ERROREPC     | 64
   MIPS  | KVM_REG_MIPS_CP0_KSCRATCH1    | 64
   MIPS  | KVM_REG_MIPS_CP0_KSCRATCH2    | 64
@@ -2096,6 +1906,7 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_KSCRATCH4    | 64
   MIPS  | KVM_REG_MIPS_CP0_KSCRATCH5    | 64
   MIPS  | KVM_REG_MIPS_CP0_KSCRATCH6    | 64
+  MIPS  | KVM_REG_MIPS_CP0_MAAR(0..63)  | 64
   MIPS  | KVM_REG_MIPS_COUNT_CTL        | 64
   MIPS  | KVM_REG_MIPS_COUNT_RESUME     | 64
   MIPS  | KVM_REG_MIPS_COUNT_HZ         | 64
@@ -2161,6 +1972,10 @@ versions of the EntryLo registers regardless of the word size of the host
 hardware, host kernel, guest, and whether XPA is present in the guest, i.e.
 with the RI and XI bits (if they exist) in bits 63 and 62 respectively, and
 the PFNX field starting at bit 30.
+
+MIPS MAARs (see KVM_REG_MIPS_CP0_MAAR(*) above) have the following id bit
+patterns:
+  0x7030 0000 0001 01 <reg:8>
 
 MIPS KVM control registers (see above) have the following id bit patterns:
   0x7030 0000 0002 <reg:16>
@@ -4164,6 +3979,23 @@ to take care of that.
 This capability can be enabled dynamically even if VCPUs were already
 created and are running.
 
+7.9 KVM_CAP_S390_GS
+
+Architectures: s390
+Parameters: none
+Returns: 0 on success; -EINVAL if the machine does not support
+	 guarded storage; -EBUSY if a VCPU has already been created.
+
+Allows use of guarded storage for the KVM guest.
+
+7.10 KVM_CAP_S390_AIS
+
+Architectures: s390
+Parameters: none
+
+Allow use of adapter-interruption suppression.
+Returns: 0 on success; -EBUSY if a VCPU has already been created.
+
 8. Other capabilities.
 ----------------------
 
@@ -4210,3 +4042,118 @@ This capability, if KVM_CHECK_EXTENSION indicates that it is
 available, means that that the kernel can support guests using the
 hashed page table MMU defined in Power ISA V3.00 (as implemented in
 the POWER9 processor), including in-memory segment tables.
+
+8.5 KVM_CAP_MIPS_VZ
+
+Architectures: mips
+
+This capability, if KVM_CHECK_EXTENSION on the main kvm handle indicates that
+it is available, means that full hardware assisted virtualization capabilities
+of the hardware are available for use through KVM. An appropriate
+KVM_VM_MIPS_* type must be passed to KVM_CREATE_VM to create a VM which
+utilises it.
+
+If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is
+available, it means that the VM is using full hardware assisted virtualization
+capabilities of the hardware. This is useful to check after creating a VM with
+KVM_VM_MIPS_DEFAULT.
+
+The value returned by KVM_CHECK_EXTENSION should be compared against known
+values (see below). All other values are reserved. This is to allow for the
+possibility of other hardware assisted virtualization implementations which
+may be incompatible with the MIPS VZ ASE.
+
+ 0: The trap & emulate implementation is in use to run guest code in user
+    mode. Guest virtual memory segments are rearranged to fit the guest in the
+    user mode address space.
+
+ 1: The MIPS VZ ASE is in use, providing full hardware assisted
+    virtualization, including standard guest virtual memory segments.
+
+8.6 KVM_CAP_MIPS_TE
+
+Architectures: mips
+
+This capability, if KVM_CHECK_EXTENSION on the main kvm handle indicates that
+it is available, means that the trap & emulate implementation is available to
+run guest code in user mode, even if KVM_CAP_MIPS_VZ indicates that hardware
+assisted virtualisation is also available. KVM_VM_MIPS_TE (0) must be passed
+to KVM_CREATE_VM to create a VM which utilises it.
+
+If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is
+available, it means that the VM is using trap & emulate.
+
+8.7 KVM_CAP_MIPS_64BIT
+
+Architectures: mips
+
+This capability indicates the supported architecture type of the guest, i.e. the
+supported register and address width.
+
+The values returned when this capability is checked by KVM_CHECK_EXTENSION on a
+kvm VM handle correspond roughly to the CP0_Config.AT register field, and should
+be checked specifically against known values (see below). All other values are
+reserved.
+
+ 0: MIPS32 or microMIPS32.
+    Both registers and addresses are 32-bits wide.
+    It will only be possible to run 32-bit guest code.
+
+ 1: MIPS64 or microMIPS64 with access only to 32-bit compatibility segments.
+    Registers are 64-bits wide, but addresses are 32-bits wide.
+    64-bit guest code may run but cannot access MIPS64 memory segments.
+    It will also be possible to run 32-bit guest code.
+
+ 2: MIPS64 or microMIPS64 with access to all address segments.
+    Both registers and addresses are 64-bits wide.
+    It will be possible to run 64-bit or 32-bit guest code.
+
+8.8 KVM_CAP_X86_GUEST_MWAIT
+
+Architectures: x86
+
+This capability indicates that guest using memory monotoring instructions
+(MWAIT/MWAITX) to stop the virtual CPU will not cause a VM exit.  As such time
+spent while virtual CPU is halted in this way will then be accounted for as
+guest running time on the host (as opposed to e.g. HLT).
+
+8.9 KVM_CAP_ARM_USER_IRQ
+
+Architectures: arm, arm64
+This capability, if KVM_CHECK_EXTENSION indicates that it is available, means
+that if userspace creates a VM without an in-kernel interrupt controller, it
+will be notified of changes to the output level of in-kernel emulated devices,
+which can generate virtual interrupts, presented to the VM.
+For such VMs, on every return to userspace, the kernel
+updates the vcpu's run->s.regs.device_irq_level field to represent the actual
+output level of the device.
+
+Whenever kvm detects a change in the device output level, kvm guarantees at
+least one return to userspace before running the VM.  This exit could either
+be a KVM_EXIT_INTR or any other exit event, like KVM_EXIT_MMIO. This way,
+userspace can always sample the device output level and re-compute the state of
+the userspace interrupt controller.  Userspace should always check the state
+of run->s.regs.device_irq_level on every kvm exit.
+The value in run->s.regs.device_irq_level can represent both level and edge
+triggered interrupt signals, depending on the device.  Edge triggered interrupt
+signals will exit to userspace with the bit in run->s.regs.device_irq_level
+set exactly once per edge signal.
+
+The field run->s.regs.device_irq_level is available independent of
+run->kvm_valid_regs or run->kvm_dirty_regs bits.
+
+If KVM_CAP_ARM_USER_IRQ is supported, the KVM_CHECK_EXTENSION ioctl returns a
+number larger than 0 indicating the version of this capability is implemented
+and thereby which bits in in run->s.regs.device_irq_level can signal values.
+
+Currently the following bits are defined for the device_irq_level bitmap:
+
+  KVM_CAP_ARM_USER_IRQ >= 1:
+
+    KVM_ARM_DEV_EL1_VTIMER -  EL1 virtual timer
+    KVM_ARM_DEV_EL1_PTIMER -  EL1 physical timer
+    KVM_ARM_DEV_PMU        -  ARM PMU overflow interrupt signal
+
+Future versions of kvm may implement additional events. These will get
+indicated by returning a higher number from KVM_CHECK_EXTENSION and will be
+listed above.

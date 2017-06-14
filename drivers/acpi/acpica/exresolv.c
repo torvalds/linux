@@ -196,7 +196,8 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 
 				if ((walk_state->opcode ==
 				     AML_INT_METHODCALL_OP)
-				    || (walk_state->opcode == AML_COPY_OP)) {
+				    || (walk_state->opcode ==
+					AML_COPY_OBJECT_OP)) {
 					break;
 				}
 

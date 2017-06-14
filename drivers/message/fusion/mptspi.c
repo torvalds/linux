@@ -1548,11 +1548,19 @@ out_mptspi_probe:
 	return error;
 }
 
+static void mptspi_remove(struct pci_dev *pdev)
+{
+	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
+
+	scsi_remove_host(ioc->sh);
+	mptscsih_remove(pdev);
+}
+
 static struct pci_driver mptspi_driver = {
 	.name		= "mptspi",
 	.id_table	= mptspi_pci_table,
 	.probe		= mptspi_probe,
-	.remove		= mptscsih_remove,
+	.remove		= mptspi_remove,
 	.shutdown	= mptscsih_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= mptscsih_suspend,

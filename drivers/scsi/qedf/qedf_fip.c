@@ -99,7 +99,8 @@ static void qedf_fcoe_process_vlan_resp(struct qedf_ctx *qedf,
 		qedf_set_vlan_id(qedf, vid);
 
 		/* Inform waiter that it's ok to call fcoe_ctlr_link up() */
-		complete(&qedf->fipvlan_compl);
+		if (!completion_done(&qedf->fipvlan_compl))
+			complete(&qedf->fipvlan_compl);
 	}
 }
 

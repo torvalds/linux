@@ -730,6 +730,8 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 		return -EIO;
 	}
 
+	memset(&elreq, 0, sizeof(elreq));
+
 	elreq.req_sg_cnt = dma_map_sg(&ha->pdev->dev,
 		bsg_job->request_payload.sg_list, bsg_job->request_payload.sg_cnt,
 		DMA_TO_DEVICE);
@@ -795,10 +797,9 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 
 	if (atomic_read(&vha->loop_state) == LOOP_READY &&
 	    (ha->current_topology == ISP_CFG_F ||
-	    ((IS_QLA81XX(ha) || IS_QLA8031(ha) || IS_QLA8044(ha)) &&
-	    le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE
-	    && req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
-		elreq.options == EXTERNAL_LOOPBACK) {
+	    (le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE &&
+	     req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
+	    elreq.options == EXTERNAL_LOOPBACK) {
 		type = "FC_BSG_HST_VENDOR_ECHO_DIAG";
 		ql_dbg(ql_dbg_user, vha, 0x701e,
 		    "BSG request type: %s.\n", type);
@@ -1822,7 +1823,7 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 	/* Check if operating mode is P2P */
 	if (ha->operating_mode != P2P) {
 		ql_log(ql_log_warn, vha, 0x70a4,
-		    "Host is operating mode is not P2p\n");
+		    "Host operating mode is not P2p\n");
 		rval = EXT_STATUS_INVALID_CFG;
 		goto done;
 	}
@@ -2553,13 +2554,13 @@ qla24xx_bsg_timeout(struct bsg_job *bsg_job)
 						ql_log(ql_log_warn, vha, 0x7089,
 						    "mbx abort_command "
 						    "failed.\n");
-						bsg_job->req->errors =
+						scsi_req(bsg_job->req)->result =
 						bsg_reply->result = -EIO;
 					} else {
 						ql_dbg(ql_dbg_user, vha, 0x708a,
 						    "mbx abort_command "
 						    "success.\n");
-						bsg_job->req->errors =
+						scsi_req(bsg_job->req)->result =
 						bsg_reply->result = 0;
 					}
 					spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -2570,7 +2571,7 @@ qla24xx_bsg_timeout(struct bsg_job *bsg_job)
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	ql_log(ql_log_info, vha, 0x708b, "SRB not found to abort.\n");
-	bsg_job->req->errors = bsg_reply->result = -ENXIO;
+	scsi_req(bsg_job->req)->result = bsg_reply->result = -ENXIO;
 	return 0;
 
 done:

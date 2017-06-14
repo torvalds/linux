@@ -165,7 +165,7 @@ static int clk_smd_rpm_handoff(struct clk_smd_rpm *r)
 	struct clk_smd_rpm_req req = {
 		.key = cpu_to_le32(r->rpm_key),
 		.nbytes = cpu_to_le32(sizeof(u32)),
-		.value = cpu_to_le32(INT_MAX),
+		.value = cpu_to_le32(r->branch ? 1 : INT_MAX),
 	};
 
 	ret = qcom_rpm_smd_write(r->rpm, QCOM_SMD_RPM_ACTIVE_STATE,

@@ -68,16 +68,6 @@ struct iuu_private {
 	u32 clk;
 };
 
-static int iuu_attach(struct usb_serial *serial)
-{
-	unsigned char num_ports = serial->num_ports;
-
-	if (serial->num_bulk_in < num_ports || serial->num_bulk_out < num_ports)
-		return -ENODEV;
-
-	return 0;
-}
-
 static int iuu_port_probe(struct usb_serial_port *port)
 {
 	struct iuu_private *priv;
@@ -598,9 +588,8 @@ static void read_buf_callback(struct urb *urb)
 	}
 
 	dev_dbg(&port->dev, "%s - %i chars to write\n", __func__, urb->actual_length);
-	if (data == NULL)
-		dev_dbg(&port->dev, "%s - data is NULL !!!\n", __func__);
-	if (urb->actual_length && data) {
+
+	if (urb->actual_length) {
 		tty_insert_flip_string(&port->port, data, urb->actual_length);
 		tty_flip_buffer_push(&port->port);
 	}
@@ -665,10 +654,8 @@ static void iuu_uart_read_callback(struct urb *urb)
 		/* error stop all */
 		return;
 	}
-	if (data == NULL)
-		dev_dbg(&port->dev, "%s - data is NULL !!!\n", __func__);
 
-	if (urb->actual_length == 1  && data != NULL)
+	if (urb->actual_length == 1)
 		len = (int) data[0];
 
 	if (urb->actual_length > 1) {
@@ -1183,6 +1170,8 @@ static struct usb_serial_driver iuu_device = {
 		   },
 	.id_table = id_table,
 	.num_ports = 1,
+	.num_bulk_in = 1,
+	.num_bulk_out = 1,
 	.bulk_in_size = 512,
 	.bulk_out_size = 512,
 	.open = iuu_open,
@@ -1193,7 +1182,6 @@ static struct usb_serial_driver iuu_device = {
 	.tiocmset = iuu_tiocmset,
 	.set_termios = iuu_set_termios,
 	.init_termios = iuu_init_termios,
-	.attach = iuu_attach,
 	.port_probe = iuu_port_probe,
 	.port_remove = iuu_port_remove,
 };

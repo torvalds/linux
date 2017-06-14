@@ -19,6 +19,7 @@
 #include "hw.h"
 #include "hif.h"
 #include "wmi-ops.h"
+#include "bmi.h"
 
 const struct ath10k_hw_regs qca988x_regs = {
 	.rtc_soc_base_address		= 0x00004000,
@@ -72,6 +73,9 @@ const struct ath10k_hw_regs qca6174_regs = {
 	.pcie_intr_fw_mask			= 0x00000400,
 	.pcie_intr_ce_mask_all			= 0x0007f800,
 	.pcie_intr_clr_address			= 0x00000014,
+	.cpu_pll_init_address			= 0x00404020,
+	.cpu_speed_address			= 0x00404024,
+	.core_clk_div_address			= 0x00404028,
 };
 
 const struct ath10k_hw_regs qca99x0_regs = {
@@ -185,6 +189,73 @@ const struct ath10k_hw_values qca4019_values = {
 	.num_target_ce_config_wlan      = 10,
 	.ce_desc_meta_data_mask         = 0xFFF0,
 	.ce_desc_meta_data_lsb          = 4,
+};
+
+const struct ath10k_hw_clk_params qca6174_clk[ATH10K_HW_REFCLK_COUNT] = {
+	{
+		.refclk = 48000000,
+		.div = 0xe,
+		.rnfrac = 0x2aaa8,
+		.settle_time = 2400,
+		.refdiv = 0,
+		.outdiv = 1,
+	},
+	{
+		.refclk = 19200000,
+		.div = 0x24,
+		.rnfrac = 0x2aaa8,
+		.settle_time = 960,
+		.refdiv = 0,
+		.outdiv = 1,
+	},
+	{
+		.refclk = 24000000,
+		.div = 0x1d,
+		.rnfrac = 0x15551,
+		.settle_time = 1200,
+		.refdiv = 0,
+		.outdiv = 1,
+	},
+	{
+		.refclk = 26000000,
+		.div = 0x1b,
+		.rnfrac = 0x4ec4,
+		.settle_time = 1300,
+		.refdiv = 0,
+		.outdiv = 1,
+	},
+	{
+		.refclk = 37400000,
+		.div = 0x12,
+		.rnfrac = 0x34b49,
+		.settle_time = 1870,
+		.refdiv = 0,
+		.outdiv = 1,
+	},
+	{
+		.refclk = 38400000,
+		.div = 0x12,
+		.rnfrac = 0x15551,
+		.settle_time = 1920,
+		.refdiv = 0,
+		.outdiv = 1,
+	},
+	{
+		.refclk = 40000000,
+		.div = 0x12,
+		.rnfrac = 0x26665,
+		.settle_time = 2000,
+		.refdiv = 0,
+		.outdiv = 1,
+	},
+	{
+		.refclk = 52000000,
+		.div = 0x1b,
+		.rnfrac = 0x4ec4,
+		.settle_time = 2600,
+		.refdiv = 0,
+		.outdiv = 1,
+	},
 };
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
@@ -361,6 +432,195 @@ unlock:
 	mutex_unlock(&ar->conf_mutex);
 }
 
+/**
+ * ath10k_hw_qca6174_enable_pll_clock() - enable the qca6174 hw pll clock
+ * @ar: the ath10k blob
+ *
+ * This function is very hardware specific, the clock initialization
+ * steps is very sensitive and could lead to unknown crash, so they
+ * should be done in sequence.
+ *
+ * *** Be aware if you planned to refactor them. ***
+ *
+ * Return: 0 if successfully enable the pll, otherwise EINVAL
+ */
+static int ath10k_hw_qca6174_enable_pll_clock(struct ath10k *ar)
+{
+	int ret, wait_limit;
+	u32 clk_div_addr, pll_init_addr, speed_addr;
+	u32 addr, reg_val, mem_val;
+	struct ath10k_hw_params *hw;
+	const struct ath10k_hw_clk_params *hw_clk;
+
+	hw = &ar->hw_params;
+
+	if (ar->regs->core_clk_div_address == 0 ||
+	    ar->regs->cpu_pll_init_address == 0 ||
+	    ar->regs->cpu_speed_address == 0)
+		return -EINVAL;
+
+	clk_div_addr = ar->regs->core_clk_div_address;
+	pll_init_addr = ar->regs->cpu_pll_init_address;
+	speed_addr = ar->regs->cpu_speed_address;
+
+	/* Read efuse register to find out the right hw clock configuration */
+	addr = (RTC_SOC_BASE_ADDRESS | EFUSE_OFFSET);
+	ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
+	if (ret)
+		return -EINVAL;
+
+	/* sanitize if the hw refclk index is out of the boundary */
+	if (MS(reg_val, EFUSE_XTAL_SEL) > ATH10K_HW_REFCLK_COUNT)
+		return -EINVAL;
+
+	hw_clk = &hw->hw_clk[MS(reg_val, EFUSE_XTAL_SEL)];
+
+	/* Set the rnfrac and outdiv params to bb_pll register */
+	addr = (RTC_SOC_BASE_ADDRESS | BB_PLL_CONFIG_OFFSET);
+	ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
+	if (ret)
+		return -EINVAL;
+
+	reg_val &= ~(BB_PLL_CONFIG_FRAC_MASK | BB_PLL_CONFIG_OUTDIV_MASK);
+	reg_val |= (SM(hw_clk->rnfrac, BB_PLL_CONFIG_FRAC) |
+		    SM(hw_clk->outdiv, BB_PLL_CONFIG_OUTDIV));
+	ret = ath10k_bmi_write_soc_reg(ar, addr, reg_val);
+	if (ret)
+		return -EINVAL;
+
+	/* Set the correct settle time value to pll_settle register */
+	addr = (RTC_WMAC_BASE_ADDRESS | WLAN_PLL_SETTLE_OFFSET);
+	ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
+	if (ret)
+		return -EINVAL;
+
+	reg_val &= ~WLAN_PLL_SETTLE_TIME_MASK;
+	reg_val |= SM(hw_clk->settle_time, WLAN_PLL_SETTLE_TIME);
+	ret = ath10k_bmi_write_soc_reg(ar, addr, reg_val);
+	if (ret)
+		return -EINVAL;
+
+	/* Set the clock_ctrl div to core_clk_ctrl register */
+	addr = (RTC_SOC_BASE_ADDRESS | SOC_CORE_CLK_CTRL_OFFSET);
+	ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
+	if (ret)
+		return -EINVAL;
+
+	reg_val &= ~SOC_CORE_CLK_CTRL_DIV_MASK;
+	reg_val |= SM(1, SOC_CORE_CLK_CTRL_DIV);
+	ret = ath10k_bmi_write_soc_reg(ar, addr, reg_val);
+	if (ret)
+		return -EINVAL;
+
+	/* Set the clock_div register */
+	mem_val = 1;
+	ret = ath10k_bmi_write_memory(ar, clk_div_addr, &mem_val,
+				      sizeof(mem_val));
+	if (ret)
+		return -EINVAL;
+
+	/* Configure the pll_control register */
+	addr = (RTC_WMAC_BASE_ADDRESS | WLAN_PLL_CONTROL_OFFSET);
+	ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
+	if (ret)
+		return -EINVAL;
+
+	reg_val |= (SM(hw_clk->refdiv, WLAN_PLL_CONTROL_REFDIV) |
+		    SM(hw_clk->div, WLAN_PLL_CONTROL_DIV) |
+		    SM(1, WLAN_PLL_CONTROL_NOPWD));
+	ret = ath10k_bmi_write_soc_reg(ar, addr, reg_val);
+	if (ret)
+		return -EINVAL;
+
+	/* busy wait (max 1s) the rtc_sync status register indicate ready */
+	wait_limit = 100000;
+	addr = (RTC_WMAC_BASE_ADDRESS | RTC_SYNC_STATUS_OFFSET);
+	do {
+		ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
+		if (ret)
+			return -EINVAL;
+
+		if (!MS(reg_val, RTC_SYNC_STATUS_PLL_CHANGING))
+			break;
+
+		wait_limit--;
+		udelay(10);
+
+	} while (wait_limit > 0);
+
+	if (MS(reg_val, RTC_SYNC_STATUS_PLL_CHANGING))
+		return -EINVAL;
+
+	/* Unset the pll_bypass in pll_control register */
+	addr = (RTC_WMAC_BASE_ADDRESS | WLAN_PLL_CONTROL_OFFSET);
+	ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
+	if (ret)
+		return -EINVAL;
+
+	reg_val &= ~WLAN_PLL_CONTROL_BYPASS_MASK;
+	reg_val |= SM(0, WLAN_PLL_CONTROL_BYPASS);
+	ret = ath10k_bmi_write_soc_reg(ar, addr, reg_val);
+	if (ret)
+		return -EINVAL;
+
+	/* busy wait (max 1s) the rtc_sync status register indicate ready */
+	wait_limit = 100000;
+	addr = (RTC_WMAC_BASE_ADDRESS | RTC_SYNC_STATUS_OFFSET);
+	do {
+		ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
+		if (ret)
+			return -EINVAL;
+
+		if (!MS(reg_val, RTC_SYNC_STATUS_PLL_CHANGING))
+			break;
+
+		wait_limit--;
+		udelay(10);
+
+	} while (wait_limit > 0);
+
+	if (MS(reg_val, RTC_SYNC_STATUS_PLL_CHANGING))
+		return -EINVAL;
+
+	/* Enable the hardware cpu clock register */
+	addr = (RTC_SOC_BASE_ADDRESS | SOC_CPU_CLOCK_OFFSET);
+	ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
+	if (ret)
+		return -EINVAL;
+
+	reg_val &= ~SOC_CPU_CLOCK_STANDARD_MASK;
+	reg_val |= SM(1, SOC_CPU_CLOCK_STANDARD);
+	ret = ath10k_bmi_write_soc_reg(ar, addr, reg_val);
+	if (ret)
+		return -EINVAL;
+
+	/* unset the nopwd from pll_control register */
+	addr = (RTC_WMAC_BASE_ADDRESS | WLAN_PLL_CONTROL_OFFSET);
+	ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
+	if (ret)
+		return -EINVAL;
+
+	reg_val &= ~WLAN_PLL_CONTROL_NOPWD_MASK;
+	ret = ath10k_bmi_write_soc_reg(ar, addr, reg_val);
+	if (ret)
+		return -EINVAL;
+
+	/* enable the pll_init register */
+	mem_val = 1;
+	ret = ath10k_bmi_write_memory(ar, pll_init_addr, &mem_val,
+				      sizeof(mem_val));
+	if (ret)
+		return -EINVAL;
+
+	/* set the target clock frequency to speed register */
+	ret = ath10k_bmi_write_memory(ar, speed_addr, &hw->target_cpu_freq,
+				      sizeof(hw->target_cpu_freq));
+	if (ret)
+		return -EINVAL;
+
+	return 0;
+}
+
 const struct ath10k_hw_ops qca988x_ops = {
 	.set_coverage_class = ath10k_hw_qca988x_set_coverage_class,
 };
@@ -373,4 +633,9 @@ static int ath10k_qca99x0_rx_desc_get_l3_pad_bytes(struct htt_rx_desc *rxd)
 
 const struct ath10k_hw_ops qca99x0_ops = {
 	.rx_desc_get_l3_pad_bytes = ath10k_qca99x0_rx_desc_get_l3_pad_bytes,
+};
+
+const struct ath10k_hw_ops qca6174_ops = {
+	.set_coverage_class = ath10k_hw_qca988x_set_coverage_class,
+	.enable_pll_clk = ath10k_hw_qca6174_enable_pll_clock,
 };

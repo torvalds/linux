@@ -1,12 +1,18 @@
+#include <errno.h>
+#include <inttypes.h>
+#include <regex.h>
 #include <sys/mman.h>
 #include "sort.h"
 #include "hist.h"
 #include "comm.h"
 #include "symbol.h"
+#include "thread.h"
 #include "evsel.h"
 #include "evlist.h"
+#include "strlist.h"
 #include <traceevent/event-parse.h>
 #include "mem-events.h"
+#include <linux/kernel.h>
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
@@ -323,7 +329,7 @@ char *hist_entry__get_srcline(struct hist_entry *he)
 		return SRCLINE_UNKNOWN;
 
 	return get_srcline(map->dso, map__rip_2objdump(map, he->ip),
-			   he->ms.sym, true);
+			   he->ms.sym, true, true);
 }
 
 static int64_t
@@ -366,7 +372,8 @@ sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 			left->branch_info->srcline_from = get_srcline(map->dso,
 					   map__rip_2objdump(map,
 							     left->branch_info->from.al_addr),
-							 left->branch_info->from.sym, true);
+							 left->branch_info->from.sym,
+							 true, true);
 	}
 	if (!right->branch_info->srcline_from) {
 		struct map *map = right->branch_info->from.map;
@@ -376,7 +383,8 @@ sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 			right->branch_info->srcline_from = get_srcline(map->dso,
 					     map__rip_2objdump(map,
 							       right->branch_info->from.al_addr),
-						     right->branch_info->from.sym, true);
+						     right->branch_info->from.sym,
+						     true, true);
 	}
 	return strcmp(right->branch_info->srcline_from, left->branch_info->srcline_from);
 }
@@ -407,7 +415,8 @@ sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 			left->branch_info->srcline_to = get_srcline(map->dso,
 					   map__rip_2objdump(map,
 							     left->branch_info->to.al_addr),
-							 left->branch_info->from.sym, true);
+							 left->branch_info->from.sym,
+							 true, true);
 	}
 	if (!right->branch_info->srcline_to) {
 		struct map *map = right->branch_info->to.map;
@@ -417,7 +426,8 @@ sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 			right->branch_info->srcline_to = get_srcline(map->dso,
 					     map__rip_2objdump(map,
 							       right->branch_info->to.al_addr),
-						     right->branch_info->to.sym, true);
+						     right->branch_info->to.sym,
+						     true, true);
 	}
 	return strcmp(right->branch_info->srcline_to, left->branch_info->srcline_to);
 }
@@ -448,7 +458,7 @@ static char *hist_entry__get_srcfile(struct hist_entry *e)
 		return no_srcfile;
 
 	sf = __get_srcline(map->dso, map__rip_2objdump(map, e->ip),
-			 e->ms.sym, false, true);
+			 e->ms.sym, false, true, true);
 	if (!strcmp(sf, SRCLINE_UNKNOWN))
 		return no_srcfile;
 	p = strchr(sf, ':');
@@ -534,6 +544,46 @@ struct sort_entry sort_cpu = {
 	.se_cmp	        = sort__cpu_cmp,
 	.se_snprintf    = hist_entry__cpu_snprintf,
 	.se_width_idx	= HISTC_CPU,
+};
+
+/* --sort cgroup_id */
+
+static int64_t _sort__cgroup_dev_cmp(u64 left_dev, u64 right_dev)
+{
+	return (int64_t)(right_dev - left_dev);
+}
+
+static int64_t _sort__cgroup_inode_cmp(u64 left_ino, u64 right_ino)
+{
+	return (int64_t)(right_ino - left_ino);
+}
+
+static int64_t
+sort__cgroup_id_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	int64_t ret;
+
+	ret = _sort__cgroup_dev_cmp(right->cgroup_id.dev, left->cgroup_id.dev);
+	if (ret != 0)
+		return ret;
+
+	return _sort__cgroup_inode_cmp(right->cgroup_id.ino,
+				       left->cgroup_id.ino);
+}
+
+static int hist_entry__cgroup_id_snprintf(struct hist_entry *he,
+					  char *bf, size_t size,
+					  unsigned int width __maybe_unused)
+{
+	return repsep_snprintf(bf, size, "%lu/0x%lx", he->cgroup_id.dev,
+			       he->cgroup_id.ino);
+}
+
+struct sort_entry sort_cgroup_id = {
+	.se_header      = "cgroup id (dev/inode)",
+	.se_cmp	        = sort__cgroup_id_cmp,
+	.se_snprintf    = hist_entry__cgroup_id_snprintf,
+	.se_width_idx	= HISTC_CGROUP_ID,
 };
 
 /* --sort socket */
@@ -846,6 +896,9 @@ static int hist_entry__mispredict_snprintf(struct hist_entry *he, char *bf,
 static int64_t
 sort__cycles_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	if (!left->branch_info || !right->branch_info)
+		return cmp_null(left->branch_info, right->branch_info);
+
 	return left->branch_info->flags.cycles -
 		right->branch_info->flags.cycles;
 }
@@ -853,6 +906,8 @@ sort__cycles_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__cycles_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
+	if (!he->branch_info)
+		return scnprintf(bf, size, "%-.*s", width, "N/A");
 	if (he->branch_info->flags.cycles == 0)
 		return repsep_snprintf(bf, size, "%-*s", width, "-");
 	return repsep_snprintf(bf, size, "%-*hd", width,
@@ -1396,6 +1451,46 @@ struct sort_entry sort_transaction = {
 	.se_width_idx	= HISTC_TRANSACTION,
 };
 
+/* --sort symbol_size */
+
+static int64_t _sort__sym_size_cmp(struct symbol *sym_l, struct symbol *sym_r)
+{
+	int64_t size_l = sym_l != NULL ? symbol__size(sym_l) : 0;
+	int64_t size_r = sym_r != NULL ? symbol__size(sym_r) : 0;
+
+	return size_l < size_r ? -1 :
+		size_l == size_r ? 0 : 1;
+}
+
+static int64_t
+sort__sym_size_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return _sort__sym_size_cmp(right->ms.sym, left->ms.sym);
+}
+
+static int _hist_entry__sym_size_snprintf(struct symbol *sym, char *bf,
+					  size_t bf_size, unsigned int width)
+{
+	if (sym)
+		return repsep_snprintf(bf, bf_size, "%*d", width, symbol__size(sym));
+
+	return repsep_snprintf(bf, bf_size, "%*s", width, "unknown");
+}
+
+static int hist_entry__sym_size_snprintf(struct hist_entry *he, char *bf,
+					 size_t size, unsigned int width)
+{
+	return _hist_entry__sym_size_snprintf(he->ms.sym, bf, size, width);
+}
+
+struct sort_entry sort_sym_size = {
+	.se_header	= "Symbol size",
+	.se_cmp		= sort__sym_size_cmp,
+	.se_snprintf	= hist_entry__sym_size_snprintf,
+	.se_width_idx	= HISTC_SYM_SIZE,
+};
+
+
 struct sort_dimension {
 	const char		*name;
 	struct sort_entry	*entry;
@@ -1418,6 +1513,8 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_GLOBAL_WEIGHT, "weight", sort_global_weight),
 	DIM(SORT_TRANSACTION, "transaction", sort_transaction),
 	DIM(SORT_TRACE, "trace", sort_trace),
+	DIM(SORT_SYM_SIZE, "symbol_size", sort_sym_size),
+	DIM(SORT_CGROUP_ID, "cgroup_id", sort_cgroup_id),
 };
 
 #undef DIM

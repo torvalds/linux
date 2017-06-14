@@ -40,9 +40,9 @@ extern int nr_cpu_ids;
 #ifdef CONFIG_CPUMASK_OFFSTACK
 /* Assuming NR_CPUS is huge, a runtime limit is more efficient.  Also,
  * not all bits may be allocated. */
-#define nr_cpumask_bits	nr_cpu_ids
+#define nr_cpumask_bits	((unsigned int)nr_cpu_ids)
 #else
-#define nr_cpumask_bits	NR_CPUS
+#define nr_cpumask_bits	((unsigned int)NR_CPUS)
 #endif
 
 /*
@@ -667,6 +667,11 @@ void alloc_bootmem_cpumask_var(cpumask_var_t *mask);
 void free_cpumask_var(cpumask_var_t mask);
 void free_bootmem_cpumask_var(cpumask_var_t mask);
 
+static inline bool cpumask_available(cpumask_var_t mask)
+{
+	return mask != NULL;
+}
+
 #else
 typedef struct cpumask cpumask_var_t[1];
 
@@ -707,6 +712,11 @@ static inline void free_cpumask_var(cpumask_var_t mask)
 
 static inline void free_bootmem_cpumask_var(cpumask_var_t mask)
 {
+}
+
+static inline bool cpumask_available(cpumask_var_t mask)
+{
+	return true;
 }
 #endif /* CONFIG_CPUMASK_OFFSTACK */
 

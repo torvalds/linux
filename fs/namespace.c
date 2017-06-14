@@ -236,9 +236,6 @@ static struct mount *alloc_vfsmnt(const char *name)
 		INIT_LIST_HEAD(&mnt->mnt_slave_list);
 		INIT_LIST_HEAD(&mnt->mnt_slave);
 		INIT_HLIST_NODE(&mnt->mnt_mp_list);
-#ifdef CONFIG_FSNOTIFY
-		INIT_HLIST_HEAD(&mnt->mnt_fsnotify_marks);
-#endif
 		init_fs_pin(&mnt->mnt_umount, drop_mountpoint);
 	}
 	return mnt;
@@ -3465,8 +3462,9 @@ static void mntns_put(struct ns_common *ns)
 static int mntns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 {
 	struct fs_struct *fs = current->fs;
-	struct mnt_namespace *mnt_ns = to_mnt_ns(ns);
+	struct mnt_namespace *mnt_ns = to_mnt_ns(ns), *old_mnt_ns;
 	struct path root;
+	int err;
 
 	if (!ns_capable(mnt_ns->user_ns, CAP_SYS_ADMIN) ||
 	    !ns_capable(current_user_ns(), CAP_SYS_CHROOT) ||
@@ -3477,15 +3475,18 @@ static int mntns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 		return -EINVAL;
 
 	get_mnt_ns(mnt_ns);
-	put_mnt_ns(nsproxy->mnt_ns);
+	old_mnt_ns = nsproxy->mnt_ns;
 	nsproxy->mnt_ns = mnt_ns;
 
 	/* Find the root */
-	root.mnt    = &mnt_ns->root->mnt;
-	root.dentry = mnt_ns->root->mnt.mnt_root;
-	path_get(&root);
-	while(d_mountpoint(root.dentry) && follow_down_one(&root))
-		;
+	err = vfs_path_lookup(mnt_ns->root->mnt.mnt_root, &mnt_ns->root->mnt,
+				"/", LOOKUP_DOWN, &root);
+	if (err) {
+		/* revert to old namespace */
+		nsproxy->mnt_ns = old_mnt_ns;
+		put_mnt_ns(mnt_ns);
+		return err;
+	}
 
 	/* Update the pwd and root */
 	set_fs_pwd(fs, &root);

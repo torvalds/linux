@@ -161,6 +161,30 @@ int comedi_buf_map_put(struct comedi_buf_map *bm)
 	return 1;
 }
 
+/* helper for "access" vm operation */
+int comedi_buf_map_access(struct comedi_buf_map *bm, unsigned long offset,
+			  void *buf, int len, int write)
+{
+	unsigned int pgoff = offset & ~PAGE_MASK;
+	unsigned long pg = offset >> PAGE_SHIFT;
+	int done = 0;
+
+	while (done < len && pg < bm->n_pages) {
+		int l = min_t(int, len - done, PAGE_SIZE - pgoff);
+		void *b = bm->page_list[pg].virt_addr + pgoff;
+
+		if (write)
+			memcpy(b, buf, l);
+		else
+			memcpy(buf, b, l);
+		buf += l;
+		done += l;
+		pg++;
+		pgoff = 0;
+	}
+	return done;
+}
+
 /* returns s->async->buf_map and increments its kref refcount */
 struct comedi_buf_map *
 comedi_buf_map_from_subdev_get(struct comedi_subdevice *s)

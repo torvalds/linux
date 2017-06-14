@@ -25,7 +25,7 @@
 #define PARM_GET(width, shift, reg)					\
 	(((reg) & SETPMASK(width, shift)) >> (shift))
 #define PARM_SET(width, shift, reg, val)				\
-	(((reg) & CLRPMASK(width, shift)) | (val << (shift)))
+	(((reg) & CLRPMASK(width, shift)) | ((val) << (shift)))
 
 #define MESON_PARM_APPLICABLE(p)		(!!((p)->width))
 
@@ -62,6 +62,28 @@ struct pll_rate_table {
 		.frac		= (_frac),				\
 	}								\
 
+struct pll_params_table {
+	unsigned int reg_off;
+	unsigned int value;
+};
+
+#define PLL_PARAM(_reg, _val)						\
+	{								\
+		.reg_off	= (_reg),				\
+		.value		= (_val),				\
+	}
+
+struct pll_setup_params {
+	struct pll_params_table *params_table;
+	unsigned int params_count;
+	/* Workaround for GP0, do not reset before configuring */
+	bool no_init_reset;
+	/* Workaround for GP0, unreset right before checking for lock */
+	bool clear_reset_for_lock;
+	/* Workaround for GXL GP0, reset in the lock checking loop */
+	bool reset_lock_loop;
+};
+
 struct meson_clk_pll {
 	struct clk_hw hw;
 	void __iomem *base;
@@ -70,6 +92,7 @@ struct meson_clk_pll {
 	struct parm frac;
 	struct parm od;
 	struct parm od2;
+	const struct pll_setup_params params;
 	const struct pll_rate_table *rate_table;
 	unsigned int rate_count;
 	spinlock_t *lock;
@@ -92,8 +115,17 @@ struct meson_clk_mpll {
 	struct clk_hw hw;
 	void __iomem *base;
 	struct parm sdm;
+	struct parm sdm_en;
 	struct parm n2;
-	/* FIXME ssen gate control? */
+	struct parm en;
+	spinlock_t *lock;
+};
+
+struct meson_clk_audio_divider {
+	struct clk_hw hw;
+	void __iomem *base;
+	struct parm div;
+	u8 flags;
 	spinlock_t *lock;
 };
 
@@ -116,5 +148,8 @@ extern const struct clk_ops meson_clk_pll_ro_ops;
 extern const struct clk_ops meson_clk_pll_ops;
 extern const struct clk_ops meson_clk_cpu_ops;
 extern const struct clk_ops meson_clk_mpll_ro_ops;
+extern const struct clk_ops meson_clk_mpll_ops;
+extern const struct clk_ops meson_clk_audio_divider_ro_ops;
+extern const struct clk_ops meson_clk_audio_divider_ops;
 
 #endif /* __CLKC_H */

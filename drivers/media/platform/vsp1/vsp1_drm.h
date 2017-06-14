@@ -21,7 +21,7 @@
  * vsp1_drm - State for the API exposed to the DRM driver
  * @pipe: the VSP1 pipeline used for display
  * @num_inputs: number of active pipeline inputs at the beginning of an update
- * @planes: source crop rectangle, destination compose rectangle and z-order
+ * @inputs: source crop rectangle, destination compose rectangle and z-order
  *	position for every input
  */
 struct vsp1_drm {

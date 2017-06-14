@@ -174,6 +174,13 @@ static struct kernfs_ops rdtgroup_kf_single_ops = {
 	.seq_show		= rdtgroup_seqfile_show,
 };
 
+static bool is_cpu_list(struct kernfs_open_file *of)
+{
+	struct rftype *rft = of->kn->priv;
+
+	return rft->flags & RFTYPE_FLAGS_CPUS_LIST;
+}
+
 static int rdtgroup_cpus_show(struct kernfs_open_file *of,
 			      struct seq_file *s, void *v)
 {
@@ -182,10 +189,12 @@ static int rdtgroup_cpus_show(struct kernfs_open_file *of,
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 
-	if (rdtgrp)
-		seq_printf(s, "%*pb\n", cpumask_pr_args(&rdtgrp->cpu_mask));
-	else
+	if (rdtgrp) {
+		seq_printf(s, is_cpu_list(of) ? "%*pbl\n" : "%*pb\n",
+			   cpumask_pr_args(&rdtgrp->cpu_mask));
+	} else {
 		ret = -ENOENT;
+	}
 	rdtgroup_kn_unlock(of->kn);
 
 	return ret;
@@ -252,7 +261,11 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 		goto unlock;
 	}
 
-	ret = cpumask_parse(buf, newmask);
+	if (is_cpu_list(of))
+		ret = cpulist_parse(buf, newmask);
+	else
+		ret = cpumask_parse(buf, newmask);
+
 	if (ret)
 		goto unlock;
 
@@ -473,6 +486,14 @@ static struct rftype rdtgroup_base_files[] = {
 		.seq_show	= rdtgroup_cpus_show,
 	},
 	{
+		.name		= "cpus_list",
+		.mode		= 0644,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.write		= rdtgroup_cpus_write,
+		.seq_show	= rdtgroup_cpus_show,
+		.flags		= RFTYPE_FLAGS_CPUS_LIST,
+	},
+	{
 		.name		= "tasks",
 		.mode		= 0644,
 		.kf_ops		= &rdtgroup_kf_single_ops,
@@ -494,17 +515,15 @@ static int rdt_num_closids_show(struct kernfs_open_file *of,
 	struct rdt_resource *r = of->kn->parent->priv;
 
 	seq_printf(seq, "%d\n", r->num_closid);
-
 	return 0;
 }
 
-static int rdt_cbm_mask_show(struct kernfs_open_file *of,
+static int rdt_default_ctrl_show(struct kernfs_open_file *of,
 			     struct seq_file *seq, void *v)
 {
 	struct rdt_resource *r = of->kn->parent->priv;
 
-	seq_printf(seq, "%x\n", r->max_cbm);
-
+	seq_printf(seq, "%x\n", r->default_ctrl);
 	return 0;
 }
 
@@ -513,13 +532,39 @@ static int rdt_min_cbm_bits_show(struct kernfs_open_file *of,
 {
 	struct rdt_resource *r = of->kn->parent->priv;
 
-	seq_printf(seq, "%d\n", r->min_cbm_bits);
+	seq_printf(seq, "%u\n", r->cache.min_cbm_bits);
+	return 0;
+}
 
+static int rdt_min_bw_show(struct kernfs_open_file *of,
+			     struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%u\n", r->membw.min_bw);
+	return 0;
+}
+
+static int rdt_bw_gran_show(struct kernfs_open_file *of,
+			     struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%u\n", r->membw.bw_gran);
+	return 0;
+}
+
+static int rdt_delay_linear_show(struct kernfs_open_file *of,
+			     struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%u\n", r->membw.delay_linear);
 	return 0;
 }
 
 /* rdtgroup information files for one cache resource. */
-static struct rftype res_info_files[] = {
+static struct rftype res_cache_info_files[] = {
 	{
 		.name		= "num_closids",
 		.mode		= 0444,
@@ -530,7 +575,7 @@ static struct rftype res_info_files[] = {
 		.name		= "cbm_mask",
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
-		.seq_show	= rdt_cbm_mask_show,
+		.seq_show	= rdt_default_ctrl_show,
 	},
 	{
 		.name		= "min_cbm_bits",
@@ -540,11 +585,52 @@ static struct rftype res_info_files[] = {
 	},
 };
 
+/* rdtgroup information files for memory bandwidth. */
+static struct rftype res_mba_info_files[] = {
+	{
+		.name		= "num_closids",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_num_closids_show,
+	},
+	{
+		.name		= "min_bandwidth",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_min_bw_show,
+	},
+	{
+		.name		= "bandwidth_gran",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_bw_gran_show,
+	},
+	{
+		.name		= "delay_linear",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_delay_linear_show,
+	},
+};
+
+void rdt_get_mba_infofile(struct rdt_resource *r)
+{
+	r->info_files = res_mba_info_files;
+	r->nr_info_files = ARRAY_SIZE(res_mba_info_files);
+}
+
+void rdt_get_cache_infofile(struct rdt_resource *r)
+{
+	r->info_files = res_cache_info_files;
+	r->nr_info_files = ARRAY_SIZE(res_cache_info_files);
+}
+
 static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 {
 	struct kernfs_node *kn_subdir;
+	struct rftype *res_info_files;
 	struct rdt_resource *r;
-	int ret;
+	int ret, len;
 
 	/* create the directory */
 	kn_info = kernfs_create_dir(parent_kn, "info", parent_kn->mode, NULL);
@@ -563,8 +649,11 @@ static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 		ret = rdtgroup_kn_set_ugid(kn_subdir);
 		if (ret)
 			goto out_destroy;
-		ret = rdtgroup_add_files(kn_subdir, res_info_files,
-					 ARRAY_SIZE(res_info_files));
+
+		res_info_files = r->info_files;
+		len = r->nr_info_files;
+
+		ret = rdtgroup_add_files(kn_subdir, res_info_files, len);
 		if (ret)
 			goto out_destroy;
 		kernfs_activate(kn_subdir);
@@ -780,7 +869,7 @@ out:
 	return dentry;
 }
 
-static int reset_all_cbms(struct rdt_resource *r)
+static int reset_all_ctrls(struct rdt_resource *r)
 {
 	struct msr_param msr_param;
 	cpumask_var_t cpu_mask;
@@ -803,14 +892,14 @@ static int reset_all_cbms(struct rdt_resource *r)
 		cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
 
 		for (i = 0; i < r->num_closid; i++)
-			d->cbm[i] = r->max_cbm;
+			d->ctrl_val[i] = r->default_ctrl;
 	}
 	cpu = get_cpu();
 	/* Update CBM on this cpu if it's in cpu_mask. */
 	if (cpumask_test_cpu(cpu, cpu_mask))
-		rdt_cbm_update(&msr_param);
+		rdt_ctrl_update(&msr_param);
 	/* Update CBM on all other cpus in cpu_mask. */
-	smp_call_function_many(cpu_mask, rdt_cbm_update, &msr_param, 1);
+	smp_call_function_many(cpu_mask, rdt_ctrl_update, &msr_param, 1);
 	put_cpu();
 
 	free_cpumask_var(cpu_mask);
@@ -896,7 +985,7 @@ static void rdt_kill_sb(struct super_block *sb)
 
 	/*Put everything back to default values. */
 	for_each_enabled_rdt_resource(r)
-		reset_all_cbms(r);
+		reset_all_ctrls(r);
 	cdp_disable();
 	rmdir_all_sub();
 	static_branch_disable(&rdt_enable_key);

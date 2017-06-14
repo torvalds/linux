@@ -1,7 +1,7 @@
 /*
  * Broadcom GENET MDIO routines
  *
- * Copyright (c) 2014 Broadcom Corporation
+ * Copyright (c) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -195,39 +195,43 @@ void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 	u32 reg = 0;
 
 	/* EXT_GPHY_CTRL is only valid for GENETv4 and onward */
-	if (!GENET_IS_V4(priv))
-		return;
+	if (GENET_IS_V4(priv)) {
+		reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
+		if (enable) {
+			reg &= ~EXT_CK25_DIS;
+			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+			mdelay(1);
 
-	reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
-	if (enable) {
-		reg &= ~EXT_CK25_DIS;
+			reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN);
+			reg |= EXT_GPHY_RESET;
+			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+			mdelay(1);
+
+			reg &= ~EXT_GPHY_RESET;
+		} else {
+			reg |= EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN |
+			       EXT_GPHY_RESET;
+			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+			mdelay(1);
+			reg |= EXT_CK25_DIS;
+		}
 		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
-		mdelay(1);
-
-		reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN);
-		reg |= EXT_GPHY_RESET;
-		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
-		mdelay(1);
-
-		reg &= ~EXT_GPHY_RESET;
+		udelay(60);
 	} else {
-		reg |= EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN | EXT_GPHY_RESET;
-		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
 		mdelay(1);
-		reg |= EXT_CK25_DIS;
 	}
-	bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
-	udelay(60);
 }
 
 static void bcmgenet_moca_phy_setup(struct bcmgenet_priv *priv)
 {
 	u32 reg;
 
-	/* Speed settings are set in bcmgenet_mii_setup() */
-	reg = bcmgenet_sys_readl(priv, SYS_PORT_CTRL);
-	reg |= LED_ACT_SOURCE_MAC;
-	bcmgenet_sys_writel(priv, reg, SYS_PORT_CTRL);
+	if (!GENET_IS_V5(priv)) {
+		/* Speed settings are set in bcmgenet_mii_setup() */
+		reg = bcmgenet_sys_readl(priv, SYS_PORT_CTRL);
+		reg |= LED_ACT_SOURCE_MAC;
+		bcmgenet_sys_writel(priv, reg, SYS_PORT_CTRL);
+	}
 
 	if (priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET)
 		fixed_phy_set_link_update(priv->phydev,

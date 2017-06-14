@@ -21,6 +21,7 @@
 #include <registers.h>
 #include <skas.h>
 #include <sysdep/stub.h>
+#include <linux/threads.h>
 
 int is_skas_winch(int pid, int fd, void *data)
 {
@@ -233,9 +234,6 @@ static int userspace_tramp(void *stack)
 	return 0;
 }
 
-/* Each element set once, and only accessed by a single processor anyway */
-#undef NR_CPUS
-#define NR_CPUS 1
 int userspace_pid[NR_CPUS];
 
 int start_userspace(unsigned long stub_stack)

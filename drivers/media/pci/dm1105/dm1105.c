@@ -815,7 +815,7 @@ static void dm1105_hw_exit(struct dm1105_dev *dev)
 	dm1105_dma_unmap(dev);
 }
 
-static struct stv0299_config sharp_z0194a_config = {
+static const struct stv0299_config sharp_z0194a_config = {
 	.demod_address = 0x68,
 	.inittab = sharp_z0194a_inittab,
 	.mclk = 88000000UL,

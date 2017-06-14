@@ -74,7 +74,7 @@ static int brownstone_wm8994_hw_params(struct snd_pcm_substream *substream,
 }
 
 /* machine stream operations */
-static struct snd_soc_ops brownstone_ops = {
+static const struct snd_soc_ops brownstone_ops = {
 	.hw_params = brownstone_wm8994_hw_params,
 };
 

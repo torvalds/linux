@@ -55,6 +55,54 @@ enum {
 	BXT_DPCM_AUDIO_HDMI3_PB,
 };
 
+static inline struct snd_soc_dai *bxt_get_codec_dai(struct snd_soc_card *card)
+{
+	struct snd_soc_pcm_runtime *rtd;
+
+	list_for_each_entry(rtd, &card->rtd_list, list) {
+
+		if (!strncmp(rtd->codec_dai->name, BXT_DIALOG_CODEC_DAI,
+			     strlen(BXT_DIALOG_CODEC_DAI)))
+			return rtd->codec_dai;
+	}
+
+	return NULL;
+}
+
+static int platform_clock_control(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *k, int  event)
+{
+	int ret = 0;
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_dai *codec_dai;
+
+	codec_dai = bxt_get_codec_dai(card);
+	if (!codec_dai) {
+		dev_err(card->dev, "Codec dai not found; Unable to set/unset codec pll\n");
+		return -EIO;
+	}
+
+	if (SND_SOC_DAPM_EVENT_OFF(event)) {
+		ret = snd_soc_dai_set_pll(codec_dai, 0,
+			DA7219_SYSCLK_MCLK, 0, 0);
+		if (ret)
+			dev_err(card->dev, "failed to stop PLL: %d\n", ret);
+	} else if(SND_SOC_DAPM_EVENT_ON(event)) {
+		ret = snd_soc_dai_set_sysclk(codec_dai,
+                        DA7219_CLKSRC_MCLK, 19200000, SND_SOC_CLOCK_IN);
+		if (ret)
+			dev_err(card->dev, "can't set codec sysclk configuration\n");
+
+		ret = snd_soc_dai_set_pll(codec_dai, 0,
+			DA7219_SYSCLK_PLL_SRM, 0, DA7219_PLL_FREQ_OUT_98304);
+		if (ret)
+			dev_err(card->dev, "failed to start PLL: %d\n", ret);
+	}
+
+	return ret;
+}
+
 static const struct snd_kcontrol_new broxton_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
@@ -69,6 +117,8 @@ static const struct snd_soc_dapm_widget broxton_widgets[] = {
 	SND_SOC_DAPM_SPK("HDMI1", NULL),
 	SND_SOC_DAPM_SPK("HDMI2", NULL),
 	SND_SOC_DAPM_SPK("HDMI3", NULL),
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+			platform_clock_control,	SND_SOC_DAPM_POST_PMD|SND_SOC_DAPM_PRE_PMU),
 };
 
 static const struct snd_soc_dapm_route broxton_map[] = {
@@ -109,6 +159,9 @@ static const struct snd_soc_dapm_route broxton_map[] = {
 	/* DMIC */
 	{"dmic01_hifi", NULL, "DMIC01 Rx"},
 	{"DMIC01 Rx", NULL, "DMIC AIF"},
+
+	{ "Headphone Jack", NULL, "Platform Clock" },
+	{ "Headset Mic", NULL, "Platform Clock" },
 };
 
 static int broxton_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -241,49 +294,6 @@ static int bxt_fe_startup(struct snd_pcm_substream *substream)
 
 static const struct snd_soc_ops broxton_da7219_fe_ops = {
 	.startup = bxt_fe_startup,
-};
-
-static int broxton_da7219_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	int ret;
-
-	ret = snd_soc_dai_set_sysclk(codec_dai,
-			DA7219_CLKSRC_MCLK, 19200000, SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		dev_err(codec_dai->dev, "can't set codec sysclk configuration\n");
-
-	ret = snd_soc_dai_set_pll(codec_dai, 0,
-			DA7219_SYSCLK_PLL_SRM, 0, DA7219_PLL_FREQ_OUT_98304);
-	if (ret < 0) {
-		dev_err(codec_dai->dev, "failed to start PLL: %d\n", ret);
-		return -EIO;
-	}
-
-	return ret;
-}
-
-static int broxton_da7219_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	int ret;
-
-	ret = snd_soc_dai_set_pll(codec_dai, 0,
-			DA7219_SYSCLK_MCLK, 0, 0);
-	if (ret < 0) {
-		dev_err(codec_dai->dev, "failed to stop PLL: %d\n", ret);
-		return -EIO;
-	}
-
-	return ret;
-}
-
-static const struct snd_soc_ops broxton_da7219_ops = {
-	.hw_params = broxton_da7219_hw_params,
-	.hw_free = broxton_da7219_hw_free,
 };
 
 static int broxton_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -467,7 +477,6 @@ static struct snd_soc_dai_link broxton_dais[] = {
 			SND_SOC_DAIFMT_CBS_CFS,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = broxton_ssp_fixup,
-		.ops = &broxton_da7219_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 	},

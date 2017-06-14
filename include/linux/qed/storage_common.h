@@ -40,6 +40,8 @@
 #define BDQ_ID_IMM_DATA          (1)
 #define BDQ_NUM_IDS          (2)
 
+#define SCSI_NUM_SGES_SLOW_SGL_THR      8
+
 #define BDQ_MAX_EXTERNAL_RING_SIZE (1 << 15)
 
 struct scsi_bd {
@@ -50,6 +52,16 @@ struct scsi_bd {
 struct scsi_bdq_ram_drv_data {
 	__le16 external_producer;
 	__le16 reserved0[3];
+};
+
+struct scsi_sge {
+	struct regpair sge_addr;
+	__le32 sge_len;
+	__le32 reserved;
+};
+
+struct scsi_cached_sges {
+	struct scsi_sge sge[4];
 };
 
 struct scsi_drv_cmdq {
@@ -99,11 +111,19 @@ struct scsi_ram_per_bdq_resource_drv_data {
 	struct scsi_bdq_ram_drv_data drv_data_per_bdq_id[BDQ_NUM_IDS];
 };
 
-struct scsi_sge {
-	struct regpair sge_addr;
-	__le16 sge_len;
-	__le16 reserved0;
-	__le32 reserved1;
+enum scsi_sgl_mode {
+	SCSI_TX_SLOW_SGL,
+	SCSI_FAST_SGL,
+	MAX_SCSI_SGL_MODE
+};
+
+struct scsi_sgl_params {
+	struct regpair sgl_addr;
+	__le32 sgl_total_length;
+	__le32 sge_offset;
+	__le16 sgl_num_sges;
+	u8 sgl_index;
+	u8 reserved;
 };
 
 struct scsi_terminate_extra_params {

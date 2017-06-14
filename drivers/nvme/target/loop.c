@@ -13,12 +13,10 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/scatterlist.h>
-#include <linux/delay.h>
 #include <linux/blk-mq.h>
 #include <linux/nvme.h>
 #include <linux/module.h>
 #include <linux/parser.h>
-#include <linux/t10-pi.h>
 #include "nvmet.h"
 #include "../host/nvme.h"
 #include "../host/fabrics.h"
@@ -93,31 +91,26 @@ static inline int nvme_loop_queue_idx(struct nvme_loop_queue *queue)
 static void nvme_loop_complete_rq(struct request *req)
 {
 	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(req);
-	int error = 0;
 
 	nvme_cleanup_cmd(req);
 	sg_free_table_chained(&iod->sg_table, true);
+	nvme_complete_rq(req);
+}
 
-	if (unlikely(req->errors)) {
-		if (nvme_req_needs_retry(req, req->errors)) {
-			nvme_requeue_req(req);
-			return;
-		}
+static struct blk_mq_tags *nvme_loop_tagset(struct nvme_loop_queue *queue)
+{
+	u32 queue_idx = nvme_loop_queue_idx(queue);
 
-		if (blk_rq_is_passthrough(req))
-			error = req->errors;
-		else
-			error = nvme_error_status(req->errors);
-	}
-
-	blk_mq_end_request(req, error);
+	if (queue_idx == 0)
+		return queue->ctrl->admin_tag_set.tags[queue_idx];
+	return queue->ctrl->tag_set.tags[queue_idx - 1];
 }
 
 static void nvme_loop_queue_response(struct nvmet_req *req)
 {
-	struct nvme_loop_iod *iod =
-		container_of(req, struct nvme_loop_iod, req);
-	struct nvme_completion *cqe = &iod->rsp;
+	struct nvme_loop_queue *queue =
+		container_of(req->sq, struct nvme_loop_queue, nvme_sq);
+	struct nvme_completion *cqe = req->rsp;
 
 	/*
 	 * AEN requests are special as they don't time out and can
@@ -125,15 +118,22 @@ static void nvme_loop_queue_response(struct nvmet_req *req)
 	 * aborts.  We don't even bother to allocate a struct request
 	 * for them but rather special case them here.
 	 */
-	if (unlikely(nvme_loop_queue_idx(iod->queue) == 0 &&
+	if (unlikely(nvme_loop_queue_idx(queue) == 0 &&
 			cqe->command_id >= NVME_LOOP_AQ_BLKMQ_DEPTH)) {
-		nvme_complete_async_event(&iod->queue->ctrl->ctrl, cqe->status,
+		nvme_complete_async_event(&queue->ctrl->ctrl, cqe->status,
 				&cqe->result);
 	} else {
-		struct request *rq = blk_mq_rq_from_pdu(iod);
+		struct request *rq;
 
-		iod->nvme_req.result = cqe->result;
-		blk_mq_complete_request(rq, le16_to_cpu(cqe->status) >> 1);
+		rq = blk_mq_tag_to_rq(nvme_loop_tagset(queue), cqe->command_id);
+		if (!rq) {
+			dev_err(queue->ctrl->ctrl.device,
+				"tag 0x%x on queue %d not found\n",
+				cqe->command_id, nvme_loop_queue_idx(queue));
+			return;
+		}
+
+		nvme_end_request(rq, cqe->status, cqe->result);
 	}
 }
 
@@ -154,7 +154,7 @@ nvme_loop_timeout(struct request *rq, bool reserved)
 	schedule_work(&iod->queue->ctrl->reset_work);
 
 	/* fail with DNR on admin cmd timeout */
-	rq->errors = NVME_SC_ABORT_REQ | NVME_SC_DNR;
+	nvme_req(rq)->status = NVME_SC_ABORT_REQ | NVME_SC_DNR;
 
 	return BLK_EH_HANDLED;
 }
@@ -230,18 +230,19 @@ static int nvme_loop_init_iod(struct nvme_loop_ctrl *ctrl,
 	return 0;
 }
 
-static int nvme_loop_init_request(void *data, struct request *req,
-				unsigned int hctx_idx, unsigned int rq_idx,
-				unsigned int numa_node)
+static int nvme_loop_init_request(struct blk_mq_tag_set *set,
+		struct request *req, unsigned int hctx_idx,
+		unsigned int numa_node)
 {
-	return nvme_loop_init_iod(data, blk_mq_rq_to_pdu(req), hctx_idx + 1);
+	return nvme_loop_init_iod(set->driver_data, blk_mq_rq_to_pdu(req),
+			hctx_idx + 1);
 }
 
-static int nvme_loop_init_admin_request(void *data, struct request *req,
-				unsigned int hctx_idx, unsigned int rq_idx,
-				unsigned int numa_node)
+static int nvme_loop_init_admin_request(struct blk_mq_tag_set *set,
+		struct request *req, unsigned int hctx_idx,
+		unsigned int numa_node)
 {
-	return nvme_loop_init_iod(data, blk_mq_rq_to_pdu(req), 0);
+	return nvme_loop_init_iod(set->driver_data, blk_mq_rq_to_pdu(req), 0);
 }
 
 static int nvme_loop_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
@@ -268,7 +269,7 @@ static int nvme_loop_init_admin_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	return 0;
 }
 
-static struct blk_mq_ops nvme_loop_mq_ops = {
+static const struct blk_mq_ops nvme_loop_mq_ops = {
 	.queue_rq	= nvme_loop_queue_rq,
 	.complete	= nvme_loop_complete_rq,
 	.init_request	= nvme_loop_init_request,
@@ -276,7 +277,7 @@ static struct blk_mq_ops nvme_loop_mq_ops = {
 	.timeout	= nvme_loop_timeout,
 };
 
-static struct blk_mq_ops nvme_loop_admin_mq_ops = {
+static const struct blk_mq_ops nvme_loop_admin_mq_ops = {
 	.queue_rq	= nvme_loop_queue_rq,
 	.complete	= nvme_loop_complete_rq,
 	.init_request	= nvme_loop_init_admin_request,
@@ -349,6 +350,19 @@ out_destroy_queues:
 	return ret;
 }
 
+static int nvme_loop_connect_io_queues(struct nvme_loop_ctrl *ctrl)
+{
+	int i, ret;
+
+	for (i = 1; i < ctrl->queue_count; i++) {
+		ret = nvmf_connect_io_queue(&ctrl->ctrl, i);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int nvme_loop_configure_admin_queue(struct nvme_loop_ctrl *ctrl)
 {
 	int error;
@@ -392,7 +406,7 @@ static int nvme_loop_configure_admin_queue(struct nvme_loop_ctrl *ctrl)
 	}
 
 	ctrl->ctrl.sqsize =
-		min_t(int, NVME_CAP_MQES(ctrl->cap) + 1, ctrl->ctrl.sqsize);
+		min_t(int, NVME_CAP_MQES(ctrl->cap), ctrl->ctrl.sqsize);
 
 	error = nvme_enable_ctrl(&ctrl->ctrl, ctrl->cap);
 	if (error)
@@ -490,7 +504,7 @@ static void nvme_loop_reset_ctrl_work(struct work_struct *work)
 	struct nvme_loop_ctrl *ctrl = container_of(work,
 					struct nvme_loop_ctrl, reset_work);
 	bool changed;
-	int i, ret;
+	int ret;
 
 	nvme_loop_shutdown_ctrl(ctrl);
 
@@ -502,11 +516,9 @@ static void nvme_loop_reset_ctrl_work(struct work_struct *work)
 	if (ret)
 		goto out_destroy_admin;
 
-	for (i = 1; i < ctrl->queue_count; i++) {
-		ret = nvmf_connect_io_queue(&ctrl->ctrl, i);
-		if (ret)
-			goto out_destroy_io;
-	}
+	ret = nvme_loop_connect_io_queues(ctrl);
+	if (ret)
+		goto out_destroy_io;
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
 	WARN_ON_ONCE(!changed);
@@ -546,7 +558,7 @@ static int nvme_loop_reset_ctrl(struct nvme_ctrl *nctrl)
 static const struct nvme_ctrl_ops nvme_loop_ctrl_ops = {
 	.name			= "loop",
 	.module			= THIS_MODULE,
-	.is_fabrics		= true,
+	.flags			= NVME_F_FABRICS,
 	.reg_read32		= nvmf_reg_read32,
 	.reg_read64		= nvmf_reg_read64,
 	.reg_write32		= nvmf_reg_write32,
@@ -559,7 +571,7 @@ static const struct nvme_ctrl_ops nvme_loop_ctrl_ops = {
 
 static int nvme_loop_create_io_queues(struct nvme_loop_ctrl *ctrl)
 {
-	int ret, i;
+	int ret;
 
 	ret = nvme_loop_init_io_queues(ctrl);
 	if (ret)
@@ -588,11 +600,9 @@ static int nvme_loop_create_io_queues(struct nvme_loop_ctrl *ctrl)
 		goto out_free_tagset;
 	}
 
-	for (i = 1; i < ctrl->queue_count; i++) {
-		ret = nvmf_connect_io_queue(&ctrl->ctrl, i);
-		if (ret)
-			goto out_cleanup_connect_q;
-	}
+	ret = nvme_loop_connect_io_queues(ctrl);
+	if (ret)
+		goto out_cleanup_connect_q;
 
 	return 0;
 
@@ -736,7 +746,12 @@ static int __init nvme_loop_init_module(void)
 	ret = nvmet_register_transport(&nvme_loop_ops);
 	if (ret)
 		return ret;
-	return nvmf_register_transport(&nvme_loop_transport);
+
+	ret = nvmf_register_transport(&nvme_loop_transport);
+	if (ret)
+		nvmet_unregister_transport(&nvme_loop_ops);
+
+	return ret;
 }
 
 static void __exit nvme_loop_cleanup_module(void)

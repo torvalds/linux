@@ -114,6 +114,12 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.config = &chip_config_6050,
 	},
 	{
+		.whoami = INV_MPU9250_WHOAMI_VALUE,
+		.name = "MPU9250",
+		.reg = &reg_set_6500,
+		.config = &chip_config_6050,
+	},
+	{
 		.whoami = INV_ICM20608_WHOAMI_VALUE,
 		.name = "ICM20608",
 		.reg = &reg_set_6500,

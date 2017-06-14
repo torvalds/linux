@@ -221,32 +221,28 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
 .. _vbi-hsync:
 
-.. figure::  vbi_hsync.*
-    :alt:    vbi_hsync.pdf / vbi_hsync.svg
-    :align:  center
+.. kernel-figure:: vbi_hsync.svg
+    :alt:   vbi_hsync.svg
+    :align: center
 
     **Figure 4.1. Line synchronization**
 
 
 .. _vbi-525:
 
-.. figure::  vbi_525.*
-    :alt:    vbi_525.pdf / vbi_525.svg
-    :align:  center
+.. kernel-figure:: vbi_525.svg
+    :alt:   vbi_525.svg
+    :align: center
 
     **Figure 4.2. ITU-R 525 line numbering (M/NTSC and M/PAL)**
 
-
-
 .. _vbi-625:
 
-.. figure::  vbi_625.*
-    :alt:    vbi_625.pdf / vbi_625.svg
-    :align:  center
+.. kernel-figure:: vbi_625.svg
+    :alt:   vbi_625.svg
+    :align: center
 
     **Figure 4.3. ITU-R 625 line numbering**
-
-
 
 Remember the VBI image format depends on the selected video standard,
 therefore the application must choose a new standard or query the

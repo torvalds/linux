@@ -219,7 +219,7 @@ const pem_event_action notify_smu_suspend_tasks[] = {
 };
 
 const pem_event_action disable_smc_firmware_ctf_tasks[] = {
-	/* PEM_Task_DisableSMCFirmwareCTF,*/
+	pem_task_disable_smc_firmware_ctf,
 	NULL
 };
 

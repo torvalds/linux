@@ -53,6 +53,7 @@ static int rmi_smb_get_version(struct rmi_smb_xport *rmi_smb)
 		dev_err(&client->dev, "failed to get SMBus version number!\n");
 		return retval;
 	}
+
 	return retval + 1;
 }
 
@@ -83,63 +84,56 @@ static int rmi_smb_get_command_code(struct rmi_transport_dev *xport,
 {
 	struct rmi_smb_xport *rmi_smb =
 		container_of(xport, struct rmi_smb_xport, xport);
+	struct mapping_table_entry new_map;
 	int i;
-	int retval;
-	struct mapping_table_entry mapping_data[1];
+	int retval = 0;
 
 	mutex_lock(&rmi_smb->mappingtable_mutex);
+
 	for (i = 0; i < RMI_SMB2_MAP_SIZE; i++) {
-		if (rmi_smb->mapping_table[i].rmiaddr == rmiaddr) {
+		struct mapping_table_entry *entry = &rmi_smb->mapping_table[i];
+
+		if (le16_to_cpu(entry->rmiaddr) == rmiaddr) {
 			if (isread) {
-				if (rmi_smb->mapping_table[i].readcount
-							== bytecount) {
-					*commandcode = i;
-					retval = 0;
+				if (entry->readcount == bytecount)
 					goto exit;
-				}
 			} else {
-				if (rmi_smb->mapping_table[i].flags &
-							RMI_SMB2_MAP_FLAGS_WE) {
-					*commandcode = i;
-					retval = 0;
+				if (entry->flags & RMI_SMB2_MAP_FLAGS_WE) {
 					goto exit;
 				}
 			}
 		}
 	}
+
 	i = rmi_smb->table_index;
 	rmi_smb->table_index = (i + 1) % RMI_SMB2_MAP_SIZE;
 
 	/* constructs mapping table data entry. 4 bytes each entry */
-	memset(mapping_data, 0, sizeof(mapping_data));
+	memset(&new_map, 0, sizeof(new_map));
+	new_map.rmiaddr = cpu_to_le16(rmiaddr);
+	new_map.readcount = bytecount;
+	new_map.flags = !isread ? RMI_SMB2_MAP_FLAGS_WE : 0;
 
-	mapping_data[0].rmiaddr = cpu_to_le16(rmiaddr);
-	mapping_data[0].readcount = bytecount;
-	mapping_data[0].flags = !isread ? RMI_SMB2_MAP_FLAGS_WE : 0;
-
-	retval = smb_block_write(xport, i + 0x80, mapping_data,
-				 sizeof(mapping_data));
-
+	retval = smb_block_write(xport, i + 0x80, &new_map, sizeof(new_map));
 	if (retval < 0) {
 		/*
 		 * if not written to device mapping table
 		 * clear the driver mapping table records
 		 */
-		rmi_smb->mapping_table[i].rmiaddr = 0x0000;
-		rmi_smb->mapping_table[i].readcount = 0;
-		rmi_smb->mapping_table[i].flags = 0;
-		goto exit;
+		memset(&new_map, 0, sizeof(new_map));
 	}
+
 	/* save to the driver level mapping table */
-	rmi_smb->mapping_table[i].rmiaddr = rmiaddr;
-	rmi_smb->mapping_table[i].readcount = bytecount;
-	rmi_smb->mapping_table[i].flags = !isread ? RMI_SMB2_MAP_FLAGS_WE : 0;
-	*commandcode = i;
+	rmi_smb->mapping_table[i] = new_map;
 
 exit:
 	mutex_unlock(&rmi_smb->mappingtable_mutex);
 
-	return retval;
+	if (retval < 0)
+		return retval;
+
+	*commandcode = i;
+	return 0;
 }
 
 static int rmi_smb_write_block(struct rmi_transport_dev *xport, u16 rmiaddr,
@@ -282,19 +276,24 @@ static int rmi_smb_probe(struct i2c_client *client,
 {
 	struct rmi_device_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct rmi_smb_xport *rmi_smb;
-	int retval;
 	int smbus_version;
+	int error;
+
+	if (!pdata) {
+		dev_err(&client->dev, "no platform data, aborting\n");
+		return -ENOMEM;
+	}
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BLOCK_DATA |
 				     I2C_FUNC_SMBUS_HOST_NOTIFY)) {
 		dev_err(&client->dev,
-			"adapter does not support required functionality.\n");
+			"adapter does not support required functionality\n");
 		return -ENODEV;
 	}
 
 	if (client->irq <= 0) {
-		dev_err(&client->dev, "no IRQ provided, giving up.\n");
+		dev_err(&client->dev, "no IRQ provided, giving up\n");
 		return client->irq ? client->irq : -ENODEV;
 	}
 
@@ -303,12 +302,7 @@ static int rmi_smb_probe(struct i2c_client *client,
 	if (!rmi_smb)
 		return -ENOMEM;
 
-	if (!pdata) {
-		dev_err(&client->dev, "no platform data, aborting\n");
-		return -ENOMEM;
-	}
-
-	rmi_dbg(RMI_DEBUG_XPORT, &client->dev, "Probing %s.\n",
+	rmi_dbg(RMI_DEBUG_XPORT, &client->dev, "Probing %s\n",
 		dev_name(&client->dev));
 
 	rmi_smb->client = client;
@@ -321,34 +315,30 @@ static int rmi_smb_probe(struct i2c_client *client,
 	rmi_smb->xport.proto_name = "smb2";
 	rmi_smb->xport.ops = &rmi_smb_ops;
 
-	retval = rmi_smb_get_version(rmi_smb);
-	if (retval < 0)
-		return retval;
+	smbus_version = rmi_smb_get_version(rmi_smb);
+	if (smbus_version < 0)
+		return smbus_version;
 
-	smbus_version = retval;
 	rmi_dbg(RMI_DEBUG_XPORT, &client->dev, "Smbus version is %d",
 		smbus_version);
 
 	if (smbus_version != 2) {
-		dev_err(&client->dev, "Unrecognized SMB version %d.\n",
+		dev_err(&client->dev, "Unrecognized SMB version %d\n",
 				smbus_version);
 		return -ENODEV;
 	}
 
 	i2c_set_clientdata(client, rmi_smb);
 
-	retval = rmi_register_transport_device(&rmi_smb->xport);
-	if (retval) {
-		dev_err(&client->dev, "Failed to register transport driver at 0x%.2X.\n",
-			client->addr);
-		i2c_set_clientdata(client, NULL);
-		return retval;
+	dev_info(&client->dev, "registering SMbus-connected sensor\n");
+
+	error = rmi_register_transport_device(&rmi_smb->xport);
+	if (error) {
+		dev_err(&client->dev, "failed to register sensor: %d\n", error);
+		return error;
 	}
 
-	dev_info(&client->dev, "registered rmi smb driver at %#04x.\n",
-			client->addr);
 	return 0;
-
 }
 
 static int rmi_smb_remove(struct i2c_client *client)

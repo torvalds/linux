@@ -171,7 +171,6 @@ struct sbs_info {
 	u32				i2c_retry_count;
 	u32				poll_retry_count;
 	struct delayed_work		work;
-	int				ignore_changes;
 };
 
 static char model_name[I2C_SMBUS_BLOCK_MAX + 1];
@@ -296,6 +295,31 @@ static int sbs_write_word_data(struct i2c_client *client, u8 address,
 	return 0;
 }
 
+static int sbs_status_correct(struct i2c_client *client, int *intval)
+{
+	int ret;
+
+	ret = sbs_read_word_data(client, sbs_data[REG_CURRENT].addr);
+	if (ret < 0)
+		return ret;
+
+	ret = (s16)ret;
+
+	/* Not drawing current means full (cannot be not charging) */
+	if (ret == 0)
+		*intval = POWER_SUPPLY_STATUS_FULL;
+
+	if (*intval == POWER_SUPPLY_STATUS_FULL) {
+		/* Drawing or providing current when full */
+		if (ret > 0)
+			*intval = POWER_SUPPLY_STATUS_CHARGING;
+		else if (ret < 0)
+			*intval = POWER_SUPPLY_STATUS_DISCHARGING;
+	}
+
+	return 0;
+}
+
 static int sbs_get_battery_presence_and_health(
 	struct i2c_client *client, enum power_supply_property psp,
 	union power_supply_propval *val)
@@ -401,6 +425,8 @@ static int sbs_get_battery_property(struct i2c_client *client,
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+
+		sbs_status_correct(client, &val->intval);
 
 		if (chip->poll_time == 0)
 			chip->last_state = val->intval;
@@ -675,29 +701,33 @@ done:
 	return 0;
 }
 
-static irqreturn_t sbs_irq(int irq, void *devid)
+static void sbs_supply_changed(struct sbs_info *chip)
 {
-	struct sbs_info *chip = devid;
 	struct power_supply *battery = chip->power_supply;
 	int ret;
 
 	ret = gpiod_get_value_cansleep(chip->gpio_detect);
 	if (ret < 0)
-		return ret;
+		return;
 	chip->is_present = ret;
 	power_supply_changed(battery);
+}
 
+static irqreturn_t sbs_irq(int irq, void *devid)
+{
+	sbs_supply_changed(devid);
 	return IRQ_HANDLED;
+}
+
+static void sbs_alert(struct i2c_client *client, enum i2c_alert_protocol prot,
+	unsigned int data)
+{
+	sbs_supply_changed(i2c_get_clientdata(client));
 }
 
 static void sbs_external_power_changed(struct power_supply *psy)
 {
 	struct sbs_info *chip = power_supply_get_drvdata(psy);
-
-	if (chip->ignore_changes > 0) {
-		chip->ignore_changes--;
-		return;
-	}
 
 	/* cancel outstanding work */
 	cancel_delayed_work_sync(&chip->work);
@@ -726,6 +756,8 @@ static void sbs_delayed_work(struct work_struct *work)
 		ret = POWER_SUPPLY_STATUS_DISCHARGING;
 	else
 		ret = POWER_SUPPLY_STATUS_CHARGING;
+
+	sbs_status_correct(chip->client, &ret);
 
 	if (chip->last_state != ret) {
 		chip->poll_time = 0;
@@ -775,10 +807,6 @@ static int sbs_probe(struct i2c_client *client,
 	chip->enable_detection = false;
 	psy_cfg.of_node = client->dev.of_node;
 	psy_cfg.drv_data = chip;
-	/* ignore first notification of external change, it is generated
-	 * from the power_supply_register call back
-	 */
-	chip->ignore_changes = 1;
 	chip->last_state = POWER_SUPPLY_STATUS_UNKNOWN;
 
 	/* use pdata if available, fall back to DT properties,
@@ -820,7 +848,7 @@ static int sbs_probe(struct i2c_client *client,
 	}
 
 	rc = devm_request_threaded_irq(&client->dev, irq, NULL, sbs_irq,
-		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 		dev_name(&client->dev), chip);
 	if (rc) {
 		dev_warn(&client->dev, "Failed to request irq: %d\n", rc);
@@ -917,6 +945,7 @@ MODULE_DEVICE_TABLE(of, sbs_dt_ids);
 static struct i2c_driver sbs_battery_driver = {
 	.probe		= sbs_probe,
 	.remove		= sbs_remove,
+	.alert		= sbs_alert,
 	.id_table	= sbs_id,
 	.driver = {
 		.name	= "sbs-battery",

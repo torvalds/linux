@@ -117,28 +117,26 @@ static int chaoskey_probe(struct usb_interface *interface,
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct usb_host_interface *altsetting = interface->cur_altsetting;
-	int i;
-	int in_ep = -1;
+	struct usb_endpoint_descriptor *epd;
+	int in_ep;
 	struct chaoskey *dev;
 	int result = -ENOMEM;
 	int size;
+	int res;
 
 	usb_dbg(interface, "probe %s-%s", udev->product, udev->serial);
 
 	/* Find the first bulk IN endpoint and its packet size */
-	for (i = 0; i < altsetting->desc.bNumEndpoints; i++) {
-		if (usb_endpoint_is_bulk_in(&altsetting->endpoint[i].desc)) {
-			in_ep = usb_endpoint_num(&altsetting->endpoint[i].desc);
-			size = usb_endpoint_maxp(&altsetting->endpoint[i].desc);
-			break;
-		}
+	res = usb_find_bulk_in_endpoint(altsetting, &epd);
+	if (res) {
+		usb_dbg(interface, "no IN endpoint found");
+		return res;
 	}
 
+	in_ep = usb_endpoint_num(epd);
+	size = usb_endpoint_maxp(epd);
+
 	/* Validate endpoint and size */
-	if (in_ep == -1) {
-		usb_dbg(interface, "no IN endpoint found");
-		return -ENODEV;
-	}
 	if (size <= 0) {
 		usb_dbg(interface, "invalid size (%d)", size);
 		return -ENODEV;
@@ -194,7 +192,7 @@ static int chaoskey_probe(struct usb_interface *interface,
 
 	dev->in_ep = in_ep;
 
-	if (udev->descriptor.idVendor != ALEA_VENDOR_ID)
+	if (le16_to_cpu(udev->descriptor.idVendor) != ALEA_VENDOR_ID)
 		dev->reads_started = 1;
 
 	dev->size = size;

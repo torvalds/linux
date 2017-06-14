@@ -22,6 +22,8 @@
 #ifndef _NFSD_CLD_H
 #define _NFSD_CLD_H
 
+#include <linux/types.h>
+
 /* latest upcall version available */
 #define CLD_UPCALL_VERSION 1
 
@@ -37,18 +39,18 @@ enum cld_command {
 
 /* representation of long-form NFSv4 client ID */
 struct cld_name {
-	uint16_t	cn_len;				/* length of cm_id */
+	__u16		cn_len;				/* length of cm_id */
 	unsigned char	cn_id[NFS4_OPAQUE_LIMIT];	/* client-provided */
 } __attribute__((packed));
 
 /* message struct for communication with userspace */
 struct cld_msg {
-	uint8_t		cm_vers;		/* upcall version */
-	uint8_t		cm_cmd;			/* upcall command */
-	int16_t		cm_status;		/* return code */
-	uint32_t	cm_xid;			/* transaction id */
+	__u8		cm_vers;		/* upcall version */
+	__u8		cm_cmd;			/* upcall command */
+	__s16		cm_status;		/* return code */
+	__u32		cm_xid;			/* transaction id */
 	union {
-		int64_t		cm_gracetime;	/* grace period start time */
+		__s64		cm_gracetime;	/* grace period start time */
 		struct cld_name	cm_name;
 	} __attribute__((packed)) cm_u;
 } __attribute__((packed));

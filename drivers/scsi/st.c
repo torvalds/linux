@@ -480,7 +480,7 @@ static void st_do_stats(struct scsi_tape *STp, struct request *req)
 		atomic64_add(ktime_to_ns(now), &STp->stats->tot_write_time);
 		atomic64_add(ktime_to_ns(now), &STp->stats->tot_io_time);
 		atomic64_inc(&STp->stats->write_cnt);
-		if (req->errors) {
+		if (scsi_req(req)->result) {
 			atomic64_add(atomic_read(&STp->stats->last_write_size)
 				- STp->buffer->cmdstat.residual,
 				&STp->stats->write_byte_cnt);
@@ -494,7 +494,7 @@ static void st_do_stats(struct scsi_tape *STp, struct request *req)
 		atomic64_add(ktime_to_ns(now), &STp->stats->tot_read_time);
 		atomic64_add(ktime_to_ns(now), &STp->stats->tot_io_time);
 		atomic64_inc(&STp->stats->read_cnt);
-		if (req->errors) {
+		if (scsi_req(req)->result) {
 			atomic64_add(atomic_read(&STp->stats->last_read_size)
 				- STp->buffer->cmdstat.residual,
 				&STp->stats->read_byte_cnt);
@@ -518,7 +518,7 @@ static void st_scsi_execute_end(struct request *req, int uptodate)
 	struct scsi_tape *STp = SRpnt->stp;
 	struct bio *tmp;
 
-	STp->buffer->cmdstat.midlevel_result = SRpnt->result = req->errors;
+	STp->buffer->cmdstat.midlevel_result = SRpnt->result = rq->result;
 	STp->buffer->cmdstat.residual = rq->resid_len;
 
 	st_do_stats(STp, req);
@@ -579,7 +579,7 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	memset(rq->cmd, 0, BLK_MAX_CDB);
 	memcpy(rq->cmd, cmd, rq->cmd_len);
 	req->timeout = timeout;
-	req->retries = retries;
+	rq->retries = retries;
 	req->end_io_data = SRpnt;
 
 	blk_execute_rq_nowait(req->q, NULL, req, 1, st_scsi_execute_end);

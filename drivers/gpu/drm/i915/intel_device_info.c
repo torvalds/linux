@@ -56,6 +56,8 @@ static const char * const platform_names[] = {
 
 const char *intel_platform_name(enum intel_platform platform)
 {
+	BUILD_BUG_ON(ARRAY_SIZE(platform_names) != INTEL_MAX_PLATFORMS);
+
 	if (WARN_ON_ONCE(platform >= ARRAY_SIZE(platform_names) ||
 			 platform_names[platform] == NULL))
 		return "<unknown>";
@@ -195,8 +197,10 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 		IS_GEN9_LP(dev_priv) && sseu_subslice_total(sseu) > 1;
 	sseu->has_eu_pg = sseu->eu_per_subslice > 2;
 
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv)) {
 #define IS_SS_DISABLED(ss)	(!(sseu->subslice_mask & BIT(ss)))
+		info->has_pooled_eu = hweight8(sseu->subslice_mask) == 3;
+
 		/*
 		 * There is a HW issue in 2x6 fused down parts that requires
 		 * Pooled EU to be enabled as a WA. The pool configuration
@@ -204,9 +208,8 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 		 * doesn't affect if the device has all 3 subslices enabled.
 		 */
 		/* WaEnablePooledEuFor2x6:bxt */
-		info->has_pooled_eu = ((hweight8(sseu->subslice_mask) == 3) ||
-				       (hweight8(sseu->subslice_mask) == 2 &&
-					INTEL_REVID(dev_priv) < BXT_REVID_C0));
+		info->has_pooled_eu |= (hweight8(sseu->subslice_mask) == 2 &&
+					IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST));
 
 		sseu->min_eu_in_pool = 0;
 		if (info->has_pooled_eu) {
@@ -234,7 +237,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * The subslice disable field is global, i.e. it applies
 	 * to each of the enabled slices.
 	 */
-	sseu->subslice_mask = BIT(ss_max) - 1;
+	sseu->subslice_mask = GENMASK(ss_max - 1, 0);
 	sseu->subslice_mask &= ~((fuse2 & GEN8_F2_SS_DIS_MASK) >>
 				 GEN8_F2_SS_DIS_SHIFT);
 
@@ -409,10 +412,6 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		gen9_sseu_info_init(dev_priv);
 
 	info->has_snoop = !info->has_llc;
-
-	/* Snooping is broken on BXT A stepping. */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-		info->has_snoop = false;
 
 	DRM_DEBUG_DRIVER("slice mask: %04x\n", info->sseu.slice_mask);
 	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));

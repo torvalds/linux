@@ -1108,6 +1108,13 @@ static const struct dmi_system_id force_combo_jack_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Kabylake Client platform")
 		}
 	},
+	{
+		.ident = "Thinkpad Helix 2nd",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Helix 2nd")
+		}
+	},
 
 	{ }
 };

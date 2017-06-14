@@ -157,7 +157,7 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_PPI 7 GIC_CPU_MASK_SIMPLE(4)>;
 	};
 
@@ -833,8 +833,9 @@
 
 			clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
 				 <&gcc GCC_MSS_Q6_BIMC_AXI_CLK>,
-				 <&gcc GCC_BOOT_ROM_AHB_CLK>;
-			clock-names = "iface", "bus", "mem";
+				 <&gcc GCC_BOOT_ROM_AHB_CLK>,
+				 <&xo_board>;
+			clock-names = "iface", "bus", "mem", "xo";
 
 			qcom,smem-states = <&hexagon_smp2p_out 0>;
 			qcom,smem-state-names = "stop";
@@ -842,6 +843,7 @@
 			resets = <&scm 0>;
 			reset-names = "mss_restart";
 
+			cx-supply = <&pm8916_s1>;
 			mx-supply = <&pm8916_l3>;
 			pll-supply = <&pm8916_l7>;
 
@@ -855,6 +857,16 @@
 
 			mpss {
 				memory-region = <&mpss_mem>;
+			};
+
+			smd-edge {
+				interrupts = <0 25 IRQ_TYPE_EDGE_RISING>;
+
+				qcom,smd-edge = <0>;
+				qcom,ipc = <&apcs 8 12>;
+				qcom,remote-pid = <1>;
+
+				label = "hexagon";
 			};
 		};
 
@@ -1213,14 +1225,6 @@
 					pm8916_l18: l18 {};
 				};
 			};
-		};
-
-		hexagon {
-			interrupts = <0 25 IRQ_TYPE_EDGE_RISING>;
-
-			qcom,smd-edge = <0>;
-			qcom,ipc = <&apcs 8 12>;
-			qcom,remote-pid = <1>;
 		};
 	};
 

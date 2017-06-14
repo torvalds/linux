@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016 - 2017 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -12,14 +12,7 @@
  */
 #ifndef __DAX_H__
 #define __DAX_H__
-struct device;
-struct dax_dev;
-struct resource;
-struct dax_region;
-void dax_region_put(struct dax_region *dax_region);
-struct dax_region *alloc_dax_region(struct device *parent,
-		int region_id, struct resource *res, unsigned int align,
-		void *addr, unsigned long flags);
-struct dax_dev *devm_create_dax_dev(struct dax_region *dax_region,
-		struct resource *res, int count);
+struct dax_device;
+struct dax_device *inode_dax(struct inode *inode);
+struct inode *dax_inode(struct dax_device *dax_dev);
 #endif /* __DAX_H__ */

@@ -281,6 +281,11 @@ static int qede_dcbnl_ieee_setapp(struct net_device *netdev,
 				  struct dcb_app *app)
 {
 	struct qede_dev *edev = netdev_priv(netdev);
+	int err;
+
+	err = dcb_ieee_setapp(netdev, app);
+	if (err)
+		return err;
 
 	return edev->ops->dcb->ieee_setapp(edev->cdev, app);
 }

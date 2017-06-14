@@ -252,11 +252,13 @@ struct nicvf_drv_stats {
 	u64 tx_csum_overflow;
 
 	/* driver debug stats */
-	u64 rcv_buffer_alloc_failures;
 	u64 tx_tso;
 	u64 tx_timeout;
 	u64 txq_stop;
 	u64 txq_wake;
+
+	u64 rcv_buffer_alloc_failures;
+	u64 page_alloc;
 
 	struct u64_stats_sync   syncp;
 };
@@ -266,9 +268,9 @@ struct nicvf {
 	struct net_device	*netdev;
 	struct pci_dev		*pdev;
 	void __iomem		*reg_base;
+	struct bpf_prog         *xdp_prog;
 #define	MAX_QUEUES_PER_QSET			8
 	struct queue_set	*qs;
-	struct nicvf_cq_poll	*napi[8];
 	void			*iommu_domain;
 	u8			vf_id;
 	u8			sqs_id;
@@ -294,6 +296,7 @@ struct nicvf {
 	/* Queue count */
 	u8			rx_queues;
 	u8			tx_queues;
+	u8			xdp_tx_queues;
 	u8			max_queues;
 
 	u8			node;
@@ -318,10 +321,11 @@ struct nicvf {
 	struct nicvf_drv_stats  __percpu *drv_stats;
 	struct bgx_stats	bgx_stats;
 
+	/* Napi */
+	struct nicvf_cq_poll	*napi[8];
+
 	/* MSI-X  */
-	bool			msix_enabled;
 	u8			num_vec;
-	struct msix_entry	msix_entries[NIC_VF_MSIX_VECTORS];
 	char			irq_name[NIC_VF_MSIX_VECTORS][IFNAMSIZ + 15];
 	bool			irq_allocated[NIC_VF_MSIX_VECTORS];
 	cpumask_var_t		affinity_mask[NIC_VF_MSIX_VECTORS];

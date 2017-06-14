@@ -369,7 +369,7 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		 * packet ID will usually increase in the middle of a series
 		 * instead of at the end.
 		 */
-		if (packet_id != header->packet_id)
+		if (packet_id != le32_to_cpu(header->packet_id))
 			dev_dbg(sur40->dev, "packet ID mismatch\n");
 
 		packet_blobs = result / sizeof(struct sur40_blob);

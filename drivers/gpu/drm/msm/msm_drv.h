@@ -191,7 +191,8 @@ void msm_gem_unmap_vma(struct msm_gem_address_space *aspace,
 int msm_gem_map_vma(struct msm_gem_address_space *aspace,
 		struct msm_gem_vma *vma, struct sg_table *sgt, int npages);
 
-void msm_gem_address_space_destroy(struct msm_gem_address_space *aspace);
+void msm_gem_address_space_put(struct msm_gem_address_space *aspace);
+
 struct msm_gem_address_space *
 msm_gem_address_space_create(struct device *dev, struct iommu_domain *domain,
 		const char *name);
@@ -223,6 +224,7 @@ struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj);
 void *msm_gem_prime_vmap(struct drm_gem_object *obj);
 void msm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
+struct reservation_object *msm_gem_prime_res_obj(struct drm_gem_object *obj);
 struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
 		struct dma_buf_attachment *attach, struct sg_table *sg);
 int msm_gem_prime_pin(struct drm_gem_object *obj);
@@ -304,13 +306,15 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m);
 void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
 int msm_debugfs_late_init(struct drm_device *dev);
 int msm_rd_debugfs_init(struct drm_minor *minor);
-void msm_rd_debugfs_cleanup(struct drm_minor *minor);
+void msm_rd_debugfs_cleanup(struct msm_drm_private *priv);
 void msm_rd_dump_submit(struct msm_gem_submit *submit);
 int msm_perf_debugfs_init(struct drm_minor *minor);
-void msm_perf_debugfs_cleanup(struct drm_minor *minor);
+void msm_perf_debugfs_cleanup(struct msm_drm_private *priv);
 #else
 static inline int msm_debugfs_late_init(struct drm_device *dev) { return 0; }
 static inline void msm_rd_dump_submit(struct msm_gem_submit *submit) {}
+static inline void msm_rd_debugfs_cleanup(struct msm_drm_private *priv) {}
+static inline void msm_perf_debugfs_cleanup(struct msm_drm_private *priv) {}
 #endif
 
 struct clk *msm_clk_get(struct platform_device *pdev, const char *name);

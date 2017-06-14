@@ -752,10 +752,11 @@ static int mvebu_sw_pci_bridge_write(struct mvebu_pcie_port *port,
 		 * If the mask is 0xffff0000, then we only want to write
 		 * the link control register, rather than clearing the
 		 * RW1C bits in the link status register.  Mask out the
-		 * status register bits.
+		 * RW1C status register bits.
 		 */
 		if (mask == 0xffff0000)
-			value &= 0xffff;
+			value &= ~((PCI_EXP_LNKSTA_LABS |
+				    PCI_EXP_LNKSTA_LBMS) << 16);
 
 		mvebu_writel(port, value, PCIE_CAP_PCIEXP + PCI_EXP_LNKCTL);
 		break;
@@ -1003,22 +1004,6 @@ static int mvebu_get_tgt_attr(struct device_node *np, int devfn,
 	}
 
 	return -ENOENT;
-}
-
-static void mvebu_pcie_msi_enable(struct mvebu_pcie *pcie)
-{
-	struct device_node *msi_node;
-
-	msi_node = of_parse_phandle(pcie->pdev->dev.of_node,
-				    "msi-parent", 0);
-	if (!msi_node)
-		return;
-
-	pcie->msi = of_pci_find_msi_chip_by_node(msi_node);
-	of_node_put(msi_node);
-
-	if (pcie->msi)
-		pcie->msi->dev = &pcie->pdev->dev;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1298,7 +1283,6 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	for (i = 0; i < (IO_SPACE_LIMIT - SZ_64K); i += SZ_64K)
 		pci_ioremap_io(i, pcie->io.start + i);
 
-	mvebu_pcie_msi_enable(pcie);
 	mvebu_pcie_enable(pcie);
 
 	platform_set_drvdata(pdev, pcie);

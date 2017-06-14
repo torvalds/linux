@@ -447,21 +447,6 @@ static inline void eth_addr_dec(u8 *addr)
 }
 
 /**
- * ether_addr_greater - Compare two Ethernet addresses
- * @addr1: Pointer to a six-byte array containing the Ethernet address
- * @addr2: Pointer other six-byte array containing the Ethernet address
- *
- * Compare two Ethernet addresses, returns true addr1 is greater than addr2
- */
-static inline bool ether_addr_greater(const u8 *addr1, const u8 *addr2)
-{
-	u64 u1 = ether_addr_to_u64(addr1);
-	u64 u2 = ether_addr_to_u64(addr2);
-
-	return u1 > u2;
-}
-
-/**
  * is_etherdev_addr - Tell if given Ethernet address belongs to the device.
  * @dev: Pointer to a device structure
  * @addr: Pointer to a six-byte array containing the Ethernet address

@@ -1929,7 +1929,7 @@ static struct net_device_stats *emac_stats(struct net_device *ndev)
 	struct emac_instance *dev = netdev_priv(ndev);
 	struct emac_stats *st = &dev->stats;
 	struct emac_error_stats *est = &dev->estats;
-	struct net_device_stats *nst = &dev->nstats;
+	struct net_device_stats *nst = &ndev->stats;
 	unsigned long flags;
 
 	DBG2(dev, "stats" NL);
@@ -3173,8 +3173,6 @@ static int emac_probe(struct platform_device *ofdev)
 		printk("%s: found %s PHY (0x%02x)\n", ndev->name,
 		       dev->phy.def->name, dev->phy.address);
 
-	emac_dbg_register(dev);
-
 	/* Life is good */
 	return 0;
 
@@ -3243,7 +3241,6 @@ static int emac_remove(struct platform_device *ofdev)
 	mal_unregister_commac(dev->mal, &dev->commac);
 	emac_put_deps(dev);
 
-	emac_dbg_unregister(dev);
 	iounmap(dev->emacp);
 
 	if (dev->wol_irq)
@@ -3326,9 +3323,6 @@ static int __init emac_init(void)
 
 	printk(KERN_INFO DRV_DESC ", version " DRV_VERSION "\n");
 
-	/* Init debug stuff */
-	emac_init_debug();
-
 	/* Build EMAC boot list */
 	emac_make_bootlist();
 
@@ -3373,7 +3367,6 @@ static void __exit emac_exit(void)
 	rgmii_exit();
 	zmii_exit();
 	mal_exit();
-	emac_fini_debug();
 
 	/* Destroy EMAC boot list */
 	for (i = 0; i < EMAC_BOOT_LIST_SIZE; i++)

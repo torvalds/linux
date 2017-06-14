@@ -1690,9 +1690,6 @@ struct aac_dev
 #define aac_adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4) \
 	(dev)->a_ops.adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4)
 
-#define aac_adapter_check_health(dev) \
-	(dev)->a_ops.adapter_check_health(dev)
-
 #define aac_adapter_restart(dev, bled, reset_type) \
 	((dev)->a_ops.adapter_restart(dev, bled, reset_type))
 
@@ -2613,6 +2610,14 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 {
 	sector_div(capacity, divisor);
 	return capacity;
+}
+
+static inline int aac_adapter_check_health(struct aac_dev *dev)
+{
+	if (unlikely(pci_channel_offline(dev->pdev)))
+		return -1;
+
+	return (dev)->a_ops.adapter_check_health(dev);
 }
 
 /* SCp.phase values */

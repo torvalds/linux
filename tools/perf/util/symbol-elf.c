@@ -10,8 +10,9 @@
 #include "demangle-rust.h"
 #include "machine.h"
 #include "vdso.h"
-#include <symbol/kallsyms.h>
 #include "debug.h"
+#include "sane_ctype.h"
+#include <symbol/kallsyms.h>
 
 #ifndef EM_AARCH64
 #define EM_AARCH64	183  /* ARM 64 bit */
@@ -390,6 +391,11 @@ out_elf_end:
 	return 0;
 }
 
+char *dso__demangle_sym(struct dso *dso, int kmodule, char *elf_name)
+{
+	return demangle_sym(dso, kmodule, elf_name);
+}
+
 /*
  * Align offset to 4 bytes as needed for note name and descriptor data.
  */
@@ -631,43 +637,6 @@ static int dso__swap_init(struct dso *dso, unsigned char eidata)
 	return 0;
 }
 
-static int decompress_kmodule(struct dso *dso, const char *name,
-			      enum dso_binary_type type)
-{
-	int fd = -1;
-	char tmpbuf[] = "/tmp/perf-kmod-XXXXXX";
-	struct kmod_path m;
-
-	if (type != DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP &&
-	    type != DSO_BINARY_TYPE__GUEST_KMODULE_COMP &&
-	    type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
-		return -1;
-
-	if (type == DSO_BINARY_TYPE__BUILD_ID_CACHE)
-		name = dso->long_name;
-
-	if (kmod_path__parse_ext(&m, name) || !m.comp)
-		return -1;
-
-	fd = mkstemp(tmpbuf);
-	if (fd < 0) {
-		dso->load_errno = errno;
-		goto out;
-	}
-
-	if (!decompress_to_file(m.ext, name, fd)) {
-		dso->load_errno = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
-		close(fd);
-		fd = -1;
-	}
-
-	unlink(tmpbuf);
-
-out:
-	free(m.ext);
-	return fd;
-}
-
 bool symsrc__possibly_runtime(struct symsrc *ss)
 {
 	return ss->dynsym || ss->opdsec;
@@ -699,9 +668,11 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	int fd;
 
 	if (dso__needs_decompress(dso)) {
-		fd = decompress_kmodule(dso, name, type);
+		fd = dso__decompress_kmodule_fd(dso, name);
 		if (fd < 0)
 			return -1;
+
+		type = dso->symtab_type;
 	} else {
 		fd = open(name, O_RDONLY);
 		if (fd < 0) {
@@ -1828,7 +1799,7 @@ void kcore_extract__delete(struct kcore_extract *kce)
 static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 			     struct list_head *sdt_notes)
 {
-	const char *provider, *name;
+	const char *provider, *name, *args;
 	struct sdt_note *tmp = NULL;
 	GElf_Ehdr ehdr;
 	GElf_Addr base_off = 0;
@@ -1887,6 +1858,25 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 		goto out_free_prov;
 	}
 
+	args = memchr(name, '\0', data + len - name);
+
+	/*
+	 * There is no argument if:
+	 * - We reached the end of the note;
+	 * - There is not enough room to hold a potential string;
+	 * - The argument string is empty or just contains ':'.
+	 */
+	if (args == NULL || data + len - args < 2 ||
+		args[1] == ':' || args[1] == '\0')
+		tmp->args = NULL;
+	else {
+		tmp->args = strdup(++args);
+		if (!tmp->args) {
+			ret = -ENOMEM;
+			goto out_free_name;
+		}
+	}
+
 	if (gelf_getclass(*elf) == ELFCLASS32) {
 		memcpy(&tmp->addr, &buf, 3 * sizeof(Elf32_Addr));
 		tmp->bit32 = true;
@@ -1898,7 +1888,7 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	if (!gelf_getehdr(*elf, &ehdr)) {
 		pr_debug("%s : cannot get elf header.\n", __func__);
 		ret = -EBADF;
-		goto out_free_name;
+		goto out_free_args;
 	}
 
 	/* Adjust the prelink effect :
@@ -1923,6 +1913,8 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	list_add_tail(&tmp->note_list, sdt_notes);
 	return 0;
 
+out_free_args:
+	free(tmp->args);
 out_free_name:
 	free(tmp->name);
 out_free_prov:

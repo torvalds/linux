@@ -164,7 +164,7 @@ int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 	if (mutex_trylock(&head->mutex))
 		return 0;
 
-	atomic_inc(&head->node.refs);
+	refcount_inc(&head->node.refs);
 	spin_unlock(&delayed_refs->lock);
 
 	mutex_lock(&head->mutex);
@@ -590,7 +590,7 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 	delayed_refs = &trans->transaction->delayed_refs;
 
 	/* first set the basic ref node struct up */
-	atomic_set(&ref->refs, 1);
+	refcount_set(&ref->refs, 1);
 	ref->bytenr = bytenr;
 	ref->num_bytes = num_bytes;
 	ref->ref_mod = count_mod;
@@ -682,7 +682,7 @@ add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	delayed_refs = &trans->transaction->delayed_refs;
 
 	/* first set the basic ref node struct up */
-	atomic_set(&ref->refs, 1);
+	refcount_set(&ref->refs, 1);
 	ref->bytenr = bytenr;
 	ref->num_bytes = num_bytes;
 	ref->ref_mod = 1;
@@ -739,7 +739,7 @@ add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 		seq = atomic64_read(&fs_info->tree_mod_seq);
 
 	/* first set the basic ref node struct up */
-	atomic_set(&ref->refs, 1);
+	refcount_set(&ref->refs, 1);
 	ref->bytenr = bytenr;
 	ref->num_bytes = num_bytes;
 	ref->ref_mod = 1;

@@ -446,13 +446,12 @@ static int match_region(const void *key, const void *elt)
 	return 0;
 }
 
-/* Find the proper register handler entry given a certain address offset. */
-static const struct vgic_register_region *
-vgic_find_mmio_region(const struct vgic_register_region *region, int nr_regions,
-		      unsigned int offset)
+const struct vgic_register_region *
+vgic_find_mmio_region(const struct vgic_register_region *regions,
+		      int nr_regions, unsigned int offset)
 {
-	return bsearch((void *)(uintptr_t)offset, region, nr_regions,
-		       sizeof(region[0]), match_region);
+	return bsearch((void *)(uintptr_t)offset, regions, nr_regions,
+		       sizeof(regions[0]), match_region);
 }
 
 void vgic_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr)

@@ -90,19 +90,18 @@ static void mall_destroy_hw_filter(struct tcf_proto *tp,
 					     &offload);
 }
 
-static bool mall_destroy(struct tcf_proto *tp, bool force)
+static void mall_destroy(struct tcf_proto *tp)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 	struct net_device *dev = tp->q->dev_queue->dev;
 
 	if (!head)
-		return true;
+		return;
 
 	if (tc_should_offload(dev, tp, head->flags))
 		mall_destroy_hw_filter(tp, head, (unsigned long) head);
 
 	call_rcu(&head->rcu, mall_destroy_rcu);
-	return true;
 }
 
 static unsigned long mall_get(struct tcf_proto *tp, u32 handle)
@@ -161,8 +160,8 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	if (head)
 		return -EEXIST;
 
-	err = nla_parse_nested(tb, TCA_MATCHALL_MAX,
-			       tca[TCA_OPTIONS], mall_policy);
+	err = nla_parse_nested(tb, TCA_MATCHALL_MAX, tca[TCA_OPTIONS],
+			       mall_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -204,8 +203,6 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 
 	*arg = (unsigned long) head;
 	rcu_assign_pointer(tp->root, new);
-	if (head)
-		call_rcu(&head->rcu, mall_destroy_rcu);
 	return 0;
 
 err_replace_hw_filter:
@@ -216,7 +213,7 @@ err_exts_init:
 	return err;
 }
 
-static int mall_delete(struct tcf_proto *tp, unsigned long arg)
+static int mall_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
 {
 	return -EOPNOTSUPP;
 }

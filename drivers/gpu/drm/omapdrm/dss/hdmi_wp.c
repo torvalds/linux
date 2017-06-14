@@ -147,15 +147,17 @@ void hdmi_wp_video_config_interface(struct hdmi_wp_data *wp,
 				    struct videomode *vm)
 {
 	u32 r;
-	bool vsync_pol, hsync_pol;
+	bool vsync_inv, hsync_inv;
 	DSSDBG("Enter hdmi_wp_video_config_interface\n");
 
-	vsync_pol = !!(vm->flags & DISPLAY_FLAGS_VSYNC_HIGH);
-	hsync_pol = !!(vm->flags & DISPLAY_FLAGS_HSYNC_HIGH);
+	vsync_inv = !!(vm->flags & DISPLAY_FLAGS_VSYNC_LOW);
+	hsync_inv = !!(vm->flags & DISPLAY_FLAGS_HSYNC_LOW);
 
 	r = hdmi_read_reg(wp->base, HDMI_WP_VIDEO_CFG);
-	r = FLD_MOD(r, vsync_pol, 7, 7);
-	r = FLD_MOD(r, hsync_pol, 6, 6);
+	r = FLD_MOD(r, 1, 7, 7);	/* VSYNC_POL to dispc active high */
+	r = FLD_MOD(r, 1, 6, 6);	/* HSYNC_POL to dispc active high */
+	r = FLD_MOD(r, vsync_inv, 5, 5);	/* CORE_VSYNC_INV */
+	r = FLD_MOD(r, hsync_inv, 4, 4);	/* CORE_HSYNC_INV */
 	r = FLD_MOD(r, !!(vm->flags & DISPLAY_FLAGS_INTERLACED), 3, 3);
 	r = FLD_MOD(r, 1, 1, 0); /* HDMI_TIMING_MASTER_24BIT */
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_CFG, r);

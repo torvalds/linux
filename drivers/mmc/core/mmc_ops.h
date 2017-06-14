@@ -46,6 +46,8 @@ int mmc_read_bkops_status(struct mmc_card *card);
 void mmc_start_bkops(struct mmc_card *card, bool from_exception);
 int mmc_can_reset(struct mmc_card *card);
 int mmc_flush_cache(struct mmc_card *card);
+int mmc_cmdq_enable(struct mmc_card *card);
+int mmc_cmdq_disable(struct mmc_card *card);
 
 #endif
 

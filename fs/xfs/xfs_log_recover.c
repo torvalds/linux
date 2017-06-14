@@ -3796,7 +3796,7 @@ xlog_recover_bud_pass2(
  * This routine is called when an inode create format structure is found in a
  * committed transaction in the log.  It's purpose is to initialise the inodes
  * being allocated on disk. This requires us to get inode cluster buffers that
- * match the range to be intialised, stamped with inode templates and written
+ * match the range to be initialised, stamped with inode templates and written
  * by delayed write so that subsequent modifications will hit the cached buffer
  * and only need writing out at the end of recovery.
  */

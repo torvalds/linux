@@ -645,7 +645,7 @@ static void overlay1fb_disable(struct pxafb_layer *ofb)
 	lcd_writel(ofb->fbi, FBR1, ofb->fbi->fdadr[DMA_OV1] | 0x3);
 
 	if (wait_for_completion_timeout(&ofb->branch_done, 1 * HZ) == 0)
-		pr_warning("%s: timeout disabling overlay1\n", __func__);
+		pr_warn("%s: timeout disabling overlay1\n", __func__);
 
 	lcd_writel(ofb->fbi, LCCR5, lccr5);
 }
@@ -710,7 +710,7 @@ static void overlay2fb_disable(struct pxafb_layer *ofb)
 	lcd_writel(ofb->fbi, FBR4, ofb->fbi->fdadr[DMA_OV2_Cr] | 0x3);
 
 	if (wait_for_completion_timeout(&ofb->branch_done, 1 * HZ) == 0)
-		pr_warning("%s: timeout disabling overlay2\n", __func__);
+		pr_warn("%s: timeout disabling overlay2\n", __func__);
 }
 
 static struct pxafb_layer_ops ofb_ops[] = {
@@ -1187,8 +1187,7 @@ int pxafb_smart_flush(struct fb_info *info)
 	lcd_writel(fbi, LCCR0, fbi->reg_lccr0 | LCCR0_ENB);
 
 	if (wait_for_completion_timeout(&fbi->command_done, HZ/2) == 0) {
-		pr_warning("%s: timeout waiting for command done\n",
-				__func__);
+		pr_warn("%s: timeout waiting for command done\n", __func__);
 		ret = -ETIMEDOUT;
 	}
 

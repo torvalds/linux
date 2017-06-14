@@ -50,7 +50,7 @@
 static void crypto4xx_hw_init(struct crypto4xx_device *dev)
 {
 	union ce_ring_size ring_size;
-	union ce_ring_contol ring_ctrl;
+	union ce_ring_control ring_ctrl;
 	union ce_part_ring_size part_ring_size;
 	union ce_io_threshold io_threshold;
 	u32 rand_num;

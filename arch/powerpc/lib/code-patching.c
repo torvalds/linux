@@ -8,6 +8,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/kprobes.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -59,7 +60,7 @@ bool is_offset_in_branch_range(long offset)
  * Helper to check if a given instruction is a conditional branch
  * Derived from the conditional checks in analyse_instr()
  */
-bool __kprobes is_conditional_branch(unsigned int instr)
+bool is_conditional_branch(unsigned int instr)
 {
 	unsigned int opcode = instr >> 26;
 
@@ -75,6 +76,7 @@ bool __kprobes is_conditional_branch(unsigned int instr)
 	}
 	return false;
 }
+NOKPROBE_SYMBOL(is_conditional_branch);
 
 unsigned int create_branch(const unsigned int *addr,
 			   unsigned long target, int flags)

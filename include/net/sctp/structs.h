@@ -1315,6 +1315,8 @@ struct sctp_inithdr_host {
 struct sctp_stream_out {
 	__u16	ssn;
 	__u8	state;
+	__u64	abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
+	__u64	abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
 };
 
 struct sctp_stream_in {
@@ -1887,6 +1889,7 @@ struct sctp_association {
 
 	__u32 strreset_outseq; /* Update after receiving response */
 	__u32 strreset_inseq; /* Update after receiving request */
+	__u32 strreset_result[2]; /* save the results of last 2 responses */
 
 	struct sctp_chunk *strreset_chunk; /* save request chunk */
 

@@ -381,6 +381,9 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 
 	/* check RGMII support */
 	if (iface == PHY_INTERFACE_MODE_RGMII ||
+	    iface == PHY_INTERFACE_MODE_RGMII_ID ||
+	    iface == PHY_INTERFACE_MODE_RGMII_RXID ||
+	    iface == PHY_INTERFACE_MODE_RGMII_TXID ||
 	    iface == PHY_INTERFACE_MODE_RMII)
 		if (tmp & DTSEC_ID2_INT_REDUCED_OFF)
 			return -EINVAL;
@@ -390,7 +393,10 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 		if (tmp & DTSEC_ID2_INT_REDUCED_OFF)
 			return -EINVAL;
 
-	is_rgmii = iface == PHY_INTERFACE_MODE_RGMII;
+	is_rgmii = iface == PHY_INTERFACE_MODE_RGMII ||
+		   iface == PHY_INTERFACE_MODE_RGMII_ID ||
+		   iface == PHY_INTERFACE_MODE_RGMII_RXID ||
+		   iface == PHY_INTERFACE_MODE_RGMII_TXID;
 	is_sgmii = iface == PHY_INTERFACE_MODE_SGMII;
 	is_qsgmii = iface == PHY_INTERFACE_MODE_QSGMII;
 

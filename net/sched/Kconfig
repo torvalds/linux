@@ -352,6 +352,51 @@ config NET_SCH_PLUG
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_plug.
 
+menuconfig NET_SCH_DEFAULT
+	bool "Allow override default queue discipline"
+	---help---
+	  Support for selection of default queuing discipline.
+
+	  Nearly all users can safely say no here, and the default
+	  of pfifo_fast will be used. Many distributions already set
+	  the default value via /proc/sys/net/core/default_qdisc.
+
+	  If unsure, say N.
+
+if NET_SCH_DEFAULT
+
+choice
+	prompt "Default queuing discipline"
+	default DEFAULT_PFIFO_FAST
+	help
+	  Select the queueing discipline that will be used by default
+	  for all network devices.
+
+	config DEFAULT_FQ
+		bool "Fair Queue" if NET_SCH_FQ
+
+	config DEFAULT_CODEL
+		bool "Controlled Delay" if NET_SCH_CODEL
+
+	config DEFAULT_FQ_CODEL
+		bool "Fair Queue Controlled Delay" if NET_SCH_FQ_CODEL
+
+	config DEFAULT_SFQ
+		bool "Stochastic Fair Queue" if NET_SCH_SFQ
+
+	config DEFAULT_PFIFO_FAST
+		bool "Priority FIFO Fast"
+endchoice
+
+config DEFAULT_NET_SCH
+	string
+	default "pfifo_fast" if DEFAULT_PFIFO_FAST
+	default "fq" if DEFAULT_FQ
+	default "fq_codel" if DEFAULT_FQ_CODEL
+	default "sfq" if DEFAULT_SFQ
+	default "pfifo_fast"
+endif
+
 comment "Classification"
 
 config NET_CLS

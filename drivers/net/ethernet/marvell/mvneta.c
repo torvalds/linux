@@ -431,6 +431,7 @@ struct mvneta_port {
 	/* Flags for special SoC configurations */
 	bool neta_armada3700;
 	u16 rx_offset_correction;
+	const struct mbus_dram_target_info *dram_target_info;
 };
 
 /* The mvneta_tx_desc and mvneta_rx_desc structures describe the
@@ -1106,7 +1107,7 @@ static void mvneta_port_up(struct mvneta_port *pp)
 	q_map = 0;
 	for (queue = 0; queue < txq_number; queue++) {
 		struct mvneta_tx_queue *txq = &pp->txqs[queue];
-		if (txq->descs != NULL)
+		if (txq->descs)
 			q_map |= (1 << queue);
 	}
 	mvreg_write(pp, MVNETA_TXQ_CMD, q_map);
@@ -1115,7 +1116,7 @@ static void mvneta_port_up(struct mvneta_port *pp)
 	for (queue = 0; queue < rxq_number; queue++) {
 		struct mvneta_rx_queue *rxq = &pp->rxqs[queue];
 
-		if (rxq->descs != NULL)
+		if (rxq->descs)
 			q_map |= (1 << queue);
 	}
 	mvreg_write(pp, MVNETA_RXQ_CMD, q_map);
@@ -2849,7 +2850,7 @@ static int mvneta_rxq_init(struct mvneta_port *pp,
 	rxq->descs = dma_alloc_coherent(pp->dev->dev.parent,
 					rxq->size * MVNETA_DESC_ALIGNED_SIZE,
 					&rxq->descs_phys, GFP_KERNEL);
-	if (rxq->descs == NULL)
+	if (!rxq->descs)
 		return -ENOMEM;
 
 	rxq->last_desc = rxq->size - 1;
@@ -2919,7 +2920,7 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 	txq->descs = dma_alloc_coherent(pp->dev->dev.parent,
 					txq->size * MVNETA_DESC_ALIGNED_SIZE,
 					&txq->descs_phys, GFP_KERNEL);
-	if (txq->descs == NULL)
+	if (!txq->descs)
 		return -ENOMEM;
 
 	txq->last_desc = txq->size - 1;
@@ -2932,8 +2933,9 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 	mvreg_write(pp, MVNETA_TXQ_BASE_ADDR_REG(txq->id), txq->descs_phys);
 	mvreg_write(pp, MVNETA_TXQ_SIZE_REG(txq->id), txq->size);
 
-	txq->tx_skb = kmalloc(txq->size * sizeof(*txq->tx_skb), GFP_KERNEL);
-	if (txq->tx_skb == NULL) {
+	txq->tx_skb = kmalloc_array(txq->size, sizeof(*txq->tx_skb),
+				    GFP_KERNEL);
+	if (!txq->tx_skb) {
 		dma_free_coherent(pp->dev->dev.parent,
 				  txq->size * MVNETA_DESC_ALIGNED_SIZE,
 				  txq->descs, txq->descs_phys);
@@ -2944,7 +2946,7 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 	txq->tso_hdrs = dma_alloc_coherent(pp->dev->dev.parent,
 					   txq->size * TSO_HEADER_SIZE,
 					   &txq->tso_hdrs_phys, GFP_KERNEL);
-	if (txq->tso_hdrs == NULL) {
+	if (!txq->tso_hdrs) {
 		kfree(txq->tx_skb);
 		dma_free_coherent(pp->dev->dev.parent,
 				  txq->size * MVNETA_DESC_ALIGNED_SIZE,
@@ -3317,6 +3319,7 @@ static void mvneta_adjust_link(struct net_device *ndev)
 static int mvneta_mdio_probe(struct mvneta_port *pp)
 {
 	struct phy_device *phy_dev;
+	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 
 	phy_dev = of_phy_connect(pp->dev, pp->phy_node, mvneta_adjust_link, 0,
 				 pp->phy_interface);
@@ -3324,6 +3327,9 @@ static int mvneta_mdio_probe(struct mvneta_port *pp)
 		netdev_err(pp->dev, "could not find the PHY\n");
 		return -ENODEV;
 	}
+
+	phy_ethtool_get_wol(phy_dev, &wol);
+	device_set_wakeup_capable(&pp->dev->dev, !!wol.supported);
 
 	phy_dev->supported &= PHY_GBIT_FEATURES;
 	phy_dev->advertising = phy_dev->supported;
@@ -3941,10 +3947,16 @@ static void mvneta_ethtool_get_wol(struct net_device *dev,
 static int mvneta_ethtool_set_wol(struct net_device *dev,
 				  struct ethtool_wolinfo *wol)
 {
+	int ret;
+
 	if (!dev->phydev)
 		return -EOPNOTSUPP;
 
-	return phy_ethtool_set_wol(dev->phydev, wol);
+	ret = phy_ethtool_set_wol(dev->phydev, wol);
+	if (!ret)
+		device_set_wakeup_enable(&dev->dev, !!wol->wolopts);
+
+	return ret;
 }
 
 static const struct net_device_ops mvneta_netdev_ops = {
@@ -3991,8 +4003,7 @@ static int mvneta_init(struct device *dev, struct mvneta_port *pp)
 	/* Set port default values */
 	mvneta_defaults_set(pp);
 
-	pp->txqs = devm_kcalloc(dev, txq_number, sizeof(struct mvneta_tx_queue),
-				GFP_KERNEL);
+	pp->txqs = devm_kcalloc(dev, txq_number, sizeof(*pp->txqs), GFP_KERNEL);
 	if (!pp->txqs)
 		return -ENOMEM;
 
@@ -4004,8 +4015,7 @@ static int mvneta_init(struct device *dev, struct mvneta_port *pp)
 		txq->done_pkts_coal = MVNETA_TXDONE_COAL_PKTS;
 	}
 
-	pp->rxqs = devm_kcalloc(dev, rxq_number, sizeof(struct mvneta_rx_queue),
-				GFP_KERNEL);
+	pp->rxqs = devm_kcalloc(dev, rxq_number, sizeof(*pp->rxqs), GFP_KERNEL);
 	if (!pp->rxqs)
 		return -ENOMEM;
 
@@ -4016,9 +4026,11 @@ static int mvneta_init(struct device *dev, struct mvneta_port *pp)
 		rxq->size = pp->rx_ring_size;
 		rxq->pkts_coal = MVNETA_RX_COAL_PKTS;
 		rxq->time_coal = MVNETA_RX_COAL_USEC;
-		rxq->buf_virt_addr = devm_kmalloc(pp->dev->dev.parent,
-						  rxq->size * sizeof(void *),
-						  GFP_KERNEL);
+		rxq->buf_virt_addr
+			= devm_kmalloc_array(pp->dev->dev.parent,
+					     rxq->size,
+					     sizeof(*rxq->buf_virt_addr),
+					     GFP_KERNEL);
 		if (!rxq->buf_virt_addr)
 			return -ENOMEM;
 	}
@@ -4098,6 +4110,8 @@ static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		ctrl |= MVNETA_GMAC2_PORT_RGMII;
 		break;
 	default:
@@ -4118,7 +4132,6 @@ static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 /* Device initialization routine */
 static int mvneta_probe(struct platform_device *pdev)
 {
-	const struct mbus_dram_target_info *dram_target_info;
 	struct resource *res;
 	struct device_node *dn = pdev->dev.of_node;
 	struct device_node *phy_node;
@@ -4267,13 +4280,13 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	pp->tx_csum_limit = tx_csum_limit;
 
-	dram_target_info = mv_mbus_dram_info();
+	pp->dram_target_info = mv_mbus_dram_info();
 	/* Armada3700 requires setting default configuration of Mbus
 	 * windows, however without using filled mbus_dram_target_info
 	 * structure.
 	 */
-	if (dram_target_info || pp->neta_armada3700)
-		mvneta_conf_mbus_windows(pp, dram_target_info);
+	if (pp->dram_target_info || pp->neta_armada3700)
+		mvneta_conf_mbus_windows(pp, pp->dram_target_info);
 
 	pp->tx_ring_size = MVNETA_MAX_TXD;
 	pp->rx_ring_size = MVNETA_MAX_RXD;
@@ -4405,6 +4418,61 @@ static int mvneta_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int mvneta_suspend(struct device *device)
+{
+	struct net_device *dev = dev_get_drvdata(device);
+	struct mvneta_port *pp = netdev_priv(dev);
+
+	if (netif_running(dev))
+		mvneta_stop(dev);
+	netif_device_detach(dev);
+	clk_disable_unprepare(pp->clk_bus);
+	clk_disable_unprepare(pp->clk);
+	return 0;
+}
+
+static int mvneta_resume(struct device *device)
+{
+	struct platform_device *pdev = to_platform_device(device);
+	struct net_device *dev = dev_get_drvdata(device);
+	struct mvneta_port *pp = netdev_priv(dev);
+	int err;
+
+	clk_prepare_enable(pp->clk);
+	if (!IS_ERR(pp->clk_bus))
+		clk_prepare_enable(pp->clk_bus);
+	if (pp->dram_target_info || pp->neta_armada3700)
+		mvneta_conf_mbus_windows(pp, pp->dram_target_info);
+	if (pp->bm_priv) {
+		err = mvneta_bm_port_init(pdev, pp);
+		if (err < 0) {
+			dev_info(&pdev->dev, "use SW buffer management\n");
+			pp->bm_priv = NULL;
+		}
+	}
+	mvneta_defaults_set(pp);
+	err = mvneta_port_power_up(pp, pp->phy_interface);
+	if (err < 0) {
+		dev_err(device, "can't power up port\n");
+		return err;
+	}
+
+	if (pp->use_inband_status)
+		mvneta_fixed_link_update(pp, dev->phydev);
+
+	netif_device_attach(dev);
+	if (netif_running(dev)) {
+		mvneta_open(dev);
+		mvneta_set_rx_mode(dev);
+	}
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(mvneta_pm_ops, mvneta_suspend, mvneta_resume);
+
 static const struct of_device_id mvneta_match[] = {
 	{ .compatible = "marvell,armada-370-neta" },
 	{ .compatible = "marvell,armada-xp-neta" },
@@ -4419,6 +4487,7 @@ static struct platform_driver mvneta_driver = {
 	.driver = {
 		.name = MVNETA_DRIVER_NAME,
 		.of_match_table = mvneta_match,
+		.pm = &mvneta_pm_ops,
 	},
 };
 

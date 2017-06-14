@@ -37,6 +37,7 @@
 #include <linux/freezer.h>
 #include <linux/namei.h>
 #include <linux/random.h>
+#include <linux/uuid.h>
 #include <linux/xattr.h>
 #include <net/ipv6.h>
 #include "cifsfs.h"
@@ -87,6 +88,7 @@ extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
 struct workqueue_struct	*cifsiod_wq;
+struct workqueue_struct	*cifsoplockd_wq;
 __u32 cifs_lock_secret;
 
 /*
@@ -138,7 +140,12 @@ cifs_read_super(struct super_block *sb)
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
 	sb->s_xattr = cifs_xattr_handlers;
-	sb->s_bdi = &cifs_sb->bdi;
+	rc = super_setup_bdi(sb);
+	if (rc)
+		goto out_no_root;
+	/* tune readahead according to rsize */
+	sb->s_bdi->ra_pages = cifs_sb->rsize / PAGE_SIZE;
+
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
 	sb->s_blocksize_bits = 14;	/* default 2**14 = CIFS_MAX_MSGSIZE */
 	inode = cifs_root_iget(sb);
@@ -1369,9 +1376,16 @@ init_cifs(void)
 		goto out_clean_proc;
 	}
 
+	cifsoplockd_wq = alloc_workqueue("cifsoplockd",
+					 WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+	if (!cifsoplockd_wq) {
+		rc = -ENOMEM;
+		goto out_destroy_cifsiod_wq;
+	}
+
 	rc = cifs_fscache_register();
 	if (rc)
-		goto out_destroy_wq;
+		goto out_destroy_cifsoplockd_wq;
 
 	rc = cifs_init_inodecache();
 	if (rc)
@@ -1419,7 +1433,9 @@ out_destroy_inodecache:
 	cifs_destroy_inodecache();
 out_unreg_fscache:
 	cifs_fscache_unregister();
-out_destroy_wq:
+out_destroy_cifsoplockd_wq:
+	destroy_workqueue(cifsoplockd_wq);
+out_destroy_cifsiod_wq:
 	destroy_workqueue(cifsiod_wq);
 out_clean_proc:
 	cifs_proc_clean();
@@ -1442,6 +1458,7 @@ exit_cifs(void)
 	cifs_destroy_mids();
 	cifs_destroy_inodecache();
 	cifs_fscache_unregister();
+	destroy_workqueue(cifsoplockd_wq);
 	destroy_workqueue(cifsiod_wq);
 	cifs_proc_clean();
 }

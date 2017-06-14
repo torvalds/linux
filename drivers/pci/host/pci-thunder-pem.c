@@ -474,6 +474,7 @@ static struct platform_driver thunder_pem_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = thunder_pem_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = thunder_pem_probe,
 };

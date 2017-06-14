@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <linux/string.h>
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>

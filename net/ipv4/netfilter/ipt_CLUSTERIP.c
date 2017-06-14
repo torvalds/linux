@@ -22,6 +22,7 @@
 #include <linux/icmp.h>
 #include <linux/if_arp.h>
 #include <linux/seq_file.h>
+#include <linux/refcount.h>
 #include <linux/netfilter_arp.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
@@ -40,8 +41,8 @@ MODULE_DESCRIPTION("Xtables: CLUSTERIP target");
 
 struct clusterip_config {
 	struct list_head list;			/* list of all configs */
-	atomic_t refcount;			/* reference count */
-	atomic_t entries;			/* number of entries/rules
+	refcount_t refcount;			/* reference count */
+	refcount_t entries;			/* number of entries/rules
 						 * referencing us */
 
 	__be32 clusterip;			/* the IP address */
@@ -77,7 +78,7 @@ struct clusterip_net {
 static inline void
 clusterip_config_get(struct clusterip_config *c)
 {
-	atomic_inc(&c->refcount);
+	refcount_inc(&c->refcount);
 }
 
 
@@ -89,7 +90,7 @@ static void clusterip_config_rcu_free(struct rcu_head *head)
 static inline void
 clusterip_config_put(struct clusterip_config *c)
 {
-	if (atomic_dec_and_test(&c->refcount))
+	if (refcount_dec_and_test(&c->refcount))
 		call_rcu_bh(&c->rcu, clusterip_config_rcu_free);
 }
 
@@ -103,7 +104,7 @@ clusterip_config_entry_put(struct clusterip_config *c)
 	struct clusterip_net *cn = net_generic(net, clusterip_net_id);
 
 	local_bh_disable();
-	if (atomic_dec_and_lock(&c->entries, &cn->lock)) {
+	if (refcount_dec_and_lock(&c->entries, &cn->lock)) {
 		list_del_rcu(&c->list);
 		spin_unlock(&cn->lock);
 		local_bh_enable();
@@ -149,10 +150,10 @@ clusterip_config_find_get(struct net *net, __be32 clusterip, int entry)
 			c = NULL;
 		else
 #endif
-		if (unlikely(!atomic_inc_not_zero(&c->refcount)))
+		if (unlikely(!refcount_inc_not_zero(&c->refcount)))
 			c = NULL;
 		else if (entry)
-			atomic_inc(&c->entries);
+			refcount_inc(&c->entries);
 	}
 	rcu_read_unlock_bh();
 
@@ -188,8 +189,8 @@ clusterip_config_init(const struct ipt_clusterip_tgt_info *i, __be32 ip,
 	clusterip_config_init_nodelist(c, i);
 	c->hash_mode = i->hash_mode;
 	c->hash_initval = i->hash_initval;
-	atomic_set(&c->refcount, 1);
-	atomic_set(&c->entries, 1);
+	refcount_set(&c->refcount, 1);
+	refcount_set(&c->entries, 1);
 
 	spin_lock_bh(&cn->lock);
 	if (__clusterip_config_find(net, ip)) {
@@ -461,7 +462,7 @@ static void clusterip_tg_destroy(const struct xt_tgdtor_param *par)
 
 	clusterip_config_put(cipinfo->config);
 
-	nf_ct_netns_get(par->net, par->family);
+	nf_ct_netns_put(par->net, par->family);
 }
 
 #ifdef CONFIG_COMPAT

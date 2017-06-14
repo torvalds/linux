@@ -26,49 +26,41 @@
 		lan {
 			label = "bcm53xx:blue:lan";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		wps {
 			label = "bcm53xx:blue:wps";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		2ghz {
 			label = "bcm53xx:blue:2ghz";
 			gpios = <&chipcommon 4 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		5ghz {
 			label = "bcm53xx:blue:5ghz";
 			gpios = <&chipcommon 5 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		usb3 {
 			label = "bcm53xx:blue:usb3";
 			gpios = <&chipcommon 6 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		usb2 {
 			label = "bcm53xx:blue:usb2";
 			gpios = <&chipcommon 7 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		wan-blue {
 			label = "bcm53xx:blue:wan";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		wan-amber {
 			label = "bcm53xx:amber:wan";
 			gpios = <&chipcommon 15 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		power {

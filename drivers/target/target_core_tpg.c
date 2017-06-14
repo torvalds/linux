@@ -398,6 +398,13 @@ int core_tpg_set_initiator_node_queue_depth(
 	struct se_portal_group *tpg = acl->se_tpg;
 
 	/*
+	 * Allow the setting of se_node_acl queue_depth to be idempotent,
+	 * and not force a session shutdown event if the value is not
+	 * changing.
+	 */
+	if (acl->queue_depth == queue_depth)
+		return 0;
+	/*
 	 * User has requested to change the queue depth for a Initiator Node.
 	 * Change the value in the Node's struct se_node_acl, and call
 	 * target_set_nacl_queue_depth() to set the new queue depth.
@@ -642,6 +649,8 @@ void core_tpg_remove_lun(
 	 */
 	struct se_device *dev = rcu_dereference_raw(lun->lun_se_dev);
 
+	lun->lun_shutdown = true;
+
 	core_clear_lun_from_tpg(lun, tpg);
 	/*
 	 * Wait for any active I/O references to percpu se_lun->lun_ref to
@@ -663,6 +672,8 @@ void core_tpg_remove_lun(
 	}
 	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		hlist_del_rcu(&lun->link);
+
+	lun->lun_shutdown = false;
 	mutex_unlock(&tpg->tpg_lun_mutex);
 
 	percpu_ref_exit(&lun->lun_ref);

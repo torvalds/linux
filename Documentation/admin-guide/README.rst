@@ -27,7 +27,7 @@ On what hardware does it run?
   today Linux also runs on (at least) the Compaq Alpha AXP, Sun SPARC and
   UltraSPARC, Motorola 68000, PowerPC, PowerPC64, ARM, Hitachi SuperH, Cell,
   IBM S/390, MIPS, HP PA-RISC, Intel IA-64, DEC VAX, AMD x86-64, AXIS CRIS,
-  Xtensa, Tilera TILE, AVR32, ARC and Renesas M32R architectures.
+  Xtensa, Tilera TILE, ARC and Renesas M32R architectures.
 
   Linux is easily portable to most general-purpose 32- or 64-bit architectures
   as long as they have a paged memory management unit (PMMU) and a port of the
@@ -362,7 +362,7 @@ If something goes wrong
    as is, otherwise you will have to use the ``ksymoops`` program to make
    sense of the dump (but compiling with CONFIG_KALLSYMS is usually preferred).
    This utility can be downloaded from
-   ftp://ftp.<country>.kernel.org/pub/linux/utils/kernel/ksymoops/ .
+   https://www.kernel.org/pub/linux/utils/kernel/ksymoops/ .
    Alternatively, you can do the dump lookup by hand:
 
  - In debugging dumps like the above, it helps enormously if you can

@@ -4,14 +4,10 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/string.h>
 
 #include <asm/segment.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 #define access_ok(type,addr,size)	_access_ok((unsigned long)(addr),(size))
 
@@ -25,25 +21,6 @@ static inline int _access_ok(unsigned long addr, unsigned long size)
 {
 	return 1;
 }
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
-
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -124,13 +101,21 @@ extern int __get_user_bad(void);
 		 : "=d" (x)					\
 		 : "m" (*__ptr(ptr)))
 
-#define copy_from_user(to, from, n)		(memcpy(to, from, n), 0)
-#define copy_to_user(to, from, n)		(memcpy(to, from, n), 0)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	memcpy(to, (__force const void *)from, n);
+	return 0;
+}
 
-#define __copy_from_user(to, from, n) copy_from_user(to, from, n)
-#define __copy_to_user(to, from, n) copy_to_user(to, from, n)
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	memcpy((__force void *)to, from, n);
+	return 0;
+}
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 /*
  * Copy a null terminated string from userspace.

@@ -548,7 +548,7 @@ snic_trc_debugfs_init(void)
 				 &snic_trc_fops);
 
 	if (!de) {
-		SNIC_ERR("Cann't create trace file.\n");
+		SNIC_ERR("Cannot create trace file.\n");
 
 		return ret;
 	}

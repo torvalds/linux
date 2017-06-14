@@ -954,8 +954,7 @@ static void atmci_pdc_cleanup(struct atmel_mci *host)
 	if (data)
 		dma_unmap_sg(&host->pdev->dev,
 				data->sg, data->sg_len,
-				((data->flags & MMC_DATA_WRITE)
-				 ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
+				mmc_get_dma_dir(data));
 }
 
 /*
@@ -993,8 +992,7 @@ static void atmci_dma_cleanup(struct atmel_mci *host)
 	if (data)
 		dma_unmap_sg(host->dma.chan->device->dev,
 				data->sg, data->sg_len,
-				((data->flags & MMC_DATA_WRITE)
-				 ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
+				mmc_get_dma_dir(data));
 }
 
 /*
@@ -1095,7 +1093,6 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 {
 	u32 iflags, tmp;
 	unsigned int sg_len;
-	enum dma_data_direction dir;
 	int i;
 
 	data->error = -EINPROGRESS;
@@ -1107,13 +1104,10 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 	/* Enable pdc mode */
 	atmci_writel(host, ATMCI_MR, host->mode_reg | ATMCI_MR_PDCMODE);
 
-	if (data->flags & MMC_DATA_READ) {
-		dir = DMA_FROM_DEVICE;
+	if (data->flags & MMC_DATA_READ)
 		iflags |= ATMCI_ENDRX | ATMCI_RXBUFF;
-	} else {
-		dir = DMA_TO_DEVICE;
+	else
 		iflags |= ATMCI_ENDTX | ATMCI_TXBUFE | ATMCI_BLKE;
-	}
 
 	/* Set BLKLEN */
 	tmp = atmci_readl(host, ATMCI_MR);
@@ -1123,7 +1117,8 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 
 	/* Configure PDC */
 	host->data_size = data->blocks * data->blksz;
-	sg_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, dir);
+	sg_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len,
+			    mmc_get_dma_dir(data));
 
 	if ((!host->caps.has_rwproof)
 	    && (host->data->flags & MMC_DATA_WRITE)) {
@@ -1135,9 +1130,8 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 	}
 
 	if (host->data_size)
-		atmci_pdc_set_both_buf(host,
-			((dir == DMA_FROM_DEVICE) ? XFER_RECEIVE : XFER_TRANSMIT));
-
+		atmci_pdc_set_both_buf(host, data->flags & MMC_DATA_READ ?
+				       XFER_RECEIVE : XFER_TRANSMIT);
 	return iflags;
 }
 
@@ -1148,7 +1142,6 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	struct dma_async_tx_descriptor	*desc;
 	struct scatterlist		*sg;
 	unsigned int			i;
-	enum dma_data_direction		direction;
 	enum dma_transfer_direction	slave_dirn;
 	unsigned int			sglen;
 	u32				maxburst;
@@ -1186,12 +1179,10 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 		return -ENODEV;
 
 	if (data->flags & MMC_DATA_READ) {
-		direction = DMA_FROM_DEVICE;
 		host->dma_conf.direction = slave_dirn = DMA_DEV_TO_MEM;
 		maxburst = atmci_convert_chksize(host,
 						 host->dma_conf.src_maxburst);
 	} else {
-		direction = DMA_TO_DEVICE;
 		host->dma_conf.direction = slave_dirn = DMA_MEM_TO_DEV;
 		maxburst = atmci_convert_chksize(host,
 						 host->dma_conf.dst_maxburst);
@@ -1202,7 +1193,7 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 			ATMCI_DMAEN);
 
 	sglen = dma_map_sg(chan->device->dev, data->sg,
-			data->sg_len, direction);
+			data->sg_len, mmc_get_dma_dir(data));
 
 	dmaengine_slave_config(chan, &host->dma_conf);
 	desc = dmaengine_prep_slave_sg(chan,
@@ -1217,7 +1208,8 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 
 	return iflags;
 unmap_exit:
-	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len, direction);
+	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len,
+		     mmc_get_dma_dir(data));
 	return -ENOMEM;
 }
 

@@ -162,7 +162,6 @@ int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int remaining)
 	struct rtnexthop *rtnh = (struct rtnexthop *)attr;
 	struct nlattr *nla_entype;
 	struct nlattr *attrs;
-	struct nlattr *nla;
 	u16 encap_type;
 	int attrlen;
 
@@ -170,7 +169,6 @@ int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int remaining)
 		attrlen = rtnh_attrlen(rtnh);
 		if (attrlen > 0) {
 			attrs = rtnh_attrs(rtnh);
-			nla = nla_find(attrs, attrlen, RTA_ENCAP);
 			nla_entype = nla_find(attrs, attrlen, RTA_ENCAP_TYPE);
 
 			if (nla_entype) {
@@ -205,7 +203,7 @@ int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate)
 {
 	const struct lwtunnel_encap_ops *ops;
 	struct nlattr *nest;
-	int ret = -EINVAL;
+	int ret;
 
 	if (!lwtstate)
 		return 0;
@@ -214,8 +212,11 @@ int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate)
 	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
 		return 0;
 
-	ret = -EOPNOTSUPP;
 	nest = nla_nest_start(skb, RTA_ENCAP);
+	if (!nest)
+		return -EMSGSIZE;
+
+	ret = -EOPNOTSUPP;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
 	if (likely(ops && ops->fill_encap))

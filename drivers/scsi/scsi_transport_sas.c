@@ -184,9 +184,9 @@ static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
 				blk_rq_bytes(req->next_rq);
 		handler = to_sas_internal(shost->transportt)->f->smp_handler;
 		ret = handler(shost, rphy, req);
-		req->errors = ret;
+		scsi_req(req)->result = ret;
 
-		blk_end_request_all(req, ret);
+		blk_end_request_all(req, 0);
 
 		spin_lock_irq(q->queue_lock);
 	}
@@ -370,12 +370,16 @@ EXPORT_SYMBOL(sas_remove_children);
  * sas_remove_host  -  tear down a Scsi_Host's SAS data structures
  * @shost:	Scsi Host that is torn down
  *
- * Removes all SAS PHYs and remote PHYs for a given Scsi_Host.
- * Must be called just before scsi_remove_host for SAS HBAs.
+ * Removes all SAS PHYs and remote PHYs for a given Scsi_Host and remove the
+ * Scsi_Host as well.
+ *
+ * Note: Do not call scsi_remove_host() on the Scsi_Host any more, as it is
+ * already removed.
  */
 void sas_remove_host(struct Scsi_Host *shost)
 {
 	sas_remove_children(&shost->shost_gendev);
+	scsi_remove_host(shost);
 }
 EXPORT_SYMBOL(sas_remove_host);
 

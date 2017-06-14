@@ -1,6 +1,6 @@
 #ifdef CONFIG_DEBUG_FS
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -51,8 +51,12 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/types.h>
+#include <linux/ratelimit.h>
+#include <linux/fault-inject.h>
 
 #include "hfi.h"
+#include "trace.h"
 #include "debugfs.h"
 #include "device.h"
 #include "qp.h"
@@ -170,7 +174,7 @@ static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
 
-	for (j = 0; j < dd->first_user_ctxt; j++) {
+	for (j = 0; j < dd->first_dyn_alloc_ctxt; j++) {
 		if (!dd->rcd[j])
 			continue;
 		n_packets += dd->rcd[j]->opstats->stats[i].n_packets;
@@ -196,7 +200,7 @@ static void *_ctx_stats_seq_start(struct seq_file *s, loff_t *pos)
 
 	if (!*pos)
 		return SEQ_START_TOKEN;
-	if (*pos >= dd->first_user_ctxt)
+	if (*pos >= dd->first_dyn_alloc_ctxt)
 		return NULL;
 	return pos;
 }
@@ -210,7 +214,7 @@ static void *_ctx_stats_seq_next(struct seq_file *s, void *v, loff_t *pos)
 		return pos;
 
 	++*pos;
-	if (*pos >= dd->first_user_ctxt)
+	if (*pos >= dd->first_dyn_alloc_ctxt)
 		return NULL;
 	return pos;
 }
@@ -1063,6 +1067,222 @@ DEBUGFS_SEQ_FILE_OPS(sdma_cpu_list);
 DEBUGFS_SEQ_FILE_OPEN(sdma_cpu_list)
 DEBUGFS_FILE_OPS(sdma_cpu_list);
 
+#ifdef CONFIG_FAULT_INJECTION
+static void *_fault_stats_seq_start(struct seq_file *s, loff_t *pos)
+{
+	struct hfi1_opcode_stats_perctx *opstats;
+
+	if (*pos >= ARRAY_SIZE(opstats->stats))
+		return NULL;
+	return pos;
+}
+
+static void *_fault_stats_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	struct hfi1_opcode_stats_perctx *opstats;
+
+	++*pos;
+	if (*pos >= ARRAY_SIZE(opstats->stats))
+		return NULL;
+	return pos;
+}
+
+static void _fault_stats_seq_stop(struct seq_file *s, void *v)
+{
+}
+
+static int _fault_stats_seq_show(struct seq_file *s, void *v)
+{
+	loff_t *spos = v;
+	loff_t i = *spos, j;
+	u64 n_packets = 0, n_bytes = 0;
+	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
+	struct hfi1_devdata *dd = dd_from_dev(ibd);
+
+	for (j = 0; j < dd->first_dyn_alloc_ctxt; j++) {
+		if (!dd->rcd[j])
+			continue;
+		n_packets += dd->rcd[j]->opstats->stats[i].n_packets;
+		n_bytes += dd->rcd[j]->opstats->stats[i].n_bytes;
+	}
+	if (!n_packets && !n_bytes)
+		return SEQ_SKIP;
+	if (!ibd->fault_opcode->n_rxfaults[i] &&
+	    !ibd->fault_opcode->n_txfaults[i])
+		return SEQ_SKIP;
+	seq_printf(s, "%02llx %llu/%llu (faults rx:%llu faults: tx:%llu)\n", i,
+		   (unsigned long long)n_packets,
+		   (unsigned long long)n_bytes,
+		   (unsigned long long)ibd->fault_opcode->n_rxfaults[i],
+		   (unsigned long long)ibd->fault_opcode->n_txfaults[i]);
+	return 0;
+}
+
+DEBUGFS_SEQ_FILE_OPS(fault_stats);
+DEBUGFS_SEQ_FILE_OPEN(fault_stats);
+DEBUGFS_FILE_OPS(fault_stats);
+
+static void fault_exit_opcode_debugfs(struct hfi1_ibdev *ibd)
+{
+	debugfs_remove_recursive(ibd->fault_opcode->dir);
+	kfree(ibd->fault_opcode);
+	ibd->fault_opcode = NULL;
+}
+
+static int fault_init_opcode_debugfs(struct hfi1_ibdev *ibd)
+{
+	struct dentry *parent = ibd->hfi1_ibdev_dbg;
+
+	ibd->fault_opcode = kzalloc(sizeof(*ibd->fault_opcode), GFP_KERNEL);
+	if (!ibd->fault_opcode)
+		return -ENOMEM;
+
+	ibd->fault_opcode->attr.interval = 1;
+	ibd->fault_opcode->attr.require_end = ULONG_MAX;
+	ibd->fault_opcode->attr.stacktrace_depth = 32;
+	ibd->fault_opcode->attr.dname = NULL;
+	ibd->fault_opcode->attr.verbose = 0;
+	ibd->fault_opcode->fault_by_opcode = false;
+	ibd->fault_opcode->opcode = 0;
+	ibd->fault_opcode->mask = 0xff;
+
+	ibd->fault_opcode->dir =
+		fault_create_debugfs_attr("fault_opcode",
+					  parent,
+					  &ibd->fault_opcode->attr);
+	if (IS_ERR(ibd->fault_opcode->dir)) {
+		kfree(ibd->fault_opcode);
+		return -ENOENT;
+	}
+
+	DEBUGFS_SEQ_FILE_CREATE(fault_stats, ibd->fault_opcode->dir, ibd);
+	if (!debugfs_create_bool("fault_by_opcode", 0600,
+				 ibd->fault_opcode->dir,
+				 &ibd->fault_opcode->fault_by_opcode))
+		goto fail;
+	if (!debugfs_create_x8("opcode", 0600, ibd->fault_opcode->dir,
+			       &ibd->fault_opcode->opcode))
+		goto fail;
+	if (!debugfs_create_x8("mask", 0600, ibd->fault_opcode->dir,
+			       &ibd->fault_opcode->mask))
+		goto fail;
+
+	return 0;
+fail:
+	fault_exit_opcode_debugfs(ibd);
+	return -ENOMEM;
+}
+
+static void fault_exit_packet_debugfs(struct hfi1_ibdev *ibd)
+{
+	debugfs_remove_recursive(ibd->fault_packet->dir);
+	kfree(ibd->fault_packet);
+	ibd->fault_packet = NULL;
+}
+
+static int fault_init_packet_debugfs(struct hfi1_ibdev *ibd)
+{
+	struct dentry *parent = ibd->hfi1_ibdev_dbg;
+
+	ibd->fault_packet = kzalloc(sizeof(*ibd->fault_packet), GFP_KERNEL);
+	if (!ibd->fault_packet)
+		return -ENOMEM;
+
+	ibd->fault_packet->attr.interval = 1;
+	ibd->fault_packet->attr.require_end = ULONG_MAX;
+	ibd->fault_packet->attr.stacktrace_depth = 32;
+	ibd->fault_packet->attr.dname = NULL;
+	ibd->fault_packet->attr.verbose = 0;
+	ibd->fault_packet->fault_by_packet = false;
+
+	ibd->fault_packet->dir =
+		fault_create_debugfs_attr("fault_packet",
+					  parent,
+					  &ibd->fault_opcode->attr);
+	if (IS_ERR(ibd->fault_packet->dir)) {
+		kfree(ibd->fault_packet);
+		return -ENOENT;
+	}
+
+	if (!debugfs_create_bool("fault_by_packet", 0600,
+				 ibd->fault_packet->dir,
+				 &ibd->fault_packet->fault_by_packet))
+		goto fail;
+	if (!debugfs_create_u64("fault_stats", 0400,
+				ibd->fault_packet->dir,
+				&ibd->fault_packet->n_faults))
+		goto fail;
+
+	return 0;
+fail:
+	fault_exit_packet_debugfs(ibd);
+	return -ENOMEM;
+}
+
+static void fault_exit_debugfs(struct hfi1_ibdev *ibd)
+{
+	fault_exit_opcode_debugfs(ibd);
+	fault_exit_packet_debugfs(ibd);
+}
+
+static int fault_init_debugfs(struct hfi1_ibdev *ibd)
+{
+	int ret = 0;
+
+	ret = fault_init_opcode_debugfs(ibd);
+	if (ret)
+		return ret;
+
+	ret = fault_init_packet_debugfs(ibd);
+	if (ret)
+		fault_exit_opcode_debugfs(ibd);
+
+	return ret;
+}
+
+bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd)
+{
+	return ibd->fault_suppress_err;
+}
+
+bool hfi1_dbg_fault_opcode(struct rvt_qp *qp, u32 opcode, bool rx)
+{
+	bool ret = false;
+	struct hfi1_ibdev *ibd = to_idev(qp->ibqp.device);
+
+	if (!ibd->fault_opcode || !ibd->fault_opcode->fault_by_opcode)
+		return false;
+	if (ibd->fault_opcode->opcode != (opcode & ibd->fault_opcode->mask))
+		return false;
+	ret = should_fail(&ibd->fault_opcode->attr, 1);
+	if (ret) {
+		trace_hfi1_fault_opcode(qp, opcode);
+		if (rx)
+			ibd->fault_opcode->n_rxfaults[opcode]++;
+		else
+			ibd->fault_opcode->n_txfaults[opcode]++;
+	}
+	return ret;
+}
+
+bool hfi1_dbg_fault_packet(struct hfi1_packet *packet)
+{
+	struct rvt_dev_info *rdi = &packet->rcd->ppd->dd->verbs_dev.rdi;
+	struct hfi1_ibdev *ibd = dev_from_rdi(rdi);
+	bool ret = false;
+
+	if (!ibd->fault_packet || !ibd->fault_packet->fault_by_packet)
+		return false;
+
+	ret = should_fail(&ibd->fault_packet->attr, 1);
+	if (ret) {
+		++ibd->fault_packet->n_faults;
+		trace_hfi1_fault_packet(packet);
+	}
+	return ret;
+}
+#endif
+
 void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 {
 	char name[sizeof("port0counters") + 1];
@@ -1112,12 +1332,22 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 					    !port_cntr_ops[i].ops.write ?
 					    S_IRUGO : S_IRUGO | S_IWUSR);
 		}
+
+#ifdef CONFIG_FAULT_INJECTION
+	debugfs_create_bool("fault_suppress_err", 0600,
+			    ibd->hfi1_ibdev_dbg,
+			    &ibd->fault_suppress_err);
+	fault_init_debugfs(ibd);
+#endif
 }
 
 void hfi1_dbg_ibdev_exit(struct hfi1_ibdev *ibd)
 {
 	if (!hfi1_dbg_root)
 		goto out;
+#ifdef CONFIG_FAULT_INJECTION
+	fault_exit_debugfs(ibd);
+#endif
 	debugfs_remove(ibd->hfi1_ibdev_link);
 	debugfs_remove_recursive(ibd->hfi1_ibdev_dbg);
 out:

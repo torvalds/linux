@@ -2036,8 +2036,8 @@ __setup("waveartist=", setup_waveartist);
 #endif
 
 MODULE_DESCRIPTION("Rockwell WaveArtist RWA-010 sound driver");
-module_param(io, int, 0);		/* IO base */
-module_param(irq, int, 0);		/* IRQ */
-module_param(dma, int, 0);		/* DMA */
-module_param(dma2, int, 0);		/* DMA2 */
+module_param_hw(io, int, ioport, 0);		/* IO base */
+module_param_hw(irq, int, irq, 0);		/* IRQ */
+module_param_hw(dma, int, dma, 0);		/* DMA */
+module_param_hw(dma2, int, dma, 0);		/* DMA2 */
 MODULE_LICENSE("GPL");

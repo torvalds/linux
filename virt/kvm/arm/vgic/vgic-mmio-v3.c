@@ -556,65 +556,134 @@ unsigned int vgic_v3_init_dist_iodev(struct vgic_io_device *dev)
 	return SZ_64K;
 }
 
-int vgic_register_redist_iodevs(struct kvm *kvm, gpa_t redist_base_address)
+/**
+ * vgic_register_redist_iodev - register a single redist iodev
+ * @vcpu:    The VCPU to which the redistributor belongs
+ *
+ * Register a KVM iodev for this VCPU's redistributor using the address
+ * provided.
+ *
+ * Return 0 on success, -ERRNO otherwise.
+ */
+int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct vgic_dist *vgic = &kvm->arch.vgic;
+	struct vgic_io_device *rd_dev = &vcpu->arch.vgic_cpu.rd_iodev;
+	struct vgic_io_device *sgi_dev = &vcpu->arch.vgic_cpu.sgi_iodev;
+	gpa_t rd_base, sgi_base;
+	int ret;
+
+	/*
+	 * We may be creating VCPUs before having set the base address for the
+	 * redistributor region, in which case we will come back to this
+	 * function for all VCPUs when the base address is set.  Just return
+	 * without doing any work for now.
+	 */
+	if (IS_VGIC_ADDR_UNDEF(vgic->vgic_redist_base))
+		return 0;
+
+	if (!vgic_v3_check_base(kvm))
+		return -EINVAL;
+
+	rd_base = vgic->vgic_redist_base + vgic->vgic_redist_free_offset;
+	sgi_base = rd_base + SZ_64K;
+
+	kvm_iodevice_init(&rd_dev->dev, &kvm_io_gic_ops);
+	rd_dev->base_addr = rd_base;
+	rd_dev->iodev_type = IODEV_REDIST;
+	rd_dev->regions = vgic_v3_rdbase_registers;
+	rd_dev->nr_regions = ARRAY_SIZE(vgic_v3_rdbase_registers);
+	rd_dev->redist_vcpu = vcpu;
+
+	mutex_lock(&kvm->slots_lock);
+	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, rd_base,
+				      SZ_64K, &rd_dev->dev);
+	mutex_unlock(&kvm->slots_lock);
+
+	if (ret)
+		return ret;
+
+	kvm_iodevice_init(&sgi_dev->dev, &kvm_io_gic_ops);
+	sgi_dev->base_addr = sgi_base;
+	sgi_dev->iodev_type = IODEV_REDIST;
+	sgi_dev->regions = vgic_v3_sgibase_registers;
+	sgi_dev->nr_regions = ARRAY_SIZE(vgic_v3_sgibase_registers);
+	sgi_dev->redist_vcpu = vcpu;
+
+	mutex_lock(&kvm->slots_lock);
+	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, sgi_base,
+				      SZ_64K, &sgi_dev->dev);
+	if (ret) {
+		kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS,
+					  &rd_dev->dev);
+		goto out;
+	}
+
+	vgic->vgic_redist_free_offset += 2 * SZ_64K;
+out:
+	mutex_unlock(&kvm->slots_lock);
+	return ret;
+}
+
+static void vgic_unregister_redist_iodev(struct kvm_vcpu *vcpu)
+{
+	struct vgic_io_device *rd_dev = &vcpu->arch.vgic_cpu.rd_iodev;
+	struct vgic_io_device *sgi_dev = &vcpu->arch.vgic_cpu.sgi_iodev;
+
+	kvm_io_bus_unregister_dev(vcpu->kvm, KVM_MMIO_BUS, &rd_dev->dev);
+	kvm_io_bus_unregister_dev(vcpu->kvm, KVM_MMIO_BUS, &sgi_dev->dev);
+}
+
+static int vgic_register_all_redist_iodevs(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
 	int c, ret = 0;
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
-		gpa_t rd_base = redist_base_address + c * SZ_64K * 2;
-		gpa_t sgi_base = rd_base + SZ_64K;
-		struct vgic_io_device *rd_dev = &vcpu->arch.vgic_cpu.rd_iodev;
-		struct vgic_io_device *sgi_dev = &vcpu->arch.vgic_cpu.sgi_iodev;
-
-		kvm_iodevice_init(&rd_dev->dev, &kvm_io_gic_ops);
-		rd_dev->base_addr = rd_base;
-		rd_dev->iodev_type = IODEV_REDIST;
-		rd_dev->regions = vgic_v3_rdbase_registers;
-		rd_dev->nr_regions = ARRAY_SIZE(vgic_v3_rdbase_registers);
-		rd_dev->redist_vcpu = vcpu;
-
-		mutex_lock(&kvm->slots_lock);
-		ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, rd_base,
-					      SZ_64K, &rd_dev->dev);
-		mutex_unlock(&kvm->slots_lock);
-
+		ret = vgic_register_redist_iodev(vcpu);
 		if (ret)
 			break;
-
-		kvm_iodevice_init(&sgi_dev->dev, &kvm_io_gic_ops);
-		sgi_dev->base_addr = sgi_base;
-		sgi_dev->iodev_type = IODEV_REDIST;
-		sgi_dev->regions = vgic_v3_sgibase_registers;
-		sgi_dev->nr_regions = ARRAY_SIZE(vgic_v3_sgibase_registers);
-		sgi_dev->redist_vcpu = vcpu;
-
-		mutex_lock(&kvm->slots_lock);
-		ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, sgi_base,
-					      SZ_64K, &sgi_dev->dev);
-		mutex_unlock(&kvm->slots_lock);
-		if (ret) {
-			kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS,
-						  &rd_dev->dev);
-			break;
-		}
 	}
 
 	if (ret) {
 		/* The current c failed, so we start with the previous one. */
+		mutex_lock(&kvm->slots_lock);
 		for (c--; c >= 0; c--) {
-			struct vgic_cpu *vgic_cpu;
-
 			vcpu = kvm_get_vcpu(kvm, c);
-			vgic_cpu = &vcpu->arch.vgic_cpu;
-			kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS,
-						  &vgic_cpu->rd_iodev.dev);
-			kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS,
-						  &vgic_cpu->sgi_iodev.dev);
+			vgic_unregister_redist_iodev(vcpu);
 		}
+		mutex_unlock(&kvm->slots_lock);
 	}
 
 	return ret;
+}
+
+int vgic_v3_set_redist_base(struct kvm *kvm, u64 addr)
+{
+	struct vgic_dist *vgic = &kvm->arch.vgic;
+	int ret;
+
+	/* vgic_check_ioaddr makes sure we don't do this twice */
+	ret = vgic_check_ioaddr(kvm, &vgic->vgic_redist_base, addr, SZ_64K);
+	if (ret)
+		return ret;
+
+	vgic->vgic_redist_base = addr;
+	if (!vgic_v3_check_base(kvm)) {
+		vgic->vgic_redist_base = VGIC_ADDR_UNDEF;
+		return -EINVAL;
+	}
+
+	/*
+	 * Register iodevs for each existing VCPU.  Adding more VCPUs
+	 * afterwards will register the iodevs when needed.
+	 */
+	ret = vgic_register_all_redist_iodevs(kvm);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 int vgic_v3_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr)

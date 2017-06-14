@@ -292,7 +292,7 @@ static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 			trace_rcu_exp_funnel_lock(rsp->name, rnp->level,
 						  rnp->grplo, rnp->grphi,
 						  TPS("wait"));
-			wait_event(rnp->exp_wq[(s >> 1) & 0x3],
+			wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
 				   sync_exp_work_done(rsp,
 						      &rdp->exp_workdone2, s));
 			return true;
@@ -331,6 +331,8 @@ static void sync_sched_exp_handler(void *data)
 		return;
 	}
 	__this_cpu_write(rcu_sched_data.cpu_no_qs.b.exp, true);
+	/* Store .exp before .rcu_urgent_qs. */
+	smp_store_release(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs), true);
 	resched_cpu(smp_processor_id());
 }
 
@@ -531,7 +533,8 @@ static void rcu_exp_wait_wake(struct rcu_state *rsp, unsigned long s)
 				rnp->exp_seq_rq = s;
 			spin_unlock(&rnp->exp_lock);
 		}
-		wake_up_all(&rnp->exp_wq[(rsp->expedited_sequence >> 1) & 0x3]);
+		smp_mb(); /* All above changes before wakeup. */
+		wake_up_all(&rnp->exp_wq[rcu_seq_ctr(rsp->expedited_sequence) & 0x3]);
 	}
 	trace_rcu_exp_grace_period(rsp->name, s, TPS("endwake"));
 	mutex_unlock(&rsp->exp_wake_mutex);
@@ -609,9 +612,9 @@ static void _synchronize_rcu_expedited(struct rcu_state *rsp,
 	/* Wait for expedited grace period to complete. */
 	rdp = per_cpu_ptr(rsp->rda, raw_smp_processor_id());
 	rnp = rcu_get_root(rsp);
-	wait_event(rnp->exp_wq[(s >> 1) & 0x3],
-		   sync_exp_work_done(rsp,
-				      &rdp->exp_workdone0, s));
+	wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
+		   sync_exp_work_done(rsp, &rdp->exp_workdone0, s));
+	smp_mb(); /* Workqueue actions happen before return. */
 
 	/* Let the next expedited grace period start. */
 	mutex_unlock(&rsp->exp_mutex);
@@ -735,15 +738,3 @@ void synchronize_rcu_expedited(void)
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
-
-/*
- * Switch to run-time mode once Tree RCU has fully initialized.
- */
-static int __init rcu_exp_runtime_mode(void)
-{
-	rcu_test_sync_prims();
-	rcu_scheduler_active = RCU_SCHEDULER_RUNNING;
-	rcu_test_sync_prims();
-	return 0;
-}
-core_initcall(rcu_exp_runtime_mode);

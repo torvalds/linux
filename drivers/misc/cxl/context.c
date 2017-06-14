@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
+#include <linux/sched/mm.h>
 #include <asm/cputable.h>
 #include <asm/current.h>
 #include <asm/copro.h>
@@ -38,23 +39,26 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 {
 	int i;
 
-	spin_lock_init(&ctx->sste_lock);
 	ctx->afu = afu;
 	ctx->master = master;
-	ctx->pid = ctx->glpid = NULL; /* Set in start work ioctl */
+	ctx->pid = NULL; /* Set in start work ioctl */
 	mutex_init(&ctx->mapping_lock);
 	ctx->mapping = NULL;
 
-	/*
-	 * Allocate the segment table before we put it in the IDR so that we
-	 * can always access it when dereferenced from IDR. For the same
-	 * reason, the segment table is only destroyed after the context is
-	 * removed from the IDR.  Access to this in the IOCTL is protected by
-	 * Linux filesytem symantics (can't IOCTL until open is complete).
-	 */
-	i = cxl_alloc_sst(ctx);
-	if (i)
-		return i;
+	if (cxl_is_psl8(afu)) {
+		spin_lock_init(&ctx->sste_lock);
+
+		/*
+		 * Allocate the segment table before we put it in the IDR so that we
+		 * can always access it when dereferenced from IDR. For the same
+		 * reason, the segment table is only destroyed after the context is
+		 * removed from the IDR.  Access to this in the IOCTL is protected by
+		 * Linux filesytem symantics (can't IOCTL until open is complete).
+		 */
+		i = cxl_alloc_sst(ctx);
+		if (i)
+			return i;
+	}
 
 	INIT_WORK(&ctx->fault_work, cxl_handle_fault);
 
@@ -184,13 +188,26 @@ int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma)
 	if (ctx->afu->current_mode == CXL_MODE_DEDICATED) {
 		if (start + len > ctx->afu->adapter->ps_size)
 			return -EINVAL;
+
+		if (cxl_is_psl9(ctx->afu)) {
+			/*
+			 * Make sure there is a valid problem state
+			 * area space for this AFU.
+			 */
+			if (ctx->master && !ctx->afu->psa) {
+				pr_devel("AFU doesn't support mmio space\n");
+				return -EINVAL;
+			}
+
+			/* Can't mmap until the AFU is enabled */
+			if (!ctx->afu->enabled)
+				return -EBUSY;
+		}
 	} else {
 		if (start + len > ctx->psn_size)
 			return -EINVAL;
-	}
 
-	if (ctx->afu->current_mode != CXL_MODE_DEDICATED) {
-		/* make sure there is a valid per process space for this AFU */
+		/* Make sure there is a valid per process space for this AFU */
 		if ((ctx->master && !ctx->afu->psa) || (!ctx->afu->pp_psa)) {
 			pr_devel("AFU doesn't support mmio space\n");
 			return -EINVAL;
@@ -242,12 +259,16 @@ int __detach_context(struct cxl_context *ctx)
 
 	/* release the reference to the group leader and mm handling pid */
 	put_pid(ctx->pid);
-	put_pid(ctx->glpid);
 
 	cxl_ctx_put();
 
 	/* Decrease the attached context count on the adapter */
 	cxl_adapter_context_put(ctx->afu->adapter);
+
+	/* Decrease the mm count on the context */
+	cxl_context_mm_count_put(ctx);
+	ctx->mm = NULL;
+
 	return 0;
 }
 
@@ -303,7 +324,8 @@ static void reclaim_ctx(struct rcu_head *rcu)
 {
 	struct cxl_context *ctx = container_of(rcu, struct cxl_context, rcu);
 
-	free_page((u64)ctx->sstp);
+	if (cxl_is_psl8(ctx->afu))
+		free_page((u64)ctx->sstp);
 	if (ctx->ff_page)
 		__free_page(ctx->ff_page);
 	ctx->sstp = NULL;
@@ -324,4 +346,16 @@ void cxl_context_free(struct cxl_context *ctx)
 	idr_remove(&ctx->afu->contexts_idr, ctx->pe);
 	mutex_unlock(&ctx->afu->contexts_lock);
 	call_rcu(&ctx->rcu, reclaim_ctx);
+}
+
+void cxl_context_mm_count_get(struct cxl_context *ctx)
+{
+	if (ctx->mm)
+		atomic_inc(&ctx->mm->mm_count);
+}
+
+void cxl_context_mm_count_put(struct cxl_context *ctx)
+{
+	if (ctx->mm)
+		mmdrop(ctx->mm);
 }

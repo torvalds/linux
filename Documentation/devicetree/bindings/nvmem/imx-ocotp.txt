@@ -9,9 +9,13 @@ Required properties:
 	"fsl,imx6sl-ocotp" (i.MX6SL), or
 	"fsl,imx6sx-ocotp" (i.MX6SX),
 	"fsl,imx6ul-ocotp" (i.MX6UL),
+	"fsl,imx7d-ocotp" (i.MX7D/S),
 	followed by "syscon".
 - reg: Should contain the register base and length.
 - clocks: Should contain a phandle pointing to the gated peripheral clock.
+
+Optional properties:
+- read-only: disable write access
 
 Example:
 
@@ -19,4 +23,5 @@ Example:
 		compatible = "fsl,imx6q-ocotp", "syscon";
 		reg = <0x021bc000 0x4000>;
 		clocks = <&clks IMX6QDL_CLK_IIM>;
+		read-only;
 	};

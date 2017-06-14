@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <inttypes.h>
 #include <math.h>
 #include "stat.h"
 #include "evlist.h"

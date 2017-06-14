@@ -1016,6 +1016,7 @@ SYSCALL_DEFINE2(osf_gettimeofday, struct timeval32 __user *, tv,
 SYSCALL_DEFINE2(osf_settimeofday, struct timeval32 __user *, tv,
 		struct timezone __user *, tz)
 {
+	struct timespec64 kts64;
 	struct timespec kts;
 	struct timezone ktz;
 
@@ -1023,13 +1024,14 @@ SYSCALL_DEFINE2(osf_settimeofday, struct timeval32 __user *, tv,
 		if (get_tv32((struct timeval *)&kts, tv))
 			return -EFAULT;
 		kts.tv_nsec *= 1000;
+		kts64 = timespec_to_timespec64(kts);
 	}
 	if (tz) {
 		if (copy_from_user(&ktz, tz, sizeof(*tz)))
 			return -EFAULT;
 	}
 
-	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
+	return do_sys_settimeofday64(tv ? &kts64 : NULL, tz ? &ktz : NULL);
 }
 
 asmlinkage long sys_ni_posix_timers(void);
@@ -1199,8 +1201,10 @@ SYSCALL_DEFINE4(osf_wait4, pid_t, pid, int __user *, ustatus, int, options,
 	if (!access_ok(VERIFY_WRITE, ur, sizeof(*ur)))
 		return -EFAULT;
 
-	err = 0;
-	err |= put_user(status, ustatus);
+	err = put_user(status, ustatus);
+	if (ret < 0)
+		return err ? err : ret;
+
 	err |= __put_user(r.ru_utime.tv_sec, &ur->ru_utime.tv_sec);
 	err |= __put_user(r.ru_utime.tv_usec, &ur->ru_utime.tv_usec);
 	err |= __put_user(r.ru_stime.tv_sec, &ur->ru_stime.tv_sec);

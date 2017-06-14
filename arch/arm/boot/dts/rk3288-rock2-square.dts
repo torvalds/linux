@@ -81,9 +81,33 @@
 		};
 	};
 
+	sata_pwr: sata-prw-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sata_pwr_en>;
+		/* Always turn on the 5V sata power connector */
+		regulator-always-on;
+		regulator-name = "sata_pwr";
+	};
+
 	spdif_out: spdif-out {
 		compatible = "linux,spdif-dit";
 		#sound-dai-cells = <0>;
+	};
+
+	sound-i2s {
+		compatible = "rockchip,rk3288-hdmi-analog";
+		pinctrl-names = "default";
+		pinctrl-0 = <&phone_ctl>, <&hp_det>;
+		rockchip,audio-codec = <&es8388>;
+		rockchip,hp-det-gpios = <&gpio7 7 GPIO_ACTIVE_HIGH>;
+		rockchip,hp-en-gpios = <&gpio8 0 GPIO_ACTIVE_HIGH>;
+		rockchip,i2s-controller = <&i2s>;
+		rockchip,model = "I2S";
+		rockchip,routing = "Analog", "LOUT2",
+				   "Analog", "ROUT2";
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
@@ -173,7 +197,25 @@
 	};
 };
 
+&i2c2 {
+	status = "okay";
+
+	es8388: es8388@10 {
+		compatible = "everest,es8388", "everest,es8328";
+		reg = <0x10>;
+		AVDD-supply = <&vccio_codec>;
+		DVDD-supply = <&vccio_codec>;
+		HPVDD-supply = <&vccio_codec>;
+		PVDD-supply = <&vccio_codec>;
+		clocks = <&cru SCLK_I2S0_OUT>;
+	};
+};
+
 &i2c5 {
+	status = "okay";
+};
+
+&i2s {
 	status = "okay";
 };
 
@@ -190,9 +232,25 @@
 		};
 	};
 
+	headphone {
+		hp_det: hp-det {
+			rockchip,pins = <7 7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		phone_ctl: phone-ctl {
+			rockchip,pins = <8 0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	usb {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins = <0 14 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sata {
+		sata_pwr_en: sata-pwr-en {
+			rockchip,pins = <0 13 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -222,5 +280,9 @@
 };
 
 &usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host1 {
 	status = "okay";
 };

@@ -283,7 +283,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	if (!nla)
 		return -EINVAL;
 
-	ret = nla_parse_nested(tb, TCA_ACT_BPF_MAX, nla, act_bpf_policy);
+	ret = nla_parse_nested(tb, TCA_ACT_BPF_MAX, nla, act_bpf_policy, NULL);
 	if (ret < 0)
 		return ret;
 

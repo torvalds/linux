@@ -31,7 +31,6 @@
  * their capability at compile-time, we just have to opt-out certain archs.
  */
 #if BITS_PER_LONG == 64 || (!(defined(CONFIG_ARM) && !defined(MMU)) && \
-			    !defined(CONFIG_AVR32) &&		\
 			    !defined(CONFIG_BLACKFIN) &&	\
 			    !defined(CONFIG_M32R) &&		\
 			    !defined(CONFIG_M68K) &&		\

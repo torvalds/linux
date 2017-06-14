@@ -451,7 +451,7 @@ int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 		ret = spi_sync(spi, &m);
 		if (ret)
 			return ret;
-	};
+	}
 
 	return 0;
 }

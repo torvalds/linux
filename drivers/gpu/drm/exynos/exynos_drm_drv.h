@@ -160,12 +160,9 @@ struct exynos_drm_clk {
  *	drm framework doesn't support multiple irq yet.
  *	we can refer to the crtc to current hardware interrupt occurred through
  *	this pipe value.
- * @enabled: if the crtc is enabled or not
- * @event: vblank event that is currently queued for flip
- * @wait_update: wait all pending planes updates to finish
- * @pending_update: number of pending plane updates in this crtc
  * @ops: pointer to callbacks for exynos drm specific functionality
  * @ctx: A pointer to the crtc's implementation specific context
+ * @pipe_clk: A pointer to the crtc's pipeline clock.
  */
 struct exynos_drm_crtc {
 	struct drm_crtc			base;
@@ -221,14 +218,6 @@ struct exynos_drm_private {
 	spinlock_t		lock;
 	wait_queue_head_t	wait;
 };
-
-static inline struct exynos_drm_crtc *
-exynos_drm_crtc_from_pipe(struct drm_device *dev, int pipe)
-{
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
-
-	return to_exynos_crtc(crtc);
-}
 
 static inline struct device *to_dma_dev(struct drm_device *dev)
 {

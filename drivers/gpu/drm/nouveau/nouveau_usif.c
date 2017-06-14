@@ -211,7 +211,6 @@ usif_notify_get(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 		goto done;
 	ntfy->p->base.event = &ntfy->p->e.base;
 	ntfy->p->base.file_priv = f;
-	ntfy->p->base.pid = current->pid;
 	ntfy->p->e.base.type = DRM_NOUVEAU_EVENT_NVIF;
 	ntfy->p->e.base.length = sizeof(ntfy->p->e.base) + ntfy->reply;
 

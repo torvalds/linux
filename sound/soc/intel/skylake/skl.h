@@ -27,27 +27,6 @@
 
 #define SKL_SUSPEND_DELAY 2000
 
-/* Vendor Specific Registers */
-#define AZX_REG_VS_EM1			0x1000
-#define AZX_REG_VS_INRC			0x1004
-#define AZX_REG_VS_OUTRC		0x1008
-#define AZX_REG_VS_FIFOTRK		0x100C
-#define AZX_REG_VS_FIFOTRK2		0x1010
-#define AZX_REG_VS_EM2			0x1030
-#define AZX_REG_VS_EM3L			0x1038
-#define AZX_REG_VS_EM3U			0x103C
-#define AZX_REG_VS_EM4L			0x1040
-#define AZX_REG_VS_EM4U			0x1044
-#define AZX_REG_VS_LTRC			0x1048
-#define AZX_REG_VS_D0I3C		0x104A
-#define AZX_REG_VS_PCE			0x104B
-#define AZX_REG_VS_L2MAGC		0x1050
-#define AZX_REG_VS_L2LAHPT		0x1054
-#define AZX_REG_VS_SDXDPIB_XBASE	0x1084
-#define AZX_REG_VS_SDXDPIB_XINTERVAL	0x20
-#define AZX_REG_VS_SDXEFIFOS_XBASE	0x1094
-#define AZX_REG_VS_SDXEFIFOS_XINTERVAL	0x20
-
 #define AZX_PCIREG_PGCTL		0x44
 #define AZX_PGCTL_LSRMD_MASK		(1 << 4)
 #define AZX_PCIREG_CGCTL		0x48
@@ -67,7 +46,7 @@ struct skl {
 	struct hdac_ext_bus ebus;
 	struct pci_dev *pci;
 
-	unsigned int init_failed:1; /* delayed init failed */
+	unsigned int init_done:1; /* delayed init status */
 	struct platform_device *dmic_dev;
 	struct platform_device *i2s_dev;
 	struct snd_soc_platform *platform;
@@ -77,6 +56,7 @@ struct skl {
 
 	struct skl_dsp_resource resource;
 	struct list_head ppl_list;
+	struct list_head bind_list;
 
 	const char *fw_name;
 	char tplg_name[64];
@@ -84,6 +64,8 @@ struct skl {
 	const struct firmware *tplg;
 
 	int supend_active;
+
+	struct work_struct probe_work;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)

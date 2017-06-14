@@ -256,7 +256,7 @@ static void moxart_dma_complete(void *param)
 
 static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 {
-	u32 len, dir_data, dir_slave;
+	u32 len, dir_slave;
 	long dma_time;
 	struct dma_async_tx_descriptor *desc = NULL;
 	struct dma_chan *dma_chan;
@@ -266,16 +266,14 @@ static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 
 	if (data->flags & MMC_DATA_WRITE) {
 		dma_chan = host->dma_chan_tx;
-		dir_data = DMA_TO_DEVICE;
 		dir_slave = DMA_MEM_TO_DEV;
 	} else {
 		dma_chan = host->dma_chan_rx;
-		dir_data = DMA_FROM_DEVICE;
 		dir_slave = DMA_DEV_TO_MEM;
 	}
 
 	len = dma_map_sg(dma_chan->device->dev, data->sg,
-			 data->sg_len, dir_data);
+			 data->sg_len, mmc_get_dma_dir(data));
 
 	if (len > 0) {
 		desc = dmaengine_prep_slave_sg(dma_chan, data->sg,
@@ -301,7 +299,7 @@ static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 
 	dma_unmap_sg(dma_chan->device->dev,
 		     data->sg, data->sg_len,
-		     dir_data);
+		     mmc_get_dma_dir(data));
 }
 
 

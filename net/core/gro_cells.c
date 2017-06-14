@@ -13,7 +13,7 @@ int gro_cells_receive(struct gro_cells *gcells, struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 	struct gro_cell *cell;
 
-	if (!gcells->cells || skb_cloned(skb) || !(dev->features & NETIF_F_GRO))
+	if (!gcells->cells || skb_cloned(skb) || netif_elide_gro(dev))
 		return netif_rx(skb);
 
 	cell = this_cpu_ptr(gcells->cells);

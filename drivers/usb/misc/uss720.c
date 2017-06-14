@@ -689,7 +689,7 @@ static int uss720_probe(struct usb_interface *intf,
 {
 	struct usb_device *usbdev = usb_get_dev(interface_to_usbdev(intf));
 	struct usb_host_interface *interface;
-	struct usb_host_endpoint *endpoint;
+	struct usb_endpoint_descriptor *epd;
 	struct parport_uss720_private *priv;
 	struct parport *pp;
 	unsigned char reg;
@@ -745,9 +745,11 @@ static int uss720_probe(struct usb_interface *intf,
 	get_1284_register(pp, 0, &reg, GFP_KERNEL);
 	dev_dbg(&intf->dev, "reg: %7ph\n", priv->reg);
 
-	endpoint = &interface->endpoint[2];
-	dev_dbg(&intf->dev, "epaddr %d interval %d\n",
-		endpoint->desc.bEndpointAddress, endpoint->desc.bInterval);
+	i = usb_find_last_int_in_endpoint(interface, &epd);
+	if (!i) {
+		dev_dbg(&intf->dev, "epaddr %d interval %d\n",
+				epd->bEndpointAddress, epd->bInterval);
+	}
 	parport_announce_port(pp);
 
 	usb_set_intfdata(intf, pp);

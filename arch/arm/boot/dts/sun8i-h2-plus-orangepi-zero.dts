@@ -49,7 +49,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Xunlong Orange Pi Zero";
@@ -96,6 +95,10 @@
 	};
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
@@ -132,6 +135,10 @@
 	bias-pull-up;
 };
 
+&ohci0 {
+	status = "okay";
+};
+
 &ohci1 {
 	status = "okay";
 };
@@ -154,7 +161,17 @@
 	status = "disabled";
 };
 
-&usbphy {
-	/* USB VBUS is always on */
+&usb_otg {
+	dr_mode = "peripheral";
 	status = "okay";
+};
+
+&usbphy {
+	/*
+	 * USB Type-A port VBUS is always on. However, MicroUSB VBUS can only
+	 * power up the board; when it's used as OTG port, this VBUS is
+	 * always off even if the board is powered via GPIO pins.
+	 */
+	status = "okay";
+	usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
 };

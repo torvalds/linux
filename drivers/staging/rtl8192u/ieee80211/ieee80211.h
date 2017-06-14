@@ -1456,10 +1456,10 @@ enum ieee80211_state {
 
 
 
-typedef struct tx_pending_t{
+struct tx_pending {
 	int frag;
 	struct ieee80211_txb *txb;
-}tx_pending_t;
+};
 
 typedef struct _bandwidth_autoswitch {
 	long threshold_20Mhzto40Mhz;
@@ -1883,7 +1883,7 @@ struct ieee80211_device {
 	RT_POWER_SAVE_CONTROL	PowerSaveControl;
 //}
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */
-	struct  tx_pending_t tx_pending;
+	struct  tx_pending tx_pending;
 
 	/* used if IEEE_SOFTMAC_ASSOCIATE is set */
 	struct timer_list associate_timer;

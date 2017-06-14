@@ -205,6 +205,7 @@ struct ttm_bo_driver bochs_bo_driver = {
 	.verify_access = bochs_bo_verify_access,
 	.io_mem_reserve = &bochs_ttm_io_mem_reserve,
 	.io_mem_free = &bochs_ttm_io_mem_free,
+	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
 
 int bochs_mm_init(struct bochs_device *bochs)

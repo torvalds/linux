@@ -106,7 +106,7 @@ static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 	}
 	if (!domain) {
 		/* Do nothings */
-		printk(KERN_WARNING "Set domain without domain !\n");
+		pr_warn("Set domain without domain !\n");
 		return 0;
 	}
 	if (domain == RADEON_GEM_DOMAIN_CPU) {
@@ -116,9 +116,13 @@ static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 			r = -EBUSY;
 
 		if (r < 0 && r != -EINTR) {
-			printk(KERN_ERR "Failed to wait for object: %li\n", r);
+			pr_err("Failed to wait for object: %li\n", r);
 			return r;
 		}
+	}
+	if (domain == RADEON_GEM_DOMAIN_VRAM && robj->prime_shared_count) {
+		/* A BO that is associated with a dma-buf cannot be sensibly migrated to VRAM */
+		return -EINVAL;
 	}
 	return 0;
 }

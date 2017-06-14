@@ -307,6 +307,9 @@ static int intel_set_power(struct hci_uart *hu, bool powered)
 	struct list_head *p;
 	int err = -ENODEV;
 
+	if (!hu->tty->dev)
+		return err;
+
 	mutex_lock(&intel_device_list_lock);
 
 	list_for_each(p, &intel_device_list) {
@@ -378,6 +381,9 @@ static void intel_busy_work(struct work_struct *work)
 	struct list_head *p;
 	struct intel_data *intel = container_of(work, struct intel_data,
 						busy_work);
+
+	if (!intel->hu->tty->dev)
+		return;
 
 	/* Link is busy, delay the suspend */
 	mutex_lock(&intel_device_list_lock);
@@ -601,12 +607,18 @@ static int intel_setup(struct hci_uart *hu)
 		return -EINVAL;
 	}
 
-	/* At the moment only the hardware variant iBT 3.0 (LnP/SfP) is
-	 * supported by this firmware loading method. This check has been
-	 * put in place to ensure correct forward compatibility options
-	 * when newer hardware variants come along.
-	 */
-	if (ver.hw_variant != 0x0b) {
+        /* Check for supported iBT hardware variants of this firmware
+         * loading method.
+         *
+         * This check has been put in place to ensure correct forward
+         * compatibility options when newer hardware variants come along.
+         */
+	switch (ver.hw_variant) {
+	case 0x0b:	/* LnP */
+	case 0x0c:	/* WsP */
+	case 0x12:	/* ThP */
+		break;
+	default:
 		bt_dev_err(hdev, "Unsupported Intel hardware variant (%u)",
 			   ver.hw_variant);
 		return -EINVAL;
@@ -699,11 +711,14 @@ static int intel_setup(struct hci_uart *hu)
 	/* With this Intel bootloader only the hardware variant and device
 	 * revision information are used to select the right firmware.
 	 *
-	 * Currently this bootloader support is limited to hardware variant
-	 * iBT 3.0 (LnP/SfP) which is identified by the value 11 (0x0b).
+	 * The firmware filename is ibt-<hw_variant>-<dev_revid>.sfi.
+	 *
+	 * Currently the supported hardware variants are:
+	 *   11 (0x0b) for iBT 3.0 (LnP/SfP)
 	 */
-	snprintf(fwname, sizeof(fwname), "intel/ibt-11-%u.sfi",
-		 le16_to_cpu(params->dev_revid));
+	snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.sfi",
+		le16_to_cpu(ver.hw_variant),
+		le16_to_cpu(params->dev_revid));
 
 	err = request_firmware(&fw, fwname, &hdev->dev);
 	if (err < 0) {
@@ -716,8 +731,9 @@ static int intel_setup(struct hci_uart *hu)
 	bt_dev_info(hdev, "Found device firmware: %s", fwname);
 
 	/* Save the DDC file name for later */
-	snprintf(fwname, sizeof(fwname), "intel/ibt-11-%u.ddc",
-		 le16_to_cpu(params->dev_revid));
+	snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.ddc",
+		le16_to_cpu(ver.hw_variant),
+		le16_to_cpu(params->dev_revid));
 
 	kfree_skb(skb);
 
@@ -889,6 +905,8 @@ done:
 	list_for_each(p, &intel_device_list) {
 		struct intel_device *dev = list_entry(p, struct intel_device,
 						      list);
+		if (!hu->tty->dev)
+			break;
 		if (hu->tty->dev->parent == dev->pdev->dev.parent) {
 			if (device_may_wakeup(&dev->pdev->dev)) {
 				set_bit(STATE_LPM_ENABLED, &intel->flags);
@@ -1056,6 +1074,9 @@ static int intel_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 
 	BT_DBG("hu %p skb %p", hu, skb);
 
+	if (!hu->tty->dev)
+		goto out_enqueue;
+
 	/* Be sure our controller is resumed and potential LPM transaction
 	 * completed before enqueuing any packet.
 	 */
@@ -1072,7 +1093,7 @@ static int intel_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		}
 	}
 	mutex_unlock(&intel_device_list_lock);
-
+out_enqueue:
 	skb_queue_tail(&intel->txq, skb);
 
 	return 0;

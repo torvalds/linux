@@ -2224,7 +2224,8 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 
 	gvt_dbg_core("init gtt\n");
 
-	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)) {
+	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
+		|| IS_KABYLAKE(gvt->dev_priv)) {
 		gvt->gtt.pte_ops = &gen8_gtt_pte_ops;
 		gvt->gtt.gma_ops = &gen8_gtt_gma_ops;
 		gvt->gtt.mm_alloc_page_table = gen8_mm_alloc_page_table;
@@ -2293,11 +2294,14 @@ void intel_gvt_clean_gtt(struct intel_gvt *gvt)
 void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
+	struct drm_i915_private *dev_priv = gvt->dev_priv;
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
 	u32 index;
 	u32 offset;
 	u32 num_entries;
 	struct intel_gvt_gtt_entry e;
+
+	intel_runtime_pm_get(dev_priv);
 
 	memset(&e, 0, sizeof(struct intel_gvt_gtt_entry));
 	e.type = GTT_TYPE_GGTT_PTE;
@@ -2313,6 +2317,8 @@ void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
 	num_entries = vgpu_hidden_sz(vgpu) >> PAGE_SHIFT;
 	for (offset = 0; offset < num_entries; offset++)
 		ops->set_entry(NULL, &e, index + offset, false, 0, vgpu);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 /**

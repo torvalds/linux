@@ -23,6 +23,17 @@
 #include "video/imx-ipu-v3.h"
 #include "ipuv3-plane.h"
 
+struct ipu_plane_state {
+	struct drm_plane_state base;
+	bool use_pre;
+};
+
+static inline struct ipu_plane_state *
+to_ipu_plane_state(struct drm_plane_state *p)
+{
+	return container_of(p, struct ipu_plane_state, base);
+}
+
 static inline struct ipu_plane *to_ipu_plane(struct drm_plane *p)
 {
 	return container_of(p, struct ipu_plane, base);
@@ -57,6 +68,12 @@ static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_NV12,
 	DRM_FORMAT_NV16,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB565_A8,
+	DRM_FORMAT_BGR565_A8,
+	DRM_FORMAT_RGB888_A8,
+	DRM_FORMAT_BGR888_A8,
+	DRM_FORMAT_RGBX8888_A8,
+	DRM_FORMAT_BGRX8888_A8,
 };
 
 int ipu_plane_irq(struct ipu_plane *ipu_plane)
@@ -66,18 +83,18 @@ int ipu_plane_irq(struct ipu_plane *ipu_plane)
 }
 
 static inline unsigned long
-drm_plane_state_to_eba(struct drm_plane_state *state)
+drm_plane_state_to_eba(struct drm_plane_state *state, int plane)
 {
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
-	int x = state->src_x >> 16;
-	int y = state->src_y >> 16;
+	int x = state->src.x1 >> 16;
+	int y = state->src.y1 >> 16;
 
-	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
+	cma_obj = drm_fb_cma_get_gem_obj(fb, plane);
 	BUG_ON(!cma_obj);
 
-	return cma_obj->paddr + fb->offsets[0] + fb->pitches[0] * y +
-	       fb->format->cpp[0] * x;
+	return cma_obj->paddr + fb->offsets[plane] + fb->pitches[plane] * y +
+	       fb->format->cpp[plane] * x;
 }
 
 static inline unsigned long
@@ -85,9 +102,9 @@ drm_plane_state_to_ubo(struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
-	unsigned long eba = drm_plane_state_to_eba(state);
-	int x = state->src_x >> 16;
-	int y = state->src_y >> 16;
+	unsigned long eba = drm_plane_state_to_eba(state, 0);
+	int x = state->src.x1 >> 16;
+	int y = state->src.y1 >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 1);
 	BUG_ON(!cma_obj);
@@ -104,9 +121,9 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
-	unsigned long eba = drm_plane_state_to_eba(state);
-	int x = state->src_x >> 16;
-	int y = state->src_y >> 16;
+	unsigned long eba = drm_plane_state_to_eba(state, 0);
+	int x = state->src.x1 >> 16;
+	int y = state->src.y1 >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 2);
 	BUG_ON(!cma_obj);
@@ -126,17 +143,31 @@ void ipu_plane_put_resources(struct ipu_plane *ipu_plane)
 		ipu_dmfc_put(ipu_plane->dmfc);
 	if (!IS_ERR_OR_NULL(ipu_plane->ipu_ch))
 		ipu_idmac_put(ipu_plane->ipu_ch);
+	if (!IS_ERR_OR_NULL(ipu_plane->alpha_ch))
+		ipu_idmac_put(ipu_plane->alpha_ch);
 }
 
 int ipu_plane_get_resources(struct ipu_plane *ipu_plane)
 {
 	int ret;
+	int alpha_ch;
 
 	ipu_plane->ipu_ch = ipu_idmac_get(ipu_plane->ipu, ipu_plane->dma);
 	if (IS_ERR(ipu_plane->ipu_ch)) {
 		ret = PTR_ERR(ipu_plane->ipu_ch);
 		DRM_ERROR("failed to get idmac channel: %d\n", ret);
 		return ret;
+	}
+
+	alpha_ch = ipu_channel_alpha_channel(ipu_plane->dma);
+	if (alpha_ch >= 0) {
+		ipu_plane->alpha_ch = ipu_idmac_get(ipu_plane->ipu, alpha_ch);
+		if (IS_ERR(ipu_plane->alpha_ch)) {
+			ret = PTR_ERR(ipu_plane->alpha_ch);
+			DRM_ERROR("failed to get alpha idmac channel %d: %d\n",
+				  alpha_ch, ret);
+			return ret;
+		}
 	}
 
 	ipu_plane->dmfc = ipu_dmfc_get(ipu_plane->ipu, ipu_plane->dma);
@@ -162,33 +193,61 @@ err_out:
 	return ret;
 }
 
+static bool ipu_plane_separate_alpha(struct ipu_plane *ipu_plane)
+{
+	switch (ipu_plane->base.state->fb->format->format) {
+	case DRM_FORMAT_RGB565_A8:
+	case DRM_FORMAT_BGR565_A8:
+	case DRM_FORMAT_RGB888_A8:
+	case DRM_FORMAT_BGR888_A8:
+	case DRM_FORMAT_RGBX8888_A8:
+	case DRM_FORMAT_BGRX8888_A8:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void ipu_plane_enable(struct ipu_plane *ipu_plane)
 {
 	if (ipu_plane->dp)
 		ipu_dp_enable(ipu_plane->ipu);
 	ipu_dmfc_enable_channel(ipu_plane->dmfc);
 	ipu_idmac_enable_channel(ipu_plane->ipu_ch);
+	if (ipu_plane_separate_alpha(ipu_plane))
+		ipu_idmac_enable_channel(ipu_plane->alpha_ch);
 	if (ipu_plane->dp)
 		ipu_dp_enable_channel(ipu_plane->dp);
 }
 
-static int ipu_disable_plane(struct drm_plane *plane)
+void ipu_plane_disable(struct ipu_plane *ipu_plane, bool disable_dp_channel)
 {
-	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
-
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	ipu_idmac_wait_busy(ipu_plane->ipu_ch, 50);
 
-	if (ipu_plane->dp)
-		ipu_dp_disable_channel(ipu_plane->dp);
+	if (ipu_plane->dp && disable_dp_channel)
+		ipu_dp_disable_channel(ipu_plane->dp, false);
 	ipu_idmac_disable_channel(ipu_plane->ipu_ch);
+	if (ipu_plane->alpha_ch)
+		ipu_idmac_disable_channel(ipu_plane->alpha_ch);
 	ipu_dmfc_disable_channel(ipu_plane->dmfc);
 	if (ipu_plane->dp)
 		ipu_dp_disable(ipu_plane->ipu);
-
-	return 0;
+	if (ipu_prg_present(ipu_plane->ipu))
+		ipu_prg_channel_disable(ipu_plane->ipu_ch);
 }
+
+void ipu_plane_disable_deferred(struct drm_plane *plane)
+{
+	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+
+	if (ipu_plane->disabling) {
+		ipu_plane->disabling = false;
+		ipu_plane_disable(ipu_plane, false);
+	}
+}
+EXPORT_SYMBOL_GPL(ipu_plane_disable_deferred);
 
 static void ipu_plane_destroy(struct drm_plane *plane)
 {
@@ -200,13 +259,56 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 	kfree(ipu_plane);
 }
 
+void ipu_plane_state_reset(struct drm_plane *plane)
+{
+	struct ipu_plane_state *ipu_state;
+
+	if (plane->state) {
+		ipu_state = to_ipu_plane_state(plane->state);
+		__drm_atomic_helper_plane_destroy_state(plane->state);
+		kfree(ipu_state);
+	}
+
+	ipu_state = kzalloc(sizeof(*ipu_state), GFP_KERNEL);
+
+	if (ipu_state) {
+		ipu_state->base.plane = plane;
+		ipu_state->base.rotation = DRM_ROTATE_0;
+	}
+
+	plane->state = &ipu_state->base;
+}
+
+struct drm_plane_state *ipu_plane_duplicate_state(struct drm_plane *plane)
+{
+	struct ipu_plane_state *state;
+
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	if (state)
+		__drm_atomic_helper_plane_duplicate_state(plane, &state->base);
+
+	return &state->base;
+}
+
+void ipu_plane_destroy_state(struct drm_plane *plane,
+			     struct drm_plane_state *state)
+{
+	struct ipu_plane_state *ipu_state = to_ipu_plane_state(state);
+
+	__drm_atomic_helper_plane_destroy_state(state);
+	kfree(ipu_state);
+}
+
 static const struct drm_plane_funcs ipu_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= ipu_plane_destroy,
-	.reset		= drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
+	.reset		= ipu_plane_state_reset,
+	.atomic_duplicate_state	= ipu_plane_duplicate_state,
+	.atomic_destroy_state	= ipu_plane_destroy_state,
 };
 
 static int ipu_plane_atomic_check(struct drm_plane *plane,
@@ -217,8 +319,11 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	struct device *dev = plane->dev->dev;
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_framebuffer *old_fb = old_state->fb;
-	unsigned long eba, ubo, vbo, old_ubo, old_vbo;
+	unsigned long eba, ubo, vbo, old_ubo, old_vbo, alpha_eba;
+	bool can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
+	struct drm_rect clip;
 	int hsub, vsub;
+	int ret;
 
 	/* Ok to disable */
 	if (!fb)
@@ -232,44 +337,35 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
+	clip.x1 = 0;
+	clip.y1 = 0;
+	clip.x2 = crtc_state->adjusted_mode.hdisplay;
+	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	ret = drm_plane_helper_check_state(state, &clip,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   can_position, true);
+	if (ret)
+		return ret;
+
 	/* CRTC should be enabled */
 	if (!crtc_state->enable)
 		return -EINVAL;
 
-	/* no scaling */
-	if (state->src_w >> 16 != state->crtc_w ||
-	    state->src_h >> 16 != state->crtc_h)
-		return -EINVAL;
-
 	switch (plane->type) {
 	case DRM_PLANE_TYPE_PRIMARY:
-		/* full plane doesn't support partial off screen */
-		if (state->crtc_x || state->crtc_y ||
-		    state->crtc_w != crtc_state->adjusted_mode.hdisplay ||
-		    state->crtc_h != crtc_state->adjusted_mode.vdisplay)
-			return -EINVAL;
-
 		/* full plane minimum width is 13 pixels */
-		if (state->crtc_w < 13)
+		if (drm_rect_width(&state->dst) < 13)
 			return -EINVAL;
 		break;
 	case DRM_PLANE_TYPE_OVERLAY:
-		if (state->crtc_x < 0 || state->crtc_y < 0)
-			return -EINVAL;
-
-		if (state->crtc_x + state->crtc_w >
-		    crtc_state->adjusted_mode.hdisplay)
-			return -EINVAL;
-		if (state->crtc_y + state->crtc_h >
-		    crtc_state->adjusted_mode.vdisplay)
-			return -EINVAL;
 		break;
 	default:
-		dev_warn(dev, "Unsupported plane type\n");
+		dev_warn(dev, "Unsupported plane type %d\n", plane->type);
 		return -EINVAL;
 	}
 
-	if (state->crtc_h < 2)
+	if (drm_rect_height(&state->dst) < 2)
 		return -EINVAL;
 
 	/*
@@ -279,12 +375,13 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	 * callback.  The planes will be reenabled in plane's ->atomic_update
 	 * callback.
 	 */
-	if (old_fb && (state->src_w != old_state->src_w ||
-			      state->src_h != old_state->src_h ||
-			      fb->format != old_fb->format))
+	if (old_fb &&
+	    (drm_rect_width(&state->dst) != drm_rect_width(&old_state->dst) ||
+	     drm_rect_height(&state->dst) != drm_rect_height(&old_state->dst) ||
+	     fb->format != old_fb->format))
 		crtc_state->mode_changed = true;
 
-	eba = drm_plane_state_to_eba(state);
+	eba = drm_plane_state_to_eba(state, 0);
 
 	if (eba & 0x7)
 		return -EINVAL;
@@ -350,9 +447,26 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		 */
 		hsub = drm_format_horz_chroma_subsampling(fb->format->format);
 		vsub = drm_format_vert_chroma_subsampling(fb->format->format);
-		if (((state->src_x >> 16) & (hsub - 1)) ||
-		    ((state->src_y >> 16) & (vsub - 1)))
+		if (((state->src.x1 >> 16) & (hsub - 1)) ||
+		    ((state->src.y1 >> 16) & (vsub - 1)))
 			return -EINVAL;
+		break;
+	case DRM_FORMAT_RGB565_A8:
+	case DRM_FORMAT_BGR565_A8:
+	case DRM_FORMAT_RGB888_A8:
+	case DRM_FORMAT_BGR888_A8:
+	case DRM_FORMAT_RGBX8888_A8:
+	case DRM_FORMAT_BGRX8888_A8:
+		alpha_eba = drm_plane_state_to_eba(state, 1);
+		if (alpha_eba & 0x7)
+			return -EINVAL;
+
+		if (fb->pitches[1] < 1 || fb->pitches[1] > 16384)
+			return -EINVAL;
+
+		if (old_fb && old_fb->pitches[1] != fb->pitches[1])
+			crtc_state->mode_changed = true;
+		break;
 	}
 
 	return 0;
@@ -361,7 +475,25 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 static void ipu_plane_atomic_disable(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	ipu_disable_plane(plane);
+	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+
+	if (ipu_plane->dp)
+		ipu_dp_disable_channel(ipu_plane->dp, true);
+	ipu_plane->disabling = true;
+}
+
+static int ipu_chan_assign_axi_id(int ipu_chan)
+{
+	switch (ipu_chan) {
+	case IPUV3_CHANNEL_MEM_BG_SYNC:
+		return 1;
+	case IPUV3_CHANNEL_MEM_FG_SYNC:
+		return 2;
+	case IPUV3_CHANNEL_MEM_DC_SYNC:
+		return 3;
+	default:
+		return 0;
+	}
 }
 
 static void ipu_plane_atomic_update(struct drm_plane *plane,
@@ -369,18 +501,47 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 {
 	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
 	struct drm_plane_state *state = plane->state;
+	struct ipu_plane_state *ipu_state = to_ipu_plane_state(state);
 	struct drm_crtc_state *crtc_state = state->crtc->state;
 	struct drm_framebuffer *fb = state->fb;
+	struct drm_rect *dst = &state->dst;
 	unsigned long eba, ubo, vbo;
+	unsigned long alpha_eba = 0;
 	enum ipu_color_space ics;
+	unsigned int axi_id = 0;
 	int active;
 
-	eba = drm_plane_state_to_eba(state);
+	if (ipu_plane->dp_flow == IPU_DP_FLOW_SYNC_FG)
+		ipu_dp_set_window_pos(ipu_plane->dp, dst->x1, dst->y1);
+
+	eba = drm_plane_state_to_eba(state, 0);
+
+	/*
+	 * Configure PRG channel and attached PRE, this changes the EBA to an
+	 * internal SRAM location.
+	 */
+	if (ipu_state->use_pre) {
+		axi_id = ipu_chan_assign_axi_id(ipu_plane->dma);
+		ipu_prg_channel_configure(ipu_plane->ipu_ch, axi_id,
+					  drm_rect_width(&state->src) >> 16,
+					  drm_rect_height(&state->src) >> 16,
+					  state->fb->pitches[0],
+					  state->fb->format->format, &eba);
+	}
 
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state)) {
+		/* nothing to do if PRE is used */
+		if (ipu_state->use_pre)
+			return;
 		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
 		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, !active, eba);
 		ipu_idmac_select_buffer(ipu_plane->ipu_ch, !active);
+		if (ipu_plane_separate_alpha(ipu_plane)) {
+			active = ipu_idmac_get_current_buffer(ipu_plane->alpha_ch);
+			ipu_cpmem_set_buffer(ipu_plane->alpha_ch, !active,
+					     alpha_eba);
+			ipu_idmac_select_buffer(ipu_plane->alpha_ch, !active);
+		}
 		return;
 	}
 
@@ -395,8 +556,6 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		ics = ipu_drm_fourcc_to_colorspace(state->fb->format->format);
 		ipu_dp_setup_channel(ipu_plane->dp, ics,
 					IPUV3_COLORSPACE_UNKNOWN);
-		ipu_dp_set_window_pos(ipu_plane->dp, state->crtc_x,
-					state->crtc_y);
 		/* Enable local alpha on partial plane */
 		switch (state->fb->format->format) {
 		case DRM_FORMAT_ARGB1555:
@@ -408,6 +567,12 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		case DRM_FORMAT_ABGR8888:
 		case DRM_FORMAT_RGBA8888:
 		case DRM_FORMAT_BGRA8888:
+		case DRM_FORMAT_RGB565_A8:
+		case DRM_FORMAT_BGR565_A8:
+		case DRM_FORMAT_RGB888_A8:
+		case DRM_FORMAT_BGR888_A8:
+		case DRM_FORMAT_RGBX8888_A8:
+		case DRM_FORMAT_BGRX8888_A8:
 			ipu_dp_set_global_alpha(ipu_plane->dp, false, 0, false);
 			break;
 		default:
@@ -416,15 +581,17 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		}
 	}
 
-	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, state->crtc_w);
+	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, drm_rect_width(dst));
 
 	ipu_cpmem_zero(ipu_plane->ipu_ch);
-	ipu_cpmem_set_resolution(ipu_plane->ipu_ch, state->src_w >> 16,
-					state->src_h >> 16);
+	ipu_cpmem_set_resolution(ipu_plane->ipu_ch,
+				 drm_rect_width(&state->src) >> 16,
+				 drm_rect_height(&state->src) >> 16);
 	ipu_cpmem_set_fmt(ipu_plane->ipu_ch, state->fb->format->format);
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
 	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
 	ipu_cpmem_set_stride(ipu_plane->ipu_ch, state->fb->pitches[0]);
+	ipu_cpmem_set_axi_id(ipu_plane->ipu_ch, axi_id);
 	switch (fb->format->format) {
 	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_YVU420:
@@ -444,7 +611,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 
 		dev_dbg(ipu_plane->base.dev->dev,
 			"phy = %lu %lu %lu, x = %d, y = %d", eba, ubo, vbo,
-			state->src_x >> 16, state->src_y >> 16);
+			state->src.x1 >> 16, state->src.y1 >> 16);
 		break;
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
@@ -455,11 +622,37 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 
 		dev_dbg(ipu_plane->base.dev->dev,
 			"phy = %lu %lu, x = %d, y = %d", eba, ubo,
-			state->src_x >> 16, state->src_y >> 16);
+			state->src.x1 >> 16, state->src.y1 >> 16);
+		break;
+	case DRM_FORMAT_RGB565_A8:
+	case DRM_FORMAT_BGR565_A8:
+	case DRM_FORMAT_RGB888_A8:
+	case DRM_FORMAT_BGR888_A8:
+	case DRM_FORMAT_RGBX8888_A8:
+	case DRM_FORMAT_BGRX8888_A8:
+		alpha_eba = drm_plane_state_to_eba(state, 1);
+
+		dev_dbg(ipu_plane->base.dev->dev, "phys = %lu %lu, x = %d, y = %d",
+			eba, alpha_eba, state->src.x1 >> 16, state->src.y1 >> 16);
+
+		ipu_cpmem_set_burstsize(ipu_plane->ipu_ch, 16);
+
+		ipu_cpmem_zero(ipu_plane->alpha_ch);
+		ipu_cpmem_set_resolution(ipu_plane->alpha_ch,
+					 drm_rect_width(&state->src) >> 16,
+					 drm_rect_height(&state->src) >> 16);
+		ipu_cpmem_set_format_passthrough(ipu_plane->alpha_ch, 8);
+		ipu_cpmem_set_high_priority(ipu_plane->alpha_ch);
+		ipu_idmac_set_double_buffer(ipu_plane->alpha_ch, 1);
+		ipu_cpmem_set_stride(ipu_plane->alpha_ch,
+				     state->fb->pitches[1]);
+		ipu_cpmem_set_burstsize(ipu_plane->alpha_ch, 16);
+		ipu_cpmem_set_buffer(ipu_plane->alpha_ch, 0, alpha_eba);
+		ipu_cpmem_set_buffer(ipu_plane->alpha_ch, 1, alpha_eba);
 		break;
 	default:
 		dev_dbg(ipu_plane->base.dev->dev, "phys = %lu, x = %d, y = %d",
-			eba, state->src_x >> 16, state->src_y >> 16);
+			eba, state->src.x1 >> 16, state->src.y1 >> 16);
 		break;
 	}
 	ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 0, eba);
@@ -473,6 +666,35 @@ static const struct drm_plane_helper_funcs ipu_plane_helper_funcs = {
 	.atomic_disable = ipu_plane_atomic_disable,
 	.atomic_update = ipu_plane_atomic_update,
 };
+
+int ipu_planes_assign_pre(struct drm_device *dev,
+			  struct drm_atomic_state *state)
+{
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane;
+	int available_pres = ipu_prg_max_active_channels();
+	int i;
+
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		struct ipu_plane_state *ipu_state =
+				to_ipu_plane_state(plane_state);
+		struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+
+		if (ipu_prg_present(ipu_plane->ipu) && available_pres &&
+		    plane_state->fb &&
+		    ipu_prg_format_supported(ipu_plane->ipu,
+					     plane_state->fb->format->format,
+					     plane_state->fb->modifier)) {
+			ipu_state->use_pre = true;
+			available_pres--;
+		} else {
+			ipu_state->use_pre = false;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_planes_assign_pre);
 
 struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 				 int dma, int dp, unsigned int possible_crtcs,

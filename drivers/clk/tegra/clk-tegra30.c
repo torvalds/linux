@@ -817,6 +817,7 @@ static struct tegra_clk tegra30_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_pll_p_out4] = { .dt_id = TEGRA30_CLK_PLL_P_OUT4, .present = true },
 	[tegra_clk_pll_a] = { .dt_id = TEGRA30_CLK_PLL_A, .present = true },
 	[tegra_clk_pll_a_out0] = { .dt_id = TEGRA30_CLK_PLL_A_OUT0, .present = true },
+	[tegra_clk_cec] = { .dt_id = TEGRA30_CLK_CEC, .present = true },
 };
 
 static const char *pll_e_parents[] = { "pll_ref", "pll_p" };

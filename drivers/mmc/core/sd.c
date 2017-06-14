@@ -225,7 +225,7 @@ static int mmc_decode_scr(struct mmc_card *card)
 static int mmc_read_ssr(struct mmc_card *card)
 {
 	unsigned int au, es, et, eo;
-	u32 *raw_ssr;
+	__be32 *raw_ssr;
 	int i;
 
 	if (!(card->csd.cmdclass & CCC_APP_SPEC)) {
@@ -853,7 +853,7 @@ int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 		/*
 		 * Fetch SCR from card.
 		 */
-		err = mmc_app_send_scr(card, card->raw_scr);
+		err = mmc_app_send_scr(card);
 		if (err)
 			return err;
 

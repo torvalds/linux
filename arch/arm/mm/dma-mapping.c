@@ -2311,7 +2311,14 @@ int arm_iommu_attach_device(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(arm_iommu_attach_device);
 
-static void __arm_iommu_detach_device(struct device *dev)
+/**
+ * arm_iommu_detach_device
+ * @dev: valid struct device pointer
+ *
+ * Detaches the provided device from a previously attached map.
+ * This voids the dma operations (dma_map_ops pointer)
+ */
+void arm_iommu_detach_device(struct device *dev)
 {
 	struct dma_iommu_mapping *mapping;
 
@@ -2324,21 +2331,9 @@ static void __arm_iommu_detach_device(struct device *dev)
 	iommu_detach_device(mapping->domain, dev);
 	kref_put(&mapping->kref, release_iommu_mapping);
 	to_dma_iommu_mapping(dev) = NULL;
+	set_dma_ops(dev, NULL);
 
 	pr_debug("Detached IOMMU controller from %s device.\n", dev_name(dev));
-}
-
-/**
- * arm_iommu_detach_device
- * @dev: valid struct device pointer
- *
- * Detaches the provided device from a previously attached map.
- * This voids the dma operations (dma_map_ops pointer)
- */
-void arm_iommu_detach_device(struct device *dev)
-{
-	__arm_iommu_detach_device(dev);
-	set_dma_ops(dev, NULL);
 }
 EXPORT_SYMBOL_GPL(arm_iommu_detach_device);
 
@@ -2379,7 +2374,7 @@ static void arm_teardown_iommu_dma_ops(struct device *dev)
 	if (!mapping)
 		return;
 
-	__arm_iommu_detach_device(dev);
+	arm_iommu_detach_device(dev);
 	arm_iommu_release_mapping(mapping);
 }
 
@@ -2408,15 +2403,35 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	const struct dma_map_ops *dma_ops;
 
 	dev->archdata.dma_coherent = coherent;
+
+	/*
+	 * Don't override the dma_ops if they have already been set. Ideally
+	 * this should be the only location where dma_ops are set, remove this
+	 * check when all other callers of set_dma_ops will have disappeared.
+	 */
+	if (dev->dma_ops)
+		return;
+
 	if (arm_setup_iommu_dma_ops(dev, dma_base, size, iommu))
 		dma_ops = arm_get_iommu_dma_map_ops(coherent);
 	else
 		dma_ops = arm_get_dma_map_ops(coherent);
 
 	set_dma_ops(dev, dma_ops);
+
+#ifdef CONFIG_XEN
+	if (xen_initial_domain()) {
+		dev->archdata.dev_dma_ops = dev->dma_ops;
+		dev->dma_ops = xen_dma_ops;
+	}
+#endif
+	dev->archdata.dma_ops_setup = true;
 }
 
 void arch_teardown_dma_ops(struct device *dev)
 {
+	if (!dev->archdata.dma_ops_setup)
+		return;
+
 	arm_teardown_iommu_dma_ops(dev);
 }

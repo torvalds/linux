@@ -551,6 +551,7 @@ static int quad8_probe(struct device *dev, unsigned int id)
 	indio_dev->num_channels = ARRAY_SIZE(quad8_channels);
 	indio_dev->channels = quad8_channels;
 	indio_dev->name = dev_name(dev);
+	indio_dev->dev.parent = dev;
 
 	priv = iio_priv(indio_dev);
 	priv->base = base[id];
