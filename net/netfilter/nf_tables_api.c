@@ -387,7 +387,7 @@ static inline u64 nf_tables_alloc_handle(struct nft_table *table)
 	return ++table->hgenerator;
 }
 
-static const struct nf_chain_type *chain_type[AF_MAX][NFT_CHAIN_T_MAX];
+static const struct nf_chain_type *chain_type[NFPROTO_NUMPROTO][NFT_CHAIN_T_MAX];
 
 static const struct nf_chain_type *
 __nf_tables_chain_type_lookup(int family, const struct nlattr *nla)
@@ -869,6 +869,9 @@ static void nf_tables_table_destroy(struct nft_ctx *ctx)
 int nft_register_chain_type(const struct nf_chain_type *ctype)
 {
 	int err = 0;
+
+	if (WARN_ON(ctype->family >= NFPROTO_NUMPROTO))
+		return -EINVAL;
 
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
 	if (chain_type[ctype->family][ctype->type] != NULL) {
