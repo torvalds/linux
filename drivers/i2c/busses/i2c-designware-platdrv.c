@@ -21,27 +21,28 @@
  * ----------------------------------------------------------------------------
  *
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/acpi.h>
+#include <linux/clk-provider.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
-#include <linux/i2c.h>
-#include <linux/clk.h>
-#include <linux/clk-provider.h>
-#include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_data/i2c-designware.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
-#include <linux/io.h>
 #include <linux/reset.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/acpi.h>
-#include <linux/platform_data/i2c-designware.h>
+
 #include "i2c-designware-core.h"
 
 static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
@@ -209,11 +210,11 @@ static void dw_i2c_set_fifo_size(struct dw_i2c_dev *dev, int id)
 static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
 	struct dw_i2c_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct dw_i2c_dev *dev;
 	struct i2c_adapter *adap;
-	struct resource *mem;
-	int irq, r;
+	struct dw_i2c_dev *dev;
 	u32 acpi_speed, ht = 0;
+	struct resource *mem;
+	int irq, ret;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -276,12 +277,12 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	    && dev->clk_freq != 1000000 && dev->clk_freq != 3400000) {
 		dev_err(&pdev->dev,
 			"Only 100kHz, 400kHz, 1MHz and 3.4MHz supported");
-		r = -EINVAL;
+		ret = -EINVAL;
 		goto exit_reset;
 	}
 
-	r = i2c_dw_probe_lock_support(dev);
-	if (r)
+	ret = i2c_dw_probe_lock_support(dev);
+	if (ret)
 		goto exit_reset;
 
 	dev->functionality = I2C_FUNC_10BIT_ADDR | DW_IC_DEFAULT_FUNCTIONALITY;
@@ -327,11 +328,11 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		pm_runtime_enable(&pdev->dev);
 	}
 
-	r = i2c_dw_probe(dev);
-	if (r)
+	ret = i2c_dw_probe(dev);
+	if (ret)
 		goto exit_probe;
 
-	return r;
+	return ret;
 
 exit_probe:
 	if (!dev->pm_disabled)
@@ -339,7 +340,7 @@ exit_probe:
 exit_reset:
 	if (!IS_ERR_OR_NULL(dev->rst))
 		reset_control_assert(dev->rst);
-	return r;
+	return ret;
 }
 
 static int dw_i2c_plat_remove(struct platform_device *pdev)
@@ -423,7 +424,7 @@ static const struct dev_pm_ops dw_i2c_dev_pm_ops = {
 #define DW_I2C_DEV_PMOPS NULL
 #endif
 
-/* work with hotplug and coldplug */
+/* Work with hotplug and coldplug */
 MODULE_ALIAS("platform:i2c_designware");
 
 static struct platform_driver dw_i2c_driver = {

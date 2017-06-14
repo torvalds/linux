@@ -49,7 +49,7 @@
  * @cmd_complete: tx completion indicator
  * @clk: input reference clock
  * @cmd_err: run time hadware error code
- * @msgs: points to an array of messages currently being transfered
+ * @msgs: points to an array of messages currently being transferred
  * @msgs_num: the number of elements in msgs
  * @msg_write_idx: the element index of the current tx message in the msgs
  *	array
