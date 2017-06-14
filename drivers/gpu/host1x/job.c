@@ -592,22 +592,20 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 
 		err = do_relocs(job, g->bo);
 		if (err)
-			break;
+			goto out;
 
 		err = do_waitchks(job, host, g->bo);
 		if (err)
-			break;
+			goto out;
 	}
 
-	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && !err) {
-		err = copy_gathers(job, dev);
-		if (err) {
-			host1x_job_unpin(job);
-			return err;
-		}
-	}
+	if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
+		goto out;
 
+	err = copy_gathers(job, dev);
 out:
+	if (err)
+		host1x_job_unpin(job);
 	wmb();
 
 	return err;
