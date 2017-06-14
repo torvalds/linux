@@ -809,25 +809,19 @@ static int btrfs_dev_replace_kthread(void *data)
 {
 	struct btrfs_fs_info *fs_info = data;
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
-	struct btrfs_ioctl_dev_replace_args *status_args;
 	u64 progress;
 
-	status_args = kzalloc(sizeof(*status_args), GFP_KERNEL);
-	if (status_args) {
-		btrfs_dev_replace_status(fs_info, status_args);
-		progress = status_args->status.progress_1000;
-		kfree(status_args);
-		progress = div_u64(progress, 10);
-		btrfs_info_in_rcu(fs_info,
-			"continuing dev_replace from %s (devid %llu) to %s @%u%%",
-			dev_replace->srcdev->missing ? "<missing disk>" :
-			rcu_str_deref(dev_replace->srcdev->name),
-			dev_replace->srcdev->devid,
-			dev_replace->tgtdev ?
-			rcu_str_deref(dev_replace->tgtdev->name) :
-			"<missing target disk>",
-			(unsigned int)progress);
-	}
+	progress = btrfs_dev_replace_progress(fs_info);
+	progress = div_u64(progress, 10);
+	btrfs_info_in_rcu(fs_info,
+		"continuing dev_replace from %s (devid %llu) to %s @%u%%",
+		dev_replace->srcdev->missing ? "<missing disk>"
+			: rcu_str_deref(dev_replace->srcdev->name),
+		dev_replace->srcdev->devid,
+		dev_replace->tgtdev ? rcu_str_deref(dev_replace->tgtdev->name)
+			: "<missing target disk>",
+		(unsigned int)progress);
+
 	btrfs_dev_replace_continue_on_mount(fs_info);
 	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 
