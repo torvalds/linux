@@ -354,12 +354,12 @@ static inline void *ubh_get_data_ptr(struct ufs_sb_private_info *uspi,
  * Determine the number of available frags given a
  * percentage to hold in reserve.
  */
-static inline u64
+static inline s64
 ufs_freespace(struct ufs_sb_private_info *uspi, int percentreserved)
 {
 	return ufs_blkstofrags(uspi->cs_total.cs_nbfree) +
 		uspi->cs_total.cs_nffree -
-		(uspi->s_dsize * (percentreserved) / 100);
+		(uspi->s_dsize * percentreserved) / 100;
 }
 
 /*
