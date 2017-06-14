@@ -799,17 +799,7 @@ struct btrfs_fs_info {
 	 * so it is also safe.
 	 */
 	u64 max_inline;
-	/*
-	 * Protected by ->chunk_mutex and sb->s_umount.
-	 *
-	 * The reason that we use two lock to protect it is because only
-	 * remount and mount operations can change it and these two operations
-	 * are under sb->s_umount, but the read side (chunk allocation) can not
-	 * acquire sb->s_umount or the deadlock would happen. So we use two
-	 * locks to protect it. On the write side, we must acquire two locks,
-	 * and on the read side, we just need acquire one of them.
-	 */
-	u64 alloc_start;
+
 	struct btrfs_transaction *running_transaction;
 	wait_queue_head_t transaction_throttle;
 	wait_queue_head_t transaction_wait;
