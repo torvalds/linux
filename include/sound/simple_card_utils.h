@@ -75,6 +75,12 @@ int asoc_simple_card_parse_graph_dai(struct device_node *ep,
 				     struct device_node **endpoint_np,
 				     const char **dai_name);
 
+#define asoc_simple_card_of_parse_tdm(np, dai)			\
+	snd_soc_of_parse_tdm_slot(np,	&(dai)->tx_slot_mask,	\
+					&(dai)->rx_slot_mask,	\
+					&(dai)->slots,		\
+					&(dai)->slot_width);
+
 int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 			      struct asoc_simple_dai *simple_dai);
 
