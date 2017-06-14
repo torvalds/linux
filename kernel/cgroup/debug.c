@@ -240,7 +240,7 @@ static u64 releasable_read(struct cgroup_subsys_state *css, struct cftype *cft)
 		!css_has_online_children(&css->cgroup->self));
 }
 
-static struct cftype debug_files[] =  {
+static struct cftype debug_legacy_files[] =  {
 	{
 		.name = "taskcount",
 		.read_u64 = debug_taskcount_read,
@@ -287,9 +287,62 @@ static struct cftype debug_files[] =  {
 	{ }	/* terminate */
 };
 
+static struct cftype debug_files[] =  {
+	{
+		.name = "taskcount",
+		.read_u64 = debug_taskcount_read,
+	},
+
+	{
+		.name = "current_css_set",
+		.seq_show = current_css_set_read,
+		.flags = CFTYPE_ONLY_ON_ROOT,
+	},
+
+	{
+		.name = "current_css_set_refcount",
+		.read_u64 = current_css_set_refcount_read,
+		.flags = CFTYPE_ONLY_ON_ROOT,
+	},
+
+	{
+		.name = "current_css_set_cg_links",
+		.seq_show = current_css_set_cg_links_read,
+		.flags = CFTYPE_ONLY_ON_ROOT,
+	},
+
+	{
+		.name = "css_links",
+		.seq_show = cgroup_css_links_read,
+	},
+
+	{
+		.name = "csses",
+		.seq_show = cgroup_subsys_states_read,
+	},
+
+	{
+		.name = "masks",
+		.seq_show = cgroup_masks_read,
+	},
+
+	{ }	/* terminate */
+};
+
 struct cgroup_subsys debug_cgrp_subsys = {
 	.css_alloc	= debug_css_alloc,
 	.css_free	= debug_css_free,
-	.legacy_cftypes	= debug_files,
-	.dfl_cftypes	= debug_files,
+	.legacy_cftypes	= debug_legacy_files,
 };
+
+/*
+ * On v2, debug is an implicit controller enabled by "cgroup_debug" boot
+ * parameter.
+ */
+static int __init enable_cgroup_debug(char *str)
+{
+	debug_cgrp_subsys.dfl_cftypes = debug_files;
+	debug_cgrp_subsys.implicit_on_dfl = true;
+	return 1;
+}
+__setup("cgroup_debug", enable_cgroup_debug);
