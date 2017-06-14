@@ -167,8 +167,10 @@ out:
 
 	rtnl_unlock();
 
-	if (result)
+	if (result) {
 		free_netdev(priv->dev);
+		kfree(priv);
+	}
 
 	return result;
 }
@@ -209,6 +211,7 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 
 	if (dev) {
 		free_netdev(dev);
+		kfree(priv);
 		return 0;
 	}
 

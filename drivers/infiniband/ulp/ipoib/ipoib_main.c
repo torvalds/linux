@@ -2237,6 +2237,7 @@ event_failed:
 
 device_init_failed:
 	free_netdev(priv->dev);
+	kfree(priv);
 
 alloc_mem_failed:
 	return ERR_PTR(result);
@@ -2277,7 +2278,7 @@ static void ipoib_add_one(struct ib_device *device)
 
 static void ipoib_remove_one(struct ib_device *device, void *client_data)
 {
-	struct ipoib_dev_priv *priv, *tmp;
+	struct ipoib_dev_priv *priv, *tmp, *cpriv, *tcpriv;
 	struct list_head *dev_list = client_data;
 
 	if (!dev_list)
@@ -2301,6 +2302,10 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 
 		unregister_netdev(priv->dev);
 		free_netdev(priv->dev);
+
+		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list)
+			kfree(cpriv);
+
 		kfree(priv);
 	}
 
