@@ -1,44 +1,53 @@
+/*
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 #include "rk312x.dtsi"
 
-&clk_gpll_div2 {
-	clocks = <&dummy>;
-};
+/ {
+	compatible = "rockchip,rk3126";
 
-&clk_gpll_div3 {
-	clocks = <&dummy>;
-};
-
-
-&aclk_vio0_pre_div {
-	rockchip,flags = <CLK_SET_RATE_PARENT_IN_ORDER>;
-};
-
-&aclk_vio1_pre_div {
-        rockchip,flags = <CLK_SET_RATE_PARENT_IN_ORDER>;
-};
-
-&hclk_vio_pre_div {
-        rockchip,flags = <CLK_SET_RATE_PARENT_IN_ORDER>;
-};
-
-&rockchip_clocks_init {
-	rockchip,clocks-init-parent =
-		<&clk_core &clk_apll>, <&aclk_cpu &clk_gpll>,
-		<&aclk_peri &clk_gpll>, <&clk_uart0_pll &clk_gpll>,
-		<&clk_uart2_pll &clk_gpll>, <&clk_i2s_2ch_pll &clk_gpll>,
-		<&clk_i2s_8ch_pll &clk_gpll>, <&clk_spdif_pll &clk_gpll>,
-		<&clk_vepu &clk_gpll>, <&clk_vdpu &clk_gpll>,
-		<&clk_hevc_core &clk_gpll>,
-		<&sclk_lcdc0 &clk_cpll>, <&clk_gpu &clk_gpll>,
-		<&clk_cif_pll &clk_gpll>, <&dclk_ebc &clk_gpll>,
-		<&clk_emmc &clk_gpll>, <&clk_sdio &clk_gpll>,
-		<&clk_sfc &clk_gpll>, <&clk_sdmmc0 &clk_gpll>,
-		<&clk_tsp &clk_gpll>, <&clk_nandc &clk_gpll>,
-		<&clk_mac_pll &clk_cpll>;
-};
-
-&i2s0 {
-	/* sdi: 0: from io, 1: from acodec */
-	sdi_source = <1>;
-	status = "okay";
+	cru: clock-controller@20000000 {
+		compatible = "rockchip,rk3126-cru";
+		reg = <0x20000000 0x1000>;
+		rockchip,grf = <&grf>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+	};
 };
