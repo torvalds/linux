@@ -512,7 +512,7 @@ void lu_object_header_print(const struct lu_env *env, void *cookie,
 			    lu_printer_t printer,
 			    const struct lu_object_header *hdr)
 {
-	(*printer)(env, cookie, "header@%p[%#lx, %d, "DFID"%s%s%s]",
+	(*printer)(env, cookie, "header@%p[%#lx, %d, " DFID "%s%s%s]",
 		   hdr, hdr->loh_flags, atomic_read(&hdr->loh_ref),
 		   PFID(&hdr->loh_fid),
 		   hlist_unhashed(&hdr->loh_hash) ? "" : " hash",

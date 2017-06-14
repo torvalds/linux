@@ -849,7 +849,7 @@ static int ldlm_resource_complain(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 	struct ldlm_resource  *res = cfs_hash_object(hs, hnode);
 
 	lock_res(res);
-	CERROR("%s: namespace resource "DLDLMRES
+	CERROR("%s: namespace resource " DLDLMRES
 	       " (%p) refcount nonzero (%d) after lock cleanup; forcing cleanup.\n",
 	       ldlm_ns_name(ldlm_res_to_ns(res)), PLDLMRES(res), res,
 	       atomic_read(&res->lr_refcount) - 1);
@@ -1391,7 +1391,7 @@ void ldlm_resource_dump(int level, struct ldlm_resource *res)
 	if (!((libcfs_debug | D_ERROR) & level))
 		return;
 
-	CDEBUG(level, "--- Resource: "DLDLMRES" (%p) refcount = %d\n",
+	CDEBUG(level, "--- Resource: " DLDLMRES " (%p) refcount = %d\n",
 	       PLDLMRES(res), res, atomic_read(&res->lr_refcount));
 
 	if (!list_empty(&res->lr_granted)) {

@@ -673,7 +673,7 @@ repeat_fid2path:
 		*ptr = '/';
 	}
 
-	CDEBUG(D_INFO, "%s: get path %s "DFID" rec: %llu ln: %u\n",
+	CDEBUG(D_INFO, "%s: get path %s " DFID " rec: %llu ln: %u\n",
 	       tgt->ltd_exp->exp_obd->obd_name,
 	       gf->gf_path, PFID(&gf->gf_fid), gf->gf_recno,
 	       gf->gf_linkno);
@@ -693,7 +693,7 @@ repeat_fid2path:
 	}
 
 	if (!fid_is_sane(&gf->gf_fid)) {
-		CERROR("%s: invalid FID "DFID": rc = %d\n",
+		CERROR("%s: invalid FID " DFID ": rc = %d\n",
 		       tgt->ltd_exp->exp_obd->obd_name,
 		       PFID(&gf->gf_fid), -EINVAL);
 		rc = -EINVAL;
@@ -1508,7 +1508,7 @@ static int lmv_null_inode(struct obd_export *exp, const struct lu_fid *fid)
 	if (rc)
 		return rc;
 
-	CDEBUG(D_INODE, "CBDATA for "DFID"\n", PFID(fid));
+	CDEBUG(D_INODE, "CBDATA for " DFID "\n", PFID(fid));
 
 	/*
 	 * With DNE every object can have two locks in different namespaces:
@@ -1540,7 +1540,7 @@ static int lmv_close(struct obd_export *exp, struct md_op_data *op_data,
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	CDEBUG(D_INODE, "CLOSE "DFID"\n", PFID(&op_data->op_fid1));
+	CDEBUG(D_INODE, "CLOSE " DFID "\n", PFID(&op_data->op_fid1));
 	return md_close(tgt->ltd_exp, op_data, mod, request);
 }
 
@@ -1672,7 +1672,7 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	CDEBUG(D_INODE, "CREATE name '%.*s' on "DFID" -> mds #%x\n",
+	CDEBUG(D_INODE, "CREATE name '%.*s' on " DFID " -> mds #%x\n",
 	       (int)op_data->op_namelen, op_data->op_name,
 	       PFID(&op_data->op_fid1), op_data->op_mds);
 
@@ -1694,7 +1694,7 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 		CDEBUG(D_CONFIG, "Server doesn't support striped dirs\n");
 	}
 
-	CDEBUG(D_INODE, "CREATE obj "DFID" -> mds #%x\n",
+	CDEBUG(D_INODE, "CREATE obj " DFID " -> mds #%x\n",
 	       PFID(&op_data->op_fid1), op_data->op_mds);
 
 	op_data->op_flags |= MF_MDC_CANCEL_FID1;
@@ -1704,7 +1704,7 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc == 0) {
 		if (!*request)
 			return rc;
-		CDEBUG(D_INODE, "Created - "DFID"\n", PFID(&op_data->op_fid2));
+		CDEBUG(D_INODE, "Created - " DFID "\n", PFID(&op_data->op_fid2));
 	}
 	return rc;
 }
@@ -1724,7 +1724,7 @@ lmv_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	if (rc)
 		return rc;
 
-	CDEBUG(D_INODE, "ENQUEUE '%s' on "DFID"\n",
+	CDEBUG(D_INODE, "ENQUEUE '%s' on " DFID "\n",
 	       LL_IT2STR(it), PFID(&op_data->op_fid1));
 
 	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
@@ -1769,7 +1769,7 @@ lmv_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 	if (body->mbo_valid & OBD_MD_MDS) {
 		struct lu_fid rid = body->mbo_fid1;
 
-		CDEBUG(D_INODE, "Request attrs for "DFID"\n",
+		CDEBUG(D_INODE, "Request attrs for " DFID "\n",
 		       PFID(&rid));
 
 		tgt = lmv_find_target(lmv, &rid);
@@ -1818,13 +1818,13 @@ static int lmv_early_cancel(struct obd_export *exp, struct lmv_tgt_desc *tgt,
 	}
 
 	if (tgt->ltd_idx != op_tgt) {
-		CDEBUG(D_INODE, "EARLY_CANCEL on "DFID"\n", PFID(fid));
+		CDEBUG(D_INODE, "EARLY_CANCEL on " DFID "\n", PFID(fid));
 		policy.l_inodebits.bits = bits;
 		rc = md_cancel_unused(tgt->ltd_exp, fid, &policy,
 				      mode, LCF_ASYNC, NULL);
 	} else {
 		CDEBUG(D_INODE,
-		       "EARLY_CANCEL skip operation target %d on "DFID"\n",
+		       "EARLY_CANCEL skip operation target %d on " DFID "\n",
 		       op_tgt, PFID(fid));
 		op_data->op_flags |= flag;
 		rc = 0;
@@ -1851,7 +1851,7 @@ static int lmv_link(struct obd_export *exp, struct md_op_data *op_data,
 
 	LASSERT(op_data->op_namelen != 0);
 
-	CDEBUG(D_INODE, "LINK "DFID":%*s to "DFID"\n",
+	CDEBUG(D_INODE, "LINK " DFID ":%*s to " DFID "\n",
 	       PFID(&op_data->op_fid2), (int)op_data->op_namelen,
 	       op_data->op_name, PFID(&op_data->op_fid1));
 
@@ -1901,7 +1901,7 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 
 	LASSERT(oldlen != 0);
 
-	CDEBUG(D_INODE, "RENAME %.*s in "DFID":%d to %.*s in "DFID":%d\n",
+	CDEBUG(D_INODE, "RENAME %.*s in " DFID ":%d to %.*s in " DFID ":%d\n",
 	       (int)oldlen, old, PFID(&op_data->op_fid1),
 	       op_data->op_mea1 ? op_data->op_mea1->lsm_md_stripe_count : 0,
 	       (int)newlen, new, PFID(&op_data->op_fid2),
@@ -1916,7 +1916,7 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 	op_data->op_cap = cfs_curproc_cap_pack();
 
 	if (op_data->op_cli_flags & CLI_MIGRATE) {
-		LASSERTF(fid_is_sane(&op_data->op_fid3), "invalid FID "DFID"\n",
+		LASSERTF(fid_is_sane(&op_data->op_fid3), "invalid FID " DFID "\n",
 			 PFID(&op_data->op_fid3));
 
 		if (op_data->op_mea1) {
@@ -2069,7 +2069,7 @@ static int lmv_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc)
 		return rc;
 
-	CDEBUG(D_INODE, "SETATTR for "DFID", valid 0x%x\n",
+	CDEBUG(D_INODE, "SETATTR for " DFID ", valid 0x%x\n",
 	       PFID(&op_data->op_fid1), op_data->op_attr.ia_valid);
 
 	op_data->op_flags |= MF_MDC_CANCEL_FID1;
@@ -2577,7 +2577,7 @@ try_next_stripe:
 	if (likely(!(body->mbo_valid & OBD_MD_MDS)))
 		return rc;
 
-	CDEBUG(D_INODE, "%s: try unlink to another MDT for "DFID"\n",
+	CDEBUG(D_INODE, "%s: try unlink to another MDT for " DFID "\n",
 	       exp->exp_obd->obd_name, PFID(&body->mbo_fid1));
 
 	/* This is a remote object, try remote MDT, Note: it may
@@ -2781,7 +2781,7 @@ static int lmv_unpack_md_v1(struct obd_export *exp, struct lmv_stripe_md *lsm,
 				    &lsm->lsm_md_oinfo[i].lmo_mds);
 		if (rc)
 			return rc;
-		CDEBUG(D_INFO, "unpack fid #%d "DFID"\n", i,
+		CDEBUG(D_INFO, "unpack fid #%d " DFID "\n", i,
 		       PFID(&lsm->lsm_md_oinfo[i].lmo_fid));
 	}
 
@@ -2925,7 +2925,7 @@ static enum ldlm_mode lmv_lock_match(struct obd_export *exp, __u64 flags,
 	int tgt;
 	u32 i;
 
-	CDEBUG(D_INODE, "Lock match for "DFID"\n", PFID(fid));
+	CDEBUG(D_INODE, "Lock match for " DFID "\n", PFID(fid));
 
 	/*
 	 * With DNE every object can have two locks in different namespaces:
@@ -2937,7 +2937,7 @@ static enum ldlm_mode lmv_lock_match(struct obd_export *exp, __u64 flags,
 	     i < lmv->desc.ld_tgt_count;
 	     i++, tgt = (tgt + 1) % lmv->desc.ld_tgt_count) {
 		if (tgt < 0) {
-			CDEBUG(D_HA, "%s: "DFID" is inaccessible: rc = %d\n",
+			CDEBUG(D_HA, "%s: " DFID " is inaccessible: rc = %d\n",
 			       obd->obd_name, PFID(fid), tgt);
 			tgt = 0;
 		}
@@ -3148,7 +3148,7 @@ static int lmv_merge_attr(struct obd_export *exp,
 	for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
 		struct inode *inode = lsm->lsm_md_oinfo[i].lmo_root;
 
-		CDEBUG(D_INFO, ""DFID" size %llu, blocks %llu nlink %u, atime %lu ctime %lu, mtime %lu.\n",
+		CDEBUG(D_INFO, "" DFID " size %llu, blocks %llu nlink %u, atime %lu ctime %lu, mtime %lu.\n",
 		       PFID(&lsm->lsm_md_oinfo[i].lmo_fid),
 		       i_size_read(inode), (unsigned long long)inode->i_blocks,
 		       inode->i_nlink, LTIME_S(inode->i_atime),
