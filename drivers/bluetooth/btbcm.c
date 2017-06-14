@@ -246,6 +246,27 @@ static struct sk_buff *btbcm_read_verbose_config(struct hci_dev *hdev)
 	return skb;
 }
 
+static struct sk_buff *btbcm_read_controller_features(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+
+	skb = __hci_cmd_sync(hdev, 0xfc6e, 0, NULL, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		BT_ERR("%s: BCM: Read controller features failed (%ld)",
+		       hdev->name, PTR_ERR(skb));
+		return skb;
+	}
+
+	if (skb->len != 9) {
+		BT_ERR("%s: BCM: Controller features length mismatch",
+		       hdev->name);
+		kfree_skb(skb);
+		return ERR_PTR(-EIO);
+	}
+
+	return skb;
+}
+
 static struct sk_buff *btbcm_read_usb_product(struct hci_dev *hdev)
 {
 	struct sk_buff *skb;
@@ -417,6 +438,14 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 	BT_INFO("%s: BCM: chip id %u", hdev->name, skb->data[1]);
 	kfree_skb(skb);
 
+	/* Read Controller Features */
+	skb = btbcm_read_controller_features(hdev);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	BT_INFO("%s: BCM: features 0x%2.2x", hdev->name, skb->data[1]);
+	kfree_skb(skb);
+
 	/* Read Local Name */
 	skb = btbcm_read_local_name(hdev);
 	if (IS_ERR(skb))
@@ -537,6 +566,13 @@ int btbcm_setup_apple(struct hci_dev *hdev)
 		BT_INFO("%s: BCM: product %4.4x:%4.4x", hdev->name,
 			get_unaligned_le16(skb->data + 1),
 			get_unaligned_le16(skb->data + 3));
+		kfree_skb(skb);
+	}
+
+	/* Read Controller Features */
+	skb = btbcm_read_controller_features(hdev);
+	if (!IS_ERR(skb)) {
+		BT_INFO("%s: BCM: features 0x%2.2x", hdev->name, skb->data[1]);
 		kfree_skb(skb);
 	}
 

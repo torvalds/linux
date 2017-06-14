@@ -48,6 +48,7 @@
 #include <linux/serdev.h>
 #include <linux/skbuff.h>
 #include <linux/ti_wilink_st.h>
+#include <linux/clk.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -84,6 +85,7 @@ struct ll_device {
 	struct hci_uart hu;
 	struct serdev_device *serdev;
 	struct gpio_desc *enable_gpio;
+	struct clk *ext_clk;
 };
 
 struct ll_struct {
@@ -146,8 +148,12 @@ static int ll_open(struct hci_uart *hu)
 
 	hu->priv = ll;
 
-	if (hu->serdev)
+	if (hu->serdev) {
+		struct ll_device *lldev = serdev_device_get_drvdata(hu->serdev);
 		serdev_device_open(hu->serdev);
+		if (!IS_ERR(lldev->ext_clk))
+			clk_prepare_enable(lldev->ext_clk);
+	}
 
 	return 0;
 }
@@ -180,6 +186,8 @@ static int ll_close(struct hci_uart *hu)
 	if (hu->serdev) {
 		struct ll_device *lldev = serdev_device_get_drvdata(hu->serdev);
 		gpiod_set_value_cansleep(lldev->enable_gpio, 0);
+
+		clk_disable_unprepare(lldev->ext_clk);
 
 		serdev_device_close(hu->serdev);
 	}
@@ -721,6 +729,10 @@ static int hci_ti_probe(struct serdev_device *serdev)
 	if (IS_ERR(lldev->enable_gpio))
 		return PTR_ERR(lldev->enable_gpio);
 
+	lldev->ext_clk = devm_clk_get(&serdev->dev, "ext_clock");
+	if (IS_ERR(lldev->ext_clk) && PTR_ERR(lldev->ext_clk) != -ENOENT)
+		return PTR_ERR(lldev->ext_clk);
+
 	of_property_read_u32(serdev->dev.of_node, "max-speed", &max_speed);
 	hci_uart_set_speeds(hu, 115200, max_speed);
 
@@ -741,6 +753,14 @@ static void hci_ti_remove(struct serdev_device *serdev)
 }
 
 static const struct of_device_id hci_ti_of_match[] = {
+	{ .compatible = "ti,wl1271-st" },
+	{ .compatible = "ti,wl1273-st" },
+	{ .compatible = "ti,wl1281-st" },
+	{ .compatible = "ti,wl1283-st" },
+	{ .compatible = "ti,wl1285-st" },
+	{ .compatible = "ti,wl1801-st" },
+	{ .compatible = "ti,wl1805-st" },
+	{ .compatible = "ti,wl1807-st" },
 	{ .compatible = "ti,wl1831-st" },
 	{ .compatible = "ti,wl1835-st" },
 	{ .compatible = "ti,wl1837-st" },

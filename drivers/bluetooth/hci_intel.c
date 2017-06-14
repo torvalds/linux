@@ -1205,9 +1205,19 @@ static const struct dev_pm_ops intel_pm_ops = {
 	SET_RUNTIME_PM_OPS(intel_suspend_device, intel_resume_device, NULL)
 };
 
+static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
+static const struct acpi_gpio_params host_wake_gpios = { 1, 0, false };
+
+static const struct acpi_gpio_mapping acpi_hci_intel_gpios[] = {
+	{ "reset-gpios", &reset_gpios, 1 },
+	{ "host-wake-gpios", &host_wake_gpios, 1 },
+	{ },
+};
+
 static int intel_probe(struct platform_device *pdev)
 {
 	struct intel_device *idev;
+	int ret;
 
 	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
 	if (!idev)
@@ -1216,6 +1226,10 @@ static int intel_probe(struct platform_device *pdev)
 	mutex_init(&idev->hu_lock);
 
 	idev->pdev = pdev;
+
+	ret = devm_acpi_dev_add_driver_gpios(&pdev->dev, acpi_hci_intel_gpios);
+	if (ret)
+		dev_dbg(&pdev->dev, "Unable to add GPIO mapping table\n");
 
 	idev->reset = devm_gpiod_get(&pdev->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(idev->reset)) {
