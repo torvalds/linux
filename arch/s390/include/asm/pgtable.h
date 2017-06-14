@@ -11,7 +11,6 @@
 #ifndef _ASM_S390_PGTABLE_H
 #define _ASM_S390_PGTABLE_H
 
-#ifndef __ASSEMBLY__
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>
@@ -65,7 +64,6 @@ extern unsigned long zero_page_mask;
 #define __HAVE_COLOR_ZERO_PAGE
 
 /* TODO: s390 cannot support io_remap_pfn_range... */
-#endif /* !__ASSEMBLY__ */
 
 #define PMD_SHIFT	20
 #define PUD_SHIFT	31
@@ -100,7 +98,6 @@ extern unsigned long zero_page_mask;
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %p.\n", __FILE__, __LINE__, (void *) pgd_val(e))
 
-#ifndef __ASSEMBLY__
 /*
  * The vmalloc and module area will always be on the topmost area of the
  * kernel mapping. We reserve 128GB (64bit) for vmalloc and modules.
@@ -1570,8 +1567,6 @@ static inline swp_entry_t __swp_entry(unsigned long type, unsigned long offset)
 
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
-
-#endif /* !__ASSEMBLY__ */
 
 #define kern_addr_valid(addr)   (1)
 
