@@ -426,6 +426,108 @@ static void pnv_pci_dump_phb3_diag_data(struct pci_controller *hose,
 	pnv_pci_dump_pest(data->pestA, data->pestB, OPAL_PHB3_NUM_PEST_REGS);
 }
 
+static void pnv_pci_dump_phb4_diag_data(struct pci_controller *hose,
+					struct OpalIoPhbErrorCommon *common)
+{
+	struct OpalIoPhb4ErrorData *data;
+
+	data = (struct OpalIoPhb4ErrorData*)common;
+	pr_info("PHB4 PHB#%d Diag-data (Version: %d)\n",
+		hose->global_number, be32_to_cpu(common->version));
+	if (data->brdgCtl)
+		pr_info("brdgCtl:    %08x\n",
+			be32_to_cpu(data->brdgCtl));
+	if (data->deviceStatus || data->slotStatus   ||
+	    data->linkStatus   || data->devCmdStatus ||
+	    data->devSecStatus)
+		pr_info("RootSts:    %08x %08x %08x %08x %08x\n",
+			be32_to_cpu(data->deviceStatus),
+			be32_to_cpu(data->slotStatus),
+			be32_to_cpu(data->linkStatus),
+			be32_to_cpu(data->devCmdStatus),
+			be32_to_cpu(data->devSecStatus));
+	if (data->rootErrorStatus || data->uncorrErrorStatus ||
+	    data->corrErrorStatus)
+		pr_info("RootErrSts: %08x %08x %08x\n",
+			be32_to_cpu(data->rootErrorStatus),
+			be32_to_cpu(data->uncorrErrorStatus),
+			be32_to_cpu(data->corrErrorStatus));
+	if (data->tlpHdr1 || data->tlpHdr2 ||
+	    data->tlpHdr3 || data->tlpHdr4)
+		pr_info("RootErrLog: %08x %08x %08x %08x\n",
+			be32_to_cpu(data->tlpHdr1),
+			be32_to_cpu(data->tlpHdr2),
+			be32_to_cpu(data->tlpHdr3),
+			be32_to_cpu(data->tlpHdr4));
+	if (data->sourceId)
+		pr_info("sourceId:   %08x\n", be32_to_cpu(data->sourceId));
+	if (data->nFir)
+		pr_info("nFir:       %016llx %016llx %016llx\n",
+			be64_to_cpu(data->nFir),
+			be64_to_cpu(data->nFirMask),
+			be64_to_cpu(data->nFirWOF));
+	if (data->phbPlssr || data->phbCsr)
+		pr_info("PhbSts:     %016llx %016llx\n",
+			be64_to_cpu(data->phbPlssr),
+			be64_to_cpu(data->phbCsr));
+	if (data->lemFir)
+		pr_info("Lem:        %016llx %016llx %016llx\n",
+			be64_to_cpu(data->lemFir),
+			be64_to_cpu(data->lemErrorMask),
+			be64_to_cpu(data->lemWOF));
+	if (data->phbErrorStatus)
+		pr_info("PhbErr:     %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->phbErrorStatus),
+			be64_to_cpu(data->phbFirstErrorStatus),
+			be64_to_cpu(data->phbErrorLog0),
+			be64_to_cpu(data->phbErrorLog1));
+	if (data->phbTxeErrorStatus)
+		pr_info("PhbTxeErr:  %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->phbTxeErrorStatus),
+			be64_to_cpu(data->phbTxeFirstErrorStatus),
+			be64_to_cpu(data->phbTxeErrorLog0),
+			be64_to_cpu(data->phbTxeErrorLog1));
+	if (data->phbRxeArbErrorStatus)
+		pr_info("RxeArbErr:  %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->phbRxeArbErrorStatus),
+			be64_to_cpu(data->phbRxeArbFirstErrorStatus),
+			be64_to_cpu(data->phbRxeArbErrorLog0),
+			be64_to_cpu(data->phbRxeArbErrorLog1));
+	if (data->phbRxeMrgErrorStatus)
+		pr_info("RxeMrgErr:  %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->phbRxeMrgErrorStatus),
+			be64_to_cpu(data->phbRxeMrgFirstErrorStatus),
+			be64_to_cpu(data->phbRxeMrgErrorLog0),
+			be64_to_cpu(data->phbRxeMrgErrorLog1));
+	if (data->phbRxeTceErrorStatus)
+		pr_info("RxeTceErr:  %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->phbRxeTceErrorStatus),
+			be64_to_cpu(data->phbRxeTceFirstErrorStatus),
+			be64_to_cpu(data->phbRxeTceErrorLog0),
+			be64_to_cpu(data->phbRxeTceErrorLog1));
+
+	if (data->phbPblErrorStatus)
+		pr_info("PblErr:     %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->phbPblErrorStatus),
+			be64_to_cpu(data->phbPblFirstErrorStatus),
+			be64_to_cpu(data->phbPblErrorLog0),
+			be64_to_cpu(data->phbPblErrorLog1));
+	if (data->phbPcieDlpErrorStatus)
+		pr_info("PcieDlp:    %016llx %016llx %016llx\n",
+			be64_to_cpu(data->phbPcieDlpErrorLog1),
+			be64_to_cpu(data->phbPcieDlpErrorLog2),
+			be64_to_cpu(data->phbPcieDlpErrorStatus));
+	if (data->phbRegbErrorStatus)
+		pr_info("RegbErr:    %016llx %016llx %016llx %016llx\n",
+			be64_to_cpu(data->phbRegbErrorStatus),
+			be64_to_cpu(data->phbRegbFirstErrorStatus),
+			be64_to_cpu(data->phbRegbErrorLog0),
+			be64_to_cpu(data->phbRegbErrorLog1));
+
+
+	pnv_pci_dump_pest(data->pestA, data->pestB, OPAL_PHB4_NUM_PEST_REGS);
+}
+
 void pnv_pci_dump_phb_diag_data(struct pci_controller *hose,
 				unsigned char *log_buff)
 {
@@ -441,6 +543,9 @@ void pnv_pci_dump_phb_diag_data(struct pci_controller *hose,
 		break;
 	case OPAL_PHB_ERROR_DATA_TYPE_PHB3:
 		pnv_pci_dump_phb3_diag_data(hose, common);
+		break;
+	case OPAL_PHB_ERROR_DATA_TYPE_PHB4:
+		pnv_pci_dump_phb4_diag_data(hose, common);
 		break;
 	default:
 		pr_warn("%s: Unrecognized ioType %d\n",
