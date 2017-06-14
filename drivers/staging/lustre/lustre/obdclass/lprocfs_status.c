@@ -301,7 +301,7 @@ EXPORT_SYMBOL(lprocfs_seq_release);
 
 struct dentry *ldebugfs_add_simple(struct dentry *root,
 				   char *name, void *data,
-				   struct file_operations *fops)
+				   const struct file_operations *fops)
 {
 	struct dentry *entry;
 	umode_t mode = 0;

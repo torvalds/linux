@@ -49,7 +49,7 @@
 
 struct lprocfs_vars {
 	const char		*name;
-	struct file_operations	*fops;
+	const struct file_operations	*fops;
 	void			*data;
 	/**
 	 * sysfs file mode.
@@ -449,7 +449,7 @@ int lprocfs_exp_cleanup(struct obd_export *exp);
 struct dentry *ldebugfs_add_simple(struct dentry *root,
 				   char *name,
 				   void *data,
-				   struct file_operations *fops);
+				   const struct file_operations *fops);
 
 int ldebugfs_register_stats(struct dentry *parent,
 			    const char *name,
@@ -536,7 +536,7 @@ static int name##_single_open(struct inode *inode, struct file *file)	\
 {									\
 	return single_open(file, name##_seq_show, inode->i_private);	\
 }									\
-static struct file_operations name##_fops = {				\
+static const struct file_operations name##_fops = {			\
 	.owner   = THIS_MODULE,					    \
 	.open    = name##_single_open,				     \
 	.read    = seq_read,					       \
@@ -581,7 +581,7 @@ static struct file_operations name##_fops = {				\
 	{								\
 		return single_open(file, NULL, inode->i_private);	\
 	}								\
-	static struct file_operations name##_##type##_fops = {	\
+	static const struct file_operations name##_##type##_fops = {	\
 		.open	= name##_##type##_open,				\
 		.write	= name##_##type##_write,			\
 		.release = lprocfs_single_release,			\

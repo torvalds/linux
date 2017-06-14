@@ -470,7 +470,7 @@ struct ll_sb_info {
 
 	struct ll_ra_info	 ll_ra_info;
 	unsigned int	      ll_namelen;
-	struct file_operations   *ll_fop;
+	const struct file_operations	*ll_fop;
 
 	unsigned int		  ll_md_brw_pages; /* readdir pages per RPC */
 
@@ -736,9 +736,9 @@ void ll_cl_remove(struct file *file, const struct lu_env *env);
 extern const struct address_space_operations ll_aops;
 
 /* llite/file.c */
-extern struct file_operations ll_file_operations;
-extern struct file_operations ll_file_operations_flock;
-extern struct file_operations ll_file_operations_noflock;
+extern const struct file_operations ll_file_operations;
+extern const struct file_operations ll_file_operations_flock;
+extern const struct file_operations ll_file_operations_noflock;
 extern const struct inode_operations ll_file_inode_operations;
 int ll_have_md_lock(struct inode *inode, __u64 *bits,
 		    enum ldlm_mode l_req_mode);

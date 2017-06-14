@@ -3114,7 +3114,7 @@ int ll_inode_permission(struct inode *inode, int mask)
 }
 
 /* -o localflock - only provides locally consistent flock locks */
-struct file_operations ll_file_operations = {
+const struct file_operations ll_file_operations = {
 	.read_iter = ll_file_read_iter,
 	.write_iter = ll_file_write_iter,
 	.unlocked_ioctl = ll_file_ioctl,
@@ -3127,7 +3127,7 @@ struct file_operations ll_file_operations = {
 	.flush	  = ll_flush
 };
 
-struct file_operations ll_file_operations_flock = {
+const struct file_operations ll_file_operations_flock = {
 	.read_iter    = ll_file_read_iter,
 	.write_iter   = ll_file_write_iter,
 	.unlocked_ioctl = ll_file_ioctl,
@@ -3143,7 +3143,7 @@ struct file_operations ll_file_operations_flock = {
 };
 
 /* These are for -o noflock - to return ENOSYS on flock calls */
-struct file_operations ll_file_operations_noflock = {
+const struct file_operations ll_file_operations_noflock = {
 	.read_iter    = ll_file_read_iter,
 	.write_iter   = ll_file_write_iter,
 	.unlocked_ioctl = ll_file_ioctl,
