@@ -32,18 +32,18 @@ static struct cpuidle_driver powernv_idle_driver = {
 	.owner            = THIS_MODULE,
 };
 
-static int max_idle_state;
-static struct cpuidle_state *cpuidle_state_table;
+static int max_idle_state __read_mostly;
+static struct cpuidle_state *cpuidle_state_table __read_mostly;
 
 struct stop_psscr_table {
 	u64 val;
 	u64 mask;
 };
 
-static struct stop_psscr_table stop_psscr_table[CPUIDLE_STATE_MAX];
+static struct stop_psscr_table stop_psscr_table[CPUIDLE_STATE_MAX] __read_mostly;
 
-static u64 snooze_timeout;
-static bool snooze_timeout_en;
+static u64 snooze_timeout __read_mostly;
+static bool snooze_timeout_en __read_mostly;
 
 static int snooze_loop(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
