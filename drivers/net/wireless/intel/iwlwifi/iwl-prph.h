@@ -404,6 +404,12 @@ enum aux_misc_master1_en {
 #define SB_CPU_2_STATUS			0xA01E34
 #define UMAG_SB_CPU_1_STATUS		0xA038C0
 #define UMAG_SB_CPU_2_STATUS		0xA038C4
+#define UMAG_GEN_HW_STATUS		0xA038C8
+
+/* For UMAG_GEN_HW_STATUS reg check */
+enum {
+	UMAG_GEN_HW_IS_FPGA = BIT(1),
+};
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8
