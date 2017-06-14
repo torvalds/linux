@@ -62,9 +62,10 @@ static int snooze_loop(struct cpuidle_device *dev,
 	unsigned long in_purr;
 	u64 snooze_exit_time;
 
+	set_thread_flag(TIF_POLLING_NRFLAG);
+
 	idle_loop_prolog(&in_purr);
 	local_irq_enable();
-	set_thread_flag(TIF_POLLING_NRFLAG);
 	snooze_exit_time = get_tb() + snooze_timeout;
 
 	while (!need_resched()) {
