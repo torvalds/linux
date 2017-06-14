@@ -156,6 +156,7 @@ config SUN8I_R_CCU
 	bool "Support for Allwinner SoCs' PRCM CCUs"
 	select SUNXI_CCU_DIV
 	select SUNXI_CCU_GATE
+	select SUNXI_CCU_MP
 	default MACH_SUN8I || (ARCH_SUNXI && ARM64)
 
 endif
