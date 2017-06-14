@@ -1,5 +1,5 @@
 What:		/sys/hypervisor/guest_type
-Date:		May 2017
+Date:		June 2017
 KernelVersion:	4.13
 Contact:	xen-devel@lists.xenproject.org
 Description:	If running under Xen:
@@ -32,3 +32,12 @@ Description:	If running under Xen:
 		Describes Xen PMU features (as an integer). A set bit indicates
 		that the corresponding feature is enabled. See
 		include/xen/interface/xenpmu.h for available features
+
+What:		/sys/hypervisor/properties/buildid
+Date:		June 2017
+KernelVersion:	4.13
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Build id of the hypervisor, needed for hypervisor live patching.
+		Might return "<denied>" in case of special security settings
+		in the hypervisor.
