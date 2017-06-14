@@ -5451,6 +5451,8 @@ void init_idle(struct task_struct *idle, int cpu)
 #endif
 }
 
+#ifdef CONFIG_SMP
+
 int cpuset_cpumask_can_shrink(const struct cpumask *cur,
 			      const struct cpumask *trial)
 {
@@ -5494,7 +5496,6 @@ int task_can_attach(struct task_struct *p,
 		goto out;
 	}
 
-#ifdef CONFIG_SMP
 	if (dl_task(p) && !cpumask_intersects(task_rq(p)->rd->span,
 					      cs_cpus_allowed)) {
 		unsigned int dest_cpu = cpumask_any_and(cpu_active_mask,
@@ -5524,12 +5525,10 @@ int task_can_attach(struct task_struct *p,
 		rcu_read_unlock_sched();
 
 	}
-#endif
+
 out:
 	return ret;
 }
-
-#ifdef CONFIG_SMP
 
 bool sched_smp_initialized __read_mostly;
 
