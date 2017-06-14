@@ -809,7 +809,6 @@ struct qla_tgt {
 	int datasegs_per_cmd, datasegs_per_cont, sg_tablesize;
 
 	/* Target's flags, serialized by pha->hardware_lock */
-	unsigned int tgt_enable_64bit_addr:1; /* 64-bits PCI addr enabled */
 	unsigned int link_reinit_iocb_pending:1;
 
 	/*

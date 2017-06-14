@@ -2420,12 +2420,10 @@ static int qlt_24xx_build_ctio_pkt(struct qla_qpair *qpair,
  * ha->hardware_lock supposed to be held on entry. We have already made sure
  * that there is sufficient amount of request entries to not drop it.
  */
-static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm,
-	struct scsi_qla_host *vha)
+static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm)
 {
 	int cnt;
 	uint32_t *dword_ptr;
-	int enable_64bit_addressing = prm->tgt->tgt_enable_64bit_addr;
 
 	/* Build continuation packets */
 	while (prm->seg_cnt > 0) {
@@ -2445,16 +2443,8 @@ static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm,
 		cont_pkt64->entry_count = 1;
 		cont_pkt64->sys_define = 0;
 
-		if (enable_64bit_addressing) {
-			cont_pkt64->entry_type = CONTINUE_A64_TYPE;
-			dword_ptr =
-			    (uint32_t *)&cont_pkt64->dseg_0_address;
-		} else {
-			cont_pkt64->entry_type = CONTINUE_TYPE;
-			dword_ptr =
-			    (uint32_t *)&((cont_entry_t *)
-				cont_pkt64)->dseg_0_address;
-		}
+		cont_pkt64->entry_type = CONTINUE_A64_TYPE;
+		dword_ptr = (uint32_t *)&cont_pkt64->dseg_0_address;
 
 		/* Load continuation entry data segments */
 		for (cnt = 0;
@@ -2463,12 +2453,8 @@ static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm,
 			*dword_ptr++ =
 			    cpu_to_le32(pci_dma_lo32
 				(sg_dma_address(prm->sg)));
-			if (enable_64bit_addressing) {
-				*dword_ptr++ =
-				    cpu_to_le32(pci_dma_hi32
-					(sg_dma_address
-					(prm->sg)));
-			}
+			*dword_ptr++ = cpu_to_le32(pci_dma_hi32
+			    (sg_dma_address(prm->sg)));
 			*dword_ptr++ = cpu_to_le32(sg_dma_len(prm->sg));
 
 			prm->sg = sg_next(prm->sg);
@@ -2480,12 +2466,10 @@ static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm,
  * ha->hardware_lock supposed to be held on entry. We have already made sure
  * that there is sufficient amount of request entries to not drop it.
  */
-static void qlt_load_data_segments(struct qla_tgt_prm *prm,
-	struct scsi_qla_host *vha)
+static void qlt_load_data_segments(struct qla_tgt_prm *prm)
 {
 	int cnt;
 	uint32_t *dword_ptr;
-	int enable_64bit_addressing = prm->tgt->tgt_enable_64bit_addr;
 	struct ctio7_to_24xx *pkt24 = (struct ctio7_to_24xx *)prm->pkt;
 
 	pkt24->u.status0.transfer_length = cpu_to_le32(prm->cmd->bufflen);
@@ -2512,17 +2496,16 @@ static void qlt_load_data_segments(struct qla_tgt_prm *prm,
 	    cnt++, prm->seg_cnt--) {
 		*dword_ptr++ =
 		    cpu_to_le32(pci_dma_lo32(sg_dma_address(prm->sg)));
-		if (enable_64bit_addressing) {
-			*dword_ptr++ =
-			    cpu_to_le32(pci_dma_hi32(
-				sg_dma_address(prm->sg)));
-		}
+
+		*dword_ptr++ = cpu_to_le32(pci_dma_hi32(
+			sg_dma_address(prm->sg)));
+
 		*dword_ptr++ = cpu_to_le32(sg_dma_len(prm->sg));
 
 		prm->sg = sg_next(prm->sg);
 	}
 
-	qlt_load_cont_data_segments(prm, vha);
+	qlt_load_cont_data_segments(prm);
 }
 
 static inline int qlt_has_data(struct qla_tgt_cmd *cmd)
@@ -3136,7 +3119,7 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 			CTIO7_FLAGS_STATUS_MODE_0);
 
 		if (cmd->se_cmd.prot_op == TARGET_PROT_NORMAL)
-			qlt_load_data_segments(&prm, vha);
+			qlt_load_data_segments(&prm);
 
 		if (prm.add_status_pkt == 0) {
 			if (xmit_type & QLA_TGT_XMIT_STATUS) {
@@ -3272,7 +3255,7 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 	    CTIO7_FLAGS_STATUS_MODE_0);
 
 	if (cmd->se_cmd.prot_op == TARGET_PROT_NORMAL)
-		qlt_load_data_segments(&prm, vha);
+		qlt_load_data_segments(&prm);
 
 	cmd->state = QLA_TGT_STATE_NEED_DATA;
 	cmd->cmd_sent_to_fw = 1;
@@ -6179,7 +6162,6 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 	ql_dbg(ql_dbg_tgt, base_vha, 0xe067,
 		"qla_target(%d): using 64 Bit PCI addressing",
 		base_vha->vp_idx);
-	tgt->tgt_enable_64bit_addr = 1;
 	/* 3 is reserved */
 	tgt->sg_tablesize = QLA_TGT_MAX_SG_24XX(base_vha->req->length - 3);
 	tgt->datasegs_per_cmd = QLA_TGT_DATASEGS_PER_CMD_24XX;
