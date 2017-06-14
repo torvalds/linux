@@ -26,6 +26,7 @@
 #define DRIVER_PATCHLEVEL 0
 
 #define CARVEOUT_SZ SZ_64M
+#define CDMA_GATHER_FETCHES_MAX_NB 16383
 
 struct tegra_drm_file {
 	struct idr contexts;
@@ -383,15 +384,39 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	while (num_cmdbufs) {
 		struct drm_tegra_cmdbuf cmdbuf;
 		struct host1x_bo *bo;
+		struct tegra_bo *obj;
+		u64 offset;
 
 		if (copy_from_user(&cmdbuf, cmdbufs, sizeof(cmdbuf))) {
 			err = -EFAULT;
 			goto fail;
 		}
 
+		/*
+		 * The maximum number of CDMA gather fetches is 16383, a higher
+		 * value means the words count is malformed.
+		 */
+		if (cmdbuf.words > CDMA_GATHER_FETCHES_MAX_NB) {
+			err = -EINVAL;
+			goto fail;
+		}
+
 		bo = host1x_bo_lookup(file, cmdbuf.handle);
 		if (!bo) {
 			err = -ENOENT;
+			goto fail;
+		}
+
+		offset = (u64)cmdbuf.offset + (u64)cmdbuf.words * sizeof(u32);
+		obj = host1x_to_tegra_bo(bo);
+
+		/*
+		 * Gather buffer base address must be 4-bytes aligned,
+		 * unaligned offset is malformed and cause commands stream
+		 * corruption on the buffer address relocation.
+		 */
+		if (offset & 3 || offset >= obj->gem.size) {
+			err = -EINVAL;
 			goto fail;
 		}
 
@@ -402,11 +427,35 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 	/* copy and resolve relocations from submit */
 	while (num_relocs--) {
+		struct host1x_reloc *reloc;
+		struct tegra_bo *obj;
+
 		err = host1x_reloc_copy_from_user(&job->relocarray[num_relocs],
 						  &relocs[num_relocs], drm,
 						  file);
 		if (err < 0)
 			goto fail;
+
+		reloc = &job->relocarray[num_relocs];
+		obj = host1x_to_tegra_bo(reloc->cmdbuf.bo);
+
+		/*
+		 * The unaligned cmdbuf offset will cause an unaligned write
+		 * during of the relocations patching, corrupting the commands
+		 * stream.
+		 */
+		if (reloc->cmdbuf.offset & 3 ||
+		    reloc->cmdbuf.offset >= obj->gem.size) {
+			err = -EINVAL;
+			goto fail;
+		}
+
+		obj = host1x_to_tegra_bo(reloc->target.bo);
+
+		if (reloc->target.offset >= obj->gem.size) {
+			err = -EINVAL;
+			goto fail;
+		}
 	}
 
 	if (copy_from_user(job->waitchk, waitchks,
