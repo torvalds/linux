@@ -34,6 +34,7 @@
 #include <linux/rtc.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include "rk818_battery.h"
 
 static int dbg_enable = 0;
 module_param_named(dbg_level, dbg_enable, int, 0644);
@@ -71,6 +72,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define USB_CLIMIT_EN		BIT(2)
 /* RK818_CHRG_CTRL_REG1 */
 #define CHRG_EN			BIT(7)
+#define CHRG_CUR_MSK		(0x0f)
 /* RK818_INT_STS_MSK_REG2 */
 #define CHRG_CVTLMT_INT_MSK	BIT(6)
 #define PLUG_OUT_MSK		BIT(1)
@@ -83,24 +85,12 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 /* RK818_ADC_CTRL_REG */
 #define ADC_TS2_EN		BIT(4)
 
-#define DRIVER_VERSION		"1.0"
+#define CG_DRIVER_VERSION		"2.0"
 
 #define DEFAULT_TS2_THRESHOLD_VOL      4350
 #define DEFAULT_TS2_VALID_VOL          1000
 #define DEFAULT_TS2_VOL_MULTI          0
 #define DEFAULT_TS2_CHECK_CNT          5
-
-static const u16 chrg_vol_sel_array[] = {
-	4050, 4100, 4150, 4200, 4250, 4300, 4350
-};
-
-static const u16 chrg_cur_sel_array[] = {
-	1000, 1200, 1400, 1600, 1800, 2000, 2250, 2400, 2600, 2800, 3000
-};
-
-static const u16 chrg_cur_input_array[] = {
-	450, 80, 850, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000
-};
 
 enum charger_t {
 	USB_TYPE_UNKNOWN_CHARGER,
@@ -110,6 +100,13 @@ enum charger_t {
 	USB_TYPE_CDP_CHARGER,
 	DC_TYPE_DC_CHARGER,
 	DC_TYPE_NONE_CHARGER,
+};
+
+struct temp_chrg_table {
+	int temperature;
+	u32 chrg_current;
+	u32 offset;
+	u8 set_chrg_current;
 };
 
 struct charger_platform_data {
@@ -126,6 +123,8 @@ struct charger_platform_data {
 	int otg5v_suspend_enable;
 	bool extcon;
 	int ts2_vol_multi;
+	struct temp_chrg_table *tc_table;
+	u32 tc_count;
 };
 
 struct rk818_charger {
@@ -152,6 +151,7 @@ struct rk818_charger {
 	struct notifier_block cable_cg_nb;
 	struct notifier_block cable_host_nb;
 	struct notifier_block cable_discnt_nb;
+	struct notifier_block temp_nb;
 	unsigned int bc_event;
 	enum charger_t usb_charger;
 	enum charger_t dc_charger;
@@ -169,6 +169,7 @@ struct rk818_charger {
 	u8 plugout_trigger;
 	int plugin_irq;
 	int plugout_irq;
+	int charger_changed;
 };
 
 static int rk818_reg_read(struct rk818_charger *cg, u8 reg)
@@ -439,6 +440,17 @@ static bool is_battery_exist(struct rk818_charger *cg)
 	return (rk818_reg_read(cg, RK818_SUP_STS_REG) & BAT_EXS) ? true : false;
 }
 
+static void rk818_cg_set_chrg_current(struct rk818_charger *cg,
+				      u8 chrg_current)
+{
+	u8 chrg_ctrl_reg1;
+
+	chrg_ctrl_reg1 = rk818_reg_read(cg, RK818_CHRG_CTRL_REG1);
+	chrg_ctrl_reg1 &= ~CHRG_CUR_MSK;
+	chrg_ctrl_reg1 |= (chrg_current);
+	rk818_reg_write(cg, RK818_CHRG_CTRL_REG1, chrg_ctrl_reg1);
+}
+
 static void rk818_cg_set_input_current(struct rk818_charger *cg,
 				       int input_current)
 {
@@ -487,6 +499,7 @@ static void rk818_cg_set_chrg_param(struct rk818_charger *cg,
 		cg->ac_in = 0;
 		if (cg->dc_in == 0) {
 			cg->prop_status = POWER_SUPPLY_STATUS_DISCHARGING;
+			rk818_cg_set_chrg_current(cg, cg->chrg_current);
 			rk818_cg_set_input_current(cg, INPUT_CUR450MA);
 		}
 		power_supply_changed(cg->usb_psy);
@@ -496,8 +509,10 @@ static void rk818_cg_set_chrg_param(struct rk818_charger *cg,
 		cg->usb_in = 1;
 		cg->ac_in = 0;
 		cg->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-		if (cg->dc_in == 0)
+		if (cg->dc_in == 0) {
+			rk818_cg_set_chrg_current(cg, cg->chrg_current);
 			rk818_cg_set_input_current(cg, INPUT_CUR450MA);
+		}
 		power_supply_changed(cg->usb_psy);
 		power_supply_changed(cg->ac_psy);
 		break;
@@ -508,14 +523,17 @@ static void rk818_cg_set_chrg_param(struct rk818_charger *cg,
 		cg->prop_status = POWER_SUPPLY_STATUS_CHARGING;
 		if (charger == USB_TYPE_AC_CHARGER) {
 			if (cg->pdata->ts2_vol_multi) {
+				rk818_cg_set_chrg_current(cg, cg->chrg_current);
 				rk818_cg_set_input_current(cg, INPUT_CUR450MA);
 				queue_delayed_work(cg->ts2_wq,
 						   &cg->ts2_vol_work,
 						   msecs_to_jiffies(0));
 			} else {
+				rk818_cg_set_chrg_current(cg, cg->chrg_current);
 				rk818_cg_set_input_current(cg, cg->chrg_input);
 			}
 		} else {
+			rk818_cg_set_chrg_current(cg, cg->chrg_current);
 			rk818_cg_set_input_current(cg, INPUT_CUR1500MA);
 		}
 		power_supply_changed(cg->usb_psy);
@@ -525,11 +543,13 @@ static void rk818_cg_set_chrg_param(struct rk818_charger *cg,
 		cg->dc_in = 1;
 		cg->prop_status = POWER_SUPPLY_STATUS_CHARGING;
 		if (cg->pdata->ts2_vol_multi) {
+			rk818_cg_set_chrg_current(cg, cg->chrg_current);
 			rk818_cg_set_input_current(cg, INPUT_CUR450MA);
 			queue_delayed_work(cg->ts2_wq,
 					   &cg->ts2_vol_work,
 					   msecs_to_jiffies(0));
 		} else {
+			rk818_cg_set_chrg_current(cg, cg->chrg_current);
 			rk818_cg_set_input_current(cg, cg->chrg_input);
 		}
 		power_supply_changed(cg->usb_psy);
@@ -542,8 +562,10 @@ static void rk818_cg_set_chrg_param(struct rk818_charger *cg,
 			cg->ac_in = 0;
 			cg->usb_in = 0;
 			cg->prop_status = POWER_SUPPLY_STATUS_DISCHARGING;
+			rk818_cg_set_chrg_current(cg, cg->chrg_current);
 			rk818_cg_set_input_current(cg, INPUT_CUR450MA);
 		} else if (cg->usb_in) {
+			rk818_cg_set_chrg_current(cg, cg->chrg_current);
 			rk818_cg_set_input_current(cg, INPUT_CUR450MA);
 			cg->prop_status = POWER_SUPPLY_STATUS_CHARGING;
 		}
@@ -554,6 +576,8 @@ static void rk818_cg_set_chrg_param(struct rk818_charger *cg,
 		cg->prop_status = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 	}
+
+	cg->charger_changed = 1;
 
 	if (rk818_cg_online(cg) && rk818_cg_get_dsoc(cg) == 100)
 		cg->prop_status = POWER_SUPPLY_STATUS_FULL;
@@ -636,12 +660,10 @@ static void rk818_cg_dc_det_worker(struct work_struct *work)
 	rk818_cg_pr_info(cg);
 }
 
-static u8 rk818_cg_decode_chrg_vol(struct rk818_charger *cg)
+static u8 rk818_cg_decode_chrg_vol(struct rk818_charger *cg, u32 chrg_vol)
 {
 	u8 val = 0, index;
-	u32 chrg_vol;
 
-	chrg_vol = cg->pdata->max_chrg_voltage;
 	for (index = 0; index < ARRAY_SIZE(chrg_vol_sel_array); index++) {
 		if (chrg_vol < chrg_vol_sel_array[index])
 			break;
@@ -652,12 +674,11 @@ static u8 rk818_cg_decode_chrg_vol(struct rk818_charger *cg)
 	return val;
 }
 
-static u8 rk818_cg_decode_input_current(struct rk818_charger *cg)
+static u8 rk818_cg_decode_input_current(struct rk818_charger *cg,
+					u32 input_current)
 {
 	u8 val = 0, index;
-	u32 input_current;
 
-	input_current = cg->pdata->max_input_current;
 	for (index = 2; index < ARRAY_SIZE(chrg_cur_input_array); index++) {
 		if (input_current < 850 && input_current > 80) {
 			val = 0x0;	/* 450mA */
@@ -676,12 +697,11 @@ static u8 rk818_cg_decode_input_current(struct rk818_charger *cg)
 	return val;
 }
 
-static u8 rk818_cg_decode_chrg_current(struct rk818_charger *cg)
+static u8 rk818_cg_decode_chrg_current(struct rk818_charger *cg,
+				       u32 chrg_current)
 {
 	u8 val = 0, index;
-	u32 chrg_current;
 
-	chrg_current = cg->pdata->max_chrg_current;
 	if (cg->pdata->sample_res == SAMPLE_RES_10MR) {
 		if (chrg_current > 2000)
 			chrg_current /= cg->res_div;
@@ -703,9 +723,12 @@ static void rk818_cg_init_config(struct rk818_charger *cg)
 {
 	u8 usb_ctrl, sup_sts, chrg_ctrl1;
 
-	cg->chrg_voltage = rk818_cg_decode_chrg_vol(cg);
-	cg->chrg_current = rk818_cg_decode_chrg_current(cg);
-	cg->chrg_input = rk818_cg_decode_input_current(cg);
+	cg->chrg_voltage = rk818_cg_decode_chrg_vol(cg,
+				cg->pdata->max_chrg_voltage);
+	cg->chrg_current = rk818_cg_decode_chrg_current(cg,
+				cg->pdata->max_chrg_current);
+	cg->chrg_input = rk818_cg_decode_input_current(cg,
+				cg->pdata->max_input_current);
 
 	sup_sts = rk818_reg_read(cg, RK818_SUP_STS_REG);
 	usb_ctrl = rk818_reg_read(cg, RK818_USB_CTRL_REG);
@@ -1256,6 +1279,162 @@ static void rk818_cg_init_charger_state(struct rk818_charger *cg)
 		cg->ac_in, cg->usb_in, cg->dc_in, cg->otg_in);
 }
 
+static int rk818_cg_temperature_notifier_call(struct notifier_block *nb,
+					      unsigned long temp, void *data)
+{
+	struct rk818_charger *cg =
+		container_of(nb, struct rk818_charger, temp_nb);
+	static int temp_triggered, config_index = -1;
+	int i, up_temp, down_temp, cfg_temp, cfg_offset, cfg_current;
+	int now_temp = temp;
+	u8 usb_ctrl, chrg_ctrl1;
+
+	DBG("%s: receive notify temperature = %d\n", __func__, now_temp);
+	for (i = 0; i < cg->pdata->tc_count; i++) {
+		up_temp = 0;
+		down_temp = 0;
+		cfg_temp = cg->pdata->tc_table[i].temperature;
+		cfg_offset = cg->pdata->tc_table[i].offset;
+		cfg_current = cg->pdata->tc_table[i].chrg_current;
+
+		/* positive: [temp, temp+offset] */
+		if (cfg_temp >= 0)
+			up_temp = cfg_temp + cfg_offset;
+		/* negative: [temp-offset, temp] */
+		if (cfg_temp < 0)
+			down_temp = cfg_temp - cfg_offset;
+
+		if ((now_temp >= 0 && now_temp <= up_temp &&
+		     now_temp >= cfg_temp) ||
+		    (now_temp < 0 && now_temp >= down_temp &&
+		     now_temp <= cfg_temp)) {
+			/* if not charger or temp changed, not update */
+			if (config_index == i && !cg->charger_changed)
+				return NOTIFY_DONE;
+
+			config_index = i;
+			cg->charger_changed = 0;
+			temp_triggered = 1;
+
+			if (cg->pdata->tc_table[i].set_chrg_current) {
+				rk818_cg_set_chrg_current(cg, cfg_current);
+				CG_INFO("temperature = %d'C[%d~%d'C], "
+					"chrg current = %d\n",
+					now_temp,
+					(now_temp >= 0 ? cfg_temp : down_temp),
+					(now_temp >= 0 ? up_temp : cfg_temp),
+					chrg_cur_sel_array[cfg_current] *
+					cg->res_div);
+			} else {
+				rk818_cg_set_input_current(cg, cfg_current);
+				CG_INFO("temperature = %d'C[%d~%d'C], "
+					"input current = %d\n",
+					now_temp,
+					(now_temp >= 0 ? cfg_temp : down_temp),
+					(now_temp >= 0 ? up_temp : cfg_temp),
+					chrg_cur_input_array[cfg_current]);
+			}
+			return NOTIFY_DONE;
+		}
+	}
+
+	/*
+	 * means: current temperature now covers above case, temperature rolls
+	 * back to normal range, so restore default value
+	 */
+	if (temp_triggered) {
+		temp_triggered = 0;
+		config_index = -1;
+		rk818_cg_set_chrg_current(cg, cg->chrg_current);
+		rk818_cg_set_input_current(cg, cg->chrg_input);
+		usb_ctrl = rk818_reg_read(cg, RK818_USB_CTRL_REG);
+		chrg_ctrl1 = rk818_reg_read(cg, RK818_CHRG_CTRL_REG1);
+		CG_INFO("roll back temp %d'C, current chrg = %d, input = %d\n",
+			now_temp,
+			chrg_cur_sel_array[(chrg_ctrl1 & 0x0f)] * cg->res_div,
+			chrg_cur_input_array[(usb_ctrl & 0x0f)]);
+	}
+
+	return NOTIFY_DONE;
+}
+
+static int parse_temperature_chrg_table(struct rk818_charger *cg,
+					struct device_node *np)
+{
+	int size, count;
+	int i, sign, chrg_current;
+	const __be32 *list;
+
+	if (!of_find_property(np, "temperature_chrg_table", &size))
+		return 0;
+
+	list = of_get_property(np, "temperature_chrg_table", &size);
+	size /= sizeof(u32);
+	if (!size || (size % 4)) {
+		dev_err(cg->dev,
+			"invalid temperature_chrg_table: size=%d\n", size);
+		return -EINVAL;
+	}
+
+	count = size / 4;
+	cg->pdata->tc_count = count;
+	cg->pdata->tc_table = devm_kzalloc(cg->dev,
+					   count * sizeof(*cg->pdata->tc_table),
+					   GFP_KERNEL);
+	if (!cg->pdata->tc_table)
+		return -ENOMEM;
+
+	for (i = 0; i < count; i++) {
+		/* temperature */
+		sign = be32_to_cpu(*list++);
+		cg->pdata->tc_table[i].temperature = sign ?
+				-be32_to_cpu(*list++) : be32_to_cpu(*list++);
+		/*
+		 * because charge current lowest level is 1000mA:
+		 * higher than or equal 1000ma, select charge current;
+		 * lower than 1000ma, must select input current.
+		 */
+		chrg_current = be32_to_cpu(*list++);
+		if (chrg_current >= 1000) {
+			cg->pdata->tc_table[i].set_chrg_current = 1;
+			cg->pdata->tc_table[i].chrg_current =
+				rk818_cg_decode_chrg_current(cg, chrg_current);
+		} else {
+			cg->pdata->tc_table[i].chrg_current =
+				rk818_cg_decode_input_current(cg, chrg_current);
+		}
+
+		/* temperature offset */
+		cg->pdata->tc_table[i].offset = be32_to_cpu(*list++);
+
+		DBG("temp=%d, chrg=0x%x, offset=%d\n",
+		    cg->pdata->tc_table[i].temperature,
+		    cg->pdata->tc_table[i].chrg_current,
+		    cg->pdata->tc_table[i].offset);
+	}
+
+	return 0;
+}
+
+static int rk818_cg_register_temp_notifier(struct rk818_charger *cg)
+{
+	int ret;
+
+	if (!cg->pdata->tc_count)
+		return 0;
+	cg->temp_nb.notifier_call = rk818_cg_temperature_notifier_call,
+	ret = rk818_bat_temp_notifier_register(&cg->temp_nb);
+	if (ret) {
+		dev_err(cg->dev,
+			"battery temperature notify register failed:%d\n", ret);
+		return ret;
+	}
+
+	CG_INFO("enable set charge current by temperature\n");
+
+	return 0;
+}
+
 #ifdef CONFIG_OF
 static int rk818_cg_parse_dt(struct rk818_charger *cg)
 {
@@ -1344,6 +1523,10 @@ static int rk818_cg_parse_dt(struct rk818_charger *cg)
 		}
 	}
 
+	ret = parse_temperature_chrg_table(cg, np);
+	if (ret)
+		return ret;
+
 	DBG("input_current:%d\n"
 	    "chrg_current:%d\n"
 	    "chrg_voltage:%d\n"
@@ -1409,18 +1592,26 @@ static int rk818_charger_probe(struct platform_device *pdev)
 
 	rk818_cg_init_charger_state(cg);
 
+	ret = rk818_cg_register_temp_notifier(cg);
+	if (ret) {
+		dev_err(cg->dev, "register temp notify failed!\n");
+		goto notify_fail;
+	}
+
 	ret = rk818_cg_init_irqs(cg);
 	if (ret) {
 		dev_err(cg->dev, "init irqs failed!\n");
 		goto irq_fail;
 	}
 
-	CG_INFO("driver version: %s\n", DRIVER_VERSION);
+	CG_INFO("driver version: %s\n", CG_DRIVER_VERSION);
 
 	return 0;
 
 irq_fail:
+	rk818_bat_temp_notifier_unregister(&cg->temp_nb);
 
+notify_fail:
 	/* type-c only */
 	if (cg->pdata->extcon) {
 		cancel_delayed_work_sync(&cg->host_work);
@@ -1489,6 +1680,8 @@ static void rk818_charger_shutdown(struct platform_device *pdev)
 	} else {
 		rk_bc_detect_notifier_unregister(&cg->bc_nb);
 	}
+
+	rk818_bat_temp_notifier_unregister(&cg->temp_nb);
 
 	rk818_cg_set_otg_state(cg, USB_OTG_POWER_OFF);
 	rk818_cg_set_finish_sig(cg, CHRG_FINISH_ANA_SIGNAL);
