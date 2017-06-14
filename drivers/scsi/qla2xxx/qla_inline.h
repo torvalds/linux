@@ -250,6 +250,7 @@ qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
 
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
+	sp->cmd_type = TYPE_SRB;
 	sp->iocbs = 1;
 	sp->vha = vha;
 done:

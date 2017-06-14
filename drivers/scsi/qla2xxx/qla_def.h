@@ -437,7 +437,18 @@ struct srb_iocb {
 #define SRB_NACK_PRLI	17
 #define SRB_NACK_LOGO	18
 
+enum {
+	TYPE_SRB,
+	TYPE_TGT_CMD,
+};
+
 typedef struct srb {
+	/*
+	 * Do not move cmd_type field, it needs to
+	 * line up with qla_tgt_cmd->cmd_type
+	 */
+	uint8_t cmd_type;
+	uint8_t pad[3];
 	atomic_t ref_count;
 	struct fc_port *fcport;
 	struct scsi_qla_host *vha;
@@ -3287,9 +3298,6 @@ struct qlt_hw_data {
 	uint32_t __iomem *atio_q_out;
 
 	struct qla_tgt_func_tmpl *tgt_ops;
-	struct qla_tgt_cmd *cmds[DEFAULT_OUTSTANDING_COMMANDS];
-	uint16_t current_handle;
-
 	struct qla_tgt_vp_map *tgt_vp_map;
 
 	int saved_set;
@@ -4258,6 +4266,7 @@ enum nexus_wait_type {
 	WAIT_LUN,
 };
 
+#include "qla_target.h"
 #include "qla_gbl.h"
 #include "qla_dbg.h"
 #include "qla_inline.h"

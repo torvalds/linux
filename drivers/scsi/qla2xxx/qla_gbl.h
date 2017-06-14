@@ -834,8 +834,6 @@ extern irqreturn_t qla8044_intr_handler(int, void *);
 extern void qla82xx_mbx_completion(scsi_qla_host_t *, uint16_t);
 extern int qla8044_abort_isp(scsi_qla_host_t *);
 extern int qla8044_check_fw_alive(struct scsi_qla_host *);
-
-extern void qlt_host_reset_handler(struct qla_hw_data *ha);
 extern int qla_get_exlogin_status(scsi_qla_host_t *, uint16_t *,
 	uint16_t *);
 extern int qla_set_exlogin_mem_cfg(scsi_qla_host_t *vha, dma_addr_t phys_addr);

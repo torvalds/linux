@@ -115,8 +115,6 @@ static int qlt_issue_task_mgmt(struct fc_port *sess, u64 lun,
 	int fn, void *iocb, int flags);
 static void qlt_send_term_exchange(struct scsi_qla_host *ha, struct qla_tgt_cmd
 	*cmd, struct atio_from_isp *atio, int ha_locked, int ul_abort);
-static void qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha,
-	struct qla_tgt_cmd *cmd);
 static void qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 	struct atio_from_isp *atio, uint16_t status, int qfull);
 static void qlt_disable_vha(struct scsi_qla_host *vha);
@@ -2291,28 +2289,35 @@ static inline void *qlt_get_req_pkt(struct scsi_qla_host *vha)
 /* ha->hardware_lock supposed to be held on entry */
 static inline uint32_t qlt_make_handle(struct scsi_qla_host *vha)
 {
-	struct qla_hw_data *ha = vha->hw;
 	uint32_t h;
+	int index;
+	uint8_t found = 0;
+	struct req_que *req = vha->req;
 
-	h = ha->tgt.current_handle;
-	/* always increment cmd handle */
-	do {
-		++h;
-		if (h > DEFAULT_OUTSTANDING_COMMANDS)
-			h = 1; /* 0 is QLA_TGT_NULL_HANDLE */
-		if (h == ha->tgt.current_handle) {
-			ql_dbg(ql_dbg_io, vha, 0x305b,
-			    "qla_target(%d): Ran out of "
-			    "empty cmd slots in ha %p\n", vha->vp_idx, ha);
-			h = QLA_TGT_NULL_HANDLE;
+	h = req->current_outstanding_cmd;
+
+	for (index = 1; index < req->num_outstanding_cmds; index++) {
+		h++;
+		if (h == req->num_outstanding_cmds)
+			h = 1;
+
+		if (h == QLA_TGT_SKIP_HANDLE)
+			continue;
+
+		if (!req->outstanding_cmds[h]) {
+			found = 1;
 			break;
 		}
-	} while ((h == QLA_TGT_NULL_HANDLE) ||
-	    (h == QLA_TGT_SKIP_HANDLE) ||
-	    (ha->tgt.cmds[h-1] != NULL));
+	}
 
-	if (h != QLA_TGT_NULL_HANDLE)
-		ha->tgt.current_handle = h;
+	if (found) {
+		req->current_outstanding_cmd = h;
+	} else {
+		ql_dbg(ql_dbg_io, vha, 0x305b,
+			"qla_target(%d): Ran out of empty cmd slots\n",
+			vha->vp_idx);
+		h = QLA_TGT_NULL_HANDLE;
+	}
 
 	return h;
 }
@@ -2323,7 +2328,6 @@ static int qlt_24xx_build_ctio_pkt(struct qla_tgt_prm *prm,
 {
 	uint32_t h;
 	struct ctio7_to_24xx *pkt;
-	struct qla_hw_data *ha = vha->hw;
 	struct atio_from_isp *atio = &prm->cmd->atio;
 	uint16_t temp;
 
@@ -2343,8 +2347,9 @@ static int qlt_24xx_build_ctio_pkt(struct qla_tgt_prm *prm,
 		 * the session and, so, the command.
 		 */
 		return -EAGAIN;
-	} else
-		ha->tgt.cmds[h - 1] = prm->cmd;
+	} else {
+		vha->req->outstanding_cmds[h] = (srb_t *)prm->cmd;
+	}
 
 	pkt->handle = h | CTIO_COMPLETION_HANDLE_MARK;
 	pkt->nport_handle = prm->cmd->loop_id;
@@ -2888,7 +2893,7 @@ qlt_build_ctio_crc2_pkt(struct qla_tgt_prm *prm, scsi_qla_host_t *vha)
 		 */
 		return -EAGAIN;
 	} else
-		ha->tgt.cmds[h-1] = prm->cmd;
+		vha->req->outstanding_cmds[h] = (srb_t *)prm->cmd;
 
 	pkt->handle  = h | CTIO_COMPLETION_HANDLE_MARK;
 	pkt->nport_handle = cpu_to_le16(prm->cmd->loop_id);
@@ -2994,7 +2999,7 @@ qlt_build_ctio_crc2_pkt(struct qla_tgt_prm *prm, scsi_qla_host_t *vha)
 
 crc_queuing_error:
 	/* Cleanup will be performed by the caller */
-	vha->hw->tgt.cmds[h - 1] = NULL;
+	vha->req->outstanding_cmds[h] = NULL;
 
 	return QLA_FUNCTION_FAILED;
 }
@@ -3676,50 +3681,38 @@ static int qlt_term_ctio_exchange(struct scsi_qla_host *vha, void *ctio,
 	return term;
 }
 
-/* ha->hardware_lock supposed to be held on entry */
-static inline struct qla_tgt_cmd *qlt_get_cmd(struct scsi_qla_host *vha,
-	uint32_t handle)
-{
-	struct qla_hw_data *ha = vha->hw;
-
-	handle--;
-	if (ha->tgt.cmds[handle] != NULL) {
-		struct qla_tgt_cmd *cmd = ha->tgt.cmds[handle];
-		ha->tgt.cmds[handle] = NULL;
-		return cmd;
-	} else
-		return NULL;
-}
 
 /* ha->hardware_lock supposed to be held on entry */
 static struct qla_tgt_cmd *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 	uint32_t handle, void *ctio)
 {
 	struct qla_tgt_cmd *cmd = NULL;
+	struct req_que *req = vha->req;
 
 	/* Clear out internal marks */
-	handle &= ~(CTIO_COMPLETION_HANDLE_MARK |
-	    CTIO_INTERMEDIATE_HANDLE_MARK);
+	handle &= ~QLA_TGT_HANDLE_MASK;
 
 	if (handle != QLA_TGT_NULL_HANDLE) {
 		if (unlikely(handle == QLA_TGT_SKIP_HANDLE))
 			return NULL;
 
-		/* handle-1 is actually used */
-		if (unlikely(handle > DEFAULT_OUTSTANDING_COMMANDS)) {
+		handle &= QLA_CMD_HANDLE_MASK;
+
+		if (unlikely(handle > req->num_outstanding_cmds)) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe052,
 			    "qla_target(%d): Wrong handle %x received\n",
 			    vha->vp_idx, handle);
 			return NULL;
 		}
-		cmd = qlt_get_cmd(vha, handle);
-		if (unlikely(cmd == NULL)) {
-			ql_dbg(ql_dbg_tgt, vha, 0xe053,
-			    "qla_target(%d): Suspicious: unable to "
-			    "find the command with handle %x\n", vha->vp_idx,
-			    handle);
+		cmd = (struct qla_tgt_cmd *)req->outstanding_cmds[handle];
+		if (unlikely((cmd == NULL) ||
+		    (cmd->cmd_type != TYPE_TGT_CMD))) {
+			ql_dbg(ql_dbg_async, vha, 0xe053,
+			    "qla_target(%d): Suspicious: unable to find the command with handle %x cmd %p\n",
+			    vha->vp_idx, handle, cmd);
 			return NULL;
 		}
+		req->outstanding_cmds[handle] = NULL;
 	} else if (ctio != NULL) {
 		/* We can't get loop ID from CTIO7 */
 		ql_dbg(ql_dbg_tgt, vha, 0xe054,
@@ -3732,7 +3725,7 @@ static struct qla_tgt_cmd *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 }
 
 /* hardware_lock should be held by caller. */
-static void
+void
 qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
 {
 	struct qla_hw_data *ha = vha->hw;
@@ -3766,42 +3759,6 @@ qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
 	cmd->trc_flags |= TRC_FLUSH;
 	ha->tgt.tgt_ops->free_cmd(cmd);
 }
-
-void
-qlt_host_reset_handler(struct qla_hw_data *ha)
-{
-	struct qla_tgt_cmd *cmd;
-	unsigned long flags;
-	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
-	scsi_qla_host_t *vha = NULL;
-	struct qla_tgt *tgt = base_vha->vha_tgt.qla_tgt;
-	uint32_t i;
-
-	if (!base_vha->hw->tgt.tgt_ops)
-		return;
-
-	if (!tgt || qla_ini_mode_enabled(base_vha)) {
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf003,
-			"Target mode disabled\n");
-		return;
-	}
-
-	ql_dbg(ql_dbg_tgt_mgt, vha, 0xff10,
-	    "HOST-ABORT-HNDLR: base_vha->dpc_flags=%lx.\n",
-	    base_vha->dpc_flags);
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	for (i = 1; i < DEFAULT_OUTSTANDING_COMMANDS + 1; i++) {
-		cmd = qlt_get_cmd(base_vha, i);
-		if (!cmd)
-			continue;
-		/* ha->tgt.cmds entry is cleared by qlt_get_cmd. */
-		vha = cmd->vha;
-		qlt_abort_cmd_on_host_reset(vha, cmd);
-	}
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-}
-
 
 /*
  * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
@@ -4084,7 +4041,7 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 
 	cmd = &((struct qla_tgt_cmd *)se_sess->sess_cmd_map)[tag];
 	memset(cmd, 0, sizeof(struct qla_tgt_cmd));
-
+	cmd->cmd_type = TYPE_TGT_CMD;
 	memcpy(&cmd->atio, atio, sizeof(*atio));
 	cmd->state = QLA_TGT_STATE_NEW;
 	cmd->tgt = vha->vha_tgt.qla_tgt;
@@ -6632,21 +6589,6 @@ qlt_83xx_iospace_config(struct qla_hw_data *ha)
 	ha->msix_count += 1; /* For ATIO Q */
 }
 
-int
-qlt_24xx_process_response_error(struct scsi_qla_host *vha,
-	struct sts_entry_24xx *pkt)
-{
-	switch (pkt->entry_type) {
-	case ABTS_RECV_24XX:
-	case ABTS_RESP_24XX:
-	case CTIO_TYPE7:
-	case NOTIFY_ACK_TYPE:
-	case CTIO_CRC2:
-		return 1;
-	default:
-		return 0;
-	}
-}
 
 void
 qlt_modify_vp_config(struct scsi_qla_host *vha,

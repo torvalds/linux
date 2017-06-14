@@ -70,6 +70,16 @@
 
 /* Used to mark CTIO as intermediate */
 #define CTIO_INTERMEDIATE_HANDLE_MARK	BIT_30
+#define QLA_TGT_NULL_HANDLE	0
+
+#define QLA_TGT_HANDLE_MASK  0xF0000000
+#define QLA_QPID_HANDLE_MASK 0x000F0000 /* qpair id mask */
+#define QLA_CMD_HANDLE_MASK  0x0000FFFF
+#define QLA_TGT_SKIP_HANDLE	(0xFFFFFFFF & ~QLA_TGT_HANDLE_MASK)
+
+#define QLA_QPID_HANDLE_SHIFT 16
+#define GET_QID(_h) ((_h & QLA_QPID_HANDLE_MASK) >> QLA_QPID_HANDLE_SHIFT)
+
 
 #ifndef OF_SS_MODE_0
 /*
@@ -664,6 +674,7 @@ struct abts_resp_from_24xx_fw {
 
 struct qla_tgt_mgmt_cmd;
 struct fc_port;
+struct qla_tgt_cmd;
 
 /*
  * This structure provides a template of function calls that the
@@ -743,11 +754,6 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define QLA_TGT_STATE_NEED_DATA		1 /* target needs data to continue */
 #define QLA_TGT_STATE_DATA_IN		2 /* Data arrived + target processing */
 #define QLA_TGT_STATE_PROCESSED		3 /* target done processing */
-
-
-/* Special handles */
-#define QLA_TGT_NULL_HANDLE	0
-#define QLA_TGT_SKIP_HANDLE	(0xFFFFFFFF & ~CTIO_COMPLETION_HANDLE_MARK)
 
 /* ATIO task_codes field */
 #define ATIO_SIMPLE_QUEUE           0
@@ -858,6 +864,11 @@ enum trace_flags {
 };
 
 struct qla_tgt_cmd {
+	/*
+	 * Do not move cmd_type field. it needs to line up with srb->cmd_type
+	 */
+	uint8_t cmd_type;
+	uint8_t pad[7];
 	struct se_cmd se_cmd;
 	struct fc_port *sess;
 	int state;
@@ -1077,5 +1088,7 @@ extern void qlt_do_generation_tick(struct scsi_qla_host *, int *);
 
 void qlt_send_resp_ctio(scsi_qla_host_t *, struct qla_tgt_cmd *, uint8_t,
     uint8_t, uint8_t, uint8_t);
+extern void qlt_abort_cmd_on_host_reset(struct scsi_qla_host *,
+    struct qla_tgt_cmd *);
 
 #endif /* __QLA_TARGET_H */

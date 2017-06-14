@@ -1649,8 +1649,9 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 	srb_t *sp;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req;
-
-	qlt_host_reset_handler(ha);
+	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
+	struct qla_tgt_cmd *cmd;
+	uint8_t trace = 0;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (que = 0; que < ha->max_req_queues; que++) {
@@ -1662,27 +1663,57 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++) {
 			sp = req->outstanding_cmds[cnt];
 			if (sp) {
-				/* Don't abort commands in adapter during EEH
-				 * recovery as it's not accessible/responding.
-				 */
-				if (GET_CMD_SP(sp) && !ha->flags.eeh_busy &&
-				    (sp->type == SRB_SCSI_CMD)) {
-					/* Get a reference to the sp and drop the lock.
-					 * The reference ensures this sp->done() call
-					 * - and not the call in qla2xxx_eh_abort() -
-					 * ends the SCSI command (with result 'res').
-					 */
-					sp_get(sp);
-					spin_unlock_irqrestore(&ha->hardware_lock, flags);
-					status = qla2xxx_eh_abort(GET_CMD_SP(sp));
-					spin_lock_irqsave(&ha->hardware_lock, flags);
-					/* Get rid of extra reference if immediate exit
-					 * from ql2xxx_eh_abort */
-					if (status == FAILED && (qla2x00_isp_reg_stat(ha)))
-						atomic_dec(&sp->ref_count);
-				}
 				req->outstanding_cmds[cnt] = NULL;
-				sp->done(sp, res);
+				if (sp->cmd_type == TYPE_SRB) {
+					/*
+					 * Don't abort commands in adapter
+					 * during EEH recovery as it's not
+					 * accessible/responding.
+					 */
+					if (GET_CMD_SP(sp) &&
+					    !ha->flags.eeh_busy &&
+					    (sp->type == SRB_SCSI_CMD)) {
+						/*
+						 * Get a reference to the sp
+						 * and drop the lock. The
+						 * reference ensures this
+						 * sp->done() call and not the
+						 * call in qla2xxx_eh_abort()
+						 * ends the SCSI command (with
+						 * result 'res').
+						 */
+						sp_get(sp);
+						spin_unlock_irqrestore(
+						    &ha->hardware_lock, flags);
+						status = qla2xxx_eh_abort(
+						    GET_CMD_SP(sp));
+						spin_lock_irqsave(
+						    &ha->hardware_lock, flags);
+						/*
+						 * Get rid of extra reference
+						 * if immediate exit from
+						 * ql2xxx_eh_abort
+						 */
+						if (status == FAILED &&
+						    (qla2x00_isp_reg_stat(ha)))
+							atomic_dec(
+							    &sp->ref_count);
+					}
+					sp->done(sp, res);
+				} else {
+					if (!vha->hw->tgt.tgt_ops || !tgt ||
+					    qla_ini_mode_enabled(vha)) {
+						if (!trace)
+							ql_dbg(ql_dbg_tgt_mgt,
+							    vha, 0xf003,
+							    "HOST-ABORT-HNDLR: dpc_flags=%lx. Target mode disabled\n",
+							    vha->dpc_flags);
+						continue;
+					}
+					cmd = (struct qla_tgt_cmd *)sp;
+					qlt_abort_cmd_on_host_reset(cmd->vha,
+					    cmd);
+				}
 			}
 		}
 	}
@@ -5861,6 +5892,8 @@ qla2x00_timer(scsi_qla_host_t *vha)
 
 					sp = req->outstanding_cmds[index];
 					if (!sp)
+						continue;
+					if (sp->cmd_type != TYPE_SRB)
 						continue;
 					if (sp->type != SRB_SCSI_CMD)
 						continue;
