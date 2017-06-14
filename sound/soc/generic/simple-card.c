@@ -271,17 +271,11 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = snd_soc_of_parse_tdm_slot(cpu,	&cpu_dai->tx_slot_mask,
-						&cpu_dai->rx_slot_mask,
-						&cpu_dai->slots,
-						&cpu_dai->slot_width);
+	ret = asoc_simple_card_of_parse_tdm(cpu, cpu_dai);
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = snd_soc_of_parse_tdm_slot(codec,	&codec_dai->tx_slot_mask,
-						&codec_dai->rx_slot_mask,
-						&codec_dai->slots,
-						&codec_dai->slot_width);
+	ret = asoc_simple_card_of_parse_tdm(codec, codec_dai);
 	if (ret < 0)
 		goto dai_link_of_err;
 
