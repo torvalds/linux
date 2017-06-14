@@ -555,7 +555,7 @@ static int __init amd_uncore_init(void)
 		ret = 0;
 	}
 
-	if (boot_cpu_has(X86_FEATURE_PERFCTR_L2)) {
+	if (boot_cpu_has(X86_FEATURE_PERFCTR_LLC)) {
 		amd_uncore_llc = alloc_percpu(struct amd_uncore *);
 		if (!amd_uncore_llc) {
 			ret = -ENOMEM;
