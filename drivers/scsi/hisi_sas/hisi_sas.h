@@ -366,6 +366,12 @@ union hisi_sas_command_table {
 	struct hisi_sas_command_table_stp stp;
 };
 
+extern struct scsi_transport_template *hisi_sas_stt;
+extern struct scsi_host_template *hisi_sas_sht;
+
+extern void hisi_sas_init_add(struct hisi_hba *hisi_hba);
+extern int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost);
+extern void hisi_sas_free(struct hisi_hba *hisi_hba);
 extern u8 hisi_sas_get_ata_protocol(u8 cmd, int direction);
 extern struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port);
 extern void hisi_sas_sata_done(struct sas_task *task,
