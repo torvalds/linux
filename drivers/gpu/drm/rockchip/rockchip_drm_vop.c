@@ -1695,6 +1695,20 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, dp_pin_pol, val);
 		VOP_CTRL_SET(vop, dp_en, 1);
 		break;
+	case DRM_MODE_CONNECTOR_TV:
+		if (vdisplay == CVBS_PAL_VDISPLAY)
+			VOP_CTRL_SET(vop, tve_sw_mode, 1);
+		else
+			VOP_CTRL_SET(vop, tve_sw_mode, 0);
+
+		VOP_CTRL_SET(vop, tve_dclk_pol, 1);
+		VOP_CTRL_SET(vop, tve_dclk_en, 1);
+		/* use the same pol reg with hdmi */
+		VOP_CTRL_SET(vop, hdmi_pin_pol, val);
+		VOP_CTRL_SET(vop, sw_genlock, 1);
+		VOP_CTRL_SET(vop, sw_uv_offset_en, 1);
+		VOP_CTRL_SET(vop, dither_up, 1);
+		break;
 	default:
 		DRM_ERROR("unsupport connector_type[%d]\n", s->output_type);
 	}

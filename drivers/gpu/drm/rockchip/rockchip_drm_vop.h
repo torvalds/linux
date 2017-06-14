@@ -105,10 +105,15 @@ struct vop_ctrl {
 	struct vop_reg edp_pin_pol;
 	struct vop_reg mipi_pin_pol;
 	struct vop_reg dp_pin_pol;
-
 	struct vop_reg dither_up;
 	struct vop_reg dither_down;
 
+	struct vop_reg sw_dac_sel;
+	struct vop_reg tve_sw_mode;
+	struct vop_reg tve_dclk_pol;
+	struct vop_reg tve_dclk_en;
+	struct vop_reg sw_genlock;
+	struct vop_reg sw_uv_offset_en;
 	struct vop_reg dsp_out_yuv;
 	struct vop_reg dsp_data_swap;
 	struct vop_reg dsp_ccir656_avg;
@@ -276,6 +281,8 @@ struct vop_data {
 	struct vop_rect max_output;
 	u64 feature;
 };
+
+#define CVBS_PAL_VDISPLAY		288
 
 /* interrupt define */
 #define DSP_HOLD_VALID_INTR		(1 << 0)
