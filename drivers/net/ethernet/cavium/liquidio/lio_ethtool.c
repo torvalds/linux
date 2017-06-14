@@ -1808,7 +1808,7 @@ oct_cfg_rx_intrcnt(struct lio *lio,
 			    (octeon_read_csr64(
 				 oct, CN23XX_VF_SLI_OQ_PKT_INT_LEVELS(q_no)) &
 			     (0x3fffff00000000UL)) |
-				rx_max_coalesced_frames);
+				(rx_max_coalesced_frames - 1));
 			/*consider writing to resend bit here*/
 		}
 		intrmod->rx_frames = rx_max_coalesced_frames;
