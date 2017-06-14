@@ -532,7 +532,7 @@ struct kmem_cache *
 kmem_cache_create(const char *name, size_t size, size_t align,
 		slab_flags_t flags, void (*ctor)(void *))
 {
-	return kmem_cache_create_usercopy(name, size, align, flags, 0, size,
+	return kmem_cache_create_usercopy(name, size, align, flags, 0, 0,
 					  ctor);
 }
 EXPORT_SYMBOL(kmem_cache_create);
