@@ -1322,7 +1322,7 @@ qla24xx_handle_plogi_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 		ql_dbg(ql_dbg_disc, vha, 0x20ea,
 		    "%s %d %8phC post gpdb\n",
 		    __func__, __LINE__, ea->fcport->port_name);
-		ea->fcport->chip_reset = vha->hw->chip_reset;
+		ea->fcport->chip_reset = vha->hw->base_qpair->chip_reset;
 		ea->fcport->logout_on_delete = 1;
 		qla24xx_post_gpdb_work(vha, ea->fcport, 0);
 		break;
@@ -5524,6 +5524,7 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	struct scsi_qla_host *vp;
 	unsigned long flags;
 	fc_port_t *fcport;
+	u16 i;
 
 	/* For ISP82XX, driver waits for completion of the commands.
 	 * online flag should be set.
@@ -5549,7 +5550,12 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	ha->current_topology = 0;
 	ha->flags.fw_started = 0;
 	ha->flags.fw_init_done = 0;
-	ha->chip_reset++;
+	ha->base_qpair->chip_reset++;
+	for (i = 0; i < ha->max_qpairs; i++) {
+		if (ha->queue_pair_map[i])
+			ha->queue_pair_map[i]->chip_reset =
+				ha->base_qpair->chip_reset;
+	}
 
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
@@ -7624,6 +7630,10 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 		qpair->id = qpair_id;
 		qpair->vp_idx = vp_idx;
 		INIT_LIST_HEAD(&qpair->hints_list);
+		qpair->chip_reset = ha->base_qpair->chip_reset;
+		qpair->enable_class_2 = ha->base_qpair->enable_class_2;
+		qpair->enable_explicit_conf =
+		    ha->base_qpair->enable_explicit_conf;
 
 		for (i = 0; i < ha->msix_count; i++) {
 			msix = &ha->msix_entries[i];

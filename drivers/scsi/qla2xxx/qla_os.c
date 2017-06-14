@@ -387,6 +387,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 	/* init qpair to this cpu. Will adjust at run time. */
 	ha->base_qpair->msix = &ha->msix_entries[QLA_MSIX_RSP_Q];
 	INIT_LIST_HEAD(&ha->base_qpair->hints_list);
+	ha->base_qpair->enable_class_2 = ql2xenableclass2;
 	qla_cpu_update(rsp->qpair, smp_processor_id());
 
 	if (ql2xmqsupport && ha->max_qpairs) {
@@ -2708,7 +2709,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ql_dbg_pci(ql_dbg_init, pdev, 0x000a,
 	    "Memory allocated for ha=%p.\n", ha);
 	ha->pdev = pdev;
-	ha->tgt.enable_class_2 = ql2xenableclass2;
 	INIT_LIST_HEAD(&ha->tgt.q_full_list);
 	spin_lock_init(&ha->tgt.q_full_lock);
 	spin_lock_init(&ha->tgt.sess_lock);
