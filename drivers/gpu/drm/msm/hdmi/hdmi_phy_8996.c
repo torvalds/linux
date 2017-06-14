@@ -758,7 +758,6 @@ static const char * const hdmi_phy_8996_reg_names[] = {
 };
 
 static const char * const hdmi_phy_8996_clk_names[] = {
-	"mmagic_iface_clk",
 	"iface_clk",
 	"ref_clk",
 };
