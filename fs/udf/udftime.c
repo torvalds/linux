@@ -38,6 +38,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/time.h>
 
 #define EPOCH_YEAR 1970
 
@@ -81,9 +82,6 @@ static time_t year_seconds[MAX_YEAR_SECONDS] = {
 /*2038*/ SPY(68, 17, 0)
 };
 
-#define SECS_PER_HOUR	(60 * 60)
-#define SECS_PER_DAY	(SECS_PER_HOUR * 24)
-
 struct timespec *
 udf_disk_stamp_to_time(struct timespec *dest, struct timestamp src)
 {
@@ -119,9 +117,9 @@ udf_disk_stamp_to_time(struct timespec *dest, struct timestamp src)
 struct timestamp *
 udf_time_to_disk_stamp(struct timestamp *dest, struct timespec ts)
 {
-	long int days, rem, y;
-	const unsigned short int *ip;
+	long seconds;
 	int16_t offset;
+	struct tm tm;
 
 	offset = -sys_tz.tz_minuteswest;
 
@@ -130,35 +128,14 @@ udf_time_to_disk_stamp(struct timestamp *dest, struct timespec ts)
 
 	dest->typeAndTimezone = cpu_to_le16(0x1000 | (offset & 0x0FFF));
 
-	ts.tv_sec += offset * 60;
-	days = ts.tv_sec / SECS_PER_DAY;
-	rem = ts.tv_sec % SECS_PER_DAY;
-	dest->hour = rem / SECS_PER_HOUR;
-	rem %= SECS_PER_HOUR;
-	dest->minute = rem / 60;
-	dest->second = rem % 60;
-	y = 1970;
-
-#define DIV(a, b) ((a) / (b) - ((a) % (b) < 0))
-#define LEAPS_THRU_END_OF(y) (DIV (y, 4) - DIV (y, 100) + DIV (y, 400))
-
-	while (days < 0 || days >= (__isleap(y) ? 366 : 365)) {
-		long int yg = y + days / 365 - (days % 365 < 0);
-
-		/* Adjust DAYS and Y to match the guessed year.  */
-		days -= ((yg - y) * 365
-			 + LEAPS_THRU_END_OF(yg - 1)
-			 - LEAPS_THRU_END_OF(y - 1));
-		y = yg;
-	}
-	dest->year = cpu_to_le16(y);
-	ip = __mon_yday[__isleap(y)];
-	for (y = 11; days < (long int)ip[y]; --y)
-		continue;
-	days -= ip[y];
-	dest->month = y + 1;
-	dest->day = days + 1;
-
+	seconds = ts.tv_sec + offset * 60;
+	time64_to_tm(seconds, 0, &tm);
+	dest->year = cpu_to_le16(tm.tm_year + 1900);
+	dest->month = tm.tm_mon + 1;
+	dest->day = tm.tm_mday;
+	dest->hour = tm.tm_hour;
+	dest->minute = tm.tm_min;
+	dest->second = tm.tm_sec;
 	dest->centiseconds = ts.tv_nsec / 10000000;
 	dest->hundredsOfMicroseconds = (ts.tv_nsec / 1000 -
 					dest->centiseconds * 10000) / 100;
