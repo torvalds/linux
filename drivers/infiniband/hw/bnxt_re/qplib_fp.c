@@ -1083,8 +1083,12 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 		rc = -EINVAL;
 		goto done;
 	}
-	if (HWQ_CMP((sq->hwq.prod + 1), &sq->hwq) ==
-	    HWQ_CMP(sq->hwq.cons, &sq->hwq)) {
+
+	if (bnxt_qplib_queue_full(sq)) {
+		dev_err(&sq->hwq.pdev->dev,
+			"QPLIB: prod = %#x cons = %#x qdepth = %#x delta = %#x",
+			sq->hwq.prod, sq->hwq.cons, sq->hwq.max_elements,
+			sq->q_full_delta);
 		rc = -ENOMEM;
 		goto done;
 	}
@@ -1332,8 +1336,7 @@ int bnxt_qplib_post_recv(struct bnxt_qplib_qp *qp,
 		rc = -EINVAL;
 		goto done;
 	}
-	if (HWQ_CMP((rq->hwq.prod + 1), &rq->hwq) ==
-	    HWQ_CMP(rq->hwq.cons, &rq->hwq)) {
+	if (bnxt_qplib_queue_full(rq)) {
 		dev_err(&rq->hwq.pdev->dev,
 			"QPLIB: FP: QP (0x%x) RQ is full!", qp->id);
 		rc = -EINVAL;
@@ -1551,14 +1554,113 @@ static int __flush_rq(struct bnxt_qplib_q *rq, struct bnxt_qplib_qp *qp,
 	return rc;
 }
 
+/* Note: SQE is valid from sw_sq_cons up to cqe_sq_cons (exclusive)
+ *       CQE is track from sw_cq_cons to max_element but valid only if VALID=1
+ */
+static int do_wa9060(struct bnxt_qplib_qp *qp, struct bnxt_qplib_cq *cq,
+		     u32 cq_cons, u32 sw_sq_cons, u32 cqe_sq_cons)
+{
+	struct bnxt_qplib_q *sq = &qp->sq;
+	struct bnxt_qplib_swq *swq;
+	u32 peek_sw_cq_cons, peek_raw_cq_cons, peek_sq_cons_idx;
+	struct cq_base *peek_hwcqe, **peek_hw_cqe_ptr;
+	struct cq_req *peek_req_hwcqe;
+	struct bnxt_qplib_qp *peek_qp;
+	struct bnxt_qplib_q *peek_sq;
+	int i, rc = 0;
+
+	/* Normal mode */
+	/* Check for the psn_search marking before completing */
+	swq = &sq->swq[sw_sq_cons];
+	if (swq->psn_search &&
+	    le32_to_cpu(swq->psn_search->flags_next_psn) & 0x80000000) {
+		/* Unmark */
+		swq->psn_search->flags_next_psn = cpu_to_le32
+			(le32_to_cpu(swq->psn_search->flags_next_psn)
+				     & ~0x80000000);
+		dev_dbg(&cq->hwq.pdev->dev,
+			"FP: Process Req cq_cons=0x%x qp=0x%x sq cons sw=0x%x cqe=0x%x marked!\n",
+			cq_cons, qp->id, sw_sq_cons, cqe_sq_cons);
+		sq->condition = true;
+		sq->send_phantom = true;
+
+		/* TODO: Only ARM if the previous SQE is ARMALL */
+		bnxt_qplib_arm_cq(cq, DBR_DBR_TYPE_CQ_ARMALL);
+
+		rc = -EAGAIN;
+		goto out;
+	}
+	if (sq->condition) {
+		/* Peek at the completions */
+		peek_raw_cq_cons = cq->hwq.cons;
+		peek_sw_cq_cons = cq_cons;
+		i = cq->hwq.max_elements;
+		while (i--) {
+			peek_sw_cq_cons = HWQ_CMP((peek_sw_cq_cons), &cq->hwq);
+			peek_hw_cqe_ptr = (struct cq_base **)cq->hwq.pbl_ptr;
+			peek_hwcqe = &peek_hw_cqe_ptr[CQE_PG(peek_sw_cq_cons)]
+						     [CQE_IDX(peek_sw_cq_cons)];
+			/* If the next hwcqe is VALID */
+			if (CQE_CMP_VALID(peek_hwcqe, peek_raw_cq_cons,
+					  cq->hwq.max_elements)) {
+				/* If the next hwcqe is a REQ */
+				if ((peek_hwcqe->cqe_type_toggle &
+				    CQ_BASE_CQE_TYPE_MASK) ==
+				    CQ_BASE_CQE_TYPE_REQ) {
+					peek_req_hwcqe = (struct cq_req *)
+							 peek_hwcqe;
+					peek_qp = (struct bnxt_qplib_qp *)
+						((unsigned long)
+						 le64_to_cpu
+						 (peek_req_hwcqe->qp_handle));
+					peek_sq = &peek_qp->sq;
+					peek_sq_cons_idx = HWQ_CMP(le16_to_cpu(
+						peek_req_hwcqe->sq_cons_idx) - 1
+						, &sq->hwq);
+					/* If the hwcqe's sq's wr_id matches */
+					if (peek_sq == sq &&
+					    sq->swq[peek_sq_cons_idx].wr_id ==
+					    BNXT_QPLIB_FENCE_WRID) {
+						/*
+						 *  Unbreak only if the phantom
+						 *  comes back
+						 */
+						dev_dbg(&cq->hwq.pdev->dev,
+							"FP:Got Phantom CQE");
+						sq->condition = false;
+						sq->single = true;
+						rc = 0;
+						goto out;
+					}
+				}
+				/* Valid but not the phantom, so keep looping */
+			} else {
+				/* Not valid yet, just exit and wait */
+				rc = -EINVAL;
+				goto out;
+			}
+			peek_sw_cq_cons++;
+			peek_raw_cq_cons++;
+		}
+		dev_err(&cq->hwq.pdev->dev,
+			"Should not have come here! cq_cons=0x%x qp=0x%x sq cons sw=0x%x hw=0x%x",
+			cq_cons, qp->id, sw_sq_cons, cqe_sq_cons);
+		rc = -EINVAL;
+	}
+out:
+	return rc;
+}
+
 static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 				     struct cq_req *hwcqe,
-				     struct bnxt_qplib_cqe **pcqe, int *budget)
+				     struct bnxt_qplib_cqe **pcqe, int *budget,
+				     u32 cq_cons, struct bnxt_qplib_qp **lib_qp)
 {
 	struct bnxt_qplib_qp *qp;
 	struct bnxt_qplib_q *sq;
 	struct bnxt_qplib_cqe *cqe;
-	u32 sw_cons, cqe_cons;
+	u32 sw_sq_cons, cqe_sq_cons;
+	struct bnxt_qplib_swq *swq;
 	int rc = 0;
 
 	qp = (struct bnxt_qplib_qp *)((unsigned long)
@@ -1570,13 +1672,13 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 	}
 	sq = &qp->sq;
 
-	cqe_cons = HWQ_CMP(le16_to_cpu(hwcqe->sq_cons_idx), &sq->hwq);
-	if (cqe_cons > sq->hwq.max_elements) {
+	cqe_sq_cons = HWQ_CMP(le16_to_cpu(hwcqe->sq_cons_idx), &sq->hwq);
+	if (cqe_sq_cons > sq->hwq.max_elements) {
 		dev_err(&cq->hwq.pdev->dev,
 			"QPLIB: FP: CQ Process req reported ");
 		dev_err(&cq->hwq.pdev->dev,
 			"QPLIB: sq_cons_idx 0x%x which exceeded max 0x%x",
-			cqe_cons, sq->hwq.max_elements);
+			cqe_sq_cons, sq->hwq.max_elements);
 		return -EINVAL;
 	}
 	/* If we were in the middle of flushing the SQ, continue */
@@ -1585,53 +1687,74 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 
 	/* Require to walk the sq's swq to fabricate CQEs for all previously
 	 * signaled SWQEs due to CQE aggregation from the current sq cons
-	 * to the cqe_cons
+	 * to the cqe_sq_cons
 	 */
 	cqe = *pcqe;
 	while (*budget) {
-		sw_cons = HWQ_CMP(sq->hwq.cons, &sq->hwq);
-		if (sw_cons == cqe_cons)
+		sw_sq_cons = HWQ_CMP(sq->hwq.cons, &sq->hwq);
+		if (sw_sq_cons == cqe_sq_cons)
+			/* Done */
 			break;
+
+		swq = &sq->swq[sw_sq_cons];
 		memset(cqe, 0, sizeof(*cqe));
 		cqe->opcode = CQ_BASE_CQE_TYPE_REQ;
 		cqe->qp_handle = (u64)(unsigned long)qp;
 		cqe->src_qp = qp->id;
-		cqe->wr_id = sq->swq[sw_cons].wr_id;
-		cqe->type = sq->swq[sw_cons].type;
+		cqe->wr_id = swq->wr_id;
+		if (cqe->wr_id == BNXT_QPLIB_FENCE_WRID)
+			goto skip;
+		cqe->type = swq->type;
 
 		/* For the last CQE, check for status.  For errors, regardless
 		 * of the request being signaled or not, it must complete with
 		 * the hwcqe error status
 		 */
-		if (HWQ_CMP((sw_cons + 1), &sq->hwq) == cqe_cons &&
+		if (HWQ_CMP((sw_sq_cons + 1), &sq->hwq) == cqe_sq_cons &&
 		    hwcqe->status != CQ_REQ_STATUS_OK) {
 			cqe->status = hwcqe->status;
 			dev_err(&cq->hwq.pdev->dev,
 				"QPLIB: FP: CQ Processed Req ");
 			dev_err(&cq->hwq.pdev->dev,
 				"QPLIB: wr_id[%d] = 0x%llx with status 0x%x",
-				sw_cons, cqe->wr_id, cqe->status);
+				sw_sq_cons, cqe->wr_id, cqe->status);
 			cqe++;
 			(*budget)--;
 			sq->flush_in_progress = true;
 			/* Must block new posting of SQ and RQ */
 			qp->state = CMDQ_MODIFY_QP_NEW_STATE_ERR;
+			sq->condition = false;
+			sq->single = false;
 		} else {
-			if (sq->swq[sw_cons].flags &
-			    SQ_SEND_FLAGS_SIGNAL_COMP) {
+			if (swq->flags & SQ_SEND_FLAGS_SIGNAL_COMP) {
+				/* Before we complete, do WA 9060 */
+				if (do_wa9060(qp, cq, cq_cons, sw_sq_cons,
+					      cqe_sq_cons)) {
+					*lib_qp = qp;
+					goto out;
+				}
 				cqe->status = CQ_REQ_STATUS_OK;
 				cqe++;
 				(*budget)--;
 			}
 		}
+skip:
 		sq->hwq.cons++;
+		if (sq->single)
+			break;
 	}
+out:
 	*pcqe = cqe;
-	if (!*budget && HWQ_CMP(sq->hwq.cons, &sq->hwq) != cqe_cons) {
+	if (HWQ_CMP(sq->hwq.cons, &sq->hwq) != cqe_sq_cons) {
 		/* Out of budget */
 		rc = -EAGAIN;
 		goto done;
 	}
+	/*
+	 * Back to normal completion mode only after it has completed all of
+	 * the WC for this CQE
+	 */
+	sq->single = false;
 	if (!sq->flush_in_progress)
 		goto done;
 flush:
@@ -1961,7 +2084,7 @@ static int bnxt_qplib_cq_process_cutoff(struct bnxt_qplib_cq *cq,
 }
 
 int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
-		       int num_cqes)
+		       int num_cqes, struct bnxt_qplib_qp **lib_qp)
 {
 	struct cq_base *hw_cqe, **hw_cqe_ptr;
 	unsigned long flags;
@@ -1986,7 +2109,8 @@ int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
 		case CQ_BASE_CQE_TYPE_REQ:
 			rc = bnxt_qplib_cq_process_req(cq,
 						       (struct cq_req *)hw_cqe,
-						       &cqe, &budget);
+						       &cqe, &budget,
+						       sw_cons, lib_qp);
 			break;
 		case CQ_BASE_CQE_TYPE_RES_RC:
 			rc = bnxt_qplib_cq_process_res_rc(cq,

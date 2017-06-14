@@ -52,7 +52,6 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 				((HWQ_CMP(hwq->prod, hwq)\
 				- HWQ_CMP(hwq->cons, hwq))\
 				& (hwq->max_elements - 1)))
-
 enum bnxt_qplib_hwq_type {
 	HWQ_TYPE_CTX,
 	HWQ_TYPE_QUEUE,
