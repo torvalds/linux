@@ -167,11 +167,7 @@ static int asoc_graph_card_dai_link_of(struct device_node *ep,
 					      "prefix");
 	}
 
-	ret = snd_soc_of_parse_tdm_slot(ep,
-					&dai_props->tx_slot_mask,
-					&dai_props->rx_slot_mask,
-					&dai_props->slots,
-					&dai_props->slot_width);
+	ret = asoc_simple_card_of_parse_tdm(ep, dai_props);
 	if (ret)
 		return ret;
 
