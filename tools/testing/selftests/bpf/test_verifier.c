@@ -1073,44 +1073,75 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 	},
 	{
-		"check cb access: byte, oob 1",
+		"__sk_buff->hash, offset 0, byte store not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_STX_MEM(BPF_B, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[4]) + 4),
+				    offsetof(struct __sk_buff, hash)),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: byte, oob 2",
+		"__sk_buff->tc_index, offset 3, byte store not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_STX_MEM(BPF_B, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[0]) - 1),
+				    offsetof(struct __sk_buff, tc_index) + 3),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: byte, oob 3",
+		"check skb->hash byte load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash)),
+#else
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 3),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"check skb->hash byte load not permitted 1",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[4]) + 4),
+				    offsetof(struct __sk_buff, hash) + 1),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: byte, oob 4",
+		"check skb->hash byte load not permitted 2",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[0]) - 1),
+				    offsetof(struct __sk_buff, hash) + 2),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_context access",
+		.result = REJECT,
+	},
+	{
+		"check skb->hash byte load not permitted 3",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 3),
+#else
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash)),
+#endif
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
@@ -1188,44 +1219,53 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
-		"check cb access: half, oob 1",
+		"check __sk_buff->hash, offset 0, half store not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_STX_MEM(BPF_H, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[4]) + 4),
+				    offsetof(struct __sk_buff, hash)),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: half, oob 2",
+		"check __sk_buff->tc_index, offset 2, half store not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_STX_MEM(BPF_H, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[0]) - 2),
+				    offsetof(struct __sk_buff, tc_index) + 2),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: half, oob 3",
+		"check skb->hash half load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[4]) + 4),
+				    offsetof(struct __sk_buff, hash)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 2),
+#endif
 			BPF_EXIT_INSN(),
 		},
-		.errstr = "invalid bpf_context access",
-		.result = REJECT,
+		.result = ACCEPT,
 	},
 	{
-		"check cb access: half, oob 4",
+		"check skb->hash half load not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[0]) - 2),
+				    offsetof(struct __sk_buff, hash) + 2),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash)),
+#endif
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
@@ -1368,28 +1408,6 @@ static struct bpf_test tests[] = {
 		"check cb access: double, oob 2",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[4]) + 8),
-			BPF_EXIT_INSN(),
-		},
-		.errstr = "invalid bpf_context access",
-		.result = REJECT,
-	},
-	{
-		"check cb access: double, oob 3",
-		.insns = {
-			BPF_MOV64_IMM(BPF_REG_0, 0),
-			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[0]) - 8),
-			BPF_EXIT_INSN(),
-		},
-		.errstr = "invalid bpf_context access",
-		.result = REJECT,
-	},
-	{
-		"check cb access: double, oob 4",
-		.insns = {
-			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, cb[4])),
 			BPF_EXIT_INSN(),
@@ -1398,22 +1416,22 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
-		"check cb access: double, oob 5",
+		"check __sk_buff->ifindex dw store not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[4]) + 8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
+				    offsetof(struct __sk_buff, ifindex)),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: double, oob 6",
+		"check __sk_buff->ifindex dw load not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[0]) - 8),
+				    offsetof(struct __sk_buff, ifindex)),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
@@ -5168,6 +5186,98 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period byte load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+#else
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period) + 7),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period half load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period) + 6),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period word load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+#else
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period) + 4),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period dword load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check skb->data half load not permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, data) + 2),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = REJECT,
+		.errstr = "invalid bpf_context access",
+	},
+	{
+		"check skb->tc_classid half load not permitted for lwt prog",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, tc_classid)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, tc_classid) + 2),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = REJECT,
+		.errstr = "invalid bpf_context access",
+		.prog_type = BPF_PROG_TYPE_LWT_IN,
 	},
 };
 
