@@ -200,36 +200,32 @@ static int cgroup_subsys_states_read(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static void cgroup_masks_read_one(struct seq_file *seq, const char *name,
+				  u16 mask)
+{
+	struct cgroup_subsys *ss;
+	int ssid;
+	bool first = true;
+
+	seq_printf(seq, "%-17s: ", name);
+	for_each_subsys(ss, ssid) {
+		if (!(mask & (1 << ssid)))
+			continue;
+		if (!first)
+			seq_puts(seq, ", ");
+		seq_puts(seq, ss->name);
+		first = false;
+	}
+	seq_putc(seq, '\n');
+}
+
 static int cgroup_masks_read(struct seq_file *seq, void *v)
 {
 	struct cgroup *cgrp = seq_css(seq)->cgroup;
-	struct cgroup_subsys *ss;
-	int i, j;
-	struct {
-		u16  *mask;
-		char *name;
-	} mask_list[] = {
-		{ &cgrp->subtree_control,  "subtree_control"  },
-		{ &cgrp->subtree_ss_mask,  "subtree_ss_mask"  },
-	};
 
 	mutex_lock(&cgroup_mutex);
-	for (i = 0; i < ARRAY_SIZE(mask_list); i++) {
-		u16 mask = *mask_list[i].mask;
-		bool first = true;
-
-		seq_printf(seq, "%-17s: ", mask_list[i].name);
-		for_each_subsys(ss, j) {
-			if (!(mask & (1 << ss->id)))
-				continue;
-			if (!first)
-				seq_puts(seq, ", ");
-			seq_puts(seq, ss->name);
-			first = false;
-		}
-		seq_putc(seq, '\n');
-	}
-
+	cgroup_masks_read_one(seq, "subtree_control", cgrp->subtree_control);
+	cgroup_masks_read_one(seq, "subtree_ss_mask", cgrp->subtree_ss_mask);
 	mutex_unlock(&cgroup_mutex);
 	return 0;
 }
