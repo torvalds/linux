@@ -179,10 +179,11 @@ out:
 		task->task_done(task);
 }
 
-static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
-			      int is_tmf, struct hisi_sas_tmf_task *tmf,
-			      int *pass)
+static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
+		*dq, int is_tmf, struct hisi_sas_tmf_task *tmf,
+		int *pass)
 {
+	struct hisi_hba *hisi_hba = dq->hisi_hba;
 	struct domain_device *device = task->dev;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_sas_port *port;
@@ -240,18 +241,24 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 	} else
 		n_elem = task->num_scatter;
 
+	spin_lock_irqsave(&hisi_hba->lock, flags);
 	if (hisi_hba->hw->slot_index_alloc)
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, &slot_idx,
 						    device);
 	else
 		rc = hisi_sas_slot_index_alloc(hisi_hba, &slot_idx);
-	if (rc)
+	if (rc) {
+		spin_unlock_irqrestore(&hisi_hba->lock, flags);
 		goto err_out;
-	rc = hisi_hba->hw->get_free_slot(hisi_hba, sas_dev->device_id,
-					&dlvry_queue, &dlvry_queue_slot);
+	}
+	spin_unlock_irqrestore(&hisi_hba->lock, flags);
+
+	rc = hisi_hba->hw->get_free_slot(hisi_hba, dq);
 	if (rc)
 		goto err_out_tag;
 
+	dlvry_queue = dq->id;
+	dlvry_queue_slot = dq->wr_point;
 	slot = &hisi_hba->slot_info[slot_idx];
 	memset(slot, 0, sizeof(struct hisi_sas_slot));
 
@@ -316,7 +323,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	hisi_hba->slot_prep = slot;
+	dq->slot_prep = slot;
 
 	atomic64_inc(&sas_dev->running_req);
 	++(*pass);
@@ -335,7 +342,9 @@ err_out_status_buf:
 err_out_slot_buf:
 	/* Nothing to be done */
 err_out_tag:
+	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_index_free(hisi_hba, slot_idx);
+	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 err_out:
 	dev_err(dev, "task prep: failed[%d]!\n", rc);
 	if (!sas_protocol_ata(task->task_proto))
@@ -354,19 +363,22 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	unsigned long flags;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(task->dev);
 	struct device *dev = &hisi_hba->pdev->dev;
+	struct domain_device *device = task->dev;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
+	struct hisi_sas_dq *dq = sas_dev->dq;
 
 	if (unlikely(test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags)))
 		return -EINVAL;
 
 	/* protect task_prep and start_delivery sequence */
-	spin_lock_irqsave(&hisi_hba->lock, flags);
-	rc = hisi_sas_task_prep(task, hisi_hba, is_tmf, tmf, &pass);
+	spin_lock_irqsave(&dq->lock, flags);
+	rc = hisi_sas_task_prep(task, dq, is_tmf, tmf, &pass);
 	if (rc)
 		dev_err(dev, "task exec: failed[%d]!\n", rc);
 
 	if (likely(pass))
-		hisi_hba->hw->start_delivery(hisi_hba);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
+		hisi_hba->hw->start_delivery(dq);
+	spin_unlock_irqrestore(&dq->lock, flags);
 
 	return rc;
 }
@@ -421,12 +433,16 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 	spin_lock(&hisi_hba->lock);
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		if (hisi_hba->devices[i].dev_type == SAS_PHY_UNUSED) {
+			int queue = i % hisi_hba->queue_count;
+			struct hisi_sas_dq *dq = &hisi_hba->dq[queue];
+
 			hisi_hba->devices[i].device_id = i;
 			sas_dev = &hisi_hba->devices[i];
 			sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
 			sas_dev->dev_type = device->dev_type;
 			sas_dev->hisi_hba = hisi_hba;
 			sas_dev->sas_device = device;
+			sas_dev->dq = dq;
 			INIT_LIST_HEAD(&hisi_hba->devices[i].list);
 			break;
 		}
@@ -1140,8 +1156,9 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	struct hisi_sas_slot *slot;
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_cmd_hdr *cmd_hdr_base;
+	struct hisi_sas_dq *dq = sas_dev->dq;
 	int dlvry_queue_slot, dlvry_queue, n_elem = 0, rc, slot_idx;
-	unsigned long flags;
+	unsigned long flags, flags_dq;
 
 	if (unlikely(test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags)))
 		return -EINVAL;
@@ -1152,13 +1169,21 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	port = to_hisi_sas_port(sas_port);
 
 	/* simply get a slot and send abort command */
+	spin_lock_irqsave(&hisi_hba->lock, flags);
 	rc = hisi_sas_slot_index_alloc(hisi_hba, &slot_idx);
-	if (rc)
+	if (rc) {
+		spin_unlock_irqrestore(&hisi_hba->lock, flags);
 		goto err_out;
-	rc = hisi_hba->hw->get_free_slot(hisi_hba, sas_dev->device_id,
-					&dlvry_queue, &dlvry_queue_slot);
+	}
+	spin_unlock_irqrestore(&hisi_hba->lock, flags);
+
+	spin_lock_irqsave(&dq->lock, flags_dq);
+	rc = hisi_hba->hw->get_free_slot(hisi_hba, dq);
 	if (rc)
 		goto err_out_tag;
+
+	dlvry_queue = dq->id;
+	dlvry_queue_slot = dq->wr_point;
 
 	slot = &hisi_hba->slot_info[slot_idx];
 	memset(slot, 0, sizeof(struct hisi_sas_slot));
@@ -1186,17 +1211,21 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	hisi_hba->slot_prep = slot;
+	dq->slot_prep = slot;
 
 	atomic64_inc(&sas_dev->running_req);
 
-	/* send abort command to our chip */
-	hisi_hba->hw->start_delivery(hisi_hba);
+	/* send abort command to the chip */
+	hisi_hba->hw->start_delivery(dq);
+	spin_unlock_irqrestore(&dq->lock, flags_dq);
 
 	return 0;
 
 err_out_tag:
+	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_index_free(hisi_hba, slot_idx);
+	spin_unlock_irqrestore(&hisi_hba->lock, flags);
+	spin_unlock_irqrestore(&dq->lock, flags_dq);
 err_out:
 	dev_err(dev, "internal abort task prep: failed[%d]!\n", rc);
 
@@ -1221,7 +1250,6 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct device *dev = &hisi_hba->pdev->dev;
 	int res;
-	unsigned long flags;
 
 	if (!hisi_hba->hw->prep_abort)
 		return -EOPNOTSUPP;
@@ -1238,11 +1266,8 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	task->slow_task->timer.expires = jiffies + msecs_to_jiffies(110);
 	add_timer(&task->slow_task->timer);
 
-	/* Lock as we are alloc'ing a slot, which cannot be interrupted */
-	spin_lock_irqsave(&hisi_hba->lock, flags);
 	res = hisi_sas_internal_abort_task_exec(hisi_hba, sas_dev->device_id,
 						task, abort_flag, tag);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 	if (res) {
 		del_timer(&task->slow_task->timer);
 		dev_err(dev, "internal task abort: executing internal task failed: %d\n",
