@@ -3078,9 +3078,9 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
 
 	if (xmit_type == QLA_TGT_XMIT_STATUS)
-		vha->tgt_counters.core_qla_snd_status++;
+		qpair->tgt_counters.core_qla_snd_status++;
 	else
-		vha->tgt_counters.core_qla_que_buf++;
+		qpair->tgt_counters.core_qla_que_buf++;
 
 	if (!qpair->fw_started || cmd->reset_count != qpair->chip_reset) {
 		/*
@@ -3500,7 +3500,7 @@ static int __qlt_send_term_exchange(struct qla_qpair *qpair,
 			ret = 1;
 	}
 
-	vha->tgt_counters.num_term_xchg_sent++;
+	qpair->tgt_counters.num_term_xchg_sent++;
 	pkt->entry_count = 1;
 	pkt->handle = QLA_TGT_SKIP_HANDLE | CTIO_COMPLETION_HANDLE_MARK;
 
@@ -5103,7 +5103,7 @@ static int __qlt_send_busy(struct qla_qpair *qpair,
 		return -ENOMEM;
 	}
 
-	vha->tgt_counters.num_q_full_sent++;
+	qpair->tgt_counters.num_q_full_sent++;
 	pkt->entry_count = 1;
 	pkt->handle = QLA_TGT_SKIP_HANDLE | CTIO_COMPLETION_HANDLE_MARK;
 
@@ -5466,13 +5466,12 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 static void qlt_response_pkt(struct scsi_qla_host *vha,
 	struct rsp_que *rsp, response_t *pkt)
 {
-	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
 
 	if (unlikely(tgt == NULL)) {
 		ql_dbg(ql_dbg_tgt, vha, 0xe05d,
-		    "qla_target(%d): Response pkt %x received, but no "
-		    "tgt (ha %p)\n", vha->vp_idx, pkt->entry_type, ha);
+		    "qla_target(%d): Response pkt %x received, but no tgt (ha %p)\n",
+		    vha->vp_idx, pkt->entry_type, vha->hw);
 		return;
 	}
 

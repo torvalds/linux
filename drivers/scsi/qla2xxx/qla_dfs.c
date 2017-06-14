@@ -164,26 +164,56 @@ static int
 qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
 {
 	struct scsi_qla_host *vha = s->private;
+	struct qla_qpair *qpair = vha->hw->base_qpair;
+	uint64_t qla_core_sbt_cmd, core_qla_que_buf, qla_core_ret_ctio,
+		core_qla_snd_status, qla_core_ret_sta_ctio, core_qla_free_cmd,
+		num_q_full_sent, num_alloc_iocb_failed, num_term_xchg_sent;
+	u16 i;
+
+	qla_core_sbt_cmd = qpair->tgt_counters.qla_core_sbt_cmd;
+	core_qla_que_buf = qpair->tgt_counters.core_qla_que_buf;
+	qla_core_ret_ctio = qpair->tgt_counters.qla_core_ret_ctio;
+	core_qla_snd_status = qpair->tgt_counters.core_qla_snd_status;
+	qla_core_ret_sta_ctio = qpair->tgt_counters.qla_core_ret_sta_ctio;
+	core_qla_free_cmd = qpair->tgt_counters.core_qla_free_cmd;
+	num_q_full_sent = qpair->tgt_counters.num_q_full_sent;
+	num_alloc_iocb_failed = qpair->tgt_counters.num_alloc_iocb_failed;
+	num_term_xchg_sent = qpair->tgt_counters.num_term_xchg_sent;
+
+	for (i = 0; i < vha->hw->max_qpairs; i++) {
+		qpair = vha->hw->queue_pair_map[i];
+		qla_core_sbt_cmd += qpair->tgt_counters.qla_core_sbt_cmd;
+		core_qla_que_buf += qpair->tgt_counters.core_qla_que_buf;
+		qla_core_ret_ctio += qpair->tgt_counters.qla_core_ret_ctio;
+		core_qla_snd_status += qpair->tgt_counters.core_qla_snd_status;
+		qla_core_ret_sta_ctio +=
+		    qpair->tgt_counters.qla_core_ret_sta_ctio;
+		core_qla_free_cmd += qpair->tgt_counters.core_qla_free_cmd;
+		num_q_full_sent += qpair->tgt_counters.num_q_full_sent;
+		num_alloc_iocb_failed +=
+		    qpair->tgt_counters.num_alloc_iocb_failed;
+		num_term_xchg_sent += qpair->tgt_counters.num_term_xchg_sent;
+	}
 
 	seq_puts(s, "Target Counters\n");
 	seq_printf(s, "qla_core_sbt_cmd = %lld\n",
-		vha->tgt_counters.qla_core_sbt_cmd);
+		qla_core_sbt_cmd);
 	seq_printf(s, "qla_core_ret_sta_ctio = %lld\n",
-		vha->tgt_counters.qla_core_ret_sta_ctio);
+		qla_core_ret_sta_ctio);
 	seq_printf(s, "qla_core_ret_ctio = %lld\n",
-		vha->tgt_counters.qla_core_ret_ctio);
+		qla_core_ret_ctio);
 	seq_printf(s, "core_qla_que_buf = %lld\n",
-		vha->tgt_counters.core_qla_que_buf);
+		core_qla_que_buf);
 	seq_printf(s, "core_qla_snd_status = %lld\n",
-		vha->tgt_counters.core_qla_snd_status);
+		core_qla_snd_status);
 	seq_printf(s, "core_qla_free_cmd = %lld\n",
-		vha->tgt_counters.core_qla_free_cmd);
+		core_qla_free_cmd);
 	seq_printf(s, "num alloc iocb failed = %lld\n",
-		vha->tgt_counters.num_alloc_iocb_failed);
+		num_alloc_iocb_failed);
 	seq_printf(s, "num term exchange sent = %lld\n",
-		vha->tgt_counters.num_term_xchg_sent);
+		num_term_xchg_sent);
 	seq_printf(s, "num Q full sent = %lld\n",
-		vha->tgt_counters.num_q_full_sent);
+		num_q_full_sent);
 
 	/* DIF stats */
 	seq_printf(s, "DIF Inp Bytes = %lld\n",
