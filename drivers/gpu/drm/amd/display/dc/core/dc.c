@@ -963,11 +963,8 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].stream == NULL
-				|| context->res_ctx.pipe_ctx[i].surface == NULL) {
-			context->res_ctx.pipe_ctx[i].pipe_idx = i;
-			core_dc->hwss.power_down_front_end(
-					core_dc, &context->res_ctx.pipe_ctx[i]);
-		}
+				|| context->res_ctx.pipe_ctx[i].surface == NULL)
+			core_dc->hwss.power_down_front_end(core_dc, i);
 
 	/* 3rd param should be true, temp w/a for RV*/
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -989,7 +986,6 @@ bool dc_commit_surfaces_to_stream(
 	struct dc_plane_info plane_info[MAX_SURFACES];
 	struct dc_scaling_info scaling_info[MAX_SURFACES];
 	int i;
-	bool ret;
 	struct dc_stream_update *stream_update =
 			dm_alloc(sizeof(struct dc_stream_update));
 
@@ -1038,10 +1034,10 @@ bool dc_commit_surfaces_to_stream(
 			new_surface_count,
 			dc_stream, stream_update);
 
-	ret = dc_post_update_surfaces_to_stream(dc);
+	dc_post_update_surfaces_to_stream(dc);
 
 	dm_free(stream_update);
-	return ret;
+	return true;
 }
 
 static bool is_surface_in_context(
@@ -1215,14 +1211,6 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 	}
 
 	return overall_type;
-}
-
-void dc_update_surfaces_for_stream(struct dc *dc,
-		struct dc_surface_update *surface_updates, int surface_count,
-		const struct dc_stream *dc_stream)
-{
-	dc_update_surfaces_and_stream(dc, surface_updates, surface_count,
-			dc_stream, NULL);
 }
 
 enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
@@ -1401,7 +1389,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		}
 	}
 
-	if (!surface_count)  /* reset */
+	if (surface_count == 0)
 		core_dc->hwss.apply_ctx_for_surface(core_dc, NULL, context);
 
 	/* Lock pipes for provided surfaces, or all active if full update*/

@@ -415,9 +415,6 @@ bool dc_commit_surfaces_to_stream(
 bool dc_post_update_surfaces_to_stream(
 		struct dc *dc);
 
-void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *updates,
-		int surface_count, const struct dc_stream *stream);
-
 /* Surface update type is used by dc_update_surfaces_and_stream
  * The update type is determined at the very beginning of the function based
  * on parameters passed in and decides how much programming (or updating) is

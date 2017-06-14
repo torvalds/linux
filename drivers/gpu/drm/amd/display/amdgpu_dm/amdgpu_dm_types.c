@@ -2380,7 +2380,7 @@ static void amdgpu_dm_do_flip(
 	surface_updates->flip_addr = &addr;
 
 
-	dc_update_surfaces_for_stream(adev->dm.dc, surface_updates, 1, acrtc->stream);
+	dc_update_surfaces_and_stream(adev->dm.dc, surface_updates, 1, acrtc->stream, NULL);
 
 	DRM_DEBUG_DRIVER("%s Flipping to hi: 0x%x, low: 0x%x \n",
 			 __func__,

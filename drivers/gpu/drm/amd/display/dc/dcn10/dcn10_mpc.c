@@ -65,17 +65,17 @@ void dcn10_mpcc_set_bg_color(
 
 static void set_output_mux(struct dcn10_mpcc *mpcc10, int opp_id, int mpcc_id)
 {
-	ASSERT(mpcc10->opp_id == 0xf || opp_id == mpcc10->opp_id);
-	mpcc10->opp_id = opp_id;
+	ASSERT(mpcc10->base.opp_id == 0xf || opp_id == mpcc10->base.opp_id);
+	mpcc10->base.opp_id = opp_id;
 	REG_UPDATE(OPP_PIPE_CONTROL[opp_id], OPP_PIPE_CLOCK_EN, 1);
 	REG_SET(MUX[opp_id], 0, MPC_OUT_MUX, mpcc_id);
 }
 
 static void reset_output_mux(struct dcn10_mpcc *mpcc10)
 {
-	REG_SET(MUX[mpcc10->opp_id], 0, MPC_OUT_MUX, 0xf);
-	REG_UPDATE(OPP_PIPE_CONTROL[mpcc10->opp_id], OPP_PIPE_CLOCK_EN, 0);
-	mpcc10->opp_id = 0xf;
+	REG_SET(MUX[mpcc10->base.opp_id], 0, MPC_OUT_MUX, 0xf);
+	REG_UPDATE(OPP_PIPE_CONTROL[mpcc10->base.opp_id], OPP_PIPE_CLOCK_EN, 0);
+	mpcc10->base.opp_id = 0xf;
 }
 
 static void dcn10_mpcc_set(struct mpcc *mpcc, struct mpcc_cfg *cfg)
@@ -104,16 +104,17 @@ static void dcn10_mpcc_set(struct mpcc *mpcc, struct mpcc_cfg *cfg)
 	if (cfg->top_of_tree) {
 		if (cfg->opp_id != 0xf)
 			set_output_mux(mpcc10, cfg->opp_id, mpcc->inst);
-		else
+		else if (mpcc->opp_id != 0xf)
 			reset_output_mux(mpcc10);
 	}
+	mpcc10->base.opp_id = cfg->opp_id;
 }
 
 static void dcn10_mpcc_wait_idle(struct mpcc *mpcc)
 {
 	struct dcn10_mpcc *mpcc10 = TO_DCN10_MPCC(mpcc);
 
-	REG_WAIT(MPCC_STATUS, MPCC_IDLE, 1, 1000, 1000);
+	REG_WAIT(MPCC_STATUS, MPCC_BUSY, 0, 1000, 1000);
 }
 
 
@@ -139,5 +140,5 @@ void dcn10_mpcc_construct(struct dcn10_mpcc *mpcc10,
 	mpcc10->mpcc_shift = mpcc_shift;
 	mpcc10->mpcc_mask = mpcc_mask;
 
-	mpcc10->opp_id = inst;
+	mpcc10->base.opp_id = inst;
 }

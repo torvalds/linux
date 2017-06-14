@@ -68,6 +68,7 @@ struct dcn_mpcc_registers {
 	SF(MPCC0_MPCC_CONTROL, MPCC_ALPHA_MULTIPLIED_MODE, mask_sh),\
 	SF(MPCC0_MPCC_CONTROL, MPCC_BLND_ACTIVE_OVERLAP_ONLY, mask_sh),\
 	SF(MPCC0_MPCC_STATUS, MPCC_IDLE, mask_sh),\
+	SF(MPCC0_MPCC_STATUS, MPCC_BUSY, mask_sh),\
 	SF(MPCC0_MPCC_OPP_ID, MPCC_OPP_ID, mask_sh),\
 	SF(MPCC0_MPCC_BG_G_Y, MPCC_BG_G_Y, mask_sh),\
 	SF(MPCC0_MPCC_BG_R_CR, MPCC_BG_R_CR, mask_sh),\
@@ -83,6 +84,7 @@ struct dcn_mpcc_registers {
 	type MPCC_ALPHA_MULTIPLIED_MODE;\
 	type MPCC_BLND_ACTIVE_OVERLAP_ONLY;\
 	type MPCC_IDLE;\
+	type MPCC_BUSY;\
 	type MPCC_OPP_ID;\
 	type MPCC_BG_G_Y;\
 	type MPCC_BG_R_CR;\
@@ -103,8 +105,6 @@ struct dcn10_mpcc {
 	const struct dcn_mpcc_registers *mpcc_regs;
 	const struct dcn_mpcc_shift *mpcc_shift;
 	const struct dcn_mpcc_mask *mpcc_mask;
-
-	int opp_id;
 };
 
 void dcn10_mpcc_construct(struct dcn10_mpcc *mpcc10,

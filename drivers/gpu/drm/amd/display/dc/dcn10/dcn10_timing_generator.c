@@ -575,6 +575,8 @@ void dcn10_lock(struct timing_generator *tg)
 {
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
 
+	REG_SET(OTG_GLOBAL_CONTROL0, 0,
+			OTG_MASTER_UPDATE_LOCK_SEL, tg->inst);
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 1);
 }
@@ -587,9 +589,9 @@ void dcn10_unlock(struct timing_generator *tg)
 			OTG_MASTER_UPDATE_LOCK, 0);
 
 	/* why are we waiting here? */
-	REG_WAIT(OTG_DOUBLE_BUFFER_CONTROL,
+	/*REG_WAIT(OTG_DOUBLE_BUFFER_CONTROL,
 			OTG_UPDATE_PENDING, 0,
-			20000, 200000);
+			20000, 200000);*/
 }
 
 static void dcn10_get_position(struct timing_generator *tg,

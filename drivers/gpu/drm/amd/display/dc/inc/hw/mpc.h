@@ -40,6 +40,7 @@ struct mpcc {
 	const struct mpcc_funcs *funcs;
 	struct dc_context *ctx;
 	int inst;
+	int opp_id;
 };
 
 struct mpcc_funcs {

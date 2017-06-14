@@ -511,12 +511,14 @@ static void split_stream_across_pipes(
 		struct pipe_ctx *primary_pipe,
 		struct pipe_ctx *secondary_pipe)
 {
+	int pipe_idx = secondary_pipe->pipe_idx;
+
 	if (!primary_pipe->surface)
 		return;
 
-	secondary_pipe->stream = primary_pipe->stream;
-	secondary_pipe->tg = primary_pipe->tg;
+	*secondary_pipe = *primary_pipe;
 
+	secondary_pipe->pipe_idx = pipe_idx;
 	secondary_pipe->mpcc = pool->mpcc[secondary_pipe->pipe_idx];
 	secondary_pipe->mi = pool->mis[secondary_pipe->pipe_idx];
 	secondary_pipe->ipp = pool->ipps[secondary_pipe->pipe_idx];
@@ -528,8 +530,6 @@ static void split_stream_across_pipes(
 	}
 	primary_pipe->bottom_pipe = secondary_pipe;
 	secondary_pipe->top_pipe = primary_pipe;
-	secondary_pipe->surface = primary_pipe->surface;
-	secondary_pipe->pipe_dlg_param = primary_pipe->pipe_dlg_param;
 
 	resource_build_scaling_params(primary_pipe);
 	resource_build_scaling_params(secondary_pipe);
@@ -1011,10 +1011,13 @@ bool dcn_validate_bandwidth(
 					dcn_bw_calc_rq_dlg_ttu(dc, v, hsplit_pipe);
 				} else if (hsplit_pipe && hsplit_pipe->surface == pipe->surface) {
 					/* merge previously split pipe */
-					if (pipe->bottom_pipe->bottom_pipe)
-						pipe->bottom_pipe->bottom_pipe->top_pipe = pipe;
-					memset(pipe->bottom_pipe, 0, sizeof(*pipe->bottom_pipe));
-					pipe->bottom_pipe = pipe->bottom_pipe->bottom_pipe;
+					pipe->bottom_pipe = hsplit_pipe->bottom_pipe;
+					if (hsplit_pipe->bottom_pipe)
+						hsplit_pipe->bottom_pipe->top_pipe = pipe;
+					hsplit_pipe->surface = NULL;
+					hsplit_pipe->stream = NULL;
+					hsplit_pipe->top_pipe = NULL;
+					hsplit_pipe->bottom_pipe = NULL;
 					resource_build_scaling_params(pipe);
 				}
 				/* for now important to do this after pipe split for building e2e params */

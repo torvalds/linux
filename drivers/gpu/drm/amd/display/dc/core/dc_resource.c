@@ -1096,6 +1096,10 @@ bool resource_attach_surfaces_to_context(
 		free_pipe->surface = surface;
 
 		if (tail_pipe) {
+			free_pipe->tg = tail_pipe->tg;
+			free_pipe->stream_enc = tail_pipe->stream_enc;
+			free_pipe->audio = tail_pipe->audio;
+			free_pipe->clock_source = tail_pipe->clock_source;
 			free_pipe->top_pipe = tail_pipe;
 			tail_pipe->bottom_pipe = free_pipe;
 		}
@@ -2300,6 +2304,9 @@ bool pipe_need_reprogram(
 		struct pipe_ctx *pipe_ctx_old,
 		struct pipe_ctx *pipe_ctx)
 {
+	if (!pipe_ctx_old->stream)
+		return false;
+
 	if (pipe_ctx_old->stream->sink != pipe_ctx->stream->sink)
 		return true;
 

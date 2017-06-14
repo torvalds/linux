@@ -1185,8 +1185,7 @@ static void disable_vga_and_power_gate_all_controllers(
 		enable_display_pipe_clock_gating(ctx,
 				true);
 
-		dc->hwss.power_down_front_end(
-			dc, &dc->current_context->res_ctx.pipe_ctx[i]);
+		dc->hwss.power_down_front_end(dc, i);
 	}
 }
 
@@ -1340,7 +1339,7 @@ static void reset_single_pipe_hw_ctx(
 	resource_unreference_clock_source(&context->res_ctx, dc->res_pool,
 			 &pipe_ctx->clock_source);
 
-	dc->hwss.power_down_front_end((struct core_dc *)dc, pipe_ctx);
+	dc->hwss.power_down_front_end((struct core_dc *)dc, pipe_ctx->pipe_idx);
 
 	pipe_ctx->stream = NULL;
 }
@@ -2538,17 +2537,17 @@ static void dce110_apply_ctx_for_surface(
 	}
 }
 
-static void dce110_power_down_fe(struct core_dc *dc, struct pipe_ctx *pipe)
+static void dce110_power_down_fe(struct core_dc *dc, int fe_idx)
 {
 	/* Do not power down fe when stream is active on dce*/
-	if (pipe->stream)
+	if (dc->current_context->res_ctx.pipe_ctx[fe_idx].stream)
 		return;
 
 	dc->hwss.enable_display_power_gating(
-		dc, pipe->pipe_idx, dc->ctx->dc_bios, PIPE_GATING_CONTROL_ENABLE);
-	if (pipe->xfm)
-		pipe->xfm->funcs->transform_reset(pipe->xfm);
-	memset(&pipe->scl_data, 0, sizeof(struct scaler_data));
+		dc, fe_idx, dc->ctx->dc_bios, PIPE_GATING_CONTROL_ENABLE);
+
+	dc->res_pool->transforms[fe_idx]->funcs->transform_reset(
+				dc->res_pool->transforms[fe_idx]);
 }
 
 static const struct hw_sequencer_funcs dce110_funcs = {

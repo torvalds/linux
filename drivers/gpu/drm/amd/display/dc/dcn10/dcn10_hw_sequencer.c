@@ -116,18 +116,6 @@ static const struct dcn10_hwseq_reg_offsets reg_offsets[] = {
 		HWSEQ_REG_SET_N(reg, 1, FD(reg##__##field), val)
 
 /* TODO should be moved to OTG */
-static void lock_otg_master_update(
-	struct dc_context *ctx,
-	uint8_t inst)
-{
-	uint32_t inst_offset = reg_offsets[inst].otg;
-
-	HWSEQ_REG_UPDATE(OTG0_OTG_GLOBAL_CONTROL0,
-			OTG_MASTER_UPDATE_LOCK_SEL, inst);
-
-	HWSEQ_REG_UPDATE(OTG0_OTG_MASTER_UPDATE_LOCK,
-			OTG_MASTER_UPDATE_LOCK, 1);
-}
 
 static bool unlock_master_tg_and_wait(
 	struct dc_context *ctx,
@@ -147,19 +135,6 @@ static bool unlock_master_tg_and_wait(
 	}
 	return true;
 }
-
-/* TODO: should be  moved to OTG ? */
-static void unlock_otg_master(
-	struct dc_context *ctx,
-	uint8_t inst)
-{
-	uint32_t inst_offset = reg_offsets[inst].otg;
-
-	/* unlock master locker */
-	HWSEQ_REG_UPDATE(OTG0_OTG_MASTER_UPDATE_LOCK,
-			OTG_MASTER_UPDATE_LOCK, 0);
-}
-
 
 static void wait_no_outstanding_request(
 	struct dc_context *ctx,
@@ -489,8 +464,7 @@ static void hubp_pg_control(
 
 static void power_on_plane(
 	struct dc_context *ctx,
-	uint8_t plane_id,
-	uint8_t inst)
+	int plane_id)
 {
 	uint32_t inst_offset = 0;
 
@@ -500,6 +474,8 @@ static void power_on_plane(
 	hubp_pg_control(ctx, plane_id, true);
 	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
 			IP_REQUEST_EN, 0);
+	dm_logger_write(ctx->logger, LOG_DC,
+			"Un-gated front end for pipe %d\n", plane_id);
 }
 
 /* fully check bios enabledisplaypowergating table. dal only need dce init
@@ -596,13 +572,13 @@ static void init_hw(struct core_dc *dc)
 				dc->res_pool->mpcc[i];
 		struct mpcc_cfg mpcc_cfg;
 
-		lock_otg_master_update(dc->ctx, tg->inst);
+		tg->funcs->lock(tg);
 		mpcc_cfg.opp_id = 0xf;
 		mpcc_cfg.top_dpp_id = 0xf;
 		mpcc_cfg.bot_mpcc_id = 0xf;
 		mpcc_cfg.top_of_tree = true;
 		mpcc->funcs->set(mpcc, &mpcc_cfg);
-		unlock_otg_master(dc->ctx, tg->inst);
+		tg->funcs->unlock(tg);
 
 		tg->funcs->disable_vga(tg);
 		/* Blank controller using driver code instead of
@@ -822,56 +798,85 @@ static void reset_back_end_for_pipe(
 		return;
 
 	pipe_ctx->stream = NULL;
+	dm_logger_write(dc->ctx->logger, LOG_DC,
+					"Reset back end for pipe %d, tg:%d\n",
+					pipe_ctx->pipe_idx, pipe_ctx->tg->inst);
 }
 
-static void reset_front_end_for_pipe(
+static void reset_front_end(
 		struct core_dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		struct validate_context *context)
+		int fe_idx)
 {
 	struct mpcc_cfg mpcc_cfg;
+	struct mem_input *mi = dc->res_pool->mis[fe_idx];
+	struct transform *xfm = dc->res_pool->transforms[fe_idx];
+	struct mpcc *mpcc = dc->res_pool->mpcc[fe_idx];
+	struct timing_generator *tg = dc->res_pool->timing_generators[mpcc->opp_id];
 
-	if (!pipe_ctx->surface)
+	/*Already reset*/
+	if (mpcc->opp_id == 0xf)
 		return;
 
-	pipe_ctx->mi->funcs->dcc_control(pipe_ctx->mi, false, false);
-
-	lock_otg_master_update(dc->ctx, pipe_ctx->tg->inst);
+	mi->funcs->dcc_control(mi, false, false);
+	tg->funcs->lock(tg);
 
 	mpcc_cfg.opp_id = 0xf;
 	mpcc_cfg.top_dpp_id = 0xf;
 	mpcc_cfg.bot_mpcc_id = 0xf;
-	mpcc_cfg.top_of_tree = !pipe_ctx->top_pipe;
-	pipe_ctx->mpcc->funcs->set(pipe_ctx->mpcc, &mpcc_cfg);
+	mpcc_cfg.top_of_tree = tg->inst == mpcc->inst;
+	mpcc->funcs->set(mpcc, &mpcc_cfg);
 
-	pipe_ctx->top_pipe = NULL;
-	pipe_ctx->bottom_pipe = NULL;
+	unlock_master_tg_and_wait(dc->ctx, tg->inst);
+	mpcc->funcs->wait_for_idle(mpcc);
+	mi->funcs->set_blank(mi, true);
+	wait_no_outstanding_request(dc->ctx, fe_idx);
+	disable_clocks(dc->ctx, fe_idx);
 
-	unlock_master_tg_and_wait(dc->ctx, pipe_ctx->tg->inst);
-
-	pipe_ctx->mi->funcs->set_blank(pipe_ctx->mi, true);
-
-	wait_no_outstanding_request(dc->ctx, pipe_ctx->pipe_idx);
-
-	disable_clocks(dc->ctx, pipe_ctx->pipe_idx);
-
-	pipe_ctx->xfm->funcs->transform_reset(pipe_ctx->xfm);
+	xfm->funcs->transform_reset(xfm);
 
 	dm_logger_write(dc->ctx->logger, LOG_DC,
-					"Reset front end for pipe %d\n",
-					pipe_ctx->pipe_idx);
-
-	pipe_ctx->surface = NULL;
+					"Reset front end %d\n",
+					fe_idx);
 }
 
-static void reset_hw_ctx(struct core_dc *dc,
-		struct validate_context *context,
-		void (*reset)(struct core_dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				struct validate_context *context))
+static void dcn10_power_down_fe(struct core_dc *dc, int fe_idx)
+{
+	struct dc_context *ctx = dc->ctx;
+	uint32_t inst_offset = 0;
+
+	reset_front_end(dc, fe_idx);
+
+	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
+			IP_REQUEST_EN, 1);
+	dpp_pg_control(ctx, fe_idx, false);
+	hubp_pg_control(ctx, fe_idx, false);
+	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
+			IP_REQUEST_EN, 0);
+	dm_logger_write(dc->ctx->logger, LOG_DC,
+			"Power gated front end %d\n", fe_idx);
+}
+
+static void reset_hw_ctx_wrap(
+		struct core_dc *dc,
+		struct validate_context *context)
 {
 	int i;
 
+	/* Reset Front End*/
+	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
+		struct pipe_ctx *pipe_ctx_old =
+			&dc->current_context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		/*if (!pipe_ctx_old->stream)
+			continue;*/
+
+		if (!pipe_ctx->stream || !pipe_ctx->surface)
+			dcn10_power_down_fe(dc, i);
+		else if (pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
+			reset_front_end(dc, i);
+	}
+	/* Reset Back End*/
 	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
 		struct pipe_ctx *pipe_ctx_old =
 			&dc->current_context->res_ctx.pipe_ctx[i];
@@ -882,23 +887,13 @@ static void reset_hw_ctx(struct core_dc *dc,
 
 		if (!pipe_ctx->stream ||
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
-			reset(dc, pipe_ctx_old, dc->current_context);
+			reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_context);
 	}
 }
 
-static void reset_hw_ctx_wrap(
-		struct core_dc *dc,
-		struct validate_context *context)
-{
-	/* Reset Front End*/
-	reset_hw_ctx(dc, context, reset_front_end_for_pipe);
-	/* Reset Back End*/
-	reset_hw_ctx(dc, context, reset_back_end_for_pipe);
-}
 
-
-static bool patch_address_for_sbs_tb_stereo(struct pipe_ctx *pipe_ctx,
-											PHYSICAL_ADDRESS_LOC *addr)
+static bool patch_address_for_sbs_tb_stereo(
+		struct pipe_ctx *pipe_ctx, PHYSICAL_ADDRESS_LOC *addr)
 {
 	struct core_surface *surface = pipe_ctx->surface;
 	bool sec_split = pipe_ctx->top_pipe &&
@@ -936,8 +931,7 @@ static void update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ct
 }
 
 static bool dcn10_set_input_transfer_func(
-	struct pipe_ctx *pipe_ctx,
-	const struct core_surface *surface)
+	struct pipe_ctx *pipe_ctx, const struct core_surface *surface)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
 	const struct core_transfer_func *tf = NULL;
@@ -950,8 +944,8 @@ static bool dcn10_set_input_transfer_func(
 		tf = DC_TRANSFER_FUNC_TO_CORE(surface->public.in_transfer_func);
 
 	if (surface->public.gamma_correction && dce_use_lut(surface))
-	    ipp->funcs->ipp_program_input_lut(ipp,
-			    surface->public.gamma_correction);
+		ipp->funcs->ipp_program_input_lut(ipp,
+				surface->public.gamma_correction);
 
 	if (tf == NULL)
 		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
@@ -1333,8 +1327,6 @@ static void dcn10_pipe_control_lock(
 	struct pipe_ctx *pipe,
 	bool lock)
 {
-	struct dce_hwseq *hws = hws = dc->hwseq;
-
 	/* use TG master update lock to lock everything on the TG
 	 * therefore only top pipe need to lock
 	 */
@@ -1342,9 +1334,9 @@ static void dcn10_pipe_control_lock(
 		return;
 
 	if (lock)
-		dcn10_lock(pipe->tg);
+		pipe->tg->funcs->lock(pipe->tg);
 	else
-		dcn10_unlock(pipe->tg);
+		pipe->tg->funcs->unlock(pipe->tg);
 }
 
 static bool wait_for_reset_trigger_to_occur(
@@ -1543,7 +1535,7 @@ static void dcn10_power_on_fe(
 	struct dc_surface *dc_surface = &pipe_ctx->surface->public;
 
 	power_on_plane(dc->ctx,
-		pipe_ctx->pipe_idx, pipe_ctx->tg->inst);
+		pipe_ctx->pipe_idx);
 
 	/* enable DCFCLK current DCHUB */
 	enable_dcfclk(dc->ctx,
@@ -1694,7 +1686,6 @@ static void update_dchubp_dpp(
 	struct default_adjustment ocsc = {0};
 	struct tg_color black_color = {0};
 	struct mpcc_cfg mpcc_cfg;
-	struct pipe_ctx *top_pipe;
 	bool per_pixel_alpha = surface->public.per_pixel_alpha && pipe_ctx->bottom_pipe;
 
 	/* TODO: proper fix once fpga works */
@@ -1734,14 +1725,13 @@ static void update_dchubp_dpp(
 			IPP_OUTPUT_FORMAT_12_BIT_FIX);
 
 	pipe_ctx->scl_data.lb_params.alpha_en = per_pixel_alpha;
-	for (top_pipe = pipe_ctx; top_pipe != NULL; top_pipe = top_pipe->top_pipe)
-		mpcc_cfg.opp_id = top_pipe->opp->inst;
 	mpcc_cfg.top_dpp_id = pipe_ctx->pipe_idx;
 	if (pipe_ctx->bottom_pipe)
 		mpcc_cfg.bot_mpcc_id = pipe_ctx->bottom_pipe->mpcc->inst;
 	else
 		mpcc_cfg.bot_mpcc_id = 0xf;
-	mpcc_cfg.top_of_tree = !pipe_ctx->top_pipe;
+	mpcc_cfg.opp_id = pipe_ctx->tg->inst;
+	mpcc_cfg.top_of_tree = pipe_ctx->pipe_idx == pipe_ctx->tg->inst;
 	mpcc_cfg.per_pixel_alpha = per_pixel_alpha;
 	/* DCN1.0 has output CM before MPC which seems to screw with
 	 * pre-multiplied alpha.
@@ -1749,8 +1739,6 @@ static void update_dchubp_dpp(
 	mpcc_cfg.pre_multiplied_alpha = is_rgb_cspace(
 			pipe_ctx->stream->public.output_color_space)
 					&& per_pixel_alpha;
-	if (!dc->current_context->res_ctx.pipe_ctx[pipe_ctx->pipe_idx].surface)
-		pipe_ctx->mpcc->funcs->wait_for_idle(pipe_ctx->mpcc);
 	pipe_ctx->mpcc->funcs->set(pipe_ctx->mpcc, &mpcc_cfg);
 
 	color_space_to_black_color(
@@ -1796,7 +1784,7 @@ static void program_all_pipe_in_tree(
 		/* watermark is for all pipes */
 		pipe_ctx->mi->funcs->program_watermarks(
 				pipe_ctx->mi, &context->bw.dcn.watermarks, ref_clk_mhz);
-		lock_otg_master_update(dc->ctx, pipe_ctx->tg->inst);
+		pipe_ctx->tg->funcs->lock(pipe_ctx->tg);
 
 		pipe_ctx->tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
 		pipe_ctx->tg->dlg_otg_param.vstartup_start = pipe_ctx->pipe_dlg_param.vstartup_start;
@@ -1852,12 +1840,40 @@ static void dcn10_apply_ctx_for_surface(
 {
 	int i;
 
+	/* reset unused mpcc */
+	/*for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe_ctx =
+				&dc->current_context->res_ctx.pipe_ctx[i];
+
+		if ((!pipe_ctx->surface && old_pipe_ctx->surface)
+				|| (!pipe_ctx->stream && old_pipe_ctx->stream)) {
+			struct mpcc_cfg mpcc_cfg;
+
+			mpcc_cfg.opp_id = 0xf;
+			mpcc_cfg.top_dpp_id = 0xf;
+			mpcc_cfg.bot_mpcc_id = 0xf;
+			mpcc_cfg.top_of_tree = !old_pipe_ctx->top_pipe;
+			old_pipe_ctx->mpcc->funcs->set(old_pipe_ctx->mpcc, &mpcc_cfg);
+
+			old_pipe_ctx->top_pipe = NULL;
+			old_pipe_ctx->bottom_pipe = NULL;
+			old_pipe_ctx->surface = NULL;
+
+			dm_logger_write(dc->ctx->logger, LOG_DC,
+					"Reset mpcc for pipe %d\n",
+					old_pipe_ctx->pipe_idx);
+		}
+	}*/
+
+	if (!surface)
+		return;
+
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe_ctx->surface || pipe_ctx->surface != surface)
+		if (pipe_ctx->surface != surface)
 			continue;
-
 
 		/* looking for top pipe to program */
 		if (!pipe_ctx->top_pipe)
@@ -1910,27 +1926,6 @@ static void dcn10_apply_ctx_for_surface(
 			context->bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns,
 			context->bw.dcn.watermarks.d.pte_meta_urgent_ns
 			);
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx->surface || pipe_ctx->top_pipe)
-			continue;
-
-		/* unlock master update lock */
-		unlock_otg_master(dc->ctx, pipe_ctx->tg->inst);
-	}
-
-	/* reset unused pipe */
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *old_pipe_ctx =
-				&dc->current_context->res_ctx.pipe_ctx[i];
-
-		if ((!pipe_ctx->surface && old_pipe_ctx->surface)
-				|| (!pipe_ctx->stream && old_pipe_ctx->stream))
-			reset_front_end_for_pipe(dc, old_pipe_ctx, dc->current_context);
-	}
 }
 
 static void dcn10_set_bandwidth(
@@ -1990,23 +1985,6 @@ static void dcn10_set_bandwidth(
 				context->bw.dcn.calc_clk.min_active_dram_ccm_us;
 	}
 	dcn10_pplib_apply_display_requirements(dc, context);
-}
-
-static void dcn10_power_down_fe(struct core_dc *dc, struct pipe_ctx *pipe)
-{
-	struct dc_context *ctx = dc->ctx;
-	uint32_t inst_offset = 0;
-
-	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
-			IP_REQUEST_EN, 1);
-	dpp_pg_control(ctx, pipe->pipe_idx, false);
-	hubp_pg_control(ctx, pipe->pipe_idx, false);
-	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
-			IP_REQUEST_EN, 0);
-
-	if (pipe->xfm)
-		pipe->xfm->funcs->transform_reset(pipe->xfm);
-	memset(&pipe->scl_data, 0, sizeof(pipe->scl_data));
 }
 
 static void set_drr(struct pipe_ctx **pipe_ctx,
