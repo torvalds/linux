@@ -46,6 +46,12 @@
 	((type == SAS_EDGE_EXPANDER_DEVICE) || \
 	(type == SAS_FANOUT_EXPANDER_DEVICE))
 
+#define HISI_SAS_SATA_PROTOCOL_NONDATA		0x1
+#define HISI_SAS_SATA_PROTOCOL_PIO			0x2
+#define HISI_SAS_SATA_PROTOCOL_DMA			0x4
+#define HISI_SAS_SATA_PROTOCOL_FPDMA		0x8
+#define HISI_SAS_SATA_PROTOCOL_ATAPI		0x10
+
 struct hisi_hba;
 
 enum {
@@ -356,6 +362,7 @@ union hisi_sas_command_table {
 	struct hisi_sas_command_table_stp stp;
 };
 
+extern u8 hisi_sas_get_ata_protocol(u8 cmd, int direction);
 extern struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port);
 extern int hisi_sas_probe(struct platform_device *pdev,
 			  const struct hisi_sas_hw *ops);
