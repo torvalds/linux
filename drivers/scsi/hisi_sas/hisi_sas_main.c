@@ -97,6 +97,21 @@ void hisi_sas_sata_done(struct sas_task *task,
 }
 EXPORT_SYMBOL_GPL(hisi_sas_sata_done);
 
+int hisi_sas_get_ncq_tag(struct sas_task *task, u32 *tag)
+{
+	struct ata_queued_cmd *qc = task->uldd_task;
+
+	if (qc) {
+		if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
+			qc->tf.command == ATA_CMD_FPDMA_READ) {
+			*tag = qc->tag;
+			return 1;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hisi_sas_get_ncq_tag);
+
 static struct hisi_hba *dev_to_hisi_hba(struct domain_device *device)
 {
 	return device->port->ha->lldd_ha;
