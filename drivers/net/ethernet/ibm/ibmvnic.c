@@ -1468,6 +1468,11 @@ static void ibmvnic_netpoll_controller(struct net_device *dev)
 }
 #endif
 
+static int ibmvnic_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	return -EOPNOTSUPP;
+}
+
 static const struct net_device_ops ibmvnic_netdev_ops = {
 	.ndo_open		= ibmvnic_open,
 	.ndo_stop		= ibmvnic_close,
@@ -1479,6 +1484,7 @@ static const struct net_device_ops ibmvnic_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ibmvnic_netpoll_controller,
 #endif
+	.ndo_change_mtu		= ibmvnic_change_mtu,
 };
 
 /* ethtool functions */

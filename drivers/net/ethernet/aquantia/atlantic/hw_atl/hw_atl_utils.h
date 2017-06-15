@@ -193,9 +193,6 @@ int hw_atl_utils_hw_get_regs(struct aq_hw_s *self,
 			     struct aq_hw_caps_s *aq_hw_caps,
 			     u32 *regs_buff);
 
-int hw_atl_utils_hw_get_settings(struct aq_hw_s *self,
-				 struct ethtool_cmd *cmd);
-
 int hw_atl_utils_hw_set_power(struct aq_hw_s *self,
 			      unsigned int power_state);
 

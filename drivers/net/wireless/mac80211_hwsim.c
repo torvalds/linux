@@ -2861,7 +2861,7 @@ static const struct net_device_ops hwsim_netdev_ops = {
 static void hwsim_mon_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &hwsim_netdev_ops;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	ether_setup(dev);
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->type = ARPHRD_IEEE80211_RADIOTAP;

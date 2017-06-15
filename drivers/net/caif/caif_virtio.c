@@ -617,7 +617,7 @@ static void cfv_netdev_setup(struct net_device *netdev)
 	netdev->tx_queue_len = 100;
 	netdev->flags = IFF_POINTOPOINT | IFF_NOARP;
 	netdev->mtu = CFV_DEF_MTU_SIZE;
-	netdev->destructor = free_netdev;
+	netdev->needs_free_netdev = true;
 }
 
 /* Create debugfs counters for the device */
