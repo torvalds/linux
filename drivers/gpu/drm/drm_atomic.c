@@ -109,9 +109,10 @@ struct drm_atomic_state *
 drm_atomic_state_alloc(struct drm_device *dev)
 {
 	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_atomic_state *state;
 
 	if (!config->funcs->atomic_state_alloc) {
+		struct drm_atomic_state *state;
+
 		state = kzalloc(sizeof(*state), GFP_KERNEL);
 		if (!state)
 			return NULL;
