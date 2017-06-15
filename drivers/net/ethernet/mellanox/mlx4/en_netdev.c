@@ -1679,12 +1679,14 @@ int mlx4_en_start_port(struct net_device *dev)
 			if (t != TX_XDP) {
 				tx_ring->tx_queue = netdev_get_tx_queue(dev, i);
 				tx_ring->recycle_ring = NULL;
+
+				/* Arm CQ for TX completions */
+				mlx4_en_arm_cq(priv, cq);
+
 			} else {
 				mlx4_en_init_recycle_ring(priv, i);
+				/* XDP TX CQ should never be armed */
 			}
-
-			/* Arm CQ for TX completions */
-			mlx4_en_arm_cq(priv, cq);
 
 			/* Set initial ownership of all Tx TXBBs to SW (1) */
 			for (j = 0; j < tx_ring->buf_size; j += STAMP_STRIDE)
