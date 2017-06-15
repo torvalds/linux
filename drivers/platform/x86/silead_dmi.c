@@ -108,6 +108,20 @@ static const struct silead_ts_dmi_data pipo_w2s_data = {
 	.properties	= pipo_w2s_props,
 };
 
+static const struct property_entry pov_mobii_wintab_p800w_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1800),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1150),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl3692-pov-mobii-wintab-p800w.fw"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data pov_mobii_wintab_p800w_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= pov_mobii_wintab_p800w_props,
+};
+
 static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{
 		/* CUBE iwork8 Air */
@@ -160,6 +174,17 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "PIPO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "W2S"),
+		},
+	},
+	{
+		/* Point of View mobii wintab p800w */
+		.driver_data = (void *)&pov_mobii_wintab_p800w_data,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
+			DMI_MATCH(DMI_BIOS_VERSION, "3BAIR1013"),
+			/* Above matches are too generic, add bios-date match */
+			DMI_MATCH(DMI_BIOS_DATE, "08/22/2014"),
 		},
 	},
 	{ },
