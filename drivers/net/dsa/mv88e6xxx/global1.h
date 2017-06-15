@@ -146,16 +146,29 @@
 #define MV88E6XXX_G1_ATU_MAC23		0x0e
 #define MV88E6XXX_G1_ATU_MAC45		0x0f
 
-#define GLOBAL_IP_PRI_0		0x10
-#define GLOBAL_IP_PRI_1		0x11
-#define GLOBAL_IP_PRI_2		0x12
-#define GLOBAL_IP_PRI_3		0x13
-#define GLOBAL_IP_PRI_4		0x14
-#define GLOBAL_IP_PRI_5		0x15
-#define GLOBAL_IP_PRI_6		0x16
-#define GLOBAL_IP_PRI_7		0x17
-#define GLOBAL_IEEE_PRI		0x18
-#define GLOBAL_CORE_TAG_TYPE	0x19
+/* Offset 0x10: IP-PRI Mapping Register 0
+ * Offset 0x11: IP-PRI Mapping Register 1
+ * Offset 0x12: IP-PRI Mapping Register 2
+ * Offset 0x13: IP-PRI Mapping Register 3
+ * Offset 0x14: IP-PRI Mapping Register 4
+ * Offset 0x15: IP-PRI Mapping Register 5
+ * Offset 0x16: IP-PRI Mapping Register 6
+ * Offset 0x17: IP-PRI Mapping Register 7
+ */
+#define MV88E6XXX_G1_IP_PRI_0	0x10
+#define MV88E6XXX_G1_IP_PRI_1	0x11
+#define MV88E6XXX_G1_IP_PRI_2	0x12
+#define MV88E6XXX_G1_IP_PRI_3	0x13
+#define MV88E6XXX_G1_IP_PRI_4	0x14
+#define MV88E6XXX_G1_IP_PRI_5	0x15
+#define MV88E6XXX_G1_IP_PRI_6	0x16
+#define MV88E6XXX_G1_IP_PRI_7	0x17
+
+/* Offset 0x18: IEEE-PRI Register */
+#define MV88E6XXX_G1_IEEE_PRI	0x18
+
+/* Offset 0x19: Core Tag Type */
+#define MV88E6185_G1_CORE_TAG_TYPE	0x19
 
 /* Offset 0x1A: Monitor Control */
 #define MV88E6185_G1_MONITOR_CTL			0x1a
