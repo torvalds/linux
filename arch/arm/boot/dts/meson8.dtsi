@@ -45,7 +45,7 @@
 
 #include <dt-bindings/clock/meson8b-clkc.h>
 #include <dt-bindings/gpio/meson8-gpio.h>
-/include/ "meson.dtsi"
+#include "meson.dtsi"
 
 / {
 	model = "Amlogic Meson8 SoC";
