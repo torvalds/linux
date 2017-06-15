@@ -125,8 +125,6 @@ struct rds_conn_path {
 
 	unsigned int		cp_unacked_packets;
 	unsigned int		cp_unacked_bytes;
-	unsigned int		cp_outgoing:1,
-				cp_pad_to_32:31;
 	unsigned int		cp_index;
 };
 

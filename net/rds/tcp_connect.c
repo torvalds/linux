@@ -135,7 +135,6 @@ int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 	ret = sock->ops->connect(sock, (struct sockaddr *)&dest, sizeof(dest),
 				 O_NONBLOCK);
 
-	cp->cp_outgoing = 1;
 	rdsdebug("connect to address %pI4 returned %d\n", &conn->c_faddr, ret);
 	if (ret == -EINPROGRESS)
 		ret = 0;

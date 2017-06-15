@@ -171,21 +171,10 @@ int rds_tcp_accept_one(struct socket *sock)
 	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_ERROR)
 		goto rst_nsk;
 	if (rs_tcp->t_sock) {
-		/* Need to resolve a duelling SYN between peers.
-		 * We have an outstanding SYN to this peer, which may
-		 * potentially have transitioned to the RDS_CONN_UP state,
-		 * so we must quiesce any send threads before resetting
-		 * c_transport_data.
-		 */
-		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr) ||
-		    !cp->cp_outgoing) {
-			goto rst_nsk;
-		} else {
-			rds_tcp_reset_callbacks(new_sock, cp);
-			cp->cp_outgoing = 0;
-			/* rds_connect_path_complete() marks RDS_CONN_UP */
-			rds_connect_path_complete(cp, RDS_CONN_RESETTING);
-		}
+		/* Duelling SYN has been handled in rds_tcp_accept_one() */
+		rds_tcp_reset_callbacks(new_sock, cp);
+		/* rds_connect_path_complete() marks RDS_CONN_UP */
+		rds_connect_path_complete(cp, RDS_CONN_RESETTING);
 	} else {
 		rds_tcp_set_callbacks(new_sock, cp);
 		rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
