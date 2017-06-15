@@ -1336,15 +1336,15 @@ int rxe_register_device(struct rxe_dev *rxe)
 
 	err = ib_register_device(dev, NULL);
 	if (err) {
-		pr_warn("rxe_register_device failed, err = %d\n", err);
+		pr_warn("%s failed with error %d\n", __func__, err);
 		goto err1;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(rxe_dev_attributes); ++i) {
 		err = device_create_file(&dev->dev, rxe_dev_attributes[i]);
 		if (err) {
-			pr_warn("device_create_file failed, i = %d, err = %d\n",
-				i, err);
+			pr_warn("%s failed with error %d for attr number %d\n",
+				__func__, err, i);
 			goto err2;
 		}
 	}
