@@ -2739,7 +2739,8 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 				i, tv_format_names[intel_sdvo_connector->tv_format_supported[i]]);
 
 	intel_sdvo_connector->base.base.state->tv.mode = intel_sdvo_connector->tv_format_supported[0];
-	drm_object_attach_property(&intel_sdvo_connector->base.base.base, 0, 0);
+	drm_object_attach_property(&intel_sdvo_connector->base.base.base,
+				   intel_sdvo_connector->tv_format, 0);
 	return true;
 
 }
