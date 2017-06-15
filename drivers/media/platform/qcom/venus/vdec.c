@@ -627,6 +627,12 @@ static int vdec_queue_setup(struct vb2_queue *q,
 						    inst->out_height);
 		inst->input_buf_size = sizes[0];
 		inst->num_input_bufs = *num_buffers;
+
+		ret = vdec_cap_num_buffers(inst, &num);
+		if (ret)
+			break;
+
+		inst->num_output_bufs = num;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 		*num_planes = inst->fmt_cap->num_planes;
@@ -951,6 +957,7 @@ static int vdec_open(struct file *file)
 
 	inst->core = core;
 	inst->session_type = VIDC_SESSION_TYPE_DEC;
+	inst->num_output_bufs = 1;
 
 	venus_helper_init_instance(inst);
 
