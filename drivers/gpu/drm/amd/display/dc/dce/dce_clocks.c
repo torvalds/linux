@@ -80,7 +80,6 @@ static struct state_dependent_clocks dce112_max_clks_by_state[] = {
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1132000, .pixel_clk_khz = 600000 } };
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 static struct state_dependent_clocks dce120_max_clks_by_state[] = {
 /*ClocksStateInvalid - should not be used*/
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
@@ -92,7 +91,6 @@ static struct state_dependent_clocks dce120_max_clks_by_state[] = {
 { .display_clk_khz = 670000, .pixel_clk_khz = 600000 },
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1133000, .pixel_clk_khz = 600000 } };
-#endif
 
 /* Starting point for each divider range.*/
 enum dce_divider_range_start {
@@ -497,7 +495,6 @@ static void dce_clock_read_ss_info(struct dce_disp_clk *clk_dce)
 	}
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 static bool dce_apply_clock_voltage_request(
 	struct display_clock *clk,
 	enum dm_pp_clock_type clocks_type,
@@ -592,7 +589,6 @@ static const struct display_clock_funcs dce120_funcs = {
 	.apply_clock_voltage_request = dce_apply_clock_voltage_request,
 	.set_clock = dce112_set_clock
 };
-#endif
 
 static const struct display_clock_funcs dce112_funcs = {
 	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
@@ -734,7 +730,6 @@ struct display_clock *dce112_disp_clk_create(
 	return &clk_dce->base;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 struct display_clock *dce120_disp_clk_create(
 		struct dc_context *ctx,
 		const struct dce_disp_clk_registers *regs,
@@ -770,7 +765,6 @@ struct display_clock *dce120_disp_clk_create(
 
 	return &clk_dce->base;
 }
-#endif
 
 void dce_disp_clk_destroy(struct display_clock **disp_clk)
 {

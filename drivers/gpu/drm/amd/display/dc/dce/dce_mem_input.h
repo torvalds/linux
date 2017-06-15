@@ -58,14 +58,12 @@
 	MI_DCE11_2_REG_LIST(id),\
 	MI_DCE_PTE_REG_LIST(id)
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 #define MI_DCE12_REG_LIST(id)\
 	MI_DCE_BASE_REG_LIST(id),\
 	MI_DCE_PTE_REG_LIST(id),\
 	SRI(GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT, DCP, id),\
 	SRI(DPG_PIPE_STUTTER_CONTROL2, DMIF_PG, id),\
 	SRI(DPG_PIPE_LOW_POWER_CONTROL, DMIF_PG, id)
-#endif
 
 struct dce_mem_input_registers {
 	/* DCP */
@@ -172,7 +170,6 @@ struct dce_mem_input_registers {
 	MI_DCE11_2_MASK_SH_LIST(mask_sh),\
 	MI_DCP_PTE_MASK_SH_LIST(mask_sh, )
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 #define MI_GFX9_TILE_MASK_SH_LIST(mask_sh, blk)\
 	SFB(blk, GRPH_CONTROL, GRPH_SW_MODE, mask_sh),\
 	SFB(blk, GRPH_CONTROL, GRPH_SE_ENABLE, mask_sh),\
@@ -195,7 +192,6 @@ struct dce_mem_input_registers {
 	MI_DMIF_PG_MASK_SH_LIST(mask_sh, DMIF_PG0_),\
 	MI_DCE12_DMIF_PG_MASK_SH_LIST(mask_sh, DMIF_PG0_),\
 	MI_GFX9_TILE_MASK_SH_LIST(mask_sh, DCP0_)
-#endif
 
 #define MI_REG_FIELD_LIST(type) \
 	type GRPH_ENABLE; \

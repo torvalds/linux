@@ -192,7 +192,6 @@ unsigned int generic_reg_wait(const struct dc_context *ctx,
 	unsigned int delay_between_poll_us, unsigned int time_out_num_tries,
 	const char *func_name);
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 
 /* These macros need to be used with soc15 registers in order to retrieve
  * the actual offset.
@@ -274,7 +273,6 @@ static inline bool wait_reg_func(
 		20000,\
 		200000)
 
-#endif
 /**************************************
  * Power Play (PP) interfaces
  **************************************/
@@ -337,11 +335,9 @@ bool dm_pp_notify_wm_clock_changes(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges *wm_with_clock_ranges);
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 bool dm_pp_notify_wm_clock_changes_soc15(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
-#endif
 
 /* DAL calls this function to notify PP about completion of Mode Set.
  * For PP it means that current DCE clocks are those which were returned

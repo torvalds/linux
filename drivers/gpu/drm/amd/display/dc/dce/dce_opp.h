@@ -107,13 +107,11 @@ enum dce110_opp_reg_type {
 	SRI(FMT_TEMPORAL_DITHER_PROGRAMMABLE_PATTERN_T_MATRIX, FMT, id), \
 	SRI(CONTROL, FMT_MEMORY, id)
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 #define OPP_DCE_120_REG_LIST(id) \
 	OPP_COMMON_REG_LIST_BASE(id), \
 	SRI(DCFE_MEM_PWR_CTRL, DCFE, id), \
 	SRI(DCFE_MEM_PWR_STATUS, DCFE, id), \
 	SRI(CONTROL, FMT_MEMORY, id)
-#endif
 
 #define OPP_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -205,7 +203,6 @@ enum dce110_opp_reg_type {
 	OPP_SF(DCFE_MEM_LIGHT_SLEEP_CNTL, DCP_LUT_LIGHT_SLEEP_DIS, mask_sh),\
 	OPP_SF(DCFE_MEM_LIGHT_SLEEP_CNTL, REGAMMA_LUT_MEM_PWR_STATE, mask_sh)
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 #define OPP_COMMON_MASK_SH_LIST_DCE_120(mask_sh)\
 	OPP_SF(DCFE0_DCFE_MEM_PWR_CTRL, DCP_REGAMMA_MEM_PWR_DIS, mask_sh),\
 	OPP_SF(DCFE0_DCFE_MEM_PWR_CTRL, DCP_LUT_MEM_PWR_DIS, mask_sh),\
@@ -267,7 +264,6 @@ enum dce110_opp_reg_type {
 	OPP_SF(FMT0_FMT_CONTROL, FMT_SUBSAMPLING_MODE, mask_sh),\
 	OPP_SF(FMT0_FMT_CONTROL, FMT_SUBSAMPLING_ORDER, mask_sh),\
 	OPP_SF(FMT0_FMT_CONTROL, FMT_CBCR_BIT_REDUCTION_BYPASS, mask_sh)
-#endif
 
 #define OPP_REG_FIELD_LIST(type) \
 	type DCP_REGAMMA_MEM_PWR_DIS; \

@@ -30,11 +30,9 @@ AMD_DISPLAY_FILES += $(AMD_DAL_IRQ_DCE11)
 ###############################################################################
 # DCE 12x
 ###############################################################################
-ifdef CONFIG_DRM_AMD_DC_DCE12_0
 IRQ_DCE12 = irq_service_dce120.o
 
 AMD_DAL_IRQ_DCE12 = $(addprefix $(AMDDALPATH)/dc/irq/dce120/,$(IRQ_DCE12))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_IRQ_DCE12)
-endif
 

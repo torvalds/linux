@@ -50,13 +50,11 @@ AMD_DISPLAY_FILES += $(AMD_DAL_I2CAUX_DCE112)
 ###############################################################################
 # DCE 120 family
 ###############################################################################
-ifdef CONFIG_DRM_AMD_DC_DCE12_0
 I2CAUX_DCE120 = i2caux_dce120.o
 
 AMD_DAL_I2CAUX_DCE120 = $(addprefix $(AMDDALPATH)/dc/i2caux/dce120/,$(I2CAUX_DCE120))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_I2CAUX_DCE120)
-endif
 
 ###############################################################################
 # Diagnostics on FPGA

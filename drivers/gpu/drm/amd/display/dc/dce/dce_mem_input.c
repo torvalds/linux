@@ -187,7 +187,7 @@ static void program_nbp_watermark(struct mem_input *mi,
 		REG_UPDATE(DPG_PIPE_NB_PSTATE_CHANGE_CONTROL,
 				NB_PSTATE_CHANGE_WATERMARK, nbp_wm);
 	}
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+
 	if (REG(DPG_PIPE_LOW_POWER_CONTROL)) {
 		REG_UPDATE(DPG_WATERMARK_MASK_CONTROL,
 				PSTATE_CHANGE_WATERMARK_MASK, wm_select);
@@ -200,7 +200,6 @@ static void program_nbp_watermark(struct mem_input *mi,
 		REG_UPDATE(DPG_PIPE_LOW_POWER_CONTROL,
 				PSTATE_CHANGE_WATERMARK, nbp_wm);
 	}
-#endif
 }
 
 static void program_stutter_watermark(struct mem_input *mi,
@@ -210,12 +209,10 @@ static void program_stutter_watermark(struct mem_input *mi,
 	REG_UPDATE(DPG_WATERMARK_MASK_CONTROL,
 		STUTTER_EXIT_SELF_REFRESH_WATERMARK_MASK, wm_select);
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 	if (REG(DPG_PIPE_STUTTER_CONTROL2))
 		REG_UPDATE(DPG_PIPE_STUTTER_CONTROL2,
 				STUTTER_EXIT_SELF_REFRESH_WATERMARK, stutter_mark);
 	else
-#endif
 		REG_UPDATE(DPG_PIPE_STUTTER_CONTROL,
 				STUTTER_EXIT_SELF_REFRESH_WATERMARK, stutter_mark);
 }
@@ -254,7 +251,6 @@ void dce_mem_input_program_display_marks(struct mem_input *mi,
 static void program_tiling(struct mem_input *mi,
 	const union dc_tiling_info *info)
 {
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 	if (mi->masks->GRPH_SW_MODE) { /* GFX9 */
 		REG_UPDATE_6(GRPH_CONTROL,
 				GRPH_SW_MODE, info->gfx9.swizzle,
@@ -268,7 +264,7 @@ static void program_tiling(struct mem_input *mi,
 		GRPH_Z, 0);
 		 */
 	}
-#endif
+
 	if (mi->masks->GRPH_ARRAY_MODE) { /* GFX8 */
 		REG_UPDATE_9(GRPH_CONTROL,
 				GRPH_NUM_BANKS, info->gfx8.num_banks,

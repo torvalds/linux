@@ -4,10 +4,7 @@
 
 DC_LIBS = basics bios calcs dce gpio i2caux irq virtual
 
-ifdef CONFIG_DRM_AMD_DC_DCE12_0
 DC_LIBS += dce120
-endif
-
 DC_LIBS += dce112
 DC_LIBS += dce110
 DC_LIBS += dce100

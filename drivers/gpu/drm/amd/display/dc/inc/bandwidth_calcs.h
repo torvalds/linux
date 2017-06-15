@@ -40,9 +40,7 @@ enum bw_calcs_version {
 	BW_CALCS_VERSION_POLARIS10,
 	BW_CALCS_VERSION_POLARIS11,
 	BW_CALCS_VERSION_STONEY,
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 	BW_CALCS_VERSION_VEGA10
-#endif
 };
 
 /*******************************************************************************

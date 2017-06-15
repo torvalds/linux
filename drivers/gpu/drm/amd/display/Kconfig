@@ -17,13 +17,6 @@ config DRM_AMD_DC_PRE_VEGA
 	  by default. This includes Polaris, Carrizo, Tonga, Bonaire,
 	  and Hawaii.
 
-config DRM_AMD_DC_DCE12_0
-        bool "Vega10 family"
-        depends on DRM_AMD_DC
-        help
-         Choose this option if you want to have
-         VG family for display engine.
-
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"
 	depends on DRM_AMD_DC

@@ -141,7 +141,6 @@ struct dm_pp_wm_sets_with_clock_ranges {
 	struct dm_pp_clock_range_for_wm_set wm_clk_ranges[MAX_WM_SETS];
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 struct dm_pp_clock_range_for_dmif_wm_set_soc15 {
 	enum dm_pp_wm_set_id wm_set_id;
 	uint32_t wm_min_dcfclk_clk_in_khz;
@@ -166,7 +165,6 @@ struct dm_pp_wm_sets_with_clock_ranges_soc15 {
 	struct dm_pp_clock_range_for_mcif_wm_set_soc15
 		wm_mcif_clocks_ranges[MAX_WM_SETS];
 };
-#endif
 
 #define MAX_DISPLAY_CONFIGS 6
 

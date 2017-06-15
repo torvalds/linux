@@ -1427,8 +1427,6 @@ static void apply_min_clocks(
 			return;
 		}
 
-		/* TODOFPGA */
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 		/* TODO: This is incorrect. Figure out how to fix. */
 		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
 				pipe_ctx->dis_clk,
@@ -1451,7 +1449,6 @@ static void apply_min_clocks(
 				pre_mode_set,
 				false);
 		return;
-#endif
 	}
 
 	/* get the required state based on state dependent clocks:
@@ -1468,7 +1465,6 @@ static void apply_min_clocks(
 		pipe_ctx->dis_clk->funcs->set_min_clocks_state(
 			pipe_ctx->dis_clk, *clocks_state);
 	} else {
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
 				pipe_ctx->dis_clk,
 				DM_PP_CLOCK_TYPE_DISPLAY_CLK,
@@ -1489,7 +1485,6 @@ static void apply_min_clocks(
 				req_clocks.pixel_clk_khz,
 				pre_mode_set,
 				false);
-#endif
 	}
 }
 

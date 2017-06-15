@@ -909,6 +909,7 @@ static bool construct(
 {
 	unsigned int i;
 	struct dc_context *ctx = dc->ctx;
+	struct irq_service_init_data irq_init_data;
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -997,15 +998,10 @@ static bool construct(
 		goto res_create_fail;
 	}
 
-	{
-	#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
-		struct irq_service_init_data init_data;
-		init_data.ctx = dc->ctx;
-		pool->base.irqs = dal_irq_service_dce120_create(&init_data);
-		if (!pool->base.irqs)
-			goto irqs_create_fail;
-	#endif
-	}
+	irq_init_data.ctx = dc->ctx;
+	pool->base.irqs = dal_irq_service_dce120_create(&irq_init_data);
+	if (!pool->base.irqs)
+		goto irqs_create_fail;
 
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		pool->base.timing_generators[i] =

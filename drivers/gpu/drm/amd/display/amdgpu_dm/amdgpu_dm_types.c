@@ -523,7 +523,6 @@ static void fill_plane_attributes_from_fb(
 	surface->tiling_info.gfx8.pipe_config =
 			AMDGPU_TILING_GET(tiling_flags, PIPE_CONFIG);
 
-#if defined (CONFIG_DRM_AMD_DC_DCE12_0)
 	if (adev->asic_type == CHIP_VEGA10) {
 		/* Fill GFX9 params */
 		surface->tiling_info.gfx9.num_pipes =
@@ -540,7 +539,6 @@ static void fill_plane_attributes_from_fb(
 			AMDGPU_TILING_GET(tiling_flags, SWIZZLE_MODE);
 		surface->tiling_info.gfx9.shaderEnable = 1;
 	}
-#endif
 
 
 	surface->plane_size.grph.surface_size.x = 0;

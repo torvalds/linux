@@ -57,9 +57,7 @@
 
 #include "dce112/i2caux_dce112.h"
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 #include "dce120/i2caux_dce120.h"
-#endif
 
 #include "diagnostics/i2caux_diag.h"
 
@@ -84,10 +82,8 @@ struct i2caux *dal_i2caux_create(
 		return dal_i2caux_dce110_create(ctx);
 	case DCE_VERSION_10_0:
 		return dal_i2caux_dce100_create(ctx);
-	#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 	case DCE_VERSION_12_0:
 		return dal_i2caux_dce120_create(ctx);
-	#endif
 	default:
 		BREAK_TO_DEBUGGER();
 		return NULL;

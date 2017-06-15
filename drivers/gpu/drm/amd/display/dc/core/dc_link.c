@@ -1217,7 +1217,6 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 				pipe_ctx->dis_clk->funcs->set_min_clocks_state(
 					pipe_ctx->dis_clk, DM_PP_CLOCKS_STATE_NOMINAL);
 		} else {
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 			uint32_t dp_phyclk_in_khz;
 			const struct clocks_value clocks_value =
 					pipe_ctx->dis_clk->cur_clocks_value;
@@ -1235,7 +1234,6 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 						false,
 						true);
 			}
-#endif
 		}
 	}
 

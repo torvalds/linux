@@ -259,7 +259,6 @@ enum tile_mode_values {
 	DC_ADDR_SURF_MICRO_TILING_NON_DISPLAY = 0x1,
 };
 
-#if defined (CONFIG_DRM_AMD_DC_DCE12_0)
 enum swizzle_mode_values {
 	DC_SW_LINEAR = 0,
 	DC_SW_256B_S = 1,
@@ -287,7 +286,6 @@ enum swizzle_mode_values {
 	DC_SW_VAR_R_X = 31,
 	DC_SW_MAX
 };
-#endif
 
 union dc_tiling_info {
 
@@ -353,7 +351,6 @@ union dc_tiling_info {
 		enum array_mode_values array_mode;
 	} gfx8;
 
-#if defined (CONFIG_DRM_AMD_DC_DCE12_0)
 	struct {
 		unsigned int num_pipes;
 		unsigned int num_banks;
@@ -368,7 +365,6 @@ union dc_tiling_info {
 		bool rb_aligned;
 		bool pipe_aligned;
 	} gfx9;
-#endif
 };
 
 /* Rotation angle */

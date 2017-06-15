@@ -108,9 +108,7 @@ struct dce110_timing_generator {
 	uint32_t min_h_front_porch;
 	uint32_t min_h_back_porch;
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 	/* DCE 12 */
-#endif
 	uint32_t min_h_sync_width;
 	uint32_t min_v_sync_width;
 	uint32_t min_v_blank;

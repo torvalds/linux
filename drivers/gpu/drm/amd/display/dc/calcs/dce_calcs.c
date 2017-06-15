@@ -50,10 +50,8 @@ static enum bw_calcs_version bw_calcs_version_from_asic_id(struct hw_asic_id asi
 			return BW_CALCS_VERSION_POLARIS11;
 		return BW_CALCS_VERSION_INVALID;
 
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 	case FAMILY_AI:
 		return BW_CALCS_VERSION_VEGA10;
-#endif
 
 	default:
 		return BW_CALCS_VERSION_INVALID;
@@ -2435,7 +2433,6 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.scatter_gather_pte_request_rows_in_tiling_mode = 2;
 		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
 	case BW_CALCS_VERSION_VEGA10:
 		vbios.memory_type = bw_def_hbm;
 		vbios.dram_channel_width_in_bits = 128;
@@ -2546,7 +2543,6 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.scatter_gather_pte_request_rows_in_tiling_mode = 2;
 		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
 		break;
-#endif
 	default:
 		break;
 	}
