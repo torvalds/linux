@@ -1454,6 +1454,12 @@ static void ibmvnic_reset(struct ibmvnic_adapter *adapter,
 		return;
 	}
 
+	if (adapter->state == VNIC_PROBING) {
+		netdev_warn(netdev, "Adapter reset during probe\n");
+		adapter->init_done_rc = EAGAIN;
+		return;
+	}
+
 	mutex_lock(&adapter->rwi_lock);
 
 	list_for_each(entry, &adapter->rwi_list) {
@@ -3649,10 +3655,16 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 	adapter->from_passive_init = false;
 
 	init_completion(&adapter->init_done);
+	adapter->init_done_rc = 0;
 	ibmvnic_send_crq_init(adapter);
 	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
 		dev_err(dev, "Initialization sequence timed out\n");
 		return -1;
+	}
+
+	if (adapter->init_done_rc) {
+		release_crq_queue(adapter);
+		return adapter->init_done_rc;
 	}
 
 	if (adapter->from_passive_init) {
@@ -3723,11 +3735,13 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	mutex_init(&adapter->rwi_lock);
 	adapter->resetting = false;
 
-	rc = ibmvnic_init(adapter);
-	if (rc) {
-		free_netdev(netdev);
-		return rc;
-	}
+	do {
+		rc = ibmvnic_init(adapter);
+		if (rc != EAGAIN) {
+			free_netdev(netdev);
+			return rc;
+		}
+	} while (rc == EAGAIN);
 
 	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 
