@@ -1080,6 +1080,12 @@ static void nvme_init_integrity(struct nvme_ns *ns)
 }
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
+static void nvme_set_chunk_size(struct nvme_ns *ns)
+{
+	u32 chunk_size = (((u32)ns->noiob) << (ns->lba_shift - 9));
+	blk_queue_chunk_sectors(ns->queue, rounddown_pow_of_two(chunk_size));
+}
+
 static void nvme_config_discard(struct nvme_ns *ns)
 {
 	struct nvme_ctrl *ctrl = ns->ctrl;
@@ -1139,12 +1145,15 @@ static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	if (ns->lba_shift == 0)
 		ns->lba_shift = 9;
 	bs = 1 << ns->lba_shift;
+	ns->noiob = le16_to_cpu(id->noiob);
 
 	blk_mq_freeze_queue(disk->queue);
 
 	if (ns->ctrl->ops->flags & NVME_F_METADATA_SUPPORTED)
 		nvme_prep_integrity(disk, id, bs);
 	blk_queue_logical_block_size(ns->queue, bs);
+	if (ns->noiob)
+		nvme_set_chunk_size(ns);
 	if (ns->ms && !blk_get_integrity(disk) && !ns->ext)
 		nvme_init_integrity(ns);
 	if (ns->ms && !(ns->ms == 8 && ns->pi_type) && !blk_get_integrity(disk))

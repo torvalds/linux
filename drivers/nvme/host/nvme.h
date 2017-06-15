@@ -202,6 +202,7 @@ struct nvme_ns {
 	bool ext;
 	u8 pi_type;
 	unsigned long flags;
+	u16 noiob;
 
 #define NVME_NS_REMOVING 0
 #define NVME_NS_DEAD     1
