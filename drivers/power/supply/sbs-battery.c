@@ -199,7 +199,7 @@ static int sbs_read_word_data(struct i2c_client *client, u8 address)
 		return ret;
 	}
 
-	return le16_to_cpu(ret);
+	return ret;
 }
 
 static int sbs_read_string_data(struct i2c_client *client, u8 address,
@@ -265,7 +265,7 @@ static int sbs_read_string_data(struct i2c_client *client, u8 address,
 	memcpy(values, block_buffer + 1, block_length);
 	values[block_length] = '\0';
 
-	return le16_to_cpu(ret);
+	return ret;
 }
 
 static int sbs_write_word_data(struct i2c_client *client, u8 address,
@@ -278,8 +278,7 @@ static int sbs_write_word_data(struct i2c_client *client, u8 address,
 	retries = chip->i2c_retry_count;
 
 	while (retries > 0) {
-		ret = i2c_smbus_write_word_data(client, address,
-			le16_to_cpu(value));
+		ret = i2c_smbus_write_word_data(client, address, value);
 		if (ret >= 0)
 			break;
 		retries--;
