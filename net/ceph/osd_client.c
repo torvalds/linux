@@ -3243,6 +3243,7 @@ static void scan_requests(struct ceph_osd *osd,
 				list_add_tail(&lreq->scan_item, need_resend_linger);
 			break;
 		case CALC_TARGET_POOL_DNE:
+			list_del_init(&lreq->scan_item);
 			check_linger_pool_dne(lreq);
 			break;
 		}
