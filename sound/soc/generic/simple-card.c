@@ -362,13 +362,9 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 			goto card_parse_end;
 	}
 
-	/* DAPM routes */
-	if (of_property_read_bool(node, PREFIX "routing")) {
-		ret = snd_soc_of_parse_audio_routing(card,
-					PREFIX "routing");
-		if (ret)
-			goto card_parse_end;
-	}
+	ret = asoc_simple_card_of_parse_routing(card, PREFIX, 1);
+	if (ret < 0)
+		goto card_parse_end;
 
 	/* Factor to mclk, used in hw_params() */
 	of_property_read_u32(node, PREFIX "mclk-fs", &priv->mclk_fs);
