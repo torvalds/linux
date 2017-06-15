@@ -100,6 +100,7 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 	struct cpl_fw6_pld *fw6_pld;
 	u32 ack_err_status = 0;
 	int error_status = 0;
+	struct adapter *adap = padap(dev);
 
 	fw6_pld = (struct cpl_fw6_pld *)input;
 	req = (struct crypto_async_request *)(uintptr_t)be64_to_cpu(
@@ -111,6 +112,7 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 		if (CHK_MAC_ERR_BIT(ack_err_status) ||
 		    CHK_PAD_ERR_BIT(ack_err_status))
 			error_status = -EBADMSG;
+		atomic_inc(&adap->chcr_stats.error);
 	}
 	/* call completion callback with failure status */
 	if (req) {

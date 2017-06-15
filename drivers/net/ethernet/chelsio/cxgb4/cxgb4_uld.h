@@ -275,6 +275,15 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	unsigned int ncrypto_fc;
 };
 
+struct chcr_stats_debug {
+	atomic_t cipher_rqst;
+	atomic_t digest_rqst;
+	atomic_t aead_rqst;
+	atomic_t complete;
+	atomic_t error;
+	atomic_t fallback;
+};
+
 #define OCQ_WIN_OFFSET(pdev, vres) \
 	(pci_resource_len((pdev), 2) - roundup_pow_of_two((vres)->ocq.size))
 
