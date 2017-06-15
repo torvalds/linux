@@ -293,15 +293,6 @@ static struct mdio_driver dsa_loop_drv = {
 
 #define NUM_FIXED_PHYS	(DSA_LOOP_NUM_PORTS - 2)
 
-static void unregister_fixed_phys(void)
-{
-	unsigned int i;
-
-	for (i = 0; i < NUM_FIXED_PHYS; i++)
-		if (phydevs[i])
-			fixed_phy_unregister(phydevs[i]);
-}
-
 static int __init dsa_loop_init(void)
 {
 	struct fixed_phy_status status = {
@@ -320,8 +311,12 @@ module_init(dsa_loop_init);
 
 static void __exit dsa_loop_exit(void)
 {
+	unsigned int i;
+
 	mdio_driver_unregister(&dsa_loop_drv);
-	unregister_fixed_phys();
+	for (i = 0; i < NUM_FIXED_PHYS; i++)
+		if (phydevs[i])
+			fixed_phy_unregister(phydevs[i]);
 }
 module_exit(dsa_loop_exit);
 
