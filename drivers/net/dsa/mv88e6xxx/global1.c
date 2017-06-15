@@ -162,14 +162,14 @@ int mv88e6185_g1_reset(struct mv88e6xxx_chip *chip)
 	/* Set the SWReset bit 15 along with the PPUEn bit 14, to also restart
 	 * the PPU, including re-doing PHY detection and initialization
 	 */
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &val);
 	if (err)
 		return err;
 
-	val |= GLOBAL_CONTROL_SW_RESET;
-	val |= GLOBAL_CONTROL_PPU_ENABLE;
+	val |= MV88E6XXX_G1_CTL1_SW_RESET;
+	val |= MV88E6XXX_G1_CTL1_PPU_ENABLE;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, val);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, val);
 	if (err)
 		return err;
 
@@ -186,13 +186,13 @@ int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip)
 	int err;
 
 	/* Set the SWReset bit 15 */
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &val);
 	if (err)
 		return err;
 
-	val |= GLOBAL_CONTROL_SW_RESET;
+	val |= MV88E6XXX_G1_CTL1_SW_RESET;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, val);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, val);
 	if (err)
 		return err;
 
@@ -208,13 +208,13 @@ int mv88e6185_g1_ppu_enable(struct mv88e6xxx_chip *chip)
 	u16 val;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &val);
 	if (err)
 		return err;
 
-	val |= GLOBAL_CONTROL_PPU_ENABLE;
+	val |= MV88E6XXX_G1_CTL1_PPU_ENABLE;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, val);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, val);
 	if (err)
 		return err;
 
@@ -226,13 +226,13 @@ int mv88e6185_g1_ppu_disable(struct mv88e6xxx_chip *chip)
 	u16 val;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &val);
 	if (err)
 		return err;
 
-	val &= ~GLOBAL_CONTROL_PPU_ENABLE;
+	val &= ~MV88E6XXX_G1_CTL1_PPU_ENABLE;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, val);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, val);
 	if (err)
 		return err;
 
@@ -342,13 +342,13 @@ int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
 	u16 val;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL_2, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL2, &val);
 	if (err)
 		return err;
 
-	val |= GLOBAL_CONTROL_2_HIST_RX_TX;
+	val |= MV88E6XXX_G1_CTL2_HIST_RX_TX;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL_2, val);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2, val);
 
 	return err;
 }
