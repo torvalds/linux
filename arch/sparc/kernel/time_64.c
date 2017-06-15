@@ -162,9 +162,34 @@ static unsigned long tick_add_tick(unsigned long adj)
 	return new_tick;
 }
 
+/* Searches for cpu clock frequency with given cpuid in OpenBoot tree */
+static unsigned long cpuid_to_freq(phandle node, int cpuid)
+{
+	bool is_cpu_node = false;
+	unsigned long freq = 0;
+	char type[128];
+
+	if (!node)
+		return freq;
+
+	if (prom_getproperty(node, "device_type", type, sizeof(type)) != -1)
+		is_cpu_node = (strcmp(type, "cpu") == 0);
+
+	/* try upa-portis then cpuid to get cpuid, see prom_64.c */
+	if (is_cpu_node && (prom_getint(node, "upa-portis") == cpuid ||
+			    prom_getint(node, "cpuid") == cpuid))
+		freq = prom_getintdefault(node, "clock-frequency", 0);
+	if (!freq)
+		freq = cpuid_to_freq(prom_getchild(node), cpuid);
+	if (!freq)
+		freq = cpuid_to_freq(prom_getsibling(node), cpuid);
+
+	return freq;
+}
+
 static unsigned long tick_get_frequency(void)
 {
-	return local_cpu_data().clock_tick;
+	return cpuid_to_freq(prom_root_node, hard_smp_processor_id());
 }
 
 static struct sparc64_tick_ops tick_operations __cacheline_aligned = {
