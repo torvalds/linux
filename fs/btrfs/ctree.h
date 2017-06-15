@@ -716,6 +716,8 @@ struct btrfs_delayed_root;
 #define BTRFS_FS_LOG1_ERR			12
 #define BTRFS_FS_LOG2_ERR			13
 #define BTRFS_FS_QUOTA_OVERRIDE			14
+/* Used to record internally whether fs has been frozen */
+#define BTRFS_FS_FROZEN				15
 
 /*
  * Indicate that a whole-filesystem exclusive operation is running
@@ -1106,9 +1108,6 @@ struct btrfs_fs_info {
 	 * and will be latter freed. Protected by fs_info->chunk_mutex.
 	 */
 	struct list_head pinned_chunks;
-
-	/* Used to record internally whether fs has been frozen */
-	int fs_frozen;
 
 	/* Cached block sizes */
 	u32 nodesize;

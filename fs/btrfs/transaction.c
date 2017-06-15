@@ -2314,7 +2314,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * it'll result in deadlock about SB_FREEZE_FS.
 	 */
 	if (current != fs_info->transaction_kthread &&
-	    current != fs_info->cleaner_kthread && !fs_info->fs_frozen)
+	    current != fs_info->cleaner_kthread &&
+	    !test_bit(BTRFS_FS_FROZEN, &fs_info->flags))
 		btrfs_run_delayed_iputs(fs_info);
 
 	return ret;

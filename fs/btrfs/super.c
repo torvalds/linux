@@ -2242,7 +2242,7 @@ static int btrfs_freeze(struct super_block *sb)
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	struct btrfs_root *root = fs_info->tree_root;
 
-	fs_info->fs_frozen = 1;
+	set_bit(BTRFS_FS_FROZEN, &fs_info->flags);
 	/*
 	 * We don't need a barrier here, we'll wait for any transaction that
 	 * could be in progress on other threads (and do delayed iputs that
@@ -2261,7 +2261,9 @@ static int btrfs_freeze(struct super_block *sb)
 
 static int btrfs_unfreeze(struct super_block *sb)
 {
-	btrfs_sb(sb)->fs_frozen = 0;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+
+	clear_bit(BTRFS_FS_FROZEN, &fs_info->flags);
 	return 0;
 }
 
