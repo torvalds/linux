@@ -4444,8 +4444,6 @@ static bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 	u32 bit;
 
 	switch (port->port) {
-	case PORT_A:
-		return true;
 	case PORT_B:
 		bit = SDE_PORTB_HOTPLUG;
 		break;
@@ -4469,8 +4467,6 @@ static bool cpt_digital_port_connected(struct drm_i915_private *dev_priv,
 	u32 bit;
 
 	switch (port->port) {
-	case PORT_A:
-		return true;
 	case PORT_B:
 		bit = SDE_PORTB_HOTPLUG_CPT;
 		break;
@@ -4480,12 +4476,28 @@ static bool cpt_digital_port_connected(struct drm_i915_private *dev_priv,
 	case PORT_D:
 		bit = SDE_PORTD_HOTPLUG_CPT;
 		break;
+	default:
+		MISSING_CASE(port->port);
+		return false;
+	}
+
+	return I915_READ(SDEISR) & bit;
+}
+
+static bool spt_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	u32 bit;
+
+	switch (port->port) {
+	case PORT_A:
+		bit = SDE_PORTA_HOTPLUG_SPT;
+		break;
 	case PORT_E:
 		bit = SDE_PORTE_HOTPLUG_SPT;
 		break;
 	default:
-		MISSING_CASE(port->port);
-		return false;
+		return cpt_digital_port_connected(dev_priv, port);
 	}
 
 	return I915_READ(SDEISR) & bit;
@@ -4537,6 +4549,42 @@ static bool gm45_digital_port_connected(struct drm_i915_private *dev_priv,
 	return I915_READ(PORT_HOTPLUG_STAT) & bit;
 }
 
+static bool ilk_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	if (port->port == PORT_A)
+		return I915_READ(DEISR) & DE_DP_A_HOTPLUG;
+	else
+		return ibx_digital_port_connected(dev_priv, port);
+}
+
+static bool snb_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	if (port->port == PORT_A)
+		return I915_READ(DEISR) & DE_DP_A_HOTPLUG;
+	else
+		return cpt_digital_port_connected(dev_priv, port);
+}
+
+static bool ivb_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	if (port->port == PORT_A)
+		return I915_READ(DEISR) & DE_DP_A_HOTPLUG_IVB;
+	else
+		return cpt_digital_port_connected(dev_priv, port);
+}
+
+static bool bdw_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	if (port->port == PORT_A)
+		return I915_READ(GEN8_DE_PORT_ISR) & GEN8_PORT_DP_A_HOTPLUG;
+	else
+		return cpt_digital_port_connected(dev_priv, port);
+}
+
 static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
 				       struct intel_digital_port *intel_dig_port)
 {
@@ -4573,16 +4621,25 @@ static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
 bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
 				  struct intel_digital_port *port)
 {
-	if (HAS_PCH_IBX(dev_priv))
-		return ibx_digital_port_connected(dev_priv, port);
-	else if (HAS_PCH_SPLIT(dev_priv))
-		return cpt_digital_port_connected(dev_priv, port);
+	if (HAS_GMCH_DISPLAY(dev_priv)) {
+		if (IS_GM45(dev_priv))
+			return gm45_digital_port_connected(dev_priv, port);
+		else
+			return g4x_digital_port_connected(dev_priv, port);
+	}
+
+	if (IS_GEN5(dev_priv))
+		return ilk_digital_port_connected(dev_priv, port);
+	else if (IS_GEN6(dev_priv))
+		return snb_digital_port_connected(dev_priv, port);
+	else if (IS_GEN7(dev_priv))
+		return ivb_digital_port_connected(dev_priv, port);
+	else if (IS_GEN8(dev_priv))
+		return bdw_digital_port_connected(dev_priv, port);
 	else if (IS_GEN9_LP(dev_priv))
 		return bxt_digital_port_connected(dev_priv, port);
-	else if (IS_GM45(dev_priv))
-		return gm45_digital_port_connected(dev_priv, port);
 	else
-		return g4x_digital_port_connected(dev_priv, port);
+		return spt_digital_port_connected(dev_priv, port);
 }
 
 static struct edid *
