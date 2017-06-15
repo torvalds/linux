@@ -331,6 +331,7 @@ struct cxgb4_lld_info {
 	unsigned int iscsi_tagmask;	     /* iscsi ddp tag mask */
 	unsigned int iscsi_pgsz_order;	     /* iscsi ddp page size orders */
 	unsigned int iscsi_llimit;	     /* chip's iscsi region llimit */
+	unsigned int ulp_crypto;             /* crypto lookaside support */
 	void **iscsi_ppm;		     /* iscsi page pod manager */
 	int nodeid;			     /* device numa node id */
 	bool fr_nsmr_tpte_wr_support;	     /* FW supports FR_NSMR_TPTE_WR */

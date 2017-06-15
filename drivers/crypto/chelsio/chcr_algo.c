@@ -1216,7 +1216,7 @@ static int chcr_aes_decrypt(struct ablkcipher_request *req)
 
 static int chcr_device_init(struct chcr_context *ctx)
 {
-	struct uld_ctx *u_ctx;
+	struct uld_ctx *u_ctx = NULL;
 	struct adapter *adap;
 	unsigned int id;
 	int txq_perchan, txq_idx, ntxq;
@@ -1224,12 +1224,12 @@ static int chcr_device_init(struct chcr_context *ctx)
 
 	id = smp_processor_id();
 	if (!ctx->dev) {
-		err = assign_chcr_device(&ctx->dev);
-		if (err) {
+		u_ctx = assign_chcr_device();
+		if (!u_ctx) {
 			pr_err("chcr device assignment fails\n");
 			goto out;
 		}
-		u_ctx = ULD_CTX(ctx);
+		ctx->dev = u_ctx->dev;
 		adap = padap(ctx->dev);
 		ntxq = min_not_zero((unsigned int)u_ctx->lldi.nrxq,
 				    adap->vres.ncrypto_fc);
