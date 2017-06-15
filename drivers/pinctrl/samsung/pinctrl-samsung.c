@@ -1013,6 +1013,12 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 		bank->eint_base = virt_base[0];
 		bank->pctl_base = virt_base[bdata->pctl_res_idx];
 	}
+	/*
+	 * Legacy platforms should provide only one resource with IO memory.
+	 * Store it as virt_base because legacy driver needs to access it
+	 * through samsung_pinctrl_drv_data.
+	 */
+	d->virt_base = virt_base[0];
 
 	for_each_child_of_node(node, np) {
 		if (!of_find_property(np, "gpio-controller", NULL))
