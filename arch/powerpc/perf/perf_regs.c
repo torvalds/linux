@@ -100,5 +100,6 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 			struct pt_regs *regs_user_copy)
 {
 	regs_user->regs = task_pt_regs(current);
-	regs_user->abi  = perf_reg_abi(current);
+	regs_user->abi = (regs_user->regs) ? perf_reg_abi(current) :
+			 PERF_SAMPLE_REGS_ABI_NONE;
 }
