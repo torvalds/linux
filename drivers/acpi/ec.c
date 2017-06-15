@@ -1781,7 +1781,7 @@ static int ec_correct_ecdt(const struct dmi_system_id *id)
 
 /*
  * Some DSDTs contain wrong GPE setting.
- * Asus FX502VD/VE, X550VXK, X580VD
+ * Asus FX502VD/VE, GL702VMK, X550VXK, X580VD
  * https://bugzilla.kernel.org/show_bug.cgi?id=195651
  */
 static int ec_honor_ecdt_gpe(const struct dmi_system_id *id)
@@ -1804,6 +1804,10 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 	ec_honor_ecdt_gpe, "ASUS FX502VE", {
 	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 	DMI_MATCH(DMI_PRODUCT_NAME, "FX502VE"),}, NULL},
+	{
+	ec_honor_ecdt_gpe, "ASUS GL702VMK", {
+	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "GL702VMK"),}, NULL},
 	{
 	ec_honor_ecdt_gpe, "ASUS X550VXK", {
 	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
