@@ -22,6 +22,11 @@ struct asoc_simple_dai {
 	struct clk *clk;
 };
 
+struct asoc_simple_card_data {
+	u32 convert_rate;
+	u32 convert_channels;
+};
+
 int asoc_simple_card_parse_daifmt(struct device *dev,
 				  struct device_node *node,
 				  struct device_node *codec,
@@ -89,5 +94,10 @@ void asoc_simple_card_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 				      int is_single_links);
 
 int asoc_simple_card_clean_reference(struct snd_soc_card *card);
+
+void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
+				      struct snd_pcm_hw_params *params);
+void asoc_simple_card_parse_convert(struct device *dev, char *prefix,
+				    struct asoc_simple_card_data *data);
 
 #endif /* __SIMPLE_CARD_UTILS_H */

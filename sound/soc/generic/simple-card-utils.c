@@ -13,6 +13,46 @@
 #include <linux/of_graph.h>
 #include <sound/simple_card_utils.h>
 
+void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
+				    struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *rate = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_CHANNELS);
+
+	if (data->convert_rate)
+		rate->min =
+		rate->max = data->convert_rate;
+
+	if (data->convert_channels)
+		channels->min =
+		channels->max = data->convert_channels;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_convert_fixup);
+
+void asoc_simple_card_parse_convert(struct device *dev, char *prefix,
+				    struct asoc_simple_card_data *data)
+{
+	struct device_node *np = dev->of_node;
+	char prop[128];
+
+	if (!prefix)
+		prefix = "";
+
+	/* sampling rate convert */
+	snprintf(prop, sizeof(prop), "%s%s", prefix, "convert-rate");
+	of_property_read_u32(np, prop, &data->convert_rate);
+
+	/* channels transfer */
+	snprintf(prop, sizeof(prop), "%s%s", prefix, "convert-channels");
+	of_property_read_u32(np, prop, &data->convert_channels);
+
+	dev_dbg(dev, "convert_rate     %d\n", data->convert_rate);
+	dev_dbg(dev, "convert_channels %d\n", data->convert_channels);
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_parse_convert);
+
 int asoc_simple_card_parse_daifmt(struct device *dev,
 				  struct device_node *node,
 				  struct device_node *codec,
