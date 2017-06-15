@@ -305,6 +305,13 @@ static const struct counter_desc pcie_perf_stats_desc[] = {
 	{ "tx_pci_signal_integrity", PCIE_PERF_OFF(tx_errors) },
 };
 
+static const struct counter_desc pcie_perf_stall_stats_desc[] = {
+	{ "outbound_pci_stalled_rd", PCIE_PERF_OFF(outbound_stalled_reads) },
+	{ "outbound_pci_stalled_wr", PCIE_PERF_OFF(outbound_stalled_writes) },
+	{ "outbound_pci_stalled_rd_events", PCIE_PERF_OFF(outbound_stalled_reads_events) },
+	{ "outbound_pci_stalled_wr_events", PCIE_PERF_OFF(outbound_stalled_writes_events) },
+};
+
 struct mlx5e_rq_stats {
 	u64 packets;
 	u64 bytes;
@@ -397,6 +404,9 @@ static const struct counter_desc sq_stats_desc[] = {
 #define NUM_PCIE_PERF_COUNTERS(priv) \
 	(ARRAY_SIZE(pcie_perf_stats_desc) * \
 	 MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_performance_group))
+#define NUM_PCIE_PERF_STALL_COUNTERS(priv) \
+	(ARRAY_SIZE(pcie_perf_stall_stats_desc) * \
+	 MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_outbound_stalled))
 #define NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS \
 	ARRAY_SIZE(pport_per_prio_traffic_stats_desc)
 #define NUM_PPORT_PER_PRIO_PFC_COUNTERS \
@@ -407,7 +417,8 @@ static const struct counter_desc sq_stats_desc[] = {
 					 NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv) + \
 					 NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS * \
 					 NUM_PPORT_PRIO)
-#define NUM_PCIE_COUNTERS(priv)		NUM_PCIE_PERF_COUNTERS(priv)
+#define NUM_PCIE_COUNTERS(priv)		(NUM_PCIE_PERF_COUNTERS(priv) + \
+					 NUM_PCIE_PERF_STALL_COUNTERS(priv))
 #define NUM_RQ_STATS			ARRAY_SIZE(rq_stats_desc)
 #define NUM_SQ_STATS			ARRAY_SIZE(sq_stats_desc)
 
