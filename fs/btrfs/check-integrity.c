@@ -795,12 +795,12 @@ static int btrfsic_process_superblock_dev_mirror(
 	dev_bytenr = btrfs_sb_offset(superblock_mirror_num);
 	if (dev_bytenr + BTRFS_SUPER_INFO_SIZE > device->commit_total_bytes)
 		return -1;
-	bh = __bread(superblock_bdev, dev_bytenr / 4096,
+	bh = __bread(superblock_bdev, dev_bytenr / BTRFS_BDEV_BLOCKSIZE,
 		     BTRFS_SUPER_INFO_SIZE);
 	if (NULL == bh)
 		return -1;
 	super_tmp = (struct btrfs_super_block *)
-	    (bh->b_data + (dev_bytenr & 4095));
+	    (bh->b_data + (dev_bytenr & (BTRFS_BDEV_BLOCKSIZE - 1)));
 
 	if (btrfs_super_bytenr(super_tmp) != dev_bytenr ||
 	    btrfs_super_magic(super_tmp) != BTRFS_MAGIC ||
@@ -2758,7 +2758,7 @@ int btrfsic_submit_bh(int op, int op_flags, struct buffer_head *bh)
 	    (op == REQ_OP_WRITE) && bh->b_size > 0) {
 		u64 dev_bytenr;
 
-		dev_bytenr = 4096 * bh->b_blocknr;
+		dev_bytenr = BTRFS_BDEV_BLOCKSIZE * bh->b_blocknr;
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
 			pr_info("submit_bh(op=0x%x,0x%x, blocknr=%llu (bytenr %llu), size=%zu, data=%p, bdev=%p)\n",

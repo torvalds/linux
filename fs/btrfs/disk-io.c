@@ -2694,8 +2694,8 @@ int open_ctree(struct super_block *sb,
 	btrfs_init_balance(fs_info);
 	btrfs_init_async_reclaim_work(&fs_info->async_reclaim_work);
 
-	sb->s_blocksize = 4096;
-	sb->s_blocksize_bits = blksize_bits(4096);
+	sb->s_blocksize = BTRFS_BDEV_BLOCKSIZE;
+	sb->s_blocksize_bits = blksize_bits(BTRFS_BDEV_BLOCKSIZE);
 
 	btrfs_init_btree_inode(fs_info);
 
@@ -3316,7 +3316,7 @@ int btrfs_read_dev_one_super(struct block_device *bdev, int copy_num,
 	if (bytenr + BTRFS_SUPER_INFO_SIZE >= i_size_read(bdev->bd_inode))
 		return -EINVAL;
 
-	bh = __bread(bdev, bytenr / 4096, BTRFS_SUPER_INFO_SIZE);
+	bh = __bread(bdev, bytenr / BTRFS_BDEV_BLOCKSIZE, BTRFS_SUPER_INFO_SIZE);
 	/*
 	 * If we fail to read from the underlying devices, as of now
 	 * the best option we have is to mark it EIO.
@@ -3409,7 +3409,7 @@ static int write_dev_supers(struct btrfs_device *device,
 		btrfs_csum_final(crc, sb->csum);
 
 		/* One reference for us, and we leave it for the caller */
-		bh = __getblk(device->bdev, bytenr / 4096,
+		bh = __getblk(device->bdev, bytenr / BTRFS_BDEV_BLOCKSIZE,
 			      BTRFS_SUPER_INFO_SIZE);
 		if (!bh) {
 			btrfs_err(device->fs_info,
@@ -3468,7 +3468,8 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 		    device->commit_total_bytes)
 			break;
 
-		bh = __find_get_block(device->bdev, bytenr / 4096,
+		bh = __find_get_block(device->bdev,
+				      bytenr / BTRFS_BDEV_BLOCKSIZE,
 				      BTRFS_SUPER_INFO_SIZE);
 		if (!bh) {
 			errors++;

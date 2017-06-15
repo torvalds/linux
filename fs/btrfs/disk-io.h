@@ -25,6 +25,14 @@
 #define BTRFS_SUPER_MIRROR_MAX	 3
 #define BTRFS_SUPER_MIRROR_SHIFT 12
 
+/*
+ * Fixed blocksize for all devices, applies to specific ways of reading
+ * metadata like superblock. Must meet the set_blocksize requirements.
+ *
+ * Do not change.
+ */
+#define BTRFS_BDEV_BLOCKSIZE	(4096)
+
 enum btrfs_wq_endio_type {
 	BTRFS_WQ_ENDIO_DATA = 0,
 	BTRFS_WQ_ENDIO_METADATA = 1,
