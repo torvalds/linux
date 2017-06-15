@@ -2048,6 +2048,55 @@ xlog_print_tic_res(
 }
 
 /*
+ * Print a summary of the transaction.
+ */
+void
+xlog_print_trans(
+	struct xfs_trans		*tp)
+{
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_log_item_desc	*lidp;
+
+	/* dump core transaction and ticket info */
+	xfs_warn(mp, "transaction summary:");
+	xfs_warn(mp, "  flags	= 0x%x", tp->t_flags);
+
+	xlog_print_tic_res(mp, tp->t_ticket);
+
+	/* dump each log item */
+	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
+		struct xfs_log_item	*lip = lidp->lid_item;
+		struct xfs_log_vec	*lv = lip->li_lv;
+		struct xfs_log_iovec	*vec;
+		int			i;
+
+		xfs_warn(mp, "log item: ");
+		xfs_warn(mp, "  type	= 0x%x", lip->li_type);
+		xfs_warn(mp, "  flags	= 0x%x", lip->li_flags);
+		if (!lv)
+			continue;
+		xfs_warn(mp, "  niovecs	= %d", lv->lv_niovecs);
+		xfs_warn(mp, "  size	= %d", lv->lv_size);
+		xfs_warn(mp, "  bytes	= %d", lv->lv_bytes);
+		xfs_warn(mp, "  buf len	= %d", lv->lv_buf_len);
+
+		/* dump each iovec for the log item */
+		vec = lv->lv_iovecp;
+		for (i = 0; i < lv->lv_niovecs; i++) {
+			int dumplen = min(vec->i_len, 32);
+
+			xfs_warn(mp, "  iovec[%d]", i);
+			xfs_warn(mp, "    type	= 0x%x", vec->i_type);
+			xfs_warn(mp, "    len	= %d", vec->i_len);
+			xfs_warn(mp, "    first %d bytes of iovec[%d]:", dumplen, i);
+			xfs_hex_dump(vec->i_addr, dumplen);;
+
+			vec++;
+		}
+	}
+}
+
+/*
  * Calculate the potential space needed by the log vector.  Each region gets
  * its own xlog_op_header_t and may need to be double word aligned.
  */

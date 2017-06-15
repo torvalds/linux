@@ -456,6 +456,7 @@ xlog_write_adv_cnt(void **ptr, int *len, int *off, size_t bytes)
 }
 
 void	xlog_print_tic_res(struct xfs_mount *mp, struct xlog_ticket *ticket);
+void	xlog_print_trans(struct xfs_trans *);
 int
 xlog_write(
 	struct xlog		*log,

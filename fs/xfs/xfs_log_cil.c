@@ -460,6 +460,21 @@ xlog_cil_insert_items(
 	ctx->space_used += len;
 
 	/*
+	 * If we've overrun the reservation, dump the tx details before we move
+	 * the log items. Shutdown is imminent...
+	 */
+	if (WARN_ON(tp->t_ticket->t_curr_res < 0)) {
+		xfs_warn(log->l_mp, "Transaction log reservation overrun:");
+		xfs_warn(log->l_mp,
+			 "  log items: %d bytes (iov hdrs: %d bytes)",
+			 len, iovhdr_res);
+		xfs_warn(log->l_mp, "  split region headers: %d bytes",
+			 split_res);
+		xfs_warn(log->l_mp, "  ctx ticket: %d bytes", ctx_res);
+		xlog_print_trans(tp);
+	}
+
+	/*
 	 * Now (re-)position everything modified at the tail of the CIL.
 	 * We do this here so we only need to take the CIL lock once during
 	 * the transaction commit.
@@ -481,6 +496,9 @@ xlog_cil_insert_items(
 	}
 
 	spin_unlock(&cil->xc_cil_lock);
+
+	if (tp->t_ticket->t_curr_res < 0)
+		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 }
 
 static void
@@ -987,12 +1005,6 @@ xfs_log_commit_cil(
 	down_read(&cil->xc_ctx_lock);
 
 	xlog_cil_insert_items(log, tp);
-
-	/* check we didn't blow the reservation */
-	if (tp->t_ticket->t_curr_res < 0) {
-		xlog_print_tic_res(mp, tp->t_ticket);
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
-	}
 
 	tp->t_commit_lsn = cil->xc_ctx->sequence;
 	if (commit_lsn)
