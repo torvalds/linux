@@ -1707,7 +1707,7 @@ static int unmap_thread_fn(void *data)
 	struct page *page;
 	int i;
 
-	while (1) {
+	while (!kthread_should_stop()) {
 		DEFINE_WAIT(__wait);
 
 		prepare_to_wait(&unmap_wait, &__wait, TASK_INTERRUPTIBLE);
