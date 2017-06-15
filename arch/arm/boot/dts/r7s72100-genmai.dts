@@ -57,7 +57,7 @@
 	clock-frequency = <400000>;
 
 	eeprom@50 {
-		compatible = "renesas,24c128";
+		compatible = "renesas,24c128", "atmel,24c128";
 		reg = <0x50>;
 		pagesize = <64>;
 	};
