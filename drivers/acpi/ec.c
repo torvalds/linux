@@ -1363,6 +1363,8 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 				     ec_parse_io_ports, ec);
 	if (ACPI_FAILURE(status))
 		return status;
+	if (ec->data_addr == 0 || ec->command_addr == 0)
+		return AE_OK;
 
 	/* Get GPE bit assignment (EC events). */
 	/* TODO: Add support for _GPE returning a package */
