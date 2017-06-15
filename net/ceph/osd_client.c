@@ -540,7 +540,7 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 }
 EXPORT_SYMBOL(ceph_osdc_alloc_request);
 
-static int ceph_oloc_encoding_size(struct ceph_object_locator *oloc)
+static int ceph_oloc_encoding_size(const struct ceph_object_locator *oloc)
 {
 	return 8 + 4 + 4 + 4 + (oloc->pool_ns ? oloc->pool_ns->len : 0);
 }
@@ -1485,6 +1485,28 @@ static void setup_request_data(struct ceph_osd_request *req,
 	WARN_ON(data_len != msg->data_length);
 }
 
+static void encode_pgid(void **p, const struct ceph_pg *pgid)
+{
+	ceph_encode_8(p, 1);
+	ceph_encode_64(p, pgid->pool);
+	ceph_encode_32(p, pgid->seed);
+	ceph_encode_32(p, -1); /* preferred */
+}
+
+static void encode_oloc(void **p, void *end,
+			const struct ceph_object_locator *oloc)
+{
+	ceph_start_encoding(p, 5, 4, ceph_oloc_encoding_size(oloc));
+	ceph_encode_64(p, oloc->pool);
+	ceph_encode_32(p, -1); /* preferred */
+	ceph_encode_32(p, 0);  /* key len */
+	if (oloc->pool_ns)
+		ceph_encode_string(p, end, oloc->pool_ns->str,
+				   oloc->pool_ns->len);
+	else
+		ceph_encode_32(p, 0);
+}
+
 static void encode_request(struct ceph_osd_request *req, struct ceph_msg *msg)
 {
 	void *p = msg->front.iov_base;
@@ -1512,28 +1534,10 @@ static void encode_request(struct ceph_osd_request *req, struct ceph_msg *msg)
 	memset(p, 0, sizeof(struct ceph_eversion));
 	p += sizeof(struct ceph_eversion);
 
-	/* oloc */
-	ceph_start_encoding(&p, 5, 4,
-			    ceph_oloc_encoding_size(&req->r_t.target_oloc));
-	ceph_encode_64(&p, req->r_t.target_oloc.pool);
-	ceph_encode_32(&p, -1); /* preferred */
-	ceph_encode_32(&p, 0); /* key len */
-	if (req->r_t.target_oloc.pool_ns)
-		ceph_encode_string(&p, end, req->r_t.target_oloc.pool_ns->str,
-				   req->r_t.target_oloc.pool_ns->len);
-	else
-		ceph_encode_32(&p, 0);
-
-	/* pgid */
-	ceph_encode_8(&p, 1);
-	ceph_encode_64(&p, req->r_t.pgid.pool);
-	ceph_encode_32(&p, req->r_t.pgid.seed);
-	ceph_encode_32(&p, -1); /* preferred */
-
-	/* oid */
-	ceph_encode_32(&p, req->r_t.target_oid.name_len);
-	memcpy(p, req->r_t.target_oid.name, req->r_t.target_oid.name_len);
-	p += req->r_t.target_oid.name_len;
+	encode_oloc(&p, end, &req->r_t.target_oloc);
+	encode_pgid(&p, &req->r_t.pgid);
+	ceph_encode_string(&p, end, req->r_t.target_oid.name,
+			   req->r_t.target_oid.name_len);
 
 	/* ops, can imply data */
 	ceph_encode_16(&p, req->r_num_ops);
