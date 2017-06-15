@@ -478,6 +478,7 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 	if (result) {
 		ufs_clear_frags(inode, result + oldcount, newcount - oldcount,
 				locked_page != NULL);
+		mutex_unlock(&UFS_SB(sb)->s_lock);
 		ufs_change_blocknr(inode, fragment - oldcount, oldcount,
 				   uspi->s_sbbase + tmp,
 				   uspi->s_sbbase + result, locked_page);
@@ -487,7 +488,6 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 		UFS_I(inode)->i_lastfrag = max(UFS_I(inode)->i_lastfrag,
 						fragment + count);
 		write_sequnlock(&UFS_I(inode)->meta_lock);
-		mutex_unlock(&UFS_SB(sb)->s_lock);
 		if (newcount < request)
 			ufs_free_fragments (inode, result + newcount, request - newcount);
 		ufs_free_fragments (inode, tmp, oldcount);
