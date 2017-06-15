@@ -112,6 +112,17 @@ struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 	return NULL;
 }
 
+static void rds_tcp_set_linger(struct socket *sock)
+{
+	struct linger no_linger = {
+		.l_onoff = 1,
+		.l_linger = 0,
+	};
+
+	kernel_setsockopt(sock, SOL_SOCKET, SO_LINGER,
+			  (char *)&no_linger, sizeof(no_linger));
+}
+
 int rds_tcp_accept_one(struct socket *sock)
 {
 	struct socket *new_sock = NULL;
@@ -183,7 +194,13 @@ int rds_tcp_accept_one(struct socket *sock)
 	ret = 0;
 	goto out;
 rst_nsk:
-	/* reset the newly returned accept sock and bail */
+	/* reset the newly returned accept sock and bail.
+	 * It is safe to set linger on new_sock because the RDS connection
+	 * has not been brought up on new_sock, so no RDS-level data could
+	 * be pending on it. By setting linger, we achieve the side-effect
+	 * of avoiding TIME_WAIT state on new_sock.
+	 */
+	rds_tcp_set_linger(new_sock);
 	kernel_sock_shutdown(new_sock, SHUT_RDWR);
 	ret = 0;
 out:
