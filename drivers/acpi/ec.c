@@ -190,6 +190,7 @@ static struct workqueue_struct *ec_query_wq;
 
 static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
 static int EC_FLAGS_CORRECT_ECDT; /* Needs ECDT port address correction */
+static int EC_FLAGS_IGNORE_DSDT_GPE; /* Needs ECDT GPE as correction setting */
 
 /* --------------------------------------------------------------------------
  *                           Logging/Debugging
@@ -1366,12 +1367,20 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	if (ec->data_addr == 0 || ec->command_addr == 0)
 		return AE_OK;
 
-	/* Get GPE bit assignment (EC events). */
-	/* TODO: Add support for _GPE returning a package */
-	status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
-	if (ACPI_FAILURE(status))
-		return status;
-	ec->gpe = tmp;
+	if (boot_ec && boot_ec_is_ecdt && EC_FLAGS_IGNORE_DSDT_GPE) {
+		/*
+		 * Always inherit the GPE number setting from the ECDT
+		 * EC.
+		 */
+		ec->gpe = boot_ec->gpe;
+	} else {
+		/* Get GPE bit assignment (EC events). */
+		/* TODO: Add support for _GPE returning a package */
+		status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
+		if (ACPI_FAILURE(status))
+			return status;
+		ec->gpe = tmp;
+	}
 	/* Use the global lock for all EC transactions? */
 	tmp = 0;
 	acpi_evaluate_integer(handle, "_GLK", NULL, &tmp);
@@ -1770,11 +1779,39 @@ static int ec_correct_ecdt(const struct dmi_system_id *id)
 	return 0;
 }
 
+/*
+ * Some DSDTs contain wrong GPE setting.
+ * Asus FX502VD/VE, X550VXK, X580VD
+ * https://bugzilla.kernel.org/show_bug.cgi?id=195651
+ */
+static int ec_honor_ecdt_gpe(const struct dmi_system_id *id)
+{
+	pr_debug("Detected system needing ignore DSDT GPE setting.\n");
+	EC_FLAGS_IGNORE_DSDT_GPE = 1;
+	return 0;
+}
+
 static struct dmi_system_id ec_dmi_table[] __initdata = {
 	{
 	ec_correct_ecdt, "MSI MS-171F", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
 	DMI_MATCH(DMI_PRODUCT_NAME, "MS-171F"),}, NULL},
+	{
+	ec_honor_ecdt_gpe, "ASUS FX502VD", {
+	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "FX502VD"),}, NULL},
+	{
+	ec_honor_ecdt_gpe, "ASUS FX502VE", {
+	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "FX502VE"),}, NULL},
+	{
+	ec_honor_ecdt_gpe, "ASUS X550VXK", {
+	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "X550VXK"),}, NULL},
+	{
+	ec_honor_ecdt_gpe, "ASUS X580VD", {
+	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "X580VD"),}, NULL},
 	{},
 };
 
