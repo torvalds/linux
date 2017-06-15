@@ -723,7 +723,10 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	struct device *dev = rsnd_priv_to_dev(priv);
 
 	switch (slots) {
+	case 2:
 	case 6:
+	case 8:
+	case 16:
 		/* TDM Extend Mode */
 		rsnd_rdai_channels_set(rdai, slots);
 		rsnd_rdai_ssi_lane_set(rdai, 1);
@@ -736,6 +739,151 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static unsigned int rsnd_soc_hw_channels_list[] = {
+	2, 6, 8, 16,
+};
+
+static unsigned int rsnd_soc_hw_rate_list[] = {
+	  8000,
+	 11025,
+	 16000,
+	 22050,
+	 32000,
+	 44100,
+	 48000,
+	 64000,
+	 88200,
+	 96000,
+	176400,
+	192000,
+};
+
+static int rsnd_soc_hw_rule(struct rsnd_priv *priv,
+			    unsigned int *list, int list_num,
+			    struct snd_interval *baseline, struct snd_interval *iv)
+{
+	struct snd_interval p;
+	int rate;
+	int i;
+
+	snd_interval_any(&p);
+	p.min = UINT_MAX;
+	p.max = 0;
+
+	for (i = 0; i < list_num; i++) {
+
+		if (!snd_interval_test(iv, list[i]))
+			continue;
+
+		rate = rsnd_ssi_clk_query(priv,
+					  baseline->min, list[i], NULL);
+		if (rate > 0) {
+			p.min = min(p.min, list[i]);
+			p.max = max(p.max, list[i]);
+		}
+
+		rate = rsnd_ssi_clk_query(priv,
+					  baseline->max, list[i], NULL);
+		if (rate > 0) {
+			p.min = min(p.min, list[i]);
+			p.max = max(p.max, list[i]);
+		}
+	}
+
+	return snd_interval_refine(iv, &p);
+}
+
+static int rsnd_soc_hw_rule_rate(struct snd_pcm_hw_params *params,
+				 struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *ic_ = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_interval *ir = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval ic;
+	struct snd_soc_dai *dai = rule->private;
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+
+	/*
+	 * possible sampling rate limitation is same as
+	 * 2ch if it supports multi ssi
+	 */
+	ic = *ic_;
+	if (1 < rsnd_rdai_ssi_lane_get(rdai)) {
+		ic.min = 2;
+		ic.max = 2;
+	}
+
+	return rsnd_soc_hw_rule(priv, rsnd_soc_hw_rate_list,
+				ARRAY_SIZE(rsnd_soc_hw_rate_list),
+				&ic, ir);
+}
+
+
+static int rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
+				     struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *ic_ = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_interval *ir = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval ic;
+	struct snd_soc_dai *dai = rule->private;
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+
+	/*
+	 * possible sampling rate limitation is same as
+	 * 2ch if it supports multi ssi
+	 */
+	ic = *ic_;
+	if (1 < rsnd_rdai_ssi_lane_get(rdai)) {
+		ic.min = 2;
+		ic.max = 2;
+	}
+
+	return rsnd_soc_hw_rule(priv, rsnd_soc_hw_channels_list,
+				ARRAY_SIZE(rsnd_soc_hw_channels_list),
+				ir, &ic);
+}
+
+static void rsnd_soc_hw_constraint(struct snd_pcm_runtime *runtime,
+				   struct snd_soc_dai *dai)
+{
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct snd_pcm_hw_constraint_list *constraint = &rdai->constraint;
+	unsigned int max_channels = rsnd_rdai_channels_get(rdai);
+	int i;
+
+	/*
+	 * Channel Limitation
+	 * It depends on Platform design
+	 */
+	constraint->list	= rsnd_soc_hw_channels_list;
+	constraint->count	= 0;
+	constraint->mask	= 0;
+
+	for (i = 0; i < ARRAY_SIZE(rsnd_soc_hw_channels_list); i++) {
+		if (rsnd_soc_hw_channels_list[i] > max_channels)
+			break;
+		constraint->count = i + 1;
+	}
+
+	snd_pcm_hw_constraint_list(runtime, 0,
+				   SNDRV_PCM_HW_PARAM_CHANNELS, constraint);
+
+	/*
+	 * Sampling Rate / Channel Limitation
+	 * It depends on Clock Master Mode
+	 */
+	if (!rsnd_rdai_is_clk_master(rdai))
+		return;
+
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+			    rsnd_soc_hw_rule_rate, dai,
+			    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+			    rsnd_soc_hw_rule_channels, dai,
+			    SNDRV_PCM_HW_PARAM_RATE, -1);
+}
+
 static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
@@ -743,6 +891,9 @@ static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
 	int ret;
+
+	/* rsnd_io_to_runtime() is not yet enabled here */
+	rsnd_soc_hw_constraint(substream->runtime, dai);
 
 	/*
 	 * call rsnd_dai_call without spinlock
@@ -866,7 +1017,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	drv->playback.rates		= RSND_RATES;
 	drv->playback.formats		= RSND_FMTS;
 	drv->playback.channels_min	= 2;
-	drv->playback.channels_max	= 6;
+	drv->playback.channels_max	= 16;
 	drv->playback.stream_name	= rdai->playback.name;
 
 	snprintf(rdai->capture.name, RSND_DAI_NAME_SIZE,
@@ -874,7 +1025,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	drv->capture.rates		= RSND_RATES;
 	drv->capture.formats		= RSND_FMTS;
 	drv->capture.channels_min	= 2;
-	drv->capture.channels_max	= 6;
+	drv->capture.channels_max	= 16;
 	drv->capture.stream_name	= rdai->capture.name;
 
 	rdai->playback.rdai		= rdai;

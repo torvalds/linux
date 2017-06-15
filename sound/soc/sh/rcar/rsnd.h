@@ -449,6 +449,7 @@ struct rsnd_dai {
 	struct rsnd_dai_stream playback;
 	struct rsnd_dai_stream capture;
 	struct rsnd_priv *priv;
+	struct snd_pcm_hw_constraint_list constraint;
 
 	int max_channels;	/* 2ch - 16ch */
 	int ssi_lane;		/* 1lane - 4lane */
