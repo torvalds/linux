@@ -446,10 +446,6 @@ typedef struct xfs_handle {
 } xfs_handle_t;
 #define ha_fsid ha_u._ha_fsid
 
-#define XFS_HSIZE(handle)	(((char *) &(handle).ha_fid.fid_pad	 \
-				 - (char *) &(handle))			  \
-				 + (handle).ha_fid.fid_len)
-
 /*
  * Structure passed to XFS_IOC_SWAPEXT
  */
