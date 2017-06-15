@@ -30,6 +30,8 @@
 #include <linux/of_device.h>
 #include <linux/spinlock.h>
 
+#include <dt-bindings/pinctrl/samsung.h>
+
 #include "../core.h"
 #include "pinctrl-samsung.h"
 
@@ -586,7 +588,7 @@ static int samsung_gpio_set_direction(struct gpio_chip *gc,
 	data = readl(reg);
 	data &= ~(mask << shift);
 	if (!input)
-		data |= FUNC_OUTPUT << shift;
+		data |= EXYNOS_PIN_FUNC_OUTPUT << shift;
 	writel(data, reg);
 
 	return 0;
