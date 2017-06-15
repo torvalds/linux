@@ -156,7 +156,7 @@ int hfi_core_ping(struct venus_core *core)
 
 	ret = core->ops->core_ping(core, 0xbeef);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	ret = wait_for_completion_timeout(&core->done, TIMEOUT);
 	if (!ret) {
