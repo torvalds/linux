@@ -127,12 +127,12 @@ enum mv88e6xxx_cap {
 
 	/* Per VLAN Spanning Tree Unit (STU).
 	 * The Port State database, if present, is accessed through VTU
-	 * operations and dedicated SID registers. See GLOBAL_VTU_SID.
+	 * operations and dedicated SID registers. See MV88E6352_G1_VTU_SID.
 	 */
 	MV88E6XXX_CAP_STU,
 
 	/* VLAN Table Unit.
-	 * The VTU is used to program 802.1Q VLANs. See GLOBAL_VTU_OP.
+	 * The VTU is used to program 802.1Q VLANs. See MV88E6XXX_G1_VTU_OP.
 	 */
 	MV88E6XXX_CAP_VTU,
 };
