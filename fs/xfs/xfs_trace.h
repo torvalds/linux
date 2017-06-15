@@ -1491,25 +1491,6 @@ TRACE_EVENT(xfs_extent_busy_trim,
 		  __entry->tlen)
 );
 
-TRACE_EVENT(xfs_trans_commit_lsn,
-	TP_PROTO(struct xfs_trans *trans),
-	TP_ARGS(trans),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(struct xfs_trans *, tp)
-		__field(xfs_lsn_t, lsn)
-	),
-	TP_fast_assign(
-		__entry->dev = trans->t_mountp->m_super->s_dev;
-		__entry->tp = trans;
-		__entry->lsn = trans->t_commit_lsn;
-	),
-	TP_printk("dev %d:%d trans 0x%p commit_lsn 0x%llx",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->tp,
-		  __entry->lsn)
-);
-
 TRACE_EVENT(xfs_agf,
 	TP_PROTO(struct xfs_mount *mp, struct xfs_agf *agf, int flags,
 		 unsigned long caller_ip),

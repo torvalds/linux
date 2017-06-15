@@ -993,6 +993,7 @@ xfs_log_commit_cil(
 {
 	struct xlog		*log = mp->m_log;
 	struct xfs_cil		*cil = log->l_cilp;
+	xfs_lsn_t		xc_commit_lsn;
 
 	/*
 	 * Do all necessary memory allocation before we lock the CIL.
@@ -1006,9 +1007,9 @@ xfs_log_commit_cil(
 
 	xlog_cil_insert_items(log, tp);
 
-	tp->t_commit_lsn = cil->xc_ctx->sequence;
+	xc_commit_lsn = cil->xc_ctx->sequence;
 	if (commit_lsn)
-		*commit_lsn = tp->t_commit_lsn;
+		*commit_lsn = xc_commit_lsn;
 
 	xfs_log_done(mp, tp->t_ticket, NULL, regrant);
 	xfs_trans_unreserve_and_mod_sb(tp);
@@ -1024,7 +1025,7 @@ xfs_log_commit_cil(
 	 * the log items. This affects (at least) processing of stale buffers,
 	 * inodes and EFIs.
 	 */
-	xfs_trans_free_items(tp, tp->t_commit_lsn, false);
+	xfs_trans_free_items(tp, xc_commit_lsn, false);
 
 	xlog_cil_push_background(log);
 

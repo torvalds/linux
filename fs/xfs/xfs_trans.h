@@ -105,10 +105,6 @@ typedef struct xfs_trans {
 	unsigned int		t_rtx_res;	/* # of rt extents resvd */
 	unsigned int		t_rtx_res_used;	/* # of resvd rt extents used */
 	struct xlog_ticket	*t_ticket;	/* log mgr ticket */
-	xfs_lsn_t		t_lsn;		/* log seq num of start of
-						 * transaction. */
-	xfs_lsn_t		t_commit_lsn;	/* log seq num of end of
-						 * transaction. */
 	struct xfs_mount	*t_mountp;	/* ptr to fs mount struct */
 	struct xfs_dquot_acct   *t_dqinfo;	/* acctg info for dquots */
 	unsigned int		t_flags;	/* misc flags */
