@@ -234,6 +234,13 @@
 						  "ring2", "ring3", "eip";
 				clocks = <&cps_syscon0 1 26>;
 				dma-mask = <0xff 0xffffffff>;
+				/*
+				 * The cryptographic engine found on the cp110
+				 * master is enabled by default at the SoC
+				 * level. Because it is not possible as of now
+				 * to enable two cryptographic engines in
+				 * parallel, disable this one by default.
+				 */
 				status = "disabled";
 			};
 		};
