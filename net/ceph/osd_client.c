@@ -1325,8 +1325,9 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	struct ceph_pg pgid, last_pgid;
 	struct ceph_osds up, acting;
 	bool force_resend = false;
+	bool unpaused = false;
+	bool legacy_change;
 	bool need_check_tiering = false;
-	bool need_resend = false;
 	bool sort_bitwise = ceph_osdmap_flag(osdc, CEPH_OSDMAP_SORTBITWISE);
 	enum calc_target_result ct_res;
 	int ret;
@@ -1393,12 +1394,12 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 
 	if (t->paused && !target_should_be_paused(osdc, t, pi)) {
 		t->paused = false;
-		need_resend = true;
+		unpaused = true;
 	}
+	legacy_change = ceph_pg_compare(&t->pgid, &pgid) ||
+			ceph_osds_changed(&t->acting, &acting, any_change);
 
-	if (ceph_pg_compare(&t->pgid, &pgid) ||
-	    ceph_osds_changed(&t->acting, &acting, any_change) ||
-	    force_resend) {
+	if (legacy_change || force_resend) {
 		t->pgid = pgid; /* struct */
 		ceph_pg_to_primary_shard(osdc->osdmap, &pgid, &t->spgid);
 		ceph_osds_copy(&t->acting, &acting);
@@ -1410,10 +1411,13 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 		t->sort_bitwise = sort_bitwise;
 
 		t->osd = acting.primary;
-		need_resend = true;
 	}
 
-	ct_res = need_resend ? CALC_TARGET_NEED_RESEND : CALC_TARGET_NO_ACTION;
+	if (unpaused || legacy_change || force_resend)
+		ct_res = CALC_TARGET_NEED_RESEND;
+	else
+		ct_res = CALC_TARGET_NO_ACTION;
+
 out:
 	dout("%s t %p -> ct_res %d osd %d\n", __func__, t, ct_res, t->osd);
 	return ct_res;
