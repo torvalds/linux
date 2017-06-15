@@ -83,7 +83,8 @@ static void amdgpu_irq_reset_work_func(struct work_struct *work)
 	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
 						  reset_work);
 
-	amdgpu_gpu_reset(adev);
+	if (!amdgpu_sriov_vf(adev))
+		amdgpu_gpu_reset(adev);
 }
 
 /* Disable *all* interrupts */

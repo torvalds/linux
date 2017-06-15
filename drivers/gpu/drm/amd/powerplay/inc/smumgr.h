@@ -39,6 +39,7 @@ extern const struct pp_smumgr_func tonga_smu_funcs;
 extern const struct pp_smumgr_func fiji_smu_funcs;
 extern const struct pp_smumgr_func polaris10_smu_funcs;
 extern const struct pp_smumgr_func vega10_smu_funcs;
+extern const struct pp_smumgr_func rv_smu_funcs;
 
 enum AVFS_BTC_STATUS {
 	AVFS_BTC_BOOT = 0,

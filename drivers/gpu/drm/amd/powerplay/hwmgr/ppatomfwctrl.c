@@ -315,13 +315,13 @@ int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 	param->ulGbFuseTableCksoffM1 =
 			le32_to_cpu(profile->avfsgb_fuse_table_cksoff_m1);
 	param->ulGbFuseTableCksoffM2 =
-			le16_to_cpu(profile->avfsgb_fuse_table_cksoff_m2);
+			le32_to_cpu(profile->avfsgb_fuse_table_cksoff_m2);
 	param->ulGbFuseTableCksoffB =
 			le32_to_cpu(profile->avfsgb_fuse_table_cksoff_b);
 	param->ulGbFuseTableCksonM1 =
 			le32_to_cpu(profile->avfsgb_fuse_table_ckson_m1);
 	param->ulGbFuseTableCksonM2 =
-			le16_to_cpu(profile->avfsgb_fuse_table_ckson_m2);
+			le32_to_cpu(profile->avfsgb_fuse_table_ckson_m2);
 	param->ulGbFuseTableCksonB =
 			le32_to_cpu(profile->avfsgb_fuse_table_ckson_b);
 
@@ -335,25 +335,25 @@ int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 	param->ulDispclk2GfxclkM1 =
 			le32_to_cpu(profile->dispclk2gfxclk_a);
 	param->ulDispclk2GfxclkM2 =
-			le16_to_cpu(profile->dispclk2gfxclk_b);
+			le32_to_cpu(profile->dispclk2gfxclk_b);
 	param->ulDispclk2GfxclkB =
 			le32_to_cpu(profile->dispclk2gfxclk_c);
 	param->ulDcefclk2GfxclkM1 =
 			le32_to_cpu(profile->dcefclk2gfxclk_a);
 	param->ulDcefclk2GfxclkM2 =
-			le16_to_cpu(profile->dcefclk2gfxclk_b);
+			le32_to_cpu(profile->dcefclk2gfxclk_b);
 	param->ulDcefclk2GfxclkB =
 			le32_to_cpu(profile->dcefclk2gfxclk_c);
 	param->ulPixelclk2GfxclkM1 =
 			le32_to_cpu(profile->pixclk2gfxclk_a);
 	param->ulPixelclk2GfxclkM2 =
-			le16_to_cpu(profile->pixclk2gfxclk_b);
+			le32_to_cpu(profile->pixclk2gfxclk_b);
 	param->ulPixelclk2GfxclkB =
 			le32_to_cpu(profile->pixclk2gfxclk_c);
 	param->ulPhyclk2GfxclkM1 =
 			le32_to_cpu(profile->phyclk2gfxclk_a);
 	param->ulPhyclk2GfxclkM2 =
-			le16_to_cpu(profile->phyclk2gfxclk_b);
+			le32_to_cpu(profile->phyclk2gfxclk_b);
 	param->ulPhyclk2GfxclkB =
 			le32_to_cpu(profile->phyclk2gfxclk_c);
 
@@ -388,11 +388,33 @@ int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+int pp_atomfwctrl__get_clk_information_by_clkid(struct pp_hwmgr *hwmgr, BIOS_CLKID id, uint32_t *frequency)
+{
+	struct atom_get_smu_clock_info_parameters_v3_1   parameters;
+	struct atom_get_smu_clock_info_output_parameters_v3_1 *output;
+	uint32_t ix;
+
+	parameters.clk_id = id;
+	parameters.command = GET_SMU_CLOCK_INFO_V3_1_GET_CLOCK_FREQ;
+
+	ix = GetIndexIntoMasterCmdTable(getsmuclockinfo);
+	if (!cgs_atom_exec_cmd_table(hwmgr->device, ix, &parameters)) {
+		output = (struct atom_get_smu_clock_info_output_parameters_v3_1 *)&parameters;
+		*frequency = output->atom_smu_outputclkfreq.smu_clock_freq_hz / 10000;
+	} else {
+		pr_info("Error execute_table getsmuclockinfo!");
+		return -1;
+	}
+
+	return 0;
+}
+
 int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 			struct pp_atomfwctrl_bios_boot_up_values *boot_values)
 {
 	struct atom_firmware_info_v3_1 *info = NULL;
 	uint16_t ix;
+	uint32_t frequency = 0;
 
 	ix = GetIndexIntoMasterDataTable(firmwareinfo);
 	info = (struct atom_firmware_info_v3_1 *)
@@ -407,11 +429,18 @@ int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 	boot_values->ulRevision = info->firmware_revision;
 	boot_values->ulGfxClk   = info->bootup_sclk_in10khz;
 	boot_values->ulUClk     = info->bootup_mclk_in10khz;
-	boot_values->ulSocClk   = 0;
 	boot_values->usVddc     = info->bootup_vddc_mv;
 	boot_values->usVddci    = info->bootup_vddci_mv;
 	boot_values->usMvddc    = info->bootup_mvddc_mv;
 	boot_values->usVddGfx   = info->bootup_vddgfx_mv;
+	boot_values->ulSocClk   = 0;
+	boot_values->ulDCEFClk   = 0;
+
+	if (!pp_atomfwctrl__get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_SOCCLK_ID, &frequency))
+		boot_values->ulSocClk   = frequency;
+
+	if (!pp_atomfwctrl__get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCEFCLK_ID, &frequency))
+		boot_values->ulDCEFClk   = frequency;
 
 	return 0;
 }
