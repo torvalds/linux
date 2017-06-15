@@ -178,7 +178,7 @@ static void __init dmi_save_ident(const struct dmi_header *dm, int slot,
 	const char *d = (const char *) dm;
 	const char *p;
 
-	if (dmi_ident[slot])
+	if (dmi_ident[slot] || dm->length <= string)
 		return;
 
 	p = dmi_string(dm, d[string]);
@@ -191,13 +191,14 @@ static void __init dmi_save_ident(const struct dmi_header *dm, int slot,
 static void __init dmi_save_uuid(const struct dmi_header *dm, int slot,
 		int index)
 {
-	const u8 *d = (u8 *) dm + index;
+	const u8 *d;
 	char *s;
 	int is_ff = 1, is_00 = 1, i;
 
-	if (dmi_ident[slot])
+	if (dmi_ident[slot] || dm->length <= index + 16)
 		return;
 
+	d = (u8 *) dm + index;
 	for (i = 0; i < 16 && (is_ff || is_00); i++) {
 		if (d[i] != 0x00)
 			is_00 = 0;
@@ -228,16 +229,17 @@ static void __init dmi_save_uuid(const struct dmi_header *dm, int slot,
 static void __init dmi_save_type(const struct dmi_header *dm, int slot,
 		int index)
 {
-	const u8 *d = (u8 *) dm + index;
+	const u8 *d;
 	char *s;
 
-	if (dmi_ident[slot])
+	if (dmi_ident[slot] || dm->length <= index)
 		return;
 
 	s = dmi_alloc(4);
 	if (!s)
 		return;
 
+	d = (u8 *) dm + index;
 	sprintf(s, "%u", *d & 0x7F);
 	dmi_ident[slot] = s;
 }
@@ -278,9 +280,13 @@ static void __init dmi_save_devices(const struct dmi_header *dm)
 
 static void __init dmi_save_oem_strings_devices(const struct dmi_header *dm)
 {
-	int i, count = *(u8 *)(dm + 1);
+	int i, count;
 	struct dmi_device *dev;
 
+	if (dm->length < 0x05)
+		return;
+
+	count = *(u8 *)(dm + 1);
 	for (i = 1; i <= count; i++) {
 		const char *devname = dmi_string(dm, i);
 
@@ -353,6 +359,9 @@ static void __init dmi_save_extended_devices(const struct dmi_header *dm)
 	const char *name;
 	const u8 *d = (u8 *)dm;
 
+	if (dm->length < 0x0B)
+		return;
+
 	/* Skip disabled device */
 	if ((d[0x5] & 0x80) == 0)
 		return;
@@ -387,7 +396,7 @@ static void __init save_mem_devices(const struct dmi_header *dm, void *v)
 	const char *d = (const char *)dm;
 	static int nr;
 
-	if (dm->type != DMI_ENTRY_MEM_DEVICE)
+	if (dm->type != DMI_ENTRY_MEM_DEVICE || dm->length < 0x12)
 		return;
 	if (nr >= dmi_memdev_nr) {
 		pr_warn(FW_BUG "Too many DIMM entries in SMBIOS table\n");
