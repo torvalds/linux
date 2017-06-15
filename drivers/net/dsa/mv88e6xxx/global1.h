@@ -36,9 +36,14 @@
 #define MV88E6XXX_G1_STS_IRQ_TCAM_DONE			1
 #define MV88E6XXX_G1_STS_IRQ_EEPROM_DONE		0
 
-#define GLOBAL_MAC_01		0x01
-#define GLOBAL_MAC_23		0x02
-#define GLOBAL_MAC_45		0x03
+/* Offset 0x01: Switch MAC Address Register Bytes 0 & 1
+ * Offset 0x02: Switch MAC Address Register Bytes 2 & 3
+ * Offset 0x03: Switch MAC Address Register Bytes 4 & 5
+ */
+#define MV88E6XXX_G1_MAC_01		0x01
+#define MV88E6XXX_G1_MAC_23		0x02
+#define MV88E6XXX_G1_MAC_45		0x03
+
 #define GLOBAL_ATU_FID		0x01
 #define GLOBAL_VTU_FID		0x02
 #define GLOBAL_VTU_FID_MASK	0xfff
@@ -163,6 +168,8 @@
 int mv88e6xxx_g1_read(struct mv88e6xxx_chip *chip, int reg, u16 *val);
 int mv88e6xxx_g1_write(struct mv88e6xxx_chip *chip, int reg, u16 val);
 int mv88e6xxx_g1_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask);
+
+int mv88e6xxx_g1_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr);
 
 int mv88e6185_g1_reset(struct mv88e6xxx_chip *chip);
 int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip);

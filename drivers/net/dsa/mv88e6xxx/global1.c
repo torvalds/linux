@@ -125,6 +125,33 @@ static int mv88e6xxx_g1_wait_init_ready(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
+/* Offset 0x01: Switch MAC Address Register Bytes 0 & 1
+ * Offset 0x02: Switch MAC Address Register Bytes 2 & 3
+ * Offset 0x03: Switch MAC Address Register Bytes 4 & 5
+ */
+int mv88e6xxx_g1_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
+{
+	u16 reg;
+	int err;
+
+	reg = (addr[0] << 8) | addr[1];
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_MAC_01, reg);
+	if (err)
+		return err;
+
+	reg = (addr[2] << 8) | addr[3];
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_MAC_23, reg);
+	if (err)
+		return err;
+
+	reg = (addr[4] << 8) | addr[5];
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_MAC_45, reg);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 /* Offset 0x04: Switch Global Control Register */
 
 int mv88e6185_g1_reset(struct mv88e6xxx_chip *chip)
