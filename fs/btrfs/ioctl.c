@@ -2775,7 +2775,6 @@ static long btrfs_ioctl_dev_info(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_ioctl_dev_info_args *di_args;
 	struct btrfs_device *dev;
-	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	int ret = 0;
 	char *s_uuid = NULL;
 
@@ -2786,7 +2785,7 @@ static long btrfs_ioctl_dev_info(struct btrfs_fs_info *fs_info,
 	if (!btrfs_is_empty_uuid(di_args->uuid))
 		s_uuid = di_args->uuid;
 
-	mutex_lock(&fs_devices->device_list_mutex);
+	rcu_read_lock();
 	dev = btrfs_find_device(fs_info, di_args->devid, s_uuid, NULL);
 
 	if (!dev) {
@@ -2801,17 +2800,15 @@ static long btrfs_ioctl_dev_info(struct btrfs_fs_info *fs_info,
 	if (dev->name) {
 		struct rcu_string *name;
 
-		rcu_read_lock();
 		name = rcu_dereference(dev->name);
 		strncpy(di_args->path, name->str, sizeof(di_args->path));
-		rcu_read_unlock();
 		di_args->path[sizeof(di_args->path) - 1] = 0;
 	} else {
 		di_args->path[0] = '\0';
 	}
 
 out:
-	mutex_unlock(&fs_devices->device_list_mutex);
+	rcu_read_unlock();
 	if (ret == 0 && copy_to_user(arg, di_args, sizeof(*di_args)))
 		ret = -EFAULT;
 
