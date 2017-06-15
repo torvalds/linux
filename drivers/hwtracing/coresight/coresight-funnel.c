@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, 2017, The Linux Foundation. All rights reserved.
  *
  * Description: CoreSight Funnel driver
  */
@@ -19,6 +19,7 @@
 #include <linux/coresight.h>
 #include <linux/amba/bus.h>
 #include <linux/clk.h>
+#include <linux/of_address.h>
 
 #include "coresight-priv.h"
 
@@ -205,13 +206,38 @@ static struct attribute *coresight_funnel_attrs[] = {
 };
 ATTRIBUTE_GROUPS(coresight_funnel);
 
+static int funnel_get_resource_byname(struct device_node *np,
+				   char *ch_base, struct resource *res)
+{
+	const char *name = NULL;
+	int index = 0, found = 0;
+
+	while (!of_property_read_string_index(np, "reg-names", index, &name)) {
+		if (strcmp(ch_base, name)) {
+			index++;
+			continue;
+		}
+
+		/* We have a match and @index is where it's at */
+		found = 1;
+		break;
+	}
+
+	if (!found)
+		return -EINVAL;
+
+	return of_address_to_resource(np, index, res);
+}
+
 static int funnel_probe(struct device *dev, struct resource *res)
 {
 	int ret;
 	void __iomem *base;
 	struct coresight_platform_data *pdata = NULL;
 	struct funnel_drvdata *drvdata;
+	struct resource res_real;
 	struct coresight_desc desc = { 0 };
+	struct device_node *np = dev->of_node;
 
 	if (is_of_node(dev_fwnode(dev)) &&
 	    of_device_is_compatible(dev->of_node, "arm,coresight-funnel"))
@@ -232,11 +258,25 @@ static int funnel_probe(struct device *dev, struct resource *res)
 			return ret;
 	}
 
-	/*
-	 * Map the device base for dynamic-funnel, which has been
-	 * validated by AMBA core.
-	 */
-	if (res) {
+	if (of_property_read_bool(np, "qcom,duplicate-funnel")) {
+		ret = funnel_get_resource_byname(np, "funnel-base-real",
+						 &res_real);
+		if (ret)
+			return ret;
+
+		res = &res_real;
+		base = devm_ioremap(dev, res->start, resource_size(res));
+		if (IS_ERR(base)) {
+			ret = PTR_ERR(base);
+			goto out_disable_clk;
+		}
+		drvdata->base = base;
+		desc.groups = coresight_funnel_groups;
+	} else if (res) {
+		/*
+		 * Map the device base for dynamic-funnel, which has been
+		 * validated by AMBA core.
+		 */
 		base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(base)) {
 			ret = PTR_ERR(base);
