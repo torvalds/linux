@@ -601,6 +601,7 @@ static int cpcap_charger_probe(struct platform_device *pdev)
 {
 	struct cpcap_charger_ddata *ddata;
 	const struct of_device_id *of_id;
+	struct power_supply_config psy_cfg = {};
 	int error;
 
 	of_id = of_match_device(of_match_ptr(cpcap_charger_id_table),
@@ -629,9 +630,12 @@ static int cpcap_charger_probe(struct platform_device *pdev)
 
 	atomic_set(&ddata->active, 1);
 
+	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.drv_data = ddata;
+
 	ddata->usb = devm_power_supply_register(ddata->dev,
 						&cpcap_charger_usb_desc,
-						NULL);
+						&psy_cfg);
 	if (IS_ERR(ddata->usb)) {
 		error = PTR_ERR(ddata->usb);
 		dev_err(ddata->dev, "failed to register USB charger: %i\n",
