@@ -383,6 +383,7 @@ static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 		atomic_set(&rx_pool->available, 0);
 		rx_pool->next_alloc = 0;
 		rx_pool->next_free = 0;
+		rx_pool->active = 1;
 	}
 
 	return 0;
@@ -885,7 +886,13 @@ static int __ibmvnic_close(struct net_device *netdev)
 	int i;
 
 	adapter->state = VNIC_CLOSING;
-	netif_tx_stop_all_queues(netdev);
+
+	/* ensure that transmissions are stopped if called by do_reset */
+	if (adapter->resetting)
+		netif_tx_disable(netdev);
+	else
+		netif_tx_stop_all_queues(netdev);
+
 	ibmvnic_napi_disable(adapter);
 
 	if (adapter->tx_scrq) {
@@ -1498,9 +1505,6 @@ static int ibmvnic_poll(struct napi_struct *napi, int budget)
 	int scrq_num = (int)(napi - adapter->napi);
 	int frames_processed = 0;
 
-	if (adapter->resetting)
-		return 0;
-
 restart_poll:
 	while (frames_processed < budget) {
 		struct sk_buff *skb;
@@ -1509,6 +1513,12 @@ restart_poll:
 		u32 length;
 		u16 offset;
 		u8 flags = 0;
+
+		if (unlikely(adapter->resetting)) {
+			enable_scrq_irq(adapter, adapter->rx_scrq[scrq_num]);
+			napi_complete_done(napi, frames_processed);
+			return frames_processed;
+		}
 
 		if (!pending_scrq(adapter, adapter->rx_scrq[scrq_num]))
 			break;
@@ -1745,7 +1755,7 @@ static int reset_one_sub_crq_queue(struct ibmvnic_adapter *adapter,
 		scrq->irq = 0;
 	}
 
-	memset(scrq->msgs, 0, 2 * PAGE_SIZE);
+	memset(scrq->msgs, 0, 4 * PAGE_SIZE);
 	scrq->cur = 0;
 
 	rc = h_reg_sub_crq(adapter->vdev->unit_address, scrq->msg_token,
@@ -2268,8 +2278,7 @@ static int pending_scrq(struct ibmvnic_adapter *adapter,
 {
 	union sub_crq *entry = &scrq->msgs[scrq->cur];
 
-	if (entry->generic.first & IBMVNIC_CRQ_CMD_RSP ||
-	    adapter->state == VNIC_CLOSING)
+	if (entry->generic.first & IBMVNIC_CRQ_CMD_RSP)
 		return 1;
 	else
 		return 0;
