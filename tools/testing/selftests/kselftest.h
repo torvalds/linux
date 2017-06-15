@@ -104,9 +104,12 @@ static inline int ksft_exit_xpass(void)
 	exit(KSFT_XPASS);
 }
 
-static inline int ksft_exit_skip(void)
+static inline int ksft_exit_skip(const char *msg)
 {
-	ksft_print_cnts();
+	if (msg)
+		printf("1..%d # Skipped: %s\n", ksft_test_num(), msg);
+	else
+		ksft_print_cnts();
 	exit(KSFT_SKIP);
 }
 
