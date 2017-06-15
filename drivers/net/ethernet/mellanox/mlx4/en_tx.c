@@ -234,23 +234,24 @@ static void mlx4_en_stamp_wqe(struct mlx4_en_priv *priv,
 			      u8 owner)
 {
 	__be32 stamp = cpu_to_be32(STAMP_VAL | (!!owner << STAMP_SHIFT));
-	struct mlx4_en_tx_desc *tx_desc = ring->buf + index * TXBB_SIZE;
+	struct mlx4_en_tx_desc *tx_desc = ring->buf + (index << LOG_TXBB_SIZE);
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
 	void *end = ring->buf + ring->buf_size;
 	__be32 *ptr = (__be32 *)tx_desc;
 	int i;
 
 	/* Optimize the common case when there are no wraparounds */
-	if (likely((void *)tx_desc + tx_info->nr_txbb * TXBB_SIZE <= end)) {
+	if (likely((void *)tx_desc +
+		   (tx_info->nr_txbb << LOG_TXBB_SIZE) <= end)) {
 		/* Stamp the freed descriptor */
-		for (i = 0; i < tx_info->nr_txbb * TXBB_SIZE;
+		for (i = 0; i < tx_info->nr_txbb << LOG_TXBB_SIZE;
 		     i += STAMP_STRIDE) {
 			*ptr = stamp;
 			ptr += STAMP_DWORDS;
 		}
 	} else {
 		/* Stamp the freed descriptor */
-		for (i = 0; i < tx_info->nr_txbb * TXBB_SIZE;
+		for (i = 0; i < tx_info->nr_txbb << LOG_TXBB_SIZE;
 		     i += STAMP_STRIDE) {
 			*ptr = stamp;
 			ptr += STAMP_DWORDS;
@@ -269,7 +270,7 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			 int napi_mode)
 {
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
-	struct mlx4_en_tx_desc *tx_desc = ring->buf + index * TXBB_SIZE;
+	struct mlx4_en_tx_desc *tx_desc = ring->buf + (index << LOG_TXBB_SIZE);
 	struct mlx4_wqe_data_seg *data = (void *) tx_desc + tx_info->data_offset;
 	void *end = ring->buf + ring->buf_size;
 	struct sk_buff *skb = tx_info->skb;
@@ -289,7 +290,8 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	}
 
 	/* Optimize the common case when there are no wraparounds */
-	if (likely((void *) tx_desc + tx_info->nr_txbb * TXBB_SIZE <= end)) {
+	if (likely((void *)tx_desc +
+		   (tx_info->nr_txbb << LOG_TXBB_SIZE) <= end)) {
 		if (!tx_info->inl) {
 			if (tx_info->linear)
 				dma_unmap_single(priv->ddev,
@@ -542,7 +544,7 @@ static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
 						      u32 index,
 						      unsigned int desc_size)
 {
-	u32 copy = (ring->size - index) * TXBB_SIZE;
+	u32 copy = (ring->size - index) << LOG_TXBB_SIZE;
 	int i;
 
 	for (i = desc_size - copy - 4; i >= 0; i -= 4) {
@@ -557,12 +559,12 @@ static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
 		if ((i & (TXBB_SIZE - 1)) == 0)
 			wmb();
 
-		*((u32 *) (ring->buf + index * TXBB_SIZE + i)) =
+		*((u32 *)(ring->buf + (index << LOG_TXBB_SIZE) + i)) =
 			*((u32 *) (ring->bounce_buf + i));
 	}
 
 	/* Return real descriptor location */
-	return ring->buf + index * TXBB_SIZE;
+	return ring->buf + (index << LOG_TXBB_SIZE);
 }
 
 /* Decide if skb can be inlined in tx descriptor to avoid dma mapping
@@ -881,7 +883,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Align descriptor to TXBB size */
 	desc_size = ALIGN(real_size, TXBB_SIZE);
-	nr_txbb = desc_size / TXBB_SIZE;
+	nr_txbb = desc_size >> LOG_TXBB_SIZE;
 	if (unlikely(nr_txbb > MAX_DESC_TXBBS)) {
 		if (netif_msg_tx_err(priv))
 			en_warn(priv, "Oversized header or SG list\n");
@@ -916,7 +918,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* See if we have enough space for whole descriptor TXBB for setting
 	 * SW ownership on next descriptor; if not, use a bounce buffer. */
 	if (likely(index + nr_txbb <= ring->size))
-		tx_desc = ring->buf + index * TXBB_SIZE;
+		tx_desc = ring->buf + (index << LOG_TXBB_SIZE);
 	else {
 		tx_desc = (struct mlx4_en_tx_desc *) ring->bounce_buf;
 		bounce = true;
@@ -1129,7 +1131,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
 			 (u32)(ring->prod - READ_ONCE(ring->cons) - 1));
 
-	tx_desc = ring->buf + index * TXBB_SIZE;
+	tx_desc = ring->buf + (index << LOG_TXBB_SIZE);
 	data = &tx_desc->data;
 
 	dma = frame->dma;
