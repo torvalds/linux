@@ -1383,7 +1383,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	entry.state = GLOBAL_ATU_DATA_STATE_UNUSED;
+	entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
 	ether_addr_copy(entry.mac, addr);
 	eth_addr_dec(entry.mac);
 
@@ -1392,17 +1392,17 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	/* Initialize a fresh ATU entry if it isn't found */
-	if (entry.state == GLOBAL_ATU_DATA_STATE_UNUSED ||
+	if (entry.state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED ||
 	    !ether_addr_equal(entry.mac, addr)) {
 		memset(&entry, 0, sizeof(entry));
 		ether_addr_copy(entry.mac, addr);
 	}
 
 	/* Purge the ATU entry only if no port is using it anymore */
-	if (state == GLOBAL_ATU_DATA_STATE_UNUSED) {
+	if (state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
 		entry.portvec &= ~BIT(port);
 		if (!entry.portvec)
-			entry.state = GLOBAL_ATU_DATA_STATE_UNUSED;
+			entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
 	} else {
 		entry.portvec |= BIT(port);
 		entry.state = state;
@@ -1429,7 +1429,7 @@ static void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 	if (mv88e6xxx_port_db_load_purge(chip, port, fdb->addr, fdb->vid,
-					 GLOBAL_ATU_DATA_STATE_UC_STATIC))
+					 MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC))
 		dev_err(ds->dev, "p%d: failed to load unicast MAC address\n",
 			port);
 	mutex_unlock(&chip->reg_lock);
@@ -1443,7 +1443,7 @@ static int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 	err = mv88e6xxx_port_db_load_purge(chip, port, fdb->addr, fdb->vid,
-					   GLOBAL_ATU_DATA_STATE_UNUSED);
+					   MV88E6XXX_G1_ATU_DATA_STATE_UNUSED);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
@@ -1457,7 +1457,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 	struct mv88e6xxx_atu_entry addr;
 	int err;
 
-	addr.state = GLOBAL_ATU_DATA_STATE_UNUSED;
+	addr.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
 	eth_broadcast_addr(addr.mac);
 
 	do {
@@ -1465,7 +1465,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 		if (err)
 			return err;
 
-		if (addr.state == GLOBAL_ATU_DATA_STATE_UNUSED)
+		if (addr.state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED)
 			break;
 
 		if (addr.trunk || (addr.portvec & BIT(port)) == 0)
@@ -1480,7 +1480,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 			fdb = SWITCHDEV_OBJ_PORT_FDB(obj);
 			fdb->vid = vid;
 			ether_addr_copy(fdb->addr, addr.mac);
-			if (addr.state == GLOBAL_ATU_DATA_STATE_UC_STATIC)
+			if (addr.state == MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC)
 				fdb->ndm_state = NUD_NOARP;
 			else
 				fdb->ndm_state = NUD_REACHABLE;
@@ -3755,7 +3755,7 @@ static void mv88e6xxx_port_mdb_add(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 	if (mv88e6xxx_port_db_load_purge(chip, port, mdb->addr, mdb->vid,
-					 GLOBAL_ATU_DATA_STATE_MC_STATIC))
+					 MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC))
 		dev_err(ds->dev, "p%d: failed to load multicast MAC address\n",
 			port);
 	mutex_unlock(&chip->reg_lock);
@@ -3769,7 +3769,7 @@ static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 	err = mv88e6xxx_port_db_load_purge(chip, port, mdb->addr, mdb->vid,
-					   GLOBAL_ATU_DATA_STATE_UNUSED);
+					   MV88E6XXX_G1_ATU_DATA_STATE_UNUSED);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
