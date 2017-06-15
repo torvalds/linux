@@ -84,7 +84,7 @@ void safexcel_ring_rollback_wptr(struct safexcel_crypto_priv *priv,
 		return;
 
 	if (ring->write == ring->base)
-		ring->write += (EIP197_DEFAULT_RING_SIZE - 1) * ring->offset;
+		ring->write = ring->base_end - ring->offset;
 	else
 		ring->write -= ring->offset;
 
