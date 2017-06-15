@@ -30,8 +30,7 @@ struct graph_card_data {
 	struct snd_soc_codec_conf codec_conf;
 	struct asoc_simple_dai *dai_props;
 	struct snd_soc_dai_link *dai_link;
-	u32 convert_rate;
-	u32 convert_channels;
+	struct asoc_simple_card_data adata;
 };
 
 #define graph_priv_to_card(priv) (&(priv)->snd_card)
@@ -83,18 +82,8 @@ static int asoc_graph_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					       struct snd_pcm_hw_params *params)
 {
 	struct graph_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_interval *rate = hw_param_interval(params,
-						      SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_interval *channels = hw_param_interval(params,
-							  SNDRV_PCM_HW_PARAM_CHANNELS);
 
-	if (priv->convert_rate)
-		rate->min =
-		rate->max = priv->convert_rate;
-
-	if (priv->convert_channels)
-		channels->min =
-		channels->max = priv->convert_channels;
+	asoc_simple_card_convert_fixup(&priv->adata, params);
 
 	return 0;
 }
@@ -210,11 +199,7 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	if (ret)
 		return ret;
 
-	/* sampling rate convert */
-	of_property_read_u32(node, "convert-rate", &priv->convert_rate);
-
-	/* channels transfer */
-	of_property_read_u32(node, "convert-channels", &priv->convert_channels);
+	asoc_simple_card_parse_convert(dev, NULL, &priv->adata);
 
 	/*
 	 * it supports multi CPU, single CODEC only here
@@ -285,9 +270,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	ret = asoc_simple_card_parse_card_name(card, NULL);
 	if (ret)
 		goto parse_of_err;
-
-	dev_dbg(dev, "convert_rate     %d\n", priv->convert_rate);
-	dev_dbg(dev, "convert_channels %d\n", priv->convert_channels);
 
 	ret = 0;
 
