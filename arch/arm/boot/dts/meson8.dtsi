@@ -83,6 +83,33 @@
 			reg = <0x203>;
 		};
 	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* 2 MiB reserved for Hardware ROM Firmware? */
+		hwrom@0 {
+			reg = <0x0 0x200000>;
+			no-map;
+		};
+
+		/*
+		 * 1 MiB reserved for the "ARM Power Firmware": this is ARM
+		 * code which is responsible for system suspend. It loads a
+		 * piece of ARC code ("arc_power" in the vendor u-boot tree)
+		 * into SRAM, executes that and shuts down the (last) ARM core.
+		 * The arc_power firmware then checks various wakeup sources
+		 * (IR remote receiver, HDMI CEC, WIFI and Bluetooth wakeup or
+		 * simply the power key) and re-starts the ARM core once it
+		 * detects a wakeup request.
+		 */
+		power-firmware@4f00000 {
+			reg = <0x4f00000 0x100000>;
+			no-map;
+		};
+	};
 }; /* end of / */
 
 &aobus {
