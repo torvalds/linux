@@ -410,6 +410,7 @@ xlog_cil_insert_items(
 	int			len = 0;
 	int			diff_iovecs = 0;
 	int			iclog_space;
+	int			iovhdr_res = 0, split_res = 0, ctx_res = 0;
 
 	ASSERT(tp);
 
@@ -419,12 +420,50 @@ xlog_cil_insert_items(
 	 */
 	xlog_cil_insert_format_items(log, tp, &len, &diff_iovecs);
 
+	spin_lock(&cil->xc_cil_lock);
+
+	/* account for space used by new iovec headers  */
+	iovhdr_res = diff_iovecs * sizeof(xlog_op_header_t);
+	len += iovhdr_res;
+	ctx->nvecs += diff_iovecs;
+
+	/* attach the transaction to the CIL if it has any busy extents */
+	if (!list_empty(&tp->t_busy))
+		list_splice_init(&tp->t_busy, &ctx->busy_extents);
+
+	/*
+	 * Now transfer enough transaction reservation to the context ticket
+	 * for the checkpoint. The context ticket is special - the unit
+	 * reservation has to grow as well as the current reservation as we
+	 * steal from tickets so we can correctly determine the space used
+	 * during the transaction commit.
+	 */
+	if (ctx->ticket->t_curr_res == 0) {
+		ctx_res = ctx->ticket->t_unit_res;
+		ctx->ticket->t_curr_res = ctx_res;
+		tp->t_ticket->t_curr_res -= ctx_res;
+	}
+
+	/* do we need space for more log record headers? */
+	iclog_space = log->l_iclog_size - log->l_iclog_hsize;
+	if (len > 0 && (ctx->space_used / iclog_space !=
+				(ctx->space_used + len) / iclog_space)) {
+		split_res = (len + iclog_space - 1) / iclog_space;
+		/* need to take into account split region headers, too */
+		split_res *= log->l_iclog_hsize + sizeof(struct xlog_op_header);
+		ctx->ticket->t_unit_res += split_res;
+		ctx->ticket->t_curr_res += split_res;
+		tp->t_ticket->t_curr_res -= split_res;
+		ASSERT(tp->t_ticket->t_curr_res >= len);
+	}
+	tp->t_ticket->t_curr_res -= len;
+	ctx->space_used += len;
+
 	/*
 	 * Now (re-)position everything modified at the tail of the CIL.
 	 * We do this here so we only need to take the CIL lock once during
 	 * the transaction commit.
 	 */
-	spin_lock(&cil->xc_cil_lock);
 	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		struct xfs_log_item	*lip = lidp->lid_item;
 
@@ -440,43 +479,6 @@ xlog_cil_insert_items(
 		if (!list_is_last(&lip->li_cil, &cil->xc_cil))
 			list_move_tail(&lip->li_cil, &cil->xc_cil);
 	}
-
-	/* account for space used by new iovec headers  */
-	len += diff_iovecs * sizeof(xlog_op_header_t);
-	ctx->nvecs += diff_iovecs;
-
-	/* attach the transaction to the CIL if it has any busy extents */
-	if (!list_empty(&tp->t_busy))
-		list_splice_init(&tp->t_busy, &ctx->busy_extents);
-
-	/*
-	 * Now transfer enough transaction reservation to the context ticket
-	 * for the checkpoint. The context ticket is special - the unit
-	 * reservation has to grow as well as the current reservation as we
-	 * steal from tickets so we can correctly determine the space used
-	 * during the transaction commit.
-	 */
-	if (ctx->ticket->t_curr_res == 0) {
-		ctx->ticket->t_curr_res = ctx->ticket->t_unit_res;
-		tp->t_ticket->t_curr_res -= ctx->ticket->t_unit_res;
-	}
-
-	/* do we need space for more log record headers? */
-	iclog_space = log->l_iclog_size - log->l_iclog_hsize;
-	if (len > 0 && (ctx->space_used / iclog_space !=
-				(ctx->space_used + len) / iclog_space)) {
-		int hdrs;
-
-		hdrs = (len + iclog_space - 1) / iclog_space;
-		/* need to take into account split region headers, too */
-		hdrs *= log->l_iclog_hsize + sizeof(struct xlog_op_header);
-		ctx->ticket->t_unit_res += hdrs;
-		ctx->ticket->t_curr_res += hdrs;
-		tp->t_ticket->t_curr_res -= hdrs;
-		ASSERT(tp->t_ticket->t_curr_res >= len);
-	}
-	tp->t_ticket->t_curr_res -= len;
-	ctx->space_used += len;
 
 	spin_unlock(&cil->xc_cil_lock);
 }
