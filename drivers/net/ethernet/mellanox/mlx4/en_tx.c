@@ -265,7 +265,7 @@ static void mlx4_en_stamp_wqe(struct mlx4_en_priv *priv,
 
 u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			 struct mlx4_en_tx_ring *ring,
-			 int index, u8 owner, u64 timestamp,
+			 int index, u64 timestamp,
 			 int napi_mode)
 {
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
@@ -344,7 +344,7 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 
 u32 mlx4_en_recycle_tx_desc(struct mlx4_en_priv *priv,
 			    struct mlx4_en_tx_ring *ring,
-			    int index, u8 owner, u64 timestamp,
+			    int index, u64 timestamp,
 			    int napi_mode)
 {
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
@@ -381,8 +381,7 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	while (ring->cons != ring->prod) {
 		ring->last_nr_txbb = ring->free_tx_desc(priv, ring,
 						ring->cons & ring->size_mask,
-						!!(ring->cons & ring->size), 0,
-						0 /* Non-NAPI caller */);
+						0, 0 /* Non-NAPI caller */);
 		ring->cons += ring->last_nr_txbb;
 		cnt++;
 	}
@@ -464,8 +463,7 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 			/* free next descriptor */
 			last_nr_txbb = ring->free_tx_desc(
 					priv, ring, ring_index,
-					!!((ring_cons + txbbs_skipped) &
-					ring->size), timestamp, napi_budget);
+					timestamp, napi_budget);
 
 			mlx4_en_stamp_wqe(priv, ring, stamp_index,
 					  !!((ring_cons + txbbs_stamp) &
