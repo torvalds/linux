@@ -259,6 +259,36 @@ enum tile_mode_values {
 	DC_ADDR_SURF_MICRO_TILING_NON_DISPLAY = 0x1,
 };
 
+#if defined (CONFIG_DRM_AMD_DC_DCE12_0)
+enum swizzle_mode_values {
+	DC_SW_LINEAR = 0,
+	DC_SW_256B_S = 1,
+	DC_SW_256_D = 2,
+	DC_SW_256_R = 3,
+	DC_SW_4KB_S = 5,
+	DC_SW_4KB_D = 6,
+	DC_SW_4KB_R = 7,
+	DC_SW_64KB_S = 9,
+	DC_SW_64KB_D = 10,
+	DC_SW_64KB_R = 11,
+	DC_SW_VAR_S = 13,
+	DC_SW_VAR_D = 14,
+	DC_SW_VAR_R = 15,
+	DC_SW_64KB_S_T = 17,
+	DC_SW_64KB_D_T = 18,
+	DC_SW_4KB_S_X = 21,
+	DC_SW_4KB_D_X = 22,
+	DC_SW_4KB_R_X = 23,
+	DC_SW_64KB_S_X = 25,
+	DC_SW_64KB_D_X = 26,
+	DC_SW_64KB_R_X = 27,
+	DC_SW_VAR_S_X = 29,
+	DC_SW_VAR_D_X = 30,
+	DC_SW_VAR_R_X = 31,
+	DC_SW_MAX
+};
+#endif
+
 union dc_tiling_info {
 
 	struct {
@@ -323,6 +353,22 @@ union dc_tiling_info {
 		enum array_mode_values array_mode;
 	} gfx8;
 
+#if defined (CONFIG_DRM_AMD_DC_DCE12_0)
+	struct {
+		unsigned int num_pipes;
+		unsigned int num_banks;
+		unsigned int pipe_interleave;
+		unsigned int num_shader_engines;
+		unsigned int num_rb_per_se;
+		unsigned int max_compressed_frags;
+		bool shaderEnable;
+
+		enum swizzle_mode_values swizzle;
+		bool meta_linear;
+		bool rb_aligned;
+		bool pipe_aligned;
+	} gfx9;
+#endif
 };
 
 /* Rotation angle */

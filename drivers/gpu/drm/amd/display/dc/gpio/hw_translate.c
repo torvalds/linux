@@ -42,7 +42,9 @@
 
 #include "dce80/hw_translate_dce80.h"
 #include "dce110/hw_translate_dce110.h"
-
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+#include "dce120/hw_translate_dce120.h"
+#endif
 #include "diagnostics/hw_translate_diag.h"
 
 /*
@@ -68,6 +70,11 @@ bool dal_hw_translate_init(
 	case DCE_VERSION_11_2:
 		dal_hw_translate_dce110_init(translate);
 		return true;
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	case DCE_VERSION_12_0:
+		dal_hw_translate_dce120_init(translate);
+		return true;
+#endif
 	default:
 		BREAK_TO_DEBUGGER();
 		return false;

@@ -1815,3 +1815,32 @@ void dc_link_remove_remote_sink(const struct dc_link *link, const struct dc_sink
 	}
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+bool dc_init_dchub(struct dc *dc, struct dchub_init_data *dh_data)
+{
+	int i;
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct mem_input *mi = NULL;
+
+	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+		if (core_dc->res_pool->mis[i] != NULL) {
+			mi = core_dc->res_pool->mis[i];
+			break;
+		}
+	}
+	if (mi == NULL) {
+		dm_error("no mem_input!\n");
+		return false;
+	}
+
+	if (mi->funcs->mem_input_update_dchub)
+		mi->funcs->mem_input_update_dchub(mi, dh_data);
+	else
+		ASSERT(mi->funcs->mem_input_update_dchub);
+
+
+	return true;
+
+}
+#endif
+

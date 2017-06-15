@@ -187,6 +187,20 @@ static void program_nbp_watermark(struct mem_input *mi,
 		REG_UPDATE(DPG_PIPE_NB_PSTATE_CHANGE_CONTROL,
 				NB_PSTATE_CHANGE_WATERMARK, nbp_wm);
 	}
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	if (REG(DPG_PIPE_LOW_POWER_CONTROL)) {
+		REG_UPDATE(DPG_WATERMARK_MASK_CONTROL,
+				PSTATE_CHANGE_WATERMARK_MASK, wm_select);
+
+		REG_UPDATE_3(DPG_PIPE_LOW_POWER_CONTROL,
+				PSTATE_CHANGE_ENABLE, 1,
+				PSTATE_CHANGE_URGENT_DURING_REQUEST, 1,
+				PSTATE_CHANGE_NOT_SELF_REFRESH_DURING_REQUEST, 1);
+
+		REG_UPDATE(DPG_PIPE_LOW_POWER_CONTROL,
+				PSTATE_CHANGE_WATERMARK, nbp_wm);
+	}
+#endif
 }
 
 static void program_stutter_watermark(struct mem_input *mi,
@@ -196,6 +210,12 @@ static void program_stutter_watermark(struct mem_input *mi,
 	REG_UPDATE(DPG_WATERMARK_MASK_CONTROL,
 		STUTTER_EXIT_SELF_REFRESH_WATERMARK_MASK, wm_select);
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	if (REG(DPG_PIPE_STUTTER_CONTROL2))
+		REG_UPDATE(DPG_PIPE_STUTTER_CONTROL2,
+				STUTTER_EXIT_SELF_REFRESH_WATERMARK, stutter_mark);
+	else
+#endif
 		REG_UPDATE(DPG_PIPE_STUTTER_CONTROL,
 				STUTTER_EXIT_SELF_REFRESH_WATERMARK, stutter_mark);
 }
@@ -234,6 +254,21 @@ void dce_mem_input_program_display_marks(struct mem_input *mi,
 static void program_tiling(struct mem_input *mi,
 	const union dc_tiling_info *info)
 {
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	if (mi->masks->GRPH_SW_MODE) { /* GFX9 */
+		REG_UPDATE_6(GRPH_CONTROL,
+				GRPH_SW_MODE, info->gfx9.swizzle,
+				GRPH_NUM_BANKS, log_2(info->gfx9.num_banks),
+				GRPH_NUM_SHADER_ENGINES, log_2(info->gfx9.num_shader_engines),
+				GRPH_NUM_PIPES, log_2(info->gfx9.num_pipes),
+				GRPH_COLOR_EXPANSION_MODE, 1,
+				GRPH_SE_ENABLE, info->gfx9.shaderEnable);
+		/* TODO: DCP0_GRPH_CONTROL__GRPH_SE_ENABLE where to get info
+		GRPH_SE_ENABLE, 1,
+		GRPH_Z, 0);
+		 */
+	}
+#endif
 	if (mi->masks->GRPH_ARRAY_MODE) { /* GFX8 */
 		REG_UPDATE_9(GRPH_CONTROL,
 				GRPH_NUM_BANKS, info->gfx8.num_banks,

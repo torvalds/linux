@@ -402,6 +402,16 @@ bool dm_pp_notify_wm_clock_changes(
 	return false;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+bool dm_pp_notify_wm_clock_changes_soc15(
+	const struct dc_context *ctx,
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+{
+	/* TODO: to be implemented */
+	return false;
+}
+#endif
+
 bool dm_pp_apply_power_level_change_request(
 	const struct dc_context *ctx,
 	struct dm_pp_power_level_change_request *level_change_req)

@@ -100,6 +100,10 @@ struct mem_input_funcs {
 
 	bool (*mem_input_is_flip_pending)(struct mem_input *mem_input);
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	void (*mem_input_update_dchub)(struct mem_input *mem_input,
+			struct dchub_init_data *dh_data);
+#endif
 };
 
 #endif

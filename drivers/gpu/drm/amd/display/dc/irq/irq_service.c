@@ -33,6 +33,9 @@
 
 #include "dce80/irq_service_dce80.h"
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+#include "dce120/irq_service_dce120.h"
+#endif
 
 #include "reg_helper.h"
 #include "irq_service.h"

@@ -31,6 +31,13 @@
 #define TO_DCE110_LINK_ENC(link_encoder)\
 	container_of(link_encoder, struct dce110_link_encoder, base)
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+/* Not found regs in dce120 spec
+ * BIOS_SCRATCH_2
+ * DP_DPHY_INTERNAL_CTRL
+ */
+#endif
+
 #define AUX_REG_LIST(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \
 	SRI(AUX_DPHY_RX_CONTROL0, DP_AUX, id)
@@ -78,6 +85,13 @@
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
 	SR(DCI_MEM_PWR_STATUS)
+
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	#define LE_DCE120_REG_LIST(id)\
+		LE_COMMON_REG_LIST_BASE(id), \
+		SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
+		SR(DCI_MEM_PWR_STATUS)
+#endif
 
 	#define LE_DCE80_REG_LIST(id)\
 		SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \

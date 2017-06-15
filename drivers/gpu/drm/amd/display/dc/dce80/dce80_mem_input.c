@@ -54,6 +54,9 @@ static struct mem_input_funcs dce80_mem_input_funcs = {
 			dce_mem_input_program_surface_config,
 	.mem_input_is_flip_pending =
 			dce110_mem_input_is_flip_pending,
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	.mem_input_update_dchub = NULL
+#endif
 };
 
 /*****************************************/

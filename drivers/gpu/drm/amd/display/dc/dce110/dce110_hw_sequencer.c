@@ -1396,9 +1396,12 @@ static uint32_t get_max_pixel_clock_for_all_paths(
 	return max_pix_clk;
 }
 
-/*
- * Find clock state based on clock requested. if clock value is 0, simply
+/* Find clock state based on clock requested. if clock value is 0, simply
  * set clock state as requested without finding clock state by clock value
+ *TODO: when dce120_hw_sequencer.c is created, override apply_min_clock.
+ *
+ * TODOFPGA  remove TODO after implement dal_display_clock_get_cur_clocks_value
+ * etc support for dcn1.0
  */
 static void apply_min_clocks(
 	struct core_dc *dc,
@@ -1425,6 +1428,30 @@ static void apply_min_clocks(
 		}
 
 		/* TODOFPGA */
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+		/* TODO: This is incorrect. Figure out how to fix. */
+		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
+				pipe_ctx->dis_clk,
+				DM_PP_CLOCK_TYPE_DISPLAY_CLK,
+				pipe_ctx->dis_clk->cur_clocks_value.dispclk_in_khz,
+				pre_mode_set,
+				false);
+
+		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
+				pipe_ctx->dis_clk,
+				DM_PP_CLOCK_TYPE_PIXELCLK,
+				pipe_ctx->dis_clk->cur_clocks_value.max_pixelclk_in_khz,
+				pre_mode_set,
+				false);
+
+		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
+				pipe_ctx->dis_clk,
+				DM_PP_CLOCK_TYPE_DISPLAYPHYCLK,
+				pipe_ctx->dis_clk->cur_clocks_value.max_non_dp_phyclk_in_khz,
+				pre_mode_set,
+				false);
+		return;
+#endif
 	}
 
 	/* get the required state based on state dependent clocks:
@@ -1441,6 +1468,28 @@ static void apply_min_clocks(
 		pipe_ctx->dis_clk->funcs->set_min_clocks_state(
 			pipe_ctx->dis_clk, *clocks_state);
 	} else {
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
+				pipe_ctx->dis_clk,
+				DM_PP_CLOCK_TYPE_DISPLAY_CLK,
+				req_clocks.display_clk_khz,
+				pre_mode_set,
+				false);
+
+		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
+				pipe_ctx->dis_clk,
+				DM_PP_CLOCK_TYPE_PIXELCLK,
+				req_clocks.pixel_clk_khz,
+				pre_mode_set,
+				false);
+
+		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
+				pipe_ctx->dis_clk,
+				DM_PP_CLOCK_TYPE_DISPLAYPHYCLK,
+				req_clocks.pixel_clk_khz,
+				pre_mode_set,
+				false);
+#endif
 	}
 }
 

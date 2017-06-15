@@ -1984,8 +1984,12 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_STONEY:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 	case CHIP_TONGA:
 	case CHIP_FIJI:
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	case CHIP_VEGA10:
+#endif
 #if defined(CONFIG_DRM_AMD_DC_PRE_VEGA)
 		return amdgpu_dc != 0;
 #else

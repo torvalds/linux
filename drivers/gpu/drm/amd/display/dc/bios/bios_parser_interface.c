@@ -29,6 +29,10 @@
 #include "bios_parser_interface.h"
 #include "bios_parser.h"
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+#include "bios_parser2.h"
+#endif
+
 
 struct dc_bios *dal_bios_parser_create(
 	struct bp_init_data *init,
@@ -36,7 +40,17 @@ struct dc_bios *dal_bios_parser_create(
 {
 	struct dc_bios *bios = NULL;
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	bios = firmware_parser_create(init, dce_version);
+
+	if (bios == NULL)
+		/* TODO: remove dce_version from bios_parser.
+		 * cannot remove today because dal enum to bp enum translation is dce specific
+		 */
+		bios = bios_parser_create(init, dce_version);
+#else
 	bios = bios_parser_create(init, dce_version);
+#endif
 
 	return bios;
 }

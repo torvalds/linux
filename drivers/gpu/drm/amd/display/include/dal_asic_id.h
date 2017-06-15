@@ -123,6 +123,10 @@
 #define FAMILY_VI 130 /* Volcanic Islands: Iceland (V), Tonga (M) */
 #define FAMILY_CZ 135 /* Carrizo */
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+#define FAMILY_AI 141
+#endif
+
 #define	FAMILY_UNKNOWN 0xFF
 
 #endif /* __DAL_ASIC_ID_H__ */

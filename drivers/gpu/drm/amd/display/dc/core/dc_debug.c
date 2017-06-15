@@ -141,6 +141,12 @@ void pre_surface_trace(
 				surface->format,
 				surface->rotation,
 				surface->stereo_format);
+
+#if defined (CONFIG_DRM_AMD_DC_DCE12_0)
+		SURFACE_TRACE("surface->tiling_info.gfx9.swizzle = %d;\n",
+				surface->tiling_info.gfx9.swizzle);
+#endif
+
 		SURFACE_TRACE("\n");
 	}
 	SURFACE_TRACE("\n");
@@ -221,6 +227,11 @@ void update_surface_trace(
 					update->plane_info->tiling_info.gfx8.pipe_config,
 					update->plane_info->tiling_info.gfx8.array_mode,
 					update->plane_info->visible);
+
+			#if defined (CONFIG_DRM_AMD_DC_DCE12_0)
+					SURFACE_TRACE("surface->tiling_info.gfx9.swizzle = %d;\n",
+					update->plane_info->tiling_info.gfx9.swizzle);
+			#endif
 		}
 
 		if (update->scaling_info) {

@@ -192,6 +192,89 @@ unsigned int generic_reg_wait(const struct dc_context *ctx,
 	unsigned int delay_between_poll_us, unsigned int time_out_num_tries,
 	const char *func_name);
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+
+/* These macros need to be used with soc15 registers in order to retrieve
+ * the actual offset.
+ */
+#define REG_OFFSET(reg) (reg + DCE_BASE.instance[0].segment[reg##_BASE_IDX])
+#define REG_BIF_OFFSET(reg) (reg + NBIF_BASE.instance[0].segment[reg##_BASE_IDX])
+
+#define dm_write_reg_soc15(ctx, reg, inst_offset, value)	\
+		dm_write_reg_func(ctx, reg + DCE_BASE.instance[0].segment[reg##_BASE_IDX] + inst_offset, value, __func__)
+
+#define dm_read_reg_soc15(ctx, reg, inst_offset)	\
+		dm_read_reg_func(ctx, reg + DCE_BASE.instance[0].segment[reg##_BASE_IDX] + inst_offset, __func__)
+
+#define generic_reg_update_soc15(ctx, inst_offset, reg_name, n, ...)\
+		generic_reg_update_ex(ctx, DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] +  mm##reg_name + inst_offset, \
+		dm_read_reg_func(ctx, mm##reg_name + DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] + inst_offset, __func__), \
+		n, __VA_ARGS__)
+
+#define generic_reg_set_soc15(ctx, inst_offset, reg_name, n, ...)\
+		generic_reg_update_ex(ctx, DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] + mm##reg_name + inst_offset, 0, \
+		n, __VA_ARGS__)
+
+#define get_reg_field_value_soc15(reg_value, block, reg_num, reg_name, reg_field)\
+	get_reg_field_value_ex(\
+		(reg_value),\
+		block ## reg_num ## _ ## reg_name ## __ ## reg_field ## _MASK,\
+		block ## reg_num ## _ ## reg_name ## __ ## reg_field ## __SHIFT)
+
+#define set_reg_field_value_soc15(reg_value, value, block, reg_num, reg_name, reg_field)\
+	(reg_value) = set_reg_field_value_ex(\
+		(reg_value),\
+		(value),\
+		block ## reg_num ## _ ## reg_name ## __ ## reg_field ## _MASK,\
+		block ## reg_num ## _ ## reg_name ## __ ## reg_field ## __SHIFT)
+
+/* TODO get rid of this pos*/
+static inline bool wait_reg_func(
+	const struct dc_context *ctx,
+	uint32_t addr,
+	uint32_t mask,
+	uint8_t shift,
+	uint32_t condition_value,
+	unsigned int interval_us,
+	unsigned int timeout_us)
+{
+	uint32_t field_value;
+	uint32_t reg_val;
+	unsigned int count = 0;
+
+	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
+		timeout_us *= 655;  /* 6553 give about 30 second before time out */
+
+	do {
+		/* try once without sleeping */
+		if (count > 0) {
+			if (interval_us >= 1000)
+				msleep(interval_us/1000);
+			else
+				udelay(interval_us);
+		}
+		reg_val = dm_read_reg(ctx, addr);
+		field_value = get_reg_field_value_ex(reg_val, mask, shift);
+		count += interval_us;
+
+	} while (field_value != condition_value && count <= timeout_us);
+
+	ASSERT(count <= timeout_us);
+
+	return count <= timeout_us;
+}
+
+#define wait_reg(ctx, inst_offset, reg_name, reg_field, condition_value)\
+	wait_reg_func(\
+		ctx,\
+		mm##reg_name + inst_offset + DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX],\
+		reg_name ## __ ## reg_field ## _MASK,\
+		reg_name ## __ ## reg_field ## __SHIFT,\
+		condition_value,\
+		20000,\
+		200000)
+
+#endif
 /**************************************
  * Power Play (PP) interfaces
  **************************************/
@@ -253,6 +336,12 @@ bool dm_pp_get_clock_levels_by_type_with_voltage(
 bool dm_pp_notify_wm_clock_changes(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges *wm_with_clock_ranges);
+
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+bool dm_pp_notify_wm_clock_changes_soc15(
+	const struct dc_context *ctx,
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+#endif
 
 /* DAL calls this function to notify PP about completion of Mode Set.
  * For PP it means that current DCE clocks are those which were returned

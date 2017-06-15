@@ -29,6 +29,17 @@ AMD_DAL_GPIO_DCE110 = $(addprefix $(AMDDALPATH)/dc/gpio/dce110/,$(GPIO_DCE110))
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCE110)
 
 ###############################################################################
+# DCE 12x
+###############################################################################
+ifdef CONFIG_DRM_AMD_DC_DCE12_0
+GPIO_DCE120 = hw_translate_dce120.o hw_factory_dce120.o
+
+AMD_DAL_GPIO_DCE120 = $(addprefix $(AMDDALPATH)/dc/gpio/dce120/,$(GPIO_DCE120))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCE120)
+endif
+
+###############################################################################
 # Diagnostics on FPGA
 ###############################################################################
 GPIO_DIAG_FPGA = hw_translate_diag.o hw_factory_diag.o

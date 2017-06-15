@@ -55,6 +55,9 @@ struct dc_caps {
 struct dc_dcc_surface_param {
 	enum surface_pixel_format format;
 	struct dc_size surface_size;
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	enum swizzle_mode_values swizzle_mode;
+#endif
 	enum dc_scan_direction scan;
 };
 
@@ -143,6 +146,9 @@ struct dc_debug {
 	bool disable_stutter;
 	bool disable_dcc;
 	bool disable_dfs_bypass;
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	bool disable_pplib_clock_request;
+#endif
 	bool disable_clock_gate;
 	bool disable_dmcu;
 	bool force_abm_enable;
@@ -156,6 +162,23 @@ struct dc {
 	struct dc_config config;
 	struct dc_debug debug;
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+enum frame_buffer_mode {
+	FRAME_BUFFER_MODE_LOCAL_ONLY = 0,
+	FRAME_BUFFER_MODE_ZFB_ONLY,
+	FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL,
+} ;
+
+struct dchub_init_data {
+	bool dchub_initialzied;
+	bool dchub_info_valid;
+	int64_t zfb_phys_addr_base;
+	int64_t zfb_mc_base_addr;
+	uint64_t zfb_size_in_byte;
+	enum frame_buffer_mode fb_mode;
+};
+#endif
 
 struct dc_init_data {
 	struct hw_asic_id asic_id;
@@ -176,6 +199,10 @@ struct dc_init_data {
 struct dc *dc_create(const struct dc_init_data *init_params);
 
 void dc_destroy(struct dc **dc);
+
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+bool dc_init_dchub(struct dc *dc, struct dchub_init_data *dh_data);
+#endif
 
 /*******************************************************************************
  * Surface Interfaces

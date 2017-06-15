@@ -28,6 +28,18 @@
 
 #include "dm_services_types.h"
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+struct clocks_value {
+	int dispclk_in_khz;
+	int max_pixelclk_in_khz;
+	int max_non_dp_phyclk_in_khz;
+	int max_dp_phyclk_in_khz;
+	bool dispclk_notify_pplib_done;
+	bool pixelclk_notify_pplib_done;
+	bool phyclk_notigy_pplib_done;
+};
+#endif
+
 /* Structure containing all state-dependent clocks
  * (dependent on "enum clocks_state") */
 struct state_dependent_clocks {
@@ -41,6 +53,9 @@ struct display_clock {
 
 	enum dm_pp_clocks_state max_clks_state;
 	enum dm_pp_clocks_state cur_min_clks_state;
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	struct clocks_value cur_clocks_value;
+#endif
 };
 
 struct display_clock_funcs {
@@ -56,6 +71,14 @@ struct display_clock_funcs {
 
 	int (*get_dp_ref_clk_frequency)(struct display_clock *disp_clk);
 
+#if defined(CONFIG_DRM_AMD_DC_DCE12_0)
+	bool (*apply_clock_voltage_request)(
+		struct display_clock *disp_clk,
+		enum dm_pp_clock_type clocks_type,
+		int clocks_in_khz,
+		bool pre_mode_set,
+		bool update_dp_phyclk);
+#endif
 };
 
 #endif /* __DISPLAY_CLOCK_H__ */
