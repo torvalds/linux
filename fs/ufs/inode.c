@@ -401,13 +401,20 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 	u64 phys64 = 0;
 	unsigned frag = fragment & uspi->s_fpbmask;
 
-	if (!create) {
-		phys64 = ufs_frag_map(inode, offsets, depth);
-		if (phys64)
-			map_bh(bh_result, sb, phys64 + frag);
-		return 0;
-	}
+	phys64 = ufs_frag_map(inode, offsets, depth);
+	if (!create)
+		goto done;
 
+	if (phys64) {
+		if (fragment >= UFS_NDIR_FRAGMENT)
+			goto done;
+		read_seqlock_excl(&UFS_I(inode)->meta_lock);
+		if (fragment < UFS_I(inode)->i_lastfrag) {
+			read_sequnlock_excl(&UFS_I(inode)->meta_lock);
+			goto done;
+		}
+		read_sequnlock_excl(&UFS_I(inode)->meta_lock);
+	}
         /* This code entered only while writing ....? */
 
 	mutex_lock(&UFS_I(inode)->truncate_mutex);
@@ -451,6 +458,11 @@ out:
 	}
 	mutex_unlock(&UFS_I(inode)->truncate_mutex);
 	return err;
+
+done:
+	if (phys64)
+		map_bh(bh_result, sb, phys64 + frag);
+	return 0;
 }
 
 static int ufs_writepage(struct page *page, struct writeback_control *wbc)
@@ -1161,7 +1173,9 @@ static void ufs_truncate_blocks(struct inode *inode)
 			free_full_branch(inode, block, i - UFS_IND_BLOCK + 1);
 		}
 	}
+	read_seqlock_excl(&ufsi->meta_lock);
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
+	read_sequnlock_excl(&ufsi->meta_lock);
 	mark_inode_dirty(inode);
 	mutex_unlock(&ufsi->truncate_mutex);
 }
