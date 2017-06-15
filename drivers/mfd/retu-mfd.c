@@ -308,9 +308,17 @@ static const struct i2c_device_id retu_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, retu_id);
 
+static const struct of_device_id retu_of_match[] = {
+	{ .compatible = "nokia,retu" },
+	{ .compatible = "nokia,tahvo" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, retu_of_match);
+
 static struct i2c_driver retu_driver = {
 	.driver		= {
 		.name = "retu-mfd",
+		.of_match_table = retu_of_match,
 	},
 	.probe		= retu_probe,
 	.remove		= retu_remove,
