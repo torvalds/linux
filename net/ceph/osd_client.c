@@ -1319,6 +1319,7 @@ enum calc_target_result {
 
 static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 					   struct ceph_osd_request_target *t,
+					   struct ceph_connection *con,
 					   bool any_change)
 {
 	struct ceph_pg_pool_info *pi;
@@ -1327,6 +1328,7 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	bool force_resend = false;
 	bool unpaused = false;
 	bool legacy_change;
+	bool split = false;
 	bool need_check_tiering = false;
 	bool sort_bitwise = ceph_osdmap_flag(osdc, CEPH_OSDMAP_SORTBITWISE);
 	enum calc_target_result ct_res;
@@ -1398,8 +1400,10 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	}
 	legacy_change = ceph_pg_compare(&t->pgid, &pgid) ||
 			ceph_osds_changed(&t->acting, &acting, any_change);
+	if (t->pg_num)
+		split = ceph_pg_is_split(&last_pgid, t->pg_num, pi->pg_num);
 
-	if (legacy_change || force_resend) {
+	if (legacy_change || force_resend || split) {
 		t->pgid = pgid; /* struct */
 		ceph_pg_to_primary_shard(osdc->osdmap, &pgid, &t->spgid);
 		ceph_osds_copy(&t->acting, &acting);
@@ -1413,7 +1417,9 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 		t->osd = acting.primary;
 	}
 
-	if (unpaused || legacy_change || force_resend)
+	if (unpaused || legacy_change || force_resend ||
+	    (split && con && CEPH_HAVE_FEATURE(con->peer_features,
+					       RESEND_ON_SPLIT)))
 		ct_res = CALC_TARGET_NEED_RESEND;
 	else
 		ct_res = CALC_TARGET_NO_ACTION;
@@ -1765,7 +1771,7 @@ static void __submit_request(struct ceph_osd_request *req, bool wrlocked)
 	dout("%s req %p wrlocked %d\n", __func__, req, wrlocked);
 
 again:
-	ct_res = calc_target(osdc, &req->r_t, false);
+	ct_res = calc_target(osdc, &req->r_t, NULL, false);
 	if (ct_res == CALC_TARGET_POOL_DNE && !wrlocked)
 		goto promote;
 
@@ -2561,7 +2567,7 @@ static void linger_submit(struct ceph_osd_linger_request *lreq)
 	struct ceph_osd_client *osdc = lreq->osdc;
 	struct ceph_osd *osd;
 
-	calc_target(osdc, &lreq->t, false);
+	calc_target(osdc, &lreq->t, NULL, false);
 	osd = lookup_create_osd(osdc, lreq->t.osd, true);
 	link_linger(osd, lreq);
 
@@ -3179,7 +3185,7 @@ recalc_linger_target(struct ceph_osd_linger_request *lreq)
 	struct ceph_osd_client *osdc = lreq->osdc;
 	enum calc_target_result ct_res;
 
-	ct_res = calc_target(osdc, &lreq->t, true);
+	ct_res = calc_target(osdc, &lreq->t, NULL, true);
 	if (ct_res == CALC_TARGET_NEED_RESEND) {
 		struct ceph_osd *osd;
 
@@ -3250,7 +3256,8 @@ static void scan_requests(struct ceph_osd *osd,
 		n = rb_next(n); /* unlink_request(), check_pool_dne() */
 
 		dout("%s req %p tid %llu\n", __func__, req, req->r_tid);
-		ct_res = calc_target(osdc, &req->r_t, false);
+		ct_res = calc_target(osdc, &req->r_t, &req->r_osd->o_con,
+				     false);
 		switch (ct_res) {
 		case CALC_TARGET_NO_ACTION:
 			force_resend_writes = cleared_full ||
@@ -3359,7 +3366,7 @@ static void kick_requests(struct ceph_osd_client *osdc,
 		erase_request(need_resend, req); /* before link_request() */
 
 		WARN_ON(req->r_osd);
-		calc_target(osdc, &req->r_t, false);
+		calc_target(osdc, &req->r_t, NULL, false);
 		osd = lookup_create_osd(osdc, req->r_t.osd, true);
 		link_request(osd, req);
 		if (!req->r_linger) {

@@ -1753,9 +1753,8 @@ void ceph_osds_copy(struct ceph_osds *dest, const struct ceph_osds *src)
 	dest->primary = src->primary;
 }
 
-static bool is_split(const struct ceph_pg *pgid,
-		     u32 old_pg_num,
-		     u32 new_pg_num)
+bool ceph_pg_is_split(const struct ceph_pg *pgid, u32 old_pg_num,
+		      u32 new_pg_num)
 {
 	int old_bits = calc_bits_of(old_pg_num);
 	int old_mask = (1 << old_bits) - 1;
@@ -1800,7 +1799,7 @@ bool ceph_is_new_interval(const struct ceph_osds *old_acting,
 	       !osds_equal(old_up, new_up) ||
 	       old_size != new_size ||
 	       old_min_size != new_min_size ||
-	       is_split(pgid, old_pg_num, new_pg_num) ||
+	       ceph_pg_is_split(pgid, old_pg_num, new_pg_num) ||
 	       old_sort_bitwise != new_sort_bitwise;
 }
 

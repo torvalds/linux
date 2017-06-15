@@ -249,6 +249,8 @@ static inline void ceph_osds_init(struct ceph_osds *set)
 
 void ceph_osds_copy(struct ceph_osds *dest, const struct ceph_osds *src);
 
+bool ceph_pg_is_split(const struct ceph_pg *pgid, u32 old_pg_num,
+		      u32 new_pg_num);
 bool ceph_is_new_interval(const struct ceph_osds *old_acting,
 			  const struct ceph_osds *new_acting,
 			  const struct ceph_osds *old_up,
