@@ -99,7 +99,7 @@
 #define EIP197_HIA_xDR_WR_RES_BUF		BIT(22)
 #define EIP197_HIA_xDR_WR_CTRL_BUG		BIT(23)
 #define EIP197_HIA_xDR_WR_OWN_BUF		BIT(24)
-#define EIP197_HIA_xDR_CFG_WR_CACHE(n)		(((n) & 0x7) << 23)
+#define EIP197_HIA_xDR_CFG_WR_CACHE(n)		(((n) & 0x7) << 25)
 #define EIP197_HIA_xDR_CFG_RD_CACHE(n)		(((n) & 0x7) << 29)
 
 /* EIP197_HIA_CDR_THRESH */
