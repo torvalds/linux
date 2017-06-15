@@ -19,6 +19,7 @@
 
 #include <linux/compat.h>
 #include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/freezer.h>
@@ -41,8 +42,16 @@
 struct rt_sigframe {
 	struct siginfo info;
 	struct ucontext uc;
+};
+
+struct frame_record {
 	u64 fp;
 	u64 lr;
+};
+
+struct rt_sigframe_user_layout {
+	struct rt_sigframe __user *sigframe;
+	struct frame_record __user *next_frame;
 };
 
 static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
@@ -162,16 +171,17 @@ badframe:
 	return 0;
 }
 
-static int setup_sigframe(struct rt_sigframe __user *sf,
+static int setup_sigframe(struct rt_sigframe_user_layout *user,
 			  struct pt_regs *regs, sigset_t *set)
 {
 	int i, err = 0;
+	struct rt_sigframe __user *sf = user->sigframe;
 	void *aux = sf->uc.uc_mcontext.__reserved;
 	struct _aarch64_ctx *end;
 
 	/* set up the stack frame for unwinding */
-	__put_user_error(regs->regs[29], &sf->fp, err);
-	__put_user_error(regs->regs[30], &sf->lr, err);
+	__put_user_error(regs->regs[29], &user->next_frame->fp, err);
+	__put_user_error(regs->regs[30], &user->next_frame->lr, err);
 
 	for (i = 0; i < 31; i++)
 		__put_user_error(regs->regs[i], &sf->uc.uc_mcontext.regs[i],
@@ -209,34 +219,36 @@ static int setup_sigframe(struct rt_sigframe __user *sf,
 	return err;
 }
 
-static struct rt_sigframe __user *get_sigframe(struct ksignal *ksig,
-					       struct pt_regs *regs)
+static int get_sigframe(struct rt_sigframe_user_layout *user,
+			 struct ksignal *ksig, struct pt_regs *regs)
 {
 	unsigned long sp, sp_top;
-	struct rt_sigframe __user *frame;
 
 	sp = sp_top = sigsp(regs->sp, ksig);
 
-	sp = (sp - sizeof(struct rt_sigframe)) & ~15;
-	frame = (struct rt_sigframe __user *)sp;
+	sp = round_down(sp - sizeof(struct frame_record), 16);
+	user->next_frame = (struct frame_record __user *)sp;
+
+	sp = round_down(sp - sizeof(struct rt_sigframe), 16);
+	user->sigframe = (struct rt_sigframe __user *)sp;
 
 	/*
 	 * Check that we can actually write to the signal frame.
 	 */
-	if (!access_ok(VERIFY_WRITE, frame, sp_top - sp))
-		frame = NULL;
+	if (!access_ok(VERIFY_WRITE, user->sigframe, sp_top - sp))
+		return -EFAULT;
 
-	return frame;
+	return 0;
 }
 
 static void setup_return(struct pt_regs *regs, struct k_sigaction *ka,
-			 void __user *frame, int usig)
+			 struct rt_sigframe_user_layout *user, int usig)
 {
 	__sigrestore_t sigtramp;
 
 	regs->regs[0] = usig;
-	regs->sp = (unsigned long)frame;
-	regs->regs[29] = regs->sp + offsetof(struct rt_sigframe, fp);
+	regs->sp = (unsigned long)user->sigframe;
+	regs->regs[29] = (unsigned long)&user->next_frame->fp;
 	regs->pc = (unsigned long)ka->sa.sa_handler;
 
 	if (ka->sa.sa_flags & SA_RESTORER)
@@ -250,20 +262,22 @@ static void setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 static int setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,
 			  struct pt_regs *regs)
 {
+	struct rt_sigframe_user_layout user;
 	struct rt_sigframe __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(ksig, regs);
-	if (!frame)
+	if (get_sigframe(&user, ksig, regs))
 		return 1;
+
+	frame = user.sigframe;
 
 	__put_user_error(0, &frame->uc.uc_flags, err);
 	__put_user_error(NULL, &frame->uc.uc_link, err);
 
 	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
-	err |= setup_sigframe(frame, regs, set);
+	err |= setup_sigframe(&user, regs, set);
 	if (err == 0) {
-		setup_return(regs, &ksig->ka, frame, usig);
+		setup_return(regs, &ksig->ka, &user, usig);
 		if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
 			err |= copy_siginfo_to_user(&frame->info, &ksig->info);
 			regs->regs[1] = (unsigned long)&frame->info;
