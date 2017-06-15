@@ -149,7 +149,7 @@ static int orion_mdio_smi_read(struct mii_bus *bus, int mii_id,
 
 	ret = orion_mdio_wait_ready(&orion_mdio_smi_ops, bus);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	writel(((mii_id << MVMDIO_SMI_PHY_ADDR_SHIFT) |
 		(regnum << MVMDIO_SMI_PHY_REG_SHIFT)  |
@@ -158,18 +158,15 @@ static int orion_mdio_smi_read(struct mii_bus *bus, int mii_id,
 
 	ret = orion_mdio_wait_ready(&orion_mdio_smi_ops, bus);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	val = readl(dev->regs);
 	if (!(val & MVMDIO_SMI_READ_VALID)) {
 		dev_err(bus->parent, "SMI bus read not valid\n");
-		ret = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
-	ret = val & GENMASK(15, 0);
-out:
-	return ret;
+	return val & GENMASK(15, 0);
 }
 
 static int orion_mdio_smi_write(struct mii_bus *bus, int mii_id,
@@ -183,7 +180,7 @@ static int orion_mdio_smi_write(struct mii_bus *bus, int mii_id,
 
 	ret = orion_mdio_wait_ready(&orion_mdio_smi_ops, bus);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	writel(((mii_id << MVMDIO_SMI_PHY_ADDR_SHIFT) |
 		(regnum << MVMDIO_SMI_PHY_REG_SHIFT)  |
@@ -191,8 +188,7 @@ static int orion_mdio_smi_write(struct mii_bus *bus, int mii_id,
 		(value << MVMDIO_SMI_DATA_SHIFT)),
 	       dev->regs);
 
-out:
-	return ret;
+	return 0;
 }
 
 static int orion_mdio_xsmi_is_done(struct orion_mdio_dev *dev)
