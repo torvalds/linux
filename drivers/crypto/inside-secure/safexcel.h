@@ -469,11 +469,6 @@ struct safexcel_crypto_priv {
 	struct clk *clk;
 	struct safexcel_config config;
 
-	spinlock_t lock;
-	struct crypto_queue queue;
-
-	bool need_dequeue;
-
 	/* context DMA pool */
 	struct dma_pool *context_pool;
 
@@ -490,6 +485,11 @@ struct safexcel_crypto_priv {
 		/* command/result rings */
 		struct safexcel_ring cdr;
 		struct safexcel_ring rdr;
+
+		/* queue */
+		struct crypto_queue queue;
+		spinlock_t queue_lock;
+		bool need_dequeue;
 	} ring[EIP197_MAX_RINGS];
 };
 
@@ -533,7 +533,7 @@ struct safexcel_inv_result {
 	int error;
 };
 
-void safexcel_dequeue(struct safexcel_crypto_priv *priv);
+void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring);
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring);
 void safexcel_free_context(struct safexcel_crypto_priv *priv,
 				  struct crypto_async_request *req,

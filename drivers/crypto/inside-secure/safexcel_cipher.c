@@ -339,18 +339,21 @@ static int safexcel_handle_inv_result(struct safexcel_crypto_priv *priv,
 		return ndesc;
 	}
 
+	ring = safexcel_select_ring(priv);
+	ctx->base.ring = ring;
 	ctx->base.needs_inv = false;
-	ctx->base.ring = safexcel_select_ring(priv);
 	ctx->base.send = safexcel_aes_send;
 
-	spin_lock_bh(&priv->lock);
-	enq_ret = crypto_enqueue_request(&priv->queue, async);
-	spin_unlock_bh(&priv->lock);
+	spin_lock_bh(&priv->ring[ring].queue_lock);
+	enq_ret = crypto_enqueue_request(&priv->ring[ring].queue, async);
+	spin_unlock_bh(&priv->ring[ring].queue_lock);
 
 	if (enq_ret != -EINPROGRESS)
 		*ret = enq_ret;
 
-	priv->need_dequeue = true;
+	if (!priv->ring[ring].need_dequeue)
+		safexcel_dequeue(priv, ring);
+
 	*should_complete = false;
 
 	return ndesc;
@@ -384,6 +387,7 @@ static int safexcel_cipher_exit_inv(struct crypto_tfm *tfm)
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct skcipher_request req;
 	struct safexcel_inv_result result = { 0 };
+	int ring = ctx->base.ring;
 
 	memset(&req, 0, sizeof(struct skcipher_request));
 
@@ -397,12 +401,12 @@ static int safexcel_cipher_exit_inv(struct crypto_tfm *tfm)
 	ctx->base.exit_inv = true;
 	ctx->base.send = safexcel_cipher_send_inv;
 
-	spin_lock_bh(&priv->lock);
-	crypto_enqueue_request(&priv->queue, &req.base);
-	spin_unlock_bh(&priv->lock);
+	spin_lock_bh(&priv->ring[ring].queue_lock);
+	crypto_enqueue_request(&priv->ring[ring].queue, &req.base);
+	spin_unlock_bh(&priv->ring[ring].queue_lock);
 
-	if (!priv->need_dequeue)
-		safexcel_dequeue(priv);
+	if (!priv->ring[ring].need_dequeue)
+		safexcel_dequeue(priv, ring);
 
 	wait_for_completion_interruptible(&result.completion);
 
@@ -421,7 +425,7 @@ static int safexcel_aes(struct skcipher_request *req,
 {
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
-	int ret;
+	int ret, ring;
 
 	ctx->direction = dir;
 	ctx->mode = mode;
@@ -440,12 +444,14 @@ static int safexcel_aes(struct skcipher_request *req,
 			return -ENOMEM;
 	}
 
-	spin_lock_bh(&priv->lock);
-	ret = crypto_enqueue_request(&priv->queue, &req->base);
-	spin_unlock_bh(&priv->lock);
+	ring = ctx->base.ring;
 
-	if (!priv->need_dequeue)
-		safexcel_dequeue(priv);
+	spin_lock_bh(&priv->ring[ring].queue_lock);
+	ret = crypto_enqueue_request(&priv->ring[ring].queue, &req->base);
+	spin_unlock_bh(&priv->ring[ring].queue_lock);
+
+	if (!priv->ring[ring].need_dequeue)
+		safexcel_dequeue(priv, ring);
 
 	return ret;
 }

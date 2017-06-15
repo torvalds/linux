@@ -422,20 +422,18 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	return 0;
 }
 
-void safexcel_dequeue(struct safexcel_crypto_priv *priv)
+void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 {
 	struct crypto_async_request *req, *backlog;
 	struct safexcel_context *ctx;
 	struct safexcel_request *request;
-	int i, ret, n = 0, nreq[EIP197_MAX_RINGS] = {0};
-	int cdesc[EIP197_MAX_RINGS] = {0}, rdesc[EIP197_MAX_RINGS] = {0};
-	int commands, results;
+	int ret, nreq = 0, cdesc = 0, rdesc = 0, commands, results;
 
 	do {
-		spin_lock_bh(&priv->lock);
-		req = crypto_dequeue_request(&priv->queue);
-		backlog = crypto_get_backlog(&priv->queue);
-		spin_unlock_bh(&priv->lock);
+		spin_lock_bh(&priv->ring[ring].queue_lock);
+		req = crypto_dequeue_request(&priv->ring[ring].queue);
+		backlog = crypto_get_backlog(&priv->ring[ring].queue);
+		spin_unlock_bh(&priv->ring[ring].queue_lock);
 
 		if (!req)
 			goto finalize;
@@ -445,58 +443,51 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv)
 			goto requeue;
 
 		ctx = crypto_tfm_ctx(req->tfm);
-		ret = ctx->send(req, ctx->ring, request, &commands, &results);
+		ret = ctx->send(req, ring, request, &commands, &results);
 		if (ret) {
 			kfree(request);
 requeue:
-			spin_lock_bh(&priv->lock);
-			crypto_enqueue_request(&priv->queue, req);
-			spin_unlock_bh(&priv->lock);
+			spin_lock_bh(&priv->ring[ring].queue_lock);
+			crypto_enqueue_request(&priv->ring[ring].queue, req);
+			spin_unlock_bh(&priv->ring[ring].queue_lock);
 
-			priv->need_dequeue = true;
+			priv->ring[ring].need_dequeue = true;
 			continue;
 		}
 
 		if (backlog)
 			backlog->complete(backlog, -EINPROGRESS);
 
-		spin_lock_bh(&priv->ring[ctx->ring].egress_lock);
-		list_add_tail(&request->list, &priv->ring[ctx->ring].list);
-		spin_unlock_bh(&priv->ring[ctx->ring].egress_lock);
+		spin_lock_bh(&priv->ring[ring].egress_lock);
+		list_add_tail(&request->list, &priv->ring[ring].list);
+		spin_unlock_bh(&priv->ring[ring].egress_lock);
 
-		cdesc[ctx->ring] += commands;
-		rdesc[ctx->ring] += results;
-
-		nreq[ctx->ring]++;
-	} while (n++ < EIP197_MAX_BATCH_SZ);
+		cdesc += commands;
+		rdesc += results;
+	} while (nreq++ < EIP197_MAX_BATCH_SZ);
 
 finalize:
-	if (n == EIP197_MAX_BATCH_SZ)
-		priv->need_dequeue = true;
-	else if (!n)
+	if (nreq == EIP197_MAX_BATCH_SZ)
+		priv->ring[ring].need_dequeue = true;
+	else if (!nreq)
 		return;
 
-	for (i = 0; i < priv->config.rings; i++) {
-		if (!nreq[i])
-			continue;
+	spin_lock_bh(&priv->ring[ring].lock);
 
-		spin_lock_bh(&priv->ring[i].lock);
+	/* Configure when we want an interrupt */
+	writel(EIP197_HIA_RDR_THRESH_PKT_MODE |
+	       EIP197_HIA_RDR_THRESH_PROC_PKT(nreq),
+	       priv->base + EIP197_HIA_RDR(ring) + EIP197_HIA_xDR_THRESH);
 
-		/* Configure when we want an interrupt */
-		writel(EIP197_HIA_RDR_THRESH_PKT_MODE |
-		       EIP197_HIA_RDR_THRESH_PROC_PKT(nreq[i]),
-		       priv->base + EIP197_HIA_RDR(i) + EIP197_HIA_xDR_THRESH);
+	/* let the RDR know we have pending descriptors */
+	writel((rdesc * priv->config.rd_offset) << 2,
+	       priv->base + EIP197_HIA_RDR(ring) + EIP197_HIA_xDR_PREP_COUNT);
 
-		/* let the RDR know we have pending descriptors */
-		writel((rdesc[i] * priv->config.rd_offset) << 2,
-		       priv->base + EIP197_HIA_RDR(i) + EIP197_HIA_xDR_PREP_COUNT);
+	/* let the CDR know we have pending descriptors */
+	writel((cdesc * priv->config.cd_offset) << 2,
+	       priv->base + EIP197_HIA_CDR(ring) + EIP197_HIA_xDR_PREP_COUNT);
 
-		/* let the CDR know we have pending descriptors */
-		writel((cdesc[i] * priv->config.cd_offset) << 2,
-		       priv->base + EIP197_HIA_CDR(i) + EIP197_HIA_xDR_PREP_COUNT);
-
-		spin_unlock_bh(&priv->ring[i].lock);
-	}
+	spin_unlock_bh(&priv->ring[ring].lock);
 }
 
 void safexcel_free_context(struct safexcel_crypto_priv *priv,
@@ -638,9 +629,9 @@ static void safexcel_handle_result_work(struct work_struct *work)
 
 	safexcel_handle_result_descriptor(priv, data->ring);
 
-	if (priv->need_dequeue) {
-		priv->need_dequeue = false;
-		safexcel_dequeue(data->priv);
+	if (priv->ring[data->ring].need_dequeue) {
+		priv->ring[data->ring].need_dequeue = false;
+		safexcel_dequeue(data->priv, data->ring);
 	}
 }
 
@@ -864,16 +855,17 @@ static int safexcel_probe(struct platform_device *pdev)
 			goto err_clk;
 		}
 
+		crypto_init_queue(&priv->ring[i].queue,
+				  EIP197_DEFAULT_RING_SIZE);
+
 		INIT_LIST_HEAD(&priv->ring[i].list);
 		spin_lock_init(&priv->ring[i].lock);
 		spin_lock_init(&priv->ring[i].egress_lock);
+		spin_lock_init(&priv->ring[i].queue_lock);
 	}
 
 	platform_set_drvdata(pdev, priv);
 	atomic_set(&priv->ring_used, 0);
-
-	spin_lock_init(&priv->lock);
-	crypto_init_queue(&priv->queue, EIP197_DEFAULT_RING_SIZE);
 
 	ret = safexcel_hw_init(priv);
 	if (ret) {
