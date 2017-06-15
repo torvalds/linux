@@ -28,6 +28,8 @@ static struct kobj_map *cdev_map;
 
 static DEFINE_MUTEX(chrdevs_lock);
 
+#define CHRDEV_MAJOR_HASH_SIZE 255
+
 static struct char_device_struct {
 	struct char_device_struct *next;
 	unsigned int major;
@@ -49,12 +51,12 @@ void chrdev_show(struct seq_file *f, off_t offset)
 {
 	struct char_device_struct *cd;
 
-	if (offset < CHRDEV_MAJOR_HASH_SIZE) {
-		mutex_lock(&chrdevs_lock);
-		for (cd = chrdevs[offset]; cd; cd = cd->next)
+	mutex_lock(&chrdevs_lock);
+	for (cd = chrdevs[major_to_index(offset)]; cd; cd = cd->next) {
+		if (cd->major == offset)
 			seq_printf(f, "%3d %s\n", cd->major, cd->name);
-		mutex_unlock(&chrdevs_lock);
 	}
+	mutex_unlock(&chrdevs_lock);
 }
 
 #endif /* CONFIG_PROC_FS */
@@ -115,6 +117,13 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 			goto out;
 		}
 		major = ret;
+	}
+
+	if (major >= CHRDEV_MAJOR_MAX) {
+		pr_err("CHRDEV \"%s\" major requested (%d) is greater than the maximum (%d)\n",
+		       name, major, CHRDEV_MAJOR_MAX);
+		ret = -EINVAL;
+		goto out;
 	}
 
 	cd->major = major;
