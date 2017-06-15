@@ -126,9 +126,10 @@ huge_gem_object(struct drm_i915_private *i915,
 	drm_gem_private_object_init(&i915->drm, &obj->base, dma_size);
 	i915_gem_object_init(obj, &huge_ops);
 
-	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	obj->cache_dirty = !i915_gem_object_is_coherent(obj);
 	obj->scratch = phys_size;
 
 	return obj;
