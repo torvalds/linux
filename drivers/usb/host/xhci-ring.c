@@ -1830,7 +1830,7 @@ static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
 	ep->ep_state |= EP_HALTED;
 	ep->stopped_stream = stream_id;
 
-	xhci_queue_reset_ep(xhci, command, slot_id, ep_index);
+	xhci_queue_reset_ep(xhci, command, slot_id, ep_index, EP_HARD_RESET);
 	xhci_cleanup_stalled_ring(xhci, ep_index, td);
 
 	ep->stopped_stream = 0;
@@ -4046,11 +4046,15 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 }
 
 int xhci_queue_reset_ep(struct xhci_hcd *xhci, struct xhci_command *cmd,
-			int slot_id, unsigned int ep_index)
+			int slot_id, unsigned int ep_index,
+			enum xhci_ep_reset_type reset_type)
 {
 	u32 trb_slot_id = SLOT_ID_FOR_TRB(slot_id);
 	u32 trb_ep_index = EP_ID_FOR_TRB(ep_index);
 	u32 type = TRB_TYPE(TRB_RESET_EP);
+
+	if (reset_type == EP_SOFT_RESET)
+		type |= TRB_TSP;
 
 	return queue_command(xhci, cmd, 0, 0, 0,
 			trb_slot_id | trb_ep_index | type, false);

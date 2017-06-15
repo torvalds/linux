@@ -1205,6 +1205,11 @@ struct xhci_event_cmd {
 /* Stop Ring - Transfer State Preserve */
 #define TRB_TSP		(1<<9)
 
+enum xhci_ep_reset_type {
+	EP_HARD_RESET,
+	EP_SOFT_RESET,
+};
+
 /* Force Event */
 #define TRB_TO_VF_INTR_TARGET(p)	(((p) & (0x3ff << 22)) >> 22)
 #define TRB_TO_VF_ID(p)			(((p) & (0xff << 16)) >> 16)
@@ -2040,7 +2045,8 @@ int xhci_queue_configure_endpoint(struct xhci_hcd *xhci,
 int xhci_queue_evaluate_context(struct xhci_hcd *xhci, struct xhci_command *cmd,
 		dma_addr_t in_ctx_ptr, u32 slot_id, bool command_must_succeed);
 int xhci_queue_reset_ep(struct xhci_hcd *xhci, struct xhci_command *cmd,
-		int slot_id, unsigned int ep_index);
+		int slot_id, unsigned int ep_index,
+		enum xhci_ep_reset_type reset_type);
 int xhci_queue_reset_device(struct xhci_hcd *xhci, struct xhci_command *cmd,
 		u32 slot_id);
 void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
