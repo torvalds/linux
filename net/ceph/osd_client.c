@@ -1330,7 +1330,6 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	bool unpaused = false;
 	bool legacy_change;
 	bool split = false;
-	bool need_check_tiering = false;
 	bool sort_bitwise = ceph_osdmap_flag(osdc, CEPH_OSDMAP_SORTBITWISE);
 	enum calc_target_result ct_res;
 	int ret;
@@ -1351,17 +1350,11 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 			force_resend = true;
 		}
 	}
-	if (ceph_oid_empty(&t->target_oid) || force_resend) {
-		ceph_oid_copy(&t->target_oid, &t->base_oid);
-		need_check_tiering = true;
-	}
-	if (ceph_oloc_empty(&t->target_oloc) || force_resend) {
-		ceph_oloc_copy(&t->target_oloc, &t->base_oloc);
-		need_check_tiering = true;
-	}
 
-	if (need_check_tiering &&
-	    (t->flags & CEPH_OSD_FLAG_IGNORE_OVERLAY) == 0) {
+	/* apply tiering */
+	ceph_oid_copy(&t->target_oid, &t->base_oid);
+	ceph_oloc_copy(&t->target_oloc, &t->base_oloc);
+	if ((t->flags & CEPH_OSD_FLAG_IGNORE_OVERLAY) == 0) {
 		if (t->flags & CEPH_OSD_FLAG_READ && pi->read_tier >= 0)
 			t->target_oloc.pool = pi->read_tier;
 		if (t->flags & CEPH_OSD_FLAG_WRITE && pi->write_tier >= 0)
