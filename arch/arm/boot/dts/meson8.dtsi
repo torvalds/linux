@@ -232,6 +232,14 @@
 	arm,filter-ranges = <0x100000 0xc0000000>;
 };
 
+&saradc {
+	compatible = "amlogic,meson8-saradc", "amlogic,meson-saradc";
+	clocks = <&clkc CLKID_XTAL>,
+		<&clkc CLKID_SAR_ADC>,
+		<&clkc CLKID_SANA>;
+	clock-names = "clkin", "core", "sana";
+};
+
 &spifc {
 	clocks = <&clkc CLKID_CLK81>;
 };
