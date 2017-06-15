@@ -1832,11 +1832,8 @@ static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
 
 	xhci_queue_reset_ep(xhci, command, slot_id, ep_index, reset_type);
 
-	if (reset_type == EP_HARD_RESET) {
-		ep->stopped_stream = stream_id;
-		xhci_cleanup_stalled_ring(xhci, ep_index, td);
-		ep->stopped_stream = 0;
-	}
+	if (reset_type == EP_HARD_RESET)
+		xhci_cleanup_stalled_ring(xhci, ep_index, stream_id, td);
 
 	xhci_ring_cmd_db(xhci);
 }
