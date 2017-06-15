@@ -207,8 +207,7 @@ static int bdw_rt5677_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	int ret;
 
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(codec->dev),
-			bdw_rt5677_gpios);
+	ret = devm_acpi_dev_add_driver_gpios(codec->dev, bdw_rt5677_gpios);
 	if (ret)
 		dev_warn(codec->dev, "Failed to add driver gpios\n");
 
