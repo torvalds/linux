@@ -1427,6 +1427,7 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
+		adev->mode_info.plane_type = dm_surfaces_type_default;
 		break;
 	default:
 		DRM_ERROR("Usupported ASIC type: 0x%X\n", adev->asic_type);
