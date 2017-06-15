@@ -894,9 +894,8 @@ static int uvd_v7_0_sriov_start(struct amdgpu_device *adev)
 		table_size += sizeof(struct mmsch_v1_0_cmd_end) / 4;
 		header->uvd_table_size = table_size;
 
-		return uvd_v7_0_mmsch_start(adev, &adev->virt.mm_table);
 	}
-	return -EINVAL; /* already initializaed ? */
+	return uvd_v7_0_mmsch_start(adev, &adev->virt.mm_table);
 }
 
 /**
