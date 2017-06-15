@@ -439,20 +439,22 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 			goto finalize;
 
 		request = kzalloc(sizeof(*request), EIP197_GFP_FLAGS(*req));
-		if (!request)
-			goto requeue;
-
-		ctx = crypto_tfm_ctx(req->tfm);
-		ret = ctx->send(req, ring, request, &commands, &results);
-		if (ret) {
-			kfree(request);
-requeue:
+		if (!request) {
 			spin_lock_bh(&priv->ring[ring].queue_lock);
 			crypto_enqueue_request(&priv->ring[ring].queue, req);
 			spin_unlock_bh(&priv->ring[ring].queue_lock);
 
 			priv->ring[ring].need_dequeue = true;
-			continue;
+			goto finalize;
+		}
+
+		ctx = crypto_tfm_ctx(req->tfm);
+		ret = ctx->send(req, ring, request, &commands, &results);
+		if (ret) {
+			kfree(request);
+			req->complete(req, ret);
+			priv->ring[ring].need_dequeue = true;
+			goto finalize;
 		}
 
 		if (backlog)
