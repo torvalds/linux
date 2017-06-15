@@ -431,8 +431,8 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 
 	do {
 		spin_lock_bh(&priv->ring[ring].queue_lock);
-		req = crypto_dequeue_request(&priv->ring[ring].queue);
 		backlog = crypto_get_backlog(&priv->ring[ring].queue);
+		req = crypto_dequeue_request(&priv->ring[ring].queue);
 		spin_unlock_bh(&priv->ring[ring].queue_lock);
 
 		if (!req)
