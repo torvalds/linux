@@ -713,5 +713,35 @@
 			clocks = <&sctrl HI3660_PCLK_AO_GPIO6>;
 			clock-names = "apb_pclk";
 		};
+
+		spi2: spi@ffd68000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x0 0xffd68000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg_ctrl HI3660_CLK_GATE_SPI2>;
+			clock-names = "apb_pclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi2_pmx_func>;
+			num-cs = <1>;
+			cs-gpios = <&gpio27 2 0>;
+			status = "disabled";
+		};
+
+		spi3: spi@ff3b3000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x0 0xff3b3000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg_ctrl HI3660_CLK_GATE_SPI3>;
+			clock-names = "apb_pclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi3_pmx_func>;
+			num-cs = <1>;
+			cs-gpios = <&gpio18 5 0>;
+			status = "disabled";
+		};
 	};
 };
