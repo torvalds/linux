@@ -25,6 +25,7 @@
 #include <linux/uaccess.h>
 #include <linux/tracehook.h>
 #include <linux/ratelimit.h>
+#include <linux/syscalls.h>
 
 #include <asm/debug-monitors.h>
 #include <asm/elf.h>
@@ -408,6 +409,10 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 	 * Update the trace code with the current status.
 	 */
 	trace_hardirqs_off();
+
+	/* Check valid user FS if needed */
+	addr_limit_user_check();
+
 	do {
 		if (thread_flags & _TIF_NEED_RESCHED) {
 			schedule();
