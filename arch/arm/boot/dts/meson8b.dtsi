@@ -171,6 +171,12 @@
 	};
 };
 
+&hwrng {
+	compatible = "amlogic,meson8b-rng", "amlogic,meson-rng";
+	clocks = <&clkc CLKID_RNG0>;
+	clock-names = "core";
+};
+
 &L2 {
 	arm,data-latency = <3 3 3>;
 	arm,tag-latency = <2 2 2>;
