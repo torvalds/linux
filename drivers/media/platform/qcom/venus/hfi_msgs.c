@@ -462,7 +462,7 @@ static u32 init_done_read_prop(struct venus_core *core, struct venus_inst *inst,
 			       struct hfi_msg_session_init_done_pkt *pkt)
 {
 	struct device *dev = core->dev;
-	u32 rem_bytes, num_props, codecs = 0, domain = 0;
+	u32 rem_bytes, num_props;
 	u32 ptype, next_offset = 0;
 	u32 err;
 	u8 *data;
@@ -490,8 +490,6 @@ static u32 init_done_read_prop(struct venus_core *core, struct venus_inst *inst,
 				(struct hfi_codec_mask_supported *)
 				(data + next_offset);
 
-			codecs = masks->codecs;
-			domain = masks->video_domains;
 			next_offset += sizeof(*masks);
 			num_props--;
 			break;
