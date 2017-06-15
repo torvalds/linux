@@ -79,6 +79,8 @@ MODULE_LICENSE("GPL");
 #define MT_BUTTONTYPE_CLICKPAD		0
 
 #define MT_IO_FLAGS_RUNNING		0
+#define MT_IO_FLAGS_ACTIVE_SLOTS	1
+#define MT_IO_FLAGS_PENDING_SLOTS	2
 
 struct mt_slot {
 	__s32 x, y, cx, cy, p, w, h;
@@ -705,6 +707,8 @@ static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
 			input_event(input, EV_ABS, ABS_MT_PRESSURE, s->p);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
+
+			set_bit(MT_IO_FLAGS_ACTIVE_SLOTS, &td->mt_io_flags);
 		}
 	}
 
@@ -720,6 +724,11 @@ static void mt_sync_frame(struct mt_device *td, struct input_dev *input)
 	input_mt_sync_frame(input);
 	input_sync(input);
 	td->num_received = 0;
+	if (test_bit(MT_IO_FLAGS_ACTIVE_SLOTS, &td->mt_io_flags))
+		set_bit(MT_IO_FLAGS_PENDING_SLOTS, &td->mt_io_flags);
+	else
+		clear_bit(MT_IO_FLAGS_PENDING_SLOTS, &td->mt_io_flags);
+	clear_bit(MT_IO_FLAGS_ACTIVE_SLOTS, &td->mt_io_flags);
 }
 
 static int mt_touch_event(struct hid_device *hid, struct hid_field *field,
@@ -859,8 +868,13 @@ static void mt_touch_report(struct hid_device *hid, struct hid_report *report)
 	 * only affect laggish machines and the ones that have a firmware
 	 * defect.
 	 */
-	if (td->mtclass.quirks & MT_QUIRK_STICKY_FINGERS)
-		mod_timer(&td->release_timer, jiffies + msecs_to_jiffies(100));
+	if (td->mtclass.quirks & MT_QUIRK_STICKY_FINGERS) {
+		if (test_bit(MT_IO_FLAGS_PENDING_SLOTS, &td->mt_io_flags))
+			mod_timer(&td->release_timer,
+				  jiffies + msecs_to_jiffies(100));
+		else
+			del_timer(&td->release_timer);
+	}
 
 	clear_bit(MT_IO_FLAGS_RUNNING, &td->mt_io_flags);
 }
@@ -1210,7 +1224,8 @@ static void mt_expired_timeout(unsigned long arg)
 	 */
 	if (test_and_set_bit(MT_IO_FLAGS_RUNNING, &td->mt_io_flags))
 		return;
-	mt_release_contacts(hdev);
+	if (test_bit(MT_IO_FLAGS_PENDING_SLOTS, &td->mt_io_flags))
+		mt_release_contacts(hdev);
 	clear_bit(MT_IO_FLAGS_RUNNING, &td->mt_io_flags);
 }
 
