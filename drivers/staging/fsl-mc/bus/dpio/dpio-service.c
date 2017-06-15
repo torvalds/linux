@@ -260,9 +260,9 @@ int dpaa2_io_service_register(struct dpaa2_io *d,
 
 	/* Enable the generation of CDAN notifications */
 	if (ctx->is_cdan)
-		qbman_swp_CDAN_set_context_enable(d->swp,
-						  (u16)ctx->id,
-						  ctx->qman64);
+		return qbman_swp_CDAN_set_context_enable(d->swp,
+							 (u16)ctx->id,
+							 ctx->qman64);
 	return 0;
 }
 EXPORT_SYMBOL(dpaa2_io_service_register);
