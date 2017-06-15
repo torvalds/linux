@@ -608,6 +608,8 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 
 		ret = af9013_wr_regs(state, 0xae00, coeff_lut[i].val,
 			sizeof(coeff_lut[i].val));
+		if (ret)
+			goto err;
 	}
 
 	/* program frequency control */
