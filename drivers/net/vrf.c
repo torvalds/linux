@@ -36,12 +36,14 @@
 #include <net/addrconf.h>
 #include <net/l3mdev.h>
 #include <net/fib_rules.h>
+#include <net/netns/generic.h>
 
 #define DRV_NAME	"vrf"
 #define DRV_VERSION	"1.0"
 
 #define FIB_RULE_PREF  1000       /* default preference for FIB rules */
-static bool add_fib_rules = true;
+
+static unsigned int vrf_net_id;
 
 struct net_vrf {
 	struct rtable __rcu	*rth;
@@ -1348,7 +1350,7 @@ static void vrf_setup(struct net_device *dev)
 	dev->netdev_ops = &vrf_netdev_ops;
 	dev->l3mdev_ops = &vrf_l3mdev_ops;
 	dev->ethtool_ops = &vrf_ethtool_ops;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 
 	/* Fill in device structure with ethernet-generic values. */
 	eth_hw_addr_random(dev);
@@ -1394,6 +1396,8 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 		       struct nlattr *tb[], struct nlattr *data[])
 {
 	struct net_vrf *vrf = netdev_priv(dev);
+	bool *add_fib_rules;
+	struct net *net;
 	int err;
 
 	if (!data || !data[IFLA_VRF_TABLE])
@@ -1409,13 +1413,15 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 	if (err)
 		goto out;
 
-	if (add_fib_rules) {
+	net = dev_net(dev);
+	add_fib_rules = net_generic(net, vrf_net_id);
+	if (*add_fib_rules) {
 		err = vrf_add_fib_rules(dev);
 		if (err) {
 			unregister_netdevice(dev);
 			goto out;
 		}
-		add_fib_rules = false;
+		*add_fib_rules = false;
 	}
 
 out:
@@ -1498,15 +1504,37 @@ static struct notifier_block vrf_notifier_block __read_mostly = {
 	.notifier_call = vrf_device_event,
 };
 
+/* Initialize per network namespace state */
+static int __net_init vrf_netns_init(struct net *net)
+{
+	bool *add_fib_rules = net_generic(net, vrf_net_id);
+
+	*add_fib_rules = true;
+
+	return 0;
+}
+
+static struct pernet_operations vrf_net_ops __net_initdata = {
+	.init = vrf_netns_init,
+	.id   = &vrf_net_id,
+	.size = sizeof(bool),
+};
+
 static int __init vrf_init_module(void)
 {
 	int rc;
 
 	register_netdevice_notifier(&vrf_notifier_block);
 
-	rc = rtnl_link_register(&vrf_link_ops);
+	rc = register_pernet_subsys(&vrf_net_ops);
 	if (rc < 0)
 		goto error;
+
+	rc = rtnl_link_register(&vrf_link_ops);
+	if (rc < 0) {
+		unregister_pernet_subsys(&vrf_net_ops);
+		goto error;
+	}
 
 	return 0;
 

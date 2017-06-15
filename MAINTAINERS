@@ -1172,7 +1172,7 @@ N:	clps711x
 
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
-M:	Ryan Mallon <rmallon@gmail.com>
+M:	Alexander Sverdlin <alexander.sverdlin@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-ep93xx/
@@ -1489,13 +1489,15 @@ M:	Gregory Clement <gregory.clement@free-electrons.com>
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/mach-mvebu/
-F:	drivers/rtc/rtc-armada38x.c
 F:	arch/arm/boot/dts/armada*
 F:	arch/arm/boot/dts/kirkwood*
+F:	arch/arm/configs/mvebu_*_defconfig
+F:	arch/arm/mach-mvebu/
 F:	arch/arm64/boot/dts/marvell/armada*
 F:	drivers/cpufreq/mvebu-cpufreq.c
-F:	arch/arm/configs/mvebu_*_defconfig
+F:	drivers/irqchip/irq-armada-370-xp.c
+F:	drivers/irqchip/irq-mvebu-*
+F:	drivers/rtc/rtc-armada38x.c
 
 ARM/Marvell Berlin SoC support
 M:	Jisheng Zhang <jszhang@marvell.com>
@@ -1721,7 +1723,6 @@ N:	rockchip
 ARM/SAMSUNG EXYNOS ARM ARCHITECTURES
 M:	Kukjin Kim <kgene@kernel.org>
 M:	Krzysztof Kozlowski <krzk@kernel.org>
-R:	Javier Martinez Canillas <javier@osg.samsung.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 Q:	https://patchwork.kernel.org/project/linux-samsung-soc/list/
@@ -1829,7 +1830,6 @@ F:	drivers/edac/altera_edac.
 ARM/STI ARCHITECTURE
 M:	Patrice Chotard <patrice.chotard@st.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-L:	kernel@stlinux.com
 W:	http://www.stlinux.com
 S:	Maintained
 F:	arch/arm/mach-sti/
@@ -5622,7 +5622,7 @@ F:	scripts/get_maintainer.pl
 
 GENWQE (IBM Generic Workqueue Card)
 M:	Frank Haverkamp <haver@linux.vnet.ibm.com>
-M:	Gabriel Krisman Bertazi <krisman@linux.vnet.ibm.com>
+M:	Guilherme G. Piccoli <gpiccoli@linux.vnet.ibm.com>
 S:	Supported
 F:	drivers/misc/genwqe/
 
@@ -5667,7 +5667,6 @@ F:	tools/testing/selftests/gpio/
 
 GPIO SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
-M:	Alexandre Courbot <gnurou@gmail.com>
 L:	linux-gpio@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio.git
 S:	Maintained
@@ -7708,7 +7707,7 @@ F:	drivers/platform/x86/hp_accel.c
 
 LIVE PATCHING
 M:	Josh Poimboeuf <jpoimboe@redhat.com>
-M:	Jessica Yu <jeyu@redhat.com>
+M:	Jessica Yu <jeyu@kernel.org>
 M:	Jiri Kosina <jikos@kernel.org>
 M:	Miroslav Benes <mbenes@suse.cz>
 R:	Petr Mladek <pmladek@suse.com>
@@ -8623,7 +8622,7 @@ S:	Maintained
 F:	drivers/media/dvb-frontends/mn88473*
 
 MODULE SUPPORT
-M:	Jessica Yu <jeyu@redhat.com>
+M:	Jessica Yu <jeyu@kernel.org>
 M:	Rusty Russell <rusty@rustcorp.com.au>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jeyu/linux.git modules-next
 S:	Maintained
@@ -11311,7 +11310,6 @@ F:	drivers/media/rc/serial_ir.c
 
 STI CEC DRIVER
 M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
-L:	kernel@stlinux.com
 S:	Maintained
 F:	drivers/staging/media/st-cec/
 F:	Documentation/devicetree/bindings/media/stih-cec.txt
@@ -11821,6 +11819,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nsekhar/linux-davinci.git
 S:	Supported
 F:	arch/arm/mach-davinci/
 F:	drivers/i2c/busses/i2c-davinci.c
+F:	arch/arm/boot/dts/da850*
 
 TI DAVINCI SERIES MEDIA DRIVER
 M:	"Lad, Prabhakar" <prabhakar.csengg@gmail.com>
@@ -13904,7 +13903,7 @@ S:	Odd fixes
 F:	drivers/net/wireless/wl3501*
 
 WOLFSON MICROELECTRONICS DRIVERS
-L:	patches@opensource.wolfsonmicro.com
+L:	patches@opensource.cirrus.com
 T:	git https://github.com/CirrusLogic/linux-drivers.git
 W:	https://github.com/CirrusLogic/linux-drivers/wiki
 S:	Supported

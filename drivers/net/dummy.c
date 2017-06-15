@@ -328,7 +328,6 @@ static void dummy_free_netdev(struct net_device *dev)
 	struct dummy_priv *priv = netdev_priv(dev);
 
 	kfree(priv->vfinfo);
-	free_netdev(dev);
 }
 
 static void dummy_setup(struct net_device *dev)
@@ -338,7 +337,8 @@ static void dummy_setup(struct net_device *dev)
 	/* Initialize the device structure. */
 	dev->netdev_ops = &dummy_netdev_ops;
 	dev->ethtool_ops = &dummy_ethtool_ops;
-	dev->destructor = dummy_free_netdev;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = dummy_free_netdev;
 
 	/* Fill in device structure with ethernet-generic values. */
 	dev->flags |= IFF_NOARP;

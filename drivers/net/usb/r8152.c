@@ -4454,6 +4454,8 @@ static u8 rtl_get_version(struct usb_interface *intf)
 		break;
 	}
 
+	dev_dbg(&intf->dev, "Detected version 0x%04x\n", version);
+
 	return version;
 }
 

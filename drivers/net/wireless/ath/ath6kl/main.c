@@ -1287,7 +1287,7 @@ void init_netdev(struct net_device *dev)
 	struct ath6kl *ar = ath6kl_priv(dev);
 
 	dev->netdev_ops = &ath6kl_netdev_ops;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	dev->watchdog_timeo = ATH6KL_TX_TIMEOUT;
 
 	dev->needed_headroom = ETH_HLEN;

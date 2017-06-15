@@ -807,7 +807,6 @@ static void vlan_dev_free(struct net_device *dev)
 
 	free_percpu(vlan->vlan_pcpu_stats);
 	vlan->vlan_pcpu_stats = NULL;
-	free_netdev(dev);
 }
 
 void vlan_setup(struct net_device *dev)
@@ -820,7 +819,8 @@ void vlan_setup(struct net_device *dev)
 	netif_keep_dst(dev);
 
 	dev->netdev_ops		= &vlan_netdev_ops;
-	dev->destructor		= vlan_dev_free;
+	dev->needs_free_netdev	= true;
+	dev->priv_destructor	= vlan_dev_free;
 	dev->ethtool_ops	= &vlan_ethtool_ops;
 
 	dev->min_mtu		= 0;

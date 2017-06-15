@@ -173,7 +173,6 @@ struct key {
 #ifdef KEY_DEBUGGING
 	unsigned		magic;
 #define KEY_DEBUG_MAGIC		0x18273645u
-#define KEY_DEBUG_MAGIC_X	0xf8e9dacbu
 #endif
 
 	unsigned long		flags;		/* status flags (change with bitops) */

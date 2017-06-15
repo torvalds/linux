@@ -171,6 +171,8 @@ struct rndis_device {
 	spinlock_t request_lock;
 	struct list_head req_list;
 
+	struct work_struct mcast_work;
+
 	u8 hw_mac_adr[ETH_ALEN];
 	u8 rss_key[NETVSC_HASH_KEYLEN];
 	u16 ind_table[ITAB_NUM];
@@ -201,6 +203,7 @@ int rndis_filter_open(struct netvsc_device *nvdev);
 int rndis_filter_close(struct netvsc_device *nvdev);
 int rndis_filter_device_add(struct hv_device *dev,
 			    struct netvsc_device_info *info);
+void rndis_filter_update(struct netvsc_device *nvdev);
 void rndis_filter_device_remove(struct hv_device *dev,
 				struct netvsc_device *nvdev);
 int rndis_filter_set_rss_param(struct rndis_device *rdev,
@@ -211,7 +214,6 @@ int rndis_filter_receive(struct net_device *ndev,
 			 struct vmbus_channel *channel,
 			 void *data, u32 buflen);
 
-int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
 int rndis_filter_set_device_mac(struct net_device *ndev, char *mac);
 
 void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
@@ -696,7 +698,6 @@ struct net_device_context {
 	/* list protection */
 	spinlock_t lock;
 
-	struct work_struct work;
 	u32 msg_enable; /* debug level */
 
 	u32 tx_checksum_mask;

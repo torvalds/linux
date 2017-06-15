@@ -20,6 +20,10 @@ config KEYS
 
 	  If you are unsure as to whether this is required, answer N.
 
+config KEYS_COMPAT
+	def_bool y
+	depends on COMPAT && KEYS
+
 config PERSISTENT_KEYRINGS
 	bool "Enable register of persistent per-UID keyrings"
 	depends on KEYS
@@ -89,9 +93,9 @@ config ENCRYPTED_KEYS
 config KEY_DH_OPERATIONS
        bool "Diffie-Hellman operations on retained keys"
        depends on KEYS
-       select MPILIB
        select CRYPTO
        select CRYPTO_HASH
+       select CRYPTO_DH
        help
 	 This option provides support for calculating Diffie-Hellman
 	 public keys and shared secrets using values stored as keys

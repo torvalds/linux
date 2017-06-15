@@ -410,7 +410,7 @@ static int skl_free(struct hdac_ext_bus *ebus)
 	struct skl *skl  = ebus_to_skl(ebus);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 
-	skl->init_failed = 1; /* to be sure */
+	skl->init_done = 0; /* to be sure */
 
 	snd_hdac_ext_stop_streams(ebus);
 
@@ -428,8 +428,10 @@ static int skl_free(struct hdac_ext_bus *ebus)
 
 	snd_hdac_ext_bus_exit(ebus);
 
+	cancel_work_sync(&skl->probe_work);
 	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
 		snd_hdac_i915_exit(&ebus->bus);
+
 	return 0;
 }
 
@@ -566,6 +568,84 @@ static const struct hdac_bus_ops bus_core_ops = {
 	.get_response = snd_hdac_bus_get_response,
 };
 
+static int skl_i915_init(struct hdac_bus *bus)
+{
+	int err;
+
+	/*
+	 * The HDMI codec is in GPU so we need to ensure that it is powered
+	 * up and ready for probe
+	 */
+	err = snd_hdac_i915_init(bus);
+	if (err < 0)
+		return err;
+
+	err = snd_hdac_display_power(bus, true);
+	if (err < 0)
+		dev_err(bus->dev, "Cannot turn on display power on i915\n");
+
+	return err;
+}
+
+static void skl_probe_work(struct work_struct *work)
+{
+	struct skl *skl = container_of(work, struct skl, probe_work);
+	struct hdac_ext_bus *ebus = &skl->ebus;
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_ext_link *hlink = NULL;
+	int err;
+
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
+		err = skl_i915_init(bus);
+		if (err < 0)
+			return;
+	}
+
+	err = skl_init_chip(bus, true);
+	if (err < 0) {
+		dev_err(bus->dev, "Init chip failed with err: %d\n", err);
+		goto out_err;
+	}
+
+	/* codec detection */
+	if (!bus->codec_mask)
+		dev_info(bus->dev, "no hda codecs found!\n");
+
+	/* create codec instances */
+	err = skl_codec_create(ebus);
+	if (err < 0)
+		goto out_err;
+
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
+		err = snd_hdac_display_power(bus, false);
+		if (err < 0) {
+			dev_err(bus->dev, "Cannot turn off display power on i915\n");
+			return;
+		}
+	}
+
+	/* register platform dai and controls */
+	err = skl_platform_register(bus->dev);
+	if (err < 0)
+		return;
+	/*
+	 * we are done probing so decrement link counts
+	 */
+	list_for_each_entry(hlink, &ebus->hlink_list, list)
+		snd_hdac_ext_bus_link_put(ebus, hlink);
+
+	/* configure PM */
+	pm_runtime_put_noidle(bus->dev);
+	pm_runtime_allow(bus->dev);
+	skl->init_done = 1;
+
+	return;
+
+out_err:
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+		err = snd_hdac_display_power(bus, false);
+}
+
 /*
  * constructor
  */
@@ -593,33 +673,13 @@ static int skl_create(struct pci_dev *pci,
 	snd_hdac_ext_bus_init(ebus, &pci->dev, &bus_core_ops, io_ops);
 	ebus->bus.use_posbuf = 1;
 	skl->pci = pci;
+	INIT_WORK(&skl->probe_work, skl_probe_work);
 
 	ebus->bus.bdl_pos_adj = 0;
 
 	*rskl = skl;
 
 	return 0;
-}
-
-static int skl_i915_init(struct hdac_bus *bus)
-{
-	int err;
-
-	/*
-	 * The HDMI codec is in GPU so we need to ensure that it is powered
-	 * up and ready for probe
-	 */
-	err = snd_hdac_i915_init(bus);
-	if (err < 0)
-		return err;
-
-	err = snd_hdac_display_power(bus, true);
-	if (err < 0) {
-		dev_err(bus->dev, "Cannot turn on display power on i915\n");
-		return err;
-	}
-
-	return err;
 }
 
 static int skl_first_init(struct hdac_ext_bus *ebus)
@@ -684,20 +744,7 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 	/* initialize chip */
 	skl_init_pci(skl);
 
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
-		err = skl_i915_init(bus);
-		if (err < 0)
-			return err;
-	}
-
-	skl_init_chip(bus, true);
-
-	/* codec detection */
-	if (!bus->codec_mask) {
-		dev_info(bus->dev, "no hda codecs found!\n");
-	}
-
-	return 0;
+	return skl_init_chip(bus, true);
 }
 
 static int skl_probe(struct pci_dev *pci,
@@ -706,7 +753,6 @@ static int skl_probe(struct pci_dev *pci,
 	struct skl *skl;
 	struct hdac_ext_bus *ebus = NULL;
 	struct hdac_bus *bus = NULL;
-	struct hdac_ext_link *hlink = NULL;
 	int err;
 
 	/* we use ext core ops, so provide NULL for ops here */
@@ -729,7 +775,7 @@ static int skl_probe(struct pci_dev *pci,
 
 	if (skl->nhlt == NULL) {
 		err = -ENODEV;
-		goto out_display_power_off;
+		goto out_free;
 	}
 
 	err = skl_nhlt_create_sysfs(skl);
@@ -760,56 +806,24 @@ static int skl_probe(struct pci_dev *pci,
 	if (bus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(ebus);
 
+	snd_hdac_bus_stop_chip(bus);
+
 	/* create device for soc dmic */
 	err = skl_dmic_device_register(skl);
 	if (err < 0)
 		goto out_dsp_free;
 
-	/* register platform dai and controls */
-	err = skl_platform_register(bus->dev);
-	if (err < 0)
-		goto out_dmic_free;
-
-	/* create codec instances */
-	err = skl_codec_create(ebus);
-	if (err < 0)
-		goto out_unregister;
-
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
-		err = snd_hdac_display_power(bus, false);
-		if (err < 0) {
-			dev_err(bus->dev, "Cannot turn off display power on i915\n");
-			return err;
-		}
-	}
-
-	/*
-	 * we are done probling so decrement link counts
-	 */
-	list_for_each_entry(hlink, &ebus->hlink_list, list)
-		snd_hdac_ext_bus_link_put(ebus, hlink);
-
-	/* configure PM */
-	pm_runtime_put_noidle(bus->dev);
-	pm_runtime_allow(bus->dev);
+	schedule_work(&skl->probe_work);
 
 	return 0;
 
-out_unregister:
-	skl_platform_unregister(bus->dev);
-out_dmic_free:
-	skl_dmic_device_unregister(skl);
 out_dsp_free:
 	skl_free_dsp(skl);
 out_mach_free:
 	skl_machine_device_unregister(skl);
 out_nhlt_free:
 	skl_nhlt_free(skl->nhlt);
-out_display_power_off:
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
-		snd_hdac_display_power(bus, false);
 out_free:
-	skl->init_failed = 1;
 	skl_free(ebus);
 
 	return err;
@@ -828,7 +842,7 @@ static void skl_shutdown(struct pci_dev *pci)
 
 	skl = ebus_to_skl(ebus);
 
-	if (skl->init_failed)
+	if (!skl->init_done)
 		return;
 
 	snd_hdac_ext_stop_streams(ebus);

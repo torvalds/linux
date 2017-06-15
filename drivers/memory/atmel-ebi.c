@@ -581,7 +581,7 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 	return of_platform_populate(np, NULL, NULL, dev);
 }
 
-static int atmel_ebi_resume(struct device *dev)
+static __maybe_unused int atmel_ebi_resume(struct device *dev)
 {
 	struct atmel_ebi *ebi = dev_get_drvdata(dev);
 	struct atmel_ebi_dev *ebid;

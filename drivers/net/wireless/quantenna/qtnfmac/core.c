@@ -316,7 +316,7 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	vif->netdev = dev;
 
 	dev->netdev_ops = &qtnf_netdev_ops;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	dev_net_set(dev, wiphy_net(wiphy));
 	dev->ieee80211_ptr = &vif->wdev;
 	dev->ieee80211_ptr->iftype = iftype;

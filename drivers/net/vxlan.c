@@ -2611,7 +2611,7 @@ static void vxlan_setup(struct net_device *dev)
 	eth_hw_addr_random(dev);
 	ether_setup(dev);
 
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	SET_NETDEV_DEVTYPE(dev, &vxlan_type);
 
 	dev->features	|= NETIF_F_LLTX;

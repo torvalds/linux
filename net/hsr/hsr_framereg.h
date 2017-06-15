@@ -18,7 +18,7 @@ struct hsr_node;
 
 struct hsr_node *hsr_add_node(struct list_head *node_db, unsigned char addr[],
 			      u16 seq_out);
-struct hsr_node *hsr_get_node(struct list_head *node_db, struct sk_buff *skb,
+struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 			      bool is_sup);
 void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 			  struct hsr_port *port);

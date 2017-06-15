@@ -1658,13 +1658,13 @@ static ssize_t write_cpuhp_target(struct device *dev,
 	ret = !sp->name || sp->cant_stop ? -EINVAL : 0;
 	mutex_unlock(&cpuhp_state_mutex);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (st->state < target)
 		ret = do_cpu_up(dev->id, target);
 	else
 		ret = do_cpu_down(dev->id, target);
-
+out:
 	unlock_device_hotplug();
 	return ret ? ret : count;
 }

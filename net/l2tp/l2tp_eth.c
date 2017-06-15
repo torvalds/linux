@@ -114,12 +114,13 @@ static void l2tp_eth_get_stats64(struct net_device *dev,
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 
-	stats->tx_bytes   = atomic_long_read(&priv->tx_bytes);
-	stats->tx_packets = atomic_long_read(&priv->tx_packets);
-	stats->tx_dropped = atomic_long_read(&priv->tx_dropped);
-	stats->rx_bytes   = atomic_long_read(&priv->rx_bytes);
-	stats->rx_packets = atomic_long_read(&priv->rx_packets);
-	stats->rx_errors  = atomic_long_read(&priv->rx_errors);
+	stats->tx_bytes   = (unsigned long) atomic_long_read(&priv->tx_bytes);
+	stats->tx_packets = (unsigned long) atomic_long_read(&priv->tx_packets);
+	stats->tx_dropped = (unsigned long) atomic_long_read(&priv->tx_dropped);
+	stats->rx_bytes   = (unsigned long) atomic_long_read(&priv->rx_bytes);
+	stats->rx_packets = (unsigned long) atomic_long_read(&priv->rx_packets);
+	stats->rx_errors  = (unsigned long) atomic_long_read(&priv->rx_errors);
+
 }
 
 static const struct net_device_ops l2tp_eth_netdev_ops = {
@@ -141,7 +142,7 @@ static void l2tp_eth_dev_setup(struct net_device *dev)
 	dev->priv_flags		&= ~IFF_TX_SKB_SHARING;
 	dev->features		|= NETIF_F_LLTX;
 	dev->netdev_ops		= &l2tp_eth_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 }
 
 static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb, int data_len)

@@ -225,7 +225,7 @@ static const struct i40e_priv_flags i40e_gstrings_priv_flags[] = {
 	I40E_PRIV_FLAG("LinkPolling", I40E_FLAG_LINK_POLLING_ENABLED, 0),
 	I40E_PRIV_FLAG("flow-director-atr", I40E_FLAG_FD_ATR_ENABLED, 0),
 	I40E_PRIV_FLAG("veb-stats", I40E_FLAG_VEB_STATS_ENABLED, 0),
-	I40E_PRIV_FLAG("hw-atr-eviction", I40E_FLAG_HW_ATR_EVICT_CAPABLE, 0),
+	I40E_PRIV_FLAG("hw-atr-eviction", I40E_FLAG_HW_ATR_EVICT_ENABLED, 0),
 	I40E_PRIV_FLAG("legacy-rx", I40E_FLAG_LEGACY_RX, 0),
 };
 
@@ -4093,7 +4093,7 @@ flags_complete:
 
 	/* Only allow ATR evict on hardware that is capable of handling it */
 	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE)
-		pf->flags &= ~I40E_FLAG_HW_ATR_EVICT_CAPABLE;
+		pf->flags &= ~I40E_FLAG_HW_ATR_EVICT_ENABLED;
 
 	if (changed_flags & I40E_FLAG_TRUE_PROMISC_SUPPORT) {
 		u16 sw_flags = 0, valid_flags = 0;

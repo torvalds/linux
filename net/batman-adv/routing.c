@@ -987,7 +987,7 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 				batadv_dbg(BATADV_DBG_BLA, bat_priv,
 					   "%s(): Dropped unicast pkt received from another backbone gw %pM.\n",
 					   __func__, orig_addr_gw);
-				return NET_RX_DROP;
+				goto free_skb;
 			}
 		}
 
