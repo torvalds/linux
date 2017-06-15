@@ -34,6 +34,25 @@ struct sigcontext {
 };
 
 /*
+ * Allocation of __reserved[]:
+ * (Note: records do not necessarily occur in the order shown here.)
+ *
+ *	size		description
+ *
+ *	0x210		fpsimd_context
+ *	 0x10		esr_context
+ *	 0x10		terminator (null _aarch64_ctx)
+ *
+ *	0xdd0		(reserved for future allocation)
+ *
+ * New records that can exceed this space need to be opt-in for userspace, so
+ * that an expanded signal frame is not generated unexpectedly.  The mechanism
+ * for opting in will depend on the extension that generates each new record.
+ * The above table documents the maximum set and sizes of records than can be
+ * generated when userspace does not opt in for any such extension.
+ */
+
+/*
  * Header to be used at the beginning of structures extending the user
  * context. Such structures must be placed after the rt_sigframe on the stack
  * and be 16-byte aligned. The last structure must be a dummy one with the
