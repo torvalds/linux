@@ -2265,6 +2265,39 @@ out:
 	WARN_ON(!osds_valid(up) || !osds_valid(acting));
 }
 
+bool ceph_pg_to_primary_shard(struct ceph_osdmap *osdmap,
+			      const struct ceph_pg *raw_pgid,
+			      struct ceph_spg *spgid)
+{
+	struct ceph_pg_pool_info *pi;
+	struct ceph_pg pgid;
+	struct ceph_osds up, acting;
+	int i;
+
+	pi = ceph_pg_pool_by_id(osdmap, raw_pgid->pool);
+	if (!pi)
+		return false;
+
+	raw_pg_to_pg(pi, raw_pgid, &pgid);
+
+	if (ceph_can_shift_osds(pi)) {
+		spgid->pgid = pgid; /* struct */
+		spgid->shard = CEPH_SPG_NOSHARD;
+		return true;
+	}
+
+	ceph_pg_to_up_acting_osds(osdmap, &pgid, &up, &acting);
+	for (i = 0; i < acting.size; i++) {
+		if (acting.osds[i] == acting.primary) {
+			spgid->pgid = pgid; /* struct */
+			spgid->shard = i;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /*
  * Return acting primary for given PG, or -1 if none.
  */

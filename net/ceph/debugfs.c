@@ -147,11 +147,20 @@ static int monc_show(struct seq_file *s, void *p)
 	return 0;
 }
 
+static void dump_spgid(struct seq_file *s, const struct ceph_spg *spgid)
+{
+	seq_printf(s, "%llu.%x", spgid->pgid.pool, spgid->pgid.seed);
+	if (spgid->shard != CEPH_SPG_NOSHARD)
+		seq_printf(s, "s%d", spgid->shard);
+}
+
 static void dump_target(struct seq_file *s, struct ceph_osd_request_target *t)
 {
 	int i;
 
-	seq_printf(s, "osd%d\t%llu.%x\t[", t->osd, t->pgid.pool, t->pgid.seed);
+	seq_printf(s, "osd%d\t%llu.%x\t", t->osd, t->pgid.pool, t->pgid.seed);
+	dump_spgid(s, &t->spgid);
+	seq_puts(s, "\t[");
 	for (i = 0; i < t->up.size; i++)
 		seq_printf(s, "%s%d", (!i ? "" : ","), t->up.osds[i]);
 	seq_printf(s, "]/%d\t[", t->up.primary);

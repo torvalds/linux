@@ -24,6 +24,13 @@ struct ceph_pg {
 	uint32_t seed;
 };
 
+#define CEPH_SPG_NOSHARD	-1
+
+struct ceph_spg {
+	struct ceph_pg pgid;
+	s8 shard;
+};
+
 int ceph_pg_compare(const struct ceph_pg *lhs, const struct ceph_pg *rhs);
 
 #define CEPH_POOL_FLAG_HASHPSPOOL	(1ULL << 0) /* hash pg seed and pool id
@@ -271,6 +278,9 @@ void ceph_pg_to_up_acting_osds(struct ceph_osdmap *osdmap,
 			       const struct ceph_pg *raw_pgid,
 			       struct ceph_osds *up,
 			       struct ceph_osds *acting);
+bool ceph_pg_to_primary_shard(struct ceph_osdmap *osdmap,
+			      const struct ceph_pg *raw_pgid,
+			      struct ceph_spg *spgid);
 int ceph_pg_to_acting_primary(struct ceph_osdmap *osdmap,
 			      const struct ceph_pg *raw_pgid);
 

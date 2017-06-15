@@ -373,6 +373,7 @@ static void target_copy(struct ceph_osd_request_target *dest,
 	ceph_oloc_copy(&dest->target_oloc, &src->target_oloc);
 
 	dest->pgid = src->pgid; /* struct */
+	dest->spgid = src->spgid; /* struct */
 	dest->pg_num = src->pg_num;
 	dest->pg_num_mask = src->pg_num_mask;
 	ceph_osds_copy(&dest->acting, &src->acting);
@@ -1394,6 +1395,7 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	    ceph_osds_changed(&t->acting, &acting, any_change) ||
 	    force_resend) {
 		t->pgid = pgid; /* struct */
+		ceph_pg_to_primary_shard(osdc->osdmap, &pgid, &t->spgid);
 		ceph_osds_copy(&t->acting, &acting);
 		ceph_osds_copy(&t->up, &up);
 		t->size = pi->size;
@@ -1595,9 +1597,10 @@ static void send_request(struct ceph_osd_request *req)
 
 	encode_request(req, req->r_request);
 
-	dout("%s req %p tid %llu to pg %llu.%x osd%d flags 0x%x attempt %d\n",
+	dout("%s req %p tid %llu to pgid %llu.%x spgid %llu.%xs%d osd%d flags 0x%x attempt %d\n",
 	     __func__, req, req->r_tid, req->r_t.pgid.pool, req->r_t.pgid.seed,
-	     req->r_t.osd, req->r_flags, req->r_attempts);
+	     req->r_t.spgid.pgid.pool, req->r_t.spgid.pgid.seed,
+	     req->r_t.spgid.shard, osd->o_osd, req->r_flags, req->r_attempts);
 
 	req->r_t.paused = false;
 	req->r_stamp = jiffies;

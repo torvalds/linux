@@ -136,7 +136,8 @@ struct ceph_osd_request_target {
 	struct ceph_object_id target_oid;
 	struct ceph_object_locator target_oloc;
 
-	struct ceph_pg pgid;
+	struct ceph_pg pgid;               /* last raw pg we mapped to */
+	struct ceph_spg spgid;             /* last actual spg we mapped to */
 	u32 pg_num;
 	u32 pg_num_mask;
 	struct ceph_osds acting;
