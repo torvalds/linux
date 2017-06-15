@@ -100,4 +100,8 @@ void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
 void asoc_simple_card_parse_convert(struct device *dev, char *prefix,
 				    struct asoc_simple_card_data *data);
 
+int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
+				      char *prefix,
+				      int optional);
+
 #endif /* __SIMPLE_CARD_UTILS_H */
