@@ -145,6 +145,20 @@
 			};
 		};
 	};
+
+	wlan_en: wlan-en-1-8v {
+		compatible = "regulator-fixed";
+		regulator-name = "wlan-en-regulator";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		/* GPIO_051_WIFI_EN */
+		gpio = <&gpio6 3 0>;
+
+		/* WLAN card specific delay */
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
 };
 
 &i2c0 {
@@ -207,4 +221,23 @@
 	vmmc-supply = <&ldo16>;
 	vqmmc-supply = <&ldo9>;
 	status = "okay";
+};
+
+&dwmmc2 { /* WIFI */
+	broken-cd;
+	/* WL_EN */
+	vmmc-supply = <&wlan_en>;
+	ti,non-removable;
+	non-removable;
+	#address-cells = <0x1>;
+	#size-cells = <0x0>;
+	status = "ok";
+
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1837";
+		reg = <2>;      /* sdio func num */
+		/* WL_IRQ, GPIO_179_WL_WAKEUP_AP */
+		interrupt-parent = <&gpio22>;
+		interrupts = <3 IRQ_TYPE_EDGE_RISING>;
+	};
 };
