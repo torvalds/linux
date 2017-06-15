@@ -2317,11 +2317,31 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	ep_ring = xhci_dma_to_transfer_ring(ep, ep_trb_dma);
 	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
 
-	if (!ep_ring || GET_EP_CTX_STATE(ep_ctx) == EP_STATE_DISABLED) {
+	if (GET_EP_CTX_STATE(ep_ctx) == EP_STATE_DISABLED) {
 		xhci_err(xhci,
-			 "ERROR Transfer event for disabled endpoint slot %u ep %u or incorrect stream ring\n",
+			 "ERROR Transfer event for disabled endpoint slot %u ep %u\n",
 			  slot_id, ep_index);
 		goto err_out;
+	}
+
+	/* Some transfer events don't always point to a trb, see xhci 4.17.4 */
+	if (!ep_ring) {
+		switch (trb_comp_code) {
+		case COMP_STALL_ERROR:
+		case COMP_USB_TRANSACTION_ERROR:
+		case COMP_INVALID_STREAM_TYPE_ERROR:
+		case COMP_INVALID_STREAM_ID_ERROR:
+			xhci_cleanup_halted_endpoint(xhci, slot_id, ep_index, 0,
+						     NULL, NULL, EP_SOFT_RESET);
+			goto cleanup;
+		case COMP_RING_UNDERRUN:
+		case COMP_RING_OVERRUN:
+			goto cleanup;
+		default:
+			xhci_err(xhci, "ERROR Transfer event for unknown stream ring slot %u ep %u\n",
+				 slot_id, ep_index);
+			goto err_out;
+		}
 	}
 
 	/* Count current td numbers if ep->skip is set */
