@@ -206,3 +206,29 @@
 &uart_C {
 	clocks = <&clkc CLKID_CLK81>;
 };
+
+&usb0 {
+	compatible = "amlogic,meson8b-usb", "snps,dwc2";
+	clocks = <&clkc CLKID_USB0_DDR_BRIDGE>;
+	clock-names = "otg";
+};
+
+&usb1 {
+	compatible = "amlogic,meson8b-usb", "snps,dwc2";
+	clocks = <&clkc CLKID_USB1_DDR_BRIDGE>;
+	clock-names = "otg";
+};
+
+&usb0_phy {
+	compatible = "amlogic,meson8b-usb2-phy", "amlogic,meson-mx-usb2-phy";
+	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB0>;
+	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
+};
+
+&usb1_phy {
+	compatible = "amlogic,meson8b-usb2-phy", "amlogic,meson-mx-usb2-phy";
+	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
+	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
+};
