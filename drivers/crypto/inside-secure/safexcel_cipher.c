@@ -190,8 +190,6 @@ static int safexcel_aes_send(struct crypto_async_request *async,
 	int nr_src, nr_dst, n_cdesc = 0, n_rdesc = 0, queued = req->cryptlen;
 	int i, ret = 0;
 
-	request->req = &req->base;
-
 	if (req->src == req->dst) {
 		nr_src = dma_map_sg(priv->dev, req->src,
 				    sg_nents_for_len(req->src, req->cryptlen),
@@ -264,9 +262,10 @@ static int safexcel_aes_send(struct crypto_async_request *async,
 		n_rdesc++;
 	}
 
-	ctx->base.handle_result = safexcel_handle_result;
-
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
+
+	request->req = &req->base;
+	ctx->base.handle_result = safexcel_handle_result;
 
 	*commands = n_cdesc;
 	*results = n_rdesc;

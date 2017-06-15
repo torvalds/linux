@@ -198,9 +198,6 @@ static int safexcel_ahash_send(struct crypto_async_request *async, int ring,
 		len -= extra;
 	}
 
-	request->req = &areq->base;
-	ctx->base.handle_result = safexcel_handle_result;
-
 	spin_lock_bh(&priv->ring[ring].egress_lock);
 
 	/* Add a command descriptor for the cached data, if any */
@@ -291,8 +288,11 @@ send_command:
 		goto cdesc_rollback;
 	}
 
-	req->processed += len;
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
+
+	req->processed += len;
+	request->req = &areq->base;
+	ctx->base.handle_result = safexcel_handle_result;
 
 	*commands = n_cdesc;
 	*results = 1;
