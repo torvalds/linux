@@ -135,6 +135,10 @@ static enum intel_pch intel_virt_detect_pch(struct drm_i915_private *dev_priv)
 		DRM_DEBUG_KMS("Assuming CougarPoint PCH\n");
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		ret = PCH_LPT;
+		if (IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv))
+			dev_priv->pch_id = INTEL_PCH_LPT_LP_DEVICE_ID_TYPE;
+		else
+			dev_priv->pch_id = INTEL_PCH_LPT_DEVICE_ID_TYPE;
 		DRM_DEBUG_KMS("Assuming LynxPoint PCH\n");
 	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		ret = PCH_SPT;
