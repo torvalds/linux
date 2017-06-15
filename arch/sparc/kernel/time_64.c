@@ -32,7 +32,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/ftrace.h>
 
@@ -257,7 +256,7 @@ static int stick_add_compare(unsigned long adj)
 
 static unsigned long stick_get_frequency(void)
 {
-	return prom_getint(prom_root_node, "stick-frequency");
+	return prom_getintdefault(prom_root_node, "stick-frequency", 0);
 }
 
 static struct sparc64_tick_ops stick_operations __read_mostly = {
@@ -391,9 +390,7 @@ static int hbtick_add_compare(unsigned long adj)
 
 static unsigned long hbtick_get_frequency(void)
 {
-	struct device_node *dp = of_find_node_by_path("/");
-
-	return of_getintprop_default(dp, "stick-frequency", 0);
+	return prom_getintdefault(prom_root_node, "stick-frequency", 0);
 }
 
 static struct sparc64_tick_ops hbtick_operations __read_mostly = {
