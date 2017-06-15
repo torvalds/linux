@@ -21,7 +21,7 @@ static int sys_membarrier(int cmd, int flags)
 static enum test_membarrier_status test_membarrier_cmd_fail(void)
 {
 	int cmd = -1, flags = 0;
-	const char *test_name = "membarrier command fail";
+	const char *test_name = "membarrier command cmd=-1. Wrong command should fail";
 
 	if (sys_membarrier(cmd, flags) != -1) {
 		ksft_test_result_fail(test_name);
@@ -35,7 +35,7 @@ static enum test_membarrier_status test_membarrier_cmd_fail(void)
 static enum test_membarrier_status test_membarrier_flags_fail(void)
 {
 	int cmd = MEMBARRIER_CMD_QUERY, flags = 1;
-	const char *test_name = "Wrong flags should fail";
+	const char *test_name = "MEMBARRIER_CMD_QUERY, flags=1, Wrong flags should fail";
 
 	if (sys_membarrier(cmd, flags) != -1) {
 		ksft_test_result_fail(test_name);
