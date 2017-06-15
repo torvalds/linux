@@ -897,7 +897,8 @@ static void rsnd_ssi_connect(struct rsnd_mod *mod,
 		type = types[i];
 		if (!rsnd_io_to_mod(io, type)) {
 			rsnd_dai_connect(mod, io, type);
-			rsnd_set_slot(rdai, 2 * (i + 1), (i + 1));
+			rsnd_rdai_channels_set(rdai, (i + 1) * 2);
+			rsnd_rdai_ssi_lane_set(rdai, (i + 1));
 			return;
 		}
 	}

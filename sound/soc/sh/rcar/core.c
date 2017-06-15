@@ -203,27 +203,6 @@ int rsnd_io_is_working(struct rsnd_dai_stream *io)
 	return !!io->substream;
 }
 
-void rsnd_set_slot(struct rsnd_dai *rdai,
-		   int slots, int num)
-{
-	rdai->slots	= slots;
-	rdai->slots_num	= num;
-}
-
-int rsnd_get_slot(struct rsnd_dai_stream *io)
-{
-	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-
-	return rdai->slots;
-}
-
-int rsnd_get_slot_num(struct rsnd_dai_stream *io)
-{
-	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-
-	return rdai->slots_num;
-}
-
 int rsnd_runtime_channel_original(struct rsnd_dai_stream *io)
 {
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
@@ -248,13 +227,14 @@ int rsnd_runtime_channel_after_ctu(struct rsnd_dai_stream *io)
 
 int rsnd_runtime_channel_for_ssi(struct rsnd_dai_stream *io)
 {
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	int chan = rsnd_io_is_play(io) ?
 		rsnd_runtime_channel_after_ctu(io) :
 		rsnd_runtime_channel_original(io);
 
 	/* Use Multi SSI */
 	if (rsnd_runtime_is_ssi_multi(io))
-		chan /= rsnd_get_slot_num(io);
+		chan /= rsnd_rdai_ssi_lane_get(rdai);
 
 	/* TDM Extend Mode needs 8ch */
 	if (chan == 6)
@@ -265,12 +245,13 @@ int rsnd_runtime_channel_for_ssi(struct rsnd_dai_stream *io)
 
 int rsnd_runtime_is_ssi_multi(struct rsnd_dai_stream *io)
 {
-	int slots = rsnd_get_slot_num(io);
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	int lane = rsnd_rdai_ssi_lane_get(rdai);
 	int chan = rsnd_io_is_play(io) ?
 		rsnd_runtime_channel_after_ctu(io) :
 		rsnd_runtime_channel_original(io);
 
-	return (chan >= 6) && (slots > 1);
+	return (chan > 2) && (lane > 1);
 }
 
 int rsnd_runtime_is_ssi_tdm(struct rsnd_dai_stream *io)
@@ -549,6 +530,24 @@ static void rsnd_dai_disconnect(struct rsnd_mod *mod,
 	io->mod[type] = NULL;
 }
 
+int rsnd_rdai_channels_ctrl(struct rsnd_dai *rdai,
+			    int max_channels)
+{
+	if (max_channels > 0)
+		rdai->max_channels = max_channels;
+
+	return rdai->max_channels;
+}
+
+int rsnd_rdai_ssi_lane_ctrl(struct rsnd_dai *rdai,
+			    int ssi_lane)
+{
+	if (ssi_lane > 0)
+		rdai->ssi_lane = ssi_lane;
+
+	return rdai->ssi_lane;
+}
+
 struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id)
 {
 	if ((id < 0) || (id >= rsnd_rdai_nr(priv)))
@@ -726,7 +725,8 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	switch (slots) {
 	case 6:
 		/* TDM Extend Mode */
-		rsnd_set_slot(rdai, slots, 1);
+		rsnd_rdai_channels_set(rdai, slots);
+		rsnd_rdai_ssi_lane_set(rdai, 1);
 		break;
 	default:
 		dev_err(dev, "unsupported TDM slots (%d)\n", slots);
@@ -879,7 +879,8 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 
 	rdai->playback.rdai		= rdai;
 	rdai->capture.rdai		= rdai;
-	rsnd_set_slot(rdai, 2, 1); /* default */
+	rsnd_rdai_channels_set(rdai, 2); /* default 2ch */
+	rsnd_rdai_ssi_lane_set(rdai, 1); /* default 1lane */
 
 	for (io_i = 0;; io_i++) {
 		playback = of_parse_phandle(dai_np, "playback", io_i);

@@ -399,11 +399,6 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		struct device_node *playback,
 		struct device_node *capture);
 
-void rsnd_set_slot(struct rsnd_dai *rdai,
-		   int slots, int slots_total);
-int rsnd_get_slot(struct rsnd_dai_stream *io);
-int rsnd_get_slot_num(struct rsnd_dai_stream *io);
-
 int rsnd_runtime_channel_original(struct rsnd_dai_stream *io);
 int rsnd_runtime_channel_after_ctu(struct rsnd_dai_stream *io);
 int rsnd_runtime_channel_for_ssi(struct rsnd_dai_stream *io);
@@ -455,8 +450,8 @@ struct rsnd_dai {
 	struct rsnd_dai_stream capture;
 	struct rsnd_priv *priv;
 
-	int slots;
-	int slots_num;
+	int max_channels;	/* 2ch - 16ch */
+	int ssi_lane;		/* 1lane - 4lane */
 
 	unsigned int clk_master:1;
 	unsigned int bit_clk_inv:1;
@@ -475,6 +470,20 @@ struct rsnd_dai {
 	     i++)
 
 struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id);
+
+#define rsnd_rdai_channels_set(rdai, max_channels) \
+	rsnd_rdai_channels_ctrl(rdai, max_channels)
+#define rsnd_rdai_channels_get(rdai) \
+	rsnd_rdai_channels_ctrl(rdai, 0)
+int rsnd_rdai_channels_ctrl(struct rsnd_dai *rdai,
+			    int max_channels);
+
+#define rsnd_rdai_ssi_lane_set(rdai, ssi_lane) \
+	rsnd_rdai_ssi_lane_ctrl(rdai, ssi_lane)
+#define rsnd_rdai_ssi_lane_get(rdai) \
+	rsnd_rdai_ssi_lane_ctrl(rdai, 0)
+int rsnd_rdai_ssi_lane_ctrl(struct rsnd_dai *rdai,
+			    int ssi_lane);
 
 void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io);
 int rsnd_dai_connect(struct rsnd_mod *mod,
