@@ -23,6 +23,7 @@
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/freezer.h>
+#include <linux/stddef.h>
 #include <linux/uaccess.h>
 #include <linux/tracehook.h>
 #include <linux/ratelimit.h>
@@ -101,12 +102,86 @@ static int restore_fpsimd_context(struct fpsimd_context __user *ctx)
 	return err ? -EFAULT : 0;
 }
 
+struct user_ctxs {
+	struct fpsimd_context __user *fpsimd;
+};
+
+static int parse_user_sigframe(struct user_ctxs *user,
+			       struct rt_sigframe __user *sf)
+{
+	struct sigcontext __user *const sc = &sf->uc.uc_mcontext;
+	struct _aarch64_ctx __user *head =
+		(struct _aarch64_ctx __user *)&sc->__reserved;
+	size_t offset = 0;
+
+	user->fpsimd = NULL;
+
+	while (1) {
+		int err;
+		u32 magic, size;
+
+		head = (struct _aarch64_ctx __user *)&sc->__reserved[offset];
+		if (!IS_ALIGNED((unsigned long)head, 16))
+			goto invalid;
+
+		err = 0;
+		__get_user_error(magic, &head->magic, err);
+		__get_user_error(size, &head->size, err);
+		if (err)
+			return err;
+
+		switch (magic) {
+		case 0:
+			if (size)
+				goto invalid;
+
+			goto done;
+
+		case FPSIMD_MAGIC:
+			if (user->fpsimd)
+				goto invalid;
+
+			if (offset > sizeof(sc->__reserved) -
+					sizeof(*user->fpsimd) ||
+			    size < sizeof(*user->fpsimd))
+				goto invalid;
+
+			user->fpsimd = (struct fpsimd_context __user *)head;
+			break;
+
+		case ESR_MAGIC:
+			/* ignore */
+			break;
+
+		default:
+			goto invalid;
+		}
+
+		if (size < sizeof(*head))
+			goto invalid;
+
+		if (size > sizeof(sc->__reserved) - (sizeof(*head) + offset))
+			goto invalid;
+
+		offset += size;
+	}
+
+done:
+	if (!user->fpsimd)
+		goto invalid;
+
+	return 0;
+
+invalid:
+	return -EINVAL;
+}
+
 static int restore_sigframe(struct pt_regs *regs,
 			    struct rt_sigframe __user *sf)
 {
 	sigset_t set;
 	int i, err;
-	void *aux = sf->uc.uc_mcontext.__reserved;
+	struct user_ctxs user;
 
 	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
 	if (err == 0)
@@ -125,12 +200,11 @@ static int restore_sigframe(struct pt_regs *regs,
 	regs->syscallno = ~0UL;
 
 	err |= !valid_user_regs(&regs->user_regs, current);
+	if (err == 0)
+		err = parse_user_sigframe(&user, sf);
 
-	if (err == 0) {
-		struct fpsimd_context *fpsimd_ctx =
-			container_of(aux, struct fpsimd_context, head);
-		err |= restore_fpsimd_context(fpsimd_ctx);
-	}
+	if (err == 0)
+		err = restore_fpsimd_context(user.fpsimd);
 
 	return err;
 }
