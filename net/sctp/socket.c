@@ -4666,9 +4666,8 @@ int sctp_for_each_transport(int (*cb)(struct sctp_transport *, void *),
 	if (err)
 		return err;
 
-	sctp_transport_get_idx(net, &hti, pos);
-	obj = sctp_transport_get_next(net, &hti);
-	for (; obj && !IS_ERR(obj); obj = sctp_transport_get_next(net, &hti)) {
+	obj = sctp_transport_get_idx(net, &hti, pos + 1);
+	for (; !IS_ERR_OR_NULL(obj); obj = sctp_transport_get_next(net, &hti)) {
 		struct sctp_transport *transport = obj;
 
 		if (!sctp_transport_hold(transport))
