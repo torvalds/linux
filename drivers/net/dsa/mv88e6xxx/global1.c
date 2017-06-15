@@ -42,13 +42,13 @@ static int mv88e6185_g1_wait_ppu_disabled(struct mv88e6xxx_chip *chip)
 	int i, err;
 
 	for (i = 0; i < 16; i++) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &state);
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
 		if (err)
 			return err;
 
 		/* Check the value of the PPUState bits 15:14 */
-		state &= GLOBAL_STATUS_PPU_STATE_MASK;
-		if (state != GLOBAL_STATUS_PPU_STATE_POLLING)
+		state &= MV88E6185_G1_STS_PPU_STATE_MASK;
+		if (state != MV88E6185_G1_STS_PPU_STATE_POLLING)
 			return 0;
 
 		usleep_range(1000, 2000);
@@ -63,13 +63,13 @@ static int mv88e6185_g1_wait_ppu_polling(struct mv88e6xxx_chip *chip)
 	int i, err;
 
 	for (i = 0; i < 16; ++i) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &state);
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
 		if (err)
 			return err;
 
 		/* Check the value of the PPUState bits 15:14 */
-		state &= GLOBAL_STATUS_PPU_STATE_MASK;
-		if (state == GLOBAL_STATUS_PPU_STATE_POLLING)
+		state &= MV88E6185_G1_STS_PPU_STATE_MASK;
+		if (state == MV88E6185_G1_STS_PPU_STATE_POLLING)
 			return 0;
 
 		usleep_range(1000, 2000);
@@ -84,12 +84,12 @@ static int mv88e6352_g1_wait_ppu_polling(struct mv88e6xxx_chip *chip)
 	int i, err;
 
 	for (i = 0; i < 16; ++i) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &state);
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
 		if (err)
 			return err;
 
 		/* Check the value of the PPUState (or InitState) bit 15 */
-		if (state & GLOBAL_STATUS_PPU_STATE)
+		if (state & MV88E6352_G1_STS_PPU_STATE)
 			return 0;
 
 		usleep_range(1000, 2000);
@@ -109,11 +109,11 @@ static int mv88e6xxx_g1_wait_init_ready(struct mv88e6xxx_chip *chip)
 	 * have finished their initialization and are ready to accept frames.
 	 */
 	while (time_before(jiffies, timeout)) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &val);
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &val);
 		if (err)
 			return err;
 
-		if (val & GLOBAL_STATUS_INIT_READY)
+		if (val & MV88E6XXX_G1_STS_INIT_READY)
 			break;
 
 		usleep_range(1000, 2000);

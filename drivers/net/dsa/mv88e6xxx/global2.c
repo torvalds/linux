@@ -17,7 +17,7 @@
 #include <linux/irqdomain.h>
 
 #include "chip.h"
-#include "global1.h" /* for GLOBAL_STATUS_IRQ_DEVICE */
+#include "global1.h" /* for MV88E6XXX_G1_STS_IRQ_DEVICE */
 #include "global2.h"
 
 static int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
@@ -977,7 +977,7 @@ int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 	chip->g2_irq.masked = ~0;
 
 	chip->device_irq = irq_find_mapping(chip->g1_irq.domain,
-					    GLOBAL_STATUS_IRQ_DEVICE);
+					    MV88E6XXX_G1_STS_IRQ_DEVICE);
 	if (chip->device_irq < 0) {
 		err = chip->device_irq;
 		goto out;
