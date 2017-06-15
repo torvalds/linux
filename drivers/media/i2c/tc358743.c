@@ -1303,7 +1303,6 @@ static int tc358743_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			tc358743_csi_err_int_handler(sd, handled);
 
 		i2c_wr16(sd, INTSTATUS, MASK_CSI_INT);
-		intstatus &= ~MASK_CSI_INT;
 	}
 
 	intstatus = i2c_rd16(sd, INTSTATUS);
