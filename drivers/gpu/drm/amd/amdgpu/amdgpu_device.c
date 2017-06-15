@@ -1073,6 +1073,10 @@ def_value:
 
 static void amdgpu_check_vm_size(struct amdgpu_device *adev)
 {
+	/* no need to check the default value */
+	if (amdgpu_vm_size == -1)
+		return;
+
 	if (!amdgpu_check_pot_argument(amdgpu_vm_size)) {
 		dev_warn(adev->dev, "VM size (%d) must be a power of 2\n",
 			 amdgpu_vm_size);
