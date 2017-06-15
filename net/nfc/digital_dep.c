@@ -151,7 +151,7 @@ static const u8 digital_payload_bits_map[4] = {
  *  0 <= wt <= 14 (given by the target by the TO field of ATR_RES response)
  */
 #define DIGITAL_NFC_DEP_IN_MAX_WT 14
-#define DIGITAL_NFC_DEP_TG_MAX_WT 8
+#define DIGITAL_NFC_DEP_TG_MAX_WT 14
 static const u16 digital_rwt_map[DIGITAL_NFC_DEP_IN_MAX_WT + 1] = {
 	100,  101,  101,  102,  105,
 	110,  119,  139,  177,  255,
