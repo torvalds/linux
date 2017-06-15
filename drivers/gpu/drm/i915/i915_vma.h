@@ -100,8 +100,11 @@ struct i915_vma {
 	struct list_head obj_link; /* Link in the object's VMA list */
 	struct rb_node obj_node;
 
-	/** This vma's place in the batchbuffer or on the eviction list */
-	struct list_head exec_list;
+	/** This vma's place in the execbuf reservation list */
+	struct list_head exec_link;
+
+	/** This vma's place in the eviction list */
+	struct list_head evict_link;
 
 	/**
 	 * Used for performing relocations during execbuffer insertion.
