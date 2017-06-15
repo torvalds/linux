@@ -774,37 +774,101 @@ static void mlx4_en_tx_write_desc(struct mlx4_en_tx_ring *ring,
 	}
 }
 
+static bool mlx4_en_build_dma_wqe(struct mlx4_en_priv *priv,
+				  struct skb_shared_info *shinfo,
+				  struct mlx4_wqe_data_seg *data,
+				  struct sk_buff *skb,
+				  int lso_header_size,
+				  __be32 mr_key,
+				  struct mlx4_en_tx_info *tx_info)
+{
+	struct device *ddev = priv->ddev;
+	dma_addr_t dma = 0;
+	u32 byte_count = 0;
+	int i_frag;
+
+	/* Map fragments if any */
+	for (i_frag = shinfo->nr_frags - 1; i_frag >= 0; i_frag--) {
+		const struct skb_frag_struct *frag;
+
+		frag = &shinfo->frags[i_frag];
+		byte_count = skb_frag_size(frag);
+		dma = skb_frag_dma_map(ddev, frag,
+				       0, byte_count,
+				       DMA_TO_DEVICE);
+		if (dma_mapping_error(ddev, dma))
+			goto tx_drop_unmap;
+
+		data->addr = cpu_to_be64(dma);
+		data->lkey = mr_key;
+		dma_wmb();
+		data->byte_count = cpu_to_be32(byte_count);
+		--data;
+	}
+
+	/* Map linear part if needed */
+	if (tx_info->linear) {
+		byte_count = skb_headlen(skb) - lso_header_size;
+
+		dma = dma_map_single(ddev, skb->data +
+				     lso_header_size, byte_count,
+				     PCI_DMA_TODEVICE);
+		if (dma_mapping_error(ddev, dma))
+			goto tx_drop_unmap;
+
+		data->addr = cpu_to_be64(dma);
+		data->lkey = mr_key;
+		dma_wmb();
+		data->byte_count = cpu_to_be32(byte_count);
+	}
+	/* tx completion can avoid cache line miss for common cases */
+	tx_info->map0_dma = dma;
+	tx_info->map0_byte_count = byte_count;
+
+	return true;
+
+tx_drop_unmap:
+	en_err(priv, "DMA mapping error\n");
+
+	while (++i_frag < shinfo->nr_frags) {
+		++data;
+		dma_unmap_page(ddev, (dma_addr_t)be64_to_cpu(data->addr),
+			       be32_to_cpu(data->byte_count),
+			       PCI_DMA_TODEVICE);
+	}
+
+	return false;
+}
+
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	union mlx4_wqe_qpn_vlan	qpn_vlan = {};
-	struct device *ddev = priv->ddev;
 	struct mlx4_en_tx_ring *ring;
 	struct mlx4_en_tx_desc *tx_desc;
 	struct mlx4_wqe_data_seg *data;
 	struct mlx4_en_tx_info *tx_info;
-	int tx_ind = 0;
+	int tx_ind;
 	int nr_txbb;
 	int desc_size;
 	int real_size;
 	u32 index, bf_index;
 	__be32 op_own;
-	u16 vlan_proto = 0;
-	int i_frag;
 	int lso_header_size;
 	void *fragptr = NULL;
 	bool bounce = false;
 	bool send_doorbell;
 	bool stop_queue;
 	bool inline_ok;
+	u8 data_offset;
 	u32 ring_cons;
 	bool bf_ok;
 
 	tx_ind = skb_get_queue_mapping(skb);
 	ring = priv->tx_ring[TX][tx_ind];
 
-	if (!priv->port_up)
+	if (unlikely(!priv->port_up))
 		goto tx_drop;
 
 	/* fetch ring->cons far ahead before needing it to avoid stall */
@@ -826,6 +890,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	bf_ok = ring->bf_enabled;
 	if (skb_vlan_tag_present(skb)) {
+		u16 vlan_proto;
+
 		qpn_vlan.vlan_tag = cpu_to_be16(skb_vlan_tag_get(skb));
 		vlan_proto = be16_to_cpu(skb->vlan_proto);
 		if (vlan_proto == ETH_P_8021AD)
@@ -862,64 +928,31 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_info->skb = skb;
 	tx_info->nr_txbb = nr_txbb;
 
-	data = &tx_desc->data;
-	if (lso_header_size)
-		data = ((void *)&tx_desc->lso + ALIGN(lso_header_size + 4,
-						      DS_SIZE));
+	if (!lso_header_size) {
+		data = &tx_desc->data;
+		data_offset = offsetof(struct mlx4_en_tx_desc, data);
+	} else {
+		int lso_align = ALIGN(lso_header_size + 4, DS_SIZE);
+
+		data = (void *)&tx_desc->lso + lso_align;
+		data_offset = offsetof(struct mlx4_en_tx_desc, lso) + lso_align;
+	}
 
 	/* valid only for none inline segments */
-	tx_info->data_offset = (void *)data - (void *)tx_desc;
+	tx_info->data_offset = data_offset;
 
 	tx_info->inl = inline_ok;
 
-	tx_info->linear = (lso_header_size < skb_headlen(skb) &&
-			   !inline_ok) ? 1 : 0;
+	tx_info->linear = lso_header_size < skb_headlen(skb) && !inline_ok;
 
 	tx_info->nr_maps = shinfo->nr_frags + tx_info->linear;
 	data += tx_info->nr_maps - 1;
 
-	if (!tx_info->inl) {
-		dma_addr_t dma = 0;
-		u32 byte_count = 0;
-
-		/* Map fragments if any */
-		for (i_frag = shinfo->nr_frags - 1; i_frag >= 0; i_frag--) {
-			const struct skb_frag_struct *frag;
-
-			frag = &shinfo->frags[i_frag];
-			byte_count = skb_frag_size(frag);
-			dma = skb_frag_dma_map(ddev, frag,
-					       0, byte_count,
-					       DMA_TO_DEVICE);
-			if (dma_mapping_error(ddev, dma))
-				goto tx_drop_unmap;
-
-			data->addr = cpu_to_be64(dma);
-			data->lkey = ring->mr_key;
-			dma_wmb();
-			data->byte_count = cpu_to_be32(byte_count);
-			--data;
-		}
-
-		/* Map linear part if needed */
-		if (tx_info->linear) {
-			byte_count = skb_headlen(skb) - lso_header_size;
-
-			dma = dma_map_single(ddev, skb->data +
-					     lso_header_size, byte_count,
-					     PCI_DMA_TODEVICE);
-			if (dma_mapping_error(ddev, dma))
-				goto tx_drop_unmap;
-
-			data->addr = cpu_to_be64(dma);
-			data->lkey = ring->mr_key;
-			dma_wmb();
-			data->byte_count = cpu_to_be32(byte_count);
-		}
-		/* tx completion can avoid cache line miss for common cases */
-		tx_info->map0_dma = dma;
-		tx_info->map0_byte_count = byte_count;
-	}
+	if (!tx_info->inl)
+		if (!mlx4_en_build_dma_wqe(priv, shinfo, data, skb,
+					   lso_header_size, ring->mr_key,
+					   tx_info))
+			goto tx_drop_count;
 
 	/*
 	 * For timestamping add flag to skb_shinfo and
@@ -1054,16 +1087,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 	return NETDEV_TX_OK;
-
-tx_drop_unmap:
-	en_err(priv, "DMA mapping error\n");
-
-	while (++i_frag < shinfo->nr_frags) {
-		++data;
-		dma_unmap_page(ddev, (dma_addr_t) be64_to_cpu(data->addr),
-			       be32_to_cpu(data->byte_count),
-			       PCI_DMA_TODEVICE);
-	}
 
 tx_drop_count:
 	ring->tx_dropped++;
