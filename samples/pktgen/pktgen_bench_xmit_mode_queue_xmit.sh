@@ -22,10 +22,10 @@ fi
 if [[ -n "$BURST" ]]; then
     err 1 "Bursting not supported for this mode"
 fi
+[ -z "$COUNT" ] && COUNT="10000000" # Zero means indefinitely
 
 # Base Config
 DELAY="0"        # Zero means max speed
-COUNT="10000000" # Zero means indefinitely
 
 # General cleanup everything since last run
 pg_ctrl "reset"

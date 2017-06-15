@@ -13,9 +13,10 @@ root_check_run_with_sudo "$@"
 # Required param: -i dev in $DEV
 source ${basedir}/parameters.sh
 
+[ -z "$COUNT" ] && COUNT="100000" # Zero means indefinitely
+
 # Base Config
 DELAY="0"        # Zero means max speed
-COUNT="100000"   # Zero means indefinitely
 [ -z "$CLONE_SKB" ] && CLONE_SKB="0"
 
 # Flow variation random source port between min and max

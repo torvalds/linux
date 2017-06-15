@@ -20,11 +20,11 @@ source ${basedir}/parameters.sh
 [ -z "$DST_MAC" ]   && DST_MAC="90:e2:ba:ff:ff:ff"
 [ -z "$CLONE_SKB" ] && CLONE_SKB="0"
 [ -z "$BURST" ]     && BURST=32
+[ -z "$COUNT" ]     && COUNT="0" # Zero means indefinitely
 
 
 # Base Config
 DELAY="0"  # Zero means max speed
-COUNT="0"  # Zero means indefinitely
 
 # General cleanup everything since last run
 pg_ctrl "reset"

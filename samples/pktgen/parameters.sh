@@ -11,6 +11,7 @@ function usage() {
     echo "  -m : (\$DST_MAC)   destination MAC-addr"
     echo "  -t : (\$THREADS)   threads to start"
     echo "  -c : (\$SKB_CLONE) SKB clones send before alloc new SKB"
+    echo "  -n : (\$COUNT)     num messages to send per thread, 0 means indefinitely"
     echo "  -b : (\$BURST)     HW level bursting of SKBs"
     echo "  -v : (\$VERBOSE)   verbose"
     echo "  -x : (\$DEBUG)     debug"
@@ -20,7 +21,7 @@ function usage() {
 
 ##  --- Parse command line arguments / parameters ---
 ## echo "Commandline options:"
-while getopts "s:i:d:m:t:c:b:vxh6" option; do
+while getopts "s:i:d:m:t:c:n:b:vxh6" option; do
     case $option in
         i) # interface
           export DEV=$OPTARG
@@ -47,6 +48,10 @@ while getopts "s:i:d:m:t:c:b:vxh6" option; do
         c)
 	  export CLONE_SKB=$OPTARG
 	  info "CLONE_SKB=$CLONE_SKB"
+          ;;
+        n)
+	  export COUNT=$OPTARG
+	  info "COUNT=$COUNT"
           ;;
         b)
 	  export BURST=$OPTARG

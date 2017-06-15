@@ -15,6 +15,7 @@ source ${basedir}/parameters.sh
 [ -z "$DEST_IP" ]   && DEST_IP="198.18.0.42"
 [ -z "$DST_MAC" ]   && DST_MAC="90:e2:ba:ff:ff:ff"
 [ -z "$CLONE_SKB" ] && CLONE_SKB="0"
+[ -z "$COUNT" ]     && COUNT="0" # Zero means indefinitely
 
 # NOTICE:  Script specific settings
 # =======
@@ -26,7 +27,6 @@ source ${basedir}/parameters.sh
 
 # Base Config
 DELAY="0"  # Zero means max speed
-COUNT="0"  # Zero means indefinitely
 
 if [[ -n "$BURST" ]]; then
     err 1 "Bursting not supported for this mode"
