@@ -1268,6 +1268,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_IAMR, r0
 	mtspr	SPRN_CIABR, r0
 	mtspr	SPRN_DAWRX, r0
+	mtspr	SPRN_PSPB, r0
 	mtspr	SPRN_TCSCR, r0
 	mtspr	SPRN_WORT, r0
 	/* Set MMCRS to 1<<31 to freeze and disable the SPMC counters */
@@ -1283,6 +1284,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	std	r6,VCPU_UAMOR(r9)
 	li	r6,0
 	mtspr	SPRN_AMR,r6
+	mtspr	SPRN_UAMOR, r6
 
 	/* Switch DSCR back to host value */
 	mfspr	r8, SPRN_DSCR
