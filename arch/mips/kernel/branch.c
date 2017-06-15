@@ -818,18 +818,18 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	return ret;
 
 sigill_dsp:
-	pr_info("%s: DSP branch but not DSP ASE - sending SIGILL.\n",
-		current->comm);
+	pr_debug("%s: DSP branch but not DSP ASE - sending SIGILL.\n",
+		 current->comm);
 	force_sig(SIGILL, current);
 	return -EFAULT;
 sigill_r2r6:
-	pr_info("%s: R2 branch but r2-to-r6 emulator is not present - sending SIGILL.\n",
-		current->comm);
+	pr_debug("%s: R2 branch but r2-to-r6 emulator is not present - sending SIGILL.\n",
+		 current->comm);
 	force_sig(SIGILL, current);
 	return -EFAULT;
 sigill_r6:
-	pr_info("%s: R6 branch but no MIPSr6 ISA support - sending SIGILL.\n",
-		current->comm);
+	pr_debug("%s: R6 branch but no MIPSr6 ISA support - sending SIGILL.\n",
+		 current->comm);
 	force_sig(SIGILL, current);
 	return -EFAULT;
 }
