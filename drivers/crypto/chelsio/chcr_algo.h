@@ -185,11 +185,11 @@
 			FW_CRYPTO_LOOKASIDE_WR_CCTX_LOC_V(1) | \
 			FW_CRYPTO_LOOKASIDE_WR_CCTX_SIZE_V((ctx_len)))
 
-#define FILL_WR_RX_Q_ID(cid, qid, wr_iv, fid) \
+#define FILL_WR_RX_Q_ID(cid, qid, wr_iv, lcb, fid) \
 		htonl( \
 			FW_CRYPTO_LOOKASIDE_WR_RX_CHID_V((cid)) | \
 			FW_CRYPTO_LOOKASIDE_WR_RX_Q_ID_V((qid)) | \
-			FW_CRYPTO_LOOKASIDE_WR_LCB_V(0) | \
+			FW_CRYPTO_LOOKASIDE_WR_LCB_V((lcb)) | \
 			FW_CRYPTO_LOOKASIDE_WR_IV_V((wr_iv)) | \
 			FW_CRYPTO_LOOKASIDE_WR_FQIDX_V(fid))
 

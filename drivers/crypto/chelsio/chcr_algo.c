@@ -518,7 +518,8 @@ static inline void create_wreq(struct chcr_context *ctx,
 			       void *req, struct sk_buff *skb,
 			       int kctx_len, int hash_sz,
 			       int is_iv,
-			       unsigned int sc_len)
+			       unsigned int sc_len,
+			       unsigned int lcb)
 {
 	struct uld_ctx *u_ctx = ULD_CTX(ctx);
 	int iv_loc = IV_DSGL;
@@ -543,7 +544,8 @@ static inline void create_wreq(struct chcr_context *ctx,
 	chcr_req->wreq.cookie = cpu_to_be64((uintptr_t)req);
 	chcr_req->wreq.rx_chid_to_rx_q_id =
 		FILL_WR_RX_Q_ID(ctx->dev->rx_channel_id, qid,
-				is_iv ? iv_loc : IV_NOP, ctx->tx_qidx);
+				is_iv ? iv_loc : IV_NOP, !!lcb,
+				ctx->tx_qidx);
 
 	chcr_req->ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(ctx->dev->tx_channel_id,
 						       qid);
@@ -652,7 +654,8 @@ static struct sk_buff
 	write_buffer_to_skb(skb, &frags, reqctx->iv, ivsize);
 	write_sg_to_skb(skb, &frags, req->src, req->nbytes);
 	create_wreq(ctx, chcr_req, req, skb, kctx_len, 0, 1,
-			sizeof(struct cpl_rx_phys_dsgl) + phys_dsgl);
+			sizeof(struct cpl_rx_phys_dsgl) + phys_dsgl,
+			ablkctx->ciph_mode == CHCR_SCMD_CIPHER_MODE_AES_CBC);
 	reqctx->skb = skb;
 	skb_get(skb);
 	return skb;
@@ -923,7 +926,7 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 		write_sg_to_skb(skb, &frags, req->src, param->sg_len);
 
 	create_wreq(ctx, chcr_req, req, skb, kctx_len, hash_size_in_response, 0,
-			DUMMY_BYTES);
+			DUMMY_BYTES, 0);
 	req_ctx->skb = skb;
 	skb_get(skb);
 	return skb;
@@ -1508,7 +1511,7 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	write_buffer_to_skb(skb, &frags, req->iv, ivsize);
 	write_sg_to_skb(skb, &frags, src, req->cryptlen);
 	create_wreq(ctx, chcr_req, req, skb, kctx_len, size, 1,
-		   sizeof(struct cpl_rx_phys_dsgl) + dst_size);
+		   sizeof(struct cpl_rx_phys_dsgl) + dst_size, 0);
 	reqctx->skb = skb;
 	skb_get(skb);
 
@@ -1804,7 +1807,7 @@ static struct sk_buff *create_aead_ccm_wr(struct aead_request *req,
 	skb_set_transport_header(skb, transhdr_len);
 	frags = fill_aead_req_fields(skb, req, src, ivsize, aeadctx);
 	create_wreq(ctx, chcr_req, req, skb, kctx_len, 0, 1,
-		    sizeof(struct cpl_rx_phys_dsgl) + dst_size);
+		    sizeof(struct cpl_rx_phys_dsgl) + dst_size, 0);
 	reqctx->skb = skb;
 	skb_get(skb);
 	return skb;
@@ -1950,7 +1953,8 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	write_buffer_to_skb(skb, &frags, reqctx->iv, ivsize);
 	write_sg_to_skb(skb, &frags, src, req->cryptlen);
 	create_wreq(ctx, chcr_req, req, skb, kctx_len, size, 1,
-			sizeof(struct cpl_rx_phys_dsgl) + dst_size);
+			sizeof(struct cpl_rx_phys_dsgl) + dst_size,
+			reqctx->verify);
 	reqctx->skb = skb;
 	skb_get(skb);
 	return skb;
