@@ -208,6 +208,46 @@ u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io)
 	return 0;
 }
 
+int rsnd_ssi_clk_query(struct rsnd_priv *priv,
+		       int param1, int param2, int *idx)
+{
+	int ssi_clk_mul_table[] = {
+		1, 2, 4, 8, 16, 6, 12,
+	};
+	int j, ret;
+	int main_rate;
+
+	for (j = 0; j < ARRAY_SIZE(ssi_clk_mul_table); j++) {
+
+		/*
+		 * It will set SSIWSR.CONT here, but SSICR.CKDV = 000
+		 * with it is not allowed. (SSIWSR.WS_MODE with
+		 * SSICR.CKDV = 000 is not allowed either).
+		 * Skip it. See SSICR.CKDV
+		 */
+		if (j == 0)
+			continue;
+
+		/*
+		 * this driver is assuming that
+		 * system word is 32bit x chan
+		 * see rsnd_ssi_init()
+		 */
+		main_rate = 32 * param1 * param2 * ssi_clk_mul_table[j];
+
+		ret = rsnd_adg_clk_query(priv, main_rate);
+		if (ret < 0)
+			continue;
+
+		if (idx)
+			*idx = j;
+
+		return main_rate;
+	}
+
+	return -EINVAL;
+}
+
 static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 				     struct rsnd_dai_stream *io)
 {
@@ -217,10 +257,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
 	int chan = rsnd_runtime_channel_for_ssi(io);
-	int j, ret;
-	int ssi_clk_mul_table[] = {
-		1, 2, 4, 8, 16, 6, 12,
-	};
+	int idx, ret;
 	unsigned int main_rate;
 	unsigned int rate = rsnd_io_is_play(io) ?
 		rsnd_src_get_out_rate(priv, io) :
@@ -244,45 +281,25 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 		return 0;
 	}
 
-	/*
-	 * Find best clock, and try to start ADG
-	 */
-	for (j = 0; j < ARRAY_SIZE(ssi_clk_mul_table); j++) {
-
-		/*
-		 * It will set SSIWSR.CONT here, but SSICR.CKDV = 000
-		 * with it is not allowed. (SSIWSR.WS_MODE with
-		 * SSICR.CKDV = 000 is not allowed either).
-		 * Skip it. See SSICR.CKDV
-		 */
-		if (j == 0)
-			continue;
-
-		/*
-		 * this driver is assuming that
-		 * system word is 32bit x chan
-		 * see rsnd_ssi_init()
-		 */
-		main_rate = rate * 32 * chan * ssi_clk_mul_table[j];
-
-		ret = rsnd_adg_ssi_clk_try_start(mod, main_rate);
-		if (0 == ret) {
-			ssi->cr_clk	= FORCE | SWL_32 |
-				SCKD | SWSD | CKDV(j);
-			ssi->wsr = CONT;
-
-			ssi->rate = rate;
-
-			dev_dbg(dev, "%s[%d] outputs %u Hz\n",
-				rsnd_mod_name(mod),
-				rsnd_mod_id(mod), rate);
-
-			return 0;
-		}
+	main_rate = rsnd_ssi_clk_query(priv, rate, chan, &idx);
+	if (main_rate < 0) {
+		dev_err(dev, "unsupported clock rate\n");
+		return -EIO;
 	}
 
-	dev_err(dev, "unsupported clock rate\n");
-	return -EIO;
+	ret = rsnd_adg_ssi_clk_try_start(mod, main_rate);
+	if (ret < 0)
+		return ret;
+
+	ssi->cr_clk = FORCE | SWL_32 | SCKD | SWSD | CKDV(idx);
+	ssi->wsr = CONT;
+	ssi->rate = rate;
+
+	dev_dbg(dev, "%s[%d] outputs %u Hz\n",
+		rsnd_mod_name(mod),
+		rsnd_mod_id(mod), rate);
+
+	return 0;
 }
 
 static void rsnd_ssi_master_clk_stop(struct rsnd_mod *mod,
