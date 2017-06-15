@@ -350,6 +350,8 @@ int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw);
 int tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int tcp_sendpage(struct sock *sk, struct page *page, int offset, size_t size,
 		 int flags);
+ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
+		 size_t size, int flags);
 void tcp_release_cb(struct sock *sk);
 void tcp_wfree(struct sk_buff *skb);
 void tcp_write_timer_handler(struct sock *sk);
@@ -1990,5 +1992,30 @@ static inline void tcp_listendrop(const struct sock *sk)
 }
 
 enum hrtimer_restart tcp_pace_kick(struct hrtimer *timer);
+
+/*
+ * Interface for adding Upper Level Protocols over TCP
+ */
+
+#define TCP_ULP_NAME_MAX	16
+#define TCP_ULP_MAX		128
+#define TCP_ULP_BUF_MAX		(TCP_ULP_NAME_MAX*TCP_ULP_MAX)
+
+struct tcp_ulp_ops {
+	struct list_head	list;
+
+	/* initialize ulp */
+	int (*init)(struct sock *sk);
+	/* cleanup ulp */
+	void (*release)(struct sock *sk);
+
+	char		name[TCP_ULP_NAME_MAX];
+	struct module	*owner;
+};
+int tcp_register_ulp(struct tcp_ulp_ops *type);
+void tcp_unregister_ulp(struct tcp_ulp_ops *type);
+int tcp_set_ulp(struct sock *sk, const char *name);
+void tcp_get_available_ulp(char *buf, size_t len);
+void tcp_cleanup_ulp(struct sock *sk);
 
 #endif	/* _TCP_H */

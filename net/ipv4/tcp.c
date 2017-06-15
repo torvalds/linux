@@ -901,8 +901,8 @@ static int tcp_send_mss(struct sock *sk, int *size_goal, int flags)
 	return mss_now;
 }
 
-static ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
-				size_t size, int flags)
+ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
+			 size_t size, int flags)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int mss_now, size_goal;
@@ -1032,6 +1032,7 @@ out_err:
 	}
 	return sk_stream_error(sk, flags, err);
 }
+EXPORT_SYMBOL_GPL(do_tcp_sendpages);
 
 int tcp_sendpage(struct sock *sk, struct page *page, int offset,
 		 size_t size, int flags)
@@ -2482,6 +2483,24 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		release_sock(sk);
 		return err;
 	}
+	case TCP_ULP: {
+		char name[TCP_ULP_NAME_MAX];
+
+		if (optlen < 1)
+			return -EINVAL;
+
+		val = strncpy_from_user(name, optval,
+					min_t(long, TCP_ULP_NAME_MAX - 1,
+					      optlen));
+		if (val < 0)
+			return -EFAULT;
+		name[val] = 0;
+
+		lock_sock(sk);
+		err = tcp_set_ulp(sk, name);
+		release_sock(sk);
+		return err;
+	}
 	default:
 		/* fallthru */
 		break;
@@ -3035,6 +3054,16 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		if (put_user(len, optlen))
 			return -EFAULT;
 		if (copy_to_user(optval, icsk->icsk_ca_ops->name, len))
+			return -EFAULT;
+		return 0;
+
+	case TCP_ULP:
+		if (get_user(len, optlen))
+			return -EFAULT;
+		len = min_t(unsigned int, len, TCP_ULP_NAME_MAX);
+		if (put_user(len, optlen))
+			return -EFAULT;
+		if (copy_to_user(optval, icsk->icsk_ulp_ops->name, len))
 			return -EFAULT;
 		return 0;
 
