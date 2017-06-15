@@ -541,11 +541,6 @@ struct _xfer_spec {
 	struct dma_pl330_desc *desc;
 };
 
-static inline bool _queue_empty(struct pl330_thread *thrd)
-{
-	return thrd->req[0].desc == NULL && thrd->req[1].desc == NULL;
-}
-
 static inline bool _queue_full(struct pl330_thread *thrd)
 {
 	return thrd->req[0].desc != NULL && thrd->req[1].desc != NULL;
@@ -565,23 +560,6 @@ static inline bool _manager_ns(struct pl330_thread *thrd)
 static inline u32 get_revision(u32 periph_id)
 {
 	return (periph_id >> PERIPH_REV_SHIFT) & PERIPH_REV_MASK;
-}
-
-static inline u32 _emit_ADDH(unsigned dry_run, u8 buf[],
-		enum pl330_dst da, u16 val)
-{
-	if (dry_run)
-		return SZ_DMAADDH;
-
-	buf[0] = CMD_DMAADDH;
-	buf[0] |= (da << 1);
-	buf[1] = val;
-	buf[2] = val >> 8;
-
-	PL330_DBGCMD_DUMP(SZ_DMAADDH, "\tDMAADDH %s %u\n",
-		da == 1 ? "DA" : "SA", val);
-
-	return SZ_DMAADDH;
 }
 
 static inline u32 _emit_END(unsigned dry_run, u8 buf[])
@@ -741,18 +719,6 @@ static inline u32 _emit_MOV(unsigned dry_run, u8 buf[],
 	return SZ_DMAMOV;
 }
 
-static inline u32 _emit_NOP(unsigned dry_run, u8 buf[])
-{
-	if (dry_run)
-		return SZ_DMANOP;
-
-	buf[0] = CMD_DMANOP;
-
-	PL330_DBGCMD_DUMP(SZ_DMANOP, "\tDMANOP\n");
-
-	return SZ_DMANOP;
-}
-
 static inline u32 _emit_RMB(unsigned dry_run, u8 buf[])
 {
 	if (dry_run)
@@ -818,39 +784,6 @@ static inline u32 _emit_STP(unsigned dry_run, u8 buf[],
 		cond == SINGLE ? 'S' : 'B', peri >> 3);
 
 	return SZ_DMASTP;
-}
-
-static inline u32 _emit_STZ(unsigned dry_run, u8 buf[])
-{
-	if (dry_run)
-		return SZ_DMASTZ;
-
-	buf[0] = CMD_DMASTZ;
-
-	PL330_DBGCMD_DUMP(SZ_DMASTZ, "\tDMASTZ\n");
-
-	return SZ_DMASTZ;
-}
-
-static inline u32 _emit_WFE(unsigned dry_run, u8 buf[], u8 ev,
-		unsigned invalidate)
-{
-	if (dry_run)
-		return SZ_DMAWFE;
-
-	buf[0] = CMD_DMAWFE;
-
-	ev &= 0x1f;
-	ev <<= 3;
-	buf[1] = ev;
-
-	if (invalidate)
-		buf[1] |= (1 << 1);
-
-	PL330_DBGCMD_DUMP(SZ_DMAWFE, "\tDMAWFE %u%s\n",
-		ev >> 3, invalidate ? ", I" : "");
-
-	return SZ_DMAWFE;
 }
 
 static inline u32 _emit_WFP(unsigned dry_run, u8 buf[],
