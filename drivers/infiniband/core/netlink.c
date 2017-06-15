@@ -153,38 +153,30 @@ static int rdma_nl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int type = nlh->nlmsg_type;
 	unsigned int index = RDMA_NL_GET_CLIENT(type);
 	unsigned int op = RDMA_NL_GET_OP(type);
-	struct netlink_callback cb = {};
-	struct netlink_dump_control c = {};
 	const struct rdma_nl_cbs *cb_table;
-	int ret;
 
 	if (!is_nl_valid(index, op))
 		return -EINVAL;
 
-	cb_table = rdma_nl_types[type].cb_table;
+	cb_table = rdma_nl_types[index].cb_table;
 
 	if ((cb_table[op].flags & RDMA_NL_ADMIN_PERM) &&
 	    !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	/*
-	 * For response or local service set_timeout request,
-	 * there is no need to use netlink_dump_start.
-	 */
-	if (!(nlh->nlmsg_flags & NLM_F_REQUEST) ||
-	    (index == RDMA_NL_LS && op == RDMA_NL_LS_OP_SET_TIMEOUT)) {
-		cb.skb = skb;
-		cb.nlh = nlh;
-		cb.dump = cb_table[op].dump;
-		return cb.dump(skb, &cb);
-	} else {
-		c.dump = cb_table[op].dump;
+	/* FIXME: Convert IWCM to properly handle doit callbacks */
+	if ((nlh->nlmsg_flags & NLM_F_DUMP) || index == RDMA_NL_RDMA_CM ||
+	    index == RDMA_NL_IWCM) {
+		struct netlink_dump_control c = {
+			.dump = cb_table[op].dump,
+		};
 		return netlink_dump_start(nls, skb, nlh, &c);
 	}
-	if (cb_table[op].doit)
-		ret = cb_table[op].doit(skb, nlh, extack);
-	return ret;
 
+	if (cb_table[op].doit)
+		return cb_table[op].doit(skb, nlh, extack);
+
+	return 0;
 }
 
 /*

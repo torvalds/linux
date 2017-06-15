@@ -1148,15 +1148,15 @@ EXPORT_SYMBOL(ib_get_net_dev_by_params);
 
 static const struct rdma_nl_cbs ibnl_ls_cb_table[] = {
 	[RDMA_NL_LS_OP_RESOLVE] = {
-		.dump = ib_nl_handle_resolve_resp,
+		.doit = ib_nl_handle_resolve_resp,
 		.flags = RDMA_NL_ADMIN_PERM,
 	},
 	[RDMA_NL_LS_OP_SET_TIMEOUT] = {
-		.dump = ib_nl_handle_set_timeout,
+		.doit = ib_nl_handle_set_timeout,
 		.flags = RDMA_NL_ADMIN_PERM,
 	},
 	[RDMA_NL_LS_OP_IP_RESOLVE] = {
-		.dump = ib_nl_handle_ip_res_resp,
+		.doit = ib_nl_handle_ip_res_resp,
 		.flags = RDMA_NL_ADMIN_PERM,
 	},
 };
