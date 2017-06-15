@@ -821,7 +821,7 @@ void arc_mmu_init(void)
 	char str[256];
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
 
-	printk(arc_mmu_mumbojumbo(0, str, sizeof(str)));
+	pr_info("%s", arc_mmu_mumbojumbo(0, str, sizeof(str)));
 
 	/*
 	 * Can't be done in processor.h due to header include depenedencies
