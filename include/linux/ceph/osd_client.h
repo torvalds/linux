@@ -149,6 +149,7 @@ struct ceph_osd_request_target {
 	unsigned int flags;                /* CEPH_OSD_FLAG_* */
 	bool paused;
 
+	u32 epoch;
 	u32 last_force_resend;
 
 	int osd;
