@@ -10,6 +10,8 @@
 #include "hi3660.dtsi"
 #include "hikey960-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "HiKey960";
@@ -33,6 +35,19 @@
 		device_type = "memory";
 		/* rewrite this at bootloader */
 		reg = <0x0 0x0 0x0 0x0>;
+	};
+
+	keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key_pmx_func &pwr_key_cfg_func>;
+
+		power {
+			wakeup-source;
+			gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
+			label = "GPIO Power";
+			linux,code = <KEY_POWER>;
+		};
 	};
 };
 
