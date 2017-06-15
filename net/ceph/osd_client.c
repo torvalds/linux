@@ -1306,7 +1306,7 @@ static bool target_should_be_paused(struct ceph_osd_client *osdc,
 		       ceph_osdmap_flag(osdc, CEPH_OSDMAP_FULL) ||
 		       __pool_full(pi);
 
-	WARN_ON(pi->id != t->base_oloc.pool);
+	WARN_ON(pi->id != t->target_oloc.pool);
 	return ((t->flags & CEPH_OSD_FLAG_READ) && pauserd) ||
 	       ((t->flags & CEPH_OSD_FLAG_WRITE) && pausewr) ||
 	       (osdc->osdmap->epoch < osdc->epoch_barrier);
@@ -1359,6 +1359,13 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 			t->target_oloc.pool = pi->read_tier;
 		if (t->flags & CEPH_OSD_FLAG_WRITE && pi->write_tier >= 0)
 			t->target_oloc.pool = pi->write_tier;
+
+		pi = ceph_pg_pool_by_id(osdc->osdmap, t->target_oloc.pool);
+		if (!pi) {
+			t->osd = CEPH_HOMELESS_OSD;
+			ct_res = CALC_TARGET_POOL_DNE;
+			goto out;
+		}
 	}
 
 	ret = ceph_object_locator_to_pg(osdc->osdmap, &t->target_oid,
