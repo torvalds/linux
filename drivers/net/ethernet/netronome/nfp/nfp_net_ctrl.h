@@ -124,6 +124,7 @@
 #define   NFP_NET_CFG_CTRL_SCATTER        (0x1 <<  8) /* Scatter DMA */
 #define   NFP_NET_CFG_CTRL_GATHER         (0x1 <<  9) /* Gather DMA */
 #define   NFP_NET_CFG_CTRL_LSO            (0x1 << 10) /* LSO/TSO (version 1) */
+#define   NFP_NET_CFG_CTRL_CTAG_FILTER	  (0x1 << 11) /* VLAN CTAG filtering */
 #define   NFP_NET_CFG_CTRL_RINGCFG        (0x1 << 16) /* Ring runtime changes */
 #define   NFP_NET_CFG_CTRL_RSS		  (0x1 << 17) /* RSS (version 1) */
 #define   NFP_NET_CFG_CTRL_IRQMOD         (0x1 << 18) /* Interrupt moderation */
@@ -162,6 +163,7 @@
 #define   NFP_NET_CFG_UPDATE_VXLAN	  (0x1 <<  9) /* VXLAN port change */
 #define   NFP_NET_CFG_UPDATE_BPF	  (0x1 << 10) /* BPF program load */
 #define   NFP_NET_CFG_UPDATE_MACADDR	  (0x1 << 11) /* MAC address change */
+#define   NFP_NET_CFG_UPDATE_MBOX	  (0x1 << 12) /* Mailbox update */
 #define   NFP_NET_CFG_UPDATE_ERR          (0x1 << 31) /* A error occurred */
 #define NFP_NET_CFG_TXRS_ENABLE         0x0008
 #define NFP_NET_CFG_RXRS_ENABLE         0x0010
@@ -399,5 +401,30 @@
 #define NFP_NET_CFG_RXR_STATS_BASE      0x1400
 #define NFP_NET_CFG_RXR_STATS(_x)       (NFP_NET_CFG_RXR_STATS_BASE + \
 					 ((_x) * 0x10))
+
+/**
+ * General use mailbox area (0x1800 - 0x19ff)
+ * 4B used for update command and 4B return code
+ * followed by a max of 504B of variable length value
+ */
+#define NFP_NET_CFG_MBOX_CMD		0x1800
+#define NFP_NET_CFG_MBOX_RET		0x1804
+#define NFP_NET_CFG_MBOX_VAL		0x1808
+#define NFP_NET_CFG_MBOX_VAL_MAX_SZ	0x1F8
+
+#define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD 1
+#define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL 2
+
+/**
+ * VLAN filtering using general use mailbox
+ * @NFP_NET_CFG_VLAN_FILTER:		Base address of VLAN filter mailbox
+ * @NFP_NET_CFG_VLAN_FILTER_VID:	VLAN ID to filter
+ * @NFP_NET_CFG_VLAN_FILTER_PROTO:	VLAN proto to filter
+ * @NFP_NET_CFG_VXLAN_SZ:		Size of the VLAN filter mailbox in bytes
+ */
+#define NFP_NET_CFG_VLAN_FILTER		NFP_NET_CFG_MBOX_VAL
+#define  NFP_NET_CFG_VLAN_FILTER_VID	NFP_NET_CFG_VLAN_FILTER
+#define  NFP_NET_CFG_VLAN_FILTER_PROTO	 (NFP_NET_CFG_VLAN_FILTER + 2)
+#define NFP_NET_CFG_VLAN_FILTER_SZ	 0x0004
 
 #endif /* _NFP_NET_CTRL_H_ */
