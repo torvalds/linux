@@ -1210,8 +1210,8 @@ static int rxe_detach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 	return rxe_mcast_drop_grp_elem(rxe, qp, mgid);
 }
 
-static ssize_t rxe_show_parent(struct device *device,
-			       struct device_attribute *attr, char *buf)
+static ssize_t parent_show(struct device *device,
+			   struct device_attribute *attr, char *buf)
 {
 	struct rxe_dev *rxe = container_of(device, struct rxe_dev,
 					   ib_dev.dev);
@@ -1219,7 +1219,7 @@ static ssize_t rxe_show_parent(struct device *device,
 	return snprintf(buf, 16, "%s\n", rxe_parent_name(rxe, 1));
 }
 
-static DEVICE_ATTR(parent, S_IRUGO, rxe_show_parent, NULL);
+static DEVICE_ATTR_RO(parent);
 
 static struct device_attribute *rxe_dev_attributes[] = {
 	&dev_attr_parent,
