@@ -150,14 +150,12 @@ static int intbufs_free(struct venus_inst *inst)
 
 static u32 load_per_instance(struct venus_inst *inst)
 {
-	u32 w = inst->width;
-	u32 h = inst->height;
 	u32 mbs;
 
 	if (!inst || !(inst->state >= INST_INIT && inst->state < INST_STOP))
 		return 0;
 
-	mbs = (ALIGN(w, 16) / 16) * (ALIGN(h, 16) / 16);
+	mbs = (ALIGN(inst->width, 16) / 16) * (ALIGN(inst->height, 16) / 16);
 
 	return mbs * inst->fps;
 }
