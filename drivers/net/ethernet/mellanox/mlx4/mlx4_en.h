@@ -431,7 +431,7 @@ struct mlx4_en_rss_map {
 	int base_qpn;
 	struct mlx4_qp qps[MAX_RX_RINGS];
 	enum mlx4_qp_state state[MAX_RX_RINGS];
-	struct mlx4_qp indir_qp;
+	struct mlx4_qp *indir_qp;
 	enum mlx4_qp_state indir_state;
 };
 

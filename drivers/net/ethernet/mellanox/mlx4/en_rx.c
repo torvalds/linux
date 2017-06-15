@@ -1099,11 +1099,14 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	int i, qpn;
 	int err = 0;
 	int good_qps = 0;
+	u8 flags;
 
 	en_dbg(DRV, priv, "Configuring rss steering\n");
+
+	flags = priv->rx_ring_num == 1 ? MLX4_RESERVE_A0_QP : 0;
 	err = mlx4_qp_reserve_range(mdev->dev, priv->rx_ring_num,
 				    priv->rx_ring_num,
-				    &rss_map->base_qpn, 0);
+				    &rss_map->base_qpn, flags);
 	if (err) {
 		en_err(priv, "Failed reserving %d qps\n", priv->rx_ring_num);
 		return err;
@@ -1120,13 +1123,28 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 		++good_qps;
 	}
 
+	if (priv->rx_ring_num == 1) {
+		rss_map->indir_qp = &rss_map->qps[0];
+		priv->base_qpn = rss_map->indir_qp->qpn;
+		en_info(priv, "Optimized Non-RSS steering\n");
+		return 0;
+	}
+
+	rss_map->indir_qp = kzalloc(sizeof(*rss_map->indir_qp), GFP_KERNEL);
+	if (!rss_map->indir_qp) {
+		err = -ENOMEM;
+		goto rss_err;
+	}
+
 	/* Configure RSS indirection qp */
-	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, &rss_map->indir_qp, GFP_KERNEL);
+	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, rss_map->indir_qp,
+			    GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed to allocate RSS indirection QP\n");
 		goto rss_err;
 	}
-	rss_map->indir_qp.event = mlx4_en_sqp_event;
+
+	rss_map->indir_qp->event = mlx4_en_sqp_event;
 	mlx4_en_fill_qp_context(priv, 0, 0, 0, 1, priv->base_qpn,
 				priv->rx_ring[0]->cqn, -1, &context);
 
@@ -1164,8 +1182,9 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 		err = -EINVAL;
 		goto indir_err;
 	}
+
 	err = mlx4_qp_to_ready(mdev->dev, &priv->res.mtt, &context,
-			       &rss_map->indir_qp, &rss_map->indir_state);
+			       rss_map->indir_qp, &rss_map->indir_state);
 	if (err)
 		goto indir_err;
 
@@ -1173,9 +1192,11 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 
 indir_err:
 	mlx4_qp_modify(mdev->dev, NULL, rss_map->indir_state,
-		       MLX4_QP_STATE_RST, NULL, 0, 0, &rss_map->indir_qp);
-	mlx4_qp_remove(mdev->dev, &rss_map->indir_qp);
-	mlx4_qp_free(mdev->dev, &rss_map->indir_qp);
+		       MLX4_QP_STATE_RST, NULL, 0, 0, rss_map->indir_qp);
+	mlx4_qp_remove(mdev->dev, rss_map->indir_qp);
+	mlx4_qp_free(mdev->dev, rss_map->indir_qp);
+	kfree(rss_map->indir_qp);
+	rss_map->indir_qp = NULL;
 rss_err:
 	for (i = 0; i < good_qps; i++) {
 		mlx4_qp_modify(mdev->dev, NULL, rss_map->state[i],
@@ -1193,10 +1214,15 @@ void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv)
 	struct mlx4_en_rss_map *rss_map = &priv->rss_map;
 	int i;
 
-	mlx4_qp_modify(mdev->dev, NULL, rss_map->indir_state,
-		       MLX4_QP_STATE_RST, NULL, 0, 0, &rss_map->indir_qp);
-	mlx4_qp_remove(mdev->dev, &rss_map->indir_qp);
-	mlx4_qp_free(mdev->dev, &rss_map->indir_qp);
+	if (priv->rx_ring_num > 1) {
+		mlx4_qp_modify(mdev->dev, NULL, rss_map->indir_state,
+			       MLX4_QP_STATE_RST, NULL, 0, 0,
+			       rss_map->indir_qp);
+		mlx4_qp_remove(mdev->dev, rss_map->indir_qp);
+		mlx4_qp_free(mdev->dev, rss_map->indir_qp);
+		kfree(rss_map->indir_qp);
+		rss_map->indir_qp = NULL;
+	}
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		mlx4_qp_modify(mdev->dev, NULL, rss_map->state[i],
