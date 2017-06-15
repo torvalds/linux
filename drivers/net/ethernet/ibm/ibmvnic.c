@@ -383,6 +383,7 @@ static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 		atomic_set(&rx_pool->available, 0);
 		rx_pool->next_alloc = 0;
 		rx_pool->next_free = 0;
+		rx_pool->active = 1;
 	}
 
 	return 0;
