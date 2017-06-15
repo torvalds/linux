@@ -30,8 +30,6 @@
 
 #include <uapi/drm/drm_mode.h>
 
-struct drm_device;
-
 struct drm_connector_helper_funcs;
 struct drm_modeset_acquire_ctx;
 struct drm_device;

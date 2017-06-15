@@ -29,6 +29,7 @@
 #include <drm/drm_modes.h>
 
 struct drm_bridge;
+struct drm_panel;
 
 /**
  * struct drm_bridge_funcs - drm_bridge control functions
@@ -262,5 +263,11 @@ void drm_bridge_mode_set(struct drm_bridge *bridge,
 			struct drm_display_mode *adjusted_mode);
 void drm_bridge_pre_enable(struct drm_bridge *bridge);
 void drm_bridge_enable(struct drm_bridge *bridge);
+
+#ifdef CONFIG_DRM_PANEL_BRIDGE
+struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
+					u32 connector_type);
+void drm_panel_bridge_remove(struct drm_bridge *bridge);
+#endif
 
 #endif
