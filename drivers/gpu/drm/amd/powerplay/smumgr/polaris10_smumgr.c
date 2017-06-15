@@ -200,15 +200,16 @@ polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 		PP_ASSERT_WITH_CODE(0 == polaris10_perform_btc(smumgr),
 					"[AVFS][Polaris10_AVFSEventMgr] Failure at SmuPolaris10_PerformBTC. AVFS Disabled",
 				 return -1);
-
+		smu_data->avfs.avfs_btc_status = AVFS_BTC_ENABLEAVFS;
 		break;
 
 	case AVFS_BTC_DISABLED:
+	case AVFS_BTC_ENABLEAVFS:
 	case AVFS_BTC_NOTSUPPORTED:
 		break;
 
 	default:
-		pr_info("[AVFS] Something is broken. See log!");
+		pr_err("AVFS failed status is %x!\n", smu_data->avfs.avfs_btc_status);
 		break;
 	}
 
