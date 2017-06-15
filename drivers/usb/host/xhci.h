@@ -992,10 +992,6 @@ struct xhci_virt_device {
 	struct xhci_container_ctx       *out_ctx;
 	/* Used for addressing devices and configuration changes */
 	struct xhci_container_ctx       *in_ctx;
-	/* Rings saved to ensure old alt settings can be re-instated */
-	struct xhci_ring		**ring_cache;
-	int				num_rings_cached;
-#define	XHCI_MAX_RINGS_CACHED	31
 	struct xhci_virt_ep		eps[31];
 	u8				fake_port;
 	u8				real_port;
@@ -1960,7 +1956,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev,
 void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring);
 int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 				unsigned int num_trbs, gfp_t flags);
-void xhci_free_or_cache_endpoint_ring(struct xhci_hcd *xhci,
+void xhci_free_endpoint_ring(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
 		unsigned int ep_index);
 struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
