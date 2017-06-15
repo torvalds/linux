@@ -110,6 +110,18 @@ void mtm_enable_core(unsigned int cpu)
 	int i;
 	struct nps_host_reg_aux_mt_ctrl mt_ctrl;
 	struct nps_host_reg_mtm_cfg mtm_cfg;
+	struct nps_host_reg_aux_dpc dpc;
+
+	/*
+	 * Initializing dpc register in each CPU.
+	 * Overwriting the init value of the DPC
+	 * register so that CMEM and FMT virtual address
+	 * spaces are accessible, and Data Plane HW
+	 * facilities are enabled.
+	 */
+	dpc.ien = 1;
+	dpc.men = 1;
+	write_aux_reg(CTOP_AUX_DPC, dpc.value);
 
 	if (NPS_CPU_TO_THREAD_NUM(cpu) != 0)
 		return;
