@@ -269,7 +269,7 @@ static int safexcel_aes_send(struct crypto_async_request *async,
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
 
 	*commands = n_cdesc;
-	*results = nr_dst;
+	*results = n_rdesc;
 	return 0;
 
 rdesc_rollback:
