@@ -2129,6 +2129,25 @@ int fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+
+int fiji_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
+{
+	int ret;
+	struct pp_smumgr *smumgr = (struct pp_smumgr *)(hwmgr->smumgr);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(smumgr->backend);
+
+	if (smu_data->avfs.AvfsBtcStatus != AVFS_BTC_ENABLEAVFS)
+		return 0;
+
+	ret = smum_send_msg_to_smc(smumgr, PPSMC_MSG_EnableAvfs);
+
+	if (!ret)
+		/* If this param is not changed, this function could fire unnecessarily */
+		smu_data->avfs.AvfsBtcStatus = AVFS_BTC_COMPLETED_PREVIOUSLY;
+
+	return ret;
+}
+
 static int fiji_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
