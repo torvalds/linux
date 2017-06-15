@@ -429,6 +429,8 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 	struct safexcel_request *request;
 	int ret, nreq = 0, cdesc = 0, rdesc = 0, commands, results;
 
+	priv->ring[ring].need_dequeue = false;
+
 	do {
 		spin_lock_bh(&priv->ring[ring].queue_lock);
 		backlog = crypto_get_backlog(&priv->ring[ring].queue);
@@ -631,10 +633,8 @@ static void safexcel_handle_result_work(struct work_struct *work)
 
 	safexcel_handle_result_descriptor(priv, data->ring);
 
-	if (priv->ring[data->ring].need_dequeue) {
-		priv->ring[data->ring].need_dequeue = false;
+	if (priv->ring[data->ring].need_dequeue)
 		safexcel_dequeue(data->priv, data->ring);
-	}
 }
 
 struct safexcel_ring_irq_data {
