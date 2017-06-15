@@ -5030,7 +5030,6 @@ static const struct regmap_config rt5677_regmap = {
 static const struct i2c_device_id rt5677_i2c_id[] = {
 	{ "rt5677", RT5677 },
 	{ "rt5676", RT5676 },
-	{ "RT5677CE:00", RT5677 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
@@ -5040,6 +5039,14 @@ static const struct of_device_id rt5677_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rt5677_of_match);
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id rt5677_acpi_match[] = {
+	{ "RT5677CE", RT5677 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, rt5677_acpi_match);
+#endif
 
 static const struct acpi_gpio_params plug_det_gpio = { RT5677_GPIO_PLUG_DET, 0, false };
 static const struct acpi_gpio_params mic_present_gpio = { RT5677_GPIO_MIC_PRESENT_L, 0, false };
@@ -5301,6 +5308,7 @@ static struct i2c_driver rt5677_i2c_driver = {
 	.driver = {
 		.name = "rt5677",
 		.of_match_table = rt5677_of_match,
+		.acpi_match_table = ACPI_PTR(rt5677_acpi_match),
 	},
 	.probe = rt5677_i2c_probe,
 	.remove   = rt5677_i2c_remove,
