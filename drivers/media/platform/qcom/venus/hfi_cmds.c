@@ -409,11 +409,13 @@ static int pkt_session_get_property_1x(struct hfi_session_get_property_pkt *pkt,
 static int pkt_session_set_property_1x(struct hfi_session_set_property_pkt *pkt,
 				       void *cookie, u32 ptype, void *pdata)
 {
-	void *prop_data = &pkt->data[1];
+	void *prop_data;
 	int ret = 0;
 
 	if (!pkt || !cookie || !pdata)
 		return -EINVAL;
+
+	prop_data = &pkt->data[1];
 
 	pkt->shdr.hdr.size = sizeof(*pkt);
 	pkt->shdr.hdr.pkt_type = HFI_CMD_SESSION_SET_PROPERTY;
@@ -1171,11 +1173,13 @@ static int
 pkt_session_set_property_3xx(struct hfi_session_set_property_pkt *pkt,
 			     void *cookie, u32 ptype, void *pdata)
 {
-	void *prop_data = &pkt->data[1];
+	void *prop_data;
 	int ret = 0;
 
 	if (!pkt || !cookie || !pdata)
 		return -EINVAL;
+
+	prop_data = &pkt->data[1];
 
 	pkt->shdr.hdr.size = sizeof(*pkt);
 	pkt->shdr.hdr.pkt_type = HFI_CMD_SESSION_SET_PROPERTY;
