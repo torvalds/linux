@@ -15,8 +15,8 @@
 				>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			retu_mfd: retu@1 {
-				compatible = "retu-mfd";
+			retu: retu@1 {
+				compatible = "retu";
 				interrupt-parent = <&gpio4>;
 				interrupts = <12 IRQ_TYPE_EDGE_RISING>;
 				reg = <0x1>;
