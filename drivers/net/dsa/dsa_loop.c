@@ -14,6 +14,7 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/export.h>
+#include <linux/ethtool.h>
 #include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/if_bridge.h>
@@ -26,6 +27,30 @@ struct dsa_loop_vlan {
 	u16 untagged;
 };
 
+struct dsa_loop_mib_entry {
+	char name[ETH_GSTRING_LEN];
+	unsigned long val;
+};
+
+enum dsa_loop_mib_counters {
+	DSA_LOOP_PHY_READ_OK,
+	DSA_LOOP_PHY_READ_ERR,
+	DSA_LOOP_PHY_WRITE_OK,
+	DSA_LOOP_PHY_WRITE_ERR,
+	__DSA_LOOP_CNT_MAX,
+};
+
+static struct dsa_loop_mib_entry dsa_loop_mibs[] = {
+	[DSA_LOOP_PHY_READ_OK]	= { "phy_read_ok", },
+	[DSA_LOOP_PHY_READ_ERR]	= { "phy_read_err", },
+	[DSA_LOOP_PHY_WRITE_OK] = { "phy_write_ok", },
+	[DSA_LOOP_PHY_WRITE_ERR] = { "phy_write_err", },
+};
+
+struct dsa_loop_port {
+	struct dsa_loop_mib_entry mib[__DSA_LOOP_CNT_MAX];
+};
+
 #define DSA_LOOP_VLANS	5
 
 struct dsa_loop_priv {
@@ -33,6 +58,7 @@ struct dsa_loop_priv {
 	unsigned int	port_base;
 	struct dsa_loop_vlan vlans[DSA_LOOP_VLANS];
 	struct net_device *netdev;
+	struct dsa_loop_port ports[DSA_MAX_PORTS];
 	u16 pvid;
 };
 
@@ -47,9 +73,41 @@ static enum dsa_tag_protocol dsa_loop_get_protocol(struct dsa_switch *ds)
 
 static int dsa_loop_setup(struct dsa_switch *ds)
 {
+	struct dsa_loop_priv *ps = ds->priv;
+	unsigned int i;
+
+	for (i = 0; i < ds->num_ports; i++)
+		memcpy(ps->ports[i].mib, dsa_loop_mibs,
+		       sizeof(dsa_loop_mibs));
+
 	dev_dbg(ds->dev, "%s\n", __func__);
 
 	return 0;
+}
+
+static int dsa_loop_get_sset_count(struct dsa_switch *ds)
+{
+	return __DSA_LOOP_CNT_MAX;
+}
+
+static void dsa_loop_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+{
+	struct dsa_loop_priv *ps = ds->priv;
+	unsigned int i;
+
+	for (i = 0; i < __DSA_LOOP_CNT_MAX; i++)
+		memcpy(data + i * ETH_GSTRING_LEN,
+		       ps->ports[port].mib[i].name, ETH_GSTRING_LEN);
+}
+
+static void dsa_loop_get_ethtool_stats(struct dsa_switch *ds, int port,
+				       uint64_t *data)
+{
+	struct dsa_loop_priv *ps = ds->priv;
+	unsigned int i;
+
+	for (i = 0; i < __DSA_LOOP_CNT_MAX; i++)
+		data[i] = ps->ports[port].mib[i].val;
 }
 
 static int dsa_loop_set_addr(struct dsa_switch *ds, u8 *addr)
@@ -63,10 +121,17 @@ static int dsa_loop_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
+	int ret;
 
 	dev_dbg(ds->dev, "%s\n", __func__);
 
-	return mdiobus_read_nested(bus, ps->port_base + port, regnum);
+	ret = mdiobus_read_nested(bus, ps->port_base + port, regnum);
+	if (ret < 0)
+		ps->ports[port].mib[DSA_LOOP_PHY_READ_ERR].val++;
+	else
+		ps->ports[port].mib[DSA_LOOP_PHY_READ_OK].val++;
+
+	return ret;
 }
 
 static int dsa_loop_phy_write(struct dsa_switch *ds, int port,
@@ -74,10 +139,17 @@ static int dsa_loop_phy_write(struct dsa_switch *ds, int port,
 {
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
+	int ret;
 
 	dev_dbg(ds->dev, "%s\n", __func__);
 
-	return mdiobus_write_nested(bus, ps->port_base + port, regnum, value);
+	ret = mdiobus_write_nested(bus, ps->port_base + port, regnum, value);
+	if (ret < 0)
+		ps->ports[port].mib[DSA_LOOP_PHY_WRITE_ERR].val++;
+	else
+		ps->ports[port].mib[DSA_LOOP_PHY_WRITE_OK].val++;
+
+	return ret;
 }
 
 static int dsa_loop_port_bridge_join(struct dsa_switch *ds, int port,
@@ -225,6 +297,9 @@ static int dsa_loop_port_vlan_dump(struct dsa_switch *ds, int port,
 static struct dsa_switch_ops dsa_loop_driver = {
 	.get_tag_protocol	= dsa_loop_get_protocol,
 	.setup			= dsa_loop_setup,
+	.get_strings		= dsa_loop_get_strings,
+	.get_ethtool_stats	= dsa_loop_get_ethtool_stats,
+	.get_sset_count		= dsa_loop_get_sset_count,
 	.set_addr		= dsa_loop_set_addr,
 	.phy_read		= dsa_loop_phy_read,
 	.phy_write		= dsa_loop_phy_write,
