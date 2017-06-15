@@ -1752,7 +1752,7 @@ static int reset_one_sub_crq_queue(struct ibmvnic_adapter *adapter,
 		scrq->irq = 0;
 	}
 
-	memset(scrq->msgs, 0, 2 * PAGE_SIZE);
+	memset(scrq->msgs, 0, 4 * PAGE_SIZE);
 	scrq->cur = 0;
 
 	rc = h_reg_sub_crq(adapter->vdev->unit_address, scrq->msg_token,
