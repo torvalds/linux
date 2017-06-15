@@ -36,7 +36,7 @@ fi
 pg_ctrl "reset"
 
 # Threads are specified with parameter -t value in $THREADS
-for ((thread = 0; thread < $THREADS; thread++)); do
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     dev=${DEV}@${thread}
 
     # Add remove all other devices and add_device $dev to thread
@@ -78,7 +78,7 @@ done
 # Run if user hits control-c
 function print_result() {
     # Print results
-    for ((thread = 0; thread < $THREADS; thread++)); do
+    for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
 	dev=${DEV}@${thread}
 	echo "Device: $dev"
 	cat /proc/net/pktgen/$dev | grep -A2 "Result:"
