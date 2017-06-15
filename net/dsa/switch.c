@@ -122,19 +122,30 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 {
 	const struct switchdev_obj_port_mdb *mdb = info->mdb;
 	struct switchdev_trans *trans = info->trans;
+	DECLARE_BITMAP(group, ds->num_ports);
+	int port, err;
 
-	/* Do not care yet about other switch chips of the fabric */
-	if (ds->index != info->sw_index)
-		return 0;
+	/* Build a mask of Multicast group members */
+	bitmap_zero(group, ds->num_ports);
+	if (ds->index == info->sw_index)
+		set_bit(info->port, group);
+	for (port = 0; port < ds->num_ports; port++)
+		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
+			set_bit(port, group);
 
 	if (switchdev_trans_ph_prepare(trans)) {
 		if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
 			return -EOPNOTSUPP;
 
-		return ds->ops->port_mdb_prepare(ds, info->port, mdb, trans);
+		for_each_set_bit(port, group, ds->num_ports) {
+			err = ds->ops->port_mdb_prepare(ds, port, mdb, trans);
+			if (err)
+				return err;
+		}
 	}
 
-	ds->ops->port_mdb_add(ds, info->port, mdb, trans);
+	for_each_set_bit(port, group, ds->num_ports)
+		ds->ops->port_mdb_add(ds, port, mdb, trans);
 
 	return 0;
 }
@@ -144,14 +155,13 @@ static int dsa_switch_mdb_del(struct dsa_switch *ds,
 {
 	const struct switchdev_obj_port_mdb *mdb = info->mdb;
 
-	/* Do not care yet about other switch chips of the fabric */
-	if (ds->index != info->sw_index)
-		return 0;
-
 	if (!ds->ops->port_mdb_del)
 		return -EOPNOTSUPP;
 
-	return ds->ops->port_mdb_del(ds, info->port, mdb);
+	if (ds->index == info->sw_index)
+		return ds->ops->port_mdb_del(ds, info->port, mdb);
+
+	return 0;
 }
 
 static int dsa_switch_vlan_add(struct dsa_switch *ds,
