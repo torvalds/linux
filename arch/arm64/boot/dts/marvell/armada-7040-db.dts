@@ -187,7 +187,3 @@
 	phy = <&phy1>;
 	phy-mode = "rgmii-id";
 };
-
-&cpm_crypto {
-	status = "okay";
-};
