@@ -47,4 +47,6 @@ xfs_param_t xfs_params = {
 
 struct xfs_globals xfs_globals = {
 	.log_recovery_delay	=	0,	/* no delay by default */
+	.bug_on_assert		=	true,	/* historical default in DEBUG
+						 * mode */
 };

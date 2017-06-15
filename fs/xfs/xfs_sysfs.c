@@ -146,6 +146,38 @@ struct kobj_type xfs_mp_ktype = {
 /* debug */
 
 STATIC ssize_t
+bug_on_assert_store(
+	struct kobject		*kobject,
+	const char		*buf,
+	size_t			count)
+{
+	int			ret;
+	int			val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val == 1)
+		xfs_globals.bug_on_assert = true;
+	else if (val == 0)
+		xfs_globals.bug_on_assert = false;
+	else
+		return -EINVAL;
+
+	return count;
+}
+
+STATIC ssize_t
+bug_on_assert_show(
+	struct kobject		*kobject,
+	char			*buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.bug_on_assert ? 1 : 0);
+}
+XFS_SYSFS_ATTR_RW(bug_on_assert);
+
+STATIC ssize_t
 log_recovery_delay_store(
 	struct kobject	*kobject,
 	const char	*buf,
@@ -176,6 +208,7 @@ log_recovery_delay_show(
 XFS_SYSFS_ATTR_RW(log_recovery_delay);
 
 static struct attribute *xfs_dbg_attrs[] = {
+	ATTR_LIST(bug_on_assert),
 	ATTR_LIST(log_recovery_delay),
 	NULL,
 };
