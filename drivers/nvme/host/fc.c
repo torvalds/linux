@@ -161,7 +161,6 @@ struct nvme_fc_ctrl {
 	struct blk_mq_tag_set	tag_set;
 
 	struct work_struct	delete_work;
-	struct work_struct	reset_work;
 	struct delayed_work	connect_work;
 
 	struct kref		ref;
@@ -1764,10 +1763,7 @@ nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 		return;
 	}
 
-	if (!queue_work(nvme_wq, &ctrl->reset_work))
-		dev_err(ctrl->ctrl.device,
-			"NVME-FC{%d}: error_recovery: Failed to schedule "
-			"reset work\n", ctrl->cnum);
+	nvme_reset_ctrl(&ctrl->ctrl);
 }
 
 static enum blk_eh_timer_return
@@ -2517,7 +2513,7 @@ nvme_fc_delete_ctrl_work(struct work_struct *work)
 	struct nvme_fc_ctrl *ctrl =
 		container_of(work, struct nvme_fc_ctrl, delete_work);
 
-	cancel_work_sync(&ctrl->reset_work);
+	cancel_work_sync(&ctrl->ctrl.reset_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
 
 	/*
@@ -2611,7 +2607,7 @@ static void
 nvme_fc_reset_ctrl_work(struct work_struct *work)
 {
 	struct nvme_fc_ctrl *ctrl =
-			container_of(work, struct nvme_fc_ctrl, reset_work);
+		container_of(work, struct nvme_fc_ctrl, ctrl.reset_work);
 	int ret;
 
 	/* will block will waiting for io to terminate */
@@ -2625,29 +2621,6 @@ nvme_fc_reset_ctrl_work(struct work_struct *work)
 			"NVME-FC{%d}: controller reset complete\n", ctrl->cnum);
 }
 
-/*
- * called by the nvme core layer, for sysfs interface that requests
- * a reset of the nvme controller
- */
-static int
-nvme_fc_reset_nvme_ctrl(struct nvme_ctrl *nctrl)
-{
-	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
-
-	dev_info(ctrl->ctrl.device,
-		"NVME-FC{%d}: admin requested controller reset\n", ctrl->cnum);
-
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RESETTING))
-		return -EBUSY;
-
-	if (!queue_work(nvme_wq, &ctrl->reset_work))
-		return -EBUSY;
-
-	flush_work(&ctrl->reset_work);
-
-	return 0;
-}
-
 static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.name			= "fc",
 	.module			= THIS_MODULE,
@@ -2655,7 +2628,6 @@ static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.reg_read32		= nvmf_reg_read32,
 	.reg_read64		= nvmf_reg_read64,
 	.reg_write32		= nvmf_reg_write32,
-	.reset_ctrl		= nvme_fc_reset_nvme_ctrl,
 	.free_ctrl		= nvme_fc_nvme_ctrl_freed,
 	.submit_async_event	= nvme_fc_submit_async_event,
 	.delete_ctrl		= nvme_fc_del_nvme_ctrl,
@@ -2730,7 +2702,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	kref_init(&ctrl->ref);
 
 	INIT_WORK(&ctrl->delete_work, nvme_fc_delete_ctrl_work);
-	INIT_WORK(&ctrl->reset_work, nvme_fc_reset_ctrl_work);
+	INIT_WORK(&ctrl->ctrl.reset_work, nvme_fc_reset_ctrl_work);
 	INIT_DELAYED_WORK(&ctrl->connect_work, nvme_fc_connect_ctrl_work);
 	spin_lock_init(&ctrl->lock);
 

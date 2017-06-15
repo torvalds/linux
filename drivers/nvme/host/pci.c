@@ -61,7 +61,6 @@ MODULE_PARM_DESC(max_host_mem_size_mb,
 struct nvme_dev;
 struct nvme_queue;
 
-static int nvme_reset(struct nvme_dev *dev);
 static void nvme_process_cq(struct nvme_queue *nvmeq);
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown);
 
@@ -83,7 +82,6 @@ struct nvme_dev {
 	u32 db_stride;
 	void __iomem *bar;
 	unsigned long bar_mapped_size;
-	struct work_struct reset_work;
 	struct work_struct remove_work;
 	struct mutex shutdown_lock;
 	bool subsystem;
@@ -983,7 +981,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	if (nvme_should_reset(dev, csts)) {
 		nvme_warn_reset(dev, csts);
 		nvme_dev_disable(dev, false);
-		nvme_reset(dev);
+		nvme_reset_ctrl(&dev->ctrl);
 		return BLK_EH_HANDLED;
 	}
 
@@ -1022,7 +1020,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 			 "I/O %d QID %d timeout, reset controller\n",
 			 req->tag, nvmeq->qid);
 		nvme_dev_disable(dev, false);
-		nvme_reset(dev);
+		nvme_reset_ctrl(&dev->ctrl);
 
 		/*
 		 * Mark the request as handled, since the inline shutdown
@@ -2055,7 +2053,8 @@ static void nvme_remove_dead_ctrl(struct nvme_dev *dev, int status)
 
 static void nvme_reset_work(struct work_struct *work)
 {
-	struct nvme_dev *dev = container_of(work, struct nvme_dev, reset_work);
+	struct nvme_dev *dev =
+		container_of(work, struct nvme_dev, ctrl.reset_work);
 	bool was_suspend = !!(dev->ctrl.ctrl_config & NVME_CC_SHN_NORMAL);
 	int result = -ENODEV;
 
@@ -2159,17 +2158,6 @@ static void nvme_remove_dead_ctrl_work(struct work_struct *work)
 	nvme_put_ctrl(&dev->ctrl);
 }
 
-static int nvme_reset(struct nvme_dev *dev)
-{
-	if (!dev->ctrl.admin_q || blk_queue_dying(dev->ctrl.admin_q))
-		return -ENODEV;
-	if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_RESETTING))
-		return -EBUSY;
-	if (!queue_work(nvme_wq, &dev->reset_work))
-		return -EBUSY;
-	return 0;
-}
-
 static int nvme_pci_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val)
 {
 	*val = readl(to_nvme_dev(ctrl)->bar + off);
@@ -2188,16 +2176,6 @@ static int nvme_pci_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val)
 	return 0;
 }
 
-static int nvme_pci_reset_ctrl(struct nvme_ctrl *ctrl)
-{
-	struct nvme_dev *dev = to_nvme_dev(ctrl);
-	int ret = nvme_reset(dev);
-
-	if (!ret)
-		flush_work(&dev->reset_work);
-	return ret;
-}
-
 static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.name			= "pcie",
 	.module			= THIS_MODULE,
@@ -2205,7 +2183,6 @@ static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.reg_read32		= nvme_pci_reg_read32,
 	.reg_write32		= nvme_pci_reg_write32,
 	.reg_read64		= nvme_pci_reg_read64,
-	.reset_ctrl		= nvme_pci_reset_ctrl,
 	.free_ctrl		= nvme_pci_free_ctrl,
 	.submit_async_event	= nvme_pci_submit_async_event,
 };
@@ -2271,7 +2248,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (result)
 		goto free;
 
-	INIT_WORK(&dev->reset_work, nvme_reset_work);
+	INIT_WORK(&dev->ctrl.reset_work, nvme_reset_work);
 	INIT_WORK(&dev->remove_work, nvme_remove_dead_ctrl_work);
 	mutex_init(&dev->shutdown_lock);
 	init_completion(&dev->ioq_wait);
@@ -2290,7 +2267,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_RESETTING);
 	dev_info(dev->ctrl.device, "pci function %s\n", dev_name(&pdev->dev));
 
-	queue_work(nvme_wq, &dev->reset_work);
+	queue_work(nvme_wq, &dev->ctrl.reset_work);
 	return 0;
 
  release_pools:
@@ -2311,7 +2288,7 @@ static void nvme_reset_notify(struct pci_dev *pdev, bool prepare)
 	if (prepare)
 		nvme_dev_disable(dev, false);
 	else
-		nvme_reset(dev);
+		nvme_reset_ctrl(&dev->ctrl);
 }
 
 static void nvme_shutdown(struct pci_dev *pdev)
@@ -2331,7 +2308,7 @@ static void nvme_remove(struct pci_dev *pdev)
 
 	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DELETING);
 
-	cancel_work_sync(&dev->reset_work);
+	cancel_work_sync(&dev->ctrl.reset_work);
 	pci_set_drvdata(pdev, NULL);
 
 	if (!pci_device_is_present(pdev)) {
@@ -2339,7 +2316,7 @@ static void nvme_remove(struct pci_dev *pdev)
 		nvme_dev_disable(dev, false);
 	}
 
-	flush_work(&dev->reset_work);
+	flush_work(&dev->ctrl.reset_work);
 	nvme_uninit_ctrl(&dev->ctrl);
 	nvme_dev_disable(dev, true);
 	nvme_free_host_mem(dev);
@@ -2383,7 +2360,7 @@ static int nvme_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct nvme_dev *ndev = pci_get_drvdata(pdev);
 
-	nvme_reset(ndev);
+	nvme_reset_ctrl(&ndev->ctrl);
 	return 0;
 }
 #endif
@@ -2422,7 +2399,7 @@ static pci_ers_result_t nvme_slot_reset(struct pci_dev *pdev)
 
 	dev_info(dev->ctrl.device, "restart after slot reset\n");
 	pci_restore_state(pdev);
-	nvme_reset(dev);
+	nvme_reset_ctrl(&dev->ctrl);
 	return PCI_ERS_RESULT_RECOVERED;
 }
 

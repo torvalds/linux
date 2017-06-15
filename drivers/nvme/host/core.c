@@ -73,6 +73,26 @@ static DEFINE_SPINLOCK(dev_list_lock);
 
 static struct class *nvme_class;
 
+int nvme_reset_ctrl(struct nvme_ctrl *ctrl)
+{
+	if (!nvme_change_ctrl_state(ctrl, NVME_CTRL_RESETTING))
+		return -EBUSY;
+	if (!queue_work(nvme_wq, &ctrl->reset_work))
+		return -EBUSY;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nvme_reset_ctrl);
+
+static int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl)
+{
+	int ret;
+
+	ret = nvme_reset_ctrl(ctrl);
+	if (!ret)
+		flush_work(&ctrl->reset_work);
+	return ret;
+}
+
 static blk_status_t nvme_error_status(struct request *req)
 {
 	switch (nvme_req(req)->status & 0x7ff) {
@@ -604,7 +624,7 @@ static void nvme_keep_alive_work(struct work_struct *work)
 	if (nvme_keep_alive(ctrl)) {
 		/* allocation failure, reset the controller */
 		dev_err(ctrl->device, "keep-alive failed\n");
-		ctrl->ops->reset_ctrl(ctrl);
+		nvme_reset_ctrl_sync(ctrl);
 		return;
 	}
 }
@@ -1821,7 +1841,7 @@ static long nvme_dev_ioctl(struct file *file, unsigned int cmd,
 		return nvme_dev_user_cmd(ctrl, argp);
 	case NVME_IOCTL_RESET:
 		dev_warn(ctrl->device, "resetting controller\n");
-		return ctrl->ops->reset_ctrl(ctrl);
+		return nvme_reset_ctrl_sync(ctrl);
 	case NVME_IOCTL_SUBSYS_RESET:
 		return nvme_reset_subsystem(ctrl);
 	case NVME_IOCTL_RESCAN:
@@ -1847,7 +1867,7 @@ static ssize_t nvme_sysfs_reset(struct device *dev,
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 	int ret;
 
-	ret = ctrl->ops->reset_ctrl(ctrl);
+	ret = nvme_reset_ctrl_sync(ctrl);
 	if (ret < 0)
 		return ret;
 	return count;
