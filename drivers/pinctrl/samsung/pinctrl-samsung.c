@@ -960,7 +960,7 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 	struct samsung_pin_bank *bank;
 	struct resource *res;
 	void __iomem *virt_base[SAMSUNG_PINCTRL_NUM_RESOURCES];
-	int i;
+	unsigned int i;
 
 	id = of_alias_get_id(node, "pinctrl");
 	if (id < 0) {

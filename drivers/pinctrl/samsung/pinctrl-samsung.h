@@ -231,7 +231,7 @@ struct samsung_retention_data {
 struct samsung_pin_ctrl {
 	const struct samsung_pin_bank_data *pin_banks;
 	u32		nr_banks;
-	int		nr_ext_resources;
+	unsigned int	nr_ext_resources;
 	const struct samsung_retention_data *retention_data;
 
 	int		(*eint_gpio_init)(struct samsung_pinctrl_drv_data *);
