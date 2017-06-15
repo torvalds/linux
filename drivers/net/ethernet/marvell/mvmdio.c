@@ -23,7 +23,6 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
@@ -51,7 +50,6 @@
 #define MVMDIO_SMI_POLL_INTERVAL_MAX	55
 
 struct orion_mdio_dev {
-	struct mutex lock;
 	void __iomem *regs;
 	struct clk *clk[3];
 	/*
@@ -116,8 +114,6 @@ static int orion_mdio_read(struct mii_bus *bus, int mii_id,
 	u32 val;
 	int ret;
 
-	mutex_lock(&dev->lock);
-
 	ret = orion_mdio_wait_ready(bus);
 	if (ret < 0)
 		goto out;
@@ -140,7 +136,6 @@ static int orion_mdio_read(struct mii_bus *bus, int mii_id,
 
 	ret = val & GENMASK(15, 0);
 out:
-	mutex_unlock(&dev->lock);
 	return ret;
 }
 
@@ -149,8 +144,6 @@ static int orion_mdio_write(struct mii_bus *bus, int mii_id,
 {
 	struct orion_mdio_dev *dev = bus->priv;
 	int ret;
-
-	mutex_lock(&dev->lock);
 
 	ret = orion_mdio_wait_ready(bus);
 	if (ret < 0)
@@ -163,7 +156,6 @@ static int orion_mdio_write(struct mii_bus *bus, int mii_id,
 	       dev->regs);
 
 out:
-	mutex_unlock(&dev->lock);
 	return ret;
 }
 
@@ -243,8 +235,6 @@ static int orion_mdio_probe(struct platform_device *pdev)
 	} else if (dev->err_interrupt == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
 	}
-
-	mutex_init(&dev->lock);
 
 	if (pdev->dev.of_node)
 		ret = of_mdiobus_register(bus, pdev->dev.of_node);
