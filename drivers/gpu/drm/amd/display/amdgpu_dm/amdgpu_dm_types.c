@@ -1446,6 +1446,8 @@ const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs = {
 };
 
 static const struct drm_plane_funcs dm_plane_funcs = {
+	.update_plane   = drm_atomic_helper_update_plane,
+	.disable_plane  = drm_atomic_helper_disable_plane,
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state
@@ -1577,38 +1579,67 @@ static uint32_t rgb_formats[] = {
 	DRM_FORMAT_ABGR2101010,
 };
 
+static uint32_t yuv_formats[] = {
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+};
+
+int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
+			struct amdgpu_plane *aplane,
+			unsigned long possible_crtcs)
+{
+	int res = -EPERM;
+
+	switch (aplane->plane_type) {
+	case DRM_PLANE_TYPE_PRIMARY:
+		aplane->base.format_default = true;
+
+		res = drm_universal_plane_init(
+				dm->adev->ddev,
+				&aplane->base,
+				possible_crtcs,
+				&dm_plane_funcs,
+				rgb_formats,
+				ARRAY_SIZE(rgb_formats),
+				NULL, aplane->plane_type, NULL);
+		break;
+	case DRM_PLANE_TYPE_OVERLAY:
+		res = drm_universal_plane_init(
+				dm->adev->ddev,
+				&aplane->base,
+				possible_crtcs,
+				&dm_plane_funcs,
+				yuv_formats,
+				ARRAY_SIZE(yuv_formats),
+				NULL, aplane->plane_type, NULL);
+		break;
+	case DRM_PLANE_TYPE_CURSOR:
+		DRM_ERROR("KMS: Cursor plane not implemented.");
+		break;
+	}
+
+	drm_plane_helper_add(&aplane->base, &dm_plane_helper_funcs);
+
+	return res;
+}
+
 int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
-			struct amdgpu_crtc *acrtc,
+			struct drm_plane *plane,
 			uint32_t crtc_index)
 {
+	struct amdgpu_crtc *acrtc;
 	int res = -ENOMEM;
 
-	struct drm_plane *primary_plane =
-		kzalloc(sizeof(*primary_plane), GFP_KERNEL);
-
-	if (!primary_plane)
-		goto fail_plane;
-
-	primary_plane->format_default = true;
-
-	res = drm_universal_plane_init(
-		dm->adev->ddev,
-		primary_plane,
-		0,
-		&dm_plane_funcs,
-		rgb_formats,
-		ARRAY_SIZE(rgb_formats),
-		NULL,
-		DRM_PLANE_TYPE_PRIMARY, NULL);
-
-	primary_plane->crtc = &acrtc->base;
-
-	drm_plane_helper_add(primary_plane, &dm_plane_helper_funcs);
+	acrtc = kzalloc(sizeof(struct amdgpu_crtc), GFP_KERNEL);
+	if (!acrtc)
+		goto fail;
 
 	res = drm_crtc_init_with_planes(
 			dm->ddev,
 			&acrtc->base,
-			primary_plane,
+			plane,
 			NULL,
 			&amdgpu_dm_crtc_funcs, NULL);
 
@@ -1628,8 +1659,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 
 	return 0;
 fail:
-	kfree(primary_plane);
-fail_plane:
+	kfree(acrtc);
 	acrtc->crtc_id = -1;
 	return res;
 }

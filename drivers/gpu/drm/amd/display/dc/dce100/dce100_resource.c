@@ -1035,6 +1035,8 @@ static bool construct(
 		}
 	}
 
+	dc->public.caps.max_surfaces =  pool->base.pipe_count;
+
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			&res_create_funcs))
 		goto res_create_fail;

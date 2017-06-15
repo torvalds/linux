@@ -60,6 +60,7 @@ struct amdgpu_hpd;
 
 #define AMDGPU_MAX_HPD_PINS 6
 #define AMDGPU_MAX_CRTCS 6
+#define AMDGPU_MAX_PLANES 6
 #define AMDGPU_MAX_AFMT_BLOCKS 9
 
 enum amdgpu_rmx_type {
@@ -327,6 +328,7 @@ struct amdgpu_mode_info {
 	struct card_info *atom_card_info;
 	bool mode_config_initialized;
 	struct amdgpu_crtc *crtcs[AMDGPU_MAX_CRTCS];
+	struct amdgpu_plane *planes[AMDGPU_MAX_PLANES];
 	struct amdgpu_afmt *afmt[AMDGPU_MAX_AFMT_BLOCKS];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
@@ -356,6 +358,7 @@ struct amdgpu_mode_info {
 	int			num_dig; /* number of dig blocks */
 	int			disp_priority;
 	const struct amdgpu_display_funcs *funcs;
+	enum drm_plane_type *plane_type;
 };
 
 #define AMDGPU_MAX_BL_LEVEL 0xFF
@@ -434,6 +437,11 @@ struct amdgpu_crtc {
 	/* After Set Mode stream will be non-NULL */
 	const struct dc_stream *stream;
 	struct drm_pending_vblank_event *event;
+};
+
+struct amdgpu_plane {
+	struct drm_plane base;
+	enum drm_plane_type plane_type;
 };
 
 struct amdgpu_encoder_atom_dig {
