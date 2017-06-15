@@ -289,20 +289,20 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 		skb_tstamp_tx(skb, &hwts);
 	}
 
-	/* Optimize the common case when there are no wraparounds */
-	if (likely((void *)tx_desc +
-		   (tx_info->nr_txbb << LOG_TXBB_SIZE) <= end)) {
-		if (!tx_info->inl) {
-			if (tx_info->linear)
-				dma_unmap_single(priv->ddev,
-						tx_info->map0_dma,
-						tx_info->map0_byte_count,
-						PCI_DMA_TODEVICE);
-			else
-				dma_unmap_page(priv->ddev,
-					       tx_info->map0_dma,
-					       tx_info->map0_byte_count,
-					       PCI_DMA_TODEVICE);
+	if (!tx_info->inl) {
+		if (tx_info->linear)
+			dma_unmap_single(priv->ddev,
+					 tx_info->map0_dma,
+					 tx_info->map0_byte_count,
+					 PCI_DMA_TODEVICE);
+		else
+			dma_unmap_page(priv->ddev,
+				       tx_info->map0_dma,
+				       tx_info->map0_byte_count,
+				       PCI_DMA_TODEVICE);
+		/* Optimize the common case when there are no wraparounds */
+		if (likely((void *)tx_desc +
+			   (tx_info->nr_txbb << LOG_TXBB_SIZE) <= end)) {
 			for (i = 1; i < nr_maps; i++) {
 				data++;
 				dma_unmap_page(priv->ddev,
@@ -310,23 +310,10 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 					be32_to_cpu(data->byte_count),
 					PCI_DMA_TODEVICE);
 			}
-		}
-	} else {
-		if (!tx_info->inl) {
-			if ((void *) data >= end) {
+		} else {
+			if ((void *)data >= end)
 				data = ring->buf + ((void *)data - end);
-			}
 
-			if (tx_info->linear)
-				dma_unmap_single(priv->ddev,
-						tx_info->map0_dma,
-						tx_info->map0_byte_count,
-						PCI_DMA_TODEVICE);
-			else
-				dma_unmap_page(priv->ddev,
-					       tx_info->map0_dma,
-					       tx_info->map0_byte_count,
-					       PCI_DMA_TODEVICE);
 			for (i = 1; i < nr_maps; i++) {
 				data++;
 				/* Check for wraparound before unmapping */
