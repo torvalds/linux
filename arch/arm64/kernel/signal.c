@@ -25,6 +25,7 @@
 #include <linux/uaccess.h>
 #include <linux/tracehook.h>
 #include <linux/ratelimit.h>
+#include <linux/syscalls.h>
 
 #include <asm/debug-monitors.h>
 #include <asm/elf.h>
@@ -402,6 +403,9 @@ static void do_signal(struct pt_regs *regs)
 asmlinkage void do_notify_resume(struct pt_regs *regs,
 				 unsigned int thread_flags)
 {
+	/* Check valid user FS if needed */
+	addr_limit_user_check();
+
 	if (thread_flags & _TIF_SIGPENDING)
 		do_signal(regs);
 
