@@ -2024,7 +2024,7 @@ xlog_print_tic_res(
 	};
 #undef REG_TYPE_STR
 
-	xfs_warn(mp, "xlog_write: reservation summary:");
+	xfs_warn(mp, "ticket reservation summary:");
 	xfs_warn(mp, "  unit res    = %d bytes",
 		 ticket->t_unit_res);
 	xfs_warn(mp, "  current res = %d bytes",
@@ -2045,10 +2045,6 @@ xlog_print_tic_res(
 			    "bad-rtype" : res_type_str[r_type]),
 			    ticket->t_res_arr[i].r_len);
 	}
-
-	xfs_alert_tag(mp, XFS_PTAG_LOGRES,
-		"xlog_write: reservation ran out. Need to up reservation");
-	xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
 }
 
 /*
@@ -2321,8 +2317,12 @@ xlog_write(
 	if (flags & (XLOG_COMMIT_TRANS | XLOG_UNMOUNT_TRANS))
 		ticket->t_curr_res -= sizeof(xlog_op_header_t);
 
-	if (ticket->t_curr_res < 0)
+	if (ticket->t_curr_res < 0) {
+		xfs_alert_tag(log->l_mp, XFS_PTAG_LOGRES,
+		     "ctx ticket reservation ran out. Need to up reservation");
 		xlog_print_tic_res(log->l_mp, ticket);
+		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+	}
 
 	index = 0;
 	lv = log_vector;

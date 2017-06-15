@@ -987,8 +987,10 @@ xfs_log_commit_cil(
 	xlog_cil_insert_items(log, tp);
 
 	/* check we didn't blow the reservation */
-	if (tp->t_ticket->t_curr_res < 0)
+	if (tp->t_ticket->t_curr_res < 0) {
 		xlog_print_tic_res(mp, tp->t_ticket);
+		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+	}
 
 	tp->t_commit_lsn = cil->xc_ctx->sequence;
 	if (commit_lsn)
