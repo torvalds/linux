@@ -155,6 +155,7 @@ struct rk818_charger {
 	unsigned int bc_event;
 	enum charger_t usb_charger;
 	enum charger_t dc_charger;
+	struct regulator *otg5v_rdev;
 	u8 ac_in;
 	u8 usb_in;
 	u8 otg_in;
@@ -589,28 +590,53 @@ static void rk818_cg_set_chrg_param(struct rk818_charger *cg,
 
 static void rk818_cg_set_otg_state(struct rk818_charger *cg, int state)
 {
+	int ret;
+
 	switch (state) {
 	case USB_OTG_POWER_ON:
 		if (cg->otg_in) {
 			CG_INFO("otg5v is on yet, ignore..\n");
 		} else {
 			cg->otg_in = 1;
+			if (IS_ERR(cg->otg5v_rdev)) {
+				CG_INFO("not get otg_switch regulator!\n");
+				return;
+			}
+
+			if (!regulator_is_enabled(cg->otg5v_rdev)) {
+				ret = regulator_enable(cg->otg5v_rdev);
+				if (ret) {
+					CG_INFO("enable otg5v failed:%d\n",
+						ret);
+					return;
+				}
+			}
 			disable_irq(cg->plugin_irq);
 			disable_irq(cg->plugout_irq);
-			rk818_reg_set_bits(cg, RK818_DCDC_EN_REG,
-					   OTG_EN_MASK, OTG_EN_MASK);
 			CG_INFO("enable otg5v\n");
 		}
 		break;
+
 	case USB_OTG_POWER_OFF:
 		if (!cg->otg_in) {
 			CG_INFO("otg5v is off yet, ignore..\n");
 		} else {
 			cg->otg_in = 0;
+			if (IS_ERR(cg->otg5v_rdev)) {
+				CG_INFO("not get otg_switch regulator!\n");
+				return;
+			}
+
+			if (regulator_is_enabled(cg->otg5v_rdev)) {
+				ret = regulator_disable(cg->otg5v_rdev);
+				if (ret) {
+					CG_INFO("disable otg5v failed: %d\n",
+						ret);
+					return;
+				}
+			}
 			enable_irq(cg->plugin_irq);
 			enable_irq(cg->plugout_irq);
-			rk818_reg_clear_bits(cg, RK818_DCDC_EN_REG,
-					     OTG_EN_MASK);
 			CG_INFO("disable otg5v\n");
 		}
 		break;
@@ -1435,6 +1461,20 @@ static int rk818_cg_register_temp_notifier(struct rk818_charger *cg)
 	return 0;
 }
 
+static int rk818_cg_get_otg5v_regulator(struct rk818_charger *cg)
+{
+	int ret;
+
+	/* not necessary */
+	cg->otg5v_rdev = devm_regulator_get(cg->dev, "otg_switch");
+	if (IS_ERR(cg->otg5v_rdev)) {
+		ret = PTR_ERR(cg->otg5v_rdev);
+		dev_warn(cg->dev, "failed to get otg regulator: %d\n", ret);
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_OF
 static int rk818_cg_parse_dt(struct rk818_charger *cg)
 {
@@ -1571,6 +1611,7 @@ static int rk818_charger_probe(struct platform_device *pdev)
 	}
 
 	rk818_cg_init_ts2_detect(cg);
+	rk818_cg_get_otg5v_regulator(cg);
 
 	ret = rk818_cg_init_dc(cg);
 	if (ret) {
