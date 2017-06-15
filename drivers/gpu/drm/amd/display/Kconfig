@@ -17,6 +17,13 @@ config DRM_AMD_DC_PRE_VEGA
 	  by default. This includes Polaris, Carrizo, Tonga, Bonaire,
 	  and Hawaii.
 
+config DRM_AMD_DC_DCN1_0
+        bool "DCN 1.0 Raven family"
+        depends on DRM_AMD_DC
+        help
+            Choose this option if you want to have
+            RV family for display engine
+
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"
 	depends on DRM_AMD_DC

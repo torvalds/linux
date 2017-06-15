@@ -586,6 +586,9 @@ static uint32_t dce110_get_pix_clk_dividers(
 		break;
 	case DCE_VERSION_11_2:
 	case DCE_VERSION_12_0:
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	case DCN_VERSION_1_0:
+#endif
 		dce112_get_pix_clk_dividers_helper(clk_src,
 				pll_settings, pix_clk_params);
 		break;
@@ -815,6 +818,31 @@ static bool dce110_program_pix_clk(
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	if (IS_FPGA_MAXIMUS_DC(clock_source->ctx->dce_environment)) {
+		unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
+		unsigned dp_dto_ref_kHz = 600000;
+		/* DPREF clock from FPGA TODO: Does FPGA have this value? */
+		unsigned clock_kHz = pll_settings->actual_pix_clk;
+
+		/* For faster simulation, if mode pixe clock less than 290MHz,
+		 * pixel clock can be hard coded to 290Mhz. For 4K mode, pixel clock
+		 * is greater than 500Mhz, need real pixel clock
+		 * clock_kHz = 290000;
+		 */
+		/* TODO: un-hardcode when we can set display clock properly*/
+		/*clock_kHz = pix_clk_params->requested_pix_clk;*/
+		clock_kHz = 290000;
+
+		/* Set DTO values: phase = target clock, modulo = reference clock */
+		REG_WRITE(PHASE[inst], clock_kHz);
+		REG_WRITE(MODULO[inst], dp_dto_ref_kHz);
+
+		/* Enable DTO */
+		REG_UPDATE(PIXEL_RATE_CNTL[inst], DP_DTO0_ENABLE, 1);
+		return true;
+	}
+#endif
 	/* First disable SS
 	 * ATOMBIOS will enable by default SS on PLL for DP,
 	 * do not disable it here
@@ -870,6 +898,9 @@ static bool dce110_program_pix_clk(
 		break;
 	case DCE_VERSION_11_2:
 	case DCE_VERSION_12_0:
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	case DCN_VERSION_1_0:
+#endif
 		if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO) {
 			bp_pc_params.flags.SET_GENLOCK_REF_DIV_SRC =
 							pll_settings->use_external_clk;

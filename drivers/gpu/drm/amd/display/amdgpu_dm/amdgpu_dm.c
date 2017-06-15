@@ -49,6 +49,16 @@
 
 #include "modules/inc/mod_freesync.h"
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#include "ivsrcid/irqsrcs_dcn_1_0.h"
+
+#include "raven1/DCN/dcn_1_0_offset.h"
+#include "raven1/DCN/dcn_1_0_sh_mask.h"
+#include "vega10/soc15ip.h"
+
+#include "soc15_common.h"
+#endif
+
 static enum drm_plane_type dm_surfaces_type_default[AMDGPU_MAX_PLANES] = {
 	DRM_PLANE_TYPE_PRIMARY,
 	DRM_PLANE_TYPE_PRIMARY,
@@ -930,7 +940,8 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	int i;
 	unsigned client_id = AMDGPU_IH_CLIENTID_LEGACY;
 
-	if (adev->asic_type == CHIP_VEGA10)
+	if (adev->asic_type == CHIP_VEGA10 ||
+	    adev->asic_type == CHIP_RAVEN)
 		client_id = AMDGPU_IH_CLIENTID_DCE;
 
 	int_params.requested_polarity = INTERRUPT_POLARITY_DEFAULT;
@@ -1002,6 +1013,92 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 
 	return 0;
 }
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+/* Register IRQ sources and initialize IRQ callbacks */
+static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
+{
+	struct dc *dc = adev->dm.dc;
+	struct common_irq_params *c_irq_params;
+	struct dc_interrupt_params int_params = {0};
+	int r;
+	int i;
+
+	int_params.requested_polarity = INTERRUPT_POLARITY_DEFAULT;
+	int_params.current_polarity = INTERRUPT_POLARITY_DEFAULT;
+
+	/* Actions of amdgpu_irq_add_id():
+	 * 1. Register a set() function with base driver.
+	 *    Base driver will call set() function to enable/disable an
+	 *    interrupt in DC hardware.
+	 * 2. Register amdgpu_dm_irq_handler().
+	 *    Base driver will call amdgpu_dm_irq_handler() for ALL interrupts
+	 *    coming from DC hardware.
+	 *    amdgpu_dm_irq_handler() will re-direct the interrupt to DC
+	 *    for acknowledging and handling.
+	 * */
+
+	/* Use VSTARTUP interrupt */
+	for (i = DCN_1_0__SRCID__DC_D1_OTG_VSTARTUP;
+			i <= DCN_1_0__SRCID__DC_D1_OTG_VSTARTUP + adev->mode_info.num_crtc - 1;
+			i++) {
+		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_DCE, i, &adev->crtc_irq);
+
+		if (r) {
+			DRM_ERROR("Failed to add crtc irq id!\n");
+			return r;
+		}
+
+		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
+		int_params.irq_source =
+			dc_interrupt_to_irq_source(dc, i, 0);
+
+		c_irq_params = &adev->dm.vblank_params[int_params.irq_source - DC_IRQ_SOURCE_VBLANK1];
+
+		c_irq_params->adev = adev;
+		c_irq_params->irq_src = int_params.irq_source;
+
+		amdgpu_dm_irq_register_interrupt(adev, &int_params,
+				dm_crtc_high_irq, c_irq_params);
+	}
+
+	/* Use GRPH_PFLIP interrupt */
+	for (i = DCN_1_0__SRCID__HUBP0_FLIP_INTERRUPT;
+			i <= DCN_1_0__SRCID__HUBP0_FLIP_INTERRUPT + adev->mode_info.num_crtc - 1;
+			i++) {
+		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_DCE, i, &adev->pageflip_irq);
+		if (r) {
+			DRM_ERROR("Failed to add page flip irq id!\n");
+			return r;
+		}
+
+		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
+		int_params.irq_source =
+			dc_interrupt_to_irq_source(dc, i, 0);
+
+		c_irq_params = &adev->dm.pflip_params[int_params.irq_source - DC_IRQ_SOURCE_PFLIP_FIRST];
+
+		c_irq_params->adev = adev;
+		c_irq_params->irq_src = int_params.irq_source;
+
+		amdgpu_dm_irq_register_interrupt(adev, &int_params,
+				dm_pflip_high_irq, c_irq_params);
+
+	}
+
+	/* HPD */
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_DCE, DCN_1_0__SRCID__DC_HPD1_INT,
+			&adev->hpd_irq);
+	if (r) {
+		DRM_ERROR("Failed to add hpd irq id!\n");
+		return r;
+	}
+
+	register_hpd_handlers(adev);
+
+	return 0;
+}
+#endif
 
 static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 {
@@ -1172,6 +1269,14 @@ int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			goto fail_free_encoder;
 		}
 		break;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	case CHIP_RAVEN:
+		if (dcn10_register_irq_handlers(dm->adev)) {
+			DRM_ERROR("DM: Failed to initialize IRQ\n");
+			goto fail_free_encoder;
+		}
+		break;
+#endif
 	default:
 		DRM_ERROR("Usupported ASIC type: 0x%X\n", adev->asic_type);
 		goto fail_free_encoder;
@@ -1447,6 +1552,14 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_dig = 6;
 		adev->mode_info.plane_type = dm_surfaces_type_default;
 		break;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	case CHIP_RAVEN:
+		adev->mode_info.num_crtc = 4;
+		adev->mode_info.num_hpd = 4;
+		adev->mode_info.num_dig = 4;
+		adev->mode_info.plane_type = dm_surfaces_type_default;
+		break;
+#endif
 	default:
 		DRM_ERROR("Usupported ASIC type: 0x%X\n", adev->asic_type);
 		return -EINVAL;

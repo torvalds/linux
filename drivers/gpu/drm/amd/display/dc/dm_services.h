@@ -75,6 +75,10 @@
 	BREAK_TO_DEBUGGER(); \
 } while (0)
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#include <asm/fpu/api.h>
+#endif
+
 #define dm_alloc(size) kzalloc(size, GFP_KERNEL)
 #define dm_realloc(ptr, size) krealloc(ptr, size, GFP_KERNEL)
 #define dm_free(ptr) kfree(ptr)

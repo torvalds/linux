@@ -947,6 +947,12 @@ static void program_scaler(const struct core_dc *dc,
 {
 	struct tg_color color = {0};
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	/* TOFPGA */
+	if (pipe_ctx->xfm->funcs->transform_set_pixel_storage_depth == NULL)
+		return;
+#endif
+
 	if (dc->public.debug.surface_visual_confirm)
 		get_surface_visual_confirm_color(pipe_ctx, &color);
 	else
@@ -1113,6 +1119,9 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		program_scaler(dc, pipe_ctx);
 
 	/* mst support - use total stream count */
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	if (pipe_ctx->mi->funcs->allocate_mem_input != NULL)
+#endif
 		pipe_ctx->mi->funcs->allocate_mem_input(
 					pipe_ctx->mi,
 					stream->public.timing.h_total,
@@ -1637,6 +1646,26 @@ enum dc_status dce110_apply_ctx_to_hw(
 	/*TODO: when pplib works*/
 	apply_min_clocks(dc, context, &clocks_state, true);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	if (context->fclk_khz
+			> dc->current_context->fclk_khz) {
+		struct dm_pp_clock_for_voltage_req clock;
+
+		clock.clk_type = DM_PP_CLOCK_TYPE_FCLK;
+		clock.clocks_in_khz = context->fclk_khz;
+		dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
+		dc->current_context->fclk_khz = clock.clocks_in_khz;
+	}
+	if (context->dcfclk_khz
+			> dc->current_context->dcfclk_khz) {
+		struct dm_pp_clock_for_voltage_req clock;
+
+		clock.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
+		clock.clocks_in_khz = context->dcfclk_khz;
+		dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
+		dc->current_context->dcfclk_khz = clock.clocks_in_khz;
+	}
+#endif
 	if (context->dispclk_khz
 			> dc->current_context->dispclk_khz) {
 		dc->res_pool->display_clock->funcs->set_clock(

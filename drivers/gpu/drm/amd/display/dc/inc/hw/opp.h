@@ -27,6 +27,7 @@
 #define __DAL_OPP_H__
 
 #include "hw_shared.h"
+#include "dc_hw_types.h"
 #include "transform.h"
 
 struct fixed31_32;

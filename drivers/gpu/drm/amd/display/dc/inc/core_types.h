@@ -28,8 +28,11 @@
 
 #include "dc.h"
 #include "dce_calcs.h"
+#include "dcn_calcs.h"
 #include "ddc_service_types.h"
 #include "dc_bios_types.h"
+#include "mem_input.h"
+#include "mpc.h"
 
 struct core_stream;
 
@@ -254,6 +257,7 @@ struct resource_pool {
 
 	struct abm *abm;
 	struct dmcu *dmcu;
+	struct mpc *mpc;
 
 	const struct resource_funcs *funcs;
 	const struct resource_caps *res_cap;
@@ -287,10 +291,20 @@ struct pipe_ctx {
 
 	struct pipe_ctx *top_pipe;
 	struct pipe_ctx *bottom_pipe;
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	uint8_t mpc_idx;
+	struct _vcs_dpi_display_dlg_regs_st dlg_regs;
+	struct _vcs_dpi_display_ttu_regs_st ttu_regs;
+	struct _vcs_dpi_display_rq_regs_st rq_regs;
+	struct _vcs_dpi_display_pipe_dest_params_st pipe_dlg_param;
+#endif
 };
 
 struct resource_context {
 	struct pipe_ctx pipe_ctx[MAX_PIPES];
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	struct mpc_tree_cfg mpc_tree[MAX_PIPES];
+#endif
 	bool is_stream_enc_acquired[MAX_PIPES * 2];
 	bool is_audio_acquired[MAX_PIPES];
 	uint8_t clock_source_ref_count[MAX_CLOCK_SOURCES];
@@ -309,6 +323,18 @@ struct validate_context {
 	/* Note: these are big structures, do *not* put on stack! */
 	struct dm_pp_display_configuration pp_display_cfg;
 	int dispclk_khz;
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	int dppclk_khz;
+	bool dppclk_div;
+	int dcfclk_khz;
+	int dcfclk_deep_sleep_khz;
+	int socclk_khz;
+	int fclk_khz;
+	int dram_ccm_us;
+	int min_active_dram_ccm_us;
+	struct dcn_watermark_set watermarks;
+	struct dcn_bw_internal_vars dcn_bw_vars;
+#endif
 };
 
 #endif /* _CORE_TYPES_H_ */

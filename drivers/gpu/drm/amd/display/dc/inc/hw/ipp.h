@@ -122,6 +122,7 @@ struct ipp_funcs {
 		struct input_pixel_processor *ipp,
 		const struct pwl_params *params);
 
+	void (*ipp_destroy)(struct input_pixel_processor **ipp);
 };
 
 #endif /* __DAL_IPP_H__ */

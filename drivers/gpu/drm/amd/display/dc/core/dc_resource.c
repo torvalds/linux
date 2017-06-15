@@ -39,6 +39,9 @@
 #include "dce100/dce100_resource.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#include "dcn10/dcn10_resource.h"
+#endif
 #include "dce120/dce120_resource.h"
 
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
@@ -69,6 +72,11 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	case FAMILY_AI:
 		dc_version = DCE_VERSION_12_0;
 		break;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	case FAMILY_RV:
+		dc_version = DCN_VERSION_1_0;
+		break;
+#endif
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -105,6 +113,13 @@ struct resource_pool *dc_create_resource_pool(
 		res_pool = dce120_create_resource_pool(
 			num_virtual_links, dc);
 		break;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	case DCN_VERSION_1_0:
+		res_pool = dcn10_create_resource_pool(
+			num_virtual_links, dc);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -1187,6 +1202,10 @@ static int acquire_first_free_pipe(
 			pipe_ctx->opp = pool->opps[i];
 			pipe_ctx->dis_clk = pool->display_clock;
 			pipe_ctx->pipe_idx = i;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+			pipe_ctx->mpc_idx = -1;
+#endif
 
 			pipe_ctx->stream = stream;
 			return i;

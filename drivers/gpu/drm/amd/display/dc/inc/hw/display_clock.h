@@ -37,6 +37,13 @@ struct clocks_value {
 	bool dispclk_notify_pplib_done;
 	bool pixelclk_notify_pplib_done;
 	bool phyclk_notigy_pplib_done;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	int dcfclock_in_khz;
+	int dppclk_in_khz;
+	int mclk_in_khz;
+	int phyclk_in_khz;
+	int common_vdd_level;
+#endif
 };
 
 

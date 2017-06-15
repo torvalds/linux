@@ -39,7 +39,10 @@ enum dce_version {
 	DCE_VERSION_11_0,
 	DCE_VERSION_11_2,
 	DCE_VERSION_12_0,
-	DCE_VERSION_MAX,
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	DCN_VERSION_1_0,
+#endif
+	DCN_VERSION_MAX
 };
 
 #endif /* __DAL_TYPES_H__ */

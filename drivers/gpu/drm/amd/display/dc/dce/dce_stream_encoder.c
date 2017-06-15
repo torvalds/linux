@@ -147,6 +147,46 @@ static void dce110_update_generic_info_packet(
 			AFMT_GENERIC0_UPDATE, (packet_index == 0),
 			AFMT_GENERIC2_UPDATE, (packet_index == 2));
 	}
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	if (REG(AFMT_VBI_PACKET_CONTROL1)) {
+		switch (packet_index) {
+		case 0:
+			REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
+					AFMT_GENERIC0_FRAME_UPDATE, 1);
+			break;
+		case 1:
+			REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
+					AFMT_GENERIC1_FRAME_UPDATE, 1);
+			break;
+		case 2:
+			REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
+					AFMT_GENERIC2_FRAME_UPDATE, 1);
+			break;
+		case 3:
+			REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
+					AFMT_GENERIC3_FRAME_UPDATE, 1);
+			break;
+		case 4:
+			REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
+					AFMT_GENERIC4_FRAME_UPDATE, 1);
+			break;
+		case 5:
+			REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
+					AFMT_GENERIC5_FRAME_UPDATE, 1);
+			break;
+		case 6:
+			REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
+					AFMT_GENERIC6_FRAME_UPDATE, 1);
+			break;
+		case 7:
+			REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
+					AFMT_GENERIC7_FRAME_UPDATE, 1);
+			break;
+		default:
+			break;
+		}
+	}
+#endif
 }
 
 static void dce110_update_hdmi_info_packet(
@@ -202,6 +242,36 @@ static void dce110_update_hdmi_info_packet(
 				HDMI_GENERIC1_SEND, send,
 				HDMI_GENERIC1_LINE, line);
 		break;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	case 4:
+		if (REG(HDMI_GENERIC_PACKET_CONTROL2))
+			REG_UPDATE_3(HDMI_GENERIC_PACKET_CONTROL2,
+					HDMI_GENERIC0_CONT, cont,
+					HDMI_GENERIC0_SEND, send,
+					HDMI_GENERIC0_LINE, line);
+		break;
+	case 5:
+		if (REG(HDMI_GENERIC_PACKET_CONTROL2))
+			REG_UPDATE_3(HDMI_GENERIC_PACKET_CONTROL2,
+					HDMI_GENERIC1_CONT, cont,
+					HDMI_GENERIC1_SEND, send,
+					HDMI_GENERIC1_LINE, line);
+		break;
+	case 6:
+		if (REG(HDMI_GENERIC_PACKET_CONTROL3))
+			REG_UPDATE_3(HDMI_GENERIC_PACKET_CONTROL3,
+					HDMI_GENERIC0_CONT, cont,
+					HDMI_GENERIC0_SEND, send,
+					HDMI_GENERIC0_LINE, line);
+		break;
+	case 7:
+		if (REG(HDMI_GENERIC_PACKET_CONTROL3))
+			REG_UPDATE_3(HDMI_GENERIC_PACKET_CONTROL3,
+					HDMI_GENERIC1_CONT, cont,
+					HDMI_GENERIC1_SEND, send,
+					HDMI_GENERIC1_LINE, line);
+		break;
+#endif
 	default:
 		/* invalid HW packet index */
 		dm_logger_write(
@@ -218,8 +288,23 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 	struct dc_crtc_timing *crtc_timing,
 	enum dc_color_space output_color_space)
 {
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	uint32_t h_active_start;
+	uint32_t v_active_start;
+	uint32_t misc0 = 0;
+	uint32_t misc1 = 0;
+	uint32_t h_blank;
+	uint32_t h_back_porch;
+	uint8_t synchronous_clock = 0; /* asynchronous mode */
+	uint8_t colorimetry_bpc;
+#endif
 
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	if (REG(DP_DB_CNTL))
+		REG_UPDATE(DP_DB_CNTL, DP_DB_DISABLE, 1);
+#endif
 
 	/* set pixel encoding */
 	switch (crtc_timing->pixel_encoding) {
@@ -249,12 +334,21 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		if (enc110->se_mask->DP_VID_M_DOUBLE_VALUE_EN)
 			REG_UPDATE(DP_VID_TIMING, DP_VID_M_DOUBLE_VALUE_EN, 1);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+		if (enc110->se_mask->DP_VID_N_MUL)
+			REG_UPDATE(DP_VID_TIMING, DP_VID_N_MUL, 1);
+#endif
 		break;
 	default:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
 				DP_PIXEL_ENCODING_RGB444);
 		break;
 	}
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	if (REG(DP_MSA_MISC))
+		misc1 = REG_READ(DP_MSA_MISC);
+#endif
 
 	/* set color depth */
 
@@ -289,6 +383,128 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 			DP_DYN_RANGE, 0,
 			DP_YCBCR_RANGE, 0);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	switch (crtc_timing->display_color_depth) {
+	case COLOR_DEPTH_666:
+		colorimetry_bpc = 0;
+		break;
+	case COLOR_DEPTH_888:
+		colorimetry_bpc = 1;
+		break;
+	case COLOR_DEPTH_101010:
+		colorimetry_bpc = 2;
+		break;
+	case COLOR_DEPTH_121212:
+		colorimetry_bpc = 3;
+		break;
+	default:
+		colorimetry_bpc = 0;
+		break;
+	}
+
+	misc0 = misc0 | synchronous_clock;
+	misc0 = colorimetry_bpc << 5;
+
+	if (REG(DP_MSA_TIMING_PARAM1)) {
+		switch (output_color_space) {
+		case COLOR_SPACE_SRGB:
+			misc0 = misc0 | 0x0;;
+			misc1 = misc1 & ~0x80; /* bit7 = 0*/
+			break;
+		case COLOR_SPACE_SRGB_LIMITED:
+			misc0 = misc0 | 0x8; /* bit3=1 */
+			misc1 = misc1 & ~0x80; /* bit7 = 0*/
+			break;
+		case COLOR_SPACE_YCBCR601:
+			misc0 = misc0 | 0x8; /* bit3=1, bit4=0 */
+			misc1 = misc1 & ~0x80; /* bit7 = 0*/;
+			if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
+				misc0 = misc0 | 0x2; /* bit2=0, bit1=1 */
+			else if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR444)
+				misc0 = misc0 | 0x4; /* bit2=1, bit1=0 */
+			break;
+		case COLOR_SPACE_YCBCR709:
+			misc0 = misc0 | 0x18; /* bit3=1, bit4=1 */
+			misc1 = misc1 & ~0x80; /* bit7 = 0*/
+			if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
+				misc0 = misc0 | 0x2; /* bit2=0, bit1=1 */
+			else if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR444)
+				misc0 = misc0 | 0x4; /* bit2=1, bit1=0 */
+			break;
+		case COLOR_SPACE_2020_RGB_FULLRANGE:
+		case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
+		case COLOR_SPACE_2020_YCBCR:
+		case COLOR_SPACE_ADOBERGB:
+		case COLOR_SPACE_UNKNOWN:
+		case COLOR_SPACE_YCBCR601_LIMITED:
+		case COLOR_SPACE_YCBCR709_LIMITED:
+			/* do nothing */
+			break;
+		}
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+		if (REG(DP_MSA_COLORIMETRY))
+			REG_SET(DP_MSA_COLORIMETRY, 0, DP_MSA_MISC0, misc0);
+
+		if (REG(DP_MSA_MISC))
+			REG_WRITE(DP_MSA_MISC, misc1);   /* MSA_MISC1 */
+
+	/* dcn new register
+	 * dc_crtc_timing is vesa dmt struct. data from edid
+	 */
+		if (REG(DP_MSA_TIMING_PARAM1))
+			REG_SET_2(DP_MSA_TIMING_PARAM1, 0,
+					DP_MSA_HTOTAL, crtc_timing->h_total,
+					DP_MSA_VTOTAL, crtc_timing->v_total);
+#endif
+
+		/* calcuate from vesa timing parameters
+		 * h_active_start related to leading edge of sync
+		 */
+
+		h_blank = crtc_timing->h_total - crtc_timing->h_border_left -
+				crtc_timing->h_addressable - crtc_timing->h_border_right;
+
+		h_back_porch = h_blank - crtc_timing->h_front_porch -
+				crtc_timing->h_sync_width;
+
+		/* start at begining of left border */
+		h_active_start = crtc_timing->h_sync_width + h_back_porch;
+
+
+		v_active_start = crtc_timing->v_total - crtc_timing->v_border_top -
+				crtc_timing->v_addressable - crtc_timing->v_border_bottom -
+				crtc_timing->v_front_porch;
+
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+		/* start at begining of left border */
+		if (REG(DP_MSA_TIMING_PARAM2))
+			REG_SET_2(DP_MSA_TIMING_PARAM2, 0,
+				DP_MSA_HSTART, h_active_start,
+				DP_MSA_VSTART, v_active_start);
+
+		if (REG(DP_MSA_TIMING_PARAM3))
+			REG_SET_4(DP_MSA_TIMING_PARAM3, 0,
+					DP_MSA_HSYNCWIDTH,
+					crtc_timing->h_sync_width,
+					DP_MSA_HSYNCPOLARITY,
+					!crtc_timing->flags.HSYNC_POSITIVE_POLARITY,
+					DP_MSA_VSYNCWIDTH,
+					crtc_timing->v_sync_width,
+					DP_MSA_VSYNCPOLARITY,
+					!crtc_timing->flags.VSYNC_POSITIVE_POLARITY);
+
+		/* HWDITH include border or overscan */
+		if (REG(DP_MSA_TIMING_PARAM4))
+			REG_SET_2(DP_MSA_TIMING_PARAM4, 0,
+				DP_MSA_HWIDTH, crtc_timing->h_border_left +
+				crtc_timing->h_addressable + crtc_timing->h_border_right,
+				DP_MSA_VHEIGHT, crtc_timing->v_border_top +
+				crtc_timing->v_addressable + crtc_timing->v_border_bottom);
+#endif
+	}
+#endif
 }
 
 static void dce110_stream_encoder_set_stream_attribute_helper(
@@ -533,6 +749,19 @@ static void dce110_stream_encoder_update_hdmi_info_packets(
 		dce110_update_hdmi_info_packet(enc110, 3, &info_frame->hdrsmd);
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	if (enc110->se_mask->HDMI_DB_DISABLE) {
+		/* for bring up, disable dp double  TODO */
+		if (REG(HDMI_DB_CONTROL))
+			REG_UPDATE(HDMI_DB_CONTROL, HDMI_DB_DISABLE, 1);
+
+		dce110_update_hdmi_info_packet(enc110, 0, &info_frame->avi);
+		dce110_update_hdmi_info_packet(enc110, 1, &info_frame->vendor);
+		dce110_update_hdmi_info_packet(enc110, 2, &info_frame->gamut);
+		dce110_update_hdmi_info_packet(enc110, 3, &info_frame->spd);
+		dce110_update_hdmi_info_packet(enc110, 4, &info_frame->hdrsmd);
+	}
+#endif
 }
 
 static void dce110_stream_encoder_stop_hdmi_info_packets(
@@ -558,6 +787,26 @@ static void dce110_stream_encoder_stop_hdmi_info_packets(
 		HDMI_GENERIC1_LINE, 0,
 		HDMI_GENERIC1_SEND, 0);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	/* stop generic packets 2 & 3 on HDMI */
+	if (REG(HDMI_GENERIC_PACKET_CONTROL2))
+		REG_SET_6(HDMI_GENERIC_PACKET_CONTROL2, 0,
+			HDMI_GENERIC0_CONT, 0,
+			HDMI_GENERIC0_LINE, 0,
+			HDMI_GENERIC0_SEND, 0,
+			HDMI_GENERIC1_CONT, 0,
+			HDMI_GENERIC1_LINE, 0,
+			HDMI_GENERIC1_SEND, 0);
+
+	if (REG(HDMI_GENERIC_PACKET_CONTROL3))
+		REG_SET_6(HDMI_GENERIC_PACKET_CONTROL3, 0,
+			HDMI_GENERIC0_CONT, 0,
+			HDMI_GENERIC0_LINE, 0,
+			HDMI_GENERIC0_SEND, 0,
+			HDMI_GENERIC1_CONT, 0,
+			HDMI_GENERIC1_LINE, 0,
+			HDMI_GENERIC1_SEND, 0);
+#endif
 }
 
 static void dce110_stream_encoder_update_dp_info_packets(
@@ -621,6 +870,21 @@ static void dce110_stream_encoder_stop_dp_info_packets(
 			DP_SEC_STREAM_ENABLE, 0);
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	if (enc110->se_mask->DP_SEC_GSP7_ENABLE) {
+		REG_SET_10(DP_SEC_CNTL, 0,
+			DP_SEC_GSP0_ENABLE, 0,
+			DP_SEC_GSP1_ENABLE, 0,
+			DP_SEC_GSP2_ENABLE, 0,
+			DP_SEC_GSP3_ENABLE, 0,
+			DP_SEC_GSP4_ENABLE, 0,
+			DP_SEC_GSP5_ENABLE, 0,
+			DP_SEC_GSP6_ENABLE, 0,
+			DP_SEC_GSP7_ENABLE, 0,
+			DP_SEC_MPG_ENABLE, 0,
+			DP_SEC_STREAM_ENABLE, 0);
+	}
+#endif
 	/* this register shared with audio info frame.
 	 * therefore we need to keep master enabled
 	 * if at least one of the fields is not 0 */

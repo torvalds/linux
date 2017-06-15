@@ -31,6 +31,30 @@
 
 #include "dce/dce_mem_input.h" /* temporary */
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#include "dml/display_mode_structs.h"
+
+struct cstate_pstate_watermarks_st {
+	uint32_t cstate_exit_ns;
+	uint32_t cstate_enter_plus_exit_ns;
+	uint32_t pstate_change_ns;
+};
+
+struct dcn_watermarks {
+	uint32_t pte_meta_urgent_ns;
+	uint32_t urgent_ns;
+	struct cstate_pstate_watermarks_st cstate_pstate;
+};
+
+struct dcn_watermark_set {
+	struct dcn_watermarks a;
+	struct dcn_watermarks b;
+	struct dcn_watermarks c;
+	struct dcn_watermarks d;
+};
+
+#endif
+
 struct stutter_modes {
 	bool enhanced;
 	bool quad_dmif_buffer;
@@ -52,6 +76,23 @@ struct mem_input {
 };
 
 struct mem_input_funcs {
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	void (*program_watermarks)(
+			struct mem_input *mem_input,
+			struct dcn_watermark_set *watermarks,
+			unsigned int refclk_period_ns);
+
+	void (*mem_input_setup)(
+			struct mem_input *mem_input,
+			struct _vcs_dpi_display_dlg_regs_st *dlg_regs,
+			struct _vcs_dpi_display_ttu_regs_st *ttu_regs,
+			struct _vcs_dpi_display_rq_regs_st *rq_regs,
+			struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
+
+	void (*disable_request)(struct mem_input *mem_input);
+
+#endif
+
 	void (*mem_input_program_display_marks)(
 		struct mem_input *mem_input,
 		struct bw_watermarks nbp,

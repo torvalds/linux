@@ -29,6 +29,10 @@
 #include "fixed32_32.h"
 #include "bios_parser_interface.h"
 #include "dc.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#include "dcn_calcs.h"
+#include "core_dc.h"
+#endif
 
 #define TO_DCE_CLOCKS(clocks)\
 	container_of(clocks, struct dce_disp_clk, base)
@@ -400,6 +404,10 @@ static void dce112_set_clock(
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	dce_psr_wait_loop(clk_dce, requested_clk_khz);
+#endif
+
 }
 
 static void dce_clock_read_integrated_info(struct dce_disp_clk *clk_dce)
@@ -596,6 +604,13 @@ static bool dce_apply_clock_voltage_request(
 		}
 	}
 	if (send_request) {
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	struct core_dc *core_dc = DC_TO_CORE(clk->ctx->dc);
+	/*use dcfclk request voltage*/
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
+		clock_voltage_req.clocks_in_khz =
+				dcn_find_dcfclk_suits_all(core_dc, &clk->cur_clocks_value);
+#endif
 		dm_pp_apply_clock_for_voltage_request(
 			clk->ctx, &clock_voltage_req);
 	}

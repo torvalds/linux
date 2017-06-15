@@ -121,6 +121,12 @@
 	HWSEQ_PIXEL_RATE_REG_LIST(CRTC), \
 	HWSEQ_PHYPLL_REG_LIST(CRTC)
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#define HWSEQ_DCN1_REG_LIST()\
+	HWSEQ_PIXEL_RATE_REG_LIST(OTG), \
+	HWSEQ_PHYPLL_REG_LIST(OTG)
+#endif
+
 struct dce_hwseq_registers {
 	uint32_t DCFE_CLOCK_CONTROL[6];
 	uint32_t DCFEV_CLOCK_CONTROL;
@@ -129,6 +135,9 @@ struct dce_hwseq_registers {
 	uint32_t BLND_CONTROL[6];
 	uint32_t BLNDV_CONTROL;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	/* DCE + DCN */
+#endif
 	uint32_t CRTC_H_BLANK_START_END[6];
 	uint32_t PIXEL_RATE_CNTL[6];
 	uint32_t PHYPLL_PIXEL_RATE_CNTL[6];
@@ -191,6 +200,12 @@ struct dce_hwseq_registers {
 	HWSEQ_BLND_MASK_SH_LIST(mask_sh, BLND0_BLND_),\
 	HWSEQ_PIXEL_RATE_MASK_SH_LIST(mask_sh, CRTC0_),\
 	HWSEQ_PHYPLL_MASK_SH_LIST(mask_sh, CRTC0_)
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#define HWSEQ_DCN1_MASK_SH_LIST(mask_sh)\
+	HWSEQ_PIXEL_RATE_MASK_SH_LIST(mask_sh, OTG0_),\
+	HWSEQ_PHYPLL_MASK_SH_LIST(mask_sh, OTG0_)
+#endif
 
 #define HWSEQ_REG_FIED_LIST(type) \
 	type DCFE_CLOCK_ENABLE; \

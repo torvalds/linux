@@ -94,7 +94,13 @@ struct dc_surface;
 struct validate_context;
 
 struct dc_cap_funcs {
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	bool (*get_dcc_compression_cap)(const struct dc *dc,
+			const struct dc_dcc_surface_param *input,
+			struct dc_surface_dcc_cap *output);
+#else
 	int i;
+#endif
 };
 
 struct dc_stream_funcs {
@@ -164,6 +170,18 @@ struct dc_debug {
 	bool disable_stutter;
 	bool disable_dcc;
 	bool disable_dfs_bypass;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	bool disable_dpp_power_gate;
+	bool disable_hubp_power_gate;
+	bool disable_pplib_wm_range;
+	bool use_dml_wm;
+	bool use_max_voltage;
+	int sr_exit_time_ns;
+	int sr_enter_plus_exit_time_ns;
+	int urgent_latency_ns;
+	int percent_of_ideal_drambw;
+	int dram_clock_change_latency_ns;
+#endif
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
 	bool disable_dmcu;

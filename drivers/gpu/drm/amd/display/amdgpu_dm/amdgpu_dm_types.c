@@ -562,7 +562,8 @@ static void fill_plane_attributes_from_fb(
 	surface->tiling_info.gfx8.pipe_config =
 			AMDGPU_TILING_GET(tiling_flags, PIPE_CONFIG);
 
-	if (adev->asic_type == CHIP_VEGA10) {
+	if (adev->asic_type == CHIP_VEGA10 ||
+	    adev->asic_type == CHIP_RAVEN) {
 		/* Fill GFX9 params */
 		surface->tiling_info.gfx9.num_pipes =
 			adev->gfx.config.gb_addr_config_fields.num_pipes;

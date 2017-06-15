@@ -48,6 +48,17 @@ AMD_DAL_I2CAUX_DCE112 = $(addprefix $(AMDDALPATH)/dc/i2caux/dce112/,$(I2CAUX_DCE
 AMD_DISPLAY_FILES += $(AMD_DAL_I2CAUX_DCE112)
 
 ###############################################################################
+# DCN 1.0 family
+###############################################################################
+ifdef CONFIG_DRM_AMD_DC_DCN1_0
+I2CAUX_DCN1 = i2caux_dcn10.o
+
+AMD_DAL_I2CAUX_DCN1 = $(addprefix $(AMDDALPATH)/dc/i2caux/dcn10/,$(I2CAUX_DCN1))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_I2CAUX_DCN1)
+endif
+
+###############################################################################
 # DCE 120 family
 ###############################################################################
 I2CAUX_DCE120 = i2caux_dce120.o

@@ -91,10 +91,22 @@ enum crtc_state {
 	CRTC_STATE_VBLANK = 0,
 	CRTC_STATE_VACTIVE
 };
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+struct _dlg_otg_param {
+	int vstartup_start;
+	int vupdate_offset;
+	int vupdate_width;
+	int vready_offset;
+	enum signal_type signal;
+};
+#endif
 struct timing_generator {
 	const struct timing_generator_funcs *funcs;
 	struct dc_bios *bp;
 	struct dc_context *ctx;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	struct _dlg_otg_param dlg_otg_param;
+#endif
 	int inst;
 };
 
@@ -155,6 +167,10 @@ struct timing_generator_funcs {
 
 	bool (*arm_vert_intr)(struct timing_generator *tg, uint8_t width);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	void (*program_global_sync)(struct timing_generator *tg);
+	void (*enable_optc_clock)(struct timing_generator *tg, bool enable);
+#endif
 };
 
 #endif
