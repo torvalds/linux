@@ -3395,9 +3395,10 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	int errors_wait = 0;
 	blk_status_t ret;
 
+	lockdep_assert_held(&info->fs_devices->device_list_mutex);
 	/* send down all the barriers */
 	head = &info->fs_devices->devices;
-	list_for_each_entry_rcu(dev, head, dev_list) {
+	list_for_each_entry(dev, head, dev_list) {
 		if (dev->missing)
 			continue;
 		if (!dev->bdev)
@@ -3410,7 +3411,7 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	}
 
 	/* wait for all the barriers */
-	list_for_each_entry_rcu(dev, head, dev_list) {
+	list_for_each_entry(dev, head, dev_list) {
 		if (dev->missing)
 			continue;
 		if (!dev->bdev) {
@@ -3509,7 +3510,7 @@ int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 		}
 	}
 
-	list_for_each_entry_rcu(dev, head, dev_list) {
+	list_for_each_entry(dev, head, dev_list) {
 		if (!dev->bdev) {
 			total_errors++;
 			continue;
@@ -3550,7 +3551,7 @@ int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 	}
 
 	total_errors = 0;
-	list_for_each_entry_rcu(dev, head, dev_list) {
+	list_for_each_entry(dev, head, dev_list) {
 		if (!dev->bdev)
 			continue;
 		if (!dev->in_fs_metadata || !dev->writeable)
