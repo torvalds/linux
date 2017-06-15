@@ -1668,11 +1668,25 @@ static const struct acpi_device_id ec_device_ids[] = {
 	{"", 0},
 };
 
+/*
+ * This function is not Windows-compatible as Windows never enumerates the
+ * namespace EC before the main ACPI device enumeration process. It is
+ * retained for historical reason and will be deprecated in the future.
+ */
 int __init acpi_ec_dsdt_probe(void)
 {
 	acpi_status status;
 	struct acpi_ec *ec;
 	int ret;
+
+	/*
+	 * If a platform has ECDT, there is no need to proceed as the
+	 * following probe is not a part of the ACPI device enumeration,
+	 * executing _STA is not safe, and thus this probe may risk of
+	 * picking up an invalid EC device.
+	 */
+	if (boot_ec)
+		return -ENODEV;
 
 	ec = acpi_ec_alloc();
 	if (!ec)
