@@ -1368,8 +1368,8 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 		}
 	}
 
-	ret = ceph_object_locator_to_pg(osdc->osdmap, &t->target_oid,
-					&t->target_oloc, &pgid);
+	ret = __ceph_object_locator_to_pg(pi, &t->target_oid, &t->target_oloc,
+					  &pgid);
 	if (ret) {
 		WARN_ON(ret != -ENOENT);
 		t->osd = CEPH_HOMELESS_OSD;
@@ -1379,7 +1379,7 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	last_pgid.pool = pgid.pool;
 	last_pgid.seed = ceph_stable_mod(pgid.seed, t->pg_num, t->pg_num_mask);
 
-	ceph_pg_to_up_acting_osds(osdc->osdmap, &pgid, &up, &acting);
+	ceph_pg_to_up_acting_osds(osdc->osdmap, pi, &pgid, &up, &acting);
 	if (any_change &&
 	    ceph_is_new_interval(&t->acting,
 				 &acting,
@@ -1407,7 +1407,7 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 
 	if (legacy_change || force_resend || split) {
 		t->pgid = pgid; /* struct */
-		ceph_pg_to_primary_shard(osdc->osdmap, &pgid, &t->spgid);
+		ceph_pg_to_primary_shard(osdc->osdmap, pi, &pgid, &t->spgid);
 		ceph_osds_copy(&t->acting, &acting);
 		ceph_osds_copy(&t->up, &up);
 		t->size = pi->size;

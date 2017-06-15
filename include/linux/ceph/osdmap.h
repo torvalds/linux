@@ -273,16 +273,22 @@ extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 					 u64 off, u64 len,
 					 u64 *bno, u64 *oxoff, u64 *oxlen);
 
+int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
+				const struct ceph_object_id *oid,
+				const struct ceph_object_locator *oloc,
+				struct ceph_pg *raw_pgid);
 int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
-			      struct ceph_object_id *oid,
-			      struct ceph_object_locator *oloc,
+			      const struct ceph_object_id *oid,
+			      const struct ceph_object_locator *oloc,
 			      struct ceph_pg *raw_pgid);
 
 void ceph_pg_to_up_acting_osds(struct ceph_osdmap *osdmap,
+			       struct ceph_pg_pool_info *pi,
 			       const struct ceph_pg *raw_pgid,
 			       struct ceph_osds *up,
 			       struct ceph_osds *acting);
 bool ceph_pg_to_primary_shard(struct ceph_osdmap *osdmap,
+			      struct ceph_pg_pool_info *pi,
 			      const struct ceph_pg *raw_pgid,
 			      struct ceph_spg *spgid);
 int ceph_pg_to_acting_primary(struct ceph_osdmap *osdmap,

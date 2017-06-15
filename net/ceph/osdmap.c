@@ -1923,16 +1923,12 @@ EXPORT_SYMBOL(ceph_calc_file_object_mapping);
  * Should only be called with target_oid and target_oloc (as opposed to
  * base_oid and base_oloc), since tiering isn't taken into account.
  */
-int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
-			      struct ceph_object_id *oid,
-			      struct ceph_object_locator *oloc,
-			      struct ceph_pg *raw_pgid)
+int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
+				const struct ceph_object_id *oid,
+				const struct ceph_object_locator *oloc,
+				struct ceph_pg *raw_pgid)
 {
-	struct ceph_pg_pool_info *pi;
-
-	pi = ceph_pg_pool_by_id(osdmap, oloc->pool);
-	if (!pi)
-		return -ENOENT;
+	WARN_ON(pi->id != oloc->pool);
 
 	if (!oloc->pool_ns) {
 		raw_pgid->pool = oloc->pool;
@@ -1963,6 +1959,20 @@ int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
 		     raw_pgid->pool, raw_pgid->seed);
 	}
 	return 0;
+}
+
+int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
+			      const struct ceph_object_id *oid,
+			      const struct ceph_object_locator *oloc,
+			      struct ceph_pg *raw_pgid)
+{
+	struct ceph_pg_pool_info *pi;
+
+	pi = ceph_pg_pool_by_id(osdmap, oloc->pool);
+	if (!pi)
+		return -ENOENT;
+
+	return __ceph_object_locator_to_pg(pi, oid, oloc, raw_pgid);
 }
 EXPORT_SYMBOL(ceph_object_locator_to_pg);
 
@@ -2236,19 +2246,14 @@ static void get_temp_osds(struct ceph_osdmap *osdmap,
  * resend a request.
  */
 void ceph_pg_to_up_acting_osds(struct ceph_osdmap *osdmap,
+			       struct ceph_pg_pool_info *pi,
 			       const struct ceph_pg *raw_pgid,
 			       struct ceph_osds *up,
 			       struct ceph_osds *acting)
 {
-	struct ceph_pg_pool_info *pi;
 	u32 pps;
 
-	pi = ceph_pg_pool_by_id(osdmap, raw_pgid->pool);
-	if (!pi) {
-		ceph_osds_init(up);
-		ceph_osds_init(acting);
-		goto out;
-	}
+	WARN_ON(pi->id != raw_pgid->pool);
 
 	pg_to_raw_osds(osdmap, pi, raw_pgid, up, &pps);
 	raw_to_up_osds(osdmap, pi, up);
@@ -2260,23 +2265,19 @@ void ceph_pg_to_up_acting_osds(struct ceph_osdmap *osdmap,
 		if (acting->primary == -1)
 			acting->primary = up->primary;
 	}
-out:
 	WARN_ON(!osds_valid(up) || !osds_valid(acting));
 }
 
 bool ceph_pg_to_primary_shard(struct ceph_osdmap *osdmap,
+			      struct ceph_pg_pool_info *pi,
 			      const struct ceph_pg *raw_pgid,
 			      struct ceph_spg *spgid)
 {
-	struct ceph_pg_pool_info *pi;
 	struct ceph_pg pgid;
 	struct ceph_osds up, acting;
 	int i;
 
-	pi = ceph_pg_pool_by_id(osdmap, raw_pgid->pool);
-	if (!pi)
-		return false;
-
+	WARN_ON(pi->id != raw_pgid->pool);
 	raw_pg_to_pg(pi, raw_pgid, &pgid);
 
 	if (ceph_can_shift_osds(pi)) {
@@ -2285,7 +2286,7 @@ bool ceph_pg_to_primary_shard(struct ceph_osdmap *osdmap,
 		return true;
 	}
 
-	ceph_pg_to_up_acting_osds(osdmap, &pgid, &up, &acting);
+	ceph_pg_to_up_acting_osds(osdmap, pi, &pgid, &up, &acting);
 	for (i = 0; i < acting.size; i++) {
 		if (acting.osds[i] == acting.primary) {
 			spgid->pgid = pgid; /* struct */
@@ -2303,9 +2304,14 @@ bool ceph_pg_to_primary_shard(struct ceph_osdmap *osdmap,
 int ceph_pg_to_acting_primary(struct ceph_osdmap *osdmap,
 			      const struct ceph_pg *raw_pgid)
 {
+	struct ceph_pg_pool_info *pi;
 	struct ceph_osds up, acting;
 
-	ceph_pg_to_up_acting_osds(osdmap, raw_pgid, &up, &acting);
+	pi = ceph_pg_pool_by_id(osdmap, raw_pgid->pool);
+	if (!pi)
+		return -1;
+
+	ceph_pg_to_up_acting_osds(osdmap, pi, raw_pgid, &up, &acting);
 	return acting.primary;
 }
 EXPORT_SYMBOL(ceph_pg_to_acting_primary);
