@@ -215,10 +215,10 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 		switch (type) {
 		case RDS_EXTHDR_NPATHS:
 			conn->c_npaths = min_t(int, RDS_MPATH_WORKERS,
-					       buffer.rds_npaths);
+					       be16_to_cpu(buffer.rds_npaths));
 			break;
 		case RDS_EXTHDR_GEN_NUM:
-			new_peer_gen_num = buffer.rds_gen_num;
+			new_peer_gen_num = be32_to_cpu(buffer.rds_gen_num);
 			break;
 		default:
 			pr_warn_ratelimited("ignoring unknown exthdr type "
@@ -254,7 +254,8 @@ static void rds_start_mprds(struct rds_connection *conn)
 	int i;
 	struct rds_conn_path *cp;
 
-	if (conn->c_npaths > 1 && conn->c_laddr < conn->c_faddr) {
+	if (conn->c_npaths > 1 &&
+	    IS_CANONICAL(conn->c_laddr, conn->c_faddr)) {
 		for (i = 1; i < conn->c_npaths; i++) {
 			cp = &conn->c_path[i];
 			rds_conn_path_connect_if_down(cp);
@@ -339,14 +340,15 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 		rds_stats_inc(s_recv_ping);
 		rds_send_pong(cp, inc->i_hdr.h_sport);
 		/* if this is a handshake ping, start multipath if necessary */
-		if (RDS_HS_PROBE(inc->i_hdr.h_sport, inc->i_hdr.h_dport)) {
+		if (RDS_HS_PROBE(be16_to_cpu(inc->i_hdr.h_sport),
+				 be16_to_cpu(inc->i_hdr.h_dport))) {
 			rds_recv_hs_exthdrs(&inc->i_hdr, cp->cp_conn);
 			rds_start_mprds(cp->cp_conn);
 		}
 		goto out;
 	}
 
-	if (inc->i_hdr.h_dport ==  RDS_FLAG_PROBE_PORT &&
+	if (be16_to_cpu(inc->i_hdr.h_dport) ==  RDS_FLAG_PROBE_PORT &&
 	    inc->i_hdr.h_sport == 0) {
 		rds_recv_hs_exthdrs(&inc->i_hdr, cp->cp_conn);
 		/* if this is a handshake pong, start multipath if necessary */

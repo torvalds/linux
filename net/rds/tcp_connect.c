@@ -66,7 +66,7 @@ void rds_tcp_state_change(struct sock *sk)
 		 * RDS connection as RDS_CONN_UP until the reconnect,
 		 * to avoid RDS datagram loss.
 		 */
-		if (cp->cp_conn->c_laddr > cp->cp_conn->c_faddr &&
+		if (!IS_CANONICAL(cp->cp_conn->c_laddr, cp->cp_conn->c_faddr) &&
 		    rds_conn_path_transition(cp, RDS_CONN_CONNECTING,
 					     RDS_CONN_ERROR)) {
 			rds_conn_path_drop(cp);

@@ -92,6 +92,8 @@ enum {
 #define	RDS_MPATH_HASH(rs, n) (jhash_1word((rs)->rs_bound_port, \
 			       (rs)->rs_hash_initval) & ((n) - 1))
 
+#define IS_CANONICAL(laddr, faddr) (htonl(laddr) < htonl(faddr))
+
 /* Per mpath connection state */
 struct rds_conn_path {
 	struct rds_connection	*cp_conn;

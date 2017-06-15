@@ -83,7 +83,7 @@ static
 struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 {
 	int i;
-	bool peer_is_smaller = (conn->c_faddr < conn->c_laddr);
+	bool peer_is_smaller = IS_CANONICAL(conn->c_faddr, conn->c_laddr);
 	int npaths = max_t(int, 1, conn->c_npaths);
 
 	/* for mprds, all paths MUST be initiated by the peer
