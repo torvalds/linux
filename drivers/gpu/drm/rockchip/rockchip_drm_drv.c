@@ -557,7 +557,7 @@ static int update_state(struct drm_device *drm_dev,
 
 static void show_loader_logo(struct drm_device *drm_dev)
 {
-	struct drm_atomic_state *state;
+	struct drm_atomic_state *state, *old_state;
 	struct device_node *np = drm_dev->dev->of_node;
 	struct drm_mode_config *mode_config = &drm_dev->mode_config;
 	struct device_node *root, *route;
@@ -611,6 +611,14 @@ static void show_loader_logo(struct drm_device *drm_dev)
 		goto err_free_state;
 	}
 
+	old_state = drm_atomic_helper_duplicate_state(drm_dev,
+						      mode_config->acquire_ctx);
+	if (IS_ERR(old_state)) {
+		dev_err(drm_dev->dev, "failed to duplicate atomic state\n");
+		ret = PTR_ERR_OR_ZERO(old_state);
+		goto err_free_state;
+	}
+
 	/*
 	 * The state save initial devices status, swap the state into
 	 * drm deivces as old state, so if new state come, can compare
@@ -623,7 +631,7 @@ static void show_loader_logo(struct drm_device *drm_dev)
 	if (IS_ERR(state)) {
 		dev_err(drm_dev->dev, "failed to duplicate atomic state\n");
 		ret = PTR_ERR_OR_ZERO(state);
-		goto err_unlock;
+		goto err_free_old_state;
 	}
 	state->acquire_ctx = mode_config->acquire_ctx;
 	list_for_each_entry(set, &mode_set_list, head)
@@ -645,14 +653,22 @@ static void show_loader_logo(struct drm_device *drm_dev)
 	 */
 	WARN_ON(ret == -EDEADLK);
 
-	if (ret)
-		goto err_free_state;
+	if (ret) {
+		/*
+		 * restore display status if atomic commit failed.
+		 */
+		drm_atomic_helper_swap_state(drm_dev, old_state);
+		goto err_free_old_state;
+	}
 
 	rockchip_free_loader_memory(drm_dev);
+	drm_atomic_state_free(old_state);
 
 	drm_modeset_unlock_all(drm_dev);
 	return;
 
+err_free_old_state:
+	drm_atomic_state_free(old_state);
 err_free_state:
 	drm_atomic_state_free(state);
 err_unlock:
