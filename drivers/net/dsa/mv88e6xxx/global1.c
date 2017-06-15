@@ -12,6 +12,8 @@
  * (at your option) any later version.
  */
 
+#include <linux/bitfield.h>
+
 #include "chip.h"
 #include "global1.h"
 
@@ -247,17 +249,17 @@ int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_MONITOR_CONTROL, &reg);
+	err = mv88e6xxx_g1_read(chip, MV88E6185_G1_MONITOR_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~(GLOBAL_MONITOR_CONTROL_INGRESS_MASK |
-		 GLOBAL_MONITOR_CONTROL_EGRESS_MASK);
+	reg &= ~(MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK |
+		 MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK);
 
-	reg |= port << GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
-		port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT;
+	reg |= port << __bf_shf(MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK) |
+		port << __bf_shf(MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK);
 
-	return mv88e6xxx_g1_write(chip, GLOBAL_MONITOR_CONTROL, reg);
+	return mv88e6xxx_g1_write(chip, MV88E6185_G1_MONITOR_CTL, reg);
 }
 
 /* Older generations also call this the ARP destination. It has been
@@ -269,14 +271,14 @@ int mv88e6095_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_MONITOR_CONTROL, &reg);
+	err = mv88e6xxx_g1_read(chip, MV88E6185_G1_MONITOR_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~GLOBAL_MONITOR_CONTROL_ARP_MASK;
-	reg |= port << GLOBAL_MONITOR_CONTROL_ARP_SHIFT;
+	reg &= ~MV88E6185_G1_MONITOR_CTL_ARP_DEST_MASK;
+	reg |= port << __bf_shf(MV88E6185_G1_MONITOR_CTL_ARP_DEST_MASK);
 
-	return mv88e6xxx_g1_write(chip, GLOBAL_MONITOR_CONTROL, reg);
+	return mv88e6xxx_g1_write(chip, MV88E6185_G1_MONITOR_CTL, reg);
 }
 
 static int mv88e6390_g1_monitor_write(struct mv88e6xxx_chip *chip,
@@ -284,55 +286,66 @@ static int mv88e6390_g1_monitor_write(struct mv88e6xxx_chip *chip,
 {
 	u16 reg;
 
-	reg = GLOBAL_MONITOR_CONTROL_UPDATE | pointer | data;
+	reg = MV88E6390_G1_MONITOR_MGMT_CTL_UPDATE | pointer | data;
 
-	return mv88e6xxx_g1_write(chip, GLOBAL_MONITOR_CONTROL, reg);
+	return mv88e6xxx_g1_write(chip, MV88E6390_G1_MONITOR_MGMT_CTL, reg);
 }
 
 int mv88e6390_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port)
 {
+	u16 ptr;
 	int err;
 
-	err = mv88e6390_g1_monitor_write(chip, GLOBAL_MONITOR_CONTROL_INGRESS,
-					 port);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_INGRESS_DEST;
+	err = mv88e6390_g1_monitor_write(chip, ptr, port);
 	if (err)
 		return err;
 
-	return mv88e6390_g1_monitor_write(chip, GLOBAL_MONITOR_CONTROL_EGRESS,
-					  port);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_EGRESS_DEST;
+	err = mv88e6390_g1_monitor_write(chip, ptr, port);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 int mv88e6390_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6390_g1_monitor_write(chip, GLOBAL_MONITOR_CONTROL_CPU_DEST,
-					  port);
+	u16 ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_CPU_DEST;
+
+	return mv88e6390_g1_monitor_write(chip, ptr, port);
 }
 
 int mv88e6390_g1_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 {
+	u16 ptr;
 	int err;
 
 	/* 01:c2:80:00:00:00:00-01:c2:80:00:00:00:07 are Management */
-	err = mv88e6390_g1_monitor_write(
-		chip, GLOBAL_MONITOR_CONTROL_0180C280000000XLO, 0xff);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000000XLO;
+	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
 	if (err)
 		return err;
 
 	/* 01:c2:80:00:00:00:08-01:c2:80:00:00:00:0f are Management */
-	err = mv88e6390_g1_monitor_write(
-		chip, GLOBAL_MONITOR_CONTROL_0180C280000000XHI, 0xff);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000000XHI;
+	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
 	if (err)
 		return err;
 
 	/* 01:c2:80:00:00:00:20-01:c2:80:00:00:00:27 are Management */
-	err = mv88e6390_g1_monitor_write(
-		chip, GLOBAL_MONITOR_CONTROL_0180C280000002XLO, 0xff);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000002XLO;
+	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
 	if (err)
 		return err;
 
 	/* 01:c2:80:00:00:00:28-01:c2:80:00:00:00:2f are Management */
-	return mv88e6390_g1_monitor_write(
-		chip, GLOBAL_MONITOR_CONTROL_0180C280000002XHI, 0xff);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000002XHI;
+	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 /* Offset 0x1c: Global Control 2 */
