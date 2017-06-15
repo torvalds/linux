@@ -261,7 +261,7 @@ static irqreturn_t mv88e6xxx_g1_irq_thread_fn(int irq, void *dev_id)
 	int err;
 
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &reg);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &reg);
 	mutex_unlock(&chip->reg_lock);
 
 	if (err)
@@ -292,14 +292,14 @@ static void mv88e6xxx_g1_irq_bus_sync_unlock(struct irq_data *d)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &reg);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &reg);
 	if (err)
 		goto out;
 
 	reg &= ~mask;
 	reg |= (~chip->g1_irq.masked & mask);
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, reg);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, reg);
 	if (err)
 		goto out;
 
@@ -338,9 +338,9 @@ static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
 	int irq, virq;
 	u16 mask;
 
-	mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &mask);
+	mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &mask);
 	mask |= GENMASK(chip->g1_irq.nirqs, 0);
-	mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, mask);
+	mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, mask);
 
 	free_irq(chip->irq, chip);
 
@@ -370,18 +370,18 @@ static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 	chip->g1_irq.chip = mv88e6xxx_g1_irq_chip;
 	chip->g1_irq.masked = ~0;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &mask);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &mask);
 	if (err)
 		goto out_mapping;
 
 	mask &= ~GENMASK(chip->g1_irq.nirqs, 0);
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, mask);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, mask);
 	if (err)
 		goto out_disable;
 
 	/* Reading the interrupt status clears (most of) them */
-	err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &reg);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &reg);
 	if (err)
 		goto out_disable;
 
@@ -396,7 +396,7 @@ static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 
 out_disable:
 	mask |= GENMASK(chip->g1_irq.nirqs, 0);
-	mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, mask);
+	mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, mask);
 
 out_mapping:
 	for (irq = 0; irq < 16; irq++) {
@@ -725,7 +725,7 @@ static void mv88e6095_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
 {
 	return mv88e6xxx_stats_get_stats(chip, port, data,
 					 STATS_TYPE_BANK0 | STATS_TYPE_PORT,
-					 0, GLOBAL_STATS_OP_HIST_RX_TX);
+					 0, MV88E6XXX_G1_STATS_OP_HIST_RX_TX);
 }
 
 static void mv88e6320_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
@@ -733,8 +733,8 @@ static void mv88e6320_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
 {
 	return mv88e6xxx_stats_get_stats(chip, port, data,
 					 STATS_TYPE_BANK0 | STATS_TYPE_BANK1,
-					 GLOBAL_STATS_OP_BANK_1_BIT_9,
-					 GLOBAL_STATS_OP_HIST_RX_TX);
+					 MV88E6XXX_G1_STATS_OP_BANK_1_BIT_9,
+					 MV88E6XXX_G1_STATS_OP_HIST_RX_TX);
 }
 
 static void mv88e6390_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
@@ -742,7 +742,8 @@ static void mv88e6390_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
 {
 	return mv88e6xxx_stats_get_stats(chip, port, data,
 					 STATS_TYPE_BANK0 | STATS_TYPE_BANK1,
-					 GLOBAL_STATS_OP_BANK_1_BIT_10, 0);
+					 MV88E6XXX_G1_STATS_OP_BANK_1_BIT_10,
+					 0);
 }
 
 static void mv88e6xxx_get_stats(struct mv88e6xxx_chip *chip, int port,
@@ -1047,7 +1048,8 @@ static int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
 		if (!next.valid)
 			break;
 
-		if (next.member[port] == GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
+		if (next.member[port] ==
+		    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
 			continue;
 
 		/* reinit and dump this VLAN obj */
@@ -1055,7 +1057,8 @@ static int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
 		vlan->vid_end = next.vid;
 		vlan->flags = 0;
 
-		if (next.member[port] == GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED)
+		if (next.member[port] ==
+		    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_UNTAGGED)
 			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
 
 		if (next.vid == pvid)
@@ -1143,7 +1146,7 @@ static int mv88e6xxx_vtu_get(struct mv88e6xxx_chip *chip, u16 vid,
 		/* Exclude all ports */
 		for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
 			entry->member[i] =
-				GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
+				MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 
 		return mv88e6xxx_atu_new(chip, &entry->fid);
 	}
@@ -1185,7 +1188,7 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 				continue;
 
 			if (vlan.member[i] ==
-			    GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
+			    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
 				continue;
 
 			if (ds->ports[i].bridge_dev ==
@@ -1281,11 +1284,11 @@ static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 		return;
 
 	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
-		member = GLOBAL_VTU_DATA_MEMBER_TAG_UNMODIFIED;
+		member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_UNMODIFIED;
 	else if (untagged)
-		member = GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED;
+		member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_UNTAGGED;
 	else
-		member = GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED;
+		member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_TAGGED;
 
 	mutex_lock(&chip->reg_lock);
 
@@ -1312,15 +1315,16 @@ static int _mv88e6xxx_port_vlan_del(struct mv88e6xxx_chip *chip,
 		return err;
 
 	/* Tell switchdev if this VLAN is handled in software */
-	if (vlan.member[port] == GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
+	if (vlan.member[port] == MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
 		return -EOPNOTSUPP;
 
-	vlan.member[port] = GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
+	vlan.member[port] = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 
 	/* keep the VLAN unless all ports are excluded */
 	vlan.valid = false;
 	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
-		if (vlan.member[i] != GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER) {
+		if (vlan.member[i] !=
+		    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER) {
 			vlan.valid = true;
 			break;
 		}
@@ -1383,7 +1387,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	entry.state = GLOBAL_ATU_DATA_STATE_UNUSED;
+	entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
 	ether_addr_copy(entry.mac, addr);
 	eth_addr_dec(entry.mac);
 
@@ -1392,17 +1396,17 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	/* Initialize a fresh ATU entry if it isn't found */
-	if (entry.state == GLOBAL_ATU_DATA_STATE_UNUSED ||
+	if (entry.state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED ||
 	    !ether_addr_equal(entry.mac, addr)) {
 		memset(&entry, 0, sizeof(entry));
 		ether_addr_copy(entry.mac, addr);
 	}
 
 	/* Purge the ATU entry only if no port is using it anymore */
-	if (state == GLOBAL_ATU_DATA_STATE_UNUSED) {
+	if (state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
 		entry.portvec &= ~BIT(port);
 		if (!entry.portvec)
-			entry.state = GLOBAL_ATU_DATA_STATE_UNUSED;
+			entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
 	} else {
 		entry.portvec |= BIT(port);
 		entry.state = state;
@@ -1429,7 +1433,7 @@ static void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 	if (mv88e6xxx_port_db_load_purge(chip, port, fdb->addr, fdb->vid,
-					 GLOBAL_ATU_DATA_STATE_UC_STATIC))
+					 MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC))
 		dev_err(ds->dev, "p%d: failed to load unicast MAC address\n",
 			port);
 	mutex_unlock(&chip->reg_lock);
@@ -1443,7 +1447,7 @@ static int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 	err = mv88e6xxx_port_db_load_purge(chip, port, fdb->addr, fdb->vid,
-					   GLOBAL_ATU_DATA_STATE_UNUSED);
+					   MV88E6XXX_G1_ATU_DATA_STATE_UNUSED);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
@@ -1457,7 +1461,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 	struct mv88e6xxx_atu_entry addr;
 	int err;
 
-	addr.state = GLOBAL_ATU_DATA_STATE_UNUSED;
+	addr.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
 	eth_broadcast_addr(addr.mac);
 
 	do {
@@ -1465,7 +1469,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 		if (err)
 			return err;
 
-		if (addr.state == GLOBAL_ATU_DATA_STATE_UNUSED)
+		if (addr.state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED)
 			break;
 
 		if (addr.trunk || (addr.portvec & BIT(port)) == 0)
@@ -1480,7 +1484,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 			fdb = SWITCHDEV_OBJ_PORT_FDB(obj);
 			fdb->vid = vid;
 			ether_addr_copy(fdb->addr, addr.mac);
-			if (addr.state == GLOBAL_ATU_DATA_STATE_UC_STATIC)
+			if (addr.state == MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC)
 				fdb->ndm_state = NUD_NOARP;
 			else
 				fdb->ndm_state = NUD_REACHABLE;
@@ -1979,25 +1983,6 @@ static void mv88e6xxx_port_disable(struct dsa_switch *ds, int port,
 	mutex_unlock(&chip->reg_lock);
 }
 
-static int mv88e6xxx_g1_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
-{
-	int err;
-
-	err = mv88e6xxx_g1_write(chip, GLOBAL_MAC_01, (addr[0] << 8) | addr[1]);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_write(chip, GLOBAL_MAC_23, (addr[2] << 8) | addr[3]);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_write(chip, GLOBAL_MAC_45, (addr[4] << 8) | addr[5]);
-	if (err)
-		return err;
-
-	return 0;
-}
-
 static int mv88e6xxx_set_ageing_time(struct dsa_switch *ds,
 				     unsigned int ageing_time)
 {
@@ -2030,40 +2015,40 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 	}
 
 	/* Disable remote management, and set the switch's DSA device number. */
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL_2,
-				 GLOBAL_CONTROL_2_MULTIPLE_CASCADE |
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2,
+				 MV88E6XXX_G1_CTL2_MULTIPLE_CASCADE |
 				 (ds->index & 0x1f));
 	if (err)
 		return err;
 
 	/* Configure the IP ToS mapping registers. */
-	err = mv88e6xxx_g1_write(chip, GLOBAL_IP_PRI_0, 0x0000);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_0, 0x0000);
 	if (err)
 		return err;
-	err = mv88e6xxx_g1_write(chip, GLOBAL_IP_PRI_1, 0x0000);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_1, 0x0000);
 	if (err)
 		return err;
-	err = mv88e6xxx_g1_write(chip, GLOBAL_IP_PRI_2, 0x5555);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_2, 0x5555);
 	if (err)
 		return err;
-	err = mv88e6xxx_g1_write(chip, GLOBAL_IP_PRI_3, 0x5555);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_3, 0x5555);
 	if (err)
 		return err;
-	err = mv88e6xxx_g1_write(chip, GLOBAL_IP_PRI_4, 0xaaaa);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_4, 0xaaaa);
 	if (err)
 		return err;
-	err = mv88e6xxx_g1_write(chip, GLOBAL_IP_PRI_5, 0xaaaa);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_5, 0xaaaa);
 	if (err)
 		return err;
-	err = mv88e6xxx_g1_write(chip, GLOBAL_IP_PRI_6, 0xffff);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_6, 0xffff);
 	if (err)
 		return err;
-	err = mv88e6xxx_g1_write(chip, GLOBAL_IP_PRI_7, 0xffff);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_7, 0xffff);
 	if (err)
 		return err;
 
 	/* Configure the IEEE 802.1p priority mapping register. */
-	err = mv88e6xxx_g1_write(chip, GLOBAL_IEEE_PRI, 0xfa41);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IEEE_PRI, 0xfa41);
 	if (err)
 		return err;
 
@@ -2073,8 +2058,9 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 		return err;
 
 	/* Clear the statistics counters for all ports */
-	err = mv88e6xxx_g1_write(chip, GLOBAL_STATS_OP,
-				 GLOBAL_STATS_OP_FLUSH_ALL);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_STATS_OP,
+				 MV88E6XXX_G1_STATS_OP_BUSY |
+				 MV88E6XXX_G1_STATS_OP_FLUSH_ALL);
 	if (err)
 		return err;
 
@@ -3774,7 +3760,7 @@ static void mv88e6xxx_port_mdb_add(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 	if (mv88e6xxx_port_db_load_purge(chip, port, mdb->addr, mdb->vid,
-					 GLOBAL_ATU_DATA_STATE_MC_STATIC))
+					 MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC))
 		dev_err(ds->dev, "p%d: failed to load multicast MAC address\n",
 			port);
 	mutex_unlock(&chip->reg_lock);
@@ -3788,7 +3774,7 @@ static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 	err = mv88e6xxx_port_db_load_purge(chip, port, mdb->addr, mdb->vid,
-					   GLOBAL_ATU_DATA_STATE_UNUSED);
+					   MV88E6XXX_G1_ATU_DATA_STATE_UNUSED);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
