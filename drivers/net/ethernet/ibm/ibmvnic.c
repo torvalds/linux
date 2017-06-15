@@ -1505,9 +1505,6 @@ static int ibmvnic_poll(struct napi_struct *napi, int budget)
 	int scrq_num = (int)(napi - adapter->napi);
 	int frames_processed = 0;
 
-	if (adapter->resetting)
-		return 0;
-
 restart_poll:
 	while (frames_processed < budget) {
 		struct sk_buff *skb;
@@ -1516,6 +1513,12 @@ restart_poll:
 		u32 length;
 		u16 offset;
 		u8 flags = 0;
+
+		if (unlikely(adapter->resetting)) {
+			enable_scrq_irq(adapter, adapter->rx_scrq[scrq_num]);
+			napi_complete_done(napi, frames_processed);
+			return frames_processed;
+		}
 
 		if (!pending_scrq(adapter, adapter->rx_scrq[scrq_num]))
 			break;
