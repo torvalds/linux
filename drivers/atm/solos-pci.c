@@ -1251,10 +1251,10 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (reset) {
 		iowrite32(1, card->config_regs + FPGA_MODE);
-		data32 = ioread32(card->config_regs + FPGA_MODE); 
+		ioread32(card->config_regs + FPGA_MODE);
 
 		iowrite32(0, card->config_regs + FPGA_MODE);
-		data32 = ioread32(card->config_regs + FPGA_MODE); 
+		ioread32(card->config_regs + FPGA_MODE);
 	}
 
 	data32 = ioread32(card->config_regs + FPGA_VER);
