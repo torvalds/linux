@@ -1308,24 +1308,46 @@ static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
 		}
 	}
 
-	clk_prepare_enable(rockchip->clk_pcie_pm);
-	clk_prepare_enable(rockchip->hclk_pcie);
-	clk_prepare_enable(rockchip->aclk_perf_pcie);
-	clk_prepare_enable(rockchip->aclk_pcie);
+	err = clk_prepare_enable(rockchip->clk_pcie_pm);
+	if (err)
+		goto err_pcie_pm;
+
+	err = clk_prepare_enable(rockchip->hclk_pcie);
+	if (err)
+		goto err_hclk_pcie;
+
+	err = clk_prepare_enable(rockchip->aclk_perf_pcie);
+	if (err)
+		goto err_aclk_perf_pcie;
+
+	err = clk_prepare_enable(rockchip->aclk_pcie);
+	if (err)
+		goto err_aclk_pcie;
 
 	err = rockchip_pcie_init_port(rockchip);
 	if (err)
-		return err;
+		goto err_pcie_resume;
 
 	err = rockchip_pcie_cfg_atu(rockchip);
 	if (err)
-		return err;
+		goto err_pcie_resume;
 
 	/* Need this to enter L1 again */
 	rockchip_pcie_update_txcredit_mui(rockchip);
 	rockchip_pcie_enable_interrupts(rockchip);
 
 	return 0;
+
+err_pcie_resume:
+	clk_disable_unprepare(rockchip->aclk_pcie);
+err_aclk_pcie:
+	clk_disable_unprepare(rockchip->aclk_perf_pcie);
+err_aclk_perf_pcie:
+	clk_disable_unprepare(rockchip->hclk_pcie);
+err_hclk_pcie:
+	clk_disable_unprepare(rockchip->clk_pcie_pm);
+err_pcie_pm:
+	return err;
 }
 
 static int rockchip_pcie_probe(struct platform_device *pdev)
