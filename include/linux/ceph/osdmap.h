@@ -205,11 +205,13 @@ static inline struct ceph_entity_addr *ceph_osd_addr(struct ceph_osdmap *map,
 	return &map->osd_addr[osd];
 }
 
+#define CEPH_PGID_ENCODING_LEN		(1 + 8 + 4 + 4)
+
 static inline int ceph_decode_pgid(void **p, void *end, struct ceph_pg *pgid)
 {
 	__u8 version;
 
-	if (!ceph_has_room(p, end, 1 + 8 + 4 + 4)) {
+	if (!ceph_has_room(p, end, CEPH_PGID_ENCODING_LEN)) {
 		pr_warn("incomplete pg encoding\n");
 		return -EINVAL;
 	}

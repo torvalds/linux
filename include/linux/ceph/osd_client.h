@@ -205,6 +205,23 @@ struct ceph_request_redirect {
 	struct ceph_object_locator oloc;
 };
 
+/*
+ * osd request identifier
+ *
+ * caller name + incarnation# + tid to unique identify this request
+ */
+struct ceph_osd_reqid {
+	struct ceph_entity_name name;
+	__le64 tid;
+	__le32 inc;
+} __packed;
+
+struct ceph_blkin_trace_info {
+	__le64 trace_id;
+	__le64 span_id;
+	__le64 parent_span_id;
+} __packed;
+
 typedef void (*rados_watchcb2_t)(void *arg, u64 notify_id, u64 cookie,
 				 u64 notifier_id, void *data, size_t data_len);
 typedef void (*rados_watcherrcb_t)(void *arg, u64 cookie, int err);
