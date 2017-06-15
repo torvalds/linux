@@ -32,7 +32,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/ftrace.h>
 
@@ -163,9 +162,34 @@ static unsigned long tick_add_tick(unsigned long adj)
 	return new_tick;
 }
 
+/* Searches for cpu clock frequency with given cpuid in OpenBoot tree */
+static unsigned long cpuid_to_freq(phandle node, int cpuid)
+{
+	bool is_cpu_node = false;
+	unsigned long freq = 0;
+	char type[128];
+
+	if (!node)
+		return freq;
+
+	if (prom_getproperty(node, "device_type", type, sizeof(type)) != -1)
+		is_cpu_node = (strcmp(type, "cpu") == 0);
+
+	/* try upa-portis then cpuid to get cpuid, see prom_64.c */
+	if (is_cpu_node && (prom_getint(node, "upa-portis") == cpuid ||
+			    prom_getint(node, "cpuid") == cpuid))
+		freq = prom_getintdefault(node, "clock-frequency", 0);
+	if (!freq)
+		freq = cpuid_to_freq(prom_getchild(node), cpuid);
+	if (!freq)
+		freq = cpuid_to_freq(prom_getsibling(node), cpuid);
+
+	return freq;
+}
+
 static unsigned long tick_get_frequency(void)
 {
-	return local_cpu_data().clock_tick;
+	return cpuid_to_freq(prom_root_node, hard_smp_processor_id());
 }
 
 static struct sparc64_tick_ops tick_operations __cacheline_aligned = {
@@ -257,7 +281,7 @@ static int stick_add_compare(unsigned long adj)
 
 static unsigned long stick_get_frequency(void)
 {
-	return prom_getint(prom_root_node, "stick-frequency");
+	return prom_getintdefault(prom_root_node, "stick-frequency", 0);
 }
 
 static struct sparc64_tick_ops stick_operations __read_mostly = {
@@ -391,9 +415,7 @@ static int hbtick_add_compare(unsigned long adj)
 
 static unsigned long hbtick_get_frequency(void)
 {
-	struct device_node *dp = of_find_node_by_path("/");
-
-	return of_getintprop_default(dp, "stick-frequency", 0);
+	return prom_getintdefault(prom_root_node, "stick-frequency", 0);
 }
 
 static struct sparc64_tick_ops hbtick_operations __read_mostly = {
