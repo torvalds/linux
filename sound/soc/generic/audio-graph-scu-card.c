@@ -195,8 +195,8 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	 * see simple-card
 	 */
 
-	ret = snd_soc_of_parse_audio_routing(card, "routing");
-	if (ret)
+	ret = asoc_simple_card_of_parse_routing(card, NULL, 0);
+	if (ret < 0)
 		return ret;
 
 	asoc_simple_card_parse_convert(dev, NULL, &priv->adata);
