@@ -771,35 +771,27 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 #else
 	case bc6_op:
 		/* Only valid for MIPS R6 */
-		if (!cpu_has_mips_r6) {
-			ret = -SIGILL;
-			break;
-		}
+		if (!cpu_has_mips_r6)
+			goto sigill_r6;
 		regs->cp0_epc += 8;
 		break;
 	case balc6_op:
-		if (!cpu_has_mips_r6) {
-			ret = -SIGILL;
-			break;
-		}
+		if (!cpu_has_mips_r6)
+			goto sigill_r6;
 		/* Compact branch: BALC */
 		regs->regs[31] = epc + 4;
 		epc += 4 + (insn.i_format.simmediate << 2);
 		regs->cp0_epc = epc;
 		break;
 	case pop66_op:
-		if (!cpu_has_mips_r6) {
-			ret = -SIGILL;
-			break;
-		}
+		if (!cpu_has_mips_r6)
+			goto sigill_r6;
 		/* Compact branch: BEQZC || JIC */
 		regs->cp0_epc += 8;
 		break;
 	case pop76_op:
-		if (!cpu_has_mips_r6) {
-			ret = -SIGILL;
-			break;
-		}
+		if (!cpu_has_mips_r6)
+			goto sigill_r6;
 		/* Compact branch: BNEZC || JIALC */
 		if (!insn.i_format.rs) {
 			/* JIALC: set $31/ra */
@@ -811,10 +803,8 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case pop10_op:
 	case pop30_op:
 		/* Only valid for MIPS R6 */
-		if (!cpu_has_mips_r6) {
-			ret = -SIGILL;
-			break;
-		}
+		if (!cpu_has_mips_r6)
+			goto sigill_r6;
 		/*
 		 * Compact branches:
 		 * bovc, beqc, beqzalc, bnvc, bnec, bnezlac
@@ -834,6 +824,11 @@ sigill_dsp:
 	return -EFAULT;
 sigill_r2r6:
 	pr_info("%s: R2 branch but r2-to-r6 emulator is not preset - sending SIGILL.\n",
+		current->comm);
+	force_sig(SIGILL, current);
+	return -EFAULT;
+sigill_r6:
+	pr_info("%s: R6 branch but no MIPSr6 ISA support - sending SIGILL.\n",
 		current->comm);
 	force_sig(SIGILL, current);
 	return -EFAULT;
