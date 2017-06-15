@@ -3155,12 +3155,6 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		if (PMSG_IS_AUTO(msg))
 			goto err_ltm;
 	}
-	if (usb_unlocked_disable_lpm(udev)) {
-		dev_err(&udev->dev, "Failed to disable LPM before suspend\n.");
-		status = -ENOMEM;
-		if (PMSG_IS_AUTO(msg))
-			goto err_lpm3;
-	}
 
 	/* see 7.1.7.6 */
 	if (hub_is_superspeed(hub->hdev))
@@ -3187,9 +3181,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	if (status) {
 		dev_dbg(&port_dev->dev, "can't suspend, status %d\n", status);
 
-		/* Try to enable USB3 LPM and LTM again */
-		usb_unlocked_enable_lpm(udev);
- err_lpm3:
+		/* Try to enable USB3 LTM again */
 		usb_enable_ltm(udev);
  err_ltm:
 		/* Try to enable USB2 hardware LPM again */
@@ -3473,9 +3465,8 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		if (udev->usb2_hw_lpm_capable == 1)
 			usb_set_usb2_hardware_lpm(udev, 1);
 
-		/* Try to enable USB3 LTM and LPM */
+		/* Try to enable USB3 LTM */
 		usb_enable_ltm(udev);
-		usb_unlocked_enable_lpm(udev);
 	}
 
 	usb_unlock_port(port_dev);
