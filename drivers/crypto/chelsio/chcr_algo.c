@@ -2210,7 +2210,8 @@ static int chcr_aead_rfc4309_setkey(struct crypto_aead *aead, const u8 *key,
 				    unsigned int keylen)
 {
 	struct chcr_context *ctx = crypto_aead_ctx(aead);
-	 struct chcr_aead_ctx *aeadctx = AEAD_CTX(ctx);
+	struct chcr_aead_ctx *aeadctx = AEAD_CTX(ctx);
+	int error;
 
 	if (keylen < 3) {
 		crypto_tfm_set_flags((struct crypto_tfm *)aead,
@@ -2218,6 +2219,15 @@ static int chcr_aead_rfc4309_setkey(struct crypto_aead *aead, const u8 *key,
 		aeadctx->enckey_len = 0;
 		return	-EINVAL;
 	}
+	crypto_aead_clear_flags(aeadctx->sw_cipher, CRYPTO_TFM_REQ_MASK);
+	crypto_aead_set_flags(aeadctx->sw_cipher, crypto_aead_get_flags(aead) &
+			      CRYPTO_TFM_REQ_MASK);
+	error = crypto_aead_setkey(aeadctx->sw_cipher, key, keylen);
+	crypto_aead_clear_flags(aead, CRYPTO_TFM_RES_MASK);
+	crypto_aead_set_flags(aead, crypto_aead_get_flags(aeadctx->sw_cipher) &
+			      CRYPTO_TFM_RES_MASK);
+	if (error)
+		return error;
 	keylen -= 3;
 	memcpy(aeadctx->salt, key + keylen, 3);
 	return chcr_ccm_common_setkey(aead, key, keylen);
