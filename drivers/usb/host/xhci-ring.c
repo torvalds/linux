@@ -1928,7 +1928,7 @@ static int xhci_td_cleanup(struct xhci_hcd *xhci, struct xhci_td *td,
 
 static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	union xhci_trb *ep_trb, struct xhci_transfer_event *event,
-	struct xhci_virt_ep *ep, int *status, bool skip)
+	struct xhci_virt_ep *ep, int *status)
 {
 	struct xhci_virt_device *xdev;
 	struct xhci_ep_ctx *ep_ctx;
@@ -1943,9 +1943,6 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
-
-	if (skip)
-		goto td_cleanup;
 
 	if (trb_comp_code == COMP_STOPPED_LENGTH_INVALID ||
 			trb_comp_code == COMP_STOPPED ||
@@ -1974,7 +1971,6 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		inc_deq(xhci, ep_ring);
 	}
 
-td_cleanup:
 	return xhci_td_cleanup(xhci, td, ep_ring, status);
 }
 
@@ -2094,7 +2090,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		td->urb->actual_length = requested;
 
 finish_td:
-	return finish_td(xhci, td, ep_trb, event, ep, status, false);
+	return finish_td(xhci, td, ep_trb, event, ep, status);
 }
 
 /*
@@ -2181,7 +2177,7 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 
 	td->urb->actual_length += frame->actual_length;
 
-	return finish_td(xhci, td, ep_trb, event, ep, status, false);
+	return finish_td(xhci, td, ep_trb, event, ep, status);
 }
 
 static int skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
@@ -2209,7 +2205,7 @@ static int skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		inc_deq(xhci, ep_ring);
 	inc_deq(xhci, ep_ring);
 
-	return finish_td(xhci, td, NULL, event, ep, status, true);
+	return xhci_td_cleanup(xhci, td, ep_ring, status);
 }
 
 /*
@@ -2271,7 +2267,7 @@ finish_td:
 			  remaining);
 		td->urb->actual_length = 0;
 	}
-	return finish_td(xhci, td, ep_trb, event, ep, status, false);
+	return finish_td(xhci, td, ep_trb, event, ep, status);
 }
 
 /*
