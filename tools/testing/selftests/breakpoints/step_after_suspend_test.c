@@ -83,8 +83,8 @@ bool run_test(int cpu)
 
 	if (ptrace(PTRACE_SINGLESTEP, pid, NULL, NULL) < 0) {
 		if (errno == EIO) {
-			printf("ptrace(PTRACE_SINGLESTEP) not supported on this architecture\n");
-			ksft_exit_skip();
+			ksft_exit_skip("ptrace(PTRACE_SINGLESTEP) "
+				"not supported on this architecture");
 		}
 		perror("ptrace(PTRACE_SINGLESTEP) failed");
 		return false;

@@ -87,8 +87,7 @@ static enum test_membarrier_status test_membarrier_query(void)
 			 * It is valid to build a kernel with
 			 * CONFIG_MEMBARRIER=n. However, this skips the tests.
 			 */
-			ksft_test_result_skip("CONFIG_MEMBARRIER is not enabled\n");
-			return ksft_exit_skip();
+			ksft_exit_skip("CONFIG_MEMBARRIER is not enabled\n");
 		}
 		ksft_test_result_fail("sys_membarrier() failed\n");
 		return TEST_MEMBARRIER_FAIL;
@@ -108,13 +107,13 @@ int main(int argc, char **argv)
 	case TEST_MEMBARRIER_FAIL:
 		return ksft_exit_fail();
 	case TEST_MEMBARRIER_SKIP:
-		return ksft_exit_skip();
+		return ksft_exit_skip(NULL);
 	}
 	switch (test_membarrier()) {
 	case TEST_MEMBARRIER_FAIL:
 		return ksft_exit_fail();
 	case TEST_MEMBARRIER_SKIP:
-		return ksft_exit_skip();
+		return ksft_exit_skip(NULL);
 	}
 
 	return ksft_exit_pass();

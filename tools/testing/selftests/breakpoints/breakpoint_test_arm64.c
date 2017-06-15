@@ -101,9 +101,8 @@ static bool set_watchpoint(pid_t pid, int size, int wp)
 		return true;
 
 	if (errno == EIO) {
-		printf("ptrace(PTRACE_SETREGSET, NT_ARM_HW_WATCH) "
+		ksft_exit_skip("ptrace(PTRACE_SETREGSET, NT_ARM_HW_WATCH) "
 			"not supported on this hardware\n");
-		ksft_exit_skip();
 	}
 	perror("ptrace(PTRACE_SETREGSET, NT_ARM_HW_WATCH) failed");
 	return false;
