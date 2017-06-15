@@ -29,6 +29,28 @@
 	};
 };
 
+&i2c0 {
+	/* On Low speed expansion */
+	label = "LS-I2C0";
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+
+	adv7533: adv7533@39 {
+		status = "ok";
+		compatible = "adi,adv7533";
+		reg = <0x39>;
+	};
+};
+
+&i2c7 {
+	/* On Low speed expansion */
+	label = "LS-I2C1";
+	status = "okay";
+};
+
 &uart5 {
 	status = "okay";
 };
