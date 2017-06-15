@@ -115,7 +115,6 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 	/* call completion callback with failure status */
 	if (req) {
 		error_status = chcr_handle_resp(req, input, error_status);
-		req->complete(req, error_status);
 	} else {
 		pr_err("Incorrect request address from the firmware\n");
 		return -EFAULT;

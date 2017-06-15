@@ -55,6 +55,8 @@
 #include <crypto/hash.h>
 #include <crypto/sha.h>
 #include <crypto/authenc.h>
+#include <crypto/ctr.h>
+#include <crypto/gf128mul.h>
 #include <crypto/internal/aead.h>
 #include <crypto/null.h>
 #include <crypto/internal/skcipher.h>
@@ -151,12 +153,11 @@ int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 	struct chcr_context *ctx = crypto_tfm_ctx(tfm);
 	struct uld_ctx *u_ctx = ULD_CTX(ctx);
 	struct chcr_req_ctx ctx_req;
-	struct cpl_fw6_pld *fw6_pld;
 	unsigned int digestsize, updated_digestsize;
 
 	switch (tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_AEAD:
-		ctx_req.req.aead_req = (struct aead_request *)req;
+		ctx_req.req.aead_req = aead_request_cast(req);
 		ctx_req.ctx.reqctx = aead_request_ctx(ctx_req.req.aead_req);
 		dma_unmap_sg(&u_ctx->lldi.pdev->dev, ctx_req.ctx.reqctx->dst,
 			     ctx_req.ctx.reqctx->dst_nents, DMA_FROM_DEVICE);
@@ -169,27 +170,16 @@ int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 					&err);
 			ctx_req.ctx.reqctx->verify = VERIFY_HW;
 		}
+		ctx_req.req.aead_req->base.complete(req, err);
 		break;
 
 	case CRYPTO_ALG_TYPE_ABLKCIPHER:
-		ctx_req.req.ablk_req = (struct ablkcipher_request *)req;
-		ctx_req.ctx.ablk_ctx =
-			ablkcipher_request_ctx(ctx_req.req.ablk_req);
-		if (!err) {
-			fw6_pld = (struct cpl_fw6_pld *)input;
-			memcpy(ctx_req.req.ablk_req->info, &fw6_pld->data[2],
-			       AES_BLOCK_SIZE);
-		}
-		dma_unmap_sg(&u_ctx->lldi.pdev->dev, ctx_req.req.ablk_req->dst,
-			     ctx_req.ctx.ablk_ctx->dst_nents, DMA_FROM_DEVICE);
-		if (ctx_req.ctx.ablk_ctx->skb) {
-			kfree_skb(ctx_req.ctx.ablk_ctx->skb);
-			ctx_req.ctx.ablk_ctx->skb = NULL;
-		}
+		 err = chcr_handle_cipher_resp(ablkcipher_request_cast(req),
+					       input, err);
 		break;
 
 	case CRYPTO_ALG_TYPE_AHASH:
-		ctx_req.req.ahash_req = (struct ahash_request *)req;
+		ctx_req.req.ahash_req = ahash_request_cast(req);
 		ctx_req.ctx.ahash_ctx =
 			ahash_request_ctx(ctx_req.req.ahash_req);
 		digestsize =
@@ -214,6 +204,7 @@ int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 			       sizeof(struct cpl_fw6_pld),
 			       updated_digestsize);
 		}
+		ctx_req.req.ahash_req->base.complete(req, err);
 		break;
 	}
 	return err;
@@ -392,7 +383,7 @@ static void write_phys_cpl(struct cpl_rx_phys_dsgl *phys_cpl,
 			   struct phys_sge_parm *sg_param)
 {
 	struct phys_sge_pairs *to;
-	int out_buf_size = sg_param->obsize;
+	unsigned int len = 0, left_size = sg_param->obsize;
 	unsigned int nents = sg_param->nents, i, j = 0;
 
 	phys_cpl->op_to_tid = htonl(CPL_RX_PHYS_DSGL_OPCODE_V(CPL_RX_PHYS_DSGL)
@@ -409,19 +400,14 @@ static void write_phys_cpl(struct cpl_rx_phys_dsgl *phys_cpl,
 	phys_cpl->rss_hdr_int.hash_val = 0;
 	to = (struct phys_sge_pairs *)((unsigned char *)phys_cpl +
 				       sizeof(struct cpl_rx_phys_dsgl));
-
-	for (i = 0; nents; to++) {
-		for (j = 0; j < 8 && nents; j++, nents--) {
-			out_buf_size -= sg_dma_len(sg);
-			to->len[j] = htons(sg_dma_len(sg));
+	for (i = 0; nents && left_size; to++) {
+		for (j = 0; j < 8 && nents && left_size; j++, nents--) {
+			len = min(left_size, sg_dma_len(sg));
+			to->len[j] = htons(len);
 			to->addr[j] = cpu_to_be64(sg_dma_address(sg));
+			left_size -= len;
 			sg = sg_next(sg);
 		}
-	}
-	if (out_buf_size) {
-		j--;
-		to--;
-		to->len[j] = htons(ntohs(to->len[j]) + (out_buf_size));
 	}
 }
 
@@ -431,7 +417,7 @@ static inline int map_writesg_phys_cpl(struct device *dev,
 					struct phys_sge_parm *sg_param)
 {
 	if (!sg || !sg_param->nents)
-		return 0;
+		return -EINVAL;
 
 	sg_param->nents = dma_map_sg(dev, sg, sg_param->nents, DMA_FROM_DEVICE);
 	if (sg_param->nents == 0) {
@@ -498,6 +484,24 @@ write_sg_to_skb(struct sk_buff *skb, unsigned int *frags,
 	}
 }
 
+static int cxgb4_is_crypto_q_full(struct net_device *dev, unsigned int idx)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct sge_uld_txq_info *txq_info =
+		adap->sge.uld_txq_info[CXGB4_TX_CRYPTO];
+	struct sge_uld_txq *txq;
+	int ret = 0;
+
+	local_bh_disable();
+	txq = &txq_info->uldtxq[idx];
+	spin_lock(&txq->sendq.lock);
+	if (txq->full)
+		ret = -1;
+	spin_unlock(&txq->sendq.lock);
+	local_bh_enable();
+	return ret;
+}
+
 static int generate_copy_rrkey(struct ablk_ctx *ablkctx,
 			       struct _key_ctx *key_ctx)
 {
@@ -512,7 +516,60 @@ static int generate_copy_rrkey(struct ablk_ctx *ablkctx,
 	}
 	return 0;
 }
+static int chcr_sg_ent_in_wr(struct scatterlist *src,
+			     struct scatterlist *dst,
+			     unsigned int minsg,
+			     unsigned int space,
+			     short int *sent,
+			     short int *dent)
+{
+	int srclen = 0, dstlen = 0;
+	int srcsg = minsg, dstsg = 0;
 
+	*sent = 0;
+	*dent = 0;
+	while (src && dst && ((srcsg + 1) <= MAX_SKB_FRAGS) &&
+	       space > (sgl_ent_len[srcsg + 1] + dsgl_ent_len[dstsg])) {
+		srclen += src->length;
+		srcsg++;
+		while (dst && ((dstsg + 1) <= MAX_DSGL_ENT) &&
+		       space > (sgl_ent_len[srcsg] + dsgl_ent_len[dstsg + 1])) {
+			if (srclen <= dstlen)
+				break;
+			dstlen += dst->length;
+			dst = sg_next(dst);
+			dstsg++;
+		}
+		src = sg_next(src);
+	}
+	*sent = srcsg - minsg;
+	*dent = dstsg;
+	return min(srclen, dstlen);
+}
+
+static int chcr_cipher_fallback(struct crypto_skcipher *cipher,
+				u32 flags,
+				struct scatterlist *src,
+				struct scatterlist *dst,
+				unsigned int nbytes,
+				u8 *iv,
+				unsigned short op_type)
+{
+	int err;
+
+	SKCIPHER_REQUEST_ON_STACK(subreq, cipher);
+	skcipher_request_set_tfm(subreq, cipher);
+	skcipher_request_set_callback(subreq, flags, NULL, NULL);
+	skcipher_request_set_crypt(subreq, src, dst,
+				   nbytes, iv);
+
+	err = op_type ? crypto_skcipher_decrypt(subreq) :
+		crypto_skcipher_encrypt(subreq);
+	skcipher_request_zero(subreq);
+
+	return err;
+
+}
 static inline void create_wreq(struct chcr_context *ctx,
 			       struct chcr_wr *chcr_req,
 			       void *req, struct sk_buff *skb,
@@ -565,69 +622,61 @@ static inline void create_wreq(struct chcr_context *ctx,
  *	@qid: ingress qid where response of this WR should be received.
  *	@op_type:	encryption or decryption
  */
-static struct sk_buff
-*create_cipher_wr(struct ablkcipher_request *req,
-		  unsigned short qid,
-		  unsigned short op_type)
+static struct sk_buff *create_cipher_wr(struct cipher_wr_param *wrparam)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
+	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(wrparam->req);
 	struct chcr_context *ctx = crypto_ablkcipher_ctx(tfm);
 	struct uld_ctx *u_ctx = ULD_CTX(ctx);
 	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
 	struct sk_buff *skb = NULL;
 	struct chcr_wr *chcr_req;
 	struct cpl_rx_phys_dsgl *phys_cpl;
-	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
+	struct chcr_blkcipher_req_ctx *reqctx =
+		ablkcipher_request_ctx(wrparam->req);
 	struct phys_sge_parm sg_param;
 	unsigned int frags = 0, transhdr_len, phys_dsgl;
-	unsigned int ivsize = crypto_ablkcipher_ivsize(tfm), kctx_len;
-	gfp_t flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL :
-			GFP_ATOMIC;
-
-	if (!req->info)
-		return ERR_PTR(-EINVAL);
-	reqctx->dst_nents = sg_nents_for_len(req->dst, req->nbytes);
-	if (reqctx->dst_nents <= 0) {
-		pr_err("AES:Invalid Destination sg lists\n");
-		return ERR_PTR(-EINVAL);
-	}
-	if ((ablkctx->enckey_len == 0) || (ivsize > AES_BLOCK_SIZE) ||
-	    (req->nbytes <= 0) || (req->nbytes % AES_BLOCK_SIZE)) {
-		pr_err("AES: Invalid value of Key Len %d nbytes %d IV Len %d\n",
-		       ablkctx->enckey_len, req->nbytes, ivsize);
-		return ERR_PTR(-EINVAL);
-	}
+	int error;
+	unsigned int ivsize = AES_BLOCK_SIZE, kctx_len;
+	gfp_t flags = wrparam->req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
+			GFP_KERNEL : GFP_ATOMIC;
 
 	phys_dsgl = get_space_for_phys_dsgl(reqctx->dst_nents);
 
 	kctx_len = (DIV_ROUND_UP(ablkctx->enckey_len, 16) * 16);
 	transhdr_len = CIPHER_TRANSHDR_SIZE(kctx_len, phys_dsgl);
 	skb = alloc_skb((transhdr_len + sizeof(struct sge_opaque_hdr)), flags);
-	if (!skb)
-		return ERR_PTR(-ENOMEM);
+	if (!skb) {
+		error = -ENOMEM;
+		goto err;
+	}
 	skb_reserve(skb, sizeof(struct sge_opaque_hdr));
 	chcr_req = (struct chcr_wr *)__skb_put(skb, transhdr_len);
 	memset(chcr_req, 0, transhdr_len);
 	chcr_req->sec_cpl.op_ivinsrtofst =
 		FILL_SEC_CPL_OP_IVINSR(ctx->dev->rx_channel_id, 2, 1);
 
-	chcr_req->sec_cpl.pldlen = htonl(ivsize + req->nbytes);
+	chcr_req->sec_cpl.pldlen = htonl(ivsize + wrparam->bytes);
 	chcr_req->sec_cpl.aadstart_cipherstop_hi =
 			FILL_SEC_CPL_CIPHERSTOP_HI(0, 0, ivsize + 1, 0);
 
 	chcr_req->sec_cpl.cipherstop_lo_authinsert =
 			FILL_SEC_CPL_AUTHINSERT(0, 0, 0, 0);
-	chcr_req->sec_cpl.seqno_numivs = FILL_SEC_CPL_SCMD0_SEQNO(op_type, 0,
+	chcr_req->sec_cpl.seqno_numivs = FILL_SEC_CPL_SCMD0_SEQNO(reqctx->op, 0,
 							 ablkctx->ciph_mode,
 							 0, 0, ivsize >> 1);
 	chcr_req->sec_cpl.ivgen_hdrlen = FILL_SEC_CPL_IVGEN_HDRLEN(0, 0, 0,
 							  0, 1, phys_dsgl);
 
 	chcr_req->key_ctx.ctx_hdr = ablkctx->key_ctx_hdr;
-	if (op_type == CHCR_DECRYPT_OP) {
+	if ((reqctx->op == CHCR_DECRYPT_OP) &&
+	    (!(get_cryptoalg_subtype(crypto_ablkcipher_tfm(tfm)) ==
+	       CRYPTO_ALG_SUB_TYPE_CTR)) &&
+	    (!(get_cryptoalg_subtype(crypto_ablkcipher_tfm(tfm)) ==
+	       CRYPTO_ALG_SUB_TYPE_CTR_RFC3686))) {
 		generate_copy_rrkey(ablkctx, &chcr_req->key_ctx);
 	} else {
-		if (ablkctx->ciph_mode == CHCR_SCMD_CIPHER_MODE_AES_CBC) {
+		if ((ablkctx->ciph_mode == CHCR_SCMD_CIPHER_MODE_AES_CBC) ||
+		    (ablkctx->ciph_mode == CHCR_SCMD_CIPHER_MODE_AES_CTR)) {
 			memcpy(chcr_req->key_ctx.key, ablkctx->key,
 			       ablkctx->enckey_len);
 		} else {
@@ -642,18 +691,17 @@ static struct sk_buff
 	}
 	phys_cpl = (struct cpl_rx_phys_dsgl *)((u8 *)(chcr_req + 1) + kctx_len);
 	sg_param.nents = reqctx->dst_nents;
-	sg_param.obsize = req->nbytes;
-	sg_param.qid = qid;
-	sg_param.align = 1;
-	if (map_writesg_phys_cpl(&u_ctx->lldi.pdev->dev, phys_cpl, req->dst,
-				 &sg_param))
+	sg_param.obsize =  wrparam->bytes;
+	sg_param.qid = wrparam->qid;
+	error = map_writesg_phys_cpl(&u_ctx->lldi.pdev->dev, phys_cpl,
+				       reqctx->dst, &sg_param);
+	if (error)
 		goto map_fail1;
 
 	skb_set_transport_header(skb, transhdr_len);
-	memcpy(reqctx->iv, req->info, ivsize);
 	write_buffer_to_skb(skb, &frags, reqctx->iv, ivsize);
-	write_sg_to_skb(skb, &frags, req->src, req->nbytes);
-	create_wreq(ctx, chcr_req, req, skb, kctx_len, 0, 1,
+	write_sg_to_skb(skb, &frags, wrparam->srcsg, wrparam->bytes);
+	create_wreq(ctx, chcr_req, &(wrparam->req->base), skb, kctx_len, 0, 1,
 			sizeof(struct cpl_rx_phys_dsgl) + phys_dsgl,
 			ablkctx->ciph_mode == CHCR_SCMD_CIPHER_MODE_AES_CBC);
 	reqctx->skb = skb;
@@ -661,27 +709,61 @@ static struct sk_buff
 	return skb;
 map_fail1:
 	kfree_skb(skb);
-	return ERR_PTR(-ENOMEM);
+err:
+	return ERR_PTR(error);
 }
 
-static int chcr_aes_cbc_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+static inline int chcr_keyctx_ck_size(unsigned int keylen)
+{
+	int ck_size = 0;
+
+	if (keylen == AES_KEYSIZE_128)
+		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
+	else if (keylen == AES_KEYSIZE_192)
+		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_192;
+	else if (keylen == AES_KEYSIZE_256)
+		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_256;
+	else
+		ck_size = 0;
+
+	return ck_size;
+}
+static int chcr_cipher_fallback_setkey(struct crypto_ablkcipher *cipher,
+				       const u8 *key,
+				       unsigned int keylen)
+{
+	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
+	struct chcr_context *ctx = crypto_ablkcipher_ctx(cipher);
+	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
+	int err = 0;
+
+	crypto_skcipher_clear_flags(ablkctx->sw_cipher, CRYPTO_TFM_REQ_MASK);
+	crypto_skcipher_set_flags(ablkctx->sw_cipher, cipher->base.crt_flags &
+				  CRYPTO_TFM_REQ_MASK);
+	err = crypto_skcipher_setkey(ablkctx->sw_cipher, key, keylen);
+	tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
+	tfm->crt_flags |=
+		crypto_skcipher_get_flags(ablkctx->sw_cipher) &
+		CRYPTO_TFM_RES_MASK;
+	return err;
+}
+
+static int chcr_aes_cbc_setkey(struct crypto_ablkcipher *cipher,
+			       const u8 *key,
 			       unsigned int keylen)
 {
-	struct chcr_context *ctx = crypto_ablkcipher_ctx(tfm);
+	struct chcr_context *ctx = crypto_ablkcipher_ctx(cipher);
 	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
 	unsigned int ck_size, context_size;
 	u16 alignment = 0;
+	int err;
 
-	if (keylen == AES_KEYSIZE_128) {
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
-	} else if (keylen == AES_KEYSIZE_192) {
-		alignment = 8;
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_192;
-	} else if (keylen == AES_KEYSIZE_256) {
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_256;
-	} else {
+	err = chcr_cipher_fallback_setkey(cipher, key, keylen);
+	if (err)
 		goto badkey_err;
-	}
+
+	ck_size = chcr_keyctx_ck_size(keylen);
+	alignment = ck_size == CHCR_KEYCTX_CIPHER_KEY_SIZE_192 ? 8 : 0;
 	memcpy(ablkctx->key, key, keylen);
 	ablkctx->enckey_len = keylen;
 	get_aes_decrypt_key(ablkctx->rrkey, ablkctx->key, keylen << 3);
@@ -693,35 +775,387 @@ static int chcr_aes_cbc_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	ablkctx->ciph_mode = CHCR_SCMD_CIPHER_MODE_AES_CBC;
 	return 0;
 badkey_err:
-	crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	ablkctx->enckey_len = 0;
-	return -EINVAL;
+
+	return err;
 }
 
-static int cxgb4_is_crypto_q_full(struct net_device *dev, unsigned int idx)
+static int chcr_aes_ctr_setkey(struct crypto_ablkcipher *cipher,
+				   const u8 *key,
+				   unsigned int keylen)
 {
-	struct adapter *adap = netdev2adap(dev);
-	struct sge_uld_txq_info *txq_info =
-		adap->sge.uld_txq_info[CXGB4_TX_CRYPTO];
-	struct sge_uld_txq *txq;
+	struct chcr_context *ctx = crypto_ablkcipher_ctx(cipher);
+	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
+	unsigned int ck_size, context_size;
+	u16 alignment = 0;
+	int err;
+
+	err = chcr_cipher_fallback_setkey(cipher, key, keylen);
+	if (err)
+		goto badkey_err;
+	ck_size = chcr_keyctx_ck_size(keylen);
+	alignment = (ck_size == CHCR_KEYCTX_CIPHER_KEY_SIZE_192) ? 8 : 0;
+	memcpy(ablkctx->key, key, keylen);
+	ablkctx->enckey_len = keylen;
+	context_size = (KEY_CONTEXT_HDR_SALT_AND_PAD +
+			keylen + alignment) >> 4;
+
+	ablkctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_NO_KEY,
+						0, 0, context_size);
+	ablkctx->ciph_mode = CHCR_SCMD_CIPHER_MODE_AES_CTR;
+
+	return 0;
+badkey_err:
+	crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	ablkctx->enckey_len = 0;
+
+	return err;
+}
+
+static int chcr_aes_rfc3686_setkey(struct crypto_ablkcipher *cipher,
+				   const u8 *key,
+				   unsigned int keylen)
+{
+	struct chcr_context *ctx = crypto_ablkcipher_ctx(cipher);
+	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
+	unsigned int ck_size, context_size;
+	u16 alignment = 0;
+	int err;
+
+	if (keylen < CTR_RFC3686_NONCE_SIZE)
+		return -EINVAL;
+	memcpy(ablkctx->nonce, key + (keylen - CTR_RFC3686_NONCE_SIZE),
+	       CTR_RFC3686_NONCE_SIZE);
+
+	keylen -= CTR_RFC3686_NONCE_SIZE;
+	err = chcr_cipher_fallback_setkey(cipher, key, keylen);
+	if (err)
+		goto badkey_err;
+
+	ck_size = chcr_keyctx_ck_size(keylen);
+	alignment = (ck_size == CHCR_KEYCTX_CIPHER_KEY_SIZE_192) ? 8 : 0;
+	memcpy(ablkctx->key, key, keylen);
+	ablkctx->enckey_len = keylen;
+	context_size = (KEY_CONTEXT_HDR_SALT_AND_PAD +
+			keylen + alignment) >> 4;
+
+	ablkctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_NO_KEY,
+						0, 0, context_size);
+	ablkctx->ciph_mode = CHCR_SCMD_CIPHER_MODE_AES_CTR;
+
+	return 0;
+badkey_err:
+	crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	ablkctx->enckey_len = 0;
+
+	return err;
+}
+static void ctr_add_iv(u8 *dstiv, u8 *srciv, u32 add)
+{
+	unsigned int size = AES_BLOCK_SIZE;
+	__be32 *b = (__be32 *)(dstiv + size);
+	u32 c, prev;
+
+	memcpy(dstiv, srciv, AES_BLOCK_SIZE);
+	for (; size >= 4; size -= 4) {
+		prev = be32_to_cpu(*--b);
+		c = prev + add;
+		*b = cpu_to_be32(c);
+		if (prev < c)
+			break;
+		add = 1;
+	}
+
+}
+
+static unsigned int adjust_ctr_overflow(u8 *iv, u32 bytes)
+{
+	__be32 *b = (__be32 *)(iv + AES_BLOCK_SIZE);
+	u64 c;
+	u32 temp = be32_to_cpu(*--b);
+
+	temp = ~temp;
+	c = (u64)temp +  1; // No of block can processed withou overflow
+	if ((bytes / AES_BLOCK_SIZE) > c)
+		bytes = c * AES_BLOCK_SIZE;
+	return bytes;
+}
+
+static int chcr_update_tweak(struct ablkcipher_request *req, u8 *iv)
+{
+	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
+	struct chcr_context *ctx = crypto_ablkcipher_ctx(tfm);
+	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
+	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
+	struct crypto_cipher *cipher;
+	int ret, i;
+	u8 *key;
+	unsigned int keylen;
+
+	cipher = crypto_alloc_cipher("aes-generic", 0, 0);
+	memcpy(iv, req->info, AES_BLOCK_SIZE);
+
+	if (IS_ERR(cipher)) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	keylen = ablkctx->enckey_len / 2;
+	key = ablkctx->key + keylen;
+	ret = crypto_cipher_setkey(cipher, key, keylen);
+	if (ret)
+		goto out1;
+
+	crypto_cipher_encrypt_one(cipher, iv, iv);
+	for (i = 0; i < (reqctx->processed / AES_BLOCK_SIZE); i++)
+		gf128mul_x_ble((le128 *)iv, (le128 *)iv);
+
+	crypto_cipher_decrypt_one(cipher, iv, iv);
+out1:
+	crypto_free_cipher(cipher);
+out:
+	return ret;
+}
+
+static int chcr_update_cipher_iv(struct ablkcipher_request *req,
+				   struct cpl_fw6_pld *fw6_pld, u8 *iv)
+{
+	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
+	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
+	int subtype = get_cryptoalg_subtype(crypto_ablkcipher_tfm(tfm));
 	int ret = 0;
 
-	local_bh_disable();
-	txq = &txq_info->uldtxq[idx];
-	spin_lock(&txq->sendq.lock);
-	if (txq->full)
-		ret = -1;
-	spin_unlock(&txq->sendq.lock);
-	local_bh_enable();
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR)
+		ctr_add_iv(iv, req->info, (reqctx->processed /
+			   AES_BLOCK_SIZE));
+	else if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_RFC3686)
+		*(__be32 *)(reqctx->iv + CTR_RFC3686_NONCE_SIZE +
+			CTR_RFC3686_IV_SIZE) = cpu_to_be32((reqctx->processed /
+						AES_BLOCK_SIZE) + 1);
+	else if (subtype == CRYPTO_ALG_SUB_TYPE_XTS)
+		ret = chcr_update_tweak(req, iv);
+	else if (subtype == CRYPTO_ALG_SUB_TYPE_CBC) {
+		if (reqctx->op)
+			sg_pcopy_to_buffer(req->src, sg_nents(req->src), iv,
+					   16,
+					   reqctx->processed - AES_BLOCK_SIZE);
+		else
+			memcpy(iv, &fw6_pld->data[2], AES_BLOCK_SIZE);
+	}
+
 	return ret;
+
+}
+
+/* We need separate function for final iv because in rfc3686  Initial counter
+ * starts from 1 and buffer size of iv is 8 byte only which remains constant
+ * for subsequent update requests
+ */
+
+static int chcr_final_cipher_iv(struct ablkcipher_request *req,
+				   struct cpl_fw6_pld *fw6_pld, u8 *iv)
+{
+	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
+	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
+	int subtype = get_cryptoalg_subtype(crypto_ablkcipher_tfm(tfm));
+	int ret = 0;
+
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR)
+		ctr_add_iv(iv, req->info, (reqctx->processed /
+			   AES_BLOCK_SIZE));
+	else if (subtype == CRYPTO_ALG_SUB_TYPE_XTS)
+		ret = chcr_update_tweak(req, iv);
+	else if (subtype == CRYPTO_ALG_SUB_TYPE_CBC) {
+		if (reqctx->op)
+			sg_pcopy_to_buffer(req->src, sg_nents(req->src), iv,
+					   16,
+					   reqctx->processed - AES_BLOCK_SIZE);
+		else
+			memcpy(iv, &fw6_pld->data[2], AES_BLOCK_SIZE);
+
+	}
+	return ret;
+
+}
+
+
+static int chcr_handle_cipher_resp(struct ablkcipher_request *req,
+				   unsigned char *input, int err)
+{
+	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
+	struct chcr_context *ctx = crypto_ablkcipher_ctx(tfm);
+	struct uld_ctx *u_ctx = ULD_CTX(ctx);
+	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
+	struct sk_buff *skb;
+	struct cpl_fw6_pld *fw6_pld = (struct cpl_fw6_pld *)input;
+	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
+	struct  cipher_wr_param wrparam;
+	int bytes;
+
+	dma_unmap_sg(&u_ctx->lldi.pdev->dev, reqctx->dst, reqctx->dst_nents,
+		     DMA_FROM_DEVICE);
+
+	if (reqctx->skb) {
+		kfree_skb(reqctx->skb);
+		reqctx->skb = NULL;
+	}
+	if (err)
+		goto complete;
+
+	if (req->nbytes == reqctx->processed) {
+		err = chcr_final_cipher_iv(req, fw6_pld, req->info);
+		goto complete;
+	}
+
+	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
+					    ctx->tx_qidx))) {
+		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG)) {
+			err = -EBUSY;
+			goto complete;
+		}
+
+	}
+	wrparam.srcsg = scatterwalk_ffwd(reqctx->srcffwd, req->src,
+				       reqctx->processed);
+	reqctx->dst = scatterwalk_ffwd(reqctx->dstffwd, reqctx->dstsg,
+					 reqctx->processed);
+	if (!wrparam.srcsg || !reqctx->dst) {
+		pr_err("Input sg list length less that nbytes\n");
+		err = -EINVAL;
+		goto complete;
+	}
+	bytes = chcr_sg_ent_in_wr(wrparam.srcsg, reqctx->dst, 1,
+				 SPACE_LEFT(ablkctx->enckey_len),
+				 &wrparam.snent, &reqctx->dst_nents);
+	if ((bytes + reqctx->processed) >= req->nbytes)
+		bytes  = req->nbytes - reqctx->processed;
+	else
+		bytes = ROUND_16(bytes);
+	err = chcr_update_cipher_iv(req, fw6_pld, reqctx->iv);
+	if (err)
+		goto complete;
+
+	if (unlikely(bytes == 0)) {
+		err = chcr_cipher_fallback(ablkctx->sw_cipher,
+				     req->base.flags,
+				     wrparam.srcsg,
+				     reqctx->dst,
+				     req->nbytes - reqctx->processed,
+				     reqctx->iv,
+				     reqctx->op);
+		goto complete;
+	}
+
+	if (get_cryptoalg_subtype(crypto_ablkcipher_tfm(tfm)) ==
+	    CRYPTO_ALG_SUB_TYPE_CTR)
+		bytes = adjust_ctr_overflow(reqctx->iv, bytes);
+	reqctx->processed += bytes;
+	wrparam.qid = u_ctx->lldi.rxq_ids[ctx->rx_qidx];
+	wrparam.req = req;
+	wrparam.bytes = bytes;
+	skb = create_cipher_wr(&wrparam);
+	if (IS_ERR(skb)) {
+		pr_err("chcr : %s : Failed to form WR. No memory\n", __func__);
+		err = PTR_ERR(skb);
+		goto complete;
+	}
+	skb->dev = u_ctx->lldi.ports[0];
+	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_qidx);
+	chcr_send_wr(skb);
+	return 0;
+complete:
+	req->base.complete(&req->base, err);
+	return err;
+}
+
+static int process_cipher(struct ablkcipher_request *req,
+				  unsigned short qid,
+				  struct sk_buff **skb,
+				  unsigned short op_type)
+{
+	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
+	unsigned int ivsize = crypto_ablkcipher_ivsize(tfm);
+	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
+	struct chcr_context *ctx = crypto_ablkcipher_ctx(tfm);
+	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
+	struct	cipher_wr_param wrparam;
+	int bytes, err = -EINVAL;
+
+	reqctx->newdstsg = NULL;
+	reqctx->processed = 0;
+	if (!req->info)
+		goto error;
+	if ((ablkctx->enckey_len == 0) || (ivsize > AES_BLOCK_SIZE) ||
+	    (req->nbytes == 0) ||
+	    (req->nbytes % crypto_ablkcipher_blocksize(tfm))) {
+		pr_err("AES: Invalid value of Key Len %d nbytes %d IV Len %d\n",
+		       ablkctx->enckey_len, req->nbytes, ivsize);
+		goto error;
+	}
+	wrparam.srcsg = req->src;
+	reqctx->dstsg = req->dst;
+	bytes = chcr_sg_ent_in_wr(wrparam.srcsg, reqctx->dstsg, MIN_CIPHER_SG,
+				 SPACE_LEFT(ablkctx->enckey_len),
+				 &wrparam.snent,
+				 &reqctx->dst_nents);
+	if ((bytes + reqctx->processed) >= req->nbytes)
+		bytes  = req->nbytes - reqctx->processed;
+	else
+		bytes = ROUND_16(bytes);
+	if (unlikely(bytes > req->nbytes))
+		bytes = req->nbytes;
+	if (get_cryptoalg_subtype(crypto_ablkcipher_tfm(tfm)) ==
+				  CRYPTO_ALG_SUB_TYPE_CTR) {
+		bytes = adjust_ctr_overflow(req->info, bytes);
+	}
+	if (get_cryptoalg_subtype(crypto_ablkcipher_tfm(tfm)) ==
+	    CRYPTO_ALG_SUB_TYPE_CTR_RFC3686) {
+		memcpy(reqctx->iv, ablkctx->nonce, CTR_RFC3686_NONCE_SIZE);
+		memcpy(reqctx->iv + CTR_RFC3686_NONCE_SIZE, req->info,
+				CTR_RFC3686_IV_SIZE);
+
+		/* initialize counter portion of counter block */
+		*(__be32 *)(reqctx->iv + CTR_RFC3686_NONCE_SIZE +
+			CTR_RFC3686_IV_SIZE) = cpu_to_be32(1);
+
+	} else {
+
+		memcpy(reqctx->iv, req->info, ivsize);
+	}
+	if (unlikely(bytes == 0)) {
+		err = chcr_cipher_fallback(ablkctx->sw_cipher,
+					   req->base.flags,
+					   req->src,
+					   req->dst,
+					   req->nbytes,
+					   req->info,
+					   op_type);
+		goto error;
+	}
+	reqctx->processed = bytes;
+	reqctx->dst = reqctx->dstsg;
+	reqctx->op = op_type;
+	wrparam.qid = qid;
+	wrparam.req = req;
+	wrparam.bytes = bytes;
+	*skb = create_cipher_wr(&wrparam);
+	if (IS_ERR(*skb)) {
+		err = PTR_ERR(*skb);
+		goto error;
+	}
+
+	return 0;
+error:
+	return err;
 }
 
 static int chcr_aes_encrypt(struct ablkcipher_request *req)
 {
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
 	struct chcr_context *ctx = crypto_ablkcipher_ctx(tfm);
+	struct sk_buff *skb = NULL;
+	int err;
 	struct uld_ctx *u_ctx = ULD_CTX(ctx);
-	struct sk_buff *skb;
 
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 					    ctx->tx_qidx))) {
@@ -729,12 +1163,10 @@ static int chcr_aes_encrypt(struct ablkcipher_request *req)
 			return -EBUSY;
 	}
 
-	skb = create_cipher_wr(req, u_ctx->lldi.rxq_ids[ctx->rx_qidx],
+	err = process_cipher(req, u_ctx->lldi.rxq_ids[ctx->rx_qidx], &skb,
 			       CHCR_ENCRYPT_OP);
-	if (IS_ERR(skb)) {
-		pr_err("chcr : %s : Failed to form WR. No memory\n", __func__);
-		return  PTR_ERR(skb);
-	}
+	if (err || !skb)
+		return  err;
 	skb->dev = u_ctx->lldi.ports[0];
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_qidx);
 	chcr_send_wr(skb);
@@ -746,7 +1178,8 @@ static int chcr_aes_decrypt(struct ablkcipher_request *req)
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
 	struct chcr_context *ctx = crypto_ablkcipher_ctx(tfm);
 	struct uld_ctx *u_ctx = ULD_CTX(ctx);
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
+	int err;
 
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 					    ctx->tx_qidx))) {
@@ -754,12 +1187,10 @@ static int chcr_aes_decrypt(struct ablkcipher_request *req)
 			return -EBUSY;
 	}
 
-	skb = create_cipher_wr(req, u_ctx->lldi.rxq_ids[ctx->rx_qidx],
+	 err = process_cipher(req, u_ctx->lldi.rxq_ids[ctx->rx_qidx], &skb,
 			       CHCR_DECRYPT_OP);
-	if (IS_ERR(skb)) {
-		pr_err("chcr : %s : Failed to form WR. No memory\n", __func__);
-		return PTR_ERR(skb);
-	}
+	if (err || !skb)
+		return err;
 	skb->dev = u_ctx->lldi.ports[0];
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_qidx);
 	chcr_send_wr(skb);
@@ -804,8 +1235,46 @@ out:
 
 static int chcr_cra_init(struct crypto_tfm *tfm)
 {
+	struct crypto_alg *alg = tfm->__crt_alg;
+	struct chcr_context *ctx = crypto_tfm_ctx(tfm);
+	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
+
+	ablkctx->sw_cipher = crypto_alloc_skcipher(alg->cra_name, 0,
+				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(ablkctx->sw_cipher)) {
+		pr_err("failed to allocate fallback for %s\n", alg->cra_name);
+		return PTR_ERR(ablkctx->sw_cipher);
+	}
 	tfm->crt_ablkcipher.reqsize =  sizeof(struct chcr_blkcipher_req_ctx);
 	return chcr_device_init(crypto_tfm_ctx(tfm));
+}
+
+static int chcr_rfc3686_init(struct crypto_tfm *tfm)
+{
+	struct crypto_alg *alg = tfm->__crt_alg;
+	struct chcr_context *ctx = crypto_tfm_ctx(tfm);
+	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
+
+	/*RFC3686 initialises IV counter value to 1, rfc3686(ctr(aes))
+	 * cannot be used as fallback in chcr_handle_cipher_response
+	 */
+	ablkctx->sw_cipher = crypto_alloc_skcipher("ctr(aes)", 0,
+				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(ablkctx->sw_cipher)) {
+		pr_err("failed to allocate fallback for %s\n", alg->cra_name);
+		return PTR_ERR(ablkctx->sw_cipher);
+	}
+	tfm->crt_ablkcipher.reqsize =  sizeof(struct chcr_blkcipher_req_ctx);
+	return chcr_device_init(crypto_tfm_ctx(tfm));
+}
+
+
+static void chcr_cra_exit(struct crypto_tfm *tfm)
+{
+	struct chcr_context *ctx = crypto_tfm_ctx(tfm);
+	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
+
+	crypto_free_skcipher(ablkctx->sw_cipher);
 }
 
 static int get_alg_config(struct algo_param *params,
@@ -925,8 +1394,8 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 	if (param->sg_len != 0)
 		write_sg_to_skb(skb, &frags, req->src, param->sg_len);
 
-	create_wreq(ctx, chcr_req, req, skb, kctx_len, hash_size_in_response, 0,
-			DUMMY_BYTES, 0);
+	create_wreq(ctx, chcr_req, &req->base, skb, kctx_len,
+		    hash_size_in_response, 0, DUMMY_BYTES, 0);
 	req_ctx->skb = skb;
 	skb_get(skb);
 	return skb;
@@ -1229,21 +1698,17 @@ out:
 	return err;
 }
 
-static int chcr_aes_xts_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+static int chcr_aes_xts_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			       unsigned int key_len)
 {
-	struct chcr_context *ctx = crypto_ablkcipher_ctx(tfm);
+	struct chcr_context *ctx = crypto_ablkcipher_ctx(cipher);
 	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
 	unsigned short context_size = 0;
+	int err;
 
-	if ((key_len != (AES_KEYSIZE_128 << 1)) &&
-	    (key_len != (AES_KEYSIZE_256 << 1))) {
-		crypto_tfm_set_flags((struct crypto_tfm *)tfm,
-				     CRYPTO_TFM_RES_BAD_KEY_LEN);
-		ablkctx->enckey_len = 0;
-		return -EINVAL;
-
-	}
+	err = chcr_cipher_fallback_setkey(cipher, key, key_len);
+	if (err)
+		goto badkey_err;
 
 	memcpy(ablkctx->key, key, key_len);
 	ablkctx->enckey_len = key_len;
@@ -1257,6 +1722,11 @@ static int chcr_aes_xts_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 				 0, context_size);
 	ablkctx->ciph_mode = CHCR_SCMD_CIPHER_MODE_AES_XTS;
 	return 0;
+badkey_err:
+	crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	ablkctx->enckey_len = 0;
+
+	return err;
 }
 
 static int chcr_sha_init(struct ahash_request *areq)
@@ -1513,7 +1983,7 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	}
 	write_buffer_to_skb(skb, &frags, req->iv, ivsize);
 	write_sg_to_skb(skb, &frags, src, req->cryptlen);
-	create_wreq(ctx, chcr_req, req, skb, kctx_len, size, 1,
+	create_wreq(ctx, chcr_req, &req->base, skb, kctx_len, size, 1,
 		   sizeof(struct cpl_rx_phys_dsgl) + dst_size, 0);
 	reqctx->skb = skb;
 	skb_get(skb);
@@ -1812,7 +2282,7 @@ static struct sk_buff *create_aead_ccm_wr(struct aead_request *req,
 
 	skb_set_transport_header(skb, transhdr_len);
 	frags = fill_aead_req_fields(skb, req, src, ivsize, aeadctx);
-	create_wreq(ctx, chcr_req, req, skb, kctx_len, 0, 1,
+	create_wreq(ctx, chcr_req, &req->base, skb, kctx_len, 0, 1,
 		    sizeof(struct cpl_rx_phys_dsgl) + dst_size, 0);
 	reqctx->skb = skb;
 	skb_get(skb);
@@ -1951,7 +2421,7 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	write_sg_to_skb(skb, &frags, req->src, assoclen);
 	write_buffer_to_skb(skb, &frags, reqctx->iv, ivsize);
 	write_sg_to_skb(skb, &frags, src, req->cryptlen);
-	create_wreq(ctx, chcr_req, req, skb, kctx_len, size, 1,
+	create_wreq(ctx, chcr_req, &req->base, skb, kctx_len, size, 1,
 			sizeof(struct cpl_rx_phys_dsgl) + dst_size,
 			reqctx->verify);
 	reqctx->skb = skb;
@@ -2565,22 +3035,14 @@ static int chcr_aead_op(struct aead_request *req,
 static struct chcr_alg_template driver_algs[] = {
 	/* AES-CBC */
 	{
-		.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.type = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_SUB_TYPE_CBC,
 		.is_registered = 0,
 		.alg.crypto = {
 			.cra_name		= "cbc(aes)",
 			.cra_driver_name	= "cbc-aes-chcr",
-			.cra_priority		= CHCR_CRA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= AES_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct chcr_context)
-				+ sizeof(struct ablk_ctx),
-			.cra_alignmask		= 0,
-			.cra_type		= &crypto_ablkcipher_type,
-			.cra_module		= THIS_MODULE,
 			.cra_init		= chcr_cra_init,
-			.cra_exit		= NULL,
+			.cra_exit		= chcr_cra_exit,
 			.cra_u.ablkcipher	= {
 				.min_keysize	= AES_MIN_KEY_SIZE,
 				.max_keysize	= AES_MAX_KEY_SIZE,
@@ -2592,24 +3054,15 @@ static struct chcr_alg_template driver_algs[] = {
 		}
 	},
 	{
-		.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.type = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_SUB_TYPE_XTS,
 		.is_registered = 0,
 		.alg.crypto =   {
 			.cra_name		= "xts(aes)",
 			.cra_driver_name	= "xts-aes-chcr",
-			.cra_priority		= CHCR_CRA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= AES_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct chcr_context) +
-				sizeof(struct ablk_ctx),
-			.cra_alignmask		= 0,
-			.cra_type		= &crypto_ablkcipher_type,
-			.cra_module		= THIS_MODULE,
 			.cra_init		= chcr_cra_init,
 			.cra_exit		= NULL,
-			.cra_u = {
-				.ablkcipher = {
+			.cra_u .ablkcipher = {
 					.min_keysize	= 2 * AES_MIN_KEY_SIZE,
 					.max_keysize	= 2 * AES_MAX_KEY_SIZE,
 					.ivsize		= AES_BLOCK_SIZE,
@@ -2617,6 +3070,47 @@ static struct chcr_alg_template driver_algs[] = {
 					.encrypt	= chcr_aes_encrypt,
 					.decrypt	= chcr_aes_decrypt,
 				}
+			}
+	},
+	{
+		.type = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_SUB_TYPE_CTR,
+		.is_registered = 0,
+		.alg.crypto = {
+			.cra_name		= "ctr(aes)",
+			.cra_driver_name	= "ctr-aes-chcr",
+			.cra_blocksize		= 1,
+			.cra_init		= chcr_cra_init,
+			.cra_exit		= chcr_cra_exit,
+			.cra_u.ablkcipher	= {
+				.min_keysize	= AES_MIN_KEY_SIZE,
+				.max_keysize	= AES_MAX_KEY_SIZE,
+				.ivsize		= AES_BLOCK_SIZE,
+				.setkey		= chcr_aes_ctr_setkey,
+				.encrypt	= chcr_aes_encrypt,
+				.decrypt	= chcr_aes_decrypt,
+			}
+		}
+	},
+	{
+		.type = CRYPTO_ALG_TYPE_ABLKCIPHER |
+			CRYPTO_ALG_SUB_TYPE_CTR_RFC3686,
+		.is_registered = 0,
+		.alg.crypto = {
+			.cra_name		= "rfc3686(ctr(aes))",
+			.cra_driver_name	= "rfc3686-ctr-aes-chcr",
+			.cra_blocksize		= 1,
+			.cra_init		= chcr_rfc3686_init,
+			.cra_exit		= chcr_cra_exit,
+			.cra_u.ablkcipher	= {
+				.min_keysize	= AES_MIN_KEY_SIZE +
+					CTR_RFC3686_NONCE_SIZE,
+				.max_keysize	= AES_MAX_KEY_SIZE +
+					CTR_RFC3686_NONCE_SIZE,
+				.ivsize		= CTR_RFC3686_IV_SIZE,
+				.setkey		= chcr_aes_rfc3686_setkey,
+				.encrypt	= chcr_aes_encrypt,
+				.decrypt	= chcr_aes_decrypt,
+				.geniv          = "seqiv",
 			}
 		}
 	},
@@ -2999,6 +3493,18 @@ static int chcr_register_alg(void)
 			continue;
 		switch (driver_algs[i].type & CRYPTO_ALG_TYPE_MASK) {
 		case CRYPTO_ALG_TYPE_ABLKCIPHER:
+			driver_algs[i].alg.crypto.cra_priority =
+				CHCR_CRA_PRIORITY;
+			driver_algs[i].alg.crypto.cra_module = THIS_MODULE;
+			driver_algs[i].alg.crypto.cra_flags =
+				CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC |
+				CRYPTO_ALG_NEED_FALLBACK;
+			driver_algs[i].alg.crypto.cra_ctxsize =
+				sizeof(struct chcr_context) +
+				sizeof(struct ablk_ctx);
+			driver_algs[i].alg.crypto.cra_alignmask = 0;
+			driver_algs[i].alg.crypto.cra_type =
+				&crypto_ablkcipher_type;
 			err = crypto_register_alg(&driver_algs[i].alg.crypto);
 			name = driver_algs[i].alg.crypto.cra_driver_name;
 			break;
