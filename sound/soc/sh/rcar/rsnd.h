@@ -502,6 +502,7 @@ phys_addr_t rsnd_gen_get_phy_addr(struct rsnd_priv *priv, int reg_id);
 /*
  *	R-Car ADG
  */
+int rsnd_adg_clk_query(struct rsnd_priv *priv, unsigned int rate);
 int rsnd_adg_ssi_clk_stop(struct rsnd_mod *mod);
 int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate);
 int rsnd_adg_probe(struct rsnd_priv *priv);
