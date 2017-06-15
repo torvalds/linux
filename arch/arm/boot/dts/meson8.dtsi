@@ -123,6 +123,13 @@
 				function = "remote";
 			};
 		};
+
+		pwm_f_ao_pins: pwm-f-ao {
+			mux {
+				groups = "pwm_f_ao";
+				function = "pwm_f_ao";
+			};
+		};
 	};
 };
 
@@ -166,6 +173,13 @@
 					 "eth_rxd1", "eth_rxd0", "eth_mdio",
 					 "eth_mdc";
 				function = "ethernet";
+			};
+		};
+
+		pwm_e_pins: pwm-e {
+			mux {
+				groups = "pwm_e";
+				function = "pwm_e";
 			};
 		};
 	};
