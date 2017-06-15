@@ -643,7 +643,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	struct mlx4_en_rx_ring *ring;
 	struct bpf_prog *xdp_prog;
 	int cq_ring = cq->ring;
-	int doorbell_pending;
+	bool doorbell_pending;
 	struct mlx4_cqe *cqe;
 	int polled = 0;
 	int index;

@@ -1095,51 +1095,40 @@ tx_drop:
 	return NETDEV_TX_OK;
 }
 
+#define MLX4_EN_XDP_TX_NRTXBB  1
+#define MLX4_EN_XDP_TX_REAL_SZ (((CTRL_SIZE + MLX4_EN_XDP_TX_NRTXBB * DS_SIZE) \
+				 / 16) & 0x3f)
+
 netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 			       struct mlx4_en_rx_alloc *frame,
 			       struct net_device *dev, unsigned int length,
-			       int tx_ind, int *doorbell_pending)
+			       int tx_ind, bool *doorbell_pending)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	union mlx4_wqe_qpn_vlan	qpn_vlan = {};
-	struct mlx4_en_tx_ring *ring;
 	struct mlx4_en_tx_desc *tx_desc;
-	struct mlx4_wqe_data_seg *data;
 	struct mlx4_en_tx_info *tx_info;
-	int index, bf_index;
-	bool send_doorbell;
-	int nr_txbb = 1;
-	bool stop_queue;
+	struct mlx4_wqe_data_seg *data;
+	struct mlx4_en_tx_ring *ring;
 	dma_addr_t dma;
-	int real_size;
 	__be32 op_own;
-	u32 ring_cons;
-	bool bf_ok;
+	int index;
 
-	BUILD_BUG_ON_MSG(ALIGN(CTRL_SIZE + DS_SIZE, TXBB_SIZE) != TXBB_SIZE,
-			 "mlx4_en_xmit_frame requires minimum size tx desc");
+	if (unlikely(!priv->port_up))
+		goto tx_drop;
 
 	ring = priv->tx_ring[TX_XDP][tx_ind];
 
-	if (!priv->port_up)
-		goto tx_drop;
-
-	if (mlx4_en_is_tx_ring_full(ring))
+	if (unlikely(mlx4_en_is_tx_ring_full(ring)))
 		goto tx_drop_count;
-
-	/* fetch ring->cons far ahead before needing it to avoid stall */
-	ring_cons = READ_ONCE(ring->cons);
 
 	index = ring->prod & ring->size_mask;
 	tx_info = &ring->tx_info[index];
 
-	bf_ok = ring->bf_enabled;
-
 	/* Track current inflight packets for performance analysis */
 	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
-			 (u32)(ring->prod - ring_cons - 1));
+			 (u32)(ring->prod - READ_ONCE(ring->cons) - 1));
 
-	bf_index = ring->prod;
 	tx_desc = ring->buf + index * TXBB_SIZE;
 	data = &tx_desc->data;
 
@@ -1149,9 +1138,9 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 	frame->page = NULL;
 	tx_info->map0_dma = dma;
 	tx_info->map0_byte_count = PAGE_SIZE;
-	tx_info->nr_txbb = nr_txbb;
+	tx_info->nr_txbb = MLX4_EN_XDP_TX_NRTXBB;
 	tx_info->nr_bytes = max_t(unsigned int, length, ETH_ZLEN);
-	tx_info->data_offset = (void *)data - (void *)tx_desc;
+	tx_info->data_offset = offsetof(struct mlx4_en_tx_desc, data);
 	tx_info->ts_requested = 0;
 	tx_info->nr_maps = 1;
 	tx_info->linear = 1;
@@ -1175,23 +1164,13 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 	rx_ring->xdp_tx++;
 	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, length);
 
-	ring->prod += nr_txbb;
+	ring->prod += MLX4_EN_XDP_TX_NRTXBB;
 
-	stop_queue = mlx4_en_is_tx_ring_full(ring);
-	send_doorbell = stop_queue ||
-				*doorbell_pending > MLX4_EN_DOORBELL_BUDGET;
-	bf_ok &= send_doorbell;
+	qpn_vlan.fence_size = MLX4_EN_XDP_TX_REAL_SZ;
 
-	real_size = ((CTRL_SIZE + nr_txbb * DS_SIZE) / 16) & 0x3f;
-
-	if (bf_ok)
-		qpn_vlan.bf_qpn = ring->doorbell_qpn | cpu_to_be32(real_size);
-	else
-		qpn_vlan.fence_size = real_size;
-
-	mlx4_en_tx_write_desc(ring, tx_desc, qpn_vlan, TXBB_SIZE, bf_index,
-			      op_own, bf_ok, send_doorbell);
-	*doorbell_pending = send_doorbell ? 0 : *doorbell_pending + 1;
+	mlx4_en_tx_write_desc(ring, tx_desc, qpn_vlan, TXBB_SIZE, 0,
+			      op_own, false, false);
+	*doorbell_pending = true;
 
 	return NETDEV_TX_OK;
 
