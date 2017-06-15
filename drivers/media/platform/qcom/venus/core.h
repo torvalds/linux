@@ -48,6 +48,7 @@ struct venus_resources {
 	unsigned int vmem_id;
 	u32 vmem_size;
 	u32 vmem_addr;
+	const char *fwname;
 };
 
 struct venus_format {

@@ -23,7 +23,6 @@
 
 #include "firmware.h"
 
-#define VENUS_FIRMWARE_NAME		"venus.mdt"
 #define VENUS_PAS_ID			9
 #define VENUS_FW_MEM_SIZE		SZ_8M
 
@@ -32,7 +31,7 @@ static void device_release_dummy(struct device *dev)
 	of_reserved_mem_device_release(dev);
 }
 
-int venus_boot(struct device *parent, struct device *fw_dev)
+int venus_boot(struct device *parent, struct device *fw_dev, const char *fwname)
 {
 	const struct firmware *mdt;
 	phys_addr_t mem_phys;
@@ -67,7 +66,7 @@ int venus_boot(struct device *parent, struct device *fw_dev)
 		goto err_unreg_device;
 	}
 
-	ret = request_firmware(&mdt, VENUS_FIRMWARE_NAME, fw_dev);
+	ret = request_firmware(&mdt, fwname, fw_dev);
 	if (ret < 0)
 		goto err_unreg_device;
 
@@ -78,8 +77,8 @@ int venus_boot(struct device *parent, struct device *fw_dev)
 		goto err_unreg_device;
 	}
 
-	ret = qcom_mdt_load(fw_dev, mdt, VENUS_FIRMWARE_NAME, VENUS_PAS_ID,
-			    mem_va, mem_phys, mem_size);
+	ret = qcom_mdt_load(fw_dev, mdt, fwname, VENUS_PAS_ID, mem_va, mem_phys,
+			    mem_size);
 
 	release_firmware(mdt);
 

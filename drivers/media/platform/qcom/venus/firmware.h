@@ -16,7 +16,8 @@
 
 struct device;
 
-int venus_boot(struct device *parent, struct device *fw_dev);
+int venus_boot(struct device *parent, struct device *fw_dev,
+	       const char *fwname);
 int venus_shutdown(struct device *fw_dev);
 
 #endif

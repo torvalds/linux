@@ -84,7 +84,7 @@ static void venus_sys_error_handler(struct work_struct *work)
 
 	pm_runtime_get_sync(core->dev);
 
-	ret |= venus_boot(core->dev, &core->dev_fw);
+	ret |= venus_boot(core->dev, &core->dev_fw, core->res->fwname);
 
 	ret |= hfi_core_resume(core, true);
 
@@ -207,7 +207,7 @@ static int venus_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_runtime_disable;
 
-	ret = venus_boot(dev, &core->dev_fw);
+	ret = venus_boot(dev, &core->dev_fw, core->res->fwname);
 	if (ret)
 		goto err_runtime_disable;
 
@@ -335,6 +335,7 @@ static const struct venus_resources msm8916_res = {
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xddc00000 - 1,
+	.fwname = "qcom/venus-1.8/venus.mdt",
 };
 
 static const struct freq_tbl msm8996_freq_table[] = {
@@ -363,6 +364,7 @@ static const struct venus_resources msm8996_res = {
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xddc00000 - 1,
+	.fwname = "qcom/venus-4.2/venus.mdt",
 };
 
 static const struct of_device_id venus_dt_match[] = {
