@@ -8,6 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <crypto/hmac.h>
 #include <crypto/sha.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -774,8 +775,8 @@ static int safexcel_hmac_init_pad(struct ahash_request *areq,
 	memcpy(opad, ipad, blocksize);
 
 	for (i = 0; i < blocksize; i++) {
-		ipad[i] ^= 0x36;
-		opad[i] ^= 0x5c;
+		ipad[i] ^= HMAC_IPAD_VALUE;
+		opad[i] ^= HMAC_OPAD_VALUE;
 	}
 
 	return 0;
