@@ -155,12 +155,15 @@ static int rdma_nl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	unsigned int op = RDMA_NL_GET_OP(type);
 	struct netlink_callback cb = {};
 	struct netlink_dump_control c = {};
+	const struct rdma_nl_cbs *cb_table;
 	int ret;
 
 	if (!is_nl_valid(index, op))
 		return -EINVAL;
 
-	if ((rdma_nl_types[index].cb_table[op].flags & RDMA_NL_ADMIN_PERM) &&
+	cb_table = rdma_nl_types[type].cb_table;
+
+	if ((cb_table[op].flags & RDMA_NL_ADMIN_PERM) &&
 	    !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
@@ -172,14 +175,14 @@ static int rdma_nl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	    (index == RDMA_NL_LS && op == RDMA_NL_LS_OP_SET_TIMEOUT)) {
 		cb.skb = skb;
 		cb.nlh = nlh;
-		cb.dump = rdma_nl_types[index].cb_table[op].dump;
+		cb.dump = cb_table[op].dump;
 		return cb.dump(skb, &cb);
 	} else {
-		c.dump = rdma_nl_types[index].cb_table[op].dump;
+		c.dump = cb_table[op].dump;
 		return netlink_dump_start(nls, skb, nlh, &c);
 	}
-	if (rdma_nl_types[index].cb_table[op].doit)
-		ret = rdma_nl_types[index].cb_table[op].doit(skb, nlh, extack);
+	if (cb_table[op].doit)
+		ret = cb_table[op].doit(skb, nlh, extack);
 	return ret;
 
 }
