@@ -346,7 +346,7 @@ static int mmap_mem(struct file *file, struct vm_area_struct *vma)
 	phys_addr_t offset = (phys_addr_t)vma->vm_pgoff << PAGE_SHIFT;
 
 	/* It's illegal to wrap around the end of the physical address space. */
-	if (offset + (phys_addr_t)size < offset)
+	if (offset + (phys_addr_t)size - 1 < offset)
 		return -EINVAL;
 
 	if (!valid_mmap_phys_addr_range(vma->vm_pgoff, size))

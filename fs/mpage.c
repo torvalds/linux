@@ -111,7 +111,7 @@ map_buffer_to_page(struct page *page, struct buffer_head *bh, int page_block)
 			SetPageUptodate(page);    
 			return;
 		}
-		create_empty_buffers(page, 1 << inode->i_blkbits, 0);
+		create_empty_buffers(page, i_blocksize(inode), 0);
 	}
 	head = page_buffers(page);
 	page_bh = head;

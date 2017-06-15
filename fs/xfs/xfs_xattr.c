@@ -180,6 +180,7 @@ xfs_xattr_put_listent(
 	arraytop = context->count + prefix_len + namelen + 1;
 	if (arraytop > context->firstu) {
 		context->count = -1;	/* insufficient space */
+		context->seen_enough = 1;
 		return 0;
 	}
 	offset = (char *)context->alist + context->count;

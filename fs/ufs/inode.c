@@ -235,7 +235,8 @@ ufs_extend_tail(struct inode *inode, u64 writes_to,
 
 	p = ufs_get_direct_data_ptr(uspi, ufsi, block);
 	tmp = ufs_new_fragments(inode, p, lastfrag, ufs_data_ptr_to_cpu(sb, p),
-				new_size, err, locked_page);
+				new_size - (lastfrag & uspi->s_fpbmask), err,
+				locked_page);
 	return tmp != 0;
 }
 
@@ -284,7 +285,7 @@ ufs_inode_getfrag(struct inode *inode, unsigned index,
 			goal += uspi->s_fpb;
 	}
 	tmp = ufs_new_fragments(inode, p, ufs_blknum(new_fragment),
-				goal, uspi->s_fpb, err, locked_page);
+				goal, nfrags, err, locked_page);
 
 	if (!tmp) {
 		*err = -ENOSPC;
@@ -402,7 +403,9 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 
 	if (!create) {
 		phys64 = ufs_frag_map(inode, offsets, depth);
-		goto out;
+		if (phys64)
+			map_bh(bh_result, sb, phys64 + frag);
+		return 0;
 	}
 
         /* This code entered only while writing ....? */
