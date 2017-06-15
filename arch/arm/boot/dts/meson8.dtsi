@@ -242,7 +242,7 @@
 };
 
 &ethmac {
-	clocks = <&clkc CLKID_CLK81>;
+	clocks = <&clkc CLKID_ETH>;
 	clock-names = "stmmaceth";
 };
 
