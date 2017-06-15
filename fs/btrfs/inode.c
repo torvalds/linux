@@ -177,7 +177,6 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	char *kaddr;
 	unsigned long ptr;
 	struct btrfs_file_extent_item *ei;
-	int err = 0;
 	int ret;
 	size_t cur_size = size;
 	unsigned long offset;
@@ -199,10 +198,8 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 		path->leave_spinning = 1;
 		ret = btrfs_insert_empty_item(trans, root, path, &key,
 					      datasize);
-		if (ret) {
-			err = ret;
+		if (ret)
 			goto fail;
-		}
 	}
 	leaf = path->nodes[0];
 	ei = btrfs_item_ptr(leaf, path->slots[0],
@@ -257,9 +254,8 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	BTRFS_I(inode)->disk_i_size = inode->i_size;
 	ret = btrfs_update_inode(trans, root, inode);
 
-	return ret;
 fail:
-	return err;
+	return ret;
 }
 
 
