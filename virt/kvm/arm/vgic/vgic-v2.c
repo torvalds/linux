@@ -149,6 +149,13 @@ void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 	if (irq->hw) {
 		val |= GICH_LR_HW;
 		val |= irq->hwintid << GICH_LR_PHYSID_CPUID_SHIFT;
+		/*
+		 * Never set pending+active on a HW interrupt, as the
+		 * pending state is kept at the physical distributor
+		 * level.
+		 */
+		if (irq->active && irq_is_pending(irq))
+			val &= ~GICH_LR_PENDING_BIT;
 	} else {
 		if (irq->config == VGIC_CONFIG_LEVEL)
 			val |= GICH_LR_EOI;
@@ -170,7 +177,18 @@ void vgic_v2_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
 	u32 vmcr;
 
-	vmcr  = (vmcrp->ctlr << GICH_VMCR_CTRL_SHIFT) & GICH_VMCR_CTRL_MASK;
+	vmcr = (vmcrp->grpen0 << GICH_VMCR_ENABLE_GRP0_SHIFT) &
+		GICH_VMCR_ENABLE_GRP0_MASK;
+	vmcr |= (vmcrp->grpen1 << GICH_VMCR_ENABLE_GRP1_SHIFT) &
+		GICH_VMCR_ENABLE_GRP1_MASK;
+	vmcr |= (vmcrp->ackctl << GICH_VMCR_ACK_CTL_SHIFT) &
+		GICH_VMCR_ACK_CTL_MASK;
+	vmcr |= (vmcrp->fiqen << GICH_VMCR_FIQ_EN_SHIFT) &
+		GICH_VMCR_FIQ_EN_MASK;
+	vmcr |= (vmcrp->cbpr << GICH_VMCR_CBPR_SHIFT) &
+		GICH_VMCR_CBPR_MASK;
+	vmcr |= (vmcrp->eoim << GICH_VMCR_EOI_MODE_SHIFT) &
+		GICH_VMCR_EOI_MODE_MASK;
 	vmcr |= (vmcrp->abpr << GICH_VMCR_ALIAS_BINPOINT_SHIFT) &
 		GICH_VMCR_ALIAS_BINPOINT_MASK;
 	vmcr |= (vmcrp->bpr << GICH_VMCR_BINPOINT_SHIFT) &
@@ -188,8 +206,19 @@ void vgic_v2_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 
 	vmcr = cpu_if->vgic_vmcr;
 
-	vmcrp->ctlr = (vmcr & GICH_VMCR_CTRL_MASK) >>
-			GICH_VMCR_CTRL_SHIFT;
+	vmcrp->grpen0 = (vmcr & GICH_VMCR_ENABLE_GRP0_MASK) >>
+		GICH_VMCR_ENABLE_GRP0_SHIFT;
+	vmcrp->grpen1 = (vmcr & GICH_VMCR_ENABLE_GRP1_MASK) >>
+		GICH_VMCR_ENABLE_GRP1_SHIFT;
+	vmcrp->ackctl = (vmcr & GICH_VMCR_ACK_CTL_MASK) >>
+		GICH_VMCR_ACK_CTL_SHIFT;
+	vmcrp->fiqen = (vmcr & GICH_VMCR_FIQ_EN_MASK) >>
+		GICH_VMCR_FIQ_EN_SHIFT;
+	vmcrp->cbpr = (vmcr & GICH_VMCR_CBPR_MASK) >>
+		GICH_VMCR_CBPR_SHIFT;
+	vmcrp->eoim = (vmcr & GICH_VMCR_EOI_MODE_MASK) >>
+		GICH_VMCR_EOI_MODE_SHIFT;
+
 	vmcrp->abpr = (vmcr & GICH_VMCR_ALIAS_BINPOINT_MASK) >>
 			GICH_VMCR_ALIAS_BINPOINT_SHIFT;
 	vmcrp->bpr  = (vmcr & GICH_VMCR_BINPOINT_MASK) >>

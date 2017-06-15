@@ -65,8 +65,8 @@ static bool access_gic_ctlr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 		 * Here set VMCR.CTLR in ICC_CTLR_EL1 layout.
 		 * The vgic_set_vmcr() will convert to ICH_VMCR layout.
 		 */
-		vmcr.ctlr = val & ICC_CTLR_EL1_CBPR_MASK;
-		vmcr.ctlr |= val & ICC_CTLR_EL1_EOImode_MASK;
+		vmcr.cbpr = (val & ICC_CTLR_EL1_CBPR_MASK) >> ICC_CTLR_EL1_CBPR_SHIFT;
+		vmcr.eoim = (val & ICC_CTLR_EL1_EOImode_MASK) >> ICC_CTLR_EL1_EOImode_SHIFT;
 		vgic_set_vmcr(vcpu, &vmcr);
 	} else {
 		val = 0;
@@ -83,8 +83,8 @@ static bool access_gic_ctlr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 		 * The VMCR.CTLR value is in ICC_CTLR_EL1 layout.
 		 * Extract it directly using ICC_CTLR_EL1 reg definitions.
 		 */
-		val |= vmcr.ctlr & ICC_CTLR_EL1_CBPR_MASK;
-		val |= vmcr.ctlr & ICC_CTLR_EL1_EOImode_MASK;
+		val |= (vmcr.cbpr << ICC_CTLR_EL1_CBPR_SHIFT) & ICC_CTLR_EL1_CBPR_MASK;
+		val |= (vmcr.eoim << ICC_CTLR_EL1_EOImode_SHIFT) & ICC_CTLR_EL1_EOImode_MASK;
 
 		p->regval = val;
 	}
@@ -135,7 +135,7 @@ static bool access_gic_bpr1(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 		p->regval = 0;
 
 	vgic_get_vmcr(vcpu, &vmcr);
-	if (!((vmcr.ctlr & ICH_VMCR_CBPR_MASK) >> ICH_VMCR_CBPR_SHIFT)) {
+	if (!vmcr.cbpr) {
 		if (p->is_write) {
 			vmcr.abpr = (p->regval & ICC_BPR1_EL1_MASK) >>
 				     ICC_BPR1_EL1_SHIFT;
