@@ -302,24 +302,24 @@ static struct request *blk_mq_get_request(struct request_queue *q,
 			rq = e->type->ops.mq.get_request(q, op, data);
 			if (rq)
 				rq->rq_flags |= RQF_QUEUED;
-		} else
-			rq = __blk_mq_alloc_request(data, op);
-	} else {
-		rq = __blk_mq_alloc_request(data, op);
-	}
-
-	if (rq) {
-		if (!op_is_flush(op)) {
-			rq->elv.icq = NULL;
-			if (e && e->type->icq_cache)
-				blk_mq_sched_assign_ioc(q, rq, bio);
+			goto allocated;
 		}
-		data->hctx->queued++;
-		return rq;
 	}
 
-	blk_queue_exit(q);
-	return NULL;
+	rq = __blk_mq_alloc_request(data, op);
+allocated:
+	if (!rq) {
+		blk_queue_exit(q);
+		return NULL;
+	}
+
+	if (!op_is_flush(op)) {
+		rq->elv.icq = NULL;
+		if (e && e->type->icq_cache)
+			blk_mq_sched_assign_ioc(q, rq, bio);
+	}
+	data->hctx->queued++;
+	return rq;
 }
 
 struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
