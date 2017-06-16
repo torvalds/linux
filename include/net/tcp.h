@@ -1848,6 +1848,7 @@ struct tcp_sock_af_ops {
 					 const struct sock *sk,
 					 const struct sk_buff *skb);
 	int		(*md5_parse)(struct sock *sk,
+				     int optname,
 				     char __user *optval,
 				     int optlen);
 #endif
