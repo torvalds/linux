@@ -4292,8 +4292,14 @@ static void bfq_put_rq_priv_body(struct bfq_queue *bfqq)
 
 static void bfq_finish_request(struct request *rq)
 {
-	struct bfq_queue *bfqq = RQ_BFQQ(rq);
-	struct bfq_data *bfqd = bfqq->bfqd;
+	struct bfq_queue *bfqq;
+	struct bfq_data *bfqd;
+
+	if (!rq->elv.icq)
+		return;
+
+	bfqq = RQ_BFQQ(rq);
+	bfqd = bfqq->bfqd;
 
 	if (rq->rq_flags & RQF_STARTED)
 		bfqg_stats_update_completion(bfqq_group(bfqq),
@@ -4394,9 +4400,9 @@ static struct bfq_queue *bfq_get_bfqq_handle_split(struct bfq_data *bfqd,
 /*
  * Allocate bfq data structures associated with this request.
  */
-static int bfq_get_rq_private(struct request_queue *q, struct request *rq,
-			      struct bio *bio)
+static void bfq_prepare_request(struct request *rq, struct bio *bio)
 {
+	struct request_queue *q = rq->q;
 	struct bfq_data *bfqd = q->elevator->elevator_data;
 	struct bfq_io_cq *bic;
 	const int is_sync = rq_is_sync(rq);
@@ -4405,7 +4411,7 @@ static int bfq_get_rq_private(struct request_queue *q, struct request *rq,
 	bool split = false;
 
 	if (!rq->elv.icq)
-		return 1;
+		return;
 	bic = icq_to_bic(rq->elv.icq);
 
 	spin_lock_irq(&bfqd->lock);
@@ -4466,7 +4472,6 @@ static int bfq_get_rq_private(struct request_queue *q, struct request *rq,
 		bfq_handle_burst(bfqd, bfqq);
 
 	spin_unlock_irq(&bfqd->lock);
-	return 0;
 }
 
 static void bfq_idle_slice_timer_body(struct bfq_queue *bfqq)
@@ -4945,7 +4950,7 @@ static struct elv_fs_entry bfq_attrs[] = {
 
 static struct elevator_type iosched_bfq_mq = {
 	.ops.mq = {
-		.get_rq_priv		= bfq_get_rq_private,
+		.prepare_request	= bfq_prepare_request,
 		.finish_request		= bfq_finish_request,
 		.exit_icq		= bfq_exit_icq,
 		.insert_requests	= bfq_insert_requests,

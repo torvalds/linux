@@ -298,16 +298,11 @@ static struct request *blk_mq_get_request(struct request_queue *q,
 		 * Flush requests are special and go directly to the
 		 * dispatch list.
 		 */
-		if (!op_is_flush(op) && e->type->ops.mq.get_request) {
-			rq = e->type->ops.mq.get_request(q, op, data);
-			if (rq)
-				rq->rq_flags |= RQF_QUEUED;
-			goto allocated;
-		}
+		if (!op_is_flush(op) && e->type->ops.mq.limit_depth)
+			e->type->ops.mq.limit_depth(op, data);
 	}
 
 	rq = __blk_mq_alloc_request(data, op);
-allocated:
 	if (!rq) {
 		blk_queue_exit(q);
 		return NULL;
@@ -315,17 +310,12 @@ allocated:
 
 	if (!op_is_flush(op)) {
 		rq->elv.icq = NULL;
-		if (e && e->type->ops.mq.get_rq_priv) {
+		if (e && e->type->ops.mq.prepare_request) {
 			if (e->type->icq_cache && rq_ioc(bio))
 				blk_mq_sched_assign_ioc(rq, bio);
 
-			if (e->type->ops.mq.get_rq_priv(q, rq, bio)) {
-				if (rq->elv.icq)
-					put_io_context(rq->elv.icq->ioc);
-				rq->elv.icq = NULL;
-			} else {
-				rq->rq_flags |= RQF_ELVPRIV;
-			}
+			e->type->ops.mq.prepare_request(rq, bio);
+			rq->rq_flags |= RQF_ELVPRIV;
 		}
 	}
 	data->hctx->queued++;
@@ -413,7 +403,7 @@ void blk_mq_free_request(struct request *rq)
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
 	const int sched_tag = rq->internal_tag;
 
-	if (rq->rq_flags & (RQF_ELVPRIV | RQF_QUEUED)) {
+	if (rq->rq_flags & RQF_ELVPRIV) {
 		if (e && e->type->ops.mq.finish_request)
 			e->type->ops.mq.finish_request(rq);
 		if (rq->elv.icq) {
