@@ -277,6 +277,51 @@ struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data,
 }
 EXPORT_SYMBOL_GPL(__blk_mq_alloc_request);
 
+static struct request *blk_mq_get_request(struct request_queue *q,
+		struct bio *bio, unsigned int op,
+		struct blk_mq_alloc_data *data)
+{
+	struct elevator_queue *e = q->elevator;
+	struct request *rq;
+
+	blk_queue_enter_live(q);
+	data->q = q;
+	if (likely(!data->ctx))
+		data->ctx = blk_mq_get_ctx(q);
+	if (likely(!data->hctx))
+		data->hctx = blk_mq_map_queue(q, data->ctx->cpu);
+
+	if (e) {
+		data->flags |= BLK_MQ_REQ_INTERNAL;
+
+		/*
+		 * Flush requests are special and go directly to the
+		 * dispatch list.
+		 */
+		if (!op_is_flush(op) && e->type->ops.mq.get_request) {
+			rq = e->type->ops.mq.get_request(q, op, data);
+			if (rq)
+				rq->rq_flags |= RQF_QUEUED;
+		} else
+			rq = __blk_mq_alloc_request(data, op);
+	} else {
+		rq = __blk_mq_alloc_request(data, op);
+	}
+
+	if (rq) {
+		if (!op_is_flush(op)) {
+			rq->elv.icq = NULL;
+			if (e && e->type->icq_cache)
+				blk_mq_sched_assign_ioc(q, rq, bio);
+		}
+		data->hctx->queued++;
+		return rq;
+	}
+
+	blk_queue_exit(q);
+	return NULL;
+}
+
 struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
 		unsigned int flags)
 {
@@ -288,7 +333,7 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
 	if (ret)
 		return ERR_PTR(ret);
 
-	rq = blk_mq_sched_get_request(q, NULL, rw, &alloc_data);
+	rq = blk_mq_get_request(q, NULL, rw, &alloc_data);
 
 	blk_mq_put_ctx(alloc_data.ctx);
 	blk_queue_exit(q);
@@ -339,7 +384,7 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q, int rw,
 	cpu = cpumask_first(alloc_data.hctx->cpumask);
 	alloc_data.ctx = __blk_mq_get_ctx(q, cpu);
 
-	rq = blk_mq_sched_get_request(q, NULL, rw, &alloc_data);
+	rq = blk_mq_get_request(q, NULL, rw, &alloc_data);
 
 	blk_queue_exit(q);
 
@@ -389,7 +434,21 @@ EXPORT_SYMBOL_GPL(blk_mq_finish_request);
 
 void blk_mq_free_request(struct request *rq)
 {
-	blk_mq_sched_put_request(rq);
+	struct request_queue *q = rq->q;
+	struct elevator_queue *e = q->elevator;
+
+	if (rq->rq_flags & RQF_ELVPRIV) {
+		blk_mq_sched_put_rq_priv(rq->q, rq);
+		if (rq->elv.icq) {
+			put_io_context(rq->elv.icq->ioc);
+			rq->elv.icq = NULL;
+		}
+	}
+
+	if ((rq->rq_flags & RQF_QUEUED) && e && e->type->ops.mq.put_request)
+		e->type->ops.mq.put_request(rq);
+	else
+		blk_mq_finish_request(rq);
 }
 EXPORT_SYMBOL_GPL(blk_mq_free_request);
 
@@ -1494,7 +1553,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 	trace_block_getrq(q, bio, bio->bi_opf);
 
-	rq = blk_mq_sched_get_request(q, bio, bio->bi_opf, &data);
+	rq = blk_mq_get_request(q, bio, bio->bi_opf, &data);
 	if (unlikely(!rq)) {
 		__wbt_done(q->rq_wb, wb_acct);
 		return BLK_QC_T_NONE;

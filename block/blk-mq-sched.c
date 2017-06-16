@@ -58,79 +58,14 @@ static void __blk_mq_sched_assign_ioc(struct request_queue *q,
 	rq->elv.icq = NULL;
 }
 
-static void blk_mq_sched_assign_ioc(struct request_queue *q,
-				    struct request *rq, struct bio *bio)
+void blk_mq_sched_assign_ioc(struct request_queue *q, struct request *rq,
+			     struct bio *bio)
 {
 	struct io_context *ioc;
 
 	ioc = rq_ioc(bio);
 	if (ioc)
 		__blk_mq_sched_assign_ioc(q, rq, bio, ioc);
-}
-
-struct request *blk_mq_sched_get_request(struct request_queue *q,
-					 struct bio *bio,
-					 unsigned int op,
-					 struct blk_mq_alloc_data *data)
-{
-	struct elevator_queue *e = q->elevator;
-	struct request *rq;
-
-	blk_queue_enter_live(q);
-	data->q = q;
-	if (likely(!data->ctx))
-		data->ctx = blk_mq_get_ctx(q);
-	if (likely(!data->hctx))
-		data->hctx = blk_mq_map_queue(q, data->ctx->cpu);
-
-	if (e) {
-		data->flags |= BLK_MQ_REQ_INTERNAL;
-
-		/*
-		 * Flush requests are special and go directly to the
-		 * dispatch list.
-		 */
-		if (!op_is_flush(op) && e->type->ops.mq.get_request) {
-			rq = e->type->ops.mq.get_request(q, op, data);
-			if (rq)
-				rq->rq_flags |= RQF_QUEUED;
-		} else
-			rq = __blk_mq_alloc_request(data, op);
-	} else {
-		rq = __blk_mq_alloc_request(data, op);
-	}
-
-	if (rq) {
-		if (!op_is_flush(op)) {
-			rq->elv.icq = NULL;
-			if (e && e->type->icq_cache)
-				blk_mq_sched_assign_ioc(q, rq, bio);
-		}
-		data->hctx->queued++;
-		return rq;
-	}
-
-	blk_queue_exit(q);
-	return NULL;
-}
-
-void blk_mq_sched_put_request(struct request *rq)
-{
-	struct request_queue *q = rq->q;
-	struct elevator_queue *e = q->elevator;
-
-	if (rq->rq_flags & RQF_ELVPRIV) {
-		blk_mq_sched_put_rq_priv(rq->q, rq);
-		if (rq->elv.icq) {
-			put_io_context(rq->elv.icq->ioc);
-			rq->elv.icq = NULL;
-		}
-	}
-
-	if ((rq->rq_flags & RQF_QUEUED) && e && e->type->ops.mq.put_request)
-		e->type->ops.mq.put_request(rq);
-	else
-		blk_mq_finish_request(rq);
 }
 
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
