@@ -447,8 +447,11 @@ rockchip_gem_alloc_object(struct drm_device *drm, unsigned int size)
 
 	drm_gem_object_init(drm, obj, size);
 
-	mapping = file_inode(obj->filp)->i_mapping;
-	mapping_set_gfp_mask(mapping, mapping_gfp_mask(mapping) | __GFP_DMA32);
+	if (IS_ENABLED(CONFIG_ARM_LPAE)) {
+		mapping = file_inode(obj->filp)->i_mapping;
+		mapping_set_gfp_mask(mapping,
+				     mapping_gfp_mask(mapping) | __GFP_DMA32);
+	}
 
 	return rk_obj;
 }
