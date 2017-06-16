@@ -11,20 +11,18 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <linux/compiler.h>
 #include <linux/types.h>
 
-#ifdef __GNUC__
-#define NORETURN __attribute__((__noreturn__))
-#else
-#define NORETURN
+#ifndef __GNUC__
 #ifndef __attribute__
 #define __attribute__(x)
 #endif
 #endif
 
 /* General helper functions */
-void usage(const char *err) NORETURN;
-void die(const char *err, ...) NORETURN __attribute__((format (printf, 1, 2)));
+void usage(const char *err) __noreturn;
+void die(const char *err, ...) __noreturn __attribute__((format (printf, 1, 2)));
 int error(const char *err, ...) __attribute__((format (printf, 1, 2)));
 void warning(const char *err, ...) __attribute__((format (printf, 1, 2)));
 
