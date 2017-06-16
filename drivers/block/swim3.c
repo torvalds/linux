@@ -1245,7 +1245,7 @@ static int swim3_attach(struct macio_dev *mdev,
 	return 0;
 }
 
-static struct of_device_id swim3_match[] =
+static const struct of_device_id swim3_match[] =
 {
 	{
 	.name		= "swim3",
