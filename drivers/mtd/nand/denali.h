@@ -303,18 +303,13 @@
 #define     CHNL_ACTIVE__CHANNEL2			BIT(2)
 #define     CHNL_ACTIVE__CHANNEL3			BIT(3)
 
-#define MODE_00    0x00000000
-#define MODE_01    0x04000000
-#define MODE_10    0x08000000
-#define MODE_11    0x0C000000
-
 struct denali_nand_info {
 	struct nand_chip nand;
 	unsigned long clk_x_rate;	/* bus interface clock rate */
-	int flash_bank; /* currently selected chip */
+	int active_bank;		/* currently selected bank */
 	struct device *dev;
-	void __iomem *flash_reg;	/* Register Interface */
-	void __iomem *flash_mem;	/* Host Data/Command Interface */
+	void __iomem *reg;		/* Register Interface */
+	void __iomem *host;		/* Host Data/Command Interface */
 
 	/* elements used by ISR */
 	struct completion complete;
@@ -326,8 +321,8 @@ struct denali_nand_info {
 	void *buf;
 	dma_addr_t dma_addr;
 	int dma_avail;
-	int devnum;	/* represent how many nands connected */
-	int bbtskipbytes;
+	int devs_per_cs;		/* devices connected in parallel */
+	int oob_skip_bytes;
 	int max_banks;
 	unsigned int revision;
 	unsigned int caps;

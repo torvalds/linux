@@ -104,14 +104,14 @@ static int denali_dt_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "denali_reg");
-	denali->flash_reg = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(denali->flash_reg))
-		return PTR_ERR(denali->flash_reg);
+	denali->reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(denali->reg))
+		return PTR_ERR(denali->reg);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_data");
-	denali->flash_mem = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(denali->flash_mem))
-		return PTR_ERR(denali->flash_mem);
+	denali->host = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(denali->host))
+		return PTR_ERR(denali->host);
 
 	dt->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dt->clk)) {
