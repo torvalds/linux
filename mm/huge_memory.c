@@ -1363,8 +1363,11 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 */
 	if (unlikely(pmd_trans_migrating(*pmdp))) {
 		page = pmd_page(*pmdp);
+		if (!get_page_unless_zero(page))
+			goto out_unlock;
 		spin_unlock(ptl);
 		wait_on_page_locked(page);
+		put_page(page);
 		goto out;
 	}
 
@@ -1396,8 +1399,11 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	/* Migration could have started since the pmd_trans_migrating check */
 	if (!page_locked) {
+		if (!get_page_unless_zero(page))
+			goto out_unlock;
 		spin_unlock(ptl);
 		wait_on_page_locked(page);
+		put_page(page);
 		page_nid = -1;
 		goto out;
 	}
