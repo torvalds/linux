@@ -36,6 +36,7 @@ static void __blk_mq_sched_assign_ioc(struct request_queue *q,
 				      struct bio *bio,
 				      struct io_context *ioc)
 {
+	struct elevator_queue *e = q->elevator;
 	struct io_cq *icq;
 
 	spin_lock_irq(q->queue_lock);
@@ -49,13 +50,14 @@ static void __blk_mq_sched_assign_ioc(struct request_queue *q,
 	}
 
 	rq->elv.icq = icq;
-	if (!blk_mq_sched_get_rq_priv(q, rq, bio)) {
-		rq->rq_flags |= RQF_ELVPRIV;
-		get_io_context(icq->ioc);
+	if (e && e->type->ops.mq.get_rq_priv &&
+	    e->type->ops.mq.get_rq_priv(q, rq, bio)) {
+		rq->elv.icq = NULL;
 		return;
 	}
 
-	rq->elv.icq = NULL;
+	rq->rq_flags |= RQF_ELVPRIV;
+	get_io_context(icq->ioc);
 }
 
 void blk_mq_sched_assign_ioc(struct request_queue *q, struct request *rq,

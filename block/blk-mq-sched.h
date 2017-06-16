@@ -44,27 +44,6 @@ blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 	return __blk_mq_sched_bio_merge(q, bio);
 }
 
-static inline int blk_mq_sched_get_rq_priv(struct request_queue *q,
-					   struct request *rq,
-					   struct bio *bio)
-{
-	struct elevator_queue *e = q->elevator;
-
-	if (e && e->type->ops.mq.get_rq_priv)
-		return e->type->ops.mq.get_rq_priv(q, rq, bio);
-
-	return 0;
-}
-
-static inline void blk_mq_sched_put_rq_priv(struct request_queue *q,
-					    struct request *rq)
-{
-	struct elevator_queue *e = q->elevator;
-
-	if (e && e->type->ops.mq.put_rq_priv)
-		e->type->ops.mq.put_rq_priv(q, rq);
-}
-
 static inline bool
 blk_mq_sched_allow_merge(struct request_queue *q, struct request *rq,
 			 struct bio *bio)

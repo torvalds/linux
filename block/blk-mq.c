@@ -438,7 +438,8 @@ void blk_mq_free_request(struct request *rq)
 	struct elevator_queue *e = q->elevator;
 
 	if (rq->rq_flags & RQF_ELVPRIV) {
-		blk_mq_sched_put_rq_priv(rq->q, rq);
+		if (e && e->type->ops.mq.put_rq_priv)
+			e->type->ops.mq.put_rq_priv(q, rq);
 		if (rq->elv.icq) {
 			put_io_context(rq->elv.icq->ioc);
 			rq->elv.icq = NULL;
