@@ -4398,16 +4398,17 @@ static int bfq_get_rq_private(struct request_queue *q, struct request *rq,
 			      struct bio *bio)
 {
 	struct bfq_data *bfqd = q->elevator->elevator_data;
-	struct bfq_io_cq *bic = icq_to_bic(rq->elv.icq);
+	struct bfq_io_cq *bic;
 	const int is_sync = rq_is_sync(rq);
 	struct bfq_queue *bfqq;
 	bool new_queue = false;
 	bool split = false;
 
-	spin_lock_irq(&bfqd->lock);
+	if (!rq->elv.icq)
+		return 1;
+	bic = icq_to_bic(rq->elv.icq);
 
-	if (!bic)
-		goto queue_fail;
+	spin_lock_irq(&bfqd->lock);
 
 	bfq_check_ioprio_change(bic, bio);
 
@@ -4465,13 +4466,7 @@ static int bfq_get_rq_private(struct request_queue *q, struct request *rq,
 		bfq_handle_burst(bfqd, bfqq);
 
 	spin_unlock_irq(&bfqd->lock);
-
 	return 0;
-
-queue_fail:
-	spin_unlock_irq(&bfqd->lock);
-
-	return 1;
 }
 
 static void bfq_idle_slice_timer_body(struct bfq_queue *bfqq)
