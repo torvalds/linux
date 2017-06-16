@@ -490,7 +490,6 @@ void snd_pcm_set_ops(struct snd_pcm *pcm, int direction,
 	for (substream = stream->substream; substream != NULL; substream = substream->next)
 		substream->ops = ops;
 }
-
 EXPORT_SYMBOL(snd_pcm_set_ops);
 
 /**
@@ -508,7 +507,6 @@ void snd_pcm_set_sync(struct snd_pcm_substream *substream)
 	runtime->sync.id32[2] = -1;
 	runtime->sync.id32[3] = -1;
 }
-
 EXPORT_SYMBOL(snd_pcm_set_sync);
 
 /*
@@ -625,7 +623,6 @@ int snd_interval_refine(struct snd_interval *i, const struct snd_interval *v)
 	}
 	return changed;
 }
-
 EXPORT_SYMBOL(snd_interval_refine);
 
 static int snd_interval_refine_first(struct snd_interval *i)
@@ -888,7 +885,6 @@ int snd_interval_ratnum(struct snd_interval *i,
 	}
 	return err;
 }
-
 EXPORT_SYMBOL(snd_interval_ratnum);
 
 /**
@@ -1026,7 +1022,6 @@ int snd_interval_list(struct snd_interval *i, unsigned int count,
         }
 	return snd_interval_refine(i, &list_range);
 }
-
 EXPORT_SYMBOL(snd_interval_list);
 
 /**
@@ -1165,7 +1160,6 @@ int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime, unsigned int cond,
 	va_end(args);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_rule_add);
 
 /**
@@ -1229,7 +1223,6 @@ int snd_pcm_hw_constraint_integer(struct snd_pcm_runtime *runtime, snd_pcm_hw_pa
 	struct snd_pcm_hw_constraints *constrs = &runtime->hw_constraints;
 	return snd_interval_setinteger(constrs_interval(constrs, var));
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_constraint_integer);
 
 /**
@@ -1255,7 +1248,6 @@ int snd_pcm_hw_constraint_minmax(struct snd_pcm_runtime *runtime, snd_pcm_hw_par
 	t.integer = 0;
 	return snd_interval_refine(constrs_interval(constrs, var), &t);
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_constraint_minmax);
 
 static int snd_pcm_hw_rule_list(struct snd_pcm_hw_params *params,
@@ -1286,7 +1278,6 @@ int snd_pcm_hw_constraint_list(struct snd_pcm_runtime *runtime,
 				   snd_pcm_hw_rule_list, (void *)l,
 				   var, -1);
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_constraint_list);
 
 static int snd_pcm_hw_rule_ranges(struct snd_pcm_hw_params *params,
@@ -1353,7 +1344,6 @@ int snd_pcm_hw_constraint_ratnums(struct snd_pcm_runtime *runtime,
 				   snd_pcm_hw_rule_ratnums, (void *)r,
 				   var, -1);
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_constraint_ratnums);
 
 static int snd_pcm_hw_rule_ratdens(struct snd_pcm_hw_params *params,
@@ -1388,7 +1378,6 @@ int snd_pcm_hw_constraint_ratdens(struct snd_pcm_runtime *runtime,
 				   snd_pcm_hw_rule_ratdens, (void *)r,
 				   var, -1);
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_constraint_ratdens);
 
 static int snd_pcm_hw_rule_msbits(struct snd_pcm_hw_params *params,
@@ -1435,7 +1424,6 @@ int snd_pcm_hw_constraint_msbits(struct snd_pcm_runtime *runtime,
 				    (void*) l,
 				    SNDRV_PCM_HW_PARAM_SAMPLE_BITS, -1);
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_constraint_msbits);
 
 static int snd_pcm_hw_rule_step(struct snd_pcm_hw_params *params,
@@ -1463,7 +1451,6 @@ int snd_pcm_hw_constraint_step(struct snd_pcm_runtime *runtime,
 				   snd_pcm_hw_rule_step, (void *) step,
 				   var, -1);
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_constraint_step);
 
 static int snd_pcm_hw_rule_pow2(struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule)
@@ -1494,7 +1481,6 @@ int snd_pcm_hw_constraint_pow2(struct snd_pcm_runtime *runtime,
 				   snd_pcm_hw_rule_pow2, NULL,
 				   var, -1);
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_constraint_pow2);
 
 static int snd_pcm_hw_rule_noresample_func(struct snd_pcm_hw_params *params,
@@ -1553,7 +1539,6 @@ void _snd_pcm_hw_params_any(struct snd_pcm_hw_params *params)
 		_snd_pcm_hw_param_any(params, k);
 	params->info = ~0U;
 }
-
 EXPORT_SYMBOL(_snd_pcm_hw_params_any);
 
 /**
@@ -1586,7 +1571,6 @@ int snd_pcm_hw_param_value(const struct snd_pcm_hw_params *params,
 	}
 	return -EINVAL;
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_param_value);
 
 void _snd_pcm_hw_param_setempty(struct snd_pcm_hw_params *params,
@@ -1604,7 +1588,6 @@ void _snd_pcm_hw_param_setempty(struct snd_pcm_hw_params *params,
 		snd_BUG();
 	}
 }
-
 EXPORT_SYMBOL(_snd_pcm_hw_param_setempty);
 
 static int _snd_pcm_hw_param_first(struct snd_pcm_hw_params *params,
@@ -1651,7 +1634,6 @@ int snd_pcm_hw_param_first(struct snd_pcm_substream *pcm,
 	}
 	return snd_pcm_hw_param_value(params, var, dir);
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_param_first);
 
 static int _snd_pcm_hw_param_last(struct snd_pcm_hw_params *params,
@@ -1698,7 +1680,6 @@ int snd_pcm_hw_param_last(struct snd_pcm_substream *pcm,
 	}
 	return snd_pcm_hw_param_value(params, var, dir);
 }
-
 EXPORT_SYMBOL(snd_pcm_hw_param_last);
 
 static int snd_pcm_lib_ioctl_reset(struct snd_pcm_substream *substream,
@@ -1796,7 +1777,6 @@ int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 	}
 	return -ENXIO;
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_ioctl);
 
 /**
@@ -1832,7 +1812,6 @@ void snd_pcm_period_elapsed(struct snd_pcm_substream *substream)
 	kill_fasync(&runtime->fasync, SIGIO, POLL_IN);
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 }
-
 EXPORT_SYMBOL(snd_pcm_period_elapsed);
 
 /*
