@@ -171,7 +171,7 @@ static void st21nfca_hci_add_len_crc(struct sk_buff *skb)
 	u16 crc;
 	u8 tmp;
 
-	*skb_push(skb, 1) = 0;
+	*(u8 *)skb_push(skb, 1) = 0;
 
 	crc = crc_ccitt(0xffff, skb->data, skb->len);
 	crc = ~crc;
@@ -216,7 +216,7 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 	/* add ST21NFCA_SOF_EOF on tail */
 	*(u8 *)skb_put(skb, 1) = ST21NFCA_SOF_EOF;
 	/* add ST21NFCA_SOF_EOF on head */
-	*skb_push(skb, 1) = ST21NFCA_SOF_EOF;
+	*(u8 *)skb_push(skb, 1) = ST21NFCA_SOF_EOF;
 
 	/*
 	 * Compute byte stuffing

@@ -185,7 +185,7 @@ static void digital_skb_push_dep_sod(struct nfc_digital_dev *ddev,
 	skb->data[0] = skb->len;
 
 	if (ddev->curr_rf_tech == NFC_DIGITAL_RF_TECH_106A)
-		*skb_push(skb, sizeof(u8)) = DIGITAL_NFC_DEP_NFCA_SOD_SB;
+		*(u8 *)skb_push(skb, sizeof(u8)) = DIGITAL_NFC_DEP_NFCA_SOD_SB;
 }
 
 static int digital_skb_pull_dep_sod(struct nfc_digital_dev *ddev,

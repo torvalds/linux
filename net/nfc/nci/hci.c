@@ -170,7 +170,7 @@ static int nci_hci_send_data(struct nci_dev *ndev, u8 pipe,
 		return -ENOMEM;
 
 	skb_reserve(skb, NCI_DATA_HDR_SIZE + 2);
-	*skb_push(skb, 1) = data_type;
+	*(u8 *)skb_push(skb, 1) = data_type;
 
 	do {
 		len = conn_info->max_pkt_payload_len;
@@ -184,7 +184,7 @@ static int nci_hci_send_data(struct nci_dev *ndev, u8 pipe,
 			len = conn_info->max_pkt_payload_len - skb->len - 1;
 		}
 
-		*skb_push(skb, 1) = cb;
+		*(u8 *)skb_push(skb, 1) = cb;
 
 		if (len > 0)
 			skb_put_data(skb, data + i, len);

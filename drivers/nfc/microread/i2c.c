@@ -70,7 +70,7 @@ static void microread_i2c_add_len_crc(struct sk_buff *skb)
 	int len;
 
 	len = skb->len;
-	*skb_push(skb, 1) = len;
+	*(u8 *)skb_push(skb, 1) = len;
 
 	for (i = 0; i < skb->len; i++)
 		crc = crc ^ skb->data[i];

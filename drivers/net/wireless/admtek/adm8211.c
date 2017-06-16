@@ -1700,7 +1700,7 @@ static void adm8211_tx(struct ieee80211_hw *dev,
 	skb_pull(skb, hdrlen);
 	payload_len = skb->len;
 
-	txhdr = (struct adm8211_tx_hdr *) skb_push(skb, sizeof(*txhdr));
+	txhdr = skb_push(skb, sizeof(*txhdr));
 	memset(txhdr, 0, sizeof(*txhdr));
 	memcpy(txhdr->da, ieee80211_get_DA(hdr), ETH_ALEN);
 	txhdr->signal = plcp_signal;

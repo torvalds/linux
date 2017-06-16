@@ -815,8 +815,8 @@ void p54_tx_80211(struct ieee80211_hw *dev,
 		}
 	}
 
-	txhdr = (struct p54_tx_data *) skb_push(skb, sizeof(*txhdr) + padding);
-	hdr = (struct p54_hdr *) skb_push(skb, sizeof(*hdr));
+	txhdr = skb_push(skb, sizeof(*txhdr) + padding);
+	hdr = skb_push(skb, sizeof(*hdr));
 
 	if (padding)
 		hdr_flags |= P54_HDR_FLAG_DATA_ALIGN;

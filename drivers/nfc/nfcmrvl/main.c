@@ -68,7 +68,7 @@ static int nfcmrvl_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 		unsigned char *hdr;
 		unsigned char len = skb->len;
 
-		hdr = (char *) skb_push(skb, NFCMRVL_HCI_EVENT_HEADER_SIZE);
+		hdr = skb_push(skb, NFCMRVL_HCI_EVENT_HEADER_SIZE);
 		hdr[0] = NFCMRVL_HCI_COMMAND_CODE;
 		hdr[1] = NFCMRVL_HCI_OGF;
 		hdr[2] = NFCMRVL_HCI_OCF;

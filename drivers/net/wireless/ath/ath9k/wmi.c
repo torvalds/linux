@@ -277,7 +277,7 @@ static int ath9k_wmi_cmd_issue(struct wmi *wmi,
 	struct wmi_cmd_hdr *hdr;
 	unsigned long flags;
 
-	hdr = (struct wmi_cmd_hdr *) skb_push(skb, sizeof(struct wmi_cmd_hdr));
+	hdr = skb_push(skb, sizeof(struct wmi_cmd_hdr));
 	hdr->command_id = cpu_to_be16(cmd);
 	hdr->seq_no = cpu_to_be16(++wmi->tx_seq_id);
 

@@ -332,7 +332,7 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 		return;
 
 	/* Put header before the data */
-	hdr = (void *)skb_push(skb_copy, HCI_MON_HDR_SIZE);
+	hdr = skb_push(skb_copy, HCI_MON_HDR_SIZE);
 	hdr->opcode = opcode;
 	hdr->index = cpu_to_le16(hdev->id);
 	hdr->len = cpu_to_le16(skb->len);
@@ -383,7 +383,7 @@ void hci_send_monitor_ctrl_event(struct hci_dev *hdev, u16 event,
 
 		skb->tstamp = tstamp;
 
-		hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+		hdr = skb_push(skb, HCI_MON_HDR_SIZE);
 		hdr->opcode = cpu_to_le16(HCI_MON_CTRL_EVENT);
 		hdr->index = index;
 		hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
@@ -467,7 +467,7 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 
 	__net_timestamp(skb);
 
-	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr = skb_push(skb, HCI_MON_HDR_SIZE);
 	hdr->opcode = opcode;
 	hdr->index = cpu_to_le16(hdev->id);
 	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
@@ -522,7 +522,7 @@ static struct sk_buff *create_monitor_ctrl_open(struct sock *sk)
 
 	__net_timestamp(skb);
 
-	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr = skb_push(skb, HCI_MON_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_OPEN);
 	if (hci_pi(sk)->hdev)
 		hdr->index = cpu_to_le16(hci_pi(sk)->hdev->id);
@@ -560,7 +560,7 @@ static struct sk_buff *create_monitor_ctrl_close(struct sock *sk)
 
 	__net_timestamp(skb);
 
-	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr = skb_push(skb, HCI_MON_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_CLOSE);
 	if (hci_pi(sk)->hdev)
 		hdr->index = cpu_to_le16(hci_pi(sk)->hdev->id);
@@ -590,7 +590,7 @@ static struct sk_buff *create_monitor_ctrl_command(struct sock *sk, u16 index,
 
 	__net_timestamp(skb);
 
-	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr = skb_push(skb, HCI_MON_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_COMMAND);
 	hdr->index = cpu_to_le16(index);
 	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);

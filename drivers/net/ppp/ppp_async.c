@@ -802,7 +802,7 @@ process_input_packet(struct asyncppp *ap)
 	proto = p[0];
 	if (proto & 1) {
 		/* protocol is compressed */
-		skb_push(skb, 1)[0] = 0;
+		*(u8 *)skb_push(skb, 1) = 0;
 	} else {
 		if (skb->len < 2)
 			goto err;

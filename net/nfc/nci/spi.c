@@ -238,8 +238,8 @@ static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 		goto receive_error;
 
 	if (nspi->acknowledge_mode == NCI_SPI_CRC_ENABLED) {
-		*skb_push(skb, 1) = resp_hdr[1];
-		*skb_push(skb, 1) = resp_hdr[0];
+		*(u8 *)skb_push(skb, 1) = resp_hdr[1];
+		*(u8 *)skb_push(skb, 1) = resp_hdr[0];
 	}
 
 	return skb;

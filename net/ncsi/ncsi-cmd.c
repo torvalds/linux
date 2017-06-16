@@ -331,7 +331,7 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 	}
 
 	/* Fill the ethernet header */
-	eh = (struct ethhdr *)skb_push(nr->cmd, sizeof(*eh));
+	eh = skb_push(nr->cmd, sizeof(*eh));
 	eh->h_proto = htons(ETH_P_NCSI);
 	eth_broadcast_addr(eh->h_dest);
 	eth_broadcast_addr(eh->h_source);

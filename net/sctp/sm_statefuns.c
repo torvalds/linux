@@ -770,8 +770,8 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(struct net *net,
 		auth.skb = chunk->auth_chunk;
 		auth.asoc = chunk->asoc;
 		auth.sctp_hdr = chunk->sctp_hdr;
-		auth.chunk_hdr = (sctp_chunkhdr_t *)skb_push(chunk->auth_chunk,
-					    sizeof(sctp_chunkhdr_t));
+		auth.chunk_hdr = skb_push(chunk->auth_chunk,
+					  sizeof(sctp_chunkhdr_t));
 		skb_pull(chunk->auth_chunk, sizeof(sctp_chunkhdr_t));
 		auth.transport = chunk->transport;
 

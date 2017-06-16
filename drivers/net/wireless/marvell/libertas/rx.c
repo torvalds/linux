@@ -257,7 +257,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 		goto done;
 	}
 
-	pradiotap_hdr = (void *)skb_push(skb, sizeof(struct rx_radiotap_hdr));
+	pradiotap_hdr = skb_push(skb, sizeof(struct rx_radiotap_hdr));
 	memcpy(pradiotap_hdr, &radiotap_hdr, sizeof(struct rx_radiotap_hdr));
 
 	priv->cur_rate = lbs_fw_index_to_data_rate(prxpd->rx_rate);

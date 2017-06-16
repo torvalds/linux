@@ -48,7 +48,7 @@ static struct sk_buff *create_monitor_ctrl_event(__le16 index, u32 cookie,
 
 	__net_timestamp(skb);
 
-	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr = skb_push(skb, HCI_MON_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_EVENT);
 	hdr->index = index;
 	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);

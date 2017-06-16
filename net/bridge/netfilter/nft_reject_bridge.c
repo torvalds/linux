@@ -28,7 +28,7 @@ static void nft_reject_br_push_etherhdr(struct sk_buff *oldskb,
 {
 	struct ethhdr *eth;
 
-	eth = (struct ethhdr *)skb_push(nskb, ETH_HLEN);
+	eth = skb_push(nskb, ETH_HLEN);
 	skb_reset_mac_header(nskb);
 	ether_addr_copy(eth->h_source, eth_hdr(oldskb)->h_dest);
 	ether_addr_copy(eth->h_dest, eth_hdr(oldskb)->h_source);

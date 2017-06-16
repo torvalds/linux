@@ -1174,7 +1174,7 @@ static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 		}
 	}
 
-	header = (void *)skb_push(skb, sizeof(*header));
+	header = skb_push(skb, sizeof(*header));
 
 	/* This does _not_ include the size of the header */
 	header->size = cpu_to_le16(pktlen);

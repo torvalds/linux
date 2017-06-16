@@ -2090,10 +2090,10 @@ static int pn533_fill_fragment_skbs(struct pn533 *dev, struct sk_buff *skb)
 
 			/* MI + TG */
 			if (frag_size  == PN533_CMD_DATAFRAME_MAXLEN)
-				*skb_push(frag, sizeof(u8)) =
-							(PN533_CMD_MI_MASK | 1);
+				*(u8 *)skb_push(frag, sizeof(u8)) =
+						(PN533_CMD_MI_MASK | 1);
 			else
-				*skb_push(frag, sizeof(u8)) =  1; /* TG */
+				*(u8 *)skb_push(frag, sizeof(u8)) =  1; /* TG */
 		}
 
 		skb_put_data(frag, skb->data, frag_size);
@@ -2160,7 +2160,7 @@ static int pn533_transceive(struct nfc_dev *nfc_dev,
 				goto error;
 			}
 		} else {
-			*skb_push(skb, sizeof(u8)) =  1; /* TG */
+			*(u8 *)skb_push(skb, sizeof(u8)) =  1; /* TG */
 		}
 
 		rc = pn533_send_data_async(dev, PN533_CMD_IN_DATA_EXCHANGE,

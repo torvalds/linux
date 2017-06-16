@@ -383,7 +383,7 @@ static int vrf_finish_direct(struct net *net, struct sock *sk,
 
 	if (!list_empty(&vrf_dev->ptype_all) &&
 	    likely(skb_headroom(skb) >= ETH_HLEN)) {
-		struct ethhdr *eth = (struct ethhdr *)skb_push(skb, ETH_HLEN);
+		struct ethhdr *eth = skb_push(skb, ETH_HLEN);
 
 		ether_addr_copy(eth->h_source, vrf_dev->dev_addr);
 		eth_zero_addr(eth->h_dest);

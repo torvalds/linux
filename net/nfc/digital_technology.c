@@ -828,7 +828,7 @@ int digital_in_send_sensf_req(struct nfc_digital_dev *ddev, u8 rf_tech)
 	sensf_req->rc = 0;
 	sensf_req->tsn = 0;
 
-	*skb_push(skb, 1) = size + 1;
+	*(u8 *)skb_push(skb, 1) = size + 1;
 
 	if (!DIGITAL_DRV_CAPS_IN_CRC(ddev))
 		digital_skb_add_crc_f(skb);
@@ -1161,7 +1161,7 @@ static int digital_tg_send_sensf_res(struct nfc_digital_dev *ddev,
 		break;
 	}
 
-	*skb_push(skb, sizeof(u8)) = size + 1;
+	*(u8 *)skb_push(skb, sizeof(u8)) = size + 1;
 
 	if (!DIGITAL_DRV_CAPS_TG_CRC(ddev))
 		digital_skb_add_crc_f(skb);

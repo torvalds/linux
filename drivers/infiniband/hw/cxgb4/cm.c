@@ -3751,7 +3751,7 @@ static void build_cpl_pass_accept_req(struct sk_buff *skb, int stid , u8 tos)
 	tcp_clear_options(&tmp_opt);
 	tcp_parse_options(&init_net, skb, &tmp_opt, 0, NULL);
 
-	req = (struct cpl_pass_accept_req *)__skb_push(skb, sizeof(*req));
+	req = __skb_push(skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
 	req->l2info = cpu_to_be16(SYN_INTF_V(intf) |
 			 SYN_MAC_IDX_V(RX_MACIDX_G(
