@@ -131,8 +131,6 @@ static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data
 /*
  * Internal helpers for request allocation/init/free
  */
-void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
-			struct request *rq, unsigned int op);
 void __blk_mq_finish_request(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 				struct request *rq);
 void blk_mq_finish_request(struct request *rq);

@@ -204,8 +204,8 @@ bool blk_mq_can_queue(struct blk_mq_hw_ctx *hctx)
 }
 EXPORT_SYMBOL(blk_mq_can_queue);
 
-void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
-			struct request *rq, unsigned int op)
+static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
+		struct request *rq, unsigned int op)
 {
 	INIT_LIST_HEAD(&rq->queuelist);
 	/* csd/requeue_work/fifo_time is initialized before use */
@@ -243,7 +243,6 @@ void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 
 	ctx->rq_dispatched[op_is_sync(op)]++;
 }
-EXPORT_SYMBOL_GPL(blk_mq_rq_ctx_init);
 
 struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data,
 				       unsigned int op)
