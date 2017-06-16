@@ -258,6 +258,9 @@ specification the ioctl returns an ``EINVAL`` error code.
     * - ``V4L2_CAP_STREAMING``
       - 0x04000000
       - The device supports the :ref:`streaming <mmap>` I/O method.
+    * - ``V4L2_CAP_META_OUTPUT``
+      - 0x08000000
+      - The device supports the :ref:`metadata` output interface.
     * - ``V4L2_CAP_TOUCH``
       - 0x10000000
       - This is a touch device.
