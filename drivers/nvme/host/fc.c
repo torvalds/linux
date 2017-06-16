@@ -2764,6 +2764,9 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 		nvme_uninit_ctrl(&ctrl->ctrl);
 		nvme_put_ctrl(&ctrl->ctrl);
 
+		/* Remove core ctrl ref. */
+		nvme_put_ctrl(&ctrl->ctrl);
+
 		/* as we're past the point where we transition to the ref
 		 * counting teardown path, if we return a bad pointer here,
 		 * the calling routine, thinking it's prior to the
