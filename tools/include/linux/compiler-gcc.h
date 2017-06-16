@@ -20,6 +20,8 @@
 /* &a[0] degrades to a pointer: a different type from an array */
 #define __must_be_array(a)	BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
 
+#define  noinline	__attribute__((noinline))
+
 #define __noreturn	__attribute__((noreturn))
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))

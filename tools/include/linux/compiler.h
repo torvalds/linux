@@ -17,6 +17,10 @@
 # define __always_inline	inline __attribute__((always_inline))
 #endif
 
+#ifndef noinline
+#define noinline
+#endif
+
 /* Are two types/vars the same type (ignoring qualifiers)? */
 #ifndef __same_type
 # define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
