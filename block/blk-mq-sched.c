@@ -31,12 +31,10 @@ void blk_mq_sched_free_hctx_data(struct request_queue *q,
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_free_hctx_data);
 
-static void __blk_mq_sched_assign_ioc(struct request_queue *q,
-				      struct request *rq,
-				      struct bio *bio,
-				      struct io_context *ioc)
+void blk_mq_sched_assign_ioc(struct request *rq, struct bio *bio)
 {
-	struct elevator_queue *e = q->elevator;
+	struct request_queue *q = rq->q;
+	struct io_context *ioc = rq_ioc(bio);
 	struct io_cq *icq;
 
 	spin_lock_irq(q->queue_lock);
@@ -48,26 +46,8 @@ static void __blk_mq_sched_assign_ioc(struct request_queue *q,
 		if (!icq)
 			return;
 	}
-
-	rq->elv.icq = icq;
-	if (e && e->type->ops.mq.get_rq_priv &&
-	    e->type->ops.mq.get_rq_priv(q, rq, bio)) {
-		rq->elv.icq = NULL;
-		return;
-	}
-
-	rq->rq_flags |= RQF_ELVPRIV;
 	get_io_context(icq->ioc);
-}
-
-void blk_mq_sched_assign_ioc(struct request_queue *q, struct request *rq,
-			     struct bio *bio)
-{
-	struct io_context *ioc;
-
-	ioc = rq_ioc(bio);
-	if (ioc)
-		__blk_mq_sched_assign_ioc(q, rq, bio, ioc);
+	rq->elv.icq = icq;
 }
 
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)

@@ -315,8 +315,18 @@ allocated:
 
 	if (!op_is_flush(op)) {
 		rq->elv.icq = NULL;
-		if (e && e->type->icq_cache)
-			blk_mq_sched_assign_ioc(q, rq, bio);
+		if (e && e->type->ops.mq.get_rq_priv) {
+			if (e->type->icq_cache && rq_ioc(bio))
+				blk_mq_sched_assign_ioc(rq, bio);
+
+			if (e->type->ops.mq.get_rq_priv(q, rq, bio)) {
+				if (rq->elv.icq)
+					put_io_context(rq->elv.icq->ioc);
+				rq->elv.icq = NULL;
+			} else {
+				rq->rq_flags |= RQF_ELVPRIV;
+			}
+		}
 	}
 	data->hctx->queued++;
 	return rq;
