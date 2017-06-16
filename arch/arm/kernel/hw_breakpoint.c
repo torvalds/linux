@@ -1106,7 +1106,7 @@ static int __init arch_hw_breakpoint_init(void)
 		core_num_brps = 0;
 		core_num_wrps = 0;
 		if (ret > 0)
-			cpuhp_remove_state_nocalls(ret);
+			cpuhp_remove_state_nocalls_cpuslocked(ret);
 		cpus_read_unlock();
 		return 0;
 	}
