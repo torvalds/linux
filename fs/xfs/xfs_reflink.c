@@ -1406,56 +1406,72 @@ out:
 	return error;
 }
 
+/* Does this inode need the reflink flag? */
+int
+xfs_reflink_inode_has_shared_extents(
+	struct xfs_trans		*tp,
+	struct xfs_inode		*ip,
+	bool				*has_shared)
+{
+	struct xfs_bmbt_irec		got;
+	struct xfs_mount		*mp = ip->i_mount;
+	struct xfs_ifork		*ifp;
+	xfs_agnumber_t			agno;
+	xfs_agblock_t			agbno;
+	xfs_extlen_t			aglen;
+	xfs_agblock_t			rbno;
+	xfs_extlen_t			rlen;
+	xfs_extnum_t			idx;
+	bool				found;
+	int				error;
+
+	ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
+		error = xfs_iread_extents(tp, ip, XFS_DATA_FORK);
+		if (error)
+			return error;
+	}
+
+	*has_shared = false;
+	found = xfs_iext_lookup_extent(ip, ifp, 0, &idx, &got);
+	while (found) {
+		if (isnullstartblock(got.br_startblock) ||
+		    got.br_state != XFS_EXT_NORM)
+			goto next;
+		agno = XFS_FSB_TO_AGNO(mp, got.br_startblock);
+		agbno = XFS_FSB_TO_AGBNO(mp, got.br_startblock);
+		aglen = got.br_blockcount;
+
+		error = xfs_reflink_find_shared(mp, tp, agno, agbno, aglen,
+				&rbno, &rlen, false);
+		if (error)
+			return error;
+		/* Is there still a shared block here? */
+		if (rbno != NULLAGBLOCK) {
+			*has_shared = true;
+			return 0;
+		}
+next:
+		found = xfs_iext_get_extent(ifp, ++idx, &got);
+	}
+
+	return 0;
+}
+
 /* Clear the inode reflink flag if there are no shared extents. */
 int
 xfs_reflink_clear_inode_flag(
 	struct xfs_inode	*ip,
 	struct xfs_trans	**tpp)
 {
-	struct xfs_mount	*mp = ip->i_mount;
-	xfs_fileoff_t		fbno;
-	xfs_filblks_t		end;
-	xfs_agnumber_t		agno;
-	xfs_agblock_t		agbno;
-	xfs_extlen_t		aglen;
-	xfs_agblock_t		rbno;
-	xfs_extlen_t		rlen;
-	struct xfs_bmbt_irec	map;
-	int			nmaps;
+	bool			needs_flag;
 	int			error = 0;
 
 	ASSERT(xfs_is_reflink_inode(ip));
 
-	fbno = 0;
-	end = XFS_B_TO_FSB(mp, i_size_read(VFS_I(ip)));
-	while (end - fbno > 0) {
-		nmaps = 1;
-		/*
-		 * Look for extents in the file.  Skip holes, delalloc, or
-		 * unwritten extents; they can't be reflinked.
-		 */
-		error = xfs_bmapi_read(ip, fbno, end - fbno, &map, &nmaps, 0);
-		if (error)
-			return error;
-		if (nmaps == 0)
-			break;
-		if (!xfs_bmap_is_real_extent(&map))
-			goto next;
-
-		agno = XFS_FSB_TO_AGNO(mp, map.br_startblock);
-		agbno = XFS_FSB_TO_AGBNO(mp, map.br_startblock);
-		aglen = map.br_blockcount;
-
-		error = xfs_reflink_find_shared(mp, *tpp, agno, agbno, aglen,
-				&rbno, &rlen, false);
-		if (error)
-			return error;
-		/* Is there still a shared block here? */
-		if (rbno != NULLAGBLOCK)
-			return 0;
-next:
-		fbno = map.br_startoff + map.br_blockcount;
-	}
+	error = xfs_reflink_inode_has_shared_extents(*tpp, ip, &needs_flag);
+	if (error || needs_flag)
+		return error;
 
 	/*
 	 * We didn't find any shared blocks so turn off the reflink flag.
