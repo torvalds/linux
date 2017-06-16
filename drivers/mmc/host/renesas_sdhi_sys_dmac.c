@@ -104,7 +104,6 @@ static const struct of_device_id renesas_sdhi_sys_dmac_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, renesas_sdhi_sys_dmac_of_match);
 
-
 static void renesas_sdhi_sys_dmac_enable_dma(struct tmio_mmc_host *host,
 					     bool enable)
 {
@@ -196,8 +195,8 @@ static void renesas_sdhi_sys_dmac_start_dma_rx(struct tmio_mmc_host *host)
 
 	ret = dma_map_sg(chan->device->dev, sg, host->sg_len, DMA_FROM_DEVICE);
 	if (ret > 0)
-		desc = dmaengine_prep_slave_sg(chan, sg, ret,
-			DMA_DEV_TO_MEM, DMA_CTRL_ACK);
+		desc = dmaengine_prep_slave_sg(chan, sg, ret, DMA_DEV_TO_MEM,
+					       DMA_CTRL_ACK);
 
 	if (desc) {
 		reinit_completion(&host->dma_dataend);
@@ -265,6 +264,7 @@ static void renesas_sdhi_sys_dmac_start_dma_tx(struct tmio_mmc_host *host)
 	if (!aligned) {
 		unsigned long flags;
 		void *sg_vaddr = tmio_mmc_kmap_atomic(sg, &flags);
+
 		sg_init_one(&host->bounce_sg, host->bounce_buf, sg->length);
 		memcpy(host->bounce_buf, sg_vaddr, host->bounce_sg.length);
 		tmio_mmc_kunmap_atomic(sg, &flags, sg_vaddr);
@@ -274,8 +274,8 @@ static void renesas_sdhi_sys_dmac_start_dma_tx(struct tmio_mmc_host *host)
 
 	ret = dma_map_sg(chan->device->dev, sg, host->sg_len, DMA_TO_DEVICE);
 	if (ret > 0)
-		desc = dmaengine_prep_slave_sg(chan, sg, ret,
-			DMA_MEM_TO_DEV, DMA_CTRL_ACK);
+		desc = dmaengine_prep_slave_sg(chan, sg, ret, DMA_MEM_TO_DEV,
+					       DMA_CTRL_ACK);
 
 	if (desc) {
 		reinit_completion(&host->dma_dataend);
@@ -308,7 +308,7 @@ pio:
 }
 
 static void renesas_sdhi_sys_dmac_start_dma(struct tmio_mmc_host *host,
-			       struct mmc_data *data)
+					    struct mmc_data *data)
 {
 	if (data->flags & MMC_DATA_READ) {
 		if (host->chan_rx)
@@ -346,7 +346,7 @@ static void renesas_sdhi_sys_dmac_request_dma(struct tmio_mmc_host *host,
 {
 	/* We can only either use DMA for both Tx and Rx or not use it at all */
 	if (!host->dma || (!host->pdev->dev.of_node &&
-		(!pdata->chan_priv_tx || !pdata->chan_priv_rx)))
+			   (!pdata->chan_priv_tx || !pdata->chan_priv_rx)))
 		return;
 
 	if (!host->chan_tx && !host->chan_rx) {
@@ -372,7 +372,8 @@ static void renesas_sdhi_sys_dmac_request_dma(struct tmio_mmc_host *host,
 			return;
 
 		cfg.direction = DMA_MEM_TO_DEV;
-		cfg.dst_addr = res->start + (CTL_SD_DATA_PORT << host->bus_shift);
+		cfg.dst_addr = res->start +
+			(CTL_SD_DATA_PORT << host->bus_shift);
 		cfg.dst_addr_width = host->dma->dma_buswidth;
 		if (!cfg.dst_addr_width)
 			cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
@@ -428,11 +429,13 @@ static void renesas_sdhi_sys_dmac_release_dma(struct tmio_mmc_host *host)
 {
 	if (host->chan_tx) {
 		struct dma_chan *chan = host->chan_tx;
+
 		host->chan_tx = NULL;
 		dma_release_channel(chan);
 	}
 	if (host->chan_rx) {
 		struct dma_chan *chan = host->chan_rx;
+
 		host->chan_rx = NULL;
 		dma_release_channel(chan);
 	}
@@ -457,10 +460,10 @@ static int renesas_sdhi_sys_dmac_probe(struct platform_device *pdev)
 
 static const struct dev_pm_ops renesas_sdhi_sys_dmac_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-			pm_runtime_force_resume)
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(tmio_mmc_host_runtime_suspend,
-			tmio_mmc_host_runtime_resume,
-			NULL)
+			   tmio_mmc_host_runtime_resume,
+			   NULL)
 };
 
 static struct platform_driver renesas_sys_dmac_sdhi_driver = {

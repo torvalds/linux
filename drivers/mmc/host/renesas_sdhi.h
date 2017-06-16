@@ -34,6 +34,6 @@ struct renesas_sdhi_of_data {
 };
 
 int renesas_sdhi_probe(struct platform_device *pdev,
-                       const struct tmio_mmc_dma_ops *dma_ops);
+		       const struct tmio_mmc_dma_ops *dma_ops);
 int renesas_sdhi_remove(struct platform_device *pdev);
 #endif
