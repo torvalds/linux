@@ -605,6 +605,8 @@ void i915_vma_unlink_ctx(struct i915_vma *vma)
 	if (i915_vma_is_ggtt(vma))
 		vma->obj->vma_hashed = NULL;
 	vma->ctx = NULL;
+
+	i915_vma_put(vma);
 }
 
 void i915_vma_close(struct i915_vma *vma)

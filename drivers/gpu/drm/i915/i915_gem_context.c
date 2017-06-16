@@ -152,6 +152,7 @@ static void vma_lut_free(struct i915_gem_context *ctx)
 		hlist_for_each_entry(vma, &lut->ht[i], ctx_node) {
 			vma->obj->vma_hashed = NULL;
 			vma->ctx = NULL;
+			i915_vma_put(vma);
 		}
 	}
 	kvfree(lut->ht);

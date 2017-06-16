@@ -42,11 +42,12 @@
 
 #define DBG_USE_CPU_RELOC 0 /* -1 force GTT relocs; 1 force CPU relocs */
 
-#define __EXEC_OBJECT_HAS_PIN		BIT(31)
-#define __EXEC_OBJECT_HAS_FENCE		BIT(30)
-#define __EXEC_OBJECT_NEEDS_MAP		BIT(29)
-#define __EXEC_OBJECT_NEEDS_BIAS	BIT(28)
-#define __EXEC_OBJECT_INTERNAL_FLAGS	(~0u << 28) /* all of the above */
+#define __EXEC_OBJECT_HAS_REF		BIT(31)
+#define __EXEC_OBJECT_HAS_PIN		BIT(30)
+#define __EXEC_OBJECT_HAS_FENCE		BIT(29)
+#define __EXEC_OBJECT_NEEDS_MAP		BIT(28)
+#define __EXEC_OBJECT_NEEDS_BIAS	BIT(27)
+#define __EXEC_OBJECT_INTERNAL_FLAGS	(~0u << 27) /* all of the above */
 #define __EXEC_OBJECT_RESERVED (__EXEC_OBJECT_HAS_PIN | __EXEC_OBJECT_HAS_FENCE)
 
 #define __EXEC_HAS_RELOC	BIT(31)
@@ -465,7 +466,7 @@ eb_add_vma(struct i915_execbuffer *eb,
 	 * to find the right target VMA when doing relocations.
 	 */
 	vma->exec_entry = entry;
-	__exec_to_vma(entry) = (uintptr_t)i915_vma_get(vma);
+	__exec_to_vma(entry) = (uintptr_t)vma;
 
 	err = 0;
 	if (vma->node.size)
@@ -769,11 +770,19 @@ next_vma: ;
 				GEM_BUG_ON(obj->vma_hashed);
 				obj->vma_hashed = vma;
 			}
+
+			i915_vma_get(vma);
 		}
 
 		err = eb_add_vma(eb, &eb->exec[i], vma);
 		if (unlikely(err))
 			goto err;
+
+		/* Only after we validated the user didn't use our bits */
+		if (vma->ctx != eb->ctx) {
+			i915_vma_get(vma);
+			eb->exec[i].flags |= __EXEC_OBJECT_HAS_REF;
+		}
 	}
 
 	if (lut->ht_size & I915_CTX_RESIZE_IN_PROGRESS) {
@@ -850,9 +859,14 @@ static void eb_release_vmas(const struct i915_execbuffer *eb)
 		GEM_BUG_ON(vma->exec_entry != entry);
 		vma->exec_entry = NULL;
 
-		eb_unreserve_vma(vma, entry);
+		if (entry->flags & __EXEC_OBJECT_HAS_PIN)
+			__eb_unreserve_vma(vma, entry);
 
-		i915_vma_put(vma);
+		if (entry->flags & __EXEC_OBJECT_HAS_REF)
+			i915_vma_put(vma);
+
+		entry->flags &=
+			~(__EXEC_OBJECT_RESERVED | __EXEC_OBJECT_HAS_REF);
 	}
 }
 
@@ -1623,7 +1637,8 @@ skip_flushes:
 		struct i915_vma *vma = exec_to_vma(entry);
 
 		eb_export_fence(vma->obj, eb->request, entry->flags);
-		i915_vma_put(vma);
+		if (unlikely(entry->flags & __EXEC_OBJECT_HAS_REF))
+			i915_vma_put(vma);
 	}
 	eb->exec = NULL;
 
@@ -1752,7 +1767,7 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb, bool is_master)
 	vma->exec_entry =
 		memset(&eb->exec[eb->buffer_count++],
 		       0, sizeof(*vma->exec_entry));
-	vma->exec_entry->flags = __EXEC_OBJECT_HAS_PIN;
+	vma->exec_entry->flags = __EXEC_OBJECT_HAS_PIN | __EXEC_OBJECT_HAS_REF;
 	__exec_to_vma(vma->exec_entry) = (uintptr_t)i915_vma_get(vma);
 
 out:
