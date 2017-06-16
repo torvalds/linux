@@ -171,7 +171,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 		else
 			statep = "INIT";
 		len += snprintf(buf + len, PAGE_SIZE - len,
-				"NVME Target: Enabled  State %s\n",
+				"NVME Target Enabled  State %s\n",
 				statep);
 		len += snprintf(buf + len, PAGE_SIZE - len,
 				"%s%d WWPN x%llx WWNN x%llx DID x%06x\n",
