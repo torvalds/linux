@@ -1282,7 +1282,7 @@ xfs_da3_fixhashpath(
 			return;
 		break;
 	case XFS_DIR2_LEAFN_MAGIC:
-		lasthash = xfs_dir2_leafn_lasthash(dp, blk->bp, &count);
+		lasthash = xfs_dir2_leaf_lasthash(dp, blk->bp, &count);
 		if (count == 0)
 			return;
 		break;
@@ -1502,8 +1502,8 @@ xfs_da3_node_lookup_int(
 		if (blk->magic == XFS_DIR2_LEAFN_MAGIC ||
 		    blk->magic == XFS_DIR3_LEAFN_MAGIC) {
 			blk->magic = XFS_DIR2_LEAFN_MAGIC;
-			blk->hashval = xfs_dir2_leafn_lasthash(args->dp,
-							       blk->bp, NULL);
+			blk->hashval = xfs_dir2_leaf_lasthash(args->dp,
+							      blk->bp, NULL);
 			break;
 		}
 
@@ -1929,8 +1929,8 @@ xfs_da3_path_shift(
 			blk->magic = XFS_DIR2_LEAFN_MAGIC;
 			ASSERT(level == path->active-1);
 			blk->index = 0;
-			blk->hashval = xfs_dir2_leafn_lasthash(args->dp,
-							       blk->bp, NULL);
+			blk->hashval = xfs_dir2_leaf_lasthash(args->dp,
+							      blk->bp, NULL);
 			break;
 		default:
 			ASSERT(0);
