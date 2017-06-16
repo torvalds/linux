@@ -1096,7 +1096,7 @@ static int inc_usecount(void *send_info)
 {
 	struct ssif_info *ssif_info = send_info;
 
-	if (!i2c_get_adapter(ssif_info->client->adapter->nr))
+	if (!i2c_get_adapter(i2c_adapter_id(ssif_info->client->adapter)))
 		return -ENODEV;
 
 	i2c_use_client(ssif_info->client);
@@ -1665,7 +1665,8 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	{
 		unsigned int thread_num;
 
-		thread_num = ((ssif_info->client->adapter->nr << 8) |
+		thread_num = ((i2c_adapter_id(ssif_info->client->adapter)
+			       << 8) |
 			      ssif_info->client->addr);
 		init_completion(&ssif_info->wake_thread);
 		ssif_info->thread = kthread_run(ipmi_ssif_thread, ssif_info,
