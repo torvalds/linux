@@ -4397,7 +4397,6 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		GEM_BUG_ON(i915_gem_object_is_active(obj));
 		list_for_each_entry_safe(vma, vn,
 					 &obj->vma_list, obj_link) {
-			GEM_BUG_ON(!i915_vma_is_ggtt(vma));
 			GEM_BUG_ON(i915_vma_is_active(vma));
 			vma->flags &= ~I915_VMA_PIN_MASK;
 			i915_vma_close(vma);

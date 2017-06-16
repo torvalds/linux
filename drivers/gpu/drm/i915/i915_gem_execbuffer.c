@@ -40,7 +40,12 @@
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
 
-#define DBG_USE_CPU_RELOC 0 /* -1 force GTT relocs; 1 force CPU relocs */
+enum {
+	FORCE_CPU_RELOC = 1,
+	FORCE_GTT_RELOC,
+	FORCE_GPU_RELOC,
+#define DBG_FORCE_RELOC 0 /* choose one of the above! */
+};
 
 #define __EXEC_OBJECT_HAS_REF		BIT(31)
 #define __EXEC_OBJECT_HAS_PIN		BIT(30)
@@ -212,10 +217,15 @@ struct i915_execbuffer {
 		struct drm_mm_node node; /** temporary GTT binding */
 		unsigned long vaddr; /** Current kmap address */
 		unsigned long page; /** Currently mapped page index */
+		unsigned int gen; /** Cached value of INTEL_GEN */
 		bool use_64bit_reloc : 1;
 		bool has_llc : 1;
 		bool has_fence : 1;
 		bool needs_unfenced : 1;
+
+		struct drm_i915_gem_request *rq;
+		u32 *rq_cmd;
+		unsigned int rq_size;
 	} reloc_cache;
 
 	u64 invalid_flags; /** Set of execobj.flags that are invalid */
@@ -496,8 +506,11 @@ static inline int use_cpu_reloc(const struct reloc_cache *cache,
 	if (!i915_gem_object_has_struct_page(obj))
 		return false;
 
-	if (DBG_USE_CPU_RELOC)
-		return DBG_USE_CPU_RELOC > 0;
+	if (DBG_FORCE_RELOC == FORCE_CPU_RELOC)
+		return true;
+
+	if (DBG_FORCE_RELOC == FORCE_GTT_RELOC)
+		return false;
 
 	return (cache->has_llc ||
 		obj->cache_dirty ||
@@ -887,6 +900,8 @@ static void eb_reset_vmas(const struct i915_execbuffer *eb)
 
 static void eb_destroy(const struct i915_execbuffer *eb)
 {
+	GEM_BUG_ON(eb->reloc_cache.rq);
+
 	if (eb->lut_size >= 0)
 		kfree(eb->buckets);
 }
@@ -904,11 +919,14 @@ static void reloc_cache_init(struct reloc_cache *cache,
 	cache->page = -1;
 	cache->vaddr = 0;
 	/* Must be a variable in the struct to allow GCC to unroll. */
+	cache->gen = INTEL_GEN(i915);
 	cache->has_llc = HAS_LLC(i915);
-	cache->has_fence = INTEL_GEN(i915) < 4;
-	cache->needs_unfenced = INTEL_INFO(i915)->unfenced_needs_alignment;
 	cache->use_64bit_reloc = HAS_64BIT_RELOC(i915);
+	cache->has_fence = cache->gen < 4;
+	cache->needs_unfenced = INTEL_INFO(i915)->unfenced_needs_alignment;
 	cache->node.allocated = false;
+	cache->rq = NULL;
+	cache->rq_size = 0;
 }
 
 static inline void *unmask_page(unsigned long p)
@@ -930,9 +948,23 @@ static inline struct i915_ggtt *cache_to_ggtt(struct reloc_cache *cache)
 	return &i915->ggtt;
 }
 
+static void reloc_gpu_flush(struct reloc_cache *cache)
+{
+	GEM_BUG_ON(cache->rq_size >= cache->rq->batch->obj->base.size / sizeof(u32));
+	cache->rq_cmd[cache->rq_size] = MI_BATCH_BUFFER_END;
+	i915_gem_object_unpin_map(cache->rq->batch->obj);
+	i915_gem_chipset_flush(cache->rq->i915);
+
+	__i915_add_request(cache->rq, true);
+	cache->rq = NULL;
+}
+
 static void reloc_cache_reset(struct reloc_cache *cache)
 {
 	void *vaddr;
+
+	if (cache->rq)
+		reloc_gpu_flush(cache);
 
 	if (!cache->vaddr)
 		return;
@@ -1099,6 +1131,121 @@ static void clflush_write32(u32 *addr, u32 value, unsigned int flushes)
 		*addr = value;
 }
 
+static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
+			     struct i915_vma *vma,
+			     unsigned int len)
+{
+	struct reloc_cache *cache = &eb->reloc_cache;
+	struct drm_i915_gem_object *obj;
+	struct drm_i915_gem_request *rq;
+	struct i915_vma *batch;
+	u32 *cmd;
+	int err;
+
+	GEM_BUG_ON(vma->obj->base.write_domain & I915_GEM_DOMAIN_CPU);
+
+	obj = i915_gem_batch_pool_get(&eb->engine->batch_pool, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	cmd = i915_gem_object_pin_map(obj,
+				      cache->has_llc ? I915_MAP_WB : I915_MAP_WC);
+	i915_gem_object_unpin_pages(obj);
+	if (IS_ERR(cmd))
+		return PTR_ERR(cmd);
+
+	err = i915_gem_object_set_to_wc_domain(obj, false);
+	if (err)
+		goto err_unmap;
+
+	batch = i915_vma_instance(obj, vma->vm, NULL);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		goto err_unmap;
+	}
+
+	err = i915_vma_pin(batch, 0, 0, PIN_USER | PIN_NONBLOCK);
+	if (err)
+		goto err_unmap;
+
+	rq = i915_gem_request_alloc(eb->engine, eb->ctx);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_unpin;
+	}
+
+	err = i915_gem_request_await_object(rq, vma->obj, true);
+	if (err)
+		goto err_request;
+
+	err = eb->engine->emit_flush(rq, EMIT_INVALIDATE);
+	if (err)
+		goto err_request;
+
+	err = i915_switch_context(rq);
+	if (err)
+		goto err_request;
+
+	err = eb->engine->emit_bb_start(rq,
+					batch->node.start, PAGE_SIZE,
+					cache->gen > 5 ? 0 : I915_DISPATCH_SECURE);
+	if (err)
+		goto err_request;
+
+	GEM_BUG_ON(!reservation_object_test_signaled_rcu(obj->resv, true));
+	i915_vma_move_to_active(batch, rq, 0);
+	reservation_object_lock(obj->resv, NULL);
+	reservation_object_add_excl_fence(obj->resv, &rq->fence);
+	reservation_object_unlock(obj->resv);
+	i915_vma_unpin(batch);
+
+	i915_vma_move_to_active(vma, rq, true);
+	reservation_object_lock(vma->obj->resv, NULL);
+	reservation_object_add_excl_fence(vma->obj->resv, &rq->fence);
+	reservation_object_unlock(vma->obj->resv);
+
+	rq->batch = batch;
+
+	cache->rq = rq;
+	cache->rq_cmd = cmd;
+	cache->rq_size = 0;
+
+	/* Return with batch mapping (cmd) still pinned */
+	return 0;
+
+err_request:
+	i915_add_request(rq);
+err_unpin:
+	i915_vma_unpin(batch);
+err_unmap:
+	i915_gem_object_unpin_map(obj);
+	return err;
+}
+
+static u32 *reloc_gpu(struct i915_execbuffer *eb,
+		      struct i915_vma *vma,
+		      unsigned int len)
+{
+	struct reloc_cache *cache = &eb->reloc_cache;
+	u32 *cmd;
+
+	if (cache->rq_size > PAGE_SIZE/sizeof(u32) - (len + 1))
+		reloc_gpu_flush(cache);
+
+	if (unlikely(!cache->rq)) {
+		int err;
+
+		err = __reloc_gpu_alloc(eb, vma, len);
+		if (unlikely(err))
+			return ERR_PTR(err);
+	}
+
+	cmd = cache->rq_cmd + cache->rq_size;
+	cache->rq_size += len;
+
+	return cmd;
+}
+
 static u64
 relocate_entry(struct i915_vma *vma,
 	       const struct drm_i915_gem_relocation_entry *reloc,
@@ -1110,6 +1257,67 @@ relocate_entry(struct i915_vma *vma,
 	u64 target_offset = relocation_target(reloc, target);
 	bool wide = eb->reloc_cache.use_64bit_reloc;
 	void *vaddr;
+
+	if (!eb->reloc_cache.vaddr &&
+	    (DBG_FORCE_RELOC == FORCE_GPU_RELOC ||
+	     !reservation_object_test_signaled_rcu(obj->resv, true))) {
+		const unsigned int gen = eb->reloc_cache.gen;
+		unsigned int len;
+		u32 *batch;
+		u64 addr;
+
+		if (wide)
+			len = offset & 7 ? 8 : 5;
+		else if (gen >= 4)
+			len = 4;
+		else if (gen >= 3)
+			len = 3;
+		else /* On gen2 MI_STORE_DWORD_IMM uses a physical address */
+			goto repeat;
+
+		batch = reloc_gpu(eb, vma, len);
+		if (IS_ERR(batch))
+			goto repeat;
+
+		addr = gen8_canonical_addr(vma->node.start + offset);
+		if (wide) {
+			if (offset & 7) {
+				*batch++ = MI_STORE_DWORD_IMM_GEN4;
+				*batch++ = lower_32_bits(addr);
+				*batch++ = upper_32_bits(addr);
+				*batch++ = lower_32_bits(target_offset);
+
+				addr = gen8_canonical_addr(addr + 4);
+
+				*batch++ = MI_STORE_DWORD_IMM_GEN4;
+				*batch++ = lower_32_bits(addr);
+				*batch++ = upper_32_bits(addr);
+				*batch++ = upper_32_bits(target_offset);
+			} else {
+				*batch++ = (MI_STORE_DWORD_IMM_GEN4 | (1 << 21)) + 1;
+				*batch++ = lower_32_bits(addr);
+				*batch++ = upper_32_bits(addr);
+				*batch++ = lower_32_bits(target_offset);
+				*batch++ = upper_32_bits(target_offset);
+			}
+		} else if (gen >= 6) {
+			*batch++ = MI_STORE_DWORD_IMM_GEN4;
+			*batch++ = 0;
+			*batch++ = addr;
+			*batch++ = target_offset;
+		} else if (gen >= 4) {
+			*batch++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
+			*batch++ = 0;
+			*batch++ = addr;
+			*batch++ = target_offset;
+		} else {
+			*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
+			*batch++ = addr;
+			*batch++ = target_offset;
+		}
+
+		goto out;
+	}
 
 repeat:
 	vaddr = reloc_vaddr(obj, &eb->reloc_cache, offset >> PAGE_SHIFT);
@@ -1127,6 +1335,7 @@ repeat:
 		goto repeat;
 	}
 
+out:
 	return target->node.start | UPDATE;
 }
 
@@ -1189,7 +1398,8 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 	 * If the relocation already has the right value in it, no
 	 * more work needs to be done.
 	 */
-	if (gen8_canonical_addr(target->node.start) == reloc->presumed_offset)
+	if (!DBG_FORCE_RELOC &&
+	    gen8_canonical_addr(target->node.start) == reloc->presumed_offset)
 		return 0;
 
 	/* Check that the relocation address is valid... */
@@ -1915,7 +2125,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	eb.i915 = to_i915(dev);
 	eb.file = file;
 	eb.args = args;
-	if (!(args->flags & I915_EXEC_NO_RELOC))
+	if (DBG_FORCE_RELOC || !(args->flags & I915_EXEC_NO_RELOC))
 		args->flags |= __EXEC_HAS_RELOC;
 	eb.exec = exec;
 	eb.ctx = NULL;
@@ -2067,6 +2277,9 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 
 		eb.batch = vma;
 	}
+
+	/* All GPU relocation batches must be submitted prior to the user rq */
+	GEM_BUG_ON(eb.reloc_cache.rq);
 
 	/* Allocate a request for this batch buffer nice and early. */
 	eb.request = i915_gem_request_alloc(eb.engine, eb.ctx);
