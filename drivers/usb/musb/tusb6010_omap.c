@@ -173,13 +173,7 @@ static void tusb_omap_dma_cb(int lch, u16 ch_status, void *data)
 
 	channel->status = MUSB_DMA_STATUS_FREE;
 
-	/* Handle only RX callbacks here. TX callbacks must be handled based
-	 * on the TUSB DMA status interrupt.
-	 * REVISIT: Use both TUSB DMA status interrupt and OMAP DMA callback
-	 * interrupt for RX and TX.
-	 */
-	if (!chdat->tx)
-		musb_dma_completion(musb, chdat->epnum, chdat->tx);
+	musb_dma_completion(musb, chdat->epnum, chdat->tx);
 
 	/* We must terminate short tx transfers manually by setting TXPKTRDY.
 	 * REVISIT: This same problem may occur with other MUSB dma as well.
@@ -464,22 +458,12 @@ tusb_omap_dma_allocate(struct dma_controller *c,
 	int ret, i;
 	struct tusb_omap_dma	*tusb_dma;
 	struct musb		*musb;
-	void __iomem		*tbase;
 	struct dma_channel	*channel = NULL;
 	struct tusb_omap_dma_ch	*chdat = NULL;
 	struct tusb_dma_data	*dma_data = NULL;
-	u32			reg;
 
 	tusb_dma = container_of(c, struct tusb_omap_dma, controller);
 	musb = tusb_dma->controller.musb;
-	tbase = musb->ctrl_base;
-
-	reg = musb_readl(tbase, TUSB_DMA_INT_MASK);
-	if (tx)
-		reg &= ~(1 << hw_ep->epnum);
-	else
-		reg &= ~(1 << (hw_ep->epnum + 15));
-	musb_writel(tbase, TUSB_DMA_INT_MASK, reg);
 
 	/* REVISIT: Why does dmareq5 not work? */
 	if (hw_ep->epnum == 0) {
@@ -548,25 +532,9 @@ static void tusb_omap_dma_release(struct dma_channel *channel)
 {
 	struct tusb_omap_dma_ch	*chdat = to_chdat(channel);
 	struct musb		*musb = chdat->musb;
-	void __iomem		*tbase = musb->ctrl_base;
-	u32			reg;
 
 	dev_dbg(musb->controller, "ep%i ch%i\n", chdat->epnum,
 		chdat->dma_data->ch);
-
-	reg = musb_readl(tbase, TUSB_DMA_INT_MASK);
-	if (chdat->tx)
-		reg |= (1 << chdat->epnum);
-	else
-		reg |= (1 << (chdat->epnum + 15));
-	musb_writel(tbase, TUSB_DMA_INT_MASK, reg);
-
-	reg = musb_readl(tbase, TUSB_DMA_INT_CLEAR);
-	if (chdat->tx)
-		reg |= (1 << chdat->epnum);
-	else
-		reg |= (1 << (chdat->epnum + 15));
-	musb_writel(tbase, TUSB_DMA_INT_CLEAR, reg);
 
 	channel->status = MUSB_DMA_STATUS_UNKNOWN;
 
