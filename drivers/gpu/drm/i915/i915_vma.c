@@ -576,7 +576,7 @@ err_unpin:
 	return ret;
 }
 
-void i915_vma_destroy(struct i915_vma *vma)
+static void i915_vma_destroy(struct i915_vma *vma)
 {
 	GEM_BUG_ON(vma->node.allocated);
 	GEM_BUG_ON(i915_vma_is_active(vma));
