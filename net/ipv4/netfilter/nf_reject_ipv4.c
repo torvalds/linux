@@ -51,7 +51,7 @@ struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
 	struct iphdr *niph, *oiph = ip_hdr(oldskb);
 
 	skb_reset_network_header(nskb);
-	niph = (struct iphdr *)skb_put(nskb, sizeof(struct iphdr));
+	niph = skb_put(nskb, sizeof(struct iphdr));
 	niph->version	= 4;
 	niph->ihl	= sizeof(struct iphdr) / 4;
 	niph->tos	= 0;

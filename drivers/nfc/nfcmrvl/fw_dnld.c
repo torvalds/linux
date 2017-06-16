@@ -92,7 +92,7 @@ static struct sk_buff *alloc_lc_skb(struct nfcmrvl_private *priv, uint8_t plen)
 		return NULL;
 	}
 
-	hdr = (struct nci_data_hdr *) skb_put(skb, NCI_DATA_HDR_SIZE);
+	hdr = skb_put(skb, NCI_DATA_HDR_SIZE);
 	hdr->conn_id = NCI_CORE_LC_CONNID_PROP_FW_DL;
 	hdr->rfu = 0;
 	hdr->plen = plen;
@@ -292,7 +292,7 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 			out_skb = alloc_lc_skb(priv, 1);
 			if (!out_skb)
 				return -ENOMEM;
-			*skb_put(out_skb, 1) = 0xBF;
+			*(u8 *)skb_put(out_skb, 1) = 0xBF;
 			nci_send_frame(priv->ndev, out_skb);
 			priv->fw_dnld.substate = SUBSTATE_WAIT_NACK_CREDIT;
 			return 0;
@@ -301,7 +301,7 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 		out_skb = alloc_lc_skb(priv, 1);
 		if (!out_skb)
 			return -ENOMEM;
-		*skb_put(out_skb, 1) = HELPER_ACK_PACKET_FORMAT;
+		*(u8 *)skb_put(out_skb, 1) = HELPER_ACK_PACKET_FORMAT;
 		nci_send_frame(priv->ndev, out_skb);
 		priv->fw_dnld.substate = SUBSTATE_WAIT_ACK_CREDIT;
 		break;

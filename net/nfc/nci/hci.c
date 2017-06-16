@@ -472,7 +472,7 @@ void nci_hci_data_received_cb(void *context,
 			return;
 		}
 
-		*skb_put(hcp_skb, NCI_HCI_HCP_PACKET_HEADER_LEN) = pipe;
+		*(u8 *)skb_put(hcp_skb, NCI_HCI_HCP_PACKET_HEADER_LEN) = pipe;
 
 		skb_queue_walk(&ndev->hci_dev->rx_hcp_frags, frag_skb) {
 			msg_len = frag_skb->len - NCI_HCI_HCP_PACKET_HEADER_LEN;

@@ -597,7 +597,7 @@ static int send_flowc(struct c4iw_ep *ep)
 	else
 		nparams = 9;
 
-	flowc = (struct fw_flowc_wr *)__skb_put(skb, FLOWC_LEN);
+	flowc = __skb_put(skb, FLOWC_LEN);
 
 	flowc->op_to_nparams = cpu_to_be32(FW_WR_OP_V(FW_FLOWC_WR) |
 					   FW_FLOWC_WR_NPARAMS_V(nparams));
@@ -787,18 +787,16 @@ static int send_connect(struct c4iw_ep *ep)
 	if (ep->com.remote_addr.ss_family == AF_INET) {
 		switch (CHELSIO_CHIP_VERSION(adapter_type)) {
 		case CHELSIO_T4:
-			req = (struct cpl_act_open_req *)skb_put(skb, wrlen);
+			req = skb_put(skb, wrlen);
 			INIT_TP_WR(req, 0);
 			break;
 		case CHELSIO_T5:
-			t5req = (struct cpl_t5_act_open_req *)skb_put(skb,
-					wrlen);
+			t5req = skb_put(skb, wrlen);
 			INIT_TP_WR(t5req, 0);
 			req = (struct cpl_act_open_req *)t5req;
 			break;
 		case CHELSIO_T6:
-			t6req = (struct cpl_t6_act_open_req *)skb_put(skb,
-					wrlen);
+			t6req = skb_put(skb, wrlen);
 			INIT_TP_WR(t6req, 0);
 			req = (struct cpl_act_open_req *)t6req;
 			t5req = (struct cpl_t5_act_open_req *)t6req;
@@ -839,18 +837,16 @@ static int send_connect(struct c4iw_ep *ep)
 	} else {
 		switch (CHELSIO_CHIP_VERSION(adapter_type)) {
 		case CHELSIO_T4:
-			req6 = (struct cpl_act_open_req6 *)skb_put(skb, wrlen);
+			req6 = skb_put(skb, wrlen);
 			INIT_TP_WR(req6, 0);
 			break;
 		case CHELSIO_T5:
-			t5req6 = (struct cpl_t5_act_open_req6 *)skb_put(skb,
-					wrlen);
+			t5req6 = skb_put(skb, wrlen);
 			INIT_TP_WR(t5req6, 0);
 			req6 = (struct cpl_act_open_req6 *)t5req6;
 			break;
 		case CHELSIO_T6:
-			t6req6 = (struct cpl_t6_act_open_req6 *)skb_put(skb,
-					wrlen);
+			t6req6 = skb_put(skb, wrlen);
 			INIT_TP_WR(t6req6, 0);
 			req6 = (struct cpl_act_open_req6 *)t6req6;
 			t5req6 = (struct cpl_t5_act_open_req6 *)t6req6;
@@ -1904,7 +1900,7 @@ static int send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	int win;
 
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
-	req = (struct fw_ofld_connection_wr *)__skb_put(skb, sizeof(*req));
+	req = __skb_put(skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
 	req->op_compl = htonl(WR_OP_V(FW_OFLD_CONNECTION_WR));
 	req->len16_pkd = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*req), 16)));
@@ -3807,7 +3803,7 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	req_skb = alloc_skb(sizeof(struct fw_ofld_connection_wr), GFP_KERNEL);
 	if (!req_skb)
 		return;
-	req = (struct fw_ofld_connection_wr *)__skb_put(req_skb, sizeof(*req));
+	req = __skb_put(req_skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
 	req->op_compl = htonl(WR_OP_V(FW_OFLD_CONNECTION_WR) | FW_WR_COMPL_F);
 	req->len16_pkd = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*req), 16)));

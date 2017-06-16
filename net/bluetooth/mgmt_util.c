@@ -66,7 +66,7 @@ int mgmt_send_event(u16 event, struct hci_dev *hdev, unsigned short channel,
 	if (!skb)
 		return -ENOMEM;
 
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 	hdr->opcode = cpu_to_le16(event);
 	if (hdev)
 		hdr->index = cpu_to_le16(hdev->id);
@@ -103,13 +103,13 @@ int mgmt_cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 	if (!skb)
 		return -ENOMEM;
 
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 
 	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_STATUS);
 	hdr->index = cpu_to_le16(index);
 	hdr->len = cpu_to_le16(sizeof(*ev));
 
-	ev = (void *) skb_put(skb, sizeof(*ev));
+	ev = skb_put(skb, sizeof(*ev));
 	ev->status = status;
 	ev->opcode = cpu_to_le16(cmd);
 
@@ -147,13 +147,13 @@ int mgmt_cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 	if (!skb)
 		return -ENOMEM;
 
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 
 	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
 	hdr->index = cpu_to_le16(index);
 	hdr->len = cpu_to_le16(sizeof(*ev) + rp_len);
 
-	ev = (void *) skb_put(skb, sizeof(*ev) + rp_len);
+	ev = skb_put(skb, sizeof(*ev) + rp_len);
 	ev->opcode = cpu_to_le16(cmd);
 	ev->status = status;
 

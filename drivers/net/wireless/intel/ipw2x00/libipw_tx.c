@@ -439,8 +439,7 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (rts_required) {
 		skb_frag = txb->fragments[0];
-		frag_hdr =
-		    (struct libipw_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
+		frag_hdr = skb_put(skb_frag, hdr_len);
 
 		/*
 		 * Set header frame_ctl to the RTS.

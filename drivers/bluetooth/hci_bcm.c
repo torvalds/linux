@@ -262,9 +262,9 @@ static int bcm_set_diag(struct hci_dev *hdev, bool enable)
 	if (!skb)
 		return -ENOMEM;
 
-	*skb_put(skb, 1) = BCM_LM_DIAG_PKT;
-	*skb_put(skb, 1) = 0xf0;
-	*skb_put(skb, 1) = enable;
+	*(u8 *)skb_put(skb, 1) = BCM_LM_DIAG_PKT;
+	*(u8 *)skb_put(skb, 1) = 0xf0;
+	*(u8 *)skb_put(skb, 1) = enable;
 
 	skb_queue_tail(&bcm->txq, skb);
 	hci_uart_tx_wakeup(hu);

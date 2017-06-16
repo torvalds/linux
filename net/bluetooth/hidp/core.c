@@ -112,7 +112,7 @@ static int hidp_send_message(struct hidp_session *session, struct socket *sock,
 		return -ENOMEM;
 	}
 
-	*skb_put(skb, 1) = hdr;
+	*(u8 *)skb_put(skb, 1) = hdr;
 	if (data && size > 0)
 		skb_put_data(skb, data, size);
 

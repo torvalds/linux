@@ -86,7 +86,7 @@ static void fdp_nci_i2c_add_len_lrc(struct sk_buff *skb)
 	for (i = 0; i < len + 2; i++)
 		lrc ^= skb->data[i];
 
-	*skb_put(skb, 1) = lrc;
+	*(u8 *)skb_put(skb, 1) = lrc;
 }
 
 static void fdp_nci_i2c_remove_len_lrc(struct sk_buff *skb)

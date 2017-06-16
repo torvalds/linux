@@ -863,7 +863,7 @@ static int rfcomm_queue_disc(struct rfcomm_dlc *d)
 	if (!skb)
 		return -ENOMEM;
 
-	cmd = (void *) __skb_put(skb, sizeof(*cmd));
+	cmd = __skb_put(skb, sizeof(*cmd));
 	cmd->addr = d->addr;
 	cmd->ctrl = __ctrl(RFCOMM_DISC, 1);
 	cmd->len  = __len8(0);

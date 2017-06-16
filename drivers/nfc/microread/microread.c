@@ -441,8 +441,8 @@ static int microread_im_transceive(struct nfc_hci_dev *hdev,
 
 		crc = crc_ccitt(0xffff, skb->data, skb->len);
 		crc = ~crc;
-		*skb_put(skb, 1) = crc & 0xff;
-		*skb_put(skb, 1) = crc >> 8;
+		*(u8 *)skb_put(skb, 1) = crc & 0xff;
+		*(u8 *)skb_put(skb, 1) = crc >> 8;
 		break;
 	case MICROREAD_GATE_ID_MREAD_NFC_T3:
 		control_bits = 0xDB;

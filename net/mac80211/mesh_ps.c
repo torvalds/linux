@@ -30,7 +30,7 @@ static struct sk_buff *mps_qos_null_get(struct sta_info *sta)
 		return NULL;
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	nullfunc = (struct ieee80211_hdr *) skb_put(skb, size);
+	nullfunc = skb_put(skb, size);
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_NULLFUNC);
 	ieee80211_fill_mesh_addresses(nullfunc, &fc, sta->sta.addr,
 				      sdata->vif.addr);

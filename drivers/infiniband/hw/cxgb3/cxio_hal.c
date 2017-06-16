@@ -835,7 +835,7 @@ int cxio_rdma_init(struct cxio_rdev *rdev_p, struct t3_rdma_init_attr *attr)
 	if (!skb)
 		return -ENOMEM;
 	pr_debug("%s rdev_p %p\n", __func__, rdev_p);
-	wqe = (struct t3_rdma_init_wr *) __skb_put(skb, sizeof(*wqe));
+	wqe = __skb_put(skb, sizeof(*wqe));
 	wqe->wrh.op_seop_flags = cpu_to_be32(V_FW_RIWR_OP(T3_WR_INIT));
 	wqe->wrh.gen_tid_len = cpu_to_be32(V_FW_RIWR_TID(attr->tid) |
 					   V_FW_RIWR_LEN(sizeof(*wqe) >> 3));

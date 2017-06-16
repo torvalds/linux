@@ -2361,7 +2361,7 @@ static void schedule_packet_send(local_info_t *local, struct sta_info *sta)
 		return;
 	}
 
-	hdr = (struct ieee80211_hdr *) skb_put(skb, 16);
+	hdr = skb_put(skb, 16);
 
 	/* Generate a fake pspoll frame to start packet delivery */
 	hdr->frame_control = cpu_to_le16(

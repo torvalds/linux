@@ -99,7 +99,7 @@ static struct sk_buff *virtio_transport_build_skb(void *opaque)
 	if (!skb)
 		return NULL;
 
-	hdr = (struct af_vsockmon_hdr *)skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 
 	/* pkt->hdr is little-endian so no need to byteswap here */
 	hdr->src_cid = pkt->hdr.src_cid;

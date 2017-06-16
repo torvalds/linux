@@ -205,7 +205,7 @@ static ssize_t solos_param_show(struct device *dev, struct device_attribute *att
 		return -ENOMEM;
 	}
 
-	header = (void *)skb_put(skb, sizeof(*header));
+	header = skb_put(skb, sizeof(*header));
 
 	buflen = snprintf((void *)&header[1], buflen - 1,
 			  "L%05d\n%s\n", current->pid, attr->attr.name);
@@ -261,7 +261,7 @@ static ssize_t solos_param_store(struct device *dev, struct device_attribute *at
 		return -ENOMEM;
 	}
 
-	header = (void *)skb_put(skb, sizeof(*header));
+	header = skb_put(skb, sizeof(*header));
 
 	buflen = snprintf((void *)&header[1], buflen - 1,
 			  "L%05d\n%s\n%s\n", current->pid, attr->attr.name, buf);
@@ -486,7 +486,7 @@ static int send_command(struct solos_card *card, int dev, const char *buf, size_
 		return 0;
 	}
 
-	header = (void *)skb_put(skb, sizeof(*header));
+	header = skb_put(skb, sizeof(*header));
 
 	header->size = cpu_to_le16(size);
 	header->vpi = cpu_to_le16(0);
@@ -945,7 +945,7 @@ static int popen(struct atm_vcc *vcc)
 			dev_warn(&card->dev->dev, "Failed to allocate sk_buff in popen()\n");
 		return -ENOMEM;
 	}
-	header = (void *)skb_put(skb, sizeof(*header));
+	header = skb_put(skb, sizeof(*header));
 
 	header->size = cpu_to_le16(0);
 	header->vpi = cpu_to_le16(vcc->vpi);
@@ -982,7 +982,7 @@ static void pclose(struct atm_vcc *vcc)
 		dev_warn(&card->dev->dev, "Failed to allocate sk_buff in pclose()\n");
 		return;
 	}
-	header = (void *)skb_put(skb, sizeof(*header));
+	header = skb_put(skb, sizeof(*header));
 
 	header->size = cpu_to_le16(0);
 	header->vpi = cpu_to_le16(vcc->vpi);
@@ -1398,7 +1398,7 @@ static int atm_init(struct solos_card *card, struct device *parent)
 			continue;
 		}
 
-		header = (void *)skb_put(skb, sizeof(*header));
+		header = skb_put(skb, sizeof(*header));
 
 		header->size = cpu_to_le16(0);
 		header->vpi = cpu_to_le16(0);

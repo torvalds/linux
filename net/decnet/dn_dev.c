@@ -846,7 +846,7 @@ static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 
 	skb->dev = dev;
 
-	msg = (struct endnode_hello_message *)skb_put(skb,sizeof(*msg));
+	msg = skb_put(skb, sizeof(*msg));
 
 	msg->msgflg  = 0x0D;
 	memcpy(msg->tiver, dn_eco_version, 3);

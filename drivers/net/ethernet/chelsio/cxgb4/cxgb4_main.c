@@ -1175,7 +1175,7 @@ static void mk_tid_release(struct sk_buff *skb, unsigned int chan,
 	struct cpl_tid_release *req;
 
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, chan);
-	req = (struct cpl_tid_release *)__skb_put(skb, sizeof(*req));
+	req = __skb_put(skb, sizeof(*req));
 	INIT_TP_WR(req, tid);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_TID_RELEASE, tid));
 }
@@ -1359,7 +1359,7 @@ int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 		return -ENOMEM;
 
 	adap = netdev2adap(dev);
-	req = (struct cpl_pass_open_req *)__skb_put(skb, sizeof(*req));
+	req = __skb_put(skb, sizeof(*req));
 	INIT_TP_WR(req, 0);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_PASS_OPEN_REQ, stid));
 	req->local_port = sport;
@@ -1400,7 +1400,7 @@ int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
 		return -ENOMEM;
 
 	adap = netdev2adap(dev);
-	req = (struct cpl_pass_open_req6 *)__skb_put(skb, sizeof(*req));
+	req = __skb_put(skb, sizeof(*req));
 	INIT_TP_WR(req, 0);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_PASS_OPEN_REQ6, stid));
 	req->local_port = sport;
@@ -1432,7 +1432,7 @@ int cxgb4_remove_server(const struct net_device *dev, unsigned int stid,
 	if (!skb)
 		return -ENOMEM;
 
-	req = (struct cpl_close_listsvr_req *)__skb_put(skb, sizeof(*req));
+	req = __skb_put(skb, sizeof(*req));
 	INIT_TP_WR(req, 0);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_LISTSRV_REQ, stid));
 	req->reply_ctrl = htons(NO_REPLY_V(0) | (ipv6 ? LISTSVR_IPV6_V(1) :

@@ -355,7 +355,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 
 		/* Eat byte after byte till full packet header is received */
 		if (nu->rx_skb->len < NCI_CTRL_HDR_SIZE) {
-			*skb_put(nu->rx_skb, 1) = *data++;
+			*(u8 *)skb_put(nu->rx_skb, 1) = *data++;
 			--count;
 			continue;
 		}

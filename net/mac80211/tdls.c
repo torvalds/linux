@@ -49,7 +49,7 @@ static void ieee80211_tdls_add_ext_capab(struct ieee80211_sub_if_data *sdata,
 			  !ifmgd->tdls_wider_bw_prohibited;
 	struct ieee80211_supported_band *sband = ieee80211_get_sband(sdata);
 	bool vht = sband && sband->vht_cap.vht_supported;
-	u8 *pos = (void *)skb_put(skb, 10);
+	u8 *pos = skb_put(skb, 10);
 
 	*pos++ = WLAN_EID_EXT_CAPABILITY;
 	*pos++ = 8; /* len */
@@ -168,7 +168,7 @@ static void ieee80211_tdls_add_oper_classes(struct ieee80211_sub_if_data *sdata,
 
 static void ieee80211_tdls_add_bss_coex_ie(struct sk_buff *skb)
 {
-	u8 *pos = (void *)skb_put(skb, 3);
+	u8 *pos = skb_put(skb, 3);
 
 	*pos++ = WLAN_EID_BSS_COEX_2040;
 	*pos++ = 1; /* len */
@@ -209,7 +209,7 @@ static void ieee80211_tdls_add_link_ie(struct ieee80211_sub_if_data *sdata,
 		rsp_addr = sdata->vif.addr;
 	}
 
-	lnkid = (void *)skb_put(skb, sizeof(struct ieee80211_tdls_lnkie));
+	lnkid = skb_put(skb, sizeof(struct ieee80211_tdls_lnkie));
 
 	lnkid->ie_type = WLAN_EID_LINK_ID;
 	lnkid->ie_len = sizeof(struct ieee80211_tdls_lnkie) - 2;
@@ -223,7 +223,7 @@ static void
 ieee80211_tdls_add_aid(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	u8 *pos = (void *)skb_put(skb, 4);
+	u8 *pos = skb_put(skb, 4);
 
 	*pos++ = WLAN_EID_AID;
 	*pos++ = 2; /* len */
@@ -745,7 +745,7 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_tdls_data *tf;
 
-	tf = (void *)skb_put(skb, offsetof(struct ieee80211_tdls_data, u));
+	tf = skb_put(skb, offsetof(struct ieee80211_tdls_data, u));
 
 	memcpy(tf->da, peer, ETH_ALEN);
 	memcpy(tf->sa, sdata->vif.addr, ETH_ALEN);

@@ -266,8 +266,8 @@ static int digital_in_send_rats(struct nfc_digital_dev *ddev,
 	if (!skb)
 		return -ENOMEM;
 
-	*skb_put(skb, 1) = DIGITAL_RATS_BYTE1;
-	*skb_put(skb, 1) = DIGITAL_RATS_PARAM;
+	*(u8 *)skb_put(skb, 1) = DIGITAL_RATS_BYTE1;
+	*(u8 *)skb_put(skb, 1) = DIGITAL_RATS_PARAM;
 
 	rc = digital_in_send_cmd(ddev, skb, 30, digital_in_recv_ats,
 				 target);
@@ -470,8 +470,8 @@ static int digital_in_send_sdd_req(struct nfc_digital_dev *ddev,
 	else
 		sel_cmd = DIGITAL_CMD_SEL_REQ_CL3;
 
-	*skb_put(skb, sizeof(u8)) = sel_cmd;
-	*skb_put(skb, sizeof(u8)) = DIGITAL_SDD_REQ_SEL_PAR;
+	*(u8 *)skb_put(skb, sizeof(u8)) = sel_cmd;
+	*(u8 *)skb_put(skb, sizeof(u8)) = DIGITAL_SDD_REQ_SEL_PAR;
 
 	return digital_in_send_cmd(ddev, skb, 30, digital_in_recv_sdd_res,
 				   target);
@@ -541,7 +541,7 @@ int digital_in_send_sens_req(struct nfc_digital_dev *ddev, u8 rf_tech)
 	if (!skb)
 		return -ENOMEM;
 
-	*skb_put(skb, sizeof(u8)) = DIGITAL_CMD_SENS_REQ;
+	*(u8 *)skb_put(skb, sizeof(u8)) = DIGITAL_CMD_SENS_REQ;
 
 	rc = digital_in_send_cmd(ddev, skb, 30, digital_in_recv_sens_res, NULL);
 	if (rc)
@@ -625,8 +625,7 @@ static int digital_in_send_attrib_req(struct nfc_digital_dev *ddev,
 	if (!skb)
 		return -ENOMEM;
 
-	attrib_req = (struct digital_attrib_req *)skb_put(skb,
-							  sizeof(*attrib_req));
+	attrib_req = skb_put(skb, sizeof(*attrib_req));
 
 	attrib_req->cmd = DIGITAL_CMD_ATTRIB_REQ;
 	memcpy(attrib_req->nfcid0, sensb_res->nfcid0,
@@ -730,8 +729,7 @@ int digital_in_send_sensb_req(struct nfc_digital_dev *ddev, u8 rf_tech)
 	if (!skb)
 		return -ENOMEM;
 
-	sensb_req = (struct digital_sensb_req *)skb_put(skb,
-							sizeof(*sensb_req));
+	sensb_req = skb_put(skb, sizeof(*sensb_req));
 
 	sensb_req->cmd = DIGITAL_CMD_SENSB_REQ;
 	sensb_req->afi = 0x00; /* All families and sub-families */
@@ -939,7 +937,7 @@ static int digital_tg_send_sel_res(struct nfc_digital_dev *ddev)
 	if (!skb)
 		return -ENOMEM;
 
-	*skb_put(skb, 1) = DIGITAL_SEL_RES_NFC_DEP;
+	*(u8 *)skb_put(skb, 1) = DIGITAL_SEL_RES_NFC_DEP;
 
 	if (!DIGITAL_DRV_CAPS_TG_CRC(ddev))
 		digital_skb_add_crc_a(skb);

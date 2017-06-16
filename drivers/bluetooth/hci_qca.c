@@ -215,7 +215,7 @@ static int send_hci_ibs_cmd(u8 cmd, struct hci_uart *hu)
 	}
 
 	/* Assign HCI_IBS type */
-	*skb_put(skb, 1) = cmd;
+	*(u8 *)skb_put(skb, 1) = cmd;
 
 	skb_queue_tail(&qca->txq, skb);
 

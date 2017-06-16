@@ -963,7 +963,7 @@ static void dvb_net_sec(struct net_device *dev,
 	skb->dev = dev;
 
 	/* copy L3 payload */
-	eth = (u8 *) skb_put(skb, pkt_len - 12 - 4 + 14 - snap);
+	eth = skb_put(skb, pkt_len - 12 - 4 + 14 - snap);
 	memcpy(eth + 14, pkt + 12 + snap, pkt_len - 12 - 4 - snap);
 
 	/* create ethernet header: */

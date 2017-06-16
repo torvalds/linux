@@ -287,8 +287,8 @@ static void pn544_hci_i2c_add_len_crc(struct sk_buff *skb)
 
 	crc = crc_ccitt(0xffff, skb->data, skb->len);
 	crc = ~crc;
-	*skb_put(skb, 1) = crc & 0xff;
-	*skb_put(skb, 1) = crc >> 8;
+	*(u8 *)skb_put(skb, 1) = crc & 0xff;
+	*(u8 *)skb_put(skb, 1) = crc >> 8;
 }
 
 static void pn544_hci_i2c_remove_len_crc(struct sk_buff *skb)
@@ -391,7 +391,7 @@ static int pn544_hci_i2c_read(struct pn544_i2c_phy *phy, struct sk_buff **skb)
 		goto flush;
 	}
 
-	*skb_put(*skb, 1) = len;
+	*(u8 *)skb_put(*skb, 1) = len;
 
 	r = i2c_master_recv(client, skb_put(*skb, len), len);
 	if (r != len) {
