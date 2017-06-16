@@ -3,7 +3,7 @@
 #
 config TLS
 	tristate "Transport Layer Security support"
-	depends on NET
+	depends on INET
 	default m
 	---help---
 	Enable kernel support for TLS protocol. This allows symmetric
