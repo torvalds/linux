@@ -45,10 +45,10 @@ static struct bootup_params boot_params_20 = {
 			}
 		},
 		.switch_clk_g = {
-			.switch_clk_info = cpu_to_le16(BIT(3)),
-			.bbp_lmac_clk_reg_val = cpu_to_le16(0x121),
-			.umac_clock_reg_config = 0x0,
-			.qspi_uart_clock_reg_config = 0x0
+			.switch_clk_info = cpu_to_le16(0xb),
+			.bbp_lmac_clk_reg_val = cpu_to_le16(0x111),
+			.umac_clock_reg_config = cpu_to_le16(0x48),
+			.qspi_uart_clock_reg_config = cpu_to_le16(0x1211)
 		}
 	},
 	{
@@ -106,7 +106,10 @@ static struct bootup_params boot_params_20 = {
 	.wdt_prog_value = 0x0,
 	.wdt_soc_rst_delay = 0x0,
 	.dcdc_operation_mode = 0x0,
-	.soc_reset_wait_cnt = 0x0
+	.soc_reset_wait_cnt = 0x0,
+	.waiting_time_at_fresh_sleep = 0x0,
+	.max_threshold_to_avoid_sleep = 0x0,
+	.beacon_resedue_alg_en = 0,
 };
 
 static struct bootup_params boot_params_40 = {
@@ -139,7 +142,7 @@ static struct bootup_params boot_params_40 = {
 			.switch_clk_info = cpu_to_le16(0x09),
 			.bbp_lmac_clk_reg_val = cpu_to_le16(0x1121),
 			.umac_clock_reg_config = cpu_to_le16(0x48),
-			.qspi_uart_clock_reg_config = 0x0
+			.qspi_uart_clock_reg_config = cpu_to_le16(0x1211)
 		}
 	},
 	{
@@ -197,7 +200,10 @@ static struct bootup_params boot_params_40 = {
 	.wdt_prog_value = 0x0,
 	.wdt_soc_rst_delay = 0x0,
 	.dcdc_operation_mode = 0x0,
-	.soc_reset_wait_cnt = 0x0
+	.soc_reset_wait_cnt = 0x0,
+	.waiting_time_at_fresh_sleep = 0x0,
+	.max_threshold_to_avoid_sleep = 0x0,
+	.beacon_resedue_alg_en = 0,
 };
 
 static u16 mcs[] = {13, 26, 39, 52, 78, 104, 117, 130};
