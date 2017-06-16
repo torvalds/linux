@@ -1556,6 +1556,7 @@ static inline void btrfs_set_device_total_bytes(struct extent_buffer *eb,
 {
 	BUILD_BUG_ON(sizeof(u64) !=
 		     sizeof(((struct btrfs_dev_item *)0))->total_bytes);
+	WARN_ON(!IS_ALIGNED(val, eb->fs_info->sectorsize));
 	btrfs_set_64(eb, s, offsetof(struct btrfs_dev_item, total_bytes), val);
 }
 
