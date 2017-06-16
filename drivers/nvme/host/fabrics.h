@@ -36,7 +36,7 @@ struct nvmf_host {
 	struct kref		ref;
 	struct list_head	list;
 	char			nqn[NVMF_NQN_SIZE];
-	uuid_be			id;
+	uuid_t			id;
 };
 
 /**
@@ -80,7 +80,6 @@ enum {
  * @discovery_nqn: indicates if the subsysnqn is the well-known discovery NQN.
  * @kato:	Keep-alive timeout.
  * @host:	Virtual NVMe host, contains the NQN and Host ID.
- * @nr_reconnects: number of reconnect attempted since the last ctrl failure
  * @max_reconnects: maximum number of allowed reconnect attempts before removing
  *              the controller, (-1) means reconnect forever, zero means remove
  *              immediately;
@@ -98,7 +97,6 @@ struct nvmf_ctrl_options {
 	bool			discovery_nqn;
 	unsigned int		kato;
 	struct nvmf_host	*host;
-	int			nr_reconnects;
 	int			max_reconnects;
 };
 

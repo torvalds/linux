@@ -27,11 +27,10 @@ extern unsigned char nvme_io_timeout;
 extern unsigned char admin_timeout;
 #define ADMIN_TIMEOUT	(admin_timeout * HZ)
 
-extern unsigned char shutdown_timeout;
-#define SHUTDOWN_TIMEOUT	(shutdown_timeout * HZ)
-
 #define NVME_DEFAULT_KATO	5
 #define NVME_KATO_GRACE		10
+
+extern struct workqueue_struct *nvme_wq;
 
 enum {
 	NVME_NS_LBA		= 0,
@@ -131,6 +130,7 @@ struct nvme_ctrl {
 	struct device *device;	/* char device */
 	struct list_head node;
 	struct ida ns_ida;
+	struct work_struct reset_work;
 
 	struct opal_dev *opal_dev;
 
@@ -166,12 +166,16 @@ struct nvme_ctrl {
 	/* Power saving configuration */
 	u64 ps_max_latency_us;
 
+	u32 hmpre;
+	u32 hmmin;
+
 	/* Fabrics only */
 	u16 sqsize;
 	u32 ioccsz;
 	u32 iorcsz;
 	u16 icdoff;
 	u16 maxcmd;
+	int nr_reconnects;
 	struct nvmf_ctrl_options *opts;
 };
 
@@ -189,7 +193,8 @@ struct nvme_ns {
 	int instance;
 
 	u8 eui[8];
-	u8 uuid[16];
+	u8 nguid[16];
+	uuid_t uuid;
 
 	unsigned ns_id;
 	int lba_shift;
@@ -197,6 +202,7 @@ struct nvme_ns {
 	bool ext;
 	u8 pi_type;
 	unsigned long flags;
+	u16 noiob;
 
 #define NVME_NS_REMOVING 0
 #define NVME_NS_DEAD     1
@@ -214,7 +220,6 @@ struct nvme_ctrl_ops {
 	int (*reg_read32)(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 	int (*reg_write32)(struct nvme_ctrl *ctrl, u32 off, u32 val);
 	int (*reg_read64)(struct nvme_ctrl *ctrl, u32 off, u64 *val);
-	int (*reset_ctrl)(struct nvme_ctrl *ctrl);
 	void (*free_ctrl)(struct nvme_ctrl *ctrl);
 	void (*submit_async_event)(struct nvme_ctrl *ctrl, int aer_idx);
 	int (*delete_ctrl)(struct nvme_ctrl *ctrl);
@@ -321,6 +326,7 @@ int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count);
 void nvme_start_keep_alive(struct nvme_ctrl *ctrl);
 void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
+int nvme_reset_ctrl(struct nvme_ctrl *ctrl);
 
 struct sg_io_hdr;
 

@@ -242,7 +242,7 @@ static inline void _nvme_nvm_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_erase_blk) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_id_group) != 960);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_addr_format) != 16);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_id) != 4096);
+	BUILD_BUG_ON(sizeof(struct nvme_nvm_id) != NVME_IDENTIFY_DATA_SIZE);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_bb_tbl) != 64);
 }
 
