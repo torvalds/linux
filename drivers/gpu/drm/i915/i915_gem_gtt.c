@@ -3402,6 +3402,9 @@ int i915_gem_gtt_reserve(struct i915_address_space *vm,
 	if (err != -ENOSPC)
 		return err;
 
+	if (flags & PIN_NOEVICT)
+		return -ENOSPC;
+
 	err = i915_gem_evict_for_node(vm, node, flags);
 	if (err == 0)
 		err = drm_mm_reserve_node(&vm->mm, node);
@@ -3515,6 +3518,9 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 					  start, end, mode);
 	if (err != -ENOSPC)
 		return err;
+
+	if (flags & PIN_NOEVICT)
+		return -ENOSPC;
 
 	/* No free space, pick a slot at random.
 	 *

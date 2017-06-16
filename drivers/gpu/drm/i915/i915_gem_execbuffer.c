@@ -336,10 +336,15 @@ eb_pin_vma(struct i915_execbuffer *eb,
 {
 	u64 flags;
 
-	flags = vma->node.start;
-	flags |= PIN_USER | PIN_NONBLOCK | PIN_OFFSET_FIXED;
+	if (vma->node.size)
+		flags = vma->node.start;
+	else
+		flags = entry->offset & PIN_OFFSET_MASK;
+
+	flags |= PIN_USER | PIN_NOEVICT | PIN_OFFSET_FIXED;
 	if (unlikely(entry->flags & EXEC_OBJECT_NEEDS_GTT))
 		flags |= PIN_GLOBAL;
+
 	if (unlikely(i915_vma_pin(vma, 0, 0, flags)))
 		return;
 
@@ -469,8 +474,7 @@ eb_add_vma(struct i915_execbuffer *eb,
 	__exec_to_vma(entry) = (uintptr_t)vma;
 
 	err = 0;
-	if (vma->node.size)
-		eb_pin_vma(eb, entry, vma);
+	eb_pin_vma(eb, entry, vma);
 	if (eb_vma_misplaced(entry, vma)) {
 		eb_unreserve_vma(vma, entry);
 
