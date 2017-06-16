@@ -39,16 +39,16 @@ if [ -z "$DEST_IP" ]; then
 fi
 [ -z "$DST_MAC" ] && DST_MAC="90:e2:ba:ff:ff:ff"
 [ -z "$BURST" ] && BURST=1024
+[ -z "$COUNT" ] && COUNT="10000000" # Zero means indefinitely
 
 # Base Config
 DELAY="0"        # Zero means max speed
-COUNT="10000000" # Zero means indefinitely
 
 # General cleanup everything since last run
 pg_ctrl "reset"
 
 # Threads are specified with parameter -t value in $THREADS
-for ((thread = 0; thread < $THREADS; thread++)); do
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     # The device name is extended with @name, using thread number to
     # make then unique, but any name will do.
     dev=${DEV}@${thread}
@@ -81,7 +81,7 @@ pg_ctrl "start"
 echo "Done" >&2
 
 # Print results
-for ((thread = 0; thread < $THREADS; thread++)); do
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     dev=${DEV}@${thread}
     echo "Device: $dev"
     cat /proc/net/pktgen/$dev | grep -A2 "Result:"

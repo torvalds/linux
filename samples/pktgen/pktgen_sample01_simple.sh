@@ -20,10 +20,10 @@ fi
 [ -z "$CLONE_SKB" ] && CLONE_SKB="0"
 # Example enforce param "-m" for dst_mac
 [ -z "$DST_MAC" ] && usage && err 2 "Must specify -m dst_mac"
+[ -z "$COUNT" ]   && COUNT="100000" # Zero means indefinitely
 
 # Base Config
 DELAY="0"        # Zero means max speed
-COUNT="100000"   # Zero means indefinitely
 
 # Flow variation random source port between min and max
 UDP_MIN=9
