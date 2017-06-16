@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2011 Stefan Hajnoczi <stefanha@gmail.com>
  * Copyright (C) 2015 Andrej Krutak <dev@andree.sk>
+ * Copyright (C) 2017 Hans P. Moller <hmoller@uc.cl>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -37,7 +38,8 @@ enum {
 	LINE6_PODHD500_0,
 	LINE6_PODHD500_1,
 	LINE6_PODX3,
-	LINE6_PODX3LIVE
+	LINE6_PODX3LIVE,
+	LINE6_PODHD500X
 };
 
 struct usb_line6_podhd {
@@ -372,6 +374,7 @@ static const struct usb_device_id podhd_id_table[] = {
 	{ LINE6_IF_NUM(0x414D, 1), .driver_info = LINE6_PODHD500_1 },
 	{ LINE6_IF_NUM(0x414A, 0), .driver_info = LINE6_PODX3 },
 	{ LINE6_IF_NUM(0x414B, 0), .driver_info = LINE6_PODX3LIVE },
+	{ LINE6_IF_NUM(0x4159, 0), .driver_info = LINE6_PODHD500X },
 	{}
 };
 
@@ -439,6 +442,18 @@ static const struct line6_properties podhd_properties_table[] = {
 		.name = "POD X3 LIVE",
 		.capabilities	= LINE6_CAP_CONTROL
 				| LINE6_CAP_PCM | LINE6_CAP_HWMON | LINE6_CAP_IN_NEEDS_OUT,
+		.altsetting = 1,
+		.ep_ctrl_r = 0x81,
+		.ep_ctrl_w = 0x01,
+		.ctrl_if = 1,
+		.ep_audio_r = 0x86,
+		.ep_audio_w = 0x02,
+	},
+	[LINE6_PODHD500X] = {
+		.id = "PODHD500X",
+		.name = "POD HD500X",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM | LINE6_CAP_HWMON,
 		.altsetting = 1,
 		.ep_ctrl_r = 0x81,
 		.ep_ctrl_w = 0x01,
