@@ -35,32 +35,44 @@
 #define AMDGPU_BO_LIST_MAX_PRIORITY	32u
 #define AMDGPU_BO_LIST_NUM_BUCKETS	(AMDGPU_BO_LIST_MAX_PRIORITY + 1)
 
-static int amdgpu_bo_list_create(struct amdgpu_fpriv *fpriv,
-				 struct amdgpu_bo_list **result,
+static int amdgpu_bo_list_set(struct amdgpu_device *adev,
+				     struct drm_file *filp,
+				     struct amdgpu_bo_list *list,
+				     struct drm_amdgpu_bo_list_entry *info,
+				     unsigned num_entries);
+
+static int amdgpu_bo_list_create(struct amdgpu_device *adev,
+				 struct drm_file *filp,
+				 struct drm_amdgpu_bo_list_entry *info,
+				 unsigned num_entries,
 				 int *id)
 {
 	int r;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
+	struct amdgpu_bo_list *list;
 
-	*result = kzalloc(sizeof(struct amdgpu_bo_list), GFP_KERNEL);
-	if (!*result)
+	list = kzalloc(sizeof(struct amdgpu_bo_list), GFP_KERNEL);
+	if (!list)
 		return -ENOMEM;
 
+	/* initialize bo list*/
+	mutex_init(&list->lock);
+
+	r = amdgpu_bo_list_set(adev, filp, list, info, num_entries);
+	if (r) {
+		kfree(list);
+		return r;
+	}
+
+	/* idr alloc should be called only after initialization of bo list. */
 	mutex_lock(&fpriv->bo_list_lock);
-	r = idr_alloc(&fpriv->bo_list_handles, *result,
-		      1, 0, GFP_KERNEL);
+	r = idr_alloc(&fpriv->bo_list_handles, list, 1, 0, GFP_KERNEL);
+	mutex_unlock(&fpriv->bo_list_lock);
 	if (r < 0) {
-		mutex_unlock(&fpriv->bo_list_lock);
-		kfree(*result);
+		kfree(list);
 		return r;
 	}
 	*id = r;
-
-	mutex_init(&(*result)->lock);
-	(*result)->num_entries = 0;
-	(*result)->array = NULL;
-
-	mutex_lock(&(*result)->lock);
-	mutex_unlock(&fpriv->bo_list_lock);
 
 	return 0;
 }
@@ -77,6 +89,7 @@ static void amdgpu_bo_list_destroy(struct amdgpu_fpriv *fpriv, int id)
 		mutex_unlock(&list->lock);
 		amdgpu_bo_list_free(list);
 	}
+
 	mutex_unlock(&fpriv->bo_list_lock);
 }
 
@@ -273,16 +286,10 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->in.operation) {
 	case AMDGPU_BO_LIST_OP_CREATE:
-		r = amdgpu_bo_list_create(fpriv, &list, &handle);
+		r = amdgpu_bo_list_create(adev, filp, info, args->in.bo_number,
+					  &handle);
 		if (r)
 			goto error_free;
-
-		r = amdgpu_bo_list_set(adev, filp, list, info,
-					      args->in.bo_number);
-		amdgpu_bo_list_put(list);
-		if (r)
-			goto error_free;
-
 		break;
 
 	case AMDGPU_BO_LIST_OP_DESTROY:
