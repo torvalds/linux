@@ -31,13 +31,15 @@
 #define FSM_ZONE                        BIT(7)  /* For State Machine Msgs     */
 #define ISR_ZONE                        BIT(8)  /* For Interrupt Msgs         */
 
-#define FSM_CARD_NOT_READY              0
-#define FSM_BOOT_PARAMS_SENT            1
-#define FSM_EEPROM_READ_MAC_ADDR        2
-#define FSM_RESET_MAC_SENT              3
-#define FSM_RADIO_CAPS_SENT             4
-#define FSM_BB_RF_PROG_SENT             5
-#define FSM_MAC_INIT_DONE               6
+enum RSI_FSM_STATES {
+	FSM_CARD_NOT_READY,
+	FSM_BOOT_PARAMS_SENT,
+	FSM_EEPROM_READ_MAC_ADDR,
+	FSM_RESET_MAC_SENT,
+	FSM_RADIO_CAPS_SENT,
+	FSM_BB_RF_PROG_SENT,
+	FSM_MAC_INIT_DONE
+};
 
 extern u32 rsi_zone_enabled;
 extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
