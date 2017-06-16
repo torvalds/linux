@@ -123,9 +123,16 @@ int rsi_read_pkt(struct rsi_common *common, s32 rcv_pkt_len)
 
 		queueno = rsi_get_queueno(frame_desc, offset);
 		length = rsi_get_length(frame_desc, offset);
-		extended_desc = rsi_get_extended_desc(frame_desc, offset);
+
+		/* Extended descriptor is valid for WLAN queues only */
+		if (queueno == RSI_WIFI_DATA_Q || queueno == RSI_WIFI_MGMT_Q)
+			extended_desc = rsi_get_extended_desc(frame_desc,
+							      offset);
 
 		switch (queueno) {
+		case RSI_COEX_Q:
+			rsi_mgmt_pkt_recv(common, (frame_desc + offset));
+			break;
 		case RSI_WIFI_DATA_Q:
 			skb = rsi_prepare_skb(common,
 					      (frame_desc + offset),

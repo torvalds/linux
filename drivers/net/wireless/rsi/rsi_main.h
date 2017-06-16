@@ -63,6 +63,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define MAX_CONTINUOUS_VI_PKTS          4
 
 /* Queue information */
+#define RSI_COEX_Q			0x0
 #define RSI_WIFI_MGMT_Q                 0x4
 #define RSI_WIFI_DATA_Q                 0x5
 #define IEEE80211_MGMT_FRAME            0x00
