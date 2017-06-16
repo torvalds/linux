@@ -147,8 +147,7 @@ static void nft_reject_br_send_v4_unreach(struct net *net,
 				   net->ipv4.sysctl_ip_default_ttl);
 
 	skb_reset_transport_header(nskb);
-	icmph = (struct icmphdr *)skb_put(nskb, sizeof(struct icmphdr));
-	memset(icmph, 0, sizeof(*icmph));
+	icmph = skb_put_zero(nskb, sizeof(struct icmphdr));
 	icmph->type     = ICMP_DEST_UNREACH;
 	icmph->code	= code;
 
@@ -275,8 +274,7 @@ static void nft_reject_br_send_v6_unreach(struct net *net,
 				     net->ipv6.devconf_all->hop_limit);
 
 	skb_reset_transport_header(nskb);
-	icmp6h = (struct icmp6hdr *)skb_put(nskb, sizeof(struct icmp6hdr));
-	memset(icmp6h, 0, sizeof(*icmp6h));
+	icmp6h = skb_put_zero(nskb, sizeof(struct icmp6hdr));
 	icmp6h->icmp6_type = ICMPV6_DEST_UNREACH;
 	icmp6h->icmp6_code = code;
 

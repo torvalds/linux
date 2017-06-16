@@ -193,8 +193,7 @@ static void ieee80211_send_refuse_measurement_request(struct ieee80211_sub_if_da
 		return;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	msr_report = (struct ieee80211_mgmt *)skb_put(skb, 24);
-	memset(msr_report, 0, 24);
+	msr_report = skb_put_zero(skb, 24);
 	memcpy(msr_report->da, da, ETH_ALEN);
 	memcpy(msr_report->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(msr_report->bssid, bssid, ETH_ALEN);

@@ -1526,8 +1526,7 @@ void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 	hdr[1] = sizeof(noa_ie_hdr) + noa_len - 2;
 	hdr[7] = noa_len;
 
-	noa = (void *) skb_put(skb, noa_len);
-	memset(noa, 0, noa_len);
+	noa = skb_put_zero(skb, noa_len);
 
 	noa->index = avp->noa_index;
 	noa->oppps_ctwindow = ath9k_get_ctwin(sc, avp);

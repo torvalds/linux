@@ -271,8 +271,7 @@ static void ieee80211_tdls_add_wmm_param_ie(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_tx_queue_params *txq;
 	int i;
 
-	wmm = (void *)skb_put(skb, sizeof(*wmm));
-	memset(wmm, 0, sizeof(*wmm));
+	wmm = skb_put_zero(skb, sizeof(*wmm));
 
 	wmm->element_id = WLAN_EID_VENDOR_SPECIFIC;
 	wmm->len = sizeof(*wmm) - 2;
@@ -838,8 +837,7 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_mgmt *mgmt;
 
-	mgmt = (void *)skb_put(skb, 24);
-	memset(mgmt, 0, 24);
+	mgmt = skb_put_zero(skb, 24);
 	memcpy(mgmt->da, peer, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);

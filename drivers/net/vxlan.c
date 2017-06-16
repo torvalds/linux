@@ -1584,10 +1584,8 @@ static struct sk_buff *vxlan_na_create(struct sk_buff *request,
 	skb_pull(reply, sizeof(struct ipv6hdr));
 	skb_reset_transport_header(reply);
 
-	na = (struct nd_msg *)skb_put(reply, sizeof(*na) + na_olen);
-
 	/* Neighbor Advertisement */
-	memset(na, 0, sizeof(*na)+na_olen);
+	na = skb_put_zero(reply, sizeof(*na) + na_olen);
 	na->icmph.icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
 	na->icmph.icmp6_router = isrouter;
 	na->icmph.icmp6_override = 1;

@@ -719,8 +719,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	bcn->head = ((u8 *) bcn) + sizeof(*bcn);
 
 	/* fill in the head */
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
-	memset(mgmt, 0, hdr_len);
+	mgmt = skb_put_zero(skb, hdr_len);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_BEACON);
 	eth_broadcast_addr(mgmt->da);

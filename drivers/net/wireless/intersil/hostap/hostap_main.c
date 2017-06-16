@@ -1039,9 +1039,7 @@ int prism2_sta_send_mgmt(local_info_t *local, u8 *dst, u16 stype,
 	if (skb == NULL)
 		return -ENOMEM;
 
-	mgmt = (struct hostap_ieee80211_mgmt *)
-		skb_put(skb, IEEE80211_MGMT_HDR_LEN);
-	memset(mgmt, 0, IEEE80211_MGMT_HDR_LEN);
+	mgmt = skb_put_zero(skb, IEEE80211_MGMT_HDR_LEN);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | stype);
 	memcpy(mgmt->da, dst, ETH_ALEN);
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);

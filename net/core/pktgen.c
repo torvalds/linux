@@ -2718,7 +2718,7 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 	datalen -= sizeof(*pgh);
 
 	if (pkt_dev->nfrags <= 0) {
-		memset(skb_put(skb, datalen), 0, datalen);
+		skb_put_zero(skb, datalen);
 	} else {
 		int frags = pkt_dev->nfrags;
 		int i, len;
@@ -2729,7 +2729,7 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 			frags = MAX_SKB_FRAGS;
 		len = datalen - frags * PAGE_SIZE;
 		if (len > 0) {
-			memset(skb_put(skb, len), 0, len);
+			skb_put_zero(skb, len);
 			datalen = frags * PAGE_SIZE;
 		}
 

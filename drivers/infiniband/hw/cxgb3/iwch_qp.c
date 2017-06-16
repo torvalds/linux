@@ -670,8 +670,7 @@ int iwch_post_zb_read(struct iwch_ep *ep)
 		pr_err("%s cannot send zb_read!!\n", __func__);
 		return -ENOMEM;
 	}
-	wqe = (union t3_wr *)skb_put(skb, sizeof(struct t3_rdma_read_wr));
-	memset(wqe, 0, sizeof(struct t3_rdma_read_wr));
+	wqe = skb_put_zero(skb, sizeof(struct t3_rdma_read_wr));
 	wqe->read.rdmaop = T3_READ_REQ;
 	wqe->read.reserved[0] = 0;
 	wqe->read.reserved[1] = 0;
@@ -702,8 +701,7 @@ int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg)
 		pr_err("%s cannot send TERMINATE!\n", __func__);
 		return -ENOMEM;
 	}
-	wqe = (union t3_wr *)skb_put(skb, 40);
-	memset(wqe, 0, 40);
+	wqe = skb_put_zero(skb, 40);
 	wqe->send.rdmaop = T3_TERMINATE;
 
 	/* immediate data length */

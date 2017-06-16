@@ -660,8 +660,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 
 	if (op != ELS_LS_RJT) {
 		dlen += sizeof(*mac);
-		mac = (struct fip_mac_desc *)skb_put(skb, sizeof(*mac));
-		memset(mac, 0, sizeof(*mac));
+		mac = skb_put_zero(skb, sizeof(*mac));
 		mac->fd_desc.fip_dtype = FIP_DT_MAC;
 		mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
 		if (dtype != FIP_DT_FLOGI && dtype != FIP_DT_FDISC) {

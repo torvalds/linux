@@ -1004,8 +1004,7 @@ static struct sk_buff *package_for_tx(struct f_ncm *ncm)
 	}
 
 	/* Insert NDP alignment. */
-	ntb_iter = (void *) skb_put(skb2, ndp_pad);
-	memset(ntb_iter, 0, ndp_pad);
+	ntb_iter = skb_put_zero(skb2, ndp_pad);
 
 	/* Copy NTB across. */
 	ntb_iter = (void *) skb_put(skb2, ncm->skb_tx_ndp->len);
@@ -1014,8 +1013,7 @@ static struct sk_buff *package_for_tx(struct f_ncm *ncm)
 	ncm->skb_tx_ndp = NULL;
 
 	/* Insert zero'd datagram. */
-	ntb_iter = (void *) skb_put(skb2, dgram_idx_len);
-	memset(ntb_iter, 0, dgram_idx_len);
+	ntb_iter = skb_put_zero(skb2, dgram_idx_len);
 
 	return skb2;
 }
@@ -1080,8 +1078,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 				goto err;
 
 			ncm->skb_tx_data->dev = ncm->netdev;
-			ntb_data = (void *) skb_put(ncm->skb_tx_data, ncb_len);
-			memset(ntb_data, 0, ncb_len);
+			ntb_data = skb_put_zero(ncm->skb_tx_data, ncb_len);
 			/* dwSignature */
 			put_unaligned_le32(opts->nth_sign, ntb_data);
 			ntb_data += 2;
@@ -1118,8 +1115,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 			      HRTIMER_MODE_REL);
 
 		/* Add the datagram position entries */
-		ntb_ndp = (void *) skb_put(ncm->skb_tx_ndp, dgram_idx_len);
-		memset(ntb_ndp, 0, dgram_idx_len);
+		ntb_ndp = skb_put_zero(ncm->skb_tx_ndp, dgram_idx_len);
 
 		ncb_len = ncm->skb_tx_data->len;
 		dgram_pad = ALIGN(ncb_len, div) + rem - ncb_len;
@@ -1132,8 +1128,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 		ncm->ndp_dgram_count++;
 
 		/* Add the new data to the skb */
-		ntb_data = (void *) skb_put(ncm->skb_tx_data, dgram_pad);
-		memset(ntb_data, 0, dgram_pad);
+		ntb_data = skb_put_zero(ncm->skb_tx_data, dgram_pad);
 		ntb_data = (void *) skb_put(ncm->skb_tx_data, skb->len);
 		memcpy(ntb_data, skb->data, skb->len);
 		dev_consume_skb_any(skb);

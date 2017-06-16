@@ -1017,7 +1017,7 @@ static void cdc_ncm_align_tail(struct sk_buff *skb, size_t modulus, size_t remai
 	if (skb->len + align > max)
 		align = max - skb->len;
 	if (align && skb_tailroom(skb) >= align)
-		memset(skb_put(skb, align), 0, align);
+		skb_put_zero(skb, align);
 }
 
 /* return a pointer to a valid struct usb_cdc_ncm_ndp16 of type sign, possibly
@@ -1247,7 +1247,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 	if (!(dev->driver_info->flags & FLAG_SEND_ZLP) &&
 	    skb_out->len > ctx->min_tx_pkt) {
 		padding_count = ctx->tx_max - skb_out->len;
-		memset(skb_put(skb_out, padding_count), 0, padding_count);
+		skb_put_zero(skb_out, padding_count);
 	} else if (skb_out->len < ctx->tx_max &&
 		   (skb_out->len % dev->maxpacket) == 0) {
 		*skb_put(skb_out, 1) = 0;	/* force short packet */

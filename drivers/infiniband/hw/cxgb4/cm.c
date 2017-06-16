@@ -927,8 +927,7 @@ static int send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
-	req = (struct fw_ofld_tx_data_wr *)skb_put(skb, wrlen);
-	memset(req, 0, wrlen);
+	req = skb_put_zero(skb, wrlen);
 	req->op_to_immdlen = cpu_to_be32(
 		FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
 		FW_WR_COMPL_F |
@@ -1034,8 +1033,7 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
-	req = (struct fw_ofld_tx_data_wr *)skb_put(skb, wrlen);
-	memset(req, 0, wrlen);
+	req = skb_put_zero(skb, wrlen);
 	req->op_to_immdlen = cpu_to_be32(
 		FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
 		FW_WR_COMPL_F |
@@ -1115,8 +1113,7 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
-	req = (struct fw_ofld_tx_data_wr *) skb_put(skb, wrlen);
-	memset(req, 0, wrlen);
+	req = skb_put_zero(skb, wrlen);
 	req->op_to_immdlen = cpu_to_be32(
 		FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
 		FW_WR_COMPL_F |

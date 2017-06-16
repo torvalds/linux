@@ -142,8 +142,7 @@ static int cxio_hal_clear_qp_ctx(struct cxio_rdev *rdev_p, u32 qpid)
 		pr_debug("%s alloc_skb failed\n", __func__);
 		return -ENOMEM;
 	}
-	wqe = (struct t3_modify_qp_wr *) skb_put(skb, sizeof(*wqe));
-	memset(wqe, 0, sizeof(*wqe));
+	wqe = skb_put_zero(skb, sizeof(*wqe));
 	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD,
 		       T3_COMPLETION_FLAG | T3_NOTIFY_FLAG, 0, qpid, 7,
 		       T3_SOPEOP);
@@ -561,8 +560,7 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 	ctx1 |= ((u64) (V_EC_BASE_HI((u32) base_addr & 0xf) | V_EC_RESPQ(0) |
 			V_EC_TYPE(0) | V_EC_GEN(1) |
 			V_EC_UP_TOKEN(T3_CTL_QP_TID) | F_EC_VALID)) << 32;
-	wqe = (struct t3_modify_qp_wr *) skb_put(skb, sizeof(*wqe));
-	memset(wqe, 0, sizeof(*wqe));
+	wqe = skb_put_zero(skb, sizeof(*wqe));
 	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD, 0, 0,
 		       T3_CTL_QP_TID, 7, T3_SOPEOP);
 	wqe->flags = cpu_to_be32(MODQP_WRITE_EC);

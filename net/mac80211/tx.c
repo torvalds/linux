@@ -3044,7 +3044,7 @@ static bool ieee80211_amsdu_realloc_pad(struct ieee80211_local *local,
 
 	if (padding) {
 		*subframe_len += padding;
-		memset(skb_put(skb, padding), 0, padding);
+		skb_put_zero(skb, padding);
 	}
 
 	return true;
@@ -4370,8 +4370,7 @@ struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	pspoll = (struct ieee80211_pspoll *) skb_put(skb, sizeof(*pspoll));
-	memset(pspoll, 0, sizeof(*pspoll));
+	pspoll = skb_put_zero(skb, sizeof(*pspoll));
 	pspoll->frame_control = cpu_to_le16(IEEE80211_FTYPE_CTL |
 					    IEEE80211_STYPE_PSPOLL);
 	pspoll->aid = cpu_to_le16(ifmgd->aid);
@@ -4408,9 +4407,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	nullfunc = (struct ieee80211_hdr_3addr *) skb_put(skb,
-							  sizeof(*nullfunc));
-	memset(nullfunc, 0, sizeof(*nullfunc));
+	nullfunc = skb_put_zero(skb, sizeof(*nullfunc));
 	nullfunc->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 					      IEEE80211_STYPE_NULLFUNC |
 					      IEEE80211_FCTL_TODS);
@@ -4442,8 +4439,7 @@ struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	hdr = (struct ieee80211_hdr_3addr *) skb_put(skb, sizeof(*hdr));
-	memset(hdr, 0, sizeof(*hdr));
+	hdr = skb_put_zero(skb, sizeof(*hdr));
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_REQ);
 	eth_broadcast_addr(hdr->addr1);

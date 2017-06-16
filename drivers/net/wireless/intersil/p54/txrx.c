@@ -910,8 +910,7 @@ void p54_tx_80211(struct ieee80211_hw *dev,
 		}
 		/* reserve some space for ICV */
 		len += info->control.hw_key->icv_len;
-		memset(skb_put(skb, info->control.hw_key->icv_len), 0,
-		       info->control.hw_key->icv_len);
+		skb_put_zero(skb, info->control.hw_key->icv_len);
 	} else {
 		txhdr->key_type = 0;
 		txhdr->key_len = 0;

@@ -413,7 +413,7 @@ static void pad_packet(struct datapath *dp, struct sk_buff *skb)
 		size_t plen = NLA_ALIGN(skb->len) - skb->len;
 
 		if (plen > 0)
-			memset(skb_put(skb, plen), 0, plen);
+			skb_put_zero(skb, plen);
 	}
 }
 

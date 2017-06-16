@@ -330,7 +330,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 				pad &= conn->size_align - 1;
 				_debug("pad %zu", pad);
 				if (pad)
-					memset(skb_put(skb, pad), 0, pad);
+					skb_put_zero(skb, pad);
 			}
 
 			seq = call->tx_top + 1;
