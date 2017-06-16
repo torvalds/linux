@@ -463,7 +463,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 			  size, obj->base.size,
 			  flags & PIN_MAPPABLE ? "mappable" : "total",
 			  end);
-		return -E2BIG;
+		return -ENOSPC;
 	}
 
 	ret = i915_gem_object_pin_pages(obj);

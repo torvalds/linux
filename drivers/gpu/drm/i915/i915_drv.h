@@ -3581,7 +3581,7 @@ int __must_check i915_gem_evict_something(struct i915_address_space *vm,
 int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
 					 struct drm_mm_node *node,
 					 unsigned int flags);
-int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
+int i915_gem_evict_vm(struct i915_address_space *vm);
 
 /* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_i915_private *dev_priv)

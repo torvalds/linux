@@ -103,6 +103,7 @@ struct i915_vma {
 
 	/** This vma's place in the execbuf reservation list */
 	struct list_head exec_link;
+	struct list_head reloc_link;
 
 	/** This vma's place in the eviction list */
 	struct list_head evict_link;
