@@ -650,6 +650,7 @@ static void digital_deactivate_target(struct nfc_dev *nfc_dev,
 		return;
 	}
 
+	digital_abort_cmd(ddev);
 	ddev->curr_protocol = 0;
 }
 
