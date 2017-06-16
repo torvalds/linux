@@ -414,6 +414,54 @@ void mmhub_v1_0_initialize_power_gating(struct amdgpu_device *adev)
 	WREG32_SOC15(MMHUB, 0, mmPCTL1_MISC, pctl1_misc);
 }
 
+void mmhub_v1_0_update_power_gating(struct amdgpu_device *adev,
+				bool enable)
+{
+	uint32_t pctl0_reng_execute = 0;
+	uint32_t pctl1_reng_execute = 0;
+
+	if (amdgpu_sriov_vf(adev))
+		return;
+
+	pctl0_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE);
+	pctl1_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE);
+
+	if (enable) {
+		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
+						PCTL0_RENG_EXECUTE,
+						RENG_EXECUTE_ON_PWR_UP, 1);
+		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
+						PCTL0_RENG_EXECUTE,
+						RENG_EXECUTE_ON_REG_UPDATE, 1);
+		WREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE, pctl0_reng_execute);
+
+		pctl1_reng_execute = REG_SET_FIELD(pctl1_reng_execute,
+						PCTL1_RENG_EXECUTE,
+						RENG_EXECUTE_ON_PWR_UP, 1);
+		pctl1_reng_execute = REG_SET_FIELD(pctl1_reng_execute,
+						PCTL1_RENG_EXECUTE,
+						RENG_EXECUTE_ON_REG_UPDATE, 1);
+		WREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE, pctl1_reng_execute);
+
+	} else {
+		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
+						PCTL0_RENG_EXECUTE,
+						RENG_EXECUTE_ON_PWR_UP, 0);
+		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
+						PCTL0_RENG_EXECUTE,
+						RENG_EXECUTE_ON_REG_UPDATE, 0);
+		WREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE, pctl0_reng_execute);
+
+		pctl1_reng_execute = REG_SET_FIELD(pctl1_reng_execute,
+						PCTL1_RENG_EXECUTE,
+						RENG_EXECUTE_ON_PWR_UP, 0);
+		pctl1_reng_execute = REG_SET_FIELD(pctl1_reng_execute,
+						PCTL1_RENG_EXECUTE,
+						RENG_EXECUTE_ON_REG_UPDATE, 0);
+		WREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE, pctl1_reng_execute);
+	}
+}
+
 int mmhub_v1_0_gart_enable(struct amdgpu_device *adev)
 {
 	if (amdgpu_sriov_vf(adev)) {
