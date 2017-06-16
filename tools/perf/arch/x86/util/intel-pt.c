@@ -40,10 +40,6 @@
 #define KiB_MASK(x) (KiB(x) - 1)
 #define MiB_MASK(x) (MiB(x) - 1)
 
-#define INTEL_PT_DEFAULT_SAMPLE_SIZE	KiB(4)
-
-#define INTEL_PT_MAX_SAMPLE_SIZE	KiB(60)
-
 #define INTEL_PT_PSB_PERIOD_NEAR	256
 
 struct intel_pt_snapshot_ref {
