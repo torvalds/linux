@@ -50,6 +50,7 @@ struct i915_vma {
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
 	struct drm_i915_fence_reg *fence;
+	struct reservation_object *resv; /** Alias of obj->resv */
 	struct sg_table *pages;
 	void __iomem *iomap;
 	u64 size;
@@ -111,8 +112,8 @@ struct i915_vma {
 	/**
 	 * Used for performing relocations during execbuffer insertion.
 	 */
-	struct hlist_node exec_node;
 	struct drm_i915_gem_exec_object2 *exec_entry;
+	struct hlist_node exec_node;
 	u32 exec_handle;
 
 	struct i915_gem_context *ctx;

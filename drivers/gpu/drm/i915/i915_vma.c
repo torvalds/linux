@@ -90,6 +90,7 @@ vma_create(struct drm_i915_gem_object *obj,
 	init_request_active(&vma->last_fence, NULL);
 	vma->vm = vm;
 	vma->obj = obj;
+	vma->resv = obj->resv;
 	vma->size = obj->base.size;
 	vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 

@@ -1192,17 +1192,17 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	if (err)
 		goto err_request;
 
-	GEM_BUG_ON(!reservation_object_test_signaled_rcu(obj->resv, true));
+	GEM_BUG_ON(!reservation_object_test_signaled_rcu(batch->resv, true));
 	i915_vma_move_to_active(batch, rq, 0);
-	reservation_object_lock(obj->resv, NULL);
-	reservation_object_add_excl_fence(obj->resv, &rq->fence);
-	reservation_object_unlock(obj->resv);
+	reservation_object_lock(batch->resv, NULL);
+	reservation_object_add_excl_fence(batch->resv, &rq->fence);
+	reservation_object_unlock(batch->resv);
 	i915_vma_unpin(batch);
 
 	i915_vma_move_to_active(vma, rq, true);
-	reservation_object_lock(vma->obj->resv, NULL);
-	reservation_object_add_excl_fence(vma->obj->resv, &rq->fence);
-	reservation_object_unlock(vma->obj->resv);
+	reservation_object_lock(vma->resv, NULL);
+	reservation_object_add_excl_fence(vma->resv, &rq->fence);
+	reservation_object_unlock(vma->resv);
 
 	rq->batch = batch;
 
@@ -1252,7 +1252,6 @@ relocate_entry(struct i915_vma *vma,
 	       struct i915_execbuffer *eb,
 	       const struct i915_vma *target)
 {
-	struct drm_i915_gem_object *obj = vma->obj;
 	u64 offset = reloc->offset;
 	u64 target_offset = relocation_target(reloc, target);
 	bool wide = eb->reloc_cache.use_64bit_reloc;
@@ -1260,7 +1259,7 @@ relocate_entry(struct i915_vma *vma,
 
 	if (!eb->reloc_cache.vaddr &&
 	    (DBG_FORCE_RELOC == FORCE_GPU_RELOC ||
-	     !reservation_object_test_signaled_rcu(obj->resv, true))) {
+	     !reservation_object_test_signaled_rcu(vma->resv, true))) {
 		const unsigned int gen = eb->reloc_cache.gen;
 		unsigned int len;
 		u32 *batch;
@@ -1320,7 +1319,7 @@ relocate_entry(struct i915_vma *vma,
 	}
 
 repeat:
-	vaddr = reloc_vaddr(obj, &eb->reloc_cache, offset >> PAGE_SHIFT);
+	vaddr = reloc_vaddr(vma->obj, &eb->reloc_cache, offset >> PAGE_SHIFT);
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 
@@ -1793,11 +1792,11 @@ slow:
 	return eb_relocate_slow(eb);
 }
 
-static void eb_export_fence(struct drm_i915_gem_object *obj,
+static void eb_export_fence(struct i915_vma *vma,
 			    struct drm_i915_gem_request *req,
 			    unsigned int flags)
 {
-	struct reservation_object *resv = obj->resv;
+	struct reservation_object *resv = vma->resv;
 
 	/*
 	 * Ignore errors from failing to allocate the new fence, we can't
@@ -1856,7 +1855,7 @@ skip_flushes:
 		const struct drm_i915_gem_exec_object2 *entry = &eb->exec[i];
 		struct i915_vma *vma = exec_to_vma(entry);
 
-		eb_export_fence(vma->obj, eb->request, entry->flags);
+		eb_export_fence(vma, eb->request, entry->flags);
 		if (unlikely(entry->flags & __EXEC_OBJECT_HAS_REF))
 			i915_vma_put(vma);
 	}
