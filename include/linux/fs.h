@@ -2503,14 +2503,14 @@ static inline void unregister_chrdev(unsigned int major, const char *name)
 #define BDEVT_SIZE	10	/* Largest string for MAJ:MIN for blkdev */
 
 #ifdef CONFIG_BLOCK
-#define BLKDEV_MAJOR_HASH_SIZE	255
+#define BLKDEV_MAJOR_MAX	512
 extern const char *__bdevname(dev_t, char *buffer);
 extern const char *bdevname(struct block_device *bdev, char *buffer);
 extern struct block_device *lookup_bdev(const char *);
 extern void blkdev_show(struct seq_file *,off_t);
 
 #else
-#define BLKDEV_MAJOR_HASH_SIZE	0
+#define BLKDEV_MAJOR_MAX	0
 #endif
 
 extern void init_special_inode(struct inode *, umode_t, dev_t);

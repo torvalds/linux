@@ -25,7 +25,7 @@ static int devinfo_show(struct seq_file *f, void *v)
 
 static void *devinfo_start(struct seq_file *f, loff_t *pos)
 {
-	if (*pos < (BLKDEV_MAJOR_HASH_SIZE + CHRDEV_MAJOR_MAX))
+	if (*pos < (BLKDEV_MAJOR_MAX + CHRDEV_MAJOR_MAX))
 		return pos;
 	return NULL;
 }
@@ -33,7 +33,7 @@ static void *devinfo_start(struct seq_file *f, loff_t *pos)
 static void *devinfo_next(struct seq_file *f, void *v, loff_t *pos)
 {
 	(*pos)++;
-	if (*pos >= (BLKDEV_MAJOR_HASH_SIZE + CHRDEV_MAJOR_MAX))
+	if (*pos >= (BLKDEV_MAJOR_MAX + CHRDEV_MAJOR_MAX))
 		return NULL;
 	return pos;
 }
