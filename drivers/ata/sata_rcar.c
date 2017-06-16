@@ -828,7 +828,7 @@ static void sata_rcar_init_controller(struct ata_host *host)
 	iowrite32(ATAPI_INT_ENABLE_SATAINT, base + ATAPI_INT_ENABLE_REG);
 }
 
-static struct of_device_id sata_rcar_match[] = {
+static const struct of_device_id sata_rcar_match[] = {
 	{
 		/* Deprecated by "renesas,sata-r8a7779" */
 		.compatible = "renesas,rcar-sata",
