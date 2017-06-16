@@ -191,6 +191,13 @@ static int wil_platform_rop_fw_recovery(void *wil_handle)
 	return 0;
 }
 
+static void wil_platform_ops_uninit(struct wil6210_priv *wil)
+{
+	if (wil->platform_ops.uninit)
+		wil->platform_ops.uninit(wil->platform_handle);
+	memset(&wil->platform_ops, 0, sizeof(wil->platform_ops));
+}
+
 static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct wil6210_priv *wil;
@@ -327,8 +334,7 @@ err_release_reg:
 err_disable_pdev:
 	pci_disable_device(pdev);
 err_plat:
-	if (wil->platform_ops.uninit)
-		wil->platform_ops.uninit(wil->platform_handle);
+	wil_platform_ops_uninit(wil);
 if_free:
 	wil_if_free(wil);
 
@@ -357,8 +363,7 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, csr);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
-	if (wil->platform_ops.uninit)
-		wil->platform_ops.uninit(wil->platform_handle);
+	wil_platform_ops_uninit(wil);
 	wil_if_free(wil);
 }
 
