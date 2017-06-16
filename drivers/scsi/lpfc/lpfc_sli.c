@@ -13560,6 +13560,9 @@ lpfc_sli4_fof_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 		return;
 	}
 
+	/* Save EQ associated with this CQ */
+	cq->assoc_qp = phba->sli4_hba.fof_eq;
+
 	/* Process all the entries to the OAS CQ */
 	while ((cqe = lpfc_sli4_cq_get(cq))) {
 		workposted |= lpfc_sli4_fp_handle_cqe(phba, cq, cqe);
