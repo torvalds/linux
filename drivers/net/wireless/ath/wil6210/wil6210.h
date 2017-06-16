@@ -83,6 +83,15 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
  */
 #define WIL_MAX_MPDU_OVERHEAD	(62)
 
+struct wil_suspend_stats {
+	unsigned long successful_suspends;
+	unsigned long failed_suspends;
+	unsigned long successful_resumes;
+	unsigned long failed_resumes;
+	unsigned long rejected_by_device;
+	unsigned long rejected_by_host;
+};
+
 /* Calculate MAC buffer size for the firmware. It includes all overhead,
  * as it will go over the air, and need to be 8 byte aligned
  */
@@ -290,6 +299,8 @@ enum {
 #define ISR_MISC_MBOX_EVT	BIT_DMA_EP_MISC_ICR_FW_INT(1)
 #define ISR_MISC_FW_ERROR	BIT_DMA_EP_MISC_ICR_FW_INT(3)
 
+#define WIL_DATA_COMPLETION_TO_MS 200
+
 /* Hardware definitions end */
 struct fw_map {
 	u32 from; /* linker address - from, inclusive */
@@ -418,7 +429,9 @@ enum { /* for wil6210_priv.status */
 	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
 	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
 	wil_status_resetting, /* reset in progress */
+	wil_status_suspending, /* suspend in progress */
 	wil_status_suspended, /* suspend completed, device is suspended */
+	wil_status_resuming, /* resume in progress */
 	wil_status_last /* keep last */
 };
 
@@ -683,9 +696,12 @@ struct wil6210_priv {
 	struct wil_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
 	u8 discovery_mode;
 	u8 abft_len;
+	u8 wakeup_trigger;
+	struct wil_suspend_stats suspend_stats;
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
+	bool keep_radio_on_during_sleep;
 
 	struct pmc_ctx pmc;
 
@@ -708,6 +724,11 @@ struct wil6210_priv {
 	struct notifier_block pm_notify;
 #endif /* CONFIG_PM_SLEEP */
 #endif /* CONFIG_PM */
+
+	bool suspend_resp_rcvd;
+	bool suspend_resp_comp;
+	u32 bus_request_kbps;
+	u32 bus_request_kbps_pre_suspend;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
@@ -964,6 +985,11 @@ bool wil_fw_verify_file_exists(struct wil6210_priv *wil, const char *name);
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime);
 int wil_suspend(struct wil6210_priv *wil, bool is_runtime);
 int wil_resume(struct wil6210_priv *wil, bool is_runtime);
+bool wil_is_wmi_idle(struct wil6210_priv *wil);
+int wmi_resume(struct wil6210_priv *wil);
+int wmi_suspend(struct wil6210_priv *wil);
+bool wil_is_tx_idle(struct wil6210_priv *wil);
+bool wil_is_rx_idle(struct wil6210_priv *wil);
 
 int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size);
 void wil_fw_core_dump(struct wil6210_priv *wil);

@@ -112,8 +112,6 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 
 	wil_dbg_misc(wil, "if_pcie_enable, wmi_only %d\n", wmi_only);
 
-	pdev->msi_enabled = 0;
-
 	pci_set_master(pdev);
 
 	wil_dbg_misc(wil, "Setup %s interrupt\n", use_msi ? "MSI" : "INTx");
@@ -259,7 +257,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	rc = pci_enable_device(pdev);
-	if (rc) {
+	if (rc && pdev->msi_enabled == 0) {
 		wil_err(wil,
 			"pci_enable_device failed, retry with MSI only\n");
 		/* Work around for platforms that can't allocate IRQ:
@@ -274,6 +272,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_plat;
 	}
 	/* rollback to err_disable_pdev */
+	pci_set_power_state(pdev, PCI_D0);
 
 	rc = pci_request_region(pdev, 0, WIL_NAME);
 	if (rc) {
@@ -293,6 +292,15 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	wil_set_capabilities(wil);
 	wil6210_clear_irq(wil);
+
+	wil->keep_radio_on_during_sleep =
+		wil->platform_ops.keep_radio_on_during_sleep &&
+		wil->platform_ops.keep_radio_on_during_sleep(
+			wil->platform_handle) &&
+		test_bit(WMI_FW_CAPABILITY_D3_SUSPEND, wil->fw_capabilities);
+
+	wil_info(wil, "keep_radio_on_during_sleep (%d)\n",
+		 wil->keep_radio_on_during_sleep);
 
 	/* FW should raise IRQ when ready */
 	rc = wil_if_pcie_enable(wil);
@@ -390,15 +398,16 @@ static int wil6210_suspend(struct device *dev, bool is_runtime)
 		goto out;
 
 	rc = wil_suspend(wil, is_runtime);
-	if (rc)
-		goto out;
+	if (!rc) {
+		wil->suspend_stats.successful_suspends++;
 
-	/* TODO: how do I bring card in low power state? */
-
-	/* disable bus mastering */
-	pci_clear_master(pdev);
-	/* PCI will call pci_save_state(pdev) and pci_prepare_to_sleep(pdev) */
-
+		/* If platform device supports keep_radio_on_during_sleep
+		 * it will control PCIe master
+		 */
+		if (!wil->keep_radio_on_during_sleep)
+			/* disable bus mastering */
+			pci_clear_master(pdev);
+	}
 out:
 	return rc;
 }
@@ -411,12 +420,21 @@ static int wil6210_resume(struct device *dev, bool is_runtime)
 
 	wil_dbg_pm(wil, "resume: %s\n", is_runtime ? "runtime" : "system");
 
-	/* allow master */
-	pci_set_master(pdev);
-
+	/* If platform device supports keep_radio_on_during_sleep it will
+	 * control PCIe master
+	 */
+	if (!wil->keep_radio_on_during_sleep)
+		/* allow master */
+		pci_set_master(pdev);
 	rc = wil_resume(wil, is_runtime);
-	if (rc)
-		pci_clear_master(pdev);
+	if (rc) {
+		wil_err(wil, "device failed to resume (%d)\n", rc);
+		wil->suspend_stats.failed_resumes++;
+		if (!wil->keep_radio_on_during_sleep)
+			pci_clear_master(pdev);
+	} else {
+		wil->suspend_stats.successful_resumes++;
+	}
 
 	return rc;
 }
