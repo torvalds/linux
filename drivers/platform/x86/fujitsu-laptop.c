@@ -557,13 +557,12 @@ static int acpi_fujitsu_laptop_input_setup(struct acpi_device *device)
 	if (!priv->input)
 		return -ENOMEM;
 
-	snprintf(priv->phys, sizeof(priv->phys), "%s/video/input0",
+	snprintf(priv->phys, sizeof(priv->phys), "%s/input0",
 		 acpi_device_hid(device));
 
 	priv->input->name = acpi_device_name(device);
 	priv->input->phys = priv->phys;
 	priv->input->id.bustype = BUS_HOST;
-	priv->input->id.product = 0x06;
 
 	dmi_check_system(fujitsu_laptop_dmi_table);
 	ret = sparse_keymap_setup(priv->input, keymap, NULL);
