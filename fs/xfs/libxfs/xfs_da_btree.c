@@ -1952,7 +1952,7 @@ xfs_da3_path_shift(
  * This is implemented with some source-level loop unrolling.
  */
 xfs_dahash_t
-xfs_da_hashname(const __uint8_t *name, int namelen)
+xfs_da_hashname(const uint8_t *name, int namelen)
 {
 	xfs_dahash_t hash;
 

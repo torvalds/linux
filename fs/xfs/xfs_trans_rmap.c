@@ -96,7 +96,7 @@ xfs_trans_log_finish_rmap_update(
 	struct xfs_trans		*tp,
 	struct xfs_rud_log_item		*rudp,
 	enum xfs_rmap_intent_type	type,
-	__uint64_t			owner,
+	uint64_t			owner,
 	int				whichfork,
 	xfs_fileoff_t			startoff,
 	xfs_fsblock_t			startblock,

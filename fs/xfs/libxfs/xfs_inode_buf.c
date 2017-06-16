@@ -444,7 +444,7 @@ xfs_dinode_calc_crc(
 	struct xfs_mount	*mp,
 	struct xfs_dinode	*dip)
 {
-	__uint32_t		crc;
+	uint32_t		crc;
 
 	if (dip->di_version < 3)
 		return;

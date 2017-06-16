@@ -253,7 +253,7 @@ xfs_attr_rmtval_copyout(
 	xfs_ino_t	ino,
 	int		*offset,
 	int		*valuelen,
-	__uint8_t	**dst)
+	uint8_t		**dst)
 {
 	char		*src = bp->b_addr;
 	xfs_daddr_t	bno = bp->b_bn;
@@ -301,7 +301,7 @@ xfs_attr_rmtval_copyin(
 	xfs_ino_t	ino,
 	int		*offset,
 	int		*valuelen,
-	__uint8_t	**src)
+	uint8_t		**src)
 {
 	char		*dst = bp->b_addr;
 	xfs_daddr_t	bno = bp->b_bn;
@@ -355,7 +355,7 @@ xfs_attr_rmtval_get(
 	struct xfs_mount	*mp = args->dp->i_mount;
 	struct xfs_buf		*bp;
 	xfs_dablk_t		lblkno = args->rmtblkno;
-	__uint8_t		*dst = args->value;
+	uint8_t			*dst = args->value;
 	int			valuelen;
 	int			nmap;
 	int			error;
@@ -421,7 +421,7 @@ xfs_attr_rmtval_set(
 	struct xfs_bmbt_irec	map;
 	xfs_dablk_t		lblkno;
 	xfs_fileoff_t		lfileoff = 0;
-	__uint8_t		*src = args->value;
+	uint8_t			*src = args->value;
 	int			blkcnt;
 	int			valuelen;
 	int			nmap;

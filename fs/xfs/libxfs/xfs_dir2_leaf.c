@@ -145,7 +145,7 @@ xfs_dir3_leaf_check_int(
 static bool
 xfs_dir3_leaf_verify(
 	struct xfs_buf		*bp,
-	__uint16_t		magic)
+	uint16_t		magic)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
@@ -154,7 +154,7 @@ xfs_dir3_leaf_verify(
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
-		__uint16_t		magic3;
+		uint16_t		magic3;
 
 		magic3 = (magic == XFS_DIR2_LEAF1_MAGIC) ? XFS_DIR3_LEAF1_MAGIC
 							 : XFS_DIR3_LEAFN_MAGIC;
@@ -178,7 +178,7 @@ xfs_dir3_leaf_verify(
 static void
 __read_verify(
 	struct xfs_buf  *bp,
-	__uint16_t	magic)
+	uint16_t	magic)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 
@@ -195,7 +195,7 @@ __read_verify(
 static void
 __write_verify(
 	struct xfs_buf  *bp,
-	__uint16_t	magic)
+	uint16_t	magic)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
@@ -299,7 +299,7 @@ xfs_dir3_leaf_init(
 	struct xfs_trans	*tp,
 	struct xfs_buf		*bp,
 	xfs_ino_t		owner,
-	__uint16_t		type)
+	uint16_t		type)
 {
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
 
@@ -343,7 +343,7 @@ xfs_dir3_leaf_get_buf(
 	xfs_da_args_t		*args,
 	xfs_dir2_db_t		bno,
 	struct xfs_buf		**bpp,
-	__uint16_t		magic)
+	uint16_t		magic)
 {
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_trans	*tp = args->trans;

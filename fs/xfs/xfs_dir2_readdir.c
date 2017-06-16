@@ -44,7 +44,7 @@ static unsigned char xfs_dir3_filetype_table[] = {
 static unsigned char
 xfs_dir3_get_dtype(
 	struct xfs_mount	*mp,
-	__uint8_t		filetype)
+	uint8_t			filetype)
 {
 	if (!xfs_sb_version_hasftype(&mp->m_sb))
 		return DT_UNKNOWN;
@@ -117,7 +117,7 @@ xfs_dir2_sf_getdents(
 	 */
 	sfep = xfs_dir2_sf_firstentry(sfp);
 	for (i = 0; i < sfp->count; i++) {
-		__uint8_t filetype;
+		uint8_t filetype;
 
 		off = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
 				xfs_dir2_sf_get_offset(sfep));
@@ -194,7 +194,7 @@ xfs_dir2_block_getdents(
 	 * Each object is a real entry (dep) or an unused one (dup).
 	 */
 	while (ptr < endptr) {
-		__uint8_t filetype;
+		uint8_t filetype;
 
 		dup = (xfs_dir2_data_unused_t *)ptr;
 		/*
@@ -391,7 +391,7 @@ xfs_dir2_leaf_getdents(
 	 * Get more blocks and readahead as necessary.
 	 */
 	while (curoff < XFS_DIR2_LEAF_OFFSET) {
-		__uint8_t filetype;
+		uint8_t filetype;
 
 		/*
 		 * If we have no buffer, or we're off the end of the

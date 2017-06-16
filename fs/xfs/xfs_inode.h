@@ -192,8 +192,8 @@ static inline void
 xfs_set_projid(struct xfs_inode *ip,
 		prid_t projid)
 {
-	ip->i_d.di_projid_hi = (__uint16_t) (projid >> 16);
-	ip->i_d.di_projid_lo = (__uint16_t) (projid & 0xffff);
+	ip->i_d.di_projid_hi = (uint16_t) (projid >> 16);
+	ip->i_d.di_projid_lo = (uint16_t) (projid & 0xffff);
 }
 
 static inline prid_t

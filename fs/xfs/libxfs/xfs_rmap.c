@@ -2061,7 +2061,7 @@ int
 xfs_rmap_finish_one(
 	struct xfs_trans		*tp,
 	enum xfs_rmap_intent_type	type,
-	__uint64_t			owner,
+	uint64_t			owner,
 	int				whichfork,
 	xfs_fileoff_t			startoff,
 	xfs_fsblock_t			startblock,
@@ -2182,7 +2182,7 @@ __xfs_rmap_add(
 	struct xfs_mount		*mp,
 	struct xfs_defer_ops		*dfops,
 	enum xfs_rmap_intent_type	type,
-	__uint64_t			owner,
+	uint64_t			owner,
 	int				whichfork,
 	struct xfs_bmbt_irec		*bmap)
 {
@@ -2266,7 +2266,7 @@ xfs_rmap_alloc_extent(
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	__uint64_t		owner)
+	uint64_t		owner)
 {
 	struct xfs_bmbt_irec	bmap;
 
@@ -2290,7 +2290,7 @@ xfs_rmap_free_extent(
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	__uint64_t		owner)
+	uint64_t		owner)
 {
 	struct xfs_bmbt_irec	bmap;
 

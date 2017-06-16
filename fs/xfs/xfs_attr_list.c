@@ -279,7 +279,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	if (bp == NULL) {
 		cursor->blkno = 0;
 		for (;;) {
-			__uint16_t magic;
+			uint16_t magic;
 
 			error = xfs_da3_node_read(NULL, dp,
 						      cursor->blkno, -1, &bp,

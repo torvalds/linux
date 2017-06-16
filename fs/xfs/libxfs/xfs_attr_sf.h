@@ -31,10 +31,10 @@ typedef struct xfs_attr_sf_entry xfs_attr_sf_entry_t;
  * We generate this then sort it, attr_list() must return things in hash-order.
  */
 typedef struct xfs_attr_sf_sort {
-	__uint8_t	entno;		/* entry number in original list */
-	__uint8_t	namelen;	/* length of name value (no null) */
-	__uint8_t	valuelen;	/* length of value */
-	__uint8_t	flags;		/* flags bits (see xfs_attr_leaf.h) */
+	uint8_t		entno;		/* entry number in original list */
+	uint8_t		namelen;	/* length of name value (no null) */
+	uint8_t		valuelen;	/* length of value */
+	uint8_t		flags;		/* flags bits (see xfs_attr_leaf.h) */
 	xfs_dahash_t	hash;		/* this entry's hash value */
 	unsigned char	*name;		/* name value, pointer into buffer */
 } xfs_attr_sf_sort_t;
@@ -42,7 +42,7 @@ typedef struct xfs_attr_sf_sort {
 #define XFS_ATTR_SF_ENTSIZE_BYNAME(nlen,vlen)	/* space name/value uses */ \
 	(((int)sizeof(xfs_attr_sf_entry_t)-1 + (nlen)+(vlen)))
 #define XFS_ATTR_SF_ENTSIZE_MAX			/* max space for name&value */ \
-	((1 << (NBBY*(int)sizeof(__uint8_t))) - 1)
+	((1 << (NBBY*(int)sizeof(uint8_t))) - 1)
 #define XFS_ATTR_SF_ENTSIZE(sfep)		/* space an entry uses */ \
 	((int)sizeof(xfs_attr_sf_entry_t)-1 + (sfep)->namelen+(sfep)->valuelen)
 #define XFS_ATTR_SF_NEXTENTRY(sfep)		/* next entry in struct */ \

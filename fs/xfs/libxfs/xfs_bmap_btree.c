@@ -94,8 +94,8 @@ xfs_bmdr_to_bmbt(
  */
 STATIC void
 __xfs_bmbt_get_all(
-		__uint64_t l0,
-		__uint64_t l1,
+		uint64_t l0,
+		uint64_t l1,
 		xfs_bmbt_irec_t *s)
 {
 	int	ext_flag;
@@ -588,12 +588,12 @@ xfs_bmbt_init_ptr_from_cur(
 	ptr->l = 0;
 }
 
-STATIC __int64_t
+STATIC int64_t
 xfs_bmbt_key_diff(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*key)
 {
-	return (__int64_t)be64_to_cpu(key->bmbt.br_startoff) -
+	return (int64_t)be64_to_cpu(key->bmbt.br_startoff) -
 				      cur->bc_rec.b.br_startoff;
 }
 

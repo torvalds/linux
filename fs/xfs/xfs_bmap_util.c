@@ -389,11 +389,11 @@ xfs_getbmapx_fix_eof_hole(
 	struct getbmapx		*out,		/* output structure */
 	int			prealloced,	/* this is a file with
 						 * preallocated data space */
-	__int64_t		end,		/* last block requested */
+	int64_t			end,		/* last block requested */
 	xfs_fsblock_t		startblock,
 	bool			moretocome)
 {
-	__int64_t		fixlen;
+	int64_t			fixlen;
 	xfs_mount_t		*mp;		/* file system mount point */
 	xfs_ifork_t		*ifp;		/* inode fork pointer */
 	xfs_extnum_t		lastx;		/* last extent pointer */
@@ -514,9 +514,9 @@ xfs_getbmap(
 	xfs_bmap_format_t	formatter,	/* format to user */
 	void			*arg)		/* formatter arg */
 {
-	__int64_t		bmvend;		/* last block requested */
+	int64_t			bmvend;		/* last block requested */
 	int			error = 0;	/* return value */
-	__int64_t		fixlen;		/* length for -1 case */
+	int64_t			fixlen;		/* length for -1 case */
 	int			i;		/* extent number */
 	int			lock;		/* lock state */
 	xfs_bmbt_irec_t		*map;		/* buffer for user's data */
@@ -605,7 +605,7 @@ xfs_getbmap(
 	if (bmv->bmv_length == -1) {
 		fixlen = XFS_FSB_TO_BB(mp, XFS_B_TO_FSB(mp, fixlen));
 		bmv->bmv_length =
-			max_t(__int64_t, fixlen - bmv->bmv_offset, 0);
+			max_t(int64_t, fixlen - bmv->bmv_offset, 0);
 	} else if (bmv->bmv_length == 0) {
 		bmv->bmv_entries = 0;
 		return 0;
@@ -742,7 +742,7 @@ xfs_getbmap(
 				out[cur_ext].bmv_offset +
 				out[cur_ext].bmv_length;
 			bmv->bmv_length =
-				max_t(__int64_t, 0, bmvend - bmv->bmv_offset);
+				max_t(int64_t, 0, bmvend - bmv->bmv_offset);
 
 			/*
 			 * In case we don't want to return the hole,
@@ -1676,7 +1676,7 @@ xfs_swap_extent_rmap(
 	xfs_filblks_t			ilen;
 	xfs_filblks_t			rlen;
 	int				nimaps;
-	__uint64_t			tip_flags2;
+	uint64_t			tip_flags2;
 
 	/*
 	 * If the source file has shared blocks, we must flag the donor
@@ -1792,7 +1792,7 @@ xfs_swap_extent_forks(
 	int			aforkblks = 0;
 	int			taforkblks = 0;
 	xfs_extnum_t		nextents;
-	__uint64_t		tmp;
+	uint64_t		tmp;
 	int			error;
 
 	/*
@@ -1850,15 +1850,15 @@ xfs_swap_extent_forks(
 	/*
 	 * Fix the on-disk inode values
 	 */
-	tmp = (__uint64_t)ip->i_d.di_nblocks;
+	tmp = (uint64_t)ip->i_d.di_nblocks;
 	ip->i_d.di_nblocks = tip->i_d.di_nblocks - taforkblks + aforkblks;
 	tip->i_d.di_nblocks = tmp + taforkblks - aforkblks;
 
-	tmp = (__uint64_t) ip->i_d.di_nextents;
+	tmp = (uint64_t) ip->i_d.di_nextents;
 	ip->i_d.di_nextents = tip->i_d.di_nextents;
 	tip->i_d.di_nextents = tmp;
 
-	tmp = (__uint64_t) ip->i_d.di_format;
+	tmp = (uint64_t) ip->i_d.di_format;
 	ip->i_d.di_format = tip->i_d.di_format;
 	tip->i_d.di_format = tmp;
 
@@ -1927,7 +1927,7 @@ xfs_swap_extents(
 	int			error = 0;
 	int			lock_flags;
 	struct xfs_ifork	*cowfp;
-	__uint64_t		f;
+	uint64_t		f;
 	int			resblks;
 
 	/*

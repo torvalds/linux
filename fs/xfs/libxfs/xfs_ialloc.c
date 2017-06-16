@@ -140,9 +140,9 @@ xfs_inobt_get_rec(
 STATIC int
 xfs_inobt_insert_rec(
 	struct xfs_btree_cur	*cur,
-	__uint16_t		holemask,
-	__uint8_t		count,
-	__int32_t		freecount,
+	uint16_t		holemask,
+	uint8_t			count,
+	int32_t			freecount,
 	xfs_inofree_t		free,
 	int			*stat)
 {
