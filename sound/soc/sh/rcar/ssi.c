@@ -208,14 +208,14 @@ u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io)
 	return 0;
 }
 
-int rsnd_ssi_clk_query(struct rsnd_priv *priv,
+unsigned int rsnd_ssi_clk_query(struct rsnd_priv *priv,
 		       int param1, int param2, int *idx)
 {
 	int ssi_clk_mul_table[] = {
 		1, 2, 4, 8, 16, 6, 12,
 	};
 	int j, ret;
-	int main_rate;
+	unsigned int main_rate;
 
 	for (j = 0; j < ARRAY_SIZE(ssi_clk_mul_table); j++) {
 
@@ -245,7 +245,7 @@ int rsnd_ssi_clk_query(struct rsnd_priv *priv,
 		return main_rate;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
@@ -282,7 +282,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	}
 
 	main_rate = rsnd_ssi_clk_query(priv, rate, chan, &idx);
-	if (main_rate < 0) {
+	if (!main_rate) {
 		dev_err(dev, "unsupported clock rate\n");
 		return -EIO;
 	}

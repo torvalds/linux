@@ -680,7 +680,7 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 			    struct device_node *playback,
 			    struct device_node *capture);
-int rsnd_ssi_clk_query(struct rsnd_priv *priv,
+unsigned int rsnd_ssi_clk_query(struct rsnd_priv *priv,
 		       int param1, int param2, int *idx);
 
 /*

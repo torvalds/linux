@@ -763,7 +763,7 @@ static int rsnd_soc_hw_rule(struct rsnd_priv *priv,
 			    struct snd_interval *baseline, struct snd_interval *iv)
 {
 	struct snd_interval p;
-	int rate;
+	unsigned int rate;
 	int i;
 
 	snd_interval_any(&p);
