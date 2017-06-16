@@ -21,9 +21,6 @@
 
 extern pgd_t swapper_pg_dir[];
 extern void paging_init(void);
-extern void vmem_map_init(void);
-pmd_t *vmem_pmd_alloc(void);
-pte_t *vmem_pte_alloc(void);
 
 enum {
 	PG_DIRECT_MAP_4K = 0,
