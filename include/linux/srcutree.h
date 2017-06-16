@@ -104,8 +104,6 @@ struct srcu_struct {
 #define SRCU_STATE_SCAN1	1
 #define SRCU_STATE_SCAN2	2
 
-void process_srcu(struct work_struct *work);
-
 #define __SRCU_STRUCT_INIT(name)					\
 	{								\
 		.sda = &name##_srcu_data,				\

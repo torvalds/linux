@@ -51,6 +51,7 @@ module_param(counter_wrap_check, ulong, 0444);
 
 static void srcu_invoke_callbacks(struct work_struct *work);
 static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay);
+static void process_srcu(struct work_struct *work);
 
 /*
  * Initialize SRCU combining tree.  Note that statically allocated
@@ -1194,7 +1195,7 @@ static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay)
 /*
  * This is the work-queue function that handles SRCU grace periods.
  */
-void process_srcu(struct work_struct *work)
+static void process_srcu(struct work_struct *work)
 {
 	struct srcu_struct *sp;
 
@@ -1203,7 +1204,6 @@ void process_srcu(struct work_struct *work)
 	srcu_advance_state(sp);
 	srcu_reschedule(sp, srcu_get_delay(sp));
 }
-EXPORT_SYMBOL_GPL(process_srcu);
 
 void srcutorture_get_gp_data(enum rcutorture_type test_type,
 			     struct srcu_struct *sp, int *flags,
