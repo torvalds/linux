@@ -1281,10 +1281,13 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		/* Check outstanding IO count */
 		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 			if (phba->nvmet_support) {
-				spin_lock(&phba->sli4_hba.nvmet_io_lock);
+				spin_lock(&phba->sli4_hba.nvmet_ctx_get_lock);
+				spin_lock(&phba->sli4_hba.nvmet_ctx_put_lock);
 				tot = phba->sli4_hba.nvmet_xri_cnt -
-					phba->sli4_hba.nvmet_ctx_cnt;
-				spin_unlock(&phba->sli4_hba.nvmet_io_lock);
+					(phba->sli4_hba.nvmet_ctx_get_cnt +
+					phba->sli4_hba.nvmet_ctx_put_cnt);
+				spin_unlock(&phba->sli4_hba.nvmet_ctx_put_lock);
+				spin_unlock(&phba->sli4_hba.nvmet_ctx_get_lock);
 			} else {
 				tot = atomic_read(&phba->fc4NvmeIoCmpls);
 				data1 = atomic_read(
@@ -3487,7 +3490,6 @@ lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba)
 
 	/* For NVMET, ALL remaining XRIs are dedicated for IO processing */
 	nvmet_xri_cnt = phba->sli4_hba.max_cfg_param.max_xri - els_xri_cnt;
-
 	if (nvmet_xri_cnt > phba->sli4_hba.nvmet_xri_cnt) {
 		/* els xri-sgl expanded */
 		xri_cnt = nvmet_xri_cnt - phba->sli4_hba.nvmet_xri_cnt;
@@ -5935,7 +5937,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		spin_lock_init(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvme_buf_list);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
-		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_ctx_list);
+		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_ctx_get_list);
+		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_ctx_put_list);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_io_wait_list);
 
 		/* Fast-path XRI aborted CQ Event work queue list */
@@ -5944,7 +5947,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* This abort list used by worker thread */
 	spin_lock_init(&phba->sli4_hba.sgl_list_lock);
-	spin_lock_init(&phba->sli4_hba.nvmet_io_lock);
+	spin_lock_init(&phba->sli4_hba.nvmet_ctx_get_lock);
+	spin_lock_init(&phba->sli4_hba.nvmet_ctx_put_lock);
 	spin_lock_init(&phba->sli4_hba.nvmet_io_wait_lock);
 
 	/*

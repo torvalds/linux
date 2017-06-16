@@ -267,11 +267,11 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 	}
 	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_wait_lock, iflag);
 
-	spin_lock_irqsave(&phba->sli4_hba.nvmet_io_lock, iflag);
+	spin_lock_irqsave(&phba->sli4_hba.nvmet_ctx_put_lock, iflag);
 	list_add_tail(&ctx_buf->list,
-		      &phba->sli4_hba.lpfc_nvmet_ctx_list);
-	phba->sli4_hba.nvmet_ctx_cnt++;
-	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_lock, iflag);
+		      &phba->sli4_hba.lpfc_nvmet_ctx_put_list);
+	phba->sli4_hba.nvmet_ctx_put_cnt++;
+	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_ctx_put_lock, iflag);
 #endif
 }
 
@@ -865,28 +865,46 @@ lpfc_nvmet_cleanup_io_context(struct lpfc_hba *phba)
 	struct lpfc_nvmet_ctxbuf *ctx_buf, *next_ctx_buf;
 	unsigned long flags;
 
-	list_for_each_entry_safe(
-		ctx_buf, next_ctx_buf,
-		&phba->sli4_hba.lpfc_nvmet_ctx_list, list) {
-		spin_lock_irqsave(
-			&phba->sli4_hba.abts_nvme_buf_list_lock, flags);
+	spin_lock_irqsave(&phba->sli4_hba.nvmet_ctx_get_lock, flags);
+	spin_lock_irq(&phba->sli4_hba.nvmet_ctx_put_lock);
+	list_for_each_entry_safe(ctx_buf, next_ctx_buf,
+			&phba->sli4_hba.lpfc_nvmet_ctx_get_list, list) {
+		spin_lock_irq(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		list_del_init(&ctx_buf->list);
-		spin_unlock_irqrestore(
-			&phba->sli4_hba.abts_nvme_buf_list_lock, flags);
+		spin_unlock_irq(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		__lpfc_clear_active_sglq(phba,
 					 ctx_buf->sglq->sli4_lxritag);
 		ctx_buf->sglq->state = SGL_FREED;
 		ctx_buf->sglq->ndlp = NULL;
 
-		spin_lock_irqsave(&phba->sli4_hba.sgl_list_lock, flags);
+		spin_lock_irq(&phba->sli4_hba.sgl_list_lock);
 		list_add_tail(&ctx_buf->sglq->list,
 			      &phba->sli4_hba.lpfc_nvmet_sgl_list);
-		spin_unlock_irqrestore(&phba->sli4_hba.sgl_list_lock,
-				       flags);
+		spin_unlock_irq(&phba->sli4_hba.sgl_list_lock);
 
 		lpfc_sli_release_iocbq(phba, ctx_buf->iocbq);
 		kfree(ctx_buf->context);
 	}
+	list_for_each_entry_safe(ctx_buf, next_ctx_buf,
+			&phba->sli4_hba.lpfc_nvmet_ctx_put_list, list) {
+		spin_lock_irq(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		list_del_init(&ctx_buf->list);
+		spin_unlock_irq(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		__lpfc_clear_active_sglq(phba,
+					 ctx_buf->sglq->sli4_lxritag);
+		ctx_buf->sglq->state = SGL_FREED;
+		ctx_buf->sglq->ndlp = NULL;
+
+		spin_lock_irq(&phba->sli4_hba.sgl_list_lock);
+		list_add_tail(&ctx_buf->sglq->list,
+			      &phba->sli4_hba.lpfc_nvmet_sgl_list);
+		spin_unlock_irq(&phba->sli4_hba.sgl_list_lock);
+
+		lpfc_sli_release_iocbq(phba, ctx_buf->iocbq);
+		kfree(ctx_buf->context);
+	}
+	spin_unlock_irq(&phba->sli4_hba.nvmet_ctx_put_lock);
+	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_ctx_get_lock, flags);
 }
 
 static int
@@ -958,12 +976,12 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 					"6407 Ran out of NVMET XRIs\n");
 			return -ENOMEM;
 		}
-		spin_lock(&phba->sli4_hba.nvmet_io_lock);
+		spin_lock(&phba->sli4_hba.nvmet_ctx_get_lock);
 		list_add_tail(&ctx_buf->list,
-			      &phba->sli4_hba.lpfc_nvmet_ctx_list);
-		spin_unlock(&phba->sli4_hba.nvmet_io_lock);
+			      &phba->sli4_hba.lpfc_nvmet_ctx_get_list);
+		spin_unlock(&phba->sli4_hba.nvmet_ctx_get_lock);
 	}
-	phba->sli4_hba.nvmet_ctx_cnt = phba->sli4_hba.nvmet_xri_cnt;
+	phba->sli4_hba.nvmet_ctx_get_cnt = phba->sli4_hba.nvmet_xri_cnt;
 	return 0;
 }
 
@@ -1370,13 +1388,31 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 		goto dropit;
 	}
 
-	spin_lock_irqsave(&phba->sli4_hba.nvmet_io_lock, iflag);
-	if (phba->sli4_hba.nvmet_ctx_cnt) {
-		list_remove_head(&phba->sli4_hba.lpfc_nvmet_ctx_list,
+	spin_lock_irqsave(&phba->sli4_hba.nvmet_ctx_get_lock, iflag);
+	if (phba->sli4_hba.nvmet_ctx_get_cnt) {
+		list_remove_head(&phba->sli4_hba.lpfc_nvmet_ctx_get_list,
 				 ctx_buf, struct lpfc_nvmet_ctxbuf, list);
-		phba->sli4_hba.nvmet_ctx_cnt--;
+		phba->sli4_hba.nvmet_ctx_get_cnt--;
+	} else {
+		spin_lock(&phba->sli4_hba.nvmet_ctx_put_lock);
+		if (phba->sli4_hba.nvmet_ctx_put_cnt) {
+			list_splice(&phba->sli4_hba.lpfc_nvmet_ctx_put_list,
+				    &phba->sli4_hba.lpfc_nvmet_ctx_get_list);
+			INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_ctx_put_list);
+			phba->sli4_hba.nvmet_ctx_get_cnt =
+				phba->sli4_hba.nvmet_ctx_put_cnt;
+			phba->sli4_hba.nvmet_ctx_put_cnt = 0;
+			spin_unlock(&phba->sli4_hba.nvmet_ctx_put_lock);
+
+			list_remove_head(
+				&phba->sli4_hba.lpfc_nvmet_ctx_get_list,
+				ctx_buf, struct lpfc_nvmet_ctxbuf, list);
+			phba->sli4_hba.nvmet_ctx_get_cnt--;
+		} else {
+			spin_unlock(&phba->sli4_hba.nvmet_ctx_put_lock);
+		}
 	}
-	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_lock, iflag);
+	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_ctx_get_lock, iflag);
 
 	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
 	oxid = be16_to_cpu(fc_hdr->fh_ox_id);

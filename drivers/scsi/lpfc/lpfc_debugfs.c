@@ -848,15 +848,18 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 			spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		}
 
-		spin_lock(&phba->sli4_hba.nvmet_io_lock);
+		spin_lock(&phba->sli4_hba.nvmet_ctx_get_lock);
+		spin_lock(&phba->sli4_hba.nvmet_ctx_put_lock);
 		tot = phba->sli4_hba.nvmet_xri_cnt -
-			phba->sli4_hba.nvmet_ctx_cnt;
-		spin_unlock(&phba->sli4_hba.nvmet_io_lock);
+			(phba->sli4_hba.nvmet_ctx_get_cnt +
+			phba->sli4_hba.nvmet_ctx_put_cnt);
+		spin_unlock(&phba->sli4_hba.nvmet_ctx_put_lock);
+		spin_unlock(&phba->sli4_hba.nvmet_ctx_get_lock);
 
 		len += snprintf(buf + len, size - len,
 				"IO_CTX: %08x  WAIT: cur %08x tot %08x\n"
 				"CTX Outstanding %08llx\n",
-				phba->sli4_hba.nvmet_ctx_cnt,
+				phba->sli4_hba.nvmet_xri_cnt,
 				phba->sli4_hba.nvmet_io_wait_cnt,
 				phba->sli4_hba.nvmet_io_wait_total,
 				tot);
