@@ -95,17 +95,15 @@ static int dsa_cpu_dsa_setups(struct dsa_switch *ds, struct device *dev)
 	return 0;
 }
 
-static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
+static int dsa_switch_setup_one(struct dsa_switch *ds, struct net_device *master,
+				struct device *parent)
 {
 	const struct dsa_switch_ops *ops = ds->ops;
 	struct dsa_switch_tree *dst = ds->dst;
 	struct dsa_chip_data *cd = ds->cd;
 	bool valid_name_found = false;
-	struct net_device *master;
 	int index = ds->index;
 	int i, ret;
-
-	master = dst->cpu_dp->netdev;
 
 	/*
 	 * Validate supplied switch configuration.
@@ -124,12 +122,12 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 				return -EINVAL;
 			}
 			dst->cpu_dp = &ds->ports[i];
+			dst->cpu_dp->netdev = master;
 			ds->cpu_port_mask |= 1 << i;
 		} else if (!strcmp(name, "dsa")) {
 			ds->dsa_port_mask |= 1 << i;
 		} else {
 			ds->enabled_port_mask |= 1 << i;
-			ds->ports[i].cpu_dp = dst->cpu_dp;
 		}
 		valid_name_found = true;
 	}
@@ -193,6 +191,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	 */
 	for (i = 0; i < ds->num_ports; i++) {
 		ds->ports[i].dn = cd->port_dn[i];
+		ds->ports[i].cpu_dp = dst->cpu_dp;
 
 		if (!(ds->enabled_port_mask & (1 << i)))
 			continue;
@@ -217,11 +216,10 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 }
 
 static struct dsa_switch *
-dsa_switch_setup(struct dsa_switch_tree *dst, int index,
-		 struct device *parent, struct device *host_dev)
+dsa_switch_setup(struct dsa_switch_tree *dst, struct net_device *master,
+		 int index, struct device *parent, struct device *host_dev)
 {
 	struct dsa_chip_data *cd = dst->pd->chip + index;
-	struct net_device *master = dst->cpu_dp->netdev;
 	const struct dsa_switch_ops *ops;
 	struct dsa_switch *ds;
 	int ret;
@@ -254,7 +252,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	ds->ops = ops;
 	ds->priv = priv;
 
-	ret = dsa_switch_setup_one(ds, parent);
+	ret = dsa_switch_setup_one(ds, master, parent);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -580,12 +578,11 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 	unsigned configured = 0;
 
 	dst->pd = pd;
-	dst->cpu_dp->netdev = dev;
 
 	for (i = 0; i < pd->nr_chips; i++) {
 		struct dsa_switch *ds;
 
-		ds = dsa_switch_setup(dst, i, parent, pd->chip[i].host_dev);
+		ds = dsa_switch_setup(dst, dev, i, parent, pd->chip[i].host_dev);
 		if (IS_ERR(ds)) {
 			netdev_err(dev, "[%d]: couldn't create dsa switch instance (error %ld)\n",
 				   i, PTR_ERR(ds));
