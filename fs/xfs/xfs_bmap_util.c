@@ -219,20 +219,22 @@ xfs_bmap_eof(
  */
 
 /*
- * Count leaf blocks given a range of extent records.
+ * Count leaf blocks given a range of extent records.  Delayed allocation
+ * extents are not counted towards the totals.
  */
 STATIC void
 xfs_bmap_count_leaves(
-	xfs_ifork_t		*ifp,
-	xfs_extnum_t		idx,
-	int			numrecs,
+	struct xfs_ifork	*ifp,
 	int			*count)
 {
-	int		b;
+	xfs_extnum_t		i;
+	xfs_extnum_t		nr_exts = xfs_iext_count(ifp);
 
-	for (b = 0; b < numrecs; b++) {
-		xfs_bmbt_rec_host_t *frp = xfs_iext_get_ext(ifp, idx + b);
-		*count += xfs_bmbt_get_blockcount(frp);
+	for (i = 0; i < nr_exts; i++) {
+		xfs_bmbt_rec_host_t *frp = xfs_iext_get_ext(ifp, i);
+		if (!isnullstartblock(xfs_bmbt_get_startblock(frp))) {
+			*count += xfs_bmbt_get_blockcount(frp);
+		}
 	}
 }
 
@@ -334,7 +336,8 @@ xfs_bmap_count_tree(
 }
 
 /*
- * Count fsblocks of the given fork.
+ * Count fsblocks of the given fork.  Delayed allocation extents are
+ * not counted towards the totals.
  */
 static int					/* error */
 xfs_bmap_count_blocks(
@@ -354,7 +357,7 @@ xfs_bmap_count_blocks(
 	mp = ip->i_mount;
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	if ( XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_EXTENTS ) {
-		xfs_bmap_count_leaves(ifp, 0, xfs_iext_count(ifp), count);
+		xfs_bmap_count_leaves(ifp, count);
 		return 0;
 	}
 
