@@ -498,7 +498,9 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 			dev_dbg(&pdev->dev, "probe deferred due to missing rtc clk\n");
 		return ret;
 	}
-	clk_prepare_enable(info->rtc_clk);
+	ret = clk_prepare_enable(info->rtc_clk);
+	if (ret)
+		return ret;
 
 	if (info->data->needs_src_clk) {
 		info->rtc_src_clk = devm_clk_get(&pdev->dev, "rtc_src");
@@ -512,7 +514,9 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 					"probe deferred due to missing rtc src clk\n");
 			goto err_src_clk;
 		}
-		clk_prepare_enable(info->rtc_src_clk);
+		ret = clk_prepare_enable(info->rtc_src_clk);
+		if (ret)
+			goto err_src_clk;
 	}
 
 	/* check to see if everything is setup correctly */
