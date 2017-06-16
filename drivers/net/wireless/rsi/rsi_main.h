@@ -34,6 +34,7 @@
 enum RSI_FSM_STATES {
 	FSM_FW_NOT_LOADED,
 	FSM_CARD_NOT_READY,
+	FSM_COMMON_DEV_PARAMS_SENT,
 	FSM_BOOT_PARAMS_SENT,
 	FSM_EEPROM_READ_MAC_ADDR,
 	FSM_RESET_MAC_SENT,
@@ -210,8 +211,14 @@ struct rsi_common {
 	struct cqm_info cqm_info;
 
 	bool hw_data_qs_blocked;
+	u8 driver_mode;
 	u8 coex_mode;
-	
+	u16 oper_mode;
+	u8 lp_ps_handshake_mode;
+	u8 ulp_ps_handshake_mode;
+	u8 rf_power_val;
+	u8 wlan_rf_power_mode;
+	u8 obm_ant_sel_val;
 	int tx_power;
 	u8 ant_in_use;
 };
@@ -234,6 +241,7 @@ struct rsi_hw {
 
 	enum host_intf rsi_host_intf;
 	u16 block_size;
+	u32 usb_buffer_status_reg;
 #ifdef CONFIG_RSI_DEBUGFS
 	struct rsi_debugfs *dfsentry;
 	u8 num_debugfs_entries;

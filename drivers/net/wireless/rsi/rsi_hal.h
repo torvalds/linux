@@ -63,6 +63,9 @@
 
 #define COMMAN_HAL_WAIT_FOR_CARD_READY	1
 
+#define RSI_DEV_OPMODE_WIFI_ALONE	1
+#define RSI_DEV_COEX_MODE_WIFI_ALONE	1
+
 struct bl_header {
 	__le32 flags;
 	__le32 image_no;
