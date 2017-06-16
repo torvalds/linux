@@ -15,6 +15,8 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 
+#define CRST_ALLOC_ORDER 2
+
 unsigned long *crst_table_alloc(struct mm_struct *);
 void crst_table_free(struct mm_struct *, unsigned long *);
 

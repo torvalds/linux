@@ -65,26 +65,6 @@ extern unsigned long zero_page_mask;
 
 /* TODO: s390 cannot support io_remap_pfn_range... */
 
-#define PMD_SHIFT	20
-#define PUD_SHIFT	31
-#define P4D_SHIFT	42
-#define PGDIR_SHIFT	53
-
-#define PMD_SIZE        (1UL << PMD_SHIFT)
-#define PMD_MASK        (~(PMD_SIZE-1))
-#define PUD_SIZE	(1UL << PUD_SHIFT)
-#define PUD_MASK	(~(PUD_SIZE-1))
-#define P4D_SIZE	(1UL << P4D_SHIFT)
-#define P4D_MASK	(~(P4D_SIZE-1))
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
-#define PGDIR_MASK	(~(PGDIR_SIZE-1))
-
-#define PTRS_PER_PTE	256
-#define PTRS_PER_PMD	2048
-#define PTRS_PER_PUD	2048
-#define PTRS_PER_P4D	2048
-#define PTRS_PER_PGD	2048
-
 #define FIRST_USER_ADDRESS  0UL
 
 #define pte_ERROR(e) \
@@ -313,6 +293,54 @@ static inline int is_module_addr(void *addr)
 #else
 #define _SEGMENT_ENTRY_SOFT_DIRTY 0x0000 /* SW segment soft dirty bit */
 #endif
+
+#define _CRST_ENTRIES	2048	/* number of region/segment table entries */
+#define _PAGE_ENTRIES	256	/* number of page table entries	*/
+
+#define _CRST_TABLE_SIZE (_CRST_ENTRIES * 8)
+#define _PAGE_TABLE_SIZE (_PAGE_ENTRIES * 8)
+
+#define _REGION1_SHIFT	53
+#define _REGION2_SHIFT	42
+#define _REGION3_SHIFT	31
+#define _SEGMENT_SHIFT	20
+
+#define _REGION1_INDEX	(0x7ffUL << _REGION1_SHIFT)
+#define _REGION2_INDEX	(0x7ffUL << _REGION2_SHIFT)
+#define _REGION3_INDEX	(0x7ffUL << _REGION3_SHIFT)
+#define _SEGMENT_INDEX	(0x7ffUL << _SEGMENT_SHIFT)
+#define _PAGE_INDEX	(0xffUL  << _PAGE_SHIFT)
+
+#define _REGION1_SIZE	(1UL << _REGION1_SHIFT)
+#define _REGION2_SIZE	(1UL << _REGION2_SHIFT)
+#define _REGION3_SIZE	(1UL << _REGION3_SHIFT)
+#define _SEGMENT_SIZE	(1UL << _SEGMENT_SHIFT)
+
+#define _REGION1_MASK	(~(_REGION1_SIZE - 1))
+#define _REGION2_MASK	(~(_REGION2_SIZE - 1))
+#define _REGION3_MASK	(~(_REGION3_SIZE - 1))
+#define _SEGMENT_MASK	(~(_SEGMENT_SIZE - 1))
+
+#define PMD_SHIFT	_SEGMENT_SHIFT
+#define PUD_SHIFT	_REGION3_SHIFT
+#define P4D_SHIFT	_REGION2_SHIFT
+#define PGDIR_SHIFT	_REGION1_SHIFT
+
+#define PMD_SIZE	_SEGMENT_SIZE
+#define PUD_SIZE	_REGION3_SIZE
+#define P4D_SIZE	_REGION2_SIZE
+#define PGDIR_SIZE	_REGION1_SIZE
+
+#define PMD_MASK	_SEGMENT_MASK
+#define PUD_MASK	_REGION3_MASK
+#define P4D_MASK	_REGION2_MASK
+#define PGDIR_MASK	_REGION1_MASK
+
+#define PTRS_PER_PTE	_PAGE_ENTRIES
+#define PTRS_PER_PMD	_CRST_ENTRIES
+#define PTRS_PER_PUD	_CRST_ENTRIES
+#define PTRS_PER_P4D	_CRST_ENTRIES
+#define PTRS_PER_PGD	_CRST_ENTRIES
 
 /*
  * Segment table and region3 table entry encoding
