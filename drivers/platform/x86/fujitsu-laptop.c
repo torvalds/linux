@@ -402,7 +402,6 @@ static int fujitsu_backlight_register(struct acpi_device *device)
 static int acpi_fujitsu_bl_add(struct acpi_device *device)
 {
 	struct fujitsu_bl *priv;
-	int state = 0;
 	int error;
 
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
@@ -421,15 +420,8 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	if (error)
 		return error;
 
-	error = acpi_bus_update_power(device->handle, &state);
-	if (error) {
-		pr_err("Error reading power state\n");
-		return error;
-	}
-
-	pr_info("ACPI: %s [%s] (%s)\n",
-	       acpi_device_name(device), acpi_device_bid(device),
-	       !device->power.state ? "on" : "off");
+	pr_info("ACPI: %s [%s]\n",
+		acpi_device_name(device), acpi_device_bid(device));
 
 	if (acpi_has_method(device->handle, METHOD_NAME__INI)) {
 		vdbg_printk(FUJLAPTOP_DBG_INFO, "Invoking _INI\n");
@@ -790,7 +782,6 @@ static int acpi_fujitsu_laptop_leds_register(struct acpi_device *device)
 static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 {
 	struct fujitsu_laptop *priv;
-	int state = 0;
 	int error;
 	int i;
 
@@ -818,15 +809,8 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	if (error)
 		goto err_free_fifo;
 
-	error = acpi_bus_update_power(device->handle, &state);
-	if (error) {
-		pr_err("Error reading power state\n");
-		goto err_free_fifo;
-	}
-
-	pr_info("ACPI: %s [%s] (%s)\n",
-		acpi_device_name(device), acpi_device_bid(device),
-		!device->power.state ? "on" : "off");
+	pr_info("ACPI: %s [%s]\n",
+		acpi_device_name(device), acpi_device_bid(device));
 
 	if (acpi_has_method(device->handle, METHOD_NAME__INI)) {
 		vdbg_printk(FUJLAPTOP_DBG_INFO, "Invoking _INI\n");
