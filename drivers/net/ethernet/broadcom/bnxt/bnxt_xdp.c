@@ -218,6 +218,7 @@ int bnxt_xdp(struct net_device *dev, struct netdev_xdp *xdp)
 		break;
 	case XDP_QUERY_PROG:
 		xdp->prog_attached = !!bp->xdp_prog;
+		xdp->prog_id = bp->xdp_prog ? bp->xdp_prog->aux->id : 0;
 		rc = 0;
 		break;
 	default:
