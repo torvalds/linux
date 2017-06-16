@@ -2168,6 +2168,19 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				 ndlp->nlp_fc4_type, ndlp->nlp_DID);
 		return 1;
 	}
+
+	/* SLI3 ports don't support NVME.  If this rport is a strict NVME
+	 * FC4 type, implicitly LOGO.
+	 */
+	if (phba->sli_rev == LPFC_SLI_REV3 &&
+	    ndlp->nlp_fc4_type == NLP_FC4_NVME) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "3088 Rport fc4 type 0x%x not supported by SLI3 adapter\n",
+				 ndlp->nlp_type);
+		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
+		return 1;
+	}
+
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp,
 				     ndlp->nlp_DID, elscmd);
 	if (!elsiocb)
@@ -2268,7 +2281,8 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* The driver supports 2 FC4 types.  Make sure
 	 * a PRLI is issued for all types before exiting.
 	 */
-	if (local_nlp_type & (NLP_FC4_FCP | NLP_FC4_NVME))
+	if (phba->sli_rev == LPFC_SLI_REV4 &&
+	    local_nlp_type & (NLP_FC4_FCP | NLP_FC4_NVME))
 		goto send_next_prli;
 
 	return 0;

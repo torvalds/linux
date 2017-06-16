@@ -4194,7 +4194,8 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_register_remote_port(vport, ndlp);
 		}
 		/* Notify the NVME transport of this new rport. */
-		if (ndlp->nlp_fc4_type & NLP_FC4_NVME) {
+		if (vport->phba->sli_rev >= LPFC_SLI_REV4 &&
+		    ndlp->nlp_fc4_type & NLP_FC4_NVME) {
 			if (vport->phba->nvmet_support == 0) {
 				/* Register this rport with the transport.
 				 * Initiators take the NDLP ref count in
