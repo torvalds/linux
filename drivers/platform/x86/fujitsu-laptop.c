@@ -112,22 +112,6 @@
 #define MAX_HOTKEY_RINGBUFFER_SIZE 100
 #define RINGBUFFERSIZE 40
 
-/* Debugging */
-#define FUJLAPTOP_DBG_ERROR	  0x0001
-#define FUJLAPTOP_DBG_WARN	  0x0002
-#define FUJLAPTOP_DBG_INFO	  0x0004
-#define FUJLAPTOP_DBG_TRACE	  0x0008
-
-#ifdef CONFIG_FUJITSU_LAPTOP_DEBUG
-#define vdbg_printk(a_dbg_level, format, arg...) \
-	do { if (dbg_level & a_dbg_level) \
-		printk(KERN_DEBUG pr_fmt("%s: " format), __func__, ## arg); \
-	} while (0)
-#else
-#define vdbg_printk(a_dbg_level, format, arg...) \
-	do { } while (0)
-#endif
-
 /* Device controlling the backlight and associated keys */
 struct fujitsu_bl {
 	struct input_dev *input;
@@ -154,10 +138,6 @@ struct fujitsu_laptop {
 
 static struct acpi_device *fext;
 
-#ifdef CONFIG_FUJITSU_LAPTOP_DEBUG
-static u32 dbg_level = 0x03;
-#endif
-
 /* Fujitsu ACPI interface function */
 
 static int call_fext_func(struct acpi_device *device,
@@ -176,12 +156,13 @@ static int call_fext_func(struct acpi_device *device,
 	status = acpi_evaluate_integer(device->handle, "FUNC", &arg_list,
 				       &value);
 	if (ACPI_FAILURE(status)) {
-		vdbg_printk(FUJLAPTOP_DBG_ERROR, "Failed to evaluate FUNC\n");
+		acpi_handle_err(device->handle, "Failed to evaluate FUNC\n");
 		return -ENODEV;
 	}
 
-	vdbg_printk(FUJLAPTOP_DBG_TRACE, "FUNC 0x%x (args 0x%x, 0x%x, 0x%x) returned 0x%x\n",
-		    func, op, feature, state, (int)value);
+	acpi_handle_debug(device->handle,
+			  "FUNC 0x%x (args 0x%x, 0x%x, 0x%x) returned 0x%x\n",
+			  func, op, feature, state, (int)value);
 	return value;
 }
 
@@ -208,16 +189,16 @@ static int set_lcd_level(struct acpi_device *device, int level)
 		break;
 	}
 
-	vdbg_printk(FUJLAPTOP_DBG_TRACE, "set lcd level via %s [%d]\n",
-		    method, level);
+	acpi_handle_debug(device->handle, "set lcd level via %s [%d]\n", method,
+			  level);
 
 	if (level < 0 || level >= priv->max_brightness)
 		return -EINVAL;
 
 	status = acpi_execute_simple_method(device->handle, method, level);
 	if (ACPI_FAILURE(status)) {
-		vdbg_printk(FUJLAPTOP_DBG_ERROR, "Failed to evaluate %s\n",
-			    method);
+		acpi_handle_err(device->handle, "Failed to evaluate %s\n",
+				method);
 		return -ENODEV;
 	}
 
@@ -232,7 +213,7 @@ static int get_lcd_level(struct acpi_device *device)
 	unsigned long long state = 0;
 	acpi_status status = AE_OK;
 
-	vdbg_printk(FUJLAPTOP_DBG_TRACE, "get lcd level via GBLL\n");
+	acpi_handle_debug(device->handle, "get lcd level via GBLL\n");
 
 	status = acpi_evaluate_integer(device->handle, "GBLL", NULL, &state);
 	if (ACPI_FAILURE(status))
@@ -249,7 +230,7 @@ static int get_max_brightness(struct acpi_device *device)
 	unsigned long long state = 0;
 	acpi_status status = AE_OK;
 
-	vdbg_printk(FUJLAPTOP_DBG_TRACE, "get max lcd level via RBLL\n");
+	acpi_handle_debug(device->handle, "get max lcd level via RBLL\n");
 
 	status = acpi_evaluate_integer(device->handle, "RBLL", NULL, &state);
 	if (ACPI_FAILURE(status))
@@ -442,8 +423,8 @@ static void acpi_fujitsu_bl_notify(struct acpi_device *device, u32 event)
 	int oldb, newb;
 
 	if (event != ACPI_FUJITSU_NOTIFY_CODE1) {
-		vdbg_printk(FUJLAPTOP_DBG_WARN,
-			    "unsupported event [0x%x]\n", event);
+		acpi_handle_info(device->handle, "unsupported event [0x%x]\n",
+				 event);
 		sparse_keymap_report_event(priv->input, -1, 1, true);
 		return;
 	}
@@ -452,8 +433,8 @@ static void acpi_fujitsu_bl_notify(struct acpi_device *device, u32 event)
 	get_lcd_level(device);
 	newb = priv->brightness_level;
 
-	vdbg_printk(FUJLAPTOP_DBG_TRACE, "brightness button event [%i -> %i]\n",
-		    oldb, newb);
+	acpi_handle_debug(device->handle,
+			  "brightness button event [%i -> %i]\n", oldb, newb);
 
 	if (oldb == newb)
 		return;
@@ -808,7 +789,8 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	while (call_fext_func(device, FUNC_BUTTONS, 0x1, 0x0, 0x0) != 0
 		&& (i++) < MAX_HOTKEY_RINGBUFFER_SIZE)
 		; /* No action, result is discarded */
-	vdbg_printk(FUJLAPTOP_DBG_INFO, "Discarded %i ringbuffer entries\n", i);
+	acpi_handle_debug(device->handle, "Discarded %i ringbuffer entries\n",
+			  i);
 
 	priv->flags_supported = call_fext_func(device, FUNC_FLAGS, 0x0, 0x0,
 					       0x0);
@@ -823,8 +805,8 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 						   0x0);
 
 	/* Suspect this is a keymap of the application panel, print it */
-	pr_info("BTNI: [0x%x]\n", call_fext_func(device,
-						 FUNC_BUTTONS, 0x0, 0x0, 0x0));
+	acpi_handle_info(device->handle, "BTNI: [0x%x]\n",
+			 call_fext_func(device, FUNC_BUTTONS, 0x0, 0x0, 0x0));
 
 	/* Sync backlight power status */
 	if (fujitsu_bl && fujitsu_bl->bl_device &&
@@ -870,13 +852,13 @@ static void acpi_fujitsu_laptop_press(struct acpi_device *device, int scancode)
 	status = kfifo_in_locked(&priv->fifo, (unsigned char *)&scancode,
 				 sizeof(scancode), &priv->fifo_lock);
 	if (status != sizeof(scancode)) {
-		vdbg_printk(FUJLAPTOP_DBG_WARN,
-			    "Could not push scancode [0x%x]\n", scancode);
+		dev_info(&priv->input->dev, "Could not push scancode [0x%x]\n",
+			 scancode);
 		return;
 	}
 	sparse_keymap_report_event(priv->input, scancode, 1, false);
-	vdbg_printk(FUJLAPTOP_DBG_TRACE,
-		    "Push scancode into ringbuffer [0x%x]\n", scancode);
+	dev_dbg(&priv->input->dev, "Push scancode into ringbuffer [0x%x]\n",
+		scancode);
 }
 
 static void acpi_fujitsu_laptop_release(struct acpi_device *device)
@@ -891,8 +873,8 @@ static void acpi_fujitsu_laptop_release(struct acpi_device *device)
 		if (status != sizeof(scancode))
 			return;
 		sparse_keymap_report_event(priv->input, scancode, 0, false);
-		vdbg_printk(FUJLAPTOP_DBG_TRACE,
-			    "Pop scancode from ringbuffer [0x%x]\n", scancode);
+		dev_dbg(&priv->input->dev,
+			"Pop scancode from ringbuffer [0x%x]\n", scancode);
 	}
 }
 
@@ -903,8 +885,8 @@ static void acpi_fujitsu_laptop_notify(struct acpi_device *device, u32 event)
 	unsigned int irb;
 
 	if (event != ACPI_FUJITSU_NOTIFY_CODE1) {
-		vdbg_printk(FUJLAPTOP_DBG_WARN,
-			    "Unsupported event [0x%x]\n", event);
+		acpi_handle_info(device->handle, "Unsupported event [0x%x]\n",
+				 event);
 		sparse_keymap_report_event(priv->input, -1, 1, true);
 		return;
 	}
@@ -922,8 +904,8 @@ static void acpi_fujitsu_laptop_notify(struct acpi_device *device, u32 event)
 		else if (scancode == 0)
 			acpi_fujitsu_laptop_release(device);
 		else
-			vdbg_printk(FUJLAPTOP_DBG_WARN,
-				    "Unknown GIRB result [%x]\n", irb);
+			acpi_handle_info(device->handle,
+					 "Unknown GIRB result [%x]\n", irb);
 	}
 
 	/* On some models (first seen on the Skylake-based Lifebook
@@ -1025,10 +1007,6 @@ module_param(use_alt_lcd_levels, int, 0644);
 MODULE_PARM_DESC(use_alt_lcd_levels, "Interface used for setting LCD brightness level (-1 = auto, 0 = force SBLL, 1 = force SBL2)");
 module_param(disable_brightness_adjust, bool, 0644);
 MODULE_PARM_DESC(disable_brightness_adjust, "Disable LCD brightness adjustment");
-#ifdef CONFIG_FUJITSU_LAPTOP_DEBUG
-module_param_named(debug, dbg_level, uint, 0644);
-MODULE_PARM_DESC(debug, "Sets debug level bit-mask");
-#endif
 
 MODULE_AUTHOR("Jonathan Woithe, Peter Gruber, Tony Vroon");
 MODULE_DESCRIPTION("Fujitsu laptop extras support");
