@@ -766,8 +766,8 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 		return PTR_ERR(base);
 
 	sai->phys_addr = res->start;
-	sai->regmap = devm_regmap_init_mmio(&pdev->dev, base,
-					    &stm32_sai_sub_regmap_config);
+	sai->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "sai_ck", base,
+						&stm32_sai_sub_regmap_config);
 
 	/* Get direction property */
 	if (of_property_match_string(np, "dma-names", "tx") >= 0) {
