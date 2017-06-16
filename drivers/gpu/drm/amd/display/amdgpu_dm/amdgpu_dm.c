@@ -1189,6 +1189,7 @@ int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	struct amdgpu_encoder *aencoder = NULL;
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	uint32_t link_cnt;
+	unsigned long possible_crtcs;
 
 	link_cnt = dm->dc->caps.max_links;
 	if (amdgpu_dm_mode_config_init(dm->adev)) {
@@ -1204,7 +1205,18 @@ int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			goto fail_free_planes;
 		}
 		mode_info->planes[i]->base.type = mode_info->plane_type[i];
-		if (amdgpu_dm_plane_init(dm, mode_info->planes[i], 0xff)) {
+
+		/*
+		 * HACK: IGT tests expect that each plane can only have one
+		 * one possible CRTC. For now, set one CRTC for each
+		 * plane that is not an underlay, but still allow multiple
+		 * CRTCs for underlay planes.
+		 */
+		possible_crtcs = 1 << i;
+		if (i >= dm->dc->caps.max_streams)
+			possible_crtcs = 0xff;
+
+		if (amdgpu_dm_plane_init(dm, mode_info->planes[i], possible_crtcs)) {
 			DRM_ERROR("KMS: Failed to initialize plane\n");
 			goto fail_free_planes;
 		}
