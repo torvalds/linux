@@ -88,6 +88,7 @@ struct bnxt_qplib_swq {
 
 struct bnxt_qplib_swqe {
 	/* General */
+#define	BNXT_QPLIB_FENCE_WRID	0x46454E43	/* "FENC" */
 	u64				wr_id;
 	u8				reqs_type;
 	u8				type;
@@ -216,9 +217,16 @@ struct bnxt_qplib_q {
 	struct scatterlist		*sglist;
 	u32				nmap;
 	u32				max_wqe;
+	u16				q_full_delta;
 	u16				max_sge;
 	u32				psn;
 	bool				flush_in_progress;
+	bool				condition;
+	bool				single;
+	bool				send_phantom;
+	u32				phantom_wqe_cnt;
+	u32				phantom_cqe_cnt;
+	u32				next_cq_cons;
 };
 
 struct bnxt_qplib_qp {
@@ -242,6 +250,7 @@ struct bnxt_qplib_qp {
 	u8				timeout;
 	u8				retry_cnt;
 	u8				rnr_retry;
+	u64				wqe_cnt;
 	u32				min_rnr_timer;
 	u32				max_rd_atomic;
 	u32				max_dest_rd_atomic;
@@ -300,6 +309,13 @@ struct bnxt_qplib_qp {
 #define CQE_CMP_VALID(hdr, raw_cons, cp_bit)			\
 	(!!((hdr)->cqe_type_toggle & CQ_BASE_TOGGLE) ==		\
 	   !((raw_cons) & (cp_bit)))
+
+static inline bool bnxt_qplib_queue_full(struct bnxt_qplib_q *qplib_q)
+{
+	return HWQ_CMP((qplib_q->hwq.prod + qplib_q->q_full_delta),
+		       &qplib_q->hwq) == HWQ_CMP(qplib_q->hwq.cons,
+						 &qplib_q->hwq);
+}
 
 struct bnxt_qplib_cqe {
 	u8				status;
@@ -432,7 +448,7 @@ int bnxt_qplib_post_recv(struct bnxt_qplib_qp *qp,
 int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq);
 int bnxt_qplib_destroy_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq);
 int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
-		       int num);
+		       int num, struct bnxt_qplib_qp **qp);
 void bnxt_qplib_req_notify_cq(struct bnxt_qplib_cq *cq, u32 arm_type);
 void bnxt_qplib_free_nq(struct bnxt_qplib_nq *nq);
 int bnxt_qplib_alloc_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq);

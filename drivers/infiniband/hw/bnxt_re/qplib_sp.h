@@ -40,6 +40,8 @@
 #ifndef __BNXT_QPLIB_SP_H__
 #define __BNXT_QPLIB_SP_H__
 
+#define BNXT_QPLIB_RESERVED_QP_WRS	128
+
 struct bnxt_qplib_dev_attr {
 	char				fw_ver[32];
 	u16				max_sgid;
