@@ -1242,11 +1242,11 @@ static int mlx5e_get_ts_info(struct net_device *dev,
 				 SOF_TIMESTAMPING_RX_HARDWARE |
 				 SOF_TIMESTAMPING_RAW_HARDWARE;
 
-	info->tx_types = (BIT(1) << HWTSTAMP_TX_OFF) |
-			 (BIT(1) << HWTSTAMP_TX_ON);
+	info->tx_types = BIT(HWTSTAMP_TX_OFF) |
+			 BIT(HWTSTAMP_TX_ON);
 
-	info->rx_filters = (BIT(1) << HWTSTAMP_FILTER_NONE) |
-			   (BIT(1) << HWTSTAMP_FILTER_ALL);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+			   BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
 }
