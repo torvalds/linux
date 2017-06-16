@@ -461,15 +461,15 @@ static int hal2_alloc_dmabuf(struct hal2_codec *codec)
 	int count = H2_BUF_SIZE / H2_BLOCK_SIZE;
 	int i;
 
-	codec->buffer = dma_alloc_noncoherent(NULL, H2_BUF_SIZE,
-					      &buffer_dma, GFP_KERNEL);
+	codec->buffer = dma_alloc_attrs(NULL, H2_BUF_SIZE, &buffer_dma,
+					GFP_KERNEL, DMA_ATTR_NON_CONSISTENT);
 	if (!codec->buffer)
 		return -ENOMEM;
-	desc = dma_alloc_noncoherent(NULL, count * sizeof(struct hal2_desc),
-				     &desc_dma, GFP_KERNEL);
+	desc = dma_alloc_attrs(NULL, count * sizeof(struct hal2_desc),
+			       &desc_dma, GFP_KERNEL, DMA_ATTR_NON_CONSISTENT);
 	if (!desc) {
-		dma_free_noncoherent(NULL, H2_BUF_SIZE,
-				     codec->buffer, buffer_dma);
+		dma_free_attrs(NULL, H2_BUF_SIZE, codec->buffer, buffer_dma,
+			       DMA_ATTR_NON_CONSISTENT);
 		return -ENOMEM;
 	}
 	codec->buffer_dma = buffer_dma;
@@ -490,10 +490,10 @@ static int hal2_alloc_dmabuf(struct hal2_codec *codec)
 
 static void hal2_free_dmabuf(struct hal2_codec *codec)
 {
-	dma_free_noncoherent(NULL, codec->desc_count * sizeof(struct hal2_desc),
-			     codec->desc, codec->desc_dma);
-	dma_free_noncoherent(NULL, H2_BUF_SIZE, codec->buffer,
-			     codec->buffer_dma);
+	dma_free_attrs(NULL, codec->desc_count * sizeof(struct hal2_desc),
+		       codec->desc, codec->desc_dma, DMA_ATTR_NON_CONSISTENT);
+	dma_free_attrs(NULL, H2_BUF_SIZE, codec->buffer, codec->buffer_dma,
+		       DMA_ATTR_NON_CONSISTENT);
 }
 
 static struct snd_pcm_hardware hal2_pcm_hw = {
