@@ -102,13 +102,8 @@ static int expose_firmware_sysfs(struct intel_gvt *gvt)
 
 	p = firmware + h->mmio_offset;
 
-	hash_for_each(gvt->mmio.mmio_info_table, i, e, node) {
-		int j;
-
-		for (j = 0; j < e->length; j += 4)
-			*(u32 *)(p + e->offset + j) =
-				I915_READ_NOTRACE(_MMIO(e->offset + j));
-	}
+	hash_for_each(gvt->mmio.mmio_info_table, i, e, node)
+		*(u32 *)(p + e->offset) = I915_READ_NOTRACE(_MMIO(e->offset));
 
 	memcpy(gvt->firmware.mmio, p, info->mmio_size);
 

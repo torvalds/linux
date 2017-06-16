@@ -42,6 +42,10 @@ struct intel_gvt_workload_scheduler {
 	struct intel_vgpu_workload *current_workload[I915_NUM_ENGINES];
 	bool need_reschedule;
 
+	spinlock_t mmio_context_lock;
+	/* can be null when owner is host */
+	struct intel_vgpu *engine_owner[I915_NUM_ENGINES];
+
 	wait_queue_head_t workload_complete_wq;
 	struct task_struct *thread[I915_NUM_ENGINES];
 	wait_queue_head_t waitq[I915_NUM_ENGINES];
