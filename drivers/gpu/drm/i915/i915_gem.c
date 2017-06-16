@@ -4804,7 +4804,9 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	i915_gem_init_userptr(dev_priv);
+	ret = i915_gem_init_userptr(dev_priv);
+	if (ret)
+		goto out_unlock;
 
 	ret = i915_gem_init_ggtt(dev_priv);
 	if (ret)

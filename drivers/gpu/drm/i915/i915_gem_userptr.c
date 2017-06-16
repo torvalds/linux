@@ -378,7 +378,7 @@ __i915_mm_struct_free(struct kref *kref)
 	mutex_unlock(&mm->i915->mm_lock);
 
 	INIT_WORK(&mm->work, __i915_mm_struct_free__worker);
-	schedule_work(&mm->work);
+	queue_work(mm->i915->mm.userptr_wq, &mm->work);
 }
 
 static void
@@ -598,7 +598,7 @@ __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj)
 	get_task_struct(work->task);
 
 	INIT_WORK(&work->work, __i915_gem_userptr_get_pages_worker);
-	schedule_work(&work->work);
+	queue_work(to_i915(obj->base.dev)->mm.userptr_wq, &work->work);
 
 	return ERR_PTR(-EAGAIN);
 }
@@ -830,8 +830,20 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	return 0;
 }
 
-void i915_gem_init_userptr(struct drm_i915_private *dev_priv)
+int i915_gem_init_userptr(struct drm_i915_private *dev_priv)
 {
 	mutex_init(&dev_priv->mm_lock);
 	hash_init(dev_priv->mm_structs);
+
+	dev_priv->mm.userptr_wq =
+		alloc_workqueue("i915-userptr-acquire", WQ_HIGHPRI, 0);
+	if (!dev_priv->mm.userptr_wq)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void i915_gem_cleanup_userptr(struct drm_i915_private *dev_priv)
+{
+	destroy_workqueue(dev_priv->mm.userptr_wq);
 }
