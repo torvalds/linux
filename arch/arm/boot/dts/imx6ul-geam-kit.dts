@@ -88,12 +88,6 @@
 	};
 };
 
-&usdhc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc1>;
-	status = "okay";
-};
-
 &tsc {
 	measure-delay-time = <0x1ffff>;
 	pre-charge-time = <0x1fff>;
