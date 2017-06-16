@@ -801,19 +801,19 @@ static struct s3c_rtc_data const s3c6410_rtc_data = {
 static const struct of_device_id s3c_rtc_dt_match[] = {
 	{
 		.compatible = "samsung,s3c2410-rtc",
-		.data = (void *)&s3c2410_rtc_data,
+		.data = &s3c2410_rtc_data,
 	}, {
 		.compatible = "samsung,s3c2416-rtc",
-		.data = (void *)&s3c2416_rtc_data,
+		.data = &s3c2416_rtc_data,
 	}, {
 		.compatible = "samsung,s3c2443-rtc",
-		.data = (void *)&s3c2443_rtc_data,
+		.data = &s3c2443_rtc_data,
 	}, {
 		.compatible = "samsung,s3c6410-rtc",
-		.data = (void *)&s3c6410_rtc_data,
+		.data = &s3c6410_rtc_data,
 	}, {
 		.compatible = "samsung,exynos3250-rtc",
-		.data = (void *)&s3c6410_rtc_data,
+		.data = &s3c6410_rtc_data,
 	},
 	{ /* sentinel */ },
 };
