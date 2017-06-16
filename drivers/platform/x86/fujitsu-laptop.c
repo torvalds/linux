@@ -423,14 +423,6 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	pr_info("ACPI: %s [%s]\n",
 		acpi_device_name(device), acpi_device_bid(device));
 
-	if (acpi_has_method(device->handle, METHOD_NAME__INI)) {
-		vdbg_printk(FUJLAPTOP_DBG_INFO, "Invoking _INI\n");
-		if (ACPI_FAILURE
-		    (acpi_evaluate_object
-		     (device->handle, METHOD_NAME__INI, NULL, NULL)))
-			pr_err("_INI Method failed\n");
-	}
-
 	if (get_max_brightness(device) <= 0)
 		priv->max_brightness = FUJITSU_LCD_N_LEVELS;
 	get_lcd_level(device);
@@ -811,14 +803,6 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 
 	pr_info("ACPI: %s [%s]\n",
 		acpi_device_name(device), acpi_device_bid(device));
-
-	if (acpi_has_method(device->handle, METHOD_NAME__INI)) {
-		vdbg_printk(FUJLAPTOP_DBG_INFO, "Invoking _INI\n");
-		if (ACPI_FAILURE
-		    (acpi_evaluate_object
-		     (device->handle, METHOD_NAME__INI, NULL, NULL)))
-			pr_err("_INI Method failed\n");
-	}
 
 	i = 0;
 	while (call_fext_func(device, FUNC_BUTTONS, 0x1, 0x0, 0x0) != 0
