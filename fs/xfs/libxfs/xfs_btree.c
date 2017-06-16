@@ -4849,12 +4849,14 @@ xfs_btree_query_all(
 	xfs_btree_query_range_fn	fn,
 	void				*priv)
 {
-	union xfs_btree_irec		low_rec;
-	union xfs_btree_irec		high_rec;
+	union xfs_btree_key		low_key;
+	union xfs_btree_key		high_key;
 
-	memset(&low_rec, 0, sizeof(low_rec));
-	memset(&high_rec, 0xFF, sizeof(high_rec));
-	return xfs_btree_query_range(cur, &low_rec, &high_rec, fn, priv);
+	memset(&cur->bc_rec, 0, sizeof(cur->bc_rec));
+	memset(&low_key, 0, sizeof(low_key));
+	memset(&high_key, 0xFF, sizeof(high_key));
+
+	return xfs_btree_simple_query_range(cur, &low_key, &high_key, fn, priv);
 }
 
 /*
