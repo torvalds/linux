@@ -12,6 +12,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/slab.h>
 
 #include <media/media-entity.h>
@@ -34,6 +35,14 @@
 void vsp1_drm_display_start(struct vsp1_device *vsp1)
 {
 	vsp1_dlm_irq_display_start(vsp1->drm->pipe.output->dlm);
+}
+
+static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe)
+{
+	struct vsp1_drm *drm = to_vsp1_drm(pipe);
+
+	if (drm->du_complete)
+		drm->du_complete(drm->du_private);
 }
 
 /* -----------------------------------------------------------------------------
@@ -95,6 +104,7 @@ int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
 		}
 
 		pipe->num_inputs = 0;
+		vsp1->drm->du_complete = NULL;
 
 		vsp1_dlm_reset(pipe->output->dlm);
 		vsp1_device_put(vsp1);
@@ -198,6 +208,13 @@ int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
 	ret = vsp1_device_get(vsp1);
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * Register a callback to allow us to notify the DRM driver of frame
+	 * completion events.
+	 */
+	vsp1->drm->du_complete = cfg->callback;
+	vsp1->drm->du_private = cfg->callback_data;
 
 	ret = media_pipeline_start(&pipe->output->entity.subdev.entity,
 					  &pipe->pipe);
@@ -524,6 +541,29 @@ void vsp1_du_atomic_flush(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_flush);
 
+int vsp1_du_map_sg(struct device *dev, struct sg_table *sgt)
+{
+	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+
+	/*
+	 * As all the buffers allocated by the DU driver are coherent, we can
+	 * skip cache sync. This will need to be revisited when support for
+	 * non-coherent buffers will be added to the DU driver.
+	 */
+	return dma_map_sg_attrs(vsp1->bus_master, sgt->sgl, sgt->nents,
+				DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+}
+EXPORT_SYMBOL_GPL(vsp1_du_map_sg);
+
+void vsp1_du_unmap_sg(struct device *dev, struct sg_table *sgt)
+{
+	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+
+	dma_unmap_sg_attrs(vsp1->bus_master, sgt->sgl, sgt->nents,
+			   DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+}
+EXPORT_SYMBOL_GPL(vsp1_du_unmap_sg);
+
 /* -----------------------------------------------------------------------------
  * Initialization
  */
@@ -603,6 +643,7 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 	pipe->lif = &vsp1->lif->entity;
 	pipe->output = vsp1->wpf[0];
 	pipe->output->pipe = pipe;
+	pipe->frame_end = vsp1_du_pipeline_frame_end;
 
 	return 0;
 }
