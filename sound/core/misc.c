@@ -48,7 +48,6 @@ void release_and_free_resource(struct resource *res)
 		kfree(res);
 	}
 }
-
 EXPORT_SYMBOL(release_and_free_resource);
 
 #ifdef CONFIG_SND_VERBOSE_PRINTK
