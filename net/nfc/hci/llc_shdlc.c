@@ -382,8 +382,8 @@ static int llc_shdlc_connect_initiate(struct llc_shdlc *shdlc)
 	if (skb == NULL)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, 1) = SHDLC_MAX_WINDOW;
-	*(u8 *)skb_put(skb, 1) = SHDLC_SREJ_SUPPORT ? 1 : 0;
+	skb_put_u8(skb, SHDLC_MAX_WINDOW);
+	skb_put_u8(skb, SHDLC_SREJ_SUPPORT ? 1 : 0);
 
 	return llc_shdlc_send_u_frame(shdlc, skb, U_FRAME_RSET);
 }

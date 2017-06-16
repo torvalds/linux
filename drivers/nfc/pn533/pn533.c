@@ -1032,7 +1032,7 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 		return NULL;
 
 	/* DEP support only */
-	*(u8 *)skb_put(skb, 1) = PN533_INIT_TARGET_DEP;
+	skb_put_u8(skb, PN533_INIT_TARGET_DEP);
 
 	/* MIFARE params */
 	skb_put_data(skb, mifare_params, 6);
@@ -1046,12 +1046,12 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 	memcpy(nfcid3, felica, 8);
 
 	/* General bytes */
-	*(u8 *)skb_put(skb, 1) = gbytes_len;
+	skb_put_u8(skb, gbytes_len);
 
 	gb = skb_put_data(skb, gbytes, gbytes_len);
 
 	/* Len Tk */
-	*(u8 *)skb_put(skb, 1) = 0;
+	skb_put_u8(skb, 0);
 
 	return skb;
 }
@@ -1280,8 +1280,8 @@ static void pn533_wq_rf(struct work_struct *work)
 	if (!skb)
 		return;
 
-	*(u8 *)skb_put(skb, 1) = PN533_CFGITEM_RF_FIELD;
-	*(u8 *)skb_put(skb, 1) = PN533_CFGITEM_RF_FIELD_AUTO_RFCA;
+	skb_put_u8(skb, PN533_CFGITEM_RF_FIELD);
+	skb_put_u8(skb, PN533_CFGITEM_RF_FIELD_AUTO_RFCA);
 
 	rc = pn533_send_cmd_async(dev, PN533_CMD_RF_CONFIGURATION, skb,
 				  pn533_rf_complete, NULL);
@@ -1375,8 +1375,8 @@ static int pn533_poll_dep(struct nfc_dev *nfc_dev)
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, 1) = 0x01;  /* Active */
-	*(u8 *)skb_put(skb, 1) = 0x02;  /* 424 kbps */
+	skb_put_u8(skb, 0x01);  /* Active */
+	skb_put_u8(skb, 0x02);  /* 424 kbps */
 
 	next = skb_put(skb, 1);  /* Next */
 	*next = 0;
@@ -1620,8 +1620,8 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, sizeof(u8)) = 1; /* TG */
-	*(u8 *)skb_put(skb, sizeof(u8)) = 0; /* Next */
+	skb_put_u8(skb, 1); /* TG */
+	skb_put_u8(skb, 0); /* Next */
 
 	resp = pn533_send_cmd_sync(dev, PN533_CMD_IN_ATR, skb);
 	if (IS_ERR(resp))
@@ -1737,7 +1737,7 @@ static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
 	if (!skb)
 		return;
 
-	*(u8 *)skb_put(skb, 1) = 1; /* TG*/
+	skb_put_u8(skb, 1); /* TG*/
 
 	rc = pn533_send_cmd_async(dev, PN533_CMD_IN_RELEASE, skb,
 				  pn533_deactivate_target_complete, NULL);
@@ -1848,8 +1848,8 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, 1) = !comm_mode;  /* ActPass */
-	*(u8 *)skb_put(skb, 1) = 0x02;  /* 424 kbps */
+	skb_put_u8(skb, !comm_mode);  /* ActPass */
+	skb_put_u8(skb, 0x02);  /* 424 kbps */
 
 	next = skb_put(skb, 1);  /* Next */
 	*next = 0;
@@ -2274,7 +2274,7 @@ static void pn533_wq_mi_recv(struct work_struct *work)
 			break;
 		}
 	default:
-		*(u8 *)skb_put(skb, sizeof(u8)) =  1; /*TG*/
+		skb_put_u8(skb, 1); /*TG*/
 
 		rc = pn533_send_cmd_direct_async(dev,
 						 PN533_CMD_IN_DATA_EXCHANGE,
@@ -2370,7 +2370,7 @@ static int pn533_set_configuration(struct pn533 *dev, u8 cfgitem, u8 *cfgdata,
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, sizeof(cfgitem)) = cfgitem;
+	skb_put_u8(skb, cfgitem);
 	skb_put_data(skb, cfgdata, cfgdata_len);
 
 	resp = pn533_send_cmd_sync(dev, PN533_CMD_RF_CONFIGURATION, skb);
@@ -2415,7 +2415,7 @@ static int pn533_pasori_fw_reset(struct pn533 *dev)
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, sizeof(u8)) = 0x1;
+	skb_put_u8(skb, 0x1);
 
 	resp = pn533_send_cmd_sync(dev, 0x18, skb);
 	if (IS_ERR(resp))
@@ -2454,7 +2454,7 @@ static int pn532_sam_configuration(struct nfc_dev *nfc_dev)
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, 1) = 0x01;
+	skb_put_u8(skb, 0x01);
 
 	resp = pn533_send_cmd_sync(dev, PN533_CMD_SAM_CONFIGURATION, skb);
 	if (IS_ERR(resp))

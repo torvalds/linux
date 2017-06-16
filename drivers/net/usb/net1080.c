@@ -473,7 +473,7 @@ encapsulate:
 
 	/* maybe pad; then trailer */
 	if (!((skb->len + sizeof *trailer) & 0x01))
-		*(u8 *)skb_put(skb, 1) = PAD_BYTE;
+		skb_put_u8(skb, PAD_BYTE);
 	trailer = skb_put(skb, sizeof *trailer);
 	put_unaligned(header->packet_id, &trailer->packet_id);
 #if 0

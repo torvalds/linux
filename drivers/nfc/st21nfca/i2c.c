@@ -177,10 +177,10 @@ static void st21nfca_hci_add_len_crc(struct sk_buff *skb)
 	crc = ~crc;
 
 	tmp = crc & 0x00ff;
-	*(u8 *)skb_put(skb, 1) = tmp;
+	skb_put_u8(skb, tmp);
 
 	tmp = (crc >> 8) & 0x00ff;
-	*(u8 *)skb_put(skb, 1) = tmp;
+	skb_put_u8(skb, tmp);
 }
 
 static void st21nfca_hci_remove_len_crc(struct sk_buff *skb)
@@ -214,7 +214,7 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 	st21nfca_hci_add_len_crc(skb);
 
 	/* add ST21NFCA_SOF_EOF on tail */
-	*(u8 *)skb_put(skb, 1) = ST21NFCA_SOF_EOF;
+	skb_put_u8(skb, ST21NFCA_SOF_EOF);
 	/* add ST21NFCA_SOF_EOF on head */
 	*(u8 *)skb_push(skb, 1) = ST21NFCA_SOF_EOF;
 

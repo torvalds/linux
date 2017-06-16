@@ -292,7 +292,7 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 			out_skb = alloc_lc_skb(priv, 1);
 			if (!out_skb)
 				return -ENOMEM;
-			*(u8 *)skb_put(out_skb, 1) = 0xBF;
+			skb_put_u8(out_skb, 0xBF);
 			nci_send_frame(priv->ndev, out_skb);
 			priv->fw_dnld.substate = SUBSTATE_WAIT_NACK_CREDIT;
 			return 0;
@@ -301,7 +301,7 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 		out_skb = alloc_lc_skb(priv, 1);
 		if (!out_skb)
 			return -ENOMEM;
-		*(u8 *)skb_put(out_skb, 1) = HELPER_ACK_PACKET_FORMAT;
+		skb_put_u8(out_skb, HELPER_ACK_PACKET_FORMAT);
 		nci_send_frame(priv->ndev, out_skb);
 		priv->fw_dnld.substate = SUBSTATE_WAIT_ACK_CREDIT;
 		break;

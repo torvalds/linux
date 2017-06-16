@@ -492,33 +492,33 @@ static struct sk_buff *HDLC_Encode(struct sk_buff *skb)
 	hdlc_skb->mac_len = skb->mac_len;
 
 	/* Add flag sequence in front of everything.. */
-	*(u8 *)skb_put(hdlc_skb, 1) = PPP_FLAG;
+	skb_put_u8(hdlc_skb, PPP_FLAG);
 
 	/* Perform byte stuffing while copying data. */
 	while (skb->len--) {
 		if (muststuff(*skb->data)) {
-			*(u8 *)skb_put(hdlc_skb, 1) = PPP_ESCAPE;
-			*(u8 *)skb_put(hdlc_skb, 1) = (*skb->data++) ^ PPP_TRANS;
+			skb_put_u8(hdlc_skb, PPP_ESCAPE);
+			skb_put_u8(hdlc_skb, (*skb->data++) ^ PPP_TRANS);
 		} else
-			*(u8 *)skb_put(hdlc_skb, 1) = *skb->data++;
+			skb_put_u8(hdlc_skb, *skb->data++);
 	}
 
 	/* Finally add FCS (byte stuffed) and flag sequence */
 	c = (fcs & 0x00ff);	/* least significant byte first */
 	if (muststuff(c)) {
-		*(u8 *)skb_put(hdlc_skb, 1) = PPP_ESCAPE;
+		skb_put_u8(hdlc_skb, PPP_ESCAPE);
 		c ^= PPP_TRANS;
 	}
-	*(u8 *)skb_put(hdlc_skb, 1) = c;
+	skb_put_u8(hdlc_skb, c);
 
 	c = ((fcs >> 8) & 0x00ff);
 	if (muststuff(c)) {
-		*(u8 *)skb_put(hdlc_skb, 1) = PPP_ESCAPE;
+		skb_put_u8(hdlc_skb, PPP_ESCAPE);
 		c ^= PPP_TRANS;
 	}
-	*(u8 *)skb_put(hdlc_skb, 1) = c;
+	skb_put_u8(hdlc_skb, c);
 
-	*(u8 *)skb_put(hdlc_skb, 1) = PPP_FLAG;
+	skb_put_u8(hdlc_skb, PPP_FLAG);
 
 	dev_kfree_skb_any(skb);
 	return hdlc_skb;
@@ -561,8 +561,8 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb)
 	while (len--) {
 		c = bitrev8(*cp++);
 		if (c == DLE_FLAG)
-			*(u8 *)skb_put(iraw_skb, 1) = c;
-		*(u8 *)skb_put(iraw_skb, 1) = c;
+			skb_put_u8(iraw_skb, c);
+		skb_put_u8(iraw_skb, c);
 	}
 	dev_kfree_skb_any(skb);
 	return iraw_skb;

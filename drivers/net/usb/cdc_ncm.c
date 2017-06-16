@@ -1250,7 +1250,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 		skb_put_zero(skb_out, padding_count);
 	} else if (skb_out->len < ctx->tx_max &&
 		   (skb_out->len % dev->maxpacket) == 0) {
-		*(u8 *)skb_put(skb_out, 1) = 0;	/* force short packet */
+		skb_put_u8(skb_out, 0);	/* force short packet */
 	}
 
 	/* set final frame length */

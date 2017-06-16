@@ -448,7 +448,7 @@ static void bluecard_receive(struct bluecard_info *info,
 
 		} else {
 
-			*(u8 *)skb_put(info->rx_skb, 1) = buf[i];
+			skb_put_u8(info->rx_skb, buf[i]);
 			info->rx_count--;
 
 			if (info->rx_count == 0) {

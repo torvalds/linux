@@ -654,7 +654,7 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, 1) = rtox;
+	skb_put_u8(skb, rtox);
 
 	skb_push(skb, sizeof(struct digital_dep_req_res));
 

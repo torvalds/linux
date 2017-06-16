@@ -991,7 +991,7 @@ static int port100_set_command_type(struct port100 *dev, u8 command_type)
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, sizeof(u8)) = command_type;
+	skb_put_u8(skb, command_type);
 
 	resp = port100_send_cmd_sync(dev, PORT100_CMD_SET_COMMAND_TYPE, skb);
 	if (IS_ERR(resp))
@@ -1059,7 +1059,7 @@ static int port100_switch_rf(struct nfc_digital_dev *ddev, bool on)
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, 1) = on ? 1 : 0;
+	skb_put_u8(skb, on ? 1 : 0);
 
 	/* Cancel the last command if the device is being switched off */
 	if (!on)

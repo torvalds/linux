@@ -530,7 +530,7 @@ void dn_send_conn_conf(struct sock *sk, gfp_t gfp)
 	msg->info = scp->info_loc;
 	msg->segsize = cpu_to_le16(scp->segsize_loc);
 
-	*(u8 *)skb_put(skb, 1) = len;
+	skb_put_u8(skb, len);
 
 	if (len > 0)
 		skb_put_data(skb, scp->conndata_out.opt_data, len);
@@ -686,25 +686,25 @@ void dn_nsp_send_conninit(struct sock *sk, unsigned char msgflg)
 	if (scp->peer.sdn_flags & SDF_UICPROXY)
 		menuver |= DN_MENUVER_UIC;
 
-	*(u8 *)skb_put(skb, 1) = menuver;	/* Menu Version		*/
+	skb_put_u8(skb, menuver);	/* Menu Version		*/
 
 	aux = scp->accessdata.acc_userl;
-	*(u8 *)skb_put(skb, 1) = aux;
+	skb_put_u8(skb, aux);
 	if (aux > 0)
 		skb_put_data(skb, scp->accessdata.acc_user, aux);
 
 	aux = scp->accessdata.acc_passl;
-	*(u8 *)skb_put(skb, 1) = aux;
+	skb_put_u8(skb, aux);
 	if (aux > 0)
 		skb_put_data(skb, scp->accessdata.acc_pass, aux);
 
 	aux = scp->accessdata.acc_accl;
-	*(u8 *)skb_put(skb, 1) = aux;
+	skb_put_u8(skb, aux);
 	if (aux > 0)
 		skb_put_data(skb, scp->accessdata.acc_acc, aux);
 
 	aux = (__u8)le16_to_cpu(scp->conndata_out.opt_optl);
-	*(u8 *)skb_put(skb, 1) = aux;
+	skb_put_u8(skb, aux);
 	if (aux > 0)
 		skb_put_data(skb, scp->conndata_out.opt_data, aux);
 

@@ -874,7 +874,7 @@ static void nfc_hci_recv_from_llc(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 			return;
 		}
 
-		*(u8 *)skb_put(hcp_skb, NFC_HCI_HCP_PACKET_HEADER_LEN) = pipe;
+		skb_put_u8(hcp_skb, pipe);
 
 		skb_queue_walk(&hdev->rx_hcp_frags, frag_skb) {
 			msg_len = frag_skb->len - NFC_HCI_HCP_PACKET_HEADER_LEN;

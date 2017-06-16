@@ -470,7 +470,7 @@ static int inject_cmd_complete(struct hci_dev *hdev, __u16 opcode)
 	evt->ncmd = 0x01;
 	evt->opcode = cpu_to_le16(opcode);
 
-	*(u8 *)skb_put(skb, 1) = 0x00;
+	skb_put_u8(skb, 0x00);
 
 	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
 

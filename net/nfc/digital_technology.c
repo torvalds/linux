@@ -266,8 +266,8 @@ static int digital_in_send_rats(struct nfc_digital_dev *ddev,
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, 1) = DIGITAL_RATS_BYTE1;
-	*(u8 *)skb_put(skb, 1) = DIGITAL_RATS_PARAM;
+	skb_put_u8(skb, DIGITAL_RATS_BYTE1);
+	skb_put_u8(skb, DIGITAL_RATS_PARAM);
 
 	rc = digital_in_send_cmd(ddev, skb, 30, digital_in_recv_ats,
 				 target);
@@ -470,8 +470,8 @@ static int digital_in_send_sdd_req(struct nfc_digital_dev *ddev,
 	else
 		sel_cmd = DIGITAL_CMD_SEL_REQ_CL3;
 
-	*(u8 *)skb_put(skb, sizeof(u8)) = sel_cmd;
-	*(u8 *)skb_put(skb, sizeof(u8)) = DIGITAL_SDD_REQ_SEL_PAR;
+	skb_put_u8(skb, sel_cmd);
+	skb_put_u8(skb, DIGITAL_SDD_REQ_SEL_PAR);
 
 	return digital_in_send_cmd(ddev, skb, 30, digital_in_recv_sdd_res,
 				   target);
@@ -541,7 +541,7 @@ int digital_in_send_sens_req(struct nfc_digital_dev *ddev, u8 rf_tech)
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, sizeof(u8)) = DIGITAL_CMD_SENS_REQ;
+	skb_put_u8(skb, DIGITAL_CMD_SENS_REQ);
 
 	rc = digital_in_send_cmd(ddev, skb, 30, digital_in_recv_sens_res, NULL);
 	if (rc)
@@ -937,7 +937,7 @@ static int digital_tg_send_sel_res(struct nfc_digital_dev *ddev)
 	if (!skb)
 		return -ENOMEM;
 
-	*(u8 *)skb_put(skb, 1) = DIGITAL_SEL_RES_NFC_DEP;
+	skb_put_u8(skb, DIGITAL_SEL_RES_NFC_DEP);
 
 	if (!DIGITAL_DRV_CAPS_TG_CRC(ddev))
 		digital_skb_add_crc_a(skb);
