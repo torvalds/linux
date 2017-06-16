@@ -32,6 +32,7 @@
 #define ISR_ZONE                        BIT(8)  /* For Interrupt Msgs         */
 
 enum RSI_FSM_STATES {
+	FSM_FW_NOT_LOADED,
 	FSM_CARD_NOT_READY,
 	FSM_BOOT_PARAMS_SENT,
 	FSM_EEPROM_READ_MAC_ADDR,

@@ -733,6 +733,7 @@ int rsi_hal_device_init(struct rsi_hw *adapter)
 	default:
 		return -EINVAL;
 	}
+	common->fsm_state = FSM_CARD_NOT_READY;
 
 	return 0;
 }
