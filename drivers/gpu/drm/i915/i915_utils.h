@@ -99,6 +99,11 @@
 	__T;								\
 })
 
+#define u64_to_ptr(T, x) ({						\
+	typecheck(u64, x);						\
+	(T *)(uintptr_t)(x);						\
+})
+
 #define __mask_next_bit(mask) ({					\
 	int __idx = ffs(mask) - 1;					\
 	mask &= ~BIT(__idx);						\

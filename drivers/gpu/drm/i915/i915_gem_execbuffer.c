@@ -75,37 +75,42 @@ struct i915_execbuffer {
 		unsigned int page;
 		bool use_64bit_reloc : 1;
 	} reloc_cache;
-	int and;
-	union {
-		struct i915_vma **lut;
-		struct hlist_head *buckets;
-	};
+	int lut_mask;
+	struct hlist_head *buckets;
 };
+
+/*
+ * As an alternative to creating a hashtable of handle-to-vma for a batch,
+ * we used the last available reserved field in the execobject[] and stash
+ * a link from the execobj to its vma.
+ */
+#define __exec_to_vma(ee) (ee)->rsvd2
+#define exec_to_vma(ee) u64_to_ptr(struct i915_vma, __exec_to_vma(ee))
 
 static int eb_create(struct i915_execbuffer *eb)
 {
-	eb->lut = NULL;
-	if (eb->args->flags & I915_EXEC_HANDLE_LUT) {
-		unsigned int size = eb->args->buffer_count;
-		size *= sizeof(struct i915_vma *);
-		eb->lut = kmalloc(size,
-				  GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
-	}
+	if ((eb->args->flags & I915_EXEC_HANDLE_LUT) == 0) {
+		unsigned int size = 1 + ilog2(eb->args->buffer_count);
 
-	if (!eb->lut) {
-		unsigned int size = eb->args->buffer_count;
-		unsigned int count = PAGE_SIZE / sizeof(struct hlist_head) / 2;
-		BUILD_BUG_ON_NOT_POWER_OF_2(PAGE_SIZE / sizeof(struct hlist_head));
-		while (count > 2*size)
-			count >>= 1;
-		eb->lut = kzalloc(count * sizeof(struct hlist_head),
-				  GFP_TEMPORARY);
-		if (!eb->lut)
-			return -ENOMEM;
+		do {
+			eb->buckets = kzalloc(sizeof(struct hlist_head) << size,
+					      GFP_TEMPORARY |
+					      __GFP_NORETRY |
+					      __GFP_NOWARN);
+			if (eb->buckets)
+				break;
+		} while (--size);
 
-		eb->and = count - 1;
+		if (unlikely(!eb->buckets)) {
+			eb->buckets = kzalloc(sizeof(struct hlist_head),
+					      GFP_TEMPORARY);
+			if (unlikely(!eb->buckets))
+				return -ENOMEM;
+		}
+
+		eb->lut_mask = size;
 	} else {
-		eb->and = -eb->args->buffer_count;
+		eb->lut_mask = -eb->args->buffer_count;
 	}
 
 	return 0;
@@ -142,14 +147,160 @@ eb_reset(struct i915_execbuffer *eb)
 		vma->exec_entry = NULL;
 	}
 
-	if (eb->and >= 0)
-		memset(eb->buckets, 0, (eb->and+1)*sizeof(struct hlist_head));
+	if (eb->lut_mask >= 0)
+		memset(eb->buckets, 0,
+		       sizeof(struct hlist_head) << eb->lut_mask);
+}
+
+static bool
+eb_add_vma(struct i915_execbuffer *eb, struct i915_vma *vma, int i)
+{
+	if (unlikely(vma->exec_entry)) {
+		DRM_DEBUG("Object [handle %d, index %d] appears more than once in object list\n",
+			  eb->exec[i].handle, i);
+		return false;
+	}
+	list_add_tail(&vma->exec_link, &eb->vmas);
+
+	vma->exec_entry = &eb->exec[i];
+	if (eb->lut_mask >= 0) {
+		vma->exec_handle = eb->exec[i].handle;
+		hlist_add_head(&vma->exec_node,
+			       &eb->buckets[hash_32(vma->exec_handle,
+						    eb->lut_mask)]);
+	}
+
+	i915_vma_get(vma);
+	__exec_to_vma(&eb->exec[i]) = (uintptr_t)vma;
+	return true;
+}
+
+static inline struct hlist_head *
+ht_head(const struct i915_gem_context *ctx, u32 handle)
+{
+	return &ctx->vma_lut.ht[hash_32(handle, ctx->vma_lut.ht_bits)];
+}
+
+static inline bool
+ht_needs_resize(const struct i915_gem_context *ctx)
+{
+	return (4*ctx->vma_lut.ht_count > 3*ctx->vma_lut.ht_size ||
+		4*ctx->vma_lut.ht_count + 1 < ctx->vma_lut.ht_size);
+}
+
+static int
+eb_lookup_vmas(struct i915_execbuffer *eb)
+{
+#define INTERMEDIATE BIT(0)
+	const int count = eb->args->buffer_count;
+	struct i915_vma *vma;
+	int slow_pass = -1;
+	int i;
+
+	INIT_LIST_HEAD(&eb->vmas);
+
+	if (unlikely(eb->ctx->vma_lut.ht_size & I915_CTX_RESIZE_IN_PROGRESS))
+		flush_work(&eb->ctx->vma_lut.resize);
+	GEM_BUG_ON(eb->ctx->vma_lut.ht_size & I915_CTX_RESIZE_IN_PROGRESS);
+
+	for (i = 0; i < count; i++) {
+		__exec_to_vma(&eb->exec[i]) = 0;
+
+		hlist_for_each_entry(vma,
+				     ht_head(eb->ctx, eb->exec[i].handle),
+				     ctx_node) {
+			if (vma->ctx_handle != eb->exec[i].handle)
+				continue;
+
+			if (!eb_add_vma(eb, vma, i))
+				return -EINVAL;
+
+			goto next_vma;
+		}
+
+		if (slow_pass < 0)
+			slow_pass = i;
+next_vma: ;
+	}
+
+	if (slow_pass < 0)
+		return 0;
+
+	spin_lock(&eb->file->table_lock);
+	/* Grab a reference to the object and release the lock so we can lookup
+	 * or create the VMA without using GFP_ATOMIC */
+	for (i = slow_pass; i < count; i++) {
+		struct drm_i915_gem_object *obj;
+
+		if (__exec_to_vma(&eb->exec[i]))
+			continue;
+
+		obj = to_intel_bo(idr_find(&eb->file->object_idr,
+					   eb->exec[i].handle));
+		if (unlikely(!obj)) {
+			spin_unlock(&eb->file->table_lock);
+			DRM_DEBUG("Invalid object handle %d at index %d\n",
+				  eb->exec[i].handle, i);
+			return -ENOENT;
+		}
+
+		__exec_to_vma(&eb->exec[i]) = INTERMEDIATE | (uintptr_t)obj;
+	}
+	spin_unlock(&eb->file->table_lock);
+
+	for (i = slow_pass; i < count; i++) {
+		struct drm_i915_gem_object *obj;
+
+		if ((__exec_to_vma(&eb->exec[i]) & INTERMEDIATE) == 0)
+			continue;
+
+		/*
+		 * NOTE: We can leak any vmas created here when something fails
+		 * later on. But that's no issue since vma_unbind can deal with
+		 * vmas which are not actually bound. And since only
+		 * lookup_or_create exists as an interface to get at the vma
+		 * from the (obj, vm) we don't run the risk of creating
+		 * duplicated vmas for the same vm.
+		 */
+		obj = u64_to_ptr(struct drm_i915_gem_object,
+				 __exec_to_vma(&eb->exec[i]) & ~INTERMEDIATE);
+		vma = i915_vma_instance(obj, eb->vm, NULL);
+		if (unlikely(IS_ERR(vma))) {
+			DRM_DEBUG("Failed to lookup VMA\n");
+			return PTR_ERR(vma);
+		}
+
+		/* First come, first served */
+		if (!vma->ctx) {
+			vma->ctx = eb->ctx;
+			vma->ctx_handle = eb->exec[i].handle;
+			hlist_add_head(&vma->ctx_node,
+				       ht_head(eb->ctx, eb->exec[i].handle));
+			eb->ctx->vma_lut.ht_count++;
+			if (i915_vma_is_ggtt(vma)) {
+				GEM_BUG_ON(obj->vma_hashed);
+				obj->vma_hashed = vma;
+			}
+		}
+
+		if (!eb_add_vma(eb, vma, i))
+			return -EINVAL;
+	}
+
+	if (ht_needs_resize(eb->ctx)) {
+		eb->ctx->vma_lut.ht_size |= I915_CTX_RESIZE_IN_PROGRESS;
+		queue_work(system_highpri_wq, &eb->ctx->vma_lut.resize);
+	}
+
+	return 0;
+#undef INTERMEDIATE
 }
 
 static struct i915_vma *
 eb_get_batch(struct i915_execbuffer *eb)
 {
-	struct i915_vma *vma = list_entry(eb->vmas.prev, typeof(*vma), exec_link);
+	struct i915_vma *vma =
+		exec_to_vma(&eb->exec[eb->args->buffer_count - 1]);
 
 	/*
 	 * SNA is doing fancy tricks with compressing batch buffers, which leads
@@ -166,113 +317,18 @@ eb_get_batch(struct i915_execbuffer *eb)
 	return vma;
 }
 
-static int
-eb_lookup_vmas(struct i915_execbuffer *eb)
+static struct i915_vma *
+eb_get_vma(struct i915_execbuffer *eb, unsigned long handle)
 {
-	struct drm_i915_gem_object *obj;
-	struct list_head objects;
-	int i, ret;
-
-	INIT_LIST_HEAD(&eb->vmas);
-
-	INIT_LIST_HEAD(&objects);
-	spin_lock(&eb->file->table_lock);
-	/* Grab a reference to the object and release the lock so we can lookup
-	 * or create the VMA without using GFP_ATOMIC */
-	for (i = 0; i < eb->args->buffer_count; i++) {
-		obj = to_intel_bo(idr_find(&eb->file->object_idr, eb->exec[i].handle));
-		if (obj == NULL) {
-			spin_unlock(&eb->file->table_lock);
-			DRM_DEBUG("Invalid object handle %d at index %d\n",
-				   eb->exec[i].handle, i);
-			ret = -ENOENT;
-			goto err;
-		}
-
-		if (!list_empty(&obj->obj_exec_link)) {
-			spin_unlock(&eb->file->table_lock);
-			DRM_DEBUG("Object %p [handle %d, index %d] appears more than once in object list\n",
-				   obj, eb->exec[i].handle, i);
-			ret = -EINVAL;
-			goto err;
-		}
-
-		i915_gem_object_get(obj);
-		list_add_tail(&obj->obj_exec_link, &objects);
-	}
-	spin_unlock(&eb->file->table_lock);
-
-	i = 0;
-	while (!list_empty(&objects)) {
-		struct i915_vma *vma;
-
-		obj = list_first_entry(&objects,
-				       struct drm_i915_gem_object,
-				       obj_exec_link);
-
-		/*
-		 * NOTE: We can leak any vmas created here when something fails
-		 * later on. But that's no issue since vma_unbind can deal with
-		 * vmas which are not actually bound. And since only
-		 * lookup_or_create exists as an interface to get at the vma
-		 * from the (obj, vm) we don't run the risk of creating
-		 * duplicated vmas for the same vm.
-		 */
-		vma = i915_vma_instance(obj, eb->vm, NULL);
-		if (unlikely(IS_ERR(vma))) {
-			DRM_DEBUG("Failed to lookup VMA\n");
-			ret = PTR_ERR(vma);
-			goto err;
-		}
-
-		/* Transfer ownership from the objects list to the vmas list. */
-		list_add_tail(&vma->exec_link, &eb->vmas);
-		list_del_init(&obj->obj_exec_link);
-
-		vma->exec_entry = &eb->exec[i];
-		if (eb->and < 0) {
-			eb->lut[i] = vma;
-		} else {
-			u32 handle =
-				eb->args->flags & I915_EXEC_HANDLE_LUT ?
-				i : eb->exec[i].handle;
-			vma->exec_handle = handle;
-			hlist_add_head(&vma->exec_node,
-				       &eb->buckets[handle & eb->and]);
-		}
-		++i;
-	}
-
-	return 0;
-
-
-err:
-	while (!list_empty(&objects)) {
-		obj = list_first_entry(&objects,
-				       struct drm_i915_gem_object,
-				       obj_exec_link);
-		list_del_init(&obj->obj_exec_link);
-		i915_gem_object_put(obj);
-	}
-	/*
-	 * Objects already transfered to the vmas list will be unreferenced by
-	 * eb_destroy.
-	 */
-
-	return ret;
-}
-
-static struct i915_vma *eb_get_vma(struct i915_execbuffer *eb, unsigned long handle)
-{
-	if (eb->and < 0) {
-		if (handle >= -eb->and)
+	if (eb->lut_mask < 0) {
+		if (handle >= -eb->lut_mask)
 			return NULL;
-		return eb->lut[handle];
+		return exec_to_vma(&eb->exec[handle]);
 	} else {
 		struct hlist_head *head;
 		struct i915_vma *vma;
 
-		head = &eb->buckets[handle & eb->and];
+		head = &eb->buckets[hash_32(handle, eb->lut_mask)];
 		hlist_for_each_entry(vma, head, exec_node) {
 			if (vma->exec_handle == handle)
 				return vma;
@@ -296,7 +352,7 @@ static void eb_destroy(struct i915_execbuffer *eb)
 
 	i915_gem_context_put(eb->ctx);
 
-	if (eb->buckets)
+	if (eb->lut_mask >= 0)
 		kfree(eb->buckets);
 }
 
@@ -916,7 +972,7 @@ static int eb_reserve(struct i915_execbuffer *eb)
 		need_fence =
 			(entry->flags & EXEC_OBJECT_NEEDS_FENCE ||
 			 needs_unfenced_map) &&
-			i915_gem_object_is_tiled(obj);
+			i915_gem_object_is_tiled(vma->obj);
 		need_mappable = need_fence || need_reloc_mappable(vma);
 
 		if (entry->flags & EXEC_OBJECT_PINNED)

@@ -86,6 +86,7 @@ struct drm_i915_gem_object {
 	 * They are also added to @vma_list for easy iteration.
 	 */
 	struct rb_root vma_tree;
+	struct i915_vma *vma_hashed;
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
@@ -99,9 +100,6 @@ struct drm_i915_gem_object {
 	 * Whether the object is currently in the GGTT mmap.
 	 */
 	struct list_head userfault_link;
-
-	/** Used in execbuf to temporarily hold a ref */
-	struct list_head obj_exec_link;
 
 	struct list_head batch_pool_link;
 	I915_SELFTEST_DECLARE(struct list_head st_link);

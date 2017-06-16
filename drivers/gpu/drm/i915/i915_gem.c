@@ -3261,6 +3261,10 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 		if (vma->vm->file == fpriv)
 			i915_vma_close(vma);
 
+	vma = obj->vma_hashed;
+	if (vma && vma->ctx->file_priv == fpriv)
+		i915_vma_unlink_ctx(vma);
+
 	if (i915_gem_object_is_active(obj) &&
 	    !i915_gem_object_has_active_reference(obj)) {
 		i915_gem_object_set_active_reference(obj);
@@ -4254,7 +4258,6 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 
 	INIT_LIST_HEAD(&obj->global_link);
 	INIT_LIST_HEAD(&obj->userfault_link);
-	INIT_LIST_HEAD(&obj->obj_exec_link);
 	INIT_LIST_HEAD(&obj->vma_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
 
