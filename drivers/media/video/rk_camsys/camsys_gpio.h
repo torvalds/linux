@@ -6,6 +6,7 @@
 #define NUM_GROUP (32)
 #define GPIO_BANKS (9)
 #endif
+extern unsigned int CHIP_TYPE;
 
 static inline unsigned int camsys_gpio_group_pin(unsigned char *io_name)
 {
@@ -79,6 +80,9 @@ static inline unsigned int camsys_gpio_get(unsigned char *io_name)
 			else
 				gpio += group * NUM_GROUP + group_pin;
 		}
+		/* gpio0_D is unavailable on rk3288. */
+		if (!strstr(io_name, "PIN0") && 3288 == CHIP_TYPE)
+			gpio -= 8;
 	}
 #endif
 	return gpio;

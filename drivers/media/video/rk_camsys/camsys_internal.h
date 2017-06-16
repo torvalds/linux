@@ -166,8 +166,10 @@
 	1) add reference count for marvin.
 *v0.0x22.0:
 	1) delete node in irqpool list when thread disconnect.
+*v0.0x22.1:
+	1) gpio0_D is unavailable on rk3288 with current pinctrl driver.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x22, 0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x22, 1)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
