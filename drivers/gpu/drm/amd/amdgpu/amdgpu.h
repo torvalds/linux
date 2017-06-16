@@ -869,6 +869,8 @@ struct amdgpu_fpriv {
 
 struct amdgpu_bo_list {
 	struct mutex lock;
+	struct rcu_head rhead;
+	struct kref refcount;
 	struct amdgpu_bo *gds_obj;
 	struct amdgpu_bo *gws_obj;
 	struct amdgpu_bo *oa_obj;
