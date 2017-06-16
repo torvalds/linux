@@ -134,6 +134,7 @@ int snd_midi_event_new(int bufsize, struct snd_midi_event **rdev)
 	*rdev = dev;
 	return 0;
 }
+EXPORT_SYMBOL(snd_midi_event_new);
 
 void snd_midi_event_free(struct snd_midi_event *dev)
 {
@@ -142,6 +143,7 @@ void snd_midi_event_free(struct snd_midi_event *dev)
 		kfree(dev);
 	}
 }
+EXPORT_SYMBOL(snd_midi_event_free);
 
 /*
  * initialize record
@@ -161,6 +163,7 @@ void snd_midi_event_reset_encode(struct snd_midi_event *dev)
 	reset_encode(dev);
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
+EXPORT_SYMBOL(snd_midi_event_reset_encode);
 
 void snd_midi_event_reset_decode(struct snd_midi_event *dev)
 {
@@ -170,6 +173,7 @@ void snd_midi_event_reset_decode(struct snd_midi_event *dev)
 	dev->lastcmd = 0xff;
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
+EXPORT_SYMBOL(snd_midi_event_reset_decode);
 
 #if 0
 void snd_midi_event_init(struct snd_midi_event *dev)
@@ -183,6 +187,7 @@ void snd_midi_event_no_status(struct snd_midi_event *dev, int on)
 {
 	dev->nostat = on ? 1 : 0;
 }
+EXPORT_SYMBOL(snd_midi_event_no_status);
 
 /*
  * resize buffer
@@ -232,6 +237,7 @@ long snd_midi_event_encode(struct snd_midi_event *dev, unsigned char *buf, long 
 
 	return result;
 }
+EXPORT_SYMBOL(snd_midi_event_encode);
 
 /*
  *  read one byte and encode to sequencer event:
@@ -307,6 +313,7 @@ int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c,
 	spin_unlock_irqrestore(&dev->lock, flags);
 	return rc;
 }
+EXPORT_SYMBOL(snd_midi_event_encode_byte);
 
 /* encode note event */
 static void note_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
@@ -408,6 +415,7 @@ long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long 
 		return qlen;
 	}
 }
+EXPORT_SYMBOL(snd_midi_event_decode);
 
 
 /* decode note event */
@@ -523,19 +531,6 @@ static int extra_decode_xrpn(struct snd_midi_event *dev, unsigned char *buf,
 	}
 	return idx;
 }
-
-/*
- *  exports
- */
- 
-EXPORT_SYMBOL(snd_midi_event_new);
-EXPORT_SYMBOL(snd_midi_event_free);
-EXPORT_SYMBOL(snd_midi_event_reset_encode);
-EXPORT_SYMBOL(snd_midi_event_reset_decode);
-EXPORT_SYMBOL(snd_midi_event_no_status);
-EXPORT_SYMBOL(snd_midi_event_encode);
-EXPORT_SYMBOL(snd_midi_event_encode_byte);
-EXPORT_SYMBOL(snd_midi_event_decode);
 
 static int __init alsa_seq_midi_event_init(void)
 {
