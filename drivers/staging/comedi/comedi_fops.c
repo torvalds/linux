@@ -2908,6 +2908,7 @@ static int __init comedi_init(void)
 		dev = comedi_alloc_board_minor(NULL);
 		if (IS_ERR(dev)) {
 			comedi_cleanup_board_minors();
+			class_destroy(comedi_class);
 			cdev_del(&comedi_cdev);
 			unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 						 COMEDI_NUM_MINORS);
