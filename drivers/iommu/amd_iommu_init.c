@@ -2430,6 +2430,13 @@ static int __init state_next(void)
 	case IOMMU_IVRS_DETECTED:
 		ret = early_amd_iommu_init();
 		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_ACPI_FINISHED;
+		if (init_state == IOMMU_ACPI_FINISHED && amd_iommu_disabled) {
+			pr_info("AMD-Vi: AMD IOMMU disabled on kernel command-line\n");
+			free_dma_resources();
+			free_iommu_resources();
+			init_state = IOMMU_CMDLINE_DISABLED;
+			ret = -EINVAL;
+		}
 		break;
 	case IOMMU_ACPI_FINISHED:
 		early_enable_iommus();
