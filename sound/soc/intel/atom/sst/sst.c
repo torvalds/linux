@@ -464,23 +464,23 @@ static int intel_sst_suspend(struct device *dev)
 	fw_save = kzalloc(sizeof(*fw_save), GFP_KERNEL);
 	if (!fw_save)
 		return -ENOMEM;
-	fw_save->iram = kzalloc(ctx->iram_end - ctx->iram_base, GFP_KERNEL);
+	fw_save->iram = kvzalloc(ctx->iram_end - ctx->iram_base, GFP_KERNEL);
 	if (!fw_save->iram) {
 		ret = -ENOMEM;
 		goto iram;
 	}
-	fw_save->dram = kzalloc(ctx->dram_end - ctx->dram_base, GFP_KERNEL);
+	fw_save->dram = kvzalloc(ctx->dram_end - ctx->dram_base, GFP_KERNEL);
 	if (!fw_save->dram) {
 		ret = -ENOMEM;
 		goto dram;
 	}
-	fw_save->sram = kzalloc(SST_MAILBOX_SIZE, GFP_KERNEL);
+	fw_save->sram = kvzalloc(SST_MAILBOX_SIZE, GFP_KERNEL);
 	if (!fw_save->sram) {
 		ret = -ENOMEM;
 		goto sram;
 	}
 
-	fw_save->ddr = kzalloc(ctx->ddr_end - ctx->ddr_base, GFP_KERNEL);
+	fw_save->ddr = kvzalloc(ctx->ddr_end - ctx->ddr_base, GFP_KERNEL);
 	if (!fw_save->ddr) {
 		ret = -ENOMEM;
 		goto ddr;
@@ -495,11 +495,11 @@ static int intel_sst_suspend(struct device *dev)
 	ctx->ops->reset(ctx);
 	return 0;
 ddr:
-	kfree(fw_save->sram);
+	kvfree(fw_save->sram);
 sram:
-	kfree(fw_save->dram);
+	kvfree(fw_save->dram);
 dram:
-	kfree(fw_save->iram);
+	kvfree(fw_save->iram);
 iram:
 	kfree(fw_save);
 	return ret;
@@ -527,10 +527,10 @@ static int intel_sst_resume(struct device *dev)
 	memcpy32_toio(ctx->mailbox, fw_save->sram, SST_MAILBOX_SIZE);
 	memcpy32_toio(ctx->ddr, fw_save->ddr, ctx->ddr_end - ctx->ddr_base);
 
-	kfree(fw_save->sram);
-	kfree(fw_save->dram);
-	kfree(fw_save->iram);
-	kfree(fw_save->ddr);
+	kvfree(fw_save->sram);
+	kvfree(fw_save->dram);
+	kvfree(fw_save->iram);
+	kvfree(fw_save->ddr);
 	kfree(fw_save);
 
 	block = sst_create_block(ctx, 0, FW_DWNL_ID);
