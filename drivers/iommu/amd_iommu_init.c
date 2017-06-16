@@ -2578,9 +2578,6 @@ int __init amd_iommu_detect(void)
 	if (no_iommu || (iommu_detected && !gart_iommu_aperture))
 		return -ENODEV;
 
-	if (amd_iommu_disabled)
-		return -ENODEV;
-
 	ret = iommu_go_to_state(IOMMU_IVRS_DETECTED);
 	if (ret)
 		return ret;
