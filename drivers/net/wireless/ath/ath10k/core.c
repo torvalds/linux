@@ -275,8 +275,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 12,
-		.vht160_mcs_rx_highest = 0,
-		.vht160_mcs_tx_highest = 0,
+
+		/* Can do only 1x1 VHT160 or 80+80. 780Mbps is 2x2 80Mhz or
+		 * 1x1 160Mhz, long-guard-interval.
+		 */
+		.vht160_mcs_rx_highest = 780,
+		.vht160_mcs_tx_highest = 780,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
