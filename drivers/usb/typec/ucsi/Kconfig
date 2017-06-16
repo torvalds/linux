@@ -21,3 +21,19 @@ config TYPEC_UCSI
 
 	  To compile the driver as a module, choose M here: the module will be
 	  called typec_ucsi.
+
+if TYPEC_UCSI
+
+config UCSI_ACPI
+	tristate "UCSI ACPI Interface Driver"
+	depends on ACPI
+	help
+	  This driver enables UCSI support on platforms that expose UCSI
+	  interface as ACPI device. On new Intel Atom based platforms starting
+	  from Broxton SoCs and Core platforms stating from Skylake, UCSI is an
+	  ACPI enumerated device.
+
+	  To compile the driver as a module, choose M here: the module will be
+	  called ucsi_acpi
+
+endif
