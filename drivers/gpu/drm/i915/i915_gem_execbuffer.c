@@ -622,42 +622,25 @@ repeat:
 }
 
 static int
-eb_relocate_entry(struct drm_i915_gem_object *obj,
+eb_relocate_entry(struct i915_vma *vma,
 		  struct i915_execbuffer *eb,
 		  struct drm_i915_gem_relocation_entry *reloc)
 {
-	struct drm_gem_object *target_obj;
-	struct drm_i915_gem_object *target_i915_obj;
-	struct i915_vma *target_vma;
-	uint64_t target_offset;
+	struct i915_vma *target;
+	u64 target_offset;
 	int ret;
 
 	/* we've already hold a reference to all valid objects */
-	target_vma = eb_get_vma(eb, reloc->target_handle);
-	if (unlikely(target_vma == NULL))
+	target = eb_get_vma(eb, reloc->target_handle);
+	if (unlikely(!target))
 		return -ENOENT;
-	target_i915_obj = target_vma->obj;
-	target_obj = &target_vma->obj->base;
-
-	target_offset = gen8_canonical_addr(target_vma->node.start);
-
-	/* Sandybridge PPGTT errata: We need a global gtt mapping for MI and
-	 * pipe_control writes because the gpu doesn't properly redirect them
-	 * through the ppgtt for non_secure batchbuffers. */
-	if (unlikely(IS_GEN6(eb->i915) &&
-		     reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION)) {
-		ret = i915_vma_bind(target_vma, target_i915_obj->cache_level,
-				    PIN_GLOBAL);
-		if (WARN_ONCE(ret, "Unexpected failure to bind target VMA!"))
-			return ret;
-	}
 
 	/* Validate that the target is in a valid r/w GPU domain */
 	if (unlikely(reloc->write_domain & (reloc->write_domain - 1))) {
 		DRM_DEBUG("reloc with multiple write domains: "
-			  "obj %p target %d offset %d "
+			  "target %d offset %d "
 			  "read %08x write %08x",
-			  obj, reloc->target_handle,
+			  reloc->target_handle,
 			  (int) reloc->offset,
 			  reloc->read_domains,
 			  reloc->write_domain);
@@ -666,43 +649,57 @@ eb_relocate_entry(struct drm_i915_gem_object *obj,
 	if (unlikely((reloc->write_domain | reloc->read_domains)
 		     & ~I915_GEM_GPU_DOMAINS)) {
 		DRM_DEBUG("reloc with read/write non-GPU domains: "
-			  "obj %p target %d offset %d "
+			  "target %d offset %d "
 			  "read %08x write %08x",
-			  obj, reloc->target_handle,
+			  reloc->target_handle,
 			  (int) reloc->offset,
 			  reloc->read_domains,
 			  reloc->write_domain);
 		return -EINVAL;
 	}
 
-	target_obj->pending_read_domains |= reloc->read_domains;
-	target_obj->pending_write_domain |= reloc->write_domain;
+	if (reloc->write_domain)
+		target->exec_entry->flags |= EXEC_OBJECT_WRITE;
+
+	/*
+	 * Sandybridge PPGTT errata: We need a global gtt mapping for MI and
+	 * pipe_control writes because the gpu doesn't properly redirect them
+	 * through the ppgtt for non_secure batchbuffers.
+	 */
+	if (unlikely(IS_GEN6(eb->i915) &&
+		     reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION)) {
+		ret = i915_vma_bind(target, target->obj->cache_level,
+				    PIN_GLOBAL);
+		if (WARN_ONCE(ret, "Unexpected failure to bind target VMA!"))
+			return ret;
+	}
 
 	/* If the relocation already has the right value in it, no
 	 * more work needs to be done.
 	 */
+	target_offset = gen8_canonical_addr(target->node.start);
 	if (target_offset == reloc->presumed_offset)
 		return 0;
 
 	/* Check that the relocation address is valid... */
 	if (unlikely(reloc->offset >
-		     obj->base.size - (eb->reloc_cache.use_64bit_reloc ? 8 : 4))) {
+		     vma->size - (eb->reloc_cache.use_64bit_reloc ? 8 : 4))) {
 		DRM_DEBUG("Relocation beyond object bounds: "
-			  "obj %p target %d offset %d size %d.\n",
-			  obj, reloc->target_handle,
-			  (int) reloc->offset,
-			  (int) obj->base.size);
+			  "target %d offset %d size %d.\n",
+			  reloc->target_handle,
+			  (int)reloc->offset,
+			  (int)vma->size);
 		return -EINVAL;
 	}
 	if (unlikely(reloc->offset & 3)) {
 		DRM_DEBUG("Relocation not 4-byte aligned: "
-			  "obj %p target %d offset %d.\n",
-			  obj, reloc->target_handle,
-			  (int) reloc->offset);
+			  "target %d offset %d.\n",
+			  reloc->target_handle,
+			  (int)reloc->offset);
 		return -EINVAL;
 	}
 
-	ret = relocate_entry(obj, reloc, &eb->reloc_cache, target_offset);
+	ret = relocate_entry(vma->obj, reloc, &eb->reloc_cache, target_offset);
 	if (ret)
 		return ret;
 
@@ -748,7 +745,7 @@ static int eb_relocate_vma(struct i915_vma *vma, struct i915_execbuffer *eb)
 		do {
 			u64 offset = r->presumed_offset;
 
-			ret = eb_relocate_entry(vma->obj, eb, r);
+			ret = eb_relocate_entry(vma, eb, r);
 			if (ret)
 				goto out;
 
@@ -794,7 +791,7 @@ eb_relocate_vma_slow(struct i915_vma *vma,
 	int i, ret = 0;
 
 	for (i = 0; i < entry->relocation_count; i++) {
-		ret = eb_relocate_entry(vma->obj, eb, &relocs[i]);
+		ret = eb_relocate_entry(vma, eb, &relocs[i]);
 		if (ret)
 			break;
 	}
@@ -827,7 +824,6 @@ eb_reserve_vma(struct i915_vma *vma,
 	       struct intel_engine_cs *engine,
 	       bool *need_reloc)
 {
-	struct drm_i915_gem_object *obj = vma->obj;
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
 	uint64_t flags;
 	int ret;
@@ -879,11 +875,6 @@ eb_reserve_vma(struct i915_vma *vma,
 	if (entry->offset != vma->node.start) {
 		entry->offset = vma->node.start;
 		*need_reloc = true;
-	}
-
-	if (entry->flags & EXEC_OBJECT_WRITE) {
-		obj->base.pending_read_domains = I915_GEM_DOMAIN_RENDER;
-		obj->base.pending_write_domain = I915_GEM_DOMAIN_RENDER;
 	}
 
 	return 0;
@@ -948,7 +939,6 @@ static int eb_reserve(struct i915_execbuffer *eb)
 {
 	const bool has_fenced_gpu_access = INTEL_GEN(eb->i915) < 4;
 	const bool needs_unfenced_map = INTEL_INFO(eb->i915)->unfenced_needs_alignment;
-	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	struct list_head ordered_vmas;
 	struct list_head pinned_vmas;
@@ -961,7 +951,6 @@ static int eb_reserve(struct i915_execbuffer *eb)
 		bool need_fence, need_mappable;
 
 		vma = list_first_entry(&eb->vmas, struct i915_vma, exec_link);
-		obj = vma->obj;
 		entry = vma->exec_entry;
 
 		if (eb->ctx->flags & CONTEXT_NO_ZEROMAP)
@@ -982,9 +971,6 @@ static int eb_reserve(struct i915_execbuffer *eb)
 			list_move(&vma->exec_link, &ordered_vmas);
 		} else
 			list_move_tail(&vma->exec_link, &ordered_vmas);
-
-		obj->base.pending_read_domains = I915_GEM_GPU_DOMAINS & ~I915_GEM_DOMAIN_COMMAND;
-		obj->base.pending_write_domain = 0;
 	}
 	list_splice(&ordered_vmas, &eb->vmas);
 	list_splice(&pinned_vmas, &eb->vmas);
@@ -1170,7 +1156,7 @@ eb_move_to_gpu(struct i915_execbuffer *eb)
 			i915_gem_clflush_object(obj, 0);
 
 		ret = i915_gem_request_await_object
-			(eb->request, obj, obj->base.pending_write_domain);
+			(eb->request, obj, vma->exec_entry->flags & EXEC_OBJECT_WRITE);
 		if (ret)
 			return ret;
 	}
@@ -1366,12 +1352,10 @@ eb_move_to_active(struct i915_execbuffer *eb)
 	list_for_each_entry(vma, &eb->vmas, exec_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
-		obj->base.write_domain = obj->base.pending_write_domain;
-		if (obj->base.write_domain)
-			vma->exec_entry->flags |= EXEC_OBJECT_WRITE;
-		else
-			obj->base.pending_read_domains |= obj->base.read_domains;
-		obj->base.read_domains = obj->base.pending_read_domains;
+		obj->base.write_domain = 0;
+		if (vma->exec_entry->flags & EXEC_OBJECT_WRITE)
+			obj->base.read_domains = 0;
+		obj->base.read_domains |= I915_GEM_GPU_DOMAINS;
 
 		i915_vma_move_to_active(vma, eb->request, vma->exec_entry->flags);
 		eb_export_fence(obj, eb->request, vma->exec_entry->flags);
@@ -1681,8 +1665,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 			goto err;
 	}
 
-	/* Set the pending read domains for the batch buffer to COMMAND */
-	if (eb.batch->obj->base.pending_write_domain) {
+	if (eb.batch->exec_entry->flags & EXEC_OBJECT_WRITE) {
 		DRM_DEBUG("Attempting to use self-modifying batch buffer\n");
 		ret = -EINVAL;
 		goto err;
@@ -1719,7 +1702,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		}
 	}
 
-	eb.batch->obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 	if (eb.batch_len == 0)
 		eb.batch_len = eb.batch->size - eb.batch_start_offset;
 
