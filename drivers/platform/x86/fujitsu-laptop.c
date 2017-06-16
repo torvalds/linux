@@ -413,8 +413,8 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 		return -ENOMEM;
 
 	fujitsu_bl = priv;
-	sprintf(acpi_device_name(device), "%s", ACPI_FUJITSU_BL_DEVICE_NAME);
-	sprintf(acpi_device_class(device), "%s", ACPI_FUJITSU_CLASS);
+	strcpy(acpi_device_name(device), ACPI_FUJITSU_BL_DEVICE_NAME);
+	strcpy(acpi_device_class(device), ACPI_FUJITSU_CLASS);
 	device->driver_data = priv;
 
 	error = acpi_fujitsu_bl_input_setup(device);
@@ -802,9 +802,8 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	WARN_ONCE(fext, "More than one FUJ02E3 ACPI device was found.  Driver may not work as intended.");
 	fext = device;
 
-	sprintf(acpi_device_name(device), "%s",
-		ACPI_FUJITSU_LAPTOP_DEVICE_NAME);
-	sprintf(acpi_device_class(device), "%s", ACPI_FUJITSU_CLASS);
+	strcpy(acpi_device_name(device), ACPI_FUJITSU_LAPTOP_DEVICE_NAME);
+	strcpy(acpi_device_class(device), ACPI_FUJITSU_CLASS);
 	device->driver_data = priv;
 
 	/* kfifo */
