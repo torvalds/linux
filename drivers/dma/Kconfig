@@ -359,8 +359,7 @@ config MXS_DMA
 	select DMA_ENGINE
 	help
 	  Support the MXS DMA engine. This engine including APBH-DMA
-	  and APBX-DMA is integrated into Freescale
-	  i.MX23/28/MX6Q/MX6DL/MX6UL chips.
+	  and APBX-DMA is integrated into some Freescale chips.
 
 config MX3_IPU
 	bool "MX3x Image Processing Unit support"
