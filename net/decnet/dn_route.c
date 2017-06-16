@@ -188,12 +188,6 @@ static inline void dnrt_free(struct dn_route *rt)
 	call_rcu_bh(&rt->dst.rcu_head, dst_rcu_free);
 }
 
-static inline void dnrt_drop(struct dn_route *rt)
-{
-	dst_release(&rt->dst);
-	call_rcu_bh(&rt->dst.rcu_head, dst_rcu_free);
-}
-
 static void dn_dst_check_expire(unsigned long dummy)
 {
 	int i;
@@ -248,7 +242,7 @@ static int dn_dst_gc(struct dst_ops *ops)
 			}
 			*rtp = rt->dst.dn_next;
 			rt->dst.dn_next = NULL;
-			dnrt_drop(rt);
+			dnrt_free(rt);
 			break;
 		}
 		spin_unlock_bh(&dn_rt_hash_table[i].lock);
@@ -350,7 +344,7 @@ static int dn_insert_route(struct dn_route *rt, unsigned int hash, struct dn_rou
 			dst_use(&rth->dst, now);
 			spin_unlock_bh(&dn_rt_hash_table[hash].lock);
 
-			dnrt_drop(rt);
+			dst_free(&rt->dst);
 			*rp = rth;
 			return 0;
 		}
@@ -380,7 +374,7 @@ static void dn_run_flush(unsigned long dummy)
 		for(; rt; rt = next) {
 			next = rcu_dereference_raw(rt->dst.dn_next);
 			RCU_INIT_POINTER(rt->dst.dn_next, NULL);
-			dst_free((struct dst_entry *)rt);
+			dnrt_free(rt);
 		}
 
 nothing_to_declare:
@@ -1187,7 +1181,7 @@ make_route:
 	if (dev_out->flags & IFF_LOOPBACK)
 		flags |= RTCF_LOCAL;
 
-	rt = dst_alloc(&dn_dst_ops, dev_out, 1, DST_OBSOLETE_NONE, DST_HOST);
+	rt = dst_alloc(&dn_dst_ops, dev_out, 0, DST_OBSOLETE_NONE, DST_HOST);
 	if (rt == NULL)
 		goto e_nobufs;
 
