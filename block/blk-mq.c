@@ -395,12 +395,24 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q, int rw,
 }
 EXPORT_SYMBOL_GPL(blk_mq_alloc_request_hctx);
 
-void __blk_mq_finish_request(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
-			     struct request *rq)
+void blk_mq_free_request(struct request *rq)
 {
-	const int sched_tag = rq->internal_tag;
 	struct request_queue *q = rq->q;
+	struct elevator_queue *e = q->elevator;
+	struct blk_mq_ctx *ctx = rq->mq_ctx;
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
+	const int sched_tag = rq->internal_tag;
 
+	if (rq->rq_flags & (RQF_ELVPRIV | RQF_QUEUED)) {
+		if (e && e->type->ops.mq.finish_request)
+			e->type->ops.mq.finish_request(rq);
+		if (rq->elv.icq) {
+			put_io_context(rq->elv.icq->ioc);
+			rq->elv.icq = NULL;
+		}
+	}
+
+	ctx->rq_completed[rq_is_sync(rq)]++;
 	if (rq->rq_flags & RQF_MQ_INFLIGHT)
 		atomic_dec(&hctx->nr_active);
 
@@ -415,38 +427,6 @@ void __blk_mq_finish_request(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 		blk_mq_put_tag(hctx, hctx->sched_tags, ctx, sched_tag);
 	blk_mq_sched_restart(hctx);
 	blk_queue_exit(q);
-}
-
-static void blk_mq_finish_hctx_request(struct blk_mq_hw_ctx *hctx,
-				     struct request *rq)
-{
-	struct blk_mq_ctx *ctx = rq->mq_ctx;
-
-	ctx->rq_completed[rq_is_sync(rq)]++;
-	__blk_mq_finish_request(hctx, ctx, rq);
-}
-
-void blk_mq_finish_request(struct request *rq)
-{
-	blk_mq_finish_hctx_request(blk_mq_map_queue(rq->q, rq->mq_ctx->cpu), rq);
-}
-EXPORT_SYMBOL_GPL(blk_mq_finish_request);
-
-void blk_mq_free_request(struct request *rq)
-{
-	struct request_queue *q = rq->q;
-	struct elevator_queue *e = q->elevator;
-
-	if (rq->rq_flags & (RQF_ELVPRIV | RQF_QUEUED)) {
-		if (e && e->type->ops.mq.finish_request)
-			e->type->ops.mq.finish_request(rq);
-		if (rq->elv.icq) {
-			put_io_context(rq->elv.icq->ioc);
-			rq->elv.icq = NULL;
-		}
-	}
-
-	blk_mq_finish_request(rq);
 }
 EXPORT_SYMBOL_GPL(blk_mq_free_request);
 
