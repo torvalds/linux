@@ -437,19 +437,16 @@ void blk_mq_free_request(struct request *rq)
 	struct request_queue *q = rq->q;
 	struct elevator_queue *e = q->elevator;
 
-	if (rq->rq_flags & RQF_ELVPRIV) {
-		if (e && e->type->ops.mq.put_rq_priv)
-			e->type->ops.mq.put_rq_priv(q, rq);
+	if (rq->rq_flags & (RQF_ELVPRIV | RQF_QUEUED)) {
+		if (e && e->type->ops.mq.finish_request)
+			e->type->ops.mq.finish_request(rq);
 		if (rq->elv.icq) {
 			put_io_context(rq->elv.icq->ioc);
 			rq->elv.icq = NULL;
 		}
 	}
 
-	if ((rq->rq_flags & RQF_QUEUED) && e && e->type->ops.mq.put_request)
-		e->type->ops.mq.put_request(rq);
-	else
-		blk_mq_finish_request(rq);
+	blk_mq_finish_request(rq);
 }
 EXPORT_SYMBOL_GPL(blk_mq_free_request);
 

@@ -446,13 +446,11 @@ static struct request *kyber_get_request(struct request_queue *q,
 	return rq;
 }
 
-static void kyber_put_request(struct request *rq)
+static void kyber_finish_request(struct request *rq)
 {
-	struct request_queue *q = rq->q;
-	struct kyber_queue_data *kqd = q->elevator->elevator_data;
+	struct kyber_queue_data *kqd = rq->q->elevator->elevator_data;
 
 	rq_clear_domain_token(kqd, rq);
-	blk_mq_finish_request(rq);
 }
 
 static void kyber_completed_request(struct request *rq)
@@ -816,7 +814,7 @@ static struct elevator_type kyber_sched = {
 		.init_hctx = kyber_init_hctx,
 		.exit_hctx = kyber_exit_hctx,
 		.get_request = kyber_get_request,
-		.put_request = kyber_put_request,
+		.finish_request = kyber_finish_request,
 		.completed_request = kyber_completed_request,
 		.dispatch_request = kyber_dispatch_request,
 		.has_work = kyber_has_work,

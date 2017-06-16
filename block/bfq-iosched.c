@@ -4290,7 +4290,7 @@ static void bfq_put_rq_priv_body(struct bfq_queue *bfqq)
 	bfq_put_queue(bfqq);
 }
 
-static void bfq_put_rq_private(struct request_queue *q, struct request *rq)
+static void bfq_finish_request(struct request *rq)
 {
 	struct bfq_queue *bfqq = RQ_BFQQ(rq);
 	struct bfq_data *bfqd = bfqq->bfqd;
@@ -4324,7 +4324,7 @@ static void bfq_put_rq_private(struct request_queue *q, struct request *rq)
 		 */
 
 		if (!RB_EMPTY_NODE(&rq->rb_node))
-			bfq_remove_request(q, rq);
+			bfq_remove_request(rq->q, rq);
 		bfq_put_rq_priv_body(bfqq);
 	}
 
@@ -4951,7 +4951,7 @@ static struct elv_fs_entry bfq_attrs[] = {
 static struct elevator_type iosched_bfq_mq = {
 	.ops.mq = {
 		.get_rq_priv		= bfq_get_rq_private,
-		.put_rq_priv		= bfq_put_rq_private,
+		.finish_request		= bfq_finish_request,
 		.exit_icq		= bfq_exit_icq,
 		.insert_requests	= bfq_insert_requests,
 		.dispatch_request	= bfq_dispatch_request,
