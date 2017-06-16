@@ -22,6 +22,8 @@
 
 #define  noinline	__attribute__((noinline))
 
+#define __packed	__attribute__((packed))
+
 #define __noreturn	__attribute__((noreturn))
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
