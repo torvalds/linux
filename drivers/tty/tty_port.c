@@ -34,9 +34,7 @@ static int tty_port_default_receive_buf(struct tty_port *port,
 	if (!disc)
 		return 0;
 
-	mutex_lock(&tty->atomic_write_lock);
 	ret = tty_ldisc_receive_buf(disc, p, (char *)f, count);
-	mutex_unlock(&tty->atomic_write_lock);
 
 	tty_ldisc_deref(disc);
 

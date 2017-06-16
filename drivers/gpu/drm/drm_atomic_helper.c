@@ -574,6 +574,8 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		bool has_connectors =
 			!!new_crtc_state->connector_mask;
 
+		WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
+
 		if (!drm_mode_equal(&old_crtc_state->mode, &new_crtc_state->mode)) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] mode changed\n",
 					 crtc->base.id, crtc->name);
@@ -616,6 +618,8 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 	for_each_oldnew_connector_in_state(state, connector, old_connector_state, new_connector_state, i) {
 		const struct drm_connector_helper_funcs *funcs = connector->helper_private;
+
+		WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
 		/*
 		 * This only sets crtc->connectors_changed for routing changes,
@@ -719,6 +723,8 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
+
+		WARN_ON(!drm_modeset_is_locked(&plane->mutex));
 
 		funcs = plane->helper_private;
 
@@ -2738,7 +2744,12 @@ int drm_atomic_helper_resume(struct drm_device *dev,
 
 	drm_modeset_acquire_init(&ctx, 0);
 	while (1) {
+		err = drm_modeset_lock_all_ctx(dev, &ctx);
+		if (err)
+			goto out;
+
 		err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
+out:
 		if (err != -EDEADLK)
 			break;
 

@@ -1170,6 +1170,8 @@ static struct ibmvscsis_cmd *ibmvscsis_get_free_cmd(struct scsi_info *vscsi)
 		cmd = list_first_entry_or_null(&vscsi->free_cmd,
 					       struct ibmvscsis_cmd, list);
 		if (cmd) {
+			if (cmd->abort_cmd)
+				cmd->abort_cmd = NULL;
 			cmd->flags &= ~(DELAY_SEND);
 			list_del(&cmd->list);
 			cmd->iue = iue;
@@ -1774,6 +1776,7 @@ static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 				if (cmd->abort_cmd) {
 					retry = true;
 					cmd->abort_cmd->flags &= ~(DELAY_SEND);
+					cmd->abort_cmd = NULL;
 				}
 
 				/*
@@ -1788,6 +1791,25 @@ static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 					list_del(&cmd->list);
 					ibmvscsis_free_cmd_resources(vscsi,
 								     cmd);
+					/*
+					 * With a successfully aborted op
+					 * through LIO we want to increment the
+					 * the vscsi credit so that when we dont
+					 * send a rsp to the original scsi abort
+					 * op (h_send_crq), but the tm rsp to
+					 * the abort is sent, the credit is
+					 * correctly sent with the abort tm rsp.
+					 * We would need 1 for the abort tm rsp
+					 * and 1 credit for the aborted scsi op.
+					 * Thus we need to increment here.
+					 * Also we want to increment the credit
+					 * here because we want to make sure
+					 * cmd is actually released first
+					 * otherwise the client will think it
+					 * it can send a new cmd, and we could
+					 * find ourselves short of cmd elements.
+					 */
+					vscsi->credit += 1;
 				} else {
 					iue = cmd->iue;
 
@@ -2962,10 +2984,7 @@ static long srp_build_response(struct scsi_info *vscsi,
 
 	rsp->opcode = SRP_RSP;
 
-	if (vscsi->credit > 0 && vscsi->state == SRP_PROCESSING)
-		rsp->req_lim_delta = cpu_to_be32(vscsi->credit);
-	else
-		rsp->req_lim_delta = cpu_to_be32(1 + vscsi->credit);
+	rsp->req_lim_delta = cpu_to_be32(1 + vscsi->credit);
 	rsp->tag = cmd->rsp.tag;
 	rsp->flags = 0;
 

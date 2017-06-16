@@ -245,6 +245,11 @@ static int dsps_check_status(struct musb *musb, void *unused)
 		dsps_mod_timer_optional(glue);
 		break;
 	case OTG_STATE_A_WAIT_BCON:
+		/* keep VBUS on for host-only mode */
+		if (musb->port_mode == MUSB_PORT_MODE_HOST) {
+			dsps_mod_timer_optional(glue);
+			break;
+		}
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
 		/* fall */
