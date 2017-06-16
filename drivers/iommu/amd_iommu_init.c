@@ -2467,14 +2467,14 @@ static int __init state_next(void)
 
 static int __init iommu_go_to_state(enum iommu_init_state state)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 
 	while (init_state != state) {
-		ret = state_next();
 		if (init_state == IOMMU_NOT_FOUND         ||
 		    init_state == IOMMU_INIT_ERROR        ||
 		    init_state == IOMMU_CMDLINE_DISABLED)
 			break;
+		ret = state_next();
 	}
 
 	return ret;
