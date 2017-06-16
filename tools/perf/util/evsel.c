@@ -15,6 +15,7 @@
 #include <traceevent/event-parse.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
+#include <linux/compiler.h>
 #include <linux/err.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
@@ -1441,7 +1442,7 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 }
 
 static int __open_attr__fprintf(FILE *fp, const char *name, const char *val,
-				void *priv __attribute__((unused)))
+				void *priv __maybe_unused)
 {
 	return fprintf(fp, "  %-32s %s\n", name, val);
 }
