@@ -5703,27 +5703,13 @@ lpfc_els_rcv_lcb(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		rjt_err = LSRJT_CMD_UNSUPPORTED;
 		goto rjt;
 	}
-	if (beacon->lcb_frequency == 0) {
+	if (beacon->lcb_sub_command != LPFC_LCB_ON &&
+	    beacon->lcb_sub_command != LPFC_LCB_OFF) {
 		rjt_err = LSRJT_CMD_UNSUPPORTED;
 		goto rjt;
 	}
-	if ((beacon->lcb_type != LPFC_LCB_GREEN) &&
-	    (beacon->lcb_type != LPFC_LCB_AMBER)) {
-		rjt_err = LSRJT_CMD_UNSUPPORTED;
-		goto rjt;
-	}
-	if ((beacon->lcb_sub_command != LPFC_LCB_ON) &&
-	    (beacon->lcb_sub_command != LPFC_LCB_OFF)) {
-		rjt_err = LSRJT_CMD_UNSUPPORTED;
-		goto rjt;
-	}
-	if ((beacon->lcb_sub_command == LPFC_LCB_ON) &&
-	    (beacon->lcb_type != LPFC_LCB_GREEN) &&
-	    (beacon->lcb_type != LPFC_LCB_AMBER)) {
-		rjt_err = LSRJT_CMD_UNSUPPORTED;
-		goto rjt;
-	}
-	if (be16_to_cpu(beacon->lcb_duration) != 0) {
+	if (beacon->lcb_sub_command == LPFC_LCB_ON &&
+	    be16_to_cpu(beacon->lcb_duration) != 0) {
 		rjt_err = LSRJT_CMD_UNSUPPORTED;
 		goto rjt;
 	}
