@@ -41,7 +41,7 @@ struct s3c_rtc {
 	struct clk *rtc_src_clk;
 	bool clk_disabled;
 
-	struct s3c_rtc_data *data;
+	const struct s3c_rtc_data *data;
 
 	int irq_alarm;
 	int irq_tick;
@@ -437,12 +437,12 @@ static int s3c_rtc_remove(struct platform_device *pdev)
 
 static const struct of_device_id s3c_rtc_dt_match[];
 
-static struct s3c_rtc_data *s3c_rtc_get_data(struct platform_device *pdev)
+static const struct s3c_rtc_data *s3c_rtc_get_data(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 
 	match = of_match_node(s3c_rtc_dt_match, pdev->dev.of_node);
-	return (struct s3c_rtc_data *)match->data;
+	return match->data;
 }
 
 static int s3c_rtc_probe(struct platform_device *pdev)
