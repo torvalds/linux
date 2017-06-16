@@ -1541,8 +1541,26 @@ static inline void btrfs_set_##name(type *s, u##bits val)		\
 	s->member = cpu_to_le##bits(val);				\
 }
 
+
+static inline u64 btrfs_device_total_bytes(struct extent_buffer *eb,
+					   struct btrfs_dev_item *s)
+{
+	BUILD_BUG_ON(sizeof(u64) !=
+		     sizeof(((struct btrfs_dev_item *)0))->total_bytes);
+	return btrfs_get_64(eb, s, offsetof(struct btrfs_dev_item,
+					    total_bytes));
+}
+static inline void btrfs_set_device_total_bytes(struct extent_buffer *eb,
+						struct btrfs_dev_item *s,
+						u64 val)
+{
+	BUILD_BUG_ON(sizeof(u64) !=
+		     sizeof(((struct btrfs_dev_item *)0))->total_bytes);
+	btrfs_set_64(eb, s, offsetof(struct btrfs_dev_item, total_bytes), val);
+}
+
+
 BTRFS_SETGET_FUNCS(device_type, struct btrfs_dev_item, type, 64);
-BTRFS_SETGET_FUNCS(device_total_bytes, struct btrfs_dev_item, total_bytes, 64);
 BTRFS_SETGET_FUNCS(device_bytes_used, struct btrfs_dev_item, bytes_used, 64);
 BTRFS_SETGET_FUNCS(device_io_align, struct btrfs_dev_item, io_align, 32);
 BTRFS_SETGET_FUNCS(device_io_width, struct btrfs_dev_item, io_width, 32);
