@@ -397,6 +397,25 @@ int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_of_parse_routing);
 
+int asoc_simple_card_of_parse_widgets(struct snd_soc_card *card,
+				      char *prefix)
+{
+	struct device_node *node = card->dev->of_node;
+	char prop[128];
+
+	if (!prefix)
+		prefix = "";
+
+	snprintf(prop, sizeof(prop), "%s%s", prefix, "widgets");
+
+	if (of_property_read_bool(node, prop))
+		return snd_soc_of_parse_audio_simple_widgets(card, prop);
+
+	/* no widgets is not error */
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_of_parse_widgets);
+
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
 MODULE_DESCRIPTION("ALSA SoC Simple Card Utils");
