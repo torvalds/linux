@@ -557,7 +557,7 @@ static int nokia_recv_negotiation_packet(struct hci_dev *hdev,
 		goto finish_neg;
 	}
 
-	evt = (struct hci_nokia_neg_evt *)skb_pull(skb, sizeof(*hdr));
+	evt = skb_pull(skb, sizeof(*hdr));
 
 	if (evt->ack != NOKIA_NEG_ACK) {
 		dev_err(dev, "Negotiation received: wrong reply");
@@ -595,7 +595,7 @@ static int nokia_recv_alive_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		goto finish_alive;
 	}
 
-	pkt = (struct hci_nokia_alive_pkt *)skb_pull(skb, sizeof(*hdr));
+	pkt = skb_pull(skb, sizeof(*hdr));
 
 	if (pkt->mid != NOKIA_ALIVE_RESP) {
 		dev_err(dev, "Alive received: invalid response: 0x%02x!",

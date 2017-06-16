@@ -311,8 +311,7 @@ void nxp_nci_fw_recv_frame(struct nci_dev *ndev, struct sk_buff *skb)
 		if (nxp_nci_fw_check_crc(skb) != 0x00)
 			fw_info->cmd_result = -EBADMSG;
 		else
-			fw_info->cmd_result = nxp_nci_fw_read_status(
-					*skb_pull(skb, NXP_NCI_FW_HDR_LEN));
+			fw_info->cmd_result = nxp_nci_fw_read_status(*(u8 *)skb_pull(skb, NXP_NCI_FW_HDR_LEN));
 		kfree_skb(skb);
 	} else {
 		fw_info->cmd_result = -EIO;
