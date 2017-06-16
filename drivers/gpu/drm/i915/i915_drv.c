@@ -367,6 +367,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_EXEC_ASYNC:
 	case I915_PARAM_HAS_EXEC_FENCE:
 	case I915_PARAM_HAS_EXEC_CAPTURE:
+	case I915_PARAM_HAS_EXEC_BATCH_FIRST:
 		/* For the time being all of these are always true;
 		 * if some supported hardware does not have one of these
 		 * features this value needs to be provided from

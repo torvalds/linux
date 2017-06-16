@@ -645,7 +645,10 @@ ht_needs_resize(const struct i915_gem_context_vma_lut *lut)
 
 static unsigned int eb_batch_index(const struct i915_execbuffer *eb)
 {
-	return eb->buffer_count - 1;
+	if (eb->args->flags & I915_EXEC_BATCH_FIRST)
+		return 0;
+	else
+		return eb->buffer_count - 1;
 }
 
 static int eb_select_context(struct i915_execbuffer *eb)
