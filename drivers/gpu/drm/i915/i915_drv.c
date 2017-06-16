@@ -176,24 +176,26 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 			unsigned short id_ext = pch->device &
 				INTEL_PCH_DEVICE_ID_MASK_EXT;
 
-			dev_priv->pch_id = id;
-
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
+				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_IBX;
 				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
 				WARN_ON(!IS_GEN5(dev_priv));
 			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
+				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
 				WARN_ON(!(IS_GEN6(dev_priv) ||
 					IS_IVYBRIDGE(dev_priv)));
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
+				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found PantherPoint PCH\n");
 				WARN_ON(!(IS_GEN6(dev_priv) ||
 					IS_IVYBRIDGE(dev_priv)));
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
+				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
 				WARN_ON(!IS_HASWELL(dev_priv) &&
@@ -201,6 +203,7 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 				WARN_ON(IS_HSW_ULT(dev_priv) ||
 					IS_BDW_ULT(dev_priv));
 			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
+				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
 				WARN_ON(!IS_HASWELL(dev_priv) &&
@@ -208,26 +211,31 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 				WARN_ON(!IS_HSW_ULT(dev_priv) &&
 					!IS_BDW_ULT(dev_priv));
 			} else if (id == INTEL_PCH_SPT_DEVICE_ID_TYPE) {
+				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_SPT;
 				DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
 				WARN_ON(!IS_SKYLAKE(dev_priv) &&
 					!IS_KABYLAKE(dev_priv));
 			} else if (id_ext == INTEL_PCH_SPT_LP_DEVICE_ID_TYPE) {
+				dev_priv->pch_id = id_ext;
 				dev_priv->pch_type = PCH_SPT;
 				DRM_DEBUG_KMS("Found SunrisePoint LP PCH\n");
 				WARN_ON(!IS_SKYLAKE(dev_priv) &&
 					!IS_KABYLAKE(dev_priv));
 			} else if (id == INTEL_PCH_KBP_DEVICE_ID_TYPE) {
+				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_KBP;
 				DRM_DEBUG_KMS("Found KabyPoint PCH\n");
 				WARN_ON(!IS_SKYLAKE(dev_priv) &&
 					!IS_KABYLAKE(dev_priv));
 			} else if (id == INTEL_PCH_CNP_DEVICE_ID_TYPE) {
+				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_CNP;
 				DRM_DEBUG_KMS("Found CannonPoint PCH\n");
 				WARN_ON(!IS_CANNONLAKE(dev_priv) &&
 					!IS_COFFEELAKE(dev_priv));
 			} else if (id_ext == INTEL_PCH_CNP_LP_DEVICE_ID_TYPE) {
+				dev_priv->pch_id = id_ext;
 				dev_priv->pch_type = PCH_CNP;
 				DRM_DEBUG_KMS("Found CannonPoint LP PCH\n");
 				WARN_ON(!IS_CANNONLAKE(dev_priv) &&
@@ -239,6 +247,7 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 					    PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
 				    pch->subsystem_device ==
 					    PCI_SUBDEVICE_ID_QEMU)) {
+				dev_priv->pch_id = id;
 				dev_priv->pch_type =
 					intel_virt_detect_pch(dev_priv);
 			} else
