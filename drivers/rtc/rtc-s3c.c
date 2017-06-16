@@ -510,8 +510,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 			else
 				dev_dbg(&pdev->dev,
 					"probe deferred due to missing rtc src clk\n");
-			clk_disable_unprepare(info->rtc_clk);
-			return ret;
+			goto err_src_clk;
 		}
 		clk_prepare_enable(info->rtc_src_clk);
 	}
@@ -575,6 +574,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 	if (info->data->needs_src_clk)
 		clk_disable_unprepare(info->rtc_src_clk);
+err_src_clk:
 	clk_disable_unprepare(info->rtc_clk);
 
 	return ret;
