@@ -47,7 +47,7 @@
 #include "imx6ul.dtsi"
 
 / {
-	model = "Engicam GEAM6UL";
+	model = "Engicam GEAM6UL Starter Kit";
 	compatible = "engicam,imx6ul-geam", "fsl,imx6ul";
 
 	memory {
