@@ -41,14 +41,9 @@ struct p8_aes_xts_ctx {
 
 static int p8_aes_xts_init(struct crypto_tfm *tfm)
 {
-	const char *alg;
+	const char *alg = crypto_tfm_alg_name(tfm);
 	struct crypto_skcipher *fallback;
 	struct p8_aes_xts_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	if (!(alg = crypto_tfm_alg_name(tfm))) {
-		printk(KERN_ERR "Failed to get algorithm name.\n");
-		return -ENOENT;
-	}
 
 	fallback = crypto_alloc_skcipher(alg, 0,
 			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
