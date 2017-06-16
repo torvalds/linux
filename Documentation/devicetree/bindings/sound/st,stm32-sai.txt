@@ -36,6 +36,10 @@ SAI subnodes required properties:
   - pinctrl-names: should contain only value "default"
   - pinctrl-0: see Documentation/devicetree/bindings/pinctrl/pinctrl-stm32.txt
 
+The device node should contain one 'port' child node with one child 'endpoint'
+node, according to the bindings defined in Documentation/devicetree/bindings/
+graph.txt.
+
 Example:
 sound_card {
 	compatible = "audio-graph-card";
@@ -46,16 +50,15 @@ sai1: sai1@40015800 {
 	compatible = "st,stm32f4-sai";
 	#address-cells = <1>;
 	#size-cells = <1>;
-	ranges;
+	ranges = <0 0x40015800 0x400>;
 	reg = <0x40015800 0x4>;
 	clocks = <&rcc 1 CLK_SAIQ_PDIV>, <&rcc 1 CLK_I2SQ_PDIV>;
 	clock-names = "x8k", "x11k";
 	interrupts = <87>;
 
 	sai1b: audio-controller@40015824 {
-		#sound-dai-cells = <0>;
 		compatible = "st,stm32-sai-sub-b";
-		reg = <0x40015824 0x1C>;
+		reg = <0x24 0x1C>;
 		clocks = <&rcc 1 CLK_SAI2>;
 		clock-names = "sai_ck";
 		dmas = <&dma2 5 0 0x400 0x0>;
@@ -63,18 +66,10 @@ sai1: sai1@40015800 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_sai1b>;
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			sai1b_port: port@0 {
-				reg = <0>;
-				cpu_endpoint: endpoint {
-					remote-endpoint = <&codec_endpoint>;
-					audio-graph-card,format = "i2s";
-					audio-graph-card,bitclock-master = <&codec_endpoint>;
-					audio-graph-card,frame-master = <&codec_endpoint>;
-				};
+		sai1b_port: port {
+			cpu_endpoint: endpoint {
+				remote-endpoint = <&codec_endpoint>;
+				format = "i2s";
 			};
 		};
 	};
