@@ -72,6 +72,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA9887_HW_1_0_VERSION,
@@ -93,6 +95,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -113,6 +117,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -133,6 +139,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_3_0_VERSION,
@@ -153,6 +161,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -176,6 +186,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.target_cpu_freq = 176000000,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -202,6 +214,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 4,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA9984_HW_1_0_DEV_VERSION,
@@ -229,6 +243,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 12,
+
+		/* Can do only 2x2 VHT160 or 80+80. 1560Mbps is 4x4 80Mhz
+		 * or 2x2 160Mhz, long-guard-interval.
+		 */
+		.vht160_mcs_rx_highest = 1560,
+		.vht160_mcs_tx_highest = 1560,
 	},
 	{
 		.id = QCA9888_HW_2_0_DEV_VERSION,
@@ -255,6 +275,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 12,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
@@ -275,6 +297,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -297,6 +321,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.target_cpu_freq = 176000000,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
@@ -324,6 +350,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 4,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 };
 

@@ -535,6 +535,12 @@ struct ath10k_hw_params {
 
 	/* Number of bytes to be discarded for each FFT sample */
 	int spectral_bin_discard;
+
+	/* The board may have a restricted NSS for 160 or 80+80 vs what it
+	 * can do for 80Mhz.
+	 */
+	int vht160_mcs_rx_highest;
+	int vht160_mcs_tx_highest;
 };
 
 struct htt_rx_desc;
