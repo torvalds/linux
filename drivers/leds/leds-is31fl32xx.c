@@ -20,6 +20,9 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/delay.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
 
 /* Used to indicate a device has no such register */
 #define IS31FL32XX_REG_NONE 0xFF
@@ -45,12 +48,16 @@ struct is31fl32xx_led_data {
 	unsigned int register_delay;
 	struct device *dev;
 	struct delayed_work register_work;
+	struct work_struct brightness_work;
+	enum led_brightness new_brightness;
 };
 
 struct is31fl32xx_priv {
 	const struct is31fl32xx_chipdef *cdef;
 	struct i2c_client *client;
 	unsigned int num_leds;
+	struct mutex led_mutex;
+	struct gpio_desc *reset_gpio;
 	struct is31fl32xx_led_data leds[0];
 };
 
@@ -205,6 +212,33 @@ static int is31fl3216_software_shutdown(struct is31fl32xx_priv *priv,
 	return is31fl32xx_write(priv, IS31FL3216_CONFIG_REG, value);
 }
 
+static void is31fl32xx_brightness_work(struct work_struct *work)
+{
+	const struct is31fl32xx_led_data *led_data =
+			container_of(work,
+				     struct is31fl32xx_led_data,
+				     brightness_work);
+	const struct is31fl32xx_chipdef *cdef = led_data->priv->cdef;
+	u8 pwm_register_offset;
+	int ret;
+
+	dev_dbg(led_data->cdev.dev, "%s: %d\n",
+		__func__, led_data->new_brightness);
+	mutex_lock(&led_data->priv->led_mutex);
+	/* NOTE: led_data->channel is 1-based */
+	if (cdef->pwm_registers_reversed)
+		pwm_register_offset = cdef->channels - led_data->channel;
+	else
+		pwm_register_offset = led_data->channel - 1;
+
+	ret = is31fl32xx_write(led_data->priv,
+			       cdef->pwm_register_base + pwm_register_offset,
+			       led_data->new_brightness);
+
+	is31fl32xx_write(led_data->priv, cdef->pwm_update_reg, 0);
+	mutex_unlock(&led_data->priv->led_mutex);
+}
+
 /*
  * NOTE: A mutex is not needed in this function because:
  * - All referenced data is read-only after probe()
@@ -229,29 +263,11 @@ static int is31fl3216_software_shutdown(struct is31fl32xx_priv *priv,
 static void is31fl32xx_brightness_set(struct led_classdev *led_cdev,
 				     enum led_brightness brightness)
 {
-	const struct is31fl32xx_led_data *led_data =
+	struct is31fl32xx_led_data *led_data =
 		container_of(led_cdev, struct is31fl32xx_led_data, cdev);
-	const struct is31fl32xx_chipdef *cdef = led_data->priv->cdef;
-	u8 pwm_register_offset;
-	int ret;
 
-	dev_dbg(led_cdev->dev, "%s: %d\n", __func__, brightness);
-
-	/* NOTE: led_data->channel is 1-based */
-	if (cdef->pwm_registers_reversed)
-		pwm_register_offset = cdef->channels - led_data->channel;
-	else
-		pwm_register_offset = led_data->channel - 1;
-
-	ret = is31fl32xx_write(led_data->priv,
-			       cdef->pwm_register_base + pwm_register_offset,
-			       brightness);
-	if (ret)
-		dev_err(led_cdev->dev,
-			"set brightness %d for led[%d] failed\n",
-			brightness, pwm_register_offset);
-
-	is31fl32xx_write(led_data->priv, cdef->pwm_update_reg, 0);
+	led_data->new_brightness = brightness;
+	schedule_work(&led_data->brightness_work);
 }
 
 static int is31fl32xx_reset_regs(struct is31fl32xx_priv *priv)
@@ -298,7 +314,7 @@ static int is31fl32xx_init_regs(struct is31fl32xx_priv *priv)
 
 	ret = is31fl32xx_reset_regs(priv);
 	if (ret)
-		return ret;
+		pr_err("%s, write to reset register failed\n", __func__);
 
 	/*
 	 * Set enable bit for all channels.
@@ -377,6 +393,7 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 
 	cdev->brightness_set = is31fl32xx_brightness_set;
 
+	INIT_WORK(&led_data->brightness_work, is31fl32xx_brightness_work);
 	return 0;
 }
 
@@ -482,24 +499,39 @@ static int is31fl32xx_probe(struct i2c_client *client,
 	struct is31fl32xx_priv *priv;
 	int count;
 	int ret = 0;
+	struct gpio_desc *gpio;
 
 	of_dev_id = of_match_device(of_is31fl32xx_match, dev);
 	if (!of_dev_id)
 		return -EINVAL;
 
+	gpio = devm_gpiod_get_optional(dev,
+				       "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpio)) {
+		int error = PTR_ERR(gpio);
+
+		dev_err(dev, "Failed to get reset gpio: %d\n", error);
+		return -EINVAL;
+	}
+	gpiod_direction_output(gpio, 1);
+
 	cdef = of_dev_id->data;
 
 	count = of_get_child_count(dev->of_node);
-	if (!count)
+	if (!count) {
+		dev_err(dev, "count is invalid\n");
 		return -EINVAL;
+	}
 
 	priv = devm_kzalloc(dev, sizeof_is31fl32xx_priv(count),
 			    GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
+	mutex_init(&priv->led_mutex);
 	priv->client = client;
 	priv->cdef = cdef;
+	priv->reset_gpio = gpio;
 	i2c_set_clientdata(client, priv);
 
 	ret = is31fl32xx_init_regs(priv);
@@ -515,9 +547,33 @@ static int is31fl32xx_probe(struct i2c_client *client,
 
 static int is31fl32xx_remove(struct i2c_client *client)
 {
+	int i;
 	struct is31fl32xx_priv *priv = i2c_get_clientdata(client);
 
+	for (i = 0; i < priv->num_leds; i++) {
+		struct is31fl32xx_led_data *led_data =
+					&priv->leds[i];
+		cancel_delayed_work_sync(&led_data->register_work);
+		cancel_work_sync(&led_data->brightness_work);
+	}
+
 	return is31fl32xx_reset_regs(priv);
+}
+
+static void is31fl32xx_shutdown(struct i2c_client *client)
+{
+	int i;
+	struct is31fl32xx_priv *priv = i2c_get_clientdata(client);
+
+	for (i = 0; i < priv->num_leds; i++) {
+		struct is31fl32xx_led_data *led_data =
+					&priv->leds[i];
+		cancel_delayed_work_sync(&led_data->register_work);
+		cancel_work_sync(&led_data->brightness_work);
+	}
+
+	is31fl32xx_reset_regs(priv);
+	gpiod_set_value(priv->reset_gpio, 0);
 }
 
 /*
@@ -543,6 +599,7 @@ static struct i2c_driver is31fl32xx_driver = {
 	},
 	.probe		= is31fl32xx_probe,
 	.remove		= is31fl32xx_remove,
+	.shutdown	= is31fl32xx_shutdown,
 	.id_table	= is31fl32xx_id,
 };
 
