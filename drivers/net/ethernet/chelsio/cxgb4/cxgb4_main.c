@@ -824,8 +824,11 @@ static int setup_sge_queues(struct adapter *adap)
 {
 	int err, i, j;
 	struct sge *s = &adap->sge;
-	struct sge_uld_rxq_info *rxq_info = s->uld_rxq_info[CXGB4_ULD_RDMA];
+	struct sge_uld_rxq_info *rxq_info = NULL;
 	unsigned int cmplqid = 0;
+
+	if (is_uld(adap))
+		rxq_info = s->uld_rxq_info[CXGB4_ULD_RDMA];
 
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
