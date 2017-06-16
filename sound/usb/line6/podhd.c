@@ -293,7 +293,7 @@ static void podhd_disconnect(struct usb_line6 *line6)
 {
 	struct usb_line6_podhd *pod = (struct usb_line6_podhd *)line6;
 
-	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL) {
+	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL_INFO) {
 		struct usb_interface *intf;
 
 		del_timer_sync(&pod->startup_timer);
@@ -333,7 +333,9 @@ static int podhd_init(struct usb_line6 *line6,
 				pod->line6.properties->ctrl_if, err);
 			return err;
 		}
+	}
 
+	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL_INFO) {
 		/* create sysfs entries: */
 		err = snd_card_add_dev_attr(line6->card, &podhd_dev_attr_group);
 		if (err < 0)
@@ -350,7 +352,7 @@ static int podhd_init(struct usb_line6 *line6,
 			return err;
 	}
 
-	if (!(pod->line6.properties->capabilities & LINE6_CAP_CONTROL)) {
+	if (!(pod->line6.properties->capabilities & LINE6_CAP_CONTROL_INFO)) {
 		/* register USB audio system directly */
 		return podhd_startup_finalize(pod);
 	}
@@ -428,7 +430,7 @@ static const struct line6_properties podhd_properties_table[] = {
 	[LINE6_PODX3] = {
 		.id = "PODX3",
 		.name = "POD X3",
-		.capabilities	= LINE6_CAP_CONTROL
+		.capabilities	= LINE6_CAP_CONTROL | LINE6_CAP_CONTROL_INFO
 				| LINE6_CAP_PCM | LINE6_CAP_HWMON | LINE6_CAP_IN_NEEDS_OUT,
 		.altsetting = 1,
 		.ep_ctrl_r = 0x81,
@@ -440,7 +442,7 @@ static const struct line6_properties podhd_properties_table[] = {
 	[LINE6_PODX3LIVE] = {
 		.id = "PODX3LIVE",
 		.name = "POD X3 LIVE",
-		.capabilities	= LINE6_CAP_CONTROL
+		.capabilities	= LINE6_CAP_CONTROL | LINE6_CAP_CONTROL_INFO
 				| LINE6_CAP_PCM | LINE6_CAP_HWMON | LINE6_CAP_IN_NEEDS_OUT,
 		.altsetting = 1,
 		.ep_ctrl_r = 0x81,
