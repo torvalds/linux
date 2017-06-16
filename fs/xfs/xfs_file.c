@@ -950,7 +950,7 @@ xfs_file_readdir(
 	 */
 	bufsize = (size_t)min_t(loff_t, 32768, ip->i_d.di_size);
 
-	return xfs_readdir(ip, ctx, bufsize);
+	return xfs_readdir(NULL, ip, ctx, bufsize);
 }
 
 /*
