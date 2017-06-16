@@ -1,6 +1,7 @@
 config DRM_DW_HDMI
 	tristate
 	select DRM_KMS_HELPER
+	select REGMAP_MMIO
 
 config DRM_DW_HDMI_AHB_AUDIO
 	tristate "Synopsys Designware AHB Audio interface"
