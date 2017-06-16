@@ -2992,7 +2992,7 @@ static void at91ether_rx(struct net_device *dev)
 		skb = netdev_alloc_skb(dev, pktlen + 2);
 		if (skb) {
 			skb_reserve(skb, 2);
-			memcpy(skb_put(skb, pktlen), p_recv, pktlen);
+			skb_put_data(skb, p_recv, pktlen);
 
 			skb->protocol = eth_type_trans(skb, dev);
 			dev->stats.rx_packets++;

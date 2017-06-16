@@ -132,12 +132,10 @@ static struct sk_buff *virtio_transport_build_skb(void *opaque)
 		break;
 	}
 
-	t_hdr = skb_put(skb, sizeof(pkt->hdr));
-	memcpy(t_hdr, &pkt->hdr, sizeof(pkt->hdr));
+	t_hdr = skb_put_data(skb, &pkt->hdr, sizeof(pkt->hdr));
 
 	if (pkt->len) {
-		payload = skb_put(skb, pkt->len);
-		memcpy(payload, pkt->buf, pkt->len);
+		payload = skb_put_data(skb, pkt->buf, pkt->len);
 	}
 
 	return skb;

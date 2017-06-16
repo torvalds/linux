@@ -1272,8 +1272,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	hdr->info_element[0].id = MFIE_TYPE_SSID;
 
 	hdr->info_element[0].len = beacon->ssid_len;
-	tag = skb_put(skb, beacon->ssid_len);
-	memcpy(tag, beacon->ssid, beacon->ssid_len);
+	tag = skb_put_data(skb, beacon->ssid, beacon->ssid_len);
 
 	tag = skb_put(skb, rate_len);
 
@@ -1349,8 +1348,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	}
 
 	if (wpa_ie_len) {
-		tag = skb_put(skb, ieee->wpa_ie_len);
-		memcpy(tag, ieee->wpa_ie, ieee->wpa_ie_len);
+		tag = skb_put_data(skb, ieee->wpa_ie, ieee->wpa_ie_len);
 
 		if (PMKCacheIdx >= 0) {
 			tag = skb_put(skb, 18);
@@ -1366,8 +1364,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	}
 
 	if (wps_ie_len && ieee->wps_ie) {
-		tag = skb_put(skb, wps_ie_len);
-		memcpy(tag, ieee->wps_ie, wps_ie_len);
+		tag = skb_put_data(skb, ieee->wps_ie, wps_ie_len);
 	}
 
 	tag = skb_put(skb, turbo_info_len);

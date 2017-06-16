@@ -828,8 +828,7 @@ static void dvb_net_ule(struct net_device *dev, const u8 *buf, size_t buf_len)
 
 		/* Copy data into our current skb. */
 		h.how_much = min(h.priv->ule_sndu_remain, (int)h.ts_remain);
-		memcpy(skb_put(h.priv->ule_skb, h.how_much),
-		       h.from_where, h.how_much);
+		skb_put_data(h.priv->ule_skb, h.from_where, h.how_much);
 		h.priv->ule_sndu_remain -= h.how_much;
 		h.ts_remain -= h.how_much;
 		h.from_where += h.how_much;

@@ -1079,8 +1079,7 @@ static struct sk_buff *qede_rx_allocate_skb(struct qede_dev *edev,
 	 * re-use the already allcoated & mapped memory.
 	 */
 	if (len + pad <= edev->rx_copybreak) {
-		memcpy(skb_put(skb, len),
-		       page_address(page) + offset, len);
+		skb_put_data(skb, page_address(page) + offset, len);
 		qede_reuse_page(rxq, bd);
 		goto out;
 	}

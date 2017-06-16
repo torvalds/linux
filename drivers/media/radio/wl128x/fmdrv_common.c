@@ -442,7 +442,7 @@ static int fm_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type,	void *payload,
 		fm_cb(skb)->fm_op = *((u8 *)payload + 2);
 	}
 	if (payload != NULL)
-		memcpy(skb_put(skb, payload_len), payload, payload_len);
+		skb_put_data(skb, payload, payload_len);
 
 	fm_cb(skb)->completion = wait_completion;
 	skb_queue_tail(&fmdev->tx_q, skb);

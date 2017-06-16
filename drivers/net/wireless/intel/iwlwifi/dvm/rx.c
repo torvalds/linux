@@ -657,7 +657,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	 */
 	hdrlen = (len <= skb_tailroom(skb)) ? len : sizeof(*hdr);
 
-	memcpy(skb_put(skb, hdrlen), hdr, hdrlen);
+	skb_put_data(skb, hdr, hdrlen);
 	fraglen = len - hdrlen;
 
 	if (fraglen) {

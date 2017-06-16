@@ -407,7 +407,7 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 			phy->current_read_len = 0;
 		}
 
-		memcpy(skb_put(skb, len), buf, len);
+		skb_put_data(skb, buf, len);
 
 		if (skb->data[skb->len - 1] == ST21NFCA_SOF_EOF) {
 			phy->current_read_len = 0;

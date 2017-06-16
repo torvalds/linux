@@ -1156,9 +1156,9 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		goto out;
 	}
 	if (ie0_len)
-		memcpy(skb_put(skb, ie0_len), ie0, ie0_len);
+		skb_put_data(skb, ie0, ie0_len);
 	if (ie1_len)
-		memcpy(skb_put(skb, ie1_len), ie1, ie1_len);
+		skb_put_data(skb, ie1, ie1_len);
 
 	if (sched_scan &&
 	    (wl->quirks & WLCORE_QUIRK_DUAL_PROBE_TMPL)) {

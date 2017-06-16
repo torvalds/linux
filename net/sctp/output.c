@@ -469,8 +469,7 @@ merge:
 				auth = (struct sctp_auth_chunk *)
 							skb_tail_pointer(nskb);
 
-			memcpy(skb_put(nskb, chunk->skb->len), chunk->skb->data,
-			       chunk->skb->len);
+			skb_put_data(nskb, chunk->skb->data, chunk->skb->len);
 
 			pr_debug("*** Chunk:%p[%s] %s 0x%x, length:%d, chunk->skb->len:%d, rtt_in_progress:%d\n",
 				 chunk,

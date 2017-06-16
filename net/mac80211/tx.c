@@ -903,8 +903,8 @@ static int ieee80211_fragment(struct ieee80211_tx_data *tx,
 		tmp->dev = skb->dev;
 
 		/* copy header and data */
-		memcpy(skb_put(tmp, hdrlen), skb->data, hdrlen);
-		memcpy(skb_put(tmp, fraglen), skb->data + pos, fraglen);
+		skb_put_data(tmp, skb->data, hdrlen);
+		skb_put_data(tmp, skb->data + pos, fraglen);
 
 		pos += fraglen;
 	}
@@ -4132,8 +4132,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 				goto out;
 
 			skb_reserve(skb, local->tx_headroom);
-			memcpy(skb_put(skb, beacon->head_len), beacon->head,
-			       beacon->head_len);
+			skb_put_data(skb, beacon->head, beacon->head_len);
 
 			ieee80211_beacon_add_tim(sdata, &ap->ps, skb,
 						 is_template);
@@ -4147,8 +4146,8 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 			}
 
 			if (beacon->tail)
-				memcpy(skb_put(skb, beacon->tail_len),
-				       beacon->tail, beacon->tail_len);
+				skb_put_data(skb, beacon->tail,
+					     beacon->tail_len);
 		} else
 			goto out;
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
@@ -4171,8 +4170,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!skb)
 			goto out;
 		skb_reserve(skb, local->tx_headroom);
-		memcpy(skb_put(skb, beacon->head_len), beacon->head,
-		       beacon->head_len);
+		skb_put_data(skb, beacon->head, beacon->head_len);
 
 		hdr = (struct ieee80211_hdr *) skb->data;
 		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
@@ -4207,8 +4205,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!skb)
 			goto out;
 		skb_reserve(skb, local->tx_headroom);
-		memcpy(skb_put(skb, beacon->head_len), beacon->head,
-		       beacon->head_len);
+		skb_put_data(skb, beacon->head, beacon->head_len);
 		ieee80211_beacon_add_tim(sdata, &ifmsh->ps, skb, is_template);
 
 		if (offs) {
@@ -4216,8 +4213,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 			offs->tim_length = skb->len - beacon->head_len;
 		}
 
-		memcpy(skb_put(skb, beacon->tail_len), beacon->tail,
-		       beacon->tail_len);
+		skb_put_data(skb, beacon->tail, beacon->tail_len);
 	} else {
 		WARN_ON(1);
 		goto out;
@@ -4337,7 +4333,7 @@ struct sk_buff *ieee80211_proberesp_get(struct ieee80211_hw *hw,
 	if (!skb)
 		goto out;
 
-	memcpy(skb_put(skb, presp->len), presp->data, presp->len);
+	skb_put_data(skb, presp->data, presp->len);
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	memset(hdr->addr1, 0, sizeof(hdr->addr1));

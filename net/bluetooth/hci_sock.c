@@ -379,7 +379,7 @@ void hci_send_monitor_ctrl_event(struct hci_dev *hdev, u16 event,
 		put_unaligned_le16(event, skb_put(skb, 2));
 
 		if (data)
-			memcpy(skb_put(skb, data_len), data, data_len);
+			skb_put_data(skb, data, data_len);
 
 		skb->tstamp = tstamp;
 
@@ -515,10 +515,10 @@ static struct sk_buff *create_monitor_ctrl_open(struct sock *sk)
 
 	put_unaligned_le32(hci_pi(sk)->cookie, skb_put(skb, 4));
 	put_unaligned_le16(format, skb_put(skb, 2));
-	memcpy(skb_put(skb, sizeof(ver)), ver, sizeof(ver));
+	skb_put_data(skb, ver, sizeof(ver));
 	put_unaligned_le32(flags, skb_put(skb, 4));
 	*skb_put(skb, 1) = TASK_COMM_LEN;
-	memcpy(skb_put(skb, TASK_COMM_LEN), hci_pi(sk)->comm, TASK_COMM_LEN);
+	skb_put_data(skb, hci_pi(sk)->comm, TASK_COMM_LEN);
 
 	__net_timestamp(skb);
 
@@ -586,7 +586,7 @@ static struct sk_buff *create_monitor_ctrl_command(struct sock *sk, u16 index,
 	put_unaligned_le16(opcode, skb_put(skb, 2));
 
 	if (buf)
-		memcpy(skb_put(skb, len), buf, len);
+		skb_put_data(skb, buf, len);
 
 	__net_timestamp(skb);
 

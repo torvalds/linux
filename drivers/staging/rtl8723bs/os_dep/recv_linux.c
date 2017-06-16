@@ -82,8 +82,8 @@ _pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 
 	if (sub_skb)
 	{
 		skb_reserve(sub_skb, 12);
-		data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
-		memcpy(data_ptr, (pdata + ETH_HLEN), nSubframe_Length);
+		data_ptr = skb_put_data(sub_skb, (pdata + ETH_HLEN),
+					nSubframe_Length);
 	}
 	else
 	{

@@ -135,7 +135,7 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		}
 
 		buf = s->current_rx_buf;
-		memcpy(skb_put(buf, skb->len), skb->data, skb->len);
+		skb_put_data(buf, skb->data, skb->len);
 	} else if (skb->len < 4) {
 		netif_err(dev, ifup, dev->net, "Frame too short\n");
 		dev->net->stats.rx_length_errors++;

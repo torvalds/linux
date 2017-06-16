@@ -174,15 +174,13 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	/* reserve the unaligned payload(if any) */
 	skb_reserve(skb, reserved);
 
-	buf = skb_put(skb, pkt_data_len);
-
 	/*
 	 * Copy packets from aggregation buffer to the skbs without rx
 	 * descriptor and with packet payload aligned care. In case of unaligned
 	 * packets copy the packets in offset of 2 bytes guarantee IP header
 	 * payload aligned to 4 bytes.
 	 */
-	memcpy(buf, data + sizeof(*desc), pkt_data_len);
+	buf = skb_put_data(skb, data + sizeof(*desc), pkt_data_len);
 	if (rx_align == WLCORE_RX_BUF_PADDED)
 		skb_pull(skb, RX_BUF_ALIGN);
 

@@ -194,7 +194,7 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 	hdr->plen = len;
 
 	if (len)
-		memcpy(skb_put(skb, len), param, len);
+		skb_put_data(skb, param, len);
 
 	hci_skb_pkt_type(skb) = MRVL_VENDOR_PKT;
 

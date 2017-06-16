@@ -905,8 +905,9 @@ void p54_tx_80211(struct ieee80211_hw *dev,
 		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 			/* reserve space for the MIC key */
 			len += 8;
-			memcpy(skb_put(skb, 8), &(info->control.hw_key->key
-				[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY]), 8);
+			skb_put_data(skb,
+				     &(info->control.hw_key->key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY]),
+				     8);
 		}
 		/* reserve some space for ICV */
 		len += info->control.hw_key->icv_len;

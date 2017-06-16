@@ -304,7 +304,7 @@ struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 	hdr->plen   = plen;
 
 	if (plen)
-		memcpy(skb_put(skb, plen), param, plen);
+		skb_put_data(skb, param, plen);
 
 	BT_DBG("skb len %d", skb->len);
 

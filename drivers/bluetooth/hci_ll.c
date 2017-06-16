@@ -413,7 +413,7 @@ static int ll_recv(struct hci_uart *hu, const void *data, int count)
 	while (count) {
 		if (ll->rx_count) {
 			len = min_t(unsigned int, ll->rx_count, count);
-			memcpy(skb_put(ll->rx_skb, len), ptr, len);
+			skb_put_data(ll->rx_skb, ptr, len);
 			ll->rx_count -= len; count -= len; ptr += len;
 
 			if (ll->rx_count)

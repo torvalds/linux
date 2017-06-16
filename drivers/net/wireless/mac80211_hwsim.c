@@ -2020,8 +2020,7 @@ static void hw_scan_work(struct work_struct *work)
 			memcpy(mgmt->bssid, req->bssid, ETH_ALEN);
 
 			if (req->ie_len)
-				memcpy(skb_put(probe, req->ie_len), req->ie,
-				       req->ie_len);
+				skb_put_data(probe, req->ie, req->ie_len);
 
 			local_bh_disable();
 			mac80211_hwsim_tx_frame(hwsim->hw, probe,
@@ -3021,7 +3020,7 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 		goto err;
 
 	/* Copy the data */
-	memcpy(skb_put(skb, frame_data_len), frame_data, frame_data_len);
+	skb_put_data(skb, frame_data, frame_data_len);
 
 	data2 = get_hwsim_data_ref_from_addr(dst);
 	if (!data2)

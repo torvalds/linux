@@ -186,7 +186,7 @@ static int fdp_nci_i2c_read(struct fdp_i2c_phy *phy, struct sk_buff **skb)
 				goto flush;
 			}
 
-			memcpy(skb_put(*skb, len), tmp, len);
+			skb_put_data(*skb, tmp, len);
 			fdp_nci_i2c_dump_skb(&client->dev, "fdp_rd", *skb);
 
 			fdp_nci_i2c_remove_len_lrc(*skb);

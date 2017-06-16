@@ -1103,7 +1103,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	}
 
 	/* FIXME : could we avoid this big memcpy ? */
-	memcpy(skb_put(skb, length), buffer, length);
+	skb_put_data(skb, buffer, length);
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &stats, sizeof(stats));
 	ieee80211_rx_irqsafe(hw, skb);

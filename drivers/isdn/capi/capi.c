@@ -1058,7 +1058,7 @@ static int capinc_tty_write(struct tty_struct *tty,
 	}
 
 	skb_reserve(skb, CAPI_DATA_B3_REQ_LEN);
-	memcpy(skb_put(skb, count), buf, count);
+	skb_put_data(skb, buf, count);
 
 	__skb_queue_tail(&mp->outqueue, skb);
 	mp->outbytes += skb->len;

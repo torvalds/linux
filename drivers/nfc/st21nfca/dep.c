@@ -564,7 +564,7 @@ int st21nfca_im_send_atr_req(struct nfc_hci_dev *hdev, u8 *gb, size_t gb_len)
 	atr_req->ppi = ST21NFCA_LR_BITS_PAYLOAD_SIZE_254B;
 	if (gb_len) {
 		atr_req->ppi |= ST21NFCA_GB_BIT;
-		memcpy(skb_put(skb, gb_len), gb, gb_len);
+		skb_put_data(skb, gb, gb_len);
 	}
 	atr_req->length = sizeof(struct st21nfca_atr_req) + hdev->gb_len;
 

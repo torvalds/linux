@@ -1602,7 +1602,7 @@ static struct sk_buff *mld_newpack(struct inet6_dev *idev, unsigned int mtu)
 
 	ip6_mc_hdr(sk, skb, dev, saddr, &mld2_all_mcr, NEXTHDR_HOP, 0);
 
-	memcpy(skb_put(skb, sizeof(ra)), ra, sizeof(ra));
+	skb_put_data(skb, ra, sizeof(ra));
 
 	skb_set_transport_header(skb, skb_tail_pointer(skb) - skb->data);
 	skb_put(skb, sizeof(*pmr));
@@ -2006,7 +2006,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 
 	ip6_mc_hdr(sk, skb, dev, saddr, snd_addr, NEXTHDR_HOP, payload_len);
 
-	memcpy(skb_put(skb, sizeof(ra)), ra, sizeof(ra));
+	skb_put_data(skb, ra, sizeof(ra));
 
 	hdr = skb_put_zero(skb, sizeof(struct mld_msg));
 	hdr->mld_type = type;

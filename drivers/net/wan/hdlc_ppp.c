@@ -234,9 +234,9 @@ static void ppp_tx_cp(struct net_device *dev, u16 pid, u8 code,
 	cp->len = htons(sizeof(struct cp_header) + magic_len + len);
 
 	if (magic_len)
-		memcpy(skb_put(skb, magic_len), &magic, magic_len);
+		skb_put_data(skb, &magic, magic_len);
 	if (len)
-		memcpy(skb_put(skb, len), data, len);
+		skb_put_data(skb, data, len);
 
 #if DEBUG_CP
 	BUG_ON(code >= CP_CODES);

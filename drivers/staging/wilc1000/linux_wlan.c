@@ -1160,7 +1160,7 @@ void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
 
 		skb->dev = wilc_netdev;
 
-		memcpy(skb_put(skb, frame_len), buff_to_send, frame_len);
+		skb_put_data(skb, buff_to_send, frame_len);
 
 		skb->protocol = eth_type_trans(skb, wilc_netdev);
 		vif->netstats.rx_packets++;

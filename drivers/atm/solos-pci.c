@@ -493,7 +493,7 @@ static int send_command(struct solos_card *card, int dev, const char *buf, size_
 	header->vci = cpu_to_le16(0);
 	header->type = cpu_to_le16(PKT_COMMAND);
 
-	memcpy(skb_put(skb, size), buf, size);
+	skb_put_data(skb, buf, size);
 
 	fpga_queue(card, dev, skb, NULL);
 

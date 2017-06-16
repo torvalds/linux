@@ -1035,11 +1035,10 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 	*skb_put(skb, 1) = PN533_INIT_TARGET_DEP;
 
 	/* MIFARE params */
-	memcpy(skb_put(skb, 6), mifare_params, 6);
+	skb_put_data(skb, mifare_params, 6);
 
 	/* Felica params */
-	felica = skb_put(skb, 18);
-	memcpy(felica, felica_params, 18);
+	felica = skb_put_data(skb, felica_params, 18);
 	get_random_bytes(felica + 2, 6);
 
 	/* NFCID3 */
@@ -1049,8 +1048,7 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 	/* General bytes */
 	*skb_put(skb, 1) = gbytes_len;
 
-	gb = skb_put(skb, gbytes_len);
-	memcpy(gb, gbytes, gbytes_len);
+	gb = skb_put_data(skb, gbytes, gbytes_len);
 
 	/* Len Tk */
 	*skb_put(skb, 1) = 0;
@@ -1384,15 +1382,14 @@ static int pn533_poll_dep(struct nfc_dev *nfc_dev)
 	*next = 0;
 
 	/* Copy passive data */
-	memcpy(skb_put(skb, PASSIVE_DATA_LEN), passive_data, PASSIVE_DATA_LEN);
+	skb_put_data(skb, passive_data, PASSIVE_DATA_LEN);
 	*next |= 1;
 
 	/* Copy NFCID3 (which is NFCID2 from SENSF_RES) */
-	memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), nfcid3,
-	       NFC_NFCID3_MAXSIZE);
+	skb_put_data(skb, nfcid3, NFC_NFCID3_MAXSIZE);
 	*next |= 2;
 
-	memcpy(skb_put(skb, dev->gb_len), dev->gb, dev->gb_len);
+	skb_put_data(skb, dev->gb, dev->gb_len);
 	*next |= 4; /* We have some Gi */
 
 	rc = pn533_send_cmd_async(dev, PN533_CMD_IN_JUMP_FOR_DEP, skb,
@@ -1472,7 +1469,7 @@ static struct sk_buff *pn533_alloc_poll_in_frame(struct pn533 *dev,
 	if (!skb)
 		return NULL;
 
-	memcpy(skb_put(skb, mod->len), &mod->data, mod->len);
+	skb_put_data(skb, &mod->data, mod->len);
 
 	return skb;
 }
@@ -1858,7 +1855,7 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	*next = 0;
 
 	/* Copy passive data */
-	memcpy(skb_put(skb, PASSIVE_DATA_LEN), passive_data, PASSIVE_DATA_LEN);
+	skb_put_data(skb, passive_data, PASSIVE_DATA_LEN);
 	*next |= 1;
 
 	/* Copy NFCID3 (which is NFCID2 from SENSF_RES) */
@@ -1866,12 +1863,11 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 		memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), target->nfcid2,
 		       target->nfcid2_len);
 	else
-		memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), nfcid3,
-		       NFC_NFCID3_MAXSIZE);
+		skb_put_data(skb, nfcid3, NFC_NFCID3_MAXSIZE);
 	*next |= 2;
 
 	if (gb != NULL && gb_len > 0) {
-		memcpy(skb_put(skb, gb_len), gb, gb_len);
+		skb_put_data(skb, gb, gb_len);
 		*next |= 4; /* We have some Gi */
 	} else {
 		*next = 0;
@@ -2100,7 +2096,7 @@ static int pn533_fill_fragment_skbs(struct pn533 *dev, struct sk_buff *skb)
 				*skb_push(frag, sizeof(u8)) =  1; /* TG */
 		}
 
-		memcpy(skb_put(frag, frag_size), skb->data, frag_size);
+		skb_put_data(frag, skb->data, frag_size);
 
 		/* Reduce the size of incoming buffer */
 		skb_pull(skb, frag_size);
@@ -2375,7 +2371,7 @@ static int pn533_set_configuration(struct pn533 *dev, u8 cfgitem, u8 *cfgdata,
 		return -ENOMEM;
 
 	*skb_put(skb, sizeof(cfgitem)) = cfgitem;
-	memcpy(skb_put(skb, cfgdata_len), cfgdata, cfgdata_len);
+	skb_put_data(skb, cfgdata, cfgdata_len);
 
 	resp = pn533_send_cmd_sync(dev, PN533_CMD_RF_CONFIGURATION, skb);
 	if (IS_ERR(resp))

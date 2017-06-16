@@ -371,7 +371,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 		chunk_len = nu->rx_packet_len - nu->rx_skb->len;
 		if (count < chunk_len)
 			chunk_len = count;
-		memcpy(skb_put(nu->rx_skb, chunk_len), data, chunk_len);
+		skb_put_data(nu->rx_skb, data, chunk_len);
 		data += chunk_len;
 		count -= chunk_len;
 

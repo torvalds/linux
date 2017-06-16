@@ -1115,8 +1115,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	hdr->info_element[0].id = MFIE_TYPE_SSID;
 
 	hdr->info_element[0].len = beacon->ssid_len;
-	tag = skb_put(skb, beacon->ssid_len);
-	memcpy(tag, beacon->ssid, beacon->ssid_len);
+	tag = skb_put_data(skb, beacon->ssid, beacon->ssid_len);
 
 	tag = skb_put(skb, rate_len);
 

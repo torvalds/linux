@@ -616,7 +616,7 @@ int nla_append(struct sk_buff *skb, int attrlen, const void *data)
 	if (unlikely(skb_tailroom(skb) < NLA_ALIGN(attrlen)))
 		return -EMSGSIZE;
 
-	memcpy(skb_put(skb, attrlen), data, attrlen);
+	skb_put_data(skb, data, attrlen);
 	return 0;
 }
 EXPORT_SYMBOL(nla_append);

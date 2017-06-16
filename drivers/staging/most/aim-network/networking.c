@@ -486,11 +486,11 @@ static int aim_rx_data(struct mbo *mbo)
 		ether_addr_copy(skb_put(skb, ETH_ALEN), dev->dev_addr);
 
 		/* src */
-		memcpy(skb_put(skb, 4), &zero, 4);
-		memcpy(skb_put(skb, 2), buf + 5, 2);
+		skb_put_data(skb, &zero, 4);
+		skb_put_data(skb, buf + 5, 2);
 
 		/* eth type */
-		memcpy(skb_put(skb, 2), buf + 10, 2);
+		skb_put_data(skb, buf + 10, 2);
 
 		buf += MDP_HDR_LEN;
 		len -= MDP_HDR_LEN;
@@ -499,7 +499,7 @@ static int aim_rx_data(struct mbo *mbo)
 		len -= MEP_HDR_LEN;
 	}
 
-	memcpy(skb_put(skb, len), buf, len);
+	skb_put_data(skb, buf, len);
 	skb->protocol = eth_type_trans(skb, dev);
 	skb_len = skb->len;
 	if (netif_rx(skb) == NET_RX_SUCCESS) {

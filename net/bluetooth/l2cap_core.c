@@ -2923,7 +2923,7 @@ static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn, u8 code,
 
 	if (dlen) {
 		count -= L2CAP_HDR_SIZE + L2CAP_CMD_HDR_SIZE;
-		memcpy(skb_put(skb, count), data, count);
+		skb_put_data(skb, data, count);
 		data += count;
 	}
 
@@ -2938,7 +2938,7 @@ static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn, u8 code,
 		if (!*frag)
 			goto fail;
 
-		memcpy(skb_put(*frag, count), data, count);
+		skb_put_data(*frag, data, count);
 
 		len  -= count;
 		data += count;

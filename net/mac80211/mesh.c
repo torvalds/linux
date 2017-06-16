@@ -345,7 +345,7 @@ int mesh_add_vendor_ies(struct ieee80211_sub_if_data *sdata,
 		data = ifmsh->ie + offset;
 		if (skb_tailroom(skb) < len)
 			return -ENOMEM;
-		memcpy(skb_put(skb, len), data, len);
+		skb_put_data(skb, data, len);
 	}
 
 	return 0;
@@ -369,7 +369,7 @@ int mesh_add_rsn_ie(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 
 	if (skb_tailroom(skb) < len)
 		return -ENOMEM;
-	memcpy(skb_put(skb, len), data, len);
+	skb_put_data(skb, data, len);
 
 	return 0;
 }
@@ -1125,8 +1125,8 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 		goto out;
 
 	skb_reserve(presp, local->tx_headroom);
-	memcpy(skb_put(presp, bcn->head_len), bcn->head, bcn->head_len);
-	memcpy(skb_put(presp, bcn->tail_len), bcn->tail, bcn->tail_len);
+	skb_put_data(presp, bcn->head, bcn->head_len);
+	skb_put_data(presp, bcn->tail, bcn->tail_len);
 	hdr = (struct ieee80211_mgmt *) presp->data;
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_RESP);

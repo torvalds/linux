@@ -1000,7 +1000,7 @@ static void prism2_send_mgmt(struct net_device *dev,
 	hdrlen = hostap_80211_get_hdrlen(cpu_to_le16(type_subtype));
 	hdr = skb_put_zero(skb, hdrlen);
 	if (body)
-		memcpy(skb_put(skb, body_len), body, body_len);
+		skb_put_data(skb, body, body_len);
 
 	/* FIX: ctrl::ack sending used special HFA384X_TX_CTRL_802_11
 	 * tx_control instead of using local->tx_control */

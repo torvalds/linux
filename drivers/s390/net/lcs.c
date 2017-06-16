@@ -1796,7 +1796,7 @@ lcs_get_skb(struct lcs_card *card, char *skb_data, unsigned int skb_len)
 		card->stats.rx_dropped++;
 		return;
 	}
-	memcpy(skb_put(skb, skb_len), skb_data, skb_len);
+	skb_put_data(skb, skb_data, skb_len);
 	skb->protocol =	card->lan_type_trans(skb, card->dev);
 	card->stats.rx_bytes += skb_len;
 	card->stats.rx_packets++;

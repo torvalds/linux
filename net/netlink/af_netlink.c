@@ -170,7 +170,7 @@ static struct sk_buff *netlink_to_full_skb(const struct sk_buff *skb,
 	NETLINK_CB(new).dst_group = NETLINK_CB(skb).dst_group;
 	NETLINK_CB(new).creds = NETLINK_CB(skb).creds;
 
-	memcpy(skb_put(new, len), skb->data, len);
+	skb_put_data(new, skb->data, len);
 	return new;
 }
 

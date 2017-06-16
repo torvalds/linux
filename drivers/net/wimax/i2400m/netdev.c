@@ -488,7 +488,7 @@ void i2400m_net_rx(struct i2400m *i2400m, struct sk_buff *skb_rx,
 			net_dev->stats.rx_dropped++;
 			goto error_skb_realloc;
 		}
-		memcpy(skb_put(skb, buf_len), buf, buf_len);
+		skb_put_data(skb, buf, buf_len);
 	}
 	i2400m_rx_fake_eth_header(i2400m->wimax_dev.net_dev,
 				  skb->data - ETH_HLEN,

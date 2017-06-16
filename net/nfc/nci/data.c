@@ -138,7 +138,7 @@ static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 		skb_reserve(skb_frag, NCI_DATA_HDR_SIZE);
 
 		/* first, copy the data */
-		memcpy(skb_put(skb_frag, frag_len), data, frag_len);
+		skb_put_data(skb_frag, data, frag_len);
 
 		/* second, set the header */
 		nci_push_data_hdr(ndev, conn_id, skb_frag,

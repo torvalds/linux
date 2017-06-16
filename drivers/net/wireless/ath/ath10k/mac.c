@@ -3475,9 +3475,8 @@ static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar,
 		if (arvif->u.ap.noa_data)
 			if (!pskb_expand_head(skb, 0, arvif->u.ap.noa_len,
 					      GFP_ATOMIC))
-				memcpy(skb_put(skb, arvif->u.ap.noa_len),
-				       arvif->u.ap.noa_data,
-				       arvif->u.ap.noa_len);
+				skb_put_data(skb, arvif->u.ap.noa_data,
+					     arvif->u.ap.noa_len);
 		spin_unlock_bh(&ar->data_lock);
 	}
 }

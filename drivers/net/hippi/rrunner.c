@@ -962,8 +962,8 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 								    pkt_len,
 								    PCI_DMA_FROMDEVICE);
 
-					memcpy(skb_put(skb, pkt_len),
-					       rx_skb->data, pkt_len);
+					skb_put_data(skb, rx_skb->data,
+						     pkt_len);
 
 					pci_dma_sync_single_for_device(rrpriv->pci_dev,
 								       desc->addr.addrlo,

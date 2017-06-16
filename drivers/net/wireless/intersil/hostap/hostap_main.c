@@ -1045,7 +1045,7 @@ int prism2_sta_send_mgmt(local_info_t *local, u8 *dst, u16 stype,
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
 	memcpy(mgmt->bssid, dst, ETH_ALEN);
 	if (body)
-		memcpy(skb_put(skb, bodylen), body, bodylen);
+		skb_put_data(skb, body, bodylen);
 
 	meta = (struct hostap_skb_tx_data *) skb->cb;
 	memset(meta, 0, sizeof(*meta));

@@ -35,8 +35,7 @@ qtnf_cmd_skb_put_buffer(struct sk_buff *skb, const u8 *buf_src, size_t len)
 {
 	u8 *buf_dst;
 
-	buf_dst = skb_put(skb, len);
-	memcpy(buf_dst, buf_src, len);
+	buf_dst = skb_put_data(skb, buf_src, len);
 }
 
 static inline void qtnf_cmd_skb_put_tlv_arr(struct sk_buff *skb,

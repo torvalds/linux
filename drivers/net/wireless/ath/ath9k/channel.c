@@ -1005,7 +1005,7 @@ static void ath_scan_send_probe(struct ath_softc *sc,
 		info->flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 
 	if (req->ie_len)
-		memcpy(skb_put(skb, req->ie_len), req->ie, req->ie_len);
+		skb_put_data(skb, req->ie, req->ie_len);
 
 	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
 
@@ -1521,8 +1521,7 @@ void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 	noa_desc = !!avp->offchannel_duration + !!avp->noa_duration;
 	noa_len = 2 + sizeof(struct ieee80211_p2p_noa_desc) * noa_desc;
 
-	hdr = skb_put(skb, sizeof(noa_ie_hdr));
-	memcpy(hdr, noa_ie_hdr, sizeof(noa_ie_hdr));
+	hdr = skb_put_data(skb, noa_ie_hdr, sizeof(noa_ie_hdr));
 	hdr[1] = sizeof(noa_ie_hdr) + noa_len - 2;
 	hdr[7] = noa_len;
 

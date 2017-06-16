@@ -1089,9 +1089,8 @@ static int port100_in_set_rf(struct nfc_digital_dev *ddev, u8 rf)
 	if (!skb)
 		return -ENOMEM;
 
-	memcpy(skb_put(skb, sizeof(struct port100_in_rf_setting)),
-	       &in_rf_settings[rf],
-	       sizeof(struct port100_in_rf_setting));
+	skb_put_data(skb, &in_rf_settings[rf],
+		     sizeof(struct port100_in_rf_setting));
 
 	resp = port100_send_cmd_sync(dev, PORT100_CMD_IN_SET_RF, skb);
 
@@ -1133,7 +1132,7 @@ static int port100_in_set_framing(struct nfc_digital_dev *ddev, int param)
 	if (!skb)
 		return -ENOMEM;
 
-	memcpy(skb_put(skb, size), protocols, size);
+	skb_put_data(skb, protocols, size);
 
 	resp = port100_send_cmd_sync(dev, PORT100_CMD_IN_SET_PROTOCOL, skb);
 
@@ -1247,9 +1246,8 @@ static int port100_tg_set_rf(struct nfc_digital_dev *ddev, u8 rf)
 	if (!skb)
 		return -ENOMEM;
 
-	memcpy(skb_put(skb, sizeof(struct port100_tg_rf_setting)),
-	       &tg_rf_settings[rf],
-	       sizeof(struct port100_tg_rf_setting));
+	skb_put_data(skb, &tg_rf_settings[rf],
+		     sizeof(struct port100_tg_rf_setting));
 
 	resp = port100_send_cmd_sync(dev, PORT100_CMD_TG_SET_RF, skb);
 
@@ -1291,7 +1289,7 @@ static int port100_tg_set_framing(struct nfc_digital_dev *ddev, int param)
 	if (!skb)
 		return -ENOMEM;
 
-	memcpy(skb_put(skb, size), protocols, size);
+	skb_put_data(skb, protocols, size);
 
 	resp = port100_send_cmd_sync(dev, PORT100_CMD_TG_SET_PROTOCOL, skb);
 

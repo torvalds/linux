@@ -1007,8 +1007,8 @@ static struct sk_buff *package_for_tx(struct f_ncm *ncm)
 	ntb_iter = skb_put_zero(skb2, ndp_pad);
 
 	/* Copy NTB across. */
-	ntb_iter = (void *) skb_put(skb2, ncm->skb_tx_ndp->len);
-	memcpy(ntb_iter, ncm->skb_tx_ndp->data, ncm->skb_tx_ndp->len);
+	ntb_iter = skb_put_data(skb2, ncm->skb_tx_ndp->data,
+				ncm->skb_tx_ndp->len);
 	dev_consume_skb_any(ncm->skb_tx_ndp);
 	ncm->skb_tx_ndp = NULL;
 
@@ -1129,8 +1129,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 
 		/* Add the new data to the skb */
 		ntb_data = skb_put_zero(ncm->skb_tx_data, dgram_pad);
-		ntb_data = (void *) skb_put(ncm->skb_tx_data, skb->len);
-		memcpy(ntb_data, skb->data, skb->len);
+		ntb_data = skb_put_data(ncm->skb_tx_data, skb->data, skb->len);
 		dev_consume_skb_any(skb);
 		skb = NULL;
 
@@ -1313,8 +1312,8 @@ static int ncm_unwrap_ntb(struct gether *port,
 							 dg_len - crc_len);
 			if (skb2 == NULL)
 				goto err;
-			memcpy(skb_put(skb2, dg_len - crc_len),
-			       skb->data + index, dg_len - crc_len);
+			skb_put_data(skb2, skb->data + index,
+				     dg_len - crc_len);
 
 			skb_queue_tail(list, skb2);
 

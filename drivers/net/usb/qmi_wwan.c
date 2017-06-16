@@ -188,7 +188,7 @@ static int qmimux_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			goto skip;
 		}
 
-		memcpy(skb_put(skbn, len), skb->data + offset, len);
+		skb_put_data(skbn, skb->data + offset, len);
 		if (netif_rx(skbn) != NET_RX_SUCCESS)
 			return 0;
 

@@ -5020,8 +5020,7 @@ static inline int rx_proc(struct net_device *dev, struct ksz_hw* hw,
 		 */
 		skb_reserve(skb, 2);
 
-		memcpy(skb_put(skb, packet_len),
-			dma_buf->skb->data, packet_len);
+		skb_put_data(skb, dma_buf->skb->data, packet_len);
 	} while (0);
 
 	skb->protocol = eth_type_trans(skb, dev);

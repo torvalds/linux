@@ -176,12 +176,10 @@ mwifiex_form_mgmt_frame(struct sk_buff *skb, const u8 *buf, size_t len)
 	memcpy(skb_push(skb, sizeof(pkt_type)), &pkt_type, sizeof(pkt_type));
 
 	/* Add packet data and address4 */
-	memcpy(skb_put(skb, sizeof(struct ieee80211_hdr_3addr)), buf,
-	       sizeof(struct ieee80211_hdr_3addr));
-	memcpy(skb_put(skb, ETH_ALEN), addr, ETH_ALEN);
-	memcpy(skb_put(skb, len - sizeof(struct ieee80211_hdr_3addr)),
-	       buf + sizeof(struct ieee80211_hdr_3addr),
-	       len - sizeof(struct ieee80211_hdr_3addr));
+	skb_put_data(skb, buf, sizeof(struct ieee80211_hdr_3addr));
+	skb_put_data(skb, addr, ETH_ALEN);
+	skb_put_data(skb, buf + sizeof(struct ieee80211_hdr_3addr),
+		     len - sizeof(struct ieee80211_hdr_3addr));
 
 	skb->priority = LOW_PRIO_TID;
 	__net_timestamp(skb);

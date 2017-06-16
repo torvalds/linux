@@ -151,8 +151,7 @@ static void nft_reject_br_send_v4_unreach(struct net *net,
 	icmph->type     = ICMP_DEST_UNREACH;
 	icmph->code	= code;
 
-	payload = skb_put(nskb, len);
-	memcpy(payload, skb_network_header(oldskb), len);
+	payload = skb_put_data(nskb, skb_network_header(oldskb), len);
 
 	csum = csum_partial((void *)icmph, len + sizeof(struct icmphdr), 0);
 	icmph->checksum = csum_fold(csum);
@@ -278,8 +277,7 @@ static void nft_reject_br_send_v6_unreach(struct net *net,
 	icmp6h->icmp6_type = ICMPV6_DEST_UNREACH;
 	icmp6h->icmp6_code = code;
 
-	payload = skb_put(nskb, len);
-	memcpy(payload, skb_network_header(oldskb), len);
+	payload = skb_put_data(nskb, skb_network_header(oldskb), len);
 	nip6h->payload_len = htons(nskb->len - sizeof(struct ipv6hdr));
 
 	icmp6h->icmp6_cksum =

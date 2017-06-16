@@ -312,8 +312,7 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	skb_reserve(skb, headroom);
 
 	if (cmd_len != 0 && cmd_buf != NULL) {
-		data = (u8 *) skb_put(skb, cmd_len);
-		memcpy(data, cmd_buf, cmd_len);
+		data = skb_put_data(skb, cmd_buf, cmd_len);
 	}
 
 	mutex_lock(&wmi->op_mutex);

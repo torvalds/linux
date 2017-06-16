@@ -44,7 +44,7 @@ static struct sk_buff *create_monitor_ctrl_event(__le16 index, u32 cookie,
 	put_unaligned_le16(opcode, skb_put(skb, 2));
 
 	if (buf)
-		memcpy(skb_put(skb, len), buf, len);
+		skb_put_data(skb, buf, len);
 
 	__net_timestamp(skb);
 
@@ -75,7 +75,7 @@ int mgmt_send_event(u16 event, struct hci_dev *hdev, unsigned short channel,
 	hdr->len = cpu_to_le16(data_len);
 
 	if (data)
-		memcpy(skb_put(skb, data_len), data, data_len);
+		skb_put_data(skb, data, data_len);
 
 	/* Time stamp */
 	__net_timestamp(skb);

@@ -1479,9 +1479,7 @@ void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 	int padlen = SCTP_PAD4(chunklen) - chunklen;
 
 	padding = skb_put_zero(chunk->skb, padlen);
-	target = skb_put(chunk->skb, len);
-
-	memcpy(target, data, len);
+	target = skb_put_data(chunk->skb, data, len);
 
 	/* Adjust the chunk length field.  */
 	chunk->chunk_hdr->length = htons(chunklen + padlen + len);

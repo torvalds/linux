@@ -1156,8 +1156,7 @@ static int fjes_poll(struct napi_struct *napi, int budget)
 				hw->ep_shm_info[cur_epid].net_stats
 							 .rx_errors += 1;
 			} else {
-				memcpy(skb_put(skb, frame_len),
-				       frame, frame_len);
+				skb_put_data(skb, frame, frame_len);
 				skb->protocol = eth_type_trans(skb, netdev);
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 

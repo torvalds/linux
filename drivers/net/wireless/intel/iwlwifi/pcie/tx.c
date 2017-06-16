@@ -2141,8 +2141,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 							htons(ETH_P_IPV6),
 						    data_left);
 
-			memcpy(skb_put(csum_skb, tcp_hdrlen(skb)),
-			       tcph, tcp_hdrlen(skb));
+			skb_put_data(csum_skb, tcph, tcp_hdrlen(skb));
 			skb_reset_transport_header(csum_skb);
 			csum_skb->csum_start =
 				(unsigned char *)tcp_hdr(csum_skb) -
@@ -2176,7 +2175,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 			dma_addr_t tb_phys;
 
 			if (trans_pcie->sw_csum_tx)
-				memcpy(skb_put(csum_skb, size), tso.data, size);
+				skb_put_data(csum_skb, tso.data, size);
 
 			tb_phys = dma_map_single(trans->dev, tso.data,
 						 size, DMA_TO_DEVICE);

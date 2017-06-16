@@ -1252,7 +1252,7 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.auth.auth_transaction = cpu_to_le16(transaction);
 	mgmt->u.auth.status_code = cpu_to_le16(status);
 	if (extra)
-		memcpy(skb_put(skb, extra_len), extra, extra_len);
+		skb_put_data(skb, extra, extra_len);
 
 	if (auth_alg == WLAN_AUTH_SHARED_KEY && transaction == 3) {
 		mgmt->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
@@ -1292,8 +1292,7 @@ void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 		skb_reserve(skb, local->hw.extra_tx_headroom);
 
 		/* copy in frame */
-		memcpy(skb_put(skb, IEEE80211_DEAUTH_FRAME_LEN),
-		       mgmt, IEEE80211_DEAUTH_FRAME_LEN);
+		skb_put_data(skb, mgmt, IEEE80211_DEAUTH_FRAME_LEN);
 
 		if (sdata->vif.type != NL80211_IFTYPE_STATION ||
 		    !(sdata->u.mgd.flags & IEEE80211_STA_MFP_ENABLED))

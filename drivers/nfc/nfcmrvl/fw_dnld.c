@@ -324,10 +324,9 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 			out_skb = alloc_lc_skb(priv, priv->fw_dnld.chunk_len);
 			if (!out_skb)
 				return -ENOMEM;
-			memcpy(skb_put(out_skb, priv->fw_dnld.chunk_len),
-			       ((uint8_t *)priv->fw_dnld.fw->data) +
-			       priv->fw_dnld.offset,
-			       priv->fw_dnld.chunk_len);
+			skb_put_data(out_skb,
+				     ((uint8_t *)priv->fw_dnld.fw->data) + priv->fw_dnld.offset,
+				     priv->fw_dnld.chunk_len);
 			nci_send_frame(priv->ndev, out_skb);
 			priv->fw_dnld.substate = SUBSTATE_WAIT_DATA_CREDIT;
 		}

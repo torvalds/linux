@@ -114,7 +114,7 @@ static int hidp_send_message(struct hidp_session *session, struct socket *sock,
 
 	*skb_put(skb, 1) = hdr;
 	if (data && size > 0)
-		memcpy(skb_put(skb, size), data, size);
+		skb_put_data(skb, data, size);
 
 	skb_queue_tail(transmit, skb);
 	wake_up_interruptible(sk_sleep(sk));
