@@ -237,6 +237,7 @@ enum iommu_init_state {
 	IOMMU_INITIALIZED,
 	IOMMU_NOT_FOUND,
 	IOMMU_INIT_ERROR,
+	IOMMU_CMDLINE_DISABLED,
 };
 
 /* Early ioapic and hpet maps from kernel command line */
@@ -2452,6 +2453,7 @@ static int __init state_next(void)
 		break;
 	case IOMMU_NOT_FOUND:
 	case IOMMU_INIT_ERROR:
+	case IOMMU_CMDLINE_DISABLED:
 		/* Error states => do nothing */
 		ret = -EINVAL;
 		break;
@@ -2469,8 +2471,9 @@ static int __init iommu_go_to_state(enum iommu_init_state state)
 
 	while (init_state != state) {
 		ret = state_next();
-		if (init_state == IOMMU_NOT_FOUND ||
-		    init_state == IOMMU_INIT_ERROR)
+		if (init_state == IOMMU_NOT_FOUND         ||
+		    init_state == IOMMU_INIT_ERROR        ||
+		    init_state == IOMMU_CMDLINE_DISABLED)
 			break;
 	}
 
