@@ -239,24 +239,26 @@ static inline u16 sd_ctrl_read16(struct tmio_mmc_host *host, int addr)
 }
 
 static inline void sd_ctrl_read16_rep(struct tmio_mmc_host *host, int addr,
-		u16 *buf, int count)
+				      u16 *buf, int count)
 {
 	readsw(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
-static inline u32 sd_ctrl_read16_and_16_as_32(struct tmio_mmc_host *host, int addr)
+static inline u32 sd_ctrl_read16_and_16_as_32(struct tmio_mmc_host *host,
+					      int addr)
 {
 	return readw(host->ctl + (addr << host->bus_shift)) |
 	       readw(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
 }
 
 static inline void sd_ctrl_read32_rep(struct tmio_mmc_host *host, int addr,
-		u32 *buf, int count)
+				      u32 *buf, int count)
 {
 	readsl(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
-static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val)
+static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr,
+				   u16 val)
 {
 	/* If there is a hook and it returns non-zero then there
 	 * is an error and the write should be skipped
@@ -267,19 +269,20 @@ static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val
 }
 
 static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
-		u16 *buf, int count)
+				       u16 *buf, int count)
 {
 	writesw(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
-static inline void sd_ctrl_write32_as_16_and_16(struct tmio_mmc_host *host, int addr, u32 val)
+static inline void sd_ctrl_write32_as_16_and_16(struct tmio_mmc_host *host,
+						int addr, u32 val)
 {
 	writew(val & 0xffff, host->ctl + (addr << host->bus_shift));
 	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
 }
 
 static inline void sd_ctrl_write32_rep(struct tmio_mmc_host *host, int addr,
-		const u32 *buf, int count)
+				       const u32 *buf, int count)
 {
 	writesl(host->ctl + (addr << host->bus_shift), buf, count);
 }

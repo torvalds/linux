@@ -104,8 +104,8 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 		goto host_free;
 
 	ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_irq,
-				IRQF_TRIGGER_FALLING,
-				dev_name(&pdev->dev), host);
+			       IRQF_TRIGGER_FALLING,
+			       dev_name(&pdev->dev), host);
 	if (ret)
 		goto host_remove;
 
@@ -132,6 +132,7 @@ static int tmio_mmc_remove(struct platform_device *pdev)
 
 	if (mmc) {
 		struct tmio_mmc_host *host = mmc_priv(mmc);
+
 		tmio_mmc_host_remove(host);
 		if (cell->disable)
 			cell->disable(pdev);
@@ -145,8 +146,7 @@ static int tmio_mmc_remove(struct platform_device *pdev)
 static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tmio_mmc_suspend, tmio_mmc_resume)
 	SET_RUNTIME_PM_OPS(tmio_mmc_host_runtime_suspend,
-			tmio_mmc_host_runtime_resume,
-			NULL)
+			   tmio_mmc_host_runtime_resume, NULL)
 };
 
 static struct platform_driver tmio_mmc_driver = {

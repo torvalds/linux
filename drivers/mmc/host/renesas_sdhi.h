@@ -27,7 +27,7 @@ struct renesas_sdhi_of_data {
 	unsigned long capabilities2;
 	enum dma_slave_buswidth dma_buswidth;
 	dma_addr_t dma_rx_offset;
-	unsigned bus_shift;
+	unsigned int bus_shift;
 	int scc_offset;
 	struct renesas_sdhi_scc *taps;
 	int taps_num;
