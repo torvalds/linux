@@ -275,6 +275,7 @@ const u32 nfs4_fs_locations_bitmap[3] = {
 static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dentry,
 		struct nfs4_readdir_arg *readdir)
 {
+	unsigned int attrs = FATTR4_WORD0_FILEID | FATTR4_WORD0_TYPE;
 	__be32 *start, *p;
 
 	if (cookie > 2) {
@@ -305,8 +306,9 @@ static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dent
 		memcpy(p, ".\0\0\0", 4);                        /* entry */
 		p++;
 		*p++ = xdr_one;                         /* bitmap length */
-		*p++ = htonl(FATTR4_WORD0_FILEID);             /* bitmap */
-		*p++ = htonl(8);              /* attribute buffer length */
+		*p++ = htonl(attrs);                           /* bitmap */
+		*p++ = htonl(12);             /* attribute buffer length */
+		*p++ = htonl(NF4DIR);
 		p = xdr_encode_hyper(p, NFS_FILEID(d_inode(dentry)));
 	}
 	
@@ -317,8 +319,9 @@ static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dent
 	memcpy(p, "..\0\0", 4);                         /* entry */
 	p++;
 	*p++ = xdr_one;                         /* bitmap length */
-	*p++ = htonl(FATTR4_WORD0_FILEID);             /* bitmap */
-	*p++ = htonl(8);              /* attribute buffer length */
+	*p++ = htonl(attrs);                           /* bitmap */
+	*p++ = htonl(12);             /* attribute buffer length */
+	*p++ = htonl(NF4DIR);
 	p = xdr_encode_hyper(p, NFS_FILEID(d_inode(dentry->d_parent)));
 
 	readdir->pgbase = (char *)p - (char *)start;
