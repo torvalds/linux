@@ -170,7 +170,7 @@ struct dc_debug {
 	bool disable_hubp_power_gate;
 	bool disable_pplib_wm_range;
 	bool use_dml_wm;
-	bool use_max_voltage;
+	bool disable_pipe_split;
 	int sr_exit_time_ns;
 	int sr_enter_plus_exit_time_ns;
 	int urgent_latency_ns;

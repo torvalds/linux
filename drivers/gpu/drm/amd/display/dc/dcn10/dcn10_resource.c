@@ -443,7 +443,7 @@ static const struct dc_debug debug_defaults_drv = {
 		.disable_pplib_wm_range = false,
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 		.use_dml_wm = false,
-		.use_max_voltage = false
+		.disable_pipe_split = false
 #endif
 };
 
@@ -456,7 +456,7 @@ static const struct dc_debug debug_defaults_diags = {
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = true,
 		.use_dml_wm = false,
-		.use_max_voltage = false
+		.disable_pipe_split = false
 #endif
 };
 

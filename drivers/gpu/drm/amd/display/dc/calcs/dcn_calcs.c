@@ -791,7 +791,7 @@ bool dcn_validate_bandwidth(
 	v->phyclk_per_state[1] = v->phyclkv_mid0p72;
 	v->phyclk_per_state[0] = v->phyclkv_min0p65;
 
-	if (dc->public.debug.use_max_voltage) {
+	if (dc->public.debug.disable_pipe_split) {
 		v->max_dppclk[1] = v->max_dppclk_vnom0p8;
 		v->max_dppclk[0] = v->max_dppclk_vnom0p8;
 	}
