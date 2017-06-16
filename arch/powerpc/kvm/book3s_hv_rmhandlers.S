@@ -44,6 +44,17 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 #define NAPPING_CEDE	1
 #define NAPPING_NOVCPU	2
 
+/* Stack frame offsets for kvmppc_hv_entry */
+#define SFS			144
+#define STACK_SLOT_TRAP		(SFS-4)
+#define STACK_SLOT_TID		(SFS-16)
+#define STACK_SLOT_PSSCR	(SFS-24)
+#define STACK_SLOT_PID		(SFS-32)
+#define STACK_SLOT_IAMR		(SFS-40)
+#define STACK_SLOT_CIABR	(SFS-48)
+#define STACK_SLOT_DAWR		(SFS-56)
+#define STACK_SLOT_DAWRX	(SFS-64)
+
 /*
  * Call kvmppc_hv_entry in real mode.
  * Must be called with interrupts hard-disabled.
@@ -328,10 +339,10 @@ kvm_novcpu_exit:
 	bl	kvmhv_accumulate_time
 #endif
 13:	mr	r3, r12
-	stw	r12, 112-4(r1)
+	stw	r12, STACK_SLOT_TRAP(r1)
 	bl	kvmhv_commence_exit
 	nop
-	lwz	r12, 112-4(r1)
+	lwz	r12, STACK_SLOT_TRAP(r1)
 	b	kvmhv_switch_to_host
 
 /*
@@ -554,12 +565,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
  *                                                                            *
  *****************************************************************************/
 
-/* Stack frame offsets */
-#define STACK_SLOT_TID		(112-16)
-#define STACK_SLOT_PSSCR	(112-24)
-#define STACK_SLOT_PID		(112-32)
-#define STACK_SLOT_IAMR		(112-40)
-
 .global kvmppc_hv_entry
 kvmppc_hv_entry:
 
@@ -575,7 +580,7 @@ kvmppc_hv_entry:
 	 */
 	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)
-	stdu	r1, -112(r1)
+	stdu	r1, -SFS(r1)
 
 	/* Save R1 in the PACA */
 	std	r1, HSTATE_HOST_R1(r13)
@@ -765,6 +770,14 @@ BEGIN_FTR_SECTION
 	std	r7, STACK_SLOT_PID(r1)
 	std	r8, STACK_SLOT_IAMR(r1)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+BEGIN_FTR_SECTION
+	mfspr	r5, SPRN_CIABR
+	mfspr	r6, SPRN_DAWR
+	mfspr	r7, SPRN_DAWRX
+	std	r5, STACK_SLOT_CIABR(r1)
+	std	r6, STACK_SLOT_DAWR(r1)
+	std	r7, STACK_SLOT_DAWRX(r1)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 BEGIN_FTR_SECTION
 	/* Set partition DABR */
@@ -1518,8 +1531,6 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	 * set by the guest could disrupt the host.
 	 */
 	li	r0, 0
-	mtspr	SPRN_CIABR, r0
-	mtspr	SPRN_DAWRX, r0
 	mtspr	SPRN_PSPB, r0
 	mtspr	SPRN_WORT, r0
 BEGIN_FTR_SECTION
@@ -1685,6 +1696,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 	/* Restore host values of some registers */
 BEGIN_FTR_SECTION
+	ld	r5, STACK_SLOT_CIABR(r1)
+	ld	r6, STACK_SLOT_DAWR(r1)
+	ld	r7, STACK_SLOT_DAWRX(r1)
+	mtspr	SPRN_CIABR, r5
+	mtspr	SPRN_DAWR, r6
+	mtspr	SPRN_DAWRX, r7
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+BEGIN_FTR_SECTION
 	ld	r5, STACK_SLOT_TID(r1)
 	ld	r6, STACK_SLOT_PSSCR(r1)
 	ld	r7, STACK_SLOT_PID(r1)
@@ -1836,8 +1855,8 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 	li	r0, KVM_GUEST_MODE_NONE
 	stb	r0, HSTATE_IN_GUEST(r13)
 
-	ld	r0, 112+PPC_LR_STKOFF(r1)
-	addi	r1, r1, 112
+	ld	r0, SFS+PPC_LR_STKOFF(r1)
+	addi	r1, r1, SFS
 	mtlr	r0
 	blr
 
