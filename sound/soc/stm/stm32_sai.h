@@ -125,7 +125,6 @@
 #define SAI_XFRCR_FSOFF		BIT(SAI_XFRCR_FSOFF_SHIFT)
 
 /****************** Bit definition for SAI_XSLOTR register ******************/
-
 #define SAI_XSLOTR_FBOFF_SHIFT	0
 #define SAI_XSLOTR_FBOFF_MASK	GENMASK(4, SAI_XSLOTR_FBOFF_SHIFT)
 #define SAI_XSLOTR_FBOFF_SET(x)	((x) << SAI_XSLOTR_FBOFF_SHIFT)
