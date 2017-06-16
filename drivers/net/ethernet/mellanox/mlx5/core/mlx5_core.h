@@ -83,12 +83,13 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
+int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev);
 void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 		     unsigned long param);
 void mlx5_core_page_fault(struct mlx5_core_dev *dev,
 			  struct mlx5_pagefault *pfault);
 void mlx5_port_module_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
-void mlx5_enter_error_state(struct mlx5_core_dev *dev);
+void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
 void mlx5_recover_device(struct mlx5_core_dev *dev);
 int mlx5_sriov_init(struct mlx5_core_dev *dev);
@@ -166,5 +167,8 @@ static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
 		   (MLX5_CAP_GEN(dev, num_lag_ports) > 1) &&
 		    MLX5_CAP_GEN(dev, lag_master);
 }
+
+int mlx5_lag_allow(struct mlx5_core_dev *dev);
+int mlx5_lag_forbid(struct mlx5_core_dev *dev);
 
 #endif /* __MLX5_CORE_H__ */

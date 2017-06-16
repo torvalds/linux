@@ -124,7 +124,8 @@ static void mlx5e_update_carrier(struct mlx5e_priv *priv)
 	u8 port_state;
 
 	port_state = mlx5_query_vport_state(mdev,
-		MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT, 0);
+					    MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT,
+					    0);
 
 	if (port_state == VPORT_STATE_UP) {
 		netdev_info(priv->netdev, "Link up\n");
@@ -243,24 +244,23 @@ static void mlx5e_update_vport_counters(struct mlx5e_priv *priv)
 	mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
 }
 
-static void mlx5e_update_pport_counters(struct mlx5e_priv *priv)
+static void mlx5e_update_pport_counters(struct mlx5e_priv *priv, bool full)
 {
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
 	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {0};
 	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 	int prio;
 	void *out;
-	u32 *in;
-
-	in = kvzalloc(sz, GFP_KERNEL);
-	if (!in)
-		return;
 
 	MLX5_SET(ppcnt_reg, in, local_port, 1);
 
 	out = pstats->IEEE_802_3_counters;
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_IEEE_802_3_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
+
+	if (!full)
+		return;
 
 	out = pstats->RFC_2863_counters;
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2863_COUNTERS_GROUP);
@@ -287,50 +287,53 @@ static void mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 		mlx5_core_access_reg(mdev, in, sz, out, sz,
 				     MLX5_REG_PPCNT, 0, 0);
 	}
-
-	kvfree(in);
 }
 
 static void mlx5e_update_q_counter(struct mlx5e_priv *priv)
 {
 	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
+	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)];
+	int err;
 
 	if (!priv->q_counter)
 		return;
 
-	mlx5_core_query_out_of_buffer(priv->mdev, priv->q_counter,
-				      &qcnt->rx_out_of_buffer);
+	err = mlx5_core_query_q_counter(priv->mdev, priv->q_counter, 0, out, sizeof(out));
+	if (err)
+		return;
+
+	qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out, out, out_of_buffer);
 }
 
 static void mlx5e_update_pcie_counters(struct mlx5e_priv *priv)
 {
 	struct mlx5e_pcie_stats *pcie_stats = &priv->stats.pcie;
 	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 in[MLX5_ST_SZ_DW(mpcnt_reg)] = {0};
 	int sz = MLX5_ST_SZ_BYTES(mpcnt_reg);
 	void *out;
-	u32 *in;
 
 	if (!MLX5_CAP_MCAM_FEATURE(mdev, pcie_performance_group))
-		return;
-
-	in = kvzalloc(sz, GFP_KERNEL);
-	if (!in)
 		return;
 
 	out = pcie_stats->pcie_perf_counters;
 	MLX5_SET(mpcnt_reg, in, grp, MLX5_PCIE_PERFORMANCE_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_MPCNT, 0, 0);
-
-	kvfree(in);
 }
 
-void mlx5e_update_stats(struct mlx5e_priv *priv)
+void mlx5e_update_stats(struct mlx5e_priv *priv, bool full)
 {
-	mlx5e_update_pcie_counters(priv);
-	mlx5e_update_pport_counters(priv);
+	if (full)
+		mlx5e_update_pcie_counters(priv);
+	mlx5e_update_pport_counters(priv, full);
 	mlx5e_update_vport_counters(priv);
 	mlx5e_update_q_counter(priv);
 	mlx5e_update_sw_counters(priv);
+}
+
+static void mlx5e_update_ndo_stats(struct mlx5e_priv *priv)
+{
+	mlx5e_update_stats(priv, false);
 }
 
 void mlx5e_update_stats_work(struct work_struct *work)
@@ -3067,7 +3070,6 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	 */
 	stats->multicast =
 		VPORT_COUNTER_GET(vstats, received_eth_multicast.packets);
-
 }
 
 static void mlx5e_set_rx_mode(struct net_device *dev)
@@ -3727,7 +3729,7 @@ static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	if (!MLX5_CAP_ETH(mdev, self_lb_en_modifiable))
 		mlx5_core_warn(mdev, "Self loop back prevention is not supported\n");
 	if (!MLX5_CAP_GEN(mdev, cq_moderation))
-		mlx5_core_warn(mdev, "CQ modiration is not supported\n");
+		mlx5_core_warn(mdev, "CQ moderation is not supported\n");
 
 	return 0;
 }
@@ -3860,7 +3862,7 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	/* set CQE compression */
 	params->rx_cqe_compress_def = false;
 	if (MLX5_CAP_GEN(mdev, cqe_compression) &&
-	     MLX5_CAP_GEN(mdev, vport_group_manager))
+	    MLX5_CAP_GEN(mdev, vport_group_manager))
 		params->rx_cqe_compress_def = cqe_compress_heuristic(link_speed, pci_bw);
 
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS, params->rx_cqe_compress_def);
@@ -4211,7 +4213,7 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.cleanup_tx	   = mlx5e_cleanup_nic_tx,
 	.enable		   = mlx5e_nic_enable,
 	.disable	   = mlx5e_nic_disable,
-	.update_stats	   = mlx5e_update_stats,
+	.update_stats	   = mlx5e_update_ndo_stats,
 	.max_nch	   = mlx5e_get_max_num_channels,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe,
 	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,

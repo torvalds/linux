@@ -403,7 +403,6 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 	for (i = 0; i < num_claimed; i++)
 		free_4k(dev, MLX5_GET64(manage_pages_out, out, pas[i]));
 
-
 	if (nclaimed)
 		*nclaimed = num_claimed;
 

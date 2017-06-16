@@ -111,14 +111,14 @@ static int in_fatal(struct mlx5_core_dev *dev)
 	return 0;
 }
 
-void mlx5_enter_error_state(struct mlx5_core_dev *dev)
+void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 {
 	mutex_lock(&dev->intf_state_mutex);
 	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
 		goto unlock;
 
 	mlx5_core_err(dev, "start\n");
-	if (pci_channel_offline(dev->pdev) || in_fatal(dev)) {
+	if (pci_channel_offline(dev->pdev) || in_fatal(dev) || force) {
 		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
 		trigger_cmd_completions(dev);
 	}

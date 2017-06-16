@@ -691,7 +691,7 @@ mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	flow_rule = mlx5_add_flow_rules(esw->offloads.ft_offloads, spec,
-				       &flow_act, &dest, 1);
+					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		esw_warn(esw->dev, "fs offloads: Failed to add vport rx rule err %ld\n", PTR_ERR(flow_rule));
 		goto out;
@@ -1093,7 +1093,7 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink, u8 encap)
 	if (err) {
 		esw_warn(esw->dev, "Failed re-creating fast FDB table, err %d\n", err);
 		esw->offloads.encap = !encap;
-		(void) esw_create_offloads_fast_fdb_table(esw);
+		(void)esw_create_offloads_fast_fdb_table(esw);
 	}
 	return err;
 }

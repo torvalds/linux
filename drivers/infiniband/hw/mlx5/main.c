@@ -439,7 +439,7 @@ static void get_atomic_caps(struct mlx5_ib_dev *dev,
 	u8 atomic_operations = MLX5_CAP_ATOMIC(dev->mdev, atomic_operations);
 	u8 atomic_size_qp = MLX5_CAP_ATOMIC(dev->mdev, atomic_size_qp);
 	u8 atomic_req_8B_endianness_mode =
-		MLX5_CAP_ATOMIC(dev->mdev, atomic_req_8B_endianess_mode);
+		MLX5_CAP_ATOMIC(dev->mdev, atomic_req_8B_endianness_mode);
 
 	/* Check if HW supports 8 bytes standard atomic operations and capable
 	 * of host endianness respond

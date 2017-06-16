@@ -170,7 +170,6 @@ static int __mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 
-
 	switch (rule_type) {
 	case MLX5E_VLAN_RULE_TYPE_UNTAGGED:
 		rule_p = &priv->fs.vlan.untagged_rule;

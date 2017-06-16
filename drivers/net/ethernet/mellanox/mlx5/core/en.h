@@ -822,7 +822,7 @@ void mlx5e_rx_am(struct mlx5e_rq *rq);
 void mlx5e_rx_am_work(struct work_struct *work);
 struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode);
 
-void mlx5e_update_stats(struct mlx5e_priv *priv);
+void mlx5e_update_stats(struct mlx5e_priv *priv, bool full);
 
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
