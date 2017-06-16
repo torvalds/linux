@@ -205,7 +205,6 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		sid = sli4_sid_from_fc_hdr(fc_hdr);
 
 		ctxp = (struct lpfc_nvmet_rcv_ctx *)ctx_buf->context;
-		memset(ctxp, 0, sizeof(ctxp->ctx));
 		ctxp->wqeq = NULL;
 		ctxp->txrdy = NULL;
 		ctxp->offset = 0;
@@ -1422,7 +1421,6 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 				"6414 NVMET Context corrupt %d %d oxid x%x\n",
 				ctxp->state, ctxp->entry_cnt, ctxp->oxid);
 	}
-	memset(ctxp, 0, sizeof(ctxp->ctx));
 	ctxp->wqeq = NULL;
 	ctxp->txrdy = NULL;
 	ctxp->offset = 0;
