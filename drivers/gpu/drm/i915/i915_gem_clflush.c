@@ -139,7 +139,7 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * snooping behaviour occurs naturally as the result of our domain
 	 * tracking.
 	 */
-	if (!(flags & I915_CLFLUSH_FORCE) && i915_gem_object_is_coherent(obj))
+	if (!(flags & I915_CLFLUSH_FORCE) && obj->cache_coherent)
 		return;
 
 	trace_i915_gem_object_clflush(obj);

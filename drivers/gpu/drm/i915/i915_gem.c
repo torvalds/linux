@@ -52,7 +52,7 @@ static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 	if (obj->cache_dirty)
 		return false;
 
-	if (!i915_gem_object_is_coherent(obj))
+	if (!obj->cache_coherent)
 		return true;
 
 	return obj->pin_display;
@@ -253,7 +253,7 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 
 	if (needs_clflush &&
 	    (obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
-	    !i915_gem_object_is_coherent(obj))
+	    !obj->cache_coherent)
 		drm_clflush_sg(pages);
 
 	__start_cpu_write(obj);
@@ -856,8 +856,7 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	if (i915_gem_object_is_coherent(obj) ||
-	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+	if (obj->cache_coherent || !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		ret = i915_gem_object_set_to_cpu_domain(obj, false);
 		if (ret)
 			goto err_unpin;
@@ -909,8 +908,7 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	if (i915_gem_object_is_coherent(obj) ||
-	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+	if (obj->cache_coherent || !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		ret = i915_gem_object_set_to_cpu_domain(obj, true);
 		if (ret)
 			goto err_unpin;
@@ -3684,6 +3682,7 @@ restart:
 	list_for_each_entry(vma, &obj->vma_list, obj_link)
 		vma->node.color = cache_level;
 	obj->cache_level = cache_level;
+	obj->cache_coherent = i915_gem_object_is_coherent(obj);
 	obj->cache_dirty = true; /* Always invalidate stale cachelines */
 
 	return 0;
@@ -4344,7 +4343,8 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 	} else
 		obj->cache_level = I915_CACHE_NONE;
 
-	obj->cache_dirty = !i915_gem_object_is_coherent(obj);
+	obj->cache_coherent = i915_gem_object_is_coherent(obj);
+	obj->cache_dirty = !obj->cache_coherent;
 
 	trace_i915_gem_object_create(obj);
 

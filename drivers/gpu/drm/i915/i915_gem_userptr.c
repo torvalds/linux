@@ -805,7 +805,8 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->cache_level = I915_CACHE_LLC;
-	obj->cache_dirty = !i915_gem_object_is_coherent(obj);
+	obj->cache_coherent = i915_gem_object_is_coherent(obj);
+	obj->cache_dirty = !obj->cache_coherent;
 
 	obj->userptr.ptr = args->user_ptr;
 	obj->userptr.read_only = !!(args->flags & I915_USERPTR_READ_ONLY);
