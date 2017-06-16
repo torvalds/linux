@@ -17,6 +17,7 @@
 
 #include <api/fs/fs.h>
 #include <linux/bitops.h>
+#include <linux/compiler.h>
 #include <linux/coresight-pmu.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
@@ -583,8 +584,7 @@ static FILE *cs_device__open_file(const char *name)
 
 }
 
-static __attribute__((format(printf, 2, 3)))
-int cs_device__print_file(const char *name, const char *fmt, ...)
+static int __printf(2, 3) cs_device__print_file(const char *name, const char *fmt, ...)
 {
 	va_list args;
 	FILE *file;
