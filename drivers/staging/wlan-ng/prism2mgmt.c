@@ -213,7 +213,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 		goto exit;
 	}
 	if (word == HFA384x_PORTSTATUS_DISABLED) {
-		u16 wordbuf[17];
+		__le16 wordbuf[17];
 
 		result = hfa384x_drvr_setconfig16(hw,
 					HFA384x_RID_CNFROAMINGMODE,
