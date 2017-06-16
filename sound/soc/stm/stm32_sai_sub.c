@@ -51,12 +51,15 @@
 #define STM_SAI_A_ID		0x0
 #define STM_SAI_B_ID		0x1
 
+#define STM_SAI_IS_SUB_A(x)	((x)->id == STM_SAI_A_ID)
+#define STM_SAI_IS_SUB_B(x)	((x)->id == STM_SAI_B_ID)
 #define STM_SAI_BLOCK_NAME(x)	(((x)->id == STM_SAI_A_ID) ? "A" : "B")
 
 /**
  * struct stm32_sai_sub_data - private data of SAI sub block (block A or B)
  * @pdev: device data pointer
  * @regmap: SAI register map pointer
+ * @regmap_config: SAI sub block register map configuration pointer
  * @dma_params: dma configuration data for rx or tx channel
  * @cpu_dai_drv: DAI driver data pointer
  * @cpu_dai: DAI runtime data pointer
@@ -79,6 +82,7 @@
 struct stm32_sai_sub_data {
 	struct platform_device *pdev;
 	struct regmap *regmap;
+	const struct regmap_config *regmap_config;
 	struct snd_dmaengine_dai_dma_data dma_params;
 	struct snd_soc_dai_driver *cpu_dai_drv;
 	struct snd_soc_dai *cpu_dai;
@@ -118,6 +122,8 @@ static bool stm32_sai_sub_readable_reg(struct device *dev, unsigned int reg)
 	case STM_SAI_SR_REGX:
 	case STM_SAI_CLRFR_REGX:
 	case STM_SAI_DR_REGX:
+	case STM_SAI_PDMCR_REGX:
+	case STM_SAI_PDMLY_REGX:
 		return true;
 	default:
 		return false;
@@ -145,17 +151,30 @@ static bool stm32_sai_sub_writeable_reg(struct device *dev, unsigned int reg)
 	case STM_SAI_SR_REGX:
 	case STM_SAI_CLRFR_REGX:
 	case STM_SAI_DR_REGX:
+	case STM_SAI_PDMCR_REGX:
+	case STM_SAI_PDMLY_REGX:
 		return true;
 	default:
 		return false;
 	}
 }
 
-static const struct regmap_config stm32_sai_sub_regmap_config = {
+static const struct regmap_config stm32_sai_sub_regmap_config_f4 = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = STM_SAI_DR_REGX,
+	.readable_reg = stm32_sai_sub_readable_reg,
+	.volatile_reg = stm32_sai_sub_volatile_reg,
+	.writeable_reg = stm32_sai_sub_writeable_reg,
+	.fast_io = true,
+};
+
+static const struct regmap_config stm32_sai_sub_regmap_config_h7 = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = STM_SAI_PDMLY_REGX,
 	.readable_reg = stm32_sai_sub_readable_reg,
 	.volatile_reg = stm32_sai_sub_volatile_reg,
 	.writeable_reg = stm32_sai_sub_writeable_reg,
@@ -551,7 +570,8 @@ static int stm32_sai_configure_clock(struct snd_soc_dai *cpu_dai,
 {
 	struct stm32_sai_sub_data *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	int cr1, mask, div = 0;
-	int sai_clk_rate, ret;
+	int sai_clk_rate, mclk_ratio, den, ret;
+	int version = sai->pdata->conf->version;
 
 	if (!sai->mclk_rate) {
 		dev_err(cpu_dai->dev, "Mclk rate is null\n");
@@ -564,22 +584,54 @@ static int stm32_sai_configure_clock(struct snd_soc_dai *cpu_dai,
 		clk_set_parent(sai->sai_ck, sai->pdata->clk_x8k);
 	sai_clk_rate = clk_get_rate(sai->sai_ck);
 
-	/*
-	 * mclk_rate = 256 * fs
-	 * MCKDIV = 0 if sai_ck < 3/2 * mclk_rate
-	 * MCKDIV = sai_ck / (2 * mclk_rate) otherwise
-	 */
-	if (2 * sai_clk_rate >= 3 * sai->mclk_rate)
-		div = DIV_ROUND_CLOSEST(sai_clk_rate, 2 * sai->mclk_rate);
+	if (STM_SAI_IS_F4(sai->pdata)) {
+		/*
+		 * mclk_rate = 256 * fs
+		 * MCKDIV = 0 if sai_ck < 3/2 * mclk_rate
+		 * MCKDIV = sai_ck / (2 * mclk_rate) otherwise
+		 */
+		if (2 * sai_clk_rate >= 3 * sai->mclk_rate)
+			div = DIV_ROUND_CLOSEST(sai_clk_rate,
+						2 * sai->mclk_rate);
+	} else {
+		/*
+		 * TDM mode :
+		 *   mclk on
+		 *      MCKDIV = sai_ck / (ws x 256)	(NOMCK=0. OSR=0)
+		 *      MCKDIV = sai_ck / (ws x 512)	(NOMCK=0. OSR=1)
+		 *   mclk off
+		 *      MCKDIV = sai_ck / (frl x ws)	(NOMCK=1)
+		 * Note: NOMCK/NODIV correspond to same bit.
+		 */
+		if (sai->mclk_rate) {
+			mclk_ratio = sai->mclk_rate / params_rate(params);
+			if (mclk_ratio != 256) {
+				if (mclk_ratio == 512) {
+					mask = SAI_XCR1_OSR;
+					cr1 = SAI_XCR1_OSR;
+				} else {
+					dev_err(cpu_dai->dev,
+						"Wrong mclk ratio %d\n",
+						mclk_ratio);
+					return -EINVAL;
+				}
+			}
+			div = DIV_ROUND_CLOSEST(sai_clk_rate, sai->mclk_rate);
+		} else {
+			/* mclk-fs not set, master clock not active. NOMCK=1 */
+			den = sai->fs_length * params_rate(params);
+			div = DIV_ROUND_CLOSEST(sai_clk_rate, den);
+		}
+	}
 
-	if (div > SAI_XCR1_MCKDIV_MAX) {
+	if (div > SAI_XCR1_MCKDIV_MAX(version)) {
 		dev_err(cpu_dai->dev, "Divider %d out of range\n", div);
 		return -EINVAL;
 	}
 	dev_dbg(cpu_dai->dev, "SAI clock %d, divider %d\n", sai_clk_rate, div);
 
-	mask = SAI_XCR1_MCKDIV_MASK;
-	cr1 = SAI_XCR1_MCKDIV_SET(div);
+	mask = SAI_XCR1_MCKDIV_MASK(SAI_XCR1_MCKDIV_WIDTH(version));
+				    cr1 = SAI_XCR1_MCKDIV_SET(div);
 	ret = regmap_update_bits(sai->regmap, STM_SAI_CR1_REGX, mask, cr1);
 	if (ret < 0) {
 		dev_err(cpu_dai->dev, "Failed to update CR1 register\n");
@@ -780,8 +832,18 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 		return PTR_ERR(base);
 
 	sai->phys_addr = res->start;
-	sai->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "sai_ck", base,
-						&stm32_sai_sub_regmap_config);
+
+	sai->regmap_config = &stm32_sai_sub_regmap_config_f4;
+	/* Note: PDM registers not available for H7 sub-block B */
+	if (STM_SAI_IS_H7(sai->pdata) && STM_SAI_IS_SUB_A(sai))
+		sai->regmap_config = &stm32_sai_sub_regmap_config_h7;
+
+	sai->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "sai_ck",
+						base, sai->regmap_config);
+	if (IS_ERR(sai->regmap)) {
+		dev_err(&pdev->dev, "Failed to initialize MMIO\n");
+		return PTR_ERR(sai->regmap);
+	}
 
 	/* Get direction property */
 	if (of_property_match_string(np, "dma-names", "tx") >= 0) {
