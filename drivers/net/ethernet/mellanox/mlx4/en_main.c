@@ -125,9 +125,9 @@ void mlx4_en_update_loopback_state(struct net_device *dev,
 		priv->flags |= MLX4_EN_FLAG_ENABLE_HW_LOOPBACK;
 
 	mutex_lock(&priv->mdev->state_lock);
-	if (priv->mdev->dev->caps.flags2 &
-	    MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB &&
-	    priv->rss_map.indir_qp.qpn) {
+	if ((priv->mdev->dev->caps.flags2 &
+	     MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB) &&
+	    priv->rss_map.indir_qp && priv->rss_map.indir_qp->qpn) {
 		int i;
 		int err = 0;
 		int loopback = !!(features & NETIF_F_LOOPBACK);
