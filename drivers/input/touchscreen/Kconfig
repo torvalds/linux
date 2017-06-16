@@ -153,6 +153,15 @@ config TOUCHSCREEN_CHIPONE_ICN8318
 	  To compile this driver as a module, choose M here: the
 	  module will be called chipone_icn8318.
 
+config TOUCHSCREEN_CY8C40XX
+	tristate "cy8c40xx touchpad based on IIC"
+	depends on I2C || GPIOLIB
+	help
+	  Say Y here if you have a cy8c40xx capacitive touchpad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cy8c_touchpad
+
 config TOUCHSCREEN_CY8CTMG110
 	tristate "cy8ctmg110 touchscreen"
 	depends on I2C
