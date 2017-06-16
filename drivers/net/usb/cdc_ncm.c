@@ -1017,7 +1017,7 @@ static void cdc_ncm_align_tail(struct sk_buff *skb, size_t modulus, size_t remai
 	if (skb->len + align > max)
 		align = max - skb->len;
 	if (align && skb_tailroom(skb) >= align)
-		memset(skb_put(skb, align), 0, align);
+		skb_put_zero(skb, align);
 }
 
 /* return a pointer to a valid struct usb_cdc_ncm_ndp16 of type sign, possibly
@@ -1180,7 +1180,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 		ndp16->dpe16[index].wDatagramLength = cpu_to_le16(skb->len);
 		ndp16->dpe16[index].wDatagramIndex = cpu_to_le16(skb_out->len);
 		ndp16->wLength = cpu_to_le16(ndplen + sizeof(struct usb_cdc_ncm_dpe16));
-		memcpy(skb_put(skb_out, skb->len), skb->data, skb->len);
+		skb_put_data(skb_out, skb->data, skb->len);
 		ctx->tx_curr_frame_payload += skb->len;	/* count real tx payload data */
 		dev_kfree_skb_any(skb);
 		skb = NULL;
@@ -1229,7 +1229,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 		nth16 = (struct usb_cdc_ncm_nth16 *)skb_out->data;
 		cdc_ncm_align_tail(skb_out, ctx->tx_ndp_modulus, 0, ctx->tx_max);
 		nth16->wNdpIndex = cpu_to_le16(skb_out->len);
-		memcpy(skb_put(skb_out, ctx->max_ndp_size), ctx->delayed_ndp16, ctx->max_ndp_size);
+		skb_put_data(skb_out, ctx->delayed_ndp16, ctx->max_ndp_size);
 
 		/* Zero out delayed NDP - signature checking will naturally fail. */
 		ndp16 = memset(ctx->delayed_ndp16, 0, ctx->max_ndp_size);
@@ -1247,10 +1247,10 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 	if (!(dev->driver_info->flags & FLAG_SEND_ZLP) &&
 	    skb_out->len > ctx->min_tx_pkt) {
 		padding_count = ctx->tx_max - skb_out->len;
-		memset(skb_put(skb_out, padding_count), 0, padding_count);
+		skb_put_zero(skb_out, padding_count);
 	} else if (skb_out->len < ctx->tx_max &&
 		   (skb_out->len % dev->maxpacket) == 0) {
-		*skb_put(skb_out, 1) = 0;	/* force short packet */
+		skb_put_u8(skb_out, 0);	/* force short packet */
 	}
 
 	/* set final frame length */
@@ -1497,7 +1497,7 @@ next_ndp:
 			skb = netdev_alloc_skb_ip_align(dev->net,  len);
 			if (!skb)
 				goto error;
-			memcpy(skb_put(skb, len), skb_in->data + offset, len);
+			skb_put_data(skb, skb_in->data + offset, len);
 			usbnet_skb_return(dev, skb);
 			payload += len;	/* count payload bytes in this NTB */
 		}

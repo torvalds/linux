@@ -1602,7 +1602,7 @@ static struct sk_buff *mld_newpack(struct inet6_dev *idev, unsigned int mtu)
 
 	ip6_mc_hdr(sk, skb, dev, saddr, &mld2_all_mcr, NEXTHDR_HOP, 0);
 
-	memcpy(skb_put(skb, sizeof(ra)), ra, sizeof(ra));
+	skb_put_data(skb, ra, sizeof(ra));
 
 	skb_set_transport_header(skb, skb_tail_pointer(skb) - skb->data);
 	skb_put(skb, sizeof(*pmr));
@@ -1692,7 +1692,7 @@ static struct sk_buff *add_grhead(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 		skb = mld_newpack(pmc->idev, dev->mtu);
 	if (!skb)
 		return NULL;
-	pgr = (struct mld2_grec *)skb_put(skb, sizeof(struct mld2_grec));
+	pgr = skb_put(skb, sizeof(struct mld2_grec));
 	pgr->grec_type = type;
 	pgr->grec_auxwords = 0;
 	pgr->grec_nsrcs = 0;
@@ -1784,7 +1784,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 		}
 		if (!skb)
 			return NULL;
-		psrc = (struct in6_addr *)skb_put(skb, sizeof(*psrc));
+		psrc = skb_put(skb, sizeof(*psrc));
 		*psrc = psf->sf_addr;
 		scount++; stotal++;
 		if ((type == MLD2_ALLOW_NEW_SOURCES ||
@@ -2006,10 +2006,9 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 
 	ip6_mc_hdr(sk, skb, dev, saddr, snd_addr, NEXTHDR_HOP, payload_len);
 
-	memcpy(skb_put(skb, sizeof(ra)), ra, sizeof(ra));
+	skb_put_data(skb, ra, sizeof(ra));
 
-	hdr = (struct mld_msg *) skb_put(skb, sizeof(struct mld_msg));
-	memset(hdr, 0, sizeof(struct mld_msg));
+	hdr = skb_put_zero(skb, sizeof(struct mld_msg));
 	hdr->mld_type = type;
 	hdr->mld_mca = *addr;
 

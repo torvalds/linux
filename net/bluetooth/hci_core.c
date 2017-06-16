@@ -3266,7 +3266,7 @@ int hci_reset_dev(struct hci_dev *hdev)
 		return -ENOMEM;
 
 	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
-	memcpy(skb_put(skb, 3), hw_err, 3);
+	skb_put_data(skb, hw_err, 3);
 
 	/* Send Hardware Error to upper stack */
 	return hci_recv_frame(hdev, skb);

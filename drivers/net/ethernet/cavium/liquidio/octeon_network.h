@@ -443,8 +443,8 @@ static inline void octeon_fast_packet_next(struct octeon_droq *droq,
 					   int copy_len,
 					   int idx)
 {
-	memcpy(skb_put(nicbuf, copy_len),
-	       get_rbd(droq->recv_buf_list[idx].buffer), copy_len);
+	skb_put_data(nicbuf, get_rbd(droq->recv_buf_list[idx].buffer),
+		     copy_len);
 }
 
 /**

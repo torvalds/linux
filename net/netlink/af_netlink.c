@@ -170,7 +170,7 @@ static struct sk_buff *netlink_to_full_skb(const struct sk_buff *skb,
 	NETLINK_CB(new).dst_group = NETLINK_CB(skb).dst_group;
 	NETLINK_CB(new).creds = NETLINK_CB(skb).creds;
 
-	memcpy(skb_put(new, len), skb->data, len);
+	skb_put_data(new, skb->data, len);
 	return new;
 }
 
@@ -2104,7 +2104,7 @@ __nlmsg_put(struct sk_buff *skb, u32 portid, u32 seq, int type, int len, int fla
 	struct nlmsghdr *nlh;
 	int size = nlmsg_msg_size(len);
 
-	nlh = (struct nlmsghdr *)skb_put(skb, NLMSG_ALIGN(size));
+	nlh = skb_put(skb, NLMSG_ALIGN(size));
 	nlh->nlmsg_type = type;
 	nlh->nlmsg_len = size;
 	nlh->nlmsg_flags = flags;

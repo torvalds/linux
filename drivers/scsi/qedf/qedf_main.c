@@ -874,7 +874,7 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 		frag = &skb_shinfo(skb)->frags[skb_shinfo(skb)->nr_frags - 1];
 		cp = kmap_atomic(skb_frag_page(frag)) + frag->page_offset;
 	} else {
-		cp = (struct fcoe_crc_eof *)skb_put(skb, tlen);
+		cp = skb_put(skb, tlen);
 	}
 
 	memset(cp, 0, sizeof(*cp));
@@ -2117,7 +2117,7 @@ static void qedf_ll2_process_skb(struct work_struct *work)
 	/* Undo VLAN encapsulation */
 	if (eh->h_proto == htons(ETH_P_8021Q)) {
 		memmove((u8 *)eh + VLAN_HLEN, eh, ETH_ALEN * 2);
-		eh = (struct ethhdr *)skb_pull(skb, VLAN_HLEN);
+		eh = skb_pull(skb, VLAN_HLEN);
 		skb_reset_mac_header(skb);
 	}
 

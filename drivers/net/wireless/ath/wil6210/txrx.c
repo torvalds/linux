@@ -363,7 +363,7 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 		return;
 	}
 
-	rtap_vendor = (void *)skb_push(skb, rtap_len);
+	rtap_vendor = skb_push(skb, rtap_len);
 	memset(rtap_vendor, 0, rtap_len);
 
 	rtap_vendor->rtap.rthdr.it_version = PKTHDR_RADIOTAP_VERSION;

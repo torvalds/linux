@@ -1875,7 +1875,7 @@ static int ca8210_skb_rx(
 copy_payload:
 	/* Add <msdulen> bytes of space to the back of the buffer */
 	/* Copy msdu to skb */
-	memcpy(skb_put(skb, msdulen), &data_ind[29], msdulen);
+	skb_put_data(skb, &data_ind[29], msdulen);
 
 	ieee802154_rx_irqsafe(hw, skb, mpdulinkquality);
 	return 0;

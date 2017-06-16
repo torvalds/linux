@@ -1711,8 +1711,8 @@ static int netdev_rx(struct net_device *dev)
 					np->cur_rx->skbuff->data, pkt_len);
 				skb_put(skb, pkt_len);
 #else
-				memcpy(skb_put(skb, pkt_len),
-					np->cur_rx->skbuff->data, pkt_len);
+				skb_put_data(skb, np->cur_rx->skbuff->data,
+					     pkt_len);
 #endif
 				pci_dma_sync_single_for_device(np->pci_dev,
 							       np->cur_rx->buffer,

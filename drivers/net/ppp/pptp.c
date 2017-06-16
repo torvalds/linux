@@ -328,7 +328,7 @@ allow_packet:
 
 		if ((*skb->data) & 1) {
 			/* protocol is compressed */
-			skb_push(skb, 1)[0] = 0;
+			*(u8 *)skb_push(skb, 1) = 0;
 		}
 
 		skb->ip_summed = CHECKSUM_NONE;

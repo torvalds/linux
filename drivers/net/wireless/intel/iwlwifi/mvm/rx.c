@@ -133,7 +133,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 	 */
 	hdrlen = (len <= skb_tailroom(skb)) ? len : hdrlen + crypt_len + 8;
 
-	memcpy(skb_put(skb, hdrlen), hdr, hdrlen);
+	skb_put_data(skb, hdr, hdrlen);
 	fraglen = len - hdrlen;
 
 	if (fraglen) {

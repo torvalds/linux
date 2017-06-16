@@ -348,7 +348,7 @@ void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len)
 	if (!skb)
 		return;
 
-	slot = (struct ath6kl_fwlog_slot *) skb_put(skb, slot_len);
+	slot = skb_put(skb, slot_len);
 	slot->timestamp = cpu_to_le32(jiffies);
 	slot->length = cpu_to_le32(len);
 	memcpy(slot->payload, buf, len);

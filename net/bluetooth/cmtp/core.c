@@ -122,7 +122,7 @@ static inline void cmtp_add_msgpart(struct cmtp_session *session, int id, const 
 	if (skb && (skb->len > 0))
 		skb_copy_from_linear_data(skb, skb_put(nskb, skb->len), skb->len);
 
-	memcpy(skb_put(nskb, count), buf, count);
+	skb_put_data(nskb, buf, count);
 
 	session->reassembly[id] = nskb;
 

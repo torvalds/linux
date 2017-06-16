@@ -1735,7 +1735,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 		__net_timestamp(skb);
 
 		list_for_each_entry(heb, &he_vcc->buffers, entry)
-			memcpy(skb_put(skb, heb->len), &heb->data, heb->len);
+			skb_put_data(skb, &heb->data, heb->len);
 
 		switch (vcc->qos.aal) {
 			case ATM_AAL0:

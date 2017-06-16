@@ -466,15 +466,15 @@ net1080_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 
 encapsulate:
 	/* header first */
-	header = (struct nc_header *) skb_push(skb, sizeof *header);
+	header = skb_push(skb, sizeof *header);
 	header->hdr_len = cpu_to_le16(sizeof (*header));
 	header->packet_len = cpu_to_le16(len);
 	header->packet_id = cpu_to_le16((u16)dev->xid++);
 
 	/* maybe pad; then trailer */
 	if (!((skb->len + sizeof *trailer) & 0x01))
-		*skb_put(skb, 1) = PAD_BYTE;
-	trailer = (struct nc_trailer *) skb_put(skb, sizeof *trailer);
+		skb_put_u8(skb, PAD_BYTE);
+	trailer = skb_put(skb, sizeof *trailer);
 	put_unaligned(header->packet_id, &trailer->packet_id);
 #if 0
 	netdev_dbg(dev->net, "frame >tx h %d p %d id %d\n",

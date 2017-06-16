@@ -256,9 +256,7 @@ static int if_sdio_handle_data(struct if_sdio_card *card,
 
 	skb_reserve(skb, NET_IP_ALIGN);
 
-	data = skb_put(skb, size);
-
-	memcpy(data, buffer, size);
+	data = skb_put_data(skb, buffer, size);
 
 	lbs_process_rxed_packet(card->priv, skb);
 

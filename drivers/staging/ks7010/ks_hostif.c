@@ -466,12 +466,12 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 		DPRINTK(4, "SNAP, rx_ind_size = %d\n", rx_ind_size);
 
 		size = ETH_ALEN * 2;
-		memcpy(skb_put(skb, size), priv->rxp, size);
+		skb_put_data(skb, priv->rxp, size);
 
 		/* (SNAP+UI..) skip */
 
 		size = rx_ind_size - (ETH_ALEN * 2);
-		memcpy(skb_put(skb, size), &eth_hdr->h_proto, size);
+		skb_put_data(skb, &eth_hdr->h_proto, size);
 
 		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + ETHER_HDR_SIZE);
 		break;
@@ -484,14 +484,13 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 		}
 		DPRINTK(3, "NETBEUI/NetBIOS rx_ind_size=%d\n", rx_ind_size);
 
-		memcpy(skb_put(skb, 12), priv->rxp, 12);	/* 8802/FDDI MAC copy */
+		skb_put_data(skb, priv->rxp, 12);	/* 8802/FDDI MAC copy */
 
 		temp[0] = (((rx_ind_size - 12) >> 8) & 0xff);	/* NETBEUI size add */
 		temp[1] = ((rx_ind_size - 12) & 0xff);
-		memcpy(skb_put(skb, 2), temp, 2);
+		skb_put_data(skb, temp, 2);
 
-		memcpy(skb_put(skb, rx_ind_size - 14), priv->rxp + 12,
-		       rx_ind_size - 14);	/* copy after Type */
+		skb_put_data(skb, priv->rxp + 12, rx_ind_size - 14);	/* copy after Type */
 
 		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 14);
 		break;

@@ -593,7 +593,7 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	 * Copy to skb. This copy is needed here since the memory pointed by
 	 * hv_netvsc_packet cannot be deallocated
 	 */
-	memcpy(skb_put(skb, buflen), data, buflen);
+	skb_put_data(skb, data, buflen);
 
 	skb->protocol = eth_type_trans(skb, net);
 

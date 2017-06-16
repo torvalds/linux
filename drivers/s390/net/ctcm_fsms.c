@@ -1279,7 +1279,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 		       __func__, data_space);
 
 	while ((skb = skb_dequeue(&ch->collect_queue))) {
-		memcpy(skb_put(ch->trans_skb, skb->len), skb->data, skb->len);
+		skb_put_data(ch->trans_skb, skb->data, skb->len);
 		p_header = (struct pdu *)
 			(skb_tail_pointer(ch->trans_skb) - skb->len);
 		p_header->pdu_flag = 0x00;
@@ -1431,13 +1431,12 @@ static void ctcmpc_chx_rx(fsm_instance *fi, int event, void *arg)
 			break;
 		case MPCG_STATE_FLOWC:
 		case MPCG_STATE_READY:
-			memcpy(skb_put(new_skb, block_len),
-					       skb->data, block_len);
+			skb_put_data(new_skb, skb->data, block_len);
 			skb_queue_tail(&ch->io_queue, new_skb);
 			tasklet_schedule(&ch->ch_tasklet);
 			break;
 		default:
-			memcpy(skb_put(new_skb, len), skb->data, len);
+			skb_put_data(new_skb, skb->data, len);
 			skb_queue_tail(&ch->io_queue, new_skb);
 			tasklet_hi_schedule(&ch->ch_tasklet);
 			break;

@@ -160,7 +160,7 @@ static int llc_shdlc_send_s_frame(struct llc_shdlc *shdlc,
 	if (skb == NULL)
 		return -ENOMEM;
 
-	*skb_push(skb, 1) = SHDLC_CONTROL_HEAD_S | (sframe_type << 3) | nr;
+	*(u8 *)skb_push(skb, 1) = SHDLC_CONTROL_HEAD_S | (sframe_type << 3) | nr;
 
 	r = shdlc->xmit_to_drv(shdlc->hdev, skb);
 
@@ -178,7 +178,7 @@ static int llc_shdlc_send_u_frame(struct llc_shdlc *shdlc,
 
 	pr_debug("uframe_modifier=%d\n", uframe_modifier);
 
-	*skb_push(skb, 1) = SHDLC_CONTROL_HEAD_U | uframe_modifier;
+	*(u8 *)skb_push(skb, 1) = SHDLC_CONTROL_HEAD_U | uframe_modifier;
 
 	r = shdlc->xmit_to_drv(shdlc->hdev, skb);
 
@@ -382,8 +382,8 @@ static int llc_shdlc_connect_initiate(struct llc_shdlc *shdlc)
 	if (skb == NULL)
 		return -ENOMEM;
 
-	*skb_put(skb, 1) = SHDLC_MAX_WINDOW;
-	*skb_put(skb, 1) = SHDLC_SREJ_SUPPORT ? 1 : 0;
+	skb_put_u8(skb, SHDLC_MAX_WINDOW);
+	skb_put_u8(skb, SHDLC_SREJ_SUPPORT ? 1 : 0);
 
 	return llc_shdlc_send_u_frame(shdlc, skb, U_FRAME_RSET);
 }
@@ -551,8 +551,8 @@ static void llc_shdlc_handle_send_queue(struct llc_shdlc *shdlc)
 
 		skb = skb_dequeue(&shdlc->send_q);
 
-		*skb_push(skb, 1) = SHDLC_CONTROL_HEAD_I | (shdlc->ns << 3) |
-				    shdlc->nr;
+		*(u8 *)skb_push(skb, 1) = SHDLC_CONTROL_HEAD_I | (shdlc->ns << 3) |
+					shdlc->nr;
 
 		pr_debug("Sending I-Frame %d, waiting to rcv %d\n", shdlc->ns,
 			 shdlc->nr);

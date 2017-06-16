@@ -454,8 +454,7 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		}
 		caif_assert(skb != NULL);
 
-		dst = skb_put(skb, len);
-		memcpy(dst, pfrm, len);
+		dst = skb_put_data(skb, pfrm, len);
 
 		skb->protocol = htons(ETH_P_CAIF);
 		skb_reset_mac_header(skb);
@@ -585,8 +584,7 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		}
 		caif_assert(skb != NULL);
 
-		dst = skb_put(skb, len);
-		memcpy(dst, pcffrm, len);
+		dst = skb_put_data(skb, pcffrm, len);
 
 		skb->protocol = htons(ETH_P_CAIF);
 		skb_reset_mac_header(skb);

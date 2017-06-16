@@ -351,8 +351,7 @@ static inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	req = (struct rtllib_probe_request *) skb_put(skb,
-	      sizeof(struct rtllib_probe_request));
+	req = skb_put(skb, sizeof(struct rtllib_probe_request));
 	req->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_PROBE_REQ);
 	req->header.duration_id = 0;
 
@@ -360,7 +359,7 @@ static inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 	ether_addr_copy(req->header.addr2, ieee->dev->dev_addr);
 	eth_broadcast_addr(req->header.addr3);
 
-	tag = (u8 *) skb_put(skb, len + 2 + rate_len);
+	tag = skb_put(skb, len + 2 + rate_len);
 
 	*tag++ = MFIE_TYPE_SSID;
 	*tag++ = len;
@@ -789,8 +788,7 @@ rtllib_authentication_req(struct rtllib_network *beacon,
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	auth = (struct rtllib_authentication *)
-		skb_put(skb, sizeof(struct rtllib_authentication));
+	auth = skb_put(skb, sizeof(struct rtllib_authentication));
 
 	auth->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_AUTH);
 	if (challengelen)
@@ -889,8 +887,7 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	beacon_buf = (struct rtllib_probe_response *) skb_put(skb,
-		     (beacon_size - ieee->tx_headroom));
+	beacon_buf = skb_put(skb, (beacon_size - ieee->tx_headroom));
 	ether_addr_copy(beacon_buf->header.addr1, dest);
 	ether_addr_copy(beacon_buf->header.addr2, ieee->dev->dev_addr);
 	ether_addr_copy(beacon_buf->header.addr3, ieee->current_network.bssid);
@@ -984,8 +981,7 @@ static struct sk_buff *rtllib_assoc_resp(struct rtllib_device *ieee, u8 *dest)
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	assoc = (struct rtllib_assoc_response_frame *)
-		skb_put(skb, sizeof(struct rtllib_assoc_response_frame));
+	assoc = skb_put(skb, sizeof(struct rtllib_assoc_response_frame));
 
 	assoc->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_ASSOC_RESP);
 	ether_addr_copy(assoc->header.addr1, dest);
@@ -1016,7 +1012,7 @@ static struct sk_buff *rtllib_assoc_resp(struct rtllib_device *ieee, u8 *dest)
 	else
 		ieee->assoc_id++;
 
-	tag = (u8 *) skb_put(skb, rate_len);
+	tag = skb_put(skb, rate_len);
 	rtllib_MFIE_Brate(ieee, &tag);
 	rtllib_MFIE_Grate(ieee, &tag);
 
@@ -1038,8 +1034,7 @@ static struct sk_buff *rtllib_auth_resp(struct rtllib_device *ieee, int status,
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	auth = (struct rtllib_authentication *)
-		skb_put(skb, sizeof(struct rtllib_authentication));
+	auth = skb_put(skb, sizeof(struct rtllib_authentication));
 
 	auth->status = cpu_to_le16(status);
 	auth->transaction = cpu_to_le16(2);
@@ -1065,8 +1060,7 @@ static struct sk_buff *rtllib_null_func(struct rtllib_device *ieee, short pwr)
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	hdr = (struct rtllib_hdr_3addr *)skb_put(skb,
-	      sizeof(struct rtllib_hdr_3addr));
+	hdr = skb_put(skb, sizeof(struct rtllib_hdr_3addr));
 
 	ether_addr_copy(hdr->addr1, ieee->current_network.bssid);
 	ether_addr_copy(hdr->addr2, ieee->dev->dev_addr);
@@ -1092,8 +1086,7 @@ static struct sk_buff *rtllib_pspoll_func(struct rtllib_device *ieee)
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	hdr = (struct rtllib_pspoll_hdr *)skb_put(skb,
-	      sizeof(struct rtllib_pspoll_hdr));
+	hdr = skb_put(skb, sizeof(struct rtllib_pspoll_hdr));
 
 	ether_addr_copy(hdr->bssid, ieee->current_network.bssid);
 	ether_addr_copy(hdr->ta, ieee->dev->dev_addr);
@@ -1243,8 +1236,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	hdr = (struct rtllib_assoc_request_frame *)
-		skb_put(skb, sizeof(struct rtllib_assoc_request_frame) + 2);
+	hdr = skb_put(skb, sizeof(struct rtllib_assoc_request_frame) + 2);
 
 
 	hdr->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_ASSOC_REQ);
@@ -1272,8 +1264,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	hdr->info_element[0].id = MFIE_TYPE_SSID;
 
 	hdr->info_element[0].len = beacon->ssid_len;
-	tag = skb_put(skb, beacon->ssid_len);
-	memcpy(tag, beacon->ssid, beacon->ssid_len);
+	tag = skb_put_data(skb, beacon->ssid, beacon->ssid_len);
 
 	tag = skb_put(skb, rate_len);
 
@@ -1349,8 +1340,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	}
 
 	if (wpa_ie_len) {
-		tag = skb_put(skb, ieee->wpa_ie_len);
-		memcpy(tag, ieee->wpa_ie, ieee->wpa_ie_len);
+		tag = skb_put_data(skb, ieee->wpa_ie, ieee->wpa_ie_len);
 
 		if (PMKCacheIdx >= 0) {
 			tag = skb_put(skb, 18);
@@ -1366,8 +1356,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	}
 
 	if (wps_ie_len && ieee->wps_ie) {
-		tag = skb_put(skb, wps_ie_len);
-		memcpy(tag, ieee->wps_ie, wps_ie_len);
+		tag = skb_put_data(skb, ieee->wps_ie, wps_ie_len);
 	}
 
 	tag = skb_put(skb, turbo_info_len);
@@ -3417,8 +3406,7 @@ rtllib_disauth_skb(struct rtllib_network *beacon,
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	disauth = (struct rtllib_disauth *) skb_put(skb,
-		  sizeof(struct rtllib_disauth));
+	disauth = skb_put(skb, sizeof(struct rtllib_disauth));
 	disauth->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_DEAUTH);
 	disauth->header.duration_id = 0;
 
@@ -3445,8 +3433,7 @@ rtllib_disassociate_skb(struct rtllib_network *beacon,
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	disass = (struct rtllib_disassoc *) skb_put(skb,
-					 sizeof(struct rtllib_disassoc));
+	disass = skb_put(skb, sizeof(struct rtllib_disassoc));
 	disass->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_DISASSOC);
 	disass->header.duration_id = 0;
 

@@ -1569,7 +1569,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	skb_reserve(skb, local->tx_headroom);
-	memcpy(skb_put(skb, presp->head_len), presp->head, presp->head_len);
+	skb_put_data(skb, presp->head, presp->head_len);
 
 	memcpy(((struct ieee80211_mgmt *) skb->data)->da, mgmt->sa, ETH_ALEN);
 	ibss_dbg(sdata, "Sending ProbeResp to %pM\n", mgmt->sa);

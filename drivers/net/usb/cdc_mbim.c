@@ -399,7 +399,7 @@ static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_
 	memcpy(eth_hdr(skb)->h_dest, dev->net->dev_addr, ETH_ALEN);
 
 	/* add datagram */
-	memcpy(skb_put(skb, len), buf, len);
+	skb_put_data(skb, buf, len);
 
 	/* map MBIM session to VLAN */
 	if (tci)

@@ -794,8 +794,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			{
 				tcb_desc->bHwSec = 0;
 			}
-			frag_hdr = (struct rtl_80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
-			memcpy(frag_hdr, &header, hdr_len);
+			frag_hdr = skb_put_data(skb_frag, &header, hdr_len);
 
 			/* If this is not the last fragment, then add the MOREFRAGS
 			 * bit to the frame control
@@ -826,7 +825,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 				bytes -= SNAP_SIZE + sizeof(u16);
 			}
 
-			memcpy(skb_put(skb_frag, bytes), skb->data, bytes);
+			skb_put_data(skb_frag, skb->data, bytes);
 
 			/* Advance the SKB... */
 			skb_pull(skb, bytes);
@@ -869,7 +868,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		txb->encrypted = 0;
 		txb->payload_size = __cpu_to_le16(skb->len);
-		memcpy(skb_put(txb->fragments[0],skb->len), skb->data, skb->len);
+		skb_put_data(txb->fragments[0], skb->data, skb->len);
 	}
 
  success:

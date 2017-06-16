@@ -213,7 +213,7 @@ static void qtnf_pcie_control_rx_callback(void *arg, const u8 *buf, size_t len)
 		return;
 	}
 
-	memcpy(skb_put(skb, len), buf, len);
+	skb_put_data(skb, buf, len);
 
 	qtnf_trans_handle_rx_ctl_packet(bus, skb);
 }

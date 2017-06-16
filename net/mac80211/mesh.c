@@ -345,7 +345,7 @@ int mesh_add_vendor_ies(struct ieee80211_sub_if_data *sdata,
 		data = ifmsh->ie + offset;
 		if (skb_tailroom(skb) < len)
 			return -ENOMEM;
-		memcpy(skb_put(skb, len), data, len);
+		skb_put_data(skb, data, len);
 	}
 
 	return 0;
@@ -369,7 +369,7 @@ int mesh_add_rsn_ie(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 
 	if (skb_tailroom(skb) < len)
 		return -ENOMEM;
-	memcpy(skb_put(skb, len), data, len);
+	skb_put_data(skb, data, len);
 
 	return 0;
 }
@@ -719,8 +719,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	bcn->head = ((u8 *) bcn) + sizeof(*bcn);
 
 	/* fill in the head */
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
-	memset(mgmt, 0, hdr_len);
+	mgmt = skb_put_zero(skb, hdr_len);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_BEACON);
 	eth_broadcast_addr(mgmt->da);
@@ -1126,8 +1125,8 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 		goto out;
 
 	skb_reserve(presp, local->tx_headroom);
-	memcpy(skb_put(presp, bcn->head_len), bcn->head, bcn->head_len);
-	memcpy(skb_put(presp, bcn->tail_len), bcn->tail, bcn->tail_len);
+	skb_put_data(presp, bcn->head, bcn->head_len);
+	skb_put_data(presp, bcn->tail, bcn->tail_len);
 	hdr = (struct ieee80211_mgmt *) presp->data;
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_RESP);
@@ -1266,7 +1265,7 @@ static int mesh_fwd_csa_frame(struct ieee80211_sub_if_data *sdata,
 	if (!skb)
 		return -ENOMEM;
 	skb_reserve(skb, local->tx_headroom);
-	mgmt_fwd = (struct ieee80211_mgmt *) skb_put(skb, len);
+	mgmt_fwd = skb_put(skb, len);
 
 	/* offset_ttl is based on whether the secondary channel
 	 * offset is available or not. Subtract 1 from the mesh TTL

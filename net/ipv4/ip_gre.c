@@ -592,7 +592,7 @@ static int ipgre_header(struct sk_buff *skb, struct net_device *dev,
 	struct iphdr *iph;
 	struct gre_base_hdr *greh;
 
-	iph = (struct iphdr *)skb_push(skb, t->hlen + sizeof(*iph));
+	iph = skb_push(skb, t->hlen + sizeof(*iph));
 	greh = (struct gre_base_hdr *)(iph+1);
 	greh->flags = gre_tnl_flags_to_gre_flags(t->parms.o_flags);
 	greh->protocol = htons(type);

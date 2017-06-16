@@ -462,7 +462,7 @@ int nci_nfcc_loopback(struct nci_dev *ndev, void *data, size_t data_len,
 		return -ENOMEM;
 
 	skb_reserve(skb, NCI_DATA_HDR_SIZE);
-	memcpy(skb_put(skb, data_len), data, data_len);
+	skb_put_data(skb, data, data_len);
 
 	loopback_data.conn_id = conn_id;
 	loopback_data.data = skb;
@@ -1341,7 +1341,7 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload)
 		return -ENOMEM;
 	}
 
-	hdr = (struct nci_ctrl_hdr *) skb_put(skb, NCI_CTRL_HDR_SIZE);
+	hdr = skb_put(skb, NCI_CTRL_HDR_SIZE);
 	hdr->gid = nci_opcode_gid(opcode);
 	hdr->oid = nci_opcode_oid(opcode);
 	hdr->plen = plen;
@@ -1350,7 +1350,7 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload)
 	nci_pbf_set((__u8 *)hdr, NCI_PBF_LAST);
 
 	if (plen)
-		memcpy(skb_put(skb, plen), payload, plen);
+		skb_put_data(skb, payload, plen);
 
 	skb_queue_tail(&ndev->cmd_q, skb);
 	queue_work(ndev->cmd_wq, &ndev->cmd_work);

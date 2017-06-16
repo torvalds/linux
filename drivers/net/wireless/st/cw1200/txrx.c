@@ -574,7 +574,7 @@ cw1200_tx_h_wsm(struct cw1200_common *priv,
 		return NULL;
 	}
 
-	wsm = (struct wsm_tx *)skb_push(t->skb, sizeof(struct wsm_tx));
+	wsm = skb_push(t->skb, sizeof(struct wsm_tx));
 	t->txpriv.offset += sizeof(struct wsm_tx);
 	memset(wsm, 0, sizeof(*wsm));
 	wsm->hdr.len = __cpu_to_le16(t->skb->len);

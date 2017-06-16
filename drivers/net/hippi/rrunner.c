@@ -962,8 +962,8 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 								    pkt_len,
 								    PCI_DMA_FROMDEVICE);
 
-					memcpy(skb_put(skb, pkt_len),
-					       rx_skb->data, pkt_len);
+					skb_put_data(skb, rx_skb->data,
+						     pkt_len);
 
 					pci_dma_sync_single_for_device(rrpriv->pci_dev,
 								       desc->addr.addrlo,
@@ -1422,7 +1422,7 @@ static netdev_tx_t rr_start_xmit(struct sk_buff *skb,
 		skb = new_skb;
 	}
 
-	ifield = (u32 *)skb_push(skb, 8);
+	ifield = skb_push(skb, 8);
 
 	ifield[0] = 0;
 	ifield[1] = hcb->ifield;

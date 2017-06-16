@@ -462,7 +462,7 @@ isdn_audio_goertzel(int *sample, modem_info *info)
 		       info->line);
 		return;
 	}
-	result = (int *) skb_put(skb, sizeof(int) * NCOEFF);
+	result = skb_put(skb, sizeof(int) * NCOEFF);
 	for (k = 0; k < NCOEFF; k++) {
 		sk = sk1 = sk2 = 0;
 		for (n = 0; n < DTMF_NPOINTS; n++) {
@@ -672,7 +672,7 @@ isdn_audio_put_dle_code(modem_info *info, u_char code)
 		       info->line);
 		return;
 	}
-	p = (char *) skb_put(skb, 2);
+	p = skb_put(skb, 2);
 	p[0] = 0x10;
 	p[1] = code;
 	ISDN_AUDIO_SKB_DLECOUNT(skb) = 0;

@@ -511,7 +511,7 @@ static inline void hdlc_putbyte(unsigned char c, struct bc_state *bcs)
 		bcs->rx_skb = NULL;
 		return;
 	}
-	*__skb_put(bcs->rx_skb, 1) = c;
+	*(u8 *)__skb_put(bcs->rx_skb, 1) = c;
 }
 
 /* hdlc_flush

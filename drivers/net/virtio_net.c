@@ -305,7 +305,7 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	copy = len;
 	if (copy > skb_tailroom(skb))
 		copy = skb_tailroom(skb);
-	memcpy(skb_put(skb, copy), p, copy);
+	skb_put_data(skb, p, copy);
 
 	len -= copy;
 	offset += copy;

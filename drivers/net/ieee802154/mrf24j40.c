@@ -774,7 +774,7 @@ static void mrf24j40_handle_rx_read_buf_complete(void *context)
 		return;
 	}
 
-	memcpy(skb_put(skb, len), rx_local_buf, len);
+	skb_put_data(skb, rx_local_buf, len);
 	ieee802154_rx_irqsafe(devrec->hw, skb, 0);
 
 #ifdef DEBUG

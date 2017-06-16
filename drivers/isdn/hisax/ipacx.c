@@ -350,7 +350,7 @@ dch_int(struct IsdnCardState *cs)
 				if (!(skb = dev_alloc_skb(count)))
 					printk(KERN_WARNING "HiSax dch_int(): receive out of memory\n");
 				else {
-					memcpy(skb_put(skb, count), cs->rcvbuf, count);
+					skb_put_data(skb, cs->rcvbuf, count);
 					skb_queue_tail(&cs->rq, skb);
 				}
 			}
@@ -627,7 +627,8 @@ bch_int(struct IsdnCardState *cs, u_char hscx)
 				if (!(skb = dev_alloc_skb(count)))
 					printk(KERN_WARNING "HiSax bch_int(): receive frame out of memory\n");
 				else {
-					memcpy(skb_put(skb, count), bcs->hw.hscx.rcvbuf, count);
+					skb_put_data(skb, bcs->hw.hscx.rcvbuf,
+						     count);
 					skb_queue_tail(&bcs->rqueue, skb);
 				}
 			}
@@ -644,7 +645,8 @@ bch_int(struct IsdnCardState *cs, u_char hscx)
 			if (!(skb = dev_alloc_skb(B_FIFO_SIZE)))
 				printk(KERN_WARNING "HiSax bch_int(): receive transparent out of memory\n");
 			else {
-				memcpy(skb_put(skb, B_FIFO_SIZE), bcs->hw.hscx.rcvbuf, B_FIFO_SIZE);
+				skb_put_data(skb, bcs->hw.hscx.rcvbuf,
+					     B_FIFO_SIZE);
 				skb_queue_tail(&bcs->rqueue, skb);
 			}
 			bcs->hw.hscx.rcvidx = 0;

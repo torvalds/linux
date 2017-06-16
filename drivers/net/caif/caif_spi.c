@@ -548,8 +548,7 @@ int cfspi_rxfrm(struct cfspi *cfspi, u8 *buf, size_t len)
 		skb = netdev_alloc_skb(cfspi->ndev, pkt_len + 1);
 		caif_assert(skb != NULL);
 
-		dst = skb_put(skb, pkt_len);
-		memcpy(dst, src, pkt_len);
+		dst = skb_put_data(skb, src, pkt_len);
 		src += pkt_len;
 
 		skb->protocol = htons(ETH_P_CAIF);

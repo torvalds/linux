@@ -538,7 +538,7 @@ static void esp_input_set_header(struct sk_buff *skb, __be32 *seqhi)
 	 * decryption.
 	 */
 	if ((x->props.flags & XFRM_STATE_ESN)) {
-		esph = (void *)skb_push(skb, 4);
+		esph = skb_push(skb, 4);
 		*seqhi = esph->spi;
 		esph->spi = esph->seq_no;
 		esph->seq_no = XFRM_SKB_CB(skb)->seq.input.hi;

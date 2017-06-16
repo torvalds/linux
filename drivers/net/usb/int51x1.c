@@ -106,7 +106,7 @@ static struct sk_buff *int51x1_tx_fixup(struct usbnet *dev,
 	pack_len += need_tail;
 	pack_len &= 0x07ff;
 
-	len = (__le16 *) __skb_push(skb, INT51X1_HEADER_SIZE);
+	len = __skb_push(skb, INT51X1_HEADER_SIZE);
 	*len = cpu_to_le16(pack_len);
 
 	if(need_tail)

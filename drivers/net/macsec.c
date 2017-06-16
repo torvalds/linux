@@ -697,7 +697,7 @@ static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 	unprotected_len = skb->len;
 	eth = eth_hdr(skb);
 	sci_present = send_sci(secy);
-	hh = (struct macsec_eth_header *)skb_push(skb, macsec_extra_len(sci_present));
+	hh = skb_push(skb, macsec_extra_len(sci_present));
 	memmove(hh, eth, 2 * ETH_ALEN);
 
 	pn = tx_sa_update_pn(tx_sa, secy);

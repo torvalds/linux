@@ -2282,7 +2282,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 
 	adapter->netdev->stats.rx_bytes += rfd->len;
 
-	memcpy(skb_put(skb, rfd->len), fbr->virt[buff_index], rfd->len);
+	skb_put_data(skb, fbr->virt[buff_index], rfd->len);
 
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
 	skb->ip_summed = CHECKSUM_NONE;

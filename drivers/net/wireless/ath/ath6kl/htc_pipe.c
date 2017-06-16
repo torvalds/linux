@@ -228,8 +228,7 @@ static int htc_issue_packets(struct htc_target *target,
 		payload_len = packet->act_len;
 
 		/* setup HTC frame header */
-		htc_hdr = (struct htc_frame_hdr *) skb_push(skb,
-							    sizeof(*htc_hdr));
+		htc_hdr = skb_push(skb, sizeof(*htc_hdr));
 		if (!htc_hdr) {
 			WARN_ON_ONCE(1);
 			status = -EINVAL;
@@ -1274,8 +1273,7 @@ static int ath6kl_htc_pipe_conn_service(struct htc_target *target,
 		length = sizeof(struct htc_conn_service_msg);
 
 		/* assemble connect service message */
-		conn_msg = (struct htc_conn_service_msg *) skb_put(skb,
-								   length);
+		conn_msg = skb_put(skb, length);
 		if (conn_msg == NULL) {
 			WARN_ON_ONCE(1);
 			status = -EINVAL;
@@ -1504,8 +1502,7 @@ static int ath6kl_htc_pipe_start(struct htc_target *target)
 	skb = packet->skb;
 
 	/* assemble setup complete message */
-	setup = (struct htc_setup_comp_ext_msg *) skb_put(skb,
-							  sizeof(*setup));
+	setup = skb_put(skb, sizeof(*setup));
 	memset(setup, 0, sizeof(struct htc_setup_comp_ext_msg));
 	setup->msg_id = cpu_to_le16(HTC_MSG_SETUP_COMPLETE_EX_ID);
 

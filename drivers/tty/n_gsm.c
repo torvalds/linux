@@ -2688,7 +2688,7 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 		return;
 	}
 	skb_reserve(skb, NET_IP_ALIGN);
-	memcpy(skb_put(skb, size), in_buf, size);
+	skb_put_data(skb, in_buf, size);
 
 	skb->dev = net;
 	skb->protocol = htons(ETH_P_IP);

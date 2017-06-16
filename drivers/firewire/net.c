@@ -219,7 +219,7 @@ static int fwnet_header_create(struct sk_buff *skb, struct net_device *net,
 {
 	struct fwnet_header *h;
 
-	h = (struct fwnet_header *)skb_push(skb, sizeof(*h));
+	h = skb_push(skb, sizeof(*h));
 	put_unaligned_be16(type, &h->h_proto);
 
 	if (net->flags & (IFF_LOOPBACK | IFF_NOARP)) {
@@ -600,7 +600,7 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 			return -ENOMEM;
 		}
 		skb_reserve(skb, LL_RESERVED_SPACE(net));
-		memcpy(skb_put(skb, len), buf, len);
+		skb_put_data(skb, buf, len);
 
 		return fwnet_finish_incoming_packet(net, skb, source_node_id,
 						    is_broadcast, ether_type);
@@ -961,16 +961,14 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 	tx_len = ptask->max_payload;
 	switch (fwnet_get_hdr_lf(&ptask->hdr)) {
 	case RFC2374_HDR_UNFRAG:
-		bufhdr = (struct rfc2734_header *)
-				skb_push(ptask->skb, RFC2374_UNFRAG_HDR_SIZE);
+		bufhdr = skb_push(ptask->skb, RFC2374_UNFRAG_HDR_SIZE);
 		put_unaligned_be32(ptask->hdr.w0, &bufhdr->w0);
 		break;
 
 	case RFC2374_HDR_FIRSTFRAG:
 	case RFC2374_HDR_INTFRAG:
 	case RFC2374_HDR_LASTFRAG:
-		bufhdr = (struct rfc2734_header *)
-				skb_push(ptask->skb, RFC2374_FRAG_HDR_SIZE);
+		bufhdr = skb_push(ptask->skb, RFC2374_FRAG_HDR_SIZE);
 		put_unaligned_be32(ptask->hdr.w0, &bufhdr->w0);
 		put_unaligned_be32(ptask->hdr.w1, &bufhdr->w1);
 		break;

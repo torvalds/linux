@@ -74,8 +74,8 @@ void digital_skb_add_crc(struct sk_buff *skb, crc_func_t crc_func, u16 init,
 	if (msb_first)
 		crc = __fswab16(crc);
 
-	*skb_put(skb, 1) = crc & 0xFF;
-	*skb_put(skb, 1) = (crc >> 8) & 0xFF;
+	skb_put_u8(skb, crc & 0xFF);
+	skb_put_u8(skb, (crc >> 8) & 0xFF);
 }
 
 int digital_skb_check_crc(struct sk_buff *skb, crc_func_t crc_func,

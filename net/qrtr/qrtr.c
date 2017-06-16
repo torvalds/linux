@@ -239,7 +239,7 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 		return -ENOMEM;
 
 	skb_reset_transport_header(skb);
-	memcpy(skb_put(skb, len), data, len);
+	skb_put_data(skb, data, len);
 
 	skb_queue_tail(&node->rx_queue, skb);
 	schedule_work(&node->work);
@@ -259,7 +259,7 @@ static struct sk_buff *qrtr_alloc_ctrl_packet(u32 type, size_t pkt_len,
 		return NULL;
 	skb_reset_transport_header(skb);
 
-	hdr = (struct qrtr_hdr *)skb_put(skb, QRTR_HDR_SIZE);
+	hdr = skb_put(skb, QRTR_HDR_SIZE);
 	hdr->version = cpu_to_le32(QRTR_PROTO_VER);
 	hdr->type = cpu_to_le32(type);
 	hdr->src_node_id = cpu_to_le32(src_node);
@@ -285,8 +285,7 @@ static struct sk_buff *qrtr_alloc_resume_tx(u32 src_node,
 	if (!skb)
 		return NULL;
 
-	buf = (__le32 *)skb_put(skb, pkt_len);
-	memset(buf, 0, pkt_len);
+	buf = skb_put_zero(skb, pkt_len);
 	buf[0] = cpu_to_le32(QRTR_TYPE_RESUME_TX);
 	buf[1] = cpu_to_le32(src_node);
 	buf[2] = cpu_to_le32(port);
@@ -306,8 +305,7 @@ static struct sk_buff *qrtr_alloc_local_bye(u32 src_node)
 	if (!skb)
 		return NULL;
 
-	buf = (__le32 *)skb_put(skb, pkt_len);
-	memset(buf, 0, pkt_len);
+	buf = skb_put_zero(skb, pkt_len);
 	buf[0] = cpu_to_le32(QRTR_TYPE_BYE);
 
 	return skb;
@@ -324,8 +322,7 @@ static struct sk_buff *qrtr_alloc_del_client(struct sockaddr_qrtr *sq)
 	if (!skb)
 		return NULL;
 
-	buf = (__le32 *)skb_put(skb, pkt_len);
-	memset(buf, 0, pkt_len);
+	buf = skb_put_zero(skb, pkt_len);
 	buf[0] = cpu_to_le32(QRTR_TYPE_DEL_CLIENT);
 	buf[1] = cpu_to_le32(sq->sq_node);
 	buf[2] = cpu_to_le32(sq->sq_port);

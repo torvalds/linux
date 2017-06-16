@@ -735,8 +735,7 @@ static void _rtl_pci_rx_to_mac80211(struct ieee80211_hw *hw,
 		if (likely(uskb)) {
 			memcpy(IEEE80211_SKB_RXCB(uskb), &rx_status,
 			       sizeof(rx_status));
-			pdata = (u8 *)skb_put(uskb, skb->len);
-			memcpy(pdata, skb->data, skb->len);
+			pdata = skb_put_data(uskb, skb->data, skb->len);
 			dev_kfree_skb_any(skb);
 			ieee80211_rx_irqsafe(hw, uskb);
 		} else {

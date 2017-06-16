@@ -522,7 +522,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 			ctcm_clear_busy(ch->netdev);
 			return -ENOMEM;
 		} else {
-			memcpy(skb_put(nskb, skb->len), skb->data, skb->len);
+			skb_put_data(nskb, skb->data, skb->len);
 			atomic_inc(&nskb->users);
 			atomic_dec(&skb->users);
 			dev_kfree_skb_irq(skb);
@@ -638,7 +638,7 @@ static void ctcmpc_send_sweep_req(struct channel *rch)
 	header->th.th_seq_num	= 0x00;
 	header->sw.th_last_seq	= ch->th_seq_num;
 
-	memcpy(skb_put(sweep_skb, TH_SWEEP_LENGTH), header, TH_SWEEP_LENGTH);
+	skb_put_data(sweep_skb, header, TH_SWEEP_LENGTH);
 
 	kfree(header);
 
@@ -728,7 +728,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		if (!nskb) {
 			goto nomem_exit;
 		} else {
-			memcpy(skb_put(nskb, skb->len), skb->data, skb->len);
+			skb_put_data(nskb, skb->data, skb->len);
 			atomic_inc(&nskb->users);
 			atomic_dec(&skb->users);
 			dev_kfree_skb_irq(skb);
@@ -809,7 +809,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		skb_reset_tail_pointer(ch->trans_skb);
 		ch->trans_skb->len = 0;
 		ch->ccw[1].count = skb->len;
-		memcpy(skb_put(ch->trans_skb, skb->len), skb->data, skb->len);
+		skb_put_data(ch->trans_skb, skb->data, skb->len);
 		atomic_dec(&skb->users);
 		dev_kfree_skb_irq(skb);
 		ccw_idx = 0;
@@ -960,7 +960,7 @@ static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 		}
 		newskb->protocol = skb->protocol;
 		skb_reserve(newskb, TH_HEADER_LENGTH + PDU_HEADER_LENGTH);
-		memcpy(skb_put(newskb, skb->len), skb->data, skb->len);
+		skb_put_data(newskb, skb->data, skb->len);
 		dev_kfree_skb_any(skb);
 		skb = newskb;
 	}

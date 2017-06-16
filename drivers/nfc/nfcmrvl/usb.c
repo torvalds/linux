@@ -83,8 +83,8 @@ static void nfcmrvl_bulk_complete(struct urb *urb)
 		if (!skb) {
 			nfc_err(&drv_data->udev->dev, "failed to alloc mem\n");
 		} else {
-			memcpy(skb_put(skb, urb->actual_length),
-			       urb->transfer_buffer, urb->actual_length);
+			skb_put_data(skb, urb->transfer_buffer,
+				     urb->actual_length);
 			if (nfcmrvl_nci_recv_frame(drv_data->priv, skb) < 0)
 				nfc_err(&drv_data->udev->dev,
 					"corrupted Rx packet\n");

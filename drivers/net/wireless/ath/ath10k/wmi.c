@@ -3304,9 +3304,8 @@ static void ath10k_wmi_update_noa(struct ath10k *ar, struct ath10k_vif *arvif,
 
 	if (arvif->u.ap.noa_data)
 		if (!pskb_expand_head(bcn, 0, arvif->u.ap.noa_len, GFP_ATOMIC))
-			memcpy(skb_put(bcn, arvif->u.ap.noa_len),
-			       arvif->u.ap.noa_data,
-			       arvif->u.ap.noa_len);
+			skb_put_data(bcn, arvif->u.ap.noa_data,
+			             arvif->u.ap.noa_len);
 }
 
 static int ath10k_wmi_op_pull_swba_ev(struct ath10k *ar, struct sk_buff *skb,

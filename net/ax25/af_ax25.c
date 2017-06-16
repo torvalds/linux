@@ -1562,7 +1562,7 @@ static int ax25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 	/* Add the PID if one is not supplied by the user in the skb */
 	if (!ax25->pidincl)
-		*skb_push(skb, 1) = sk->sk_protocol;
+		*(u8 *)skb_push(skb, 1) = sk->sk_protocol;
 
 	if (sk->sk_type == SOCK_SEQPACKET) {
 		/* Connected mode sockets go via the LAPB machine */

@@ -198,8 +198,7 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 	skb = netdev_alloc_skb(ser->dev, count+1);
 	if (skb == NULL)
 		return;
-	p = skb_put(skb, count);
-	memcpy(p, data, count);
+	p = skb_put_data(skb, data, count);
 
 	skb->protocol = htons(ETH_P_CAIF);
 	skb_reset_mac_header(skb);

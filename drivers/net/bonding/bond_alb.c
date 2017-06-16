@@ -936,8 +936,7 @@ static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
 	if (!skb)
 		return;
 
-	data = skb_put(skb, size);
-	memcpy(data, &pkt, size);
+	data = skb_put_data(skb, &pkt, size);
 
 	skb_reset_mac_header(skb);
 	skb->network_header = skb->mac_header + ETH_HLEN;

@@ -188,7 +188,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 		return;
 	}
 
-	dump_hdr = (struct rt2x00dump_hdr *)skb_put(skbcopy, sizeof(*dump_hdr));
+	dump_hdr = skb_put(skbcopy, sizeof(*dump_hdr));
 	dump_hdr->version = cpu_to_le32(DUMP_HEADER_VERSION);
 	dump_hdr->header_length = cpu_to_le32(sizeof(*dump_hdr));
 	dump_hdr->desc_length = cpu_to_le32(skbdesc->desc_len);
@@ -203,9 +203,8 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	dump_hdr->timestamp_usec = cpu_to_le32(timestamp.tv_usec);
 
 	if (!(skbdesc->flags & SKBDESC_DESC_IN_SKB))
-		memcpy(skb_put(skbcopy, skbdesc->desc_len), skbdesc->desc,
-		       skbdesc->desc_len);
-	memcpy(skb_put(skbcopy, skb->len), skb->data, skb->len);
+		skb_put_data(skbcopy, skbdesc->desc, skbdesc->desc_len);
+	skb_put_data(skbcopy, skb->data, skb->len);
 
 	skb_queue_tail(&intf->frame_dump_skbqueue, skbcopy);
 	wake_up_interruptible(&intf->frame_dump_waitqueue);

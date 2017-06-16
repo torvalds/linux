@@ -190,7 +190,7 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 	if (!skb)
 		return -ENOMEM;
 
-	fwr = (struct fw_filter_wr *)__skb_put(skb, len);
+	fwr = __skb_put(skb, len);
 	t4_mk_filtdelwr(f->tid, fwr, adapter->sge.fw_evtq.abs_id);
 
 	/* Mark the filter as "pending" and ship off the Filter Work Request.
@@ -231,7 +231,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		}
 	}
 
-	fwr = (struct fw_filter_wr *)__skb_put(skb, sizeof(*fwr));
+	fwr = __skb_put(skb, sizeof(*fwr));
 	memset(fwr, 0, sizeof(*fwr));
 
 	/* It would be nice to put most of the following in t4_hw.c but most

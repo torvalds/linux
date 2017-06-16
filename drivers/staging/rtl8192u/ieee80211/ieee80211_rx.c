@@ -848,8 +848,8 @@ static u8 parse_subframe(struct sk_buff *skb,
 			if (!sub_skb)
 				return 0;
 			skb_reserve(sub_skb, 12);
-			data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
-			memcpy(data_ptr, skb->data, nSubframe_Length);
+			data_ptr = skb_put_data(sub_skb, skb->data,
+						nSubframe_Length);
 #endif
 			rxb->subframes[rxb->nr_subframes++] = sub_skb;
 			if (rxb->nr_subframes >= MAX_SUBFRAME_COUNT) {
@@ -1180,12 +1180,11 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		if (frag == 0) {
 			/* copy first fragment (including full headers) into
 			 * beginning of the fragment cache skb */
-			memcpy(skb_put(frag_skb, flen), skb->data, flen);
+			skb_put_data(frag_skb, skb->data, flen);
 		} else {
 			/* append frame payload to the end of the fragment
 			 * cache skb */
-			memcpy(skb_put(frag_skb, flen), skb->data + hdrlen,
-			       flen);
+			skb_put_data(frag_skb, skb->data + hdrlen, flen);
 		}
 		dev_kfree_skb_any(skb);
 		skb = NULL;

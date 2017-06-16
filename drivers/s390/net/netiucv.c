@@ -759,8 +759,7 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 	spin_lock_irqsave(&conn->collect_lock, saveflags);
 	while ((skb = skb_dequeue(&conn->collect_queue))) {
 		header.next = conn->tx_buff->len + skb->len + NETIUCV_HDRLEN;
-		memcpy(skb_put(conn->tx_buff, NETIUCV_HDRLEN), &header,
-		       NETIUCV_HDRLEN);
+		skb_put_data(conn->tx_buff, &header, NETIUCV_HDRLEN);
 		skb_copy_from_linear_data(skb,
 					  skb_put(conn->tx_buff, skb->len),
 					  skb->len);
@@ -780,7 +779,7 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 	}
 
 	header.next = 0;
-	memcpy(skb_put(conn->tx_buff, NETIUCV_HDRLEN), &header, NETIUCV_HDRLEN);
+	skb_put_data(conn->tx_buff, &header, NETIUCV_HDRLEN);
 	conn->prof.send_stamp = jiffies;
 	txmsg.class = 0;
 	txmsg.tag = 0;
@@ -1201,8 +1200,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 				return rc;
 			} else {
 				skb_reserve(nskb, NETIUCV_HDRLEN);
-				memcpy(skb_put(nskb, skb->len),
-				       skb->data, skb->len);
+				skb_put_data(nskb, skb->data, skb->len);
 			}
 			copied = 1;
 		}
@@ -1212,7 +1210,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 		header.next = nskb->len + NETIUCV_HDRLEN;
 		memcpy(skb_push(nskb, NETIUCV_HDRLEN), &header, NETIUCV_HDRLEN);
 		header.next = 0;
-		memcpy(skb_put(nskb, NETIUCV_HDRLEN), &header,  NETIUCV_HDRLEN);
+		skb_put_data(nskb, &header, NETIUCV_HDRLEN);
 
 		fsm_newstate(conn->fsm, CONN_STATE_TX);
 		conn->prof.send_stamp = jiffies;

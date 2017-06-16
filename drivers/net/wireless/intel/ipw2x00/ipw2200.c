@@ -10274,8 +10274,9 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct libipw_txb *txb,
 
 				printk(KERN_INFO "Adding frag %d %d...\n",
 				       j, size);
-				memcpy(skb_put(skb, size),
-				       txb->fragments[j]->data + hdr_len, size);
+				skb_put_data(skb,
+					     txb->fragments[j]->data + hdr_len,
+					     size);
 			}
 			dev_kfree_skb_any(txb->fragments[i]);
 			txb->fragments[i] = skb;
@@ -10370,7 +10371,7 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 		if (!dst)
 			continue;
 
-		rt_hdr = (void *)skb_put(dst, sizeof(*rt_hdr));
+		rt_hdr = skb_put(dst, sizeof(*rt_hdr));
 
 		rt_hdr->it_version = PKTHDR_RADIOTAP_VERSION;
 		rt_hdr->it_pad = 0;

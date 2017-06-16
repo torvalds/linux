@@ -223,7 +223,7 @@ static void ec_bhf_process_rx(struct ec_bhf_priv *priv)
 
 		skb = netdev_alloc_skb_ip_align(priv->net_dev, pkt_size);
 		if (skb) {
-			memcpy(skb_put(skb, pkt_size), data, pkt_size);
+			skb_put_data(skb, data, pkt_size);
 			skb->protocol = eth_type_trans(skb, priv->net_dev);
 			priv->stat_rx_bytes += pkt_size;
 

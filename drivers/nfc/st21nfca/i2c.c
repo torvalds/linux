@@ -171,16 +171,16 @@ static void st21nfca_hci_add_len_crc(struct sk_buff *skb)
 	u16 crc;
 	u8 tmp;
 
-	*skb_push(skb, 1) = 0;
+	*(u8 *)skb_push(skb, 1) = 0;
 
 	crc = crc_ccitt(0xffff, skb->data, skb->len);
 	crc = ~crc;
 
 	tmp = crc & 0x00ff;
-	*skb_put(skb, 1) = tmp;
+	skb_put_u8(skb, tmp);
 
 	tmp = (crc >> 8) & 0x00ff;
-	*skb_put(skb, 1) = tmp;
+	skb_put_u8(skb, tmp);
 }
 
 static void st21nfca_hci_remove_len_crc(struct sk_buff *skb)
@@ -214,9 +214,9 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 	st21nfca_hci_add_len_crc(skb);
 
 	/* add ST21NFCA_SOF_EOF on tail */
-	*skb_put(skb, 1) = ST21NFCA_SOF_EOF;
+	skb_put_u8(skb, ST21NFCA_SOF_EOF);
 	/* add ST21NFCA_SOF_EOF on head */
-	*skb_push(skb, 1) = ST21NFCA_SOF_EOF;
+	*(u8 *)skb_push(skb, 1) = ST21NFCA_SOF_EOF;
 
 	/*
 	 * Compute byte stuffing
@@ -407,7 +407,7 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 			phy->current_read_len = 0;
 		}
 
-		memcpy(skb_put(skb, len), buf, len);
+		skb_put_data(skb, buf, len);
 
 		if (skb->data[skb->len - 1] == ST21NFCA_SOF_EOF) {
 			phy->current_read_len = 0;

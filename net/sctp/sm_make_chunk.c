@@ -1389,7 +1389,7 @@ static struct sctp_chunk *_sctp_make_chunk(const struct sctp_association *asoc,
 		goto nodata;
 
 	/* Make room for the chunk header.  */
-	chunk_hdr = (sctp_chunkhdr_t *)skb_put(skb, sizeof(sctp_chunkhdr_t));
+	chunk_hdr = skb_put(skb, sizeof(sctp_chunkhdr_t));
 	chunk_hdr->type	  = type;
 	chunk_hdr->flags  = flags;
 	chunk_hdr->length = htons(sizeof(sctp_chunkhdr_t));
@@ -1478,11 +1478,8 @@ void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 	int chunklen = ntohs(chunk->chunk_hdr->length);
 	int padlen = SCTP_PAD4(chunklen) - chunklen;
 
-	padding = skb_put(chunk->skb, padlen);
-	target = skb_put(chunk->skb, len);
-
-	memset(padding, 0, padlen);
-	memcpy(target, data, len);
+	padding = skb_put_zero(chunk->skb, padlen);
+	target = skb_put_data(chunk->skb, data, len);
 
 	/* Adjust the chunk length field.  */
 	chunk->chunk_hdr->length = htons(chunklen + padlen + len);

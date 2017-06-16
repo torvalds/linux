@@ -185,7 +185,7 @@ static int intel_lpm_suspend(struct hci_uart *hu)
 		return -ENOMEM;
 	}
 
-	memcpy(skb_put(skb, sizeof(suspend)), suspend, sizeof(suspend));
+	skb_put_data(skb, suspend, sizeof(suspend));
 	hci_skb_pkt_type(skb) = HCI_LPM_PKT;
 
 	set_bit(STATE_LPM_TRANSACTION, &intel->flags);
@@ -270,8 +270,7 @@ static int intel_lpm_host_wake(struct hci_uart *hu)
 		return -ENOMEM;
 	}
 
-	memcpy(skb_put(skb, sizeof(lpm_resume_ack)), lpm_resume_ack,
-	       sizeof(lpm_resume_ack));
+	skb_put_data(skb, lpm_resume_ack, sizeof(lpm_resume_ack));
 	hci_skb_pkt_type(skb) = HCI_LPM_PKT;
 
 	/* LPM flow is a priority, enqueue packet at list head */
@@ -463,15 +462,15 @@ static int inject_cmd_complete(struct hci_dev *hdev, __u16 opcode)
 	if (!skb)
 		return -ENOMEM;
 
-	hdr = (struct hci_event_hdr *)skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 	hdr->evt = HCI_EV_CMD_COMPLETE;
 	hdr->plen = sizeof(*evt) + 1;
 
-	evt = (struct hci_ev_cmd_complete *)skb_put(skb, sizeof(*evt));
+	evt = skb_put(skb, sizeof(*evt));
 	evt->ncmd = 0x01;
 	evt->opcode = cpu_to_le16(opcode);
 
-	*skb_put(skb, 1) = 0x00;
+	skb_put_u8(skb, 0x00);
 
 	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
 
@@ -522,7 +521,7 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 		return -ENOMEM;
 	}
 
-	memcpy(skb_put(skb, sizeof(speed_cmd)), speed_cmd, sizeof(speed_cmd));
+	skb_put_data(skb, speed_cmd, sizeof(speed_cmd));
 	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
 
 	hci_uart_set_flow_control(hu, true);

@@ -412,11 +412,9 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 			return -ENOMEM;
 		}
 
-		buffer = skb_put(skb, msg_len);
-
-		memcpy(buffer,
-		       (u8 *)(msg +  FRAME_DESC_SZ + pad_bytes),
-		       msg_len);
+		buffer = skb_put_data(skb,
+				      (u8 *)(msg + FRAME_DESC_SZ + pad_bytes),
+				      msg_len);
 
 		pkt_recv = buffer[0];
 

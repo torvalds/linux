@@ -396,7 +396,7 @@ int orinoco_process_xmit_skb(struct sk_buff *skb,
 		memcpy(hdr.encap, encaps_hdr, sizeof(encaps_hdr));
 
 		/* Make room for the new header, and copy it in */
-		eh = (struct ethhdr *) skb_push(skb, ENCAPS_OVERHEAD);
+		eh = skb_push(skb, ENCAPS_OVERHEAD);
 		memcpy(eh, &hdr, sizeof(hdr));
 	}
 
@@ -792,7 +792,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	}
 
 	/* Copy the 802.11 header to the skb */
-	memcpy(skb_put(skb, hdrlen), &(desc->frame_ctl), hdrlen);
+	skb_put_data(skb, &(desc->frame_ctl), hdrlen);
 	skb_reset_mac_header(skb);
 
 	/* If any, copy the data from the card to the skb */
@@ -1029,11 +1029,10 @@ static void orinoco_rx(struct net_device *dev,
 		/* These indicate a SNAP within 802.2 LLC within
 		   802.11 frame which we'll need to de-encapsulate to
 		   the original EthernetII frame. */
-		hdr = (struct ethhdr *)skb_push(skb,
-						ETH_HLEN - ENCAPS_OVERHEAD);
+		hdr = skb_push(skb, ETH_HLEN - ENCAPS_OVERHEAD);
 	} else {
 		/* 802.3 frame - prepend 802.3 header as is */
-		hdr = (struct ethhdr *)skb_push(skb, ETH_HLEN);
+		hdr = skb_push(skb, ETH_HLEN);
 		hdr->h_proto = htons(length);
 	}
 	memcpy(hdr->h_dest, desc->addr1, ETH_ALEN);
