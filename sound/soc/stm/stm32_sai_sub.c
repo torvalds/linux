@@ -220,8 +220,15 @@ static int stm32_sai_set_sysclk(struct snd_soc_dai *cpu_dai,
 				int clk_id, unsigned int freq, int dir)
 {
 	struct stm32_sai_sub_data *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	int ret;
 
 	if ((dir == SND_SOC_CLOCK_OUT) && sai->master) {
+		ret = regmap_update_bits(sai->regmap, STM_SAI_CR1_REGX,
+					 SAI_XCR1_NODIV,
+					 (unsigned int)~SAI_XCR1_NODIV);
+		if (ret < 0)
+			return ret;
+
 		sai->mclk_rate = freq;
 		dev_dbg(cpu_dai->dev, "SAI MCLK frequency is %uHz\n", freq);
 	}
@@ -355,6 +362,10 @@ static int stm32_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 	cr1_mask |= SAI_XCR1_SLAVE;
+
+	/* do not generate master by default */
+	cr1 |= SAI_XCR1_NODIV;
+	cr1_mask |= SAI_XCR1_NODIV;
 
 	ret = regmap_update_bits(sai->regmap, STM_SAI_CR1_REGX, cr1_mask, cr1);
 	if (ret < 0) {
@@ -651,6 +662,9 @@ static void stm32_sai_shutdown(struct snd_pcm_substream *substream,
 	struct stm32_sai_sub_data *sai = snd_soc_dai_get_drvdata(cpu_dai);
 
 	regmap_update_bits(sai->regmap, STM_SAI_IMR_REGX, SAI_XIMR_MASK, 0);
+
+	regmap_update_bits(sai->regmap, STM_SAI_CR1_REGX, SAI_XCR1_NODIV,
+			   SAI_XCR1_NODIV);
 
 	clk_disable_unprepare(sai->sai_ck);
 	sai->substream = NULL;
