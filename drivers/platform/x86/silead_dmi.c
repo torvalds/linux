@@ -80,6 +80,20 @@ static const struct silead_ts_dmi_data surftab_wintron70_st70416_6_data = {
 	.properties	= surftab_wintron70_st70416_6_props,
 };
 
+static struct property_entry good_t803i_props[] = {
+ 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1280),
+ 	PROPERTY_ENTRY_U32("touchscreen-size-y", 800),
+ 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+ 	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-4good-t803i.fw"),
+ 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+ 	{ }
+};
+
+static const struct silead_ts_dmi_data good_t803i_data = {
+ 	.acpi_name	= "MSSL1680:00",
+ 	.properties	= good_t803i_props,
+};
+
 static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{
 		/* CUBE iwork8 Air */
@@ -115,6 +129,14 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ST70416-6"),
 			/* Exact match, different versions need different fw */
 			DMI_MATCH(DMI_BIOS_VERSION, "TREK.G.WI71C.JGBMRBA04"),
+		},
+	},
+	{
+		/* 4GOOD T803i */
+		.driver_data = (void *)&good_t803i_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "4Good"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "T803i"),
 		},
 	},
 	{ },
