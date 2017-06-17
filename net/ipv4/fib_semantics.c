@@ -152,6 +152,7 @@ static void rt_fibinfo_free(struct rtable __rcu **rtp)
 	 * free_fib_info_rcu()
 	 */
 
+	dst_release(&rt->dst);
 	dst_free(&rt->dst);
 }
 
@@ -194,8 +195,10 @@ static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
 		struct rtable *rt;
 
 		rt = rcu_dereference_protected(*per_cpu_ptr(rtp, cpu), 1);
-		if (rt)
+		if (rt) {
+			dst_release(&rt->dst);
 			dst_free(&rt->dst);
+		}
 	}
 	free_percpu(rtp);
 }
