@@ -1822,8 +1822,7 @@ void fib6_run_gc(unsigned long expires, struct net *net, bool force)
 	}
 	gc_args.timeout = expires ? (int)expires :
 			  net->ipv6.sysctl.ip6_rt_gc_interval;
-
-	gc_args.more = icmp6_dst_gc();
+	gc_args.more = 0;
 
 	fib6_clean_all(net, fib6_age, &gc_args);
 	now = jiffies;

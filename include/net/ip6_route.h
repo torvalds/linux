@@ -116,7 +116,6 @@ struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
 			    const struct in6_addr *saddr, int oif, int flags);
 
 struct dst_entry *icmp6_dst_alloc(struct net_device *dev, struct flowi6 *fl6);
-int icmp6_dst_gc(void);
 
 void fib6_force_start_gc(struct net *net);
 

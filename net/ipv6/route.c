@@ -1657,9 +1657,6 @@ out:
 	return mtu - lwtunnel_headroom(dst->lwtstate, mtu);
 }
 
-static struct dst_entry *icmp6_dst_gc_list;
-static DEFINE_SPINLOCK(icmp6_dst_lock);
-
 struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 				  struct flowi6 *fl6)
 {
@@ -1695,48 +1692,6 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 
 out:
 	return dst;
-}
-
-int icmp6_dst_gc(void)
-{
-	struct dst_entry *dst, **pprev;
-	int more = 0;
-
-	spin_lock_bh(&icmp6_dst_lock);
-	pprev = &icmp6_dst_gc_list;
-
-	while ((dst = *pprev) != NULL) {
-		if (!atomic_read(&dst->__refcnt)) {
-			*pprev = dst->next;
-			dst_free(dst);
-		} else {
-			pprev = &dst->next;
-			++more;
-		}
-	}
-
-	spin_unlock_bh(&icmp6_dst_lock);
-
-	return more;
-}
-
-static void icmp6_clean_all(int (*func)(struct rt6_info *rt, void *arg),
-			    void *arg)
-{
-	struct dst_entry *dst, **pprev;
-
-	spin_lock_bh(&icmp6_dst_lock);
-	pprev = &icmp6_dst_gc_list;
-	while ((dst = *pprev) != NULL) {
-		struct rt6_info *rt = (struct rt6_info *) dst;
-		if (func(rt, arg)) {
-			*pprev = dst->next;
-			dst_free(dst);
-		} else {
-			pprev = &dst->next;
-		}
-	}
-	spin_unlock_bh(&icmp6_dst_lock);
 }
 
 static int ip6_dst_gc(struct dst_ops *ops)
@@ -2856,7 +2811,6 @@ void rt6_ifdown(struct net *net, struct net_device *dev)
 	};
 
 	fib6_clean_all(net, fib6_ifdown, &adn);
-	icmp6_clean_all(fib6_ifdown, &adn);
 	if (dev)
 		rt6_uncached_list_flush_dev(net, dev);
 }
