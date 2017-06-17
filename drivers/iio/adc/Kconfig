@@ -322,7 +322,7 @@ config INA2XX_ADC
 	  This driver is mutually exclusive with the HWMON version.
 
 config IMX7D_ADC
-	tristate "IMX7D ADC driver"
+	tristate "Freescale IMX7D ADC driver"
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
