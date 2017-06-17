@@ -251,7 +251,7 @@ static inline void dst_hold(struct dst_entry *dst)
 	 * __pad_to_align_refcnt declaration in struct dst_entry
 	 */
 	BUILD_BUG_ON(offsetof(struct dst_entry, __refcnt) & 63);
-	atomic_inc(&dst->__refcnt);
+	WARN_ON(atomic_inc_not_zero(&dst->__refcnt) == 0);
 }
 
 static inline void dst_use(struct dst_entry *dst, unsigned long time)
