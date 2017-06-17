@@ -19,15 +19,15 @@ Running the selftests (hotplug tests are run in limited mode)
 
 To build the tests::
 
-    make -C tools/testing/selftests
+  $ make -C tools/testing/selftests
 
 To run the tests::
 
-    make -C tools/testing/selftests run_tests
+  $ make -C tools/testing/selftests run_tests
 
 To build and run the tests with a single command, use::
 
-    make kselftest
+  $ make kselftest
 
 Note that some tests will require root privileges.
 
@@ -40,11 +40,11 @@ single test to run, or a list of tests to run.
 
 To run only tests targeted for a single subsystem::
 
-    make -C tools/testing/selftests TARGETS=ptrace run_tests
+  $ make -C tools/testing/selftests TARGETS=ptrace run_tests
 
 You can specify multiple tests to build and run::
 
-    make TARGETS="size timers" kselftest
+  $  make TARGETS="size timers" kselftest
 
 See the top-level tools/testing/selftests/Makefile for the list of all
 possible targets.
@@ -55,11 +55,11 @@ Running the full range hotplug selftests
 
 To build the hotplug tests::
 
-    make -C tools/testing/selftests hotplug
+  $ make -C tools/testing/selftests hotplug
 
 To run the hotplug tests::
 
-    make -C tools/testing/selftests run_hotplug
+  $ make -C tools/testing/selftests run_hotplug
 
 Note that some tests will require root privileges.
 
@@ -73,13 +73,13 @@ location.
 
 To install selftests in default location::
 
-    cd tools/testing/selftests
-    ./kselftest_install.sh
+   $ cd tools/testing/selftests
+   $ ./kselftest_install.sh
 
 To install selftests in a user specified location::
 
-    cd tools/testing/selftests
-    ./kselftest_install.sh install_dir
+   $ cd tools/testing/selftests
+   $ ./kselftest_install.sh install_dir
 
 Running installed selftests
 ===========================
@@ -88,12 +88,10 @@ Kselftest install as well as the Kselftest tarball provide a script
 named "run_kselftest.sh" to run the tests.
 
 You can simply do the following to run the installed Kselftests. Please
-note some tests will require root privileges.
+note some tests will require root privileges::
 
-::
-
-    cd kselftest
-    ./run_kselftest.sh
+   $ cd kselftest
+   $ ./run_kselftest.sh
 
 Contributing new tests
 ======================
@@ -114,8 +112,10 @@ Contributing new tests (details)
 
  * Use TEST_GEN_XXX if such binaries or files are generated during
    compiling.
+
    TEST_PROGS, TEST_GEN_PROGS mean it is the excutable tested by
    default.
+
    TEST_PROGS_EXTENDED, TEST_GEN_PROGS_EXTENDED mean it is the
    executable which is not tested by default.
    TEST_FILES, TEST_GEN_FILES mean it is the file which is used by
