@@ -589,11 +589,6 @@ static void ip_rt_build_flow_key(struct flowi4 *fl4, const struct sock *sk,
 		build_sk_flow_key(fl4, sk);
 }
 
-static inline void rt_free(struct rtable *rt)
-{
-	call_rcu(&rt->dst.rcu_head, dst_rcu_free);
-}
-
 static DEFINE_SPINLOCK(fnhe_lock);
 
 static void fnhe_flush_routes(struct fib_nh_exception *fnhe)
@@ -605,14 +600,12 @@ static void fnhe_flush_routes(struct fib_nh_exception *fnhe)
 		RCU_INIT_POINTER(fnhe->fnhe_rth_input, NULL);
 		dst_dev_put(&rt->dst);
 		dst_release(&rt->dst);
-		rt_free(rt);
 	}
 	rt = rcu_dereference(fnhe->fnhe_rth_output);
 	if (rt) {
 		RCU_INIT_POINTER(fnhe->fnhe_rth_output, NULL);
 		dst_dev_put(&rt->dst);
 		dst_release(&rt->dst);
-		rt_free(rt);
 	}
 }
 
@@ -1341,7 +1334,6 @@ static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 			if (orig) {
 				dst_dev_put(&orig->dst);
 				dst_release(&orig->dst);
-				rt_free(orig);
 			}
 			ret = true;
 		}
@@ -1374,7 +1366,6 @@ static bool rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 		if (orig) {
 			dst_dev_put(&orig->dst);
 			dst_release(&orig->dst);
-			rt_free(orig);
 		}
 	} else {
 		dst_release(&rt->dst);
@@ -1505,7 +1496,8 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 	rt = dst_alloc(&ipv4_dst_ops, dev, 1, DST_OBSOLETE_FORCE_CHK,
 		       (will_cache ? 0 : (DST_HOST | DST_NOCACHE)) |
 		       (nopolicy ? DST_NOPOLICY : 0) |
-		       (noxfrm ? DST_NOXFRM : 0));
+		       (noxfrm ? DST_NOXFRM : 0) |
+		       DST_NOGC);
 
 	if (rt) {
 		rt->rt_genid = rt_genid_ipv4(dev_net(dev));
@@ -2511,7 +2503,7 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 	struct rtable *ort = (struct rtable *) dst_orig;
 	struct rtable *rt;
 
-	rt = dst_alloc(&ipv4_dst_blackhole_ops, NULL, 1, DST_OBSOLETE_NONE, 0);
+	rt = dst_alloc(&ipv4_dst_blackhole_ops, NULL, 1, DST_OBSOLETE_NONE, DST_NOGC);
 	if (rt) {
 		struct dst_entry *new = &rt->dst;
 
@@ -2534,7 +2526,6 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		rt->rt_uses_gateway = ort->rt_uses_gateway;
 
 		INIT_LIST_HEAD(&rt->rt_uncached);
-		dst_free(new);
 	}
 
 	dst_release(dst_orig);
