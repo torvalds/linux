@@ -225,10 +225,23 @@ int cmd_config(int argc, const char **argv)
 				break;
 			}
 
-			if (value == NULL)
+			if (value == NULL) {
 				ret = show_spec_config(set, var);
-			else
+				if (ret < 0) {
+					pr_err("%s is not configured: %s\n",
+					       var, config_filename);
+					free(arg);
+					break;
+				}
+			} else {
 				ret = set_config(set, config_filename, var, value);
+				if (ret < 0) {
+					pr_err("Failed to set '%s=%s' on %s\n",
+					       var, value, config_filename);
+					free(arg);
+					break;
+				}
+			}
 			free(arg);
 		}
 	}
