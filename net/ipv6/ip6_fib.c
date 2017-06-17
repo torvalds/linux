@@ -975,8 +975,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 	int replace_required = 0;
 	int sernum = fib6_new_sernum(info->nl_net);
 
-	if (WARN_ON_ONCE((rt->dst.flags & DST_NOCACHE) &&
-			 !atomic_read(&rt->dst.__refcnt)))
+	if (WARN_ON_ONCE(!atomic_read(&rt->dst.__refcnt)))
 		return -EINVAL;
 
 	if (info->nlh) {
@@ -1073,7 +1072,6 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 		fib6_start_gc(info->nl_net, rt);
 		if (!(rt->rt6i_flags & RTF_CACHE))
 			fib6_prune_clones(info->nl_net, pn);
-		rt->dst.flags &= ~DST_NOCACHE;
 	}
 
 out:

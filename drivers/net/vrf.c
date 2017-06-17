@@ -563,7 +563,7 @@ static void vrf_rt6_release(struct net_device *dev, struct net_vrf *vrf)
 
 static int vrf_rt6_create(struct net_device *dev)
 {
-	int flags = DST_HOST | DST_NOPOLICY | DST_NOXFRM | DST_NOCACHE;
+	int flags = DST_HOST | DST_NOPOLICY | DST_NOXFRM;
 	struct net_vrf *vrf = netdev_priv(dev);
 	struct net *net = dev_net(dev);
 	struct fib6_table *rt6i_table;

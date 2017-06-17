@@ -270,7 +270,7 @@ static void __metadata_dst_init(struct metadata_dst *md_dst, u8 optslen)
 
 	dst = &md_dst->dst;
 	dst_init(dst, &md_dst_ops, NULL, 1, DST_OBSOLETE_NONE,
-		 DST_METADATA | DST_NOCACHE | DST_NOCOUNT);
+		 DST_METADATA | DST_NOCOUNT);
 
 	dst->input = dst_md_discard;
 	dst->output = dst_md_discard_out;

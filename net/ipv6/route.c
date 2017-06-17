@@ -128,7 +128,6 @@ static void rt6_uncached_list_add(struct rt6_info *rt)
 {
 	struct uncached_list *ul = raw_cpu_ptr(&rt6_uncached_list);
 
-	rt->dst.flags |= DST_NOCACHE;
 	rt->rt6i_uncached_list = ul;
 
 	spin_lock_bh(&ul->lock);
@@ -1326,7 +1325,7 @@ static struct dst_entry *ip6_dst_check(struct dst_entry *dst, u32 cookie)
 	rt6_dst_from_metrics_check(rt);
 
 	if (rt->rt6i_flags & RTF_PCPU ||
-	    (unlikely(dst->flags & DST_NOCACHE) && rt->dst.from))
+	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->dst.from))
 		return rt6_dst_from_check(rt, cookie);
 	else
 		return rt6_check(rt, cookie);
@@ -2130,8 +2129,7 @@ static int __ip6_del_rt(struct rt6_info *rt, struct nl_info *info)
 	struct fib6_table *table;
 	struct net *net = dev_net(rt->dst.dev);
 
-	if (rt == net->ipv6.ip6_null_entry ||
-	    rt->dst.flags & DST_NOCACHE) {
+	if (rt == net->ipv6.ip6_null_entry) {
 		err = -ENOENT;
 		goto out;
 	}
@@ -2722,7 +2720,6 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	rt->rt6i_dst.plen = 128;
 	tb_id = l3mdev_fib_table(idev->dev) ? : RT6_TABLE_LOCAL;
 	rt->rt6i_table = fib6_get_table(net, tb_id);
-	rt->dst.flags |= DST_NOCACHE;
 
 	return rt;
 }
