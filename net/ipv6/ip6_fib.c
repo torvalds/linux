@@ -172,6 +172,7 @@ static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
 		ppcpu_rt = per_cpu_ptr(non_pcpu_rt->rt6i_pcpu, cpu);
 		pcpu_rt = *ppcpu_rt;
 		if (pcpu_rt) {
+			dst_dev_put(&pcpu_rt->dst);
 			dst_release(&pcpu_rt->dst);
 			rt6_rcu_free(pcpu_rt);
 			*ppcpu_rt = NULL;
@@ -186,6 +187,7 @@ static void rt6_release(struct rt6_info *rt)
 {
 	if (atomic_dec_and_test(&rt->rt6i_ref)) {
 		rt6_free_pcpu(rt);
+		dst_dev_put(&rt->dst);
 		dst_release(&rt->dst);
 		rt6_rcu_free(rt);
 	}
