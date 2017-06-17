@@ -628,10 +628,11 @@ static void kvm_timer_init_interrupt(void *info)
 int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
 {
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
 
 	switch (regid) {
 	case KVM_REG_ARM_TIMER_CTL:
-		vtimer->cnt_ctl = value;
+		vtimer->cnt_ctl = value & ~ARCH_TIMER_CTRL_IT_STAT;
 		break;
 	case KVM_REG_ARM_TIMER_CNT:
 		update_vtimer_cntvoff(vcpu, kvm_phys_timer_read() - value);
@@ -639,6 +640,13 @@ int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
 	case KVM_REG_ARM_TIMER_CVAL:
 		vtimer->cnt_cval = value;
 		break;
+	case KVM_REG_ARM_PTIMER_CTL:
+		ptimer->cnt_ctl = value & ~ARCH_TIMER_CTRL_IT_STAT;
+		break;
+	case KVM_REG_ARM_PTIMER_CVAL:
+		ptimer->cnt_cval = value;
+		break;
+
 	default:
 		return -1;
 	}
@@ -647,17 +655,38 @@ int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
 	return 0;
 }
 
+static u64 read_timer_ctl(struct arch_timer_context *timer)
+{
+	/*
+	 * Set ISTATUS bit if it's expired.
+	 * Note that according to ARMv8 ARM Issue A.k, ISTATUS bit is
+	 * UNKNOWN when ENABLE bit is 0, so we chose to set ISTATUS bit
+	 * regardless of ENABLE bit for our implementation convenience.
+	 */
+	if (!kvm_timer_compute_delta(timer))
+		return timer->cnt_ctl | ARCH_TIMER_CTRL_IT_STAT;
+	else
+		return timer->cnt_ctl;
+}
+
 u64 kvm_arm_timer_get_reg(struct kvm_vcpu *vcpu, u64 regid)
 {
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 
 	switch (regid) {
 	case KVM_REG_ARM_TIMER_CTL:
-		return vtimer->cnt_ctl;
+		return read_timer_ctl(vtimer);
 	case KVM_REG_ARM_TIMER_CNT:
 		return kvm_phys_timer_read() - vtimer->cntvoff;
 	case KVM_REG_ARM_TIMER_CVAL:
 		return vtimer->cnt_cval;
+	case KVM_REG_ARM_PTIMER_CTL:
+		return read_timer_ctl(ptimer);
+	case KVM_REG_ARM_PTIMER_CVAL:
+		return ptimer->cnt_cval;
+	case KVM_REG_ARM_PTIMER_CNT:
+		return kvm_phys_timer_read();
 	}
 	return (u64)-1;
 }
