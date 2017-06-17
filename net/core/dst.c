@@ -296,6 +296,30 @@ static void dst_destroy_rcu(struct rcu_head *head)
 		__dst_free(dst);
 }
 
+/* Operations to mark dst as DEAD and clean up the net device referenced
+ * by dst:
+ * 1. put the dst under loopback interface and discard all tx/rx packets
+ *    on this route.
+ * 2. release the net_device
+ * This function should be called when removing routes from the fib tree
+ * in preparation for a NETDEV_DOWN/NETDEV_UNREGISTER event and also to
+ * make the next dst_ops->check() fail.
+ */
+void dst_dev_put(struct dst_entry *dst)
+{
+	struct net_device *dev = dst->dev;
+
+	dst->obsolete = DST_OBSOLETE_DEAD;
+	if (dst->ops->ifdown)
+		dst->ops->ifdown(dst, dev, true);
+	dst->input = dst_discard;
+	dst->output = dst_discard_out;
+	dst->dev = dev_net(dst->dev)->loopback_dev;
+	dev_hold(dst->dev);
+	dev_put(dev);
+}
+EXPORT_SYMBOL(dst_dev_put);
+
 void dst_release(struct dst_entry *dst)
 {
 	if (dst) {
