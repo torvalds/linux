@@ -7,6 +7,7 @@ Required properties:
 - compatible: should be one of the following string:
 		"allwinner,sun8i-a83t-emac"
 		"allwinner,sun8i-h3-emac"
+		"allwinner,sun8i-v3s-emac"
 		"allwinner,sun50i-a64-emac"
 - reg: address and length of the register for the device.
 - interrupts: interrupt for the device
@@ -22,6 +23,7 @@ Required properties:
 - syscon: A phandle to the syscon of the SoC with one of the following
  compatible string:
   - allwinner,sun8i-h3-system-controller
+  - allwinner,sun8i-v3s-system-controller
   - allwinner,sun50i-a64-system-controller
   - allwinner,sun8i-a83t-system-controller
 
@@ -31,7 +33,9 @@ Optional properties:
 Both delay properties need to be a multiple of 100. They control the delay for
 external PHY.
 
-Optional properties for "allwinner,sun8i-h3-emac":
+Optional properties for the following compatibles:
+  - "allwinner,sun8i-h3-emac",
+  - "allwinner,sun8i-v3s-emac":
 - allwinner,leds-active-low: EPHY LEDs are active low
 
 Required child node of emac:
@@ -44,7 +48,9 @@ Required properties of the mdio node:
 The device node referenced by "phy" or "phy-handle" should be a child node
 of the mdio node. See phy.txt for the generic PHY bindings.
 
-Required properties of the phy node with "allwinner,sun8i-h3-emac":
+Required properties of the phy node with the following compatibles:
+  - "allwinner,sun8i-h3-emac",
+  - "allwinner,sun8i-v3s-emac":
 - clocks: a phandle to the reference clock for the EPHY
 - resets: a phandle to the reset control for the EPHY
 
