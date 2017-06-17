@@ -172,6 +172,7 @@ static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
 		ppcpu_rt = per_cpu_ptr(non_pcpu_rt->rt6i_pcpu, cpu);
 		pcpu_rt = *ppcpu_rt;
 		if (pcpu_rt) {
+			dst_release(&pcpu_rt->dst);
 			rt6_rcu_free(pcpu_rt);
 			*ppcpu_rt = NULL;
 		}
@@ -185,6 +186,7 @@ static void rt6_release(struct rt6_info *rt)
 {
 	if (atomic_dec_and_test(&rt->rt6i_ref)) {
 		rt6_free_pcpu(rt);
+		dst_release(&rt->dst);
 		rt6_rcu_free(rt);
 	}
 }
@@ -1101,6 +1103,10 @@ out:
 			atomic_inc(&pn->leaf->rt6i_ref);
 		}
 #endif
+		/* Always release dst as dst->__refcnt is guaranteed
+		 * to be taken before entering this function
+		 */
+		dst_release(&rt->dst);
 		if (!(rt->dst.flags & DST_NOCACHE))
 			dst_free(&rt->dst);
 	}
@@ -1113,6 +1119,10 @@ out:
 st_failure:
 	if (fn && !(fn->fn_flags & (RTN_RTINFO|RTN_ROOT)))
 		fib6_repair_tree(info->nl_net, fn);
+	/* Always release dst as dst->__refcnt is guaranteed
+	 * to be taken before entering this function
+	 */
+	dst_release(&rt->dst);
 	if (!(rt->dst.flags & DST_NOCACHE))
 		dst_free(&rt->dst);
 	return err;
@@ -1783,7 +1793,7 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 		}
 		gc_args->more++;
 	} else if (rt->rt6i_flags & RTF_CACHE) {
-		if (atomic_read(&rt->dst.__refcnt) == 0 &&
+		if (atomic_read(&rt->dst.__refcnt) == 1 &&
 		    time_after_eq(now, rt->dst.lastuse + gc_args->timeout)) {
 			RT6_TRACE("aging clone %p\n", rt);
 			return -1;

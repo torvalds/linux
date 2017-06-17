@@ -583,8 +583,6 @@ static int vrf_rt6_create(struct net_device *dev)
 	if (!rt6)
 		goto out;
 
-	dst_hold(&rt6->dst);
-
 	rt6->rt6i_table = rt6i_table;
 	rt6->dst.output	= vrf_output6;
 
@@ -596,8 +594,6 @@ static int vrf_rt6_create(struct net_device *dev)
 		dst_release(&rt6->dst);
 		goto out;
 	}
-
-	dst_hold(&rt6_local->dst);
 
 	rt6_local->rt6i_idev  = in6_dev_get(dev);
 	rt6_local->rt6i_flags = RTF_UP | RTF_NONEXTHOP | RTF_LOCAL;
