@@ -226,34 +226,55 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	return dec;
 }
 
-#define ATOMIC64_OP(op)							\
-static inline void atomic64_##op(long i, atomic64_t *v)			\
-{									\
-	asm volatile(LOCK_PREFIX #op"q %1,%0"				\
-			: "+m" (v->counter)				\
-			: "er" (i)					\
-			: "memory");					\
+static inline void atomic64_and(long i, atomic64_t *v)
+{
+	asm volatile(LOCK_PREFIX "andq %1,%0"
+			: "+m" (v->counter)
+			: "er" (i)
+			: "memory");
 }
 
-#define ATOMIC64_FETCH_OP(op, c_op)					\
-static inline long atomic64_fetch_##op(long i, atomic64_t *v)		\
-{									\
-	long val = atomic64_read(v);					\
-	do {								\
-	} while (!atomic64_try_cmpxchg(v, &val, val c_op i));		\
-	return val;							\
+static inline long atomic64_fetch_and(long i, atomic64_t *v)
+{
+	long val = atomic64_read(v);
+
+	do {
+	} while (!atomic64_try_cmpxchg(v, &val, val & i));
+	return val;
 }
 
-#define ATOMIC64_OPS(op, c_op)						\
-	ATOMIC64_OP(op)							\
-	ATOMIC64_FETCH_OP(op, c_op)
+static inline void atomic64_or(long i, atomic64_t *v)
+{
+	asm volatile(LOCK_PREFIX "orq %1,%0"
+			: "+m" (v->counter)
+			: "er" (i)
+			: "memory");
+}
 
-ATOMIC64_OPS(and, &)
-ATOMIC64_OPS(or, |)
-ATOMIC64_OPS(xor, ^)
+static inline long atomic64_fetch_or(long i, atomic64_t *v)
+{
+	long val = atomic64_read(v);
 
-#undef ATOMIC64_OPS
-#undef ATOMIC64_FETCH_OP
-#undef ATOMIC64_OP
+	do {
+	} while (!atomic64_try_cmpxchg(v, &val, val | i));
+	return val;
+}
+
+static inline void atomic64_xor(long i, atomic64_t *v)
+{
+	asm volatile(LOCK_PREFIX "xorq %1,%0"
+			: "+m" (v->counter)
+			: "er" (i)
+			: "memory");
+}
+
+static inline long atomic64_fetch_xor(long i, atomic64_t *v)
+{
+	long val = atomic64_read(v);
+
+	do {
+	} while (!atomic64_try_cmpxchg(v, &val, val ^ i));
+	return val;
+}
 
 #endif /* _ASM_X86_ATOMIC64_64_H */
