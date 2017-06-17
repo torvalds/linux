@@ -179,14 +179,12 @@ void dst_release(struct dst_entry *dst)
 {
 	if (dst) {
 		int newrefcnt;
-		unsigned short destroy_after_rcu = dst->flags &
-						   (DST_NOCACHE | DST_NOGC);
 
 		newrefcnt = atomic_dec_return(&dst->__refcnt);
 		if (unlikely(newrefcnt < 0))
 			net_warn_ratelimited("%s: dst:%p refcnt:%d\n",
 					     __func__, dst, newrefcnt);
-		if (!newrefcnt && unlikely(destroy_after_rcu))
+		if (!newrefcnt)
 			call_rcu(&dst->rcu_head, dst_destroy_rcu);
 	}
 }

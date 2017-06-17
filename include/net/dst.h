@@ -57,7 +57,6 @@ struct dst_entry {
 #define DST_XFRM_TUNNEL		0x0080
 #define DST_XFRM_QUEUE		0x0100
 #define DST_METADATA		0x0200
-#define DST_NOGC		0x0400
 
 	short			error;
 
@@ -336,10 +335,7 @@ static inline void skb_dst_force(struct sk_buff *skb)
  */
 static inline bool dst_hold_safe(struct dst_entry *dst)
 {
-	if (dst->flags & (DST_NOCACHE | DST_NOGC))
-		return atomic_inc_not_zero(&dst->__refcnt);
-	dst_hold(dst);
-	return true;
+	return atomic_inc_not_zero(&dst->__refcnt);
 }
 
 /**
