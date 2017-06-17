@@ -2234,10 +2234,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 		rth = rcu_dereference(*prth);
 
 rt_cache:
-		if (rt_cache_valid(rth)) {
-			dst_hold(&rth->dst);
+		if (rt_cache_valid(rth) && dst_hold_safe(&rth->dst))
 			return rth;
-		}
 	}
 
 add:
