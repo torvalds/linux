@@ -4,9 +4,12 @@
 config TLS
 	tristate "Transport Layer Security support"
 	depends on INET
-	default m
+	select CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_GCM
+	default n
 	---help---
 	Enable kernel support for TLS protocol. This allows symmetric
 	encryption handling of the TLS protocol to be done in-kernel.
 
-	If unsure, say M.
+	If unsure, say N.
