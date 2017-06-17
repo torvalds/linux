@@ -603,12 +603,14 @@ static void fnhe_flush_routes(struct fib_nh_exception *fnhe)
 	rt = rcu_dereference(fnhe->fnhe_rth_input);
 	if (rt) {
 		RCU_INIT_POINTER(fnhe->fnhe_rth_input, NULL);
+		dst_dev_put(&rt->dst);
 		dst_release(&rt->dst);
 		rt_free(rt);
 	}
 	rt = rcu_dereference(fnhe->fnhe_rth_output);
 	if (rt) {
 		RCU_INIT_POINTER(fnhe->fnhe_rth_output, NULL);
+		dst_dev_put(&rt->dst);
 		dst_release(&rt->dst);
 		rt_free(rt);
 	}
@@ -1337,6 +1339,7 @@ static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 			dst_hold(&rt->dst);
 			rcu_assign_pointer(*porig, rt);
 			if (orig) {
+				dst_dev_put(&orig->dst);
 				dst_release(&orig->dst);
 				rt_free(orig);
 			}
@@ -1369,6 +1372,7 @@ static bool rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 	prev = cmpxchg(p, orig, rt);
 	if (prev == orig) {
 		if (orig) {
+			dst_dev_put(&orig->dst);
 			dst_release(&orig->dst);
 			rt_free(orig);
 		}
