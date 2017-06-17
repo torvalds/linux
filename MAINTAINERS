@@ -8504,6 +8504,13 @@ F:	arch/mips/include/asm/mach-loongson32/
 F:	drivers/*/*loongson1*
 F:	drivers/*/*/*loongson1*
 
+MIPS BOSTON DEVELOPMENT BOARD
+M:	Paul Burton <paul.burton@imgtec.com>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/clock/img,boston-clock.txt
+F:	include/dt-bindings/clock/boston-clock.h
+
 MIROSOUND PCM20 FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
