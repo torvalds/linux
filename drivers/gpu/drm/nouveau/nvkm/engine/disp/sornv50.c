@@ -84,6 +84,15 @@ nv50_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 	state->head = ctrl & 0x00000003;
 }
 
+int
+nv50_sor_new_(const struct nvkm_ior_func *func, struct nvkm_disp *disp, int id)
+{
+	struct nvkm_device *device = disp->engine.subdev.device;
+	if (!(nvkm_rd32(device, 0x610184) & (0x01000000 << id)))
+		return 0;
+	return nvkm_ior_new_(func, disp, SOR, id);
+}
+
 static const struct nvkm_ior_func
 nv50_sor = {
 	.state = nv50_sor_state,
@@ -94,5 +103,5 @@ nv50_sor = {
 int
 nv50_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_ior_new_(&nv50_sor, disp, SOR, id);
+	return nv50_sor_new_(&nv50_sor, disp, id);
 }

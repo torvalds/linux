@@ -279,5 +279,5 @@ g94_sor = {
 int
 g94_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_ior_new_(&g94_sor, disp, SOR, id);
+	return nv50_sor_new_(&g94_sor, disp, id);
 }
