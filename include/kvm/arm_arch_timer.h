@@ -43,7 +43,7 @@ struct arch_timer_cpu {
 	struct arch_timer_context	ptimer;
 
 	/* Background timer used when the guest is not running */
-	struct hrtimer			timer;
+	struct hrtimer			bg_timer;
 
 	/* Work queued with the above timer expires */
 	struct work_struct		expired;
