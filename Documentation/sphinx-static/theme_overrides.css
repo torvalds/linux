@@ -56,6 +56,12 @@
 	font-family: "Courier New", Courier, monospace
     }
 
+    /* fix bottom margin of lists items */
+
+    .rst-content .section ul li:last-child, .rst-content .section ul li p:last-child {
+          margin-bottom: 12px;
+    }
+
     /* inline literal: drop the borderbox, padding and red color */
 
     code, .rst-content tt, .rst-content code {
