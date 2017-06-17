@@ -51,11 +51,11 @@ struct dst_entry {
 #define DST_HOST		0x0001
 #define DST_NOXFRM		0x0002
 #define DST_NOPOLICY		0x0004
-#define DST_NOCOUNT		0x0020
-#define DST_FAKE_RTABLE		0x0040
-#define DST_XFRM_TUNNEL		0x0080
-#define DST_XFRM_QUEUE		0x0100
-#define DST_METADATA		0x0200
+#define DST_NOCOUNT		0x0008
+#define DST_FAKE_RTABLE		0x0010
+#define DST_XFRM_TUNNEL		0x0020
+#define DST_XFRM_QUEUE		0x0040
+#define DST_METADATA		0x0080
 
 	short			error;
 
