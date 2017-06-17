@@ -203,12 +203,14 @@ static int zx_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		i2s->master = 1;
-		val |= ZX_I2S_TIMING_MAST;
-		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+		/* Codec is master, and I2S is slave. */
 		i2s->master = 0;
 		val |= ZX_I2S_TIMING_SLAVE;
+		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+		/* Codec is slave, and I2S is master. */
+		i2s->master = 1;
+		val |= ZX_I2S_TIMING_MAST;
 		break;
 	default:
 		dev_err(cpu_dai->dev, "Unknown master/slave format\n");
