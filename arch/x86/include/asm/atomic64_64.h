@@ -177,7 +177,7 @@ static inline long atomic64_cmpxchg(atomic64_t *v, long old, long new)
 }
 
 #define atomic64_try_cmpxchg atomic64_try_cmpxchg
-static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, long *old, long new)
+static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, s64 *old, long new)
 {
 	return try_cmpxchg(&v->counter, old, new);
 }
@@ -198,7 +198,7 @@ static inline long atomic64_xchg(atomic64_t *v, long new)
  */
 static inline bool atomic64_add_unless(atomic64_t *v, long a, long u)
 {
-	long c = atomic64_read(v);
+	s64 c = atomic64_read(v);
 	do {
 		if (unlikely(c == u))
 			return false;
@@ -217,7 +217,7 @@ static inline bool atomic64_add_unless(atomic64_t *v, long a, long u)
  */
 static inline long atomic64_dec_if_positive(atomic64_t *v)
 {
-	long dec, c = atomic64_read(v);
+	s64 dec, c = atomic64_read(v);
 	do {
 		dec = c - 1;
 		if (unlikely(dec < 0))
@@ -236,7 +236,7 @@ static inline void atomic64_and(long i, atomic64_t *v)
 
 static inline long atomic64_fetch_and(long i, atomic64_t *v)
 {
-	long val = atomic64_read(v);
+	s64 val = atomic64_read(v);
 
 	do {
 	} while (!atomic64_try_cmpxchg(v, &val, val & i));
@@ -253,7 +253,7 @@ static inline void atomic64_or(long i, atomic64_t *v)
 
 static inline long atomic64_fetch_or(long i, atomic64_t *v)
 {
-	long val = atomic64_read(v);
+	s64 val = atomic64_read(v);
 
 	do {
 	} while (!atomic64_try_cmpxchg(v, &val, val | i));
@@ -270,7 +270,7 @@ static inline void atomic64_xor(long i, atomic64_t *v)
 
 static inline long atomic64_fetch_xor(long i, atomic64_t *v)
 {
-	long val = atomic64_read(v);
+	s64 val = atomic64_read(v);
 
 	do {
 	} while (!atomic64_try_cmpxchg(v, &val, val ^ i));
