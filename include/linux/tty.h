@@ -422,6 +422,9 @@ static inline int __init tty_init(void)
 { return 0; }
 static inline const char *tty_name(const struct tty_struct *tty)
 { return "(none)"; }
+static inline struct tty_struct *tty_open_by_driver(dev_t device,
+		struct inode *inode, struct file *filp)
+{ return NULL; }
 #endif
 
 extern struct ktermios tty_std_termios;
