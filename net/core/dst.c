@@ -300,17 +300,33 @@ void dst_release(struct dst_entry *dst)
 {
 	if (dst) {
 		int newrefcnt;
-		unsigned short nocache = dst->flags & DST_NOCACHE;
+		unsigned short destroy_after_rcu = dst->flags &
+						   (DST_NOCACHE | DST_NOGC);
 
 		newrefcnt = atomic_dec_return(&dst->__refcnt);
 		if (unlikely(newrefcnt < 0))
 			net_warn_ratelimited("%s: dst:%p refcnt:%d\n",
 					     __func__, dst, newrefcnt);
-		if (!newrefcnt && unlikely(nocache))
+		if (!newrefcnt && unlikely(destroy_after_rcu))
 			call_rcu(&dst->rcu_head, dst_destroy_rcu);
 	}
 }
 EXPORT_SYMBOL(dst_release);
+
+void dst_release_immediate(struct dst_entry *dst)
+{
+	if (dst) {
+		int newrefcnt;
+
+		newrefcnt = atomic_dec_return(&dst->__refcnt);
+		if (unlikely(newrefcnt < 0))
+			net_warn_ratelimited("%s: dst:%p refcnt:%d\n",
+					     __func__, dst, newrefcnt);
+		if (!newrefcnt)
+			dst_destroy(dst);
+	}
+}
+EXPORT_SYMBOL(dst_release_immediate);
 
 u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old)
 {
