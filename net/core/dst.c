@@ -250,7 +250,6 @@ struct dst_entry *dst_destroy(struct dst_entry * dst)
 
 	smp_rmb();
 
-again:
 	child = dst->child;
 
 	if (!(dst->flags & DST_NOCOUNT))
@@ -269,20 +268,8 @@ again:
 		kmem_cache_free(dst->ops->kmem_cachep, dst);
 
 	dst = child;
-	if (dst) {
-		int nohash = dst->flags & DST_NOHASH;
-
-		if (atomic_dec_and_test(&dst->__refcnt)) {
-			/* We were real parent of this dst, so kill child. */
-			if (nohash)
-				goto again;
-		} else {
-			/* Child is still referenced, return it for freeing. */
-			if (nohash)
-				return dst;
-			/* Child is still in his hash table */
-		}
-	}
+	if (dst)
+		dst_release_immediate(dst);
 	return NULL;
 }
 EXPORT_SYMBOL(dst_destroy);
@@ -292,8 +279,6 @@ static void dst_destroy_rcu(struct rcu_head *head)
 	struct dst_entry *dst = container_of(head, struct dst_entry, rcu_head);
 
 	dst = dst_destroy(dst);
-	if (dst)
-		__dst_free(dst);
 }
 
 /* Operations to mark dst as DEAD and clean up the net device referenced
