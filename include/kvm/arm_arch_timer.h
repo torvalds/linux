@@ -48,9 +48,6 @@ struct arch_timer_cpu {
 	/* Work queued with the above timer expires */
 	struct work_struct		expired;
 
-	/* Background timer active */
-	bool				armed;
-
 	/* Is the timer enabled */
 	bool			enabled;
 };
