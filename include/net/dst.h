@@ -425,27 +425,8 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev, int initial_ref,
 void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	      struct net_device *dev, int initial_ref, int initial_obsolete,
 	      unsigned short flags);
-void __dst_free(struct dst_entry *dst);
 struct dst_entry *dst_destroy(struct dst_entry *dst);
 void dst_dev_put(struct dst_entry *dst);
-
-static inline void dst_free(struct dst_entry *dst)
-{
-	if (dst->obsolete > 0)
-		return;
-	if (!atomic_read(&dst->__refcnt)) {
-		dst = dst_destroy(dst);
-		if (!dst)
-			return;
-	}
-	__dst_free(dst);
-}
-
-static inline void dst_rcu_free(struct rcu_head *head)
-{
-	struct dst_entry *dst = container_of(head, struct dst_entry, rcu_head);
-	dst_free(dst);
-}
 
 static inline void dst_confirm(struct dst_entry *dst)
 {
@@ -507,8 +488,6 @@ static inline struct dst_entry *dst_check(struct dst_entry *dst, u32 cookie)
 		dst = dst->ops->check(dst, cookie);
 	return dst;
 }
-
-void dst_subsys_init(void);
 
 /* Flags for xfrm_lookup flags argument. */
 enum {
