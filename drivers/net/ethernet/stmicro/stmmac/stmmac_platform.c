@@ -313,6 +313,7 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 		{ .compatible = "snps,dwc-qos-ethernet-4.10" },
 		{ .compatible = "allwinner,sun8i-a83t-emac" },
 		{ .compatible = "allwinner,sun8i-h3-emac" },
+		{ .compatible = "allwinner,sun8i-v3s-emac" },
 		{ .compatible = "allwinner,sun50i-a64-emac" },
 	};
 
