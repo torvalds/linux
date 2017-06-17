@@ -354,7 +354,8 @@ static struct rt6_info *__ip6_dst_alloc(struct net *net,
 					int flags)
 {
 	struct rt6_info *rt = dst_alloc(&net->ipv6.ip6_dst_ops, dev,
-					1, DST_OBSOLETE_FORCE_CHK, flags);
+					1, DST_OBSOLETE_FORCE_CHK,
+					flags | DST_NOGC);
 
 	if (rt)
 		rt6_info_init(rt);
@@ -381,9 +382,7 @@ struct rt6_info *ip6_dst_alloc(struct net *net,
 				*p =  NULL;
 			}
 		} else {
-			dst_release(&rt->dst);
-			if (!(flags & DST_NOCACHE))
-				dst_destroy((struct dst_entry *)rt);
+			dst_release_immediate(&rt->dst);
 			return NULL;
 		}
 	}
@@ -1053,8 +1052,7 @@ static struct rt6_info *rt6_make_pcpu_route(struct rt6_info *rt)
 		prev = cmpxchg(p, NULL, pcpu_rt);
 		if (prev) {
 			/* If someone did it before us, return prev instead */
-			dst_release(&pcpu_rt->dst);
-			dst_destroy(&pcpu_rt->dst);
+			dst_release_immediate(&pcpu_rt->dst);
 			pcpu_rt = prev;
 		}
 	} else {
@@ -1064,8 +1062,7 @@ static struct rt6_info *rt6_make_pcpu_route(struct rt6_info *rt)
 		 * since rt is going away anyway.  The next
 		 * dst_check() will trigger a re-lookup.
 		 */
-		dst_release(&pcpu_rt->dst);
-		dst_destroy(&pcpu_rt->dst);
+		dst_release_immediate(&pcpu_rt->dst);
 		pcpu_rt = rt;
 	}
 	dst_hold(&pcpu_rt->dst);
@@ -1257,9 +1254,8 @@ struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_ori
 	struct net_device *loopback_dev = net->loopback_dev;
 	struct dst_entry *new = NULL;
 
-
 	rt = dst_alloc(&ip6_dst_blackhole_ops, loopback_dev, 1,
-		       DST_OBSOLETE_NONE, 0);
+		       DST_OBSOLETE_NONE, DST_NOGC);
 	if (rt) {
 		rt6_info_init(rt);
 
@@ -1279,8 +1275,6 @@ struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_ori
 #ifdef CONFIG_IPV6_SUBTREES
 		memcpy(&rt->rt6i_src, &ort->rt6i_src, sizeof(struct rt6key));
 #endif
-
-		dst_free(new);
 	}
 
 	dst_release(dst_orig);
@@ -1692,12 +1686,10 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	rt->rt6i_idev     = idev;
 	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, 0);
 
-	spin_lock_bh(&icmp6_dst_lock);
-	rt->dst.next = icmp6_dst_gc_list;
-	icmp6_dst_gc_list = &rt->dst;
-	spin_unlock_bh(&icmp6_dst_lock);
-
-	fib6_force_start_gc(net);
+	/* Add this dst into uncached_list so that rt6_ifdown() can
+	 * do proper release of the net_device
+	 */
+	rt6_uncached_list_add(rt);
 
 	dst = xfrm_lookup(net, &rt->dst, flowi6_to_flowi(fl6), NULL, 0);
 
@@ -2142,10 +2134,8 @@ out:
 		dev_put(dev);
 	if (idev)
 		in6_dev_put(idev);
-	if (rt) {
-		dst_release(&rt->dst);
-		dst_free(&rt->dst);
-	}
+	if (rt)
+		dst_release_immediate(&rt->dst);
 
 	return ERR_PTR(err);
 }
@@ -2174,10 +2164,8 @@ int ip6_route_add(struct fib6_config *cfg,
 
 	return err;
 out:
-	if (rt) {
-		dst_release(&rt->dst);
-		dst_free(&rt->dst);
-	}
+	if (rt)
+		dst_release_immediate(&rt->dst);
 
 	return err;
 }
@@ -3206,8 +3194,7 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 
 		err = ip6_route_info_append(&rt6_nh_list, rt, &r_cfg);
 		if (err) {
-			dst_release(&rt->dst);
-			dst_free(&rt->dst);
+			dst_release_immediate(&rt->dst);
 			goto cleanup;
 		}
 
@@ -3270,10 +3257,8 @@ add_errout:
 
 cleanup:
 	list_for_each_entry_safe(nh, nh_safe, &rt6_nh_list, next) {
-		if (nh->rt6_info) {
-			dst_release(&nh->rt6_info->dst);
-			dst_free(&nh->rt6_info->dst);
-		}
+		if (nh->rt6_info)
+			dst_release_immediate(&nh->rt6_info->dst);
 		kfree(nh->mxc.mx);
 		list_del(&nh->next);
 		kfree(nh);
