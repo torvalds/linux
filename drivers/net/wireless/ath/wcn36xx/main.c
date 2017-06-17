@@ -1271,6 +1271,8 @@ static int wcn36xx_remove(struct platform_device *pdev)
 	qcom_smem_state_put(wcn->tx_enable_state);
 	qcom_smem_state_put(wcn->tx_rings_empty_state);
 
+	rpmsg_destroy_ept(wcn->smd_channel);
+
 	iounmap(wcn->dxe_base);
 	iounmap(wcn->ccu_base);
 

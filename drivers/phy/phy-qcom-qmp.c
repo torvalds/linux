@@ -844,7 +844,7 @@ static int qcom_qmp_phy_vreg_init(struct device *dev)
 	int num = qmp->cfg->num_vregs;
 	int i;
 
-	qmp->vregs = devm_kcalloc(dev, num, sizeof(qmp->vregs), GFP_KERNEL);
+	qmp->vregs = devm_kcalloc(dev, num, sizeof(*qmp->vregs), GFP_KERNEL);
 	if (!qmp->vregs)
 		return -ENOMEM;
 
@@ -983,16 +983,16 @@ int qcom_qmp_phy_create(struct device *dev, struct device_node *np, int id)
 	 * Resources are indexed as: tx -> 0; rx -> 1; pcs -> 2.
 	 */
 	qphy->tx = of_iomap(np, 0);
-	if (IS_ERR(qphy->tx))
-		return PTR_ERR(qphy->tx);
+	if (!qphy->tx)
+		return -ENOMEM;
 
 	qphy->rx = of_iomap(np, 1);
-	if (IS_ERR(qphy->rx))
-		return PTR_ERR(qphy->rx);
+	if (!qphy->rx)
+		return -ENOMEM;
 
 	qphy->pcs = of_iomap(np, 2);
-	if (IS_ERR(qphy->pcs))
-		return PTR_ERR(qphy->pcs);
+	if (!qphy->pcs)
+		return -ENOMEM;
 
 	/*
 	 * Get PHY's Pipe clock, if any. USB3 and PCIe are PIPE3

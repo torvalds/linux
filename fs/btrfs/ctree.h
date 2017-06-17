@@ -2563,7 +2563,7 @@ u64 btrfs_csum_bytes_to_leaves(struct btrfs_fs_info *fs_info, u64 csum_bytes);
 static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_fs_info *fs_info,
 						 unsigned num_items)
 {
-	return fs_info->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
+	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
 }
 
 /*
@@ -2573,7 +2573,7 @@ static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_fs_info *fs_info,
 static inline u64 btrfs_calc_trunc_metadata_size(struct btrfs_fs_info *fs_info,
 						 unsigned num_items)
 {
-	return fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;
+	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;
 }
 
 int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,

@@ -24,7 +24,6 @@
 #include <linux/pm_qos.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
-#include <linux/suspend.h>
 
 #include "internal.h"
 
@@ -400,7 +399,7 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
 	mutex_lock(&acpi_pm_notifier_lock);
 
 	if (adev->wakeup.flags.notifier_present) {
-		pm_wakeup_ws_event(adev->wakeup.ws, 0, true);
+		__pm_wakeup_event(adev->wakeup.ws, 0);
 		if (adev->wakeup.context.work.func)
 			queue_pm_work(&adev->wakeup.context.work);
 	}

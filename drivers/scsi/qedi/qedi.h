@@ -38,7 +38,7 @@ struct qedi_endpoint;
 #define QEDI_MAX_ISCSI_TASK		4096
 #define QEDI_MAX_TASK_NUM		0x0FFF
 #define QEDI_MAX_ISCSI_CONNS_PER_HBA	1024
-#define QEDI_ISCSI_MAX_BDS_PER_CMD	256	/* Firmware max BDs is 256 */
+#define QEDI_ISCSI_MAX_BDS_PER_CMD	255	/* Firmware max BDs is 255 */
 #define MAX_OUSTANDING_TASKS_PER_CON	1024
 
 #define QEDI_MAX_BD_LEN		0xffff
@@ -63,6 +63,7 @@ struct qedi_endpoint;
 #define QEDI_PAGE_MASK		(~((QEDI_PAGE_SIZE) - 1))
 
 #define QEDI_PAGE_SIZE		4096
+#define QEDI_HW_DMA_BOUNDARY	0xfff
 #define QEDI_PATH_HANDLE	0xFE0000000UL
 
 struct qedi_uio_ctrl {

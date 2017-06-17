@@ -1213,7 +1213,6 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 static void ieee80211_if_free(struct net_device *dev)
 {
 	free_percpu(dev->tstats);
-	free_netdev(dev);
 }
 
 static void ieee80211_if_setup(struct net_device *dev)
@@ -1221,7 +1220,8 @@ static void ieee80211_if_setup(struct net_device *dev)
 	ether_setup(dev);
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->netdev_ops = &ieee80211_dataif_ops;
-	dev->destructor = ieee80211_if_free;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = ieee80211_if_free;
 }
 
 static void ieee80211_if_setup_no_queue(struct net_device *dev)
@@ -1237,7 +1237,6 @@ static void ieee80211_iface_work(struct work_struct *work)
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct sta_info *sta;
-	struct ieee80211_ra_tid *ra_tid;
 	struct ieee80211_rx_agg *rx_agg;
 
 	if (!ieee80211_sdata_running(sdata))
@@ -1253,15 +1252,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 	while ((skb = skb_dequeue(&sdata->skb_queue))) {
 		struct ieee80211_mgmt *mgmt = (void *)skb->data;
 
-		if (skb->pkt_type == IEEE80211_SDATA_QUEUE_AGG_START) {
-			ra_tid = (void *)&skb->cb;
-			ieee80211_start_tx_ba_cb(&sdata->vif, ra_tid->ra,
-						 ra_tid->tid);
-		} else if (skb->pkt_type == IEEE80211_SDATA_QUEUE_AGG_STOP) {
-			ra_tid = (void *)&skb->cb;
-			ieee80211_stop_tx_ba_cb(&sdata->vif, ra_tid->ra,
-						ra_tid->tid);
-		} else if (skb->pkt_type == IEEE80211_SDATA_QUEUE_RX_AGG_START) {
+		if (skb->pkt_type == IEEE80211_SDATA_QUEUE_RX_AGG_START) {
 			rx_agg = (void *)&skb->cb;
 			mutex_lock(&local->sta_mtx);
 			sta = sta_info_get_bss(sdata, rx_agg->addr);
@@ -1825,6 +1816,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		ret = dev_alloc_name(ndev, ndev->name);
 		if (ret < 0) {
 			ieee80211_if_free(ndev);
+			free_netdev(ndev);
 			return ret;
 		}
 
@@ -1914,7 +1906,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 		ret = register_netdevice(ndev);
 		if (ret) {
-			ieee80211_if_free(ndev);
+			free_netdev(ndev);
 			return ret;
 		}
 	}

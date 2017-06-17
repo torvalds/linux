@@ -231,8 +231,7 @@
 			cpm_crypto: crypto@800000 {
 				compatible = "inside-secure,safexcel-eip197";
 				reg = <0x800000 0x200000>;
-				interrupts = <GIC_SPI 34 (IRQ_TYPE_EDGE_RISING
-				| IRQ_TYPE_LEVEL_HIGH)>,
+				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,

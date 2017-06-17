@@ -159,7 +159,6 @@ static void loopback_dev_free(struct net_device *dev)
 {
 	dev_net(dev)->loopback_dev = NULL;
 	free_percpu(dev->lstats);
-	free_netdev(dev);
 }
 
 static const struct net_device_ops loopback_ops = {
@@ -196,7 +195,8 @@ static void loopback_setup(struct net_device *dev)
 	dev->ethtool_ops	= &loopback_ethtool_ops;
 	dev->header_ops		= &eth_header_ops;
 	dev->netdev_ops		= &loopback_ops;
-	dev->destructor		= loopback_dev_free;
+	dev->needs_free_netdev	= true;
+	dev->priv_destructor	= loopback_dev_free;
 }
 
 /* Setup and register the loopback device. */
