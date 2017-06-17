@@ -437,9 +437,9 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	struct ssi_drvdata *drvdata =
 		(struct ssi_drvdata *)dev_get_drvdata(&plat_dev->dev);
 
-        ssi_aead_free(drvdata);
-        ssi_hash_free(drvdata);
-        ssi_ablkcipher_free(drvdata);
+	ssi_aead_free(drvdata);
+	ssi_hash_free(drvdata);
+	ssi_ablkcipher_free(drvdata);
 	ssi_ivgen_fini(drvdata);
 	ssi_power_mgr_fini(drvdata);
 	ssi_buffer_mgr_fini(drvdata);

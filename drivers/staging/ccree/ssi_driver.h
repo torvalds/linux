@@ -110,9 +110,9 @@ struct ssi_crypto_req {
 	void *user_arg;
 	dma_addr_t ivgen_dma_addr[SSI_MAX_IVGEN_DMA_ADDRESSES];
 	/* For the first 'ivgen_dma_addr_len' addresses of this array,
- 	 * generated IV would be placed in it by send_request().
- 	 * Same generated IV for all addresses!
- 	 */
+	 * generated IV would be placed in it by send_request().
+	 * Same generated IV for all addresses!
+	 */
 	unsigned int ivgen_dma_addr_len; /* Amount of 'ivgen_dma_addr' elements to be filled. */
 	unsigned int ivgen_size; /* The generated IV size required, 8/16 B allowed. */
 	struct completion seq_compl; /* request completion */

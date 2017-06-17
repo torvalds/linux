@@ -39,7 +39,7 @@ static ssi_fips_error_t fips_error = CC_REE_FIPS_ERROR_OK;
  */
 int ssi_fips_ext_get_state(ssi_fips_state_t *p_state)
 {
-        int rc = 0;
+	int rc = 0;
 
 	if (p_state == NULL) {
 		return -EINVAL;
@@ -58,7 +58,7 @@ int ssi_fips_ext_get_state(ssi_fips_state_t *p_state)
  */
 int ssi_fips_ext_get_error(ssi_fips_error_t *p_err)
 {
-        int rc = 0;
+	int rc = 0;
 
 	if (p_err == NULL) {
 		return -EINVAL;

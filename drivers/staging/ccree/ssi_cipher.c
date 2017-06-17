@@ -258,45 +258,45 @@ static void ssi_blkcipher_exit(struct crypto_tfm *tfm)
 
 
 typedef struct tdes_keys{
-        u8      key1[DES_KEY_SIZE];
-        u8      key2[DES_KEY_SIZE];
-        u8      key3[DES_KEY_SIZE];
+	u8	key1[DES_KEY_SIZE];
+	u8	key2[DES_KEY_SIZE];
+	u8	key3[DES_KEY_SIZE];
 }tdes_keys_t;
 
-static const u8 zero_buff[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-                               0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-                               0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-                               0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+static const u8 zero_buff[] = {	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
 /* The function verifies that tdes keys are not weak.*/
 static int ssi_fips_verify_3des_keys(const u8 *key, unsigned int keylen)
 {
 #ifdef CCREE_FIPS_SUPPORT
-        tdes_keys_t *tdes_key = (tdes_keys_t*)key;
+	tdes_keys_t *tdes_key = (tdes_keys_t*)key;
 
 	/* verify key1 != key2 and key3 != key2*/
-        if (unlikely( (memcmp((u8*)tdes_key->key1, (u8*)tdes_key->key2, sizeof(tdes_key->key1)) == 0) ||
+	if (unlikely( (memcmp((u8*)tdes_key->key1, (u8*)tdes_key->key2, sizeof(tdes_key->key1)) == 0) ||
 		      (memcmp((u8*)tdes_key->key3, (u8*)tdes_key->key2, sizeof(tdes_key->key3)) == 0) )) {
-                return -ENOEXEC;
-        }
+		return -ENOEXEC;
+	}
 #endif /* CCREE_FIPS_SUPPORT */
 
-        return 0;
+	return 0;
 }
 
 /* The function verifies that xts keys are not weak.*/
 static int ssi_fips_verify_xts_keys(const u8 *key, unsigned int keylen)
 {
 #ifdef CCREE_FIPS_SUPPORT
-        /* Weak key is define as key that its first half (128/256 lsb) equals its second half (128/256 msb) */
-        int singleKeySize = keylen >> 1;
+	/* Weak key is define as key that its first half (128/256 lsb) equals its second half (128/256 msb) */
+	int singleKeySize = keylen >> 1;
 
 	if (unlikely(memcmp(key, &key[singleKeySize], singleKeySize) == 0)) {
 		return -ENOEXEC;
 	}
 #endif /* CCREE_FIPS_SUPPORT */
 
-        return 0;
+	return 0;
 }
 
 static enum cc_hw_crypto_key hw_key_to_cc_hw_key(int slot_num)
@@ -720,12 +720,13 @@ ssi_blkcipher_create_data_desc(
 }
 
 static int ssi_blkcipher_complete(struct device *dev,
-                                  struct ssi_ablkcipher_ctx *ctx_p,
-                                  struct blkcipher_req_ctx *req_ctx,
-                                  struct scatterlist *dst, struct scatterlist *src,
-                                  unsigned int ivsize,
-                                  void *areq,
-                                  void __iomem *cc_base)
+				struct ssi_ablkcipher_ctx *ctx_p,
+				struct blkcipher_req_ctx *req_ctx,
+				struct scatterlist *dst,
+				struct scatterlist *src,
+				unsigned int ivsize,
+				void *areq,
+				void __iomem *cc_base)
 {
 	int completion_error = 0;
 	u32 inflight_counter;
@@ -779,7 +780,7 @@ static int ssi_blkcipher_process(
 		/* No data to process is valid */
 		return 0;
 	}
-        /*For CTS in case of data size aligned to 16 use CBC mode*/
+	/*For CTS in case of data size aligned to 16 use CBC mode*/
 	if (((nbytes % AES_BLOCK_SIZE) == 0) && (ctx_p->cipher_mode == DRV_CIPHER_CBC_CTS)){
 
 		ctx_p->cipher_mode = DRV_CIPHER_CBC;

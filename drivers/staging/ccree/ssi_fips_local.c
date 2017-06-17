@@ -264,32 +264,32 @@ int ssi_fips_set_state(ssi_fips_state_t state)
 int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, ssi_fips_error_t err)
 {
 	int rc = 0;
-        ssi_fips_error_t current_err;
+	ssi_fips_error_t current_err;
 
-        FIPS_LOG("ssi_fips_set_error - fips_error = %d \n", err);
+	FIPS_LOG("ssi_fips_set_error - fips_error = %d \n", err);
 
 	// setting no error is not allowed
 	if (err == CC_REE_FIPS_ERROR_OK) {
-                return -ENOEXEC;
+		return -ENOEXEC;
 	}
-        // If error exists, do not set new error
-        if (ssi_fips_get_error(&current_err) != 0) {
-                return -ENOEXEC;
-        }
-        if (current_err != CC_REE_FIPS_ERROR_OK) {
-                return -ENOEXEC;
-        }
-        // set REE internal error and state
+	// If error exists, do not set new error
+	if (ssi_fips_get_error(&current_err) != 0) {
+		return -ENOEXEC;
+	}
+	if (current_err != CC_REE_FIPS_ERROR_OK) {
+		return -ENOEXEC;
+	}
+	// set REE internal error and state
 	rc = ssi_fips_ext_set_error(err);
 	if (rc != 0) {
-                return -ENOEXEC;
+		return -ENOEXEC;
 	}
 	rc = ssi_fips_ext_set_state(CC_FIPS_STATE_ERROR);
 	if (rc != 0) {
-                return -ENOEXEC;
+		return -ENOEXEC;
 	}
 
-        // push error towards TEE libraray, if it's not TEE error
+	// push error towards TEE libraray, if it's not TEE error
 	if (err != CC_REE_FIPS_ERROR_FROM_TEE) {
 		ssi_fips_update_tee_upon_ree_status(p_drvdata, err);
 	}

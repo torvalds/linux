@@ -34,14 +34,14 @@ typedef enum CC_FipsSyncStatus{
 
 
 #define CHECK_AND_RETURN_UPON_FIPS_ERROR() {\
-        if (ssi_fips_check_fips_error() != 0) {\
-                return -ENOEXEC;\
-        }\
+	if (ssi_fips_check_fips_error() != 0) {\
+		return -ENOEXEC;\
+	}\
 }
 #define CHECK_AND_RETURN_VOID_UPON_FIPS_ERROR() {\
-        if (ssi_fips_check_fips_error() != 0) {\
-                return;\
-        }\
+	if (ssi_fips_check_fips_error() != 0) {\
+		return;\
+	}\
 }
 #define SSI_FIPS_INIT(p_drvData)  (ssi_fips_init(p_drvData))
 #define SSI_FIPS_FINI(p_drvData)  (ssi_fips_fini(p_drvData))
