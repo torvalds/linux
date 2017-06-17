@@ -37,6 +37,7 @@ available subsections can be seen below.
    80211/index
    uio-howto
    firmware/index
+   pinctl
    misc_devices
 
 .. only::  subproject and html
