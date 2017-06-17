@@ -185,6 +185,7 @@ static const struct emac_variant emac_variant_a64 = {
 
 /* H3 specific bits for EPHY */
 #define H3_EPHY_ADDR_SHIFT	20
+#define H3_EPHY_CLK_SEL		BIT(18) /* 1: 24MHz, 0: 25MHz */
 #define H3_EPHY_LED_POL		BIT(17) /* 1: active low, 0: active high */
 #define H3_EPHY_SHUTDOWN	BIT(16) /* 1: shutdown, 0: power up */
 #define H3_EPHY_SELECT		BIT(15) /* 1: internal PHY, 0: external PHY */
@@ -655,6 +656,9 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 				reg |= H3_EPHY_LED_POL;
 			else
 				reg &= ~H3_EPHY_LED_POL;
+
+			/* Force EPHY xtal frequency to 24MHz. */
+			reg |= H3_EPHY_CLK_SEL;
 
 			ret = of_mdio_parse_addr(priv->device,
 						 priv->plat->phy_node);
