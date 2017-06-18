@@ -392,13 +392,7 @@ int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 	cmd.connect.opcode = nvme_fabrics_command;
 	cmd.connect.fctype = nvme_fabrics_type_connect;
 	cmd.connect.qid = 0;
-
-	/*
-	 * fabrics spec sets a minimum of depth 32 for admin queue,
-	 * so set the queue with this depth always until
-	 * justification otherwise.
-	 */
-	cmd.connect.sqsize = cpu_to_le16(NVMF_AQ_DEPTH - 1);
+	cmd.connect.sqsize = cpu_to_le16(NVME_AQ_DEPTH - 1);
 
 	/*
 	 * Set keep-alive timeout in seconds granularity (ms * 1000)

@@ -1027,7 +1027,7 @@ nvmet_rdma_parse_cm_connect_req(struct rdma_conn_param *conn,
 	queue->recv_queue_size = le16_to_cpu(req->hsqsize) + 1;
 	queue->send_queue_size = le16_to_cpu(req->hrqsize);
 
-	if (!queue->host_qid && queue->recv_queue_size > NVMF_AQ_DEPTH)
+	if (!queue->host_qid && queue->recv_queue_size > NVME_AQ_DEPTH)
 		return NVME_RDMA_CM_INVALID_HSQSIZE;
 
 	/* XXX: Should we enforce some kind of max for IO queues? */

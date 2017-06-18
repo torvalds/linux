@@ -48,7 +48,7 @@
  */
 #define NVME_RDMA_NR_AEN_COMMANDS      1
 #define NVME_RDMA_AQ_BLKMQ_DEPTH       \
-	(NVMF_AQ_DEPTH - NVME_RDMA_NR_AEN_COMMANDS)
+	(NVME_AQ_DEPTH - NVME_RDMA_NR_AEN_COMMANDS)
 
 struct nvme_rdma_device {
 	struct ib_device       *dev;
@@ -719,7 +719,7 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 	if (ret)
 		goto requeue;
 
-	ret = nvme_rdma_init_queue(ctrl, 0, NVMF_AQ_DEPTH);
+	ret = nvme_rdma_init_queue(ctrl, 0, NVME_AQ_DEPTH);
 	if (ret)
 		goto requeue;
 
@@ -1291,8 +1291,8 @@ static int nvme_rdma_route_resolved(struct nvme_rdma_queue *queue)
 	 * specified by the Fabrics standard.
 	 */
 	if (priv.qid == 0) {
-		priv.hrqsize = cpu_to_le16(NVMF_AQ_DEPTH);
-		priv.hsqsize = cpu_to_le16(NVMF_AQ_DEPTH - 1);
+		priv.hrqsize = cpu_to_le16(NVME_AQ_DEPTH);
+		priv.hsqsize = cpu_to_le16(NVME_AQ_DEPTH - 1);
 	} else {
 		/*
 		 * current interpretation of the fabrics spec
@@ -1530,7 +1530,7 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl)
 {
 	int error;
 
-	error = nvme_rdma_init_queue(ctrl, 0, NVMF_AQ_DEPTH);
+	error = nvme_rdma_init_queue(ctrl, 0, NVME_AQ_DEPTH);
 	if (error)
 		return error;
 

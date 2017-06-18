@@ -21,8 +21,6 @@
 #include "../host/nvme.h"
 #include "../host/fabrics.h"
 
-#define NVME_LOOP_AQ_DEPTH		256
-
 #define NVME_LOOP_MAX_SEGMENTS		256
 
 /*
@@ -31,7 +29,7 @@
  */
 #define NVME_LOOP_NR_AEN_COMMANDS	1
 #define NVME_LOOP_AQ_BLKMQ_DEPTH	\
-	(NVME_LOOP_AQ_DEPTH - NVME_LOOP_NR_AEN_COMMANDS)
+	(NVME_AQ_DEPTH - NVME_LOOP_NR_AEN_COMMANDS)
 
 struct nvme_loop_iod {
 	struct nvme_request	nvme_req;

@@ -36,7 +36,6 @@
 #include "nvme.h"
 
 #define NVME_Q_DEPTH		1024
-#define NVME_AQ_DEPTH		256
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
 

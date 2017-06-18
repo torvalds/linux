@@ -87,7 +87,7 @@ enum {
 	NVMF_RDMA_CMS_RDMA_CM	= 1, /* Sockets based endpoint addressing */
 };
 
-#define NVMF_AQ_DEPTH		32
+#define NVME_AQ_DEPTH		32
 
 enum {
 	NVME_REG_CAP	= 0x0000,	/* Controller Capabilities */
