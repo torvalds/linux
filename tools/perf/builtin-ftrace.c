@@ -61,6 +61,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 	int fd, ret = -1;
 	ssize_t size = strlen(val);
 	int flags = O_WRONLY;
+	char errbuf[512];
 
 	file = get_tracing_file(name);
 	if (!file) {
@@ -75,14 +76,16 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 
 	fd = open(file, flags);
 	if (fd < 0) {
-		pr_debug("cannot open tracing file: %s\n", name);
+		pr_debug("cannot open tracing file: %s: %s\n",
+			 name, str_error_r(errno, errbuf, sizeof(errbuf)));
 		goto out;
 	}
 
 	if (write(fd, val, size) == size)
 		ret = 0;
 	else
-		pr_debug("write '%s' to tracing/%s failed\n", val, name);
+		pr_debug("write '%s' to tracing/%s failed: %s\n",
+			 val, name, str_error_r(errno, errbuf, sizeof(errbuf)));
 
 	close(fd);
 out:
