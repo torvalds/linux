@@ -1661,7 +1661,8 @@ void __rt_mutex_init(struct rt_mutex *lock, const char *name,
 	lock->waiters = RB_ROOT;
 	lock->waiters_leftmost = NULL;
 
-	debug_rt_mutex_init(lock, name, key);
+	if (name && key)
+		debug_rt_mutex_init(lock, name, key);
 }
 EXPORT_SYMBOL_GPL(__rt_mutex_init);
 
