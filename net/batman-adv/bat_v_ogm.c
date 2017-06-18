@@ -137,7 +137,7 @@ static void batadv_v_ogm_send(struct work_struct *work)
 	struct batadv_priv *bat_priv;
 	struct batadv_ogm2_packet *ogm_packet;
 	struct sk_buff *skb, *skb_tmp;
-	unsigned char *ogm_buff, *pkt_buff;
+	unsigned char *ogm_buff;
 	int ogm_buff_len;
 	u16 tvlv_len = 0;
 	int ret;
@@ -166,7 +166,7 @@ static void batadv_v_ogm_send(struct work_struct *work)
 		goto reschedule;
 
 	skb_reserve(skb, ETH_HLEN);
-	pkt_buff = skb_put_data(skb, ogm_buff, ogm_buff_len);
+	skb_put_data(skb, ogm_buff, ogm_buff_len);
 
 	ogm_packet = (struct batadv_ogm2_packet *)skb->data;
 	ogm_packet->seqno = htonl(atomic_read(&bat_priv->bat_v.ogm_seqno));
