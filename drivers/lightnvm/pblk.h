@@ -702,6 +702,7 @@ void pblk_write_should_kick(struct pblk *pblk);
 /*
  * pblk read path
  */
+extern struct bio_set *pblk_bio_set;
 int pblk_submit_read(struct pblk *pblk, struct bio *bio);
 int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 			unsigned int nr_secs, unsigned int *secs_to_gc,

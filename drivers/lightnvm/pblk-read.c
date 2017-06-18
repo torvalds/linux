@@ -342,7 +342,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 		struct pblk_r_ctx *r_ctx = nvm_rq_to_pdu(rqd);
 
 		/* Clone read bio to deal with read errors internally */
-		int_bio = bio_clone_bioset(bio, GFP_KERNEL, fs_bio_set);
+		int_bio = bio_clone_fast(bio, GFP_KERNEL, pblk_bio_set);
 		if (!int_bio) {
 			pr_err("pblk: could not clone read bio\n");
 			return NVM_IO_ERR;
