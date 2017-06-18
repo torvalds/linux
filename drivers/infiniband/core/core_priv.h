@@ -309,4 +309,9 @@ static inline int ib_mad_enforce_security(struct ib_mad_agent_private *map,
 	return 0;
 }
 #endif
+
+struct ib_device *__ib_device_get_by_index(u32 ifindex);
+/* RDMA device netlink */
+void nldev_init(void);
+void nldev_exit(void);
 #endif /* _CORE_PRIV_H */

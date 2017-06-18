@@ -134,6 +134,17 @@ static int ib_device_check_mandatory(struct ib_device *device)
 	return 0;
 }
 
+struct ib_device *__ib_device_get_by_index(u32 index)
+{
+	struct ib_device *device;
+
+	list_for_each_entry(device, &device_list, core_list)
+		if (device->index == index)
+			return device;
+
+	return NULL;
+}
+
 static struct ib_device *__ib_device_get_by_name(const char *name)
 {
 	struct ib_device *device;
@@ -144,7 +155,6 @@ static struct ib_device *__ib_device_get_by_name(const char *name)
 
 	return NULL;
 }
-
 
 static int alloc_name(char *name)
 {
@@ -395,6 +405,30 @@ static int ib_security_change(struct notifier_block *nb, unsigned long event,
 }
 
 /**
+ *	__dev_new_index	-	allocate an device index
+ *
+ *	Returns a suitable unique value for a new device interface
+ *	number.  It assumes that there are less than 2^32-1 ib devices
+ *	will be present in the system.
+ */
+static u32 __dev_new_index(void)
+{
+	/*
+	 * The device index to allow stable naming.
+	 * Similar to struct net -> ifindex.
+	 */
+	static u32 index;
+
+	for (;;) {
+		if (!(++index))
+			index = 1;
+
+		if (!__ib_device_get_by_index(index))
+			return index;
+	}
+}
+
+/**
  * ib_register_device - Register an IB device with IB core
  * @device:Device to register
  *
@@ -492,6 +526,7 @@ int ib_register_device(struct ib_device *device,
 		if (client->add && !add_client_context(device, client))
 			client->add(device);
 
+	device->index = __dev_new_index();
 	down_write(&lists_rwsem);
 	list_add_tail(&device->core_list, &device_list);
 	up_write(&lists_rwsem);
