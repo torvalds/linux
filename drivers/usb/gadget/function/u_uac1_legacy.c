@@ -18,7 +18,7 @@
 #include <linux/random.h>
 #include <linux/syscalls.h>
 
-#include "u_uac1.h"
+#include "u_uac1_legacy.h"
 
 /*
  * This component encapsulates the ALSA devices for USB audio gadget
@@ -205,10 +205,11 @@ static int gaudio_open_snd_dev(struct gaudio *card)
 {
 	struct snd_pcm_file *pcm_file;
 	struct gaudio_snd_dev *snd;
-	struct f_uac1_opts *opts;
+	struct f_uac1_legacy_opts *opts;
 	char *fn_play, *fn_cap, *fn_cntl;
 
-	opts = container_of(card->func.fi, struct f_uac1_opts, func_inst);
+	opts = container_of(card->func.fi, struct f_uac1_legacy_opts,
+			    func_inst);
 	fn_play = opts->fn_play;
 	fn_cap = opts->fn_cap;
 	fn_cntl = opts->fn_cntl;

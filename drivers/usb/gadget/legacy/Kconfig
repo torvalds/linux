@@ -54,8 +54,8 @@ config USB_AUDIO
 	depends on SND
 	select USB_LIBCOMPOSITE
 	select SND_PCM
-	select USB_F_UAC1 if GADGET_UAC1
-	select USB_F_UAC2 if !GADGET_UAC1
+	select USB_F_UAC1_LEGACY if GADGET_UAC1_LEGACY
+	select USB_F_UAC2 if !GADGET_UAC1_LEGACY
 	select USB_U_AUDIO if USB_F_UAC2
 	help
 	  This Gadget Audio driver is compatible with USB Audio Class
@@ -73,7 +73,7 @@ config USB_AUDIO
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_audio".
 
-config GADGET_UAC1
+config GADGET_UAC1_LEGACY
 	bool "UAC 1.0 (Legacy)"
 	depends on USB_AUDIO
 	help

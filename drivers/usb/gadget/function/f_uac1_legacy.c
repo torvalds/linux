@@ -15,7 +15,7 @@
 #include <linux/device.h>
 #include <linux/atomic.h>
 
-#include "u_uac1.h"
+#include "u_uac1_legacy.h"
 
 static int generic_set_cmd(struct usb_audio_control *con, u8 cmd, int value);
 static int generic_get_cmd(struct usb_audio_control *con, u8 cmd);
@@ -326,11 +326,11 @@ static int f_audio_out_ep_complete(struct usb_ep *ep, struct usb_request *req)
 	struct f_audio *audio = req->context;
 	struct usb_composite_dev *cdev = audio->card.func.config->cdev;
 	struct f_audio_buf *copy_buf = audio->copy_buf;
-	struct f_uac1_opts *opts;
+	struct f_uac1_legacy_opts *opts;
 	int audio_buf_size;
 	int err;
 
-	opts = container_of(audio->card.func.fi, struct f_uac1_opts,
+	opts = container_of(audio->card.func.fi, struct f_uac1_legacy_opts,
 			    func_inst);
 	audio_buf_size = opts->audio_buf_size;
 
@@ -578,13 +578,13 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_ep *out_ep = audio->out_ep;
 	struct usb_request *req;
-	struct f_uac1_opts *opts;
+	struct f_uac1_legacy_opts *opts;
 	int req_buf_size, req_count, audio_buf_size;
 	int i = 0, err = 0;
 
 	DBG(cdev, "intf %d, alt %d\n", intf, alt);
 
-	opts = container_of(f->fi, struct f_uac1_opts, func_inst);
+	opts = container_of(f->fi, struct f_uac1_legacy_opts, func_inst);
 	req_buf_size = opts->req_buf_size;
 	req_count = opts->req_count;
 	audio_buf_size = opts->audio_buf_size;
@@ -705,9 +705,9 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_string	*us;
 	int			status;
 	struct usb_ep		*ep = NULL;
-	struct f_uac1_opts	*audio_opts;
+	struct f_uac1_legacy_opts	*audio_opts;
 
-	audio_opts = container_of(f->fi, struct f_uac1_opts, func_inst);
+	audio_opts = container_of(f->fi, struct f_uac1_legacy_opts, func_inst);
 	audio->card.gadget = c->cdev->gadget;
 	/* set up ASLA audio devices */
 	if (!audio_opts->bound) {
@@ -801,15 +801,16 @@ static int control_selector_init(struct f_audio *audio)
 	return 0;
 }
 
-static inline struct f_uac1_opts *to_f_uac1_opts(struct config_item *item)
+static inline
+struct f_uac1_legacy_opts *to_f_uac1_opts(struct config_item *item)
 {
-	return container_of(to_config_group(item), struct f_uac1_opts,
+	return container_of(to_config_group(item), struct f_uac1_legacy_opts,
 			    func_inst.group);
 }
 
 static void f_uac1_attr_release(struct config_item *item)
 {
-	struct f_uac1_opts *opts = to_f_uac1_opts(item);
+	struct f_uac1_legacy_opts *opts = to_f_uac1_opts(item);
 
 	usb_put_function_instance(&opts->func_inst);
 }
@@ -822,7 +823,7 @@ static struct configfs_item_operations f_uac1_item_ops = {
 static ssize_t f_uac1_opts_##name##_show(struct config_item *item,	\
 					 char *page)			\
 {									\
-	struct f_uac1_opts *opts = to_f_uac1_opts(item);		\
+	struct f_uac1_legacy_opts *opts = to_f_uac1_opts(item);		\
 	int result;							\
 									\
 	mutex_lock(&opts->lock);					\
@@ -835,7 +836,7 @@ static ssize_t f_uac1_opts_##name##_show(struct config_item *item,	\
 static ssize_t f_uac1_opts_##name##_store(struct config_item *item,		\
 					  const char *page, size_t len)	\
 {									\
-	struct f_uac1_opts *opts = to_f_uac1_opts(item);		\
+	struct f_uac1_legacy_opts *opts = to_f_uac1_opts(item);		\
 	int ret;							\
 	u32 num;							\
 									\
@@ -867,7 +868,7 @@ UAC1_INT_ATTRIBUTE(audio_buf_size);
 static ssize_t f_uac1_opts_##name##_show(struct config_item *item,	\
 					 char *page)			\
 {									\
-	struct f_uac1_opts *opts = to_f_uac1_opts(item);		\
+	struct f_uac1_legacy_opts *opts = to_f_uac1_opts(item);		\
 	int result;							\
 									\
 	mutex_lock(&opts->lock);					\
@@ -880,7 +881,7 @@ static ssize_t f_uac1_opts_##name##_show(struct config_item *item,	\
 static ssize_t f_uac1_opts_##name##_store(struct config_item *item,	\
 					  const char *page, size_t len)	\
 {									\
-	struct f_uac1_opts *opts = to_f_uac1_opts(item);		\
+	struct f_uac1_legacy_opts *opts = to_f_uac1_opts(item);		\
 	int ret = -EBUSY;						\
 	char *tmp;							\
 									\
@@ -928,9 +929,9 @@ static struct config_item_type f_uac1_func_type = {
 
 static void f_audio_free_inst(struct usb_function_instance *f)
 {
-	struct f_uac1_opts *opts;
+	struct f_uac1_legacy_opts *opts;
 
-	opts = container_of(f, struct f_uac1_opts, func_inst);
+	opts = container_of(f, struct f_uac1_legacy_opts, func_inst);
 	if (opts->fn_play_alloc)
 		kfree(opts->fn_play);
 	if (opts->fn_cap_alloc)
@@ -942,7 +943,7 @@ static void f_audio_free_inst(struct usb_function_instance *f)
 
 static struct usb_function_instance *f_audio_alloc_inst(void)
 {
-	struct f_uac1_opts *opts;
+	struct f_uac1_legacy_opts *opts;
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
@@ -966,10 +967,10 @@ static struct usb_function_instance *f_audio_alloc_inst(void)
 static void f_audio_free(struct usb_function *f)
 {
 	struct f_audio *audio = func_to_audio(f);
-	struct f_uac1_opts *opts;
+	struct f_uac1_legacy_opts *opts;
 
 	gaudio_cleanup(&audio->card);
-	opts = container_of(f->fi, struct f_uac1_opts, func_inst);
+	opts = container_of(f->fi, struct f_uac1_legacy_opts, func_inst);
 	kfree(audio);
 	mutex_lock(&opts->lock);
 	--opts->refcnt;
@@ -984,7 +985,7 @@ static void f_audio_unbind(struct usb_configuration *c, struct usb_function *f)
 static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 {
 	struct f_audio *audio;
-	struct f_uac1_opts *opts;
+	struct f_uac1_legacy_opts *opts;
 
 	/* allocate and initialize one new instance */
 	audio = kzalloc(sizeof(*audio), GFP_KERNEL);
@@ -993,7 +994,7 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 
 	audio->card.func.name = "g_audio";
 
-	opts = container_of(fi, struct f_uac1_opts, func_inst);
+	opts = container_of(fi, struct f_uac1_legacy_opts, func_inst);
 	mutex_lock(&opts->lock);
 	++opts->refcnt;
 	mutex_unlock(&opts->lock);
@@ -1015,6 +1016,6 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 	return &audio->card.func;
 }
 
-DECLARE_USB_FUNCTION_INIT(uac1, f_audio_alloc_inst, f_audio_alloc);
+DECLARE_USB_FUNCTION_INIT(uac1_legacy, f_audio_alloc_inst, f_audio_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bryan Wu");

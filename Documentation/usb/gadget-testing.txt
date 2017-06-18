@@ -16,7 +16,7 @@ provided by gadgets.
 13. RNDIS function
 14. SERIAL function
 15. SOURCESINK function
-16. UAC1 function
+16. UAC1 function (legacy implementation)
 17. UAC2 function
 18. UVC function
 19. PRINTER function
@@ -589,15 +589,16 @@ device: run the gadget
 host: test-usb (tools/usb/testusb.c)
 
 
-16. UAC1 function
+16. UAC1 function (legacy implementation)
 =================
 
-The function is provided by usb_f_uac1.ko module.
+The function is provided by usb_f_uac1_legacy.ko module.
 
 Function-specific configfs interface
 ------------------------------------
 
-The function name to use when creating the function directory is "uac1".
+The function name to use when creating the function directory
+is "uac1_legacy".
 The uac1 function provides these attributes in its function directory:
 
 	audio_buf_size - audio buffer size

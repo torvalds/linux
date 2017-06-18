@@ -9,8 +9,8 @@
  * Licensed under the GPL-2 or later.
  */
 
-#ifndef __U_AUDIO_H
-#define __U_AUDIO_H
+#ifndef __U_UAC1_LEGACY_H
+#define __U_UAC1_LEGACY_H
 
 #include <linux/device.h>
 #include <linux/err.h>
@@ -56,7 +56,7 @@ struct gaudio {
 	/* TODO */
 };
 
-struct f_uac1_opts {
+struct f_uac1_legacy_opts {
 	struct usb_function_instance	func_inst;
 	int				req_buf_size;
 	int				req_count;
@@ -79,4 +79,4 @@ size_t u_audio_playback(struct gaudio *card, void *buf, size_t count);
 int u_audio_get_playback_channels(struct gaudio *card);
 int u_audio_get_playback_rate(struct gaudio *card);
 
-#endif /* __U_AUDIO_H */
+#endif /* __U_UAC1_LEGACY_H */

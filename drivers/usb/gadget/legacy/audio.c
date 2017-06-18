@@ -20,7 +20,7 @@
 
 USB_GADGET_COMPOSITE_OPTIONS();
 
-#ifndef CONFIG_GADGET_UAC1
+#ifndef CONFIG_GADGET_UAC1_LEGACY
 #include "u_uac2.h"
 
 /* Playback(USB-IN) Default Stereo - Fl/Fr */
@@ -53,7 +53,7 @@ static int c_ssize = UAC2_DEF_CSSIZE;
 module_param(c_ssize, uint, S_IRUGO);
 MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
 #else
-#include "u_uac1.h"
+#include "u_uac1_legacy.h"
 
 static char *fn_play = FILE_PCM_PLAYBACK;
 module_param(fn_play, charp, S_IRUGO);
@@ -99,7 +99,7 @@ static struct usb_gadget_strings *audio_strings[] = {
 	NULL,
 };
 
-#ifndef CONFIG_GADGET_UAC1
+#ifndef CONFIG_GADGET_UAC1_LEGACY
 static struct usb_function_instance *fi_uac2;
 static struct usb_function *f_uac2;
 #else
@@ -125,7 +125,7 @@ static struct usb_device_descriptor device_desc = {
 
 	/* .bcdUSB = DYNAMIC */
 
-#ifdef CONFIG_GADGET_UAC1
+#ifdef CONFIG_GADGET_UAC1_LEGACY
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
 	.bDeviceSubClass =	0,
 	.bDeviceProtocol =	0,
@@ -164,7 +164,7 @@ static int audio_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-#ifdef CONFIG_GADGET_UAC1
+#ifdef CONFIG_GADGET_UAC1_LEGACY
 	f_uac1 = usb_get_function(fi_uac1);
 	if (IS_ERR(f_uac1)) {
 		status = PTR_ERR(f_uac1);
@@ -204,24 +204,24 @@ static struct usb_configuration audio_config_driver = {
 
 static int audio_bind(struct usb_composite_dev *cdev)
 {
-#ifndef CONFIG_GADGET_UAC1
+#ifndef CONFIG_GADGET_UAC1_LEGACY
 	struct f_uac2_opts	*uac2_opts;
 #else
-	struct f_uac1_opts	*uac1_opts;
+	struct f_uac1_legacy_opts	*uac1_opts;
 #endif
 	int			status;
 
-#ifndef CONFIG_GADGET_UAC1
+#ifndef CONFIG_GADGET_UAC1_LEGACY
 	fi_uac2 = usb_get_function_instance("uac2");
 	if (IS_ERR(fi_uac2))
 		return PTR_ERR(fi_uac2);
 #else
-	fi_uac1 = usb_get_function_instance("uac1");
+	fi_uac1 = usb_get_function_instance("uac1_legacy");
 	if (IS_ERR(fi_uac1))
 		return PTR_ERR(fi_uac1);
 #endif
 
-#ifndef CONFIG_GADGET_UAC1
+#ifndef CONFIG_GADGET_UAC1_LEGACY
 	uac2_opts = container_of(fi_uac2, struct f_uac2_opts, func_inst);
 	uac2_opts->p_chmask = p_chmask;
 	uac2_opts->p_srate = p_srate;
@@ -231,7 +231,7 @@ static int audio_bind(struct usb_composite_dev *cdev)
 	uac2_opts->c_ssize = c_ssize;
 	uac2_opts->req_number = UAC2_DEF_REQ_NUM;
 #else
-	uac1_opts = container_of(fi_uac1, struct f_uac1_opts, func_inst);
+	uac1_opts = container_of(fi_uac1, struct f_uac1_legacy_opts, func_inst);
 	uac1_opts->fn_play = fn_play;
 	uac1_opts->fn_cap = fn_cap;
 	uac1_opts->fn_cntl = fn_cntl;
@@ -269,7 +269,7 @@ fail_otg_desc:
 	kfree(otg_desc[0]);
 	otg_desc[0] = NULL;
 fail:
-#ifndef CONFIG_GADGET_UAC1
+#ifndef CONFIG_GADGET_UAC1_LEGACY
 	usb_put_function_instance(fi_uac2);
 #else
 	usb_put_function_instance(fi_uac1);
@@ -279,7 +279,7 @@ fail:
 
 static int audio_unbind(struct usb_composite_dev *cdev)
 {
-#ifdef CONFIG_GADGET_UAC1
+#ifdef CONFIG_GADGET_UAC1_LEGACY
 	if (!IS_ERR_OR_NULL(f_uac1))
 		usb_put_function(f_uac1);
 	if (!IS_ERR_OR_NULL(fi_uac1))

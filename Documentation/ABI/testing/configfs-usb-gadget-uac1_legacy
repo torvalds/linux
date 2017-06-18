@@ -1,4 +1,4 @@
-What:		/config/usb-gadget/gadget/functions/uac1.name
+What:		/config/usb-gadget/gadget/functions/uac1_legacy.name
 Date:		Sep 2014
 KernelVersion:	3.18
 Description:
