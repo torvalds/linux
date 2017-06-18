@@ -40,7 +40,7 @@
 #include "en_tc.h"
 #include "eswitch.h"
 #include "en_rep.h"
-#include "ipoib.h"
+#include "ipoib/ipoib.h"
 
 static inline bool mlx5e_rx_hw_stamp(struct mlx5e_tstamp *tstamp)
 {
