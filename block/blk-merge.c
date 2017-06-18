@@ -115,13 +115,13 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 		 * With arbitrary bio size, the incoming bio may be very
 		 * big. We have to split the bio into small bios so that
 		 * each holds at most BIO_MAX_PAGES bvecs because
-		 * bio_clone() can fail to allocate big bvecs.
+		 * bio_clone_bioset() can fail to allocate big bvecs.
 		 *
-		 * Those drivers which will need to use bio_clone()
+		 * Those drivers which will need to use bio_clone_bioset()
 		 * should tell us in some way.  For now, impose the
 		 * BIO_MAX_PAGES limit on all queues.
 		 *
-		 * TODO: handle users of bio_clone() differently.
+		 * TODO: handle users of bio_clone_bioset() differently.
 		 */
 		if (bvecs++ >= BIO_MAX_PAGES)
 			goto split;
