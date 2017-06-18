@@ -1802,12 +1802,20 @@ void rtl_watchdog_wq_callback(void *data)
 									false;
 		}
 
+		/* PS is controlled by coex. */
+		if (rtlpriv->cfg->ops->get_btc_status() &&
+		    rtlpriv->btcoexist.btc_ops->btc_is_bt_ctrl_lps(rtlpriv))
+			goto label_lps_done;
+
 		if (((rtlpriv->link_info.num_rx_inperiod +
 		      rtlpriv->link_info.num_tx_inperiod) > 8) ||
 		    (rtlpriv->link_info.num_rx_inperiod > 2))
 			rtl_lps_leave(hw);
 		else
 			rtl_lps_enter(hw);
+
+label_lps_done:
+		;
 	}
 
 	rtlpriv->link_info.num_rx_inperiod = 0;
