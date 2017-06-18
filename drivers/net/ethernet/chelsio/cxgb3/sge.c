@@ -2282,7 +2282,7 @@ static int process_responses(struct adapter *adap, struct sge_qset *qs,
 			if (!skb)
 				goto no_mem;
 
-			memcpy(__skb_put(skb, AN_PKT_SIZE), r, AN_PKT_SIZE);
+			__skb_put_data(skb, r, AN_PKT_SIZE);
 			skb->data[0] = CPL_ASYNC_NOTIF;
 			rss_hi = htonl(CPL_ASYNC_NOTIF << 24);
 			q->async_notif++;

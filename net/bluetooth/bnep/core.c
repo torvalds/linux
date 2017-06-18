@@ -374,25 +374,22 @@ static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	/* Decompress header and construct ether frame */
 	switch (type & BNEP_TYPE_MASK) {
 	case BNEP_COMPRESSED:
-		memcpy(__skb_put(nskb, ETH_HLEN), &s->eh, ETH_HLEN);
+		__skb_put_data(nskb, &s->eh, ETH_HLEN);
 		break;
 
 	case BNEP_COMPRESSED_SRC_ONLY:
-		memcpy(__skb_put(nskb, ETH_ALEN), s->eh.h_dest, ETH_ALEN);
-		memcpy(__skb_put(nskb, ETH_ALEN), skb_mac_header(skb), ETH_ALEN);
+		__skb_put_data(nskb, s->eh.h_dest, ETH_ALEN);
+		__skb_put_data(nskb, skb_mac_header(skb), ETH_ALEN);
 		put_unaligned(s->eh.h_proto, (__be16 *) __skb_put(nskb, 2));
 		break;
 
 	case BNEP_COMPRESSED_DST_ONLY:
-		memcpy(__skb_put(nskb, ETH_ALEN), skb_mac_header(skb),
-								ETH_ALEN);
-		memcpy(__skb_put(nskb, ETH_ALEN + 2), s->eh.h_source,
-								ETH_ALEN + 2);
+		__skb_put_data(nskb, skb_mac_header(skb), ETH_ALEN);
+		__skb_put_data(nskb, s->eh.h_source, ETH_ALEN + 2);
 		break;
 
 	case BNEP_GENERAL:
-		memcpy(__skb_put(nskb, ETH_ALEN * 2), skb_mac_header(skb),
-								ETH_ALEN * 2);
+		__skb_put_data(nskb, skb_mac_header(skb), ETH_ALEN * 2);
 		put_unaligned(s->eh.h_proto, (__be16 *) __skb_put(nskb, 2));
 		break;
 	}

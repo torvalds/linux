@@ -231,8 +231,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		}
 	}
 
-	fwr = __skb_put(skb, sizeof(*fwr));
-	memset(fwr, 0, sizeof(*fwr));
+	fwr = __skb_put_zero(skb, sizeof(*fwr));
 
 	/* It would be nice to put most of the following in t4_hw.c but most
 	 * of the work is translating the cxgbtool ch_filter_specification

@@ -232,7 +232,7 @@ static int garp_pdu_append_end_mark(struct garp_applicant *app)
 {
 	if (skb_tailroom(app->pdu) < sizeof(u8))
 		return -1;
-	*(u8 *)__skb_put(app->pdu, sizeof(u8)) = GARP_END_MARK;
+	__skb_put_u8(app->pdu, GARP_END_MARK);
 	return 0;
 }
 

@@ -471,8 +471,7 @@ static int init_tp_parity(struct adapter *adap)
 		if (!skb)
 			goto alloc_skb_fail;
 
-		req = __skb_put(skb, sizeof(*req));
-		memset(req, 0, sizeof(*req));
+		req = __skb_put_zero(skb, sizeof(*req));
 		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SMT_WRITE_REQ, i));
 		req->mtu_idx = NMTUS - 1;
@@ -495,8 +494,7 @@ static int init_tp_parity(struct adapter *adap)
 		if (!skb)
 			goto alloc_skb_fail;
 
-		req = __skb_put(skb, sizeof(*req));
-		memset(req, 0, sizeof(*req));
+		req = __skb_put_zero(skb, sizeof(*req));
 		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, i));
 		req->params = htonl(V_L2T_W_IDX(i));
@@ -518,8 +516,7 @@ static int init_tp_parity(struct adapter *adap)
 		if (!skb)
 			goto alloc_skb_fail;
 
-		req = __skb_put(skb, sizeof(*req));
-		memset(req, 0, sizeof(*req));
+		req = __skb_put_zero(skb, sizeof(*req));
 		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_RTE_WRITE_REQ, i));
 		req->l2t_idx = htonl(V_L2T_W_IDX(i));
@@ -538,8 +535,7 @@ static int init_tp_parity(struct adapter *adap)
 	if (!skb)
 		goto alloc_skb_fail;
 
-	greq = __skb_put(skb, sizeof(*greq));
-	memset(greq, 0, sizeof(*greq));
+	greq = __skb_put_zero(skb, sizeof(*greq));
 	greq->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(greq) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, 0));
 	greq->mask = cpu_to_be64(1);

@@ -5717,7 +5717,7 @@ static struct sk_buff *populate_skb(char *buf, int size)
 	if (!skb)
 		return NULL;
 
-	memcpy(__skb_put(skb, size), buf, size);
+	__skb_put_data(skb, buf, size);
 
 	/* Initialize a fake skb with test pattern. */
 	skb_reset_mac_header(skb);
