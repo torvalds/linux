@@ -1873,6 +1873,9 @@ void rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
 	case C2H_8812_DBG:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD, "[C2H], C2H_8812_DBG!!\n");
 		break;
+	case C2H_8812_TX_REPORT:
+		rtl_tx_report_handler(hw, tmp_buf, c2h_cmd_len);
+		break;
 	case C2H_8812_RA_RPT:
 		rtl8821ae_c2h_ra_report_handler(hw, tmp_buf, c2h_cmd_len);
 		break;

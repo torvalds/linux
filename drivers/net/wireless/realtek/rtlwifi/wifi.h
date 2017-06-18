@@ -1886,6 +1886,13 @@ struct rtl_efuse {
 	u8 channel_plan;
 };
 
+struct rtl_tx_report {
+	atomic_t sn;
+	u16 last_sent_sn;
+	unsigned long last_sent_time;
+	u16 last_recv_sn;
+};
+
 struct rtl_ps_ctl {
 	bool pwrdomain_protect;
 	bool in_powersavemode;
@@ -2074,6 +2081,8 @@ struct rtl_tcb_desc {
 	u8 use_shortpreamble:1;
 	u8 use_driver_rate:1;
 	u8 disable_ratefallback:1;
+
+	u8 use_spe_rpt:1;
 
 	u8 ratr_index;
 	u8 mac_id;
@@ -2589,6 +2598,7 @@ struct rtl_priv {
 	struct rtl_security sec;
 	struct rtl_efuse efuse;
 	struct rtl_led_ctl ledctl;
+	struct rtl_tx_report tx_report;
 
 	struct rtl_ps_ctl psc;
 	struct rate_adaptive ra;
