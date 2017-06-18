@@ -56,22 +56,18 @@ int ibnl_put_attr(struct sk_buff *skb, struct nlmsghdr *nlh,
 /**
  * Send the supplied skb to a specific userspace PID.
  * @skb: The netlink skb
- * @nlh: Header of the netlink message to send
  * @pid: Userspace netlink process ID
  * Returns 0 on success or a negative error code.
  */
-int ibnl_unicast(struct sk_buff *skb, struct nlmsghdr *nlh,
-			__u32 pid);
+int rdma_nl_unicast(struct sk_buff *skb, u32 pid);
 
 /**
  * Send, with wait/1 retry, the supplied skb to a specific userspace PID.
  * @skb: The netlink skb
- * @nlh: Header of the netlink message to send
  * @pid: Userspace netlink process ID
  * Returns 0 on success or a negative error code.
  */
-int ibnl_unicast_wait(struct sk_buff *skb, struct nlmsghdr *nlh,
-		      __u32 pid);
+int rdma_nl_unicast_wait(struct sk_buff *skb, __u32 pid);
 
 /**
  * Send the supplied skb to a netlink group.

@@ -239,25 +239,23 @@ static void rdma_nl_rcv(struct sk_buff *skb)
 	mutex_unlock(&rdma_nl_mutex);
 }
 
-int ibnl_unicast(struct sk_buff *skb, struct nlmsghdr *nlh,
-			__u32 pid)
+int rdma_nl_unicast(struct sk_buff *skb, u32 pid)
 {
 	int err;
 
 	err = netlink_unicast(nls, skb, pid, MSG_DONTWAIT);
 	return (err < 0) ? err : 0;
 }
-EXPORT_SYMBOL(ibnl_unicast);
+EXPORT_SYMBOL(rdma_nl_unicast);
 
-int ibnl_unicast_wait(struct sk_buff *skb, struct nlmsghdr *nlh,
-		      __u32 pid)
+int rdma_nl_unicast_wait(struct sk_buff *skb, __u32 pid)
 {
 	int err;
 
 	err = netlink_unicast(nls, skb, pid, 0);
 	return (err < 0) ? err : 0;
 }
-EXPORT_SYMBOL(ibnl_unicast_wait);
+EXPORT_SYMBOL(rdma_nl_unicast_wait);
 
 int ibnl_multicast(struct sk_buff *skb, struct nlmsghdr *nlh,
 			unsigned int group, gfp_t flags)

@@ -597,7 +597,7 @@ static int send_mapinfo_num(u32 mapping_num, u8 nl_client, int iwpm_pid)
 				&mapping_num, IWPM_NLA_MAPINFO_SEND_NUM);
 	if (ret)
 		goto mapinfo_num_error;
-	ret = ibnl_unicast(skb, nlh, iwpm_pid);
+	ret = rdma_nl_unicast(skb, iwpm_pid);
 	if (ret) {
 		skb = NULL;
 		err_str = "Unable to send a nlmsg";
@@ -626,7 +626,7 @@ static int send_nlmsg_done(struct sk_buff *skb, u8 nl_client, int iwpm_pid)
 		return -ENOMEM;
 	}
 	nlh->nlmsg_type = NLMSG_DONE;
-	ret = ibnl_unicast(skb, (struct nlmsghdr *)skb->data, iwpm_pid);
+	ret = rdma_nl_unicast(skb, iwpm_pid);
 	if (ret)
 		pr_warn("%s Unable to send a nlmsg\n", __func__);
 	return ret;

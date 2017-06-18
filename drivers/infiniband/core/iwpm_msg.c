@@ -172,7 +172,7 @@ int iwpm_add_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 		goto add_mapping_error;
 	nlmsg_request->req_buffer = pm_msg;
 
-	ret = ibnl_unicast_wait(skb, nlh, iwpm_user_pid);
+	ret = rdma_nl_unicast_wait(skb, iwpm_user_pid);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		iwpm_user_pid = IWPM_PID_UNDEFINED;
@@ -248,7 +248,7 @@ int iwpm_add_and_query_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 		goto query_mapping_error;
 	nlmsg_request->req_buffer = pm_msg;
 
-	ret = ibnl_unicast_wait(skb, nlh, iwpm_user_pid);
+	ret = rdma_nl_unicast_wait(skb, iwpm_user_pid);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		err_str = "Unable to send a nlmsg";
@@ -308,7 +308,7 @@ int iwpm_remove_mapping(struct sockaddr_storage *local_addr, u8 nl_client)
 	if (ret)
 		goto remove_mapping_error;
 
-	ret = ibnl_unicast_wait(skb, nlh, iwpm_user_pid);
+	ret = rdma_nl_unicast_wait(skb, iwpm_user_pid);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		iwpm_user_pid = IWPM_PID_UNDEFINED;
