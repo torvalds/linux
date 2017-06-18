@@ -78,6 +78,9 @@ OPTIONS
 	This can be used more than once to specify multiple functions.
 	It will be passed to 'set_graph_notrace' in tracefs.
 
+-D::
+--graph-depth=::
+	Set max depth for function graph tracer to follow
 
 SEE ALSO
 --------

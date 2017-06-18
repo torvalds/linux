@@ -35,6 +35,7 @@ struct perf_ftrace {
 	struct list_head	notrace;
 	struct list_head	graph_funcs;
 	struct list_head	nograph_funcs;
+	int			graph_depth;
 };
 
 struct filter_entry {
@@ -127,6 +128,9 @@ static int reset_tracing_files(struct perf_ftrace *ftrace __maybe_unused)
 		return -1;
 
 	if (reset_tracing_cpu() < 0)
+		return -1;
+
+	if (write_tracing_file("max_graph_depth", "0") < 0)
 		return -1;
 
 	reset_tracing_filters();
@@ -237,6 +241,26 @@ static void reset_tracing_filters(void)
 	write_tracing_file("set_graph_notrace", " ");
 }
 
+static int set_tracing_depth(struct perf_ftrace *ftrace)
+{
+	char buf[16];
+
+	if (ftrace->graph_depth == 0)
+		return 0;
+
+	if (ftrace->graph_depth < 0) {
+		pr_err("invalid graph depth: %d\n", ftrace->graph_depth);
+		return -1;
+	}
+
+	snprintf(buf, sizeof(buf), "%d", ftrace->graph_depth);
+
+	if (write_tracing_file("max_graph_depth", buf) < 0)
+		return -1;
+
+	return 0;
+}
+
 static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 {
 	char *trace_file;
@@ -281,6 +305,11 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 
 	if (set_tracing_filters(ftrace) < 0) {
 		pr_err("failed to set tracing filters\n");
+		goto out_reset;
+	}
+
+	if (set_tracing_depth(ftrace) < 0) {
+		pr_err("failed to set graph depth\n");
 		goto out_reset;
 	}
 
@@ -425,6 +454,8 @@ int cmd_ftrace(int argc, const char **argv)
 		     "Set graph filter on given functions", parse_filter_func),
 	OPT_CALLBACK('g', "nograph-funcs", &ftrace.nograph_funcs, "func",
 		     "Set nograph filter on given functions", parse_filter_func),
+	OPT_INTEGER('D', "graph-depth", &ftrace.graph_depth,
+		    "Max depth for function graph tracer"),
 	OPT_END()
 	};
 
