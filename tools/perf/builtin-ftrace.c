@@ -231,6 +231,8 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 		goto out_reset;
 	}
 
+	setup_pager();
+
 	trace_file = get_tracing_file("trace_pipe");
 	if (!trace_file) {
 		pr_err("failed to open trace_pipe\n");
@@ -253,8 +255,6 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 		pr_err("can't enable tracing\n");
 		goto out_close_fd;
 	}
-
-	setup_pager();
 
 	perf_evlist__start_workload(ftrace->evlist);
 
