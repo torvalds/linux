@@ -202,7 +202,27 @@ static enum hrtimer_restart kvm_bg_timer_expire(struct hrtimer *hrt)
 
 static enum hrtimer_restart kvm_phys_timer_expire(struct hrtimer *hrt)
 {
-	WARN(1, "Timer only used to ensure guest exit - unexpected event.");
+	struct arch_timer_context *ptimer;
+	struct arch_timer_cpu *timer;
+	struct kvm_vcpu *vcpu;
+	u64 ns;
+
+	timer = container_of(hrt, struct arch_timer_cpu, phys_timer);
+	vcpu = container_of(timer, struct kvm_vcpu, arch.timer_cpu);
+	ptimer = vcpu_ptimer(vcpu);
+
+	/*
+	 * Check that the timer has really expired from the guest's
+	 * PoV (NTP on the host may have forced it to expire
+	 * early). If not ready, schedule for a later time.
+	 */
+	ns = kvm_timer_compute_delta(ptimer);
+	if (unlikely(ns)) {
+		hrtimer_forward_now(hrt, ns_to_ktime(ns));
+		return HRTIMER_RESTART;
+	}
+
+	kvm_timer_update_irq(vcpu, true, ptimer);
 	return HRTIMER_NORESTART;
 }
 
@@ -256,24 +276,28 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 }
 
 /* Schedule the background timer for the emulated timer. */
-static void phys_timer_emulate(struct kvm_vcpu *vcpu,
-			      struct arch_timer_context *timer_ctx)
+static void phys_timer_emulate(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
 
-	if (kvm_timer_should_fire(timer_ctx))
+	/*
+	 * If the timer can fire now we have just raised the IRQ line and we
+	 * don't need to have a soft timer scheduled for the future.  If the
+	 * timer cannot fire at all, then we also don't need a soft timer.
+	 */
+	if (kvm_timer_should_fire(ptimer) || !kvm_timer_irq_can_fire(ptimer)) {
+		soft_timer_cancel(&timer->phys_timer, NULL);
 		return;
+	}
 
-	if (!kvm_timer_irq_can_fire(timer_ctx))
-		return;
-
-	/*  The timer has not yet expired, schedule a background timer */
-	soft_timer_start(&timer->phys_timer, kvm_timer_compute_delta(timer_ctx));
+	soft_timer_start(&timer->phys_timer, kvm_timer_compute_delta(ptimer));
 }
 
 /*
- * Check if there was a change in the timer state (should we raise or lower
- * the line level to the GIC).
+ * Check if there was a change in the timer state, so that we should either
+ * raise or lower the line level to the GIC or schedule a background timer to
+ * emulate the physical timer.
  */
 static void kvm_timer_update_state(struct kvm_vcpu *vcpu)
 {
@@ -295,6 +319,8 @@ static void kvm_timer_update_state(struct kvm_vcpu *vcpu)
 
 	if (kvm_timer_should_fire(ptimer) != ptimer->irq.level)
 		kvm_timer_update_irq(vcpu, !ptimer->irq.level, ptimer);
+
+	phys_timer_emulate(vcpu);
 }
 
 static void vtimer_save_state(struct kvm_vcpu *vcpu)
@@ -441,6 +467,9 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 
 	if (has_vhe())
 		disable_el1_phys_timer_access();
+
+	/* Set the background timer for the physical timer emulation. */
+	phys_timer_emulate(vcpu);
 }
 
 bool kvm_timer_should_notify_user(struct kvm_vcpu *vcpu)
@@ -476,12 +505,6 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 
 	if (unlikely(!timer->enabled))
 		return;
-
-	if (kvm_timer_should_fire(ptimer) != ptimer->irq.level)
-		kvm_timer_update_irq(vcpu, !ptimer->irq.level, ptimer);
-
-	/* Set the background timer for the physical timer emulation. */
-	phys_timer_emulate(vcpu, vcpu_ptimer(vcpu));
 }
 
 void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
@@ -495,6 +518,17 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 		enable_el1_phys_timer_access();
 
 	vtimer_save_state(vcpu);
+
+	/*
+	 * Cancel the physical timer emulation, because the only case where we
+	 * need it after a vcpu_put is in the context of a sleeping VCPU, and
+	 * in that case we already factor in the deadline for the physical
+	 * timer when scheduling the bg_timer.
+	 *
+	 * In any case, we re-schedule the hrtimer for the physical timer when
+	 * coming back to the VCPU thread in kvm_timer_vcpu_load().
+	 */
+	soft_timer_cancel(&timer->phys_timer, NULL);
 
 	/*
 	 * The kernel may decide to run userspace after calling vcpu_put, so
@@ -538,14 +572,7 @@ static void unmask_vtimer_irq(struct kvm_vcpu *vcpu)
  */
 void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 {
-	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
-
-	/*
-	 * This is to cancel the background timer for the physical timer
-	 * emulation if it is set.
-	 */
-	soft_timer_cancel(&timer->phys_timer, NULL);
 
 	/*
 	 * If we entered the guest with the vtimer output asserted we have to
