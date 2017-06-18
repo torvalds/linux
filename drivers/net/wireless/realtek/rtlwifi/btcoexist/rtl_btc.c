@@ -46,6 +46,7 @@ static struct rtl_btc_ops rtl_btc_operation = {
 	.btc_is_bt_disabled = rtl_btc_is_bt_disabled,
 	.btc_special_packet_notify = rtl_btc_special_packet_notify,
 	.btc_record_pwr_mode = rtl_btc_record_pwr_mode,
+	.btc_get_ampdu_cfg = rtl_btc_get_ampdu_cfg,
 };
 
 void rtl_btc_record_pwr_mode(struct rtl_priv *rtlpriv, u8 *buf, u8 len)
@@ -58,6 +59,17 @@ void rtl_btc_record_pwr_mode(struct rtl_priv *rtlpriv, u8 *buf, u8 len)
 		safe_len = len;
 
 	memcpy(gl_bt_coexist.pwr_mode_val, buf, safe_len);
+}
+
+void rtl_btc_get_ampdu_cfg(struct rtl_priv *rtlpriv, u8 *reject_agg,
+			   u8 *ctrl_agg_size, u8 *agg_size)
+{
+	if (reject_agg)
+		*reject_agg = gl_bt_coexist.bt_info.reject_agg_pkt;
+	if (ctrl_agg_size)
+		*ctrl_agg_size = gl_bt_coexist.bt_info.bt_ctrl_agg_buf_size;
+	if (agg_size)
+		*agg_size = gl_bt_coexist.bt_info.agg_buf_size;
 }
 
 void rtl_btc_init_variables(struct rtl_priv *rtlpriv)

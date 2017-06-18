@@ -2561,6 +2561,8 @@ struct rtl_btc_ops {
 	void (*btc_special_packet_notify)(struct rtl_priv *rtlpriv,
 					  u8 pkt_type);
 	void (*btc_record_pwr_mode)(struct rtl_priv *rtlpriv, u8 *buf, u8 len);
+	void (*btc_get_ampdu_cfg)(struct rtl_priv *rtlpriv, u8 *reject_agg,
+				  u8 *ctrl_agg_size, u8 *agg_size);
 };
 
 struct proxim {

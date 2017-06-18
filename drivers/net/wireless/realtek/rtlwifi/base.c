@@ -1582,12 +1582,21 @@ int rtl_rx_agg_start(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_tid_data *tid_data;
 	struct rtl_sta_info *sta_entry = NULL;
+	u8 reject_agg;
 
 	if (sta == NULL)
 		return -EINVAL;
 
 	if (unlikely(tid >= MAX_TID_COUNT))
 		return -EINVAL;
+
+	if (rtlpriv->cfg->ops->get_btc_status()) {
+		rtlpriv->btcoexist.btc_ops->btc_get_ampdu_cfg(rtlpriv,
+							      &reject_agg,
+							      NULL, NULL);
+		if (reject_agg)
+			return -EINVAL;
+	}
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
 	if (!sta_entry)
@@ -1642,6 +1651,24 @@ int rtl_tx_agg_oper(struct ieee80211_hw *hw,
 
 	return 0;
 }
+
+void rtl_rx_ampdu_apply(struct rtl_priv *rtlpriv)
+{
+	struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
+	u8 reject_agg, ctrl_agg_size = 0, agg_size;
+
+	if (rtlpriv->cfg->ops->get_btc_status())
+		btc_ops->btc_get_ampdu_cfg(rtlpriv, &reject_agg,
+					   &ctrl_agg_size, &agg_size);
+
+	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
+		 "Set RX AMPDU: coex - reject=%d, ctrl_agg_size=%d, size=%d",
+		 reject_agg, ctrl_agg_size, agg_size);
+
+	rtlpriv->hw->max_rx_aggregation_subframes =
+		(ctrl_agg_size ? agg_size : IEEE80211_MAX_AMPDU_BUF);
+}
+EXPORT_SYMBOL(rtl_rx_ampdu_apply);
 
 /*********************************************************
  *
