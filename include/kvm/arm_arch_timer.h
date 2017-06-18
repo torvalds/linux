@@ -48,6 +48,9 @@ struct arch_timer_cpu {
 	/* Work queued with the above timer expires */
 	struct work_struct		expired;
 
+	/* Physical timer emulation */
+	struct hrtimer			phys_timer;
+
 	/* Is the timer enabled */
 	bool			enabled;
 };

@@ -65,7 +65,8 @@ static void soft_timer_start(struct hrtimer *hrt, u64 ns)
 static void soft_timer_cancel(struct hrtimer *hrt, struct work_struct *work)
 {
 	hrtimer_cancel(hrt);
-	cancel_work_sync(work);
+	if (work)
+		cancel_work_sync(work);
 }
 
 static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
@@ -172,6 +173,12 @@ static enum hrtimer_restart kvm_bg_timer_expire(struct hrtimer *hrt)
 	return HRTIMER_NORESTART;
 }
 
+static enum hrtimer_restart kvm_phys_timer_expire(struct hrtimer *hrt)
+{
+	WARN(1, "Timer only used to ensure guest exit - unexpected event.");
+	return HRTIMER_NORESTART;
+}
+
 bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 {
 	u64 cval, now;
@@ -249,7 +256,7 @@ static void kvm_timer_update_state(struct kvm_vcpu *vcpu)
 }
 
 /* Schedule the background timer for the emulated timer. */
-static void kvm_timer_emulate(struct kvm_vcpu *vcpu,
+static void phys_timer_emulate(struct kvm_vcpu *vcpu,
 			      struct arch_timer_context *timer_ctx)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
@@ -261,7 +268,7 @@ static void kvm_timer_emulate(struct kvm_vcpu *vcpu,
 		return;
 
 	/*  The timer has not yet expired, schedule a background timer */
-	soft_timer_start(&timer->bg_timer, kvm_timer_compute_delta(timer_ctx));
+	soft_timer_start(&timer->phys_timer, kvm_timer_compute_delta(timer_ctx));
 }
 
 /*
@@ -414,7 +421,7 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 	kvm_timer_update_state(vcpu);
 
 	/* Set the background timer for the physical timer emulation. */
-	kvm_timer_emulate(vcpu, vcpu_ptimer(vcpu));
+	phys_timer_emulate(vcpu, vcpu_ptimer(vcpu));
 
 	if (unlikely(!irqchip_in_kernel(vcpu->kvm)))
 		kvm_timer_flush_hwstate_user(vcpu);
@@ -437,7 +444,7 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 	 * This is to cancel the background timer for the physical timer
 	 * emulation if it is set.
 	 */
-	soft_timer_cancel(&timer->bg_timer, &timer->expired);
+	soft_timer_cancel(&timer->phys_timer, NULL);
 
 	/*
 	 * The guest could have modified the timer registers or the timer
@@ -496,6 +503,9 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 	INIT_WORK(&timer->expired, kvm_timer_inject_irq_work);
 	hrtimer_init(&timer->bg_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	timer->bg_timer.function = kvm_bg_timer_expire;
+
+	hrtimer_init(&timer->phys_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	timer->phys_timer.function = kvm_phys_timer_expire;
 
 	vtimer->irq.irq = default_vtimer_irq.irq;
 	ptimer->irq.irq = default_ptimer_irq.irq;
@@ -605,6 +615,7 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 
 	soft_timer_cancel(&timer->bg_timer, &timer->expired);
+	soft_timer_cancel(&timer->phys_timer, NULL);
 	kvm_vgic_unmap_phys_irq(vcpu, vtimer->irq.irq);
 }
 
