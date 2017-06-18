@@ -1474,11 +1474,10 @@ void sctp_chunk_put(struct sctp_chunk *ch)
 void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 {
 	void *target;
-	void *padding;
 	int chunklen = ntohs(chunk->chunk_hdr->length);
 	int padlen = SCTP_PAD4(chunklen) - chunklen;
 
-	padding = skb_put_zero(chunk->skb, padlen);
+	skb_put_zero(chunk->skb, padlen);
 	target = skb_put_data(chunk->skb, data, len);
 
 	/* Adjust the chunk length field.  */

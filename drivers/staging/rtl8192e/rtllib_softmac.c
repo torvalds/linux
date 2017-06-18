@@ -1264,7 +1264,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	hdr->info_element[0].id = MFIE_TYPE_SSID;
 
 	hdr->info_element[0].len = beacon->ssid_len;
-	tag = skb_put_data(skb, beacon->ssid, beacon->ssid_len);
+	skb_put_data(skb, beacon->ssid, beacon->ssid_len);
 
 	tag = skb_put(skb, rate_len);
 
@@ -1340,7 +1340,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	}
 
 	if (wpa_ie_len) {
-		tag = skb_put_data(skb, ieee->wpa_ie, ieee->wpa_ie_len);
+		skb_put_data(skb, ieee->wpa_ie, ieee->wpa_ie_len);
 
 		if (PMKCacheIdx >= 0) {
 			tag = skb_put(skb, 18);
@@ -1356,12 +1356,13 @@ rtllib_association_req(struct rtllib_network *beacon,
 	}
 
 	if (wps_ie_len && ieee->wps_ie) {
-		tag = skb_put_data(skb, ieee->wps_ie, wps_ie_len);
+		skb_put_data(skb, ieee->wps_ie, wps_ie_len);
 	}
 
-	tag = skb_put(skb, turbo_info_len);
-	if (turbo_info_len)
+	if (turbo_info_len) {
+		tag = skb_put(skb, turbo_info_len);
 		rtllib_TURBO_Info(ieee, &tag);
+	}
 
 	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT) {
 		if (ieee->pHTInfo->ePeerHTSpecVer == HT_SPEC_VER_EWC) {

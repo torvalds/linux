@@ -2258,7 +2258,7 @@ static void isdn_ppp_ccp_xmit_reset(struct ippp_struct *is, int proto,
 
 	/* Now stuff remaining bytes */
 	if (len) {
-		p = skb_put_data(skb, data, len);
+		skb_put_data(skb, data, len);
 	}
 
 	/* skb is now ready for xmit */

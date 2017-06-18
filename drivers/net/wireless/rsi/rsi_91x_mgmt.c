@@ -389,9 +389,7 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 	struct ieee80211_tx_info *info;
 	struct skb_info *rx_params;
 	u8 pad_bytes = msg[4];
-	u8 pkt_recv;
 	struct sk_buff *skb;
-	char *buffer;
 
 	if (type == RX_DOT11_MGMT) {
 		if (!adapter->sc_nvifs)
@@ -412,11 +410,9 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 			return -ENOMEM;
 		}
 
-		buffer = skb_put_data(skb,
-				      (u8 *)(msg + FRAME_DESC_SZ + pad_bytes),
-				      msg_len);
-
-		pkt_recv = buffer[0];
+		skb_put_data(skb,
+			     (u8 *)(msg + FRAME_DESC_SZ + pad_bytes),
+			     msg_len);
 
 		info = IEEE80211_SKB_CB(skb);
 		rx_params = (struct skb_info *)info->driver_data;

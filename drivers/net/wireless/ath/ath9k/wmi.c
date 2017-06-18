@@ -298,7 +298,6 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	u16 headroom = sizeof(struct htc_frame_hdr) +
 		       sizeof(struct wmi_cmd_hdr);
 	struct sk_buff *skb;
-	u8 *data;
 	unsigned long time_left;
 	int ret = 0;
 
@@ -312,7 +311,7 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	skb_reserve(skb, headroom);
 
 	if (cmd_len != 0 && cmd_buf != NULL) {
-		data = skb_put_data(skb, cmd_buf, cmd_len);
+		skb_put_data(skb, cmd_buf, cmd_len);
 	}
 
 	mutex_lock(&wmi->op_mutex);
