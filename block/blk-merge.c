@@ -117,17 +117,11 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 		 * each holds at most BIO_MAX_PAGES bvecs because
 		 * bio_clone() can fail to allocate big bvecs.
 		 *
-		 * It should have been better to apply the limit per
-		 * request queue in which bio_clone() is involved,
-		 * instead of globally. The biggest blocker is the
-		 * bio_clone() in bio bounce.
+		 * Those drivers which will need to use bio_clone()
+		 * should tell us in some way.  For now, impose the
+		 * BIO_MAX_PAGES limit on all queues.
 		 *
-		 * If bio is splitted by this reason, we should have
-		 * allowed to continue bios merging, but don't do
-		 * that now for making the change simple.
-		 *
-		 * TODO: deal with bio bounce's bio_clone() gracefully
-		 * and convert the global limit into per-queue limit.
+		 * TODO: handle users of bio_clone() differently.
 		 */
 		if (bvecs++ >= BIO_MAX_PAGES)
 			goto split;
