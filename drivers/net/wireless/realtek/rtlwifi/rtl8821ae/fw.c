@@ -489,7 +489,8 @@ void rtl8821ae_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 u1_h2c_set_pwrmode[H2C_8821AE_PWEMODE_LENGTH] = { 0 };
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	u8 rlbm, power_state = 0;
+	u8 rlbm, power_state = 0, byte5 = 0x40;
+	struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
 
 	RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD, "FW LPS mode = %d\n", mode);
 
@@ -508,10 +509,14 @@ void rtl8821ae_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 		power_state |= FW_PWR_STATE_RF_OFF;
 
 	SET_H2CCMD_PWRMODE_PARM_PWR_STATE(u1_h2c_set_pwrmode, power_state);
+	SET_H2CCMD_PWRMODE_PARM_BYTE5(u1_h2c_set_pwrmode, byte5);
 
 	RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_DMESG,
 		      "rtl92c_set_fw_pwrmode(): u1_h2c_set_pwrmode\n",
 		      u1_h2c_set_pwrmode, H2C_8821AE_PWEMODE_LENGTH);
+	if (rtlpriv->cfg->ops->get_btc_status())
+		btc_ops->btc_record_pwr_mode(rtlpriv, u1_h2c_set_pwrmode,
+					     H2C_8821AE_PWEMODE_LENGTH);
 	rtl8821ae_fill_h2c_cmd(hw, H2C_8821AE_SETPWRMODE,
 			       H2C_8821AE_PWEMODE_LENGTH,
 			       u1_h2c_set_pwrmode);
