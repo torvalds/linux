@@ -12,6 +12,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/bitfield.h>
 #include <linux/if_bridge.h>
 #include <linux/phy.h>
 
@@ -912,15 +913,13 @@ int mv88e6095_port_tag_remap(struct mv88e6xxx_chip *chip, int port)
 }
 
 static int mv88e6xxx_port_ieeepmt_write(struct mv88e6xxx_chip *chip,
-					int port, u16 table,
-					u8 pointer, u16 data)
+					int port, u16 table, u8 ptr, u16 data)
 {
 	u16 reg;
 
-	reg = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_UPDATE |
-		table |
-		(pointer << MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_POINTER_SHIFT) |
-		data;
+	reg = MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_UPDATE | table |
+		(ptr << __bf_shf(MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_PTR_MASK)) |
+		(data & MV88E6390_PORT_IEEE_PRIO_MAP_TABLE_DATA_MASK);
 
 	return mv88e6xxx_port_write(chip, port,
 				    MV88E6390_PORT_IEEE_PRIO_MAP_TABLE, reg);
