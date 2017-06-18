@@ -158,6 +158,9 @@ config USB_U_SERIAL
 config USB_U_ETHER
 	tristate
 
+config USB_U_AUDIO
+	tristate
+
 config USB_F_SERIAL
 	tristate
 
@@ -381,6 +384,7 @@ config USB_CONFIGFS_F_UAC2
 	depends on SND
 	select USB_LIBCOMPOSITE
 	select SND_PCM
+	select USB_U_AUDIO
 	select USB_F_UAC2
 	help
 	  This Audio function is compatible with USB Audio Class
