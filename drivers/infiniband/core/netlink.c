@@ -47,12 +47,11 @@ static struct {
 	const struct ibnl_client_cbs   *cb_table;
 } rdma_nl_types[RDMA_NL_NUM_CLIENTS];
 
-int ibnl_chk_listeners(unsigned int group)
+int rdma_nl_chk_listeners(unsigned int group)
 {
-	if (netlink_has_listeners(nls, group) == 0)
-		return -1;
-	return 0;
+	return (netlink_has_listeners(nls, group)) ? 0 : -1;
 }
+EXPORT_SYMBOL(rdma_nl_chk_listeners);
 
 static bool is_nl_msg_valid(unsigned int type, unsigned int op)
 {
