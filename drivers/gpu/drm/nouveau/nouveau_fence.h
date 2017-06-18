@@ -99,6 +99,7 @@ struct nv84_fence_priv {
 	struct nouveau_bo *bo;
 	struct nouveau_bo *bo_gart;
 	u32 *suspend;
+	struct mutex mutex;
 };
 
 u64  nv84_fence_crtc(struct nouveau_channel *, int);

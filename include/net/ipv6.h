@@ -744,6 +744,11 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 {
 	u32 hash;
 
+	/* @flowlabel may include more than a flow label, eg, the traffic class.
+	 * Here we want only the flow label value.
+	 */
+	flowlabel &= IPV6_FLOWLABEL_MASK;
+
 	if (flowlabel ||
 	    net->ipv6.sysctl.auto_flowlabels == IP6_AUTO_FLOW_LABEL_OFF ||
 	    (!autolabel &&
