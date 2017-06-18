@@ -442,6 +442,8 @@ static DEFINE_SPINLOCK(rbd_client_list_lock);
 static struct kmem_cache	*rbd_img_request_cache;
 static struct kmem_cache	*rbd_obj_request_cache;
 
+static struct bio_set		*rbd_bio_clone;
+
 static int rbd_major;
 static DEFINE_IDA(rbd_dev_id_ida);
 
@@ -1363,7 +1365,7 @@ static struct bio *bio_clone_range(struct bio *bio_src,
 {
 	struct bio *bio;
 
-	bio = bio_clone(bio_src, gfpmask);
+	bio = bio_clone_fast(bio_src, gfpmask, rbd_bio_clone);
 	if (!bio)
 		return NULL;	/* ENOMEM */
 
@@ -6416,8 +6418,16 @@ static int rbd_slab_init(void)
 	if (!rbd_obj_request_cache)
 		goto out_err;
 
+	rbd_assert(!rbd_bio_clone);
+	rbd_bio_clone = bioset_create(BIO_POOL_SIZE, 0, 0);
+	if (!rbd_bio_clone)
+		goto out_err_clone;
+
 	return 0;
 
+out_err_clone:
+	kmem_cache_destroy(rbd_obj_request_cache);
+	rbd_obj_request_cache = NULL;
 out_err:
 	kmem_cache_destroy(rbd_img_request_cache);
 	rbd_img_request_cache = NULL;
@@ -6433,6 +6443,10 @@ static void rbd_slab_exit(void)
 	rbd_assert(rbd_img_request_cache);
 	kmem_cache_destroy(rbd_img_request_cache);
 	rbd_img_request_cache = NULL;
+
+	rbd_assert(rbd_bio_clone);
+	bioset_free(rbd_bio_clone);
+	rbd_bio_clone = NULL;
 }
 
 static int __init rbd_init(void)
