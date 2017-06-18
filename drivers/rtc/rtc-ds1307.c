@@ -44,6 +44,7 @@ enum ds_type {
 	m41t00,
 	mcp794xx,
 	rx_8025,
+	rx_8130,
 	last_ds_type /* always last */
 	/* rs5c372 too?  different address... */
 };
@@ -169,6 +170,12 @@ static struct chip_desc chips[last_ds_type] = {
 	[ds_3231] = {
 		.alarm		= 1,
 	},
+	[rx_8130] = {
+		.alarm		= 1,
+		/* this is battery backed SRAM */
+		.nvram_offset	= 0x20,
+		.nvram_size	= 4,	/* 32bit (4 word x 8 bit) */
+	},
 	[mcp794xx] = {
 		.alarm		= 1,
 		/* this is battery backed SRAM */
@@ -192,6 +199,7 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "pt7c4338", ds_1307 },
 	{ "rx8025", rx_8025 },
 	{ "isl12057", ds_1337 },
+	{ "rx8130", rx_8130 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1307_id);
@@ -582,6 +590,165 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
 	.read_alarm	= ds1337_read_alarm,
 	.set_alarm	= ds1337_set_alarm,
 	.alarm_irq_enable = ds1307_alarm_irq_enable,
+};
+
+/*----------------------------------------------------------------------*/
+
+/*
+ * Alarm support for rx8130 devices.
+ */
+
+#define RX8130_REG_ALARM_MIN		0x07
+#define RX8130_REG_ALARM_HOUR		0x08
+#define RX8130_REG_ALARM_WEEK_OR_DAY	0x09
+#define RX8130_REG_EXTENSION		0x0c
+#define RX8130_REG_EXTENSION_WADA	(1 << 3)
+#define RX8130_REG_FLAG			0x0d
+#define RX8130_REG_FLAG_AF		(1 << 3)
+#define RX8130_REG_CONTROL0		0x0e
+#define RX8130_REG_CONTROL0_AIE		(1 << 3)
+
+static irqreturn_t rx8130_irq(int irq, void *dev_id)
+{
+	struct ds1307           *ds1307 = dev_id;
+	struct mutex            *lock = &ds1307->rtc->ops_lock;
+	u8 ctl[3];
+	int ret;
+
+	mutex_lock(lock);
+
+	/* Read control registers. */
+	ret = regmap_bulk_read(ds1307->regmap, RX8130_REG_EXTENSION, ctl, 3);
+	if (ret < 0)
+		goto out;
+	if (!(ctl[1] & RX8130_REG_FLAG_AF))
+		goto out;
+	ctl[1] &= ~RX8130_REG_FLAG_AF;
+	ctl[2] &= ~RX8130_REG_CONTROL0_AIE;
+
+	ret = regmap_bulk_write(ds1307->regmap, RX8130_REG_EXTENSION, ctl, 3);
+	if (ret < 0)
+		goto out;
+
+	rtc_update_irq(ds1307->rtc, 1, RTC_AF | RTC_IRQF);
+
+out:
+	mutex_unlock(lock);
+
+	return IRQ_HANDLED;
+}
+
+static int rx8130_read_alarm(struct device *dev, struct rtc_wkalrm *t)
+{
+	struct ds1307 *ds1307 = dev_get_drvdata(dev);
+	u8 ald[3], ctl[3];
+	int ret;
+
+	if (!test_bit(HAS_ALARM, &ds1307->flags))
+		return -EINVAL;
+
+	/* Read alarm registers. */
+	ret = regmap_bulk_read(ds1307->regmap, RX8130_REG_ALARM_MIN, ald, 3);
+	if (ret < 0)
+		return ret;
+
+	/* Read control registers. */
+	ret = regmap_bulk_read(ds1307->regmap, RX8130_REG_EXTENSION, ctl, 3);
+	if (ret < 0)
+		return ret;
+
+	t->enabled = !!(ctl[2] & RX8130_REG_CONTROL0_AIE);
+	t->pending = !!(ctl[1] & RX8130_REG_FLAG_AF);
+
+	/* Report alarm 0 time assuming 24-hour and day-of-month modes. */
+	t->time.tm_sec = -1;
+	t->time.tm_min = bcd2bin(ald[0] & 0x7f);
+	t->time.tm_hour = bcd2bin(ald[1] & 0x7f);
+	t->time.tm_wday = -1;
+	t->time.tm_mday = bcd2bin(ald[2] & 0x7f);
+	t->time.tm_mon = -1;
+	t->time.tm_year = -1;
+	t->time.tm_yday = -1;
+	t->time.tm_isdst = -1;
+
+	dev_dbg(dev, "%s, sec=%d min=%d hour=%d wday=%d mday=%d mon=%d enabled=%d\n",
+		__func__, t->time.tm_sec, t->time.tm_min, t->time.tm_hour,
+		t->time.tm_wday, t->time.tm_mday, t->time.tm_mon, t->enabled);
+
+	return 0;
+}
+
+static int rx8130_set_alarm(struct device *dev, struct rtc_wkalrm *t)
+{
+	struct ds1307 *ds1307 = dev_get_drvdata(dev);
+	u8 ald[3], ctl[3];
+	int ret;
+
+	if (!test_bit(HAS_ALARM, &ds1307->flags))
+		return -EINVAL;
+
+	dev_dbg(dev, "%s, sec=%d min=%d hour=%d wday=%d mday=%d mon=%d "
+		"enabled=%d pending=%d\n", __func__,
+		t->time.tm_sec, t->time.tm_min, t->time.tm_hour,
+		t->time.tm_wday, t->time.tm_mday, t->time.tm_mon,
+		t->enabled, t->pending);
+
+	/* Read control registers. */
+	ret = regmap_bulk_read(ds1307->regmap, RX8130_REG_EXTENSION, ctl, 3);
+	if (ret < 0)
+		return ret;
+
+	ctl[0] &= ~RX8130_REG_EXTENSION_WADA;
+	ctl[1] |= RX8130_REG_FLAG_AF;
+	ctl[2] &= ~RX8130_REG_CONTROL0_AIE;
+
+	ret = regmap_bulk_write(ds1307->regmap, RX8130_REG_EXTENSION, ctl, 3);
+	if (ret < 0)
+		return ret;
+
+	/* Hardware alarm precision is 1 minute! */
+	ald[0] = bin2bcd(t->time.tm_min);
+	ald[1] = bin2bcd(t->time.tm_hour);
+	ald[2] = bin2bcd(t->time.tm_mday);
+
+	ret = regmap_bulk_write(ds1307->regmap, RX8130_REG_ALARM_MIN, ald, 3);
+	if (ret < 0)
+		return ret;
+
+	if (!t->enabled)
+		return 0;
+
+	ctl[2] |= RX8130_REG_CONTROL0_AIE;
+
+	return regmap_bulk_write(ds1307->regmap, RX8130_REG_EXTENSION, ctl, 3);
+}
+
+static int rx8130_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct ds1307 *ds1307 = dev_get_drvdata(dev);
+	int ret, reg;
+
+	if (!test_bit(HAS_ALARM, &ds1307->flags))
+		return -EINVAL;
+
+	ret = regmap_read(ds1307->regmap, RX8130_REG_CONTROL0, &reg);
+	if (ret < 0)
+		return ret;
+
+	if (enabled)
+		reg |= RX8130_REG_CONTROL0_AIE;
+	else
+		reg &= ~RX8130_REG_CONTROL0_AIE;
+
+	return regmap_write(ds1307->regmap, RX8130_REG_CONTROL0, reg);
+}
+
+static const struct rtc_class_ops rx8130_rtc_ops = {
+	.read_time	= ds1307_get_time,
+	.set_time	= ds1307_set_time,
+	.read_alarm	= rx8130_read_alarm,
+	.set_alarm	= rx8130_set_alarm,
+	.alarm_irq_enable = rx8130_alarm_irq_enable,
 };
 
 /*----------------------------------------------------------------------*/
@@ -1400,6 +1567,14 @@ static int ds1307_probe(struct i2c_client *client,
 
 			regmap_write(ds1307->regmap,
 				     DS1307_REG_HOUR << 4 | 0x08, hour);
+		}
+		break;
+	case rx_8130:
+		ds1307->offset = 0x10; /* Seconds starts at 0x10 */
+		rtc_ops = &rx8130_rtc_ops;
+		if (chip->alarm && ds1307->irq > 0) {
+			irq_handler = rx8130_irq;
+			want_irq = true;
 		}
 		break;
 	case ds_1388:
