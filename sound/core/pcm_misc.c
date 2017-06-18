@@ -248,7 +248,6 @@ int snd_pcm_format_signed(snd_pcm_format_t format)
 		return -EINVAL;
 	return val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_signed);
 
 /**
@@ -267,7 +266,6 @@ int snd_pcm_format_unsigned(snd_pcm_format_t format)
 		return val;
 	return !val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_unsigned);
 
 /**
@@ -280,7 +278,6 @@ int snd_pcm_format_linear(snd_pcm_format_t format)
 {
 	return snd_pcm_format_signed(format) >= 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_linear);
 
 /**
@@ -299,7 +296,6 @@ int snd_pcm_format_little_endian(snd_pcm_format_t format)
 		return -EINVAL;
 	return val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_little_endian);
 
 /**
@@ -318,7 +314,6 @@ int snd_pcm_format_big_endian(snd_pcm_format_t format)
 		return val;
 	return !val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_big_endian);
 
 /**
@@ -337,7 +332,6 @@ int snd_pcm_format_width(snd_pcm_format_t format)
 		return -EINVAL;
 	return val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_width);
 
 /**
@@ -356,7 +350,6 @@ int snd_pcm_format_physical_width(snd_pcm_format_t format)
 		return -EINVAL;
 	return val;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_physical_width);
 
 /**
@@ -374,7 +367,6 @@ ssize_t snd_pcm_format_size(snd_pcm_format_t format, size_t samples)
 		return -EINVAL;
 	return samples * phys_width / 8;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_size);
 
 /**
@@ -391,7 +383,6 @@ const unsigned char *snd_pcm_format_silence_64(snd_pcm_format_t format)
 		return NULL;
 	return pcm_formats[(INT)format].silence;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_silence_64);
 
 /**
@@ -462,7 +453,6 @@ int snd_pcm_format_set_silence(snd_pcm_format_t format, void *data, unsigned int
 #endif
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_format_set_silence);
 
 /**
@@ -491,7 +481,6 @@ int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime)
 	}
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_limit_hw_rates);
 
 /**

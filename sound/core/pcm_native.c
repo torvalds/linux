@@ -1278,7 +1278,6 @@ int snd_pcm_stop(struct snd_pcm_substream *substream, snd_pcm_state_t state)
 {
 	return snd_pcm_action(&snd_pcm_action_stop, substream, state);
 }
-
 EXPORT_SYMBOL(snd_pcm_stop);
 
 /**
@@ -1453,7 +1452,6 @@ int snd_pcm_suspend(struct snd_pcm_substream *substream)
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	return err;
 }
-
 EXPORT_SYMBOL(snd_pcm_suspend);
 
 /**
@@ -1485,7 +1483,6 @@ int snd_pcm_suspend_all(struct snd_pcm *pcm)
 	}
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_suspend_all);
 
 /* resume */
@@ -2369,7 +2366,6 @@ void snd_pcm_release_substream(struct snd_pcm_substream *substream)
 	}
 	snd_pcm_detach_substream(substream);
 }
-
 EXPORT_SYMBOL(snd_pcm_release_substream);
 
 int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
@@ -2411,7 +2407,6 @@ int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
 	snd_pcm_release_substream(substream);
 	return err;
 }
-
 EXPORT_SYMBOL(snd_pcm_open_substream);
 
 static int snd_pcm_open_file(struct file *file,
@@ -3504,7 +3499,6 @@ int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream,
 	area->vm_page_prot = pgprot_noncached(area->vm_page_prot);
 	return vm_iomap_memory(area, runtime->dma_addr, runtime->dma_bytes);
 }
-
 EXPORT_SYMBOL(snd_pcm_lib_mmap_iomem);
 #endif /* SNDRV_PCM_INFO_MMAP */
 
@@ -3553,7 +3547,6 @@ int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file,
 		atomic_inc(&substream->mmap_count);
 	return err;
 }
-
 EXPORT_SYMBOL(snd_pcm_mmap_data);
 
 static int snd_pcm_mmap(struct file *file, struct vm_area_struct *area)
