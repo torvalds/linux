@@ -619,6 +619,7 @@ struct request_queue {
 #define QUEUE_FLAG_POLL_STATS  28	/* collecting stats for hybrid polling */
 #define QUEUE_FLAG_REGISTERED  29	/* queue has been registered to a disk */
 #define QUEUE_FLAG_SCSI_PASSTHROUGH 30	/* queue supports SCSI commands */
+#define QUEUE_FLAG_QUIESCED    31	/* queue has been quiesced */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
@@ -715,6 +716,7 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 #define blk_noretry_request(rq) \
 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
 			     REQ_FAILFAST_DRIVER))
+#define blk_queue_quiesced(q)	test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
 
 static inline bool blk_account_rq(struct request *rq)
 {

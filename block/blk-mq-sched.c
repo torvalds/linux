@@ -58,7 +58,8 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	bool did_work = false;
 	LIST_HEAD(rq_list);
 
-	if (unlikely(blk_mq_hctx_stopped(hctx)))
+	/* RCU or SRCU read lock is needed before checking quiesced flag */
+	if (unlikely(blk_mq_hctx_stopped(hctx) || blk_queue_quiesced(q)))
 		return;
 
 	hctx->run++;

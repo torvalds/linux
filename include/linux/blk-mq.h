@@ -268,6 +268,10 @@ void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
  */
 static inline void blk_mq_quiesce_queue_nowait(struct request_queue *q)
 {
+	spin_lock_irq(q->queue_lock);
+	queue_flag_set(QUEUE_FLAG_QUIESCED, q);
+	spin_unlock_irq(q->queue_lock);
+
 	blk_mq_stop_hw_queues(q);
 }
 

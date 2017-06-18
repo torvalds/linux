@@ -170,6 +170,10 @@ void blk_mq_quiesce_queue(struct request_queue *q)
 
 	__blk_mq_stop_hw_queues(q, true);
 
+	spin_lock_irq(q->queue_lock);
+	queue_flag_set(QUEUE_FLAG_QUIESCED, q);
+	spin_unlock_irq(q->queue_lock);
+
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (hctx->flags & BLK_MQ_F_BLOCKING)
 			synchronize_srcu(&hctx->queue_rq_srcu);
@@ -190,6 +194,10 @@ EXPORT_SYMBOL_GPL(blk_mq_quiesce_queue);
  */
 void blk_mq_unquiesce_queue(struct request_queue *q)
 {
+	spin_lock_irq(q->queue_lock);
+	queue_flag_clear(QUEUE_FLAG_QUIESCED, q);
+	spin_unlock_irq(q->queue_lock);
+
 	blk_mq_start_stopped_hw_queues(q, true);
 }
 EXPORT_SYMBOL_GPL(blk_mq_unquiesce_queue);
@@ -1444,7 +1452,8 @@ static void __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 	bool run_queue = true;
 
-	if (blk_mq_hctx_stopped(hctx)) {
+	/* RCU or SRCU read lock is needed before checking quiesced flag */
+	if (blk_mq_hctx_stopped(hctx) || blk_queue_quiesced(q)) {
 		run_queue = false;
 		goto insert;
 	}
