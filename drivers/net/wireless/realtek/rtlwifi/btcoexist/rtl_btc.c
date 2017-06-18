@@ -68,7 +68,7 @@ void rtl_btc_init_hw_config(struct rtl_priv *rtlpriv)
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 		"%s, bt_exist is %d\n", __func__, bt_exist);
 
-	exhalbtc_init_hw_config(&gl_bt_coexist);
+	exhalbtc_init_hw_config(&gl_bt_coexist, !bt_exist);
 	exhalbtc_init_coex_dm(&gl_bt_coexist);
 }
 

@@ -803,8 +803,6 @@ bool exhalbtc_initlize_variables(void)
 
 	halbtc_dbg_init();
 
-	btcoexist->chip_interface = BTC_INTF_UNKNOWN;
-
 	btcoexist->btc_read_1byte = halbtc_read_1byte;
 	btcoexist->btc_write_1byte = halbtc_write_1byte;
 	btcoexist->btc_write_1byte_bitmask = halbtc_bitmask_write_1byte;
@@ -842,6 +840,18 @@ bool exhalbtc_bind_bt_coex_withadapter(void *adapter)
 
 	if (btcoexist->binded)
 		return false;
+
+	switch (rtlpriv->rtlhal.interface) {
+	case INTF_PCI:
+		btcoexist->chip_interface = BTC_INTF_PCI;
+		break;
+	case INTF_USB:
+		btcoexist->chip_interface = BTC_INTF_USB;
+		break;
+	default:
+		btcoexist->chip_interface = BTC_INTF_UNKNOWN;
+		break;
+	}
 
 	btcoexist->binded = true;
 	btcoexist->statistics.cnt_bind++;
@@ -912,10 +922,8 @@ void exhalbtc_pre_load_firmware(struct btc_coexist *btcoexist)
 	}
 }
 
-void exhalbtc_init_hw_config(struct btc_coexist *btcoexist)
+void exhalbtc_init_hw_config(struct btc_coexist *btcoexist, bool wifi_only)
 {
-	bool wifi_only = true;
-
 	if (!halbtc_is_bt_coexist_available(btcoexist))
 		return;
 
