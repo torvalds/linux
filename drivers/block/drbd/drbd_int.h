@@ -1441,6 +1441,9 @@ extern struct bio_set *drbd_md_io_bio_set;
 /* to allocate from that set */
 extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
 
+/* And a bio_set for cloning */
+extern struct bio_set *drbd_io_bio_set;
+
 extern struct mutex resources_mutex;
 
 extern int conn_lowest_minor(struct drbd_connection *connection);
