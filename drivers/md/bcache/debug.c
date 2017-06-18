@@ -110,7 +110,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 	struct bio_vec bv, cbv;
 	struct bvec_iter iter, citer = { 0 };
 
-	check = bio_clone(bio, GFP_NOIO);
+	check = bio_clone_kmalloc(bio, GFP_NOIO);
 	if (!check)
 		return;
 	check->bi_opf = REQ_OP_READ;
