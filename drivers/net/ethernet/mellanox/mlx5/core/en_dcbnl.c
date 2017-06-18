@@ -241,7 +241,7 @@ int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 	u8 tc_tx_bw[IEEE_8021QAZ_MAX_TCS];
 	u8 tc_group[IEEE_8021QAZ_MAX_TCS];
 	int max_tc = mlx5_max_tc(mdev);
-	int err;
+	int err, i;
 
 	mlx5e_build_tc_group(ets, tc_group, max_tc);
 	mlx5e_build_tc_tx_bw(ets, tc_tx_bw, tc_group, max_tc);
@@ -260,6 +260,14 @@ int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 		return err;
 
 	memcpy(priv->dcbx.tc_tsa, ets->tc_tsa, sizeof(ets->tc_tsa));
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		mlx5e_dbg(HW, priv, "%s: prio_%d <=> tc_%d\n",
+			  __func__, i, ets->prio_tc[i]);
+		mlx5e_dbg(HW, priv, "%s: tc_%d <=> tx_bw_%d%%, group_%d\n",
+			  __func__, i, tc_tx_bw[i], tc_group[i]);
+	}
+
 	return err;
 }
 
@@ -345,6 +353,11 @@ static int mlx5e_dcbnl_ieee_setpfc(struct net_device *dev,
 	ret = mlx5_set_port_pfc(mdev, pfc->pfc_en, pfc->pfc_en);
 	mlx5_toggle_port_link(mdev);
 
+	if (!ret) {
+		mlx5e_dbg(HW, priv,
+			  "%s: PFC per priority bit mask: 0x%x\n",
+			  __func__, pfc->pfc_en);
+	}
 	return ret;
 }
 
@@ -560,6 +573,11 @@ static int mlx5e_dcbnl_ieee_setmaxrate(struct net_device *netdev,
 		}
 	}
 
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		mlx5e_dbg(HW, priv, "%s: tc_%d <=> max_bw %d Gbps\n",
+			  __func__, i, max_bw_value[i]);
+	}
+
 	return mlx5_modify_port_ets_rate_limit(mdev, max_bw_value, max_bw_unit);
 }
 
@@ -585,6 +603,10 @@ static u8 mlx5e_dcbnl_setall(struct net_device *netdev)
 		ets.tc_rx_bw[i] = cee_cfg->pg_bw_pct[i];
 		ets.tc_tsa[i]   = IEEE_8021QAZ_TSA_ETS;
 		ets.prio_tc[i]  = cee_cfg->prio_to_pg_map[i];
+		mlx5e_dbg(HW, priv,
+			  "%s: Priority group %d: tx_bw %d, rx_bw %d, prio_tc %d\n",
+			  __func__, i, ets.tc_tx_bw[i], ets.tc_rx_bw[i],
+			  ets.prio_tc[i]);
 	}
 
 	err = mlx5e_dbcnl_validate_ets(netdev, &ets);
