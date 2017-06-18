@@ -1036,7 +1036,8 @@ static void flush_current_bio_list(struct blk_plug_cb *cb, bool from_schedule)
 
 		while ((bio = bio_list_pop(&list))) {
 			struct bio_set *bs = bio->bi_pool;
-			if (unlikely(!bs) || bs == fs_bio_set) {
+			if (unlikely(!bs) || bs == fs_bio_set ||
+			    !bs->rescue_workqueue) {
 				bio_list_add(&current->bio_list[i], bio);
 				continue;
 			}
@@ -2660,7 +2661,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 		BUG();
 	}
 
-	pools->bs = bioset_create(pool_size, front_pad, 0);
+	pools->bs = bioset_create(pool_size, front_pad, BIOSET_NEED_RESCUER);
 	if (!pools->bs)
 		goto out;
 

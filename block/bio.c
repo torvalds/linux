@@ -363,6 +363,8 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
 	struct bio_list punt, nopunt;
 	struct bio *bio;
 
+	if (WARN_ON_ONCE(!bs->rescue_workqueue))
+		return;
 	/*
 	 * In order to guarantee forward progress we must punt only bios that
 	 * were allocated from this bio_set; otherwise, if there was a bio on
@@ -474,7 +476,8 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
 
 		if (current->bio_list &&
 		    (!bio_list_empty(&current->bio_list[0]) ||
-		     !bio_list_empty(&current->bio_list[1])))
+		     !bio_list_empty(&current->bio_list[1])) &&
+		    bs->rescue_workqueue)
 			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
 
 		p = mempool_alloc(bs->bio_pool, gfp_mask);
@@ -1925,7 +1928,8 @@ EXPORT_SYMBOL(bioset_free);
  * bioset_create  - Create a bio_set
  * @pool_size:	Number of bio and bio_vecs to cache in the mempool
  * @front_pad:	Number of bytes to allocate in front of the returned bio
- * @flags:	Flags to modify behavior, currently only %BIOSET_NEED_BVECS
+ * @flags:	Flags to modify behavior, currently %BIOSET_NEED_BVECS
+ *              and %BIOSET_NEED_RESCUER
  *
  * Description:
  *    Set up a bio_set to be used with @bio_alloc_bioset. Allows the caller
@@ -1936,6 +1940,8 @@ EXPORT_SYMBOL(bioset_free);
  *    or things will break badly.
  *    If %BIOSET_NEED_BVECS is set in @flags, a separate pool will be allocated
  *    for allocating iovecs.  This pool is not needed e.g. for bio_clone_fast().
+ *    If %BIOSET_NEED_RESCUER is set, a workqueue is created which can be used to
+ *    dispatch queued requests when the mempool runs out of space.
  *
  */
 struct bio_set *bioset_create(unsigned int pool_size,
@@ -1970,6 +1976,9 @@ struct bio_set *bioset_create(unsigned int pool_size,
 		if (!bs->bvec_pool)
 			goto bad;
 	}
+
+	if (!(flags & BIOSET_NEED_RESCUER))
+		return bs;
 
 	bs->rescue_workqueue = alloc_workqueue("bioset", WQ_MEM_RECLAIM, 0);
 	if (!bs->rescue_workqueue)

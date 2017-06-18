@@ -58,7 +58,8 @@ struct dm_io_client *dm_io_client_create(void)
 	if (!client->pool)
 		goto bad;
 
-	client->bios = bioset_create(min_ios, 0, BIOSET_NEED_BVECS);
+	client->bios = bioset_create(min_ios, 0, (BIOSET_NEED_BVECS |
+						  BIOSET_NEED_RESCUER));
 	if (!client->bios)
 		goto bad;
 

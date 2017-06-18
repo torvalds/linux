@@ -376,6 +376,7 @@ static inline struct bio *bio_next_split(struct bio *bio, int sectors,
 extern struct bio_set *bioset_create(unsigned int, unsigned int, int flags);
 enum {
 	BIOSET_NEED_BVECS = BIT(0),
+	BIOSET_NEED_RESCUER = BIT(1),
 };
 extern void bioset_free(struct bio_set *);
 extern mempool_t *biovec_create_pool(int pool_entries);
