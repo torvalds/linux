@@ -98,6 +98,7 @@ static int write_congestion_on  = PKT_WRITE_CONGESTION_ON;
 static int write_congestion_off = PKT_WRITE_CONGESTION_OFF;
 static struct mutex ctl_mutex;	/* Serialize open/close/setup/teardown */
 static mempool_t *psd_pool;
+static struct bio_set *pkt_bio_set;
 
 static struct class	*class_pktcdvd = NULL;    /* /sys/class/pktcdvd */
 static struct dentry	*pkt_debugfs_root = NULL; /* /sys/kernel/debug/pktcdvd */
@@ -2310,7 +2311,7 @@ static void pkt_end_io_read_cloned(struct bio *bio)
 
 static void pkt_make_request_read(struct pktcdvd_device *pd, struct bio *bio)
 {
-	struct bio *cloned_bio = bio_clone(bio, GFP_NOIO);
+	struct bio *cloned_bio = bio_clone_fast(bio, GFP_NOIO, pkt_bio_set);
 	struct packet_stacked_data *psd = mempool_alloc(psd_pool, GFP_NOIO);
 
 	psd->pd = pd;
@@ -2455,7 +2456,7 @@ static blk_qc_t pkt_make_request(struct request_queue *q, struct bio *bio)
 
 			split = bio_split(bio, last_zone -
 					  bio->bi_iter.bi_sector,
-					  GFP_NOIO, fs_bio_set);
+					  GFP_NOIO, pkt_bio_set);
 			bio_chain(split, bio);
 		} else {
 			split = bio;
@@ -2924,6 +2925,11 @@ static int __init pkt_init(void)
 					sizeof(struct packet_stacked_data));
 	if (!psd_pool)
 		return -ENOMEM;
+	pkt_bio_set = bioset_create(BIO_POOL_SIZE, 0, 0);
+	if (!pkt_bio_set) {
+		mempool_destroy(psd_pool);
+		return -ENOMEM;
+	}
 
 	ret = register_blkdev(pktdev_major, DRIVER_NAME);
 	if (ret < 0) {
@@ -2956,6 +2962,7 @@ out:
 	unregister_blkdev(pktdev_major, DRIVER_NAME);
 out2:
 	mempool_destroy(psd_pool);
+	bioset_free(pkt_bio_set);
 	return ret;
 }
 
@@ -2969,6 +2976,7 @@ static void __exit pkt_exit(void)
 
 	unregister_blkdev(pktdev_major, DRIVER_NAME);
 	mempool_destroy(psd_pool);
+	bioset_free(pkt_bio_set);
 }
 
 MODULE_DESCRIPTION("Packet writing layer for CD/DVD drives");
