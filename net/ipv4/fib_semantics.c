@@ -152,7 +152,8 @@ static void rt_fibinfo_free(struct rtable __rcu **rtp)
 	 * free_fib_info_rcu()
 	 */
 
-	dst_free(&rt->dst);
+	dst_dev_put(&rt->dst);
+	dst_release_immediate(&rt->dst);
 }
 
 static void free_nh_exceptions(struct fib_nh *nh)
@@ -194,8 +195,10 @@ static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
 		struct rtable *rt;
 
 		rt = rcu_dereference_protected(*per_cpu_ptr(rtp, cpu), 1);
-		if (rt)
-			dst_free(&rt->dst);
+		if (rt) {
+			dst_dev_put(&rt->dst);
+			dst_release_immediate(&rt->dst);
+		}
 	}
 	free_percpu(rtp);
 }

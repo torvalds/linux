@@ -1590,7 +1590,9 @@ static void xfrm_bundle_flo_delete(struct flow_cache_object *flo)
 	struct xfrm_dst *xdst = container_of(flo, struct xfrm_dst, flo);
 	struct dst_entry *dst = &xdst->u.dst;
 
-	dst_free(dst);
+	/* Mark DST_OBSOLETE_DEAD to fail the next xfrm_dst_check() */
+	dst->obsolete = DST_OBSOLETE_DEAD;
+	dst_release_immediate(dst);
 }
 
 static const struct flow_cache_ops xfrm_bundle_fc_ops = {
@@ -1620,7 +1622,7 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 	default:
 		BUG();
 	}
-	xdst = dst_alloc(dst_ops, NULL, 0, DST_OBSOLETE_NONE, 0);
+	xdst = dst_alloc(dst_ops, NULL, 1, DST_OBSOLETE_NONE, 0);
 
 	if (likely(xdst)) {
 		struct dst_entry *dst = &xdst->u.dst;
@@ -1723,10 +1725,11 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 
 		if (!dst_prev)
 			dst0 = dst1;
-		else {
-			dst_prev->child = dst_clone(dst1);
-			dst1->flags |= DST_NOHASH;
-		}
+		else
+			/* Ref count is taken during xfrm_alloc_dst()
+			 * No need to do dst_clone() on dst1
+			 */
+			dst_prev->child = dst1;
 
 		xdst->route = dst;
 		dst_copy_metrics(dst1, dst);
@@ -1792,7 +1795,7 @@ put_states:
 		xfrm_state_put(xfrm[i]);
 free_dst:
 	if (dst0)
-		dst_free(dst0);
+		dst_release_immediate(dst0);
 	dst0 = ERR_PTR(err);
 	goto out;
 }
@@ -2073,7 +2076,11 @@ xfrm_bundle_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir,
 			pol_dead |= pols[i]->walk.dead;
 		}
 		if (pol_dead) {
-			dst_free(&xdst->u.dst);
+			/* Mark DST_OBSOLETE_DEAD to fail the next
+			 * xfrm_dst_check()
+			 */
+			xdst->u.dst.obsolete = DST_OBSOLETE_DEAD;
+			dst_release_immediate(&xdst->u.dst);
 			xdst = NULL;
 			num_pols = 0;
 			num_xfrms = 0;
@@ -2120,11 +2127,12 @@ xfrm_bundle_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir,
 	if (xdst) {
 		/* The policies were stolen for newly generated bundle */
 		xdst->num_pols = 0;
-		dst_free(&xdst->u.dst);
+		/* Mark DST_OBSOLETE_DEAD to fail the next xfrm_dst_check() */
+		xdst->u.dst.obsolete = DST_OBSOLETE_DEAD;
+		dst_release_immediate(&xdst->u.dst);
 	}
 
-	/* Flow cache does not have reference, it dst_free()'s,
-	 * but we do need to return one reference for original caller */
+	/* We do need to return one reference for original caller */
 	dst_hold(&new_xdst->u.dst);
 	return &new_xdst->flo;
 
@@ -2147,9 +2155,11 @@ make_dummy_bundle:
 inc_error:
 	XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTPOLERROR);
 error:
-	if (xdst != NULL)
-		dst_free(&xdst->u.dst);
-	else
+	if (xdst != NULL) {
+		/* Mark DST_OBSOLETE_DEAD to fail the next xfrm_dst_check() */
+		xdst->u.dst.obsolete = DST_OBSOLETE_DEAD;
+		dst_release_immediate(&xdst->u.dst);
+	} else
 		xfrm_pols_put(pols, num_pols);
 	return ERR_PTR(err);
 }
@@ -2221,7 +2231,6 @@ struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 			}
 
 			dst_hold(&xdst->u.dst);
-			xdst->u.dst.flags |= DST_NOCACHE;
 			route = xdst->route;
 		}
 	}
@@ -2636,10 +2645,12 @@ static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 	 * notice.  That's what we are validating here via the
 	 * stale_bundle() check.
 	 *
-	 * When a policy's bundle is pruned, we dst_free() the XFRM
-	 * dst which causes it's ->obsolete field to be set to
-	 * DST_OBSOLETE_DEAD.  If an XFRM dst has been pruned like
-	 * this, we want to force a new route lookup.
+	 * When an xdst is removed from flow cache, DST_OBSOLETE_DEAD will
+	 * be marked on it.
+	 * When a dst is removed from the fib tree, DST_OBSOLETE_DEAD will
+	 * be marked on it.
+	 * Both will force stable_bundle() to fail on any xdst bundle with
+	 * this dst linked in it.
 	 */
 	if (dst->obsolete < 0 && !stale_bundle(dst))
 		return dst;

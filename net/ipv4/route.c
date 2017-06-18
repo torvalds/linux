@@ -589,11 +589,6 @@ static void ip_rt_build_flow_key(struct flowi4 *fl4, const struct sock *sk,
 		build_sk_flow_key(fl4, sk);
 }
 
-static inline void rt_free(struct rtable *rt)
-{
-	call_rcu(&rt->dst.rcu_head, dst_rcu_free);
-}
-
 static DEFINE_SPINLOCK(fnhe_lock);
 
 static void fnhe_flush_routes(struct fib_nh_exception *fnhe)
@@ -603,12 +598,14 @@ static void fnhe_flush_routes(struct fib_nh_exception *fnhe)
 	rt = rcu_dereference(fnhe->fnhe_rth_input);
 	if (rt) {
 		RCU_INIT_POINTER(fnhe->fnhe_rth_input, NULL);
-		rt_free(rt);
+		dst_dev_put(&rt->dst);
+		dst_release(&rt->dst);
 	}
 	rt = rcu_dereference(fnhe->fnhe_rth_output);
 	if (rt) {
 		RCU_INIT_POINTER(fnhe->fnhe_rth_output, NULL);
-		rt_free(rt);
+		dst_dev_put(&rt->dst);
+		dst_release(&rt->dst);
 	}
 }
 
@@ -1302,7 +1299,7 @@ static struct fib_nh_exception *find_exception(struct fib_nh *nh, __be32 daddr)
 }
 
 static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
-			      __be32 daddr)
+			      __be32 daddr, const bool do_cache)
 {
 	bool ret = false;
 
@@ -1331,10 +1328,13 @@ static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 		if (!rt->rt_gateway)
 			rt->rt_gateway = daddr;
 
-		if (!(rt->dst.flags & DST_NOCACHE)) {
+		if (do_cache) {
+			dst_hold(&rt->dst);
 			rcu_assign_pointer(*porig, rt);
-			if (orig)
-				rt_free(orig);
+			if (orig) {
+				dst_dev_put(&orig->dst);
+				dst_release(&orig->dst);
+			}
 			ret = true;
 		}
 
@@ -1357,12 +1357,20 @@ static bool rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 	}
 	orig = *p;
 
+	/* hold dst before doing cmpxchg() to avoid race condition
+	 * on this dst
+	 */
+	dst_hold(&rt->dst);
 	prev = cmpxchg(p, orig, rt);
 	if (prev == orig) {
-		if (orig)
-			rt_free(orig);
-	} else
+		if (orig) {
+			dst_dev_put(&orig->dst);
+			dst_release(&orig->dst);
+		}
+	} else {
+		dst_release(&rt->dst);
 		ret = false;
+	}
 
 	return ret;
 }
@@ -1433,7 +1441,8 @@ static bool rt_cache_valid(const struct rtable *rt)
 static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 			   const struct fib_result *res,
 			   struct fib_nh_exception *fnhe,
-			   struct fib_info *fi, u16 type, u32 itag)
+			   struct fib_info *fi, u16 type, u32 itag,
+			   const bool do_cache)
 {
 	bool cached = false;
 
@@ -1454,8 +1463,8 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 #endif
 		rt->dst.lwtstate = lwtstate_get(nh->nh_lwtstate);
 		if (unlikely(fnhe))
-			cached = rt_bind_exception(rt, fnhe, daddr);
-		else if (!(rt->dst.flags & DST_NOCACHE))
+			cached = rt_bind_exception(rt, fnhe, daddr, do_cache);
+		else if (do_cache)
 			cached = rt_cache_route(nh, rt);
 		if (unlikely(!cached)) {
 			/* Routes we intend to cache in nexthop exception or
@@ -1463,7 +1472,6 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 			 * However, if we are unsuccessful at storing this
 			 * route into the cache we really need to set it.
 			 */
-			rt->dst.flags |= DST_NOCACHE;
 			if (!rt->rt_gateway)
 				rt->rt_gateway = daddr;
 			rt_add_uncached_list(rt);
@@ -1486,7 +1494,7 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 	struct rtable *rt;
 
 	rt = dst_alloc(&ipv4_dst_ops, dev, 1, DST_OBSOLETE_FORCE_CHK,
-		       (will_cache ? 0 : (DST_HOST | DST_NOCACHE)) |
+		       (will_cache ? 0 : DST_HOST) |
 		       (nopolicy ? DST_NOPOLICY : 0) |
 		       (noxfrm ? DST_NOXFRM : 0));
 
@@ -1730,7 +1738,8 @@ rt_cache:
 
 	rth->dst.input = ip_forward;
 
-	rt_set_nexthop(rth, daddr, res, fnhe, res->fi, res->type, itag);
+	rt_set_nexthop(rth, daddr, res, fnhe, res->fi, res->type, itag,
+		       do_cache);
 	set_lwt_redirect(rth);
 	skb_dst_set(skb, &rth->dst);
 out:
@@ -2018,10 +2027,8 @@ local_input:
 			rth->dst.input = lwtunnel_input;
 		}
 
-		if (unlikely(!rt_cache_route(nh, rth))) {
-			rth->dst.flags |= DST_NOCACHE;
+		if (unlikely(!rt_cache_route(nh, rth)))
 			rt_add_uncached_list(rth);
-		}
 	}
 	skb_dst_set(skb, &rth->dst);
 	err = 0;
@@ -2217,10 +2224,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 		rth = rcu_dereference(*prth);
 
 rt_cache:
-		if (rt_cache_valid(rth)) {
-			dst_hold(&rth->dst);
+		if (rt_cache_valid(rth) && dst_hold_safe(&rth->dst))
 			return rth;
-		}
 	}
 
 add:
@@ -2254,7 +2259,7 @@ add:
 #endif
 	}
 
-	rt_set_nexthop(rth, fl4->daddr, res, fnhe, fi, type, 0);
+	rt_set_nexthop(rth, fl4->daddr, res, fnhe, fi, type, 0, do_cache);
 	set_lwt_redirect(rth);
 
 	return rth;
@@ -2504,7 +2509,7 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		new->input = dst_discard;
 		new->output = dst_discard_out;
 
-		new->dev = ort->dst.dev;
+		new->dev = net->loopback_dev;
 		if (new->dev)
 			dev_hold(new->dev);
 
@@ -2519,7 +2524,6 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		rt->rt_uses_gateway = ort->rt_uses_gateway;
 
 		INIT_LIST_HEAD(&rt->rt_uncached);
-		dst_free(new);
 	}
 
 	dst_release(dst_orig);

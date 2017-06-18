@@ -920,12 +920,11 @@ static void udp_v6_early_demux(struct sk_buff *skb)
 	if (dst)
 		dst = dst_check(dst, inet6_sk(sk)->rx_dst_cookie);
 	if (dst) {
-		if (dst->flags & DST_NOCACHE) {
-			if (likely(atomic_inc_not_zero(&dst->__refcnt)))
-				skb_dst_set(skb, dst);
-		} else {
-			skb_dst_set_noref(skb, dst);
-		}
+		/* set noref for now.
+		 * any place which wants to hold dst has to call
+		 * dst_hold_safe()
+		 */
+		skb_dst_set_noref(skb, dst);
 	}
 }
 
