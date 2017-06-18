@@ -2414,7 +2414,7 @@ static blk_qc_t pkt_make_request(struct request_queue *q, struct bio *bio)
 
 	blk_queue_bounce(q, &bio);
 
-	blk_queue_split(q, &bio, q->bio_split);
+	blk_queue_split(q, &bio);
 
 	pd = q->queuedata;
 	if (!pd) {

@@ -33,7 +33,7 @@ static int pblk_rw_io(struct request_queue *q, struct pblk *pblk,
 	 * constraint. Writes can be of arbitrary size.
 	 */
 	if (bio_data_dir(bio) == READ) {
-		blk_queue_split(q, &bio, q->bio_split);
+		blk_queue_split(q, &bio);
 		ret = pblk_submit_read(pblk, bio);
 		if (ret == NVM_IO_DONE && bio_flagged(bio, BIO_CLONED))
 			bio_put(bio);
@@ -46,7 +46,7 @@ static int pblk_rw_io(struct request_queue *q, struct pblk *pblk,
 	 * available for user I/O.
 	 */
 	if (unlikely(pblk_get_secs(bio) >= pblk_rl_sysfs_rate_show(&pblk->rl)))
-		blk_queue_split(q, &bio, q->bio_split);
+		blk_queue_split(q, &bio);
 
 	return pblk_write_to_cache(pblk, bio, PBLK_IOTYPE_USER);
 }
