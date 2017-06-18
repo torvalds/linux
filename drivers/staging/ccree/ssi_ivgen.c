@@ -64,7 +64,7 @@ static int ssi_ivgen_generate_pool(
 {
 	unsigned int idx = *iv_seq_len;
 
-	if ( (*iv_seq_len + SSI_IVPOOL_GEN_SEQ_LEN) > SSI_IVPOOL_SEQ_LEN) {
+	if ((*iv_seq_len + SSI_IVPOOL_GEN_SEQ_LEN) > SSI_IVPOOL_SEQ_LEN) {
 		/* The sequence will be longer than allowed */
 		return -EINVAL;
 	}
@@ -251,13 +251,13 @@ int ssi_ivgen_getiv(
 	    (iv_out_size != CTR_RFC3686_IV_SIZE)) {
 		return -EINVAL;
 	}
-	if ( (iv_out_dma_len + 1) > SSI_IVPOOL_SEQ_LEN) {
+	if ((iv_out_dma_len + 1) > SSI_IVPOOL_SEQ_LEN) {
 		/* The sequence will be longer than allowed */
 		return -EINVAL;
 	}
 
 	//check that number of generated IV is limited to max dma address iv buffer size
-	if ( iv_out_dma_len > SSI_MAX_IVGEN_DMA_ADDRESSES) {
+	if (iv_out_dma_len > SSI_MAX_IVGEN_DMA_ADDRESSES) {
 		/* The sequence will be longer than allowed */
 		return -EINVAL;
 	}
