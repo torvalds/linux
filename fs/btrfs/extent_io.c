@@ -174,7 +174,8 @@ int __init extent_io_init(void)
 		goto free_state_cache;
 
 	btrfs_bioset = bioset_create(BIO_POOL_SIZE,
-				     offsetof(struct btrfs_io_bio, bio));
+				     offsetof(struct btrfs_io_bio, bio),
+				     BIOSET_NEED_BVECS);
 	if (!btrfs_bioset)
 		goto free_buffer_cache;
 

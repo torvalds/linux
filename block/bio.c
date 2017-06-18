@@ -1921,9 +1921,26 @@ void bioset_free(struct bio_set *bs)
 }
 EXPORT_SYMBOL(bioset_free);
 
-static struct bio_set *__bioset_create(unsigned int pool_size,
-				       unsigned int front_pad,
-				       bool create_bvec_pool)
+/**
+ * bioset_create  - Create a bio_set
+ * @pool_size:	Number of bio and bio_vecs to cache in the mempool
+ * @front_pad:	Number of bytes to allocate in front of the returned bio
+ * @flags:	Flags to modify behavior, currently only %BIOSET_NEED_BVECS
+ *
+ * Description:
+ *    Set up a bio_set to be used with @bio_alloc_bioset. Allows the caller
+ *    to ask for a number of bytes to be allocated in front of the bio.
+ *    Front pad allocation is useful for embedding the bio inside
+ *    another structure, to avoid allocating extra data to go with the bio.
+ *    Note that the bio must be embedded at the END of that structure always,
+ *    or things will break badly.
+ *    If %BIOSET_NEED_BVECS is set in @flags, a separate pool will be allocated
+ *    for allocating iovecs.  This pool is not needed e.g. for bio_clone_fast().
+ *
+ */
+struct bio_set *bioset_create(unsigned int pool_size,
+			      unsigned int front_pad,
+			      int flags)
 {
 	unsigned int back_pad = BIO_INLINE_VECS * sizeof(struct bio_vec);
 	struct bio_set *bs;
@@ -1948,7 +1965,7 @@ static struct bio_set *__bioset_create(unsigned int pool_size,
 	if (!bs->bio_pool)
 		goto bad;
 
-	if (create_bvec_pool) {
+	if (flags & BIOSET_NEED_BVECS) {
 		bs->bvec_pool = biovec_create_pool(pool_size);
 		if (!bs->bvec_pool)
 			goto bad;
@@ -1963,40 +1980,7 @@ bad:
 	bioset_free(bs);
 	return NULL;
 }
-
-/**
- * bioset_create  - Create a bio_set
- * @pool_size:	Number of bio and bio_vecs to cache in the mempool
- * @front_pad:	Number of bytes to allocate in front of the returned bio
- *
- * Description:
- *    Set up a bio_set to be used with @bio_alloc_bioset. Allows the caller
- *    to ask for a number of bytes to be allocated in front of the bio.
- *    Front pad allocation is useful for embedding the bio inside
- *    another structure, to avoid allocating extra data to go with the bio.
- *    Note that the bio must be embedded at the END of that structure always,
- *    or things will break badly.
- */
-struct bio_set *bioset_create(unsigned int pool_size, unsigned int front_pad)
-{
-	return __bioset_create(pool_size, front_pad, true);
-}
 EXPORT_SYMBOL(bioset_create);
-
-/**
- * bioset_create_nobvec  - Create a bio_set without bio_vec mempool
- * @pool_size:	Number of bio to cache in the mempool
- * @front_pad:	Number of bytes to allocate in front of the returned bio
- *
- * Description:
- *    Same functionality as bioset_create() except that mempool is not
- *    created for bio_vecs. Saving some memory for bio_clone_fast() users.
- */
-struct bio_set *bioset_create_nobvec(unsigned int pool_size, unsigned int front_pad)
-{
-	return __bioset_create(pool_size, front_pad, false);
-}
-EXPORT_SYMBOL(bioset_create_nobvec);
 
 #ifdef CONFIG_BLK_CGROUP
 
@@ -2112,7 +2096,7 @@ static int __init init_bio(void)
 	bio_integrity_init();
 	biovec_init_slabs();
 
-	fs_bio_set = bioset_create(BIO_POOL_SIZE, 0);
+	fs_bio_set = bioset_create(BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
 	if (!fs_bio_set)
 		panic("bio: can't allocate bios\n");
 

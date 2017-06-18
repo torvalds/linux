@@ -373,8 +373,10 @@ static inline struct bio *bio_next_split(struct bio *bio, int sectors,
 	return bio_split(bio, sectors, gfp, bs);
 }
 
-extern struct bio_set *bioset_create(unsigned int, unsigned int);
-extern struct bio_set *bioset_create_nobvec(unsigned int, unsigned int);
+extern struct bio_set *bioset_create(unsigned int, unsigned int, int flags);
+enum {
+	BIOSET_NEED_BVECS = BIT(0),
+};
 extern void bioset_free(struct bio_set *);
 extern mempool_t *biovec_create_pool(int pool_entries);
 

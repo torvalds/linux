@@ -3063,7 +3063,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	if (!log->io_pool)
 		goto io_pool;
 
-	log->bs = bioset_create(R5L_POOL_SIZE, 0);
+	log->bs = bioset_create(R5L_POOL_SIZE, 0, BIOSET_NEED_BVECS);
 	if (!log->bs)
 		goto io_bs;
 

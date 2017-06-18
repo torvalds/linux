@@ -3552,7 +3552,7 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 	if (!conf->r10bio_pool)
 		goto out;
 
-	conf->bio_split = bioset_create(BIO_POOL_SIZE, 0);
+	conf->bio_split = bioset_create(BIO_POOL_SIZE, 0, 0);
 	if (!conf->bio_split)
 		goto out;
 
