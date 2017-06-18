@@ -169,7 +169,7 @@ enum dbgp_flag_e {
 struct rtl_priv;
 
 __printf(4, 5)
-void _rtl_dbg_trace(struct rtl_priv *rtlpriv, int comp, int level,
+void _rtl_dbg_trace(struct rtl_priv *rtlpriv, u64 comp, int level,
 		    const char *fmt, ...);
 
 __printf(4, 5)
@@ -198,7 +198,7 @@ struct rtl_priv;
 
 __printf(4, 5)
 static inline void RT_TRACE(struct rtl_priv *rtlpriv,
-			    int comp, int level,
+			    u64 comp, int level,
 			    const char *fmt, ...)
 {
 }
@@ -211,7 +211,7 @@ static inline void RTPRINT(struct rtl_priv *rtlpriv,
 }
 
 static inline void RT_PRINT_DATA(struct rtl_priv *rtlpriv,
-				 int comp, int level,
+				 u64 comp, int level,
 				 const char *titlestring,
 				 const void *hexdata, size_t hexdatalen)
 {
