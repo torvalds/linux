@@ -165,9 +165,8 @@ static void cn23xx_vf_setup_global_output_regs(struct octeon_device *oct)
 		reg_val =
 		    octeon_read_csr(oct, CN23XX_VF_SLI_OQ_PKT_CONTROL(q_no));
 
-		/* set IPTR & DPTR */
-		reg_val |=
-		    (CN23XX_PKT_OUTPUT_CTL_IPTR | CN23XX_PKT_OUTPUT_CTL_DPTR);
+		/* set DPTR */
+		reg_val |= CN23XX_PKT_OUTPUT_CTL_DPTR;
 
 		/* reset BMODE */
 		reg_val &= ~(CN23XX_PKT_OUTPUT_CTL_BMODE);
@@ -249,7 +248,7 @@ static void cn23xx_setup_vf_oq_regs(struct octeon_device *oct, u32 oq_no)
 	octeon_write_csr(oct, CN23XX_VF_SLI_OQ_SIZE(oq_no), droq->max_count);
 
 	octeon_write_csr(oct, CN23XX_VF_SLI_OQ_BUFF_INFO_SIZE(oq_no),
-			 (droq->buffer_size | (OCT_RH_SIZE << 16)));
+			 droq->buffer_size);
 
 	/* Get the mapped address of the pkt_sent and pkts_credit regs */
 	droq->pkts_sent_reg =

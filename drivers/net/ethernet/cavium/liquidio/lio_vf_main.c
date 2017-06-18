@@ -2718,7 +2718,7 @@ static int lio_nic_info(struct octeon_recv_info *recv_info, void *buf)
 	int gmxport = 0;
 	int i;
 
-	if (recv_pkt->buffer_size[0] != sizeof(*ls)) {
+	if (recv_pkt->buffer_size[0] != (sizeof(*ls) + OCT_DROQ_INFO_SIZE)) {
 		dev_err(&oct->pci_dev->dev, "Malformed NIC_INFO, len=%d, ifidx=%d\n",
 			recv_pkt->buffer_size[0],
 			recv_pkt->rh.r_nic_info.gmxport);
@@ -2726,7 +2726,8 @@ static int lio_nic_info(struct octeon_recv_info *recv_info, void *buf)
 	}
 
 	gmxport = recv_pkt->rh.r_nic_info.gmxport;
-	ls = (union oct_link_status *)get_rbd(recv_pkt->buffer_ptr[0]);
+	ls = (union oct_link_status *)(get_rbd(recv_pkt->buffer_ptr[0]) +
+		OCT_DROQ_INFO_SIZE);
 
 	octeon_swap_8B_data((u64 *)ls, (sizeof(union oct_link_status)) >> 3);
 

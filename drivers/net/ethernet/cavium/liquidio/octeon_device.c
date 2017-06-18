@@ -51,7 +51,6 @@ static struct octeon_config default_cn66xx_conf = {
 	/** OQ attributes */
 	.oq					= {
 		.max_oqs			= CN6XXX_CFG_IO_QUEUES,
-		.info_ptr			= OCTEON_OQ_INFOPTR_MODE,
 		.refill_threshold		= CN6XXX_OQ_REFIL_THRESHOLD,
 		.oq_intr_pkt			= CN6XXX_OQ_INTR_PKT,
 		.oq_intr_time			= CN6XXX_OQ_INTR_TIME,
@@ -161,7 +160,6 @@ static struct octeon_config default_cn68xx_conf = {
 	/** OQ attributes */
 	.oq					= {
 		.max_oqs			= CN6XXX_CFG_IO_QUEUES,
-		.info_ptr			= OCTEON_OQ_INFOPTR_MODE,
 		.refill_threshold		= CN6XXX_OQ_REFIL_THRESHOLD,
 		.oq_intr_pkt			= CN6XXX_OQ_INTR_PKT,
 		.oq_intr_time			= CN6XXX_OQ_INTR_TIME,
@@ -328,7 +326,6 @@ static struct octeon_config default_cn68xx_210nv_conf = {
 	/** OQ attributes */
 	.oq					= {
 		.max_oqs			= CN6XXX_CFG_IO_QUEUES,
-		.info_ptr			= OCTEON_OQ_INFOPTR_MODE,
 		.refill_threshold		= CN6XXX_OQ_REFIL_THRESHOLD,
 		.oq_intr_pkt			= CN6XXX_OQ_INTR_PKT,
 		.oq_intr_time			= CN6XXX_OQ_INTR_TIME,
@@ -432,7 +429,6 @@ static struct octeon_config default_cn23xx_conf = {
 	/** OQ attributes */
 	.oq = {
 		.max_oqs		= CN23XX_CFG_IO_QUEUES,
-		.info_ptr		= OCTEON_OQ_INFOPTR_MODE,
 		.pkts_per_intr	= CN23XX_OQ_PKTSPER_INTR,
 		.refill_threshold	= CN23XX_OQ_REFIL_THRESHOLD,
 		.oq_intr_pkt	= CN23XX_OQ_INTR_PKT,
@@ -1236,13 +1232,15 @@ int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
 
 	cs = &core_setup[oct->octeon_id];
 
-	if (recv_pkt->buffer_size[0] != sizeof(*cs)) {
+	if (recv_pkt->buffer_size[0] != (sizeof(*cs) + OCT_DROQ_INFO_SIZE)) {
 		dev_dbg(&oct->pci_dev->dev, "Core setup bytes expected %u found %d\n",
 			(u32)sizeof(*cs),
 			recv_pkt->buffer_size[0]);
 	}
 
-	memcpy(cs, get_rbd(recv_pkt->buffer_ptr[0]), sizeof(*cs));
+	memcpy(cs, get_rbd(
+	       recv_pkt->buffer_ptr[0]) + OCT_DROQ_INFO_SIZE, sizeof(*cs));
+
 	strncpy(oct->boardinfo.name, cs->boardname, OCT_BOARD_NAME);
 	strncpy(oct->boardinfo.serial_number, cs->board_serial_number,
 		OCT_SERIAL_LEN);

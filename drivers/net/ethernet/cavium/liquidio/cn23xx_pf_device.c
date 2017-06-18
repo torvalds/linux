@@ -493,9 +493,8 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 	for (q_no = srn; q_no < ern; q_no++) {
 		reg_val = octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(q_no));
 
-		/* set IPTR & DPTR */
-		reg_val |=
-		    (CN23XX_PKT_OUTPUT_CTL_IPTR | CN23XX_PKT_OUTPUT_CTL_DPTR);
+		/* set DPTR */
+		reg_val |= CN23XX_PKT_OUTPUT_CTL_DPTR;
 
 		/* reset BMODE */
 		reg_val &= ~(CN23XX_PKT_OUTPUT_CTL_BMODE);
@@ -638,7 +637,7 @@ static void cn23xx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
 	octeon_write_csr(oct, CN23XX_SLI_OQ_SIZE(oq_no), droq->max_count);
 
 	octeon_write_csr(oct, CN23XX_SLI_OQ_BUFF_INFO_SIZE(oq_no),
-			 (droq->buffer_size | (OCT_RH_SIZE << 16)));
+			 droq->buffer_size);
 
 	/* Get the mapped address of the pkt_sent and pkts_credit regs */
 	droq->pkts_sent_reg =
@@ -1343,8 +1342,7 @@ int validate_cn23xx_pf_config_info(struct octeon_device *oct,
 		return 1;
 	}
 
-	if (!(CFG_GET_OQ_INFO_PTR(conf23xx)) ||
-	    !(CFG_GET_OQ_REFILL_THRESHOLD(conf23xx))) {
+	if (!CFG_GET_OQ_REFILL_THRESHOLD(conf23xx)) {
 		dev_err(&oct->pci_dev->dev, "%s: Invalid parameter for OQ\n",
 			__func__);
 		return 1;

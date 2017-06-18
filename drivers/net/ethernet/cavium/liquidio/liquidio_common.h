@@ -173,6 +173,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 /*------------------------- End Scatter/Gather ---------------------------*/
 
+#define   OCTNET_FRM_LENGTH_SIZE      8
+
 #define   OCTNET_FRM_PTP_HEADER_SIZE  8
 
 #define   OCTNET_FRM_HEADER_SIZE     22 /* VLAN + Ethernet */
