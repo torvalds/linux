@@ -790,8 +790,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	if (q->id < 0)
 		goto fail_q;
 
-	q->bio_split = bioset_create(BIO_POOL_SIZE, 0, (BIOSET_NEED_BVECS |
-							BIOSET_NEED_RESCUER));
+	q->bio_split = bioset_create(BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
 	if (!q->bio_split)
 		goto fail_id;
 
