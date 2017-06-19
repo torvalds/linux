@@ -73,7 +73,7 @@ static int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip,
 {
 	u16 val = (target << 8) | (port & 0xf);
 
-	return mv88e6xxx_g2_update(chip, GLOBAL2_DEVICE_MAPPING, val);
+	return mv88e6xxx_g2_update(chip, MV88E6XXX_G2_DEVICE_MAPPING, val);
 }
 
 static int mv88e6xxx_g2_set_device_mapping(struct mv88e6xxx_chip *chip)
