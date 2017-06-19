@@ -390,6 +390,8 @@ static bool is_yuv_output(uint32_t bus_format)
 	switch (bus_format) {
 	case MEDIA_BUS_FMT_YUV8_1X24:
 	case MEDIA_BUS_FMT_YUV10_1X30:
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
 		return true;
 	default:
 		return false;
@@ -1711,9 +1713,11 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		val = DITHER_DOWN_EN(1) | DITHER_DOWN_MODE(RGB888_TO_RGB666);
 		break;
 	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
 		val = DITHER_DOWN_EN(0) | PRE_DITHER_DOWN_EN(1);
 		break;
 	case MEDIA_BUS_FMT_YUV10_1X30:
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
 		val = DITHER_DOWN_EN(0) | PRE_DITHER_DOWN_EN(0);
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
