@@ -66,7 +66,14 @@ extern int __irq_set_trigger(struct irq_desc *desc, unsigned long flags);
 extern void __disable_irq(struct irq_desc *desc);
 extern void __enable_irq(struct irq_desc *desc);
 
-extern int irq_startup(struct irq_desc *desc, bool resend);
+#define IRQ_RESEND	true
+#define IRQ_NORESEND	false
+
+#define IRQ_START_FORCE	true
+#define IRQ_START_COND	false
+
+extern int irq_startup(struct irq_desc *desc, bool resend, bool force);
+
 extern void irq_shutdown(struct irq_desc *desc);
 extern void irq_enable(struct irq_desc *desc);
 extern void irq_disable(struct irq_desc *desc);

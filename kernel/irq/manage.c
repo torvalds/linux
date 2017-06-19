@@ -509,7 +509,7 @@ void __enable_irq(struct irq_desc *desc)
 		 * time. If it was already started up, then irq_startup()
 		 * will invoke irq_enable() under the hood.
 		 */
-		irq_startup(desc, true);
+		irq_startup(desc, IRQ_RESEND, IRQ_START_COND);
 		break;
 	}
 	default:
@@ -1306,7 +1306,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		}
 
 		if (irq_settings_can_autoenable(desc)) {
-			irq_startup(desc, true);
+			irq_startup(desc, IRQ_RESEND, IRQ_START_COND);
 		} else {
 			/*
 			 * Shared interrupts do not go well with disabling

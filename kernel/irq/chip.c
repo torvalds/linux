@@ -212,7 +212,7 @@ static int __irq_startup(struct irq_desc *desc)
 	return ret;
 }
 
-int irq_startup(struct irq_desc *desc, bool resend)
+int irq_startup(struct irq_desc *desc, bool resend, bool force)
 {
 	int ret = 0;
 
@@ -892,7 +892,7 @@ __irq_do_set_handler(struct irq_desc *desc, irq_flow_handler_t handle,
 		irq_settings_set_norequest(desc);
 		irq_settings_set_nothread(desc);
 		desc->action = &chained_action;
-		irq_startup(desc, true);
+		irq_startup(desc, IRQ_RESEND, IRQ_START_FORCE);
 	}
 }
 
