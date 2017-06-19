@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/list.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -210,7 +211,7 @@ void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 	if (!notifier->v4l2_dev)
 		return;
 
-	dev = kmalloc_array(n_subdev, sizeof(*dev), GFP_KERNEL);
+	dev = kvmalloc_array(n_subdev, sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		dev_err(notifier->v4l2_dev->dev,
 			"Failed to allocate device cache!\n");
@@ -266,7 +267,7 @@ void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 		}
 		put_device(d);
 	}
-	kfree(dev);
+	kvfree(dev);
 
 	notifier->v4l2_dev = NULL;
 
