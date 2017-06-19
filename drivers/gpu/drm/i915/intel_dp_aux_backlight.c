@@ -119,8 +119,6 @@ static int intel_dp_aux_setup_backlight(struct intel_connector *connector,
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
 	struct intel_panel *panel = &connector->panel;
 
-	intel_dp_aux_enable_backlight(connector);
-
 	if (intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_BYTE_COUNT)
 		panel->backlight.max = 0xFFFF;
 	else
