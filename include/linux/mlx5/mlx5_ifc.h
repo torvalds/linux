@@ -858,7 +858,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         pcam_reg[0x1];
 	u8         local_ca_ack_delay[0x5];
 	u8         port_module_event[0x1];
-	u8         reserved_at_1b1[0x1];
+	u8         enhanced_error_q_counters[0x1];
 	u8         ports_check[0x1];
 	u8         reserved_at_1b3[0x1];
 	u8         disable_link_up[0x1];
@@ -3953,7 +3953,47 @@ struct mlx5_ifc_query_q_counter_out_bits {
 
 	u8         local_ack_timeout_err[0x20];
 
-	u8         reserved_at_320[0x4e0];
+	u8         reserved_at_320[0xa0];
+
+	u8         resp_local_length_error[0x20];
+
+	u8         req_local_length_error[0x20];
+
+	u8         resp_local_qp_error[0x20];
+
+	u8         local_operation_error[0x20];
+
+	u8         resp_local_protection[0x20];
+
+	u8         req_local_protection[0x20];
+
+	u8         resp_cqe_error[0x20];
+
+	u8         req_cqe_error[0x20];
+
+	u8         req_mw_binding[0x20];
+
+	u8         req_bad_response[0x20];
+
+	u8         req_remote_invalid_request[0x20];
+
+	u8         resp_remote_invalid_request[0x20];
+
+	u8         req_remote_access_errors[0x20];
+
+	u8	   resp_remote_access_errors[0x20];
+
+	u8         req_remote_operation_errors[0x20];
+
+	u8         req_transport_retries_exceeded[0x20];
+
+	u8         cq_overflow[0x20];
+
+	u8         resp_cqe_flush_error[0x20];
+
+	u8         req_cqe_flush_error[0x20];
+
+	u8         reserved_at_620[0x1e0];
 };
 
 struct mlx5_ifc_query_q_counter_in_bits {
