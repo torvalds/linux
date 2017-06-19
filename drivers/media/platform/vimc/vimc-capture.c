@@ -40,6 +40,14 @@ struct vimc_cap_device {
 	struct media_pipeline pipe;
 };
 
+static const struct v4l2_pix_format fmt_default = {
+	.width = 640,
+	.height = 480,
+	.pixelformat = V4L2_PIX_FMT_RGB24,
+	.field = V4L2_FIELD_NONE,
+	.colorspace = V4L2_COLORSPACE_DEFAULT,
+};
+
 struct vimc_cap_buffer {
 	/*
 	 * struct vb2_v4l2_buffer must be the first element
@@ -73,7 +81,7 @@ static void vimc_cap_get_format(struct vimc_ent_device *ved,
 	*fmt = vcap->format;
 }
 
-static int vimc_cap_fmt_vid_cap(struct file *file, void *priv,
+static int vimc_cap_g_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
 	struct vimc_cap_device *vcap = video_drvdata(file);
@@ -83,16 +91,98 @@ static int vimc_cap_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vimc_cap_enum_fmt_vid_cap(struct file *file, void *priv,
-				     struct v4l2_fmtdesc *f)
+static int vimc_cap_try_fmt_vid_cap(struct file *file, void *priv,
+				    struct v4l2_format *f)
+{
+	struct v4l2_pix_format *format = &f->fmt.pix;
+	const struct vimc_pix_map *vpix;
+
+	format->width = clamp_t(u32, format->width, VIMC_FRAME_MIN_WIDTH,
+				VIMC_FRAME_MAX_WIDTH) & ~1;
+	format->height = clamp_t(u32, format->height, VIMC_FRAME_MIN_HEIGHT,
+				 VIMC_FRAME_MAX_HEIGHT) & ~1;
+
+	/* Don't accept a pixelformat that is not on the table */
+	vpix = vimc_pix_map_by_pixelformat(format->pixelformat);
+	if (!vpix) {
+		format->pixelformat = fmt_default.pixelformat;
+		vpix = vimc_pix_map_by_pixelformat(format->pixelformat);
+	}
+	/* TODO: Add support for custom bytesperline values */
+	format->bytesperline = format->width * vpix->bpp;
+	format->sizeimage = format->bytesperline * format->height;
+
+	if (format->field == V4L2_FIELD_ANY)
+		format->field = fmt_default.field;
+
+	vimc_colorimetry_clamp(format);
+
+	return 0;
+}
+
+static int vimc_cap_s_fmt_vid_cap(struct file *file, void *priv,
+				  struct v4l2_format *f)
 {
 	struct vimc_cap_device *vcap = video_drvdata(file);
 
-	if (f->index > 0)
+	/* Do not change the format while stream is on */
+	if (vb2_is_busy(&vcap->queue))
+		return -EBUSY;
+
+	vimc_cap_try_fmt_vid_cap(file, priv, f);
+
+	dev_dbg(vcap->vdev.v4l2_dev->dev, "%s: format update: "
+		"old:%dx%d (0x%x, %d, %d, %d, %d) "
+		"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vcap->vdev.name,
+		/* old */
+		vcap->format.width, vcap->format.height,
+		vcap->format.pixelformat, vcap->format.colorspace,
+		vcap->format.quantization, vcap->format.xfer_func,
+		vcap->format.ycbcr_enc,
+		/* new */
+		f->fmt.pix.width, f->fmt.pix.height,
+		f->fmt.pix.pixelformat,	f->fmt.pix.colorspace,
+		f->fmt.pix.quantization, f->fmt.pix.xfer_func,
+		f->fmt.pix.ycbcr_enc);
+
+	vcap->format = f->fmt.pix;
+
+	return 0;
+}
+
+static int vimc_cap_enum_fmt_vid_cap(struct file *file, void *priv,
+				     struct v4l2_fmtdesc *f)
+{
+	const struct vimc_pix_map *vpix = vimc_pix_map_by_index(f->index);
+
+	if (!vpix)
 		return -EINVAL;
 
-	/* We only support one format for now */
-	f->pixelformat = vcap->format.pixelformat;
+	f->pixelformat = vpix->pixelformat;
+
+	return 0;
+}
+
+static int vimc_cap_enum_framesizes(struct file *file, void *fh,
+				    struct v4l2_frmsizeenum *fsize)
+{
+	const struct vimc_pix_map *vpix;
+
+	if (fsize->index)
+		return -EINVAL;
+
+	/* Only accept code in the pix map table */
+	vpix = vimc_pix_map_by_code(fsize->pixel_format);
+	if (!vpix)
+		return -EINVAL;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
+	fsize->stepwise.min_width = VIMC_FRAME_MIN_WIDTH;
+	fsize->stepwise.max_width = VIMC_FRAME_MAX_WIDTH;
+	fsize->stepwise.min_height = VIMC_FRAME_MIN_HEIGHT;
+	fsize->stepwise.max_height = VIMC_FRAME_MAX_HEIGHT;
+	fsize->stepwise.step_width = 2;
+	fsize->stepwise.step_height = 2;
 
 	return 0;
 }
@@ -110,10 +200,11 @@ static const struct v4l2_file_operations vimc_cap_fops = {
 static const struct v4l2_ioctl_ops vimc_cap_ioctl_ops = {
 	.vidioc_querycap = vimc_cap_querycap,
 
-	.vidioc_g_fmt_vid_cap = vimc_cap_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap = vimc_cap_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap = vimc_cap_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap = vimc_cap_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap = vimc_cap_s_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap = vimc_cap_try_fmt_vid_cap,
 	.vidioc_enum_fmt_vid_cap = vimc_cap_enum_fmt_vid_cap,
+	.vidioc_enum_framesizes = vimc_cap_enum_framesizes,
 
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
 	.vidioc_create_bufs = vb2_ioctl_create_bufs,
@@ -360,15 +451,9 @@ struct vimc_ent_device *vimc_cap_create(struct v4l2_device *v4l2_dev,
 	INIT_LIST_HEAD(&vcap->buf_list);
 	spin_lock_init(&vcap->qlock);
 
-	/* Set the frame format (this is hardcoded for now) */
-	vcap->format.width = 640;
-	vcap->format.height = 480;
-	vcap->format.pixelformat = V4L2_PIX_FMT_RGB24;
-	vcap->format.field = V4L2_FIELD_NONE;
-	vcap->format.colorspace = V4L2_COLORSPACE_SRGB;
-
+	/* Set default frame format */
+	vcap->format = fmt_default;
 	vpix = vimc_pix_map_by_pixelformat(vcap->format.pixelformat);
-
 	vcap->format.bytesperline = vcap->format.width * vpix->bpp;
 	vcap->format.sizeimage = vcap->format.bytesperline *
 				 vcap->format.height;
