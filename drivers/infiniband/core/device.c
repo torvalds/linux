@@ -893,6 +893,31 @@ void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 }
 
 /**
+ * ib_enum_all_devs - enumerate all ib_devices
+ * @cb: Callback to call for each found ib_device
+ *
+ * Enumerates all ib_devices and calls callback() on each device.
+ */
+int ib_enum_all_devs(nldev_callback nldev_cb, struct sk_buff *skb,
+		     struct netlink_callback *cb)
+{
+	struct ib_device *dev;
+	unsigned int idx = 0;
+	int ret = 0;
+
+	down_read(&lists_rwsem);
+	list_for_each_entry(dev, &device_list, core_list) {
+		ret = nldev_cb(dev, skb, cb, idx);
+		if (ret)
+			break;
+		idx++;
+	}
+
+	up_read(&lists_rwsem);
+	return ret;
+}
+
+/**
  * ib_query_pkey - Get P_Key table entry
  * @device:Device to query
  * @port_num:Port number to query

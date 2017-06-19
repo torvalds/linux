@@ -102,6 +102,14 @@ void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 			      roce_netdev_callback cb,
 			      void *cookie);
 
+typedef int (*nldev_callback)(struct ib_device *device,
+			      struct sk_buff *skb,
+			      struct netlink_callback *cb,
+			      unsigned int idx);
+
+int ib_enum_all_devs(nldev_callback nldev_cb, struct sk_buff *skb,
+		     struct netlink_callback *cb);
+
 enum ib_cache_gid_default_mode {
 	IB_CACHE_GID_DEFAULT_MODE_SET,
 	IB_CACHE_GID_DEFAULT_MODE_DELETE
