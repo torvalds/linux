@@ -65,7 +65,7 @@
 			clock-frequency = <32768>;
 		};
 
-		clk-lsi {
+		clk_lsi: clk-lsi {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <32000>;
@@ -304,6 +304,13 @@
 			interrupts = <17 1>;
 			interrupt-names = "alarm";
 			st,syscfg = <&pwrcfg>;
+			status = "disabled";
+		};
+
+		iwdg: watchdog@40003000 {
+			compatible = "st,stm32-iwdg";
+			reg = <0x40003000 0x400>;
+			clocks = <&clk_lsi>;
 			status = "disabled";
 		};
 
@@ -549,7 +556,17 @@
 			reg = <0x40007000 0x400>;
 		};
 
-		pin-controller {
+		ltdc: display-controller@40016800 {
+			compatible = "st,stm32-ltdc";
+			reg = <0x40016800 0x200>;
+			interrupts = <88>, <89>;
+			resets = <&rcc STM32F4_APB2_RESET(LTDC)>;
+			clocks = <&rcc 1 CLK_LCD>;
+			clock-names = "lcd";
+			status = "disabled";
+		};
+
+		pinctrl: pin-controller {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stm32f429-pinctrl";
@@ -561,6 +578,8 @@
 			gpioa: gpio@40020000 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0x0 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOA)>;
 				st,bank-name = "GPIOA";
@@ -569,6 +588,8 @@
 			gpiob: gpio@40020400 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0x400 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOB)>;
 				st,bank-name = "GPIOB";
@@ -577,6 +598,8 @@
 			gpioc: gpio@40020800 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0x800 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOC)>;
 				st,bank-name = "GPIOC";
@@ -585,6 +608,8 @@
 			gpiod: gpio@40020c00 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0xc00 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOD)>;
 				st,bank-name = "GPIOD";
@@ -593,6 +618,8 @@
 			gpioe: gpio@40021000 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0x1000 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOE)>;
 				st,bank-name = "GPIOE";
@@ -601,6 +628,8 @@
 			gpiof: gpio@40021400 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0x1400 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOF)>;
 				st,bank-name = "GPIOF";
@@ -609,6 +638,8 @@
 			gpiog: gpio@40021800 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0x1800 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOG)>;
 				st,bank-name = "GPIOG";
@@ -617,6 +648,8 @@
 			gpioh: gpio@40021c00 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0x1c00 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOH)>;
 				st,bank-name = "GPIOH";
@@ -625,6 +658,8 @@
 			gpioi: gpio@40022000 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0x2000 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOI)>;
 				st,bank-name = "GPIOI";
@@ -633,6 +668,8 @@
 			gpioj: gpio@40022400 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0x2400 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOJ)>;
 				st,bank-name = "GPIOJ";
@@ -641,6 +678,8 @@
 			gpiok: gpio@40022800 {
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 				reg = <0x2800 0x400>;
 				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOK)>;
 				st,bank-name = "GPIOK";
@@ -764,6 +803,70 @@
 					slew-rate = <3>;
 				};
 			};
+
+			ltdc_pins: ltdc@0 {
+				pins {
+					pinmux = <STM32F429_PI12_FUNC_LCD_HSYNC>,
+						 <STM32F429_PI13_FUNC_LCD_VSYNC>,
+						 <STM32F429_PI14_FUNC_LCD_CLK>,
+						 <STM32F429_PI15_FUNC_LCD_R0>,
+						 <STM32F429_PJ0_FUNC_LCD_R1>,
+						 <STM32F429_PJ1_FUNC_LCD_R2>,
+						 <STM32F429_PJ2_FUNC_LCD_R3>,
+						 <STM32F429_PJ3_FUNC_LCD_R4>,
+						 <STM32F429_PJ4_FUNC_LCD_R5>,
+						 <STM32F429_PJ5_FUNC_LCD_R6>,
+						 <STM32F429_PJ6_FUNC_LCD_R7>,
+						 <STM32F429_PJ7_FUNC_LCD_G0>,
+						 <STM32F429_PJ8_FUNC_LCD_G1>,
+						 <STM32F429_PJ9_FUNC_LCD_G2>,
+						 <STM32F429_PJ10_FUNC_LCD_G3>,
+						 <STM32F429_PJ11_FUNC_LCD_G4>,
+						 <STM32F429_PJ12_FUNC_LCD_B0>,
+						 <STM32F429_PJ13_FUNC_LCD_B1>,
+						 <STM32F429_PJ14_FUNC_LCD_B2>,
+						 <STM32F429_PJ15_FUNC_LCD_B3>,
+						 <STM32F429_PK0_FUNC_LCD_G5>,
+						 <STM32F429_PK1_FUNC_LCD_G6>,
+						 <STM32F429_PK2_FUNC_LCD_G7>,
+						 <STM32F429_PK3_FUNC_LCD_B4>,
+						 <STM32F429_PK4_FUNC_LCD_B5>,
+						 <STM32F429_PK5_FUNC_LCD_B6>,
+						 <STM32F429_PK6_FUNC_LCD_B7>,
+						 <STM32F429_PK7_FUNC_LCD_DE>;
+					slew-rate = <2>;
+				};
+			};
+
+			dcmi_pins: dcmi@0 {
+				pins {
+					pinmux = <STM32F429_PA4_FUNC_DCMI_HSYNC>,
+						 <STM32F429_PB7_FUNC_DCMI_VSYNC>,
+						 <STM32F429_PA6_FUNC_DCMI_PIXCLK>,
+						 <STM32F429_PC6_FUNC_DCMI_D0>,
+						 <STM32F429_PC7_FUNC_DCMI_D1>,
+						 <STM32F429_PC8_FUNC_DCMI_D2>,
+						 <STM32F429_PC9_FUNC_DCMI_D3>,
+						 <STM32F429_PC11_FUNC_DCMI_D4>,
+						 <STM32F429_PD3_FUNC_DCMI_D5>,
+						 <STM32F429_PB8_FUNC_DCMI_D6>,
+						 <STM32F429_PE6_FUNC_DCMI_D7>,
+						 <STM32F429_PC10_FUNC_DCMI_D8>,
+						 <STM32F429_PC12_FUNC_DCMI_D9>,
+						 <STM32F429_PD6_FUNC_DCMI_D10>,
+						 <STM32F429_PD2_FUNC_DCMI_D11>;
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <3>;
+				};
+			};
+		};
+
+		crc: crc@40023000 {
+			compatible = "st,stm32f4-crc";
+			reg = <0x40023000 0x400>;
+			clocks = <&rcc 0 STM32F4_AHB1_CLOCK(CRC)>;
+			status = "disabled";
 		};
 
 		rcc: rcc@40023810 {
@@ -839,6 +942,20 @@
 			interrupts = <67>;
 			clocks = <&rcc 0 39>;
 			clock-names = "otg";
+			status = "disabled";
+		};
+
+		dcmi: dcmi@50050000 {
+			compatible = "st,stm32-dcmi";
+			reg = <0x50050000 0x400>;
+			interrupts = <78>;
+			resets = <&rcc STM32F4_AHB2_RESET(DCMI)>;
+			clocks = <&rcc 0 STM32F4_AHB2_CLOCK(DCMI)>;
+			clock-names = "mclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&dcmi_pins>;
+			dmas = <&dma2 1 1 0x414 0x3>;
+			dma-names = "tx";
 			status = "disabled";
 		};
 
