@@ -968,7 +968,7 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 
 	if (crtc_state->mode.flags & DRM_MODE_FLAG_420_MASK) {
 		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;
-		s->bus_format = MEDIA_BUS_FMT_YUV8_1X24;
+		s->bus_format = MEDIA_BUS_FMT_UYYVYY8_0_5X24;
 	} else {
 		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
