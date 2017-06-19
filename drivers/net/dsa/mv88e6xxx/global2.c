@@ -52,7 +52,7 @@ int mv88e6095_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 	 * addresses matching 01:80:c2:00:00:2x as MGMT.
 	 */
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X)) {
-		err = mv88e6xxx_g2_write(chip, GLOBAL2_MGMT_EN_2X, 0xffff);
+		err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MGMT_EN_2X, 0xffff);
 		if (err)
 			return err;
 	}
@@ -61,7 +61,8 @@ int mv88e6095_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 	 * addresses matching 01:80:c2:00:00:0x as MGMT.
 	 */
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X))
-		return mv88e6xxx_g2_write(chip, GLOBAL2_MGMT_EN_0X, 0xffff);
+		return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MGMT_EN_0X,
+					  0xffff);
 
 	return 0;
 }
@@ -1056,11 +1057,11 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 	 * highest, and send all special multicast frames to the CPU
 	 * port at the highest priority.
 	 */
-	reg = GLOBAL2_SWITCH_MGMT_FORCE_FLOW_CTRL_PRI | (0x7 << 4);
+	reg = MV88E6XXX_G2_SWITCH_MGMT_FORCE_FLOW_CTL_PRI | (0x7 << 4);
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X) ||
 	    mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X))
-		reg |= GLOBAL2_SWITCH_MGMT_RSVD2CPU | 0x7;
-	err = mv88e6xxx_g2_write(chip, GLOBAL2_SWITCH_MGMT, reg);
+		reg |= MV88E6XXX_G2_SWITCH_MGMT_RSVD2CPU | 0x7;
+	err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_SWITCH_MGMT, reg);
 	if (err)
 		return err;
 
