@@ -65,7 +65,7 @@ MMU_FTR_SECTION_ELSE							\
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_68_BIT_VA)
 
 
-/* void slb_allocate_realmode(unsigned long ea);
+/* void slb_allocate(unsigned long ea);
  *
  * Create an SLB entry for the given EA (user or kernel).
  * 	r3 = faulting address, r13 = PACA
@@ -73,7 +73,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_68_BIT_VA)
  *	r3 is preserved.
  * No other registers are examined or changed.
  */
-_GLOBAL(slb_allocate_realmode)
+_GLOBAL(slb_allocate)
 	/*
 	 * check for bad kernel/user address
 	 * (ea & ~REGION_MASK) >= PGTABLE_RANGE
@@ -309,7 +309,7 @@ slb_compare_rr_to_size:
 	b	7b
 
 
-_ASM_NOKPROBE_SYMBOL(slb_allocate_realmode)
+_ASM_NOKPROBE_SYMBOL(slb_allocate)
 _ASM_NOKPROBE_SYMBOL(slb_miss_kernel_load_linear)
 _ASM_NOKPROBE_SYMBOL(slb_miss_kernel_load_io)
 _ASM_NOKPROBE_SYMBOL(slb_compare_rr_to_size)

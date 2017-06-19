@@ -605,7 +605,7 @@ EXC_COMMON_BEGIN(slb_miss_common)
 	crset	4*cr0+eq
 #ifdef CONFIG_PPC_STD_MMU_64
 BEGIN_MMU_FTR_SECTION
-	bl	slb_allocate_realmode
+	bl	slb_allocate
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 #endif
 
