@@ -1,7 +1,6 @@
 #ifndef _NFNETLINK_H
 #define _NFNETLINK_H
 
-
 #include <linux/netlink.h>
 #include <linux/capability.h>
 #include <net/netlink.h>
@@ -10,13 +9,16 @@
 struct nfnl_callback {
 	int (*call)(struct net *net, struct sock *nl, struct sk_buff *skb,
 		    const struct nlmsghdr *nlh,
-		    const struct nlattr * const cda[]);
+		    const struct nlattr * const cda[],
+		    struct netlink_ext_ack *extack);
 	int (*call_rcu)(struct net *net, struct sock *nl, struct sk_buff *skb,
 			const struct nlmsghdr *nlh,
-			const struct nlattr * const cda[]);
+			const struct nlattr * const cda[],
+			struct netlink_ext_ack *extack);
 	int (*call_batch)(struct net *net, struct sock *nl, struct sk_buff *skb,
 			  const struct nlmsghdr *nlh,
-			  const struct nlattr * const cda[]);
+			  const struct nlattr * const cda[],
+			  struct netlink_ext_ack *extack);
 	const struct nla_policy *policy;	/* netlink attribute policy */
 	const u_int16_t attr_count;		/* number of nlattr's */
 };

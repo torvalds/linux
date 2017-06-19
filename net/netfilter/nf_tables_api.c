@@ -535,7 +535,8 @@ done:
 
 static int nf_tables_gettable(struct net *net, struct sock *nlsk,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nla[])
+			      const struct nlattr * const nla[],
+			      struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_cur(net);
@@ -678,7 +679,8 @@ err:
 
 static int nf_tables_newtable(struct net *net, struct sock *nlsk,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nla[])
+			      const struct nlattr * const nla[],
+			      struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_next(net);
@@ -831,7 +833,8 @@ out:
 
 static int nf_tables_deltable(struct net *net, struct sock *nlsk,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nla[])
+			      const struct nlattr * const nla[],
+			      struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_next(net);
@@ -1127,7 +1130,8 @@ done:
 
 static int nf_tables_getchain(struct net *net, struct sock *nlsk,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nla[])
+			      const struct nlattr * const nla[],
+			      struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_cur(net);
@@ -1323,7 +1327,8 @@ static void nft_chain_release_hook(struct nft_chain_hook *hook)
 
 static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nla[])
+			      const struct nlattr * const nla[],
+			      struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	const struct nlattr * uninitialized_var(name);
@@ -1561,7 +1566,8 @@ err1:
 
 static int nf_tables_delchain(struct net *net, struct sock *nlsk,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nla[])
+			      const struct nlattr * const nla[],
+			      struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_next(net);
@@ -2042,7 +2048,8 @@ static int nf_tables_dump_rules_done(struct netlink_callback *cb)
 
 static int nf_tables_getrule(struct net *net, struct sock *nlsk,
 			     struct sk_buff *skb, const struct nlmsghdr *nlh,
-			     const struct nlattr * const nla[])
+			     const struct nlattr * const nla[],
+			     struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_cur(net);
@@ -2135,7 +2142,8 @@ static struct nft_expr_info *info;
 
 static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 			     struct sk_buff *skb, const struct nlmsghdr *nlh,
-			     const struct nlattr * const nla[])
+			     const struct nlattr * const nla[],
+			     struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_next(net);
@@ -2317,7 +2325,8 @@ static struct nft_rule *nft_rule_lookup_byid(const struct net *net,
 
 static int nf_tables_delrule(struct net *net, struct sock *nlsk,
 			     struct sk_buff *skb, const struct nlmsghdr *nlh,
-			     const struct nlattr * const nla[])
+			     const struct nlattr * const nla[],
+			     struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_next(net);
@@ -2833,7 +2842,8 @@ static int nf_tables_dump_sets_done(struct netlink_callback *cb)
 
 static int nf_tables_getset(struct net *net, struct sock *nlsk,
 			    struct sk_buff *skb, const struct nlmsghdr *nlh,
-			    const struct nlattr * const nla[])
+			    const struct nlattr * const nla[],
+			    struct netlink_ext_ack *extack)
 {
 	u8 genmask = nft_genmask_cur(net);
 	const struct nft_set *set;
@@ -2909,7 +2919,8 @@ static int nf_tables_set_desc_parse(const struct nft_ctx *ctx,
 
 static int nf_tables_newset(struct net *net, struct sock *nlsk,
 			    struct sk_buff *skb, const struct nlmsghdr *nlh,
-			    const struct nlattr * const nla[])
+			    const struct nlattr * const nla[],
+			    struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_next(net);
@@ -3127,7 +3138,8 @@ static void nf_tables_set_destroy(const struct nft_ctx *ctx, struct nft_set *set
 
 static int nf_tables_delset(struct net *net, struct sock *nlsk,
 			    struct sk_buff *skb, const struct nlmsghdr *nlh,
-			    const struct nlattr * const nla[])
+			    const struct nlattr * const nla[],
+			    struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_next(net);
@@ -3487,7 +3499,8 @@ static int nf_tables_dump_set_done(struct netlink_callback *cb)
 
 static int nf_tables_getsetelem(struct net *net, struct sock *nlsk,
 				struct sk_buff *skb, const struct nlmsghdr *nlh,
-				const struct nlattr * const nla[])
+				const struct nlattr * const nla[],
+				struct netlink_ext_ack *extack)
 {
 	u8 genmask = nft_genmask_cur(net);
 	const struct nft_set *set;
@@ -3888,7 +3901,8 @@ err1:
 
 static int nf_tables_newsetelem(struct net *net, struct sock *nlsk,
 				struct sk_buff *skb, const struct nlmsghdr *nlh,
-				const struct nlattr * const nla[])
+				const struct nlattr * const nla[],
+				struct netlink_ext_ack *extack)
 {
 	u8 genmask = nft_genmask_next(net);
 	const struct nlattr *attr;
@@ -4085,7 +4099,8 @@ err1:
 
 static int nf_tables_delsetelem(struct net *net, struct sock *nlsk,
 				struct sk_buff *skb, const struct nlmsghdr *nlh,
-				const struct nlattr * const nla[])
+				const struct nlattr * const nla[],
+				struct netlink_ext_ack *extack)
 {
 	u8 genmask = nft_genmask_next(net);
 	const struct nlattr *attr;
@@ -4295,7 +4310,8 @@ static const struct nft_object_type *nft_obj_type_get(u32 objtype)
 
 static int nf_tables_newobj(struct net *net, struct sock *nlsk,
 			    struct sk_buff *skb, const struct nlmsghdr *nlh,
-			    const struct nlattr * const nla[])
+			    const struct nlattr * const nla[],
+			    struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	const struct nft_object_type *type;
@@ -4489,7 +4505,8 @@ nft_obj_filter_alloc(const struct nlattr * const nla[])
 
 static int nf_tables_getobj(struct net *net, struct sock *nlsk,
 			    struct sk_buff *skb, const struct nlmsghdr *nlh,
-			    const struct nlattr * const nla[])
+			    const struct nlattr * const nla[],
+			    struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_cur(net);
@@ -4567,8 +4584,9 @@ static void nft_obj_destroy(struct nft_object *obj)
 }
 
 static int nf_tables_delobj(struct net *net, struct sock *nlsk,
-			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nla[])
+			    struct sk_buff *skb, const struct nlmsghdr *nlh,
+			    const struct nlattr * const nla[],
+			    struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u8 genmask = nft_genmask_next(net);
@@ -4698,7 +4716,8 @@ err:
 
 static int nf_tables_getgen(struct net *net, struct sock *nlsk,
 			    struct sk_buff *skb, const struct nlmsghdr *nlh,
-			    const struct nlattr * const nla[])
+			    const struct nlattr * const nla[],
+			    struct netlink_ext_ack *extack)
 {
 	struct sk_buff *skb2;
 	int err;

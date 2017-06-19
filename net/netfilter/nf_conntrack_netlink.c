@@ -1127,7 +1127,8 @@ static int ctnetlink_flush_conntrack(struct net *net,
 static int ctnetlink_del_conntrack(struct net *net, struct sock *ctnl,
 				   struct sk_buff *skb,
 				   const struct nlmsghdr *nlh,
-				   const struct nlattr * const cda[])
+				   const struct nlattr * const cda[],
+				   struct netlink_ext_ack *extack)
 {
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_tuple tuple;
@@ -1179,7 +1180,8 @@ static int ctnetlink_del_conntrack(struct net *net, struct sock *ctnl,
 static int ctnetlink_get_conntrack(struct net *net, struct sock *ctnl,
 				   struct sk_buff *skb,
 				   const struct nlmsghdr *nlh,
-				   const struct nlattr * const cda[])
+				   const struct nlattr * const cda[],
+				   struct netlink_ext_ack *extack)
 {
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_tuple tuple;
@@ -1340,7 +1342,8 @@ ctnetlink_dump_dying(struct sk_buff *skb, struct netlink_callback *cb)
 static int ctnetlink_get_ct_dying(struct net *net, struct sock *ctnl,
 				  struct sk_buff *skb,
 				  const struct nlmsghdr *nlh,
-				  const struct nlattr * const cda[])
+				  const struct nlattr * const cda[],
+				  struct netlink_ext_ack *extack)
 {
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
@@ -1362,7 +1365,8 @@ ctnetlink_dump_unconfirmed(struct sk_buff *skb, struct netlink_callback *cb)
 static int ctnetlink_get_ct_unconfirmed(struct net *net, struct sock *ctnl,
 					struct sk_buff *skb,
 					const struct nlmsghdr *nlh,
-					const struct nlattr * const cda[])
+					const struct nlattr * const cda[],
+					struct netlink_ext_ack *extack)
 {
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
@@ -1901,7 +1905,8 @@ err1:
 static int ctnetlink_new_conntrack(struct net *net, struct sock *ctnl,
 				   struct sk_buff *skb,
 				   const struct nlmsghdr *nlh,
-				   const struct nlattr * const cda[])
+				   const struct nlattr * const cda[],
+				   struct netlink_ext_ack *extack)
 {
 	struct nf_conntrack_tuple otuple, rtuple;
 	struct nf_conntrack_tuple_hash *h = NULL;
@@ -2066,7 +2071,8 @@ ctnetlink_ct_stat_cpu_dump(struct sk_buff *skb, struct netlink_callback *cb)
 static int ctnetlink_stat_ct_cpu(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
@@ -2111,7 +2117,8 @@ nlmsg_failure:
 
 static int ctnetlink_stat_ct(struct net *net, struct sock *ctnl,
 			     struct sk_buff *skb, const struct nlmsghdr *nlh,
-			     const struct nlattr * const cda[])
+			     const struct nlattr * const cda[],
+			     struct netlink_ext_ack *extack)
 {
 	struct sk_buff *skb2;
 	int err;
@@ -2773,7 +2780,8 @@ out:
 static int ctnetlink_dump_exp_ct(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	int err;
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
@@ -2817,7 +2825,8 @@ static int ctnetlink_dump_exp_ct(struct net *net, struct sock *ctnl,
 
 static int ctnetlink_get_expect(struct net *net, struct sock *ctnl,
 				struct sk_buff *skb, const struct nlmsghdr *nlh,
-				const struct nlattr * const cda[])
+				const struct nlattr * const cda[],
+				struct netlink_ext_ack *extack)
 {
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_expect *exp;
@@ -2829,7 +2838,8 @@ static int ctnetlink_get_expect(struct net *net, struct sock *ctnl,
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		if (cda[CTA_EXPECT_MASTER])
-			return ctnetlink_dump_exp_ct(net, ctnl, skb, nlh, cda);
+			return ctnetlink_dump_exp_ct(net, ctnl, skb, nlh, cda,
+						     extack);
 		else {
 			struct netlink_dump_control c = {
 				.dump = ctnetlink_exp_dump_table,
@@ -2897,7 +2907,8 @@ out:
 
 static int ctnetlink_del_expect(struct net *net, struct sock *ctnl,
 				struct sk_buff *skb, const struct nlmsghdr *nlh,
-				const struct nlattr * const cda[])
+				const struct nlattr * const cda[],
+				struct netlink_ext_ack *extack)
 {
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple tuple;
@@ -3185,7 +3196,8 @@ err_ct:
 
 static int ctnetlink_new_expect(struct net *net, struct sock *ctnl,
 				struct sk_buff *skb, const struct nlmsghdr *nlh,
-				const struct nlattr * const cda[])
+				const struct nlattr * const cda[],
+				struct netlink_ext_ack *extack)
 {
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_expect *exp;
@@ -3291,7 +3303,8 @@ ctnetlink_exp_stat_cpu_dump(struct sk_buff *skb, struct netlink_callback *cb)
 static int ctnetlink_stat_exp_cpu(struct net *net, struct sock *ctnl,
 				  struct sk_buff *skb,
 				  const struct nlmsghdr *nlh,
-				  const struct nlattr * const cda[])
+				  const struct nlattr * const cda[],
+				  struct netlink_ext_ack *extack)
 {
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {

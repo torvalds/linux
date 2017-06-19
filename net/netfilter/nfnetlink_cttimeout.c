@@ -69,7 +69,8 @@ ctnl_timeout_parse_policy(void *timeouts, struct nf_conntrack_l4proto *l4proto,
 static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	__u16 l3num;
 	__u8 l4num;
@@ -239,7 +240,8 @@ ctnl_timeout_dump(struct sk_buff *skb, struct netlink_callback *cb)
 static int cttimeout_get_timeout(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	int ret = -ENOENT;
 	char *name;
@@ -326,7 +328,8 @@ static int ctnl_timeout_try_del(struct net *net, struct ctnl_timeout *timeout)
 static int cttimeout_del_timeout(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	struct ctnl_timeout *cur, *tmp;
 	int ret = -ENOENT;
@@ -357,7 +360,8 @@ static int cttimeout_del_timeout(struct net *net, struct sock *ctnl,
 static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	__u16 l3num;
 	__u8 l4num;
@@ -446,7 +450,8 @@ nla_put_failure:
 static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	__u16 l3num;
 	__u8 l4num;
