@@ -3086,6 +3086,8 @@ static int dce_v11_0_hw_init(void *handle)
 
 	dce_v11_0_init_golden_registers(adev);
 
+	/* disable vga render */
+	dce_v11_0_set_vga_render_state(adev, false);
 	/* init dig PHYs, disp eng pll */
 	amdgpu_atombios_crtc_powergate_init(adev);
 	amdgpu_atombios_encoder_init_dig(adev);

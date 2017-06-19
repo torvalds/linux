@@ -3025,6 +3025,8 @@ static int dce_v10_0_hw_init(void *handle)
 
 	dce_v10_0_init_golden_registers(adev);
 
+	/* disable vga render */
+	dce_v10_0_set_vga_render_state(adev, false);
 	/* init dig PHYs, disp eng pll */
 	amdgpu_atombios_encoder_init_dig(adev);
 	amdgpu_atombios_crtc_set_disp_eng_pll(adev, adev->clock.default_dispclk);
