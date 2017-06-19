@@ -486,22 +486,6 @@ more details, with real examples.
 	respectively.
 	Note: cc-option-yn uses KBUILD_CFLAGS for $(CC) options
 
-    cc-option-align
-	gcc versions >= 3.0 changed the type of options used to specify
-	alignment of functions, loops etc. $(cc-option-align), when used
-	as prefix to the align options, will select the right prefix:
-	gcc < 3.00
-		cc-option-align = -malign
-	gcc >= 3.00
-		cc-option-align = -falign
-
-	Example:
-		KBUILD_CFLAGS += $(cc-option-align)-functions=4
-
-	In the above example, the option -falign-functions=4 is used for
-	gcc >= 3.00. For gcc < 3.00, -malign-functions=4 is used.
-	Note: cc-option-align uses KBUILD_CFLAGS for $(CC) options
-
     cc-disable-warning
 	cc-disable-warning checks if gcc supports a given warning and returns
 	the commandline switch to disable it. This special function is needed,
