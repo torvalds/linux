@@ -37,7 +37,7 @@ static struct proc_dir_entry *root_irq_dir;
 
 #ifdef CONFIG_SMP
 
-static int show_irq_affinity(int type, struct seq_file *m, void *v)
+static int show_irq_affinity(int type, struct seq_file *m)
 {
 	struct irq_desc *desc = irq_to_desc((long)m->private);
 	const struct cpumask *mask = desc->irq_common_data.affinity;
@@ -80,12 +80,12 @@ static int irq_affinity_hint_proc_show(struct seq_file *m, void *v)
 int no_irq_affinity;
 static int irq_affinity_proc_show(struct seq_file *m, void *v)
 {
-	return show_irq_affinity(0, m, v);
+	return show_irq_affinity(0, m);
 }
 
 static int irq_affinity_list_proc_show(struct seq_file *m, void *v)
 {
-	return show_irq_affinity(1, m, v);
+	return show_irq_affinity(1, m);
 }
 
 
