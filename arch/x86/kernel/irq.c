@@ -440,9 +440,9 @@ void fixup_irqs(void)
 	int ret;
 
 	for_each_irq_desc(irq, desc) {
+		const struct cpumask *affinity;
 		int break_affinity = 0;
 		int set_affinity = 1;
-		const struct cpumask *affinity;
 
 		if (!desc)
 			continue;
@@ -454,19 +454,36 @@ void fixup_irqs(void)
 
 		data = irq_desc_get_irq_data(desc);
 		affinity = irq_data_get_affinity_mask(data);
+
 		if (!irq_has_action(irq) || irqd_is_per_cpu(data) ||
 		    cpumask_subset(affinity, cpu_online_mask)) {
+			irq_fixup_move_pending(desc, false);
 			raw_spin_unlock(&desc->lock);
 			continue;
 		}
 
 		/*
-		 * Complete the irq move. This cpu is going down and for
-		 * non intr-remapping case, we can't wait till this interrupt
-		 * arrives at this cpu before completing the irq move.
+		 * Complete an eventually pending irq move cleanup. If this
+		 * interrupt was moved in hard irq context, then the
+		 * vectors need to be cleaned up. It can't wait until this
+		 * interrupt actually happens and this CPU was involved.
 		 */
 		irq_force_complete_move(desc);
 
+		/*
+		 * If there is a setaffinity pending, then try to reuse the
+		 * pending mask, so the last change of the affinity does
+		 * not get lost. If there is no move pending or the pending
+		 * mask does not contain any online CPU, use the current
+		 * affinity mask.
+		 */
+		if (irq_fixup_move_pending(desc, true))
+			affinity = desc->pending_mask;
+
+		/*
+		 * If the mask does not contain an offline CPU, break
+		 * affinity and use cpu_online_mask as fall back.
+		 */
 		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 			break_affinity = 1;
 			affinity = cpu_online_mask;
