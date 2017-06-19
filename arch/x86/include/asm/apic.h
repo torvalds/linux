@@ -296,9 +296,8 @@ struct apic {
 	/* Can't be NULL on 64-bit */
 	unsigned long (*set_apic_id)(unsigned int id);
 
-	int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
-				      const struct cpumask *andmask,
-				      unsigned int *apicid);
+	int (*cpu_mask_to_apicid)(const struct cpumask *cpumask,
+				  unsigned int *apicid);
 
 	/* ipi */
 	void (*send_IPI)(int cpu, int vector);
@@ -540,12 +539,10 @@ static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
 
 #endif
 
-extern int flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-				       const struct cpumask *andmask,
-				       unsigned int *apicid);
-extern int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-					  const struct cpumask *andmask,
-					  unsigned int *apicid);
+extern int flat_cpu_mask_to_apicid(const struct cpumask *cpumask,
+				   unsigned int *apicid);
+extern int default_cpu_mask_to_apicid(const struct cpumask *cpumask,
+				      unsigned int *apicid);
 
 static inline void
 flat_vector_allocation_domain(int cpu, struct cpumask *retmask,

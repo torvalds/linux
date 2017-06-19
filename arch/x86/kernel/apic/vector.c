@@ -141,7 +141,7 @@ static int __assign_irq_vector(int irq, struct apic_chip_data *d,
 		/*
 		 * Clear the offline cpus from @vector_cpumask for searching
 		 * and verify whether the result overlaps with @mask. If true,
-		 * then the call to apic->cpu_mask_to_apicid_and() will
+		 * then the call to apic->cpu_mask_to_apicid() will
 		 * succeed as well. If not, no point in trying to find a
 		 * vector in this mask.
 		 */
@@ -225,8 +225,8 @@ success:
 	 * vector_searchmask is a subset of d->domain and has the offline
 	 * cpus masked out.
 	 */
-	BUG_ON(apic->cpu_mask_to_apicid_and(mask, vector_searchmask,
-					    &d->cfg.dest_apicid));
+	cpumask_and(vector_searchmask, vector_searchmask, mask);
+	BUG_ON(apic->cpu_mask_to_apicid(vector_searchmask, &d->cfg.dest_apicid));
 	return 0;
 }
 

@@ -526,11 +526,9 @@ static void uv_init_apic_ldr(void)
 }
 
 static int
-uv_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			  const struct cpumask *andmask,
-			  unsigned int *apicid)
+uv_cpu_mask_to_apicid(const struct cpumask *mask, unsigned int *apicid)
 {
-	int ret = default_cpu_mask_to_apicid_and(cpumask, andmask, apicid);
+	int ret = default_cpu_mask_to_apicid(mask, apicid);
 
 	if (!ret)
 		*apicid |= uv_apicid_hibits;
@@ -603,7 +601,7 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= set_apic_id,
 
-	.cpu_mask_to_apicid_and		= uv_cpu_mask_to_apicid_and,
+	.cpu_mask_to_apicid		= uv_cpu_mask_to_apicid,
 
 	.send_IPI			= uv_send_IPI_one,
 	.send_IPI_mask			= uv_send_IPI_mask,

@@ -2201,11 +2201,9 @@ void default_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-				   const struct cpumask *andmask,
-				   unsigned int *apicid)
+int default_cpu_mask_to_apicid(const struct cpumask *mask, unsigned int *apicid)
 {
-	unsigned int cpu = cpumask_first_and(cpumask, andmask);
+	unsigned int cpu = cpumask_first(mask);
 
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
@@ -2213,13 +2211,9 @@ int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	return 0;
 }
 
-int flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-				const struct cpumask *andmask,
-				unsigned int *apicid)
+int flat_cpu_mask_to_apicid(const struct cpumask *mask, unsigned int *apicid)
 {
-	unsigned long cpu_mask = cpumask_bits(cpumask)[0] &
-				 cpumask_bits(andmask)[0] &
-				 APIC_ALL_CPUS;
+	unsigned long cpu_mask = cpumask_bits(mask)[0] & APIC_ALL_CPUS;
 
 	if (!cpu_mask)
 		return -EINVAL;
