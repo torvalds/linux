@@ -2907,11 +2907,35 @@ static int vxlan_config_validate(struct net *src_net, struct vxlan_config *conf,
 	if (conf->saddr.sa.sa_family != conf->remote_ip.sa.sa_family)
 		return -EINVAL;
 
+	if (vxlan_addr_multicast(&conf->saddr))
+		return -EINVAL;
+
 	if (conf->saddr.sa.sa_family == AF_INET6) {
 		if (!IS_ENABLED(CONFIG_IPV6))
 			return -EPFNOSUPPORT;
 		use_ipv6 = true;
 		conf->flags |= VXLAN_F_IPV6;
+
+		if (!(conf->flags & VXLAN_F_COLLECT_METADATA)) {
+			int local_type =
+				ipv6_addr_type(&conf->saddr.sin6.sin6_addr);
+			int remote_type =
+				ipv6_addr_type(&conf->remote_ip.sin6.sin6_addr);
+
+			if (local_type & IPV6_ADDR_LINKLOCAL) {
+				if (!(remote_type & IPV6_ADDR_LINKLOCAL) &&
+				    (remote_type != IPV6_ADDR_ANY))
+					return -EINVAL;
+
+				conf->flags |= VXLAN_F_IPV6_LINKLOCAL;
+			} else {
+				if (remote_type ==
+				    (IPV6_ADDR_UNICAST | IPV6_ADDR_LINKLOCAL))
+					return -EINVAL;
+
+				conf->flags &= ~VXLAN_F_IPV6_LINKLOCAL;
+			}
+		}
 	}
 
 	if (conf->label && !use_ipv6)
@@ -2936,6 +2960,11 @@ static int vxlan_config_validate(struct net *src_net, struct vxlan_config *conf,
 	} else {
 		if (vxlan_addr_multicast(&conf->remote_ip))
 			return -EINVAL;
+
+#if IS_ENABLED(CONFIG_IPV6)
+		if (conf->flags & VXLAN_F_IPV6_LINKLOCAL)
+			return -EINVAL;
+#endif
 
 		*lower = NULL;
 	}
