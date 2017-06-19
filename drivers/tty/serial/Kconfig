@@ -1688,6 +1688,25 @@ config SERIAL_MVEBU_CONSOLE
 	  and warnings and which allows logins in single user mode)
 	  Otherwise, say 'N'.
 
+config SERIAL_OWL
+	bool "Actions Semi Owl serial port support"
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  This driver is for Actions Semiconductor S500/S900 SoC's UART.
+	  Say 'Y' here if you wish to use the on-board serial port.
+	  Otherwise, say 'N'.
+
+config SERIAL_OWL_CONSOLE
+	bool "Console on Actions Semi Owl serial port"
+	depends on SERIAL_OWL=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	default y
+	help
+	  Say 'Y' here if you wish to use Actions Semiconductor S500/S900 UART
+	  as the system console. Only earlycon is implemented currently.
+
 endmenu
 
 config SERIAL_MCTRL_GPIO
