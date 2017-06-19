@@ -64,6 +64,15 @@ static int vimc_cap_querycap(struct file *file, void *priv,
 	return 0;
 }
 
+static void vimc_cap_get_format(struct vimc_ent_device *ved,
+				struct v4l2_pix_format *fmt)
+{
+	struct vimc_cap_device *vcap = container_of(ved, struct vimc_cap_device,
+						    ved);
+
+	*fmt = vcap->format;
+}
+
 static int vimc_cap_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
@@ -231,74 +240,8 @@ static const struct vb2_ops vimc_cap_qops = {
 	.wait_finish		= vb2_ops_wait_finish,
 };
 
-/*
- * NOTE: this function is a copy of v4l2_subdev_link_validate_get_format
- * maybe the v4l2 function should be public
- */
-static int vimc_cap_v4l2_subdev_link_validate_get_format(struct media_pad *pad,
-						struct v4l2_subdev_format *fmt)
-{
-	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(pad->entity);
-
-	fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	fmt->pad = pad->index;
-
-	return v4l2_subdev_call(sd, pad, get_fmt, NULL, fmt);
-}
-
-static int vimc_cap_link_validate(struct media_link *link)
-{
-	struct v4l2_subdev_format source_fmt;
-	const struct vimc_pix_map *vpix;
-	struct vimc_cap_device *vcap = container_of(link->sink->entity,
-						    struct vimc_cap_device,
-						    vdev.entity);
-	struct v4l2_pix_format *sink_fmt = &vcap->format;
-	int ret;
-
-	/*
-	 * if it is a raw node from vimc-core, ignore the link for now
-	 * TODO: remove this when there are no more raw nodes in the
-	 * core and return error instead
-	 */
-	if (link->source->entity->obj_type == MEDIA_ENTITY_TYPE_BASE)
-		return 0;
-
-	/* Get the the format of the subdev */
-	ret = vimc_cap_v4l2_subdev_link_validate_get_format(link->source,
-							    &source_fmt);
-	if (ret)
-		return ret;
-
-	dev_dbg(vcap->vdev.v4l2_dev->dev,
-		"%s: link validate formats src:%dx%d %d sink:%dx%d %d\n",
-		vcap->vdev.name,
-		source_fmt.format.width, source_fmt.format.height,
-		source_fmt.format.code,
-		sink_fmt->width, sink_fmt->height,
-		sink_fmt->pixelformat);
-
-	/* The width, height and code must match. */
-	vpix = vimc_pix_map_by_pixelformat(sink_fmt->pixelformat);
-	if (source_fmt.format.width != sink_fmt->width
-	    || source_fmt.format.height != sink_fmt->height
-	    || vpix->code != source_fmt.format.code)
-		return -EPIPE;
-
-	/*
-	 * The field order must match, or the sink field order must be NONE
-	 * to support interlaced hardware connected to bridges that support
-	 * progressive formats only.
-	 */
-	if (source_fmt.format.field != sink_fmt->field &&
-	    sink_fmt->field != V4L2_FIELD_NONE)
-		return -EPIPE;
-
-	return 0;
-}
-
 static const struct media_entity_operations vimc_cap_mops = {
-	.link_validate		= vimc_cap_link_validate,
+	.link_validate		= vimc_link_validate,
 };
 
 static void vimc_cap_destroy(struct vimc_ent_device *ved)
@@ -434,6 +377,7 @@ struct vimc_ent_device *vimc_cap_create(struct v4l2_device *v4l2_dev,
 	vcap->ved.destroy = vimc_cap_destroy;
 	vcap->ved.ent = &vcap->vdev.entity;
 	vcap->ved.process_frame = vimc_cap_process_frame;
+	vcap->ved.vdev_get_format = vimc_cap_get_format;
 
 	/* Initialize the video_device struct */
 	vdev = &vcap->vdev;

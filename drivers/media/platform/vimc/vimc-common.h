@@ -45,6 +45,9 @@ struct vimc_pix_map {
  * @pads:		the list of pads of the node
  * @destroy:		callback to destroy the node
  * @process_frame:	callback send a frame to that node
+ * @vdev_get_format:	callback that returns the current format a pad, used
+ *			only when is_media_entity_v4l2_video_device(ent) returns
+ *			true
  *
  * Each node of the topology must create a vimc_ent_device struct. Depending on
  * the node it will be of an instance of v4l2_subdev or video_device struct
@@ -60,6 +63,8 @@ struct vimc_ent_device {
 	void (*destroy)(struct vimc_ent_device *);
 	void (*process_frame)(struct vimc_ent_device *ved,
 			      struct media_pad *sink, const void *frame);
+	void (*vdev_get_format)(struct vimc_ent_device *ved,
+			      struct v4l2_pix_format *fmt);
 };
 
 /**
@@ -159,5 +164,14 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
  */
 void vimc_ent_sd_unregister(struct vimc_ent_device *ved,
 			    struct v4l2_subdev *sd);
+
+/**
+ * vimc_link_validate - validates a media link
+ *
+ * @link: pointer to &struct media_link
+ *
+ * This function calls validates if a media link is valid for streaming.
+ */
+int vimc_link_validate(struct media_link *link);
 
 #endif
