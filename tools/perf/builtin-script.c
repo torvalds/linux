@@ -298,10 +298,11 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		       "selected.\n");
 		return -EINVAL;
 	}
-	if (PRINT_FIELD(DSO) && !PRINT_FIELD(IP) && !PRINT_FIELD(ADDR)) {
-		pr_err("Display of DSO requested but neither sample IP nor "
-			   "sample address\nis selected. Hence, no addresses to convert "
-		       "to DSO.\n");
+	if (PRINT_FIELD(DSO) && !PRINT_FIELD(IP) && !PRINT_FIELD(ADDR) &&
+	    !PRINT_FIELD(BRSTACK) && !PRINT_FIELD(BRSTACKSYM)) {
+		pr_err("Display of DSO requested but none of sample IP, sample address, "
+		       "brstack\nor brstacksym are selected. Hence, no addresses to "
+		       "convert to DSO.\n");
 		return -EINVAL;
 	}
 	if (PRINT_FIELD(SRCLINE) && !PRINT_FIELD(IP)) {
@@ -514,18 +515,43 @@ mispred_str(struct branch_entry *br)
 	return br->flags.predicted ? 'P' : 'M';
 }
 
-static void print_sample_brstack(struct perf_sample *sample)
+static void print_sample_brstack(struct perf_sample *sample,
+				 struct thread *thread,
+				 struct perf_event_attr *attr)
 {
 	struct branch_stack *br = sample->branch_stack;
-	u64 i;
+	struct addr_location alf, alt;
+	u64 i, from, to;
 
 	if (!(br && br->nr))
 		return;
 
 	for (i = 0; i < br->nr; i++) {
-		printf(" 0x%"PRIx64"/0x%"PRIx64"/%c/%c/%c/%d ",
-			br->entries[i].from,
-			br->entries[i].to,
+		from = br->entries[i].from;
+		to   = br->entries[i].to;
+
+		if (PRINT_FIELD(DSO)) {
+			memset(&alf, 0, sizeof(alf));
+			memset(&alt, 0, sizeof(alt));
+			thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, from, &alf);
+			thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, to, &alt);
+		}
+
+		printf("0x%"PRIx64, from);
+		if (PRINT_FIELD(DSO)) {
+			printf("(");
+			map__fprintf_dsoname(alf.map, stdout);
+			printf(")");
+		}
+
+		printf("/0x%"PRIx64, to);
+		if (PRINT_FIELD(DSO)) {
+			printf("(");
+			map__fprintf_dsoname(alt.map, stdout);
+			printf(")");
+		}
+
+		printf("/%c/%c/%c/%d ",
 			mispred_str( br->entries + i),
 			br->entries[i].flags.in_tx? 'X' : '-',
 			br->entries[i].flags.abort? 'A' : '-',
@@ -534,7 +560,8 @@ static void print_sample_brstack(struct perf_sample *sample)
 }
 
 static void print_sample_brstacksym(struct perf_sample *sample,
-				    struct thread *thread)
+				    struct thread *thread,
+				    struct perf_event_attr *attr)
 {
 	struct branch_stack *br = sample->branch_stack;
 	struct addr_location alf, alt;
@@ -559,8 +586,18 @@ static void print_sample_brstacksym(struct perf_sample *sample,
 			alt.sym = map__find_symbol(alt.map, alt.addr);
 
 		symbol__fprintf_symname_offs(alf.sym, &alf, stdout);
+		if (PRINT_FIELD(DSO)) {
+			printf("(");
+			map__fprintf_dsoname(alf.map, stdout);
+			printf(")");
+		}
 		putchar('/');
 		symbol__fprintf_symname_offs(alt.sym, &alt, stdout);
+		if (PRINT_FIELD(DSO)) {
+			printf("(");
+			map__fprintf_dsoname(alt.map, stdout);
+			printf(")");
+		}
 		printf("/%c/%c/%c/%d ",
 			mispred_str( br->entries + i),
 			br->entries[i].flags.in_tx? 'X' : '-',
@@ -1187,9 +1224,9 @@ static void process_event(struct perf_script *script,
 		print_sample_iregs(sample, attr);
 
 	if (PRINT_FIELD(BRSTACK))
-		print_sample_brstack(sample);
+		print_sample_brstack(sample, thread, attr);
 	else if (PRINT_FIELD(BRSTACKSYM))
-		print_sample_brstacksym(sample, thread);
+		print_sample_brstacksym(sample, thread, attr);
 
 	if (perf_evsel__is_bpf_output(evsel) && PRINT_FIELD(BPF_OUTPUT))
 		print_sample_bpf_output(sample);
