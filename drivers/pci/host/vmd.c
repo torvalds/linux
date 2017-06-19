@@ -539,7 +539,10 @@ static void vmd_detach_resources(struct vmd_dev *vmd)
 }
 
 /*
- * VMD domains start at 0x1000 to not clash with ACPI _SEG domains.
+ * VMD domains start at 0x10000 to not clash with ACPI _SEG domains.
+ * Per ACPI r6.0, sec 6.5.6,  _SEG returns an integer, of which the lower
+ * 16 bits are the PCI Segment Group (domain) number.  Other bits are
+ * currently reserved.
  */
 static int vmd_find_free_domain(void)
 {
