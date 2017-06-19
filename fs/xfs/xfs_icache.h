@@ -47,6 +47,7 @@ struct xfs_eofblocks {
 #define XFS_IGET_CREATE		0x1
 #define XFS_IGET_UNTRUSTED	0x2
 #define XFS_IGET_DONTCACHE	0x4
+#define XFS_IGET_INCORE		0x8	/* don't read from disk or reinit */
 
 /*
  * flags for AG inode iterator
@@ -125,5 +126,8 @@ xfs_fs_eofblocks_from_user(
 	}
 	return 0;
 }
+
+int xfs_icache_inode_is_allocated(struct xfs_mount *mp, struct xfs_trans *tp,
+				  xfs_ino_t ino, bool *inuse);
 
 #endif
