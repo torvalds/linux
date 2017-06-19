@@ -281,8 +281,7 @@ vsc_read_err:
 		*clock_type, *clock_freq, *fw_vsc_cfg != NULL ? "yes" : "no");
 }
 
-static int fdp_nci_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int fdp_nci_i2c_probe(struct i2c_client *client)
 {
 	struct fdp_i2c_phy *phy;
 	struct device *dev = &client->dev;
@@ -360,12 +359,6 @@ static int fdp_nci_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id fdp_nci_i2c_id_table[] = {
-	{"int339a", 0},
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, fdp_nci_i2c_id_table);
-
 static const struct acpi_device_id fdp_nci_i2c_acpi_match[] = {
 	{"INT339A", 0},
 	{}
@@ -377,8 +370,7 @@ static struct i2c_driver fdp_nci_i2c_driver = {
 		   .name = FDP_I2C_DRIVER_NAME,
 		   .acpi_match_table = ACPI_PTR(fdp_nci_i2c_acpi_match),
 		  },
-	.id_table = fdp_nci_i2c_id_table,
-	.probe = fdp_nci_i2c_probe,
+	.probe_new = fdp_nci_i2c_probe,
 	.remove = fdp_nci_i2c_remove,
 };
 module_i2c_driver(fdp_nci_i2c_driver);
