@@ -2002,7 +2002,7 @@ void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
 	fs_devices = srcdev->fs_devices;
 
 	list_del_rcu(&srcdev->dev_list);
-	list_del_rcu(&srcdev->dev_alloc_list);
+	list_del(&srcdev->dev_alloc_list);
 	fs_devices->num_devices--;
 	if (srcdev->missing)
 		fs_devices->missing_devices--;
