@@ -297,12 +297,11 @@ void ccp5_debugfs_setup(struct ccp_device *ccp)
 		return;
 
 	write_lock_irqsave(&ccp_debugfs_lock, flags);
-	if (!ccp_debugfs_dir) {
+	if (!ccp_debugfs_dir)
 		ccp_debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
-		if (!ccp_debugfs_dir)
-			return;
-	}
 	write_unlock_irqrestore(&ccp_debugfs_lock, flags);
+	if (!ccp_debugfs_dir)
+		return;
 
 	ccp->debugfs_instance = debugfs_create_dir(ccp->name, ccp_debugfs_dir);
 	if (!ccp->debugfs_instance)
