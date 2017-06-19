@@ -720,9 +720,6 @@ static int virtblk_probe(struct virtio_device *vdev)
 	/* We can handle whatever the host told us to handle. */
 	blk_queue_max_segments(q, vblk->sg_elems-2);
 
-	/* No need to bounce any requests */
-	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
-
 	/* No real sector limit. */
 	blk_queue_max_hw_sectors(q, -1U);
 
