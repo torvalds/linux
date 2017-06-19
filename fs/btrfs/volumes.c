@@ -903,13 +903,15 @@ static void free_device_rcu(struct rcu_head *head)
 
 static void btrfs_close_bdev(struct btrfs_device *device)
 {
-	if (device->bdev && device->writeable) {
+	if (!device->bdev)
+		return;
+
+	if (device->writeable) {
 		sync_blockdev(device->bdev);
 		invalidate_bdev(device->bdev);
 	}
 
-	if (device->bdev)
-		blkdev_put(device->bdev, device->mode);
+	blkdev_put(device->bdev, device->mode);
 }
 
 static void btrfs_prepare_close_one_device(struct btrfs_device *device)
