@@ -833,7 +833,6 @@ void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq);
 void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi);
-struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
 
 void mlx5e_rx_am(struct mlx5e_rq *rq);
 void mlx5e_rx_am_work(struct work_struct *work);

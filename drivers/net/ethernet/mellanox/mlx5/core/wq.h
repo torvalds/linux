@@ -34,6 +34,7 @@
 #define __MLX5_WQ_H__
 
 #include <linux/mlx5/mlx5_ifc.h>
+#include <linux/mlx5/cq.h>
 
 struct mlx5_wq_param {
 	int		linear;
@@ -144,6 +145,22 @@ static inline void mlx5_cqwq_pop(struct mlx5_cqwq *wq)
 static inline void mlx5_cqwq_update_db_record(struct mlx5_cqwq *wq)
 {
 	*wq->db = cpu_to_be32(wq->cc & 0xffffff);
+}
+
+static inline struct mlx5_cqe64 *mlx5_cqwq_get_cqe(struct mlx5_cqwq *wq)
+{
+	u32 ci = mlx5_cqwq_get_ci(wq);
+	struct mlx5_cqe64 *cqe = mlx5_cqwq_get_wqe(wq, ci);
+	u8 cqe_ownership_bit = cqe->op_own & MLX5_CQE_OWNER_MASK;
+	u8 sw_ownership_val = mlx5_cqwq_get_wrap_cnt(wq) & 1;
+
+	if (cqe_ownership_bit != sw_ownership_val)
+		return NULL;
+
+	/* ensure cqe content is read after cqe ownership bit */
+	dma_rmb();
+
+	return cqe;
 }
 
 static inline int mlx5_wq_ll_is_full(struct mlx5_wq_ll *wq)

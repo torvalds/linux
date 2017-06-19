@@ -409,7 +409,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 		u16 wqe_counter;
 		bool last_wqe;
 
-		cqe = mlx5e_get_cqe(cq);
+		cqe = mlx5_cqwq_get_cqe(&cq->wq);
 		if (!cqe)
 			break;
 
