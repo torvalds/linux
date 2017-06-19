@@ -110,4 +110,43 @@ const struct vimc_pix_map *vimc_pix_map_by_code(u32 code);
  */
 const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
 
+/**
+ * vimc_ent_sd_register - initialize and register a subdev node
+ *
+ * @ved:	the vimc_ent_device struct to be initialize
+ * @sd:		the v4l2_subdev struct to be initialize and registered
+ * @v4l2_dev:	the v4l2 device to register the v4l2_subdev
+ * @name:	name of the sub-device. Please notice that the name must be
+ *		unique.
+ * @function:	media entity function defined by MEDIA_ENT_F_* macros
+ * @num_pads:	number of pads to initialize
+ * @pads_flag:	flags to use in each pad
+ * @sd_ops:	pointer to &struct v4l2_subdev_ops.
+ * @sd_destroy:	callback to destroy the node
+ *
+ * Helper function initialize and register the struct vimc_ent_device and struct
+ * v4l2_subdev which represents a subdev node in the topology
+ */
+int vimc_ent_sd_register(struct vimc_ent_device *ved,
+			 struct v4l2_subdev *sd,
+			 struct v4l2_device *v4l2_dev,
+			 const char *const name,
+			 u32 function,
+			 u16 num_pads,
+			 const unsigned long *pads_flag,
+			 const struct v4l2_subdev_ops *sd_ops,
+			 void (*sd_destroy)(struct vimc_ent_device *));
+
+/**
+ * vimc_ent_sd_register - initialize and register a subdev node
+ *
+ * @ved:	the vimc_ent_device struct to be initialize
+ * @sd:		the v4l2_subdev struct to be initialize and registered
+ *
+ * Helper function cleanup and unregister the struct vimc_ent_device and struct
+ * v4l2_subdev which represents a subdev node in the topology
+ */
+void vimc_ent_sd_unregister(struct vimc_ent_device *ved,
+			    struct v4l2_subdev *sd);
+
 #endif

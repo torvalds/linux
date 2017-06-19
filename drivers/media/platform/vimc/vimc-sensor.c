@@ -113,11 +113,6 @@ static const struct v4l2_subdev_pad_ops vimc_sen_pad_ops = {
 	.set_fmt		= vimc_sen_get_fmt,
 };
 
-/* media operations */
-static const struct media_entity_operations vimc_sen_mops = {
-	.link_validate = v4l2_subdev_link_validate,
-};
-
 static int vimc_sen_tpg_thread(void *data)
 {
 	struct vimc_sen_device *vsen = data;
@@ -217,9 +212,8 @@ static void vimc_sen_destroy(struct vimc_ent_device *ved)
 	struct vimc_sen_device *vsen =
 				container_of(ved, struct vimc_sen_device, ved);
 
+	vimc_ent_sd_unregister(ved, &vsen->sd);
 	tpg_free(&vsen->tpg);
-	v4l2_device_unregister_subdev(&vsen->sd);
-	media_entity_cleanup(ved->ent);
 	kfree(vsen);
 }
 
@@ -246,33 +240,12 @@ struct vimc_ent_device *vimc_sen_create(struct v4l2_device *v4l2_dev,
 	if (!vsen)
 		return ERR_PTR(-ENOMEM);
 
-	/* Allocate the pads */
-	vsen->ved.pads = vimc_pads_init(num_pads, pads_flag);
-	if (IS_ERR(vsen->ved.pads)) {
-		ret = PTR_ERR(vsen->ved.pads);
-		goto err_free_vsen;
-	}
-
-	/* Fill the vimc_ent_device struct */
-	vsen->ved.destroy = vimc_sen_destroy;
-	vsen->ved.ent = &vsen->sd.entity;
-
-	/* Initialize the subdev */
-	v4l2_subdev_init(&vsen->sd, &vimc_sen_ops);
-	vsen->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	vsen->sd.entity.ops = &vimc_sen_mops;
-	vsen->sd.owner = THIS_MODULE;
-	strlcpy(vsen->sd.name, name, sizeof(vsen->sd.name));
-	v4l2_set_subdevdata(&vsen->sd, &vsen->ved);
-
-	/* Expose this subdev to user space */
-	vsen->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
-
-	/* Initialize the media entity */
-	ret = media_entity_pads_init(&vsen->sd.entity,
-				     num_pads, vsen->ved.pads);
+	/* Initialize ved and sd */
+	ret = vimc_ent_sd_register(&vsen->ved, &vsen->sd, v4l2_dev, name,
+				   MEDIA_ENT_F_CAM_SENSOR, num_pads, pads_flag,
+				   &vimc_sen_ops, vimc_sen_destroy);
 	if (ret)
-		goto err_clean_pads;
+		goto err_free_vsen;
 
 	/* Set the active frame format (this is hardcoded for now) */
 	vsen->mbus_format.width = 640;
@@ -288,25 +261,12 @@ struct vimc_ent_device *vimc_sen_create(struct v4l2_device *v4l2_dev,
 		 vsen->mbus_format.height);
 	ret = tpg_alloc(&vsen->tpg, VIMC_SEN_FRAME_MAX_WIDTH);
 	if (ret)
-		goto err_clean_m_ent;
-
-	/* Register the subdev with the v4l2 and the media framework */
-	ret = v4l2_device_register_subdev(v4l2_dev, &vsen->sd);
-	if (ret) {
-		dev_err(vsen->sd.v4l2_dev->dev,
-			"%s: subdev register failed (err=%d)\n",
-			vsen->sd.name, ret);
-		goto err_free_tpg;
-	}
+		goto err_unregister_ent_sd;
 
 	return &vsen->ved;
 
-err_free_tpg:
-	tpg_free(&vsen->tpg);
-err_clean_m_ent:
-	media_entity_cleanup(&vsen->sd.entity);
-err_clean_pads:
-	vimc_pads_cleanup(vsen->ved.pads);
+err_unregister_ent_sd:
+	vimc_ent_sd_unregister(&vsen->ved,  &vsen->sd);
 err_free_vsen:
 	kfree(vsen);
 

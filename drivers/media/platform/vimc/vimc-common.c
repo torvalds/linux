@@ -219,3 +219,69 @@ struct media_pad *vimc_pads_init(u16 num_pads, const unsigned long *pads_flag)
 
 	return pads;
 }
+
+static const struct media_entity_operations vimc_ent_sd_mops = {
+	.link_validate = v4l2_subdev_link_validate,
+};
+
+int vimc_ent_sd_register(struct vimc_ent_device *ved,
+			 struct v4l2_subdev *sd,
+			 struct v4l2_device *v4l2_dev,
+			 const char *const name,
+			 u32 function,
+			 u16 num_pads,
+			 const unsigned long *pads_flag,
+			 const struct v4l2_subdev_ops *sd_ops,
+			 void (*sd_destroy)(struct vimc_ent_device *))
+{
+	int ret;
+
+	/* Allocate the pads */
+	ved->pads = vimc_pads_init(num_pads, pads_flag);
+	if (IS_ERR(ved->pads))
+		return PTR_ERR(ved->pads);
+
+	/* Fill the vimc_ent_device struct */
+	ved->destroy = sd_destroy;
+	ved->ent = &sd->entity;
+
+	/* Initialize the subdev */
+	v4l2_subdev_init(sd, sd_ops);
+	sd->entity.function = function;
+	sd->entity.ops = &vimc_ent_sd_mops;
+	sd->owner = THIS_MODULE;
+	strlcpy(sd->name, name, sizeof(sd->name));
+	v4l2_set_subdevdata(sd, ved);
+
+	/* Expose this subdev to user space */
+	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+
+	/* Initialize the media entity */
+	ret = media_entity_pads_init(&sd->entity, num_pads, ved->pads);
+	if (ret)
+		goto err_clean_pads;
+
+	/* Register the subdev with the v4l2 and the media framework */
+	ret = v4l2_device_register_subdev(v4l2_dev, sd);
+	if (ret) {
+		dev_err(v4l2_dev->dev,
+			"%s: subdev register failed (err=%d)\n",
+			name, ret);
+		goto err_clean_m_ent;
+	}
+
+	return 0;
+
+err_clean_m_ent:
+	media_entity_cleanup(&sd->entity);
+err_clean_pads:
+	vimc_pads_cleanup(ved->pads);
+	return ret;
+}
+
+void vimc_ent_sd_unregister(struct vimc_ent_device *ved, struct v4l2_subdev *sd)
+{
+	v4l2_device_unregister_subdev(sd);
+	media_entity_cleanup(ved->ent);
+	vimc_pads_cleanup(ved->pads);
+}
