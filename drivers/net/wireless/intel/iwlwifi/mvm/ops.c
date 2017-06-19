@@ -602,9 +602,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		if (mvm->cfg->base_params->num_of_queues == 16) {
 			mvm->aux_queue = 11;
 			mvm->first_agg_queue = 12;
+			BUILD_BUG_ON(BITS_PER_BYTE *
+				     sizeof(mvm->hw_queue_to_mac80211[0]) < 12);
 		} else {
 			mvm->aux_queue = 15;
 			mvm->first_agg_queue = 16;
+			BUILD_BUG_ON(BITS_PER_BYTE *
+				     sizeof(mvm->hw_queue_to_mac80211[0]) < 16);
 		}
 	} else {
 		mvm->aux_queue = IWL_MVM_DQA_AUX_QUEUE;

@@ -789,7 +789,7 @@ struct iwl_mvm {
 		u64 on_time_scan;
 	} radio_stats, accu_radio_stats;
 
-	u8 hw_queue_to_mac80211[IWL_MAX_TVQM_QUEUES];
+	u16 hw_queue_to_mac80211[IWL_MAX_TVQM_QUEUES];
 
 	struct {
 		u8 hw_queue_refcount;
