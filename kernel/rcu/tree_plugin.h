@@ -636,10 +636,17 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
  */
 static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 {
+	struct task_struct *t;
+
 	RCU_LOCKDEP_WARN(preemptible(), "rcu_preempt_check_blocked_tasks() invoked with preemption enabled!!!\n");
 	WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp));
-	if (rcu_preempt_has_tasks(rnp))
+	if (rcu_preempt_has_tasks(rnp)) {
 		rnp->gp_tasks = rnp->blkd_tasks.next;
+		t = container_of(rnp->gp_tasks, struct task_struct,
+				 rcu_node_entry);
+		trace_rcu_unlock_preempted_task(TPS("rcu_preempt-GPS"),
+						rnp->gpnum, t->pid);
+	}
 	WARN_ON_ONCE(rnp->qsmask);
 }
 
