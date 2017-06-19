@@ -3859,6 +3859,9 @@ static int ibmvnic_resume(struct device *dev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	int i;
 
+	if (adapter->state != VNIC_OPEN)
+		return 0;
+
 	/* kick the interrupt handlers just in case we lost an interrupt */
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		ibmvnic_interrupt_rx(adapter->rx_scrq[i]->irq,
