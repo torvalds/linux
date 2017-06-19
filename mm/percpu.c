@@ -672,6 +672,8 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme,
 	int to_free = 0;
 	int *p;
 
+	lockdep_assert_held(&pcpu_lock);
+
 	freeme |= 1;	/* we are searching for <given offset, in use> pair */
 
 	i = 0;
