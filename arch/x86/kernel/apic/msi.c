@@ -180,12 +180,6 @@ struct irq_domain *arch_create_remap_msi_irq_domain(struct irq_domain *parent,
 	irq_domain_free_fwnode(fn);
 	return d;
 }
-
-struct irq_domain *arch_create_msi_irq_domain(struct irq_domain *parent)
-{
-	return pci_msi_create_irq_domain(NULL, &pci_msi_ir_domain_info, parent);
-}
-
 #endif
 
 #ifdef CONFIG_DMAR_TABLE
