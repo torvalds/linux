@@ -251,6 +251,11 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 	if (error)
 		goto out_cleanup_queue;
 
+	/*
+	 * by default assume old behaviour and bounce for any highmem page
+	 */
+	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
+
 	error = bsg_register_queue(q, dev, name, release);
 	if (error)
 		goto out_cleanup_queue;

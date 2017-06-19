@@ -960,6 +960,11 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 		return NULL;
 	}
 
+	/*
+	 * by default assume old behaviour and bounce for any highmem page
+	 */
+	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
+
 	return q;
 }
 EXPORT_SYMBOL(blk_init_queue_node);
@@ -988,11 +993,6 @@ int blk_init_allocated_queue(struct request_queue *q)
 	 * This also sets hw/phys segments, boundary and size
 	 */
 	blk_queue_make_request(q, blk_queue_bio);
-
-	/*
-	 * by default assume old behaviour and bounce for any highmem page
-	 */
-	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
 
 	q->sg_reserved_size = INT_MAX;
 
