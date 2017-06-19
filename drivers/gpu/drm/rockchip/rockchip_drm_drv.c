@@ -28,6 +28,7 @@
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/component.h>
 #include <linux/fence.h>
 #include <linux/console.h>
@@ -676,6 +677,55 @@ err_unlock:
 	if (ret)
 		dev_err(drm_dev->dev, "failed to show loader logo\n");
 }
+
+static const char *const loader_protect_clocks[] __initconst = {
+	"hclk_vio",
+	"aclk_vio",
+	"aclk_vio0",
+};
+
+static struct clk **loader_clocks __initdata;
+static int __init rockchip_clocks_loader_protect(void)
+{
+	int nclocks = ARRAY_SIZE(loader_protect_clocks);
+	struct clk *clk;
+	int i;
+
+	loader_clocks = kcalloc(nclocks, sizeof(void *), GFP_KERNEL);
+	if (!loader_clocks)
+		return -ENOMEM;
+
+	for (i = 0; i < nclocks; i++) {
+		clk = __clk_lookup(loader_protect_clocks[i]);
+
+		if (clk) {
+			loader_clocks[i] = clk;
+			clk_prepare_enable(clk);
+		}
+	}
+
+	return 0;
+}
+fs_initcall(rockchip_clocks_loader_protect);
+
+static int __init rockchip_clocks_loader_unprotect(void)
+{
+	int i;
+
+	if (!loader_clocks)
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(loader_protect_clocks); i++) {
+		struct clk *clk = loader_clocks[i];
+
+		if (clk)
+			clk_disable_unprepare(clk);
+	}
+	kfree(loader_clocks);
+
+	return 0;
+}
+late_initcall_sync(rockchip_clocks_loader_unprotect);
 #endif
 
 /*
