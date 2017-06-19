@@ -252,6 +252,8 @@ static inline int x2apic_enabled(void) { return 0; }
 #define	x2apic_supported()	(0)
 #endif /* !CONFIG_X86_X2APIC */
 
+struct irq_data;
+
 /*
  * Copyright 2004 James Cleverdon, IBM.
  * Subject to the GNU Public License, v.2
@@ -297,6 +299,7 @@ struct apic {
 	unsigned long (*set_apic_id)(unsigned int id);
 
 	int (*cpu_mask_to_apicid)(const struct cpumask *cpumask,
+				  struct irq_data *irqdata,
 				  unsigned int *apicid);
 
 	/* ipi */
@@ -540,8 +543,10 @@ static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
 #endif
 
 extern int flat_cpu_mask_to_apicid(const struct cpumask *cpumask,
+				   struct irq_data *irqdata,
 				   unsigned int *apicid);
 extern int default_cpu_mask_to_apicid(const struct cpumask *cpumask,
+				      struct irq_data *irqdata,
 				      unsigned int *apicid);
 
 static inline void

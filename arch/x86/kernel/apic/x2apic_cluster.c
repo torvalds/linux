@@ -104,7 +104,8 @@ static void x2apic_send_IPI_all(int vector)
 }
 
 static int
-x2apic_cpu_mask_to_apicid(const struct cpumask *mask, unsigned int *apicid)
+x2apic_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
+			  unsigned int *apicid)
 {
 	unsigned int cpu;
 	u32 dest = 0;

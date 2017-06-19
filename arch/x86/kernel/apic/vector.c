@@ -103,7 +103,8 @@ static void free_apic_chip_data(struct apic_chip_data *data)
 }
 
 static int __assign_irq_vector(int irq, struct apic_chip_data *d,
-			       const struct cpumask *mask)
+			       const struct cpumask *mask,
+			       struct irq_data *irqdata)
 {
 	/*
 	 * NOTE! The local APIC isn't very good at handling
@@ -226,32 +227,35 @@ success:
 	 * cpus masked out.
 	 */
 	cpumask_and(vector_searchmask, vector_searchmask, mask);
-	BUG_ON(apic->cpu_mask_to_apicid(vector_searchmask, &d->cfg.dest_apicid));
+	BUG_ON(apic->cpu_mask_to_apicid(vector_searchmask, irqdata,
+					&d->cfg.dest_apicid));
 	return 0;
 }
 
 static int assign_irq_vector(int irq, struct apic_chip_data *data,
-			     const struct cpumask *mask)
+			     const struct cpumask *mask,
+			     struct irq_data *irqdata)
 {
 	int err;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
-	err = __assign_irq_vector(irq, data, mask);
+	err = __assign_irq_vector(irq, data, mask, irqdata);
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
 	return err;
 }
 
 static int assign_irq_vector_policy(int irq, int node,
 				    struct apic_chip_data *data,
-				    struct irq_alloc_info *info)
+				    struct irq_alloc_info *info,
+				    struct irq_data *irqdata)
 {
 	if (info && info->mask)
-		return assign_irq_vector(irq, data, info->mask);
+		return assign_irq_vector(irq, data, info->mask, irqdata);
 	if (node != NUMA_NO_NODE &&
-	    assign_irq_vector(irq, data, cpumask_of_node(node)) == 0)
+	    assign_irq_vector(irq, data, cpumask_of_node(node), irqdata) == 0)
 		return 0;
-	return assign_irq_vector(irq, data, apic->target_cpus());
+	return assign_irq_vector(irq, data, apic->target_cpus(), irqdata);
 }
 
 static void clear_irq_vector(int irq, struct apic_chip_data *data)
@@ -363,7 +367,8 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		irq_data->chip = &lapic_controller;
 		irq_data->chip_data = data;
 		irq_data->hwirq = virq + i;
-		err = assign_irq_vector_policy(virq + i, node, data, info);
+		err = assign_irq_vector_policy(virq + i, node, data, info,
+					       irq_data);
 		if (err)
 			goto error;
 	}
@@ -537,7 +542,7 @@ static int apic_set_affinity(struct irq_data *irq_data,
 	if (!cpumask_intersects(dest, cpu_online_mask))
 		return -EINVAL;
 
-	err = assign_irq_vector(irq, data, dest);
+	err = assign_irq_vector(irq, data, dest, irq_data);
 	return err ? err : IRQ_SET_MASK_OK;
 }
 

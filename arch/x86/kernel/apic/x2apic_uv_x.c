@@ -526,9 +526,10 @@ static void uv_init_apic_ldr(void)
 }
 
 static int
-uv_cpu_mask_to_apicid(const struct cpumask *mask, unsigned int *apicid)
+uv_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
+		      unsigned int *apicid)
 {
-	int ret = default_cpu_mask_to_apicid(mask, apicid);
+	int ret = default_cpu_mask_to_apicid(mask, irqdata, apicid);
 
 	if (!ret)
 		*apicid |= uv_apicid_hibits;
