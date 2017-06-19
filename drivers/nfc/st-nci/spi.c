@@ -224,7 +224,6 @@ static int st_nci_spi_acpi_request_resources(struct spi_device *spi_dev)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(spi_dev);
 	struct device *dev = &spi_dev->dev;
-	u8 tmp;
 
 	/* Get RESET GPIO from ACPI */
 	phy->gpiod_reset = devm_gpiod_get_index(dev, ST_NCI_GPIO_NAME_RESET,
@@ -234,19 +233,6 @@ static int st_nci_spi_acpi_request_resources(struct spi_device *spi_dev)
 		return PTR_ERR(phy->gpiod_reset);
 	}
 
-	phy->se_status.is_ese_present = false;
-	phy->se_status.is_uicc_present = false;
-
-	if (device_property_present(dev, "ese-present")) {
-		device_property_read_u8(dev, "ese-present", &tmp);
-		tmp = phy->se_status.is_ese_present;
-	}
-
-	if (device_property_present(dev, "uicc-present")) {
-		device_property_read_u8(dev, "uicc-present", &tmp);
-		tmp = phy->se_status.is_uicc_present;
-	}
-
 	return 0;
 }
 
@@ -254,11 +240,6 @@ static int st_nci_spi_of_request_resources(struct spi_device *spi)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(spi);
 	struct device *dev = &spi->dev;
-	struct device_node *pp;
-
-	pp = spi->dev.of_node;
-	if (!pp)
-		return -ENODEV;
 
 	/* Get GPIO from device tree */
 	phy->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
@@ -266,11 +247,6 @@ static int st_nci_spi_of_request_resources(struct spi_device *spi)
 		nfc_err(dev, "Unable to get RESET GPIO\n");
 		return PTR_ERR(phy->gpiod_reset);
 	}
-
-	phy->se_status.is_ese_present =
-				of_property_read_bool(pp, "ese-present");
-	phy->se_status.is_uicc_present =
-				of_property_read_bool(pp, "uicc-present");
 
 	return 0;
 }
@@ -316,6 +292,11 @@ static int st_nci_spi_probe(struct spi_device *dev)
 			"st_nci platform resources not available\n");
 		return -ENODEV;
 	}
+
+	phy->se_status.is_ese_present =
+			device_property_read_bool(&dev->dev, "ese-present");
+	phy->se_status.is_uicc_present =
+			device_property_read_bool(&dev->dev, "uicc-present");
 
 	r = ndlc_probe(phy, &spi_phy_ops, &dev->dev,
 			ST_NCI_FRAME_HEADROOM, ST_NCI_FRAME_TAILROOM,

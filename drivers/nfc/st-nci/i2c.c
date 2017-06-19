@@ -209,7 +209,6 @@ static int st_nci_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct st_nci_i2c_phy *phy = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
-	u8 tmp;
 
 	/* Get RESET GPIO from ACPI */
 	phy->gpiod_reset = devm_gpiod_get_index(dev, ST_NCI_GPIO_NAME_RESET,
@@ -219,19 +218,6 @@ static int st_nci_i2c_acpi_request_resources(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	phy->se_status.is_ese_present = false;
-	phy->se_status.is_uicc_present = false;
-
-	if (device_property_present(dev, "ese-present")) {
-		device_property_read_u8(dev, "ese-present", &tmp);
-		phy->se_status.is_ese_present = tmp;
-	}
-
-	if (device_property_present(dev, "uicc-present")) {
-		device_property_read_u8(dev, "uicc-present", &tmp);
-		phy->se_status.is_uicc_present = tmp;
-	}
-
 	return 0;
 }
 
@@ -239,11 +225,6 @@ static int st_nci_i2c_of_request_resources(struct i2c_client *client)
 {
 	struct st_nci_i2c_phy *phy = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
-	struct device_node *pp;
-
-	pp = client->dev.of_node;
-	if (!pp)
-		return -ENODEV;
 
 	/* Get GPIO from device tree */
 	phy->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
@@ -252,17 +233,13 @@ static int st_nci_i2c_of_request_resources(struct i2c_client *client)
 		return PTR_ERR(phy->gpiod_reset);
 	}
 
-	phy->se_status.is_ese_present =
-				of_property_read_bool(pp, "ese-present");
-	phy->se_status.is_uicc_present =
-				of_property_read_bool(pp, "uicc-present");
-
 	return 0;
 }
 
 static int st_nci_i2c_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct st_nci_i2c_phy *phy;
 	int r;
 
@@ -300,6 +277,11 @@ static int st_nci_i2c_probe(struct i2c_client *client,
 			"st_nci platform resources not available\n");
 		return -ENODEV;
 	}
+
+	phy->se_status.is_ese_present =
+				device_property_read_bool(dev, "ese-present");
+	phy->se_status.is_uicc_present =
+				device_property_read_bool(dev, "uicc-present");
 
 	r = ndlc_probe(phy, &i2c_phy_ops, &client->dev,
 			ST_NCI_FRAME_HEADROOM, ST_NCI_FRAME_TAILROOM,
