@@ -193,6 +193,16 @@ static inline void irqd_clr_move_pending(struct irq_data *d)
 	__irqd_to_state(d) &= ~IRQD_SETAFFINITY_PENDING;
 }
 
+static inline void irqd_set_managed_shutdown(struct irq_data *d)
+{
+	__irqd_to_state(d) |= IRQD_MANAGED_SHUTDOWN;
+}
+
+static inline void irqd_clr_managed_shutdown(struct irq_data *d)
+{
+	__irqd_to_state(d) &= ~IRQD_MANAGED_SHUTDOWN;
+}
+
 static inline void irqd_clear(struct irq_data *d, unsigned int mask)
 {
 	__irqd_to_state(d) &= ~mask;
