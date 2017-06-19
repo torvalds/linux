@@ -221,6 +221,9 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 		netif_carrier_on(dev);
 	else
 		netif_carrier_off(dev);
+
+	if (!of_phy_is_fixed_link(mac->of_node))
+		phy_print_status(dev->phydev);
 }
 
 static int mtk_phy_connect_node(struct mtk_eth *eth, struct mtk_mac *mac,
