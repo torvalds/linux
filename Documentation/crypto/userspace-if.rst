@@ -327,7 +327,7 @@ boundary. Non-aligned data can be used as well, but may require more
 operations of the kernel which would defeat the speed gains obtained
 from the zero-copy interface.
 
-The system-interent limit for the size of one zero-copy operation is 16
+The system-inherent limit for the size of one zero-copy operation is 16
 pages. If more data is to be sent to AF_ALG, user space must slice the
 input into segments with a maximum size of 16 pages.
 
