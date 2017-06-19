@@ -536,6 +536,7 @@ config SOC_IMX7D
 	select HAVE_IMX_ANATOP
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
+	select IMX_GPCV2
 	help
 		This enables support for Freescale i.MX7 Dual processor.
 
