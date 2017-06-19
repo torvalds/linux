@@ -195,6 +195,52 @@ static void irq_state_set_started(struct irq_desc *desc)
 	irqd_set(&desc->irq_data, IRQD_IRQ_STARTED);
 }
 
+enum {
+	IRQ_STARTUP_NORMAL,
+	IRQ_STARTUP_MANAGED,
+	IRQ_STARTUP_ABORT,
+};
+
+#ifdef CONFIG_SMP
+static int
+__irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
+{
+	struct irq_data *d = irq_desc_get_irq_data(desc);
+
+	if (!irqd_affinity_is_managed(d))
+		return IRQ_STARTUP_NORMAL;
+
+	irqd_clr_managed_shutdown(d);
+
+	if (cpumask_any_and(aff, cpu_online_mask) > nr_cpu_ids) {
+		/*
+		 * Catch code which fiddles with enable_irq() on a managed
+		 * and potentially shutdown IRQ. Chained interrupt
+		 * installment or irq auto probing should not happen on
+		 * managed irqs either. Emit a warning, break the affinity
+		 * and start it up as a normal interrupt.
+		 */
+		if (WARN_ON_ONCE(force))
+			return IRQ_STARTUP_NORMAL;
+		/*
+		 * The interrupt was requested, but there is no online CPU
+		 * in it's affinity mask. Put it into managed shutdown
+		 * state and let the cpu hotplug mechanism start it up once
+		 * a CPU in the mask becomes available.
+		 */
+		irqd_set_managed_shutdown(d);
+		return IRQ_STARTUP_ABORT;
+	}
+	return IRQ_STARTUP_MANAGED;
+}
+#else
+static int
+__irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
+{
+	return IRQ_STARTUP_NORMAL;
+}
+#endif
+
 static int __irq_startup(struct irq_desc *desc)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
@@ -214,15 +260,27 @@ static int __irq_startup(struct irq_desc *desc)
 
 int irq_startup(struct irq_desc *desc, bool resend, bool force)
 {
+	struct irq_data *d = irq_desc_get_irq_data(desc);
+	struct cpumask *aff = irq_data_get_affinity_mask(d);
 	int ret = 0;
 
 	desc->depth = 0;
 
-	if (irqd_is_started(&desc->irq_data)) {
+	if (irqd_is_started(d)) {
 		irq_enable(desc);
 	} else {
-		ret = __irq_startup(desc);
-		irq_setup_affinity(desc);
+		switch (__irq_startup_managed(desc, aff, force)) {
+		case IRQ_STARTUP_NORMAL:
+			ret = __irq_startup(desc);
+			irq_setup_affinity(desc);
+			break;
+		case IRQ_STARTUP_MANAGED:
+			ret = __irq_startup(desc);
+			irq_set_affinity_locked(d, aff, false);
+			break;
+		case IRQ_STARTUP_ABORT:
+			return 0;
+		}
 	}
 	if (resend)
 		check_irq_resend(desc);

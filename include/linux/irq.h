@@ -346,7 +346,7 @@ static inline bool irqd_is_started(struct irq_data *d)
 	return __irqd_to_state(d) & IRQD_IRQ_STARTED;
 }
 
-static inline bool irqd_is_managed_shutdown(struct irq_data *d)
+static inline bool irqd_is_managed_and_shutdown(struct irq_data *d)
 {
 	return __irqd_to_state(d) & IRQD_MANAGED_SHUTDOWN;
 }
