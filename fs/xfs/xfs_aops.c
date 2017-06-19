@@ -1316,9 +1316,12 @@ xfs_vm_bmap(
 	 * The swap code (ab-)uses ->bmap to get a block mapping and then
 	 * bypasseѕ the file system for actual I/O.  We really can't allow
 	 * that on reflinks inodes, so we have to skip out here.  And yes,
-	 * 0 is the magic code for a bmap error..
+	 * 0 is the magic code for a bmap error.
+	 *
+	 * Since we don't pass back blockdev info, we can't return bmap
+	 * information for rt files either.
 	 */
-	if (xfs_is_reflink_inode(ip))
+	if (xfs_is_reflink_inode(ip) || XFS_IS_REALTIME_INODE(ip))
 		return 0;
 
 	filemap_write_and_wait(mapping);
