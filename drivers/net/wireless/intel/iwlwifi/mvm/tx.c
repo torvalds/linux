@@ -105,9 +105,9 @@ iwl_mvm_bar_check_trigger(struct iwl_mvm *mvm, const u8 *addr,
 
 static u16 iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 			   struct ieee80211_hdr *hdr,
-			   struct ieee80211_tx_info *info)
+			   struct ieee80211_tx_info *info,
+			   u16 offload_assist)
 {
-	u16 offload_assist = 0;
 #if IS_ENABLED(CONFIG_INET)
 	u16 mh_len = ieee80211_hdrlen(hdr->frame_control);
 	u8 protocol = 0;
@@ -207,6 +207,7 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	__le16 fc = hdr->frame_control;
 	u32 tx_flags = le32_to_cpu(tx_cmd->tx_flags);
 	u32 len = skb->len + FCS_LEN;
+	u16 offload_assist = 0;
 	u8 ac;
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
@@ -225,8 +226,7 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		tx_cmd->tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL;
 		if (*qc & IEEE80211_QOS_CTL_A_MSDU_PRESENT)
-			tx_cmd->offload_assist |=
-				cpu_to_le16(BIT(TX_CMD_OFFLD_AMSDU));
+			offload_assist |= BIT(TX_CMD_OFFLD_AMSDU);
 	} else if (ieee80211_is_back_req(fc)) {
 		struct ieee80211_bar *bar = (void *)skb->data;
 		u16 control = le16_to_cpu(bar->control);
@@ -291,11 +291,12 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/* padding is inserted later in transport */
 	if (ieee80211_hdrlen(fc) % 4 &&
-	    !(tx_cmd->offload_assist & cpu_to_le16(BIT(TX_CMD_OFFLD_AMSDU))))
-		tx_cmd->offload_assist |= cpu_to_le16(BIT(TX_CMD_OFFLD_PAD));
+	    !(offload_assist & BIT(TX_CMD_OFFLD_AMSDU)))
+		offload_assist |= BIT(TX_CMD_OFFLD_PAD);
 
 	tx_cmd->offload_assist |=
-		cpu_to_le16(iwl_mvm_tx_csum(mvm, skb, hdr, info));
+		cpu_to_le16(iwl_mvm_tx_csum(mvm, skb, hdr, info,
+					    offload_assist));
 }
 
 static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
@@ -481,7 +482,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		struct iwl_tx_cmd_gen2 *cmd = (void *)dev_cmd->payload;
-		u16 offload_assist = iwl_mvm_tx_csum(mvm, skb, hdr, info);
+		u16 offload_assist = 0;
 
 		if (ieee80211_is_data_qos(hdr->frame_control)) {
 			u8 *qc = ieee80211_get_qos_ctl(hdr);
@@ -489,6 +490,9 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 			if (*qc & IEEE80211_QOS_CTL_A_MSDU_PRESENT)
 				offload_assist |= BIT(TX_CMD_OFFLD_AMSDU);
 		}
+
+		offload_assist = iwl_mvm_tx_csum(mvm, skb, hdr, info,
+						 offload_assist);
 
 		/* padding is inserted later in transport */
 		if (ieee80211_hdrlen(hdr->frame_control) % 4 &&
