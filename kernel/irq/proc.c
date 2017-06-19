@@ -120,9 +120,11 @@ static ssize_t write_irq_affinity(int type, struct file *file,
 	 * one online CPU still has to be targeted.
 	 */
 	if (!cpumask_intersects(new_value, cpu_online_mask)) {
-		/* Special case for empty set - allow the architecture
-		   code to set default SMP affinity. */
-		err = irq_select_affinity_usr(irq, new_value) ? -EINVAL : count;
+		/*
+		 * Special case for empty set - allow the architecture code
+		 * to set default SMP affinity.
+		 */
+		err = irq_select_affinity_usr(irq) ? -EINVAL : count;
 	} else {
 		irq_set_affinity(irq, new_value);
 		err = count;
