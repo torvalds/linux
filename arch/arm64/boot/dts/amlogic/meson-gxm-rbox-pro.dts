@@ -1,5 +1,13 @@
 /*
- * Copyright (c) 2016 Andreas Färber
+ * Copyright (c) 2016-2017 Andreas Färber
+ *
+ * Based on nexbox-a1:
+ *
+ * Copyright (c) 2016 BayLibre, SAS.
+ * Author: Neil Armstrong <narmstrong@baylibre.com>
+ *
+ * Copyright (c) 2016 Endless Computers, Inc.
+ * Author: Carlo Caione <carlo@endlessm.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -40,10 +48,13 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "meson-gxbb.dtsi"
+/dts-v1/;
+
+#include "meson-gxm.dtsi"
 
 / {
-	compatible = "tronsmart,vega-s95", "amlogic,meson-gxbb";
+	compatible = "kingnovel,r-box-pro", "amlogic,s912", "amlogic,meson-gxm";
+	model = "R-Box Pro";
 
 	aliases {
 		serial0 = &uart_AO;
@@ -53,41 +64,48 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>; /* 2 GiB or 3 GiB */
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
 		blue {
-			label = "vega-s95:blue:on";
-			gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_HIGH>;
+			label = "rbox-pro:blue:on";
+			gpios = <&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
+		};
+
+		red {
+			label = "rbox-pro:red:standby";
+			gpios = <&gpio GPIODV_28 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			retain-state-suspended;
 			panic-indicator;
 		};
 	};
 
-	usb_vbus: regulator-usb0-vbus {
+	vddio_boot: regulator-vddio-boot {
 		compatible = "regulator-fixed";
-
-		regulator-name = "USB0_VBUS";
-
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-
-		gpio = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+		regulator-name = "VDDIO_BOOT";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 	};
 
-	vcc_3v3: regulator-vcc_3v3 {
+	vddao_3v3: regulator-vddao-3v3 {
 		compatible = "regulator-fixed";
-		regulator-name = "VCC_3V3";
+		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
 
-	vcc_1v8: regulator-vcc_1v8 {
+	vcc_3v3: regulator-vcc-3v3 {
 		compatible = "regulator-fixed";
-		regulator-name = "VCC_1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
+		regulator-name = "VCC_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	emmc_pwrseq: emmc-pwrseq {
@@ -104,8 +122,7 @@
 
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&gpio GPIOX_6 GPIO_ACTIVE_LOW>,
-				<&gpio GPIOX_20 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio GPIOX_6 GPIO_ACTIVE_LOW>;
 		clocks = <&wifi32k>;
 		clock-names = "ext_clock";
 	};
@@ -113,27 +130,28 @@
 
 &ethmac {
 	status = "okay";
-	pinctrl-0 = <&eth_rgmii_pins>;
+
+	pinctrl-0 = <&eth_pins>;
 	pinctrl-names = "default";
 
-	phy-handle = <&eth_phy0>;
-	phy-mode = "rgmii";
-
-	amlogic,tx-delay-ns = <2>;
+	/* Select external PHY by default */
+	phy-handle = <&external_phy>;
 
 	snps,reset-gpio = <&gpio GPIOZ_14 0>;
 	snps,reset-delays-us = <0 10000 1000000>;
 	snps,reset-active-low;
 
-	mdio {
-		compatible = "snps,dwmac-mdio";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	amlogic,tx-delay-ns = <2>;
 
-		eth_phy0: ethernet-phy@0 {
-			/* Realtek RTL8211F (0x001cc916) */
-			reg = <0>;
-		};
+	/* External PHY is in RGMII */
+	phy-mode = "rgmii";
+};
+
+&external_mdio {
+	external_phy: ethernet-phy@0 {
+		compatible = "ethernet-phy-id001c.c916", "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+		max-speed = <1000>;
 	};
 };
 
@@ -154,7 +172,7 @@
 /* Wireless SDIO Module */
 &sd_emmc_a {
 	status = "okay";
-	pinctrl-0 = <&sdio_pins &sdio_irq_pins>;
+	pinctrl-0 = <&sdio_pins>;
 	pinctrl-names = "default";
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -168,10 +186,10 @@
 
 	mmc-pwrseq = <&sdio_pwrseq>;
 
-	vmmc-supply = <&vcc_3v3>;
-	vqmmc-supply = <&vcc_1v8>;
+	vmmc-supply = <&vddao_3v3>;
+	vqmmc-supply = <&vddio_boot>;
 
-	brcmf: wifi@1 {
+	brcmf: brcmf@1 {
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
 	};
@@ -191,7 +209,8 @@
 	cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_HIGH>;
 	cd-inverted;
 
-	vmmc-supply = <&vcc_3v3>;
+	vmmc-supply = <&vddao_3v3>;
+	vqmmc-supply = <&vddio_boot>;
 };
 
 /* eMMC */
@@ -211,28 +230,11 @@
 
 	mmc-pwrseq = <&emmc_pwrseq>;
 	vmmc-supply = <&vcc_3v3>;
-	vmmcq-sumpply = <&vcc_1v8>;
+	vqmmc-supply = <&vddio_boot>;
 };
 
 &uart_AO {
 	status = "okay";
 	pinctrl-0 = <&uart_ao_a_pins>;
 	pinctrl-names = "default";
-};
-
-&usb0_phy {
-	status = "okay";
-	phy-supply = <&usb_vbus>;
-};
-
-&usb1_phy {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb1 {
-	status = "okay";
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Andreas Färber
+ * Copyright (c) 2017 Andreas Färber
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -38,12 +38,17 @@
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
+/dts-v1/;
+
 #include "meson-gxbb.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
-	compatible = "tronsmart,vega-s95", "amlogic,meson-gxbb";
+	compatible = "friendlyarm,nanopi-k2", "amlogic,meson-gxbb";
 
 	aliases {
 		serial0 = &uart_AO;
@@ -53,49 +58,58 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
-			label = "vega-s95:blue:on";
+		stat {
+			label = "nanopi-k2:blue:stat";
 			gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			panic-indicator;
 		};
 	};
 
-	usb_vbus: regulator-usb0-vbus {
+	vdd_5v: regulator-vdd-5v {
 		compatible = "regulator-fixed";
-
-		regulator-name = "USB0_VBUS";
-
+		regulator-name = "VDD_5V";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-
-		gpio = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
 	};
 
-	vcc_3v3: regulator-vcc_3v3 {
+	vddio_ao18: regulator-vddio-ao18 {
 		compatible = "regulator-fixed";
-		regulator-name = "VCC_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	vcc_1v8: regulator-vcc_1v8 {
-		compatible = "regulator-fixed";
-		regulator-name = "VCC_1V8";
+		regulator-name = "VDDIO_AO18";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 	};
 
-	emmc_pwrseq: emmc-pwrseq {
-		compatible = "mmc-pwrseq-emmc";
-		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
+	vddio_ao3v3: regulator-vddio-ao3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_AO3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
-	wifi32k: wifi32k {
+	vddio_tf: regulator-vddio-tf {
+		compatible = "regulator-gpio";
+
+		regulator-name = "VDDIO_TF";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0>;
+
+		states = <3300000 0>,
+		         <1800000 1>;
+	};
+
+	wifi_32k: wifi-32k {
 		compatible = "pwm-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
@@ -104,10 +118,28 @@
 
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&gpio GPIOX_6 GPIO_ACTIVE_LOW>,
-				<&gpio GPIOX_20 GPIO_ACTIVE_LOW>;
-		clocks = <&wifi32k>;
+		reset-gpios = <&gpio GPIOX_6 GPIO_ACTIVE_LOW>;
+		clocks = <&wifi_32k>;
 		clock-names = "ext_clock";
+	};
+
+	vcc1v8: regulator-vcc1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	vcc3v3: regulator-vcc3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -151,33 +183,38 @@
 	clock-names = "clkin0";
 };
 
-/* Wireless SDIO Module */
+&saradc {
+	status = "okay";
+	vref-supply = <&vddio_ao18>;
+};
+
+/* SDIO */
 &sd_emmc_a {
 	status = "okay";
-	pinctrl-0 = <&sdio_pins &sdio_irq_pins>;
+	pinctrl-0 = <&sdio_pins>, <&sdio_irq_pins>;
 	pinctrl-names = "default";
 	#address-cells = <1>;
 	#size-cells = <0>;
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	max-frequency = <200000000>;
 
 	non-removable;
 	disable-wp;
 
 	mmc-pwrseq = <&sdio_pwrseq>;
 
-	vmmc-supply = <&vcc_3v3>;
-	vqmmc-supply = <&vcc_1v8>;
+	vmmc-supply = <&vddio_ao3v3>;
+	vqmmc-supply = <&vddio_ao18>;
 
 	brcmf: wifi@1 {
-		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
+		reg = <1>;
 	};
 };
 
-/* SD card */
+/* SD */
 &sd_emmc_b {
 	status = "okay";
 	pinctrl-0 = <&sdcard_pins>;
@@ -191,38 +228,54 @@
 	cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_HIGH>;
 	cd-inverted;
 
-	vmmc-supply = <&vcc_3v3>;
+	vmmc-supply = <&vddio_ao3v3>;
+	vqmmc-supply = <&vddio_tf>;
 };
 
 /* eMMC */
 &sd_emmc_c {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&emmc_pins>;
 	pinctrl-names = "default";
 
 	bus-width = <8>;
 	cap-sd-highspeed;
-	cap-mmc-highspeed;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
+	cap-mmc-highspeed;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 
 	mmc-pwrseq = <&emmc_pwrseq>;
-	vmmc-supply = <&vcc_3v3>;
-	vmmcq-sumpply = <&vcc_1v8>;
+	vmmc-supply = <&vcc3v3>;
+	vqmmc-supply = <&vcc1v8>;
 };
 
+/* DBG_UART */
 &uart_AO {
 	status = "okay";
 	pinctrl-0 = <&uart_ao_a_pins>;
 	pinctrl-names = "default";
 };
 
+/* Bluetooth on AP6212 */
+&uart_A {
+	status = "disabled";
+	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
+	pinctrl-names = "default";
+};
+
+/* 40-pin CON1 */
+&uart_C {
+	status = "disabled";
+	pinctrl-0 = <&uart_c_pins>;
+	pinctrl-names = "default";
+};
+
 &usb0_phy {
 	status = "okay";
-	phy-supply = <&usb_vbus>;
+	phy-supply = <&vdd_5v>;
 };
 
 &usb1_phy {
