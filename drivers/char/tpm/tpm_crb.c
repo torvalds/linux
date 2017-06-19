@@ -514,11 +514,12 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 		goto out;
 	}
 
-	priv->cmd_size = cmd_size;
-
 	priv->rsp = priv->cmd;
 
 out:
+	if (!ret)
+		priv->cmd_size = cmd_size;
+
 	crb_go_idle(dev, priv);
 
 	return ret;
