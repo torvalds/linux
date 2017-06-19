@@ -24,6 +24,27 @@
 				&range 0 7 0
 				&range 8 116 0>;
 
+			pmu_pmx_func: pmu_pmx_func {
+				pinctrl-single,pins = <
+					0x008 MUX_M1 /* PMU1_SSI */
+					0x00c MUX_M1 /* PMU2_SSI */
+					0x010 MUX_M1 /* PMU_CLKOUT */
+					0x100 MUX_M1 /* PMU_HKADC_SSI */
+				>;
+			};
+
+			csi0_pwd_n_pmx_func: csi0_pwd_n_pmx_func {
+				pinctrl-single,pins = <
+					0x044 MUX_M0 /* CSI0_PWD_N */
+				>;
+			};
+
+			csi1_pwd_n_pmx_func: csi1_pwd_n_pmx_func {
+				pinctrl-single,pins = <
+					0x04c MUX_M0 /* CSI1_PWD_N */
+				>;
+			};
+
 			isp0_pmx_func: isp0_pmx_func {
 				pinctrl-single,pins = <
 					0x058 MUX_M1 /* ISP_CLK0 */
@@ -37,6 +58,12 @@
 					0x05c MUX_M1 /* ISP_CLK1 */
 					0x06c MUX_M1 /* ISP_SCL1 */
 					0x070 MUX_M1 /* ISP_SDA1 */
+				>;
+			};
+
+			pwr_key_pmx_func: pwr_key_pmx_func {
+				pinctrl-single,pins = <
+					0x080 MUX_M0 /* GPIO_034 */
 				>;
 			};
 
@@ -67,21 +94,10 @@
 				>;
 			};
 
-			spi1_pmx_func: spi1_pmx_func {
-				pinctrl-single,pins = <
-					0x034 MUX_M1 /* SPI1_CLK */
-					0x038 MUX_M1 /* SPI1_DI */
-					0x03c MUX_M1 /* SPI1_DO */
-					0x040 MUX_M1 /* SPI1_CS_N */
-				>;
-			};
-
 			uart0_pmx_func: uart0_pmx_func {
 				pinctrl-single,pins = <
 					0x0cc MUX_M2 /* UART0_RXD */
 					0x0d0 MUX_M2 /* UART0_TXD */
-					0x0d4 MUX_M2 /* UART0_RXD_M */
-					0x0d8 MUX_M2 /* UART0_TXD_M */
 				>;
 			};
 
@@ -138,6 +154,18 @@
 					0x0d8 MUX_M1 /* UART6_TXD */
 				>;
 			};
+
+			cam0_rst_pmx_func: cam0_rst_pmx_func {
+				pinctrl-single,pins = <
+					0x0c8 MUX_M0 /* CAM0_RST */
+				>;
+			};
+
+			cam1_rst_pmx_func: cam1_rst_pmx_func {
+				pinctrl-single,pins = <
+					0x124 MUX_M0 /* CAM1_RST */
+				>;
+			};
 		};
 
 		/* [IOMG_MMC0_000, IOMG_MMC0_005] */
@@ -173,6 +201,13 @@
 			pinctrl-single,function-mask = <0x7>;
 			/* pin base, nr pins & gpio function */
 			pinctrl-single,gpio-range = <&range 0 12 0>;
+
+			ufs_pmx_func: ufs_pmx_func {
+				pinctrl-single,pins = <
+					0x000 MUX_M1 /* UFS_REF_CLK */
+					0x004 MUX_M1 /* UFS_RST_N */
+				>;
+			};
 
 			spi3_pmx_func: spi3_pmx_func {
 				pinctrl-single,pins = <
@@ -248,17 +283,17 @@
 				>;
 			};
 
-			i2c2_pmx_func: i2c2_pmx_func {
-				pinctrl-single,pins = <
-					0x024 MUX_M1 /* I2C2_SCL */
-					0x028 MUX_M1 /* I2C2_SDA */
-				>;
-			};
-
 			i2c7_pmx_func: i2c7_pmx_func {
 				pinctrl-single,pins = <
 					0x024 MUX_M3 /* I2C7_SCL */
 					0x028 MUX_M3 /* I2C7_SDA */
+				>;
+			};
+
+			pcie_pmx_func: pcie_pmx_func {
+				pinctrl-single,pins = <
+					0x084 MUX_M1 /* PCIE_CLKREQ_N */
+					0x088 MUX_M1 /* PCIE_WAKE_N */
 				>;
 			};
 
@@ -268,15 +303,6 @@
 					0x090 MUX_M1 /* SPI2_DI */
 					0x094 MUX_M1 /* SPI2_DO */
 					0x098 MUX_M1 /* SPI2_CS0_N */
-				>;
-			};
-
-			spi4_pmx_func: spi4_pmx_func {
-				pinctrl-single,pins = <
-					0x08c MUX_M4 /* SPI4_CLK */
-					0x090 MUX_M4 /* SPI4_DI */
-					0x094 MUX_M4 /* SPI4_DO */
-					0x098 MUX_M4 /* SPI4_CS0_N */
 				>;
 			};
 
@@ -290,13 +316,433 @@
 			};
 		};
 
-		pmx5: pinmux@ff3fd800 {
+		pmx5: pinmux@e896c800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xe896c800 0x0 0x200>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+
+			pmu_cfg_func: pmu_cfg_func {
+				pinctrl-single,pins = <
+					0x010 0x0 /* PMU1_SSI */
+					0x014 0x0 /* PMU2_SSI */
+					0x018 0x0 /* PMU_CLKOUT */
+					0x10c 0x0 /* PMU_HKADC_SSI */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_06MA DRIVE6_MASK
+				>;
+			};
+
+			i2c3_cfg_func: i2c3_cfg_func {
+				pinctrl-single,pins = <
+					0x038 0x0 /* I2C3_SCL */
+					0x03c 0x0 /* I2C3_SDA */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			csi0_pwd_n_cfg_func: csi0_pwd_n_cfg_func {
+				pinctrl-single,pins = <
+					0x050 0x0 /* CSI0_PWD_N */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_04MA DRIVE6_MASK
+				>;
+			};
+
+			csi1_pwd_n_cfg_func: csi1_pwd_n_cfg_func {
+				pinctrl-single,pins = <
+					0x058 0x0 /* CSI1_PWD_N */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_04MA DRIVE6_MASK
+				>;
+			};
+
+			isp0_cfg_func: isp0_cfg_func {
+				pinctrl-single,pins = <
+					0x064 0x0 /* ISP_CLK0 */
+					0x070 0x0 /* ISP_SCL0 */
+					0x074 0x0 /* ISP_SDA0 */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_04MA DRIVE6_MASK>;
+			};
+
+			isp1_cfg_func: isp1_cfg_func {
+				pinctrl-single,pins = <
+					0x068 0x0 /* ISP_CLK1 */
+					0x078 0x0 /* ISP_SCL1 */
+					0x07c 0x0 /* ISP_SDA1 */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_04MA DRIVE6_MASK
+				>;
+			};
+
+			pwr_key_cfg_func: pwr_key_cfg_func {
+				pinctrl-single,pins = <
+					0x08c 0x0 /* GPIO_034 */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			uart1_cfg_func: uart1_cfg_func {
+				pinctrl-single,pins = <
+					0x0b4 0x0 /* UART1_RXD */
+					0x0b8 0x0 /* UART1_TXD */
+					0x0bc 0x0 /* UART1_CTS_N */
+					0x0c0 0x0 /* UART1_RTS_N */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			uart2_cfg_func: uart2_cfg_func {
+				pinctrl-single,pins = <
+					0x0c8 0x0 /* UART2_CTS_N */
+					0x0cc 0x0 /* UART2_RTS_N */
+					0x0d0 0x0 /* UART2_TXD */
+					0x0d4 0x0 /* UART2_RXD */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			uart5_cfg_func: uart5_cfg_func {
+				pinctrl-single,pins = <
+					0x0c8 0x0 /* UART5_RXD */
+					0x0cc 0x0 /* UART5_TXD */
+					0x0d0 0x0 /* UART5_CTS_N */
+					0x0d4 0x0 /* UART5_RTS_N */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			cam0_rst_cfg_func: cam0_rst_cfg_func {
+				pinctrl-single,pins = <
+					0x0d4 0x0 /* CAM0_RST */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_04MA DRIVE6_MASK
+				>;
+			};
+
+			uart0_cfg_func: uart0_cfg_func {
+				pinctrl-single,pins = <
+					0x0d8 0x0 /* UART0_RXD */
+					0x0dc 0x0 /* UART0_TXD */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			uart6_cfg_func: uart6_cfg_func {
+				pinctrl-single,pins = <
+					0x0d8 0x0 /* UART6_CTS_N */
+					0x0dc 0x0 /* UART6_RTS_N */
+					0x0e0 0x0 /* UART6_RXD */
+					0x0e4 0x0 /* UART6_TXD */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			uart3_cfg_func: uart3_cfg_func {
+				pinctrl-single,pins = <
+					0x0e8 0x0 /* UART3_CTS_N */
+					0x0ec 0x0 /* UART3_RTS_N */
+					0x0f0 0x0 /* UART3_RXD */
+					0x0f4 0x0 /* UART3_TXD */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			uart4_cfg_func: uart4_cfg_func {
+				pinctrl-single,pins = <
+					0x0f8 0x0 /* UART4_CTS_N */
+					0x0fc 0x0 /* UART4_RTS_N */
+					0x100 0x0 /* UART4_RXD */
+					0x104 0x0 /* UART4_TXD */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			cam1_rst_cfg_func: cam1_rst_cfg_func {
+				pinctrl-single,pins = <
+					0x130 0x0 /* CAM1_RST */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_04MA DRIVE6_MASK
+				>;
+			};
+		};
+
+		pmx6: pinmux@ff3b6800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xff3b6800 0x0 0x18>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+
+			ufs_cfg_func: ufs_cfg_func {
+				pinctrl-single,pins = <
+					0x000 0x0 /* UFS_REF_CLK */
+					0x004 0x0 /* UFS_RST_N */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_08MA DRIVE6_MASK
+				>;
+			};
+
+			spi3_cfg_func: spi3_cfg_func {
+				pinctrl-single,pins = <
+					0x008 0x0 /* SPI3_CLK */
+					0x0 /* SPI3_DI */
+					0x010 0x0 /* SPI3_DO */
+					0x014 0x0 /* SPI3_CS0_N */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+		};
+
+		pmx7: pinmux@ff3fd800 {
 			compatible = "pinconf-single";
 			reg = <0x0 0xff3fd800 0x0 0x18>;
 			#pinctrl-cells = <1>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			pinctrl-single,register-width = <32>;
+			pinctrl-single,register-width = <0x20>;
 
 			sdio_clk_cfg_func: sdio_clk_cfg_func {
 				pinctrl-single,pins = <
@@ -315,8 +761,7 @@
 					PULL_UP
 				>;
 				pinctrl-single,drive-strength = <
-					DRIVE6_32MA
-					DRIVE6_MASK
+					DRIVE6_32MA DRIVE6_MASK
 				>;
 			};
 
@@ -341,19 +786,16 @@
 					PULL_UP
 				>;
 				pinctrl-single,drive-strength = <
-					DRIVE6_19MA
-					DRIVE6_MASK
+					DRIVE6_19MA DRIVE6_MASK
 				>;
 			};
 		};
 
-		pmx6: pinmux@ff37e800 {
+		pmx8: pinmux@ff37e800 {
 			compatible = "pinconf-single";
 			reg = <0x0 0xff37e800 0x0 0x18>;
 			#pinctrl-cells = <1>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			pinctrl-single,register-width = <32>;
+			pinctrl-single,register-width = <0x20>;
 
 			sd_clk_cfg_func: sd_clk_cfg_func {
 				pinctrl-single,pins = <
@@ -400,6 +842,216 @@
 				pinctrl-single,drive-strength = <
 					DRIVE6_19MA
 					DRIVE6_MASK
+				>;
+			};
+		};
+
+		pmx9: pinmux@fff11800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xfff11800 0x0 0xbc>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+
+			i2c0_cfg_func: i2c0_cfg_func {
+				pinctrl-single,pins = <
+					0x01c 0x0 /* I2C0_SCL */
+					0x020 0x0 /* I2C0_SDA */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			i2c1_cfg_func: i2c1_cfg_func {
+				pinctrl-single,pins = <
+					0x024 0x0 /* I2C1_SCL */
+					0x028 0x0 /* I2C1_SDA */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			i2c7_cfg_func: i2c7_cfg_func {
+				pinctrl-single,pins = <
+					0x02c 0x0 /* I2C7_SCL */
+					0x030 0x0 /* I2C7_SDA */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			slimbus_cfg_func: slimbus_cfg_func {
+				pinctrl-single,pins = <
+					0x034 0x0 /* SLIMBUS_CLK */
+					0x038 0x0 /* SLIMBUS_DATA */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			i2s0_cfg_func: i2s0_cfg_func {
+				pinctrl-single,pins = <
+					0x040 0x0 /* I2S0_DI */
+					0x044 0x0 /* I2S0_DO */
+					0x048 0x0 /* I2S0_XCLK */
+					0x04c 0x0 /* I2S0_XFS */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			i2s2_cfg_func: i2s2_cfg_func {
+				pinctrl-single,pins = <
+					0x050 0x0 /* I2S2_DI */
+					0x054 0x0 /* I2S2_DO */
+					0x058 0x0 /* I2S2_XCLK */
+					0x05c 0x0 /* I2S2_XFS */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			pcie_cfg_func: pcie_cfg_func {
+				pinctrl-single,pins = <
+					0x094 0x0 /* PCIE_CLKREQ_N */
+					0x098 0x0 /* PCIE_WAKE_N */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			spi2_cfg_func: spi2_cfg_func {
+				pinctrl-single,pins = <
+					0x09c 0x0 /* SPI2_CLK */
+					0x0a0 0x0 /* SPI2_DI */
+					0x0a4 0x0 /* SPI2_DO */
+					0x0a8 0x0 /* SPI2_CS0_N */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
+				>;
+			};
+
+			usb_cfg_func: usb_cfg_func {
+				pinctrl-single,pins = <
+					0x0ac 0x0 /* GPIO_219 */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE7_02MA DRIVE6_MASK
 				>;
 			};
 		};
