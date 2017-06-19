@@ -657,6 +657,7 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme,
 	int *p;
 
 	lockdep_assert_held(&pcpu_lock);
+	pcpu_stats_area_dealloc(chunk);
 
 	freeme |= 1;	/* we are searching for <given offset, in use> pair */
 
@@ -721,6 +722,7 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
 	chunk->map[0] = 0;
 	chunk->map[1] = pcpu_unit_size | 1;
 	chunk->map_used = 1;
+	chunk->has_reserved = false;
 
 	INIT_LIST_HEAD(&chunk->list);
 	INIT_LIST_HEAD(&chunk->map_extend_list);
@@ -970,6 +972,7 @@ restart:
 	goto restart;
 
 area_found:
+	pcpu_stats_area_alloc(chunk, size);
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
 	/* populate if not all pages are already there */
@@ -1642,6 +1645,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_chunk_struct_size = sizeof(struct pcpu_chunk) +
 		BITS_TO_LONGS(pcpu_unit_pages) * sizeof(unsigned long);
 
+	pcpu_stats_save_ai(ai);
+
 	/*
 	 * Allocate chunk slots.  The additional last slot is for
 	 * empty chunks.
@@ -1685,6 +1690,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	if (schunk->free_size)
 		schunk->map[++schunk->map_used] = ai->static_size + schunk->free_size;
 	schunk->map[schunk->map_used] |= 1;
+	schunk->has_reserved = true;
 
 	/* init dynamic chunk if necessary */
 	if (dyn_size) {
@@ -1703,6 +1709,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 		dchunk->map[1] = pcpu_reserved_chunk_limit;
 		dchunk->map[2] = (pcpu_reserved_chunk_limit + dchunk->free_size) | 1;
 		dchunk->map_used = 2;
+		dchunk->has_reserved = true;
 	}
 
 	/* link the first chunk in */
@@ -1710,6 +1717,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_nr_empty_pop_pages +=
 		pcpu_count_occupied_pages(pcpu_first_chunk, 1);
 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
+
+	pcpu_stats_chunk_alloc();
 
 	/* we're done */
 	pcpu_base_addr = base_addr;
