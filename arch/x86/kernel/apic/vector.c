@@ -429,11 +429,16 @@ static void init_legacy_irqs(void) { }
 
 int __init arch_early_irq_init(void)
 {
+	struct fwnode_handle *fn;
+
 	init_legacy_irqs();
 
-	x86_vector_domain = irq_domain_add_tree(NULL, &x86_vector_domain_ops,
-						NULL);
+	fn = irq_domain_alloc_named_fwnode("VECTOR");
+	BUG_ON(!fn);
+	x86_vector_domain = irq_domain_create_tree(fn, &x86_vector_domain_ops,
+						   NULL);
 	BUG_ON(x86_vector_domain == NULL);
+	irq_domain_free_fwnode(fn);
 	irq_set_default_host(x86_vector_domain);
 
 	arch_init_msi_domain(x86_vector_domain);
