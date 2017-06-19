@@ -42,13 +42,30 @@
 #define GLOBAL2_TRUNK_MAPPING	0x08
 #define GLOBAL2_TRUNK_MAPPING_UPDATE		BIT(15)
 #define GLOBAL2_TRUNK_MAPPING_ID_SHIFT		11
-#define GLOBAL2_IRL_CMD		0x09
-#define GLOBAL2_IRL_CMD_BUSY	BIT(15)
-#define GLOBAL2_IRL_CMD_OP_INIT_ALL	((0x001 << 12) | GLOBAL2_IRL_CMD_BUSY)
-#define GLOBAL2_IRL_CMD_OP_INIT_SEL	((0x010 << 12) | GLOBAL2_IRL_CMD_BUSY)
-#define GLOBAL2_IRL_CMD_OP_WRITE_SEL	((0x011 << 12) | GLOBAL2_IRL_CMD_BUSY)
-#define GLOBAL2_IRL_CMD_OP_READ_SEL	((0x100 << 12) | GLOBAL2_IRL_CMD_BUSY)
-#define GLOBAL2_IRL_DATA	0x0a
+
+/* Offset 0x09: Ingress Rate Command Register */
+#define MV88E6XXX_G2_IRL_CMD			0x09
+#define MV88E6XXX_G2_IRL_CMD_BUSY		0x8000
+#define MV88E6352_G2_IRL_CMD_OP_MASK		0x7000
+#define MV88E6352_G2_IRL_CMD_OP_NOOP		0x0000
+#define MV88E6352_G2_IRL_CMD_OP_INIT_ALL	0x1000
+#define MV88E6352_G2_IRL_CMD_OP_INIT_RES	0x2000
+#define MV88E6352_G2_IRL_CMD_OP_WRITE_REG	0x3000
+#define MV88E6352_G2_IRL_CMD_OP_READ_REG	0x4000
+#define MV88E6390_G2_IRL_CMD_OP_MASK		0x6000
+#define MV88E6390_G2_IRL_CMD_OP_READ_REG	0x0000
+#define MV88E6390_G2_IRL_CMD_OP_INIT_ALL	0x2000
+#define MV88E6390_G2_IRL_CMD_OP_INIT_RES	0x4000
+#define MV88E6390_G2_IRL_CMD_OP_WRITE_REG	0x6000
+#define MV88E6352_G2_IRL_CMD_PORT_MASK		0x0f00
+#define MV88E6390_G2_IRL_CMD_PORT_MASK		0x1f00
+#define MV88E6XXX_G2_IRL_CMD_RES_MASK		0x00e0
+#define MV88E6XXX_G2_IRL_CMD_REG_MASK		0x000f
+
+/* Offset 0x0A: Ingress Rate Data Register */
+#define MV88E6XXX_G2_IRL_DATA		0x0a
+#define MV88E6XXX_G2_IRL_DATA_MASK	0xffff
+
 #define GLOBAL2_PVT_ADDR	0x0b
 #define GLOBAL2_PVT_ADDR_BUSY	BIT(15)
 #define GLOBAL2_PVT_ADDR_OP_INIT_ONES	((0x01 << 12) | GLOBAL2_PVT_ADDR_BUSY)
@@ -127,6 +144,9 @@ static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
+int mv88e6352_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port);
+int mv88e6390_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port);
+
 int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,
 			      struct mii_bus *bus,
 			      int addr, int reg, u16 *val);
@@ -167,6 +187,18 @@ static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
 	}
 
 	return 0;
+}
+
+static inline int mv88e6352_g2_irl_init_all(struct mv88e6xxx_chip *chip,
+					    int port)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int mv88e6390_g2_irl_init_all(struct mv88e6xxx_chip *chip,
+					    int port)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,

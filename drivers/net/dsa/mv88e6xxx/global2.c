@@ -149,27 +149,36 @@ static int mv88e6xxx_g2_clear_trunk(struct mv88e6xxx_chip *chip)
  * Offset 0x0A: Ingress Rate Data register
  */
 
-static int mv88e6xxx_g2_clear_irl(struct mv88e6xxx_chip *chip)
+static int mv88e6xxx_g2_irl_wait(struct mv88e6xxx_chip *chip)
 {
-	int port, err;
+	return mv88e6xxx_g2_wait(chip, MV88E6XXX_G2_IRL_CMD,
+				 MV88E6XXX_G2_IRL_CMD_BUSY);
+}
 
-	/* Init all Ingress Rate Limit resources of all ports */
-	for (port = 0; port < mv88e6xxx_num_ports(chip); ++port) {
-		/* XXX newer chips (like 88E6390) have different 2-bit ops */
-		err = mv88e6xxx_g2_write(chip, GLOBAL2_IRL_CMD,
-					 GLOBAL2_IRL_CMD_OP_INIT_ALL |
-					 (port << 8));
-		if (err)
-			break;
+static int mv88e6xxx_g2_irl_op(struct mv88e6xxx_chip *chip, u16 op, int port,
+			       int res, int reg)
+{
+	int err;
 
-		/* Wait for the operation to complete */
-		err = mv88e6xxx_g2_wait(chip, GLOBAL2_IRL_CMD,
-					GLOBAL2_IRL_CMD_BUSY);
-		if (err)
-			break;
-	}
+	err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_IRL_CMD,
+				 MV88E6XXX_G2_IRL_CMD_BUSY | op | (port << 8) |
+				 (res << 5) | reg);
+	if (err)
+		return err;
 
-	return err;
+	return mv88e6xxx_g2_irl_wait(chip);
+}
+
+int mv88e6352_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_g2_irl_op(chip, MV88E6352_G2_IRL_CMD_OP_INIT_ALL, port,
+				   0, 0);
+}
+
+int mv88e6390_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_g2_irl_op(chip, MV88E6390_G2_IRL_CMD_OP_INIT_ALL, port,
+				   0, 0);
 }
 
 /* Offset 0x0B: Cross-chip Port VLAN (Addr) Register
@@ -1029,15 +1038,6 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 	err = mv88e6xxx_g2_clear_trunk(chip);
 	if (err)
 		return err;
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_IRL)) {
-		/* Disable ingress rate limiting by resetting all per port
-		 * ingress rate limit resources to their initial state.
-		 */
-		err = mv88e6xxx_g2_clear_irl(chip);
-			if (err)
-				return err;
-	}
 
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_POT)) {
 		/* Clear the priority override table. */
