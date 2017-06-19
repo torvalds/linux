@@ -1321,6 +1321,9 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 
 	blk_queue_flush_queueable(q, false);
 
+	if (dev->flags & ATA_DFLAG_TRUSTED)
+		sdev->security_supported = 1;
+
 	dev->sdev = sdev;
 	return 0;
 }
