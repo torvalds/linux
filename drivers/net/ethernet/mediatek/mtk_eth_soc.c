@@ -992,6 +992,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		    RX_DMA_VID(trxd.rxd3))
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       RX_DMA_VID(trxd.rxd3));
+		skb_record_rx_queue(skb, 0);
 		napi_gro_receive(napi, skb);
 
 		ring->data[idx] = new_data;
