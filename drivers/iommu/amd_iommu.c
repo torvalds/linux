@@ -4386,10 +4386,11 @@ static void ir_compose_msi_msg(struct irq_data *irq_data, struct msi_msg *msg)
 }
 
 static struct irq_chip amd_ir_chip = {
-	.irq_ack = ir_ack_apic_edge,
-	.irq_set_affinity = amd_ir_set_affinity,
-	.irq_set_vcpu_affinity = amd_ir_set_vcpu_affinity,
-	.irq_compose_msi_msg = ir_compose_msi_msg,
+	.name			= "AMD-IR",
+	.irq_ack		= ir_ack_apic_edge,
+	.irq_set_affinity	= amd_ir_set_affinity,
+	.irq_set_vcpu_affinity	= amd_ir_set_vcpu_affinity,
+	.irq_compose_msi_msg	= ir_compose_msi_msg,
 };
 
 int amd_iommu_create_irq_domain(struct amd_iommu *iommu)
