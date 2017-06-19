@@ -27,7 +27,6 @@
 
 #define FDP_I2C_DRIVER_NAME	"fdp_nci_i2c"
 
-#define FDP_DP_POWER_GPIO_NAME	"power"
 #define FDP_DP_CLOCK_TYPE_NAME	"clock-type"
 #define FDP_DP_CLOCK_FREQ_NAME	"clock-freq"
 #define FDP_DP_FW_VSC_CFG_NAME	"fw-vsc-cfg"
@@ -281,6 +280,13 @@ vsc_read_err:
 		*clock_type, *clock_freq, *fw_vsc_cfg != NULL ? "yes" : "no");
 }
 
+static const struct acpi_gpio_params power_gpios = { 0, 0, false };
+
+static const struct acpi_gpio_mapping acpi_fdp_gpios[] = {
+	{ "power-gpios", &power_gpios, 1 },
+	{},
+};
+
 static int fdp_nci_i2c_probe(struct i2c_client *client)
 {
 	struct fdp_i2c_phy *phy;
@@ -321,10 +327,12 @@ static int fdp_nci_i2c_probe(struct i2c_client *client)
 		return r;
 	}
 
-	/* Requesting the power gpio */
-	phy->power_gpio = devm_gpiod_get(dev, FDP_DP_POWER_GPIO_NAME,
-					 GPIOD_OUT_LOW);
+	r = devm_acpi_dev_add_driver_gpios(dev, acpi_fdp_gpios);
+	if (r)
+		dev_dbg(dev, "Unable to add GPIO mapping table\n");
 
+	/* Requesting the power gpio */
+	phy->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
 	if (IS_ERR(phy->power_gpio)) {
 		nfc_err(dev, "Power GPIO request failed\n");
 		return PTR_ERR(phy->power_gpio);
