@@ -464,8 +464,6 @@ struct workload_thread_param {
 	int ring_id;
 };
 
-static DEFINE_MUTEX(scheduler_mutex);
-
 static int workload_thread(void *priv)
 {
 	struct workload_thread_param *p = (struct workload_thread_param *)priv;
@@ -496,8 +494,6 @@ static int workload_thread(void *priv)
 
 		if (!workload)
 			break;
-
-		mutex_lock(&scheduler_mutex);
 
 		gvt_dbg_sched("ring id %d next workload %p vgpu %d\n",
 				workload->ring_id, workload,
@@ -537,9 +533,6 @@ complete:
 					FORCEWAKE_ALL);
 
 		intel_runtime_pm_put(gvt->dev_priv);
-
-		mutex_unlock(&scheduler_mutex);
-
 	}
 	return 0;
 }
