@@ -186,12 +186,16 @@ static const struct rcar_du_device_info rcar_du_r8a7796_info = {
 	.num_crtcs = 3,
 	.routes = {
 		/*
-		 * R8A7796 has one RGB output, one LVDS output and one
-		 * (currently unsupported) HDMI output.
+		 * R8A7796 has one RGB output, one LVDS output and one HDMI
+		 * output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
 			.possible_crtcs = BIT(2),
 			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_HDMI0] = {
+			.possible_crtcs = BIT(1),
+			.port = 1,
 		},
 		[RCAR_DU_OUTPUT_LVDS0] = {
 			.possible_crtcs = BIT(0),
@@ -199,6 +203,7 @@ static const struct rcar_du_device_info rcar_du_r8a7796_info = {
 		},
 	},
 	.num_lvds = 1,
+	.dpll_ch =  BIT(1),
 };
 
 static const struct of_device_id rcar_du_of_table[] = {
