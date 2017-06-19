@@ -144,6 +144,14 @@ static const struct vimc_pix_map vimc_pix_map_list[] = {
 	},
 };
 
+const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i)
+{
+	if (i >= ARRAY_SIZE(vimc_pix_map_list))
+		return NULL;
+
+	return &vimc_pix_map_list[i];
+}
+
 const struct vimc_pix_map *vimc_pix_map_by_code(u32 code)
 {
 	unsigned int i;

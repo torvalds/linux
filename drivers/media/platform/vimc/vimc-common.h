@@ -22,6 +22,11 @@
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
 
+#define VIMC_FRAME_MAX_WIDTH 4096
+#define VIMC_FRAME_MAX_HEIGHT 2160
+#define VIMC_FRAME_MIN_WIDTH 16
+#define VIMC_FRAME_MIN_HEIGHT 16
+
 /**
  * struct vimc_colorimetry_clamp - Adjust colorimetry parameters
  *
@@ -137,6 +142,13 @@ static inline void vimc_pads_cleanup(struct media_pad *pads)
  * in all the sink pads of the entity
  */
 int vimc_pipeline_s_stream(struct media_entity *ent, int enable);
+
+/**
+ * vimc_pix_map_by_index - get vimc_pix_map struct by its index
+ *
+ * @i:			index of the vimc_pix_map struct in vimc_pix_map_list
+ */
+const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i);
 
 /**
  * vimc_pix_map_by_code - get vimc_pix_map struct by media bus code
