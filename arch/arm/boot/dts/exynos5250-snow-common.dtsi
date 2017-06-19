@@ -272,6 +272,10 @@
 	vdd_pll-supply = <&ldo8_reg>;
 };
 
+&hdmicec {
+	status = "okay";
+};
+
 &i2c_0 {
 	status = "okay";
 	samsung,i2c-sda-delay = <100>;
