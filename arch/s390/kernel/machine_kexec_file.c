@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * s390 code for kexec_file_load system call
+ *
+ * Copyright IBM Corp. 2018
+ *
+ * Author(s): Philipp Rudo <prudo@linux.vnet.ibm.com>
+ */
+
+#include <linux/elf.h>
+#include <linux/kexec.h>
+#include <asm/setup.h>
+
+const struct kexec_file_ops * const kexec_file_loaders[] = {
+	NULL,
+};
+
+/*
+ * The kernel is loaded to a fixed location. Turn off kexec_locate_mem_hole
+ * and provide kbuf->mem by hand.
+ */
+int arch_kexec_walk_mem(struct kexec_buf *kbuf,
+			int (*func)(struct resource *, void *))
+{
+	return 1;
+}
+
+int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
+				     Elf_Shdr *section,
+				     const Elf_Shdr *relsec,
+				     const Elf_Shdr *symtab)
+{
+	Elf_Rela *relas;
+	int i;
+
+	relas = (void *)pi->ehdr + relsec->sh_offset;
+
+	for (i = 0; i < relsec->sh_size / sizeof(*relas); i++) {
+		const Elf_Sym *sym;	/* symbol to relocate */
+		unsigned long addr;	/* final location after relocation */
+		unsigned long val;	/* relocated symbol value */
+		void *loc;		/* tmp location to modify */
+
+		sym = (void *)pi->ehdr + symtab->sh_offset;
+		sym += ELF64_R_SYM(relas[i].r_info);
+
+		if (sym->st_shndx == SHN_UNDEF)
+			return -ENOEXEC;
+
+		if (sym->st_shndx == SHN_COMMON)
+			return -ENOEXEC;
+
+		if (sym->st_shndx >= pi->ehdr->e_shnum &&
+		    sym->st_shndx != SHN_ABS)
+			return -ENOEXEC;
+
+		loc = pi->purgatory_buf;
+		loc += section->sh_offset;
+		loc += relas[i].r_offset;
+
+		val = sym->st_value;
+		if (sym->st_shndx != SHN_ABS)
+			val += pi->sechdrs[sym->st_shndx].sh_addr;
+		val += relas[i].r_addend;
+
+		addr = section->sh_addr + relas[i].r_offset;
+
+		switch (ELF64_R_TYPE(relas[i].r_info)) {
+		case R_390_8:		/* Direct 8 bit.   */
+			*(u8 *)loc = val;
+			break;
+		case R_390_12:		/* Direct 12 bit.  */
+			*(u16 *)loc &= 0xf000;
+			*(u16 *)loc |= val & 0xfff;
+			break;
+		case R_390_16:		/* Direct 16 bit.  */
+			*(u16 *)loc = val;
+			break;
+		case R_390_20:		/* Direct 20 bit.  */
+			*(u32 *)loc &= 0xf00000ff;
+			*(u32 *)loc |= (val & 0xfff) << 16;	/* DL */
+			*(u32 *)loc |= (val & 0xff000) >> 4;	/* DH */
+			break;
+		case R_390_32:		/* Direct 32 bit.  */
+			*(u32 *)loc = val;
+			break;
+		case R_390_64:		/* Direct 64 bit.  */
+			*(u64 *)loc = val;
+			break;
+		case R_390_PC16:	/* PC relative 16 bit.	*/
+			*(u16 *)loc = (val - addr);
+			break;
+		case R_390_PC16DBL:	/* PC relative 16 bit shifted by 1.  */
+			*(u16 *)loc = (val - addr) >> 1;
+			break;
+		case R_390_PC32DBL:	/* PC relative 32 bit shifted by 1.  */
+			*(u32 *)loc = (val - addr) >> 1;
+			break;
+		case R_390_PC32:	/* PC relative 32 bit.	*/
+			*(u32 *)loc = (val - addr);
+			break;
+		case R_390_PC64:	/* PC relative 64 bit.	*/
+			*(u64 *)loc = (val - addr);
+			break;
+		default:
+			break;
+		}
+	}
+	return 0;
+}
+
+int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
+				  unsigned long buf_len)
+{
+	/* A kernel must be at least large enough to contain head.S. During
+	 * load memory in head.S will be accessed, e.g. to register the next
+	 * command line. If the next kernel were smaller the current kernel
+	 * will panic at load.
+	 *
+	 * 0x11000 = sizeof(head.S)
+	 */
+	if (buf_len < 0x11000)
+		return -ENOEXEC;
+
+	return kexec_image_probe_default(image, buf, buf_len);
+}

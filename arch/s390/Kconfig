@@ -51,6 +51,19 @@ config KEXEC
 	def_bool y
 	select KEXEC_CORE
 
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	select BUILD_BIN2C
+	depends on CRYPTO
+	depends on CRYPTO_SHA256
+	depends on CRYPTO_SHA256_S390
+	---help---
+	  This is new version of kexec system call. This system call is
+	  file based and takes file descriptors as system call argument
+	  for kernel and initramfs as opposed to list of segments as
+	  accepted by previous system call.
+
 config ARCH_HAS_KEXEC_PURGATORY
 	def_bool y
 	depends on KEXEC_FILE
