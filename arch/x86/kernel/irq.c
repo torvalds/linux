@@ -433,7 +433,6 @@ int check_irq_vectors_for_cpu_disable(void)
 void fixup_irqs(void)
 {
 	unsigned int irq, vector;
-	static int warned;
 	struct irq_desc *desc;
 	struct irq_data *data;
 	struct irq_chip *chip;
@@ -441,18 +440,27 @@ void fixup_irqs(void)
 
 	for_each_irq_desc(irq, desc) {
 		const struct cpumask *affinity;
-		int break_affinity = 0;
-		int set_affinity = 1;
+		bool break_affinity = false;
 
 		if (!desc)
-			continue;
-		if (irq == 2)
 			continue;
 
 		/* interrupt's are disabled at this point */
 		raw_spin_lock(&desc->lock);
 
 		data = irq_desc_get_irq_data(desc);
+		chip = irq_data_get_irq_chip(data);
+		/*
+		 * The interrupt descriptor might have been cleaned up
+		 * already, but it is not yet removed from the radix
+		 * tree. If the chip does not have an affinity setter,
+		 * nothing to do here.
+		 */
+		if (!chip && !chip->irq_set_affinity) {
+			raw_spin_unlock(&desc->lock);
+			continue;
+		}
+
 		affinity = irq_data_get_affinity_mask(data);
 
 		if (!irq_has_action(irq) || irqd_is_per_cpu(data) ||
@@ -485,30 +493,18 @@ void fixup_irqs(void)
 		 * affinity and use cpu_online_mask as fall back.
 		 */
 		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
-			break_affinity = 1;
+			broke_affinity = true;
 			affinity = cpu_online_mask;
-		}
-
-		chip = irq_data_get_irq_chip(data);
-		/*
-		 * The interrupt descriptor might have been cleaned up
-		 * already, but it is not yet removed from the radix tree
-		 */
-		if (!chip) {
-			raw_spin_unlock(&desc->lock);
-			continue;
 		}
 
 		if (!irqd_can_move_in_process_context(data) && chip->irq_mask)
 			chip->irq_mask(data);
 
-		if (chip->irq_set_affinity) {
-			ret = chip->irq_set_affinity(data, affinity, true);
-			if (ret == -ENOSPC)
-				pr_crit("IRQ %d set affinity failed because there are no available vectors.  The device assigned to this IRQ is unstable.\n", irq);
-		} else {
-			if (!(warned++))
-				set_affinity = 0;
+		ret = chip->irq_set_affinity(data, affinity, true);
+		if (ret) {
+			pr_crit("IRQ %u: Force affinity failed (%d)\n",
+				d->irq, ret);
+			broke_affinity = false;
 		}
 
 		/*
@@ -522,10 +518,8 @@ void fixup_irqs(void)
 
 		raw_spin_unlock(&desc->lock);
 
-		if (break_affinity && set_affinity)
+		if (broke_affinity)
 			pr_notice("Broke affinity for irq %i\n", irq);
-		else if (!set_affinity)
-			pr_notice("Cannot set affinity for irq %i\n", irq);
 	}
 
 	/*
