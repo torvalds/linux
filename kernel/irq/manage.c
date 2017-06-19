@@ -168,34 +168,6 @@ void irq_set_thread_affinity(struct irq_desc *desc)
 			set_bit(IRQTF_AFFINITY, &action->thread_flags);
 }
 
-#ifdef CONFIG_GENERIC_PENDING_IRQ
-static inline bool irq_can_move_pcntxt(struct irq_data *data)
-{
-	return irqd_can_move_in_process_context(data);
-}
-static inline bool irq_move_pending(struct irq_data *data)
-{
-	return irqd_is_setaffinity_pending(data);
-}
-static inline void
-irq_copy_pending(struct irq_desc *desc, const struct cpumask *mask)
-{
-	cpumask_copy(desc->pending_mask, mask);
-}
-static inline void
-irq_get_pending(struct cpumask *mask, struct irq_desc *desc)
-{
-	cpumask_copy(mask, desc->pending_mask);
-}
-#else
-static inline bool irq_can_move_pcntxt(struct irq_data *data) { return true; }
-static inline bool irq_move_pending(struct irq_data *data) { return false; }
-static inline void
-irq_copy_pending(struct irq_desc *desc, const struct cpumask *mask) { }
-static inline void
-irq_get_pending(struct cpumask *mask, struct irq_desc *desc) { }
-#endif
-
 int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask,
 			bool force)
 {
