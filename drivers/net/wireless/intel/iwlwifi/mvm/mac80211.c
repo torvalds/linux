@@ -464,10 +464,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (mvm->trans->max_skb_frags)
 		hw->netdev_features = NETIF_F_HIGHDMA | NETIF_F_SG;
 
-	if (!iwl_mvm_is_dqa_supported(mvm))
-		hw->queues = mvm->first_agg_queue;
-	else
-		hw->queues = IEEE80211_MAX_QUEUES;
+	hw->queues = IEEE80211_MAX_QUEUES;
 	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
 	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FEC |
 				    IEEE80211_RADIOTAP_MCS_HAVE_STBC;
@@ -1067,9 +1064,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	iwl_mvm_reset_phy_ctxts(mvm);
 	memset(mvm->fw_key_table, 0, sizeof(mvm->fw_key_table));
-	memset(mvm->sta_drained, 0, sizeof(mvm->sta_drained));
 	memset(mvm->sta_deferred_frames, 0, sizeof(mvm->sta_deferred_frames));
-	memset(mvm->tfd_drained, 0, sizeof(mvm->tfd_drained));
 	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
 	memset(&mvm->last_bt_ci_cmd, 0, sizeof(mvm->last_bt_ci_cmd));
 
@@ -1372,17 +1367,15 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 			goto out_release;
 		}
 
-		if (iwl_mvm_is_dqa_supported(mvm)) {
-			/*
-			 * Only queue for this station is the mcast queue,
-			 * which shouldn't be in TFD mask anyway
-			 */
-			ret = iwl_mvm_allocate_int_sta(mvm, &mvmvif->mcast_sta,
-						       0, vif->type,
-						       IWL_STA_MULTICAST);
-			if (ret)
-				goto out_release;
-		}
+		/*
+		 * Only queue for this station is the mcast queue,
+		 * which shouldn't be in TFD mask anyway
+		 */
+		ret = iwl_mvm_allocate_int_sta(mvm, &mvmvif->mcast_sta,
+					       0, vif->type,
+					       IWL_STA_MULTICAST);
+		if (ret)
+			goto out_release;
 
 		iwl_mvm_vif_dbgfs_register(mvm, vif);
 		goto out_unlock;
@@ -1456,8 +1449,6 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
  out_release:
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count--;
-
-	iwl_mvm_mac_ctxt_release(mvm, vif);
  out_unlock:
 	mutex_unlock(&mvm->mutex);
 
@@ -1469,40 +1460,6 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif)
 {
-	u32 tfd_msk = iwl_mvm_mac_get_queues_mask(vif);
-
-	if (tfd_msk && !iwl_mvm_is_dqa_supported(mvm)) {
-		/*
-		 * mac80211 first removes all the stations of the vif and
-		 * then removes the vif. When it removes a station it also
-		 * flushes the AMPDU session. So by now, all the AMPDU sessions
-		 * of all the stations of this vif are closed, and the queues
-		 * of these AMPDU sessions are properly closed.
-		 * We still need to take care of the shared queues of the vif.
-		 * Flush them here.
-		 * For DQA mode there is no need - broacast and multicast queue
-		 * are flushed separately.
-		 */
-		mutex_lock(&mvm->mutex);
-		iwl_mvm_flush_tx_path(mvm, tfd_msk, 0);
-		mutex_unlock(&mvm->mutex);
-
-		/*
-		 * There are transports that buffer a few frames in the host.
-		 * For these, the flush above isn't enough since while we were
-		 * flushing, the transport might have sent more frames to the
-		 * device. To solve this, wait here until the transport is
-		 * empty. Technically, this could have replaced the flush
-		 * above, but flush is much faster than draining. So flush
-		 * first, and drain to make sure we have no frames in the
-		 * transport anymore.
-		 * If a station still had frames on the shared queues, it is
-		 * already marked as draining, so to complete the draining, we
-		 * just need to wait until the transport is empty.
-		 */
-		iwl_trans_wait_tx_queues_empty(mvm->trans, tfd_msk);
-	}
-
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 		/*
 		 * Flush the ROC worker which will flush the OFFCHANNEL queue.
@@ -1510,14 +1467,6 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 * queue are sent in ROC session.
 		 */
 		flush_work(&mvm->roc_done_wk);
-	} else {
-		/*
-		 * By now, all the AC queues are empty. The AGG queues are
-		 * empty too. We already got all the Tx responses for all the
-		 * packets in the queues. The drain work can have been
-		 * triggered. Flush it.
-		 */
-		flush_work(&mvm->sta_drained_wk);
 	}
 }
 
@@ -1571,7 +1520,6 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
 out_release:
-	iwl_mvm_mac_ctxt_release(mvm, vif);
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -2419,11 +2367,6 @@ static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
 		struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 
-		if (!iwl_mvm_is_dqa_supported(mvm) &&
-		    tid_data->state != IWL_AGG_ON &&
-		    tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA)
-			continue;
-
 		if (tid_data->txq_id == IWL_MVM_INVALID_QUEUE)
 			continue;
 
@@ -2437,9 +2380,6 @@ static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
-		if (atomic_read(&mvm->pending_frames[mvmsta->sta_id]) > 0)
-			ieee80211_sta_block_awake(hw, sta, true);
-
 		for_each_set_bit(tid, &tids, IWL_MAX_TID_COUNT)
 			ieee80211_sta_set_buffered(sta, tid, true);
 
@@ -2632,9 +2572,6 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	if (WARN_ON_ONCE(!mvmvif->phy_ctxt))
 		return -EINVAL;
 
-	/* if a STA is being removed, reuse its ID */
-	flush_work(&mvm->sta_drained_wk);
-
 	/*
 	 * If we are in a STA removal flow and in DQA mode:
 	 *
@@ -2649,8 +2586,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	 * make sure the worker is no longer handling frames for this STA.
 	 */
 	if (old_state == IEEE80211_STA_NONE &&
-	    new_state == IEEE80211_STA_NOTEXIST &&
-	    iwl_mvm_is_dqa_supported(mvm)) {
+	    new_state == IEEE80211_STA_NOTEXIST) {
 		iwl_mvm_purge_deferred_tx_frames(mvm, mvm_sta);
 		flush_work(&mvm->add_stream_wk);
 
@@ -4032,8 +3968,7 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 		return;
 
 	/* Make sure we're done with the deferred traffic before flushing */
-	if (iwl_mvm_is_dqa_supported(mvm))
-		flush_work(&mvm->add_stream_wk);
+	flush_work(&mvm->add_stream_wk);
 
 	mutex_lock(&mvm->mutex);
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);

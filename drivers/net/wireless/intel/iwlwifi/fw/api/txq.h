@@ -62,12 +62,6 @@
 #ifndef __iwl_fw_api_txq_h__
 #define __iwl_fw_api_txq_h__
 
-/* Tx queue numbers for non-DQA mode */
-enum {
-	IWL_MVM_OFFCHANNEL_QUEUE = 8,
-	IWL_MVM_CMD_QUEUE = 9,
-};
-
 /*
  * DQA queue numbers
  *

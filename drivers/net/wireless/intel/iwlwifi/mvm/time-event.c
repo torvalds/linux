@@ -129,10 +129,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	 * issue as it will have to complete before the next command is
 	 * executed, and a new time event means a new command.
 	 */
-	if (iwl_mvm_is_dqa_supported(mvm))
-		iwl_mvm_flush_sta(mvm, &mvm->aux_sta, true, CMD_ASYNC);
-	else
-		iwl_mvm_flush_tx_path(mvm, queues, CMD_ASYNC);
+	iwl_mvm_flush_sta(mvm, &mvm->aux_sta, true, CMD_ASYNC);
 }
 
 static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)

@@ -331,10 +331,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 */
 
 	memset(&mvm->queue_info, 0, sizeof(mvm->queue_info));
-	if (iwl_mvm_is_dqa_supported(mvm))
-		mvm->queue_info[IWL_MVM_DQA_CMD_QUEUE].hw_queue_refcount = 1;
-	else
-		mvm->queue_info[IWL_MVM_CMD_QUEUE].hw_queue_refcount = 1;
+	mvm->queue_info[IWL_MVM_DQA_CMD_QUEUE].hw_queue_refcount = 1;
 
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
 		atomic_set(&mvm->mac80211_queue_stop_count[i], 0);
@@ -1137,14 +1134,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	/* reset quota debouncing buffer - 0xff will yield invalid data */
 	memset(&mvm->last_quota_cmd, 0xff, sizeof(mvm->last_quota_cmd));
 
-	/* Enable DQA-mode if required */
-	if (iwl_mvm_is_dqa_supported(mvm)) {
-		ret = iwl_mvm_send_dqa_cmd(mvm);
-		if (ret)
-			goto error;
-	} else {
-		IWL_DEBUG_FW(mvm, "Working in non-DQA mode\n");
-	}
+	ret = iwl_mvm_send_dqa_cmd(mvm);
+	if (ret)
+		goto error;
 
 	/* Add auxiliary station for scanning */
 	ret = iwl_mvm_add_aux_sta(mvm);

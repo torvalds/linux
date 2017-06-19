@@ -241,31 +241,16 @@ static void iwl_mvm_iface_hw_queues_iter(void *_data, u8 *mac,
 	data->used_hw_queues |= iwl_mvm_mac_get_queues_mask(vif);
 }
 
-static void iwl_mvm_mac_sta_hw_queues_iter(void *_data,
-					   struct ieee80211_sta *sta)
-{
-	struct iwl_mvm_hw_queues_iface_iterator_data *data = _data;
-	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-
-	/* Mark the queues used by the sta */
-	data->used_hw_queues |= mvmsta->tfd_queue_msk;
-}
-
 unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *exclude_vif)
 {
-	u8 sta_id;
 	struct iwl_mvm_hw_queues_iface_iterator_data data = {
 		.exclude_vif = exclude_vif,
 		.used_hw_queues =
 			BIT(IWL_MVM_OFFCHANNEL_QUEUE) |
-			BIT(mvm->aux_queue),
+			BIT(mvm->aux_queue) |
+			BIT(IWL_MVM_DQA_GCAST_QUEUE),
 	};
-
-	if (iwl_mvm_is_dqa_supported(mvm))
-		data.used_hw_queues |= BIT(IWL_MVM_DQA_GCAST_QUEUE);
-	else
-		data.used_hw_queues |= BIT(IWL_MVM_CMD_QUEUE);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -273,26 +258,6 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 		iwl_mvm_iface_hw_queues_iter, &data);
-
-	/*
-	 * for DQA, the hw_queue in mac80211 is never really used for
-	 * real traffic (only the few queue IDs covered above), so
-	 * we can reuse the real HW queue IDs the stations use
-	 */
-	if (iwl_mvm_is_dqa_supported(mvm))
-		return data.used_hw_queues;
-
-	/* don't assign the same hw queues as TDLS stations */
-	ieee80211_iterate_stations_atomic(mvm->hw,
-					  iwl_mvm_mac_sta_hw_queues_iter,
-					  &data);
-
-	/*
-	 * Some TDLS stations may be removed but are in the process of being
-	 * drained. Don't touch their queues.
-	 */
-	for_each_set_bit(sta_id, mvm->sta_drained, IWL_MVM_STATION_COUNT)
-		data.used_hw_queues |= mvm->tfd_drained[sta_id];
 
 	return data.used_hw_queues;
 }
@@ -344,8 +309,7 @@ void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
 						NUM_TSF_IDS);
 }
 
-static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
-					       struct ieee80211_vif *vif)
+int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_mac_iface_iterator_data data = {
@@ -360,6 +324,8 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 	u32 ac;
 	int ret, i, queue_limit;
 	unsigned long used_hw_queues;
+
+	lockdep_assert_held(&mvm->mutex);
 
 	/*
 	 * Allocate a MAC ID and a TSF for this MAC, along with the queues
@@ -444,19 +410,14 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		return 0;
 	}
 
-	if (iwl_mvm_is_dqa_supported(mvm)) {
-		/*
-		 * queues in mac80211 almost entirely independent of
-		 * the ones here - no real limit
-		 */
-		queue_limit = IEEE80211_MAX_QUEUES;
-		BUILD_BUG_ON(IEEE80211_MAX_QUEUES >
-			     BITS_PER_BYTE *
-			     sizeof(mvm->hw_queue_to_mac80211[0]));
-	} else {
-		/* need to not use too many in this case */
-		queue_limit = mvm->first_agg_queue;
-	}
+	/*
+	 * queues in mac80211 almost entirely independent of
+	 * the ones here - no real limit
+	 */
+	queue_limit = IEEE80211_MAX_QUEUES;
+	BUILD_BUG_ON(IEEE80211_MAX_QUEUES >
+		     BITS_PER_BYTE *
+		     sizeof(mvm->hw_queue_to_mac80211[0]));
 
 	/*
 	 * Find available queues, and allocate them to the ACs. When in
@@ -478,27 +439,12 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 
 	/* Allocate the CAB queue for softAP and GO interfaces */
 	if (vif->type == NL80211_IFTYPE_AP) {
-		u8 queue;
-
-		if (!iwl_mvm_is_dqa_supported(mvm)) {
-			queue = find_first_zero_bit(&used_hw_queues,
-						    mvm->first_agg_queue);
-
-			if (queue >= mvm->first_agg_queue) {
-				IWL_ERR(mvm, "Failed to allocate cab queue\n");
-				ret = -EIO;
-				goto exit_fail;
-			}
-		} else {
-			queue = IWL_MVM_DQA_GCAST_QUEUE;
-		}
-
 		/*
 		 * For TVQM this will be overwritten later with the FW assigned
 		 * queue value (when queue is enabled).
 		 */
-		mvmvif->cab_queue = queue;
-		vif->cab_queue = queue;
+		mvmvif->cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
+		vif->cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
 	} else {
 		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
 	}
@@ -517,78 +463,6 @@ exit_fail:
 	memset(vif->hw_queue, IEEE80211_INVAL_HW_QUEUE, sizeof(vif->hw_queue));
 	vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
 	return ret;
-}
-
-int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
-{
-	unsigned int wdg_timeout =
-		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
-	u32 ac;
-	int ret;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	ret = iwl_mvm_mac_ctxt_allocate_resources(mvm, vif);
-	if (ret)
-		return ret;
-
-	/* If DQA is supported - queues will be enabled when needed */
-	if (iwl_mvm_is_dqa_supported(mvm))
-		return 0;
-
-	switch (vif->type) {
-	case NL80211_IFTYPE_P2P_DEVICE:
-		iwl_mvm_enable_ac_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
-				      IWL_MVM_OFFCHANNEL_QUEUE,
-				      IWL_MVM_TX_FIFO_VO, 0, wdg_timeout);
-		break;
-	case NL80211_IFTYPE_AP:
-		iwl_mvm_enable_ac_txq(mvm, vif->cab_queue, vif->cab_queue,
-				      IWL_MVM_TX_FIFO_MCAST, 0, wdg_timeout);
-		/* fall through */
-	default:
-		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			iwl_mvm_enable_ac_txq(mvm, vif->hw_queue[ac],
-					      vif->hw_queue[ac],
-					      iwl_mvm_ac_to_tx_fifo[ac], 0,
-					      wdg_timeout);
-		break;
-	}
-
-	return 0;
-}
-
-void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
-{
-	int ac;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	/*
-	 * If DQA is supported - queues were already disabled, since in
-	 * DQA-mode the queues are a property of the STA and not of the
-	 * vif, and at this point the STA was already deleted
-	 */
-	if (iwl_mvm_is_dqa_supported(mvm))
-		return;
-
-	switch (vif->type) {
-	case NL80211_IFTYPE_P2P_DEVICE:
-		iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
-				    IWL_MVM_OFFCHANNEL_QUEUE,
-				    IWL_MAX_TID_COUNT, 0);
-
-		break;
-	case NL80211_IFTYPE_AP:
-		iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
-				    IWL_MAX_TID_COUNT, 0);
-		/* fall through */
-	default:
-		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac],
-					    vif->hw_queue[ac],
-					    IWL_MAX_TID_COUNT, 0);
-	}
 }
 
 static void iwl_mvm_ack_rates(struct iwl_mvm *mvm,
@@ -914,17 +788,11 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 {
 	struct iwl_mac_ctx_cmd cmd = {};
 	u32 tfd_queue_msk = 0;
-	int ret, i;
+	int ret;
 
 	WARN_ON(vif->type != NL80211_IFTYPE_MONITOR);
 
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, NULL, action);
-
-	if (!iwl_mvm_is_dqa_supported(mvm)) {
-		for (i = 0; i < IEEE80211_NUM_ACS; i++)
-			if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
-				tfd_queue_msk |= BIT(vif->hw_queue[i]);
-	}
 
 	cmd.filter_flags = cpu_to_le32(MAC_FILTER_IN_PROMISC |
 				       MAC_FILTER_IN_CONTROL_AND_MGMT |

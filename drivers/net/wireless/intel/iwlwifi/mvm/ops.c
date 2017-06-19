@@ -623,27 +623,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	mvm->fw_restart = iwlwifi_mod_params.fw_restart ? -1 : 0;
 
-	if (!iwl_mvm_is_dqa_supported(mvm)) {
-		mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
+	mvm->aux_queue = IWL_MVM_DQA_AUX_QUEUE;
+	mvm->probe_queue = IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+	mvm->p2p_dev_queue = IWL_MVM_DQA_P2P_DEVICE_QUEUE;
 
-		if (mvm->cfg->base_params->num_of_queues == 16) {
-			mvm->aux_queue = 11;
-			mvm->first_agg_queue = 12;
-			BUILD_BUG_ON(BITS_PER_BYTE *
-				     sizeof(mvm->hw_queue_to_mac80211[0]) < 12);
-		} else {
-			mvm->aux_queue = 15;
-			mvm->first_agg_queue = 16;
-			BUILD_BUG_ON(BITS_PER_BYTE *
-				     sizeof(mvm->hw_queue_to_mac80211[0]) < 16);
-		}
-	} else {
-		mvm->aux_queue = IWL_MVM_DQA_AUX_QUEUE;
-		mvm->probe_queue = IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
-		mvm->p2p_dev_queue = IWL_MVM_DQA_P2P_DEVICE_QUEUE;
-		mvm->first_agg_queue = IWL_MVM_DQA_MIN_DATA_QUEUE;
-		mvm->last_agg_queue = IWL_MVM_DQA_MAX_DATA_QUEUE;
-	}
 	mvm->sf_state = SF_UNINIT;
 	if (iwl_mvm_has_unified_ucode(mvm))
 		iwl_fw_set_current_image(&mvm->fwrt, IWL_UCODE_REGULAR);
@@ -662,7 +645,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	INIT_WORK(&mvm->async_handlers_wk, iwl_mvm_async_handlers_wk);
 	INIT_WORK(&mvm->roc_done_wk, iwl_mvm_roc_done_wk);
-	INIT_WORK(&mvm->sta_drained_wk, iwl_mvm_sta_drained_wk);
 	INIT_WORK(&mvm->d0i3_exit_work, iwl_mvm_d0i3_exit_work);
 	INIT_DELAYED_WORK(&mvm->tdls_cs.dwork, iwl_mvm_tdls_ch_switch_work);
 	INIT_DELAYED_WORK(&mvm->scan_timeout_dwork, iwl_mvm_scan_timeout_wk);
@@ -714,10 +696,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.command_groups = iwl_mvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_mvm_groups);
 
-	if (iwl_mvm_is_dqa_supported(mvm))
-		trans_cfg.cmd_queue = IWL_MVM_DQA_CMD_QUEUE;
-	else
-		trans_cfg.cmd_queue = IWL_MVM_CMD_QUEUE;
+	trans_cfg.cmd_queue = IWL_MVM_DQA_CMD_QUEUE;
 	trans_cfg.cmd_fifo = IWL_MVM_TX_FIFO_CMD;
 	trans_cfg.scd_set_active = true;
 

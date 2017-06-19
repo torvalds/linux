@@ -121,6 +121,9 @@
  */
 #define IWL_MVM_CS_UNBLOCK_TX_TIMEOUT 3
 
+/* offchannel queue towards mac80211 */
+#define IWL_MVM_OFFCHANNEL_QUEUE 0
+
 extern const struct ieee80211_ops iwl_mvm_hw_ops;
 
 /**
@@ -783,11 +786,7 @@ struct iwl_mvm {
 	/* data related to data path */
 	struct iwl_rx_phy_info last_phy_info;
 	struct ieee80211_sta __rcu *fw_id_to_mac_id[IWL_MVM_STATION_COUNT];
-	struct work_struct sta_drained_wk;
 	unsigned long sta_deferred_frames[BITS_TO_LONGS(IWL_MVM_STATION_COUNT)];
-	unsigned long sta_drained[BITS_TO_LONGS(IWL_MVM_STATION_COUNT)];
-	atomic_t pending_frames[IWL_MVM_STATION_COUNT];
-	u32 tfd_drained[IWL_MVM_STATION_COUNT];
 	u8 rx_ba_sessions;
 
 	/* configured by mac80211 */
@@ -960,9 +959,6 @@ struct iwl_mvm {
 	u16 probe_queue;
 	u16 p2p_dev_queue;
 
-	u8 first_agg_queue;
-	u8 last_agg_queue;
-
 	/* Indicate if device power save is allowed */
 	u8 ps_disabled; /* u8 instead of bool to ease debugfs_create_* usage */
 	unsigned int max_amsdu_len; /* used for debugfs only */
@@ -1123,12 +1119,6 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 	return !iwlwifi_mod_params.d0i3_disable &&
 		fw_has_capa(&mvm->fw->ucode_capa,
 			    IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
-}
-
-static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
-{
-	return fw_has_capa(&mvm->fw->ucode_capa,
-			   IWL_UCODE_TLV_CAPA_DQA_SUPPORT);
 }
 
 static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
@@ -1469,7 +1459,6 @@ u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef);
 
 /* MAC (virtual interface) programming */
 int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
-void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     bool force_assoc_off, const u8 *bssid_override);
@@ -1720,10 +1709,6 @@ bool iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm, int mac80211_queue,
 			    u8 sta_id, u8 tid, unsigned int timeout);
 
-/*
- * Disable a TXQ.
- * Note that in non-DQA mode the %mac80211_queue and %tid params are ignored.
- */
 int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			u8 tid, u8 flags);
 int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq);
@@ -1733,25 +1718,8 @@ int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq);
  */
 static inline u32 iwl_mvm_flushable_queues(struct iwl_mvm *mvm)
 {
-	u32 cmd_queue = iwl_mvm_is_dqa_supported(mvm) ? IWL_MVM_DQA_CMD_QUEUE :
-		IWL_MVM_CMD_QUEUE;
-
 	return ((BIT(mvm->cfg->base_params->num_of_queues) - 1) &
-		~BIT(cmd_queue));
-}
-
-static inline
-void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
-			   u8 fifo, u16 ssn, unsigned int wdg_timeout)
-{
-	struct iwl_trans_txq_scd_cfg cfg = {
-		.fifo = fifo,
-		.tid = IWL_MAX_TID_COUNT,
-		.aggregate = false,
-		.frame_limit = IWL_FRAME_LIMIT,
-	};
-
-	iwl_mvm_enable_txq(mvm, queue, mac80211_queue, ssn, &cfg, wdg_timeout);
+		~BIT(IWL_MVM_DQA_CMD_QUEUE));
 }
 
 static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
