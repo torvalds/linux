@@ -235,7 +235,7 @@ static int mv88e6xxx_g2_switch_mac_write(struct mv88e6xxx_chip *chip,
 {
 	u16 val = (pointer << 8) | data;
 
-	return mv88e6xxx_g2_update(chip, GLOBAL2_SWITCH_MAC, val);
+	return mv88e6xxx_g2_update(chip, MV88E6XXX_G2_SWITCH_MAC, val);
 }
 
 int mv88e6xxx_g2_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
