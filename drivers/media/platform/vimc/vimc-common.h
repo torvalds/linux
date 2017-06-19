@@ -23,6 +23,32 @@
 #include <media/v4l2-device.h>
 
 /**
+ * struct vimc_colorimetry_clamp - Adjust colorimetry parameters
+ *
+ * @fmt:		the pointer to struct v4l2_pix_format or
+ *			struct v4l2_mbus_framefmt
+ *
+ * Entities must check if colorimetry given by the userspace is valid, if not
+ * then set them as DEFAULT
+ */
+#define vimc_colorimetry_clamp(fmt)					\
+do {									\
+	if ((fmt)->colorspace == V4L2_COLORSPACE_DEFAULT		\
+	    || (fmt)->colorspace > V4L2_COLORSPACE_DCI_P3) {		\
+		(fmt)->colorspace = V4L2_COLORSPACE_DEFAULT;		\
+		(fmt)->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;		\
+		(fmt)->quantization = V4L2_QUANTIZATION_DEFAULT;	\
+		(fmt)->xfer_func = V4L2_XFER_FUNC_DEFAULT;		\
+	}								\
+	if ((fmt)->ycbcr_enc > V4L2_YCBCR_ENC_SMPTE240M)		\
+		(fmt)->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;		\
+	if ((fmt)->quantization > V4L2_QUANTIZATION_LIM_RANGE)		\
+		(fmt)->quantization = V4L2_QUANTIZATION_DEFAULT;	\
+	if ((fmt)->xfer_func > V4L2_XFER_FUNC_SMPTE2084)		\
+		(fmt)->xfer_func = V4L2_XFER_FUNC_DEFAULT;		\
+} while (0)
+
+/**
  * struct vimc_pix_map - maps media bus code with v4l2 pixel format
  *
  * @code:		media bus format code defined by MEDIA_BUS_FMT_* macros
