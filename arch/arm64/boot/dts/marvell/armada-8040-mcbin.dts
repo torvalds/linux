@@ -116,6 +116,8 @@
 };
 
 &cpm_mdio {
+	status = "okay";
+
 	ge_phy: ethernet-phy@0 {
 		reg = <0>;
 	};
