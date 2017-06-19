@@ -169,6 +169,11 @@ irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags)
 
 #define __irqd_to_state(d) ACCESS_PRIVATE((d)->common, state_use_accessors)
 
+static inline unsigned int irqd_get(struct irq_data *d)
+{
+	return __irqd_to_state(d);
+}
+
 /*
  * Manipulation functions for irq_data.state
  */
@@ -237,3 +242,20 @@ irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
 		      int num_ct, unsigned int irq_base,
 		      void __iomem *reg_base, irq_flow_handler_t handler) { }
 #endif /* CONFIG_GENERIC_IRQ_CHIP */
+
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc);
+void irq_remove_debugfs_entry(struct irq_desc *desc);
+# ifdef CONFIG_IRQ_DOMAIN
+void irq_domain_debugfs_init(struct dentry *root);
+# else
+static inline void irq_domain_debugfs_init(struct dentry *root);
+# endif
+#else /* CONFIG_GENERIC_IRQ_DEBUGFS */
+static inline void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *d)
+{
+}
+static inline void irq_remove_debugfs_entry(struct irq_desc *d)
+{
+}
+#endif /* CONFIG_GENERIC_IRQ_DEBUGFS */

@@ -29,8 +29,16 @@ struct irqchip_fwid {
 	struct fwnode_handle	fwnode;
 	unsigned int		type;
 	char			*name;
-	void			*data;
+	void *data;
 };
+
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+static void debugfs_add_domain_dir(struct irq_domain *d);
+static void debugfs_remove_domain_dir(struct irq_domain *d);
+#else
+static inline void debugfs_add_domain_dir(struct irq_domain *d) { }
+static inline void debugfs_remove_domain_dir(struct irq_domain *d) { }
+#endif
 
 /**
  * irq_domain_alloc_fwnode - Allocate a fwnode_handle suitable for
@@ -194,6 +202,7 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 	irq_domain_check_hierarchy(domain);
 
 	mutex_lock(&irq_domain_mutex);
+	debugfs_add_domain_dir(domain);
 	list_add(&domain->link, &irq_domain_list);
 	mutex_unlock(&irq_domain_mutex);
 
@@ -213,6 +222,7 @@ EXPORT_SYMBOL_GPL(__irq_domain_add);
 void irq_domain_remove(struct irq_domain *domain)
 {
 	mutex_lock(&irq_domain_mutex);
+	debugfs_remove_domain_dir(domain);
 
 	WARN_ON(!radix_tree_empty(&domain->revmap_tree));
 
@@ -1599,3 +1609,78 @@ static void irq_domain_check_hierarchy(struct irq_domain *domain)
 {
 }
 #endif	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
+
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+static struct dentry *domain_dir;
+
+static void
+irq_domain_debug_show_one(struct seq_file *m, struct irq_domain *d, int ind)
+{
+	seq_printf(m, "%*sname:   %s\n", ind, "", d->name);
+	seq_printf(m, "%*ssize:   %u\n", ind + 1, "",
+		   d->revmap_size + d->revmap_direct_max_irq);
+	seq_printf(m, "%*smapped: %u\n", ind + 1, "", d->mapcount);
+	seq_printf(m, "%*sflags:  0x%08x\n", ind +1 , "", d->flags);
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+	if (!d->parent)
+		return;
+	seq_printf(m, "%*sparent: %s\n", ind + 1, "", d->parent->name);
+	irq_domain_debug_show_one(m, d->parent, ind + 4);
+#endif
+}
+
+static int irq_domain_debug_show(struct seq_file *m, void *p)
+{
+	struct irq_domain *d = m->private;
+
+	/* Default domain? Might be NULL */
+	if (!d) {
+		if (!irq_default_domain)
+			return 0;
+		d = irq_default_domain;
+	}
+	irq_domain_debug_show_one(m, d, 0);
+	return 0;
+}
+
+static int irq_domain_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, irq_domain_debug_show, inode->i_private);
+}
+
+static const struct file_operations dfs_domain_ops = {
+	.open		= irq_domain_debug_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void debugfs_add_domain_dir(struct irq_domain *d)
+{
+	if (!d->name || !domain_dir || d->debugfs_file)
+		return;
+	d->debugfs_file = debugfs_create_file(d->name, 0444, domain_dir, d,
+					      &dfs_domain_ops);
+}
+
+static void debugfs_remove_domain_dir(struct irq_domain *d)
+{
+	if (d->debugfs_file)
+		debugfs_remove(d->debugfs_file);
+}
+
+void __init irq_domain_debugfs_init(struct dentry *root)
+{
+	struct irq_domain *d;
+
+	domain_dir = debugfs_create_dir("domains", root);
+	if (!domain_dir)
+		return;
+
+	debugfs_create_file("default", 0444, domain_dir, NULL, &dfs_domain_ops);
+	mutex_lock(&irq_domain_mutex);
+	list_for_each_entry(d, &irq_domain_list, link)
+		debugfs_add_domain_dir(d);
+	mutex_unlock(&irq_domain_mutex);
+}
+#endif
