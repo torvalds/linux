@@ -94,6 +94,16 @@
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
 				reg = <0x12a200 0x10>;
+				clocks = <&cpm_syscon0 1 9>, <&cpm_syscon0 1 5>;
+				status = "disabled";
+			};
+
+			cpm_xmdio: mdio@12a600 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "marvell,xmdio";
+				reg = <0x12a600 0x10>;
+				status = "disabled";
 			};
 
 			cpm_syscon0: system-controller@440000 {
@@ -241,7 +251,7 @@
 				interrupt-names = "mem", "ring0", "ring1",
 				"ring2", "ring3", "eip";
 				clocks = <&cpm_syscon0 1 26>;
-				status = "disabled";
+				dma-mask = <0xff 0xffffffff>;
 			};
 		};
 

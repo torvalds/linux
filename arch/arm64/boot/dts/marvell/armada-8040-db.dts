@@ -125,6 +125,8 @@
 };
 
 &cpm_mdio {
+	status = "okay";
+
 	phy1: ethernet-phy@1 {
 		reg = <1>;
 	};
@@ -138,10 +140,6 @@
 	status = "okay";
 	phy = <&phy1>;
 	phy-mode = "rgmii-id";
-};
-
-&cpm_crypto {
-	status = "okay";
 };
 
 /* CON5 on CP1 expansion */
@@ -167,6 +165,24 @@
 /* CON10 on CP1 expansion */
 &cps_usb3_1 {
 	status = "okay";
+};
+
+&cps_mdio {
+	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&cps_ethernet {
+	status = "okay";
+};
+
+&cps_eth1 {
+	status = "okay";
+	phy = <&phy0>;
+	phy-mode = "rgmii-id";
 };
 
 &ap_sdhci0 {
