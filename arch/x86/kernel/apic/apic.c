@@ -2220,6 +2220,22 @@ int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	return -EINVAL;
 }
 
+int flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+				const struct cpumask *andmask,
+				unsigned int *apicid)
+{
+	unsigned long cpu_mask = cpumask_bits(cpumask)[0] &
+				 cpumask_bits(andmask)[0] &
+				 cpumask_bits(cpu_online_mask)[0] &
+				 APIC_ALL_CPUS;
+
+	if (likely(cpu_mask)) {
+		*apicid = (unsigned int)cpu_mask;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 /*
  * Override the generic EOI implementation with an optimized version.
  * Only called during early boot when only one CPU is active and with

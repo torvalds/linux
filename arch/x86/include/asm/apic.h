@@ -540,28 +540,12 @@ static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
 
 #endif
 
-static inline int
-flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			    const struct cpumask *andmask,
-			    unsigned int *apicid)
-{
-	unsigned long cpu_mask = cpumask_bits(cpumask)[0] &
-				 cpumask_bits(andmask)[0] &
-				 cpumask_bits(cpu_online_mask)[0] &
-				 APIC_ALL_CPUS;
-
-	if (likely(cpu_mask)) {
-		*apicid = (unsigned int)cpu_mask;
-		return 0;
-	} else {
-		return -EINVAL;
-	}
-}
-
-extern int
-default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			       const struct cpumask *andmask,
-			       unsigned int *apicid);
+extern int flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+				       const struct cpumask *andmask,
+				       unsigned int *apicid);
+extern int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+					  const struct cpumask *andmask,
+					  unsigned int *apicid);
 
 static inline void
 flat_vector_allocation_domain(int cpu, struct cpumask *retmask,
