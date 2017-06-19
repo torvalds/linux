@@ -305,6 +305,7 @@ static void pcd_init_units(void)
 			put_disk(disk);
 			continue;
 		}
+		blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
 		cd->disk = disk;
 		cd->pi = &cd->pia;
 		cd->present = 0;

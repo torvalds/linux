@@ -864,6 +864,8 @@ static int swim_floppy_init(struct swim_priv *swd)
 			put_disk(swd->unit[drive].disk);
 			goto exit_put_disks;
 		}
+		blk_queue_bounce_limit(swd->unit[drive].disk->queue,
+				BLK_BOUNCE_HIGH);
 		swd->unit[drive].disk->queue->queuedata = swd;
 		swd->unit[drive].swd = swd;
 	}

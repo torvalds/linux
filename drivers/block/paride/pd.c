@@ -863,6 +863,7 @@ static void pd_probe_drive(struct pd_unit *disk)
 		return;
 	}
 	blk_queue_max_hw_sectors(p->queue, cluster);
+	blk_queue_bounce_limit(p->queue, BLK_BOUNCE_HIGH);
 
 	if (disk->drive == -1) {
 		for (disk->drive = 0; disk->drive <= 1; disk->drive++)

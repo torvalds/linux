@@ -4273,6 +4273,7 @@ static int skd_cons_disk(struct skd_device *skdev)
 		rc = -ENOMEM;
 		goto err_out;
 	}
+	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
 
 	skdev->queue = q;
 	disk->queue = q;

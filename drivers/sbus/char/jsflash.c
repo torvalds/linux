@@ -592,6 +592,7 @@ static int jsfd_init(void)
 			put_disk(disk);
 			goto out;
 		}
+		blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
 		jsfd_disk[i] = disk;
 	}
 

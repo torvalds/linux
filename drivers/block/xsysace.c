@@ -993,6 +993,7 @@ static int ace_setup(struct ace_device *ace)
 	if (ace->queue == NULL)
 		goto err_blk_initq;
 	blk_queue_logical_block_size(ace->queue, 512);
+	blk_queue_bounce_limit(ace->queue, BLK_BOUNCE_HIGH);
 
 	/*
 	 * Allocate and initialize GD structure

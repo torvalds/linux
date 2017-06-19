@@ -293,6 +293,7 @@ static void __init pf_init_units(void)
 			return;
 		}
 		blk_queue_max_segments(disk->queue, cluster);
+		blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
 		pf->disk = disk;
 		pf->pi = &pf->pia;
 		pf->media_status = PF_NM;

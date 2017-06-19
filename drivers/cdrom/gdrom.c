@@ -813,6 +813,7 @@ static int probe_gdrom(struct platform_device *devptr)
 		err = -ENOMEM;
 		goto probe_fail_requestq;
 	}
+	blk_queue_bounce_limit(gd.gdrom_rq, BLK_BOUNCE_HIGH);
 
 	err = probe_gdrom_setupqueue();
 	if (err)

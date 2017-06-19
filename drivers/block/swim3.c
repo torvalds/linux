@@ -1223,6 +1223,7 @@ static int swim3_attach(struct macio_dev *mdev,
 		put_disk(disk);
 		return -ENOMEM;
 	}
+	blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
 	disk->queue->queuedata = &floppy_states[index];
 
 	if (index == 0) {

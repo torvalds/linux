@@ -4203,6 +4203,7 @@ static int __init do_floppy_init(void)
 			goto out_put_disk;
 		}
 
+		blk_queue_bounce_limit(disks[drive]->queue, BLK_BOUNCE_HIGH);
 		blk_queue_max_hw_sectors(disks[drive]->queue, 64);
 		disks[drive]->major = FLOPPY_MAJOR;
 		disks[drive]->first_minor = TOMINOR(drive);
