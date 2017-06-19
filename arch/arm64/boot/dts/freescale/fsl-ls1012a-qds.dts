@@ -1,7 +1,7 @@
 /*
  * Device Tree file for Freescale LS1012A QDS Board.
  *
- * Copyright 2016, Freescale Semiconductor
+ * Copyright 2016 Freescale Semiconductor, Inc.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPLv2 or the X11 license, at your option. Note that this dual
@@ -94,6 +94,14 @@
 };
 
 &duart0 {
+	status = "okay";
+};
+
+&esdhc0 {
+	status = "okay";
+};
+
+&esdhc1 {
 	status = "okay";
 };
 
