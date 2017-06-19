@@ -2210,6 +2210,7 @@ int default_cpu_mask_to_apicid(const struct cpumask *mask,
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 	*apicid = per_cpu(x86_cpu_to_apicid, cpu);
+	irq_data_update_effective_affinity(irqdata, cpumask_of(cpu));
 	return 0;
 }
 
@@ -2218,11 +2219,13 @@ int flat_cpu_mask_to_apicid(const struct cpumask *mask,
 			    unsigned int *apicid)
 
 {
+	struct cpumask *effmsk = irq_data_get_effective_affinity_mask(irqdata);
 	unsigned long cpu_mask = cpumask_bits(mask)[0] & APIC_ALL_CPUS;
 
 	if (!cpu_mask)
 		return -EINVAL;
 	*apicid = (unsigned int)cpu_mask;
+	cpumask_bits(effmsk)[0] = cpu_mask;
 	return 0;
 }
 

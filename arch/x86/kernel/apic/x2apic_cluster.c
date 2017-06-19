@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/dmar.h>
+#include <linux/irq.h>
 #include <linux/cpu.h>
 
 #include <asm/smp.h>
@@ -107,6 +108,7 @@ static int
 x2apic_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
 			  unsigned int *apicid)
 {
+	struct cpumask *effmsk = irq_data_get_effective_affinity_mask(irqdata);
 	unsigned int cpu;
 	u32 dest = 0;
 	u16 cluster;
@@ -118,10 +120,12 @@ x2apic_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
 	dest = per_cpu(x86_cpu_to_logical_apicid, cpu);
 	cluster = x2apic_cluster(cpu);
 
+	cpumask_clear(effmsk);
 	for_each_cpu(cpu, mask) {
 		if (cluster != x2apic_cluster(cpu))
 			continue;
 		dest |= per_cpu(x86_cpu_to_logical_apicid, cpu);
+		cpumask_set_cpu(cpu, effmsk);
 	}
 
 	*apicid = dest;
