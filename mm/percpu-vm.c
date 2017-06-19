@@ -345,6 +345,7 @@ static struct pcpu_chunk *pcpu_create_chunk(void)
 	chunk->base_addr = vms[0]->addr - pcpu_group_offsets[0];
 
 	pcpu_stats_chunk_alloc();
+	trace_percpu_create_chunk(chunk->base_addr);
 
 	return chunk;
 }
@@ -352,6 +353,7 @@ static struct pcpu_chunk *pcpu_create_chunk(void)
 static void pcpu_destroy_chunk(struct pcpu_chunk *chunk)
 {
 	pcpu_stats_chunk_dealloc();
+	trace_percpu_destroy_chunk(chunk->base_addr);
 
 	if (chunk && chunk->data)
 		pcpu_free_vm_areas(chunk->data, pcpu_nr_groups);
