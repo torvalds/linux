@@ -1,20 +1,20 @@
 /*
- * Device Tree Source for UniPhier LD11 Reference Board
+ * Device Tree Source for UniPhier LD11 Global Board
  *
- * Copyright (C) 2016 Socionext Inc.
+ * Copyright (C) 2016-2017 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
+ *           Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
  *
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
 /dts-v1/;
 /include/ "uniphier-ld11.dtsi"
-/include/ "uniphier-ref-daughter.dtsi"
-/include/ "uniphier-support-card.dtsi"
 
 / {
-	model = "UniPhier LD11 Reference Board";
-	compatible = "socionext,uniphier-ld11-ref", "socionext,uniphier-ld11";
+	model = "UniPhier LD11 Global Board (REF_LD11_GP)";
+	compatible = "socionext,uniphier-ld11-global",
+		     "socionext,uniphier-ld11";
 
 	chosen {
 		stdout-path = "serial0:115200n8";
@@ -39,16 +39,22 @@
 	};
 };
 
-&ethsc {
-	interrupts = <0 48 4>;
+&serial0 {
+	status = "okay";
 };
 
-&serial0 {
+&serial1 {
 	status = "okay";
 };
 
 &i2c0 {
 	status = "okay";
+
+	eeprom@50 {
+		compatible = "st,24c64", "atmel,24c64";
+		reg = <0x50>;
+		pagesize = <32>;
+	};
 };
 
 &usb0 {

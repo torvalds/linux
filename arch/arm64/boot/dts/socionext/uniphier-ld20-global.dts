@@ -1,20 +1,20 @@
 /*
- * Device Tree Source for UniPhier LD20 Reference Board
+ * Device Tree Source for UniPhier LD20 Global Board
  *
- * Copyright (C) 2015-2016 Socionext Inc.
+ * Copyright (C) 2015-2017 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
+ *           Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
  *
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
 /dts-v1/;
 /include/ "uniphier-ld20.dtsi"
-/include/ "uniphier-ref-daughter.dtsi"
-/include/ "uniphier-support-card.dtsi"
 
 / {
-	model = "UniPhier LD20 Reference Board";
-	compatible = "socionext,uniphier-ld20-ref", "socionext,uniphier-ld20";
+	model = "UniPhier LD20 Global Board (REF_LD20_GP)";
+	compatible = "socionext,uniphier-ld20-global",
+		     "socionext,uniphier-ld20";
 
 	chosen {
 		stdout-path = "serial0:115200n8";
@@ -39,11 +39,11 @@
 	};
 };
 
-&ethsc {
-	interrupts = <0 48 4>;
+&serial0 {
+	status = "okay";
 };
 
-&serial0 {
+&serial1 {
 	status = "okay";
 };
 
