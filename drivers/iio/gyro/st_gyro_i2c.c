@@ -41,6 +41,10 @@ static const struct of_device_id st_gyro_of_match[] = {
 		.data = L3GD20_GYRO_DEV_NAME,
 	},
 	{
+		.compatible = "st,l3gd20h-gyro",
+		.data = L3GD20H_GYRO_DEV_NAME,
+	},
+	{
 		.compatible = "st,l3g4is-gyro",
 		.data = L3G4IS_GYRO_DEV_NAME,
 	},
@@ -95,6 +99,7 @@ static const struct i2c_device_id st_gyro_id_table[] = {
 	{ LSM330DL_GYRO_DEV_NAME },
 	{ LSM330DLC_GYRO_DEV_NAME },
 	{ L3GD20_GYRO_DEV_NAME },
+	{ L3GD20H_GYRO_DEV_NAME },
 	{ L3G4IS_GYRO_DEV_NAME },
 	{ LSM330_GYRO_DEV_NAME },
 	{ LSM9DS0_GYRO_DEV_NAME },
