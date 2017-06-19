@@ -92,6 +92,10 @@
 	};
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
@@ -126,7 +130,7 @@
 	non-removable;
 	status = "okay";
 
-	brcmf: bcrmf@1 {
+	brcmf: wifi@1 {
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
 		interrupt-parent = <&pio>;
@@ -142,6 +146,10 @@
 	vqmmc-supply = <&reg_vcc3v3>;
 	bus-width = <8>;
 	non-removable;
+	status = "okay";
+};
+
+&ohci0 {
 	status = "okay";
 };
 
@@ -170,6 +178,11 @@
 	};
 };
 
+&reg_usb0_vbus {
+	gpio = <&pio 3 11 GPIO_ACTIVE_HIGH>; /* PD11 */
+	status = "okay";
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
@@ -182,7 +195,14 @@
 	status = "okay";
 };
 
+&usb_otg {
+	dr_mode = "otg";
+	status = "okay";
+};
+
 &usbphy {
-	/* USB VBUS is on as long as VCC-IO is on */
+	usb0_id_det-gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
+	usb0_vbus-supply = <&reg_usb0_vbus>;
+	/* USB host VBUS is on as long as VCC-IO is on */
 	status = "okay";
 };

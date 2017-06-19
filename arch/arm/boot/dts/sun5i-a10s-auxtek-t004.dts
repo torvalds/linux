@@ -168,10 +168,6 @@
 	status = "okay";
 };
 
-&usb1_vbus_pin_a {
-	pins = "PG13";
-};
-
 &usbphy {
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb0_id_detect_pin>;

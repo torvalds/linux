@@ -1,7 +1,5 @@
 /*
- * Copyright 2015 Chen-Yu Tsai
- *
- * Chen-Yu Tsai <wens@csie.org>
+ * Copyright (C) 2017 Jagan Teki <jteki@openedev.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,73 +40,25 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/*
- * AXP202/209 Integrated Power Management Chip
- * http://www.x-powers.com/product/AXP20X.php
- * http://dl.linux-sunxi.org/AXP/AXP209%20Datasheet%20v1.0_cn.pdf
- */
+#include "sun8i-h3-nanopi.dtsi"
 
-&axp209 {
-	compatible = "x-powers,axp209";
-	interrupt-controller;
-	#interrupt-cells = <1>;
+/ {
+	model = "FriendlyArm NanoPi M1 Plus";
+	compatible = "friendlyarm,nanopi-m1-plus", "allwinner,sun8i-h3";
+};
 
-	ac_power_supply: ac-power-supply {
-		compatible = "x-powers,axp202-ac-power-supply";
-		status = "disabled";
-	};
+&ehci1 {
+	status = "okay";
+};
 
-	axp_gpio: gpio {
-		compatible = "x-powers,axp209-gpio";
-		gpio-controller;
-		#gpio-cells = <2>;
-	};
+&ehci2 {
+	status = "okay";
+};
 
-	battery_power_supply: battery-power-supply {
-		compatible = "x-powers,axp209-battery-power-supply";
-		status = "disabled";
-	};
+&ohci1 {
+	status = "okay";
+};
 
-	regulators {
-		/* Default work frequency for buck regulators */
-		x-powers,dcdc-freq = <1500>;
-
-		reg_dcdc2: dcdc2 {
-			regulator-name = "dcdc2";
-		};
-
-		reg_dcdc3: dcdc3 {
-			regulator-name = "dcdc3";
-		};
-
-		reg_ldo1: ldo1 {
-			/* LDO1 is a fixed output regulator */
-			regulator-always-on;
-			regulator-min-microvolt = <1300000>;
-			regulator-max-microvolt = <1300000>;
-			regulator-name = "ldo1";
-		};
-
-		reg_ldo2: ldo2 {
-			regulator-name = "ldo2";
-		};
-
-		reg_ldo3: ldo3 {
-			regulator-name = "ldo3";
-		};
-
-		reg_ldo4: ldo4 {
-			regulator-name = "ldo4";
-		};
-
-		reg_ldo5: ldo5 {
-			regulator-name = "ldo5";
-			status = "disabled";
-		};
-	};
-
-	usb_power_supply: usb_power_supply {
-		compatible = "x-powers,axp202-usb-power-supply";
-		status = "disabled";
-	};
+&ohci2 {
+	status = "okay";
 };

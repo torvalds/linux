@@ -1019,7 +1019,8 @@
 		};
 
 		crypto: crypto-engine@01c15000 {
-			compatible = "allwinner,sun4i-a10-crypto";
+			compatible = "allwinner,sun7i-a20-crypto",
+				     "allwinner,sun4i-a10-crypto";
 			reg = <0x01c15000 0x1000>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb_gates 5>, <&ss_clk>;
@@ -1187,12 +1188,6 @@
 				       "PF3", "PF4", "PF5";
 				function = "mmc0";
 				drive-strength = <30>;
-				bias-pull-up;
-			};
-
-			mmc0_cd_pin_reference_design: mmc0_cd_pin@0 {
-				pins = "PH1";
-				function = "gpio_in";
 				bias-pull-up;
 			};
 

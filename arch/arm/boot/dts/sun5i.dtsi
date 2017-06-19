@@ -272,6 +272,7 @@
 					tcon0_out_tve0: endpoint@1 {
 						reg = <1>;
 						remote-endpoint = <&tve0_in_tcon0>;
+						allwinner,tcon-channel = <1>;
 					};
 				};
 			};
@@ -353,6 +354,15 @@
 			phys = <&usbphy 1>;
 			phy-names = "usb";
 			status = "disabled";
+		};
+
+		crypto: crypto-engine@01c15000 {
+			compatible = "allwinner,sun5i-a13-crypto",
+				     "allwinner,sun4i-a10-crypto";
+			reg = <0x01c15000 0x1000>;
+			interrupts = <54>;
+			clocks = <&ccu CLK_AHB_SS>, <&ccu CLK_SS>;
+			clock-names = "ahb", "mod";
 		};
 
 		spi2: spi@01c17000 {
