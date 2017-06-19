@@ -59,11 +59,8 @@ static bool migrate_one_irq(struct irq_desc *desc)
  */
 void irq_migrate_all_off_this_cpu(void)
 {
-	unsigned int irq;
 	struct irq_desc *desc;
-	unsigned long flags;
-
-	local_irq_save(flags);
+	unsigned int irq;
 
 	for_each_active_irq(irq) {
 		bool affinity_broken;
@@ -73,10 +70,9 @@ void irq_migrate_all_off_this_cpu(void)
 		affinity_broken = migrate_one_irq(desc);
 		raw_spin_unlock(&desc->lock);
 
-		if (affinity_broken)
-			pr_warn_ratelimited("IRQ%u no longer affine to CPU%u\n",
+		if (affinity_broken) {
+			pr_warn_ratelimited("IRQ %u: no longer affine to CPU%u\n",
 					    irq, smp_processor_id());
+		}
 	}
-
-	local_irq_restore(flags);
 }
