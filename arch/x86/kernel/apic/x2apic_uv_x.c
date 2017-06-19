@@ -530,23 +530,12 @@ uv_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 			  const struct cpumask *andmask,
 			  unsigned int *apicid)
 {
-	int unsigned cpu;
+	int ret = default_cpu_mask_to_apicid_and(cpumask, andmask, apicid);
 
-	/*
-	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
-	 * May as well be the first.
-	 */
-	for_each_cpu_and(cpu, cpumask, andmask) {
-		if (cpumask_test_cpu(cpu, cpu_online_mask))
-			break;
-	}
+	if (!ret)
+		*apicid |= uv_apicid_hibits;
 
-	if (likely(cpu < nr_cpu_ids)) {
-		*apicid = per_cpu(x86_cpu_to_apicid, cpu) | uv_apicid_hibits;
-		return 0;
-	}
-
-	return -EINVAL;
+	return ret;
 }
 
 static unsigned int x2apic_get_apic_id(unsigned long x)
