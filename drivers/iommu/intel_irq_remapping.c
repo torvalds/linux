@@ -500,8 +500,9 @@ static void iommu_enable_irq_remapping(struct intel_iommu *iommu)
 static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 {
 	struct ir_table *ir_table;
-	struct page *pages;
+	struct fwnode_handle *fn;
 	unsigned long *bitmap;
+	struct page *pages;
 
 	if (iommu->ir_table)
 		return 0;
@@ -525,15 +526,24 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 		goto out_free_pages;
 	}
 
-	iommu->ir_domain = irq_domain_add_hierarchy(arch_get_ir_parent_domain(),
-						    0, INTR_REMAP_TABLE_ENTRIES,
-						    NULL, &intel_ir_domain_ops,
-						    iommu);
+	fn = irq_domain_alloc_named_id_fwnode("INTEL-IR", iommu->seq_id);
+	if (!fn)
+		goto out_free_bitmap;
+
+	iommu->ir_domain =
+		irq_domain_create_hierarchy(arch_get_ir_parent_domain(),
+					    0, INTR_REMAP_TABLE_ENTRIES,
+					    fn, &intel_ir_domain_ops,
+					    iommu);
+	irq_domain_free_fwnode(fn);
 	if (!iommu->ir_domain) {
 		pr_err("IR%d: failed to allocate irqdomain\n", iommu->seq_id);
 		goto out_free_bitmap;
 	}
-	iommu->ir_msi_domain = arch_create_msi_irq_domain(iommu->ir_domain);
+	iommu->ir_msi_domain =
+		arch_create_remap_msi_irq_domain(iommu->ir_domain,
+						 "INTEL-IR-MSI",
+						 iommu->seq_id);
 
 	ir_table->base = page_address(pages);
 	ir_table->bitmap = bitmap;
