@@ -752,7 +752,7 @@ static int mv88e6097_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
 {
 	u16 reg;
 
-	mv88e6xxx_g2_read(chip, GLOBAL2_WDOG_CONTROL, &reg);
+	mv88e6xxx_g2_read(chip, MV88E6352_G2_WDOG_CTL, &reg);
 
 	dev_info(chip->dev, "Watchdog event: 0x%04x", reg);
 
@@ -763,20 +763,20 @@ static void mv88e6097_watchdog_free(struct mv88e6xxx_chip *chip)
 {
 	u16 reg;
 
-	mv88e6xxx_g2_read(chip, GLOBAL2_WDOG_CONTROL, &reg);
+	mv88e6xxx_g2_read(chip, MV88E6352_G2_WDOG_CTL, &reg);
 
-	reg &= ~(GLOBAL2_WDOG_CONTROL_EGRESS_ENABLE |
-		 GLOBAL2_WDOG_CONTROL_QC_ENABLE);
+	reg &= ~(MV88E6352_G2_WDOG_CTL_EGRESS_ENABLE |
+		 MV88E6352_G2_WDOG_CTL_QC_ENABLE);
 
-	mv88e6xxx_g2_write(chip, GLOBAL2_WDOG_CONTROL, reg);
+	mv88e6xxx_g2_write(chip, MV88E6352_G2_WDOG_CTL, reg);
 }
 
 static int mv88e6097_watchdog_setup(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g2_write(chip, GLOBAL2_WDOG_CONTROL,
-				  GLOBAL2_WDOG_CONTROL_EGRESS_ENABLE |
-				  GLOBAL2_WDOG_CONTROL_QC_ENABLE |
-				  GLOBAL2_WDOG_CONTROL_SWRESET);
+	return mv88e6xxx_g2_write(chip, MV88E6352_G2_WDOG_CTL,
+				  MV88E6352_G2_WDOG_CTL_EGRESS_ENABLE |
+				  MV88E6352_G2_WDOG_CTL_QC_ENABLE |
+				  MV88E6352_G2_WDOG_CTL_SWRESET);
 }
 
 const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops = {
@@ -787,12 +787,12 @@ const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops = {
 
 static int mv88e6390_watchdog_setup(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g2_update(chip, GLOBAL2_WDOG_CONTROL,
-				   GLOBAL2_WDOG_INT_ENABLE |
-				   GLOBAL2_WDOG_CUT_THROUGH |
-				   GLOBAL2_WDOG_QUEUE_CONTROLLER |
-				   GLOBAL2_WDOG_EGRESS |
-				   GLOBAL2_WDOG_FORCE_IRQ);
+	return mv88e6xxx_g2_update(chip, MV88E6390_G2_WDOG_CTL,
+				   MV88E6390_G2_WDOG_CTL_PTR_INT_ENABLE |
+				   MV88E6390_G2_WDOG_CTL_CUT_THROUGH |
+				   MV88E6390_G2_WDOG_CTL_QUEUE_CONTROLLER |
+				   MV88E6390_G2_WDOG_CTL_EGRESS |
+				   MV88E6390_G2_WDOG_CTL_FORCE_IRQ);
 }
 
 static int mv88e6390_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
@@ -800,17 +800,19 @@ static int mv88e6390_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
 	int err;
 	u16 reg;
 
-	mv88e6xxx_g2_write(chip, GLOBAL2_WDOG_CONTROL, GLOBAL2_WDOG_EVENT);
-	err = mv88e6xxx_g2_read(chip, GLOBAL2_WDOG_CONTROL, &reg);
+	mv88e6xxx_g2_write(chip, MV88E6390_G2_WDOG_CTL,
+			   MV88E6390_G2_WDOG_CTL_PTR_EVENT);
+	err = mv88e6xxx_g2_read(chip, MV88E6390_G2_WDOG_CTL, &reg);
 
 	dev_info(chip->dev, "Watchdog event: 0x%04x",
-		 reg & GLOBAL2_WDOG_DATA_MASK);
+		 reg & MV88E6390_G2_WDOG_CTL_DATA_MASK);
 
-	mv88e6xxx_g2_write(chip, GLOBAL2_WDOG_CONTROL, GLOBAL2_WDOG_HISTORY);
-	err = mv88e6xxx_g2_read(chip, GLOBAL2_WDOG_CONTROL, &reg);
+	mv88e6xxx_g2_write(chip, MV88E6390_G2_WDOG_CTL,
+			   MV88E6390_G2_WDOG_CTL_PTR_HISTORY);
+	err = mv88e6xxx_g2_read(chip, MV88E6390_G2_WDOG_CTL, &reg);
 
 	dev_info(chip->dev, "Watchdog history: 0x%04x",
-		 reg & GLOBAL2_WDOG_DATA_MASK);
+		 reg & MV88E6390_G2_WDOG_CTL_DATA_MASK);
 
 	/* Trigger a software reset to try to recover the switch */
 	if (chip->info->ops->reset)
@@ -823,8 +825,8 @@ static int mv88e6390_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
 
 static void mv88e6390_watchdog_free(struct mv88e6xxx_chip *chip)
 {
-	mv88e6xxx_g2_update(chip, GLOBAL2_WDOG_CONTROL,
-			    GLOBAL2_WDOG_INT_ENABLE);
+	mv88e6xxx_g2_update(chip, MV88E6390_G2_WDOG_CTL,
+			    MV88E6390_G2_WDOG_CTL_PTR_INT_ENABLE);
 }
 
 const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops = {
