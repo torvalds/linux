@@ -213,6 +213,8 @@ int irq_startup(struct irq_desc *desc, bool resend)
 			irq_enable(desc);
 		}
 		irq_state_set_started(desc);
+		/* Set default affinity mask once everything is setup */
+		irq_setup_affinity(desc);
 	}
 
 	if (resend)
