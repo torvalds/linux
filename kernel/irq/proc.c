@@ -326,6 +326,7 @@ void register_handler_proc(unsigned int irq, struct irqaction *action)
 void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 {
 	static DEFINE_MUTEX(register_lock);
+	void __maybe_unused *irqp = (void *)(unsigned long) irq;
 	char name [MAX_NAMELEN];
 
 	if (!root_irq_dir || (desc->irq_data.chip == &no_irq_chip))
@@ -351,20 +352,19 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 #ifdef CONFIG_SMP
 	/* create /proc/irq/<irq>/smp_affinity */
 	proc_create_data("smp_affinity", 0644, desc->dir,
-			 &irq_affinity_proc_fops, (void *)(long)irq);
+			 &irq_affinity_proc_fops, irqp);
 
 	/* create /proc/irq/<irq>/affinity_hint */
 	proc_create_data("affinity_hint", 0444, desc->dir,
-			 &irq_affinity_hint_proc_fops, (void *)(long)irq);
+			 &irq_affinity_hint_proc_fops, irqp);
 
 	/* create /proc/irq/<irq>/smp_affinity_list */
 	proc_create_data("smp_affinity_list", 0644, desc->dir,
-			 &irq_affinity_list_proc_fops, (void *)(long)irq);
+			 &irq_affinity_list_proc_fops, irqp);
 
 	proc_create_data("node", 0444, desc->dir,
-			 &irq_node_proc_fops, (void *)(long)irq);
+			 &irq_node_proc_fops, irqp);
 #endif
-
 	proc_create_data("spurious", 0444, desc->dir,
 			 &irq_spurious_proc_fops, (void *)(long)irq);
 
