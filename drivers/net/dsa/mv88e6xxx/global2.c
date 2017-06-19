@@ -13,6 +13,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 
@@ -541,171 +542,206 @@ int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 
 static int mv88e6xxx_g2_smi_phy_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g2_wait(chip, GLOBAL2_SMI_PHY_CMD,
-				 GLOBAL2_SMI_PHY_CMD_BUSY);
+	return mv88e6xxx_g2_wait(chip, MV88E6XXX_G2_SMI_PHY_CMD,
+				 MV88E6XXX_G2_SMI_PHY_CMD_BUSY);
 }
 
 static int mv88e6xxx_g2_smi_phy_cmd(struct mv88e6xxx_chip *chip, u16 cmd)
 {
 	int err;
 
-	err = mv88e6xxx_g2_write(chip, GLOBAL2_SMI_PHY_CMD, cmd);
+	err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_SMI_PHY_CMD,
+				 MV88E6XXX_G2_SMI_PHY_CMD_BUSY | cmd);
 	if (err)
 		return err;
 
 	return mv88e6xxx_g2_smi_phy_wait(chip);
 }
 
-static int mv88e6xxx_g2_smi_phy_write_addr(struct mv88e6xxx_chip *chip,
-					   int addr, int device, int reg,
-					   bool external)
+static int mv88e6xxx_g2_smi_phy_access(struct mv88e6xxx_chip *chip,
+				       bool external, bool c45, u16 op, int dev,
+				       int reg)
 {
-	int cmd = SMI_CMD_OP_45_WRITE_ADDR | (addr << 5) | device;
-	int err;
+	u16 cmd = op;
 
 	if (external)
-		cmd |= GLOBAL2_SMI_PHY_CMD_EXTERNAL;
+		cmd |= MV88E6390_G2_SMI_PHY_CMD_FUNC_EXTERNAL;
+	else
+		cmd |= MV88E6390_G2_SMI_PHY_CMD_FUNC_INTERNAL; /* empty mask */
 
-	err = mv88e6xxx_g2_smi_phy_wait(chip);
-	if (err)
-		return err;
+	if (c45)
+		cmd |= MV88E6XXX_G2_SMI_PHY_CMD_MODE_45; /* empty mask */
+	else
+		cmd |= MV88E6XXX_G2_SMI_PHY_CMD_MODE_22;
 
-	err = mv88e6xxx_g2_write(chip, GLOBAL2_SMI_PHY_DATA, reg);
-	if (err)
-		return err;
+	dev <<= __bf_shf(MV88E6XXX_G2_SMI_PHY_CMD_DEV_ADDR_MASK);
+	cmd |= dev & MV88E6XXX_G2_SMI_PHY_CMD_DEV_ADDR_MASK;
+	cmd |= reg & MV88E6XXX_G2_SMI_PHY_CMD_REG_ADDR_MASK;
 
 	return mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
 }
 
-static int mv88e6xxx_g2_smi_phy_read_c45(struct mv88e6xxx_chip *chip,
-					 int addr, int reg_c45, u16 *val,
-					 bool external)
+static int mv88e6xxx_g2_smi_phy_access_c22(struct mv88e6xxx_chip *chip,
+					   bool external, u16 op, int dev,
+					   int reg)
 {
-	int device = (reg_c45 >> 16) & 0x1f;
-	int reg = reg_c45 & 0xffff;
-	int err;
-	u16 cmd;
-
-	err = mv88e6xxx_g2_smi_phy_write_addr(chip, addr, device, reg,
-					      external);
-	if (err)
-		return err;
-
-	cmd = GLOBAL2_SMI_PHY_CMD_OP_45_READ_DATA | (addr << 5) | device;
-
-	if (external)
-		cmd |= GLOBAL2_SMI_PHY_CMD_EXTERNAL;
-
-	err = mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g2_read(chip, GLOBAL2_SMI_PHY_DATA, val);
-	if (err)
-		return err;
-
-	err = *val;
-
-	return 0;
+	return mv88e6xxx_g2_smi_phy_access(chip, external, false, op, dev, reg);
 }
 
-static int mv88e6xxx_g2_smi_phy_read_c22(struct mv88e6xxx_chip *chip,
-					 int addr, int reg, u16 *val,
-					 bool external)
+/* IEEE 802.3 Clause 22 Read Data Register */
+static int mv88e6xxx_g2_smi_phy_read_data_c22(struct mv88e6xxx_chip *chip,
+					      bool external, int dev, int reg,
+					      u16 *data)
 {
-	u16 cmd = GLOBAL2_SMI_PHY_CMD_OP_22_READ_DATA | (addr << 5) | reg;
+	u16 op = MV88E6XXX_G2_SMI_PHY_CMD_OP_22_READ_DATA;
 	int err;
-
-	if (external)
-		cmd |= GLOBAL2_SMI_PHY_CMD_EXTERNAL;
 
 	err = mv88e6xxx_g2_smi_phy_wait(chip);
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
+	err = mv88e6xxx_g2_smi_phy_access_c22(chip, external, op, dev, reg);
 	if (err)
 		return err;
 
-	return mv88e6xxx_g2_read(chip, GLOBAL2_SMI_PHY_DATA, val);
+	return mv88e6xxx_g2_read(chip, MV88E6XXX_G2_SMI_PHY_DATA, data);
 }
 
-int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,
-			      struct mii_bus *bus,
+/* IEEE 802.3 Clause 22 Write Data Register */
+static int mv88e6xxx_g2_smi_phy_write_data_c22(struct mv88e6xxx_chip *chip,
+					       bool external, int dev, int reg,
+					       u16 data)
+{
+	u16 op = MV88E6XXX_G2_SMI_PHY_CMD_OP_22_WRITE_DATA;
+	int err;
+
+	err = mv88e6xxx_g2_smi_phy_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_SMI_PHY_DATA, data);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_smi_phy_access_c22(chip, external, op, dev, reg);
+}
+
+static int mv88e6xxx_g2_smi_phy_access_c45(struct mv88e6xxx_chip *chip,
+					   bool external, u16 op, int port,
+					   int dev)
+{
+	return mv88e6xxx_g2_smi_phy_access(chip, external, true, op, port, dev);
+}
+
+/* IEEE 802.3 Clause 45 Write Address Register */
+static int mv88e6xxx_g2_smi_phy_write_addr_c45(struct mv88e6xxx_chip *chip,
+					       bool external, int port, int dev,
+					       int addr)
+{
+	u16 op = MV88E6XXX_G2_SMI_PHY_CMD_OP_45_WRITE_ADDR;
+	int err;
+
+	err = mv88e6xxx_g2_smi_phy_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_SMI_PHY_DATA, addr);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_smi_phy_access_c45(chip, external, op, port, dev);
+}
+
+/* IEEE 802.3 Clause 45 Read Data Register */
+static int mv88e6xxx_g2_smi_phy_read_data_c45(struct mv88e6xxx_chip *chip,
+					      bool external, int port, int dev,
+					      u16 *data)
+{
+	u16 op = MV88E6XXX_G2_SMI_PHY_CMD_OP_45_READ_DATA;
+	int err;
+
+	err = mv88e6xxx_g2_smi_phy_access_c45(chip, external, op, port, dev);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_read(chip, MV88E6XXX_G2_SMI_PHY_DATA, data);
+}
+
+static int mv88e6xxx_g2_smi_phy_read_c45(struct mv88e6xxx_chip *chip,
+					 bool external, int port, int reg,
+					 u16 *data)
+{
+	int dev = (reg >> 16) & 0x1f;
+	int addr = reg & 0xffff;
+	int err;
+
+	err = mv88e6xxx_g2_smi_phy_write_addr_c45(chip, external, port, dev,
+						  addr);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_smi_phy_read_data_c45(chip, external, port, dev,
+						  data);
+}
+
+/* IEEE 802.3 Clause 45 Write Data Register */
+static int mv88e6xxx_g2_smi_phy_write_data_c45(struct mv88e6xxx_chip *chip,
+					       bool external, int port, int dev,
+					       u16 data)
+{
+	u16 op = MV88E6XXX_G2_SMI_PHY_CMD_OP_45_WRITE_DATA;
+	int err;
+
+	err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_SMI_PHY_DATA, data);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_smi_phy_access_c45(chip, external, op, port, dev);
+}
+
+static int mv88e6xxx_g2_smi_phy_write_c45(struct mv88e6xxx_chip *chip,
+					  bool external, int port, int reg,
+					  u16 data)
+{
+	int dev = (reg >> 16) & 0x1f;
+	int addr = reg & 0xffff;
+	int err;
+
+	err = mv88e6xxx_g2_smi_phy_write_addr_c45(chip, external, port, dev,
+						  addr);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_smi_phy_write_data_c45(chip, external, port, dev,
+						   data);
+}
+
+int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 			      int addr, int reg, u16 *val)
 {
 	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
 	bool external = mdio_bus->external;
 
 	if (reg & MII_ADDR_C45)
-		return mv88e6xxx_g2_smi_phy_read_c45(chip, addr, reg, val,
-						     external);
-	return mv88e6xxx_g2_smi_phy_read_c22(chip, addr, reg, val, external);
+		return mv88e6xxx_g2_smi_phy_read_c45(chip, external, addr, reg,
+						     val);
+
+	return mv88e6xxx_g2_smi_phy_read_data_c22(chip, external, addr, reg,
+						  val);
 }
 
-static int mv88e6xxx_g2_smi_phy_write_c45(struct mv88e6xxx_chip *chip,
-					  int addr, int reg_c45, u16 val,
-					  bool external)
-{
-	int device = (reg_c45 >> 16) & 0x1f;
-	int reg = reg_c45 & 0xffff;
-	int err;
-	u16 cmd;
-
-	err = mv88e6xxx_g2_smi_phy_write_addr(chip, addr, device, reg,
-					      external);
-	if (err)
-		return err;
-
-	cmd = GLOBAL2_SMI_PHY_CMD_OP_45_WRITE_DATA | (addr << 5) | device;
-
-	if (external)
-		cmd |= GLOBAL2_SMI_PHY_CMD_EXTERNAL;
-
-	err = mv88e6xxx_g2_write(chip, GLOBAL2_SMI_PHY_DATA, val);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
-	if (err)
-		return err;
-
-	return 0;
-}
-
-static int mv88e6xxx_g2_smi_phy_write_c22(struct mv88e6xxx_chip *chip,
-					  int addr, int reg, u16 val,
-					  bool external)
-{
-	u16 cmd = GLOBAL2_SMI_PHY_CMD_OP_22_WRITE_DATA | (addr << 5) | reg;
-	int err;
-
-	if (external)
-		cmd |= GLOBAL2_SMI_PHY_CMD_EXTERNAL;
-
-	err = mv88e6xxx_g2_smi_phy_wait(chip);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g2_write(chip, GLOBAL2_SMI_PHY_DATA, val);
-	if (err)
-		return err;
-
-	return mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
-}
-
-int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip,
-			       struct mii_bus *bus,
+int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 			       int addr, int reg, u16 val)
 {
 	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
 	bool external = mdio_bus->external;
 
 	if (reg & MII_ADDR_C45)
-		return mv88e6xxx_g2_smi_phy_write_c45(chip, addr, reg, val,
-						      external);
+		return mv88e6xxx_g2_smi_phy_write_c45(chip, external, addr, reg,
+						      val);
 
-	return mv88e6xxx_g2_smi_phy_write_c22(chip, addr, reg, val, external);
+	return mv88e6xxx_g2_smi_phy_write_data_c22(chip, external, addr, reg,
+						   val);
 }
 
 static int mv88e6097_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
