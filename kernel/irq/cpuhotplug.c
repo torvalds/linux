@@ -14,6 +14,14 @@
 
 #include "internals.h"
 
+/* For !GENERIC_IRQ_EFFECTIVE_AFF_MASK this looks at general affinity mask */
+static inline bool irq_needs_fixup(struct irq_data *d)
+{
+	const struct cpumask *m = irq_data_get_effective_affinity_mask(d);
+
+	return cpumask_test_cpu(smp_processor_id(), m);
+}
+
 static bool migrate_one_irq(struct irq_desc *desc)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
@@ -42,9 +50,7 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	 * Note: Do not check desc->action as this might be a chained
 	 * interrupt.
 	 */
-	affinity = irq_data_get_affinity_mask(d);
-	if (irqd_is_per_cpu(d) || !irqd_is_started(d) ||
-	    !cpumask_test_cpu(smp_processor_id(), affinity)) {
+	if (irqd_is_per_cpu(d) || !irqd_is_started(d) || !irq_needs_fixup(d)) {
 		/*
 		 * If an irq move is pending, abort it if the dying CPU is
 		 * the sole target.
@@ -69,6 +75,8 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	 */
 	if (irq_fixup_move_pending(desc, true))
 		affinity = irq_desc_get_pending_mask(desc);
+	else
+		affinity = irq_data_get_affinity_mask(d);
 
 	/* Mask the chip for interrupts which cannot move in process context */
 	if (maskchip && chip->irq_mask)
