@@ -55,25 +55,38 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "soft";
-			nand-on-flash-bbt;
+		ebi: ebi@10000000 {
 			status = "okay";
 
-			gpios = <0
-				 &pioC 14 GPIO_ACTIVE_HIGH
-				 0
-				>;
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs>;
+				pinctrl-names = "default";
 
-			root@0 {
-				label = "root";
-				reg = <0x0 0x08000000>;
-			};
+				nand: nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					cs-gpios = <&pioC 14 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-on-flash-bbt;
+					label = "atmel_nand";
 
-			data@20000 {
-				label = "data";
-				reg = <0x08000000 0x38000000>;
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						root@0 {
+							label = "root";
+							reg = <0x0 0x08000000>;
+						};
+
+						data@20000 {
+							label = "data";
+							reg = <0x08000000 0x38000000>;
+						};
+					};
+				};
 			};
 		};
 
