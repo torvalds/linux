@@ -282,16 +282,17 @@ static int mv88e6xxx_g2_clear_pot(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_g2_eeprom_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g2_wait(chip, GLOBAL2_EEPROM_CMD,
-				 GLOBAL2_EEPROM_CMD_BUSY |
-				 GLOBAL2_EEPROM_CMD_RUNNING);
+	return mv88e6xxx_g2_wait(chip, MV88E6XXX_G2_EEPROM_CMD,
+				 MV88E6XXX_G2_EEPROM_CMD_BUSY |
+				 MV88E6XXX_G2_EEPROM_CMD_RUNNING);
 }
 
 static int mv88e6xxx_g2_eeprom_cmd(struct mv88e6xxx_chip *chip, u16 cmd)
 {
 	int err;
 
-	err = mv88e6xxx_g2_write(chip, GLOBAL2_EEPROM_CMD, cmd);
+	err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_EEPROM_CMD,
+				 MV88E6XXX_G2_EEPROM_CMD_BUSY | cmd);
 	if (err)
 		return err;
 
@@ -301,14 +302,14 @@ static int mv88e6xxx_g2_eeprom_cmd(struct mv88e6xxx_chip *chip, u16 cmd)
 static int mv88e6xxx_g2_eeprom_read8(struct mv88e6xxx_chip *chip,
 				     u16 addr, u8 *data)
 {
-	u16 cmd = GLOBAL2_EEPROM_CMD_OP_READ;
+	u16 cmd = MV88E6XXX_G2_EEPROM_CMD_OP_READ;
 	int err;
 
 	err = mv88e6xxx_g2_eeprom_wait(chip);
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g2_write(chip, GLOBAL2_EEPROM_ADDR, addr);
+	err = mv88e6xxx_g2_write(chip, MV88E6390_G2_EEPROM_ADDR, addr);
 	if (err)
 		return err;
 
@@ -316,7 +317,7 @@ static int mv88e6xxx_g2_eeprom_read8(struct mv88e6xxx_chip *chip,
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g2_read(chip, GLOBAL2_EEPROM_CMD, &cmd);
+	err = mv88e6xxx_g2_read(chip, MV88E6XXX_G2_EEPROM_CMD, &cmd);
 	if (err)
 		return err;
 
@@ -328,14 +329,15 @@ static int mv88e6xxx_g2_eeprom_read8(struct mv88e6xxx_chip *chip,
 static int mv88e6xxx_g2_eeprom_write8(struct mv88e6xxx_chip *chip,
 				      u16 addr, u8 data)
 {
-	u16 cmd = GLOBAL2_EEPROM_CMD_OP_WRITE | GLOBAL2_EEPROM_CMD_WRITE_EN;
+	u16 cmd = MV88E6XXX_G2_EEPROM_CMD_OP_WRITE |
+		MV88E6XXX_G2_EEPROM_CMD_WRITE_EN;
 	int err;
 
 	err = mv88e6xxx_g2_eeprom_wait(chip);
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g2_write(chip, GLOBAL2_EEPROM_ADDR, addr);
+	err = mv88e6xxx_g2_write(chip, MV88E6390_G2_EEPROM_ADDR, addr);
 	if (err)
 		return err;
 
@@ -345,7 +347,7 @@ static int mv88e6xxx_g2_eeprom_write8(struct mv88e6xxx_chip *chip,
 static int mv88e6xxx_g2_eeprom_read16(struct mv88e6xxx_chip *chip,
 				      u8 addr, u16 *data)
 {
-	u16 cmd = GLOBAL2_EEPROM_CMD_OP_READ | addr;
+	u16 cmd = MV88E6XXX_G2_EEPROM_CMD_OP_READ | addr;
 	int err;
 
 	err = mv88e6xxx_g2_eeprom_wait(chip);
@@ -356,20 +358,20 @@ static int mv88e6xxx_g2_eeprom_read16(struct mv88e6xxx_chip *chip,
 	if (err)
 		return err;
 
-	return mv88e6xxx_g2_read(chip, GLOBAL2_EEPROM_DATA, data);
+	return mv88e6xxx_g2_read(chip, MV88E6352_G2_EEPROM_DATA, data);
 }
 
 static int mv88e6xxx_g2_eeprom_write16(struct mv88e6xxx_chip *chip,
 				       u8 addr, u16 data)
 {
-	u16 cmd = GLOBAL2_EEPROM_CMD_OP_WRITE | addr;
+	u16 cmd = MV88E6XXX_G2_EEPROM_CMD_OP_WRITE | addr;
 	int err;
 
 	err = mv88e6xxx_g2_eeprom_wait(chip);
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g2_write(chip, GLOBAL2_EEPROM_DATA, data);
+	err = mv88e6xxx_g2_write(chip, MV88E6352_G2_EEPROM_DATA, data);
 	if (err)
 		return err;
 
@@ -481,11 +483,11 @@ int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 	int err;
 
 	/* Ensure the RO WriteEn bit is set */
-	err = mv88e6xxx_g2_read(chip, GLOBAL2_EEPROM_CMD, &val);
+	err = mv88e6xxx_g2_read(chip, MV88E6XXX_G2_EEPROM_CMD, &val);
 	if (err)
 		return err;
 
-	if (!(val & GLOBAL2_EEPROM_CMD_WRITE_EN))
+	if (!(val & MV88E6XXX_G2_EEPROM_CMD_WRITE_EN))
 		return -EROFS;
 
 	eeprom->len = 0;
