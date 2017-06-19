@@ -432,95 +432,12 @@ int check_irq_vectors_for_cpu_disable(void)
 /* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
 void fixup_irqs(void)
 {
-	unsigned int irq, vector;
+	unsigned int irr, vector;
 	struct irq_desc *desc;
 	struct irq_data *data;
 	struct irq_chip *chip;
-	int ret;
 
-	for_each_irq_desc(irq, desc) {
-		const struct cpumask *affinity;
-		bool break_affinity = false;
-
-		if (!desc)
-			continue;
-
-		/* interrupt's are disabled at this point */
-		raw_spin_lock(&desc->lock);
-
-		data = irq_desc_get_irq_data(desc);
-		chip = irq_data_get_irq_chip(data);
-		/*
-		 * The interrupt descriptor might have been cleaned up
-		 * already, but it is not yet removed from the radix
-		 * tree. If the chip does not have an affinity setter,
-		 * nothing to do here.
-		 */
-		if (!chip && !chip->irq_set_affinity) {
-			raw_spin_unlock(&desc->lock);
-			continue;
-		}
-
-		affinity = irq_data_get_affinity_mask(data);
-
-		if (!irq_has_action(irq) || irqd_is_per_cpu(data) ||
-		    cpumask_subset(affinity, cpu_online_mask)) {
-			irq_fixup_move_pending(desc, false);
-			raw_spin_unlock(&desc->lock);
-			continue;
-		}
-
-		/*
-		 * Complete an eventually pending irq move cleanup. If this
-		 * interrupt was moved in hard irq context, then the
-		 * vectors need to be cleaned up. It can't wait until this
-		 * interrupt actually happens and this CPU was involved.
-		 */
-		irq_force_complete_move(desc);
-
-		/*
-		 * If there is a setaffinity pending, then try to reuse the
-		 * pending mask, so the last change of the affinity does
-		 * not get lost. If there is no move pending or the pending
-		 * mask does not contain any online CPU, use the current
-		 * affinity mask.
-		 */
-		if (irq_fixup_move_pending(desc, true))
-			affinity = desc->pending_mask;
-
-		/*
-		 * If the mask does not contain an offline CPU, break
-		 * affinity and use cpu_online_mask as fall back.
-		 */
-		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
-			broke_affinity = true;
-			affinity = cpu_online_mask;
-		}
-
-		if (!irqd_can_move_in_process_context(data) && chip->irq_mask)
-			chip->irq_mask(data);
-
-		ret = chip->irq_set_affinity(data, affinity, true);
-		if (ret) {
-			pr_crit("IRQ %u: Force affinity failed (%d)\n",
-				d->irq, ret);
-			broke_affinity = false;
-		}
-
-		/*
-		 * We unmask if the irq was not marked masked by the
-		 * core code. That respects the lazy irq disable
-		 * behaviour.
-		 */
-		if (!irqd_can_move_in_process_context(data) &&
-		    !irqd_irq_masked(data) && chip->irq_unmask)
-			chip->irq_unmask(data);
-
-		raw_spin_unlock(&desc->lock);
-
-		if (broke_affinity)
-			pr_notice("Broke affinity for irq %i\n", irq);
-	}
+	irq_migrate_all_off_this_cpu();
 
 	/*
 	 * We can remove mdelay() and then send spuriuous interrupts to
@@ -539,8 +456,6 @@ void fixup_irqs(void)
 	 * nothing else will touch it.
 	 */
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
-		unsigned int irr;
-
 		if (IS_ERR_OR_NULL(__this_cpu_read(vector_irq[vector])))
 			continue;
 
