@@ -519,6 +519,8 @@ struct mtk_rx_ring {
  * @dev:		The device pointer
  * @base:		The mapped register i/o base
  * @page_lock:		Make sure that register operations are atomic
+ * @tx_irq__lock:	Make sure that IRQ register operations are atomic
+ * @rx_irq__lock:	Make sure that IRQ register operations are atomic
  * @dummy_dev:		we run 2 netdevs on 1 physical DMA ring and need a
  *			dummy for NAPI to work
  * @netdev:		The netdev instances
@@ -547,7 +549,8 @@ struct mtk_eth {
 	struct device			*dev;
 	void __iomem			*base;
 	spinlock_t			page_lock;
-	spinlock_t			irq_lock;
+	spinlock_t			tx_irq_lock;
+	spinlock_t			rx_irq_lock;
 	struct net_device		dummy_dev;
 	struct net_device		*netdev[MTK_MAX_DEVS];
 	struct mtk_mac			*mac[MTK_MAX_DEVS];
