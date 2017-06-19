@@ -1,5 +1,8 @@
 /*
- * Copyright (C) 2016 ARM Ltd.
+ * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.xyz>
+ *
+ * Based on sun50i-h5-orangepi-pc2.dts, which is:
+ *   Copyright (C) 2016 ARM Ltd.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -45,18 +48,10 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "Xunlong Orange Pi PC 2";
-	compatible = "xunlong,orangepi-pc2", "allwinner,sun50i-h5";
-
-	reg_vcc3v3: vcc3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
+	model = "Xunlong Orange Pi Prime";
+	compatible = "xunlong,orangepi-prime", "allwinner,sun50i-h5";
 
 	aliases {
 		ethernet0 = &emac;
@@ -102,6 +97,13 @@
 		gpio = <&pio 3 6 GPIO_ACTIVE_HIGH>;
 	};
 
+	reg_vcc3v3: vcc3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	reg_usb0_vbus: usb0-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb0-vbus";
@@ -110,6 +112,11 @@
 		enable-active-high;
 		gpio = <&r_pio 0 2 GPIO_ACTIVE_HIGH>; /* PL2 */
 		status = "okay";
+	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&pio 2 14 GPIO_ACTIVE_LOW>; /* PC14 */
 	};
 };
 
@@ -168,6 +175,16 @@
 	status = "okay";
 };
 
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins_a>;
+	vmmc-supply = <&reg_vcc3v3>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+};
+
 &ohci0 {
 	status = "okay";
 };
@@ -209,7 +226,7 @@
 
 &usbphy {
 	/* USB Type-A ports' VBUS is always on */
-	usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
+	usb0_id_det-gpios = <&pio 0 21 GPIO_ACTIVE_HIGH>; /* PA21 */
 	usb0_vbus-supply = <&reg_usb0_vbus>;
 	status = "okay";
 };
