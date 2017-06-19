@@ -426,7 +426,7 @@ void mmhub_v1_0_update_power_gating(struct amdgpu_device *adev,
 	pctl0_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE);
 	pctl1_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE);
 
-	if (enable) {
+	if (enable && adev->pg_flags & AMD_PG_SUPPORT_MMHUB) {
 		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
 						PCTL0_RENG_EXECUTE,
 						RENG_EXECUTE_ON_PWR_UP, 1);
