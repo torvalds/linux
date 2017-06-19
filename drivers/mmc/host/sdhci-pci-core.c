@@ -404,7 +404,7 @@ struct intel_host {
 	bool	d3_retune;
 };
 
-const guid_t intel_dsm_guid =
+static const guid_t intel_dsm_guid =
 	GUID_INIT(0xF6C13EA5, 0x65CD, 0x461F,
 		  0xAB, 0x7A, 0x29, 0xF7, 0xE8, 0xD5, 0xBD, 0x61);
 
