@@ -124,6 +124,26 @@
 	status = "okay";
 };
 
+&cpm_mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&cpm_ethernet {
+	status = "okay";
+};
+
+&cpm_eth2 {
+	status = "okay";
+	phy = <&phy1>;
+	phy-mode = "rgmii-id";
+};
+
+&cpm_crypto {
+	status = "okay";
+};
+
 /* CON5 on CP1 expansion */
 &cps_pcie2 {
 	status = "okay";
@@ -147,4 +167,16 @@
 /* CON10 on CP1 expansion */
 &cps_usb3_1 {
 	status = "okay";
+};
+
+&ap_sdhci0 {
+	status = "okay";
+	bus-width = <4>;
+	non-removable;
+};
+
+&cpm_sdhci0 {
+	status = "okay";
+	bus-width = <8>;
+	non-removable;
 };

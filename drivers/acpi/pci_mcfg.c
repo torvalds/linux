@@ -54,6 +54,7 @@ static struct mcfg_fixup mcfg_quirks[] = {
 
 #define QCOM_ECAM32(seg) \
 	{ "QCOM  ", "QDF2432 ", 1, seg, MCFG_BUS_ANY, &pci_32b_ops }
+
 	QCOM_ECAM32(0),
 	QCOM_ECAM32(1),
 	QCOM_ECAM32(2),
@@ -68,6 +69,7 @@ static struct mcfg_fixup mcfg_quirks[] = {
 	{ "HISI  ", table_id, 0, (seg) + 1, MCFG_BUS_ANY, ops }, \
 	{ "HISI  ", table_id, 0, (seg) + 2, MCFG_BUS_ANY, ops }, \
 	{ "HISI  ", table_id, 0, (seg) + 3, MCFG_BUS_ANY, ops }
+
 	HISI_QUAD_DOM("HIP05   ",  0, &hisi_pcie_ops),
 	HISI_QUAD_DOM("HIP06   ",  0, &hisi_pcie_ops),
 	HISI_QUAD_DOM("HIP07   ",  0, &hisi_pcie_ops),
@@ -77,6 +79,7 @@ static struct mcfg_fixup mcfg_quirks[] = {
 
 #define THUNDER_PEM_RES(addr, node) \
 	DEFINE_RES_MEM((addr) + ((u64) (node) << 44), 0x39 * SZ_16M)
+
 #define THUNDER_PEM_QUIRK(rev, node) \
 	{ "CAVIUM", "THUNDERX", rev, 4 + (10 * (node)), MCFG_BUS_ANY,	    \
 	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x88001f000000UL, node) },  \
@@ -90,13 +93,16 @@ static struct mcfg_fixup mcfg_quirks[] = {
 	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x894057000000UL, node) },  \
 	{ "CAVIUM", "THUNDERX", rev, 9 + (10 * (node)), MCFG_BUS_ANY,	    \
 	  &thunder_pem_ecam_ops, THUNDER_PEM_RES(0x89808f000000UL, node) }
-	/* SoC pass2.x */
-	THUNDER_PEM_QUIRK(1, 0),
-	THUNDER_PEM_QUIRK(1, 1),
 
 #define THUNDER_ECAM_QUIRK(rev, seg)					\
 	{ "CAVIUM", "THUNDERX", rev, seg, MCFG_BUS_ANY,			\
 	&pci_thunder_ecam_ops }
+
+	/* SoC pass2.x */
+	THUNDER_PEM_QUIRK(1, 0),
+	THUNDER_PEM_QUIRK(1, 1),
+	THUNDER_ECAM_QUIRK(1, 10),
+
 	/* SoC pass1.x */
 	THUNDER_PEM_QUIRK(2, 0),	/* off-chip devices */
 	THUNDER_PEM_QUIRK(2, 1),	/* off-chip devices */
@@ -112,9 +118,11 @@ static struct mcfg_fixup mcfg_quirks[] = {
 #define XGENE_V1_ECAM_MCFG(rev, seg) \
 	{"APM   ", "XGENE   ", rev, seg, MCFG_BUS_ANY, \
 		&xgene_v1_pcie_ecam_ops }
+
 #define XGENE_V2_ECAM_MCFG(rev, seg) \
 	{"APM   ", "XGENE   ", rev, seg, MCFG_BUS_ANY, \
 		&xgene_v2_pcie_ecam_ops }
+
 	/* X-Gene SoC with v1 PCIe controller */
 	XGENE_V1_ECAM_MCFG(1, 0),
 	XGENE_V1_ECAM_MCFG(1, 1),

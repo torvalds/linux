@@ -7,9 +7,12 @@ Required properties:
 - interrupt-parent: Should be the phandle for the interrupt controller
   that services interrupts for this device
 - interrupts: Should contain the STMMAC interrupts
-- interrupt-names: Should contain the interrupt names "macirq"
-  "eth_wake_irq" if this interrupt is supported in the "interrupts"
-  property
+- interrupt-names: Should contain a list of interrupt names corresponding to
+	the interrupts in the interrupts property, if available.
+	Valid interrupt names are:
+  - "macirq" (combined signal for various interrupt events)
+  - "eth_wake_irq" (the interrupt to manage the remote wake-up packet detection)
+  - "eth_lpi" (the interrupt that occurs when Tx or Rx enters/exits LPI state)
 - phy-mode: See ethernet.txt file in the same directory.
 - snps,reset-gpio 	gpio number for phy reset.
 - snps,reset-active-low boolean flag to indicate if phy reset is active low.
@@ -28,9 +31,9 @@ Optional properties:
   clocks may be specified in derived bindings.
 - clock-names: One name for each entry in the clocks property, the
   first one should be "stmmaceth" and the second one should be "pclk".
-- clk_ptp_ref: this is the PTP reference clock; in case of the PTP is
-  available this clock is used for programming the Timestamp Addend Register.
-  If not passed then the system clock will be used and this is fine on some
+- ptp_ref: this is the PTP reference clock; in case of the PTP is available
+  this clock is used for programming the Timestamp Addend Register. If not
+  passed then the system clock will be used and this is fine on some
   platforms.
 - tx-fifo-depth: See ethernet.txt file in the same directory
 - rx-fifo-depth: See ethernet.txt file in the same directory
@@ -72,7 +75,45 @@ Optional properties:
 	- snps,mb: mixed-burst
 	- snps,rb: rebuild INCRx Burst
 - mdio: with compatible = "snps,dwmac-mdio", create and register mdio bus.
-
+- Multiple RX Queues parameters: below the list of all the parameters to
+				 configure the multiple RX queues:
+	- snps,rx-queues-to-use: number of RX queues to be used in the driver
+	- Choose one of these RX scheduling algorithms:
+		- snps,rx-sched-sp: Strict priority
+		- snps,rx-sched-wsp: Weighted Strict priority
+	- For each RX queue
+		- Choose one of these modes:
+			- snps,dcb-algorithm: Queue to be enabled as DCB
+			- snps,avb-algorithm: Queue to be enabled as AVB
+		- snps,map-to-dma-channel: Channel to map
+		- Specifiy specific packet routing:
+			- snps,route-avcp: AV Untagged Control packets
+			- snps,route-ptp: PTP Packets
+			- snps,route-dcbcp: DCB Control Packets
+			- snps,route-up: Untagged Packets
+			- snps,route-multi-broad: Multicast & Broadcast Packets
+		- snps,priority: RX queue priority (Range: 0x0 to 0xF)
+- Multiple TX Queues parameters: below the list of all the parameters to
+				 configure the multiple TX queues:
+	- snps,tx-queues-to-use: number of TX queues to be used in the driver
+	- Choose one of these TX scheduling algorithms:
+		- snps,tx-sched-wrr: Weighted Round Robin
+		- snps,tx-sched-wfq: Weighted Fair Queuing
+		- snps,tx-sched-dwrr: Deficit Weighted Round Robin
+		- snps,tx-sched-sp: Strict priority
+	- For each TX queue
+		- snps,weight: TX queue weight (if using a DCB weight algorithm)
+		- Choose one of these modes:
+			- snps,dcb-algorithm: TX queue will be working in DCB
+			- snps,avb-algorithm: TX queue will be working in AVB
+			  [Attention] Queue 0 is reserved for legacy traffic
+			  and so no AVB is available in this queue.
+		- Configure Credit Base Shaper (if AVB Mode selected):
+			- snps,send_slope: enable Low Power Interface
+			- snps,idle_slope: unlock on WoL
+			- snps,high_credit: max write outstanding req. limit
+			- snps,low_credit: max read outstanding req. limit
+		- snps,priority: TX queue priority (Range: 0x0 to 0xF)
 Examples:
 
 	stmmac_axi_setup: stmmac-axi-config {
@@ -81,12 +122,41 @@ Examples:
 		snps,blen = <256 128 64 32 0 0 0>;
 	};
 
+	mtl_rx_setup: rx-queues-config {
+		snps,rx-queues-to-use = <1>;
+		snps,rx-sched-sp;
+		queue0 {
+			snps,dcb-algorithm;
+			snps,map-to-dma-channel = <0x0>;
+			snps,priority = <0x0>;
+		};
+	};
+
+	mtl_tx_setup: tx-queues-config {
+		snps,tx-queues-to-use = <2>;
+		snps,tx-sched-wrr;
+		queue0 {
+			snps,weight = <0x10>;
+			snps,dcb-algorithm;
+			snps,priority = <0x0>;
+		};
+
+		queue1 {
+			snps,avb-algorithm;
+			snps,send_slope = <0x1000>;
+			snps,idle_slope = <0x1000>;
+			snps,high_credit = <0x3E800>;
+			snps,low_credit = <0xFFC18000>;
+			snps,priority = <0x1>;
+		};
+	};
+
 	gmac0: ethernet@e0800000 {
 		compatible = "st,spear600-gmac";
 		reg = <0xe0800000 0x8000>;
 		interrupt-parent = <&vic1>;
-		interrupts = <24 23>;
-		interrupt-names = "macirq", "eth_wake_irq";
+		interrupts = <24 23 22>;
+		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 		mac-address = [000000000000]; /* Filled in by U-Boot */
 		max-frame-size = <3800>;
 		phy-mode = "gmii";
@@ -104,4 +174,6 @@ Examples:
 			phy1: ethernet-phy@0 {
 			};
 		};
+		snps,mtl-rx-config = <&mtl_rx_setup>;
+		snps,mtl-tx-config = <&mtl_tx_setup>;
 	};

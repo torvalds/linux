@@ -25,6 +25,9 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	uint16_t xid;
 	uint32_t start_time = jiffies / HZ;
 	uint32_t current_time;
+	struct fcoe_wqe *sqe;
+	unsigned long flags;
+	u16 sqe_idx;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Sending ELS\n");
 
@@ -106,27 +109,32 @@ retry_els:
 	did = fcport->rdata->ids.port_id;
 	sid = fcport->sid;
 
-	__fc_fill_fc_hdr(fc_hdr, FC_RCTL_ELS_REQ, sid, did,
+	__fc_fill_fc_hdr(fc_hdr, FC_RCTL_ELS_REQ, did, sid,
 			   FC_TYPE_ELS, FC_FC_FIRST_SEQ | FC_FC_END_SEQ |
 			   FC_FC_SEQ_INIT, 0);
 
 	/* Obtain exchange id */
 	xid = els_req->xid;
 
+	spin_lock_irqsave(&fcport->rport_lock, flags);
+
+	sqe_idx = qedf_get_sqe_idx(fcport);
+	sqe = &fcport->sq[sqe_idx];
+	memset(sqe, 0, sizeof(struct fcoe_wqe));
+
 	/* Initialize task context for this IO request */
 	task = qedf_get_task_mem(&qedf->tasks, xid);
-	qedf_init_mp_task(els_req, task);
+	qedf_init_mp_task(els_req, task, sqe);
 
 	/* Put timer on original I/O request */
 	if (timer_msec)
 		qedf_cmd_timer_set(qedf, els_req, timer_msec);
 
-	qedf_add_to_sq(fcport, xid, 0, FCOE_TASK_TYPE_MIDPATH, 0);
-
 	/* Ring doorbell */
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Ringing doorbell for ELS "
 		   "req\n");
 	qedf_ring_doorbell(fcport);
+	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 els_err:
 	return rc;
 }
@@ -604,6 +612,8 @@ static void qedf_initiate_seq_cleanup(struct qedf_ioreq *orig_io_req,
 	struct qedf_rport *fcport;
 	unsigned long flags;
 	struct qedf_els_cb_arg *cb_arg;
+	struct fcoe_wqe *sqe;
+	u16 sqe_idx;
 
 	fcport = orig_io_req->fcport;
 
@@ -631,8 +641,13 @@ static void qedf_initiate_seq_cleanup(struct qedf_ioreq *orig_io_req,
 
 	spin_lock_irqsave(&fcport->rport_lock, flags);
 
-	qedf_add_to_sq(fcport, orig_io_req->xid, 0,
-	    FCOE_TASK_TYPE_SEQUENCE_CLEANUP, offset);
+	sqe_idx = qedf_get_sqe_idx(fcport);
+	sqe = &fcport->sq[sqe_idx];
+	memset(sqe, 0, sizeof(struct fcoe_wqe));
+	orig_io_req->task_params->sqe = sqe;
+
+	init_initiator_sequence_recovery_fcoe_task(orig_io_req->task_params,
+						   offset);
 	qedf_ring_doorbell(fcport);
 
 	spin_unlock_irqrestore(&fcport->rport_lock, flags);

@@ -52,6 +52,7 @@ config SUNRPC_XPRT_RDMA
 	tristate "RPC-over-RDMA transport"
 	depends on SUNRPC && INFINIBAND && INFINIBAND_ADDR_TRANS
 	default SUNRPC && INFINIBAND
+	select SG_POOL
 	help
 	  This option allows the NFS client and server to use RDMA
 	  transports (InfiniBand, iWARP, or RoCE).

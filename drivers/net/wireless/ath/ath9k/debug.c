@@ -1191,6 +1191,65 @@ static const struct file_operations fops_tpc = {
 	.llseek = default_llseek,
 };
 
+static ssize_t read_file_nf_override(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	char buf[32];
+	unsigned int len;
+
+	if (ah->nf_override == 0)
+		len = sprintf(buf, "off\n");
+	else
+		len = sprintf(buf, "%d\n", ah->nf_override);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_nf_override(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	long val;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (strncmp("off", buf, 3) == 0)
+		val = 0;
+	else if (kstrtol(buf, 0, &val))
+		return -EINVAL;
+
+	if (val > 0)
+		return -EINVAL;
+
+	if (val < -120)
+		return -EINVAL;
+
+	ah->nf_override = val;
+
+	if (ah->curchan)
+		ath9k_hw_loadnf(ah, ah->curchan);
+
+	return count;
+}
+
+static const struct file_operations fops_nf_override = {
+	.read = read_file_nf_override,
+	.write = write_file_nf_override,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 /* Ethtool support for get-stats */
 
 #define AMKSTR(nm) #nm "_BE", #nm "_BK", #nm "_VI", #nm "_VO"
@@ -1401,6 +1460,9 @@ int ath9k_init_debug(struct ath_hw *ah)
 
 	debugfs_create_u16("airtime_flags", S_IRUSR | S_IWUSR,
 			   sc->debug.debugfs_phy, &sc->airtime_flags);
+
+	debugfs_create_file("nf_override", S_IRUSR | S_IWUSR,
+			    sc->debug.debugfs_phy, sc, &fops_nf_override);
 
 	return 0;
 }

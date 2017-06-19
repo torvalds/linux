@@ -931,7 +931,6 @@ void assign_p_sizes_qlim(struct drbd_device *device, struct p_sizes *p, struct r
 		p->qlim->io_min = cpu_to_be32(queue_io_min(q));
 		p->qlim->io_opt = cpu_to_be32(queue_io_opt(q));
 		p->qlim->discard_enabled = blk_queue_discard(q);
-		p->qlim->discard_zeroes_data = queue_discard_zeroes_data(q);
 		p->qlim->write_same_capable = !!q->limits.max_write_same_sectors;
 	} else {
 		q = device->rq_queue;
@@ -941,7 +940,6 @@ void assign_p_sizes_qlim(struct drbd_device *device, struct p_sizes *p, struct r
 		p->qlim->io_min = cpu_to_be32(queue_io_min(q));
 		p->qlim->io_opt = cpu_to_be32(queue_io_opt(q));
 		p->qlim->discard_enabled = 0;
-		p->qlim->discard_zeroes_data = 0;
 		p->qlim->write_same_capable = 0;
 	}
 }
@@ -1668,7 +1666,8 @@ static u32 bio_flags_to_wire(struct drbd_connection *connection,
 			(bio->bi_opf & REQ_FUA ? DP_FUA : 0) |
 			(bio->bi_opf & REQ_PREFLUSH ? DP_FLUSH : 0) |
 			(bio_op(bio) == REQ_OP_WRITE_SAME ? DP_WSAME : 0) |
-			(bio_op(bio) == REQ_OP_DISCARD ? DP_DISCARD : 0);
+			(bio_op(bio) == REQ_OP_DISCARD ? DP_DISCARD : 0) |
+			(bio_op(bio) == REQ_OP_WRITE_ZEROES ? DP_DISCARD : 0);
 	else
 		return bio->bi_opf & REQ_SYNC ? DP_RW_SYNC : 0;
 }

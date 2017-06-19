@@ -25,6 +25,7 @@
 #include <asm/setup.h>
 #include <asm/crash.h>
 #include <asm/efi.h>
+#include <asm/e820/api.h>
 #include <asm/kexec-bzimage64.h>
 
 #define MAX_ELFCOREHDR_STR_LEN	30	/* elfcorehdr=0x<64bit-value> */
@@ -99,15 +100,14 @@ static int setup_e820_entries(struct boot_params *params)
 {
 	unsigned int nr_e820_entries;
 
-	nr_e820_entries = e820_saved->nr_map;
+	nr_e820_entries = e820_table_firmware->nr_entries;
 
-	/* TODO: Pass entries more than E820MAX in bootparams setup data */
-	if (nr_e820_entries > E820MAX)
-		nr_e820_entries = E820MAX;
+	/* TODO: Pass entries more than E820_MAX_ENTRIES_ZEROPAGE in bootparams setup data */
+	if (nr_e820_entries > E820_MAX_ENTRIES_ZEROPAGE)
+		nr_e820_entries = E820_MAX_ENTRIES_ZEROPAGE;
 
 	params->e820_entries = nr_e820_entries;
-	memcpy(&params->e820_map, &e820_saved->map,
-	       nr_e820_entries * sizeof(struct e820entry));
+	memcpy(&params->e820_table, &e820_table_firmware->entries, nr_e820_entries*sizeof(struct e820_entry));
 
 	return 0;
 }
@@ -232,10 +232,10 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 	nr_e820_entries = params->e820_entries;
 
 	for (i = 0; i < nr_e820_entries; i++) {
-		if (params->e820_map[i].type != E820_RAM)
+		if (params->e820_table[i].type != E820_TYPE_RAM)
 			continue;
-		start = params->e820_map[i].addr;
-		end = params->e820_map[i].addr + params->e820_map[i].size - 1;
+		start = params->e820_table[i].addr;
+		end = params->e820_table[i].addr + params->e820_table[i].size - 1;
 
 		if ((start <= 0x100000) && end > 0x100000) {
 			mem_k = (end >> 10) - (0x100000 >> 10);

@@ -329,9 +329,9 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 	if (!GET_RX_DESC_SWDEC(pdesc))
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 	if (GET_RX_DESC_BW(pdesc))
-		rx_status->flag |= RX_FLAG_40MHZ;
+		rx_status->bw = RATE_INFO_BW_40;
 	if (GET_RX_DESC_RX_HT(pdesc))
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 	if (stats->decrypted)
 		rx_status->flag |= RX_FLAG_DECRYPTED;
@@ -398,9 +398,9 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (!GET_RX_DESC_SWDEC(rxdesc))
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 	if (GET_RX_DESC_BW(rxdesc))
-		rx_status->flag |= RX_FLAG_40MHZ;
+		rx_status->bw = RATE_INFO_BW_40;
 	if (GET_RX_DESC_RX_HT(rxdesc))
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 	/* Data rate */
 	rx_status->rate_idx = rtlwifi_rate_mapping(hw, stats.is_ht,
 						   false, stats.rate);

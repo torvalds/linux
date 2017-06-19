@@ -47,6 +47,11 @@ struct user_regs_struct {
 	unsigned long efa;	/* break pt addr, for break points in delay slots */
 	unsigned long stop_pc;	/* give dbg stop_pc after ensuring brkpt trap */
 };
+
+struct user_regs_arcv2 {
+	unsigned long r30, r58, r59;
+};
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _UAPI__ASM_ARC_PTRACE_H */

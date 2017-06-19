@@ -281,8 +281,7 @@ static long via_read_time(void)
 		last_result.idata = result.idata;
 	}
 
-	pr_err("via_read_time: failed to read a stable value; "
-	       "got 0x%08lx then 0x%08lx\n",
+	pr_err("via_read_time: failed to read a stable value; got 0x%08lx then 0x%08lx\n",
 	       last_result.idata, result.idata);
 
 	return 0;
@@ -465,7 +464,7 @@ void mac_poweroff(void)
 #endif
 	}
 	local_irq_enable();
-	printk("It is now safe to turn off your Macintosh.\n");
+	pr_crit("It is now safe to turn off your Macintosh.\n");
 	while(1);
 }
 
@@ -556,7 +555,7 @@ void mac_reset(void)
 
 	/* should never get here */
 	local_irq_enable();
-	printk ("Restart failed.  Please restart manually.\n");
+	pr_crit("Restart failed. Please restart manually.\n");
 	while(1);
 }
 
@@ -661,17 +660,13 @@ int mac_hwclk(int op, struct rtc_time *t)
 		unmktime(now, 0,
 			 &t->tm_year, &t->tm_mon, &t->tm_mday,
 			 &t->tm_hour, &t->tm_min, &t->tm_sec);
-#if 0
-		printk("mac_hwclk: read %04d-%02d-%-2d %02d:%02d:%02d\n",
-			t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-			t->tm_hour, t->tm_min, t->tm_sec);
-#endif
+		pr_debug("%s: read %04d-%02d-%-2d %02d:%02d:%02d\n",
+		         __func__, t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+		         t->tm_hour, t->tm_min, t->tm_sec);
 	} else { /* write */
-#if 0
-		printk("mac_hwclk: tried to write %04d-%02d-%-2d %02d:%02d:%02d\n",
-			t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-			t->tm_hour, t->tm_min, t->tm_sec);
-#endif
+		pr_debug("%s: tried to write %04d-%02d-%-2d %02d:%02d:%02d\n",
+		         __func__, t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+		         t->tm_hour, t->tm_min, t->tm_sec);
 
 		now = mktime(t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
 			     t->tm_hour, t->tm_min, t->tm_sec);

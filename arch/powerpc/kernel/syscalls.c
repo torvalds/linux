@@ -42,11 +42,11 @@
 #include <asm/unistd.h>
 #include <asm/asm-prototypes.h>
 
-static inline unsigned long do_mmap2(unsigned long addr, size_t len,
+static inline long do_mmap2(unsigned long addr, size_t len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, unsigned long off, int shift)
 {
-	unsigned long ret = -EINVAL;
+	long ret = -EINVAL;
 
 	if (!arch_validate_prot(prot))
 		goto out;
@@ -62,16 +62,16 @@ out:
 	return ret;
 }
 
-unsigned long sys_mmap2(unsigned long addr, size_t len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, unsigned long pgoff)
+SYSCALL_DEFINE6(mmap2, unsigned long, addr, size_t, len,
+		unsigned long, prot, unsigned long, flags,
+		unsigned long, fd, unsigned long, pgoff)
 {
 	return do_mmap2(addr, len, prot, flags, fd, pgoff, PAGE_SHIFT-12);
 }
 
-unsigned long sys_mmap(unsigned long addr, size_t len,
-		       unsigned long prot, unsigned long flags,
-		       unsigned long fd, off_t offset)
+SYSCALL_DEFINE6(mmap, unsigned long, addr, size_t, len,
+		unsigned long, prot, unsigned long, flags,
+		unsigned long, fd, off_t, offset)
 {
 	return do_mmap2(addr, len, prot, flags, fd, offset, PAGE_SHIFT);
 }

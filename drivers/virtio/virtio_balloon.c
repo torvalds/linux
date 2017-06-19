@@ -418,8 +418,7 @@ static int init_vqs(struct virtio_balloon *vb)
 	 * optionally stat.
 	 */
 	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
-	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names,
-			NULL);
+	err = virtio_find_vqs(vb->vdev, nvqs, vqs, callbacks, names, NULL);
 	if (err)
 		return err;
 
@@ -664,6 +663,12 @@ static int virtballoon_restore(struct virtio_device *vdev)
 }
 #endif
 
+static int virtballoon_validate(struct virtio_device *vdev)
+{
+	__virtio_clear_bit(vdev, VIRTIO_F_IOMMU_PLATFORM);
+	return 0;
+}
+
 static unsigned int features[] = {
 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
 	VIRTIO_BALLOON_F_STATS_VQ,
@@ -676,6 +681,7 @@ static struct virtio_driver virtio_balloon_driver = {
 	.driver.name =	KBUILD_MODNAME,
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
+	.validate =	virtballoon_validate,
 	.probe =	virtballoon_probe,
 	.remove =	virtballoon_remove,
 	.config_changed = virtballoon_changed,

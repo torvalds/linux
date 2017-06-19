@@ -177,8 +177,11 @@ struct vega10_dpmlevel_enable_mask {
 };
 
 struct vega10_vbios_boot_state {
+	bool        bsoc_vddc_lock;
 	uint16_t    vddc;
 	uint16_t    vddci;
+	uint16_t    mvddc;
+	uint16_t    vdd_gfx;
 	uint32_t    gfx_clock;
 	uint32_t    mem_clock;
 	uint32_t    soc_clock;

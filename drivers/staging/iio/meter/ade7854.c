@@ -426,9 +426,7 @@ static int ade7854_set_irq(struct device *dev, bool enable)
 	else
 		irqen &= ~BIT(17);
 
-	ret = st->write_reg_32(dev, ADE7854_MASK0, irqen);
-
-	return ret;
+	return st->write_reg_32(dev, ADE7854_MASK0, irqen);
 }
 
 static int ade7854_initial_setup(struct iio_dev *indio_dev)

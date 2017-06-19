@@ -407,7 +407,7 @@ static int get_tdp_table(
 		tdp_table->ucPlx_I2C_address = power_tune_table->ucPlx_I2C_address;
 		tdp_table->ucPlx_I2C_Line = power_tune_table->ucPlx_I2C_LineSCL;
 		tdp_table->ucPlx_I2C_LineSDA = power_tune_table->ucPlx_I2C_LineSDA;
-		hwmgr->platform_descriptor.LoadLineSlope = power_tune_table->usLoadLineResistance;
+		hwmgr->platform_descriptor.LoadLineSlope = le16_to_cpu(power_tune_table->usLoadLineResistance);
 	} else {
 		power_tune_table_v2 = (ATOM_Vega10_PowerTune_Table_V2 *)table;
 		tdp_table->usMaximumPowerDeliveryLimit = le16_to_cpu(power_tune_table_v2->usSocketPowerLimit);
@@ -453,7 +453,7 @@ static int get_tdp_table(
 		tdp_table->ucPlx_I2C_LineSDA = sda;
 
 		hwmgr->platform_descriptor.LoadLineSlope =
-					power_tune_table_v2->usLoadLineResistance;
+					le16_to_cpu(power_tune_table_v2->usLoadLineResistance);
 	}
 
 	*info_tdp_table = tdp_table;

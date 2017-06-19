@@ -128,7 +128,7 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 		list_for_each_entry(table, &afi->tables, list) {
 			ctx.table = table;
 			list_for_each_entry_safe(chain, nr, &table->chains, list) {
-				if (!(chain->flags & NFT_BASE_CHAIN))
+				if (!nft_is_base_chain(chain))
 					continue;
 
 				ctx.chain = chain;

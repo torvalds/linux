@@ -199,4 +199,21 @@ static inline ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 	return ext4_group_first_block_no(sb, fex->fe_group) +
 		(fex->fe_start << EXT4_SB(sb)->s_cluster_bits);
 }
+
+typedef int (*ext4_mballoc_query_range_fn)(
+	struct super_block		*sb,
+	ext4_group_t			agno,
+	ext4_grpblk_t			start,
+	ext4_grpblk_t			len,
+	void				*priv);
+
+int
+ext4_mballoc_query_range(
+	struct super_block		*sb,
+	ext4_group_t			agno,
+	ext4_grpblk_t			start,
+	ext4_grpblk_t			end,
+	ext4_mballoc_query_range_fn	formatter,
+	void				*priv);
+
 #endif

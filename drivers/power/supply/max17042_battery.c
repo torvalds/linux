@@ -76,15 +76,20 @@ struct max17042_chip {
 };
 
 static enum power_supply_property max17042_battery_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TEMP_ALERT_MIN,
@@ -92,6 +97,7 @@ static enum power_supply_property max17042_battery_props[] = {
 	POWER_SUPPLY_PROP_TEMP_MIN,
 	POWER_SUPPLY_PROP_TEMP_MAX,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 };
@@ -106,16 +112,50 @@ static int max17042_get_temperature(struct max17042_chip *chip, int *temp)
 	if (ret < 0)
 		return ret;
 
-	*temp = data;
-	/* The value is signed. */
-	if (*temp & 0x8000) {
-		*temp = (0x7fff & ~*temp) + 1;
-		*temp *= -1;
-	}
-
+	*temp = sign_extend32(data, 15);
 	/* The value is converted into deci-centigrade scale */
 	/* Units of LSB = 1 / 256 degree Celsius */
 	*temp = *temp * 10 / 256;
+	return 0;
+}
+
+static int max17042_get_status(struct max17042_chip *chip, int *status)
+{
+	int ret, charge_full, charge_now;
+
+	ret = power_supply_am_i_supplied(chip->battery);
+	if (ret < 0) {
+		*status = POWER_SUPPLY_STATUS_UNKNOWN;
+		return 0;
+	}
+	if (ret == 0) {
+		*status = POWER_SUPPLY_STATUS_DISCHARGING;
+		return 0;
+	}
+
+	/*
+	 * The MAX170xx has builtin end-of-charge detection and will update
+	 * FullCAP to match RepCap when it detects end of charging.
+	 *
+	 * When this cycle the battery gets charged to a higher (calculated)
+	 * capacity then the previous cycle then FullCAP will get updated
+	 * contineously once end-of-charge detection kicks in, so allow the
+	 * 2 to differ a bit.
+	 */
+
+	ret = regmap_read(chip->regmap, MAX17042_FullCAP, &charge_full);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read(chip->regmap, MAX17042_RepCap, &charge_now);
+	if (ret < 0)
+		return ret;
+
+	if ((charge_full - charge_now) <= MAX17042_FULL_THRESHOLD)
+		*status = POWER_SUPPLY_STATUS_FULL;
+	else
+		*status = POWER_SUPPLY_STATUS_CHARGING;
+
 	return 0;
 }
 
@@ -156,12 +196,12 @@ static int max17042_get_battery_health(struct max17042_chip *chip, int *health)
 	if (ret < 0)
 		goto health_error;
 
-	if (temp <= chip->pdata->temp_min) {
+	if (temp < chip->pdata->temp_min) {
 		*health = POWER_SUPPLY_HEALTH_COLD;
 		goto out;
 	}
 
-	if (temp >= chip->pdata->temp_max) {
+	if (temp > chip->pdata->temp_max) {
 		*health = POWER_SUPPLY_HEALTH_OVERHEAT;
 		goto out;
 	}
@@ -183,11 +223,17 @@ static int max17042_get_property(struct power_supply *psy,
 	struct regmap *map = chip->regmap;
 	int ret;
 	u32 data;
+	u64 data64;
 
 	if (!chip->init_complete)
 		return -EAGAIN;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_STATUS:
+		ret = max17042_get_status(chip, &val->intval);
+		if (ret < 0)
+			return ret;
+		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		ret = regmap_read(map, MAX17042_STATUS, &data);
 		if (ret < 0)
@@ -197,6 +243,9 @@ static int max17042_get_property(struct power_supply *psy,
 			val->intval = 0;
 		else
 			val->intval = 1;
+		break;
+	case POWER_SUPPLY_PROP_TECHNOLOGY:
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
 		break;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		ret = regmap_read(map, MAX17042_Cycles, &data);
@@ -212,6 +261,13 @@ static int max17042_get_property(struct power_supply *psy,
 
 		val->intval = data >> 8;
 		val->intval *= 20000; /* Units of LSB = 20mV */
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
+		ret = regmap_read(map, MAX17042_MinMaxVolt, &data);
+		if (ret < 0)
+			return ret;
+
+		val->intval = (data & 0xff) * 20000; /* Units of 20mV */
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17042)
@@ -252,12 +308,32 @@ static int max17042_get_property(struct power_supply *psy,
 
 		val->intval = data >> 8;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
+		ret = regmap_read(map, MAX17042_DesignCap, &data);
+		if (ret < 0)
+			return ret;
+
+		data64 = data * 5000000ll;
+		do_div(data64, chip->pdata->r_sns);
+		val->intval = data64;
+		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		ret = regmap_read(map, MAX17042_FullCAP, &data);
 		if (ret < 0)
 			return ret;
 
-		val->intval = data * 1000 / 2;
+		data64 = data * 5000000ll;
+		do_div(data64, chip->pdata->r_sns);
+		val->intval = data64;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+		ret = regmap_read(map, MAX17042_RepCap, &data);
+		if (ret < 0)
+			return ret;
+
+		data64 = data * 5000000ll;
+		do_div(data64, chip->pdata->r_sns);
+		val->intval = data64;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
 		ret = regmap_read(map, MAX17042_QH, &data);
@@ -276,14 +352,14 @@ static int max17042_get_property(struct power_supply *psy,
 		if (ret < 0)
 			return ret;
 		/* LSB is Alert Minimum. In deci-centigrade */
-		val->intval = (data & 0xff) * 10;
+		val->intval = sign_extend32(data & 0xff, 7) * 10;
 		break;
 	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
 		ret = regmap_read(map, MAX17042_TALRT_Th, &data);
 		if (ret < 0)
 			return ret;
 		/* MSB is Alert Maximum. In deci-centigrade */
-		val->intval = (data >> 8) * 10;
+		val->intval = sign_extend32(data >> 8, 7) * 10;
 		break;
 	case POWER_SUPPLY_PROP_TEMP_MIN:
 		val->intval = chip->pdata->temp_min;
@@ -296,19 +372,16 @@ static int max17042_get_property(struct power_supply *psy,
 		if (ret < 0)
 			return ret;
 		break;
+	case POWER_SUPPLY_PROP_SCOPE:
+		val->intval = POWER_SUPPLY_SCOPE_SYSTEM;
+		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		if (chip->pdata->enable_current_sense) {
 			ret = regmap_read(map, MAX17042_Current, &data);
 			if (ret < 0)
 				return ret;
 
-			val->intval = data;
-			if (val->intval & 0x8000) {
-				/* Negative */
-				val->intval = ~val->intval & 0x7fff;
-				val->intval++;
-				val->intval *= -1;
-			}
+			val->intval = sign_extend32(data, 15);
 			val->intval *= 1562500 / chip->pdata->r_sns;
 		} else {
 			return -EINVAL;
@@ -320,13 +393,7 @@ static int max17042_get_property(struct power_supply *psy,
 			if (ret < 0)
 				return ret;
 
-			val->intval = data;
-			if (val->intval & 0x8000) {
-				/* Negative */
-				val->intval = ~val->intval & 0x7fff;
-				val->intval++;
-				val->intval *= -1;
-			}
+			val->intval = sign_extend32(data, 15);
 			val->intval *= 1562500 / chip->pdata->r_sns;
 		} else {
 			return -EINVAL;
@@ -399,6 +466,11 @@ static int max17042_property_is_writeable(struct power_supply *psy,
 	}
 
 	return ret;
+}
+
+static void max17042_external_power_changed(struct power_supply *psy)
+{
+	power_supply_changed(psy);
 }
 
 static int max17042_write_verify_reg(struct regmap *map, u8 reg, u32 value)
@@ -790,8 +862,9 @@ static void max17042_init_worker(struct work_struct *work)
 
 #ifdef CONFIG_OF
 static struct max17042_platform_data *
-max17042_get_pdata(struct device *dev)
+max17042_get_pdata(struct max17042_chip *chip)
 {
+	struct device *dev = &chip->client->dev;
 	struct device_node *np = dev->of_node;
 	u32 prop;
 	struct max17042_platform_data *pdata;
@@ -824,10 +897,55 @@ max17042_get_pdata(struct device *dev)
 	return pdata;
 }
 #else
+static struct max17042_reg_data max17047_default_pdata_init_regs[] = {
+	/*
+	 * Some firmwares do not set FullSOCThr, Enable End-of-Charge Detection
+	 * when the voltage FG reports 95%, as recommended in the datasheet.
+	 */
+	{ MAX17047_FullSOCThr, MAX17042_BATTERY_FULL << 8 },
+};
+
 static struct max17042_platform_data *
-max17042_get_pdata(struct device *dev)
+max17042_get_pdata(struct max17042_chip *chip)
 {
-	return dev->platform_data;
+	struct device *dev = &chip->client->dev;
+	struct max17042_platform_data *pdata;
+	int ret, misc_cfg;
+
+	if (dev->platform_data)
+		return dev->platform_data;
+
+	/*
+	 * The MAX17047 gets used on x86 where we might not have pdata, assume
+	 * the firmware will already have initialized the fuel-gauge and provide
+	 * default values for the non init bits to make things work.
+	 */
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return pdata;
+
+	if (chip->chip_type != MAXIM_DEVICE_TYPE_MAX17042) {
+		pdata->init_data = max17047_default_pdata_init_regs;
+		pdata->num_init_data =
+			ARRAY_SIZE(max17047_default_pdata_init_regs);
+	}
+
+	ret = regmap_read(chip->regmap, MAX17042_MiscCFG, &misc_cfg);
+	if (ret < 0)
+		return NULL;
+
+	/* If bits 0-1 are set to 3 then only Voltage readings are used */
+	if ((misc_cfg & 0x3) == 0x3)
+		pdata->enable_current_sense = false;
+	else
+		pdata->enable_current_sense = true;
+
+	pdata->vmin = MAX17042_DEFAULT_VMIN;
+	pdata->vmax = MAX17042_DEFAULT_VMAX;
+	pdata->temp_min = MAX17042_DEFAULT_TEMP_MIN;
+	pdata->temp_max = MAX17042_DEFAULT_TEMP_MAX;
+
+	return pdata;
 }
 #endif
 
@@ -843,6 +961,7 @@ static const struct power_supply_desc max17042_psy_desc = {
 	.get_property	= max17042_get_property,
 	.set_property	= max17042_set_property,
 	.property_is_writeable	= max17042_property_is_writeable,
+	.external_power_changed	= max17042_external_power_changed,
 	.properties	= max17042_battery_props,
 	.num_properties	= ARRAY_SIZE(max17042_battery_props),
 };
@@ -876,20 +995,20 @@ static int max17042_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	chip->client = client;
+	chip->chip_type = id->driver_data;
 	chip->regmap = devm_regmap_init_i2c(client, &max17042_regmap_config);
 	if (IS_ERR(chip->regmap)) {
 		dev_err(&client->dev, "Failed to initialize regmap\n");
 		return -EINVAL;
 	}
 
-	chip->pdata = max17042_get_pdata(&client->dev);
+	chip->pdata = max17042_get_pdata(chip);
 	if (!chip->pdata) {
 		dev_err(&client->dev, "no platform data provided\n");
 		return -EINVAL;
 	}
 
 	i2c_set_clientdata(client, chip);
-	chip->chip_type = id->driver_data;
 	psy_cfg.drv_data = chip;
 
 	/* When current is not measured,

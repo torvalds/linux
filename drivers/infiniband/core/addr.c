@@ -88,7 +88,7 @@ static inline bool ib_nl_is_good_ip_resp(const struct nlmsghdr *nlh)
 		return false;
 
 	ret = nla_parse(tb, LS_NLA_TYPE_MAX - 1, nlmsg_data(nlh),
-			nlmsg_len(nlh), ib_nl_addr_policy);
+			nlmsg_len(nlh), ib_nl_addr_policy, NULL);
 	if (ret)
 		return false;
 
@@ -444,17 +444,12 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	fl6.saddr = src_in->sin6_addr;
 	fl6.flowi6_oif = addr->bound_dev_if;
 
-	dst = ip6_route_output(addr->net, NULL, &fl6);
-	if ((ret = dst->error))
-		goto put;
+	ret = ipv6_stub->ipv6_dst_lookup(addr->net, NULL, &dst, &fl6);
+	if (ret < 0)
+		return ret;
 
 	rt = (struct rt6_info *)dst;
-	if (ipv6_addr_any(&fl6.saddr)) {
-		ret = ipv6_dev_get_saddr(addr->net, ip6_dst_idev(dst)->dev,
-					 &fl6.daddr, 0, &fl6.saddr);
-		if (ret)
-			goto put;
-
+	if (ipv6_addr_any(&src_in->sin6_addr)) {
 		src_in->sin6_family = AF_INET6;
 		src_in->sin6_addr = fl6.saddr;
 	}
@@ -471,9 +466,6 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 
 	*pdst = dst;
 	return 0;
-put:
-	dst_release(dst);
-	return ret;
 }
 #else
 static int addr6_resolve(struct sockaddr_in6 *src_in,

@@ -92,6 +92,18 @@ struct getbmapx {
 #define BMV_OF_LAST		0x4	/* segment is the last in the file */
 #define BMV_OF_SHARED		0x8	/* segment shared with another file */
 
+/*	fmr_owner special values for FS_IOC_GETFSMAP */
+#define XFS_FMR_OWN_FREE	FMR_OWN_FREE      /* free space */
+#define XFS_FMR_OWN_UNKNOWN	FMR_OWN_UNKNOWN   /* unknown owner */
+#define XFS_FMR_OWN_FS		FMR_OWNER('X', 1) /* static fs metadata */
+#define XFS_FMR_OWN_LOG		FMR_OWNER('X', 2) /* journalling log */
+#define XFS_FMR_OWN_AG		FMR_OWNER('X', 3) /* per-AG metadata */
+#define XFS_FMR_OWN_INOBT	FMR_OWNER('X', 4) /* inode btree blocks */
+#define XFS_FMR_OWN_INODES	FMR_OWNER('X', 5) /* inodes */
+#define XFS_FMR_OWN_REFC	FMR_OWNER('X', 6) /* refcount tree */
+#define XFS_FMR_OWN_COW		FMR_OWNER('X', 7) /* cow staging */
+#define XFS_FMR_OWN_DEFECTIVE	FMR_OWNER('X', 8) /* bad blocks */
+
 /*
  * Structure for XFS_IOC_FSSETDM.
  * For use by backup and restore programs to set the XFS on-disk inode
@@ -502,6 +514,7 @@ typedef struct xfs_swapext
 #define XFS_IOC_GETBMAPX	_IOWR('X', 56, struct getbmap)
 #define XFS_IOC_ZERO_RANGE	_IOW ('X', 57, struct xfs_flock64)
 #define XFS_IOC_FREE_EOFBLOCKS	_IOR ('X', 58, struct xfs_fs_eofblocks)
+/*	XFS_IOC_GETFSMAP ------ hoisted 59         */
 
 /*
  * ioctl commands that replace IRIX syssgi()'s

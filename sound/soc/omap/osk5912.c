@@ -68,7 +68,7 @@ static int osk_hw_params(struct snd_pcm_substream *substream,
 	return err;
 }
 
-static struct snd_soc_ops osk_ops = {
+static const struct snd_soc_ops osk_ops = {
 	.startup = osk_startup,
 	.hw_params = osk_hw_params,
 	.shutdown = osk_shutdown,

@@ -135,9 +135,11 @@ __v7m_setup_cont:
 	dsb
 	mov	r6, lr			@ save LR
 	ldr	sp, =init_thread_union + THREAD_START_SP
+	stmia	sp, {r0-r3, r12}
 	cpsie	i
 	svc	#0
 1:	cpsid	i
+	ldmia	sp, {r0-r3, r12}
 	str	r5, [r12, #11 * 4]	@ restore the original SVC vector entry
 	mov	lr, r6			@ restore LR
 
@@ -147,10 +149,10 @@ __v7m_setup_cont:
 
 	@ Configure caches (if implemented)
 	teq     r8, #0
-	stmneia	r12, {r0-r6, lr}	@ v7m_invalidate_l1 touches r0-r6
+	stmneia	sp, {r0-r6, lr}		@ v7m_invalidate_l1 touches r0-r6
 	blne	v7m_invalidate_l1
 	teq     r8, #0			@ re-evalutae condition
-	ldmneia	r12, {r0-r6, lr}
+	ldmneia	sp, {r0-r6, lr}
 
 	@ Configure the System Control Register to ensure 8-byte stack alignment
 	@ Note the STKALIGN bit is either RW or RAO.

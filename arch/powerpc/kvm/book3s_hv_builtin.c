@@ -23,6 +23,7 @@
 #include <asm/kvm_book3s.h>
 #include <asm/archrandom.h>
 #include <asm/xics.h>
+#include <asm/xive.h>
 #include <asm/dbell.h>
 #include <asm/cputhreads.h>
 #include <asm/io.h>
@@ -30,6 +31,24 @@
 #include <asm/smp.h>
 
 #define KVM_CMA_CHUNK_ORDER	18
+
+#include "book3s_xics.h"
+#include "book3s_xive.h"
+
+/*
+ * The XIVE module will populate these when it loads
+ */
+unsigned long (*__xive_vm_h_xirr)(struct kvm_vcpu *vcpu);
+unsigned long (*__xive_vm_h_ipoll)(struct kvm_vcpu *vcpu, unsigned long server);
+int (*__xive_vm_h_ipi)(struct kvm_vcpu *vcpu, unsigned long server,
+		       unsigned long mfrr);
+int (*__xive_vm_h_cppr)(struct kvm_vcpu *vcpu, unsigned long cppr);
+int (*__xive_vm_h_eoi)(struct kvm_vcpu *vcpu, unsigned long xirr);
+EXPORT_SYMBOL_GPL(__xive_vm_h_xirr);
+EXPORT_SYMBOL_GPL(__xive_vm_h_ipoll);
+EXPORT_SYMBOL_GPL(__xive_vm_h_ipi);
+EXPORT_SYMBOL_GPL(__xive_vm_h_cppr);
+EXPORT_SYMBOL_GPL(__xive_vm_h_eoi);
 
 /*
  * Hash page table alignment on newer cpus(CPU_FTR_ARCH_206)
@@ -100,7 +119,8 @@ void __init kvm_cma_reserve(void)
 			 (unsigned long)selected_size / SZ_1M);
 		align_size = HPT_ALIGN_PAGES << PAGE_SHIFT;
 		cma_declare_contiguous(0, selected_size, 0, align_size,
-			KVM_CMA_CHUNK_ORDER - PAGE_SHIFT, false, &kvm_cma);
+			KVM_CMA_CHUNK_ORDER - PAGE_SHIFT, false, "kvm_cma",
+			&kvm_cma);
 	}
 }
 
@@ -187,16 +207,17 @@ EXPORT_SYMBOL_GPL(kvmppc_hwrng_present);
 
 long kvmppc_h_random(struct kvm_vcpu *vcpu)
 {
-	if (powernv_get_random_real_mode(&vcpu->arch.gpr[4]))
+	int r;
+
+	/* Only need to do the expensive mfmsr() on radix */
+	if (kvm_is_radix(vcpu->kvm) && (mfmsr() & MSR_IR))
+		r = powernv_get_random_long(&vcpu->arch.gpr[4]);
+	else
+		r = powernv_get_random_real_mode(&vcpu->arch.gpr[4]);
+	if (r)
 		return H_SUCCESS;
 
 	return H_HARDWARE;
-}
-
-static inline void rm_writeb(unsigned long paddr, u8 val)
-{
-	__asm__ __volatile__("stbcix %0,0,%1"
-		: : "r" (val), "r" (paddr) : "memory");
 }
 
 /*
@@ -206,7 +227,7 @@ static inline void rm_writeb(unsigned long paddr, u8 val)
  */
 void kvmhv_rm_send_ipi(int cpu)
 {
-	unsigned long xics_phys;
+	void __iomem *xics_phys;
 	unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 
 	/* On POWER9 we can use msgsnd for any destination cpu. */
@@ -215,6 +236,7 @@ void kvmhv_rm_send_ipi(int cpu)
 		__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
 		return;
 	}
+
 	/* On POWER8 for IPIs to threads in the same core, use msgsnd. */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
 	    cpu_first_thread_sibling(cpu) ==
@@ -224,10 +246,14 @@ void kvmhv_rm_send_ipi(int cpu)
 		return;
 	}
 
+	/* We should never reach this */
+	if (WARN_ON_ONCE(xive_enabled()))
+	    return;
+
 	/* Else poke the target with an IPI */
 	xics_phys = paca[cpu].kvm_hstate.xics_phys;
 	if (xics_phys)
-		rm_writeb(xics_phys + XICS_MFRR, IPI_PRIORITY);
+		__raw_rm_writeb(IPI_PRIORITY, xics_phys + XICS_MFRR);
 	else
 		opal_int_set_mfrr(get_hard_smp_processor_id(cpu), IPI_PRIORITY);
 }
@@ -386,6 +412,9 @@ long kvmppc_read_intr(void)
 	long rc;
 	bool again;
 
+	if (xive_enabled())
+		return 1;
+
 	do {
 		again = false;
 		rc = kvmppc_read_one_intr(&again);
@@ -397,12 +426,15 @@ long kvmppc_read_intr(void)
 
 static long kvmppc_read_one_intr(bool *again)
 {
-	unsigned long xics_phys;
+	void __iomem *xics_phys;
 	u32 h_xirr;
 	__be32 xirr;
 	u32 xisr;
 	u8 host_ipi;
 	int64_t rc;
+
+	if (xive_enabled())
+		return 1;
 
 	/* see if a host IPI is pending */
 	host_ipi = local_paca->kvm_hstate.host_ipi;
@@ -415,7 +447,7 @@ static long kvmppc_read_one_intr(bool *again)
 	if (!xics_phys)
 		rc = opal_int_get_xirr(&xirr, false);
 	else
-		xirr = _lwzcix(xics_phys + XICS_XIRR);
+		xirr = __raw_rm_readl(xics_phys + XICS_XIRR);
 	if (rc < 0)
 		return 1;
 
@@ -445,8 +477,8 @@ static long kvmppc_read_one_intr(bool *again)
 	if (xisr == XICS_IPI) {
 		rc = 0;
 		if (xics_phys) {
-			_stbcix(xics_phys + XICS_MFRR, 0xff);
-			_stwcix(xics_phys + XICS_XIRR, xirr);
+			__raw_rm_writeb(0xff, xics_phys + XICS_MFRR);
+			__raw_rm_writel(xirr, xics_phys + XICS_XIRR);
 		} else {
 			opal_int_set_mfrr(hard_smp_processor_id(), 0xff);
 			rc = opal_int_eoi(h_xirr);
@@ -471,7 +503,8 @@ static long kvmppc_read_one_intr(bool *again)
 			 * we need to resend that IPI, bummer
 			 */
 			if (xics_phys)
-				_stbcix(xics_phys + XICS_MFRR, IPI_PRIORITY);
+				__raw_rm_writeb(IPI_PRIORITY,
+						xics_phys + XICS_MFRR);
 			else
 				opal_int_set_mfrr(hard_smp_processor_id(),
 						  IPI_PRIORITY);
@@ -487,3 +520,84 @@ static long kvmppc_read_one_intr(bool *again)
 
 	return kvmppc_check_passthru(xisr, xirr, again);
 }
+
+#ifdef CONFIG_KVM_XICS
+static inline bool is_rm(void)
+{
+	return !(mfmsr() & MSR_DR);
+}
+
+unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
+{
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_xirr(vcpu);
+		if (unlikely(!__xive_vm_h_xirr))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_xirr(vcpu);
+	} else
+		return xics_rm_h_xirr(vcpu);
+}
+
+unsigned long kvmppc_rm_h_xirr_x(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.gpr[5] = get_tb();
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_xirr(vcpu);
+		if (unlikely(!__xive_vm_h_xirr))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_xirr(vcpu);
+	} else
+		return xics_rm_h_xirr(vcpu);
+}
+
+unsigned long kvmppc_rm_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server)
+{
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_ipoll(vcpu, server);
+		if (unlikely(!__xive_vm_h_ipoll))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_ipoll(vcpu, server);
+	} else
+		return H_TOO_HARD;
+}
+
+int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
+		    unsigned long mfrr)
+{
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_ipi(vcpu, server, mfrr);
+		if (unlikely(!__xive_vm_h_ipi))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_ipi(vcpu, server, mfrr);
+	} else
+		return xics_rm_h_ipi(vcpu, server, mfrr);
+}
+
+int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
+{
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_cppr(vcpu, cppr);
+		if (unlikely(!__xive_vm_h_cppr))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_cppr(vcpu, cppr);
+	} else
+		return xics_rm_h_cppr(vcpu, cppr);
+}
+
+int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
+{
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_eoi(vcpu, xirr);
+		if (unlikely(!__xive_vm_h_eoi))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_eoi(vcpu, xirr);
+	} else
+		return xics_rm_h_eoi(vcpu, xirr);
+}
+#endif /* CONFIG_KVM_XICS */

@@ -711,13 +711,16 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 	return tbl;
 }
 
-void iommu_free_table(struct iommu_table *tbl, const char *node_name)
+static void iommu_table_free(struct kref *kref)
 {
 	unsigned long bitmap_sz;
 	unsigned int order;
+	struct iommu_table *tbl;
 
-	if (!tbl)
-		return;
+	tbl = container_of(kref, struct iommu_table, it_kref);
+
+	if (tbl->it_ops->free)
+		tbl->it_ops->free(tbl);
 
 	if (!tbl->it_map) {
 		kfree(tbl);
@@ -733,7 +736,7 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 
 	/* verify that table contains no entries */
 	if (!bitmap_empty(tbl->it_map, tbl->it_size))
-		pr_warn("%s: Unexpected TCEs for %s\n", __func__, node_name);
+		pr_warn("%s: Unexpected TCEs\n", __func__);
 
 	/* calculate bitmap size in bytes */
 	bitmap_sz = BITS_TO_LONGS(tbl->it_size) * sizeof(unsigned long);
@@ -745,6 +748,24 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 	/* free table */
 	kfree(tbl);
 }
+
+struct iommu_table *iommu_tce_table_get(struct iommu_table *tbl)
+{
+	if (kref_get_unless_zero(&tbl->it_kref))
+		return tbl;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(iommu_tce_table_get);
+
+int iommu_tce_table_put(struct iommu_table *tbl)
+{
+	if (WARN_ON(!tbl))
+		return 0;
+
+	return kref_put(&tbl->it_kref, iommu_table_free);
+}
+EXPORT_SYMBOL_GPL(iommu_tce_table_put);
 
 /* Creates TCEs for a user provided buffer.  The user buffer must be
  * contiguous real kernel storage (not vmalloc).  The address passed here
@@ -942,47 +963,36 @@ void iommu_flush_tce(struct iommu_table *tbl)
 }
 EXPORT_SYMBOL_GPL(iommu_flush_tce);
 
-int iommu_tce_clear_param_check(struct iommu_table *tbl,
-		unsigned long ioba, unsigned long tce_value,
-		unsigned long npages)
+int iommu_tce_check_ioba(unsigned long page_shift,
+		unsigned long offset, unsigned long size,
+		unsigned long ioba, unsigned long npages)
 {
-	/* tbl->it_ops->clear() does not support any value but 0 */
-	if (tce_value)
+	unsigned long mask = (1UL << page_shift) - 1;
+
+	if (ioba & mask)
 		return -EINVAL;
 
-	if (ioba & ~IOMMU_PAGE_MASK(tbl))
+	ioba >>= page_shift;
+	if (ioba < offset)
 		return -EINVAL;
 
-	ioba >>= tbl->it_page_shift;
-	if (ioba < tbl->it_offset)
-		return -EINVAL;
-
-	if ((ioba + npages) > (tbl->it_offset + tbl->it_size))
+	if ((ioba + 1) > (offset + size))
 		return -EINVAL;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(iommu_tce_clear_param_check);
+EXPORT_SYMBOL_GPL(iommu_tce_check_ioba);
 
-int iommu_tce_put_param_check(struct iommu_table *tbl,
-		unsigned long ioba, unsigned long tce)
+int iommu_tce_check_gpa(unsigned long page_shift, unsigned long gpa)
 {
-	if (tce & ~IOMMU_PAGE_MASK(tbl))
-		return -EINVAL;
+	unsigned long mask = (1UL << page_shift) - 1;
 
-	if (ioba & ~IOMMU_PAGE_MASK(tbl))
-		return -EINVAL;
-
-	ioba >>= tbl->it_page_shift;
-	if (ioba < tbl->it_offset)
-		return -EINVAL;
-
-	if ((ioba + 1) > (tbl->it_offset + tbl->it_size))
+	if (gpa & mask)
 		return -EINVAL;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(iommu_tce_put_param_check);
+EXPORT_SYMBOL_GPL(iommu_tce_check_gpa);
 
 long iommu_tce_xchg(struct iommu_table *tbl, unsigned long entry,
 		unsigned long *hpa, enum dma_data_direction *direction)
@@ -1003,6 +1013,31 @@ long iommu_tce_xchg(struct iommu_table *tbl, unsigned long entry,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_tce_xchg);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+long iommu_tce_xchg_rm(struct iommu_table *tbl, unsigned long entry,
+		unsigned long *hpa, enum dma_data_direction *direction)
+{
+	long ret;
+
+	ret = tbl->it_ops->exchange_rm(tbl, entry, hpa, direction);
+
+	if (!ret && ((*direction == DMA_FROM_DEVICE) ||
+			(*direction == DMA_BIDIRECTIONAL))) {
+		struct page *pg = realmode_pfn_to_page(*hpa >> PAGE_SHIFT);
+
+		if (likely(pg)) {
+			SetPageDirty(pg);
+		} else {
+			tbl->it_ops->exchange_rm(tbl, entry, hpa, direction);
+			ret = -EFAULT;
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iommu_tce_xchg_rm);
+#endif
 
 int iommu_take_ownership(struct iommu_table *tbl)
 {

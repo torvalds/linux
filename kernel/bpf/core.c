@@ -76,8 +76,7 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 
 struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 {
-	gfp_t gfp_flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO |
-			  gfp_extra_flags;
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO | gfp_extra_flags;
 	struct bpf_prog_aux *aux;
 	struct bpf_prog *fp;
 
@@ -107,8 +106,7 @@ EXPORT_SYMBOL_GPL(bpf_prog_alloc);
 struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 				  gfp_t gfp_extra_flags)
 {
-	gfp_t gfp_flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO |
-			  gfp_extra_flags;
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO | gfp_extra_flags;
 	struct bpf_prog *fp;
 	u32 pages, delta;
 	int ret;
@@ -394,27 +392,23 @@ static bool bpf_prog_kallsyms_verify_off(const struct bpf_prog *fp)
 
 void bpf_prog_kallsyms_add(struct bpf_prog *fp)
 {
-	unsigned long flags;
-
 	if (!bpf_prog_kallsyms_candidate(fp) ||
 	    !capable(CAP_SYS_ADMIN))
 		return;
 
-	spin_lock_irqsave(&bpf_lock, flags);
+	spin_lock_bh(&bpf_lock);
 	bpf_prog_ksym_node_add(fp->aux);
-	spin_unlock_irqrestore(&bpf_lock, flags);
+	spin_unlock_bh(&bpf_lock);
 }
 
 void bpf_prog_kallsyms_del(struct bpf_prog *fp)
 {
-	unsigned long flags;
-
 	if (!bpf_prog_kallsyms_candidate(fp))
 		return;
 
-	spin_lock_irqsave(&bpf_lock, flags);
+	spin_lock_bh(&bpf_lock);
 	bpf_prog_ksym_node_del(fp->aux);
-	spin_unlock_irqrestore(&bpf_lock, flags);
+	spin_unlock_bh(&bpf_lock);
 }
 
 static struct bpf_prog *bpf_prog_kallsyms_find(unsigned long addr)
@@ -659,8 +653,7 @@ out:
 static struct bpf_prog *bpf_prog_clone_create(struct bpf_prog *fp_other,
 					      gfp_t gfp_extra_flags)
 {
-	gfp_t gfp_flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO |
-			  gfp_extra_flags;
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO | gfp_extra_flags;
 	struct bpf_prog *fp;
 
 	fp = __vmalloc(fp_other->pages * PAGE_SIZE, gfp_flags, PAGE_KERNEL);

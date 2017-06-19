@@ -187,6 +187,7 @@
  * Reuse free bits when adding new feature flags!
  */
 #define X86_FEATURE_RING3MWAIT	( 7*32+ 0) /* Ring 3 MONITOR/MWAIT */
+#define X86_FEATURE_CPUID_FAULT ( 7*32+ 1) /* Intel CPUID faulting */
 #define X86_FEATURE_CPB		( 7*32+ 2) /* AMD Core Performance Boost */
 #define X86_FEATURE_EPB		( 7*32+ 3) /* IA32_ENERGY_PERF_BIAS support */
 #define X86_FEATURE_CAT_L3	( 7*32+ 4) /* Cache Allocation Technology L3 */
@@ -200,6 +201,8 @@
 #define X86_FEATURE_INTEL_PT	( 7*32+15) /* Intel Processor Trace */
 #define X86_FEATURE_AVX512_4VNNIW (7*32+16) /* AVX-512 Neural Network Instructions */
 #define X86_FEATURE_AVX512_4FMAPS (7*32+17) /* AVX-512 Multiply Accumulation Single precision */
+
+#define X86_FEATURE_MBA         ( 7*32+18) /* Memory Bandwidth Allocation */
 
 /* Virtualization flags: Linux defined, word 8 */
 #define X86_FEATURE_TPR_SHADOW  ( 8*32+ 0) /* Intel TPR Shadow */

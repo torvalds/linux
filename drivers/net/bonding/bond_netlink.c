@@ -449,6 +449,11 @@ static int bond_newlink(struct net *src_net, struct net_device *bond_dev,
 	err = register_netdevice(bond_dev);
 
 	netif_carrier_off(bond_dev);
+	if (!err) {
+		struct bonding *bond = netdev_priv(bond_dev);
+
+		bond_work_init_all(bond);
+	}
 
 	return err;
 }
@@ -544,7 +549,8 @@ static int bond_fill_info(struct sk_buff *skb,
 	targets_added = 0;
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++) {
 		if (bond->params.arp_targets[i]) {
-			nla_put_be32(skb, i, bond->params.arp_targets[i]);
+			if (nla_put_be32(skb, i, bond->params.arp_targets[i]))
+				goto nla_put_failure;
 			targets_added = 1;
 		}
 	}

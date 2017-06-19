@@ -992,6 +992,22 @@ static pte_t kvm_mips_gpa_pte_to_gva_mapped(pte_t pte, long entrylo)
 	return kvm_mips_gpa_pte_to_gva_unmapped(pte);
 }
 
+#ifdef CONFIG_KVM_MIPS_VZ
+int kvm_mips_handle_vz_root_tlb_fault(unsigned long badvaddr,
+				      struct kvm_vcpu *vcpu,
+				      bool write_fault)
+{
+	int ret;
+
+	ret = kvm_mips_map_page(vcpu, badvaddr, write_fault, NULL, NULL);
+	if (ret)
+		return ret;
+
+	/* Invalidate this entry in the TLB */
+	return kvm_vz_host_tlb_inv(vcpu, badvaddr);
+}
+#endif
+
 /* XXXKYMA: Must be called with interrupts disabled */
 int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 				    struct kvm_vcpu *vcpu,
@@ -1224,6 +1240,10 @@ enum kvm_mips_fault_result kvm_trap_emul_gva_fault(struct kvm_vcpu *vcpu,
 int kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
 {
 	int err;
+
+	if (WARN(IS_ENABLED(CONFIG_KVM_MIPS_VZ),
+		 "Expect BadInstr/BadInstrP registers to be used with VZ\n"))
+		return -EINVAL;
 
 retry:
 	kvm_trap_emul_gva_lockless_begin(vcpu);

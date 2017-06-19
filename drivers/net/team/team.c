@@ -1643,7 +1643,6 @@ static void team_destructor(struct net_device *dev)
 	struct team *team = netdev_priv(dev);
 
 	free_percpu(team->pcpu_stats);
-	free_netdev(dev);
 }
 
 static int team_open(struct net_device *dev)
@@ -2079,7 +2078,8 @@ static void team_setup(struct net_device *dev)
 
 	dev->netdev_ops = &team_netdev_ops;
 	dev->ethtool_ops = &team_ethtool_ops;
-	dev->destructor	= team_destructor;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = team_destructor;
 	dev->priv_flags &= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->priv_flags |= IFF_TEAM;
@@ -2361,8 +2361,10 @@ start_again:
 
 	hdr = genlmsg_put(skb, portid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_OPTIONS_GET);
-	if (!hdr)
+	if (!hdr) {
+		nlmsg_free(skb);
 		return -EMSGSIZE;
+	}
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;
@@ -2474,7 +2476,8 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 			goto team_put;
 		}
 		err = nla_parse_nested(opt_attrs, TEAM_ATTR_OPTION_MAX,
-				       nl_option, team_nl_option_policy);
+				       nl_option, team_nl_option_policy,
+				       info->extack);
 		if (err)
 			goto team_put;
 		if (!opt_attrs[TEAM_ATTR_OPTION_NAME] ||
@@ -2634,8 +2637,10 @@ start_again:
 
 	hdr = genlmsg_put(skb, portid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_PORT_LIST_GET);
-	if (!hdr)
+	if (!hdr) {
+		nlmsg_free(skb);
 		return -EMSGSIZE;
+	}
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;

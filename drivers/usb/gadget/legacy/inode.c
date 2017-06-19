@@ -27,6 +27,7 @@
 #include <linux/mmu_context.h>
 #include <linux/aio.h>
 #include <linux/uio.h>
+#include <linux/refcount.h>
 
 #include <linux/device.h>
 #include <linux/moduleparam.h>
@@ -114,7 +115,7 @@ enum ep0_state {
 
 struct dev_data {
 	spinlock_t			lock;
-	atomic_t			count;
+	refcount_t			count;
 	enum ep0_state			state;		/* P: lock */
 	struct usb_gadgetfs_event	event [N_EVENT];
 	unsigned			ev_next;
@@ -150,12 +151,12 @@ struct dev_data {
 
 static inline void get_dev (struct dev_data *data)
 {
-	atomic_inc (&data->count);
+	refcount_inc (&data->count);
 }
 
 static void put_dev (struct dev_data *data)
 {
-	if (likely (!atomic_dec_and_test (&data->count)))
+	if (likely (!refcount_dec_and_test (&data->count)))
 		return;
 	/* needs no more cleanup */
 	BUG_ON (waitqueue_active (&data->wait));
@@ -170,7 +171,7 @@ static struct dev_data *dev_new (void)
 	if (!dev)
 		return NULL;
 	dev->state = STATE_DEV_DISABLED;
-	atomic_set (&dev->count, 1);
+	refcount_set (&dev->count, 1);
 	spin_lock_init (&dev->lock);
 	INIT_LIST_HEAD (&dev->epfiles);
 	init_waitqueue_head (&dev->wait);
@@ -190,7 +191,7 @@ enum ep_state {
 struct ep_data {
 	struct mutex			lock;
 	enum ep_state			state;
-	atomic_t			count;
+	refcount_t			count;
 	struct dev_data			*dev;
 	/* must hold dev->lock before accessing ep or req */
 	struct usb_ep			*ep;
@@ -205,12 +206,12 @@ struct ep_data {
 
 static inline void get_ep (struct ep_data *data)
 {
-	atomic_inc (&data->count);
+	refcount_inc (&data->count);
 }
 
 static void put_ep (struct ep_data *data)
 {
-	if (likely (!atomic_dec_and_test (&data->count)))
+	if (likely (!refcount_dec_and_test (&data->count)))
 		return;
 	put_dev (data->dev);
 	/* needs no more cleanup */
@@ -1182,8 +1183,10 @@ dev_release (struct inode *inode, struct file *fd)
 
 	/* closing ep0 === shutdown all */
 
-	if (dev->gadget_registered)
+	if (dev->gadget_registered) {
 		usb_gadget_unregister_driver (&gadgetfs_driver);
+		dev->gadget_registered = false;
+	}
 
 	/* at this point "good" hardware has disconnected the
 	 * device from USB; the host won't see it any more.
@@ -1561,7 +1564,7 @@ static int activate_ep_files (struct dev_data *dev)
 		init_waitqueue_head (&data->wait);
 
 		strncpy (data->name, ep->name, sizeof (data->name) - 1);
-		atomic_set (&data->count, 1);
+		refcount_set (&data->count, 1);
 		data->dev = dev;
 		get_dev (dev);
 
@@ -1676,9 +1679,10 @@ static void
 gadgetfs_suspend (struct usb_gadget *gadget)
 {
 	struct dev_data		*dev = get_gadget_data (gadget);
+	unsigned long		flags;
 
 	INFO (dev, "suspended from state %d\n", dev->state);
-	spin_lock (&dev->lock);
+	spin_lock_irqsave(&dev->lock, flags);
 	switch (dev->state) {
 	case STATE_DEV_SETUP:		// VERY odd... host died??
 	case STATE_DEV_CONNECTED:
@@ -1689,7 +1693,7 @@ gadgetfs_suspend (struct usb_gadget *gadget)
 	default:
 		break;
 	}
-	spin_unlock (&dev->lock);
+	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
 static struct usb_gadget_driver gadgetfs_driver = {

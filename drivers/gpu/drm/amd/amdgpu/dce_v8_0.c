@@ -1091,8 +1091,11 @@ static void dce_v8_0_program_watermarks(struct amdgpu_device *adev,
 	u32 tmp, wm_mask, lb_vblank_lead_lines = 0;
 
 	if (amdgpu_crtc->base.enabled && num_heads && mode) {
-		active_time = 1000000UL * (u32)mode->crtc_hdisplay / (u32)mode->clock;
-		line_time = min((u32) (1000000UL * (u32)mode->crtc_htotal / (u32)mode->clock), (u32)65535);
+		active_time = (u32) div_u64((u64)mode->crtc_hdisplay * 1000000,
+					    (u32)mode->clock);
+		line_time = (u32) div_u64((u64)mode->crtc_htotal * 1000000,
+					  (u32)mode->clock);
+		line_time = min(line_time, (u32)65535);
 
 		/* watermark for high clocks */
 		if (adev->pm.dpm_enabled) {
@@ -2089,7 +2092,7 @@ static int dce_v8_0_crtc_do_set_base(struct drm_crtc *crtc,
 	if (!atomic && fb && fb != crtc->primary->fb) {
 		amdgpu_fb = to_amdgpu_framebuffer(fb);
 		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
-		r = amdgpu_bo_reserve(abo, false);
+		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r != 0))
 			return r;
 		amdgpu_bo_unpin(abo);
@@ -2440,7 +2443,7 @@ static int dce_v8_0_crtc_cursor_set2(struct drm_crtc *crtc,
 unpin:
 	if (amdgpu_crtc->cursor_bo) {
 		struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-		ret = amdgpu_bo_reserve(aobj, false);
+		ret = amdgpu_bo_reserve(aobj, true);
 		if (likely(ret == 0)) {
 			amdgpu_bo_unpin(aobj);
 			amdgpu_bo_unreserve(aobj);
@@ -2571,7 +2574,7 @@ static void dce_v8_0_crtc_disable(struct drm_crtc *crtc)
 
 		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
 		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
-		r = amdgpu_bo_reserve(abo, false);
+		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r))
 			DRM_ERROR("failed to reserve abo before unpin\n");
 		else {

@@ -688,29 +688,34 @@ static void catc_get_drvinfo(struct net_device *dev,
 	usb_make_path(catc->usbdev, info->bus_info, sizeof(info->bus_info));
 }
 
-static int catc_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int catc_get_link_ksettings(struct net_device *dev,
+				   struct ethtool_link_ksettings *cmd)
 {
 	struct catc *catc = netdev_priv(dev);
 	if (!catc->is_f5u011)
 		return -EOPNOTSUPP;
 
-	cmd->supported = SUPPORTED_10baseT_Half | SUPPORTED_TP;
-	cmd->advertising = ADVERTISED_10baseT_Half | ADVERTISED_TP;
-	ethtool_cmd_speed_set(cmd, SPEED_10);
-	cmd->duplex = DUPLEX_HALF;
-	cmd->port = PORT_TP; 
-	cmd->phy_address = 0;
-	cmd->transceiver = XCVR_INTERNAL;
-	cmd->autoneg = AUTONEG_DISABLE;
-	cmd->maxtxpkt = 1;
-	cmd->maxrxpkt = 1;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, 10baseT_Half);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, TP);
+
+	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, 10baseT_Half);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, TP);
+
+	cmd->base.speed = SPEED_10;
+	cmd->base.duplex = DUPLEX_HALF;
+	cmd->base.port = PORT_TP;
+	cmd->base.phy_address = 0;
+	cmd->base.autoneg = AUTONEG_DISABLE;
+
 	return 0;
 }
 
 static const struct ethtool_ops ops = {
 	.get_drvinfo = catc_get_drvinfo,
-	.get_settings = catc_get_settings,
-	.get_link = ethtool_op_get_link
+	.get_link = ethtool_op_get_link,
+	.get_link_ksettings = catc_get_link_ksettings,
 };
 
 /*

@@ -2279,6 +2279,9 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 	} else {
 		int src[2], mix[2];
 
+		if (nr_ch < 1)
+			return -EINVAL;
+
 		/* Get SRC and MIXER hardware resources. */
 		for (i = 0; i < nr_ch; i++) {
 			if ((mix[i] =

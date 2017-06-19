@@ -1,8 +1,13 @@
-menuconfig DEV_DAX
+menuconfig DAX
 	tristate "DAX: direct access to differentiated memory"
-	default m if NVDIMM_DAX
-	depends on TRANSPARENT_HUGEPAGE
 	select SRCU
+	default m if NVDIMM_DAX
+
+if DAX
+
+config DEV_DAX
+	tristate "Device DAX: direct access mapping device"
+	depends on TRANSPARENT_HUGEPAGE
 	help
 	  Support raw access to differentiated (persistence, bandwidth,
 	  latency...) memory via an mmap(2) capable character
@@ -11,11 +16,10 @@ menuconfig DEV_DAX
 	  baseline memory pool.  Mappings of a /dev/daxX.Y device impose
 	  restrictions that make the mapping behavior deterministic.
 
-if DEV_DAX
 
 config DEV_DAX_PMEM
 	tristate "PMEM DAX: direct access to persistent memory"
-	depends on LIBNVDIMM && NVDIMM_DAX
+	depends on LIBNVDIMM && NVDIMM_DAX && DEV_DAX
 	default DEV_DAX
 	help
 	  Support raw access to persistent memory.  Note that this
@@ -23,10 +27,5 @@ config DEV_DAX_PMEM
 	  libnvdimm sub-system.
 
 	  Say Y if unsure
-
-config NR_DEV_DAX
-	int "Maximum number of Device-DAX instances"
-	default 32768
-	range 256 2147483647
 
 endif

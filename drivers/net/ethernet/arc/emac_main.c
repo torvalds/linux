@@ -434,7 +434,7 @@ static int arc_emac_open(struct net_device *ndev)
 	/* Enable EMAC */
 	arc_reg_or(priv, R_CTRL, EN_MASK);
 
-	phy_start_aneg(ndev->phydev);
+	phy_start(ndev->phydev);
 
 	netif_start_queue(ndev);
 
@@ -555,6 +555,8 @@ static int arc_emac_stop(struct net_device *ndev)
 
 	napi_disable(&priv->napi);
 	netif_stop_queue(ndev);
+
+	phy_stop(ndev->phydev);
 
 	/* Disable interrupts */
 	arc_reg_clr(priv, R_ENABLE, RXINT_MASK | TXINT_MASK | ERR_MASK);

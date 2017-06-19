@@ -134,4 +134,26 @@ extern const struct cpg_mssr_info r8a7743_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7745_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7795_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7796_cpg_mssr_info;
+
+
+    /*
+     * Helpers for fixing up clock tables depending on SoC revision
+     */
+
+struct mssr_mod_reparent {
+	unsigned int clk, parent;
+};
+
+
+extern void cpg_core_nullify_range(struct cpg_core_clk *core_clks,
+				   unsigned int num_core_clks,
+				   unsigned int first_clk,
+				   unsigned int last_clk);
+extern void mssr_mod_nullify(struct mssr_mod_clk *mod_clks,
+			     unsigned int num_mod_clks,
+			     const unsigned int *clks, unsigned int n);
+extern void mssr_mod_reparent(struct mssr_mod_clk *mod_clks,
+			      unsigned int num_mod_clks,
+			      const struct mssr_mod_reparent *clks,
+			      unsigned int n);
 #endif

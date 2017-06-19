@@ -288,7 +288,7 @@ struct ptlrpc_connection {
 	/** Our own lnet nid for this connection */
 	lnet_nid_t	      c_self;
 	/** Remote side nid for this connection */
-	lnet_process_id_t       c_peer;
+	struct lnet_process_id	c_peer;
 	/** UUID of the other side */
 	struct obd_uuid	 c_remote_uuid;
 	/** reference counter for this connection */
@@ -400,7 +400,7 @@ struct ptlrpc_service;
  * ptlrpc callback & work item stuff
  */
 struct ptlrpc_cb_id {
-	void   (*cbid_fn)(lnet_event_t *ev);     /* specific callback fn */
+	void   (*cbid_fn)(struct lnet_event *ev); /* specific callback fn */
 	void    *cbid_arg;		      /* additional arg */
 };
 
@@ -457,7 +457,7 @@ struct ptlrpc_reply_state {
 	struct obd_export     *rs_export;
 	struct ptlrpc_service_part *rs_svcpt;
 	/** Lnet metadata handle for the reply */
-	lnet_handle_md_t       rs_md_h;
+	struct lnet_handle_md		rs_md_h;
 
 	/** Context for the service thread */
 	struct ptlrpc_svc_ctx *rs_svc_ctx;
@@ -586,11 +586,11 @@ struct ptlrpc_cli_req {
 	/** Link back to the request set */
 	struct ptlrpc_request_set	*cr_set;
 	/** outgoing request MD handle */
-	lnet_handle_md_t		 cr_req_md_h;
+	struct lnet_handle_md		 cr_req_md_h;
 	/** request-out callback parameter */
 	struct ptlrpc_cb_id		 cr_req_cbid;
 	/** incoming reply MD handle */
-	lnet_handle_md_t		 cr_reply_md_h;
+	struct lnet_handle_md		 cr_reply_md_h;
 	wait_queue_head_t		 cr_reply_waitq;
 	/** reply callback parameter */
 	struct ptlrpc_cb_id		 cr_reply_cbid;
@@ -876,7 +876,7 @@ struct ptlrpc_request {
 	/** our LNet NID */
 	lnet_nid_t	   rq_self;
 	/** Peer description (the other side) */
-	lnet_process_id_t    rq_peer;
+	struct lnet_process_id	rq_peer;
 	/**
 	 * service time estimate (secs)
 	 * If the request is not served by this time, it is marked as timed out.
@@ -1225,7 +1225,7 @@ struct ptlrpc_bulk_desc {
 	int			bd_md_count;	/* # valid entries in bd_mds */
 	int			bd_md_max_brw;	/* max entries in bd_mds */
 	/** array of associated MDs */
-	lnet_handle_md_t	bd_mds[PTLRPC_BULK_OPS_COUNT];
+	struct lnet_handle_md	bd_mds[PTLRPC_BULK_OPS_COUNT];
 
 	union {
 		struct {
@@ -1376,7 +1376,7 @@ struct ptlrpc_request_buffer_desc {
 	/** Back pointer to service for which this buffer is registered */
 	struct ptlrpc_service_part *rqbd_svcpt;
 	/** LNet descriptor */
-	lnet_handle_md_t       rqbd_md_h;
+	struct lnet_handle_md		rqbd_md_h;
 	int		    rqbd_refcount;
 	/** The buffer itself */
 	char		  *rqbd_buffer;
@@ -1749,23 +1749,23 @@ static inline bool nrs_policy_compat_one(const struct ptlrpc_service *svc,
 /** @} nrs */
 
 /* ptlrpc/events.c */
-extern lnet_handle_eq_t ptlrpc_eq_h;
+extern struct lnet_handle_eq ptlrpc_eq_h;
 int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
-			lnet_process_id_t *peer, lnet_nid_t *self);
+			struct lnet_process_id *peer, lnet_nid_t *self);
 /**
  * These callbacks are invoked by LNet when something happened to
  * underlying buffer
  * @{
  */
-void request_out_callback(lnet_event_t *ev);
-void reply_in_callback(lnet_event_t *ev);
-void client_bulk_callback(lnet_event_t *ev);
-void request_in_callback(lnet_event_t *ev);
-void reply_out_callback(lnet_event_t *ev);
+void request_out_callback(struct lnet_event *ev);
+void reply_in_callback(struct lnet_event *ev);
+void client_bulk_callback(struct lnet_event *ev);
+void request_in_callback(struct lnet_event *ev);
+void reply_out_callback(struct lnet_event *ev);
 /** @} */
 
 /* ptlrpc/connection.c */
-struct ptlrpc_connection *ptlrpc_connection_get(lnet_process_id_t peer,
+struct ptlrpc_connection *ptlrpc_connection_get(struct lnet_process_id peer,
 						lnet_nid_t self,
 						struct obd_uuid *uuid);
 int ptlrpc_connection_put(struct ptlrpc_connection *c);

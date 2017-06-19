@@ -817,11 +817,6 @@ static inline bool ata_id_sct_error_recovery_ctrl(const u16 *id)
 	return id[ATA_ID_SCT_CMD_XPORT] & (1 << 3) ? true : false;
 }
 
-static inline bool ata_id_sct_write_same(const u16 *id)
-{
-	return id[ATA_ID_SCT_CMD_XPORT] & (1 << 2) ? true : false;
-}
-
 static inline bool ata_id_sct_long_sector_access(const u16 *id)
 {
 	return id[ATA_ID_SCT_CMD_XPORT] & (1 << 1) ? true : false;

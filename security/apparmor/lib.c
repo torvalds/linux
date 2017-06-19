@@ -129,36 +129,6 @@ void aa_info_message(const char *str)
 }
 
 /**
- * __aa_kvmalloc - do allocation preferring kmalloc but falling back to vmalloc
- * @size: how many bytes of memory are required
- * @flags: the type of memory to allocate (see kmalloc).
- *
- * Return: allocated buffer or NULL if failed
- *
- * It is possible that policy being loaded from the user is larger than
- * what can be allocated by kmalloc, in those cases fall back to vmalloc.
- */
-void *__aa_kvmalloc(size_t size, gfp_t flags)
-{
-	void *buffer = NULL;
-
-	if (size == 0)
-		return NULL;
-
-	/* do not attempt kmalloc if we need more than 16 pages at once */
-	if (size <= (16*PAGE_SIZE))
-		buffer = kmalloc(size, flags | GFP_KERNEL | __GFP_NORETRY |
-				 __GFP_NOWARN);
-	if (!buffer) {
-		if (flags & __GFP_ZERO)
-			buffer = vzalloc(size);
-		else
-			buffer = vmalloc(size);
-	}
-	return buffer;
-}
-
-/**
  * aa_policy_init - initialize a policy structure
  * @policy: policy to initialize  (NOT NULL)
  * @prefix: prefix name if any is required.  (MAYBE NULL)
@@ -180,13 +150,13 @@ bool aa_policy_init(struct aa_policy *policy, const char *prefix,
 	} else
 		policy->hname = kstrdup(name, gfp);
 	if (!policy->hname)
-		return 0;
+		return false;
 	/* base.name is a substring of fqname */
 	policy->name = basename(policy->hname);
 	INIT_LIST_HEAD(&policy->list);
 	INIT_LIST_HEAD(&policy->profiles);
 
-	return 1;
+	return true;
 }
 
 /**

@@ -1704,12 +1704,12 @@ static int use_dma;			/* These generate unused var warnings if ALLOW_DMA = 0 */
 static int dma;
 static int dmasize = 16;		/* or 64 */
 
-module_param(io, int, 0);
-module_param(irq, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
 module_param(debug, int, 0);
 module_param_string(media, media, sizeof(media), 0);
 module_param(duplex, int, 0);
-module_param(dma , int, 0);
+module_param_hw(dma , int, dma, 0);
 module_param(dmasize , int, 0);
 module_param(use_dma , int, 0);
 MODULE_PARM_DESC(io, "cs89x0 I/O base address");
@@ -1896,7 +1896,7 @@ static int cs89x0_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct __maybe_unused of_device_id cs89x0_match[] = {
+static const struct of_device_id __maybe_unused cs89x0_match[] = {
 	{ .compatible = "cirrus,cs8900", },
 	{ .compatible = "cirrus,cs8920", },
 	{ },

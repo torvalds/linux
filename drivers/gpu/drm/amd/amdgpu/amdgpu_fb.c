@@ -112,7 +112,7 @@ static void amdgpufb_destroy_pinned_object(struct drm_gem_object *gobj)
 	struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
 	int ret;
 
-	ret = amdgpu_bo_reserve(abo, false);
+	ret = amdgpu_bo_reserve(abo, true);
 	if (likely(ret == 0)) {
 		amdgpu_bo_kunmap(abo);
 		amdgpu_bo_unpin(abo);
@@ -425,9 +425,14 @@ bool amdgpu_fbdev_robj_is_fb(struct amdgpu_device *adev, struct amdgpu_bo *robj)
 
 void amdgpu_fbdev_restore_mode(struct amdgpu_device *adev)
 {
-	struct amdgpu_fbdev *afbdev = adev->mode_info.rfbdev;
+	struct amdgpu_fbdev *afbdev;
 	struct drm_fb_helper *fb_helper;
 	int ret;
+
+	if (!adev)
+		return;
+
+	afbdev = adev->mode_info.rfbdev;
 
 	if (!afbdev)
 		return;

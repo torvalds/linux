@@ -230,7 +230,7 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 
 	/* Get the dw-pcie unit configuration/control registers base. */
 	base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ctrl");
-	pci->dbi_base = devm_ioremap_resource(dev, base);
+	pci->dbi_base = devm_pci_remap_cfg_resource(dev, base);
 	if (IS_ERR(pci->dbi_base)) {
 		dev_err(dev, "couldn't remap regs base %p\n", base);
 		ret = PTR_ERR(pci->dbi_base);
@@ -262,6 +262,7 @@ static struct platform_driver armada8k_pcie_driver = {
 	.driver = {
 		.name	= "armada8k-pcie",
 		.of_match_table = of_match_ptr(armada8k_pcie_of_match),
+		.suppress_bind_attrs = true,
 	},
 };
 builtin_platform_driver(armada8k_pcie_driver);

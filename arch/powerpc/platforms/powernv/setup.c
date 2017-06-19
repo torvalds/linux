@@ -32,6 +32,7 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/xics.h>
+#include <asm/xive.h>
 #include <asm/opal.h>
 #include <asm/kexec.h>
 #include <asm/smp.h>
@@ -76,7 +77,9 @@ static void __init pnv_init(void)
 
 static void __init pnv_init_IRQ(void)
 {
-	xics_init();
+	/* Try using a XIVE if available, otherwise use a XICS */
+	if (!xive_native_init())
+		xics_init();
 
 	WARN_ON(!ppc_md.get_irq);
 }
@@ -95,6 +98,10 @@ static void pnv_show_cpuinfo(struct seq_file *m)
 	else
 		seq_printf(m, "firmware\t: BML\n");
 	of_node_put(root);
+	if (radix_enabled())
+		seq_printf(m, "MMU\t\t: Radix\n");
+	else
+		seq_printf(m, "MMU\t\t: Hash\n");
 }
 
 static void pnv_prepare_going_down(void)
@@ -218,10 +225,12 @@ static void pnv_kexec_wait_secondaries_down(void)
 
 static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 {
-	xics_kexec_teardown_cpu(secondary);
+	if (xive_enabled())
+		xive_kexec_teardown_cpu(secondary);
+	else
+		xics_kexec_teardown_cpu(secondary);
 
 	/* On OPAL, we return all CPUs to firmware */
-
 	if (!firmware_has_feature(FW_FEATURE_OPAL))
 		return;
 
@@ -236,6 +245,10 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 	} else {
 		/* Primary waits for the secondaries to have reached OPAL */
 		pnv_kexec_wait_secondaries_down();
+
+		/* Switch XIVE back to emulation mode */
+		if (xive_enabled())
+			xive_shutdown();
 
 		/*
 		 * We might be running as little-endian - now that interrupts

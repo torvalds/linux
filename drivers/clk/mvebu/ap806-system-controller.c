@@ -23,7 +23,7 @@
 #define AP806_SAR_REG			0x400
 #define AP806_SAR_CLKFREQ_MODE_MASK	0x1f
 
-#define AP806_CLK_NUM			4
+#define AP806_CLK_NUM			5
 
 static struct clk *ap806_clks[AP806_CLK_NUM];
 
@@ -135,6 +135,23 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 		goto fail3;
 	}
 
+	/* eMMC Clock is fixed clock divided by 3 */
+	if (of_property_read_string_index(np, "clock-output-names",
+					  4, &name)) {
+		ap806_clk_data.clk_num--;
+		dev_warn(&pdev->dev,
+			 "eMMC clock missing: update the device tree!\n");
+	} else {
+		ap806_clks[4] = clk_register_fixed_factor(NULL, name,
+							  fixedclk_name,
+							  0, 1, 3);
+		if (IS_ERR(ap806_clks[4])) {
+			ret = PTR_ERR(ap806_clks[4]);
+			goto fail4;
+		}
+	}
+
+	of_clk_add_provider(np, of_clk_src_onecell_get, &ap806_clk_data);
 	ret = of_clk_add_provider(np, of_clk_src_onecell_get, &ap806_clk_data);
 	if (ret)
 		goto fail_clk_add;
@@ -142,6 +159,8 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	return 0;
 
 fail_clk_add:
+	clk_unregister_fixed_factor(ap806_clks[4]);
+fail4:
 	clk_unregister_fixed_factor(ap806_clks[3]);
 fail3:
 	clk_unregister_fixed_rate(ap806_clks[2]);

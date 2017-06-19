@@ -4,6 +4,7 @@ config PINCTRL_SUNXI
 	bool
 	select PINMUX
 	select GENERIC_PINCONF
+	select GPIOLIB
 
 config PINCTRL_SUN4I_A10
 	def_bool MACH_SUN4I
@@ -48,8 +49,8 @@ config PINCTRL_SUN8I_H3
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_H3_R
-	def_bool MACH_SUN8I
-	select PINCTRL_SUNXI_COMMON
+	def_bool MACH_SUN8I || (ARM64 && ARCH_SUNXI)
+	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_V3S
 	def_bool MACH_SUN8I
@@ -65,11 +66,15 @@ config PINCTRL_SUN9I_A80_R
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN50I_A64
-	bool
+	def_bool ARM64 && ARCH_SUNXI
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN50I_A64_R
+	def_bool ARM64 && ARCH_SUNXI
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN50I_H5
-	bool
+	def_bool ARM64 && ARCH_SUNXI
 	select PINCTRL_SUNXI
 
 endif

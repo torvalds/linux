@@ -30,7 +30,6 @@ void init_mlme_ap_info(struct adapter *padapter)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 
-
 	spin_lock_init(&pmlmepriv->bcn_update_lock);
 
 	/* for ACL */
@@ -448,10 +447,8 @@ void	expire_timeout_chk(struct adapter *padapter)
 void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 {
 	int i;
-	u8 rf_type;
 	u32 init_rate = 0;
 	unsigned char sta_band = 0, raid, shortGIrate = false;
-	unsigned char limit;
 	unsigned int tx_ra_bitmap = 0;
 	struct ht_priv	*psta_ht = NULL;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -472,16 +469,9 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 	}
 	/* n mode ra_bitmap */
 	if (psta_ht->ht_option) {
-		rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-		if (rf_type == RF_2T2R)
-			limit = 16;/*  2R */
-		else
-			limit = 8;/*   1R */
-
-		for (i = 0; i < limit; i++) {
-			if (psta_ht->ht_cap.mcs.rx_mask[i / 8] & BIT(i % 8))
+		for (i = 0; i < 8; i++)
+			if (psta_ht->ht_cap.mcs.rx_mask[0] & BIT(i))
 				tx_ra_bitmap |= BIT(i + 12);
-		}
 
 		/* max short GI rate */
 		shortGIrate = psta_ht->sgi;
@@ -729,7 +719,7 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	u8 val8, cur_channel, cur_bwmode, cur_ch_offset;
 	u16 bcn_interval;
 	u32	acparm;
-	int	ie_len;
+	uint	ie_len;
 	struct registry_priv	 *pregpriv = &padapter->registrypriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
@@ -888,7 +878,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 		return _FAIL;
 
 
-	if (len > MAX_IE_SZ)
+	if (len < 0 || len > MAX_IE_SZ)
 		return _FAIL;
 
 	pbss_network->IELength = len;
@@ -1033,14 +1023,11 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	p = rtw_get_ie(ie + _BEACON_IE_OFFSET_, _HT_CAPABILITY_IE_, &ie_len,
 		       (pbss_network->IELength - _BEACON_IE_OFFSET_));
 	if (p && ie_len > 0) {
-		u8 rf_type;
 		struct ieee80211_ht_cap *pht_cap = (struct ieee80211_ht_cap *)(p + 2);
 
 		pHT_caps_ie = p;
 		ht_cap = true;
 		network_type |= WIRELESS_11_24N;
-
-		rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 
 		if ((psecuritypriv->wpa_pairwise_cipher & WPA_CIPHER_CCMP) ||
 		    (psecuritypriv->wpa2_pairwise_cipher & WPA_CIPHER_CCMP))
@@ -1051,10 +1038,8 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 		/* set  Max Rx AMPDU size  to 64K */
 		pht_cap->ampdu_params_info |= (IEEE80211_HT_CAP_AMPDU_FACTOR & 0x03);
 
-		if (rf_type == RF_1T1R) {
-			pht_cap->mcs.rx_mask[0] = 0xff;
-			pht_cap->mcs.rx_mask[1] = 0x0;
-		}
+		pht_cap->mcs.rx_mask[0] = 0xff;
+		pht_cap->mcs.rx_mask[1] = 0x0;
 		memcpy(&pmlmepriv->htpriv.ht_cap, p+2, ie_len);
 	}
 

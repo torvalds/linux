@@ -521,7 +521,7 @@ static inline struct drm_i915_gem_request *
 __i915_gem_active_get_rcu(const struct i915_gem_active *active)
 {
 	/* Performing a lockless retrieval of the active request is super
-	 * tricky. SLAB_DESTROY_BY_RCU merely guarantees that the backing
+	 * tricky. SLAB_TYPESAFE_BY_RCU merely guarantees that the backing
 	 * slab of request objects will not be freed whilst we hold the
 	 * RCU read lock. It does not guarantee that the request itself
 	 * will not be freed and then *reused*. Viz,

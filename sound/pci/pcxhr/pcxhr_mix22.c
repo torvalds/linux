@@ -744,7 +744,7 @@ static int hr222_mic_vol_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new hr222_control_mic_level = {
+static const struct snd_kcontrol_new hr222_control_mic_level = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -794,7 +794,7 @@ static int hr222_mic_boost_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new hr222_control_mic_boost = {
+static const struct snd_kcontrol_new hr222_control_mic_boost = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -836,7 +836,7 @@ static int hr222_phantom_power_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new hr222_phantom_power_switch = {
+static const struct snd_kcontrol_new hr222_phantom_power_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Phantom Power Switch",
 	.info = hr222_phantom_power_info,

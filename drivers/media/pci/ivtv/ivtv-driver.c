@@ -409,7 +409,7 @@ void ivtv_read_eeprom(struct ivtv *itv, struct tveeprom *tv)
 
 	itv->i2c_client.addr = 0xA0 >> 1;
 	tveeprom_read(&itv->i2c_client, eedata, sizeof(eedata));
-	tveeprom_hauppauge_analog(&itv->i2c_client, tv, eedata);
+	tveeprom_hauppauge_analog(tv, eedata);
 }
 
 static void ivtv_process_eeprom(struct ivtv *itv)
@@ -770,9 +770,8 @@ static int ivtv_init_struct1(struct ivtv *itv)
 	init_waitqueue_head(&itv->event_waitq);
 	init_waitqueue_head(&itv->vsync_waitq);
 	init_waitqueue_head(&itv->dma_waitq);
-	init_timer(&itv->dma_timer);
-	itv->dma_timer.function = ivtv_unfinished_dma;
-	itv->dma_timer.data = (unsigned long)itv;
+	setup_timer(&itv->dma_timer, ivtv_unfinished_dma,
+		    (unsigned long)itv);
 
 	itv->cur_dma_stream = -1;
 	itv->cur_pio_stream = -1;

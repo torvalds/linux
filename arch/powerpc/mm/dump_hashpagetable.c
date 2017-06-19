@@ -468,7 +468,7 @@ static void walk_linearmapping(struct pg_state *st)
 	unsigned long psize = 1 << mmu_psize_defs[mmu_linear_psize].shift;
 
 	for (addr = PAGE_OFFSET; addr < PAGE_OFFSET +
-			memblock_phys_mem_size(); addr += psize)
+			memblock_end_of_DRAM(); addr += psize)
 		hpte_find(st, addr, mmu_linear_psize);
 }
 

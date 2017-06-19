@@ -1375,39 +1375,39 @@ MODULE_PARM_DESC(type, "Defines the type of each interface, each"
 		 " interface separated by commas.  The types are 'kcs',"
 		 " 'smic', and 'bt'.  For example si_type=kcs,bt will set"
 		 " the first interface to kcs and the second to bt");
-module_param_array(addrs, ulong, &num_addrs, 0);
+module_param_hw_array(addrs, ulong, iomem, &num_addrs, 0);
 MODULE_PARM_DESC(addrs, "Sets the memory address of each interface, the"
 		 " addresses separated by commas.  Only use if an interface"
 		 " is in memory.  Otherwise, set it to zero or leave"
 		 " it blank.");
-module_param_array(ports, uint, &num_ports, 0);
+module_param_hw_array(ports, uint, ioport, &num_ports, 0);
 MODULE_PARM_DESC(ports, "Sets the port address of each interface, the"
 		 " addresses separated by commas.  Only use if an interface"
 		 " is a port.  Otherwise, set it to zero or leave"
 		 " it blank.");
-module_param_array(irqs, int, &num_irqs, 0);
+module_param_hw_array(irqs, int, irq, &num_irqs, 0);
 MODULE_PARM_DESC(irqs, "Sets the interrupt of each interface, the"
 		 " addresses separated by commas.  Only use if an interface"
 		 " has an interrupt.  Otherwise, set it to zero or leave"
 		 " it blank.");
-module_param_array(regspacings, int, &num_regspacings, 0);
+module_param_hw_array(regspacings, int, other, &num_regspacings, 0);
 MODULE_PARM_DESC(regspacings, "The number of bytes between the start address"
 		 " and each successive register used by the interface.  For"
 		 " instance, if the start address is 0xca2 and the spacing"
 		 " is 2, then the second address is at 0xca4.  Defaults"
 		 " to 1.");
-module_param_array(regsizes, int, &num_regsizes, 0);
+module_param_hw_array(regsizes, int, other, &num_regsizes, 0);
 MODULE_PARM_DESC(regsizes, "The size of the specific IPMI register in bytes."
 		 " This should generally be 1, 2, 4, or 8 for an 8-bit,"
 		 " 16-bit, 32-bit, or 64-bit register.  Use this if you"
 		 " the 8-bit IPMI register has to be read from a larger"
 		 " register.");
-module_param_array(regshifts, int, &num_regshifts, 0);
+module_param_hw_array(regshifts, int, other, &num_regshifts, 0);
 MODULE_PARM_DESC(regshifts, "The amount to shift the data read from the."
 		 " IPMI register, in bits.  For instance, if the data"
 		 " is read from a 32-bit word and the IPMI data is in"
 		 " bit 8-15, then the shift would be 8");
-module_param_array(slave_addrs, int, &num_slave_addrs, 0);
+module_param_hw_array(slave_addrs, int, other, &num_slave_addrs, 0);
 MODULE_PARM_DESC(slave_addrs, "Set the default IPMB slave address for"
 		 " the controller.  Normally this is 0x20, but can be"
 		 " overridden by this parm.  This is an array indexed"
@@ -1954,7 +1954,9 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 				kfree(info);
 				goto out;
 			}
+			mutex_lock(&smi_infos_lock);
 			rv = try_smi_init(info);
+			mutex_unlock(&smi_infos_lock);
 			if (rv) {
 				cleanup_one_si(info);
 				goto out;
@@ -2042,8 +2044,10 @@ static int hardcode_find_bmc(void)
 		info->slave_addr = slave_addrs[i];
 
 		if (!add_smi(info)) {
+			mutex_lock(&smi_infos_lock);
 			if (try_smi_init(info))
 				cleanup_one_si(info);
+			mutex_unlock(&smi_infos_lock);
 			ret = 0;
 		} else {
 			kfree(info);
@@ -3492,6 +3496,11 @@ out_err:
 	return rv;
 }
 
+/*
+ * Try to start up an interface.  Must be called with smi_infos_lock
+ * held, primarily to keep smi_num consistent, we only one to do these
+ * one at a time.
+ */
 static int try_smi_init(struct smi_info *new_smi)
 {
 	int rv = 0;
@@ -3524,9 +3533,12 @@ static int try_smi_init(struct smi_info *new_smi)
 		goto out_err;
 	}
 
+	new_smi->intf_num = smi_num;
+
 	/* Do this early so it's available for logs. */
 	if (!new_smi->dev) {
-		init_name = kasprintf(GFP_KERNEL, "ipmi_si.%d", 0);
+		init_name = kasprintf(GFP_KERNEL, "ipmi_si.%d",
+				      new_smi->intf_num);
 
 		/*
 		 * If we don't already have a device from something
@@ -3593,8 +3605,6 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	new_smi->interrupt_disabled = true;
 	atomic_set(&new_smi->need_watch, 0);
-	new_smi->intf_num = smi_num;
-	smi_num++;
 
 	rv = try_enable_event_buffer(new_smi);
 	if (rv == 0)
@@ -3660,6 +3670,9 @@ static int try_smi_init(struct smi_info *new_smi)
 		dev_err(new_smi->dev, "Unable to create proc entry: %d\n", rv);
 		goto out_err_stop_timer;
 	}
+
+	/* Don't increment till we know we have succeeded. */
+	smi_num++;
 
 	dev_info(new_smi->dev, "IPMI %s interface initialized\n",
 		 si_to_str[new_smi->si_type]);

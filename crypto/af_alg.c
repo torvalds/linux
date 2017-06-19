@@ -160,11 +160,11 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (sock->state == SS_CONNECTED)
 		return -EINVAL;
 
-	if (addr_len != sizeof(*sa))
+	if (addr_len < sizeof(*sa))
 		return -EINVAL;
 
 	sa->salg_type[sizeof(sa->salg_type) - 1] = 0;
-	sa->salg_name[sizeof(sa->salg_name) - 1] = 0;
+	sa->salg_name[sizeof(sa->salg_name) + addr_len - sizeof(*sa) - 1] = 0;
 
 	type = alg_get_type(sa->salg_type);
 	if (IS_ERR(type) && PTR_ERR(type) == -ENOENT) {

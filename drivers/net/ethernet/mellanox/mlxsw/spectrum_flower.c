@@ -39,6 +39,7 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/tc_act/tc_vlan.h>
 
 #include "spectrum.h"
 #include "core_acl_flex_keys.h"
@@ -55,6 +56,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 	if (tc_no_actions(exts))
 		return 0;
 
+	/* Count action is inserted first */
+	err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei);
+	if (err)
+		return err;
+
 	tcf_exts_to_list(exts, &actions);
 	list_for_each_entry(a, &actions, list) {
 		if (is_tcf_gact_shot(a)) {
@@ -65,6 +71,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			int ifindex = tcf_mirred_ifindex(a);
 			struct net_device *out_dev;
 
+			err = mlxsw_sp_acl_rulei_act_fid_set(mlxsw_sp, rulei,
+							     MLXSW_SP_DUMMY_FID);
+			if (err)
+				return err;
+
 			out_dev = __dev_get_by_index(dev_net(dev), ifindex);
 			if (out_dev == dev)
 				out_dev = NULL;
@@ -73,6 +84,15 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 							 out_dev);
 			if (err)
 				return err;
+		} else if (is_tcf_vlan(a)) {
+			u16 proto = be16_to_cpu(tcf_vlan_push_proto(a));
+			u32 action = tcf_vlan_action(a);
+			u8 prio = tcf_vlan_push_prio(a);
+			u16 vid = tcf_vlan_push_vid(a);
+
+			return mlxsw_sp_acl_rulei_act_vlan(mlxsw_sp, rulei,
+							   action, vid,
+							   proto, prio);
 		} else {
 			dev_err(mlxsw_sp->bus_info->dev, "Unsupported action\n");
 			return -EOPNOTSUPP;
@@ -173,7 +193,8 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_PORTS))) {
+	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_VLAN))) {
 		dev_err(mlxsw_sp->bus_info->dev, "Unsupported key\n");
 		return -EOPNOTSUPP;
 	}
@@ -232,6 +253,27 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 					       MLXSW_AFK_ELEMENT_SMAC,
 					       key->src, mask->src,
 					       sizeof(key->src));
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_dissector_key_vlan *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_VLAN,
+						  f->key);
+		struct flow_dissector_key_vlan *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_VLAN,
+						  f->mask);
+		if (mask->vlan_id != 0)
+			mlxsw_sp_acl_rulei_keymask_u32(rulei,
+						       MLXSW_AFK_ELEMENT_VID,
+						       key->vlan_id,
+						       mask->vlan_id);
+		if (mask->vlan_priority != 0)
+			mlxsw_sp_acl_rulei_keymask_u32(rulei,
+						       MLXSW_AFK_ELEMENT_PCP,
+						       key->vlan_priority,
+						       mask->vlan_priority);
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS)
@@ -313,4 +355,48 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 	}
 
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
+}
+
+int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
+			  struct tc_cls_flower_offload *f)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_acl_ruleset *ruleset;
+	struct mlxsw_sp_acl_rule *rule;
+	struct tc_action *a;
+	LIST_HEAD(actions);
+	u64 packets;
+	u64 lastuse;
+	u64 bytes;
+	int err;
+
+	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, mlxsw_sp_port->dev,
+					   ingress,
+					   MLXSW_SP_ACL_PROFILE_FLOWER);
+	if (WARN_ON(IS_ERR(ruleset)))
+		return -EINVAL;
+
+	rule = mlxsw_sp_acl_rule_lookup(mlxsw_sp, ruleset, f->cookie);
+	if (!rule)
+		return -EINVAL;
+
+	err = mlxsw_sp_acl_rule_get_stats(mlxsw_sp, rule, &packets, &bytes,
+					  &lastuse);
+	if (err)
+		goto err_rule_get_stats;
+
+	preempt_disable();
+
+	tcf_exts_to_list(f->exts, &actions);
+	list_for_each_entry(a, &actions, list)
+		tcf_action_stats_update(a, bytes, packets, lastuse);
+
+	preempt_enable();
+
+	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
+	return 0;
+
+err_rule_get_stats:
+	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
+	return err;
 }

@@ -235,14 +235,19 @@ done:
 
 static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 {
+	int width;
+
 	memset(desc, 0, sizeof(*desc));
 	desc->bDescriptorType = USB_DT_HUB;
-	desc->bDescLength = 9;
 	desc->wHubCharacteristics = cpu_to_le16(
 		HUB_CHAR_INDV_PORT_LPSM | HUB_CHAR_COMMON_OCPM);
+
 	desc->bNbrPorts = VHCI_HC_PORTS;
-	desc->u.hs.DeviceRemovable[0] = 0xff;
-	desc->u.hs.DeviceRemovable[1] = 0xff;
+	BUILD_BUG_ON(VHCI_HC_PORTS > USB_MAXCHILDREN);
+	width = desc->bNbrPorts / 8 + 1;
+	desc->bDescLength = USB_DT_HUB_NONVAR_SIZE + 2 * width;
+	memset(&desc->u.hs.DeviceRemovable[0], 0, width);
+	memset(&desc->u.hs.DeviceRemovable[width], 0xff, width);
 }
 
 static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
@@ -430,36 +435,8 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	return retval;
 }
 
-static struct vhci_device *get_vdev(struct usb_device *udev)
+static void vhci_tx_urb(struct urb *urb, struct vhci_device *vdev)
 {
-	struct platform_device *pdev;
-	struct usb_hcd *hcd;
-	struct vhci_hcd *vhci;
-	int pdev_nr, rhport;
-
-	if (!udev)
-		return NULL;
-
-	for (pdev_nr = 0; pdev_nr < vhci_num_controllers; pdev_nr++) {
-		pdev = *(vhci_pdevs + pdev_nr);
-		if (pdev == NULL)
-			continue;
-		hcd = platform_get_drvdata(pdev);
-		if (hcd == NULL)
-			continue;
-		vhci = hcd_to_vhci(hcd);
-		for (rhport = 0; rhport < VHCI_HC_PORTS; rhport++) {
-			if (vhci->vdev[rhport].udev == udev)
-				return &vhci->vdev[rhport];
-		}
-	}
-
-	return NULL;
-}
-
-static void vhci_tx_urb(struct urb *urb)
-{
-	struct vhci_device *vdev = get_vdev(urb->dev);
 	struct vhci_priv *priv;
 	struct vhci_hcd *vhci;
 	unsigned long flags;
@@ -601,7 +578,7 @@ static int vhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	}
 
 out:
-	vhci_tx_urb(urb);
+	vhci_tx_urb(urb, vdev);
 	spin_unlock_irqrestore(&vhci->lock, flags);
 
 	return 0;

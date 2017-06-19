@@ -25,11 +25,12 @@ struct vsp1_rwpf;
 
 /*
  * struct vsp1_format_info - VSP1 video format description
- * @mbus: media bus format code
  * @fourcc: V4L2 pixel format FCC identifier
+ * @mbus: media bus format code
+ * @hwfmt: VSP1 hardware format
+ * @swap: swap register control
  * @planes: number of planes
  * @bpp: bits per pixel
- * @hwfmt: VSP1 hardware format
  * @swap_yc: the Y and C components are swapped (Y comes before C)
  * @swap_uv: the U and V components are swapped (V comes before U)
  * @hsub: horizontal subsampling factor
@@ -72,6 +73,8 @@ enum vsp1_pipeline_state {
  * @inputs: array of RPFs in the pipeline (indexed by RPF index)
  * @output: WPF at the output of the pipeline
  * @bru: BRU entity, if present
+ * @hgo: HGO entity, if present
+ * @hgt: HGT entity, if present
  * @lif: LIF entity, if present
  * @uds: UDS entity, if present
  * @uds_input: entity at the input of the UDS, if the UDS is present
@@ -100,6 +103,8 @@ struct vsp1_pipeline {
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF];
 	struct vsp1_rwpf *output;
 	struct vsp1_entity *bru;
+	struct vsp1_entity *hgo;
+	struct vsp1_entity *hgt;
 	struct vsp1_entity *lif;
 	struct vsp1_entity *uds;
 	struct vsp1_entity *uds_input;

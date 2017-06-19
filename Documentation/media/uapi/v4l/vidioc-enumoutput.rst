@@ -33,11 +33,11 @@ Description
 
 To query the attributes of a video outputs applications initialize the
 ``index`` field of struct :c:type:`v4l2_output` and call
-the :ref:`VIDIOC_ENUMOUTPUT` ioctl with a pointer to this structure.
+the :ref:`VIDIOC_ENUMOUTPUT` with a pointer to this structure.
 Drivers fill the rest of the structure or return an ``EINVAL`` error code
 when the index is out of bounds. To enumerate all outputs applications
 shall begin at index zero, incrementing by one until the driver returns
-EINVAL.
+``EINVAL``.
 
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -112,11 +112,12 @@ EINVAL.
       - This output is an analog TV modulator.
     * - ``V4L2_OUTPUT_TYPE_ANALOG``
       - 2
-      - Analog baseband output, for example Composite / CVBS, S-Video,
-	RGB.
+      - Any non-modulator video output, for example Composite Video,
+	S-Video, HDMI. The naming as ``_TYPE_ANALOG`` is historical,
+	today we would have called it ``_TYPE_VIDEO``.
     * - ``V4L2_OUTPUT_TYPE_ANALOGVGAOVERLAY``
       - 3
-      - [?]
+      - The video output will be copied to a :ref:`video overlay <overlay>`.
 
 
 
@@ -132,11 +133,11 @@ EINVAL.
     * - ``V4L2_OUT_CAP_DV_TIMINGS``
       - 0x00000002
       - This output supports setting video timings by using
-	VIDIOC_S_DV_TIMINGS.
+	``VIDIOC_S_DV_TIMINGS``.
     * - ``V4L2_OUT_CAP_STD``
       - 0x00000004
       - This output supports setting the TV standard by using
-	VIDIOC_S_STD.
+	``VIDIOC_S_STD``.
     * - ``V4L2_OUT_CAP_NATIVE_SIZE``
       - 0x00000008
       - This output supports setting the native size using the

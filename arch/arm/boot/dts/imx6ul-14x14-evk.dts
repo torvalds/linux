@@ -85,11 +85,6 @@
 	assigned-clock-rates = <786432000>;
 };
 
-&cpu0 {
-	arm-supply = <&reg_arm>;
-	soc-supply = <&reg_soc>;
-};
-
 &i2c2 {
 	clock_frequency = <100000>;
 	pinctrl-names = "default";
@@ -125,10 +120,16 @@
 
 		ethphy0: ethernet-phy@2 {
 			reg = <2>;
+			micrel,led-mode = <1>;
+			clocks = <&clks IMX6UL_CLK_ENET_REF>;
+			clock-names = "rmii-ref";
 		};
 
 		ethphy1: ethernet-phy@1 {
 			reg = <1>;
+			micrel,led-mode = <1>;
+			clocks = <&clks IMX6UL_CLK_ENET2_REF>;
+			clock-names = "rmii-ref";
 		};
 	};
 };

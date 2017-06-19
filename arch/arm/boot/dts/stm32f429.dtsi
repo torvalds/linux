@@ -450,6 +450,8 @@
 				clocks = <&rcc 0 STM32F4_APB2_CLOCK(ADC1)>;
 				interrupt-parent = <&adc>;
 				interrupts = <0>;
+				dmas = <&dma2 0 0 0x400 0x0>;
+				dma-names = "rx";
 				status = "disabled";
 			};
 
@@ -460,6 +462,8 @@
 				clocks = <&rcc 0 STM32F4_APB2_CLOCK(ADC2)>;
 				interrupt-parent = <&adc>;
 				interrupts = <1>;
+				dmas = <&dma2 3 1 0x400 0x0>;
+				dma-names = "rx";
 				status = "disabled";
 			};
 
@@ -470,6 +474,8 @@
 				clocks = <&rcc 0 STM32F4_APB2_CLOCK(ADC3)>;
 				interrupt-parent = <&adc>;
 				interrupts = <2>;
+				dmas = <&dma2 1 2 0x400 0x0>;
+				dma-names = "rx";
 				status = "disabled";
 			};
 		};
@@ -666,6 +672,28 @@
 				};
 			};
 
+			usbotg_fs_pins_a: usbotg_fs@0 {
+				pins {
+					pinmux = <STM32F429_PA10_FUNC_OTG_FS_ID>,
+						 <STM32F429_PA11_FUNC_OTG_FS_DM>,
+						 <STM32F429_PA12_FUNC_OTG_FS_DP>;
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+			};
+
+			usbotg_fs_pins_b: usbotg_fs@1 {
+				pins {
+					pinmux = <STM32F429_PB12_FUNC_OTG_HS_ID>,
+						 <STM32F429_PB14_FUNC_OTG_HS_DM>,
+						 <STM32F429_PB15_FUNC_OTG_HS_DP>;
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+			};
+
 			usbotg_hs_pins_a: usbotg_hs@0 {
 				pins {
 					pinmux = <STM32F429_PH4_FUNC_OTG_HS_ULPI_NXT>,
@@ -801,6 +829,15 @@
 			reg = <0x40040000 0x40000>;
 			interrupts = <77>;
 			clocks = <&rcc 0 STM32F4_AHB1_CLOCK(OTGHS)>;
+			clock-names = "otg";
+			status = "disabled";
+		};
+
+		usbotg_fs: usb@50000000 {
+			compatible = "st,stm32f4x9-fsotg";
+			reg = <0x50000000 0x40000>;
+			interrupts = <67>;
+			clocks = <&rcc 0 39>;
 			clock-names = "otg";
 			status = "disabled";
 		};

@@ -1849,9 +1849,8 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 		wqe_count -= counter;
 		nes_write32(nesdev->regs+NES_WQE_ALLOC, (counter << 24) | nesvnic->nic.qp_id);
 	} while (wqe_count);
-	init_timer(&nesvnic->rq_wqes_timer);
-	nesvnic->rq_wqes_timer.function = nes_rq_wqes_timeout;
-	nesvnic->rq_wqes_timer.data = (unsigned long)nesvnic;
+	setup_timer(&nesvnic->rq_wqes_timer, nes_rq_wqes_timeout,
+		    (unsigned long)nesvnic);
 	nes_debug(NES_DBG_INIT, "NAPI support Enabled\n");
 	if (nesdev->nesadapter->et_use_adaptive_rx_coalesce)
 	{
@@ -3055,7 +3054,7 @@ static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 		memcpy(cqp_wqe, &cqp_request->cqp_wqe, sizeof(*cqp_wqe));
 		barrier();
 
-		opcode = cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX];
+		opcode = le32_to_cpu(cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX]);
 		if ((opcode & NES_CQP_OPCODE_MASK) == NES_CQP_DOWNLOAD_SEGMENT)
 			ctx_index = NES_CQP_WQE_DL_COMP_CTX_LOW_IDX;
 		else

@@ -15,6 +15,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -55,7 +56,7 @@
 #define ADS1015_DEFAULT_DATA_RATE	4
 #define ADS1015_DEFAULT_CHAN		0
 
-enum {
+enum chip_ids {
 	ADS1015,
 	ADS1115,
 };
@@ -578,6 +579,7 @@ static int ads1015_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	struct ads1015_data *data;
 	int ret;
+	enum chip_ids chip;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -593,7 +595,11 @@ static int ads1015_probe(struct i2c_client *client,
 	indio_dev->name = ADS1015_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	switch (id->driver_data) {
+	if (client->dev.of_node)
+		chip = (enum chip_ids)of_device_get_match_data(&client->dev);
+	else
+		chip = id->driver_data;
+	switch (chip) {
 	case ADS1015:
 		indio_dev->channels = ads1015_channels;
 		indio_dev->num_channels = ARRAY_SIZE(ads1015_channels);
@@ -698,9 +704,23 @@ static const struct i2c_device_id ads1015_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ads1015_id);
 
+static const struct of_device_id ads1015_of_match[] = {
+	{
+		.compatible = "ti,ads1015",
+		.data = (void *)ADS1015
+	},
+	{
+		.compatible = "ti,ads1115",
+		.data = (void *)ADS1115
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, ads1015_of_match);
+
 static struct i2c_driver ads1015_driver = {
 	.driver = {
 		.name = ADS1015_DRV_NAME,
+		.of_match_table = ads1015_of_match,
 		.pm = &ads1015_pm_ops,
 	},
 	.probe		= ads1015_probe,

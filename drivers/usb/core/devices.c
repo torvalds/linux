@@ -24,7 +24,7 @@
  * <mountpoint>/devices contains USB topology, device, config, class,
  * interface, & endpoint data.
  *
- * I considered using /proc/bus/usb/devices/device# for each device
+ * I considered using /dev/bus/usb/device# for each device
  * as it is attached or detached, but I didn't like this for some
  * reason -- maybe it's just too deep of a directory structure.
  * I also don't like looking in multiple places to gather and view
@@ -40,7 +40,7 @@
  *   Converted the whole proc stuff to real
  *   read methods. Now not the whole device list needs to fit
  *   into one page, only the device list for one bus.
- *   Added a poll method to /proc/bus/usb/devices, to wake
+ *   Added a poll method to /sys/kernel/debug/usb/devices, to wake
  *   up an eventual usbd
  * 2000-01-04: Thomas Sailer <sailer@ife.ee.ethz.ch>
  *   Turned into its own filesystem

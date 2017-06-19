@@ -468,7 +468,8 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	np = config->dev->of_node;
 	nvmem->dev.of_node = np;
 	dev_set_name(&nvmem->dev, "%s%d",
-		     config->name ? : "nvmem", config->id);
+		     config->name ? : "nvmem",
+		     config->name ? config->id : nvmem->id);
 
 	nvmem->read_only = of_property_read_bool(np, "read-only") |
 			   config->read_only;

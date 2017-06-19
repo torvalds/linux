@@ -224,7 +224,7 @@
 	};
 
 	flow-controller@60007000 {
-		compatible = "nvidia,tegra124-flowctrl";
+		compatible = "nvidia,tegra132-flowctrl", "nvidia,tegra124-flowctrl";
 		reg = <0x0 0x60007000 0x0 0x1000>;
 	};
 

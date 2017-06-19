@@ -84,7 +84,8 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(&hsit->entity, config, fmt->pad);
 
 	if (fmt->pad == HSIT_PAD_SOURCE) {
-		/* The HST and HSI output format code and resolution can't be
+		/*
+		 * The HST and HSI output format code and resolution can't be
 		 * modified.
 		 */
 		fmt->format = *format;

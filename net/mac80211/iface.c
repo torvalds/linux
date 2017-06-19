@@ -676,7 +676,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
-	if (sdata->vif.type == NL80211_IFTYPE_WDS) {
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_WDS:
 		/* Create STA entry for the WDS peer */
 		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
 				     GFP_KERNEL);
@@ -697,8 +698,17 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 		rate_control_rate_init(sta);
 		netif_carrier_on(dev);
-	} else if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE) {
+		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
 		rcu_assign_pointer(local->p2p_sdata, sdata);
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		if (sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES)
+			break;
+		list_add_tail_rcu(&sdata->u.mntr.list, &local->mon_list);
+		break;
+	default:
+		break;
 	}
 
 	/*
@@ -816,6 +826,11 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		break;
 	case NL80211_IFTYPE_AP:
 		cancel_work_sync(&sdata->u.ap.request_smps_work);
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		if (sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES)
+			break;
+		list_del_rcu(&sdata->u.mntr.list);
 		break;
 	default:
 		break;
@@ -1198,7 +1213,6 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 static void ieee80211_if_free(struct net_device *dev)
 {
 	free_percpu(dev->tstats);
-	free_netdev(dev);
 }
 
 static void ieee80211_if_setup(struct net_device *dev)
@@ -1206,7 +1220,8 @@ static void ieee80211_if_setup(struct net_device *dev)
 	ether_setup(dev);
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->netdev_ops = &ieee80211_dataif_ops;
-	dev->destructor = ieee80211_if_free;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = ieee80211_if_free;
 }
 
 static void ieee80211_if_setup_no_queue(struct net_device *dev)
@@ -1222,7 +1237,6 @@ static void ieee80211_iface_work(struct work_struct *work)
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct sta_info *sta;
-	struct ieee80211_ra_tid *ra_tid;
 	struct ieee80211_rx_agg *rx_agg;
 
 	if (!ieee80211_sdata_running(sdata))
@@ -1238,15 +1252,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 	while ((skb = skb_dequeue(&sdata->skb_queue))) {
 		struct ieee80211_mgmt *mgmt = (void *)skb->data;
 
-		if (skb->pkt_type == IEEE80211_SDATA_QUEUE_AGG_START) {
-			ra_tid = (void *)&skb->cb;
-			ieee80211_start_tx_ba_cb(&sdata->vif, ra_tid->ra,
-						 ra_tid->tid);
-		} else if (skb->pkt_type == IEEE80211_SDATA_QUEUE_AGG_STOP) {
-			ra_tid = (void *)&skb->cb;
-			ieee80211_stop_tx_ba_cb(&sdata->vif, ra_tid->ra,
-						ra_tid->tid);
-		} else if (skb->pkt_type == IEEE80211_SDATA_QUEUE_RX_AGG_START) {
+		if (skb->pkt_type == IEEE80211_SDATA_QUEUE_RX_AGG_START) {
 			rx_agg = (void *)&skb->cb;
 			mutex_lock(&local->sta_mtx);
 			sta = sta_info_get_bss(sdata, rx_agg->addr);
@@ -1810,6 +1816,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		ret = dev_alloc_name(ndev, ndev->name);
 		if (ret < 0) {
 			ieee80211_if_free(ndev);
+			free_netdev(ndev);
 			return ret;
 		}
 
@@ -1899,7 +1906,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 		ret = register_netdevice(ndev);
 		if (ret) {
-			ieee80211_if_free(ndev);
+			free_netdev(ndev);
 			return ret;
 		}
 	}

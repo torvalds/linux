@@ -261,8 +261,7 @@ static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
 }
 
 /*
- * Guts of ath10k_ce_send, used by both ath10k_ce_send and
- * ath10k_ce_sendlist_send.
+ * Guts of ath10k_ce_send.
  * The caller takes responsibility for any needed locking.
  */
 int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
@@ -1052,7 +1051,7 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 	 */
 	BUILD_BUG_ON(2 * TARGET_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
-	BUILD_BUG_ON(2 * TARGET_10X_NUM_MSDU_DESC >
+	BUILD_BUG_ON(2 * TARGET_10_4_NUM_MSDU_DESC_PFC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
 	BUILD_BUG_ON(2 * TARGET_TLV_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));

@@ -13,10 +13,10 @@
  *
  */
 
+#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <stdbool.h>
-#include <ctype.h>
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
@@ -46,7 +46,6 @@
 #include "cpumap.h"
 #include "thread_map.h"
 #include "asm/bug.h"
-#include "symbol/kallsyms.h"
 #include "auxtrace.h"
 
 #include <linux/hash.h>
@@ -58,6 +57,9 @@
 
 #include "intel-pt.h"
 #include "intel-bts.h"
+
+#include "sane_ctype.h"
+#include "symbol/kallsyms.h"
 
 int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 			struct auxtrace_mmap_params *mp,
@@ -1826,7 +1828,7 @@ static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
 		filt->addr = start;
 		if (filt->range && !filt->size && !filt->sym_to) {
 			filt->size = size;
-			no_size = !!size;
+			no_size = !size;
 		}
 	}
 
@@ -1840,7 +1842,7 @@ static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
 		if (err)
 			return err;
 		filt->size = start + size - filt->addr;
-		no_size = !!size;
+		no_size = !size;
 	}
 
 	/* The very last symbol in kallsyms does not imply a particular size */

@@ -694,8 +694,7 @@ struct address_space_operations {
 
   write_end: After a successful write_begin, and data copy, write_end must
         be called. len is the original len passed to write_begin, and copied
-        is the amount that was able to be copied (copied == len is always true
-	if write_begin was called with the AOP_FLAG_UNINTERRUPTIBLE flag).
+        is the amount that was able to be copied.
 
         The filesystem must take care of unlocking the page and releasing it
         refcount, and updating i_size.

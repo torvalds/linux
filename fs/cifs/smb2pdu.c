@@ -33,6 +33,7 @@
 #include <linux/vfs.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/uaccess.h>
+#include <linux/uuid.h>
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
 #include "smb2pdu.h"
@@ -632,8 +633,12 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	}
 
 	if (rsplen != sizeof(struct validate_negotiate_info_rsp)) {
-		cifs_dbg(VFS, "invalid size of protocol negotiate response\n");
-		return -EIO;
+		cifs_dbg(VFS, "invalid protocol negotiate response size: %d\n",
+			 rsplen);
+
+		/* relax check since Mac returns max bufsize allowed on ioctl */
+		if (rsplen > CIFSMaxBufSize)
+			return -EIO;
 	}
 
 	/* check validate negotiate info response matches what we got earlier */
@@ -1235,15 +1240,19 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 		goto tcon_exit;
 	}
 
-	if (rsp->ShareType & SMB2_SHARE_TYPE_DISK)
+	switch (rsp->ShareType) {
+	case SMB2_SHARE_TYPE_DISK:
 		cifs_dbg(FYI, "connection to disk share\n");
-	else if (rsp->ShareType & SMB2_SHARE_TYPE_PIPE) {
+		break;
+	case SMB2_SHARE_TYPE_PIPE:
 		tcon->ipc = true;
 		cifs_dbg(FYI, "connection to pipe share\n");
-	} else if (rsp->ShareType & SMB2_SHARE_TYPE_PRINT) {
-		tcon->print = true;
+		break;
+	case SMB2_SHARE_TYPE_PRINT:
+		tcon->ipc = true;
 		cifs_dbg(FYI, "connection to printer\n");
-	} else {
+		break;
+	default:
 		cifs_dbg(VFS, "unknown share type %d\n", rsp->ShareType);
 		rc = -EOPNOTSUPP;
 		goto tcon_error_exit;
@@ -1853,8 +1862,12 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	 * than one credit. Windows typically sets this smaller, but for some
 	 * ioctls it may be useful to allow server to send more. No point
 	 * limiting what the server can send as long as fits in one credit
+	 * Unfortunately - we can not handle more than CIFS_MAX_MSG_SIZE
+	 * (by default, note that it can be overridden to make max larger)
+	 * in responses (except for read responses which can be bigger.
+	 * We may want to bump this limit up
 	 */
-	req->MaxOutputResponse = cpu_to_le32(0xFF00); /* < 64K uses 1 credit */
+	req->MaxOutputResponse = cpu_to_le32(CIFSMaxBufSize);
 
 	if (is_fsctl)
 		req->Flags = cpu_to_le32(SMB2_0_IOCTL_IS_FSCTL);
@@ -2164,9 +2177,7 @@ smb2_echo_callback(struct mid_q_entry *mid)
 	if (mid->mid_state == MID_RESPONSE_RECEIVED)
 		credits_received = le16_to_cpu(rsp->hdr.sync_hdr.CreditRequest);
 
-	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
-	mutex_unlock(&server->srv_mutex);
 	add_credits(server, credits_received, CIFS_ECHO_OP);
 }
 
@@ -2424,9 +2435,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 		cifs_stats_fail_inc(tcon, SMB2_READ_HE);
 
 	queue_work(cifsiod_wq, &rdata->work);
-	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
-	mutex_unlock(&server->srv_mutex);
 	add_credits(server, credits_received, 0);
 }
 
@@ -2585,7 +2594,6 @@ smb2_writev_callback(struct mid_q_entry *mid)
 {
 	struct cifs_writedata *wdata = mid->callback_data;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
-	struct TCP_Server_Info *server = tcon->ses->server;
 	unsigned int written;
 	struct smb2_write_rsp *rsp = (struct smb2_write_rsp *)mid->resp_buf;
 	unsigned int credits_received = 1;
@@ -2625,9 +2633,7 @@ smb2_writev_callback(struct mid_q_entry *mid)
 		cifs_stats_fail_inc(tcon, SMB2_WRITE_HE);
 
 	queue_work(cifsiod_wq, &wdata->work);
-	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
-	mutex_unlock(&server->srv_mutex);
 	add_credits(tcon->ses->server, credits_received, 0);
 }
 

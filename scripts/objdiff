@@ -57,13 +57,15 @@ get_output_dir() {
 do_objdump() {
 	dir=$(get_output_dir $1)
 	base=${1##*/}
+	stripped=$dir/${base%.o}.stripped
 	dis=$dir/${base%.o}.dis
 
 	[ ! -d "$dir" ] && mkdir -p $dir
 
 	# remove addresses for a cleaner diff
 	# http://dummdida.tumblr.com/post/60924060451/binary-diff-between-libc-from-scientificlinux-and
-	$OBJDUMP -D $1 | sed "s/^[[:space:]]\+[0-9a-f]\+//" > $dis
+	$STRIP -g $1 -R __bug_table -R .note -R .comment -o $stripped
+	$OBJDUMP -D $stripped | sed -e "s/^[[:space:]]\+[0-9a-f]\+//" -e "s:^$stripped:$1:" > $dis
 }
 
 dorecord() {
@@ -73,6 +75,7 @@ dorecord() {
 
 	CMT="`git rev-parse --short HEAD`"
 
+	STRIP="${CROSS_COMPILE}strip"
 	OBJDUMP="${CROSS_COMPILE}objdump"
 
 	for d in $FILES; do

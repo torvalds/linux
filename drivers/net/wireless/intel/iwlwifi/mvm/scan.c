@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,44 +81,30 @@ enum iwl_mvm_traffic_load {
 	IWL_MVM_TRAFFIC_HIGH,
 };
 
+#define IWL_SCAN_DWELL_ACTIVE		10
+#define IWL_SCAN_DWELL_PASSIVE		110
+#define IWL_SCAN_DWELL_FRAGMENTED	44
+#define IWL_SCAN_DWELL_EXTENDED		90
+
 struct iwl_mvm_scan_timing_params {
-	u32 dwell_active;
-	u32 dwell_passive;
-	u32 dwell_fragmented;
-	u32 dwell_extended;
 	u32 suspend_time;
 	u32 max_out_time;
 };
 
 static struct iwl_mvm_scan_timing_params scan_timing[] = {
 	[IWL_SCAN_TYPE_UNASSOC] = {
-		.dwell_active = 10,
-		.dwell_passive = 110,
-		.dwell_fragmented = 44,
-		.dwell_extended = 90,
 		.suspend_time = 0,
 		.max_out_time = 0,
 	},
 	[IWL_SCAN_TYPE_WILD] = {
-		.dwell_active = 10,
-		.dwell_passive = 110,
-		.dwell_fragmented = 44,
-		.dwell_extended = 90,
 		.suspend_time = 30,
 		.max_out_time = 120,
 	},
 	[IWL_SCAN_TYPE_MILD] = {
-		.dwell_active = 10,
-		.dwell_passive = 110,
-		.dwell_fragmented = 44,
-		.dwell_extended = 90,
 		.suspend_time = 120,
 		.max_out_time = 120,
 	},
 	[IWL_SCAN_TYPE_FRAGMENTED] = {
-		.dwell_active = 10,
-		.dwell_passive = 110,
-		.dwell_fragmented = 44,
 		.suspend_time = 95,
 		.max_out_time = 44,
 	},
@@ -294,34 +280,15 @@ int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm)
 	return max_ie_len;
 }
 
-static u8 *iwl_mvm_dump_channel_list(struct iwl_scan_results_notif *res,
-				     int num_res, u8 *buf, size_t buf_size)
-{
-	int i;
-	u8 *pos = buf, *end = buf + buf_size;
-
-	for (i = 0; pos < end && i < num_res; i++)
-		pos += snprintf(pos, end - pos, " %u", res[i].channel);
-
-	/* terminate the string in case the buffer was too short */
-	*(buf + buf_size - 1) = '\0';
-
-	return buf;
-}
-
 void iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_lmac_scan_complete_notif *notif = (void *)pkt->data;
-	u8 buf[256];
 
 	IWL_DEBUG_SCAN(mvm,
-		       "Scan offload iteration complete: status=0x%x scanned channels=%d channels list: %s\n",
-		       notif->status, notif->scanned_channels,
-		       iwl_mvm_dump_channel_list(notif->results,
-						 notif->scanned_channels, buf,
-						 sizeof(buf)));
+		       "Scan offload iteration complete: status=0x%x scanned channels=%d\n",
+		       notif->status, notif->scanned_channels);
 
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
 		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
@@ -743,10 +710,10 @@ static void iwl_mvm_scan_lmac_dwell(struct iwl_mvm *mvm,
 				    struct iwl_scan_req_lmac *cmd,
 				    struct iwl_mvm_scan_params *params)
 {
-	cmd->active_dwell = scan_timing[params->type].dwell_active;
-	cmd->passive_dwell = scan_timing[params->type].dwell_passive;
-	cmd->fragmented_dwell = scan_timing[params->type].dwell_fragmented;
-	cmd->extended_dwell = scan_timing[params->type].dwell_extended;
+	cmd->active_dwell = IWL_SCAN_DWELL_ACTIVE;
+	cmd->passive_dwell = IWL_SCAN_DWELL_PASSIVE;
+	cmd->fragmented_dwell = IWL_SCAN_DWELL_FRAGMENTED;
+	cmd->extended_dwell = IWL_SCAN_DWELL_EXTENDED;
 	cmd->max_out_time = cpu_to_le32(scan_timing[params->type].max_out_time);
 	cmd->suspend_time = cpu_to_le32(scan_timing[params->type].suspend_time);
 	cmd->scan_prio = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
@@ -944,13 +911,12 @@ static __le32 iwl_mvm_scan_config_rates(struct iwl_mvm *mvm)
 }
 
 static void iwl_mvm_fill_scan_dwell(struct iwl_mvm *mvm,
-				    struct iwl_scan_dwell *dwell,
-				    struct iwl_mvm_scan_timing_params *timing)
+				    struct iwl_scan_dwell *dwell)
 {
-	dwell->active = timing->dwell_active;
-	dwell->passive = timing->dwell_passive;
-	dwell->fragmented = timing->dwell_fragmented;
-	dwell->extended = timing->dwell_extended;
+	dwell->active = IWL_SCAN_DWELL_ACTIVE;
+	dwell->passive = IWL_SCAN_DWELL_PASSIVE;
+	dwell->fragmented = IWL_SCAN_DWELL_FRAGMENTED;
+	dwell->extended = IWL_SCAN_DWELL_EXTENDED;
 }
 
 static void iwl_mvm_fill_channels(struct iwl_mvm *mvm, u8 *channels)
@@ -966,6 +932,29 @@ static void iwl_mvm_fill_channels(struct iwl_mvm *mvm, u8 *channels)
 		channels[j] = band->channels[i].hw_value;
 }
 
+static void iwl_mvm_fill_scan_config_v1(struct iwl_mvm *mvm, void *config,
+					u32 flags, u8 channel_flags)
+{
+	enum iwl_mvm_scan_type type = iwl_mvm_get_scan_type(mvm, false);
+	struct iwl_scan_config_v1 *cfg = config;
+
+	cfg->flags = cpu_to_le32(flags);
+	cfg->tx_chains = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
+	cfg->rx_chains = cpu_to_le32(iwl_mvm_scan_rx_ant(mvm));
+	cfg->legacy_rates = iwl_mvm_scan_config_rates(mvm);
+	cfg->out_of_channel_time = cpu_to_le32(scan_timing[type].max_out_time);
+	cfg->suspend_time = cpu_to_le32(scan_timing[type].suspend_time);
+
+	iwl_mvm_fill_scan_dwell(mvm, &cfg->dwell);
+
+	memcpy(&cfg->mac_addr, &mvm->addresses[0].addr, ETH_ALEN);
+
+	cfg->bcast_sta_id = mvm->aux_sta.sta_id;
+	cfg->channel_flags = channel_flags;
+
+	iwl_mvm_fill_channels(mvm, cfg->channel_array);
+}
+
 static void iwl_mvm_fill_scan_config(struct iwl_mvm *mvm, void *config,
 				     u32 flags, u8 channel_flags)
 {
@@ -976,37 +965,18 @@ static void iwl_mvm_fill_scan_config(struct iwl_mvm *mvm, void *config,
 	cfg->tx_chains = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
 	cfg->rx_chains = cpu_to_le32(iwl_mvm_scan_rx_ant(mvm));
 	cfg->legacy_rates = iwl_mvm_scan_config_rates(mvm);
-	cfg->out_of_channel_time = cpu_to_le32(scan_timing[type].max_out_time);
-	cfg->suspend_time = cpu_to_le32(scan_timing[type].suspend_time);
-
-	iwl_mvm_fill_scan_dwell(mvm, &cfg->dwell, &scan_timing[type]);
-
-	memcpy(&cfg->mac_addr, &mvm->addresses[0].addr, ETH_ALEN);
-
-	cfg->bcast_sta_id = mvm->aux_sta.sta_id;
-	cfg->channel_flags = channel_flags;
-
-	iwl_mvm_fill_channels(mvm, cfg->channel_array);
-}
-
-static void iwl_mvm_fill_scan_config_cdb(struct iwl_mvm *mvm, void *config,
-					 u32 flags, u8 channel_flags)
-{
-	enum iwl_mvm_scan_type type = iwl_mvm_get_scan_type(mvm, false);
-	struct iwl_scan_config_cdb *cfg = config;
-
-	cfg->flags = cpu_to_le32(flags);
-	cfg->tx_chains = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
-	cfg->rx_chains = cpu_to_le32(iwl_mvm_scan_rx_ant(mvm));
-	cfg->legacy_rates = iwl_mvm_scan_config_rates(mvm);
 	cfg->out_of_channel_time[0] =
 		cpu_to_le32(scan_timing[type].max_out_time);
-	cfg->out_of_channel_time[1] =
-		cpu_to_le32(scan_timing[type].max_out_time);
 	cfg->suspend_time[0] = cpu_to_le32(scan_timing[type].suspend_time);
-	cfg->suspend_time[1] = cpu_to_le32(scan_timing[type].suspend_time);
 
-	iwl_mvm_fill_scan_dwell(mvm, &cfg->dwell, &scan_timing[type]);
+	if (iwl_mvm_is_cdb_supported(mvm)) {
+		cfg->suspend_time[1] =
+			cpu_to_le32(scan_timing[type].suspend_time);
+		cfg->out_of_channel_time[1] =
+			cpu_to_le32(scan_timing[type].max_out_time);
+	}
+
+	iwl_mvm_fill_scan_dwell(mvm, &cfg->dwell);
 
 	memcpy(&cfg->mac_addr, &mvm->addresses[0].addr, ETH_ALEN);
 
@@ -1033,16 +1003,13 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	if (WARN_ON(num_channels > mvm->fw->ucode_capa.n_scan_channels))
 		return -ENOBUFS;
 
-	if (type == mvm->scan_type) {
-		IWL_DEBUG_SCAN(mvm,
-			       "Ignoring UMAC scan config of the same type\n");
+	if (type == mvm->scan_type)
 		return 0;
-	}
 
-	if (iwl_mvm_is_cdb_supported(mvm))
-		cmd_size = sizeof(struct iwl_scan_config_cdb);
-	else
+	if (iwl_mvm_has_new_tx_api(mvm))
 		cmd_size = sizeof(struct iwl_scan_config);
+	else
+		cmd_size = sizeof(struct iwl_scan_config_v1);
 	cmd_size += mvm->fw->ucode_capa.n_scan_channels;
 
 	cfg = kzalloc(cmd_size, GFP_KERNEL);
@@ -1068,13 +1035,13 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 			IWL_CHANNEL_FLAG_EBS_ADD |
 			IWL_CHANNEL_FLAG_PRE_SCAN_PASSIVE2ACTIVE;
 
-	if (iwl_mvm_is_cdb_supported(mvm)) {
+	if (iwl_mvm_has_new_tx_api(mvm)) {
 		flags |= (type == IWL_SCAN_TYPE_FRAGMENTED) ?
 			 SCAN_CONFIG_FLAG_SET_LMAC2_FRAGMENTED :
 			 SCAN_CONFIG_FLAG_CLEAR_LMAC2_FRAGMENTED;
-		iwl_mvm_fill_scan_config_cdb(mvm, cfg, flags, channel_flags);
-	} else {
 		iwl_mvm_fill_scan_config(mvm, cfg, flags, channel_flags);
+	} else {
+		iwl_mvm_fill_scan_config_v1(mvm, cfg, flags, channel_flags);
 	}
 
 	cmd.data[0] = cfg;
@@ -1113,22 +1080,26 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 		cmd->passive_dwell = params->measurement_dwell;
 		cmd->extended_dwell = params->measurement_dwell;
 	} else {
-		cmd->active_dwell = timing->dwell_active;
-		cmd->passive_dwell = timing->dwell_passive;
-		cmd->extended_dwell = timing->dwell_extended;
+		cmd->active_dwell = IWL_SCAN_DWELL_ACTIVE;
+		cmd->passive_dwell = IWL_SCAN_DWELL_PASSIVE;
+		cmd->extended_dwell = IWL_SCAN_DWELL_EXTENDED;
 	}
-	cmd->fragmented_dwell = timing->dwell_fragmented;
+	cmd->fragmented_dwell = IWL_SCAN_DWELL_FRAGMENTED;
 
-	if (iwl_mvm_is_cdb_supported(mvm)) {
-		cmd->cdb.max_out_time[0] = cpu_to_le32(timing->max_out_time);
-		cmd->cdb.suspend_time[0] = cpu_to_le32(timing->suspend_time);
-		cmd->cdb.max_out_time[1] = cpu_to_le32(timing->max_out_time);
-		cmd->cdb.suspend_time[1] = cpu_to_le32(timing->suspend_time);
-		cmd->cdb.scan_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
+	if (iwl_mvm_has_new_tx_api(mvm)) {
+		cmd->v6.scan_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
+		cmd->v6.max_out_time[0] = cpu_to_le32(timing->max_out_time);
+		cmd->v6.suspend_time[0] = cpu_to_le32(timing->suspend_time);
+		if (iwl_mvm_is_cdb_supported(mvm)) {
+			cmd->v6.max_out_time[1] =
+				cpu_to_le32(timing->max_out_time);
+			cmd->v6.suspend_time[1] =
+				cpu_to_le32(timing->suspend_time);
+		}
 	} else {
-		cmd->no_cdb.max_out_time = cpu_to_le32(timing->max_out_time);
-		cmd->no_cdb.suspend_time = cpu_to_le32(timing->suspend_time);
-		cmd->no_cdb.scan_priority =
+		cmd->v1.max_out_time = cpu_to_le32(timing->max_out_time);
+		cmd->v1.suspend_time = cpu_to_le32(timing->suspend_time);
+		cmd->v1.scan_priority =
 			cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
 	}
 
@@ -1207,8 +1178,8 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     int type)
 {
 	struct iwl_scan_req_umac *cmd = mvm->scan_cmd;
-	void *cmd_data = iwl_mvm_is_cdb_supported(mvm) ?
-			 (void *)&cmd->cdb.data : (void *)&cmd->no_cdb.data;
+	void *cmd_data = iwl_mvm_has_new_tx_api(mvm) ?
+			 (void *)&cmd->v6.data : (void *)&cmd->v1.data;
 	struct iwl_scan_req_umac_tail *sec_part = cmd_data +
 		sizeof(struct iwl_scan_channel_cfg_umac) *
 			mvm->fw->ucode_capa.n_scan_channels;
@@ -1245,12 +1216,12 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				IWL_SCAN_CHANNEL_FLAG_CACHE_ADD;
 
-	if (iwl_mvm_is_cdb_supported(mvm)) {
-		cmd->cdb.channel_flags = channel_flags;
-		cmd->cdb.n_channels = params->n_channels;
+	if (iwl_mvm_has_new_tx_api(mvm)) {
+		cmd->v6.channel_flags = channel_flags;
+		cmd->v6.n_channels = params->n_channels;
 	} else {
-		cmd->no_cdb.channel_flags = channel_flags;
-		cmd->no_cdb.n_channels = params->n_channels;
+		cmd->v1.channel_flags = channel_flags;
+		cmd->v1.n_channels = params->n_channels;
 	}
 
 	iwl_scan_build_ssids(params, sec_part->direct_scan, &ssid_bitmap);
@@ -1607,16 +1578,12 @@ void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_umac_scan_iter_complete_notif *notif = (void *)pkt->data;
-	u8 buf[256];
 
 	mvm->scan_start = le64_to_cpu(notif->start_tsf);
 
 	IWL_DEBUG_SCAN(mvm,
-		       "UMAC Scan iteration complete: status=0x%x scanned_channels=%d channels list: %s\n",
-		       notif->status, notif->scanned_channels,
-		       iwl_mvm_dump_channel_list(notif->results,
-						 notif->scanned_channels, buf,
-						 sizeof(buf)));
+		       "UMAC Scan iteration complete: status=0x%x scanned_channels=%d\n",
+		       notif->status, notif->scanned_channels);
 
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
 		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
@@ -1692,10 +1659,10 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 
 int iwl_mvm_scan_size(struct iwl_mvm *mvm)
 {
-	int base_size = IWL_SCAN_REQ_UMAC_SIZE;
+	int base_size = IWL_SCAN_REQ_UMAC_SIZE_V1;
 
-	if (iwl_mvm_is_cdb_supported(mvm))
-		base_size = IWL_SCAN_REQ_UMAC_SIZE_CDB;
+	if (iwl_mvm_has_new_tx_api(mvm))
+		base_size = IWL_SCAN_REQ_UMAC_SIZE;
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 		return base_size +

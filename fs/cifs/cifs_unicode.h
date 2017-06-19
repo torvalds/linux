@@ -57,6 +57,7 @@
  * not conflict (although almost does) with the mapping above.
  */
 
+#define SFM_DOUBLEQUOTE ((__u16) 0xF020)
 #define SFM_ASTERISK    ((__u16) 0xF021)
 #define SFM_QUESTION    ((__u16) 0xF025)
 #define SFM_COLON       ((__u16) 0xF022)
@@ -64,8 +65,8 @@
 #define SFM_LESSTHAN    ((__u16) 0xF023)
 #define SFM_PIPE        ((__u16) 0xF027)
 #define SFM_SLASH       ((__u16) 0xF026)
-#define SFM_PERIOD	((__u16) 0xF028)
-#define SFM_SPACE	((__u16) 0xF029)
+#define SFM_SPACE	((__u16) 0xF028)
+#define SFM_PERIOD	((__u16) 0xF029)
 
 /*
  * Mapping mechanism to use when one of the seven reserved characters is

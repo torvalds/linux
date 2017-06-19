@@ -464,7 +464,8 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_device *dev;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY_MAX, NULL);
+	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY_MAX, NULL,
+			  NULL);
 	if (err < 0)
 		return err;
 
@@ -568,7 +569,8 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	return ret;
 }
 
-static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
+		      struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct net_bridge_vlan_group *vg;
@@ -662,7 +664,8 @@ unlock:
 	return err;
 }
 
-static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
+		      struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct net_bridge_vlan_group *vg;

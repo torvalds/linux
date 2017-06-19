@@ -39,6 +39,8 @@
 #define PCI_DEVICE_ID_INTEL_APL			0x5aaa
 #define PCI_DEVICE_ID_INTEL_KBP			0xa2b0
 #define PCI_DEVICE_ID_INTEL_GLK			0x31aa
+#define PCI_DEVICE_ID_INTEL_CNPLP		0x9dee
+#define PCI_DEVICE_ID_INTEL_CNPH		0xa36e
 
 #define PCI_INTEL_BXT_DSM_UUID		"732b85d5-b7a7-4a1b-9ba0-4bbd00ffd511"
 #define PCI_INTEL_BXT_FUNC_PMU_PWR	4
@@ -125,8 +127,10 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 		if (pdev->device == PCI_DEVICE_ID_INTEL_BYT) {
 			struct gpio_desc *gpio;
 
-			acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
+			ret = devm_acpi_dev_add_driver_gpios(&pdev->dev,
 					acpi_dwc3_byt_gpios);
+			if (ret)
+				dev_dbg(&pdev->dev, "failed to add mapping table\n");
 
 			/*
 			 * These GPIOs will turn on the USB2 PHY. Note that we have to
@@ -242,7 +246,6 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 
 	device_init_wakeup(&pci->dev, false);
 	pm_runtime_get(&pci->dev);
-	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&pci->dev));
 	platform_device_unregister(dwc->dwc3);
 }
 
@@ -269,6 +272,8 @@ static const struct pci_device_id dwc3_pci_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_APL), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_KBP), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_GLK), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CNPLP), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CNPH), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_NL_USB), },
 	{  }	/* Terminating Entry */
 };

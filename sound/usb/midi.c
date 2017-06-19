@@ -1922,7 +1922,7 @@ static int roland_load_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new roland_load_ctl = {
+static const struct snd_kcontrol_new roland_load_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "MIDI Input Mode",
 	.info = roland_load_info,

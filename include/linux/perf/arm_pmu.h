@@ -75,6 +75,8 @@ struct pmu_hw_events {
 	 * already have to allocate this struct per cpu.
 	 */
 	struct arm_pmu		*percpu_pmu;
+
+	int irq;
 };
 
 enum armpmu_attr_groups {
@@ -88,7 +90,6 @@ struct arm_pmu {
 	struct pmu	pmu;
 	cpumask_t	active_irqs;
 	cpumask_t	supported_cpus;
-	int		*irq_affinity;
 	char		*name;
 	irqreturn_t	(*handle_irq)(int irq_num, void *dev);
 	void		(*enable)(struct perf_event *event);
@@ -104,12 +105,8 @@ struct arm_pmu {
 	void		(*start)(struct arm_pmu *);
 	void		(*stop)(struct arm_pmu *);
 	void		(*reset)(void *);
-	int		(*request_irq)(struct arm_pmu *, irq_handler_t handler);
-	void		(*free_irq)(struct arm_pmu *);
 	int		(*map_event)(struct perf_event *event);
 	int		num_events;
-	atomic_t	active_events;
-	struct mutex	reserve_mutex;
 	u64		max_period;
 	bool		secure_access; /* 32-bit ARM only */
 #define ARMV8_PMUV3_MAX_COMMON_EVENTS 0x40
@@ -120,6 +117,9 @@ struct arm_pmu {
 	struct notifier_block	cpu_pm_nb;
 	/* the attr_groups array must be NULL-terminated */
 	const struct attribute_group *attr_groups[ARMPMU_NR_ATTR_GROUPS + 1];
+
+	/* Only to be used by ACPI probing code */
+	unsigned long acpi_cpuid;
 };
 
 #define to_arm_pmu(p) (container_of(p, struct arm_pmu, pmu))
@@ -135,10 +135,12 @@ int armpmu_map_event(struct perf_event *event,
 						[PERF_COUNT_HW_CACHE_RESULT_MAX],
 		     u32 raw_event_mask);
 
+typedef int (*armpmu_init_fn)(struct arm_pmu *);
+
 struct pmu_probe_info {
 	unsigned int cpuid;
 	unsigned int mask;
-	int (*init)(struct arm_pmu *);
+	armpmu_init_fn init;
 };
 
 #define PMU_PROBE(_cpuid, _mask, _fn)	\
@@ -159,6 +161,21 @@ struct pmu_probe_info {
 int arm_pmu_device_probe(struct platform_device *pdev,
 			 const struct of_device_id *of_table,
 			 const struct pmu_probe_info *probe_table);
+
+#ifdef CONFIG_ACPI
+int arm_pmu_acpi_probe(armpmu_init_fn init_fn);
+#else
+static inline int arm_pmu_acpi_probe(armpmu_init_fn init_fn) { return 0; }
+#endif
+
+/* Internal functions only for core arm_pmu code */
+struct arm_pmu *armpmu_alloc(void);
+void armpmu_free(struct arm_pmu *pmu);
+int armpmu_register(struct arm_pmu *pmu);
+int armpmu_request_irqs(struct arm_pmu *armpmu);
+void armpmu_free_irqs(struct arm_pmu *armpmu);
+int armpmu_request_irq(struct arm_pmu *armpmu, int cpu);
+void armpmu_free_irq(struct arm_pmu *armpmu, int cpu);
 
 #define ARMV8_PMU_PDEV_NAME "armv8-pmu"
 

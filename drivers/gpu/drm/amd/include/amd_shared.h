@@ -138,6 +138,12 @@ struct amd_pp_profile {
 	uint8_t down_hyst;
 };
 
+enum amd_fan_ctrl_mode {
+	AMD_FAN_CTRL_NONE = 0,
+	AMD_FAN_CTRL_MANUAL = 1,
+	AMD_FAN_CTRL_AUTO = 2,
+};
+
 /* CG flags */
 #define AMD_CG_SUPPORT_GFX_MGCG			(1 << 0)
 #define AMD_CG_SUPPORT_GFX_MGLS			(1 << 1)

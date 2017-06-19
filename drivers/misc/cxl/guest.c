@@ -169,7 +169,7 @@ static irqreturn_t guest_psl_irq(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	rc = cxl_irq(irq, ctx, &irq_info);
+	rc = cxl_irq_psl8(irq, ctx, &irq_info);
 	return rc;
 }
 
@@ -551,13 +551,13 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 	elem->common.tid    = cpu_to_be32(0); /* Unused */
 	elem->common.pid    = cpu_to_be32(pid);
 	elem->common.csrp   = cpu_to_be64(0); /* disable */
-	elem->common.aurp0  = cpu_to_be64(0); /* disable */
-	elem->common.aurp1  = cpu_to_be64(0); /* disable */
+	elem->common.u.psl8.aurp0  = cpu_to_be64(0); /* disable */
+	elem->common.u.psl8.aurp1  = cpu_to_be64(0); /* disable */
 
 	cxl_prefault(ctx, wed);
 
-	elem->common.sstp0  = cpu_to_be64(ctx->sstp0);
-	elem->common.sstp1  = cpu_to_be64(ctx->sstp1);
+	elem->common.u.psl8.sstp0  = cpu_to_be64(ctx->sstp0);
+	elem->common.u.psl8.sstp1  = cpu_to_be64(ctx->sstp1);
 
 	/*
 	 * Ensure we have at least one interrupt allocated to take faults for

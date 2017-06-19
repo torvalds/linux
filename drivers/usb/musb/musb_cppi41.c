@@ -571,6 +571,10 @@ static int cppi41_dma_channel_abort(struct dma_channel *channel)
 		}
 	}
 
+	/* DA8xx Advisory 2.3.27: wait 250 ms before to start the teardown */
+	if (musb->io.quirks & MUSB_DA8XX)
+		mdelay(250);
+
 	tdbit = 1 << cppi41_channel->port_num;
 	if (is_tx)
 		tdbit <<= 16;

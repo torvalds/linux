@@ -1,6 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
+ * Copyright (c) 2016-2017 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -84,6 +85,9 @@ int bnxt_set_vf_spoofchk(struct net_device *dev, int vf_id, bool setting)
 	u32 func_flags;
 	int rc;
 
+	if (bp->hwrm_spec_code < 0x10701)
+		return -ENOTSUPP;
+
 	rc = bnxt_vf_ndo_prep(bp, vf_id);
 	if (rc)
 		return rc;
@@ -96,9 +100,9 @@ int bnxt_set_vf_spoofchk(struct net_device *dev, int vf_id, bool setting)
 
 	func_flags = vf->func_flags;
 	if (setting)
-		func_flags |= FUNC_CFG_REQ_FLAGS_SRC_MAC_ADDR_CHECK;
+		func_flags |= FUNC_CFG_REQ_FLAGS_SRC_MAC_ADDR_CHECK_ENABLE;
 	else
-		func_flags &= ~FUNC_CFG_REQ_FLAGS_SRC_MAC_ADDR_CHECK;
+		func_flags |= FUNC_CFG_REQ_FLAGS_SRC_MAC_ADDR_CHECK_DISABLE;
 	/*TODO: if the driver supports VLAN filter on guest VLAN,
 	 * the spoof check should also include vlan anti-spoofing
 	 */
@@ -134,8 +138,11 @@ int bnxt_get_vf_config(struct net_device *dev, int vf_id,
 	ivi->max_tx_rate = vf->max_tx_rate;
 	ivi->min_tx_rate = vf->min_tx_rate;
 	ivi->vlan = vf->vlan;
-	ivi->qos = vf->flags & BNXT_VF_QOS;
-	ivi->spoofchk = vf->flags & BNXT_VF_SPOOFCHK;
+	if (vf->flags & BNXT_VF_QOS)
+		ivi->qos = vf->vlan >> VLAN_PRIO_SHIFT;
+	else
+		ivi->qos = 0;
+	ivi->spoofchk = !!(vf->flags & BNXT_VF_SPOOFCHK);
 	if (!(vf->flags & BNXT_VF_LINK_FORCED))
 		ivi->linkstate = IFLA_VF_LINK_STATE_AUTO;
 	else if (vf->flags & BNXT_VF_LINK_UP)
@@ -300,7 +307,6 @@ static int bnxt_set_vf_attr(struct bnxt *bp, int num_vfs)
 	for (i = 0; i < num_vfs; i++) {
 		vf = &bp->pf.vf[i];
 		memset(vf, 0, sizeof(*vf));
-		vf->flags = BNXT_VF_QOS | BNXT_VF_LINK_UP;
 	}
 	return 0;
 }

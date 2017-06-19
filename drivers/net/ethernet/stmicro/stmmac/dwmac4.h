@@ -22,9 +22,15 @@
 #define GMAC_HASH_TAB_32_63		0x00000014
 #define GMAC_RX_FLOW_CTRL		0x00000090
 #define GMAC_QX_TX_FLOW_CTRL(x)		(0x70 + x * 4)
+#define GMAC_TXQ_PRTY_MAP0		0x98
+#define GMAC_TXQ_PRTY_MAP1		0x9C
 #define GMAC_RXQ_CTRL0			0x000000a0
+#define GMAC_RXQ_CTRL1			0x000000a4
+#define GMAC_RXQ_CTRL2			0x000000a8
+#define GMAC_RXQ_CTRL3			0x000000ac
 #define GMAC_INT_STATUS			0x000000b0
 #define GMAC_INT_EN			0x000000b4
+#define GMAC_1US_TIC_COUNTER		0x000000dc
 #define GMAC_PCS_BASE			0x000000e0
 #define GMAC_PHYIF_CONTROL_STATUS	0x000000f8
 #define GMAC_PMT			0x000000c0
@@ -37,6 +43,22 @@
 #define GMAC_MDIO_DATA			0x00000204
 #define GMAC_ADDR_HIGH(reg)		(0x300 + reg * 8)
 #define GMAC_ADDR_LOW(reg)		(0x304 + reg * 8)
+
+/* RX Queues Routing */
+#define GMAC_RXQCTRL_AVCPQ_MASK		GENMASK(2, 0)
+#define GMAC_RXQCTRL_AVCPQ_SHIFT	0
+#define GMAC_RXQCTRL_PTPQ_MASK		GENMASK(6, 4)
+#define GMAC_RXQCTRL_PTPQ_SHIFT		4
+#define GMAC_RXQCTRL_DCBCPQ_MASK	GENMASK(10, 8)
+#define GMAC_RXQCTRL_DCBCPQ_SHIFT	8
+#define GMAC_RXQCTRL_UPQ_MASK		GENMASK(14, 12)
+#define GMAC_RXQCTRL_UPQ_SHIFT		12
+#define GMAC_RXQCTRL_MCBCQ_MASK		GENMASK(18, 16)
+#define GMAC_RXQCTRL_MCBCQ_SHIFT	16
+#define GMAC_RXQCTRL_MCBCQEN		BIT(20)
+#define GMAC_RXQCTRL_MCBCQEN_SHIFT	20
+#define GMAC_RXQCTRL_TACPQE		BIT(21)
+#define GMAC_RXQCTRL_TACPQE_SHIFT	21
 
 /* MAC Packet Filtering */
 #define GMAC_PACKET_FILTER_PR		BIT(0)
@@ -52,6 +74,14 @@
 
 /* MAC Flow Control RX */
 #define GMAC_RX_FLOW_CTRL_RFE		BIT(0)
+
+/* RX Queues Priorities */
+#define GMAC_RXQCTRL_PSRQX_MASK(x)	GENMASK(7 + ((x) * 8), 0 + ((x) * 8))
+#define GMAC_RXQCTRL_PSRQX_SHIFT(x)	((x) * 8)
+
+/* TX Queues Priorities */
+#define GMAC_TXQCTRL_PSTQX_MASK(x)	GENMASK(7 + ((x) * 8), 0 + ((x) * 8))
+#define GMAC_TXQCTRL_PSTQX_SHIFT(x)	((x) * 8)
 
 /* MAC Flow Control TX */
 #define GMAC_TX_FLOW_CTRL_TFE		BIT(1)
@@ -148,6 +178,8 @@ enum power_event {
 /* MAC HW features1 bitmap */
 #define GMAC_HW_FEAT_AVSEL		BIT(20)
 #define GMAC_HW_TSOEN			BIT(18)
+#define GMAC_HW_TXFIFOSIZE		GENMASK(10, 6)
+#define GMAC_HW_RXFIFOSIZE		GENMASK(4, 0)
 
 /* MAC HW features2 bitmap */
 #define GMAC_HW_FEAT_TXCHCNT		GENMASK(21, 18)
@@ -161,8 +193,25 @@ enum power_event {
 #define GMAC_HI_REG_AE			BIT(31)
 
 /*  MTL registers */
+#define MTL_OPERATION_MODE		0x00000c00
+#define MTL_OPERATION_SCHALG_MASK	GENMASK(6, 5)
+#define MTL_OPERATION_SCHALG_WRR	(0x0 << 5)
+#define MTL_OPERATION_SCHALG_WFQ	(0x1 << 5)
+#define MTL_OPERATION_SCHALG_DWRR	(0x2 << 5)
+#define MTL_OPERATION_SCHALG_SP		(0x3 << 5)
+#define MTL_OPERATION_RAA		BIT(2)
+#define MTL_OPERATION_RAA_SP		(0x0 << 2)
+#define MTL_OPERATION_RAA_WSP		(0x1 << 2)
+
 #define MTL_INT_STATUS			0x00000c20
-#define MTL_INT_Q0			BIT(0)
+#define MTL_INT_QX(x)			BIT(x)
+
+#define MTL_RXQ_DMA_MAP0		0x00000c30 /* queue 0 to 3 */
+#define MTL_RXQ_DMA_MAP1		0x00000c34 /* queue 4 to 7 */
+#define MTL_RXQ_DMA_Q04MDMACH_MASK	GENMASK(3, 0)
+#define MTL_RXQ_DMA_Q04MDMACH(x)	((x) << 0)
+#define MTL_RXQ_DMA_QXMDMACH_MASK(x)	GENMASK(11 + (8 * ((x) - 1)), 8 * (x))
+#define MTL_RXQ_DMA_QXMDMACH(chan, q)	((chan) << (8 * (q)))
 
 #define MTL_CHAN_BASE_ADDR		0x00000d00
 #define MTL_CHAN_BASE_OFFSET		0x40
@@ -180,6 +229,7 @@ enum power_event {
 #define MTL_OP_MODE_TSF			BIT(1)
 
 #define MTL_OP_MODE_TQS_MASK		GENMASK(24, 16)
+#define MTL_OP_MODE_TQS_SHIFT		16
 
 #define MTL_OP_MODE_TTC_MASK		0x70
 #define MTL_OP_MODE_TTC_SHIFT		4
@@ -193,6 +243,17 @@ enum power_event {
 #define MTL_OP_MODE_TTC_384		(6 << MTL_OP_MODE_TTC_SHIFT)
 #define MTL_OP_MODE_TTC_512		(7 << MTL_OP_MODE_TTC_SHIFT)
 
+#define MTL_OP_MODE_RQS_MASK		GENMASK(29, 20)
+#define MTL_OP_MODE_RQS_SHIFT		20
+
+#define MTL_OP_MODE_RFD_MASK		GENMASK(19, 14)
+#define MTL_OP_MODE_RFD_SHIFT		14
+
+#define MTL_OP_MODE_RFA_MASK		GENMASK(13, 8)
+#define MTL_OP_MODE_RFA_SHIFT		8
+
+#define MTL_OP_MODE_EHFC		BIT(7)
+
 #define MTL_OP_MODE_RTC_MASK		0x18
 #define MTL_OP_MODE_RTC_SHIFT		3
 
@@ -200,6 +261,46 @@ enum power_event {
 #define MTL_OP_MODE_RTC_64		0
 #define MTL_OP_MODE_RTC_96		(2 << MTL_OP_MODE_RTC_SHIFT)
 #define MTL_OP_MODE_RTC_128		(3 << MTL_OP_MODE_RTC_SHIFT)
+
+/* MTL ETS Control register */
+#define MTL_ETS_CTRL_BASE_ADDR		0x00000d10
+#define MTL_ETS_CTRL_BASE_OFFSET	0x40
+#define MTL_ETSX_CTRL_BASE_ADDR(x)	(MTL_ETS_CTRL_BASE_ADDR + \
+					((x) * MTL_ETS_CTRL_BASE_OFFSET))
+
+#define MTL_ETS_CTRL_CC			BIT(3)
+#define MTL_ETS_CTRL_AVALG		BIT(2)
+
+/* MTL Queue Quantum Weight */
+#define MTL_TXQ_WEIGHT_BASE_ADDR	0x00000d18
+#define MTL_TXQ_WEIGHT_BASE_OFFSET	0x40
+#define MTL_TXQX_WEIGHT_BASE_ADDR(x)	(MTL_TXQ_WEIGHT_BASE_ADDR + \
+					((x) * MTL_TXQ_WEIGHT_BASE_OFFSET))
+#define MTL_TXQ_WEIGHT_ISCQW_MASK	GENMASK(20, 0)
+
+/* MTL sendSlopeCredit register */
+#define MTL_SEND_SLP_CRED_BASE_ADDR	0x00000d1c
+#define MTL_SEND_SLP_CRED_OFFSET	0x40
+#define MTL_SEND_SLP_CREDX_BASE_ADDR(x)	(MTL_SEND_SLP_CRED_BASE_ADDR + \
+					((x) * MTL_SEND_SLP_CRED_OFFSET))
+
+#define MTL_SEND_SLP_CRED_SSC_MASK	GENMASK(13, 0)
+
+/* MTL hiCredit register */
+#define MTL_HIGH_CRED_BASE_ADDR		0x00000d20
+#define MTL_HIGH_CRED_OFFSET		0x40
+#define MTL_HIGH_CREDX_BASE_ADDR(x)	(MTL_HIGH_CRED_BASE_ADDR + \
+					((x) * MTL_HIGH_CRED_OFFSET))
+
+#define MTL_HIGH_CRED_HC_MASK		GENMASK(28, 0)
+
+/* MTL loCredit register */
+#define MTL_LOW_CRED_BASE_ADDR		0x00000d24
+#define MTL_LOW_CRED_OFFSET		0x40
+#define MTL_LOW_CREDX_BASE_ADDR(x)	(MTL_LOW_CRED_BASE_ADDR + \
+					((x) * MTL_LOW_CRED_OFFSET))
+
+#define MTL_HIGH_CRED_LC_MASK		GENMASK(28, 0)
 
 /*  MTL debug */
 #define MTL_DEBUG_TXSTSFSTS		BIT(5)

@@ -69,8 +69,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
 	unsigned int start_line, end_line;
 	u16 *vmem16 = (u16 *)(par->info->screen_buffer + offset);
-	u16 *pos = par->txbuf.buf + 1;
-	u16 *buf16 = par->txbuf.buf + 10;
+	__be16 *pos = par->txbuf.buf + 1;
+	__be16 *buf16 = par->txbuf.buf + 10;
 	int i, j;
 	int ret = 0;
 
@@ -106,7 +106,7 @@ static int write_vmem_8bit(struct fbtft_par *par, size_t offset, size_t len)
 {
 	unsigned int start_line, end_line;
 	u16 *vmem16 = (u16 *)(par->info->screen_buffer + offset);
-	u16 *pos = par->txbuf.buf + 1;
+	__be16 *pos = par->txbuf.buf + 1;
 	u8 *buf8 = par->txbuf.buf + 10;
 	int i, j;
 	int ret = 0;

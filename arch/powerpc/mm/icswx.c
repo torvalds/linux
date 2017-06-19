@@ -186,7 +186,7 @@ static u32 acop_get_inst(struct pt_regs *regs)
 }
 
 /**
- * @regs: regsiters at time of interrupt
+ * @regs: registers at time of interrupt
  * @address: storage address
  * @error_code: Fault code, usually the DSISR or ESR depending on
  *		processor type

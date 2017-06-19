@@ -4,7 +4,8 @@
 #include <linux/rtnetlink.h>
 #include <net/netlink.h>
 
-typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *);
+typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *,
+			      struct netlink_ext_ack *);
 typedef int (*rtnl_dumpit_func)(struct sk_buff *, struct netlink_callback *);
 typedef u16 (*rtnl_calcit_func)(struct sk_buff *, struct nlmsghdr *);
 
@@ -158,7 +159,8 @@ struct net_device *rtnl_create_link(struct net *net, const char *ifname,
 int rtnl_delete_link(struct net_device *dev);
 int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm);
 
-int rtnl_nla_parse_ifla(struct nlattr **tb, const struct nlattr *head, int len);
+int rtnl_nla_parse_ifla(struct nlattr **tb, const struct nlattr *head, int len,
+			struct netlink_ext_ack *exterr);
 
 #define MODULE_ALIAS_RTNL_LINK(kind) MODULE_ALIAS("rtnl-link-" kind)
 

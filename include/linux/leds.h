@@ -122,10 +122,16 @@ struct led_classdev {
 	struct mutex		led_access;
 };
 
-extern int led_classdev_register(struct device *parent,
-				 struct led_classdev *led_cdev);
-extern int devm_led_classdev_register(struct device *parent,
-				      struct led_classdev *led_cdev);
+extern int of_led_classdev_register(struct device *parent,
+				    struct device_node *np,
+				    struct led_classdev *led_cdev);
+#define led_classdev_register(parent, led_cdev)				\
+	of_led_classdev_register(parent, NULL, led_cdev)
+extern int devm_of_led_classdev_register(struct device *parent,
+					 struct device_node *np,
+					 struct led_classdev *led_cdev);
+#define devm_led_classdev_register(parent, led_cdev)			\
+	devm_of_led_classdev_register(parent, NULL, led_cdev)
 extern void led_classdev_unregister(struct led_classdev *led_cdev);
 extern void devm_led_classdev_unregister(struct device *parent,
 					 struct led_classdev *led_cdev);

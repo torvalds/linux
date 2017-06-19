@@ -164,6 +164,7 @@ struct kimage_arch {
 };
 #else
 struct kimage_arch {
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;

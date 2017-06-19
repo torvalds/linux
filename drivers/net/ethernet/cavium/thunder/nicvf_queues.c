@@ -19,16 +19,8 @@
 #include "q_struct.h"
 #include "nicvf_queues.h"
 
-#define NICVF_PAGE_ORDER ((PAGE_SIZE <= 4096) ?  PAGE_ALLOC_COSTLY_ORDER : 0)
-
-static inline u64 nicvf_iova_to_phys(struct nicvf *nic, dma_addr_t dma_addr)
-{
-	/* Translation is installed only when IOMMU is present */
-	if (nic->iommu_domain)
-		return iommu_iova_to_phys(nic->iommu_domain, dma_addr);
-	return dma_addr;
-}
-
+static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
+					       int size, u64 data);
 static void nicvf_get_page(struct nicvf *nic)
 {
 	if (!nic->rb_pageref || !nic->rb_page)
@@ -90,46 +82,152 @@ static void nicvf_free_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem)
 	dmem->base = NULL;
 }
 
-/* Allocate buffer for packet reception
- * HW returns memory address where packet is DMA'ed but not a pointer
- * into RBDR ring, so save buffer address at the start of fragment and
- * align the start address to a cache aligned address
- */
-static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
-					 u32 buf_len, u64 **rbuf)
-{
-	int order = NICVF_PAGE_ORDER;
+#define XDP_PAGE_REFCNT_REFILL 256
 
-	/* Check if request can be accomodated in previous allocated page */
-	if (nic->rb_page &&
-	    ((nic->rb_page_offset + buf_len) < (PAGE_SIZE << order))) {
+/* Allocate a new page or recycle one if possible
+ *
+ * We cannot optimize dma mapping here, since
+ * 1. It's only one RBDR ring for 8 Rx queues.
+ * 2. CQE_RX gives address of the buffer where pkt has been DMA'ed
+ *    and not idx into RBDR ring, so can't refer to saved info.
+ * 3. There are multiple receive buffers per page
+ */
+static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
+					       struct rbdr *rbdr, gfp_t gfp)
+{
+	int ref_count;
+	struct page *page = NULL;
+	struct pgcache *pgcache, *next;
+
+	/* Check if page is already allocated */
+	pgcache = &rbdr->pgcache[rbdr->pgidx];
+	page = pgcache->page;
+	/* Check if page can be recycled */
+	if (page) {
+		ref_count = page_ref_count(page);
+		/* Check if this page has been used once i.e 'put_page'
+		 * called after packet transmission i.e internal ref_count
+		 * and page's ref_count are equal i.e page can be recycled.
+		 */
+		if (rbdr->is_xdp && (ref_count == pgcache->ref_count))
+			pgcache->ref_count--;
+		else
+			page = NULL;
+
+		/* In non-XDP mode, page's ref_count needs to be '1' for it
+		 * to be recycled.
+		 */
+		if (!rbdr->is_xdp && (ref_count != 1))
+			page = NULL;
+	}
+
+	if (!page) {
+		page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN, 0);
+		if (!page)
+			return NULL;
+
+		this_cpu_inc(nic->pnicvf->drv_stats->page_alloc);
+
+		/* Check for space */
+		if (rbdr->pgalloc >= rbdr->pgcnt) {
+			/* Page can still be used */
+			nic->rb_page = page;
+			return NULL;
+		}
+
+		/* Save the page in page cache */
+		pgcache->page = page;
+		pgcache->dma_addr = 0;
+		pgcache->ref_count = 0;
+		rbdr->pgalloc++;
+	}
+
+	/* Take additional page references for recycling */
+	if (rbdr->is_xdp) {
+		/* Since there is single RBDR (i.e single core doing
+		 * page recycling) per 8 Rx queues, in XDP mode adjusting
+		 * page references atomically is the biggest bottleneck, so
+		 * take bunch of references at a time.
+		 *
+		 * So here, below reference counts defer by '1'.
+		 */
+		if (!pgcache->ref_count) {
+			pgcache->ref_count = XDP_PAGE_REFCNT_REFILL;
+			page_ref_add(page, XDP_PAGE_REFCNT_REFILL);
+		}
+	} else {
+		/* In non-XDP case, single 64K page is divided across multiple
+		 * receive buffers, so cost of recycling is less anyway.
+		 * So we can do with just one extra reference.
+		 */
+		page_ref_add(page, 1);
+	}
+
+	rbdr->pgidx++;
+	rbdr->pgidx &= (rbdr->pgcnt - 1);
+
+	/* Prefetch refcount of next page in page cache */
+	next = &rbdr->pgcache[rbdr->pgidx];
+	page = next->page;
+	if (page)
+		prefetch(&page->_refcount);
+
+	return pgcache;
+}
+
+/* Allocate buffer for packet reception */
+static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, struct rbdr *rbdr,
+					 gfp_t gfp, u32 buf_len, u64 *rbuf)
+{
+	struct pgcache *pgcache = NULL;
+
+	/* Check if request can be accomodated in previous allocated page.
+	 * But in XDP mode only one buffer per page is permitted.
+	 */
+	if (!rbdr->is_xdp && nic->rb_page &&
+	    ((nic->rb_page_offset + buf_len) <= PAGE_SIZE)) {
 		nic->rb_pageref++;
 		goto ret;
 	}
 
 	nicvf_get_page(nic);
+	nic->rb_page = NULL;
 
-	/* Allocate a new page */
-	nic->rb_page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN,
-				   order);
-	if (!nic->rb_page) {
+	/* Get new page, either recycled or new one */
+	pgcache = nicvf_alloc_page(nic, rbdr, gfp);
+	if (!pgcache && !nic->rb_page) {
 		this_cpu_inc(nic->pnicvf->drv_stats->rcv_buffer_alloc_failures);
 		return -ENOMEM;
 	}
+
 	nic->rb_page_offset = 0;
+
+	/* Reserve space for header modifications by BPF program */
+	if (rbdr->is_xdp)
+		buf_len += XDP_PACKET_HEADROOM;
+
+	/* Check if it's recycled */
+	if (pgcache)
+		nic->rb_page = pgcache->page;
 ret:
-	/* HW will ensure data coherency, CPU sync not required */
-	*rbuf = (u64 *)((u64)dma_map_page_attrs(&nic->pdev->dev, nic->rb_page,
+	if (rbdr->is_xdp && pgcache && pgcache->dma_addr) {
+		*rbuf = pgcache->dma_addr;
+	} else {
+		/* HW will ensure data coherency, CPU sync not required */
+		*rbuf = (u64)dma_map_page_attrs(&nic->pdev->dev, nic->rb_page,
 						nic->rb_page_offset, buf_len,
 						DMA_FROM_DEVICE,
-						DMA_ATTR_SKIP_CPU_SYNC));
-	if (dma_mapping_error(&nic->pdev->dev, (dma_addr_t)*rbuf)) {
-		if (!nic->rb_page_offset)
-			__free_pages(nic->rb_page, order);
-		nic->rb_page = NULL;
-		return -ENOMEM;
+						DMA_ATTR_SKIP_CPU_SYNC);
+		if (dma_mapping_error(&nic->pdev->dev, (dma_addr_t)*rbuf)) {
+			if (!nic->rb_page_offset)
+				__free_pages(nic->rb_page, 0);
+			nic->rb_page = NULL;
+			return -ENOMEM;
+		}
+		if (pgcache)
+			pgcache->dma_addr = *rbuf + XDP_PACKET_HEADROOM;
+		nic->rb_page_offset += buf_len;
 	}
-	nic->rb_page_offset += buf_len;
 
 	return 0;
 }
@@ -159,7 +257,7 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 			    int ring_len, int buf_size)
 {
 	int idx;
-	u64 *rbuf;
+	u64 rbuf;
 	struct rbdr_entry_t *desc;
 	int err;
 
@@ -177,10 +275,34 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 	rbdr->head = 0;
 	rbdr->tail = 0;
 
+	/* Initialize page recycling stuff.
+	 *
+	 * Can't use single buffer per page especially with 64K pages.
+	 * On embedded platforms i.e 81xx/83xx available memory itself
+	 * is low and minimum ring size of RBDR is 8K, that takes away
+	 * lots of memory.
+	 *
+	 * But for XDP it has to be a single buffer per page.
+	 */
+	if (!nic->pnicvf->xdp_prog) {
+		rbdr->pgcnt = ring_len / (PAGE_SIZE / buf_size);
+		rbdr->is_xdp = false;
+	} else {
+		rbdr->pgcnt = ring_len;
+		rbdr->is_xdp = true;
+	}
+	rbdr->pgcnt = roundup_pow_of_two(rbdr->pgcnt);
+	rbdr->pgcache = kzalloc(sizeof(*rbdr->pgcache) *
+				rbdr->pgcnt, GFP_KERNEL);
+	if (!rbdr->pgcache)
+		return -ENOMEM;
+	rbdr->pgidx = 0;
+	rbdr->pgalloc = 0;
+
 	nic->rb_page = NULL;
 	for (idx = 0; idx < ring_len; idx++) {
-		err = nicvf_alloc_rcv_buffer(nic, GFP_KERNEL, RCV_FRAG_LEN,
-					     &rbuf);
+		err = nicvf_alloc_rcv_buffer(nic, rbdr, GFP_KERNEL,
+					     RCV_FRAG_LEN, &rbuf);
 		if (err) {
 			/* To free already allocated and mapped ones */
 			rbdr->tail = idx - 1;
@@ -188,7 +310,7 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 		}
 
 		desc = GET_RBDR_DESC(rbdr, idx);
-		desc->buf_addr = (u64)rbuf >> NICVF_RCV_BUF_ALIGN;
+		desc->buf_addr = rbuf & ~(NICVF_RCV_BUF_ALIGN_BYTES - 1);
 	}
 
 	nicvf_get_page(nic);
@@ -201,6 +323,7 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 {
 	int head, tail;
 	u64 buf_addr, phys_addr;
+	struct pgcache *pgcache;
 	struct rbdr_entry_t *desc;
 
 	if (!rbdr)
@@ -216,7 +339,7 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 	/* Release page references */
 	while (head != tail) {
 		desc = GET_RBDR_DESC(rbdr, head);
-		buf_addr = ((u64)desc->buf_addr) << NICVF_RCV_BUF_ALIGN;
+		buf_addr = desc->buf_addr;
 		phys_addr = nicvf_iova_to_phys(nic, buf_addr);
 		dma_unmap_page_attrs(&nic->pdev->dev, buf_addr, RCV_FRAG_LEN,
 				     DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
@@ -227,12 +350,30 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 	}
 	/* Release buffer of tail desc */
 	desc = GET_RBDR_DESC(rbdr, tail);
-	buf_addr = ((u64)desc->buf_addr) << NICVF_RCV_BUF_ALIGN;
+	buf_addr = desc->buf_addr;
 	phys_addr = nicvf_iova_to_phys(nic, buf_addr);
 	dma_unmap_page_attrs(&nic->pdev->dev, buf_addr, RCV_FRAG_LEN,
 			     DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
 	if (phys_addr)
 		put_page(virt_to_page(phys_to_virt(phys_addr)));
+
+	/* Sync page cache info */
+	smp_rmb();
+
+	/* Release additional page references held for recycling */
+	head = 0;
+	while (head < rbdr->pgcnt) {
+		pgcache = &rbdr->pgcache[head];
+		if (pgcache->page && page_ref_count(pgcache->page) != 0) {
+			if (!rbdr->is_xdp) {
+				put_page(pgcache->page);
+				continue;
+			}
+			page_ref_sub(pgcache->page, pgcache->ref_count - 1);
+			put_page(pgcache->page);
+		}
+		head++;
+	}
 
 	/* Free RBDR ring */
 	nicvf_free_q_desc_mem(nic, &rbdr->dmem);
@@ -248,7 +389,7 @@ static void nicvf_refill_rbdr(struct nicvf *nic, gfp_t gfp)
 	int refill_rb_cnt;
 	struct rbdr *rbdr;
 	struct rbdr_entry_t *desc;
-	u64 *rbuf;
+	u64 rbuf;
 	int new_rb = 0;
 
 refill:
@@ -269,17 +410,20 @@ refill:
 	else
 		refill_rb_cnt = qs->rbdr_len - qcount - 1;
 
+	/* Sync page cache info */
+	smp_rmb();
+
 	/* Start filling descs from tail */
 	tail = nicvf_queue_reg_read(nic, NIC_QSET_RBDR_0_1_TAIL, rbdr_idx) >> 3;
 	while (refill_rb_cnt) {
 		tail++;
 		tail &= (rbdr->dmem.q_len - 1);
 
-		if (nicvf_alloc_rcv_buffer(nic, gfp, RCV_FRAG_LEN, &rbuf))
+		if (nicvf_alloc_rcv_buffer(nic, rbdr, gfp, RCV_FRAG_LEN, &rbuf))
 			break;
 
 		desc = GET_RBDR_DESC(rbdr, tail);
-		desc->buf_addr = (u64)rbuf >> NICVF_RCV_BUF_ALIGN;
+		desc->buf_addr = rbuf & ~(NICVF_RCV_BUF_ALIGN_BYTES - 1);
 		refill_rb_cnt--;
 		new_rb++;
 	}
@@ -362,7 +506,7 @@ static void nicvf_free_cmp_queue(struct nicvf *nic, struct cmp_queue *cq)
 
 /* Initialize transmit queue */
 static int nicvf_init_snd_queue(struct nicvf *nic,
-				struct snd_queue *sq, int q_len)
+				struct snd_queue *sq, int q_len, int qidx)
 {
 	int err;
 
@@ -375,17 +519,38 @@ static int nicvf_init_snd_queue(struct nicvf *nic,
 	sq->skbuff = kcalloc(q_len, sizeof(u64), GFP_KERNEL);
 	if (!sq->skbuff)
 		return -ENOMEM;
+
 	sq->head = 0;
 	sq->tail = 0;
-	atomic_set(&sq->free_cnt, q_len - 1);
 	sq->thresh = SND_QUEUE_THRESH;
 
-	/* Preallocate memory for TSO segment's header */
-	sq->tso_hdrs = dma_alloc_coherent(&nic->pdev->dev,
-					  q_len * TSO_HEADER_SIZE,
-					  &sq->tso_hdrs_phys, GFP_KERNEL);
-	if (!sq->tso_hdrs)
-		return -ENOMEM;
+	/* Check if this SQ is a XDP TX queue */
+	if (nic->sqs_mode)
+		qidx += ((nic->sqs_id + 1) * MAX_SND_QUEUES_PER_QS);
+	if (qidx < nic->pnicvf->xdp_tx_queues) {
+		/* Alloc memory to save page pointers for XDP_TX */
+		sq->xdp_page = kcalloc(q_len, sizeof(u64), GFP_KERNEL);
+		if (!sq->xdp_page)
+			return -ENOMEM;
+		sq->xdp_desc_cnt = 0;
+		sq->xdp_free_cnt = q_len - 1;
+		sq->is_xdp = true;
+	} else {
+		sq->xdp_page = NULL;
+		sq->xdp_desc_cnt = 0;
+		sq->xdp_free_cnt = 0;
+		sq->is_xdp = false;
+
+		atomic_set(&sq->free_cnt, q_len - 1);
+
+		/* Preallocate memory for TSO segment's header */
+		sq->tso_hdrs = dma_alloc_coherent(&nic->pdev->dev,
+						  q_len * TSO_HEADER_SIZE,
+						  &sq->tso_hdrs_phys,
+						  GFP_KERNEL);
+		if (!sq->tso_hdrs)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -411,6 +576,7 @@ void nicvf_unmap_sndq_buffers(struct nicvf *nic, struct snd_queue *sq,
 static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 {
 	struct sk_buff *skb;
+	struct page *page;
 	struct sq_hdr_subdesc *hdr;
 	struct sq_hdr_subdesc *tso_sqe;
 
@@ -428,8 +594,15 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 	smp_rmb();
 	while (sq->head != sq->tail) {
 		skb = (struct sk_buff *)sq->skbuff[sq->head];
-		if (!skb)
+		if (!skb || !sq->xdp_page)
 			goto next;
+
+		page = (struct page *)sq->xdp_page[sq->head];
+		if (!page)
+			goto next;
+		else
+			put_page(page);
+
 		hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, sq->head);
 		/* Check for dummy descriptor used for HW TSO offload on 88xx */
 		if (hdr->dont_send) {
@@ -442,12 +615,14 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 			nicvf_unmap_sndq_buffers(nic, sq, sq->head,
 						 hdr->subdesc_cnt);
 		}
-		dev_kfree_skb_any(skb);
+		if (skb)
+			dev_kfree_skb_any(skb);
 next:
 		sq->head++;
 		sq->head &= (sq->dmem.q_len - 1);
 	}
 	kfree(sq->skbuff);
+	kfree(sq->xdp_page);
 	nicvf_free_q_desc_mem(nic, &sq->dmem);
 }
 
@@ -838,7 +1013,7 @@ static int nicvf_alloc_resources(struct nicvf *nic)
 
 	/* Alloc send queue */
 	for (qidx = 0; qidx < qs->sq_cnt; qidx++) {
-		if (nicvf_init_snd_queue(nic, &qs->sq[qidx], qs->sq_len))
+		if (nicvf_init_snd_queue(nic, &qs->sq[qidx], qs->sq_len, qidx))
 			goto alloc_fail;
 	}
 
@@ -876,6 +1051,7 @@ int nicvf_set_qset_resources(struct nicvf *nic)
 
 	nic->rx_queues = qs->rq_cnt;
 	nic->tx_queues = qs->sq_cnt;
+	nic->xdp_tx_queues = 0;
 
 	return 0;
 }
@@ -940,7 +1116,10 @@ static inline int nicvf_get_sq_desc(struct snd_queue *sq, int desc_cnt)
 	int qentry;
 
 	qentry = sq->tail;
-	atomic_sub(desc_cnt, &sq->free_cnt);
+	if (!sq->is_xdp)
+		atomic_sub(desc_cnt, &sq->free_cnt);
+	else
+		sq->xdp_free_cnt -= desc_cnt;
 	sq->tail += desc_cnt;
 	sq->tail &= (sq->dmem.q_len - 1);
 
@@ -958,7 +1137,10 @@ static inline void nicvf_rollback_sq_desc(struct snd_queue *sq,
 /* Free descriptor back to SQ for future use */
 void nicvf_put_sq_desc(struct snd_queue *sq, int desc_cnt)
 {
-	atomic_add(desc_cnt, &sq->free_cnt);
+	if (!sq->is_xdp)
+		atomic_add(desc_cnt, &sq->free_cnt);
+	else
+		sq->xdp_free_cnt += desc_cnt;
 	sq->head += desc_cnt;
 	sq->head &= (sq->dmem.q_len - 1);
 }
@@ -1014,6 +1196,58 @@ void nicvf_sq_free_used_descs(struct net_device *netdev, struct snd_queue *sq,
 			     (atomic64_t *)&netdev->stats.tx_bytes);
 		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 	}
+}
+
+/* XDP Transmit APIs */
+void nicvf_xdp_sq_doorbell(struct nicvf *nic,
+			   struct snd_queue *sq, int sq_num)
+{
+	if (!sq->xdp_desc_cnt)
+		return;
+
+	/* make sure all memory stores are done before ringing doorbell */
+	wmb();
+
+	/* Inform HW to xmit all TSO segments */
+	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
+			      sq_num, sq->xdp_desc_cnt);
+	sq->xdp_desc_cnt = 0;
+}
+
+static inline void
+nicvf_xdp_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
+			     int subdesc_cnt, u64 data, int len)
+{
+	struct sq_hdr_subdesc *hdr;
+
+	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
+	memset(hdr, 0, SND_QUEUE_DESC_SIZE);
+	hdr->subdesc_type = SQ_DESC_TYPE_HEADER;
+	hdr->subdesc_cnt = subdesc_cnt;
+	hdr->tot_len = len;
+	hdr->post_cqe = 1;
+	sq->xdp_page[qentry] = (u64)virt_to_page((void *)data);
+}
+
+int nicvf_xdp_sq_append_pkt(struct nicvf *nic, struct snd_queue *sq,
+			    u64 bufaddr, u64 dma_addr, u16 len)
+{
+	int subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT;
+	int qentry;
+
+	if (subdesc_cnt > sq->xdp_free_cnt)
+		return 0;
+
+	qentry = nicvf_get_sq_desc(sq, subdesc_cnt);
+
+	nicvf_xdp_sq_add_hdr_subdesc(sq, qentry, subdesc_cnt - 1, bufaddr, len);
+
+	qentry = nicvf_get_nxt_sqentry(sq, qentry);
+	nicvf_sq_add_gather_subdesc(sq, qentry, len, dma_addr);
+
+	sq->xdp_desc_cnt += subdesc_cnt;
+
+	return 1;
 }
 
 /* Calculate no of SQ subdescriptors needed to transmit all
@@ -1094,7 +1328,13 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 {
 	int proto;
 	struct sq_hdr_subdesc *hdr;
+	union {
+		struct iphdr *v4;
+		struct ipv6hdr *v6;
+		unsigned char *hdr;
+	} ip;
 
+	ip.hdr = skb_network_header(skb);
 	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
 	memset(hdr, 0, SND_QUEUE_DESC_SIZE);
 	hdr->subdesc_type = SQ_DESC_TYPE_HEADER;
@@ -1119,7 +1359,9 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		hdr->l3_offset = skb_network_offset(skb);
 		hdr->l4_offset = skb_transport_offset(skb);
 
-		proto = ip_hdr(skb)->protocol;
+		proto = (ip.v4->version == 4) ? ip.v4->protocol :
+			ip.v6->nexthdr;
+
 		switch (proto) {
 		case IPPROTO_TCP:
 			hdr->csum_l4 = SEND_L4_CSUM_TCP;
@@ -1366,8 +1608,33 @@ static inline unsigned frag_num(unsigned i)
 #endif
 }
 
+static void nicvf_unmap_rcv_buffer(struct nicvf *nic, u64 dma_addr,
+				   u64 buf_addr, bool xdp)
+{
+	struct page *page = NULL;
+	int len = RCV_FRAG_LEN;
+
+	if (xdp) {
+		page = virt_to_page(phys_to_virt(buf_addr));
+		/* Check if it's a recycled page, if not
+		 * unmap the DMA mapping.
+		 *
+		 * Recycled page holds an extra reference.
+		 */
+		if (page_ref_count(page) != 1)
+			return;
+
+		len += XDP_PACKET_HEADROOM;
+		/* Receive buffers in XDP mode are mapped from page start */
+		dma_addr &= PAGE_MASK;
+	}
+	dma_unmap_page_attrs(&nic->pdev->dev, dma_addr, len,
+			     DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+}
+
 /* Returns SKB for a received packet */
-struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
+struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic,
+				  struct cqe_rx_t *cqe_rx, bool xdp)
 {
 	int frag;
 	int payload_len = 0;
@@ -1402,10 +1669,9 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 
 		if (!frag) {
 			/* First fragment */
-			dma_unmap_page_attrs(&nic->pdev->dev,
-					     *rb_ptrs - cqe_rx->align_pad,
-					     RCV_FRAG_LEN, DMA_FROM_DEVICE,
-					     DMA_ATTR_SKIP_CPU_SYNC);
+			nicvf_unmap_rcv_buffer(nic,
+					       *rb_ptrs - cqe_rx->align_pad,
+					       phys_addr, xdp);
 			skb = nicvf_rb_ptr_to_skb(nic,
 						  phys_addr - cqe_rx->align_pad,
 						  payload_len);
@@ -1415,9 +1681,7 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 			skb_put(skb, payload_len);
 		} else {
 			/* Add fragments */
-			dma_unmap_page_attrs(&nic->pdev->dev, *rb_ptrs,
-					     RCV_FRAG_LEN, DMA_FROM_DEVICE,
-					     DMA_ATTR_SKIP_CPU_SYNC);
+			nicvf_unmap_rcv_buffer(nic, *rb_ptrs, phys_addr, xdp);
 			page = virt_to_page(phys_to_virt(phys_addr));
 			offset = phys_to_virt(phys_addr) - page_address(page);
 			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
@@ -1547,9 +1811,6 @@ void nicvf_update_sq_stats(struct nicvf *nic, int sq_idx)
 /* Check for errors in the receive cmp.queue entry */
 int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 {
-	if (!cqe_rx->err_level && !cqe_rx->err_opcode)
-		return 0;
-
 	if (netif_msg_rx_err(nic))
 		netdev_err(nic->netdev,
 			   "%s: RX error CQE err_level 0x%x err_opcode 0x%x\n",
@@ -1638,8 +1899,6 @@ int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 int nicvf_check_cqe_tx_errs(struct nicvf *nic, struct cqe_send_t *cqe_tx)
 {
 	switch (cqe_tx->send_status) {
-	case CQ_TX_ERROP_GOOD:
-		return 0;
 	case CQ_TX_ERROP_DESC_FAULT:
 		this_cpu_inc(nic->drv_stats->tx_desc_fault);
 		break;

@@ -2446,7 +2446,7 @@ EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
 int __init drm_fb_helper_modinit(void)
 {
 #if defined(CONFIG_FRAMEBUFFER_CONSOLE_MODULE) && !defined(CONFIG_EXPERT)
-	const char *name = "fbcon";
+	const char name[] = "fbcon";
 	struct module *fbcon;
 
 	mutex_lock(&module_mutex);

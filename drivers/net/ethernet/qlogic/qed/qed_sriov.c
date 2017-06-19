@@ -178,26 +178,59 @@ static struct qed_vf_info *qed_iov_get_vf_info(struct qed_hwfn *p_hwfn,
 	return vf;
 }
 
-static bool qed_iov_validate_rxq(struct qed_hwfn *p_hwfn,
-				 struct qed_vf_info *p_vf, u16 rx_qid)
+enum qed_iov_validate_q_mode {
+	QED_IOV_VALIDATE_Q_NA,
+	QED_IOV_VALIDATE_Q_ENABLE,
+	QED_IOV_VALIDATE_Q_DISABLE,
+};
+
+static bool qed_iov_validate_queue_mode(struct qed_hwfn *p_hwfn,
+					struct qed_vf_info *p_vf,
+					u16 qid,
+					enum qed_iov_validate_q_mode mode,
+					bool b_is_tx)
 {
-	if (rx_qid >= p_vf->num_rxqs)
+	if (mode == QED_IOV_VALIDATE_Q_NA)
+		return true;
+
+	if ((b_is_tx && p_vf->vf_queues[qid].p_tx_cid) ||
+	    (!b_is_tx && p_vf->vf_queues[qid].p_rx_cid))
+		return mode == QED_IOV_VALIDATE_Q_ENABLE;
+
+	/* In case we haven't found any valid cid, then its disabled */
+	return mode == QED_IOV_VALIDATE_Q_DISABLE;
+}
+
+static bool qed_iov_validate_rxq(struct qed_hwfn *p_hwfn,
+				 struct qed_vf_info *p_vf,
+				 u16 rx_qid,
+				 enum qed_iov_validate_q_mode mode)
+{
+	if (rx_qid >= p_vf->num_rxqs) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV,
 			   "VF[0x%02x] - can't touch Rx queue[%04x]; Only 0x%04x are allocated\n",
 			   p_vf->abs_vf_id, rx_qid, p_vf->num_rxqs);
-	return rx_qid < p_vf->num_rxqs;
+		return false;
+	}
+
+	return qed_iov_validate_queue_mode(p_hwfn, p_vf, rx_qid, mode, false);
 }
 
 static bool qed_iov_validate_txq(struct qed_hwfn *p_hwfn,
-				 struct qed_vf_info *p_vf, u16 tx_qid)
+				 struct qed_vf_info *p_vf,
+				 u16 tx_qid,
+				 enum qed_iov_validate_q_mode mode)
 {
-	if (tx_qid >= p_vf->num_txqs)
+	if (tx_qid >= p_vf->num_txqs) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV,
 			   "VF[0x%02x] - can't touch Tx queue[%04x]; Only 0x%04x are allocated\n",
 			   p_vf->abs_vf_id, tx_qid, p_vf->num_txqs);
-	return tx_qid < p_vf->num_txqs;
+		return false;
+	}
+
+	return qed_iov_validate_queue_mode(p_hwfn, p_vf, tx_qid, mode, true);
 }
 
 static bool qed_iov_validate_sb(struct qed_hwfn *p_hwfn,
@@ -213,6 +246,34 @@ static bool qed_iov_validate_sb(struct qed_hwfn *p_hwfn,
 		   QED_MSG_IOV,
 		   "VF[0%02x] - tried using sb_idx %04x which doesn't exist as one of its 0x%02x SBs\n",
 		   p_vf->abs_vf_id, sb_idx, p_vf->num_sbs);
+
+	return false;
+}
+
+static bool qed_iov_validate_active_rxq(struct qed_hwfn *p_hwfn,
+					struct qed_vf_info *p_vf)
+{
+	u8 i;
+
+	for (i = 0; i < p_vf->num_rxqs; i++)
+		if (qed_iov_validate_queue_mode(p_hwfn, p_vf, i,
+						QED_IOV_VALIDATE_Q_ENABLE,
+						false))
+			return true;
+
+	return false;
+}
+
+static bool qed_iov_validate_active_txq(struct qed_hwfn *p_hwfn,
+					struct qed_vf_info *p_vf)
+{
+	u8 i;
+
+	for (i = 0; i < p_vf->num_txqs; i++)
+		if (qed_iov_validate_queue_mode(p_hwfn, p_vf, i,
+						QED_IOV_VALIDATE_Q_ENABLE,
+						true))
+			return true;
 
 	return false;
 }
@@ -557,14 +618,30 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 		return 0;
 	}
 
-	/* Calculate the first VF index - this is a bit tricky; Basically,
-	 * VFs start at offset 16 relative to PF0, and 2nd engine VFs begin
-	 * after the first engine's VFs.
+	/* First VF index based on offset is tricky:
+	 *  - If ARI is supported [likely], offset - (16 - pf_id) would
+	 *    provide the number for eng0. 2nd engine Vfs would begin
+	 *    after the first engine's VFs.
+	 *  - If !ARI, VFs would start on next device.
+	 *    so offset - (256 - pf_id) would provide the number.
+	 * Utilize the fact that (256 - pf_id) is achieved only by later
+	 * to differentiate between the two.
 	 */
-	cdev->p_iov_info->first_vf_in_pf = p_hwfn->cdev->p_iov_info->offset +
-					   p_hwfn->abs_pf_id - 16;
-	if (QED_PATH_ID(p_hwfn))
-		cdev->p_iov_info->first_vf_in_pf -= MAX_NUM_VFS_BB;
+
+	if (p_hwfn->cdev->p_iov_info->offset < (256 - p_hwfn->abs_pf_id)) {
+		u32 first = p_hwfn->cdev->p_iov_info->offset +
+			    p_hwfn->abs_pf_id - 16;
+
+		cdev->p_iov_info->first_vf_in_pf = first;
+
+		if (QED_PATH_ID(p_hwfn))
+			cdev->p_iov_info->first_vf_in_pf -= MAX_NUM_VFS_BB;
+	} else {
+		u32 first = p_hwfn->cdev->p_iov_info->offset +
+			    p_hwfn->abs_pf_id - 256;
+
+		cdev->p_iov_info->first_vf_in_pf = first;
+	}
 
 	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
 		   "First VF in hwfn 0x%08x\n",
@@ -677,6 +754,11 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 	u32 igu_vf_conf = IGU_VF_CONF_FUNC_EN;
 	int rc;
 
+	/* It's possible VF was previously considered malicious -
+	 * clear the indication even if we're only going to disable VF.
+	 */
+	vf->b_malicious = false;
+
 	if (vf->to_disable)
 		return 0;
 
@@ -688,9 +770,6 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 	qed_iov_vf_pglue_clear_err(p_hwfn, p_ptt, QED_VF_ABS_ID(p_hwfn, vf));
 
 	qed_iov_vf_igu_reset(p_hwfn, p_ptt, vf);
-
-	/* It's possible VF was previously considered malicious */
-	vf->b_malicious = false;
 
 	rc = qed_mcp_config_vf_msix(p_hwfn, p_ptt, vf->abs_vf_id, vf->num_sbs);
 	if (rc)
@@ -1118,13 +1197,17 @@ static void qed_iov_send_response(struct qed_hwfn *p_hwfn,
 			   (sizeof(union pfvf_tlvs) - sizeof(u64)) / 4,
 			   &params);
 
-	qed_dmae_host2host(p_hwfn, p_ptt, mbx->reply_phys,
-			   mbx->req_virt->first_tlv.reply_address,
-			   sizeof(u64) / 4, &params);
-
+	/* Once PF copies the rc to the VF, the latter can continue
+	 * and send an additional message. So we have to make sure the
+	 * channel would be re-set to ready prior to that.
+	 */
 	REG_WR(p_hwfn,
 	       GTT_BAR0_MAP_REG_USDM_RAM +
 	       USTORM_VF_PF_CHANNEL_READY_OFFSET(eng_vf_id), 1);
+
+	qed_dmae_host2host(p_hwfn, p_ptt, mbx->reply_phys,
+			   mbx->req_virt->first_tlv.reply_address,
+			   sizeof(u64) / 4, &params);
 }
 
 static u16 qed_iov_vport_to_tlv(struct qed_hwfn *p_hwfn,
@@ -1733,6 +1816,8 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	vf->state = VF_ENABLED;
 	start = &mbx->req_virt->start_vport;
 
+	qed_iov_enable_vf_traffic(p_hwfn, p_ptt, vf);
+
 	/* Initialize Status block in CAU */
 	for (sb_id = 0; sb_id < vf->num_sbs; sb_id++) {
 		if (!start->sb_addr[sb_id]) {
@@ -1746,7 +1831,6 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 				    start->sb_addr[sb_id],
 				    vf->igu_sbs[sb_id], vf->abs_vf_id, 1);
 	}
-	qed_iov_enable_vf_traffic(p_hwfn, p_ptt, vf);
 
 	vf->mtu = start->mtu;
 	vf->shadow_config.inner_vlan_removal = start->inner_vlan_removal;
@@ -1803,6 +1887,16 @@ static void qed_iov_vf_mbx_stop_vport(struct qed_hwfn *p_hwfn,
 	vf->vport_instance--;
 	vf->spoof_chk = false;
 
+	if ((qed_iov_validate_active_rxq(p_hwfn, vf)) ||
+	    (qed_iov_validate_active_txq(p_hwfn, vf))) {
+		vf->b_malicious = true;
+		DP_NOTICE(p_hwfn,
+			  "VF [%02x] - considered malicious; Unable to stop RX/TX queuess\n",
+			  vf->abs_vf_id);
+		status = PFVF_STATUS_MALICIOUS;
+		goto out;
+	}
+
 	rc = qed_sp_vport_stop(p_hwfn, vf->opaque_fid, vf->vport_id);
 	if (rc) {
 		DP_ERR(p_hwfn, "qed_iov_vf_mbx_stop_vport returned error %d\n",
@@ -1814,6 +1908,7 @@ static void qed_iov_vf_mbx_stop_vport(struct qed_hwfn *p_hwfn,
 	vf->configured_features = 0;
 	memset(&vf->shadow_config, 0, sizeof(vf->shadow_config));
 
+out:
 	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_VPORT_TEARDOWN,
 			     sizeof(struct pfvf_def_resp_tlv), status);
 }
@@ -1870,7 +1965,8 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 
 	req = &mbx->req_virt->start_rxq;
 
-	if (!qed_iov_validate_rxq(p_hwfn, vf, req->rx_qid) ||
+	if (!qed_iov_validate_rxq(p_hwfn, vf, req->rx_qid,
+				  QED_IOV_VALIDATE_Q_DISABLE) ||
 	    !qed_iov_validate_sb(p_hwfn, vf, req->hw_sb))
 		goto out;
 
@@ -1923,6 +2019,220 @@ out:
 	qed_iov_vf_mbx_start_rxq_resp(p_hwfn, p_ptt, vf, status, b_legacy_vf);
 }
 
+static void
+qed_iov_pf_update_tun_response(struct pfvf_update_tunn_param_tlv *p_resp,
+			       struct qed_tunnel_info *p_tun,
+			       u16 tunn_feature_mask)
+{
+	p_resp->tunn_feature_mask = tunn_feature_mask;
+	p_resp->vxlan_mode = p_tun->vxlan.b_mode_enabled;
+	p_resp->l2geneve_mode = p_tun->l2_geneve.b_mode_enabled;
+	p_resp->ipgeneve_mode = p_tun->ip_geneve.b_mode_enabled;
+	p_resp->l2gre_mode = p_tun->l2_gre.b_mode_enabled;
+	p_resp->ipgre_mode = p_tun->l2_gre.b_mode_enabled;
+	p_resp->vxlan_clss = p_tun->vxlan.tun_cls;
+	p_resp->l2gre_clss = p_tun->l2_gre.tun_cls;
+	p_resp->ipgre_clss = p_tun->ip_gre.tun_cls;
+	p_resp->l2geneve_clss = p_tun->l2_geneve.tun_cls;
+	p_resp->ipgeneve_clss = p_tun->ip_geneve.tun_cls;
+	p_resp->geneve_udp_port = p_tun->geneve_port.port;
+	p_resp->vxlan_udp_port = p_tun->vxlan_port.port;
+}
+
+static void
+__qed_iov_pf_update_tun_param(struct vfpf_update_tunn_param_tlv *p_req,
+			      struct qed_tunn_update_type *p_tun,
+			      enum qed_tunn_mode mask, u8 tun_cls)
+{
+	if (p_req->tun_mode_update_mask & BIT(mask)) {
+		p_tun->b_update_mode = true;
+
+		if (p_req->tunn_mode & BIT(mask))
+			p_tun->b_mode_enabled = true;
+	}
+
+	p_tun->tun_cls = tun_cls;
+}
+
+static void
+qed_iov_pf_update_tun_param(struct vfpf_update_tunn_param_tlv *p_req,
+			    struct qed_tunn_update_type *p_tun,
+			    struct qed_tunn_update_udp_port *p_port,
+			    enum qed_tunn_mode mask,
+			    u8 tun_cls, u8 update_port, u16 port)
+{
+	if (update_port) {
+		p_port->b_update_port = true;
+		p_port->port = port;
+	}
+
+	__qed_iov_pf_update_tun_param(p_req, p_tun, mask, tun_cls);
+}
+
+static bool
+qed_iov_pf_validate_tunn_param(struct vfpf_update_tunn_param_tlv *p_req)
+{
+	bool b_update_requested = false;
+
+	if (p_req->tun_mode_update_mask || p_req->update_tun_cls ||
+	    p_req->update_geneve_port || p_req->update_vxlan_port)
+		b_update_requested = true;
+
+	return b_update_requested;
+}
+
+static void qed_pf_validate_tunn_mode(struct qed_tunn_update_type *tun, int *rc)
+{
+	if (tun->b_update_mode && !tun->b_mode_enabled) {
+		tun->b_update_mode = false;
+		*rc = -EINVAL;
+	}
+}
+
+static int
+qed_pf_validate_modify_tunn_config(struct qed_hwfn *p_hwfn,
+				   u16 *tun_features, bool *update,
+				   struct qed_tunnel_info *tun_src)
+{
+	struct qed_eth_cb_ops *ops = p_hwfn->cdev->protocol_ops.eth;
+	struct qed_tunnel_info *tun = &p_hwfn->cdev->tunnel;
+	u16 bultn_vxlan_port, bultn_geneve_port;
+	void *cookie = p_hwfn->cdev->ops_cookie;
+	int i, rc = 0;
+
+	*tun_features = p_hwfn->cdev->tunn_feature_mask;
+	bultn_vxlan_port = tun->vxlan_port.port;
+	bultn_geneve_port = tun->geneve_port.port;
+	qed_pf_validate_tunn_mode(&tun_src->vxlan, &rc);
+	qed_pf_validate_tunn_mode(&tun_src->l2_geneve, &rc);
+	qed_pf_validate_tunn_mode(&tun_src->ip_geneve, &rc);
+	qed_pf_validate_tunn_mode(&tun_src->l2_gre, &rc);
+	qed_pf_validate_tunn_mode(&tun_src->ip_gre, &rc);
+
+	if ((tun_src->b_update_rx_cls || tun_src->b_update_tx_cls) &&
+	    (tun_src->vxlan.tun_cls != QED_TUNN_CLSS_MAC_VLAN ||
+	     tun_src->l2_geneve.tun_cls != QED_TUNN_CLSS_MAC_VLAN ||
+	     tun_src->ip_geneve.tun_cls != QED_TUNN_CLSS_MAC_VLAN ||
+	     tun_src->l2_gre.tun_cls != QED_TUNN_CLSS_MAC_VLAN ||
+	     tun_src->ip_gre.tun_cls != QED_TUNN_CLSS_MAC_VLAN)) {
+		tun_src->b_update_rx_cls = false;
+		tun_src->b_update_tx_cls = false;
+		rc = -EINVAL;
+	}
+
+	if (tun_src->vxlan_port.b_update_port) {
+		if (tun_src->vxlan_port.port == tun->vxlan_port.port) {
+			tun_src->vxlan_port.b_update_port = false;
+		} else {
+			*update = true;
+			bultn_vxlan_port = tun_src->vxlan_port.port;
+		}
+	}
+
+	if (tun_src->geneve_port.b_update_port) {
+		if (tun_src->geneve_port.port == tun->geneve_port.port) {
+			tun_src->geneve_port.b_update_port = false;
+		} else {
+			*update = true;
+			bultn_geneve_port = tun_src->geneve_port.port;
+		}
+	}
+
+	qed_for_each_vf(p_hwfn, i) {
+		qed_iov_bulletin_set_udp_ports(p_hwfn, i, bultn_vxlan_port,
+					       bultn_geneve_port);
+	}
+
+	qed_schedule_iov(p_hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
+	ops->ports_update(cookie, bultn_vxlan_port, bultn_geneve_port);
+
+	return rc;
+}
+
+static void qed_iov_vf_mbx_update_tunn_param(struct qed_hwfn *p_hwfn,
+					     struct qed_ptt *p_ptt,
+					     struct qed_vf_info *p_vf)
+{
+	struct qed_tunnel_info *p_tun = &p_hwfn->cdev->tunnel;
+	struct qed_iov_vf_mbx *mbx = &p_vf->vf_mbx;
+	struct pfvf_update_tunn_param_tlv *p_resp;
+	struct vfpf_update_tunn_param_tlv *p_req;
+	u8 status = PFVF_STATUS_SUCCESS;
+	bool b_update_required = false;
+	struct qed_tunnel_info tunn;
+	u16 tunn_feature_mask = 0;
+	int i, rc = 0;
+
+	mbx->offset = (u8 *)mbx->reply_virt;
+
+	memset(&tunn, 0, sizeof(tunn));
+	p_req = &mbx->req_virt->tunn_param_update;
+
+	if (!qed_iov_pf_validate_tunn_param(p_req)) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "No tunnel update requested by VF\n");
+		status = PFVF_STATUS_FAILURE;
+		goto send_resp;
+	}
+
+	tunn.b_update_rx_cls = p_req->update_tun_cls;
+	tunn.b_update_tx_cls = p_req->update_tun_cls;
+
+	qed_iov_pf_update_tun_param(p_req, &tunn.vxlan, &tunn.vxlan_port,
+				    QED_MODE_VXLAN_TUNN, p_req->vxlan_clss,
+				    p_req->update_vxlan_port,
+				    p_req->vxlan_port);
+	qed_iov_pf_update_tun_param(p_req, &tunn.l2_geneve, &tunn.geneve_port,
+				    QED_MODE_L2GENEVE_TUNN,
+				    p_req->l2geneve_clss,
+				    p_req->update_geneve_port,
+				    p_req->geneve_port);
+	__qed_iov_pf_update_tun_param(p_req, &tunn.ip_geneve,
+				      QED_MODE_IPGENEVE_TUNN,
+				      p_req->ipgeneve_clss);
+	__qed_iov_pf_update_tun_param(p_req, &tunn.l2_gre,
+				      QED_MODE_L2GRE_TUNN, p_req->l2gre_clss);
+	__qed_iov_pf_update_tun_param(p_req, &tunn.ip_gre,
+				      QED_MODE_IPGRE_TUNN, p_req->ipgre_clss);
+
+	/* If PF modifies VF's req then it should
+	 * still return an error in case of partial configuration
+	 * or modified configuration as opposed to requested one.
+	 */
+	rc = qed_pf_validate_modify_tunn_config(p_hwfn, &tunn_feature_mask,
+						&b_update_required, &tunn);
+
+	if (rc)
+		status = PFVF_STATUS_FAILURE;
+
+	/* If QED client is willing to update anything ? */
+	if (b_update_required) {
+		u16 geneve_port;
+
+		rc = qed_sp_pf_update_tunn_cfg(p_hwfn, &tunn,
+					       QED_SPQ_MODE_EBLOCK, NULL);
+		if (rc)
+			status = PFVF_STATUS_FAILURE;
+
+		geneve_port = p_tun->geneve_port.port;
+		qed_for_each_vf(p_hwfn, i) {
+			qed_iov_bulletin_set_udp_ports(p_hwfn, i,
+						       p_tun->vxlan_port.port,
+						       geneve_port);
+		}
+	}
+
+send_resp:
+	p_resp = qed_add_tlv(p_hwfn, &mbx->offset,
+			     CHANNEL_TLV_UPDATE_TUNN_PARAM, sizeof(*p_resp));
+
+	qed_iov_pf_update_tun_response(p_resp, p_tun, tunn_feature_mask);
+	qed_add_tlv(p_hwfn, &mbx->offset, CHANNEL_TLV_LIST_END,
+		    sizeof(struct channel_list_end_tlv));
+
+	qed_iov_send_response(p_hwfn, p_ptt, p_vf, sizeof(*p_resp), status);
+}
+
 static void qed_iov_vf_mbx_start_txq_resp(struct qed_hwfn *p_hwfn,
 					  struct qed_ptt *p_ptt,
 					  struct qed_vf_info *p_vf, u8 status)
@@ -1970,21 +2280,16 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	struct qed_queue_start_common_params params;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
 	u8 status = PFVF_STATUS_NO_RESOURCE;
-	union qed_qm_pq_params pq_params;
 	struct vfpf_start_txq_tlv *req;
 	struct qed_vf_q_info *p_queue;
 	int rc;
 	u16 pq;
 
-	/* Prepare the parameters which would choose the right PQ */
-	memset(&pq_params, 0, sizeof(pq_params));
-	pq_params.eth.is_vf = 1;
-	pq_params.eth.vf_id = vf->relative_vf_id;
-
 	memset(&params, 0, sizeof(params));
 	req = &mbx->req_virt->start_txq;
 
-	if (!qed_iov_validate_txq(p_hwfn, vf, req->tx_qid) ||
+	if (!qed_iov_validate_txq(p_hwfn, vf, req->tx_qid,
+				  QED_IOV_VALIDATE_Q_DISABLE) ||
 	    !qed_iov_validate_sb(p_hwfn, vf, req->hw_sb))
 		goto out;
 
@@ -2004,7 +2309,7 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	if (!p_queue->p_tx_cid)
 		goto out;
 
-	pq = qed_get_qm_pq(p_hwfn, PROTOCOLID_ETH, &pq_params);
+	pq = qed_get_cm_pq_idx_vf(p_hwfn, vf->relative_vf_id);
 	rc = qed_eth_txq_start_ramrod(p_hwfn, p_queue->p_tx_cid,
 				      req->pbl_addr, req->pbl_size, pq);
 	if (rc) {
@@ -2021,57 +2326,53 @@ out:
 
 static int qed_iov_vf_stop_rxqs(struct qed_hwfn *p_hwfn,
 				struct qed_vf_info *vf,
-				u16 rxq_id, u8 num_rxqs, bool cqe_completion)
+				u16 rxq_id, bool cqe_completion)
 {
 	struct qed_vf_q_info *p_queue;
 	int rc = 0;
-	int qid;
 
-	if (rxq_id + num_rxqs > ARRAY_SIZE(vf->vf_queues))
+	if (!qed_iov_validate_rxq(p_hwfn, vf, rxq_id,
+				  QED_IOV_VALIDATE_Q_ENABLE)) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_IOV,
+			   "VF[%d] Tried Closing Rx 0x%04x which is inactive\n",
+			   vf->relative_vf_id, rxq_id);
 		return -EINVAL;
-
-	for (qid = rxq_id; qid < rxq_id + num_rxqs; qid++) {
-		p_queue = &vf->vf_queues[qid];
-
-		if (!p_queue->p_rx_cid)
-			continue;
-
-		rc = qed_eth_rx_queue_stop(p_hwfn,
-					   p_queue->p_rx_cid,
-					   false, cqe_completion);
-		if (rc)
-			return rc;
-
-		vf->vf_queues[qid].p_rx_cid = NULL;
-		vf->num_active_rxqs--;
 	}
 
-	return rc;
+	p_queue = &vf->vf_queues[rxq_id];
+
+	rc = qed_eth_rx_queue_stop(p_hwfn,
+				   p_queue->p_rx_cid,
+				   false, cqe_completion);
+	if (rc)
+		return rc;
+
+	p_queue->p_rx_cid = NULL;
+	vf->num_active_rxqs--;
+
+	return 0;
 }
 
 static int qed_iov_vf_stop_txqs(struct qed_hwfn *p_hwfn,
-				struct qed_vf_info *vf, u16 txq_id, u8 num_txqs)
+				struct qed_vf_info *vf, u16 txq_id)
 {
-	int rc = 0;
 	struct qed_vf_q_info *p_queue;
-	int qid;
+	int rc = 0;
 
-	if (txq_id + num_txqs > ARRAY_SIZE(vf->vf_queues))
+	if (!qed_iov_validate_txq(p_hwfn, vf, txq_id,
+				  QED_IOV_VALIDATE_Q_ENABLE))
 		return -EINVAL;
 
-	for (qid = txq_id; qid < txq_id + num_txqs; qid++) {
-		p_queue = &vf->vf_queues[qid];
-		if (!p_queue->p_tx_cid)
-			continue;
+	p_queue = &vf->vf_queues[txq_id];
 
-		rc = qed_eth_tx_queue_stop(p_hwfn, p_queue->p_tx_cid);
-		if (rc)
-			return rc;
+	rc = qed_eth_tx_queue_stop(p_hwfn, p_queue->p_tx_cid);
+	if (rc)
+		return rc;
 
-		p_queue->p_tx_cid = NULL;
-	}
+	p_queue->p_tx_cid = NULL;
 
-	return rc;
+	return 0;
 }
 
 static void qed_iov_vf_mbx_stop_rxqs(struct qed_hwfn *p_hwfn,
@@ -2080,20 +2381,28 @@ static void qed_iov_vf_mbx_stop_rxqs(struct qed_hwfn *p_hwfn,
 {
 	u16 length = sizeof(struct pfvf_def_resp_tlv);
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
-	u8 status = PFVF_STATUS_SUCCESS;
+	u8 status = PFVF_STATUS_FAILURE;
 	struct vfpf_stop_rxqs_tlv *req;
 	int rc;
 
-	/* We give the option of starting from qid != 0, in this case we
-	 * need to make sure that qid + num_qs doesn't exceed the actual
-	 * amount of queues that exist.
+	/* There has never been an official driver that used this interface
+	 * for stopping multiple queues, and it is now considered deprecated.
+	 * Validate this isn't used here.
 	 */
 	req = &mbx->req_virt->stop_rxqs;
-	rc = qed_iov_vf_stop_rxqs(p_hwfn, vf, req->rx_qid,
-				  req->num_rxqs, req->cqe_completion);
-	if (rc)
-		status = PFVF_STATUS_FAILURE;
+	if (req->num_rxqs != 1) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "Odd; VF[%d] tried stopping multiple Rx queues\n",
+			   vf->relative_vf_id);
+		status = PFVF_STATUS_NOT_SUPPORTED;
+		goto out;
+	}
 
+	rc = qed_iov_vf_stop_rxqs(p_hwfn, vf, req->rx_qid,
+				  req->cqe_completion);
+	if (!rc)
+		status = PFVF_STATUS_SUCCESS;
+out:
 	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_STOP_RXQS,
 			     length, status);
 }
@@ -2104,19 +2413,27 @@ static void qed_iov_vf_mbx_stop_txqs(struct qed_hwfn *p_hwfn,
 {
 	u16 length = sizeof(struct pfvf_def_resp_tlv);
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
-	u8 status = PFVF_STATUS_SUCCESS;
+	u8 status = PFVF_STATUS_FAILURE;
 	struct vfpf_stop_txqs_tlv *req;
 	int rc;
 
-	/* We give the option of starting from qid != 0, in this case we
-	 * need to make sure that qid + num_qs doesn't exceed the actual
-	 * amount of queues that exist.
+	/* There has never been an official driver that used this interface
+	 * for stopping multiple queues, and it is now considered deprecated.
+	 * Validate this isn't used here.
 	 */
 	req = &mbx->req_virt->stop_txqs;
-	rc = qed_iov_vf_stop_txqs(p_hwfn, vf, req->tx_qid, req->num_txqs);
-	if (rc)
-		status = PFVF_STATUS_FAILURE;
+	if (req->num_txqs != 1) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "Odd; VF[%d] tried stopping multiple Tx queues\n",
+			   vf->relative_vf_id);
+		status = PFVF_STATUS_NOT_SUPPORTED;
+		goto out;
+	}
+	rc = qed_iov_vf_stop_txqs(p_hwfn, vf, req->tx_qid);
+	if (!rc)
+		status = PFVF_STATUS_SUCCESS;
 
+out:
 	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_STOP_TXQS,
 			     length, status);
 }
@@ -2141,22 +2458,17 @@ static void qed_iov_vf_mbx_update_rxqs(struct qed_hwfn *p_hwfn,
 	complete_event_flg = !!(req->flags & VFPF_RXQ_UPD_COMPLETE_EVENT_FLAG);
 
 	/* Validate inputs */
-	if (req->num_rxqs + req->rx_qid > QED_MAX_VF_CHAINS_PER_PF ||
-	    !qed_iov_validate_rxq(p_hwfn, vf, req->rx_qid)) {
-		DP_INFO(p_hwfn, "VF[%d]: Incorrect Rxqs [%04x, %02x]\n",
-			vf->relative_vf_id, req->rx_qid, req->num_rxqs);
-		goto out;
-	}
-
-	for (i = 0; i < req->num_rxqs; i++) {
-		qid = req->rx_qid + i;
-		if (!vf->vf_queues[qid].p_rx_cid) {
-			DP_INFO(p_hwfn,
-				"VF[%d] rx_qid = %d isn`t active!\n",
-				vf->relative_vf_id, qid);
+	for (i = req->rx_qid; i < req->rx_qid + req->num_rxqs; i++)
+		if (!qed_iov_validate_rxq(p_hwfn, vf, i,
+					  QED_IOV_VALIDATE_Q_ENABLE)) {
+			DP_INFO(p_hwfn, "VF[%d]: Incorrect Rxqs [%04x, %02x]\n",
+				vf->relative_vf_id, req->rx_qid, req->num_rxqs);
 			goto out;
 		}
 
+	/* Prepare the handlers */
+	for (i = 0; i < req->num_rxqs; i++) {
+		qid = req->rx_qid + i;
 		handlers[i] = vf->vf_queues[qid].p_rx_cid;
 	}
 
@@ -2372,19 +2684,11 @@ qed_iov_vp_update_rss_param(struct qed_hwfn *p_hwfn,
 
 	for (i = 0; i < table_size; i++) {
 		q_idx = p_rss_tlv->rss_ind_table[i];
-		if (!qed_iov_validate_rxq(p_hwfn, vf, q_idx)) {
+		if (!qed_iov_validate_rxq(p_hwfn, vf, q_idx,
+					  QED_IOV_VALIDATE_Q_ENABLE)) {
 			DP_VERBOSE(p_hwfn,
 				   QED_MSG_IOV,
 				   "VF[%d]: Omitting RSS due to wrong queue %04x\n",
-				   vf->relative_vf_id, q_idx);
-			b_reject = true;
-			goto out;
-		}
-
-		if (!vf->vf_queues[q_idx].p_rx_cid) {
-			DP_VERBOSE(p_hwfn,
-				   QED_MSG_IOV,
-				   "VF[%d]: Omitting RSS due to inactive queue %08x\n",
 				   vf->relative_vf_id, q_idx);
 			b_reject = true;
 			goto out;
@@ -3042,9 +3346,10 @@ qed_iov_vf_flr_cleanup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	return rc;
 }
 
-int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
+bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
 {
-	u16 i, found = 0;
+	bool found = false;
+	u16 i;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_IOV, "Marking FLR-ed VFs\n");
 	for (i = 0; i < (VF_MAX_STATIC / 32); i++)
@@ -3054,7 +3359,7 @@ int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
 
 	if (!p_hwfn->cdev->p_iov_info) {
 		DP_NOTICE(p_hwfn, "VF flr but no IOV\n");
-		return 0;
+		return false;
 	}
 
 	/* Mark VFs */
@@ -3083,7 +3388,7 @@ int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
 			 * VF flr until ACKs, we're safe.
 			 */
 			p_flr[rel_vf_id / 64] |= 1ULL << (rel_vf_id % 64);
-			found = 1;
+			found = true;
 		}
 	}
 
@@ -3183,6 +3488,9 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 			break;
 		case CHANNEL_TLV_RELEASE:
 			qed_iov_vf_mbx_release(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_UPDATE_TUNN_PARAM:
+			qed_iov_vf_mbx_update_tunn_param(p_hwfn, p_ptt, p_vf);
 			break;
 		}
 	} else if (qed_iov_tlv_supported(mbx->first_tlv.tl.type)) {
@@ -3289,11 +3597,17 @@ static void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
 	if (!p_vf)
 		return;
 
-	DP_INFO(p_hwfn,
-		"VF [%d] - Malicious behavior [%02x]\n",
-		p_vf->abs_vf_id, p_data->err_id);
+	if (!p_vf->b_malicious) {
+		DP_NOTICE(p_hwfn,
+			  "VF [%d] - Malicious behavior [%02x]\n",
+			  p_vf->abs_vf_id, p_data->err_id);
 
-	p_vf->b_malicious = true;
+		p_vf->b_malicious = true;
+	} else {
+		DP_INFO(p_hwfn,
+			"VF [%d] - Malicious behavior [%02x]\n",
+			p_vf->abs_vf_id, p_data->err_id);
+	}
 }
 
 int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
@@ -3412,6 +3726,29 @@ static void qed_iov_bulletin_set_forced_vlan(struct qed_hwfn *p_hwfn,
 		vf_info->bulletin.p_virt->valid_bitmap &= ~feature;
 
 	qed_iov_configure_vport_forced(p_hwfn, vf_info, feature);
+}
+
+void qed_iov_bulletin_set_udp_ports(struct qed_hwfn *p_hwfn,
+				    int vfid, u16 vxlan_port, u16 geneve_port)
+{
+	struct qed_vf_info *vf_info;
+
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
+	if (!vf_info) {
+		DP_NOTICE(p_hwfn->cdev,
+			  "Can not set udp ports, invalid vfid [%d]\n", vfid);
+		return;
+	}
+
+	if (vf_info->b_malicious) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "Can not set udp ports to malicious VF [%d]\n",
+			   vfid);
+		return;
+	}
+
+	vf_info->bulletin.p_virt->vxlan_udp_port = vxlan_port;
+	vf_info->bulletin.p_virt->geneve_udp_port = geneve_port;
 }
 
 static bool qed_iov_vf_has_vport_instance(struct qed_hwfn *p_hwfn, int vfid)
@@ -3842,6 +4179,7 @@ static int qed_get_vf_config(struct qed_dev *cdev,
 
 void qed_inform_vf_link_state(struct qed_hwfn *hwfn)
 {
+	struct qed_hwfn *lead_hwfn = QED_LEADING_HWFN(hwfn->cdev);
 	struct qed_mcp_link_capabilities caps;
 	struct qed_mcp_link_params params;
 	struct qed_mcp_link_state link;
@@ -3858,9 +4196,15 @@ void qed_inform_vf_link_state(struct qed_hwfn *hwfn)
 		if (!vf_info)
 			continue;
 
-		memcpy(&params, qed_mcp_get_link_params(hwfn), sizeof(params));
-		memcpy(&link, qed_mcp_get_link_state(hwfn), sizeof(link));
-		memcpy(&caps, qed_mcp_get_link_capabilities(hwfn),
+		/* Only hwfn0 is actually interested in the link speed.
+		 * But since only it would receive an MFW indication of link,
+		 * need to take configuration from it - otherwise things like
+		 * rate limiting for hwfn1 VF would not work.
+		 */
+		memcpy(&params, qed_mcp_get_link_params(lead_hwfn),
+		       sizeof(params));
+		memcpy(&link, qed_mcp_get_link_state(lead_hwfn), sizeof(link));
+		memcpy(&caps, qed_mcp_get_link_capabilities(lead_hwfn),
 		       sizeof(caps));
 
 		/* Modify link according to the VF's configured link state */

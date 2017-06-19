@@ -88,6 +88,7 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	smap->map.key_size = attr->key_size;
 	smap->map.value_size = value_size;
 	smap->map.max_entries = attr->max_entries;
+	smap->map.map_flags = attr->map_flags;
 	smap->n_buckets = n_buckets;
 	smap->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
 
@@ -264,7 +265,7 @@ static void stack_map_free(struct bpf_map *map)
 	put_callchain_buffers();
 }
 
-static const struct bpf_map_ops stack_map_ops = {
+const struct bpf_map_ops stack_map_ops = {
 	.map_alloc = stack_map_alloc,
 	.map_free = stack_map_free,
 	.map_get_next_key = stack_map_get_next_key,
@@ -272,15 +273,3 @@ static const struct bpf_map_ops stack_map_ops = {
 	.map_update_elem = stack_map_update_elem,
 	.map_delete_elem = stack_map_delete_elem,
 };
-
-static struct bpf_map_type_list stack_map_type __ro_after_init = {
-	.ops = &stack_map_ops,
-	.type = BPF_MAP_TYPE_STACK_TRACE,
-};
-
-static int __init register_stack_map(void)
-{
-	bpf_register_map_type(&stack_map_type);
-	return 0;
-}
-late_initcall(register_stack_map);

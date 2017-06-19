@@ -267,8 +267,32 @@ static int hns_ae_clr_multicast(struct hnae_handle *handle)
 static int hns_ae_set_mtu(struct hnae_handle *handle, int new_mtu)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+	struct hnae_queue *q;
+	u32 rx_buf_size;
+	int i, ret;
 
-	return hns_mac_set_mtu(mac_cb, new_mtu);
+	/* when buf_size is 2048, max mtu is 6K for rx ring max bd num is 3. */
+	if (!AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver)) {
+		if (new_mtu <= BD_SIZE_2048_MAX_MTU)
+			rx_buf_size = 2048;
+		else
+			rx_buf_size = 4096;
+	} else {
+		rx_buf_size = mac_cb->dsaf_dev->buf_size;
+	}
+
+	ret = hns_mac_set_mtu(mac_cb, new_mtu, rx_buf_size);
+
+	if (!ret) {
+		/* reinit ring buf_size */
+		for (i = 0; i < handle->q_num; i++) {
+			q = handle->qs[i];
+			q->rx_ring.buf_size = rx_buf_size;
+			hns_rcb_set_rx_ring_bs(q, rx_buf_size);
+		}
+	}
+
+	return ret;
 }
 
 static void hns_ae_set_tso_stats(struct hnae_handle *handle, int enable)
@@ -463,15 +487,21 @@ static void hns_ae_get_coalesce_usecs(struct hnae_handle *handle,
 					       ring_pair->port_id_in_comm);
 }
 
-static void hns_ae_get_rx_max_coalesced_frames(struct hnae_handle *handle,
-					       u32 *tx_frames, u32 *rx_frames)
+static void hns_ae_get_max_coalesced_frames(struct hnae_handle *handle,
+					    u32 *tx_frames, u32 *rx_frames)
 {
 	struct ring_pair_cb *ring_pair =
 		container_of(handle->qs[0], struct ring_pair_cb, q);
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
-	*tx_frames = hns_rcb_get_coalesced_frames(ring_pair->rcb_common,
-						  ring_pair->port_id_in_comm);
-	*rx_frames = hns_rcb_get_coalesced_frames(ring_pair->rcb_common,
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    handle->port_type == HNAE_PORT_DEBUG)
+		*tx_frames = hns_rcb_get_rx_coalesced_frames(
+			ring_pair->rcb_common, ring_pair->port_id_in_comm);
+	else
+		*tx_frames = hns_rcb_get_tx_coalesced_frames(
+			ring_pair->rcb_common, ring_pair->port_id_in_comm);
+	*rx_frames = hns_rcb_get_rx_coalesced_frames(ring_pair->rcb_common,
 						  ring_pair->port_id_in_comm);
 }
 
@@ -485,15 +515,34 @@ static int hns_ae_set_coalesce_usecs(struct hnae_handle *handle,
 		ring_pair->rcb_common, ring_pair->port_id_in_comm, timeout);
 }
 
-static int  hns_ae_set_coalesce_frames(struct hnae_handle *handle,
-				       u32 coalesce_frames)
+static int hns_ae_set_coalesce_frames(struct hnae_handle *handle,
+				      u32 tx_frames, u32 rx_frames)
 {
+	int ret;
 	struct ring_pair_cb *ring_pair =
 		container_of(handle->qs[0], struct ring_pair_cb, q);
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
-	return hns_rcb_set_coalesced_frames(
-		ring_pair->rcb_common,
-		ring_pair->port_id_in_comm, coalesce_frames);
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    handle->port_type == HNAE_PORT_DEBUG) {
+		if (tx_frames != rx_frames)
+			return -EINVAL;
+		return hns_rcb_set_rx_coalesced_frames(
+			ring_pair->rcb_common,
+			ring_pair->port_id_in_comm, rx_frames);
+	} else {
+		if (tx_frames != 1)
+			return -EINVAL;
+		ret = hns_rcb_set_tx_coalesced_frames(
+			ring_pair->rcb_common,
+			ring_pair->port_id_in_comm, tx_frames);
+		if (ret)
+			return ret;
+
+		return hns_rcb_set_rx_coalesced_frames(
+			ring_pair->rcb_common,
+			ring_pair->port_id_in_comm, rx_frames);
+	}
 }
 
 static void hns_ae_get_coalesce_range(struct hnae_handle *handle,
@@ -504,20 +553,27 @@ static void hns_ae_get_coalesce_range(struct hnae_handle *handle,
 {
 	struct dsaf_device *dsaf_dev;
 
+	assert(handle);
+
 	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
-	*tx_frames_low  = HNS_RCB_MIN_COALESCED_FRAMES;
-	*rx_frames_low  = HNS_RCB_MIN_COALESCED_FRAMES;
-	*tx_frames_high =
-		(dsaf_dev->desc_num - 1 > HNS_RCB_MAX_COALESCED_FRAMES) ?
-		HNS_RCB_MAX_COALESCED_FRAMES : dsaf_dev->desc_num - 1;
-	*rx_frames_high =
-		(dsaf_dev->desc_num - 1 > HNS_RCB_MAX_COALESCED_FRAMES) ?
-		 HNS_RCB_MAX_COALESCED_FRAMES : dsaf_dev->desc_num - 1;
-	*tx_usecs_low   = 0;
-	*rx_usecs_low   = 0;
-	*tx_usecs_high  = HNS_RCB_MAX_COALESCED_USECS;
-	*rx_usecs_high  = HNS_RCB_MAX_COALESCED_USECS;
+	*tx_frames_low  = HNS_RCB_TX_FRAMES_LOW;
+	*rx_frames_low  = HNS_RCB_RX_FRAMES_LOW;
+
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    handle->port_type == HNAE_PORT_DEBUG)
+		*tx_frames_high =
+			(dsaf_dev->desc_num - 1 > HNS_RCB_TX_FRAMES_HIGH) ?
+			HNS_RCB_TX_FRAMES_HIGH : dsaf_dev->desc_num - 1;
+	else
+		*tx_frames_high = 1;
+
+	*rx_frames_high = (dsaf_dev->desc_num - 1 > HNS_RCB_RX_FRAMES_HIGH) ?
+		HNS_RCB_RX_FRAMES_HIGH : dsaf_dev->desc_num - 1;
+	*tx_usecs_low   = HNS_RCB_TX_USECS_LOW;
+	*rx_usecs_low   = HNS_RCB_RX_USECS_LOW;
+	*tx_usecs_high  = HNS_RCB_TX_USECS_HIGH;
+	*rx_usecs_high  = HNS_RCB_RX_USECS_HIGH;
 }
 
 void hns_ae_update_stats(struct hnae_handle *handle,
@@ -802,8 +858,9 @@ static int hns_ae_get_rss(struct hnae_handle *handle, u32 *indir, u8 *key,
 		memcpy(key, ppe_cb->rss_key, HNS_PPEV2_RSS_KEY_SIZE);
 
 	/* update the current hash->queue mappings from the shadow RSS table */
-	memcpy(indir, ppe_cb->rss_indir_table,
-	       HNS_PPEV2_RSS_IND_TBL_SIZE * sizeof(*indir));
+	if (indir)
+		memcpy(indir, ppe_cb->rss_indir_table,
+		       HNS_PPEV2_RSS_IND_TBL_SIZE  * sizeof(*indir));
 
 	return 0;
 }
@@ -814,15 +871,19 @@ static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
 	struct hns_ppe_cb *ppe_cb = hns_get_ppe_cb(handle);
 
 	/* set the RSS Hash Key if specififed by the user */
-	if (key)
-		hns_ppe_set_rss_key(ppe_cb, (u32 *)key);
+	if (key) {
+		memcpy(ppe_cb->rss_key, key, HNS_PPEV2_RSS_KEY_SIZE);
+		hns_ppe_set_rss_key(ppe_cb, ppe_cb->rss_key);
+	}
 
-	/* update the shadow RSS table with user specified qids */
-	memcpy(ppe_cb->rss_indir_table, indir,
-	       HNS_PPEV2_RSS_IND_TBL_SIZE * sizeof(*indir));
+	if (indir) {
+		/* update the shadow RSS table with user specified qids */
+		memcpy(ppe_cb->rss_indir_table, indir,
+		       HNS_PPEV2_RSS_IND_TBL_SIZE  * sizeof(*indir));
 
-	/* now update the hardware */
-	hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);
+		/* now update the hardware */
+		hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);
+	}
 
 	return 0;
 }
@@ -846,7 +907,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_autoneg = hns_ae_get_autoneg,
 	.set_pauseparam = hns_ae_set_pauseparam,
 	.get_coalesce_usecs = hns_ae_get_coalesce_usecs,
-	.get_rx_max_coalesced_frames = hns_ae_get_rx_max_coalesced_frames,
+	.get_max_coalesced_frames = hns_ae_get_max_coalesced_frames,
 	.set_coalesce_usecs = hns_ae_set_coalesce_usecs,
 	.set_coalesce_frames = hns_ae_set_coalesce_frames,
 	.get_coalesce_range = hns_ae_get_coalesce_range,

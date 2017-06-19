@@ -1607,7 +1607,7 @@ int device_private_init(struct device *dev)
  */
 int device_add(struct device *dev)
 {
-	struct device *parent = NULL;
+	struct device *parent;
 	struct kobject *kobj;
 	struct class_interface *class_intf;
 	int error = -EINVAL;

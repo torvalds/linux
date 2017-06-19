@@ -80,7 +80,7 @@ extern u16 __read_mostly tlb_lld_1g[NR_INFO];
 
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
- *  Members of this structure are referenced in head.S, so think twice
+ *  Members of this structure are referenced in head_32.S, so think twice
  *  before touching them. [mj]
  */
 
@@ -89,14 +89,7 @@ struct cpuinfo_x86 {
 	__u8			x86_vendor;	/* CPU vendor */
 	__u8			x86_model;
 	__u8			x86_mask;
-#ifdef CONFIG_X86_32
-	char			wp_works_ok;	/* It doesn't on 386's */
-
-	/* Problems on some 486Dx4's and old 386's: */
-	char			rfu;
-	char			pad0;
-	char			pad1;
-#else
+#ifdef CONFIG_X86_64
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
 	int			x86_tlbsize;
 #endif
@@ -716,6 +709,8 @@ extern struct desc_ptr		early_gdt_descr;
 
 extern void cpu_set_gdt(int);
 extern void switch_to_new_gdt(int);
+extern void load_direct_gdt(int);
+extern void load_fixmap_gdt(int);
 extern void load_percpu_segment(int);
 extern void cpu_init(void);
 
@@ -797,6 +792,7 @@ static inline void spin_lock_prefetch(const void *x)
 /*
  * User space process size: 3GB (default).
  */
+#define IA32_PAGE_OFFSET	PAGE_OFFSET
 #define TASK_SIZE		PAGE_OFFSET
 #define TASK_SIZE_MAX		TASK_SIZE
 #define STACK_TOP		TASK_SIZE
@@ -873,7 +869,8 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
  * This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
-#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
+#define __TASK_UNMAPPED_BASE(task_size)	(PAGE_ALIGN(task_size / 3))
+#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE)
 
 #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
 
@@ -883,6 +880,8 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 
 extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
+
+DECLARE_PER_CPU(u64, msr_misc_features_shadow);
 
 /* Register/unregister a process' MPX related resource */
 #define MPX_ENABLE_MANAGEMENT()	mpx_enable_management()

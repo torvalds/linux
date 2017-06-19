@@ -723,7 +723,7 @@ int usX2Y_hwdep_pcm_new(struct snd_card *card)
 	hw->ops.release = snd_usX2Y_hwdep_pcm_release;
 	hw->ops.mmap = snd_usX2Y_hwdep_pcm_mmap;
 	hw->exclusive = 1;
-	sprintf(hw->name, "/proc/bus/usb/%03d/%03d/hwdeppcm", dev->bus->busnum, dev->devnum);
+	sprintf(hw->name, "/dev/bus/usb/%03d/%03d/hwdeppcm", dev->bus->busnum, dev->devnum);
 
 	err = snd_pcm_new(card, NAME_ALLCAPS" hwdep Audio", 2, 1, 1, &pcm);
 	if (err < 0) {

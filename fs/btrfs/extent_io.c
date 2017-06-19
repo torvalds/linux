@@ -68,7 +68,7 @@ void btrfs_leak_debug_check(void)
 		pr_err("BTRFS: state leak: start %llu end %llu state %u in tree %d refs %d\n",
 		       state->start, state->end, state->state,
 		       extent_state_in_tree(state),
-		       atomic_read(&state->refs));
+		       refcount_read(&state->refs));
 		list_del(&state->leak_list);
 		kmem_cache_free(extent_state_cache, state);
 	}
@@ -238,7 +238,7 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
 	state->failrec = NULL;
 	RB_CLEAR_NODE(&state->rb_node);
 	btrfs_leak_debug_add(&state->leak_list, &states);
-	atomic_set(&state->refs, 1);
+	refcount_set(&state->refs, 1);
 	init_waitqueue_head(&state->wq);
 	trace_alloc_extent_state(state, mask, _RET_IP_);
 	return state;
@@ -248,7 +248,7 @@ void free_extent_state(struct extent_state *state)
 {
 	if (!state)
 		return;
-	if (atomic_dec_and_test(&state->refs)) {
+	if (refcount_dec_and_test(&state->refs)) {
 		WARN_ON(extent_state_in_tree(state));
 		btrfs_leak_debug_del(&state->leak_list);
 		trace_free_extent_state(state, _RET_IP_);
@@ -641,7 +641,7 @@ again:
 		if (cached && extent_state_in_tree(cached) &&
 		    cached->start <= start && cached->end > start) {
 			if (clear)
-				atomic_dec(&cached->refs);
+				refcount_dec(&cached->refs);
 			state = cached;
 			goto hit_next;
 		}
@@ -793,7 +793,7 @@ process_node:
 
 		if (state->state & bits) {
 			start = state->start;
-			atomic_inc(&state->refs);
+			refcount_inc(&state->refs);
 			wait_on_state(tree, state);
 			free_extent_state(state);
 			goto again;
@@ -834,7 +834,7 @@ static void cache_state_if_flags(struct extent_state *state,
 	if (cached_ptr && !(*cached_ptr)) {
 		if (!flags || (state->state & flags)) {
 			*cached_ptr = state;
-			atomic_inc(&state->refs);
+			refcount_inc(&state->refs);
 		}
 	}
 }
@@ -1538,7 +1538,7 @@ static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
 		if (!found) {
 			*start = state->start;
 			*cached_state = state;
-			atomic_inc(&state->refs);
+			refcount_inc(&state->refs);
 		}
 		found++;
 		*end = state->end;
@@ -2004,15 +2004,10 @@ int repair_io_failure(struct btrfs_inode *inode, u64 start, u64 length,
 	u64 map_length = 0;
 	u64 sector;
 	struct btrfs_bio *bbio = NULL;
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	int ret;
 
 	ASSERT(!(fs_info->sb->s_flags & MS_RDONLY));
 	BUG_ON(!mirror_num);
-
-	/* we can't repair anything in raid56 yet */
-	if (btrfs_is_parity_mirror(map_tree, logical, length, mirror_num))
-		return 0;
 
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 	if (!bio)
@@ -2026,17 +2021,35 @@ int repair_io_failure(struct btrfs_inode *inode, u64 start, u64 length,
 	 * read repair operation.
 	 */
 	btrfs_bio_counter_inc_blocked(fs_info);
-	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical,
-			      &map_length, &bbio, mirror_num);
-	if (ret) {
-		btrfs_bio_counter_dec(fs_info);
-		bio_put(bio);
-		return -EIO;
+	if (btrfs_is_parity_mirror(fs_info, logical, length, mirror_num)) {
+		/*
+		 * Note that we don't use BTRFS_MAP_WRITE because it's supposed
+		 * to update all raid stripes, but here we just want to correct
+		 * bad stripe, thus BTRFS_MAP_READ is abused to only get the bad
+		 * stripe's dev and sector.
+		 */
+		ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
+				      &map_length, &bbio, 0);
+		if (ret) {
+			btrfs_bio_counter_dec(fs_info);
+			bio_put(bio);
+			return -EIO;
+		}
+		ASSERT(bbio->mirror_num == 1);
+	} else {
+		ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical,
+				      &map_length, &bbio, mirror_num);
+		if (ret) {
+			btrfs_bio_counter_dec(fs_info);
+			bio_put(bio);
+			return -EIO;
+		}
+		BUG_ON(mirror_num != bbio->mirror_num);
 	}
-	BUG_ON(mirror_num != bbio->mirror_num);
-	sector = bbio->stripes[mirror_num-1].physical >> 9;
+
+	sector = bbio->stripes[bbio->mirror_num - 1].physical >> 9;
 	bio->bi_iter.bi_sector = sector;
-	dev = bbio->stripes[mirror_num-1].dev;
+	dev = bbio->stripes[bbio->mirror_num - 1].dev;
 	btrfs_put_bbio(bbio);
 	if (!dev || !dev->bdev || !dev->writeable) {
 		btrfs_bio_counter_dec(fs_info);
@@ -2445,7 +2458,7 @@ void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 	if (!uptodate) {
 		ClearPageUptodate(page);
 		SetPageError(page);
-		ret = ret < 0 ? ret : -EIO;
+		ret = err < 0 ? err : -EIO;
 		mapping_set_error(page->mapping, ret);
 	}
 }
@@ -2859,7 +2872,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
 		em = *em_cached;
 		if (extent_map_in_tree(em) && start >= em->start &&
 		    start < extent_map_end(em)) {
-			atomic_inc(&em->refs);
+			refcount_inc(&em->refs);
 			return em;
 		}
 
@@ -2870,7 +2883,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
 	em = get_extent(BTRFS_I(inode), page, pg_offset, start, len, 0);
 	if (em_cached && !IS_ERR_OR_NULL(em)) {
 		BUG_ON(*em_cached);
-		atomic_inc(&em->refs);
+		refcount_inc(&em->refs);
 		*em_cached = em;
 	}
 	return em;
@@ -4364,6 +4377,123 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 	return NULL;
 }
 
+/*
+ * To cache previous fiemap extent
+ *
+ * Will be used for merging fiemap extent
+ */
+struct fiemap_cache {
+	u64 offset;
+	u64 phys;
+	u64 len;
+	u32 flags;
+	bool cached;
+};
+
+/*
+ * Helper to submit fiemap extent.
+ *
+ * Will try to merge current fiemap extent specified by @offset, @phys,
+ * @len and @flags with cached one.
+ * And only when we fails to merge, cached one will be submitted as
+ * fiemap extent.
+ *
+ * Return value is the same as fiemap_fill_next_extent().
+ */
+static int emit_fiemap_extent(struct fiemap_extent_info *fieinfo,
+				struct fiemap_cache *cache,
+				u64 offset, u64 phys, u64 len, u32 flags)
+{
+	int ret = 0;
+
+	if (!cache->cached)
+		goto assign;
+
+	/*
+	 * Sanity check, extent_fiemap() should have ensured that new
+	 * fiemap extent won't overlap with cahced one.
+	 * Not recoverable.
+	 *
+	 * NOTE: Physical address can overlap, due to compression
+	 */
+	if (cache->offset + cache->len > offset) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	/*
+	 * Only merges fiemap extents if
+	 * 1) Their logical addresses are continuous
+	 *
+	 * 2) Their physical addresses are continuous
+	 *    So truly compressed (physical size smaller than logical size)
+	 *    extents won't get merged with each other
+	 *
+	 * 3) Share same flags except FIEMAP_EXTENT_LAST
+	 *    So regular extent won't get merged with prealloc extent
+	 */
+	if (cache->offset + cache->len  == offset &&
+	    cache->phys + cache->len == phys  &&
+	    (cache->flags & ~FIEMAP_EXTENT_LAST) ==
+			(flags & ~FIEMAP_EXTENT_LAST)) {
+		cache->len += len;
+		cache->flags |= flags;
+		goto try_submit_last;
+	}
+
+	/* Not mergeable, need to submit cached one */
+	ret = fiemap_fill_next_extent(fieinfo, cache->offset, cache->phys,
+				      cache->len, cache->flags);
+	cache->cached = false;
+	if (ret)
+		return ret;
+assign:
+	cache->cached = true;
+	cache->offset = offset;
+	cache->phys = phys;
+	cache->len = len;
+	cache->flags = flags;
+try_submit_last:
+	if (cache->flags & FIEMAP_EXTENT_LAST) {
+		ret = fiemap_fill_next_extent(fieinfo, cache->offset,
+				cache->phys, cache->len, cache->flags);
+		cache->cached = false;
+	}
+	return ret;
+}
+
+/*
+ * Sanity check for fiemap cache
+ *
+ * All fiemap cache should be submitted by emit_fiemap_extent()
+ * Iteration should be terminated either by last fiemap extent or
+ * fieinfo->fi_extents_max.
+ * So no cached fiemap should exist.
+ */
+static int check_fiemap_cache(struct btrfs_fs_info *fs_info,
+			       struct fiemap_extent_info *fieinfo,
+			       struct fiemap_cache *cache)
+{
+	int ret;
+
+	if (!cache->cached)
+		return 0;
+
+	/* Small and recoverbale problem, only to info developer */
+#ifdef CONFIG_BTRFS_DEBUG
+	WARN_ON(1);
+#endif
+	btrfs_warn(fs_info,
+		   "unhandled fiemap cache detected: offset=%llu phys=%llu len=%llu flags=0x%x",
+		   cache->offset, cache->phys, cache->len, cache->flags);
+	ret = fiemap_fill_next_extent(fieinfo, cache->offset, cache->phys,
+				      cache->len, cache->flags);
+	cache->cached = false;
+	if (ret > 0)
+		ret = 0;
+	return ret;
+}
+
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len, get_extent_t *get_extent)
 {
@@ -4381,6 +4511,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	struct extent_state *cached_state = NULL;
 	struct btrfs_path *path;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct fiemap_cache cache = { 0 };
 	int end = 0;
 	u64 em_start = 0;
 	u64 em_len = 0;
@@ -4560,8 +4691,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			flags |= FIEMAP_EXTENT_LAST;
 			end = 1;
 		}
-		ret = fiemap_fill_next_extent(fieinfo, em_start, disko,
-					      em_len, flags);
+		ret = emit_fiemap_extent(fieinfo, &cache, em_start, disko,
+					   em_len, flags);
 		if (ret) {
 			if (ret == 1)
 				ret = 0;
@@ -4569,6 +4700,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		}
 	}
 out_free:
+	if (!ret)
+		ret = check_fiemap_cache(root->fs_info, fieinfo, &cache);
 	free_extent_map(em);
 out:
 	btrfs_free_path(path);

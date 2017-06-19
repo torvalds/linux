@@ -1,5 +1,8 @@
+#include <errno.h>
+#include <inttypes.h>
 #include <linux/kernel.h>
 #include <traceevent/event-parse.h>
+#include <api/fs/fs.h>
 
 #include <byteswap.h>
 #include <unistd.h>
@@ -8,6 +11,7 @@
 
 #include "evlist.h"
 #include "evsel.h"
+#include "memswap.h"
 #include "session.h"
 #include "tool.h"
 #include "sort.h"
@@ -16,6 +20,7 @@
 #include "perf_regs.h"
 #include "asm/bug.h"
 #include "auxtrace.h"
+#include "thread.h"
 #include "thread-stack.h"
 #include "stat.h"
 
@@ -139,8 +144,14 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 			if (perf_session__open(session) < 0)
 				goto out_close;
 
-			perf_session__set_id_hdr_size(session);
-			perf_session__set_comm_exec(session);
+			/*
+			 * set session attributes that are present in perf.data
+			 * but not in pipe-mode.
+			 */
+			if (!file->is_pipe) {
+				perf_session__set_id_hdr_size(session);
+				perf_session__set_comm_exec(session);
+			}
 		}
 	} else  {
 		session->machines.host.env = &perf_env;
@@ -155,7 +166,11 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 			pr_warning("Cannot read kernel map\n");
 	}
 
-	if (tool && tool->ordering_requires_timestamps &&
+	/*
+	 * In pipe-mode, evlist is empty until PERF_RECORD_HEADER_ATTR is
+	 * processed, so perf_evlist__sample_id_all is not meaningful here.
+	 */
+	if ((!file || !file->is_pipe) && tool && tool->ordering_requires_timestamps &&
 	    tool->ordered_events && !perf_evlist__sample_id_all(session->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		tool->ordered_events = false;
@@ -1239,6 +1254,8 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->mmap2(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
 		return tool->comm(tool, event, sample, machine);
+	case PERF_RECORD_NAMESPACES:
+		return tool->namespaces(tool, event, sample, machine);
 	case PERF_RECORD_FORK:
 		return tool->fork(tool, event, sample, machine);
 	case PERF_RECORD_EXIT:
@@ -1258,9 +1275,12 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_UNTHROTTLE:
 		return tool->unthrottle(tool, event, sample, machine);
 	case PERF_RECORD_AUX:
-		if (tool->aux == perf_event__process_aux &&
-		    (event->aux.flags & PERF_AUX_FLAG_TRUNCATED))
-			evlist->stats.total_aux_lost += 1;
+		if (tool->aux == perf_event__process_aux) {
+			if (event->aux.flags & PERF_AUX_FLAG_TRUNCATED)
+				evlist->stats.total_aux_lost += 1;
+			if (event->aux.flags & PERF_AUX_FLAG_PARTIAL)
+				evlist->stats.total_aux_partial += 1;
+		}
 		return tool->aux(tool, event, sample, machine);
 	case PERF_RECORD_ITRACE_START:
 		return tool->itrace_start(tool, event, sample, machine);
@@ -1494,6 +1514,11 @@ int perf_session__register_idle_thread(struct perf_session *session)
 		err = -1;
 	}
 
+	if (thread == NULL || thread__set_namespaces(thread, 0, NULL)) {
+		pr_err("problem inserting idle task.\n");
+		err = -1;
+	}
+
 	/* machine__findnew_thread() got the thread, so put it */
 	thread__put(thread);
 	return err;
@@ -1546,6 +1571,23 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 		ui__warning("AUX data lost %" PRIu64 " times out of %u!\n\n",
 			    stats->total_aux_lost,
 			    stats->nr_events[PERF_RECORD_AUX]);
+	}
+
+	if (session->tool->aux == perf_event__process_aux &&
+	    stats->total_aux_partial != 0) {
+		bool vmm_exclusive = false;
+
+		(void)sysfs__read_bool("module/kvm_intel/parameters/vmm_exclusive",
+		                       &vmm_exclusive);
+
+		ui__warning("AUX data had gaps in it %" PRIu64 " times out of %u!\n\n"
+		            "Are you running a KVM guest in the background?%s\n\n",
+			    stats->total_aux_partial,
+			    stats->nr_events[PERF_RECORD_AUX],
+			    vmm_exclusive ?
+			    "\nReloading kvm_intel module with vmm_exclusive=0\n"
+			    "will reduce the gaps to only guest's timeslices." :
+			    "");
 	}
 
 	if (stats->nr_unknown_events != 0) {
@@ -1628,6 +1670,7 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 	buf = malloc(cur_size);
 	if (!buf)
 		return -errno;
+	ordered_events__set_copy_on_queue(oe, true);
 more:
 	event = buf;
 	err = readn(fd, event, sizeof(struct perf_event_header));

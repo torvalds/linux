@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/bug.h>
-#include <linux/debugfs.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 
@@ -21,7 +20,7 @@
 #include <asm/opal.h>
 #include <asm/prom.h>
 #include <linux/uaccess.h>
-#include <asm/debug.h>
+#include <asm/debugfs.h>
 #include <asm/isa-bridge.h>
 
 static int opal_lpc_chip_id = -1;

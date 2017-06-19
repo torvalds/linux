@@ -608,8 +608,13 @@ static inline long work_on_cpu(int cpu, long (*fn)(void *), void *arg)
 {
 	return fn(arg);
 }
+static inline long work_on_cpu_safe(int cpu, long (*fn)(void *), void *arg)
+{
+	return fn(arg);
+}
 #else
 long work_on_cpu(int cpu, long (*fn)(void *), void *arg);
+long work_on_cpu_safe(int cpu, long (*fn)(void *), void *arg);
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_FREEZER

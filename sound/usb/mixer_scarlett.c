@@ -477,7 +477,7 @@ static int scarlett_ctl_meter_get(struct snd_kcontrol *kctl,
 	return 0;
 }
 
-static struct snd_kcontrol_new usb_scarlett_ctl_switch = {
+static const struct snd_kcontrol_new usb_scarlett_ctl_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "",
 	.info = scarlett_ctl_switch_info,
@@ -487,7 +487,7 @@ static struct snd_kcontrol_new usb_scarlett_ctl_switch = {
 
 static const DECLARE_TLV_DB_SCALE(db_scale_scarlett_gain, -12800, 100, 0);
 
-static struct snd_kcontrol_new usb_scarlett_ctl = {
+static const struct snd_kcontrol_new usb_scarlett_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -499,7 +499,7 @@ static struct snd_kcontrol_new usb_scarlett_ctl = {
 	.tlv = { .p = db_scale_scarlett_gain }
 };
 
-static struct snd_kcontrol_new usb_scarlett_ctl_master = {
+static const struct snd_kcontrol_new usb_scarlett_ctl_master = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -511,7 +511,7 @@ static struct snd_kcontrol_new usb_scarlett_ctl_master = {
 	.tlv = { .p = db_scale_scarlett_gain }
 };
 
-static struct snd_kcontrol_new usb_scarlett_ctl_enum = {
+static const struct snd_kcontrol_new usb_scarlett_ctl_enum = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "",
 	.info = scarlett_ctl_enum_info,
@@ -519,7 +519,7 @@ static struct snd_kcontrol_new usb_scarlett_ctl_enum = {
 	.put =  scarlett_ctl_enum_put,
 };
 
-static struct snd_kcontrol_new usb_scarlett_ctl_dynamic_enum = {
+static const struct snd_kcontrol_new usb_scarlett_ctl_dynamic_enum = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "",
 	.info = scarlett_ctl_enum_dynamic_info,
@@ -527,7 +527,7 @@ static struct snd_kcontrol_new usb_scarlett_ctl_dynamic_enum = {
 	.put =  scarlett_ctl_enum_put,
 };
 
-static struct snd_kcontrol_new usb_scarlett_ctl_sync = {
+static const struct snd_kcontrol_new usb_scarlett_ctl_sync = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.name = "",

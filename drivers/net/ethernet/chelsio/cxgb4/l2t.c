@@ -646,7 +646,7 @@ struct l2t_data *t4_init_l2t(unsigned int l2t_start, unsigned int l2t_end)
 	if (l2t_size < L2T_MIN_HASH_BUCKETS)
 		return NULL;
 
-	d = t4_alloc_mem(sizeof(*d) + l2t_size * sizeof(struct l2t_entry));
+	d = kvzalloc(sizeof(*d) + l2t_size * sizeof(struct l2t_entry), GFP_KERNEL);
 	if (!d)
 		return NULL;
 

@@ -112,6 +112,15 @@ static const struct gsc_fmt gsc_formats[] = {
 		.num_planes	= 1,
 		.num_comp	= 2,
 	}, {
+		.name		= "YUV 4:2:2 non-contig, Y/CbCr",
+		.pixelformat	= V4L2_PIX_FMT_NV16M,
+		.depth		= { 8, 8 },
+		.color		= GSC_YUV422,
+		.yorder		= GSC_LSB_Y,
+		.corder		= GSC_CBCR,
+		.num_planes	= 2,
+		.num_comp	= 2,
+	}, {
 		.name		= "YUV 4:2:2 planar, Y/CrCb",
 		.pixelformat	= V4L2_PIX_FMT_NV61,
 		.depth		= { 16 },
@@ -119,6 +128,15 @@ static const struct gsc_fmt gsc_formats[] = {
 		.yorder		= GSC_LSB_Y,
 		.corder		= GSC_CRCB,
 		.num_planes	= 1,
+		.num_comp	= 2,
+	}, {
+		.name		= "YUV 4:2:2 non-contig, Y/CrCb",
+		.pixelformat	= V4L2_PIX_FMT_NV61M,
+		.depth		= { 8, 8 },
+		.color		= GSC_YUV422,
+		.yorder		= GSC_LSB_Y,
+		.corder		= GSC_CRCB,
+		.num_planes	= 2,
 		.num_comp	= 2,
 	}, {
 		.name		= "YUV 4:2:0 planar, YCbCr",
@@ -156,6 +174,15 @@ static const struct gsc_fmt gsc_formats[] = {
 		.yorder		= GSC_LSB_Y,
 		.corder		= GSC_CRCB,
 		.num_planes	= 1,
+		.num_comp	= 2,
+	}, {
+		.name		= "YUV 4:2:0 non-contig. 2p, Y/CrCb",
+		.pixelformat	= V4L2_PIX_FMT_NV21M,
+		.depth		= { 8, 4 },
+		.color		= GSC_YUV420,
+		.yorder		= GSC_LSB_Y,
+		.corder		= GSC_CRCB,
+		.num_planes	= 2,
 		.num_comp	= 2,
 	}, {
 		.name		= "YUV 4:2:0 non-contig. 2p, Y/CbCr",

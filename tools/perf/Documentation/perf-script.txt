@@ -116,7 +116,7 @@ OPTIONS
 --fields::
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
-        srcline, period, iregs, brstack, brstacksym, flags, bpf-output,
+        srcline, period, iregs, brstack, brstacksym, flags, bpf-output, brstackinsn,
         callindent, insn, insnlen. Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
@@ -189,14 +189,19 @@ OPTIONS
 	i.e., -F "" is not allowed.
 
 	The brstack output includes branch related information with raw addresses using the
-	/v/v/v/v/ syntax in the following order:
+	/v/v/v/v/cycles syntax in the following order:
 	FROM: branch source instruction
 	TO  : branch target instruction
         M/P/-: M=branch target mispredicted or branch direction was mispredicted, P=target predicted or direction predicted, -=not supported
 	X/- : X=branch inside a transactional region, -=not in transaction region or not supported
 	A/- : A=TSX abort entry, -=not aborted region or not supported
+	cycles
 
 	The brstacksym is identical to brstack, except that the FROM and TO addresses are printed in a symbolic form if possible.
+
+	When brstackinsn is specified the full assembler sequences of branch sequences for each sample
+	is printed. This is the full execution path leading to the sample. This is only supported when the
+	sample was recorded with perf record -b or -j any.
 
 -k::
 --vmlinux=<file>::
@@ -248,6 +253,9 @@ OPTIONS
 --show-mmap-events
 	Display mmap related events (e.g. MMAP, MMAP2).
 
+--show-namespace-events
+	Display namespace events i.e. events of type PERF_RECORD_NAMESPACES.
+
 --show-switch-events
 	Display context switch events i.e. events of type PERF_RECORD_SWITCH or
 	PERF_RECORD_SWITCH_CPU_WIDE.
@@ -298,6 +306,14 @@ include::itrace.txt[]
 	string is ',x.y') then analysis starts at the beginning of the file. If
 	stop time is not given (i.e, time string is 'x.y,') then analysis goes
 	to end of file.
+
+--max-blocks::
+	Set the maximum number of program blocks to print with brstackasm for
+	each sample.
+
+--inline::
+	If a callgraph address belongs to an inlined function, the inline stack
+	will be printed. Each entry has function name and file/line.
 
 SEE ALSO
 --------

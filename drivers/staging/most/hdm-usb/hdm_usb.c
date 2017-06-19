@@ -281,7 +281,6 @@ static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 	struct most_channel_config *conf = &mdev->conf[channel];
 	unsigned int frame_size = get_stream_frame_size(conf);
 	unsigned int j, num_frames;
-	u16 rd_addr, wr_addr;
 
 	if (!frame_size)
 		return -EIO;
@@ -293,13 +292,10 @@ static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 		return -EIO;
 	}
 
-	for (j = 1; j < num_frames; j++) {
-		wr_addr = (num_frames - j) * USB_MTU;
-		rd_addr = (num_frames - j) * frame_size;
-		memmove(mbo->virt_address + wr_addr,
-			mbo->virt_address + rd_addr,
+	for (j = num_frames - 1; j > 0; j--)
+		memmove(mbo->virt_address + j * USB_MTU,
+			mbo->virt_address + j * frame_size,
 			frame_size);
-	}
 	mbo->buffer_length = num_frames * USB_MTU;
 	return 0;
 }
@@ -490,7 +486,7 @@ static void hdm_write_completion(struct urb *urb)
  * disconnect.  In the interval before the hub driver starts disconnect
  * processing, devices may receive such fault reports for every request.
  *
- * See <https://www.kernel.org/doc/Documentation/usb/error-codes.txt>
+ * See <https://www.kernel.org/doc/Documentation/driver-api/usb/error-codes.rst>
  */
 static void hdm_read_completion(struct urb *urb)
 {
@@ -649,8 +645,6 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 {
 	unsigned int num_frames;
 	unsigned int frame_size;
-	unsigned int temp_size;
-	unsigned int tail_space;
 	struct most_dev *mdev = to_mdev(iface);
 	struct device *dev = &mdev->usb_device->dev;
 
@@ -685,7 +679,6 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	}
 
 	mdev->padding_active[channel] = true;
-	temp_size = conf->buffer_size;
 
 	frame_size = get_stream_frame_size(conf);
 	if (frame_size == 0 || frame_size > USB_MTU) {
@@ -693,25 +686,19 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 		return -EINVAL;
 	}
 
-	if (conf->buffer_size % frame_size) {
-		u16 tmp_val;
+	num_frames = conf->buffer_size / frame_size;
 
-		tmp_val = conf->buffer_size / frame_size;
-		conf->buffer_size = tmp_val * frame_size;
-		dev_notice(dev,
-			   "Channel %d - rounding buffer size to %d bytes, channel config says %d bytes\n",
-			   channel,
-			   conf->buffer_size,
-			   temp_size);
+	if (conf->buffer_size % frame_size) {
+		u16 old_size = conf->buffer_size;
+
+		conf->buffer_size = num_frames * frame_size;
+		dev_warn(dev, "%s: fixed buffer size (%d -> %d)\n",
+			 mdev->suffix[channel], old_size, conf->buffer_size);
 	}
 
-	num_frames = conf->buffer_size / frame_size;
-	tail_space = num_frames * (USB_MTU - frame_size);
-	temp_size += tail_space;
-
 	/* calculate extra length to comply w/ HW padding */
-	conf->extra_len = (DIV_ROUND_UP(temp_size, USB_MTU) * USB_MTU)
-			  - conf->buffer_size;
+	conf->extra_len = num_frames * (USB_MTU - frame_size);
+
 exit:
 	mdev->conf[channel] = *conf;
 	if (conf->data_type == MOST_CH_ASYNC) {
@@ -1018,7 +1005,7 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 		err = drci_wr_reg(usb_dev, dci_obj->reg_addr, val);
 	else if (!strcmp(name, "sync_ep"))
 		err = start_sync_ep(usb_dev, val);
-	else if (!get_static_reg_addr(ro_regs, name, &reg_addr))
+	else if (!get_static_reg_addr(rw_regs, name, &reg_addr))
 		err = drci_wr_reg(usb_dev, reg_addr, val);
 	else
 		return -EFAULT;

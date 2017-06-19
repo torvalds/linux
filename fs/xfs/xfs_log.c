@@ -1293,7 +1293,7 @@ void
 xfs_log_work_queue(
 	struct xfs_mount        *mp)
 {
-	queue_delayed_work(mp->m_log_workqueue, &mp->m_log->l_work,
+	queue_delayed_work(mp->m_sync_workqueue, &mp->m_log->l_work,
 				msecs_to_jiffies(xfs_syncd_centisecs * 10));
 }
 
@@ -1852,7 +1852,7 @@ xlog_sync(
 	 */
 	if (log->l_badcrc_factor &&
 	    (prandom_u32() % log->l_badcrc_factor == 0)) {
-		iclog->ic_header.h_crc &= 0xAAAAAAAA;
+		iclog->ic_header.h_crc &= cpu_to_le32(0xAAAAAAAA);
 		iclog->ic_state |= XLOG_STATE_IOABORT;
 		xfs_warn(log->l_mp,
 	"Intentionally corrupted log record at LSN 0x%llx. Shutdown imminent.",

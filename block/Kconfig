@@ -115,6 +115,18 @@ config BLK_DEV_THROTTLING
 
 	See Documentation/cgroups/blkio-controller.txt for more information.
 
+config BLK_DEV_THROTTLING_LOW
+	bool "Block throttling .low limit interface support (EXPERIMENTAL)"
+	depends on BLK_DEV_THROTTLING
+	default n
+	---help---
+	Add .low limit interface for block throttling. The low limit is a best
+	effort limit to prioritize cgroups. Depending on the setting, the limit
+	can be used to protect cgroups in terms of bandwidth/iops and better
+	utilize disk resource.
+
+	Note, this is an experimental interface and could be changed someday.
+
 config BLK_CMDLINE_PARSER
 	bool "Block device command line partition parser"
 	default n

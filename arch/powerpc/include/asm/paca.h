@@ -99,7 +99,6 @@ struct paca_struct {
 	 */
 	/* used for most interrupts/exceptions */
 	u64 exgen[13] __attribute__((aligned(0x80)));
-	u64 exmc[13];		/* used for machine checks */
 	u64 exslb[13];		/* used for SLB/segment table misses
  				 * on the linear mapping */
 	/* SLB related definitions */
@@ -139,6 +138,7 @@ struct paca_struct {
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 mm_ctx_low_slices_psize;
 	unsigned char mm_ctx_high_slices_psize[SLICE_ARRAY_SIZE];
+	unsigned long addr_limit;
 #else
 	u16 mm_ctx_user_psize;
 	u16 mm_ctx_sllp;
@@ -172,17 +172,31 @@ struct paca_struct {
 	u8 thread_mask;
 	/* Mask to denote subcore sibling threads */
 	u8 subcore_sibling_mask;
+	/*
+	 * Pointer to an array which contains pointer
+	 * to the sibling threads' paca.
+	 */
+	struct paca_struct **thread_sibling_pacas;
 #endif
 
+#ifdef CONFIG_PPC_STD_MMU_64
+	/* Non-maskable exceptions that are not performance critical */
+	u64 exnmi[13];		/* used for system reset (nmi) */
+	u64 exmc[13];		/* used for machine checks */
+#endif
 #ifdef CONFIG_PPC_BOOK3S_64
-	/* Exclusive emergency stack pointer for machine check exception. */
+	/* Exclusive stacks for system reset and machine check exception. */
+	void *nmi_emergency_sp;
 	void *mc_emergency_sp;
+
+	u16 in_nmi;			/* In nmi handler */
+
 	/*
 	 * Flag to check whether we are in machine check early handler
 	 * and already using emergency stack.
 	 */
 	u16 in_mce;
-	u8 hmi_event_available;		 /* HMI event is available */
+	u8 hmi_event_available;		/* HMI event is available */
 #endif
 
 	/* Stuff for accurate time accounting */
@@ -206,23 +220,7 @@ struct paca_struct {
 #endif
 };
 
-#ifdef CONFIG_PPC_BOOK3S
-static inline void copy_mm_to_paca(mm_context_t *context)
-{
-	get_paca()->mm_ctx_id = context->id;
-#ifdef CONFIG_PPC_MM_SLICES
-	get_paca()->mm_ctx_low_slices_psize = context->low_slices_psize;
-	memcpy(&get_paca()->mm_ctx_high_slices_psize,
-	       &context->high_slices_psize, SLICE_ARRAY_SIZE);
-#else
-	get_paca()->mm_ctx_user_psize = context->user_psize;
-	get_paca()->mm_ctx_sllp = context->sllp;
-#endif
-}
-#else
-static inline void copy_mm_to_paca(mm_context_t *context){}
-#endif
-
+extern void copy_mm_to_paca(struct mm_struct *mm);
 extern struct paca_struct *paca;
 extern void initialise_paca(struct paca_struct *new_paca, int cpu);
 extern void setup_paca(struct paca_struct *new_paca);

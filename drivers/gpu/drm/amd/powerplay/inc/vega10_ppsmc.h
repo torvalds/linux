@@ -122,7 +122,10 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_SetFanMinPwm                   0x52
 #define PPSMC_MSG_ConfigureGfxDidt               0x55
 #define PPSMC_MSG_NumOfDisplays                  0x56
-#define PPSMC_Message_Count                      0x57
+#define PPSMC_MSG_ReadSerialNumTop32             0x58
+#define PPSMC_MSG_ReadSerialNumBottom32          0x59
+#define PPSMC_Message_Count                      0x5A
+
 
 typedef int PPSMC_Msg;
 

@@ -248,6 +248,15 @@
 #define MMCRA_SDAR_MODE_TLB		(1ull << MMCRA_SDAR_MODE_SHIFT)
 #define MMCRA_SDAR_MODE_NO_UPDATES	~(0x3ull << MMCRA_SDAR_MODE_SHIFT)
 #define MMCRA_IFM_SHIFT			30
+#define MMCRA_THR_CTR_MANT_SHIFT	19
+#define MMCRA_THR_CTR_MANT_MASK		0x7Ful
+#define MMCRA_THR_CTR_MANT(v)		(((v) >> MMCRA_THR_CTR_MANT_SHIFT) &\
+						MMCRA_THR_CTR_MANT_MASK)
+
+#define MMCRA_THR_CTR_EXP_SHIFT		27
+#define MMCRA_THR_CTR_EXP_MASK		0x7ul
+#define MMCRA_THR_CTR_EXP(v)		(((v) >> MMCRA_THR_CTR_EXP_SHIFT) &\
+						MMCRA_THR_CTR_EXP_MASK)
 
 /* MMCR1 Threshold Compare bit constant for power9 */
 #define p9_MMCRA_THR_CMP_SHIFT	45
@@ -260,6 +269,19 @@
 #define MAX_ALT				2
 #define MAX_PMU_COUNTERS		6
 
+#define ISA207_SIER_TYPE_SHIFT		15
+#define ISA207_SIER_TYPE_MASK		(0x7ull << ISA207_SIER_TYPE_SHIFT)
+
+#define ISA207_SIER_LDST_SHIFT		1
+#define ISA207_SIER_LDST_MASK		(0x7ull << ISA207_SIER_LDST_SHIFT)
+
+#define ISA207_SIER_DATA_SRC_SHIFT	53
+#define ISA207_SIER_DATA_SRC_MASK	(0x7ull << ISA207_SIER_DATA_SRC_SHIFT)
+
+#define P(a, b)				PERF_MEM_S(a, b)
+#define PH(a, b)			(P(LVL, HIT) | P(a, b))
+#define PM(a, b)			(P(LVL, MISS) | P(a, b))
+
 int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp);
 int isa207_compute_mmcr(u64 event[], int n_ev,
 				unsigned int hwc[], unsigned long mmcr[],
@@ -267,6 +289,8 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 void isa207_disable_pmc(unsigned int pmc, unsigned long mmcr[]);
 int isa207_get_alternatives(u64 event, u64 alt[],
 				const unsigned int ev_alt[][MAX_ALT], int size);
-
+void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
+							struct pt_regs *regs);
+void isa207_get_mem_weight(u64 *weight);
 
 #endif

@@ -122,7 +122,7 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 		}
 
 		err = mlx4_mtt_init(dev->dev, ib_umem_page_count(srq->umem),
-				    ilog2(srq->umem->page_size), &srq->mtt);
+				    srq->umem->page_shift, &srq->mtt);
 		if (err)
 			goto err_buf;
 

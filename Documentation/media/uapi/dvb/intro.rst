@@ -55,9 +55,9 @@ Overview
 
 .. _stb_components:
 
-.. figure::  dvbstb.*
-    :alt:    dvbstb.pdf / dvbstb.svg
-    :align:  center
+.. kernel-figure:: dvbstb.svg
+    :alt:   dvbstb.svg
+    :align: center
 
     Components of a DVB card/STB
 

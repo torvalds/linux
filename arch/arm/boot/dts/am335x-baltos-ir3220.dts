@@ -14,6 +14,7 @@
 /dts-v1/;
 
 #include "am335x-baltos.dtsi"
+#include "am335x-baltos-leds.dtsi"
 
 / {
 	model = "OnRISC Baltos iR 3220";

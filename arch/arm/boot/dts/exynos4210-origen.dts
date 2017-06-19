@@ -328,7 +328,3 @@
 &tmu {
 	status = "okay";
 };
-
-&watchdog {
-	status = "okay";
-};

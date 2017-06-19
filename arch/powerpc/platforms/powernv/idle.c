@@ -53,19 +53,6 @@ static int pnv_save_sprs_for_deep_states(void)
 		uint64_t pir = get_hard_smp_processor_id(cpu);
 		uint64_t hsprg0_val = (uint64_t)&paca[cpu];
 
-		if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
-			/*
-			 * HSPRG0 is used to store the cpu's pointer to paca.
-			 * Hence last 3 bits are guaranteed to be 0. Program
-			 * slw to restore HSPRG0 with 63rd bit set, so that
-			 * when a thread wakes up at 0x100 we can use this bit
-			 * to distinguish between fastsleep and deep winkle.
-			 * This is not necessary with stop/psscr since PLS
-			 * field of psscr indicates which state we are waking
-			 * up from.
-			 */
-			hsprg0_val |= 1;
-		}
 		rc = opal_slw_set_reg(pir, SPRN_HSPRG0, hsprg0_val);
 		if (rc != 0)
 			return rc;
@@ -122,9 +109,12 @@ static void pnv_alloc_idle_core_states(void)
 	for (i = 0; i < nr_cores; i++) {
 		int first_cpu = i * threads_per_core;
 		int node = cpu_to_node(first_cpu);
+		size_t paca_ptr_array_size;
 
 		core_idle_state = kmalloc_node(sizeof(u32), GFP_KERNEL, node);
 		*core_idle_state = PNV_CORE_IDLE_THREAD_BITS;
+		paca_ptr_array_size = (threads_per_core *
+				       sizeof(struct paca_struct *));
 
 		for (j = 0; j < threads_per_core; j++) {
 			int cpu = first_cpu + j;
@@ -132,6 +122,11 @@ static void pnv_alloc_idle_core_states(void)
 			paca[cpu].core_idle_state_ptr = core_idle_state;
 			paca[cpu].thread_idle_state = PNV_THREAD_RUNNING;
 			paca[cpu].thread_mask = 1 << j;
+			if (!cpu_has_feature(CPU_FTR_POWER9_DD1))
+				continue;
+			paca[cpu].thread_sibling_pacas =
+				kmalloc_node(paca_ptr_array_size,
+					     GFP_KERNEL, node);
 		}
 	}
 
@@ -146,7 +141,6 @@ u32 pnv_get_supported_cpuidle_states(void)
 	return supported_cpuidle_states;
 }
 EXPORT_SYMBOL_GPL(pnv_get_supported_cpuidle_states);
-
 
 static void pnv_fastsleep_workaround_apply(void *info)
 
@@ -241,8 +235,9 @@ static DEVICE_ATTR(fastsleep_workaround_applyonce, 0600,
  * The default stop state that will be used by ppc_md.power_save
  * function on platforms that support stop instruction.
  */
-u64 pnv_default_stop_val;
-u64 pnv_default_stop_mask;
+static u64 pnv_default_stop_val;
+static u64 pnv_default_stop_mask;
+static bool default_stop_found;
 
 /*
  * Used for ppc_md.power_save which needs a function with no parameters
@@ -262,8 +257,42 @@ u64 pnv_first_deep_stop_state = MAX_STOP_STATE;
  * psscr value and mask of the deepest stop idle state.
  * Used when a cpu is offlined.
  */
-u64 pnv_deepest_stop_psscr_val;
-u64 pnv_deepest_stop_psscr_mask;
+static u64 pnv_deepest_stop_psscr_val;
+static u64 pnv_deepest_stop_psscr_mask;
+static bool deepest_stop_found;
+
+/*
+ * pnv_cpu_offline: A function that puts the CPU into the deepest
+ * available platform idle state on a CPU-Offline.
+ */
+unsigned long pnv_cpu_offline(unsigned int cpu)
+{
+	unsigned long srr1;
+
+	u32 idle_states = pnv_get_supported_cpuidle_states();
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && deepest_stop_found) {
+		srr1 = power9_idle_stop(pnv_deepest_stop_psscr_val,
+					pnv_deepest_stop_psscr_mask);
+	} else if (idle_states & OPAL_PM_WINKLE_ENABLED) {
+		srr1 = power7_winkle();
+	} else if ((idle_states & OPAL_PM_SLEEP_ENABLED) ||
+		   (idle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
+		srr1 = power7_sleep();
+	} else if (idle_states & OPAL_PM_NAP_ENABLED) {
+		srr1 = power7_nap(1);
+	} else {
+		/* This is the fallback method. We emulate snooze */
+		while (!generic_check_cpu_restart(cpu)) {
+			HMT_low();
+			HMT_very_low();
+		}
+		srr1 = 0;
+		HMT_medium();
+	}
+
+	return srr1;
+}
 
 /*
  * Power ISA 3.0 idle initialization.
@@ -352,7 +381,6 @@ static int __init pnv_power9_idle_init(struct device_node *np, u32 *flags,
 	u32 *residency_ns = NULL;
 	u64 max_residency_ns = 0;
 	int rc = 0, i;
-	bool default_stop_found = false, deepest_stop_found = false;
 
 	psscr_val = kcalloc(dt_idle_states, sizeof(*psscr_val), GFP_KERNEL);
 	psscr_mask = kcalloc(dt_idle_states, sizeof(*psscr_mask), GFP_KERNEL);
@@ -432,21 +460,24 @@ static int __init pnv_power9_idle_init(struct device_node *np, u32 *flags,
 		}
 	}
 
-	if (!default_stop_found) {
-		pnv_default_stop_val = PSSCR_HV_DEFAULT_VAL;
-		pnv_default_stop_mask = PSSCR_HV_DEFAULT_MASK;
-		pr_warn("Setting default stop psscr val=0x%016llx,mask=0x%016llx\n",
+	if (unlikely(!default_stop_found)) {
+		pr_warn("cpuidle-powernv: No suitable default stop state found. Disabling platform idle.\n");
+	} else {
+		ppc_md.power_save = power9_idle;
+		pr_info("cpuidle-powernv: Default stop: psscr = 0x%016llx,mask=0x%016llx\n",
 			pnv_default_stop_val, pnv_default_stop_mask);
 	}
 
-	if (!deepest_stop_found) {
-		pnv_deepest_stop_psscr_val = PSSCR_HV_DEFAULT_VAL;
-		pnv_deepest_stop_psscr_mask = PSSCR_HV_DEFAULT_MASK;
-		pr_warn("Setting default stop psscr val=0x%016llx,mask=0x%016llx\n",
+	if (unlikely(!deepest_stop_found)) {
+		pr_warn("cpuidle-powernv: No suitable stop state for CPU-Hotplug. Offlined CPUs will busy wait");
+	} else {
+		pr_info("cpuidle-powernv: Deepest stop: psscr = 0x%016llx,mask=0x%016llx\n",
 			pnv_deepest_stop_psscr_val,
 			pnv_deepest_stop_psscr_mask);
 	}
 
+	pr_info("cpuidle-powernv: Requested Level (RL) value of first deep stop = 0x%llx\n",
+		pnv_first_deep_stop_state);
 out:
 	kfree(psscr_val);
 	kfree(psscr_mask);
@@ -524,10 +555,30 @@ static int __init pnv_init_idle_states(void)
 
 	pnv_alloc_idle_core_states();
 
+	/*
+	 * For each CPU, record its PACA address in each of it's
+	 * sibling thread's PACA at the slot corresponding to this
+	 * CPU's index in the core.
+	 */
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		int cpu;
+
+		pr_info("powernv: idle: Saving PACA pointers of all CPUs in their thread sibling PACA\n");
+		for_each_possible_cpu(cpu) {
+			int base_cpu = cpu_first_thread_sibling(cpu);
+			int idx = cpu_thread_in_core(cpu);
+			int i;
+
+			for (i = 0; i < threads_per_core; i++) {
+				int j = base_cpu + i;
+
+				paca[j].thread_sibling_pacas[idx] = &paca[cpu];
+			}
+		}
+	}
+
 	if (supported_cpuidle_states & OPAL_PM_NAP_ENABLED)
 		ppc_md.power_save = power7_idle;
-	else if (supported_cpuidle_states & OPAL_PM_STOP_INST_FAST)
-		ppc_md.power_save = power9_idle;
 
 out:
 	return 0;

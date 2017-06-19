@@ -130,7 +130,7 @@ int amdgpu_sa_bo_manager_suspend(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	r = amdgpu_bo_reserve(sa_manager->bo, false);
+	r = amdgpu_bo_reserve(sa_manager->bo, true);
 	if (!r) {
 		amdgpu_bo_kunmap(sa_manager->bo);
 		amdgpu_bo_unpin(sa_manager->bo);

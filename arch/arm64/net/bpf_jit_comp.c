@@ -27,6 +27,7 @@
 #include <asm/byteorder.h>
 #include <asm/cacheflush.h>
 #include <asm/debug-monitors.h>
+#include <asm/set_memory.h>
 
 #include "bpf_jit.h"
 
@@ -35,6 +36,7 @@ int bpf_jit_enable __read_mostly;
 #define TMP_REG_1 (MAX_BPF_JIT_REG + 0)
 #define TMP_REG_2 (MAX_BPF_JIT_REG + 1)
 #define TCALL_CNT (MAX_BPF_JIT_REG + 2)
+#define TMP_REG_3 (MAX_BPF_JIT_REG + 3)
 
 /* Map BPF registers to A64 registers */
 static const int bpf2a64[] = {
@@ -56,6 +58,7 @@ static const int bpf2a64[] = {
 	/* temporary registers for internal BPF JIT */
 	[TMP_REG_1] = A64_R(10),
 	[TMP_REG_2] = A64_R(11),
+	[TMP_REG_3] = A64_R(12),
 	/* tail_call_cnt */
 	[TCALL_CNT] = A64_R(26),
 	/* temporary register for blinding constants */
@@ -252,8 +255,9 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	 */
 	off = offsetof(struct bpf_array, ptrs);
 	emit_a64_mov_i64(tmp, off, ctx);
-	emit(A64_LDR64(tmp, r2, tmp), ctx);
-	emit(A64_LDR64(prg, tmp, r3), ctx);
+	emit(A64_ADD(1, tmp, r2, tmp), ctx);
+	emit(A64_LSL(1, prg, r3, 3), ctx);
+	emit(A64_LDR64(prg, tmp, prg), ctx);
 	emit(A64_CBZ(1, prg, jmp_offset), ctx);
 
 	/* goto *(prog->bpf_func + prologue_size); */
@@ -317,10 +321,12 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	const u8 src = bpf2a64[insn->src_reg];
 	const u8 tmp = bpf2a64[TMP_REG_1];
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
+	const u8 tmp3 = bpf2a64[TMP_REG_3];
 	const s16 off = insn->off;
 	const s32 imm = insn->imm;
 	const int i = insn - ctx->prog->insnsi;
 	const bool is64 = BPF_CLASS(code) == BPF_ALU64;
+	const bool isdw = BPF_SIZE(code) == BPF_DW;
 	u8 jmp_cond;
 	s32 jmp_offset;
 
@@ -604,15 +610,6 @@ emit_cond_jmp:
 		const struct bpf_insn insn1 = insn[1];
 		u64 imm64;
 
-		if (insn1.code != 0 || insn1.src_reg != 0 ||
-		    insn1.dst_reg != 0 || insn1.off != 0) {
-			/* Note: verifier in BPF core must catch invalid
-			 * instructions.
-			 */
-			pr_err_once("Invalid BPF_LD_IMM64 instruction\n");
-			return -EINVAL;
-		}
-
 		imm64 = (u64)insn1.imm << 32 | (u32)imm;
 		emit_a64_mov_i64(dst, imm64, ctx);
 
@@ -690,7 +687,16 @@ emit_cond_jmp:
 	case BPF_STX | BPF_XADD | BPF_W:
 	/* STX XADD: lock *(u64 *)(dst + off) += src */
 	case BPF_STX | BPF_XADD | BPF_DW:
-		goto notyet;
+		emit_a64_mov_i(1, tmp, off, ctx);
+		emit(A64_ADD(1, tmp, tmp, dst), ctx);
+		emit(A64_PRFM(tmp, PST, L1, STRM), ctx);
+		emit(A64_LDXR(isdw, tmp2, tmp), ctx);
+		emit(A64_ADD(isdw, tmp2, tmp2, src), ctx);
+		emit(A64_STXR(isdw, tmp2, tmp, tmp3), ctx);
+		jmp_offset = -3;
+		check_imm19(jmp_offset);
+		emit(A64_CBNZ(0, tmp3, jmp_offset), ctx);
+		break;
 
 	/* R0 = ntohx(*(size *)(((struct sk_buff *)R6)->data + imm)) */
 	case BPF_LD | BPF_ABS | BPF_W:
@@ -757,10 +763,6 @@ emit_cond_jmp:
 		}
 		break;
 	}
-notyet:
-		pr_info_once("*** NOT YET: opcode %02x ***\n", code);
-		return -EFAULT;
-
 	default:
 		pr_err_once("unknown opcode %02x\n", code);
 		return -EINVAL;
@@ -779,14 +781,14 @@ static int build_body(struct jit_ctx *ctx)
 		int ret;
 
 		ret = build_insn(insn, ctx);
-
-		if (ctx->image == NULL)
-			ctx->offset[i] = ctx->idx;
-
 		if (ret > 0) {
 			i++;
+			if (ctx->image == NULL)
+				ctx->offset[i] = ctx->idx;
 			continue;
 		}
+		if (ctx->image == NULL)
+			ctx->offset[i] = ctx->idx;
 		if (ret)
 			return ret;
 	}

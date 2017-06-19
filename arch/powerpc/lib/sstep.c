@@ -49,7 +49,8 @@ extern int do_stxvd2x(int rn, unsigned long ea);
 /*
  * Emulate the truncation of 64 bit values in 32-bit mode.
  */
-static unsigned long truncate_if_32bit(unsigned long msr, unsigned long val)
+static nokprobe_inline unsigned long truncate_if_32bit(unsigned long msr,
+							unsigned long val)
 {
 #ifdef __powerpc64__
 	if ((msr & MSR_64BIT) == 0)
@@ -61,7 +62,7 @@ static unsigned long truncate_if_32bit(unsigned long msr, unsigned long val)
 /*
  * Determine whether a conditional branch instruction would branch.
  */
-static int __kprobes branch_taken(unsigned int instr, struct pt_regs *regs)
+static nokprobe_inline int branch_taken(unsigned int instr, struct pt_regs *regs)
 {
 	unsigned int bo = (instr >> 21) & 0x1f;
 	unsigned int bi;
@@ -81,8 +82,7 @@ static int __kprobes branch_taken(unsigned int instr, struct pt_regs *regs)
 	return 1;
 }
 
-
-static long __kprobes address_ok(struct pt_regs *regs, unsigned long ea, int nb)
+static nokprobe_inline long address_ok(struct pt_regs *regs, unsigned long ea, int nb)
 {
 	if (!user_mode(regs))
 		return 1;
@@ -92,7 +92,7 @@ static long __kprobes address_ok(struct pt_regs *regs, unsigned long ea, int nb)
 /*
  * Calculate effective address for a D-form instruction
  */
-static unsigned long __kprobes dform_ea(unsigned int instr, struct pt_regs *regs)
+static nokprobe_inline unsigned long dform_ea(unsigned int instr, struct pt_regs *regs)
 {
 	int ra;
 	unsigned long ea;
@@ -109,7 +109,7 @@ static unsigned long __kprobes dform_ea(unsigned int instr, struct pt_regs *regs
 /*
  * Calculate effective address for a DS-form instruction
  */
-static unsigned long __kprobes dsform_ea(unsigned int instr, struct pt_regs *regs)
+static nokprobe_inline unsigned long dsform_ea(unsigned int instr, struct pt_regs *regs)
 {
 	int ra;
 	unsigned long ea;
@@ -126,8 +126,8 @@ static unsigned long __kprobes dsform_ea(unsigned int instr, struct pt_regs *reg
 /*
  * Calculate effective address for an X-form instruction
  */
-static unsigned long __kprobes xform_ea(unsigned int instr,
-					struct pt_regs *regs)
+static nokprobe_inline unsigned long xform_ea(unsigned int instr,
+						struct pt_regs *regs)
 {
 	int ra, rb;
 	unsigned long ea;
@@ -145,33 +145,33 @@ static unsigned long __kprobes xform_ea(unsigned int instr,
  * Return the largest power of 2, not greater than sizeof(unsigned long),
  * such that x is a multiple of it.
  */
-static inline unsigned long max_align(unsigned long x)
+static nokprobe_inline unsigned long max_align(unsigned long x)
 {
 	x |= sizeof(unsigned long);
 	return x & -x;		/* isolates rightmost bit */
 }
 
 
-static inline unsigned long byterev_2(unsigned long x)
+static nokprobe_inline unsigned long byterev_2(unsigned long x)
 {
 	return ((x >> 8) & 0xff) | ((x & 0xff) << 8);
 }
 
-static inline unsigned long byterev_4(unsigned long x)
+static nokprobe_inline unsigned long byterev_4(unsigned long x)
 {
 	return ((x >> 24) & 0xff) | ((x >> 8) & 0xff00) |
 		((x & 0xff00) << 8) | ((x & 0xff) << 24);
 }
 
 #ifdef __powerpc64__
-static inline unsigned long byterev_8(unsigned long x)
+static nokprobe_inline unsigned long byterev_8(unsigned long x)
 {
 	return (byterev_4(x) << 32) | byterev_4(x >> 32);
 }
 #endif
 
-static int __kprobes read_mem_aligned(unsigned long *dest, unsigned long ea,
-				      int nb)
+static nokprobe_inline int read_mem_aligned(unsigned long *dest,
+					unsigned long ea, int nb)
 {
 	int err = 0;
 	unsigned long x = 0;
@@ -197,8 +197,8 @@ static int __kprobes read_mem_aligned(unsigned long *dest, unsigned long ea,
 	return err;
 }
 
-static int __kprobes read_mem_unaligned(unsigned long *dest, unsigned long ea,
-					int nb, struct pt_regs *regs)
+static nokprobe_inline int read_mem_unaligned(unsigned long *dest,
+				unsigned long ea, int nb, struct pt_regs *regs)
 {
 	int err;
 	unsigned long x, b, c;
@@ -248,7 +248,7 @@ static int __kprobes read_mem_unaligned(unsigned long *dest, unsigned long ea,
  * Read memory at address ea for nb bytes, return 0 for success
  * or -EFAULT if an error occurred.
  */
-static int __kprobes read_mem(unsigned long *dest, unsigned long ea, int nb,
+static int read_mem(unsigned long *dest, unsigned long ea, int nb,
 			      struct pt_regs *regs)
 {
 	if (!address_ok(regs, ea, nb))
@@ -257,9 +257,10 @@ static int __kprobes read_mem(unsigned long *dest, unsigned long ea, int nb,
 		return read_mem_aligned(dest, ea, nb);
 	return read_mem_unaligned(dest, ea, nb, regs);
 }
+NOKPROBE_SYMBOL(read_mem);
 
-static int __kprobes write_mem_aligned(unsigned long val, unsigned long ea,
-				       int nb)
+static nokprobe_inline int write_mem_aligned(unsigned long val,
+					unsigned long ea, int nb)
 {
 	int err = 0;
 
@@ -282,8 +283,8 @@ static int __kprobes write_mem_aligned(unsigned long val, unsigned long ea,
 	return err;
 }
 
-static int __kprobes write_mem_unaligned(unsigned long val, unsigned long ea,
-					 int nb, struct pt_regs *regs)
+static nokprobe_inline int write_mem_unaligned(unsigned long val,
+				unsigned long ea, int nb, struct pt_regs *regs)
 {
 	int err;
 	unsigned long c;
@@ -325,7 +326,7 @@ static int __kprobes write_mem_unaligned(unsigned long val, unsigned long ea,
  * Write memory at address ea for nb bytes, return 0 for success
  * or -EFAULT if an error occurred.
  */
-static int __kprobes write_mem(unsigned long val, unsigned long ea, int nb,
+static int write_mem(unsigned long val, unsigned long ea, int nb,
 			       struct pt_regs *regs)
 {
 	if (!address_ok(regs, ea, nb))
@@ -334,13 +335,14 @@ static int __kprobes write_mem(unsigned long val, unsigned long ea, int nb,
 		return write_mem_aligned(val, ea, nb);
 	return write_mem_unaligned(val, ea, nb, regs);
 }
+NOKPROBE_SYMBOL(write_mem);
 
 #ifdef CONFIG_PPC_FPU
 /*
  * Check the address and alignment, and call func to do the actual
  * load or store.
  */
-static int __kprobes do_fp_load(int rn, int (*func)(int, unsigned long),
+static int do_fp_load(int rn, int (*func)(int, unsigned long),
 				unsigned long ea, int nb,
 				struct pt_regs *regs)
 {
@@ -380,8 +382,9 @@ static int __kprobes do_fp_load(int rn, int (*func)(int, unsigned long),
 		return err;
 	return (*func)(rn, ptr);
 }
+NOKPROBE_SYMBOL(do_fp_load);
 
-static int __kprobes do_fp_store(int rn, int (*func)(int, unsigned long),
+static int do_fp_store(int rn, int (*func)(int, unsigned long),
 				 unsigned long ea, int nb,
 				 struct pt_regs *regs)
 {
@@ -425,11 +428,12 @@ static int __kprobes do_fp_store(int rn, int (*func)(int, unsigned long),
 	}
 	return err;
 }
+NOKPROBE_SYMBOL(do_fp_store);
 #endif
 
 #ifdef CONFIG_ALTIVEC
 /* For Altivec/VMX, no need to worry about alignment */
-static int __kprobes do_vec_load(int rn, int (*func)(int, unsigned long),
+static nokprobe_inline int do_vec_load(int rn, int (*func)(int, unsigned long),
 				 unsigned long ea, struct pt_regs *regs)
 {
 	if (!address_ok(regs, ea & ~0xfUL, 16))
@@ -437,7 +441,7 @@ static int __kprobes do_vec_load(int rn, int (*func)(int, unsigned long),
 	return (*func)(rn, ea);
 }
 
-static int __kprobes do_vec_store(int rn, int (*func)(int, unsigned long),
+static nokprobe_inline int do_vec_store(int rn, int (*func)(int, unsigned long),
 				  unsigned long ea, struct pt_regs *regs)
 {
 	if (!address_ok(regs, ea & ~0xfUL, 16))
@@ -447,7 +451,7 @@ static int __kprobes do_vec_store(int rn, int (*func)(int, unsigned long),
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef CONFIG_VSX
-static int __kprobes do_vsx_load(int rn, int (*func)(int, unsigned long),
+static nokprobe_inline int do_vsx_load(int rn, int (*func)(int, unsigned long),
 				 unsigned long ea, struct pt_regs *regs)
 {
 	int err;
@@ -465,7 +469,7 @@ static int __kprobes do_vsx_load(int rn, int (*func)(int, unsigned long),
 	return err;
 }
 
-static int __kprobes do_vsx_store(int rn, int (*func)(int, unsigned long),
+static nokprobe_inline int do_vsx_store(int rn, int (*func)(int, unsigned long),
 				 unsigned long ea, struct pt_regs *regs)
 {
 	int err;
@@ -522,7 +526,7 @@ static int __kprobes do_vsx_store(int rn, int (*func)(int, unsigned long),
 		: "=r" (err)				\
 		: "r" (addr), "i" (-EFAULT), "0" (err))
 
-static void __kprobes set_cr0(struct pt_regs *regs, int rd)
+static nokprobe_inline void set_cr0(struct pt_regs *regs, int rd)
 {
 	long val = regs->gpr[rd];
 
@@ -539,7 +543,7 @@ static void __kprobes set_cr0(struct pt_regs *regs, int rd)
 		regs->ccr |= 0x20000000;
 }
 
-static void __kprobes add_with_carry(struct pt_regs *regs, int rd,
+static nokprobe_inline void add_with_carry(struct pt_regs *regs, int rd,
 				     unsigned long val1, unsigned long val2,
 				     unsigned long carry_in)
 {
@@ -560,7 +564,7 @@ static void __kprobes add_with_carry(struct pt_regs *regs, int rd,
 		regs->xer &= ~XER_CA;
 }
 
-static void __kprobes do_cmp_signed(struct pt_regs *regs, long v1, long v2,
+static nokprobe_inline void do_cmp_signed(struct pt_regs *regs, long v1, long v2,
 				    int crfld)
 {
 	unsigned int crval, shift;
@@ -576,7 +580,7 @@ static void __kprobes do_cmp_signed(struct pt_regs *regs, long v1, long v2,
 	regs->ccr = (regs->ccr & ~(0xf << shift)) | (crval << shift);
 }
 
-static void __kprobes do_cmp_unsigned(struct pt_regs *regs, unsigned long v1,
+static nokprobe_inline void do_cmp_unsigned(struct pt_regs *regs, unsigned long v1,
 				      unsigned long v2, int crfld)
 {
 	unsigned int crval, shift;
@@ -592,7 +596,7 @@ static void __kprobes do_cmp_unsigned(struct pt_regs *regs, unsigned long v1,
 	regs->ccr = (regs->ccr & ~(0xf << shift)) | (crval << shift);
 }
 
-static int __kprobes trap_compare(long v1, long v2)
+static nokprobe_inline int trap_compare(long v1, long v2)
 {
 	int ret = 0;
 
@@ -631,7 +635,7 @@ static int __kprobes trap_compare(long v1, long v2)
  * Returns 1 if the instruction has been executed, or 0 if not.
  * Sets *op to indicate what the instruction does.
  */
-int __kprobes analyse_instr(struct instruction_op *op, struct pt_regs *regs,
+int analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 			    unsigned int instr)
 {
 	unsigned int opcode, ra, rb, rd, spr, u;
@@ -1692,6 +1696,7 @@ int __kprobes analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 #endif
 }
 EXPORT_SYMBOL_GPL(analyse_instr);
+NOKPROBE_SYMBOL(analyse_instr);
 
 /*
  * For PPC32 we always use stwu with r1 to change the stack pointer.
@@ -1701,7 +1706,7 @@ EXPORT_SYMBOL_GPL(analyse_instr);
  * don't emulate the real store operation. We will do real store
  * operation safely in exception return code by checking this flag.
  */
-static __kprobes int handle_stack_update(unsigned long ea, struct pt_regs *regs)
+static nokprobe_inline int handle_stack_update(unsigned long ea, struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC32
 	/*
@@ -1721,7 +1726,7 @@ static __kprobes int handle_stack_update(unsigned long ea, struct pt_regs *regs)
 	return 0;
 }
 
-static __kprobes void do_signext(unsigned long *valp, int size)
+static nokprobe_inline void do_signext(unsigned long *valp, int size)
 {
 	switch (size) {
 	case 2:
@@ -1733,7 +1738,7 @@ static __kprobes void do_signext(unsigned long *valp, int size)
 	}
 }
 
-static __kprobes void do_byterev(unsigned long *valp, int size)
+static nokprobe_inline void do_byterev(unsigned long *valp, int size)
 {
 	switch (size) {
 	case 2:
@@ -1757,7 +1762,7 @@ static __kprobes void do_byterev(unsigned long *valp, int size)
  * or -1 if the instruction is one that should not be stepped,
  * such as an rfid, or a mtmsrd that would clear MSR_RI.
  */
-int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
+int emulate_step(struct pt_regs *regs, unsigned int instr)
 {
 	struct instruction_op op;
 	int r, err, size;
@@ -1988,3 +1993,4 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 	regs->nip = truncate_if_32bit(regs->msr, regs->nip + 4);
 	return 1;
 }
+NOKPROBE_SYMBOL(emulate_step);

@@ -81,7 +81,7 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	list_del_init(&bo->list);
 	mutex_unlock(&bo->rdev->gem.mutex);
 	radeon_bo_clear_surface_reg(bo);
-	WARN_ON(!list_empty(&bo->va));
+	WARN_ON_ONCE(!list_empty(&bo->va));
 	drm_gem_object_release(&bo->gem_base);
 	kfree(bo);
 }

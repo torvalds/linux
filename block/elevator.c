@@ -41,6 +41,7 @@
 
 #include "blk.h"
 #include "blk-mq-sched.h"
+#include "blk-wbt.h"
 
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
@@ -877,6 +878,8 @@ void elv_unregister_queue(struct request_queue *q)
 		kobject_uevent(&e->kobj, KOBJ_REMOVE);
 		kobject_del(&e->kobj);
 		e->registered = 0;
+		/* Re-enable throttling in case elevator disabled it */
+		wbt_enable_default(q);
 	}
 }
 EXPORT_SYMBOL(elv_unregister_queue);
@@ -947,7 +950,6 @@ static int elevator_switch_mq(struct request_queue *q,
 	int ret;
 
 	blk_mq_freeze_queue(q);
-	blk_mq_quiesce_queue(q);
 
 	if (q->elevator) {
 		if (q->elevator->registered)
@@ -975,9 +977,7 @@ static int elevator_switch_mq(struct request_queue *q,
 
 out:
 	blk_mq_unfreeze_queue(q);
-	blk_mq_start_stopped_hw_queues(q, true);
 	return ret;
-
 }
 
 /*
@@ -1062,10 +1062,8 @@ static int __elevator_change(struct request_queue *q, const char *name)
 
 	strlcpy(elevator_name, name, sizeof(elevator_name));
 	e = elevator_get(strstrip(elevator_name), true);
-	if (!e) {
-		printk(KERN_ERR "elevator: type %s not found\n", elevator_name);
+	if (!e)
 		return -EINVAL;
-	}
 
 	if (q->elevator &&
 	    !strcmp(elevator_name, q->elevator->type->elevator_name)) {
@@ -1085,32 +1083,26 @@ static int __elevator_change(struct request_queue *q, const char *name)
 	return elevator_switch(q, e);
 }
 
-int elevator_change(struct request_queue *q, const char *name)
+static inline bool elv_support_iosched(struct request_queue *q)
 {
-	int ret;
-
-	/* Protect q->elevator from elevator_init() */
-	mutex_lock(&q->sysfs_lock);
-	ret = __elevator_change(q, name);
-	mutex_unlock(&q->sysfs_lock);
-
-	return ret;
+	if (q->mq_ops && q->tag_set && (q->tag_set->flags &
+				BLK_MQ_F_NO_SCHED))
+		return false;
+	return true;
 }
-EXPORT_SYMBOL(elevator_change);
 
 ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 			  size_t count)
 {
 	int ret;
 
-	if (!(q->mq_ops || q->request_fn))
+	if (!(q->mq_ops || q->request_fn) || !elv_support_iosched(q))
 		return count;
 
 	ret = __elevator_change(q, name);
 	if (!ret)
 		return count;
 
-	printk(KERN_ERR "elevator: switch to %s failed\n", name);
 	return ret;
 }
 
@@ -1135,7 +1127,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 			len += sprintf(name+len, "[%s] ", elv->elevator_name);
 			continue;
 		}
-		if (__e->uses_mq && q->mq_ops)
+		if (__e->uses_mq && q->mq_ops && elv_support_iosched(q))
 			len += sprintf(name+len, "%s ", __e->elevator_name);
 		else if (!__e->uses_mq && !q->mq_ops)
 			len += sprintf(name+len, "%s ", __e->elevator_name);

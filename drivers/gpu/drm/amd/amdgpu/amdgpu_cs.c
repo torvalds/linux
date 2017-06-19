@@ -1074,6 +1074,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, p->fence);
 	job->uf_sequence = cs->out.handle;
 	amdgpu_job_free_resources(job);
+	amdgpu_cs_parser_fini(p, 0, true);
 
 	trace_amdgpu_cs_ioctl(job);
 	amd_sched_entity_push_job(&job->base);
@@ -1129,7 +1130,10 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		goto out;
 
 	r = amdgpu_cs_submit(&parser, cs);
+	if (r)
+		goto out;
 
+	return 0;
 out:
 	amdgpu_cs_parser_fini(&parser, r, reserved_buffers);
 	return r;

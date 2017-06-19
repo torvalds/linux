@@ -98,27 +98,7 @@ static struct attribute_group mmu_stat_group = {
 	.name = "mmu_stats",
 };
 
-/* XXX convert to rusty's on_one_cpu */
-static unsigned long run_on_cpu(unsigned long cpu,
-			        unsigned long (*func)(unsigned long),
-				unsigned long arg)
-{
-	cpumask_t old_affinity;
-	unsigned long ret;
-
-	cpumask_copy(&old_affinity, &current->cpus_allowed);
-	/* should return -EINVAL to userspace */
-	if (set_cpus_allowed_ptr(current, cpumask_of(cpu)))
-		return 0;
-
-	ret = func(arg);
-
-	set_cpus_allowed_ptr(current, &old_affinity);
-
-	return ret;
-}
-
-static unsigned long read_mmustat_enable(unsigned long junk)
+static long read_mmustat_enable(void *data __maybe_unused)
 {
 	unsigned long ra = 0;
 
@@ -127,11 +107,11 @@ static unsigned long read_mmustat_enable(unsigned long junk)
 	return ra != 0;
 }
 
-static unsigned long write_mmustat_enable(unsigned long val)
+static long write_mmustat_enable(void *data)
 {
-	unsigned long ra, orig_ra;
+	unsigned long ra, orig_ra, *val = data;
 
-	if (val)
+	if (*val)
 		ra = __pa(&per_cpu(mmu_stats, smp_processor_id()));
 	else
 		ra = 0UL;
@@ -142,7 +122,8 @@ static unsigned long write_mmustat_enable(unsigned long val)
 static ssize_t show_mmustat_enable(struct device *s,
 				struct device_attribute *attr, char *buf)
 {
-	unsigned long val = run_on_cpu(s->id, read_mmustat_enable, 0);
+	long val = work_on_cpu(s->id, read_mmustat_enable, NULL);
+
 	return sprintf(buf, "%lx\n", val);
 }
 
@@ -150,13 +131,15 @@ static ssize_t store_mmustat_enable(struct device *s,
 			struct device_attribute *attr, const char *buf,
 			size_t count)
 {
-	unsigned long val, err;
-	int ret = sscanf(buf, "%lu", &val);
+	unsigned long val;
+	long err;
+	int ret;
 
+	ret = sscanf(buf, "%lu", &val);
 	if (ret != 1)
 		return -EINVAL;
 
-	err = run_on_cpu(s->id, write_mmustat_enable, val);
+	err = work_on_cpu(s->id, write_mmustat_enable, &val);
 	if (err)
 		return -EIO;
 

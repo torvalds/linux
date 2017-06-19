@@ -23,15 +23,16 @@
 
 #include <linux/module.h>
 #include <linux/ftrace.h>
+#include <linux/completion.h>
 
 #if IS_ENABLED(CONFIG_LIVEPATCH)
 
 #include <asm/livepatch.h>
 
-enum klp_state {
-	KLP_DISABLED,
-	KLP_ENABLED
-};
+/* task patch states */
+#define KLP_UNDEFINED	-1
+#define KLP_UNPATCHED	 0
+#define KLP_PATCHED	 1
 
 /**
  * struct klp_func - function structure for live patching
@@ -39,10 +40,29 @@ enum klp_state {
  * @new_func:	pointer to the patched function code
  * @old_sympos: a hint indicating which symbol position the old function
  *		can be found (optional)
+ * @immediate:  patch the func immediately, bypassing safety mechanisms
  * @old_addr:	the address of the function being patched
  * @kobj:	kobject for sysfs resources
- * @state:	tracks function-level patch application state
  * @stack_node:	list node for klp_ops func_stack list
+ * @old_size:	size of the old function
+ * @new_size:	size of the new function
+ * @patched:	the func has been added to the klp_ops list
+ * @transition:	the func is currently being applied or reverted
+ *
+ * The patched and transition variables define the func's patching state.  When
+ * patching, a func is always in one of the following states:
+ *
+ *   patched=0 transition=0: unpatched
+ *   patched=0 transition=1: unpatched, temporary starting state
+ *   patched=1 transition=1: patched, may be visible to some tasks
+ *   patched=1 transition=0: patched, visible to all tasks
+ *
+ * And when unpatching, it goes in the reverse order:
+ *
+ *   patched=1 transition=0: patched, visible to all tasks
+ *   patched=1 transition=1: patched, may be visible to some tasks
+ *   patched=0 transition=1: unpatched, temporary ending state
+ *   patched=0 transition=0: unpatched
  */
 struct klp_func {
 	/* external */
@@ -56,12 +76,15 @@ struct klp_func {
 	 * in kallsyms for the given object is used.
 	 */
 	unsigned long old_sympos;
+	bool immediate;
 
 	/* internal */
 	unsigned long old_addr;
 	struct kobject kobj;
-	enum klp_state state;
 	struct list_head stack_node;
+	unsigned long old_size, new_size;
+	bool patched;
+	bool transition;
 };
 
 /**
@@ -70,8 +93,8 @@ struct klp_func {
  * @funcs:	function entries for functions to be patched in the object
  * @kobj:	kobject for sysfs resources
  * @mod:	kernel module associated with the patched object
- * 		(NULL for vmlinux)
- * @state:	tracks object-level patch application state
+ *		(NULL for vmlinux)
+ * @patched:	the object's funcs have been added to the klp_ops list
  */
 struct klp_object {
 	/* external */
@@ -81,26 +104,30 @@ struct klp_object {
 	/* internal */
 	struct kobject kobj;
 	struct module *mod;
-	enum klp_state state;
+	bool patched;
 };
 
 /**
  * struct klp_patch - patch structure for live patching
  * @mod:	reference to the live patch module
  * @objs:	object entries for kernel objects to be patched
+ * @immediate:  patch all funcs immediately, bypassing safety mechanisms
  * @list:	list node for global list of registered patches
  * @kobj:	kobject for sysfs resources
- * @state:	tracks patch-level application state
+ * @enabled:	the patch is enabled (but operation may be incomplete)
+ * @finish:	for waiting till it is safe to remove the patch module
  */
 struct klp_patch {
 	/* external */
 	struct module *mod;
 	struct klp_object *objs;
+	bool immediate;
 
 	/* internal */
 	struct list_head list;
 	struct kobject kobj;
-	enum klp_state state;
+	bool enabled;
+	struct completion finish;
 };
 
 #define klp_for_each_object(patch, obj) \
@@ -123,10 +150,27 @@ void arch_klp_init_object_loaded(struct klp_patch *patch,
 int klp_module_coming(struct module *mod);
 void klp_module_going(struct module *mod);
 
+void klp_copy_process(struct task_struct *child);
+void klp_update_patch_state(struct task_struct *task);
+
+static inline bool klp_patch_pending(struct task_struct *task)
+{
+	return test_tsk_thread_flag(task, TIF_PATCH_PENDING);
+}
+
+static inline bool klp_have_reliable_stack(void)
+{
+	return IS_ENABLED(CONFIG_STACKTRACE) &&
+	       IS_ENABLED(CONFIG_HAVE_RELIABLE_STACKTRACE);
+}
+
 #else /* !CONFIG_LIVEPATCH */
 
 static inline int klp_module_coming(struct module *mod) { return 0; }
-static inline void klp_module_going(struct module *mod) { }
+static inline void klp_module_going(struct module *mod) {}
+static inline bool klp_patch_pending(struct task_struct *task) { return false; }
+static inline void klp_update_patch_state(struct task_struct *task) {}
+static inline void klp_copy_process(struct task_struct *child) {}
 
 #endif /* CONFIG_LIVEPATCH */
 

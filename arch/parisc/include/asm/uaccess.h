@@ -6,15 +6,10 @@
  */
 #include <asm/page.h>
 #include <asm/cache.h>
-#include <asm/errno.h>
 #include <asm-generic/uaccess-unaligned.h>
 
 #include <linux/bug.h>
 #include <linux/string.h>
-#include <linux/thread_info.h>
-
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
 
 #define KERNEL_DS	((mm_segment_t){0})
 #define USER_DS 	((mm_segment_t){1})
@@ -39,10 +34,10 @@
 #define get_user __get_user
 
 #if !defined(CONFIG_64BIT)
-#define LDD_USER(ptr)		__get_user_asm64(ptr)
+#define LDD_USER(val, ptr)	__get_user_asm64(val, ptr)
 #define STD_USER(x, ptr)	__put_user_asm64(x, ptr)
 #else
-#define LDD_USER(ptr)		__get_user_asm("ldd", ptr)
+#define LDD_USER(val, ptr)	__get_user_asm(val, "ldd", ptr)
 #define STD_USER(x, ptr)	__put_user_asm("std", x, ptr)
 #endif
 
@@ -97,62 +92,86 @@ struct exception_data {
 		" mtsp %0,%%sr2\n\t"		\
 		: : "r"(get_fs()) : )
 
-#define __get_user(x, ptr)                               \
-({                                                       \
-	register long __gu_err __asm__ ("r8") = 0;       \
-	register long __gu_val;				 \
-							 \
-	load_sr2();					 \
-	switch (sizeof(*(ptr))) {			 \
-	    case 1: __get_user_asm("ldb", ptr); break;   \
-	    case 2: __get_user_asm("ldh", ptr); break;   \
-	    case 4: __get_user_asm("ldw", ptr); break;   \
-	    case 8: LDD_USER(ptr);  break;		 \
-	    default: BUILD_BUG(); break;		 \
-	}                                                \
-							 \
-	(x) = (__force __typeof__(*(ptr))) __gu_val;	 \
-	__gu_err;                                        \
+#define __get_user_internal(val, ptr)			\
+({							\
+	register long __gu_err __asm__ ("r8") = 0;	\
+							\
+	switch (sizeof(*(ptr))) {			\
+	case 1: __get_user_asm(val, "ldb", ptr); break;	\
+	case 2: __get_user_asm(val, "ldh", ptr); break; \
+	case 4: __get_user_asm(val, "ldw", ptr); break; \
+	case 8: LDD_USER(val, ptr); break;		\
+	default: BUILD_BUG();				\
+	}						\
+							\
+	__gu_err;					\
 })
 
-#define __get_user_asm(ldx, ptr)                        \
+#define __get_user(val, ptr)				\
+({							\
+	load_sr2();					\
+	__get_user_internal(val, ptr);			\
+})
+
+#define __get_user_asm(val, ldx, ptr)			\
+{							\
+	register long __gu_val;				\
+							\
 	__asm__("1: " ldx " 0(%%sr2,%2),%0\n"		\
 		"9:\n"					\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 9b)	\
 		: "=r"(__gu_val), "=r"(__gu_err)        \
-		: "r"(ptr), "1"(__gu_err));
+		: "r"(ptr), "1"(__gu_err));		\
+							\
+	(val) = (__force __typeof__(*(ptr))) __gu_val;	\
+}
 
 #if !defined(CONFIG_64BIT)
 
-#define __get_user_asm64(ptr) 				\
+#define __get_user_asm64(val, ptr)			\
+{							\
+	union {						\
+		unsigned long long	l;		\
+		__typeof__(*(ptr))	t;		\
+	} __gu_tmp;					\
+							\
 	__asm__("   copy %%r0,%R0\n"			\
 		"1: ldw 0(%%sr2,%2),%0\n"		\
 		"2: ldw 4(%%sr2,%2),%R0\n"		\
 		"9:\n"					\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 9b)	\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 9b)	\
-		: "=r"(__gu_val), "=r"(__gu_err)	\
-		: "r"(ptr), "1"(__gu_err));
+		: "=&r"(__gu_tmp.l), "=r"(__gu_err)	\
+		: "r"(ptr), "1"(__gu_err));		\
+							\
+	(val) = __gu_tmp.t;				\
+}
 
 #endif /* !defined(CONFIG_64BIT) */
 
 
-#define __put_user(x, ptr)                                      \
+#define __put_user_internal(x, ptr)				\
 ({								\
 	register long __pu_err __asm__ ("r8") = 0;      	\
         __typeof__(*(ptr)) __x = (__typeof__(*(ptr)))(x);	\
 								\
-	load_sr2();						\
 	switch (sizeof(*(ptr))) {				\
-	    case 1: __put_user_asm("stb", __x, ptr); break;     \
-	    case 2: __put_user_asm("sth", __x, ptr); break;     \
-	    case 4: __put_user_asm("stw", __x, ptr); break;     \
-	    case 8: STD_USER(__x, ptr); break;			\
-	    default: BUILD_BUG(); break;			\
-	}                                                       \
+	case 1: __put_user_asm("stb", __x, ptr); break;		\
+	case 2: __put_user_asm("sth", __x, ptr); break;		\
+	case 4: __put_user_asm("stw", __x, ptr); break;		\
+	case 8: STD_USER(__x, ptr); break;			\
+	default: BUILD_BUG();					\
+	}							\
 								\
 	__pu_err;						\
 })
+
+#define __put_user(x, ptr)					\
+({								\
+	load_sr2();						\
+	__put_user_internal(x, ptr);				\
+})
+
 
 /*
  * The "__put_user/kernel_asm()" macros tell gcc they read from memory
@@ -192,9 +211,6 @@ struct exception_data {
  * Complex access routines -- external declarations
  */
 
-extern unsigned long lcopy_to_user(void __user *, const void *, unsigned long);
-extern unsigned long lcopy_from_user(void *, const void __user *, unsigned long);
-extern unsigned long lcopy_in_user(void __user *, const void __user *, unsigned long);
 extern long strncpy_from_user(char *, const char __user *, long);
 extern unsigned lclear_user(void __user *, unsigned long);
 extern long lstrnlen_user(const char __user *, long);
@@ -208,59 +224,14 @@ extern long lstrnlen_user(const char __user *, long);
 #define clear_user lclear_user
 #define __clear_user lclear_user
 
-unsigned long __must_check __copy_to_user(void __user *dst, const void *src,
-					  unsigned long len);
-unsigned long __must_check __copy_from_user(void *dst, const void __user *src,
-					  unsigned long len);
-unsigned long copy_in_user(void __user *dst, const void __user *src,
-			   unsigned long len);
-#define __copy_in_user copy_in_user
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
-extern void __compiletime_error("usercopy buffer size is too small")
-__bad_copy_user(void);
-
-static inline void copy_user_overflow(int size, unsigned long count)
-{
-	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
-}
-
-static __always_inline unsigned long __must_check
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	int sz = __compiletime_object_size(to);
-	unsigned long ret = n;
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(to, n, false);
-		ret = __copy_from_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	if (unlikely(ret))
-		memset(to + (n - ret), 0, ret);
-
-	return ret;
-}
-
-static __always_inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	int sz = __compiletime_object_size(from);
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(from, n, true);
-		n = __copy_to_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	return n;
-}
+unsigned long __must_check raw_copy_to_user(void __user *dst, const void *src,
+					    unsigned long len);
+unsigned long __must_check raw_copy_from_user(void *dst, const void __user *src,
+					    unsigned long len);
+unsigned long __must_check raw_copy_in_user(void __user *dst, const void __user *src,
+					    unsigned long len);
+#define INLINE_COPY_TO_USER
+#define INLINE_COPY_FROM_USER
 
 struct pt_regs;
 int fixup_exception(struct pt_regs *regs);

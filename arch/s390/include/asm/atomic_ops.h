@@ -111,20 +111,22 @@ __ATOMIC64_OPS(__atomic64_xor, "xgr")
 
 static inline int __atomic_cmpxchg(int *ptr, int old, int new)
 {
-	asm volatile(
-		"	cs	%[old],%[new],%[ptr]"
-		: [old] "+d" (old), [ptr] "+Q" (*ptr)
-		: [new] "d" (new) : "cc", "memory");
-	return old;
+	return __sync_val_compare_and_swap(ptr, old, new);
+}
+
+static inline int __atomic_cmpxchg_bool(int *ptr, int old, int new)
+{
+	return __sync_bool_compare_and_swap(ptr, old, new);
 }
 
 static inline long __atomic64_cmpxchg(long *ptr, long old, long new)
 {
-	asm volatile(
-		"	csg	%[old],%[new],%[ptr]"
-		: [old] "+d" (old), [ptr] "+Q" (*ptr)
-		: [new] "d" (new) : "cc", "memory");
-	return old;
+	return __sync_val_compare_and_swap(ptr, old, new);
+}
+
+static inline long __atomic64_cmpxchg_bool(long *ptr, long old, long new)
+{
+	return __sync_bool_compare_and_swap(ptr, old, new);
 }
 
 #endif /* __ARCH_S390_ATOMIC_OPS__  */

@@ -78,7 +78,9 @@ static void gpio_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 	gpio_nand_dosync(gpiomtd);
 
 	if (ctrl & NAND_CTRL_CHANGE) {
-		gpio_set_value(gpiomtd->plat.gpio_nce, !(ctrl & NAND_NCE));
+		if (gpio_is_valid(gpiomtd->plat.gpio_nce))
+			gpio_set_value(gpiomtd->plat.gpio_nce,
+				       !(ctrl & NAND_NCE));
 		gpio_set_value(gpiomtd->plat.gpio_cle, !!(ctrl & NAND_CLE));
 		gpio_set_value(gpiomtd->plat.gpio_ale, !!(ctrl & NAND_ALE));
 		gpio_nand_dosync(gpiomtd);
@@ -201,7 +203,8 @@ static int gpio_nand_remove(struct platform_device *pdev)
 
 	if (gpio_is_valid(gpiomtd->plat.gpio_nwp))
 		gpio_set_value(gpiomtd->plat.gpio_nwp, 0);
-	gpio_set_value(gpiomtd->plat.gpio_nce, 1);
+	if (gpio_is_valid(gpiomtd->plat.gpio_nce))
+		gpio_set_value(gpiomtd->plat.gpio_nce, 1);
 
 	return 0;
 }
@@ -239,10 +242,13 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_nce, "NAND NCE");
-	if (ret)
-		return ret;
-	gpio_direction_output(gpiomtd->plat.gpio_nce, 1);
+	if (gpio_is_valid(gpiomtd->plat.gpio_nce)) {
+		ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_nce,
+					"NAND NCE");
+		if (ret)
+			return ret;
+		gpio_direction_output(gpiomtd->plat.gpio_nce, 1);
+	}
 
 	if (gpio_is_valid(gpiomtd->plat.gpio_nwp)) {
 		ret = devm_gpio_request(&pdev->dev, gpiomtd->plat.gpio_nwp,

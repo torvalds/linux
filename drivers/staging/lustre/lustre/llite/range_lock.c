@@ -174,7 +174,7 @@ void range_unlock(struct range_lock_tree *tree, struct range_lock *lock)
  */
 static enum interval_iter range_lock_cb(struct interval_node *node, void *arg)
 {
-	struct range_lock *lock = (struct range_lock *)arg;
+	struct range_lock *lock = arg;
 	struct range_lock *overlap = node2rangelock(node);
 
 	lock->rl_blocking_ranges += overlap->rl_lock_count + 1;

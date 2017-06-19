@@ -5035,6 +5035,12 @@ static const struct i2c_device_id rt5677_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
 
+static const struct of_device_id rt5677_of_match[] = {
+	{ .compatible = "realtek,rt5677", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rt5677_of_match);
+
 static const struct acpi_gpio_params plug_det_gpio = { RT5677_GPIO_PLUG_DET, 0, false };
 static const struct acpi_gpio_params mic_present_gpio = { RT5677_GPIO_MIC_PRESENT_L, 0, false };
 static const struct acpi_gpio_params headphone_enable_gpio = { RT5677_GPIO_HP_AMP_SHDN_L, 0, false };
@@ -5294,6 +5300,7 @@ static int rt5677_i2c_remove(struct i2c_client *i2c)
 static struct i2c_driver rt5677_i2c_driver = {
 	.driver = {
 		.name = "rt5677",
+		.of_match_table = rt5677_of_match,
 	},
 	.probe = rt5677_i2c_probe,
 	.remove   = rt5677_i2c_remove,

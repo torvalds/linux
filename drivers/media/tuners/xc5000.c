@@ -1184,8 +1184,7 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 		/* Start the tuner self-calibration process */
 		ret = xc_initialize(priv);
 		if (ret) {
-			printk(KERN_ERR
-			       "xc5000: Can't request Self-callibration.");
+			printk(KERN_ERR "xc5000: Can't request self-calibration.");
 			continue;
 		}
 

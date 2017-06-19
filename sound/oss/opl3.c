@@ -1200,7 +1200,7 @@ static int me;
 
 static int io = -1;
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 
 static int __init init_opl3 (void)
 {

@@ -5047,7 +5047,7 @@ static int fotg210_run(struct usb_hcd *hcd)
 	/*
 	 * hcc_params controls whether fotg210->regs->segment must (!!!)
 	 * be used; it constrains QH/ITD/SITD and QTD locations.
-	 * pci_pool consistent memory always uses segment zero.
+	 * dma_pool consistent memory always uses segment zero.
 	 * streaming mappings for I/O buffers, like pci_map_single(),
 	 * can return segments above 4GB, if the device allows.
 	 *

@@ -183,6 +183,9 @@ static int ohci_platform_probe(struct platform_device *dev)
 			if (IS_ERR(priv->phys[phy_num])) {
 				err = PTR_ERR(priv->phys[phy_num]);
 				goto err_put_hcd;
+			} else if (!hcd->phy) {
+				/* Avoiding phy_get() in usb_add_hcd() */
+				hcd->phy = priv->phys[phy_num];
 			}
 		}
 

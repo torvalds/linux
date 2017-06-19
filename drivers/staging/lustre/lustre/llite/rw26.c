@@ -156,32 +156,6 @@ static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 
 #define MAX_DIRECTIO_SIZE (2 * 1024 * 1024 * 1024UL)
 
-static inline int ll_get_user_pages(int rw, unsigned long user_addr,
-				    size_t size, struct page ***pages,
-				    int *max_pages)
-{
-	int result = -ENOMEM;
-
-	/* set an arbitrary limit to prevent arithmetic overflow */
-	if (size > MAX_DIRECTIO_SIZE) {
-		*pages = NULL;
-		return -EFBIG;
-	}
-
-	*max_pages = (user_addr + size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	*max_pages -= user_addr >> PAGE_SHIFT;
-
-	*pages = libcfs_kvzalloc(*max_pages * sizeof(**pages), GFP_NOFS);
-	if (*pages) {
-		result = get_user_pages_fast(user_addr, *max_pages,
-					     (rw == READ), *pages);
-		if (unlikely(result <= 0))
-			kvfree(*pages);
-	}
-
-	return result;
-}
-
 /*  ll_free_user_pages - tear down page struct array
  *  @pages: array of page struct pointers underlying target buffer
  */

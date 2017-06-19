@@ -48,7 +48,7 @@
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
 #include "nfpcore/nfp_nffw.h"
-#include "nfpcore/nfp_nsp_eth.h"
+#include "nfpcore/nfp_nsp.h"
 
 #include "nfpcore/nfp6000_pcie.h"
 
@@ -253,6 +253,7 @@ exit_release_fw:
 
 static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
 {
+	struct nfp_nsp_identify *nspi;
 	struct nfp_nsp *nsp;
 	int err;
 
@@ -268,6 +269,12 @@ static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
 		goto exit_close_nsp;
 
 	pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
+
+	nspi = __nfp_nsp_identify(nsp);
+	if (nspi) {
+		dev_info(&pdev->dev, "BSP: %s\n", nspi->version);
+		kfree(nspi);
+	}
 
 	err = nfp_fw_load(pdev, pf, nsp);
 	if (err < 0) {
@@ -385,8 +392,7 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 {
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
 
-	if (!list_empty(&pf->ports))
-		nfp_net_pci_remove(pf);
+	nfp_net_pci_remove(pf);
 
 	nfp_pcie_sriov_disable(pdev);
 

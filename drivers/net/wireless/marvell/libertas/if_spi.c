@@ -1181,6 +1181,10 @@ static int if_spi_probe(struct spi_device *spi)
 
 	/* Initialize interrupt handling stuff. */
 	card->workqueue = alloc_workqueue("libertas_spi", WQ_MEM_RECLAIM, 0);
+	if (!card->workqueue) {
+		err = -ENOMEM;
+		goto remove_card;
+	}
 	INIT_WORK(&card->packet_work, if_spi_host_to_card_worker);
 	INIT_WORK(&card->resume_work, if_spi_resume_worker);
 
@@ -1209,6 +1213,7 @@ release_irq:
 	free_irq(spi->irq, card);
 terminate_workqueue:
 	destroy_workqueue(card->workqueue);
+remove_card:
 	lbs_remove_card(priv); /* will call free_netdev */
 free_card:
 	free_if_spi_card(card);

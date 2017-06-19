@@ -2207,11 +2207,11 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" ALI_IRCC_DRIVER_NAME);
 
 
-module_param_array(io, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
 MODULE_PARM_DESC(io, "Base I/O addresses");
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 MODULE_PARM_DESC(irq, "IRQ lines");
-module_param_array(dma, int, NULL, 0);
+module_param_hw_array(dma, int, dma, NULL, 0);
 MODULE_PARM_DESC(dma, "DMA channels");
 
 module_init(ali_ircc_init);

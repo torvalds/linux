@@ -2862,12 +2862,10 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 	int port = 0;
 
 	if (msi_x) {
-		int nreq = dev->caps.num_ports * num_online_cpus() + 1;
-
-		nreq = min_t(int, dev->caps.num_eqs - dev->caps.reserved_eqs,
-			     nreq);
-		if (nreq > MAX_MSIX)
-			nreq = MAX_MSIX;
+		int nreq = min3(dev->caps.num_ports *
+				(int)num_online_cpus() + 1,
+				dev->caps.num_eqs - dev->caps.reserved_eqs,
+				MAX_MSIX);
 
 		entries = kcalloc(nreq, sizeof *entries, GFP_KERNEL);
 		if (!entries)

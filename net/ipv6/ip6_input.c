@@ -49,6 +49,8 @@
 
 int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	void (*edemux)(struct sk_buff *skb);
+
 	/* if ingress device is enslaved to an L3 master device pass the
 	 * skb to its handler for processing
 	 */
@@ -60,8 +62,8 @@ int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 		const struct inet6_protocol *ipprot;
 
 		ipprot = rcu_dereference(inet6_protos[ipv6_hdr(skb)->nexthdr]);
-		if (ipprot && ipprot->early_demux)
-			ipprot->early_demux(skb);
+		if (ipprot && (edemux = READ_ONCE(ipprot->early_demux)))
+			edemux(skb);
 	}
 	if (!skb_valid_dst(skb))
 		ip6_route_input(skb);
@@ -122,11 +124,14 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 			max_t(unsigned short, 1, skb_shinfo(skb)->gso_segs));
 	/*
 	 * RFC4291 2.5.3
+	 * The loopback address must not be used as the source address in IPv6
+	 * packets that are sent outside of a single node. [..]
 	 * A packet received on an interface with a destination address
 	 * of loopback must be dropped.
 	 */
-	if (!(dev->flags & IFF_LOOPBACK) &&
-	    ipv6_addr_loopback(&hdr->daddr))
+	if ((ipv6_addr_loopback(&hdr->saddr) ||
+	     ipv6_addr_loopback(&hdr->daddr)) &&
+	     !(dev->flags & IFF_LOOPBACK))
 		goto err;
 
 	/* RFC4291 Errata ID: 3480

@@ -1326,8 +1326,8 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 		regulator->dev = dev;
 
 		/* Add a link to the device sysfs entry */
-		size = scnprintf(buf, REG_STR_SIZE, "%s-%s",
-				 dev->kobj.name, supply_name);
+		size = snprintf(buf, REG_STR_SIZE, "%s-%s",
+				dev->kobj.name, supply_name);
 		if (size >= REG_STR_SIZE)
 			goto overflow_err;
 
@@ -1343,7 +1343,7 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 			/* non-fatal */
 		}
 	} else {
-		regulator->supply_name = kstrdup(supply_name, GFP_KERNEL);
+		regulator->supply_name = kstrdup_const(supply_name, GFP_KERNEL);
 		if (regulator->supply_name == NULL)
 			goto overflow_err;
 	}
@@ -1451,8 +1451,6 @@ static struct regulator_dev *regulator_lookup_by_name(const char *name)
  * regulator_dev_lookup - lookup a regulator device.
  * @dev: device for regulator "consumer".
  * @supply: Supply name or regulator ID.
- * @ret: 0 on success, -ENODEV if lookup fails permanently, -EPROBE_DEFER if
- * lookup could succeed in the future.
  *
  * If successful, returns a struct regulator_dev that corresponds to the name
  * @supply and with the embedded struct device refcount incremented by one.
@@ -1533,14 +1531,6 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	r = regulator_dev_lookup(dev, rdev->supply_name);
 	if (IS_ERR(r)) {
 		ret = PTR_ERR(r);
-
-		if (ret == -ENODEV) {
-			/*
-			 * No supply was specified for this regulator and
-			 * there will never be one.
-			 */
-			return 0;
-		}
 
 		/* Did the lookup explicitly defer for us? */
 		if (ret == -EPROBE_DEFER)
@@ -1799,7 +1789,7 @@ static void _regulator_put(struct regulator *regulator)
 	put_device(&rdev->dev);
 	mutex_unlock(&rdev->mutex);
 
-	kfree(regulator->supply_name);
+	kfree_const(regulator->supply_name);
 	kfree(regulator);
 
 	module_put(rdev->owner);
@@ -2182,6 +2172,8 @@ static int _regulator_enable(struct regulator_dev *rdev)
 			if (ret < 0)
 				return ret;
 
+			_notifier_call_chain(rdev, REGULATOR_EVENT_ENABLE,
+					     NULL);
 		} else if (ret < 0) {
 			rdev_err(rdev, "is_enabled() failed: %d\n", ret);
 			return ret;
@@ -2486,7 +2478,7 @@ static int _regulator_list_voltage(struct regulator *regulator,
 		ret = ops->list_voltage(rdev, selector);
 		if (lock)
 			mutex_unlock(&rdev->mutex);
-	} else if (rdev->supply) {
+	} else if (rdev->is_switch && rdev->supply) {
 		ret = _regulator_list_voltage(rdev->supply, selector, lock);
 	} else {
 		return -EINVAL;
@@ -2544,7 +2536,7 @@ int regulator_count_voltages(struct regulator *regulator)
 	if (rdev->desc->n_voltages)
 		return rdev->desc->n_voltages;
 
-	if (!rdev->supply)
+	if (!rdev->is_switch || !rdev->supply)
 		return -EINVAL;
 
 	return regulator_count_voltages(rdev->supply);
@@ -2773,6 +2765,8 @@ static int _regulator_set_voltage_time(struct regulator_dev *rdev,
 		ramp_delay = rdev->constraints->ramp_delay;
 	else if (rdev->desc->ramp_delay)
 		ramp_delay = rdev->desc->ramp_delay;
+	else if (rdev->constraints->settling_time)
+		return rdev->constraints->settling_time;
 
 	if (ramp_delay == 0) {
 		rdev_dbg(rdev, "ramp_delay not set\n");
@@ -2941,8 +2935,10 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 	if (ret < 0)
 		goto out2;
 
-	if (rdev->supply && (rdev->desc->min_dropout_uV ||
-				!rdev->desc->ops->get_voltage)) {
+	if (rdev->supply &&
+	    regulator_ops_is_valid(rdev->supply->rdev,
+				   REGULATOR_CHANGE_VOLTAGE) &&
+	    (rdev->desc->min_dropout_uV || !rdev->desc->ops->get_voltage)) {
 		int current_supply_uV;
 		int selector;
 
@@ -4098,6 +4094,11 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		}
 		mutex_unlock(&regulator_list_mutex);
 	}
+
+	if (!rdev->desc->ops->get_voltage &&
+	    !rdev->desc->ops->list_voltage &&
+	    !rdev->desc->fixed_uV)
+		rdev->is_switch = true;
 
 	ret = device_register(&rdev->dev);
 	if (ret != 0) {

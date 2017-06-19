@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015-2016 Intel Deutschland GmbH
+ * Copyright(c) 2015-2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015-2016 Intel Deutschland GmbH
+ * Copyright(c) 2015-2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL_A000_UCODE_API_MAX	28
+#define IWL_A000_UCODE_API_MAX	30
 
 /* Lowest firmware API version supported */
 #define IWL_A000_UCODE_API_MIN	24
@@ -65,15 +65,16 @@
 #define IWL_A000_TX_POWER_VERSION	0xffff /* meaningless */
 
 /* Memory offsets and lengths */
-#define IWL_A000_DCCM_OFFSET		0x800000
-#define IWL_A000_DCCM_LEN		0x18000
+#define IWL_A000_DCCM_OFFSET		0x800000 /* LMAC1 */
+#define IWL_A000_DCCM_LEN		0x10000 /* LMAC1 */
 #define IWL_A000_DCCM2_OFFSET		0x880000
 #define IWL_A000_DCCM2_LEN		0x8000
 #define IWL_A000_SMEM_OFFSET		0x400000
-#define IWL_A000_SMEM_LEN		0x68000
+#define IWL_A000_SMEM_LEN		0xD0000
 
-#define IWL_A000_JF_FW_PRE "iwlwifi-Qu-a0-jf-b0-"
-#define IWL_A000_HR_FW_PRE "iwlwifi-Qu-a0-hr-a0-"
+#define IWL_A000_JF_FW_PRE	"iwlwifi-Qu-a0-jf-b0-"
+#define IWL_A000_HR_FW_PRE	"iwlwifi-Qu-a0-hr-a0-"
+#define IWL_A000_HR_CDB_FW_PRE	"iwlwifi-QuIcp-a0-hrcdb-a0-"
 
 #define IWL_A000_HR_MODULE_FIRMWARE(api) \
 	IWL_A000_HR_FW_PRE "-" __stringify(api) ".ucode"
@@ -84,7 +85,7 @@
 
 static const struct iwl_base_params iwl_a000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_A000,
-	.num_of_queues = 31,
+	.num_of_queues = 512,
 	.shadow_ram_support = true,
 	.led_compensation = 57,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
@@ -121,7 +122,8 @@ static const struct iwl_ht_params iwl_a000_ht_params = {
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = true,					\
 	.use_tfh = true,						\
-	.rf_id = true
+	.rf_id = true,							\
+	.gen2 = true
 
 const struct iwl_cfg iwla000_2ac_cfg_hr = {
 		.name = "Intel(R) Dual Band Wireless AC a000",
@@ -131,6 +133,17 @@ const struct iwl_cfg iwla000_2ac_cfg_hr = {
 		.nvm_ver = IWL_A000_NVM_VERSION,
 		.nvm_calib_ver = IWL_A000_TX_POWER_VERSION,
 		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+};
+
+const struct iwl_cfg iwla000_2ac_cfg_hr_cdb = {
+		.name = "Intel(R) Dual Band Wireless AC a000",
+		.fw_name_pre = IWL_A000_HR_CDB_FW_PRE,
+		IWL_DEVICE_A000,
+		.ht_params = &iwl_a000_ht_params,
+		.nvm_ver = IWL_A000_NVM_VERSION,
+		.nvm_calib_ver = IWL_A000_TX_POWER_VERSION,
+		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+		.cdb = true,
 };
 
 const struct iwl_cfg iwla000_2ac_cfg_jf = {

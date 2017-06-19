@@ -180,7 +180,6 @@ vti6_tnl_unlink(struct vti6_net *ip6n, struct ip6_tnl *t)
 static void vti6_dev_free(struct net_device *dev)
 {
 	free_percpu(dev->tstats);
-	free_netdev(dev);
 }
 
 static int vti6_tnl_create2(struct net_device *dev)
@@ -235,7 +234,7 @@ static struct ip6_tnl *vti6_tnl_create(struct net *net, struct __ip6_tnl_parm *p
 	return t;
 
 failed_free:
-	vti6_dev_free(dev);
+	free_netdev(dev);
 failed:
 	return NULL;
 }
@@ -657,6 +656,7 @@ vti6_tnl_change(struct ip6_tnl *t, const struct __ip6_tnl_parm *p)
 	t->parms.i_key = p->i_key;
 	t->parms.o_key = p->o_key;
 	t->parms.proto = p->proto;
+	t->parms.fwmark = p->fwmark;
 	dst_cache_reset(&t->dst_cache);
 	vti6_link_config(t);
 	return 0;
@@ -841,7 +841,8 @@ static const struct net_device_ops vti6_netdev_ops = {
 static void vti6_dev_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &vti6_netdev_ops;
-	dev->destructor = vti6_dev_free;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = vti6_dev_free;
 
 	dev->type = ARPHRD_TUNNEL6;
 	dev->hard_header_len = LL_MAX_HEADER + sizeof(struct ipv6hdr);
@@ -933,6 +934,9 @@ static void vti6_netlink_parms(struct nlattr *data[],
 
 	if (data[IFLA_VTI_OKEY])
 		parms->o_key = nla_get_be32(data[IFLA_VTI_OKEY]);
+
+	if (data[IFLA_VTI_FWMARK])
+		parms->fwmark = nla_get_u32(data[IFLA_VTI_FWMARK]);
 }
 
 static int vti6_newlink(struct net *src_net, struct net_device *dev,
@@ -998,6 +1002,8 @@ static size_t vti6_get_size(const struct net_device *dev)
 		nla_total_size(4) +
 		/* IFLA_VTI_OKEY */
 		nla_total_size(4) +
+		/* IFLA_VTI_FWMARK */
+		nla_total_size(4) +
 		0;
 }
 
@@ -1010,7 +1016,8 @@ static int vti6_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_in6_addr(skb, IFLA_VTI_LOCAL, &parm->laddr) ||
 	    nla_put_in6_addr(skb, IFLA_VTI_REMOTE, &parm->raddr) ||
 	    nla_put_be32(skb, IFLA_VTI_IKEY, parm->i_key) ||
-	    nla_put_be32(skb, IFLA_VTI_OKEY, parm->o_key))
+	    nla_put_be32(skb, IFLA_VTI_OKEY, parm->o_key) ||
+	    nla_put_u32(skb, IFLA_VTI_FWMARK, parm->fwmark))
 		goto nla_put_failure;
 	return 0;
 
@@ -1024,6 +1031,7 @@ static const struct nla_policy vti6_policy[IFLA_VTI_MAX + 1] = {
 	[IFLA_VTI_REMOTE]	= { .len = sizeof(struct in6_addr) },
 	[IFLA_VTI_IKEY]		= { .type = NLA_U32 },
 	[IFLA_VTI_OKEY]		= { .type = NLA_U32 },
+	[IFLA_VTI_FWMARK]	= { .type = NLA_U32 },
 };
 
 static struct rtnl_link_ops vti6_link_ops __read_mostly = {
@@ -1092,7 +1100,7 @@ static int __net_init vti6_init_net(struct net *net)
 	return 0;
 
 err_register:
-	vti6_dev_free(ip6n->fb_tnl_dev);
+	free_netdev(ip6n->fb_tnl_dev);
 err_alloc_dev:
 	return err;
 }

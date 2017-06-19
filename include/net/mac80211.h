@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -299,6 +299,8 @@ struct ieee80211_vif_chanctx_switch {
  *	context had been assigned.
  * @BSS_CHANGED_OCB: OCB join status changed
  * @BSS_CHANGED_MU_GROUPS: VHT MU-MIMO group id or user position changed
+ * @BSS_CHANGED_KEEP_ALIVE: keep alive options (idle period or protected
+ *	keep alive) changed.
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -325,6 +327,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_BANDWIDTH		= 1<<21,
 	BSS_CHANGED_OCB                 = 1<<22,
 	BSS_CHANGED_MU_GROUPS		= 1<<23,
+	BSS_CHANGED_KEEP_ALIVE		= 1<<24,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -501,6 +504,10 @@ struct ieee80211_mu_group_data {
  *	implies disabled. As with the cfg80211 callback, a change here should
  *	cause an event to be sent indicating where the current value is in
  *	relation to the newly configured threshold.
+ * @cqm_rssi_low: Connection quality monitor RSSI lower threshold, a zero value
+ *	implies disabled.  This is an alternative mechanism to the single
+ *	threshold event and can't be enabled simultaneously with it.
+ * @cqm_rssi_high: Connection quality monitor RSSI upper threshold.
  * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis
  * @arp_addr_list: List of IPv4 addresses for hardware ARP filtering. The
  *	may filter ARP queries targeted for other addresses than listed here.
@@ -529,6 +536,13 @@ struct ieee80211_mu_group_data {
  * @allow_p2p_go_ps: indication for AP or P2P GO interface, whether it's allowed
  *	to use P2P PS mechanism or not. AP/P2P GO is not allowed to use P2P PS
  *	if it has associated clients without P2P PS support.
+ * @max_idle_period: the time period during which the station can refrain from
+ *	transmitting frames to its associated AP without being disassociated.
+ *	In units of 1000 TUs. Zero value indicates that the AP did not include
+ *	a (valid) BSS Max Idle Period Element.
+ * @protected_keep_alive: if set, indicates that the station should send an RSN
+ *	protected frame to the AP to reset the idle timer at the AP for the
+ *	station.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -553,6 +567,8 @@ struct ieee80211_bss_conf {
 	u16 ht_operation_mode;
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
+	s32 cqm_rssi_low;
+	s32 cqm_rssi_high;
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_mu_group_data mu_group;
 	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
@@ -567,6 +583,8 @@ struct ieee80211_bss_conf {
 	enum nl80211_tx_power_setting txpower_type;
 	struct ieee80211_p2p_noa_attr p2p_noa_attr;
 	bool allow_p2p_go_ps;
+	u16 max_idle_period;
+	bool protected_keep_alive;
 };
 
 /**
@@ -943,6 +961,19 @@ struct ieee80211_tx_info {
 };
 
 /**
+ * struct ieee80211_tx_status - extended tx staus info for rate control
+ *
+ * @sta: Station that the packet was transmitted for
+ * @info: Basic tx status information
+ * @skb: Packet skb (can be NULL if not provided by the driver)
+ */
+struct ieee80211_tx_status {
+	struct ieee80211_sta *sta;
+	struct ieee80211_tx_info *info;
+	struct sk_buff *skb;
+};
+
+/**
  * struct ieee80211_scan_ies - descriptors for different blocks of IEs
  *
  * This structure is used to point to different blocks of IEs in HW scan
@@ -1039,16 +1070,8 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	(including FCS) was received.
  * @RX_FLAG_MACTIME_PLCP_START: The timestamp passed in the RX status (@mactime
  *	field) is valid and contains the time the SYNC preamble was received.
- * @RX_FLAG_SHORTPRE: Short preamble was used for this frame
- * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
- * @RX_FLAG_VHT: VHT MCS was used and rate_index is MCS index
- * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
- * @RX_FLAG_SHORT_GI: Short guard interval was used
  * @RX_FLAG_NO_SIGNAL_VAL: The signal strength value is not present.
  *	Valid only for data frames (mainly A-MPDU)
- * @RX_FLAG_HT_GF: This frame was received in a HT-greenfield transmission, if
- *	the driver fills this value it should add %IEEE80211_RADIOTAP_MCS_HAVE_FMT
- *	to hw.radiotap_mcs_details to advertise that fact
  * @RX_FLAG_AMPDU_DETAILS: A-MPDU details are known, in particular the reference
  *	number (@ampdu_reference) must be populated and be a distinct number for
  *	each A-MPDU
@@ -1061,7 +1084,6 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	is stored in the @ampdu_delimiter_crc field)
  * @RX_FLAG_MIC_STRIPPED: The mic was stripped of this packet. Decryption was
  *	done by the hardware
- * @RX_FLAG_LDPC: LDPC was used
  * @RX_FLAG_ONLY_MONITOR: Report frame only to monitor interfaces without
  *	processing it in any regular way.
  *	This is useful if drivers offload some frames but still want to report
@@ -1070,9 +1092,6 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	monitor interfaces.
  *	This is useful if drivers offload some frames but still want to report
  *	them for sniffing purposes.
- * @RX_FLAG_STBC_MASK: STBC 2 bit bitmask. 1 - Nss=1, 2 - Nss=2, 3 - Nss=3
- * @RX_FLAG_10MHZ: 10 MHz (half channel) was used
- * @RX_FLAG_5MHZ: 5 MHz (quarter channel) was used
  * @RX_FLAG_AMSDU_MORE: Some drivers may prefer to report separate A-MSDU
  *	subframes instead of a one huge frame for performance reasons.
  *	All, but the last MSDU from an A-MSDU should have this flag set. E.g.
@@ -1100,50 +1119,52 @@ enum mac80211_rx_flags {
 	RX_FLAG_FAILED_FCS_CRC		= BIT(5),
 	RX_FLAG_FAILED_PLCP_CRC 	= BIT(6),
 	RX_FLAG_MACTIME_START		= BIT(7),
-	RX_FLAG_SHORTPRE		= BIT(8),
-	RX_FLAG_HT			= BIT(9),
-	RX_FLAG_40MHZ			= BIT(10),
-	RX_FLAG_SHORT_GI		= BIT(11),
-	RX_FLAG_NO_SIGNAL_VAL		= BIT(12),
-	RX_FLAG_HT_GF			= BIT(13),
-	RX_FLAG_AMPDU_DETAILS		= BIT(14),
-	RX_FLAG_PN_VALIDATED		= BIT(15),
-	RX_FLAG_DUP_VALIDATED		= BIT(16),
-	RX_FLAG_AMPDU_LAST_KNOWN	= BIT(17),
-	RX_FLAG_AMPDU_IS_LAST		= BIT(18),
-	RX_FLAG_AMPDU_DELIM_CRC_ERROR	= BIT(19),
-	RX_FLAG_AMPDU_DELIM_CRC_KNOWN	= BIT(20),
-	RX_FLAG_MACTIME_END		= BIT(21),
-	RX_FLAG_VHT			= BIT(22),
-	RX_FLAG_LDPC			= BIT(23),
-	RX_FLAG_ONLY_MONITOR		= BIT(24),
-	RX_FLAG_SKIP_MONITOR		= BIT(25),
-	RX_FLAG_STBC_MASK		= BIT(26) | BIT(27),
-	RX_FLAG_10MHZ			= BIT(28),
-	RX_FLAG_5MHZ			= BIT(29),
-	RX_FLAG_AMSDU_MORE		= BIT(30),
-	RX_FLAG_RADIOTAP_VENDOR_DATA	= BIT(31),
-	RX_FLAG_MIC_STRIPPED		= BIT_ULL(32),
-	RX_FLAG_ALLOW_SAME_PN		= BIT_ULL(33),
-	RX_FLAG_ICV_STRIPPED		= BIT_ULL(34),
+	RX_FLAG_NO_SIGNAL_VAL		= BIT(8),
+	RX_FLAG_AMPDU_DETAILS		= BIT(9),
+	RX_FLAG_PN_VALIDATED		= BIT(10),
+	RX_FLAG_DUP_VALIDATED		= BIT(11),
+	RX_FLAG_AMPDU_LAST_KNOWN	= BIT(12),
+	RX_FLAG_AMPDU_IS_LAST		= BIT(13),
+	RX_FLAG_AMPDU_DELIM_CRC_ERROR	= BIT(14),
+	RX_FLAG_AMPDU_DELIM_CRC_KNOWN	= BIT(15),
+	RX_FLAG_MACTIME_END		= BIT(16),
+	RX_FLAG_ONLY_MONITOR		= BIT(17),
+	RX_FLAG_SKIP_MONITOR		= BIT(18),
+	RX_FLAG_AMSDU_MORE		= BIT(19),
+	RX_FLAG_RADIOTAP_VENDOR_DATA	= BIT(20),
+	RX_FLAG_MIC_STRIPPED		= BIT(21),
+	RX_FLAG_ALLOW_SAME_PN		= BIT(22),
+	RX_FLAG_ICV_STRIPPED		= BIT(23),
 };
 
-#define RX_FLAG_STBC_SHIFT		26
-
 /**
- * enum mac80211_rx_vht_flags - receive VHT flags
+ * enum mac80211_rx_encoding_flags - MCS & bandwidth flags
  *
- * These flags are used with the @vht_flag member of
- *	&struct ieee80211_rx_status.
- * @RX_VHT_FLAG_80MHZ: 80 MHz was used
- * @RX_VHT_FLAG_160MHZ: 160 MHz was used
- * @RX_VHT_FLAG_BF: packet was beamformed
+ * @RX_ENC_FLAG_SHORTPRE: Short preamble was used for this frame
+ * @RX_ENC_FLAG_SHORT_GI: Short guard interval was used
+ * @RX_ENC_FLAG_HT_GF: This frame was received in a HT-greenfield transmission,
+ *	if the driver fills this value it should add
+ *	%IEEE80211_RADIOTAP_MCS_HAVE_FMT
+ *	to hw.radiotap_mcs_details to advertise that fact
+ * @RX_ENC_FLAG_LDPC: LDPC was used
+ * @RX_ENC_FLAG_STBC_MASK: STBC 2 bit bitmask. 1 - Nss=1, 2 - Nss=2, 3 - Nss=3
+ * @RX_ENC_FLAG_BF: packet was beamformed
  */
+enum mac80211_rx_encoding_flags {
+	RX_ENC_FLAG_SHORTPRE		= BIT(0),
+	RX_ENC_FLAG_SHORT_GI		= BIT(2),
+	RX_ENC_FLAG_HT_GF		= BIT(3),
+	RX_ENC_FLAG_STBC_MASK		= BIT(4) | BIT(5),
+	RX_ENC_FLAG_LDPC		= BIT(6),
+	RX_ENC_FLAG_BF			= BIT(7),
+};
 
-enum mac80211_rx_vht_flags {
-	RX_VHT_FLAG_80MHZ		= BIT(0),
-	RX_VHT_FLAG_160MHZ		= BIT(1),
-	RX_VHT_FLAG_BF			= BIT(2),
+#define RX_ENC_FLAG_STBC_SHIFT		4
+
+enum mac80211_rx_encoding {
+	RX_ENC_LEGACY = 0,
+	RX_ENC_HT,
+	RX_ENC_VHT,
 };
 
 /**
@@ -1173,9 +1194,11 @@ enum mac80211_rx_vht_flags {
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
- * @vht_nss: number of streams (VHT only)
+ * @nss: number of streams (VHT and HE only)
  * @flag: %RX_FLAG_\*
- * @vht_flag: %RX_VHT_FLAG_\*
+ * @encoding: &enum mac80211_rx_encoding
+ * @bw: &enum rate_info_bw
+ * @enc_flags: uses bits from &enum mac80211_rx_encoding_flags
  * @rx_flags: internal RX flags for mac80211
  * @ampdu_reference: A-MPDU reference number, must be a different value for
  *	each A-MPDU but the same for each subframe within one A-MPDU
@@ -1186,11 +1209,12 @@ struct ieee80211_rx_status {
 	u64 boottime_ns;
 	u32 device_timestamp;
 	u32 ampdu_reference;
-	u64 flag;
+	u32 flag;
 	u16 freq;
-	u8 vht_flag;
+	u8 enc_flags;
+	u8 encoding:2, bw:3;
 	u8 rate_idx;
-	u8 vht_nss;
+	u8 nss;
 	u8 rx_flags;
 	u8 band;
 	u8 antenna;
@@ -4200,6 +4224,23 @@ void ieee80211_tx_status(struct ieee80211_hw *hw,
 			 struct sk_buff *skb);
 
 /**
+ * ieee80211_tx_status_ext - extended transmit status callback
+ *
+ * This function can be used as a replacement for ieee80211_tx_status
+ * in drivers that may want to provide extra information that does not
+ * fit into &struct ieee80211_tx_info.
+ *
+ * Calls to this function for a single hardware must be synchronized
+ * against each other. Calls to this function, ieee80211_tx_status_ni()
+ * and ieee80211_tx_status_irqsafe() may not be mixed for a single hardware.
+ *
+ * @hw: the hardware the frame was transmitted by
+ * @status: tx status information
+ */
+void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
+			     struct ieee80211_tx_status *status);
+
+/**
  * ieee80211_tx_status_noskb - transmit status callback without skb
  *
  * This function can be used as a replacement for ieee80211_tx_status
@@ -4215,9 +4256,17 @@ void ieee80211_tx_status(struct ieee80211_hw *hw,
  *	(NULL for multicast packets)
  * @info: tx status information
  */
-void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
-			       struct ieee80211_sta *sta,
-			       struct ieee80211_tx_info *info);
+static inline void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
+					     struct ieee80211_sta *sta,
+					     struct ieee80211_tx_info *info)
+{
+	struct ieee80211_tx_status status = {
+		.sta = sta,
+		.info = info,
+	};
+
+	ieee80211_tx_status_ext(hw, &status);
+}
 
 /**
  * ieee80211_tx_status_ni - transmit status callback (in process context)
@@ -5438,9 +5487,6 @@ void ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif,
  *	RTS threshold
  * @short_preamble: whether mac80211 will request short-preamble transmission
  *	if the selected rate supports it
- * @max_rate_idx: user-requested maximum (legacy) rate
- *	(deprecated; this will be removed once drivers get updated to use
- *	rate_idx_mask)
  * @rate_idx_mask: user-requested (legacy) rate mask
  * @rate_idx_mcs_mask: user-requested MCS rate mask (NULL if not in use)
  * @bss: whether this frame is sent out in AP or IBSS mode
@@ -5452,7 +5498,6 @@ struct ieee80211_tx_rate_control {
 	struct sk_buff *skb;
 	struct ieee80211_tx_rate reported_rate;
 	bool rts, short_preamble;
-	u8 max_rate_idx;
 	u32 rate_idx_mask;
 	u8 *rate_idx_mcs_mask;
 	bool bss;
@@ -5474,10 +5519,9 @@ struct rate_control_ops {
 	void (*free_sta)(void *priv, struct ieee80211_sta *sta,
 			 void *priv_sta);
 
-	void (*tx_status_noskb)(void *priv,
-				struct ieee80211_supported_band *sband,
-				struct ieee80211_sta *sta, void *priv_sta,
-				struct ieee80211_tx_info *info);
+	void (*tx_status_ext)(void *priv,
+			      struct ieee80211_supported_band *sband,
+			      void *priv_sta, struct ieee80211_tx_status *st);
 	void (*tx_status)(void *priv, struct ieee80211_supported_band *sband,
 			  struct ieee80211_sta *sta, void *priv_sta,
 			  struct sk_buff *skb);

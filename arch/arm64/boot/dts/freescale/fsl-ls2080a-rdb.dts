@@ -1,8 +1,9 @@
 /*
  * Device Tree file for Freescale LS2080a RDB Board.
  *
- * Copyright (C) 2015, Freescale Semiconductor
+ * Copyright (C) 2016-17, Freescale Semiconductor
  *
+ * Abhimanyu Saini <abhimanyu.saini@nxp.com>
  * Bhupesh Sharma <bhupesh.sharma@freescale.com>
  *
  * This file is dual-licensed: you can use it either under the terms
@@ -47,6 +48,7 @@
 /dts-v1/;
 
 #include "fsl-ls2080a.dtsi"
+#include "fsl-ls208xa-rdb.dtsi"
 
 / {
 	model = "Freescale Layerscape 2080a RDB Board";
@@ -60,110 +62,4 @@
 	chosen {
 		stdout-path = "serial1:115200n8";
 	};
-};
-
-&esdhc {
-	status = "okay";
-};
-
-&ifc {
-	status = "okay";
-	#address-cells = <2>;
-	#size-cells = <1>;
-	ranges = <0x0 0x0 0x5 0x80000000 0x08000000
-		  0x2 0x0 0x5 0x30000000 0x00010000
-		  0x3 0x0 0x5 0x20000000 0x00010000>;
-
-	nor@0,0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "cfi-flash";
-		reg = <0x0 0x0 0x8000000>;
-		bank-width = <2>;
-		device-width = <1>;
-	};
-
-	nand@2,0 {
-	     compatible = "fsl,ifc-nand";
-	     reg = <0x2 0x0 0x10000>;
-	};
-
-	cpld@3,0 {
-	     reg = <0x3 0x0 0x10000>;
-	     compatible = "fsl,ls2080aqds-fpga", "fsl,fpga-qixis";
-	};
-
-};
-
-&i2c0 {
-	status = "okay";
-	pca9547@75 {
-		compatible = "nxp,pca9547";
-		reg = <0x75>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		i2c@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x01>;
-			rtc@68 {
-				compatible = "dallas,ds3232";
-				reg = <0x68>;
-			};
-		};
-
-		i2c@3 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x3>;
-
-			adt7481@4c {
-				compatible = "adi,adt7461";
-				reg = <0x4c>;
-			};
-		};
-	};
-};
-
-&i2c1 {
-	status = "disabled";
-};
-
-&i2c2 {
-	status = "disabled";
-};
-
-&i2c3 {
-	status = "disabled";
-};
-
-&dspi {
-	status = "okay";
-	dflash0: n25q512a {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "st,m25p80";
-		spi-max-frequency = <3000000>;
-		reg = <0>;
-	};
-};
-
-&qspi {
-	status = "disabled";
-};
-
-&sata0 {
-	status = "okay";
-};
-
-&sata1 {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb1 {
-	status = "okay";
 };

@@ -110,6 +110,7 @@ extern int amdgpu_pos_buf_per_se;
 extern int amdgpu_cntl_sb_buf_per_se;
 extern int amdgpu_param_buf_per_se;
 
+#define AMDGPU_DEFAULT_GTT_SIZE_MB		3072ULL /* 3GB by default */
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
 #define AMDGPU_FENCE_JIFFIES_TIMEOUT		(HZ / 2)
@@ -966,6 +967,8 @@ struct amdgpu_gfx_config {
 	unsigned mc_arb_ramcfg;
 	unsigned gb_addr_config;
 	unsigned num_rbs;
+	unsigned gs_vgt_table_depth;
+	unsigned gs_prim_buffer_depth;
 
 	uint32_t tile_mode_array[32];
 	uint32_t macrotile_mode_array[16];
@@ -980,6 +983,7 @@ struct amdgpu_gfx_config {
 struct amdgpu_cu_info {
 	uint32_t number; /* total active CU number */
 	uint32_t ao_cu_mask;
+	uint32_t wave_front_size;
 	uint32_t bitmap[4][4];
 };
 
@@ -1000,10 +1004,10 @@ struct amdgpu_ngg_buf {
 };
 
 enum {
-	PRIM = 0,
-	POS,
-	CNTL,
-	PARAM,
+	NGG_PRIM = 0,
+	NGG_POS,
+	NGG_CNTL,
+	NGG_PARAM,
 	NGG_BUF_MAX
 };
 
@@ -1125,6 +1129,7 @@ struct amdgpu_job {
 	void			*owner;
 	uint64_t		fence_ctx; /* the fence_context this job uses */
 	bool                    vm_needs_flush;
+	bool			need_pipeline_sync;
 	unsigned		vm_id;
 	uint64_t		vm_pd_addr;
 	uint32_t		gds_base, gds_size;
@@ -1703,9 +1708,6 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v);
 
 #define WREG32_FIELD_OFFSET(reg, offset, field, val)	\
 	WREG32(mm##reg + offset, (RREG32(mm##reg + offset) & ~REG_FIELD_MASK(reg, field)) | (val) << REG_FIELD_SHIFT(reg, field))
-
-#define WREG32_FIELD15(ip, idx, reg, field, val)	\
-	WREG32(SOC15_REG_OFFSET(ip, idx, mm##reg), (RREG32(SOC15_REG_OFFSET(ip, idx, mm##reg)) & ~REG_FIELD_MASK(reg, field)) | (val) << REG_FIELD_SHIFT(reg, field))
 
 /*
  * BIOS helpers.

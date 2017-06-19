@@ -78,6 +78,8 @@ extern int vega10_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr,
 		uint32_t *speed);
 extern int vega10_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr);
 extern uint32_t smu7_get_xclk(struct pp_hwmgr *hwmgr);
+extern int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr);
+int vega10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr);
 
 #endif
 

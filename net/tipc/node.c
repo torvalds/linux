@@ -1607,8 +1607,8 @@ int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	err = nla_parse_nested(attrs, TIPC_NLA_NET_MAX,
-			       info->attrs[TIPC_NLA_NET],
-			       tipc_nl_net_policy);
+			       info->attrs[TIPC_NLA_NET], tipc_nl_net_policy,
+			       info->extack);
 	if (err)
 		return err;
 
@@ -1774,7 +1774,7 @@ int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
 			       info->attrs[TIPC_NLA_LINK],
-			       tipc_nl_link_policy);
+			       tipc_nl_link_policy, info->extack);
 	if (err)
 		return err;
 
@@ -1902,7 +1902,7 @@ int tipc_nl_node_reset_link_stats(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
 			       info->attrs[TIPC_NLA_LINK],
-			       tipc_nl_link_policy);
+			       tipc_nl_link_policy, info->extack);
 	if (err)
 		return err;
 
@@ -2042,7 +2042,7 @@ int tipc_nl_node_set_monitor(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_MON_MAX,
 			       info->attrs[TIPC_NLA_MON],
-			       tipc_nl_monitor_policy);
+			       tipc_nl_monitor_policy, info->extack);
 	if (err)
 		return err;
 
@@ -2098,6 +2098,8 @@ int tipc_nl_node_get_monitor(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	msg.skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg.skb)
+		return -ENOMEM;
 	msg.portid = info->snd_portid;
 	msg.seq = info->snd_seq;
 
@@ -2163,7 +2165,7 @@ int tipc_nl_node_dump_monitor_peer(struct sk_buff *skb,
 
 		err = nla_parse_nested(mon, TIPC_NLA_MON_MAX,
 				       attrs[TIPC_NLA_MON],
-				       tipc_nl_monitor_policy);
+				       tipc_nl_monitor_policy, NULL);
 		if (err)
 			return err;
 

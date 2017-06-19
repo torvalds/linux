@@ -212,8 +212,6 @@ static void vss_send_op(void)
 	}
 
 	kfree(vss_msg);
-
-	return;
 }
 
 static void vss_handle_request(struct work_struct *dummy)

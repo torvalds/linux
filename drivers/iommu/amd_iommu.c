@@ -1234,7 +1234,7 @@ static void __domain_flush_pages(struct protection_domain *domain,
 
 	build_inv_iommu_pages(&cmd, address, size, domain->id, pde);
 
-	for (i = 0; i < amd_iommus_present; ++i) {
+	for (i = 0; i < amd_iommu_get_num_iommus(); ++i) {
 		if (!domain->dev_iommu[i])
 			continue;
 
@@ -1278,7 +1278,7 @@ static void domain_flush_complete(struct protection_domain *domain)
 {
 	int i;
 
-	for (i = 0; i < amd_iommus_present; ++i) {
+	for (i = 0; i < amd_iommu_get_num_iommus(); ++i) {
 		if (domain && !domain->dev_iommu[i])
 			continue;
 
@@ -3363,7 +3363,7 @@ static int __flush_pasid(struct protection_domain *domain, int pasid,
 	 * IOMMU TLB needs to be flushed before Device TLB to
 	 * prevent device TLB refill from IOMMU TLB
 	 */
-	for (i = 0; i < amd_iommus_present; ++i) {
+	for (i = 0; i < amd_iommu_get_num_iommus(); ++i) {
 		if (domain->dev_iommu[i] == 0)
 			continue;
 

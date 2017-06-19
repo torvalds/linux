@@ -31,6 +31,7 @@
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
+#include <linux/property.h>
 #include <linux/export.h>
 #include <linux/sched/rt.h>
 #include <uapi/linux/sched/types.h>
@@ -600,13 +601,28 @@ struct spi_device *spi_new_device(struct spi_master *master,
 	proxy->controller_data = chip->controller_data;
 	proxy->controller_state = NULL;
 
-	status = spi_add_device(proxy);
-	if (status < 0) {
-		spi_dev_put(proxy);
-		return NULL;
+	if (chip->properties) {
+		status = device_add_properties(&proxy->dev, chip->properties);
+		if (status) {
+			dev_err(&master->dev,
+				"failed to add properties to '%s': %d\n",
+				chip->modalias, status);
+			goto err_dev_put;
+		}
 	}
 
+	status = spi_add_device(proxy);
+	if (status < 0)
+		goto err_remove_props;
+
 	return proxy;
+
+err_remove_props:
+	if (chip->properties)
+		device_remove_properties(&proxy->dev);
+err_dev_put:
+	spi_dev_put(proxy);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(spi_new_device);
 
@@ -664,6 +680,7 @@ static void spi_match_master_to_boardinfo(struct spi_master *master,
  *
  * The board info passed can safely be __initdata ... but be careful of
  * any embedded pointers (platform_data, etc), they're copied as-is.
+ * Device properties are deep-copied though.
  *
  * Return: zero on success, else a negative error code.
  */
@@ -673,7 +690,7 @@ int spi_register_board_info(struct spi_board_info const *info, unsigned n)
 	int i;
 
 	if (!n)
-		return -EINVAL;
+		return 0;
 
 	bi = kcalloc(n, sizeof(*bi), GFP_KERNEL);
 	if (!bi)
@@ -683,6 +700,13 @@ int spi_register_board_info(struct spi_board_info const *info, unsigned n)
 		struct spi_master *master;
 
 		memcpy(&bi->board_info, info, sizeof(*info));
+		if (info->properties) {
+			bi->board_info.properties =
+					property_entries_dup(info->properties);
+			if (IS_ERR(bi->board_info.properties))
+				return PTR_ERR(bi->board_info.properties);
+		}
+
 		mutex_lock(&board_lock);
 		list_add_tail(&bi->list, &board_list);
 		list_for_each_entry(master, &spi_master_list, list)
@@ -1015,7 +1039,7 @@ static int spi_transfer_one_message(struct spi_master *master,
 				ret = 0;
 				ms = 8LL * 1000LL * xfer->len;
 				do_div(ms, xfer->speed_hz);
-				ms += ms + 100; /* some tolerance */
+				ms += ms + 200; /* some tolerance */
 
 				if (ms > UINT_MAX)
 					ms = UINT_MAX;
@@ -2830,7 +2854,7 @@ int spi_flash_read(struct spi_device *spi,
 
 	mutex_lock(&master->bus_lock_mutex);
 	mutex_lock(&master->io_mutex);
-	if (master->dma_rx) {
+	if (master->dma_rx && master->spi_flash_can_dma(spi, msg)) {
 		rx_dev = master->dma_rx->device->dev;
 		ret = spi_map_buf(master, rx_dev, &msg->rx_sg,
 				  msg->buf, msg->len,

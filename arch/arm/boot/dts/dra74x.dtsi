@@ -17,6 +17,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <1>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 	};
 
@@ -77,6 +78,10 @@
 			status = "disabled";
 		};
 	};
+};
+
+&cpu0_opp_table {
+	opp-shared;
 };
 
 &dss {

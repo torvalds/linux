@@ -140,15 +140,6 @@
 	.set	noat
 
 /*
- * t7 is used as a flag to note inatomic mode.
- */
-LEAF(__copy_user_inatomic)
-EXPORT_SYMBOL(__copy_user_inatomic)
-	b	__copy_user_common
-	 li	t7, 1
-	END(__copy_user_inatomic)
-
-/*
  * A combined memcpy/__copy_user
  * __copy_user sets len to 0 for success; else to an upper bound of
  * the number of uncopied bytes.
@@ -161,8 +152,6 @@ EXPORT_SYMBOL(memcpy)
 __memcpy:
 FEXPORT(__copy_user)
 EXPORT_SYMBOL(__copy_user)
-	li	t7, 0				/* not inatomic */
-__copy_user_common:
 	/*
 	 * Note: dst & src may be unaligned, len may be 0
 	 * Temps
@@ -414,25 +403,7 @@ l_exc:
 	LOAD	t0, TI_TASK($28)
 	LOAD	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
 	SUB	len, AT, t0		# len number of uncopied bytes
-	bnez	t7, 2f		/* Skip the zeroing out part if inatomic */
-	/*
-	 * Here's where we rely on src and dst being incremented in tandem,
-	 *   See (3) above.
-	 * dst += (fault addr - src) to put dst at first byte to clear
-	 */
-	ADD	dst, t0			# compute start address in a1
-	SUB	dst, src
-	/*
-	 * Clear len bytes starting at dst.  Can't call __bzero because it
-	 * might modify len.  An inefficient loop for these rare times...
-	 */
-	beqz	len, done
-	 SUB	src, len, 1
-1:	sb	zero, 0(dst)
-	ADD	dst, dst, 1
-	bnez	src, 1b
-	 SUB	src, src, 1
-2:	jr	ra
+	jr	ra
 	 nop
 
 

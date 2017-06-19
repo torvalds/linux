@@ -472,7 +472,7 @@ static int usb_stream_hwdep_new(struct snd_card *card)
 	hw->ops.mmap = usb_stream_hwdep_mmap;
 	hw->ops.poll = usb_stream_hwdep_poll;
 
-	sprintf(hw->name, "/proc/bus/usb/%03d/%03d/hwdeppcm",
+	sprintf(hw->name, "/dev/bus/usb/%03d/%03d/hwdeppcm",
 		dev->bus->busnum, dev->devnum);
 	return 0;
 }

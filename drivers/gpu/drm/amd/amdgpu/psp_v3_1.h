@@ -39,6 +39,10 @@ extern int psp_v3_1_prep_cmd_buf(struct amdgpu_firmware_info *ucode,
 				 struct psp_gfx_cmd_resp *cmd);
 extern int psp_v3_1_ring_init(struct psp_context *psp,
 			      enum psp_ring_type ring_type);
+extern int psp_v3_1_ring_create(struct psp_context *psp,
+				enum psp_ring_type ring_type);
+extern int psp_v3_1_ring_destroy(struct psp_context *psp,
+				enum psp_ring_type ring_type);
 extern int psp_v3_1_cmd_submit(struct psp_context *psp,
 			       struct amdgpu_firmware_info *ucode,
 			       uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr,

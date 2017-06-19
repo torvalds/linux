@@ -30,8 +30,8 @@
 
 #define PSP_FENCE_BUFFER_SIZE	0x1000
 #define PSP_CMD_BUFFER_SIZE	0x1000
-#define PSP_ASD_BIN_SIZE	0x40000
 #define PSP_ASD_SHARED_MEM_SIZE	0x4000
+#define PSP_1_MEG		0x100000
 
 enum psp_ring_type
 {
@@ -57,6 +57,7 @@ struct psp_context
 {
 	struct amdgpu_device            *adev;
 	struct psp_ring                 km_ring;
+	struct psp_gfx_cmd_resp		*cmd;
 
 	int (*init_microcode)(struct psp_context *psp);
 	int (*bootloader_load_sysdrv)(struct psp_context *psp);
@@ -64,12 +65,20 @@ struct psp_context
 	int (*prep_cmd_buf)(struct amdgpu_firmware_info *ucode,
 			    struct psp_gfx_cmd_resp *cmd);
 	int (*ring_init)(struct psp_context *psp, enum psp_ring_type ring_type);
+	int (*ring_create)(struct psp_context *psp, enum psp_ring_type ring_type);
+	int (*ring_destroy)(struct psp_context *psp,
+			    enum psp_ring_type ring_type);
 	int (*cmd_submit)(struct psp_context *psp, struct amdgpu_firmware_info *ucode,
 			  uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr, int index);
 	bool (*compare_sram_data)(struct psp_context *psp,
 				  struct amdgpu_firmware_info *ucode,
 				  enum AMDGPU_UCODE_ID ucode_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
+
+	/* fence buffer */
+	struct amdgpu_bo 		*fw_pri_bo;
+	uint64_t 			fw_pri_mc_addr;
+	void				*fw_pri_buf;
 
 	/* sos firmware */
 	const struct firmware		*sos_fw;
@@ -85,12 +94,15 @@ struct psp_context
 	uint64_t 			tmr_mc_addr;
 	void				*tmr_buf;
 
-	/* asd firmware */
+	/* asd firmware and buffer */
 	const struct firmware		*asd_fw;
 	uint32_t			asd_fw_version;
 	uint32_t			asd_feature_version;
 	uint32_t			asd_ucode_size;
 	uint8_t				*asd_start_addr;
+	struct amdgpu_bo 		*asd_shared_bo;
+	uint64_t 			asd_shared_mc_addr;
+	void				*asd_shared_buf;
 
 	/* fence buffer */
 	struct amdgpu_bo 		*fence_buf_bo;
@@ -105,6 +117,8 @@ struct amdgpu_psp_funcs {
 
 #define psp_prep_cmd_buf(ucode, type) (psp)->prep_cmd_buf((ucode), (type))
 #define psp_ring_init(psp, type) (psp)->ring_init((psp), (type))
+#define psp_ring_create(psp, type) (psp)->ring_create((psp), (type))
+#define psp_ring_destroy(psp, type) ((psp)->ring_destroy((psp), (type)))
 #define psp_cmd_submit(psp, ucode, cmd_mc, fence_mc, index) \
 		(psp)->cmd_submit((psp), (ucode), (cmd_mc), (fence_mc), (index))
 #define psp_compare_sram_data(psp, ucode, type) \

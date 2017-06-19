@@ -139,6 +139,8 @@ static int gemini_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc_base = devm_ioremap(dev, res->start,
 				     resource_size(res));
+	if (!rtc->rtc_base)
+		return -ENOMEM;
 
 	ret = devm_request_irq(dev, rtc->rtc_irq, gemini_rtc_interrupt,
 			       IRQF_SHARED, pdev->name, dev);

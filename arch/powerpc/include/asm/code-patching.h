@@ -12,6 +12,8 @@
 
 #include <asm/types.h>
 #include <asm/ppc-opcode.h>
+#include <linux/string.h>
+#include <linux/kallsyms.h>
 
 /* Flags for create_branch:
  * "b"   == create_branch(addr, target, 0);
@@ -97,6 +99,45 @@ static inline unsigned long ppc_global_function_entry(void *func)
 	/* All other cases there is no change vs ppc_function_entry() */
 	return ppc_function_entry(func);
 #endif
+}
+
+/*
+ * Wrapper around kallsyms_lookup() to return function entry address:
+ * - For ABIv1, we lookup the dot variant.
+ * - For ABIv2, we return the local entry point.
+ */
+static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
+{
+	unsigned long addr;
+#ifdef PPC64_ELF_ABI_v1
+	/* check for dot variant */
+	char dot_name[1 + KSYM_NAME_LEN];
+	bool dot_appended = false;
+
+	if (strnlen(name, KSYM_NAME_LEN) >= KSYM_NAME_LEN)
+		return 0;
+
+	if (name[0] != '.') {
+		dot_name[0] = '.';
+		dot_name[1] = '\0';
+		strlcat(dot_name, name, sizeof(dot_name));
+		dot_appended = true;
+	} else {
+		dot_name[0] = '\0';
+		strlcat(dot_name, name, sizeof(dot_name));
+	}
+	addr = kallsyms_lookup_name(dot_name);
+	if (!addr && dot_appended)
+		/* Let's try the original non-dot symbol lookup	*/
+		addr = kallsyms_lookup_name(name);
+#elif defined(PPC64_ELF_ABI_v2)
+	addr = kallsyms_lookup_name(name);
+	if (addr)
+		addr = ppc_function_entry((void *)addr);
+#else
+	addr = kallsyms_lookup_name(name);
+#endif
+	return addr;
 }
 
 #ifdef CONFIG_PPC64

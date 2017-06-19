@@ -43,6 +43,8 @@
 #include "skeleton.dtsi"
 #include "armv7-m.dtsi"
 #include <dt-bindings/pinctrl/stm32f746-pinfunc.h>
+#include <dt-bindings/clock/stm32fx-clock.h>
+#include <dt-bindings/mfd/stm32f7-rcc.h>
 
 / {
 	clocks {
@@ -51,6 +53,24 @@
 			compatible = "fixed-clock";
 			clock-frequency = <0>;
 		};
+
+		clk-lse {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+		};
+
+		clk-lsi {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <32000>;
+		};
+
+		clk_i2s_ckin: clk-i2s-ckin {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <48000000>;
+		};
 	};
 
 	soc {
@@ -58,7 +78,7 @@
 			compatible = "st,stm32-timer";
 			reg = <0x40000000 0x400>;
 			interrupts = <28>;
-			clocks = <&rcc 0 128>;
+			clocks = <&rcc 0 STM32F7_APB1_CLOCK(TIM2)>;
 			status = "disabled";
 		};
 
@@ -66,7 +86,7 @@
 			compatible = "st,stm32-timer";
 			reg = <0x40000400 0x400>;
 			interrupts = <29>;
-			clocks = <&rcc 0 129>;
+			clocks = <&rcc 0 STM32F7_APB1_CLOCK(TIM3)>;
 			status = "disabled";
 		};
 
@@ -74,7 +94,7 @@
 			compatible = "st,stm32-timer";
 			reg = <0x40000800 0x400>;
 			interrupts = <30>;
-			clocks = <&rcc 0 130>;
+			clocks = <&rcc 0 STM32F7_APB1_CLOCK(TIM4)>;
 			status = "disabled";
 		};
 
@@ -82,14 +102,14 @@
 			compatible = "st,stm32-timer";
 			reg = <0x40000c00 0x400>;
 			interrupts = <50>;
-			clocks = <&rcc 0 131>;
+			clocks = <&rcc 0 STM32F7_APB1_CLOCK(TIM5)>;
 		};
 
 		timer6: timer@40001000 {
 			compatible = "st,stm32-timer";
 			reg = <0x40001000 0x400>;
 			interrupts = <54>;
-			clocks = <&rcc 0 132>;
+			clocks = <&rcc 0 STM32F7_APB1_CLOCK(TIM6)>;
 			status = "disabled";
 		};
 
@@ -97,7 +117,21 @@
 			compatible = "st,stm32-timer";
 			reg = <0x40001400 0x400>;
 			interrupts = <55>;
-			clocks = <&rcc 0 133>;
+			clocks = <&rcc 0 STM32F7_APB1_CLOCK(TIM7)>;
+			status = "disabled";
+		};
+
+		rtc: rtc@40002800 {
+			compatible = "st,stm32-rtc";
+			reg = <0x40002800 0x400>;
+			clocks = <&rcc 1 CLK_RTC>;
+			clock-names = "ck_rtc";
+			assigned-clocks = <&rcc 1 CLK_RTC>;
+			assigned-clock-parents = <&rcc 1 CLK_LSE>;
+			interrupt-parent = <&exti>;
+			interrupts = <17 1>;
+			interrupt-names = "alarm";
+			st,syscfg = <&pwrcfg>;
 			status = "disabled";
 		};
 
@@ -105,7 +139,7 @@
 			compatible = "st,stm32f7-usart", "st,stm32f7-uart";
 			reg = <0x40004400 0x400>;
 			interrupts = <38>;
-			clocks =  <&rcc 0 145>;
+			clocks = <&rcc 1 CLK_USART2>;
 			status = "disabled";
 		};
 
@@ -113,7 +147,7 @@
 			compatible = "st,stm32f7-usart", "st,stm32f7-uart";
 			reg = <0x40004800 0x400>;
 			interrupts = <39>;
-			clocks = <&rcc 0 146>;
+			clocks = <&rcc 1 CLK_USART3>;
 			status = "disabled";
 		};
 
@@ -121,7 +155,7 @@
 			compatible = "st,stm32f7-uart";
 			reg = <0x40004c00 0x400>;
 			interrupts = <52>;
-			clocks = <&rcc 0 147>;
+			clocks = <&rcc 1 CLK_UART4>;
 			status = "disabled";
 		};
 
@@ -129,7 +163,7 @@
 			compatible = "st,stm32f7-uart";
 			reg = <0x40005000 0x400>;
 			interrupts = <53>;
-			clocks = <&rcc 0 148>;
+			clocks = <&rcc 1 CLK_UART5>;
 			status = "disabled";
 		};
 
@@ -137,7 +171,7 @@
 			compatible = "st,stm32f7-usart", "st,stm32f7-uart";
 			reg = <0x40007800 0x400>;
 			interrupts = <82>;
-			clocks = <&rcc 0 158>;
+			clocks = <&rcc 1 CLK_UART7>;
 			status = "disabled";
 		};
 
@@ -145,7 +179,7 @@
 			compatible = "st,stm32f7-usart", "st,stm32f7-uart";
 			reg = <0x40007c00 0x400>;
 			interrupts = <83>;
-			clocks = <&rcc 0 159>;
+			clocks = <&rcc 1 CLK_UART8>;
 			status = "disabled";
 		};
 
@@ -153,7 +187,7 @@
 			compatible = "st,stm32f7-usart", "st,stm32f7-uart";
 			reg = <0x40011000 0x400>;
 			interrupts = <37>;
-			clocks = <&rcc 0 164>;
+			clocks = <&rcc 1 CLK_USART1>;
 			status = "disabled";
 		};
 
@@ -161,7 +195,7 @@
 			compatible = "st,stm32f7-usart", "st,stm32f7-uart";
 			reg = <0x40011400 0x400>;
 			interrupts = <71>;
-			clocks = <&rcc 0 165>;
+			clocks = <&rcc 1 CLK_USART6>;
 			status = "disabled";
 		};
 
@@ -178,6 +212,11 @@
 			interrupts = <1>, <2>, <3>, <6>, <7>, <8>, <9>, <10>, <23>, <40>, <41>, <42>, <62>, <76>;
 		};
 
+		pwrcfg: power-config@40007000 {
+			compatible = "syscon";
+			reg = <0x40007000 0x400>;
+		};
+
 		pin-controller {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -191,7 +230,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x0 0x400>;
-				clocks = <&rcc 0 256>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOA)>;
 				st,bank-name = "GPIOA";
 			};
 
@@ -199,7 +238,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x400 0x400>;
-				clocks = <&rcc 0 257>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOB)>;
 				st,bank-name = "GPIOB";
 			};
 
@@ -207,7 +246,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x800 0x400>;
-				clocks = <&rcc 0 258>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOC)>;
 				st,bank-name = "GPIOC";
 			};
 
@@ -215,7 +254,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0xc00 0x400>;
-				clocks = <&rcc 0 259>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOD)>;
 				st,bank-name = "GPIOD";
 			};
 
@@ -223,7 +262,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x1000 0x400>;
-				clocks = <&rcc 0 260>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOE)>;
 				st,bank-name = "GPIOE";
 			};
 
@@ -231,7 +270,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x1400 0x400>;
-				clocks = <&rcc 0 261>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOF)>;
 				st,bank-name = "GPIOF";
 			};
 
@@ -239,7 +278,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x1800 0x400>;
-				clocks = <&rcc 0 262>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOG)>;
 				st,bank-name = "GPIOG";
 			};
 
@@ -247,7 +286,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x1c00 0x400>;
-				clocks = <&rcc 0 263>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOH)>;
 				st,bank-name = "GPIOH";
 			};
 
@@ -255,7 +294,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x2000 0x400>;
-				clocks = <&rcc 0 264>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOI)>;
 				st,bank-name = "GPIOI";
 			};
 
@@ -263,7 +302,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x2400 0x400>;
-				clocks = <&rcc 0 265>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOJ)>;
 				st,bank-name = "GPIOJ";
 			};
 
@@ -271,7 +310,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x2800 0x400>;
-				clocks = <&rcc 0 266>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOK)>;
 				st,bank-name = "GPIOK";
 			};
 
@@ -289,11 +328,21 @@
 			};
 		};
 
+		crc: crc@40023000 {
+			compatible = "st,stm32f7-crc";
+			reg = <0x40023000 0x400>;
+			clocks = <&rcc 0 12>;
+			status = "disabled";
+		};
+
 		rcc: rcc@40023800 {
 			#clock-cells = <2>;
-			compatible = "st,stm32f42xx-rcc", "st,stm32-rcc";
+			compatible = "st,stm32f746-rcc", "st,stm32-rcc";
 			reg = <0x40023800 0x400>;
-			clocks = <&clk_hse>;
+			clocks = <&clk_hse>, <&clk_i2s_ckin>;
+			st,syscfg = <&pwrcfg>;
+			assigned-clocks = <&rcc 1 CLK_HSE_RTC>;
+			assigned-clock-rates = <1000000>;
 		};
 	};
 };

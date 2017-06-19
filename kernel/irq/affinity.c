@@ -98,7 +98,7 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 		int ncpus, v, vecs_to_assign, vecs_per_node;
 
 		/* Spread the vectors per node */
-		vecs_per_node = (affv - curvec) / nodes;
+		vecs_per_node = (affv - (curvec - affd->pre_vectors)) / nodes;
 
 		/* Get the cpus on this node which are in the mask */
 		cpumask_and(nmsk, cpu_online_mask, cpumask_of_node(n));

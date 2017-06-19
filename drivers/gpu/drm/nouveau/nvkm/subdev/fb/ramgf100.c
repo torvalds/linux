@@ -638,7 +638,6 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 			return ret;
 	}
 
-	ram->ranks = (nvkm_rd32(device, 0x10f200) & 0x00000004) ? 2 : 1;
 	return 0;
 }
 

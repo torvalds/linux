@@ -9,16 +9,44 @@ config PCIE_DW_HOST
 	depends on PCI_MSI_IRQ_DOMAIN
         select PCIE_DW
 
+config PCIE_DW_EP
+	bool
+	depends on PCI_ENDPOINT
+	select PCIE_DW
+
 config PCI_DRA7XX
 	bool "TI DRA7xx PCIe controller"
-	depends on PCI
+	depends on (PCI && PCI_MSI_IRQ_DOMAIN) || PCI_ENDPOINT
 	depends on OF && HAS_IOMEM && TI_PIPE3
+	help
+	 Enables support for the PCIe controller in the DRA7xx SoC. There
+	 are two instances of PCIe controller in DRA7xx. This controller can
+	 work either as EP or RC. In order to enable host-specific features
+	 PCI_DRA7XX_HOST must be selected and in order to enable device-
+	 specific features PCI_DRA7XX_EP must be selected. This uses
+	 the Designware core.
+
+if PCI_DRA7XX
+
+config PCI_DRA7XX_HOST
+	bool "PCI DRA7xx Host Mode"
+	depends on PCI
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
+	default y
 	help
-	 Enables support for the PCIe controller in the DRA7xx SoC.  There
-	 are two instances of PCIe controller in DRA7xx.  This controller can
-	 act both as EP and RC.  This reuses the Designware core.
+	 Enables support for the PCIe controller in the DRA7xx SoC to work in
+	 host mode.
+
+config PCI_DRA7XX_EP
+	bool "PCI DRA7xx Endpoint Mode"
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	help
+	 Enables support for the PCIe controller in the DRA7xx SoC to work in
+	 endpoint mode.
+
+endif
 
 config PCIE_DW_PLAT
 	bool "Platform bus based DesignWare PCIe Controller"

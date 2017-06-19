@@ -124,6 +124,34 @@ dwc3_gadget_link_string(enum dwc3_link_state link_state)
 	}
 }
 
+/**
+ * dwc3_trb_type_string - returns TRB type as a string
+ * @type: the type of the TRB
+ */
+static inline const char *dwc3_trb_type_string(unsigned int type)
+{
+	switch (type) {
+	case DWC3_TRBCTL_NORMAL:
+		return "normal";
+	case DWC3_TRBCTL_CONTROL_SETUP:
+		return "setup";
+	case DWC3_TRBCTL_CONTROL_STATUS2:
+		return "status2";
+	case DWC3_TRBCTL_CONTROL_STATUS3:
+		return "status3";
+	case DWC3_TRBCTL_CONTROL_DATA:
+		return "data";
+	case DWC3_TRBCTL_ISOCHRONOUS_FIRST:
+		return "isoc-first";
+	case DWC3_TRBCTL_ISOCHRONOUS:
+		return "isoc";
+	case DWC3_TRBCTL_LINK_TRB:
+		return "link";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 static inline const char *dwc3_ep0_state_string(enum dwc3_ep0_state state)
 {
 	switch (state) {

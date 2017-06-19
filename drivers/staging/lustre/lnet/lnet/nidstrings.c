@@ -1226,7 +1226,7 @@ libcfs_str2nid(const char *str)
 EXPORT_SYMBOL(libcfs_str2nid);
 
 char *
-libcfs_id2str(lnet_process_id_t id)
+libcfs_id2str(struct lnet_process_id id)
 {
 	char *str = libcfs_next_nidstring();
 

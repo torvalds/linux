@@ -942,6 +942,7 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 		}
 		if (snapshot_in.snapshot_array_size < sizeof(struct smb_snapshot_array)) {
 			rc = -ERANGE;
+			kfree(retbuf);
 			return rc;
 		}
 

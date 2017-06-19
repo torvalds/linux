@@ -113,19 +113,15 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	}
 
 	if (rmi_register_desc_has_subpacket(item, 2)) {
-		sensor->axis_align.clip_x_low = buf[offset];
-		sensor->axis_align.clip_x_high = sensor->max_x
-							- buf[offset + 1];
-		sensor->axis_align.clip_y_low = buf[offset + 2];
-		sensor->axis_align.clip_y_high = sensor->max_y
-							- buf[offset + 3];
+		/* Units 1/128 sensor pitch */
+		rmi_dbg(RMI_DEBUG_FN, &fn->dev,
+			"%s: Inactive Border xlo:%d xhi:%d ylo:%d yhi:%d\n",
+			__func__,
+			buf[offset], buf[offset + 1],
+			buf[offset + 2], buf[offset + 3]);
+
 		offset += 4;
 	}
-
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: x low: %d x high: %d y low: %d y high: %d\n",
-		__func__,
-		sensor->axis_align.clip_x_low, sensor->axis_align.clip_x_high,
-		sensor->axis_align.clip_y_low, sensor->axis_align.clip_y_high);
 
 	if (rmi_register_desc_has_subpacket(item, 3)) {
 		rx_receivers = buf[offset];

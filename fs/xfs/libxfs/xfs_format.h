@@ -930,10 +930,8 @@ static inline uint xfs_dinode_size(int version)
 /*
  * The 32 bit link count in the inode theoretically maxes out at UINT_MAX.
  * Since the pathconf interface is signed, we use 2^31 - 1 instead.
- * The old inode format had a 16 bit link count, so its maximum is USHRT_MAX.
  */
 #define	XFS_MAXLINK		((1U << 31) - 1U)
-#define	XFS_MAXLINK_1		65535U
 
 /*
  * Values for di_format
@@ -1578,19 +1576,10 @@ static inline xfs_filblks_t startblockval(xfs_fsblock_t x)
 }
 
 /*
- * Possible extent formats.
- */
-typedef enum {
-	XFS_EXTFMT_NOSTATE = 0,
-	XFS_EXTFMT_HASSTATE
-} xfs_exntfmt_t;
-
-/*
  * Possible extent states.
  */
 typedef enum {
 	XFS_EXT_NORM, XFS_EXT_UNWRITTEN,
-	XFS_EXT_DMAPI_OFFLINE, XFS_EXT_INVALID
 } xfs_exntst_t;
 
 /*

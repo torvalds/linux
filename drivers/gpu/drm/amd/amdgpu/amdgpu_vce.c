@@ -955,11 +955,11 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t rptr = amdgpu_ring_get_rptr(ring);
 	unsigned i;
-	int r;
+	int r, timeout = adev->usec_timeout;
 
-	/* TODO: remove it if VCE can work for sriov */
+	/* workaround VCE ring test slow issue for sriov*/
 	if (amdgpu_sriov_vf(adev))
-		return 0;
+		timeout *= 10;
 
 	r = amdgpu_ring_alloc(ring, 16);
 	if (r) {
@@ -970,13 +970,13 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, VCE_CMD_END);
 	amdgpu_ring_commit(ring);
 
-	for (i = 0; i < adev->usec_timeout; i++) {
+	for (i = 0; i < timeout; i++) {
 		if (amdgpu_ring_get_rptr(ring) != rptr)
 			break;
 		DRM_UDELAY(1);
 	}
 
-	if (i < adev->usec_timeout) {
+	if (i < timeout) {
 		DRM_INFO("ring test on %d succeeded in %d usecs\n",
 			 ring->idx, i);
 	} else {
@@ -998,10 +998,6 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct dma_fence *fence = NULL;
 	long r;
-
-	/* TODO: remove it if VCE can work for sriov */
-	if (amdgpu_sriov_vf(ring->adev))
-		return 0;
 
 	/* skip vce ring1/2 ib test for now, since it's not reliable */
 	if (ring != &ring->adev->vce.ring[0])

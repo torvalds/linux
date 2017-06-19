@@ -35,6 +35,7 @@
 #include <linux/pagevec.h>
 #include <linux/freezer.h>
 #include <linux/namei.h>
+#include <linux/uuid.h>
 #include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <linux/inet.h>
@@ -1945,9 +1946,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	}
 
 	if (!got_ip) {
+		int len;
+		const char *slash;
+
 		/* No ip= option specified? Try to get it from UNC */
-		if (!cifs_convert_address(dstaddr, &vol->UNC[2],
-						strlen(&vol->UNC[2]))) {
+		/* Use the address part of the UNC. */
+		slash = strchr(&vol->UNC[2], '\\');
+		len = slash - &vol->UNC[2];
+		if (!cifs_convert_address(dstaddr, &vol->UNC[2], len)) {
 			pr_err("Unable to determine destination address.\n");
 			goto cifs_parse_mount_err;
 		}
@@ -2912,16 +2918,14 @@ match_prepath(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 {
 	struct cifs_sb_info *old = CIFS_SB(sb);
 	struct cifs_sb_info *new = mnt_data->cifs_sb;
+	bool old_set = old->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH;
+	bool new_set = new->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH;
 
-	if (old->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH) {
-		if (!(new->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH))
-			return 0;
-		/* The prepath should be null terminated strings */
-		if (strcmp(new->prepath, old->prepath))
-			return 0;
-
+	if (old_set && new_set && !strcmp(new->prepath, old->prepath))
 		return 1;
-	}
+	else if (!old_set && !new_set)
+		return 1;
+
 	return 0;
 }
 
@@ -3692,10 +3696,6 @@ cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 	int referral_walks_count = 0;
 #endif
 
-	rc = bdi_setup_and_register(&cifs_sb->bdi, "cifs");
-	if (rc)
-		return rc;
-
 #ifdef CONFIG_CIFS_DFS_UPCALL
 try_mount_again:
 	/* cleanup activities if we're chasing a referral */
@@ -3723,7 +3723,6 @@ try_mount_again:
 	server = cifs_get_tcp_session(volume_info);
 	if (IS_ERR(server)) {
 		rc = PTR_ERR(server);
-		bdi_destroy(&cifs_sb->bdi);
 		goto out;
 	}
 	if ((volume_info->max_credits < 20) ||
@@ -3779,9 +3778,6 @@ try_mount_again:
 
 	cifs_sb->wsize = server->ops->negotiate_wsize(tcon, volume_info);
 	cifs_sb->rsize = server->ops->negotiate_rsize(tcon, volume_info);
-
-	/* tune readahead according to rsize */
-	cifs_sb->bdi.ra_pages = cifs_sb->rsize / PAGE_SIZE;
 
 remote_path_check:
 #ifdef CONFIG_CIFS_DFS_UPCALL
@@ -3899,7 +3895,6 @@ mount_fail_check:
 			cifs_put_smb_ses(ses);
 		else
 			cifs_put_tcp_session(server, 0);
-		bdi_destroy(&cifs_sb->bdi);
 	}
 
 out:
@@ -4102,7 +4097,6 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 	}
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
-	bdi_destroy(&cifs_sb->bdi);
 	kfree(cifs_sb->mountdata);
 	kfree(cifs_sb->prepath);
 	call_rcu(&cifs_sb->rcu, delayed_free);

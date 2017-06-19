@@ -55,6 +55,7 @@ my $spelling_file = "$D/spelling.txt";
 my $codespell = 0;
 my $codespellfile = "/usr/share/codespell/dictionary.txt";
 my $conststructsfile = "$D/const_structs.checkpatch";
+my $typedefsfile = "";
 my $color = 1;
 my $allow_c99_comments = 1;
 
@@ -113,6 +114,7 @@ Options:
   --codespell                Use the codespell dictionary for spelling/typos
                              (default:/usr/share/codespell/dictionary.txt)
   --codespellfile            Use this codespell dictionary
+  --typedefsfile             Read additional types from this file
   --color                    Use colors when output is STDOUT (default: on)
   -h, --help, --version      display this help and exit
 
@@ -208,6 +210,7 @@ GetOptions(
 	'test-only=s'	=> \$tst_only,
 	'codespell!'	=> \$codespell,
 	'codespellfile=s'	=> \$codespellfile,
+	'typedefsfile=s'	=> \$typedefsfile,
 	'color!'	=> \$color,
 	'h|help'	=> \$help,
 	'version'	=> \$help
@@ -629,28 +632,43 @@ if ($codespell) {
 
 $misspellings = join("|", sort keys %spelling_fix) if keys %spelling_fix;
 
-my $const_structs = "";
-if (open(my $conststructs, '<', $conststructsfile)) {
-	while (<$conststructs>) {
-		my $line = $_;
+sub read_words {
+	my ($wordsRef, $file) = @_;
 
-		$line =~ s/\s*\n?$//g;
-		$line =~ s/^\s*//g;
+	if (open(my $words, '<', $file)) {
+		while (<$words>) {
+			my $line = $_;
 
-		next if ($line =~ m/^\s*#/);
-		next if ($line =~ m/^\s*$/);
-		if ($line =~ /\s/) {
-			print("$conststructsfile: '$line' invalid - ignored\n");
-			next;
+			$line =~ s/\s*\n?$//g;
+			$line =~ s/^\s*//g;
+
+			next if ($line =~ m/^\s*#/);
+			next if ($line =~ m/^\s*$/);
+			if ($line =~ /\s/) {
+				print("$file: '$line' invalid - ignored\n");
+				next;
+			}
+
+			$$wordsRef .= '|' if ($$wordsRef ne "");
+			$$wordsRef .= $line;
 		}
-
-		$const_structs .= '|' if ($const_structs ne "");
-		$const_structs .= $line;
+		close($file);
+		return 1;
 	}
-	close($conststructsfile);
-} else {
-	warn "No structs that should be const will be found - file '$conststructsfile': $!\n";
+
+	return 0;
 }
+
+my $const_structs = "";
+read_words(\$const_structs, $conststructsfile)
+    or warn "No structs that should be const will be found - file '$conststructsfile': $!\n";
+
+my $typeOtherTypedefs = "";
+if (length($typedefsfile)) {
+	read_words(\$typeOtherTypedefs, $typedefsfile)
+	    or warn "No additional types will be considered - file '$typedefsfile': $!\n";
+}
+$typeTypedefs .= '|' . $typeOtherTypedefs if ($typeOtherTypedefs ne "");
 
 sub build_types {
 	my $mods = "(?x:  \n" . join("|\n  ", (@modifierList, @modifierListFile)) . "\n)";
@@ -2195,8 +2213,7 @@ sub process {
 			}
 			#next;
 		}
-		if ($rawline=~/^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@(.*)/) {
-			my $context = $4;
+		if ($rawline =~ /^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@/) {
 			$realline=$1-1;
 			if (defined $2) {
 				$realcnt=$3+1;
@@ -2204,12 +2221,6 @@ sub process {
 				$realcnt=1+1;
 			}
 			$in_comment = 0;
-
-			if ($context =~ /\b(\w+)\s*\(/) {
-				$context_function = $1;
-			} else {
-				undef $context_function;
-			}
 
 			# Guestimate if this is a continuing comment.  Run
 			# the context looking for a comment "edge".  If this
@@ -2281,7 +2292,8 @@ sub process {
 
 #extract the line range in the file after the patch is applied
 		if (!$in_commit_log &&
-		    $line =~ /^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@/) {
+		    $line =~ /^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@(.*)/) {
+			my $context = $4;
 			$is_patch = 1;
 			$first_line = $linenr + 1;
 			$realline=$1-1;
@@ -2297,6 +2309,11 @@ sub process {
 			%suppress_whiletrailers = ();
 			%suppress_export = ();
 			$suppress_statement = 0;
+			if ($context =~ /\b(\w+)\s*\(/) {
+				$context_function = $1;
+			} else {
+				undef $context_function;
+			}
 			next;
 
 # track the line number as we move through the hunk, note that
@@ -2539,6 +2556,7 @@ sub process {
 # Check for git id commit length and improperly formed commit descriptions
 		if ($in_commit_log && !$commit_log_possible_stack_dump &&
 		    $line !~ /^\s*(?:Link|Patchwork|http|https|BugLink):/i &&
+		    $line !~ /^This reverts commit [0-9a-f]{7,40}/ &&
 		    ($line =~ /\bcommit\s+[0-9a-f]{5,}\b/i ||
 		     ($line =~ /(?:\s|^)[0-9a-f]{12,40}(?:[\s"'\(\[]|$)/i &&
 		      $line !~ /[\<\[][0-9a-f]{12,40}[\>\]]/i &&
@@ -2628,8 +2646,8 @@ sub process {
 # Check if it's the start of a commit log
 # (not a header line and we haven't seen the patch filename)
 		if ($in_header_lines && $realfile =~ /^$/ &&
-		    !($rawline =~ /^\s+\S/ ||
-		      $rawline =~ /^(commit\b|from\b|[\w-]+:).*$/i)) {
+		    !($rawline =~ /^\s+(?:\S|$)/ ||
+		      $rawline =~ /^(?:commit\b|from\b|[\w-]+:)/i)) {
 			$in_header_lines = 0;
 			$in_commit_log = 1;
 			$has_commit_log = 1;
@@ -2755,13 +2773,6 @@ sub process {
 				     "please write a paragraph that describes the config symbol fully\n" . $herecurr);
 			}
 			#print "is_start<$is_start> is_end<$is_end> length<$length>\n";
-		}
-
-# discourage the addition of CONFIG_EXPERIMENTAL in Kconfig.
-		if ($realfile =~ /Kconfig/ &&
-		    $line =~ /.\s*depends on\s+.*\bEXPERIMENTAL\b/) {
-			WARN("CONFIG_EXPERIMENTAL",
-			     "Use of CONFIG_EXPERIMENTAL is deprecated. For alternatives, see https://lkml.org/lkml/2012/10/23/580\n");
 		}
 
 # discourage the use of boolean for type definition attributes of Kconfig options
@@ -3133,6 +3144,17 @@ sub process {
 # check we are in a valid C source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c)$/);
 
+# check if this appears to be the start function declaration, save the name
+		if ($sline =~ /^\+\{\s*$/ &&
+		    $prevline =~ /^\+(?:(?:(?:$Storage|$Inline)\s*)*\s*$Type\s*)?($Ident)\(/) {
+			$context_function = $1;
+		}
+
+# check if this appears to be the end of function declaration
+		if ($sline =~ /^\+\}\s*$/) {
+			undef $context_function;
+		}
+
 # check indentation of any line with a bare else
 # (but not if it is a multiple line "if (foo) return bar; else return baz;")
 # if the previous line is a break or return and is indented 1 tab more...
@@ -3155,12 +3177,6 @@ sub process {
 				WARN("UNNECESSARY_BREAK",
 				     "break is not useful after a goto or return\n" . $hereprev);
 			}
-		}
-
-# discourage the addition of CONFIG_EXPERIMENTAL in #if(def).
-		if ($line =~ /^\+\s*\#\s*if.*\bCONFIG_EXPERIMENTAL\b/) {
-			WARN("CONFIG_EXPERIMENTAL",
-			     "Use of CONFIG_EXPERIMENTAL is deprecated. For alternatives, see https://lkml.org/lkml/2012/10/23/580\n");
 		}
 
 # check for RCS/CVS revision markers
@@ -3338,7 +3354,7 @@ sub process {
 		}
 
 # Check relative indent for conditionals and blocks.
-		if ($line =~ /\b(?:(?:if|while|for|(?:[a-z_]+|)for_each[a-z_]+)\s*\(|do\b)/ && $line !~ /^.\s*#/ && $line !~ /\}\s*while\s*/) {
+		if ($line =~ /\b(?:(?:if|while|for|(?:[a-z_]+|)for_each[a-z_]+)\s*\(|(?:do|else)\b)/ && $line !~ /^.\s*#/ && $line !~ /\}\s*while\s*/) {
 			($stat, $cond, $line_nr_next, $remain_next, $off_next) =
 				ctx_statement_block($linenr, $realcnt, 0)
 					if (!defined $stat);
@@ -3430,6 +3446,8 @@ sub process {
 			if ($check && $s ne '' &&
 			    (($sindent % 8) != 0 ||
 			     ($sindent < $indent) ||
+			     ($sindent == $indent &&
+			      ($s !~ /^\s*(?:\}|\{|else\b)/)) ||
 			     ($sindent > $indent + 8))) {
 				WARN("SUSPECT_CODE_INDENT",
 				     "suspect code indent for conditional statements ($indent, $sindent)\n" . $herecurr . "$stat_real\n");
@@ -4851,8 +4869,10 @@ sub process {
 			    $dstat !~ /^\(\{/ &&						# ({...
 			    $ctx !~ /^.\s*#\s*define\s+TRACE_(?:SYSTEM|INCLUDE_FILE|INCLUDE_PATH)\b/)
 			{
-
-				if ($dstat =~ /;/) {
+				if ($dstat =~ /^\s*if\b/) {
+					ERROR("MULTISTATEMENT_MACRO_USE_DO_WHILE",
+					      "Macros starting with if should be enclosed by a do - while loop to avoid possible if/else logic defects\n" . "$herectx");
+				} elsif ($dstat =~ /;/) {
 					ERROR("MULTISTATEMENT_MACRO_USE_DO_WHILE",
 					      "Macros with multiple statements should be enclosed in a do - while loop\n" . "$herectx");
 				} else {
@@ -5174,14 +5194,16 @@ sub process {
 			     "break quoted strings at a space character\n" . $hereprev);
 		}
 
-#check for an embedded function name in a string when the function is known
-# as part of a diff.  This does not work for -f --file checking as it
-#depends on patch context providing the function name
+# check for an embedded function name in a string when the function is known
+# This does not work very well for -f --file checking as it depends on patch
+# context providing the function name or a single line form for in-file
+# function declarations
 		if ($line =~ /^\+.*$String/ &&
 		    defined($context_function) &&
-		    get_quoted_string($line, $rawline) =~ /\b$context_function\b/) {
+		    get_quoted_string($line, $rawline) =~ /\b$context_function\b/ &&
+		    length(get_quoted_string($line, $rawline)) != (length($context_function) + 2)) {
 			WARN("EMBEDDED_FUNCTION_NAME",
-			     "Prefer using \"%s\", __func__ to embedded function names\n" . $herecurr);
+			     "Prefer using '\"%s...\", __func__' to using '$context_function', this function's name, in a string\n" . $herecurr);
 		}
 
 # check for spaces before a quoted newline
@@ -5676,6 +5698,32 @@ sub process {
 			}
 		}
 
+		# check for vsprintf extension %p<foo> misuses
+		if ($^V && $^V ge 5.10.0 &&
+		    defined $stat &&
+		    $stat =~ /^\+(?![^\{]*\{\s*).*\b(\w+)\s*\(.*$String\s*,/s &&
+		    $1 !~ /^_*volatile_*$/) {
+			my $bad_extension = "";
+			my $lc = $stat =~ tr@\n@@;
+			$lc = $lc + $linenr;
+		        for (my $count = $linenr; $count <= $lc; $count++) {
+				my $fmt = get_quoted_string($lines[$count - 1], raw_line($count, 0));
+				$fmt =~ s/%%//g;
+				if ($fmt =~ /(\%[\*\d\.]*p(?![\WFfSsBKRraEhMmIiUDdgVCbGN]).)/) {
+					$bad_extension = $1;
+					last;
+				}
+			}
+			if ($bad_extension ne "") {
+				my $stat_real = raw_line($linenr, 0);
+				for (my $count = $linenr + 1; $count <= $lc; $count++) {
+					$stat_real = $stat_real . "\n" . raw_line($count, 0);
+				}
+				WARN("VSPRINTF_POINTER_EXTENSION",
+				     "Invalid vsprintf pointer extension '$bad_extension'\n" . "$here\n$stat_real\n");
+			}
+		}
+
 # Check for misused memsets
 		if ($^V && $^V ge 5.10.0 &&
 		    defined $stat &&
@@ -5893,7 +5941,8 @@ sub process {
 
 # check for k[mz]alloc with multiplies that could be kmalloc_array/kcalloc
 		if ($^V && $^V ge 5.10.0 &&
-		    $line =~ /\b($Lval)\s*\=\s*(?:$balanced_parens)?\s*(k[mz]alloc)\s*\(\s*($FuncArg)\s*\*\s*($FuncArg)\s*,/) {
+		    defined $stat &&
+		    $stat =~ /^\+\s*($Lval)\s*\=\s*(?:$balanced_parens)?\s*(k[mz]alloc)\s*\(\s*($FuncArg)\s*\*\s*($FuncArg)\s*,/) {
 			my $oldfunc = $3;
 			my $a1 = $4;
 			my $a2 = $10;
@@ -5907,11 +5956,17 @@ sub process {
 			}
 			if ($r1 !~ /^sizeof\b/ && $r2 =~ /^sizeof\s*\S/ &&
 			    !($r1 =~ /^$Constant$/ || $r1 =~ /^[A-Z_][A-Z0-9_]*$/)) {
+				my $ctx = '';
+				my $herectx = $here . "\n";
+				my $cnt = statement_rawlines($stat);
+				for (my $n = 0; $n < $cnt; $n++) {
+					$herectx .= raw_line($linenr, $n) . "\n";
+				}
 				if (WARN("ALLOC_WITH_MULTIPLY",
-					 "Prefer $newfunc over $oldfunc with multiply\n" . $herecurr) &&
+					 "Prefer $newfunc over $oldfunc with multiply\n" . $herectx) &&
+				    $cnt == 1 &&
 				    $fix) {
 					$fixed[$fixlinenr] =~ s/\b($Lval)\s*\=\s*(?:$balanced_parens)?\s*(k[mz]alloc)\s*\(\s*($FuncArg)\s*\*\s*($FuncArg)/$1 . ' = ' . "$newfunc(" . trim($r1) . ', ' . trim($r2)/e;
-
 				}
 			}
 		}
@@ -6066,11 +6121,11 @@ sub process {
 		}
 
 # check for various structs that are normally const (ops, kgdb, device_tree)
+# and avoid what seem like struct definitions 'struct foo {'
 		if ($line !~ /\bconst\b/ &&
-		    $line =~ /\bstruct\s+($const_structs)\b/) {
+		    $line =~ /\bstruct\s+($const_structs)\b(?!\s*\{)/) {
 			WARN("CONST_STRUCT",
-			     "struct $1 should normally be const\n" .
-				$herecurr);
+			     "struct $1 should normally be const\n" . $herecurr);
 		}
 
 # use of NR_CPUS is usually wrong

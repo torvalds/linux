@@ -46,6 +46,7 @@ config MIPS
 	select ARCH_DISCARD_MEMBLOCK
 	select GENERIC_SMP_IDLE_THREAD
 	select BUILDTIME_EXTABLE_SORT
+	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_SCHED_CLOCK if !CAVIUM_OCTEON_SOC
 	select GENERIC_CMOS_UPDATE
@@ -68,7 +69,7 @@ config MIPS
 	select HANDLE_DOMAIN_IRQ
 	select HAVE_EXIT_THREAD
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_ARCH_HARDENED_USERCOPY
+	select HAVE_COPY_THREAD_TLS
 
 menu "Machine selection"
 
@@ -1040,14 +1041,6 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
-config ARCH_HAS_ILOG2_U32
-	bool
-	default n
-
-config ARCH_HAS_ILOG2_U64
-	bool
-	default n
-
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -1373,6 +1366,7 @@ config CPU_LOONGSON3
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
 	select MIPS_PGD_C0_CONTEXT
+	select MIPS_L1_CACHE_SHIFT_6
 	select GPIOLIB
 	help
 		The Loongson 3 processor implements the MIPS64R2 instruction
@@ -1687,6 +1681,7 @@ config CPU_CAVIUM_OCTEON
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select MIPS_L1_CACHE_SHIFT_7
+	select HAVE_KVM
 	help
 	  The Cavium Octeon processor is a highly integrated chip containing
 	  many ethernet hardware widgets for networking tasks. The processor
@@ -2120,10 +2115,13 @@ config MIPS_VA_BITS_48
 	bool "48 bits virtual memory"
 	depends on 64BIT
 	help
-	  Support a maximum at least 48 bits of application virtual memory.
-	  Default is 40 bits or less, depending on the CPU.
-	  This option result in a small memory overhead for page tables.
-	  This option is only supported with 16k and 64k page sizes.
+	  Support a maximum at least 48 bits of application virtual
+	  memory.  Default is 40 bits or less, depending on the CPU.
+	  For page sizes 16k and above, this option results in a small
+	  memory overhead for page tables.  For 4k page size, a fourth
+	  level of page tables is added which imposes both a memory
+	  overhead as well as slower TLB fault handling.
+
 	  If unsure, say N.
 
 choice
@@ -2133,7 +2131,6 @@ choice
 config PAGE_SIZE_4KB
 	bool "4kB"
 	depends on !CPU_LOONGSON2 && !CPU_LOONGSON3
-	depends on !MIPS_VA_BITS_48
 	help
 	 This option select the standard 4kB Linux page size.  On some
 	 R3000-family processors this is the only available page size.  Using
@@ -2982,6 +2979,7 @@ config HAVE_LATENCYTOP_SUPPORT
 
 config PGTABLE_LEVELS
 	int
+	default 4 if PAGE_SIZE_4KB && MIPS_VA_BITS_48
 	default 3 if 64BIT && !PAGE_SIZE_64KB
 	default 2
 

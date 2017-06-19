@@ -26,7 +26,7 @@ check_types() {
   test $X2 = $X3
   test 0x$X3 = $3
 
-  B4=`printf "%x" $4`
+  B4=`printf "%02x" $4`
   B3=`echo -n $X3 | tail -c 3 | head -c 2`
   test $B3 = $B4
 }

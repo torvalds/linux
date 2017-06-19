@@ -17,11 +17,18 @@
 #include <subcmd/parse-options.h>
 #include "util/bpf-loader.h"
 #include "util/debug.h"
+#include "util/event.h"
 #include <api/fs/fs.h>
 #include <api/fs/tracing_path.h>
+#include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <linux/kernel.h>
 
 const char perf_usage_string[] =
 	"perf [--version] [--help] [OPTIONS] COMMAND [ARGS]";
@@ -34,7 +41,7 @@ const char *input_name;
 
 struct cmd_struct {
 	const char *cmd;
-	int (*fn)(int, const char **, const char *);
+	int (*fn)(int, const char **);
 	int option;
 };
 
@@ -88,7 +95,7 @@ static int pager_command_config(const char *var, const char *value, void *data)
 }
 
 /* returns 0 for "no pager", 1 for "use pager", and -1 for "not specified" */
-int check_pager_config(const char *cmd)
+static int check_pager_config(const char *cmd)
 {
 	int err;
 	struct pager_config c;
@@ -267,71 +274,6 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 	return handled;
 }
 
-static int handle_alias(int *argcp, const char ***argv)
-{
-	int envchanged = 0, ret = 0, saved_errno = errno;
-	int count, option_count;
-	const char **new_argv;
-	const char *alias_command;
-	char *alias_string;
-
-	alias_command = (*argv)[0];
-	alias_string = alias_lookup(alias_command);
-	if (alias_string) {
-		if (alias_string[0] == '!') {
-			if (*argcp > 1) {
-				struct strbuf buf;
-
-				if (strbuf_init(&buf, PATH_MAX) < 0 ||
-				    strbuf_addstr(&buf, alias_string) < 0 ||
-				    sq_quote_argv(&buf, (*argv) + 1,
-						  PATH_MAX) < 0)
-					die("Failed to allocate memory.");
-				free(alias_string);
-				alias_string = buf.buf;
-			}
-			ret = system(alias_string + 1);
-			if (ret >= 0 && WIFEXITED(ret) &&
-			    WEXITSTATUS(ret) != 127)
-				exit(WEXITSTATUS(ret));
-			die("Failed to run '%s' when expanding alias '%s'",
-			    alias_string + 1, alias_command);
-		}
-		count = split_cmdline(alias_string, &new_argv);
-		if (count < 0)
-			die("Bad alias.%s string", alias_command);
-		option_count = handle_options(&new_argv, &count, &envchanged);
-		if (envchanged)
-			die("alias '%s' changes environment variables\n"
-				 "You can use '!perf' in the alias to do this.",
-				 alias_command);
-		memmove(new_argv - option_count, new_argv,
-				count * sizeof(char *));
-		new_argv -= option_count;
-
-		if (count < 1)
-			die("empty alias for %s", alias_command);
-
-		if (!strcmp(alias_command, new_argv[0]))
-			die("recursive alias: %s", alias_command);
-
-		new_argv = realloc(new_argv, sizeof(char *) *
-				    (count + *argcp + 1));
-		/* insert after command name */
-		memcpy(new_argv + count, *argv + 1, sizeof(char *) * *argcp);
-		new_argv[count + *argcp] = NULL;
-
-		*argv = new_argv;
-		*argcp += count - 1;
-
-		ret = 1;
-	}
-
-	errno = saved_errno;
-
-	return ret;
-}
-
 #define RUN_SETUP	(1<<0)
 #define USE_PAGER	(1<<1)
 
@@ -339,12 +281,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 {
 	int status;
 	struct stat st;
-	const char *prefix;
 	char sbuf[STRERR_BUFSIZE];
-
-	prefix = NULL;
-	if (p->option & RUN_SETUP)
-		prefix = NULL; /* setup_perf_directory(); */
 
 	if (use_browser == -1)
 		use_browser = check_browser_config(p->cmd);
@@ -356,7 +293,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	commit_pager_choice();
 
 	perf_env__set_cmdline(&perf_env, argc, argv);
-	status = p->fn(argc, argv, prefix);
+	status = p->fn(argc, argv);
 	perf_config__exit();
 	exit_browser(status);
 	perf_env__exit(&perf_env);
@@ -397,16 +334,6 @@ static void handle_internal_command(int argc, const char **argv)
 {
 	const char *cmd = argv[0];
 	unsigned int i;
-	static const char ext[] = STRIP_EXTENSION;
-
-	if (sizeof(ext) > 1) {
-		i = strlen(argv[0]) - strlen(ext);
-		if (i > 0 && !strcmp(argv[0] + i, ext)) {
-			char *argv0 = strdup(argv[0]);
-			argv[0] = cmd = argv0;
-			argv0[i] = '\0';
-		}
-	}
 
 	/* Turn "perf cmd --help" into "perf help cmd" */
 	if (argc > 1 && !strcmp(argv[1], "--help")) {
@@ -448,7 +375,8 @@ static void execv_dashed_external(const char **argv)
 	if (status != -ERR_RUN_COMMAND_EXEC) {
 		if (IS_RUN_COMMAND_ERR(status)) {
 do_die:
-			die("unable to run '%s'", argv[0]);
+			pr_err("FATAL: unable to run '%s'", argv[0]);
+			status = -128;
 		}
 		exit(-status);
 	}
@@ -460,25 +388,12 @@ do_die:
 
 static int run_argv(int *argcp, const char ***argv)
 {
-	int done_alias = 0;
+	/* See if it's an internal command */
+	handle_internal_command(*argcp, *argv);
 
-	while (1) {
-		/* See if it's an internal command */
-		handle_internal_command(*argcp, *argv);
-
-		/* .. then try the external ones */
-		execv_dashed_external(*argv);
-
-		/* It could be an alias -- this works around the insanity
-		 * of overriding "perf log" with "perf show" by having
-		 * alias.log = show
-		 */
-		if (done_alias || !handle_alias(argcp, argv))
-			break;
-		done_alias = 1;
-	}
-
-	return done_alias;
+	/* .. then try the external ones */
+	execv_dashed_external(*argv);
+	return 0;
 }
 
 static void pthread__block_sigwinch(void)
@@ -566,7 +481,7 @@ int main(int argc, const char **argv)
 #ifdef HAVE_LIBAUDIT_SUPPORT
 		setup_path();
 		argv[0] = "trace";
-		return cmd_trace(argc, argv, NULL);
+		return cmd_trace(argc, argv);
 #else
 		fprintf(stderr,
 			"trace command not available: missing audit-libs devel package at build time.\n");
@@ -611,17 +526,12 @@ int main(int argc, const char **argv)
 
 	while (1) {
 		static int done_help;
-		int was_alias = run_argv(&argc, &argv);
+
+		run_argv(&argc, &argv);
 
 		if (errno != ENOENT)
 			break;
 
-		if (was_alias) {
-			fprintf(stderr, "Expansion of alias '%s' failed; "
-				"'%s' is not a perf-command\n",
-				cmd, argv[0]);
-			goto out;
-		}
 		if (!done_help) {
 			cmd = argv[0] = help_unknown_cmd(cmd);
 			done_help = 1;

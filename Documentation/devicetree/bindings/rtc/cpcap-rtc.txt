@@ -1,0 +1,18 @@
+Motorola CPCAP PMIC RTC
+-----------------------
+
+This module is part of the CPCAP. For more details about the whole
+chip see Documentation/devicetree/bindings/mfd/motorola-cpcap.txt.
+
+Requires node properties:
+- compatible: should contain "motorola,cpcap-rtc"
+- interrupts: An interrupt specifier for alarm and 1 Hz irq
+
+Example:
+
+&cpcap {
+	cpcap_rtc: rtc {
+		compatible = "motorola,cpcap-rtc";
+		interrupts = <39 IRQ_TYPE_NONE>, <26 IRQ_TYPE_NONE>;
+	};
+};

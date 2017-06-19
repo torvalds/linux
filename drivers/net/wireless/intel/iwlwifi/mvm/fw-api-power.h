@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -350,6 +350,45 @@ struct iwl_dev_tx_power_cmd {
 	u8 enable_ack_reduction;
 	u8 reserved[3];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
+
+#define IWL_NUM_GEO_PROFILES	3
+
+/**
+ * enum iwl_geo_per_chain_offset_operation - type of operation
+ * @IWL_PER_CHAIN_OFFSET_SET_TABLES: send the tables from the host to the FW.
+ * @IWL_PER_CHAIN_OFFSET_GET_CURRENT_TABLE: retrieve the last configured table.
+ */
+enum iwl_geo_per_chain_offset_operation {
+	IWL_PER_CHAIN_OFFSET_SET_TABLES,
+	IWL_PER_CHAIN_OFFSET_GET_CURRENT_TABLE,
+};  /* GEO_TX_POWER_LIMIT FLAGS TYPE */
+
+/**
+ * struct iwl_per_chain_offset - embedded struct for GEO_TX_POWER_LIMIT.
+ * @max_tx_power: maximum allowed tx power.
+ * @chain_a: tx power offset for chain a.
+ * @chain_b: tx power offset for chain b.
+ */
+struct iwl_per_chain_offset {
+	__le16 max_tx_power;
+	u8 chain_a;
+	u8 chain_b;
+} __packed; /* PER_CHAIN_LIMIT_OFFSET_PER_CHAIN_S_VER_1 */
+
+struct iwl_per_chain_offset_group {
+	struct iwl_per_chain_offset lb;
+	struct iwl_per_chain_offset hb;
+} __packed; /* PER_CHAIN_LIMIT_OFFSET_GROUP_S_VER_1 */
+
+/**
+ * struct iwl_geo_tx_power_profile_cmd - struct for GEO_TX_POWER_LIMIT cmd.
+ * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
+ * @table: offset profile per band.
+ */
+struct iwl_geo_tx_power_profiles_cmd {
+	__le32 ops;
+	struct iwl_per_chain_offset_group table[IWL_NUM_GEO_PROFILES];
+} __packed; /* GEO_TX_POWER_LIMIT */
 
 /**
  * struct iwl_beacon_filter_cmd

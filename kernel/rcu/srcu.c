@@ -22,7 +22,7 @@
  *	   Lai Jiangshan <laijs@cn.fujitsu.com>
  *
  * For detailed explanation of Read-Copy Update mechanism see -
- * 		Documentation/RCU/ *.txt
+ *		Documentation/RCU/ *.txt
  *
  */
 
@@ -243,8 +243,14 @@ static bool srcu_readers_active(struct srcu_struct *sp)
  * cleanup_srcu_struct - deconstruct a sleep-RCU structure
  * @sp: structure to clean up.
  *
- * Must invoke this after you are finished using a given srcu_struct that
- * was initialized via init_srcu_struct(), else you leak memory.
+ * Must invoke this only after you are finished using a given srcu_struct
+ * that was initialized via init_srcu_struct().  This code does some
+ * probabalistic checking, spotting late uses of srcu_read_lock(),
+ * synchronize_srcu(), synchronize_srcu_expedited(), and call_srcu().
+ * If any such late uses are detected, the per-CPU memory associated with
+ * the srcu_struct is simply leaked and WARN_ON() is invoked.  If the
+ * caller frees the srcu_struct itself, a use-after-free crash will likely
+ * ensue, but at least there will be a warning printed.
  */
 void cleanup_srcu_struct(struct srcu_struct *sp)
 {
@@ -257,7 +263,7 @@ EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
 
 /*
  * Counts the new reader in the appropriate per-CPU element of the
- * srcu_struct.  Must be called from process context.
+ * srcu_struct.
  * Returns an index that must be passed to the matching srcu_read_unlock().
  */
 int __srcu_read_lock(struct srcu_struct *sp)
@@ -265,7 +271,7 @@ int __srcu_read_lock(struct srcu_struct *sp)
 	int idx;
 
 	idx = READ_ONCE(sp->completed) & 0x1;
-	__this_cpu_inc(sp->per_cpu_ref->lock_count[idx]);
+	this_cpu_inc(sp->per_cpu_ref->lock_count[idx]);
 	smp_mb(); /* B */  /* Avoid leaking the critical section. */
 	return idx;
 }
@@ -275,7 +281,6 @@ EXPORT_SYMBOL_GPL(__srcu_read_lock);
  * Removes the count for the old reader from the appropriate per-CPU
  * element of the srcu_struct.  Note that this may well be a different
  * CPU than that which was incremented by the corresponding srcu_read_lock().
- * Must be called from process context.
  */
 void __srcu_read_unlock(struct srcu_struct *sp, int idx)
 {

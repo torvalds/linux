@@ -98,7 +98,7 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 	if (unlikely(addr & 3))
 		return -EINVAL;
 
-	if (unlikely(!access_ok(VERIFY_WRITE, addr, 4)))
+	if (unlikely(!access_ok(VERIFY_WRITE, (const void __user *)addr, 4)))
 		return -EINVAL;
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {

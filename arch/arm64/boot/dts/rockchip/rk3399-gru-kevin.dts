@@ -1,0 +1,306 @@
+/*
+ * Google Gru-Kevin Rev 6+ board device tree source
+ *
+ * Copyright 2016-2017 Google, Inc
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *  Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include "rk3399-gru.dtsi"
+#include <dt-bindings/input/linux-event-codes.h>
+
+/*
+ * Kevin-specific things
+ *
+ * Things in this section should use names from Kevin schematic since no
+ * equivalent exists in Gru schematic.  If referring to signals that exist
+ * in Gru we use the Gru names, though.  Confusing enough for you?
+ */
+/ {
+	model = "Google Kevin";
+	compatible = "google,kevin-rev15", "google,kevin-rev14",
+		     "google,kevin-rev13", "google,kevin-rev12",
+		     "google,kevin-rev11", "google,kevin-rev10",
+		     "google,kevin-rev9", "google,kevin-rev8",
+		     "google,kevin-rev7", "google,kevin-rev6",
+		     "google,kevin", "google,gru", "rockchip,rk3399";
+
+	/* Power tree */
+
+	p3_3v_dig: p3-3v-dig {
+		compatible = "regulator-fixed";
+		regulator-name = "p3.3v_dig";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cpu3_pen_pwr_en>;
+
+		enable-active-high;
+		gpio = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&pp3300>;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&cros_ec_pwm 1>;
+		brightness-levels = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+				     17 18 19 20 21 22 23 24 25 26 27 28 29 30
+				     31 32 33 34 35 36 37 38 39 40 41 42 43 44
+				     45 46 47 48 49 50 51 52 53 54 55 56 57 58
+				     59 60 61 62 63 64 65 66 67 68 69 70 71 72
+				     73 74 75 76 77 78 79 80 81 82 83 84 85 86
+				     87 88 89 90 91 92 93 94 95 96 97 98 99 100>;
+		default-brightness-level = <51>;
+		enable-gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
+		power-supply = <&pp3300_disp>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bl_en>;
+		pwm-delay-us = <10000>;
+	};
+
+	thermistor_ppvar_bigcpu: thermistor-ppvar-bigcpu {
+		compatible = "murata,ncp15wb473";
+		pullup-uv = <1800000>;
+		pullup-ohm = <25500>;
+		pulldown-ohm = <0>;
+		io-channels = <&saradc 2>;
+		#thermal-sensor-cells = <0>;
+	};
+
+	thermistor_ppvar_litcpu: thermistor-ppvar-litcpu {
+		compatible = "murata,ncp15wb473";
+		pullup-uv = <1800000>;
+		pullup-ohm = <25500>;
+		pulldown-ohm = <0>;
+		io-channels = <&saradc 3>;
+		#thermal-sensor-cells = <0>;
+	};
+};
+
+&gpio_keys {
+	pinctrl-names = "default";
+	pinctrl-0 = <&bt_host_wake_l>, <&cpu1_pen_eject>;
+
+	pen-insert {
+		label = "Pen Insert";
+		/* Insert = low, eject = high */
+		gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
+		linux,code = <SW_PEN_INSERTED>;
+		linux,input-type = <EV_SW>;
+		wakeup-source;
+	};
+};
+
+&thermal_zones {
+	bigcpu_reg_thermal: bigcpu-reg-thermal {
+		polling-delay-passive = <100>; /* milliseconds */
+		polling-delay = <1000>; /* milliseconds */
+		thermal-sensors = <&thermistor_ppvar_bigcpu 0>;
+		sustainable-power = <4000>;
+
+		ppvar_bigcpu_trips: trips {
+			ppvar_bigcpu_on: ppvar-bigcpu-on {
+				temperature = <40000>;	/* millicelsius */
+				hysteresis = <2000>;	/* millicelsius */
+				type = "passive";
+			};
+
+			ppvar_bigcpu_alert: ppvar-bigcpu-alert {
+				temperature = <50000>;	/* millicelsius */
+				hysteresis = <2000>;	/* millicelsius */
+				type = "passive";
+			};
+
+			ppvar_bigcpu_crit: ppvar-bigcpu-crit {
+				temperature = <90000>;	/* millicelsius */
+				hysteresis = <0>;	/* millicelsius */
+				type = "critical";
+			};
+		};
+
+		cooling-maps {
+			map0 {
+				trip = <&ppvar_bigcpu_alert>;
+				cooling-device =
+					<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				contribution = <4096>;
+			};
+			map1 {
+				trip = <&ppvar_bigcpu_alert>;
+				cooling-device =
+					<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				contribution = <1024>;
+			};
+		};
+	};
+
+	litcpu_reg_thermal: litcpu-reg-thermal {
+		polling-delay-passive = <100>; /* milliseconds */
+		polling-delay = <1000>; /* milliseconds */
+		thermal-sensors = <&thermistor_ppvar_litcpu 0>;
+		sustainable-power = <4000>;
+
+		ppvar_litcpu_trips: trips {
+			ppvar_litcpu_on: ppvar-litcpu-on {
+				temperature = <40000>;	/* millicelsius */
+				hysteresis = <2000>;	/* millicelsius */
+				type = "passive";
+			};
+
+			ppvar_litcpu_alert: ppvar-litcpu-alert {
+				temperature = <50000>;	/* millicelsius */
+				hysteresis = <2000>;	/* millicelsius */
+				type = "passive";
+			};
+
+			ppvar_litcpu_crit: ppvar-litcpu-crit {
+				temperature = <90000>;	/* millicelsius */
+				hysteresis = <0>;	/* millicelsius */
+				type = "critical";
+			};
+		};
+	};
+};
+
+ap_i2c_tpm: &i2c0 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times. */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	tpm: tpm@20 {
+		compatible = "infineon,slb9645tt";
+		reg = <0x20>;
+		powered-while-suspended;
+	};
+};
+
+ap_i2c_dig: &i2c2 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times. */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	digitizer: digitizer@9 {
+		/* wacom,w9013 */
+		compatible = "hid-over-i2c";
+		reg = <0x9>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cpu1_dig_irq_l &cpu1_dig_pdct_l>;
+
+		vdd-supply = <&p3_3v_dig>;
+		post-power-on-delay-ms = <100>;
+
+		interrupt-parent = <&gpio2>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+
+		hid-descr-addr = <0x1>;
+	};
+};
+
+/* Adjustments to things in the gru baseboard */
+
+&ap_i2c_tp {
+	trackpad@4a {
+		compatible = "atmel,atmel_mxt_tp";
+		reg = <0x4a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&trackpad_int_l>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		wakeup-source;
+	};
+};
+
+&ap_i2c_ts {
+	touchscreen@4b {
+		compatible = "atmel,atmel_mxt_ts";
+		reg = <0x4b>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_int_l>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&pp1800_ap_io>;
+};
+
+&mvl_wifi {
+	marvell,wakeup-pin = <14>; /* GPIO_14 on Marvell */
+};
+
+&pinctrl {
+	digitizer {
+		/* Has external pullup */
+		cpu1_dig_irq_l: cpu1-dig-irq-l {
+			rockchip,pins = <2 4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/* Has external pullup */
+		cpu1_dig_pdct_l: cpu1-dig-pdct-l {
+			rockchip,pins = <2 5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	discrete-regulators {
+		cpu3_pen_pwr_en: cpu3-pen-pwr-en {
+			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	pen {
+		cpu1_pen_eject: cpu1-pen-eject {
+			rockchip,pins = <0 13 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	wifi {
+		wlan_host_wake_l: wlan-host-wake-l {
+			rockchip,pins = <0 8 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

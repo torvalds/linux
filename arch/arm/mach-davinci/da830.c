@@ -304,6 +304,11 @@ static struct clk usb20_clk = {
 	.gpsc		= 1,
 };
 
+static struct clk cppi41_clk = {
+	.name		= "cppi41",
+	.parent		= &usb20_clk,
+};
+
 static struct clk aemif_clk = {
 	.name		= "aemif",
 	.parent		= &pll0_sysclk3,
@@ -413,6 +418,7 @@ static struct clk_lookup da830_clks[] = {
 	CLK("davinci-mcasp.1",	NULL,		&mcasp1_clk),
 	CLK("davinci-mcasp.2",	NULL,		&mcasp2_clk),
 	CLK("musb-da8xx",	"usb20",	&usb20_clk),
+	CLK("cppi41-dmaengine",	NULL,		&cppi41_clk),
 	CLK(NULL,		"aemif",	&aemif_clk),
 	CLK(NULL,		"aintc",	&aintc_clk),
 	CLK(NULL,		"secu_mgr",	&secu_mgr_clk),

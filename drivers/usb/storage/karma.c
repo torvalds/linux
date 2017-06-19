@@ -105,7 +105,7 @@ static struct us_unusual_dev karma_unusual_dev_list[] = {
  */
 static int rio_karma_send_command(char cmd, struct us_data *us)
 {
-	int result, partial;
+	int result;
 	unsigned long timeout;
 	static unsigned char seq = 1;
 	struct karma_data *data = (struct karma_data *) us->extra;
@@ -119,12 +119,12 @@ static int rio_karma_send_command(char cmd, struct us_data *us)
 	timeout = jiffies + msecs_to_jiffies(6000);
 	for (;;) {
 		result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
-			us->iobuf, RIO_SEND_LEN, &partial);
+			us->iobuf, RIO_SEND_LEN, NULL);
 		if (result != USB_STOR_XFER_GOOD)
 			goto err;
 
 		result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
-			data->recv, RIO_RECV_LEN, &partial);
+			data->recv, RIO_RECV_LEN, NULL);
 		if (result != USB_STOR_XFER_GOOD)
 			goto err;
 

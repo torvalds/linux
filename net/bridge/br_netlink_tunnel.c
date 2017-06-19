@@ -227,8 +227,8 @@ int br_parse_vlan_tunnel_info(struct nlattr *attr,
 
 	memset(tinfo, 0, sizeof(*tinfo));
 
-	err = nla_parse_nested(tb, IFLA_BRIDGE_VLAN_TUNNEL_MAX,
-			       attr, vlan_tunnel_policy);
+	err = nla_parse_nested(tb, IFLA_BRIDGE_VLAN_TUNNEL_MAX, attr,
+			       vlan_tunnel_policy, NULL);
 	if (err < 0)
 		return err;
 

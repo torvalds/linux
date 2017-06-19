@@ -20,9 +20,11 @@
 #define CPU_MF_INT_SF_PRA	(1 << 29)	/* program request alert */
 #define CPU_MF_INT_SF_SACA	(1 << 23)	/* sampler auth. change alert */
 #define CPU_MF_INT_SF_LSDA	(1 << 22)	/* loss of sample data alert */
+#define CPU_MF_INT_CF_MTDA	(1 << 15)	/* loss of MT ctr. data alert */
 #define CPU_MF_INT_CF_CACA	(1 <<  7)	/* counter auth. change alert */
 #define CPU_MF_INT_CF_LCDA	(1 <<  6)	/* loss of counter data alert */
-#define CPU_MF_INT_CF_MASK	(CPU_MF_INT_CF_CACA|CPU_MF_INT_CF_LCDA)
+#define CPU_MF_INT_CF_MASK	(CPU_MF_INT_CF_MTDA|CPU_MF_INT_CF_CACA| \
+				 CPU_MF_INT_CF_LCDA)
 #define CPU_MF_INT_SF_MASK	(CPU_MF_INT_SF_IAE|CPU_MF_INT_SF_ISE|	\
 				 CPU_MF_INT_SF_PRA|CPU_MF_INT_SF_SACA|	\
 				 CPU_MF_INT_SF_LSDA)
@@ -172,7 +174,7 @@ static inline int lcctl(u64 ctl)
 /* Extract CPU counter */
 static inline int __ecctr(u64 ctr, u64 *content)
 {
-	register u64 _content asm("4") = 0;
+	u64 _content;
 	int cc;
 
 	asm volatile (

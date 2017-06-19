@@ -66,8 +66,8 @@ static unsigned int xprt_rdma_slot_table_entries = RPCRDMA_DEF_SLOT_TABLE;
 unsigned int xprt_rdma_max_inline_read = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_max_inline_write = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_inline_write_padding;
-static unsigned int xprt_rdma_memreg_strategy = RPCRDMA_FRMR;
-		int xprt_rdma_pad_optimize = 0;
+unsigned int xprt_rdma_memreg_strategy		= RPCRDMA_FRMR;
+int xprt_rdma_pad_optimize;
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 
@@ -396,7 +396,7 @@ xprt_setup_rdma(struct xprt_create *args)
 
 	new_xprt = rpcx_to_rdmax(xprt);
 
-	rc = rpcrdma_ia_open(new_xprt, sap, xprt_rdma_memreg_strategy);
+	rc = rpcrdma_ia_open(new_xprt, sap);
 	if (rc)
 		goto out1;
 
@@ -457,19 +457,33 @@ out1:
 	return ERR_PTR(rc);
 }
 
-/*
- * Close a connection, during shutdown or timeout/reconnect
+/**
+ * xprt_rdma_close - Close down RDMA connection
+ * @xprt: generic transport to be closed
+ *
+ * Called during transport shutdown reconnect, or device
+ * removal. Caller holds the transport's write lock.
  */
 static void
 xprt_rdma_close(struct rpc_xprt *xprt)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 
-	dprintk("RPC:       %s: closing\n", __func__);
-	if (r_xprt->rx_ep.rep_connected > 0)
+	dprintk("RPC:       %s: closing xprt %p\n", __func__, xprt);
+
+	if (test_and_clear_bit(RPCRDMA_IAF_REMOVING, &ia->ri_flags)) {
+		xprt_clear_connected(xprt);
+		rpcrdma_ia_remove(ia);
+		return;
+	}
+	if (ep->rep_connected == -ENODEV)
+		return;
+	if (ep->rep_connected > 0)
 		xprt->reestablish_timeout = 0;
 	xprt_disconnect_done(xprt);
-	rpcrdma_ep_disconnect(&r_xprt->rx_ep, &r_xprt->rx_ia);
+	rpcrdma_ep_disconnect(ep, ia);
 }
 
 static void
@@ -482,6 +496,27 @@ xprt_rdma_set_port(struct rpc_xprt *xprt, u16 port)
 	sap = (struct sockaddr_in *)&rpcx_to_rdmad(xprt).addr;
 	sap->sin_port = htons(port);
 	dprintk("RPC:       %s: %u\n", __func__, port);
+}
+
+/**
+ * xprt_rdma_timer - invoked when an RPC times out
+ * @xprt: controlling RPC transport
+ * @task: RPC task that timed out
+ *
+ * Invoked when the transport is still connected, but an RPC
+ * retransmit timeout occurs.
+ *
+ * Since RDMA connections don't have a keep-alive, forcibly
+ * disconnect and retry to connect. This drives full
+ * detection of the network path, and retransmissions of
+ * all pending RPCs.
+ */
+static void
+xprt_rdma_timer(struct rpc_xprt *xprt, struct rpc_task *task)
+{
+	dprintk("RPC: %5u %s: xprt = %p\n", task->tk_pid, __func__, xprt);
+
+	xprt_force_disconnect(xprt);
 }
 
 static void
@@ -659,6 +694,8 @@ xprt_rdma_free(struct rpc_task *task)
  * xprt_rdma_send_request - marshal and send an RPC request
  * @task: RPC task with an RPC message in rq_snd_buf
  *
+ * Caller holds the transport's write lock.
+ *
  * Return values:
  *        0:	The request has been sent
  * ENOTCONN:	Caller needs to invoke connect logic then call again
@@ -684,6 +721,9 @@ xprt_rdma_send_request(struct rpc_task *task)
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	int rc = 0;
+
+	if (!xprt_connected(xprt))
+		goto drop_connection;
 
 	/* On retransmit, remove any previously registered chunks */
 	if (unlikely(!list_empty(&req->rl_registered)))
@@ -776,6 +816,7 @@ static struct rpc_xprt_ops xprt_rdma_procs = {
 	.alloc_slot		= xprt_alloc_slot,
 	.release_request	= xprt_release_rqst_cong,       /* ditto */
 	.set_retrans_timeout	= xprt_set_retrans_timeout_def, /* ditto */
+	.timer			= xprt_rdma_timer,
 	.rpcbind		= rpcb_getport_async,	/* sunrpc/rpcb_clnt.c */
 	.set_port		= xprt_rdma_set_port,
 	.connect		= xprt_rdma_connect,

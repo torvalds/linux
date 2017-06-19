@@ -106,7 +106,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Ensoniq AudioPCI soundcard.");
 #ifdef SUPPORT_JOYSTICK
 #ifdef CHIP1371
-module_param_array(joystick_port, int, NULL, 0444);
+module_param_hw_array(joystick_port, int, ioport, NULL, 0444);
 MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #else
 module_param_array(joystick, bool, NULL, 0444);
@@ -1530,7 +1530,7 @@ static int snd_es1373_rear_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ens1373_rear =
+static const struct snd_kcontrol_new snd_ens1373_rear =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"AC97 2ch->4ch Copy Switch",
@@ -1575,7 +1575,7 @@ static int snd_es1373_line_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_ens1373_line =
+static const struct snd_kcontrol_new snd_ens1373_line =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Line In->Rear Out Switch",

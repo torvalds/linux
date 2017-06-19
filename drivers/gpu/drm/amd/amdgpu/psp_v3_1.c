@@ -166,11 +166,8 @@ int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp)
 {
 	int ret;
 	uint32_t psp_gfxdrv_command_reg = 0;
-	struct amdgpu_bo *psp_sysdrv;
-	void *psp_sysdrv_virt = NULL;
-	uint64_t psp_sysdrv_mem;
 	struct amdgpu_device *adev = psp->adev;
-	uint32_t size, sol_reg;
+	uint32_t sol_reg;
 
 	/* Check sOS sign of life register to confirm sys driver and sOS
 	 * are already been loaded.
@@ -185,27 +182,14 @@ int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp)
 	if (ret)
 		return ret;
 
-	/*
-	 * Create a 1 meg GART memory to store the psp sys driver
-	 * binary with a 1 meg aligned address
-	 */
-	size = (psp->sys_bin_size + (PSP_BOOTLOADER_1_MEG_ALIGNMENT - 1)) &
-		(~(PSP_BOOTLOADER_1_MEG_ALIGNMENT - 1));
-
-	ret = amdgpu_bo_create_kernel(adev, size, PSP_BOOTLOADER_1_MEG_ALIGNMENT,
-				      AMDGPU_GEM_DOMAIN_GTT,
-				      &psp_sysdrv,
-				      &psp_sysdrv_mem,
-				      &psp_sysdrv_virt);
-	if (ret)
-		return ret;
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 
 	/* Copy PSP System Driver binary to memory */
-	memcpy(psp_sysdrv_virt, psp->sys_start_addr, psp->sys_bin_size);
+	memcpy(psp->fw_pri_buf, psp->sys_start_addr, psp->sys_bin_size);
 
 	/* Provide the sys driver to bootrom */
 	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_36),
-	       (uint32_t)(psp_sysdrv_mem >> 20));
+	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = 1 << 16;
 	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
 	       psp_gfxdrv_command_reg);
@@ -216,8 +200,6 @@ int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp)
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
 			   0x80000000, 0x80000000, false);
 
-	amdgpu_bo_free_kernel(&psp_sysdrv, &psp_sysdrv_mem, &psp_sysdrv_virt);
-
 	return ret;
 }
 
@@ -225,11 +207,8 @@ int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 {
 	int ret;
 	unsigned int psp_gfxdrv_command_reg = 0;
-	struct amdgpu_bo *psp_sos;
-	void *psp_sos_virt = NULL;
-	uint64_t psp_sos_mem;
 	struct amdgpu_device *adev = psp->adev;
-	uint32_t size, sol_reg;
+	uint32_t sol_reg;
 
 	/* Check sOS sign of life register to confirm sys driver and sOS
 	 * are already been loaded.
@@ -244,23 +223,14 @@ int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 	if (ret)
 		return ret;
 
-	size = (psp->sos_bin_size + (PSP_BOOTLOADER_1_MEG_ALIGNMENT - 1)) &
-		(~((uint64_t)PSP_BOOTLOADER_1_MEG_ALIGNMENT - 1));
-
-	ret = amdgpu_bo_create_kernel(adev, size, PSP_BOOTLOADER_1_MEG_ALIGNMENT,
-				      AMDGPU_GEM_DOMAIN_GTT,
-				      &psp_sos,
-				      &psp_sos_mem,
-				      &psp_sos_virt);
-	if (ret)
-		return ret;
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 
 	/* Copy Secure OS binary to PSP memory */
-	memcpy(psp_sos_virt, psp->sos_start_addr, psp->sos_bin_size);
+	memcpy(psp->fw_pri_buf, psp->sos_start_addr, psp->sos_bin_size);
 
 	/* Provide the PSP secure OS to bootrom */
 	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_36),
-	       (uint32_t)(psp_sos_mem >> 20));
+	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = 2 << 16;
 	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
 	       psp_gfxdrv_command_reg);
@@ -272,8 +242,6 @@ int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 			   RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_81)),
 			   0, true);
 #endif
-
-	amdgpu_bo_free_kernel(&psp_sos, &psp_sos_mem, &psp_sos_virt);
 
 	return ret;
 }
@@ -300,7 +268,6 @@ int psp_v3_1_prep_cmd_buf(struct amdgpu_firmware_info *ucode, struct psp_gfx_cmd
 int psp_v3_1_ring_init(struct psp_context *psp, enum psp_ring_type ring_type)
 {
 	int ret = 0;
-	unsigned int psp_ring_reg = 0;
 	struct psp_ring *ring;
 	struct amdgpu_device *adev = psp->adev;
 
@@ -319,6 +286,16 @@ int psp_v3_1_ring_init(struct psp_context *psp, enum psp_ring_type ring_type)
 		ring->ring_size = 0;
 		return ret;
 	}
+
+	return 0;
+}
+
+int psp_v3_1_ring_create(struct psp_context *psp, enum psp_ring_type ring_type)
+{
+	int ret = 0;
+	unsigned int psp_ring_reg = 0;
+	struct psp_ring *ring = &psp->km_ring;
+	struct amdgpu_device *adev = psp->adev;
 
 	/* Write low address of the ring to C2PMSG_69 */
 	psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
@@ -341,6 +318,33 @@ int psp_v3_1_ring_init(struct psp_context *psp, enum psp_ring_type ring_type)
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
 			   0x80000000, 0x8000FFFF, false);
 
+	return ret;
+}
+
+int psp_v3_1_ring_destroy(struct psp_context *psp, enum psp_ring_type ring_type)
+{
+	int ret = 0;
+	struct psp_ring *ring;
+	unsigned int psp_ring_reg = 0;
+	struct amdgpu_device *adev = psp->adev;
+
+	ring = &psp->km_ring;
+
+	/* Write the ring destroy command to C2PMSG_64 */
+	psp_ring_reg = 3 << 16;
+	WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64), psp_ring_reg);
+
+	/* there might be handshake issue with hardware which needs delay */
+	mdelay(20);
+
+	/* Wait for response flag (bit 31) in C2PMSG_64 */
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
+			   0x80000000, 0x80000000, false);
+
+	if (ring->ring_mem)
+		amdgpu_bo_free_kernel(&adev->firmware.rbuf,
+				      &ring->ring_mem_mc_addr,
+				      (void **)&ring->ring_mem);
 	return ret;
 }
 

@@ -52,6 +52,8 @@ struct synproxy_stats {
 struct synproxy_net {
 	struct nf_conn			*tmpl;
 	struct synproxy_stats __percpu	*stats;
+	unsigned int			hook_ref4;
+	unsigned int			hook_ref6;
 };
 
 extern unsigned int synproxy_net_id;

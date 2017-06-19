@@ -1482,10 +1482,17 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	if (test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags))
 		return readdir_prepopulate_inodes_only(req, session);
 
-	if (rinfo->hash_order && req->r_path2) {
-		last_hash = ceph_str_hash(ci->i_dir_layout.dl_dir_hash,
-					  req->r_path2, strlen(req->r_path2));
-		last_hash = ceph_frag_value(last_hash);
+	if (rinfo->hash_order) {
+		if (req->r_path2) {
+			last_hash = ceph_str_hash(ci->i_dir_layout.dl_dir_hash,
+						  req->r_path2,
+						  strlen(req->r_path2));
+			last_hash = ceph_frag_value(last_hash);
+		} else if (rinfo->offset_hash) {
+			/* mds understands offset_hash */
+			WARN_ON_ONCE(req->r_readdir_offset != 2);
+			last_hash = le32_to_cpu(rhead->args.readdir.offset_hash);
+		}
 	}
 
 	if (rinfo->dir_dir &&
@@ -1510,7 +1517,7 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	}
 
 	if (ceph_frag_is_leftmost(frag) && req->r_readdir_offset == 2 &&
-	    !(rinfo->hash_order && req->r_path2)) {
+	    !(rinfo->hash_order && last_hash)) {
 		/* note dir version at start of readdir so we can tell
 		 * if any dentries get dropped */
 		req->r_dir_release_cnt = atomic64_read(&ci->i_release_count);
@@ -2015,7 +2022,6 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 		    attr->ia_size > inode->i_size) {
 			i_size_write(inode, attr->ia_size);
 			inode->i_blocks = calc_inode_blocks(attr->ia_size);
-			inode->i_ctime = attr->ia_ctime;
 			ci->i_reported_size = attr->ia_size;
 			dirtied |= CEPH_CAP_FILE_EXCL;
 		} else if ((issued & CEPH_CAP_FILE_SHARED) == 0 ||
@@ -2037,7 +2043,6 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 		     inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
 		     attr->ia_ctime.tv_sec, attr->ia_ctime.tv_nsec,
 		     only ? "ctime only" : "ignored");
-		inode->i_ctime = attr->ia_ctime;
 		if (only) {
 			/*
 			 * if kernel wants to dirty ctime but nothing else,
@@ -2060,7 +2065,7 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 	if (dirtied) {
 		inode_dirty_flags = __ceph_mark_dirty_caps(ci, dirtied,
 							   &prealloc_cf);
-		inode->i_ctime = current_time(inode);
+		inode->i_ctime = attr->ia_ctime;
 	}
 
 	release &= issued;
@@ -2071,11 +2076,6 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 	if (inode_dirty_flags)
 		__mark_inode_dirty(inode, inode_dirty_flags);
 
-	if (ia_valid & ATTR_MODE) {
-		err = posix_acl_chmod(inode, attr->ia_mode);
-		if (err)
-			goto out_put;
-	}
 
 	if (mask) {
 		req->r_inode = inode;
@@ -2083,19 +2083,18 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 		req->r_inode_drop = release;
 		req->r_args.setattr.mask = cpu_to_le32(mask);
 		req->r_num_caps = 1;
+		req->r_stamp = attr->ia_ctime;
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
 	}
 	dout("setattr %p result=%d (%s locally, %d remote)\n", inode, err,
 	     ceph_cap_string(dirtied), mask);
 
 	ceph_mdsc_put_request(req);
-	if (mask & CEPH_SETATTR_SIZE)
+	ceph_free_cap_flush(prealloc_cf);
+
+	if (err >= 0 && (mask & CEPH_SETATTR_SIZE))
 		__ceph_do_pending_vmtruncate(inode);
-	ceph_free_cap_flush(prealloc_cf);
-	return err;
-out_put:
-	ceph_mdsc_put_request(req);
-	ceph_free_cap_flush(prealloc_cf);
+
 	return err;
 }
 
@@ -2114,7 +2113,12 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err != 0)
 		return err;
 
-	return __ceph_setattr(inode, attr);
+	err = __ceph_setattr(inode, attr);
+
+	if (err >= 0 && (attr->ia_valid & ATTR_MODE))
+		err = posix_acl_chmod(inode, attr->ia_mode);
+
+	return err;
 }
 
 /*

@@ -499,6 +499,9 @@ int hidma_ll_enable(struct hidma_lldev *lldev)
 	lldev->trch_state = HIDMA_CH_ENABLED;
 	lldev->evch_state = HIDMA_CH_ENABLED;
 
+	/* enable irqs */
+	writel(ENABLE_IRQS, lldev->evca + HIDMA_EVCA_IRQ_EN_REG);
+
 	return 0;
 }
 
@@ -596,6 +599,9 @@ int hidma_ll_disable(struct hidma_lldev *lldev)
 
 	lldev->trch_state = HIDMA_CH_SUSPENDED;
 	lldev->evch_state = HIDMA_CH_SUSPENDED;
+
+	/* disable interrupts */
+	writel(0, lldev->evca + HIDMA_EVCA_IRQ_EN_REG);
 	return 0;
 }
 

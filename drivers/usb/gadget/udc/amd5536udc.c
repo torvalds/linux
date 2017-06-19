@@ -11,27 +11,15 @@
  */
 
 /*
- * The AMD5536 UDC is part of the x86 southbridge AMD Geode CS5536.
- * It is a USB Highspeed DMA capable USB device controller. Beside ep0 it
- * provides 4 IN and 4 OUT endpoints (bulk or interrupt type).
- *
- * Make sure that UDC is assigned to port 4 by BIOS settings (port can also
- * be used as host port) and UOC bits PAD_EN and APU are set (should be done
- * by BIOS init).
- *
- * UDC DMA requires 32-bit aligned buffers so DMA with gadget ether does not
- * work without updating NET_IP_ALIGN. Or PIO mode (module param "use_dma=0")
- * can be used with gadget ether.
+ * This file does the core driver implementation for the UDC that is based
+ * on Synopsys device controller IP (different than HS OTG IP) that is either
+ * connected through PCI bus or integrated to SoC platforms.
  */
 
-/* debug control */
-/* #define UDC_VERBOSE */
-
 /* Driver strings */
-#define UDC_MOD_DESCRIPTION		"AMD 5536 UDC - USB Device Controller"
+#define UDC_MOD_DESCRIPTION		"Synopsys USB Device Controller"
 #define UDC_DRIVER_VERSION_STRING	"01.00.0206"
 
-/* system */
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -46,22 +34,11 @@
 #include <linux/ioctl.h>
 #include <linux/fs.h>
 #include <linux/dmapool.h>
-#include <linux/moduleparam.h>
-#include <linux/device.h>
-#include <linux/io.h>
-#include <linux/irq.h>
 #include <linux/prefetch.h>
-
+#include <linux/moduleparam.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
-
-/* gadget stack */
-#include <linux/usb/ch9.h>
-#include <linux/usb/gadget.h>
-
-/* udc specific */
 #include "amd5536udc.h"
-
 
 static void udc_tasklet_disconnect(unsigned long);
 static void empty_req_queue(struct udc_ep *);
@@ -72,7 +49,7 @@ static void udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq);
 
 /* description */
 static const char mod_desc[] = UDC_MOD_DESCRIPTION;
-static const char name[] = "amd5536udc";
+static const char name[] = "udc";
 
 /* structure to hold endpoint function pointers */
 static const struct usb_ep_ops udc_ep_ops;
@@ -208,29 +185,10 @@ static const struct {
 #undef EP_INFO
 };
 
-/* DMA usage flag */
-static bool use_dma = 1;
-/* packet per buffer dma */
-static bool use_dma_ppb = 1;
-/* with per descr. update */
-static bool use_dma_ppb_du;
 /* buffer fill mode */
 static int use_dma_bufferfill_mode;
-/* full speed only mode */
-static bool use_fullspeed;
 /* tx buffer size for high speed */
 static unsigned long hs_tx_buf = UDC_EPIN_BUFF_SIZE;
-
-/* module parameters */
-module_param(use_dma, bool, S_IRUGO);
-MODULE_PARM_DESC(use_dma, "true for DMA");
-module_param(use_dma_ppb, bool, S_IRUGO);
-MODULE_PARM_DESC(use_dma_ppb, "true for DMA in packet per buffer mode");
-module_param(use_dma_ppb_du, bool, S_IRUGO);
-MODULE_PARM_DESC(use_dma_ppb_du,
-	"true for DMA in packet per buffer mode with descriptor update");
-module_param(use_fullspeed, bool, S_IRUGO);
-MODULE_PARM_DESC(use_fullspeed, "true for fullspeed only");
 
 /*---------------------------------------------------------------------------*/
 /* Prints UDC device registers and endpoint irq registers */
@@ -267,7 +225,7 @@ static void print_regs(struct udc *dev)
 }
 
 /* Masks unused interrupts */
-static int udc_mask_unused_interrupts(struct udc *dev)
+int udc_mask_unused_interrupts(struct udc *dev)
 {
 	u32 tmp;
 
@@ -287,6 +245,7 @@ static int udc_mask_unused_interrupts(struct udc *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(udc_mask_unused_interrupts);
 
 /* Enables endpoint 0 interrupts */
 static int udc_enable_ep0_interrupts(struct udc *dev)
@@ -306,7 +265,7 @@ static int udc_enable_ep0_interrupts(struct udc *dev)
 }
 
 /* Enables device interrupts for SET_INTF and SET_CONFIG */
-static int udc_enable_dev_setup_interrupts(struct udc *dev)
+int udc_enable_dev_setup_interrupts(struct udc *dev)
 {
 	u32 tmp;
 
@@ -325,6 +284,7 @@ static int udc_enable_dev_setup_interrupts(struct udc *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(udc_enable_dev_setup_interrupts);
 
 /* Calculates fifo start of endpoint based on preceding endpoints */
 static int udc_set_txfifo_addr(struct udc_ep *ep)
@@ -583,7 +543,7 @@ udc_alloc_request(struct usb_ep *usbep, gfp_t gfp)
 
 	if (ep->dma) {
 		/* ep0 in requests are allocated from data pool here */
-		dma_desc = pci_pool_alloc(ep->dev->data_requests, gfp,
+		dma_desc = dma_pool_alloc(ep->dev->data_requests, gfp,
 						&req->td_phys);
 		if (!dma_desc) {
 			kfree(req);
@@ -608,27 +568,23 @@ udc_alloc_request(struct usb_ep *usbep, gfp_t gfp)
 }
 
 /* frees pci pool descriptors of a DMA chain */
-static int udc_free_dma_chain(struct udc *dev, struct udc_request *req)
+static void udc_free_dma_chain(struct udc *dev, struct udc_request *req)
 {
-	int ret_val = 0;
-	struct udc_data_dma	*td;
-	struct udc_data_dma	*td_last = NULL;
+	struct udc_data_dma *td = req->td_data;
 	unsigned int i;
+
+	dma_addr_t addr_next = 0x00;
+	dma_addr_t addr = (dma_addr_t)td->next;
 
 	DBG(dev, "free chain req = %p\n", req);
 
 	/* do not free first desc., will be done by free for request */
-	td_last = req->td_data;
-	td = phys_to_virt(td_last->next);
-
 	for (i = 1; i < req->chain_len; i++) {
-		pci_pool_free(dev->data_requests, td,
-			      (dma_addr_t)td_last->next);
-		td_last = td;
-		td = phys_to_virt(td_last->next);
+		td = phys_to_virt(addr);
+		addr_next = (dma_addr_t)td->next;
+		dma_pool_free(dev->data_requests, td, addr);
+		addr = addr_next;
 	}
-
-	return ret_val;
 }
 
 /* Frees request packet, called by gadget driver */
@@ -652,7 +608,7 @@ udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq)
 		if (req->chain_len > 1)
 			udc_free_dma_chain(ep->dev, req);
 
-		pci_pool_free(ep->dev->data_requests, req->td_data,
+		dma_pool_free(ep->dev->data_requests, req->td_data,
 							req->td_phys);
 	}
 	kfree(req);
@@ -847,7 +803,7 @@ static int udc_create_dma_chain(
 	for (i = buf_len; i < bytes; i += buf_len) {
 		/* create or determine next desc. */
 		if (create_new_chain) {
-			td = pci_pool_alloc(ep->dev->data_requests,
+			td = dma_pool_alloc(ep->dev->data_requests,
 					    gfp_flags, &dma_addr);
 			if (!td)
 				return -ENOMEM;
@@ -1507,7 +1463,7 @@ static void make_ep_lists(struct udc *dev)
 }
 
 /* Inits UDC context */
-static void udc_basic_init(struct udc *dev)
+void udc_basic_init(struct udc *dev)
 {
 	u32	tmp;
 
@@ -1543,6 +1499,7 @@ static void udc_basic_init(struct udc *dev)
 	dev->data_ep_enabled = 0;
 	dev->data_ep_queued = 0;
 }
+EXPORT_SYMBOL_GPL(udc_basic_init);
 
 /* init registers at driver load time */
 static int startup_registers(struct udc *dev)
@@ -3031,7 +2988,7 @@ __acquires(dev->lock)
 }
 
 /* Interrupt Service Routine, see Linux Kernel Doc for parameters */
-static irqreturn_t udc_irq(int irq, void *pdev)
+irqreturn_t udc_irq(int irq, void *pdev)
 {
 	struct udc *dev = pdev;
 	u32 reg;
@@ -3083,16 +3040,18 @@ static irqreturn_t udc_irq(int irq, void *pdev)
 	spin_unlock(&dev->lock);
 	return ret_val;
 }
+EXPORT_SYMBOL_GPL(udc_irq);
 
 /* Tears down device */
-static void gadget_release(struct device *pdev)
+void gadget_release(struct device *pdev)
 {
 	struct amd5536udc *dev = dev_get_drvdata(pdev);
 	kfree(dev);
 }
+EXPORT_SYMBOL_GPL(gadget_release);
 
 /* Cleanup on device remove */
-static void udc_remove(struct udc *dev)
+void udc_remove(struct udc *dev)
 {
 	/* remove timer */
 	stop_timer++;
@@ -3108,9 +3067,10 @@ static void udc_remove(struct udc *dev)
 		del_timer_sync(&udc_pollstall_timer);
 	udc = NULL;
 }
+EXPORT_SYMBOL_GPL(udc_remove);
 
 /* free all the dma pools */
-static void free_dma_pools(struct udc *dev)
+void free_dma_pools(struct udc *dev)
 {
 	dma_pool_free(dev->stp_requests, dev->ep[UDC_EP0OUT_IX].td,
 		      dev->ep[UDC_EP0OUT_IX].td_phys);
@@ -3119,35 +3079,10 @@ static void free_dma_pools(struct udc *dev)
 	dma_pool_destroy(dev->stp_requests);
 	dma_pool_destroy(dev->data_requests);
 }
-
-/* Reset all pci context */
-static void udc_pci_remove(struct pci_dev *pdev)
-{
-	struct udc		*dev;
-
-	dev = pci_get_drvdata(pdev);
-
-	usb_del_gadget_udc(&udc->gadget);
-	/* gadget driver must not be registered */
-	if (WARN_ON(dev->driver))
-		return;
-
-	/* dma pool cleanup */
-	free_dma_pools(dev);
-
-	/* reset controller */
-	writel(AMD_BIT(UDC_DEVCFG_SOFTRESET), &dev->regs->cfg);
-	free_irq(pdev->irq, dev);
-	iounmap(dev->virt_addr);
-	release_mem_region(pci_resource_start(pdev, 0),
-			   pci_resource_len(pdev, 0));
-	pci_disable_device(pdev);
-
-	udc_remove(dev);
-}
+EXPORT_SYMBOL_GPL(free_dma_pools);
 
 /* create dma pools on init */
-static int init_dma_pools(struct udc *dev)
+int init_dma_pools(struct udc *dev)
 {
 	struct udc_stp_dma	*td_stp;
 	struct udc_data_dma	*td_data;
@@ -3210,9 +3145,10 @@ err_create_dma_pool:
 	dev->data_requests = NULL;
 	return retval;
 }
+EXPORT_SYMBOL_GPL(init_dma_pools);
 
 /* general probe */
-static int udc_probe(struct udc *dev)
+int udc_probe(struct udc *dev)
 {
 	char		tmp[128];
 	u32		reg;
@@ -3276,137 +3212,7 @@ static int udc_probe(struct udc *dev)
 finished:
 	return retval;
 }
-
-/* Called by pci bus driver to init pci context */
-static int udc_pci_probe(
-	struct pci_dev *pdev,
-	const struct pci_device_id *id
-)
-{
-	struct udc		*dev;
-	unsigned long		resource;
-	unsigned long		len;
-	int			retval = 0;
-
-	/* one udc only */
-	if (udc) {
-		dev_dbg(&pdev->dev, "already probed\n");
-		return -EBUSY;
-	}
-
-	/* init */
-	dev = kzalloc(sizeof(struct udc), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
-
-	/* pci setup */
-	if (pci_enable_device(pdev) < 0) {
-		retval = -ENODEV;
-		goto err_pcidev;
-	}
-
-	/* PCI resource allocation */
-	resource = pci_resource_start(pdev, 0);
-	len = pci_resource_len(pdev, 0);
-
-	if (!request_mem_region(resource, len, name)) {
-		dev_dbg(&pdev->dev, "pci device used already\n");
-		retval = -EBUSY;
-		goto err_memreg;
-	}
-
-	dev->virt_addr = ioremap_nocache(resource, len);
-	if (!dev->virt_addr) {
-		dev_dbg(&pdev->dev, "start address cannot be mapped\n");
-		retval = -EFAULT;
-		goto err_ioremap;
-	}
-
-	if (!pdev->irq) {
-		dev_err(&pdev->dev, "irq not set\n");
-		retval = -ENODEV;
-		goto err_irq;
-	}
-
-	spin_lock_init(&dev->lock);
-	/* udc csr registers base */
-	dev->csr = dev->virt_addr + UDC_CSR_ADDR;
-	/* dev registers base */
-	dev->regs = dev->virt_addr + UDC_DEVCFG_ADDR;
-	/* ep registers base */
-	dev->ep_regs = dev->virt_addr + UDC_EPREGS_ADDR;
-	/* fifo's base */
-	dev->rxfifo = (u32 __iomem *)(dev->virt_addr + UDC_RXFIFO_ADDR);
-	dev->txfifo = (u32 __iomem *)(dev->virt_addr + UDC_TXFIFO_ADDR);
-
-	if (request_irq(pdev->irq, udc_irq, IRQF_SHARED, name, dev) != 0) {
-		dev_dbg(&pdev->dev, "request_irq(%d) fail\n", pdev->irq);
-		retval = -EBUSY;
-		goto err_irq;
-	}
-
-	pci_set_drvdata(pdev, dev);
-
-	/* chip revision for Hs AMD5536 */
-	dev->chiprev = pdev->revision;
-
-	pci_set_master(pdev);
-	pci_try_set_mwi(pdev);
-
-	/* init dma pools */
-	if (use_dma) {
-		retval = init_dma_pools(dev);
-		if (retval != 0)
-			goto err_dma;
-	}
-
-	dev->phys_addr = resource;
-	dev->irq = pdev->irq;
-	dev->pdev = pdev;
-
-	/* general probing */
-	if (udc_probe(dev)) {
-		retval = -ENODEV;
-		goto err_probe;
-	}
-	return 0;
-
-err_probe:
-	if (use_dma)
-		free_dma_pools(dev);
-err_dma:
-	free_irq(pdev->irq, dev);
-err_irq:
-	iounmap(dev->virt_addr);
-err_ioremap:
-	release_mem_region(resource, len);
-err_memreg:
-	pci_disable_device(pdev);
-err_pcidev:
-	kfree(dev);
-	return retval;
-}
-
-/* PCI device parameters */
-static const struct pci_device_id pci_id[] = {
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x2096),
-		.class =	PCI_CLASS_SERIAL_USB_DEVICE,
-		.class_mask =	0xffffffff,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(pci, pci_id);
-
-/* PCI functions */
-static struct pci_driver udc_pci_driver = {
-	.name =		(char *) name,
-	.id_table =	pci_id,
-	.probe =	udc_pci_probe,
-	.remove =	udc_pci_remove,
-};
-
-module_pci_driver(udc_pci_driver);
+EXPORT_SYMBOL_GPL(udc_probe);
 
 MODULE_DESCRIPTION(UDC_MOD_DESCRIPTION);
 MODULE_AUTHOR("Thomas Dahlmann");

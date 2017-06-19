@@ -354,6 +354,7 @@ static int pxa_ssp_set_dai_pll(struct snd_soc_dai *cpu_dai, int pll_id,
 		if (ssp->type == PXA3xx_SSP) {
 			u32 val;
 			u64 tmp = 19968;
+
 			tmp *= 1000000;
 			do_div(tmp, freq_out);
 			val = tmp;
@@ -590,13 +591,13 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 
 		if ((pxa_ssp_get_scr(ssp) == 4) && (width == 16)) {
 			/* This is a special case where the bitclk is 64fs
-			* and we're not dealing with 2*32 bits of audio
-			* samples.
-			*
-			* The SSP values used for that are all found out by
-			* trying and failing a lot; some of the registers
-			* needed for that mode are only available on PXA3xx.
-			*/
+			 * and we're not dealing with 2*32 bits of audio
+			 * samples.
+			 *
+			 * The SSP values used for that are all found out by
+			 * trying and failing a lot; some of the registers
+			 * needed for that mode are only available on PXA3xx.
+			 */
 			if (ssp->type != PXA3xx_SSP)
 				return -EINVAL;
 

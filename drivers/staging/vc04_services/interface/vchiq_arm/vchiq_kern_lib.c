@@ -147,9 +147,11 @@ VCHIQ_STATUS_T vchiq_shutdown(VCHIQ_INSTANCE_T instance)
 
 	if (status == VCHIQ_SUCCESS) {
 		struct list_head *pos, *next;
+
 		list_for_each_safe(pos, next,
 				&instance->bulk_waiter_list) {
 			struct bulk_waiter_node *waiter;
+
 			waiter = list_entry(pos,
 					struct bulk_waiter_node,
 					list);
@@ -406,6 +408,7 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 
 	if (waiter) {
 		VCHIQ_BULK_T *bulk = waiter->bulk_waiter.bulk;
+
 		if (bulk) {
 			/* This thread has an outstanding bulk transfer. */
 			if ((bulk->data != data) ||
@@ -435,6 +438,7 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 	if ((status != VCHIQ_RETRY) || fatal_signal_pending(current) ||
 		!waiter->bulk_waiter.bulk) {
 		VCHIQ_BULK_T *bulk = waiter->bulk_waiter.bulk;
+
 		if (bulk) {
 			/* Cancel the signal when the transfer
 			 ** completes. */

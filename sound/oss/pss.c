@@ -1139,19 +1139,19 @@ static bool pss_no_sound = 0;	/* Just configure non-sound components */
 static bool pss_keep_settings  = 1;	/* Keep hardware settings at module exit */
 static char *pss_firmware = "/etc/sound/pss_synth";
 
-module_param(pss_io, int, 0);
+module_param_hw(pss_io, int, ioport, 0);
 MODULE_PARM_DESC(pss_io, "Set i/o base of PSS card (probably 0x220 or 0x240)");
-module_param(mss_io, int, 0);
+module_param_hw(mss_io, int, ioport, 0);
 MODULE_PARM_DESC(mss_io, "Set WSS (audio) i/o base (0x530, 0x604, 0xE80, 0xF40, or other. Address must end in 0 or 4 and must be from 0x100 to 0xFF4)");
-module_param(mss_irq, int, 0);
+module_param_hw(mss_irq, int, irq, 0);
 MODULE_PARM_DESC(mss_irq, "Set WSS (audio) IRQ (3, 5, 7, 9, 10, 11, 12)");
-module_param(mss_dma, int, 0);
+module_param_hw(mss_dma, int, dma, 0);
 MODULE_PARM_DESC(mss_dma, "Set WSS (audio) DMA (0, 1, 3)");
-module_param(mpu_io, int, 0);
+module_param_hw(mpu_io, int, ioport, 0);
 MODULE_PARM_DESC(mpu_io, "Set MIDI i/o base (0x330 or other. Address must be on 4 location boundaries and must be from 0x100 to 0xFFC)");
-module_param(mpu_irq, int, 0);
+module_param_hw(mpu_irq, int, irq, 0);
 MODULE_PARM_DESC(mpu_irq, "Set MIDI IRQ (3, 5, 7, 9, 10, 11, 12)");
-module_param(pss_cdrom_port, int, 0);
+module_param_hw(pss_cdrom_port, int, ioport, 0);
 MODULE_PARM_DESC(pss_cdrom_port, "Set the PSS CDROM port i/o base (0x340 or other)");
 module_param(pss_enable_joystick, bool, 0);
 MODULE_PARM_DESC(pss_enable_joystick, "Enables the PSS joystick port (1 to enable, 0 to disable)");

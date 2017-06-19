@@ -70,7 +70,7 @@ static int omap_abe_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops omap_abe_ops = {
+static const struct snd_soc_ops omap_abe_ops = {
 	.hw_params = omap_abe_hw_params,
 };
 

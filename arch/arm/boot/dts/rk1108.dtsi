@@ -41,7 +41,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/clock/rk1108-cru.h>
+#include <dt-bindings/clock/rv1108-cru.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 / {
 	#address-cells = <1>;
@@ -222,7 +222,7 @@
 	};
 
 	pinctrl: pinctrl {
-		compatible = "rockchip,rk1108-pinctrl";
+		compatible = "rockchip,rv1108-pinctrl";
 		rockchip,grf = <&grf>;
 		rockchip,pmu = <&pmugrf>;
 		#address-cells = <1>;

@@ -277,7 +277,7 @@ static int pll_set_rate(struct iproc_clk *clk, unsigned int rate_index,
 	if (rate >= VCO_LOW && rate < VCO_HIGH) {
 		ki = 4;
 		kp_index = KP_BAND_MID;
-	} else if (rate >= VCO_HIGH && rate && rate < VCO_HIGH_HIGH) {
+	} else if (rate >= VCO_HIGH && rate < VCO_HIGH_HIGH) {
 		ki = 3;
 		kp_index = KP_BAND_HIGH;
 	} else if (rate >= VCO_HIGH_HIGH && rate < VCO_MAX) {

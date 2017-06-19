@@ -25,47 +25,24 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/clockchips.h>
+#include <linux/hyperv.h>
 
-
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_HYPERV_TSCPAGE
 
 static struct ms_hyperv_tsc_page *tsc_pg;
 
+struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
+{
+	return tsc_pg;
+}
+
 static u64 read_hv_clock_tsc(struct clocksource *arg)
 {
-	u64 current_tick;
+	u64 current_tick = hv_read_tsc_page(tsc_pg);
 
-	if (tsc_pg->tsc_sequence != 0) {
-		/*
-		 * Use the tsc page to compute the value.
-		 */
+	if (current_tick == U64_MAX)
+		rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
 
-		while (1) {
-			u64 tmp;
-			u32 sequence = tsc_pg->tsc_sequence;
-			u64 cur_tsc;
-			u64 scale = tsc_pg->tsc_scale;
-			s64 offset = tsc_pg->tsc_offset;
-
-			rdtscll(cur_tsc);
-			/* current_tick = ((cur_tsc *scale) >> 64) + offset */
-			asm("mulq %3"
-				: "=d" (current_tick), "=a" (tmp)
-				: "a" (cur_tsc), "r" (scale));
-
-			current_tick += offset;
-			if (tsc_pg->tsc_sequence == sequence)
-				return current_tick;
-
-			if (tsc_pg->tsc_sequence != 0)
-				continue;
-			/*
-			 * Fallback using MSR method.
-			 */
-			break;
-		}
-	}
-	rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
 	return current_tick;
 }
 
@@ -139,7 +116,7 @@ void hyperv_init(void)
 	/*
 	 * Register Hyper-V specific clocksource.
 	 */
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_HYPERV_TSCPAGE
 	if (ms_hyperv.features & HV_X64_MSR_REFERENCE_TSC_AVAILABLE) {
 		union hv_x64_msr_hypercall_contents tsc_msr;
 
@@ -155,6 +132,9 @@ void hyperv_init(void)
 		tsc_msr.guest_physical_address = vmalloc_to_pfn(tsc_pg);
 
 		wrmsrl(HV_X64_MSR_REFERENCE_TSC, tsc_msr.as_uint64);
+
+		hyperv_cs_tsc.archdata.vclock_mode = VCLOCK_HVCLOCK;
+
 		clocksource_register_hz(&hyperv_cs_tsc, NSEC_PER_SEC/100);
 		return;
 	}

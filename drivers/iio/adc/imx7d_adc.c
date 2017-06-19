@@ -365,7 +365,7 @@ static int imx7d_adc_read_data(struct imx7d_adc *info)
 
 static irqreturn_t imx7d_adc_isr(int irq, void *dev_id)
 {
-	struct imx7d_adc *info = (struct imx7d_adc *)dev_id;
+	struct imx7d_adc *info = dev_id;
 	int status;
 
 	status = readl(info->regs + IMX7D_REG_ADC_INT_STATUS);

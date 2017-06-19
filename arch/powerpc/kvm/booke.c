@@ -300,6 +300,11 @@ void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong esr_flags)
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_PROGRAM);
 }
 
+void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu)
+{
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_FP_UNAVAIL);
+}
+
 void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu)
 {
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DECREMENTER);
@@ -579,7 +584,7 @@ static void arm_next_watchdog(struct kvm_vcpu *vcpu)
 	 * userspace, so clear the KVM_REQ_WATCHDOG request.
 	 */
 	if ((vcpu->arch.tsr & (TSR_ENW | TSR_WIS)) != (TSR_ENW | TSR_WIS))
-		clear_bit(KVM_REQ_WATCHDOG, &vcpu->requests);
+		kvm_clear_request(KVM_REQ_WATCHDOG, vcpu);
 
 	spin_lock_irqsave(&vcpu->arch.wdt_lock, flags);
 	nr_jiffies = watchdog_next_timeout(vcpu);
@@ -690,7 +695,7 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.shared->msr & MSR_WE) {
 		local_irq_enable();
 		kvm_vcpu_block(vcpu);
-		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
+		kvm_clear_request(KVM_REQ_UNHALT, vcpu);
 		hard_irq_disable();
 
 		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);

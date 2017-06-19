@@ -102,7 +102,7 @@ struct qedi_endpoint {
 #define QEDI_SQ_WQES_MIN	16
 
 struct qedi_io_bdt {
-	struct iscsi_sge *sge_tbl;
+	struct scsi_sge *sge_tbl;
 	dma_addr_t sge_tbl_dma;
 	u16 sge_valid;
 };

@@ -263,10 +263,8 @@ static int sdhci_acpi_sd_probe_slot(struct platform_device *pdev,
 
 	/* Platform specific code during sd probe slot goes here */
 
-	if (hid && !strcmp(hid, "80865ACA")) {
+	if (hid && !strcmp(hid, "80865ACA"))
 		host->mmc_host_ops.get_cd = bxt_get_cd;
-		host->mmc->caps |= MMC_CAP_AGGRESSIVE_PM;
-	}
 
 	return 0;
 }
@@ -302,7 +300,7 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
 	.quirks  = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
 	.quirks2 = SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON |
 		   SDHCI_QUIRK2_STOP_WITH_TC,
-	.caps    = MMC_CAP_WAIT_WHILE_BUSY,
+	.caps    = MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_AGGRESSIVE_PM,
 	.probe_slot	= sdhci_acpi_sd_probe_slot,
 };
 
@@ -524,8 +522,12 @@ static int sdhci_acpi_remove(struct platform_device *pdev)
 static int sdhci_acpi_suspend(struct device *dev)
 {
 	struct sdhci_acpi_host *c = dev_get_drvdata(dev);
+	struct sdhci_host *host = c->host;
 
-	return sdhci_suspend_host(c->host);
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
+	return sdhci_suspend_host(host);
 }
 
 static int sdhci_acpi_resume(struct device *dev)
@@ -544,8 +546,12 @@ static int sdhci_acpi_resume(struct device *dev)
 static int sdhci_acpi_runtime_suspend(struct device *dev)
 {
 	struct sdhci_acpi_host *c = dev_get_drvdata(dev);
+	struct sdhci_host *host = c->host;
 
-	return sdhci_runtime_suspend_host(c->host);
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
+	return sdhci_runtime_suspend_host(host);
 }
 
 static int sdhci_acpi_runtime_resume(struct device *dev)

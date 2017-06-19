@@ -23,6 +23,7 @@
 #include <linux/scatterlist.h>
 
 struct dma_chan;
+struct property_entry;
 struct spi_master;
 struct spi_transfer;
 struct spi_flash_read_message;
@@ -375,6 +376,8 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @unprepare_message: undo any work done by prepare_message().
  * @spi_flash_read: to support spi-controller hardwares that provide
  *                  accelerated interface to read from flash devices.
+ * @spi_flash_can_dma: analogous to can_dma() interface, but for
+ *		       controllers implementing spi_flash_read.
  * @flash_read_supported: spi device supports flash read
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
  *	number. Any individual value may be -ENOENT for CS lines that
@@ -538,6 +541,8 @@ struct spi_master {
 				 struct spi_message *message);
 	int (*spi_flash_read)(struct  spi_device *spi,
 			      struct spi_flash_read_message *msg);
+	bool (*spi_flash_can_dma)(struct spi_device *spi,
+				  struct spi_flash_read_message *msg);
 	bool (*flash_read_supported)(struct spi_device *spi);
 
 	/*
@@ -891,7 +896,7 @@ static inline struct spi_message *spi_message_alloc(unsigned ntrans, gfp_t flags
 		unsigned i;
 		struct spi_transfer *t = (struct spi_transfer *)(m + 1);
 
-		INIT_LIST_HEAD(&m->transfers);
+		spi_message_init_no_memset(m);
 		for (i = 0; i < ntrans; i++, t++)
 			spi_message_add_tail(t, m);
 	}
@@ -1209,6 +1214,7 @@ int spi_flash_read(struct spi_device *spi,
  * @modalias: Initializes spi_device.modalias; identifies the driver.
  * @platform_data: Initializes spi_device.platform_data; the particular
  *	data stored there is driver-specific.
+ * @properties: Additional device properties for the device.
  * @controller_data: Initializes spi_device.controller_data; some
  *	controllers need hints about hardware setup, e.g. for DMA.
  * @irq: Initializes spi_device.irq; depends on how the board is wired.
@@ -1241,10 +1247,12 @@ struct spi_board_info {
 	 *
 	 * platform_data goes to spi_device.dev.platform_data,
 	 * controller_data goes to spi_device.controller_data,
+	 * device properties are copied and attached to spi_device,
 	 * irq is copied too
 	 */
 	char		modalias[SPI_NAME_SIZE];
 	const void	*platform_data;
+	const struct property_entry *properties;
 	void		*controller_data;
 	int		irq;
 

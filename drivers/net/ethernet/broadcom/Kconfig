@@ -109,13 +109,19 @@ config TIGON3
 	tristate "Broadcom Tigon3 support"
 	depends on PCI
 	select PHYLIB
-	select HWMON
 	imply PTP_1588_CLOCK
 	---help---
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called tg3.  This is recommended.
+
+config TIGON3_HWMON
+	bool "Broadcom Tigon3 HWMON support"
+	default y
+	depends on TIGON3 && HWMON && !(TIGON3=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor on Tigon3 devices.
 
 config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"

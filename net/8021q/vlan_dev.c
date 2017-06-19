@@ -562,8 +562,7 @@ static int vlan_dev_init(struct net_device *dev)
 			   NETIF_F_HIGHDMA | NETIF_F_SCTP_CRC |
 			   NETIF_F_ALL_FCOE;
 
-	dev->features |= real_dev->vlan_features | NETIF_F_LLTX |
-			 NETIF_F_GSO_SOFTWARE;
+	dev->features |= dev->hw_features | NETIF_F_LLTX;
 	dev->gso_max_size = real_dev->gso_max_size;
 	dev->gso_max_segs = real_dev->gso_max_segs;
 	if (dev->features & NETIF_F_VLAN_FEATURES)
@@ -627,11 +626,18 @@ static netdev_features_t vlan_dev_fix_features(struct net_device *dev,
 {
 	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
 	netdev_features_t old_features = features;
+	netdev_features_t lower_features;
 
-	features = netdev_intersect_features(features, real_dev->vlan_features);
-	features |= NETIF_F_RXCSUM;
-	features = netdev_intersect_features(features, real_dev->features);
+	lower_features = netdev_intersect_features((real_dev->vlan_features |
+						    NETIF_F_RXCSUM),
+						   real_dev->features);
 
+	/* Add HW_CSUM setting to preserve user ability to control
+	 * checksum offload on the vlan device.
+	 */
+	if (lower_features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))
+		lower_features |= NETIF_F_HW_CSUM;
+	features = netdev_intersect_features(features, lower_features);
 	features |= old_features & (NETIF_F_SOFT_FEATURES | NETIF_F_GSO_SOFTWARE);
 	features |= NETIF_F_LLTX;
 
@@ -807,7 +813,6 @@ static void vlan_dev_free(struct net_device *dev)
 
 	free_percpu(vlan->vlan_pcpu_stats);
 	vlan->vlan_pcpu_stats = NULL;
-	free_netdev(dev);
 }
 
 void vlan_setup(struct net_device *dev)
@@ -820,7 +825,8 @@ void vlan_setup(struct net_device *dev)
 	netif_keep_dst(dev);
 
 	dev->netdev_ops		= &vlan_netdev_ops;
-	dev->destructor		= vlan_dev_free;
+	dev->needs_free_netdev	= true;
+	dev->priv_destructor	= vlan_dev_free;
 	dev->ethtool_ops	= &vlan_ethtool_ops;
 
 	dev->min_mtu		= 0;

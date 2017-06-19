@@ -183,6 +183,7 @@ static int rwbf_quirk;
  * (used when kernel is launched w/ TXT)
  */
 static int force_on = 0;
+int intel_iommu_tboot_noforce;
 
 /*
  * 0: Present
@@ -607,6 +608,10 @@ static int __init intel_iommu_setup(char *str)
 				"Intel-IOMMU: enable pre-production PASID support\n");
 			intel_iommu_pasid28 = 1;
 			iommu_identity_mapping |= IDENTMAP_GFX;
+		} else if (!strncmp(str, "tboot_noforce", 13)) {
+			printk(KERN_INFO
+				"Intel-IOMMU: not forcing on after tboot. This could expose security risk for tboot\n");
+			intel_iommu_tboot_noforce = 1;
 		}
 
 		str += strcspn(str, ",");
@@ -2050,11 +2055,14 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	if (context_copied(context)) {
 		u16 did_old = context_domain_id(context);
 
-		if (did_old >= 0 && did_old < cap_ndoms(iommu->cap))
+		if (did_old >= 0 && did_old < cap_ndoms(iommu->cap)) {
 			iommu->flush.flush_context(iommu, did_old,
 						   (((u16)bus) << 8) | devfn,
 						   DMA_CCMD_MASK_NOBIT,
 						   DMA_CCMD_DEVICE_INVL);
+			iommu->flush.flush_iotlb(iommu, did_old, 0, 0,
+						 DMA_TLB_DSI_FLUSH);
+		}
 	}
 
 	pgd = domain->pgd;
@@ -4730,6 +4738,15 @@ static int intel_iommu_cpu_dead(unsigned int cpu)
 	return 0;
 }
 
+static void intel_disable_iommus(void)
+{
+	struct intel_iommu *iommu = NULL;
+	struct dmar_drhd_unit *drhd;
+
+	for_each_iommu(iommu, drhd)
+		iommu_disable_translation(iommu);
+}
+
 static inline struct intel_iommu *dev_to_intel_iommu(struct device *dev)
 {
 	return container_of(dev, struct intel_iommu, iommu.dev);
@@ -4840,8 +4857,28 @@ int __init intel_iommu_init(void)
 		goto out_free_dmar;
 	}
 
-	if (no_iommu || dmar_disabled)
+	if (no_iommu || dmar_disabled) {
+		/*
+		 * We exit the function here to ensure IOMMU's remapping and
+		 * mempool aren't setup, which means that the IOMMU's PMRs
+		 * won't be disabled via the call to init_dmars(). So disable
+		 * it explicitly here. The PMRs were setup by tboot prior to
+		 * calling SENTER, but the kernel is expected to reset/tear
+		 * down the PMRs.
+		 */
+		if (intel_iommu_tboot_noforce) {
+			for_each_iommu(iommu, drhd)
+				iommu_disable_protect_mem_regions(iommu);
+		}
+
+		/*
+		 * Make sure the IOMMUs are switched off, even when we
+		 * boot into a kexec kernel and the previous kernel left
+		 * them enabled
+		 */
+		intel_disable_iommus();
 		goto out_free_dmar;
+	}
 
 	if (list_empty(&dmar_rmrr_units))
 		pr_info("No RMRR found\n");

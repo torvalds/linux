@@ -128,7 +128,9 @@ int __init ds1287_clockevent_init(int irq)
 	cd->irq = irq;
 	clockevent_set_clock(cd, 32768);
 	cd->max_delta_ns = clockevent_delta2ns(0x7fffffff, cd);
+	cd->max_delta_ticks = 0x7fffffff;
 	cd->min_delta_ns = clockevent_delta2ns(0x300, cd);
+	cd->min_delta_ticks = 0x300;
 	cd->cpumask = cpumask_of(0);
 
 	clockevents_register_device(&ds1287_clockevent);

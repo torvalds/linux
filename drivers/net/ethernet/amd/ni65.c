@@ -1227,9 +1227,9 @@ static void set_multicast_list(struct net_device *dev)
 #ifdef MODULE
 static struct net_device *dev_ni65;
 
-module_param(irq, int, 0);
-module_param(io, int, 0);
-module_param(dma, int, 0);
+module_param_hw(irq, int, irq, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(dma, int, dma, 0);
 MODULE_PARM_DESC(irq, "ni6510 IRQ number (ignored for some cards)");
 MODULE_PARM_DESC(io, "ni6510 I/O base address");
 MODULE_PARM_DESC(dma, "ni6510 ISA DMA channel (ignored for some cards)");

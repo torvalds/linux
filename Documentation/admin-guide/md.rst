@@ -276,14 +276,14 @@ All md devices contain:
      array creation it will default to 0, though starting the array as
      ``clean`` will set it much larger.
 
-   new_dev
+  new_dev
      This file can be written but not read.  The value written should
      be a block device number as major:minor.  e.g. 8:0
      This will cause that device to be attached to the array, if it is
      available.  It will then appear at md/dev-XXX (depending on the
      name of the device) and further configuration is then possible.
 
-   safe_mode_delay
+  safe_mode_delay
      When an md array has seen no write requests for a certain period
      of time, it will be marked as ``clean``.  When another write
      request arrives, the array is marked as ``dirty`` before the write
@@ -292,7 +292,7 @@ All md devices contain:
      period as a number of seconds.  The default is 200msec (0.200).
      Writing a value of 0 disables safemode.
 
-   array_state
+  array_state
      This file contains a single word which describes the current
      state of the array.  In many cases, the state can be set by
      writing the word for the desired state, however some states
@@ -401,7 +401,30 @@ All md devices contain:
      once the array becomes non-degraded, and this fact has been
      recorded in the metadata.
 
+  consistency_policy
+     This indicates how the array maintains consistency in case of unexpected
+     shutdown. It can be:
 
+     none
+       Array has no redundancy information, e.g. raid0, linear.
+
+     resync
+       Full resync is performed and all redundancy is regenerated when the
+       array is started after unclean shutdown.
+
+     bitmap
+       Resync assisted by a write-intent bitmap.
+
+     journal
+       For raid4/5/6, journal device is used to log transactions and replay
+       after unclean shutdown.
+
+     ppl
+       For raid5 only, Partial Parity Log is used to close the write hole and
+       eliminate resync.
+
+     The accepted values when writing to this file are ``ppl`` and ``resync``,
+     used to enable and disable PPL.
 
 
 As component devices are added to an md array, they appear in the ``md``
@@ -563,6 +586,9 @@ Each directory contains:
 	adds bad blocks without acknowledging them. This is largely
 	for testing.
 
+      ppl_sector, ppl_size
+        Location and size (in sectors) of the space used for Partial Parity Log
+        on this device.
 
 
 An active md device will also contain an entry for each active device

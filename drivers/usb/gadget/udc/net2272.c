@@ -653,7 +653,7 @@ net2272_request_dma(struct net2272 *dev, unsigned ep, u32 buf,
 	dev->dma_busy = 1;
 
 	/* initialize platform's dma */
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	/* NET2272 addr, buffer addr, length, etc. */
 	switch (dev->dev_id) {
 	case PCI_DEVICE_ID_RDK1:
@@ -701,7 +701,7 @@ static void
 net2272_start_dma(struct net2272 *dev)
 {
 	/* start platform's dma controller */
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	switch (dev->dev_id) {
 	case PCI_DEVICE_ID_RDK1:
 		writeb((1 << CHANNEL_ENABLE) | (1 << CHANNEL_START),
@@ -797,7 +797,7 @@ net2272_kick_dma(struct net2272_ep *ep, struct net2272_request *req)
 
 static void net2272_cancel_dma(struct net2272 *dev)
 {
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	switch (dev->dev_id) {
 	case PCI_DEVICE_ID_RDK1:
 		writeb(0, dev->rdk1.plx9054_base_addr + DMACSR0);
@@ -2306,7 +2306,7 @@ err_add_udc:
 	return ret;
 }
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 
 /*
  * wrap this driver around the specified device, but

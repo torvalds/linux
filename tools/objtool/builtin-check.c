@@ -36,8 +36,7 @@
 #include "warn.h"
 
 #include <linux/hashtable.h>
-
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#include <linux/kernel.h>
 
 #define STATE_FP_SAVED		0x1
 #define STATE_FP_SETUP		0x2
@@ -193,7 +192,8 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
 		"complete_and_exit",
 		"kvm_spurious_fault",
 		"__reiserfs_panic",
-		"lbug_with_loc"
+		"lbug_with_loc",
+		"fortify_panic",
 	};
 
 	if (func->bind == STB_WEAK)

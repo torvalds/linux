@@ -9,9 +9,9 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
-
 #include "hnae.h"
 
 #define cls_to_ae_dev(dev) container_of(dev, struct hnae_ae_dev, cls_dev)
@@ -57,11 +57,15 @@ static int hnae_alloc_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
 
 static void hnae_free_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
 {
+	if (unlikely(!cb->priv))
+		return;
+
 	if (cb->type == DESC_TYPE_SKB)
 		dev_kfree_skb_any((struct sk_buff *)cb->priv);
 	else if (unlikely(is_rx_ring(ring)))
 		put_page((struct page *)cb->priv);
-	memset(cb, 0, sizeof(*cb));
+
+	cb->priv = NULL;
 }
 
 static int hnae_map_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
@@ -197,6 +201,7 @@ hnae_init_ring(struct hnae_queue *q, struct hnae_ring *ring, int flags)
 
 	ring->q = q;
 	ring->flags = flags;
+	spin_lock_init(&ring->lock);
 	assert(!ring->desc && !ring->desc_cb && !ring->desc_dma_addr);
 
 	/* not matter for tx or rx ring, the ntc and ntc start from 0 */

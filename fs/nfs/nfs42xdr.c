@@ -66,12 +66,14 @@
 					 encode_putfh_maxsz + \
 					 encode_savefh_maxsz + \
 					 encode_putfh_maxsz + \
-					 encode_copy_maxsz)
+					 encode_copy_maxsz + \
+					 encode_commit_maxsz)
 #define NFS4_dec_copy_sz		(compound_decode_hdr_maxsz + \
 					 decode_putfh_maxsz + \
 					 decode_savefh_maxsz + \
 					 decode_putfh_maxsz + \
-					 decode_copy_maxsz)
+					 decode_copy_maxsz + \
+					 decode_commit_maxsz)
 #define NFS4_enc_deallocate_sz		(compound_encode_hdr_maxsz + \
 					 encode_putfh_maxsz + \
 					 encode_deallocate_maxsz + \
@@ -222,6 +224,18 @@ static void nfs4_xdr_enc_allocate(struct rpc_rqst *req,
 	encode_nops(&hdr);
 }
 
+static void encode_copy_commit(struct xdr_stream *xdr,
+			  struct nfs42_copy_args *args,
+			  struct compound_hdr *hdr)
+{
+	__be32 *p;
+
+	encode_op_hdr(xdr, OP_COMMIT, decode_commit_maxsz, hdr);
+	p = reserve_space(xdr, 12);
+	p = xdr_encode_hyper(p, args->dst_pos);
+	*p = cpu_to_be32(args->count);
+}
+
 /*
  * Encode COPY request
  */
@@ -239,6 +253,7 @@ static void nfs4_xdr_enc_copy(struct rpc_rqst *req,
 	encode_savefh(xdr, &hdr);
 	encode_putfh(xdr, args->dst_fh, &hdr);
 	encode_copy(xdr, args, &hdr);
+	encode_copy_commit(xdr, args, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -481,6 +496,9 @@ static int nfs4_xdr_dec_copy(struct rpc_rqst *rqstp,
 	if (status)
 		goto out;
 	status = decode_copy(xdr, res);
+	if (status)
+		goto out;
+	status = decode_commit(xdr, &res->commit_res);
 out:
 	return status;
 }

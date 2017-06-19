@@ -2463,7 +2463,6 @@ static void mld_ifc_event(struct inet6_dev *idev)
 	mld_ifc_start_timer(idev, 1);
 }
 
-
 static void igmp6_timer_handler(unsigned long data)
 {
 	struct ifmcaddr6 *ma = (struct ifmcaddr6 *) data;
@@ -2598,6 +2597,44 @@ void ipv6_mc_destroy_dev(struct inet6_dev *idev)
 	}
 	write_unlock_bh(&idev->lock);
 }
+
+static void ipv6_mc_rejoin_groups(struct inet6_dev *idev)
+{
+	struct ifmcaddr6 *pmc;
+
+	ASSERT_RTNL();
+
+	if (mld_in_v1_mode(idev)) {
+		read_lock_bh(&idev->lock);
+		for (pmc = idev->mc_list; pmc; pmc = pmc->next)
+			igmp6_join_group(pmc);
+		read_unlock_bh(&idev->lock);
+	} else
+		mld_send_report(idev, NULL);
+}
+
+static int ipv6_mc_netdev_event(struct notifier_block *this,
+				unsigned long event,
+				void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct inet6_dev *idev = __in6_dev_get(dev);
+
+	switch (event) {
+	case NETDEV_RESEND_IGMP:
+		if (idev)
+			ipv6_mc_rejoin_groups(idev);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block igmp6_netdev_notifier = {
+	.notifier_call = ipv6_mc_netdev_event,
+};
 
 #ifdef CONFIG_PROC_FS
 struct igmp6_mc_iter_state {
@@ -2970,7 +3007,17 @@ int __init igmp6_init(void)
 	return register_pernet_subsys(&igmp6_net_ops);
 }
 
+int __init igmp6_late_init(void)
+{
+	return register_netdevice_notifier(&igmp6_netdev_notifier);
+}
+
 void igmp6_cleanup(void)
 {
 	unregister_pernet_subsys(&igmp6_net_ops);
+}
+
+void igmp6_late_cleanup(void)
+{
+	unregister_netdevice_notifier(&igmp6_netdev_notifier);
 }

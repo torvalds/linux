@@ -263,6 +263,14 @@ all configurable using the following module options:
 	removed. Unless overridden by ccs_cap_mode and/or ccs_out_mode the
 	will default to enabling crop, compose and scaling.
 
+- allocators:
+
+	memory allocator selection, default is 0. It specifies the way buffers
+	will be allocated.
+
+		- 0: vmalloc
+		- 1: dma-contig
+
 Taken together, all these module options allow you to precisely customize
 the driver behavior and test your application with all sorts of permutations.
 It is also very suitable to emulate hardware that is not yet available, e.g.

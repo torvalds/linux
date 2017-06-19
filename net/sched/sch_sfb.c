@@ -495,7 +495,7 @@ static int sfb_change(struct Qdisc *sch, struct nlattr *opt)
 	int err;
 
 	if (opt) {
-		err = nla_parse_nested(tb, TCA_SFB_MAX, opt, sfb_policy);
+		err = nla_parse_nested(tb, TCA_SFB_MAX, opt, sfb_policy, NULL);
 		if (err < 0)
 			return -EINVAL;
 
@@ -513,6 +513,8 @@ static int sfb_change(struct Qdisc *sch, struct nlattr *opt)
 	if (IS_ERR(child))
 		return PTR_ERR(child);
 
+	if (child != &noop_qdisc)
+		qdisc_hash_add(child, true);
 	sch_tree_lock(sch);
 
 	qdisc_tree_reduce_backlog(q->qdisc, q->qdisc->q.qlen,

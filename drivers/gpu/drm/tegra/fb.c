@@ -52,9 +52,26 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 			struct tegra_bo_tiling *tiling)
 {
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
+	uint64_t modifier = fb->base.modifier;
 
-	/* TODO: handle YUV formats? */
-	*tiling = fb->planes[0]->tiling;
+	switch (fourcc_mod_tegra_mod(modifier)) {
+	case NV_FORMAT_MOD_TEGRA_TILED:
+		tiling->mode = TEGRA_BO_TILING_MODE_TILED;
+		tiling->value = 0;
+		break;
+
+	case NV_FORMAT_MOD_TEGRA_16BX2_BLOCK(0):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = fourcc_mod_tegra_param(modifier);
+		if (tiling->value > 5)
+			return -EINVAL;
+		break;
+
+	default:
+		/* TODO: handle YUV formats? */
+		*tiling = fb->planes[0]->tiling;
+		break;
+	}
 
 	return 0;
 }

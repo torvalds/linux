@@ -53,7 +53,7 @@ typedef u32 acpi_mutex_handle;
 
 /* Total number of aml opcodes defined */
 
-#define AML_NUM_OPCODES                 0x82
+#define AML_NUM_OPCODES                 0x83
 
 /* Forward declarations */
 
@@ -754,21 +754,52 @@ union acpi_parse_value {
 #define ACPI_DISASM_ONLY_MEMBERS(a)
 #endif
 
+#if defined(ACPI_ASL_COMPILER)
+#define ACPI_CONVERTER_ONLY_MEMBERS(a)  a;
+#else
+#define ACPI_CONVERTER_ONLY_MEMBERS(a)
+#endif
+
 #define ACPI_PARSE_COMMON \
-	union acpi_parse_object         *parent;        /* Parent op */\
-	u8                              descriptor_type; /* To differentiate various internal objs */\
-	u8                              flags;          /* Type of Op */\
-	u16                             aml_opcode;     /* AML opcode */\
-	u8                              *aml;           /* Address of declaration in AML */\
-	union acpi_parse_object         *next;          /* Next op */\
-	struct acpi_namespace_node      *node;          /* For use by interpreter */\
-	union acpi_parse_value          value;          /* Value or args associated with the opcode */\
-	u8                              arg_list_length; /* Number of elements in the arg list */\
-	ACPI_DISASM_ONLY_MEMBERS (\
-	u16                             disasm_flags;   /* Used during AML disassembly */\
-	u8                              disasm_opcode;  /* Subtype used for disassembly */\
-	char                            *operator_symbol;/* Used for C-style operator name strings */\
-	char                            aml_op_name[16])	/* Op name (debug only) */
+	union acpi_parse_object         *parent;            /* Parent op */\
+	u8                              descriptor_type;    /* To differentiate various internal objs */\
+	u8                              flags;              /* Type of Op */\
+	u16                             aml_opcode;         /* AML opcode */\
+	u8                              *aml;               /* Address of declaration in AML */\
+	union acpi_parse_object         *next;              /* Next op */\
+	struct acpi_namespace_node      *node;              /* For use by interpreter */\
+	union acpi_parse_value          value;              /* Value or args associated with the opcode */\
+	u8                              arg_list_length;    /* Number of elements in the arg list */\
+	 ACPI_DISASM_ONLY_MEMBERS (\
+	u16                             disasm_flags;       /* Used during AML disassembly */\
+	u8                              disasm_opcode;      /* Subtype used for disassembly */\
+	char                            *operator_symbol;   /* Used for C-style operator name strings */\
+	char                            aml_op_name[16])    /* Op name (debug only) */\
+	 ACPI_CONVERTER_ONLY_MEMBERS (\
+	char                            *inline_comment;    /* Inline comment */\
+	char                            *end_node_comment;  /* End of node comment */\
+	char                            *name_comment;      /* Comment associated with the first parameter of the name node */\
+	char                            *close_brace_comment; /* Comments that come after } on the same as } */\
+	struct acpi_comment_node        *comment_list;      /* comments that appears before this node */\
+	struct acpi_comment_node        *end_blk_comment;   /* comments that at the end of a block but before ) or } */\
+	char                            *cv_filename;       /* Filename associated with this node. Used for ASL/ASL+ converter */\
+	char                            *cv_parent_filename)	/* Parent filename associated with this node. Used for ASL/ASL+ converter */
+
+/* categories of comments */
+
+typedef enum {
+	STANDARD_COMMENT = 1,
+	INLINE_COMMENT,
+	ENDNODE_COMMENT,
+	OPENBRACE_COMMENT,
+	CLOSE_BRACE_COMMENT,
+	STD_DEFBLK_COMMENT,
+	END_DEFBLK_COMMENT,
+	FILENAME_COMMENT,
+	PARENTFILENAME_COMMENT,
+	ENDBLK_COMMENT,
+	INCLUDE_COMMENT
+} asl_comment_types;
 
 /* Internal opcodes for disasm_opcode field above */
 
@@ -784,9 +815,38 @@ union acpi_parse_value {
 #define ACPI_DASM_LNOT_SUFFIX           0x09	/* End  of a Lnot_equal (etc.) pair of opcodes */
 #define ACPI_DASM_HID_STRING            0x0A	/* String is a _HID or _CID */
 #define ACPI_DASM_IGNORE_SINGLE         0x0B	/* Ignore the opcode but not it's children */
-#define ACPI_DASM_SWITCH_PREDICATE      0x0C	/* Object is a predicate for a Switch or Case block */
-#define ACPI_DASM_CASE                  0x0D	/* If/Else is a Case in a Switch/Case block */
-#define ACPI_DASM_DEFAULT               0x0E	/* Else is a Default in a Switch/Case block */
+#define ACPI_DASM_SWITCH                0x0C	/* While is a Switch */
+#define ACPI_DASM_SWITCH_PREDICATE      0x0D	/* Object is a predicate for a Switch or Case block */
+#define ACPI_DASM_CASE                  0x0E	/* If/Else is a Case in a Switch/Case block */
+#define ACPI_DASM_DEFAULT               0x0F	/* Else is a Default in a Switch/Case block */
+
+/*
+ * List struct used in the -ca option
+ */
+struct acpi_comment_node {
+	char *comment;
+	struct acpi_comment_node *next;
+};
+
+struct acpi_comment_addr_node {
+	u8 *addr;
+	struct acpi_comment_addr_node *next;
+};
+
+/*
+ * File node - used for "Include" operator file stack and
+ * depdendency tree for the -ca option
+ */
+struct acpi_file_node {
+	void *file;
+	char *filename;
+	char *file_start;	/* Points to AML and indicates when the AML for this particular file starts. */
+	char *file_end;		/* Points to AML and indicates when the AML for this particular file ends. */
+	struct acpi_file_node *next;
+	struct acpi_file_node *parent;
+	u8 include_written;
+	struct acpi_comment_node *include_comment;
+};
 
 /*
  * Generic operation (for example:  If, While, Store)
@@ -813,6 +873,8 @@ struct acpi_parse_obj_asl {
 	ACPI_PARSE_COMMON union acpi_parse_object *child;
 	union acpi_parse_object *parent_method;
 	char *filename;
+	u8 file_changed;
+	char *parent_filename;
 	char *external_name;
 	char *namepath;
 	char name_seg[4];
@@ -840,6 +902,14 @@ union acpi_parse_object {
 	struct acpi_parse_obj_common common;
 	struct acpi_parse_obj_named named;
 	struct acpi_parse_obj_asl asl;
+};
+
+struct asl_comment_state {
+	u8 comment_type;
+	u32 spaces_before;
+	union acpi_parse_object *latest_parse_node;
+	union acpi_parse_object *parsing_paren_brace_node;
+	u8 capture_comments;
 };
 
 /*

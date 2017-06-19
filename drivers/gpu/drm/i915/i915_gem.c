@@ -3298,6 +3298,10 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 {
 	int ret;
 
+	/* If the device is asleep, we have no requests outstanding */
+	if (!READ_ONCE(i915->gt.awake))
+		return 0;
+
 	if (flags & I915_WAIT_LOCKED) {
 		struct i915_gem_timeline *tl;
 
@@ -4789,7 +4793,7 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 	dev_priv->requests = KMEM_CACHE(drm_i915_gem_request,
 					SLAB_HWCACHE_ALIGN |
 					SLAB_RECLAIM_ACCOUNT |
-					SLAB_DESTROY_BY_RCU);
+					SLAB_TYPESAFE_BY_RCU);
 	if (!dev_priv->requests)
 		goto err_vmas;
 

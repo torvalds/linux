@@ -501,3 +501,13 @@ int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_i
 
 	return hwmgr->hwmgr_func->get_max_high_clocks(hwmgr, clocks);
 }
+
+int phm_disable_smc_firmware_ctf(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->disable_smc_firmware_ctf == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->disable_smc_firmware_ctf(hwmgr);
+}

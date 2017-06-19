@@ -43,13 +43,13 @@
  * over \a conn connection to portal \a portal.
  * Returns 0 on success or error code.
  */
-static int ptl_send_buf(lnet_handle_md_t *mdh, void *base, int len,
-			lnet_ack_req_t ack, struct ptlrpc_cb_id *cbid,
+static int ptl_send_buf(struct lnet_handle_md *mdh, void *base, int len,
+			enum lnet_ack_req ack, struct ptlrpc_cb_id *cbid,
 			struct ptlrpc_connection *conn, int portal, __u64 xid,
 			unsigned int offset)
 {
 	int rc;
-	lnet_md_t md;
+	struct lnet_md md;
 
 	LASSERT(portal != 0);
 	CDEBUG(D_INFO, "conn=%p id %s\n", conn, libcfs_id2str(conn->c_peer));
@@ -94,7 +94,7 @@ static int ptl_send_buf(lnet_handle_md_t *mdh, void *base, int len,
 	return 0;
 }
 
-static void mdunlink_iterate_helper(lnet_handle_md_t *bd_mds, int count)
+static void mdunlink_iterate_helper(struct lnet_handle_md *bd_mds, int count)
 {
 	int i;
 
@@ -109,14 +109,14 @@ static void mdunlink_iterate_helper(lnet_handle_md_t *bd_mds, int count)
 static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 {
 	struct ptlrpc_bulk_desc *desc = req->rq_bulk;
-	lnet_process_id_t peer;
+	struct lnet_process_id peer;
 	int rc = 0;
 	int rc2;
 	int posted_md;
 	int total_md;
 	u64 mbits;
-	lnet_handle_me_t me_h;
-	lnet_md_t md;
+	struct lnet_handle_me me_h;
+	struct lnet_md md;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_BULK_GET_NET))
 		return 0;
@@ -142,7 +142,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	LASSERT(desc->bd_cbid.cbid_fn == client_bulk_callback);
 	LASSERT(desc->bd_cbid.cbid_arg == desc);
 
-	total_md = (desc->bd_iov_count + LNET_MAX_IOV - 1) / LNET_MAX_IOV;
+	total_md = DIV_ROUND_UP(desc->bd_iov_count, LNET_MAX_IOV);
 	/* rq_mbits is matchbits of the final bulk */
 	mbits = req->rq_mbits - total_md + 1;
 
@@ -472,8 +472,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	int rc2;
 	int mpflag = 0;
 	struct ptlrpc_connection *connection;
-	lnet_handle_me_t reply_me_h;
-	lnet_md_t reply_md;
+	struct lnet_handle_me reply_me_h;
+	struct lnet_md reply_md;
 	struct obd_import *imp = request->rq_import;
 	struct obd_device *obd = imp->imp_obd;
 
@@ -719,10 +719,10 @@ EXPORT_SYMBOL(ptl_send_rpc);
 int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 {
 	struct ptlrpc_service *service = rqbd->rqbd_svcpt->scp_service;
-	static lnet_process_id_t match_id = {LNET_NID_ANY, LNET_PID_ANY};
+	static struct lnet_process_id match_id = {LNET_NID_ANY, LNET_PID_ANY};
 	int rc;
-	lnet_md_t md;
-	lnet_handle_me_t me_h;
+	struct lnet_md md;
+	struct lnet_handle_me me_h;
 
 	CDEBUG(D_NET, "LNetMEAttach: portal %d\n",
 	       service->srv_req_portal);

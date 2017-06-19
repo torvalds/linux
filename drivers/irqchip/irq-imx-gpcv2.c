@@ -268,6 +268,11 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 	imx_gpcv2_instance = cd;
 	register_syscore_ops(&imx_gpcv2_syscore_ops);
 
+	/*
+	 * Clear the OF_POPULATED flag set in of_irq_init so that
+	 * later the GPC power domain driver will not be skipped.
+	 */
+	of_node_clear_flag(node, OF_POPULATED);
 	return 0;
 }
 

@@ -2,6 +2,7 @@
 #define TARGET_CORE_IBLOCK_H
 
 #include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <target/target_core_base.h>
 
 #define IBLOCK_VERSION		"4.0"
@@ -10,7 +11,7 @@
 #define IBLOCK_LBA_SHIFT	9
 
 struct iblock_req {
-	atomic_t pending;
+	refcount_t pending;
 	atomic_t ib_bio_err_cnt;
 } ____cacheline_aligned;
 

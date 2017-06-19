@@ -18,12 +18,9 @@
 #include <linux/connector.h>
 
 #include "w1.h"
-#include "w1_log.h"
 #include "w1_netlink.h"
 
 #if defined(CONFIG_W1_CON) && (defined(CONFIG_CONNECTOR) || (defined(CONFIG_CONNECTOR_MODULE) && defined(CONFIG_W1_MODULE)))
-
-#define MIN(a, b)                   (((a) < (b)) ? (a) : (b))
 
 /* Bundle together everything required to process a request in one memory
  * allocation.
@@ -598,7 +595,7 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 				sizeof(struct w1_netlink_msg) +
 				sizeof(struct w1_netlink_cmd));
 		}
-		reply_size = MIN(CONNECTOR_MAX_MSG_SIZE, reply_size);
+		reply_size = min(CONNECTOR_MAX_MSG_SIZE, reply_size);
 
 		/* allocate space for the block, a copy of the original message,
 		 * one node per cmd to point into the original message,

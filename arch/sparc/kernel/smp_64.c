@@ -964,37 +964,6 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	preempt_enable();
 }
 
-void __irq_entry smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)
-{
-	struct mm_struct *mm;
-	unsigned long flags;
-
-	clear_softint(1 << irq);
-
-	/* See if we need to allocate a new TLB context because
-	 * the version of the one we are using is now out of date.
-	 */
-	mm = current->active_mm;
-	if (unlikely(!mm || (mm == &init_mm)))
-		return;
-
-	spin_lock_irqsave(&mm->context.lock, flags);
-
-	if (unlikely(!CTX_VALID(mm->context)))
-		get_new_mmu_context(mm);
-
-	spin_unlock_irqrestore(&mm->context.lock, flags);
-
-	load_secondary_context(mm);
-	__flush_tlb_mm(CTX_HWBITS(mm->context),
-		       SECONDARY_CONTEXT);
-}
-
-void smp_new_mmu_context_version(void)
-{
-	smp_cross_call(&xcall_new_mmu_context_version, 0, 0, 0);
-}
-
 #ifdef CONFIG_KGDB
 void kgdb_roundup_cpus(unsigned long flags)
 {

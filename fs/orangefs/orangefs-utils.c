@@ -251,7 +251,8 @@ static int orangefs_inode_is_stale(struct inode *inode, int new,
 	return 0;
 }
 
-int orangefs_inode_getattr(struct inode *inode, int new, int bypass)
+int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
+    u32 request_mask)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op;
@@ -262,7 +263,13 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass)
 	    get_khandle_from_ino(inode));
 
 	if (!new && !bypass) {
-		if (time_before(jiffies, orangefs_inode->getattr_time))
+		/*
+		 * Must have all the attributes in the mask and be within cache
+		 * time.
+		 */
+		if ((request_mask & orangefs_inode->getattr_mask) ==
+		    request_mask &&
+		    time_before(jiffies, orangefs_inode->getattr_time))
 			return 0;
 	}
 
@@ -270,7 +277,15 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass)
 	if (!new_op)
 		return -ENOMEM;
 	new_op->upcall.req.getattr.refn = orangefs_inode->refn;
-	new_op->upcall.req.getattr.mask = ORANGEFS_ATTR_SYS_ALL_NOHINT;
+	/*
+	 * Size is the hardest attribute to get.  The incremental cost of any
+	 * other attribute is essentially zero.
+	 */
+	if (request_mask & STATX_SIZE || new)
+		new_op->upcall.req.getattr.mask = ORANGEFS_ATTR_SYS_ALL_NOHINT;
+	else
+		new_op->upcall.req.getattr.mask =
+		    ORANGEFS_ATTR_SYS_ALL_NOHINT & ~ORANGEFS_ATTR_SYS_SIZE;
 
 	ret = service_operation(new_op, __func__,
 	    get_interruptible_flag(inode));
@@ -291,25 +306,29 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass)
 	case S_IFREG:
 		inode->i_flags = orangefs_inode_flags(&new_op->
 		    downcall.resp.getattr.attributes);
-		inode_size = (loff_t)new_op->
-		    downcall.resp.getattr.attributes.size;
-		rounded_up_size =
-		    (inode_size + (4096 - (inode_size % 4096)));
-		inode->i_size = inode_size;
-		orangefs_inode->blksize =
-		    new_op->downcall.resp.getattr.attributes.blksize;
-		spin_lock(&inode->i_lock);
-		inode->i_bytes = inode_size;
-		inode->i_blocks =
-		    (unsigned long)(rounded_up_size / 512);
-		spin_unlock(&inode->i_lock);
+		if (request_mask & STATX_SIZE || new) {
+			inode_size = (loff_t)new_op->
+			    downcall.resp.getattr.attributes.size;
+			rounded_up_size =
+			    (inode_size + (4096 - (inode_size % 4096)));
+			inode->i_size = inode_size;
+			orangefs_inode->blksize =
+			    new_op->downcall.resp.getattr.attributes.blksize;
+			spin_lock(&inode->i_lock);
+			inode->i_bytes = inode_size;
+			inode->i_blocks =
+			    (unsigned long)(rounded_up_size / 512);
+			spin_unlock(&inode->i_lock);
+		}
 		break;
 	case S_IFDIR:
-		inode->i_size = PAGE_SIZE;
-		orangefs_inode->blksize = i_blocksize(inode);
-		spin_lock(&inode->i_lock);
-		inode_set_bytes(inode, inode->i_size);
-		spin_unlock(&inode->i_lock);
+		if (request_mask & STATX_SIZE || new) {
+			inode->i_size = PAGE_SIZE;
+			orangefs_inode->blksize = i_blocksize(inode);
+			spin_lock(&inode->i_lock);
+			inode_set_bytes(inode, inode->i_size);
+			spin_unlock(&inode->i_lock);
+		}
 		set_nlink(inode, 1);
 		break;
 	case S_IFLNK:
@@ -349,6 +368,10 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass)
 
 	orangefs_inode->getattr_time = jiffies +
 	    orangefs_getattr_timeout_msecs*HZ/1000;
+	if (request_mask & STATX_SIZE || new)
+		orangefs_inode->getattr_mask = STATX_BASIC_STATS;
+	else
+		orangefs_inode->getattr_mask = STATX_BASIC_STATS & ~STATX_SIZE;
 	ret = 0;
 out:
 	op_release(new_op);
@@ -497,41 +520,6 @@ int orangefs_flush_inode(struct inode *inode)
 
 	ret = orangefs_inode_setattr(inode, &wbattr);
 
-	return ret;
-}
-
-int orangefs_unmount_sb(struct super_block *sb)
-{
-	int ret = -EINVAL;
-	struct orangefs_kernel_op_s *new_op = NULL;
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "orangefs_unmount_sb called on sb %p\n",
-		     sb);
-
-	new_op = op_alloc(ORANGEFS_VFS_OP_FS_UMOUNT);
-	if (!new_op)
-		return -ENOMEM;
-	new_op->upcall.req.fs_umount.id = ORANGEFS_SB(sb)->id;
-	new_op->upcall.req.fs_umount.fs_id = ORANGEFS_SB(sb)->fs_id;
-	strncpy(new_op->upcall.req.fs_umount.orangefs_config_server,
-		ORANGEFS_SB(sb)->devname,
-		ORANGEFS_MAX_SERVER_ADDR_LEN);
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Attempting ORANGEFS Unmount via host %s\n",
-		     new_op->upcall.req.fs_umount.orangefs_config_server);
-
-	ret = service_operation(new_op, "orangefs_fs_umount", 0);
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "orangefs_unmount: got return value of %d\n", ret);
-	if (ret)
-		sb = ERR_PTR(ret);
-	else
-		ORANGEFS_SB(sb)->mount_pending = 1;
-
-	op_release(new_op);
 	return ret;
 }
 

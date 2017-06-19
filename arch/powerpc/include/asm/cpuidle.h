@@ -2,13 +2,39 @@
 #define _ASM_POWERPC_CPUIDLE_H
 
 #ifdef CONFIG_PPC_POWERNV
-/* Used in powernv idle state management */
+/* Thread state used in powernv idle state management */
 #define PNV_THREAD_RUNNING              0
 #define PNV_THREAD_NAP                  1
 #define PNV_THREAD_SLEEP                2
 #define PNV_THREAD_WINKLE               3
-#define PNV_CORE_IDLE_LOCK_BIT          0x100
-#define PNV_CORE_IDLE_THREAD_BITS       0x0FF
+
+/*
+ * Core state used in powernv idle for POWER8.
+ *
+ * The lock bit synchronizes updates to the state, as well as parts of the
+ * sleep/wake code (see kernel/idle_book3s.S).
+ *
+ * Bottom 8 bits track the idle state of each thread. Bit is cleared before
+ * the thread executes an idle instruction (nap/sleep/winkle).
+ *
+ * Then there is winkle tracking. A core does not lose complete state
+ * until every thread is in winkle. So the winkle count field counts the
+ * number of threads in winkle (small window of false positives is okay
+ * around the sleep/wake, so long as there are no false negatives).
+ *
+ * When the winkle count reaches 8 (the COUNT_ALL_BIT becomes set), then
+ * the THREAD_WINKLE_BITS are set, which indicate which threads have not
+ * yet woken from the winkle state.
+ */
+#define PNV_CORE_IDLE_LOCK_BIT			0x10000000
+
+#define PNV_CORE_IDLE_WINKLE_COUNT		0x00010000
+#define PNV_CORE_IDLE_WINKLE_COUNT_ALL_BIT	0x00080000
+#define PNV_CORE_IDLE_WINKLE_COUNT_BITS		0x000F0000
+#define PNV_CORE_IDLE_THREAD_WINKLE_BITS_SHIFT	8
+#define PNV_CORE_IDLE_THREAD_WINKLE_BITS	0x0000FF00
+
+#define PNV_CORE_IDLE_THREAD_BITS       	0x000000FF
 
 /*
  * ============================ NOTE =================================
@@ -46,6 +72,7 @@ extern u32 pnv_fastsleep_workaround_at_exit[];
 
 extern u64 pnv_first_deep_stop_state;
 
+unsigned long pnv_cpu_offline(unsigned int cpu);
 int validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags);
 static inline void report_invalid_psscr_val(u64 psscr_val, int err)
 {

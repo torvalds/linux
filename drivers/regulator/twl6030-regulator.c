@@ -456,8 +456,6 @@ static int twl6030smps_map_voltage(struct regulator_dev *rdev, int min_uV,
 			vsel = 60;
 		else if ((min_uV > 1350000) && (min_uV <= 1500000))
 			vsel = 59;
-		else if ((min_uV > 1300000) && (min_uV <= 1350000))
-			vsel = 58;
 		else
 			return -EINVAL;
 		break;

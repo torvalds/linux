@@ -442,23 +442,16 @@ static void set_link_state(struct dummy_hcd *dum_hcd)
 		/* Report reset and disconnect events to the driver */
 		if (dum->driver && (disconnect || reset)) {
 			stop_activity(dum);
-			spin_unlock(&dum->lock);
 			if (reset)
 				usb_gadget_udc_reset(&dum->gadget, dum->driver);
 			else
 				dum->driver->disconnect(&dum->gadget);
-			spin_lock(&dum->lock);
 		}
 	} else if (dum_hcd->active != dum_hcd->old_active) {
-		if (dum_hcd->old_active && dum->driver->suspend) {
-			spin_unlock(&dum->lock);
+		if (dum_hcd->old_active && dum->driver->suspend)
 			dum->driver->suspend(&dum->gadget);
-			spin_lock(&dum->lock);
-		} else if (!dum_hcd->old_active &&  dum->driver->resume) {
-			spin_unlock(&dum->lock);
+		else if (!dum_hcd->old_active &&  dum->driver->resume)
 			dum->driver->resume(&dum->gadget);
-			spin_lock(&dum->lock);
-		}
 	}
 
 	dum_hcd->old_status = dum_hcd->port_status;
@@ -983,7 +976,9 @@ static int dummy_udc_stop(struct usb_gadget *g)
 	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(g);
 	struct dummy		*dum = dum_hcd->dum;
 
+	spin_lock_irq(&dum->lock);
 	dum->driver = NULL;
+	spin_unlock_irq(&dum->lock);
 
 	return 0;
 }
@@ -2008,7 +2003,7 @@ ss_hub_descriptor(struct usb_hub_descriptor *desc)
 			HUB_CHAR_COMMON_OCPM);
 	desc->bNbrPorts = 1;
 	desc->u.ss.bHubHdrDecLat = 0x04; /* Worst case: 0.4 micro sec*/
-	desc->u.ss.DeviceRemovable = 0xffff;
+	desc->u.ss.DeviceRemovable = 0;
 }
 
 static inline void hub_descriptor(struct usb_hub_descriptor *desc)
@@ -2020,8 +2015,8 @@ static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 			HUB_CHAR_INDV_PORT_LPSM |
 			HUB_CHAR_COMMON_OCPM);
 	desc->bNbrPorts = 1;
-	desc->u.hs.DeviceRemovable[0] = 0xff;
-	desc->u.hs.DeviceRemovable[1] = 0xff;
+	desc->u.hs.DeviceRemovable[0] = 0;
+	desc->u.hs.DeviceRemovable[1] = 0xff;	/* PortPwrCtrlMask */
 }
 
 static int dummy_hub_control(
@@ -2062,16 +2057,13 @@ static int dummy_hub_control(
 			}
 			break;
 		case USB_PORT_FEAT_POWER:
-			if (hcd->speed == HCD_USB3) {
-				if (dum_hcd->port_status & USB_PORT_STAT_POWER)
-					dev_dbg(dummy_dev(dum_hcd),
-						"power-off\n");
-			} else
-				if (dum_hcd->port_status &
-							USB_SS_PORT_STAT_POWER)
-					dev_dbg(dummy_dev(dum_hcd),
-						"power-off\n");
-			/* FALLS THROUGH */
+			dev_dbg(dummy_dev(dum_hcd), "power-off\n");
+			if (hcd->speed == HCD_USB3)
+				dum_hcd->port_status &= ~USB_SS_PORT_STAT_POWER;
+			else
+				dum_hcd->port_status &= ~USB_PORT_STAT_POWER;
+			set_link_state(dum_hcd);
+			break;
 		default:
 			dum_hcd->port_status &= ~(1 << wValue);
 			set_link_state(dum_hcd);
@@ -2242,14 +2234,13 @@ static int dummy_hub_control(
 				if ((dum_hcd->port_status &
 				     USB_SS_PORT_STAT_POWER) != 0) {
 					dum_hcd->port_status |= (1 << wValue);
-					set_link_state(dum_hcd);
 				}
 			} else
 				if ((dum_hcd->port_status &
 				     USB_PORT_STAT_POWER) != 0) {
 					dum_hcd->port_status |= (1 << wValue);
-					set_link_state(dum_hcd);
 				}
+			set_link_state(dum_hcd);
 		}
 		break;
 	case GetPortErrorCount:

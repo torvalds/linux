@@ -1,4 +1,3 @@
-
 #include "parse-events.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -6,8 +5,15 @@
 #include "tests.h"
 #include "debug.h"
 #include "util.h"
+#include <dirent.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <linux/kernel.h>
 #include <linux/hw_breakpoint.h>
 #include <api/fs/fs.h>
+#include <api/fs/tracing_path.h>
 
 #define PERF_TP_SAMPLE_TYPE (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | \
 			     PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD)

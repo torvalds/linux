@@ -52,6 +52,8 @@ extern u8 acpi_sci_flags;
 extern int acpi_sci_override_gsi;
 void acpi_pic_sci_set_trigger(unsigned int, u16);
 
+struct device;
+
 extern int (*__acpi_register_gsi)(struct device *dev, u32 gsi,
 				  int trigger, int polarity);
 extern void (*__acpi_unregister_gsi)(u32 gsi);

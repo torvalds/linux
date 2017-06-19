@@ -45,12 +45,30 @@ struct nbio_pcie_index_data {
 	u32 index_offset;
 	u32 data_offset;
 };
-// Register Access Macro
+
+/* Register Access Macros */
 #define SOC15_REG_OFFSET(ip, inst, reg)       (0 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG0 + reg : \
                                                 (1 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG1 + reg : \
                                                     (2 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG2 + reg : \
                                                         (3 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG3 + reg : \
                                                             (ip##_BASE__INST##inst##_SEG4 + reg)))))
+
+#define WREG32_FIELD15(ip, idx, reg, field, val)	\
+	WREG32(SOC15_REG_OFFSET(ip, idx, mm##reg), (RREG32(SOC15_REG_OFFSET(ip, idx, mm##reg)) & ~REG_FIELD_MASK(reg, field)) | (val) << REG_FIELD_SHIFT(reg, field))
+
+#define RREG32_SOC15(ip, inst, reg) \
+	RREG32( (0 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG0 + reg : \
+		(1 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG1 + reg : \
+		(2 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG2 + reg : \
+		(3 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG3 + reg : \
+		(ip##_BASE__INST##inst##_SEG4 + reg))))))
+
+#define WREG32_SOC15(ip, inst, reg, value) \
+	WREG32( (0 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG0 + reg : \
+		(1 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG1 + reg : \
+		(2 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG2 + reg : \
+		(3 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG3 + reg : \
+		(ip##_BASE__INST##inst##_SEG4 + reg))))), value)
 
 #endif
 

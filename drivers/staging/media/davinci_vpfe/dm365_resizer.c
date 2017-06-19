@@ -1133,9 +1133,9 @@ void vpfe_resizer_buffer_isr(struct vpfe_resizer_device *resizer)
 		}
 	} else if (fid == 0) {
 		/*
-		* out of sync. Recover from any hardware out-of-sync.
-		* May loose one frame
-		*/
+		 * out of sync. Recover from any hardware out-of-sync.
+		 * May loose one frame
+		 */
 		video_out->field_id = fid;
 	}
 }

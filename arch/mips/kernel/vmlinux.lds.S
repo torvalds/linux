@@ -97,6 +97,7 @@ SECTIONS
 		DATA_DATA
 		CONSTRUCTORS
 	}
+	BUG_TABLE
 	_gp = . + 0x8000;
 	.lit8 : {
 		*(.lit8)

@@ -18,20 +18,40 @@
 		};
 	};
 
-	clocks {
-		clk_clkin: clk_clkin {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <48000000>;
-		};
-
-	};
-
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		fmc: flash-controller@1e620000 {
+			reg = < 0x1e620000 0x94
+				0x20000000 0x02000000 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "aspeed,ast2400-fmc";
+			status = "disabled";
+			interrupts = <19>;
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+		};
+
+		spi: flash-controller@1e630000 {
+			reg = < 0x1e630000 0x18
+				0x30000000 0x02000000 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "aspeed,ast2400-spi";
+			status = "disabled";
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+		};
 
 		vic: interrupt-controller@1e6c0080 {
 			compatible = "aspeed,ast2400-vic";
@@ -42,18 +62,16 @@
 		};
 
 		mac0: ethernet@1e660000 {
-			compatible = "faraday,ftgmac100";
+			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
 			reg = <0x1e660000 0x180>;
 			interrupts = <2>;
-			no-hw-checksum;
 			status = "disabled";
 		};
 
 		mac1: ethernet@1e680000 {
-			compatible = "faraday,ftgmac100";
+			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
 			reg = <0x1e680000 0x180>;
 			interrupts = <3>;
-			no-hw-checksum;
 			status = "disabled";
 		};
 
@@ -63,16 +81,48 @@
 			#size-cells = <1>;
 			ranges;
 
-			clk_hpll: clk_hpll@1e6e2070 {
-				#clock-cells = <0>;
-				compatible = "aspeed,g4-hpll-clock";
-				reg = <0x1e6e2070 0x4>;
-				clocks = <&clk_clkin>;
-			};
-
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,g4-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1a8>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+                                clk_clkin: clk_clkin {
+                                        #clock-cells = <0>;
+                                        compatible = "fixed-clock";
+                                        clock-frequency = <48000000>;
+                                };
+
+                                clk_hpll: clk_hpll@70 {
+                                        #clock-cells = <0>;
+                                        compatible = "aspeed,g4-hpll-clock", "fixed-clock";
+                                        reg = <0x70>;
+                                        clocks = <&clk_clkin>;
+                                        clock-frequency = <384000000>;
+                                };
+
+                                clk_ahb: clk_ahb@70 {
+                                        #clock-cells = <0>;
+                                        compatible = "aspeed,g4-ahb-clock", "fixed-clock";
+                                        reg = <0x70>;
+                                        clocks = <&clk_hpll>;
+                                        clock-frequency = <192000000>;
+                                };
+
+                                clk_apb: clk_apb@08 {
+                                        #clock-cells = <0>;
+                                        compatible = "aspeed,g4-apb-clock", "fixed-clock";
+                                        reg = <0x08>;
+                                        clocks = <&clk_hpll>;
+                                        clock-frequency = <48000000>;
+                                };
+
+                                clk_uart: clk_uart@2c{
+                                        #clock-cells = <0>;
+                                        compatible = "aspeed,g4-uart-clock", "fixed-clock";
+                                        reg = <0x2c>;
+                                        clock-frequency = <24000000>;
+                                };
 
 				pinctrl: pinctrl {
 					compatible = "aspeed,g4-pinctrl";
@@ -820,19 +870,6 @@
 				};
 			};
 
-			clk_apb: clk_apb@1e6e2008 {
-				#clock-cells = <0>;
-				compatible = "aspeed,g4-apb-clock";
-				reg = <0x1e6e2008 0x4>;
-				clocks = <&clk_hpll>;
-			};
-
-			clk_uart: clk_uart@1e6e2008 {
-				#clock-cells = <0>;
-				compatible = "aspeed,uart-clock";
-				reg = <0x1e6e202c 0x4>;
-			};
-
 			sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x8000>;	// 32K
@@ -859,13 +896,13 @@
 			};
 
 			wdt1: wdt@1e785000 {
-				compatible = "aspeed,wdt";
+				compatible = "aspeed,ast2400-wdt";
 				reg = <0x1e785000 0x1c>;
 				interrupts = <27>;
 			};
 
 			wdt2: wdt@1e785020 {
-				compatible = "aspeed,wdt";
+				compatible = "aspeed,ast2400-wdt";
 				reg = <0x1e785020 0x1c>;
 				interrupts = <27>;
 				clocks = <&clk_apb>;
@@ -930,6 +967,14 @@
 				interrupts = <10>;
 				clocks = <&clk_uart>;
 				no-loopback-test;
+				status = "disabled";
+			};
+
+			adc: adc@1e6e9000 {
+				compatible = "aspeed,ast2400-adc";
+				reg = <0x1e6e9000 0xb0>;
+				clocks = <&clk_apb>;
+				#io-channel-cells = <1>;
 				status = "disabled";
 			};
 		};

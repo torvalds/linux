@@ -2377,7 +2377,7 @@ static void ack_dbb_wakeup(void)
 
 static inline void print_unknown_header_warning(u8 n, u8 header)
 {
-	pr_warning("prcmu: Unknown message header (%d) in mailbox %d.\n",
+	pr_warn("prcmu: Unknown message header (%d) in mailbox %d\n",
 		header, n);
 }
 

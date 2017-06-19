@@ -709,34 +709,37 @@ void set_section_perms(struct section_perm *perms, int n, bool set,
 
 }
 
+/**
+ * update_sections_early intended to be called only through stop_machine
+ * framework and executed by only one CPU while all other CPUs will spin and
+ * wait, so no locking is required in this function.
+ */
 static void update_sections_early(struct section_perm perms[], int n)
 {
 	struct task_struct *t, *s;
 
-	read_lock(&tasklist_lock);
 	for_each_process(t) {
 		if (t->flags & PF_KTHREAD)
 			continue;
 		for_each_thread(t, s)
 			set_section_perms(perms, n, true, s->mm);
 	}
-	read_unlock(&tasklist_lock);
 	set_section_perms(perms, n, true, current->active_mm);
 	set_section_perms(perms, n, true, &init_mm);
 }
 
-int __fix_kernmem_perms(void *unused)
+static int __fix_kernmem_perms(void *unused)
 {
 	update_sections_early(nx_perms, ARRAY_SIZE(nx_perms));
 	return 0;
 }
 
-void fix_kernmem_perms(void)
+static void fix_kernmem_perms(void)
 {
 	stop_machine(__fix_kernmem_perms, NULL, NULL);
 }
 
-int __mark_rodata_ro(void *unused)
+static int __mark_rodata_ro(void *unused)
 {
 	update_sections_early(ro_perms, ARRAY_SIZE(ro_perms));
 	return 0;

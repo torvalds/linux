@@ -2100,14 +2100,14 @@ qla25xx_process_bidir_status_iocb(scsi_qla_host_t *vha, void *pkt,
 
 	case CS_DATA_OVERRUN:
 		ql_dbg(ql_dbg_user, vha, 0x70b1,
-		    "Command completed with date overrun thread_id=%d\n",
+		    "Command completed with data overrun thread_id=%d\n",
 		    thread_id);
 		rval = EXT_STATUS_DATA_OVERRUN;
 		break;
 
 	case CS_DATA_UNDERRUN:
 		ql_dbg(ql_dbg_user, vha, 0x70b2,
-		    "Command completed with date underrun thread_id=%d\n",
+		    "Command completed with data underrun thread_id=%d\n",
 		    thread_id);
 		rval = EXT_STATUS_DATA_UNDERRUN;
 		break;
@@ -2134,7 +2134,7 @@ qla25xx_process_bidir_status_iocb(scsi_qla_host_t *vha, void *pkt,
 
 	case CS_BIDIR_RD_UNDERRUN:
 		ql_dbg(ql_dbg_user, vha, 0x70b6,
-		    "Command completed with read data data underrun "
+		    "Command completed with read data underrun "
 		    "thread_id=%d\n", thread_id);
 		rval = EXT_STATUS_DATA_UNDERRUN;
 		break;
@@ -3282,7 +3282,7 @@ msix_register_fail:
 	}
 
 	/* Enable MSI-X vector for response queue update for queue 0 */
-	if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+	if (IS_QLA25XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
 		if (ha->msixbase && ha->mqiobase &&
 		    (ha->max_rsp_queues > 1 || ha->max_req_queues > 1 ||
 		     ql2xmqsupport))

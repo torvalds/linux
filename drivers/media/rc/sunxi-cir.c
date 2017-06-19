@@ -174,16 +174,11 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 
 	/* Reset (optional) */
 	ir->rst = devm_reset_control_get_optional(dev, NULL);
-	if (IS_ERR(ir->rst)) {
-		ret = PTR_ERR(ir->rst);
-		if (ret == -EPROBE_DEFER)
-			return ret;
-		ir->rst = NULL;
-	} else {
-		ret = reset_control_deassert(ir->rst);
-		if (ret)
-			return ret;
-	}
+	if (IS_ERR(ir->rst))
+		return PTR_ERR(ir->rst);
+	ret = reset_control_deassert(ir->rst);
+	if (ret)
+		return ret;
 
 	ret = clk_set_rate(ir->clk, SUNXI_IR_BASE_CLK);
 	if (ret) {
@@ -291,8 +286,7 @@ exit_clkdisable_clk:
 exit_clkdisable_apb_clk:
 	clk_disable_unprepare(ir->apb_clk);
 exit_reset_assert:
-	if (ir->rst)
-		reset_control_assert(ir->rst);
+	reset_control_assert(ir->rst);
 
 	return ret;
 }
@@ -304,8 +298,7 @@ static int sunxi_ir_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ir->clk);
 	clk_disable_unprepare(ir->apb_clk);
-	if (ir->rst)
-		reset_control_assert(ir->rst);
+	reset_control_assert(ir->rst);
 
 	spin_lock_irqsave(&ir->ir_lock, flags);
 	/* disable IR IRQ */
