@@ -371,6 +371,13 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 					       irq_data);
 		if (err)
 			goto error;
+		/*
+		 * If the apic destination mode is physical, then the
+		 * effective affinity is restricted to a single target
+		 * CPU. Mark the interrupt accordingly.
+		 */
+		if (!apic->irq_dest_mode)
+			irqd_set_single_target(irq_data);
 	}
 
 	return 0;
