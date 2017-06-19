@@ -2350,6 +2350,11 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	blk_queue_make_request(q, blk_mq_make_request);
 
 	/*
+	 * by default assume old behaviour and bounce for any highmem page
+	 */
+	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
+
+	/*
 	 * Do this after blk_queue_make_request() overrides it...
 	 */
 	q->nr_requests = set->queue_depth;

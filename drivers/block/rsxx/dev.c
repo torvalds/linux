@@ -284,7 +284,6 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 	}
 
 	blk_queue_make_request(card->queue, rsxx_make_request);
-	blk_queue_bounce_limit(card->queue, BLK_BOUNCE_ANY);
 	blk_queue_max_hw_sectors(card->queue, blkdev_max_hw_sectors);
 	blk_queue_physical_block_size(card->queue, RSXX_HW_BLK_SIZE);
 

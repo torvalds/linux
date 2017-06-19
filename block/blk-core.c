@@ -989,6 +989,11 @@ int blk_init_allocated_queue(struct request_queue *q)
 	 */
 	blk_queue_make_request(q, blk_queue_bio);
 
+	/*
+	 * by default assume old behaviour and bounce for any highmem page
+	 */
+	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
+
 	q->sg_reserved_size = INT_MAX;
 
 	/* Protect q->elevator from elevator_change */
