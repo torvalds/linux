@@ -199,9 +199,10 @@ static int dma_map_inbufs(struct nitrox_softreq *sr,
 	sr->in.sglist = glist;
 	/* map IV */
 	dma = dma_map_single(dev, &req->iv, req->ivsize, DMA_BIDIRECTIONAL);
-	ret = dma_mapping_error(dev, dma);
-	if (ret)
+	if (dma_mapping_error(dev, dma)) {
+		ret = -EINVAL;
 		goto iv_map_err;
+	}
 
 	sr->in.dir = (req->src == req->dst) ? DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
 	/* map src entries */
@@ -268,16 +269,18 @@ static int dma_map_outbufs(struct nitrox_softreq *sr,
 	/* map ORH */
 	sr->resp.orh_dma = dma_map_single(dev, &sr->resp.orh, ORH_HLEN,
 					  sr->out.dir);
-	ret = dma_mapping_error(dev, sr->resp.orh_dma);
-	if (ret)
+	if (dma_mapping_error(dev, sr->resp.orh_dma)) {
+		ret = -EINVAL;
 		goto orh_map_err;
+	}
 
 	/* map completion */
 	sr->resp.completion_dma = dma_map_single(dev, &sr->resp.completion,
 						 COMP_HLEN, sr->out.dir);
-	ret = dma_mapping_error(dev, sr->resp.completion_dma);
-	if (ret)
+	if (dma_mapping_error(dev, sr->resp.completion_dma)) {
+		ret = -EINVAL;
 		goto compl_map_err;
+	}
 
 	sr->inplace = (req->src == req->dst) ? true : false;
 	/* out place */
