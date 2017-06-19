@@ -1,6 +1,5 @@
 /*
- * Marvell 88E6xxx Switch Global 2 Registers support (device address
- * 0x1C)
+ * Marvell 88E6xxx Switch Global 2 Registers support
  *
  * Copyright (c) 2008 Marvell Semiconductor
  *
@@ -23,22 +22,22 @@
 
 static int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
 {
-	return mv88e6xxx_read(chip, ADDR_GLOBAL2, reg, val);
+	return mv88e6xxx_read(chip, MV88E6XXX_G2, reg, val);
 }
 
 static int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
 {
-	return mv88e6xxx_write(chip, ADDR_GLOBAL2, reg, val);
+	return mv88e6xxx_write(chip, MV88E6XXX_G2, reg, val);
 }
 
 static int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update)
 {
-	return mv88e6xxx_update(chip, ADDR_GLOBAL2, reg, update);
+	return mv88e6xxx_update(chip, MV88E6XXX_G2, reg, update);
 }
 
 static int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 {
-	return mv88e6xxx_wait(chip, ADDR_GLOBAL2, reg, mask);
+	return mv88e6xxx_wait(chip, MV88E6XXX_G2, reg, mask);
 }
 
 /* Offset 0x02: Management Enable 2x */
@@ -258,7 +257,7 @@ static int mv88e6xxx_g2_pot_write(struct mv88e6xxx_chip *chip, int pointer,
 {
 	u16 val = (pointer << 8) | (data & 0x7);
 
-	return mv88e6xxx_g2_update(chip, GLOBAL2_PRIO_OVERRIDE, val);
+	return mv88e6xxx_g2_update(chip, MV88E6XXX_G2_PRIO_OVERRIDE, val);
 }
 
 static int mv88e6xxx_g2_clear_pot(struct mv88e6xxx_chip *chip)
@@ -864,7 +863,7 @@ static int mv88e6xxx_g2_watchdog_setup(struct mv88e6xxx_chip *chip)
 	int err;
 
 	chip->watchdog_irq = irq_find_mapping(chip->g2_irq.domain,
-					      GLOBAL2_INT_SOURCE_WATCHDOG);
+					      MV88E6XXX_G2_INT_SOURCE_WATCHDOG);
 	if (chip->watchdog_irq < 0)
 		return chip->watchdog_irq;
 
@@ -891,16 +890,16 @@ static int mv88e6xxx_g2_misc_5_bit_port(struct mv88e6xxx_chip *chip,
 	u16 val;
 	int err;
 
-	err = mv88e6xxx_g2_read(chip, GLOBAL2_MISC, &val);
+	err = mv88e6xxx_g2_read(chip, MV88E6XXX_G2_MISC, &val);
 	if (err)
 		return err;
 
 	if (port_5_bit)
-		val |= GLOBAL2_MISC_5_BIT_PORT;
+		val |= MV88E6XXX_G2_MISC_5_BIT_PORT;
 	else
-		val &= ~GLOBAL2_MISC_5_BIT_PORT;
+		val &= ~MV88E6XXX_G2_MISC_5_BIT_PORT;
 
-	return mv88e6xxx_g2_write(chip, GLOBAL2_MISC, val);
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MISC, val);
 }
 
 int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip)
@@ -934,7 +933,7 @@ static irqreturn_t mv88e6xxx_g2_irq_thread_fn(int irq, void *dev_id)
 	u16 reg;
 
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_g2_read(chip, GLOBAL2_INT_SOURCE, &reg);
+	err = mv88e6xxx_g2_read(chip, MV88E6XXX_G2_INT_SOURCE, &reg);
 	mutex_unlock(&chip->reg_lock);
 	if (err)
 		goto out;
@@ -961,7 +960,7 @@ static void mv88e6xxx_g2_irq_bus_sync_unlock(struct irq_data *d)
 {
 	struct mv88e6xxx_chip *chip = irq_data_get_irq_chip_data(d);
 
-	mv88e6xxx_g2_write(chip, GLOBAL2_INT_MASK, ~chip->g2_irq.masked);
+	mv88e6xxx_g2_write(chip, MV88E6XXX_G2_INT_MASK, ~chip->g2_irq.masked);
 
 	mutex_unlock(&chip->reg_lock);
 }

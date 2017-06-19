@@ -1,5 +1,5 @@
 /*
- * Marvell 88E6xxx Switch Global 2 Registers support (device address 0x1C)
+ * Marvell 88E6xxx Switch Global 2 Registers support
  *
  * Copyright (c) 2008 Marvell Semiconductor
  *
@@ -17,11 +17,14 @@
 
 #include "chip.h"
 
-#define ADDR_GLOBAL2	0x1c
+#define MV88E6XXX_G2	0x1c
 
-#define GLOBAL2_INT_SOURCE	0x00
-#define GLOBAL2_INT_SOURCE_WATCHDOG	15
-#define GLOBAL2_INT_MASK	0x01
+/* Offset 0x00: Interrupt Source Register */
+#define MV88E6XXX_G2_INT_SOURCE			0x00
+#define MV88E6XXX_G2_INT_SOURCE_WATCHDOG	15
+
+/* Offset 0x01: Interrupt Mask Register */
+#define MV88E6XXX_G2_INT_MASK	0x01
 
 /* Offset 0x02: MGMT Enable Register 2x */
 #define MV88E6XXX_G2_MGMT_EN_2X		0x02
@@ -29,7 +32,8 @@
 /* Offset 0x03: MGMT Enable Register 0x */
 #define MV88E6XXX_G2_MGMT_EN_0X		0x03
 
-#define GLOBAL2_FLOW_CONTROL	0x04
+/* Offset 0x04: Flow Control Delay Register */
+#define MV88E6XXX_G2_FLOW_CTL	0x04
 
 /* Offset 0x05: Switch Management Register */
 #define MV88E6XXX_G2_SWITCH_MGMT			0x05
@@ -98,12 +102,18 @@
 #define MV88E6XXX_G2_SWITCH_MAC_PTR_MASK	0x1f00
 #define MV88E6XXX_G2_SWITCH_MAC_DATA_MASK	0x00ff
 
-#define GLOBAL2_ATU_STATS	0x0e
-#define GLOBAL2_PRIO_OVERRIDE	0x0f
-#define GLOBAL2_PRIO_OVERRIDE_FORCE_SNOOP	BIT(7)
-#define GLOBAL2_PRIO_OVERRIDE_SNOOP_SHIFT	4
-#define GLOBAL2_PRIO_OVERRIDE_FORCE_ARP		BIT(3)
-#define GLOBAL2_PRIO_OVERRIDE_ARP_SHIFT		0
+/* Offset 0x0E: ATU Stats Register */
+#define MV88E6XXX_G2_ATU_STATS		0x0e
+
+/* Offset 0x0F: Priority Override Table */
+#define MV88E6XXX_G2_PRIO_OVERRIDE		0x0f
+#define MV88E6XXX_G2_PRIO_OVERRIDE_UPDATE	0x8000
+#define MV88E6XXX_G2_PRIO_OVERRIDE_FPRISET	0x1000
+#define MV88E6XXX_G2_PRIO_OVERRIDE_PTR_MASK	0x0f00
+#define MV88E6352_G2_PRIO_OVERRIDE_QPRIAVBEN	0x0080
+#define MV88E6352_G2_PRIO_OVERRIDE_DATAAVB_MASK	0x0030
+#define MV88E6XXX_G2_PRIO_OVERRIDE_QFPRIEN	0x0008
+#define MV88E6XXX_G2_PRIO_OVERRIDE_DATA_MASK	0x0007
 
 /* Offset 0x14: EEPROM Command */
 #define MV88E6XXX_G2_EEPROM_CMD			0x14
@@ -125,8 +135,11 @@
 #define MV88E6390_G2_EEPROM_ADDR	0x15
 #define MV88E6390_G2_EEPROM_ADDR_MASK	0xffff
 
-#define GLOBAL2_PTP_AVB_OP	0x16
-#define GLOBAL2_PTP_AVB_DATA	0x17
+/* Offset 0x16: AVB Command Register */
+#define MV88E6352_G2_AVB_CMD		0x16
+
+/* Offset 0x17: AVB Data Register */
+#define MV88E6352_G2_AVB_DATA		0x17
 
 /* Offset 0x18: SMI PHY Command Register */
 #define MV88E6XXX_G2_SMI_PHY_CMD			0x18
@@ -152,10 +165,11 @@
 /* Offset 0x19: SMI PHY Data Register */
 #define MV88E6XXX_G2_SMI_PHY_DATA	0x19
 
-#define GLOBAL2_SCRATCH_MISC	0x1a
-#define GLOBAL2_SCRATCH_BUSY		BIT(15)
-#define GLOBAL2_SCRATCH_REGISTER_SHIFT	8
-#define GLOBAL2_SCRATCH_VALUE_MASK	0xff
+/* Offset 0x1A: Scratch and Misc. Register */
+#define MV88E6XXX_G2_SCRATCH_MISC_MISC		0x1a
+#define MV88E6XXX_G2_SCRATCH_MISC_UPDATE	0x8000
+#define MV88E6XXX_G2_SCRATCH_MISC_PTR_MASK	0x7f00
+#define MV88E6XXX_G2_SCRATCH_MISC_DATA_MASK	0x00ff
 
 /* Offset 0x1B: Watch Dog Control Register */
 #define MV88E6352_G2_WDOG_CTL			0x1b
@@ -183,9 +197,18 @@
 #define MV88E6390_G2_WDOG_CTL_EGRESS			0x0002
 #define MV88E6390_G2_WDOG_CTL_FORCE_IRQ			0x0001
 
-#define GLOBAL2_QOS_WEIGHT	0x1c
-#define GLOBAL2_MISC		0x1d
-#define GLOBAL2_MISC_5_BIT_PORT	BIT(14)
+/* Offset 0x1C: QoS Weights Register */
+#define MV88E6XXX_G2_QOS_WEIGHTS		0x1c
+#define MV88E6XXX_G2_QOS_WEIGHTS_UPDATE		0x8000
+#define MV88E6352_G2_QOS_WEIGHTS_PTR_MASK	0x3f00
+#define MV88E6390_G2_QOS_WEIGHTS_PTR_MASK	0x7f00
+#define MV88E6XXX_G2_QOS_WEIGHTS_DATA_MASK	0x00ff
+
+/* Offset 0x1D: Misc Register */
+#define MV88E6XXX_G2_MISC		0x1d
+#define MV88E6XXX_G2_MISC_5_BIT_PORT	0x4000
+#define MV88E6352_G2_NOEGR_POLICY	0x2000
+#define MV88E6390_G2_LAG_ID_4		0x2000
 
 #ifdef CONFIG_NET_DSA_MV88E6XXX_GLOBAL2
 
