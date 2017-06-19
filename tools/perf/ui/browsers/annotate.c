@@ -46,12 +46,15 @@ static struct annotate_browser_opt {
 	.jump_arrows	= true,
 };
 
+struct arch;
+
 struct annotate_browser {
 	struct ui_browser b;
 	struct rb_root	  entries;
 	struct rb_node	  *curr_hot;
 	struct disasm_line  *selection;
 	struct disasm_line  **offsets;
+	struct arch	    *arch;
 	int		    nr_events;
 	u64		    start;
 	int		    nr_asm_entries;
@@ -1070,7 +1073,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		  (nr_pcnt - 1);
 	}
 
-	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel), sizeof_bdl);
+	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel),
+				  sizeof_bdl, &browser.arch);
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
