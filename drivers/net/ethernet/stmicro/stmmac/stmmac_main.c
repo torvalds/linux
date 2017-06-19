@@ -2965,7 +2965,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Manage oversized TCP frames for GMAC4 device */
 	if (skb_is_gso(skb) && priv->tso) {
-		if (ip_hdr(skb)->protocol == IPPROTO_TCP)
+		if (skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))
 			return stmmac_tso_xmit(skb, dev);
 	}
 
@@ -4126,7 +4126,7 @@ int stmmac_dvr_probe(struct device *device,
 			    NETIF_F_RXCSUM;
 
 	if ((priv->plat->tso_en) && (priv->dma_cap.tsoen)) {
-		ndev->hw_features |= NETIF_F_TSO;
+		ndev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
 		priv->tso = true;
 		dev_info(priv->device, "TSO feature enabled\n");
 	}
