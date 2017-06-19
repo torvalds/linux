@@ -534,6 +534,7 @@ static int apic_set_affinity(struct irq_data *irq_data,
 }
 
 static struct irq_chip lapic_controller = {
+	.name			= "APIC",
 	.irq_ack		= apic_ack_edge,
 	.irq_set_affinity	= apic_set_affinity,
 	.irq_retrigger		= apic_retrigger_irq,
