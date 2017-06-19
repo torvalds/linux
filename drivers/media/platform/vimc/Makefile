@@ -1,3 +1,6 @@
-vimc-objs := vimc-core.o vimc-capture.o vimc-common.o vimc-sensor.o
+vimc-objs := vimc-core.o
+vimc_capture-objs := vimc-capture.o
+vimc_common-objs := vimc-common.o
+vimc_sensor-objs := vimc-sensor.o
 
-obj-$(CONFIG_VIDEO_VIMC) += vimc.o
+obj-$(CONFIG_VIDEO_VIMC) += vimc.o vimc_capture.o vimc_common.o vimc_sensor.o

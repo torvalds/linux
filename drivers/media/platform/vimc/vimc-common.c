@@ -15,6 +15,9 @@
  *
  */
 
+#include <linux/init.h>
+#include <linux/module.h>
+
 #include "vimc-common.h"
 
 static const struct vimc_pix_map vimc_pix_map_list[] = {
@@ -151,6 +154,7 @@ const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i)
 
 	return &vimc_pix_map_list[i];
 }
+EXPORT_SYMBOL_GPL(vimc_pix_map_by_index);
 
 const struct vimc_pix_map *vimc_pix_map_by_code(u32 code)
 {
@@ -162,6 +166,7 @@ const struct vimc_pix_map *vimc_pix_map_by_code(u32 code)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(vimc_pix_map_by_code);
 
 const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat)
 {
@@ -173,6 +178,7 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(vimc_pix_map_by_pixelformat);
 
 int vimc_propagate_frame(struct media_pad *src, const void *frame)
 {
@@ -207,6 +213,7 @@ int vimc_propagate_frame(struct media_pad *src, const void *frame)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(vimc_propagate_frame);
 
 /* Helper function to allocate and initialize pads */
 struct media_pad *vimc_pads_init(u16 num_pads, const unsigned long *pads_flag)
@@ -227,6 +234,7 @@ struct media_pad *vimc_pads_init(u16 num_pads, const unsigned long *pads_flag)
 
 	return pads;
 }
+EXPORT_SYMBOL_GPL(vimc_pads_init);
 
 int vimc_pipeline_s_stream(struct media_entity *ent, int enable)
 {
@@ -242,14 +250,8 @@ int vimc_pipeline_s_stream(struct media_entity *ent, int enable)
 		/* Start the stream in the subdevice direct connected */
 		pad = media_entity_remote_pad(&ent->pads[i]);
 
-		/*
-		 * if this is a raw node from vimc-core, then there is
-		 * nothing to activate
-		 * TODO: remove this when there are no more raw nodes in the
-		 * core and return error instead
-		 */
-		if (pad->entity->obj_type == MEDIA_ENTITY_TYPE_BASE)
-			continue;
+		if (!is_media_entity_v4l2_subdev(pad->entity))
+			return -EINVAL;
 
 		sd = media_entity_to_v4l2_subdev(pad->entity);
 		ret = v4l2_subdev_call(sd, video, s_stream, enable);
@@ -259,6 +261,7 @@ int vimc_pipeline_s_stream(struct media_entity *ent, int enable)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(vimc_pipeline_s_stream);
 
 static int vimc_get_mbus_format(struct media_pad *pad,
 				struct v4l2_subdev_format *fmt)
@@ -300,14 +303,6 @@ int vimc_link_validate(struct media_link *link)
 {
 	struct v4l2_subdev_format source_fmt, sink_fmt;
 	int ret;
-
-	/*
-	 * if it is a raw node from vimc-core, ignore the link for now
-	 * TODO: remove this when there are no more raw nodes in the
-	 * core and return error instead
-	 */
-	if (link->source->entity->obj_type == MEDIA_ENTITY_TYPE_BASE)
-		return 0;
 
 	ret = vimc_get_mbus_format(link->source, &source_fmt);
 	if (ret)
@@ -378,6 +373,7 @@ int vimc_link_validate(struct media_link *link)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(vimc_link_validate);
 
 static const struct media_entity_operations vimc_ent_sd_mops = {
 	.link_validate = vimc_link_validate,
@@ -390,8 +386,7 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 u32 function,
 			 u16 num_pads,
 			 const unsigned long *pads_flag,
-			 const struct v4l2_subdev_ops *sd_ops,
-			 void (*sd_destroy)(struct vimc_ent_device *))
+			 const struct v4l2_subdev_ops *sd_ops)
 {
 	int ret;
 
@@ -401,7 +396,6 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 		return PTR_ERR(ved->pads);
 
 	/* Fill the vimc_ent_device struct */
-	ved->destroy = sd_destroy;
 	ved->ent = &sd->entity;
 
 	/* Initialize the subdev */
@@ -437,6 +431,7 @@ err_clean_pads:
 	vimc_pads_cleanup(ved->pads);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(vimc_ent_sd_register);
 
 void vimc_ent_sd_unregister(struct vimc_ent_device *ved, struct v4l2_subdev *sd)
 {
@@ -444,3 +439,8 @@ void vimc_ent_sd_unregister(struct vimc_ent_device *ved, struct v4l2_subdev *sd)
 	media_entity_cleanup(ved->ent);
 	vimc_pads_cleanup(ved->pads);
 }
+EXPORT_SYMBOL_GPL(vimc_ent_sd_unregister);
+
+MODULE_DESCRIPTION("Virtual Media Controller Driver (VIMC) Common");
+MODULE_AUTHOR("Helen Koike <helen.fornazier@gmail.com>");
+MODULE_LICENSE("GPL");

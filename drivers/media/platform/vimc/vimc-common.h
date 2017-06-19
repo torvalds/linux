@@ -1,5 +1,5 @@
 /*
- * vimc-ccommon.h Virtual Media Controller Driver
+ * vimc-common.h Virtual Media Controller Driver
  *
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
  *
@@ -54,6 +54,21 @@ do {									\
 } while (0)
 
 /**
+ * struct vimc_platform_data - platform data to components
+ *
+ * @entity_name:	The name of the entity to be created
+ *
+ * Board setup code will often provide additional information using the device's
+ * platform_data field to hold additional information.
+ * When injecting a new platform_device in the component system the core needs
+ * to provide to the corresponding submodules the name of the entity that should
+ * be used when registering the subdevice in the Media Controller system.
+ */
+struct vimc_platform_data {
+	char entity_name[32];
+};
+
+/**
  * struct vimc_pix_map - maps media bus code with v4l2 pixel format
  *
  * @code:		media bus format code defined by MEDIA_BUS_FMT_* macros
@@ -74,7 +89,6 @@ struct vimc_pix_map {
  *
  * @ent:		the pointer to struct media_entity for the node
  * @pads:		the list of pads of the node
- * @destroy:		callback to destroy the node
  * @process_frame:	callback send a frame to that node
  * @vdev_get_format:	callback that returns the current format a pad, used
  *			only when is_media_entity_v4l2_video_device(ent) returns
@@ -91,7 +105,6 @@ struct vimc_pix_map {
 struct vimc_ent_device {
 	struct media_entity *ent;
 	struct media_pad *pads;
-	void (*destroy)(struct vimc_ent_device *);
 	void (*process_frame)(struct vimc_ent_device *ved,
 			      struct media_pad *sink, const void *frame);
 	void (*vdev_get_format)(struct vimc_ent_device *ved,
@@ -176,7 +189,6 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
  * @num_pads:	number of pads to initialize
  * @pads_flag:	flags to use in each pad
  * @sd_ops:	pointer to &struct v4l2_subdev_ops.
- * @sd_destroy:	callback to destroy the node
  *
  * Helper function initialize and register the struct vimc_ent_device and struct
  * v4l2_subdev which represents a subdev node in the topology
@@ -188,14 +200,13 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 u32 function,
 			 u16 num_pads,
 			 const unsigned long *pads_flag,
-			 const struct v4l2_subdev_ops *sd_ops,
-			 void (*sd_destroy)(struct vimc_ent_device *));
+			 const struct v4l2_subdev_ops *sd_ops);
 
 /**
- * vimc_ent_sd_register - initialize and register a subdev node
+ * vimc_ent_sd_unregister - cleanup and unregister a subdev node
  *
- * @ved:	the vimc_ent_device struct to be initialize
- * @sd:		the v4l2_subdev struct to be initialize and registered
+ * @ved:	the vimc_ent_device struct to be cleaned up
+ * @sd:		the v4l2_subdev struct to be unregistered
  *
  * Helper function cleanup and unregister the struct vimc_ent_device and struct
  * v4l2_subdev which represents a subdev node in the topology
