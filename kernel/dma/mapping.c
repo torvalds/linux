@@ -314,12 +314,14 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
 /*
  * unmaps a range previously mapped by dma_common_*_remap
  */
-void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
+void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags,
+			   bool no_warn)
 {
 	struct vm_struct *area = find_vm_area(cpu_addr);
 
 	if (!area || (area->flags & vm_flags) != vm_flags) {
-		WARN(1, "trying to free invalid coherent area: %p\n", cpu_addr);
+		WARN(!no_warn, "trying to free invalid coherent area: %p\n",
+			cpu_addr);
 		return;
 	}
 
