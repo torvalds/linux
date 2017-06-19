@@ -65,7 +65,7 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
 
 	r = clk_get_sys(NULL, clk_name);
 
-	if (IS_ERR(r) && of_have_populated_dt()) {
+	if (IS_ERR(r)) {
 		struct of_phandle_args clkspec;
 
 		clkspec.np = of_find_node_by_name(NULL, clk_name);
@@ -952,9 +952,6 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 static int __init omap_device_late_init(void)
 {
 	bus_for_each_dev(&platform_bus_type, NULL, NULL, omap_device_late_idle);
-
-	WARN(!of_have_populated_dt(),
-		"legacy booting deprecated, please update to boot with .dts\n");
 
 	return 0;
 }
