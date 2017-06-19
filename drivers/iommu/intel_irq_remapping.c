@@ -1205,10 +1205,11 @@ static int intel_ir_set_vcpu_affinity(struct irq_data *data, void *info)
 }
 
 static struct irq_chip intel_ir_chip = {
-	.irq_ack = ir_ack_apic_edge,
-	.irq_set_affinity = intel_ir_set_affinity,
-	.irq_compose_msi_msg = intel_ir_compose_msi_msg,
-	.irq_set_vcpu_affinity = intel_ir_set_vcpu_affinity,
+	.name			= "INTEL-IR",
+	.irq_ack		= ir_ack_apic_edge,
+	.irq_set_affinity	= intel_ir_set_affinity,
+	.irq_compose_msi_msg	= intel_ir_compose_msi_msg,
+	.irq_set_vcpu_affinity	= intel_ir_set_vcpu_affinity,
 };
 
 static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
