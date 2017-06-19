@@ -514,7 +514,7 @@ EXC_REAL_BEGIN(data_access_slb, 0x380, 0x80)
 	mfspr	r3,SPRN_DAR
 	mfspr	r11,SPRN_SRR1
 	crset	4*cr6+eq
-	BRANCH_TO_COMMON(r10, slb_miss_realmode)
+	BRANCH_TO_COMMON(r10, slb_miss_common)
 EXC_REAL_END(data_access_slb, 0x380, 0x80)
 
 EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
@@ -525,7 +525,7 @@ EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
 	mfspr	r3,SPRN_DAR
 	mfspr	r11,SPRN_SRR1
 	crset	4*cr6+eq
-	BRANCH_TO_COMMON(r10, slb_miss_realmode)
+	BRANCH_TO_COMMON(r10, slb_miss_common)
 EXC_VIRT_END(data_access_slb, 0x4380, 0x80)
 TRAMP_KVM_SKIP(PACA_EXSLB, 0x380)
 
@@ -558,7 +558,7 @@ EXC_REAL_BEGIN(instruction_access_slb, 0x480, 0x80)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 	mfspr	r11,SPRN_SRR1
 	crclr	4*cr6+eq
-	BRANCH_TO_COMMON(r10, slb_miss_realmode)
+	BRANCH_TO_COMMON(r10, slb_miss_common)
 EXC_REAL_END(instruction_access_slb, 0x480, 0x80)
 
 EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
@@ -569,13 +569,16 @@ EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 	mfspr	r11,SPRN_SRR1
 	crclr	4*cr6+eq
-	BRANCH_TO_COMMON(r10, slb_miss_realmode)
+	BRANCH_TO_COMMON(r10, slb_miss_common)
 EXC_VIRT_END(instruction_access_slb, 0x4480, 0x80)
 TRAMP_KVM(PACA_EXSLB, 0x480)
 
 
-/* This handler is used by both 0x380 and 0x480 slb miss interrupts */
-EXC_COMMON_BEGIN(slb_miss_realmode)
+/*
+ * This handler is used by the 0x380 and 0x480 SLB miss interrupts, as well as
+ * the virtual mode 0x4380 and 0x4480 interrupts if AIL is enabled.
+ */
+EXC_COMMON_BEGIN(slb_miss_common)
 	/*
 	 * r13 points to the PACA, r9 contains the saved CR,
 	 * r12 contains the saved r3,
