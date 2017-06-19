@@ -418,6 +418,22 @@ int ceph_pg_compare(const struct ceph_pg *lhs, const struct ceph_pg *rhs)
 	return 0;
 }
 
+int ceph_spg_compare(const struct ceph_spg *lhs, const struct ceph_spg *rhs)
+{
+	int ret;
+
+	ret = ceph_pg_compare(&lhs->pgid, &rhs->pgid);
+	if (ret)
+		return ret;
+
+	if (lhs->shard < rhs->shard)
+		return -1;
+	if (lhs->shard > rhs->shard)
+		return 1;
+
+	return 0;
+}
+
 /*
  * rbtree of pg_mapping for handling pg_temp (explicit mapping of pgid
  * to a set of osds) and primary_temp (explicit primary setting)

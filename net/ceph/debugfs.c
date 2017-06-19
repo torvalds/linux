@@ -243,6 +243,73 @@ static void dump_linger_requests(struct seq_file *s, struct ceph_osd *osd)
 	mutex_unlock(&osd->lock);
 }
 
+static void dump_snapid(struct seq_file *s, u64 snapid)
+{
+	if (snapid == CEPH_NOSNAP)
+		seq_puts(s, "head");
+	else if (snapid == CEPH_SNAPDIR)
+		seq_puts(s, "snapdir");
+	else
+		seq_printf(s, "%llx", snapid);
+}
+
+static void dump_name_escaped(struct seq_file *s, unsigned char *name,
+			      size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		if (name[i] == '%' || name[i] == ':' || name[i] == '/' ||
+		    name[i] < 32 || name[i] >= 127) {
+			seq_printf(s, "%%%02x", name[i]);
+		} else {
+			seq_putc(s, name[i]);
+		}
+	}
+}
+
+static void dump_hoid(struct seq_file *s, const struct ceph_hobject_id *hoid)
+{
+	if (hoid->snapid == 0 && hoid->hash == 0 && !hoid->is_max &&
+	    hoid->pool == S64_MIN) {
+		seq_puts(s, "MIN");
+		return;
+	}
+	if (hoid->is_max) {
+		seq_puts(s, "MAX");
+		return;
+	}
+	seq_printf(s, "%lld:%08x:", hoid->pool, hoid->hash_reverse_bits);
+	dump_name_escaped(s, hoid->nspace, hoid->nspace_len);
+	seq_putc(s, ':');
+	dump_name_escaped(s, hoid->key, hoid->key_len);
+	seq_putc(s, ':');
+	dump_name_escaped(s, hoid->oid, hoid->oid_len);
+	seq_putc(s, ':');
+	dump_snapid(s, hoid->snapid);
+}
+
+static void dump_backoffs(struct seq_file *s, struct ceph_osd *osd)
+{
+	struct rb_node *n;
+
+	mutex_lock(&osd->lock);
+	for (n = rb_first(&osd->o_backoffs_by_id); n; n = rb_next(n)) {
+		struct ceph_osd_backoff *backoff =
+		    rb_entry(n, struct ceph_osd_backoff, id_node);
+
+		seq_printf(s, "osd%d\t", osd->o_osd);
+		dump_spgid(s, &backoff->spgid);
+		seq_printf(s, "\t%llu\t", backoff->id);
+		dump_hoid(s, backoff->begin);
+		seq_putc(s, '\t');
+		dump_hoid(s, backoff->end);
+		seq_putc(s, '\n');
+	}
+
+	mutex_unlock(&osd->lock);
+}
+
 static int osdc_show(struct seq_file *s, void *pp)
 {
 	struct ceph_client *client = s->private;
@@ -267,6 +334,13 @@ static int osdc_show(struct seq_file *s, void *pp)
 		dump_linger_requests(s, osd);
 	}
 	dump_linger_requests(s, &osdc->homeless_osd);
+
+	seq_puts(s, "BACKOFFS\n");
+	for (n = rb_first(&osdc->osds); n; n = rb_next(n)) {
+		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_node);
+
+		dump_backoffs(s, osd);
+	}
 
 	up_read(&osdc->lock);
 	return 0;

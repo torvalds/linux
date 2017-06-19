@@ -32,6 +32,7 @@ struct ceph_spg {
 };
 
 int ceph_pg_compare(const struct ceph_pg *lhs, const struct ceph_pg *rhs);
+int ceph_spg_compare(const struct ceph_spg *lhs, const struct ceph_spg *rhs);
 
 #define CEPH_POOL_FLAG_HASHPSPOOL	(1ULL << 0) /* hash pg seed and pool id
 						       together */

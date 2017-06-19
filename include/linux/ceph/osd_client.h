@@ -1,6 +1,7 @@
 #ifndef _FS_CEPH_OSD_CLIENT_H
 #define _FS_CEPH_OSD_CLIENT_H
 
+#include <linux/bitrev.h>
 #include <linux/completion.h>
 #include <linux/kref.h>
 #include <linux/mempool.h>
@@ -36,6 +37,8 @@ struct ceph_osd {
 	struct ceph_connection o_con;
 	struct rb_root o_requests;
 	struct rb_root o_linger_requests;
+	struct rb_root o_backoff_mappings;
+	struct rb_root o_backoffs_by_id;
 	struct list_head o_osd_lru;
 	struct ceph_auth_handshake o_auth;
 	unsigned long lru_ttl;
@@ -273,6 +276,48 @@ struct ceph_watch_item {
 	struct ceph_entity_name name;
 	u64 cookie;
 	struct ceph_entity_addr addr;
+};
+
+struct ceph_spg_mapping {
+	struct rb_node node;
+	struct ceph_spg spgid;
+
+	struct rb_root backoffs;
+};
+
+struct ceph_hobject_id {
+	void *key;
+	size_t key_len;
+	void *oid;
+	size_t oid_len;
+	u64 snapid;
+	u32 hash;
+	u8 is_max;
+	void *nspace;
+	size_t nspace_len;
+	s64 pool;
+
+	/* cache */
+	u32 hash_reverse_bits;
+};
+
+static inline void ceph_hoid_build_hash_cache(struct ceph_hobject_id *hoid)
+{
+	hoid->hash_reverse_bits = bitrev32(hoid->hash);
+}
+
+/*
+ * PG-wide backoff: [begin, end)
+ * per-object backoff: begin == end
+ */
+struct ceph_osd_backoff {
+	struct rb_node spg_node;
+	struct rb_node id_node;
+
+	struct ceph_spg spgid;
+	u64 id;
+	struct ceph_hobject_id *begin;
+	struct ceph_hobject_id *end;
 };
 
 #define CEPH_LINGER_ID_START	0xffff000000000000ULL
