@@ -1105,10 +1105,13 @@ static void schedule_autocommit(struct dm_integrity_c *ic)
 static void submit_flush_bio(struct dm_integrity_c *ic, struct dm_integrity_io *dio)
 {
 	struct bio *bio;
-	spin_lock_irq(&ic->endio_wait.lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ic->endio_wait.lock, flags);
 	bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 	bio_list_add(&ic->flush_bio_list, bio);
-	spin_unlock_irq(&ic->endio_wait.lock);
+	spin_unlock_irqrestore(&ic->endio_wait.lock, flags);
+
 	queue_work(ic->commit_wq, &ic->commit_work);
 }
 
