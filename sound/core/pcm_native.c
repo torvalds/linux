@@ -2770,6 +2770,8 @@ static int snd_pcm_common_ioctl(struct file *file,
 				 struct snd_pcm_substream *substream,
 				 unsigned int cmd, void __user *arg)
 {
+	struct snd_pcm_file *pcm_file = file->private_data;
+
 	switch (cmd) {
 	case SNDRV_PCM_IOCTL_PVERSION:
 		return put_user(SNDRV_PCM_VERSION, (int __user *)arg) ? -EFAULT : 0;
@@ -2779,6 +2781,11 @@ static int snd_pcm_common_ioctl(struct file *file,
 		return 0;
 	case SNDRV_PCM_IOCTL_TTSTAMP:
 		return snd_pcm_tstamp(substream, arg);
+	case SNDRV_PCM_IOCTL_USER_PVERSION:
+		if (get_user(pcm_file->user_pversion,
+			     (unsigned int __user *)arg))
+			return -EFAULT;
+		return 0;
 	case SNDRV_PCM_IOCTL_HW_REFINE:
 		return snd_pcm_hw_refine_user(substream, arg);
 	case SNDRV_PCM_IOCTL_HW_PARAMS:
