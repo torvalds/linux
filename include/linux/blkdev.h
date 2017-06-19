@@ -884,19 +884,6 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
 #define BLK_DEFAULT_SG_TIMEOUT	(60 * HZ)
 #define BLK_MIN_SG_TIMEOUT	(7 * HZ)
 
-#ifdef CONFIG_BOUNCE
-extern int init_emergency_isa_pool(void);
-extern void blk_queue_bounce(struct request_queue *q, struct bio **bio);
-#else
-static inline int init_emergency_isa_pool(void)
-{
-	return 0;
-}
-static inline void blk_queue_bounce(struct request_queue *q, struct bio **bio)
-{
-}
-#endif /* CONFIG_MMU */
-
 struct rq_map_data {
 	struct page **pages;
 	int page_order;

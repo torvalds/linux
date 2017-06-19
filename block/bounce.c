@@ -22,6 +22,7 @@
 #include <asm/tlbflush.h>
 
 #include <trace/events/block.h>
+#include "blk.h"
 
 #define POOL_SIZE	64
 #define ISA_POOL_SIZE	16
