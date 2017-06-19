@@ -303,8 +303,7 @@ static int fdp_nci_i2c_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	phy = devm_kzalloc(dev, sizeof(struct fdp_i2c_phy),
-			   GFP_KERNEL);
+	phy = devm_kzalloc(dev, sizeof(struct fdp_i2c_phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
 
@@ -312,9 +311,10 @@ static int fdp_nci_i2c_probe(struct i2c_client *client)
 	phy->next_read_size = FDP_NCI_I2C_MIN_PAYLOAD;
 	i2c_set_clientdata(client, phy);
 
-	r = request_threaded_irq(client->irq, NULL, fdp_nci_i2c_irq_thread_fn,
-				 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				 FDP_I2C_DRIVER_NAME, phy);
+	r = devm_request_threaded_irq(dev, client->irq,
+				      NULL, fdp_nci_i2c_irq_thread_fn,
+				      IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				      FDP_I2C_DRIVER_NAME, phy);
 
 	if (r < 0) {
 		nfc_err(&client->dev, "Unable to register IRQ handler\n");

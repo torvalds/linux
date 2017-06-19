@@ -749,11 +749,9 @@ int fdp_nci_probe(struct fdp_i2c_phy *phy, struct nfc_phy_ops *phy_ops,
 	u32 protocols;
 	int r;
 
-	info = kzalloc(sizeof(struct fdp_nci_info), GFP_KERNEL);
-	if (!info) {
-		r = -ENOMEM;
-		goto err_info_alloc;
-	}
+	info = devm_kzalloc(dev, sizeof(struct fdp_nci_info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
 
 	info->phy = phy;
 	info->phy_ops = phy_ops;
@@ -775,8 +773,7 @@ int fdp_nci_probe(struct fdp_i2c_phy *phy, struct nfc_phy_ops *phy_ops,
 				   tx_tailroom);
 	if (!ndev) {
 		nfc_err(dev, "Cannot allocate nfc ndev\n");
-		r = -ENOMEM;
-		goto err_alloc_ndev;
+		return -ENOMEM;
 	}
 
 	r = nci_register_device(ndev);
@@ -792,9 +789,6 @@ int fdp_nci_probe(struct fdp_i2c_phy *phy, struct nfc_phy_ops *phy_ops,
 
 err_regdev:
 	nci_free_device(ndev);
-err_alloc_ndev:
-	kfree(info);
-err_info_alloc:
 	return r;
 }
 EXPORT_SYMBOL(fdp_nci_probe);
@@ -808,7 +802,6 @@ void fdp_nci_remove(struct nci_dev *ndev)
 
 	nci_unregister_device(ndev);
 	nci_free_device(ndev);
-	kfree(info);
 }
 EXPORT_SYMBOL(fdp_nci_remove);
 
