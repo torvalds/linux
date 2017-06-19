@@ -37,11 +37,6 @@ struct af9013_reg_bit {
 	u8  val;
 };
 
-struct af9013_snr {
-	u32 val;
-	u8 snr;
-};
-
 struct af9013_coeff {
 	u32 clock;
 	u32 bandwidth_hz;
@@ -90,69 +85,6 @@ static const struct af9013_coeff coeff_lut[] = {
 	{ 25000000, 6000000, { 0x02, 0x31, 0xbc, 0xb5, 0x04, 0x63,
 		0x79, 0x1b, 0x00, 0x8c, 0x73, 0x91, 0x00, 0x8c, 0x6f,
 		0x2d, 0x00, 0x8c, 0x6a, 0xca, 0x01, 0x18, 0xde, 0x17 } },
-};
-
-/* QPSK SNR lookup table */
-static const struct af9013_snr qpsk_snr_lut[] = {
-	{ 0x000000,  0 },
-	{ 0x0b4771,  0 },
-	{ 0x0c1aed,  1 },
-	{ 0x0d0d27,  2 },
-	{ 0x0e4d19,  3 },
-	{ 0x0e5da8,  4 },
-	{ 0x107097,  5 },
-	{ 0x116975,  6 },
-	{ 0x1252d9,  7 },
-	{ 0x131fa4,  8 },
-	{ 0x13d5e1,  9 },
-	{ 0x148e53, 10 },
-	{ 0x15358b, 11 },
-	{ 0x15dd29, 12 },
-	{ 0x168112, 13 },
-	{ 0x170b61, 14 },
-	{ 0xffffff, 15 },
-};
-
-/* QAM16 SNR lookup table */
-static const struct af9013_snr qam16_snr_lut[] = {
-	{ 0x000000,  0 },
-	{ 0x05eb62,  5 },
-	{ 0x05fecf,  6 },
-	{ 0x060b80,  7 },
-	{ 0x062501,  8 },
-	{ 0x064865,  9 },
-	{ 0x069604, 10 },
-	{ 0x06f356, 11 },
-	{ 0x07706a, 12 },
-	{ 0x0804d3, 13 },
-	{ 0x089d1a, 14 },
-	{ 0x093e3d, 15 },
-	{ 0x09e35d, 16 },
-	{ 0x0a7c3c, 17 },
-	{ 0x0afaf8, 18 },
-	{ 0x0b719d, 19 },
-	{ 0xffffff, 20 },
-};
-
-/* QAM64 SNR lookup table */
-static const struct af9013_snr qam64_snr_lut[] = {
-	{ 0x000000,  0 },
-	{ 0x03109b, 12 },
-	{ 0x0310d4, 13 },
-	{ 0x031920, 14 },
-	{ 0x0322d0, 15 },
-	{ 0x0339fc, 16 },
-	{ 0x0364a1, 17 },
-	{ 0x038bcc, 18 },
-	{ 0x03c7d3, 19 },
-	{ 0x0408cc, 20 },
-	{ 0x043bed, 21 },
-	{ 0x048061, 22 },
-	{ 0x04be95, 23 },
-	{ 0x04fa7d, 24 },
-	{ 0x052405, 25 },
-	{ 0x05570d, 26 },
-	{ 0xffffff, 27 },
 };
 
 static const struct af9013_reg_bit ofsm_init[] = {
