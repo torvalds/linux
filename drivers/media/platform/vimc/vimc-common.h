@@ -97,6 +97,17 @@ static inline void vimc_pads_cleanup(struct media_pad *pads)
 }
 
 /**
+ * vimc_pipeline_s_stream - start stream through the pipeline
+ *
+ * @ent:		the pointer to struct media_entity for the node
+ * @enable:		1 to start the stream and 0 to stop
+ *
+ * Helper function to call the s_stream of the subdevices connected
+ * in all the sink pads of the entity
+ */
+int vimc_pipeline_s_stream(struct media_entity *ent, int enable);
+
+/**
  * vimc_pix_map_by_code - get vimc_pix_map struct by media bus code
  *
  * @code:		media bus format code defined by MEDIA_BUS_FMT_* macros

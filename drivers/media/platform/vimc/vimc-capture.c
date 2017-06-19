@@ -132,31 +132,6 @@ static void vimc_cap_return_all_buffers(struct vimc_cap_device *vcap,
 	spin_unlock(&vcap->qlock);
 }
 
-static int vimc_cap_pipeline_s_stream(struct vimc_cap_device *vcap, int enable)
-{
-	struct v4l2_subdev *sd;
-	struct media_pad *pad;
-	int ret;
-
-	/* Start the stream in the subdevice direct connected */
-	pad = media_entity_remote_pad(&vcap->vdev.entity.pads[0]);
-
-	/*
-	 * if it is a raw node from vimc-core, there is nothing to activate
-	 * TODO: remove this when there are no more raw nodes in the
-	 * core and return error instead
-	 */
-	if (pad->entity->obj_type == MEDIA_ENTITY_TYPE_BASE)
-		return 0;
-
-	sd = media_entity_to_v4l2_subdev(pad->entity);
-	ret = v4l2_subdev_call(sd, video, s_stream, enable);
-	if (ret && ret != -ENOIOCTLCMD)
-		return ret;
-
-	return 0;
-}
-
 static int vimc_cap_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vimc_cap_device *vcap = vb2_get_drv_priv(vq);
@@ -173,7 +148,7 @@ static int vimc_cap_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	/* Enable streaming from the pipe */
-	ret = vimc_cap_pipeline_s_stream(vcap, 1);
+	ret = vimc_pipeline_s_stream(&vcap->vdev.entity, 1);
 	if (ret) {
 		media_pipeline_stop(entity);
 		vimc_cap_return_all_buffers(vcap, VB2_BUF_STATE_QUEUED);
@@ -192,7 +167,7 @@ static void vimc_cap_stop_streaming(struct vb2_queue *vq)
 	struct vimc_cap_device *vcap = vb2_get_drv_priv(vq);
 
 	/* Disable streaming from the pipe */
-	vimc_cap_pipeline_s_stream(vcap, 0);
+	vimc_pipeline_s_stream(&vcap->vdev.entity, 0);
 
 	/* Stop the media pipeline */
 	media_pipeline_stop(&vcap->vdev.entity);
