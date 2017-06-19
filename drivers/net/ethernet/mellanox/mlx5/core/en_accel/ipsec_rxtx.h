@@ -31,57 +31,14 @@
  *
  */
 
-#ifndef __MLX5E_IPSEC_H__
-#define __MLX5E_IPSEC_H__
+#ifndef __MLX5E_IPSEC_RXTX_H__
+#define __MLX5E_IPSEC_RXTX_H__
 
-#ifdef CONFIG_MLX5_EN_IPSEC
+#include <linux/skbuff.h>
+#include "en.h"
 
-#include <linux/mlx5/device.h>
-#include <net/xfrm.h>
-#include <linux/idr.h>
+struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
+					  struct sk_buff *skb);
+void mlx5e_ipsec_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 
-#define MLX5E_IPSEC_SADB_RX_BITS 10
-#define MLX5E_METADATA_ETHER_TYPE (0x8CE4)
-#define MLX5E_METADATA_ETHER_LEN 8
-
-struct mlx5e_priv;
-
-struct mlx5e_ipsec_sw_stats {
-	atomic64_t ipsec_rx_drop_sp_alloc;
-	atomic64_t ipsec_rx_drop_sadb_miss;
-	atomic64_t ipsec_rx_drop_syndrome;
-};
-
-struct mlx5e_ipsec {
-	struct mlx5e_priv *en_priv;
-	DECLARE_HASHTABLE(sadb_rx, MLX5E_IPSEC_SADB_RX_BITS);
-	spinlock_t sadb_rx_lock; /* Protects sadb_rx and halloc */
-	struct ida halloc;
-	struct mlx5e_ipsec_sw_stats sw_stats;
-};
-
-int mlx5e_ipsec_init(struct mlx5e_priv *priv);
-void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv);
-void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv);
-
-struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *dev,
-					      unsigned int handle);
-
-#else
-
-static inline int mlx5e_ipsec_init(struct mlx5e_priv *priv)
-{
-	return 0;
-}
-
-static inline void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
-{
-}
-
-static inline void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
-{
-}
-
-#endif
-
-#endif	/* __MLX5E_IPSEC_H__ */
+#endif	/* __MLX5E_IPSEC_RXTX_H__ */

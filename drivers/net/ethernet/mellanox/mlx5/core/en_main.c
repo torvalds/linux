@@ -40,6 +40,8 @@
 #include "en_tc.h"
 #include "en_rep.h"
 #include "en_accel/ipsec.h"
+#include "en_accel/ipsec_rxtx.h"
+#include "accel/ipsec.h"
 #include "vxlan.h"
 
 struct mlx5e_rq_param {
@@ -116,7 +118,7 @@ void mlx5e_set_rq_type_params(struct mlx5_core_dev *mdev,
 static void mlx5e_set_rq_params(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
 	u8 rq_type = mlx5e_check_fragmented_striding_rq_cap(mdev) &&
-		    !params->xdp_prog ?
+		    !params->xdp_prog && !MLX5_IPSEC_DEV(mdev) ?
 		    MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ :
 		    MLX5_WQ_TYPE_LINKED_LIST;
 	mlx5e_set_rq_type_params(mdev, params, rq_type);
@@ -593,6 +595,13 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
 		rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe_mpwqe;
+#ifdef CONFIG_MLX5_EN_IPSEC
+		if (MLX5_IPSEC_DEV(mdev)) {
+			err = -EINVAL;
+			netdev_err(c->netdev, "MPWQE RQ with IPSec offload not supported\n");
+			goto err_rq_wq_destroy;
+		}
+#endif
 		if (!rq->handle_rx_cqe) {
 			err = -EINVAL;
 			netdev_err(c->netdev, "RX handler of MPWQE RQ is not set, err %d\n", err);
@@ -625,7 +634,12 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq->alloc_wqe = mlx5e_alloc_rx_wqe;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
 
-		rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe;
+#ifdef CONFIG_MLX5_EN_IPSEC
+		if (c->priv->ipsec)
+			rq->handle_rx_cqe = mlx5e_ipsec_handle_rx_cqe;
+		else
+#endif
+			rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe;
 		if (!rq->handle_rx_cqe) {
 			kfree(rq->wqe.frag_info);
 			err = -EINVAL;
@@ -636,6 +650,10 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq->buff.wqe_sz = params->lro_en  ?
 				params->lro_wqe_sz :
 				MLX5E_SW2HW_MTU(c->priv, c->netdev->mtu);
+#ifdef CONFIG_MLX5_EN_IPSEC
+		if (MLX5_IPSEC_DEV(mdev))
+			rq->buff.wqe_sz += MLX5E_METADATA_ETHER_LEN;
+#endif
 		rq->wqe.page_reuse = !params->xdp_prog && !params->lro_en;
 		byte_count = rq->buff.wqe_sz;
 

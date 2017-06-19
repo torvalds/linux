@@ -40,6 +40,7 @@
 #include "en.h"
 #include "accel/ipsec.h"
 #include "en_accel/ipsec.h"
+#include "en_accel/ipsec_rxtx.h"
 
 struct mlx5e_ipsec_sa_entry {
 	struct hlist_node hlist; /* Item in SADB_RX hashtable */
@@ -48,6 +49,24 @@ struct mlx5e_ipsec_sa_entry {
 	struct mlx5e_ipsec *ipsec;
 	void *context;
 };
+
+struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *ipsec,
+					      unsigned int handle)
+{
+	struct mlx5e_ipsec_sa_entry *sa_entry;
+	struct xfrm_state *ret = NULL;
+
+	rcu_read_lock();
+	hash_for_each_possible_rcu(ipsec->sadb_rx, sa_entry, hlist, handle)
+		if (sa_entry->handle == handle) {
+			ret = sa_entry->x;
+			xfrm_state_hold(ret);
+			break;
+		}
+	rcu_read_unlock();
+
+	return ret;
+}
 
 static int mlx5e_ipsec_sadb_rx_add(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
