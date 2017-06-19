@@ -21,7 +21,6 @@
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
@@ -52,7 +51,6 @@ struct st_nci_spi_phy {
 	bool irq_active;
 
 	unsigned int gpio_reset;
-	unsigned int irq_polarity;
 
 	struct st_nci_se_status se_status;
 };
@@ -240,8 +238,6 @@ static int st_nci_spi_acpi_request_resources(struct spi_device *spi_dev)
 
 	phy->gpio_reset = desc_to_gpio(gpiod_reset);
 
-	phy->irq_polarity = irq_get_trigger_type(spi_dev->irq);
-
 	phy->se_status.is_ese_present = false;
 	phy->se_status.is_uicc_present = false;
 
@@ -285,8 +281,6 @@ static int st_nci_spi_of_request_resources(struct spi_device *dev)
 		return r;
 	}
 	phy->gpio_reset = gpio;
-
-	phy->irq_polarity = irq_get_trigger_type(dev->irq);
 
 	phy->se_status.is_ese_present =
 				of_property_read_bool(pp, "ese-present");
@@ -349,7 +343,7 @@ static int st_nci_spi_probe(struct spi_device *dev)
 	phy->irq_active = true;
 	r = devm_request_threaded_irq(&dev->dev, dev->irq, NULL,
 				st_nci_irq_thread_fn,
-				phy->irq_polarity | IRQF_ONESHOT,
+				IRQF_ONESHOT,
 				ST_NCI_SPI_DRIVER_NAME, phy);
 	if (r < 0)
 		nfc_err(&dev->dev, "Unable to register IRQ handler\n");
