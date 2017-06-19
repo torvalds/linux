@@ -61,8 +61,6 @@
 #define ST21NFCA_HCI_DRIVER_NAME "st21nfca_hci"
 #define ST21NFCA_HCI_I2C_DRIVER_NAME "st21nfca_hci_i2c"
 
-#define ST21NFCA_GPIO_NAME_EN "enable"
-
 struct st21nfca_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct nfc_hci_dev *hdev;
@@ -508,44 +506,10 @@ static const struct acpi_gpio_mapping acpi_st21nfca_gpios[] = {
 	{},
 };
 
-static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
-{
-	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
-	struct device *dev = &client->dev;
-	int ret;
-
-	ret = devm_acpi_dev_add_driver_gpios(dev, acpi_st21nfca_gpios);
-	if (ret)
-		return ret;
-
-	/* Get EN GPIO from ACPI */
-	phy->gpiod_ena = devm_gpiod_get(dev, ST21NFCA_GPIO_NAME_EN, GPIOD_OUT_LOW);
-	if (IS_ERR(phy->gpiod_ena)) {
-		nfc_err(dev, "Unable to get ENABLE GPIO\n");
-		return PTR_ERR(phy->gpiod_ena);
-	}
-
-	return 0;
-}
-
-static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
-{
-	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
-	struct device *dev = &client->dev;
-
-	/* Get GPIO from device tree */
-	phy->gpiod_ena = devm_gpiod_get(dev, ST21NFCA_GPIO_NAME_EN, GPIOD_OUT_HIGH);
-	if (IS_ERR(phy->gpiod_ena)) {
-		nfc_err(dev, "Failed to request enable pin\n");
-		return PTR_ERR(phy->gpiod_ena);
-	}
-
-	return 0;
-}
-
 static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct st21nfca_i2c_phy *phy;
 	int r;
 
@@ -572,21 +536,15 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 	mutex_init(&phy->phy_lock);
 	i2c_set_clientdata(client, phy);
 
-	if (client->dev.of_node) {
-		r = st21nfca_hci_i2c_of_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev, "No platform data\n");
-			return r;
-		}
-	} else if (ACPI_HANDLE(&client->dev)) {
-		r = st21nfca_hci_i2c_acpi_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev, "Cannot get ACPI data\n");
-			return r;
-		}
-	} else {
-		nfc_err(&client->dev, "st21nfca platform resources not available\n");
-		return -ENODEV;
+	r = devm_acpi_dev_add_driver_gpios(dev, acpi_st21nfca_gpios);
+	if (r)
+		dev_dbg(dev, "Unable to add GPIO mapping table\n");
+
+	/* Get EN GPIO from resource provider */
+	phy->gpiod_ena = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
+	if (IS_ERR(phy->gpiod_ena)) {
+		nfc_err(dev, "Unable to get ENABLE GPIO\n");
+		return PTR_ERR(phy->gpiod_ena);
 	}
 
 	phy->se_status.is_ese_present =
