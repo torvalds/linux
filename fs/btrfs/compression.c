@@ -638,7 +638,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 							      __GFP_HIGHMEM);
 		if (!cb->compressed_pages[pg_index]) {
 			faili = pg_index - 1;
-			ret = -ENOMEM;
+			ret = BLK_STS_RESOURCE;
 			goto fail2;
 		}
 	}
