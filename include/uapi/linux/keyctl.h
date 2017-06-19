@@ -70,8 +70,8 @@ struct keyctl_dh_params {
 };
 
 struct keyctl_kdf_params {
-	char *hashname;
-	char *otherinfo;
+	char __user *hashname;
+	char __user *otherinfo;
 	__u32 otherinfolen;
 	__u32 __spare[8];
 };

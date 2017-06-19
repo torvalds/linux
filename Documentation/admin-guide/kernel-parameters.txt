@@ -866,6 +866,15 @@
 
 	dscc4.setup=	[NET]
 
+	dt_cpu_ftrs=	[PPC]
+			Format: {"off" | "known"}
+			Control how the dt_cpu_ftrs device-tree binding is
+			used for CPU feature discovery and setup (if it
+			exists).
+			off: Do not use it, fall back to legacy cpu table.
+			known: Do not pass through unknown features to guests
+			or userspace, only those that the kernel is aware of.
+
 	dump_apple_properties	[X86]
 			Dump name and content of EFI device properties on
 			x86 Macs.  Useful for driver authors to determine

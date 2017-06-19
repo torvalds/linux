@@ -206,7 +206,7 @@ lpfc_check_elscmpl_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
  * associated with a LPFC_NODELIST entry. This
  * routine effectively results in a "software abort".
  */
-int
+void
 lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
 	LIST_HEAD(abort_list);
@@ -214,6 +214,10 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	struct lpfc_iocbq *iocb, *next_iocb;
 
 	pring = lpfc_phba_elsring(phba);
+
+	/* In case of error recovery path, we might have a NULL pring here */
+	if (!pring)
+		return;
 
 	/* Abort outstanding I/O on NPort <nlp_DID> */
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_DISCOVERY,
@@ -273,7 +277,6 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 			      IOSTAT_LOCAL_REJECT, IOERR_SLI_ABORTED);
 
 	lpfc_cancel_retry_delay_tmo(phba->pport, ndlp);
-	return 0;
 }
 
 static int
