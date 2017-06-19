@@ -43,6 +43,7 @@ struct skl_rt286_private {
 
 enum {
 	SKL_DPCM_AUDIO_PB = 0,
+	SKL_DPCM_AUDIO_DB_PB,
 	SKL_DPCM_AUDIO_CP,
 	SKL_DPCM_AUDIO_REF_CP,
 	SKL_DPCM_AUDIO_DMIC_CP,
@@ -309,6 +310,23 @@ static struct snd_soc_dai_link skylake_rt286_dais[] = {
 		},
 		.dpcm_playback = 1,
 		.ops = &skylake_rt286_fe_ops,
+	},
+	[SKL_DPCM_AUDIO_DB_PB] = {
+		.name = "Skl Deepbuffer Port",
+		.stream_name = "Deep Buffer Audio",
+		.cpu_dai_name = "Deepbuffer Pin",
+		.platform_name = "0000:00:1f.3",
+		.nonatomic = 1,
+		.dynamic = 1,
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.trigger = {
+			SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST
+		},
+		.dpcm_playback = 1,
+		.ops = &skylake_rt286_fe_ops,
+
 	},
 	[SKL_DPCM_AUDIO_CP] = {
 		.name = "Skl Audio Capture Port",
