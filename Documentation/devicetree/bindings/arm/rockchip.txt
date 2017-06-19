@@ -42,6 +42,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "firefly,firefly-rk3288-reload", "rockchip,rk3288";
 
+- Firefly Firefly-RK3399 board:
+    Required root node properties:
+      - compatible = "firefly,firefly-rk3399", "rockchip,rk3399";
+
 - ChipSPARK PopMetal-RK3288 board:
     Required root node properties:
       - compatible = "chipspark,popmetal-rk3288", "rockchip,rk3288";
