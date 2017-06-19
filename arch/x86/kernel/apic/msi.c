@@ -167,10 +167,25 @@ static struct msi_domain_info pci_msi_ir_domain_info = {
 	.handler_name	= "edge",
 };
 
+struct irq_domain *arch_create_remap_msi_irq_domain(struct irq_domain *parent,
+						    const char *name, int id)
+{
+	struct fwnode_handle *fn;
+	struct irq_domain *d;
+
+	fn = irq_domain_alloc_named_id_fwnode(name, id);
+	if (!fn)
+		return NULL;
+	d = pci_msi_create_irq_domain(fn, &pci_msi_ir_domain_info, parent);
+	irq_domain_free_fwnode(fn);
+	return d;
+}
+
 struct irq_domain *arch_create_msi_irq_domain(struct irq_domain *parent)
 {
 	return pci_msi_create_irq_domain(NULL, &pci_msi_ir_domain_info, parent);
 }
+
 #endif
 
 #ifdef CONFIG_DMAR_TABLE
