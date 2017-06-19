@@ -1,6 +1,5 @@
 /*
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
+ * Copyright 2017 Gateworks Corporation
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -8,13 +7,19 @@
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     version 2 as published by the Free Software Foundation.
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of
+ *     the License, or (at your option) any later version.
  *
  *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public
+ *     License along with this file; if not, write to the Free
+ *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+ *     MA 02110-1301 USA
  *
  * Or, alternatively,
  *
@@ -42,14 +47,9 @@
 
 /dts-v1/;
 #include "imx6dl.dtsi"
-#include "imx6qdl-sabrelite.dtsi"
+#include "imx6qdl-gw560x.dtsi"
 
 / {
-	model = "Freescale i.MX6 DualLite SABRE Lite Board";
-	compatible = "fsl,imx6dl-sabrelite", "fsl,imx6dl";
-};
-
-&ipu1_csi1_from_ipu1_csi1_mux {
-	clock-lanes = <0>;
-	data-lanes = <1 2>;
+	model = "Gateworks Ventana i.MX6 DualLite/Solo GW560X";
+	compatible = "gw,imx6dl-gw560x", "gw,ventana", "fsl,imx6dl";
 };

@@ -19,7 +19,6 @@
 
 	/* these are used by bootloader for disabling nodes */
 	aliases {
-		ethernet1 = &eth1;
 		i2c0 = &i2c1;
 		i2c1 = &i2c2;
 		i2c2 = &i2c3;
@@ -154,7 +153,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii-id";
-	phy-reset-gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio1 30 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -347,10 +346,6 @@
 &pcie {
 	reset-gpio = <&gpio1 29 GPIO_ACTIVE_LOW>;
 	status = "okay";
-
-	eth1: sky2@8 { /* MAC/PHY on bus 8 */
-		compatible = "marvell,sky2";
-	};
 };
 
 &ssi1 {

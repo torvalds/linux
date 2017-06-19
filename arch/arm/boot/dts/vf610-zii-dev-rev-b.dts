@@ -78,6 +78,7 @@
 				interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				eeprom-length = <512>;
 
 				ports {
 					#address-cells = <1>;
@@ -163,6 +164,7 @@
 				interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				eeprom-length = <512>;
 
 				ports {
 					#address-cells = <1>;
