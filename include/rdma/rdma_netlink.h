@@ -5,7 +5,7 @@
 #include <linux/netlink.h>
 #include <uapi/rdma/rdma_netlink.h>
 
-struct ibnl_client_cbs {
+struct rdma_nl_cbs {
 	int (*dump)(struct sk_buff *skb, struct netlink_callback *nlcb);
 	u8 flags;
 };
@@ -21,7 +21,7 @@ enum rdma_nl_flags {
  * @cb_table: A table for op->callback
  */
 void rdma_nl_register(unsigned int index,
-		      const struct ibnl_client_cbs cb_table[]);
+		      const struct rdma_nl_cbs cb_table[]);
 
 /**
  * Remove a client from IB netlink.
