@@ -2581,6 +2581,9 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 
 	mutex_lock(&ctrl->namespaces_mutex);
 
+	/* Forcibly unquiesce queues to avoid blocking dispatch */
+	blk_mq_unquiesce_queue(ctrl->admin_q);
+
 	/* Forcibly start all queues to avoid having stuck requests */
 	blk_mq_start_hw_queues(ctrl->admin_q);
 
@@ -2593,6 +2596,9 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 			continue;
 		revalidate_disk(ns->disk);
 		blk_set_queue_dying(ns->queue);
+
+		/* Forcibly unquiesce queues to avoid blocking dispatch */
+		blk_mq_unquiesce_queue(ns->queue);
 
 		/*
 		 * Forcibly start all queues to avoid having stuck requests.
