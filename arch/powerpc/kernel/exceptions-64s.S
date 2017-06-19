@@ -514,18 +514,7 @@ EXC_REAL_BEGIN(data_access_slb, 0x380, 0x80)
 	mfspr	r3,SPRN_DAR
 	mfspr	r11,SPRN_SRR1
 	crset	4*cr6+eq
-#ifndef CONFIG_RELOCATABLE
-	b	slb_miss_realmode
-#else
-	/*
-	 * We can't just use a direct branch to slb_miss_realmode
-	 * because the distance from here to there depends on where
-	 * the kernel ends up being put.
-	 */
-	LOAD_HANDLER(r10, slb_miss_realmode)
-	mtctr	r10
-	bctr
-#endif
+	BRANCH_TO_COMMON(r10, slb_miss_realmode)
 EXC_REAL_END(data_access_slb, 0x380, 0x80)
 
 EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
@@ -536,18 +525,7 @@ EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
 	mfspr	r3,SPRN_DAR
 	mfspr	r11,SPRN_SRR1
 	crset	4*cr6+eq
-#ifndef CONFIG_RELOCATABLE
-	b	slb_miss_realmode
-#else
-	/*
-	 * We can't just use a direct branch to slb_miss_realmode
-	 * because the distance from here to there depends on where
-	 * the kernel ends up being put.
-	 */
-	LOAD_HANDLER(r10, slb_miss_realmode)
-	mtctr	r10
-	bctr
-#endif
+	BRANCH_TO_COMMON(r10, slb_miss_realmode)
 EXC_VIRT_END(data_access_slb, 0x4380, 0x80)
 TRAMP_KVM_SKIP(PACA_EXSLB, 0x380)
 
@@ -580,13 +558,7 @@ EXC_REAL_BEGIN(instruction_access_slb, 0x480, 0x80)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 	mfspr	r11,SPRN_SRR1
 	crclr	4*cr6+eq
-#ifndef CONFIG_RELOCATABLE
-	b	slb_miss_realmode
-#else
-	LOAD_HANDLER(r10, slb_miss_realmode)
-	mtctr	r10
-	bctr
-#endif
+	BRANCH_TO_COMMON(r10, slb_miss_realmode)
 EXC_REAL_END(instruction_access_slb, 0x480, 0x80)
 
 EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
@@ -597,13 +569,7 @@ EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 	mfspr	r11,SPRN_SRR1
 	crclr	4*cr6+eq
-#ifndef CONFIG_RELOCATABLE
-	b	slb_miss_realmode
-#else
-	LOAD_HANDLER(r10, slb_miss_realmode)
-	mtctr	r10
-	bctr
-#endif
+	BRANCH_TO_COMMON(r10, slb_miss_realmode)
 EXC_VIRT_END(instruction_access_slb, 0x4480, 0x80)
 TRAMP_KVM(PACA_EXSLB, 0x480)
 
