@@ -83,6 +83,15 @@ static bool migrate_one_irq(struct irq_desc *desc)
 		chip->irq_mask(d);
 
 	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
+		/*
+		 * If the interrupt is managed, then shut it down and leave
+		 * the affinity untouched.
+		 */
+		if (irqd_affinity_is_managed(d)) {
+			irqd_set_managed_shutdown(d);
+			irq_shutdown(desc);
+			return false;
+		}
 		affinity = cpu_online_mask;
 		brokeaff = true;
 	}
@@ -128,4 +137,40 @@ void irq_migrate_all_off_this_cpu(void)
 					    irq, smp_processor_id());
 		}
 	}
+}
+
+static void irq_restore_affinity_of_irq(struct irq_desc *desc, unsigned int cpu)
+{
+	struct irq_data *data = irq_desc_get_irq_data(desc);
+	const struct cpumask *affinity = irq_data_get_affinity_mask(data);
+
+	if (!irqd_affinity_is_managed(data) || !desc->action ||
+	    !irq_data_get_irq_chip(data) || !cpumask_test_cpu(cpu, affinity))
+		return;
+
+	if (irqd_is_managed_and_shutdown(data))
+		irq_startup(desc, IRQ_RESEND, IRQ_START_COND);
+	else
+		irq_set_affinity_locked(data, affinity, false);
+}
+
+/**
+ * irq_affinity_online_cpu - Restore affinity for managed interrupts
+ * @cpu:	Upcoming CPU for which interrupts should be restored
+ */
+int irq_affinity_online_cpu(unsigned int cpu)
+{
+	struct irq_desc *desc;
+	unsigned int irq;
+
+	irq_lock_sparse();
+	for_each_active_irq(irq) {
+		desc = irq_to_desc(irq);
+		raw_spin_lock_irq(&desc->lock);
+		irq_restore_affinity_of_irq(desc, cpu);
+		raw_spin_unlock_irq(&desc->lock);
+	}
+	irq_unlock_sparse();
+
+	return 0;
 }
