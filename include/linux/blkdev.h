@@ -1385,11 +1385,6 @@ enum blk_default_limits {
 
 #define blkdev_entry_to_request(entry) list_entry((entry), struct request, queuelist)
 
-static inline unsigned long queue_bounce_pfn(struct request_queue *q)
-{
-	return q->limits.bounce_pfn;
-}
-
 static inline unsigned long queue_segment_boundary(struct request_queue *q)
 {
 	return q->limits.seg_boundary_mask;

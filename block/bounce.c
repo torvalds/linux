@@ -203,7 +203,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	bio_for_each_segment(from, *bio_orig, iter) {
 		if (i++ < BIO_MAX_PAGES)
 			sectors += from.bv_len >> 9;
-		if (page_to_pfn(from.bv_page) > queue_bounce_pfn(q))
+		if (page_to_pfn(from.bv_page) > q->limits.bounce_pfn)
 			bounce = true;
 	}
 	if (!bounce)
@@ -220,7 +220,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	bio_for_each_segment_all(to, bio, i) {
 		struct page *page = to->bv_page;
 
-		if (page_to_pfn(page) <= queue_bounce_pfn(q))
+		if (page_to_pfn(page) <= q->limits.bounce_pfn)
 			continue;
 
 		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
@@ -272,7 +272,7 @@ void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	 * don't waste time iterating over bio segments
 	 */
 	if (!(q->bounce_gfp & GFP_DMA)) {
-		if (queue_bounce_pfn(q) >= blk_max_pfn)
+		if (q->limits.bounce_pfn >= blk_max_pfn)
 			return;
 		pool = page_pool;
 	} else {
