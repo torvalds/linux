@@ -210,41 +210,6 @@ static const struct acpi_gpio_mapping acpi_st_nci_gpios[] = {
 	{},
 };
 
-static int st_nci_i2c_acpi_request_resources(struct i2c_client *client)
-{
-	struct st_nci_i2c_phy *phy = i2c_get_clientdata(client);
-	struct device *dev = &client->dev;
-	int r;
-
-	r = devm_acpi_dev_add_driver_gpios(dev, acpi_st_nci_gpios);
-	if (r)
-		return r;
-
-	/* Get RESET GPIO from ACPI */
-	phy->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(phy->gpiod_reset)) {
-		nfc_err(dev, "Unable to get RESET GPIO\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static int st_nci_i2c_of_request_resources(struct i2c_client *client)
-{
-	struct st_nci_i2c_phy *phy = i2c_get_clientdata(client);
-	struct device *dev = &client->dev;
-
-	/* Get GPIO from device tree */
-	phy->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(phy->gpiod_reset)) {
-		nfc_err(dev, "Unable to get RESET GPIO\n");
-		return PTR_ERR(phy->gpiod_reset);
-	}
-
-	return 0;
-}
-
 static int st_nci_i2c_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
@@ -260,8 +225,7 @@ static int st_nci_i2c_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	phy = devm_kzalloc(&client->dev, sizeof(struct st_nci_i2c_phy),
-			   GFP_KERNEL);
+	phy = devm_kzalloc(dev, sizeof(struct st_nci_i2c_phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
 
@@ -269,21 +233,14 @@ static int st_nci_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, phy);
 
-	if (client->dev.of_node) {
-		r = st_nci_i2c_of_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev, "No platform data\n");
-			return r;
-		}
-	} else if (ACPI_HANDLE(&client->dev)) {
-		r = st_nci_i2c_acpi_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev, "Cannot get ACPI data\n");
-			return r;
-		}
-	} else {
-		nfc_err(&client->dev,
-			"st_nci platform resources not available\n");
+	r = devm_acpi_dev_add_driver_gpios(dev, acpi_st_nci_gpios);
+	if (r)
+		dev_dbg(dev, "Unable to add GPIO mapping table\n");
+
+	/* Get RESET GPIO */
+	phy->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(phy->gpiod_reset)) {
+		nfc_err(dev, "Unable to get RESET GPIO\n");
 		return -ENODEV;
 	}
 

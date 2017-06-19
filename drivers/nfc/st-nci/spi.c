@@ -225,41 +225,6 @@ static const struct acpi_gpio_mapping acpi_st_nci_gpios[] = {
 	{},
 };
 
-static int st_nci_spi_acpi_request_resources(struct spi_device *spi_dev)
-{
-	struct st_nci_spi_phy *phy = spi_get_drvdata(spi_dev);
-	struct device *dev = &spi_dev->dev;
-	int r;
-
-	r = devm_acpi_dev_add_driver_gpios(dev, acpi_st_nci_gpios);
-	if (r)
-		return r;
-
-	/* Get RESET GPIO from ACPI */
-	phy->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(phy->gpiod_reset)) {
-		nfc_err(dev, "Unable to get RESET GPIO\n");
-		return PTR_ERR(phy->gpiod_reset);
-	}
-
-	return 0;
-}
-
-static int st_nci_spi_of_request_resources(struct spi_device *spi)
-{
-	struct st_nci_spi_phy *phy = spi_get_drvdata(spi);
-	struct device *dev = &spi->dev;
-
-	/* Get GPIO from device tree */
-	phy->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(phy->gpiod_reset)) {
-		nfc_err(dev, "Unable to get RESET GPIO\n");
-		return PTR_ERR(phy->gpiod_reset);
-	}
-
-	return 0;
-}
-
 static int st_nci_spi_probe(struct spi_device *dev)
 {
 	struct st_nci_spi_phy *phy;
@@ -284,22 +249,15 @@ static int st_nci_spi_probe(struct spi_device *dev)
 
 	spi_set_drvdata(dev, phy);
 
-	if (dev->dev.of_node) {
-		r = st_nci_spi_of_request_resources(dev);
-		if (r) {
-			nfc_err(&dev->dev, "No platform data\n");
-			return r;
-		}
-	} else if (ACPI_HANDLE(&dev->dev)) {
-		r = st_nci_spi_acpi_request_resources(dev);
-		if (r) {
-			nfc_err(&dev->dev, "Cannot get ACPI data\n");
-			return r;
-		}
-	} else {
-		nfc_err(&dev->dev,
-			"st_nci platform resources not available\n");
-		return -ENODEV;
+	r = devm_acpi_dev_add_driver_gpios(&dev->dev, acpi_st_nci_gpios);
+	if (r)
+		dev_dbg(&dev->dev, "Unable to add GPIO mapping table\n");
+
+	/* Get RESET GPIO */
+	phy->gpiod_reset = devm_gpiod_get(&dev->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(phy->gpiod_reset)) {
+		nfc_err(&dev->dev, "Unable to get RESET GPIO\n");
+		return PTR_ERR(phy->gpiod_reset);
 	}
 
 	phy->se_status.is_ese_present =
