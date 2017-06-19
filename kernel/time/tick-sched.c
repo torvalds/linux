@@ -782,7 +782,6 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	 * the scheduler tick in nohz_restart_sched_tick.
 	 */
 	if (!ts->tick_stopped) {
-		nohz_balance_enter_idle(cpu);
 		calc_load_nohz_start();
 		cpu_load_update_nohz_start();
 
@@ -923,8 +922,10 @@ static void __tick_nohz_idle_enter(struct tick_sched *ts)
 			ts->idle_expires = expires;
 		}
 
-		if (!was_stopped && ts->tick_stopped)
+		if (!was_stopped && ts->tick_stopped) {
 			ts->idle_jiffies = ts->last_jiffies;
+			nohz_balance_enter_idle(cpu);
+		}
 	}
 }
 
