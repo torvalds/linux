@@ -98,5 +98,15 @@
 				read-only;
 			};
 		};
+
+		sata: sata@46000000 {
+			cortina,gemini-ata-muxmode = <0>;
+			cortina,gemini-enable-sata-bridge;
+			status = "okay";
+		};
+
+		ata@63000000 {
+			status = "okay";
+		};
 	};
 };
