@@ -173,6 +173,7 @@ lantiq	Lantiq Semiconductor
 lego	LEGO Systems A/S
 lenovo	Lenovo Group Ltd.
 lg	LG Corporation
+libretech	Shenzhen Libre Technology Co., Ltd
 licheepi	Lichee Pi
 linaro	Linaro Limited
 linux	Linux-specific binding
