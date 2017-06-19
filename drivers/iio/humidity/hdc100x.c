@@ -429,9 +429,20 @@ static const struct i2c_device_id hdc100x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, hdc100x_id);
 
+static const struct of_device_id hdc100x_dt_ids[] = {
+	{ .compatible = "ti,hdc1000" },
+	{ .compatible = "ti,hdc1008" },
+	{ .compatible = "ti,hdc1010" },
+	{ .compatible = "ti,hdc1050" },
+	{ .compatible = "ti,hdc1080" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, hdc100x_dt_ids);
+
 static struct i2c_driver hdc100x_driver = {
 	.driver = {
 		.name	= "hdc100x",
+		.of_match_table = of_match_ptr(hdc100x_dt_ids),
 	},
 	.probe = hdc100x_probe,
 	.remove = hdc100x_remove,
