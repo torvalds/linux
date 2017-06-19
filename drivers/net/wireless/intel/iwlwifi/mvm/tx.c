@@ -551,8 +551,12 @@ static void iwl_mvm_skb_prepare_status(struct sk_buff *skb,
 static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 				      struct ieee80211_tx_info *info, __le16 fc)
 {
+	struct iwl_mvm_vif *mvmvif;
+
 	if (!iwl_mvm_is_dqa_supported(mvm))
 		return info->hw_queue;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(info->control.vif);
 
 	switch (info->control.vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -569,7 +573,7 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 		    ieee80211_is_deauth(fc) || ieee80211_is_assoc_resp(fc))
 			return mvm->probe_queue;
 		if (info->hw_queue == info->control.vif->cab_queue)
-			return info->hw_queue;
+			return mvmvif->cab_queue;
 
 		WARN_ONCE(info->control.vif->type != NL80211_IFTYPE_ADHOC,
 			  "fc=0x%02x", le16_to_cpu(fc));
@@ -578,7 +582,7 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 		if (ieee80211_is_mgmt(fc))
 			return mvm->p2p_dev_queue;
 		if (info->hw_queue == info->control.vif->cab_queue)
-			return info->hw_queue;
+			return mvmvif->cab_queue;
 
 		WARN_ON_ONCE(1);
 		return mvm->p2p_dev_queue;
@@ -645,9 +649,6 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 							   hdr->frame_control);
 			if (queue < 0)
 				return -1;
-
-			if (queue == info.control.vif->cab_queue)
-				queue = mvmvif->cab_queue;
 		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
 			   is_multicast_ether_addr(hdr->addr1)) {
 			u8 ap_sta_id = ACCESS_ONCE(mvmvif->ap_sta_id);
