@@ -18,6 +18,7 @@ static bool migrate_one_irq(struct irq_desc *desc)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
 	struct irq_chip *chip = irq_data_get_irq_chip(d);
+	bool maskchip = !irq_can_move_pcntxt(d) && !irqd_irq_masked(d);
 	const struct cpumask *affinity;
 	bool brokeaff = false;
 	int err;
@@ -69,6 +70,10 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	if (irq_fixup_move_pending(desc, true))
 		affinity = irq_desc_get_pending_mask(desc);
 
+	/* Mask the chip for interrupts which cannot move in process context */
+	if (maskchip && chip->irq_mask)
+		chip->irq_mask(d);
+
 	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 		affinity = cpu_online_mask;
 		brokeaff = true;
@@ -78,8 +83,12 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	if (err) {
 		pr_warn_ratelimited("IRQ%u: set affinity failed(%d).\n",
 				    d->irq, err);
-		return false;
+		brokeaff = false;
 	}
+
+	if (maskchip && chip->irq_unmask)
+		chip->irq_unmask(d);
+
 	return brokeaff;
 }
 
