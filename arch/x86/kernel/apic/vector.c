@@ -221,8 +221,11 @@ success:
 	 * Cache destination APIC IDs into cfg->dest_apicid. This cannot fail
 	 * as we already established, that mask & d->domain & cpu_online_mask
 	 * is not empty.
+	 *
+	 * vector_searchmask is a subset of d->domain and has the offline
+	 * cpus masked out.
 	 */
-	BUG_ON(apic->cpu_mask_to_apicid_and(mask, d->domain,
+	BUG_ON(apic->cpu_mask_to_apicid_and(mask, vector_searchmask,
 					    &d->cfg.dest_apicid));
 	return 0;
 }

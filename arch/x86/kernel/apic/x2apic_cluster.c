@@ -108,31 +108,24 @@ x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 			      const struct cpumask *andmask,
 			      unsigned int *apicid)
 {
+	unsigned int cpu;
 	u32 dest = 0;
 	u16 cluster;
-	int i;
 
-	for_each_cpu_and(i, cpumask, andmask) {
-		if (!cpumask_test_cpu(i, cpu_online_mask))
-			continue;
-		dest = per_cpu(x86_cpu_to_logical_apicid, i);
-		cluster = x2apic_cluster(i);
-		break;
-	}
-
-	if (!dest)
+	cpu = cpumask_first_and(cpumask, andmask);
+	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
-	for_each_cpu_and(i, cpumask, andmask) {
-		if (!cpumask_test_cpu(i, cpu_online_mask))
+	dest = per_cpu(x86_cpu_to_logical_apicid, cpu);
+	cluster = x2apic_cluster(cpu);
+
+	for_each_cpu_and(cpu, cpumask, andmask) {
+		if (cluster != x2apic_cluster(cpu))
 			continue;
-		if (cluster != x2apic_cluster(i))
-			continue;
-		dest |= per_cpu(x86_cpu_to_logical_apicid, i);
+		dest |= per_cpu(x86_cpu_to_logical_apicid, cpu);
 	}
 
 	*apicid = dest;
-
 	return 0;
 }
 

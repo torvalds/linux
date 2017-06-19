@@ -2205,19 +2205,12 @@ int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 				   const struct cpumask *andmask,
 				   unsigned int *apicid)
 {
-	unsigned int cpu;
+	unsigned int cpu = cpumask_first_and(cpumask, andmask);
 
-	for_each_cpu_and(cpu, cpumask, andmask) {
-		if (cpumask_test_cpu(cpu, cpu_online_mask))
-			break;
-	}
-
-	if (likely(cpu < nr_cpu_ids)) {
-		*apicid = per_cpu(x86_cpu_to_apicid, cpu);
-		return 0;
-	}
-
-	return -EINVAL;
+	if (cpu >= nr_cpu_ids)
+		return -EINVAL;
+	*apicid = per_cpu(x86_cpu_to_apicid, cpu);
+	return 0;
 }
 
 int flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
@@ -2226,14 +2219,12 @@ int flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 {
 	unsigned long cpu_mask = cpumask_bits(cpumask)[0] &
 				 cpumask_bits(andmask)[0] &
-				 cpumask_bits(cpu_online_mask)[0] &
 				 APIC_ALL_CPUS;
 
-	if (likely(cpu_mask)) {
-		*apicid = (unsigned int)cpu_mask;
-		return 0;
-	}
-	return -EINVAL;
+	if (!cpu_mask)
+		return -EINVAL;
+	*apicid = (unsigned int)cpu_mask;
+	return 0;
 }
 
 /*
