@@ -41,8 +41,6 @@
 #define ST_NCI_DRIVER_NAME "st_nci"
 #define ST_NCI_SPI_DRIVER_NAME "st_nci_spi"
 
-#define ST_NCI_GPIO_NAME_RESET "reset"
-
 struct st_nci_spi_phy {
 	struct spi_device *spi_dev;
 	struct llt_ndlc *ndlc;
@@ -220,14 +218,25 @@ static struct nfc_phy_ops spi_phy_ops = {
 	.disable = st_nci_spi_disable,
 };
 
+static const struct acpi_gpio_params reset_gpios = { 1, 0, false };
+
+static const struct acpi_gpio_mapping acpi_st_nci_gpios[] = {
+	{ "reset-gpios", &reset_gpios, 1 },
+	{},
+};
+
 static int st_nci_spi_acpi_request_resources(struct spi_device *spi_dev)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(spi_dev);
 	struct device *dev = &spi_dev->dev;
+	int r;
+
+	r = devm_acpi_dev_add_driver_gpios(dev, acpi_st_nci_gpios);
+	if (r)
+		return r;
 
 	/* Get RESET GPIO from ACPI */
-	phy->gpiod_reset = devm_gpiod_get_index(dev, ST_NCI_GPIO_NAME_RESET,
-						1, GPIOD_OUT_HIGH);
+	phy->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(phy->gpiod_reset)) {
 		nfc_err(dev, "Unable to get RESET GPIO\n");
 		return PTR_ERR(phy->gpiod_reset);
