@@ -158,4 +158,14 @@ config PCIE_ARTPEC6
 	  Say Y here to enable PCIe controller support on Axis ARTPEC-6
 	  SoCs.  This PCIe controller uses the DesignWare core.
 
+config PCIE_KIRIN
+	depends on OF && ARM64
+	bool "HiSilicon Kirin series SoCs PCIe controllers"
+	depends on PCI
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe controller support
+	  on HiSilicon Kirin series SoCs.
+
 endmenu
