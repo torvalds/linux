@@ -33,10 +33,15 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	}
 
 	/*
-	 * If this is a per-CPU interrupt, or the affinity does not
-	 * include this CPU, then we have nothing to do.
+	 * No move required, if:
+	 * - Interrupt is per cpu
+	 * - Interrupt is not started
+	 * - Affinity mask does not include this CPU.
+	 *
+	 * Note: Do not check desc->action as this might be a chained
+	 * interrupt.
 	 */
-	if (irqd_is_per_cpu(d) ||
+	if (irqd_is_per_cpu(d) || !irqd_is_started(d) ||
 	    !cpumask_test_cpu(smp_processor_id(), affinity))
 		return false;
 
