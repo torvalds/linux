@@ -271,8 +271,6 @@ latex_elements = {
 
 # Additional stuff for the LaTeX preamble.
     'preamble': '''
-	% Adjust margins
-	\\usepackage[margin=0.5in, top=1in, bottom=1in]{geometry}
         \\usepackage{ifthen}
 
         % Allow generate some pages in landscape
@@ -342,6 +340,12 @@ latex_elements = {
 # Fix reference escape troubles with Sphinx 1.4.x
 if major == 1 and minor > 3:
     latex_elements['preamble']  += '\\renewcommand*{\\DUrole}[2]{ #2 }\n'
+
+if major == 1 and minor <= 4:
+    latex_elements['preamble']  += '\\usepackage[margin=0.5in, top=1in, bottom=1in]{geometry}'
+elif major == 1 and (minor > 5 or (minor == 5 and patch >= 3)):
+    latex_elements['sphinxsetup'] = 'hmargin=0.5in, vmargin=0.5in'
+
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
