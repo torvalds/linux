@@ -815,7 +815,8 @@ static inline bool rq_mergeable(struct request *rq)
 
 static inline bool blk_write_same_mergeable(struct bio *a, struct bio *b)
 {
-	if (bio_data(a) == bio_data(b))
+	if (bio_page(a) == bio_page(b) &&
+	    bio_offset(a) == bio_offset(b))
 		return true;
 
 	return false;
