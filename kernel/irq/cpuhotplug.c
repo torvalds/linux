@@ -18,7 +18,7 @@ static bool migrate_one_irq(struct irq_desc *desc)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
 	struct irq_chip *chip = irq_data_get_irq_chip(d);
-	const struct cpumask *affinity = d->common->affinity;
+	const struct cpumask *affinity;
 	bool brokeaff = false;
 	int err;
 
@@ -41,9 +41,33 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	 * Note: Do not check desc->action as this might be a chained
 	 * interrupt.
 	 */
+	affinity = irq_data_get_affinity_mask(d);
 	if (irqd_is_per_cpu(d) || !irqd_is_started(d) ||
-	    !cpumask_test_cpu(smp_processor_id(), affinity))
+	    !cpumask_test_cpu(smp_processor_id(), affinity)) {
+		/*
+		 * If an irq move is pending, abort it if the dying CPU is
+		 * the sole target.
+		 */
+		irq_fixup_move_pending(desc, false);
 		return false;
+	}
+
+	/*
+	 * Complete an eventually pending irq move cleanup. If this
+	 * interrupt was moved in hard irq context, then the vectors need
+	 * to be cleaned up. It can't wait until this interrupt actually
+	 * happens and this CPU was involved.
+	 */
+	irq_force_complete_move(desc);
+
+	/*
+	 * If there is a setaffinity pending, then try to reuse the pending
+	 * mask, so the last change of the affinity does not get lost. If
+	 * there is no move pending or the pending mask does not contain
+	 * any online CPU, use the current affinity mask.
+	 */
+	if (irq_fixup_move_pending(desc, true))
+		affinity = irq_desc_get_pending_mask(desc);
 
 	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 		affinity = cpu_online_mask;

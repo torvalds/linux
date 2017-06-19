@@ -268,6 +268,10 @@ irq_get_pending(struct cpumask *mask, struct irq_desc *desc)
 {
 	cpumask_copy(mask, desc->pending_mask);
 }
+static inline struct cpumask *irq_desc_get_pending_mask(struct irq_desc *desc)
+{
+	return desc->pending_mask;
+}
 #else /* CONFIG_GENERIC_PENDING_IRQ */
 static inline bool irq_can_move_pcntxt(struct irq_data *data)
 {
@@ -285,7 +289,11 @@ static inline void
 irq_get_pending(struct cpumask *mask, struct irq_desc *desc)
 {
 }
-#endif /* CONFIG_GENERIC_PENDING_IRQ */
+static inline struct cpumask *irq_desc_get_pending_mask(struct irq_desc *desc)
+{
+	return NULL;
+}
+#endif /* !CONFIG_GENERIC_PENDING_IRQ */
 
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
 void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc);
