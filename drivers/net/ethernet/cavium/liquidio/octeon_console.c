@@ -724,13 +724,11 @@ static int octeon_console_read(struct octeon_device *oct, u32 console_num,
 }
 
 #define FBUF_SIZE	(4 * 1024 * 1024)
-u8 fbuf[FBUF_SIZE];
 
 int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 			     size_t size)
 {
 	int ret = 0;
-	u8 *p = fbuf;
 	u32 crc32_result;
 	u64 load_addr;
 	u32 image_len;
@@ -805,10 +803,8 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 			else
 				size = FBUF_SIZE;
 
-			memcpy(p, data, size);
-
 			/* download the image */
-			octeon_pci_write_core_mem(oct, load_addr, p, (u32)size);
+			octeon_pci_write_core_mem(oct, load_addr, data, (u32)size);
 
 			data += size;
 			rem -= (u32)size;
