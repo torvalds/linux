@@ -200,6 +200,7 @@ struct irq_data {
  * IRQD_WAKEUP_ARMED		- Wakeup mode armed
  * IRQD_FORWARDED_TO_VCPU	- The interrupt is forwarded to a VCPU
  * IRQD_AFFINITY_MANAGED	- Affinity is auto-managed by the kernel
+ * IRQD_IRQ_STARTED		- Startup state of the interrupt
  */
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
