@@ -1581,7 +1581,7 @@ static void hdmi_tx_hdcp_config(struct dw_hdmi *hdmi,
 	hdmi_modb(hdmi, hdmi_dvi, HDMI_A_HDCPCFG0_HDMIDVI_MASK,
 		  HDMI_A_HDCPCFG0);
 
-	if (hdmi->hdcp)
+	if (hdmi->hdcp && hdmi->hdcp->hdcp_start)
 		hdmi->hdcp->hdcp_start(hdmi->hdcp);
 }
 
@@ -2159,7 +2159,7 @@ static void dw_hdmi_poweroff(struct dw_hdmi *hdmi)
 		hdmi->phy.enabled = false;
 	}
 
-	if (hdmi->hdcp)
+	if (hdmi->hdcp && hdmi->hdcp->hdcp_stop)
 		hdmi->hdcp->hdcp_stop(hdmi->hdcp);
 	hdmi->bridge_is_on = false;
 }
@@ -2478,7 +2478,7 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 
 	hdcp_stat = hdmi_readb(hdmi, HDMI_A_APIINTSTAT);
 	if (hdcp_stat) {
-		if (hdmi->hdcp)
+		if (hdmi->hdcp && hdmi->hdcp->hdcp_isr)
 			hdmi->hdcp->hdcp_isr(hdmi->hdcp, hdcp_stat);
 		hdmi_writeb(hdmi, hdcp_stat, HDMI_A_APIINTCLR);
 		hdmi_writeb(hdmi, 0x00, HDMI_A_APIINTMSK);
