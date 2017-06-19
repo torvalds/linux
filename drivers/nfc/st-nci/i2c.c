@@ -27,7 +27,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
-#include <linux/platform_data/st-nci.h>
 
 #include "st-nci.h"
 
@@ -40,6 +39,7 @@
 #define ST_NCI_I2C_MIN_SIZE 4   /* PCB(1) + NCI Packet header(3) */
 #define ST_NCI_I2C_MAX_SIZE 250 /* req 4.2.1 */
 
+#define ST_NCI_DRIVER_NAME "st_nci"
 #define ST_NCI_I2C_DRIVER_NAME "st_nci_i2c"
 
 #define ST_NCI_GPIO_NAME_RESET "reset"
@@ -281,41 +281,10 @@ static int st_nci_i2c_of_request_resources(struct i2c_client *client)
 	return 0;
 }
 
-static int st_nci_i2c_request_resources(struct i2c_client *client)
-{
-	struct st_nci_nfc_platform_data *pdata;
-	struct st_nci_i2c_phy *phy = i2c_get_clientdata(client);
-	int r;
-
-	pdata = client->dev.platform_data;
-	if (pdata == NULL) {
-		nfc_err(&client->dev, "No platform data\n");
-		return -EINVAL;
-	}
-
-	/* store for later use */
-	phy->gpio_reset = pdata->gpio_reset;
-	phy->irq_polarity = pdata->irq_polarity;
-
-	r = devm_gpio_request_one(&client->dev,
-			phy->gpio_reset, GPIOF_OUT_INIT_HIGH,
-			ST_NCI_GPIO_NAME_RESET);
-	if (r) {
-		pr_err("%s : reset gpio_request failed\n", __FILE__);
-		return r;
-	}
-
-	phy->se_status.is_ese_present = pdata->is_ese_present;
-	phy->se_status.is_uicc_present = pdata->is_uicc_present;
-
-	return 0;
-}
-
 static int st_nci_i2c_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct st_nci_i2c_phy *phy;
-	struct st_nci_nfc_platform_data *pdata;
 	int r;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
@@ -335,18 +304,10 @@ static int st_nci_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, phy);
 
-	pdata = client->dev.platform_data;
-	if (!pdata && client->dev.of_node) {
+	if (client->dev.of_node) {
 		r = st_nci_i2c_of_request_resources(client);
 		if (r) {
 			nfc_err(&client->dev, "No platform data\n");
-			return r;
-		}
-	} else if (pdata) {
-		r = st_nci_i2c_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev,
-				"Cannot get platform resources\n");
 			return r;
 		}
 	} else if (ACPI_HANDLE(&client->dev)) {

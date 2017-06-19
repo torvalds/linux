@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/nfc.h>
 #include <net/nfc/nci.h>
-#include <linux/platform_data/st-nci.h>
 
 #include "st-nci.h"
 
@@ -41,6 +40,7 @@
 #define ST_NCI_SPI_MIN_SIZE 4   /* PCB(1) + NCI Packet header(3) */
 #define ST_NCI_SPI_MAX_SIZE 250 /* req 4.2.1 */
 
+#define ST_NCI_DRIVER_NAME "st_nci"
 #define ST_NCI_SPI_DRIVER_NAME "st_nci_spi"
 
 #define ST_NCI_GPIO_NAME_RESET "reset"
@@ -296,40 +296,9 @@ static int st_nci_spi_of_request_resources(struct spi_device *dev)
 	return 0;
 }
 
-static int st_nci_spi_request_resources(struct spi_device *dev)
-{
-	struct st_nci_nfc_platform_data *pdata;
-	struct st_nci_spi_phy *phy = spi_get_drvdata(dev);
-	int r;
-
-	pdata = dev->dev.platform_data;
-	if (pdata == NULL) {
-		nfc_err(&dev->dev, "No platform data\n");
-		return -EINVAL;
-	}
-
-	/* store for later use */
-	phy->gpio_reset = pdata->gpio_reset;
-	phy->irq_polarity = pdata->irq_polarity;
-
-	r = devm_gpio_request_one(&dev->dev,
-			phy->gpio_reset, GPIOF_OUT_INIT_HIGH,
-			ST_NCI_GPIO_NAME_RESET);
-	if (r) {
-		pr_err("%s : reset gpio_request failed\n", __FILE__);
-		return r;
-	}
-
-	phy->se_status.is_ese_present = pdata->is_ese_present;
-	phy->se_status.is_uicc_present = pdata->is_uicc_present;
-
-	return 0;
-}
-
 static int st_nci_spi_probe(struct spi_device *dev)
 {
 	struct st_nci_spi_phy *phy;
-	struct st_nci_nfc_platform_data *pdata;
 	int r;
 
 	dev_dbg(&dev->dev, "%s\n", __func__);
@@ -351,18 +320,10 @@ static int st_nci_spi_probe(struct spi_device *dev)
 
 	spi_set_drvdata(dev, phy);
 
-	pdata = dev->dev.platform_data;
-	if (!pdata && dev->dev.of_node) {
+	if (dev->dev.of_node) {
 		r = st_nci_spi_of_request_resources(dev);
 		if (r) {
 			nfc_err(&dev->dev, "No platform data\n");
-			return r;
-		}
-	} else if (pdata) {
-		r = st_nci_spi_request_resources(dev);
-		if (r) {
-			nfc_err(&dev->dev,
-				"Cannot get platform resources\n");
 			return r;
 		}
 	} else if (ACPI_HANDLE(&dev->dev)) {
