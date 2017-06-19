@@ -102,15 +102,14 @@ static int mv88e6xxx_g2_set_device_mapping(struct mv88e6xxx_chip *chip)
 /* Offset 0x07: Trunk Mask Table register */
 
 static int mv88e6xxx_g2_trunk_mask_write(struct mv88e6xxx_chip *chip, int num,
-					 bool hask, u16 mask)
+					 bool hash, u16 mask)
 {
-	const u16 port_mask = BIT(mv88e6xxx_num_ports(chip)) - 1;
-	u16 val = (num << 12) | (mask & port_mask);
+	u16 val = (num << 12) | (mask & mv88e6xxx_port_mask(chip));
 
-	if (hask)
-		val |= GLOBAL2_TRUNK_MASK_HASK;
+	if (hash)
+		val |= MV88E6XXX_G2_TRUNK_MASK_HASH;
 
-	return mv88e6xxx_g2_update(chip, GLOBAL2_TRUNK_MASK, val);
+	return mv88e6xxx_g2_update(chip, MV88E6XXX_G2_TRUNK_MASK, val);
 }
 
 /* Offset 0x08: Trunk Mapping Table register */
@@ -121,7 +120,7 @@ static int mv88e6xxx_g2_trunk_mapping_write(struct mv88e6xxx_chip *chip, int id,
 	const u16 port_mask = BIT(mv88e6xxx_num_ports(chip)) - 1;
 	u16 val = (id << 11) | (map & port_mask);
 
-	return mv88e6xxx_g2_update(chip, GLOBAL2_TRUNK_MAPPING, val);
+	return mv88e6xxx_g2_update(chip, MV88E6XXX_G2_TRUNK_MAPPING, val);
 }
 
 static int mv88e6xxx_g2_clear_trunk(struct mv88e6xxx_chip *chip)
