@@ -52,6 +52,7 @@ Gyroscopes:
 - st,lsm330dl-gyro
 - st,lsm330dlc-gyro
 - st,l3gd20-gyro
+- st,l3gd20h-gyro
 - st,l3g4is-gyro
 - st,lsm330-gyro
 - st,lsm9ds0-gyro
