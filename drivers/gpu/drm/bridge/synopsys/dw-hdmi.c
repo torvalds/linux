@@ -1734,7 +1734,7 @@ static void hdmi_tx_hdcp_config(struct dw_hdmi *hdmi,
 	hdmi_modb(hdmi, hdmi_dvi, HDMI_A_HDCPCFG0_HDMIDVI_MASK,
 		  HDMI_A_HDCPCFG0);
 
-	if (hdmi->hdcp)
+	if (hdmi->hdcp && hdmi->hdcp->hdcp_start)
 		hdmi->hdcp->hdcp_start(hdmi->hdcp);
 }
 
@@ -2510,7 +2510,7 @@ static void dw_hdmi_poweroff(struct dw_hdmi *hdmi)
 		hdmi->phy.enabled = false;
 	}
 
-	if (hdmi->hdcp)
+	if (hdmi->hdcp && hdmi->hdcp->hdcp_stop)
 		hdmi->hdcp->hdcp_stop(hdmi->hdcp);
 	hdmi->bridge_is_on = false;
 }
