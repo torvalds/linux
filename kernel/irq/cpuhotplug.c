@@ -17,9 +17,20 @@
 static bool migrate_one_irq(struct irq_desc *desc)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
+	struct irq_chip *chip = irq_data_get_irq_chip(d);
 	const struct cpumask *affinity = d->common->affinity;
-	struct irq_chip *c;
-	bool ret = false;
+	bool brokeaff = false;
+	int err;
+
+	/*
+	 * IRQ chip might be already torn down, but the irq descriptor is
+	 * still in the radix tree. Also if the chip has no affinity setter,
+	 * nothing can be done here.
+	 */
+	if (!chip || !chip->irq_set_affinity) {
+		pr_debug("IRQ %u: Unable to migrate away\n", d->irq);
+		return false;
+	}
 
 	/*
 	 * If this is a per-CPU interrupt, or the affinity does not
@@ -31,23 +42,16 @@ static bool migrate_one_irq(struct irq_desc *desc)
 
 	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 		affinity = cpu_online_mask;
-		ret = true;
+		brokeaff = true;
 	}
 
-	c = irq_data_get_irq_chip(d);
-	if (!c->irq_set_affinity) {
-		pr_debug("IRQ%u: unable to set affinity\n", d->irq);
-		ret = false;
-	} else {
-		int r = irq_do_set_affinity(d, affinity, false);
-		if (r) {
-			pr_warn_ratelimited("IRQ%u: set affinity failed(%d).\n",
-					    d->irq, r);
-			ret = false;
-		}
+	err = irq_do_set_affinity(d, affinity, false);
+	if (err) {
+		pr_warn_ratelimited("IRQ%u: set affinity failed(%d).\n",
+				    d->irq, err);
+		return false;
 	}
-
-	return ret;
+	return brokeaff;
 }
 
 /**
