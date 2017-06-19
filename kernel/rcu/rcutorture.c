@@ -1319,11 +1319,12 @@ rcu_torture_stats_print(void)
 		srcutorture_get_gp_data(cur_ops->ttype, srcu_ctlp,
 					&flags, &gpnum, &completed);
 		wtp = READ_ONCE(writer_task);
-		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx\n",
+		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx cpu %d\n",
 			 rcu_torture_writer_state_getname(),
 			 rcu_torture_writer_state,
 			 gpnum, completed, flags,
-			 wtp == NULL ? ~0UL : wtp->state);
+			 wtp == NULL ? ~0UL : wtp->state,
+			 wtp == NULL ? -1 : (int)task_cpu(wtp));
 		show_rcu_gp_kthreads();
 		rcu_ftrace_dump(DUMP_ALL);
 	}
