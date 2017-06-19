@@ -68,6 +68,30 @@
 		clock-frequency = <32768>;
 	};
 
+	vreg_vph_pwr: vreg-vph-pwr {
+		compatible = "regulator-fixed";
+		status = "okay";
+		regulator-name = "vph-pwr";
+
+		regulator-min-microvolt = <3600000>;
+		regulator-max-microvolt = <3600000>;
+
+		regulator-always-on;
+	};
+
+	sfpb_mutex: hwmutex {
+		compatible = "qcom,sfpb-mutex";
+		syscon = <&sfpb_mutex_regs 0x0 0x100>;
+		#hwlock-cells = <1>;
+	};
+
+	smem {
+		compatible = "qcom,smem";
+		memory-region = <&smem_region>;
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
+		hwlocks = <&sfpb_mutex 3>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -80,6 +104,11 @@
 			#interrupt-cells = <3>;
 			reg = <0xf9000000 0x1000>,
 				<0xf9002000 0x1000>;
+		};
+
+		apcs: syscon@f900d000 {
+			compatible = "syscon";
+			reg = <0xf900d000 0x2000>;
 		};
 
 		timer@f9020000 {
@@ -172,12 +201,36 @@
 			#power-domain-cells = <1>;
 			reg = <0xfc400000 0x2000>;
 		};
+
+		rpm_msg_ram: memory@fc428000 {
+			compatible = "qcom,rpm-msg-ram";
+			reg = <0xfc428000 0x4000>;
+		};
+
+		sfpb_mutex_regs: syscon@fd484000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "syscon";
+			reg = <0xfd484000 0x400>;
+		};
 	};
 
 	memory {
 		device_type = "memory";
 		reg = <0 0 0 0>; // bootloader will update
 	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		smem_region: smem@6a00000 {
+			reg = <0x0 0x6a00000 0x0 0x200000>;
+			no-map;
+		};
+	};
+
 };
 
 
