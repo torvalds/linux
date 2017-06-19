@@ -85,6 +85,7 @@ enum perf_output_field {
 	PERF_OUTPUT_INSN	    = 1U << 21,
 	PERF_OUTPUT_INSNLEN	    = 1U << 22,
 	PERF_OUTPUT_BRSTACKINSN	    = 1U << 23,
+	PERF_OUTPUT_BRSTACKOFF	    = 1U << 24,
 };
 
 struct output_option {
@@ -115,6 +116,7 @@ struct output_option {
 	{.str = "insn", .field = PERF_OUTPUT_INSN},
 	{.str = "insnlen", .field = PERF_OUTPUT_INSNLEN},
 	{.str = "brstackinsn", .field = PERF_OUTPUT_BRSTACKINSN},
+	{.str = "brstackoff", .field = PERF_OUTPUT_BRSTACKOFF},
 };
 
 /* default set to maintain compatibility with current format */
@@ -299,10 +301,9 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		return -EINVAL;
 	}
 	if (PRINT_FIELD(DSO) && !PRINT_FIELD(IP) && !PRINT_FIELD(ADDR) &&
-	    !PRINT_FIELD(BRSTACK) && !PRINT_FIELD(BRSTACKSYM)) {
-		pr_err("Display of DSO requested but none of sample IP, sample address, "
-		       "brstack\nor brstacksym are selected. Hence, no addresses to "
-		       "convert to DSO.\n");
+	    !PRINT_FIELD(BRSTACK) && !PRINT_FIELD(BRSTACKSYM) && !PRINT_FIELD(BRSTACKOFF)) {
+		pr_err("Display of DSO requested but no address to convert.  Select\n"
+		       "sample IP, sample address, brstack, brstacksym, or brstackoff.\n");
 		return -EINVAL;
 	}
 	if (PRINT_FIELD(SRCLINE) && !PRINT_FIELD(IP)) {
@@ -606,6 +607,51 @@ static void print_sample_brstacksym(struct perf_sample *sample,
 	}
 }
 
+static void print_sample_brstackoff(struct perf_sample *sample,
+				    struct thread *thread,
+				    struct perf_event_attr *attr)
+{
+	struct branch_stack *br = sample->branch_stack;
+	struct addr_location alf, alt;
+	u64 i, from, to;
+
+	if (!(br && br->nr))
+		return;
+
+	for (i = 0; i < br->nr; i++) {
+
+		memset(&alf, 0, sizeof(alf));
+		memset(&alt, 0, sizeof(alt));
+		from = br->entries[i].from;
+		to   = br->entries[i].to;
+
+		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, from, &alf);
+		if (alf.map && !alf.map->dso->adjust_symbols)
+			from = map__map_ip(alf.map, from);
+
+		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, to, &alt);
+		if (alt.map && !alt.map->dso->adjust_symbols)
+			to = map__map_ip(alt.map, to);
+
+		printf("0x%"PRIx64, from);
+		if (PRINT_FIELD(DSO)) {
+			printf("(");
+			map__fprintf_dsoname(alf.map, stdout);
+			printf(")");
+		}
+		printf("/0x%"PRIx64, to);
+		if (PRINT_FIELD(DSO)) {
+			printf("(");
+			map__fprintf_dsoname(alt.map, stdout);
+			printf(")");
+		}
+		printf("/%c/%c/%c/%d ",
+			mispred_str(br->entries + i),
+			br->entries[i].flags.in_tx ? 'X' : '-',
+			br->entries[i].flags.abort ? 'A' : '-',
+			br->entries[i].flags.cycles);
+	}
+}
 #define MAXBB 16384UL
 
 static int grab_bb(u8 *buffer, u64 start, u64 end,
@@ -1227,6 +1273,8 @@ static void process_event(struct perf_script *script,
 		print_sample_brstack(sample, thread, attr);
 	else if (PRINT_FIELD(BRSTACKSYM))
 		print_sample_brstacksym(sample, thread, attr);
+	else if (PRINT_FIELD(BRSTACKOFF))
+		print_sample_brstackoff(sample, thread, attr);
 
 	if (perf_evsel__is_bpf_output(evsel) && PRINT_FIELD(BPF_OUTPUT))
 		print_sample_bpf_output(sample);
