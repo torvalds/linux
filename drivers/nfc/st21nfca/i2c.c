@@ -501,14 +501,25 @@ static struct nfc_phy_ops i2c_phy_ops = {
 	.disable = st21nfca_hci_i2c_disable,
 };
 
+static const struct acpi_gpio_params enable_gpios = { 1, 0, false };
+
+static const struct acpi_gpio_mapping acpi_st21nfca_gpios[] = {
+	{ "enable-gpios", &enable_gpios, 1 },
+	{},
+};
+
 static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
+	int ret;
+
+	ret = devm_acpi_dev_add_driver_gpios(dev, acpi_st21nfca_gpios);
+	if (ret)
+		return ret;
 
 	/* Get EN GPIO from ACPI */
-	phy->gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 1,
-					      GPIOD_OUT_LOW);
+	phy->gpiod_ena = devm_gpiod_get(dev, ST21NFCA_GPIO_NAME_EN, GPIOD_OUT_LOW);
 	if (IS_ERR(phy->gpiod_ena)) {
 		nfc_err(dev, "Unable to get ENABLE GPIO\n");
 		return PTR_ERR(phy->gpiod_ena);
@@ -523,8 +534,7 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 	struct device *dev = &client->dev;
 
 	/* Get GPIO from device tree */
-	phy->gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 0,
-					      GPIOD_OUT_HIGH);
+	phy->gpiod_ena = devm_gpiod_get(dev, ST21NFCA_GPIO_NAME_EN, GPIOD_OUT_HIGH);
 	if (IS_ERR(phy->gpiod_ena)) {
 		nfc_err(dev, "Failed to request enable pin\n");
 		return PTR_ERR(phy->gpiod_ena);
