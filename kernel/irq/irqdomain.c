@@ -26,39 +26,61 @@ static struct irq_domain *irq_default_domain;
 static void irq_domain_check_hierarchy(struct irq_domain *domain);
 
 struct irqchip_fwid {
-	struct fwnode_handle fwnode;
-	char *name;
-	void *data;
+	struct fwnode_handle	fwnode;
+	unsigned int		type;
+	char			*name;
+	void			*data;
 };
 
 /**
  * irq_domain_alloc_fwnode - Allocate a fwnode_handle suitable for
  *                           identifying an irq domain
- * @data: optional user-provided data
+ * @type:	Type of irqchip_fwnode. See linux/irqdomain.h
+ * @name:	Optional user provided domain name
+ * @id:		Optional user provided id if name != NULL
+ * @data:	Optional user-provided data
  *
- * Allocate a struct device_node, and return a poiner to the embedded
+ * Allocate a struct irqchip_fwid, and return a poiner to the embedded
  * fwnode_handle (or NULL on failure).
+ *
+ * Note: The types IRQCHIP_FWNODE_NAMED and IRQCHIP_FWNODE_NAMED_ID are
+ * solely to transport name information to irqdomain creation code. The
+ * node is not stored. For other types the pointer is kept in the irq
+ * domain struct.
  */
-struct fwnode_handle *irq_domain_alloc_fwnode(void *data)
+struct fwnode_handle *__irq_domain_alloc_fwnode(unsigned int type, int id,
+						const char *name, void *data)
 {
 	struct irqchip_fwid *fwid;
-	char *name;
+	char *n;
 
 	fwid = kzalloc(sizeof(*fwid), GFP_KERNEL);
-	name = kasprintf(GFP_KERNEL, "irqchip@%p", data);
 
-	if (!fwid || !name) {
+	switch (type) {
+	case IRQCHIP_FWNODE_NAMED:
+		n = kasprintf(GFP_KERNEL, "%s", name);
+		break;
+	case IRQCHIP_FWNODE_NAMED_ID:
+		n = kasprintf(GFP_KERNEL, "%s-%d", name, id);
+		break;
+	default:
+		n = kasprintf(GFP_KERNEL, "irqchip@%p", data);
+		break;
+	}
+
+	if (!fwid || !n) {
 		kfree(fwid);
-		kfree(name);
+		kfree(n);
 		return NULL;
 	}
 
-	fwid->name = name;
+	fwid->type = type;
+	fwid->name = n;
 	fwid->data = data;
 	fwid->fwnode.type = FWNODE_IRQCHIP;
 	return &fwid->fwnode;
 }
-EXPORT_SYMBOL_GPL(irq_domain_alloc_fwnode);
+EXPORT_SYMBOL_GPL(__irq_domain_alloc_fwnode);
 
 /**
  * irq_domain_free_fwnode - Free a non-OF-backed fwnode_handle
@@ -97,12 +119,68 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 				    void *host_data)
 {
 	struct device_node *of_node = to_of_node(fwnode);
+	struct irqchip_fwid *fwid;
 	struct irq_domain *domain;
+
+	static atomic_t unknown_domains;
 
 	domain = kzalloc_node(sizeof(*domain) + (sizeof(unsigned int) * size),
 			      GFP_KERNEL, of_node_to_nid(of_node));
 	if (WARN_ON(!domain))
 		return NULL;
+
+	if (fwnode && is_fwnode_irqchip(fwnode)) {
+		fwid = container_of(fwnode, struct irqchip_fwid, fwnode);
+
+		switch (fwid->type) {
+		case IRQCHIP_FWNODE_NAMED:
+		case IRQCHIP_FWNODE_NAMED_ID:
+			domain->name = kstrdup(fwid->name, GFP_KERNEL);
+			if (!domain->name) {
+				kfree(domain);
+				return NULL;
+			}
+			domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
+			break;
+		default:
+			domain->fwnode = fwnode;
+			domain->name = fwid->name;
+			break;
+		}
+	} else if (of_node) {
+		char *name;
+
+		/*
+		 * DT paths contain '/', which debugfs is legitimately
+		 * unhappy about. Replace them with ':', which does
+		 * the trick and is not as offensive as '\'...
+		 */
+		name = kstrdup(of_node_full_name(of_node), GFP_KERNEL);
+		if (!name) {
+			kfree(domain);
+			return NULL;
+		}
+
+		strreplace(name, '/', ':');
+
+		domain->name = name;
+		domain->fwnode = fwnode;
+		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
+	}
+
+	if (!domain->name) {
+		if (fwnode) {
+			pr_err("Invalid fwnode type (%d) for irqdomain\n",
+			       fwnode->type);
+		}
+		domain->name = kasprintf(GFP_KERNEL, "unknown-%d",
+					 atomic_inc_return(&unknown_domains));
+		if (!domain->name) {
+			kfree(domain);
+			return NULL;
+		}
+		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
+	}
 
 	of_node_get(of_node);
 
@@ -110,7 +188,6 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 	INIT_RADIX_TREE(&domain->revmap_tree, GFP_KERNEL);
 	domain->ops = ops;
 	domain->host_data = host_data;
-	domain->fwnode = fwnode;
 	domain->hwirq_max = hwirq_max;
 	domain->revmap_size = size;
 	domain->revmap_direct_max_irq = direct_max;
@@ -152,6 +229,8 @@ void irq_domain_remove(struct irq_domain *domain)
 	pr_debug("Removed domain %s\n", domain->name);
 
 	of_node_put(irq_domain_get_of_node(domain));
+	if (domain->flags & IRQ_DOMAIN_NAME_ALLOCATED)
+		kfree(domain->name);
 	kfree(domain);
 }
 EXPORT_SYMBOL_GPL(irq_domain_remove);
