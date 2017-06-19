@@ -1,5 +1,5 @@
 /*
- * vimc-core.h Virtual Media Controller Driver
+ * vimc-ccommon.h Virtual Media Controller Driver
  *
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
  *
@@ -15,10 +15,11 @@
  *
  */
 
-#ifndef _VIMC_CORE_H_
-#define _VIMC_CORE_H_
+#ifndef _VIMC_COMMON_H_
+#define _VIMC_COMMON_H_
 
 #include <linux/slab.h>
+#include <media/media-device.h>
 #include <media/v4l2-device.h>
 
 /**

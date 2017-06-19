@@ -18,7 +18,7 @@
 #ifndef _VIMC_SENSOR_H_
 #define _VIMC_SENSOR_H_
 
-#include "vimc-core.h"
+#include "vimc-common.h"
 
 struct vimc_ent_device *vimc_sen_create(struct v4l2_device *v4l2_dev,
 					const char *const name,

@@ -18,7 +18,7 @@
 #ifndef _VIMC_CAPTURE_H_
 #define _VIMC_CAPTURE_H_
 
-#include "vimc-core.h"
+#include "vimc-common.h"
 
 struct vimc_ent_device *vimc_cap_create(struct v4l2_device *v4l2_dev,
 					const char *const name,
