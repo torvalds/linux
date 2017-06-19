@@ -2412,8 +2412,6 @@ static blk_qc_t pkt_make_request(struct request_queue *q, struct bio *bio)
 	char b[BDEVNAME_SIZE];
 	struct bio *split;
 
-	blk_queue_bounce(q, &bio);
-
 	blk_queue_split(q, &bio);
 
 	pd = q->queuedata;
