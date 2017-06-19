@@ -783,7 +783,12 @@ static int rcar_unreg_slave(struct i2c_client *slave)
 
 static u32 rcar_i2c_func(struct i2c_adapter *adap)
 {
-	/* This HW can't do SMBUS_QUICK and NOSTART */
+	/*
+	 * This HW can't do:
+	 * I2C_SMBUS_QUICK (setting FSB during START didn't work)
+	 * I2C_M_NOSTART (automatically sends address after START)
+	 * I2C_M_IGNORE_NAK (automatically sends STOP after NAK)
+	 */
 	return I2C_FUNC_I2C | I2C_FUNC_SLAVE |
 		(I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
 }
