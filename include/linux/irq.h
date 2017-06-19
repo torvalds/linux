@@ -137,6 +137,9 @@ struct irq_domain;
  * @affinity:		IRQ affinity on SMP. If this is an IPI
  *			related irq, then this is the mask of the
  *			CPUs to which an IPI can be sent.
+ * @effective_affinity:	The effective IRQ affinity on SMP as some irq
+ *			chips do not allow multi CPU destinations.
+ *			A subset of @affinity.
  * @msi_desc:		MSI descriptor
  * @ipi_offset:		Offset of first IPI target cpu in @affinity. Optional.
  */
@@ -148,6 +151,9 @@ struct irq_common_data {
 	void			*handler_data;
 	struct msi_desc		*msi_desc;
 	cpumask_var_t		affinity;
+#ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
+	cpumask_var_t		effective_affinity;
+#endif
 #ifdef CONFIG_GENERIC_IRQ_IPI
 	unsigned int		ipi_offset;
 #endif
@@ -736,6 +742,29 @@ static inline struct cpumask *irq_data_get_affinity_mask(struct irq_data *d)
 {
 	return d->common->affinity;
 }
+
+#ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
+static inline
+struct cpumask *irq_data_get_effective_affinity_mask(struct irq_data *d)
+{
+	return d->common->effective_affinity;
+}
+static inline void irq_data_update_effective_affinity(struct irq_data *d,
+						      const struct cpumask *m)
+{
+	cpumask_copy(d->common->effective_affinity, m);
+}
+#else
+static inline void irq_data_update_effective_affinity(struct irq_data *d,
+						      const struct cpumask *m)
+{
+}
+static inline
+struct cpumask *irq_data_get_effective_affinity_mask(struct irq_data *d)
+{
+	return d->common->affinity;
+}
+#endif
 
 unsigned int arch_dynirq_lower_bound(unsigned int from);
 

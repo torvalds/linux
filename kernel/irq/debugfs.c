@@ -36,6 +36,10 @@ static void irq_debug_show_masks(struct seq_file *m, struct irq_desc *desc)
 
 	msk = irq_data_get_affinity_mask(data);
 	seq_printf(m, "affinity: %*pbl\n", cpumask_pr_args(msk));
+#ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
+	msk = irq_data_get_effective_affinity_mask(data);
+	seq_printf(m, "effectiv: %*pbl\n", cpumask_pr_args(msk));
+#endif
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	msk = desc->pending_mask;
 	seq_printf(m, "pending:  %*pbl\n", cpumask_pr_args(msk));
