@@ -3841,6 +3841,16 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 		UPDATE_COEF(0x4a, 3<<10, 0),
 		{}
 	};
+	static struct coef_fw coef0274[] = {
+		UPDATE_COEF(0x4a, 0x0100, 0),
+		UPDATE_COEFEX(0x57, 0x05, 0x4000, 0),
+		UPDATE_COEF(0x6b, 0xf000, 0x5000),
+		UPDATE_COEF(0x4a, 0x0010, 0),
+		UPDATE_COEF(0x4a, 0x0c00, 0x0c00),
+		WRITE_COEF(0x45, 0x5289),
+		UPDATE_COEF(0x4a, 0x0c00, 0),
+		{}
+	};
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
@@ -3850,6 +3860,11 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0256);
 		alc_process_coef_fw(codec, coef0255);
+		break;
+	case 0x10ec0234:
+	case 0x10ec0274:
+	case 0x10ec0294:
+		alc_process_coef_fw(codec, coef0274);
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
@@ -3928,7 +3943,12 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 		UPDATE_COEF(0x63, 3<<14, 0),
 		{}
 	};
-
+	static struct coef_fw coef0274[] = {
+		UPDATE_COEFEX(0x57, 0x05, 0x4000, 0x4000),
+		UPDATE_COEF(0x4a, 0x0010, 0),
+		UPDATE_COEF(0x6b, 0xf000, 0),
+		{}
+	};
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
@@ -3936,6 +3956,14 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 		alc_write_coef_idx(codec, 0x45, 0xc489);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
 		alc_process_coef_fw(codec, coef0255);
+		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
+		break;
+	case 0x10ec0234:
+	case 0x10ec0274:
+	case 0x10ec0294:
+		alc_write_coef_idx(codec, 0x45, 0x4689);
+		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
+		alc_process_coef_fw(codec, coef0274);
 		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
 		break;
 	case 0x10ec0233:
@@ -4035,6 +4063,13 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 		WRITE_COEF(0xb7, 0x802b),
 		{}
 	};
+	static struct coef_fw coef0274[] = {
+		WRITE_COEF(0x45, 0x4289),
+		UPDATE_COEF(0x4a, 0x0010, 0x0010),
+		UPDATE_COEF(0x6b, 0x0f00, 0),
+		UPDATE_COEF(0x49, 0x0300, 0x0300),
+		{}
+	};
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0225:
@@ -4045,6 +4080,11 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 	case 0x10ec0255:
 	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
+		break;
+	case 0x10ec0234:
+	case 0x10ec0274:
+	case 0x10ec0294:
+		alc_process_coef_fw(codec, coef0274);
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
@@ -4130,6 +4170,11 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 		break;
 	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0256);
+		break;
+	case 0x10ec0234:
+	case 0x10ec0274:
+	case 0x10ec0294:
+		alc_write_coef_idx(codec, 0x45, 0xd689);
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
@@ -4225,6 +4270,11 @@ static void alc_headset_mode_omtp(struct hda_codec *codec)
 	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0256);
 		break;
+	case 0x10ec0234:
+	case 0x10ec0274:
+	case 0x10ec0294:
+		alc_write_coef_idx(codec, 0x45, 0xe689);
+		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
 		alc_process_coef_fw(codec, coef0233);
@@ -4288,6 +4338,13 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 		UPDATE_COEF(0x49, 1<<8, 1<<8),
 		{}
 	};
+	static struct coef_fw coef0274[] = {
+		UPDATE_COEF(0x4a, 0x0010, 0),
+		UPDATE_COEF(0x4a, 0x8000, 0),
+		WRITE_COEF(0x45, 0xd289),
+		UPDATE_COEF(0x49, 0x0300, 0x0300),
+		{}
+	};
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
@@ -4296,6 +4353,14 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 		msleep(300);
 		val = alc_read_coef_idx(codec, 0x46);
 		is_ctia = (val & 0x0070) == 0x0070;
+		break;
+	case 0x10ec0234:
+	case 0x10ec0274:
+	case 0x10ec0294:
+		alc_process_coef_fw(codec, coef0274);
+		msleep(80);
+		val = alc_read_coef_idx(codec, 0x46);
+		is_ctia = (val & 0x00f0) == 0x00f0;
 		break;
 	case 0x10ec0233:
 	case 0x10ec0283:
@@ -6568,6 +6633,7 @@ static int patch_alc269(struct hda_codec *codec)
 	case 0x10ec0274:
 	case 0x10ec0294:
 		spec->codec_variant = ALC269_TYPE_ALC294;
+		alc_update_coef_idx(codec, 0x6b, 0x0018, (1<<4) | (1<<3)); /* UAJ MIC Vref control by verb */
 		break;
 	case 0x10ec0700:
 	case 0x10ec0701:
