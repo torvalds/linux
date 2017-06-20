@@ -39,8 +39,6 @@ struct blk_mq_hw_ctx {
 	struct blk_mq_tags	*tags;
 	struct blk_mq_tags	*sched_tags;
 
-	struct srcu_struct	queue_rq_srcu;
-
 	unsigned long		queued;
 	unsigned long		run;
 #define BLK_MQ_MAX_DISPATCH_ORDER	7
@@ -62,6 +60,9 @@ struct blk_mq_hw_ctx {
 	struct dentry		*debugfs_dir;
 	struct dentry		*sched_debugfs_dir;
 #endif
+
+	/* Must be the last member - see also blk_mq_hw_ctx_size(). */
+	struct srcu_struct	queue_rq_srcu[0];
 };
 
 struct blk_mq_tag_set {
