@@ -9,6 +9,7 @@
 #ifndef __LINUX_USB_PHY_H
 #define __LINUX_USB_PHY_H
 
+#include <linux/extcon.h>
 #include <linux/notifier.h>
 #include <linux/usb.h>
 
@@ -84,6 +85,12 @@ struct usb_phy {
 	struct device		*io_dev;
 	struct usb_phy_io_ops	*io_ops;
 	void __iomem		*io_priv;
+
+	/* to support extcon device */
+	struct extcon_dev	*edev;
+	struct extcon_dev	*id_edev;
+	struct notifier_block	vbus_nb;
+	struct notifier_block	id_nb;
 
 	/* for notification of usb_phy_events */
 	struct atomic_notifier_head	notifier;

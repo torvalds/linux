@@ -275,13 +275,14 @@ struct usb_functionfs_event {
 #define	FUNCTIONFS_INTERFACE_REVMAP	_IO('g', 128)
 
 /*
- * Returns real bEndpointAddress of an endpoint.  If function is not
- * active returns -ENODEV.
+ * Returns real bEndpointAddress of an endpoint. If endpoint shuts down
+ * during the call, returns -ESHUTDOWN.
  */
 #define	FUNCTIONFS_ENDPOINT_REVMAP	_IO('g', 129)
 
 /*
- * Returns endpoint descriptor. If function is not active returns -ENODEV.
+ * Returns endpoint descriptor. If endpoint shuts down during the call,
+ * returns -ESHUTDOWN.
  */
 #define	FUNCTIONFS_ENDPOINT_DESC	_IOR('g', 130, \
 					     struct usb_endpoint_descriptor)

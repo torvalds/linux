@@ -146,17 +146,6 @@ struct msm_otg_platform_data {
 };
 
 /**
- * struct msm_usb_cable - structure for exteternal connector cable
- *			  state tracking
- * @nb: hold event notification callback
- * @conn: used for notification registration
- */
-struct msm_usb_cable {
-	struct notifier_block		nb;
-	struct extcon_dev		*extcon;
-};
-
-/**
  * struct msm_otg: OTG driver data. Shared by HCD and DCD.
  * @otg: USB OTG Transceiver structure.
  * @pdata: otg device platform data.
@@ -214,9 +203,6 @@ struct msm_otg {
 	int vdd_levels[3];
 
 	bool manual_pullup;
-
-	struct msm_usb_cable vbus;
-	struct msm_usb_cable id;
 
 	struct gpio_desc *switch_gpio;
 	struct notifier_block reboot;
@@ -1612,8 +1598,8 @@ MODULE_DEVICE_TABLE(of, msm_otg_dt_match);
 static int msm_otg_vbus_notifier(struct notifier_block *nb, unsigned long event,
 				void *ptr)
 {
-	struct msm_usb_cable *vbus = container_of(nb, struct msm_usb_cable, nb);
-	struct msm_otg *motg = container_of(vbus, struct msm_otg, vbus);
+	struct usb_phy *usb_phy = container_of(nb, struct usb_phy, vbus_nb);
+	struct msm_otg *motg = container_of(usb_phy, struct msm_otg, phy);
 
 	if (event)
 		set_bit(B_SESS_VLD, &motg->inputs);
@@ -1636,8 +1622,8 @@ static int msm_otg_vbus_notifier(struct notifier_block *nb, unsigned long event,
 static int msm_otg_id_notifier(struct notifier_block *nb, unsigned long event,
 				void *ptr)
 {
-	struct msm_usb_cable *id = container_of(nb, struct msm_usb_cable, nb);
-	struct msm_otg *motg = container_of(id, struct msm_otg, id);
+	struct usb_phy *usb_phy = container_of(nb, struct usb_phy, id_nb);
+	struct msm_otg *motg = container_of(usb_phy, struct msm_otg, phy);
 
 	if (event)
 		clear_bit(ID, &motg->inputs);
@@ -1652,7 +1638,6 @@ static int msm_otg_id_notifier(struct notifier_block *nb, unsigned long event,
 static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 {
 	struct msm_otg_platform_data *pdata;
-	struct extcon_dev *ext_id, *ext_vbus;
 	struct device_node *node = pdev->dev.of_node;
 	struct property *prop;
 	int len, ret, words;
@@ -1707,54 +1692,6 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 						    GPIOD_OUT_LOW);
 	if (IS_ERR(motg->switch_gpio))
 		return PTR_ERR(motg->switch_gpio);
-
-	ext_id = ERR_PTR(-ENODEV);
-	ext_vbus = ERR_PTR(-ENODEV);
-	if (of_property_read_bool(node, "extcon")) {
-
-		/* Each one of them is not mandatory */
-		ext_vbus = extcon_get_edev_by_phandle(&pdev->dev, 0);
-		if (IS_ERR(ext_vbus) && PTR_ERR(ext_vbus) != -ENODEV)
-			return PTR_ERR(ext_vbus);
-
-		ext_id = extcon_get_edev_by_phandle(&pdev->dev, 1);
-		if (IS_ERR(ext_id) && PTR_ERR(ext_id) != -ENODEV)
-			return PTR_ERR(ext_id);
-	}
-
-	if (!IS_ERR(ext_vbus)) {
-		motg->vbus.extcon = ext_vbus;
-		motg->vbus.nb.notifier_call = msm_otg_vbus_notifier;
-		ret = devm_extcon_register_notifier(&pdev->dev, ext_vbus,
-						EXTCON_USB, &motg->vbus.nb);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "register VBUS notifier failed\n");
-			return ret;
-		}
-
-		ret = extcon_get_state(ext_vbus, EXTCON_USB);
-		if (ret)
-			set_bit(B_SESS_VLD, &motg->inputs);
-		else
-			clear_bit(B_SESS_VLD, &motg->inputs);
-	}
-
-	if (!IS_ERR(ext_id)) {
-		motg->id.extcon = ext_id;
-		motg->id.nb.notifier_call = msm_otg_id_notifier;
-		ret = devm_extcon_register_notifier(&pdev->dev, ext_id,
-						EXTCON_USB_HOST, &motg->id.nb);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "register ID notifier failed\n");
-			return ret;
-		}
-
-		ret = extcon_get_state(ext_id, EXTCON_USB_HOST);
-		if (ret)
-			clear_bit(ID, &motg->inputs);
-		else
-			set_bit(ID, &motg->inputs);
-	}
 
 	prop = of_find_property(node, "qcom,phy-init-sequence", &len);
 	if (!prop || !len)
@@ -1932,6 +1869,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	phy->init = msm_phy_init;
 	phy->notify_disconnect = msm_phy_notify_disconnect;
 	phy->type = USB_PHY_TYPE_USB2;
+	phy->vbus_nb.notifier_call = msm_otg_vbus_notifier;
+	phy->id_nb.notifier_call = msm_otg_id_notifier;
 
 	phy->io_ops = &msm_otg_io_ops;
 
@@ -1946,6 +1885,18 @@ static int msm_otg_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "usb_add_phy failed\n");
 		goto disable_ldo;
 	}
+
+	ret = extcon_get_state(phy->edev, EXTCON_USB);
+	if (ret)
+		set_bit(B_SESS_VLD, &motg->inputs);
+	else
+		clear_bit(B_SESS_VLD, &motg->inputs);
+
+	ret = extcon_get_state(phy->id_edev, EXTCON_USB_HOST);
+	if (ret)
+		clear_bit(ID, &motg->inputs);
+	else
+		set_bit(ID, &motg->inputs);
 
 	platform_set_drvdata(pdev, motg);
 	device_init_wakeup(&pdev->dev, 1);
