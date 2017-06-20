@@ -16,13 +16,13 @@ static void report(const char *prefix, const char *err, va_list params)
 	fprintf(stderr, " %s%s\n", prefix, msg);
 }
 
-static NORETURN void usage_builtin(const char *err)
+static __noreturn void usage_builtin(const char *err)
 {
 	fprintf(stderr, "\n Usage: %s\n", err);
 	exit(129);
 }
 
-static NORETURN void die_builtin(const char *err, va_list params)
+static __noreturn void die_builtin(const char *err, va_list params)
 {
 	report(" Fatal: ", err, params);
 	exit(128);
@@ -40,7 +40,7 @@ static void warn_builtin(const char *warn, va_list params)
 
 /* If we are in a dlopen()ed .so write to a global variable would segfault
  * (ugh), so keep things static. */
-static void (*usage_routine)(const char *err) NORETURN = usage_builtin;
+static void (*usage_routine)(const char *err) __noreturn = usage_builtin;
 static void (*error_routine)(const char *err, va_list params) = error_builtin;
 static void (*warn_routine)(const char *err, va_list params) = warn_builtin;
 
