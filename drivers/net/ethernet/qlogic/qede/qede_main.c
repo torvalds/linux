@@ -60,7 +60,6 @@
 #include <net/ip6_checksum.h>
 #include <linux/bitops.h>
 #include <linux/vmalloc.h>
-#include <linux/qed/qede_roce.h>
 #include "qede.h"
 #include "qede_ptp.h"
 
@@ -263,7 +262,7 @@ static int qede_netdev_event(struct notifier_block *this, unsigned long event,
 		break;
 	case NETDEV_CHANGEADDR:
 		edev = netdev_priv(ndev);
-		qede_roce_event_changeaddr(edev);
+		qede_rdma_event_changeaddr(edev);
 		break;
 	}
 
@@ -978,7 +977,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	qede_init_ndev(edev);
 
-	rc = qede_roce_dev_add(edev);
+	rc = qede_rdma_dev_add(edev);
 	if (rc)
 		goto err3;
 
@@ -1014,7 +1013,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	return 0;
 
 err4:
-	qede_roce_dev_remove(edev);
+	qede_rdma_dev_remove(edev);
 err3:
 	free_netdev(edev->ndev);
 err2:
@@ -1065,7 +1064,7 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 
 	qede_ptp_disable(edev);
 
-	qede_roce_dev_remove(edev);
+	qede_rdma_dev_remove(edev);
 
 	edev->ops->common->set_power_state(cdev, PCI_D0);
 
@@ -1317,8 +1316,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 					    QED_CHAIN_CNT_TYPE_U16,
 					    RX_RING_SIZE,
 					    sizeof(struct eth_rx_bd),
-					    &rxq->rx_bd_ring);
-
+					    &rxq->rx_bd_ring, NULL);
 	if (rc)
 		goto err;
 
@@ -1329,7 +1327,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 					    QED_CHAIN_CNT_TYPE_U16,
 					    RX_RING_SIZE,
 					    sizeof(union eth_rx_cqe),
-					    &rxq->rx_comp_ring);
+					    &rxq->rx_comp_ring, NULL);
 	if (rc)
 		goto err;
 
@@ -1387,7 +1385,8 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 					    QED_CHAIN_MODE_PBL,
 					    QED_CHAIN_CNT_TYPE_U16,
 					    txq->num_tx_buffers,
-					    sizeof(*p_virt), &txq->tx_pbl);
+					    sizeof(*p_virt),
+					    &txq->tx_pbl, NULL);
 	if (rc)
 		goto err;
 
@@ -1965,7 +1964,7 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 
 	edev->state = QEDE_STATE_CLOSED;
 
-	qede_roce_dev_event_close(edev);
+	qede_rdma_dev_event_close(edev);
 
 	/* Close OS Tx */
 	netif_tx_disable(edev->ndev);
@@ -2070,7 +2069,7 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 	link_params.link_up = true;
 	edev->ops->common->set_link(edev->cdev, &link_params);
 
-	qede_roce_dev_event_open(edev);
+	qede_rdma_dev_event_open(edev);
 
 	edev->state = QEDE_STATE_OPEN;
 

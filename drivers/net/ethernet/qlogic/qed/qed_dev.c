@@ -3075,12 +3075,15 @@ static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
 	}
 
 	pbl_size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
-	dma_free_coherent(&cdev->pdev->dev,
-			  pbl_size,
-			  p_chain->pbl_sp.p_virt_table,
-			  p_chain->pbl_sp.p_phys_table);
+
+	if (!p_chain->b_external_pbl)
+		dma_free_coherent(&cdev->pdev->dev,
+				  pbl_size,
+				  p_chain->pbl_sp.p_virt_table,
+				  p_chain->pbl_sp.p_phys_table);
 out:
 	vfree(p_chain->pbl.pp_virt_addr_tbl);
+	p_chain->pbl.pp_virt_addr_tbl = NULL;
 }
 
 void qed_chain_free(struct qed_dev *cdev, struct qed_chain *p_chain)
@@ -3174,7 +3177,10 @@ qed_chain_alloc_single(struct qed_dev *cdev, struct qed_chain *p_chain)
 	return 0;
 }
 
-static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
+static int
+qed_chain_alloc_pbl(struct qed_dev *cdev,
+		    struct qed_chain *p_chain,
+		    struct qed_chain_ext_pbl *ext_pbl)
 {
 	u32 page_cnt = p_chain->page_cnt, size, i;
 	dma_addr_t p_phys = 0, p_pbl_phys = 0;
@@ -3194,8 +3200,16 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
 	 * should be saved to allow its freeing during the error flow.
 	 */
 	size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
-	p_pbl_virt = dma_alloc_coherent(&cdev->pdev->dev,
-					size, &p_pbl_phys, GFP_KERNEL);
+
+	if (!ext_pbl) {
+		p_pbl_virt = dma_alloc_coherent(&cdev->pdev->dev,
+						size, &p_pbl_phys, GFP_KERNEL);
+	} else {
+		p_pbl_virt = ext_pbl->p_pbl_virt;
+		p_pbl_phys = ext_pbl->p_pbl_phys;
+		p_chain->b_external_pbl = true;
+	}
+
 	qed_chain_init_pbl_mem(p_chain, p_pbl_virt, p_pbl_phys,
 			       pp_virt_addr_tbl);
 	if (!p_pbl_virt)
@@ -3228,7 +3242,10 @@ int qed_chain_alloc(struct qed_dev *cdev,
 		    enum qed_chain_use_mode intended_use,
 		    enum qed_chain_mode mode,
 		    enum qed_chain_cnt_type cnt_type,
-		    u32 num_elems, size_t elem_size, struct qed_chain *p_chain)
+		    u32 num_elems,
+		    size_t elem_size,
+		    struct qed_chain *p_chain,
+		    struct qed_chain_ext_pbl *ext_pbl)
 {
 	u32 page_cnt;
 	int rc = 0;
@@ -3259,7 +3276,7 @@ int qed_chain_alloc(struct qed_dev *cdev,
 		rc = qed_chain_alloc_single(cdev, p_chain);
 		break;
 	case QED_CHAIN_MODE_PBL:
-		rc = qed_chain_alloc_pbl(cdev, p_chain);
+		rc = qed_chain_alloc_pbl(cdev, p_chain, ext_pbl);
 		break;
 	}
 	if (rc)

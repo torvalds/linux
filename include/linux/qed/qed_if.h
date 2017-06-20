@@ -634,7 +634,8 @@ struct qed_common_ops {
 				       enum qed_chain_cnt_type cnt_type,
 				       u32 num_elems,
 				       size_t elem_size,
-				       struct qed_chain *p_chain);
+				       struct qed_chain *p_chain,
+				       struct qed_chain_ext_pbl *ext_pbl);
 
 	void		(*chain_free)(struct qed_dev *cdev,
 				      struct qed_chain *p_chain);

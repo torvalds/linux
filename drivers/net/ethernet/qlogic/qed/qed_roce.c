@@ -68,12 +68,14 @@
 
 static void qed_roce_free_real_icid(struct qed_hwfn *p_hwfn, u16 icid);
 
-void qed_roce_async_event(struct qed_hwfn *p_hwfn,
-			  u8 fw_event_code, union rdma_eqe_data *rdma_data)
+static int
+qed_roce_async_event(struct qed_hwfn *p_hwfn,
+		     u8 fw_event_code,
+		     u16 echo, union event_ring_data *data, u8 fw_return_code)
 {
 	if (fw_event_code == ROCE_ASYNC_EVENT_DESTROY_QP_DONE) {
 		u16 icid =
-		    (u16)le32_to_cpu(rdma_data->rdma_destroy_qp_data.cid);
+		    (u16)le32_to_cpu(data->rdma_data.rdma_destroy_qp_data.cid);
 
 		/* icid release in this async event can occur only if the icid
 		 * was offloaded to the FW. In case it wasn't offloaded this is
@@ -85,8 +87,10 @@ void qed_roce_async_event(struct qed_hwfn *p_hwfn,
 
 		events->affiliated_event(p_hwfn->p_rdma_info->events.context,
 					 fw_event_code,
-					 &rdma_data->async_handle);
+				     (void *)&data->rdma_data.async_handle);
 	}
+
+	return 0;
 }
 
 static int qed_rdma_bmap_alloc(struct qed_hwfn *p_hwfn,
@@ -160,6 +164,11 @@ static int qed_bmap_test_id(struct qed_hwfn *p_hwfn,
 		return -1;
 
 	return test_bit(id_num, bmap->bitmap);
+}
+
+static bool qed_bmap_is_empty(struct qed_bmap *bmap)
+{
+	return bmap->max_count == find_first_bit(bmap->bitmap, bmap->max_count);
 }
 
 static u32 qed_rdma_get_sb_id(void *p_hwfn, u32 rel_sb_id)
@@ -367,22 +376,7 @@ end:
 
 static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 {
-	struct qed_bmap *rcid_map = &p_hwfn->p_rdma_info->real_cid_map;
 	struct qed_rdma_info *p_rdma_info = p_hwfn->p_rdma_info;
-	int wait_count = 0;
-
-	/* when destroying a_RoCE QP the control is returned to the user after
-	 * the synchronous part. The asynchronous part may take a little longer.
-	 * We delay for a short while if an async destroy QP is still expected.
-	 * Beyond the added delay we clear the bitmap anyway.
-	 */
-	while (bitmap_weight(rcid_map->bitmap, rcid_map->max_count)) {
-		msleep(100);
-		if (wait_count++ > 20) {
-			DP_NOTICE(p_hwfn, "cid bitmap wait timed out\n");
-			break;
-		}
-	}
 
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->cid_map, 1);
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->pd_map, 1);
@@ -696,7 +690,30 @@ static int qed_rdma_setup(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
+	qed_spq_register_async_cb(p_hwfn, PROTOCOLID_ROCE,
+				  qed_roce_async_event);
+
 	return qed_rdma_start_fw(p_hwfn, params, p_ptt);
+}
+
+void qed_roce_stop(struct qed_hwfn *p_hwfn)
+{
+	struct qed_bmap *rcid_map = &p_hwfn->p_rdma_info->real_cid_map;
+	int wait_count = 0;
+
+	/* when destroying a_RoCE QP the control is returned to the user after
+	 * the synchronous part. The asynchronous part may take a little longer.
+	 * We delay for a short while if an async destroy QP is still expected.
+	 * Beyond the added delay we clear the bitmap anyway.
+	 */
+	while (bitmap_weight(rcid_map->bitmap, rcid_map->max_count)) {
+		msleep(100);
+		if (wait_count++ > 20) {
+			DP_NOTICE(p_hwfn, "cid bitmap wait timed out\n");
+			break;
+		}
+	}
+	qed_spq_unregister_async_cb(p_hwfn, PROTOCOLID_ROCE);
 }
 
 static int qed_rdma_stop(void *rdma_cxt)
@@ -728,6 +745,7 @@ static int qed_rdma_stop(void *rdma_cxt)
 	qed_wr(p_hwfn, p_ptt, PRS_REG_LIGHT_L2_ETHERTYPE_EN,
 	       (ll2_ethertype_en & 0xFFFE));
 
+	qed_roce_stop(p_hwfn);
 	qed_ptt_release(p_hwfn, p_ptt);
 
 	/* Get SPQ entry */
@@ -2638,6 +2656,23 @@ static void *qed_rdma_get_rdma_ctx(struct qed_dev *cdev)
 	return QED_LEADING_HWFN(cdev);
 }
 
+static bool qed_rdma_allocated_qps(struct qed_hwfn *p_hwfn)
+{
+	bool result;
+
+	/* if rdma info has not been allocated, naturally there are no qps */
+	if (!p_hwfn->p_rdma_info)
+		return false;
+
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	if (!p_hwfn->p_rdma_info->cid_map.bitmap)
+		result = false;
+	else
+		result = !qed_bmap_is_empty(&p_hwfn->p_rdma_info->cid_map);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+	return result;
+}
+
 static void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 val;
@@ -2648,6 +2683,20 @@ static void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	DP_VERBOSE(p_hwfn, (QED_MSG_DCB | QED_MSG_RDMA),
 		   "Changing DPM_EN state to %d (DCBX=%d, DB_BAR=%d)\n",
 		   val, p_hwfn->dcbx_no_edpm, p_hwfn->db_bar_no_edpm);
+}
+
+void qed_roce_dpm_dcbx(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u8 val;
+
+	/* if any QPs are already active, we want to disable DPM, since their
+	 * context information contains information from before the latest DCBx
+	 * update. Otherwise enable it.
+	 */
+	val = qed_rdma_allocated_qps(p_hwfn) ? true : false;
+	p_hwfn->dcbx_no_edpm = (u8)val;
+
+	qed_rdma_dpm_conf(p_hwfn, p_ptt);
 }
 
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)

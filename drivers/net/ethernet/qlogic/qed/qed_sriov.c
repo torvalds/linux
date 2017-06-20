@@ -44,6 +44,11 @@
 #include "qed_sp.h"
 #include "qed_sriov.h"
 #include "qed_vf.h"
+static int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
+			       u8 opcode,
+			       __le16 echo,
+			       union event_ring_data *data, u8 fw_return_code);
+
 
 static u8 qed_vf_calculate_legacy(struct qed_vf_info *p_vf)
 {
@@ -565,6 +570,9 @@ int qed_iov_alloc(struct qed_hwfn *p_hwfn)
 
 	p_hwfn->pf_iov_info = p_sriov;
 
+	qed_spq_register_async_cb(p_hwfn, PROTOCOLID_COMMON,
+				  qed_sriov_eqe_event);
+
 	return qed_iov_allocate_vfdb(p_hwfn);
 }
 
@@ -578,6 +586,8 @@ void qed_iov_setup(struct qed_hwfn *p_hwfn)
 
 void qed_iov_free(struct qed_hwfn *p_hwfn)
 {
+	qed_spq_unregister_async_cb(p_hwfn, PROTOCOLID_COMMON);
+
 	if (IS_PF_SRIOV_ALLOC(p_hwfn)) {
 		qed_iov_free_vfdb(p_hwfn);
 		kfree(p_hwfn->pf_iov_info);
@@ -3833,8 +3843,10 @@ static void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
 	}
 }
 
-int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
-			u8 opcode, __le16 echo, union event_ring_data *data)
+static int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
+			       u8 opcode,
+			       __le16 echo,
+			       union event_ring_data *data, u8 fw_return_code)
 {
 	switch (opcode) {
 	case COMMON_EVENT_VF_PF_CHANNEL:

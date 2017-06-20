@@ -1056,7 +1056,7 @@ qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 			     QED_CHAIN_CNT_TYPE_U16,
 			     p_ll2_info->input.rx_num_desc,
 			     sizeof(struct core_rx_bd),
-			     &p_ll2_info->rx_queue.rxq_chain);
+			     &p_ll2_info->rx_queue.rxq_chain, NULL);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Failed to allocate ll2 rxq chain\n");
 		goto out;
@@ -1078,7 +1078,7 @@ qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 			     QED_CHAIN_CNT_TYPE_U16,
 			     p_ll2_info->input.rx_num_desc,
 			     sizeof(struct core_rx_fast_path_cqe),
-			     &p_ll2_info->rx_queue.rcq_chain);
+			     &p_ll2_info->rx_queue.rcq_chain, NULL);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Failed to allocate ll2 rcq chain\n");
 		goto out;
@@ -1108,7 +1108,7 @@ static int qed_ll2_acquire_connection_tx(struct qed_hwfn *p_hwfn,
 			     QED_CHAIN_CNT_TYPE_U16,
 			     p_ll2_info->input.tx_num_desc,
 			     sizeof(struct core_tx_bd),
-			     &p_ll2_info->tx_queue.txq_chain);
+			     &p_ll2_info->tx_queue.txq_chain, NULL);
 	if (rc)
 		goto out;
 

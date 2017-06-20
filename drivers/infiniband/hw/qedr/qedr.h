@@ -37,7 +37,7 @@
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_roce_if.h>
-#include <linux/qed/qede_roce.h>
+#include <linux/qed/qede_rdma.h>
 #include <linux/qed/roce_common.h>
 #include "qedr_hsi_rdma.h"
 
