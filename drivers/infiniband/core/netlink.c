@@ -61,7 +61,7 @@ static bool is_nl_msg_valid(unsigned int type, unsigned int op)
 				  RDMA_NL_IWPM_NUM_OPS,
 				  0,
 				  RDMA_NL_LS_NUM_OPS,
-				  0 };
+				  RDMA_NLDEV_NUM_OPS };
 
 	/*
 	 * This BUILD_BUG_ON is intended to catch addition of new
