@@ -1548,17 +1548,6 @@ static void intel_dp_print_rates(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("common rates: %s\n", str);
 }
 
-static int rate_to_index(int find, const int *rates)
-{
-	int i = 0;
-
-	for (i = 0; i < DP_MAX_SUPPORTED_RATES; ++i)
-		if (find == rates[i])
-			break;
-
-	return i;
-}
-
 int
 intel_dp_max_link_rate(struct intel_dp *intel_dp)
 {
