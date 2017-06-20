@@ -56,6 +56,7 @@ enum {
 	NVMF_OPT_RECONNECT_DELAY = 1 << 9,
 	NVMF_OPT_HOST_TRADDR	= 1 << 10,
 	NVMF_OPT_CTRL_LOSS_TMO	= 1 << 11,
+	NVMF_OPT_HOST_ID	= 1 << 12,
 };
 
 /**

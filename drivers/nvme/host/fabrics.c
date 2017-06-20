@@ -58,7 +58,6 @@ static struct nvmf_host *nvmf_host_add(const char *hostnqn)
 
 	kref_init(&host->ref);
 	memcpy(host->nqn, hostnqn, NVMF_NQN_SIZE);
-	uuid_gen(&host->id);
 
 	list_add_tail(&host->list, &nvmf_hosts);
 out_unlock:
@@ -75,7 +74,6 @@ static struct nvmf_host *nvmf_host_default(void)
 		return NULL;
 
 	kref_init(&host->ref);
-	uuid_gen(&host->id);
 	snprintf(host->nqn, NVMF_NQN_SIZE,
 		"nqn.2014-08.org.nvmexpress:NVMf:uuid:%pUb", &host->id);
 
@@ -565,6 +563,7 @@ static const match_table_t opt_tokens = {
 	{ NVMF_OPT_KATO,		"keep_alive_tmo=%d"	},
 	{ NVMF_OPT_HOSTNQN,		"hostnqn=%s"		},
 	{ NVMF_OPT_HOST_TRADDR,		"host_traddr=%s"	},
+	{ NVMF_OPT_HOST_ID,		"hostid=%s"		},
 	{ NVMF_OPT_ERR,			NULL			}
 };
 
@@ -576,6 +575,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 	int token, ret = 0;
 	size_t nqnlen  = 0;
 	int ctrl_loss_tmo = NVMF_DEF_CTRL_LOSS_TMO;
+	uuid_t hostid;
 
 	/* Set defaults */
 	opts->queue_size = NVMF_DEF_QUEUE_SIZE;
@@ -585,6 +585,8 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 	options = o = kstrdup(buf, GFP_KERNEL);
 	if (!options)
 		return -ENOMEM;
+
+	uuid_gen(&hostid);
 
 	while ((p = strsep(&o, ",\n")) != NULL) {
 		if (!*p)
@@ -742,6 +744,17 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			}
 			opts->host_traddr = p;
 			break;
+		case NVMF_OPT_HOST_ID:
+			p = match_strdup(args);
+			if (!p) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			if (uuid_parse(p, &hostid)) {
+				ret = -EINVAL;
+				goto out;
+			}
+			break;
 		default:
 			pr_warn("unknown parameter or missing value '%s' in ctrl creation request\n",
 				p);
@@ -760,6 +773,8 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		kref_get(&nvmf_default_host->ref);
 		opts->host = nvmf_default_host;
 	}
+
+	uuid_copy(&opts->host->id, &hostid);
 
 out:
 	if (!opts->discovery_nqn && !opts->kato)
@@ -821,7 +836,8 @@ EXPORT_SYMBOL_GPL(nvmf_free_options);
 
 #define NVMF_REQUIRED_OPTS	(NVMF_OPT_TRANSPORT | NVMF_OPT_NQN)
 #define NVMF_ALLOWED_OPTS	(NVMF_OPT_QUEUE_SIZE | NVMF_OPT_NR_IO_QUEUES | \
-				 NVMF_OPT_KATO | NVMF_OPT_HOSTNQN)
+				 NVMF_OPT_KATO | NVMF_OPT_HOSTNQN | \
+				 NVMF_OPT_HOST_ID)
 
 static struct nvme_ctrl *
 nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
