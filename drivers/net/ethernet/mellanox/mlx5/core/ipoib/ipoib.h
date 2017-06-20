@@ -38,6 +38,13 @@
 
 #define MLX5I_MAX_NUM_TC 1
 
+extern const struct ethtool_ops mlx5i_ethtool_ops;
+
+#define MLX5_IB_GRH_BYTES       40
+#define MLX5_IPOIB_ENCAP_LEN    4
+#define MLX5_IPOIB_PSEUDO_LEN   20
+#define MLX5_IPOIB_HARD_LEN     (MLX5_IPOIB_PSEUDO_LEN + MLX5_IPOIB_ENCAP_LEN)
+
 /* ipoib rdma netdev's private data structure */
 struct mlx5i_priv {
 	struct rdma_netdev rn; /* keep this first */

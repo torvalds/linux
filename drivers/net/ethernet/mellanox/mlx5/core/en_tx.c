@@ -33,7 +33,7 @@
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
 #include "en.h"
-#include "ipoib.h"
+#include "ipoib/ipoib.h"
 
 #define MLX5E_SQ_NOPS_ROOM  MLX5_SEND_WQE_MAX_WQEBBS
 #define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\
@@ -557,10 +557,15 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	if (skb_is_gso(skb)) {
 		opcode = MLX5_OPCODE_LSO;
 		ihs = mlx5e_txwqe_build_eseg_gso(sq, skb, eseg, &num_bytes);
+		sq->stats.packets += skb_shinfo(skb)->gso_segs;
 	} else {
 		ihs = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
 		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
+		sq->stats.packets++;
 	}
+
+	sq->stats.bytes += num_bytes;
+	sq->stats.xmit_more += skb->xmit_more;
 
 	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
 	if (ihs) {

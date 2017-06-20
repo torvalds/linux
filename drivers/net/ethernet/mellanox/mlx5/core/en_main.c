@@ -143,7 +143,8 @@ static void mlx5e_update_carrier_work(struct work_struct *work)
 
 	mutex_lock(&priv->state_lock);
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		mlx5e_update_carrier(priv);
+		if (priv->profile->update_carrier)
+			priv->profile->update_carrier(priv);
 	mutex_unlock(&priv->state_lock);
 }
 
@@ -634,7 +635,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 		rq->buff.wqe_sz = params->lro_en  ?
 				params->lro_wqe_sz :
-				MLX5E_SW2HW_MTU(c->netdev->mtu);
+				MLX5E_SW2HW_MTU(c->priv, c->netdev->mtu);
 		byte_count = rq->buff.wqe_sz;
 
 		/* calc the required page order */
@@ -2467,7 +2468,7 @@ free_in:
 static int mlx5e_set_mtu(struct mlx5e_priv *priv, u16 mtu)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u16 hw_mtu = MLX5E_SW2HW_MTU(mtu);
+	u16 hw_mtu = MLX5E_SW2HW_MTU(priv, mtu);
 	int err;
 
 	err = mlx5_set_port_mtu(mdev, hw_mtu, 1);
@@ -2489,7 +2490,7 @@ static void mlx5e_query_mtu(struct mlx5e_priv *priv, u16 *mtu)
 	if (err || !hw_mtu) /* fallback to port oper mtu */
 		mlx5_query_port_oper_mtu(mdev, &hw_mtu, 1);
 
-	*mtu = MLX5E_HW2SW_MTU(hw_mtu);
+	*mtu = MLX5E_HW2SW_MTU(priv, hw_mtu);
 }
 
 static int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv)
@@ -2598,9 +2599,10 @@ void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 {
 	struct net_device *netdev = priv->netdev;
 	int new_num_txqs;
-
+	int carrier_ok;
 	new_num_txqs = new_chs->num * new_chs->params.num_tc;
 
+	carrier_ok = netif_carrier_ok(netdev);
 	netif_carrier_off(netdev);
 
 	if (new_num_txqs < netdev->real_num_tx_queues)
@@ -2618,7 +2620,9 @@ void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 	mlx5e_refresh_tirs(priv, false);
 	mlx5e_activate_priv_channels(priv);
 
-	mlx5e_update_carrier(priv);
+	/* return carrier back if needed */
+	if (carrier_ok)
+		netif_carrier_on(netdev);
 }
 
 int mlx5e_open_locked(struct net_device *netdev)
@@ -2634,7 +2638,8 @@ int mlx5e_open_locked(struct net_device *netdev)
 
 	mlx5e_refresh_tirs(priv, false);
 	mlx5e_activate_priv_channels(priv);
-	mlx5e_update_carrier(priv);
+	if (priv->profile->update_carrier)
+		priv->profile->update_carrier(priv);
 	mlx5e_timestamp_init(priv);
 
 	if (priv->profile->update_stats)
@@ -3312,11 +3317,13 @@ out:
 
 static int mlx5e_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return mlx5e_hwstamp_set(dev, ifr);
+		return mlx5e_hwstamp_set(priv, ifr);
 	case SIOCGHWTSTAMP:
-		return mlx5e_hwstamp_get(dev, ifr);
+		return mlx5e_hwstamp_get(priv, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3871,6 +3878,7 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	mlx5e_set_rq_params(mdev, params);
 
 	/* HW LRO */
+
 	/* TODO: && MLX5_CAP_ETH(mdev, lro_cap) */
 	if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
 		params->lro_en = hw_lro_heuristic(link_speed, pci_bw);
@@ -3911,6 +3919,7 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	priv->netdev      = netdev;
 	priv->profile     = profile;
 	priv->ppriv       = ppriv;
+	priv->hard_mtu = MLX5E_ETH_HARD_MTU;
 
 	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
 
@@ -4156,7 +4165,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	/* MTU range: 68 - hw-specific max */
 	netdev->min_mtu = ETH_MIN_MTU;
 	mlx5_query_port_max_mtu(priv->mdev, &max_mtu, 1);
-	netdev->max_mtu = MLX5E_HW2SW_MTU(max_mtu);
+	netdev->max_mtu = MLX5E_HW2SW_MTU(priv, max_mtu);
 	mlx5e_set_dev_port_mtu(priv);
 
 	mlx5_lag_add(mdev, netdev);
@@ -4215,6 +4224,7 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.disable	   = mlx5e_nic_disable,
 	.update_stats	   = mlx5e_update_ndo_stats,
 	.max_nch	   = mlx5e_get_max_num_channels,
+	.update_carrier	   = mlx5e_update_carrier,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe,
 	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
 	.max_tc		   = MLX5E_MAX_NUM_TC,

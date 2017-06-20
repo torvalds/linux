@@ -40,7 +40,7 @@
 #include "en_tc.h"
 #include "eswitch.h"
 #include "en_rep.h"
-#include "ipoib.h"
+#include "ipoib/ipoib.h"
 
 static inline bool mlx5e_rx_hw_stamp(struct mlx5e_tstamp *tstamp)
 {
@@ -648,7 +648,7 @@ static inline bool mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 	prefetchw(wqe);
 
 	if (unlikely(dma_len < MLX5E_XDP_MIN_INLINE ||
-		     MLX5E_SW2HW_MTU(rq->netdev->mtu) < dma_len)) {
+		     MLX5E_SW2HW_MTU(rq->channel->priv, rq->netdev->mtu) < dma_len)) {
 		rq->stats.xdp_drop++;
 		mlx5e_page_release(rq, di, true);
 		return false;
@@ -1038,11 +1038,7 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq)
 #ifdef CONFIG_MLX5_CORE_IPOIB
 
 #define MLX5_IB_GRH_DGID_OFFSET 24
-#define MLX5_IB_GRH_BYTES       40
-#define MLX5_IPOIB_ENCAP_LEN    4
 #define MLX5_GID_SIZE           16
-#define MLX5_IPOIB_PSEUDO_LEN   20
-#define MLX5_IPOIB_HARD_LEN     (MLX5_IPOIB_PSEUDO_LEN + MLX5_IPOIB_ENCAP_LEN)
 
 static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 					 struct mlx5_cqe64 *cqe,
@@ -1050,6 +1046,7 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 					 struct sk_buff *skb)
 {
 	struct net_device *netdev = rq->netdev;
+	struct mlx5e_tstamp *tstamp = rq->tstamp;
 	char *pseudo_header;
 	u8 *dgid;
 	u8 g;
@@ -1073,6 +1070,9 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 
 	skb->ip_summed = CHECKSUM_COMPLETE;
 	skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
+
+	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
+		mlx5e_fill_hwstamp(tstamp, get_cqe_ts(cqe), skb_hwtstamps(skb));
 
 	skb_record_rx_queue(skb, rq->ix);
 
