@@ -593,6 +593,16 @@ pnfs_lseg_range_intersecting(const struct pnfs_layout_range *l1,
 	return pnfs_is_range_intersecting(l1->offset, end1, l2->offset, end2);
 }
 
+static inline bool
+pnfs_lseg_request_intersecting(struct pnfs_layout_segment *lseg, struct nfs_page *req)
+{
+	u64 seg_last = pnfs_end_offset(lseg->pls_range.offset, lseg->pls_range.length);
+	u64 req_last = req_offset(req) + req->wb_bytes;
+
+	return pnfs_is_range_intersecting(lseg->pls_range.offset, seg_last,
+				req_offset(req), req_last);
+}
+
 extern unsigned int layoutstats_timer;
 
 #ifdef NFS_DEBUG

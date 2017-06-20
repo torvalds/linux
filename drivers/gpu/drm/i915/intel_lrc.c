@@ -1989,7 +1989,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 
 	ce->ring = ring;
 	ce->state = vma;
-	ce->initialised = engine->init_context == NULL;
+	ce->initialised |= engine->init_context == NULL;
 
 	return 0;
 

@@ -484,7 +484,7 @@ static int bnep_session(void *arg)
 	struct net_device *dev = s->dev;
 	struct sock *sk = s->sock->sk;
 	struct sk_buff *skb;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	BT_DBG("");
 

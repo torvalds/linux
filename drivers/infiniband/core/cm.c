@@ -1429,7 +1429,7 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 	primary_path->packet_life_time =
 		cm_req_get_primary_local_ack_timeout(req_msg);
 	primary_path->packet_life_time -= (primary_path->packet_life_time > 0);
-	sa_path_set_service_id(primary_path, req_msg->service_id);
+	primary_path->service_id = req_msg->service_id;
 
 	if (req_msg->alt_local_lid) {
 		alt_path->dgid = req_msg->alt_local_gid;
@@ -1452,7 +1452,7 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 		alt_path->packet_life_time =
 			cm_req_get_alt_local_ack_timeout(req_msg);
 		alt_path->packet_life_time -= (alt_path->packet_life_time > 0);
-		sa_path_set_service_id(alt_path, req_msg->service_id);
+		alt_path->service_id = req_msg->service_id;
 	}
 }
 

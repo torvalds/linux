@@ -43,6 +43,7 @@
 #include <net/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_pedit.h>
+#include <net/tc_act/tc_csum.h>
 #include <net/vxlan.h>
 #include <net/arp.h>
 #include "en.h"
@@ -384,7 +385,7 @@ static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 		if (e->flags & MLX5_ENCAP_ENTRY_VALID)
 			mlx5_encap_dealloc(priv->mdev, e->encap_id);
 
-		hlist_del_rcu(&e->encap_hlist);
+		hash_del_rcu(&e->encap_hlist);
 		kfree(e->encap_header);
 		kfree(e);
 	}
@@ -925,11 +926,11 @@ static int offload_pedit_fields(struct pedit_headers *masks,
 				struct mlx5e_tc_flow_parse_attr *parse_attr)
 {
 	struct pedit_headers *set_masks, *add_masks, *set_vals, *add_vals;
-	int i, action_size, nactions, max_actions, first, last;
+	int i, action_size, nactions, max_actions, first, last, first_z;
 	void *s_masks_p, *a_masks_p, *vals_p;
-	u32 s_mask, a_mask, val;
 	struct mlx5_fields *f;
 	u8 cmd, field_bsize;
+	u32 s_mask, a_mask;
 	unsigned long mask;
 	void *action;
 
@@ -946,7 +947,8 @@ static int offload_pedit_fields(struct pedit_headers *masks,
 	for (i = 0; i < ARRAY_SIZE(fields); i++) {
 		f = &fields[i];
 		/* avoid seeing bits set from previous iterations */
-		s_mask = a_mask = mask = val = 0;
+		s_mask = 0;
+		a_mask = 0;
 
 		s_masks_p = (void *)set_masks + f->offset;
 		a_masks_p = (void *)add_masks + f->offset;
@@ -981,12 +983,12 @@ static int offload_pedit_fields(struct pedit_headers *masks,
 			memset(a_masks_p, 0, f->size);
 		}
 
-		memcpy(&val, vals_p, f->size);
-
 		field_bsize = f->size * BITS_PER_BYTE;
+
+		first_z = find_first_zero_bit(&mask, field_bsize);
 		first = find_first_bit(&mask, field_bsize);
 		last  = find_last_bit(&mask, field_bsize);
-		if (first > 0 || last != (field_bsize - 1)) {
+		if (first > 0 || last != (field_bsize - 1) || first_z < last) {
 			printk(KERN_WARNING "mlx5: partial rewrite (mask %lx) is currently not offloaded\n",
 			       mask);
 			return -EOPNOTSUPP;
@@ -1002,11 +1004,11 @@ static int offload_pedit_fields(struct pedit_headers *masks,
 		}
 
 		if (field_bsize == 32)
-			MLX5_SET(set_action_in, action, data, ntohl(val));
+			MLX5_SET(set_action_in, action, data, ntohl(*(__be32 *)vals_p));
 		else if (field_bsize == 16)
-			MLX5_SET(set_action_in, action, data, ntohs(val));
+			MLX5_SET(set_action_in, action, data, ntohs(*(__be16 *)vals_p));
 		else if (field_bsize == 8)
-			MLX5_SET(set_action_in, action, data, val);
+			MLX5_SET(set_action_in, action, data, *(u8 *)vals_p);
 
 		action += action_size;
 		nactions++;
@@ -1109,6 +1111,28 @@ out_err:
 	return err;
 }
 
+static bool csum_offload_supported(struct mlx5e_priv *priv, u32 action, u32 update_flags)
+{
+	u32 prot_flags = TCA_CSUM_UPDATE_FLAG_IPV4HDR | TCA_CSUM_UPDATE_FLAG_TCP |
+			 TCA_CSUM_UPDATE_FLAG_UDP;
+
+	/*  The HW recalcs checksums only if re-writing headers */
+	if (!(action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)) {
+		netdev_warn(priv->netdev,
+			    "TC csum action is only offloaded with pedit\n");
+		return false;
+	}
+
+	if (update_flags & ~prot_flags) {
+		netdev_warn(priv->netdev,
+			    "can't offload TC csum action for some header/s - flags %#x\n",
+			    update_flags);
+		return false;
+	}
+
+	return true;
+}
+
 static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				struct mlx5e_tc_flow_parse_attr *parse_attr,
 				struct mlx5e_tc_flow *flow)
@@ -1147,6 +1171,14 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR |
 					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 			continue;
+		}
+
+		if (is_tcf_csum(a)) {
+			if (csum_offload_supported(priv, attr->action,
+						   tcf_csum_update_flags(a)))
+				continue;
+
+			return -EOPNOTSUPP;
 		}
 
 		if (is_tcf_skbedit_mark(a)) {
@@ -1649,6 +1681,14 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 			attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 			continue;
+		}
+
+		if (is_tcf_csum(a)) {
+			if (csum_offload_supported(priv, attr->action,
+						   tcf_csum_update_flags(a)))
+				continue;
+
+			return -EOPNOTSUPP;
 		}
 
 		if (is_tcf_mirred_egress_redirect(a)) {

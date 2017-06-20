@@ -31,7 +31,7 @@ struct vhost_work {
 struct vhost_poll {
 	poll_table                table;
 	wait_queue_head_t        *wqh;
-	wait_queue_t              wait;
+	wait_queue_entry_t              wait;
 	struct vhost_work	  work;
 	unsigned long		  mask;
 	struct vhost_dev	 *dev;

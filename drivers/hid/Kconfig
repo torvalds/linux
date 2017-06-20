@@ -275,10 +275,12 @@ config HID_EMS_FF
 	 - Trio Linker Plus II
 
 config HID_ELECOM
-	tristate "ELECOM BM084 bluetooth mouse"
+	tristate "ELECOM HID devices"
 	depends on HID
 	---help---
-	Support for the ELECOM BM084 (bluetooth mouse).
+	Support for ELECOM devices:
+	  - BM084 Bluetooth Mouse
+	  - DEFT Trackball (Wired and wireless)
 
 config HID_ELO
 	tristate "ELO USB 4000/4500 touchscreen"

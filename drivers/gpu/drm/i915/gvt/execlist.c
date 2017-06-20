@@ -779,8 +779,26 @@ static void init_vgpu_execlist(struct intel_vgpu *vgpu, int ring_id)
 	vgpu_vreg(vgpu, ctx_status_ptr_reg) = ctx_status_ptr.dw;
 }
 
+static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_engine_cs *engine;
+	struct intel_vgpu_workload *pos, *n;
+	unsigned int tmp;
+
+	/* free the unsubmited workloads in the queues. */
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
+		list_for_each_entry_safe(pos, n,
+			&vgpu->workload_q_head[engine->id], list) {
+			list_del_init(&pos->list);
+			free_workload(pos);
+		}
+	}
+}
+
 void intel_vgpu_clean_execlist(struct intel_vgpu *vgpu)
 {
+	clean_workloads(vgpu, ALL_ENGINES);
 	kmem_cache_destroy(vgpu->workloads);
 }
 
@@ -811,17 +829,9 @@ void intel_vgpu_reset_execlist(struct intel_vgpu *vgpu,
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine;
-	struct intel_vgpu_workload *pos, *n;
 	unsigned int tmp;
 
-	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
-		/* free the unsubmited workload in the queue */
-		list_for_each_entry_safe(pos, n,
-			&vgpu->workload_q_head[engine->id], list) {
-			list_del_init(&pos->list);
-			free_workload(pos);
-		}
-
+	clean_workloads(vgpu, engine_mask);
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		init_vgpu_execlist(vgpu, engine->id);
-	}
 }

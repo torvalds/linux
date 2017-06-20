@@ -1319,13 +1319,13 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 	status = i40iw_obj_aligned_mem(iwdev, &mem, I40IW_QUERY_FPM_BUF_SIZE,
 				       I40IW_FPM_QUERY_BUF_ALIGNMENT_MASK);
 	if (status)
-		goto exit;
+		goto error;
 	info.fpm_query_buf_pa = mem.pa;
 	info.fpm_query_buf = mem.va;
 	status = i40iw_obj_aligned_mem(iwdev, &mem, I40IW_COMMIT_FPM_BUF_SIZE,
 				       I40IW_FPM_COMMIT_BUF_ALIGNMENT_MASK);
 	if (status)
-		goto exit;
+		goto error;
 	info.fpm_commit_buf_pa = mem.pa;
 	info.fpm_commit_buf = mem.va;
 	info.hmc_fn_id = ldev->fid;
@@ -1347,11 +1347,9 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 	info.exception_lan_queue = 1;
 	info.vchnl_send = i40iw_virtchnl_send;
 	status = i40iw_device_init(&iwdev->sc_dev, &info);
-exit:
-	if (status) {
-		kfree(iwdev->hmc_info_mem);
-		iwdev->hmc_info_mem = NULL;
-	}
+
+	if (status)
+		goto error;
 	memset(&vsi_info, 0, sizeof(vsi_info));
 	vsi_info.dev = &iwdev->sc_dev;
 	vsi_info.back_vsi = (void *)iwdev;
@@ -1362,10 +1360,18 @@ exit:
 		memset(&stats_info, 0, sizeof(stats_info));
 		stats_info.fcn_id = ldev->fid;
 		stats_info.pestat = kzalloc(sizeof(*stats_info.pestat), GFP_KERNEL);
+		if (!stats_info.pestat) {
+			status = I40IW_ERR_NO_MEMORY;
+			goto error;
+		}
 		stats_info.stats_initialize = true;
 		if (stats_info.pestat)
 			i40iw_vsi_stats_init(&iwdev->vsi, &stats_info);
 	}
+	return status;
+error:
+	kfree(iwdev->hmc_info_mem);
+	iwdev->hmc_info_mem = NULL;
 	return status;
 }
 
@@ -1933,7 +1939,7 @@ static int i40iw_virtchnl_receive(struct i40e_info *ldev,
 bool i40iw_vf_clear_to_send(struct i40iw_sc_dev *dev)
 {
 	struct i40iw_device *iwdev;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	iwdev = dev->back_dev;
 

@@ -172,9 +172,7 @@ static inline int srcu_read_lock(struct srcu_struct *sp) __acquires(sp)
 {
 	int retval;
 
-	preempt_disable();
 	retval = __srcu_read_lock(sp);
-	preempt_enable();
 	rcu_lock_acquire(&(sp)->dep_map);
 	return retval;
 }

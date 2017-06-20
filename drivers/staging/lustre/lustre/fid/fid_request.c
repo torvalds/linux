@@ -192,7 +192,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 }
 
 static int seq_fid_alloc_prep(struct lu_client_seq *seq,
-			      wait_queue_t *link)
+			      wait_queue_entry_t *link)
 {
 	if (seq->lcs_update) {
 		add_wait_queue(&seq->lcs_waitq, link);
@@ -223,7 +223,7 @@ static void seq_fid_alloc_fini(struct lu_client_seq *seq)
 int seq_client_alloc_fid(const struct lu_env *env,
 			 struct lu_client_seq *seq, struct lu_fid *fid)
 {
-	wait_queue_t link;
+	wait_queue_entry_t link;
 	int rc;
 
 	LASSERT(seq);
@@ -290,7 +290,7 @@ EXPORT_SYMBOL(seq_client_alloc_fid);
  */
 void seq_client_flush(struct lu_client_seq *seq)
 {
-	wait_queue_t link;
+	wait_queue_entry_t link;
 
 	LASSERT(seq);
 	init_waitqueue_entry(&link, current);

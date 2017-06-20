@@ -158,7 +158,6 @@ enum sa_path_rec_type {
 };
 
 struct sa_path_rec_ib {
-	__be64       service_id;
 	__be16       dlid;
 	__be16       slid;
 	u8           raw_traffic;
@@ -174,7 +173,6 @@ struct sa_path_rec_roce {
 };
 
 struct sa_path_rec_opa {
-	__be64       service_id;
 	__be32       dlid;
 	__be32       slid;
 	u8           raw_traffic;
@@ -189,6 +187,7 @@ struct sa_path_rec_opa {
 struct sa_path_rec {
 	union ib_gid dgid;
 	union ib_gid sgid;
+	__be64       service_id;
 	/* reserved */
 	__be32       flow_label;
 	u8           hop_limit;
@@ -262,7 +261,7 @@ static inline void path_conv_opa_to_ib(struct sa_path_rec *ib,
 		ib->ib.dlid	= htons(ntohl(opa->opa.dlid));
 		ib->ib.slid	= htons(ntohl(opa->opa.slid));
 	}
-	ib->ib.service_id	= opa->opa.service_id;
+	ib->service_id		= opa->service_id;
 	ib->ib.raw_traffic	= opa->opa.raw_traffic;
 }
 
@@ -281,7 +280,7 @@ static inline void path_conv_ib_to_opa(struct sa_path_rec *opa,
 	}
 	opa->opa.slid		= slid;
 	opa->opa.dlid		= dlid;
-	opa->opa.service_id	= ib->ib.service_id;
+	opa->service_id		= ib->service_id;
 	opa->opa.raw_traffic	= ib->ib.raw_traffic;
 }
 
@@ -591,15 +590,6 @@ static inline bool sa_path_is_roce(struct sa_path_rec *rec)
 		(rec->rec_type == SA_PATH_REC_TYPE_ROCE_V2));
 }
 
-static inline void sa_path_set_service_id(struct sa_path_rec *rec,
-					  __be64 service_id)
-{
-	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
-		rec->ib.service_id = service_id;
-	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
-		rec->opa.service_id = service_id;
-}
-
 static inline void sa_path_set_slid(struct sa_path_rec *rec, __be32 slid)
 {
 	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
@@ -623,15 +613,6 @@ static inline void sa_path_set_raw_traffic(struct sa_path_rec *rec,
 		rec->ib.raw_traffic = raw_traffic;
 	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
 		rec->opa.raw_traffic = raw_traffic;
-}
-
-static inline __be64 sa_path_get_service_id(struct sa_path_rec *rec)
-{
-	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
-		return rec->ib.service_id;
-	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
-		return rec->opa.service_id;
-	return 0;
 }
 
 static inline __be32 sa_path_get_slid(struct sa_path_rec *rec)

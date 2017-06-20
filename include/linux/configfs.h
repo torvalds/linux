@@ -74,7 +74,8 @@ extern void config_item_init_type_name(struct config_item *item,
 				       const char *name,
 				       struct config_item_type *type);
 
-extern struct config_item * config_item_get(struct config_item *);
+extern struct config_item *config_item_get(struct config_item *);
+extern struct config_item *config_item_get_unless_zero(struct config_item *);
 extern void config_item_put(struct config_item *);
 
 struct config_item_type {

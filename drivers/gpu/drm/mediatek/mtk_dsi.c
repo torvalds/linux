@@ -19,6 +19,7 @@
 #include <drm/drm_of.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -900,16 +901,12 @@ static int mtk_dsi_host_detach(struct mipi_dsi_host *host,
 
 static void mtk_dsi_wait_for_idle(struct mtk_dsi *dsi)
 {
-	u32 timeout_ms = 500000; /* total 1s ~ 2s timeout */
+	int ret;
+	u32 val;
 
-	while (timeout_ms--) {
-		if (!(readl(dsi->regs + DSI_INTSTA) & DSI_BUSY))
-			break;
-
-		usleep_range(2, 4);
-	}
-
-	if (timeout_ms == 0) {
+	ret = readl_poll_timeout(dsi->regs + DSI_INTSTA, val, !(val & DSI_BUSY),
+				 4, 2000000);
+	if (ret) {
 		DRM_WARN("polling dsi wait not busy timeout!\n");
 
 		mtk_dsi_enable(dsi);

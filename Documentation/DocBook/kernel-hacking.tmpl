@@ -819,7 +819,7 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
    certain condition is true.  They must be used carefully to ensure
    there is no race condition.  You declare a
    <type>wait_queue_head_t</type>, and then processes which want to
-   wait for that condition declare a <type>wait_queue_t</type>
+   wait for that condition declare a <type>wait_queue_entry_t</type>
    referring to themselves, and place that in the queue.
   </para>
 

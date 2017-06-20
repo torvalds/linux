@@ -203,6 +203,7 @@ static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
 static void free_fib_info_rcu(struct rcu_head *head)
 {
 	struct fib_info *fi = container_of(head, struct fib_info, rcu);
+	struct dst_metrics *m;
 
 	change_nexthops(fi) {
 		if (nexthop_nh->nh_dev)
@@ -213,8 +214,9 @@ static void free_fib_info_rcu(struct rcu_head *head)
 		rt_fibinfo_free(&nexthop_nh->nh_rth_input);
 	} endfor_nexthops(fi);
 
-	if (fi->fib_metrics != (u32 *) dst_default_metrics)
-		kfree(fi->fib_metrics);
+	m = fi->fib_metrics;
+	if (m != &dst_default_metrics && atomic_dec_and_test(&m->refcnt))
+		kfree(m);
 	kfree(fi);
 }
 
@@ -971,11 +973,11 @@ fib_convert_metrics(struct fib_info *fi, const struct fib_config *cfg)
 			val = 255;
 		if (type == RTAX_FEATURES && (val & ~RTAX_FEATURE_MASK))
 			return -EINVAL;
-		fi->fib_metrics[type - 1] = val;
+		fi->fib_metrics->metrics[type - 1] = val;
 	}
 
 	if (ecn_ca)
-		fi->fib_metrics[RTAX_FEATURES - 1] |= DST_FEATURE_ECN_CA;
+		fi->fib_metrics->metrics[RTAX_FEATURES - 1] |= DST_FEATURE_ECN_CA;
 
 	return 0;
 }
@@ -1033,11 +1035,12 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		goto failure;
 	fib_info_cnt++;
 	if (cfg->fc_mx) {
-		fi->fib_metrics = kzalloc(sizeof(u32) * RTAX_MAX, GFP_KERNEL);
+		fi->fib_metrics = kzalloc(sizeof(*fi->fib_metrics), GFP_KERNEL);
 		if (!fi->fib_metrics)
 			goto failure;
+		atomic_set(&fi->fib_metrics->refcnt, 1);
 	} else
-		fi->fib_metrics = (u32 *) dst_default_metrics;
+		fi->fib_metrics = (struct dst_metrics *)&dst_default_metrics;
 
 	fi->fib_net = net;
 	fi->fib_protocol = cfg->fc_protocol;
@@ -1238,7 +1241,7 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 	if (fi->fib_priority &&
 	    nla_put_u32(skb, RTA_PRIORITY, fi->fib_priority))
 		goto nla_put_failure;
-	if (rtnetlink_put_metrics(skb, fi->fib_metrics) < 0)
+	if (rtnetlink_put_metrics(skb, fi->fib_metrics->metrics) < 0)
 		goto nla_put_failure;
 
 	if (fi->fib_prefsrc &&
