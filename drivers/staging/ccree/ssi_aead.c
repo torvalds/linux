@@ -1542,7 +1542,8 @@ static inline int ssi_aead_ccm(
 	return 0;
 }
 
-static int config_ccm_adata(struct aead_request *req) {
+static int config_ccm_adata(struct aead_request *req)
+{
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
@@ -1886,7 +1887,8 @@ static inline void ssi_aead_dump_gcm(
 }
 #endif
 
-static int config_gcm_context(struct aead_request *req) {
+static int config_gcm_context(struct aead_request *req)
+{
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
