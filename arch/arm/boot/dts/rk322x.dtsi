@@ -1149,6 +1149,25 @@
 			};
 		};
 
+		uart1-1 {
+			uart11_xfer: uart11-xfer {
+				rockchip,pins = <3 14 RK_FUNC_1 &pcfg_pull_up>,
+						<3 13 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			uart11_cts: uart11-cts {
+				rockchip,pins = <3 7 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			uart11_rts: uart11-rts {
+				rockchip,pins = <3 6 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			uart11_rts_gpio: uart11-rts-gpio {
+				rockchip,pins = <3 6 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+		};
+
 		uart2 {
 			uart2_xfer: uart2-xfer {
 				rockchip,pins = <1 18 RK_FUNC_2 &pcfg_pull_up>,
