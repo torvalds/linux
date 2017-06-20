@@ -293,8 +293,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	}
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
 
-	res_wr = __skb_put(skb, wr_len);
-	memset(res_wr, 0, wr_len);
+	res_wr = __skb_put_zero(skb, wr_len);
 	res_wr->op_nres = cpu_to_be32(
 			FW_WR_OP_V(FW_RI_RES_WR) |
 			FW_RI_RES_WR_NRES_V(2) |

@@ -919,7 +919,6 @@ static int __lpc_handle_recv(struct net_device *ndev, int budget)
 	struct sk_buff *skb;
 	u32 rxconsidx, len, ethst;
 	struct rx_status_t *prxstat;
-	u8 *prdbuf;
 	int rx_done = 0;
 
 	/* Get the current RX buffer indexes */
@@ -960,9 +959,9 @@ static int __lpc_handle_recv(struct net_device *ndev, int budget)
 				ndev->stats.rx_dropped++;
 			} else {
 				/* Copy packet from buffer */
-				prdbuf = skb_put_data(skb,
-						      pldat->rx_buff_v + rxconsidx * ENET_MAXF_SIZE,
-						      len);
+				skb_put_data(skb,
+					     pldat->rx_buff_v + rxconsidx * ENET_MAXF_SIZE,
+					     len);
 
 				/* Pass to upper layer */
 				skb->protocol = eth_type_trans(skb, ndev);

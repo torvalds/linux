@@ -1112,7 +1112,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	hdr->info_element[0].id = MFIE_TYPE_SSID;
 
 	hdr->info_element[0].len = beacon->ssid_len;
-	tag = skb_put_data(skb, beacon->ssid, beacon->ssid_len);
+	skb_put_data(skb, beacon->ssid, beacon->ssid_len);
 
 	tag = skb_put(skb, rate_len);
 
@@ -1184,18 +1184,17 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 
 
 	//choose what wpa_supplicant gives to associate.
-	tag = skb_put(skb, wpa_ie_len);
 	if (wpa_ie_len) {
-		memcpy(tag, ieee->wpa_ie, ieee->wpa_ie_len);
+		skb_put_data(skb, ieee->wpa_ie, wpa_ie_len);
 	}
 
-	tag = skb_put(skb, wmm_info_len);
 	if (wmm_info_len) {
-	  ieee80211_WMM_Info(ieee, &tag);
+		tag = skb_put(skb, wmm_info_len);
+		ieee80211_WMM_Info(ieee, &tag);
 	}
 #ifdef THOMAS_TURBO
-	tag = skb_put(skb, turbo_info_len);
 	if (turbo_info_len) {
+		tag = skb_put(skb, turbo_info_len);
 		ieee80211_TURBO_Info(ieee, &tag);
 	}
 #endif

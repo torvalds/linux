@@ -264,7 +264,7 @@ byte_stuff:
 				/* skip remainder of packet */
 				bcs->rx_skb = skb = NULL;
 			} else {
-				*(u8 *)__skb_put(skb, 1) = c;
+				__skb_put_u8(skb, c);
 				fcs = crc_ccitt_byte(fcs, c);
 			}
 		}
@@ -315,7 +315,7 @@ static unsigned iraw_loop(unsigned numbytes, struct inbuf_t *inbuf)
 
 		/* regular data byte: append to current skb */
 		inputstate |= INS_have_data;
-		*(u8 *)__skb_put(skb, 1) = bitrev8(c);
+		__skb_put_u8(skb, bitrev8(c));
 	}
 
 	/* pass data up */

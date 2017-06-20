@@ -472,7 +472,7 @@ static int bsd_compress(void *state, struct sk_buff *skb_in, struct sk_buff *skb
 		accm |= ((ent) << bitno);				\
 		do	{						\
 			if (skb_out && skb_tailroom(skb_out) > 0)	\
-				*(u8 *)skb_put(skb_out, 1) = (u8)(accm >> 24); \
+				skb_put(skb_out, (u8)(accm >> 24));	\
 			accm <<= 8;					\
 			bitno += 8;					\
 		} while (bitno <= 24);					\

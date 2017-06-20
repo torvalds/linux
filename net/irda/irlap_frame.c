@@ -392,7 +392,7 @@ void irlap_send_discovery_xid_frame(struct irlap_cb *self, int S, __u8 s,
 		info[0] = discovery->data.charset;
 
 		len = IRDA_MIN(discovery->name_len, skb_tailroom(tx_skb));
-		info = skb_put_data(tx_skb, discovery->data.info, len);
+		skb_put_data(tx_skb, discovery->data.info, len);
 	}
 	irlap_queue_xmit(self, tx_skb);
 }
@@ -1194,7 +1194,6 @@ void irlap_send_test_frame(struct irlap_cb *self, __u8 caddr, __u32 daddr,
 {
 	struct sk_buff *tx_skb;
 	struct test_frame *frame;
-	__u8 *info;
 
 	tx_skb = alloc_skb(cmd->len + sizeof(struct test_frame), GFP_ATOMIC);
 	if (!tx_skb)
@@ -1214,7 +1213,7 @@ void irlap_send_test_frame(struct irlap_cb *self, __u8 caddr, __u32 daddr,
 	frame->control = TEST_RSP | PF_BIT;
 
 	/* Copy info */
-	info = skb_put_data(tx_skb, cmd->data, cmd->len);
+	skb_put_data(tx_skb, cmd->data, cmd->len);
 
 	/* Return to sender */
 	irlap_wait_min_turn_around(self, &self->qos_tx);

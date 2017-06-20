@@ -426,7 +426,6 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 	/* Check for embedded CAIF frame. */
 	if (desc->offset) {
 		struct sk_buff *skb;
-		u8 *dst = NULL;
 		int len = 0;
 		pfrm = ((u8 *)desc) + desc->offset;
 
@@ -454,7 +453,7 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		}
 		caif_assert(skb != NULL);
 
-		dst = skb_put_data(skb, pfrm, len);
+		skb_put_data(skb, pfrm, len);
 
 		skb->protocol = htons(ETH_P_CAIF);
 		skb_reset_mac_header(skb);
@@ -555,7 +554,6 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 	/* Parse payload. */
 	while (nfrms < CFHSI_MAX_PKTS && *plen) {
 		struct sk_buff *skb;
-		u8 *dst = NULL;
 		u8 *pcffrm = NULL;
 		int len;
 
@@ -584,7 +582,7 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		}
 		caif_assert(skb != NULL);
 
-		dst = skb_put_data(skb, pcffrm, len);
+		skb_put_data(skb, pcffrm, len);
 
 		skb->protocol = htons(ETH_P_CAIF);
 		skb_reset_mac_header(skb);

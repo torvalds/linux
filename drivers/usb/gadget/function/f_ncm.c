@@ -1004,16 +1004,15 @@ static struct sk_buff *package_for_tx(struct f_ncm *ncm)
 	}
 
 	/* Insert NDP alignment. */
-	ntb_iter = skb_put_zero(skb2, ndp_pad);
+	skb_put_zero(skb2, ndp_pad);
 
 	/* Copy NTB across. */
-	ntb_iter = skb_put_data(skb2, ncm->skb_tx_ndp->data,
-				ncm->skb_tx_ndp->len);
+	skb_put_data(skb2, ncm->skb_tx_ndp->data, ncm->skb_tx_ndp->len);
 	dev_consume_skb_any(ncm->skb_tx_ndp);
 	ncm->skb_tx_ndp = NULL;
 
 	/* Insert zero'd datagram. */
-	ntb_iter = skb_put_zero(skb2, dgram_idx_len);
+	skb_put_zero(skb2, dgram_idx_len);
 
 	return skb2;
 }
@@ -1127,8 +1126,8 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 		ncm->ndp_dgram_count++;
 
 		/* Add the new data to the skb */
-		ntb_data = skb_put_zero(ncm->skb_tx_data, dgram_pad);
-		ntb_data = skb_put_data(ncm->skb_tx_data, skb->data, skb->len);
+		skb_put_zero(ncm->skb_tx_data, dgram_pad);
+		skb_put_data(ncm->skb_tx_data, skb->data, skb->len);
 		dev_consume_skb_any(skb);
 		skb = NULL;
 

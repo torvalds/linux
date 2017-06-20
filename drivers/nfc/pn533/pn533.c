@@ -1006,7 +1006,7 @@ static int pn533_start_poll_complete(struct pn533 *dev, struct sk_buff *resp)
 static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 {
 	struct sk_buff *skb;
-	u8 *felica, *nfcid3, *gb;
+	u8 *felica, *nfcid3;
 
 	u8 *gbytes = dev->gb;
 	size_t gbytes_len = dev->gb_len;
@@ -1048,7 +1048,7 @@ static struct sk_buff *pn533_alloc_poll_tg_frame(struct pn533 *dev)
 	/* General bytes */
 	skb_put_u8(skb, gbytes_len);
 
-	gb = skb_put_data(skb, gbytes, gbytes_len);
+	skb_put_data(skb, gbytes, gbytes_len);
 
 	/* Len Tk */
 	skb_put_u8(skb, 0);

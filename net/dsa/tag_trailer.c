@@ -43,8 +43,7 @@ static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 	kfree_skb(skb);
 
 	if (padlen) {
-		u8 *pad = skb_put(nskb, padlen);
-		memset(pad, 0, padlen);
+		skb_put_zero(nskb, padlen);
 	}
 
 	trailer = skb_put(nskb, 4);

@@ -90,7 +90,6 @@ out_pkt:
 static struct sk_buff *virtio_transport_build_skb(void *opaque)
 {
 	struct virtio_vsock_pkt *pkt = opaque;
-	unsigned char *t_hdr, *payload;
 	struct af_vsockmon_hdr *hdr;
 	struct sk_buff *skb;
 
@@ -132,10 +131,10 @@ static struct sk_buff *virtio_transport_build_skb(void *opaque)
 		break;
 	}
 
-	t_hdr = skb_put_data(skb, &pkt->hdr, sizeof(pkt->hdr));
+	skb_put_data(skb, &pkt->hdr, sizeof(pkt->hdr));
 
 	if (pkt->len) {
-		payload = skb_put_data(skb, pkt->buf, pkt->len);
+		skb_put_data(skb, pkt->buf, pkt->len);
 	}
 
 	return skb;

@@ -1069,7 +1069,7 @@ static struct usb_cdc_ncm_ndp16 *cdc_ncm_ndp(struct cdc_ncm_ctx *ctx, struct sk_
 
 	/* push a new empty NDP */
 	if (!(ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END))
-		ndp16 = (struct usb_cdc_ncm_ndp16 *)memset(skb_put(skb, ctx->max_ndp_size), 0, ctx->max_ndp_size);
+		ndp16 = skb_put_zero(skb, ctx->max_ndp_size);
 	else
 		ndp16 = ctx->delayed_ndp16;
 
@@ -1120,7 +1120,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 			goto exit_no_skb;
 		}
 		/* fill out the initial 16-bit NTB header */
-		nth16 = (struct usb_cdc_ncm_nth16 *)memset(skb_put(skb_out, sizeof(struct usb_cdc_ncm_nth16)), 0, sizeof(struct usb_cdc_ncm_nth16));
+		nth16 = skb_put_zero(skb_out, sizeof(struct usb_cdc_ncm_nth16));
 		nth16->dwSignature = cpu_to_le32(USB_CDC_NCM_NTH16_SIGN);
 		nth16->wHeaderLength = cpu_to_le16(sizeof(struct usb_cdc_ncm_nth16));
 		nth16->wSequence = cpu_to_le16(ctx->tx_seq++);

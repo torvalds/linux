@@ -398,11 +398,7 @@ EXPORT_SYMBOL(__nla_reserve_64bit);
  */
 void *__nla_reserve_nohdr(struct sk_buff *skb, int attrlen)
 {
-	void *start;
-
-	start = skb_put_zero(skb, NLA_ALIGN(attrlen));
-
-	return start;
+	return skb_put_zero(skb, NLA_ALIGN(attrlen));
 }
 EXPORT_SYMBOL(__nla_reserve_nohdr);
 

@@ -3530,7 +3530,7 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 	/* Copy the 802.11 header to the skb
 	 * (ctl frames may be less than a full header)
 	 */
-	datap = skb_put_data(skb, &rxdesc->frame_control, hdrlen);
+	skb_put_data(skb, &rxdesc->frame_control, hdrlen);
 
 	/* If any, copy the data from the card to the skb */
 	if (datalen > 0) {

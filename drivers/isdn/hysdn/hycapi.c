@@ -173,8 +173,8 @@ hycapi_register_internal(struct capi_ctr *ctrl, __u16 appl,
 	}
 	skb_put_data(skb, &len, sizeof(__u16));
 	skb_put_data(skb, &appl, sizeof(__u16));
-	memcpy(skb_put(skb, sizeof(__u8)), &_command, sizeof(_command));
-	memcpy(skb_put(skb, sizeof(__u8)), &_subcommand, sizeof(_subcommand));
+	skb_put_data(skb, &_command, sizeof(__u8));
+	skb_put_data(skb, &_subcommand, sizeof(__u8));
 	skb_put_data(skb, &MessageNumber, sizeof(__u16));
 	skb_put_data(skb, &MessageBufferSize, sizeof(__u16));
 	skb_put_data(skb, &(rp->level3cnt), sizeof(__u16));
@@ -281,8 +281,8 @@ static void hycapi_release_internal(struct capi_ctr *ctrl, __u16 appl)
 	}
 	skb_put_data(skb, &len, sizeof(__u16));
 	skb_put_data(skb, &appl, sizeof(__u16));
-	memcpy(skb_put(skb, sizeof(__u8)), &_command, sizeof(_command));
-	memcpy(skb_put(skb, sizeof(__u8)), &_subcommand, sizeof(_subcommand));
+	skb_put_data(skb, &_command, sizeof(__u8));
+	skb_put_data(skb, &_subcommand, sizeof(__u8));
 	skb_put_data(skb, &MessageNumber, sizeof(__u16));
 	hycapi_send_message(ctrl, skb);
 	hycapi_applications[appl - 1].ctrl_mask &= ~(1 << (ctrl->cnr - 1));
