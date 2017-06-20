@@ -276,7 +276,7 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 						   QED_CHAIN_CNT_TYPE_U16,
 						   n_entries,
 						   sizeof(struct regpair *),
-						   &cnq->pbl);
+						   &cnq->pbl, NULL);
 		if (rc)
 			goto err4;
 

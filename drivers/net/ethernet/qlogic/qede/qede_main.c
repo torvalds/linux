@@ -1317,8 +1317,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 					    QED_CHAIN_CNT_TYPE_U16,
 					    RX_RING_SIZE,
 					    sizeof(struct eth_rx_bd),
-					    &rxq->rx_bd_ring);
-
+					    &rxq->rx_bd_ring, NULL);
 	if (rc)
 		goto err;
 
@@ -1329,7 +1328,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 					    QED_CHAIN_CNT_TYPE_U16,
 					    RX_RING_SIZE,
 					    sizeof(union eth_rx_cqe),
-					    &rxq->rx_comp_ring);
+					    &rxq->rx_comp_ring, NULL);
 	if (rc)
 		goto err;
 
@@ -1387,7 +1386,8 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 					    QED_CHAIN_MODE_PBL,
 					    QED_CHAIN_CNT_TYPE_U16,
 					    txq->num_tx_buffers,
-					    sizeof(*p_virt), &txq->tx_pbl);
+					    sizeof(*p_virt),
+					    &txq->tx_pbl, NULL);
 	if (rc)
 		goto err;
 

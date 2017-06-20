@@ -752,7 +752,7 @@ static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
 			     QED_CHAIN_USE_TO_CONSUME_PRODUCE,
 			     QED_CHAIN_MODE_PBL,
 			     QED_CHAIN_CNT_TYPE_U16,
-			     r2tq_num_elements, 0x80, &p_conn->r2tq);
+			     r2tq_num_elements, 0x80, &p_conn->r2tq, NULL);
 	if (rc)
 		goto nomem_r2tq;
 
@@ -763,7 +763,7 @@ static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
 			     QED_CHAIN_MODE_PBL,
 			     QED_CHAIN_CNT_TYPE_U16,
 			     uhq_num_elements,
-			     sizeof(struct iscsi_uhqe), &p_conn->uhq);
+			     sizeof(struct iscsi_uhqe), &p_conn->uhq, NULL);
 	if (rc)
 		goto nomem_uhq;
 
@@ -773,7 +773,7 @@ static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
 			     QED_CHAIN_MODE_PBL,
 			     QED_CHAIN_CNT_TYPE_U16,
 			     xhq_num_elements,
-			     sizeof(struct iscsi_xhqe), &p_conn->xhq);
+			     sizeof(struct iscsi_xhqe), &p_conn->xhq, NULL);
 	if (rc)
 		goto nomem;
 

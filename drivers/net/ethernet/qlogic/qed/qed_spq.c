@@ -419,7 +419,7 @@ int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 			    QED_CHAIN_CNT_TYPE_U16,
 			    num_elem,
 			    sizeof(union event_ring_element),
-			    &p_eq->chain))
+			    &p_eq->chain, NULL))
 		goto eq_allocate_fail;
 
 	/* register EQ completion on the SP SB */
@@ -547,7 +547,7 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 			    QED_CHAIN_CNT_TYPE_U16,
 			    0,   /* N/A when the mode is SINGLE */
 			    sizeof(struct slow_path_element),
-			    &p_spq->chain))
+			    &p_spq->chain, NULL))
 		goto spq_allocate_fail;
 
 	/* allocate and fill the SPQ elements (incl. ramrod data list) */
@@ -953,7 +953,7 @@ int qed_consq_alloc(struct qed_hwfn *p_hwfn)
 			    QED_CHAIN_MODE_PBL,
 			    QED_CHAIN_CNT_TYPE_U16,
 			    QED_CHAIN_PAGE_SIZE / 0x80,
-			    0x80, &p_consq->chain))
+			    0x80, &p_consq->chain, NULL))
 		goto consq_allocate_fail;
 
 	p_hwfn->p_consq = p_consq;
