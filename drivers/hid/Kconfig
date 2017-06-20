@@ -741,6 +741,14 @@ config HID_PRIMAX
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
 
+config HID_RETRODE
+	tristate "Retrode"
+	depends on USB_HID
+	---help---
+	Support for
+
+	  * Retrode 2 cartridge and controller adapter
+
 config HID_ROCCAT
 	tristate "Roccat device support"
 	depends on USB_HID
