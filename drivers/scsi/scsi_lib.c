@@ -1123,7 +1123,9 @@ EXPORT_SYMBOL(scsi_init_io);
  */
 void scsi_initialize_rq(struct request *rq)
 {
-	scsi_req_init(rq);
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
+
+	scsi_req_init(&cmd->req);
 }
 EXPORT_SYMBOL(scsi_initialize_rq);
 

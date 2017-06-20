@@ -745,7 +745,7 @@ static void ide_initialize_rq(struct request *rq)
 {
 	struct ide_request *req = blk_mq_rq_to_pdu(rq);
 
-	scsi_req_init(rq);
+	scsi_req_init(&req->sreq);
 	req->sreq.sense = req->sense;
 }
 
