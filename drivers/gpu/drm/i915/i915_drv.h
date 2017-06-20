@@ -3534,15 +3534,21 @@ void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 					 struct sg_table *pages);
 
 static inline struct i915_gem_context *
+__i915_gem_context_lookup_rcu(struct drm_i915_file_private *file_priv, u32 id)
+{
+	return idr_find(&file_priv->context_idr, id);
+}
+
+static inline struct i915_gem_context *
 i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 {
 	struct i915_gem_context *ctx;
 
-	lockdep_assert_held(&file_priv->dev_priv->drm.struct_mutex);
-
-	ctx = idr_find(&file_priv->context_idr, id);
-	if (!ctx)
-		return ERR_PTR(-ENOENT);
+	rcu_read_lock();
+	ctx = __i915_gem_context_lookup_rcu(file_priv, id);
+	if (ctx && !kref_get_unless_zero(&ctx->ref))
+		ctx = NULL;
+	rcu_read_unlock();
 
 	return ctx;
 }

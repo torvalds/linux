@@ -100,6 +100,11 @@ struct i915_gem_context {
 	struct kref ref;
 
 	/**
+	 * @rcu: rcu_head for deferred freeing.
+	 */
+	struct rcu_head rcu;
+
+	/**
 	 * @flags: small set of booleans
 	 */
 	unsigned long flags;
