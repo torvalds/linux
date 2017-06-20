@@ -86,6 +86,7 @@ static const struct adreno_info gpulist[] = {
 			ADRENO_QUIRK_FAULT_DETECT_MASK,
 		.init = a5xx_gpu_init,
 		.gpmufw = "a530v3_gpmu.fw2",
+		.zapfw = "a530_zap.mdt",
 	},
 };
 
@@ -158,7 +159,9 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 		int ret;
 
 		pm_runtime_get_sync(&pdev->dev);
+		mutex_lock(&dev->struct_mutex);
 		ret = msm_gpu_hw_init(gpu);
+		mutex_unlock(&dev->struct_mutex);
 		pm_runtime_put_sync(&pdev->dev);
 		if (ret) {
 			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
