@@ -902,7 +902,7 @@ static void qedr_mac_address_change(struct qedr_dev *dev)
  * initialization done before RoCE driver notifies
  * event to stack.
  */
-static void qedr_notify(struct qedr_dev *dev, enum qede_roce_event event)
+static void qedr_notify(struct qedr_dev *dev, enum qede_rdma_event event)
 {
 	switch (event) {
 	case QEDE_UP:
@@ -931,12 +931,12 @@ static struct qedr_driver qedr_drv = {
 
 static int __init qedr_init_module(void)
 {
-	return qede_roce_register_driver(&qedr_drv);
+	return qede_rdma_register_driver(&qedr_drv);
 }
 
 static void __exit qedr_exit_module(void)
 {
-	qede_roce_unregister_driver(&qedr_drv);
+	qede_rdma_unregister_driver(&qedr_drv);
 }
 
 module_init(qedr_init_module);

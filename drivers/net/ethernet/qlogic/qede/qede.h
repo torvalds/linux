@@ -154,8 +154,8 @@ struct qede_vlan {
 struct qede_rdma_dev {
 	struct qedr_dev *qedr_dev;
 	struct list_head entry;
-	struct list_head roce_event_list;
-	struct workqueue_struct *roce_wq;
+	struct list_head rdma_event_list;
+	struct workqueue_struct *rdma_wq;
 };
 
 struct qede_ptp;
