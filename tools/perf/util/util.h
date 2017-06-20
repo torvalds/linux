@@ -49,8 +49,6 @@ int hex2u64(const char *ptr, u64 *val);
 extern unsigned int page_size;
 extern int cacheline_size;
 
-bool find_process(const char *name);
-
 int fetch_kernel_version(unsigned int *puint,
 			 char *str, size_t str_sz);
 #define KVER_VERSION(x)		(((x) >> 16) & 0xff)

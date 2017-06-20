@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/bitops.h>
+#include <api/fs/fs.h>
 #include <api/fs/tracing_path.h>
 #include <traceevent/event-parse.h>
 #include <linux/hw_breakpoint.h>
@@ -19,6 +20,8 @@
 #include <linux/err.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
+#include <sys/types.h>
+#include <dirent.h>
 #include "asm/bug.h"
 #include "callchain.h"
 #include "cgroup.h"
@@ -2470,6 +2473,42 @@ bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 	}
 
 	return false;
+}
+
+static bool find_process(const char *name)
+{
+	size_t len = strlen(name);
+	DIR *dir;
+	struct dirent *d;
+	int ret = -1;
+
+	dir = opendir(procfs__mountpoint());
+	if (!dir)
+		return false;
+
+	/* Walk through the directory. */
+	while (ret && (d = readdir(dir)) != NULL) {
+		char path[PATH_MAX];
+		char *data;
+		size_t size;
+
+		if ((d->d_type != DT_DIR) ||
+		     !strcmp(".", d->d_name) ||
+		     !strcmp("..", d->d_name))
+			continue;
+
+		scnprintf(path, sizeof(path), "%s/%s/comm",
+			  procfs__mountpoint(), d->d_name);
+
+		if (filename__read_str(path, &data, &size))
+			continue;
+
+		ret = strncmp(name, data, len);
+		free(data);
+	}
+
+	closedir(dir);
+	return ret ? false : true;
 }
 
 int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
