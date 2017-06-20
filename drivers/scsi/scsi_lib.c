@@ -250,7 +250,6 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	if (IS_ERR(req))
 		return ret;
 	rq = scsi_req(req);
-	scsi_req_init(req);
 
 	if (bufflen &&	blk_rq_map_kern(sdev->request_queue, req,
 					buffer, bufflen, __GFP_RECLAIM))
@@ -1117,6 +1116,18 @@ err_exit:
 }
 EXPORT_SYMBOL(scsi_init_io);
 
+/**
+ * scsi_initialize_rq - initialize struct scsi_cmnd.req
+ *
+ * Called from inside blk_get_request().
+ */
+void scsi_initialize_rq(struct request *rq)
+{
+	scsi_req_init(rq);
+}
+EXPORT_SYMBOL(scsi_initialize_rq);
+
+/* Called after a request has been started. */
 void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 {
 	void *buf = cmd->sense_buffer;
@@ -2124,6 +2135,7 @@ struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 	q->request_fn = scsi_request_fn;
 	q->init_rq_fn = scsi_init_rq;
 	q->exit_rq_fn = scsi_exit_rq;
+	q->initialize_rq_fn = scsi_initialize_rq;
 
 	if (blk_init_allocated_queue(q) < 0) {
 		blk_cleanup_queue(q);
@@ -2148,6 +2160,7 @@ static const struct blk_mq_ops scsi_mq_ops = {
 #endif
 	.init_request	= scsi_init_request,
 	.exit_request	= scsi_exit_request,
+	.initialize_rq_fn = scsi_initialize_rq,
 	.map_queues	= scsi_map_queues,
 };
 

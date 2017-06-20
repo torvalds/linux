@@ -33,6 +33,7 @@
 #include <linux/bsg.h>
 
 #include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_request.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
@@ -230,6 +231,7 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 	q = blk_alloc_queue(GFP_KERNEL);
 	if (!q)
 		return -ENOMEM;
+	q->initialize_rq_fn = scsi_initialize_rq;
 	q->cmd_size = sizeof(struct scsi_request);
 
 	if (rphy) {

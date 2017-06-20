@@ -1903,7 +1903,6 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	if (IS_ERR(req))
 		return;
 	rq = scsi_req(req);
-	scsi_req_init(req);
 
 	rq->cmd[0] = ALLOW_MEDIUM_REMOVAL;
 	rq->cmd[1] = 0;

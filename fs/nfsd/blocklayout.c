@@ -232,7 +232,6 @@ static int nfsd4_scsi_identify_device(struct block_device *bdev,
 		goto out_free_buf;
 	}
 	req = scsi_req(rq);
-	scsi_req_init(rq);
 
 	error = blk_rq_map_kern(q, rq, buf, bufflen, GFP_KERNEL);
 	if (error)

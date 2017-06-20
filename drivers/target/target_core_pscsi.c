@@ -992,8 +992,6 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		goto fail;
 	}
 
-	scsi_req_init(req);
-
 	if (sgl) {
 		ret = pscsi_map_sg(cmd, sgl, sgl_nents, req);
 		if (ret)

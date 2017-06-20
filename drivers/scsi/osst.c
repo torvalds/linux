@@ -373,7 +373,6 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
 		return DRIVER_ERROR << 24;
 
 	rq = scsi_req(req);
-	scsi_req_init(req);
 	req->rq_flags |= RQF_QUIET;
 
 	SRpnt->bio = NULL;

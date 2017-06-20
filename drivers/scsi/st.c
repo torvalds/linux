@@ -549,7 +549,6 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	if (IS_ERR(req))
 		return DRIVER_ERROR << 24;
 	rq = scsi_req(req);
-	scsi_req_init(req);
 	req->rq_flags |= RQF_QUIET;
 
 	mdata->null_mapped = 1;

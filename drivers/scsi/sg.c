@@ -1732,8 +1732,6 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	}
 	req = scsi_req(rq);
 
-	scsi_req_init(rq);
-
 	if (hp->cmd_len > BLK_MAX_CDB)
 		req->cmd = long_cmdp;
 	memcpy(req->cmd, cmd, hp->cmd_len);

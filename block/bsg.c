@@ -236,7 +236,6 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr, fmode_t has_write_perm)
 	rq = blk_get_request(q, op, GFP_KERNEL);
 	if (IS_ERR(rq))
 		return rq;
-	scsi_req_init(rq);
 
 	ret = blk_fill_sgv4_hdr_rq(q, rq, hdr, bd, has_write_perm);
 	if (ret)

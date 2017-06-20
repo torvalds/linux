@@ -438,7 +438,6 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 
 		rq = blk_get_request(drive->queue,
 			write ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,  __GFP_RECLAIM);
-		scsi_req_init(rq);
 		memcpy(scsi_req(rq)->cmd, cmd, BLK_MAX_CDB);
 		ide_req(rq)->type = ATA_PRIV_PC;
 		rq->rq_flags |= rq_flags;

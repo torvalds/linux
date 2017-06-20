@@ -1574,7 +1574,6 @@ static struct request *_make_request(struct request_queue *q, bool has_write,
 			flags);
 	if (IS_ERR(req))
 		return req;
-	scsi_req_init(req);
 
 	for_each_bio(bio) {
 		struct bio *bounce_bio = bio;
@@ -1619,7 +1618,6 @@ static int _init_blk_request(struct osd_request *or,
 				ret = PTR_ERR(req);
 				goto out;
 			}
-			scsi_req_init(req);
 			or->in.req = or->request->next_rq = req;
 		}
 	} else if (has_in)
