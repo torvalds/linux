@@ -39,6 +39,17 @@
 #include <linux/tcp.h>
 #include <linux/sctp.h>
 #include <linux/ipv6.h>
+#include <linux/kernel.h>
+#include <linux/bitops.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
+#include <linux/delay.h>
+#include <linux/gfp.h>
+#include <linux/skbuff.h>
+#include <linux/dma-mapping.h>
+#include <linux/etherdevice.h>
+#include <linux/socket.h>
+#include <linux/jiffies.h>
 #include <net/ip6_checksum.h>
 #include <net/udp.h>
 
