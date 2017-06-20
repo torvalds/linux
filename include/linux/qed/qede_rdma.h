@@ -32,6 +32,11 @@
 #ifndef QEDE_ROCE_H
 #define QEDE_ROCE_H
 
+#include <linux/pci.h>
+#include <linux/netdevice.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+
 struct qedr_dev;
 struct qed_dev;
 struct qede_dev;

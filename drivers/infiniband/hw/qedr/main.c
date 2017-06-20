@@ -37,7 +37,7 @@
 #include <linux/iommu.h>
 #include <linux/pci.h>
 #include <net/addrconf.h>
-#include <linux/qed/qede_roce.h>
+
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_if.h>
 #include "qedr.h"

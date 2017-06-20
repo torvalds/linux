@@ -33,7 +33,7 @@
 #include <linux/netdevice.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/qed/qede_roce.h>
+#include <linux/qed/qede_rdma.h>
 #include "qede.h"
 
 static struct qedr_driver *qedr_drv;

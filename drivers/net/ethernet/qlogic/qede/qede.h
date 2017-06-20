@@ -40,6 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/bpf.h>
+#include <linux/qed/qede_rdma.h>
 #include <linux/io.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
