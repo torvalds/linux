@@ -273,13 +273,17 @@ static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
 }
 
 /* i915_gem_context.c */
-int __must_check i915_gem_context_init(struct drm_i915_private *dev_priv);
-void i915_gem_context_lost(struct drm_i915_private *dev_priv);
-void i915_gem_context_fini(struct drm_i915_private *dev_priv);
-int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
-void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
+int __must_check i915_gem_contexts_init(struct drm_i915_private *dev_priv);
+void i915_gem_contexts_lost(struct drm_i915_private *dev_priv);
+void i915_gem_contexts_fini(struct drm_i915_private *dev_priv);
+
+int i915_gem_context_open(struct drm_i915_private *i915,
+			  struct drm_file *file);
+void i915_gem_context_close(struct drm_file *file);
+
 int i915_switch_context(struct drm_i915_gem_request *req);
 int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv);
+
 void i915_gem_context_free(struct kref *ctx_ref);
 struct i915_gem_context *
 i915_gem_context_create_gvt(struct drm_device *dev);

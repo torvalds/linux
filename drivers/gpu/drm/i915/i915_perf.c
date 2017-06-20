@@ -1746,7 +1746,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 		goto out;
 
 	/* Update all contexts now that we've stalled the submission. */
-	list_for_each_entry(ctx, &dev_priv->context_list, link) {
+	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
 		struct intel_context *ce = &ctx->engine[RCS];
 		u32 *regs;
 

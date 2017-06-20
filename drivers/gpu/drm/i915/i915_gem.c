@@ -3098,7 +3098,7 @@ void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
 
 	stop_machine(__i915_gem_set_wedged_BKL, dev_priv, NULL);
 
-	i915_gem_context_lost(dev_priv);
+	i915_gem_contexts_lost(dev_priv);
 
 	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 }
@@ -4564,7 +4564,7 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 		goto err_unlock;
 
 	assert_kernel_context_is_current(dev_priv);
-	i915_gem_context_lost(dev_priv);
+	i915_gem_contexts_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_guc_suspend(dev_priv);
@@ -4811,7 +4811,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_unlock;
 
-	ret = i915_gem_context_init(dev_priv);
+	ret = i915_gem_contexts_init(dev_priv);
 	if (ret)
 		goto out_unlock;
 
@@ -4921,7 +4921,6 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 	if (err)
 		goto err_priorities;
 
-	INIT_LIST_HEAD(&dev_priv->context_list);
 	INIT_WORK(&dev_priv->mm.free_work, __i915_gem_free_work);
 	init_llist_head(&dev_priv->mm.free_list);
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
@@ -5045,7 +5044,7 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 	}
 }
 
-int i915_gem_open(struct drm_device *dev, struct drm_file *file)
+int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv;
 	int ret;
@@ -5057,7 +5056,7 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 		return -ENOMEM;
 
 	file->driver_priv = file_priv;
-	file_priv->dev_priv = to_i915(dev);
+	file_priv->dev_priv = i915;
 	file_priv->file = file;
 	INIT_LIST_HEAD(&file_priv->rps.link);
 
@@ -5066,7 +5065,7 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 
 	file_priv->bsd_engine = -1;
 
-	ret = i915_gem_context_open(dev, file);
+	ret = i915_gem_context_open(i915, file);
 	if (ret)
 		kfree(file_priv);
 

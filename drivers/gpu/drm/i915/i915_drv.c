@@ -588,13 +588,13 @@ static void i915_gem_fini(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);
 	i915_gem_cleanup_engines(dev_priv);
-	i915_gem_context_fini(dev_priv);
+	i915_gem_contexts_fini(dev_priv);
 	i915_gem_cleanup_userptr(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	i915_gem_drain_freed_objects(dev_priv);
 
-	WARN_ON(!list_empty(&dev_priv->context_list));
+	WARN_ON(!list_empty(&dev_priv->contexts.list));
 }
 
 static int i915_load_modeset_init(struct drm_device *dev)
@@ -1425,9 +1425,10 @@ static void i915_driver_release(struct drm_device *dev)
 
 static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 {
+	struct drm_i915_private *i915 = to_i915(dev);
 	int ret;
 
-	ret = i915_gem_open(dev, file);
+	ret = i915_gem_open(i915, file);
 	if (ret)
 		return ret;
 
@@ -1457,7 +1458,7 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	mutex_lock(&dev->struct_mutex);
-	i915_gem_context_close(dev, file);
+	i915_gem_context_close(file);
 	i915_gem_release(dev, file);
 	mutex_unlock(&dev->struct_mutex);
 

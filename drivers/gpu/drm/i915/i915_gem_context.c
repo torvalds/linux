@@ -188,7 +188,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 
 	list_del(&ctx->link);
 
-	ida_simple_remove(&ctx->i915->context_hw_ida, ctx->hw_id);
+	ida_simple_remove(&ctx->i915->contexts.hw_ida, ctx->hw_id);
 	kfree(ctx);
 }
 
@@ -205,7 +205,7 @@ static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
 {
 	int ret;
 
-	ret = ida_simple_get(&dev_priv->context_hw_ida,
+	ret = ida_simple_get(&dev_priv->contexts.hw_ida,
 			     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
 	if (ret < 0) {
 		/* Contexts are only released when no longer active.
@@ -213,7 +213,7 @@ static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
 		 * stale contexts and try again.
 		 */
 		i915_gem_retire_requests(dev_priv);
-		ret = ida_simple_get(&dev_priv->context_hw_ida,
+		ret = ida_simple_get(&dev_priv->contexts.hw_ida,
 				     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
 		if (ret < 0)
 			return ret;
@@ -265,7 +265,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	}
 
 	kref_init(&ctx->ref);
-	list_add_tail(&ctx->link, &dev_priv->context_list);
+	list_add_tail(&ctx->link, &dev_priv->contexts.list);
 	ctx->i915 = dev_priv;
 	ctx->priority = I915_PRIORITY_NORMAL;
 
@@ -418,7 +418,7 @@ out:
 	return ctx;
 }
 
-int i915_gem_context_init(struct drm_i915_private *dev_priv)
+int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
 
@@ -426,6 +426,8 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 	 * restriction on the context_disabled check can be loosened. */
 	if (WARN_ON(dev_priv->kernel_context))
 		return 0;
+
+	INIT_LIST_HEAD(&dev_priv->contexts.list);
 
 	if (intel_vgpu_active(dev_priv) &&
 	    HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
@@ -437,7 +439,7 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 
 	/* Using the simple ida interface, the max is limited by sizeof(int) */
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > INT_MAX);
-	ida_init(&dev_priv->context_hw_ida);
+	ida_init(&dev_priv->contexts.hw_ida);
 
 	ctx = i915_gem_create_context(dev_priv, NULL);
 	if (IS_ERR(ctx)) {
@@ -463,7 +465,7 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-void i915_gem_context_lost(struct drm_i915_private *dev_priv)
+void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -484,7 +486,7 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 	if (!i915.enable_execlists) {
 		struct i915_gem_context *ctx;
 
-		list_for_each_entry(ctx, &dev_priv->context_list, link) {
+		list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
 			if (!i915_gem_context_is_default(ctx))
 				continue;
 
@@ -503,7 +505,7 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 	}
 }
 
-void i915_gem_context_fini(struct drm_i915_private *dev_priv)
+void i915_gem_contexts_fini(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *dctx = dev_priv->kernel_context;
 
@@ -514,7 +516,7 @@ void i915_gem_context_fini(struct drm_i915_private *dev_priv)
 	context_close(dctx);
 	dev_priv->kernel_context = NULL;
 
-	ida_destroy(&dev_priv->context_hw_ida);
+	ida_destroy(&dev_priv->contexts.hw_ida);
 }
 
 static int context_idr_cleanup(int id, void *p, void *data)
@@ -525,16 +527,17 @@ static int context_idr_cleanup(int id, void *p, void *data)
 	return 0;
 }
 
-int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
+int i915_gem_context_open(struct drm_i915_private *i915,
+			  struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct i915_gem_context *ctx;
 
 	idr_init(&file_priv->context_idr);
 
-	mutex_lock(&dev->struct_mutex);
-	ctx = i915_gem_create_context(to_i915(dev), file_priv);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_lock(&i915->drm.struct_mutex);
+	ctx = i915_gem_create_context(i915, file_priv);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
 
@@ -546,11 +549,11 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
+void i915_gem_context_close(struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	lockdep_assert_held(&dev->struct_mutex);
+	lockdep_assert_held(&file_priv->dev_priv->drm.struct_mutex);
 
 	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
 	idr_destroy(&file_priv->context_idr);

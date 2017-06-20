@@ -209,7 +209,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	memcpy(*remap_info + (offset/4), buf, count);
 
 	/* NB: We defer the remapping until we switch to the context */
-	list_for_each_entry(ctx, &dev_priv->context_list, link)
+	list_for_each_entry(ctx, &dev_priv->contexts.list, link)
 		ctx->remap_slice |= (1<<slice);
 
 	ret = count;

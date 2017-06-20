@@ -48,7 +48,7 @@ mock_context(struct drm_i915_private *i915,
 	if (!ctx->vma_lut.ht)
 		goto err_free;
 
-	ret = ida_simple_get(&i915->context_hw_ida,
+	ret = ida_simple_get(&i915->contexts.hw_ida,
 			     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
 	if (ret < 0)
 		goto err_vma_ht;

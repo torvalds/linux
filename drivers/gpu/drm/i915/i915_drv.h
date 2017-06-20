@@ -2235,13 +2235,6 @@ struct drm_i915_private {
 	DECLARE_HASHTABLE(mm_structs, 7);
 	struct mutex mm_lock;
 
-	/* The hw wants to have a stable context identifier for the lifetime
-	 * of the context (for OA, PASID, faults, etc). This is limited
-	 * in execlists to 21 bits.
-	 */
-	struct ida context_hw_ida;
-#define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
-
 	/* Kernel Modesetting */
 
 	struct intel_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
@@ -2320,7 +2313,16 @@ struct drm_i915_private {
 	 */
 	struct mutex av_mutex;
 
-	struct list_head context_list;
+	struct {
+		struct list_head list;
+
+		/* The hw wants to have a stable context identifier for the
+		 * lifetime of the context (for OA, PASID, faults, etc).
+		 * This is limited in execlists to 21 bits.
+		 */
+		struct ida hw_ida;
+#define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
+	} contexts;
 
 	u32 fdi_rx_config;
 
@@ -3498,7 +3500,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 				int align);
-int i915_gem_open(struct drm_device *dev, struct drm_file *file);
+int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
