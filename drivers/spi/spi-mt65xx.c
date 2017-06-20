@@ -105,6 +105,10 @@ struct mtk_spi {
 
 static const struct mtk_spi_compatible mtk_common_compat;
 
+static const struct mtk_spi_compatible mt2712_compat = {
+	.must_tx = true,
+};
+
 static const struct mtk_spi_compatible mt7622_compat = {
 	.must_tx = true,
 	.enhance_timing = true,
@@ -129,6 +133,9 @@ static const struct mtk_chip_config mtk_default_chip_info = {
 static const struct of_device_id mtk_spi_of_match[] = {
 	{ .compatible = "mediatek,mt2701-spi",
 		.data = (void *)&mtk_common_compat,
+	},
+	{ .compatible = "mediatek,mt2712-spi",
+		.data = (void *)&mt2712_compat,
 	},
 	{ .compatible = "mediatek,mt6589-spi",
 		.data = (void *)&mtk_common_compat,
