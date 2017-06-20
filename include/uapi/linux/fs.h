@@ -361,4 +361,6 @@ struct fscrypt_key {
 #define RWF_DSYNC			0x00000002 /* per-IO O_DSYNC */
 #define RWF_SYNC			0x00000004 /* per-IO O_SYNC */
 
+#define RWF_SUPPORTED			(RWF_HIPRI | RWF_DSYNC | RWF_SYNC)
+
 #endif /* _UAPI_LINUX_FS_H */
