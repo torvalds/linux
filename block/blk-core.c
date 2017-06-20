@@ -1347,8 +1347,8 @@ retry:
 	goto retry;
 }
 
-static struct request *blk_old_get_request(struct request_queue *q, int rw,
-		gfp_t gfp_mask)
+static struct request *blk_old_get_request(struct request_queue *q,
+					   unsigned int op, gfp_t gfp_mask)
 {
 	struct request *rq;
 
@@ -1356,7 +1356,7 @@ static struct request *blk_old_get_request(struct request_queue *q, int rw,
 	create_io_context(gfp_mask, q->node);
 
 	spin_lock_irq(q->queue_lock);
-	rq = get_request(q, rw, NULL, gfp_mask);
+	rq = get_request(q, op, NULL, gfp_mask);
 	if (IS_ERR(rq)) {
 		spin_unlock_irq(q->queue_lock);
 		return rq;
@@ -1369,14 +1369,15 @@ static struct request *blk_old_get_request(struct request_queue *q, int rw,
 	return rq;
 }
 
-struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
+struct request *blk_get_request(struct request_queue *q, unsigned int op,
+				gfp_t gfp_mask)
 {
 	if (q->mq_ops)
-		return blk_mq_alloc_request(q, rw,
+		return blk_mq_alloc_request(q, op,
 			(gfp_mask & __GFP_DIRECT_RECLAIM) ?
 				0 : BLK_MQ_REQ_NOWAIT);
 	else
-		return blk_old_get_request(q, rw, gfp_mask);
+		return blk_old_get_request(q, op, gfp_mask);
 }
 EXPORT_SYMBOL(blk_get_request);
 
