@@ -2595,6 +2595,21 @@ S:	Maintained
 F:	net/bluetooth/
 F:	include/net/bluetooth/
 
+DMA MAPPING HELPERS
+M:	Christoph Hellwig <hch@lst.de>
+M:	Marek Szyprowski <m.szyprowski@samsung.com>
+R:	Robin Murphy <robin.murphy@arm.com>
+L:	linux-kernel@vger.kernel.org
+T:	git git://git.infradead.org/users/hch/dma-mapping.git
+W:	http://git.infradead.org/users/hch/dma-mapping.git
+S:	Supported
+F:	lib/dma-debug.c
+F:	lib/dma-noop.c
+F:	lib/dma-virt.c
+F:	drivers/base/dma-mapping.c
+F:	drivers/base/dma-coherent.c
+F:	include/linux/dma-mapping.h
+
 BONDING DRIVER
 M:	Jay Vosburgh <j.vosburgh@gmail.com>
 M:	Veaceslav Falico <vfalico@gmail.com>
