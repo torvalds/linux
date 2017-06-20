@@ -1670,12 +1670,22 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		seq_printf(m, "FBC disabled: %s\n",
 			   dev_priv->fbc.no_fbc_reason);
 
-	if (intel_fbc_is_active(dev_priv) && INTEL_GEN(dev_priv) >= 7) {
-		uint32_t mask = INTEL_GEN(dev_priv) >= 8 ?
-				BDW_FBC_COMPRESSION_MASK :
-				IVB_FBC_COMPRESSION_MASK;
-		seq_printf(m, "Compressing: %s\n",
-			   yesno(I915_READ(FBC_STATUS2) & mask));
+	if (intel_fbc_is_active(dev_priv)) {
+		u32 mask;
+
+		if (INTEL_GEN(dev_priv) >= 8)
+			mask = I915_READ(IVB_FBC_STATUS2) & BDW_FBC_COMP_SEG_MASK;
+		else if (INTEL_GEN(dev_priv) >= 7)
+			mask = I915_READ(IVB_FBC_STATUS2) & IVB_FBC_COMP_SEG_MASK;
+		else if (INTEL_GEN(dev_priv) >= 5)
+			mask = I915_READ(ILK_DPFC_STATUS) & ILK_DPFC_COMP_SEG_MASK;
+		else if (IS_G4X(dev_priv))
+			mask = I915_READ(DPFC_STATUS) & DPFC_COMP_SEG_MASK;
+		else
+			mask = I915_READ(FBC_STATUS) & (FBC_STAT_COMPRESSING |
+							FBC_STAT_COMPRESSED);
+
+		seq_printf(m, "Compressing: %s\n", yesno(mask));
 	}
 
 	mutex_unlock(&dev_priv->fbc.lock);
@@ -1684,7 +1694,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int i915_fbc_fc_get(void *data, u64 *val)
+static int i915_fbc_false_color_get(void *data, u64 *val)
 {
 	struct drm_i915_private *dev_priv = data;
 
@@ -1696,7 +1706,7 @@ static int i915_fbc_fc_get(void *data, u64 *val)
 	return 0;
 }
 
-static int i915_fbc_fc_set(void *data, u64 val)
+static int i915_fbc_false_color_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
 	u32 reg;
@@ -1717,8 +1727,8 @@ static int i915_fbc_fc_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(i915_fbc_fc_fops,
-			i915_fbc_fc_get, i915_fbc_fc_set,
+DEFINE_SIMPLE_ATTRIBUTE(i915_fbc_false_color_fops,
+			i915_fbc_false_color_get, i915_fbc_false_color_set,
 			"%llu\n");
 
 static int i915_ips_status(struct seq_file *m, void *unused)
@@ -1987,6 +1997,12 @@ static int i915_context_status(struct seq_file *m, void *unused)
 				describe_ctx_ring(m, ce->ring);
 			seq_putc(m, '\n');
 		}
+
+		seq_printf(m,
+			   "\tvma hashtable size=%u (actual %lu), count=%u\n",
+			   ctx->vma_lut.ht_size,
+			   BIT(ctx->vma_lut.ht_bits),
+			   ctx->vma_lut.ht_count);
 
 		seq_putc(m, '\n');
 	}
@@ -4289,26 +4305,27 @@ i915_drop_caches_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
 	struct drm_device *dev = &dev_priv->drm;
-	int ret;
+	int ret = 0;
 
 	DRM_DEBUG("Dropping caches: 0x%08llx\n", val);
 
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	if (val & DROP_ACTIVE) {
-		ret = i915_gem_wait_for_idle(dev_priv,
-					     I915_WAIT_INTERRUPTIBLE |
-					     I915_WAIT_LOCKED);
+	if (val & (DROP_ACTIVE | DROP_RETIRE)) {
+		ret = mutex_lock_interruptible(&dev->struct_mutex);
 		if (ret)
-			goto unlock;
-	}
+			return ret;
 
-	if (val & DROP_RETIRE)
-		i915_gem_retire_requests(dev_priv);
+		if (val & DROP_ACTIVE)
+			ret = i915_gem_wait_for_idle(dev_priv,
+						     I915_WAIT_INTERRUPTIBLE |
+						     I915_WAIT_LOCKED);
+
+		if (val & DROP_RETIRE)
+			i915_gem_retire_requests(dev_priv);
+
+		mutex_unlock(&dev->struct_mutex);
+	}
 
 	lockdep_set_current_reclaim_state(GFP_KERNEL);
 	if (val & DROP_BOUND)
@@ -4320,9 +4337,6 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(dev_priv);
 	lockdep_clear_current_reclaim_state();
-
-unlock:
-	mutex_unlock(&dev->struct_mutex);
 
 	if (val & DROP_FREED) {
 		synchronize_rcu();
@@ -4861,7 +4875,7 @@ static const struct i915_debugfs_files {
 	{"i915_pri_wm_latency", &i915_pri_wm_latency_fops},
 	{"i915_spr_wm_latency", &i915_spr_wm_latency_fops},
 	{"i915_cur_wm_latency", &i915_cur_wm_latency_fops},
-	{"i915_fbc_false_color", &i915_fbc_fc_fops},
+	{"i915_fbc_false_color", &i915_fbc_false_color_fops},
 	{"i915_dp_test_data", &i915_displayport_test_data_fops},
 	{"i915_dp_test_type", &i915_displayport_test_type_fops},
 	{"i915_dp_test_active", &i915_displayport_test_active_fops},

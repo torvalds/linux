@@ -402,7 +402,7 @@ int intel_guc_select_fw(struct intel_guc *guc)
 		guc->fw.path = I915_BXT_GUC_UCODE;
 		guc->fw.major_ver_wanted = BXT_FW_MAJOR;
 		guc->fw.minor_ver_wanted = BXT_FW_MINOR;
-	} else if (IS_KABYLAKE(dev_priv)) {
+	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
 		guc->fw.path = I915_KBL_GUC_UCODE;
 		guc->fw.major_ver_wanted = KBL_FW_MAJOR;
 		guc->fw.minor_ver_wanted = KBL_FW_MINOR;

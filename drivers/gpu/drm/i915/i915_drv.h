@@ -37,7 +37,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/backlight.h>
-#include <linux/hashtable.h>
+#include <linux/hash.h>
 #include <linux/intel-iommu.h>
 #include <linux/kref.h>
 #include <linux/pm_qos.h>
@@ -80,8 +80,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20170529"
-#define DRIVER_TIMESTAMP	1496041258
+#define DRIVER_DATE		"20170619"
+#define DRIVER_TIMESTAMP	1497857498
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -752,7 +752,6 @@ struct intel_csr {
 	func(has_aliasing_ppgtt); \
 	func(has_csr); \
 	func(has_ddi); \
-	func(has_decoupled_mmio); \
 	func(has_dp_mst); \
 	func(has_fbc); \
 	func(has_fpga_dbg); \
@@ -827,6 +826,8 @@ enum intel_platform {
 	INTEL_BROXTON,
 	INTEL_KABYLAKE,
 	INTEL_GEMINILAKE,
+	INTEL_COFFEELAKE,
+	INTEL_CANNONLAKE,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -1152,6 +1153,7 @@ enum intel_pch {
 	PCH_LPT,	/* Lynxpoint PCH */
 	PCH_SPT,        /* Sunrisepoint PCH */
 	PCH_KBP,        /* Kabypoint PCH */
+	PCH_CNP,        /* Cannonpoint PCH */
 	PCH_NOP,
 };
 
@@ -1160,11 +1162,9 @@ enum intel_sbi_destination {
 	SBI_MPHY,
 };
 
-#define QUIRK_PIPEA_FORCE (1<<0)
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
 #define QUIRK_INVERT_BRIGHTNESS (1<<2)
 #define QUIRK_BACKLIGHT_PRESENT (1<<3)
-#define QUIRK_PIPEB_FORCE (1<<4)
 #define QUIRK_PIN_SWIZZLED_PAGES (1<<5)
 
 struct intel_fbdev;
@@ -1453,6 +1453,13 @@ struct i915_gem_mm {
 
 	/** LRU list of objects with fence regs on them. */
 	struct list_head fence_list;
+
+	/**
+	 * Workqueue to fault in userptr pages, flushed by the execbuf
+	 * when required but otherwise left to userspace to try again
+	 * on EAGAIN.
+	 */
+	struct workqueue_struct *userptr_wq;
 
 	u64 unordered_timeline;
 
@@ -2017,9 +2024,17 @@ struct i915_oa_ops {
 	void (*init_oa_buffer)(struct drm_i915_private *dev_priv);
 
 	/**
-	 * @enable_metric_set: Applies any MUX configuration to set up the
-	 * Boolean and Custom (B/C) counters that are part of the counter
-	 * reports being sampled. May apply system constraints such as
+	 * @select_metric_set: The auto generated code that checks whether a
+	 * requested OA config is applicable to the system and if so sets up
+	 * the mux, oa and flex eu register config pointers according to the
+	 * current dev_priv->perf.oa.metrics_set.
+	 */
+	int (*select_metric_set)(struct drm_i915_private *dev_priv);
+
+	/**
+	 * @enable_metric_set: Selects and applies any MUX configuration to set
+	 * up the Boolean and Custom (B/C) counters that are part of the
+	 * counter reports being sampled. May apply system constraints such as
 	 * disabling EU clock gating as required.
 	 */
 	int (*enable_metric_set)(struct drm_i915_private *dev_priv);
@@ -2050,20 +2065,13 @@ struct i915_oa_ops {
 		    size_t *offset);
 
 	/**
-	 * @oa_buffer_check: Check for OA buffer data + update tail
+	 * @oa_hw_tail_read: read the OA tail pointer register
 	 *
-	 * This is either called via fops or the poll check hrtimer (atomic
-	 * ctx) without any locks taken.
-	 *
-	 * It's safe to read OA config state here unlocked, assuming that this
-	 * is only called while the stream is enabled, while the global OA
-	 * configuration can't be modified.
-	 *
-	 * Efficiency is more important than avoiding some false positives
-	 * here, which will be handled gracefully - likely resulting in an
-	 * %EAGAIN error for userspace.
+	 * In particular this enables us to share all the fiddly code for
+	 * handling the OA unit tail pointer race that affects multiple
+	 * generations.
 	 */
-	bool (*oa_buffer_check)(struct drm_i915_private *dev_priv);
+	u32 (*oa_hw_tail_read)(struct drm_i915_private *dev_priv);
 };
 
 struct intel_cdclk_state {
@@ -2394,8 +2402,6 @@ struct drm_i915_private {
 		struct mutex lock;
 		struct list_head streams;
 
-		spinlock_t hook_lock;
-
 		struct {
 			struct i915_perf_stream *exclusive_stream;
 
@@ -2413,17 +2419,23 @@ struct drm_i915_private {
 
 			bool periodic;
 			int period_exponent;
+			int timestamp_frequency;
 
 			int metrics_set;
 
-			const struct i915_oa_reg *mux_regs;
-			int mux_regs_len;
+			const struct i915_oa_reg *mux_regs[6];
+			int mux_regs_lens[6];
+			int n_mux_configs;
+
 			const struct i915_oa_reg *b_counter_regs;
 			int b_counter_regs_len;
+			const struct i915_oa_reg *flex_regs;
+			int flex_regs_len;
 
 			struct {
 				struct i915_vma *vma;
 				u8 *vaddr;
+				u32 last_ctx_id;
 				int format;
 				int format_size;
 
@@ -2493,6 +2505,15 @@ struct drm_i915_private {
 			} oa_buffer;
 
 			u32 gen7_latched_oastatus1;
+			u32 ctx_oactxctrl_offset;
+			u32 ctx_flexeu0_offset;
+
+			/**
+			 * The RPT_ID/reason field for Gen8+ includes a bit
+			 * to determine if the CTX ID in the report is valid
+			 * but the specific bit differs between Gen 8 and 9
+			 */
+			u32 gen8_valid_ctx_bit;
 
 			struct i915_oa_ops ops;
 			const struct i915_oa_format *oa_formats;
@@ -2768,6 +2789,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define IS_BROXTON(dev_priv)	((dev_priv)->info.platform == INTEL_BROXTON)
 #define IS_KABYLAKE(dev_priv)	((dev_priv)->info.platform == INTEL_KABYLAKE)
 #define IS_GEMINILAKE(dev_priv)	((dev_priv)->info.platform == INTEL_GEMINILAKE)
+#define IS_COFFEELAKE(dev_priv)	((dev_priv)->info.platform == INTEL_COFFEELAKE)
+#define IS_CANNONLAKE(dev_priv)	((dev_priv)->info.platform == INTEL_CANNONLAKE)
 #define IS_MOBILE(dev_priv)	((dev_priv)->info.is_mobile)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
 				    (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0C00)
@@ -2803,10 +2826,18 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define IS_KBL_ULX(dev_priv)	(INTEL_DEVID(dev_priv) == 0x590E || \
 				 INTEL_DEVID(dev_priv) == 0x5915 || \
 				 INTEL_DEVID(dev_priv) == 0x591E)
+#define IS_SKL_GT2(dev_priv)	(IS_SKYLAKE(dev_priv) && \
+				 (INTEL_DEVID(dev_priv) & 0x00F0) == 0x0010)
 #define IS_SKL_GT3(dev_priv)	(IS_SKYLAKE(dev_priv) && \
 				 (INTEL_DEVID(dev_priv) & 0x00F0) == 0x0020)
 #define IS_SKL_GT4(dev_priv)	(IS_SKYLAKE(dev_priv) && \
 				 (INTEL_DEVID(dev_priv) & 0x00F0) == 0x0030)
+#define IS_KBL_GT2(dev_priv)	(IS_KABYLAKE(dev_priv) && \
+				 (INTEL_DEVID(dev_priv) & 0x00F0) == 0x0010)
+#define IS_KBL_GT3(dev_priv)	(IS_KABYLAKE(dev_priv) && \
+				 (INTEL_DEVID(dev_priv) & 0x00F0) == 0x0020)
+#define IS_CFL_ULT(dev_priv)	(IS_COFFEELAKE(dev_priv) && \
+				 (INTEL_DEVID(dev_priv) & 0x00F0) == 0x00A0)
 
 #define IS_ALPHA_SUPPORT(intel_info) ((intel_info)->is_alpha_support)
 
@@ -2845,6 +2876,12 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define IS_GLK_REVID(dev_priv, since, until) \
 	(IS_GEMINILAKE(dev_priv) && IS_REVID(dev_priv, since, until))
 
+#define CNL_REVID_A0		0x0
+#define CNL_REVID_B0		0x1
+
+#define IS_CNL_REVID(p, since, until) \
+	(IS_CANNONLAKE(p) && IS_REVID(p, since, until))
+
 /*
  * The genX designation typically refers to the render engine, so render
  * capability related checks should use IS_GEN, while display and other checks
@@ -2859,6 +2896,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define IS_GEN7(dev_priv)	(!!((dev_priv)->info.gen_mask & BIT(6)))
 #define IS_GEN8(dev_priv)	(!!((dev_priv)->info.gen_mask & BIT(7)))
 #define IS_GEN9(dev_priv)	(!!((dev_priv)->info.gen_mask & BIT(8)))
+#define IS_GEN10(dev_priv)	(!!((dev_priv)->info.gen_mask & BIT(9)))
 
 #define IS_LP(dev_priv)	(INTEL_INFO(dev_priv)->is_lp)
 #define IS_GEN9_LP(dev_priv)	(IS_GEN9(dev_priv) && IS_LP(dev_priv))
@@ -2959,6 +2997,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_POOLED_EU(dev_priv)	((dev_priv)->info.has_pooled_eu)
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
+#define INTEL_PCH_DEVICE_ID_MASK_EXT		0xff80
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE		0x1c00
 #define INTEL_PCH_PPT_DEVICE_ID_TYPE		0x1e00
@@ -2967,11 +3006,16 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define INTEL_PCH_SPT_DEVICE_ID_TYPE		0xA100
 #define INTEL_PCH_SPT_LP_DEVICE_ID_TYPE		0x9D00
 #define INTEL_PCH_KBP_DEVICE_ID_TYPE		0xA200
+#define INTEL_PCH_CNP_DEVICE_ID_TYPE		0xA300
+#define INTEL_PCH_CNP_LP_DEVICE_ID_TYPE		0x9D80
 #define INTEL_PCH_P2X_DEVICE_ID_TYPE		0x7100
 #define INTEL_PCH_P3X_DEVICE_ID_TYPE		0x7000
 #define INTEL_PCH_QEMU_DEVICE_ID_TYPE		0x2900 /* qemu q35 has 2918 */
 
 #define INTEL_PCH_TYPE(dev_priv) ((dev_priv)->pch_type)
+#define HAS_PCH_CNP(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_CNP)
+#define HAS_PCH_CNP_LP(dev_priv) \
+	((dev_priv)->pch_id == INTEL_PCH_CNP_LP_DEVICE_ID_TYPE)
 #define HAS_PCH_KBP(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_KBP)
 #define HAS_PCH_SPT(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_SPT)
 #define HAS_PCH_LPT(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_LPT)
@@ -2986,7 +3030,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define HAS_GMCH_DISPLAY(dev_priv) ((dev_priv)->info.has_gmch_display)
 
-#define HAS_LSPCON(dev_priv) (IS_GEN9(dev_priv))
+#define HAS_LSPCON(dev_priv) (INTEL_GEN(dev_priv) >= 9)
 
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(dev_priv) ((dev_priv)->info.has_l3_dpf)
@@ -2995,8 +3039,6 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define GT_FREQUENCY_MULTIPLIER 50
 #define GEN9_FREQ_SCALER 3
-
-#define HAS_DECOUPLED_MMIO(dev_priv) (INTEL_INFO(dev_priv)->has_decoupled_mmio)
 
 #include "i915_trace.h"
 
@@ -3194,7 +3236,8 @@ int i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
-void i915_gem_init_userptr(struct drm_i915_private *dev_priv);
+int i915_gem_init_userptr(struct drm_i915_private *dev_priv);
+void i915_gem_cleanup_userptr(struct drm_i915_private *dev_priv);
 int i915_gem_userptr_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file);
 int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
@@ -3534,6 +3577,9 @@ i915_gem_context_lookup_timeline(struct i915_gem_context *ctx,
 
 int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file);
+void i915_oa_init_reg_state(struct intel_engine_cs *engine,
+			    struct i915_gem_context *ctx,
+			    uint32_t *reg_state);
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct i915_address_space *vm,
@@ -3544,7 +3590,7 @@ int __must_check i915_gem_evict_something(struct i915_address_space *vm,
 int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
 					 struct drm_mm_node *node,
 					 unsigned int flags);
-int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
+int i915_gem_evict_vm(struct i915_address_space *vm);
 
 /* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_i915_private *dev_priv)

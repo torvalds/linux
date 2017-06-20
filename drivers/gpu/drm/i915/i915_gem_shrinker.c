@@ -38,16 +38,21 @@
 static bool shrinker_lock(struct drm_i915_private *dev_priv, bool *unlock)
 {
 	switch (mutex_trylock_recursive(&dev_priv->drm.struct_mutex)) {
-	case MUTEX_TRYLOCK_FAILED:
-		return false;
-
-	case MUTEX_TRYLOCK_SUCCESS:
-		*unlock = true;
-		return true;
-
 	case MUTEX_TRYLOCK_RECURSIVE:
 		*unlock = false;
 		return true;
+
+	case MUTEX_TRYLOCK_FAILED:
+		do {
+			cpu_relax();
+			if (mutex_trylock(&dev_priv->drm.struct_mutex)) {
+	case MUTEX_TRYLOCK_SUCCESS:
+				*unlock = true;
+				return true;
+			}
+		} while (!need_resched());
+
+		return false;
 	}
 
 	BUG();
@@ -332,6 +337,15 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 					 sc->nr_to_scan - freed,
 					 I915_SHRINK_BOUND |
 					 I915_SHRINK_UNBOUND);
+	if (freed < sc->nr_to_scan && current_is_kswapd()) {
+		intel_runtime_pm_get(dev_priv);
+		freed += i915_gem_shrink(dev_priv,
+					 sc->nr_to_scan - freed,
+					 I915_SHRINK_ACTIVE |
+					 I915_SHRINK_BOUND |
+					 I915_SHRINK_UNBOUND);
+		intel_runtime_pm_put(dev_priv);
+	}
 
 	shrinker_unlock(dev_priv, unlock);
 

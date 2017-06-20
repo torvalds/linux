@@ -266,7 +266,6 @@ struct intel_encoder {
 struct intel_panel {
 	struct drm_display_mode *fixed_mode;
 	struct drm_display_mode *downclock_mode;
-	int fitting_mode;
 
 	/* backlight */
 	struct {
@@ -289,9 +288,10 @@ struct intel_panel {
 		/* Connector and platform specific backlight functions */
 		int (*setup)(struct intel_connector *connector, enum pipe pipe);
 		uint32_t (*get)(struct intel_connector *connector);
-		void (*set)(struct intel_connector *connector, uint32_t level);
-		void (*disable)(struct intel_connector *connector);
-		void (*enable)(struct intel_connector *connector);
+		void (*set)(const struct drm_connector_state *conn_state, uint32_t level);
+		void (*disable)(const struct drm_connector_state *conn_state);
+		void (*enable)(const struct intel_crtc_state *crtc_state,
+			       const struct drm_connector_state *conn_state);
 		uint32_t (*hz_to_pwm)(struct intel_connector *connector,
 				      uint32_t hz);
 		void (*power)(struct intel_connector *, bool enable);
@@ -330,6 +330,15 @@ struct intel_connector {
 	/* Work struct to schedule a uevent on link train failure */
 	struct work_struct modeset_retry_work;
 };
+
+struct intel_digital_connector_state {
+	struct drm_connector_state base;
+
+	enum hdmi_force_audio force_audio;
+	int broadcast_rgb;
+};
+
+#define to_intel_digital_connector_state(x) container_of(x, struct intel_digital_connector_state, base)
 
 struct dpll {
 	/* given values */
@@ -896,11 +905,8 @@ struct intel_hdmi {
 		enum drm_dp_dual_mode_type type;
 		int max_tmds_clock;
 	} dp_dual_mode;
-	bool limited_color_range;
-	bool color_range_auto;
 	bool has_hdmi_sink;
 	bool has_audio;
-	enum hdmi_force_audio force_audio;
 	bool rgb_quant_range_selectable;
 	struct intel_connector *attached_connector;
 	void (*write_infoframe)(struct drm_encoder *encoder,
@@ -966,9 +972,6 @@ struct intel_dp {
 	bool detect_done;
 	bool channel_eq_status;
 	bool reset_link_params;
-	enum hdmi_force_audio force_audio;
-	bool limited_color_range;
-	bool color_range_auto;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
 	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
@@ -1307,6 +1310,8 @@ void intel_audio_deinit(struct drm_i915_private *dev_priv);
 /* intel_cdclk.c */
 void skl_init_cdclk(struct drm_i915_private *dev_priv);
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
+void cnl_init_cdclk(struct drm_i915_private *dev_priv);
+void cnl_uninit_cdclk(struct drm_i915_private *dev_priv);
 void bxt_init_cdclk(struct drm_i915_private *dev_priv);
 void bxt_uninit_cdclk(struct drm_i915_private *dev_priv);
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv);
@@ -1319,6 +1324,8 @@ void intel_set_cdclk(struct drm_i915_private *dev_priv,
 		     const struct intel_cdclk_state *cdclk_state);
 
 /* intel_display.c */
+void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
+void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
 enum transcoder intel_crtc_pch_transcoder(struct intel_crtc *crtc);
 void intel_update_rawclk(struct drm_i915_private *dev_priv);
 int vlv_get_hpll_vco(struct drm_i915_private *dev_priv);
@@ -1339,7 +1346,6 @@ unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info
 bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
 void intel_mark_busy(struct drm_i915_private *dev_priv);
 void intel_mark_idle(struct drm_i915_private *dev_priv);
-void intel_crtc_restore_mode(struct drm_crtc *crtc);
 int intel_display_suspend(struct drm_device *dev);
 void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
@@ -1518,8 +1524,9 @@ bool intel_dp_compute_config(struct intel_encoder *encoder,
 bool intel_dp_is_edp(struct drm_i915_private *dev_priv, enum port port);
 enum irqreturn intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port,
 				  bool long_hpd);
-void intel_edp_backlight_on(struct intel_dp *intel_dp);
-void intel_edp_backlight_off(struct intel_dp *intel_dp);
+void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
+			    const struct drm_connector_state *conn_state);
+void intel_edp_backlight_off(const struct drm_connector_state *conn_state);
 void intel_edp_panel_vdd_on(struct intel_dp *intel_dp);
 void intel_edp_panel_on(struct intel_dp *intel_dp);
 void intel_edp_panel_off(struct intel_dp *intel_dp);
@@ -1699,12 +1706,13 @@ void intel_pch_panel_fitting(struct intel_crtc *crtc,
 void intel_gmch_panel_fitting(struct intel_crtc *crtc,
 			      struct intel_crtc_state *pipe_config,
 			      int fitting_mode);
-void intel_panel_set_backlight_acpi(struct intel_connector *connector,
+void intel_panel_set_backlight_acpi(const struct drm_connector_state *conn_state,
 				    u32 level, u32 max);
 int intel_panel_setup_backlight(struct drm_connector *connector,
 				enum pipe pipe);
-void intel_panel_enable_backlight(struct intel_connector *connector);
-void intel_panel_disable_backlight(struct intel_connector *connector);
+void intel_panel_enable_backlight(const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state);
+void intel_panel_disable_backlight(const struct drm_connector_state *old_conn_state);
 void intel_panel_destroy_backlight(struct drm_connector *connector);
 enum drm_connector_status intel_panel_detect(struct drm_i915_private *dev_priv);
 extern struct drm_display_mode *intel_find_panel_downclock(
@@ -1874,6 +1882,8 @@ bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry **entries,
 				 int ignore);
 bool ilk_disable_lp_wm(struct drm_device *dev);
 int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6);
+int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
+				  struct intel_crtc_state *cstate);
 static inline int intel_enable_rc6(void)
 {
 	return i915.enable_rc6;
@@ -1898,10 +1908,19 @@ void intel_pipe_update_end(struct intel_crtc *crtc, struct intel_flip_work *work
 void intel_tv_init(struct drm_i915_private *dev_priv);
 
 /* intel_atomic.c */
-int intel_connector_atomic_get_property(struct drm_connector *connector,
-					const struct drm_connector_state *state,
-					struct drm_property *property,
-					uint64_t *val);
+int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
+						const struct drm_connector_state *state,
+						struct drm_property *property,
+						uint64_t *val);
+int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
+						struct drm_connector_state *state,
+						struct drm_property *property,
+						uint64_t val);
+int intel_digital_connector_atomic_check(struct drm_connector *conn,
+					 struct drm_connector_state *new_state);
+struct drm_connector_state *
+intel_digital_connector_duplicate_state(struct drm_connector *connector);
+
 struct drm_crtc_state *intel_crtc_duplicate_state(struct drm_crtc *crtc);
 void intel_crtc_destroy_state(struct drm_crtc *crtc,
 			       struct drm_crtc_state *state);

@@ -78,8 +78,9 @@ static uint32_t intel_dp_aux_get_backlight(struct intel_connector *connector)
  * 8-bit or 16 bit value (MSB and LSB)
  */
 static void
-intel_dp_aux_set_backlight(struct intel_connector *connector, u32 level)
+intel_dp_aux_set_backlight(const struct drm_connector_state *conn_state, u32 level)
 {
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
 	uint8_t vals[2] = { 0x0 };
 
@@ -97,8 +98,10 @@ intel_dp_aux_set_backlight(struct intel_connector *connector, u32 level)
 	}
 }
 
-static void intel_dp_aux_enable_backlight(struct intel_connector *connector)
+static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_state,
+					  const struct drm_connector_state *conn_state)
 {
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
 	uint8_t dpcd_buf = 0;
 	uint8_t edp_backlight_mode = 0;
@@ -131,12 +134,12 @@ static void intel_dp_aux_enable_backlight(struct intel_connector *connector)
 	}
 
 	set_aux_backlight_enable(intel_dp, true);
-	intel_dp_aux_set_backlight(connector, connector->panel.backlight.level);
+	intel_dp_aux_set_backlight(conn_state, connector->panel.backlight.level);
 }
 
-static void intel_dp_aux_disable_backlight(struct intel_connector *connector)
+static void intel_dp_aux_disable_backlight(const struct drm_connector_state *old_conn_state)
 {
-	set_aux_backlight_enable(enc_to_intel_dp(&connector->encoder->base), false);
+	set_aux_backlight_enable(enc_to_intel_dp(old_conn_state->best_encoder), false);
 }
 
 static int intel_dp_aux_setup_backlight(struct intel_connector *connector,
@@ -144,8 +147,6 @@ static int intel_dp_aux_setup_backlight(struct intel_connector *connector,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
 	struct intel_panel *panel = &connector->panel;
-
-	intel_dp_aux_enable_backlight(connector);
 
 	if (intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_BYTE_COUNT)
 		panel->backlight.max = 0xFFFF;
@@ -165,7 +166,7 @@ intel_dp_aux_display_control_capable(struct intel_connector *connector)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
 
-	/* Check the  eDP Display control capabilities registers to determine if
+	/* Check the eDP Display control capabilities registers to determine if
 	 * the panel can support backlight control over the aux channel
 	 */
 	if (intel_dp->edp_dpcd[1] & DP_EDP_TCON_BACKLIGHT_ADJUSTMENT_CAP &&
