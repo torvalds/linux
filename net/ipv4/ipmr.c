@@ -109,6 +109,7 @@ static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 			      struct mfc_cache *c, struct rtmsg *rtm);
 static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 				 int cmd);
+static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt);
 static void mroute_clean_tables(struct mr_table *mrt, bool all);
 static void ipmr_expire_process(unsigned long arg);
 
@@ -995,8 +996,7 @@ static void ipmr_cache_resolve(struct net *net, struct mr_table *mrt,
 	}
 }
 
-/* Bounce a cache query up to mrouted. We could use netlink for this but mrouted
- * expects the following bizarre scheme.
+/* Bounce a cache query up to mrouted and netlink.
  *
  * Called under mrt_lock.
  */
@@ -1061,6 +1061,8 @@ static int ipmr_cache_report(struct mr_table *mrt,
 		kfree_skb(skb);
 		return -EINVAL;
 	}
+
+	igmpmsg_netlink_event(mrt, skb);
 
 	/* Deliver to mrouted */
 	ret = sock_queue_rcv_skb(mroute_sk, skb);
@@ -2339,6 +2341,69 @@ errout:
 	kfree_skb(skb);
 	if (err < 0)
 		rtnl_set_sk_err(net, RTNLGRP_IPV4_MROUTE, err);
+}
+
+static size_t igmpmsg_netlink_msgsize(size_t payloadlen)
+{
+	size_t len =
+		NLMSG_ALIGN(sizeof(struct rtgenmsg))
+		+ nla_total_size(1)	/* IPMRA_CREPORT_MSGTYPE */
+		+ nla_total_size(4)	/* IPMRA_CREPORT_VIF_ID */
+		+ nla_total_size(4)	/* IPMRA_CREPORT_SRC_ADDR */
+		+ nla_total_size(4)	/* IPMRA_CREPORT_DST_ADDR */
+					/* IPMRA_CREPORT_PKT */
+		+ nla_total_size(payloadlen)
+		;
+
+	return len;
+}
+
+static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt)
+{
+	struct net *net = read_pnet(&mrt->net);
+	struct nlmsghdr *nlh;
+	struct rtgenmsg *rtgenm;
+	struct igmpmsg *msg;
+	struct sk_buff *skb;
+	struct nlattr *nla;
+	int payloadlen;
+
+	payloadlen = pkt->len - sizeof(struct igmpmsg);
+	msg = (struct igmpmsg *)skb_network_header(pkt);
+
+	skb = nlmsg_new(igmpmsg_netlink_msgsize(payloadlen), GFP_ATOMIC);
+	if (!skb)
+		goto errout;
+
+	nlh = nlmsg_put(skb, 0, 0, RTM_NEWCACHEREPORT,
+			sizeof(struct rtgenmsg), 0);
+	if (!nlh)
+		goto errout;
+	rtgenm = nlmsg_data(nlh);
+	rtgenm->rtgen_family = RTNL_FAMILY_IPMR;
+	if (nla_put_u8(skb, IPMRA_CREPORT_MSGTYPE, msg->im_msgtype) ||
+	    nla_put_u32(skb, IPMRA_CREPORT_VIF_ID, msg->im_vif) ||
+	    nla_put_in_addr(skb, IPMRA_CREPORT_SRC_ADDR,
+			    msg->im_src.s_addr) ||
+	    nla_put_in_addr(skb, IPMRA_CREPORT_DST_ADDR,
+			    msg->im_dst.s_addr))
+		goto nla_put_failure;
+
+	nla = nla_reserve(skb, IPMRA_CREPORT_PKT, payloadlen);
+	if (!nla || skb_copy_bits(pkt, sizeof(struct igmpmsg),
+				  nla_data(nla), payloadlen))
+		goto nla_put_failure;
+
+	nlmsg_end(skb, nlh);
+
+	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_MROUTE_R, NULL, GFP_ATOMIC);
+	return;
+
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+errout:
+	kfree_skb(skb);
+	rtnl_set_sk_err(net, RTNLGRP_IPV4_MROUTE_R, -ENOBUFS);
 }
 
 static int ipmr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
