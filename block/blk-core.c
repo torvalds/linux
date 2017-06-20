@@ -1372,12 +1372,21 @@ static struct request *blk_old_get_request(struct request_queue *q,
 struct request *blk_get_request(struct request_queue *q, unsigned int op,
 				gfp_t gfp_mask)
 {
-	if (q->mq_ops)
-		return blk_mq_alloc_request(q, op,
+	struct request *req;
+
+	if (q->mq_ops) {
+		req = blk_mq_alloc_request(q, op,
 			(gfp_mask & __GFP_DIRECT_RECLAIM) ?
 				0 : BLK_MQ_REQ_NOWAIT);
-	else
-		return blk_old_get_request(q, op, gfp_mask);
+		if (!IS_ERR(req) && q->mq_ops->initialize_rq_fn)
+			q->mq_ops->initialize_rq_fn(req);
+	} else {
+		req = blk_old_get_request(q, op, gfp_mask);
+		if (!IS_ERR(req) && q->initialize_rq_fn)
+			q->initialize_rq_fn(req);
+	}
+
+	return req;
 }
 EXPORT_SYMBOL(blk_get_request);
 
