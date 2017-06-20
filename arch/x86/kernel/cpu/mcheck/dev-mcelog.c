@@ -415,9 +415,15 @@ static __init int dev_mcelog_init_device(void)
 	/* register character device /dev/mcelog */
 	err = misc_register(&mce_chrdev_device);
 	if (err) {
-		pr_err("Unable to init device /dev/mcelog (rc: %d)\n", err);
+		if (err == -EBUSY)
+			/* Xen dom0 might have registered the device already. */
+			pr_info("Unable to init device /dev/mcelog, already registered");
+		else
+			pr_err("Unable to init device /dev/mcelog (rc: %d)\n", err);
+
 		return err;
 	}
+
 	mce_register_decode_chain(&dev_mcelog_nb);
 	return 0;
 }
