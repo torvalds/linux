@@ -180,8 +180,6 @@ static int most_nd_open(struct net_device *dev)
 {
 	struct net_dev_context *nd = netdev_priv(dev);
 
-	netdev_info(dev, "open net device\n");
-
 	BUG_ON(!nd->tx.linked || !nd->rx.linked);
 
 	if (most_start_channel(nd->iface, nd->rx.ch_id, &aim)) {
@@ -209,8 +207,6 @@ static int most_nd_open(struct net_device *dev)
 static int most_nd_stop(struct net_device *dev)
 {
 	struct net_dev_context *nd = netdev_priv(dev);
-
-	netdev_info(dev, "stop net device\n");
 
 	netif_stop_queue(dev);
 	if (nd->iface->request_netinfo)
@@ -463,14 +459,12 @@ static struct most_aim aim = {
 
 static int __init most_net_init(void)
 {
-	pr_info("most_net_init()\n");
 	spin_lock_init(&list_lock);
 	return most_register_aim(&aim);
 }
 
 static void __exit most_net_exit(void)
 {
-	pr_info("most_net_exit()\n");
 	most_deregister_aim(&aim);
 }
 
