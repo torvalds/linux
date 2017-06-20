@@ -896,6 +896,22 @@ qed_dcbx_mib_update_event(struct qed_hwfn *p_hwfn,
 	}
 
 	qed_dcbx_get_params(p_hwfn, &p_hwfn->p_dcbx_info->get, type);
+
+	if (type == QED_DCBX_OPERATIONAL_MIB) {
+		struct qed_dcbx_results *p_data;
+		u16 val;
+
+		/* Configure in NIG which protocols support EDPM and should
+		 * honor PFC.
+		 */
+		p_data = &p_hwfn->p_dcbx_info->results;
+		val = (0x1 << p_data->arr[DCBX_PROTOCOL_ROCE].tc) |
+		      (0x1 << p_data->arr[DCBX_PROTOCOL_ROCE_V2].tc);
+		val <<= NIG_REG_TX_EDPM_CTRL_TX_EDPM_TC_EN_SHIFT;
+		val |= NIG_REG_TX_EDPM_CTRL_TX_EDPM_EN;
+		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_EDPM_CTRL, val);
+	}
+
 	qed_dcbx_aen(p_hwfn, type);
 
 	return rc;
