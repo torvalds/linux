@@ -162,6 +162,11 @@ static int qed_bmap_test_id(struct qed_hwfn *p_hwfn,
 	return test_bit(id_num, bmap->bitmap);
 }
 
+static bool qed_bmap_is_empty(struct qed_bmap *bmap)
+{
+	return bmap->max_count == find_first_bit(bmap->bitmap, bmap->max_count);
+}
+
 static u32 qed_rdma_get_sb_id(void *p_hwfn, u32 rel_sb_id)
 {
 	/* First sb id for RoCE is after all the l2 sb */
@@ -2638,6 +2643,23 @@ static void *qed_rdma_get_rdma_ctx(struct qed_dev *cdev)
 	return QED_LEADING_HWFN(cdev);
 }
 
+static bool qed_rdma_allocated_qps(struct qed_hwfn *p_hwfn)
+{
+	bool result;
+
+	/* if rdma info has not been allocated, naturally there are no qps */
+	if (!p_hwfn->p_rdma_info)
+		return false;
+
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	if (!p_hwfn->p_rdma_info->cid_map.bitmap)
+		result = false;
+	else
+		result = !qed_bmap_is_empty(&p_hwfn->p_rdma_info->cid_map);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+	return result;
+}
+
 static void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 val;
@@ -2648,6 +2670,20 @@ static void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	DP_VERBOSE(p_hwfn, (QED_MSG_DCB | QED_MSG_RDMA),
 		   "Changing DPM_EN state to %d (DCBX=%d, DB_BAR=%d)\n",
 		   val, p_hwfn->dcbx_no_edpm, p_hwfn->db_bar_no_edpm);
+}
+
+void qed_roce_dpm_dcbx(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u8 val;
+
+	/* if any QPs are already active, we want to disable DPM, since their
+	 * context information contains information from before the latest DCBx
+	 * update. Otherwise enable it.
+	 */
+	val = qed_rdma_allocated_qps(p_hwfn) ? true : false;
+	p_hwfn->dcbx_no_edpm = (u8)val;
+
+	qed_rdma_dpm_conf(p_hwfn, p_ptt);
 }
 
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)

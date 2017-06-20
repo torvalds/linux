@@ -44,6 +44,7 @@
 #include "qed_hsi.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
+#include "qed_roce.h"
 #ifdef CONFIG_DCB
 #include <linux/qed/qed_eth_if.h>
 #endif
@@ -892,6 +893,13 @@ qed_dcbx_mib_update_event(struct qed_hwfn *p_hwfn,
 
 			/* update storm FW with negotiation results */
 			qed_sp_pf_update(p_hwfn);
+
+			/* for roce PFs, we may want to enable/disable DPM
+			 * when DCBx change occurs
+			 */
+			if (p_hwfn->hw_info.personality ==
+			    QED_PCI_ETH_ROCE)
+				qed_roce_dpm_dcbx(p_hwfn, p_ptt);
 		}
 	}
 
