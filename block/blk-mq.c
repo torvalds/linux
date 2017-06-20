@@ -1129,8 +1129,10 @@ static int blk_mq_hctx_next_cpu(struct blk_mq_hw_ctx *hctx)
 static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
 					unsigned long msecs)
 {
-	if (unlikely(blk_mq_hctx_stopped(hctx) ||
-		     !blk_mq_hw_queue_mapped(hctx)))
+	if (WARN_ON_ONCE(!blk_mq_hw_queue_mapped(hctx)))
+		return;
+
+	if (unlikely(blk_mq_hctx_stopped(hctx)))
 		return;
 
 	if (!async && !(hctx->flags & BLK_MQ_F_BLOCKING)) {
@@ -1295,7 +1297,7 @@ static void blk_mq_run_work_fn(struct work_struct *work)
 
 void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs)
 {
-	if (unlikely(!blk_mq_hw_queue_mapped(hctx)))
+	if (WARN_ON_ONCE(!blk_mq_hw_queue_mapped(hctx)))
 		return;
 
 	/*
