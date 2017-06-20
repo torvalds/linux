@@ -185,15 +185,15 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
-				WARN_ON(!(IS_GEN6(dev_priv) ||
-					IS_IVYBRIDGE(dev_priv)));
+				WARN_ON(!IS_GEN6(dev_priv) &&
+					!IS_IVYBRIDGE(dev_priv));
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found PantherPoint PCH\n");
-				WARN_ON(!(IS_GEN6(dev_priv) ||
-					IS_IVYBRIDGE(dev_priv)));
+				WARN_ON(!IS_GEN6(dev_priv) &&
+					!IS_IVYBRIDGE(dev_priv));
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_LPT;
@@ -240,9 +240,9 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 				DRM_DEBUG_KMS("Found CannonPoint LP PCH\n");
 				WARN_ON(!IS_CANNONLAKE(dev_priv) &&
 					!IS_COFFEELAKE(dev_priv));
-			} else if ((id == INTEL_PCH_P2X_DEVICE_ID_TYPE) ||
-				   (id == INTEL_PCH_P3X_DEVICE_ID_TYPE) ||
-				   ((id == INTEL_PCH_QEMU_DEVICE_ID_TYPE) &&
+			} else if (id == INTEL_PCH_P2X_DEVICE_ID_TYPE ||
+				   id == INTEL_PCH_P3X_DEVICE_ID_TYPE ||
+				   (id == INTEL_PCH_QEMU_DEVICE_ID_TYPE &&
 				    pch->subsystem_vendor ==
 					    PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
 				    pch->subsystem_device ==
