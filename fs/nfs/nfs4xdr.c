@@ -7447,7 +7447,7 @@ out:
  * on a directory already in our cache.
  */
 int nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
-		       int plus)
+		       bool plus)
 {
 	unsigned int savep;
 	uint32_t bitmap[3] = {0};

@@ -151,7 +151,7 @@ struct nfs_cache_array {
 	struct nfs_cache_array_entry array[0];
 };
 
-typedef int (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, int);
+typedef int (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, bool);
 typedef struct {
 	struct file	*file;
 	struct page	*page;
@@ -165,8 +165,8 @@ typedef struct {
 	unsigned long	timestamp;
 	unsigned long	gencount;
 	unsigned int	cache_entry_index;
-	unsigned int	plus:1;
-	unsigned int	eof:1;
+	bool plus;
+	bool eof;
 } nfs_readdir_descriptor_t;
 
 /*
@@ -355,7 +355,7 @@ int nfs_readdir_xdr_filler(struct page **pages, nfs_readdir_descriptor_t *desc,
 		if (error == -ENOTSUPP && desc->plus) {
 			NFS_SERVER(inode)->caps &= ~NFS_CAP_READDIRPLUS;
 			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
-			desc->plus = 0;
+			desc->plus = false;
 			goto again;
 		}
 		goto error;
@@ -557,7 +557,7 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 
 		count++;
 
-		if (desc->plus != 0)
+		if (desc->plus)
 			nfs_prime_dcache(file_dentry(desc->file), entry);
 
 		status = nfs_readdir_add_to_array(entry, page);
@@ -860,7 +860,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	desc->ctx = ctx;
 	desc->dir_cookie = &dir_ctx->dir_cookie;
 	desc->decode = NFS_PROTO(inode)->decode_dirent;
-	desc->plus = nfs_use_readdirplus(inode, ctx) ? 1 : 0;
+	desc->plus = nfs_use_readdirplus(inode, ctx);
 
 	if (ctx->pos == 0 || nfs_attribute_cache_expired(inode))
 		res = nfs_revalidate_mapping(inode, file->f_mapping);
@@ -885,8 +885,8 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 			nfs_zap_caches(inode);
 			desc->page_index = 0;
-			desc->plus = 0;
-			desc->eof = 0;
+			desc->plus = false;
+			desc->eof = false;
 			continue;
 		}
 		if (res < 0)

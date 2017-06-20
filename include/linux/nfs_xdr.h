@@ -878,7 +878,7 @@ struct nfs3_readdirargs {
 	struct nfs_fh *		fh;
 	__u64			cookie;
 	__be32			verf[2];
-	int			plus;
+	bool			plus;
 	unsigned int            count;
 	struct page **		pages;
 };
@@ -909,7 +909,7 @@ struct nfs3_linkres {
 struct nfs3_readdirres {
 	struct nfs_fattr *	dir_attr;
 	__be32 *		verf;
-	int			plus;
+	bool			plus;
 };
 
 struct nfs3_getaclres {
@@ -1053,7 +1053,7 @@ struct nfs4_readdir_arg {
 	struct page **			pages;	/* zero-copy data */
 	unsigned int			pgbase;	/* zero-copy data */
 	const u32 *			bitmask;
-	int				plus;
+	bool				plus;
 };
 
 struct nfs4_readdir_res {
@@ -1585,7 +1585,7 @@ struct nfs_rpc_ops {
 	int	(*mkdir)   (struct inode *, struct dentry *, struct iattr *);
 	int	(*rmdir)   (struct inode *, const struct qstr *);
 	int	(*readdir) (struct dentry *, struct rpc_cred *,
-			    u64, struct page **, unsigned int, int);
+			    u64, struct page **, unsigned int, bool);
 	int	(*mknod)   (struct inode *, struct dentry *, struct iattr *,
 			    dev_t);
 	int	(*statfs)  (struct nfs_server *, struct nfs_fh *,
@@ -1595,7 +1595,7 @@ struct nfs_rpc_ops {
 	int	(*pathconf) (struct nfs_server *, struct nfs_fh *,
 			     struct nfs_pathconf *);
 	int	(*set_capabilities)(struct nfs_server *, struct nfs_fh *);
-	int	(*decode_dirent)(struct xdr_stream *, struct nfs_entry *, int);
+	int	(*decode_dirent)(struct xdr_stream *, struct nfs_entry *, bool);
 	int	(*pgio_rpc_prepare)(struct rpc_task *,
 				    struct nfs_pgio_header *);
 	void	(*read_setup)(struct nfs_pgio_header *, struct rpc_message *);
