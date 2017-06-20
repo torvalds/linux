@@ -1209,10 +1209,6 @@ static int gmc_v8_0_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->vm_manager.enabled) {
-		gmc_v8_0_vm_fini(adev);
-		adev->vm_manager.enabled = false;
-	}
 	gmc_v8_0_hw_fini(adev);
 
 	return 0;
@@ -1227,16 +1223,9 @@ static int gmc_v8_0_resume(void *handle)
 	if (r)
 		return r;
 
-	if (!adev->vm_manager.enabled) {
-		r = gmc_v8_0_vm_init(adev);
-		if (r) {
-			dev_err(adev->dev, "vm manager initialization failed (%d).\n", r);
-			return r;
-		}
-		adev->vm_manager.enabled = true;
-	}
+	amdgpu_vm_reset_all_ids(adev);
 
-	return r;
+	return 0;
 }
 
 static bool gmc_v8_0_is_idle(void *handle)

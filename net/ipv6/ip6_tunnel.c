@@ -254,7 +254,6 @@ static void ip6_dev_free(struct net_device *dev)
 	gro_cells_destroy(&t->gro_cells);
 	dst_cache_destroy(&t->dst_cache);
 	free_percpu(dev->tstats);
-	free_netdev(dev);
 }
 
 static int ip6_tnl_create2(struct net_device *dev)
@@ -322,7 +321,7 @@ static struct ip6_tnl *ip6_tnl_create(struct net *net, struct __ip6_tnl_parm *p)
 	return t;
 
 failed_free:
-	ip6_dev_free(dev);
+	free_netdev(dev);
 failed:
 	return ERR_PTR(err);
 }
@@ -1095,6 +1094,9 @@ int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 
 	if (!dst) {
 route_lookup:
+		/* add dsfield to flowlabel for route lookup */
+		fl6->flowlabel = ip6_make_flowinfo(dsfield, fl6->flowlabel);
+
 		dst = ip6_route_output(net, NULL, fl6);
 
 		if (dst->error)
@@ -1196,7 +1198,7 @@ route_lookup:
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
 	ipv6h = ipv6_hdr(skb);
-	ip6_flow_hdr(ipv6h, INET_ECN_encapsulate(0, dsfield),
+	ip6_flow_hdr(ipv6h, dsfield,
 		     ip6_make_flowlabel(net, skb, fl6->flowlabel, true, fl6));
 	ipv6h->hop_limit = hop_limit;
 	ipv6h->nexthdr = proto;
@@ -1231,8 +1233,6 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (tproto != IPPROTO_IPIP && tproto != 0)
 		return -1;
 
-	dsfield = ipv4_get_dsfield(iph);
-
 	if (t->parms.collect_md) {
 		struct ip_tunnel_info *tun_info;
 		const struct ip_tunnel_key *key;
@@ -1246,6 +1246,7 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		fl6.flowi6_proto = IPPROTO_IPIP;
 		fl6.daddr = key->u.ipv6.dst;
 		fl6.flowlabel = key->label;
+		dsfield = ip6_tclass(key->label);
 	} else {
 		if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 			encap_limit = t->parms.encap_limit;
@@ -1254,8 +1255,9 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		fl6.flowi6_proto = IPPROTO_IPIP;
 
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
-			fl6.flowlabel |= htonl((__u32)iph->tos << IPV6_TCLASS_SHIFT)
-					 & IPV6_TCLASS_MASK;
+			dsfield = ipv4_get_dsfield(iph);
+		else
+			dsfield = ip6_tclass(t->parms.flowinfo);
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 			fl6.flowi6_mark = skb->mark;
 		else
@@ -1266,6 +1268,8 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
 		return -1;
+
+	dsfield = INET_ECN_encapsulate(dsfield, ipv4_get_dsfield(iph));
 
 	skb_set_inner_ipproto(skb, IPPROTO_IPIP);
 
@@ -1300,8 +1304,6 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	    ip6_tnl_addr_conflict(t, ipv6h))
 		return -1;
 
-	dsfield = ipv6_get_dsfield(ipv6h);
-
 	if (t->parms.collect_md) {
 		struct ip_tunnel_info *tun_info;
 		const struct ip_tunnel_key *key;
@@ -1315,6 +1317,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		fl6.flowi6_proto = IPPROTO_IPV6;
 		fl6.daddr = key->u.ipv6.dst;
 		fl6.flowlabel = key->label;
+		dsfield = ip6_tclass(key->label);
 	} else {
 		offset = ip6_tnl_parse_tlv_enc_lim(skb, skb_network_header(skb));
 		/* ip6_tnl_parse_tlv_enc_lim() might have reallocated skb->head */
@@ -1337,7 +1340,9 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		fl6.flowi6_proto = IPPROTO_IPV6;
 
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
-			fl6.flowlabel |= (*(__be32 *)ipv6h & IPV6_TCLASS_MASK);
+			dsfield = ipv6_get_dsfield(ipv6h);
+		else
+			dsfield = ip6_tclass(t->parms.flowinfo);
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FLOWLABEL)
 			fl6.flowlabel |= ip6_flowlabel(ipv6h);
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
@@ -1350,6 +1355,8 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
 		return -1;
+
+	dsfield = INET_ECN_encapsulate(dsfield, ipv6_get_dsfield(ipv6h));
 
 	skb_set_inner_ipproto(skb, IPPROTO_IPV6);
 
@@ -1769,7 +1776,8 @@ static const struct net_device_ops ip6_tnl_netdev_ops = {
 static void ip6_tnl_dev_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &ip6_tnl_netdev_ops;
-	dev->destructor = ip6_dev_free;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = ip6_dev_free;
 
 	dev->type = ARPHRD_TUNNEL6;
 	dev->flags |= IFF_NOARP;
@@ -2216,7 +2224,7 @@ static int __net_init ip6_tnl_init_net(struct net *net)
 	return 0;
 
 err_register:
-	ip6_dev_free(ip6n->fb_tnl_dev);
+	free_netdev(ip6n->fb_tnl_dev);
 err_alloc_dev:
 	return err;
 }

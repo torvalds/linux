@@ -160,7 +160,14 @@ static struct device_type ap_card_type = {
 
 static void ap_card_device_release(struct device *dev)
 {
-	kfree(to_ap_card(dev));
+	struct ap_card *ac = to_ap_card(dev);
+
+	if (!list_empty(&ac->list)) {
+		spin_lock_bh(&ap_list_lock);
+		list_del_init(&ac->list);
+		spin_unlock_bh(&ap_list_lock);
+	}
+	kfree(ac);
 }
 
 struct ap_card *ap_card_create(int id, int queue_depth, int device_type,

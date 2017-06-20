@@ -59,6 +59,8 @@ static const u8 all_zeros_mac[ETH_ALEN + 2];
 
 static int vxlan_sock_add(struct vxlan_dev *vxlan);
 
+static void vxlan_vs_del_dev(struct vxlan_dev *vxlan);
+
 /* per-network namespace private data for this module */
 struct vxlan_net {
 	struct list_head  vxlan_list;
@@ -740,6 +742,22 @@ static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f)
 	call_rcu(&f->rcu, vxlan_fdb_free);
 }
 
+static void vxlan_dst_free(struct rcu_head *head)
+{
+	struct vxlan_rdst *rd = container_of(head, struct vxlan_rdst, rcu);
+
+	dst_cache_destroy(&rd->dst_cache);
+	kfree(rd);
+}
+
+static void vxlan_fdb_dst_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
+				  struct vxlan_rdst *rd)
+{
+	list_del_rcu(&rd->list);
+	vxlan_fdb_notify(vxlan, f, rd, RTM_DELNEIGH);
+	call_rcu(&rd->rcu, vxlan_dst_free);
+}
+
 static int vxlan_fdb_parse(struct nlattr *tb[], struct vxlan_dev *vxlan,
 			   union vxlan_addr *ip, __be16 *port, __be32 *src_vni,
 			   __be32 *vni, u32 *ifindex)
@@ -864,9 +882,7 @@ static int __vxlan_fdb_delete(struct vxlan_dev *vxlan,
 	 * otherwise destroy the fdb entry
 	 */
 	if (rd && !list_is_singular(&f->remotes)) {
-		list_del_rcu(&rd->list);
-		vxlan_fdb_notify(vxlan, f, rd, RTM_DELNEIGH);
-		kfree_rcu(rd, rcu);
+		vxlan_fdb_dst_destroy(vxlan, f, rd);
 		goto out;
 	}
 
@@ -1066,6 +1082,8 @@ static void vxlan_sock_release(struct vxlan_dev *vxlan)
 
 	rcu_assign_pointer(vxlan->vn4_sock, NULL);
 	synchronize_net();
+
+	vxlan_vs_del_dev(vxlan);
 
 	if (__vxlan_sock_release_prep(sock4)) {
 		udp_tunnel_sock_release(sock4->sock);
@@ -2342,6 +2360,15 @@ static void vxlan_cleanup(unsigned long arg)
 	mod_timer(&vxlan->age_timer, next_timer);
 }
 
+static void vxlan_vs_del_dev(struct vxlan_dev *vxlan)
+{
+	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
+
+	spin_lock(&vn->sock_lock);
+	hlist_del_init_rcu(&vxlan->hlist);
+	spin_unlock(&vn->sock_lock);
+}
+
 static void vxlan_vs_add_dev(struct vxlan_sock *vs, struct vxlan_dev *vxlan)
 {
 	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
@@ -2584,7 +2611,7 @@ static void vxlan_setup(struct net_device *dev)
 	eth_hw_addr_random(dev);
 	ether_setup(dev);
 
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	SET_NETDEV_DEVTYPE(dev, &vxlan_type);
 
 	dev->features	|= NETIF_F_LLTX;
@@ -3286,14 +3313,8 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
 
 	vxlan_flush(vxlan, true);
-
-	spin_lock(&vn->sock_lock);
-	if (!hlist_unhashed(&vxlan->hlist))
-		hlist_del_rcu(&vxlan->hlist);
-	spin_unlock(&vn->sock_lock);
 
 	gro_cells_destroy(&vxlan->gro_cells);
 	list_del(&vxlan->next);

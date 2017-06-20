@@ -252,7 +252,34 @@ static void imx6_pcie_reset_phy(struct imx6_pcie *imx6_pcie)
 static int imx6q_pcie_abort_handler(unsigned long addr,
 		unsigned int fsr, struct pt_regs *regs)
 {
-	return 0;
+	unsigned long pc = instruction_pointer(regs);
+	unsigned long instr = *(unsigned long *)pc;
+	int reg = (instr >> 12) & 15;
+
+	/*
+	 * If the instruction being executed was a read,
+	 * make it look like it read all-ones.
+	 */
+	if ((instr & 0x0c100000) == 0x04100000) {
+		unsigned long val;
+
+		if (instr & 0x00400000)
+			val = 255;
+		else
+			val = -1;
+
+		regs->uregs[reg] = val;
+		regs->ARM_pc += 4;
+		return 0;
+	}
+
+	if ((instr & 0x0e100090) == 0x00100090) {
+		regs->uregs[reg] = -1;
+		regs->ARM_pc += 4;
+		return 0;
+	}
+
+	return 1;
 }
 
 static void imx6_pcie_assert_core_reset(struct imx6_pcie *imx6_pcie)
@@ -819,8 +846,8 @@ static int __init imx6_pcie_init(void)
 	 * we can install the handler here without risking it
 	 * accessing some uninitialized driver state.
 	 */
-	hook_fault_code(16 + 6, imx6q_pcie_abort_handler, SIGBUS, 0,
-			"imprecise external abort");
+	hook_fault_code(8, imx6q_pcie_abort_handler, SIGBUS, 0,
+			"external abort on non-linefetch");
 
 	return platform_driver_register(&imx6_pcie_driver);
 }

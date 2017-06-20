@@ -1373,7 +1373,8 @@ static inline int ebt_obj_to_user(char __user *um, const char *_name,
 	strlcpy(name, _name, sizeof(name));
 	if (copy_to_user(um, name, EBT_FUNCTION_MAXNAMELEN) ||
 	    put_user(datasize, (int __user *)(um + EBT_FUNCTION_MAXNAMELEN)) ||
-	    xt_data_to_user(um + entrysize, data, usersize, datasize))
+	    xt_data_to_user(um + entrysize, data, usersize, datasize,
+			    XT_ALIGN(datasize)))
 		return -EFAULT;
 
 	return 0;
@@ -1658,7 +1659,8 @@ static int compat_match_to_user(struct ebt_entry_match *m, void __user **dstptr,
 		if (match->compat_to_user(cm->data, m->data))
 			return -EFAULT;
 	} else {
-		if (xt_data_to_user(cm->data, m->data, match->usersize, msize))
+		if (xt_data_to_user(cm->data, m->data, match->usersize, msize,
+				    COMPAT_XT_ALIGN(msize)))
 			return -EFAULT;
 	}
 
@@ -1687,7 +1689,8 @@ static int compat_target_to_user(struct ebt_entry_target *t,
 		if (target->compat_to_user(cm->data, t->data))
 			return -EFAULT;
 	} else {
-		if (xt_data_to_user(cm->data, t->data, target->usersize, tsize))
+		if (xt_data_to_user(cm->data, t->data, target->usersize, tsize,
+				    COMPAT_XT_ALIGN(tsize)))
 			return -EFAULT;
 	}
 

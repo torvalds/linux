@@ -30,6 +30,8 @@ static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	skb_set_inner_transport_header(skb, skb_transport_offset(skb));
 
 	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
+	if (hdr_len < 0)
+		return hdr_len;
 	skb_set_mac_header(skb, (prevhdr - x->props.header_len) - skb->data);
 	skb_set_network_header(skb, -x->props.header_len);
 	skb->transport_header = skb->network_header + hdr_len;

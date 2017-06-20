@@ -36,6 +36,7 @@ int bpf_jit_enable __read_mostly;
 #define TMP_REG_1 (MAX_BPF_JIT_REG + 0)
 #define TMP_REG_2 (MAX_BPF_JIT_REG + 1)
 #define TCALL_CNT (MAX_BPF_JIT_REG + 2)
+#define TMP_REG_3 (MAX_BPF_JIT_REG + 3)
 
 /* Map BPF registers to A64 registers */
 static const int bpf2a64[] = {
@@ -57,6 +58,7 @@ static const int bpf2a64[] = {
 	/* temporary registers for internal BPF JIT */
 	[TMP_REG_1] = A64_R(10),
 	[TMP_REG_2] = A64_R(11),
+	[TMP_REG_3] = A64_R(12),
 	/* tail_call_cnt */
 	[TCALL_CNT] = A64_R(26),
 	/* temporary register for blinding constants */
@@ -319,6 +321,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	const u8 src = bpf2a64[insn->src_reg];
 	const u8 tmp = bpf2a64[TMP_REG_1];
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
+	const u8 tmp3 = bpf2a64[TMP_REG_3];
 	const s16 off = insn->off;
 	const s32 imm = insn->imm;
 	const int i = insn - ctx->prog->insnsi;
@@ -689,10 +692,10 @@ emit_cond_jmp:
 		emit(A64_PRFM(tmp, PST, L1, STRM), ctx);
 		emit(A64_LDXR(isdw, tmp2, tmp), ctx);
 		emit(A64_ADD(isdw, tmp2, tmp2, src), ctx);
-		emit(A64_STXR(isdw, tmp2, tmp, tmp2), ctx);
+		emit(A64_STXR(isdw, tmp2, tmp, tmp3), ctx);
 		jmp_offset = -3;
 		check_imm19(jmp_offset);
-		emit(A64_CBNZ(0, tmp2, jmp_offset), ctx);
+		emit(A64_CBNZ(0, tmp3, jmp_offset), ctx);
 		break;
 
 	/* R0 = ntohx(*(size *)(((struct sk_buff *)R6)->data + imm)) */
