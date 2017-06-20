@@ -3914,7 +3914,7 @@ static int ata_mselect_control(struct ata_queued_cmd *qc,
 }
 
 /**
- *	ata_scsiop_mode_select - Simulate MODE SELECT 6, 10 commands
+ *	ata_scsi_mode_select_xlat - Simulate MODE SELECT 6, 10 commands
  *	@qc: Storage for translated ATA taskfile
  *
  *	Converts a MODE SELECT command to an ATA SET FEATURES taskfile.
