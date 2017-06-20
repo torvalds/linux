@@ -640,7 +640,7 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_hotplug_event);
  * Calls drm_fb_helper_set_suspend, which is a wrapper around
  * fb_set_suspend implemented by fbdev core.
  */
-void drm_fbdev_cma_set_suspend(struct drm_fbdev_cma *fbdev_cma, int state)
+void drm_fbdev_cma_set_suspend(struct drm_fbdev_cma *fbdev_cma, bool state)
 {
 	if (fbdev_cma)
 		drm_fb_helper_set_suspend(&fbdev_cma->fb_helper, state);
@@ -657,7 +657,7 @@ EXPORT_SYMBOL(drm_fbdev_cma_set_suspend);
  * fb_set_suspend implemented by fbdev core.
  */
 void drm_fbdev_cma_set_suspend_unlocked(struct drm_fbdev_cma *fbdev_cma,
-					int state)
+					bool state)
 {
 	if (fbdev_cma)
 		drm_fb_helper_set_suspend_unlocked(&fbdev_cma->fb_helper,
