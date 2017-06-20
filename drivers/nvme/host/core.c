@@ -27,7 +27,6 @@
 #include <linux/nvme_ioctl.h>
 #include <linux/t10-pi.h>
 #include <linux/pm_qos.h>
-#include <scsi/sg.h>
 #include <asm/unaligned.h>
 
 #include "nvme.h"
@@ -756,7 +755,7 @@ void nvme_stop_keep_alive(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_stop_keep_alive);
 
-int nvme_identify_ctrl(struct nvme_ctrl *dev, struct nvme_id_ctrl **id)
+static int nvme_identify_ctrl(struct nvme_ctrl *dev, struct nvme_id_ctrl **id)
 {
 	struct nvme_command c = { };
 	int error;
@@ -857,7 +856,7 @@ static int nvme_identify_ns_list(struct nvme_ctrl *dev, unsigned nsid, __le32 *n
 	return nvme_submit_sync_cmd(dev->admin_q, &c, ns_list, 0x1000);
 }
 
-int nvme_identify_ns(struct nvme_ctrl *dev, unsigned nsid,
+static int nvme_identify_ns(struct nvme_ctrl *dev, unsigned nsid,
 		struct nvme_id_ns **id)
 {
 	struct nvme_command c = { };
@@ -879,26 +878,7 @@ int nvme_identify_ns(struct nvme_ctrl *dev, unsigned nsid,
 	return error;
 }
 
-int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
-		      void *buffer, size_t buflen, u32 *result)
-{
-	struct nvme_command c;
-	union nvme_result res;
-	int ret;
-
-	memset(&c, 0, sizeof(c));
-	c.features.opcode = nvme_admin_get_features;
-	c.features.nsid = cpu_to_le32(nsid);
-	c.features.fid = cpu_to_le32(fid);
-
-	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &res, buffer, buflen, 0,
-			NVME_QID_ANY, 0, 0);
-	if (ret >= 0 && result)
-		*result = le32_to_cpu(res.u32);
-	return ret;
-}
-
-int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
+static int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 		      void *buffer, size_t buflen, u32 *result)
 {
 	struct nvme_command c;
@@ -915,28 +895,6 @@ int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 	if (ret >= 0 && result)
 		*result = le32_to_cpu(res.u32);
 	return ret;
-}
-
-int nvme_get_log_page(struct nvme_ctrl *dev, struct nvme_smart_log **log)
-{
-	struct nvme_command c = { };
-	int error;
-
-	c.common.opcode = nvme_admin_get_log_page,
-	c.common.nsid = cpu_to_le32(0xFFFFFFFF),
-	c.common.cdw10[0] = cpu_to_le32(
-			(((sizeof(struct nvme_smart_log) / 4) - 1) << 16) |
-			 NVME_LOG_SMART),
-
-	*log = kmalloc(sizeof(struct nvme_smart_log), GFP_KERNEL);
-	if (!*log)
-		return -ENOMEM;
-
-	error = nvme_submit_sync_cmd(dev->admin_q, &c, *log,
-			sizeof(struct nvme_smart_log));
-	if (error)
-		kfree(*log);
-	return error;
 }
 
 int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count)
@@ -1074,12 +1032,6 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 		return nvme_user_cmd(ns->ctrl, ns, (void __user *)arg);
 	case NVME_IOCTL_SUBMIT_IO:
 		return nvme_submit_io(ns, (void __user *)arg);
-#ifdef CONFIG_BLK_DEV_NVME_SCSI
-	case SG_GET_VERSION_NUM:
-		return nvme_sg_get_version_num((void __user *)arg);
-	case SG_IO:
-		return nvme_sg_io(ns, (void __user *)arg);
-#endif
 	default:
 #ifdef CONFIG_NVM
 		if (ns->ndev)
@@ -1096,10 +1048,6 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 static int nvme_compat_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
-	switch (cmd) {
-	case SG_IO:
-		return -ENOIOCTLCMD;
-	}
 	return nvme_ioctl(bdev, mode, cmd, arg);
 }
 #else
