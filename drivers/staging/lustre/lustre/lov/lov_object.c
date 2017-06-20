@@ -371,7 +371,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 	struct lov_layout_raid0 *r0;
 	struct lu_site	  *site;
 	struct lu_site_bkt_data *bkt;
-	wait_queue_t	  *waiter;
+	wait_queue_entry_t	  *waiter;
 
 	r0  = &lov->u.raid0;
 	LASSERT(r0->lo_sub[idx] == los);

@@ -3066,7 +3066,7 @@ static int airo_thread(void *data) {
 		if (ai->jobs) {
 			locked = down_interruptible(&ai->sem);
 		} else {
-			wait_queue_t wait;
+			wait_queue_entry_t wait;
 
 			init_waitqueue_entry(&wait, current);
 			add_wait_queue(&ai->thr_wait, &wait);

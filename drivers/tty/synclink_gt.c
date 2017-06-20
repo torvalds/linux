@@ -184,7 +184,7 @@ static void hdlcdev_exit(struct slgt_info *info);
 struct cond_wait {
 	struct cond_wait *next;
 	wait_queue_head_t q;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	unsigned int data;
 };
 static void init_cond_wait(struct cond_wait *w, unsigned int data);

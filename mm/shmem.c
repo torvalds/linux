@@ -1902,7 +1902,7 @@ unlock:
  * entry unconditionally - even if something else had already woken the
  * target.
  */
-static int synchronous_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int synchronous_wake_function(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	int ret = default_wake_function(wait, mode, sync, key);
 	list_del_init(&wait->task_list);

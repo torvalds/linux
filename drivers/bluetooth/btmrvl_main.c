@@ -602,7 +602,7 @@ static int btmrvl_service_main_thread(void *data)
 	struct btmrvl_thread *thread = data;
 	struct btmrvl_private *priv = thread->priv;
 	struct btmrvl_adapter *adapter = priv->adapter;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	struct sk_buff *skb;
 	ulong flags;
 

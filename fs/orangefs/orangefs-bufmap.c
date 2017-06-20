@@ -47,7 +47,7 @@ static void run_down(struct slot_map *m)
 	if (m->c != -1) {
 		for (;;) {
 			if (likely(list_empty(&wait.task_list)))
-				__add_wait_queue_tail(&m->q, &wait);
+				__add_wait_queue_entry_tail(&m->q, &wait);
 			set_current_state(TASK_UNINTERRUPTIBLE);
 
 			if (m->c == -1)
@@ -85,7 +85,7 @@ static int wait_for_free(struct slot_map *m)
 	do {
 		long n = left, t;
 		if (likely(list_empty(&wait.task_list)))
-			__add_wait_queue_tail_exclusive(&m->q, &wait);
+			__add_wait_queue_entry_tail_exclusive(&m->q, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (m->c > 0)

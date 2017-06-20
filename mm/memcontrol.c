@@ -170,7 +170,7 @@ struct mem_cgroup_event {
 	 */
 	poll_table pt;
 	wait_queue_head_t *wqh;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	struct work_struct remove;
 };
 
@@ -1479,10 +1479,10 @@ static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
 
 struct oom_wait_info {
 	struct mem_cgroup *memcg;
-	wait_queue_t	wait;
+	wait_queue_entry_t	wait;
 };
 
-static int memcg_oom_wake_function(wait_queue_t *wait,
+static int memcg_oom_wake_function(wait_queue_entry_t *wait,
 	unsigned mode, int sync, void *arg)
 {
 	struct mem_cgroup *wake_memcg = (struct mem_cgroup *)arg;
@@ -3725,7 +3725,7 @@ static void memcg_event_remove(struct work_struct *work)
  *
  * Called with wqh->lock held and interrupts disabled.
  */
-static int memcg_event_wake(wait_queue_t *wait, unsigned mode,
+static int memcg_event_wake(wait_queue_entry_t *wait, unsigned mode,
 			    int sync, void *key)
 {
 	struct mem_cgroup_event *event =

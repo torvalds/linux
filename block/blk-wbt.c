@@ -503,7 +503,7 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 }
 
 static inline bool may_queue(struct rq_wb *rwb, struct rq_wait *rqw,
-			     wait_queue_t *wait, unsigned long rw)
+			     wait_queue_entry_t *wait, unsigned long rw)
 {
 	/*
 	 * inc it here even if disabled, since we'll dec it at completion.

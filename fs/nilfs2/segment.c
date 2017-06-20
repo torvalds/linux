@@ -2161,7 +2161,7 @@ void nilfs_flush_segment(struct super_block *sb, ino_t ino)
 }
 
 struct nilfs_segctor_wait_request {
-	wait_queue_t	wq;
+	wait_queue_entry_t	wq;
 	__u32		seq;
 	int		err;
 	atomic_t	done;

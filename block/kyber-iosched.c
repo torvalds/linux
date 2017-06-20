@@ -99,7 +99,7 @@ struct kyber_hctx_data {
 	struct list_head rqs[KYBER_NUM_DOMAINS];
 	unsigned int cur_domain;
 	unsigned int batching;
-	wait_queue_t domain_wait[KYBER_NUM_DOMAINS];
+	wait_queue_entry_t domain_wait[KYBER_NUM_DOMAINS];
 	atomic_t wait_index[KYBER_NUM_DOMAINS];
 };
 
@@ -507,7 +507,7 @@ static void kyber_flush_busy_ctxs(struct kyber_hctx_data *khd,
 	}
 }
 
-static int kyber_domain_wake(wait_queue_t *wait, unsigned mode, int flags,
+static int kyber_domain_wake(wait_queue_entry_t *wait, unsigned mode, int flags,
 			     void *key)
 {
 	struct blk_mq_hw_ctx *hctx = READ_ONCE(wait->private);
@@ -523,7 +523,7 @@ static int kyber_get_domain_token(struct kyber_queue_data *kqd,
 {
 	unsigned int sched_domain = khd->cur_domain;
 	struct sbitmap_queue *domain_tokens = &kqd->domain_tokens[sched_domain];
-	wait_queue_t *wait = &khd->domain_wait[sched_domain];
+	wait_queue_entry_t *wait = &khd->domain_wait[sched_domain];
 	struct sbq_wait_state *ws;
 	int nr;
 
@@ -734,7 +734,7 @@ static int kyber_##name##_waiting_show(void *data, struct seq_file *m)	\
 {									\
 	struct blk_mq_hw_ctx *hctx = data;				\
 	struct kyber_hctx_data *khd = hctx->sched_data;			\
-	wait_queue_t *wait = &khd->domain_wait[domain];			\
+	wait_queue_entry_t *wait = &khd->domain_wait[domain];		\
 									\
 	seq_printf(m, "%d\n", !list_empty_careful(&wait->task_list));	\
 	return 0;							\

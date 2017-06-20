@@ -2544,7 +2544,7 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 			ret = -EINVAL;
 		}
 		if (local->iw_mode == IW_MODE_MASTER) {
-			wait_queue_t __wait;
+			wait_queue_entry_t __wait;
 			init_waitqueue_entry(&__wait, current);
 			add_wait_queue(&local->hostscan_wq, &__wait);
 			set_current_state(TASK_INTERRUPTIBLE);

@@ -34,7 +34,7 @@ void pin_insert(struct fs_pin *pin, struct vfsmount *m)
 
 void pin_kill(struct fs_pin *p)
 {
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	if (!p) {
 		rcu_read_unlock();

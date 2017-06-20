@@ -556,7 +556,7 @@ EXPORT_SYMBOL(lu_object_print);
 static struct lu_object *htable_lookup(struct lu_site *s,
 				       struct cfs_hash_bd *bd,
 				       const struct lu_fid *f,
-				       wait_queue_t *waiter,
+				       wait_queue_entry_t *waiter,
 				       __u64 *version)
 {
 	struct lu_site_bkt_data *bkt;
@@ -670,7 +670,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 					    struct lu_device *dev,
 					    const struct lu_fid *f,
 					    const struct lu_object_conf *conf,
-					    wait_queue_t *waiter)
+					    wait_queue_entry_t *waiter)
 {
 	struct lu_object      *o;
 	struct lu_object      *shadow;
@@ -750,7 +750,7 @@ struct lu_object *lu_object_find_at(const struct lu_env *env,
 {
 	struct lu_site_bkt_data *bkt;
 	struct lu_object	*obj;
-	wait_queue_t	   wait;
+	wait_queue_entry_t	   wait;
 
 	while (1) {
 		obj = lu_object_find_try(env, dev, f, conf, &wait);
