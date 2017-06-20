@@ -1021,10 +1021,9 @@ int spi_test_run_tests(struct spi_device *spi,
 		rx = vmalloc(SPI_TEST_MAX_SIZE_PLUS);
 	else
 		rx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
-	if (!rx) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!rx)
+		return -ENOMEM;
+
 
 	if (use_vmalloc)
 		tx = vmalloc(SPI_TEST_MAX_SIZE_PLUS);
@@ -1032,7 +1031,7 @@ int spi_test_run_tests(struct spi_device *spi,
 		tx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
 	if (!tx) {
 		ret = -ENOMEM;
-		goto out;
+		goto err_tx;
 	}
 
 	/* now run the individual tests in the table */
@@ -1057,8 +1056,9 @@ int spi_test_run_tests(struct spi_device *spi,
 	}
 
 out:
-	kvfree(rx);
 	kvfree(tx);
+err_tx:
+	kvfree(rx);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_test_run_tests);
