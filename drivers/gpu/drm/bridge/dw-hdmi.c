@@ -2780,7 +2780,7 @@ static void dw_hdmi_register_debugfs(struct device *dev, struct dw_hdmi *hdmi)
 }
 
 static void dw_hdmi_register_hdcp(struct device *dev, struct dw_hdmi *hdmi,
-				  u32 val)
+				  u32 val, bool hdcp1x_enable)
 {
 	struct dw_hdcp hdmi_hdcp = {
 		.hdmi = hdmi,
@@ -2788,7 +2788,7 @@ static void dw_hdmi_register_hdcp(struct device *dev, struct dw_hdmi *hdmi,
 		.read = hdmi_readb,
 		.regs = hdmi->regs,
 		.reg_io_width = val,
-		.enable = 0,
+		.enable = hdcp1x_enable,
 	};
 	struct platform_device_info hdcp_device_info = {
 		.parent = dev,
@@ -2824,6 +2824,7 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	u32 val = 1;
 	u8 config0;
 	u8 config3;
+	bool hdcp1x_enable = 0;
 
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
@@ -3028,7 +3029,10 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	dev_set_drvdata(dev, hdmi);
 
 	dw_hdmi_register_debugfs(dev, hdmi);
-	dw_hdmi_register_hdcp(dev, hdmi, val);
+
+	if (of_property_read_bool(np, "hdcp1x-enable"))
+		hdcp1x_enable = 1;
+	dw_hdmi_register_hdcp(dev, hdmi, val, hdcp1x_enable);
 
 	return 0;
 

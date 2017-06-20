@@ -26,7 +26,7 @@ struct hdcp_keys {
 };
 
 struct dw_hdcp {
-	int enable;
+	bool enable;
 	int retry_times;
 	int remaining_times;
 	char *seeds;
