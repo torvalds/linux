@@ -7118,6 +7118,9 @@ static int raid5_run(struct mddev *mddev)
 	long long min_offset_diff = 0;
 	int first = 1;
 
+	if (mddev_init_writes_pending(mddev) < 0)
+		return -ENOMEM;
+
 	if (mddev->recovery_cp != MaxSector)
 		pr_notice("md/raid:%s: not clean -- starting background reconstruction\n",
 			  mdname(mddev));

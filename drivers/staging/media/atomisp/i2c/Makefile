@@ -19,5 +19,3 @@ obj-$(CONFIG_VIDEO_AP1302)     += ap1302.o
 
 obj-$(CONFIG_VIDEO_LM3554) += lm3554.o
 
-ccflags-y += -Werror
-

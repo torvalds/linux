@@ -2107,7 +2107,8 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 					asyc->set.dither = true;
 			}
 		} else {
-			asyc->set.mask = ~0;
+			if (asyc)
+				asyc->set.mask = ~0;
 			asyh->set.mask = ~0;
 		}
 

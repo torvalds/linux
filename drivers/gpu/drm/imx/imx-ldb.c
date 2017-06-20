@@ -673,7 +673,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		ret = drm_of_find_panel_or_bridge(child,
 						  imx_ldb->lvds_mux ? 4 : 2, 0,
 						  &channel->panel, &channel->bridge);
-		if (ret)
+		if (ret && ret != -ENODEV)
 			return ret;
 
 		/* panel ddc only if there is no bridge */
