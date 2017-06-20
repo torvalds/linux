@@ -410,3 +410,69 @@ void ovl_inuse_unlock(struct dentry *dentry)
 		spin_unlock(&inode->i_lock);
 	}
 }
+
+/*
+ * Operations that change overlay inode and upper inode nlink need to be
+ * synchronized with copy up for persistent nlink accounting.
+ */
+int ovl_nlink_start(struct dentry *dentry, bool *locked)
+{
+	struct ovl_inode *oi = OVL_I(d_inode(dentry));
+	const struct cred *old_cred;
+	int err;
+
+	if (!d_inode(dentry) || d_is_dir(dentry))
+		return 0;
+
+	/*
+	 * With inodes index is enabled, we store the union overlay nlink
+	 * in an xattr on the index inode. When whiting out lower hardlinks
+	 * we need to decrement the overlay persistent nlink, but before the
+	 * first copy up, we have no upper index inode to store the xattr.
+	 *
+	 * As a workaround, before whiteout/rename over of a lower hardlink,
+	 * copy up to create the upper index. Creating the upper index will
+	 * initialize the overlay nlink, so it could be dropped if unlink
+	 * or rename succeeds.
+	 *
+	 * TODO: implement metadata only index copy up when called with
+	 *       ovl_copy_up_flags(dentry, O_PATH).
+	 */
+	if (ovl_indexdir(dentry->d_sb) && !ovl_dentry_has_upper_alias(dentry) &&
+	    d_inode(ovl_dentry_lower(dentry))->i_nlink > 1) {
+		err = ovl_copy_up(dentry);
+		if (err)
+			return err;
+	}
+
+	err = mutex_lock_interruptible(&oi->lock);
+	if (err)
+		return err;
+
+	if (!ovl_test_flag(OVL_INDEX, d_inode(dentry)))
+		goto out;
+
+	old_cred = ovl_override_creds(dentry->d_sb);
+	/*
+	 * The overlay inode nlink should be incremented/decremented IFF the
+	 * upper operation succeeds, along with nlink change of upper inode.
+	 * Therefore, before link/unlink/rename, we store the union nlink
+	 * value relative to the upper inode nlink in an upper inode xattr.
+	 */
+	err = ovl_set_nlink_upper(dentry);
+	revert_creds(old_cred);
+
+out:
+	if (err)
+		mutex_unlock(&oi->lock);
+	else
+		*locked = true;
+
+	return err;
+}
+
+void ovl_nlink_end(struct dentry *dentry, bool locked)
+{
+	if (locked)
+		mutex_unlock(&OVL_I(d_inode(dentry))->lock);
+}

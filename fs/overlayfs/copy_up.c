@@ -323,6 +323,10 @@ static int ovl_link_up(struct dentry *parent, struct dentry *dentry)
 	struct dentry *upperdir = ovl_dentry_upper(parent);
 	struct inode *udir = d_inode(upperdir);
 
+	err = ovl_set_nlink_lower(dentry);
+	if (err)
+		return err;
+
 	inode_lock_nested(udir, I_MUTEX_PARENT);
 	upper = lookup_one_len(dentry->d_name.name, upperdir,
 			       dentry->d_name.len);
@@ -335,6 +339,7 @@ static int ovl_link_up(struct dentry *parent, struct dentry *dentry)
 			ovl_dentry_set_upper_alias(dentry);
 	}
 	inode_unlock(udir);
+	ovl_set_nlink_upper(dentry);
 
 	return err;
 }

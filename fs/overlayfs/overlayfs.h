@@ -25,6 +25,7 @@ enum ovl_path_type {
 #define OVL_XATTR_REDIRECT OVL_XATTR_PREFIX "redirect"
 #define OVL_XATTR_ORIGIN OVL_XATTR_PREFIX "origin"
 #define OVL_XATTR_IMPURE OVL_XATTR_PREFIX "impure"
+#define OVL_XATTR_NLINK OVL_XATTR_PREFIX "nlink"
 
 enum ovl_flag {
 	OVL_IMPURE,
@@ -229,6 +230,8 @@ void ovl_set_flag(unsigned long flag, struct inode *inode);
 bool ovl_test_flag(unsigned long flag, struct inode *inode);
 bool ovl_inuse_trylock(struct dentry *dentry);
 void ovl_inuse_unlock(struct dentry *dentry);
+int ovl_nlink_start(struct dentry *dentry, bool *locked);
+void ovl_nlink_end(struct dentry *dentry, bool locked);
 
 static inline bool ovl_is_impuredir(struct dentry *dentry)
 {
@@ -258,6 +261,8 @@ int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
 			 struct path *lowerstack, unsigned int numlower);
 
 /* inode.c */
+int ovl_set_nlink_upper(struct dentry *dentry);
+int ovl_set_nlink_lower(struct dentry *dentry);
 int ovl_setattr(struct dentry *dentry, struct iattr *attr);
 int ovl_getattr(const struct path *path, struct kstat *stat,
 		u32 request_mask, unsigned int flags);

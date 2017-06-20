@@ -12,6 +12,7 @@
 #include <linux/cred.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
+#include <linux/ratelimit.h>
 #include "overlayfs.h"
 
 int ovl_setattr(struct dentry *dentry, struct iattr *attr)
@@ -129,6 +130,15 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 	 */
 	if (is_dir && OVL_TYPE_MERGE(type))
 		stat->nlink = 1;
+
+	/*
+	 * Return the overlay inode nlinks for indexed upper inodes.
+	 * Overlay inode nlink counts the union of the upper hardlinks
+	 * and non-covered lower hardlinks. It does not include the upper
+	 * index hardlink.
+	 */
+	if (!is_dir && ovl_test_flag(OVL_INDEX, d_inode(dentry)))
+		stat->nlink = dentry->d_inode->i_nlink;
 
 out:
 	revert_creds(old_cred);
@@ -442,6 +452,103 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
 	}
 }
 
+/*
+ * With inodes index enabled, an overlay inode nlink counts the union of upper
+ * hardlinks and non-covered lower hardlinks. During the lifetime of a non-pure
+ * upper inode, the following nlink modifying operations can happen:
+ *
+ * 1. Lower hardlink copy up
+ * 2. Upper hardlink created, unlinked or renamed over
+ * 3. Lower hardlink whiteout or renamed over
+ *
+ * For the first, copy up case, the union nlink does not change, whether the
+ * operation succeeds or fails, but the upper inode nlink may change.
+ * Therefore, before copy up, we store the union nlink value relative to the
+ * lower inode nlink in the index inode xattr trusted.overlay.nlink.
+ *
+ * For the second, upper hardlink case, the union nlink should be incremented
+ * or decremented IFF the operation succeeds, aligned with nlink change of the
+ * upper inode. Therefore, before link/unlink/rename, we store the union nlink
+ * value relative to the upper inode nlink in the index inode.
+ *
+ * For the last, lower cover up case, we simplify things by preceding the
+ * whiteout or cover up with copy up. This makes sure that there is an index
+ * upper inode where the nlink xattr can be stored before the copied up upper
+ * entry is unlink.
+ */
+#define OVL_NLINK_ADD_UPPER	(1 << 0)
+
+/*
+ * On-disk format for indexed nlink:
+ *
+ * nlink relative to the upper inode - "U[+-]NUM"
+ * nlink relative to the lower inode - "L[+-]NUM"
+ */
+
+static int ovl_set_nlink_common(struct dentry *dentry,
+				struct dentry *realdentry, const char *format)
+{
+	struct inode *inode = d_inode(dentry);
+	struct inode *realinode = d_inode(realdentry);
+	char buf[13];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), format,
+		       (int) (inode->i_nlink - realinode->i_nlink));
+
+	return ovl_do_setxattr(ovl_dentry_upper(dentry),
+			       OVL_XATTR_NLINK, buf, len, 0);
+}
+
+int ovl_set_nlink_upper(struct dentry *dentry)
+{
+	return ovl_set_nlink_common(dentry, ovl_dentry_upper(dentry), "U%+i");
+}
+
+int ovl_set_nlink_lower(struct dentry *dentry)
+{
+	return ovl_set_nlink_common(dentry, ovl_dentry_lower(dentry), "L%+i");
+}
+
+static unsigned int ovl_get_nlink(struct dentry *lowerdentry,
+				  struct dentry *upperdentry,
+				  unsigned int fallback)
+{
+	int nlink_diff;
+	int nlink;
+	char buf[13];
+	int err;
+
+	if (!lowerdentry || !upperdentry || d_inode(lowerdentry)->i_nlink == 1)
+		return fallback;
+
+	err = vfs_getxattr(upperdentry, OVL_XATTR_NLINK, &buf, sizeof(buf) - 1);
+	if (err < 0)
+		goto fail;
+
+	buf[err] = '\0';
+	if ((buf[0] != 'L' && buf[0] != 'U') ||
+	    (buf[1] != '+' && buf[1] != '-'))
+		goto fail;
+
+	err = kstrtoint(buf + 1, 10, &nlink_diff);
+	if (err < 0)
+		goto fail;
+
+	nlink = d_inode(buf[0] == 'L' ? lowerdentry : upperdentry)->i_nlink;
+	nlink += nlink_diff;
+
+	if (nlink <= 0)
+		goto fail;
+
+	return nlink;
+
+fail:
+	pr_warn_ratelimited("overlayfs: failed to get index nlink (%pd2, err=%i)\n",
+			    upperdentry, err);
+	return fallback;
+}
+
 struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
@@ -495,6 +602,7 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry)
 	if (!S_ISDIR(realinode->i_mode) &&
 	    (upperdentry || (lowerdentry && ovl_indexdir(dentry->d_sb)))) {
 		struct inode *key = d_inode(lowerdentry ?: upperdentry);
+		unsigned int nlink;
 
 		inode = iget5_locked(dentry->d_sb, (unsigned long) key,
 				     ovl_inode_test, ovl_inode_set, key);
@@ -515,7 +623,9 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry)
 			goto out;
 		}
 
-		set_nlink(inode, realinode->i_nlink);
+		nlink = ovl_get_nlink(lowerdentry, upperdentry,
+				      realinode->i_nlink);
+		set_nlink(inode, nlink);
 	} else {
 		inode = new_inode(dentry->d_sb);
 		if (!inode)
