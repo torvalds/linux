@@ -228,6 +228,8 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
 	struct request *rq = tags->static_rqs[tag];
 
+	rq->rq_flags = 0;
+
 	if (data->flags & BLK_MQ_REQ_INTERNAL) {
 		rq->tag = -1;
 		rq->internal_tag = tag;
@@ -423,7 +425,6 @@ void blk_mq_free_request(struct request *rq)
 		atomic_dec(&hctx->nr_active);
 
 	wbt_done(q->rq_wb, &rq->issue_stat);
-	rq->rq_flags = 0;
 
 	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
 	clear_bit(REQ_ATOM_POLL_SLEPT, &rq->atomic_flags);
