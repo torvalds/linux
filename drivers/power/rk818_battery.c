@@ -383,6 +383,20 @@ static int rk818_bat_get_coulomb_cap(struct rk818_battery *di)
 	return (val / 2390) * di->res_div;
 }
 
+static int rk818_bat_ts1_cur_init(struct rk818_battery *di, int ua)
+{
+	u8 buf;
+
+	buf = rk818_bat_read(di, RK818_TS_CTRL_REG);
+	buf &= TS1_CUR_MSK;
+	buf |= ((ua - 20) / 20);
+	rk818_bat_write(di, RK818_TS_CTRL_REG, buf);
+
+	di->pdata->ntc_cur = ua;
+
+	return 0;
+}
+
 static int rk818_bat_get_rsoc(struct rk818_battery *di)
 {
 	int remain_cap;
@@ -2576,8 +2590,14 @@ static int rk818_bat_get_ntc_res(struct rk818_battery *di)
 	val |= rk818_bat_read(di, RK818_TS1_ADC_REGL) << 0;
 	val |= rk818_bat_read(di, RK818_TS1_ADC_REGH) << 8;
 
-	val = val * NTC_CALC_FACTOR; /*reference voltage 2.2V,current 80ua*/
-	DBG("<%s>. ntc_res=%d\n", __func__, val);
+	if (di->pdata->ntc_cur == 80)
+		val = val * 7;	/* reference voltage 2.2V,current 80ua */
+	else if (di->pdata->ntc_cur == 60)
+		val = val * 9;	/* reference voltage 2.2V,current 60ua */
+	else if (di->pdata->ntc_cur == 40)
+		val = val * 13;	/* reference voltage 2.2V,current 40ua */
+	DBG("<%s>. ntc_res=%d, ntc_cur=%d\n",
+	    __func__, val, di->pdata->ntc_cur);
 
 	return val;
 }
@@ -2620,6 +2640,10 @@ static void rk818_bat_update_temperature(struct rk818_battery *di)
 					break;
 			}
 			di->temperature = (i + di->pdata->ntc_degree_from) * 10;
+			if (i + di->pdata->ntc_degree_from <= 0)
+				rk818_bat_ts1_cur_init(di, 40);
+			else
+				rk818_bat_ts1_cur_init(di, 60);
 			rk818_bat_temp_notifier_callback(di->temperature / 10);
 		}
 	}
@@ -2912,6 +2936,8 @@ static void rk818_bat_init_ts1_detect(struct rk818_battery *di)
 
 	if (!di->pdata->ntc_size)
 		return;
+
+	rk818_bat_ts1_cur_init(di, 60);
 
 	/* ADC_TS1_EN */
 	buf = rk818_bat_read(di, RK818_ADC_CTRL_REG);
