@@ -144,7 +144,8 @@ static int st_accel_i2c_probe(struct i2c_client *client,
 	adata = iio_priv(indio_dev);
 
 	if (client->dev.of_node) {
-		st_sensors_of_i2c_probe(client, st_accel_of_match);
+		st_sensors_of_name_probe(&client->dev, st_accel_of_match,
+					 client->name, sizeof(client->name));
 	} else if (ACPI_HANDLE(&client->dev)) {
 		ret = st_sensors_match_acpi_device(&client->dev);
 		if ((ret < 0) || (ret >= ST_ACCEL_MAX))
