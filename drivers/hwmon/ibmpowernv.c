@@ -50,6 +50,7 @@ enum sensors {
 	TEMP,
 	POWER_SUPPLY,
 	POWER_INPUT,
+	CURRENT,
 	MAX_SENSOR_TYPE,
 };
 
@@ -75,7 +76,8 @@ static struct sensor_group {
 	{ "fan"   },
 	{ "temp"  },
 	{ "in"    },
-	{ "power" }
+	{ "power" },
+	{ "curr"  },
 };
 
 struct sensor_data {
