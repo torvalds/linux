@@ -72,6 +72,7 @@ struct net_dev_context {
 };
 
 static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
+static struct mutex probe_disc_mt; /* ch->linked = true, most_nd_open */
 static struct spinlock list_lock;
 static struct most_aim aim;
 
@@ -179,18 +180,21 @@ static void on_netinfo(struct most_interface *iface,
 static int most_nd_open(struct net_device *dev)
 {
 	struct net_dev_context *nd = netdev_priv(dev);
+	int ret = 0;
 
-	BUG_ON(!nd->tx.linked || !nd->rx.linked);
+	mutex_lock(&probe_disc_mt);
 
 	if (most_start_channel(nd->iface, nd->rx.ch_id, &aim)) {
 		netdev_err(dev, "most_start_channel() failed\n");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto unlock;
 	}
 
 	if (most_start_channel(nd->iface, nd->tx.ch_id, &aim)) {
 		netdev_err(dev, "most_start_channel() failed\n");
 		most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto unlock;
 	}
 
 	netif_carrier_off(dev);
@@ -201,7 +205,10 @@ static int most_nd_open(struct net_device *dev)
 	netif_wake_queue(dev);
 	if (nd->iface->request_netinfo)
 		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id, on_netinfo);
-	return 0;
+
+unlock:
+	mutex_unlock(&probe_disc_mt);
+	return ret;
 }
 
 static int most_nd_stop(struct net_device *dev)
@@ -289,6 +296,7 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 	struct net_dev_channel *ch;
 	struct net_device *dev;
 	unsigned long flags;
+	int ret = 0;
 
 	if (!iface)
 		return -EINVAL;
@@ -296,13 +304,15 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 	if (ccfg->data_type != MOST_CH_ASYNC)
 		return -EINVAL;
 
+	mutex_lock(&probe_disc_mt);
 	nd = get_net_dev_context(iface);
-
 	if (!nd) {
 		dev = alloc_netdev(sizeof(struct net_dev_context), "meth%d",
 				   NET_NAME_UNKNOWN, most_nd_setup);
-		if (!dev)
-			return -ENOMEM;
+		if (!dev) {
+			ret = -ENOMEM;
+			goto unlock;
+		}
 
 		nd = netdev_priv(dev);
 		nd->iface = iface;
@@ -313,25 +323,26 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 		spin_unlock_irqrestore(&list_lock, flags);
 
 		ch = ccfg->direction == MOST_CH_TX ? &nd->tx : &nd->rx;
-		ch->ch_id = channel_idx;
-		ch->linked = true;
 	} else {
 		ch = ccfg->direction == MOST_CH_TX ? &nd->tx : &nd->rx;
 		if (ch->linked) {
 			pr_err("direction is allocated\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock;
 		}
 
-		ch->ch_id = channel_idx;
-		ch->linked = true;
 		if (register_netdev(nd->dev)) {
 			pr_err("register_netdev() failed\n");
-			ch->linked = false;
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock;
 		}
 	}
+	ch->ch_id = channel_idx;
+	ch->linked = true;
 
-	return 0;
+unlock:
+	mutex_unlock(&probe_disc_mt);
+	return ret;
 }
 
 static int aim_disconnect_channel(struct most_interface *iface,
@@ -340,17 +351,23 @@ static int aim_disconnect_channel(struct most_interface *iface,
 	struct net_dev_context *nd;
 	struct net_dev_channel *ch;
 	unsigned long flags;
+	int ret = 0;
 
+	mutex_lock(&probe_disc_mt);
 	nd = get_net_dev_context(iface);
-	if (!nd)
-		return -EINVAL;
+	if (!nd) {
+		ret = -EINVAL;
+		goto unlock;
+	}
 
-	if (nd->rx.linked && channel_idx == nd->rx.ch_id)
+	if (nd->rx.linked && channel_idx == nd->rx.ch_id) {
 		ch = &nd->rx;
-	else if (nd->tx.linked && channel_idx == nd->tx.ch_id)
+	} else if (nd->tx.linked && channel_idx == nd->tx.ch_id) {
 		ch = &nd->tx;
-	else
-		return -EINVAL;
+	} else {
+		ret = -EINVAL;
+		goto unlock;
+	}
 
 	if (nd->rx.linked && nd->tx.linked) {
 		/*
@@ -367,7 +384,9 @@ static int aim_disconnect_channel(struct most_interface *iface,
 		free_netdev(nd->dev);
 	}
 
-	return 0;
+unlock:
+	mutex_unlock(&probe_disc_mt);
+	return ret;
 }
 
 static int aim_resume_tx_channel(struct most_interface *iface,
@@ -463,6 +482,7 @@ static struct most_aim aim = {
 static int __init most_net_init(void)
 {
 	spin_lock_init(&list_lock);
+	mutex_init(&probe_disc_mt);
 	return most_register_aim(&aim);
 }
 
