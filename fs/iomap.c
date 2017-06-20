@@ -881,6 +881,14 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		flags |= IOMAP_WRITE;
 	}
 
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (filemap_range_has_page(mapping, start, end)) {
+			ret = -EAGAIN;
+			goto out_free_dio;
+		}
+		flags |= IOMAP_NOWAIT;
+	}
+
 	ret = filemap_write_and_wait_range(mapping, start, end);
 	if (ret)
 		goto out_free_dio;
