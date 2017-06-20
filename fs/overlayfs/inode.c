@@ -305,13 +305,13 @@ struct posix_acl *ovl_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-static bool ovl_open_need_copy_up(int flags, enum ovl_path_type type,
-				  struct dentry *realdentry)
+static bool ovl_open_need_copy_up(struct dentry *dentry, int flags)
 {
-	if (OVL_TYPE_UPPER(type))
+	if (ovl_dentry_upper(dentry) &&
+	    ovl_dentry_has_upper_alias(dentry))
 		return false;
 
-	if (special_file(realdentry->d_inode->i_mode))
+	if (special_file(d_inode(dentry)->i_mode))
 		return false;
 
 	if (!(OPEN_FMODE(flags) & FMODE_WRITE) && !(flags & O_TRUNC))
@@ -323,11 +323,8 @@ static bool ovl_open_need_copy_up(int flags, enum ovl_path_type type,
 int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags)
 {
 	int err = 0;
-	struct path realpath;
-	enum ovl_path_type type;
 
-	type = ovl_path_real(dentry, &realpath);
-	if (ovl_open_need_copy_up(file_flags, type, realpath.dentry)) {
+	if (ovl_open_need_copy_up(dentry, file_flags)) {
 		err = ovl_want_write(dentry);
 		if (!err) {
 			err = ovl_copy_up_flags(dentry, file_flags);

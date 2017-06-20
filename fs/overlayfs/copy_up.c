@@ -316,6 +316,29 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 	return err;
 }
 
+static int ovl_link_up(struct dentry *parent, struct dentry *dentry)
+{
+	int err;
+	struct dentry *upper;
+	struct dentry *upperdir = ovl_dentry_upper(parent);
+	struct inode *udir = d_inode(upperdir);
+
+	inode_lock_nested(udir, I_MUTEX_PARENT);
+	upper = lookup_one_len(dentry->d_name.name, upperdir,
+			       dentry->d_name.len);
+	err = PTR_ERR(upper);
+	if (!IS_ERR(upper)) {
+		err = ovl_do_link(ovl_dentry_upper(dentry), udir, upper, true);
+		dput(upper);
+
+		if (!err)
+			ovl_dentry_set_upper_alias(dentry);
+	}
+	inode_unlock(udir);
+
+	return err;
+}
+
 struct ovl_copy_up_ctx {
 	struct dentry *parent;
 	struct dentry *dentry;
@@ -323,9 +346,11 @@ struct ovl_copy_up_ctx {
 	struct kstat stat;
 	struct kstat pstat;
 	const char *link;
-	struct dentry *upperdir;
+	struct dentry *destdir;
+	struct qstr destname;
 	struct dentry *workdir;
 	bool tmpfile;
+	bool origin;
 };
 
 static int ovl_install_temp(struct ovl_copy_up_ctx *c, struct dentry *temp,
@@ -333,10 +358,9 @@ static int ovl_install_temp(struct ovl_copy_up_ctx *c, struct dentry *temp,
 {
 	int err;
 	struct dentry *upper;
-	struct inode *udir = d_inode(c->upperdir);
+	struct inode *udir = d_inode(c->destdir);
 
-	upper = lookup_one_len(c->dentry->d_name.name, c->upperdir,
-			       c->dentry->d_name.len);
+	upper = lookup_one_len(c->destname.name, c->destdir, c->destname.len);
 	if (IS_ERR(upper))
 		return PTR_ERR(upper);
 
@@ -345,11 +369,8 @@ static int ovl_install_temp(struct ovl_copy_up_ctx *c, struct dentry *temp,
 	else
 		err = ovl_do_rename(d_inode(c->workdir), temp, udir, upper, 0);
 
-	/* Restore timestamps on parent (best effort) */
-	if (!err) {
-		ovl_set_timestamps(c->upperdir, &c->pstat);
+	if (!err)
 		*newdentry = dget(c->tmpfile ? upper : temp);
-	}
 	dput(upper);
 
 	return err;
@@ -439,7 +460,7 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	 * Don't set origin when we are breaking the association with a lower
 	 * hard link.
 	 */
-	if (S_ISDIR(c->stat.mode) || c->stat.nlink == 1) {
+	if (c->origin) {
 		err = ovl_set_origin(c->dentry, c->lowerpath.dentry, temp);
 		if (err)
 			return err;
@@ -450,7 +471,7 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 
 static int ovl_copy_up_locked(struct ovl_copy_up_ctx *c)
 {
-	struct inode *udir = c->upperdir->d_inode;
+	struct inode *udir = c->destdir->d_inode;
 	struct dentry *newdentry = NULL;
 	struct dentry *temp = NULL;
 	int err;
@@ -473,7 +494,6 @@ static int ovl_copy_up_locked(struct ovl_copy_up_ctx *c)
 	if (err)
 		goto out_cleanup;
 
-	ovl_dentry_set_upper_alias(c->dentry);
 	ovl_inode_update(d_inode(c->dentry), newdentry);
 out:
 	dput(temp);
@@ -498,24 +518,57 @@ static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 {
 	int err;
 	struct ovl_fs *ofs = c->dentry->d_sb->s_fs_info;
+	bool indexed = false;
 
-	/* Mark parent "impure" because it may now contain non-pure upper */
-	err = ovl_set_impure(c->parent, c->upperdir);
-	if (err)
-		return err;
+	if (ovl_indexdir(c->dentry->d_sb) && !S_ISDIR(c->stat.mode) &&
+	    c->stat.nlink > 1)
+		indexed = true;
+
+	if (S_ISDIR(c->stat.mode) || c->stat.nlink == 1 || indexed)
+		c->origin = true;
+
+	if (indexed) {
+		c->destdir = ovl_indexdir(c->dentry->d_sb);
+		err = ovl_get_index_name(c->lowerpath.dentry, &c->destname);
+		if (err)
+			return err;
+	} else {
+		/*
+		 * Mark parent "impure" because it may now contain non-pure
+		 * upper
+		 */
+		err = ovl_set_impure(c->parent, c->destdir);
+		if (err)
+			return err;
+	}
 
 	/* Should we copyup with O_TMPFILE or with workdir? */
 	if (S_ISREG(c->stat.mode) && ofs->tmpfile) {
 		c->tmpfile = true;
-		return  ovl_copy_up_locked(c);
+		err = ovl_copy_up_locked(c);
+	} else {
+		err = -EIO;
+		if (lock_rename(c->workdir, c->destdir) != NULL) {
+			pr_err("overlayfs: failed to lock workdir+upperdir\n");
+		} else {
+			err = ovl_copy_up_locked(c);
+			unlock_rename(c->workdir, c->destdir);
+		}
 	}
 
-	err = -EIO;
-	if (lock_rename(c->workdir, c->upperdir) != NULL) {
-		pr_err("overlayfs: failed to lock workdir+upperdir\n");
-	} else {
-		err = ovl_copy_up_locked(c);
-		unlock_rename(c->workdir, c->upperdir);
+	if (indexed) {
+		if (!err)
+			ovl_set_flag(OVL_INDEX, d_inode(c->dentry));
+		kfree(c->destname.name);
+	} else if (!err) {
+		struct inode *udir = d_inode(c->destdir);
+
+		/* Restore timestamps on parent (best effort) */
+		inode_lock(udir);
+		ovl_set_timestamps(c->destdir, &c->pstat);
+		inode_unlock(udir);
+
+		ovl_dentry_set_upper_alias(c->dentry);
 	}
 
 	return err;
@@ -543,7 +596,8 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		return err;
 
 	ovl_path_upper(parent, &parentpath);
-	ctx.upperdir = parentpath.dentry;
+	ctx.destdir = parentpath.dentry;
+	ctx.destname = dentry->d_name;
 
 	err = vfs_getattr(&parentpath, &ctx.pstat,
 			  STATX_ATIME | STATX_MTIME, AT_STATX_SYNC_AS_STAT);
@@ -567,7 +621,10 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		if (err > 0)
 			err = 0;
 	} else {
-		err = ovl_do_copy_up(&ctx);
+		if (!ovl_dentry_upper(dentry))
+			err = ovl_do_copy_up(&ctx);
+		if (!err && !ovl_dentry_has_upper_alias(dentry))
+			err = ovl_link_up(parent, dentry);
 		ovl_copy_up_end(dentry);
 	}
 	do_delayed_call(&done);
@@ -583,9 +640,22 @@ int ovl_copy_up_flags(struct dentry *dentry, int flags)
 	while (!err) {
 		struct dentry *next;
 		struct dentry *parent;
-		enum ovl_path_type type = ovl_path_type(dentry);
 
-		if (OVL_TYPE_UPPER(type))
+		/*
+		 * Check if copy-up has happened as well as for upper alias (in
+		 * case of hard links) is there.
+		 *
+		 * Both checks are lockless:
+		 *  - false negatives: will recheck under oi->lock
+		 *  - false positives:
+		 *    + ovl_dentry_upper() uses memory barriers to ensure the
+		 *      upper dentry is up-to-date
+		 *    + ovl_dentry_has_upper_alias() relies on locking of
+		 *      upper parent i_rwsem to prevent reordering copy-up
+		 *      with rename.
+		 */
+		if (ovl_dentry_upper(dentry) &&
+		    ovl_dentry_has_upper_alias(dentry))
 			break;
 
 		next = dget(dentry);
@@ -593,8 +663,7 @@ int ovl_copy_up_flags(struct dentry *dentry, int flags)
 		for (;;) {
 			parent = dget_parent(next);
 
-			type = ovl_path_type(parent);
-			if (OVL_TYPE_UPPER(type))
+			if (ovl_dentry_upper(parent))
 				break;
 
 			dput(next);

@@ -302,7 +302,7 @@ int ovl_copy_up_start(struct dentry *dentry)
 	int err;
 
 	err = mutex_lock_interruptible(&oi->lock);
-	if (!err && ovl_dentry_upper(dentry)) {
+	if (!err && ovl_dentry_has_upper_alias(dentry)) {
 		err = 1; /* Already copied up */
 		mutex_unlock(&oi->lock);
 	}
