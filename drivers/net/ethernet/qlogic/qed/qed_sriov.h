@@ -344,17 +344,6 @@ void qed_iov_free(struct qed_hwfn *p_hwfn);
 void qed_iov_free_hw_info(struct qed_dev *cdev);
 
 /**
- * @brief qed_sriov_eqe_event - handle async sriov event arrived on eqe.
- *
- * @param p_hwfn
- * @param opcode
- * @param echo
- * @param data
- */
-int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
-			u8 opcode, __le16 echo, union event_ring_data *data);
-
-/**
  * @brief Mark structs of vfs that have been FLR-ed.
  *
  * @param p_hwfn
@@ -416,13 +405,6 @@ static inline void qed_iov_free(struct qed_hwfn *p_hwfn)
 
 static inline void qed_iov_free_hw_info(struct qed_dev *cdev)
 {
-}
-
-static inline int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
-				      u8 opcode,
-				      __le16 echo, union event_ring_data *data)
-{
-	return -EINVAL;
 }
 
 static inline bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn,

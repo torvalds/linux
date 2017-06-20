@@ -174,6 +174,22 @@ struct qed_consq {
 	struct qed_chain chain;
 };
 
+typedef int
+(*qed_spq_async_comp_cb)(struct qed_hwfn *p_hwfn,
+			 u8 opcode,
+			 u16 echo,
+			 union event_ring_data *data,
+			 u8 fw_return_code);
+
+int
+qed_spq_register_async_cb(struct qed_hwfn *p_hwfn,
+			  enum protocol_type protocol_id,
+			  qed_spq_async_comp_cb cb);
+
+void
+qed_spq_unregister_async_cb(struct qed_hwfn *p_hwfn,
+			    enum protocol_type protocol_id);
+
 struct qed_spq {
 	spinlock_t		lock; /* SPQ lock */
 
@@ -203,6 +219,7 @@ struct qed_spq {
 	u32			comp_count;
 
 	u32			cid;
+	qed_spq_async_comp_cb async_comp_cb[MAX_PROTOCOL_TYPE];
 };
 
 /**

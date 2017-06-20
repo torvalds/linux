@@ -302,37 +302,43 @@ static int
 qed_async_event_completion(struct qed_hwfn *p_hwfn,
 			   struct event_ring_entry *p_eqe)
 {
-	switch (p_eqe->protocol_id) {
-#if IS_ENABLED(CONFIG_QED_RDMA)
-	case PROTOCOLID_ROCE:
-		qed_roce_async_event(p_hwfn, p_eqe->opcode,
-				     &p_eqe->data.rdma_data);
-		return 0;
-#endif
-	case PROTOCOLID_COMMON:
-		return qed_sriov_eqe_event(p_hwfn,
-					   p_eqe->opcode,
-					   p_eqe->echo, &p_eqe->data);
-	case PROTOCOLID_ISCSI:
-		if (!IS_ENABLED(CONFIG_QED_ISCSI))
-			return -EINVAL;
+	qed_spq_async_comp_cb cb;
 
-		if (p_hwfn->p_iscsi_info->event_cb) {
-			struct qed_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;
+	if (!p_hwfn->p_spq || (p_eqe->protocol_id >= MAX_PROTOCOL_TYPE))
+		return -EINVAL;
 
-			return p_iscsi->event_cb(p_iscsi->event_context,
-						 p_eqe->opcode, &p_eqe->data);
-		} else {
-			DP_NOTICE(p_hwfn,
-				  "iSCSI async completion is not set\n");
-			return -EINVAL;
-		}
-	default:
+	cb = p_hwfn->p_spq->async_comp_cb[p_eqe->protocol_id];
+	if (cb) {
+		return cb(p_hwfn, p_eqe->opcode, p_eqe->echo,
+			  &p_eqe->data, p_eqe->fw_return_code);
+	} else {
 		DP_NOTICE(p_hwfn,
 			  "Unknown Async completion for protocol: %d\n",
 			  p_eqe->protocol_id);
 		return -EINVAL;
 	}
+}
+
+int
+qed_spq_register_async_cb(struct qed_hwfn *p_hwfn,
+			  enum protocol_type protocol_id,
+			  qed_spq_async_comp_cb cb)
+{
+	if (!p_hwfn->p_spq || (protocol_id >= MAX_PROTOCOL_TYPE))
+		return -EINVAL;
+
+	p_hwfn->p_spq->async_comp_cb[protocol_id] = cb;
+	return 0;
+}
+
+void
+qed_spq_unregister_async_cb(struct qed_hwfn *p_hwfn,
+			    enum protocol_type protocol_id)
+{
+	if (!p_hwfn->p_spq || (protocol_id >= MAX_PROTOCOL_TYPE))
+		return;
+
+	p_hwfn->p_spq->async_comp_cb[protocol_id] = NULL;
 }
 
 /***************************************************************************

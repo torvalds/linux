@@ -62,6 +62,22 @@
 #include "qed_sriov.h"
 #include "qed_reg_addr.h"
 
+static int
+qed_iscsi_async_event(struct qed_hwfn *p_hwfn,
+		      u8 fw_event_code,
+		      u16 echo, union event_ring_data *data, u8 fw_return_code)
+{
+	if (p_hwfn->p_iscsi_info->event_cb) {
+		struct qed_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;
+
+		return p_iscsi->event_cb(p_iscsi->event_context,
+					 fw_event_code, data);
+	} else {
+		DP_NOTICE(p_hwfn, "iSCSI async completion is not set\n");
+		return -EINVAL;
+	}
+}
+
 struct qed_iscsi_conn {
 	struct list_head list_entry;
 	bool free_on_delete;
@@ -264,6 +280,9 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 
 	p_hwfn->p_iscsi_info->event_context = event_context;
 	p_hwfn->p_iscsi_info->event_cb = async_event_cb;
+
+	qed_spq_register_async_cb(p_hwfn, PROTOCOLID_ISCSI,
+				  qed_iscsi_async_event);
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
@@ -631,7 +650,10 @@ static int qed_sp_iscsi_func_stop(struct qed_hwfn *p_hwfn,
 	p_ramrod = &p_ent->ramrod.iscsi_destroy;
 	p_ramrod->hdr.op_code = ISCSI_RAMROD_CMD_ID_DESTROY_FUNC;
 
-	return qed_spq_post(p_hwfn, p_ent, NULL);
+	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+
+	qed_spq_unregister_async_cb(p_hwfn, PROTOCOLID_ISCSI);
+	return rc;
 }
 
 static void __iomem *qed_iscsi_get_db_addr(struct qed_hwfn *p_hwfn, u32 cid)
