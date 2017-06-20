@@ -1269,7 +1269,7 @@ static const struct v4l2_ctrl_config max2175_na_rx_mode = {
 static int max2175_refout_load_to_bits(struct i2c_client *client, u32 load,
 				       u32 *bits)
 {
-	if (load >= 0 && load <= 40)
+	if (load <= 40)
 		*bits = load / 10;
 	else if (load >= 60 && load <= 70)
 		*bits = load / 10 - 1;
