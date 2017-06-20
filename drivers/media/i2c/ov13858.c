@@ -950,7 +950,7 @@ static const char * const ov13858_test_pattern_menu[] = {
 #define OV13858_LINK_FREQ_INDEX_1	1
 
 /* Menu items for LINK_FREQ V4L2 control */
-static const const s64 link_freq_menu_items[OV13858_NUM_OF_LINK_FREQS] = {
+static const s64 link_freq_menu_items[OV13858_NUM_OF_LINK_FREQS] = {
 	OV13858_LINK_FREQ_1080MBPS,
 	OV13858_LINK_FREQ_540MBPS
 };
