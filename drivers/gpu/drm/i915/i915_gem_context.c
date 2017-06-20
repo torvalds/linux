@@ -158,13 +158,11 @@ static void vma_lut_free(struct i915_gem_context *ctx)
 	kvfree(lut->ht);
 }
 
-void i915_gem_context_free(struct kref *ctx_ref)
+static void i915_gem_context_free(struct i915_gem_context *ctx)
 {
-	struct i915_gem_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
 	int i;
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
-	trace_i915_context_free(ctx);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
 	vma_lut_free(ctx);
@@ -190,6 +188,37 @@ void i915_gem_context_free(struct kref *ctx_ref)
 
 	ida_simple_remove(&ctx->i915->contexts.hw_ida, ctx->hw_id);
 	kfree(ctx);
+}
+
+static void contexts_free(struct drm_i915_private *i915)
+{
+	struct llist_node *freed = llist_del_all(&i915->contexts.free_list);
+	struct i915_gem_context *ctx;
+
+	lockdep_assert_held(&i915->drm.struct_mutex);
+
+	llist_for_each_entry(ctx, freed, free_link)
+		i915_gem_context_free(ctx);
+}
+
+static void contexts_free_worker(struct work_struct *work)
+{
+	struct drm_i915_private *i915 =
+		container_of(work, typeof(*i915), contexts.free_work);
+
+	mutex_lock(&i915->drm.struct_mutex);
+	contexts_free(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+}
+
+void i915_gem_context_release(struct kref *ref)
+{
+	struct i915_gem_context *ctx = container_of(ref, typeof(*ctx), ref);
+	struct drm_i915_private *i915 = ctx->i915;
+
+	trace_i915_context_free(ctx);
+	if (llist_add(&ctx->free_link, &i915->contexts.free_list))
+		queue_work(i915->wq, &i915->contexts.free_work);
 }
 
 static void context_close(struct i915_gem_context *ctx)
@@ -428,6 +457,8 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 		return 0;
 
 	INIT_LIST_HEAD(&dev_priv->contexts.list);
+	INIT_WORK(&dev_priv->contexts.free_work, contexts_free_worker);
+	init_llist_head(&dev_priv->contexts.free_list);
 
 	if (intel_vgpu_active(dev_priv) &&
 	    HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
@@ -505,18 +536,20 @@ void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
 	}
 }
 
-void i915_gem_contexts_fini(struct drm_i915_private *dev_priv)
+void i915_gem_contexts_fini(struct drm_i915_private *i915)
 {
-	struct i915_gem_context *dctx = dev_priv->kernel_context;
+	struct i915_gem_context *ctx;
 
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	GEM_BUG_ON(!i915_gem_context_is_kernel(dctx));
+	/* Keep the context so that we can free it immediately ourselves */
+	ctx = i915_gem_context_get(fetch_and_zero(&i915->kernel_context));
+	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
+	context_close(ctx);
+	i915_gem_context_free(ctx);
 
-	context_close(dctx);
-	dev_priv->kernel_context = NULL;
-
-	ida_destroy(&dev_priv->contexts.hw_ida);
+	/* Must free all deferred contexts (via flush_workqueue) first */
+	ida_destroy(&i915->contexts.hw_ida);
 }
 
 static int context_idr_cleanup(int id, void *p, void *data)
@@ -956,6 +989,10 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
+
+	/* Reap stale contexts */
+	i915_gem_retire_requests(dev_priv);
+	contexts_free(dev_priv);
 
 	ctx = i915_gem_create_context(dev_priv, file_priv);
 	mutex_unlock(&dev->struct_mutex);

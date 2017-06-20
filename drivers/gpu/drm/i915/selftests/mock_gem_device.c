@@ -57,6 +57,7 @@ static void mock_device_release(struct drm_device *dev)
 
 	cancel_delayed_work_sync(&i915->gt.retire_work);
 	cancel_delayed_work_sync(&i915->gt.idle_work);
+	flush_workqueue(i915->wq);
 
 	mutex_lock(&i915->drm.struct_mutex);
 	for_each_engine(engine, i915, id)
@@ -160,7 +161,7 @@ struct drm_i915_private *mock_gem_device(void)
 	INIT_LIST_HEAD(&i915->mm.unbound_list);
 	INIT_LIST_HEAD(&i915->mm.bound_list);
 
-	ida_init(&i915->contexts.hw_ida);
+	mock_init_contexts(i915);
 
 	INIT_DELAYED_WORK(&i915->gt.retire_work, mock_retire_work_handler);
 	INIT_DELAYED_WORK(&i915->gt.idle_work, mock_idle_work_handler);

@@ -86,3 +86,12 @@ void mock_context_close(struct i915_gem_context *ctx)
 
 	i915_gem_context_put(ctx);
 }
+
+void mock_init_contexts(struct drm_i915_private *i915)
+{
+	INIT_LIST_HEAD(&i915->contexts.list);
+	ida_init(&i915->contexts.hw_ida);
+
+	INIT_WORK(&i915->contexts.free_work, contexts_free_worker);
+	init_llist_head(&i915->contexts.free_list);
+}

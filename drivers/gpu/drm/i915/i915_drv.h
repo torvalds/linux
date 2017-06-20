@@ -2315,6 +2315,8 @@ struct drm_i915_private {
 
 	struct {
 		struct list_head list;
+		struct llist_head free_list;
+		struct work_struct free_work;
 
 		/* The hw wants to have a stable context identifier for the
 		 * lifetime of the context (for OA, PASID, faults, etc).
@@ -3543,27 +3545,6 @@ i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 		return ERR_PTR(-ENOENT);
 
 	return ctx;
-}
-
-static inline struct i915_gem_context *
-i915_gem_context_get(struct i915_gem_context *ctx)
-{
-	kref_get(&ctx->ref);
-	return ctx;
-}
-
-static inline void i915_gem_context_put(struct i915_gem_context *ctx)
-{
-	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
-	kref_put(&ctx->ref, i915_gem_context_free);
-}
-
-static inline void i915_gem_context_put_unlocked(struct i915_gem_context *ctx)
-{
-	struct mutex *lock = &ctx->i915->drm.struct_mutex;
-
-	if (kref_put_mutex(&ctx->ref, i915_gem_context_free, lock))
-		mutex_unlock(lock);
 }
 
 static inline struct intel_timeline *

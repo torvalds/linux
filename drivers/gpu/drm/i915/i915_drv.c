@@ -585,6 +585,8 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 
 static void i915_gem_fini(struct drm_i915_private *dev_priv)
 {
+	flush_workqueue(dev_priv->wq);
+
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);
 	i915_gem_cleanup_engines(dev_priv);

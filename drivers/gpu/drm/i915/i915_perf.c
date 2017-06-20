@@ -2444,7 +2444,7 @@ static void i915_perf_destroy_locked(struct i915_perf_stream *stream)
 	list_del(&stream->link);
 
 	if (stream->ctx)
-		i915_gem_context_put_unlocked(stream->ctx);
+		i915_gem_context_put(stream->ctx);
 
 	kfree(stream);
 }
@@ -2633,7 +2633,7 @@ err_alloc:
 	kfree(stream);
 err_ctx:
 	if (specific_ctx)
-		i915_gem_context_put_unlocked(specific_ctx);
+		i915_gem_context_put(specific_ctx);
 err:
 	return ret;
 }
