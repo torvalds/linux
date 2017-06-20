@@ -1748,6 +1748,10 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			break;
 
 		case SCTP_CMD_SET_ASOC:
+			if (asoc && local_cork) {
+				sctp_outq_uncork(&asoc->outqueue, gfp);
+				local_cork = 0;
+			}
 			asoc = cmd->obj.asoc;
 			break;
 
