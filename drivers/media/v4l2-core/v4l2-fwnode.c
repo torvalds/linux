@@ -291,23 +291,23 @@ struct v4l2_fwnode_endpoint *v4l2_fwnode_endpoint_alloc_parse(
 
 	rval = fwnode_property_read_u64_array(fwnode, "link-frequencies",
 					      NULL, 0);
-	if (rval < 0)
-		goto out_err;
+	if (rval > 0) {
+		vep->link_frequencies =
+			kmalloc_array(rval, sizeof(*vep->link_frequencies),
+				      GFP_KERNEL);
+		if (!vep->link_frequencies) {
+			rval = -ENOMEM;
+			goto out_err;
+		}
 
-	vep->link_frequencies =
-		kmalloc_array(rval, sizeof(*vep->link_frequencies), GFP_KERNEL);
-	if (!vep->link_frequencies) {
-		rval = -ENOMEM;
-		goto out_err;
+		vep->nr_of_link_frequencies = rval;
+
+		rval = fwnode_property_read_u64_array(
+			fwnode, "link-frequencies", vep->link_frequencies,
+			vep->nr_of_link_frequencies);
+		if (rval < 0)
+			goto out_err;
 	}
-
-	vep->nr_of_link_frequencies = rval;
-
-	rval = fwnode_property_read_u64_array(fwnode, "link-frequencies",
-					      vep->link_frequencies,
-					      vep->nr_of_link_frequencies);
-	if (rval < 0)
-		goto out_err;
 
 	return vep;
 
