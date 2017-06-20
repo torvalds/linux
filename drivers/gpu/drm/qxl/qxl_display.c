@@ -437,7 +437,7 @@ static void qxl_monitors_config_set(struct qxl_device *qdev,
 
 }
 
-void qxl_mode_set_nofb(struct drm_crtc *crtc)
+static void qxl_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct qxl_device *qdev = crtc->dev->dev_private;
 	struct qxl_crtc *qcrtc = to_qxl_crtc(crtc);
@@ -475,8 +475,8 @@ static const struct drm_crtc_helper_funcs qxl_crtc_helper_funcs = {
 	.atomic_flush = qxl_crtc_atomic_flush,
 };
 
-int qxl_primary_atomic_check(struct drm_plane *plane,
-			     struct drm_plane_state *state)
+static int qxl_primary_atomic_check(struct drm_plane *plane,
+				    struct drm_plane_state *state)
 {
 	struct qxl_device *qdev = plane->dev->dev_private;
 	struct qxl_framebuffer *qfb;
@@ -547,8 +547,8 @@ static void qxl_primary_atomic_disable(struct drm_plane *plane,
 	}
 }
 
-int qxl_plane_atomic_check(struct drm_plane *plane,
-			   struct drm_plane_state *state)
+static int qxl_plane_atomic_check(struct drm_plane *plane,
+				  struct drm_plane_state *state)
 {
 	return 0;
 }
@@ -647,8 +647,8 @@ out_free_release:
 
 }
 
-void qxl_cursor_atomic_disable(struct drm_plane *plane,
-			       struct drm_plane_state *old_state)
+static void qxl_cursor_atomic_disable(struct drm_plane *plane,
+				      struct drm_plane_state *old_state)
 {
 	struct qxl_device *qdev = plane->dev->dev_private;
 	struct qxl_release *release;
@@ -675,8 +675,8 @@ void qxl_cursor_atomic_disable(struct drm_plane *plane,
 	qxl_release_fence_buffer_objects(release);
 }
 
-int qxl_plane_prepare_fb(struct drm_plane *plane,
-			 struct drm_plane_state *new_state)
+static int qxl_plane_prepare_fb(struct drm_plane *plane,
+				struct drm_plane_state *new_state)
 {
 	struct drm_gem_object *obj;
 	struct qxl_bo *user_bo;
