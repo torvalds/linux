@@ -1843,7 +1843,7 @@ static inline int ssi_aead_gcm(
 
 #ifdef CC_DEBUG
 static inline void ssi_aead_dump_gcm(
-	const char* title,
+	const char *title,
 	struct aead_request *req)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
