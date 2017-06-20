@@ -1953,8 +1953,8 @@ struct sctp_transport *sctp_assoc_is_match(struct sctp_association *,
 					   const union sctp_addr *,
 					   const union sctp_addr *);
 void sctp_assoc_migrate(struct sctp_association *, struct sock *);
-void sctp_assoc_update(struct sctp_association *old,
-		       struct sctp_association *new);
+int sctp_assoc_update(struct sctp_association *old,
+		      struct sctp_association *new);
 
 __u32 sctp_association_get_next_tsn(struct sctp_association *);
 

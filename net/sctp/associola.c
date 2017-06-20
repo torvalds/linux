@@ -1112,8 +1112,8 @@ void sctp_assoc_migrate(struct sctp_association *assoc, struct sock *newsk)
 }
 
 /* Update an association (possibly from unexpected COOKIE-ECHO processing).  */
-void sctp_assoc_update(struct sctp_association *asoc,
-		       struct sctp_association *new)
+int sctp_assoc_update(struct sctp_association *asoc,
+		      struct sctp_association *new)
 {
 	struct sctp_transport *trans;
 	struct list_head *pos, *temp;
@@ -1124,8 +1124,10 @@ void sctp_assoc_update(struct sctp_association *asoc,
 	asoc->peer.sack_needed = new->peer.sack_needed;
 	asoc->peer.auth_capable = new->peer.auth_capable;
 	asoc->peer.i = new->peer.i;
-	sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_INITIAL,
-			 asoc->peer.i.initial_tsn, GFP_ATOMIC);
+
+	if (!sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_INITIAL,
+			      asoc->peer.i.initial_tsn, GFP_ATOMIC))
+		return -ENOMEM;
 
 	/* Remove any peer addresses not present in the new association. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
@@ -1169,11 +1171,11 @@ void sctp_assoc_update(struct sctp_association *asoc,
 	} else {
 		/* Add any peer addresses from the new association. */
 		list_for_each_entry(trans, &new->peer.transport_addr_list,
-				transports) {
-			if (!sctp_assoc_lookup_paddr(asoc, &trans->ipaddr))
-				sctp_assoc_add_peer(asoc, &trans->ipaddr,
-						    GFP_ATOMIC, trans->state);
-		}
+				    transports)
+			if (!sctp_assoc_lookup_paddr(asoc, &trans->ipaddr) &&
+			    !sctp_assoc_add_peer(asoc, &trans->ipaddr,
+						 GFP_ATOMIC, trans->state))
+				return -ENOMEM;
 
 		asoc->ctsn_ack_point = asoc->next_tsn - 1;
 		asoc->adv_peer_ack_point = asoc->ctsn_ack_point;
@@ -1182,7 +1184,8 @@ void sctp_assoc_update(struct sctp_association *asoc,
 			sctp_stream_update(&asoc->stream, &new->stream);
 
 		/* get a new assoc id if we don't have one yet. */
-		sctp_assoc_set_id(asoc, GFP_ATOMIC);
+		if (sctp_assoc_set_id(asoc, GFP_ATOMIC))
+			return -ENOMEM;
 	}
 
 	/* SCTP-AUTH: Save the peer parameters from the new associations
@@ -1200,7 +1203,7 @@ void sctp_assoc_update(struct sctp_association *asoc,
 	asoc->peer.peer_hmacs = new->peer.peer_hmacs;
 	new->peer.peer_hmacs = NULL;
 
-	sctp_auth_asoc_init_active_key(asoc, GFP_ATOMIC);
+	return sctp_auth_asoc_init_active_key(asoc, GFP_ATOMIC);
 }
 
 /* Update the retran path for sending a retransmitted packet.
