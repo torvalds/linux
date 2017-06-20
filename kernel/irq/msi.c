@@ -315,7 +315,7 @@ int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
 
 		ops->set_desc(arg, desc);
 		/* Assumes the domain mutex is held! */
-		ret = irq_domain_alloc_irqs_recursive(domain, virq, 1, arg);
+		ret = irq_domain_alloc_irqs_hierarchy(domain, virq, 1, arg);
 		if (ret)
 			break;
 
