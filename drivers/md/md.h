@@ -444,6 +444,9 @@ struct mddev {
 	struct attribute_group		*to_remove;
 
 	struct bio_set			*bio_set;
+	struct bio_set			*sync_set; /* for sync operations like
+						   * metadata and bitmap writes
+						   */
 
 	/* Generic flush handling.
 	 * The last to finish preflush schedules a worker to submit
