@@ -799,6 +799,9 @@ static int iwl_pci_resume(struct device *device)
 	if (!trans->op_mode)
 		return 0;
 
+	/* reconfigure the MSI-X mapping to get the correct IRQ for rfkill */
+	iwl_pcie_conf_msix_hw(trans_pcie);
+
 	/*
 	 * Enable rfkill interrupt (in order to keep track of the rfkill
 	 * status). Must be locked to avoid processing a possible rfkill
