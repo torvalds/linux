@@ -40,6 +40,7 @@
 struct dma_fence;
 struct drm_file;
 struct drm_device;
+struct device;
 
 /*
  * FIXME: Not sure we want to have drm_minor here in the end, but to avoid
@@ -230,6 +231,11 @@ struct drm_file {
 
 	/** @table_lock: Protects @object_idr. */
 	spinlock_t table_lock;
+
+	/** @syncobj_idr: Mapping of sync object handles to object pointers. */
+	struct idr syncobj_idr;
+	/** @syncobj_table_lock: Protects @syncobj_idr. */
+	spinlock_t syncobj_table_lock;
 
 	/** @filp: Pointer to the core file structure. */
 	struct file *filp;

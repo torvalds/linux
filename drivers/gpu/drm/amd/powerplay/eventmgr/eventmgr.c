@@ -42,8 +42,8 @@ static int pem_init(struct pp_eventmgr *eventmgr)
 	/* Call initialization event */
 	result = pem_handle_event(eventmgr, AMD_PP_EVENT_INITIALIZE, &event_data);
 
-	if (0 != result)
-		return result;
+	/* if (0 != result)
+		return result; */
 
 	/* Register interrupt callback functions */
 	result = pem_register_interrupts(eventmgr);

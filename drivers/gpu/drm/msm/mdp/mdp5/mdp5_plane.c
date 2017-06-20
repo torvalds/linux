@@ -67,11 +67,11 @@ static void mdp5_plane_install_rotation_property(struct drm_device *dev,
 		struct drm_plane *plane)
 {
 	drm_plane_create_rotation_property(plane,
-					   DRM_ROTATE_0,
-					   DRM_ROTATE_0 |
-					   DRM_ROTATE_180 |
-					   DRM_REFLECT_X |
-					   DRM_REFLECT_Y);
+					   DRM_MODE_ROTATE_0,
+					   DRM_MODE_ROTATE_0 |
+					   DRM_MODE_ROTATE_180 |
+					   DRM_MODE_REFLECT_X |
+					   DRM_MODE_REFLECT_Y);
 }
 
 /* helper to install properties which are common to planes and crtcs */
@@ -370,14 +370,14 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 			caps |= MDP_PIPE_CAP_SCALE;
 
 		rotation = drm_rotation_simplify(state->rotation,
-						 DRM_ROTATE_0 |
-						 DRM_REFLECT_X |
-						 DRM_REFLECT_Y);
+						 DRM_MODE_ROTATE_0 |
+						 DRM_MODE_REFLECT_X |
+						 DRM_MODE_REFLECT_Y);
 
-		if (rotation & DRM_REFLECT_X)
+		if (rotation & DRM_MODE_REFLECT_X)
 			caps |= MDP_PIPE_CAP_HFLIP;
 
-		if (rotation & DRM_REFLECT_Y)
+		if (rotation & DRM_MODE_REFLECT_Y)
 			caps |= MDP_PIPE_CAP_VFLIP;
 
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
@@ -975,11 +975,11 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	DBG("scale config = %x", config);
 
 	rotation = drm_rotation_simplify(pstate->rotation,
-					 DRM_ROTATE_0 |
-					 DRM_REFLECT_X |
-					 DRM_REFLECT_Y);
-	hflip = !!(rotation & DRM_REFLECT_X);
-	vflip = !!(rotation & DRM_REFLECT_Y);
+					 DRM_MODE_ROTATE_0 |
+					 DRM_MODE_REFLECT_X |
+					 DRM_MODE_REFLECT_Y);
+	hflip = !!(rotation & DRM_MODE_REFLECT_X);
+	vflip = !!(rotation & DRM_MODE_REFLECT_Y);
 
 	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
 

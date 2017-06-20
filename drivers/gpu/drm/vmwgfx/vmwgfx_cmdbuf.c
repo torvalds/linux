@@ -25,8 +25,9 @@
  *
  **************************************************************************/
 
+#include <drm/ttm/ttm_bo_api.h>
+
 #include "vmwgfx_drv.h"
-#include "ttm/ttm_bo_api.h"
 
 /*
  * Size of inline command buffers. Try to make sure that a page size is a

@@ -61,13 +61,17 @@ typedef struct _ATOM_PPLIB_THERMALCONTROLLER
 #define ATOM_PP_THERMALCONTROLLER_LM96163   17
 #define ATOM_PP_THERMALCONTROLLER_CISLANDS  18
 #define ATOM_PP_THERMALCONTROLLER_KAVERI    19
+#define ATOM_PP_THERMALCONTROLLER_ICELAND   20
+#define ATOM_PP_THERMALCONTROLLER_TONGA     21
+#define ATOM_PP_THERMALCONTROLLER_FIJI      22
+#define ATOM_PP_THERMALCONTROLLER_POLARIS10 23
+#define ATOM_PP_THERMALCONTROLLER_VEGA10    24
 
 
 // Thermal controller 'combo type' to use an external controller for Fan control and an internal controller for thermal.
 // We probably should reserve the bit 0x80 for this use.
 // To keep the number of these types low we should also use the same code for all ASICs (i.e. do not distinguish RV6xx and RV7xx Internal here).
 // The driver can pick the correct internal controller based on the ASIC.
-
 #define ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL   0x89    // ADT7473 Fan Control + Internal Thermal Controller
 #define ATOM_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL   0x8D    // EMC2103 Fan Control + Internal Thermal Controller
 
@@ -104,6 +108,21 @@ typedef struct _ATOM_PPLIB_FANTABLE3
 	USHORT usFanOutputSensitivity;
 } ATOM_PPLIB_FANTABLE3;
 
+typedef struct _ATOM_PPLIB_FANTABLE4
+{
+    ATOM_PPLIB_FANTABLE3 basicTable3;
+    USHORT  usFanRPMMax;
+} ATOM_PPLIB_FANTABLE4;
+
+typedef struct _ATOM_PPLIB_FANTABLE5
+{
+    ATOM_PPLIB_FANTABLE4 basicTable4;
+    USHORT  usFanCurrentLow;
+    USHORT  usFanCurrentHigh;
+    USHORT  usFanRPMLow;
+    USHORT  usFanRPMHigh;
+} ATOM_PPLIB_FANTABLE5;
+
 typedef struct _ATOM_PPLIB_EXTENDEDHEADER
 {
     USHORT  usSize;
@@ -119,6 +138,7 @@ typedef struct _ATOM_PPLIB_EXTENDEDHEADER
     USHORT  usPowerTuneTableOffset;
     /* points to ATOM_PPLIB_CLOCK_Voltage_Dependency_Table for sclkVddgfxTable */
     USHORT  usSclkVddgfxTableOffset;
+    USHORT  usVQBudgetingTableOffset; /* points to the vqBudgetingTable; */
 } ATOM_PPLIB_EXTENDEDHEADER;
 
 //// ATOM_PPLIB_POWERPLAYTABLE::ulPlatformCaps
@@ -147,8 +167,9 @@ typedef struct _ATOM_PPLIB_EXTENDEDHEADER
 #define ATOM_PP_PLATFORM_CAP_TEMP_INVERSION   0x00400000            // Does the driver supports Temp Inversion feature.
 #define ATOM_PP_PLATFORM_CAP_EVV    0x00800000
 #define ATOM_PP_PLATFORM_COMBINE_PCC_WITH_THERMAL_SIGNAL    0x01000000
-#define ATOM_PP_PLATFORM_LOAD_POST_PRODUCTION_FIRMWARE      0x02000000
-#define ATOM_PP_PLATFORM_CAP_DISABLE_USING_ACTUAL_TEMPERATURE_FOR_POWER_CALC 0x04000000
+#define ATOM_PP_PLATFORM_LOAD_POST_PRODUCTION_FIRMWARE    0x02000000
+#define ATOM_PP_PLATFORM_CAP_DISABLE_USING_ACTUAL_TEMPERATURE_FOR_POWER_CALC   0x04000000
+#define ATOM_PP_PLATFORM_CAP_VRHOT_POLARITY_HIGH   0x08000000
 
 typedef struct _ATOM_PPLIB_POWERPLAYTABLE
 {
@@ -427,6 +448,15 @@ typedef struct _ATOM_PPLIB_SUMO_CLOCK_INFO{
       ULONG rsv2[2];
 }ATOM_PPLIB_SUMO_CLOCK_INFO;
 
+typedef struct _ATOM_PPLIB_KV_CLOCK_INFO {
+      USHORT usEngineClockLow;
+      UCHAR  ucEngineClockHigh;
+      UCHAR  vddcIndex;
+      USHORT tdpLimit;
+      USHORT rsv1;
+      ULONG rsv2[2];
+} ATOM_PPLIB_KV_CLOCK_INFO;
+
 typedef struct _ATOM_PPLIB_CZ_CLOCK_INFO {
       UCHAR index;
       UCHAR rsv[3];
@@ -696,6 +726,27 @@ typedef struct _ATOM_PPLIB_PPM_Table
       ULONG  ulDGpuUlvPower;
       ULONG  ulTjmax;
 } ATOM_PPLIB_PPM_Table;
+
+#define    VQ_DisplayConfig_NoneAWD   1
+#define    VQ_DisplayConfig_AWD       2
+
+typedef struct ATOM_PPLIB_VQ_Budgeting_Record{
+    ULONG ulDeviceID;
+    ULONG ulSustainableSOCPowerLimitLow; /* in mW */
+    ULONG ulSustainableSOCPowerLimitHigh; /* in mW */
+
+    ULONG ulDClk;
+    ULONG ulEClk;
+    ULONG ulDispSclk;
+    UCHAR ucDispConfig;
+
+} ATOM_PPLIB_VQ_Budgeting_Record;
+
+typedef struct ATOM_PPLIB_VQ_Budgeting_Table {
+    UCHAR revid;
+    UCHAR numEntries;
+    ATOM_PPLIB_VQ_Budgeting_Record         entries[1];
+} ATOM_PPLIB_VQ_Budgeting_Table;
 
 #pragma pack()
 

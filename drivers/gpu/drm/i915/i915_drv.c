@@ -350,6 +350,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_EXEC_SOFTPIN:
 	case I915_PARAM_HAS_EXEC_ASYNC:
 	case I915_PARAM_HAS_EXEC_FENCE:
+	case I915_PARAM_HAS_EXEC_CAPTURE:
 		/* For the time being all of these are always true;
 		 * if some supported hardware does not have one of these
 		 * features this value needs to be provided from
@@ -834,10 +835,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	intel_uc_init_early(dev_priv);
 	i915_memcpy_init_early(dev_priv);
 
-	ret = intel_engines_init_early(dev_priv);
-	if (ret)
-		return ret;
-
 	ret = i915_workqueues_init(dev_priv);
 	if (ret < 0)
 		goto err_engines;
@@ -855,7 +852,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	intel_init_audio_hooks(dev_priv);
 	ret = i915_gem_load_init(dev_priv);
 	if (ret < 0)
-		goto err_workqueues;
+		goto err_irq;
 
 	intel_display_crc_init(dev_priv);
 
@@ -867,7 +864,8 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	return 0;
 
-err_workqueues:
+err_irq:
+	intel_irq_fini(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 err_engines:
 	i915_engines_cleanup(dev_priv);
@@ -882,6 +880,7 @@ static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 {
 	i915_perf_fini(dev_priv);
 	i915_gem_load_cleanup(dev_priv);
+	intel_irq_fini(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 	i915_engines_cleanup(dev_priv);
 }
@@ -947,14 +946,21 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 
 	ret = i915_mmio_setup(dev_priv);
 	if (ret < 0)
-		goto put_bridge;
+		goto err_bridge;
 
 	intel_uncore_init(dev_priv);
+
+	ret = intel_engines_init_mmio(dev_priv);
+	if (ret)
+		goto err_uncore;
+
 	i915_gem_init_mmio(dev_priv);
 
 	return 0;
 
-put_bridge:
+err_uncore:
+	intel_uncore_fini(dev_priv);
+err_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 
 	return ret;
@@ -1213,9 +1219,8 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_i915_private *dev_priv;
 	int ret;
 
-	/* Enable nuclear pageflip on ILK+, except vlv/chv */
-	if (!i915.nuclear_pageflip &&
-	    (match_info->gen < 5 || match_info->has_gmch_display))
+	/* Enable nuclear pageflip on ILK+ */
+	if (!i915.nuclear_pageflip && match_info->gen < 5)
 		driver.driver_features &= ~DRIVER_ATOMIC;
 
 	ret = -ENOMEM;

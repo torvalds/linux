@@ -14,12 +14,12 @@
  * crtc, HDMI encoder).
  */
 
-#include "drm_crtc.h"
-#include "drm_atomic.h"
-#include "drm_atomic_helper.h"
-#include "drm_crtc_helper.h"
-#include "drm_plane_helper.h"
-#include "drm_fb_cma_helper.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_fb_cma_helper.h>
 #include "vc4_drv.h"
 
 static void vc4_output_poll_changed(struct drm_device *dev)
@@ -230,10 +230,12 @@ int vc4_kms_load(struct drm_device *dev)
 
 	drm_mode_config_reset(dev);
 
-	vc4->fbdev = drm_fbdev_cma_init(dev, 32,
-					dev->mode_config.num_connector);
-	if (IS_ERR(vc4->fbdev))
-		vc4->fbdev = NULL;
+	if (dev->mode_config.num_connector) {
+		vc4->fbdev = drm_fbdev_cma_init(dev, 32,
+						dev->mode_config.num_connector);
+		if (IS_ERR(vc4->fbdev))
+			vc4->fbdev = NULL;
+	}
 
 	drm_kms_helper_poll_init(dev);
 

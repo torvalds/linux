@@ -52,6 +52,10 @@
 #define KBL_HUC_FW_MINOR 00
 #define KBL_BLD_NUM 1810
 
+#define GLK_HUC_FW_MAJOR 02
+#define GLK_HUC_FW_MINOR 00
+#define GLK_BLD_NUM 1748
+
 #define HUC_FW_PATH(platform, major, minor, bld_num) \
 	"i915/" __stringify(platform) "_huc_ver" __stringify(major) "_" \
 	__stringify(minor) "_" __stringify(bld_num) ".bin"
@@ -67,6 +71,9 @@ MODULE_FIRMWARE(I915_BXT_HUC_UCODE);
 #define I915_KBL_HUC_UCODE HUC_FW_PATH(kbl, KBL_HUC_FW_MAJOR, \
 	KBL_HUC_FW_MINOR, KBL_BLD_NUM)
 MODULE_FIRMWARE(I915_KBL_HUC_UCODE);
+
+#define I915_GLK_HUC_UCODE HUC_FW_PATH(glk, GLK_HUC_FW_MAJOR, \
+	GLK_HUC_FW_MINOR, GLK_BLD_NUM)
 
 /**
  * huc_ucode_xfer() - DMA's the firmware
@@ -98,11 +105,6 @@ static int huc_ucode_xfer(struct drm_i915_private *dev_priv)
 	}
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-
-	/* init WOPCM */
-	I915_WRITE(GUC_WOPCM_SIZE, intel_guc_wopcm_size(dev_priv));
-	I915_WRITE(DMA_GUC_WOPCM_OFFSET, GUC_WOPCM_OFFSET_VALUE |
-			HUC_LOADING_AGENT_GUC);
 
 	/* Set the source address for the uCode */
 	offset = guc_ggtt_offset(vma) + huc_fw->header_offset;
@@ -169,6 +171,10 @@ void intel_huc_select_fw(struct intel_huc *huc)
 		huc->fw.path = I915_KBL_HUC_UCODE;
 		huc->fw.major_ver_wanted = KBL_HUC_FW_MAJOR;
 		huc->fw.minor_ver_wanted = KBL_HUC_FW_MINOR;
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		huc->fw.path = I915_GLK_HUC_UCODE;
+		huc->fw.major_ver_wanted = GLK_HUC_FW_MAJOR;
+		huc->fw.minor_ver_wanted = GLK_HUC_FW_MINOR;
 	} else {
 		DRM_ERROR("No HuC firmware known for platform with HuC!\n");
 		return;
@@ -186,68 +192,36 @@ void intel_huc_select_fw(struct intel_huc *huc)
  * earlier call to intel_huc_init(), so here we need only check that
  * is succeeded, and then transfer the image to the h/w.
  *
- * Return:	non-zero code on error
  */
-int intel_huc_init_hw(struct intel_huc *huc)
+void intel_huc_init_hw(struct intel_huc *huc)
 {
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 	int err;
 
-	if (huc->fw.fetch_status == INTEL_UC_FIRMWARE_NONE)
-		return 0;
-
 	DRM_DEBUG_DRIVER("%s fw status: fetch %s, load %s\n",
 		huc->fw.path,
 		intel_uc_fw_status_repr(huc->fw.fetch_status),
 		intel_uc_fw_status_repr(huc->fw.load_status));
 
-	if (huc->fw.fetch_status == INTEL_UC_FIRMWARE_SUCCESS &&
-	    huc->fw.load_status == INTEL_UC_FIRMWARE_FAIL)
-		return -ENOEXEC;
+	if (huc->fw.fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return;
 
 	huc->fw.load_status = INTEL_UC_FIRMWARE_PENDING;
 
-	switch (huc->fw.fetch_status) {
-	case INTEL_UC_FIRMWARE_FAIL:
-		/* something went wrong :( */
-		err = -EIO;
-		goto fail;
-
-	case INTEL_UC_FIRMWARE_NONE:
-	case INTEL_UC_FIRMWARE_PENDING:
-	default:
-		/* "can't happen" */
-		WARN_ONCE(1, "HuC fw %s invalid fetch_status %s [%d]\n",
-			huc->fw.path,
-			intel_uc_fw_status_repr(huc->fw.fetch_status),
-			huc->fw.fetch_status);
-		err = -ENXIO;
-		goto fail;
-
-	case INTEL_UC_FIRMWARE_SUCCESS:
-		break;
-	}
-
 	err = huc_ucode_xfer(dev_priv);
-	if (err)
-		goto fail;
 
-	huc->fw.load_status = INTEL_UC_FIRMWARE_SUCCESS;
+	huc->fw.load_status = err ?
+		INTEL_UC_FIRMWARE_FAIL : INTEL_UC_FIRMWARE_SUCCESS;
 
 	DRM_DEBUG_DRIVER("%s fw status: fetch %s, load %s\n",
 		huc->fw.path,
 		intel_uc_fw_status_repr(huc->fw.fetch_status),
 		intel_uc_fw_status_repr(huc->fw.load_status));
 
-	return 0;
+	if (huc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
+		DRM_ERROR("Failed to complete HuC uCode load with ret %d\n", err);
 
-fail:
-	if (huc->fw.load_status == INTEL_UC_FIRMWARE_PENDING)
-		huc->fw.load_status = INTEL_UC_FIRMWARE_FAIL;
-
-	DRM_ERROR("Failed to complete HuC uCode load with ret %d\n", err);
-
-	return err;
+	return;
 }
 
 /**

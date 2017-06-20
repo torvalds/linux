@@ -18,12 +18,13 @@
  * into the region of the HVS that it has allocated for us.
  */
 
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_plane_helper.h>
+
 #include "vc4_drv.h"
 #include "vc4_regs.h"
-#include "drm_atomic.h"
-#include "drm_atomic_helper.h"
-#include "drm_fb_cma_helper.h"
-#include "drm_plane_helper.h"
 
 enum vc4_scaling_mode {
 	VC4_SCALING_NONE,

@@ -31,6 +31,8 @@
 #include "job.h"
 #include "syncpt.h"
 
+#define HOST1X_WAIT_SYNCPT_OFFSET 0x8
+
 struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 				    u32 num_cmdbufs, u32 num_relocs,
 				    u32 num_waitchks)
@@ -137,8 +139,9 @@ static void host1x_syncpt_patch_offset(struct host1x_syncpt *sp,
  * avoid a wrap condition in the HW).
  */
 static int do_waitchks(struct host1x_job *job, struct host1x *host,
-		       struct host1x_bo *patch)
+		       struct host1x_job_gather *g)
 {
+	struct host1x_bo *patch = g->bo;
 	int i;
 
 	/* compare syncpt vs wait threshold */
@@ -165,7 +168,8 @@ static int do_waitchks(struct host1x_job *job, struct host1x *host,
 				wait->syncpt_id, sp->name, wait->thresh,
 				host1x_syncpt_read_min(sp));
 
-			host1x_syncpt_patch_offset(sp, patch, wait->offset);
+			host1x_syncpt_patch_offset(sp, patch,
+						   g->offset + wait->offset);
 		}
 
 		wait->bo = NULL;
@@ -269,11 +273,12 @@ unpin:
 	return err;
 }
 
-static int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
+static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 {
 	int i = 0;
 	u32 last_page = ~0;
 	void *cmdbuf_page_addr = NULL;
+	struct host1x_bo *cmdbuf = g->bo;
 
 	/* pin & patch the relocs for one gather */
 	for (i = 0; i < job->num_relocs; i++) {
@@ -285,6 +290,13 @@ static int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 		/* skip all other gathers */
 		if (cmdbuf != reloc->cmdbuf.bo)
 			continue;
+
+		if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL)) {
+			target = (u32 *)job->gather_copy_mapped +
+					reloc->cmdbuf.offset / sizeof(u32) +
+						g->offset / sizeof(u32);
+			goto patch_reloc;
+		}
 
 		if (last_page != reloc->cmdbuf.offset >> PAGE_SHIFT) {
 			if (cmdbuf_page_addr)
@@ -302,6 +314,7 @@ static int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 		}
 
 		target = cmdbuf_page_addr + (reloc->cmdbuf.offset & ~PAGE_MASK);
+patch_reloc:
 		*target = reloc_addr;
 	}
 
@@ -319,6 +332,21 @@ static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 	if (reloc->cmdbuf.bo != cmdbuf || reloc->cmdbuf.offset != offset)
 		return false;
 
+	/* relocation shift value validation isn't implemented yet */
+	if (reloc->shift)
+		return false;
+
+	return true;
+}
+
+static bool check_wait(struct host1x_waitchk *wait, struct host1x_bo *cmdbuf,
+		       unsigned int offset)
+{
+	offset *= sizeof(u32);
+
+	if (wait->bo != cmdbuf || wait->offset != offset)
+		return false;
+
 	return true;
 }
 
@@ -328,6 +356,9 @@ struct host1x_firewall {
 
 	unsigned int num_relocs;
 	struct host1x_reloc *reloc;
+
+	unsigned int num_waitchks;
+	struct host1x_waitchk *waitchk;
 
 	struct host1x_bo *cmdbuf;
 	unsigned int offset;
@@ -341,6 +372,9 @@ struct host1x_firewall {
 
 static int check_register(struct host1x_firewall *fw, unsigned long offset)
 {
+	if (!fw->job->is_addr_reg)
+		return 0;
+
 	if (fw->job->is_addr_reg(fw->dev, fw->class, offset)) {
 		if (!fw->num_relocs)
 			return -EINVAL;
@@ -350,6 +384,33 @@ static int check_register(struct host1x_firewall *fw, unsigned long offset)
 
 		fw->num_relocs--;
 		fw->reloc++;
+	}
+
+	if (offset == HOST1X_WAIT_SYNCPT_OFFSET) {
+		if (fw->class != HOST1X_CLASS_HOST1X)
+			return -EINVAL;
+
+		if (!fw->num_waitchks)
+			return -EINVAL;
+
+		if (!check_wait(fw->waitchk, fw->cmdbuf, fw->offset))
+			return -EINVAL;
+
+		fw->num_waitchks--;
+		fw->waitchk++;
+	}
+
+	return 0;
+}
+
+static int check_class(struct host1x_firewall *fw, u32 class)
+{
+	if (!fw->job->is_valid_class) {
+		if (fw->class != class)
+			return -EINVAL;
+	} else {
+		if (!fw->job->is_valid_class(fw->class))
+			return -EINVAL;
 	}
 
 	return 0;
@@ -428,10 +489,8 @@ static int validate(struct host1x_firewall *fw, struct host1x_job_gather *g)
 {
 	u32 *cmdbuf_base = (u32 *)fw->job->gather_copy_mapped +
 		(g->offset / sizeof(u32));
+	u32 job_class = fw->class;
 	int err = 0;
-
-	if (!fw->job->is_addr_reg)
-		return 0;
 
 	fw->words = g->words;
 	fw->cmdbuf = g->bo;
@@ -452,7 +511,9 @@ static int validate(struct host1x_firewall *fw, struct host1x_job_gather *g)
 			fw->class = word >> 6 & 0x3ff;
 			fw->mask = word & 0x3f;
 			fw->reg = word >> 16 & 0xfff;
-			err = check_mask(fw);
+			err = check_class(fw, job_class);
+			if (!err)
+				err = check_mask(fw);
 			if (err)
 				goto out;
 			break;
@@ -480,7 +541,6 @@ static int validate(struct host1x_firewall *fw, struct host1x_job_gather *g)
 				goto out;
 			break;
 		case 4:
-		case 5:
 		case 14:
 			break;
 		default:
@@ -504,7 +564,9 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 	fw.dev = dev;
 	fw.reloc = job->relocarray;
 	fw.num_relocs = job->num_relocs;
-	fw.class = 0;
+	fw.waitchk = job->waitchk;
+	fw.num_waitchks = job->num_waitchk;
+	fw.class = job->class;
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
@@ -512,12 +574,20 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 		size += g->words * sizeof(u32);
 	}
 
+	/*
+	 * Try a non-blocking allocation from a higher priority pools first,
+	 * as awaiting for the allocation here is a major performance hit.
+	 */
 	job->gather_copy_mapped = dma_alloc_wc(dev, size, &job->gather_copy,
-					       GFP_KERNEL);
-	if (!job->gather_copy_mapped) {
-		job->gather_copy_mapped = NULL;
+					       GFP_NOWAIT);
+
+	/* the higher priority allocation failed, try the generic-blocking */
+	if (!job->gather_copy_mapped)
+		job->gather_copy_mapped = dma_alloc_wc(dev, size,
+						       &job->gather_copy,
+						       GFP_KERNEL);
+	if (!job->gather_copy_mapped)
 		return -ENOMEM;
-	}
 
 	job->gather_copy_size = size;
 
@@ -542,8 +612,8 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 		offset += g->words * sizeof(u32);
 	}
 
-	/* No relocs should remain at this point */
-	if (fw.num_relocs)
+	/* No relocs and waitchks should remain at this point */
+	if (fw.num_relocs || fw.num_waitchks)
 		return -EINVAL;
 
 	return 0;
@@ -573,6 +643,12 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 	if (err)
 		goto out;
 
+	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL)) {
+		err = copy_gathers(job, dev);
+		if (err)
+			goto out;
+	}
+
 	/* patch gathers */
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
@@ -581,7 +657,9 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 		if (g->handled)
 			continue;
 
-		g->base = job->gather_addr_phys[i];
+		/* copy_gathers() sets gathers base if firewall is enabled */
+		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
+			g->base = job->gather_addr_phys[i];
 
 		for (j = i + 1; j < job->num_gathers; j++) {
 			if (job->gathers[j].bo == g->bo) {
@@ -590,24 +668,18 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 			}
 		}
 
-		err = do_relocs(job, g->bo);
+		err = do_relocs(job, g);
 		if (err)
 			break;
 
-		err = do_waitchks(job, host, g->bo);
+		err = do_waitchks(job, host, g);
 		if (err)
 			break;
-	}
-
-	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && !err) {
-		err = copy_gathers(job, dev);
-		if (err) {
-			host1x_job_unpin(job);
-			return err;
-		}
 	}
 
 out:
+	if (err)
+		host1x_job_unpin(job);
 	wmb();
 
 	return err;

@@ -214,7 +214,7 @@ struct drm_property_blob {
 
 struct drm_prop_enum_list {
 	int type;
-	char *name;
+	const char *name;
 };
 
 #define obj_to_property(x) container_of(x, struct drm_property, base)

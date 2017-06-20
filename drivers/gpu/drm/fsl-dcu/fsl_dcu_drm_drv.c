@@ -51,19 +51,12 @@ static const struct regmap_config fsl_dcu_regmap_config = {
 	.volatile_reg = fsl_dcu_drm_is_volatile_reg,
 };
 
-static int fsl_dcu_drm_irq_init(struct drm_device *dev)
+static void fsl_dcu_irq_uninstall(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
-	int ret;
 
-	ret = drm_irq_install(dev, fsl_dev->irq);
-	if (ret < 0)
-		dev_err(dev->dev, "failed to install IRQ handler\n");
-
-	regmap_write(fsl_dev->regmap, DCU_INT_STATUS, 0);
+	regmap_write(fsl_dev->regmap, DCU_INT_STATUS, ~0);
 	regmap_write(fsl_dev->regmap, DCU_INT_MASK, ~0);
-
-	return ret;
 }
 
 static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
@@ -83,10 +76,11 @@ static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
 		goto done;
 	}
 
-	ret = fsl_dcu_drm_irq_init(dev);
-	if (ret < 0)
+	ret = drm_irq_install(dev, fsl_dev->irq);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to install IRQ handler\n");
 		goto done;
-	dev->irq_enabled = true;
+	}
 
 	if (legacyfb_depth != 16 && legacyfb_depth != 24 &&
 	    legacyfb_depth != 32) {
@@ -109,7 +103,6 @@ done:
 		drm_fbdev_cma_fini(fsl_dev->fbdev);
 
 	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
 	drm_irq_uninstall(dev);
 	dev->dev_private = NULL;
 
@@ -120,14 +113,13 @@ static void fsl_dcu_unload(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 
-	drm_crtc_force_disable_all(dev);
+	drm_atomic_helper_shutdown(dev);
 	drm_kms_helper_poll_fini(dev);
 
 	if (fsl_dev->fbdev)
 		drm_fbdev_cma_fini(fsl_dev->fbdev);
 
 	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
 	drm_irq_uninstall(dev);
 
 	dev->dev_private = NULL;
@@ -170,6 +162,8 @@ static struct drm_driver fsl_dcu_drm_driver = {
 	.load			= fsl_dcu_load,
 	.unload			= fsl_dcu_unload,
 	.irq_handler		= fsl_dcu_drm_irq,
+	.irq_preinstall		= fsl_dcu_irq_uninstall,
+	.irq_uninstall		= fsl_dcu_irq_uninstall,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,

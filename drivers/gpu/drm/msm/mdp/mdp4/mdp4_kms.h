@@ -18,12 +18,14 @@
 #ifndef __MDP4_KMS_H__
 #define __MDP4_KMS_H__
 
+#include <drm/drm_panel.h>
+
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "mdp/mdp_kms.h"
 #include "mdp4.xml.h"
 
-#include "drm_panel.h"
+struct device_node;
 
 struct mdp4_kms {
 	struct mdp_kms base;

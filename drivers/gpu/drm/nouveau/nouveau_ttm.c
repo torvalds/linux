@@ -28,7 +28,7 @@
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
 
-#include "drm_legacy.h"
+#include <drm/drm_legacy.h>
 
 #include <core/tegra.h>
 

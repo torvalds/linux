@@ -318,8 +318,6 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 	writel(val, prg->regs + IPU_PRG_BADDR(prg_chan));
 
 	val = readl(prg->regs + IPU_PRG_CTL);
-	/* counter load enable */
-	val |= IPU_PRG_CTL_CNT_LOAD_EN(prg_chan);
 	/* config AXI ID */
 	val &= ~(IPU_PRG_CTL_SOFT_ARID_MASK <<
 		 IPU_PRG_CTL_SOFT_ARID_SHIFT(prg_chan));

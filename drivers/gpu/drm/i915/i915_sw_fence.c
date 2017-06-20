@@ -12,6 +12,7 @@
 #include <linux/reservation.h>
 
 #include "i915_sw_fence.h"
+#include "i915_selftest.h"
 
 #define I915_SW_FENCE_FLAG_ALLOC BIT(3) /* after WQ_FLAG_* for safety */
 
@@ -120,34 +121,6 @@ void i915_sw_fence_fini(struct i915_sw_fence *fence)
 }
 #endif
 
-static void i915_sw_fence_release(struct kref *kref)
-{
-	struct i915_sw_fence *fence = container_of(kref, typeof(*fence), kref);
-
-	WARN_ON(atomic_read(&fence->pending) > 0);
-	debug_fence_destroy(fence);
-
-	if (fence->flags & I915_SW_FENCE_MASK) {
-		__i915_sw_fence_notify(fence, FENCE_FREE);
-	} else {
-		i915_sw_fence_fini(fence);
-		kfree(fence);
-	}
-}
-
-static void i915_sw_fence_put(struct i915_sw_fence *fence)
-{
-	debug_fence_assert(fence);
-	kref_put(&fence->kref, i915_sw_fence_release);
-}
-
-static struct i915_sw_fence *i915_sw_fence_get(struct i915_sw_fence *fence)
-{
-	debug_fence_assert(fence);
-	kref_get(&fence->kref);
-	return fence;
-}
-
 static void __i915_sw_fence_wake_up_all(struct i915_sw_fence *fence,
 					struct list_head *continuation)
 {
@@ -202,13 +175,15 @@ static void __i915_sw_fence_complete(struct i915_sw_fence *fence,
 
 	debug_fence_set_state(fence, DEBUG_FENCE_IDLE, DEBUG_FENCE_NOTIFY);
 
-	if (fence->flags & I915_SW_FENCE_MASK &&
-	    __i915_sw_fence_notify(fence, FENCE_COMPLETE) != NOTIFY_DONE)
+	if (__i915_sw_fence_notify(fence, FENCE_COMPLETE) != NOTIFY_DONE)
 		return;
 
 	debug_fence_set_state(fence, DEBUG_FENCE_NOTIFY, DEBUG_FENCE_IDLE);
 
 	__i915_sw_fence_wake_up_all(fence, continuation);
+
+	debug_fence_destroy(fence);
+	__i915_sw_fence_notify(fence, FENCE_FREE);
 }
 
 static void i915_sw_fence_complete(struct i915_sw_fence *fence)
@@ -232,33 +207,26 @@ void __i915_sw_fence_init(struct i915_sw_fence *fence,
 			  const char *name,
 			  struct lock_class_key *key)
 {
-	BUG_ON((unsigned long)fn & ~I915_SW_FENCE_MASK);
+	BUG_ON(!fn || (unsigned long)fn & ~I915_SW_FENCE_MASK);
 
 	debug_fence_init(fence);
 
 	__init_waitqueue_head(&fence->wait, name, key);
-	kref_init(&fence->kref);
 	atomic_set(&fence->pending, 1);
 	fence->flags = (unsigned long)fn;
-}
-
-static void __i915_sw_fence_commit(struct i915_sw_fence *fence)
-{
-	i915_sw_fence_complete(fence);
-	i915_sw_fence_put(fence);
 }
 
 void i915_sw_fence_commit(struct i915_sw_fence *fence)
 {
 	debug_fence_activate(fence);
-	__i915_sw_fence_commit(fence);
+	i915_sw_fence_complete(fence);
 }
 
 static int i915_sw_fence_wake(wait_queue_t *wq, unsigned mode, int flags, void *key)
 {
 	list_del(&wq->task_list);
 	__i915_sw_fence_complete(wq->private, key);
-	i915_sw_fence_put(wq->private);
+
 	if (wq->flags & I915_SW_FENCE_FLAG_ALLOC)
 		kfree(wq);
 	return 0;
@@ -307,7 +275,7 @@ static bool i915_sw_fence_check_if_after(struct i915_sw_fence *fence,
 	unsigned long flags;
 	bool err;
 
-	if (!IS_ENABLED(CONFIG_I915_SW_FENCE_CHECK_DAG))
+	if (!IS_ENABLED(CONFIG_DRM_I915_SW_FENCE_CHECK_DAG))
 		return false;
 
 	spin_lock_irqsave(&i915_sw_fence_lock, flags);
@@ -353,7 +321,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 	INIT_LIST_HEAD(&wq->task_list);
 	wq->flags = pending;
 	wq->func = i915_sw_fence_wake;
-	wq->private = i915_sw_fence_get(fence);
+	wq->private = fence;
 
 	i915_sw_fence_await(fence);
 
@@ -402,7 +370,7 @@ static void timer_i915_sw_fence_wake(unsigned long data)
 	dma_fence_put(cb->dma);
 	cb->dma = NULL;
 
-	__i915_sw_fence_commit(cb->fence);
+	i915_sw_fence_complete(cb->fence);
 	cb->timer.function = NULL;
 }
 
@@ -413,7 +381,7 @@ static void dma_i915_sw_fence_wake(struct dma_fence *dma,
 
 	del_timer_sync(&cb->timer);
 	if (cb->timer.function)
-		__i915_sw_fence_commit(cb->fence);
+		i915_sw_fence_complete(cb->fence);
 	dma_fence_put(cb->dma);
 
 	kfree(cb);
@@ -440,7 +408,7 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 		return dma_fence_wait(dma, false);
 	}
 
-	cb->fence = i915_sw_fence_get(fence);
+	cb->fence = fence;
 	i915_sw_fence_await(fence);
 
 	cb->dma = NULL;
@@ -523,3 +491,7 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 
 	return ret;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/i915_sw_fence.c"
+#endif

@@ -23,6 +23,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drmP.h>
 
+#include "zx_common_regs.h"
 #include "zx_drm_drv.h"
 #include "zx_plane.h"
 #include "zx_vou.h"
@@ -122,6 +123,8 @@ struct zx_crtc {
 	struct drm_plane *primary;
 	struct zx_vou_hw *vou;
 	void __iomem *chnreg;
+	void __iomem *chncsc;
+	void __iomem *dither;
 	const struct zx_crtc_regs *regs;
 	const struct zx_crtc_bits *bits;
 	enum vou_chn_type chn_type;
@@ -204,6 +207,11 @@ static struct vou_inf vou_infs[] = {
 		.clocks_en_bits = BIT(15),
 		.clocks_sel_bits = BIT(11) | BIT(0),
 	},
+	[VOU_VGA] = {
+		.data_sel = VOU_RGB_888,
+		.clocks_en_bits = BIT(1),
+		.clocks_sel_bits = BIT(10),
+	},
 };
 
 static inline struct zx_vou_hw *crtc_to_vou(struct drm_crtc *crtc)
@@ -227,8 +235,25 @@ void vou_inf_enable(enum vou_inf_id id, struct drm_crtc *crtc)
 	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
 	struct zx_vou_hw *vou = zcrtc->vou;
 	struct vou_inf *inf = &vou_infs[id];
+	void __iomem *dither = zcrtc->dither;
+	void __iomem *csc = zcrtc->chncsc;
 	bool is_main = zcrtc->chn_type == VOU_CHN_MAIN;
 	u32 data_sel_shift = id << 1;
+
+	if (inf->data_sel != VOU_YUV444) {
+		/* Enable channel CSC for RGB output */
+		zx_writel_mask(csc + CSC_CTRL0, CSC_COV_MODE_MASK,
+			       CSC_BT709_IMAGE_YCBCR2RGB << CSC_COV_MODE_SHIFT);
+		zx_writel_mask(csc + CSC_CTRL0, CSC_WORK_ENABLE,
+			       CSC_WORK_ENABLE);
+
+		/* Bypass Dither block for RGB output */
+		zx_writel_mask(dither + OSD_DITHER_CTRL0, DITHER_BYSPASS,
+			       DITHER_BYSPASS);
+	} else {
+		zx_writel_mask(csc + CSC_CTRL0, CSC_WORK_ENABLE, 0);
+		zx_writel_mask(dither + OSD_DITHER_CTRL0, DITHER_BYSPASS, 0);
+	}
 
 	/* Select data format */
 	zx_writel_mask(vou->vouctl + VOU_INF_DATA_SEL, 0x3 << data_sel_shift,
@@ -525,20 +550,24 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 
 	if (chn_type == VOU_CHN_MAIN) {
 		zplane->layer = vou->osd + MAIN_GL_OFFSET;
-		zplane->csc = vou->osd + MAIN_CSC_OFFSET;
+		zplane->csc = vou->osd + MAIN_GL_CSC_OFFSET;
 		zplane->hbsc = vou->osd + MAIN_HBSC_OFFSET;
 		zplane->rsz = vou->otfppu + MAIN_RSZ_OFFSET;
 		zplane->bits = &zx_gl_bits[0];
 		zcrtc->chnreg = vou->osd + OSD_MAIN_CHN;
+		zcrtc->chncsc = vou->osd + MAIN_CHN_CSC_OFFSET;
+		zcrtc->dither = vou->osd + MAIN_DITHER_OFFSET;
 		zcrtc->regs = &main_crtc_regs;
 		zcrtc->bits = &main_crtc_bits;
 	} else {
 		zplane->layer = vou->osd + AUX_GL_OFFSET;
-		zplane->csc = vou->osd + AUX_CSC_OFFSET;
+		zplane->csc = vou->osd + AUX_GL_CSC_OFFSET;
 		zplane->hbsc = vou->osd + AUX_HBSC_OFFSET;
 		zplane->rsz = vou->otfppu + AUX_RSZ_OFFSET;
 		zplane->bits = &zx_gl_bits[1];
 		zcrtc->chnreg = vou->osd + OSD_AUX_CHN;
+		zcrtc->chncsc = vou->osd + AUX_CHN_CSC_OFFSET;
+		zcrtc->dither = vou->osd + AUX_DITHER_OFFSET;
 		zcrtc->regs = &aux_crtc_regs;
 		zcrtc->bits = &aux_crtc_bits;
 	}
@@ -704,9 +733,6 @@ static void vou_hw_init(struct zx_vou_hw *vou)
 {
 	/* Release reset for all VOU modules */
 	zx_writel(vou->vouctl + VOU_SOFT_RST, ~0);
-
-	/* Enable clock auto-gating for all VOU modules */
-	zx_writel(vou->vouctl + VOU_CLK_REQEN, ~0);
 
 	/* Enable all VOU module clocks */
 	zx_writel(vou->vouctl + VOU_CLK_EN, ~0);

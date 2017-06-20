@@ -113,6 +113,32 @@ struct sdma_firmware_header_v1_1 {
 	uint32_t digest_size;
 };
 
+/* gpu info payload */
+struct gpu_info_firmware_v1_0 {
+	uint32_t gc_num_se;
+	uint32_t gc_num_cu_per_sh;
+	uint32_t gc_num_sh_per_se;
+	uint32_t gc_num_rb_per_se;
+	uint32_t gc_num_tccs;
+	uint32_t gc_num_gprs;
+	uint32_t gc_num_max_gs_thds;
+	uint32_t gc_gs_table_depth;
+	uint32_t gc_gsprim_buff_depth;
+	uint32_t gc_parameter_cache_depth;
+	uint32_t gc_double_offchip_lds_buffer;
+	uint32_t gc_wave_size;
+	uint32_t gc_max_waves_per_simd;
+	uint32_t gc_max_scratch_slots_per_cu;
+	uint32_t gc_lds_size;
+};
+
+/* version_major=1, version_minor=0 */
+struct gpu_info_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint16_t version_major; /* version */
+	uint16_t version_minor; /* version */
+};
+
 /* header is fixed size */
 union amdgpu_firmware_header {
 	struct common_firmware_header common;
@@ -124,6 +150,7 @@ union amdgpu_firmware_header {
 	struct rlc_firmware_header_v2_0 rlc_v2_0;
 	struct sdma_firmware_header_v1_0 sdma;
 	struct sdma_firmware_header_v1_1 sdma_v1_1;
+	struct gpu_info_firmware_header_v1_0 gpu_info;
 	uint8_t raw[0x100];
 };
 
@@ -184,6 +211,7 @@ void amdgpu_ucode_print_smc_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_gfx_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr);
+void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr);
 int amdgpu_ucode_validate(const struct firmware *fw);
 bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
 				uint16_t hdr_major, uint16_t hdr_minor);

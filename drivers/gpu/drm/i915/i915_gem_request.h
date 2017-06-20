@@ -67,10 +67,16 @@ struct i915_dependency {
 struct i915_priotree {
 	struct list_head signalers_list; /* those before us, we depend upon */
 	struct list_head waiters_list; /* those after us, they depend upon us */
-	struct rb_node node;
+	struct list_head link;
 	int priority;
 #define I915_PRIORITY_MAX 1024
+#define I915_PRIORITY_NORMAL 0
 #define I915_PRIORITY_MIN (-I915_PRIORITY_MAX)
+};
+
+struct i915_gem_capture_list {
+	struct i915_gem_capture_list *next;
+	struct i915_vma *vma;
 };
 
 /**
@@ -167,6 +173,12 @@ struct drm_i915_gem_request {
 	 * error state dump only).
 	 */
 	struct i915_vma *batch;
+	/** Additional buffers requested by userspace to be captured upon
+	 * a GPU hang. The vma/obj on this list are protected by their
+	 * active reference - all objects on this list must also be
+	 * on the active_list (of their final request).
+	 */
+	struct i915_gem_capture_list *capture_list;
 	struct list_head active_list;
 
 	/** Time at which this request was emitted, in jiffies. */

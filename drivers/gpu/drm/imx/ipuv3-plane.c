@@ -273,7 +273,7 @@ void ipu_plane_state_reset(struct drm_plane *plane)
 
 	if (ipu_state) {
 		ipu_state->base.plane = plane;
-		ipu_state->base.rotation = DRM_ROTATE_0;
+		ipu_state->base.rotation = DRM_MODE_ROTATE_0;
 	}
 
 	plane->state = &ipu_state->base;

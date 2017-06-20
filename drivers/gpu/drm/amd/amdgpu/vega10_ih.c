@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
 #include "soc15.h"
@@ -97,7 +97,10 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	/* disable irqs */
 	vega10_ih_disable_interrupts(adev);
 
-	nbio_v6_1_ih_control(adev);
+	if (adev->flags & AMD_IS_APU)
+		nbio_v7_0_ih_control(adev);
+	else
+		nbio_v6_1_ih_control(adev);
 
 	ih_rb_cntl = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
 	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
@@ -148,7 +151,10 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 						 ENABLE, 0);
 	}
 	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_DOORBELL_RPTR), ih_doorbell_rtpr);
-	nbio_v6_1_ih_doorbell_range(adev, adev->irq.ih.use_doorbell, adev->irq.ih.doorbell_index);
+	if (adev->flags & AMD_IS_APU)
+		nbio_v7_0_ih_doorbell_range(adev, adev->irq.ih.use_doorbell, adev->irq.ih.doorbell_index);
+	else
+		nbio_v6_1_ih_doorbell_range(adev, adev->irq.ih.use_doorbell, adev->irq.ih.doorbell_index);
 
 	tmp = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL));
 	tmp = REG_SET_FIELD(tmp, IH_STORM_CLIENT_LIST_CNTL,

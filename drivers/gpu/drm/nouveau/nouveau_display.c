@@ -98,7 +98,7 @@ calc(int blanks, int blanke, int total, int line)
 	return line;
 }
 
-static int
+static bool
 nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 				ktime_t *stime, ktime_t *etime)
 {
@@ -111,16 +111,16 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 	};
 	struct nouveau_display *disp = nouveau_display(crtc->dev);
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
-	int ret, retry = 20;
+	int retry = 20;
+	bool ret = false;
 
 	do {
 		ret = nvif_mthd(&disp->disp, 0, &args, sizeof(args));
 		if (ret != 0)
-			return 0;
+			return false;
 
 		if (args.scan.vline) {
-			ret |= DRM_SCANOUTPOS_ACCURATE;
-			ret |= DRM_SCANOUTPOS_VALID;
+			ret = true;
 			break;
 		}
 
@@ -133,14 +133,12 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 	if (stime) *stime = ns_to_ktime(args.scan.time[0]);
 	if (etime) *etime = ns_to_ktime(args.scan.time[1]);
 
-	if (*vpos < 0)
-		ret |= DRM_SCANOUTPOS_IN_VBLANK;
 	return ret;
 }
 
-int
+bool
 nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
-			   unsigned int flags, int *vpos, int *hpos,
+			   bool in_vblank_irq, int *vpos, int *hpos,
 			   ktime_t *stime, ktime_t *etime,
 			   const struct drm_display_mode *mode)
 {
@@ -153,28 +151,7 @@ nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
 		}
 	}
 
-	return 0;
-}
-
-int
-nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
-			 int *max_error, struct timeval *time, unsigned flags)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == pipe) {
-			struct drm_display_mode *mode;
-			if (drm_drv_uses_atomic_modeset(dev))
-				mode = &crtc->state->adjusted_mode;
-			else
-				mode = &crtc->hwmode;
-			return drm_calc_vbltimestamp_from_scanoutpos(dev,
-					pipe, max_error, time, flags, mode);
-		}
-	}
-
-	return -EINVAL;
+	return false;
 }
 
 static void

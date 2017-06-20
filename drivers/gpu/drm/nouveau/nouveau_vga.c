@@ -111,6 +111,10 @@ nouveau_vga_fini(struct nouveau_drm *drm)
 	struct drm_device *dev = drm->dev;
 	bool runtime = nouveau_pmops_runtime();
 
+	/* only relevant for PCI devices */
+	if (!dev->pdev)
+		return;
+
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 
 	if (pci_is_thunderbolt_attached(dev->pdev))

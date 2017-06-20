@@ -910,16 +910,9 @@ int hdmi5_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 	struct resource *res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
-	if (!res) {
-		DSSERR("can't get CORE IORESOURCE_MEM HDMI\n");
-		return -EINVAL;
-	}
-
 	core->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(core->base)) {
-		DSSERR("can't ioremap HDMI core\n");
+	if (IS_ERR(core->base))
 		return PTR_ERR(core->base);
-	}
 
 	return 0;
 }

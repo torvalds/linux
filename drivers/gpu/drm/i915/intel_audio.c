@@ -632,20 +632,9 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder,
 						 (int) port, (int) pipe);
 	}
 
-	switch (intel_encoder->type) {
-	case INTEL_OUTPUT_HDMI:
-		intel_lpe_audio_notify(dev_priv, connector->eld, port, pipe,
-				       crtc_state->port_clock,
-				       false, 0);
-		break;
-	case INTEL_OUTPUT_DP:
-		intel_lpe_audio_notify(dev_priv, connector->eld, port, pipe,
-				       adjusted_mode->crtc_clock,
-				       true, crtc_state->port_clock);
-		break;
-	default:
-		break;
-	}
+	intel_lpe_audio_notify(dev_priv, pipe, port, connector->eld,
+			       crtc_state->port_clock,
+			       intel_encoder->type == INTEL_OUTPUT_DP);
 }
 
 /**
@@ -680,7 +669,7 @@ void intel_audio_codec_disable(struct intel_encoder *intel_encoder)
 						 (int) port, (int) pipe);
 	}
 
-	intel_lpe_audio_notify(dev_priv, NULL, port, pipe, 0, false, 0);
+	intel_lpe_audio_notify(dev_priv, pipe, port, NULL, 0, false);
 }
 
 /**

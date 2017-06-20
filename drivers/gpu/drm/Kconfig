@@ -246,6 +246,8 @@ source "drivers/gpu/drm/fsl-dcu/Kconfig"
 
 source "drivers/gpu/drm/tegra/Kconfig"
 
+source "drivers/gpu/drm/stm/Kconfig"
+
 source "drivers/gpu/drm/panel/Kconfig"
 
 source "drivers/gpu/drm/bridge/Kconfig"
@@ -273,6 +275,8 @@ source "drivers/gpu/drm/mxsfb/Kconfig"
 source "drivers/gpu/drm/meson/Kconfig"
 
 source "drivers/gpu/drm/tinydrm/Kconfig"
+
+source "drivers/gpu/drm/pl111/Kconfig"
 
 # Keep legacy drivers last
 

@@ -24,12 +24,13 @@
  */
 
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
 #include "amdgpu_ucode.h"
 #include "soc15_common.h"
 #include "psp_v3_1.h"
+#include "psp_v10_0.h"
 
 static void psp_set_funcs(struct amdgpu_device *adev);
 
@@ -60,6 +61,12 @@ static int psp_sw_init(void *handle)
 		psp->cmd_submit = psp_v3_1_cmd_submit;
 		psp->compare_sram_data = psp_v3_1_compare_sram_data;
 		psp->smu_reload_quirk = psp_v3_1_smu_reload_quirk;
+		break;
+	case CHIP_RAVEN:
+		psp->prep_cmd_buf = psp_v10_0_prep_cmd_buf;
+		psp->ring_init = psp_v10_0_ring_init;
+		psp->cmd_submit = psp_v10_0_cmd_submit;
+		psp->compare_sram_data = psp_v10_0_compare_sram_data;
 		break;
 	default:
 		return -EINVAL;
@@ -229,6 +236,13 @@ static int psp_asd_load(struct psp_context *psp)
 {
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
+
+	/* If PSP version doesn't match ASD version, asd loading will be failed.
+	 * add workaround to bypass it for sriov now.
+	 * TODO: add version check to make it common
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!cmd)
@@ -539,6 +553,15 @@ const struct amdgpu_ip_block_version psp_v3_1_ip_block =
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 3,
 	.minor = 1,
+	.rev = 0,
+	.funcs = &psp_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version psp_v10_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_PSP,
+	.major = 10,
+	.minor = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };

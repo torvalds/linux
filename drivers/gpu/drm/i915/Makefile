@@ -16,6 +16,7 @@ i915-y := i915_drv.o \
 	  i915_params.o \
 	  i915_pci.o \
           i915_suspend.o \
+	  i915_syncmap.o \
 	  i915_sw_fence.o \
 	  i915_sysfs.o \
 	  intel_csr.o \
@@ -57,6 +58,7 @@ i915-y += i915_cmd_parser.o \
 
 # general-purpose microcontroller (GuC) support
 i915-y += intel_uc.o \
+	  intel_guc_ct.o \
 	  intel_guc_log.o \
 	  intel_guc_loader.o \
 	  intel_huc.o \

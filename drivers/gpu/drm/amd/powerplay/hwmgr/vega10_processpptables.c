@@ -54,6 +54,7 @@ static const void *get_powerplay_table(struct pp_hwmgr *hwmgr)
 						&size, &frev, &crev);
 
 		hwmgr->soft_pp_table = table_address;	/*Cache the result in RAM.*/
+		hwmgr->soft_pp_table_size = size;
 	}
 
 	return table_address;
@@ -210,10 +211,8 @@ static int init_thermal_controller(
 				fan_table_v2->ucFanParameters & ATOM_VEGA10_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK;
 		hwmgr->thermal_controller.fanInfo.ulMinRPM = fan_table_v2->ucFanMinRPM * 100UL;
 		hwmgr->thermal_controller.fanInfo.ulMaxRPM = fan_table_v2->ucFanMaxRPM * 100UL;
-
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_MicrocodeFanControl);
-
 		hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity =
 				le16_to_cpu(fan_table_v2->usFanOutputSensitivity);
 		hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanRPM =
@@ -366,6 +365,7 @@ static int get_tdp_table(
 	uint8_t sda;
 	const ATOM_Vega10_PowerTune_Table *power_tune_table;
 	const ATOM_Vega10_PowerTune_Table_V2 *power_tune_table_v2;
+	const ATOM_Vega10_PowerTune_Table_V3 *power_tune_table_v3;
 
 	table_size = sizeof(uint32_t) + sizeof(struct phm_tdp_table);
 
@@ -408,7 +408,7 @@ static int get_tdp_table(
 		tdp_table->ucPlx_I2C_Line = power_tune_table->ucPlx_I2C_LineSCL;
 		tdp_table->ucPlx_I2C_LineSDA = power_tune_table->ucPlx_I2C_LineSDA;
 		hwmgr->platform_descriptor.LoadLineSlope = le16_to_cpu(power_tune_table->usLoadLineResistance);
-	} else {
+	} else if (table->ucRevId == 6) {
 		power_tune_table_v2 = (ATOM_Vega10_PowerTune_Table_V2 *)table;
 		tdp_table->usMaximumPowerDeliveryLimit = le16_to_cpu(power_tune_table_v2->usSocketPowerLimit);
 		tdp_table->usTDC = le16_to_cpu(power_tune_table_v2->usTdcLimit);
@@ -454,6 +454,47 @@ static int get_tdp_table(
 
 		hwmgr->platform_descriptor.LoadLineSlope =
 					le16_to_cpu(power_tune_table_v2->usLoadLineResistance);
+	} else {
+		power_tune_table_v3 = (ATOM_Vega10_PowerTune_Table_V3 *)table;
+		tdp_table->usMaximumPowerDeliveryLimit   = power_tune_table_v3->usSocketPowerLimit;
+		tdp_table->usTDC                         = power_tune_table_v3->usTdcLimit;
+		tdp_table->usEDCLimit                    = power_tune_table_v3->usEdcLimit;
+		tdp_table->usSoftwareShutdownTemp        = power_tune_table_v3->usSoftwareShutdownTemp;
+		tdp_table->usTemperatureLimitTedge       = power_tune_table_v3->usTemperatureLimitTedge;
+		tdp_table->usTemperatureLimitHotspot     = power_tune_table_v3->usTemperatureLimitHotSpot;
+		tdp_table->usTemperatureLimitLiquid1     = power_tune_table_v3->usTemperatureLimitLiquid1;
+		tdp_table->usTemperatureLimitLiquid2     = power_tune_table_v3->usTemperatureLimitLiquid2;
+		tdp_table->usTemperatureLimitHBM         = power_tune_table_v3->usTemperatureLimitHBM;
+		tdp_table->usTemperatureLimitVrVddc      = power_tune_table_v3->usTemperatureLimitVrSoc;
+		tdp_table->usTemperatureLimitVrMvdd      = power_tune_table_v3->usTemperatureLimitVrMem;
+		tdp_table->usTemperatureLimitPlx         = power_tune_table_v3->usTemperatureLimitPlx;
+		tdp_table->ucLiquid1_I2C_address         = power_tune_table_v3->ucLiquid1_I2C_address;
+		tdp_table->ucLiquid2_I2C_address         = power_tune_table_v3->ucLiquid2_I2C_address;
+		tdp_table->usBoostStartTemperature       = power_tune_table_v3->usBoostStartTemperature;
+		tdp_table->usBoostStopTemperature        = power_tune_table_v3->usBoostStopTemperature;
+		tdp_table->ulBoostClock                  = power_tune_table_v3->ulBoostClock;
+
+		get_scl_sda_value(power_tune_table_v3->ucLiquid_I2C_Line, &scl, &sda);
+
+		tdp_table->ucLiquid_I2C_Line             = scl;
+		tdp_table->ucLiquid_I2C_LineSDA          = sda;
+
+		tdp_table->ucVr_I2C_address              = power_tune_table_v3->ucVr_I2C_address;
+
+		get_scl_sda_value(power_tune_table_v3->ucVr_I2C_Line, &scl, &sda);
+
+		tdp_table->ucVr_I2C_Line                 = scl;
+		tdp_table->ucVr_I2C_LineSDA              = sda;
+
+		tdp_table->ucPlx_I2C_address             = power_tune_table_v3->ucPlx_I2C_address;
+
+		get_scl_sda_value(power_tune_table_v3->ucPlx_I2C_Line, &scl, &sda);
+
+		tdp_table->ucPlx_I2C_Line                = scl;
+		tdp_table->ucPlx_I2C_LineSDA             = sda;
+
+		hwmgr->platform_descriptor.LoadLineSlope =
+					le16_to_cpu(power_tune_table_v3->usLoadLineResistance);
 	}
 
 	*info_tdp_table = tdp_table;
@@ -566,7 +607,7 @@ static int get_gfxclk_voltage_dependency_table(
 		clk_table->entries[i].clk =
 				le32_to_cpu(clk_dep_table->entries[i].ulClk);
 		clk_table->entries[i].cks_enable =
-				(((clk_dep_table->entries[i].usCKSVOffsetandDisable & 0x80)
+				(((clk_dep_table->entries[i].usCKSVOffsetandDisable & 0x8000)
 						>> 15) == 0) ? 1 : 0;
 		clk_table->entries[i].cks_voffset =
 				(clk_dep_table->entries[i].usCKSVOffsetandDisable & 0x7F);

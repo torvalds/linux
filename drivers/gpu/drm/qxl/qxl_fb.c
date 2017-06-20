@@ -25,14 +25,15 @@
  */
 #include <linux/module.h>
 
-#include "drmP.h"
-#include "drm/drm.h"
-#include "drm/drm_crtc.h"
-#include "drm/drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
+
 #include "qxl_drv.h"
 
 #include "qxl_object.h"
-#include "drm_fb_helper.h"
 
 #define QXL_DIRTY_DELAY (HZ / 30)
 

@@ -22,7 +22,7 @@
  * each CRTC.
  */
 
-#include "linux/component.h"
+#include <linux/component.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 

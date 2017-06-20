@@ -1,0 +1,16 @@
+config DRM_STM
+	tristate "DRM Support for STMicroelectronics SoC Series"
+	depends on DRM && (ARCH_STM32 || ARCH_MULTIPLATFORM)
+	select DRM_KMS_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_PANEL
+	select VIDEOMODE_HELPERS
+	select FB_PROVIDE_GET_FB_UNMAPPED_AREA
+	default y
+
+	help
+	  Enable support for the on-chip display controller on
+	  STMicroelectronics STM32 MCUs.
+	  To compile this driver as a module, choose M here: the module
+	  will be called stm-drm.

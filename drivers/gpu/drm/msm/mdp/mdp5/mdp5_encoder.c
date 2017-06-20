@@ -16,10 +16,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mdp5_kms.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
+#include "mdp5_kms.h"
 
 static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 {

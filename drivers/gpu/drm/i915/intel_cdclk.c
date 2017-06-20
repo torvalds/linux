@@ -1071,9 +1071,15 @@ static int bxt_calc_cdclk(int max_pixclk)
 
 static int glk_calc_cdclk(int max_pixclk)
 {
-	if (max_pixclk > 2 * 158400)
+	/*
+	 * FIXME: Avoid using a pixel clock that is more than 99% of the cdclk
+	 * as a temporary workaround. Use a higher cdclk instead. (Note that
+	 * intel_compute_max_dotclk() limits the max pixel clock to 99% of max
+	 * cdclk.)
+	 */
+	if (max_pixclk > DIV_ROUND_UP(2 * 158400 * 99, 100))
 		return 316800;
-	else if (max_pixclk > 2 * 79200)
+	else if (max_pixclk > DIV_ROUND_UP(2 * 79200 * 99, 100))
 		return 158400;
 	else
 		return 79200;
@@ -1664,7 +1670,11 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 	int max_cdclk_freq = dev_priv->max_cdclk_freq;
 
 	if (IS_GEMINILAKE(dev_priv))
-		return 2 * max_cdclk_freq;
+		/*
+		 * FIXME: Limiting to 99% as a temporary workaround. See
+		 * glk_calc_cdclk() for details.
+		 */
+		return 2 * max_cdclk_freq * 99 / 100;
 	else if (INTEL_INFO(dev_priv)->gen >= 9 ||
 		 IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		return max_cdclk_freq;

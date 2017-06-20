@@ -27,7 +27,6 @@ enum omapdss_version {
 
 /* Board specific data */
 struct omap_dss_board_info {
-	const char *default_display_name;
 	int (*dsi_enable_pads)(int dsi_id, unsigned int lane_mask);
 	void (*dsi_disable_pads)(int dsi_id, unsigned int lane_mask);
 	int (*set_min_bus_tput)(struct device *dev, unsigned long r);

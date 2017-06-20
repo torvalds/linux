@@ -43,6 +43,8 @@ struct vgem_file {
 #define to_vgem_bo(x) container_of(x, struct drm_vgem_gem_object, base)
 struct drm_vgem_gem_object {
 	struct drm_gem_object base;
+	struct page **pages;
+	struct sg_table *table;
 };
 
 int vgem_fence_open(struct vgem_file *file);

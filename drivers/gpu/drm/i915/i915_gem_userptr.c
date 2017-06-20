@@ -507,7 +507,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	ret = -ENOMEM;
 	pinned = 0;
 
-	pvec = drm_malloc_gfp(npages, sizeof(struct page *), GFP_TEMPORARY);
+	pvec = kvmalloc_array(npages, sizeof(struct page *), GFP_TEMPORARY);
 	if (pvec != NULL) {
 		struct mm_struct *mm = obj->userptr.mm->mm;
 		unsigned int flags = 0;
@@ -555,7 +555,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	mutex_unlock(&obj->mm.lock);
 
 	release_pages(pvec, pinned, 0);
-	drm_free_large(pvec);
+	kvfree(pvec);
 
 	i915_gem_object_put(obj);
 	put_task_struct(work->task);
@@ -642,7 +642,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	pinned = 0;
 
 	if (mm == current->mm) {
-		pvec = drm_malloc_gfp(num_pages, sizeof(struct page *),
+		pvec = kvmalloc_array(num_pages, sizeof(struct page *),
 				      GFP_TEMPORARY |
 				      __GFP_NORETRY |
 				      __GFP_NOWARN);
@@ -669,7 +669,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 
 	if (IS_ERR(pages))
 		release_pages(pvec, pinned, 0);
-	drm_free_large(pvec);
+	kvfree(pvec);
 
 	return pages;
 }

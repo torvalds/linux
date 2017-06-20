@@ -68,11 +68,11 @@
 #include <linux/hashtable.h>
 #include <linux/dma-fence.h>
 
-#include <ttm/ttm_bo_api.h>
-#include <ttm/ttm_bo_driver.h>
-#include <ttm/ttm_placement.h>
-#include <ttm/ttm_module.h>
-#include <ttm/ttm_execbuf_util.h>
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_execbuf_util.h>
 
 #include <drm/drm_gem.h>
 
@@ -115,6 +115,8 @@ extern int radeon_auxch;
 extern int radeon_mst;
 extern int radeon_uvd;
 extern int radeon_vce;
+extern int radeon_si_support;
+extern int radeon_cik_support;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -767,24 +769,9 @@ struct r600_irq_stat_regs {
 };
 
 struct evergreen_irq_stat_regs {
-	u32 disp_int;
-	u32 disp_int_cont;
-	u32 disp_int_cont2;
-	u32 disp_int_cont3;
-	u32 disp_int_cont4;
-	u32 disp_int_cont5;
-	u32 d1grph_int;
-	u32 d2grph_int;
-	u32 d3grph_int;
-	u32 d4grph_int;
-	u32 d5grph_int;
-	u32 d6grph_int;
-	u32 afmt_status1;
-	u32 afmt_status2;
-	u32 afmt_status3;
-	u32 afmt_status4;
-	u32 afmt_status5;
-	u32 afmt_status6;
+	u32 disp_int[6];
+	u32 grph_int[6];
+	u32 afmt_status[6];
 };
 
 struct cik_irq_stat_regs {
@@ -2975,6 +2962,12 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 			       uint32_t *vline_start_end,
 			       uint32_t *vline_status);
+
+/* interrupt control register helpers */
+void radeon_irq_kms_set_irq_n_enabled(struct radeon_device *rdev,
+				      u32 reg, u32 mask,
+				      bool enable, const char *name,
+				      unsigned n);
 
 #include "radeon_object.h"
 
