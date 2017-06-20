@@ -497,7 +497,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 				 &e->user_invalidated) && e->user_pages) {
 
 				/* We acquired a page array, but somebody
-				 * invalidated it. Free it an try again
+				 * invalidated it. Free it and try again
 				 */
 				release_pages(e->user_pages,
 					      e->robj->tbo.ttm->num_pages,
