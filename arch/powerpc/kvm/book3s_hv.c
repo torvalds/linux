@@ -2845,10 +2845,25 @@ static void shrink_halt_poll_ns(struct kvmppc_vcore *vc)
 		vc->halt_poll_ns /= halt_poll_ns_shrink;
 }
 
+#ifdef CONFIG_KVM_XICS
+static inline bool xive_interrupt_pending(struct kvm_vcpu *vcpu)
+{
+	if (!xive_enabled())
+		return false;
+	return vcpu->arch.xive_saved_state.pipr <
+		vcpu->arch.xive_saved_state.cppr;
+}
+#else
+static inline bool xive_interrupt_pending(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+#endif /* CONFIG_KVM_XICS */
+
 static bool kvmppc_vcpu_woken(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.pending_exceptions || vcpu->arch.prodded ||
-	    kvmppc_doorbell_pending(vcpu))
+	    kvmppc_doorbell_pending(vcpu) || xive_interrupt_pending(vcpu))
 		return true;
 
 	return false;
