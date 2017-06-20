@@ -2518,6 +2518,8 @@ extern int filemap_fdatawait(struct address_space *);
 extern void filemap_fdatawait_keep_errors(struct address_space *);
 extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
 				   loff_t lend);
+extern bool filemap_range_has_page(struct address_space *, loff_t lstart,
+				  loff_t lend);
 extern int filemap_write_and_wait(struct address_space *mapping);
 extern int filemap_write_and_wait_range(struct address_space *mapping,
 				        loff_t lstart, loff_t lend);
