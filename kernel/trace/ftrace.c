@@ -5868,10 +5868,10 @@ void ftrace_module_init(struct module *mod)
 }
 #endif /* CONFIG_MODULES */
 
-void __init ftrace_free_init_mem(void)
+void ftrace_free_mem(void *start_ptr, void *end_ptr)
 {
-	unsigned long start = (unsigned long)(&__init_begin);
-	unsigned long end = (unsigned long)(&__init_end);
+	unsigned long start = (unsigned long)(start_ptr);
+	unsigned long end = (unsigned long)(end_ptr);
 	struct ftrace_page **last_pg = &ftrace_pages_start;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
@@ -5911,6 +5911,14 @@ void __init ftrace_free_init_mem(void)
 		goto again;
 	}
 	mutex_unlock(&ftrace_lock);
+}
+
+void __init ftrace_free_init_mem(void)
+{
+	void *start = (void *)(&__init_begin);
+	void *end = (void *)(&__init_end);
+
+	ftrace_free_mem(start, end);
 }
 
 void __init ftrace_init(void)

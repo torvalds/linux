@@ -151,8 +151,10 @@ struct ftrace_ops_hash {
 };
 
 void ftrace_free_init_mem(void);
+void ftrace_free_mem(void *start, void *end);
 #else
 static inline void ftrace_free_init_mem(void) { }
+static inline void ftrace_free_mem(void *start, void *end) { }
 #endif
 
 /*
