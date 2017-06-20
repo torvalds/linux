@@ -43,6 +43,7 @@ extern void __init dump_numa_cpu_topology(void);
 
 extern int sysfs_add_device_to_node(struct device *dev, int nid);
 extern void sysfs_remove_device_from_node(struct device *dev, int nid);
+extern int numa_update_cpu_topology(bool cpus_locked);
 
 #else
 
@@ -56,6 +57,11 @@ static inline int sysfs_add_device_to_node(struct device *dev, int nid)
 static inline void sysfs_remove_device_from_node(struct device *dev,
 						int nid)
 {
+}
+
+static inline int numa_update_cpu_topology(bool cpus_locked)
+{
+	return 0;
 }
 #endif /* CONFIG_NUMA */
 
