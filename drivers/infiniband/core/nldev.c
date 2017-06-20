@@ -30,13 +30,75 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <net/netlink.h>
 #include <rdma/rdma_netlink.h>
 
 #include "core_priv.h"
 
+static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
+	[RDMA_NLDEV_ATTR_DEV_INDEX]     = { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_DEV_NAME]	= { .type = NLA_NUL_STRING,
+					    .len = IB_DEVICE_NAME_MAX - 1},
+	[RDMA_NLDEV_ATTR_PORT_INDEX]	= { .type = NLA_U32 },
+};
+
+static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
+{
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_DEV_INDEX, device->index))
+		return -EMSGSIZE;
+	if (nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_NAME, device->name))
+		return -EMSGSIZE;
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, rdma_end_port(device)))
+		return -EMSGSIZE;
+	return 0;
+}
+
+static int _nldev_get_dumpit(struct ib_device *device,
+			     struct sk_buff *skb,
+			     struct netlink_callback *cb,
+			     unsigned int idx)
+{
+	int start = cb->args[0];
+	struct nlmsghdr *nlh;
+
+	if (idx < start)
+		return 0;
+
+	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV, RDMA_NLDEV_CMD_GET),
+			0, NLM_F_MULTI);
+
+	if (fill_dev_info(skb, device)) {
+		nlmsg_cancel(skb, nlh);
+		goto out;
+	}
+
+	nlmsg_end(skb, nlh);
+
+	idx++;
+
+out:	cb->args[0] = idx;
+	return skb->len;
+}
+
+static int nldev_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	/*
+	 * There is no need to take lock, because
+	 * we are relying on ib_core's lists_rwsem
+	 */
+	return ib_enum_all_devs(_nldev_get_dumpit, skb, cb);
+}
+
+static const struct rdma_nl_cbs nldev_cb_table[] = {
+	[RDMA_NLDEV_CMD_GET] = {
+		.dump = nldev_get_dumpit,
+	},
+};
+
 void __init nldev_init(void)
 {
-	rdma_nl_register(RDMA_NL_NLDEV, NULL);
+	rdma_nl_register(RDMA_NL_NLDEV, nldev_cb_table);
 }
 
 void __exit nldev_exit(void)
