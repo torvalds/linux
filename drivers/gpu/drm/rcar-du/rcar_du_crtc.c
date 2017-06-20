@@ -13,6 +13,7 @@
 
 #include <linux/clk.h>
 #include <linux/mutex.h>
+#include <linux/sys_soc.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
@@ -129,10 +130,8 @@ static void rcar_du_dpll_divider(struct rcar_du_crtc *rcrtc,
 			for (fdpll = 1; fdpll < 32; fdpll++) {
 				unsigned long output;
 
-				/* 1/2 (FRQSEL=1) for duty rate 50% */
 				output = input * (n + 1) / (m + 1)
-				       / (fdpll + 1) / 2;
-
+				       / (fdpll + 1);
 				if (output >= 400000000)
 					continue;
 
@@ -157,6 +156,11 @@ done:
 		 dpll->output, dpll->fdpll, dpll->n, dpll->m,
 		 best_diff);
 }
+
+static const struct soc_device_attribute rcar_du_r8a7795_es1[] = {
+	{ .soc_id = "r8a7795", .revision = "ES1.*" },
+	{ /* sentinel */ }
+};
 
 static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 {
@@ -186,7 +190,20 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 
 		extclk = clk_get_rate(rcrtc->extclock);
 		if (rcdu->info->dpll_ch & (1 << rcrtc->index)) {
-			rcar_du_dpll_divider(rcrtc, &dpll, extclk, mode_clock);
+			unsigned long target = mode_clock;
+
+			/*
+			 * The H3 ES1.x exhibits dot clock duty cycle stability
+			 * issues. We can work around them by configuring the
+			 * DPLL to twice the desired frequency, coupled with a
+			 * /2 post-divider. This isn't needed on other SoCs and
+			 * breaks HDMI output on M3-W for a currently unknown
+			 * reason, so restrict the workaround to H3 ES1.x.
+			 */
+			if (soc_device_match(rcar_du_r8a7795_es1))
+				target *= 2;
+
+			rcar_du_dpll_divider(rcrtc, &dpll, extclk, target);
 			extclk = dpll.output;
 		}
 
@@ -198,8 +215,6 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 
 		if (abs((long)extrate - (long)mode_clock) <
 		    abs((long)rate - (long)mode_clock)) {
-			dev_dbg(rcrtc->group->dev->dev,
-				"crtc%u: using external clock\n", rcrtc->index);
 
 			if (rcdu->info->dpll_ch & (1 << rcrtc->index)) {
 				u32 dpllcr = DPLLCR_CODE | DPLLCR_CLKE
@@ -216,12 +231,14 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 
 				rcar_du_group_write(rcrtc->group, DPLLCR,
 						    dpllcr);
-
-				escr = ESCR_DCLKSEL_DCLKIN | 1;
-			} else {
-				escr = ESCR_DCLKSEL_DCLKIN | extdiv;
 			}
+
+			escr = ESCR_DCLKSEL_DCLKIN | extdiv;
 		}
+
+		dev_dbg(rcrtc->group->dev->dev,
+			"mode clock %lu extrate %lu rate %lu ESCR 0x%08x\n",
+			mode_clock, extrate, rate, escr);
 	}
 
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? ESCR2 : ESCR,
