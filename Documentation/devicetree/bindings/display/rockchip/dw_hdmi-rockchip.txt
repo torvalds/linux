@@ -43,6 +43,7 @@ Optional properties
 - max-tmdsclk: hdmi max tmdsclk, if this property is not set, set max tmdsclk to 594M.
 - unsupported-yuv-input: If yuv input is not supported, set this property.
 - unsupported-deep-color: If deep color mode is not supported, set this property.
+- hdcp1x-enable: enable hdcp1.x, enable if defined, disable if not defined
 
 Example:
 
