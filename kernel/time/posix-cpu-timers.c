@@ -580,7 +580,11 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 
 	WARN_ON_ONCE(p == NULL);
 
-	new_expires = timespec64_to_ns(&new->it_value);
+	/*
+	 * Use the to_ktime conversion because that clamps the maximum
+	 * value to KTIME_MAX and avoid multiplication overflows.
+	 */
+	new_expires = ktime_to_ns(timespec64_to_ktime(new->it_value));
 
 	/*
 	 * Protect against sighand release/switch in exit/exec and p->cpu_timers
