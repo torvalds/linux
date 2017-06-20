@@ -241,6 +241,7 @@ static void blk_delay_work(struct work_struct *work)
 void blk_delay_queue(struct request_queue *q, unsigned long msecs)
 {
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	if (likely(!blk_queue_dead(q)))
 		queue_delayed_work(kblockd_workqueue, &q->delay_work,
@@ -260,6 +261,7 @@ EXPORT_SYMBOL(blk_delay_queue);
 void blk_start_queue_async(struct request_queue *q)
 {
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
 	blk_run_queue_async(q);
@@ -279,6 +281,7 @@ void blk_start_queue(struct request_queue *q)
 {
 	lockdep_assert_held(q->queue_lock);
 	WARN_ON(!irqs_disabled());
+	WARN_ON_ONCE(q->mq_ops);
 
 	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
 	__blk_run_queue(q);
@@ -302,6 +305,7 @@ EXPORT_SYMBOL(blk_start_queue);
 void blk_stop_queue(struct request_queue *q)
 {
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	cancel_delayed_work(&q->delay_work);
 	queue_flag_set(QUEUE_FLAG_STOPPED, q);
@@ -356,6 +360,7 @@ EXPORT_SYMBOL(blk_sync_queue);
 inline void __blk_run_queue_uncond(struct request_queue *q)
 {
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	if (unlikely(blk_queue_dead(q)))
 		return;
@@ -383,6 +388,7 @@ EXPORT_SYMBOL_GPL(__blk_run_queue_uncond);
 void __blk_run_queue(struct request_queue *q)
 {
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	if (unlikely(blk_queue_stopped(q)))
 		return;
@@ -407,6 +413,7 @@ EXPORT_SYMBOL(__blk_run_queue);
 void blk_run_queue_async(struct request_queue *q)
 {
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	if (likely(!blk_queue_stopped(q) && !blk_queue_dead(q)))
 		mod_delayed_work(kblockd_workqueue, &q->delay_work, 0);
@@ -424,6 +431,8 @@ EXPORT_SYMBOL(blk_run_queue_async);
 void blk_run_queue(struct request_queue *q)
 {
 	unsigned long flags;
+
+	WARN_ON_ONCE(q->mq_ops);
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	__blk_run_queue(q);
@@ -453,6 +462,7 @@ static void __blk_drain_queue(struct request_queue *q, bool drain_all)
 	int i;
 
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	while (true) {
 		bool drain = false;
@@ -531,6 +541,8 @@ static void __blk_drain_queue(struct request_queue *q, bool drain_all)
  */
 void blk_queue_bypass_start(struct request_queue *q)
 {
+	WARN_ON_ONCE(q->mq_ops);
+
 	spin_lock_irq(q->queue_lock);
 	q->bypass_depth++;
 	queue_flag_set(QUEUE_FLAG_BYPASS, q);
@@ -557,6 +569,9 @@ EXPORT_SYMBOL_GPL(blk_queue_bypass_start);
  * @q: queue of interest
  *
  * Leave bypass mode and restore the normal queueing behavior.
+ *
+ * Note: although blk_queue_bypass_start() is only called for blk-sq queues,
+ * this function is called for both blk-sq and blk-mq queues.
  */
 void blk_queue_bypass_end(struct request_queue *q)
 {
@@ -954,6 +969,8 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio);
 
 int blk_init_allocated_queue(struct request_queue *q)
 {
+	WARN_ON_ONCE(q->mq_ops);
+
 	q->fq = blk_alloc_flush_queue(q, NUMA_NO_NODE, q->cmd_size);
 	if (!q->fq)
 		return -ENOMEM;
@@ -1090,6 +1107,8 @@ int blk_update_nr_requests(struct request_queue *q, unsigned int nr)
 {
 	struct request_list *rl;
 	int on_thresh, off_thresh;
+
+	WARN_ON_ONCE(q->mq_ops);
 
 	spin_lock_irq(q->queue_lock);
 	q->nr_requests = nr;
@@ -1329,6 +1348,7 @@ static struct request *get_request(struct request_queue *q, unsigned int op,
 	struct request *rq;
 
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	rl = blk_get_rl(q, bio);	/* transferred to @rq on success */
 retry:
@@ -1372,6 +1392,8 @@ static struct request *blk_old_get_request(struct request_queue *q,
 					   unsigned int op, gfp_t gfp_mask)
 {
 	struct request *rq;
+
+	WARN_ON_ONCE(q->mq_ops);
 
 	/* create ioc upfront */
 	create_io_context(gfp_mask, q->node);
@@ -1424,6 +1446,7 @@ EXPORT_SYMBOL(blk_get_request);
 void blk_requeue_request(struct request_queue *q, struct request *rq)
 {
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	blk_delete_timer(rq);
 	blk_clear_rq_complete(rq);
@@ -2495,6 +2518,7 @@ struct request *blk_peek_request(struct request_queue *q)
 	int ret;
 
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	while ((rq = __elv_next_request(q)) != NULL) {
 
@@ -2615,6 +2639,7 @@ void blk_dequeue_request(struct request *rq)
 void blk_start_request(struct request *req)
 {
 	lockdep_assert_held(req->q->queue_lock);
+	WARN_ON_ONCE(req->q->mq_ops);
 
 	blk_dequeue_request(req);
 
@@ -2646,6 +2671,7 @@ struct request *blk_fetch_request(struct request_queue *q)
 	struct request *rq;
 
 	lockdep_assert_held(q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	rq = blk_peek_request(q);
 	if (rq)
@@ -2797,6 +2823,7 @@ void blk_finish_request(struct request *req, blk_status_t error)
 	struct request_queue *q = req->q;
 
 	lockdep_assert_held(req->q->queue_lock);
+	WARN_ON_ONCE(q->mq_ops);
 
 	if (req->rq_flags & RQF_STATS)
 		blk_stat_add(req);
@@ -2851,6 +2878,8 @@ static bool blk_end_bidi_request(struct request *rq, blk_status_t error,
 	struct request_queue *q = rq->q;
 	unsigned long flags;
 
+	WARN_ON_ONCE(q->mq_ops);
+
 	if (blk_update_bidi_request(rq, error, nr_bytes, bidi_bytes))
 		return true;
 
@@ -2880,6 +2909,7 @@ static bool __blk_end_bidi_request(struct request *rq, blk_status_t error,
 				   unsigned int nr_bytes, unsigned int bidi_bytes)
 {
 	lockdep_assert_held(rq->q->queue_lock);
+	WARN_ON_ONCE(rq->q->mq_ops);
 
 	if (blk_update_bidi_request(rq, error, nr_bytes, bidi_bytes))
 		return true;
@@ -2906,6 +2936,7 @@ static bool __blk_end_bidi_request(struct request *rq, blk_status_t error,
 bool blk_end_request(struct request *rq, blk_status_t error,
 		unsigned int nr_bytes)
 {
+	WARN_ON_ONCE(rq->q->mq_ops);
 	return blk_end_bidi_request(rq, error, nr_bytes, 0);
 }
 EXPORT_SYMBOL(blk_end_request);
@@ -2948,6 +2979,7 @@ bool __blk_end_request(struct request *rq, blk_status_t error,
 		unsigned int nr_bytes)
 {
 	lockdep_assert_held(rq->q->queue_lock);
+	WARN_ON_ONCE(rq->q->mq_ops);
 
 	return __blk_end_bidi_request(rq, error, nr_bytes, 0);
 }
@@ -2967,6 +2999,7 @@ void __blk_end_request_all(struct request *rq, blk_status_t error)
 	unsigned int bidi_bytes = 0;
 
 	lockdep_assert_held(rq->q->queue_lock);
+	WARN_ON_ONCE(rq->q->mq_ops);
 
 	if (unlikely(blk_bidi_rq(rq)))
 		bidi_bytes = blk_rq_bytes(rq->next_rq);

@@ -143,6 +143,8 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 	struct request *rq;
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
 
+	WARN_ON_ONCE(q->mq_ops);
+
 	while (1) {
 		if (!list_empty(&q->queue_head)) {
 			rq = list_entry_rq(q->queue_head.next);
