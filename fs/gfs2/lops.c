@@ -134,10 +134,8 @@ static void gfs2_log_incr_head(struct gfs2_sbd *sdp)
 	BUG_ON((sdp->sd_log_flush_head == sdp->sd_log_tail) &&
 	       (sdp->sd_log_flush_head != sdp->sd_log_head));
 
-	if (++sdp->sd_log_flush_head == sdp->sd_jdesc->jd_blocks) {
+	if (++sdp->sd_log_flush_head == sdp->sd_jdesc->jd_blocks)
 		sdp->sd_log_flush_head = 0;
-		sdp->sd_log_flush_wrapped = 1;
-	}
 }
 
 static u64 gfs2_log_bmap(struct gfs2_sbd *sdp)
