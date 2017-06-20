@@ -1340,8 +1340,7 @@ static int validate_data_size(struct ssi_aead_ctx *ctx,
 			goto data_size_err;
 		if (ctx->cipher_mode == DRV_CIPHER_CCM)
 			break;
-		if (ctx->cipher_mode == DRV_CIPHER_GCTR)
-		{
+		if (ctx->cipher_mode == DRV_CIPHER_GCTR) {
 			if (areq_ctx->plaintext_authenticate_only == true)
 				areq_ctx->is_single_pass = false;
 			break;
@@ -1912,8 +1911,7 @@ static int config_gcm_context(struct aead_request *req) {
 	memcpy(req_ctx->gcm_iv_inc1, req->iv, 16);
 
 
-	if (req_ctx->plaintext_authenticate_only == false)
-	{
+	if (req_ctx->plaintext_authenticate_only == false) {
 		__be64 temp64;
 		temp64 = cpu_to_be64(req->assoclen * 8);
 		memcpy ( &req_ctx->gcm_len_block.lenA , &temp64, sizeof(temp64) );
