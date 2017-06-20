@@ -12089,7 +12089,10 @@ static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 	wr32(hw, I40E_PFPM_WUFC, (pf->wol_en ? I40E_PFPM_WUFC_MAG_MASK : 0));
 
 	i40e_stop_misc_vector(pf);
-
+	if (pf->msix_entries) {
+		synchronize_irq(pf->msix_entries[0].vector);
+		free_irq(pf->msix_entries[0].vector, pf);
+	}
 	retval = pci_save_state(pdev);
 	if (retval)
 		return retval;
@@ -12129,6 +12132,15 @@ static int i40e_resume(struct pci_dev *pdev)
 	/* handling the reset will rebuild the device state */
 	if (test_and_clear_bit(__I40E_SUSPENDED, pf->state)) {
 		clear_bit(__I40E_DOWN, pf->state);
+		if (pf->msix_entries) {
+			err = request_irq(pf->msix_entries[0].vector,
+					  i40e_intr, 0, pf->int_name, pf);
+			if (err) {
+				dev_err(&pf->pdev->dev,
+					"request_irq for %s failed: %d\n",
+					pf->int_name, err);
+			}
+		}
 		i40e_reset_and_rebuild(pf, false, false);
 	}
 
