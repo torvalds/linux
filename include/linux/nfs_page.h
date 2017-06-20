@@ -93,6 +93,7 @@ struct nfs_pageio_descriptor {
 	const struct rpc_call_ops *pg_rpc_callops;
 	const struct nfs_pgio_completion_ops *pg_completion_ops;
 	struct pnfs_layout_segment *pg_lseg;
+	struct nfs_io_completion *pg_io_completion;
 	struct nfs_direct_req	*pg_dreq;
 	unsigned int		pg_bsize;	/* default bsize for mirrors */
 

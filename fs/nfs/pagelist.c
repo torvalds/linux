@@ -50,6 +50,7 @@ void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
 	hdr->cred = hdr->req->wb_context->cred;
 	hdr->io_start = req_offset(hdr->req);
 	hdr->good_bytes = mirror->pg_count;
+	hdr->io_completion = desc->pg_io_completion;
 	hdr->dreq = desc->pg_dreq;
 	hdr->release = release;
 	hdr->completion_ops = desc->pg_completion_ops;
@@ -709,6 +710,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_ioflags = io_flags;
 	desc->pg_error = 0;
 	desc->pg_lseg = NULL;
+	desc->pg_io_completion = NULL;
 	desc->pg_dreq = NULL;
 	desc->pg_bsize = bsize;
 
@@ -1231,6 +1233,7 @@ int nfs_pageio_resend(struct nfs_pageio_descriptor *desc,
 {
 	LIST_HEAD(failed);
 
+	desc->pg_io_completion = hdr->io_completion;
 	desc->pg_dreq = hdr->dreq;
 	while (!list_empty(&hdr->pages)) {
 		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
