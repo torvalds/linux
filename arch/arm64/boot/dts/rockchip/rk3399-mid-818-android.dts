@@ -601,6 +601,10 @@
 					regulator-suspend-microvolt = <5000000>;
 				};
 			};
+
+			otg_switch: OTG_SWITCH {
+				regulator-name = "otg_switch";
+			};
 		};
 
 		battery {
