@@ -906,6 +906,16 @@ bool dcn_validate_bandwidth(
 	scaler_settings_calculation(v);
 	mode_support_and_system_configuration(v);
 
+	if (v->voltage_level == 0) {
+		struct core_dc *dc_core = DC_TO_CORE(&dc->public);
+
+		v->sr_enter_plus_exit_time = 9.466f;
+		v->sr_exit_time = 7.849f;
+		dc_core->dml.soc.sr_enter_plus_exit_time_us = v->sr_enter_plus_exit_time;
+		dc_core->dml.soc.sr_exit_time_us = v->sr_exit_time;
+		mode_support_and_system_configuration(v);
+	}
+
 	if (v->voltage_level != 5) {
 		float bw_consumed = v->total_bandwidth_consumed_gbyte_per_second;
 		if (bw_consumed < v->fabric_and_dram_bandwidth_vmin0p65)
@@ -1011,6 +1021,14 @@ bool dcn_validate_bandwidth(
 		if (dc->public.debug.use_dml_wm)
 			dcn_dml_wm_override(v, (struct display_mode_lib *)
 					&dc->dml, context, pool);
+	}
+
+	if (v->voltage_level == 0) {
+		struct core_dc *dc_core = DC_TO_CORE(&dc->public);
+
+		dc_core->dml.soc.sr_enter_plus_exit_time_us =
+				dc_core->dcn_soc.sr_enter_plus_exit_time;
+		dc_core->dml.soc.sr_exit_time_us = dc_core->dcn_soc.sr_exit_time;
 	}
 
 	kernel_fpu_end();
