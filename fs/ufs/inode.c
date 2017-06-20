@@ -401,13 +401,20 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 	u64 phys64 = 0;
 	unsigned frag = fragment & uspi->s_fpbmask;
 
-	if (!create) {
-		phys64 = ufs_frag_map(inode, offsets, depth);
-		if (phys64)
-			map_bh(bh_result, sb, phys64 + frag);
-		return 0;
-	}
+	phys64 = ufs_frag_map(inode, offsets, depth);
+	if (!create)
+		goto done;
 
+	if (phys64) {
+		if (fragment >= UFS_NDIR_FRAGMENT)
+			goto done;
+		read_seqlock_excl(&UFS_I(inode)->meta_lock);
+		if (fragment < UFS_I(inode)->i_lastfrag) {
+			read_sequnlock_excl(&UFS_I(inode)->meta_lock);
+			goto done;
+		}
+		read_sequnlock_excl(&UFS_I(inode)->meta_lock);
+	}
         /* This code entered only while writing ....? */
 
 	mutex_lock(&UFS_I(inode)->truncate_mutex);
@@ -451,6 +458,11 @@ out:
 	}
 	mutex_unlock(&UFS_I(inode)->truncate_mutex);
 	return err;
+
+done:
+	if (phys64)
+		map_bh(bh_result, sb, phys64 + frag);
+	return 0;
 }
 
 static int ufs_writepage(struct page *page, struct writeback_control *wbc)
@@ -874,7 +886,6 @@ static inline void free_data(struct to_free *ctx, u64 from, unsigned count)
 	ctx->to = from + count;
 }
 
-#define DIRECT_BLOCK ((inode->i_size + uspi->s_bsize - 1) >> uspi->s_bshift)
 #define DIRECT_FRAGMENT ((inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift)
 
 static void ufs_trunc_direct(struct inode *inode)
@@ -1112,19 +1123,24 @@ static void ufs_truncate_blocks(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	unsigned offsets[4];
-	int depth = ufs_block_to_path(inode, DIRECT_BLOCK, offsets);
+	int depth;
 	int depth2;
 	unsigned i;
 	struct ufs_buffer_head *ubh[3];
 	void *p;
 	u64 block;
 
-	if (!depth)
-		return;
+	if (inode->i_size) {
+		sector_t last = (inode->i_size - 1) >> uspi->s_bshift;
+		depth = ufs_block_to_path(inode, last, offsets);
+		if (!depth)
+			return;
+	} else {
+		depth = 1;
+	}
 
-	/* find the last non-zero in offsets[] */
 	for (depth2 = depth - 1; depth2; depth2--)
-		if (offsets[depth2])
+		if (offsets[depth2] != uspi->s_apb - 1)
 			break;
 
 	mutex_lock(&ufsi->truncate_mutex);
@@ -1133,9 +1149,8 @@ static void ufs_truncate_blocks(struct inode *inode)
 		offsets[0] = UFS_IND_BLOCK;
 	} else {
 		/* get the blocks that should be partially emptied */
-		p = ufs_get_direct_data_ptr(uspi, ufsi, offsets[0]);
+		p = ufs_get_direct_data_ptr(uspi, ufsi, offsets[0]++);
 		for (i = 0; i < depth2; i++) {
-			offsets[i]++;	/* next branch is fully freed */
 			block = ufs_data_ptr_to_cpu(sb, p);
 			if (!block)
 				break;
@@ -1146,7 +1161,7 @@ static void ufs_truncate_blocks(struct inode *inode)
 				write_sequnlock(&ufsi->meta_lock);
 				break;
 			}
-			p = ubh_get_data_ptr(uspi, ubh[i], offsets[i + 1]);
+			p = ubh_get_data_ptr(uspi, ubh[i], offsets[i + 1]++);
 		}
 		while (i--)
 			free_branch_tail(inode, offsets[i + 1], ubh[i], depth - i - 1);
@@ -1161,7 +1176,9 @@ static void ufs_truncate_blocks(struct inode *inode)
 			free_full_branch(inode, block, i - UFS_IND_BLOCK + 1);
 		}
 	}
+	read_seqlock_excl(&ufsi->meta_lock);
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
+	read_sequnlock_excl(&ufsi->meta_lock);
 	mark_inode_dirty(inode);
 	mutex_unlock(&ufsi->truncate_mutex);
 }

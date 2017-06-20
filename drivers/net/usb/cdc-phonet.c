@@ -298,7 +298,7 @@ static void usbpn_setup(struct net_device *dev)
 	dev->addr_len		= 1;
 	dev->tx_queue_len	= 3;
 
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 }
 
 /*

@@ -206,7 +206,7 @@ static inline bool cec_is_sink(const struct cec_adapter *adap)
 #define cec_phys_addr_exp(pa) \
 	((pa) >> 12), ((pa) >> 8) & 0xf, ((pa) >> 4) & 0xf, (pa) & 0xf
 
-#if IS_ENABLED(CONFIG_CEC_CORE)
+#if IS_REACHABLE(CONFIG_CEC_CORE)
 struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 		void *priv, const char *name, u32 caps, u8 available_las);
 int cec_register_adapter(struct cec_adapter *adap, struct device *parent);
