@@ -1169,14 +1169,14 @@ static int spi_imx_probe(struct platform_device *pdev)
 	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct spi_imx_data));
+	if (!master)
+		return -ENOMEM;
+
 	ret = of_property_read_u32(np, "fsl,spi-rdy-drctl", &spi_drctl);
 	if ((ret < 0) || (spi_drctl >= 0x3)) {
 		/* '11' is reserved */
 		spi_drctl = 0;
 	}
-
-	if (!master)
-		return -ENOMEM;
 
 	platform_set_drvdata(pdev, master);
 
