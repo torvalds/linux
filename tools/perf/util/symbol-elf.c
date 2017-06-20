@@ -637,43 +637,6 @@ static int dso__swap_init(struct dso *dso, unsigned char eidata)
 	return 0;
 }
 
-static int decompress_kmodule(struct dso *dso, const char *name,
-			      enum dso_binary_type type)
-{
-	int fd = -1;
-	char tmpbuf[] = "/tmp/perf-kmod-XXXXXX";
-	struct kmod_path m;
-
-	if (type != DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP &&
-	    type != DSO_BINARY_TYPE__GUEST_KMODULE_COMP &&
-	    type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
-		return -1;
-
-	if (type == DSO_BINARY_TYPE__BUILD_ID_CACHE)
-		name = dso->long_name;
-
-	if (kmod_path__parse_ext(&m, name) || !m.comp)
-		return -1;
-
-	fd = mkstemp(tmpbuf);
-	if (fd < 0) {
-		dso->load_errno = errno;
-		goto out;
-	}
-
-	if (!decompress_to_file(m.ext, name, fd)) {
-		dso->load_errno = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
-		close(fd);
-		fd = -1;
-	}
-
-	unlink(tmpbuf);
-
-out:
-	free(m.ext);
-	return fd;
-}
-
 bool symsrc__possibly_runtime(struct symsrc *ss)
 {
 	return ss->dynsym || ss->opdsec;
@@ -705,9 +668,11 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	int fd;
 
 	if (dso__needs_decompress(dso)) {
-		fd = decompress_kmodule(dso, name, type);
+		fd = dso__decompress_kmodule_fd(dso, name);
 		if (fd < 0)
 			return -1;
+
+		type = dso->symtab_type;
 	} else {
 		fd = open(name, O_RDONLY);
 		if (fd < 0) {

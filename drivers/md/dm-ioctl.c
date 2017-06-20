@@ -1710,12 +1710,13 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 	}
 
 	/*
-	 * Try to avoid low memory issues when a device is suspended.
+	 * Use __GFP_HIGH to avoid low memory issues when a device is
+	 * suspended and the ioctl is needed to resume it.
 	 * Use kmalloc() rather than vmalloc() when we can.
 	 */
 	dmi = NULL;
 	noio_flag = memalloc_noio_save();
-	dmi = kvmalloc(param_kernel->data_size, GFP_KERNEL);
+	dmi = kvmalloc(param_kernel->data_size, GFP_KERNEL | __GFP_HIGH);
 	memalloc_noio_restore(noio_flag);
 
 	if (!dmi) {

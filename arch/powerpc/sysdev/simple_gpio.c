@@ -75,7 +75,8 @@ static int u8_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static void u8_gpio_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct u8_gpio_chip *u8_gc = gpiochip_get_data(&mm_gc->gc);
+	struct u8_gpio_chip *u8_gc =
+		container_of(mm_gc, struct u8_gpio_chip, mm_gc);
 
 	u8_gc->data = in_8(mm_gc->regs);
 }

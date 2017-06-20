@@ -50,7 +50,8 @@ nvkm_timer_alarm_trigger(struct nvkm_timer *tmr)
 		/* Move to completed list.  We'll drop the lock before
 		 * executing the callback so it can reschedule itself.
 		 */
-		list_move_tail(&alarm->head, &exec);
+		list_del_init(&alarm->head);
+		list_add(&alarm->exec, &exec);
 	}
 
 	/* Shut down interrupt if no more pending alarms. */
@@ -59,8 +60,8 @@ nvkm_timer_alarm_trigger(struct nvkm_timer *tmr)
 	spin_unlock_irqrestore(&tmr->lock, flags);
 
 	/* Execute completed callbacks. */
-	list_for_each_entry_safe(alarm, atemp, &exec, head) {
-		list_del_init(&alarm->head);
+	list_for_each_entry_safe(alarm, atemp, &exec, exec) {
+		list_del(&alarm->exec);
 		alarm->func(alarm);
 	}
 }

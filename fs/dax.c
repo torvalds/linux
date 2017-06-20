@@ -1155,6 +1155,17 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
 	}
 
 	/*
+	 * It is possible, particularly with mixed reads & writes to private
+	 * mappings, that we have raced with a PMD fault that overlaps with
+	 * the PTE we need to set up.  If so just return and the fault will be
+	 * retried.
+	 */
+	if (pmd_trans_huge(*vmf->pmd) || pmd_devmap(*vmf->pmd)) {
+		vmf_ret = VM_FAULT_NOPAGE;
+		goto unlock_entry;
+	}
+
+	/*
 	 * Note that we don't bother to use iomap_apply here: DAX required
 	 * the file system block size to be equal the page size, which means
 	 * that we never have to deal with more than a single extent here.
@@ -1396,6 +1407,18 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
 	entry = grab_mapping_entry(mapping, pgoff, RADIX_DAX_PMD);
 	if (IS_ERR(entry))
 		goto fallback;
+
+	/*
+	 * It is possible, particularly with mixed reads & writes to private
+	 * mappings, that we have raced with a PTE fault that overlaps with
+	 * the PMD we need to set up.  If so just return and the fault will be
+	 * retried.
+	 */
+	if (!pmd_none(*vmf->pmd) && !pmd_trans_huge(*vmf->pmd) &&
+			!pmd_devmap(*vmf->pmd)) {
+		result = 0;
+		goto unlock_entry;
+	}
 
 	/*
 	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only

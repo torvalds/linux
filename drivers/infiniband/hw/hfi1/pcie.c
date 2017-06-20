@@ -207,8 +207,8 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 	/*
 	 * Save BARs and command to rewrite after device reset.
 	 */
-	dd->pcibar0 = addr;
-	dd->pcibar1 = addr >> 32;
+	pci_read_config_dword(dd->pcidev, PCI_BASE_ADDRESS_0, &dd->pcibar0);
+	pci_read_config_dword(dd->pcidev, PCI_BASE_ADDRESS_1, &dd->pcibar1);
 	pci_read_config_dword(dd->pcidev, PCI_ROM_ADDRESS, &dd->pci_rom);
 	pci_read_config_word(dd->pcidev, PCI_COMMAND, &dd->pci_command);
 	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL, &dd->pcie_devctl);

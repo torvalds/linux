@@ -519,8 +519,11 @@ struct agg_tx_status {
  * bit-7 invalid rate indication
  */
 #define TX_RES_INIT_RATE_INDEX_MSK 0x0f
+#define TX_RES_RATE_TABLE_COLOR_POS 4
 #define TX_RES_RATE_TABLE_COLOR_MSK 0x70
 #define TX_RES_INV_RATE_INDEX_MSK 0x80
+#define TX_RES_RATE_TABLE_COL_GET(_f) (((_f) & TX_RES_RATE_TABLE_COLOR_MSK) >>\
+				       TX_RES_RATE_TABLE_COLOR_POS)
 
 #define IWL_MVM_TX_RES_GET_TID(_ra_tid) ((_ra_tid) & 0x0f)
 #define IWL_MVM_TX_RES_GET_RA(_ra_tid) ((_ra_tid) >> 4)

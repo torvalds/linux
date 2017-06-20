@@ -216,7 +216,8 @@ void ssi_buffer_mgr_copy_scatterlist_portion(
 	uint32_t nents, lbytes;
 
 	nents = ssi_buffer_mgr_get_sgl_nents(sg, end, &lbytes, NULL);
-	sg_copy_buffer(sg, nents, (void *)dest, (end - to_skip), 0, (direct == SSI_SG_TO_BUF));
+	sg_copy_buffer(sg, nents, (void *)dest, (end - to_skip + 1), to_skip,
+		       (direct == SSI_SG_TO_BUF));
 }
 
 static inline int ssi_buffer_mgr_render_buff_to_mlli(
