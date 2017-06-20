@@ -236,10 +236,12 @@ static void blk_delay_work(struct work_struct *work)
  * Description:
  *   Sometimes queueing needs to be postponed for a little while, to allow
  *   resources to come back. This function will make sure that queueing is
- *   restarted around the specified time. Queue lock must be held.
+ *   restarted around the specified time.
  */
 void blk_delay_queue(struct request_queue *q, unsigned long msecs)
 {
+	lockdep_assert_held(q->queue_lock);
+
 	if (likely(!blk_queue_dead(q)))
 		queue_delayed_work(kblockd_workqueue, &q->delay_work,
 				   msecs_to_jiffies(msecs));
@@ -257,6 +259,8 @@ EXPORT_SYMBOL(blk_delay_queue);
  **/
 void blk_start_queue_async(struct request_queue *q)
 {
+	lockdep_assert_held(q->queue_lock);
+
 	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
 	blk_run_queue_async(q);
 }
@@ -269,10 +273,11 @@ EXPORT_SYMBOL(blk_start_queue_async);
  * Description:
  *   blk_start_queue() will clear the stop flag on the queue, and call
  *   the request_fn for the queue if it was in a stopped state when
- *   entered. Also see blk_stop_queue(). Queue lock must be held.
+ *   entered. Also see blk_stop_queue().
  **/
 void blk_start_queue(struct request_queue *q)
 {
+	lockdep_assert_held(q->queue_lock);
 	WARN_ON(!irqs_disabled());
 
 	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
@@ -292,10 +297,12 @@ EXPORT_SYMBOL(blk_start_queue);
  *   or if it simply chooses not to queue more I/O at one point, it can
  *   call this function to prevent the request_fn from being called until
  *   the driver has signalled it's ready to go again. This happens by calling
- *   blk_start_queue() to restart queue operations. Queue lock must be held.
+ *   blk_start_queue() to restart queue operations.
  **/
 void blk_stop_queue(struct request_queue *q)
 {
+	lockdep_assert_held(q->queue_lock);
+
 	cancel_delayed_work(&q->delay_work);
 	queue_flag_set(QUEUE_FLAG_STOPPED, q);
 }
@@ -348,6 +355,8 @@ EXPORT_SYMBOL(blk_sync_queue);
  */
 inline void __blk_run_queue_uncond(struct request_queue *q)
 {
+	lockdep_assert_held(q->queue_lock);
+
 	if (unlikely(blk_queue_dead(q)))
 		return;
 
@@ -369,11 +378,12 @@ EXPORT_SYMBOL_GPL(__blk_run_queue_uncond);
  * @q:	The queue to run
  *
  * Description:
- *    See @blk_run_queue. This variant must be called with the queue lock
- *    held and interrupts disabled.
+ *    See @blk_run_queue.
  */
 void __blk_run_queue(struct request_queue *q)
 {
+	lockdep_assert_held(q->queue_lock);
+
 	if (unlikely(blk_queue_stopped(q)))
 		return;
 
@@ -387,10 +397,17 @@ EXPORT_SYMBOL(__blk_run_queue);
  *
  * Description:
  *    Tells kblockd to perform the equivalent of @blk_run_queue on behalf
- *    of us. The caller must hold the queue lock.
+ *    of us.
+ *
+ * Note:
+ *    Since it is not allowed to run q->delay_work after blk_cleanup_queue()
+ *    has canceled q->delay_work, callers must hold the queue lock to avoid
+ *    race conditions between blk_cleanup_queue() and blk_run_queue_async().
  */
 void blk_run_queue_async(struct request_queue *q)
 {
+	lockdep_assert_held(q->queue_lock);
+
 	if (likely(!blk_queue_stopped(q) && !blk_queue_dead(q)))
 		mod_delayed_work(kblockd_workqueue, &q->delay_work, 0);
 }
@@ -1136,6 +1153,8 @@ static struct request *__get_request(struct request_list *rl, unsigned int op,
 	int may_queue;
 	req_flags_t rq_flags = RQF_ALLOCED;
 
+	lockdep_assert_held(q->queue_lock);
+
 	if (unlikely(blk_queue_dying(q)))
 		return ERR_PTR(-ENODEV);
 
@@ -1309,6 +1328,8 @@ static struct request *get_request(struct request_queue *q, unsigned int op,
 	struct request_list *rl;
 	struct request *rq;
 
+	lockdep_assert_held(q->queue_lock);
+
 	rl = blk_get_rl(q, bio);	/* transferred to @rq on success */
 retry:
 	rq = __get_request(rl, op, bio, gfp_mask);
@@ -1402,6 +1423,8 @@ EXPORT_SYMBOL(blk_get_request);
  */
 void blk_requeue_request(struct request_queue *q, struct request *rq)
 {
+	lockdep_assert_held(q->queue_lock);
+
 	blk_delete_timer(rq);
 	blk_clear_rq_complete(rq);
 	trace_block_rq_requeue(q, rq);
@@ -1476,9 +1499,6 @@ static void blk_pm_put_request(struct request *rq)
 static inline void blk_pm_put_request(struct request *rq) {}
 #endif
 
-/*
- * queue lock must be held
- */
 void __blk_put_request(struct request_queue *q, struct request *req)
 {
 	req_flags_t rq_flags = req->rq_flags;
@@ -1490,6 +1510,8 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 		blk_mq_free_request(req);
 		return;
 	}
+
+	lockdep_assert_held(q->queue_lock);
 
 	blk_pm_put_request(req);
 
@@ -2327,9 +2349,6 @@ EXPORT_SYMBOL_GPL(blk_insert_cloned_request);
  *
  * Return:
  *     The number of bytes to fail.
- *
- * Context:
- *     queue_lock must be held.
  */
 unsigned int blk_rq_err_bytes(const struct request *rq)
 {
@@ -2469,14 +2488,13 @@ void blk_account_io_start(struct request *rq, bool new_io)
  * Return:
  *     Pointer to the request at the top of @q if available.  Null
  *     otherwise.
- *
- * Context:
- *     queue_lock must be held.
  */
 struct request *blk_peek_request(struct request_queue *q)
 {
 	struct request *rq;
 	int ret;
+
+	lockdep_assert_held(q->queue_lock);
 
 	while ((rq = __elv_next_request(q)) != NULL) {
 
@@ -2593,12 +2611,11 @@ void blk_dequeue_request(struct request *rq)
  *
  *     Block internal functions which don't want to start timer should
  *     call blk_dequeue_request().
- *
- * Context:
- *     queue_lock must be held.
  */
 void blk_start_request(struct request *req)
 {
+	lockdep_assert_held(req->q->queue_lock);
+
 	blk_dequeue_request(req);
 
 	if (test_bit(QUEUE_FLAG_STATS, &req->q->queue_flags)) {
@@ -2623,13 +2640,12 @@ EXPORT_SYMBOL(blk_start_request);
  * Return:
  *     Pointer to the request at the top of @q if available.  Null
  *     otherwise.
- *
- * Context:
- *     queue_lock must be held.
  */
 struct request *blk_fetch_request(struct request_queue *q)
 {
 	struct request *rq;
+
+	lockdep_assert_held(q->queue_lock);
 
 	rq = blk_peek_request(q);
 	if (rq)
@@ -2776,12 +2792,11 @@ void blk_unprep_request(struct request *req)
 }
 EXPORT_SYMBOL_GPL(blk_unprep_request);
 
-/*
- * queue lock must be held
- */
 void blk_finish_request(struct request *req, blk_status_t error)
 {
 	struct request_queue *q = req->q;
+
+	lockdep_assert_held(req->q->queue_lock);
 
 	if (req->rq_flags & RQF_STATS)
 		blk_stat_add(req);
@@ -2864,6 +2879,8 @@ static bool blk_end_bidi_request(struct request *rq, blk_status_t error,
 static bool __blk_end_bidi_request(struct request *rq, blk_status_t error,
 				   unsigned int nr_bytes, unsigned int bidi_bytes)
 {
+	lockdep_assert_held(rq->q->queue_lock);
+
 	if (blk_update_bidi_request(rq, error, nr_bytes, bidi_bytes))
 		return true;
 
@@ -2930,6 +2947,8 @@ EXPORT_SYMBOL(blk_end_request_all);
 bool __blk_end_request(struct request *rq, blk_status_t error,
 		unsigned int nr_bytes)
 {
+	lockdep_assert_held(rq->q->queue_lock);
+
 	return __blk_end_bidi_request(rq, error, nr_bytes, 0);
 }
 EXPORT_SYMBOL(__blk_end_request);
@@ -2946,6 +2965,8 @@ void __blk_end_request_all(struct request *rq, blk_status_t error)
 {
 	bool pending;
 	unsigned int bidi_bytes = 0;
+
+	lockdep_assert_held(rq->q->queue_lock);
 
 	if (unlikely(blk_bidi_rq(rq)))
 		bidi_bytes = blk_rq_bytes(rq->next_rq);
@@ -3211,6 +3232,8 @@ static void queue_unplugged(struct request_queue *q, unsigned int depth,
 			    bool from_schedule)
 	__releases(q->queue_lock)
 {
+	lockdep_assert_held(q->queue_lock);
+
 	trace_block_unplug(q, depth, !from_schedule);
 
 	if (from_schedule)

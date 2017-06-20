@@ -648,6 +648,9 @@ static void blk_account_io_merge(struct request *req)
 static struct request *attempt_merge(struct request_queue *q,
 				     struct request *req, struct request *next)
 {
+	if (!q->mq_ops)
+		lockdep_assert_held(q->queue_lock);
+
 	if (!rq_mergeable(req) || !rq_mergeable(next))
 		return NULL;
 

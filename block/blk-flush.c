@@ -346,6 +346,8 @@ static void flush_data_end_io(struct request *rq, blk_status_t error)
 	struct request_queue *q = rq->q;
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
 
+	lockdep_assert_held(q->queue_lock);
+
 	/*
 	 * Updating q->in_flight[] here for making this tag usable
 	 * early. Because in blk_queue_start_tag(),
@@ -411,9 +413,6 @@ static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
  * or __blk_mq_run_hw_queue() to dispatch request.
  * @rq is being submitted.  Analyze what needs to be done and put it on the
  * right queue.
- *
- * CONTEXT:
- * spin_lock_irq(q->queue_lock) in !mq case
  */
 void blk_insert_flush(struct request *rq)
 {
@@ -421,6 +420,9 @@ void blk_insert_flush(struct request *rq)
 	unsigned long fflags = q->queue_flags;	/* may change, cache */
 	unsigned int policy = blk_flush_policy(fflags, rq);
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, rq->mq_ctx);
+
+	if (!q->mq_ops)
+		lockdep_assert_held(q->queue_lock);
 
 	/*
 	 * @policy now records what operations need to be done.  Adjust
