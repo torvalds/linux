@@ -7520,6 +7520,18 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 	i40e_flush(hw);
 }
 
+static const char *i40e_tunnel_name(struct i40e_udp_port_config *port)
+{
+	switch (port->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		return "vxlan";
+	case UDP_TUNNEL_TYPE_GENEVE:
+		return "geneve";
+	default:
+		return "unknown";
+	}
+}
+
 /**
  * i40e_sync_udp_filters - Trigger a sync event for existing UDP filters
  * @pf: board private structure
@@ -7565,14 +7577,14 @@ static void i40e_sync_udp_filters_subtask(struct i40e_pf *pf)
 				ret = i40e_aq_del_udp_tunnel(hw, i, NULL);
 
 			if (ret) {
-				dev_dbg(&pf->pdev->dev,
-					"%s %s port %d, index %d failed, err %s aq_err %s\n",
-					pf->udp_ports[i].type ? "vxlan" : "geneve",
-					port ? "add" : "delete",
-					port, i,
-					i40e_stat_str(&pf->hw, ret),
-					i40e_aq_str(&pf->hw,
-						    pf->hw.aq.asq_last_status));
+				dev_info(&pf->pdev->dev,
+					 "%s %s port %d, index %d failed, err %s aq_err %s\n",
+					 i40e_tunnel_name(&pf->udp_ports[i]),
+					 port ? "add" : "delete",
+					 port, i,
+					 i40e_stat_str(&pf->hw, ret),
+					 i40e_aq_str(&pf->hw,
+						     pf->hw.aq.asq_last_status));
 				pf->udp_ports[i].port = 0;
 			}
 		}
