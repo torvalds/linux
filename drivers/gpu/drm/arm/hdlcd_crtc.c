@@ -261,7 +261,7 @@ static void hdlcd_plane_atomic_update(struct drm_plane *plane,
 {
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct hdlcd_drm_private *hdlcd;
-	u32 src_x, src_y, dest_h;
+	u32 dest_h;
 	dma_addr_t scanout_start;
 
 	if (!fb)
