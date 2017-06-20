@@ -183,6 +183,12 @@
 	};
 };
 
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart11_xfer &uart11_cts>;
+	status = "okay";
+};
+
 &uart2 {
 	status = "okay";
 };
