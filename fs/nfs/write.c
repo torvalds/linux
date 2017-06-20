@@ -1941,7 +1941,7 @@ int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 		/* Don't commit yet if this is a non-blocking flush and there
 		 * are a lot of outstanding writes for this mapping.
 		 */
-		if (nfsi->commit_info.ncommit <= (nfsi->nrequests >> 1))
+		if (mapping_tagged(inode->i_mapping, PAGECACHE_TAG_WRITEBACK))
 			goto out_mark_dirty;
 
 		/* don't wait for the COMMIT response */
