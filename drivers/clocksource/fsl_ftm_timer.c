@@ -329,13 +329,13 @@ static int __init ftm_timer_init(struct device_node *np)
 	priv->clkevt_base = of_iomap(np, 0);
 	if (!priv->clkevt_base) {
 		pr_err("ftm: unable to map event timer registers\n");
-		goto err;
+		goto err_clkevt;
 	}
 
 	priv->clksrc_base = of_iomap(np, 1);
 	if (!priv->clksrc_base) {
 		pr_err("ftm: unable to map source timer registers\n");
-		goto err;
+		goto err_clksrc;
 	}
 
 	ret = -EINVAL;
@@ -366,6 +366,10 @@ static int __init ftm_timer_init(struct device_node *np)
 	return 0;
 
 err:
+	iounmap(priv->clksrc_base);
+err_clksrc:
+	iounmap(priv->clkevt_base);
+err_clkevt:
 	kfree(priv);
 	return ret;
 }
