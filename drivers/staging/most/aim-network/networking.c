@@ -73,7 +73,7 @@ struct net_dev_context {
 
 static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
 static struct mutex probe_disc_mt; /* ch->linked = true, most_nd_open */
-static struct spinlock list_lock;
+static struct spinlock list_lock; /* list_head, ch->linked = false, dev_hold */
 static struct most_aim aim;
 
 static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
@@ -271,21 +271,29 @@ static void most_nd_setup(struct net_device *dev)
 	dev->netdev_ops = &most_nd_ops;
 }
 
-static struct net_dev_context *get_net_dev_context(
-	struct most_interface *iface)
+static struct net_dev_context *get_net_dev(struct most_interface *iface)
+{
+	struct net_dev_context *nd;
+
+	list_for_each_entry(nd, &net_devices, list)
+		if (nd->iface == iface)
+			return nd;
+	return NULL;
+}
+
+static struct net_dev_context *get_net_dev_hold(struct most_interface *iface)
 {
 	struct net_dev_context *nd;
 	unsigned long flags;
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_for_each_entry(nd, &net_devices, list) {
-		if (nd->iface == iface) {
-			spin_unlock_irqrestore(&list_lock, flags);
-			return nd;
-		}
-	}
+	nd = get_net_dev(iface);
+	if (nd && nd->rx.linked && nd->tx.linked)
+		dev_hold(nd->dev);
+	else
+		nd = NULL;
 	spin_unlock_irqrestore(&list_lock, flags);
-	return NULL;
+	return nd;
 }
 
 static int aim_probe_channel(struct most_interface *iface, int channel_idx,
@@ -305,7 +313,7 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 		return -EINVAL;
 
 	mutex_lock(&probe_disc_mt);
-	nd = get_net_dev_context(iface);
+	nd = get_net_dev(iface);
 	if (!nd) {
 		dev = alloc_netdev(sizeof(struct net_dev_context), "meth%d",
 				   NET_NAME_UNKNOWN, most_nd_setup);
@@ -354,7 +362,7 @@ static int aim_disconnect_channel(struct most_interface *iface,
 	int ret = 0;
 
 	mutex_lock(&probe_disc_mt);
-	nd = get_net_dev_context(iface);
+	nd = get_net_dev(iface);
 	if (!nd) {
 		ret = -EINVAL;
 		goto unlock;
@@ -370,12 +378,15 @@ static int aim_disconnect_channel(struct most_interface *iface,
 	}
 
 	if (nd->rx.linked && nd->tx.linked) {
+		spin_lock_irqsave(&list_lock, flags);
+		ch->linked = false;
+		spin_unlock_irqrestore(&list_lock, flags);
+
 		/*
 		 * do not call most_stop_channel() here, because channels are
 		 * going to be closed in ndo_stop() after unregister_netdev()
 		 */
 		unregister_netdev(nd->dev);
-		ch->linked = false;
 	} else {
 		spin_lock_irqsave(&list_lock, flags);
 		list_del(&nd->list);
@@ -394,11 +405,17 @@ static int aim_resume_tx_channel(struct most_interface *iface,
 {
 	struct net_dev_context *nd;
 
-	nd = get_net_dev_context(iface);
-	if (!nd || nd->tx.ch_id != channel_idx)
+	nd = get_net_dev_hold(iface);
+	if (!nd)
 		return 0;
 
+	if (nd->tx.ch_id != channel_idx)
+		goto put_nd;
+
 	netif_wake_queue(nd->dev);
+
+put_nd:
+	dev_put(nd->dev);
 	return 0;
 }
 
@@ -411,21 +428,31 @@ static int aim_rx_data(struct mbo *mbo)
 	struct sk_buff *skb;
 	struct net_device *dev;
 	unsigned int skb_len;
+	int ret = 0;
 
-	nd = get_net_dev_context(mbo->ifp);
-	if (!nd || nd->rx.ch_id != mbo->hdm_channel_id)
+	nd = get_net_dev_hold(mbo->ifp);
+	if (!nd)
 		return -EIO;
+
+	if (nd->rx.ch_id != mbo->hdm_channel_id) {
+		ret = -EIO;
+		goto put_nd;
+	}
 
 	dev = nd->dev;
 
 	if (nd->is_mamac) {
-		if (!PMS_IS_MAMAC(buf, len))
-			return -EIO;
+		if (!PMS_IS_MAMAC(buf, len)) {
+			ret = -EIO;
+			goto put_nd;
+		}
 
 		skb = dev_alloc_skb(len - MDP_HDR_LEN + 2 * ETH_ALEN + 2);
 	} else {
-		if (!PMS_IS_MEP(buf, len))
-			return -EIO;
+		if (!PMS_IS_MEP(buf, len)) {
+			ret = -EIO;
+			goto put_nd;
+		}
 
 		skb = dev_alloc_skb(len - MEP_HDR_LEN);
 	}
@@ -468,7 +495,10 @@ static int aim_rx_data(struct mbo *mbo)
 
 out:
 	most_put_mbo(mbo);
-	return 0;
+
+put_nd:
+	dev_put(nd->dev);
+	return ret;
 }
 
 static struct most_aim aim = {
@@ -504,7 +534,7 @@ static void on_netinfo(struct most_interface *iface,
 	struct net_device *dev;
 	const u8 *m = mac_addr;
 
-	nd = get_net_dev_context(iface);
+	nd = get_net_dev_hold(iface);
 	if (!nd)
 		return;
 
@@ -526,6 +556,8 @@ static void on_netinfo(struct most_interface *iface,
 				    m[0], m[1], m[2], m[3], m[4], m[5]);
 		}
 	}
+
+	dev_put(nd->dev);
 }
 
 module_init(most_net_init);
