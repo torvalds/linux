@@ -91,7 +91,7 @@ void of_fdt_limit_memory(int limit)
  * On match, returns a non-zero value with smaller values returned for more
  * specific compatible values.
  */
-int of_fdt_is_compatible(const void *blob,
+static int of_fdt_is_compatible(const void *blob,
 		      unsigned long node, const char *compat)
 {
 	const char *cp;
