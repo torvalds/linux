@@ -1199,7 +1199,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	reservation_object_unlock(batch->resv);
 	i915_vma_unpin(batch);
 
-	i915_vma_move_to_active(vma, rq, true);
+	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	reservation_object_lock(vma->resv, NULL);
 	reservation_object_add_excl_fence(vma->resv, &rq->fence);
 	reservation_object_unlock(vma->resv);
