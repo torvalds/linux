@@ -169,4 +169,59 @@ do {									\
 	__ret;								\
 })
 
+#define __swait_event_idle(wq, condition)				\
+	(void)___swait_event(wq, condition, TASK_IDLE, 0, schedule())
+
+/**
+ * swait_event_idle - wait without system load contribution
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ *
+ * The process is put to sleep (TASK_IDLE) until the @condition evaluates to
+ * true. The @condition is checked each time the waitqueue @wq is woken up.
+ *
+ * This function is mostly used when a kthread or workqueue waits for some
+ * condition and doesn't want to contribute to system load. Signals are
+ * ignored.
+ */
+#define swait_event_idle(wq, condition)					\
+do {									\
+	if (condition)							\
+		break;							\
+	__swait_event_idle(wq, condition);				\
+} while (0)
+
+#define __swait_event_idle_timeout(wq, condition, timeout)		\
+	___swait_event(wq, ___wait_cond_timeout(condition),		\
+		       TASK_IDLE, timeout,				\
+		       __ret = schedule_timeout(__ret))
+
+/**
+ * swait_event_idle_timeout - wait up to timeout without load contribution
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ * @timeout: timeout at which we'll give up in jiffies
+ *
+ * The process is put to sleep (TASK_IDLE) until the @condition evaluates to
+ * true. The @condition is checked each time the waitqueue @wq is woken up.
+ *
+ * This function is mostly used when a kthread or workqueue waits for some
+ * condition and doesn't want to contribute to system load. Signals are
+ * ignored.
+ *
+ * Returns:
+ * 0 if the @condition evaluated to %false after the @timeout elapsed,
+ * 1 if the @condition evaluated to %true after the @timeout elapsed,
+ * or the remaining jiffies (at least 1) if the @condition evaluated
+ * to %true before the @timeout elapsed.
+ */
+#define swait_event_idle_timeout(wq, condition, timeout)		\
+({									\
+	long __ret = timeout;						\
+	if (!___wait_cond_timeout(condition))				\
+		__ret = __swait_event_idle_timeout(wq,			\
+						   condition, timeout);	\
+	__ret;								\
+})
+
 #endif /* _LINUX_SWAIT_H */
