@@ -81,6 +81,12 @@ static const struct emac_variant emac_variant_h3 = {
 	.support_rgmii = true
 };
 
+static const struct emac_variant emac_variant_v3s = {
+	.default_syscon_value = 0x38000,
+	.internal_phy = PHY_INTERFACE_MODE_MII,
+	.support_mii = true
+};
+
 static const struct emac_variant emac_variant_a83t = {
 	.default_syscon_value = 0,
 	.internal_phy = 0,
@@ -185,6 +191,7 @@ static const struct emac_variant emac_variant_a64 = {
 
 /* H3 specific bits for EPHY */
 #define H3_EPHY_ADDR_SHIFT	20
+#define H3_EPHY_CLK_SEL		BIT(18) /* 1: 24MHz, 0: 25MHz */
 #define H3_EPHY_LED_POL		BIT(17) /* 1: active low, 0: active high */
 #define H3_EPHY_SHUTDOWN	BIT(16) /* 1: shutdown, 0: power up */
 #define H3_EPHY_SELECT		BIT(15) /* 1: internal PHY, 0: external PHY */
@@ -656,6 +663,9 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 			else
 				reg &= ~H3_EPHY_LED_POL;
 
+			/* Force EPHY xtal frequency to 24MHz. */
+			reg |= H3_EPHY_CLK_SEL;
+
 			ret = of_mdio_parse_addr(priv->device,
 						 priv->plat->phy_node);
 			if (ret < 0) {
@@ -971,6 +981,8 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 static const struct of_device_id sun8i_dwmac_match[] = {
 	{ .compatible = "allwinner,sun8i-h3-emac",
 		.data = &emac_variant_h3 },
+	{ .compatible = "allwinner,sun8i-v3s-emac",
+		.data = &emac_variant_v3s },
 	{ .compatible = "allwinner,sun8i-a83t-emac",
 		.data = &emac_variant_a83t },
 	{ .compatible = "allwinner,sun50i-a64-emac",
