@@ -1150,8 +1150,8 @@ struct i915_psr {
 enum intel_pch {
 	PCH_NONE = 0,	/* No PCH present */
 	PCH_IBX,	/* Ibexpeak PCH */
-	PCH_CPT,	/* Cougarpoint PCH */
-	PCH_LPT,	/* Lynxpoint PCH */
+	PCH_CPT,	/* Cougarpoint/Pantherpoint PCH */
+	PCH_LPT,	/* Lynxpoint/Wildcatpoint PCH */
 	PCH_SPT,        /* Sunrisepoint PCH */
 	PCH_KBP,        /* Kabypoint PCH */
 	PCH_CNP,        /* Cannonpoint PCH */
