@@ -1202,7 +1202,7 @@
 	status = "okay";
 };
 
-&usbdrd_dwc3_0 {
+&usbdrd_dwc3 {
 	dr_mode = "otg";
 };
 
