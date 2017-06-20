@@ -816,9 +816,7 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	/* treat non-bufferable MMPDUs as broadcast if sta is sleeping */
 	if (unlikely(info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER &&
 		     ieee80211_is_mgmt(hdr->frame_control) &&
-		     !ieee80211_is_deauth(hdr->frame_control) &&
-		     !ieee80211_is_disassoc(hdr->frame_control) &&
-		     !ieee80211_is_action(hdr->frame_control)))
+		     !ieee80211_is_bufferable_mmpdu(hdr->frame_control)))
 		sta = NULL;
 
 	if (sta) {
