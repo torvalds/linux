@@ -2600,13 +2600,13 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 }
 
 /**
- * i915_reset_and_wakeup - do process context error handling work
+ * i915_reset_device - do process context error handling work
  * @dev_priv: i915 device private
  *
  * Fire an error uevent so userspace can see that a hang or error
  * was detected.
  */
-static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
+static void i915_reset_device(struct drm_i915_private *dev_priv)
 {
 	struct kobject *kobj = &dev_priv->drm.primary->kdev->kobj;
 	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
@@ -2646,13 +2646,6 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 	if (!test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
 		kobject_uevent_env(kobj,
 				   KOBJ_CHANGE, reset_done_event);
-
-	/*
-	 * Note: The wake_up also serves as a memory barrier so that
-	 * waiters see the updated value of the dev_priv->gpu_error.
-	 */
-	clear_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags);
-	wake_up_all(&dev_priv->gpu_error.reset_queue);
 }
 
 static inline void
@@ -2744,11 +2737,17 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	if (!engine_mask)
 		goto out;
 
-	if (test_and_set_bit(I915_RESET_BACKOFF,
-			     &dev_priv->gpu_error.flags))
+	if (test_and_set_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags)) {
+		wait_event(dev_priv->gpu_error.reset_queue,
+			   !test_bit(I915_RESET_BACKOFF,
+				     &dev_priv->gpu_error.flags));
 		goto out;
+	}
 
-	i915_reset_and_wakeup(dev_priv);
+	i915_reset_device(dev_priv);
+
+	clear_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags);
+	wake_up_all(&dev_priv->gpu_error.reset_queue);
 
 out:
 	intel_runtime_pm_put(dev_priv);

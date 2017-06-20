@@ -316,6 +316,8 @@ static int igt_global_reset(void *arg)
 
 	GEM_BUG_ON(test_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags));
 	clear_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
+	wake_up_all(&i915->gpu_error.reset_queue);
+
 	if (i915_terminally_wedged(&i915->gpu_error))
 		err = -EIO;
 
@@ -404,6 +406,7 @@ fini:
 unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 	clear_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
+	wake_up_all(&i915->gpu_error.reset_queue);
 
 	if (i915_terminally_wedged(&i915->gpu_error))
 		return -EIO;
@@ -519,6 +522,7 @@ fini:
 unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 	clear_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
+	wake_up_all(&i915->gpu_error.reset_queue);
 
 	if (i915_terminally_wedged(&i915->gpu_error))
 		return -EIO;
