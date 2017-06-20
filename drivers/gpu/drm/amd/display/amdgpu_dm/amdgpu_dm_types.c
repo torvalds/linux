@@ -2890,6 +2890,49 @@ static enum surface_update_type  amdgpu_dm_check_surfaces_update_type(
 	return update_type;
 }
 
+/*`
+ * Grabs all modesetting locks to serialize against any blocking commits,
+ * Waits for completion of all non blocking commits.
+ */
+static void aquire_global_lock(
+		struct drm_device *dev,
+		struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_commit *commit;
+	long ret;
+
+	/* Adding all modeset locks to aquire_ctx will
+	 * ensure that when the framework release it the
+	 * extra locks we are locking here will get released to
+	 */
+	drm_modeset_lock_all_ctx(dev, state->acquire_ctx);
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		spin_lock(&crtc->commit_lock);
+		commit = list_first_entry_or_null(&crtc->commit_list,
+				struct drm_crtc_commit, commit_entry);
+		if (commit)
+			drm_crtc_commit_get(commit);
+		spin_unlock(&crtc->commit_lock);
+
+		if (!commit)
+			continue;
+
+		/* Make sure all pending HW programming completed and
+		 * page flips done
+		 */
+		ret = wait_for_completion_timeout(&commit->hw_done,
+						  10*HZ);
+		ret = wait_for_completion_timeout(&commit->flip_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[CRTC:%d:%s] hw_done timed out\n",
+				  crtc->base.id, crtc->name);
+		drm_crtc_commit_put(commit);
+	}
+}
+
 int amdgpu_dm_atomic_check(struct drm_device *dev,
 			struct drm_atomic_state *state)
 {
@@ -3146,7 +3189,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 					dc,
 					set[i].surfaces,
 					set[i].surface_count,
-					set[i].stream) > UPDATE_TYPE_MED) {
+					set[i].stream) > UPDATE_TYPE_FAST) {
 				wait_for_prev_commits = true;
 				break;
 			}
@@ -3160,25 +3203,14 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		 * For full updates case when
 		 * removing/adding/updateding  streams on once CRTC while flipping
 		 * on another CRTC,
-		 * Adding all current active CRTC's states to the atomic commit in
-		 * amdgpu_dm_atomic_check will guarantee that any such full update commit
+		 * acquiring global lock  will guarantee that any such full
+		 * update commit
 		 * will wait for completion of any outstanding flip using DRMs
 		 * synchronization events.
 		 */
-		if (wait_for_prev_commits) {
-			list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-				struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-				struct drm_crtc_state *crtc_state;
+		if (wait_for_prev_commits)
+			aquire_global_lock(dev, state);
 
-				if (acrtc->stream) {
-					crtc_state = drm_atomic_get_crtc_state(state, crtc);
-					if (IS_ERR(crtc_state)) {
-						ret = PTR_ERR(crtc_state);
-						break;
-					}
-				}
-			}
-		}
 	}
 
 	if (context) {
