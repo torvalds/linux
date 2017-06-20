@@ -18,7 +18,7 @@
 
 #include <linux/fscache-cache.h>
 #include <linux/timer.h>
-#include <linux/wait.h>
+#include <linux/wait_bit.h>
 #include <linux/cred.h>
 #include <linux/workqueue.h>
 #include <linux/security.h>
