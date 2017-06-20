@@ -1741,16 +1741,14 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 							    NULL);
 	} else if (i40e_getnum_vf_vsi_vlan_filters(vsi)) {
 		hash_for_each(vsi->mac_filter_hash, bkt, f, hlist) {
-			aq_ret = 0;
-			if (f->vlan >= 0 && f->vlan <= I40E_MAX_VLANID) {
-				aq_ret =
-				i40e_aq_set_vsi_uc_promisc_on_vlan(hw,
-								   vsi->seid,
-								   alluni,
-								   f->vlan,
-								   NULL);
-				aq_err = pf->hw.aq.asq_last_status;
-			}
+			if (f->vlan < 0 || f->vlan > I40E_MAX_VLANID)
+				continue;
+			aq_ret = i40e_aq_set_vsi_uc_promisc_on_vlan(hw,
+								    vsi->seid,
+								    alluni,
+								    f->vlan,
+								    NULL);
+			aq_err = pf->hw.aq.asq_last_status;
 			if (aq_ret)
 				dev_err(&pf->pdev->dev,
 					"Could not add VLAN %d to Unicast promiscuous domain err %s aq_err %s\n",
