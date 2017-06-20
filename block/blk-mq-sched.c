@@ -150,6 +150,8 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
 	struct request *rq;
 	int checked = 8;
 
+	lockdep_assert_held(&ctx->lock);
+
 	list_for_each_entry_reverse(rq, &ctx->rq_list, queuelist) {
 		bool merged = false;
 
