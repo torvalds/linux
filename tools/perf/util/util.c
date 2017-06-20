@@ -350,8 +350,12 @@ fetch_ubuntu_kernel_version(unsigned int *puint)
 	size_t line_len = 0;
 	char *ptr, *line = NULL;
 	int version, patchlevel, sublevel, err;
-	FILE *vsig = fopen("/proc/version_signature", "r");
+	FILE *vsig;
 
+	if (!puint)
+		return 0;
+
+	vsig = fopen("/proc/version_signature", "r");
 	if (!vsig) {
 		pr_debug("Open /proc/version_signature failed: %s\n",
 			 strerror(errno));
@@ -381,8 +385,7 @@ fetch_ubuntu_kernel_version(unsigned int *puint)
 		goto errout;
 	}
 
-	if (puint)
-		*puint = (version << 16) + (patchlevel << 8) + sublevel;
+	*puint = (version << 16) + (patchlevel << 8) + sublevel;
 	err = 0;
 errout:
 	free(line);
@@ -409,6 +412,9 @@ fetch_kernel_version(unsigned int *puint, char *str,
 		str[str_size - 1] = '\0';
 	}
 
+	if (!puint || int_ver_ready)
+		return 0;
+
 	err = sscanf(utsname.release, "%d.%d.%d",
 		     &version, &patchlevel, &sublevel);
 
@@ -418,8 +424,7 @@ fetch_kernel_version(unsigned int *puint, char *str,
 		return -1;
 	}
 
-	if (puint && !int_ver_ready)
-		*puint = (version << 16) + (patchlevel << 8) + sublevel;
+	*puint = (version << 16) + (patchlevel << 8) + sublevel;
 	return 0;
 }
 
