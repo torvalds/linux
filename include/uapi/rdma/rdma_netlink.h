@@ -257,6 +257,11 @@ enum rdma_nldev_attr {
 	 */
 	RDMA_NLDEV_ATTR_PORT_INDEX,		/* u32 */
 
+	/*
+	 * Device and port capabilities
+	 */
+	RDMA_NLDEV_ATTR_CAP_FLAGS,		/* u64 */
+
 	RDMA_NLDEV_ATTR_MAX
 };
 #endif /* _UAPI_RDMA_NETLINK_H */

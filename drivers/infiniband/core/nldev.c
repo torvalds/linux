@@ -50,18 +50,37 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 		return -EMSGSIZE;
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, rdma_end_port(device)))
 		return -EMSGSIZE;
+
+	BUILD_BUG_ON(sizeof(device->attrs.device_cap_flags) != sizeof(u64));
+	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_CAP_FLAGS,
+			      device->attrs.device_cap_flags, 0))
+		return -EMSGSIZE;
+
 	return 0;
 }
 
 static int fill_port_info(struct sk_buff *msg,
 			  struct ib_device *device, u32 port)
 {
+	struct ib_port_attr attr;
+	int ret;
+
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_DEV_INDEX, device->index))
 		return -EMSGSIZE;
 	if (nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_NAME, device->name))
 		return -EMSGSIZE;
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, port))
 		return -EMSGSIZE;
+
+	ret = ib_query_port(device, port, &attr);
+	if (ret)
+		return ret;
+
+	BUILD_BUG_ON(sizeof(attr.port_cap_flags) > sizeof(u64));
+	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_CAP_FLAGS,
+			      (u64)attr.port_cap_flags, 0))
+		return -EMSGSIZE;
+
 	return 0;
 }
 
