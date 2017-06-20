@@ -520,7 +520,7 @@ static inline bool may_queue(struct rq_wb *rwb, struct rq_wait *rqw,
 	 * in line to be woken up, wait for our turn.
 	 */
 	if (waitqueue_active(&rqw->wait) &&
-	    rqw->wait.task_list.next != &wait->task_list)
+	    rqw->wait.head.next != &wait->entry)
 		return false;
 
 	return atomic_inc_below(&rqw->inflight, get_limit(rwb, rw));

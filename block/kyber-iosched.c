@@ -385,7 +385,7 @@ static int kyber_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
 
 	for (i = 0; i < KYBER_NUM_DOMAINS; i++) {
 		INIT_LIST_HEAD(&khd->rqs[i]);
-		INIT_LIST_HEAD(&khd->domain_wait[i].task_list);
+		INIT_LIST_HEAD(&khd->domain_wait[i].entry);
 		atomic_set(&khd->wait_index[i], 0);
 	}
 
@@ -512,7 +512,7 @@ static int kyber_domain_wake(wait_queue_entry_t *wait, unsigned mode, int flags,
 {
 	struct blk_mq_hw_ctx *hctx = READ_ONCE(wait->private);
 
-	list_del_init(&wait->task_list);
+	list_del_init(&wait->entry);
 	blk_mq_run_hw_queue(hctx, true);
 	return 1;
 }
@@ -536,7 +536,7 @@ static int kyber_get_domain_token(struct kyber_queue_data *kqd,
 	 * run when one becomes available. Note that this is serialized on
 	 * khd->lock, but we still need to be careful about the waker.
 	 */
-	if (list_empty_careful(&wait->task_list)) {
+	if (list_empty_careful(&wait->entry)) {
 		init_waitqueue_func_entry(wait, kyber_domain_wake);
 		wait->private = hctx;
 		ws = sbq_wait_ptr(domain_tokens,
@@ -736,7 +736,7 @@ static int kyber_##name##_waiting_show(void *data, struct seq_file *m)	\
 	struct kyber_hctx_data *khd = hctx->sched_data;			\
 	wait_queue_entry_t *wait = &khd->domain_wait[domain];		\
 									\
-	seq_printf(m, "%d\n", !list_empty_careful(&wait->task_list));	\
+	seq_printf(m, "%d\n", !list_empty_careful(&wait->entry));	\
 	return 0;							\
 }
 KYBER_DEBUGFS_DOMAIN_ATTRS(KYBER_READ, read)

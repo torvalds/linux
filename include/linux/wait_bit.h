@@ -45,8 +45,8 @@ int wake_bit_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync
 		.wq_entry = {							\
 			.private	= current,				\
 			.func		= wake_bit_function,			\
-			.task_list	=					\
-				LIST_HEAD_INIT((name).wq_entry.task_list),	\
+			.entry		=					\
+				LIST_HEAD_INIT((name).wq_entry.entry),		\
 		},								\
 	}
 

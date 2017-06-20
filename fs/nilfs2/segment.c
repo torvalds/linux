@@ -2206,8 +2206,7 @@ static void nilfs_segctor_wakeup(struct nilfs_sc_info *sci, int err)
 	unsigned long flags;
 
 	spin_lock_irqsave(&sci->sc_wait_request.lock, flags);
-	list_for_each_entry_safe(wrq, n, &sci->sc_wait_request.task_list,
-				 wq.task_list) {
+	list_for_each_entry_safe(wrq, n, &sci->sc_wait_request.head, wq.entry) {
 		if (!atomic_read(&wrq->done) &&
 		    nilfs_cnt32_ge(sci->sc_seq_done, wrq->seq)) {
 			wrq->err = err;

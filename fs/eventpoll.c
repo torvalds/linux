@@ -1094,7 +1094,7 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 		 * can't use __remove_wait_queue(). whead->lock is held by
 		 * the caller.
 		 */
-		list_del_init(&wait->task_list);
+		list_del_init(&wait->entry);
 	}
 
 	spin_lock_irqsave(&ep->lock, flags);

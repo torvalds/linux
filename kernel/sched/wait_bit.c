@@ -205,8 +205,8 @@ int __wait_on_atomic_t(struct wait_queue_head *wq_head, struct wait_bit_queue_en
 		.wq_entry = {						\
 			.private	= current,			\
 			.func		= wake_atomic_t_function,	\
-			.task_list	=				\
-				LIST_HEAD_INIT((name).wq_entry.task_list), \
+			.entry		=				\
+				LIST_HEAD_INIT((name).wq_entry.entry),	\
 		},							\
 	}
 
