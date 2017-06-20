@@ -331,6 +331,8 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
 		value = i915.enable_hangcheck && intel_has_gpu_reset(dev_priv);
+		if (value && intel_has_reset_engine(dev_priv))
+			value = 2;
 		break;
 	case I915_PARAM_HAS_RESOURCE_STREAMER:
 		value = HAS_RESOURCE_STREAMER(dev_priv);
@@ -1913,6 +1915,19 @@ wakeup:
 error:
 	i915_gem_set_wedged(dev_priv);
 	goto finish;
+}
+
+/**
+ * i915_reset_engine - reset GPU engine to recover from a hang
+ * @engine: engine to reset
+ *
+ * Reset a specific GPU engine. Useful if a hang is detected.
+ * Returns zero on successful reset or otherwise an error code.
+ */
+int i915_reset_engine(struct intel_engine_cs *engine)
+{
+	/* FIXME: replace me with engine reset sequence */
+	return -ENODEV;
 }
 
 static int i915_pm_suspend(struct device *kdev)

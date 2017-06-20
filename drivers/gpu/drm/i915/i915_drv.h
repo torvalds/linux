@@ -752,6 +752,7 @@ struct intel_csr {
 	func(has_csr); \
 	func(has_ddi); \
 	func(has_dp_mst); \
+	func(has_reset_engine); \
 	func(has_fbc); \
 	func(has_fpga_dbg); \
 	func(has_full_ppgtt); \
@@ -1549,6 +1550,12 @@ struct i915_gpu_error {
 	 * inspect the bit and do the reset directly, otherwise the worker
 	 * waits for the struct_mutex.
 	 *
+	 * #I915_RESET_ENGINE[num_engines] - Since the driver doesn't need to
+	 * acquire the struct_mutex to reset an engine, we need an explicit
+	 * flag to prevent two concurrent reset attempts in the same engine.
+	 * As the number of engines continues to grow, allocate the flags from
+	 * the most significant bits.
+	 *
 	 * #I915_WEDGED - If reset fails and we can no longer use the GPU,
 	 * we set the #I915_WEDGED bit. Prior to command submission, e.g.
 	 * i915_gem_request_alloc(), this bit is checked and the sequence
@@ -1558,6 +1565,7 @@ struct i915_gpu_error {
 #define I915_RESET_BACKOFF	0
 #define I915_RESET_HANDOFF	1
 #define I915_WEDGED		(BITS_PER_LONG - 1)
+#define I915_RESET_ENGINE	(I915_WEDGED - I915_NUM_ENGINES)
 
 	/**
 	 * Waitqueue to signal when a hang is detected. Used to for waiters
@@ -3092,6 +3100,8 @@ extern void i915_driver_unload(struct drm_device *dev);
 extern int intel_gpu_reset(struct drm_i915_private *dev_priv, u32 engine_mask);
 extern bool intel_has_gpu_reset(struct drm_i915_private *dev_priv);
 extern void i915_reset(struct drm_i915_private *dev_priv);
+extern int i915_reset_engine(struct intel_engine_cs *engine);
+extern bool intel_has_reset_engine(struct drm_i915_private *dev_priv);
 extern int intel_guc_reset(struct drm_i915_private *dev_priv);
 extern void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
 extern void intel_hangcheck_init(struct drm_i915_private *dev_priv);

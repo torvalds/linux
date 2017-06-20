@@ -1719,6 +1719,17 @@ bool intel_has_gpu_reset(struct drm_i915_private *dev_priv)
 	return intel_get_gpu_reset(dev_priv) != NULL;
 }
 
+/*
+ * When GuC submission is enabled, GuC manages ELSP and can initiate the
+ * engine reset too. For now, fall back to full GPU reset if it is enabled.
+ */
+bool intel_has_reset_engine(struct drm_i915_private *dev_priv)
+{
+	return (dev_priv->info.has_reset_engine &&
+		!dev_priv->guc.execbuf_client &&
+		i915.reset >= 2);
+}
+
 int intel_guc_reset(struct drm_i915_private *dev_priv)
 {
 	int ret;
