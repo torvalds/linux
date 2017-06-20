@@ -480,7 +480,7 @@ static void ufs_setup_cstotal(struct super_block *sb)
 	usb3 = ubh_get_usb_third(uspi);
 
 	if ((mtype == UFS_MOUNT_UFSTYPE_44BSD &&
-	     (usb1->fs_flags & UFS_FLAGS_UPDATED)) ||
+	     (usb2->fs_un.fs_u2.fs_maxbsize == usb1->fs_bsize)) ||
 	    mtype == UFS_MOUNT_UFSTYPE_UFS2) {
 		/*we have statistic in different place, then usual*/
 		uspi->cs_total.cs_ndir = fs64_to_cpu(sb, usb2->fs_un.fs_u2.cs_ndir);
@@ -596,9 +596,7 @@ static void ufs_put_cstotal(struct super_block *sb)
 	usb2 = ubh_get_usb_second(uspi);
 	usb3 = ubh_get_usb_third(uspi);
 
-	if ((mtype == UFS_MOUNT_UFSTYPE_44BSD &&
-	     (usb1->fs_flags & UFS_FLAGS_UPDATED)) ||
-	    mtype == UFS_MOUNT_UFSTYPE_UFS2) {
+	if (mtype == UFS_MOUNT_UFSTYPE_UFS2) {
 		/*we have statistic in different place, then usual*/
 		usb2->fs_un.fs_u2.cs_ndir =
 			cpu_to_fs64(sb, uspi->cs_total.cs_ndir);
@@ -608,16 +606,26 @@ static void ufs_put_cstotal(struct super_block *sb)
 			cpu_to_fs64(sb, uspi->cs_total.cs_nifree);
 		usb3->fs_un1.fs_u2.cs_nffree =
 			cpu_to_fs64(sb, uspi->cs_total.cs_nffree);
-	} else {
-		usb1->fs_cstotal.cs_ndir =
-			cpu_to_fs32(sb, uspi->cs_total.cs_ndir);
-		usb1->fs_cstotal.cs_nbfree =
-			cpu_to_fs32(sb, uspi->cs_total.cs_nbfree);
-		usb1->fs_cstotal.cs_nifree =
-			cpu_to_fs32(sb, uspi->cs_total.cs_nifree);
-		usb1->fs_cstotal.cs_nffree =
-			cpu_to_fs32(sb, uspi->cs_total.cs_nffree);
+		goto out;
 	}
+
+	if (mtype == UFS_MOUNT_UFSTYPE_44BSD &&
+	     (usb2->fs_un.fs_u2.fs_maxbsize == usb1->fs_bsize)) {
+		/* store stats in both old and new places */
+		usb2->fs_un.fs_u2.cs_ndir =
+			cpu_to_fs64(sb, uspi->cs_total.cs_ndir);
+		usb2->fs_un.fs_u2.cs_nbfree =
+			cpu_to_fs64(sb, uspi->cs_total.cs_nbfree);
+		usb3->fs_un1.fs_u2.cs_nifree =
+			cpu_to_fs64(sb, uspi->cs_total.cs_nifree);
+		usb3->fs_un1.fs_u2.cs_nffree =
+			cpu_to_fs64(sb, uspi->cs_total.cs_nffree);
+	}
+	usb1->fs_cstotal.cs_ndir = cpu_to_fs32(sb, uspi->cs_total.cs_ndir);
+	usb1->fs_cstotal.cs_nbfree = cpu_to_fs32(sb, uspi->cs_total.cs_nbfree);
+	usb1->fs_cstotal.cs_nifree = cpu_to_fs32(sb, uspi->cs_total.cs_nifree);
+	usb1->fs_cstotal.cs_nffree = cpu_to_fs32(sb, uspi->cs_total.cs_nffree);
+out:
 	ubh_mark_buffer_dirty(USPI_UBH(uspi));
 	ufs_print_super_stuff(sb, usb1, usb2, usb3);
 	UFSD("EXIT\n");
@@ -996,6 +1004,13 @@ again:
 		flags |=  UFS_ST_SUN;
 	}
 
+	if ((flags & UFS_ST_MASK) == UFS_ST_44BSD &&
+	    uspi->s_postblformat == UFS_42POSTBLFMT) {
+		if (!silent)
+			pr_err("this is not a 44bsd filesystem");
+		goto failed;
+	}
+
 	/*
 	 * Check ufs magic number
 	 */
@@ -1143,8 +1158,8 @@ magic_found:
 	uspi->s_cgmask = fs32_to_cpu(sb, usb1->fs_cgmask);
 
 	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
-		uspi->s_u2_size  = fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_size);
-		uspi->s_u2_dsize = fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_dsize);
+		uspi->s_size  = fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_size);
+		uspi->s_dsize = fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_dsize);
 	} else {
 		uspi->s_size  =  fs32_to_cpu(sb, usb1->fs_size);
 		uspi->s_dsize =  fs32_to_cpu(sb, usb1->fs_dsize);
@@ -1192,6 +1207,9 @@ magic_found:
 	uspi->s_nrpos = fs32_to_cpu(sb, usb3->fs_nrpos);
 	uspi->s_postbloff = fs32_to_cpu(sb, usb3->fs_postbloff);
 	uspi->s_rotbloff = fs32_to_cpu(sb, usb3->fs_rotbloff);
+
+	uspi->s_root_blocks = mul_u64_u32_div(uspi->s_dsize,
+					      uspi->s_minfree, 100);
 
 	/*
 	 * Compute another frequently used values
@@ -1382,19 +1400,17 @@ static int ufs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	mutex_lock(&UFS_SB(sb)->s_lock);
 	usb3 = ubh_get_usb_third(uspi);
 	
-	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
+	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
 		buf->f_type = UFS2_MAGIC;
-		buf->f_blocks = fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_dsize);
-	} else {
+	else
 		buf->f_type = UFS_MAGIC;
-		buf->f_blocks = uspi->s_dsize;
-	}
-	buf->f_bfree = ufs_blkstofrags(uspi->cs_total.cs_nbfree) +
-		uspi->cs_total.cs_nffree;
+
+	buf->f_blocks = uspi->s_dsize;
+	buf->f_bfree = ufs_freefrags(uspi);
 	buf->f_ffree = uspi->cs_total.cs_nifree;
 	buf->f_bsize = sb->s_blocksize;
-	buf->f_bavail = (buf->f_bfree > (((long)buf->f_blocks / 100) * uspi->s_minfree))
-		? (buf->f_bfree - (((long)buf->f_blocks / 100) * uspi->s_minfree)) : 0;
+	buf->f_bavail = (buf->f_bfree > uspi->s_root_blocks)
+		? (buf->f_bfree - uspi->s_root_blocks) : 0;
 	buf->f_files = uspi->s_ncg * uspi->s_ipg;
 	buf->f_namelen = UFS_MAXNAMLEN;
 	buf->f_fsid.val[0] = (u32)id;

@@ -1207,8 +1207,6 @@ void rtw_ndev_destructor(struct net_device *ndev)
 
 	if (ndev->ieee80211_ptr)
 		kfree((u8 *)ndev->ieee80211_ptr);
-
-	free_netdev(ndev);
 }
 
 void rtw_dev_unload(struct adapter *padapter)

@@ -1007,7 +1007,7 @@ static void geneve_setup(struct net_device *dev)
 
 	dev->netdev_ops = &geneve_netdev_ops;
 	dev->ethtool_ops = &geneve_ethtool_ops;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 
 	SET_NETDEV_DEVTYPE(dev, &geneve_type);
 

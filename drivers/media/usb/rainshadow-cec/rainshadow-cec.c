@@ -336,6 +336,7 @@ static int rain_connect(struct serio *serio, struct serio_driver *drv)
 	serio_set_drvdata(serio, rain);
 	INIT_WORK(&rain->work, rain_irq_work_handler);
 	mutex_init(&rain->write_lock);
+	spin_lock_init(&rain->buf_lock);
 
 	err = serio_open(serio, drv);
 	if (err)
