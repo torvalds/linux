@@ -1559,6 +1559,7 @@ int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
 		if (ret)
 			return ret;
 	}
+	cond_resched();
 	return 0;
 }
 
