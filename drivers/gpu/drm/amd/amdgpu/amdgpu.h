@@ -1028,12 +1028,15 @@ struct amdgpu_gfx_config {
 };
 
 struct amdgpu_cu_info {
-	uint32_t number; /* total active CU number */
-	uint32_t ao_cu_mask;
 	uint32_t max_waves_per_simd;
 	uint32_t wave_front_size;
 	uint32_t max_scratch_slots_per_cu;
 	uint32_t lds_size;
+
+	/* total active CU number */
+	uint32_t number;
+	uint32_t ao_cu_mask;
+	uint32_t ao_cu_bitmap[4][4];
 	uint32_t bitmap[4][4];
 };
 
