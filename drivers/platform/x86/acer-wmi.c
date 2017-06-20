@@ -703,7 +703,7 @@ struct acpi_buffer *result)
 	input.length = sizeof(struct wmab_args);
 	input.pointer = (u8 *)regbuf;
 
-	status = wmi_evaluate_method(AMW0_GUID1, 1, 1, &input, result);
+	status = wmi_evaluate_method(AMW0_GUID1, 0, 1, &input, result);
 
 	return status;
 }
@@ -968,7 +968,7 @@ WMI_execute_u32(u32 method_id, u32 in, u32 *out)
 	u32 tmp = 0;
 	acpi_status status;
 
-	status = wmi_evaluate_method(WMID_GUID1, 1, method_id, &input, &result);
+	status = wmi_evaluate_method(WMID_GUID1, 0, method_id, &input, &result);
 
 	if (ACPI_FAILURE(status))
 		return status;
@@ -1282,7 +1282,7 @@ static acpi_status __init WMID_set_capabilities(void)
 	acpi_status status;
 	u32 devices;
 
-	status = wmi_query_block(WMID_GUID2, 1, &out);
+	status = wmi_query_block(WMID_GUID2, 0, &out);
 	if (ACPI_FAILURE(status))
 		return status;
 
@@ -2025,7 +2025,7 @@ static u32 get_wmid_devices(void)
 	acpi_status status;
 	u32 devices = 0;
 
-	status = wmi_query_block(WMID_GUID2, 1, &out);
+	status = wmi_query_block(WMID_GUID2, 0, &out);
 	if (ACPI_FAILURE(status))
 		return 0;
 
