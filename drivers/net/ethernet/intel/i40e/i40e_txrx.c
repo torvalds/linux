@@ -2451,9 +2451,15 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		hlen = (hdr.network[0] & 0x0F) << 2;
 		l4_proto = hdr.ipv4->protocol;
 	} else {
-		hlen = hdr.network - skb->data;
-		l4_proto = ipv6_find_hdr(skb, &hlen, IPPROTO_TCP, NULL, NULL);
-		hlen -= hdr.network - skb->data;
+		/* find the start of the innermost ipv6 header */
+		unsigned int inner_hlen = hdr.network - skb->data;
+		unsigned int h_offset = inner_hlen;
+
+		/* this function updates h_offset to the end of the header */
+		l4_proto =
+		  ipv6_find_hdr(skb, &h_offset, IPPROTO_TCP, NULL, NULL);
+		/* hlen will contain our best estimate of the tcp header */
+		hlen = h_offset - inner_hlen;
 	}
 
 	if (l4_proto != IPPROTO_TCP)
