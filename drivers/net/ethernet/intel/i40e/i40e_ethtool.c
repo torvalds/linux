@@ -1091,7 +1091,7 @@ static void i40e_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	u32 *reg_buf = p;
-	int i, j, ri;
+	unsigned int i, j, ri;
 	u32 reg;
 
 	/* Tell ethtool which driver-version-specific regs output we have.
@@ -1550,9 +1550,9 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	struct i40e_ring *tx_ring, *rx_ring;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
+	unsigned int j;
 	int i = 0;
 	char *p;
-	int j;
 	struct rtnl_link_stats64 *net_stats = i40e_get_vsi_stats_struct(vsi);
 	unsigned int start;
 
@@ -1637,7 +1637,7 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	char *p = (char *)data;
-	int i;
+	unsigned int i;
 
 	switch (stringset) {
 	case ETH_SS_TEST:

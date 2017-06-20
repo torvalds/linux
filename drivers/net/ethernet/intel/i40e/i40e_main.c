@@ -4773,7 +4773,7 @@ static void i40e_detect_recover_hung(struct i40e_pf *pf)
 {
 	struct net_device *netdev;
 	struct i40e_vsi *vsi;
-	int i;
+	unsigned int i;
 
 	/* Only for LAN VSI */
 	vsi = pf->vsi[pf->lan_vsi];

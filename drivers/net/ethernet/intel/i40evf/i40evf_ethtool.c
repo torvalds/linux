@@ -165,7 +165,7 @@ static void i40evf_get_ethtool_stats(struct net_device *netdev,
 				     struct ethtool_stats *stats, u64 *data)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	int i, j;
+	unsigned int i, j;
 	char *p;
 
 	for (i = 0; i < I40EVF_GLOBAL_STATS_LEN; i++) {
@@ -197,7 +197,7 @@ static void i40evf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 	int i;
 
 	if (sset == ETH_SS_STATS) {
-		for (i = 0; i < I40EVF_GLOBAL_STATS_LEN; i++) {
+		for (i = 0; i < (int)I40EVF_GLOBAL_STATS_LEN; i++) {
 			memcpy(p, i40evf_gstrings_stats[i].stat_string,
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
