@@ -121,6 +121,7 @@ struct intel_engine_hangcheck {
 	unsigned long action_timestamp;
 	int deadlock;
 	struct intel_instdone instdone;
+	struct drm_i915_gem_request *active_request;
 	bool stalled;
 };
 

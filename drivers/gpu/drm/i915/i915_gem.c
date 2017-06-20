@@ -2839,7 +2839,7 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 
 	/* Ensure irq handler finishes, and not run again. */
 	for_each_engine(engine, dev_priv, id) {
-		struct drm_i915_gem_request *request;
+		struct drm_i915_gem_request *request = NULL;
 
 		/* Prevent the signaler thread from updating the request
 		 * state (by calling dma_fence_signal) as we are processing
@@ -2871,6 +2871,8 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 			if (request && request->fence.error == -EIO)
 				err = -EIO; /* Previous reset failed! */
 		}
+
+		engine->hangcheck.active_request = request;
 	}
 
 	i915_gem_revoke_fences(dev_priv);
@@ -2924,7 +2926,7 @@ static void engine_skip_context(struct drm_i915_gem_request *request)
 static bool i915_gem_reset_request(struct drm_i915_gem_request *request)
 {
 	/* Read once and return the resolution */
-	const bool guilty = engine_stalled(request->engine);
+	const bool guilty = !i915_gem_request_completed(request);
 
 	/* The guilty request will get skipped on a hung engine.
 	 *
@@ -2958,11 +2960,9 @@ static bool i915_gem_reset_request(struct drm_i915_gem_request *request)
 	return guilty;
 }
 
-static void i915_gem_reset_engine(struct intel_engine_cs *engine)
+static void i915_gem_reset_engine(struct intel_engine_cs *engine,
+				  struct drm_i915_gem_request *request)
 {
-	struct drm_i915_gem_request *request;
-
-	request = i915_gem_find_active_request(engine);
 	if (request && i915_gem_reset_request(request)) {
 		DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
 				 engine->name, request->global_seqno);
@@ -2988,7 +2988,7 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 	for_each_engine(engine, dev_priv, id) {
 		struct i915_gem_context *ctx;
 
-		i915_gem_reset_engine(engine);
+		i915_gem_reset_engine(engine, engine->hangcheck.active_request);
 		ctx = fetch_and_zero(&engine->last_retired_context);
 		if (ctx)
 			engine->context_unpin(engine, ctx);
@@ -3012,6 +3012,7 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	for_each_engine(engine, dev_priv, id) {
+		engine->hangcheck.active_request = NULL;
 		tasklet_enable(&engine->irq_tasklet);
 		kthread_unpark(engine->breadcrumbs.signaler);
 	}
