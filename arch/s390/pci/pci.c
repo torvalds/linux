@@ -86,6 +86,25 @@ struct zpci_dev *get_zdev_by_fid(u32 fid)
 	return zdev;
 }
 
+void zpci_remove_reserved_devices(void)
+{
+	struct zpci_dev *tmp, *zdev;
+	enum zpci_state state;
+	LIST_HEAD(remove);
+
+	spin_lock(&zpci_list_lock);
+	list_for_each_entry_safe(zdev, tmp, &zpci_list, entry) {
+		if (zdev->state == ZPCI_FN_STATE_STANDBY &&
+		    !clp_get_state(zdev->fid, &state) &&
+		    state == ZPCI_FN_STATE_RESERVED)
+			list_move_tail(&zdev->entry, &remove);
+	}
+	spin_unlock(&zpci_list_lock);
+
+	list_for_each_entry_safe(zdev, tmp, &remove, entry)
+		zpci_remove_device(zdev);
+}
+
 static struct zpci_dev *get_zdev_by_bus(struct pci_bus *bus)
 {
 	return (bus && bus->sysdata) ? (struct zpci_dev *) bus->sysdata : NULL;
@@ -844,16 +863,6 @@ out_free:
 out:
 	return rc;
 }
-
-void zpci_stop_device(struct zpci_dev *zdev)
-{
-	zpci_dma_exit_device(zdev);
-	/*
-	 * Note: SCLP disables fh via set-pci-fn so don't
-	 * do that here.
-	 */
-}
-EXPORT_SYMBOL_GPL(zpci_stop_device);
 
 void zpci_remove_device(struct zpci_dev *zdev)
 {
