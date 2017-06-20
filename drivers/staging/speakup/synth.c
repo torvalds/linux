@@ -445,10 +445,15 @@ int synth_add(struct spk_synth *in_synth)
 		mutex_unlock(&spk_mutex);
 		return -1;
 	}
-	synths[i++] = in_synth;
-	synths[i] = NULL;
+
 	if (in_synth->startup)
 		status = do_synth_init(in_synth);
+
+	if (!status) {
+		synths[i++] = in_synth;
+		synths[i] = NULL;
+	}
+
 	mutex_unlock(&spk_mutex);
 	return status;
 }
