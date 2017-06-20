@@ -55,17 +55,27 @@ enum sensors {
 
 #define INVALID_INDEX (-1U)
 
+/*
+ * 'compatible' string properties for sensor types as defined in old
+ * PowerNV firmware (skiboot). These are ordered as 'enum sensors'.
+ */
+static const char * const legacy_compatibles[] = {
+	"ibm,opal-sensor-cooling-fan",
+	"ibm,opal-sensor-amb-temp",
+	"ibm,opal-sensor-power-supply",
+	"ibm,opal-sensor-power"
+};
+
 static struct sensor_group {
-	const char *name;
-	const char *compatible;
+	const char *name; /* matches property 'sensor-type' */
 	struct attribute_group group;
 	u32 attr_count;
 	u32 hwmon_index;
 } sensor_groups[] = {
-	{"fan", "ibm,opal-sensor-cooling-fan"},
-	{"temp", "ibm,opal-sensor-amb-temp"},
-	{"in", "ibm,opal-sensor-power-supply"},
-	{"power", "ibm,opal-sensor-power"}
+	{ "fan"   },
+	{ "temp"  },
+	{ "in"    },
+	{ "power" }
 };
 
 struct sensor_data {
@@ -239,8 +249,8 @@ static int get_sensor_type(struct device_node *np)
 	enum sensors type;
 	const char *str;
 
-	for (type = 0; type < MAX_SENSOR_TYPE; type++) {
-		if (of_device_is_compatible(np, sensor_groups[type].compatible))
+	for (type = 0; type < ARRAY_SIZE(legacy_compatibles); type++) {
+		if (of_device_is_compatible(np, legacy_compatibles[type]))
 			return type;
 	}
 
