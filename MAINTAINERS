@@ -13756,7 +13756,7 @@ UDRAW TABLET
 M:	Bastien Nocera <hadess@hadess.net>
 L:	linux-input@vger.kernel.org
 S:	Maintained
-F:	drivers/hid/hid-udraw.c
+F:	drivers/hid/hid-udraw-ps3.c
 
 UFS FILESYSTEM
 M:	Evgeniy Dushistov <dushistov@mail.ru>
