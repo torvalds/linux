@@ -869,6 +869,8 @@ struct amdgpu_fpriv {
 
 struct amdgpu_bo_list {
 	struct mutex lock;
+	struct rcu_head rhead;
+	struct kref refcount;
 	struct amdgpu_bo *gds_obj;
 	struct amdgpu_bo *gws_obj;
 	struct amdgpu_bo *oa_obj;
@@ -1159,6 +1161,9 @@ struct amdgpu_cs_parser {
 
 	/* user fence */
 	struct amdgpu_bo_list_entry	uf_entry;
+
+	unsigned num_post_dep_syncobjs;
+	struct drm_syncobj **post_dep_syncobjs;
 };
 
 #define AMDGPU_PREAMBLE_IB_PRESENT          (1 << 0) /* bit set means command submit involves a preamble IB */
