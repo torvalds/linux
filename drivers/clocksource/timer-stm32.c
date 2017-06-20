@@ -187,4 +187,4 @@ err_clk_get:
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE(stm32, "st,stm32-timer", stm32_clockevent_init);
+TIMER_OF_DECLARE(stm32, "st,stm32-timer", stm32_clockevent_init);

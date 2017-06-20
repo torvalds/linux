@@ -110,9 +110,9 @@ static int __init nps_setup_clocksource(struct device_node *node)
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE(ezchip_nps400_clksrc, "ezchip,nps400-timer",
+TIMER_OF_DECLARE(ezchip_nps400_clksrc, "ezchip,nps400-timer",
 		       nps_setup_clocksource);
-CLOCKSOURCE_OF_DECLARE(ezchip_nps400_clk_src, "ezchip,nps400-timer1",
+TIMER_OF_DECLARE(ezchip_nps400_clk_src, "ezchip,nps400-timer1",
 		       nps_setup_clocksource);
 
 #ifdef CONFIG_EZNPS_MTM_EXT
@@ -279,6 +279,6 @@ static int __init nps_setup_clockevent(struct device_node *node)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(ezchip_nps400_clk_evt, "ezchip,nps400-timer0",
+TIMER_OF_DECLARE(ezchip_nps400_clk_evt, "ezchip,nps400-timer0",
 		       nps_setup_clockevent);
 #endif /* CONFIG_EZNPS_MTM_EXT */
