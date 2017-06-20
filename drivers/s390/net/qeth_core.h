@@ -986,6 +986,7 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *,
 int qeth_set_features(struct net_device *, netdev_features_t);
 int qeth_recover_features(struct net_device *);
 netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);
+int qeth_vm_request_mac(struct qeth_card *card);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

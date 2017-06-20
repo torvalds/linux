@@ -27,6 +27,9 @@
 #include <asm/io.h>
 #include <asm/sysinfo.h>
 #include <asm/compat.h>
+#include <asm/diag.h>
+#include <asm/cio.h>
+#include <asm/ccwdev.h>
 
 #include "qeth_core.h"
 
@@ -4103,7 +4106,8 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 							   flush_count);
 				atomic_set(&queue->state,
 						QETH_OUT_Q_UNLOCKED);
-				return -EBUSY;
+				rc = -EBUSY;
+				goto out;
 			}
 		}
 	}
@@ -4122,19 +4126,21 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 	 * In that case we will enter this loop
 	 */
 	while (atomic_dec_return(&queue->state)) {
-		flush_count = 0;
 		start_index = queue->next_buf_to_fill;
 		/* check if we can go back to non-packing state */
-		flush_count += qeth_switch_to_nonpacking_if_needed(queue);
+		tmp = qeth_switch_to_nonpacking_if_needed(queue);
 		/*
 		 * check if we need to flush a packing buffer to get a pci
 		 * flag out on the queue
 		 */
-		if (!flush_count && !atomic_read(&queue->set_pci_flags_count))
-			flush_count += qeth_prep_flush_pack_buffer(queue);
-		if (flush_count)
-			qeth_flush_buffers(queue, start_index, flush_count);
+		if (!tmp && !atomic_read(&queue->set_pci_flags_count))
+			tmp = qeth_prep_flush_pack_buffer(queue);
+		if (tmp) {
+			qeth_flush_buffers(queue, start_index, tmp);
+			flush_count += tmp;
+		}
 	}
+out:
 	/* at this point the queue is UNLOCKED again */
 	if (queue->card->options.performance_stats && do_pack)
 		queue->card->perf_stats.bufs_sent_pack += flush_count;
@@ -4769,6 +4775,64 @@ static int qeth_query_card_info(struct qeth_card *card,
 	return qeth_send_ipa_cmd(card, iob, qeth_query_card_info_cb,
 					(void *)carrier_info);
 }
+
+/**
+ * qeth_vm_request_mac() - Request a hypervisor-managed MAC address
+ * @card: pointer to a qeth_card
+ *
+ * Returns
+ *	0, if a MAC address has been set for the card's netdevice
+ *	a return code, for various error conditions
+ */
+int qeth_vm_request_mac(struct qeth_card *card)
+{
+	struct diag26c_mac_resp *response;
+	struct diag26c_mac_req *request;
+	struct ccw_dev_id id;
+	int rc;
+
+	QETH_DBF_TEXT(SETUP, 2, "vmreqmac");
+
+	if (!card->dev)
+		return -ENODEV;
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL | GFP_DMA);
+	response = kzalloc(sizeof(*response), GFP_KERNEL | GFP_DMA);
+	if (!request || !response) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	ccw_device_get_id(CARD_DDEV(card), &id);
+	request->resp_buf_len = sizeof(*response);
+	request->resp_version = DIAG26C_VERSION2;
+	request->op_code = DIAG26C_GET_MAC;
+	request->devno = id.devno;
+
+	rc = diag26c(request, response, DIAG26C_MAC_SERVICES);
+	if (rc)
+		goto out;
+
+	if (request->resp_buf_len < sizeof(*response) ||
+	    response->version != request->resp_version) {
+		rc = -EIO;
+		QETH_DBF_TEXT(SETUP, 2, "badresp");
+		QETH_DBF_HEX(SETUP, 2, &request->resp_buf_len,
+			     sizeof(request->resp_buf_len));
+	} else if (!is_valid_ether_addr(response->mac)) {
+		rc = -EINVAL;
+		QETH_DBF_TEXT(SETUP, 2, "badmac");
+		QETH_DBF_HEX(SETUP, 2, response->mac, ETH_ALEN);
+	} else {
+		ether_addr_copy(card->dev->dev_addr, response->mac);
+	}
+
+out:
+	kfree(response);
+	kfree(request);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(qeth_vm_request_mac);
 
 static inline int qeth_get_qdio_q_format(struct qeth_card *card)
 {

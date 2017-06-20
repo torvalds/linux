@@ -21,6 +21,7 @@
 #include <linux/hash.h>
 #include <linux/hashtable.h>
 #include <linux/string.h>
+#include <asm/setup.h>
 #include "qeth_core.h"
 #include "qeth_l2.h"
 
@@ -505,8 +506,18 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 	int rc = 0;
 	char vendor_pre[] = {0x02, 0x00, 0x00};
 
-	QETH_DBF_TEXT(SETUP, 2, "doL2init");
+	QETH_DBF_TEXT(SETUP, 2, "l2reqmac");
 	QETH_DBF_TEXT_(SETUP, 2, "doL2%s", CARD_BUS_ID(card));
+
+	if (MACHINE_IS_VM) {
+		rc = qeth_vm_request_mac(card);
+		if (!rc)
+			goto out;
+		QETH_DBF_MESSAGE(2, "z/VM MAC Service failed on device %s: x%x\n",
+				 CARD_BUS_ID(card), rc);
+		QETH_DBF_TEXT_(SETUP, 2, "err%04x", rc);
+		/* fall back to alternative mechanism: */
+	}
 
 	if (qeth_is_supported(card, IPA_SETADAPTERPARMS)) {
 		rc = qeth_query_setadapterparms(card);
@@ -528,11 +539,12 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 			QETH_DBF_TEXT_(SETUP, 2, "1err%04x", rc);
 			return rc;
 		}
-		QETH_DBF_HEX(SETUP, 2, card->dev->dev_addr, OSA_ADDR_LEN);
 	} else {
 		eth_random_addr(card->dev->dev_addr);
 		memcpy(card->dev->dev_addr, vendor_pre, 3);
 	}
+out:
+	QETH_DBF_HEX(SETUP, 2, card->dev->dev_addr, card->dev->addr_len);
 	return 0;
 }
 
@@ -1650,27 +1662,27 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 	if ((is_iqd && (cbctl->ipa_rc == IPA_RC_SUCCESS)) ||
 	    (!is_iqd && (cbctl->ipa_rc == cbctl->cmd_rc)))
 		switch (cbctl->cmd_rc) {
-		case 0x0000:
+		case IPA_RC_SUCCESS:
 			rc = 0;
 			break;
-		case 0x2B04:
-		case 0x0004:
+		case IPA_RC_L2_UNSUPPORTED_CMD:
+		case IPA_RC_UNSUPPORTED_COMMAND:
 			rc = -EOPNOTSUPP;
 			break;
-		case 0x2B0C:
-		case 0x000C: /* Not configured as bridge Port */
+		case IPA_RC_SBP_OSA_NOT_CONFIGURED:
+		case IPA_RC_SBP_IQD_NOT_CONFIGURED:
 			rc = -ENODEV; /* maybe not the best code here? */
 			dev_err(&card->gdev->dev,
 	"The device is not configured as a Bridge Port\n");
 			break;
-		case 0x2B10:
-		case 0x0010: /* OS mismatch */
+		case IPA_RC_SBP_OSA_OS_MISMATCH:
+		case IPA_RC_SBP_IQD_OS_MISMATCH:
 			rc = -EPERM;
 			dev_err(&card->gdev->dev,
 	"A Bridge Port is already configured by a different operating system\n");
 			break;
-		case 0x2B14:
-		case 0x0014: /* Another device is Primary */
+		case IPA_RC_SBP_OSA_ANO_DEV_PRIMARY:
+		case IPA_RC_SBP_IQD_ANO_DEV_PRIMARY:
 			switch (setcmd) {
 			case IPA_SBP_SET_PRIMARY_BRIDGE_PORT:
 				rc = -EEXIST;
@@ -1686,26 +1698,26 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 				rc = -EIO;
 			}
 			break;
-		case 0x2B18:
-		case 0x0018: /* This device is currently Secondary */
+		case IPA_RC_SBP_OSA_CURRENT_SECOND:
+		case IPA_RC_SBP_IQD_CURRENT_SECOND:
 			rc = -EBUSY;
 			dev_err(&card->gdev->dev,
 	"The device is already a secondary Bridge Port\n");
 			break;
-		case 0x2B1C:
-		case 0x001C: /* Limit for Secondary devices reached */
+		case IPA_RC_SBP_OSA_LIMIT_SECOND:
+		case IPA_RC_SBP_IQD_LIMIT_SECOND:
 			rc = -EEXIST;
 			dev_err(&card->gdev->dev,
 	"The LAN cannot have more secondary Bridge Ports\n");
 			break;
-		case 0x2B24:
-		case 0x0024: /* This device is currently Primary */
+		case IPA_RC_SBP_OSA_CURRENT_PRIMARY:
+		case IPA_RC_SBP_IQD_CURRENT_PRIMARY:
 			rc = -EBUSY;
 			dev_err(&card->gdev->dev,
 	"The device is already a primary Bridge Port\n");
 			break;
-		case 0x2B20:
-		case 0x0020: /* Not authorized by zManager */
+		case IPA_RC_SBP_OSA_NOT_AUTHD_BY_ZMAN:
+		case IPA_RC_SBP_IQD_NOT_AUTHD_BY_ZMAN:
 			rc = -EACCES;
 			dev_err(&card->gdev->dev,
 	"The device is not authorized to be a Bridge Port\n");
