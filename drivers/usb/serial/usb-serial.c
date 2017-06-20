@@ -962,8 +962,10 @@ static int usb_serial_probe(struct usb_interface *interface,
 	dev_dbg(ddev, "setting up %d port structure(s)\n", max_endpoints);
 	for (i = 0; i < max_endpoints; ++i) {
 		port = kzalloc(sizeof(struct usb_serial_port), GFP_KERNEL);
-		if (!port)
-			goto probe_error;
+		if (!port) {
+			retval = -ENOMEM;
+			goto err_free_epds;
+		}
 		tty_port_init(&port->port);
 		port->port.ops = &serial_port_ops;
 		port->serial = serial;
@@ -984,14 +986,14 @@ static int usb_serial_probe(struct usb_interface *interface,
 	for (i = 0; i < epds->num_bulk_in; ++i) {
 		retval = setup_port_bulk_in(serial->port[i], epds->bulk_in[i]);
 		if (retval)
-			goto probe_error;
+			goto err_free_epds;
 	}
 
 	for (i = 0; i < epds->num_bulk_out; ++i) {
 		retval = setup_port_bulk_out(serial->port[i],
 				epds->bulk_out[i]);
 		if (retval)
-			goto probe_error;
+			goto err_free_epds;
 	}
 
 	if (serial->type->read_int_callback) {
@@ -999,7 +1001,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 			retval = setup_port_interrupt_in(serial->port[i],
 					epds->interrupt_in[i]);
 			if (retval)
-				goto probe_error;
+				goto err_free_epds;
 		}
 	} else if (epds->num_interrupt_in) {
 		dev_dbg(ddev, "The device claims to support interrupt in transfers, but read_int_callback is not defined\n");
@@ -1010,7 +1012,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 			retval = setup_port_interrupt_out(serial->port[i],
 					epds->interrupt_out[i]);
 			if (retval)
-				goto probe_error;
+				goto err_free_epds;
 		}
 	} else if (epds->num_interrupt_out) {
 		dev_dbg(ddev, "The device claims to support interrupt out transfers, but write_int_callback is not defined\n");
@@ -1022,7 +1024,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 	if (type->attach) {
 		retval = type->attach(serial);
 		if (retval < 0)
-			goto probe_error;
+			goto err_free_epds;
 		serial->attached = 1;
 		if (retval > 0) {
 			/* quietly accept this device, but don't bind to a
@@ -1034,9 +1036,10 @@ static int usb_serial_probe(struct usb_interface *interface,
 		serial->attached = 1;
 	}
 
-	if (allocate_minors(serial, num_ports)) {
+	retval = allocate_minors(serial, num_ports);
+	if (retval) {
 		dev_err(ddev, "No more free serial minor numbers\n");
-		goto probe_error;
+		goto err_free_epds;
 	}
 
 	/* register all of the individual ports with the driver core */
@@ -1058,8 +1061,6 @@ exit:
 	module_put(type->driver.owner);
 	return 0;
 
-probe_error:
-	retval = -EIO;
 err_free_epds:
 	kfree(epds);
 err_put_serial:
