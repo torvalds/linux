@@ -287,6 +287,7 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 {
 	struct net_dev_context *nd;
 	struct net_dev_channel *ch;
+	struct net_device *dev;
 	unsigned long flags;
 
 	if (!iface)
@@ -298,8 +299,6 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 	nd = get_net_dev_context(iface);
 
 	if (!nd) {
-		struct net_device *dev;
-
 		dev = alloc_netdev(sizeof(struct net_dev_context), "meth%d",
 				   NET_NAME_UNKNOWN, most_nd_setup);
 		if (!dev)
@@ -312,20 +311,24 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 		spin_lock_irqsave(&list_lock, flags);
 		list_add(&nd->list, &net_devices);
 		spin_unlock_irqrestore(&list_lock, flags);
-	}
 
-	ch = ccfg->direction == MOST_CH_TX ? &nd->tx : &nd->rx;
-	if (ch->linked) {
-		pr_err("only one channel per instance & direction allowed\n");
-		return -EINVAL;
-	}
+		ch = ccfg->direction == MOST_CH_TX ? &nd->tx : &nd->rx;
+		ch->ch_id = channel_idx;
+		ch->linked = true;
+	} else {
+		ch = ccfg->direction == MOST_CH_TX ? &nd->tx : &nd->rx;
+		if (ch->linked) {
+			pr_err("direction is allocated\n");
+			return -EINVAL;
+		}
 
-	ch->ch_id = channel_idx;
-	ch->linked = true;
-	if (nd->tx.linked && nd->rx.linked && register_netdev(nd->dev)) {
-		pr_err("register_netdev() failed\n");
-		ch->linked = false;
-		return -EINVAL;
+		ch->ch_id = channel_idx;
+		ch->linked = true;
+		if (register_netdev(nd->dev)) {
+			pr_err("register_netdev() failed\n");
+			ch->linked = false;
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -349,18 +352,18 @@ static int aim_disconnect_channel(struct most_interface *iface,
 	else
 		return -EINVAL;
 
-	/*
-	 * do not call most_stop_channel() here, because channels are
-	 * going to be closed in ndo_stop() after unregister_netdev()
-	 */
-	if (nd->rx.linked && nd->tx.linked)
+	if (nd->rx.linked && nd->tx.linked) {
+		/*
+		 * do not call most_stop_channel() here, because channels are
+		 * going to be closed in ndo_stop() after unregister_netdev()
+		 */
 		unregister_netdev(nd->dev);
-
-	ch->linked = false;
-	if (!nd->rx.linked && !nd->tx.linked) {
+		ch->linked = false;
+	} else {
 		spin_lock_irqsave(&list_lock, flags);
 		list_del(&nd->list);
 		spin_unlock_irqrestore(&list_lock, flags);
+
 		free_netdev(nd->dev);
 	}
 
