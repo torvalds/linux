@@ -1650,27 +1650,27 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 	if ((is_iqd && (cbctl->ipa_rc == IPA_RC_SUCCESS)) ||
 	    (!is_iqd && (cbctl->ipa_rc == cbctl->cmd_rc)))
 		switch (cbctl->cmd_rc) {
-		case 0x0000:
+		case IPA_RC_SUCCESS:
 			rc = 0;
 			break;
-		case 0x2B04:
-		case 0x0004:
+		case IPA_RC_L2_UNSUPPORTED_CMD:
+		case IPA_RC_UNSUPPORTED_COMMAND:
 			rc = -EOPNOTSUPP;
 			break;
-		case 0x2B0C:
-		case 0x000C: /* Not configured as bridge Port */
+		case IPA_RC_SBP_OSA_NOT_CONFIGURED:
+		case IPA_RC_SBP_IQD_NOT_CONFIGURED:
 			rc = -ENODEV; /* maybe not the best code here? */
 			dev_err(&card->gdev->dev,
 	"The device is not configured as a Bridge Port\n");
 			break;
-		case 0x2B10:
-		case 0x0010: /* OS mismatch */
+		case IPA_RC_SBP_OSA_OS_MISMATCH:
+		case IPA_RC_SBP_IQD_OS_MISMATCH:
 			rc = -EPERM;
 			dev_err(&card->gdev->dev,
 	"A Bridge Port is already configured by a different operating system\n");
 			break;
-		case 0x2B14:
-		case 0x0014: /* Another device is Primary */
+		case IPA_RC_SBP_OSA_ANO_DEV_PRIMARY:
+		case IPA_RC_SBP_IQD_ANO_DEV_PRIMARY:
 			switch (setcmd) {
 			case IPA_SBP_SET_PRIMARY_BRIDGE_PORT:
 				rc = -EEXIST;
@@ -1686,26 +1686,26 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 				rc = -EIO;
 			}
 			break;
-		case 0x2B18:
-		case 0x0018: /* This device is currently Secondary */
+		case IPA_RC_SBP_OSA_CURRENT_SECOND:
+		case IPA_RC_SBP_IQD_CURRENT_SECOND:
 			rc = -EBUSY;
 			dev_err(&card->gdev->dev,
 	"The device is already a secondary Bridge Port\n");
 			break;
-		case 0x2B1C:
-		case 0x001C: /* Limit for Secondary devices reached */
+		case IPA_RC_SBP_OSA_LIMIT_SECOND:
+		case IPA_RC_SBP_IQD_LIMIT_SECOND:
 			rc = -EEXIST;
 			dev_err(&card->gdev->dev,
 	"The LAN cannot have more secondary Bridge Ports\n");
 			break;
-		case 0x2B24:
-		case 0x0024: /* This device is currently Primary */
+		case IPA_RC_SBP_OSA_CURRENT_PRIMARY:
+		case IPA_RC_SBP_IQD_CURRENT_PRIMARY:
 			rc = -EBUSY;
 			dev_err(&card->gdev->dev,
 	"The device is already a primary Bridge Port\n");
 			break;
-		case 0x2B20:
-		case 0x0020: /* Not authorized by zManager */
+		case IPA_RC_SBP_OSA_NOT_AUTHD_BY_ZMAN:
+		case IPA_RC_SBP_IQD_NOT_AUTHD_BY_ZMAN:
 			rc = -EACCES;
 			dev_err(&card->gdev->dev,
 	"The device is not authorized to be a Bridge Port\n");
