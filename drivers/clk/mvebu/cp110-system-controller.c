@@ -86,7 +86,7 @@ enum {
 #define CP110_GATE_EIP150		25
 #define CP110_GATE_EIP197		26
 
-const char *gate_base_names[] = {
+static const char * const gate_base_names[] = {
 	[CP110_GATE_AUDIO]	= "audio",
 	[CP110_GATE_COMM_UNIT]	= "communit",
 	[CP110_GATE_NAND]	= "nand",
@@ -437,14 +437,13 @@ static int cp110_clk_probe(struct platform_device *pdev)
 	return cp110_syscon_common_probe(pdev, pdev->dev.of_node->parent);
 }
 
-
 static const struct of_device_id cp110_syscon_legacy_of_match[] = {
 	{ .compatible = "marvell,cp110-system-controller0", },
 	{ }
 };
 
 static struct platform_driver cp110_syscon_legacy_driver = {
-	.probe = *cp110_syscon_legacy_clk_probe,
+	.probe = cp110_syscon_legacy_clk_probe,
 	.driver		= {
 		.name	= "marvell-cp110-system-controller0",
 		.of_match_table = cp110_syscon_legacy_of_match,
