@@ -4218,6 +4218,18 @@ static void rtnetlink_rcv(struct sk_buff *skb)
 	rtnl_unlock();
 }
 
+static int rtnetlink_bind(struct net *net, int group)
+{
+	switch (group) {
+	case RTNLGRP_IPV4_MROUTE_R:
+	case RTNLGRP_IPV6_MROUTE_R:
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+			return -EPERM;
+		break;
+	}
+	return 0;
+}
+
 static int rtnetlink_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
@@ -4252,6 +4264,7 @@ static int __net_init rtnetlink_net_init(struct net *net)
 		.input		= rtnetlink_rcv,
 		.cb_mutex	= &rtnl_mutex,
 		.flags		= NL_CFG_F_NONROOT_RECV,
+		.bind		= rtnetlink_bind,
 	};
 
 	sk = netlink_kernel_create(net, NETLINK_ROUTE, &cfg);
