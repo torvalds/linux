@@ -39,6 +39,8 @@
 		serial2 = &uart2;
 		serial3 = &uart3;
 		serial4 = &uart4;
+		dsi0 = &dsi;
+		dsi1 = &dsi1;
 	};
 
 	cpus {
@@ -1778,14 +1780,14 @@
 				remote-endpoint = <&hdmi_in_vopl>;
 			};
 
-			vopl_out_mipi1: endpoint@3 {
+			vopl_out_dp: endpoint@3 {
 				reg = <3>;
-				remote-endpoint = <&mipi1_in_vopl>;
+				remote-endpoint = <&dp_in_vopl>;
 			};
 
-			vopl_out_dp: endpoint@4 {
+			vopl_out_dsi1: endpoint@4 {
 				reg = <4>;
-				remote-endpoint = <&dp_in_vopl>;
+				remote-endpoint = <&dsi1_in_vopl>;
 			};
 		};
 	};
@@ -1849,14 +1851,14 @@
 				remote-endpoint = <&hdmi_in_vopb>;
 			};
 
-			vopb_out_mipi1: endpoint@3 {
+			vopb_out_dp: endpoint@3 {
 				reg = <3>;
-				remote-endpoint = <&mipi1_in_vopb>;
+				remote-endpoint = <&dp_in_vopb>;
 			};
 
-			vopb_out_dp: endpoint@4 {
+			vopb_out_dsi1: endpoint@4 {
 				reg = <4>;
-				remote-endpoint = <&dp_in_vopb>;
+				remote-endpoint = <&dsi1_in_vopb>;
 			};
 		};
 	};
@@ -1997,17 +1999,19 @@
 	};
 
 	dsi: dsi@ff960000 {
-		compatible = "rockchip,rk3399-mipi-dsi", "snps,dw-mipi-dsi";
+		compatible = "rockchip,rk3399-mipi-dsi";
 		reg = <0x0 0xff960000 0x0 0x8000>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru SCLK_DPHY_PLL>, <&cru PCLK_MIPI_DSI0>,
-			 <&cru SCLK_DPHY_TX0_CFG>, <&cru PCLK_VIO_GRF>;
-		clock-names = "ref", "pclk", "phy_cfg", "grf";
+			 <&cru SCLK_DPHY_TX0_CFG>;
+		clock-names = "ref", "pclk", "phy_cfg";
 		power-domains = <&power RK3399_PD_VIO>;
 		resets = <&cru SRST_P_MIPI_DSI0>;
 		reset-names = "apb";
 		rockchip,grf = <&grf>;
 		status = "disabled";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		ports {
 			port {
@@ -2027,42 +2031,40 @@
 		};
 	};
 
-	mipi_dsi1: mipi@ff968000 {
-		compatible = "rockchip,rk3399-mipi-dsi", "snps,dw-mipi-dsi";
+	dsi1: dsi@ff968000 {
+		compatible = "rockchip,rk3399-mipi-dsi";
 		reg = <0x0 0xff968000 0x0 0x8000>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru SCLK_DPHY_PLL>, <&cru PCLK_MIPI_DSI1>,
-			 <&cru SCLK_DPHY_TX1RX1_CFG>, <&cru PCLK_VIO_GRF>;
-		clock-names = "ref", "pclk", "phy_cfg", "grf";
+			 <&cru SCLK_DPHY_TX1RX1_CFG>;
+		clock-names = "ref", "pclk", "phy_cfg";
 		power-domains = <&power RK3399_PD_VIO>;
 		resets = <&cru SRST_P_MIPI_DSI1>;
 		reset-names = "apb";
 		rockchip,grf = <&grf>;
 		status = "disabled";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			mipi1_in: port@0 {
-				reg = <0>;
+			port {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				mipi1_in_vopb: endpoint@0 {
+				dsi1_in_vopb: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&vopb_out_mipi1>;
+					remote-endpoint = <&vopb_out_dsi1>;
 				};
 
-				mipi1_in_vopl: endpoint@1 {
+				dsi1_in_vopl: endpoint@1 {
 					reg = <1>;
-					remote-endpoint = <&vopl_out_mipi1>;
+					remote-endpoint = <&vopl_out_dsi1>;
 				};
 			};
 		};
 	};
 
-	mipi_dphy_tx1rx1: mipi-dphy-tx1rx1@0xff968000 {
+	mipi_dphy_tx1rx1: mipi-dphy-tx1rx1@ff968000 {
 		compatible = "rockchip,rk3399-mipi-dphy";
 		reg = <0x0 0xff968000 0x0 0x8000>;
 		clocks = <&cru SCLK_MIPIDPHY_REF>,
