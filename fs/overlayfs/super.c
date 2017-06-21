@@ -418,22 +418,27 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 #define OVL_WORKDIR_NAME "work"
 
-static struct dentry *ovl_workdir_create(struct vfsmount *mnt,
-					 struct dentry *dentry)
+static struct dentry *ovl_workdir_create(struct super_block *sb,
+					 struct ovl_fs *ufs,
+					 struct dentry *dentry,
+					 const char *name, bool persist)
 {
 	struct inode *dir = dentry->d_inode;
+	struct vfsmount *mnt = ufs->upper_mnt;
 	struct dentry *work;
 	int err;
 	bool retried = false;
+	bool locked = false;
 
 	err = mnt_want_write(mnt);
 	if (err)
-		return ERR_PTR(err);
+		goto out_err;
 
 	inode_lock_nested(dir, I_MUTEX_PARENT);
+	locked = true;
+
 retry:
-	work = lookup_one_len(OVL_WORKDIR_NAME, dentry,
-			      strlen(OVL_WORKDIR_NAME));
+	work = lookup_one_len(name, dentry, strlen(name));
 
 	if (!IS_ERR(work)) {
 		struct iattr attr = {
@@ -445,6 +450,9 @@ retry:
 			err = -EEXIST;
 			if (retried)
 				goto out_dput;
+
+			if (persist)
+				goto out_unlock;
 
 			retried = true;
 			ovl_workdir_cleanup(dir, mnt, work, 0);
@@ -485,16 +493,24 @@ retry:
 		inode_unlock(work->d_inode);
 		if (err)
 			goto out_dput;
+	} else {
+		err = PTR_ERR(work);
+		goto out_err;
 	}
 out_unlock:
-	inode_unlock(dir);
 	mnt_drop_write(mnt);
+	if (locked)
+		inode_unlock(dir);
 
 	return work;
 
 out_dput:
 	dput(work);
-	work = ERR_PTR(err);
+out_err:
+	pr_warn("overlayfs: failed to create directory %s/%s (errno: %i); mounting read-only\n",
+		ufs->config.workdir, name, -err);
+	sb->s_flags |= MS_RDONLY;
+	work = NULL;
 	goto out_unlock;
 }
 
@@ -906,15 +922,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 		sb->s_time_gran = ufs->upper_mnt->mnt_sb->s_time_gran;
 
-		ufs->workdir = ovl_workdir_create(ufs->upper_mnt, workpath.dentry);
-		err = PTR_ERR(ufs->workdir);
-		if (IS_ERR(ufs->workdir)) {
-			pr_warn("overlayfs: failed to create directory %s/%s (errno: %i); mounting read-only\n",
-				ufs->config.workdir, OVL_WORKDIR_NAME, -err);
-			sb->s_flags |= MS_RDONLY;
-			ufs->workdir = NULL;
-		}
-
+		ufs->workdir = ovl_workdir_create(sb, ufs, workpath.dentry,
+						  OVL_WORKDIR_NAME, false);
 		/*
 		 * Upper should support d_type, else whiteouts are visible.
 		 * Given workdir and upper are on same fs, we can do
