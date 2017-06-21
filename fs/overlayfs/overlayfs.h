@@ -42,6 +42,8 @@ enum ovl_flag {
 /* CPU byte order required for fid decoding:  */
 #define OVL_FH_FLAG_BIG_ENDIAN	(1 << 0)
 #define OVL_FH_FLAG_ANY_ENDIAN	(1 << 1)
+/* Is the real inode encoded in fid an upper inode? */
+#define OVL_FH_FLAG_PATH_UPPER	(1 << 2)
 
 #define OVL_FH_FLAG_ALL (OVL_FH_FLAG_BIG_ENDIAN | OVL_FH_FLAG_ANY_ENDIAN)
 
@@ -233,7 +235,7 @@ static inline bool ovl_is_impuredir(struct dentry *dentry)
 
 /* namei.c */
 int ovl_verify_origin(struct dentry *dentry, struct vfsmount *mnt,
-		      struct dentry *origin, bool set);
+		      struct dentry *origin, bool is_upper, bool set);
 int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
 bool ovl_lower_positive(struct dentry *dentry);
@@ -292,4 +294,4 @@ int ovl_copy_up(struct dentry *dentry);
 int ovl_copy_up_flags(struct dentry *dentry, int flags);
 int ovl_copy_xattr(struct dentry *old, struct dentry *new);
 int ovl_set_attr(struct dentry *upper, struct kstat *stat);
-struct ovl_fh *ovl_encode_fh(struct dentry *lower);
+struct ovl_fh *ovl_encode_fh(struct dentry *lower, bool is_upper);

@@ -1050,7 +1050,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!(ovl_force_readonly(ufs)) && ufs->config.index) {
 		/* Verify lower root is upper root origin */
 		err = ovl_verify_origin(upperpath.dentry, ufs->lower_mnt[0],
-					stack[0].dentry, true);
+					stack[0].dentry, false, true);
 		if (err) {
 			pr_err("overlayfs: failed to verify upper root origin\n");
 			goto out_put_lower_mnt;
@@ -1062,8 +1062,17 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		if (IS_ERR(ufs->indexdir))
 			goto out_put_lower_mnt;
 
-		if (!ufs->indexdir)
+		if (ufs->indexdir) {
+			/* Verify upper root is index dir origin */
+			err = ovl_verify_origin(ufs->indexdir, ufs->upper_mnt,
+						upperpath.dentry, true, true);
+			if (err)
+				pr_err("overlayfs: failed to verify index dir origin\n");
+		}
+		if (err || !ufs->indexdir)
 			pr_warn("overlayfs: try deleting index dir or mounting with '-o index=off' to disable inodes index.\n");
+		if (err)
+			goto out_put_indexdir;
 	}
 
 	/* Show index=off/on in /proc/mounts for any of the reasons above */

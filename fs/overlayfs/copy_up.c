@@ -233,7 +233,7 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 	return err;
 }
 
-struct ovl_fh *ovl_encode_fh(struct dentry *lower)
+struct ovl_fh *ovl_encode_fh(struct dentry *lower, bool is_upper)
 {
 	struct ovl_fh *fh;
 	int fh_type, fh_len, dwords;
@@ -272,6 +272,14 @@ struct ovl_fh *ovl_encode_fh(struct dentry *lower)
 	fh->magic = OVL_FH_MAGIC;
 	fh->type = fh_type;
 	fh->flags = OVL_FH_FLAG_CPU_ENDIAN;
+	/*
+	 * When we will want to decode an overlay dentry from this handle
+	 * and all layers are on the same fs, if we get a disconncted real
+	 * dentry when we decode fid, the only way to tell if we should assign
+	 * it to upperdentry or to lowerstack is by checking this flag.
+	 */
+	if (is_upper)
+		fh->flags |= OVL_FH_FLAG_PATH_UPPER;
 	fh->len = fh_len;
 	fh->uuid = *uuid;
 	memcpy(fh->fid, buf, buflen);
@@ -293,7 +301,7 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 	 * up and a pure upper inode.
 	 */
 	if (ovl_can_decode_fh(lower->d_sb)) {
-		fh = ovl_encode_fh(lower);
+		fh = ovl_encode_fh(lower, false);
 		if (IS_ERR(fh))
 			return PTR_ERR(fh);
 	}
