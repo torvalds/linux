@@ -116,13 +116,14 @@ static inline void pcpu_stats_area_dealloc(struct pcpu_chunk *chunk)
  */
 static inline void pcpu_stats_chunk_alloc(void)
 {
-	spin_lock_irq(&pcpu_lock);
+	unsigned long flags;
+	spin_lock_irqsave(&pcpu_lock, flags);
 
 	pcpu_stats.nr_chunks++;
 	pcpu_stats.nr_max_chunks =
 		max(pcpu_stats.nr_max_chunks, pcpu_stats.nr_chunks);
 
-	spin_unlock_irq(&pcpu_lock);
+	spin_unlock_irqrestore(&pcpu_lock, flags);
 }
 
 /*
@@ -130,11 +131,12 @@ static inline void pcpu_stats_chunk_alloc(void)
  */
 static inline void pcpu_stats_chunk_dealloc(void)
 {
-	spin_lock_irq(&pcpu_lock);
+	unsigned long flags;
+	spin_lock_irqsave(&pcpu_lock, flags);
 
 	pcpu_stats.nr_chunks--;
 
-	spin_unlock_irq(&pcpu_lock);
+	spin_unlock_irqrestore(&pcpu_lock, flags);
 }
 
 #else
