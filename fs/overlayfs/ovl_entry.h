@@ -21,6 +21,9 @@ struct ovl_fs {
 	struct vfsmount *upper_mnt;
 	unsigned numlower;
 	struct vfsmount **lower_mnt;
+	/* workbasedir is the path at workdir= mount option */
+	struct dentry *workbasedir;
+	/* workdir is the 'work' directory under workbasedir */
 	struct dentry *workdir;
 	long namelen;
 	/* pathnames of lower and upper dirs, for show_options */

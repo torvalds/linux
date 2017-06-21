@@ -204,6 +204,10 @@ static void ovl_put_super(struct super_block *sb)
 	unsigned i;
 
 	dput(ufs->workdir);
+	ovl_inuse_unlock(ufs->workbasedir);
+	dput(ufs->workbasedir);
+	if (ufs->upper_mnt)
+		ovl_inuse_unlock(ufs->upper_mnt->mnt_root);
 	mntput(ufs->upper_mnt);
 	for (i = 0; i < ufs->numlower; i++)
 		mntput(ufs->lower_mnt[i]);
@@ -821,9 +825,15 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		if (err)
 			goto out_put_upperpath;
 
+		err = -EBUSY;
+		if (!ovl_inuse_trylock(upperpath.dentry)) {
+			pr_err("overlayfs: upperdir is in-use by another mount\n");
+			goto out_put_upperpath;
+		}
+
 		err = ovl_mount_dir(ufs->config.workdir, &workpath);
 		if (err)
-			goto out_put_upperpath;
+			goto out_unlock_upperdentry;
 
 		err = -EINVAL;
 		if (upperpath.mnt != workpath.mnt) {
@@ -834,12 +844,20 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			pr_err("overlayfs: workdir and upperdir must be separate subtrees\n");
 			goto out_put_workpath;
 		}
+
+		err = -EBUSY;
+		if (!ovl_inuse_trylock(workpath.dentry)) {
+			pr_err("overlayfs: workdir is in-use by another mount\n");
+			goto out_put_workpath;
+		}
+
+		ufs->workbasedir = workpath.dentry;
 		sb->s_stack_depth = upperpath.mnt->mnt_sb->s_stack_depth;
 	}
 	err = -ENOMEM;
 	lowertmp = kstrdup(ufs->config.lowerdir, GFP_KERNEL);
 	if (!lowertmp)
-		goto out_put_workpath;
+		goto out_unlock_workdentry;
 
 	err = -EINVAL;
 	stacklen = ovl_split_lowerdirs(lowertmp);
@@ -882,6 +900,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			pr_err("overlayfs: failed to clone upperpath\n");
 			goto out_put_lowerpath;
 		}
+
 		/* Don't inherit atime flags */
 		ufs->upper_mnt->mnt_flags &= ~(MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME);
 
@@ -1004,7 +1023,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	mntput(upperpath.mnt);
 	for (i = 0; i < numlower; i++)
 		mntput(stack[i].mnt);
-	path_put(&workpath);
+	mntput(workpath.mnt);
 	kfree(lowertmp);
 
 	if (upperpath.dentry) {
@@ -1043,8 +1062,12 @@ out_put_lowerpath:
 	kfree(stack);
 out_free_lowertmp:
 	kfree(lowertmp);
+out_unlock_workdentry:
+	ovl_inuse_unlock(workpath.dentry);
 out_put_workpath:
 	path_put(&workpath);
+out_unlock_upperdentry:
+	ovl_inuse_unlock(upperpath.dentry);
 out_put_upperpath:
 	path_put(&upperpath);
 out_free_config:
