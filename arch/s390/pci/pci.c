@@ -772,6 +772,7 @@ void pcibios_remove_bus(struct pci_bus *bus)
 	list_del(&zdev->entry);
 	spin_unlock(&zpci_list_lock);
 
+	zpci_dbg(3, "rem fid:%x\n", zdev->fid);
 	kfree(zdev);
 }
 
