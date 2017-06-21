@@ -563,6 +563,13 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 		}
 	}
 
+	if (uhw->outlen >= resp.response_length +
+	    sizeof(resp.max_inl_recv_sz)) {
+		resp.response_length += sizeof(resp.max_inl_recv_sz);
+		resp.max_inl_recv_sz  = dev->dev->caps.max_rq_sg *
+			sizeof(struct mlx4_wqe_data_seg);
+	}
+
 	if (uhw->outlen) {
 		err = ib_copy_to_udata(uhw, &resp, resp.response_length);
 		if (err)

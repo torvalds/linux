@@ -377,7 +377,8 @@ static int send_wqe_overhead(enum mlx4_ib_qp_type type, u32 flags)
 }
 
 static int set_rq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
-		       int is_user, int has_rq, struct mlx4_ib_qp *qp)
+		       int is_user, int has_rq, struct mlx4_ib_qp *qp,
+		       u32 inl_recv_sz)
 {
 	/* Sanity check RQ size before proceeding */
 	if (cap->max_recv_wr > dev->dev->caps.max_wqes - MLX4_IB_SQ_MAX_SPARE ||
@@ -385,18 +386,24 @@ static int set_rq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 		return -EINVAL;
 
 	if (!has_rq) {
-		if (cap->max_recv_wr)
+		if (cap->max_recv_wr || inl_recv_sz)
 			return -EINVAL;
 
 		qp->rq.wqe_cnt = qp->rq.max_gs = 0;
 	} else {
+		u32 max_inl_recv_sz = dev->dev->caps.max_rq_sg *
+			sizeof(struct mlx4_wqe_data_seg);
+		u32 wqe_size;
+
 		/* HW requires >= 1 RQ entry with >= 1 gather entry */
-		if (is_user && (!cap->max_recv_wr || !cap->max_recv_sge))
+		if (is_user && (!cap->max_recv_wr || !cap->max_recv_sge ||
+				inl_recv_sz > max_inl_recv_sz))
 			return -EINVAL;
 
 		qp->rq.wqe_cnt	 = roundup_pow_of_two(max(1U, cap->max_recv_wr));
 		qp->rq.max_gs	 = roundup_pow_of_two(max(1U, cap->max_recv_sge));
-		qp->rq.wqe_shift = ilog2(qp->rq.max_gs * sizeof (struct mlx4_wqe_data_seg));
+		wqe_size = qp->rq.max_gs * sizeof(struct mlx4_wqe_data_seg);
+		qp->rq.wqe_shift = ilog2(max_t(u32, wqe_size, inl_recv_sz));
 	}
 
 	/* leave userspace return values as they were, so as not to break ABI */
@@ -719,9 +726,6 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		qp->sq_signal_bits = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE);
 
-	err = set_rq_size(dev, &init_attr->cap, !!pd->uobject, qp_has_rq(init_attr), qp);
-	if (err)
-		goto err;
 
 	if (pd->uobject) {
 		struct mlx4_ib_create_qp ucmd;
@@ -731,6 +735,12 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err;
 		}
 
+		err = set_rq_size(dev, &init_attr->cap, !!pd->uobject,
+				  qp_has_rq(init_attr), qp, ucmd.inl_recv_sz);
+		if (err)
+			goto err;
+
+		qp->inl_recv_sz = ucmd.inl_recv_sz;
 		qp->sq_no_prefetch = ucmd.sq_no_prefetch;
 
 		err = set_user_sq_size(dev, qp, &ucmd);
@@ -760,6 +770,11 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 				goto err_mtt;
 		}
 	} else {
+		err = set_rq_size(dev, &init_attr->cap, !!pd->uobject,
+				  qp_has_rq(init_attr), qp, 0);
+		if (err)
+			goto err;
+
 		qp->sq_no_prefetch = 0;
 
 		if (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO)
@@ -1650,6 +1665,9 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			break;
 		}
 	}
+
+	if (qp->inl_recv_sz)
+		context->param3 |= cpu_to_be32(1 << 25);
 
 	if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_SMI)
 		context->mtu_msgmax = (IB_MTU_4096 << 5) | 11;

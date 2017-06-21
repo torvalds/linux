@@ -101,7 +101,8 @@ struct mlx4_ib_create_qp {
 	__u8	log_sq_bb_count;
 	__u8	log_sq_stride;
 	__u8	sq_no_prefetch;
-	__u8	reserved[5];
+	__u32	inl_recv_sz;
+	__u8	reserved;
 };
 
 #endif /* MLX4_ABI_USER_H */
