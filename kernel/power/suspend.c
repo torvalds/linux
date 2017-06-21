@@ -72,8 +72,6 @@ static void freeze_begin(void)
 
 static void freeze_enter(void)
 {
-	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_FREEZE, true);
-
 	spin_lock_irq(&suspend_freeze_lock);
 	if (pm_wakeup_pending())
 		goto out;
@@ -100,27 +98,6 @@ static void freeze_enter(void)
  out:
 	suspend_freeze_state = FREEZE_STATE_NONE;
 	spin_unlock_irq(&suspend_freeze_lock);
-
-	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_FREEZE, false);
-}
-
-static void s2idle_loop(void)
-{
-	do {
-		freeze_enter();
-
-		if (freeze_ops && freeze_ops->wake)
-			freeze_ops->wake();
-
-		dpm_resume_noirq(PMSG_RESUME);
-		if (freeze_ops && freeze_ops->sync)
-			freeze_ops->sync();
-
-		if (pm_wakeup_pending())
-			break;
-
-		pm_wakeup_clear(false);
-	} while (!dpm_suspend_noirq(PMSG_SUSPEND));
 }
 
 void freeze_wake(void)
@@ -394,8 +371,10 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	 * all the devices are suspended.
 	 */
 	if (state == PM_SUSPEND_FREEZE) {
-		s2idle_loop();
-		goto Platform_early_resume;
+		trace_suspend_resume(TPS("machine_suspend"), state, true);
+		freeze_enter();
+		trace_suspend_resume(TPS("machine_suspend"), state, false);
+		goto Platform_wake;
 	}
 
 	error = disable_nonboot_cpus();

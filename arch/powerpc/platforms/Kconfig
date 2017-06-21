@@ -59,6 +59,17 @@ config PPC_OF_BOOT_TRAMPOLINE
 
 	  In case of doubt, say Y
 
+config PPC_DT_CPU_FTRS
+	bool "Device-tree based CPU feature discovery & setup"
+	depends on PPC_BOOK3S_64
+	default y
+	help
+	  This enables code to use a new device tree binding for describing CPU
+	  compatibility and features. Saying Y here will attempt to use the new
+	  binding if the firmware provides it. Currently only the skiboot
+	  firmware provides this binding.
+	  If you're not sure say Y.
+
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
 	depends on PPC_RTAS

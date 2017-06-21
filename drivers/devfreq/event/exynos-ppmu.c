@@ -44,7 +44,7 @@ struct exynos_ppmu {
 	{ "ppmu-event2-"#name, PPMU_PMNCNT2 },	\
 	{ "ppmu-event3-"#name, PPMU_PMNCNT3 }
 
-struct __exynos_ppmu_events {
+static struct __exynos_ppmu_events {
 	char *name;
 	int id;
 } ppmu_events[] = {
@@ -648,7 +648,11 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 			dev_name(&pdev->dev), desc[i].name);
 	}
 
-	clk_prepare_enable(info->ppmu.clk);
+	ret = clk_prepare_enable(info->ppmu.clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare ppmu clock\n");
+		return ret;
+	}
 
 	return 0;
 }

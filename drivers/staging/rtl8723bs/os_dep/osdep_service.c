@@ -160,7 +160,7 @@ static int isFileReadable(char *path)
 		oldfs = get_fs(); set_fs(get_ds());
 
 		if (1!=readFile(fp, &buf, 1))
-			ret = PTR_ERR(fp);
+			ret = -EINVAL;
 
 		set_fs(oldfs);
 		filp_close(fp, NULL);

@@ -46,7 +46,7 @@ struct skl {
 	struct hdac_ext_bus ebus;
 	struct pci_dev *pci;
 
-	unsigned int init_failed:1; /* delayed init failed */
+	unsigned int init_done:1; /* delayed init status */
 	struct platform_device *dmic_dev;
 	struct platform_device *i2s_dev;
 	struct snd_soc_platform *platform;
@@ -64,6 +64,8 @@ struct skl {
 	const struct firmware *tplg;
 
 	int supend_active;
+
+	struct work_struct probe_work;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)

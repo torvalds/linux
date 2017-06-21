@@ -1578,6 +1578,7 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	if (port < 0)
 		return;
 	ah.av.ib.port_pd = cpu_to_be32(port << 24 | (be32_to_cpu(ah.av.ib.port_pd) & 0xffffff));
+	ah.ibah.type = rdma_ah_find_type(&dev->ib_dev, port);
 
 	mlx4_ib_query_ah(&ah.ibah, &ah_attr);
 	if (rdma_ah_get_ah_flags(&ah_attr) & IB_AH_GRH)
