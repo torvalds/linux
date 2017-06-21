@@ -148,25 +148,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		     real_prev != &init_mm);
 	cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
 
-	/* Load per-mm CR4 state */
+	/* Load per-mm CR4 and LDTR state */
 	load_mm_cr4(next);
-
-#ifdef CONFIG_MODIFY_LDT_SYSCALL
-	/*
-	 * Load the LDT, if the LDT is different.
-	 *
-	 * It's possible that prev->context.ldt doesn't match
-	 * the LDT register.  This can happen if leave_mm(prev)
-	 * was called and then modify_ldt changed
-	 * prev->context.ldt but suppressed an IPI to this CPU.
-	 * In this case, prev->context.ldt != NULL, because we
-	 * never set context.ldt to NULL while the mm still
-	 * exists.  That means that next->context.ldt !=
-	 * prev->context.ldt, because mms never share an LDT.
-	 */
-	if (unlikely(real_prev->context.ldt != next->context.ldt))
-		load_mm_ldt(next);
-#endif
+	switch_ldt(real_prev, next);
 }
 
 /*
