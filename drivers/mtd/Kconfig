@@ -155,6 +155,10 @@ config MTD_BCM47XX_PARTS
 	  This provides partitions parser for devices based on BCM47xx
 	  boards.
 
+menu "Partition parsers"
+source "drivers/mtd/parsers/Kconfig"
+endmenu
+
 comment "User Modules And Translation Layers"
 
 #
