@@ -130,7 +130,7 @@ static __init int timer_base_init(struct device_node *np,
 
 int __init timer_of_init(struct device_node *np, struct timer_of *to)
 {
-	int ret;
+	int ret = -EINVAL;
 	int flags = 0;
 
 	if (to->flags & TIMER_OF_BASE) {
@@ -156,7 +156,6 @@ int __init timer_of_init(struct device_node *np, struct timer_of *to)
 
 	if (!to->clkevt.name)
 		to->clkevt.name = np->name;
-out:
 	return ret;
 
 out_fail:
@@ -168,5 +167,5 @@ out_fail:
 
 	if (flags & TIMER_OF_BASE)
 		timer_base_exit(&to->of_base);
-	goto out;
+	return ret;
 }
