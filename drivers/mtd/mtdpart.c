@@ -369,6 +369,35 @@ static inline void free_partition(struct mtd_part *p)
 	kfree(p);
 }
 
+/**
+ * mtd_parse_part - parse MTD partition looking for subpartitions
+ *
+ * @slave: part that is supposed to be a container and should be parsed
+ * @types: NULL-terminated array with names of partition parsers to try
+ *
+ * Some partitions are kind of containers with extra subpartitions (volumes).
+ * There can be various formats of such containers. This function tries to use
+ * specified parsers to analyze given partition and registers found
+ * subpartitions on success.
+ */
+static int mtd_parse_part(struct mtd_part *slave, const char *const *types)
+{
+	struct mtd_partitions parsed;
+	int err;
+
+	err = parse_mtd_partitions(&slave->mtd, types, &parsed, NULL);
+	if (err)
+		return err;
+	else if (!parsed.nr_parts)
+		return -ENOENT;
+
+	err = add_mtd_partitions(&slave->mtd, parsed.parts, parsed.nr_parts);
+
+	mtd_part_parser_cleanup(&parsed);
+
+	return err;
+}
+
 static struct mtd_part *allocate_partition(struct mtd_info *parent,
 			const struct mtd_partition *part, int partno,
 			uint64_t cur_offset)
@@ -758,6 +787,8 @@ int add_mtd_partitions(struct mtd_info *master,
 
 		add_mtd_device(&slave->mtd);
 		mtd_add_partition_attrs(slave);
+		if (parts[i].types)
+			mtd_parse_part(slave, parts[i].types);
 
 		cur_offset = slave->offset + slave->mtd.size;
 	}
