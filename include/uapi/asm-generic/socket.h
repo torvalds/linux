@@ -102,4 +102,6 @@
 
 #define SCM_TIMESTAMPING_PKTINFO	58
 
+#define SO_PEERGROUPS		59
+
 #endif /* __ASM_GENERIC_SOCKET_H */

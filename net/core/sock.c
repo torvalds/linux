@@ -1078,6 +1078,18 @@ static void cred_to_ucred(struct pid *pid, const struct cred *cred,
 	}
 }
 
+static int groups_to_user(gid_t __user *dst, const struct group_info *src)
+{
+	struct user_namespace *user_ns = current_user_ns();
+	int i;
+
+	for (i = 0; i < src->ngroups; i++)
+		if (put_user(from_kgid_munged(user_ns, src->gid[i]), dst + i))
+			return -EFAULT;
+
+	return 0;
+}
+
 int sock_getsockopt(struct socket *sock, int level, int optname,
 		    char __user *optval, int __user *optlen)
 {
@@ -1228,6 +1240,27 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		cred_to_ucred(sk->sk_peer_pid, sk->sk_peer_cred, &peercred);
 		if (copy_to_user(optval, &peercred, len))
 			return -EFAULT;
+		goto lenout;
+	}
+
+	case SO_PEERGROUPS:
+	{
+		int ret, n;
+
+		if (!sk->sk_peer_cred)
+			return -ENODATA;
+
+		n = sk->sk_peer_cred->group_info->ngroups;
+		if (len < n * sizeof(gid_t)) {
+			len = n * sizeof(gid_t);
+			return put_user(len, optlen) ? -EFAULT : -ERANGE;
+		}
+		len = n * sizeof(gid_t);
+
+		ret = groups_to_user((gid_t __user *)optval,
+				     sk->sk_peer_cred->group_info);
+		if (ret)
+			return ret;
 		goto lenout;
 	}
 

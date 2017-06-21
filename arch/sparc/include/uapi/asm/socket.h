@@ -96,6 +96,8 @@
 
 #define SCM_TIMESTAMPING_PKTINFO	0x003c
 
+#define SO_PEERGROUPS		0x003d
+
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001
 #define SO_SECURITY_ENCRYPTION_TRANSPORT	0x5002
