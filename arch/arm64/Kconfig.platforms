@@ -108,6 +108,8 @@ config ARCH_MVEBU
 	select ARMADA_37XX_CLK
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
+	select MVEBU_GICP
+	select MVEBU_ICU
 	select MVEBU_ODMI
 	select MVEBU_PIC
 	select OF_GPIO
