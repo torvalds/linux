@@ -259,14 +259,6 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 #define TLBSTATE_OK	1
 #define TLBSTATE_LAZY	2
 
-static inline void reset_lazy_tlbstate(void)
-{
-	this_cpu_write(cpu_tlbstate.state, 0);
-	this_cpu_write(cpu_tlbstate.loaded_mm, &init_mm);
-
-	WARN_ON(read_cr3_pa() != __pa_symbol(swapper_pg_dir));
-}
-
 static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
 					struct mm_struct *mm)
 {
