@@ -143,10 +143,14 @@ struct ceph_pg_mapping {
 		struct {
 			int len;
 			int osds[];
-		} pg_temp;
+		} pg_temp, pg_upmap;
 		struct {
 			int osd;
 		} primary_temp;
+		struct {
+			int len;
+			int from_to[][2];
+		} pg_upmap_items;
 	};
 };
 
@@ -164,6 +168,10 @@ struct ceph_osdmap {
 
 	struct rb_root pg_temp;
 	struct rb_root primary_temp;
+
+	/* remap (post-CRUSH, pre-up) */
+	struct rb_root pg_upmap;	/* PG := raw set */
+	struct rb_root pg_upmap_items;	/* from -> to within raw set */
 
 	u32 *osd_primary_affinity;
 

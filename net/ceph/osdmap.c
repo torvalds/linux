@@ -735,6 +735,8 @@ struct ceph_osdmap *ceph_osdmap_alloc(void)
 	map->pool_max = -1;
 	map->pg_temp = RB_ROOT;
 	map->primary_temp = RB_ROOT;
+	map->pg_upmap = RB_ROOT;
+	map->pg_upmap_items = RB_ROOT;
 	mutex_init(&map->crush_workspace_mutex);
 
 	return map;
@@ -758,6 +760,20 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 				 struct ceph_pg_mapping, node);
 		erase_pg_mapping(&map->primary_temp, pg);
 		free_pg_mapping(pg);
+	}
+	while (!RB_EMPTY_ROOT(&map->pg_upmap)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(rb_first(&map->pg_upmap),
+				 struct ceph_pg_mapping, node);
+		rb_erase(&pg->node, &map->pg_upmap);
+		kfree(pg);
+	}
+	while (!RB_EMPTY_ROOT(&map->pg_upmap_items)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(rb_first(&map->pg_upmap_items),
+				 struct ceph_pg_mapping, node);
+		rb_erase(&pg->node, &map->pg_upmap_items);
+		kfree(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->pg_pools)) {
 		struct ceph_pg_pool_info *pi =
@@ -1161,6 +1177,75 @@ e_inval:
 	return -EINVAL;
 }
 
+static struct ceph_pg_mapping *__decode_pg_upmap(void **p, void *end,
+						 bool __unused)
+{
+	return __decode_pg_temp(p, end, false);
+}
+
+static int decode_pg_upmap(void **p, void *end, struct ceph_osdmap *map)
+{
+	return decode_pg_mapping(p, end, &map->pg_upmap, __decode_pg_upmap,
+				 false);
+}
+
+static int decode_new_pg_upmap(void **p, void *end, struct ceph_osdmap *map)
+{
+	return decode_pg_mapping(p, end, &map->pg_upmap, __decode_pg_upmap,
+				 true);
+}
+
+static int decode_old_pg_upmap(void **p, void *end, struct ceph_osdmap *map)
+{
+	return decode_pg_mapping(p, end, &map->pg_upmap, NULL, true);
+}
+
+static struct ceph_pg_mapping *__decode_pg_upmap_items(void **p, void *end,
+						       bool __unused)
+{
+	struct ceph_pg_mapping *pg;
+	u32 len, i;
+
+	ceph_decode_32_safe(p, end, len, e_inval);
+	if (len > (SIZE_MAX - sizeof(*pg)) / (2 * sizeof(u32)))
+		return ERR_PTR(-EINVAL);
+
+	ceph_decode_need(p, end, 2 * len * sizeof(u32), e_inval);
+	pg = kzalloc(sizeof(*pg) + 2 * len * sizeof(u32), GFP_NOIO);
+	if (!pg)
+		return ERR_PTR(-ENOMEM);
+
+	pg->pg_upmap_items.len = len;
+	for (i = 0; i < len; i++) {
+		pg->pg_upmap_items.from_to[i][0] = ceph_decode_32(p);
+		pg->pg_upmap_items.from_to[i][1] = ceph_decode_32(p);
+	}
+
+	return pg;
+
+e_inval:
+	return ERR_PTR(-EINVAL);
+}
+
+static int decode_pg_upmap_items(void **p, void *end, struct ceph_osdmap *map)
+{
+	return decode_pg_mapping(p, end, &map->pg_upmap_items,
+				 __decode_pg_upmap_items, false);
+}
+
+static int decode_new_pg_upmap_items(void **p, void *end,
+				     struct ceph_osdmap *map)
+{
+	return decode_pg_mapping(p, end, &map->pg_upmap_items,
+				 __decode_pg_upmap_items, true);
+}
+
+static int decode_old_pg_upmap_items(void **p, void *end,
+				     struct ceph_osdmap *map)
+{
+	return decode_pg_mapping(p, end, &map->pg_upmap_items, NULL, true);
+}
+
 /*
  * decode a full map.
  */
@@ -1250,9 +1335,7 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 		if (err)
 			goto bad;
 	} else {
-		/* XXX can this happen? */
-		kfree(map->osd_primary_affinity);
-		map->osd_primary_affinity = NULL;
+		WARN_ON(map->osd_primary_affinity);
 	}
 
 	/* crush */
@@ -1260,6 +1343,26 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 	err = osdmap_set_crush(map, crush_decode(*p, min(*p + len, end)));
 	if (err)
 		goto bad;
+
+	*p += len;
+	if (struct_v >= 3) {
+		/* erasure_code_profiles */
+		ceph_decode_skip_map_of_map(p, end, string, string, string,
+					    bad);
+	}
+
+	if (struct_v >= 4) {
+		err = decode_pg_upmap(p, end, map);
+		if (err)
+			goto bad;
+
+		err = decode_pg_upmap_items(p, end, map);
+		if (err)
+			goto bad;
+	} else {
+		WARN_ON(!RB_EMPTY_ROOT(&map->pg_upmap));
+		WARN_ON(!RB_EMPTY_ROOT(&map->pg_upmap_items));
+	}
 
 	/* ignore the rest */
 	*p = end;
@@ -1516,6 +1619,32 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	/* new_primary_affinity */
 	if (struct_v >= 2) {
 		err = decode_new_primary_affinity(p, end, map);
+		if (err)
+			goto bad;
+	}
+
+	if (struct_v >= 3) {
+		/* new_erasure_code_profiles */
+		ceph_decode_skip_map_of_map(p, end, string, string, string,
+					    bad);
+		/* old_erasure_code_profiles */
+		ceph_decode_skip_set(p, end, string, bad);
+	}
+
+	if (struct_v >= 4) {
+		err = decode_new_pg_upmap(p, end, map);
+		if (err)
+			goto bad;
+
+		err = decode_old_pg_upmap(p, end, map);
+		if (err)
+			goto bad;
+
+		err = decode_new_pg_upmap_items(p, end, map);
+		if (err)
+			goto bad;
+
+		err = decode_old_pg_upmap_items(p, end, map);
 		if (err)
 			goto bad;
 	}

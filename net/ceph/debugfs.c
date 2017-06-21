@@ -104,6 +104,29 @@ static int osdmap_show(struct seq_file *s, void *p)
 		seq_printf(s, "primary_temp %llu.%x %d\n", pg->pgid.pool,
 			   pg->pgid.seed, pg->primary_temp.osd);
 	}
+	for (n = rb_first(&map->pg_upmap); n; n = rb_next(n)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(n, struct ceph_pg_mapping, node);
+
+		seq_printf(s, "pg_upmap %llu.%x [", pg->pgid.pool,
+			   pg->pgid.seed);
+		for (i = 0; i < pg->pg_upmap.len; i++)
+			seq_printf(s, "%s%d", (i == 0 ? "" : ","),
+				   pg->pg_upmap.osds[i]);
+		seq_printf(s, "]\n");
+	}
+	for (n = rb_first(&map->pg_upmap_items); n; n = rb_next(n)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(n, struct ceph_pg_mapping, node);
+
+		seq_printf(s, "pg_upmap_items %llu.%x [", pg->pgid.pool,
+			   pg->pgid.seed);
+		for (i = 0; i < pg->pg_upmap_items.len; i++)
+			seq_printf(s, "%s%d->%d", (i == 0 ? "" : ","),
+				   pg->pg_upmap_items.from_to[i][0],
+				   pg->pg_upmap_items.from_to[i][1]);
+		seq_printf(s, "]\n");
+	}
 
 	up_read(&osdc->lock);
 	return 0;
