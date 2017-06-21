@@ -1443,7 +1443,9 @@ int rtl8723be_hw_init(struct ieee80211_hw *hw)
 		 */
 		if (rtlpriv->btcoexist.btc_info.ant_num == ANT_X2 ||
 		    !rtlpriv->cfg->ops->get_btc_status()) {
-			rtl8723be_phy_iq_calibrate(hw, false);
+			rtl8723be_phy_iq_calibrate(hw,
+						   (rtlphy->iqk_initialized ?
+						    true : false));
 			rtlphy->iqk_initialized = true;
 		}
 		rtl8723be_dm_check_txpower_tracking(hw);
@@ -1677,7 +1679,8 @@ void rtl8723be_card_disable(struct ieee80211_hw *hw)
 	_rtl8723be_poweroff_adapter(hw);
 
 	/* after power off we should do iqk again */
-	rtlpriv->phy.iqk_initialized = false;
+	if (!rtlpriv->cfg->ops->get_btc_status())
+		rtlpriv->phy.iqk_initialized = false;
 }
 
 void rtl8723be_interrupt_recognized(struct ieee80211_hw *hw,
