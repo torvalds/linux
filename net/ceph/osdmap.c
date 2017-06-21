@@ -465,7 +465,7 @@ static int __insert_pg_mapping(struct ceph_pg_mapping *new,
 }
 
 static struct ceph_pg_mapping *__lookup_pg_mapping(struct rb_root *root,
-						   struct ceph_pg pgid)
+						   const struct ceph_pg *pgid)
 {
 	struct rb_node *n = root->rb_node;
 	struct ceph_pg_mapping *pg;
@@ -473,32 +473,32 @@ static struct ceph_pg_mapping *__lookup_pg_mapping(struct rb_root *root,
 
 	while (n) {
 		pg = rb_entry(n, struct ceph_pg_mapping, node);
-		c = ceph_pg_compare(&pgid, &pg->pgid);
+		c = ceph_pg_compare(pgid, &pg->pgid);
 		if (c < 0) {
 			n = n->rb_left;
 		} else if (c > 0) {
 			n = n->rb_right;
 		} else {
 			dout("__lookup_pg_mapping %lld.%x got %p\n",
-			     pgid.pool, pgid.seed, pg);
+			     pgid->pool, pgid->seed, pg);
 			return pg;
 		}
 	}
 	return NULL;
 }
 
-static int __remove_pg_mapping(struct rb_root *root, struct ceph_pg pgid)
+static int __remove_pg_mapping(struct rb_root *root, const struct ceph_pg *pgid)
 {
 	struct ceph_pg_mapping *pg = __lookup_pg_mapping(root, pgid);
 
 	if (pg) {
-		dout("__remove_pg_mapping %lld.%x %p\n", pgid.pool, pgid.seed,
+		dout("__remove_pg_mapping %lld.%x %p\n", pgid->pool, pgid->seed,
 		     pg);
 		rb_erase(&pg->node, root);
 		kfree(pg);
 		return 0;
 	}
-	dout("__remove_pg_mapping %lld.%x dne\n", pgid.pool, pgid.seed);
+	dout("__remove_pg_mapping %lld.%x dne\n", pgid->pool, pgid->seed);
 	return -ENOENT;
 }
 
@@ -1034,7 +1034,7 @@ static int __decode_pg_temp(void **p, void *end, struct ceph_osdmap *map,
 
 		ceph_decode_32_safe(p, end, len, e_inval);
 
-		ret = __remove_pg_mapping(&map->pg_temp, pgid);
+		ret = __remove_pg_mapping(&map->pg_temp, &pgid);
 		BUG_ON(!incremental && ret != -ENOENT);
 
 		if (!incremental || len > 0) {
@@ -1095,7 +1095,7 @@ static int __decode_primary_temp(void **p, void *end, struct ceph_osdmap *map,
 
 		ceph_decode_32_safe(p, end, osd, e_inval);
 
-		ret = __remove_pg_mapping(&map->primary_temp, pgid);
+		ret = __remove_pg_mapping(&map->primary_temp, &pgid);
 		BUG_ON(!incremental && ret != -ENOENT);
 
 		if (!incremental || osd != (u32)-1) {
@@ -2226,7 +2226,7 @@ static void get_temp_osds(struct ceph_osdmap *osdmap,
 	ceph_osds_init(temp);
 
 	/* pg_temp? */
-	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
+	pg = __lookup_pg_mapping(&osdmap->pg_temp, &pgid);
 	if (pg) {
 		for (i = 0; i < pg->pg_temp.len; i++) {
 			if (ceph_osd_is_down(osdmap, pg->pg_temp.osds[i])) {
@@ -2249,7 +2249,7 @@ static void get_temp_osds(struct ceph_osdmap *osdmap,
 	}
 
 	/* primary_temp? */
-	pg = __lookup_pg_mapping(&osdmap->primary_temp, pgid);
+	pg = __lookup_pg_mapping(&osdmap->primary_temp, &pgid);
 	if (pg)
 		temp->primary = pg->primary_temp.osd;
 }
