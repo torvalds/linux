@@ -149,7 +149,6 @@ out_fbdev_fini:
 out_poll_fini:
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 out_unbind:
 	component_unbind_all(dev, drm);
 out_unregister:
@@ -171,7 +170,6 @@ static void zx_drm_unbind(struct device *dev)
 	}
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 	component_unbind_all(dev, drm);
 	dev_set_drvdata(dev, NULL);
 	drm->dev_private = NULL;
