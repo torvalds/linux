@@ -792,6 +792,8 @@ struct ufs_sb_private_info {
 	__s32	fs_magic;       /* filesystem magic */
 	unsigned int s_dirblksize;
 	__u64   s_root_blocks;
+	__u64	s_time_to_space;
+	__u64	s_space_to_time;
 };
 
 /*

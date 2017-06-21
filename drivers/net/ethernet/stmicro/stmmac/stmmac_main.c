@@ -2831,7 +2831,6 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_q->tx_skbuff_dma[first_entry].buf = des;
 	tx_q->tx_skbuff_dma[first_entry].len = skb_headlen(skb);
-	tx_q->tx_skbuff[first_entry] = skb;
 
 	first->des0 = cpu_to_le32(des);
 
@@ -2865,6 +2864,14 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_q->tx_skbuff_dma[tx_q->cur_tx].last_segment = true;
 
+	/* Only the last descriptor gets to point to the skb. */
+	tx_q->tx_skbuff[tx_q->cur_tx] = skb;
+
+	/* We've used all descriptors we need for this skb, however,
+	 * advance cur_tx so that it references a fresh descriptor.
+	 * ndo_start_xmit will fill this descriptor the next time it's
+	 * called and stmmac_tx_clean may clean up to this descriptor.
+	 */
 	tx_q->cur_tx = STMMAC_GET_ENTRY(tx_q->cur_tx, DMA_TX_SIZE);
 
 	if (unlikely(stmmac_tx_avail(priv, queue) <= (MAX_SKB_FRAGS + 1))) {
@@ -2998,8 +3005,6 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	first = desc;
 
-	tx_q->tx_skbuff[first_entry] = skb;
-
 	enh_desc = priv->plat->enh_desc;
 	/* To program the descriptors according to the size of the frame */
 	if (enh_desc)
@@ -3047,8 +3052,15 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 						skb->len);
 	}
 
-	entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
+	/* Only the last descriptor gets to point to the skb. */
+	tx_q->tx_skbuff[entry] = skb;
 
+	/* We've used all descriptors we need for this skb, however,
+	 * advance cur_tx so that it references a fresh descriptor.
+	 * ndo_start_xmit will fill this descriptor the next time it's
+	 * called and stmmac_tx_clean may clean up to this descriptor.
+	 */
+	entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
 	tx_q->cur_tx = entry;
 
 	if (netif_msg_pktdata(priv)) {

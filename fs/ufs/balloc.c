@@ -455,24 +455,14 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 	/*
 	 * allocate new block and move data
 	 */
-	switch (fs32_to_cpu(sb, usb1->fs_optim)) {
-	    case UFS_OPTSPACE:
+	if (fs32_to_cpu(sb, usb1->fs_optim) == UFS_OPTSPACE) {
 		request = newcount;
-		if (uspi->s_minfree < 5 || uspi->cs_total.cs_nffree
-		    > uspi->s_dsize * uspi->s_minfree / (2 * 100))
-			break;
-		usb1->fs_optim = cpu_to_fs32(sb, UFS_OPTTIME);
-		break;
-	    default:
-		usb1->fs_optim = cpu_to_fs32(sb, UFS_OPTTIME);
-	
-	    case UFS_OPTTIME:
+		if (uspi->cs_total.cs_nffree < uspi->s_space_to_time)
+			usb1->fs_optim = cpu_to_fs32(sb, UFS_OPTTIME);
+	} else {
 		request = uspi->s_fpb;
-		if (uspi->cs_total.cs_nffree < uspi->s_dsize *
-		    (uspi->s_minfree - 2) / 100)
-			break;
-		usb1->fs_optim = cpu_to_fs32(sb, UFS_OPTTIME);
-		break;
+		if (uspi->cs_total.cs_nffree > uspi->s_time_to_space)
+			usb1->fs_optim = cpu_to_fs32(sb, UFS_OPTSPACE);
 	}
 	result = ufs_alloc_fragments (inode, cgno, goal, request, err);
 	if (result) {
