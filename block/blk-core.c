@@ -169,7 +169,7 @@ int blk_status_to_errno(blk_status_t status)
 {
 	int idx = (__force int)status;
 
-	if (WARN_ON_ONCE(idx > ARRAY_SIZE(blk_errors)))
+	if (WARN_ON_ONCE(idx >= ARRAY_SIZE(blk_errors)))
 		return -EIO;
 	return blk_errors[idx].errno;
 }
@@ -179,7 +179,7 @@ static void print_req_error(struct request *req, blk_status_t status)
 {
 	int idx = (__force int)status;
 
-	if (WARN_ON_ONCE(idx > ARRAY_SIZE(blk_errors)))
+	if (WARN_ON_ONCE(idx >= ARRAY_SIZE(blk_errors)))
 		return;
 
 	printk_ratelimited(KERN_ERR "%s: %s error, dev %s, sector %llu\n",
