@@ -24,7 +24,7 @@ module_param_named(redirect_max, ovl_redirect_max, ushort, 0644);
 MODULE_PARM_DESC(ovl_redirect_max,
 		 "Maximum length of absolute redirect xattr value");
 
-void ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
+int ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
 {
 	int err;
 
@@ -39,6 +39,8 @@ void ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
 		pr_err("overlayfs: cleanup of '%pd2' failed (%i)\n",
 		       wdentry, err);
 	}
+
+	return err;
 }
 
 struct dentry *ovl_lookup_temp(struct dentry *workdir)

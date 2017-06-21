@@ -285,17 +285,17 @@ static int ovl_lookup_layer(struct dentry *base, struct ovl_lookup_data *d,
 }
 
 
-static int ovl_check_origin(struct dentry *dentry, struct dentry *upperdentry,
+static int ovl_check_origin(struct dentry *upperdentry,
+			    struct path *lowerstack, unsigned int numlower,
 			    struct path **stackp, unsigned int *ctrp)
 {
-	struct ovl_entry *roe = dentry->d_sb->s_root->d_fsdata;
 	struct vfsmount *mnt;
 	struct dentry *origin = NULL;
 	int i;
 
 
-	for (i = 0; i < roe->numlower; i++) {
-		mnt = roe->lowerstack[i].mnt;
+	for (i = 0; i < numlower; i++) {
+		mnt = lowerstack[i].mnt;
 		origin = ovl_get_origin(upperdentry, mnt);
 		if (IS_ERR(origin))
 			return PTR_ERR(origin);
@@ -307,8 +307,9 @@ static int ovl_check_origin(struct dentry *dentry, struct dentry *upperdentry,
 	if (!origin)
 		return 0;
 
-	BUG_ON(*stackp || *ctrp);
-	*stackp = kmalloc(sizeof(struct path), GFP_TEMPORARY);
+	BUG_ON(*ctrp);
+	if (!*stackp)
+		*stackp = kmalloc(sizeof(struct path), GFP_TEMPORARY);
 	if (!*stackp) {
 		dput(origin);
 		return -ENOMEM;
@@ -375,6 +376,63 @@ fail:
 	inode = d_inode(origin);
 	pr_warn_ratelimited("overlayfs: failed to verify origin (%pd2, ino=%lu, err=%i)\n",
 			    origin, inode ? inode->i_ino : 0, err);
+	goto out;
+}
+
+/*
+ * Verify that an index entry name matches the origin file handle stored in
+ * OVL_XATTR_ORIGIN and that origin file handle can be decoded to lower path.
+ * Return 0 on match, -ESTALE on mismatch or stale origin, < 0 on error.
+ */
+int ovl_verify_index(struct dentry *index, struct path *lowerstack,
+		     unsigned int numlower)
+{
+	struct ovl_fh *fh = NULL;
+	size_t len;
+	struct path origin = { };
+	struct path *stack = &origin;
+	unsigned int ctr = 0;
+	int err;
+
+	if (!d_inode(index))
+		return 0;
+
+	err = -EISDIR;
+	if (d_is_dir(index))
+		goto fail;
+
+	err = -EINVAL;
+	if (index->d_name.len < sizeof(struct ovl_fh)*2)
+		goto fail;
+
+	err = -ENOMEM;
+	len = index->d_name.len / 2;
+	fh = kzalloc(len, GFP_TEMPORARY);
+	if (!fh)
+		goto fail;
+
+	err = -EINVAL;
+	if (hex2bin((u8 *)fh, index->d_name.name, len) || len != fh->len)
+		goto fail;
+
+	err = ovl_verify_origin_fh(index, fh);
+	if (err)
+		goto fail;
+
+	err = ovl_check_origin(index, lowerstack, numlower, &stack, &ctr);
+	if (!err && !ctr)
+		err = -ESTALE;
+	if (err)
+		goto fail;
+
+	dput(origin.dentry);
+out:
+	kfree(fh);
+	return err;
+
+fail:
+	pr_warn_ratelimited("overlayfs: failed to verify index (%pd2, err=%i)\n",
+			    index, err);
 	goto out;
 }
 
@@ -541,8 +599,8 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			 * number - it's the same as if we held a reference
 			 * to a dentry in lower layer that was moved under us.
 			 */
-			err = ovl_check_origin(dentry, upperdentry,
-					       &stack, &ctr);
+			err = ovl_check_origin(upperdentry, roe->lowerstack,
+					       roe->numlower, &stack, &ctr);
 			if (err)
 				goto out;
 		}

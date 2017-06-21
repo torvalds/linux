@@ -1068,6 +1068,12 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 						upperpath.dentry, true, true);
 			if (err)
 				pr_err("overlayfs: failed to verify index dir origin\n");
+
+			/* Cleanup bad/stale index entries */
+			if (!err)
+				err = ovl_indexdir_cleanup(ufs->indexdir,
+							   ufs->upper_mnt,
+							   stack, numlower);
 		}
 		if (err || !ufs->indexdir)
 			pr_warn("overlayfs: try deleting index dir or mounting with '-o index=off' to disable inodes index.\n");
