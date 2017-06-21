@@ -503,10 +503,7 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 		ret = false;
 		break;
 	case BTC_GET_U1_AP_NUM:
-		/* driver do not know AP num,
-		 * so the return value here is not right
-		 */
-		*u8_tmp = 1;
+		*u8_tmp = rtlpriv->btcoexist.btc_info.ap_num;
 		break;
 	case BTC_GET_U1_ANT_TYPE:
 		*u8_tmp = (u8)BTC_ANT_TYPE_0;
