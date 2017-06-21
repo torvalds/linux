@@ -2842,7 +2842,7 @@ static uint32_t remove_from_val_sets(
  * Grabs all modesetting locks to serialize against any blocking commits,
  * Waits for completion of all non blocking commits.
  */
-static void do_aquire_global_lock(
+static int do_aquire_global_lock(
 		struct drm_device *dev,
 		struct drm_atomic_state *state)
 {
@@ -2854,7 +2854,9 @@ static void do_aquire_global_lock(
 	 * ensure that when the framework release it the
 	 * extra locks we are locking here will get released to
 	 */
-	drm_modeset_lock_all_ctx(dev, state->acquire_ctx);
+	ret = drm_modeset_lock_all_ctx(dev, state->acquire_ctx);
+	if (ret)
+		return ret;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		spin_lock(&crtc->commit_lock);
@@ -2870,15 +2872,20 @@ static void do_aquire_global_lock(
 		/* Make sure all pending HW programming completed and
 		 * page flips done
 		 */
-		ret = wait_for_completion_timeout(&commit->hw_done,
-						  10*HZ);
-		ret = wait_for_completion_timeout(&commit->flip_done,
-						  10*HZ);
+		ret = wait_for_completion_interruptible_timeout(&commit->hw_done, 10*HZ);
+
+		if (ret > 0)
+			ret = wait_for_completion_interruptible_timeout(
+					&commit->flip_done, 10*HZ);
+
 		if (ret == 0)
-			DRM_ERROR("[CRTC:%d:%s] hw_done timed out\n",
-				  crtc->base.id, crtc->name);
+			DRM_ERROR("[CRTC:%d:%s] cleanup_done or flip_done "
+					"timed out\n", crtc->base.id, crtc->name);
+
 		drm_crtc_commit_put(commit);
 	}
+
+	return ret < 0 ? ret : 0;
 }
 
 int amdgpu_dm_atomic_check(struct drm_device *dev,
@@ -3145,7 +3152,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		 * synchronization events.
 		 */
 		if (aquire_global_lock)
-			do_aquire_global_lock(dev, state);
+			ret = do_aquire_global_lock(dev, state);
 
 	}
 
@@ -3161,8 +3168,14 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	for (i = 0; i < new_stream_count; i++)
 		dc_stream_release(new_streams[i]);
 
-	if (ret != 0)
-		DRM_ERROR("Atomic check failed.\n");
+	if (ret != 0) {
+		if (ret == -EDEADLK)
+			DRM_DEBUG_KMS("Atomic check stopped due to to deadlock, retrying.\n");
+		else if (ret == -EINTR || ret == -EAGAIN || ret == -ERESTARTSYS)
+			DRM_DEBUG_KMS("Atomic check stopped due to to signal, retrying.\n");
+		else
+			DRM_ERROR("Atomic check failed.\n");
+	}
 
 	return ret;
 }
