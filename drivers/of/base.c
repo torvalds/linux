@@ -155,7 +155,7 @@ int __of_add_property_sysfs(struct device_node *np, struct property *pp)
 
 	sysfs_bin_attr_init(&pp->attr);
 	pp->attr.attr.name = safe_name(&np->kobj, pp->name);
-	pp->attr.attr.mode = secure ? S_IRUSR : S_IRUGO;
+	pp->attr.attr.mode = secure ? 0400 : 0444;
 	pp->attr.size = secure ? 0 : pp->length;
 	pp->attr.read = of_node_property_read;
 
