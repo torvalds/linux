@@ -364,6 +364,42 @@ cyc_thresh	Specifies how frequently CYC packets are produced - see cyc
 
 		CYC packets are not requested by default.
 
+pt		Specifies pass-through which enables the 'branch' config term.
+
+		The default config selects 'pt' if it is available, so a user will
+		never need to specify this term.
+
+branch		Enable branch tracing.  Branch tracing is enabled by default so to
+		disable branch tracing use 'branch=0'.
+
+		The default config selects 'branch' if it is available.
+
+ptw		Enable PTWRITE packets which are produced when a ptwrite instruction
+		is executed.
+
+		Support for this feature is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/ptwrite
+
+		which contains "1" if the feature is supported and
+		"0" otherwise.
+
+fup_on_ptw	Enable a FUP packet to follow the PTWRITE packet.  The FUP packet
+		provides the address of the ptwrite instruction.  In the absence of
+		fup_on_ptw, the decoder will use the address of the previous branch
+		if branch tracing is enabled, otherwise the address will be zero.
+		Note that fup_on_ptw will work even when branch tracing is disabled.
+
+pwr_evt		Enable power events.  The power events provide information about
+		changes to the CPU C-state.
+
+		Support for this feature is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/power_event_trace
+
+		which contains "1" if the feature is supported and
+		"0" otherwise.
+
 
 new snapshot option
 -------------------

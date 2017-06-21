@@ -64,6 +64,13 @@ static const char * const packet_name[] = {
 	[INTEL_PT_PIP]		= "PIP",
 	[INTEL_PT_OVF]		= "OVF",
 	[INTEL_PT_MNT]		= "MNT",
+	[INTEL_PT_PTWRITE]	= "PTWRITE",
+	[INTEL_PT_PTWRITE_IP]	= "PTWRITE",
+	[INTEL_PT_EXSTOP]	= "EXSTOP",
+	[INTEL_PT_EXSTOP_IP]	= "EXSTOP",
+	[INTEL_PT_MWAIT]	= "MWAIT",
+	[INTEL_PT_PWRE]		= "PWRE",
+	[INTEL_PT_PWRX]		= "PWRX",
 };
 
 const char *intel_pt_pkt_name(enum intel_pt_pkt_type type)
@@ -123,7 +130,7 @@ static int intel_pt_get_cbr(const unsigned char *buf, size_t len,
 	if (len < 4)
 		return INTEL_PT_NEED_MORE_BYTES;
 	packet->type = INTEL_PT_CBR;
-	packet->payload = buf[2];
+	packet->payload = le16_to_cpu(*(uint16_t *)(buf + 2));
 	return 4;
 }
 
@@ -217,11 +224,79 @@ static int intel_pt_get_3byte(const unsigned char *buf, size_t len,
 	}
 }
 
+static int intel_pt_get_ptwrite(const unsigned char *buf, size_t len,
+				struct intel_pt_pkt *packet)
+{
+	packet->count = (buf[1] >> 5) & 0x3;
+	packet->type = buf[1] & BIT(7) ? INTEL_PT_PTWRITE_IP :
+					 INTEL_PT_PTWRITE;
+
+	switch (packet->count) {
+	case 0:
+		if (len < 6)
+			return INTEL_PT_NEED_MORE_BYTES;
+		packet->payload = le32_to_cpu(*(uint32_t *)(buf + 2));
+		return 6;
+	case 1:
+		if (len < 10)
+			return INTEL_PT_NEED_MORE_BYTES;
+		packet->payload = le64_to_cpu(*(uint64_t *)(buf + 2));
+		return 10;
+	default:
+		return INTEL_PT_BAD_PACKET;
+	}
+}
+
+static int intel_pt_get_exstop(struct intel_pt_pkt *packet)
+{
+	packet->type = INTEL_PT_EXSTOP;
+	return 2;
+}
+
+static int intel_pt_get_exstop_ip(struct intel_pt_pkt *packet)
+{
+	packet->type = INTEL_PT_EXSTOP_IP;
+	return 2;
+}
+
+static int intel_pt_get_mwait(const unsigned char *buf, size_t len,
+			      struct intel_pt_pkt *packet)
+{
+	if (len < 10)
+		return INTEL_PT_NEED_MORE_BYTES;
+	packet->type = INTEL_PT_MWAIT;
+	packet->payload = le64_to_cpu(*(uint64_t *)(buf + 2));
+	return 10;
+}
+
+static int intel_pt_get_pwre(const unsigned char *buf, size_t len,
+			     struct intel_pt_pkt *packet)
+{
+	if (len < 4)
+		return INTEL_PT_NEED_MORE_BYTES;
+	packet->type = INTEL_PT_PWRE;
+	memcpy_le64(&packet->payload, buf + 2, 2);
+	return 4;
+}
+
+static int intel_pt_get_pwrx(const unsigned char *buf, size_t len,
+			     struct intel_pt_pkt *packet)
+{
+	if (len < 7)
+		return INTEL_PT_NEED_MORE_BYTES;
+	packet->type = INTEL_PT_PWRX;
+	memcpy_le64(&packet->payload, buf + 2, 5);
+	return 7;
+}
+
 static int intel_pt_get_ext(const unsigned char *buf, size_t len,
 			    struct intel_pt_pkt *packet)
 {
 	if (len < 2)
 		return INTEL_PT_NEED_MORE_BYTES;
+
+	if ((buf[1] & 0x1f) == 0x12)
+		return intel_pt_get_ptwrite(buf, len, packet);
 
 	switch (buf[1]) {
 	case 0xa3: /* Long TNT */
@@ -244,6 +319,16 @@ static int intel_pt_get_ext(const unsigned char *buf, size_t len,
 		return intel_pt_get_tma(buf, len, packet);
 	case 0xC3: /* 3-byte header */
 		return intel_pt_get_3byte(buf, len, packet);
+	case 0x62: /* EXSTOP no IP */
+		return intel_pt_get_exstop(packet);
+	case 0xE2: /* EXSTOP with IP */
+		return intel_pt_get_exstop_ip(packet);
+	case 0xC2: /* MWAIT */
+		return intel_pt_get_mwait(buf, len, packet);
+	case 0x22: /* PWRE */
+		return intel_pt_get_pwre(buf, len, packet);
+	case 0xA2: /* PWRX */
+		return intel_pt_get_pwrx(buf, len, packet);
 	default:
 		return INTEL_PT_BAD_PACKET;
 	}
@@ -522,6 +607,29 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 		ret = snprintf(buf, buf_len, "%s 0x%llx (NR=%d)",
 			       name, payload, nr);
 		return ret;
+	case INTEL_PT_PTWRITE:
+		return snprintf(buf, buf_len, "%s 0x%llx IP:0", name, payload);
+	case INTEL_PT_PTWRITE_IP:
+		return snprintf(buf, buf_len, "%s 0x%llx IP:1", name, payload);
+	case INTEL_PT_EXSTOP:
+		return snprintf(buf, buf_len, "%s IP:0", name);
+	case INTEL_PT_EXSTOP_IP:
+		return snprintf(buf, buf_len, "%s IP:1", name);
+	case INTEL_PT_MWAIT:
+		return snprintf(buf, buf_len, "%s 0x%llx Hints 0x%x Extensions 0x%x",
+				name, payload, (unsigned int)(payload & 0xff),
+				(unsigned int)((payload >> 32) & 0x3));
+	case INTEL_PT_PWRE:
+		return snprintf(buf, buf_len, "%s 0x%llx HW:%u CState:%u Sub-CState:%u",
+				name, payload, !!(payload & 0x80),
+				(unsigned int)((payload >> 12) & 0xf),
+				(unsigned int)((payload >> 8) & 0xf));
+	case INTEL_PT_PWRX:
+		return snprintf(buf, buf_len, "%s 0x%llx Last CState:%u Deepest CState:%u Wake Reason 0x%x",
+				name, payload,
+				(unsigned int)((payload >> 4) & 0xf),
+				(unsigned int)(payload & 0xf),
+				(unsigned int)((payload >> 8) & 0xf));
 	default:
 		break;
 	}

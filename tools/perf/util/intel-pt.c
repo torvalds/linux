@@ -668,6 +668,19 @@ static bool intel_pt_return_compression(struct intel_pt *pt)
 	return true;
 }
 
+static bool intel_pt_branch_enable(struct intel_pt *pt)
+{
+	struct perf_evsel *evsel;
+	u64 config;
+
+	evlist__for_each_entry(pt->session->evlist, evsel) {
+		if (intel_pt_get_config(pt, &evsel->attr, &config) &&
+		    (config & 1) && !(config & 0x2000))
+			return false;
+	}
+	return true;
+}
+
 static unsigned int intel_pt_mtc_period(struct intel_pt *pt)
 {
 	struct perf_evsel *evsel;
@@ -799,6 +812,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.walk_insn = intel_pt_walk_next_insn;
 	params.data = ptq;
 	params.return_compression = intel_pt_return_compression(pt);
+	params.branch_enable = intel_pt_branch_enable(pt);
 	params.max_non_turbo_ratio = pt->max_non_turbo_ratio;
 	params.mtc_period = intel_pt_mtc_period(pt);
 	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
@@ -1308,18 +1322,14 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 	ptq->have_sample = false;
 
 	if (pt->sample_instructions &&
-	    (state->type & INTEL_PT_INSTRUCTION) &&
-	    (!pt->synth_opts.initial_skip ||
-	     pt->num_events++ >= pt->synth_opts.initial_skip)) {
+	    (state->type & INTEL_PT_INSTRUCTION)) {
 		err = intel_pt_synth_instruction_sample(ptq);
 		if (err)
 			return err;
 	}
 
 	if (pt->sample_transactions &&
-	    (state->type & INTEL_PT_TRANSACTION) &&
-	    (!pt->synth_opts.initial_skip ||
-	     pt->num_events++ >= pt->synth_opts.initial_skip)) {
+	    (state->type & INTEL_PT_TRANSACTION)) {
 		err = intel_pt_synth_transaction_sample(ptq);
 		if (err)
 			return err;
@@ -2025,6 +2035,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 			return err;
 		}
 		pt->sample_transactions = true;
+		pt->transactions_sample_type = attr.sample_type;
 		pt->transactions_id = id;
 		id += 1;
 		evlist__for_each_entry(evlist, evsel) {
