@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 #include <linux/cred.h>
 #include <linux/xattr.h>
+#include <linux/exportfs.h>
+#include <linux/uuid.h>
 #include "overlayfs.h"
 #include "ovl_entry.h"
 
@@ -45,6 +47,19 @@ struct super_block *ovl_same_sb(struct super_block *sb)
 	struct ovl_fs *ofs = sb->s_fs_info;
 
 	return ofs->same_sb;
+}
+
+bool ovl_can_decode_fh(struct super_block *sb)
+{
+	return (sb->s_export_op && sb->s_export_op->fh_to_dentry &&
+		!uuid_is_null(&sb->s_uuid));
+}
+
+struct dentry *ovl_indexdir(struct super_block *sb)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	return ofs->indexdir;
 }
 
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower)

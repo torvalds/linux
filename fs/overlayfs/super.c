@@ -34,6 +34,11 @@ module_param_named(redirect_dir, ovl_redirect_dir_def, bool, 0644);
 MODULE_PARM_DESC(ovl_redirect_dir_def,
 		 "Default to on or off for the redirect_dir feature");
 
+static bool ovl_index_def = IS_ENABLED(CONFIG_OVERLAY_FS_INDEX);
+module_param_named(index, ovl_index_def, bool, 0644);
+MODULE_PARM_DESC(ovl_index_def,
+		 "Default to on or off for the inodes index feature");
+
 static void ovl_dentry_release(struct dentry *dentry)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
@@ -203,6 +208,7 @@ static void ovl_put_super(struct super_block *sb)
 	struct ovl_fs *ufs = sb->s_fs_info;
 	unsigned i;
 
+	dput(ufs->indexdir);
 	dput(ufs->workdir);
 	ovl_inuse_unlock(ufs->workbasedir);
 	dput(ufs->workbasedir);
@@ -265,6 +271,12 @@ static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return err;
 }
 
+/* Will this overlay be forced to mount/remount ro? */
+static bool ovl_force_readonly(struct ovl_fs *ufs)
+{
+	return (!ufs->upper_mnt || !ufs->workdir);
+}
+
 /**
  * ovl_show_options
  *
@@ -286,6 +298,9 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	if (ufs->config.redirect_dir != ovl_redirect_dir_def)
 		seq_printf(m, ",redirect_dir=%s",
 			   ufs->config.redirect_dir ? "on" : "off");
+	if (ufs->config.index != ovl_index_def)
+		seq_printf(m, ",index=%s",
+			   ufs->config.index ? "on" : "off");
 	return 0;
 }
 
@@ -293,7 +308,7 @@ static int ovl_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct ovl_fs *ufs = sb->s_fs_info;
 
-	if (!(*flags & MS_RDONLY) && (!ufs->upper_mnt || !ufs->workdir))
+	if (!(*flags & MS_RDONLY) && ovl_force_readonly(ufs))
 		return -EROFS;
 
 	return 0;
@@ -317,6 +332,8 @@ enum {
 	OPT_DEFAULT_PERMISSIONS,
 	OPT_REDIRECT_DIR_ON,
 	OPT_REDIRECT_DIR_OFF,
+	OPT_INDEX_ON,
+	OPT_INDEX_OFF,
 	OPT_ERR,
 };
 
@@ -327,6 +344,8 @@ static const match_table_t ovl_tokens = {
 	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
 	{OPT_REDIRECT_DIR_ON,		"redirect_dir=on"},
 	{OPT_REDIRECT_DIR_OFF,		"redirect_dir=off"},
+	{OPT_INDEX_ON,			"index=on"},
+	{OPT_INDEX_OFF,			"index=off"},
 	{OPT_ERR,			NULL}
 };
 
@@ -399,6 +418,14 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			config->redirect_dir = false;
 			break;
 
+		case OPT_INDEX_ON:
+			config->index = true;
+			break;
+
+		case OPT_INDEX_OFF:
+			config->index = false;
+			break;
+
 		default:
 			pr_err("overlayfs: unrecognized mount option \"%s\" or missing value\n", p);
 			return -EINVAL;
@@ -417,6 +444,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 }
 
 #define OVL_WORKDIR_NAME "work"
+#define OVL_INDEXDIR_NAME "index"
 
 static struct dentry *ovl_workdir_create(struct super_block *sb,
 					 struct ovl_fs *ufs,
@@ -609,6 +637,15 @@ static int ovl_lower_dir(const char *name, struct path *path,
 
 	if (ovl_dentry_remote(path->dentry))
 		*remote = true;
+
+	/*
+	 * The inodes index feature needs to encode and decode file
+	 * handles, so it requires that all layers support them.
+	 */
+	if (ofs->config.index && !ovl_can_decode_fh(path->dentry->d_sb)) {
+		ofs->config.index = false;
+		pr_warn("overlayfs: fs on '%s' does not support file handles, falling back to index=off.\n", name);
+	}
 
 	return 0;
 
@@ -807,6 +844,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		goto out;
 
 	ufs->config.redirect_dir = ovl_redirect_dir_def;
+	ufs->config.index = ovl_index_def;
 	err = ovl_parse_opt((char *) data, &ufs->config);
 	if (err)
 		goto out_free_config;
@@ -965,6 +1003,13 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			} else {
 				vfs_removexattr(ufs->workdir, OVL_XATTR_OPAQUE);
 			}
+
+			/* Check if upper/work fs supports file handles */
+			if (ufs->config.index &&
+			    !ovl_can_decode_fh(ufs->workdir->d_sb)) {
+				ufs->config.index = false;
+				pr_warn("overlayfs: upper fs does not support file handles, falling back to index=off.\n");
+			}
 		}
 	}
 
@@ -1002,6 +1047,21 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	else if (ufs->upper_mnt->mnt_sb != ufs->same_sb)
 		ufs->same_sb = NULL;
 
+	if (!(ovl_force_readonly(ufs)) && ufs->config.index) {
+		ufs->indexdir = ovl_workdir_create(sb, ufs, workpath.dentry,
+						   OVL_INDEXDIR_NAME, true);
+		err = PTR_ERR(ufs->indexdir);
+		if (IS_ERR(ufs->indexdir))
+			goto out_put_lower_mnt;
+
+		if (!ufs->indexdir)
+			pr_warn("overlayfs: try deleting index dir or mounting with '-o index=off' to disable inodes index.\n");
+	}
+
+	/* Show index=off/on in /proc/mounts for any of the reasons above */
+	if (!ufs->indexdir)
+		ufs->config.index = false;
+
 	if (remote)
 		sb->s_d_op = &ovl_reval_dentry_operations;
 	else
@@ -1009,7 +1069,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	ufs->creator_cred = cred = prepare_creds();
 	if (!cred)
-		goto out_put_lower_mnt;
+		goto out_put_indexdir;
 
 	/* Never override disk quota limits or use reserved space */
 	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
@@ -1058,6 +1118,8 @@ out_free_oe:
 	kfree(oe);
 out_put_cred:
 	put_cred(ufs->creator_cred);
+out_put_indexdir:
+	dput(ufs->indexdir);
 out_put_lower_mnt:
 	for (i = 0; i < ufs->numlower; i++)
 		mntput(ufs->lower_mnt[i]);

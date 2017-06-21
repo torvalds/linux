@@ -14,6 +14,7 @@ struct ovl_config {
 	char *workdir;
 	bool default_permissions;
 	bool redirect_dir;
+	bool index;
 };
 
 /* private information held for overlayfs's superblock */
@@ -25,6 +26,8 @@ struct ovl_fs {
 	struct dentry *workbasedir;
 	/* workdir is the 'work' directory under workbasedir */
 	struct dentry *workdir;
+	/* index directory listing overlay inodes by origin file handle */
+	struct dentry *indexdir;
 	long namelen;
 	/* pathnames of lower and upper dirs, for show_options */
 	struct ovl_config config;

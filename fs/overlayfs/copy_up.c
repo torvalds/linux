@@ -233,12 +233,13 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 	return err;
 }
 
-static struct ovl_fh *ovl_encode_fh(struct dentry *lower, uuid_t *uuid)
+static struct ovl_fh *ovl_encode_fh(struct dentry *lower)
 {
 	struct ovl_fh *fh;
 	int fh_type, fh_len, dwords;
 	void *buf;
 	int buflen = MAX_HANDLE_SZ;
+	uuid_t *uuid = &lower->d_sb->s_uuid;
 
 	buf = kmalloc(buflen, GFP_TEMPORARY);
 	if (!buf)
@@ -283,7 +284,6 @@ out:
 static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 			  struct dentry *upper)
 {
-	struct super_block *sb = lower->d_sb;
 	const struct ovl_fh *fh = NULL;
 	int err;
 
@@ -292,9 +292,8 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 	 * so we can use the overlay.origin xattr to distignuish between a copy
 	 * up and a pure upper inode.
 	 */
-	if (sb->s_export_op && sb->s_export_op->fh_to_dentry &&
-	    !uuid_is_null(&sb->s_uuid)) {
-		fh = ovl_encode_fh(lower, &sb->s_uuid);
+	if (ovl_can_decode_fh(lower->d_sb)) {
+		fh = ovl_encode_fh(lower);
 		if (IS_ERR(fh))
 			return PTR_ERR(fh);
 	}
