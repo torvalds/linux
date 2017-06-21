@@ -1465,19 +1465,16 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi)
 	const struct dw_hdmi_phy_data *phy = hdmi->phy.data;
 	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
 	unsigned long mpixelclock = hdmi->hdmi_data.video_mode.mpixelclock;
-	u8 tmds_cfg;
 	int ret;
 
 	dw_hdmi_phy_power_off(hdmi);
 
 	/* Control for TMDS Bit Period/TMDS Clock-Period Ratio */
-	if (hdmi->connector.scdc_present) {
-		drm_scdc_readb(hdmi->ddc, SCDC_TMDS_CONFIG, &tmds_cfg);
+	if (hdmi->connector.display_info.hdmi.scdc.supported) {
 		if (mpixelclock > 340000000)
-			tmds_cfg |= 2;
+			drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 1);
 		else
-			tmds_cfg &= 0x1;
-		drm_scdc_writeb(hdmi->ddc, SCDC_TMDS_CONFIG, tmds_cfg);
+			drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 0);
 	}
 
 	/* Leave low power consumption mode by asserting SVSRET. */
@@ -1593,7 +1590,7 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	bool is_hdmi2 = false;
 
 	if ((mode->flags & DRM_MODE_FLAG_420_MASK) ||
-	    hdmi->connector.scdc_present)
+	    hdmi->connector.display_info.hdmi.scdc.supported)
 		is_hdmi2 = true;
 	/* Initialise info frame from DRM mode */
 	drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, is_hdmi2);
@@ -1757,6 +1754,7 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 			     const struct drm_display_mode *mode)
 {
 	u8 inv_val, bytes;
+	struct drm_hdmi_info *hdmi_info = &hdmi->connector.display_info.hdmi;
 	struct hdmi_vmode *vmode = &hdmi->hdmi_data.video_mode;
 	int hblank, vblank, h_de_hs, v_de_vs, hsync_len, vsync_len;
 	unsigned int hdisplay, vdisplay;
@@ -1774,7 +1772,7 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	 * when activate the scrambler feature.
 	 */
 	inv_val = (vmode->mpixelclock > 340000000 ||
-		   hdmi->connector.lte_340mcsc_scramble ?
+		   hdmi_info->scdc.scrambling.low_rates ?
 		   HDMI_FC_INVIDCONF_HDCP_KEEPOUT_ACTIVE :
 		   HDMI_FC_INVIDCONF_HDCP_KEEPOUT_INACTIVE);
 
@@ -1843,14 +1841,14 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	}
 
 	/* Scrambling Control */
-	if (hdmi->connector.scdc_present) {
+	if (hdmi_info->scdc.supported) {
 		if (vmode->mpixelclock > 340000000 ||
-		    hdmi->connector.lte_340mcsc_scramble) {
+		    hdmi_info->scdc.scrambling.low_rates) {
 			drm_scdc_readb(&hdmi->i2c->adap, SCDC_SINK_VERSION,
 				       &bytes);
 			drm_scdc_writeb(&hdmi->i2c->adap, SCDC_SOURCE_VERSION,
 					bytes);
-			drm_scdc_writeb(&hdmi->i2c->adap, SCDC_TMDS_CONFIG, 1);
+			drm_scdc_set_scrambling(&hdmi->i2c->adap, 1);
 			hdmi_writeb(hdmi, (u8)~HDMI_MC_SWRSTZ_TMDSSWRST_REQ,
 				    HDMI_MC_SWRSTZ);
 			hdmi_writeb(hdmi, 1, HDMI_FC_SCRAMBLER_CTRL);
@@ -1858,7 +1856,7 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 			hdmi_writeb(hdmi, 0, HDMI_FC_SCRAMBLER_CTRL);
 			hdmi_writeb(hdmi, (u8)~HDMI_MC_SWRSTZ_TMDSSWRST_REQ,
 				    HDMI_MC_SWRSTZ);
-			drm_scdc_writeb(&hdmi->i2c->adap, SCDC_TMDS_CONFIG, 0);
+			drm_scdc_set_scrambling(&hdmi->i2c->adap, 0);
 		}
 	}
 
