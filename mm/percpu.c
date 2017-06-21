@@ -956,8 +956,10 @@ restart:
 	 * tasks to create chunks simultaneously.  Serialize and create iff
 	 * there's still no empty chunk after grabbing the mutex.
 	 */
-	if (is_atomic)
+	if (is_atomic) {
+		err = "atomic alloc failed, no space left";
 		goto fail;
+	}
 
 	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1])) {
 		chunk = pcpu_create_chunk();
