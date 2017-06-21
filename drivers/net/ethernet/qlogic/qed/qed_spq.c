@@ -54,7 +54,7 @@
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
-#include "qed_roce.h"
+#include "qed_rdma.h"
 
 /***************************************************************************
 * Structures & Definitions

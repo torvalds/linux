@@ -44,7 +44,7 @@
 #include "qed_hsi.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
-#include "qed_roce.h"
+#include "qed_rdma.h"
 #ifdef CONFIG_DCB
 #include <linux/qed/qed_eth_if.h>
 #endif

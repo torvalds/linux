@@ -29,8 +29,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef _QED_ROCE_H
-#define _QED_ROCE_H
+#ifndef _QED_RDMA_H
+#define _QED_RDMA_H
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -42,7 +42,7 @@
 #include "qed.h"
 #include "qed_dev_api.h"
 #include "qed_hsi.h"
-#include "qed_ll2.h"
+#include "qed_roce.h"
 
 #define QED_RDMA_MAX_FMR                    (RDMA_MAX_TIDS)
 #define QED_RDMA_MAX_P_KEY                  (1)
@@ -168,11 +168,34 @@ struct qed_rdma_qp {
 
 #if IS_ENABLED(CONFIG_QED_RDMA)
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
-void qed_roce_dpm_dcbx(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #else
-static inline void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt) {}
-
-static inline void qed_roce_dpm_dcbx(struct qed_hwfn *p_hwfn,
-				     struct qed_ptt *p_ptt) {}
+static inline void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt) {}
+static inline void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt) {}
 #endif
+
+int
+qed_rdma_bmap_alloc(struct qed_hwfn *p_hwfn,
+		    struct qed_bmap *bmap, u32 max_count, char *name);
+
+void
+qed_rdma_bmap_free(struct qed_hwfn *p_hwfn, struct qed_bmap *bmap, bool check);
+
+int
+qed_rdma_bmap_alloc_id(struct qed_hwfn *p_hwfn,
+		       struct qed_bmap *bmap, u32 *id_num);
+
+void
+qed_bmap_set_id(struct qed_hwfn *p_hwfn, struct qed_bmap *bmap, u32 id_num);
+
+void
+qed_bmap_release_id(struct qed_hwfn *p_hwfn, struct qed_bmap *bmap, u32 id_num);
+
+int
+qed_bmap_test_id(struct qed_hwfn *p_hwfn, struct qed_bmap *bmap, u32 id_num);
+
+void qed_rdma_set_fw_mac(u16 *p_fw_mac, u8 *p_qed_mac);
+
+bool qed_rdma_allocated_qps(struct qed_hwfn *p_hwfn);
 #endif
