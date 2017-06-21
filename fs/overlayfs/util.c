@@ -347,3 +347,34 @@ bool ovl_test_flag(unsigned long flag, struct inode *inode)
 {
 	return test_bit(flag, &OVL_I(inode)->flags);
 }
+
+/**
+ * Caller must hold a reference to inode to prevent it from being freed while
+ * it is marked inuse.
+ */
+bool ovl_inuse_trylock(struct dentry *dentry)
+{
+	struct inode *inode = d_inode(dentry);
+	bool locked = false;
+
+	spin_lock(&inode->i_lock);
+	if (!(inode->i_state & I_OVL_INUSE)) {
+		inode->i_state |= I_OVL_INUSE;
+		locked = true;
+	}
+	spin_unlock(&inode->i_lock);
+
+	return locked;
+}
+
+void ovl_inuse_unlock(struct dentry *dentry)
+{
+	if (dentry) {
+		struct inode *inode = d_inode(dentry);
+
+		spin_lock(&inode->i_lock);
+		WARN_ON(!(inode->i_state & I_OVL_INUSE));
+		inode->i_state &= ~I_OVL_INUSE;
+		spin_unlock(&inode->i_lock);
+	}
+}
