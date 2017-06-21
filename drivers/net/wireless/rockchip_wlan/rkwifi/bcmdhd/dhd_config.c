@@ -346,7 +346,7 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path, char *nv_path)
 	int fw_type, ag_type;
 	uint chip, chiprev;
 	int i,j;
-	char fw_tail[10];
+	char fw_tail[20];
 
 	chip = dhd->conf->chip;
 	chiprev = dhd->conf->chiprev;
