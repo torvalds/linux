@@ -988,6 +988,7 @@ struct ibmvnic_adapter {
 	spinlock_t error_list_lock;
 
 	struct completion fw_done;
+	int fw_done_rc;
 
 	/* partner capabilities */
 	u64 min_tx_queues;
