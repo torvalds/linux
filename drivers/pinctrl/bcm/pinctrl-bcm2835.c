@@ -1048,6 +1048,10 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 	for (i = 0; i < BCM2835_NUM_IRQS; i++) {
 		pc->irq[i] = irq_of_parse_and_map(np, i);
 		pc->irq_group[i] = i;
+
+		if (pc->irq[i] == 0)
+			continue;
+
 		/*
 		 * Use the same handler for all groups: this is necessary
 		 * since we use one gpiochip to cover all lines - the
