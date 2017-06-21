@@ -204,6 +204,7 @@ typedef struct xfs_mount {
 	 * error triggers.  1 = always, 2 = half the time, etc.
 	 */
 	unsigned int		*m_errortag;
+	struct xfs_kobj		m_errortag_kobj;
 
 	/*
 	 * DEBUG mode instrumentation to test and/or trigger delayed allocation
