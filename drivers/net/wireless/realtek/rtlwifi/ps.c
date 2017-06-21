@@ -356,7 +356,7 @@ void rtl_lps_set_psmode(struct ieee80211_hw *hw, u8 rt_psmode)
 	if (mac->link_state != MAC80211_LINKED)
 		return;
 
-	if (ppsc->dot11_psmode == rt_psmode)
+	if (ppsc->dot11_psmode == rt_psmode && rt_psmode == EACTIVE)
 		return;
 
 	/* Update power save mode configured. */
@@ -438,11 +438,13 @@ static void rtl_lps_enter_core(struct ieee80211_hw *hw)
 
 	spin_lock_irqsave(&rtlpriv->locks.lps_lock, flag);
 
-	if (ppsc->dot11_psmode == EACTIVE) {
-		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-			 "Enter 802.11 power save mode...\n");
-		rtl_lps_set_psmode(hw, EAUTOPS);
-	}
+	/* Don't need to check (ppsc->dot11_psmode == EACTIVE), because
+	 * bt_ccoexist may ask to enter lps.
+	 * In normal case, this constraint move to rtl_lps_set_psmode().
+	 */
+	RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
+		 "Enter 802.11 power save mode...\n");
+	rtl_lps_set_psmode(hw, EAUTOPS);
 
 	spin_unlock_irqrestore(&rtlpriv->locks.lps_lock, flag);
 }

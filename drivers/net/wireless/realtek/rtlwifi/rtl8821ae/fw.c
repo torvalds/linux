@@ -494,6 +494,11 @@ void rtl8821ae_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 	struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
 	bool bt_ctrl_lps = (rtlpriv->cfg->ops->get_btc_status() ?
 			    btc_ops->btc_is_bt_ctrl_lps(rtlpriv) : false);
+	bool bt_lps_on = (rtlpriv->cfg->ops->get_btc_status() ?
+			  btc_ops->btc_is_bt_lps_on(rtlpriv) : false);
+
+	if (bt_ctrl_lps)
+		mode = (bt_lps_on ? FW_PS_MIN_MODE : FW_PS_ACTIVE_MODE);
 
 	RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG, "FW LPS mode = %d (coex:%d)\n",
 		 mode, bt_ctrl_lps);
@@ -549,8 +554,9 @@ void rtl8821ae_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 	SET_H2CCMD_PWRMODE_PARM_MODE(u1_h2c_set_pwrmode, ((mode) ? 1 : 0));
 	SET_H2CCMD_PWRMODE_PARM_RLBM(u1_h2c_set_pwrmode, rlbm);
 	SET_H2CCMD_PWRMODE_PARM_SMART_PS(u1_h2c_set_pwrmode,
-					 (rtlpriv->mac80211.p2p) ?
-					 ppsc->smart_ps : 1);
+					 bt_ctrl_lps ? 0 :
+					 ((rtlpriv->mac80211.p2p) ?
+					  ppsc->smart_ps : 1));
 	SET_H2CCMD_PWRMODE_PARM_AWAKE_INTERVAL(u1_h2c_set_pwrmode,
 					       awake_intvl);
 	SET_H2CCMD_PWRMODE_PARM_ALL_QUEUE_UAPSD(u1_h2c_set_pwrmode, 0);
