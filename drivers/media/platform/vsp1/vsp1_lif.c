@@ -30,7 +30,7 @@
 static inline void vsp1_lif_write(struct vsp1_lif *lif, struct vsp1_dl_list *dl,
 				  u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg, data);
+	vsp1_dl_list_write(dl, reg + lif->entity.index * VI6_LIF_OFFSET, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -165,7 +165,7 @@ static const struct vsp1_entity_operations lif_entity_ops = {
  * Initialization and Cleanup
  */
 
-struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1)
+struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1, unsigned int index)
 {
 	struct vsp1_lif *lif;
 	int ret;
@@ -176,6 +176,7 @@ struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1)
 
 	lif->entity.ops = &lif_entity_ops;
 	lif->entity.type = VSP1_ENTITY_LIF;
+	lif->entity.index = index;
 
 	/*
 	 * The LIF is never exposed to userspace, but media entity registration

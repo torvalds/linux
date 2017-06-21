@@ -181,7 +181,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 		format.format.code);
 
 	format.pad = LIF_PAD_SINK;
-	ret = v4l2_subdev_call(&vsp1->lif->entity.subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&vsp1->lif[0]->entity.subdev, pad, set_fmt, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;
@@ -599,15 +599,15 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 
 	vsp1->bru->entity.sink = &vsp1->wpf[0]->entity;
 	vsp1->bru->entity.sink_pad = 0;
-	vsp1->wpf[0]->entity.sink = &vsp1->lif->entity;
+	vsp1->wpf[0]->entity.sink = &vsp1->lif[0]->entity;
 	vsp1->wpf[0]->entity.sink_pad = 0;
 
 	list_add_tail(&vsp1->bru->entity.list_pipe, &pipe->entities);
 	list_add_tail(&vsp1->wpf[0]->entity.list_pipe, &pipe->entities);
-	list_add_tail(&vsp1->lif->entity.list_pipe, &pipe->entities);
+	list_add_tail(&vsp1->lif[0]->entity.list_pipe, &pipe->entities);
 
 	pipe->bru = &vsp1->bru->entity;
-	pipe->lif = &vsp1->lif->entity;
+	pipe->lif = &vsp1->lif[0]->entity;
 	pipe->output = vsp1->wpf[0];
 	pipe->output->pipe = pipe;
 	pipe->frame_end = vsp1_du_pipeline_frame_end;

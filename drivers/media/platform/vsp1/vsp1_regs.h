@@ -351,7 +351,7 @@
 #define VI6_DPR_NODE_HST		30
 #define VI6_DPR_NODE_HSI		31
 #define VI6_DPR_NODE_BRS_IN(n)		(38 + (n))
-#define VI6_DPR_NODE_LIF		55
+#define VI6_DPR_NODE_LIF		55		/* Gen2 only */
 #define VI6_DPR_NODE_WPF(n)		(56 + (n))
 #define VI6_DPR_NODE_UNUSED		63
 
@@ -662,6 +662,8 @@
 /* -----------------------------------------------------------------------------
  * LIF Control Registers
  */
+
+#define VI6_LIF_OFFSET			(-0x100)
 
 #define VI6_LIF_CTRL			0x3b00
 #define VI6_LIF_CTRL_OBTH_MASK		(0x7ff << 16)
