@@ -7,6 +7,9 @@
 #ifndef __QLA_FW_H
 #define __QLA_FW_H
 
+#include <linux/nvme.h>
+#include <linux/nvme-fc.h>
+
 #define MBS_CHECKSUM_ERROR	0x4010
 #define MBS_INVALID_PRODUCT_KEY	0x4020
 
@@ -603,9 +606,14 @@ struct sts_entry_24xx {
 
 	uint32_t residual_len;		/* FW calc residual transfer length. */
 
-	uint16_t reserved_1;
+	union {
+		uint16_t reserved_1;
+		uint16_t nvme_rsp_pyld_len;
+	};
+
 	uint16_t state_flags;		/* State flags. */
 #define SF_TRANSFERRED_DATA	BIT_11
+#define SF_NVME_ERSP            BIT_6
 #define SF_FCP_RSP_DMA		BIT_0
 
 	uint16_t retry_delay;
@@ -615,8 +623,16 @@ struct sts_entry_24xx {
 	uint32_t rsp_residual_count;	/* FCP RSP residual count. */
 
 	uint32_t sense_len;		/* FCP SENSE length. */
-	uint32_t rsp_data_len;		/* FCP response data length. */
-	uint8_t data[28];		/* FCP response/sense information. */
+
+	union {
+		struct {
+			uint32_t rsp_data_len;	/* FCP response data length  */
+			uint8_t data[28];	/* FCP rsp/sense information */
+		};
+		struct nvme_fc_ersp_iu nvme_ersp;
+		uint8_t nvme_ersp_data[32];
+	};
+
 	/*
 	 * If DIF Error is set in comp_status, these additional fields are
 	 * defined:

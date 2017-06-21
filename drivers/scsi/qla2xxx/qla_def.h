@@ -412,6 +412,20 @@ struct srb_iocb {
 		struct {
 			struct imm_ntfy_from_isp *ntfy;
 		} nack;
+		struct {
+			__le16 comp_status;
+			uint16_t rsp_pyld_len;
+			uint8_t	aen_op;
+			void *desc;
+
+			/* These are only used with ls4 requests */
+			int cmd_len;
+			int rsp_len;
+			dma_addr_t cmd_dma;
+			dma_addr_t rsp_dma;
+			uint32_t dl;
+			uint32_t timeout_sec;
+		} nvme;
 	} u;
 
 	struct timer_list timer;
@@ -437,6 +451,7 @@ struct srb_iocb {
 #define SRB_NACK_PLOGI	16
 #define SRB_NACK_PRLI	17
 #define SRB_NACK_LOGO	18
+#define SRB_NVME_CMD	19
 #define SRB_PRLI_CMD	21
 
 enum {
@@ -4110,6 +4125,8 @@ typedef struct scsi_qla_host {
 	struct		nvme_fc_local_port *nvme_local_port;
 	atomic_t	nvme_ref_count;
 	struct list_head nvme_rport_list;
+	atomic_t 	nvme_active_aen_cnt;
+	uint16_t	nvme_last_rptd_aen;
 
 	uint16_t	fcoe_vlan_id;
 	uint16_t	fcoe_fcf_idx;

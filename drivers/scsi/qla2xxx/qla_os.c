@@ -695,8 +695,10 @@ qla2x00_sp_free_dma(void *ptr)
 	}
 
 end:
-	CMD_SP(cmd) = NULL;
-	qla2x00_rel_sp(sp);
+	if (sp->type != SRB_NVME_CMD) {
+		CMD_SP(cmd) = NULL;
+		qla2x00_rel_sp(sp);
+	}
 }
 
 void
@@ -5992,6 +5994,18 @@ qla2x00_timer(scsi_qla_host_t *vha)
 	/* Process any deferred work. */
 	if (!list_empty(&vha->work_list))
 		start_dpc++;
+
+	/*
+	 * FC-NVME
+	 * see if the active AEN count has changed from what was last reported.
+	 */
+	if (atomic_read(&vha->nvme_active_aen_cnt) != vha->nvme_last_rptd_aen) {
+		vha->nvme_last_rptd_aen =
+		    atomic_read(&vha->nvme_active_aen_cnt);
+		ql_log(ql_log_info, vha, 0x3002,
+		    "reporting new aen count of %d to the fw\n",
+		    vha->nvme_last_rptd_aen);
+	}
 
 	/* Schedule the DPC routine if needed */
 	if ((test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||

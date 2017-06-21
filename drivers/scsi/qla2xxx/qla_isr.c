@@ -1799,6 +1799,79 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	sp->done(sp, 0);
 }
 
+static void
+qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
+{
+	const char func[] = "NVME-IOCB";
+	fc_port_t *fcport;
+	srb_t *sp;
+	struct srb_iocb *iocb;
+	struct sts_entry_24xx *sts = (struct sts_entry_24xx *)tsk;
+	uint16_t        state_flags;
+	struct nvmefc_fcp_req *fd;
+	uint16_t        ret = 0;
+	struct srb_iocb *nvme;
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, tsk);
+	if (!sp)
+		return;
+
+	iocb = &sp->u.iocb_cmd;
+	fcport = sp->fcport;
+	iocb->u.nvme.comp_status = le16_to_cpu(sts->comp_status);
+	state_flags  = le16_to_cpu(sts->state_flags);
+	fd = iocb->u.nvme.desc;
+	nvme = &sp->u.iocb_cmd;
+
+	if (unlikely(nvme->u.nvme.aen_op))
+		atomic_dec(&sp->vha->nvme_active_aen_cnt);
+
+	/*
+	 * State flags: Bit 6 and 0.
+	 * If 0 is set, we don't care about 6.
+	 * both cases resp was dma'd to host buffer
+	 * if both are 0, that is good path case.
+	 * if six is set and 0 is clear, we need to
+	 * copy resp data from status iocb to resp buffer.
+	 */
+	if (!(state_flags & (SF_FCP_RSP_DMA | SF_NVME_ERSP))) {
+		iocb->u.nvme.rsp_pyld_len = 0;
+	} else if ((state_flags & SF_FCP_RSP_DMA)) {
+		iocb->u.nvme.rsp_pyld_len = le16_to_cpu(sts->nvme_rsp_pyld_len);
+	} else if (state_flags & SF_NVME_ERSP) {
+		uint32_t *inbuf, *outbuf;
+		uint16_t iter;
+
+		inbuf = (uint32_t *)&sts->nvme_ersp_data;
+		outbuf = (uint32_t *)fd->rspaddr;
+		iocb->u.nvme.rsp_pyld_len = le16_to_cpu(sts->nvme_rsp_pyld_len);
+		iter = iocb->u.nvme.rsp_pyld_len >> 2;
+		for (; iter; iter--)
+			*outbuf++ = swab32(*inbuf++);
+	} else { /* unhandled case */
+	    ql_log(ql_log_warn, fcport->vha, 0x503a,
+		"NVME-%s error. Unhandled state_flags of %x\n",
+		sp->name, state_flags);
+	}
+
+	fd->transferred_length = fd->payload_length -
+	    le32_to_cpu(sts->residual_len);
+
+	if (sts->entry_status) {
+		ql_log(ql_log_warn, fcport->vha, 0x5038,
+		    "NVME-%s error - hdl=%x entry-status(%x).\n",
+		    sp->name, sp->handle, sts->entry_status);
+		ret = QLA_FUNCTION_FAILED;
+	} else if (sts->comp_status != cpu_to_le16(CS_COMPLETE)) {
+		ql_log(ql_log_warn, fcport->vha, 0x5039,
+		    "NVME-%s error - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
+		    sp->name, sp->handle, sts->comp_status,
+		    le32_to_cpu(sts->residual_len), sts->ox_id);
+		ret = QLA_FUNCTION_FAILED;
+	}
+	sp->done(sp, ret);
+}
+
 /**
  * qla2x00_process_response_queue() - Process response queue entries.
  * @ha: SCSI driver HA context
@@ -2286,6 +2359,12 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		ql_dbg(ql_dbg_io, vha, 0x3015,
 		    "Unknown sp->cmd_type %x %p).\n",
 		    sp->cmd_type, sp);
+		return;
+	}
+
+	/* NVME completion. */
+	if (sp->type == SRB_NVME_CMD) {
+		qla24xx_nvme_iocb_entry(vha, req, pkt);
 		return;
 	}
 
