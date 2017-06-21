@@ -73,6 +73,7 @@ struct exynos_audss_clk_drvdata {
 
 static const struct exynos_audss_clk_drvdata exynos4210_drvdata = {
 	.num_clks	= EXYNOS_AUDSS_MAX_CLKS - 1,
+	.enable_epll	= 1,
 };
 
 static const struct exynos_audss_clk_drvdata exynos5410_drvdata = {
