@@ -2828,6 +2828,21 @@ qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	sp->done(sp, 0);
 }
 
+void qla24xx_nvme_ls4_iocb(scsi_qla_host_t *vha, struct pt_ls4_request *pkt,
+    struct req_que *req)
+{
+	srb_t *sp;
+	const char func[] = "LS4_IOCB";
+	uint16_t comp_status;
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
+	if (!sp)
+		return;
+
+	comp_status = le16_to_cpu(pkt->status);
+	sp->done(sp, comp_status);
+}
+
 /**
  * qla24xx_process_response_queue() - Process response queue entries.
  * @ha: SCSI driver HA context
@@ -2900,6 +2915,10 @@ process_err:
 		case CTIO_TYPE7:
 		case CTIO_CRC2:
 			qlt_response_pkt_all_vps(vha, rsp, (response_t *)pkt);
+			break;
+		case PT_LS4_REQUEST:
+			qla24xx_nvme_ls4_iocb(vha, (struct pt_ls4_request *)pkt,
+			    rsp->req);
 			break;
 		case NOTIFY_ACK_TYPE:
 			if (pkt->handle == QLA_TGT_SKIP_HANDLE)

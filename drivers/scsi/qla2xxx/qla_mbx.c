@@ -560,6 +560,8 @@ qla2x00_load_ram(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t risc_addr,
 }
 
 #define	EXTENDED_BB_CREDITS	BIT_0
+#define	NVME_ENABLE_FLAG	BIT_3
+
 /*
  * qla2x00_execute_fw
  *     Start adapter firmware.
@@ -600,6 +602,9 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 			    EXTENDED_BB_CREDITS);
 		} else
 			mcp->mb[4] = 0;
+
+		if (ql2xnvmeenable && IS_QLA27XX(ha))
+			mcp->mb[4] |= NVME_ENABLE_FLAG;
 
 		if (ha->flags.exlogins_enabled)
 			mcp->mb[4] |= ENABLE_EXTENDED_LOGIN;
@@ -941,6 +946,22 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1191,
 			    "%s: Firmware supports Exchange Offload 0x%x\n",
 			    __func__, ha->fw_attributes_h);
+
+		/* bit 26 of fw_attributes */
+		if ((ha->fw_attributes_h & 0x400) && ql2xnvmeenable) {
+			struct init_cb_24xx *icb;
+
+			icb = (struct init_cb_24xx *)ha->init_cb;
+			/*
+			 * fw supports nvme and driver load
+			 * parameter requested nvme
+			 */
+			vha->flags.nvme_enabled = 1;
+			icb->firmware_options_2 &= cpu_to_le32(~0xf);
+			ha->zio_mode = 0;
+			ha->zio_timer = 0;
+		}
+
 	}
 
 	if (IS_QLA27XX(ha)) {

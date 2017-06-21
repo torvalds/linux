@@ -3155,6 +3155,39 @@ static void qla2x00_send_notify_ack_iocb(srb_t *sp,
 	nack->u.isp24.vp_index = ntfy->u.isp24.vp_index;
 }
 
+/*
+ * Build NVME LS request
+ */
+static int
+qla_nvme_ls(srb_t *sp, struct pt_ls4_request *cmd_pkt)
+{
+	struct srb_iocb *nvme;
+	int     rval = QLA_SUCCESS;
+
+	nvme = &sp->u.iocb_cmd;
+	cmd_pkt->entry_type = PT_LS4_REQUEST;
+	cmd_pkt->entry_count = 1;
+	cmd_pkt->control_flags = CF_LS4_ORIGINATOR << CF_LS4_SHIFT;
+
+	cmd_pkt->timeout = cpu_to_le16(nvme->u.nvme.timeout_sec);
+	cmd_pkt->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	cmd_pkt->vp_index = sp->fcport->vha->vp_idx;
+
+	cmd_pkt->tx_dseg_count = 1;
+	cmd_pkt->tx_byte_count = nvme->u.nvme.cmd_len;
+	cmd_pkt->dseg0_len = nvme->u.nvme.cmd_len;
+	cmd_pkt->dseg0_address[0] = cpu_to_le32(LSD(nvme->u.nvme.cmd_dma));
+	cmd_pkt->dseg0_address[1] = cpu_to_le32(MSD(nvme->u.nvme.cmd_dma));
+
+	cmd_pkt->rx_dseg_count = 1;
+	cmd_pkt->rx_byte_count = nvme->u.nvme.rsp_len;
+	cmd_pkt->dseg1_len  = nvme->u.nvme.rsp_len;
+	cmd_pkt->dseg1_address[0] =  cpu_to_le32(LSD(nvme->u.nvme.rsp_dma));
+	cmd_pkt->dseg1_address[1] =  cpu_to_le32(MSD(nvme->u.nvme.rsp_dma));
+
+	return rval;
+}
+
 int
 qla2x00_start_sp(srb_t *sp)
 {
@@ -3210,6 +3243,9 @@ qla2x00_start_sp(srb_t *sp)
 	case SRB_FXIOCB_DCMD:
 	case SRB_FXIOCB_BCMD:
 		qlafx00_fxdisc_iocb(sp, pkt);
+		break;
+	case SRB_NVME_LS:
+		qla_nvme_ls(sp, pkt);
 		break;
 	case SRB_ABT_CMD:
 		IS_QLAFX00(ha) ?

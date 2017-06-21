@@ -37,6 +37,7 @@
 #include "qla_bsg.h"
 #include "qla_nx.h"
 #include "qla_nx2.h"
+#include "qla_nvme.h"
 #define QLA2XXX_DRIVER_NAME	"qla2xxx"
 #define QLA2XXX_APIDEV		"ql2xapidev"
 #define QLA2XXX_MANUFACTURER	"QLogic Corporation"
@@ -423,6 +424,7 @@ struct srb_iocb {
 			int rsp_len;
 			dma_addr_t cmd_dma;
 			dma_addr_t rsp_dma;
+			enum nvmefc_fcp_datadir dir;
 			uint32_t dl;
 			uint32_t timeout_sec;
 		} nvme;
@@ -452,6 +454,7 @@ struct srb_iocb {
 #define SRB_NACK_PRLI	17
 #define SRB_NACK_LOGO	18
 #define SRB_NVME_CMD	19
+#define SRB_NVME_LS	20
 #define SRB_PRLI_CMD	21
 
 enum {
@@ -467,6 +470,7 @@ typedef struct srb {
 	uint8_t cmd_type;
 	uint8_t pad[3];
 	atomic_t ref_count;
+	wait_queue_head_t nvme_ls_waitQ;
 	struct fc_port *fcport;
 	struct scsi_qla_host *vha;
 	uint32_t handle;
@@ -2298,6 +2302,7 @@ typedef struct fc_port {
 
 	struct work_struct nvme_del_work;
 	atomic_t nvme_ref_count;
+	wait_queue_head_t nvme_waitQ;
 	uint32_t nvme_prli_service_param;
 #define NVME_PRLI_SP_CONF       BIT_7
 #define NVME_PRLI_SP_INITIATOR  BIT_5
@@ -4124,6 +4129,7 @@ typedef struct scsi_qla_host {
 
 	struct		nvme_fc_local_port *nvme_local_port;
 	atomic_t	nvme_ref_count;
+	wait_queue_head_t nvme_waitQ;
 	struct list_head nvme_rport_list;
 	atomic_t 	nvme_active_aen_cnt;
 	uint16_t	nvme_last_rptd_aen;

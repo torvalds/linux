@@ -4520,6 +4520,11 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	fcport->deleted = 0;
 	fcport->logout_on_delete = 1;
 
+	if (fcport->fc4f_nvme) {
+		qla_nvme_register_remote(vha, fcport);
+		return;
+	}
+
 	qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 	qla2x00_iidma_fcport(vha, fcport);
 	qla24xx_update_fcport_fcp_prio(vha, fcport);
@@ -4668,6 +4673,9 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 		if (rval != QLA_SUCCESS)
 			break;
 	} while (0);
+
+	if (!vha->nvme_local_port && vha->flags.nvme_enabled)
+		qla_nvme_register_hba(vha);
 
 	if (rval)
 		ql_dbg(ql_dbg_disc, vha, 0x2068,

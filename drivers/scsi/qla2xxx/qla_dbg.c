@@ -15,7 +15,7 @@
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e		|
  * | Mailbox commands             |       0x1199       | 0x1193		|
- * | Device Discovery             |       0x2131       | 0x210e-0x2116  |
+ * | Device Discovery             |       0x2134       | 0x210e-0x2116  |
  * |				  | 		       | 0x211a         |
  * |                              |                    | 0x211c-0x2128  |
  * |                              |                    | 0x212a-0x2130  |
