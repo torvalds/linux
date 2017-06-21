@@ -142,6 +142,16 @@ static int vc4_atomic_commit(struct drm_device *dev,
 		return ret;
 	}
 
+	if (!nonblock) {
+		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
+		if (ret) {
+			drm_atomic_helper_cleanup_planes(dev, state);
+			kfree(c);
+			up(&vc4->async_modeset);
+			return ret;
+		}
+	}
+
 	for_each_plane_in_state(state, plane, new_state, i) {
 		if ((plane->state->fb != new_state->fb) && new_state->fb) {
 			struct drm_gem_cma_object *cma_bo =
