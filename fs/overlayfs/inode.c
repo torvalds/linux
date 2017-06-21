@@ -96,11 +96,15 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 
 			WARN_ON_ONCE(stat->dev != lowerstat.dev);
 			/*
-			 * Lower hardlinks are broken on copy up to different
+			 * Lower hardlinks may be broken on copy up to different
 			 * upper files, so we cannot use the lower origin st_ino
 			 * for those different files, even for the same fs case.
+			 * With inodes index enabled, it is safe to use st_ino
+			 * of an indexed hardlinked origin. The index validates
+			 * that the upper hardlink is not broken.
 			 */
-			if (is_dir || lowerstat.nlink == 1)
+			if (is_dir || lowerstat.nlink == 1 ||
+			    ovl_test_flag(OVL_INDEX, d_inode(dentry)))
 				stat->ino = lowerstat.ino;
 		}
 		stat->dev = dentry->d_sb->s_dev;

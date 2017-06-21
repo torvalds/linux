@@ -379,6 +379,94 @@ fail:
 }
 
 /*
+ * Lookup in indexdir for the index entry of a lower real inode or a copy up
+ * origin inode. The index entry name is the hex representation of the lower
+ * inode file handle.
+ *
+ * If the index dentry in negative, then either no lower aliases have been
+ * copied up yet, or aliases have been copied up in older kernels and are
+ * not indexed.
+ *
+ * If the index dentry for a copy up origin inode is positive, but points
+ * to an inode different than the upper inode, then either the upper inode
+ * has been copied up and not indexed or it was indexed, but since then
+ * index dir was cleared. Either way, that index cannot be used to indentify
+ * the overlay inode.
+ */
+int ovl_get_index_name(struct dentry *origin, struct qstr *name)
+{
+	int err;
+	struct ovl_fh *fh;
+	char *n, *s;
+
+	fh = ovl_encode_fh(origin, false);
+	if (IS_ERR(fh))
+		return PTR_ERR(fh);
+
+	err = -ENOMEM;
+	n = kzalloc(fh->len * 2, GFP_TEMPORARY);
+	if (n) {
+		s  = bin2hex(n, fh, fh->len);
+		*name = (struct qstr) QSTR_INIT(n, s - n);
+		err = 0;
+	}
+	kfree(fh);
+
+	return err;
+
+}
+
+static struct dentry *ovl_lookup_index(struct dentry *dentry,
+				       struct dentry *upper,
+				       struct dentry *origin)
+{
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	struct dentry *index;
+	struct inode *inode;
+	struct qstr name;
+	int err;
+
+	err = ovl_get_index_name(origin, &name);
+	if (err)
+		return ERR_PTR(err);
+
+	index = lookup_one_len_unlocked(name.name, ofs->indexdir, name.len);
+	if (IS_ERR(index)) {
+		pr_warn_ratelimited("overlayfs: failed inode index lookup (ino=%lu, key=%*s, err=%i);\n"
+				    "overlayfs: mount with '-o index=off' to disable inodes index.\n",
+				    d_inode(origin)->i_ino, name.len, name.name,
+				    err);
+		goto out;
+	}
+
+	if (d_is_negative(index)) {
+		if (upper && d_inode(origin)->i_nlink > 1) {
+			pr_warn_ratelimited("overlayfs: hard link with origin but no index (ino=%lu).\n",
+					    d_inode(origin)->i_ino);
+			goto fail;
+		}
+
+		dput(index);
+		index = NULL;
+	} else if (upper && d_inode(index) != d_inode(upper)) {
+		inode = d_inode(index);
+		pr_warn_ratelimited("overlayfs: wrong index found (index ino: %lu, upper ino: %lu).\n",
+				    d_inode(index)->i_ino,
+				    d_inode(upper)->i_ino);
+		goto fail;
+	}
+
+out:
+	kfree(name.name);
+	return index;
+
+fail:
+	dput(index);
+	index = ERR_PTR(-EIO);
+	goto out;
+}
+
+/*
  * Returns next layer in stack starting from top.
  * Returns -1 if this is the last layer.
  */
@@ -409,6 +497,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	struct ovl_entry *roe = dentry->d_sb->s_root->d_fsdata;
 	struct path *stack = NULL;
 	struct dentry *upperdir, *upperdentry = NULL;
+	struct dentry *index = NULL;
 	unsigned int ctr = 0;
 	struct inode *inode = NULL;
 	bool upperopaque = false;
@@ -506,6 +595,18 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		}
 	}
 
+	/* Lookup index by lower inode and verify it matches upper inode */
+	if (ctr && !d.is_dir && ovl_indexdir(dentry->d_sb)) {
+		struct dentry *origin = stack[0].dentry;
+
+		index = ovl_lookup_index(dentry, upperdentry, origin);
+		if (IS_ERR(index)) {
+			err = PTR_ERR(index);
+			index = NULL;
+			goto out_put;
+		}
+	}
+
 	oe = ovl_alloc_entry(ctr);
 	err = -ENOMEM;
 	if (!oe)
@@ -515,6 +616,9 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	memcpy(oe->lowerstack, stack, sizeof(struct path) * ctr);
 	dentry->d_fsdata = oe;
 
+	if (index && !upperdentry)
+		upperdentry = dget(index);
+
 	if (upperdentry || ctr) {
 		err = -ENOMEM;
 		inode = ovl_get_inode(dentry, upperdentry);
@@ -522,9 +626,12 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			goto out_free_oe;
 
 		OVL_I(inode)->redirect = upperredirect;
+		if (index)
+			ovl_set_flag(OVL_INDEX, inode);
 	}
 
 	revert_creds(old_cred);
+	dput(index);
 	kfree(stack);
 	kfree(d.redirect);
 	d_add(dentry, inode);
@@ -535,6 +642,7 @@ out_free_oe:
 	dentry->d_fsdata = NULL;
 	kfree(oe);
 out_put:
+	dput(index);
 	for (i = 0; i < ctr; i++)
 		dput(stack[i].dentry);
 	kfree(stack);
