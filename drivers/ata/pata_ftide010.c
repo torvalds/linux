@@ -517,8 +517,8 @@ static int pata_ftide010_probe(struct platform_device *pdev)
 		ata_sff_std_ports(ioaddr);
 	}
 
-	dev_info(dev, "device ID %08x, irq %d, io base 0x%08x\n",
-		 readl(ftide->base + FTIDE010_IDE_DEVICE_ID), irq, res->start);
+	dev_info(dev, "device ID %08x, irq %d, reg %pR\n",
+		 readl(ftide->base + FTIDE010_IDE_DEVICE_ID), irq, res);
 
 	ret = ata_host_activate(ftide->host, irq, ata_bmdma_interrupt,
 				0, &pata_ftide010_sht);
