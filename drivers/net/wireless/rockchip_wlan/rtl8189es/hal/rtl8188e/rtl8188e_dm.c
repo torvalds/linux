@@ -238,14 +238,6 @@ dm_InitGPIOSetting(
 	tmp1byte = rtw_read8(Adapter, REG_GPIO_MUXCFG);
 	tmp1byte &= (GPIOSEL_GPIO | ~GPIOSEL_ENBT);
 
-#ifdef CONFIG_BT_COEXIST
-	// UMB-B cut bug. We need to support the modification.
-	if (IS_81xxC_VENDOR_UMC_B_CUT(pHalData->VersionID) &&
-		pHalData->bt_coexist.BT_Coexist)
-	{
-		tmp1byte |= (BIT5);
-	}
-#endif
 	rtw_write8(Adapter, REG_GPIO_MUXCFG, tmp1byte);
 
 }
@@ -256,8 +248,8 @@ dm_InitGPIOSetting(
 static void Init_ODM_ComInfo_88E(PADAPTER	Adapter)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
+	u32  SupportAbility = 0;
 	u8	cut_ver,fab_ver;
 
 	Init_ODM_ComInfo(Adapter);
@@ -276,33 +268,33 @@ static void Init_ODM_ComInfo_88E(PADAPTER	Adapter)
  	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_ANTENNA_TYPE, pHalData->TRxAntDivType);
 	
 	#ifdef CONFIG_DISABLE_ODM
-	pdmpriv->InitODMFlag = 0;
+	SupportAbility = 0;
 	#else
-	pdmpriv->InitODMFlag =	ODM_RF_CALIBRATION		|
-							ODM_RF_TX_PWR_TRACK	//|
-							;	
-	//if(pHalData->AntDivCfg)
-	//	pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV;
+	SupportAbility = 	ODM_RF_CALIBRATION |
+					ODM_RF_TX_PWR_TRACK
+					;	
+	/* if(pHalData->AntDivCfg)
+		SupportAbility |= ODM_BB_ANT_DIV; */
 	#endif	
 
-	ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_ABILITY,pdmpriv->InitODMFlag);
+	ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_ABILITY,SupportAbility);
 	
 }
 static void Update_ODM_ComInfo_88E(PADAPTER	Adapter)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;	
+	u32  SupportAbility = 0;	
 	int i;
 
-	pdmpriv->InitODMFlag = 0
+	SupportAbility = 0
 		| ODM_BB_DIG
 		| ODM_BB_RA_MASK
 		| ODM_BB_DYNAMIC_TXPWR
 		| ODM_BB_FA_CNT
 		| ODM_BB_RSSI_MONITOR
 		| ODM_BB_CCK_PD
-		| ODM_BB_PWR_SAVE	
+		//| ODM_BB_PWR_SAVE	
 		| ODM_BB_CFO_TRACKING
 		| ODM_RF_CALIBRATION
 		| ODM_RF_TX_PWR_TRACK
@@ -311,19 +303,21 @@ static void Update_ODM_ComInfo_88E(PADAPTER	Adapter)
 //		| ODM_BB_PWR_TRAIN
 		;
 
-	if (rtw_odm_adaptivity_needed(Adapter) == _TRUE)
-		pdmpriv->InitODMFlag |= ODM_BB_ADAPTIVITY;
+	if (rtw_odm_adaptivity_needed(Adapter) == _TRUE) {
+		rtw_odm_adaptivity_config_msg(RTW_DBGDUMP, Adapter);
+		SupportAbility |= ODM_BB_ADAPTIVITY;
+	}
 
 	if (!Adapter->registrypriv.qos_opt_enable) {
-		pdmpriv->InitODMFlag |= ODM_MAC_EDCA_TURBO;
+		SupportAbility |= ODM_MAC_EDCA_TURBO;
 	}
 	
 	if(pHalData->AntDivCfg)
-		pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV;
+		SupportAbility |= ODM_BB_ANT_DIV;
 
 #if (MP_DRIVER==1)
 	if (Adapter->registrypriv.mp_mode == 1) {
-		pdmpriv->InitODMFlag = 0
+		SupportAbility = 0
 			| ODM_RF_CALIBRATION
 			| ODM_RF_TX_PWR_TRACK
 			;
@@ -331,10 +325,10 @@ static void Update_ODM_ComInfo_88E(PADAPTER	Adapter)
 #endif//(MP_DRIVER==1)
 
 #ifdef CONFIG_DISABLE_ODM
-	pdmpriv->InitODMFlag = 0;
+	SupportAbility = 0;
 #endif//CONFIG_DISABLE_ODM
 
-	ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_ABILITY,pdmpriv->InitODMFlag);
+	ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_ABILITY,SupportAbility);
 
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_ANTENNA_TYPE, pHalData->TRxAntDivType);
 }
@@ -344,8 +338,7 @@ rtl8188e_InitHalDm(
 	IN	PADAPTER	Adapter
 	)
 {
-	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);	
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 	u8	i;
 
@@ -353,9 +346,8 @@ rtl8188e_InitHalDm(
 	dm_InitGPIOSetting(Adapter);
 #endif
 
-	pdmpriv->DM_Type = DM_Type_ByDriver;
-	pdmpriv->DMFlag = DYNAMIC_FUNC_DISABLE;
-	
+	pHalData->DM_Type = DM_Type_ByDriver;
+
 	Update_ODM_ComInfo_88E(Adapter);
 	ODM_DMInit(pDM_Odm);
 }
@@ -368,9 +360,7 @@ rtl8188e_HalDmWatchDog(
 {
 	BOOLEAN		bFwCurrentInPSMode = _FALSE;
 	BOOLEAN		bFwPSAwake = _TRUE;
-	u8 hw_init_completed = _FALSE;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 #ifdef CONFIG_CONCURRENT_MODE
 	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
@@ -378,9 +368,7 @@ rtl8188e_HalDmWatchDog(
 
 	_func_enter_;
 
-	hw_init_completed = Adapter->hw_init_completed;
-
-	if (hw_init_completed == _FALSE)
+	if (!rtw_is_hw_init_completed(Adapter))
 		goto skip_dm;
 
 #ifdef CONFIG_LPS
@@ -395,9 +383,8 @@ rtl8188e_HalDmWatchDog(
 		bFwPSAwake = _FALSE;
 #endif //CONFIG_P2P_PS
 
-	if( (hw_init_completed == _TRUE)
-		&& ((!bFwCurrentInPSMode) && bFwPSAwake))
-	{
+	if ((rtw_is_hw_init_completed(Adapter))
+		&& ((!bFwCurrentInPSMode) && bFwPSAwake)) {
 		//
 		// Calculate Tx/Rx statistics.
 		//
@@ -422,8 +409,7 @@ rtl8188e_HalDmWatchDog(
 
 
 	//ODM
-	if (hw_init_completed == _TRUE)
-	{
+	if (rtw_is_hw_init_completed(Adapter)) {
 		u8	bLinked=_FALSE;
 		u8	bsta_state=_FALSE;
 		#ifdef CONFIG_DISABLE_ODM
@@ -464,9 +450,8 @@ skip_dm:
 void rtl8188e_init_dm_priv(IN PADAPTER Adapter)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PDM_ODM_T 		podmpriv = &pHalData->odmpriv;
-	_rtw_memset(pdmpriv, 0, sizeof(struct dm_priv));
+
 	//_rtw_spinlock_init(&(pHalData->odm_stainfo_lock));
 	Init_ODM_ComInfo_88E(Adapter);
 	ODM_InitAllTimers(podmpriv );	
@@ -476,7 +461,6 @@ void rtl8188e_init_dm_priv(IN PADAPTER Adapter)
 void rtl8188e_deinit_dm_priv(IN PADAPTER Adapter)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PDM_ODM_T 		podmpriv = &pHalData->odmpriv;
 	//_rtw_spinlock_free(&pHalData->odm_stainfo_lock);
 	ODM_CancelAllTimers(podmpriv);	

@@ -44,6 +44,32 @@
 #define BTCOEX_ALIVE	BIT(4)
 #endif // CONFIG_BT_COEXIST
 
+#ifdef CONFIG_WOWLAN
+#define MAX_WKFM_NUM 16	/* Frame Mask Cam number for pattern match */
+#define MAX_WKFM_SIZE	16 /* (16 bytes for WKFM bit mask, 16*8 = 128 bits) */
+#define MAX_WKFM_PATTERN_SIZE	128
+#define WKFMCAM_ADDR_NUM 6
+#define WKFMCAM_SIZE 24 /* each entry need 6*4 bytes */
+enum pattern_type {
+	PATTERN_BROADCAST = 0,
+	PATTERN_MULTICAST,
+	PATTERN_UNICAST,
+	PATTERN_VALID,
+	PATTERN_INVALID,
+};
+
+typedef struct rtl_priv_pattern {
+	int len;
+	char content[MAX_WKFM_PATTERN_SIZE];
+	char mask[MAX_WKFM_SIZE];
+} rtl_priv_pattern_t;
+
+struct rtl_wow_pattern {
+	u16	crc;
+	u8	type;
+	u32	mask[4];
+};
+#endif /* CONFIG_WOWLAN */
 
 enum Power_Mgnt
 {
@@ -259,6 +285,7 @@ struct pwrctrl_priv
 
 	u8	pwr_mode;
 	u8	smart_ps;
+	u8	disable_smart_ps;
 	u8	bcn_ant_mode;
 	u8 	dtim;
 
@@ -282,6 +309,8 @@ struct pwrctrl_priv
 
 	uint 	ips_enter_cnts;
 	uint 	ips_leave_cnts;
+	uint 	lps_enter_cnts;
+	uint 	lps_leave_cnts;
 
 	u8	ips_mode; 
 	u8	ips_org_mode; 
@@ -321,22 +350,24 @@ struct pwrctrl_priv
 	u8		wowlan_mode;
 	u8		wowlan_p2p_mode;
 	u8		wowlan_pno_enable;
+	u8		wowlan_in_resume;
+#ifdef CONFIG_GPIO_WAKEUP
+	u8		is_high_active;
+#endif /* CONFIG_GPIO_WAKEUP */
 #ifdef CONFIG_WOWLAN
+	u8		wowlan_txpause_status;
 	u8		wowlan_pattern;
-	u8		wowlan_magic;
-	u8		wowlan_unicast;
 	u8		wowlan_pattern_idx;
-	u8		wowlan_from_cmd;
+	u64		wowlan_fw_iv;
+	struct rtl_priv_pattern	patterns[MAX_WKFM_NUM];
 #ifdef CONFIG_PNO_SUPPORT
 	u8		pno_in_resume;
 	u8		pno_inited;
 	pno_nlo_info_t	*pnlo_info;
 	pno_scan_info_t	*pscan_info;
 	pno_ssid_list_t	*pno_ssid_list;
-#endif
-	u32		wowlan_pattern_context[8][5];
-	u64		wowlan_fw_iv;
-#endif // CONFIG_WOWLAN
+#endif /* CONFIG_PNO_SUPPORT */
+#endif /* CONFIG_WOWLAN */
 	_timer 	pwr_state_check_timer;
 	int		pwr_state_check_interval;
 	u8		pwr_state_check_cnts;
@@ -469,5 +500,17 @@ void rtw_ps_deny(PADAPTER padapter, PS_DENY_REASON reason);
 void rtw_ps_deny_cancel(PADAPTER padapter, PS_DENY_REASON reason);
 u32 rtw_ps_deny_get(PADAPTER padapter);
 
+#if defined(CONFIG_WOWLAN)
+void rtw_get_current_ip_address(PADAPTER padapter, u8 *pcurrentip);
+void rtw_get_sec_iv(PADAPTER padapter, u8 *pcur_dot11txpn, u8 *StaAddr);
+void rtw_set_sec_pn(_adapter *padapter);
+bool rtw_check_pattern_valid(u8 *input, u8 len);
+bool rtw_write_to_frame_mask(_adapter *adapter, u8 idx,
+		struct rtl_wow_pattern *content);
+
+bool rtw_read_from_frame_mask(_adapter *adapter, u8 idx);
+void rtw_dump_priv_pattern(_adapter *adapter, u8 idx);
+void rtw_clean_pattern(_adapter *adapter);
+#endif /* CONFIG_WOWLAN */
 #endif  //__RTL871X_PWRCTRL_H_
 

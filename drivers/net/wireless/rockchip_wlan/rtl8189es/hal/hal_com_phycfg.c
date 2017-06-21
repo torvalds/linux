@@ -920,7 +920,7 @@ PHY_InitTxPowerByRate(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	u8	band = 0, rfPath = 0, TxNum = 0, rate = 0, i = 0, j = 0;
 
-	if ( IS_HARDWARE_TYPE_8188E( pAdapter ) || IS_HARDWARE_TYPE_8723A( pAdapter ) )
+	if ( IS_HARDWARE_TYPE_8188E( pAdapter ) )
 	{
 		for ( i = 0; i < MAX_PG_GROUP; ++i )
 			for ( j = 0; j < 16; ++j )
@@ -1509,13 +1509,13 @@ PHY_GetTxPowerTrackingOffset(
 	
 	if ((Rate == MGN_1M) ||(Rate == MGN_2M)||(Rate == MGN_5_5M)||(Rate == MGN_11M))
 	{ 
-		offset = pDM_Odm->Remnant_CCKSwingIdx;
-		//DBG_871X("+Remnant_CCKSwingIdx = 0x%x\n", RFPath, Rate, pDM_Odm->Remnant_CCKSwingIdx);
+		offset = pDM_Odm->RFCalibrateInfo.Remnant_CCKSwingIdx;
+		/*DBG_871X("+Remnant_CCKSwingIdx = 0x%x\n", RFPath, Rate, pRFCalibrateInfo->Remnant_CCKSwingIdx);*/
 	}
 	else
 	{
-		offset = pDM_Odm->Remnant_OFDMSwingIdx[RFPath]; 
-		//DBG_871X("+Remanant_OFDMSwingIdx[RFPath %u][Rate 0x%x] = 0x%x\n", RFPath, Rate, pDM_Odm->Remnant_OFDMSwingIdx[RFPath]);		
+		offset = pDM_Odm->RFCalibrateInfo.Remnant_OFDMSwingIdx[RFPath]; 
+		/*DBG_871X("+Remanant_OFDMSwingIdx[RFPath %u][Rate 0x%x] = 0x%x\n", RFPath, Rate, pRFCalibrateInfo->Remnant_OFDMSwingIdx[RFPath]);	*/	
 		
 	}
 
@@ -1721,17 +1721,17 @@ PHY_SetTxPowerLevelByPath(
 		PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, OFDM );
 		PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, HT_MCS0_MCS7 );
 
-		if ( IS_HARDWARE_TYPE_JAGUAR( Adapter ) || IS_HARDWARE_TYPE_8813A( Adapter ) )
-			PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, VHT_1SSMCS0_1SSMCS9 );
+		if (IS_HARDWARE_TYPE_JAGUAR(Adapter) || IS_HARDWARE_TYPE_8814A(Adapter))
+			PHY_SetTxPowerIndexByRateSection(Adapter, path, channel, VHT_1SSMCS0_1SSMCS9);
 
-		if ( pHalData->NumTotalRFPath >= 2 )
+		if (pHalData->NumTotalRFPath >= 2)
 		{
 			PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, HT_MCS8_MCS15 );
 
-			if ( IS_HARDWARE_TYPE_JAGUAR( Adapter ) || IS_HARDWARE_TYPE_8813A( Adapter ) )
-				PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, VHT_2SSMCS0_2SSMCS9 );
+			if (IS_HARDWARE_TYPE_JAGUAR(Adapter) || IS_HARDWARE_TYPE_8814A(Adapter))
+				PHY_SetTxPowerIndexByRateSection(Adapter, path, channel, VHT_2SSMCS0_2SSMCS9);
 
-			if ( IS_HARDWARE_TYPE_8813A( Adapter ) )
+			if (IS_HARDWARE_TYPE_8814A(Adapter))
 			{
 				PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, HT_MCS16_MCS23 );
 				PHY_SetTxPowerIndexByRateSection( Adapter, path, channel, VHT_3SSMCS0_3SSMCS9 );
@@ -1967,6 +1967,8 @@ PHY_GetTxPowerLimit(
 
 	if ( Band == BAND_ON_2_4G ) {
 		s8 limits[10] = {0}; u8 i = 0;
+		if (bandwidth >= MAX_2_4G_BANDWITH_NUM)
+			bandwidth = MAX_2_4G_BANDWITH_NUM - 1;
 		for (i = 0; i < MAX_REGULATION_NUM; ++i)
 			limits[i] = pHalData->TxPwrLimit_2_4G[i][bandwidth][rateSection][channel][RfPath]; 
 
@@ -2145,7 +2147,7 @@ PHY_ConvertTxPowerLimitToPowerIndex(
 		}
 	}
 	
-	if ( IS_HARDWARE_TYPE_JAGUAR( Adapter ) || IS_HARDWARE_TYPE_8813A( Adapter ) )
+	if (IS_HARDWARE_TYPE_JAGUAR(Adapter) || IS_HARDWARE_TYPE_8814A(Adapter))
 	{
 		for ( regulation = 0; regulation < MAX_REGULATION_NUM; ++regulation )
 		{
@@ -2229,7 +2231,7 @@ PHY_InitTxPowerLimit(
 
 VOID
 PHY_SetTxPowerLimit(
-	IN	PADAPTER		Adapter,
+	IN	PDM_ODM_T		pDM_Odm,
 	IN	u8				*Regulation,
 	IN	u8				*Band,
 	IN	u8				*Bandwidth,
@@ -2239,6 +2241,7 @@ PHY_SetTxPowerLimit(
 	IN	u8				*PowerLimit
 	)
 {
+	PADAPTER			Adapter = pDM_Odm->Adapter;
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA( Adapter );
 	u8				regulation=0, bandwidth=0, rateSection=0, 
 					channel;
@@ -2299,6 +2302,9 @@ PHY_SetTxPowerLimit(
 		if ( channelIndex == -1 )
 			return;
 
+		if (bandwidth >= MAX_2_4G_BANDWITH_NUM)
+			bandwidth = MAX_2_4G_BANDWITH_NUM - 1;
+
 		prevPowerLimit = pHalData->TxPwrLimit_2_4G[regulation][bandwidth][rateSection][channelIndex][ODM_RF_PATH_A];
 
 		if ( powerLimit < prevPowerLimit )
@@ -2340,19 +2346,23 @@ PHY_GetTxPowerIndex(
 {
 	u8	txPower = 0x3E;
 
-	if (IS_HARDWARE_TYPE_8813A(pAdapter)) {
-//#if (RTL8814A_SUPPORT==1)
-//		txPower = PHY_GetTxPowerIndex_8813A( pAdapter, PowerIndex, RFPath, Rate );
-//#endif
-	}
-	else if (IS_HARDWARE_TYPE_JAGUAR(pAdapter)) {
-#if ((RTL8812A_SUPPORT==1) || (RTL8821A_SUPPORT == 1))
+	if (IS_HARDWARE_TYPE_8814A(pAdapter)) {
+#if (RTL8814A_SUPPORT == 1)
+		txPower = PHY_GetTxPowerIndex_8814A(pAdapter, RFPath, Rate, BandWidth, Channel);
+#endif
+	} else if (IS_HARDWARE_TYPE_JAGUAR(pAdapter)) {
+#if ((RTL8812A_SUPPORT == 1) || (RTL8821A_SUPPORT == 1))
 		txPower = PHY_GetTxPowerIndex_8812A(pAdapter, RFPath, Rate, BandWidth, Channel);
 #endif
 	}
 	else if (IS_HARDWARE_TYPE_8723B(pAdapter)) {
-#if (RTL8723B_SUPPORT==1)
+#if (RTL8723B_SUPPORT == 1)
 		txPower = PHY_GetTxPowerIndex_8723B(pAdapter, RFPath, Rate, BandWidth, Channel);
+#endif
+	}
+	else if (IS_HARDWARE_TYPE_8703B(pAdapter)) {
+#if (RTL8703B_SUPPORT == 1)
+		txPower = PHY_GetTxPowerIndex_8703B(pAdapter, RFPath, Rate, BandWidth, Channel);
 #endif
 	}
 	else if (IS_HARDWARE_TYPE_8192E(pAdapter)) {
@@ -2363,6 +2373,10 @@ PHY_GetTxPowerIndex(
 	else if (IS_HARDWARE_TYPE_8188E(pAdapter)) {
 #if (RTL8188E_SUPPORT==1)
 		txPower = PHY_GetTxPowerIndex_8188E(pAdapter, RFPath, Rate, BandWidth, Channel);
+#endif
+	} else if (IS_HARDWARE_TYPE_8188F(pAdapter)) {
+#if (RTL8188F_SUPPORT == 1)
+		txPower = PHY_GetTxPowerIndex_8188F(pAdapter, RFPath, Rate, BandWidth, Channel);
 #endif
 	}
 
@@ -2377,10 +2391,10 @@ PHY_SetTxPowerIndex(
 	IN	u8				Rate
 	)
 {
-	if (IS_HARDWARE_TYPE_8813A(pAdapter)) {
-//#if (RTL8814A_SUPPORT==1)
-//		PHY_SetTxPowerIndex_8813A( pAdapter, PowerIndex, RFPath, Rate );
-//#endif
+	if (IS_HARDWARE_TYPE_8814A(pAdapter)) {
+#if (RTL8814A_SUPPORT == 1)
+		PHY_SetTxPowerIndex_8814A(pAdapter, PowerIndex, RFPath, Rate);
+#endif
 	}
 	else if (IS_HARDWARE_TYPE_JAGUAR(pAdapter)) {
 #if ((RTL8812A_SUPPORT==1) || (RTL8821A_SUPPORT == 1))
@@ -2392,6 +2406,11 @@ PHY_SetTxPowerIndex(
 		PHY_SetTxPowerIndex_8723B( pAdapter, PowerIndex, RFPath, Rate );
 #endif
 	}
+	else if (IS_HARDWARE_TYPE_8703B(pAdapter)) {
+#if (RTL8703B_SUPPORT==1)
+		PHY_SetTxPowerIndex_8703B( pAdapter, PowerIndex, RFPath, Rate );
+#endif
+	}
 	else if (IS_HARDWARE_TYPE_8192E(pAdapter)) {
 #if (RTL8192E_SUPPORT==1)
 		PHY_SetTxPowerIndex_8192E( pAdapter, PowerIndex, RFPath, Rate );
@@ -2400,6 +2419,10 @@ PHY_SetTxPowerIndex(
 	else if (IS_HARDWARE_TYPE_8188E(pAdapter)) {
 #if (RTL8188E_SUPPORT==1)
 		PHY_SetTxPowerIndex_8188E( pAdapter, PowerIndex, RFPath, Rate );
+#endif
+	} else if (IS_HARDWARE_TYPE_8188F(pAdapter)) {
+#if (RTL8188F_SUPPORT == 1)
+		PHY_SetTxPowerIndex_8188F(pAdapter, PowerIndex, RFPath, Rate);
 #endif
 	}
 }
@@ -2597,11 +2620,11 @@ phy_ConfigMACWithParaFile(
 
 	if ((pHalData->mac_reg_len == 0) && (pHalData->mac_reg == NULL))
 	{
-		rtw_merge_string(file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
+		rtw_merge_string(rtw_phy_para_file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
 	
-		if (rtw_is_file_readable(file_path) == _TRUE)
+		if (rtw_is_file_readable(rtw_phy_para_file_path) == _TRUE)
 		{
-			rlen = rtw_retrive_from_file(file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
+			rlen = rtw_retrieve_from_file(rtw_phy_para_file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
 			if (rlen > 0)
 			{
 				rtStatus = _SUCCESS;
@@ -2696,11 +2719,11 @@ phy_ConfigBBWithParaFile(
 
 	if ((pBufLen != NULL) && (*pBufLen == 0) && (pBuf == NULL))
 	{
-		rtw_merge_string(file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
+		rtw_merge_string(rtw_phy_para_file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
 	
-		if (rtw_is_file_readable(file_path) == _TRUE)
+		if (rtw_is_file_readable(rtw_phy_para_file_path) == _TRUE)
 		{
-			rlen = rtw_retrive_from_file(file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
+			rlen = rtw_retrieve_from_file(rtw_phy_para_file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
 			if (rlen > 0)
 			{
 				rtStatus = _SUCCESS;
@@ -3149,11 +3172,11 @@ phy_ConfigBBWithPgParaFile(
 
 	if ((pHalData->bb_phy_reg_pg_len == 0) && (pHalData->bb_phy_reg_pg == NULL))
 	{
-		rtw_merge_string(file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
+		rtw_merge_string(rtw_phy_para_file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
 	
-		if (rtw_is_file_readable(file_path) == _TRUE)
+		if (rtw_is_file_readable(rtw_phy_para_file_path) == _TRUE)
 		{
-			rlen = rtw_retrive_from_file(file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
+			rlen = rtw_retrieve_from_file(rtw_phy_para_file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
 			if (rlen > 0)
 			{
 				rtStatus = _SUCCESS;
@@ -3212,11 +3235,11 @@ phy_ConfigBBWithMpParaFile(
 
 	if ((pHalData->bb_phy_reg_mp_len == 0) && (pHalData->bb_phy_reg_mp == NULL))
 	{
-		rtw_merge_string(file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
+		rtw_merge_string(rtw_phy_para_file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
 	
-		if (rtw_is_file_readable(file_path) == _TRUE)
+		if (rtw_is_file_readable(rtw_phy_para_file_path) == _TRUE)
 		{
-			rlen = rtw_retrive_from_file(file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
+			rlen = rtw_retrieve_from_file(rtw_phy_para_file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
 			if (rlen > 0)
 			{
 				rtStatus = _SUCCESS;
@@ -3348,11 +3371,11 @@ PHY_ConfigRFWithParaFile(
 
 	if ((pBufLen != NULL) && (*pBufLen == 0) && (pBuf == NULL))
 	{
-		rtw_merge_string(file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
+		rtw_merge_string(rtw_phy_para_file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
 
-		if (rtw_is_file_readable(file_path) == _TRUE)
+		if (rtw_is_file_readable(rtw_phy_para_file_path) == _TRUE)
 		{
-			rlen = rtw_retrive_from_file(file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
+			rlen = rtw_retrieve_from_file(rtw_phy_para_file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
 			if (rlen > 0)
 			{
 				rtStatus = _SUCCESS;
@@ -3626,11 +3649,11 @@ PHY_ConfigRFWithTxPwrTrackParaFile(
 
 	if ((pHalData->rf_tx_pwr_track_len == 0) && (pHalData->rf_tx_pwr_track == NULL))
 	{
-		rtw_merge_string(file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
+		rtw_merge_string(rtw_phy_para_file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
 	
-		if (rtw_is_file_readable(file_path) == _TRUE)
+		if (rtw_is_file_readable(rtw_phy_para_file_path) == _TRUE)
 		{
-			rlen = rtw_retrive_from_file(file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
+			rlen = rtw_retrieve_from_file(rtw_phy_para_file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
 			if (rlen > 0)
 			{
 				rtStatus = _SUCCESS;
@@ -3728,6 +3751,7 @@ phy_ParsePowerLimitTableFile(
 )
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+	PDM_ODM_T	pDM_Odm = &(pHalData->odmpriv);
 	u32	i = 0, forCnt = 0;
 	u8	loadingStage = 0, limitValue = 0, fraction = 0;
 	char	*szLine, *ptmp;
@@ -3962,7 +3986,7 @@ phy_ParsePowerLimitTableFile(
 				//DBG_871X("ch%s => %s\n", channel, powerLimit);
 
 				// store the power limit value
-				PHY_SetTxPowerLimit( Adapter, (u8 *)regulation[forCnt], (u8 *)band,
+				PHY_SetTxPowerLimit(pDM_Odm, (u8 *)regulation[forCnt], (u8 *)band,
 					(u8 *)bandwidth, (u8 *)rateSection, (u8 *)rfPath, (u8 *)channel, (u8 *)powerLimit );
 
 			}
@@ -3995,11 +4019,11 @@ PHY_ConfigRFWithPowerLimitTableParaFile(
 
 	if ((pHalData->rf_tx_pwr_lmt_len == 0) && (pHalData->rf_tx_pwr_lmt == NULL))
 	{
-		rtw_merge_string(file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
+		rtw_merge_string(rtw_phy_para_file_path, PATH_LENGTH_MAX, rtw_phy_file_path, pFileName);
 	
-		if (rtw_is_file_readable(file_path) == _TRUE)
+		if (rtw_is_file_readable(rtw_phy_para_file_path) == _TRUE)
 		{
-			rlen = rtw_retrive_from_file(file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
+			rlen = rtw_retrieve_from_file(rtw_phy_para_file_path, pHalData->para_file_buf, MAX_PARA_FILE_BUF_LEN);
 			if (rlen > 0)
 			{
 				rtStatus = _SUCCESS;

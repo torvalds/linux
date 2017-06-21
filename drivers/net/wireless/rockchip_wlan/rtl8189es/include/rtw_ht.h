@@ -46,6 +46,7 @@ struct ht_priv
 	u8	ldpc_cap;
 	u8	stbc_cap;
 	u8	beamform_cap;
+	u8	smps_cap; /*spatial multiplexing power save mode. 0:static SMPS, 1:dynamic SMPS, 3:SMPS disabled, 2:reserved*/
 
 	struct rtw_ieee80211_ht_cap ht_cap;
 	
@@ -96,36 +97,48 @@ typedef enum _RT_HT_INF1_CAP{
 //------------------------------------------------------------
 // The HT Control field
 //------------------------------------------------------------
-#define SET_HT_CTRL_CSI_STEERING(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8*)(_pEleStart))+2, 6, 2, _val)
-#define SET_HT_CTRL_NDP_ANNOUNCEMENT(_pEleStart, _val)		SET_BITS_TO_LE_1BYTE(((u8*)(_pEleStart))+3, 0, 1, _val)
-#define GET_HT_CTRL_NDP_ANNOUNCEMENT(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+3, 0, 1)
+#define SET_HT_CTRL_CSI_STEERING(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart))+2, 6, 2, _val)
+#define SET_HT_CTRL_NDP_ANNOUNCEMENT(_pEleStart, _val)		SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart))+3, 0, 1, _val)
+#define GET_HT_CTRL_NDP_ANNOUNCEMENT(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+3, 0, 1)
 
 // 20/40 BSS Coexist
-#define SET_EXT_CAPABILITY_ELE_BSS_COEXIST(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8*)(_pEleStart)), 0, 1, _val)
-#define GET_EXT_CAPABILITY_ELE_BSS_COEXIST(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart)), 0, 1)
+#define SET_EXT_CAPABILITY_ELE_BSS_COEXIST(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)), 0, 1, _val)
+#define GET_EXT_CAPABILITY_ELE_BSS_COEXIST(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)), 0, 1)
 
 /* HT Capabilities Info field */
-#define HT_CAP_ELE_CAP_INFO(_pEleStart)					((u8*)(_pEleStart))
-#define GET_HT_CAP_ELE_LDPC_CAP(_pEleStart)				LE_BITS_TO_1BYTE(((u8*)(_pEleStart)), 0, 1)
-#define GET_HT_CAP_ELE_CHL_WIDTH(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart)), 1, 1)
-#define GET_HT_CAP_ELE_SM_PS(_pEleStart)				LE_BITS_TO_1BYTE(((u8*)(_pEleStart)), 2, 2)
-#define GET_HT_CAP_ELE_GREENFIELD(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart)), 4, 1)
-#define GET_HT_CAP_ELE_SHORT_GI20M(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart)), 5, 1)
-#define GET_HT_CAP_ELE_SHORT_GI40M(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart)), 6, 1)
-#define GET_HT_CAP_ELE_TX_STBC(_pEleStart)				LE_BITS_TO_1BYTE(((u8*)(_pEleStart)), 7, 1)
-#define GET_HT_CAP_ELE_RX_STBC(_pEleStart)				LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+1, 0, 2)
-#define GET_HT_CAP_ELE_DELAYED_BA(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+1, 2, 1)
-#define GET_HT_CAP_ELE_MAX_AMSDU_LENGTH(_pEleStart)		LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+1, 3, 1)
-#define GET_HT_CAP_ELE_DSSS_CCK_40M(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+1, 4, 1)
-#define GET_HT_CAP_ELE_FORTY_INTOLERANT(_pEleStart)		LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+1, 6, 1)
-#define GET_HT_CAP_ELE_LSIG_TXOP_PROTECT(_pEleStart)	LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+1, 7, 1)
+#define HT_CAP_ELE_CAP_INFO(_pEleStart)					((u8 *)(_pEleStart))
+#define GET_HT_CAP_ELE_LDPC_CAP(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)), 0, 1)
+#define GET_HT_CAP_ELE_CHL_WIDTH(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)), 1, 1)
+#define GET_HT_CAP_ELE_SM_PS(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)), 2, 2)
+#define GET_HT_CAP_ELE_GREENFIELD(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)), 4, 1)
+#define GET_HT_CAP_ELE_SHORT_GI20M(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)), 5, 1)
+#define GET_HT_CAP_ELE_SHORT_GI40M(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)), 6, 1)
+#define GET_HT_CAP_ELE_TX_STBC(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)), 7, 1)
+#define GET_HT_CAP_ELE_RX_STBC(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+1, 0, 2)
+#define GET_HT_CAP_ELE_DELAYED_BA(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+1, 2, 1)
+#define GET_HT_CAP_ELE_MAX_AMSDU_LENGTH(_pEleStart)		LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+1, 3, 1)
+#define GET_HT_CAP_ELE_DSSS_CCK_40M(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+1, 4, 1)
+#define GET_HT_CAP_ELE_FORTY_INTOLERANT(_pEleStart)		LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+1, 6, 1)
+#define GET_HT_CAP_ELE_LSIG_TXOP_PROTECT(_pEleStart)	LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+1, 7, 1)
 
-#define SET_HT_CAP_ELE_FORTY_INTOLERANT(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8*)(_pEleStart))+1, 6, 1, _val)
+#define SET_HT_CAP_ELE_LDPC_CAP(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)), 0, 1, _val)
+#define SET_HT_CAP_ELE_CHL_WIDTH(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)), 1, 1, _val)
+#define SET_HT_CAP_ELE_SM_PS(_pEleStart, _val)				SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)), 2, 2, _val)
+#define SET_HT_CAP_ELE_GREENFIELD(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)), 4, 1, _val)
+#define SET_HT_CAP_ELE_SHORT_GI20M(_pEleStart, _val)		SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)), 5, 1, _val)
+#define SET_HT_CAP_ELE_SHORT_GI40M(_pEleStart, _val)		SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)), 6, 1, _val)
+#define SET_HT_CAP_ELE_TX_STBC(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)), 7, 1, _val)
+#define SET_HT_CAP_ELE_RX_STBC(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 1, 0, 2, _val)
+#define SET_HT_CAP_ELE_DELAYED_BA(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 1, 2, 1, _val)
+#define SET_HT_CAP_ELE_MAX_AMSDU_LENGTH(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 1, 3, 1, _val)
+#define SET_HT_CAP_ELE_DSSS_CCK_40M(_pEleStart, _val)		SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 1, 4, 1, _val)
+#define SET_HT_CAP_ELE_FORTY_INTOLERANT(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 1, 6, 1, _val)
+#define SET_HT_CAP_ELE_LSIG_TXOP_PROTECT(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 1, 7, 1, _val)
 
 /* A-MPDU Parameters field */
-#define HT_CAP_ELE_AMPDU_PARA(_pEleStart)				(((u8*)(_pEleStart))+2)
-#define GET_HT_CAP_ELE_MAX_AMPDU_LEN_EXP(_pEleStart)	LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+2, 0, 2)
-#define GET_HT_CAP_ELE_MIN_MPDU_S_SPACE(_pEleStart)		LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+2, 2, 3)
+#define HT_CAP_ELE_AMPDU_PARA(_pEleStart)				(((u8 *)(_pEleStart))+2)
+#define GET_HT_CAP_ELE_MAX_AMPDU_LEN_EXP(_pEleStart)	LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+2, 0, 2)
+#define GET_HT_CAP_ELE_MIN_MPDU_S_SPACE(_pEleStart)		LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+2, 2, 3)
 
 #define HT_AMPDU_PARA_FMT "%02x " \
 	"MAX AMPDU len:%u bytes, MIN MPDU Start Spacing:%u"
@@ -136,34 +149,68 @@ typedef enum _RT_HT_INF1_CAP{
 	, GET_HT_CAP_ELE_MIN_MPDU_S_SPACE(((u8*)x)-2)
 
 /* Supported MCS Set field */
-#define HT_CAP_ELE_SUP_MCS_SET(_pEleStart)				(((u8*)(_pEleStart))+3)
+#define HT_CAP_ELE_SUP_MCS_SET(_pEleStart)				(((u8 *)(_pEleStart))+3)
 #define HT_CAP_ELE_RX_MCS_MAP(_pEleStart)				HT_CAP_ELE_SUP_MCS_SET(_pEleStart)
-#define GET_HT_CAP_ELE_RX_HIGHEST_DATA_RATE(_pEleStart)	LE_BITS_TO_2BYTE(((u8*)(_pEleStart))+13, 0, 10)
-#define GET_HT_CAP_ELE_TX_MCS_DEF(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+15, 0, 1)
-#define GET_HT_CAP_ELE_TRX_MCS_NEQ(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+15, 1, 1)
-#define GET_HT_CAP_ELE_TX_MAX_SS(_pEleStart)			LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+15, 2, 2)
-#define GET_HT_CAP_ELE_TX_UEQM(_pEleStart)				LE_BITS_TO_1BYTE(((u8*)(_pEleStart))+15, 4, 1)
+#define GET_HT_CAP_ELE_RX_HIGHEST_DATA_RATE(_pEleStart)	LE_BITS_TO_2BYTE(((u8 *)(_pEleStart))+13, 0, 10)
+#define GET_HT_CAP_ELE_TX_MCS_DEF(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+15, 0, 1)
+#define GET_HT_CAP_ELE_TRX_MCS_NEQ(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+15, 1, 1)
+#define GET_HT_CAP_ELE_TX_MAX_SS(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+15, 2, 2)
+#define GET_HT_CAP_ELE_TX_UEQM(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+15, 4, 1)
 
 #define HT_SUP_MCS_SET_FMT "%02x %02x %02x %02x %02x%02x%02x%02x%02x%02x" \
 	/* "\n%02x%02x%02x%02x%02x%02x" */\
 	" %uMbps %s%s%s"
-#define HT_SUP_MCS_SET_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5], \
-	((u8*)(x))[6],((u8*)(x))[7],((u8*)(x))[8],((u8*)(x))[9] \
-	/*,((u8*)(x))[10],((u8*)(x))[11], ((u8*)(x))[12],((u8*)(x))[13],((u8*)(x))[14],((u8*)(x))[15] */\
-	, GET_HT_CAP_ELE_RX_HIGHEST_DATA_RATE(((u8*)x)-3) \
-	, GET_HT_CAP_ELE_TX_MCS_DEF(((u8*)x)-3) ? "TX_MCS_DEF " : "" \
-	, GET_HT_CAP_ELE_TRX_MCS_NEQ(((u8*)x)-3) ? "TRX_MCS_NEQ " : "" \
-	, GET_HT_CAP_ELE_TX_UEQM(((u8*)x)-3) ? "TX_UEQM " : ""
+#define HT_SUP_MCS_SET_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5], \
+	((u8 *)(x))[6], ((u8 *)(x))[7], ((u8 *)(x))[8], ((u8 *)(x))[9] \
+	/*,((u8 *)(x))[10],((u8 *)(x))[11], ((u8 *)(x))[12],((u8 *)(x))[13],((u8 *)(x))[14],((u8 *)(x))[15] */\
+	, GET_HT_CAP_ELE_RX_HIGHEST_DATA_RATE(((u8 *)x)-3) \
+	, GET_HT_CAP_ELE_TX_MCS_DEF(((u8 *)x)-3) ? "TX_MCS_DEF " : "" \
+	, GET_HT_CAP_ELE_TRX_MCS_NEQ(((u8 *)x)-3) ? "TRX_MCS_NEQ " : "" \
+	, GET_HT_CAP_ELE_TX_UEQM(((u8 *)x)-3) ? "TX_UEQM " : ""
 
 //TXBF Capabilities
-#define SET_HT_CAP_TXBF_RECEIVE_NDP_CAP(_pEleStart, _val)					SET_BITS_TO_LE_4BYTE( ((u8*)(_pEleStart))+21, 3, 1, ((u8)_val) )
-#define SET_HT_CAP_TXBF_TRANSMIT_NDP_CAP(_pEleStart, _val)				SET_BITS_TO_LE_4BYTE( ((u8*)(_pEleStart))+21, 4, 1, ((u8)_val) )
-#define SET_HT_CAP_TXBF_EXPLICIT_COMP_STEERING_CAP(_pEleStart, _val)		SET_BITS_TO_LE_4BYTE( ((u8*)(_pEleStart))+21, 10, 1, ((u8)_val) )
-#define SET_HT_CAP_TXBF_EXPLICIT_COMP_FEEDBACK_CAP(_pEleStart, _val)		SET_BITS_TO_LE_4BYTE( ((u8*)(_pEleStart))+21, 15, 2, ((u8)_val) )
-#define SET_HT_CAP_TXBF_COMP_STEERING_NUM_ANTENNAS(_pEleStart, _val)	SET_BITS_TO_LE_4BYTE( ((u8 *)(_pEleStart))+21, 23, 2, ((u8)_val) )
+#define SET_HT_CAP_TXBF_RECEIVE_NDP_CAP(_pEleStart, _val)				SET_BITS_TO_LE_4BYTE(((u8 *)(_pEleStart))+21, 3, 1, ((u8)_val))
+#define SET_HT_CAP_TXBF_TRANSMIT_NDP_CAP(_pEleStart, _val)				SET_BITS_TO_LE_4BYTE(((u8 *)(_pEleStart))+21, 4, 1, ((u8)_val))
+#define SET_HT_CAP_TXBF_EXPLICIT_COMP_STEERING_CAP(_pEleStart, _val)	SET_BITS_TO_LE_4BYTE(((u8 *)(_pEleStart))+21, 10, 1, ((u8)_val))
+#define SET_HT_CAP_TXBF_EXPLICIT_COMP_FEEDBACK_CAP(_pEleStart, _val)	SET_BITS_TO_LE_4BYTE(((u8 *)(_pEleStart))+21, 15, 2, ((u8)_val))
+#define SET_HT_CAP_TXBF_COMP_STEERING_NUM_ANTENNAS(_pEleStart, _val)	SET_BITS_TO_LE_4BYTE(((u8 *)(_pEleStart))+21, 23, 2, ((u8)_val))
 
-#define GET_HT_CAP_TXBF_EXPLICIT_COMP_STEERING_CAP(_pEleStart)			LE_BITS_TO_4BYTE(((u8*)(_pEleStart))+21, 10, 1)
-#define GET_HT_CAP_TXBF_EXPLICIT_COMP_FEEDBACK_CAP(_pEleStart)			LE_BITS_TO_4BYTE(((u8*)(_pEleStart))+21, 15, 2)
+#define GET_HT_CAP_TXBF_EXPLICIT_COMP_STEERING_CAP(_pEleStart)			LE_BITS_TO_4BYTE(((u8 *)(_pEleStart))+21, 10, 1)
+#define GET_HT_CAP_TXBF_EXPLICIT_COMP_FEEDBACK_CAP(_pEleStart)			LE_BITS_TO_4BYTE(((u8 *)(_pEleStart))+21, 15, 2)
+
+
+/* HT Operation element */
+
+#define GET_HT_OP_ELE_PRI_CHL(_pEleStart)					LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)), 0, 8)
+#define SET_HT_OP_ELE_PRI_CHL(_pEleStart, _val)				SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)), 0, 8, _val)
+
+/* HT Operation Info field */
+#define HT_OP_ELE_OP_INFO(_pEleStart)						(((u8 *)(_pEleStart)) + 1)
+#define GET_HT_OP_ELE_2ND_CHL_OFFSET(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 1, 0, 2)
+#define GET_HT_OP_ELE_STA_CHL_WIDTH(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 1, 2, 1)
+#define GET_HT_OP_ELE_RIFS_MODE(_pEleStart)					LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 1, 3, 1)
+#define GET_HT_OP_ELE_HT_PROTECT(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 2, 0, 2)
+#define GET_HT_OP_ELE_NON_GREEN_PRESENT(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 2, 2, 1)
+#define GET_HT_OP_ELE_OBSS_NON_HT_PRESENT(_pEleStart)		LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 2, 4, 1)
+#define GET_HT_OP_ELE_DUAL_BEACON(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 4, 6, 1)
+#define GET_HT_OP_ELE_DUAL_CTS(_pEleStart)					LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 4, 7, 1)
+#define GET_HT_OP_ELE_STBC_BEACON(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 5, 0, 1)
+#define GET_HT_OP_ELE_LSIG_TXOP_PROTECT(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 5, 1, 1)
+#define GET_HT_OP_ELE_PCO_ACTIVE(_pEleStart)				LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 5, 2, 1)
+#define GET_HT_OP_ELE_PCO_PHASE(_pEleStart)					LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)) + 5, 3, 1)
+
+#define SET_HT_OP_ELE_2ND_CHL_OFFSET(_pEleStart, _val)		SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 1, 0, 2, _val)
+#define SET_HT_OP_ELE_STA_CHL_WIDTH(_pEleStart, _val)		SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 1, 2, 1, _val)
+#define SET_HT_OP_ELE_RIFS_MODE(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 1, 3, 1, _val)
+#define SET_HT_OP_ELE_HT_PROTECT(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 2, 0, 2, _val)
+#define SET_HT_OP_ELE_NON_GREEN_PRESENT(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 2, 2, 1, _val)
+#define SET_HT_OP_ELE_OBSS_NON_HT_PRESENT(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 2, 4, 1, _val)
+#define SET_HT_OP_ELE_DUAL_BEACON(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 4, 6, 1, _val)
+#define SET_HT_OP_ELE_DUAL_CTS(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 4, 7, 1, _val)
+#define SET_HT_OP_ELE_STBC_BEACON(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 5, 0, 1, _val)
+#define SET_HT_OP_ELE_LSIG_TXOP_PROTECT(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 5, 1, 1, _val)
+#define SET_HT_OP_ELE_PCO_ACTIVE(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 5, 2, 1, _val)
+#define SET_HT_OP_ELE_PCO_PHASE(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 5, 3, 1, _val)
 
 #endif	//_RTL871X_HT_H_
 

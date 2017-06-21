@@ -42,6 +42,7 @@ typedef enum _RTL8192E_H2C_CMD
 	H2C_8192E_SAP_PS = 0x26,
 	H2C_8192E_RA_MASK = 0x40,
 	H2C_8192E_RSSI_REPORT = 0x42,
+	H2C_8192E_RA_PARA_ADJUST = 0x46,
 
 	H2C_8192E_WO_WLAN = 0x80,
 	H2C_8192E_REMOTE_WAKE_CTRL = 0x81,
@@ -64,11 +65,16 @@ typedef enum _RTL8192E_C2H_EVT
 	C2H_8192E_BT_INFO = 9,
 	C2H_8192E_FW_SWCHNL = 0x10,
 	C2H_8192E_BT_MP = 11,
-	C2H_8192E_RA_RPT=12,	
-	
+	C2H_8192E_RA_RPT = 12,
+	C2H_8192E_RA_PARA_RPT = 14,
+	C2H_8192E_EXTEND = 0xff,
 	MAX_8192E_C2HEVENT	
 }RTL8192E_C2H_EVT;
 
+typedef enum _RTL8192E_EXTEND_C2H_EVT {
+	EXTEND_C2H_8192E_DBG_PRINT = 0
+
+} RTL8192E_EXTEND_C2H_EVT;
 
 struct cmd_msg_parm {
 	u8 eid; //element id
@@ -137,7 +143,7 @@ void rtl8192e_set_FwPwrMode_cmd(PADAPTER padapter, u8 Mode);
 void rtl8192e_set_FwJoinBssReport_cmd(PADAPTER padapter, u8 mstatus);
 u8 rtl8192e_set_rssi_cmd(PADAPTER padapter, u8 *param);
 void rtl8192e_set_raid_cmd(PADAPTER padapter, u32 bitmap, u8* arg);
-void rtl8192e_Add_RateATid(PADAPTER padapter, u32 bitmap, u8 *arg, u8 rssi_level);
+void rtl8192e_Add_RateATid(PADAPTER padapter, u64 rate_bitmap, u8 *arg, u8 rssi_level);
 s32 FillH2CCmd_8192E(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 u8 GetTxBufferRsvdPageNum8192E(_adapter *padapter, bool wowlan);
 //u8 rtl8192c_set_FwSelectSuspend_cmd(PADAPTER padapter, u8 bfwpoll, u16 period);
@@ -147,7 +153,6 @@ void rtl8192e_download_BTCoex_AP_mode_rsvd_page(PADAPTER padapter);
 #endif // CONFIG_BT_COEXIST
 #ifdef CONFIG_P2P_PS
 void rtl8192e_set_p2p_ps_offload_cmd(PADAPTER padapter, u8 p2p_ps_state);
-//void rtl8723a_set_p2p_ps_offload_cmd(PADAPTER padapter, u8 p2p_ps_state);
 #endif //CONFIG_P2P
 
 void CheckFwRsvdPageContent(PADAPTER padapter);
@@ -157,35 +162,8 @@ void rtl8192e_set_FwMediaStatus_cmd(PADAPTER padapter, u16 mstatus_rpt );
 int reset_tsf(PADAPTER Adapter, u8 reset_port );
 #endif	// CONFIG_TSF_RESET_OFFLOAD
 
-#ifdef CONFIG_WOWLAN
-typedef struct _SETWOWLAN_PARM{
-	u8		mode;
-	u8		gpio_index;
-	u8		gpio_duration;
-	u8		second_mode;
-	u8		reserve;
-}SETWOWLAN_PARM, *PSETWOWLAN_PARM;
-
-#define FW_WOWLAN_FUN_EN				BIT(0)
-#define FW_WOWLAN_PATTERN_MATCH			BIT(1)
-#define FW_WOWLAN_MAGIC_PKT				BIT(2)
-#define FW_WOWLAN_UNICAST				BIT(3)
-#define FW_WOWLAN_ALL_PKT_DROP			BIT(4)
-#define FW_WOWLAN_GPIO_ACTIVE			BIT(5)
-#define FW_WOWLAN_REKEY_WAKEUP			BIT(6)
-#define FW_WOWLAN_DEAUTH_WAKEUP			BIT(7)
-
-#define FW_WOWLAN_GPIO_WAKEUP_EN		BIT(0)
-#define FW_FW_PARSE_MAGIC_PKT			BIT(1)
-
-#define FW_REMOTE_WAKE_CTRL_EN			BIT(0)
-#define FW_REALWOWLAN_EN				BIT(5)
-#endif//CONFIG_WOWLAN
 
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
-void rtl8192e_set_wowlan_cmd(_adapter* padapter, u8 enable);
-void rtl8192e_set_ap_wowlan_cmd(_adapter* padapter, u8 enable);
-void rtl8192e_set_ap_ps_wowlan_cmd(_adapter* padapter, u8 enable);
 void SetFwRelatedForWoWLAN8192E(_adapter* padapter, u8 bHostIsGoingtoSleep);
 #endif
 /// TX Feedback Content

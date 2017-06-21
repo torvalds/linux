@@ -142,8 +142,8 @@ typedef struct _RSVDPAGE_LOC_88E {
 void rtl8188e_set_FwPwrMode_cmd(PADAPTER padapter, u8 Mode);
 void rtl8188e_set_FwJoinBssReport_cmd(PADAPTER padapter, u8 mstatus);
 u8 rtl8188e_set_rssi_cmd(PADAPTER padapter, u8 *param);
-u8 rtl8188e_set_raid_cmd(_adapter*padapter, u32 bitmap, u8* arg);
-void rtl8188e_Add_RateATid(PADAPTER padapter, u32 bitmap, u8* arg, u8 rssi_level);
+u8 rtl8188e_set_raid_cmd(_adapter *padapter, u32 bitmap, u8 *arg);
+void rtl8188e_Add_RateATid(PADAPTER padapter, u64 rate_bitmap, u8 *arg, u8 rssi_level);
 s32 FillH2CCmd_88E(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 //u8 rtl8192c_set_FwSelectSuspend_cmd(PADAPTER padapter, u8 bfwpoll, u16 period);
 u8 GetTxBufferRsvdPageNum8188E(_adapter *padapter, bool wowlan);
@@ -165,71 +165,7 @@ int reset_tsf(PADAPTER Adapter, u8 reset_port );
 //#define H2C_8188E_AOAC_RSVDPAGE_LOC_LEN 7
 
 #ifdef CONFIG_WOWLAN
-typedef struct _SETWOWLAN_PARM{
-	u8		mode;
-	u8		gpio_index;
-	u8		gpio_duration;
-	u8		second_mode;
-	u8		reserve;
-}SETWOWLAN_PARM, *PSETWOWLAN_PARM;
-
-typedef struct _SETAOAC_GLOBAL_INFO{
-        u8              pairwiseEncAlg;
-        u8              groupEncAlg;
-}SETAOAC_GLOBAL_INFO, *PSETAOAC_GLOBAL_INFO;
-
-/* move to hal_com_h2c.h
-#define eqMacAddr(a,b)						( ((a)[0]==(b)[0] && (a)[1]==(b)[1] && (a)[2]==(b)[2] && (a)[3]==(b)[3] && (a)[4]==(b)[4] && (a)[5]==(b)[5]) ? 1:0 )
-#define cpMacAddr(des,src)					((des)[0]=(src)[0],(des)[1]=(src)[1],(des)[2]=(src)[2],(des)[3]=(src)[3],(des)[4]=(src)[4],(des)[5]=(src)[5])
-#define cpIpAddr(des,src)					((des)[0]=(src)[0],(des)[1]=(src)[1],(des)[2]=(src)[2],(des)[3]=(src)[3])
-
-//
-// ARP packet
-//
-// LLC Header
-#define GET_ARP_PKT_LLC_TYPE(__pHeader) 					ReadEF2Byte( ((u8*)(__pHeader)) + 6)
-
-//ARP element
-#define GET_ARP_PKT_OPERATION(__pHeader) 					ReadEF2Byte( ((u8*)(__pHeader)) + 6)
-#define GET_ARP_PKT_SENDER_MAC_ADDR(__pHeader, _val) 		cpMacAddr((u8*)(_val), ((u8*)(__pHeader))+8)
-#define GET_ARP_PKT_SENDER_IP_ADDR(__pHeader, _val) 		cpIpAddr((u8*)(_val), ((u8*)(__pHeader))+14)
-#define GET_ARP_PKT_TARGET_MAC_ADDR(__pHeader, _val) 		cpMacAddr((u8*)(_val), ((u8*)(__pHeader))+18)
-
-#define SET_ARP_PKT_HW(__pHeader, __Value)  				WriteEF2Byte( ((u8*)(__pHeader)) + 0, __Value)
-#define SET_ARP_PKT_PROTOCOL(__pHeader, __Value)  			WriteEF2Byte( ((u8*)(__pHeader)) + 2, __Value)
-#define SET_ARP_PKT_HW_ADDR_LEN(__pHeader, __Value)  		WriteEF1Byte( ((u8*)(__pHeader)) + 4, __Value)
-#define SET_ARP_PKT_PROTOCOL_ADDR_LEN(__pHeader, __Value)  	WriteEF1Byte( ((u8*)(__pHeader)) + 5, __Value)
-#define SET_ARP_PKT_OPERATION(__pHeader, __Value) 			WriteEF2Byte( ((u8*)(__pHeader)) + 6, __Value)
-#define SET_ARP_PKT_SENDER_MAC_ADDR(__pHeader, _val) 		cpMacAddr(((u8*)(__pHeader))+8, (u8*)(_val))
-#define SET_ARP_PKT_SENDER_IP_ADDR(__pHeader, _val) 		cpIpAddr(((u8*)(__pHeader))+14, (u8*)(_val))
-#define SET_ARP_PKT_TARGET_MAC_ADDR(__pHeader, _val) 		cpMacAddr(((u8*)(__pHeader))+18, (u8*)(_val))
-#define SET_ARP_PKT_TARGET_IP_ADDR(__pHeader, _val) 		cpIpAddr(((u8*)(__pHeader))+24, (u8*)(_val))
-
-#define FW_WOWLAN_FUN_EN				BIT(0)
-#define FW_WOWLAN_PATTERN_MATCH			BIT(1)
-#define FW_WOWLAN_MAGIC_PKT				BIT(2)
-#define FW_WOWLAN_UNICAST				BIT(3)
-#define FW_WOWLAN_ALL_PKT_DROP			BIT(4)
-#define FW_WOWLAN_GPIO_ACTIVE			BIT(5)
-#define FW_WOWLAN_REKEY_WAKEUP			BIT(6)
-#define FW_WOWLAN_DEAUTH_WAKEUP			BIT(7)
-
-#define FW_WOWLAN_GPIO_WAKEUP_EN		BIT(0)
-#define FW_FW_PARSE_MAGIC_PKT			BIT(1)
-
-#define FW_WOWLAN_KEEP_ALIVE_EN			BIT(0)
-#define FW_WOWLAN_KEEP_ALIVE_PKT_TYPE	BIT(2)
-
-#define FW_REMOTE_WAKE_CTRL_EN			BIT(0)
-#define FW_ARP_EN						BIT(1)
-#define FW_REALWOWLAN_EN				BIT(5)
-#define FW_WOW_FW_UNICAST_EN			BIT(7)
-
-#define FW_ADOPT_USER					BIT(1)
-*/
-void rtl8188es_set_wowlan_cmd(_adapter* padapter, u8 enable);
 void SetFwRelatedForWoWLAN8188ES(_adapter* padapter, u8 bHostIsGoingtoSleep);
-
 #endif//CONFIG_WOWLAN
 
 //---------------------------------------------------------------------------------------------------------//

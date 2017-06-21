@@ -20,6 +20,7 @@
 #define _RTW_IOCTL_SET_C_
 
 #include <drv_types.h>
+#include <hal_data.h>
 
 
 extern void indicate_wx_scan_complete_event(_adapter *padapter);
@@ -159,9 +160,8 @@ _func_enter_;
 
 				rtw_generate_random_ibss(pibss);
 					
-				if(rtw_createbss_cmd(padapter)!=_SUCCESS)
-				{
-					RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("***Error=>do_goin: rtw_createbss_cmd status FAIL*** \n "));						
+				if (rtw_create_ibss_cmd(padapter, 0) != _SUCCESS) {
+					RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("***Error=>do_goin: rtw_create_ibss_cmd status FAIL***\n"));						
 					ret =  _FALSE;
 					goto exit;
 				}
@@ -415,7 +415,7 @@ _func_enter_;
 	DBG_871X_LEVEL(_drv_always_, "set ssid [%s] fw_state=0x%08x\n",
 		       	ssid->Ssid, get_fwstate(pmlmepriv));
 
-	if(padapter->hw_init_completed==_FALSE){
+	if (!rtw_is_hw_init_completed(padapter)) {
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
 			 ("set_ssid: hw_init_completed==_FALSE=>exit!!!\n"));
 		status = _FAIL;
@@ -549,7 +549,7 @@ _func_enter_;
 		goto exit;
 	}
 
-	if(padapter->hw_init_completed==_FALSE){
+	if (!rtw_is_hw_init_completed(padapter)) {
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
 			 ("set_ssid: hw_init_completed==_FALSE=>exit!!!\n"));
 		status = _FAIL;
@@ -673,7 +673,10 @@ _func_enter_;
 
 			case Ndis802_11AutoUnknown:
 			case Ndis802_11InfrastructureMax:
-				break;                        				
+				break;
+			case Ndis802_11Monitor:
+				set_fwstate(pmlmepriv, WIFI_MONITOR_STATE);
+				break;
 		}
 
 		//SecClearAllKeys(adapter);
@@ -732,7 +735,7 @@ _func_enter_;
 		res=_FALSE;
 		goto exit;
 	}
-	if (padapter->hw_init_completed==_FALSE){
+	if (!rtw_is_hw_init_completed(padapter)) {
 		res = _FALSE;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("\n===rtw_set_802_11_bssid_list_scan:hw_init_completed==_FALSE===\n"));
 		goto exit;
@@ -996,8 +999,8 @@ _func_enter_;
 			}
 		}
 
-		// Check key length for WEP. For NDTEST, 2005.01.27, by rcnjko.
-		if(	(encryptionalgo== _WEP40_|| encryptionalgo== _WEP104_) && (key->KeyLength != 5 || key->KeyLength != 13)) {
+		/* Check key length for WEP. For NDTEST, 2005.01.27, by rcnjko. -> modify checking condition*/
+		if (((encryptionalgo == _WEP40_) && (key->KeyLength != 5)) || ((encryptionalgo == _WEP104_) && (key->KeyLength != 13))) {
 			RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("WEP KeyLength:0x%x != 5 or 13\n", key->KeyLength));
 			ret=_FAIL;
 			goto exit;
@@ -1252,16 +1255,22 @@ _func_enter_;
 
 		
 			//Set key to CAM through H2C command
+			#if 0
 			if(bgrouptkey)//never go to here
 			{
-				res=rtw_setstakey_cmd(padapter, stainfo, _FALSE, _TRUE);
+				res=rtw_setstakey_cmd(padapter, stainfo, GROUP_KEY, _TRUE);
 				RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("\n rtw_set_802_11_add_key:rtw_setstakey_cmd(group)\n"));
 			}
 			else{
-				res=rtw_setstakey_cmd(padapter, stainfo, _TRUE, _TRUE);
+				res=rtw_setstakey_cmd(padapter, stainfo, UNICAST_KEY, _TRUE);
 				RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("\n rtw_set_802_11_add_key:rtw_setstakey_cmd(unicast)\n"));
 			}
+			#else
 			
+			res = rtw_setstakey_cmd(padapter, stainfo, UNICAST_KEY, _TRUE);
+			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("\n rtw_set_802_11_add_key:rtw_setstakey_cmd(unicast)\n"));
+			#endif
+
 			if(res ==_FALSE)
 				ret= _FAIL;
 			
@@ -1469,7 +1478,7 @@ int rtw_set_country(_adapter *adapter, const char *country_code)
 * 
 * Return _SUCCESS or _FAIL
 */
-int rtw_set_band(_adapter *adapter, enum _BAND band)
+int rtw_set_band(_adapter *adapter, u8 band)
 {
 	if (rtw_band_valid(band)) {
 		DBG_871X(FUNC_ADPT_FMT" band:%d\n", FUNC_ADPT_ARG(adapter), band);

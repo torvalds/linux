@@ -97,11 +97,14 @@ s32 rtl8188es_init_recv_priv(PADAPTER padapter)
 			SIZE_PTR tmpaddr=0;
 			SIZE_PTR alignment=0;
 
-			rtw_hal_get_def_var(padapter, HAL_DEF_MAX_RECVBUF_SZ, &max_recvbuf_sz);
+			rtw_hal_get_def_var(padapter, HAL_DEF_MAX_RECVBUF_SZ,
+					    &max_recvbuf_sz);
+
 			if (max_recvbuf_sz == 0)
 				max_recvbuf_sz = MAX_RECVBUF_SZ;
 
-			precvbuf->pskb = rtw_skb_alloc(max_recvbuf_sz + RECVBUFF_ALIGN_SZ);
+			precvbuf->pskb = rtw_skb_alloc(max_recvbuf_sz +
+						       RECVBUFF_ALIGN_SZ);
 
 			if(precvbuf->pskb)
 			{
@@ -210,11 +213,11 @@ void rtl8188es_free_recv_priv(PADAPTER padapter)
 }
 
 #ifdef CONFIG_SDIO_RX_COPY
-static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbuf, struct phy_stat *pphy_status)
+static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbuf, u8 *pphy_status)
 {	
 	s32 ret=_SUCCESS;
 #ifdef CONFIG_CONCURRENT_MODE	
-	u8 *primary_myid, *secondary_myid, *paddr1;
+	u8 *secondary_myid, *paddr1;
 	union recv_frame	*precvframe_if2 = NULL;
 	_adapter *primary_padapter = precvframe->u.hdr.adapter;
 	_adapter *secondary_padapter = primary_padapter->pbuddy_adapter;
@@ -229,8 +232,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 
 	if(IS_MCAST(paddr1) == _FALSE)//unicast packets
 	{
-		//primary_myid = myid(&primary_padapter->eeprompriv);
-		secondary_myid = myid(&secondary_padapter->eeprompriv);
+		secondary_myid = adapter_mac_addr(secondary_padapter);
 
 		if(_rtw_memcmp(paddr1, secondary_myid, ETH_ALEN))
 		{			
@@ -294,7 +296,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 			recvframe_pull_tail(precvframe_if2, IEEE80211_FCS_LEN);
 
 		if (pattrib->physt) 
-			update_recvframe_phyinfo_88e(precvframe_if2, pphy_status);
+			rx_query_phy_status(precvframe_if2, pphy_status);
 
 		if(rtw_recv_entry(precvframe_if2) != _SUCCESS)
 		{
@@ -304,7 +306,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 	}
 	
 	if (precvframe->u.hdr.attrib.physt)
-		update_recvframe_phyinfo_88e(precvframe, pphy_status);
+		rx_query_phy_status(precvframe, pphy_status);
 	ret = rtw_recv_entry(precvframe);
 
 #endif
@@ -327,7 +329,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 	u32		pkt_offset, skb_len, alloc_sz;
 	s32		transfer_len;
 	_pkt		*pkt_copy = NULL;
-	struct phy_stat	*pphy_status = NULL;
+	u8 *pphy_status = NULL;
 	u8		shift_sz = 0, rx_report_sz = 0;
 
 
@@ -336,9 +338,8 @@ static void rtl8188es_recv_tasklet(void *priv)
 	precvpriv = &padapter->recvpriv;
 	
 	do {
-		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved== _TRUE))
-		{
-			DBG_8192C("recv_tasklet => bDriverStopped or bSurpriseRemoved \n");
+		if (RTW_CANNOT_RUN(padapter)) {
+			DBG_8192C("recv_tasklet => bDriverStopped or bSurpriseRemoved\n");
 			break;
 		}
 		
@@ -363,7 +364,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 			}
 
 			//rx desc parsing
-			update_recvframe_attrib_88e(precvframe, (struct recv_stat*)ptr);
+			rtl8188e_query_rx_desc_status(precvframe, (struct recv_stat*)ptr);
 
 			pattrib = &precvframe->u.hdr.attrib;
 
@@ -493,12 +494,12 @@ static void rtl8188es_recv_tasklet(void *priv)
 
 				if(pattrib->pkt_rpt_type == NORMAL_RX)//Normal rx packet
 				{
-					pphy_status = (struct phy_stat *)(ptr + (rx_report_sz - pattrib->drvinfo_sz));
+					pphy_status = (ptr + (rx_report_sz - pattrib->drvinfo_sz));
 				
 #ifdef CONFIG_CONCURRENT_MODE
 					if(rtw_buddy_adapter_up(padapter))
 					{
-						if(pre_recv_entry(precvframe, precvbuf, (struct phy_stat*)pphy_status) != _SUCCESS)
+						if(pre_recv_entry(precvframe, precvbuf, pphy_status) != _SUCCESS)
 						{
 							RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
 								("recvbuf2recvframe: recv_entry(precvframe) != _SUCCESS\n"));
@@ -508,7 +509,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 #endif
 					{
 						if (pattrib->physt)
-							update_recvframe_phyinfo_88e(precvframe, (struct phy_stat*)pphy_status);
+							rx_query_phy_status(precvframe, pphy_status);
 
 						if (rtw_recv_entry(precvframe) != _SUCCESS)
 						{
@@ -561,11 +562,11 @@ static void rtl8188es_recv_tasklet(void *priv)
 
 }
 #else
-static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbuf, struct phy_stat *pphy_status)
+static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbuf, u8 *pphy_status)
 {	
 	s32 ret=_SUCCESS;
 #ifdef CONFIG_CONCURRENT_MODE	
-	u8 *primary_myid, *secondary_myid, *paddr1;
+	u8 *secondary_myid, *paddr1;
 	union recv_frame	*precvframe_if2 = NULL;
 	_adapter *primary_padapter = precvframe->u.hdr.adapter;
 	_adapter *secondary_padapter = primary_padapter->pbuddy_adapter;
@@ -581,8 +582,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 
 	if(IS_MCAST(paddr1) == _FALSE)//unicast packets
 	{
-		//primary_myid = myid(&primary_padapter->eeprompriv);
-		secondary_myid = myid(&secondary_padapter->eeprompriv);
+		secondary_myid = adapter_mac_addr(secondary_padapter);
 
 		if(_rtw_memcmp(paddr1, secondary_myid, ETH_ALEN))
 		{			
@@ -622,7 +622,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 
 			// The case of can't allocte skb is serious and may never be recovered,
 			// once bDriverStopped is enable, this task should be stopped.
-			if (secondary_padapter->bDriverStopped == _FALSE)
+			if (!rtw_is_drv_stopped(secondary_padapter))
 #ifdef PLATFORM_LINUX
 				tasklet_schedule(&precvpriv->recv_tasklet);
 #endif
@@ -659,7 +659,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 			recvframe_pull_tail(precvframe_if2, IEEE80211_FCS_LEN);
 
 		if (pattrib->physt) 
-			update_recvframe_phyinfo_88e(precvframe_if2, pphy_status);
+			rx_query_phy_status(precvframe_if2, pphy_status);
 
 		if(rtw_recv_entry(precvframe_if2) != _SUCCESS)
 		{
@@ -669,7 +669,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 	}
 	
 	if (precvframe->u.hdr.attrib.physt)
-		update_recvframe_phyinfo_88e(precvframe, (struct phy_stat*)pphy_status);	
+		rx_query_phy_status(precvframe, pphy_status);
 	ret = rtw_recv_entry(precvframe);
 
 #endif
@@ -724,7 +724,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 			pattrib = &phdr->attrib;
 
 			//rx desc parsing
-			update_recvframe_attrib_88e(precvframe, (struct recv_stat*)ptr);
+			rtl8188e_query_rx_desc_status(precvframe, (struct recv_stat*)ptr);
 #ifdef CONFIG_CONCURRENT_MODE
 			prxstat = (struct recv_stat*)ptr;
 #endif
@@ -774,7 +774,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 
 					// The case of can't allocte skb is serious and may never be recovered,
 					// once bDriverStopped is enable, this task should be stopped.
-					if (padapter->bDriverStopped == _FALSE) {
+					if (!rtw_is_drv_stopped(padapter)) {
 #ifdef PLATFORM_LINUX
 						tasklet_schedule(&precvpriv->recv_tasklet);
 #endif
@@ -809,7 +809,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 #ifdef CONFIG_CONCURRENT_MODE
 					if(rtw_buddy_adapter_up(padapter))
 					{
-						if(pre_recv_entry(precvframe, precvbuf, (struct phy_stat*)ptr) != _SUCCESS)
+						if(pre_recv_entry(precvframe, precvbuf, ptr) != _SUCCESS)
 						{
 							RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
 								("recvbuf2recvframe: recv_entry(precvframe) != _SUCCESS\n"));
@@ -819,7 +819,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 #endif
 					{
 						if (pattrib->physt) 
-					update_recvframe_phyinfo_88e(precvframe, (struct phy_stat*)ptr);
+							rx_query_phy_status(precvframe, ptr);
 
 					if (rtw_recv_entry(precvframe) != _SUCCESS)
 					{

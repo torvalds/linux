@@ -29,11 +29,11 @@
 //	Commented by Albert 20101105
 //	Increase the scanning timeout because of increasing the SURVEY_TO value.
 
-#define 	SCANNING_TIMEOUT 	8000
-#ifdef CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
-#define		CONC_SCANNING_TIMEOUT_SINGLE_BAND 10000
-#define		CONC_SCANNING_TIMEOUT_DUAL_BAND 15000
-#endif //CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+#define SCANNING_TIMEOUT 8000
+#ifdef CONFIG_SCAN_BACKOP
+#define CONC_SCANNING_TIMEOUT_SINGLE_BAND 10000
+#define CONC_SCANNING_TIMEOUT_DUAL_BAND 15000
+#endif
 
 #ifdef PALTFORM_OS_WINCE
 #define	SCANQUEUE_LIFETIME 12000000 // unit:us
@@ -41,48 +41,57 @@
 #define	SCANQUEUE_LIFETIME 20000 // 20sec, unit:msec
 #endif
 
-#define WIFI_NULL_STATE		0x00000000
-#define WIFI_ASOC_STATE		0x00000001		// Under Linked state...
-#define WIFI_REASOC_STATE	0x00000002
-#define WIFI_SLEEP_STATE	0x00000004
-#define WIFI_STATION_STATE	0x00000008
-#define	WIFI_AP_STATE			0x00000010
-#define	WIFI_ADHOC_STATE		0x00000020
-#define WIFI_ADHOC_MASTER_STATE	0x00000040
-#define WIFI_UNDER_LINKING	0x00000080
+#define WIFI_NULL_STATE					0x00000000
+#define WIFI_ASOC_STATE					0x00000001 /* Linked */
+#define WIFI_REASOC_STATE				0x00000002
+#define WIFI_SLEEP_STATE				0x00000004
+#define WIFI_STATION_STATE				0x00000008
+#define WIFI_AP_STATE					0x00000010
+#define WIFI_ADHOC_STATE				0x00000020
+#define WIFI_ADHOC_MASTER_STATE			0x00000040
+#define WIFI_UNDER_LINKING				0x00000080
+#define WIFI_UNDER_WPS					0x00000100
+/*#define WIFI_UNDEFINED_STATE			0x00000200*/
+#define WIFI_STA_ALIVE_CHK_STATE		0x00000400
+#define WIFI_SITE_MONITOR				0x00000800 /* under site surveying */
+#define WIFI_WDS						0x00001000
+#define WIFI_WDS_RX_BEACON				0x00002000 /* already rx WDS AP beacon */
+#define WIFI_AUTOCONF					0x00004000
+#define WIFI_AUTOCONF_IND				0x00008000
+#define WIFI_MP_STATE					0x00010000
+#define WIFI_MP_CTX_BACKGROUND			0x00020000 /* in continuous tx background */
+#define WIFI_MP_CTX_ST					0x00040000 /* in continuous tx with single-tone */
+#define WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000 /* pending in continuous tx background due to out of skb */
+#define WIFI_MP_CTX_CCK_HW				0x00100000 /* in continuous tx */
+#define WIFI_MP_CTX_CCK_CS				0x00200000 /* in continuous tx with carrier suppression */
+#define WIFI_MP_LPBK_STATE				0x00400000
+#define WIFI_OP_CH_SWITCHING			0x00800000
+/*#define WIFI_UNDEFINED_STATE			0x01000000*/
+/*#define WIFI_UNDEFINED_STATE			0x02000000*/
+/*#define WIFI_UNDEFINED_STATE			0x04000000*/
+/*#define WIFI_UNDEFINED_STATE			0x08000000*/
+/*#define WIFI_UNDEFINED_STATE			0x10000000*/
+/*#define WIFI_UNDEFINED_STATE			0x20000000*/
+/*#define WIFI_UNDEFINED_STATE			0x40000000*/
+#define WIFI_MONITOR_STATE				0x80000000
 
-#define WIFI_UNDER_WPS			0x00000100
-//#define	WIFI_UNDER_CMD			0x00000200
-//#define	WIFI_UNDER_P2P			0x00000400
-#define	WIFI_STA_ALIVE_CHK_STATE	0x00000400
-#define	WIFI_SITE_MONITOR			0x00000800		//to indicate the station is under site surveying
-#ifdef WDS
-#define	WIFI_WDS				0x00001000
-#define	WIFI_WDS_RX_BEACON	0x00002000		// already rx WDS AP beacon
-#endif
-#ifdef AUTO_CONFIG
-#define	WIFI_AUTOCONF			0x00004000
-#define	WIFI_AUTOCONF_IND	0x00008000
-#endif
+#define MLME_STATE_FMT "%s%s%s%s%s%s%s%s%s%s%s%s"
+#define MLME_STATE_ARG(state) \
+	((state) & WIFI_STATION_STATE)?" STA":"", \
+	((state) & WIFI_AP_STATE)?" AP":"", \
+	((state) & WIFI_ADHOC_STATE)?" ADHOC":"", \
+	((state) & WIFI_ADHOC_MASTER_STATE)?" ADHOC_M":"", \
+	((state) & WIFI_MONITOR_STATE)?" MONITOR":"", \
+	((state) & WIFI_MP_STATE)?" MP":"", \
+	((state) & WIFI_SITE_MONITOR)?" SCAN":"", \
+	((state) & WIFI_UNDER_LINKING)?" LINKING":"", \
+	((state) & WIFI_ASOC_STATE)?" ASOC":"", \
+	((state) & WIFI_OP_CH_SWITCHING)?" OP_CH_SW":"", \
+	((state) & WIFI_UNDER_WPS)?" WPS":"", \
+	((state) & WIFI_SLEEP_STATE)?" SLEEP":""
 
-/*
-// ========== P2P Section Start ===============
-#define	WIFI_P2P_LISTEN_STATE		0x00010000
-#define	WIFI_P2P_GROUP_FORMATION_STATE		0x00020000
-// ========== P2P Section End ===============
-*/
+#define ADPT_MLME_S_ARG(adapter) MLME_STATE_ARG(get_fwstate(&((adapter)->mlmepriv)))
 
-//#ifdef UNDER_MPTEST
-#define	WIFI_MP_STATE							0x00010000
-#define	WIFI_MP_CTX_BACKGROUND				0x00020000	// in continous tx background
-#define	WIFI_MP_CTX_ST						0x00040000	// in continous tx with single-tone
-#define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000	// pending in continous tx background due to out of skb
-#define	WIFI_MP_CTX_CCK_HW					0x00100000	// in continous tx
-#define	WIFI_MP_CTX_CCK_CS					0x00200000	// in continous tx with carrier suppression
-#define   WIFI_MP_LPBK_STATE					0x00400000
-//#endif
-
-//#define _FW_UNDER_CMD		WIFI_UNDER_CMD
 #define _FW_UNDER_LINKING	WIFI_UNDER_LINKING
 #define _FW_LINKED			WIFI_ASOC_STATE
 #define _FW_UNDER_SURVEY	WIFI_SITE_MONITOR
@@ -105,15 +114,11 @@ typedef enum _RT_SCAN_TYPE
 	SCAN_MIX,
 }RT_SCAN_TYPE, *PRT_SCAN_TYPE;
 
-enum  _BAND
-{
-	GHZ24_50 = 0,
-	GHZ_50,
-	GHZ_24,
-	GHZ_MAX,
-};
+#define WIFI_FREQUENCY_BAND_AUTO 0
+#define WIFI_FREQUENCY_BAND_5GHZ 1
+#define WIFI_FREQUENCY_BAND_2GHZ 2
 
-#define rtw_band_valid(band) ((band) >= GHZ24_50 && (band) < GHZ_MAX)
+#define rtw_band_valid(band) ((band) <= WIFI_FREQUENCY_BAND_2GHZ)
 
 enum DriverInterface {
 	DRIVER_WEXT =  1,
@@ -245,6 +250,7 @@ struct tx_nego_req_info{
 	u16					peer_channel_num[2];		//	The channel number which the receiver stands.
 	u8					peerDevAddr[ ETH_ALEN ];		//	Peer device address
 	u8					benable;					//	This negoitation request frame is trigger to send or not
+	u8					peer_ch;		                   /*   The listen channel for peer P2P device    */
 };
 
 struct group_id_info{
@@ -269,7 +275,6 @@ struct cfg80211_wifidirect_info{
 	enum nl80211_channel_type	remain_on_ch_type;
 	ATOMIC_T ro_ch_cookie_gen;
 	u64 remain_on_ch_cookie;
-	bool not_indic_ro_ch_exp;
 	bool is_ro_ch;
 	u32 last_ro_ch_time; /* this will be updated at the beginning and end of ro_ch */
 };
@@ -405,22 +410,46 @@ struct tdls_ss_record{	//signal strength record
 	u8		is_tdls_sta;	// _TRUE: direct link sta, _FALSE: else
 };
 
+struct tdls_temp_mgmt{
+	u8	initiator;	// 0: None, 1: we initiate, 2: peer initiate
+	u8	peer_addr[ETH_ALEN];
+};
+
+#ifdef CONFIG_TDLS_CH_SW
+struct tdls_ch_switch{
+	u32	ch_sw_state;
+	ATOMIC_T	chsw_on;
+	u8	addr[ETH_ALEN];
+	u8	off_ch_num;
+	u8	ch_offset;
+	u32	cur_time;
+	u8	delay_switch_back;
+	u8	dump_stack;
+};
+#endif
+
 struct tdls_info{
 	u8					ap_prohibited;
+	u8					ch_switch_prohibited;
 	u8					link_established;
 	u8					sta_cnt;
-	u8					sta_maximum;	// 1:tdls sta is equal (NUM_STA-1), reach max direct link number; 0: else;
+	u8					sta_maximum;	/* 1:tdls sta is equal (NUM_STA-1), reach max direct link number; 0: else; */
 	struct tdls_ss_record	ss_record;
+#ifdef CONFIG_TDLS_CH_SW	
+	struct tdls_ch_switch	chsw_info;
+#endif
+
 	u8					ch_sensing;
 	u8					cur_channel;
-	u8					candidate_ch;
 	u8					collect_pkt_num[MAX_CHANNEL_NUM];
 	_lock				cmd_lock;
 	_lock				hdl_lock;
 	u8					watchdog_count;
-	u8					dev_discovered;		//WFD_TDLS: for sigma test
+	u8					dev_discovered;		/* WFD_TDLS: for sigma test */
 	u8					tdls_enable;
-	u8					external_setup;	// _TRUE: setup is handled by wpa_supplicant
+
+	/* Let wpa_supplicant to setup*/
+	u8					driver_setup;
 #ifdef CONFIG_WFD
 	struct wifi_display_info		*wfd_info;
 #endif		
@@ -433,7 +462,6 @@ struct tdls_txmgmt {
 	u16 status_code;
 	u8 *buf;
 	size_t len;
-	u8 external_support;
 };
 
 /* used for mlme_priv.roam_flags */
@@ -472,8 +500,9 @@ struct mlme_priv {
 	#endif
 
 	u8	*nic_hdl;
-
+#ifdef SUPPLICANT_RTK_VERSION_LOWER_THAN_JB42
 	u8	not_indic_disco;
+#endif
 	_list		*pscanned;
 	_queue	free_bss_pool;
 	_queue	scanned_queue;
@@ -493,6 +522,7 @@ struct mlme_priv {
 
 #ifdef CONFIG_ARP_KEEP_ALIVE
 	// for arp offload keep alive
+	u8 bGetGateway;
 	u8	gw_mac_addr[6];
 	u8	gw_ip[4];
 #endif
@@ -540,7 +570,11 @@ struct mlme_priv {
 
 #ifdef CONFIG_DFS
 	u8	handle_dfs;
-#endif //CONFIG_DFS
+#endif
+#ifdef CONFIG_DFS_MASTER
+	/* TODO: move to rfctl */
+	_timer dfs_master_timer;
+#endif
 
 	RT_LINK_DETECT_T	LinkDetectInfo;
 	_timer	dynamic_chk_timer; //dynamic/periodic check timer
@@ -551,6 +585,21 @@ struct mlme_priv {
 
 	u8 *wps_probe_req_ie;
 	u32 wps_probe_req_ie_len;
+
+	u8 ext_capab_ie_data[8];/*currently for ap mode only*/
+	u8 ext_capab_ie_len; 
+
+	u8 *assoc_req;
+	u32 assoc_req_len;
+	u8 *assoc_rsp;
+	u32 assoc_rsp_len;
+
+#ifdef CONFIG_P2P
+	u8 *p2p_probe_req_ie;
+	u8 *p2p_assoc_req_ie;
+	u32 p2p_probe_req_ie_len;
+	u32 p2p_assoc_req_ie_len;
+#endif
 
 #if defined (CONFIG_AP_MODE) && defined (CONFIG_NATIVEAP_MLME)
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
@@ -563,7 +612,7 @@ struct mlme_priv {
 	/* Number of associated stations that do not support Short Preamble */
 	int num_sta_no_short_preamble;
 
-	int olbc; /* Overlapping Legacy BSS Condition */
+	int olbc; /* Overlapping Legacy BSS Condition (Legacy b/g)*/
 
 	/* Number of HT associated stations that do not support greenfield */
 	int num_sta_ht_no_gf;
@@ -574,17 +623,18 @@ struct mlme_priv {
 	/* Number of HT associated stations 20 MHz */
 	int num_sta_ht_20mhz;
 
+	/* number of associated stations 40MHz intolerant */
+	int num_sta_40mhz_intolerant;
+	
 	/* Overlapping BSS information */
 	int olbc_ht;
 	
 #ifdef CONFIG_80211N_HT
+	int ht_20mhz_width_req; 
+	int ht_intolerant_ch_reported;		
 	u16 ht_op_mode;
+	u8 sw_to_20mhz; /*switch to 20Mhz BW*/
 #endif /* CONFIG_80211N_HT */	
-
-	u8 *assoc_req;
-	u32 assoc_req_len;
-	u8 *assoc_rsp;
-	u32 assoc_rsp_len;
 
 	u8 *wps_beacon_ie;	
 	//u8 *wps_probe_req_ie;
@@ -597,16 +647,12 @@ struct mlme_priv {
 	u32 wps_assoc_resp_ie_len; // for CONFIG_IOCTL_CFG80211, this IE len could include p2p ie / wfd ie
 	
 	u8 *p2p_beacon_ie;
-	u8 *p2p_probe_req_ie;
 	u8 *p2p_probe_resp_ie;	
 	u8 *p2p_go_probe_resp_ie; //for GO	
-	u8 *p2p_assoc_req_ie;
 
 	u32 p2p_beacon_ie_len;
-	u32 p2p_probe_req_ie_len;
 	u32 p2p_probe_resp_ie_len;
 	u32 p2p_go_probe_resp_ie_len; //for GO
-	u32 p2p_assoc_req_ie_len;
 /*
 #if defined(CONFIG_P2P) && defined(CONFIG_IOCTL_CFG80211)
 	//u8 *wps_p2p_beacon_ie;
@@ -623,7 +669,9 @@ struct mlme_priv {
 	_lock	bcn_update_lock;
 	u8		update_bcn;
 	
-	
+	u8 ori_ch;
+	u8 ori_bw;
+	u8 ori_offset;
 #endif //#if defined (CONFIG_AP_MODE) && defined (CONFIG_NATIVEAP_MLME)
 
 #if defined(CONFIG_WFD) && defined(CONFIG_IOCTL_CFG80211)
@@ -683,10 +731,16 @@ struct mlme_priv {
 //	u32	timeBcnInfoChkStart;
 };
 
+#define mlme_set_scan_to_timer(mlme, ms) \
+	do { \
+		/* DBG_871X("%s set_scan_to_timer(%p, %d)\n", __FUNCTION__, (mlme), (ms)); */ \
+		_set_timer(&(mlme)->scan_to_timer, (ms)); \
+	} while(0)
+
 #define rtw_mlme_set_auto_scan_int(adapter, ms) \
 	do { \
 		adapter->mlmepriv.auto_scan_int_ms = ms; \
-	while (0)
+	} while (0)
 
 void rtw_mlme_reset_auto_scan_int(_adapter *adapter);
 
@@ -717,7 +771,9 @@ extern void rtw_stadel_event_callback(_adapter *adapter, u8 *pbuf);
 extern void rtw_atimdone_event_callback(_adapter *adapter, u8 *pbuf);
 extern void rtw_cpwm_event_callback(_adapter *adapter, u8 *pbuf);
 extern void rtw_wmm_event_callback(PADAPTER padapter, u8 *pbuf);
-
+#ifdef CONFIG_IEEE80211W
+void rtw_sta_timeout_event_callback(_adapter *adapter, u8 *pbuf);
+#endif /* CONFIG_IEEE80211W */
 extern void rtw_join_timeout_handler(RTW_TIMER_HDL_ARGS);
 extern void _rtw_scan_timeout_handler(RTW_TIMER_HDL_ARGS);
 
@@ -786,16 +842,6 @@ __inline static void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)
 	_irqL irqL;
 
 	_enter_critical_bh(&pmlmepriv->lock, &irqL);
-	if (check_fwstate(pmlmepriv, state) == _TRUE)
-		pmlmepriv->fw_state ^= state;
-	_exit_critical_bh(&pmlmepriv->lock, &irqL);
-}
-
-__inline static void clr_fwstate_ex(struct mlme_priv *pmlmepriv, sint state)
-{
-	_irqL irqL;
-
-	_enter_critical_bh(&pmlmepriv->lock, &irqL);
 	_clr_fwstate_(pmlmepriv, state);
 	_exit_critical_bh(&pmlmepriv->lock, &irqL);
 }
@@ -845,9 +891,12 @@ struct wlan_network *rtw_find_same_network(_queue *scanned_queue, struct wlan_ne
 extern void rtw_free_assoc_resources(_adapter* adapter, int lock_scanned_queue);
 extern void rtw_indicate_disconnect(_adapter* adapter);
 extern void rtw_indicate_connect(_adapter* adapter);
-extern void rtw_free_network_nolock(_adapter* adapter,
-		struct wlan_network *pnetwork);
 void rtw_indicate_scan_done( _adapter *padapter, bool aborted);
+
+void rtw_drv_scan_by_self(_adapter *padapter);
+void rtw_scan_wait_completed(_adapter *adapter);
+u32 rtw_scan_abort_timeout(_adapter *adapter, u32 timeout_ms);
+void rtw_scan_abort_no_wait(_adapter *adapter);
 void rtw_scan_abort(_adapter *adapter);
 
 extern int rtw_restruct_sec_ie(_adapter *adapter,u8 *in_ie,u8 *out_ie,uint in_len);

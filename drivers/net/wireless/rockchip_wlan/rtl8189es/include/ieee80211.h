@@ -166,6 +166,10 @@ typedef enum _RATEID_IDX_ {
 	RATEID_IDX_B = 8,
 	RATEID_IDX_VHT_2SS = 9,
 	RATEID_IDX_VHT_1SS = 10,
+	RATEID_IDX_MIX1 = 11,
+	RATEID_IDX_MIX2 = 12,
+	RATEID_IDX_VHT_3SS = 13,
+	RATEID_IDX_BGN_3SS = 14,
 } RATEID_IDX, *PRATEID_IDX;
 
 typedef enum _RATR_TABLE_MODE{
@@ -207,13 +211,13 @@ enum NETWORK_TYPE
 	//Type for registry default wireless mode
 	WIRELESS_11AGN = (WIRELESS_11A|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N), // tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only
 	WIRELESS_11ABGN = (WIRELESS_11A|WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N),
-	WIRELESS_MODE_24G = (WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11AC),
+	WIRELESS_MODE_24G = (WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N),
 	WIRELESS_MODE_5G = (WIRELESS_11A|WIRELESS_11_5N|WIRELESS_11AC),
 	WIRELESS_MODE_MAX = (WIRELESS_11A|WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N|WIRELESS_11AC),
 };
 
-#define SUPPORTED_24G_NETTYPE_MSK (WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N)
-#define SUPPORTED_5G_NETTYPE_MSK (WIRELESS_11A | WIRELESS_11_5N)
+#define SUPPORTED_24G_NETTYPE_MSK WIRELESS_MODE_24G
+#define SUPPORTED_5G_NETTYPE_MSK WIRELESS_MODE_5G 
 
 #define IsLegacyOnly(NetType)  ((NetType) == ((NetType) & (WIRELESS_11BG|WIRELESS_11A)))
 
@@ -1342,7 +1346,7 @@ typedef struct tx_pending_t{
 
 
 
-#define MAXTID	16
+#define TID_NUM	16
 
 #define IEEE_A            (1<<0)
 #define IEEE_B            (1<<1)
@@ -1460,6 +1464,13 @@ enum rtw_ieee80211_back_parties {
 	RTW_WLAN_BACK_INITIATOR = 1,
 	RTW_WLAN_BACK_TIMER = 2,
 };
+
+/*20/40 BSS Coexistence element */
+#define RTW_WLAN_20_40_BSS_COEX_INFO_REQ            BIT(0)
+#define RTW_WLAN_20_40_BSS_COEX_40MHZ_INTOL         BIT(1)
+#define RTW_WLAN_20_40_BSS_COEX_20MHZ_WIDTH_REQ     BIT(2)
+#define RTW_WLAN_20_40_BSS_COEX_OBSS_EXEMPT_REQ     BIT(3)
+#define RTW_WLAN_20_40_BSS_COEX_OBSS_EXEMPT_GRNT    BIT(4)
 
 /* VHT features action code */
 enum rtw_ieee80211_vht_actioncode{
@@ -1679,6 +1690,15 @@ void dump_ht_cap_ie_content(void *sel, u8 *buf, u32 buf_len);
 
 void dump_wps_ie(void *sel, u8 *ie, u32 ie_len);
 
+void rtw_ies_get_chbw(u8 *ies, int ies_len, u8 *ch, u8 *bw, u8 *offset);
+
+void rtw_bss_get_chbw(WLAN_BSSID_EX *bss, u8 *ch, u8 *bw, u8 *offset);
+
+bool rtw_is_chbw_grouped(u8 ch_a, u8 bw_a, u8 offset_a
+	, u8 ch_b, u8 bw_b, u8 offset_b);
+void rtw_sync_chbw(u8 *req_ch, u8 *req_bw, u8 *req_offset
+	, u8 *g_ch, u8 *g_bw, u8 *g_offset);
+
 #ifdef CONFIG_P2P
 u32 rtw_get_p2p_merged_ies_len(u8 *in_ie, u32 in_len);
 int rtw_p2p_merge_ies(u8 *in_ie, u32 in_len, u8 *merge_ie);
@@ -1702,7 +1722,7 @@ uint	rtw_get_rateset_len(u8	*rateset);
 
 struct registry_priv;
 int rtw_generate_ie(struct registry_priv *pregistrypriv);
-
+bool rtw_regsty_adjust_chbw(struct registry_priv *regsty, u8 req_ch, u8 *req_bw, u8 *req_offset);
 
 int rtw_get_bit_value_from_ieee_value(u8 val);
 
@@ -1714,12 +1734,20 @@ int rtw_check_network_type(unsigned char *rate, int ratelen, int channel);
 
 void rtw_get_bcn_info(struct wlan_network *pnetwork);
 
-void rtw_macaddr_cfg(u8 *mac_addr);
+u8 rtw_check_invalid_mac_address(u8 *mac_addr);
+void rtw_macaddr_cfg(u8 *out, const u8 *hw_mac_addr);
 
 u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI, unsigned char * MCS_rate);
+u8	rtw_ht_mcsset_to_nss(u8 *supp_mcs_set);
 
 int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8* category, u8 *action);
 const char *action_public_str(u8 action);
+
+u8 key_2char2num(u8 hch, u8 lch);
+u8 str_2char2num(u8 hch, u8 lch);
+void macstr2num(u8 *dst, u8 *src);
+u8 convert_ip_addr(u8 hch, u8 mch, u8 lch);
+int wifirate2_ratetbl_inx(unsigned char rate);
 
 #endif /* IEEE80211_H */
 

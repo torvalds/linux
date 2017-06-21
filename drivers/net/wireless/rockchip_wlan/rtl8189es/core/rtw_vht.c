@@ -64,7 +64,7 @@ u8	rtw_get_vht_highest_rate(u8 *pvht_mcs_map)
 		}
 	}
 	
-	//DBG_871X("HighestVHTMCSRate is %x\n", vht_mcs_rate);
+	/* DBG_871X("HighestVHTMCSRate is %x\n", vht_mcs_rate); */
 	return vht_mcs_rate;
 }
 
@@ -88,7 +88,7 @@ u8	rtw_vht_mcsmap_to_nss(u8 *pvht_mcs_map)
 		}
 	}
 	
-	//DBG_871X("%s : %dSS\n", __FUNCTION__, nss);
+	/* DBG_871X("%s : %dSS\n", __FUNCTION__, nss); */
 	return nss;
 }
 
@@ -119,9 +119,9 @@ void	rtw_vht_nss_to_mcsmap(u8 nss, u8 *target_mcs_map, u8 *cur_mcs_map)
 
 u16	rtw_vht_mcs_to_data_rate(u8 bw, u8 short_GI, u8 vht_mcs_rate)
 {
-	if(vht_mcs_rate > MGN_VHT2SS_MCS9)
-		vht_mcs_rate = MGN_VHT2SS_MCS9;
-
+	if(vht_mcs_rate > MGN_VHT3SS_MCS9)
+		vht_mcs_rate = MGN_VHT3SS_MCS9;
+	/* DBG_871X("bw=%d, short_GI=%d, ((vht_mcs_rate - MGN_VHT1SS_MCS0)&0x3f)=%d\n", bw, short_GI, ((vht_mcs_rate - MGN_VHT1SS_MCS0)&0x3f)); */
 	return VHT_MCS_DATA_RATE[bw][short_GI][((vht_mcs_rate - MGN_VHT1SS_MCS0)&0x3f)];
 }
 
@@ -189,10 +189,12 @@ void	rtw_vht_use_default_setting(_adapter *padapter)
 
 	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 
-	if (rf_type == RF_1T1R)
-		pvhtpriv->vht_mcs_map[0] = 0xfe;	// Only support 1SS MCS 0~9;
+	if (rf_type == RF_3T3R)
+		pvhtpriv->vht_mcs_map[0] = 0xea;	/* support 1SS MCS 0~9 2SS MCS 0~9 3SS MCS 0~9 */
+	else if(rf_type == RF_2T2R)
+		pvhtpriv->vht_mcs_map[0] = 0xfa;	/* support 1SS MCS 0~9 2SS MCS 0~9 */
 	else
-		pvhtpriv->vht_mcs_map[0] = 0xfa;	//support 1SS MCS 0~9 2SS MCS 0~9
+		pvhtpriv->vht_mcs_map[0] = 0xfe;	/* Only support 1SS MCS 0~9; */
 	pvhtpriv->vht_mcs_map[1] = 0xff;
 
 	if(pregistrypriv->vht_rate_sel == 1)
@@ -235,19 +237,21 @@ void	rtw_vht_use_default_setting(_adapter *padapter)
 	pvhtpriv->vht_highest_rate = rtw_get_vht_highest_rate(pvhtpriv->vht_mcs_map);
 }
 
-u32	rtw_vht_rate_to_bitmap(u8 *pVHTRate)
+u64	rtw_vht_rate_to_bitmap(u8 *pVHTRate)
 {
 
 	u8	i,j , tmpRate;
-	u32	RateBitmap = 0;
+	u64	RateBitmap = 0;
+	u8 Bits_3ss = 6;
 		
-	for(i = j= 0; i < 4; i+=2, j+=10)
+	for(i = j= 0; i < Bits_3ss; i+=2, j+=10)
 	{
+		/* every two bits means single sptial stream */
 		tmpRate = (pVHTRate[0] >> i) & 3;
 
 		switch(tmpRate){
 		case 2:
-			RateBitmap = RateBitmap | (0x03ff << j);	
+			RateBitmap = RateBitmap | (0x03ff << j);
 			break;
 		case 1:
 			RateBitmap = RateBitmap | (0x01ff << j);
@@ -261,7 +265,7 @@ u32	rtw_vht_rate_to_bitmap(u8 *pVHTRate)
 			break;
 		}
 	}
-
+	DBG_871X("RateBitmap=%016llx , pVHTRate[0]=%02x, pVHTRate[1]=%02x\n", RateBitmap, pVHTRate[0], pVHTRate[1]);
 	return RateBitmap;
 }
 
@@ -425,6 +429,8 @@ void VHT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 		vht_mcs[0] |= 0xfc;
 	else if (rf_type == RF_2T2R)
 		vht_mcs[0] |= 0xf0;
+	else if (rf_type == RF_3T3R)
+		vht_mcs[0] |= 0xc0;
 
 	_rtw_memcpy(pvhtpriv->vht_mcs_map, vht_mcs, 2);
 
@@ -486,10 +492,12 @@ u32	rtw_build_vht_operation_ie(_adapter *padapter, u8 *pbuf, u8 channel)
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct vht_priv		*pvhtpriv = &pmlmepriv->vhtpriv;
 	//struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	u8	ChnlWidth, center_freq, bw_mode;
+	u8	ChnlWidth, center_freq, bw_mode, rf_type = 0;
 	u32	len = 0;
 	u8	operation[5];
-
+	
+	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
+	
 	_rtw_memset(operation, 0, 5);
 
 	bw_mode = pregistrypriv->bw_mode >> 4;
@@ -510,8 +518,35 @@ u32	rtw_build_vht_operation_ie(_adapter *padapter, u8 *pbuf, u8 channel)
 	//center frequency
 	SET_VHT_OPERATION_ELE_CHL_CENTER_FREQ1(operation, center_freq);//Todo: need to set correct center channel
 	SET_VHT_OPERATION_ELE_CHL_CENTER_FREQ2(operation,0);
-	operation[3] = 0xff;
+	
+	if (padapter->registrypriv.rf_config != RF_MAX_TYPE)
+		rf_type = padapter->registrypriv.rf_config;
+	
+	switch (rf_type) {
+	case RF_1T1R:
+	operation[3] = 0xfe;
 	operation[4] = 0xff;
+	break;
+	case RF_1T2R:
+	case RF_2T2R:
+	case RF_2T2R_GREEN:
+	operation[3] = 0xfa;
+	operation[4] = 0xff;
+	break;
+	case RF_2T3R:
+	case RF_2T4R:
+	case RF_3T3R:
+	case RF_3T4R:
+	operation[3] = 0xea;
+	operation[4] = 0xff;
+	break;
+	case RF_4T4R:
+	operation[3] = 0xaa;
+	operation[4] = 0xff;
+	break;
+	default:
+	DBG_871X("%s, %d, unknown rf type\n", __func__, __LINE__);
+	}
 
 	rtw_set_ie(pbuf, EID_VHTOperation, 5, operation, &len);
 
@@ -530,10 +565,12 @@ u32	rtw_build_vht_op_mode_notify_ie(_adapter *padapter, u8 *pbuf, u8 bw)
 	chnl_width = bw;
 
 	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-	if(rf_type == RF_1T1R)
-		rx_nss = 1;
-	else
+	if(rf_type == RF_3T3R)
+		rx_nss = 3;
+	else if(rf_type == RF_2T2R)
 		rx_nss = 2;
+	else
+		rx_nss = 1;
 
 	SET_VHT_OPERATING_MODE_FIELD_CHNL_WIDTH(&opmode, chnl_width);
 	SET_VHT_OPERATING_MODE_FIELD_RX_NSS(&opmode, (rx_nss-1));
@@ -558,7 +595,10 @@ u32	rtw_build_vht_cap_ie(_adapter *padapter, u8 *pbuf)
 
 	pcap = pvhtpriv->vht_cap;
 	_rtw_memset(pcap, 0, 32);
-
+	
+	/* B0 B1 Maximum MPDU Length */
+	SET_VHT_CAPABILITY_ELE_MAX_MPDU_LENGTH(pcap, 2); 
+	
 	// B2 B3 Supported Channel Width Set
 	SET_VHT_CAPABILITY_ELE_CHL_WIDTH(pcap, 0);  //indicate we don't support neither 160M nor 80+80M bandwidth.
 
@@ -585,7 +625,7 @@ u32	rtw_build_vht_cap_ie(_adapter *padapter, u8 *pbuf)
 	{
 		rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 		if ((rf_type == RF_2T2R) || (rf_type == RF_1T2R)) {
-			SET_VHT_CAPABILITY_ELE_RX_STBC(pcap, 2);
+			SET_VHT_CAPABILITY_ELE_RX_STBC(pcap, 1);
 		}
 		else if (rf_type == RF_1T1R) {
 			SET_VHT_CAPABILITY_ELE_RX_STBC(pcap, 1);

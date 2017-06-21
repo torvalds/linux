@@ -62,6 +62,12 @@
 	#include <linux/tqueue.h>
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
+	#include <uapi/linux/limits.h>
+#else
+	#include <linux/limits.h>
+#endif
+
 #ifdef RTK_DMP_PLATFORM
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,12))
 	#include <linux/pageremap.h>
@@ -69,10 +75,16 @@
 	#include <asm/io.h>
 #endif
 
+#ifdef CONFIG_NET_RADIO
+	#define CONFIG_WIRELESS_EXT
+#endif
+
+	/* Monitor mode */
+	#include <net/ieee80211_radiotap.h>
+
 #ifdef CONFIG_IOCTL_CFG80211	
-//	#include <linux/ieee80211.h>        
-        #include <net/ieee80211_radiotap.h>
-	#include <net/cfg80211.h>	
+/*	#include <linux/ieee80211.h> */
+	#include <net/cfg80211.h>
 #endif //CONFIG_IOCTL_CFG80211
 
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_TX
@@ -86,7 +98,7 @@
 
 #ifdef CONFIG_EFUSE_CONFIG_FILE
 	#include <linux/fs.h>
-#endif //CONFIG_EFUSE_CONFIG_FILE
+#endif
 
 #ifdef CONFIG_USB_HCI
 	#include <linux/usb.h>
@@ -96,6 +108,14 @@
 	#include <linux/usb/ch9.h>
 #endif
 #endif
+
+#ifdef CONFIG_BT_COEXIST_SOCKET_TRX
+	#include <net/sock.h>
+	#include <net/tcp.h>
+	#include <linux/udp.h>
+	#include <linux/in.h>
+	#include <linux/netlink.h>
+#endif //CONFIG_BT_COEXIST_SOCKET_TRX
 
 #ifdef CONFIG_USB_HCI
 	typedef struct urb *  PURB;
@@ -114,7 +134,7 @@
 	typedef struct semaphore	_mutex;
 #endif
 	typedef struct timer_list _timer;
-
+	typedef struct completion _completion;
 	struct	__queue	{
 		struct	list_head	queue;	
 		_lock	lock;
@@ -133,8 +153,6 @@
 	typedef void*		_thread_hdl_;
 	typedef int		thread_return;
 	typedef void*	thread_context;
-
-	#define thread_exit() complete_and_exit(NULL, 0)
 
 	typedef void timer_hdl_return;
 	typedef void* timer_hdl_context;

@@ -51,11 +51,18 @@ enum h2c_cmd{
 	H2C_FWLPS_IN_IPS_ = 0x28,
 	
 	//Dynamic Mechanism Class: 010
-	H2C_MACID_CFG = 0x40,	
+	H2C_MACID_CFG = 0x40,
 	H2C_TXBF = 0x41,	
 	H2C_RSSI_SETTING = 0x42,	
 	H2C_AP_REQ_TXRPT = 0x43,	
 	H2C_INIT_RATE_COLLECT = 0x44,	
+	H2C_IQ_CALIBRATION	= 0x45,
+
+	H2C_RA_MASK_3SS = 0x46,/* for 8814A */
+	H2C_RA_PARA_ADJUST = 0x47,/* CONFIG_RA_DBG_CMD */
+	H2C_DYNAMIC_TX_PATH = 0x48,/* for 8814A */
+
+	H2C_FW_TRACE_EN = 0x49,
 	
 	//BT Class: 011
 	H2C_B_TYPE_TDMA = 0x60,
@@ -113,7 +120,7 @@ enum h2c_cmd{
 #define H2C_P2PRSVDPAGE_LOC_LEN	5
 #define H2C_P2P_OFFLOAD_LEN	3
 
-#ifdef CONFIG_WOWLAN	
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)	
 #define eqMacAddr(a,b)						( ((a)[0]==(b)[0] && (a)[1]==(b)[1] && (a)[2]==(b)[2] && (a)[3]==(b)[3] && (a)[4]==(b)[4] && (a)[5]==(b)[5]) ? 1:0 )
 #define cpMacAddr(des,src)					((des)[0]=(src)[0],(des)[1]=(src)[1],(des)[2]=(src)[2],(des)[3]=(src)[3],(des)[4]=(src)[4],(des)[5]=(src)[5])
 #define cpIpAddr(des,src)					((des)[0]=(src)[0],(des)[1]=(src)[1],(des)[2]=(src)[2],(des)[3]=(src)[3])
@@ -225,9 +232,9 @@ enum h2c_cmd{
 #define SET_H2CCMD_WOWLAN_DATAPIN_WAKE_UP(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 7, 1, __Value)
 #define SET_H2CCMD_WOWLAN_GPIO_DURATION(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+2, 0, 8, __Value)
 #define SET_H2CCMD_WOWLAN_GPIO_PULSE_EN(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 0, 1, __Value)
-#define SET_H2CCMD_WOWLAN_GPIO_PULSE_COUNT(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+3, 1, 7, __Value)
-#define SET_H2CCMD_WOWLAN_LOWPR_RX(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+4, 0, 1, __Value)
-
+#define SET_H2CCMD_WOWLAN_GPIO_PULSE_COUNT(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 1, 7, __Value)
+#define SET_H2CCMD_WOWLAN_LOWPR_RX(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE((__pH2CCmd)+4, 0, 1, __Value)
+#define SET_H2CCMD_WOWLAN_CHANGE_UNIT(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE((__pH2CCmd)+4, 2, 1, __Value)
 // _REMOTE_WAKEUP_CMD_0x81
 #define SET_H2CCMD_REMOTE_WAKECTRL_ENABLE(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE(__pH2CCmd, 0, 1, __Value)
 #define SET_H2CCMD_REMOTE_WAKE_CTRL_ARP_OFFLOAD_EN(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE(__pH2CCmd, 1, 1, __Value)
@@ -236,7 +243,9 @@ enum h2c_cmd{
 #define SET_H2CCMD_REMOTE_WAKE_CTRL_NLO_OFFLOAD_EN(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE(__pH2CCmd, 4, 1, __Value)
 #define SET_H2CCMD_REMOTE_WAKE_CTRL_FW_UNICAST_EN(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE(__pH2CCmd, 7, 1, __Value)
 #define SET_H2CCMD_REMOTE_WAKE_CTRL_P2P_OFFLAD_EN(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 0, 1, __Value)
+#define SET_H2CCMD_REMOTE_WAKE_CTRL_NBNS_FILTER_EN(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 2, 1, __Value)
 #define SET_H2CCMD_REMOTE_WAKE_CTRL_ARP_ACTION(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+2, 0, 1, __Value)
+#define SET_H2CCMD_REMOTE_WAKE_CTRL_FW_PARSING_UNTIL_WAKEUP(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+2, 4, 1, __Value)
 
 // AOAC_GLOBAL_INFO_0x82
 #define SET_H2CCMD_AOAC_GLOBAL_INFO_PAIRWISE_ENC_ALG(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT(__pH2CCmd, 0, 8, __Value)
@@ -258,6 +267,7 @@ enum h2c_cmd{
 #ifdef CONFIG_PNO_SUPPORT
 // D0_Scan_Offload_Info_0x86
 #define SET_H2CCMD_AOAC_NLO_FUN_EN(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE((__pH2CCmd), 3, 1, __Value)
+#define SET_H2CCMD_AOAC_NLO_IPS_EN(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE((__pH2CCmd), 4, 1, __Value)
 #define SET_H2CCMD_AOAC_RSVDPAGE_LOC_PROBE_PACKET(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+1, 0, 8, __Value)
 #define SET_H2CCMD_AOAC_RSVDPAGE_LOC_SCAN_INFO(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+2, 0, 8, __Value)
 #define SET_H2CCMD_AOAC_RSVDPAGE_LOC_SSID_INFO(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+3, 0, 8, __Value)
@@ -311,13 +321,8 @@ typedef struct _RSVDPAGE_LOC {
 
 #endif
 void dump_TX_FIFO(PADAPTER padapter, u8 page_num, u16 page_size);
-u8 rtw_check_invalid_mac_address (u8 *mac_addr);
 u8 rtw_hal_set_fw_media_status_cmd(_adapter* adapter, u8 mstatus, u8 macid);
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
-void rtw_get_current_ip_address(PADAPTER padapter, u8 *pcurrentip);
-void rtw_get_sec_iv(PADAPTER padapter, u8*pcur_dot11txpn, u8 *StaAddr);
-void rtw_set_sec_pn(_adapter *padapter);
-
 //WOW command function
 void rtw_hal_set_fw_wow_related_cmd(_adapter* padapter, u8 enable);
 #ifdef CONFIG_P2P_WOWLAN

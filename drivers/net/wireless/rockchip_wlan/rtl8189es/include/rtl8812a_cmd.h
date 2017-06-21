@@ -42,6 +42,7 @@ typedef enum _RTL8812_H2C_CMD
 	H2C_8812_TxBF = 0x41,
 	H2C_8812_RSSI_REPORT = 0x42,
 	H2C_8812_IQ_CALIBRATION = 0x45,
+	H2C_8812_RA_PARA_ADJUST = 0x46,
 
 	H2C_8812_BT_FW_PATCH = 0x6a,
 
@@ -66,12 +67,21 @@ typedef enum _RTL8812_C2H_EVT
 	C2H_8812_BT_INFO = 9,
 	C2H_8812_BT_MP = 11,
 	C2H_8812_RA_RPT=12,
+	C2H_8812_RA_PARA_RPT = 14,
 
 	C2H_8812_FW_SWCHNL = 0x10,
 	C2H_8812_IQK_FINISH = 0x11,
 	C2H_8812_MAILBOX_STATUS = 0x15,
+#ifdef CONFIG_FW_C2H_DEBUG
+	C2H_8812_EXTEND = 0xff,
+#endif //CONFIG_FW_C2H_DEBUG
 	MAX_8812_C2HEVENT
 }RTL8812_C2H_EVT;
+
+typedef enum _RTL8812_EXTEND_C2H_EVT {
+	EXTEND_C2H_8812_DBG_PRINT = 0
+
+} RTL8812_EXTEND_C2H_EVT;
 
 
 struct cmd_msg_parm {
@@ -133,7 +143,7 @@ void rtl8812_set_FwPwrMode_cmd(PADAPTER padapter, u8 PSMode);
 void rtl8812_set_FwJoinBssReport_cmd(PADAPTER padapter, u8 mstatus);
 u8 rtl8812_set_rssi_cmd(PADAPTER padapter, u8 *param);
 void rtl8812_set_raid_cmd(PADAPTER padapter, u32 bitmap, u8* arg);
-void rtl8812_Add_RateATid(PADAPTER padapter, u32 bitmap, u8* arg, u8 rssi_level);
+void rtl8812_Add_RateATid(PADAPTER padapter, u64 rate_bitmap, u8 *arg, u8 rssi_level);
 void rtl8812_set_wowlan_cmd(_adapter* padapter, u8 enable);
 s32 FillH2CCmd_8812(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 u8 GetTxBufferRsvdPageNum8812(_adapter *padapter, bool wowlan);
@@ -153,29 +163,6 @@ int reset_tsf(PADAPTER Adapter, u8 reset_port );
 #endif	// CONFIG_TSF_RESET_OFFLOAD
 
 #ifdef CONFIG_WOWLAN
-typedef struct _SETWOWLAN_PARM{
-	u8		mode;
-	u8		gpio_index;
-	u8		gpio_duration;
-	u8		second_mode;
-	u8		reserve;
-}SETWOWLAN_PARM, *PSETWOWLAN_PARM;
-
-#define FW_WOWLAN_FUN_EN				BIT(0)
-#define FW_WOWLAN_PATTERN_MATCH			BIT(1)
-#define FW_WOWLAN_MAGIC_PKT				BIT(2)
-#define FW_WOWLAN_UNICAST				BIT(3)
-#define FW_WOWLAN_ALL_PKT_DROP			BIT(4)
-#define FW_WOWLAN_GPIO_ACTIVE			BIT(5)
-#define FW_WOWLAN_REKEY_WAKEUP			BIT(6)
-#define FW_WOWLAN_DEAUTH_WAKEUP			BIT(7)
-
-#define FW_WOWLAN_GPIO_WAKEUP_EN		BIT(0)
-#define FW_FW_PARSE_MAGIC_PKT			BIT(1)
-
-#define FW_REMOTE_WAKE_CTRL_EN			BIT(0)
-#define FW_REALWOWLAN_EN				BIT(5)
-void rtl8812a_set_wowlan_cmd(_adapter* padapter, u8 enable);
 void SetFwRelatedForWoWLAN8812(_adapter* padapter, u8 bHostIsGoingtoSleep);
 #endif//CONFIG_WOWLAN
 

@@ -21,7 +21,7 @@
 
 #include <drv_types.h>
 #include <rtw_mp_ioctl.h>
-#include "../hal/OUTSRC/phydm_precomp.h"
+#include "../hal/phydm/phydm_precomp.h"
 
 //****************  oid_rtl_seg_81_85   section start ****************
 NDIS_STATUS oid_rt_wireless_mode_hdl(struct oid_par_priv *poid_par_priv)
@@ -2237,8 +2237,6 @@ NDIS_STATUS oid_rt_pro_rx_packet_type_hdl(struct oid_par_priv *poid_par_priv)
 		RT_TRACE(_module_rtl871x_ioctl_c_,_drv_err_, ("Query Information, OID_RT_PRO_RX_PACKET_TYPE:%d \n",\
 												Adapter->mppriv.rx_with_status));
 
-		//*(u32 *)&Adapter->eeprompriv.mac_addr[0]=rtw_read32(Adapter, 0x10250050);
-		//*(u16 *)&Adapter->eeprompriv.mac_addr[4]=rtw_read16(Adapter, 0x10250054);
 		RT_TRACE(_module_rtl871x_ioctl_c_,_drv_err_,("MAC addr=0x%x:0x%x:0x%x:0x%x:0x%x:0x%x  \n",
 			Adapter->eeprompriv.mac_addr[0],Adapter->eeprompriv.mac_addr[1],Adapter->eeprompriv.mac_addr[2],\
 			Adapter->eeprompriv.mac_addr[3],Adapter->eeprompriv.mac_addr[4],Adapter->eeprompriv.mac_addr[5]));

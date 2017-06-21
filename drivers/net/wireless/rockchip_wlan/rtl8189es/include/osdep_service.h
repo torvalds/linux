@@ -256,7 +256,7 @@ void _rtw_usb_buffer_free(struct usb_device *dev, size_t size, void *addr, dma_a
 extern void*	rtw_malloc2d(int h, int w, size_t size);
 extern void	rtw_mfree2d(void *pbuf, int h, int w, int size);
 
-extern void	_rtw_memcpy(void* dec, void* sour, u32 sz);
+extern void	_rtw_memcpy(void *dec, const void *sour, u32 sz);
 extern int	_rtw_memcmp(void *dst, void *src, u32 sz);
 extern void	_rtw_memset(void *pbuf, int c, u32 sz);
 
@@ -346,6 +346,19 @@ static __inline void thread_enter(char *name)
 	printf("%s", "RTKTHREAD_enter");
 #endif
 }
+
+void thread_exit(_completion *comp);
+void _rtw_init_completion(_completion *comp);
+void _rtw_wait_for_comp_timeout(_completion *comp);
+void _rtw_wait_for_comp(_completion *comp);
+#if 1
+#define rtw_wait_for_thread_stop(_comp)	_rtw_wait_for_comp_timeout(_comp)
+#else
+#define rtw_wait_for_thread_stop(_comp)	_rtw_wait_for_comp(_comp)
+#endif
+
+bool rtw_thread_stop(_thread_hdl_ th);
+bool rtw_thread_should_stop(void);
 
 __inline static void flush_signals_thread(void) 
 {
@@ -476,6 +489,8 @@ __inline static u32 bitshift(u32 bitmask)
 }
 
 #define rtw_min(a, b) ((a>b)?b:a)
+#define rtw_is_range_a_in_b(hi_a, lo_a, hi_b, lo_b) (((hi_a) <= (hi_b)) && ((lo_a) >= (lo_b)))
+#define rtw_is_range_overlap(hi_a, lo_a, hi_b, lo_b) (((hi_a) > (lo_b)) && ((lo_a) < (hi_b)))
 
 #ifndef MAC_FMT
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -514,7 +529,7 @@ extern int ATOMIC_DEC_RETURN(ATOMIC_T *v);
 
 //File operation APIs, just for linux now
 extern int rtw_is_file_readable(char *path);
-extern int rtw_retrive_from_file(char *path, u8* buf, u32 sz);
+extern int rtw_retrieve_from_file(char *path, u8 *buf, u32 sz);
 extern int rtw_store_to_file(char *path, u8* buf, u32 sz);
 
 

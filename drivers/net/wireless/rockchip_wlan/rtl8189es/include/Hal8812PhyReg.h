@@ -37,7 +37,8 @@
 
 // BW and sideband setting
 #define rBWIndication_Jaguar		0x834
-#define rL1PeakTH_Jaguar		0x848
+#define rL1PeakTH_Jaguar			0x848
+#define rFPGA0_XA_LSSIReadBack	0x8a0	/*Tranceiver LSSI Readback*/
 #define rRFMOD_Jaguar			0x8ac	//RF mode 
 #define rADC_Buf_Clk_Jaguar		0x8c4
 #define rRFECTRL_Jaguar			0x900
@@ -311,6 +312,9 @@
 #define RF_TXPA_G3					0x33	// RF TX PA control
 #define RF_0x52 						0x52
 #define RF_WE_LUT					0xEF
+
+#define RF_TX_GAIN_OFFSET_8812A(_val) ((abs((_val)) << 1) | (((_val) > 0) ? BIT0 : 0))
+#define RF_TX_GAIN_OFFSET_8821A(_val) ((abs((_val)) << 1) | (((_val) > 0) ? BIT0 : 0))
 
 //
 //Bit Mask

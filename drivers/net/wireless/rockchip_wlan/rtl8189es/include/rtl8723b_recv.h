@@ -20,7 +20,48 @@
 #ifndef __RTL8723B_RECV_H__
 #define __RTL8723B_RECV_H__
 
-#include <rtl8192c_recv.h>
+#define RECV_BLK_SZ 512
+#define RECV_BLK_CNT 16
+#define RECV_BLK_TH RECV_BLK_CNT
+
+#if defined(CONFIG_USB_HCI)
+
+#ifndef MAX_RECVBUF_SZ
+#ifdef PLATFORM_OS_CE
+#define MAX_RECVBUF_SZ (8192+1024) // 8K+1k
+#else
+	#ifndef CONFIG_MINIMAL_MEMORY_USAGE
+		//#define MAX_RECVBUF_SZ (32768) // 32k
+		//#define MAX_RECVBUF_SZ (16384) //16K
+		//#define MAX_RECVBUF_SZ (10240) //10K
+		#ifdef CONFIG_PLATFORM_MSTAR
+			#define MAX_RECVBUF_SZ (8192) // 8K
+		#else
+		        #define MAX_RECVBUF_SZ (15360) // 15k < 16k
+		#endif
+		//#define MAX_RECVBUF_SZ (8192+1024) // 8K+1k
+	#else
+		#define MAX_RECVBUF_SZ (4000) // about 4K
+	#endif
+#endif
+#endif //!MAX_RECVBUF_SZ
+
+#elif defined(CONFIG_PCI_HCI)
+//#ifndef CONFIG_MINIMAL_MEMORY_USAGE
+//	#define MAX_RECVBUF_SZ (9100)
+//#else
+	#define MAX_RECVBUF_SZ (4000) // about 4K
+//#endif
+
+
+#elif defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+
+#define MAX_RECVBUF_SZ (10240)
+
+#endif
+
+// Rx smooth factor
+#define	Rx_Smooth_Factor (20)
 
 #ifdef CONFIG_SDIO_HCI
 #ifndef CONFIG_SDIO_RX_COPY
@@ -45,8 +86,7 @@ s32 rtl8723be_init_recv_priv(PADAPTER padapter);
 void rtl8723be_free_recv_priv(PADAPTER padapter);
 #endif
 
-void rtl8723b_query_rx_phy_status(union recv_frame *precvframe, struct phy_stat *pphy_status);
 void rtl8723b_query_rx_desc_status(union recv_frame *precvframe, u8 *pdesc);
 
-#endif
+#endif /* __RTL8723B_RECV_H__ */
 

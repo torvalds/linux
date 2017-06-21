@@ -76,8 +76,6 @@ void Init_ODM_ComInfo(_adapter *adapter)
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(adapter);
-	EEPROM_EFUSE_PRIV	*pEEPROM = GET_EEPROM_EFUSE_PRIV(adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 	struct mlme_ext_priv	*pmlmeext = &adapter->mlmeextpriv;
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
@@ -90,68 +88,62 @@ void Init_ODM_ComInfo(_adapter *adapter)
 
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_PLATFORM, ODM_CE);
 
-	if (adapter->interface_type == RTW_GSPI)
+	if (rtw_get_intf_type(adapter) == RTW_GSPI)
 		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_INTERFACE, ODM_ITRF_SDIO);
 	else
-		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_INTERFACE, adapter->interface_type);
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_INTERFACE, rtw_get_intf_type(adapter));
 
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_MP_TEST_CHIP, IS_NORMAL_CHIP(pHalData->VersionID));
 
-	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_PATCH_ID, pEEPROM->CustomerID);
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_PATCH_ID, pHalData->CustomerID);
 
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_BWIFI_TEST, adapter->registrypriv.wifi_spec);
 
-	if (pHalData->rf_type == RF_1T1R) {
-		ODM_CmnInfoUpdate(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_1T1R);
-	}
-	else if (pHalData->rf_type == RF_2T2R){
-		ODM_CmnInfoUpdate(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_2T2R);
-	}
-	else if (pHalData->rf_type == RF_1T2R){
-		ODM_CmnInfoUpdate(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_1T2R);
-	}
+
+	if (pHalData->rf_type == RF_1T1R)
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_1T1R);
+	else if (pHalData->rf_type == RF_1T2R)
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_1T2R);
+	else if (pHalData->rf_type == RF_2T2R)
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_2T2R);
+	else if (pHalData->rf_type == RF_2T2R_GREEN)
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_2T2R_GREEN);
+	else if (pHalData->rf_type == RF_2T3R)
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_2T3R);
+	else if (pHalData->rf_type == RF_2T4R)
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_2T4R);
+	else if (pHalData->rf_type == RF_3T3R)
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_3T3R);
+	else if (pHalData->rf_type == RF_3T4R)
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_3T4R);
+	else if (pHalData->rf_type == RF_4T4R)
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_4T4R);
+	else
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_TYPE, ODM_XTXR);
+	
 
 {
 	//1 ======= BoardType: ODM_CMNINFO_BOARD_TYPE =======
 	u8 odm_board_type = ODM_BOARD_DEFAULT;
 
-	if (!IS_HARDWARE_TYPE_OLDER_THAN_8723A(adapter))
-	{
-		if (pHalData->ExternalLNA_2G != 0) {
-			odm_board_type |= ODM_BOARD_EXT_LNA;
-			ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_LNA, 1);
-		}
-		if (pHalData->ExternalLNA_5G != 0) {
-			odm_board_type |= ODM_BOARD_EXT_LNA_5G;
-			ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_5G_EXT_LNA, 1);
-		}
-		if (pHalData->ExternalPA_2G != 0) {
-			odm_board_type |= ODM_BOARD_EXT_PA;
-			ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_PA, 1);
-		}
-		if (pHalData->ExternalPA_5G != 0) {
-			odm_board_type |= ODM_BOARD_EXT_PA_5G;
-			ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_5G_EXT_PA, 1);
-		}
-		if (pHalData->EEPROMBluetoothCoexist)
-			odm_board_type |= ODM_BOARD_BT;
-
-	} else {
-		#ifdef CONFIG_USB_HCI
-		if (pHalData->InterfaceSel == INTF_SEL1_USB_High_Power
-			|| pHalData->BoardType == BOARD_USB_High_PA	/* This is legacy code for hal_data.BoardType */
-		) {
-			ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_EXT_LNA, 1);
-			ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_EXT_PA, 1);
-		} else
-		#endif
-		{
-			ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_PA, pHalData->ExternalPA_2G);
-			ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_LNA, pHalData->ExternalLNA_2G);
-		}
-
-		odm_board_type = boardType(pHalData->InterfaceSel);
+	if (pHalData->ExternalLNA_2G != 0) {
+		odm_board_type |= ODM_BOARD_EXT_LNA;
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_LNA, 1);
 	}
+	if (pHalData->ExternalLNA_5G != 0) {
+		odm_board_type |= ODM_BOARD_EXT_LNA_5G;
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_5G_EXT_LNA, 1);
+	}
+	if (pHalData->ExternalPA_2G != 0) {
+		odm_board_type |= ODM_BOARD_EXT_PA;
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_PA, 1);
+	}
+	if (pHalData->ExternalPA_5G != 0) {
+		odm_board_type |= ODM_BOARD_EXT_PA_5G;
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_5G_EXT_PA, 1);
+	}
+	if (pHalData->EEPROMBluetoothCoexist)
+		odm_board_type |= ODM_BOARD_BT;	
 
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_BOARD_TYPE, odm_board_type);
 	//1 ============== End of BoardType ==============

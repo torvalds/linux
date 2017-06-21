@@ -209,18 +209,6 @@ PHY_GetTxPowerLimit(
 	IN	u8				Channel
 	);
 
-VOID
-PHY_SetTxPowerLimit(
-	IN	PADAPTER			Adapter,
-	IN	u8					*Regulation,
-	IN	u8					*Band,
-	IN	u8					*Bandwidth,
-	IN	u8					*RateSection,
-	IN	u8					*RfPath,
-	IN	u8					*Channel,
-	IN	u8					*PowerLimit
-	);
-
 VOID 
 PHY_ConvertTxPowerLimitToPowerIndex(
 	IN	PADAPTER			Adapter

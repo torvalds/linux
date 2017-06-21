@@ -162,7 +162,7 @@ void sreset_restore_security_station(_adapter *padapter)
 		else
 		{
 			//pairwise key
-			rtw_setstakey_cmd(padapter, psta, _TRUE,_FALSE);
+			rtw_setstakey_cmd(padapter, psta, UNICAST_KEY,_FALSE);
 			//group key
 			rtw_set_key(padapter,&padapter->securitypriv,padapter->securitypriv.dot118021XGrpKeyid, 0,_FALSE);
 		}
@@ -219,7 +219,7 @@ void sreset_restore_network_station(_adapter *padapter)
 	set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
 	//disable dynamic functions, such as high power, DIG
-	//Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, _FALSE);
+	/*rtw_phydm_func_disable_all(padapter);*/
 	
 	rtw_hal_set_hwreg(padapter, HW_VAR_BSSID, pmlmeinfo->network.MacAddress);
 
@@ -232,7 +232,7 @@ void sreset_restore_network_station(_adapter *padapter)
 
 	mlmeext_joinbss_event_callback(padapter, 1);
 	//restore Sequence No.
-	rtw_write8(padapter,0x4dc,padapter->xmitpriv.nqos_ssn);
+	rtw_hal_set_hwreg(padapter, HW_VAR_RESTORE_HW_SEQ, 0);
 
 	sreset_restore_security_station(padapter);
 }
@@ -247,9 +247,11 @@ void sreset_restore_network_status(_adapter *padapter)
 	if (check_fwstate(mlmepriv, WIFI_STATION_STATE)) {
 		DBG_871X(FUNC_ADPT_FMT" fwstate:0x%08x - WIFI_STATION_STATE\n", FUNC_ADPT_ARG(padapter), get_fwstate(mlmepriv));
 		sreset_restore_network_station(padapter);
+#ifdef CONFIG_AP_MODE
 	} else if (check_fwstate(mlmepriv, WIFI_AP_STATE)) {
 		DBG_871X(FUNC_ADPT_FMT" fwstate:0x%08x - WIFI_AP_STATE\n", FUNC_ADPT_ARG(padapter), get_fwstate(mlmepriv));
 		rtw_ap_restore_network(padapter);
+#endif /*CONFIG_AP_MODE*/
 	} else if (check_fwstate(mlmepriv, WIFI_ADHOC_STATE)) {
 		DBG_871X(FUNC_ADPT_FMT" fwstate:0x%08x - WIFI_ADHOC_STATE\n", FUNC_ADPT_ARG(padapter), get_fwstate(mlmepriv));
 	} else {

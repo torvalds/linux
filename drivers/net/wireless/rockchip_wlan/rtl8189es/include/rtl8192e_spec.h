@@ -41,7 +41,7 @@
 #define REG_AFE_CTRL2_8192E			0x0028
 #define REG_AFE_CTRL3_8192E			0x002c
 
-
+#define REG_PAD_CTRL1_8192E			0x0064           
 #define REG_SDIO_CTRL_8192E			0x0070
 #define REG_OPT_CTRL_8192E				0x0074
 #define REG_RF_B_CTRL_8192E			0x0076

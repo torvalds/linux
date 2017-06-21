@@ -63,6 +63,7 @@ void hal_btcoex_SwitchBtTRxMask(PADAPTER padapter);
 
 void hal_btcoex_Hanlder(PADAPTER padapter);
 
+s32 hal_btcoex_IsBTCoexRejectAMPDU(PADAPTER padapter);
 s32 hal_btcoex_IsBTCoexCtrlAMPDUSize(PADAPTER padapter);
 u32 hal_btcoex_GetAMPDUSize(PADAPTER padapter);
 void hal_btcoex_SetManualControl(PADAPTER padapter, u8 bmanual);
@@ -78,6 +79,11 @@ void hal_btcoex_SetDBG(PADAPTER, u32 *pDbgModule);
 u32 hal_btcoex_GetDBG(PADAPTER, u8 *pStrBuf, u32 bufSize);
 u8 hal_btcoex_IncreaseScanDeviceNum(PADAPTER);
 u8 hal_btcoex_IsBtLinkExist(PADAPTER);
+void hal_btcoex_SetBtPatchVersion(PADAPTER,u16 btHciVer,u16 btPatchVer);
+void hal_btcoex_SetHciVersion(PADAPTER, u16 hciVersion);
+void hal_btcoex_SendScanNotify(PADAPTER, u8 type);
+void hal_btcoex_StackUpdateProfileInfo(void);
+void hal_btcoex_BTOffOnNotify(PADAPTER padapter, u8 bBTON);
 void hal_btcoex_SetAntIsolationType(PADAPTER padapter, u8 anttype);
 #ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
 int hal_btcoex_AntIsolationConfig_ParaFile(IN PADAPTER	Adapter,IN char* pFileName);

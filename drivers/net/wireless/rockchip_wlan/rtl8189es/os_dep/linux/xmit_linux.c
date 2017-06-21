@@ -424,7 +424,7 @@ int rtw_mlcst2unicst(_adapter *padapter, struct sk_buff *skb)
 			res = rtw_xmit(padapter, &newskb);
 			if (res < 0) {
 				DBG_COUNTER(padapter->tx_logs.os_tx_m2u_entry_err_xmit);
-				DBG_871X("%s()-%d: rtw_xmit() return error!\n", __FUNCTION__, __LINE__);
+				DBG_871X("%s()-%d: rtw_xmit() return error! res=%d\n", __FUNCTION__, __LINE__, res);
 				pxmitpriv->tx_drop++;
 				rtw_skb_free(newskb);
 			}

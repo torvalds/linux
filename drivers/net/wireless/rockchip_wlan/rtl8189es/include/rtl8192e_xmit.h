@@ -355,7 +355,6 @@ typedef struct txdescriptor_8192e
 #define SET_EARLYMODE_LEN2_92E(__pAddr, __Value) 					SET_BITS_TO_LE_4BYTE(__pAddr+4, 2, 15,  __Value)
 #define SET_EARLYMODE_LEN3_92E(__pAddr, __Value) 					SET_BITS_TO_LE_4BYTE(__pAddr+4, 17, 15, __Value)
 
-void rtl8192e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,u8 IsPsPoll,u8	IsBTQosNull);
 void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 
 #ifdef CONFIG_USB_HCI
@@ -436,7 +435,8 @@ void UpdateEarlyModeInfo8192E(struct xmit_priv *pxmitpriv,struct xmit_buf *pxmit
  s32	rtl8192e_init_xmit_priv(_adapter *padapter);
 void _dbg_dump_tx_info(_adapter	*padapter,int frame_tag,u8 *ptxdesc);
 
-void rtl8192e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,u8 IsPsPoll,u8	IsBTQosNull);
+void rtl8192e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,
+		u8 IsPsPoll,u8	IsBTQosNull, u8 bDataFrame);
 void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 
 u8	BWMapping_92E(PADAPTER Adapter, struct pkt_attrib *pattrib);

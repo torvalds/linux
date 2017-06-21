@@ -32,10 +32,8 @@
 #define RTL871X_MODULE_NAME "8189ES"
 #define DRV_NAME "rtl8189es"
 
-#ifdef CONFIG_EFUSE_CONFIG_FILE
 #ifndef EFUSE_MAP_PATH
-#define EFUSE_MAP_PATH "/system/etc/wifi/wifi_efuse_8189e.map"
-#endif //EFUSE_MAP_PATH
+	#define EFUSE_MAP_PATH "/system/etc/wifi/wifi_efuse_8189e.map"
 #endif
 
 #define CONFIG_SDIO_HCI
@@ -48,10 +46,12 @@
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
 	//#define CONFIG_DEBUG_CFG80211
 	#define CONFIG_SET_SCAN_DENY_TIMER
+	/*#define SUPPLICANT_RTK_VERSION_LOWER_THAN_JB42*/ /* wpa_supplicant realtek version <= jb42 will be defined this */
 #endif
 
 #define CONFIG_EMBEDDED_FWIMG
 //#define CONFIG_FILE_FWIMG
+//#define CONFIG_SFW_SUPPORTED
 
 #define CONFIG_XMIT_ACK
 #ifdef CONFIG_XMIT_ACK
@@ -66,19 +66,19 @@
 	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
 	#define CONFIG_RUNTIME_PORT_SWITCH
 	//#define DBG_RUNTIME_PORT_SWITCH
-	#define CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+	#define CONFIG_SCAN_BACKOP
 #endif
 
 #define CONFIG_AP_MODE
 #ifdef CONFIG_AP_MODE
 
-	#define CONFIG_INTERRUPT_BASED_TXBCN
+	#define CONFIG_INTERRUPT_BASED_TXBCN /* Tx Beacon when driver early interrupt occurs*/	
 	#if defined(CONFIG_CONCURRENT_MODE) && defined(CONFIG_INTERRUPT_BASED_TXBCN)
 		#undef CONFIG_INTERRUPT_BASED_TXBCN
 	#endif
 	#ifdef CONFIG_INTERRUPT_BASED_TXBCN
-		//#define CONFIG_INTERRUPT_BASED_TXBCN_EARLY_INT
-		#define CONFIG_INTERRUPT_BASED_TXBCN_BCN_OK_ERR		
+		#define CONFIG_INTERRUPT_BASED_TXBCN_EARLY_INT
+		/* #define CONFIG_INTERRUPT_BASED_TXBCN_BCN_OK_ERR */
 	#endif
 	
 	#define CONFIG_NATIVEAP_MLME
@@ -86,20 +86,26 @@
 		#define CONFIG_HOSTAPD_MLME
 	#endif
 	//#define CONFIG_FIND_BEST_CHANNEL
-	//#define CONFIG_NO_WIRELESS_HANDLERS
+	#define CONFIG_TX_MCAST2UNI		// Support IP multicast->unicast
 #endif
 
-#define CONFIG_TX_MCAST2UNI		// Support IP multicast->unicast
 //#define CONFIG_CHECK_AC_LIFETIME 	// Check packet lifetime of 4 ACs.
 
 #define CONFIG_P2P
+
+#ifndef CONFIG_AP_MODE
+#undef CONFIG_P2P
+#endif
+
 #ifdef CONFIG_P2P
 	//The CONFIG_WFD is for supporting the Wi-Fi display
-	#define CONFIG_WFD
-	
-	#ifndef CONFIG_WIFI_TEST
-		#define CONFIG_P2P_REMOVE_GROUP_INFO
+	#ifndef CONFIG_AP_MODE
+	#define CONFIG_AP_MODE
 	#endif
+	#define CONFIG_WFD
+
+	#define CONFIG_P2P_REMOVE_GROUP_INFO
+
 	//#define CONFIG_DBG_P2P
 
 	#define CONFIG_P2P_PS
@@ -110,13 +116,14 @@
 #endif
 
 //	Added by Kurt 20110511
-//#define CONFIG_TDLS
 #ifdef CONFIG_TDLS
+	#define CONFIG_TDLS_DRIVER_SETUP
 //	#ifndef CONFIG_WFD
-//		#define CONFIG_WFD	
+//		#define CONFIG_WFD
 //	#endif
-//	#define CONFIG_TDLS_AUTOSETUP			
-//	#define CONFIG_TDLS_AUTOCHECKALIVE		
+//	#define CONFIG_TDLS_AUTOSETUP
+	#define CONFIG_TDLS_AUTOCHECKALIVE
+	#define CONFIG_TDLS_CH_SW		/* Enable "CONFIG_TDLS_CH_SW" by default, however limit it to only work in wifi logo test mode but not in normal mode currently */
 #endif
 
 #define CONFIG_SKB_COPY	//for amsdu
@@ -143,7 +150,7 @@
 #define CONFIG_TX_AGGREGATION
 //#define CONFIG_SDIO_TX_TASKLET
 #define CONFIG_SDIO_RX_COPY
-#define CONFIG_SDIO_TX_ENABLE_AVAL_INT
+/* #define CONFIG_SDIO_TX_ENABLE_AVAL_INT */
 
 /*
  * Others
@@ -163,7 +170,7 @@
 #define CONFIG_LPS
 #if defined(CONFIG_LPS) && defined(CONFIG_SDIO_HCI)
 #define CONFIG_LPS_LCLK
-
+#define CONFIG_LPS_SLOW_TRANSITION
 #ifdef CONFIG_LPS_LCLK
 #define LPS_RPWM_WAIT_MS 300
 
@@ -214,39 +221,9 @@
 #endif
 
 #ifdef CONFIG_WOWLAN
-#define CONFIG_ARP_KEEP_ALIVE
+//#define CONFIG_ARP_KEEP_ALIVE
 #endif
 
-/*
- * Outsource  Related Config
- */
-#define TESTCHIP_SUPPORT				0
-
-#define 	RTL8192CE_SUPPORT 				0
-#define 	RTL8192CU_SUPPORT 			0
-#define 	RTL8192C_SUPPORT 				(RTL8192CE_SUPPORT|RTL8192CU_SUPPORT)	
-
-#define 	RTL8192DE_SUPPORT 				0
-#define 	RTL8192DU_SUPPORT 			0
-#define 	RTL8192D_SUPPORT 				(RTL8192DE_SUPPORT|RTL8192DU_SUPPORT)	
-
-#define 	RTL8723_FPGA_VERIFICATION		0
-#define 	RTL8723AU_SUPPORT				0
-#define 	RTL8723AS_SUPPORT				0
-#define 	RTL8723AE_SUPPORT				0
-#define 	RTL8723A_SUPPORT				(RTL8723AU_SUPPORT|RTL8723AS_SUPPORT|RTL8723AE_SUPPORT)
-
-#define 	RTL8188E_SUPPORT				1
-#define 	RTL8812A_SUPPORT				0
-#define 	RTL8821A_SUPPORT				0
-#define 	RTL8723B_SUPPORT				0
-#define 	RTL8192E_SUPPORT				0
-#define 	RTL8814A_SUPPORT				0
-#define 	RTL8195A_SUPPORT				0
-
-//#if (RTL8188E_SUPPORT==1)
-#define RATE_ADAPTIVE_SUPPORT 			1
-#define POWER_TRAINING_ACTIVE			1
 
 //#define 	CONFIG_TX_EARLY_MODE
 #ifdef CONFIG_TX_EARLY_MODE
@@ -269,7 +246,9 @@
 #define CONFIG_80211D
 
 #ifdef CONFIG_GPIO_WAKEUP
-#define WAKEUP_GPIO_IDX 7
+	#ifndef WAKEUP_GPIO_IDX
+	    #define WAKEUP_GPIO_IDX 7
+	#endif
 #endif
 
 #define CONFIG_GPIO_API

@@ -74,6 +74,7 @@
 	#define Rtl8188E_NIC_LPS_ENTER_FLOW			rtl8188E_enter_lps_flow
 	#define Rtl8188E_NIC_LPS_LEAVE_FLOW			rtl8188E_leave_lps_flow
 
+#define TBTT_PROBIHIT_HOLD_TIME 0x80
 
 #if 1 // download firmware related data structure
 #define MAX_FW_8188E_SIZE			0x8000 //32768,32k / 16384,16k
@@ -139,11 +140,19 @@ typedef struct _RT_8188E_FIRMWARE_HDR
 
 
 //#define MAX_RX_DMA_BUFFER_SIZE_88E	      0x2400 //9k for 88E nornal chip , //MaxRxBuff=10k-max(TxReportSize(64*8), WOLPattern(16*24))
-#define MAX_RX_DMA_BUFFER_SIZE_88E(__Adapter)	((!IS_VENDOR_8188E_I_CUT_SERIES(__Adapter))?0x2600:0x3E00)
+#define RX_DMA_SIZE_88E(__Adapter) ((!IS_VENDOR_8188E_I_CUT_SERIES(__Adapter))?0x2800:0x4000)
 
+#ifdef CONFIG_WOWLAN
+#define RESV_FMWF	WKFMCAM_SIZE*MAX_WKFM_NUM /* 16 entries, for each is 24 bytes*/
+#else
+#define RESV_FMWF	0
+#endif
 
-#define MAX_TX_REPORT_BUFFER_SIZE			0x0200 // 1k 
+#define RX_DMA_RESERVD_FW_FEATURE	0x200 /* for tx report (64*8) */
 
+#define MAX_RX_DMA_BUFFER_SIZE_88E(__Adapter) RX_DMA_SIZE_88E(__Adapter)-RX_DMA_RESERVD_FW_FEATURE
+
+#define MAX_TX_REPORT_BUFFER_SIZE			0x0400 /* 1k */
 
 // Note: We will divide number of page equally for each queue other than public queue!
 // 22k = 22528 bytes = 176 pages (@page =  128 bytes)
@@ -153,23 +162,29 @@ typedef struct _RT_8188E_FIRMWARE_HDR
 #define BCNQ_PAGE_NUM_88E		0x08
 
 //For WoWLan , more reserved page
-#ifdef CONFIG_WOWLAN
-#define WOWLAN_PAGE_NUM_88E	0x00
+#if defined(CONFIG_WOWLAN) && defined(CONFIG_GTK_OL)
+#define WOWLAN_PAGE_NUM_88E	0x05
 #else
 #define WOWLAN_PAGE_NUM_88E	0x00
 #endif
 
-#define TX_TOTAL_PAGE_NUMBER_88E(_Adapter)	( (IS_VENDOR_8188E_I_CUT_SERIES(_Adapter)?0x100:0xB0) - BCNQ_PAGE_NUM_88E - WOWLAN_PAGE_NUM_88E)
-#define TX_PAGE_BOUNDARY_88E(_Adapter)		(TX_TOTAL_PAGE_NUMBER_88E(_Adapter) + 1)
+/* Note: 
+Tx FIFO Size : previous CUT:22K /I_CUT after:32KB
+Tx page Size : 128B
+Total page numbers : 176(0xB0) / 256(0x100)
+*/
+#define TOTAL_PAGE_NUMBER_88E(_Adapter)	((IS_VENDOR_8188E_I_CUT_SERIES(_Adapter)?0x100:0xB0) - 1)/* must reserved 1 page for dma issue */
+#define TX_TOTAL_PAGE_NUMBER_88E(_Adapter)	(TOTAL_PAGE_NUMBER_88E(_Adapter) - BCNQ_PAGE_NUM_88E - WOWLAN_PAGE_NUM_88E)
+#define TX_PAGE_BOUNDARY_88E(_Adapter)		(TX_TOTAL_PAGE_NUMBER_88E(_Adapter) + 1) /* beacon header start address */
 
 #define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_88E(_Adapter)	TX_TOTAL_PAGE_NUMBER_88E(_Adapter)
 #define WMM_NORMAL_TX_PAGE_BOUNDARY_88E(_Adapter)		(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_88E(_Adapter) + 1)
 
 // For Normal Chip Setting
 // (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8723B
-#define NORMAL_PAGE_NUM_HPQ_88E		0x00
+#define NORMAL_PAGE_NUM_HPQ_88E		0x0
 #define NORMAL_PAGE_NUM_LPQ_88E		0x09
-#define NORMAL_PAGE_NUM_NPQ_88E		0x00
+#define NORMAL_PAGE_NUM_NPQ_88E		0x0
 
 // Note: For Normal Chip Setting, modify later
 #define WMM_NORMAL_PAGE_NUM_HPQ_88E		0x29
@@ -237,6 +252,17 @@ typedef struct _RT_8188E_FIRMWARE_HDR
 //#define RT_IS_FUNC_DISABLED(__pAdapter, __FuncBits) ( (__pAdapter)->DisabledFunctions & (__FuncBits) )
 
 #ifdef CONFIG_PCI_HCI
+ /* according to the define in the rtw_xmit.h, rtw_recv.h */
+#define TX_DESC_NUM_8188EE  TXDESC_NUM   /* 128 */
+#ifdef CONFIG_CONCURRENT_MODE
+/*#define BE_QUEUE_TX_DESC_NUM_8188EE  (TXDESC_NUM<<1)*/    		/* 256 */
+#define BE_QUEUE_TX_DESC_NUM_8188EE  ((TXDESC_NUM<<1)+(TXDESC_NUM>>1))    /* 320 */
+/*#define BE_QUEUE_TX_DESC_NUM_8188EE  ((TXDESC_NUM<<1)+TXDESC_NUM)*/    /* 384 */
+#else
+#define BE_QUEUE_TX_DESC_NUM_8188EE  TXDESC_NUM /* 128 */
+/*#define BE_QUEUE_TX_DESC_NUM_8188EE  (TXDESC_NUM+(TXDESC_NUM>>1)) *//* 192 */
+#endif
+
 void InterruptRecognized8188EE(PADAPTER Adapter, PRT_ISR_CONTENT pIsrContent);
 void UpdateInterruptMask8188EE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
 #endif	//CONFIG_PCI_HCI
@@ -267,13 +293,10 @@ void Hal_ReadPowerSavingMode88E(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLoadFai
 
 BOOLEAN HalDetectPwrDownMode88E(PADAPTER Adapter);
 	
-#ifdef CONFIG_WOWLAN
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
 void Hal_DetectWoWMode(PADAPTER pAdapter);
 #endif //CONFIG_WOWLAN
-//RT_CHANNEL_DOMAIN rtl8723a_HalMapChannelPlan(PADAPTER padapter, u8 HalChannelPlan);
-//VERSION_8192C rtl8723a_ReadChipVersion(PADAPTER padapter);
-//void rtl8723a_ReadBluetoothCoexistInfo(PADAPTER padapter, u8 *PROMContent, BOOLEAN AutoloadFail);
-void Hal_InitChannelPlan(PADAPTER padapter);
+
 
 #ifdef CONFIG_RF_GAIN_OFFSET
 void Hal_ReadRFGainOffset(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLoadFail);

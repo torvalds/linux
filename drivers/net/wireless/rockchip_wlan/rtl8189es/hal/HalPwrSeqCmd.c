@@ -147,7 +147,7 @@ u8 HalPwrSeqCmdParsing(
 							rtw_udelay_os(10);
 
 						if (pollingCount++ > maxPollingCnt) {
-							DBG_871X_LEVEL(_drv_always_, "HalPwrSeqCmdParsing: Fail to polling Offset[%#x]=%02x\n", offset, value);
+							DBG_871X_LEVEL(_drv_err_, "HalPwrSeqCmdParsing: Fail to polling Offset[%#x]=%02x\n", offset, value);
 							return _FALSE;
 						}
 					} while (!bPollingBit);

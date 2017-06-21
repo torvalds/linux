@@ -1,8 +1,5 @@
 config RTL8189ES
-        tristate "Realtek 8189ES/ETV SDIO WiFi Support"
-        depends on MMC
-        select WIRELESS_EXT
-        select WEXT_PRIV
-        select IEEE80211
-        ---help---
-          Help message of RTL8189ETV & RTL8189ES
+	tristate "Realtek 8189E SDIO WiFi"
+	depends on USB
+	---help---
+	  Help message of RTL8189ES

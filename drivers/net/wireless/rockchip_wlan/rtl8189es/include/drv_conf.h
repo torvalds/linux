@@ -20,6 +20,7 @@
 #ifndef __DRV_CONF_H__
 #define __DRV_CONF_H__
 #include "autoconf.h"
+#include "hal_ic_cfg.h"
 
 #if defined (PLATFORM_LINUX) && defined (PLATFORM_WINDOWS)
 
@@ -75,6 +76,11 @@
 	#define CONFIG_USB_VENDOR_REQ_MUTEX
 #endif
 
+#if !defined(CONFIG_AP_MODE) && defined(CONFIG_DFS_MASTER)
+	#warning "undef CONFIG_DFS_MASTER because CONFIG_AP_MODE is not defined"
+	#undef CONFIG_DFS_MASTER
+#endif
+
 #define DYNAMIC_CAMID_ALLOC
 
 #define RTW_SCAN_SPARSE_MIRACAST 1
@@ -92,8 +98,12 @@
 	#define CONFIG_RTW_ADAPTIVITY_MODE 0
 #endif
 
-#ifndef CONFIG_RTW_NHM_EN
-	#define CONFIG_RTW_NHM_EN 0
+#ifndef CONFIG_RTW_ADAPTIVITY_DML
+	#define CONFIG_RTW_ADAPTIVITY_DML 0
+#endif
+
+#ifndef CONFIG_RTW_ADAPTIVITY_DC_BACKOFF
+	#define CONFIG_RTW_ADAPTIVITY_DC_BACKOFF 2
 #endif
 
 #ifndef CONFIG_RTW_AMPLIFIER_TYPE_2G
@@ -104,10 +114,34 @@
 	#define CONFIG_RTW_AMPLIFIER_TYPE_5G 0
 #endif
 
+#ifndef CONFIG_RTW_RFE_TYPE
+	#define CONFIG_RTW_RFE_TYPE 64
+#endif
+
+#ifndef CONFIG_RTW_GLNA_TYPE
+	#define CONFIG_RTW_GLNA_TYPE 0
+#endif
+
+#ifndef CONFIG_RTW_PLL_REF_CLK_SEL
+	#define CONFIG_RTW_PLL_REF_CLK_SEL 0x0F
+#endif
+
 #define MACID_NUM_SW_LIMIT 32
 #define CAM_ENTRY_NUM_SW_LIMIT 32
 
+#if defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8814A)
+	#define CONFIG_IEEE80211_BAND_5GHZ
+#endif
+
+#ifdef CONFIG_AP_MODE
+	#define CONFIG_ADHOC_MODE
+#endif
+
+/*#define CONFIG_WEXT_DONT_JOIN_BYSSID	*/
 //#include <rtl871x_byteorder.h>
+
+
+/*#define CONFIG_DOSCAN_IN_BUSYTRAFFIC	*/
 
 #endif // __DRV_CONF_H__
 

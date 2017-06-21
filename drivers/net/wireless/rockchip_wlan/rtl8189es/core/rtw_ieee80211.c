@@ -88,7 +88,7 @@ uint	rtw_is_cckrates_included(u8 *rate)
 		{		
 			if  (  (((rate[i]) & 0x7f) == 2)	|| (((rate[i]) & 0x7f) == 4) ||		
 			(((rate[i]) & 0x7f) == 11)  || (((rate[i]) & 0x7f) == 22) )		
-			return _TRUE;	
+				return _TRUE;
 			i++;
 		}
 		
@@ -104,8 +104,7 @@ uint	rtw_is_cckratesonly_included(u8 *rate)
 	{
 			if  (  (((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
 				(((rate[i]) & 0x7f) != 11)  && (((rate[i]) & 0x7f) != 22) )
-
-			return _FALSE;		
+				return _FALSE;
 
 			i++;
 	}
@@ -494,6 +493,28 @@ _func_exit_;
 
 	return sz;
 
+}
+
+bool rtw_regsty_adjust_chbw(struct registry_priv *regsty, u8 req_ch, u8 *req_bw, u8 *req_offset)
+{
+	u8 regsty_allowed_bw;
+
+	if (req_ch <= 14)
+		regsty_allowed_bw = regsty->bw_mode & 0x0F;
+	else
+		regsty_allowed_bw = regsty->bw_mode >> 4;
+
+	if (regsty_allowed_bw == 2 && *req_bw > CHANNEL_WIDTH_80)
+		*req_bw = CHANNEL_WIDTH_80;
+	else if (regsty_allowed_bw == 1 && *req_bw > CHANNEL_WIDTH_40)
+		*req_bw = CHANNEL_WIDTH_40;
+	else if (regsty_allowed_bw == 0 && *req_bw > CHANNEL_WIDTH_20) {
+		*req_bw = CHANNEL_WIDTH_20;
+		*req_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+	} else
+		return _FALSE;
+
+	return _TRUE;
 }
 
 unsigned char *rtw_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit)
@@ -1368,7 +1389,7 @@ int rtw_get_mac_addr_intel(unsigned char *buf)
 
 	DBG_871X("%s Enter\n", __FUNCTION__);
 
-	ret = rtw_retrive_from_file(fname, c_mac, MAC_ADDRESS_LEN);
+	ret = rtw_retrieve_from_file(fname, c_mac, MAC_ADDRESS_LEN);
 	if(ret < MAC_ADDRESS_LEN)
 	{
 		return -1;
@@ -1386,60 +1407,136 @@ int rtw_get_mac_addr_intel(unsigned char *buf)
 }
 #endif //CONFIG_PLATFORM_INTEL_BYT
 
-extern char* rtw_initmac;
-#include <linux/rfkill-wlan.h>
-void rtw_macaddr_cfg(u8 *mac_addr)
+/*
+ * Description:
+ * rtw_check_invalid_mac_address: 
+ * This is only used for checking mac address valid or not.
+ *
+ * Input:
+ * adapter: mac_address pointer.
+ *
+ * Output:
+ * _TRUE: The mac address is invalid.
+ * _FALSE: The mac address is valid.
+ *
+ * Auther: Isaac.Li
+ */
+u8 rtw_check_invalid_mac_address(u8 *mac_addr)
 {
+	u8 null_mac_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
+	u8 multi_mac_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 res = _FALSE;
+
+	if (_rtw_memcmp(mac_addr, null_mac_addr, ETH_ALEN)) {
+		res = _TRUE;
+		goto func_exit;
+	}
+
+	if (_rtw_memcmp(mac_addr, multi_mac_addr, ETH_ALEN)) {
+		res = _TRUE;
+		goto func_exit;
+	}
+
+	if (mac_addr[0] & BIT0) {
+		res = _TRUE;
+		goto func_exit;
+	}
+
+	if (mac_addr[0] & BIT1) {
+		res = _TRUE;
+		goto func_exit;
+	}
+
+func_exit:
+	return res;
+}
+
+extern char *rtw_initmac;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0))
+#include <linux/rfkill-wlan.h>
+#else
+extern int rk29sdk_wifi_mac_addr(unsigned char *buf);
+#endif
+/**
+ * rtw_macaddr_cfg - Decide the mac address used
+ * @out: buf to store mac address decided
+ * @hw_mac_addr: mac address from efuse/epprom
+ */
+void rtw_macaddr_cfg(u8 *out, const u8 *hw_mac_addr)
+{
+#define DEFAULT_RANDOM_MACADDR 1
 	u8 mac[ETH_ALEN];
-	if(mac_addr == NULL)	return;
-	
-	if ( rtw_initmac )
-	{	//	Users specify the mac address
+
+	if (out == NULL) {
+		rtw_warn_on(1);
+		return;
+	}
+
+	/* Users specify the mac address */
+	if (rtw_initmac) {
 		int jj,kk;
 
+		for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
+			mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk + 1]);
+
+		goto err_chk;
+	}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0))	
+	if (!rockchip_wifi_mac_addr(mac)) {
+		printk("=========> get mac address from flash=[%02x:%02x:%02x:%02x:%02x:%02x]\n", mac[0], mac[1],
+                mac[2], mac[3], mac[4], mac[5]);
+		//_rtw_memcpy(mac_addr, mac, ETH_ALEN);
+		goto err_chk;
+	}
+#else
+#ifndef CONFIG_ANDROID_4_2
+{
+	u8 macbuf[30] = {0};
+	if (!rk29sdk_wifi_mac_addr(macbuf)) {
+		int jj,kk;
+		printk("=========> get mac address from flash %s\n", macbuf);
 		for( jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3 )
-		{
-			mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk+ 1]);
-		}
-		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
+		    mac[jj] = key_2char2num(macbuf[kk], macbuf[kk+ 1]);
+		goto err_chk;
 	}
+}
+#endif
+#endif	
+
+	/* platform specified */
 #ifdef CONFIG_PLATFORM_INTEL_BYT
-	else if (0 == rtw_get_mac_addr_intel(mac))
-	{
-		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
+	if (rtw_get_mac_addr_intel(mac) == 0)
+		goto err_chk;
+#endif
+
+	/* Use the mac address stored in the Efuse */
+	if (hw_mac_addr) {
+		_rtw_memcpy(mac, hw_mac_addr, ETH_ALEN);
+		goto err_chk;
 	}
-#endif //CONFIG_PLATFORM_INTEL_BYT
-	else
-        {
-		printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", mac_addr[0], mac_addr[1],
-		    mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-		if (!rockchip_wifi_mac_addr(mac)) {
-		    printk("=========> get mac address from flash=[%02x:%02x:%02x:%02x:%02x:%02x]\n", mac[0], mac[1],
-			mac[2], mac[3], mac[4], mac[5]);
-		    _rtw_memcpy(mac_addr, mac, ETH_ALEN);
-		} else {
-		    //  Use the mac address stored in the Efuse
-		    _rtw_memcpy(mac, mac_addr, ETH_ALEN);
-		}
-        }
-	
-	if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
-	     (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
-	    ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
-	     (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0)))
-	{
+
+err_chk:
+	if (rtw_check_invalid_mac_address(mac) == _TRUE) {
+		#if DEFAULT_RANDOM_MACADDR
+		DBG_871X_LEVEL(_drv_err_, "invalid mac addr:"MAC_FMT", assign random MAC\n", MAC_ARG(mac));
+		*((u32 *)(&mac[2])) = rtw_random32();
+		mac[0] = 0x00;
+		mac[1] = 0xe0;
+		mac[2] = 0x4c;
+		#else
+		DBG_871X_LEVEL(_drv_err_, "invalid mac addr:"MAC_FMT", assign default one\n", MAC_ARG(mac));
 		mac[0] = 0x00;
 		mac[1] = 0xe0;
 		mac[2] = 0x4c;
 		mac[3] = 0x87;
 		mac[4] = 0x00;
 		mac[5] = 0x00;
-		// use default mac addresss
-		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
-		DBG_871X("MAC Address from efuse error, assign default one !!!\n");
-	}	
+		#endif
+	}
 
-	DBG_871X("rtw_macaddr_cfg MAC Address  = "MAC_FMT"\n", MAC_ARG(mac_addr));
+	_rtw_memcpy(out, mac, ETH_ALEN);
+	DBG_871X("%s mac addr:"MAC_FMT"\n", __func__, MAC_ARG(out));
 }
 
 #ifdef CONFIG_80211N_HT
@@ -1520,6 +1617,182 @@ void dump_wps_ie(void *sel, u8 *ie, u32 ie_len)
 		DBG_871X_SEL_NL(sel, "%s ID:0x%04x, LEN:%u\n", __FUNCTION__, id, len);
 
 		pos+=(4+len);
+	}
+}
+
+/**
+ * rtw_ies_get_chbw - get operation ch, bw, offset from IEs of BSS.
+ * @ies: pointer of the first tlv IE
+ * @ies_len: length of @ies
+ * @ch: pointer of ch, used as output
+ * @bw: pointer of bw, used as output
+ * @offset: pointer of offset, used as output
+ */
+void rtw_ies_get_chbw(u8 *ies, int ies_len, u8 *ch, u8 *bw, u8 *offset)
+{
+	u8 *p;
+	int	ie_len;
+
+	*ch = 0;
+	*bw = CHANNEL_WIDTH_20;
+	*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+
+	p = rtw_get_ie(ies, _DSSET_IE_, &ie_len, ies_len);
+	if (p && ie_len > 0)
+		*ch = *(p + 2);
+
+#ifdef CONFIG_80211N_HT
+{
+	u8 *ht_cap_ie, *ht_op_ie;
+	int ht_cap_ielen, ht_op_ielen;
+
+	ht_cap_ie = rtw_get_ie(ies, EID_HTCapability, &ht_cap_ielen, ies_len);
+	if (ht_cap_ie && ht_cap_ielen) {
+		if (GET_HT_CAP_ELE_CHL_WIDTH(ht_cap_ie + 2))
+			*bw = CHANNEL_WIDTH_40;
+	}
+
+	ht_op_ie = rtw_get_ie(ies, EID_HTInfo, &ht_op_ielen, ies_len);
+	if (ht_op_ie && ht_op_ielen) {
+		if (*ch == 0) {
+			*ch = GET_HT_OP_ELE_PRI_CHL(ht_op_ie + 2);
+		} else if (*ch != 0 && *ch != GET_HT_OP_ELE_PRI_CHL(ht_op_ie + 2)) {
+			DBG_871X("%s ch inconsistent, DSSS:%u, HT primary:%u\n"
+				, __func__, *ch, GET_HT_OP_ELE_PRI_CHL(ht_op_ie + 2));
+		}
+
+		if (!GET_HT_OP_ELE_STA_CHL_WIDTH(ht_op_ie + 2))
+			*bw = CHANNEL_WIDTH_20;
+
+		if (*bw == CHANNEL_WIDTH_40) {
+			switch (GET_HT_OP_ELE_2ND_CHL_OFFSET(ht_op_ie + 2)) {
+			case SCA:
+				*offset = HAL_PRIME_CHNL_OFFSET_LOWER;
+				break;
+			case SCB:
+				*offset = HAL_PRIME_CHNL_OFFSET_UPPER;
+				break;
+			}
+		}
+	}
+}
+#endif /* CONFIG_80211N_HT */
+#ifdef CONFIG_80211AC_VHT
+{
+	u8 *vht_op_ie;
+	int vht_op_ielen;
+
+	vht_op_ie = rtw_get_ie(ies, EID_VHTOperation, &vht_op_ielen, ies_len);
+	if (vht_op_ie && vht_op_ielen) {
+		if (GET_VHT_OPERATION_ELE_CHL_WIDTH(vht_op_ie + 2) >= 1)
+			*bw = CHANNEL_WIDTH_80;
+	}
+}
+#endif
+}
+
+void rtw_bss_get_chbw(WLAN_BSSID_EX *bss, u8 *ch, u8 *bw, u8 *offset)
+{
+	rtw_ies_get_chbw(bss->IEs + sizeof(NDIS_802_11_FIXED_IEs)
+		, bss->IELength - sizeof(NDIS_802_11_FIXED_IEs)
+		, ch, bw, offset);
+
+	if (*ch == 0) {
+		*ch = bss->Configuration.DSConfig;
+	} else if (*ch != bss->Configuration.DSConfig) {
+		DBG_871X("inconsistent ch - ies:%u bss->Configuration.DSConfig:%u\n"
+			, *ch, bss->Configuration.DSConfig);
+		*ch = bss->Configuration.DSConfig;
+		rtw_warn_on(1);
+	}
+}
+
+/**
+ * rtw_is_chbw_grouped - test if the two ch settings can be grouped together
+ * @ch_a: ch of set a
+ * @bw_a: bw of set a
+ * @offset_a: offset of set a
+ * @ch_b: ch of set b
+ * @bw_b: bw of set b
+ * @offset_b: offset of set b
+ */
+bool rtw_is_chbw_grouped(u8 ch_a, u8 bw_a, u8 offset_a
+	, u8 ch_b, u8 bw_b, u8 offset_b)
+{
+	bool is_grouped = _FALSE;
+
+	if (ch_a != ch_b) {
+		/* ch is different */
+		goto exit;
+	} else if ((bw_a == CHANNEL_WIDTH_40 || bw_a == CHANNEL_WIDTH_80)
+			&& (bw_b == CHANNEL_WIDTH_40 || bw_b == CHANNEL_WIDTH_80)
+	) {
+		if (offset_a != offset_b)
+			goto exit;
+	}
+
+	is_grouped = _TRUE;
+
+exit:
+	return is_grouped;
+}
+
+/**
+ * rtw_sync_chbw - obey g_ch, adjust g_bw, g_offset, bw, offset
+ * @req_ch: pointer of the request ch, may be modified further
+ * @req_bw: pointer of the request bw, may be modified further
+ * @req_offset: pointer of the request offset, may be modified further
+ * @g_ch: pointer of the ongoing group ch
+ * @g_bw: pointer of the ongoing group bw, may be modified further
+ * @g_offset: pointer of the ongoing group offset, may be modified further
+ */
+void rtw_sync_chbw(u8 *req_ch, u8 *req_bw, u8 *req_offset
+	, u8 *g_ch, u8 *g_bw, u8 *g_offset)
+{
+
+	*req_ch = *g_ch;
+
+	if (*req_bw == CHANNEL_WIDTH_80 && *g_ch <= 14) {
+		/*2.4G ch, downgrade to 40Mhz */
+		*req_bw = CHANNEL_WIDTH_40;
+	}
+
+	switch (*req_bw) {
+	case CHANNEL_WIDTH_80:
+		if (*g_bw == CHANNEL_WIDTH_40 || *g_bw == CHANNEL_WIDTH_80)
+			*req_offset = *g_offset;
+		else if (*g_bw == CHANNEL_WIDTH_20)
+			*req_offset = rtw_get_offset_by_ch(*req_ch);
+
+		if (*req_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE) {
+			DBG_871X_LEVEL(_drv_err_, "%s req 80MHz BW without offset, down to 20MHz\n", __func__);
+			rtw_warn_on(1);
+			*req_bw = CHANNEL_WIDTH_20;
+		}
+		break;
+	case CHANNEL_WIDTH_40:
+		if (*g_bw == CHANNEL_WIDTH_40 || *g_bw == CHANNEL_WIDTH_80)
+			*req_offset = *g_offset;
+		else if (*g_bw == CHANNEL_WIDTH_20)
+			*req_offset = rtw_get_offset_by_ch(*req_ch);
+
+		if (*req_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE) {
+			DBG_871X_LEVEL(_drv_err_, "%s req 40MHz BW without offset, down to 20MHz\n", __func__);
+			rtw_warn_on(1);
+			*req_bw = CHANNEL_WIDTH_20;
+		}
+		break;
+	case CHANNEL_WIDTH_20:
+		*req_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		break;
+	default:
+		DBG_871X_LEVEL(_drv_err_, "%s req unsupported BW:%u\n", __func__, *req_bw);
+		rtw_warn_on(1);
+	}
+
+	if (*req_bw > *g_bw) {
+		*g_bw = *req_bw;
+		*g_offset = *req_offset;
 	}
 }
 
@@ -1651,47 +1924,48 @@ u8 *rtw_get_p2p_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_
  */
 u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen)
 {
-	uint cnt = 0;
-	u8 *p2p_ie_ptr;
-	u8 eid, p2p_oui[4]={0x50,0x6F,0x9A,0x09};
+	uint cnt;
+	u8 *p2p_ie_ptr = NULL;
+	u8 eid, p2p_oui[4] = {0x50, 0x6F, 0x9A, 0x09};
 
-	if ( p2p_ielen != NULL )
+	if (p2p_ielen)
 		*p2p_ielen = 0;
 
-	while(cnt<in_len)
-	{
-		eid = in_ie[cnt];
-		if ((in_len < 0) || (cnt > MAX_IE_SZ)) {
-			rtw_dump_stack();
-			return NULL;
-		}		
-		if( ( eid == _VENDOR_SPECIFIC_IE_ ) && ( _rtw_memcmp( &in_ie[cnt+2], p2p_oui, 4) == _TRUE ) )
-		{
-			p2p_ie_ptr = in_ie + cnt;
-		
-			if ( p2p_ie != NULL )
-			{
-				_rtw_memcpy( p2p_ie, &in_ie[ cnt ], in_ie[ cnt + 1 ] + 2 );
-			}
+	if (!in_ie || in_len < 0) {
+		rtw_warn_on(1);
+		return p2p_ie_ptr;
+	}
 
-			if ( p2p_ielen != NULL )
-			{
-				*p2p_ielen = in_ie[ cnt + 1 ] + 2;
-			}
-			
-			return p2p_ie_ptr;
+	if (in_len <= 0)
+		return p2p_ie_ptr;
+
+	cnt = 0;
+
+	while (cnt + 1 + 4 < in_len) {
+		eid = in_ie[cnt];
+
+		if (cnt + 1 + 4 >= MAX_IE_SZ) {
+			rtw_warn_on(1);
+			return NULL;
+		}
+
+		if (eid == WLAN_EID_VENDOR_SPECIFIC && _rtw_memcmp(&in_ie[cnt + 2], p2p_oui, 4) == _TRUE) {
+			p2p_ie_ptr = in_ie + cnt;
+
+			if (p2p_ie)
+				_rtw_memcpy(p2p_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
+
+			if (p2p_ielen)
+				*p2p_ielen = in_ie[cnt + 1] + 2;
 
 			break;
+		} else {
+			cnt += in_ie[cnt + 1] + 2;
 		}
-		else
-		{
-			cnt += in_ie[ cnt + 1 ] +2; //goto next	
-		}		
-		
-	}	
 
-	return NULL;
+	}
 
+	return p2p_ie_ptr;
 }
 
 /**
@@ -1854,10 +2128,10 @@ void rtw_WLAN_BSSID_EX_remove_p2p_attr(WLAN_BSSID_EX *bss_ex, u8 attr_id)
 	if( (p2p_ie=rtw_get_p2p_ie(bss_ex->IEs+_FIXED_IE_LENGTH_, bss_ex->IELength-_FIXED_IE_LENGTH_, NULL, &p2p_ielen_ori)) ) 
 	{
 		if (0)
-		if(rtw_get_p2p_attr(p2p_ie, p2p_ielen_ori, attr_id, NULL, NULL)) {
-			DBG_871X("rtw_get_p2p_attr: GOT P2P_ATTR:%u!!!!!!!!\n", attr_id);
-			dump_ies(RTW_DBGDUMP, bss_ex->IEs+_FIXED_IE_LENGTH_, bss_ex->IELength-_FIXED_IE_LENGTH_);
-		}
+			if(rtw_get_p2p_attr(p2p_ie, p2p_ielen_ori, attr_id, NULL, NULL)) {
+				DBG_871X("rtw_get_p2p_attr: GOT P2P_ATTR:%u!!!!!!!!\n", attr_id);
+				dump_ies(RTW_DBGDUMP, bss_ex->IEs+_FIXED_IE_LENGTH_, bss_ex->IELength-_FIXED_IE_LENGTH_);
+			}
 
 		p2p_ielen=rtw_p2p_attr_remove(p2p_ie, p2p_ielen_ori, attr_id);
 		if(p2p_ielen != p2p_ielen_ori) {
@@ -2178,6 +2452,24 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	} else {
 			pnetwork->BcnInfo.ht_info_infos_0 = 0;
 	}
+}
+
+u8	rtw_ht_mcsset_to_nss(u8 *supp_mcs_set)
+{
+	u8 nss = 1;
+	
+	if (supp_mcs_set[3])
+		nss = 4;
+	else if (supp_mcs_set[2])
+		nss = 3;
+	else if (supp_mcs_set[1])
+		nss = 2;
+	else if (supp_mcs_set[0])
+		nss = 1;
+	else
+		DBG_871X("%s,%d, warning! supp_mcs_set is zero\n", __func__, __LINE__);
+	/* DBG_871X("%s HT: %dSS\n", __FUNCTION__, nss); */
+	return nss;
 }
 
 //show MCS rate, unit: 100Kbps

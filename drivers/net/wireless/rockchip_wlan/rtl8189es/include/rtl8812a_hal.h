@@ -54,6 +54,7 @@
 		#define RTL8812_PHY_REG_PG					"rtl8812a/PHY_REG_PG.txt"
 		#define RTL8812_PHY_REG_MP 				"rtl8812a/PHY_REG_MP.txt" 
 		#define RTL8812_TXPWR_LMT					"rtl8812a/TXPWR_LMT.txt" 
+		#define RTL8812_WIFI_ANT_ISOLATION		"rtl8812a/wifi_ant_isolation.txt"
 
 //---------------------------------------------------------------------
 //		RTL8821U From file
@@ -156,7 +157,20 @@ typedef struct _RT_FIRMWARE_8812 {
 
 //for 8812
 // TX 128K, RX 16K, Page size 512B for TX, 128B for RX
-#define MAX_RX_DMA_BUFFER_SIZE_8812	0x3E80   //0x3FFF	// RX 16K
+#define MAX_RX_DMA_BUFFER_SIZE_8812	0x3E80 /* RX 16K */
+
+#ifdef CONFIG_WOWLAN
+#define RESV_FMWF	WKFMCAM_SIZE*MAX_WKFM_NUM /* 16 entries, for each is 24 bytes*/
+#else
+#define RESV_FMWF	0
+#endif
+
+#ifdef CONFIG_FW_C2H_DEBUG 
+#define RX_DMA_RESERVED_SIZE_8812	0x100	// 256B, reserved for c2h debug message
+#else
+#define RX_DMA_RESERVED_SIZE_8812	0x0	// 0B
+#endif
+#define RX_DMA_BOUNDARY_8812		(MAX_RX_DMA_BUFFER_SIZE_8812 - RX_DMA_RESERVED_SIZE_8812 - 1)
 
 #define BCNQ_PAGE_NUM_8812		0x07
 
@@ -171,7 +185,7 @@ typedef struct _RT_FIRMWARE_8812 {
 #define TX_TOTAL_PAGE_NUMBER_8812	(0xFF - BCNQ_PAGE_NUM_8812 - WOWLAN_PAGE_NUM_8812)
 #define TX_PAGE_BOUNDARY_8812			(TX_TOTAL_PAGE_NUMBER_8812 + 1)
 
-#define TX_PAGE_BOUNDARY_WOWLAN_8812		0xE0
+#define TX_PAGE_BOUNDARY_WOWLAN_8812		(0xFF - BCNQ_PAGE_NUM_8812 - WOWLAN_PAGE_NUM_8812 + 1)
 
 #define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8812	TX_PAGE_BOUNDARY_8812
 #define WMM_NORMAL_TX_PAGE_BOUNDARY_8812		(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8812 + 1)
@@ -192,7 +206,14 @@ typedef struct _RT_FIRMWARE_8812 {
 #define PAGE_SIZE_TX_8821A					256
 #define PAGE_SIZE_RX_8821A					128
 
-#define MAX_RX_DMA_BUFFER_SIZE_8821			0x3E80	// RX 16K
+#define MAX_RX_DMA_BUFFER_SIZE_8821			0x3E80 /* RX 16K */
+
+#ifdef CONFIG_FW_C2H_DEBUG 
+#define RX_DMA_RESERVED_SIZE_8821	0x100	// 256B, reserved for c2h debug message
+#else
+#define RX_DMA_RESERVED_SIZE_8821	0x0	// 0B
+#endif
+#define RX_DMA_BOUNDARY_8821		(MAX_RX_DMA_BUFFER_SIZE_8821 - RX_DMA_RESERVED_SIZE_8821 - 1)
 
 #define BCNQ_PAGE_NUM_8821		0x08
 #ifdef CONFIG_CONCURRENT_MODE
@@ -232,7 +253,7 @@ typedef struct _RT_FIRMWARE_8812 {
 #define	EFUSE_HIDDEN_812AU_VL				2
 #define	EFUSE_HIDDEN_812AU_VN				3
 
-#ifdef CONFIG_PCI_HCI
+#if 0
 #define EFUSE_REAL_CONTENT_LEN_JAGUAR		1024
 #define HWSET_MAX_SIZE_JAGUAR					1024
 #else
@@ -299,6 +320,7 @@ int 	FirmwareDownloadBT(PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
 void	Hal_ReadRemoteWakeup_8812A(PADAPTER padapter, u8* hwinfo, BOOLEAN AutoLoadFail);
 
 BOOLEAN HalDetectPwrDownMode8812(PADAPTER Adapter);
+void Hal_EfuseParseKFreeData_8821A(PADAPTER Adapter, u8 *PROMContent, BOOLEAN AutoloadFail);
 	
 #ifdef CONFIG_WOWLAN
 void Hal_DetectWoWMode(PADAPTER pAdapter);
@@ -327,6 +349,11 @@ void rtl8812_stop_thread(PADAPTER padapter);
 BOOLEAN	InterruptRecognized8812AE(PADAPTER Adapter);
 VOID	UpdateInterruptMask8812AE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
 #endif
+
+#ifdef CONFIG_BT_COEXIST
+void rtl8812a_combo_card_WifiOnlyHwInit(PADAPTER Adapter);
+#endif
+
 
 #endif //__RTL8188E_HAL_H__
 

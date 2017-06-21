@@ -43,6 +43,7 @@
 #define REG_SYS_FUNC_EN				0x0002
 #define REG_APS_FSMCO					0x0004
 #define REG_SYS_CLKR					0x0008
+#define REG_SYS_CLK_CTRL				REG_SYS_CLKR
 #define REG_9346CR						0x000A
 #define REG_SYS_EEPROM_CTRL			0x000A
 #define REG_EE_VPD						0x000C
@@ -157,6 +158,10 @@
 #define REG_HMEBOX_2					0x01D8
 #define REG_HMEBOX_3					0x01DC
 #define REG_LLT_INIT					0x01E0
+#define REG_HMEBOX_EXT_0				0x01F0
+#define REG_HMEBOX_EXT_1				0x01F4
+#define REG_HMEBOX_EXT_2				0x01F8
+#define REG_HMEBOX_EXT_3				0x01FC
 
 
 //-----------------------------------------------------
@@ -188,28 +193,29 @@
 //
 //-----------------------------------------------------
 #define REG_PCIE_CTRL_REG				0x0300
-#define REG_INT_MIG						0x0304	// Interrupt Migration 
-#define REG_BCNQ_DESA					0x0308	// TX Beacon Descriptor Address
-#define REG_HQ_DESA					0x0310	// TX High Queue Descriptor Address
-#define REG_MGQ_DESA					0x0318	// TX Manage Queue Descriptor Address
-#define REG_VOQ_DESA					0x0320	// TX VO Queue Descriptor Address
-#define REG_VIQ_DESA					0x0328	// TX VI Queue Descriptor Address
-#define REG_BEQ_DESA					0x0330	// TX BE Queue Descriptor Address
-#define REG_BKQ_DESA					0x0338	// TX BK Queue Descriptor Address
-#define REG_RX_DESA						0x0340	// RX Queue	Descriptor Address
+#define REG_INT_MIG					0x0304	/* Interrupt Migration */
+#define REG_BCNQ_DESA					0x0308	/* TX Beacon Descriptor Address */
+#define REG_HQ_DESA					0x0310	/* TX High Queue Descriptor Address */
+#define REG_MGQ_DESA					0x0318	/* TX Manage Queue Descriptor Address */
+#define REG_VOQ_DESA					0x0320	/* TX VO Queue Descriptor Address */
+#define REG_VIQ_DESA					0x0328	/* TX VI Queue Descriptor Address */
+#define REG_BEQ_DESA					0x0330	/* TX BE Queue Descriptor Address */
+#define REG_BKQ_DESA					0x0338	/* TX BK Queue Descriptor Address */
+#define REG_RX_DESA					0x0340	/* RX Queue Descriptor Address */
 //sherry added for DBI Read/Write  20091126
-#define REG_DBI_WDATA					0x0348	// Backdoor REG for Access Configuration
-#define REG_DBI_RDATA                         	0x034C	//Backdoor REG for Access Configuration
-#define REG_DBI_CTRL                      		0x0350	//Backdoor REG for Access Configuration
-#define REG_DBI_FLAG                      		0x0352	//Backdoor REG for Access Configuration
-#define REG_MDIO						0x0354	// MDIO for Access PCIE PHY
-#define REG_DBG_SEL						0x0360	// Debug Selection Register
-#define REG_PCIE_HRPWM					0x0361	//PCIe RPWM
-#define REG_PCIE_HCPWM					0x0363	//PCIe CPWM
+#define REG_DBI_WDATA					0x0348	/*  Backdoor REG for Access Configuration */
+#define REG_DBI_RDATA					0x034C	/* Backdoor REG for Access Configuration */
+#define REG_DBI_CTRL					0x0350	/* Backdoor REG for Access Configuration */
+#define REG_DBI_FLAG					0x0352	/* Backdoor REG for Access Configuration */
+#define REG_MDIO					0x0354	/* MDIO for Access PCIE PHY */
+#define REG_DBG_SEL					0x0360	/* Debug Selection Register */
+#define REG_PCIE_HRPWM					0x0361	/* PCIe RPWM */
+#define REG_PCIE_HCPWM					0x0363	/* PCIe CPWM */
 #define REG_WATCH_DOG					0x0368
+#define REG_RX_RXBD_NUM					0x0382
 
 // RTL8723 series -------------------------------
-#define REG_PCIE_HISR_EN				0x0394	//PCIE Local Interrupt Enable Register
+#define REG_PCIE_HISR_EN				0x0394	/* PCIE Local Interrupt Enable Register */
 #define REG_PCIE_HISR					0x03A0
 #define REG_PCIE_HISRE					0x03A4
 #define REG_PCIE_HIMR					0x03A8
@@ -1211,6 +1217,7 @@ Current IOREG MAP
 #define RFINI_RDY				BIT(5)
 #define WINTINI_RDY				BIT(6)
 #define RAM_DL_SEL				BIT(7)
+#define CPU_DL_READY			BIT(15) /* add flag  by gw for fw download ready 20130826 */
 #define ROM_DLEN				BIT(19)
 #define CPRST					BIT(23)
 
@@ -1545,6 +1552,7 @@ Current IOREG MAP
 #define SCR_TXBCUSEDK			BIT(6)			// Force Tx Broadcast packets Use Default Key
 #define SCR_RXBCUSEDK			BIT(7)			// Force Rx Broadcast packets Use Default Key
 #define SCR_CHK_KEYID			BIT(8)
+#define SCR_CHK_BMC				BIT(9)			/* add option to support a2+keyid+bcm */
 
 //-----------------------------------------------------
 //
@@ -1751,7 +1759,9 @@ Current IOREG MAP
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8812			255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8723B		255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8192C		255
+#define LAST_ENTRY_OF_TX_PKT_BUFFER_8703B		255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_DUAL_MAC	127
+#define LAST_ENTRY_OF_TX_PKT_BUFFER_8188F		255
 
 #define POLLING_LLT_THRESHOLD				20
 #if defined(CONFIG_RTL8723B) && defined(CONFIG_PCI_HCI)
@@ -1762,6 +1772,7 @@ Current IOREG MAP
 
 
 // GPIO BIT
+#define	HAL_8812A_HW_GPIO_WPS_BIT	BIT2
 #define	HAL_8192C_HW_GPIO_WPS_BIT	BIT2
 #define	HAL_8192EU_HW_GPIO_WPS_BIT	BIT7
 #define	HAL_8188E_HW_GPIO_WPS_BIT	BIT7
