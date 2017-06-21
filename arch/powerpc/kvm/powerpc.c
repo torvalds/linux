@@ -566,6 +566,16 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 				r = threads_per_subcore;
 		}
 		break;
+	case KVM_CAP_PPC_SMT_POSSIBLE:
+		r = 1;
+		if (hv_enabled) {
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				r = ((threads_per_subcore << 1) - 1);
+			else
+				/* P9 can emulate dbells, so allow any mode */
+				r = 8 | 4 | 2 | 1;
+		}
+		break;
 	case KVM_CAP_PPC_RMA:
 		r = 0;
 		break;

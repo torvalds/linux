@@ -4010,6 +4010,8 @@ be 0.  A successful call to enable this capability will result in
 vsmt_mode being returned when the KVM_CAP_PPC_SMT capability is
 subsequently queried for the VM.  This capability is only supported by
 HV KVM, and can only be set before any VCPUs have been created.
+The KVM_CAP_PPC_SMT_POSSIBLE capability indicates which virtual SMT
+modes are available.
 
 7.12 KVM_CAP_PPC_FWNMI
 
@@ -4183,3 +4185,12 @@ Currently the following bits are defined for the device_irq_level bitmap:
 Future versions of kvm may implement additional events. These will get
 indicated by returning a higher number from KVM_CHECK_EXTENSION and will be
 listed above.
+
+8.10 KVM_CAP_PPC_SMT_POSSIBLE
+
+Architectures: ppc
+
+Querying this capability returns a bitmap indicating the possible
+virtual SMT modes that can be set using KVM_CAP_PPC_SMT.  If bit N
+(counting from the right) is set, then a virtual SMT mode of 2^N is
+available.
