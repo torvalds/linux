@@ -119,6 +119,7 @@ ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops);
  *            for any of the functions that this ops will be registered for, then
  *            this ops will fail to register or set_filter_ip.
  * PID     - Is affected by set_ftrace_pid (allows filtering on those pids)
+ * RCU     - Set when the ops can only be called when RCU is watching.
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
