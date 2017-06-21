@@ -805,8 +805,7 @@ xfs_refcount_still_have_space(
 	 */
 	if (cur->bc_private.a.priv.refc.nr_ops > 2 &&
 	    XFS_TEST_ERROR(false, cur->bc_mp,
-			XFS_ERRTAG_REFCOUNT_CONTINUE_UPDATE,
-			XFS_RANDOM_REFCOUNT_CONTINUE_UPDATE))
+			XFS_ERRTAG_REFCOUNT_CONTINUE_UPDATE))
 		return false;
 
 	if (cur->bc_private.a.priv.refc.nr_ops == 0)
@@ -1068,8 +1067,7 @@ xfs_refcount_finish_one(
 			blockcount);
 
 	if (XFS_TEST_ERROR(false, mp,
-			XFS_ERRTAG_REFCOUNT_FINISH_ONE,
-			XFS_RANDOM_REFCOUNT_FINISH_ONE))
+			XFS_ERRTAG_REFCOUNT_FINISH_ONE))
 		return -EIO;
 
 	/*

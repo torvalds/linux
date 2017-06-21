@@ -1189,8 +1189,7 @@ xlog_iodone(xfs_buf_t *bp)
 	 * IOABORT state. The IOABORT state is only set in DEBUG mode to inject
 	 * CRC errors into log recovery.
 	 */
-	if (XFS_TEST_ERROR(bp->b_error, l->l_mp, XFS_ERRTAG_IODONE_IOERR,
-			   XFS_RANDOM_IODONE_IOERR) ||
+	if (XFS_TEST_ERROR(bp->b_error, l->l_mp, XFS_ERRTAG_IODONE_IOERR) ||
 	    iclog->ic_state & XLOG_STATE_IOABORT) {
 		if (iclog->ic_state & XLOG_STATE_IOABORT)
 			iclog->ic_state &= ~XLOG_STATE_IOABORT;

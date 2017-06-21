@@ -135,7 +135,7 @@ extern int xfs_errortag_init(struct xfs_mount *mp);
 extern void xfs_errortag_del(struct xfs_mount *mp);
 extern bool xfs_errortag_test(struct xfs_mount *mp, const char *expression,
 		const char *file, int line, unsigned int error_tag);
-#define XFS_TEST_ERROR(expr, mp, tag, rf)		\
+#define XFS_TEST_ERROR(expr, mp, tag)		\
 	((expr) || xfs_errortag_test((mp), #expr, __FILE__, __LINE__, (tag)))
 
 extern int xfs_errortag_get(struct xfs_mount *mp, unsigned int error_tag);
@@ -146,7 +146,7 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp);
 #else
 #define xfs_errortag_init(mp)			(0)
 #define xfs_errortag_del(mp)
-#define XFS_TEST_ERROR(expr, mp, tag, rf)	(expr)
+#define XFS_TEST_ERROR(expr, mp, tag)		(expr)
 #define xfs_errortag_set(mp, tag, val)		(ENOSYS)
 #define xfs_errortag_add(mp, tag)		(ENOSYS)
 #define xfs_errortag_clearall(mp)		(ENOSYS)

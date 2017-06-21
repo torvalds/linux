@@ -2552,8 +2552,7 @@ xfs_agi_read_verify(
 	    !xfs_buf_verify_cksum(bp, XFS_AGI_CRC_OFF))
 		xfs_buf_ioerror(bp, -EFSBADCRC);
 	else if (XFS_TEST_ERROR(!xfs_agi_verify(bp), mp,
-				XFS_ERRTAG_IALLOC_READ_AGI,
-				XFS_RANDOM_IALLOC_READ_AGI))
+				XFS_ERRTAG_IALLOC_READ_AGI))
 		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)

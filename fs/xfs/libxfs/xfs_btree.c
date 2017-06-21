@@ -101,8 +101,7 @@ xfs_btree_check_lblock(
 			be64_to_cpu(block->bb_u.l.bb_rightsib)));
 
 	if (unlikely(XFS_TEST_ERROR(!lblock_ok, mp,
-			XFS_ERRTAG_BTREE_CHECK_LBLOCK,
-			XFS_RANDOM_BTREE_CHECK_LBLOCK))) {
+			XFS_ERRTAG_BTREE_CHECK_LBLOCK))) {
 		if (bp)
 			trace_xfs_btree_corrupt(bp, _RET_IP_);
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
@@ -153,8 +152,7 @@ xfs_btree_check_sblock(
 		block->bb_u.s.bb_rightsib;
 
 	if (unlikely(XFS_TEST_ERROR(!sblock_ok, mp,
-			XFS_ERRTAG_BTREE_CHECK_SBLOCK,
-			XFS_RANDOM_BTREE_CHECK_SBLOCK))) {
+			XFS_ERRTAG_BTREE_CHECK_SBLOCK))) {
 		if (bp)
 			trace_xfs_btree_corrupt(bp, _RET_IP_);
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);

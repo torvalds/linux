@@ -2087,8 +2087,7 @@ xfs_rmap_finish_one(
 			startoff, blockcount, state);
 
 	if (XFS_TEST_ERROR(false, mp,
-			XFS_ERRTAG_RMAP_FINISH_ONE,
-			XFS_RANDOM_RMAP_FINISH_ONE))
+			XFS_ERRTAG_RMAP_FINISH_ONE))
 		return -EIO;
 
 	/*
