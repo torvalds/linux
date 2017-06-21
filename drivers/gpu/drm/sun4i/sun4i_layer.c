@@ -25,12 +25,6 @@ struct sun4i_plane_desc {
 	       uint32_t                nformats;
 };
 
-static int sun4i_backend_layer_atomic_check(struct drm_plane *plane,
-					    struct drm_plane_state *state)
-{
-	return 0;
-}
-
 static void sun4i_backend_layer_atomic_disable(struct drm_plane *plane,
 					       struct drm_plane_state *old_state)
 {
@@ -53,7 +47,6 @@ static void sun4i_backend_layer_atomic_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs sun4i_backend_layer_helper_funcs = {
-	.atomic_check	= sun4i_backend_layer_atomic_check,
 	.atomic_disable	= sun4i_backend_layer_atomic_disable,
 	.atomic_update	= sun4i_backend_layer_atomic_update,
 };

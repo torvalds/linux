@@ -128,13 +128,6 @@ static struct drm_connector_funcs sun4i_rgb_con_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
 };
 
-static int sun4i_rgb_atomic_check(struct drm_encoder *encoder,
-				  struct drm_crtc_state *crtc_state,
-				  struct drm_connector_state *conn_state)
-{
-	return 0;
-}
-
 static void sun4i_rgb_encoder_enable(struct drm_encoder *encoder)
 {
 	struct sun4i_rgb *rgb = drm_encoder_to_sun4i_rgb(encoder);
@@ -182,7 +175,6 @@ static void sun4i_rgb_encoder_mode_set(struct drm_encoder *encoder,
 }
 
 static struct drm_encoder_helper_funcs sun4i_rgb_enc_helper_funcs = {
-	.atomic_check	= sun4i_rgb_atomic_check,
 	.mode_set	= sun4i_rgb_encoder_mode_set,
 	.disable	= sun4i_rgb_encoder_disable,
 	.enable		= sun4i_rgb_encoder_enable,
