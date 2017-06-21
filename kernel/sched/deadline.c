@@ -17,6 +17,7 @@
 #include "sched.h"
 
 #include <linux/slab.h>
+#include <uapi/linux/sched/types.h>
 
 struct dl_bandwidth def_dl_bandwidth;
 
@@ -42,6 +43,38 @@ static inline int on_dl_rq(struct sched_dl_entity *dl_se)
 {
 	return !RB_EMPTY_NODE(&dl_se->rb_node);
 }
+
+#ifdef CONFIG_SMP
+static inline struct dl_bw *dl_bw_of(int i)
+{
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held(),
+			 "sched RCU must be held");
+	return &cpu_rq(i)->rd->dl_bw;
+}
+
+static inline int dl_bw_cpus(int i)
+{
+	struct root_domain *rd = cpu_rq(i)->rd;
+	int cpus = 0;
+
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held(),
+			 "sched RCU must be held");
+	for_each_cpu_and(i, rd->span, cpu_active_mask)
+		cpus++;
+
+	return cpus;
+}
+#else
+static inline struct dl_bw *dl_bw_of(int i)
+{
+	return &cpu_rq(i)->dl.dl_bw;
+}
+
+static inline int dl_bw_cpus(int i)
+{
+	return 1;
+}
+#endif
 
 static inline
 void add_running_bw(u64 dl_bw, struct dl_rq *dl_rq)
@@ -2317,6 +2350,317 @@ const struct sched_class dl_sched_class = {
 
 	.update_curr		= update_curr_dl,
 };
+
+int sched_dl_global_validate(void)
+{
+	u64 runtime = global_rt_runtime();
+	u64 period = global_rt_period();
+	u64 new_bw = to_ratio(period, runtime);
+	struct dl_bw *dl_b;
+	int cpu, ret = 0;
+	unsigned long flags;
+
+	/*
+	 * Here we want to check the bandwidth not being set to some
+	 * value smaller than the currently allocated bandwidth in
+	 * any of the root_domains.
+	 *
+	 * FIXME: Cycling on all the CPUs is overdoing, but simpler than
+	 * cycling on root_domains... Discussion on different/better
+	 * solutions is welcome!
+	 */
+	for_each_possible_cpu(cpu) {
+		rcu_read_lock_sched();
+		dl_b = dl_bw_of(cpu);
+
+		raw_spin_lock_irqsave(&dl_b->lock, flags);
+		if (new_bw < dl_b->total_bw)
+			ret = -EBUSY;
+		raw_spin_unlock_irqrestore(&dl_b->lock, flags);
+
+		rcu_read_unlock_sched();
+
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+void init_dl_rq_bw_ratio(struct dl_rq *dl_rq)
+{
+	if (global_rt_runtime() == RUNTIME_INF) {
+		dl_rq->bw_ratio = 1 << RATIO_SHIFT;
+		dl_rq->extra_bw = 1 << BW_SHIFT;
+	} else {
+		dl_rq->bw_ratio = to_ratio(global_rt_runtime(),
+			  global_rt_period()) >> (BW_SHIFT - RATIO_SHIFT);
+		dl_rq->extra_bw = to_ratio(global_rt_period(),
+						    global_rt_runtime());
+	}
+}
+
+void sched_dl_do_global(void)
+{
+	u64 new_bw = -1;
+	struct dl_bw *dl_b;
+	int cpu;
+	unsigned long flags;
+
+	def_dl_bandwidth.dl_period = global_rt_period();
+	def_dl_bandwidth.dl_runtime = global_rt_runtime();
+
+	if (global_rt_runtime() != RUNTIME_INF)
+		new_bw = to_ratio(global_rt_period(), global_rt_runtime());
+
+	/*
+	 * FIXME: As above...
+	 */
+	for_each_possible_cpu(cpu) {
+		rcu_read_lock_sched();
+		dl_b = dl_bw_of(cpu);
+
+		raw_spin_lock_irqsave(&dl_b->lock, flags);
+		dl_b->bw = new_bw;
+		raw_spin_unlock_irqrestore(&dl_b->lock, flags);
+
+		rcu_read_unlock_sched();
+		init_dl_rq_bw_ratio(&cpu_rq(cpu)->dl);
+	}
+}
+
+/*
+ * We must be sure that accepting a new task (or allowing changing the
+ * parameters of an existing one) is consistent with the bandwidth
+ * constraints. If yes, this function also accordingly updates the currently
+ * allocated bandwidth to reflect the new situation.
+ *
+ * This function is called while holding p's rq->lock.
+ */
+int sched_dl_overflow(struct task_struct *p, int policy,
+		      const struct sched_attr *attr)
+{
+	struct dl_bw *dl_b = dl_bw_of(task_cpu(p));
+	u64 period = attr->sched_period ?: attr->sched_deadline;
+	u64 runtime = attr->sched_runtime;
+	u64 new_bw = dl_policy(policy) ? to_ratio(period, runtime) : 0;
+	int cpus, err = -1;
+
+	/* !deadline task may carry old deadline bandwidth */
+	if (new_bw == p->dl.dl_bw && task_has_dl_policy(p))
+		return 0;
+
+	/*
+	 * Either if a task, enters, leave, or stays -deadline but changes
+	 * its parameters, we may need to update accordingly the total
+	 * allocated bandwidth of the container.
+	 */
+	raw_spin_lock(&dl_b->lock);
+	cpus = dl_bw_cpus(task_cpu(p));
+	if (dl_policy(policy) && !task_has_dl_policy(p) &&
+	    !__dl_overflow(dl_b, cpus, 0, new_bw)) {
+		if (hrtimer_active(&p->dl.inactive_timer))
+			__dl_clear(dl_b, p->dl.dl_bw, cpus);
+		__dl_add(dl_b, new_bw, cpus);
+		err = 0;
+	} else if (dl_policy(policy) && task_has_dl_policy(p) &&
+		   !__dl_overflow(dl_b, cpus, p->dl.dl_bw, new_bw)) {
+		/*
+		 * XXX this is slightly incorrect: when the task
+		 * utilization decreases, we should delay the total
+		 * utilization change until the task's 0-lag point.
+		 * But this would require to set the task's "inactive
+		 * timer" when the task is not inactive.
+		 */
+		__dl_clear(dl_b, p->dl.dl_bw, cpus);
+		__dl_add(dl_b, new_bw, cpus);
+		dl_change_utilization(p, new_bw);
+		err = 0;
+	} else if (!dl_policy(policy) && task_has_dl_policy(p)) {
+		/*
+		 * Do not decrease the total deadline utilization here,
+		 * switched_from_dl() will take care to do it at the correct
+		 * (0-lag) time.
+		 */
+		err = 0;
+	}
+	raw_spin_unlock(&dl_b->lock);
+
+	return err;
+}
+
+/*
+ * This function initializes the sched_dl_entity of a newly becoming
+ * SCHED_DEADLINE task.
+ *
+ * Only the static values are considered here, the actual runtime and the
+ * absolute deadline will be properly calculated when the task is enqueued
+ * for the first time with its new policy.
+ */
+void __setparam_dl(struct task_struct *p, const struct sched_attr *attr)
+{
+	struct sched_dl_entity *dl_se = &p->dl;
+
+	dl_se->dl_runtime = attr->sched_runtime;
+	dl_se->dl_deadline = attr->sched_deadline;
+	dl_se->dl_period = attr->sched_period ?: dl_se->dl_deadline;
+	dl_se->flags = attr->sched_flags;
+	dl_se->dl_bw = to_ratio(dl_se->dl_period, dl_se->dl_runtime);
+	dl_se->dl_density = to_ratio(dl_se->dl_deadline, dl_se->dl_runtime);
+}
+
+void __getparam_dl(struct task_struct *p, struct sched_attr *attr)
+{
+	struct sched_dl_entity *dl_se = &p->dl;
+
+	attr->sched_priority = p->rt_priority;
+	attr->sched_runtime = dl_se->dl_runtime;
+	attr->sched_deadline = dl_se->dl_deadline;
+	attr->sched_period = dl_se->dl_period;
+	attr->sched_flags = dl_se->flags;
+}
+
+/*
+ * This function validates the new parameters of a -deadline task.
+ * We ask for the deadline not being zero, and greater or equal
+ * than the runtime, as well as the period of being zero or
+ * greater than deadline. Furthermore, we have to be sure that
+ * user parameters are above the internal resolution of 1us (we
+ * check sched_runtime only since it is always the smaller one) and
+ * below 2^63 ns (we have to check both sched_deadline and
+ * sched_period, as the latter can be zero).
+ */
+bool __checkparam_dl(const struct sched_attr *attr)
+{
+	/* deadline != 0 */
+	if (attr->sched_deadline == 0)
+		return false;
+
+	/*
+	 * Since we truncate DL_SCALE bits, make sure we're at least
+	 * that big.
+	 */
+	if (attr->sched_runtime < (1ULL << DL_SCALE))
+		return false;
+
+	/*
+	 * Since we use the MSB for wrap-around and sign issues, make
+	 * sure it's not set (mind that period can be equal to zero).
+	 */
+	if (attr->sched_deadline & (1ULL << 63) ||
+	    attr->sched_period & (1ULL << 63))
+		return false;
+
+	/* runtime <= deadline <= period (if period != 0) */
+	if ((attr->sched_period != 0 &&
+	     attr->sched_period < attr->sched_deadline) ||
+	    attr->sched_deadline < attr->sched_runtime)
+		return false;
+
+	return true;
+}
+
+/*
+ * This function clears the sched_dl_entity static params.
+ */
+void __dl_clear_params(struct task_struct *p)
+{
+	struct sched_dl_entity *dl_se = &p->dl;
+
+	dl_se->dl_runtime = 0;
+	dl_se->dl_deadline = 0;
+	dl_se->dl_period = 0;
+	dl_se->flags = 0;
+	dl_se->dl_bw = 0;
+	dl_se->dl_density = 0;
+
+	dl_se->dl_throttled = 0;
+	dl_se->dl_yielded = 0;
+	dl_se->dl_non_contending = 0;
+}
+
+bool dl_param_changed(struct task_struct *p, const struct sched_attr *attr)
+{
+	struct sched_dl_entity *dl_se = &p->dl;
+
+	if (dl_se->dl_runtime != attr->sched_runtime ||
+	    dl_se->dl_deadline != attr->sched_deadline ||
+	    dl_se->dl_period != attr->sched_period ||
+	    dl_se->flags != attr->sched_flags)
+		return true;
+
+	return false;
+}
+
+#ifdef CONFIG_SMP
+int dl_task_can_attach(struct task_struct *p, const struct cpumask *cs_cpus_allowed)
+{
+	unsigned int dest_cpu = cpumask_any_and(cpu_active_mask,
+							cs_cpus_allowed);
+	struct dl_bw *dl_b;
+	bool overflow;
+	int cpus, ret;
+	unsigned long flags;
+
+	rcu_read_lock_sched();
+	dl_b = dl_bw_of(dest_cpu);
+	raw_spin_lock_irqsave(&dl_b->lock, flags);
+	cpus = dl_bw_cpus(dest_cpu);
+	overflow = __dl_overflow(dl_b, cpus, 0, p->dl.dl_bw);
+	if (overflow)
+		ret = -EBUSY;
+	else {
+		/*
+		 * We reserve space for this task in the destination
+		 * root_domain, as we can't fail after this point.
+		 * We will free resources in the source root_domain
+		 * later on (see set_cpus_allowed_dl()).
+		 */
+		__dl_add(dl_b, p->dl.dl_bw, cpus);
+		ret = 0;
+	}
+	raw_spin_unlock_irqrestore(&dl_b->lock, flags);
+	rcu_read_unlock_sched();
+	return ret;
+}
+
+int dl_cpuset_cpumask_can_shrink(const struct cpumask *cur,
+				 const struct cpumask *trial)
+{
+	int ret = 1, trial_cpus;
+	struct dl_bw *cur_dl_b;
+	unsigned long flags;
+
+	rcu_read_lock_sched();
+	cur_dl_b = dl_bw_of(cpumask_any(cur));
+	trial_cpus = cpumask_weight(trial);
+
+	raw_spin_lock_irqsave(&cur_dl_b->lock, flags);
+	if (cur_dl_b->bw != -1 &&
+	    cur_dl_b->bw * trial_cpus < cur_dl_b->total_bw)
+		ret = 0;
+	raw_spin_unlock_irqrestore(&cur_dl_b->lock, flags);
+	rcu_read_unlock_sched();
+	return ret;
+}
+
+bool dl_cpu_busy(unsigned int cpu)
+{
+	unsigned long flags;
+	struct dl_bw *dl_b;
+	bool overflow;
+	int cpus;
+
+	rcu_read_lock_sched();
+	dl_b = dl_bw_of(cpu);
+	raw_spin_lock_irqsave(&dl_b->lock, flags);
+	cpus = dl_bw_cpus(cpu);
+	overflow = __dl_overflow(dl_b, cpus, 0, 0);
+	raw_spin_unlock_irqrestore(&dl_b->lock, flags);
+	rcu_read_unlock_sched();
+	return overflow;
+}
+#endif
 
 #ifdef CONFIG_SCHED_DEBUG
 extern void print_dl_rq(struct seq_file *m, int cpu, struct dl_rq *dl_rq);
