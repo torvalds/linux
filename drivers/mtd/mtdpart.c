@@ -660,6 +660,8 @@ static int __mtd_del_partition(struct mtd_part *priv)
 {
 	int err;
 
+	sysfs_remove_files(&priv->mtd.dev.kobj, mtd_partition_attrs);
+
 	err = del_mtd_device(&priv->mtd);
 	if (err)
 		return err;
@@ -700,8 +702,6 @@ int mtd_del_partition(struct mtd_info *master, int partno)
 	list_for_each_entry_safe(slave, next, &mtd_partitions, list)
 		if ((slave->master == master) &&
 		    (slave->mtd.index == partno)) {
-			sysfs_remove_files(&slave->mtd.dev.kobj,
-					   mtd_partition_attrs);
 			ret = __mtd_del_partition(slave);
 			break;
 		}
