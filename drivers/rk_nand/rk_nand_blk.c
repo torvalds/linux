@@ -103,12 +103,12 @@ static int rknand_create_procfs(void)
 {
 	struct proc_dir_entry *ent;
 
-	ent = proc_create_data("rknand", 0x666, NULL, &rknand_proc_fops,
+	ent = proc_create_data("rknand", 0444, NULL, &rknand_proc_fops,
 			       (void *)0);
 	if (!ent)
 		return -1;
 
-	ent = proc_create_data("mtd", 0x666, NULL, &rknand_mtd_proc_fops,
+	ent = proc_create_data("mtd", 0444, NULL, &rknand_mtd_proc_fops,
 			       (void *)0);
 	if (!ent)
 		return -1;
