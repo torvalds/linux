@@ -40,6 +40,7 @@
 #define MACVLAN_BC_QUEUE_LEN	1000
 
 #define MACVLAN_F_PASSTHRU	1
+#define MACVLAN_F_ADDRCHANGE	2
 
 struct macvlan_port {
 	struct net_device	*dev;
@@ -51,6 +52,7 @@ struct macvlan_port {
 	int			count;
 	struct hlist_head	vlan_source_hash[MACVLAN_HASH_SIZE];
 	DECLARE_BITMAP(mc_filter, MACVLAN_MC_FILTER_SZ);
+	unsigned char           perm_addr[ETH_ALEN];
 };
 
 struct macvlan_source_entry {
@@ -76,6 +78,21 @@ static inline bool macvlan_passthru(const struct macvlan_port *port)
 static inline void macvlan_set_passthru(struct macvlan_port *port)
 {
 	port->flags |= MACVLAN_F_PASSTHRU;
+}
+
+static inline bool macvlan_addr_change(const struct macvlan_port *port)
+{
+	return port->flags & MACVLAN_F_ADDRCHANGE;
+}
+
+static inline void macvlan_set_addr_change(struct macvlan_port *port)
+{
+	port->flags |= MACVLAN_F_ADDRCHANGE;
+}
+
+static inline void macvlan_clear_addr_change(struct macvlan_port *port)
+{
+	port->flags &= ~MACVLAN_F_ADDRCHANGE;
 }
 
 /* Hash Ethernet address */
@@ -193,11 +210,11 @@ static void macvlan_hash_change_addr(struct macvlan_dev *vlan,
 static bool macvlan_addr_busy(const struct macvlan_port *port,
 			      const unsigned char *addr)
 {
-	/* Test to see if the specified multicast address is
+	/* Test to see if the specified address is
 	 * currently in use by the underlying device or
 	 * another macvlan.
 	 */
-	if (!macvlan_passthru(port) &&
+	if (!macvlan_passthru(port) && !macvlan_addr_change(port) &&
 	    ether_addr_equal_64bits(port->dev->dev_addr, addr))
 		return true;
 
@@ -685,6 +702,7 @@ static int macvlan_sync_address(struct net_device *dev, unsigned char *addr)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
+	struct macvlan_port *port = vlan->port;
 	int err;
 
 	if (!(dev->flags & IFF_UP)) {
@@ -695,7 +713,7 @@ static int macvlan_sync_address(struct net_device *dev, unsigned char *addr)
 		if (macvlan_addr_busy(vlan->port, addr))
 			return -EBUSY;
 
-		if (!macvlan_passthru(vlan->port)) {
+		if (!macvlan_passthru(port)) {
 			err = dev_uc_add(lowerdev, addr);
 			if (err)
 				return err;
@@ -705,6 +723,15 @@ static int macvlan_sync_address(struct net_device *dev, unsigned char *addr)
 
 		macvlan_hash_change_addr(vlan, addr);
 	}
+	if (macvlan_passthru(port) && !macvlan_addr_change(port)) {
+		/* Since addr_change isn't set, we are here due to lower
+		 * device change.  Save the lower-dev address so we can
+		 * restore it later.
+		 */
+		ether_addr_copy(vlan->port->perm_addr,
+				lowerdev->dev_addr);
+	}
+	macvlan_clear_addr_change(port);
 	return 0;
 }
 
@@ -721,6 +748,7 @@ static int macvlan_set_mac_address(struct net_device *dev, void *p)
 		return 0;
 
 	if (vlan->mode == MACVLAN_MODE_PASSTHRU) {
+		macvlan_set_addr_change(vlan->port);
 		dev_set_mac_address(vlan->lowerdev, addr);
 		return 0;
 	}
@@ -1138,6 +1166,7 @@ static int macvlan_port_create(struct net_device *dev)
 		return -ENOMEM;
 
 	port->dev = dev;
+	ether_addr_copy(port->perm_addr, dev->dev_addr);
 	INIT_LIST_HEAD(&port->vlans);
 	for (i = 0; i < MACVLAN_HASH_SIZE; i++)
 		INIT_HLIST_HEAD(&port->vlan_hash[i]);
@@ -1175,6 +1204,18 @@ static void macvlan_port_destroy(struct net_device *dev)
 			dev_put(src->dev);
 
 		kfree_skb(skb);
+	}
+
+	/* If the lower device address has been changed by passthru
+	 * macvlan, put it back.
+	 */
+	if (macvlan_passthru(port) &&
+	    !ether_addr_equal(port->dev->dev_addr, port->perm_addr)) {
+		struct sockaddr sa;
+
+		sa.sa_family = port->dev->type;
+		memcpy(&sa.sa_data, port->perm_addr, port->dev->addr_len);
+		dev_set_mac_address(port->dev, &sa);
 	}
 
 	kfree(port);
