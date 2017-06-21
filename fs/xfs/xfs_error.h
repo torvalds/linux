@@ -96,7 +96,16 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 #define XFS_ERRTAG_REFCOUNT_FINISH_ONE			25
 #define XFS_ERRTAG_BMAP_FINISH_ONE			26
 #define XFS_ERRTAG_AG_RESV_CRITICAL			27
-#define XFS_ERRTAG_MAX					28
+/*
+ * DEBUG mode instrumentation to test and/or trigger delayed allocation
+ * block killing in the event of failed writes. When enabled, all
+ * buffered writes are silenty dropped and handled as if they failed.
+ * All delalloc blocks in the range of the write (including pre-existing
+ * delalloc blocks!) are tossed as part of the write failure error
+ * handling sequence.
+ */
+#define XFS_ERRTAG_DROP_WRITES				28
+#define XFS_ERRTAG_MAX					29
 
 /*
  * Random factors for above tags, 1 means always, 2 means 1/2 time, etc.
@@ -129,6 +138,7 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 #define XFS_RANDOM_REFCOUNT_FINISH_ONE			1
 #define XFS_RANDOM_BMAP_FINISH_ONE			1
 #define XFS_RANDOM_AG_RESV_CRITICAL			4
+#define XFS_RANDOM_DROP_WRITES				1
 
 #ifdef DEBUG
 extern int xfs_errortag_init(struct xfs_mount *mp);

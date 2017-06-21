@@ -205,16 +205,6 @@ typedef struct xfs_mount {
 	 */
 	unsigned int		*m_errortag;
 	struct xfs_kobj		m_errortag_kobj;
-
-	/*
-	 * DEBUG mode instrumentation to test and/or trigger delayed allocation
-	 * block killing in the event of failed writes. When enabled, all
-	 * buffered writes are silenty dropped and handled as if they failed.
-	 * All delalloc blocks in the range of the write (including pre-existing
-	 * delalloc blocks!) are tossed as part of the write failure error
-	 * handling sequence.
-	 */
-	bool			m_drop_writes;
 #endif
 } xfs_mount_t;
 
@@ -332,20 +322,6 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 	xfs_rfsblock_t ld = XFS_BB_TO_FSBT(mp, d);
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
 }
-
-#ifdef DEBUG
-static inline bool
-xfs_mp_drop_writes(struct xfs_mount *mp)
-{
-	return mp->m_drop_writes;
-}
-#else
-static inline bool
-xfs_mp_drop_writes(struct xfs_mount *mp)
-{
-	return 0;
-}
-#endif
 
 /* per-AG block reservation data structures*/
 enum xfs_ag_resv_type {

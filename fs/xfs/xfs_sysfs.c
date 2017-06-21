@@ -90,49 +90,7 @@ to_mp(struct kobject *kobject)
 	return container_of(kobj, struct xfs_mount, m_kobj);
 }
 
-#ifdef DEBUG
-
-STATIC ssize_t
-drop_writes_store(
-	struct kobject		*kobject,
-	const char		*buf,
-	size_t			count)
-{
-	struct xfs_mount	*mp = to_mp(kobject);
-	int			ret;
-	int			val;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret)
-		return ret;
-
-	if (val == 1)
-		mp->m_drop_writes = true;
-	else if (val == 0)
-		mp->m_drop_writes = false;
-	else
-		return -EINVAL;
-
-	return count;
-}
-
-STATIC ssize_t
-drop_writes_show(
-	struct kobject		*kobject,
-	char			*buf)
-{
-	struct xfs_mount	*mp = to_mp(kobject);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", mp->m_drop_writes ? 1 : 0);
-}
-XFS_SYSFS_ATTR_RW(drop_writes);
-
-#endif /* DEBUG */
-
 static struct attribute *xfs_mp_attrs[] = {
-#ifdef DEBUG
-	ATTR_LIST(drop_writes),
-#endif
 	NULL,
 };
 
