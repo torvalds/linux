@@ -428,8 +428,7 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 			*bool_tmp = false;
 		break;
 	case BTC_GET_BL_WIFI_4_WAY_PROGRESS:
-		/* TODO */
-		*bool_tmp = false;
+		*bool_tmp = rtlpriv->btcoexist.btc_info.in_4way;
 		break;
 	case BTC_GET_BL_WIFI_UNDER_5G:
 		if (rtlhal->current_bandtype == BAND_ON_5G)
