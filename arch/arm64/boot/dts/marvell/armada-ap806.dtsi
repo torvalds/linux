@@ -147,6 +147,13 @@
 				marvell,spi-base = <128>, <136>, <144>, <152>;
 			};
 
+			gicp: gicp@3f0040 {
+				compatible = "marvell,ap806-gicp";
+				reg = <0x3f0040 0x10>;
+				marvell,spi-ranges = <64 64>, <288 64>;
+				msi-controller;
+			};
+
 			pic: interrupt-controller@3f0100 {
 				compatible = "marvell,armada-8k-pic";
 				reg = <0x3f0100 0x10>;
