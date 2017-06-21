@@ -906,11 +906,16 @@ bool dcn_validate_bandwidth(
 	scaler_settings_calculation(v);
 	mode_support_and_system_configuration(v);
 
-	if (v->voltage_level == 0) {
+	if (v->voltage_level == 0 &&
+			(dc->public.debug.sr_exit_time_dpm0_ns
+				|| dc->public.debug.sr_enter_plus_exit_time_dpm0_ns)) {
 		struct core_dc *dc_core = DC_TO_CORE(&dc->public);
 
-		v->sr_enter_plus_exit_time = 9.466f;
-		v->sr_exit_time = 7.849f;
+		if (dc->public.debug.sr_enter_plus_exit_time_dpm0_ns)
+			v->sr_enter_plus_exit_time =
+				dc->public.debug.sr_enter_plus_exit_time_dpm0_ns / 1000.0f;
+		if (dc->public.debug.sr_exit_time_dpm0_ns)
+			v->sr_exit_time =  dc->public.debug.sr_exit_time_dpm0_ns / 1000.0f;
 		dc_core->dml.soc.sr_enter_plus_exit_time_us = v->sr_enter_plus_exit_time;
 		dc_core->dml.soc.sr_exit_time_us = v->sr_exit_time;
 		mode_support_and_system_configuration(v);
