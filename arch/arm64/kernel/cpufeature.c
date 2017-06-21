@@ -51,6 +51,25 @@ unsigned int compat_elf_hwcap2 __read_mostly;
 DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 EXPORT_SYMBOL(cpu_hwcaps);
 
+static int dump_cpu_hwcaps(struct notifier_block *self, unsigned long v, void *p)
+{
+	/* file-wide pr_fmt adds "CPU features: " prefix */
+	pr_emerg("0x%*pb\n", ARM64_NCAPS, &cpu_hwcaps);
+	return 0;
+}
+
+static struct notifier_block cpu_hwcaps_notifier = {
+	.notifier_call = dump_cpu_hwcaps
+};
+
+static int __init register_cpu_hwcaps_dumper(void)
+{
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &cpu_hwcaps_notifier);
+	return 0;
+}
+__initcall(register_cpu_hwcaps_dumper);
+
 DEFINE_STATIC_KEY_ARRAY_FALSE(cpu_hwcap_keys, ARM64_NCAPS);
 EXPORT_SYMBOL(cpu_hwcap_keys);
 
