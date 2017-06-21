@@ -1725,11 +1725,24 @@ static void svm_vcpu_unblocking(struct kvm_vcpu *vcpu)
 
 static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
 {
-	return to_svm(vcpu)->vmcb->save.rflags;
+	struct vcpu_svm *svm = to_svm(vcpu);
+	unsigned long rflags = svm->vmcb->save.rflags;
+
+	if (svm->nmi_singlestep) {
+		/* Hide our flags if they were not set by the guest */
+		if (!(svm->nmi_singlestep_guest_rflags & X86_EFLAGS_TF))
+			rflags &= ~X86_EFLAGS_TF;
+		if (!(svm->nmi_singlestep_guest_rflags & X86_EFLAGS_RF))
+			rflags &= ~X86_EFLAGS_RF;
+	}
+	return rflags;
 }
 
 static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
+	if (to_svm(vcpu)->nmi_singlestep)
+		rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
+
        /*
         * Any change of EFLAGS.VM is accompanied by a reload of SS
         * (caused by either a task switch or an inter-privilege IRET),
