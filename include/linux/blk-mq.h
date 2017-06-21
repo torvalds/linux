@@ -266,15 +266,7 @@ int blk_mq_reinit_tagset(struct blk_mq_tag_set *set);
 int blk_mq_map_queues(struct blk_mq_tag_set *set);
 void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
 
-/*
- * FIXME: this helper is just for working around mpt3sas.
- */
-static inline void blk_mq_quiesce_queue_nowait(struct request_queue *q)
-{
-	spin_lock_irq(q->queue_lock);
-	queue_flag_set(QUEUE_FLAG_QUIESCED, q);
-	spin_unlock_irq(q->queue_lock);
-}
+void blk_mq_quiesce_queue_nowait(struct request_queue *q);
 
 /*
  * Driver command data is immediately after the request. So subtract request
