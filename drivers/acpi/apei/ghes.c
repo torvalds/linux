@@ -45,11 +45,14 @@
 #include <linux/aer.h>
 #include <linux/nmi.h>
 #include <linux/sched/clock.h>
+#include <linux/uuid.h>
+#include <linux/ras.h>
 
 #include <acpi/actbl1.h>
 #include <acpi/ghes.h>
 #include <acpi/apei.h>
 #include <asm/tlbflush.h>
+#include <ras/ras_event.h>
 
 #include "apei-internal.h"
 
@@ -461,11 +464,19 @@ static void ghes_do_proc(struct ghes *ghes,
 	int sev, sec_sev;
 	struct acpi_hest_generic_data *gdata;
 	guid_t *sec_type;
+	guid_t *fru_id = &NULL_UUID_LE;
+	char *fru_text = "";
 
 	sev = ghes_severity(estatus->error_severity);
 	apei_estatus_for_each_section(estatus, gdata) {
 		sec_type = (guid_t *)gdata->section_type;
 		sec_sev = ghes_severity(gdata->error_severity);
+		if (gdata->validation_bits & CPER_SEC_VALID_FRU_ID)
+			fru_id = (guid_t *)gdata->fru_id;
+
+		if (gdata->validation_bits & CPER_SEC_VALID_FRU_TEXT)
+			fru_text = gdata->fru_text;
+
 		if (guid_equal(sec_type, &CPER_SEC_PLATFORM_MEM)) {
 			struct cper_sec_mem_err *mem_err = acpi_hest_get_payload(gdata);
 
@@ -506,6 +517,13 @@ static void ghes_do_proc(struct ghes *ghes,
 
 		}
 #endif
+		else {
+			void *err = acpi_hest_get_payload(gdata);
+
+			log_non_standard_event(sec_type, fru_id, fru_text,
+					       sec_sev, err,
+					       gdata->error_data_length);
+		}
 	}
 }
 
