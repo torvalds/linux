@@ -1099,10 +1099,12 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 	pipe_ctx->scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 	/* program_scaler and allocate_mem_input are not new asic */
-	if (!pipe_ctx_old || memcmp(&pipe_ctx_old->scl_data,
-				&pipe_ctx->scl_data,
-				sizeof(struct scaler_data)) != 0)
+	if ((!pipe_ctx_old ||
+	     memcmp(&pipe_ctx_old->scl_data, &pipe_ctx->scl_data,
+		    sizeof(struct scaler_data)) != 0) &&
+	     pipe_ctx->surface) {
 		program_scaler(dc, pipe_ctx);
+	}
 
 	/* mst support - use total stream count */
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
