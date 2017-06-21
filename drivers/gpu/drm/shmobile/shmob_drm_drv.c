@@ -277,7 +277,7 @@ static int shmob_drm_probe(struct platform_device *pdev)
 	ret = drm_irq_install(ddev, platform_get_irq(pdev, 0));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to install IRQ handler\n");
-		goto err_vblank_cleanup;
+		goto err_modeset_cleanup;
 	}
 
 	/*
@@ -292,8 +292,6 @@ static int shmob_drm_probe(struct platform_device *pdev)
 
 err_irq_uninstall:
 	drm_irq_uninstall(ddev);
-err_vblank_cleanup:
-	drm_vblank_cleanup(ddev);
 err_modeset_cleanup:
 	drm_kms_helper_poll_fini(ddev);
 	drm_mode_config_cleanup(ddev);
