@@ -104,6 +104,9 @@ struct thread_struct {
 #define task_user_tls(t)	(&(t)->thread.tp_value)
 #endif
 
+/* Sync TPIDR_EL0 back to thread_struct for current */
+void tls_preserve_current_state(void);
+
 #define INIT_THREAD  {	}
 
 static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
