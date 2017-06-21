@@ -38,7 +38,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/qed/qed_if.h>
-#include <linux/qed/qed_roce_if.h>
+#include <linux/qed/qed_rdma_if.h>
 #include "qed.h"
 #include "qed_dev_api.h"
 #include "qed_hsi.h"

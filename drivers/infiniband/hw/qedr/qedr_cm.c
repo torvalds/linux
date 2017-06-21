@@ -44,7 +44,7 @@
 #include <rdma/ib_cache.h>
 
 #include <linux/qed/qed_if.h>
-#include <linux/qed/qed_roce_if.h>
+#include <linux/qed/qed_rdma_if.h>
 #include "qedr.h"
 #include "verbs.h"
 #include <rdma/qedr-abi.h>

@@ -53,7 +53,7 @@
 #include "qed_ll2.h"
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
-#include <linux/qed/qed_roce_if.h>
+#include <linux/qed/qed_rdma_if.h>
 #include "qed_rdma.h"
 #include "qed_roce.h"
 #include "qed_sp.h"
