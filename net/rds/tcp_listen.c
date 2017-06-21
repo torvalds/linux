@@ -112,7 +112,7 @@ struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 	return NULL;
 }
 
-static void rds_tcp_set_linger(struct socket *sock)
+void rds_tcp_set_linger(struct socket *sock)
 {
 	struct linger no_linger = {
 		.l_onoff = 1,

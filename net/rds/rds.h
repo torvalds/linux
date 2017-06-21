@@ -137,7 +137,8 @@ struct rds_connection {
 	__be32			c_faddr;
 	unsigned int		c_loopback:1,
 				c_ping_triggered:1,
-				c_pad_to_32:30;
+				c_destroy_in_prog:1,
+				c_pad_to_32:29;
 	int			c_npaths;
 	struct rds_connection	*c_passive;
 	struct rds_transport	*c_trans;
