@@ -2166,6 +2166,13 @@ qla2x00_fdmiv2_rpa(scsi_qla_host_t *vha)
 	    eiter->a.fc4_types[2],
 	    eiter->a.fc4_types[1]);
 
+	if (vha->flags.nvme_enabled) {
+		eiter->a.fc4_types[6] = 1;	/* NVMe type 28h */
+		ql_dbg(ql_dbg_disc, vha, 0x211f,
+		    "NVME FC4 Type = %02x 0x0 0x0 0x0 0x0 0x0.\n",
+		    eiter->a.fc4_types[6]);
+	}
+
 	/* Supported speed. */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_PORT_SUPPORT_SPEED);
@@ -2362,6 +2369,15 @@ qla2x00_fdmiv2_rpa(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_disc, vha, 0x20c6,
 	    "Port Active FC4 Type = %02x %02x.\n",
 	    eiter->a.port_fc4_type[2], eiter->a.port_fc4_type[1]);
+
+	if (vha->flags.nvme_enabled) {
+		eiter->a.port_fc4_type[4] = 0;
+		eiter->a.port_fc4_type[5] = 0;
+		eiter->a.port_fc4_type[6] = 1;	/* NVMe type 28h */
+		ql_dbg(ql_dbg_disc, vha, 0x2120,
+		    "NVME Port Active FC4 Type = %02x 0x0 0x0 0x0 0x0 0x0.\n",
+		    eiter->a.port_fc4_type[6]);
+	}
 
 	/* Port State */
 	eiter = entries + size;
