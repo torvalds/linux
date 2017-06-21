@@ -457,69 +457,8 @@ static void free_pg_mapping(struct ceph_pg_mapping *pg)
  * rbtree of pg_mapping for handling pg_temp (explicit mapping of pgid
  * to a set of osds) and primary_temp (explicit primary setting)
  */
-static int __insert_pg_mapping(struct ceph_pg_mapping *new,
-			       struct rb_root *root)
-{
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
-	struct ceph_pg_mapping *pg = NULL;
-	int c;
-
-	dout("__insert_pg_mapping %llx %p\n", *(u64 *)&new->pgid, new);
-	while (*p) {
-		parent = *p;
-		pg = rb_entry(parent, struct ceph_pg_mapping, node);
-		c = ceph_pg_compare(&new->pgid, &pg->pgid);
-		if (c < 0)
-			p = &(*p)->rb_left;
-		else if (c > 0)
-			p = &(*p)->rb_right;
-		else
-			return -EEXIST;
-	}
-
-	rb_link_node(&new->node, parent, p);
-	rb_insert_color(&new->node, root);
-	return 0;
-}
-
-static struct ceph_pg_mapping *__lookup_pg_mapping(struct rb_root *root,
-						   const struct ceph_pg *pgid)
-{
-	struct rb_node *n = root->rb_node;
-	struct ceph_pg_mapping *pg;
-	int c;
-
-	while (n) {
-		pg = rb_entry(n, struct ceph_pg_mapping, node);
-		c = ceph_pg_compare(pgid, &pg->pgid);
-		if (c < 0) {
-			n = n->rb_left;
-		} else if (c > 0) {
-			n = n->rb_right;
-		} else {
-			dout("__lookup_pg_mapping %lld.%x got %p\n",
-			     pgid->pool, pgid->seed, pg);
-			return pg;
-		}
-	}
-	return NULL;
-}
-
-static int __remove_pg_mapping(struct rb_root *root, const struct ceph_pg *pgid)
-{
-	struct ceph_pg_mapping *pg = __lookup_pg_mapping(root, pgid);
-
-	if (pg) {
-		dout("__remove_pg_mapping %lld.%x %p\n", pgid->pool, pgid->seed,
-		     pg);
-		rb_erase(&pg->node, root);
-		kfree(pg);
-		return 0;
-	}
-	dout("__remove_pg_mapping %lld.%x dne\n", pgid->pool, pgid->seed);
-	return -ENOENT;
-}
+DEFINE_RB_FUNCS2(pg_mapping, struct ceph_pg_mapping, pgid, ceph_pg_compare,
+		 RB_BYPTR, const struct ceph_pg *, node)
 
 /*
  * rbtree of pg pool info
@@ -829,15 +768,15 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 		struct ceph_pg_mapping *pg =
 			rb_entry(rb_first(&map->pg_temp),
 				 struct ceph_pg_mapping, node);
-		rb_erase(&pg->node, &map->pg_temp);
-		kfree(pg);
+		erase_pg_mapping(&map->pg_temp, pg);
+		free_pg_mapping(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->primary_temp)) {
 		struct ceph_pg_mapping *pg =
 			rb_entry(rb_first(&map->primary_temp),
 				 struct ceph_pg_mapping, node);
-		rb_erase(&pg->node, &map->primary_temp);
-		kfree(pg);
+		erase_pg_mapping(&map->primary_temp, pg);
+		free_pg_mapping(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->pg_pools)) {
 		struct ceph_pg_pool_info *pi =
@@ -1055,8 +994,12 @@ static int decode_pg_mapping(void **p, void *end, struct rb_root *mapping_root,
 		if (ret)
 			return ret;
 
-		ret = __remove_pg_mapping(mapping_root, &pgid);
-		WARN_ON(!incremental && ret != -ENOENT);
+		pg = lookup_pg_mapping(mapping_root, &pgid);
+		if (pg) {
+			WARN_ON(!incremental);
+			erase_pg_mapping(mapping_root, pg);
+			free_pg_mapping(pg);
+		}
 
 		if (fn) {
 			pg = fn(p, end, incremental);
@@ -1065,7 +1008,7 @@ static int decode_pg_mapping(void **p, void *end, struct rb_root *mapping_root,
 
 			if (pg) {
 				pg->pgid = pgid; /* struct */
-				__insert_pg_mapping(pg, mapping_root);
+				insert_pg_mapping(mapping_root, pg);
 			}
 		}
 	}
@@ -2242,7 +2185,7 @@ static void get_temp_osds(struct ceph_osdmap *osdmap,
 	ceph_osds_init(temp);
 
 	/* pg_temp? */
-	pg = __lookup_pg_mapping(&osdmap->pg_temp, &pgid);
+	pg = lookup_pg_mapping(&osdmap->pg_temp, &pgid);
 	if (pg) {
 		for (i = 0; i < pg->pg_temp.len; i++) {
 			if (ceph_osd_is_down(osdmap, pg->pg_temp.osds[i])) {
@@ -2265,7 +2208,7 @@ static void get_temp_osds(struct ceph_osdmap *osdmap,
 	}
 
 	/* primary_temp? */
-	pg = __lookup_pg_mapping(&osdmap->primary_temp, &pgid);
+	pg = lookup_pg_mapping(&osdmap->primary_temp, &pgid);
 	if (pg)
 		temp->primary = pg->primary_temp.osd;
 }
