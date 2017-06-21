@@ -211,8 +211,8 @@ static int bh_is_optional(struct squashfs_read_request *req, int idx)
 	int start_idx, end_idx;
 	struct squashfs_sb_info *msblk = req->sb->s_fs_info;
 
-	start_idx = (idx * msblk->devblksize - req->offset) / PAGE_CACHE_SIZE;
-	end_idx = ((idx + 1) * msblk->devblksize - req->offset + 1) / PAGE_CACHE_SIZE;
+	start_idx = (idx * msblk->devblksize - req->offset) >> PAGE_SHIFT;
+	end_idx = ((idx + 1) * msblk->devblksize - req->offset + 1) >> PAGE_SHIFT;
 	if (start_idx >= req->output->pages)
 		return 1;
 	if (start_idx < 0)
