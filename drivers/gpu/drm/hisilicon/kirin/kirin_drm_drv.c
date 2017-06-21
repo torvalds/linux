@@ -41,7 +41,6 @@ static int kirin_drm_kms_cleanup(struct drm_device *dev)
 	}
 #endif
 	drm_kms_helper_poll_fini(dev);
-	drm_vblank_cleanup(dev);
 	dc_ops->cleanup(to_platform_device(dev->dev));
 	drm_mode_config_cleanup(dev);
 	devm_kfree(dev->dev, priv);
