@@ -73,3 +73,39 @@ static inline void ghes_edac_unregister(struct ghes *ghes)
 {
 }
 #endif
+
+static inline int acpi_hest_get_version(struct acpi_hest_generic_data *gdata)
+{
+	return gdata->revision >> 8;
+}
+
+static inline void *acpi_hest_get_payload(struct acpi_hest_generic_data *gdata)
+{
+	if (acpi_hest_get_version(gdata) >= 3)
+		return (void *)(((struct acpi_hest_generic_data_v300 *)(gdata)) + 1);
+
+	return gdata + 1;
+}
+
+static inline int acpi_hest_get_error_length(struct acpi_hest_generic_data *gdata)
+{
+	return ((struct acpi_hest_generic_data *)(gdata))->error_data_length;
+}
+
+static inline int acpi_hest_get_size(struct acpi_hest_generic_data *gdata)
+{
+	if (acpi_hest_get_version(gdata) >= 3)
+		return sizeof(struct acpi_hest_generic_data_v300);
+
+	return sizeof(struct acpi_hest_generic_data);
+}
+
+static inline int acpi_hest_get_record_size(struct acpi_hest_generic_data *gdata)
+{
+	return (acpi_hest_get_size(gdata) + acpi_hest_get_error_length(gdata));
+}
+
+static inline void *acpi_hest_get_next(struct acpi_hest_generic_data *gdata)
+{
+	return (void *)(gdata) + acpi_hest_get_record_size(gdata);
+}
