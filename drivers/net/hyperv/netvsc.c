@@ -57,6 +57,8 @@ void netvsc_switch_datapath(struct net_device *ndev, bool vf)
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_pkt,
 			       VM_PKT_DATA_INBAND, 0);
+
+	net_device_ctx->datapath = vf;
 }
 
 static struct netvsc_device *alloc_net_device(void)

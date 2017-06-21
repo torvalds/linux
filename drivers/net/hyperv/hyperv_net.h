@@ -717,6 +717,8 @@ struct net_device_context {
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
+
+	bool datapath;	/* 0 - synthetic, 1 - VF nic */
 };
 
 /* Per channel data */

@@ -68,7 +68,8 @@ static void netvsc_set_multicast_list(struct net_device *net)
 
 static int netvsc_open(struct net_device *net)
 {
-	struct netvsc_device *nvdev = net_device_to_netvsc_device(net);
+	struct net_device_context *ndev_ctx = netdev_priv(net);
+	struct netvsc_device *nvdev = ndev_ctx->nvdev;
 	struct rndis_device *rdev;
 	int ret = 0;
 
@@ -84,7 +85,7 @@ static int netvsc_open(struct net_device *net)
 	netif_tx_wake_all_queues(net);
 
 	rdev = nvdev->extension;
-	if (!rdev->link_state)
+	if (!rdev->link_state && !ndev_ctx->datapath)
 		netif_carrier_on(net);
 
 	return ret;
@@ -1284,7 +1285,8 @@ static void netvsc_link_change(struct work_struct *w)
 	case RNDIS_STATUS_MEDIA_CONNECT:
 		if (rdev->link_state) {
 			rdev->link_state = false;
-			netif_carrier_on(net);
+			if (!ndev_ctx->datapath)
+				netif_carrier_on(net);
 			netif_tx_wake_all_queues(net);
 		} else {
 			notify = true;
