@@ -25,7 +25,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <generated/utsrelease.h>
 #include <linux/utsname.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
@@ -1883,9 +1882,9 @@ static ssize_t tcm_qla2xxx_wwn_version_show(struct config_item *item,
 		char *page)
 {
 	return sprintf(page,
-	    "TCM QLOGIC QLA2XXX NPIV capable fabric module %s on %s/%s on "
-	    UTS_RELEASE"\n", QLA2XXX_VERSION, utsname()->sysname,
-	    utsname()->machine);
+	    "TCM QLOGIC QLA2XXX NPIV capable fabric module %s on %s/%s on %s\n",
+	    QLA2XXX_VERSION, utsname()->sysname,
+	    utsname()->machine, utsname()->release);
 }
 
 CONFIGFS_ATTR_RO(tcm_qla2xxx_wwn_, version);
@@ -1989,9 +1988,9 @@ static int tcm_qla2xxx_register_configfs(void)
 {
 	int ret;
 
-	pr_debug("TCM QLOGIC QLA2XXX fabric module %s on %s/%s on "
-	    UTS_RELEASE"\n", QLA2XXX_VERSION, utsname()->sysname,
-	    utsname()->machine);
+	pr_debug("TCM QLOGIC QLA2XXX fabric module %s on %s/%s on %s\n",
+	    QLA2XXX_VERSION, utsname()->sysname,
+	    utsname()->machine, utsname()->release);
 
 	ret = target_register_template(&tcm_qla2xxx_ops);
 	if (ret)
