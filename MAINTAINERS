@@ -1662,7 +1662,6 @@ F:	arch/arm/mach-qcom/
 F:	arch/arm64/boot/dts/qcom/*
 F:	drivers/i2c/busses/i2c-qup.c
 F:	drivers/clk/qcom/
-F:	drivers/pinctrl/qcom/
 F:	drivers/dma/qcom/
 F:	drivers/soc/qcom/
 F:	drivers/spi/spi-qup.c
@@ -10084,6 +10083,13 @@ M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 S:	Maintained
 F:	drivers/pinctrl/intel/
+
+PIN CONTROLLER - QUALCOMM
+M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+S:	Maintained
+L:	linux-arm-msm@vger.kernel.org
+F:	Documentation/devicetree/bindings/pinctrl/qcom,*.txt
+F:	drivers/pinctrl/qcom/
 
 PIN CONTROLLER - RENESAS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
