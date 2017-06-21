@@ -88,13 +88,10 @@ static int ovl_acceptable(void *ctx, struct dentry *dentry)
 	return 1;
 }
 
-static struct dentry *ovl_get_origin(struct dentry *dentry,
-				     struct vfsmount *mnt)
+static struct ovl_fh *ovl_get_origin_fh(struct dentry *dentry)
 {
 	int res;
 	struct ovl_fh *fh = NULL;
-	struct dentry *origin = NULL;
-	int bytes;
 
 	res = vfs_getxattr(dentry, OVL_XATTR_ORIGIN, NULL, 0);
 	if (res < 0) {
@@ -106,7 +103,7 @@ static struct dentry *ovl_get_origin(struct dentry *dentry,
 	if (res == 0)
 		return NULL;
 
-	fh  = kzalloc(res, GFP_TEMPORARY);
+	fh = kzalloc(res, GFP_TEMPORARY);
 	if (!fh)
 		return ERR_PTR(-ENOMEM);
 
@@ -129,7 +126,29 @@ static struct dentry *ovl_get_origin(struct dentry *dentry,
 	    (fh->flags & OVL_FH_FLAG_BIG_ENDIAN) != OVL_FH_FLAG_CPU_ENDIAN)
 		goto out;
 
-	bytes = (fh->len - offsetof(struct ovl_fh, fid));
+	return fh;
+
+out:
+	kfree(fh);
+	return NULL;
+
+fail:
+	pr_warn_ratelimited("overlayfs: failed to get origin (%i)\n", res);
+	goto out;
+invalid:
+	pr_warn_ratelimited("overlayfs: invalid origin (%*phN)\n", res, fh);
+	goto out;
+}
+
+static struct dentry *ovl_get_origin(struct dentry *dentry,
+				     struct vfsmount *mnt)
+{
+	struct dentry *origin = NULL;
+	struct ovl_fh *fh = ovl_get_origin_fh(dentry);
+	int bytes;
+
+	if (IS_ERR_OR_NULL(fh))
+		return (struct dentry *)fh;
 
 	/*
 	 * Make sure that the stored uuid matches the uuid of the lower
@@ -138,6 +157,7 @@ static struct dentry *ovl_get_origin(struct dentry *dentry,
 	if (!uuid_equal(&fh->uuid, &mnt->mnt_sb->s_uuid))
 		goto out;
 
+	bytes = (fh->len - offsetof(struct ovl_fh, fid));
 	origin = exportfs_decode_fh(mnt, (struct fid *)fh->fid,
 				    bytes >> 2, (int)fh->type,
 				    ovl_acceptable, NULL);
@@ -149,21 +169,17 @@ static struct dentry *ovl_get_origin(struct dentry *dentry,
 	}
 
 	if (ovl_dentry_weird(origin) ||
-	    ((d_inode(origin)->i_mode ^ d_inode(dentry)->i_mode) & S_IFMT)) {
-		dput(origin);
-		origin = NULL;
+	    ((d_inode(origin)->i_mode ^ d_inode(dentry)->i_mode) & S_IFMT))
 		goto invalid;
-	}
 
 out:
 	kfree(fh);
 	return origin;
 
-fail:
-	pr_warn_ratelimited("overlayfs: failed to get origin (%i)\n", res);
-	goto out;
 invalid:
-	pr_warn_ratelimited("overlayfs: invalid origin (%*phN)\n", res, fh);
+	pr_warn_ratelimited("overlayfs: invalid origin (%pd2)\n", origin);
+	dput(origin);
+	origin = NULL;
 	goto out;
 }
 
@@ -301,6 +317,65 @@ static int ovl_check_origin(struct dentry *dentry, struct dentry *upperdentry,
 	*ctrp = 1;
 
 	return 0;
+}
+
+/*
+ * Verify that @fh matches the origin file handle stored in OVL_XATTR_ORIGIN.
+ * Return 0 on match, -ESTALE on mismatch, < 0 on error.
+ */
+static int ovl_verify_origin_fh(struct dentry *dentry, const struct ovl_fh *fh)
+{
+	struct ovl_fh *ofh = ovl_get_origin_fh(dentry);
+	int err = 0;
+
+	if (!ofh)
+		return -ENODATA;
+
+	if (IS_ERR(ofh))
+		return PTR_ERR(ofh);
+
+	if (fh->len != ofh->len || memcmp(fh, ofh, fh->len))
+		err = -ESTALE;
+
+	kfree(ofh);
+	return err;
+}
+
+/*
+ * Verify that an inode matches the origin file handle stored in upper inode.
+ *
+ * If @set is true and there is no stored file handle, encode and store origin
+ * file handle in OVL_XATTR_ORIGIN.
+ *
+ * Return 0 on match, -ESTALE on mismatch, < 0 on error.
+ */
+int ovl_verify_origin(struct dentry *dentry, struct vfsmount *mnt,
+		      struct dentry *origin, bool set)
+{
+	struct inode *inode;
+	struct ovl_fh *fh;
+	int err;
+
+	fh = ovl_encode_fh(origin);
+	err = PTR_ERR(fh);
+	if (IS_ERR(fh))
+		goto fail;
+
+	err = ovl_verify_origin_fh(dentry, fh);
+	if (set && err == -ENODATA)
+		err = ovl_do_setxattr(dentry, OVL_XATTR_ORIGIN, fh, fh->len, 0);
+	if (err)
+		goto fail;
+
+out:
+	kfree(fh);
+	return err;
+
+fail:
+	inode = d_inode(origin);
+	pr_warn_ratelimited("overlayfs: failed to verify origin (%pd2, ino=%lu, err=%i)\n",
+			    origin, inode ? inode->i_ino : 0, err);
+	goto out;
 }
 
 /*

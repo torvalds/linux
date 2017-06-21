@@ -1048,6 +1048,14 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		ufs->same_sb = NULL;
 
 	if (!(ovl_force_readonly(ufs)) && ufs->config.index) {
+		/* Verify lower root is upper root origin */
+		err = ovl_verify_origin(upperpath.dentry, ufs->lower_mnt[0],
+					stack[0].dentry, true);
+		if (err) {
+			pr_err("overlayfs: failed to verify upper root origin\n");
+			goto out_put_lower_mnt;
+		}
+
 		ufs->indexdir = ovl_workdir_create(sb, ufs, workpath.dentry,
 						   OVL_INDEXDIR_NAME, true);
 		err = PTR_ERR(ufs->indexdir);
