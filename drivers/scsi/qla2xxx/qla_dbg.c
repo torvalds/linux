@@ -15,9 +15,10 @@
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e		|
  * | Mailbox commands             |       0x1199       | 0x1193		|
- * | Device Discovery             |       0x2004       | 0x2016		|
- * |                              |                    | 0x2011-0x2012, |
- * |                              |                    | 0x2099-0x20a4  |
+ * | Device Discovery             |       0x2131       | 0x210e-0x2116  |
+ * |				  | 		       | 0x211a         |
+ * |                              |                    | 0x211c-0x2128  |
+ * |                              |                    | 0x212a-0x2130  |
  * | Queue Command and IO tracing |       0x3074       | 0x300b         |
  * |                              |                    | 0x3027-0x3028  |
  * |                              |                    | 0x303d-0x3041  |
@@ -59,7 +60,7 @@
  * |                              |                    | 0xb13c-0xb140  |
  * |                              |                    | 0xb149		|
  * | MultiQ                       |       0xc010       |		|
- * | Misc                         |       0xd301       | 0xd031-0xd0ff	|
+ * | Misc                         |       0xd302       | 0xd031-0xd0ff	|
  * |                              |                    | 0xd101-0xd1fe	|
  * |                              |                    | 0xd214-0xd2fe	|
  * | Target Mode		  |	  0xe081       |		|

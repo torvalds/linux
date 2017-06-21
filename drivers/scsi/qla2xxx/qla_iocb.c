@@ -2211,12 +2211,30 @@ qla2x00_alloc_iocbs(struct scsi_qla_host *vha, srb_t *sp)
 }
 
 static void
+qla24xx_prli_iocb(srb_t *sp, struct logio_entry_24xx *logio)
+{
+	struct srb_iocb *lio = &sp->u.iocb_cmd;
+
+	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->control_flags = cpu_to_le16(LCF_COMMAND_PRLI);
+	if (lio->u.logio.flags & SRB_LOGIN_NVME_PRLI)
+		logio->control_flags |= LCF_NVME_PRLI;
+
+	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
+	logio->port_id[1] = sp->fcport->d_id.b.area;
+	logio->port_id[2] = sp->fcport->d_id.b.domain;
+	logio->vp_index = sp->vha->vp_idx;
+}
+
+static void
 qla24xx_login_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 {
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 
 	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	logio->control_flags = cpu_to_le16(LCF_COMMAND_PLOGI);
+
 	if (lio->u.logio.flags & SRB_LOGIN_COND_PLOGI)
 		logio->control_flags |= cpu_to_le16(LCF_COND_PLOGI);
 	if (lio->u.logio.flags & SRB_LOGIN_SKIP_PRLI)
@@ -3161,6 +3179,9 @@ qla2x00_start_sp(srb_t *sp)
 		IS_FWI2_CAPABLE(ha) ?
 		    qla24xx_login_iocb(sp, pkt) :
 		    qla2x00_login_iocb(sp, pkt);
+		break;
+	case SRB_PRLI_CMD:
+		qla24xx_prli_iocb(sp, pkt);
 		break;
 	case SRB_LOGOUT_CMD:
 		IS_FWI2_CAPABLE(ha) ?

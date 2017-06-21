@@ -343,6 +343,7 @@ struct srb_iocb {
 #define SRB_LOGIN_RETRIED	BIT_0
 #define SRB_LOGIN_COND_PLOGI	BIT_1
 #define SRB_LOGIN_SKIP_PRLI	BIT_2
+#define SRB_LOGIN_NVME_PRLI	BIT_3
 			uint16_t data[2];
 			u32 iop[2];
 		} logio;
@@ -436,6 +437,7 @@ struct srb_iocb {
 #define SRB_NACK_PLOGI	16
 #define SRB_NACK_PRLI	17
 #define SRB_NACK_LOGO	18
+#define SRB_PRLI_CMD	21
 
 enum {
 	TYPE_SRB,
@@ -1088,6 +1090,7 @@ struct mbx_cmd_32 {
 #define	MBX_1		BIT_1
 #define	MBX_0		BIT_0
 
+#define RNID_TYPE_PORT_LOGIN	0x7
 #define RNID_TYPE_SET_VERSION	0x9
 #define RNID_TYPE_ASIC_TEMP	0xC
 
@@ -2152,6 +2155,7 @@ typedef struct {
 	uint8_t fabric_port_name[WWN_SIZE];
 	uint16_t fp_speed;
 	uint8_t fc4_type;
+	uint8_t fc4f_nvme;	/* nvme fc4 feature bits */
 } sw_info_t;
 
 /* FCP-4 types */
@@ -2180,7 +2184,8 @@ typedef enum {
 	FCT_SWITCH,
 	FCT_BROADCAST,
 	FCT_INITIATOR,
-	FCT_TARGET
+	FCT_TARGET,
+	FCT_NVME
 } fc_port_type_t;
 
 enum qla_sess_deletion {
@@ -2237,10 +2242,12 @@ enum fcport_mgt_event {
 	FCME_RSCN,
 	FCME_GIDPN_DONE,
 	FCME_PLOGI_DONE,	/* Initiator side sent LLIOCB */
+	FCME_PRLI_DONE,
 	FCME_GNL_DONE,
 	FCME_GPSC_DONE,
 	FCME_GPDB_DONE,
 	FCME_GPNID_DONE,
+	FCME_GFFID_DONE,
 	FCME_DELETE_DONE,
 };
 
@@ -2274,6 +2281,16 @@ typedef struct fc_port {
 	unsigned int login_pause:1;
 	unsigned int login_succ:1;
 
+	struct work_struct nvme_del_work;
+	atomic_t nvme_ref_count;
+	uint32_t nvme_prli_service_param;
+#define NVME_PRLI_SP_CONF       BIT_7
+#define NVME_PRLI_SP_INITIATOR  BIT_5
+#define NVME_PRLI_SP_TARGET     BIT_4
+#define NVME_PRLI_SP_DISCOVERY  BIT_3
+	uint8_t nvme_flag;
+#define NVME_FLAG_REGISTERED 4
+
 	struct fc_port *conflict;
 	unsigned char logout_completed;
 	int generation;
@@ -2306,12 +2323,15 @@ typedef struct fc_port {
 	u32 supported_classes;
 
 	uint8_t fc4_type;
+	uint8_t	fc4f_nvme;
 	uint8_t scan_state;
 
 	unsigned long last_queue_full;
 	unsigned long last_ramp_up;
 
 	uint16_t port_id;
+
+	struct nvme_fc_remote_port *nvme_remote_port;
 
 	unsigned long retry_delay_timestamp;
 	struct qla_tgt_sess *tgt_session;
@@ -2745,7 +2765,7 @@ struct ct_sns_req {
 
 		struct {
 			uint8_t reserved;
-			uint8_t port_name[3];
+			uint8_t port_id[3];
 		} gff_id;
 
 		struct {
@@ -3052,6 +3072,7 @@ enum qla_work_type {
 	QLA_EVT_GPNID_DONE,
 	QLA_EVT_NEW_SESS,
 	QLA_EVT_GPDB,
+	QLA_EVT_PRLI,
 	QLA_EVT_GPSC,
 	QLA_EVT_UPD_FCPORT,
 	QLA_EVT_GNL,
@@ -4007,6 +4028,7 @@ typedef struct scsi_qla_host {
 		uint32_t	qpairs_available:1;
 		uint32_t	qpairs_req_created:1;
 		uint32_t	qpairs_rsp_created:1;
+		uint32_t	nvme_enabled:1;
 	} flags;
 
 	atomic_t	loop_state;
@@ -4084,6 +4106,10 @@ typedef struct scsi_qla_host {
 	uint8_t		node_name[WWN_SIZE];
 	uint8_t		port_name[WWN_SIZE];
 	uint8_t		fabric_node_name[WWN_SIZE];
+
+	struct		nvme_fc_local_port *nvme_local_port;
+	atomic_t	nvme_ref_count;
+	struct list_head nvme_rport_list;
 
 	uint16_t	fcoe_vlan_id;
 	uint16_t	fcoe_fcf_idx;

@@ -37,6 +37,12 @@ struct port_database_24xx {
 #define PDF_CLASS_2		BIT_4
 #define PDF_HARD_ADDR		BIT_1
 
+	/*
+	 * for NVMe, the login_state field has been
+	 * split into nibbles.
+	 * The lower nibble is for FCP.
+	 * The upper nibble is for NVMe.
+	 */
 	uint8_t current_login_state;
 	uint8_t last_login_state;
 #define PDS_PLOGI_PENDING	0x03
@@ -69,7 +75,11 @@ struct port_database_24xx {
 	uint8_t port_name[WWN_SIZE];
 	uint8_t node_name[WWN_SIZE];
 
-	uint8_t reserved_3[24];
+	uint8_t reserved_3[4];
+	uint16_t prli_nvme_svc_param_word_0;	/* Bits 15-0 of word 0 */
+	uint16_t prli_nvme_svc_param_word_3;	/* Bits 15-0 of word 3 */
+	uint16_t nvme_first_burst_size;
+	uint8_t reserved_4[14];
 };
 
 /*
@@ -819,6 +829,7 @@ struct logio_entry_24xx {
 #define LCF_CLASS_2		BIT_8	/* Enable class 2 during PLOGI. */
 #define LCF_FREE_NPORT		BIT_7	/* Release NPORT handle after LOGO. */
 #define LCF_EXPL_LOGO		BIT_6	/* Perform an explicit LOGO. */
+#define LCF_NVME_PRLI		BIT_6   /* Perform NVME FC4 PRLI */
 #define LCF_SKIP_PRLI		BIT_5	/* Skip PRLI after PLOGI. */
 #define LCF_IMPL_LOGO_ALL	BIT_5	/* Implicit LOGO to all ports. */
 #define LCF_COND_PLOGI		BIT_4	/* PLOGI only if not logged-in. */

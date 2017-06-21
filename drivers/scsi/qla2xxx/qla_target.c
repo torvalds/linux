@@ -963,7 +963,6 @@ static void qlt_free_session_done(struct work_struct *work)
 		sess->logout_on_delete, sess->keep_nport_handle,
 		sess->send_els_logo);
 
-
 	if (!IS_SW_RESV_ADDR(sess->d_id)) {
 		if (sess->send_els_logo) {
 			qlt_port_logo_t logo;
@@ -1117,6 +1116,9 @@ void qlt_unreg_sess(struct fc_port *sess)
 	sess->disc_state = DSC_DELETE_PEND;
 	sess->last_rscn_gen = sess->rscn_gen;
 	sess->last_login_gen = sess->login_gen;
+
+	if (sess->nvme_flag & NVME_FLAG_REGISTERED)
+		schedule_work(&sess->nvme_del_work);
 
 	INIT_WORK(&sess->free_work, qlt_free_session_done);
 	schedule_work(&sess->free_work);

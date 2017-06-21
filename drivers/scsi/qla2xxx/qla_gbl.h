@@ -99,6 +99,7 @@ extern struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *,
 extern int qla2xxx_delete_qpair(struct scsi_qla_host *, struct qla_qpair *);
 void qla2x00_fcport_event_handler(scsi_qla_host_t *, struct event_arg *);
 int qla24xx_async_gpdb(struct scsi_qla_host *, fc_port_t *, u8);
+int qla24xx_async_prli(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_notify_ack(scsi_qla_host_t *, fc_port_t *,
 	struct imm_ntfy_from_isp *, int);
 int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *,

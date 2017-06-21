@@ -4428,6 +4428,7 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	INIT_LIST_HEAD(&vha->plogi_ack_list);
 	INIT_LIST_HEAD(&vha->qp_list);
 	INIT_LIST_HEAD(&vha->gnl.fcports);
+	INIT_LIST_HEAD(&vha->nvme_rport_list);
 
 	spin_lock_init(&vha->work_lock);
 	spin_lock_init(&vha->cmd_list_lock);
@@ -4716,6 +4717,9 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_GPDB:
 			qla24xx_async_gpdb(vha, e->u.fcport.fcport,
 			    e->u.fcport.opt);
+			break;
+		case QLA_EVT_PRLI:
+			qla24xx_async_prli(vha, e->u.fcport.fcport);
 			break;
 		case QLA_EVT_GPSC:
 			qla24xx_async_gpsc(vha, e->u.fcport.fcport);
