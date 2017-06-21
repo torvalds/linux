@@ -650,6 +650,10 @@
 			 <&ethsys CLK_ETHSYS_GP2>,
 			 <&apmixedsys CLK_APMIXED_TRGPLL>;
 		clock-names = "ethif", "esw", "gp1", "gp2", "trgpll";
+		resets = <&ethsys MT2701_ETHSYS_FE_RST>,
+			 <&ethsys MT2701_ETHSYS_GMAC_RST>,
+			 <&ethsys MT2701_ETHSYS_PPE_RST>;
+		reset-names = "fe", "gmac", "ppe";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_ETH>;
 		mediatek,ethsys = <&ethsys>;
 		mediatek,pctl = <&syscfg_pctl_a>;
