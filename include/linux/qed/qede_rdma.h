@@ -81,7 +81,7 @@ void qede_rdma_dev_remove(struct qede_dev *dev);
 void qede_rdma_event_changeaddr(struct qede_dev *edr);
 
 #else
-static inline int qede_rdma_dev_add(struct qede_dev *dev);
+static inline int qede_rdma_dev_add(struct qede_dev *dev)
 {
 	return 0;
 }
