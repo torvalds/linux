@@ -146,7 +146,6 @@ struct hv_netvsc_packet {
 
 struct netvsc_device_info {
 	unsigned char mac_adr[ETH_ALEN];
-	bool link_state;	/* 0 - link up, 1 - link down */
 	int  ring_size;
 	u32  max_num_vrss_chns;
 	u32  num_chn;
@@ -165,13 +164,15 @@ struct rndis_device {
 	struct net_device *ndev;
 
 	enum rndis_device_state state;
-	bool link_state;
+
 	atomic_t new_req_id;
 
 	spinlock_t request_lock;
 	struct list_head req_list;
 
 	struct work_struct mcast_work;
+
+	bool link_state;        /* 0 - link up, 1 - link down */
 
 	u8 hw_mac_adr[ETH_ALEN];
 	u8 rss_key[NETVSC_HASH_KEYLEN];
