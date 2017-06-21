@@ -90,11 +90,11 @@ MODULE_PARM_DESC(max_mw_size, "Limit size of large memory windows");
 
 static unsigned int seg_order = 19; /* 512K */
 module_param(seg_order, uint, 0644);
-MODULE_PARM_DESC(seg_order, "size order [n^2] of buffer segment for testing");
+MODULE_PARM_DESC(seg_order, "size order [2^n] of buffer segment for testing");
 
 static unsigned int run_order = 32; /* 4G */
 module_param(run_order, uint, 0644);
-MODULE_PARM_DESC(run_order, "size order [n^2] of total data to transfer");
+MODULE_PARM_DESC(run_order, "size order [2^n] of total data to transfer");
 
 static bool use_dma; /* default to 0 */
 module_param(use_dma, bool, 0644);
