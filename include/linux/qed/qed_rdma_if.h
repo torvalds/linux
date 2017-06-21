@@ -29,8 +29,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef _QED_ROCE_IF_H
-#define _QED_ROCE_IF_H
+#ifndef _QED_RDMA_IF_H
+#define _QED_RDMA_IF_H
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/list.h>

@@ -62,7 +62,7 @@
 #include "qed_sp.h"
 #include "qed_sriov.h"
 #include "qed_vf.h"
-#include "qed_roce.h"
+#include "qed_rdma.h"
 
 static DEFINE_SPINLOCK(qm_lock);
 
