@@ -252,6 +252,9 @@ enum auxtrace_error_type {
 	PERF_AUXTRACE_ERROR_MAX
 };
 
+/* Attribute type for custom synthesized events */
+#define PERF_TYPE_SYNTH		(INT_MAX + 1U)
+
 /*
  * The kernel collects the number of events it couldn't send in a stretch and
  * when possible sends this number in a PERF_RECORD_LOST event. The number of
