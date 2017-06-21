@@ -1437,7 +1437,7 @@ static int stv0367ter_get_frontend(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
+static u32 stv0367ter_snr_readreg(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 	u32 snru32 = 0;
@@ -1453,10 +1453,16 @@ static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 		cpt++;
 	}
-
 	snru32 /= 10;/*average on 10 values*/
 
-	*snr = snru32 / 1000;
+	return snru32;
+}
+
+static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	u32 snrval = stv0367ter_snr_readreg(fe);
+
+	*snr = snrval / 1000;
 
 	return 0;
 }
@@ -2702,51 +2708,61 @@ static int stv0367cab_read_strength(struct dvb_frontend *fe, u16 *strength)
 	return 0;
 }
 
-static int stv0367cab_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int stv0367cab_snr_power(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
-	u32 noisepercentage;
 	enum stv0367cab_mod QAMSize;
-	u32 regval = 0, temp = 0;
-	int power, i;
 
 	QAMSize = stv0367_readbits(state, F367CAB_QAM_MODE);
 	switch (QAMSize) {
 	case FE_CAB_MOD_QAM4:
-		power = 21904;
-		break;
+		return 21904;
 	case FE_CAB_MOD_QAM16:
-		power = 20480;
-		break;
+		return 20480;
 	case FE_CAB_MOD_QAM32:
-		power = 23040;
-		break;
+		return 23040;
 	case FE_CAB_MOD_QAM64:
-		power = 21504;
-		break;
+		return 21504;
 	case FE_CAB_MOD_QAM128:
-		power = 23616;
-		break;
+		return 23616;
 	case FE_CAB_MOD_QAM256:
-		power = 21760;
-		break;
-	case FE_CAB_MOD_QAM512:
-		power = 1;
-		break;
+		return 21760;
 	case FE_CAB_MOD_QAM1024:
-		power = 21280;
-		break;
+		return 21280;
 	default:
-		power = 1;
 		break;
 	}
+
+	return 1;
+}
+
+static int stv0367cab_snr_readreg(struct dvb_frontend *fe, int avgdiv)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	u32 regval = 0;
+	int i;
 
 	for (i = 0; i < 10; i++) {
 		regval += (stv0367_readbits(state, F367CAB_SNR_LO)
 			+ 256 * stv0367_readbits(state, F367CAB_SNR_HI));
 	}
 
-	regval /= 10; /*for average over 10 times in for loop above*/
+	if (avgdiv)
+		regval /= 10;
+
+	return regval;
+}
+
+static int stv0367cab_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	u32 noisepercentage;
+	u32 regval = 0, temp = 0;
+	int power;
+
+	power = stv0367cab_snr_power(fe);
+	regval = stv0367cab_snr_readreg(fe, 1);
+
 	if (regval != 0) {
 		temp = power
 			* (1 << (3 + stv0367_readbits(state, F367CAB_SNR_PER)));
