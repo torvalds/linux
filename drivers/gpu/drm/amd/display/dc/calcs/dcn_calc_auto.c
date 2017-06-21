@@ -128,7 +128,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 
 	v->source_format_pixel_and_scan_support = dcn_bw_yes;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
-		if ((v->source_surface_mode[k] == dcn_bw_sw_linear && !v->source_scan[k] == dcn_bw_hor) || ((v->source_surface_mode[k] == dcn_bw_sw_4_kb_d || v->source_surface_mode[k] == dcn_bw_sw_4_kb_d_x || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d_t || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d_x || v->source_surface_mode[k] == dcn_bw_sw_var_d || v->source_surface_mode[k] == dcn_bw_sw_var_d_x) && !v->source_pixel_format[k] == dcn_bw_rgb_sub_64)) {
+		if ((v->source_surface_mode[k] == dcn_bw_sw_linear && v->source_scan[k] != dcn_bw_hor) || ((v->source_surface_mode[k] == dcn_bw_sw_4_kb_d || v->source_surface_mode[k] == dcn_bw_sw_4_kb_d_x || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d_t || v->source_surface_mode[k] == dcn_bw_sw_64_kb_d_x || v->source_surface_mode[k] == dcn_bw_sw_var_d || v->source_surface_mode[k] == dcn_bw_sw_var_d_x) && v->source_pixel_format[k] != dcn_bw_rgb_sub_64)) {
 			v->source_format_pixel_and_scan_support = dcn_bw_no;
 		}
 	}
