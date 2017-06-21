@@ -138,21 +138,6 @@ bad:
 	return -EINVAL;
 }
 
-static int skip_name_map(void **p, void *end)
-{
-        int len;
-        ceph_decode_32_safe(p, end, len ,bad);
-        while (len--) {
-                int strlen;
-                *p += sizeof(u32);
-                ceph_decode_32_safe(p, end, strlen, bad);
-                *p += strlen;
-}
-        return 0;
-bad:
-        return -EINVAL;
-}
-
 static void crush_finalize(struct crush_map *c)
 {
 	__s32 b;
@@ -187,7 +172,6 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	void **p = &pbyval;
 	void *start = pbyval;
 	u32 magic;
-	u32 num_name_maps;
 
 	dout("crush_decode %p to %p len %d\n", *p, end, (int)(end - *p));
 
@@ -353,12 +337,9 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		}
 	}
 
-	/* ignore trailing name maps. */
-        for (num_name_maps = 0; num_name_maps < 3; num_name_maps++) {
-                err = skip_name_map(p, end);
-                if (err < 0)
-                        goto done;
-        }
+	ceph_decode_skip_map(p, end, 32, string, bad); /* type_map */
+	ceph_decode_skip_map(p, end, 32, string, bad); /* name_map */
+	ceph_decode_skip_map(p, end, 32, string, bad); /* rule_name_map */
 
         /* tunables */
         ceph_decode_need(p, end, 3*sizeof(u32), done);
