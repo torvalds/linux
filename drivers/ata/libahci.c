@@ -945,7 +945,8 @@ int ahci_reset_controller(struct ata_host *host)
 		/* Some registers might be cleared on reset.  Restore
 		 * initial values.
 		 */
-		ahci_restore_initial_config(host);
+		if (!(hpriv->flags & AHCI_HFLAG_NO_WRITE_TO_RO))
+			ahci_restore_initial_config(host);
 	} else
 		dev_info(host->dev, "skipping global host reset\n");
 

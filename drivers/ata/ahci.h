@@ -249,6 +249,8 @@ enum {
 #endif
 	AHCI_HFLAG_WAKE_BEFORE_STOP	= (1 << 22), /* wake before DMA stop */
 	AHCI_HFLAG_YES_ALPM		= (1 << 23), /* force ALPM cap on */
+	AHCI_HFLAG_NO_WRITE_TO_RO	= (1 << 24), /* don't write to read
+							only registers */
 
 	/* ap->flags bits */
 
