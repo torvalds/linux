@@ -816,17 +816,22 @@ static struct notifier_block ghes_notifier_sci = {
 #ifdef CONFIG_ACPI_APEI_SEA
 static LIST_HEAD(ghes_sea);
 
-void ghes_notify_sea(void)
+/*
+ * Return 0 only if one of the SEA error sources successfully reported an error
+ * record sent from the firmware.
+ */
+int ghes_notify_sea(void)
 {
 	struct ghes *ghes;
+	int ret = -ENOENT;
 
-	/*
-	 * synchronize_rcu() will wait for nmi_exit(), so no need to
-	 * rcu_read_lock().
-	 */
+	rcu_read_lock();
 	list_for_each_entry_rcu(ghes, &ghes_sea, list) {
-		ghes_proc(ghes);
+		if (!ghes_proc(ghes))
+			ret = 0;
 	}
+	rcu_read_unlock();
+	return ret;
 }
 
 static void ghes_sea_add(struct ghes *ghes)

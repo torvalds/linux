@@ -532,6 +532,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
 	struct siginfo info;
 	const struct fault_info *inf;
+	int ret = 0;
 
 	inf = esr_to_fault_info(esr);
 	pr_err("Synchronous External Abort: %s (0x%08x) at 0x%016lx\n",
@@ -546,7 +547,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 		if (interrupts_enabled(regs))
 			nmi_enter();
 
-		ghes_notify_sea();
+		ret = ghes_notify_sea();
 
 		if (interrupts_enabled(regs))
 			nmi_exit();
@@ -561,7 +562,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 		info.si_addr  = (void __user *)addr;
 	arm64_notify_die("", regs, &info, esr);
 
-	return 0;
+	return ret;
 }
 
 static const struct fault_info fault_info[] = {
@@ -630,6 +631,23 @@ static const struct fault_info fault_info[] = {
 	{ do_bad,		SIGBUS,  0,		"page domain fault"		},
 	{ do_bad,		SIGBUS,  0,		"unknown 63"			},
 };
+
+/*
+ * Handle Synchronous External Aborts that occur in a guest kernel.
+ *
+ * The return value will be zero if the SEA was successfully handled
+ * and non-zero if there was an error processing the error or there was
+ * no error to process.
+ */
+int handle_guest_sea(phys_addr_t addr, unsigned int esr)
+{
+	int ret = -ENOENT;
+
+	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA))
+		ret = ghes_notify_sea();
+
+	return ret;
+}
 
 /*
  * Dispatch a data abort to the relevant handler.
