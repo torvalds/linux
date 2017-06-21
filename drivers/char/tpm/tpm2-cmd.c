@@ -779,36 +779,6 @@ ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,  u32 *value,
 }
 EXPORT_SYMBOL_GPL(tpm2_get_tpm_pt);
 
-#define TPM2_STARTUP_IN_SIZE \
-	(sizeof(struct tpm_input_header) + \
-	 sizeof(struct tpm2_startup_in))
-
-static const struct tpm_input_header tpm2_startup_header = {
-	.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS),
-	.length = cpu_to_be32(TPM2_STARTUP_IN_SIZE),
-	.ordinal = cpu_to_be32(TPM2_CC_STARTUP)
-};
-
-/**
- * tpm2_startup() - send startup command to the TPM chip
- *
- * @chip:		TPM chip to use.
- * @startup_type:	startup type. The value is either
- *			TPM_SU_CLEAR or TPM_SU_STATE.
- *
- * Return: Same as with tpm_transmit_cmd.
- */
-static int tpm2_startup(struct tpm_chip *chip, u16 startup_type)
-{
-	struct tpm2_cmd cmd;
-
-	cmd.header.in = tpm2_startup_header;
-
-	cmd.params.startup_in.startup_type = cpu_to_be16(startup_type);
-	return tpm_transmit_cmd(chip, NULL, &cmd, sizeof(cmd), 0, 0,
-				"attempting to start the TPM");
-}
-
 #define TPM2_SHUTDOWN_IN_SIZE \
 	(sizeof(struct tpm_input_header) + \
 	 sizeof(struct tpm2_startup_in))
@@ -1150,7 +1120,7 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 	}
 
 	if (rc == TPM2_RC_INITIALIZE) {
-		rc = tpm2_startup(chip, TPM2_SU_CLEAR);
+		rc = tpm_startup(chip);
 		if (rc)
 			goto out;
 
