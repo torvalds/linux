@@ -1008,7 +1008,7 @@ static int may_linkat(struct path *link)
 	/* Source inode owner (or CAP_FOWNER) can hardlink all they like,
 	 * otherwise, it must be a safe source.
 	 */
-	if (inode_owner_or_capable(inode) || safe_hardlink_source(inode))
+	if (safe_hardlink_source(inode) || inode_owner_or_capable(inode))
 		return 0;
 
 	audit_log_link_denied("linkat", link);
