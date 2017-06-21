@@ -2117,9 +2117,37 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 	return r;
 }
 
+static void remove_nonexistent_osds(struct ceph_osdmap *osdmap,
+				    struct ceph_pg_pool_info *pi,
+				    struct ceph_osds *set)
+{
+	int i;
+
+	if (ceph_can_shift_osds(pi)) {
+		int removed = 0;
+
+		/* shift left */
+		for (i = 0; i < set->size; i++) {
+			if (!ceph_osd_exists(osdmap, set->osds[i])) {
+				removed++;
+				continue;
+			}
+			if (removed)
+				set->osds[i - removed] = set->osds[i];
+		}
+		set->size -= removed;
+	} else {
+		/* set dne devices to NONE */
+		for (i = 0; i < set->size; i++) {
+			if (!ceph_osd_exists(osdmap, set->osds[i]))
+				set->osds[i] = CRUSH_ITEM_NONE;
+		}
+	}
+}
+
 /*
- * Calculate raw set (CRUSH output) for given PG.  The result may
- * contain nonexistent OSDs.  ->primary is undefined for a raw set.
+ * Calculate raw set (CRUSH output) for given PG and filter out
+ * nonexistent OSDs.  ->primary is undefined for a raw set.
  *
  * Placement seed (CRUSH input) is returned through @ppps.
  */
@@ -2162,6 +2190,70 @@ static void pg_to_raw_osds(struct ceph_osdmap *osdmap,
 	}
 
 	raw->size = len;
+	remove_nonexistent_osds(osdmap, pi, raw);
+}
+
+/* apply pg_upmap[_items] mappings */
+static void apply_upmap(struct ceph_osdmap *osdmap,
+			const struct ceph_pg *pgid,
+			struct ceph_osds *raw)
+{
+	struct ceph_pg_mapping *pg;
+	int i, j;
+
+	pg = lookup_pg_mapping(&osdmap->pg_upmap, pgid);
+	if (pg) {
+		/* make sure targets aren't marked out */
+		for (i = 0; i < pg->pg_upmap.len; i++) {
+			int osd = pg->pg_upmap.osds[i];
+
+			if (osd != CRUSH_ITEM_NONE &&
+			    osd < osdmap->max_osd &&
+			    osdmap->osd_weight[osd] == 0) {
+				/* reject/ignore explicit mapping */
+				return;
+			}
+		}
+		for (i = 0; i < pg->pg_upmap.len; i++)
+			raw->osds[i] = pg->pg_upmap.osds[i];
+		raw->size = pg->pg_upmap.len;
+		return;
+	}
+
+	pg = lookup_pg_mapping(&osdmap->pg_upmap_items, pgid);
+	if (pg) {
+		/*
+		 * Note: this approach does not allow a bidirectional swap,
+		 * e.g., [[1,2],[2,1]] applied to [0,1,2] -> [0,2,1].
+		 */
+		for (i = 0; i < pg->pg_upmap_items.len; i++) {
+			int from = pg->pg_upmap_items.from_to[i][0];
+			int to = pg->pg_upmap_items.from_to[i][1];
+			int pos = -1;
+			bool exists = false;
+
+			/* make sure replacement doesn't already appear */
+			for (j = 0; j < raw->size; j++) {
+				int osd = raw->osds[j];
+
+				if (osd == to) {
+					exists = true;
+					break;
+				}
+				/* ignore mapping if target is marked out */
+				if (osd == from && pos < 0 &&
+				    !(to != CRUSH_ITEM_NONE &&
+				      to < osdmap->max_osd &&
+				      osdmap->osd_weight[to] == 0)) {
+					pos = j;
+				}
+			}
+			if (!exists && pos >= 0) {
+				raw->osds[pos] = to;
+				return;
+			}
+		}
+	}
 }
 
 /*
@@ -2341,6 +2433,7 @@ void ceph_pg_to_up_acting_osds(struct ceph_osdmap *osdmap,
 	raw_pg_to_pg(pi, raw_pgid, &pgid);
 
 	pg_to_raw_osds(osdmap, pi, raw_pgid, up, &pps);
+	apply_upmap(osdmap, &pgid, up);
 	raw_to_up_osds(osdmap, pi, up);
 	apply_primary_affinity(osdmap, pi, pps, up);
 	get_temp_osds(osdmap, pi, &pgid, acting);
