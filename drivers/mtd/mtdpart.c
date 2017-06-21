@@ -363,32 +363,6 @@ static inline void free_partition(struct mtd_part *p)
 	kfree(p);
 }
 
-/*
- * This function unregisters and destroy all slave MTD objects which are
- * attached to the given master MTD object.
- */
-
-int del_mtd_partitions(struct mtd_info *master)
-{
-	struct mtd_part *slave, *next;
-	int ret, err = 0;
-
-	mutex_lock(&mtd_partitions_mutex);
-	list_for_each_entry_safe(slave, next, &mtd_partitions, list)
-		if (slave->master == master) {
-			ret = del_mtd_device(&slave->mtd);
-			if (ret < 0) {
-				err = ret;
-				continue;
-			}
-			list_del(&slave->list);
-			free_partition(slave);
-		}
-	mutex_unlock(&mtd_partitions_mutex);
-
-	return err;
-}
-
 static struct mtd_part *allocate_partition(struct mtd_info *master,
 			const struct mtd_partition *part, int partno,
 			uint64_t cur_offset)
@@ -675,6 +649,48 @@ int mtd_add_partition(struct mtd_info *master, const char *name,
 }
 EXPORT_SYMBOL_GPL(mtd_add_partition);
 
+/**
+ * __mtd_del_partition - delete MTD partition
+ *
+ * @priv: internal MTD struct for partition to be deleted
+ *
+ * This function must be called with the partitions mutex locked.
+ */
+static int __mtd_del_partition(struct mtd_part *priv)
+{
+	int err;
+
+	err = del_mtd_device(&priv->mtd);
+	if (err)
+		return err;
+
+	list_del(&priv->list);
+	free_partition(priv);
+
+	return 0;
+}
+
+/*
+ * This function unregisters and destroy all slave MTD objects which are
+ * attached to the given master MTD object.
+ */
+int del_mtd_partitions(struct mtd_info *master)
+{
+	struct mtd_part *slave, *next;
+	int ret, err = 0;
+
+	mutex_lock(&mtd_partitions_mutex);
+	list_for_each_entry_safe(slave, next, &mtd_partitions, list)
+		if (slave->master == master) {
+			ret = __mtd_del_partition(slave);
+			if (ret < 0)
+				err = ret;
+		}
+	mutex_unlock(&mtd_partitions_mutex);
+
+	return err;
+}
+
 int mtd_del_partition(struct mtd_info *master, int partno)
 {
 	struct mtd_part *slave, *next;
@@ -686,12 +702,7 @@ int mtd_del_partition(struct mtd_info *master, int partno)
 		    (slave->mtd.index == partno)) {
 			sysfs_remove_files(&slave->mtd.dev.kobj,
 					   mtd_partition_attrs);
-			ret = del_mtd_device(&slave->mtd);
-			if (ret < 0)
-				break;
-
-			list_del(&slave->list);
-			free_partition(slave);
+			ret = __mtd_del_partition(slave);
 			break;
 		}
 	mutex_unlock(&mtd_partitions_mutex);
