@@ -136,20 +136,37 @@ static int crtc_crc_data_count(struct drm_crtc_crc *crc)
 	return CIRC_CNT(crc->head, crc->tail, DRM_CRC_ENTRIES_NR);
 }
 
+static void crtc_crc_cleanup(struct drm_crtc_crc *crc)
+{
+	kfree(crc->entries);
+	crc->entries = NULL;
+	crc->head = 0;
+	crc->tail = 0;
+	crc->values_cnt = 0;
+	crc->opened = false;
+}
+
 static int crtc_crc_open(struct inode *inode, struct file *filep)
 {
 	struct drm_crtc *crtc = inode->i_private;
 	struct drm_crtc_crc *crc = &crtc->crc;
 	struct drm_crtc_crc_entry *entries = NULL;
 	size_t values_cnt;
-	int ret;
+	int ret = 0;
 
-	if (crc->opened)
-		return -EBUSY;
+	spin_lock_irq(&crc->lock);
+	if (!crc->opened)
+		crc->opened = true;
+	else
+		ret = -EBUSY;
+	spin_unlock_irq(&crc->lock);
+
+	if (ret)
+		return ret;
 
 	ret = crtc->funcs->set_crc_source(crtc, crc->source, &values_cnt);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (WARN_ON(values_cnt > DRM_MAX_CRC_NR)) {
 		ret = -EINVAL;
@@ -170,7 +187,6 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 	spin_lock_irq(&crc->lock);
 	crc->entries = entries;
 	crc->values_cnt = values_cnt;
-	crc->opened = true;
 
 	/*
 	 * Only return once we got a first frame, so userspace doesn't have to
@@ -182,12 +198,17 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 						crc->lock);
 	spin_unlock_irq(&crc->lock);
 
-	WARN_ON(ret);
+	if (ret)
+		goto err_disable;
 
 	return 0;
 
 err_disable:
 	crtc->funcs->set_crc_source(crtc, NULL, &values_cnt);
+err:
+	spin_lock_irq(&crc->lock);
+	crtc_crc_cleanup(crc);
+	spin_unlock_irq(&crc->lock);
 	return ret;
 }
 
@@ -197,16 +218,11 @@ static int crtc_crc_release(struct inode *inode, struct file *filep)
 	struct drm_crtc_crc *crc = &crtc->crc;
 	size_t values_cnt;
 
-	spin_lock_irq(&crc->lock);
-	kfree(crc->entries);
-	crc->entries = NULL;
-	crc->head = 0;
-	crc->tail = 0;
-	crc->values_cnt = 0;
-	crc->opened = false;
-	spin_unlock_irq(&crc->lock);
-
 	crtc->funcs->set_crc_source(crtc, NULL, &values_cnt);
+
+	spin_lock_irq(&crc->lock);
+	crtc_crc_cleanup(crc);
+	spin_unlock_irq(&crc->lock);
 
 	return 0;
 }
@@ -334,7 +350,7 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 	spin_lock(&crc->lock);
 
 	/* Caller may not have noticed yet that userspace has stopped reading */
-	if (!crc->opened) {
+	if (!crc->entries) {
 		spin_unlock(&crc->lock);
 		return -EINVAL;
 	}
