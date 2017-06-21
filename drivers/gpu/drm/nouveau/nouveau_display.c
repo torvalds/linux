@@ -159,8 +159,6 @@ nouveau_display_vblank_fini(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
 
-	drm_vblank_cleanup(dev);
-
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 		nvif_notify_fini(&nv_crtc->vblank);
