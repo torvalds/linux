@@ -107,6 +107,7 @@ static const u16 srcr[] = {
  * @num_core_clks: Number of Core Clocks in clks[]
  * @num_mod_clks: Number of Module Clocks in clks[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
+ * @notifiers: Notifier chain to save/restore clock state for system resume
  * @smstpcr_saved[].mask: Mask of SMSTPCR[] bits under our control
  * @smstpcr_saved[].val: Saved values of SMSTPCR[]
  */
@@ -123,6 +124,7 @@ struct cpg_mssr_priv {
 	unsigned int num_mod_clks;
 	unsigned int last_dt_core_clk;
 
+	struct raw_notifier_head notifiers;
 	struct {
 		u32 mask;
 		u32 val;
@@ -312,7 +314,8 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 	default:
 		if (info->cpg_clk_register)
 			clk = info->cpg_clk_register(dev, core, info,
-						     priv->clks, priv->base);
+						     priv->clks, priv->base,
+						     &priv->notifiers);
 		else
 			dev_err(dev, "%s has unsupported core clock type %u\n",
 				core->name, core->type);
@@ -726,6 +729,9 @@ static int cpg_mssr_suspend_noirq(struct device *dev)
 				readl(priv->base + SMSTPCR(reg));
 	}
 
+	/* Save core clocks */
+	raw_notifier_call_chain(&priv->notifiers, PM_EVENT_SUSPEND, NULL);
+
 	return 0;
 }
 
@@ -738,6 +744,9 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 	/* This is the best we can do to check for the presence of PSCI */
 	if (!psci_ops.cpu_suspend)
 		return 0;
+
+	/* Restore core clocks */
+	raw_notifier_call_chain(&priv->notifiers, PM_EVENT_RESUME, NULL);
 
 	/* Restore module clocks */
 	for (reg = 0; reg < ARRAY_SIZE(priv->smstpcr_saved); reg++) {
@@ -822,6 +831,7 @@ static int __init cpg_mssr_probe(struct platform_device *pdev)
 	priv->num_core_clks = info->num_total_core_clks;
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
+	RAW_INIT_NOTIFIER_HEAD(&priv->notifiers);
 
 	for (i = 0; i < nclks; i++)
 		clks[i] = ERR_PTR(-ENOENT);
