@@ -227,6 +227,7 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 	}
 	/* if RDS_EXTHDR_NPATHS was not found, default to a single-path */
 	conn->c_npaths = max_t(int, conn->c_npaths, 1);
+	conn->c_ping_triggered = 0;
 	rds_conn_peer_gen_update(conn, new_peer_gen_num);
 }
 
@@ -244,8 +245,7 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
  *    called after reception of the probe-pong on all mprds_paths.
  *    Otherwise (sender of probe-ping is not the smaller ip addr): just call
  *    rds_conn_path_connect_if_down on the hashed path. (see rule 4)
- * 4. when cp_index > 0, rds_connect_worker must only trigger
- *    a connection if laddr < faddr.
+ * 4. rds_connect_worker must only trigger a connection if laddr < faddr.
  * 5. sender may end up queuing the packet on the cp. will get sent out later.
  *    when connection is completed.
  */
@@ -256,7 +256,7 @@ static void rds_start_mprds(struct rds_connection *conn)
 
 	if (conn->c_npaths > 1 &&
 	    IS_CANONICAL(conn->c_laddr, conn->c_faddr)) {
-		for (i = 1; i < conn->c_npaths; i++) {
+		for (i = 0; i < conn->c_npaths; i++) {
 			cp = &conn->c_path[i];
 			rds_conn_path_connect_if_down(cp);
 		}

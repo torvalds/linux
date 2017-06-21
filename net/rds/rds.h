@@ -827,6 +827,7 @@ void rds_send_drop_acked(struct rds_connection *conn, u64 ack,
 			 is_acked_func is_acked);
 void rds_send_path_drop_acked(struct rds_conn_path *cp, u64 ack,
 			      is_acked_func is_acked);
+void rds_send_ping(struct rds_connection *conn, int cp_index);
 int rds_send_pong(struct rds_conn_path *cp, __be16 dport);
 
 /* rdma.c */
