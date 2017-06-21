@@ -162,6 +162,51 @@ TRACE_EVENT(mc_event,
 );
 
 /*
+ * ARM Processor Events Report
+ *
+ * This event is generated when hardware detects an ARM processor error
+ * has occurred. UEFI 2.6 spec section N.2.4.4.
+ */
+TRACE_EVENT(arm_event,
+
+	TP_PROTO(const struct cper_sec_proc_arm *proc),
+
+	TP_ARGS(proc),
+
+	TP_STRUCT__entry(
+		__field(u64, mpidr)
+		__field(u64, midr)
+		__field(u32, running_state)
+		__field(u32, psci_state)
+		__field(u8, affinity)
+	),
+
+	TP_fast_assign(
+		if (proc->validation_bits & CPER_ARM_VALID_AFFINITY_LEVEL)
+			__entry->affinity = proc->affinity_level;
+		else
+			__entry->affinity = ~0;
+		if (proc->validation_bits & CPER_ARM_VALID_MPIDR)
+			__entry->mpidr = proc->mpidr;
+		else
+			__entry->mpidr = 0ULL;
+		__entry->midr = proc->midr;
+		if (proc->validation_bits & CPER_ARM_VALID_RUNNING_STATE) {
+			__entry->running_state = proc->running_state;
+			__entry->psci_state = proc->psci_state;
+		} else {
+			__entry->running_state = ~0;
+			__entry->psci_state = ~0;
+		}
+	),
+
+	TP_printk("affinity level: %d; MPIDR: %016llx; MIDR: %016llx; "
+		  "running state: %d; PSCI state: %d",
+		  __entry->affinity, __entry->mpidr, __entry->midr,
+		  __entry->running_state, __entry->psci_state)
+);
+
+/*
  * Non-Standard Section Report
  *
  * This event is generated when hardware detected a hardware

@@ -20,6 +20,11 @@ void log_non_standard_event(const uuid_le *sec_type, const uuid_le *fru_id,
 	trace_non_standard_event(sec_type, fru_id, fru_text, sev, err, len);
 }
 
+void log_arm_hw_error(struct cper_sec_proc_arm *err)
+{
+	trace_arm_event(err);
+}
+
 static int __init ras_init(void)
 {
 	int rc = 0;
@@ -36,6 +41,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(extlog_mem_event);
 #endif
 EXPORT_TRACEPOINT_SYMBOL_GPL(mc_event);
 EXPORT_TRACEPOINT_SYMBOL_GPL(non_standard_event);
+EXPORT_TRACEPOINT_SYMBOL_GPL(arm_event);
 
 int __init parse_ras_param(char *str)
 {

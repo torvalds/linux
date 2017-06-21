@@ -3,6 +3,7 @@
 
 #include <asm/errno.h>
 #include <linux/uuid.h>
+#include <linux/cper.h>
 
 #ifdef CONFIG_DEBUG_FS
 int ras_userspace_consumers(void);
@@ -27,11 +28,13 @@ static inline int cec_add_elem(u64 pfn)		{ return -ENODEV; }
 void log_non_standard_event(const guid_t *sec_type,
 			    const guid_t *fru_id, const char *fru_text,
 			    const u8 sev, const u8 *err, const u32 len);
+void log_arm_hw_error(struct cper_sec_proc_arm *err);
 #else
 static void log_non_standard_event(const guid_t *sec_type,
 				   const guid_t *fru_id, const char *fru_text,
 				   const u8 sev, const u8 *err,
 				   const u32 len) { return; }
+static void log_arm_hw_error(struct cper_sec_proc_arm *err) { return; }
 #endif
 
 #endif /* __RAS_H__ */

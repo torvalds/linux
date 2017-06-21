@@ -517,7 +517,11 @@ static void ghes_do_proc(struct ghes *ghes,
 
 		}
 #endif
-		else {
+		else if (guid_equal(sec_type, &CPER_SEC_PROC_ARM)) {
+			struct cper_sec_proc_arm *err = acpi_hest_get_payload(gdata);
+
+			log_arm_hw_error(err);
+		} else {
 			void *err = acpi_hest_get_payload(gdata);
 
 			log_non_standard_event(sec_type, fru_id, fru_text,
