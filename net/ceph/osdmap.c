@@ -2284,18 +2284,16 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap,
  */
 static void get_temp_osds(struct ceph_osdmap *osdmap,
 			  struct ceph_pg_pool_info *pi,
-			  const struct ceph_pg *raw_pgid,
+			  const struct ceph_pg *pgid,
 			  struct ceph_osds *temp)
 {
-	struct ceph_pg pgid;
 	struct ceph_pg_mapping *pg;
 	int i;
 
-	raw_pg_to_pg(pi, raw_pgid, &pgid);
 	ceph_osds_init(temp);
 
 	/* pg_temp? */
-	pg = lookup_pg_mapping(&osdmap->pg_temp, &pgid);
+	pg = lookup_pg_mapping(&osdmap->pg_temp, pgid);
 	if (pg) {
 		for (i = 0; i < pg->pg_temp.len; i++) {
 			if (ceph_osd_is_down(osdmap, pg->pg_temp.osds[i])) {
@@ -2318,7 +2316,7 @@ static void get_temp_osds(struct ceph_osdmap *osdmap,
 	}
 
 	/* primary_temp? */
-	pg = lookup_pg_mapping(&osdmap->primary_temp, &pgid);
+	pg = lookup_pg_mapping(&osdmap->primary_temp, pgid);
 	if (pg)
 		temp->primary = pg->primary_temp.osd;
 }
@@ -2336,14 +2334,16 @@ void ceph_pg_to_up_acting_osds(struct ceph_osdmap *osdmap,
 			       struct ceph_osds *up,
 			       struct ceph_osds *acting)
 {
+	struct ceph_pg pgid;
 	u32 pps;
 
 	WARN_ON(pi->id != raw_pgid->pool);
+	raw_pg_to_pg(pi, raw_pgid, &pgid);
 
 	pg_to_raw_osds(osdmap, pi, raw_pgid, up, &pps);
 	raw_to_up_osds(osdmap, pi, up);
 	apply_primary_affinity(osdmap, pi, pps, up);
-	get_temp_osds(osdmap, pi, raw_pgid, acting);
+	get_temp_osds(osdmap, pi, &pgid, acting);
 	if (!acting->size) {
 		memcpy(acting->osds, up->osds, up->size * sizeof(up->osds[0]));
 		acting->size = up->size;
