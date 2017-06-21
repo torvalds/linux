@@ -1069,7 +1069,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			if (err)
 				pr_err("overlayfs: failed to verify index dir origin\n");
 
-			/* Cleanup bad/stale index entries */
+			/* Cleanup bad/stale/orphan index entries */
 			if (!err)
 				err = ovl_indexdir_cleanup(ufs->indexdir,
 							   ufs->upper_mnt,

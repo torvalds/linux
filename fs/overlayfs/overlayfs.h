@@ -263,6 +263,9 @@ int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
 /* inode.c */
 int ovl_set_nlink_upper(struct dentry *dentry);
 int ovl_set_nlink_lower(struct dentry *dentry);
+unsigned int ovl_get_nlink(struct dentry *lowerdentry,
+			   struct dentry *upperdentry,
+			   unsigned int fallback);
 int ovl_setattr(struct dentry *dentry, struct iattr *attr);
 int ovl_getattr(const struct path *path, struct kstat *stat,
 		u32 request_mask, unsigned int flags);

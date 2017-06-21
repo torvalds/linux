@@ -14,6 +14,8 @@
 #include <linux/xattr.h>
 #include <linux/exportfs.h>
 #include <linux/uuid.h>
+#include <linux/namei.h>
+#include <linux/ratelimit.h>
 #include "overlayfs.h"
 #include "ovl_entry.h"
 
@@ -411,6 +413,58 @@ void ovl_inuse_unlock(struct dentry *dentry)
 	}
 }
 
+/* Called must hold OVL_I(inode)->oi_lock */
+static void ovl_cleanup_index(struct dentry *dentry)
+{
+	struct inode *dir = ovl_indexdir(dentry->d_sb)->d_inode;
+	struct dentry *lowerdentry = ovl_dentry_lower(dentry);
+	struct dentry *upperdentry = ovl_dentry_upper(dentry);
+	struct dentry *index = NULL;
+	struct inode *inode;
+	struct qstr name;
+	int err;
+
+	err = ovl_get_index_name(lowerdentry, &name);
+	if (err)
+		goto fail;
+
+	inode = d_inode(upperdentry);
+	if (inode->i_nlink != 1) {
+		pr_warn_ratelimited("overlayfs: cleanup linked index (%pd2, ino=%lu, nlink=%u)\n",
+				    upperdentry, inode->i_ino, inode->i_nlink);
+		/*
+		 * We either have a bug with persistent union nlink or a lower
+		 * hardlink was added while overlay is mounted. Adding a lower
+		 * hardlink and then unlinking all overlay hardlinks would drop
+		 * overlay nlink to zero before all upper inodes are unlinked.
+		 * As a safety measure, when that situation is detected, set
+		 * the overlay nlink to the index inode nlink minus one for the
+		 * index entry itself.
+		 */
+		set_nlink(d_inode(dentry), inode->i_nlink - 1);
+		ovl_set_nlink_upper(dentry);
+		goto out;
+	}
+
+	inode_lock_nested(dir, I_MUTEX_PARENT);
+	/* TODO: whiteout instead of cleanup to block future open by handle */
+	index = lookup_one_len(name.name, ovl_indexdir(dentry->d_sb), name.len);
+	err = PTR_ERR(index);
+	if (!IS_ERR(index))
+		err = ovl_cleanup(dir, index);
+	inode_unlock(dir);
+	if (err)
+		goto fail;
+
+out:
+	dput(index);
+	return;
+
+fail:
+	pr_err("overlayfs: cleanup index of '%pd2' failed (%i)\n", dentry, err);
+	goto out;
+}
+
 /*
  * Operations that change overlay inode and upper inode nlink need to be
  * synchronized with copy up for persistent nlink accounting.
@@ -473,6 +527,16 @@ out:
 
 void ovl_nlink_end(struct dentry *dentry, bool locked)
 {
-	if (locked)
+	if (locked) {
+		if (ovl_test_flag(OVL_INDEX, d_inode(dentry)) &&
+		    d_inode(dentry)->i_nlink == 0) {
+			const struct cred *old_cred;
+
+			old_cred = ovl_override_creds(dentry->d_sb);
+			ovl_cleanup_index(dentry);
+			revert_creds(old_cred);
+		}
+
 		mutex_unlock(&OVL_I(d_inode(dentry))->lock);
+	}
 }

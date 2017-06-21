@@ -510,9 +510,9 @@ int ovl_set_nlink_lower(struct dentry *dentry)
 	return ovl_set_nlink_common(dentry, ovl_dentry_lower(dentry), "L%+i");
 }
 
-static unsigned int ovl_get_nlink(struct dentry *lowerdentry,
-				  struct dentry *upperdentry,
-				  unsigned int fallback)
+unsigned int ovl_get_nlink(struct dentry *lowerdentry,
+			   struct dentry *upperdentry,
+			   unsigned int fallback)
 {
 	int nlink_diff;
 	int nlink;
