@@ -272,28 +272,24 @@ static int ovl_lookup_layer(struct dentry *base, struct ovl_lookup_data *d,
 static int ovl_check_origin(struct dentry *dentry, struct dentry *upperdentry,
 			    struct path **stackp, unsigned int *ctrp)
 {
-	struct super_block *same_sb = ovl_same_sb(dentry->d_sb);
 	struct ovl_entry *roe = dentry->d_sb->s_root->d_fsdata;
 	struct vfsmount *mnt;
-	struct dentry *origin;
+	struct dentry *origin = NULL;
+	int i;
 
-	if (!same_sb || !roe->numlower)
+
+	for (i = 0; i < roe->numlower; i++) {
+		mnt = roe->lowerstack[i].mnt;
+		origin = ovl_get_origin(upperdentry, mnt);
+		if (IS_ERR(origin))
+			return PTR_ERR(origin);
+
+		if (origin)
+			break;
+	}
+
+	if (!origin)
 		return 0;
-
-       /*
-	* Since all layers are on the same fs, we use the first layer for
-	* decoding the file handle.  We may get a disconnected dentry,
-	* which is fine, because we only need to hold the origin inode in
-	* cache and use its inode number.  We may even get a connected dentry,
-	* that is not under the first layer's root.  That is also fine for
-	* using it's inode number - it's the same as if we held a reference
-	* to a dentry in first layer that was moved under us.
-	*/
-	mnt = roe->lowerstack[0].mnt;
-
-	origin = ovl_get_origin(upperdentry, mnt);
-	if (IS_ERR_OR_NULL(origin))
-		return PTR_ERR(origin);
 
 	BUG_ON(*stackp || *ctrp);
 	*stackp = kmalloc(sizeof(struct path), GFP_TEMPORARY);
@@ -371,6 +367,16 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		}
 		if (upperdentry && !d.is_dir) {
 			BUG_ON(!d.stop || d.redirect);
+			/*
+			 * Lookup copy up origin by decoding origin file handle.
+			 * We may get a disconnected dentry, which is fine,
+			 * because we only need to hold the origin inode in
+			 * cache and use its inode number.  We may even get a
+			 * connected dentry, that is not under any of the lower
+			 * layers root.  That is also fine for using it's inode
+			 * number - it's the same as if we held a reference
+			 * to a dentry in lower layer that was moved under us.
+			 */
 			err = ovl_check_origin(dentry, upperdentry,
 					       &stack, &ctr);
 			if (err)
