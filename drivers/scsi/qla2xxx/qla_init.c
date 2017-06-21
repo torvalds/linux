@@ -1244,6 +1244,9 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 	case FCME_GPNID_DONE:
 		qla24xx_handle_gpnid_event(vha, ea);
 		break;
+	case FCME_GFFID_DONE:
+		qla24xx_handle_gffid_event(vha, ea);
+		break;
 	case FCME_DELETE_DONE:
 		qla24xx_handle_delete_done_event(vha, ea);
 		break;
@@ -4633,13 +4636,19 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 				    &vha->dpc_flags))
 					break;
 			}
-			if (qla2x00_rff_id(vha)) {
+			if (qla2x00_rff_id(vha, FC4_TYPE_FCP_SCSI)) {
 				/* EMPTY */
 				ql_dbg(ql_dbg_disc, vha, 0x209a,
 				    "Register FC-4 Features failed.\n");
 				if (test_bit(LOOP_RESYNC_NEEDED,
 				    &vha->dpc_flags))
 					break;
+			}
+			if (vha->flags.nvme_enabled) {
+				if (qla2x00_rff_id(vha, FC_TYPE_NVME)) {
+					ql_dbg(ql_dbg_disc, vha, 0x2049,
+					    "Register NVME FC Type Features failed.\n");
+				}
 			}
 			if (qla2x00_rnn_id(vha)) {
 				/* EMPTY */
