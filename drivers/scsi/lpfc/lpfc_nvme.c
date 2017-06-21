@@ -1427,7 +1427,6 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_vport *vport;
 	struct lpfc_hba *phba;
-	struct lpfc_nodelist *ndlp;
 	struct lpfc_nvme_rport *rport;
 	struct lpfc_nvme_buf *lpfc_nbuf;
 	struct lpfc_iocbq *abts_buf;
@@ -1448,38 +1447,6 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 			 "for nvme_fc_req %p\n",
 			 pnvme_rport->port_id,
 			 pnvme_fcreq);
-
-	/*
-	 * Catch race where our node has transitioned, but the
-	 * transport is still transitioning.
-	 */
-	ndlp = rport->ndlp;
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_ABTS,
-				 "6054 rport %p, ndlp %p, DID x%06x ndlp "
-				 " not ready.\n",
-				 rport, ndlp, pnvme_rport->port_id);
-
-		ndlp = lpfc_findnode_did(vport, pnvme_rport->port_id);
-		if (!ndlp) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
-					 "6055 Could not find node for "
-					 "DID %x\n",
-					 pnvme_rport->port_id);
-			return;
-		}
-	}
-
-	/* The remote node has to be ready to send an abort. */
-	if ((ndlp->nlp_state != NLP_STE_MAPPED_NODE) &&
-	    (ndlp->nlp_type & NLP_NVME_TARGET)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
-				 "6048 rport %p, DID x%06x not ready for "
-				 "IO. State x%x, Type x%x\n",
-				 rport, pnvme_rport->port_id,
-				 ndlp->nlp_state, ndlp->nlp_type);
-		return;
-	}
 
 	/* If the hba is getting reset, this flag is set.  It is
 	 * cleared when the reset is complete and rings reestablished.
@@ -1541,7 +1508,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 
 	lpfc_nvmeio_data(phba, "NVME FCP ABORT: xri x%x idx %d to %06x\n",
 			 nvmereq_wqe->sli4_xritag,
-			 nvmereq_wqe->hba_wqidx, ndlp->nlp_DID);
+			 nvmereq_wqe->hba_wqidx, pnvme_rport->port_id);
 
 	/* Outstanding abort is in progress */
 	if (nvmereq_wqe->iocb_flag & LPFC_DRIVER_ABORTED) {
