@@ -32,11 +32,6 @@
  * Interrupt Handling
  */
 
-void vsp1_drm_display_start(struct vsp1_device *vsp1)
-{
-	vsp1_dlm_irq_display_start(vsp1->drm->pipe.output->dlm);
-}
-
 static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_drm *drm = to_vsp1_drm(pipe);
@@ -223,6 +218,10 @@ int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
 		vsp1_device_put(vsp1);
 		return ret;
 	}
+
+	/* Disable the display interrupts. */
+	vsp1_write(vsp1, VI6_DISP_IRQ_STA, 0);
+	vsp1_write(vsp1, VI6_DISP_IRQ_ENB, 0);
 
 	dev_dbg(vsp1->dev, "%s: pipeline enabled\n", __func__);
 
@@ -529,13 +528,10 @@ void vsp1_du_atomic_flush(struct device *dev)
 
 	/* Start or stop the pipeline if needed. */
 	if (!vsp1->drm->num_inputs && pipe->num_inputs) {
-		vsp1_write(vsp1, VI6_DISP_IRQ_STA, 0);
-		vsp1_write(vsp1, VI6_DISP_IRQ_ENB, VI6_DISP_IRQ_ENB_DSTE);
 		spin_lock_irqsave(&pipe->irqlock, flags);
 		vsp1_pipeline_run(pipe);
 		spin_unlock_irqrestore(&pipe->irqlock, flags);
 	} else if (vsp1->drm->num_inputs && !pipe->num_inputs) {
-		vsp1_write(vsp1, VI6_DISP_IRQ_ENB, 0);
 		vsp1_pipeline_stop(pipe);
 	}
 }

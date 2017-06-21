@@ -68,14 +68,6 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 		}
 	}
 
-	status = vsp1_read(vsp1, VI6_DISP_IRQ_STA);
-	vsp1_write(vsp1, VI6_DISP_IRQ_STA, ~status & VI6_DISP_IRQ_STA_DST);
-
-	if (status & VI6_DISP_IRQ_STA_DST) {
-		vsp1_drm_display_start(vsp1);
-		ret = IRQ_HANDLED;
-	}
-
 	return ret;
 }
 

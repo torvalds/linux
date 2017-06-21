@@ -547,22 +547,6 @@ done:
  * Display List Manager
  */
 
-/* Interrupt Handling */
-void vsp1_dlm_irq_display_start(struct vsp1_dl_manager *dlm)
-{
-	spin_lock(&dlm->lock);
-
-	/*
-	 * The display start interrupt signals the end of the display list
-	 * processing by the device. The active display list, if any, won't be
-	 * accessed anymore and can be reused.
-	 */
-	__vsp1_dl_list_put(dlm->active);
-	dlm->active = NULL;
-
-	spin_unlock(&dlm->lock);
-}
-
 /**
  * vsp1_dlm_irq_frame_end - Display list handler for the frame end interrupt
  * @dlm: the display list manager

@@ -50,6 +50,4 @@ int vsp1_drm_init(struct vsp1_device *vsp1);
 void vsp1_drm_cleanup(struct vsp1_device *vsp1);
 int vsp1_drm_create_links(struct vsp1_device *vsp1);
 
-void vsp1_drm_display_start(struct vsp1_device *vsp1);
-
 #endif /* __VSP1_DRM_H__ */
