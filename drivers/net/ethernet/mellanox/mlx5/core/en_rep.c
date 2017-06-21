@@ -796,6 +796,8 @@ static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
 	params->tx_max_inline         = mlx5e_get_max_inline_cap(mdev);
 	params->num_tc                = 1;
 	params->lro_wqe_sz            = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
+
+	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
 }
 
 static void mlx5e_build_rep_netdev(struct net_device *netdev)
