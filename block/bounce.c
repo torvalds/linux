@@ -26,7 +26,7 @@
 #define POOL_SIZE	64
 #define ISA_POOL_SIZE	16
 
-struct bio_set *bounce_bio_set, *bounce_bio_split;
+static struct bio_set *bounce_bio_set, *bounce_bio_split;
 static mempool_t *page_pool, *isa_page_pool;
 
 #if defined(CONFIG_HIGHMEM) || defined(CONFIG_NEED_BOUNCE_POOL)
