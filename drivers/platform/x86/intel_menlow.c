@@ -142,7 +142,7 @@ static int memory_set_cur_bandwidth(struct thermal_cooling_device *cdev,
 	return 0;
 }
 
-static struct thermal_cooling_device_ops memory_cooling_ops = {
+static const struct thermal_cooling_device_ops memory_cooling_ops = {
 	.get_max_state = memory_get_max_bandwidth,
 	.get_cur_state = memory_get_cur_bandwidth,
 	.set_cur_state = memory_set_cur_bandwidth,
