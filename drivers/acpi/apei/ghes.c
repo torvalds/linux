@@ -1179,6 +1179,9 @@ static int ghes_probe(struct platform_device *ghes_dev)
 	}
 	platform_set_drvdata(ghes_dev, ghes);
 
+	/* Handle any pending errors right away */
+	ghes_proc(ghes);
+
 	return 0;
 err_edac_unreg:
 	ghes_edac_unregister(ghes);
