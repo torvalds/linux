@@ -25,100 +25,106 @@
 
 #ifdef DEBUG
 
-int	xfs_etest[XFS_NUM_INJECT_ERROR];
-int64_t	xfs_etest_fsid[XFS_NUM_INJECT_ERROR];
-char *	xfs_etest_fsname[XFS_NUM_INJECT_ERROR];
-int	xfs_error_test_active;
+static unsigned int xfs_errortag_random_default[] = {
+	XFS_RANDOM_DEFAULT,
+	XFS_RANDOM_IFLUSH_1,
+	XFS_RANDOM_IFLUSH_2,
+	XFS_RANDOM_IFLUSH_3,
+	XFS_RANDOM_IFLUSH_4,
+	XFS_RANDOM_IFLUSH_5,
+	XFS_RANDOM_IFLUSH_6,
+	XFS_RANDOM_DA_READ_BUF,
+	XFS_RANDOM_BTREE_CHECK_LBLOCK,
+	XFS_RANDOM_BTREE_CHECK_SBLOCK,
+	XFS_RANDOM_ALLOC_READ_AGF,
+	XFS_RANDOM_IALLOC_READ_AGI,
+	XFS_RANDOM_ITOBP_INOTOBP,
+	XFS_RANDOM_IUNLINK,
+	XFS_RANDOM_IUNLINK_REMOVE,
+	XFS_RANDOM_DIR_INO_VALIDATE,
+	XFS_RANDOM_BULKSTAT_READ_CHUNK,
+	XFS_RANDOM_IODONE_IOERR,
+	XFS_RANDOM_STRATREAD_IOERR,
+	XFS_RANDOM_STRATCMPL_IOERR,
+	XFS_RANDOM_DIOWRITE_IOERR,
+	XFS_RANDOM_BMAPIFORMAT,
+	XFS_RANDOM_FREE_EXTENT,
+	XFS_RANDOM_RMAP_FINISH_ONE,
+	XFS_RANDOM_REFCOUNT_CONTINUE_UPDATE,
+	XFS_RANDOM_REFCOUNT_FINISH_ONE,
+	XFS_RANDOM_BMAP_FINISH_ONE,
+	XFS_RANDOM_AG_RESV_CRITICAL,
+};
 
 int
-xfs_error_test(int error_tag, int *fsidp, char *expression,
-	       int line, char *file, unsigned long randfactor)
+xfs_errortag_init(
+	struct xfs_mount	*mp)
 {
-	int i;
-	int64_t fsid;
+	mp->m_errortag = kmem_zalloc(sizeof(unsigned int) * XFS_ERRTAG_MAX,
+			KM_SLEEP | KM_MAYFAIL);
+	if (!mp->m_errortag)
+		return -ENOMEM;
+	return 0;
+}
 
-	if (prandom_u32() % randfactor)
-		return 0;
+void
+xfs_errortag_del(
+	struct xfs_mount	*mp)
+{
+	kmem_free(mp->m_errortag);
+}
 
-	memcpy(&fsid, fsidp, sizeof(xfs_fsid_t));
+bool
+xfs_errortag_test(
+	struct xfs_mount	*mp,
+	const char		*expression,
+	const char		*file,
+	int			line,
+	unsigned int		error_tag)
+{
+	unsigned int		randfactor;
 
-	for (i = 0; i < XFS_NUM_INJECT_ERROR; i++)  {
-		if (xfs_etest[i] == error_tag && xfs_etest_fsid[i] == fsid) {
-			xfs_warn(NULL,
-	"Injecting error (%s) at file %s, line %d, on filesystem \"%s\"",
-				expression, file, line, xfs_etest_fsname[i]);
-			return 1;
-		}
-	}
+	ASSERT(error_tag < XFS_ERRTAG_MAX);
+	randfactor = mp->m_errortag[error_tag];
+	if (!randfactor || prandom_u32() % randfactor)
+		return false;
 
+	xfs_warn_ratelimited(mp,
+"Injecting error (%s) at file %s, line %d, on filesystem \"%s\"",
+			expression, file, line, mp->m_fsname);
+	return true;
+}
+
+int
+xfs_errortag_set(
+	struct xfs_mount	*mp,
+	unsigned int		error_tag,
+	unsigned int		tag_value)
+{
+	if (error_tag >= XFS_ERRTAG_MAX)
+		return -EINVAL;
+
+	mp->m_errortag[error_tag] = tag_value;
 	return 0;
 }
 
 int
-xfs_errortag_add(unsigned int error_tag, xfs_mount_t *mp)
+xfs_errortag_add(
+	struct xfs_mount	*mp,
+	unsigned int		error_tag)
 {
-	int i;
-	int len;
-	int64_t fsid;
-
 	if (error_tag >= XFS_ERRTAG_MAX)
 		return -EINVAL;
 
-	memcpy(&fsid, mp->m_fixedfsid, sizeof(xfs_fsid_t));
-
-	for (i = 0; i < XFS_NUM_INJECT_ERROR; i++)  {
-		if (xfs_etest_fsid[i] == fsid && xfs_etest[i] == error_tag) {
-			xfs_warn(mp, "error tag #%d on", error_tag);
-			return 0;
-		}
-	}
-
-	for (i = 0; i < XFS_NUM_INJECT_ERROR; i++)  {
-		if (xfs_etest[i] == 0) {
-			xfs_warn(mp, "Turned on XFS error tag #%d",
-				error_tag);
-			xfs_etest[i] = error_tag;
-			xfs_etest_fsid[i] = fsid;
-			len = strlen(mp->m_fsname);
-			xfs_etest_fsname[i] = kmem_alloc(len + 1, KM_SLEEP);
-			strcpy(xfs_etest_fsname[i], mp->m_fsname);
-			xfs_error_test_active++;
-			return 0;
-		}
-	}
-
-	xfs_warn(mp, "error tag overflow, too many turned on");
-
-	return 1;
+	return xfs_errortag_set(mp, error_tag,
+			xfs_errortag_random_default[error_tag]);
 }
 
 int
-xfs_errortag_clearall(xfs_mount_t *mp, int loud)
+xfs_errortag_clearall(
+	struct xfs_mount	*mp)
 {
-	int64_t fsid;
-	int cleared = 0;
-	int i;
-
-	memcpy(&fsid, mp->m_fixedfsid, sizeof(xfs_fsid_t));
-
-
-	for (i = 0; i < XFS_NUM_INJECT_ERROR; i++) {
-		if ((fsid == 0LL || xfs_etest_fsid[i] == fsid) &&
-		     xfs_etest[i] != 0) {
-			cleared = 1;
-			xfs_warn(mp, "Clearing XFS error tag #%d",
-				xfs_etest[i]);
-			xfs_etest[i] = 0;
-			xfs_etest_fsid[i] = 0LL;
-			kmem_free(xfs_etest_fsname[i]);
-			xfs_etest_fsname[i] = NULL;
-			xfs_error_test_active--;
-		}
-	}
-
-	if (loud || cleared)
-		xfs_warn(mp, "Cleared all XFS error tags for filesystem");
-
+	memset(mp->m_errortag, 0, sizeof(unsigned int) * XFS_ERRTAG_MAX);
 	return 0;
 }
 #endif /* DEBUG */

@@ -199,6 +199,13 @@ typedef struct xfs_mount {
 	bool			m_fail_unmount;
 #ifdef DEBUG
 	/*
+	 * Frequency with which errors are injected.  Replaces xfs_etest; the
+	 * value stored in here is the inverse of the frequency with which the
+	 * error triggers.  1 = always, 2 = half the time, etc.
+	 */
+	unsigned int		*m_errortag;
+
+	/*
 	 * DEBUG mode instrumentation to test and/or trigger delayed allocation
 	 * block killing in the event of failed writes. When enabled, all
 	 * buffered writes are silenty dropped and handled as if they failed.
