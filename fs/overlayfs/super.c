@@ -173,6 +173,7 @@ static struct inode *ovl_alloc_inode(struct super_block *sb)
 	oi->flags = 0;
 	oi->__upperdentry = NULL;
 	oi->lower = NULL;
+	mutex_init(&oi->lock);
 
 	return &oi->vfs_inode;
 }
@@ -190,6 +191,7 @@ static void ovl_destroy_inode(struct inode *inode)
 
 	dput(oi->__upperdentry);
 	kfree(oi->redirect);
+	mutex_destroy(&oi->lock);
 
 	call_rcu(&inode->i_rcu, ovl_i_callback);
 }
@@ -782,7 +784,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!ufs)
 		goto out;
 
-	init_waitqueue_head(&ufs->copyup_wq);
 	ufs->config.redirect_dir = ovl_redirect_dir_def;
 	err = ovl_parse_opt((char *) data, &ufs->config);
 	if (err)

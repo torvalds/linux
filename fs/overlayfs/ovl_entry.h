@@ -29,7 +29,6 @@ struct ovl_fs {
 	const struct cred *creator_cred;
 	bool tmpfile;
 	bool noxattr;
-	wait_queue_head_t copyup_wq;
 	/* sb common to all layers */
 	struct super_block *same_sb;
 };
@@ -41,7 +40,6 @@ struct ovl_entry {
 		struct {
 			u64 version;
 			bool opaque;
-			bool copying;
 		};
 		struct rcu_head rcu;
 	};
@@ -57,6 +55,9 @@ struct ovl_inode {
 	struct inode vfs_inode;
 	struct dentry *__upperdentry;
 	struct inode *lower;
+
+	/* synchronize copy up and more */
+	struct mutex lock;
 };
 
 static inline struct ovl_inode *OVL_I(struct inode *inode)
