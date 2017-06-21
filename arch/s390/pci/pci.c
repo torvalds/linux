@@ -736,6 +736,16 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 {
 	if (zpci_unique_uid) {
 		zdev->domain = (u16) zdev->uid;
+		if (zdev->domain >= ZPCI_NR_DEVICES)
+			return 0;
+
+		spin_lock(&zpci_domain_lock);
+		if (test_bit(zdev->domain, zpci_domain)) {
+			spin_unlock(&zpci_domain_lock);
+			return -EEXIST;
+		}
+		set_bit(zdev->domain, zpci_domain);
+		spin_unlock(&zpci_domain_lock);
 		return 0;
 	}
 
@@ -752,7 +762,7 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 
 static void zpci_free_domain(struct zpci_dev *zdev)
 {
-	if (zpci_unique_uid)
+	if (zdev->domain >= ZPCI_NR_DEVICES)
 		return;
 
 	spin_lock(&zpci_domain_lock);
