@@ -1031,19 +1031,6 @@ static unsigned int amdgpu_vga_set_decode(void *cookie, bool state)
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
 
-/**
- * amdgpu_check_pot_argument - check that argument is a power of two
- *
- * @arg: value to check
- *
- * Validates that a certain argument is a power of two (all asics).
- * Returns true if argument is valid.
- */
-static bool amdgpu_check_pot_argument(int arg)
-{
-	return (arg & (arg - 1)) == 0;
-}
-
 static void amdgpu_check_block_size(struct amdgpu_device *adev)
 {
 	/* defines number of bits in page table versus page directory,
@@ -1077,7 +1064,7 @@ static void amdgpu_check_vm_size(struct amdgpu_device *adev)
 	if (amdgpu_vm_size == -1)
 		return;
 
-	if (!amdgpu_check_pot_argument(amdgpu_vm_size)) {
+	if (!is_power_of_2(amdgpu_vm_size)) {
 		dev_warn(adev->dev, "VM size (%d) must be a power of 2\n",
 			 amdgpu_vm_size);
 		goto def_value;
@@ -1118,7 +1105,7 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "sched jobs (%d) must be at least 4\n",
 			 amdgpu_sched_jobs);
 		amdgpu_sched_jobs = 4;
-	} else if (!amdgpu_check_pot_argument(amdgpu_sched_jobs)){
+	} else if (!is_power_of_2(amdgpu_sched_jobs)){
 		dev_warn(adev->dev, "sched jobs (%d) must be a power of 2\n",
 			 amdgpu_sched_jobs);
 		amdgpu_sched_jobs = roundup_pow_of_two(amdgpu_sched_jobs);
@@ -1138,7 +1125,7 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 	amdgpu_check_block_size(adev);
 
 	if (amdgpu_vram_page_split != -1 && (amdgpu_vram_page_split < 16 ||
-	    !amdgpu_check_pot_argument(amdgpu_vram_page_split))) {
+	    !is_power_of_2(amdgpu_vram_page_split))) {
 		dev_warn(adev->dev, "invalid VRAM page split (%d)\n",
 			 amdgpu_vram_page_split);
 		amdgpu_vram_page_split = 1024;
