@@ -550,14 +550,6 @@ bool btrfs_is_name_len_valid(struct extent_buffer *leaf, int slot,
 		goto out;
 	}
 
-	/*
-	 * This may be the last item in the slot
-	 * Or same type item(s) is left between read_end and item_end
-	 */
-	if (item_end != read_end && item_end - read_end < size) {
-		ret = false;
-		goto out;
-	}
 out:
 	if (!ret)
 		btrfs_crit(fs_info, "invalid dir item name len: %u",
