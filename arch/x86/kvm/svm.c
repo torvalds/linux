@@ -4678,6 +4678,12 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 	    == HF_NMI_MASK)
 		return; /* IRET will cause a vm exit */
 
+	if ((svm->vcpu.arch.hflags & HF_GIF_MASK) == 0)
+		return; /* STGI will cause a vm exit */
+
+	if (svm->nested.exit_required)
+		return; /* we're not going to run the guest yet */
+
 	/*
 	 * Something prevents NMI from been injected. Single step over possible
 	 * problem (IRET or exception injection or interrupt shadow)
