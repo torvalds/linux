@@ -152,6 +152,7 @@ struct tmio_mmc_host {
 	struct dma_chan		*chan_rx;
 	struct dma_chan		*chan_tx;
 	struct completion	dma_dataend;
+	struct tasklet_struct	dma_complete;
 	struct tasklet_struct	dma_issue;
 	struct scatterlist	bounce_sg;
 	u8			*bounce_buf;

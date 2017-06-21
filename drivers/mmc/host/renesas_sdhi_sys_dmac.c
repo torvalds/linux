@@ -1,5 +1,5 @@
 /*
- * DMA function for TMIO MMC implementations
+ * DMA support use of SYS DMAC with SDHI SD/SDIO controller
  *
  * Copyright (C) 2016-17 Renesas Electronics Corporation
  * Copyright (C) 2016-17 Sang Engineering, Wolfram Sang
