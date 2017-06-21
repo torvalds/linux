@@ -242,7 +242,7 @@ struct ale {
 	unsigned long asteo  : 25; /* ASN-Second-Table-Entry Origin */
 	unsigned long        : 6;
 	unsigned long astesn : 32; /* ASTE Sequence Number */
-} __packed;
+};
 
 struct aste {
 	unsigned long i      : 1; /* ASX-Invalid Bit */
@@ -258,7 +258,7 @@ struct aste {
 	unsigned long ald    : 32;
 	unsigned long astesn : 32;
 	/* .. more fields there */
-} __packed;
+};
 
 int ipte_lock_held(struct kvm_vcpu *vcpu)
 {
