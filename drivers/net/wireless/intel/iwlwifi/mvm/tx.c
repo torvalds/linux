@@ -185,8 +185,14 @@ static u16 iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 	else
 		udp_hdr(skb)->check = 0;
 
-	/* mac header len should include IV, size is in words */
-	if (info->control.hw_key)
+	/*
+	 * mac header len should include IV, size is in words unless
+	 * the IV is added by the firmware like in WEP.
+	 * In new Tx API, the IV is always added by the firmware.
+	 */
+	if (!iwl_mvm_has_new_tx_api(mvm) && info->control.hw_key &&
+	    info->control.hw_key->cipher != WLAN_CIPHER_SUITE_WEP40 &&
+	    info->control.hw_key->cipher != WLAN_CIPHER_SUITE_WEP104)
 		mh_len += info->control.hw_key->iv_len;
 	mh_len /= 2;
 	offload_assist |= mh_len << TX_CMD_OFFLD_MH_SIZE;
