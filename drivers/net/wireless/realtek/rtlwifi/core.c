@@ -1464,6 +1464,9 @@ static void rtl_op_sw_scan_complete(struct ieee80211_hw *hw,
 	RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD, "\n");
 	mac->act_scanning = false;
 	mac->skip_scan = false;
+
+	rtlpriv->btcoexist.btc_info.ap_num = rtlpriv->scan_list.num;
+
 	if (rtlpriv->link_info.higher_busytraffic)
 		return;
 

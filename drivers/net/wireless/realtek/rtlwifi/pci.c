@@ -879,6 +879,9 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 				if (unicast)
 					rtlpriv->link_info.num_rx_inperiod++;
 			}
+
+			rtl_collect_scan_list(hw, skb);
+
 			/* static bcn for roaming */
 			rtl_beacon_statistic(hw, skb);
 			rtl_p2p_info(hw, (void *)skb->data, skb->len);

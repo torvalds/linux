@@ -564,6 +564,7 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	spin_lock_init(&rtlpriv->locks.waitq_lock);
 	spin_lock_init(&rtlpriv->locks.entry_list_lock);
 	spin_lock_init(&rtlpriv->locks.c2hcmd_lock);
+	spin_lock_init(&rtlpriv->locks.scan_list_lock);
 	spin_lock_init(&rtlpriv->locks.cck_and_rw_pagea_lock);
 	spin_lock_init(&rtlpriv->locks.check_sendpkt_lock);
 	spin_lock_init(&rtlpriv->locks.fw_ps_lock);
@@ -572,6 +573,7 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	/* <5> init list */
 	INIT_LIST_HEAD(&rtlpriv->entry_list);
 	INIT_LIST_HEAD(&rtlpriv->c2hcmd_list);
+	INIT_LIST_HEAD(&rtlpriv->scan_list.list);
 
 	rtlmac->link_state = MAC80211_NOLINK;
 
@@ -582,9 +584,12 @@ int rtl_init_core(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(rtl_init_core);
 
+static void rtl_free_entries_from_scan_list(struct ieee80211_hw *hw);
+
 void rtl_deinit_core(struct ieee80211_hw *hw)
 {
 	rtl_c2hcmd_launcher(hw, 0);
+	rtl_free_entries_from_scan_list(hw);
 }
 EXPORT_SYMBOL_GPL(rtl_deinit_core);
 
@@ -1704,6 +1709,100 @@ void rtl_beacon_statistic(struct ieee80211_hw *hw, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(rtl_beacon_statistic);
 
+static void rtl_free_entries_from_scan_list(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_bssid_entry *entry, *next;
+
+	list_for_each_entry_safe(entry, next, &rtlpriv->scan_list.list, list) {
+		list_del(&entry->list);
+		kfree(entry);
+		rtlpriv->scan_list.num--;
+	}
+}
+
+void rtl_scan_list_expire(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_bssid_entry *entry, *next;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtlpriv->locks.scan_list_lock, flags);
+
+	list_for_each_entry_safe(entry, next, &rtlpriv->scan_list.list, list) {
+		/* 180 seconds */
+		if (jiffies_to_msecs(jiffies - entry->age) < 180000)
+			continue;
+
+		list_del(&entry->list);
+		kfree(entry);
+		rtlpriv->scan_list.num--;
+
+		RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
+			 "BSSID=%pM is expire in scan list (total=%d)\n",
+			 entry->bssid, rtlpriv->scan_list.num);
+	}
+
+	spin_unlock_irqrestore(&rtlpriv->locks.scan_list_lock, flags);
+
+	rtlpriv->btcoexist.btc_info.ap_num = rtlpriv->scan_list.num;
+}
+
+void rtl_collect_scan_list(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
+	unsigned long flags;
+
+	struct rtl_bssid_entry *entry;
+	bool entry_found = false;
+
+	/* check if it is scanning */
+	if (!mac->act_scanning)
+		return;
+
+	/* check if this really is a beacon */
+	if (!ieee80211_is_beacon(hdr->frame_control) &&
+	    !ieee80211_is_probe_resp(hdr->frame_control))
+		return;
+
+	spin_lock_irqsave(&rtlpriv->locks.scan_list_lock, flags);
+
+	list_for_each_entry(entry, &rtlpriv->scan_list.list, list) {
+		if (memcmp(entry->bssid, hdr->addr3, ETH_ALEN) == 0) {
+			list_del_init(&entry->list);
+			entry_found = true;
+			RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
+				 "Update BSSID=%pM to scan list (total=%d)\n",
+				 hdr->addr3, rtlpriv->scan_list.num);
+			break;
+		}
+	}
+
+	if (!entry_found) {
+		entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+
+		if (!entry)
+			goto label_err;
+
+		memcpy(entry->bssid, hdr->addr3, ETH_ALEN);
+		rtlpriv->scan_list.num++;
+
+		RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
+			 "Add BSSID=%pM to scan list (total=%d)\n",
+			 hdr->addr3, rtlpriv->scan_list.num);
+	}
+
+	entry->age = jiffies;
+
+	list_add_tail(&entry->list, &rtlpriv->scan_list.list);
+
+label_err:
+	spin_unlock_irqrestore(&rtlpriv->locks.scan_list_lock, flags);
+}
+EXPORT_SYMBOL(rtl_collect_scan_list);
+
 void rtl_watchdog_wq_callback(void *data)
 {
 	struct rtl_works *rtlworks = container_of_dwork_rtl(data,
@@ -1861,6 +1960,9 @@ label_lps_done:
 		rtlpriv->btcoexist.btc_ops->btc_periodical(rtlpriv);
 
 	rtlpriv->link_info.bcn_rx_inperiod = 0;
+
+	/* <6> scan list */
+	rtl_scan_list_expire(hw);
 }
 
 void rtl_watch_dog_timer_callback(unsigned long data)
