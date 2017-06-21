@@ -3726,7 +3726,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	do {
 		rc = ibmvnic_init(adapter);
-		if (rc != EAGAIN) {
+		if (rc && rc != EAGAIN) {
 			free_netdev(netdev);
 			return rc;
 		}
