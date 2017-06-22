@@ -189,55 +189,59 @@ static void cmd_complete(struct afu_cmd *cmd)
 }
 
 /**
- * context_reset() - reset command owner context via specified register
- * @cmd:	AFU command that timed out.
+ * context_reset() - reset context via specified register
+ * @hwq:	Hardware queue owning the context to be reset.
  * @reset_reg:	MMIO register to perform reset.
+ *
+ * Return: 0 on success, -errno on failure
  */
-static void context_reset(struct afu_cmd *cmd, __be64 __iomem *reset_reg)
+static int context_reset(struct hwq *hwq, __be64 __iomem *reset_reg)
 {
-	int nretry = 0;
-	u64 rrin = 0x1;
-	struct afu *afu = cmd->parent;
-	struct cxlflash_cfg *cfg = afu->parent;
+	struct cxlflash_cfg *cfg = hwq->afu->parent;
 	struct device *dev = &cfg->dev->dev;
+	int rc = -ETIMEDOUT;
+	int nretry = 0;
+	u64 val = 0x1;
 
-	dev_dbg(dev, "%s: cmd=%p\n", __func__, cmd);
+	dev_dbg(dev, "%s: hwq=%p\n", __func__, hwq);
 
-	writeq_be(rrin, reset_reg);
+	writeq_be(val, reset_reg);
 	do {
-		rrin = readq_be(reset_reg);
-		if (rrin != 0x1)
+		val = readq_be(reset_reg);
+		if ((val & 0x1) == 0x0) {
+			rc = 0;
 			break;
+		}
+
 		/* Double delay each time */
 		udelay(1 << nretry);
 	} while (nretry++ < MC_ROOM_RETRY_CNT);
 
-	dev_dbg(dev, "%s: returning rrin=%016llx nretry=%d\n",
-		__func__, rrin, nretry);
+	dev_dbg(dev, "%s: returning rc=%d, val=%016llx nretry=%d\n",
+		__func__, rc, val, nretry);
+	return rc;
 }
 
 /**
- * context_reset_ioarrin() - reset command owner context via IOARRIN register
- * @cmd:	AFU command that timed out.
+ * context_reset_ioarrin() - reset context via IOARRIN register
+ * @hwq:	Hardware queue owning the context to be reset.
+ *
+ * Return: 0 on success, -errno on failure
  */
-static void context_reset_ioarrin(struct afu_cmd *cmd)
+static int context_reset_ioarrin(struct hwq *hwq)
 {
-	struct afu *afu = cmd->parent;
-	struct hwq *hwq = get_hwq(afu, cmd->hwq_index);
-
-	context_reset(cmd, &hwq->host_map->ioarrin);
+	return context_reset(hwq, &hwq->host_map->ioarrin);
 }
 
 /**
- * context_reset_sq() - reset command owner context w/ SQ Context Reset register
- * @cmd:	AFU command that timed out.
+ * context_reset_sq() - reset context via SQ_CONTEXT_RESET register
+ * @hwq:	Hardware queue owning the context to be reset.
+ *
+ * Return: 0 on success, -errno on failure
  */
-static void context_reset_sq(struct afu_cmd *cmd)
+static int context_reset_sq(struct hwq *hwq)
 {
-	struct afu *afu = cmd->parent;
-	struct hwq *hwq = get_hwq(afu, cmd->hwq_index);
-
-	context_reset(cmd, &hwq->host_map->sq_ctx_reset);
+	return context_reset(hwq, &hwq->host_map->sq_ctx_reset);
 }
 
 /**
@@ -332,8 +336,7 @@ out:
  * @afu:	AFU associated with the host.
  * @cmd:	AFU command that was sent.
  *
- * Return:
- *	0 on success, -1 on timeout/error
+ * Return: 0 on success, -errno on failure
  */
 static int wait_resp(struct afu *afu, struct afu_cmd *cmd)
 {
@@ -343,15 +346,13 @@ static int wait_resp(struct afu *afu, struct afu_cmd *cmd)
 	ulong timeout = msecs_to_jiffies(cmd->rcb.timeout * 2 * 1000);
 
 	timeout = wait_for_completion_timeout(&cmd->cevent, timeout);
-	if (!timeout) {
-		afu->context_reset(cmd);
-		rc = -1;
-	}
+	if (!timeout)
+		rc = -ETIMEDOUT;
 
 	if (unlikely(cmd->sa.ioasc != 0)) {
 		dev_err(dev, "%s: cmd %02x failed, ioasc=%08x\n",
 			__func__, cmd->rcb.cdb[0], cmd->sa.ioasc);
-		rc = -1;
+		rc = -EIO;
 	}
 
 	return rc;
@@ -2033,6 +2034,7 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 	struct hwq *hwq = get_hwq(afu, PRIMARY_HWQ);
 	char *buf = NULL;
 	int rc = 0;
+	int nretry = 0;
 	static DEFINE_MUTEX(sync_active);
 
 	if (cfg->state != STATE_NORMAL) {
@@ -2051,11 +2053,14 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 	}
 
 	cmd = (struct afu_cmd *)PTR_ALIGN(buf, __alignof__(*cmd));
+
+retry:
 	init_completion(&cmd->cevent);
 	cmd->parent = afu;
 	cmd->hwq_index = hwq->index;
 
-	dev_dbg(dev, "%s: afu=%p cmd=%p %d\n", __func__, afu, cmd, ctx_hndl_u);
+	dev_dbg(dev, "%s: afu=%p cmd=%p ctx=%d nretry=%d\n",
+		__func__, afu, cmd, ctx_hndl_u, nretry);
 
 	cmd->rcb.req_flags = SISL_REQ_FLAGS_AFU_CMD;
 	cmd->rcb.ctx_id = hwq->ctx_hndl;
@@ -2076,8 +2081,12 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 	}
 
 	rc = wait_resp(afu, cmd);
-	if (unlikely(rc))
-		rc = -EIO;
+	if (rc == -ETIMEDOUT) {
+		rc = afu->context_reset(hwq);
+		if (!rc && ++nretry < 2)
+			goto retry;
+	}
+
 out:
 	atomic_dec(&afu->cmds_active);
 	mutex_unlock(&sync_active);

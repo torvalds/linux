@@ -211,7 +211,7 @@ struct hwq {
 struct afu {
 	struct hwq hwqs[CXLFLASH_MAX_HWQS];
 	int (*send_cmd)(struct afu *, struct afu_cmd *);
-	void (*context_reset)(struct afu_cmd *);
+	int (*context_reset)(struct hwq *);
 
 	/* AFU HW */
 	struct cxlflash_afu_map __iomem *afu_map;	/* entire MMIO map */
