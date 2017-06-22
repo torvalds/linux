@@ -1381,7 +1381,7 @@ next_slot:
 			 * we fall into common COW way.
 			 */
 			if (!nolock) {
-				err = btrfs_start_write_no_snapshoting(root);
+				err = btrfs_start_write_no_snapshotting(root);
 				if (!err)
 					goto out_check;
 			}
@@ -1393,12 +1393,12 @@ next_slot:
 			if (csum_exist_in_range(fs_info, disk_bytenr,
 						num_bytes)) {
 				if (!nolock)
-					btrfs_end_write_no_snapshoting(root);
+					btrfs_end_write_no_snapshotting(root);
 				goto out_check;
 			}
 			if (!btrfs_inc_nocow_writers(fs_info, disk_bytenr)) {
 				if (!nolock)
-					btrfs_end_write_no_snapshoting(root);
+					btrfs_end_write_no_snapshotting(root);
 				goto out_check;
 			}
 			nocow = 1;
@@ -1415,7 +1415,7 @@ out_check:
 		if (extent_end <= start) {
 			path->slots[0]++;
 			if (!nolock && nocow)
-				btrfs_end_write_no_snapshoting(root);
+				btrfs_end_write_no_snapshotting(root);
 			if (nocow)
 				btrfs_dec_nocow_writers(fs_info, disk_bytenr);
 			goto next_slot;
@@ -1438,7 +1438,7 @@ out_check:
 					     NULL);
 			if (ret) {
 				if (!nolock && nocow)
-					btrfs_end_write_no_snapshoting(root);
+					btrfs_end_write_no_snapshotting(root);
 				if (nocow)
 					btrfs_dec_nocow_writers(fs_info,
 								disk_bytenr);
@@ -1459,7 +1459,7 @@ out_check:
 					  BTRFS_ORDERED_PREALLOC);
 			if (IS_ERR(em)) {
 				if (!nolock && nocow)
-					btrfs_end_write_no_snapshoting(root);
+					btrfs_end_write_no_snapshotting(root);
 				if (nocow)
 					btrfs_dec_nocow_writers(fs_info,
 								disk_bytenr);
@@ -1499,7 +1499,7 @@ out_check:
 					     PAGE_UNLOCK | PAGE_SET_PRIVATE2);
 
 		if (!nolock && nocow)
-			btrfs_end_write_no_snapshoting(root);
+			btrfs_end_write_no_snapshotting(root);
 		cur_offset = extent_end;
 
 		/*
@@ -5053,7 +5053,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 
 	if (newsize > oldsize) {
 		/*
-		 * Don't do an expanding truncate while snapshoting is ongoing.
+		 * Don't do an expanding truncate while snapshotting is ongoing.
 		 * This is to ensure the snapshot captures a fully consistent
 		 * state of this file - if the snapshot captures this expanding
 		 * truncation, it must capture all writes that happened before
@@ -5062,13 +5062,13 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		btrfs_wait_for_snapshot_creation(root);
 		ret = btrfs_cont_expand(inode, oldsize, newsize);
 		if (ret) {
-			btrfs_end_write_no_snapshoting(root);
+			btrfs_end_write_no_snapshotting(root);
 			return ret;
 		}
 
 		trans = btrfs_start_transaction(root, 1);
 		if (IS_ERR(trans)) {
-			btrfs_end_write_no_snapshoting(root);
+			btrfs_end_write_no_snapshotting(root);
 			return PTR_ERR(trans);
 		}
 
@@ -5076,7 +5076,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		btrfs_ordered_update_i_size(inode, i_size_read(inode), NULL);
 		pagecache_isize_extended(inode, oldsize, newsize);
 		ret = btrfs_update_inode(trans, root, inode);
-		btrfs_end_write_no_snapshoting(root);
+		btrfs_end_write_no_snapshotting(root);
 		btrfs_end_transaction(trans);
 	} else {
 

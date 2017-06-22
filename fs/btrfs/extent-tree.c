@@ -10989,14 +10989,14 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 }
 
 /*
- * btrfs_{start,end}_write_no_snapshoting() are similar to
+ * btrfs_{start,end}_write_no_snapshotting() are similar to
  * mnt_{want,drop}_write(), they are used to prevent some tasks from writing
  * data into the page cache through nocow before the subvolume is snapshoted,
  * but flush the data into disk after the snapshot creation, or to prevent
- * operations while snapshoting is ongoing and that cause the snapshot to be
+ * operations while snapshotting is ongoing and that cause the snapshot to be
  * inconsistent (writes followed by expanding truncates for example).
  */
-void btrfs_end_write_no_snapshoting(struct btrfs_root *root)
+void btrfs_end_write_no_snapshotting(struct btrfs_root *root)
 {
 	percpu_counter_dec(&root->subv_writers->counter);
 	/*
@@ -11007,9 +11007,9 @@ void btrfs_end_write_no_snapshoting(struct btrfs_root *root)
 		wake_up(&root->subv_writers->wait);
 }
 
-int btrfs_start_write_no_snapshoting(struct btrfs_root *root)
+int btrfs_start_write_no_snapshotting(struct btrfs_root *root)
 {
-	if (atomic_read(&root->will_be_snapshoted))
+	if (atomic_read(&root->will_be_snapshotted))
 		return 0;
 
 	percpu_counter_inc(&root->subv_writers->counter);
@@ -11017,14 +11017,14 @@ int btrfs_start_write_no_snapshoting(struct btrfs_root *root)
 	 * Make sure counter is updated before we check for snapshot creation.
 	 */
 	smp_mb();
-	if (atomic_read(&root->will_be_snapshoted)) {
-		btrfs_end_write_no_snapshoting(root);
+	if (atomic_read(&root->will_be_snapshotted)) {
+		btrfs_end_write_no_snapshotting(root);
 		return 0;
 	}
 	return 1;
 }
 
-static int wait_snapshoting_atomic_t(atomic_t *a)
+static int wait_snapshotting_atomic_t(atomic_t *a)
 {
 	schedule();
 	return 0;
@@ -11035,11 +11035,11 @@ void btrfs_wait_for_snapshot_creation(struct btrfs_root *root)
 	while (true) {
 		int ret;
 
-		ret = btrfs_start_write_no_snapshoting(root);
+		ret = btrfs_start_write_no_snapshotting(root);
 		if (ret)
 			break;
-		wait_on_atomic_t(&root->will_be_snapshoted,
-				 wait_snapshoting_atomic_t,
+		wait_on_atomic_t(&root->will_be_snapshotted,
+				 wait_snapshotting_atomic_t,
 				 TASK_UNINTERRUPTIBLE);
 	}
 }

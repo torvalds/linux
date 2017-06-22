@@ -1258,7 +1258,7 @@ struct btrfs_root {
 	 */
 	int send_in_progress;
 	struct btrfs_subvolume_writers *subv_writers;
-	atomic_t will_be_snapshoted;
+	atomic_t will_be_snapshotted;
 
 	/* For qgroup metadata space reserve */
 	atomic64_t qgroup_meta_rsv;
@@ -2773,8 +2773,8 @@ int btrfs_init_space_info(struct btrfs_fs_info *fs_info);
 int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
 					 struct btrfs_fs_info *fs_info);
 int __get_raid_index(u64 flags);
-int btrfs_start_write_no_snapshoting(struct btrfs_root *root);
-void btrfs_end_write_no_snapshoting(struct btrfs_root *root);
+int btrfs_start_write_no_snapshotting(struct btrfs_root *root);
+void btrfs_end_write_no_snapshotting(struct btrfs_root *root);
 void btrfs_wait_for_snapshot_creation(struct btrfs_root *root);
 void check_system_chunk(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info, const u64 type);

@@ -607,7 +607,7 @@ fail_free:
 	return ret;
 }
 
-static void btrfs_wait_for_no_snapshoting_writes(struct btrfs_root *root)
+static void btrfs_wait_for_no_snapshotting_writes(struct btrfs_root *root)
 {
 	s64 writers;
 	DEFINE_WAIT(wait);
@@ -650,9 +650,9 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 		goto free_pending;
 	}
 
-	atomic_inc(&root->will_be_snapshoted);
+	atomic_inc(&root->will_be_snapshotted);
 	smp_mb__after_atomic();
-	btrfs_wait_for_no_snapshoting_writes(root);
+	btrfs_wait_for_no_snapshotting_writes(root);
 
 	ret = btrfs_start_delalloc_inodes(root, 0);
 	if (ret)
@@ -723,8 +723,8 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 fail:
 	btrfs_subvolume_release_metadata(fs_info, &pending_snapshot->block_rsv);
 dec_and_free:
-	if (atomic_dec_and_test(&root->will_be_snapshoted))
-		wake_up_atomic_t(&root->will_be_snapshoted);
+	if (atomic_dec_and_test(&root->will_be_snapshotted))
+		wake_up_atomic_t(&root->will_be_snapshotted);
 free_pending:
 	kfree(pending_snapshot->root_item);
 	btrfs_free_path(pending_snapshot->path);
