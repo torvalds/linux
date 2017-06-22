@@ -430,6 +430,7 @@ static const struct drm_crtc_funcs atmel_hlcdc_crtc_funcs = {
 	.enable_vblank = atmel_hlcdc_crtc_enable_vblank,
 	.disable_vblank = atmel_hlcdc_crtc_disable_vblank,
 	.set_property = drm_atomic_helper_crtc_set_property,
+	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 };
 
 int atmel_hlcdc_crtc_create(struct drm_device *dev)
@@ -484,6 +485,10 @@ int atmel_hlcdc_crtc_create(struct drm_device *dev)
 
 	drm_crtc_helper_add(&crtc->base, &lcdc_crtc_helper_funcs);
 	drm_crtc_vblank_reset(&crtc->base);
+
+	drm_mode_crtc_set_gamma_size(&crtc->base, ATMEL_HLCDC_CLUT_SIZE);
+	drm_crtc_enable_color_mgmt(&crtc->base, 0, false,
+				   ATMEL_HLCDC_CLUT_SIZE);
 
 	dc->crtc = &crtc->base;
 

@@ -42,6 +42,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9n12_layers[] = {
 			.default_color = 3,
 			.general_config = 4,
 		},
+		.clut_offset = 0x400,
 	},
 };
 
@@ -73,6 +74,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.disc_pos = 5,
 			.disc_size = 6,
 		},
+		.clut_offset = 0x400,
 	},
 	{
 		.name = "overlay1",
@@ -91,6 +93,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0x800,
 	},
 	{
 		.name = "high-end-overlay",
@@ -112,6 +115,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.scaler_config = 13,
 			.csc = 14,
 		},
+		.clut_offset = 0x1000,
 	},
 	{
 		.name = "cursor",
@@ -131,6 +135,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0x1400,
 	},
 };
 
@@ -162,6 +167,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.disc_pos = 5,
 			.disc_size = 6,
 		},
+		.clut_offset = 0x600,
 	},
 	{
 		.name = "overlay1",
@@ -180,6 +186,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xa00,
 	},
 	{
 		.name = "overlay2",
@@ -198,6 +205,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xe00,
 	},
 	{
 		.name = "high-end-overlay",
@@ -223,6 +231,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			},
 			.csc = 14,
 		},
+		.clut_offset = 0x1200,
 	},
 	{
 		.name = "cursor",
@@ -244,6 +253,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 			.general_config = 9,
 			.scaler_config = 13,
 		},
+		.clut_offset = 0x1600,
 	},
 };
 
@@ -275,6 +285,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.disc_pos = 5,
 			.disc_size = 6,
 		},
+		.clut_offset = 0x600,
 	},
 	{
 		.name = "overlay1",
@@ -293,6 +304,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xa00,
 	},
 	{
 		.name = "overlay2",
@@ -311,6 +323,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			.chroma_key_mask = 8,
 			.general_config = 9,
 		},
+		.clut_offset = 0xe00,
 	},
 	{
 		.name = "high-end-overlay",
@@ -336,6 +349,7 @@ static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
 			},
 			.csc = 14,
 		},
+		.clut_offset = 0x1200,
 	},
 };
 
