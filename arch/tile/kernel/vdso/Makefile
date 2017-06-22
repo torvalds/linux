@@ -5,13 +5,13 @@ vdso-syms = rt_sigreturn gettimeofday
 obj-vdso = $(patsubst %, v%.o, $(vdso-syms))
 
 # Build rules
-targets := $(obj-vdso) vdso.so vdso.so.dbg vdso.lds
+targets := $(obj-vdso) vdso.so vdso.so.dbg vdso.lds vdso-dummy.o
 obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 
 # vdso32 is only for tilegx -m32 compat task.
 VDSO32-$(CONFIG_COMPAT) := y
 
-obj-y += vdso.o
+obj-y += vdso.o vdso-syms.o
 obj-$(VDSO32-y) += vdso32.o
 extra-y += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
@@ -48,16 +48,16 @@ $(obj)/vdso.so.dbg: $(src)/vdso.lds $(obj-vdso) FORCE
 # We also create a special relocatable object that should mirror the symbol
 # table and layout of the linked DSO.  With ld -R we can then refer to
 # these symbols in the kernel code rather than hand-coded addresses.
-extra-y += vdso-syms.o
-$(obj)/built-in.o: $(obj)/vdso-syms.o
-$(obj)/built-in.o: ld_flags += -R $(obj)/vdso-syms.o
 
 SYSCFLAGS_vdso.so.dbg = -shared -s -Wl,-soname=linux-vdso.so.1 \
                             $(call cc-ldoption, -Wl$(comma)--hash-style=both)
-SYSCFLAGS_vdso_syms.o = -r
-$(obj)/vdso-syms.o: $(src)/vdso.lds $(obj)/vrt_sigreturn.o FORCE
+SYSCFLAGS_vdso_dummy.o = -r
+$(obj)/vdso-dummy.o: $(src)/vdso.lds $(obj)/vrt_sigreturn.o FORCE
 	$(call if_changed,vdsold)
 
+LDFLAGS_vdso-syms.o := -r -R
+$(obj)/vdso-syms.o: $(obj)/vdso-dummy.o FORCE
+	$(call if_changed,ld)
 
 # strip rule for the .so file
 $(obj)/%.so: OBJCOPYFLAGS := -S
