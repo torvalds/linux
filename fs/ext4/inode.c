@@ -139,6 +139,8 @@ static void ext4_invalidatepage(struct page *page, unsigned int offset,
 				unsigned int length);
 static int __ext4_journalled_writepage(struct page *page, unsigned int len);
 static int ext4_bh_delay_or_unwritten(handle_t *handle, struct buffer_head *bh);
+static int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
+				  int pextents);
 
 /*
  * Test whether an inode is a fast symlink.
@@ -4843,8 +4845,15 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	}
 	brelse(iloc.bh);
 	ext4_set_inode_flags(inode);
-	if (ei->i_flags & EXT4_EA_INODE_FL)
+
+	if (ei->i_flags & EXT4_EA_INODE_FL) {
 		ext4_xattr_inode_set_class(inode);
+
+		inode_lock(inode);
+		inode->i_flags |= S_NOQUOTA;
+		inode_unlock(inode);
+	}
+
 	unlock_new_inode(inode);
 	return inode;
 
@@ -5503,7 +5512,7 @@ static int ext4_index_trans_blocks(struct inode *inode, int lblocks,
  *
  * Also account for superblock, inode, quota and xattr blocks
  */
-int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
+static int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
 				  int pextents)
 {
 	ext4_group_t groups, ngroups = ext4_get_groups_count(inode->i_sb);

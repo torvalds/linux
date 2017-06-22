@@ -70,19 +70,6 @@ struct ext4_xattr_entry {
 #define IFIRST(hdr) ((struct ext4_xattr_entry *)((hdr)+1))
 
 /*
- * Link EA inode back to parent one using i_mtime field.
- * Extra integer type conversion added to ignore higher
- * bits in i_mtime.tv_sec which might be set by ext4_get()
- */
-#define EXT4_XATTR_INODE_SET_PARENT(inode, inum)      \
-do {                                                  \
-      (inode)->i_mtime.tv_sec = inum;                 \
-} while(0)
-
-#define EXT4_XATTR_INODE_GET_PARENT(inode)            \
-((__u32)(inode)->i_mtime.tv_sec)
-
-/*
  * The minimum size of EA value when you start storing it in an external inode
  * size of block - size of header - size of 1 entry - 4 null bytes
 */
@@ -165,9 +152,9 @@ extern ssize_t ext4_listxattr(struct dentry *, char *, size_t);
 extern int ext4_xattr_get(struct inode *, int, const char *, void *, size_t);
 extern int ext4_xattr_set(struct inode *, int, const char *, const void *, size_t, int);
 extern int ext4_xattr_set_handle(handle_t *, struct inode *, int, const char *, const void *, size_t, int);
-extern int ext4_xattr_set_credits(struct inode *inode, size_t value_len);
+extern int ext4_xattr_set_credits(struct inode *inode, size_t value_len,
+				  int *credits);
 
-extern int ext4_xattr_inode_unlink(struct inode *inode, unsigned long ea_ino);
 extern int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 				   struct ext4_xattr_inode_array **array,
 				   int extra_credits);

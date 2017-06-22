@@ -238,7 +238,10 @@ ext4_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	if (error)
 		return error;
 retry:
-	credits = ext4_xattr_set_credits(inode, acl_size);
+	error = ext4_xattr_set_credits(inode, acl_size, &credits);
+	if (error)
+		return error;
+
 	handle = ext4_journal_start(inode, EXT4_HT_XATTR, credits);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);

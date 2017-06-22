@@ -13,10 +13,11 @@
  * mb_cache_entry_delete()).
  *
  * Ext2 and ext4 use this cache for deduplication of extended attribute blocks.
- * They use hash of a block contents as a key and block number as a value.
- * That's why keys need not be unique (different xattr blocks may end up having
- * the same hash). However block number always uniquely identifies a cache
- * entry.
+ * Ext4 also uses it for deduplication of xattr values stored in inodes.
+ * They use hash of data as a key and provide a value that may represent a
+ * block or inode number. That's why keys need not be unique (hash of different
+ * data may be the same). However user provided value always uniquely
+ * identifies a cache entry.
  *
  * We provide functions for creation and removal of entries, search by key,
  * and a special "delete entry with given key-value pair" operation. Fixed
