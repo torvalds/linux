@@ -1047,9 +1047,35 @@ err:
 	return NULL;
 }
 
+static const struct acpi_device_id xgene_pmu_acpi_type_match[] = {
+	{"APMC0D5D", PMU_TYPE_L3C},
+	{"APMC0D5E", PMU_TYPE_IOB},
+	{"APMC0D5F", PMU_TYPE_MCB},
+	{"APMC0D60", PMU_TYPE_MC},
+	{},
+};
+
+static const struct acpi_device_id *xgene_pmu_acpi_match_type(
+					const struct acpi_device_id *ids,
+					struct acpi_device *adev)
+{
+	const struct acpi_device_id *match_id = NULL;
+	const struct acpi_device_id *id;
+
+	for (id = ids; id->id[0] || id->cls; id++) {
+		if (!acpi_match_device_ids(adev, id))
+			match_id = id;
+		else if (match_id)
+			break;
+	}
+
+	return match_id;
+}
+
 static acpi_status acpi_pmu_dev_add(acpi_handle handle, u32 level,
 				    void *data, void **return_value)
 {
+	const struct acpi_device_id *acpi_id;
 	struct xgene_pmu *xgene_pmu = data;
 	struct xgene_pmu_dev_ctx *ctx;
 	struct acpi_device *adev;
@@ -1059,17 +1085,11 @@ static acpi_status acpi_pmu_dev_add(acpi_handle handle, u32 level,
 	if (acpi_bus_get_status(adev) || !adev->status.present)
 		return AE_OK;
 
-	if (!strcmp(acpi_device_hid(adev), "APMC0D5D"))
-		ctx = acpi_get_pmu_hw_inf(xgene_pmu, adev, PMU_TYPE_L3C);
-	else if (!strcmp(acpi_device_hid(adev), "APMC0D5E"))
-		ctx = acpi_get_pmu_hw_inf(xgene_pmu, adev, PMU_TYPE_IOB);
-	else if (!strcmp(acpi_device_hid(adev), "APMC0D5F"))
-		ctx = acpi_get_pmu_hw_inf(xgene_pmu, adev, PMU_TYPE_MCB);
-	else if (!strcmp(acpi_device_hid(adev), "APMC0D60"))
-		ctx = acpi_get_pmu_hw_inf(xgene_pmu, adev, PMU_TYPE_MC);
-	else
-		ctx = NULL;
+	acpi_id = xgene_pmu_acpi_match_type(xgene_pmu_acpi_type_match, adev);
+	if (!acpi_id)
+		return AE_OK;
 
+	ctx = acpi_get_pmu_hw_inf(xgene_pmu, adev, (u32)acpi_id->driver_data);
 	if (!ctx)
 		return AE_OK;
 
