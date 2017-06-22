@@ -77,8 +77,9 @@ static void ext4_xattr_block_cache_insert(struct mb_cache *,
 static struct buffer_head *
 ext4_xattr_block_cache_find(struct inode *, struct ext4_xattr_header *,
 			    struct mb_cache_entry **);
-static void ext4_xattr_rehash(struct ext4_xattr_header *,
-			      struct ext4_xattr_entry *);
+static void ext4_xattr_hash_entry(struct ext4_xattr_entry *entry,
+				  void *value_base);
+static void ext4_xattr_rehash(struct ext4_xattr_header *);
 
 static const struct xattr_handler * const ext4_xattr_handler_map[] = {
 	[EXT4_XATTR_INDEX_USER]		     = &ext4_xattr_user_handler,
@@ -1467,7 +1468,8 @@ static int ext4_xattr_inode_lookup_create(handle_t *handle, struct inode *inode,
 
 static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 				struct ext4_xattr_search *s,
-				handle_t *handle, struct inode *inode)
+				handle_t *handle, struct inode *inode,
+				bool is_block)
 {
 	struct ext4_xattr_entry *last;
 	struct ext4_xattr_entry *here = s->here;
@@ -1531,8 +1533,8 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 		 * attribute block so that a long value does not occupy the
 		 * whole space and prevent futher entries being added.
 		 */
-		if (ext4_has_feature_ea_inode(inode->i_sb) && new_size &&
-		    (s->end - s->base) == i_blocksize(inode) &&
+		if (ext4_has_feature_ea_inode(inode->i_sb) &&
+		    new_size && is_block &&
 		    (min_offs + old_size - new_size) <
 					EXT4_XATTR_BLOCK_RESERVE(inode)) {
 			ret = -ENOSPC;
@@ -1662,6 +1664,13 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 		}
 		here->e_value_size = cpu_to_le32(i->value_len);
 	}
+
+	if (is_block) {
+		if (i->value)
+			ext4_xattr_hash_entry(here, s->base);
+		ext4_xattr_rehash((struct ext4_xattr_header *)s->base);
+	}
+
 	ret = 0;
 out:
 	iput(old_ea_inode);
@@ -1751,14 +1760,11 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 			mb_cache_entry_delete(ea_block_cache, hash,
 					      bs->bh->b_blocknr);
 			ea_bdebug(bs->bh, "modifying in-place");
-			error = ext4_xattr_set_entry(i, s, handle, inode);
-			if (!error) {
-				if (!IS_LAST_ENTRY(s->first))
-					ext4_xattr_rehash(header(s->base),
-							  s->here);
+			error = ext4_xattr_set_entry(i, s, handle, inode,
+						     true /* is_block */);
+			if (!error)
 				ext4_xattr_block_cache_insert(ea_block_cache,
 							      bs->bh);
-			}
 			ext4_xattr_block_csum_set(inode, bs->bh);
 			unlock_buffer(bs->bh);
 			if (error == -EFSCORRUPTED)
@@ -1818,7 +1824,7 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 		s->end = s->base + sb->s_blocksize;
 	}
 
-	error = ext4_xattr_set_entry(i, s, handle, inode);
+	error = ext4_xattr_set_entry(i, s, handle, inode, true /* is_block */);
 	if (error == -EFSCORRUPTED)
 		goto bad_block;
 	if (error)
@@ -1840,9 +1846,6 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 			goto cleanup;
 		}
 	}
-
-	if (!IS_LAST_ENTRY(s->first))
-		ext4_xattr_rehash(header(s->base), s->here);
 
 inserted:
 	if (!IS_LAST_ENTRY(s->first)) {
@@ -2076,7 +2079,7 @@ int ext4_xattr_ibody_inline_set(handle_t *handle, struct inode *inode,
 
 	if (EXT4_I(inode)->i_extra_isize == 0)
 		return -ENOSPC;
-	error = ext4_xattr_set_entry(i, s, handle, inode);
+	error = ext4_xattr_set_entry(i, s, handle, inode, false /* is_block */);
 	if (error) {
 		if (error == -ENOSPC &&
 		    ext4_has_inline_data(inode)) {
@@ -2088,7 +2091,8 @@ int ext4_xattr_ibody_inline_set(handle_t *handle, struct inode *inode,
 			error = ext4_xattr_ibody_find(inode, i, is);
 			if (error)
 				return error;
-			error = ext4_xattr_set_entry(i, s, handle, inode);
+			error = ext4_xattr_set_entry(i, s, handle, inode,
+						     false /* is_block */);
 		}
 		if (error)
 			return error;
@@ -2114,7 +2118,7 @@ static int ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
 
 	if (EXT4_I(inode)->i_extra_isize == 0)
 		return -ENOSPC;
-	error = ext4_xattr_set_entry(i, s, handle, inode);
+	error = ext4_xattr_set_entry(i, s, handle, inode, false /* is_block */);
 	if (error)
 		return error;
 	header = IHDR(inode, ext4_raw_inode(&is->iloc));
@@ -2940,8 +2944,8 @@ ext4_xattr_block_cache_find(struct inode *inode,
  *
  * Compute the hash of an extended attribute.
  */
-static inline void ext4_xattr_hash_entry(struct ext4_xattr_header *header,
-					 struct ext4_xattr_entry *entry)
+static void ext4_xattr_hash_entry(struct ext4_xattr_entry *entry,
+				  void *value_base)
 {
 	__u32 hash = 0;
 	char *name = entry->e_name;
@@ -2954,7 +2958,7 @@ static inline void ext4_xattr_hash_entry(struct ext4_xattr_header *header,
 	}
 
 	if (!entry->e_value_inum && entry->e_value_size) {
-		__le32 *value = (__le32 *)((char *)header +
+		__le32 *value = (__le32 *)((char *)value_base +
 			le16_to_cpu(entry->e_value_offs));
 		for (n = (le32_to_cpu(entry->e_value_size) +
 		     EXT4_XATTR_ROUND) >> EXT4_XATTR_PAD_BITS; n; n--) {
@@ -2976,13 +2980,11 @@ static inline void ext4_xattr_hash_entry(struct ext4_xattr_header *header,
  *
  * Re-compute the extended attribute hash value after an entry has changed.
  */
-static void ext4_xattr_rehash(struct ext4_xattr_header *header,
-			      struct ext4_xattr_entry *entry)
+static void ext4_xattr_rehash(struct ext4_xattr_header *header)
 {
 	struct ext4_xattr_entry *here;
 	__u32 hash = 0;
 
-	ext4_xattr_hash_entry(header, entry);
 	here = ENTRY(header+1);
 	while (!IS_LAST_ENTRY(here)) {
 		if (!here->e_hash) {
