@@ -138,7 +138,7 @@ struct brcmf_bus {
 	struct brcmf_pub *drvr;
 	enum brcmf_bus_state state;
 	uint maxctl;
-	unsigned long tx_realloc;
+	atomic_t tx_realloc;
 	u32 chip;
 	u32 chiprev;
 	bool always_use_fws_queue;

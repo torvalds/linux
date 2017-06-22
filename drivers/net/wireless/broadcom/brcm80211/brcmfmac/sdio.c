@@ -2046,7 +2046,7 @@ static int brcmf_sdio_txpkt_hdalign(struct brcmf_sdio *bus, struct sk_buff *pkt)
 	head_pad = ((unsigned long)dat_buf % bus->head_align);
 	if (head_pad) {
 		if (skb_headroom(pkt) < head_pad) {
-			bus->sdiodev->bus_if->tx_realloc++;
+			atomic_inc(&bus->sdiodev->bus_if->tx_realloc);
 			head_pad = 0;
 			if (skb_cow(pkt, head_pad))
 				return -ENOMEM;
