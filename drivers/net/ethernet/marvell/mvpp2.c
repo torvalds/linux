@@ -3917,17 +3917,6 @@ static void *mvpp2_buf_alloc(struct mvpp2_port *port,
 	return data;
 }
 
-/* Set pool number in a BM cookie */
-static inline u32 mvpp2_bm_cookie_pool_set(u32 cookie, int pool)
-{
-	u32 bm;
-
-	bm = cookie & ~(0xFF << MVPP2_BM_COOKIE_POOL_OFFS);
-	bm |= ((pool & 0xFF) << MVPP2_BM_COOKIE_POOL_OFFS);
-
-	return bm;
-}
-
 /* Release buffer to BM */
 static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 				     dma_addr_t buf_dma_addr,
@@ -3962,14 +3951,6 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 			   MVPP2_BM_PHY_RLS_REG(pool), buf_dma_addr);
 
 	put_cpu();
-}
-
-/* Refill BM pool */
-static void mvpp2_pool_refill(struct mvpp2_port *port, int pool,
-			      dma_addr_t dma_addr,
-			      phys_addr_t phys_addr)
-{
-	mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 }
 
 /* Allocate buffers for the pool */
@@ -4162,7 +4143,10 @@ static inline void mvpp2_interrupts_disable(struct mvpp2_port *port)
 		    MVPP2_ISR_DISABLE_INTERRUPT(cpu_mask));
 }
 
-/* Mask the current CPU's Rx/Tx interrupts */
+/* Mask the current CPU's Rx/Tx interrupts
+ * Called by on_each_cpu(), guaranteed to run with migration disabled,
+ * using smp_processor_id() is OK.
+ */
 static void mvpp2_interrupts_mask(void *arg)
 {
 	struct mvpp2_port *port = arg;
@@ -4171,7 +4155,10 @@ static void mvpp2_interrupts_mask(void *arg)
 			   MVPP2_ISR_RX_TX_MASK_REG(port->id), 0);
 }
 
-/* Unmask the current CPU's Rx/Tx interrupts */
+/* Unmask the current CPU's Rx/Tx interrupts.
+ * Called by on_each_cpu(), guaranteed to run with migration disabled,
+ * using smp_processor_id() is OK.
+ */
 static void mvpp2_interrupts_unmask(void *arg)
 {
 	struct mvpp2_port *port = arg;
@@ -4554,7 +4541,11 @@ mvpp2_txq_next_desc_get(struct mvpp2_tx_queue *txq)
 	return txq->descs + tx_desc;
 }
 
-/* Update HW with number of aggregated Tx descriptors to be sent */
+/* Update HW with number of aggregated Tx descriptors to be sent
+ *
+ * Called only from mvpp2_tx(), so migration is disabled, using
+ * smp_processor_id() is OK.
+ */
 static void mvpp2_aggr_txq_pend_desc_add(struct mvpp2_port *port, int pending)
 {
 	/* aggregated access - relevant TXQ number is written in TX desc */
@@ -4565,6 +4556,9 @@ static void mvpp2_aggr_txq_pend_desc_add(struct mvpp2_port *port, int pending)
 
 /* Check if there are enough free descriptors in aggregated txq.
  * If not, update the number of occupied descriptors and repeat the check.
+ *
+ * Called only from mvpp2_tx(), so migration is disabled, using
+ * smp_processor_id() is OK.
  */
 static int mvpp2_aggr_desc_num_check(struct mvpp2 *priv,
 				     struct mvpp2_tx_queue *aggr_txq, int num)
@@ -4583,7 +4577,12 @@ static int mvpp2_aggr_desc_num_check(struct mvpp2 *priv,
 	return 0;
 }
 
-/* Reserved Tx descriptors allocation request */
+/* Reserved Tx descriptors allocation request
+ *
+ * Called only from mvpp2_txq_reserved_desc_num_proc(), itself called
+ * only by mvpp2_tx(), so migration is disabled, using
+ * smp_processor_id() is OK.
+ */
 static int mvpp2_txq_alloc_reserved_desc(struct mvpp2 *priv,
 					 struct mvpp2_tx_queue *txq, int num)
 {
@@ -4687,6 +4686,10 @@ static u32 mvpp2_txq_desc_csum(int l3_offs, int l3_proto,
 /* Get number of sent descriptors and decrement counter.
  * The number of sent descriptors is returned.
  * Per-CPU access
+ *
+ * Called only from mvpp2_txq_done(), called from mvpp2_tx()
+ * (migration disabled) and from the TX completion tasklet (migration
+ * disabled) so using smp_processor_id() is OK.
  */
 static inline int mvpp2_txq_sent_desc_proc(struct mvpp2_port *port,
 					   struct mvpp2_tx_queue *txq)
@@ -4701,6 +4704,9 @@ static inline int mvpp2_txq_sent_desc_proc(struct mvpp2_port *port,
 		MVPP2_TRANSMITTED_COUNT_OFFSET;
 }
 
+/* Called through on_each_cpu(), so runs on all CPUs, with migration
+ * disabled, therefore using smp_processor_id() is OK.
+ */
 static void mvpp2_txq_sent_counter_clear(void *arg)
 {
 	struct mvpp2_port *port = arg;
@@ -5001,7 +5007,7 @@ static void mvpp2_rxq_drop_pkts(struct mvpp2_port *port,
 		pool = (status & MVPP2_RXD_BM_POOL_ID_MASK) >>
 			MVPP2_RXD_BM_POOL_ID_OFFS;
 
-		mvpp2_pool_refill(port, pool,
+		mvpp2_bm_pool_put(port, pool,
 				  mvpp2_rxdesc_dma_addr_get(port, rx_desc),
 				  mvpp2_rxdesc_cookie_get(port, rx_desc));
 	}
@@ -5455,7 +5461,7 @@ static int mvpp2_rx_refill(struct mvpp2_port *port,
 	if (!buf)
 		return -ENOMEM;
 
-	mvpp2_pool_refill(port, pool, dma_addr, phys_addr);
+	mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 
 	return 0;
 }
@@ -5539,7 +5545,7 @@ err_drop_frame:
 			dev->stats.rx_errors++;
 			mvpp2_rx_error(port, rx_desc);
 			/* Return the buffer to the pool */
-			mvpp2_pool_refill(port, pool, dma_addr, phys_addr);
+			mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 			continue;
 		}
 
