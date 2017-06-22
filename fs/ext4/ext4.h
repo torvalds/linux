@@ -1800,7 +1800,8 @@ EXT4_FEATURE_INCOMPAT_FUNCS(encrypt,		ENCRYPT)
 					 EXT4_FEATURE_INCOMPAT_MMP | \
 					 EXT4_FEATURE_INCOMPAT_INLINE_DATA | \
 					 EXT4_FEATURE_INCOMPAT_ENCRYPT | \
-					 EXT4_FEATURE_INCOMPAT_CSUM_SEED)
+					 EXT4_FEATURE_INCOMPAT_CSUM_SEED | \
+					 EXT4_FEATURE_INCOMPAT_LARGEDIR)
 #define EXT4_FEATURE_RO_COMPAT_SUPP	(EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER| \
 					 EXT4_FEATURE_RO_COMPAT_LARGE_FILE| \
 					 EXT4_FEATURE_RO_COMPAT_GDT_CSUM| \
@@ -2125,6 +2126,16 @@ ext4_group_first_block_no(struct super_block *sb, ext4_group_t group_no)
  * Special error return code only used by dx_probe() and its callers.
  */
 #define ERR_BAD_DX_DIR	(-(MAX_ERRNO - 1))
+
+/* htree levels for ext4 */
+#define	EXT4_HTREE_LEVEL_COMPAT	2
+#define	EXT4_HTREE_LEVEL	3
+
+static inline int ext4_dir_htree_level(struct super_block *sb)
+{
+	return ext4_has_feature_largedir(sb) ?
+		EXT4_HTREE_LEVEL : EXT4_HTREE_LEVEL_COMPAT;
+}
 
 /*
  * Timeout and state flag for lazy initialization inode thread.
@@ -2756,13 +2767,15 @@ static inline void ext4_r_blocks_count_set(struct ext4_super_block *es,
 	es->s_r_blocks_count_hi = cpu_to_le32(blk >> 32);
 }
 
-static inline loff_t ext4_isize(struct ext4_inode *raw_inode)
+static inline loff_t ext4_isize(struct super_block *sb,
+				struct ext4_inode *raw_inode)
 {
-	if (S_ISREG(le16_to_cpu(raw_inode->i_mode)))
+	if (ext4_has_feature_largedir(sb) ||
+	    S_ISREG(le16_to_cpu(raw_inode->i_mode)))
 		return ((loff_t)le32_to_cpu(raw_inode->i_size_high) << 32) |
 			le32_to_cpu(raw_inode->i_size_lo);
-	else
-		return (loff_t) le32_to_cpu(raw_inode->i_size_lo);
+
+	return (loff_t) le32_to_cpu(raw_inode->i_size_lo);
 }
 
 static inline void ext4_isize_set(struct ext4_inode *raw_inode, loff_t i_size)

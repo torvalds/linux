@@ -77,7 +77,14 @@
 
 #define EXT4_RESERVE_TRANS_BLOCKS	12U
 
-#define EXT4_INDEX_EXTRA_TRANS_BLOCKS	8
+/*
+ * Number of credits needed if we need to insert an entry into a
+ * directory.  For each new index block, we need 4 blocks (old index
+ * block, new index block, bitmap block, bg summary).  For normal
+ * htree directories there are 2 levels; if the largedir feature
+ * enabled it's 3 levels.
+ */
+#define EXT4_INDEX_EXTRA_TRANS_BLOCKS	12U
 
 #ifdef CONFIG_QUOTA
 /* Amount of blocks needed for quota update - we know that the structure was
