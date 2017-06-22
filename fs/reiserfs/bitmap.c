@@ -1136,7 +1136,7 @@ static int determine_prealloc_size(reiserfs_blocknr_hint_t * hint)
 	hint->prealloc_size = 0;
 
 	if (!hint->formatted_node && hint->preallocate) {
-		if (S_ISREG(hint->inode->i_mode)
+		if (S_ISREG(hint->inode->i_mode) && !IS_PRIVATE(hint->inode)
 		    && hint->inode->i_size >=
 		    REISERFS_SB(hint->th->t_super)->s_alloc_options.
 		    preallocmin * hint->inode->i_sb->s_blocksize)
