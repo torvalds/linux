@@ -96,6 +96,23 @@ struct xgene_pmu_dev {
 	struct perf_event *pmu_counter_event[PMU_MAX_COUNTERS];
 };
 
+struct xgene_pmu_ops {
+	void (*mask_int)(struct xgene_pmu *pmu);
+	void (*unmask_int)(struct xgene_pmu *pmu);
+	u64 (*read_counter)(struct xgene_pmu_dev *pmu, int idx);
+	void (*write_counter)(struct xgene_pmu_dev *pmu, int idx, u64 val);
+	void (*write_evttype)(struct xgene_pmu_dev *pmu_dev, int idx, u32 val);
+	void (*write_agentmsk)(struct xgene_pmu_dev *pmu_dev, u32 val);
+	void (*write_agent1msk)(struct xgene_pmu_dev *pmu_dev, u32 val);
+	void (*enable_counter)(struct xgene_pmu_dev *pmu_dev, int idx);
+	void (*disable_counter)(struct xgene_pmu_dev *pmu_dev, int idx);
+	void (*enable_counter_int)(struct xgene_pmu_dev *pmu_dev, int idx);
+	void (*disable_counter_int)(struct xgene_pmu_dev *pmu_dev, int idx);
+	void (*reset_counters)(struct xgene_pmu_dev *pmu_dev);
+	void (*start_counters)(struct xgene_pmu_dev *pmu_dev);
+	void (*stop_counters)(struct xgene_pmu_dev *pmu_dev);
+};
+
 struct xgene_pmu {
 	struct device *dev;
 	int version;
@@ -104,6 +121,7 @@ struct xgene_pmu {
 	u32 mc_active_mask;
 	cpumask_t cpu;
 	raw_spinlock_t lock;
+	const struct xgene_pmu_ops *ops;
 	struct list_head l3cpmus;
 	struct list_head iobpmus;
 	struct list_head mcbpmus;
@@ -392,13 +410,14 @@ static inline void xgene_pmu_unmask_int(struct xgene_pmu *xgene_pmu)
 	writel(PCPPMU_INTCLRMASK, xgene_pmu->pcppmu_csr + PCPPMU_INTMASK_REG);
 }
 
-static inline u32 xgene_pmu_read_counter(struct xgene_pmu_dev *pmu_dev, int idx)
+static inline u64 xgene_pmu_read_counter32(struct xgene_pmu_dev *pmu_dev,
+					   int idx)
 {
 	return readl(pmu_dev->inf->csr + PMU_PMEVCNTR0 + (4 * idx));
 }
 
 static inline void
-xgene_pmu_write_counter(struct xgene_pmu_dev *pmu_dev, int idx, u32 val)
+xgene_pmu_write_counter32(struct xgene_pmu_dev *pmu_dev, int idx, u64 val)
 {
 	writel(val, pmu_dev->inf->csr + PMU_PMEVCNTR0 + (4 * idx));
 }
@@ -491,20 +510,22 @@ static inline void xgene_pmu_stop_counters(struct xgene_pmu_dev *pmu_dev)
 static void xgene_perf_pmu_enable(struct pmu *pmu)
 {
 	struct xgene_pmu_dev *pmu_dev = to_pmu_dev(pmu);
+	struct xgene_pmu *xgene_pmu = pmu_dev->parent;
 	int enabled = bitmap_weight(pmu_dev->cntr_assign_mask,
 			pmu_dev->max_counters);
 
 	if (!enabled)
 		return;
 
-	xgene_pmu_start_counters(pmu_dev);
+	xgene_pmu->ops->start_counters(pmu_dev);
 }
 
 static void xgene_perf_pmu_disable(struct pmu *pmu)
 {
 	struct xgene_pmu_dev *pmu_dev = to_pmu_dev(pmu);
+	struct xgene_pmu *xgene_pmu = pmu_dev->parent;
 
-	xgene_pmu_stop_counters(pmu_dev);
+	xgene_pmu->ops->stop_counters(pmu_dev);
 }
 
 static int xgene_perf_event_init(struct perf_event *event)
@@ -572,27 +593,32 @@ static int xgene_perf_event_init(struct perf_event *event)
 static void xgene_perf_enable_event(struct perf_event *event)
 {
 	struct xgene_pmu_dev *pmu_dev = to_pmu_dev(event->pmu);
+	struct xgene_pmu *xgene_pmu = pmu_dev->parent;
 
-	xgene_pmu_write_evttype(pmu_dev, GET_CNTR(event), GET_EVENTID(event));
-	xgene_pmu_write_agentmsk(pmu_dev, ~((u32)GET_AGENTID(event)));
+	xgene_pmu->ops->write_evttype(pmu_dev, GET_CNTR(event),
+				      GET_EVENTID(event));
+	xgene_pmu->ops->write_agentmsk(pmu_dev, ~((u32)GET_AGENTID(event)));
 	if (pmu_dev->inf->type == PMU_TYPE_IOB)
-		xgene_pmu_write_agent1msk(pmu_dev, ~((u32)GET_AGENT1ID(event)));
+		xgene_pmu->ops->write_agent1msk(pmu_dev,
+						~((u32)GET_AGENT1ID(event)));
 
-	xgene_pmu_enable_counter(pmu_dev, GET_CNTR(event));
-	xgene_pmu_enable_counter_int(pmu_dev, GET_CNTR(event));
+	xgene_pmu->ops->enable_counter(pmu_dev, GET_CNTR(event));
+	xgene_pmu->ops->enable_counter_int(pmu_dev, GET_CNTR(event));
 }
 
 static void xgene_perf_disable_event(struct perf_event *event)
 {
 	struct xgene_pmu_dev *pmu_dev = to_pmu_dev(event->pmu);
+	struct xgene_pmu *xgene_pmu = pmu_dev->parent;
 
-	xgene_pmu_disable_counter(pmu_dev, GET_CNTR(event));
-	xgene_pmu_disable_counter_int(pmu_dev, GET_CNTR(event));
+	xgene_pmu->ops->disable_counter(pmu_dev, GET_CNTR(event));
+	xgene_pmu->ops->disable_counter_int(pmu_dev, GET_CNTR(event));
 }
 
 static void xgene_perf_event_set_period(struct perf_event *event)
 {
 	struct xgene_pmu_dev *pmu_dev = to_pmu_dev(event->pmu);
+	struct xgene_pmu *xgene_pmu = pmu_dev->parent;
 	struct hw_perf_event *hw = &event->hw;
 	/*
 	 * The X-Gene PMU counters have a period of 2^32. To account for the
@@ -603,18 +629,19 @@ static void xgene_perf_event_set_period(struct perf_event *event)
 	u64 val = 1ULL << 31;
 
 	local64_set(&hw->prev_count, val);
-	xgene_pmu_write_counter(pmu_dev, hw->idx, (u32) val);
+	xgene_pmu->ops->write_counter(pmu_dev, hw->idx, val);
 }
 
 static void xgene_perf_event_update(struct perf_event *event)
 {
 	struct xgene_pmu_dev *pmu_dev = to_pmu_dev(event->pmu);
+	struct xgene_pmu *xgene_pmu = pmu_dev->parent;
 	struct hw_perf_event *hw = &event->hw;
 	u64 delta, prev_raw_count, new_raw_count;
 
 again:
 	prev_raw_count = local64_read(&hw->prev_count);
-	new_raw_count = xgene_pmu_read_counter(pmu_dev, GET_CNTR(event));
+	new_raw_count = xgene_pmu->ops->read_counter(pmu_dev, GET_CNTR(event));
 
 	if (local64_cmpxchg(&hw->prev_count, prev_raw_count,
 			    new_raw_count) != prev_raw_count)
@@ -633,6 +660,7 @@ static void xgene_perf_read(struct perf_event *event)
 static void xgene_perf_start(struct perf_event *event, int flags)
 {
 	struct xgene_pmu_dev *pmu_dev = to_pmu_dev(event->pmu);
+	struct xgene_pmu *xgene_pmu = pmu_dev->parent;
 	struct hw_perf_event *hw = &event->hw;
 
 	if (WARN_ON_ONCE(!(hw->state & PERF_HES_STOPPED)))
@@ -646,8 +674,8 @@ static void xgene_perf_start(struct perf_event *event, int flags)
 	if (flags & PERF_EF_RELOAD) {
 		u64 prev_raw_count =  local64_read(&hw->prev_count);
 
-		xgene_pmu_write_counter(pmu_dev, GET_CNTR(event),
-					(u32) prev_raw_count);
+		xgene_pmu->ops->write_counter(pmu_dev, GET_CNTR(event),
+					      prev_raw_count);
 	}
 
 	xgene_perf_enable_event(event);
@@ -736,8 +764,8 @@ static int xgene_init_perf(struct xgene_pmu_dev *pmu_dev, char *name)
 	};
 
 	/* Hardware counter init */
-	xgene_pmu_stop_counters(pmu_dev);
-	xgene_pmu_reset_counters(pmu_dev);
+	xgene_pmu->ops->stop_counters(pmu_dev);
+	xgene_pmu->ops->reset_counters(pmu_dev);
 
 	return perf_pmu_register(&pmu_dev->pmu, name, -1);
 }
@@ -1255,6 +1283,23 @@ static const struct xgene_pmu_data xgene_pmu_v2_data = {
 	.id   = PCP_PMU_V2,
 };
 
+static const struct xgene_pmu_ops xgene_pmu_ops = {
+	.mask_int = xgene_pmu_mask_int,
+	.unmask_int = xgene_pmu_unmask_int,
+	.read_counter = xgene_pmu_read_counter32,
+	.write_counter = xgene_pmu_write_counter32,
+	.write_evttype = xgene_pmu_write_evttype,
+	.write_agentmsk = xgene_pmu_write_agentmsk,
+	.write_agent1msk = xgene_pmu_write_agent1msk,
+	.enable_counter = xgene_pmu_enable_counter,
+	.disable_counter = xgene_pmu_disable_counter,
+	.enable_counter_int = xgene_pmu_enable_counter_int,
+	.disable_counter_int = xgene_pmu_disable_counter_int,
+	.reset_counters = xgene_pmu_reset_counters,
+	.start_counters = xgene_pmu_start_counters,
+	.stop_counters = xgene_pmu_stop_counters,
+};
+
 static const struct of_device_id xgene_pmu_of_match[] = {
 	{ .compatible	= "apm,xgene-pmu",	.data = &xgene_pmu_data },
 	{ .compatible	= "apm,xgene-pmu-v2",	.data = &xgene_pmu_v2_data },
@@ -1303,6 +1348,8 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 #endif
 	if (version < 0)
 		return -ENODEV;
+
+	xgene_pmu->ops = &xgene_pmu_ops;
 
 	INIT_LIST_HEAD(&xgene_pmu->l3cpmus);
 	INIT_LIST_HEAD(&xgene_pmu->iobpmus);
@@ -1362,7 +1409,7 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	}
 
 	/* Enable interrupt */
-	xgene_pmu_unmask_int(xgene_pmu);
+	xgene_pmu->ops->unmask_int(xgene_pmu);
 
 	return 0;
 
