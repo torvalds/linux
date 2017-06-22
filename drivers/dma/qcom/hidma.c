@@ -1,7 +1,7 @@
 /*
  * Qualcomm Technologies HIDMA DMA engine interface
  *
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -795,8 +795,11 @@ static int hidma_probe(struct platform_device *pdev)
 	device_property_read_u32(&pdev->dev, "desc-count",
 				 &dmadev->nr_descriptors);
 
-	if (!dmadev->nr_descriptors && nr_desc_prm)
+	if (nr_desc_prm) {
+		dev_info(&pdev->dev, "overriding number of descriptors as %d\n",
+			 nr_desc_prm);
 		dmadev->nr_descriptors = nr_desc_prm;
+	}
 
 	if (!dmadev->nr_descriptors)
 		dmadev->nr_descriptors = HIDMA_NR_DEFAULT_DESC;
