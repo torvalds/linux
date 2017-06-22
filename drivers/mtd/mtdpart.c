@@ -402,7 +402,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 			const struct mtd_partition *part, int partno,
 			uint64_t cur_offset)
 {
-	int wr_alignment = (parent->flags & MTD_NO_ERASE) ? parent->writesize:
+	int wr_alignment = (parent->flags & MTD_NO_ERASE) ? parent->writesize :
 							    parent->erasesize;
 	struct mtd_part *slave;
 	u32 remainder;
@@ -480,8 +480,8 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 		slave->mtd._sync = part_sync;
 	if (!partno && !parent->dev.class && parent->_suspend &&
 	    parent->_resume) {
-			slave->mtd._suspend = part_suspend;
-			slave->mtd._resume = part_resume;
+		slave->mtd._suspend = part_suspend;
+		slave->mtd._resume = part_resume;
 	}
 	if (parent->_writev)
 		slave->mtd._writev = part_writev;
