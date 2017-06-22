@@ -294,7 +294,6 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	 * as writing the quota to disk may need the lock as well.
 	 */
 	dquot_initialize(inode);
-	ext4_xattr_delete_inode(handle, inode);
 	dquot_free_inode(inode);
 	dquot_drop(inode);
 

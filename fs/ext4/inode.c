@@ -139,8 +139,6 @@ static void ext4_invalidatepage(struct page *page, unsigned int offset,
 				unsigned int length);
 static int __ext4_journalled_writepage(struct page *page, unsigned int len);
 static int ext4_bh_delay_or_unwritten(handle_t *handle, struct buffer_head *bh);
-static int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
-				  int pextents);
 
 /*
  * Test whether an inode is a fast symlink.
@@ -189,6 +187,8 @@ void ext4_evict_inode(struct inode *inode)
 {
 	handle_t *handle;
 	int err;
+	int extra_credits = 3;
+	struct ext4_xattr_ino_array *lea_ino_array = NULL;
 
 	trace_ext4_evict_inode(inode);
 
@@ -238,8 +238,8 @@ void ext4_evict_inode(struct inode *inode)
 	 * protection against it
 	 */
 	sb_start_intwrite(inode->i_sb);
-	handle = ext4_journal_start(inode, EXT4_HT_TRUNCATE,
-				    ext4_blocks_for_truncate(inode)+3);
+
+	handle = ext4_journal_start(inode, EXT4_HT_TRUNCATE, extra_credits);
 	if (IS_ERR(handle)) {
 		ext4_std_error(inode->i_sb, PTR_ERR(handle));
 		/*
@@ -251,9 +251,36 @@ void ext4_evict_inode(struct inode *inode)
 		sb_end_intwrite(inode->i_sb);
 		goto no_delete;
 	}
-
 	if (IS_SYNC(inode))
 		ext4_handle_sync(handle);
+
+	/*
+	 * Delete xattr inode before deleting the main inode.
+	 */
+	err = ext4_xattr_delete_inode(handle, inode, &lea_ino_array);
+	if (err) {
+		ext4_warning(inode->i_sb,
+			     "couldn't delete inode's xattr (err %d)", err);
+		goto stop_handle;
+	}
+
+	if (!IS_NOQUOTA(inode))
+		extra_credits += 2 * EXT4_QUOTA_DEL_BLOCKS(inode->i_sb);
+
+	if (!ext4_handle_has_enough_credits(handle,
+			ext4_blocks_for_truncate(inode) + extra_credits)) {
+		err = ext4_journal_extend(handle,
+			ext4_blocks_for_truncate(inode) + extra_credits);
+		if (err > 0)
+			err = ext4_journal_restart(handle,
+			ext4_blocks_for_truncate(inode) + extra_credits);
+		if (err != 0) {
+			ext4_warning(inode->i_sb,
+				     "couldn't extend journal (err %d)", err);
+			goto stop_handle;
+		}
+	}
+
 	inode->i_size = 0;
 	err = ext4_mark_inode_dirty(handle, inode);
 	if (err) {
@@ -277,10 +304,10 @@ void ext4_evict_inode(struct inode *inode)
 	 * enough credits left in the handle to remove the inode from
 	 * the orphan list and set the dtime field.
 	 */
-	if (!ext4_handle_has_enough_credits(handle, 3)) {
-		err = ext4_journal_extend(handle, 3);
+	if (!ext4_handle_has_enough_credits(handle, extra_credits)) {
+		err = ext4_journal_extend(handle, extra_credits);
 		if (err > 0)
-			err = ext4_journal_restart(handle, 3);
+			err = ext4_journal_restart(handle, extra_credits);
 		if (err != 0) {
 			ext4_warning(inode->i_sb,
 				     "couldn't extend journal (err %d)", err);
@@ -315,8 +342,12 @@ void ext4_evict_inode(struct inode *inode)
 		ext4_clear_inode(inode);
 	else
 		ext4_free_inode(handle, inode);
+
 	ext4_journal_stop(handle);
 	sb_end_intwrite(inode->i_sb);
+
+	if (lea_ino_array != NULL)
+		ext4_xattr_inode_array_free(inode, lea_ino_array);
 	return;
 no_delete:
 	ext4_clear_inode(inode);	/* We must guarantee clearing of inode... */
@@ -5504,7 +5535,7 @@ static int ext4_index_trans_blocks(struct inode *inode, int lblocks,
  *
  * Also account for superblock, inode, quota and xattr blocks
  */
-static int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
+int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
 				  int pextents)
 {
 	ext4_group_t groups, ngroups = ext4_get_groups_count(inode->i_sb);

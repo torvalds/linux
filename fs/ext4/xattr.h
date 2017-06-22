@@ -44,7 +44,7 @@ struct ext4_xattr_entry {
 	__u8	e_name_len;	/* length of name */
 	__u8	e_name_index;	/* attribute name index */
 	__le16	e_value_offs;	/* offset in disk block of value */
-	__le32	e_value_block;	/* disk block attribute is stored on (n/i) */
+	__le32	e_value_inum;	/* inode in which the value is stored */
 	__le32	e_value_size;	/* size of attribute value */
 	__le32	e_hash;		/* hash value of name and value */
 	char	e_name[0];	/* attribute name */
@@ -69,6 +69,26 @@ struct ext4_xattr_entry {
 		EXT4_I(inode)->i_extra_isize))
 #define IFIRST(hdr) ((struct ext4_xattr_entry *)((hdr)+1))
 
+/*
+ * Link EA inode back to parent one using i_mtime field.
+ * Extra integer type conversion added to ignore higher
+ * bits in i_mtime.tv_sec which might be set by ext4_get()
+ */
+#define EXT4_XATTR_INODE_SET_PARENT(inode, inum)      \
+do {                                                  \
+      (inode)->i_mtime.tv_sec = inum;                 \
+} while(0)
+
+#define EXT4_XATTR_INODE_GET_PARENT(inode)            \
+((__u32)(inode)->i_mtime.tv_sec)
+
+/*
+ * The minimum size of EA value when you start storing it in an external inode
+ * size of block - size of header - size of 1 entry - 4 null bytes
+*/
+#define EXT4_XATTR_MIN_LARGE_EA_SIZE(b)					\
+	((b) - EXT4_XATTR_LEN(3) - sizeof(struct ext4_xattr_header) - 4)
+
 #define BHDR(bh) ((struct ext4_xattr_header *)((bh)->b_data))
 #define ENTRY(ptr) ((struct ext4_xattr_entry *)(ptr))
 #define BFIRST(bh) ENTRY(BHDR(bh)+1)
@@ -77,10 +97,11 @@ struct ext4_xattr_entry {
 #define EXT4_ZERO_XATTR_VALUE ((void *)-1)
 
 struct ext4_xattr_info {
-	int name_index;
 	const char *name;
 	const void *value;
 	size_t value_len;
+	int name_index;
+	int in_inode;
 };
 
 struct ext4_xattr_search {
@@ -140,7 +161,13 @@ extern int ext4_xattr_get(struct inode *, int, const char *, void *, size_t);
 extern int ext4_xattr_set(struct inode *, int, const char *, const void *, size_t, int);
 extern int ext4_xattr_set_handle(handle_t *, struct inode *, int, const char *, const void *, size_t, int);
 
-extern void ext4_xattr_delete_inode(handle_t *, struct inode *);
+extern struct inode *ext4_xattr_inode_iget(struct inode *parent, unsigned long ea_ino,
+					   int *err);
+extern int ext4_xattr_inode_unlink(struct inode *inode, unsigned long ea_ino);
+extern int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
+				   struct ext4_xattr_ino_array **array);
+extern void ext4_xattr_inode_array_free(struct inode *inode,
+					struct ext4_xattr_ino_array *array);
 
 extern int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 			    struct ext4_inode *raw_inode, handle_t *handle);
