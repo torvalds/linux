@@ -178,6 +178,14 @@ frame_callback(Dwfl_Frame *state, void *arg)
 	Dwarf_Addr pc;
 	bool isactivation;
 
+	if (!dwfl_frame_pc(state, &pc, NULL)) {
+		pr_err("%s", dwfl_errmsg(-1));
+		return DWARF_CB_ABORT;
+	}
+
+	// report the module before we query for isactivation
+	report_module(pc, ui);
+
 	if (!dwfl_frame_pc(state, &pc, &isactivation)) {
 		pr_err("%s", dwfl_errmsg(-1));
 		return DWARF_CB_ABORT;

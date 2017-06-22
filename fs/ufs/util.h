@@ -350,16 +350,11 @@ static inline void *ubh_get_data_ptr(struct ufs_sb_private_info *uspi,
 #define ubh_blkmap(ubh,begin,bit) \
 	((*ubh_get_addr(ubh, (begin) + ((bit) >> 3)) >> ((bit) & 7)) & (0xff >> (UFS_MAXFRAG - uspi->s_fpb)))
 
-/*
- * Determine the number of available frags given a
- * percentage to hold in reserve.
- */
 static inline u64
-ufs_freespace(struct ufs_sb_private_info *uspi, int percentreserved)
+ufs_freefrags(struct ufs_sb_private_info *uspi)
 {
 	return ufs_blkstofrags(uspi->cs_total.cs_nbfree) +
-		uspi->cs_total.cs_nffree -
-		(uspi->s_dsize * (percentreserved) / 100);
+		uspi->cs_total.cs_nffree;
 }
 
 /*

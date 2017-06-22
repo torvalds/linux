@@ -131,6 +131,7 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	}
 
 	if (new_mode != old_mode) {
+		newattrs.ia_ctime = current_time(inode);
 		newattrs.ia_mode = new_mode;
 		newattrs.ia_valid = ATTR_MODE;
 		ret = __ceph_setattr(inode, &newattrs);

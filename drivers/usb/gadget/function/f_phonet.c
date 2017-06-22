@@ -281,7 +281,7 @@ static void pn_net_setup(struct net_device *dev)
 	dev->tx_queue_len	= 1;
 
 	dev->netdev_ops		= &pn_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 	dev->header_ops		= &phonet_header_ops;
 }
 
