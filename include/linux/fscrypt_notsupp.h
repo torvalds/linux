@@ -3,12 +3,15 @@
  *
  * This stubs out the fscrypt functions for filesystems configured without
  * encryption support.
+ *
+ * Do not include this file directly. Use fscrypt.h instead!
  */
+#ifndef _LINUX_FSCRYPT_H
+#error "Incorrect include of linux/fscrypt_notsupp.h!"
+#endif
 
 #ifndef _LINUX_FSCRYPT_NOTSUPP_H
 #define _LINUX_FSCRYPT_NOTSUPP_H
-
-#include <linux/fscrypt_common.h>
 
 /* crypto.c */
 static inline struct fscrypt_ctx *fscrypt_get_ctx(const struct inode *inode,
@@ -97,7 +100,7 @@ static inline int fscrypt_setup_filename(struct inode *dir,
 					 const struct qstr *iname,
 					 int lookup, struct fscrypt_name *fname)
 {
-	if (dir->i_sb->s_cop->is_encrypted(dir))
+	if (IS_ENCRYPTED(dir))
 		return -EOPNOTSUPP;
 
 	memset(fname, 0, sizeof(struct fscrypt_name));
@@ -170,6 +173,36 @@ static inline void fscrypt_pullback_bio_page(struct page **page, bool restore)
 
 static inline int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 					sector_t pblk, unsigned int len)
+{
+	return -EOPNOTSUPP;
+}
+
+/* hooks.c */
+
+static inline int fscrypt_file_open(struct inode *inode, struct file *filp)
+{
+	if (IS_ENCRYPTED(inode))
+		return -EOPNOTSUPP;
+	return 0;
+}
+
+static inline int __fscrypt_prepare_link(struct inode *inode,
+					 struct inode *dir)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int __fscrypt_prepare_rename(struct inode *old_dir,
+					   struct dentry *old_dentry,
+					   struct inode *new_dir,
+					   struct dentry *new_dentry,
+					   unsigned int flags)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int __fscrypt_prepare_lookup(struct inode *dir,
+					   struct dentry *dentry)
 {
 	return -EOPNOTSUPP;
 }
