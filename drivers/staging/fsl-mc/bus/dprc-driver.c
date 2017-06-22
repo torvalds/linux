@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/msi.h>
-#include "../include/mc-bus.h"
 #include "../include/mc-sys.h"
 
 #include "dprc-cmd.h"

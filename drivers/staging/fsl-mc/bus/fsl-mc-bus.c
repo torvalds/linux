@@ -20,7 +20,6 @@
 #include <linux/bitops.h>
 #include <linux/msi.h>
 #include <linux/dma-mapping.h>
-#include "../include/mc-bus.h"
 #include "../include/dpmng.h"
 #include "../include/mc-sys.h"
 
