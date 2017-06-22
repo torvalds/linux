@@ -210,9 +210,12 @@ EXPORT_SYMBOL_GPL(kill_dax);
 static struct inode *dax_alloc_inode(struct super_block *sb)
 {
 	struct dax_device *dax_dev;
+	struct inode *inode;
 
 	dax_dev = kmem_cache_alloc(dax_cache, GFP_KERNEL);
-	return &dax_dev->inode;
+	inode = &dax_dev->inode;
+	inode->i_rdev = 0;
+	return inode;
 }
 
 static struct dax_device *to_dax_dev(struct inode *inode)
@@ -227,7 +230,8 @@ static void dax_i_callback(struct rcu_head *head)
 
 	kfree(dax_dev->host);
 	dax_dev->host = NULL;
-	ida_simple_remove(&dax_minor_ida, MINOR(inode->i_rdev));
+	if (inode->i_rdev)
+		ida_simple_remove(&dax_minor_ida, MINOR(inode->i_rdev));
 	kmem_cache_free(dax_cache, dax_dev);
 }
 
@@ -423,6 +427,7 @@ static void init_once(void *_dax_dev)
 	struct dax_device *dax_dev = _dax_dev;
 	struct inode *inode = &dax_dev->inode;
 
+	memset(dax_dev, 0, sizeof(*dax_dev));
 	inode_init_once(inode);
 }
 

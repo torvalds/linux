@@ -435,8 +435,9 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 	}
 
 	/* PSR2 is restricted to work with panel resolutions upto 3200x2000 */
-	if (intel_crtc->config->pipe_src_w > 3200 ||
-				intel_crtc->config->pipe_src_h > 2000) {
+	if (dev_priv->psr.psr2_support &&
+	    (intel_crtc->config->pipe_src_w > 3200 ||
+	     intel_crtc->config->pipe_src_h > 2000)) {
 		dev_priv->psr.psr2_support = false;
 		return false;
 	}

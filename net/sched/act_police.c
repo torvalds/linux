@@ -132,21 +132,21 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 		}
 	}
 
-	spin_lock_bh(&police->tcf_lock);
 	if (est) {
 		err = gen_replace_estimator(&police->tcf_bstats, NULL,
 					    &police->tcf_rate_est,
 					    &police->tcf_lock,
 					    NULL, est);
 		if (err)
-			goto failure_unlock;
+			goto failure;
 	} else if (tb[TCA_POLICE_AVRATE] &&
 		   (ret == ACT_P_CREATED ||
 		    !gen_estimator_active(&police->tcf_rate_est))) {
 		err = -EINVAL;
-		goto failure_unlock;
+		goto failure;
 	}
 
+	spin_lock_bh(&police->tcf_lock);
 	/* No failure allowed after this point */
 	police->tcfp_mtu = parm->mtu;
 	if (police->tcfp_mtu == 0) {
@@ -192,8 +192,6 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 
 	return ret;
 
-failure_unlock:
-	spin_unlock_bh(&police->tcf_lock);
 failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);

@@ -668,10 +668,28 @@ static int ap_device_probe(struct device *dev)
 	struct ap_driver *ap_drv = to_ap_drv(dev->driver);
 	int rc;
 
+	/* Add queue/card to list of active queues/cards */
+	spin_lock_bh(&ap_list_lock);
+	if (is_card_dev(dev))
+		list_add(&to_ap_card(dev)->list, &ap_card_list);
+	else
+		list_add(&to_ap_queue(dev)->list,
+			 &to_ap_queue(dev)->card->queues);
+	spin_unlock_bh(&ap_list_lock);
+
 	ap_dev->drv = ap_drv;
 	rc = ap_drv->probe ? ap_drv->probe(ap_dev) : -ENODEV;
-	if (rc)
+
+	if (rc) {
+		spin_lock_bh(&ap_list_lock);
+		if (is_card_dev(dev))
+			list_del_init(&to_ap_card(dev)->list);
+		else
+			list_del_init(&to_ap_queue(dev)->list);
+		spin_unlock_bh(&ap_list_lock);
 		ap_dev->drv = NULL;
+	}
+
 	return rc;
 }
 
@@ -680,14 +698,17 @@ static int ap_device_remove(struct device *dev)
 	struct ap_device *ap_dev = to_ap_dev(dev);
 	struct ap_driver *ap_drv = ap_dev->drv;
 
+	if (ap_drv->remove)
+		ap_drv->remove(ap_dev);
+
+	/* Remove queue/card from list of active queues/cards */
 	spin_lock_bh(&ap_list_lock);
 	if (is_card_dev(dev))
 		list_del_init(&to_ap_card(dev)->list);
 	else
 		list_del_init(&to_ap_queue(dev)->list);
 	spin_unlock_bh(&ap_list_lock);
-	if (ap_drv->remove)
-		ap_drv->remove(ap_dev);
+
 	return 0;
 }
 
@@ -1056,10 +1077,6 @@ static void ap_scan_bus(struct work_struct *unused)
 				}
 				/* get it and thus adjust reference counter */
 				get_device(&ac->ap_dev.device);
-				/* Add card device to card list */
-				spin_lock_bh(&ap_list_lock);
-				list_add(&ac->list, &ap_card_list);
-				spin_unlock_bh(&ap_list_lock);
 			}
 			/* now create the new queue device */
 			aq = ap_queue_create(qid, type);
@@ -1070,10 +1087,6 @@ static void ap_scan_bus(struct work_struct *unused)
 			aq->ap_dev.device.parent = &ac->ap_dev.device;
 			dev_set_name(&aq->ap_dev.device,
 				     "%02x.%04x", id, dom);
-			/* Add queue device to card queue list */
-			spin_lock_bh(&ap_list_lock);
-			list_add(&aq->list, &ac->queues);
-			spin_unlock_bh(&ap_list_lock);
 			/* Start with a device reset */
 			spin_lock_bh(&aq->lock);
 			ap_wait(ap_sm_event(aq, AP_EVENT_POLL));
@@ -1081,9 +1094,6 @@ static void ap_scan_bus(struct work_struct *unused)
 			/* Register device */
 			rc = device_register(&aq->ap_dev.device);
 			if (rc) {
-				spin_lock_bh(&ap_list_lock);
-				list_del_init(&aq->list);
-				spin_unlock_bh(&ap_list_lock);
 				put_device(&aq->ap_dev.device);
 				continue;
 			}

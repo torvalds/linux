@@ -3676,15 +3676,6 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 				qlt_update_host_map(vha, id);
 			}
 
-			fc_host_port_name(vha->host) =
-			    wwn_to_u64(vha->port_name);
-
-			if (qla_ini_mode_enabled(vha))
-				ql_dbg(ql_dbg_mbx, vha, 0x1018,
-				    "FA-WWN portname %016llx (%x)\n",
-				    fc_host_port_name(vha->host),
-				    rptid_entry->vp_status);
-
 			set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
 			set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
 		} else {
@@ -4821,9 +4812,9 @@ qla2x00_echo_test(scsi_qla_host_t *vha, struct msg_echo_lb *mreq,
 
 	memset(mcp->mb, 0 , sizeof(mcp->mb));
 	mcp->mb[0] = MBC_DIAGNOSTIC_ECHO;
-	mcp->mb[1] = mreq->options | BIT_6;	/* BIT_6 specifies 64bit address */
+	/* BIT_6 specifies 64bit address */
+	mcp->mb[1] = mreq->options | BIT_15 | BIT_6;
 	if (IS_CNA_CAPABLE(ha)) {
-		mcp->mb[1] |= BIT_15;
 		mcp->mb[2] = vha->fcoe_fcf_idx;
 	}
 	mcp->mb[16] = LSW(mreq->rcv_dma);

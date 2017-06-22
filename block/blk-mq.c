@@ -1461,22 +1461,28 @@ static blk_qc_t request_to_qc_t(struct blk_mq_hw_ctx *hctx, struct request *rq)
 	return blk_tag_to_qc_t(rq->internal_tag, hctx->queue_num, true);
 }
 
-static void __blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie,
-				      bool may_sleep)
+static void __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
+					struct request *rq,
+					blk_qc_t *cookie, bool may_sleep)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_queue_data bd = {
 		.rq = rq,
 		.last = true,
 	};
-	struct blk_mq_hw_ctx *hctx;
 	blk_qc_t new_cookie;
 	int ret;
+	bool run_queue = true;
+
+	if (blk_mq_hctx_stopped(hctx)) {
+		run_queue = false;
+		goto insert;
+	}
 
 	if (q->elevator)
 		goto insert;
 
-	if (!blk_mq_get_driver_tag(rq, &hctx, false))
+	if (!blk_mq_get_driver_tag(rq, NULL, false))
 		goto insert;
 
 	new_cookie = request_to_qc_t(hctx, rq);
@@ -1500,7 +1506,7 @@ static void __blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie,
 
 	__blk_mq_requeue_request(rq);
 insert:
-	blk_mq_sched_insert_request(rq, false, true, false, may_sleep);
+	blk_mq_sched_insert_request(rq, false, run_queue, false, may_sleep);
 }
 
 static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
@@ -1508,7 +1514,7 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 {
 	if (!(hctx->flags & BLK_MQ_F_BLOCKING)) {
 		rcu_read_lock();
-		__blk_mq_try_issue_directly(rq, cookie, false);
+		__blk_mq_try_issue_directly(hctx, rq, cookie, false);
 		rcu_read_unlock();
 	} else {
 		unsigned int srcu_idx;
@@ -1516,7 +1522,7 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		might_sleep();
 
 		srcu_idx = srcu_read_lock(&hctx->queue_rq_srcu);
-		__blk_mq_try_issue_directly(rq, cookie, true);
+		__blk_mq_try_issue_directly(hctx, rq, cookie, true);
 		srcu_read_unlock(&hctx->queue_rq_srcu, srcu_idx);
 	}
 }
@@ -1619,9 +1625,12 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 		blk_mq_put_ctx(data.ctx);
 
-		if (same_queue_rq)
+		if (same_queue_rq) {
+			data.hctx = blk_mq_map_queue(q,
+					same_queue_rq->mq_ctx->cpu);
 			blk_mq_try_issue_directly(data.hctx, same_queue_rq,
 					&cookie);
+		}
 	} else if (q->nr_hw_queues > 1 && is_sync) {
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
@@ -2094,20 +2103,30 @@ static void blk_mq_map_swqueue(struct request_queue *q,
 	}
 }
 
+/*
+ * Caller needs to ensure that we're either frozen/quiesced, or that
+ * the queue isn't live yet.
+ */
 static void queue_set_hctx_shared(struct request_queue *q, bool shared)
 {
 	struct blk_mq_hw_ctx *hctx;
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		if (shared)
+		if (shared) {
+			if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
+				atomic_inc(&q->shared_hctx_restart);
 			hctx->flags |= BLK_MQ_F_TAG_SHARED;
-		else
+		} else {
+			if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
+				atomic_dec(&q->shared_hctx_restart);
 			hctx->flags &= ~BLK_MQ_F_TAG_SHARED;
+		}
 	}
 }
 
-static void blk_mq_update_tag_set_depth(struct blk_mq_tag_set *set, bool shared)
+static void blk_mq_update_tag_set_depth(struct blk_mq_tag_set *set,
+					bool shared)
 {
 	struct request_queue *q;
 
