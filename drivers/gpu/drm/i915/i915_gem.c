@@ -3062,7 +3062,8 @@ static void engine_set_wedged(struct intel_engine_cs *engine)
 	/* Mark all executing requests as skipped */
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 	list_for_each_entry(request, &engine->timeline->requests, link)
-		dma_fence_set_error(&request->fence, -EIO);
+		if (!i915_gem_request_completed(request))
+			dma_fence_set_error(&request->fence, -EIO);
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 
 	/* Mark all pending requests as complete so that any concurrent
@@ -3108,6 +3109,7 @@ static int __i915_gem_set_wedged_BKL(void *data)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	set_bit(I915_WEDGED, &i915->gpu_error.flags);
 	for_each_engine(engine, i915, id)
 		engine_set_wedged(engine);
 
@@ -3116,20 +3118,7 @@ static int __i915_gem_set_wedged_BKL(void *data)
 
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
 {
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-	set_bit(I915_WEDGED, &dev_priv->gpu_error.flags);
-
-	/* Retire completed requests first so the list of inflight/incomplete
-	 * requests is accurate and we don't try and mark successful requests
-	 * as in error during __i915_gem_set_wedged_BKL().
-	 */
-	i915_gem_retire_requests(dev_priv);
-
 	stop_machine(__i915_gem_set_wedged_BKL, dev_priv, NULL);
-
-	i915_gem_contexts_lost(dev_priv);
-
-	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 }
 
 bool i915_gem_unset_wedged(struct drm_i915_private *i915)
@@ -3184,6 +3173,7 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	 * context and do not require stop_machine().
 	 */
 	intel_engines_reset_default_submission(i915);
+	i915_gem_contexts_lost(i915);
 
 	smp_mb__before_atomic(); /* complete takeover before enabling execbuf */
 	clear_bit(I915_WEDGED, &i915->gpu_error.flags);
