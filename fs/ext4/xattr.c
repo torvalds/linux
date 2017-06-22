@@ -991,10 +991,13 @@ static int ext4_xattr_inode_update_ref(handle_t *handle, struct inode *ea_inode,
 			set_nlink(ea_inode, 1);
 			ext4_orphan_del(handle, ea_inode);
 
-			hash = ext4_xattr_inode_get_hash(ea_inode);
-			mb_cache_entry_create(ea_inode_cache, GFP_NOFS, hash,
-					      ea_inode->i_ino,
-					      true /* reusable */);
+			if (ea_inode_cache) {
+				hash = ext4_xattr_inode_get_hash(ea_inode);
+				mb_cache_entry_create(ea_inode_cache,
+						      GFP_NOFS, hash,
+						      ea_inode->i_ino,
+						      true /* reusable */);
+			}
 		}
 	} else {
 		WARN_ONCE(ref_count < 0, "EA inode %lu ref_count=%lld",
@@ -1008,9 +1011,11 @@ static int ext4_xattr_inode_update_ref(handle_t *handle, struct inode *ea_inode,
 			clear_nlink(ea_inode);
 			ext4_orphan_add(handle, ea_inode);
 
-			hash = ext4_xattr_inode_get_hash(ea_inode);
-			mb_cache_entry_delete(ea_inode_cache, hash,
-					      ea_inode->i_ino);
+			if (ea_inode_cache) {
+				hash = ext4_xattr_inode_get_hash(ea_inode);
+				mb_cache_entry_delete(ea_inode_cache, hash,
+						      ea_inode->i_ino);
+			}
 		}
 	}
 
@@ -1194,7 +1199,9 @@ ext4_xattr_release_block(handle_t *handle, struct inode *inode,
 		 * This must happen under buffer lock for
 		 * ext4_xattr_block_set() to reliably detect freed block
 		 */
-		mb_cache_entry_delete(ea_block_cache, hash, bh->b_blocknr);
+		if (ea_block_cache)
+			mb_cache_entry_delete(ea_block_cache, hash,
+					      bh->b_blocknr);
 		get_bh(bh);
 		unlock_buffer(bh);
 
@@ -1214,11 +1221,13 @@ ext4_xattr_release_block(handle_t *handle, struct inode *inode,
 		if (ref == EXT4_XATTR_REFCOUNT_MAX - 1) {
 			struct mb_cache_entry *ce;
 
-			ce = mb_cache_entry_get(ea_block_cache, hash,
-						bh->b_blocknr);
-			if (ce) {
-				ce->e_reusable = 1;
-				mb_cache_entry_put(ea_block_cache, ce);
+			if (ea_block_cache) {
+				ce = mb_cache_entry_get(ea_block_cache, hash,
+							bh->b_blocknr);
+				if (ce) {
+					ce->e_reusable = 1;
+					mb_cache_entry_put(ea_block_cache, ce);
+				}
 			}
 		}
 
@@ -1395,6 +1404,9 @@ ext4_xattr_inode_cache_find(struct inode *inode, const void *value,
 	struct mb_cache *ea_inode_cache = EA_INODE_CACHE(inode);
 	void *ea_data;
 
+	if (!ea_inode_cache)
+		return NULL;
+
 	ce = mb_cache_entry_find_first(ea_inode_cache, hash);
 	if (!ce)
 		return NULL;
@@ -1465,8 +1477,9 @@ static int ext4_xattr_inode_lookup_create(handle_t *handle, struct inode *inode,
 		return err;
 	}
 
-	mb_cache_entry_create(EA_INODE_CACHE(inode), GFP_NOFS, hash,
-			      ea_inode->i_ino, true /* reusable */);
+	if (EA_INODE_CACHE(inode))
+		mb_cache_entry_create(EA_INODE_CACHE(inode), GFP_NOFS, hash,
+				      ea_inode->i_ino, true /* reusable */);
 
 	*ret_inode = ea_inode;
 	return 0;
@@ -1793,8 +1806,9 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 			 * ext4_xattr_block_set() to reliably detect modified
 			 * block
 			 */
-			mb_cache_entry_delete(ea_block_cache, hash,
-					      bs->bh->b_blocknr);
+			if (ea_block_cache)
+				mb_cache_entry_delete(ea_block_cache, hash,
+						      bs->bh->b_blocknr);
 			ea_bdebug(bs->bh, "modifying in-place");
 			error = ext4_xattr_set_entry(i, s, handle, inode,
 						     true /* is_block */);
@@ -2883,6 +2897,8 @@ ext4_xattr_block_cache_insert(struct mb_cache *ea_block_cache,
 		       EXT4_XATTR_REFCOUNT_MAX;
 	int error;
 
+	if (!ea_block_cache)
+		return;
 	error = mb_cache_entry_create(ea_block_cache, GFP_NOFS, hash,
 				      bh->b_blocknr, reusable);
 	if (error) {
@@ -2949,6 +2965,8 @@ ext4_xattr_block_cache_find(struct inode *inode,
 	struct mb_cache_entry *ce;
 	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(inode);
 
+	if (!ea_block_cache)
+		return NULL;
 	if (!header->h_hash)
 		return NULL;  /* never share */
 	ea_idebug(inode, "looking for cached blocks [%x]", (int)hash);
