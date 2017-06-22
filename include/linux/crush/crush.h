@@ -2,6 +2,7 @@
 #define CEPH_CRUSH_CRUSH_H
 
 #ifdef __KERNEL__
+# include <linux/rbtree.h>
 # include <linux/types.h>
 #else
 # include "crush_compat.h"
@@ -190,6 +191,10 @@ struct crush_choose_arg {
  *
  */
 struct crush_choose_arg_map {
+#ifdef __KERNEL__
+	struct rb_node node;
+	u64 choose_args_index;
+#endif
 	struct crush_choose_arg *args; /*!< replacement for each bucket
                                             in the crushmap */
 	__u32 size;                    /*!< size of the __args__ array */
@@ -294,6 +299,9 @@ struct crush_map {
 	__u32 allowed_bucket_algs;
 
 	__u32 *choose_tries;
+#else
+	/* CrushWrapper::choose_args */
+	struct rb_root choose_args;
 #endif
 };
 
