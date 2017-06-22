@@ -44,6 +44,16 @@ config ANDROID_BINDER_IPC_32BIT
 
 	  Note that enabling this will break newer Android user-space.
 
+config ANDROID_BINDER_IPC_SELFTEST
+	bool "Android Binder IPC Driver Selftest"
+	depends on ANDROID_BINDER_IPC
+	---help---
+	  This feature allows binder selftest to run.
+
+	  Binder selftest checks the allocation and free of binder buffers
+	  exhaustively with combinations of various buffer sizes and
+	  alignments.
+
 endif # if ANDROID
 
 endmenu
