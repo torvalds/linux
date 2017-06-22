@@ -15,6 +15,7 @@
 #ifndef _CXLFLASH_COMMON_H
 #define _CXLFLASH_COMMON_H
 
+#include <linux/async.h>
 #include <linux/irq_poll.h>
 #include <linux/list.h>
 #include <linux/rwsem.h>
@@ -144,6 +145,7 @@ struct cxlflash_cfg {
 	bool tmf_active;
 	wait_queue_head_t reset_waitq;
 	enum cxlflash_state state;
+	async_cookie_t async_reset_cookie;
 };
 
 struct afu_cmd {

@@ -586,6 +586,20 @@ static void free_mem(struct cxlflash_cfg *cfg)
 }
 
 /**
+ * cxlflash_reset_sync() - synchronizing point for asynchronous resets
+ * @cfg:	Internal structure associated with the host.
+ */
+static void cxlflash_reset_sync(struct cxlflash_cfg *cfg)
+{
+	if (cfg->async_reset_cookie == 0)
+		return;
+
+	/* Wait until all async calls prior to this cookie have completed */
+	async_synchronize_cookie(cfg->async_reset_cookie + 1);
+	cfg->async_reset_cookie = 0;
+}
+
+/**
  * stop_afu() - stops the AFU command timers and unmaps the MMIO space
  * @cfg:	Internal structure associated with the host.
  *
@@ -601,6 +615,8 @@ static void stop_afu(struct cxlflash_cfg *cfg)
 	int i;
 
 	cancel_work_sync(&cfg->work_q);
+	if (!current_is_async())
+		cxlflash_reset_sync(cfg);
 
 	if (likely(afu)) {
 		while (atomic_read(&afu->cmds_active))
@@ -2005,6 +2021,91 @@ err1:
 }
 
 /**
+ * afu_reset() - resets the AFU
+ * @cfg:	Internal structure associated with the host.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int afu_reset(struct cxlflash_cfg *cfg)
+{
+	struct device *dev = &cfg->dev->dev;
+	int rc = 0;
+
+	/* Stop the context before the reset. Since the context is
+	 * no longer available restart it after the reset is complete
+	 */
+	term_afu(cfg);
+
+	rc = init_afu(cfg);
+
+	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
+	return rc;
+}
+
+/**
+ * drain_ioctls() - wait until all currently executing ioctls have completed
+ * @cfg:	Internal structure associated with the host.
+ *
+ * Obtain write access to read/write semaphore that wraps ioctl
+ * handling to 'drain' ioctls currently executing.
+ */
+static void drain_ioctls(struct cxlflash_cfg *cfg)
+{
+	down_write(&cfg->ioctl_rwsem);
+	up_write(&cfg->ioctl_rwsem);
+}
+
+/**
+ * cxlflash_async_reset_host() - asynchronous host reset handler
+ * @data:	Private data provided while scheduling reset.
+ * @cookie:	Cookie that can be used for checkpointing.
+ */
+static void cxlflash_async_reset_host(void *data, async_cookie_t cookie)
+{
+	struct cxlflash_cfg *cfg = data;
+	struct device *dev = &cfg->dev->dev;
+	int rc = 0;
+
+	if (cfg->state != STATE_RESET) {
+		dev_dbg(dev, "%s: Not performing a reset, state=%d\n",
+			__func__, cfg->state);
+		goto out;
+	}
+
+	drain_ioctls(cfg);
+	cxlflash_mark_contexts_error(cfg);
+	rc = afu_reset(cfg);
+	if (rc)
+		cfg->state = STATE_FAILTERM;
+	else
+		cfg->state = STATE_NORMAL;
+	wake_up_all(&cfg->reset_waitq);
+
+out:
+	scsi_unblock_requests(cfg->host);
+}
+
+/**
+ * cxlflash_schedule_async_reset() - schedule an asynchronous host reset
+ * @cfg:	Internal structure associated with the host.
+ */
+static void cxlflash_schedule_async_reset(struct cxlflash_cfg *cfg)
+{
+	struct device *dev = &cfg->dev->dev;
+
+	if (cfg->state != STATE_NORMAL) {
+		dev_dbg(dev, "%s: Not performing reset state=%d\n",
+			__func__, cfg->state);
+		return;
+	}
+
+	cfg->state = STATE_RESET;
+	scsi_block_requests(cfg->host);
+	cfg->async_reset_cookie = async_schedule(cxlflash_async_reset_host,
+						 cfg);
+}
+
+/**
  * cxlflash_afu_sync() - builds and sends an AFU sync command
  * @afu:	AFU associated with the host.
  * @ctx_hndl_u:	Identifies context requesting sync.
@@ -2085,6 +2186,7 @@ retry:
 		rc = afu->context_reset(hwq);
 		if (!rc && ++nretry < 2)
 			goto retry;
+		cxlflash_schedule_async_reset(cfg);
 	}
 
 out:
@@ -2093,41 +2195,6 @@ out:
 	kfree(buf);
 	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
 	return rc;
-}
-
-/**
- * afu_reset() - resets the AFU
- * @cfg:	Internal structure associated with the host.
- *
- * Return: 0 on success, -errno on failure
- */
-static int afu_reset(struct cxlflash_cfg *cfg)
-{
-	struct device *dev = &cfg->dev->dev;
-	int rc = 0;
-
-	/* Stop the context before the reset. Since the context is
-	 * no longer available restart it after the reset is complete
-	 */
-	term_afu(cfg);
-
-	rc = init_afu(cfg);
-
-	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
-	return rc;
-}
-
-/**
- * drain_ioctls() - wait until all currently executing ioctls have completed
- * @cfg:	Internal structure associated with the host.
- *
- * Obtain write access to read/write semaphore that wraps ioctl
- * handling to 'drain' ioctls currently executing.
- */
-static void drain_ioctls(struct cxlflash_cfg *cfg)
-{
-	down_write(&cfg->ioctl_rwsem);
-	up_write(&cfg->ioctl_rwsem);
 }
 
 /**
