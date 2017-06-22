@@ -162,7 +162,7 @@ struct ceph_osdmap {
 	u32 flags;         /* CEPH_OSDMAP_* */
 
 	u32 max_osd;       /* size of osd_state, _offload, _addr arrays */
-	u8 *osd_state;     /* CEPH_OSD_* */
+	u32 *osd_state;    /* CEPH_OSD_* */
 	u32 *osd_weight;   /* 0 = failed, 0x10000 = 100% normal */
 	struct ceph_entity_addr *osd_addr;
 
@@ -203,7 +203,7 @@ static inline bool ceph_osd_is_down(struct ceph_osdmap *map, int osd)
 	return !ceph_osd_is_up(map, osd);
 }
 
-extern char *ceph_osdmap_state_str(char *str, int len, int state);
+char *ceph_osdmap_state_str(char *str, int len, u32 state);
 extern u32 ceph_get_primary_affinity(struct ceph_osdmap *map, int osd);
 
 static inline struct ceph_entity_addr *ceph_osd_addr(struct ceph_osdmap *map,

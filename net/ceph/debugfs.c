@@ -77,7 +77,7 @@ static int osdmap_show(struct seq_file *s, void *p)
 	}
 	for (i = 0; i < map->max_osd; i++) {
 		struct ceph_entity_addr *addr = &map->osd_addr[i];
-		int state = map->osd_state[i];
+		u32 state = map->osd_state[i];
 		char sb[64];
 
 		seq_printf(s, "osd%d\t%s\t%3d%%\t(%s)\t%3d%%\n",
