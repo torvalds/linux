@@ -14,9 +14,6 @@
 #include "../include/mc.h"
 #include <linux/mutex.h>
 
-struct irq_domain;
-struct msi_domain_info;
-
 /**
  * Maximum number of total IRQs that can be pre-allocated for an MC bus'
  * IRQ pool
@@ -69,10 +66,6 @@ struct fsl_mc_bus {
 
 #define to_fsl_mc_bus(_mc_dev) \
 	container_of(_mc_dev, struct fsl_mc_bus, mc_dev)
-
-struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
-						struct msi_domain_info *info,
-						struct irq_domain *parent);
 
 int fsl_mc_find_msi_domain(struct device *mc_platform_dev,
 			   struct irq_domain **mc_msi_domain);
