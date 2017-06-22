@@ -81,7 +81,7 @@ struct kvm_split_mode {
 	u8		subcore_size;
 	u8		do_nap;
 	u8		napped[MAX_SMT_THREADS];
-	struct kvmppc_vcore *master_vcs[MAX_SUBCORES];
+	struct kvmppc_vcore *vc[MAX_SUBCORES];
 };
 
 /*
