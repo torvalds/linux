@@ -255,21 +255,21 @@ static inline bool afu_is_irqpoll_enabled(struct afu *afu)
 	return !!afu->irqpoll_weight;
 }
 
-static inline bool afu_is_cmd_mode(struct afu *afu, u64 cmd_mode)
+static inline bool afu_has_cap(struct afu *afu, u64 cap)
 {
 	u64 afu_cap = afu->interface_version >> SISL_INTVER_CAP_SHIFT;
 
-	return afu_cap & cmd_mode;
+	return afu_cap & cap;
 }
 
 static inline bool afu_is_sq_cmd_mode(struct afu *afu)
 {
-	return afu_is_cmd_mode(afu, SISL_INTVER_CAP_SQ_CMD_MODE);
+	return afu_has_cap(afu, SISL_INTVER_CAP_SQ_CMD_MODE);
 }
 
 static inline bool afu_is_ioarrin_cmd_mode(struct afu *afu)
 {
-	return afu_is_cmd_mode(afu, SISL_INTVER_CAP_IOARRIN_CMD_MODE);
+	return afu_has_cap(afu, SISL_INTVER_CAP_IOARRIN_CMD_MODE);
 }
 
 static inline u64 lun_to_lunid(u64 lun)
