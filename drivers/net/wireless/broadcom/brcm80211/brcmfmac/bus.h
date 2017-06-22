@@ -122,9 +122,8 @@ struct brcmf_bus_msgbuf {
  * @state: operational state of the bus interface.
  * @maxctl: maximum size for rxctl request message.
  * @tx_realloc: number of tx packets realloced for headroom.
- * @dstats: dongle-based statistical data.
- * @dcmd_list: bus/device specific dongle initialization commands.
  * @chip: device identifier of the dongle chip.
+ * @always_use_fws_queue: bus wants use queue also when fwsignal is inactive.
  * @wowl_supported: is wowl supported by bus driver.
  * @chiprev: revision of the dongle chip.
  */
