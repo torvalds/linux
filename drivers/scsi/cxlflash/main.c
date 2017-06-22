@@ -3227,11 +3227,102 @@ static int cxlflash_chr_open(struct inode *inode, struct file *file)
 static char *decode_hioctl(int cmd)
 {
 	switch (cmd) {
-	default:
-		return "UNKNOWN";
+	case HT_CXLFLASH_LUN_PROVISION:
+		return __stringify_1(HT_CXLFLASH_LUN_PROVISION);
 	}
 
 	return "UNKNOWN";
+}
+
+/**
+ * cxlflash_lun_provision() - host LUN provisioning handler
+ * @cfg:	Internal structure associated with the host.
+ * @arg:	Kernel copy of userspace ioctl data structure.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int cxlflash_lun_provision(struct cxlflash_cfg *cfg,
+				  struct ht_cxlflash_lun_provision *lunprov)
+{
+	struct afu *afu = cfg->afu;
+	struct device *dev = &cfg->dev->dev;
+	struct sisl_ioarcb rcb;
+	struct sisl_ioasa asa;
+	__be64 __iomem *fc_port_regs;
+	u16 port = lunprov->port;
+	u16 scmd = lunprov->hdr.subcmd;
+	u16 type;
+	u64 reg;
+	u64 size;
+	u64 lun_id;
+	int rc = 0;
+
+	if (!afu_is_lun_provision(afu)) {
+		rc = -ENOTSUPP;
+		goto out;
+	}
+
+	if (port >= cfg->num_fc_ports) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	switch (scmd) {
+	case HT_CXLFLASH_LUN_PROVISION_SUBCMD_CREATE_LUN:
+		type = SISL_AFU_LUN_PROVISION_CREATE;
+		size = lunprov->size;
+		lun_id = 0;
+		break;
+	case HT_CXLFLASH_LUN_PROVISION_SUBCMD_DELETE_LUN:
+		type = SISL_AFU_LUN_PROVISION_DELETE;
+		size = 0;
+		lun_id = lunprov->lun_id;
+		break;
+	case HT_CXLFLASH_LUN_PROVISION_SUBCMD_QUERY_PORT:
+		fc_port_regs = get_fc_port_regs(cfg, port);
+
+		reg = readq_be(&fc_port_regs[FC_MAX_NUM_LUNS / 8]);
+		lunprov->max_num_luns = reg;
+		reg = readq_be(&fc_port_regs[FC_CUR_NUM_LUNS / 8]);
+		lunprov->cur_num_luns = reg;
+		reg = readq_be(&fc_port_regs[FC_MAX_CAP_PORT / 8]);
+		lunprov->max_cap_port = reg;
+		reg = readq_be(&fc_port_regs[FC_CUR_CAP_PORT / 8]);
+		lunprov->cur_cap_port = reg;
+
+		goto out;
+	default:
+		rc = -EINVAL;
+		goto out;
+	}
+
+	memset(&rcb, 0, sizeof(rcb));
+	memset(&asa, 0, sizeof(asa));
+	rcb.req_flags = SISL_REQ_FLAGS_AFU_CMD;
+	rcb.lun_id = lun_id;
+	rcb.msi = SISL_MSI_RRQ_UPDATED;
+	rcb.timeout = MC_LUN_PROV_TIMEOUT;
+	rcb.ioasa = &asa;
+
+	rcb.cdb[0] = SISL_AFU_CMD_LUN_PROVISION;
+	rcb.cdb[1] = type;
+	rcb.cdb[2] = port;
+	put_unaligned_be64(size, &rcb.cdb[8]);
+
+	rc = send_afu_cmd(afu, &rcb);
+	if (rc) {
+		dev_err(dev, "%s: send_afu_cmd failed rc=%d asc=%08x afux=%x\n",
+			__func__, rc, asa.ioasc, asa.afu_extra);
+		goto out;
+	}
+
+	if (scmd == HT_CXLFLASH_LUN_PROVISION_SUBCMD_CREATE_LUN) {
+		lunprov->lun_id = (u64)asa.lunid_hi << 32 | asa.lunid_lo;
+		memcpy(lunprov->wwid, asa.wwid, sizeof(lunprov->wwid));
+	}
+out:
+	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
+	return rc;
 }
 
 /**
@@ -3270,6 +3361,8 @@ static long cxlflash_chr_ioctl(struct file *file, unsigned int cmd,
 		size_t size;
 		hioctl ioctl;
 	} ioctl_tbl[] = {	/* NOTE: order matters here */
+	{ sizeof(struct ht_cxlflash_lun_provision),
+		(hioctl)cxlflash_lun_provision },
 	};
 
 	/* Hold read semaphore so we can drain if needed */
@@ -3279,6 +3372,16 @@ static long cxlflash_chr_ioctl(struct file *file, unsigned int cmd,
 		__func__, cmd, idx, sizeof(ioctl_tbl));
 
 	switch (cmd) {
+	case HT_CXLFLASH_LUN_PROVISION:
+		known_ioctl = true;
+		idx = _IOC_NR(HT_CXLFLASH_LUN_PROVISION) - _IOC_NR(cmd);
+		size = ioctl_tbl[idx].size;
+		do_ioctl = ioctl_tbl[idx].ioctl;
+
+		if (likely(do_ioctl))
+			break;
+
+		/* fall through */
 	default:
 		rc = -EINVAL;
 		goto out;

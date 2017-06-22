@@ -73,6 +73,10 @@ struct sisl_ioarcb {
 	u32 rsvd1;
 	u8 cdb[16];		/* must be in big endian */
 #define SISL_AFU_CMD_SYNC		0xC0	/* AFU sync command */
+#define SISL_AFU_CMD_LUN_PROVISION	0xD0	/* AFU LUN provision command */
+
+#define SISL_AFU_LUN_PROVISION_CREATE	0x00	/* LUN provision create type */
+#define SISL_AFU_LUN_PROVISION_DELETE	0x01	/* LUN provision delete type */
 
 	union {
 		u64 reserved;			/* Reserved for IOARRIN mode */
@@ -158,6 +162,7 @@ struct sisl_rc {
 };
 
 #define SISL_SENSE_DATA_LEN     20	/* Sense data length         */
+#define SISL_WWID_DATA_LEN	16	/* WWID data length          */
 
 /*
  * IOASA: 64 bytes & must follow IOARCB, min 16 byte alignment required,
@@ -169,7 +174,12 @@ struct sisl_ioasa {
 		u32 ioasc;
 #define SISL_IOASC_GOOD_COMPLETION        0x00000000U
 	};
-	u32 resid;
+
+	union {
+		u32 resid;
+		u32 lunid_hi;
+	};
+
 	u8 port;
 	u8 afu_extra;
 	/* when afu_rc=0x04, 0x14, 0x31 (_xxx_DMA_ERR):
@@ -192,7 +202,14 @@ struct sisl_ioasa {
 
 	u8 scsi_extra;
 	u8 fc_extra;
-	u8 sense_data[SISL_SENSE_DATA_LEN];
+
+	union {
+		u8 sense_data[SISL_SENSE_DATA_LEN];
+		struct {
+			u32 lunid_lo;
+			u8 wwid[SISL_WWID_DATA_LEN];
+		};
+	};
 
 	/* These fields are defined by the SISlite architecture for the
 	 * host to use as they see fit for their implementation.
@@ -394,6 +411,7 @@ struct sisl_global_regs {
 #define SISL_INTVER_CAP_SQ_CMD_MODE		0x400000000000ULL
 #define SISL_INTVER_CAP_RESERVED_CMD_MODE_A	0x200000000000ULL
 #define SISL_INTVER_CAP_RESERVED_CMD_MODE_B	0x100000000000ULL
+#define SISL_INTVER_CAP_LUN_PROVISION		0x080000000000ULL
 };
 
 #define CXLFLASH_NUM_FC_PORTS_PER_BANK	2	/* fixed # of ports per bank */

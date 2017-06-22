@@ -382,3 +382,34 @@ CXL Flash Driver Host IOCTLs
 
     The structure definitions for these IOCTLs are available in:
     uapi/scsi/cxlflash_ioctl.h
+
+HT_CXLFLASH_LUN_PROVISION
+-------------------------
+    This ioctl is used to create and delete persistent LUNs on cxlflash
+    devices that lack an external LUN management interface. It is only
+    valid when used with AFUs that support the LUN provision capability.
+
+    When sufficient space is available, LUNs can be created by specifying
+    the target port to host the LUN and a desired size in 4K blocks. Upon
+    success, the LUN ID and WWID of the created LUN will be returned and
+    the SCSI bus can be scanned to detect the change in LUN topology. Note
+    that partial allocations are not supported. Should a creation fail due
+    to a space issue, the target port can be queried for its current LUN
+    geometry.
+
+    To remove a LUN, the device must first be disassociated from the Linux
+    SCSI subsystem. The LUN deletion can then be initiated by specifying a
+    target port and LUN ID. Upon success, the LUN geometry associated with
+    the port will be updated to reflect new number of provisioned LUNs and
+    available capacity.
+
+    To query the LUN geometry of a port, the target port is specified and
+    upon success, the following information is presented:
+
+        - Maximum number of provisioned LUNs allowed for the port
+        - Current number of provisioned LUNs for the port
+        - Maximum total capacity of provisioned LUNs for the port (4K blocks)
+        - Current total capacity of provisioned LUNs for the port (4K blocks)
+
+    With this information, the number of available LUNs and capacity can be
+    can be calculated.

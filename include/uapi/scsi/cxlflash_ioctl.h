@@ -202,14 +202,34 @@ union cxlflash_ioctls {
 #define HT_CXLFLASH_VERSION_0  0
 
 struct ht_cxlflash_hdr {
-	__u16 version;                  /* Version data */
-	__u16 subcmd;                   /* Sub-command */
-	__u16 rsvd[2];                  /* Reserved for future use */
-	__u64 flags;                    /* Input flags */
-	__u64 return_flags;             /* Returned flags */
+	__u16 version;		/* Version data */
+	__u16 subcmd;		/* Sub-command */
+	__u16 rsvd[2];		/* Reserved for future use */
+	__u64 flags;		/* Input flags */
+	__u64 return_flags;	/* Returned flags */
+};
+
+#define HT_CXLFLASH_LUN_PROVISION_SUBCMD_CREATE_LUN	0x0001
+#define HT_CXLFLASH_LUN_PROVISION_SUBCMD_DELETE_LUN	0x0002
+#define HT_CXLFLASH_LUN_PROVISION_SUBCMD_QUERY_PORT	0x0003
+#define HT_CXLFLASH_LUN_PROVISION_WWID_LEN		16
+
+struct ht_cxlflash_lun_provision {
+	struct ht_cxlflash_hdr hdr; /* Common fields */
+	__u16 port;		    /* Target port for provision request */
+	__u16 reserved16[3];	    /* Reserved for future use */
+	__u64 size;		    /* Size of LUN (4K blocks) */
+	__u64 lun_id;		    /* SCSI LUN ID */
+	__u8 wwid[HT_CXLFLASH_LUN_PROVISION_WWID_LEN]; /* Page83 WWID, NAA-6 */
+	__u64 max_num_luns;	    /* Maximum number of LUNs provisioned */
+	__u64 cur_num_luns;	    /* Current number of LUNs provisioned */
+	__u64 max_cap_port;	    /* Total capacity for port (4K blocks) */
+	__u64 cur_cap_port;	    /* Current capacity for port (4K blocks) */
+	__u64 reserved[8];	    /* Reserved for future use */
 };
 
 union cxlflash_ht_ioctls {
+	struct ht_cxlflash_lun_provision lun_provision;
 };
 
 #define MAX_HT_CXLFLASH_IOCTL_SZ	(sizeof(union cxlflash_ht_ioctls))
@@ -218,6 +238,7 @@ union cxlflash_ht_ioctls {
  * CXL Flash host ioctls start at the top of the reserved CXL_MAGIC
  * region (0xBF) and grow downwards.
  */
+#define HT_CXLFLASH_LUN_PROVISION CXL_IOWR(0xBF, ht_cxlflash_lun_provision)
 
 
 #endif /* ifndef _CXLFLASH_IOCTL_H */
