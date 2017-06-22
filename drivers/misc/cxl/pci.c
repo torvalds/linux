@@ -375,7 +375,7 @@ static u64 get_capp_unit_id(struct device_node *np, u32 phb_index)
 	return 0;
 }
 
-static int calc_capp_routing(struct pci_dev *dev, u64 *chipid,
+int cxl_calc_capp_routing(struct pci_dev *dev, u64 *chipid,
 			     u32 *phb_index, u64 *capp_unit_id)
 {
 	int rc;
@@ -408,17 +408,9 @@ static int calc_capp_routing(struct pci_dev *dev, u64 *chipid,
 	return 0;
 }
 
-static int init_implementation_adapter_regs_psl9(struct cxl *adapter, struct pci_dev *dev)
+int cxl_get_xsl9_dsnctl(u64 capp_unit_id, u64 *reg)
 {
-	u64 xsl_dsnctl, psl_fircntl;
-	u64 chipid;
-	u32 phb_index;
-	u64 capp_unit_id;
-	int rc;
-
-	rc = calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
-	if (rc)
-		return rc;
+	u64 xsl_dsnctl;
 
 	/*
 	 * CAPI Identifier bits [0:7]
@@ -453,6 +445,27 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter, struct pci
 		 */
 		xsl_dsnctl |= ((u64)0x04 << (63-55));
 	}
+
+	*reg = xsl_dsnctl;
+	return 0;
+}
+
+static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
+						 struct pci_dev *dev)
+{
+	u64 xsl_dsnctl, psl_fircntl;
+	u64 chipid;
+	u32 phb_index;
+	u64 capp_unit_id;
+	int rc;
+
+	rc = cxl_calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
+	if (rc)
+		return rc;
+
+	rc = cxl_get_xsl9_dsnctl(capp_unit_id, &xsl_dsnctl);
+	if (rc)
+		return rc;
 
 	cxl_p1_write(adapter, CXL_XSL9_DSNCTL, xsl_dsnctl);
 
@@ -505,7 +518,7 @@ static int init_implementation_adapter_regs_psl8(struct cxl *adapter, struct pci
 	u64 capp_unit_id;
 	int rc;
 
-	rc = calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
+	rc = cxl_calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
 	if (rc)
 		return rc;
 
@@ -538,7 +551,7 @@ static int init_implementation_adapter_regs_xsl(struct cxl *adapter, struct pci_
 	u64 capp_unit_id;
 	int rc;
 
-	rc = calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
+	rc = cxl_calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
 	if (rc)
 		return rc;
 
@@ -1897,7 +1910,7 @@ static void cxl_pci_remove_adapter(struct cxl *adapter)
 
 #define CXL_MAX_PCIEX_PARENT 2
 
-static int cxl_slot_is_switched(struct pci_dev *dev)
+int cxl_slot_is_switched(struct pci_dev *dev)
 {
 	struct device_node *np;
 	int depth = 0;
