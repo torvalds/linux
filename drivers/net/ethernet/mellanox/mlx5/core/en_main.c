@@ -331,8 +331,10 @@ static void mlx5e_update_pcie_counters(struct mlx5e_priv *priv)
 
 void mlx5e_update_stats(struct mlx5e_priv *priv, bool full)
 {
-	if (full)
+	if (full) {
 		mlx5e_update_pcie_counters(priv);
+		mlx5e_ipsec_update_stats(priv);
+	}
 	mlx5e_update_pport_counters(priv, full);
 	mlx5e_update_vport_counters(priv);
 	mlx5e_update_q_counter(priv);
