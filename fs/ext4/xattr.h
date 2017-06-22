@@ -193,3 +193,5 @@ extern void ext4_xattr_inode_set_class(struct inode *ea_inode);
 #else
 static inline void ext4_xattr_inode_set_class(struct inode *ea_inode) { }
 #endif
+
+extern int ext4_get_inode_usage(struct inode *inode, qsize_t *usage);

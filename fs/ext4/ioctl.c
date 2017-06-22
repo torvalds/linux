@@ -373,7 +373,13 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 
 	transfer_to[PRJQUOTA] = dqget(sb, make_kqid_projid(kprojid));
 	if (!IS_ERR(transfer_to[PRJQUOTA])) {
+
+		/* __dquot_transfer() calls back ext4_get_inode_usage() which
+		 * counts xattr inode references.
+		 */
+		down_read(&EXT4_I(inode)->xattr_sem);
 		err = __dquot_transfer(inode, transfer_to);
+		up_read(&EXT4_I(inode)->xattr_sem);
 		dqput(transfer_to[PRJQUOTA]);
 		if (err)
 			goto out_dirty;

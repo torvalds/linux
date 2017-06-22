@@ -5295,7 +5295,14 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 			error = PTR_ERR(handle);
 			goto err_out;
 		}
+
+		/* dquot_transfer() calls back ext4_get_inode_usage() which
+		 * counts xattr inode references.
+		 */
+		down_read(&EXT4_I(inode)->xattr_sem);
 		error = dquot_transfer(inode, attr);
+		up_read(&EXT4_I(inode)->xattr_sem);
+
 		if (error) {
 			ext4_journal_stop(handle);
 			return error;
