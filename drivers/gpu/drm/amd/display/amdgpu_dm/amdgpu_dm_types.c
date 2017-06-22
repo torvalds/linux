@@ -2879,7 +2879,7 @@ static int do_aquire_global_lock(
 					&commit->flip_done, 10*HZ);
 
 		if (ret == 0)
-			DRM_ERROR("[CRTC:%d:%s] cleanup_done or flip_done "
+			DRM_ERROR("[CRTC:%d:%s] hw_done or flip_done "
 					"timed out\n", crtc->base.id, crtc->name);
 
 		drm_crtc_commit_put(commit);
@@ -3170,9 +3170,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 	if (ret != 0) {
 		if (ret == -EDEADLK)
-			DRM_DEBUG_KMS("Atomic check stopped due to to deadlock, retrying.\n");
+			DRM_DEBUG_KMS("Atomic check stopped due to to deadlock.\n");
 		else if (ret == -EINTR || ret == -EAGAIN || ret == -ERESTARTSYS)
-			DRM_DEBUG_KMS("Atomic check stopped due to to signal, retrying.\n");
+			DRM_DEBUG_KMS("Atomic check stopped due to to signal.\n");
 		else
 			DRM_ERROR("Atomic check failed.\n");
 	}
