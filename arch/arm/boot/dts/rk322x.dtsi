@@ -336,6 +336,23 @@
 		status = "disabled";
 	};
 
+	efuse: efuse@11040000 {
+		compatible = "rockchip,rk3228-efuse";
+		reg = <0x11040000 0x20>;
+		clocks = <&cru PCLK_EFUSE_256>;
+		clock-names = "pclk_efuse";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* Data cells */
+		efuse_id: id@7 {
+			reg = <0x7 0x10>;
+		};
+		cpu_leakage: cpu_leakage@17 {
+			reg = <0x17 0x1>;
+		};
+	};
+
 	i2c0: i2c@11050000 {
 		compatible = "rockchip,rk3228-i2c";
 		reg = <0x11050000 0x1000>;
