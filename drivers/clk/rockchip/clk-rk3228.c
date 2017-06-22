@@ -109,6 +109,7 @@ static struct rockchip_cpuclk_rate_table rk3228_cpuclk_rates[] __initdata = {
 	RK3228_CPUCLK_RATE(1608000000, 1, 7),
 	RK3228_CPUCLK_RATE(1512000000, 1, 7),
 	RK3228_CPUCLK_RATE(1488000000, 1, 5),
+	RK3228_CPUCLK_RATE(1464000000, 1, 5),
 	RK3228_CPUCLK_RATE(1416000000, 1, 5),
 	RK3228_CPUCLK_RATE(1392000000, 1, 5),
 	RK3228_CPUCLK_RATE(1296000000, 1, 5),
@@ -137,24 +138,22 @@ static const struct rockchip_cpuclk_reg_data rk3228_cpuclk_data = {
 
 PNAME(mux_pll_p)		= { "clk_24m", "xin24m" };
 
-PNAME(mux_ddrphy_p)		= { "dpll_ddr", "gpll_ddr", "apll_ddr" };
-PNAME(mux_armclk_p)		= { "apll_core", "gpll_core", "dpll_core" };
+PNAME(mux_ddrphy_p)		= { "dpll", "gpll", "apll" };
+PNAME(mux_armclk_p)		= { "apll", "gpll", "dpll" };
 PNAME(mux_usb480m_phy_p)	= { "usb480m_phy0", "usb480m_phy1" };
 PNAME(mux_usb480m_p)		= { "usb480m_phy", "xin24m" };
 PNAME(mux_hdmiphy_p)		= { "hdmiphy_phy", "xin24m" };
-PNAME(mux_aclk_cpu_src_p)	= { "cpll_aclk_cpu", "gpll_aclk_cpu", "hdmiphy_aclk_cpu" };
 
 PNAME(mux_pll_src_4plls_p)	= { "cpll", "gpll", "hdmiphy" "usb480m" };
 PNAME(mux_pll_src_3plls_p)	= { "cpll", "gpll", "hdmiphy" };
 PNAME(mux_pll_src_2plls_p)	= { "cpll", "gpll" };
 PNAME(mux_sclk_hdmi_cec_p)	= { "cpll", "gpll", "xin24m" };
-PNAME(mux_aclk_peri_src_p)	= { "cpll_peri", "gpll_peri", "hdmiphy_peri" };
 PNAME(mux_mmc_src_p)		= { "cpll", "gpll", "xin24m", "usb480m" };
 PNAME(mux_pll_src_cpll_gpll_usb480m_p)	= { "cpll", "gpll", "usb480m" };
 
 PNAME(mux_sclk_rga_p)		= { "gpll", "cpll", "sclk_rga_src" };
 
-PNAME(mux_sclk_vop_src_p)	= { "gpll_vop", "cpll_vop" };
+PNAME(mux_sclk_vop_src_p)	= { "gpll", "cpll" };
 PNAME(mux_dclk_vop_p)		= { "hdmiphy", "sclk_vop_pre" };
 
 PNAME(mux_i2s0_p)		= { "i2s0_src", "i2s0_frac", "ext_i2s", "xin12m" };
@@ -162,8 +161,6 @@ PNAME(mux_i2s1_pre_p)		= { "i2s1_src", "i2s1_frac", "ext_i2s", "xin12m" };
 PNAME(mux_i2s_out_p)		= { "i2s1_pre", "xin12m" };
 PNAME(mux_i2s2_p)		= { "i2s2_src", "i2s2_frac", "xin12m" };
 PNAME(mux_sclk_spdif_p)		= { "sclk_spdif_src", "spdif_frac", "xin12m" };
-
-PNAME(mux_aclk_gpu_pre_p)	= { "cpll_gpu", "gpll_gpu", "hdmiphy_gpu", "usb480m_gpu" };
 
 PNAME(mux_uart0_p)		= { "uart0_src", "uart0_frac", "xin24m" };
 PNAME(mux_uart1_p)		= { "uart1_src", "uart1_frac", "xin24m" };
@@ -225,27 +222,17 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 			RK2928_CLKSEL_CON(4), 8, 5, DFLAGS),
 
 	/* PD_DDR */
-	GATE(0, "apll_ddr", "apll", CLK_IGNORE_UNUSED,
+	COMPOSITE(0, "clk_ddrphy_src", mux_ddrphy_p, CLK_IGNORE_UNUSED,
+			RK2928_CLKSEL_CON(26), 8, 2, MFLAGS, 0, 2, DFLAGS | CLK_DIVIDER_POWER_OF_TWO,
 			RK2928_CLKGATE_CON(0), 2, GFLAGS),
-	GATE(0, "dpll_ddr", "dpll", CLK_IGNORE_UNUSED,
-			RK2928_CLKGATE_CON(0), 2, GFLAGS),
-	GATE(0, "gpll_ddr", "gpll", CLK_IGNORE_UNUSED,
-			RK2928_CLKGATE_CON(0), 2, GFLAGS),
-	COMPOSITE(0, "ddrphy4x", mux_ddrphy_p, CLK_IGNORE_UNUSED,
-			RK2928_CLKSEL_CON(26), 8, 2, MFLAGS, 0, 3, DFLAGS | CLK_DIVIDER_POWER_OF_TWO,
+	GATE(0, "ddrphy4x", "clk_ddrphy_src", CLK_IGNORE_UNUSED,
 			RK2928_CLKGATE_CON(7), 1, GFLAGS),
-	GATE(0, "ddrc", "ddrphy_pre", CLK_IGNORE_UNUSED,
+	FACTOR_GATE(0, "ddrc", "clk_ddrphy_src", CLK_IGNORE_UNUSED, 1, 4,
 			RK2928_CLKGATE_CON(8), 5, GFLAGS),
-	FACTOR_GATE(0, "ddrphy", "ddrphy4x", CLK_IGNORE_UNUSED, 1, 4,
+	FACTOR_GATE(0, "ddrphy", "clk_ddrphy_src", CLK_IGNORE_UNUSED, 1, 4,
 			RK2928_CLKGATE_CON(7), 0, GFLAGS),
 
 	/* PD_CORE */
-	GATE(0, "dpll_core", "dpll", CLK_IGNORE_UNUSED,
-			RK2928_CLKGATE_CON(0), 6, GFLAGS),
-	GATE(0, "apll_core", "apll", CLK_IGNORE_UNUSED,
-			RK2928_CLKGATE_CON(0), 6, GFLAGS),
-	GATE(0, "gpll_core", "gpll", CLK_IGNORE_UNUSED,
-			RK2928_CLKGATE_CON(0), 6, GFLAGS),
 	COMPOSITE_NOMUX(0, "pclk_dbg", "armclk", CLK_IGNORE_UNUSED,
 			RK2928_CLKSEL_CON(1), 0, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK2928_CLKGATE_CON(4), 1, GFLAGS),
@@ -262,14 +249,9 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 			RK2928_MISC_CON, 15, 1, MFLAGS),
 
 	/* PD_BUS */
-	GATE(0, "hdmiphy_aclk_cpu", "hdmiphy", CLK_IGNORE_UNUSED,
+	COMPOSITE(0, "aclk_cpu_src", mux_pll_src_3plls_p, 0,
+			RK2928_CLKSEL_CON(0), 13, 2, MFLAGS, 8, 5, DFLAGS,
 			RK2928_CLKGATE_CON(0), 1, GFLAGS),
-	GATE(0, "gpll_aclk_cpu", "gpll", CLK_IGNORE_UNUSED,
-			RK2928_CLKGATE_CON(0), 1, GFLAGS),
-	GATE(0, "cpll_aclk_cpu", "cpll", CLK_IGNORE_UNUSED,
-			RK2928_CLKGATE_CON(0), 1, GFLAGS),
-	COMPOSITE_NOGATE(0, "aclk_cpu_src", mux_aclk_cpu_src_p, 0,
-			RK2928_CLKSEL_CON(0), 13, 2, MFLAGS, 8, 5, DFLAGS),
 	GATE(ACLK_CPU, "aclk_cpu", "aclk_cpu_src", 0,
 			RK2928_CLKGATE_CON(6), 0, GFLAGS),
 	COMPOSITE_NOMUX(HCLK_CPU, "hclk_cpu", "aclk_cpu_src", 0,
@@ -342,14 +324,9 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 			RK2928_CLKGATE_CON(3), 8, GFLAGS),
 
 	/* PD_PERI */
-	GATE(0, "cpll_peri", "cpll", CLK_IGNORE_UNUSED,
+	COMPOSITE(0, "aclk_peri_src", mux_pll_src_3plls_p, 0,
+			RK2928_CLKSEL_CON(10), 10, 2, MFLAGS, 0, 5, DFLAGS,
 			RK2928_CLKGATE_CON(2), 0, GFLAGS),
-	GATE(0, "gpll_peri", "gpll", CLK_IGNORE_UNUSED,
-			RK2928_CLKGATE_CON(2), 0, GFLAGS),
-	GATE(0, "hdmiphy_peri", "hdmiphy", CLK_IGNORE_UNUSED,
-			RK2928_CLKGATE_CON(2), 0, GFLAGS),
-	COMPOSITE_NOGATE(0, "aclk_peri_src", mux_aclk_peri_src_p, 0,
-			RK2928_CLKSEL_CON(10), 10, 2, MFLAGS, 0, 5, DFLAGS),
 	COMPOSITE_NOMUX(PCLK_PERI, "pclk_peri", "aclk_peri_src", 0,
 			RK2928_CLKSEL_CON(10), 12, 3, DFLAGS,
 			RK2928_CLKGATE_CON(5), 2, GFLAGS),
@@ -407,12 +384,9 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 2
 	 */
 
-	GATE(0, "gpll_vop", "gpll", 0,
+	COMPOSITE_NODIV(0, "sclk_vop_src", mux_sclk_vop_src_p, 0,
+			RK2928_CLKSEL_CON(27), 0, 1, MFLAGS,
 			RK2928_CLKGATE_CON(3), 1, GFLAGS),
-	GATE(0, "cpll_vop", "cpll", 0,
-			RK2928_CLKGATE_CON(3), 1, GFLAGS),
-	MUX(0, "sclk_vop_src", mux_sclk_vop_src_p, 0,
-			RK2928_CLKSEL_CON(27), 0, 1, MFLAGS),
 	DIV(DCLK_HDMI_PHY, "dclk_hdmiphy", "sclk_vop_src", 0,
 			RK2928_CLKSEL_CON(29), 0, 3, DFLAGS),
 	DIV(0, "sclk_vop_pre", "sclk_vop_src", 0,
@@ -475,16 +449,9 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 			RK2928_CLKSEL_CON(24), 6, 10, DFLAGS,
 			RK2928_CLKGATE_CON(2), 8, GFLAGS),
 
-	GATE(0, "cpll_gpu", "cpll", 0,
+	COMPOSITE(0, "aclk_gpu_pre", mux_pll_src_4plls_p, 0,
+			RK2928_CLKSEL_CON(34), 5, 2, MFLAGS, 0, 5, DFLAGS,
 			RK2928_CLKGATE_CON(3), 13, GFLAGS),
-	GATE(0, "gpll_gpu", "gpll", 0,
-			RK2928_CLKGATE_CON(3), 13, GFLAGS),
-	GATE(0, "hdmiphy_gpu", "hdmiphy", 0,
-			RK2928_CLKGATE_CON(3), 13, GFLAGS),
-	GATE(0, "usb480m_gpu", "usb480m", 0,
-			RK2928_CLKGATE_CON(3), 13, GFLAGS),
-	COMPOSITE_NOGATE(0, "aclk_gpu_pre", mux_aclk_gpu_pre_p, 0,
-			RK2928_CLKSEL_CON(34), 5, 2, MFLAGS, 0, 5, DFLAGS),
 
 	COMPOSITE(SCLK_SPI0, "sclk_spi0", mux_pll_src_2plls_p, 0,
 			RK2928_CLKSEL_CON(25), 8, 1, MFLAGS, 0, 7, DFLAGS,
