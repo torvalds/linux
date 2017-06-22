@@ -108,7 +108,7 @@
 };
 
 &mmc1_pins {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &mmc2 {
@@ -123,7 +123,7 @@
 
 &mmc2_8bit_pins {
 	/* Increase drive strength for DDR modes */
-	allwinner,drive = <SUN4I_PINCTRL_40_MA>;
+	drive-strength = <40>;
 };
 
 &osc32k {
@@ -133,17 +133,14 @@
 
 &pio {
 	led_pins_cubieboard4: led-pins@0 {
-		allwinner,pins = "PH6", "PH17";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH6", "PH17";
+		function = "gpio_out";
 	};
 
 	mmc0_cd_pin_cubieboard4: mmc0_cd_pin@0 {
-		allwinner,pins = "PH18";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH18";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 };
 
@@ -153,10 +150,8 @@
 
 &r_pio {
 	wifi_en_pin_cubieboard4: wifi_en_pin@0 {
-		allwinner,pins = "PL2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL2";
+		function = "gpio_out";
 	};
 };
 

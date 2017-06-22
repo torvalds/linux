@@ -23,6 +23,7 @@
  */
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 
 #define COMPAT_USER_HZ		100
 #ifdef __AARCH64EB__

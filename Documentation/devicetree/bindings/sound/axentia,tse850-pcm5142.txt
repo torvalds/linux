@@ -2,8 +2,7 @@ Devicetree bindings for the Axentia TSE-850 audio complex
 
 Required properties:
   - compatible: "axentia,tse850-pcm5142"
-  - axentia,ssc-controller: The phandle of the atmel SSC controller used as
-    cpu dai.
+  - axentia,cpu-dai: The phandle of the cpu dai.
   - axentia,audio-codec: The phandle of the PCM5142 codec.
   - axentia,add-gpios: gpio specifier that controls the mixer.
   - axentia,loop1-gpios: gpio specifier that controls loop relays on channel 1.
@@ -43,6 +42,12 @@ the PCM5142 codec.
 
 Example:
 
+	&ssc0 {
+		#sound-dai-cells = <0>;
+
+		status = "okay";
+	};
+
 	&i2c {
 		codec: pcm5142@4c {
 			compatible = "ti,pcm5142";
@@ -77,7 +82,7 @@ Example:
 	sound {
 		compatible = "axentia,tse850-pcm5142";
 
-		axentia,ssc-controller = <&ssc0>;
+		axentia,cpu-dai = <&ssc0>;
 		axentia,audio-codec = <&codec>;
 
 		axentia,add-gpios = <&pioA 8 GPIO_ACTIVE_LOW>;

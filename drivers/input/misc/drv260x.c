@@ -538,7 +538,7 @@ static int drv260x_probe(struct i2c_client *client,
 
 	haptics->input_dev = devm_input_allocate_device(dev);
 	if (!haptics->input_dev) {
-		dev_err(&client->dev, "Failed to allocate input device\n");
+		dev_err(dev, "Failed to allocate input device\n");
 		return -ENOMEM;
 	}
 

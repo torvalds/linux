@@ -1279,9 +1279,8 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 			} else {
 				arg = cmd->convert_arg * cmd->chanlist_len;
 			}
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    arg);
+			err |= comedi_check_trigger_arg_min(
+				&cmd->scan_begin_arg, arg);
 		}
 	}
 

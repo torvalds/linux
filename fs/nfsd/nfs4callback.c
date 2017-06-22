@@ -303,6 +303,7 @@ static int decode_cb_compound4res(struct xdr_stream *xdr,
 	p = xdr_inline_decode(xdr, length + 4);
 	if (unlikely(p == NULL))
 		goto out_overflow;
+	p += XDR_QUADLEN(length);
 	hdr->nops = be32_to_cpup(p);
 	return 0;
 out_overflow:
@@ -396,12 +397,9 @@ static int decode_cb_sequence4resok(struct xdr_stream *xdr,
 				    struct nfsd4_callback *cb)
 {
 	struct nfsd4_session *session = cb->cb_clp->cl_cb_session;
-	struct nfs4_sessionid id;
-	int status;
+	int status = -ESERVERFAULT;
 	__be32 *p;
 	u32 dummy;
-
-	status = -ESERVERFAULT;
 
 	/*
 	 * If the server returns different values for sessionID, slotID or
@@ -410,9 +408,8 @@ static int decode_cb_sequence4resok(struct xdr_stream *xdr,
 	p = xdr_inline_decode(xdr, NFS4_MAX_SESSIONID_LEN + 4 + 4 + 4 + 4);
 	if (unlikely(p == NULL))
 		goto out_overflow;
-	memcpy(id.data, p, NFS4_MAX_SESSIONID_LEN);
-	if (memcmp(id.data, session->se_sessionid.data,
-					NFS4_MAX_SESSIONID_LEN) != 0) {
+
+	if (memcmp(p, session->se_sessionid.data, NFS4_MAX_SESSIONID_LEN)) {
 		dprintk("NFS: %s Invalid session id\n", __func__);
 		goto out;
 	}
@@ -751,6 +748,14 @@ int set_callback_cred(void)
 	if (!callback_cred)
 		return -ENOMEM;
 	return 0;
+}
+
+void cleanup_callback_cred(void)
+{
+	if (callback_cred) {
+		put_rpccred(callback_cred);
+		callback_cred = NULL;
+	}
 }
 
 static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)

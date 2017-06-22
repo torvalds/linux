@@ -405,17 +405,33 @@ struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
 				const struct Qdisc_ops *ops, u32 parentid);
 void __qdisc_calculate_pkt_len(struct sk_buff *skb,
 			       const struct qdisc_size_table *stab);
-bool tcf_destroy(struct tcf_proto *tp, bool force);
-void tcf_destroy_chain(struct tcf_proto __rcu **fl);
 int skb_do_redirect(struct sk_buff *);
+
+static inline void skb_reset_tc(struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	skb->tc_redirected = 0;
+#endif
+}
 
 static inline bool skb_at_tc_ingress(const struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	return G_TC_AT(skb->tc_verd) & AT_INGRESS;
+	return skb->tc_at_ingress;
 #else
 	return false;
 #endif
+}
+
+static inline bool skb_skip_tc_classify(struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	if (skb->tc_skip_classify) {
+		skb->tc_skip_classify = 0;
+		return true;
+	}
+#endif
+	return false;
 }
 
 /* Reset all TX qdiscs greater then index of a device.  */

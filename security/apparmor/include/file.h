@@ -145,7 +145,7 @@ static inline u16 dfa_map_xindex(u16 mask)
 	dfa_map_xindex((ACCEPT_TABLE(dfa)[state] >> 14) & 0x3fff)
 
 int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
-		  gfp_t gfp, int op, u32 request, const char *name,
+		  const char *op, u32 request, const char *name,
 		  const char *target, kuid_t ouid, const char *info, int error);
 
 /**
@@ -171,13 +171,14 @@ unsigned int aa_str_perms(struct aa_dfa *dfa, unsigned int start,
 			  const char *name, struct path_cond *cond,
 			  struct file_perms *perms);
 
-int aa_path_perm(int op, struct aa_profile *profile, const struct path *path,
-		 int flags, u32 request, struct path_cond *cond);
+int aa_path_perm(const char *op, struct aa_profile *profile,
+		 const struct path *path, int flags, u32 request,
+		 struct path_cond *cond);
 
 int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
 		 const struct path *new_dir, struct dentry *new_dentry);
 
-int aa_file_perm(int op, struct aa_profile *profile, struct file *file,
+int aa_file_perm(const char *op, struct aa_profile *profile, struct file *file,
 		 u32 request);
 
 static inline void aa_free_file_rules(struct aa_file_rules *rules)

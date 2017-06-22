@@ -23,6 +23,10 @@
 		display0 = &lcd0;
 	};
 
+	chosen {
+		stdout-path = &uart0;
+	};
+
 	evm_v3_3d: fixedregulator-v3_3d {
 		compatible = "regulator-fixed";
 		regulator-name = "evm_v3_3d";

@@ -94,6 +94,11 @@ uint32_t amdgpu_mm_rreg(struct amdgpu_device *adev, uint32_t reg,
 {
 	uint32_t ret;
 
+	if (amdgpu_sriov_runtime(adev)) {
+		BUG_ON(in_interrupt());
+		return amdgpu_virt_kiq_rreg(adev, reg);
+	}
+
 	if ((reg * 4) < adev->rmmio_size && !always_indirect)
 		ret = readl(((void __iomem *)adev->rmmio) + (reg * 4));
 	else {
@@ -112,6 +117,11 @@ void amdgpu_mm_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
 		    bool always_indirect)
 {
 	trace_amdgpu_mm_wreg(adev->pdev->device, reg, v);
+
+	if (amdgpu_sriov_runtime(adev)) {
+		BUG_ON(in_interrupt());
+		return amdgpu_virt_kiq_wreg(adev, reg, v);
+	}
 
 	if ((reg * 4) < adev->rmmio_size && !always_indirect)
 		writel(v, ((void __iomem *)adev->rmmio) + (reg * 4));
@@ -465,7 +475,7 @@ static int amdgpu_wb_init(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->wb.wb_obj == NULL) {
-		r = amdgpu_bo_create_kernel(adev, AMDGPU_MAX_WB * 4,
+		r = amdgpu_bo_create_kernel(adev, AMDGPU_MAX_WB * sizeof(uint32_t),
 					    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
 					    &adev->wb.wb_obj, &adev->wb.gpu_addr,
 					    (void **)&adev->wb.wb);
@@ -478,7 +488,7 @@ static int amdgpu_wb_init(struct amdgpu_device *adev)
 		memset(&adev->wb.used, 0, sizeof(adev->wb.used));
 
 		/* clear wb memory */
-		memset((char *)adev->wb.wb, 0, AMDGPU_GPU_PAGE_SIZE);
+		memset((char *)adev->wb.wb, 0, AMDGPU_MAX_WB * sizeof(uint32_t));
 	}
 
 	return 0;
@@ -609,25 +619,29 @@ void amdgpu_gtt_location(struct amdgpu_device *adev, struct amdgpu_mc *mc)
  * GPU helpers function.
  */
 /**
- * amdgpu_card_posted - check if the hw has already been initialized
+ * amdgpu_need_post - check if the hw need post or not
  *
  * @adev: amdgpu_device pointer
  *
- * Check if the asic has been initialized (all asics).
- * Used at driver startup.
- * Returns true if initialized or false if not.
+ * Check if the asic has been initialized (all asics) at driver startup
+ * or post is needed if  hw reset is performed.
+ * Returns true if need or false if not.
  */
-bool amdgpu_card_posted(struct amdgpu_device *adev)
+bool amdgpu_need_post(struct amdgpu_device *adev)
 {
 	uint32_t reg;
 
+	if (adev->has_hw_reset) {
+		adev->has_hw_reset = false;
+		return true;
+	}
 	/* then check MEM_SIZE, in case the crtcs are off */
 	reg = RREG32(mmCONFIG_MEMSIZE);
 
 	if (reg)
-		return true;
+		return false;
 
-	return false;
+	return true;
 
 }
 
@@ -655,7 +669,7 @@ static bool amdgpu_vpost_needed(struct amdgpu_device *adev)
 				return true;
 		}
 	}
-	return !amdgpu_card_posted(adev);
+	return amdgpu_need_post(adev);
 }
 
 /**
@@ -885,7 +899,7 @@ static int amdgpu_atombios_init(struct amdgpu_device *adev)
 		atom_card_info->ioreg_read = cail_ioreg_read;
 		atom_card_info->ioreg_write = cail_ioreg_write;
 	} else {
-		DRM_ERROR("Unable to find PCI I/O BAR; using MMIO for ATOM IIO\n");
+		DRM_INFO("PCI I/O BAR is not found. Using MMIO to access ATOM BIOS\n");
 		atom_card_info->ioreg_read = cail_reg_read;
 		atom_card_info->ioreg_write = cail_reg_write;
 	}
@@ -1131,6 +1145,18 @@ int amdgpu_set_powergating_state(struct amdgpu_device *adev,
 	return r;
 }
 
+void amdgpu_get_clockgating_state(struct amdgpu_device *adev, u32 *flags)
+{
+	int i;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		if (adev->ip_blocks[i].version->funcs->get_clockgating_state)
+			adev->ip_blocks[i].version->funcs->get_clockgating_state((void *)adev, flags);
+	}
+}
+
 int amdgpu_wait_for_idle(struct amdgpu_device *adev,
 			 enum amd_ip_block_type block_type)
 {
@@ -1235,7 +1261,8 @@ static void amdgpu_device_enable_virtual_display(struct amdgpu_device *adev)
 		pciaddstr_tmp = pciaddstr;
 		while ((pciaddname_tmp = strsep(&pciaddstr_tmp, ";"))) {
 			pciaddname = strsep(&pciaddname_tmp, ",");
-			if (!strcmp(pci_address_name, pciaddname)) {
+			if (!strcmp("all", pciaddname)
+			    || !strcmp(pci_address_name, pciaddname)) {
 				long num_crtc;
 				int res = -1;
 
@@ -1323,6 +1350,12 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	if (amdgpu_sriov_vf(adev)) {
+		r = amdgpu_virt_request_full_gpu(adev, true);
+		if (r)
+			return r;
+	}
+
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
 			DRM_ERROR("disabled ip block: %d\n", i);
@@ -1383,6 +1416,15 @@ static int amdgpu_init(struct amdgpu_device *adev)
 				return r;
 			}
 			adev->ip_blocks[i].status.hw = true;
+
+			/* right after GMC hw init, we create CSA */
+			if (amdgpu_sriov_vf(adev)) {
+				r = amdgpu_allocate_static_csa(adev);
+				if (r) {
+					DRM_ERROR("allocate CSA failed %d\n", r);
+					return r;
+				}
+			}
 		}
 	}
 
@@ -1516,12 +1558,20 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 		adev->ip_blocks[i].status.late_initialized = false;
 	}
 
+	if (amdgpu_sriov_vf(adev)) {
+		amdgpu_bo_free_kernel(&adev->virt.csa_obj, &adev->virt.csa_vmid0_addr, NULL);
+		amdgpu_virt_release_full_gpu(adev, false);
+	}
+
 	return 0;
 }
 
 int amdgpu_suspend(struct amdgpu_device *adev)
 {
 	int i, r;
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_request_full_gpu(adev, false);
 
 	/* ungate SMC block first */
 	r = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_SMC,
@@ -1551,6 +1601,9 @@ int amdgpu_suspend(struct amdgpu_device *adev)
 		}
 	}
 
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_release_full_gpu(adev, false);
+
 	return 0;
 }
 
@@ -1575,7 +1628,7 @@ static int amdgpu_resume(struct amdgpu_device *adev)
 static void amdgpu_device_detect_sriov_bios(struct amdgpu_device *adev)
 {
 	if (amdgpu_atombios_has_gpu_virtualization_table(adev))
-		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_SRIOV_VBIOS;
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_SRIOV_VBIOS;
 }
 
 /**
@@ -1605,7 +1658,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->pdev = pdev;
 	adev->flags = flags;
 	adev->asic_type = flags & AMD_ASIC_MASK;
-	adev->is_atom_bios = false;
 	adev->usec_timeout = AMDGPU_MAX_USEC_TIMEOUT;
 	adev->mc.gtt_size = 512 * 1024 * 1024;
 	adev->accel_working = false;
@@ -1695,7 +1747,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		}
 	}
 	if (adev->rio_mem == NULL)
-		DRM_ERROR("Unable to find PCI I/O BAR\n");
+		DRM_INFO("PCI I/O BAR is not found.\n");
 
 	/* early init functions */
 	r = amdgpu_early_init(adev);
@@ -1720,12 +1772,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		r = -EINVAL;
 		goto failed;
 	}
-	/* Must be an ATOMBIOS */
-	if (!adev->is_atom_bios) {
-		dev_err(adev->dev, "Expecting atombios for GPU\n");
-		r = -EINVAL;
-		goto failed;
-	}
+
 	r = amdgpu_atombios_init(adev);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_atombios_init failed\n");
@@ -1852,8 +1899,6 @@ failed:
 	return r;
 }
 
-static void amdgpu_debugfs_remove_files(struct amdgpu_device *adev);
-
 /**
  * amdgpu_device_fini - tear down the driver
  *
@@ -1893,7 +1938,6 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	if (adev->asic_type >= CHIP_BONAIRE)
 		amdgpu_doorbell_fini(adev);
 	amdgpu_debugfs_regs_cleanup(adev);
-	amdgpu_debugfs_remove_files(adev);
 }
 
 
@@ -2031,7 +2075,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	amdgpu_atombios_scratch_regs_restore(adev);
 
 	/* post card */
-	if (!amdgpu_card_posted(adev) || !resume) {
+	if (amdgpu_need_post(adev)) {
 		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
 		if (r)
 			DRM_ERROR("amdgpu asic init failed\n");
@@ -2050,8 +2094,11 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	r = amdgpu_late_init(adev);
-	if (r)
+	if (r) {
+		if (fbcon)
+			console_unlock();
 		return r;
+	}
 
 	/* pin cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -2251,6 +2298,9 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	int i, r;
 	int resched;
 	bool need_full_reset;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
 	if (!amdgpu_check_soft_reset(adev)) {
 		DRM_INFO("No hardware hang detected. Did some blocks stall?\n");
@@ -2507,19 +2557,6 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void amdgpu_debugfs_remove_files(struct amdgpu_device *adev)
-{
-#if defined(CONFIG_DEBUG_FS)
-	unsigned i;
-
-	for (i = 0; i < adev->debugfs_count; i++) {
-		drm_debugfs_remove_files(adev->debugfs[i].files,
-					 adev->debugfs[i].num_files,
-					 adev->ddev->primary);
-	}
-#endif
-}
-
 #if defined(CONFIG_DEBUG_FS)
 
 static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
@@ -2553,7 +2590,7 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 		use_bank = 0;
 	}
 
-	*pos &= 0x3FFFF;
+	*pos &= (1UL << 22) - 1;
 
 	if (use_bank) {
 		if ((sh_bank != 0xFFFFFFFF && sh_bank >= adev->gfx.config.max_sh_per_se) ||
@@ -2629,7 +2666,7 @@ static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 		use_bank = 0;
 	}
 
-	*pos &= 0x3FFFF;
+	*pos &= (1UL << 22) - 1;
 
 	if (use_bank) {
 		if ((sh_bank != 0xFFFFFFFF && sh_bank >= adev->gfx.config.max_sh_per_se) ||
@@ -2853,7 +2890,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 		return -ENOMEM;
 
 	/* version, increment each time something is added */
-	config[no_regs++] = 2;
+	config[no_regs++] = 3;
 	config[no_regs++] = adev->gfx.config.max_shader_engines;
 	config[no_regs++] = adev->gfx.config.max_tile_pipes;
 	config[no_regs++] = adev->gfx.config.max_cu_per_sh;
@@ -2886,6 +2923,12 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 	/* rev==2 */
 	config[no_regs++] = adev->family;
 	config[no_regs++] = adev->external_rev_id;
+
+	/* rev==3 */
+	config[no_regs++] = adev->pdev->device;
+	config[no_regs++] = adev->pdev->revision;
+	config[no_regs++] = adev->pdev->subsystem_device;
+	config[no_regs++] = adev->pdev->subsystem_vendor;
 
 	while (size && (*pos < no_regs * 4)) {
 		uint32_t value;
@@ -3152,10 +3195,6 @@ static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev)
 int amdgpu_debugfs_init(struct drm_minor *minor)
 {
 	return 0;
-}
-
-void amdgpu_debugfs_cleanup(struct drm_minor *minor)
-{
 }
 #else
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)

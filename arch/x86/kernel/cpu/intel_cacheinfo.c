@@ -11,6 +11,7 @@
 #include <linux/cacheinfo.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
+#include <linux/capability.h>
 #include <linux/sysfs.h>
 #include <linux/pci.h>
 

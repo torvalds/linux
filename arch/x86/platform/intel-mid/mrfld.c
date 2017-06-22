@@ -91,6 +91,7 @@ static unsigned long __init tangier_calibrate_tsc(void)
 static void __init tangier_arch_setup(void)
 {
 	x86_platform.calibrate_tsc = tangier_calibrate_tsc;
+	x86_platform.legacy.rtc = 1;
 }
 
 /* tangier arch ops */

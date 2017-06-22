@@ -232,7 +232,7 @@ or1k_sync_single_for_device(struct device *dev,
 		mtspr(SPR_DCBFR, cl);
 }
 
-struct dma_map_ops or1k_dma_map_ops = {
+const struct dma_map_ops or1k_dma_map_ops = {
 	.alloc = or1k_dma_alloc,
 	.free = or1k_dma_free,
 	.map_page = or1k_map_page,

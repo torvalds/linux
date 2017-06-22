@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/extable.h>
 #include <linux/uaccess.h>
@@ -149,6 +150,23 @@ int fixup_exception(struct pt_regs *regs)
 		d->fault_space = regs->isr;
 		d->fault_addr = regs->ior;
 
+		/*
+		 * Fix up get_user() and put_user().
+		 * ASM_EXCEPTIONTABLE_ENTRY_EFAULT() sets the least-significant
+		 * bit in the relative address of the fixup routine to indicate
+		 * that %r8 should be loaded with -EFAULT to report a userspace
+		 * access error.
+		 */
+		if (fix->fixup & 1) {
+			regs->gr[8] = -EFAULT;
+
+			/* zero target register for get_user() */
+			if (parisc_acctyp(0, regs->iir) == VM_READ) {
+				int treg = regs->iir & 0x1f;
+				regs->gr[treg] = 0;
+			}
+		}
+
 		regs->iaoq[0] = (unsigned long)&fix->fixup + fix->fixup;
 		regs->iaoq[0] &= ~3;
 		/*
@@ -238,8 +256,8 @@ show_signal_msg(struct pt_regs *regs, unsigned long code,
 		vma ? ',':'\n');
 
 	if (vma)
-		pr_warn(KERN_CONT " vm_start = 0x%08lx, vm_end = 0x%08lx\n",
-				vma->vm_start, vma->vm_end);
+		pr_cont(" vm_start = 0x%08lx, vm_end = 0x%08lx\n",
+			vma->vm_start, vma->vm_end);
 
 	show_regs(regs);
 }

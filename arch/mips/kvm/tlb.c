@@ -33,28 +33,20 @@
 #define KVM_GUEST_PC_TLB    0
 #define KVM_GUEST_SP_TLB    1
 
-atomic_t kvm_mips_instance;
-EXPORT_SYMBOL_GPL(kvm_mips_instance);
-
 static u32 kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 {
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
 	int cpu = smp_processor_id();
 
-	return vcpu->arch.guest_kernel_asid[cpu] &
-			cpu_asid_mask(&cpu_data[cpu]);
+	return cpu_asid(cpu, kern_mm);
 }
 
 static u32 kvm_mips_get_user_asid(struct kvm_vcpu *vcpu)
 {
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
 	int cpu = smp_processor_id();
 
-	return vcpu->arch.guest_user_asid[cpu] &
-			cpu_asid_mask(&cpu_data[cpu]);
-}
-
-inline u32 kvm_mips_get_commpage_asid(struct kvm_vcpu *vcpu)
-{
-	return vcpu->kvm->arch.commpage_tlb;
+	return cpu_asid(cpu, user_mm);
 }
 
 /* Structure defining an tlb entry data set. */
@@ -104,109 +96,6 @@ void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_mips_dump_guest_tlbs);
 
-/* XXXKYMA: Must be called with interrupts disabled */
-/* set flush_dcache_mask == 0 if no dcache flush required */
-int kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
-			    unsigned long entrylo0, unsigned long entrylo1,
-			    int flush_dcache_mask)
-{
-	unsigned long flags;
-	unsigned long old_entryhi;
-	int idx;
-
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-	write_c0_entryhi(entryhi);
-	mtc0_tlbw_hazard();
-
-	tlb_probe();
-	tlb_probe_hazard();
-	idx = read_c0_index();
-
-	if (idx > current_cpu_data.tlbsize) {
-		kvm_err("%s: Invalid Index: %d\n", __func__, idx);
-		kvm_mips_dump_host_tlbs();
-		local_irq_restore(flags);
-		return -1;
-	}
-
-	write_c0_entrylo0(entrylo0);
-	write_c0_entrylo1(entrylo1);
-	mtc0_tlbw_hazard();
-
-	if (idx < 0)
-		tlb_write_random();
-	else
-		tlb_write_indexed();
-	tlbw_use_hazard();
-
-	kvm_debug("@ %#lx idx: %2d [entryhi(R): %#lx] entrylo0(R): 0x%08lx, entrylo1(R): 0x%08lx\n",
-		  vcpu->arch.pc, idx, read_c0_entryhi(),
-		  read_c0_entrylo0(), read_c0_entrylo1());
-
-	/* Flush D-cache */
-	if (flush_dcache_mask) {
-		if (entrylo0 & ENTRYLO_V) {
-			++vcpu->stat.flush_dcache_exits;
-			flush_data_cache_page((entryhi & VPN2_MASK) &
-					      ~flush_dcache_mask);
-		}
-		if (entrylo1 & ENTRYLO_V) {
-			++vcpu->stat.flush_dcache_exits;
-			flush_data_cache_page(((entryhi & VPN2_MASK) &
-					       ~flush_dcache_mask) |
-					      (0x1 << PAGE_SHIFT));
-		}
-	}
-
-	/* Restore old ASID */
-	write_c0_entryhi(old_entryhi);
-	mtc0_tlbw_hazard();
-	local_irq_restore(flags);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(kvm_mips_host_tlb_write);
-
-int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
-	struct kvm_vcpu *vcpu)
-{
-	kvm_pfn_t pfn;
-	unsigned long flags, old_entryhi = 0, vaddr = 0;
-	unsigned long entrylo[2] = { 0, 0 };
-	unsigned int pair_idx;
-
-	pfn = PFN_DOWN(virt_to_phys(vcpu->arch.kseg0_commpage));
-	pair_idx = (badvaddr >> PAGE_SHIFT) & 1;
-	entrylo[pair_idx] = mips3_paddr_to_tlbpfn(pfn << PAGE_SHIFT) |
-		((_page_cachable_default >> _CACHE_SHIFT) << ENTRYLO_C_SHIFT) |
-		ENTRYLO_D | ENTRYLO_V;
-
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-	vaddr = badvaddr & (PAGE_MASK << 1);
-	write_c0_entryhi(vaddr | kvm_mips_get_kernel_asid(vcpu));
-	write_c0_entrylo0(entrylo[0]);
-	write_c0_entrylo1(entrylo[1]);
-	write_c0_index(kvm_mips_get_commpage_asid(vcpu));
-	mtc0_tlbw_hazard();
-	tlb_write_indexed();
-	tlbw_use_hazard();
-
-	kvm_debug("@ %#lx idx: %2d [entryhi(R): %#lx] entrylo0 (R): 0x%08lx, entrylo1(R): 0x%08lx\n",
-		  vcpu->arch.pc, read_c0_index(), read_c0_entryhi(),
-		  read_c0_entrylo0(), read_c0_entrylo1());
-
-	/* Restore old ASID */
-	write_c0_entryhi(old_entryhi);
-	mtc0_tlbw_hazard();
-	local_irq_restore(flags);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(kvm_mips_handle_commpage_tlb_fault);
-
 int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 {
 	int i;
@@ -228,51 +117,11 @@ int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 }
 EXPORT_SYMBOL_GPL(kvm_mips_guest_tlb_lookup);
 
-int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr)
-{
-	unsigned long old_entryhi, flags;
-	int idx;
-
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-
-	if (KVM_GUEST_KERNEL_MODE(vcpu))
-		write_c0_entryhi((vaddr & VPN2_MASK) |
-				 kvm_mips_get_kernel_asid(vcpu));
-	else {
-		write_c0_entryhi((vaddr & VPN2_MASK) |
-				 kvm_mips_get_user_asid(vcpu));
-	}
-
-	mtc0_tlbw_hazard();
-
-	tlb_probe();
-	tlb_probe_hazard();
-	idx = read_c0_index();
-
-	/* Restore old ASID */
-	write_c0_entryhi(old_entryhi);
-	mtc0_tlbw_hazard();
-
-	local_irq_restore(flags);
-
-	kvm_debug("Host TLB lookup, %#lx, idx: %2d\n", vaddr, idx);
-
-	return idx;
-}
-EXPORT_SYMBOL_GPL(kvm_mips_host_tlb_lookup);
-
-int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
+static int _kvm_mips_host_tlb_inv(unsigned long entryhi)
 {
 	int idx;
-	unsigned long flags, old_entryhi;
 
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-
-	write_c0_entryhi((va & VPN2_MASK) | kvm_mips_get_user_asid(vcpu));
+	write_c0_entryhi(entryhi);
 	mtc0_tlbw_hazard();
 
 	tlb_probe();
@@ -282,7 +131,7 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 	if (idx >= current_cpu_data.tlbsize)
 		BUG();
 
-	if (idx > 0) {
+	if (idx >= 0) {
 		write_c0_entryhi(UNIQUE_ENTRYHI(idx));
 		write_c0_entrylo0(0);
 		write_c0_entrylo1(0);
@@ -292,93 +141,75 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 		tlbw_use_hazard();
 	}
 
+	return idx;
+}
+
+int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va,
+			  bool user, bool kernel)
+{
+	int idx_user, idx_kernel;
+	unsigned long flags, old_entryhi;
+
+	local_irq_save(flags);
+
+	old_entryhi = read_c0_entryhi();
+
+	if (user)
+		idx_user = _kvm_mips_host_tlb_inv((va & VPN2_MASK) |
+						  kvm_mips_get_user_asid(vcpu));
+	if (kernel)
+		idx_kernel = _kvm_mips_host_tlb_inv((va & VPN2_MASK) |
+						kvm_mips_get_kernel_asid(vcpu));
+
 	write_c0_entryhi(old_entryhi);
 	mtc0_tlbw_hazard();
 
 	local_irq_restore(flags);
 
-	if (idx > 0)
-		kvm_debug("%s: Invalidated entryhi %#lx @ idx %d\n", __func__,
-			  (va & VPN2_MASK) | kvm_mips_get_user_asid(vcpu), idx);
+	if (user && idx_user >= 0)
+		kvm_debug("%s: Invalidated guest user entryhi %#lx @ idx %d\n",
+			  __func__, (va & VPN2_MASK) |
+				    kvm_mips_get_user_asid(vcpu), idx_user);
+	if (kernel && idx_kernel >= 0)
+		kvm_debug("%s: Invalidated guest kernel entryhi %#lx @ idx %d\n",
+			  __func__, (va & VPN2_MASK) |
+				    kvm_mips_get_kernel_asid(vcpu), idx_kernel);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_mips_host_tlb_inv);
 
-void kvm_mips_flush_host_tlb(int skip_kseg0)
+/**
+ * kvm_mips_suspend_mm() - Suspend the active mm.
+ * @cpu		The CPU we're running on.
+ *
+ * Suspend the active_mm, ready for a switch to a KVM guest virtual address
+ * space. This is left active for the duration of guest context, including time
+ * with interrupts enabled, so we need to be careful not to confuse e.g. cache
+ * management IPIs.
+ *
+ * kvm_mips_resume_mm() should be called before context switching to a different
+ * process so we don't need to worry about reference counting.
+ *
+ * This needs to be in static kernel code to avoid exporting init_mm.
+ */
+void kvm_mips_suspend_mm(int cpu)
 {
-	unsigned long flags;
-	unsigned long old_entryhi, entryhi;
-	unsigned long old_pagemask;
-	int entry = 0;
-	int maxentry = current_cpu_data.tlbsize;
-
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-	old_pagemask = read_c0_pagemask();
-
-	/* Blast 'em all away. */
-	for (entry = 0; entry < maxentry; entry++) {
-		write_c0_index(entry);
-
-		if (skip_kseg0) {
-			mtc0_tlbr_hazard();
-			tlb_read();
-			tlb_read_hazard();
-
-			entryhi = read_c0_entryhi();
-
-			/* Don't blow away guest kernel entries */
-			if (KVM_GUEST_KSEGX(entryhi) == KVM_GUEST_KSEG0)
-				continue;
-
-			write_c0_pagemask(old_pagemask);
-		}
-
-		/* Make sure all entries differ. */
-		write_c0_entryhi(UNIQUE_ENTRYHI(entry));
-		write_c0_entrylo0(0);
-		write_c0_entrylo1(0);
-		mtc0_tlbw_hazard();
-
-		tlb_write_indexed();
-		tlbw_use_hazard();
-	}
-
-	write_c0_entryhi(old_entryhi);
-	write_c0_pagemask(old_pagemask);
-	mtc0_tlbw_hazard();
-
-	local_irq_restore(flags);
+	cpumask_clear_cpu(cpu, mm_cpumask(current->active_mm));
+	current->active_mm = &init_mm;
 }
-EXPORT_SYMBOL_GPL(kvm_mips_flush_host_tlb);
+EXPORT_SYMBOL_GPL(kvm_mips_suspend_mm);
 
-void kvm_local_flush_tlb_all(void)
+/**
+ * kvm_mips_resume_mm() - Resume the current process mm.
+ * @cpu		The CPU we're running on.
+ *
+ * Resume the mm of the current process, after a switch back from a KVM guest
+ * virtual address space (see kvm_mips_suspend_mm()).
+ */
+void kvm_mips_resume_mm(int cpu)
 {
-	unsigned long flags;
-	unsigned long old_ctx;
-	int entry = 0;
-
-	local_irq_save(flags);
-	/* Save old context and create impossible VPN2 value */
-	old_ctx = read_c0_entryhi();
-	write_c0_entrylo0(0);
-	write_c0_entrylo1(0);
-
-	/* Blast 'em all away. */
-	while (entry < current_cpu_data.tlbsize) {
-		/* Make sure all entries differ. */
-		write_c0_entryhi(UNIQUE_ENTRYHI(entry));
-		write_c0_index(entry);
-		mtc0_tlbw_hazard();
-		tlb_write_indexed();
-		tlbw_use_hazard();
-		entry++;
-	}
-	write_c0_entryhi(old_ctx);
-	mtc0_tlbw_hazard();
-
-	local_irq_restore(flags);
+	cpumask_set_cpu(cpu, mm_cpumask(current->mm));
+	current->active_mm = current->mm;
 }
-EXPORT_SYMBOL_GPL(kvm_local_flush_tlb_all);
+EXPORT_SYMBOL_GPL(kvm_mips_resume_mm);

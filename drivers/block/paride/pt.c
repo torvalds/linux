@@ -61,7 +61,7 @@
                         the slower the port i/o.  In some cases, setting
                         this to zero will speed up the device. (default -1)
 
-	    major	You may use this parameter to overide the
+	    major	You may use this parameter to override the
 			default major number (96) that this driver
 			will use.  Be sure to change the device
 			name as well.

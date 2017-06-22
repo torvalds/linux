@@ -250,7 +250,7 @@ static int bcm590xx_get_enable_register(int id)
 	return reg;
 }
 
-static struct regulator_ops bcm590xx_ops_ldo = {
+static const struct regulator_ops bcm590xx_ops_ldo = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -260,7 +260,7 @@ static struct regulator_ops bcm590xx_ops_ldo = {
 	.map_voltage		= regulator_map_voltage_iterate,
 };
 
-static struct regulator_ops bcm590xx_ops_dcdc = {
+static const struct regulator_ops bcm590xx_ops_dcdc = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -270,7 +270,7 @@ static struct regulator_ops bcm590xx_ops_dcdc = {
 	.map_voltage		= regulator_map_voltage_linear_range,
 };
 
-static struct regulator_ops bcm590xx_ops_vbus = {
+static const struct regulator_ops bcm590xx_ops_vbus = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,

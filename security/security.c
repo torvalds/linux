@@ -32,6 +32,7 @@
 /* Maximum number of letters for an LSM name string */
 #define SECURITY_NAME_MAX	10
 
+char *lsm_names;
 /* Boot-time LSM user choice */
 static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
 	CONFIG_DEFAULT_SECURITY;
@@ -78,6 +79,22 @@ static int __init choose_lsm(char *str)
 }
 __setup("security=", choose_lsm);
 
+static int lsm_append(char *new, char **result)
+{
+	char *cp;
+
+	if (*result == NULL) {
+		*result = kstrdup(new, GFP_KERNEL);
+	} else {
+		cp = kasprintf(GFP_KERNEL, "%s,%s", *result, new);
+		if (cp == NULL)
+			return -ENOMEM;
+		kfree(*result);
+		*result = cp;
+	}
+	return 0;
+}
+
 /**
  * security_module_enable - Load given security module on boot ?
  * @module: the name of the module
@@ -95,6 +112,27 @@ __setup("security=", choose_lsm);
 int __init security_module_enable(const char *module)
 {
 	return !strcmp(module, chosen_lsm);
+}
+
+/**
+ * security_add_hooks - Add a modules hooks to the hook lists.
+ * @hooks: the hooks to add
+ * @count: the number of hooks to add
+ * @lsm: the name of the security module
+ *
+ * Each LSM has to register its hooks with the infrastructure.
+ */
+void __init security_add_hooks(struct security_hook_list *hooks, int count,
+				char *lsm)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		hooks[i].lsm = lsm;
+		list_add_tail_rcu(&hooks[i].list, hooks[i].head);
+	}
+	if (lsm_append(lsm, &lsm_names) < 0)
+		panic("%s - Cannot get early memory.\n", __func__);
 }
 
 /*
@@ -1025,11 +1063,6 @@ int security_task_kill(struct task_struct *p, struct siginfo *info,
 	return call_int_hook(task_kill, 0, p, info, sig, secid);
 }
 
-int security_task_wait(struct task_struct *p)
-{
-	return call_int_hook(task_wait, 0, p);
-}
-
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 unsigned long arg4, unsigned long arg5)
 {
@@ -1170,9 +1203,9 @@ int security_getprocattr(struct task_struct *p, char *name, char **value)
 	return call_int_hook(getprocattr, -EINVAL, p, name, value);
 }
 
-int security_setprocattr(struct task_struct *p, char *name, void *value, size_t size)
+int security_setprocattr(const char *name, void *value, size_t size)
 {
-	return call_int_hook(setprocattr, -EINVAL, p, name, value, size);
+	return call_int_hook(setprocattr, -EINVAL, name, value, size);
 }
 
 int security_netlink_send(struct sock *sk, struct sk_buff *skb)
@@ -1769,7 +1802,6 @@ struct security_hook_heads security_hook_heads = {
 	.task_movememory =
 		LIST_HEAD_INIT(security_hook_heads.task_movememory),
 	.task_kill =	LIST_HEAD_INIT(security_hook_heads.task_kill),
-	.task_wait =	LIST_HEAD_INIT(security_hook_heads.task_wait),
 	.task_prctl =	LIST_HEAD_INIT(security_hook_heads.task_prctl),
 	.task_to_inode =
 		LIST_HEAD_INIT(security_hook_heads.task_to_inode),

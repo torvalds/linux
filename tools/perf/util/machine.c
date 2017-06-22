@@ -87,6 +87,25 @@ out_delete:
 	return NULL;
 }
 
+struct machine *machine__new_kallsyms(void)
+{
+	struct machine *machine = machine__new_host();
+	/*
+	 * FIXME:
+	 * 1) MAP__FUNCTION will go away when we stop loading separate maps for
+	 *    functions and data objects.
+	 * 2) We should switch to machine__load_kallsyms(), i.e. not explicitely
+	 *    ask for not using the kcore parsing code, once this one is fixed
+	 *    to create a map per module.
+	 */
+	if (machine && __machine__load_kallsyms(machine, "/proc/kallsyms", MAP__FUNCTION, true) <= 0) {
+		machine__delete(machine);
+		machine = NULL;
+	}
+
+	return machine;
+}
+
 static void dsos__purge(struct dsos *dsos)
 {
 	struct dso *pos, *n;
@@ -763,7 +782,7 @@ static u64 machine__get_running_kernel_start(struct machine *machine,
 
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 {
-	enum map_type type;
+	int type;
 	u64 start = machine__get_running_kernel_start(machine, NULL);
 
 	/* In case of renewal the kernel map, destroy previous one */
@@ -794,7 +813,7 @@ int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 
 void machine__destroy_kernel_maps(struct machine *machine)
 {
-	enum map_type type;
+	int type;
 
 	for (type = 0; type < MAP__NR_TYPES; ++type) {
 		struct kmap *kmap;
@@ -1546,7 +1565,7 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 
 static bool symbol__match_regex(struct symbol *sym, regex_t *regex)
 {
-	if (sym->name && !regexec(regex, sym->name, 0, NULL, 0))
+	if (!regexec(regex, sym->name, 0, NULL, 0))
 		return 1;
 	return 0;
 }

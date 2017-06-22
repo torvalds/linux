@@ -2000,7 +2000,7 @@ static struct ubifs_info *alloc_ubifs_info(struct ubi_volume_desc *ubi)
 }
 
 #ifndef CONFIG_UBIFS_FS_ENCRYPTION
-struct fscrypt_operations ubifs_crypt_operations = {
+const struct fscrypt_operations ubifs_crypt_operations = {
 	.is_encrypted		= __ubifs_crypt_is_encrypted,
 };
 #endif

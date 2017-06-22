@@ -165,10 +165,9 @@ static void qedi_tmf_resp_work(struct work_struct *work)
 	iscsi_block_session(session->cls_session);
 	rval = qedi_cleanup_all_io(qedi, qedi_conn, qedi_cmd->task, true);
 	if (rval) {
-		clear_bit(QEDI_CONN_FW_CLEANUP, &qedi_conn->flags);
 		qedi_clear_task_idx(qedi, qedi_cmd->task_id);
 		iscsi_unblock_session(session->cls_session);
-		return;
+		goto exit_tmf_resp;
 	}
 
 	iscsi_unblock_session(session->cls_session);
@@ -177,6 +176,8 @@ static void qedi_tmf_resp_work(struct work_struct *work)
 	spin_lock(&session->back_lock);
 	__iscsi_complete_pdu(conn, (struct iscsi_hdr *)resp_hdr_ptr, NULL, 0);
 	spin_unlock(&session->back_lock);
+
+exit_tmf_resp:
 	kfree(resp_hdr_ptr);
 	clear_bit(QEDI_CONN_FW_CLEANUP, &qedi_conn->flags);
 }
@@ -1460,9 +1461,9 @@ static void qedi_tmf_work(struct work_struct *work)
 		  get_itt(tmf_hdr->rtt), get_itt(ctask->itt), cmd->task_id,
 		  qedi_conn->iscsi_conn_id);
 
-	if (do_not_recover) {
+	if (qedi_do_not_recover) {
 		QEDI_ERR(&qedi->dbg_ctx, "DONT SEND CLEANUP/ABORT %d\n",
-			 do_not_recover);
+			 qedi_do_not_recover);
 		goto abort_ret;
 	}
 

@@ -304,7 +304,6 @@ struct sbridge_info {
 	u64		(*rir_limit)(u32 reg);
 	u64		(*sad_limit)(u32 reg);
 	u32		(*interleave_mode)(u32 reg);
-	char*		(*show_interleave_mode)(u32 reg);
 	u32		(*dram_attr)(u32 reg);
 	const u32	*dram_rule;
 	const u32	*interleave_list;
@@ -811,11 +810,6 @@ static u32 interleave_mode(u32 reg)
 	return GET_BITFIELD(reg, 1, 1);
 }
 
-char *show_interleave_mode(u32 reg)
-{
-	return interleave_mode(reg) ? "8:6" : "[8:6]XOR[18:16]";
-}
-
 static u32 dram_attr(u32 reg)
 {
 	return GET_BITFIELD(reg, 2, 3);
@@ -831,29 +825,16 @@ static u32 knl_interleave_mode(u32 reg)
 	return GET_BITFIELD(reg, 1, 2);
 }
 
-static char *knl_show_interleave_mode(u32 reg)
+static const char * const knl_intlv_mode[] = {
+	"[8:6]", "[10:8]", "[14:12]", "[32:30]"
+};
+
+static const char *get_intlv_mode_str(u32 reg, enum type t)
 {
-	char *s;
-
-	switch (knl_interleave_mode(reg)) {
-	case 0:
-		s = "use address bits [8:6]";
-		break;
-	case 1:
-		s = "use address bits [10:8]";
-		break;
-	case 2:
-		s = "use address bits [14:12]";
-		break;
-	case 3:
-		s = "use address bits [32:30]";
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	}
-
-	return s;
+	if (t == KNIGHTS_LANDING)
+		return knl_intlv_mode[knl_interleave_mode(reg)];
+	else
+		return interleave_mode(reg) ? "[8:6]" : "[8:6]XOR[18:16]";
 }
 
 static u32 dram_attr_knl(u32 reg)
@@ -1810,7 +1791,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			 show_dram_attr(pvt->info.dram_attr(reg)),
 			 gb, (mb*1000)/1024,
 			 ((u64)tmp_mb) << 20L,
-			 pvt->info.show_interleave_mode(reg),
+			 get_intlv_mode_str(reg, pvt->info.type),
 			 reg);
 		prv = limit;
 
@@ -3136,7 +3117,8 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 }
 
 static struct notifier_block sbridge_mce_dec = {
-	.notifier_call      = sbridge_mce_check_error,
+	.notifier_call	= sbridge_mce_check_error,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 /****************************************************************************
@@ -3227,7 +3209,6 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.rir_limit = rir_limit;
 		pvt->info.sad_limit = sad_limit;
 		pvt->info.interleave_mode = interleave_mode;
-		pvt->info.show_interleave_mode = show_interleave_mode;
 		pvt->info.dram_attr = dram_attr;
 		pvt->info.max_sad = ARRAY_SIZE(ibridge_dram_rule);
 		pvt->info.interleave_list = ibridge_interleave_list;
@@ -3251,7 +3232,6 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.rir_limit = rir_limit;
 		pvt->info.sad_limit = sad_limit;
 		pvt->info.interleave_mode = interleave_mode;
-		pvt->info.show_interleave_mode = show_interleave_mode;
 		pvt->info.dram_attr = dram_attr;
 		pvt->info.max_sad = ARRAY_SIZE(sbridge_dram_rule);
 		pvt->info.interleave_list = sbridge_interleave_list;
@@ -3275,7 +3255,6 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.rir_limit = haswell_rir_limit;
 		pvt->info.sad_limit = sad_limit;
 		pvt->info.interleave_mode = interleave_mode;
-		pvt->info.show_interleave_mode = show_interleave_mode;
 		pvt->info.dram_attr = dram_attr;
 		pvt->info.max_sad = ARRAY_SIZE(ibridge_dram_rule);
 		pvt->info.interleave_list = ibridge_interleave_list;
@@ -3299,7 +3278,6 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.rir_limit = haswell_rir_limit;
 		pvt->info.sad_limit = sad_limit;
 		pvt->info.interleave_mode = interleave_mode;
-		pvt->info.show_interleave_mode = show_interleave_mode;
 		pvt->info.dram_attr = dram_attr;
 		pvt->info.max_sad = ARRAY_SIZE(ibridge_dram_rule);
 		pvt->info.interleave_list = ibridge_interleave_list;
@@ -3323,7 +3301,6 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.rir_limit = NULL;
 		pvt->info.sad_limit = knl_sad_limit;
 		pvt->info.interleave_mode = knl_interleave_mode;
-		pvt->info.show_interleave_mode = knl_show_interleave_mode;
 		pvt->info.dram_attr = dram_attr_knl;
 		pvt->info.max_sad = ARRAY_SIZE(knl_dram_rule);
 		pvt->info.interleave_list = knl_interleave_list;

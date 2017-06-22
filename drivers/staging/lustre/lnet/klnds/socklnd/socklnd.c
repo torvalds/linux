@@ -1108,12 +1108,12 @@ ksocknal_create_conn(lnet_ni_t *ni, struct ksock_route *route,
 		write_unlock_bh(global_lock);
 
 		if (!conn->ksnc_proto) {
-			 conn->ksnc_proto = &ksocknal_protocol_v3x;
+			conn->ksnc_proto = &ksocknal_protocol_v3x;
 #if SOCKNAL_VERSION_DEBUG
-			 if (*ksocknal_tunables.ksnd_protocol == 2)
-				 conn->ksnc_proto = &ksocknal_protocol_v2x;
-			 else if (*ksocknal_tunables.ksnd_protocol == 1)
-				 conn->ksnc_proto = &ksocknal_protocol_v1x;
+			if (*ksocknal_tunables.ksnd_protocol == 2)
+				conn->ksnc_proto = &ksocknal_protocol_v2x;
+			else if (*ksocknal_tunables.ksnd_protocol == 1)
+				conn->ksnc_proto = &ksocknal_protocol_v1x;
 #endif
 		}
 
@@ -2507,7 +2507,7 @@ ksocknal_base_startup(void)
 
 		snprintf(name, sizeof(name), "socknal_cd%02d", i);
 		rc = ksocknal_thread_start(ksocknal_connd,
-					   (void *)((ulong_ptr_t)i), name);
+					   (void *)((uintptr_t)i), name);
 		if (rc) {
 			spin_lock_bh(&ksocknal_data.ksnd_connd_lock);
 			ksocknal_data.ksnd_connd_starting--;
@@ -2904,8 +2904,8 @@ static int __init ksocklnd_init(void)
 	int rc;
 
 	/* check ksnr_connected/connecting field large enough */
-	CLASSERT(SOCKLND_CONN_NTYPES <= 4);
-	CLASSERT(SOCKLND_CONN_ACK == SOCKLND_CONN_BULK_IN);
+	BUILD_BUG_ON(SOCKLND_CONN_NTYPES > 4);
+	BUILD_BUG_ON(SOCKLND_CONN_ACK != SOCKLND_CONN_BULK_IN);
 
 	/* initialize the_ksocklnd */
 	the_ksocklnd.lnd_type     = SOCKLND;

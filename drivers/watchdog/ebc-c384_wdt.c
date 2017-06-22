@@ -121,18 +121,7 @@ static int ebc_c384_wdt_probe(struct device *dev, unsigned int id)
 		dev_warn(dev, "Invalid timeout (%u seconds), using default (%u seconds)\n",
 			timeout, WATCHDOG_TIMEOUT);
 
-	dev_set_drvdata(dev, wdd);
-
-	return watchdog_register_device(wdd);
-}
-
-static int ebc_c384_wdt_remove(struct device *dev, unsigned int id)
-{
-	struct watchdog_device *wdd = dev_get_drvdata(dev);
-
-	watchdog_unregister_device(wdd);
-
-	return 0;
+	return devm_watchdog_register_device(dev, wdd);
 }
 
 static struct isa_driver ebc_c384_wdt_driver = {
@@ -140,7 +129,6 @@ static struct isa_driver ebc_c384_wdt_driver = {
 	.driver = {
 		.name = MODULE_NAME
 	},
-	.remove = ebc_c384_wdt_remove
 };
 
 static int __init ebc_c384_wdt_init(void)

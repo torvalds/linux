@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include "hts221.h"
@@ -83,6 +84,12 @@ static int hts221_i2c_probe(struct i2c_client *client,
 	return hts221_probe(iio_dev);
 }
 
+static const struct acpi_device_id hts221_acpi_match[] = {
+	{"SMO9100", 0},
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, hts221_acpi_match);
+
 static const struct of_device_id hts221_i2c_of_match[] = {
 	{ .compatible = "st,hts221", },
 	{},
@@ -99,6 +106,7 @@ static struct i2c_driver hts221_driver = {
 	.driver = {
 		.name = "hts221_i2c",
 		.of_match_table = of_match_ptr(hts221_i2c_of_match),
+		.acpi_match_table = ACPI_PTR(hts221_acpi_match),
 	},
 	.probe = hts221_i2c_probe,
 	.id_table = hts221_i2c_id_table,

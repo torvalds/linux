@@ -95,13 +95,6 @@ void gb_svc_watchdog_destroy(struct gb_svc *svc);
 bool gb_svc_watchdog_enabled(struct gb_svc *svc);
 int gb_svc_watchdog_enable(struct gb_svc *svc);
 int gb_svc_watchdog_disable(struct gb_svc *svc);
-int gb_svc_timesync_enable(struct gb_svc *svc, u8 count, u64 frame_time,
-			   u32 strobe_delay, u32 refclk);
-int gb_svc_timesync_disable(struct gb_svc *svc);
-int gb_svc_timesync_authoritative(struct gb_svc *svc, u64 *frame_time);
-int gb_svc_timesync_ping(struct gb_svc *svc, u64 *frame_time);
-int gb_svc_timesync_wake_pins_acquire(struct gb_svc *svc, u32 strobe_mask);
-int gb_svc_timesync_wake_pins_release(struct gb_svc *svc);
 
 int gb_svc_protocol_init(void);
 void gb_svc_protocol_exit(void);

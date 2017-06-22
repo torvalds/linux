@@ -21,6 +21,7 @@ config ARM_PSCI_CHECKER
 
 config ARM_SCPI_PROTOCOL
 	tristate "ARM System Control and Power Interface (SCPI) Message Protocol"
+	depends on ARM || ARM64 || COMPILE_TEST
 	depends on MAILBOX
 	help
 	  System Control and Power Interface (SCPI) Message Protocol is

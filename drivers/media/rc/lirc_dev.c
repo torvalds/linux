@@ -13,17 +13,13 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/ioctl.h>
 #include <linux/fs.h>
@@ -440,6 +436,8 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 		return -ERESTARTSYS;
 
 	ir = irctls[iminor(inode)];
+	mutex_unlock(&lirc_dev_lock);
+
 	if (!ir) {
 		retval = -ENODEV;
 		goto error;
@@ -472,7 +470,7 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 		if (retval) {
 			module_put(cdev->owner);
 			ir->open--;
-		} else {
+		} else if (ir->buf) {
 			lirc_buffer_clear(ir->buf);
 		}
 		if (ir->task)
@@ -480,8 +478,6 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 	}
 
 error:
-	mutex_unlock(&lirc_dev_lock);
-
 	nonseekable_open(inode, file);
 
 	return retval;
@@ -582,7 +578,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		result = put_user(ir->d.features, (__u32 __user *)arg);
 		break;
 	case LIRC_GET_REC_MODE:
-		if (LIRC_CAN_REC(ir->d.features)) {
+		if (!LIRC_CAN_REC(ir->d.features)) {
 			result = -ENOTTY;
 			break;
 		}
@@ -592,7 +588,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				  (__u32 __user *)arg);
 		break;
 	case LIRC_SET_REC_MODE:
-		if (LIRC_CAN_REC(ir->d.features)) {
+		if (!LIRC_CAN_REC(ir->d.features)) {
 			result = -ENOTTY;
 			break;
 		}
@@ -650,6 +646,9 @@ ssize_t lirc_dev_fop_read(struct file *file,
 		pr_err("called with invalid irctl\n");
 		return -ENODEV;
 	}
+
+	if (!LIRC_CAN_REC(ir->d.features))
+		return -EINVAL;
 
 	dev_dbg(ir->d.dev, LOGHEAD "read called\n", ir->d.name, ir->d.minor);
 

@@ -3,14 +3,18 @@
  *
  * Copyright (C) 2005-2007 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
+ * Copyright (C) 2016 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
+#include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
+
+#include <linux/io-64-nonatomic-hi-lo.h>
 
 #include "internal.h"
 
@@ -85,9 +89,9 @@ struct dw_dma_regs {
 	DW_REG(ID);
 	DW_REG(TEST);
 
-	/* reserved */
-	DW_REG(__reserved0);
-	DW_REG(__reserved1);
+	/* iDMA 32-bit support */
+	DW_REG(CLASS_PRIORITY0);
+	DW_REG(CLASS_PRIORITY1);
 
 	/* optional encoded params, 0x3c8..0x3f7 */
 	u32	__reserved;
@@ -99,6 +103,17 @@ struct dw_dma_regs {
 
 	/* top-level parameters */
 	u32	DW_PARAMS;
+
+	/* component ID */
+	u32	COMP_TYPE;
+	u32	COMP_VERSION;
+
+	/* iDMA 32-bit support */
+	DW_REG(FIFO_PARTITION0);
+	DW_REG(FIFO_PARTITION1);
+
+	DW_REG(SAI_ERR);
+	DW_REG(GLOBAL_CFG);
 };
 
 /*
@@ -170,8 +185,9 @@ enum dw_dma_msize {
 #define DWC_CTLL_LLP_S_EN	(1 << 28)	/* src block chain */
 
 /* Bitfields in CTL_HI */
-#define DWC_CTLH_DONE		0x00001000
-#define DWC_CTLH_BLOCK_TS_MASK	0x00000fff
+#define DWC_CTLH_BLOCK_TS_MASK	GENMASK(11, 0)
+#define DWC_CTLH_BLOCK_TS(x)	((x) & DWC_CTLH_BLOCK_TS_MASK)
+#define DWC_CTLH_DONE		(1 << 12)
 
 /* Bitfields in CFG_LO */
 #define DWC_CFGL_CH_PRIOR_MASK	(0x7 << 5)	/* priority mask */
@@ -213,6 +229,33 @@ enum dw_dma_msize {
 
 /* Bitfields in CFG */
 #define DW_CFG_DMA_EN		(1 << 0)
+
+/* iDMA 32-bit support */
+
+/* Bitfields in CTL_HI */
+#define IDMA32C_CTLH_BLOCK_TS_MASK	GENMASK(16, 0)
+#define IDMA32C_CTLH_BLOCK_TS(x)	((x) & IDMA32C_CTLH_BLOCK_TS_MASK)
+#define IDMA32C_CTLH_DONE		(1 << 17)
+
+/* Bitfields in CFG_LO */
+#define IDMA32C_CFGL_DST_BURST_ALIGN	(1 << 0)	/* dst burst align */
+#define IDMA32C_CFGL_SRC_BURST_ALIGN	(1 << 1)	/* src burst align */
+#define IDMA32C_CFGL_CH_DRAIN		(1 << 10)	/* drain FIFO */
+#define IDMA32C_CFGL_DST_OPT_BL		(1 << 20)	/* optimize dst burst length */
+#define IDMA32C_CFGL_SRC_OPT_BL		(1 << 21)	/* optimize src burst length */
+
+/* Bitfields in CFG_HI */
+#define IDMA32C_CFGH_SRC_PER(x)		((x) << 0)
+#define IDMA32C_CFGH_DST_PER(x)		((x) << 4)
+#define IDMA32C_CFGH_RD_ISSUE_THD(x)	((x) << 8)
+#define IDMA32C_CFGH_RW_ISSUE_THD(x)	((x) << 18)
+#define IDMA32C_CFGH_SRC_PER_EXT(x)	((x) << 28)	/* src peripheral extension */
+#define IDMA32C_CFGH_DST_PER_EXT(x)	((x) << 30)	/* dst peripheral extension */
+
+/* Bitfields in FIFO_PARTITION */
+#define IDMA32C_FP_PSIZE_CH0(x)		((x) << 0)
+#define IDMA32C_FP_PSIZE_CH1(x)		((x) << 13)
+#define IDMA32C_FP_UPDATE		(1 << 26)
 
 enum dw_dmac_flags {
 	DW_DMA_IS_CYCLIC = 0,
@@ -270,6 +313,7 @@ static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 
 struct dw_dma {
 	struct dma_device	dma;
+	char			name[20];
 	void __iomem		*regs;
 	struct dma_pool		*desc_pool;
 	struct tasklet_struct	tasklet;
@@ -292,6 +336,11 @@ static inline struct dw_dma_regs __iomem *__dw_regs(struct dw_dma *dw)
 	dma_readl_native(&(__dw_regs(dw)->name))
 #define dma_writel(dw, name, val) \
 	dma_writel_native((val), &(__dw_regs(dw)->name))
+
+#define idma32_readq(dw, name)				\
+	hi_lo_readq(&(__dw_regs(dw)->name))
+#define idma32_writeq(dw, name, val)			\
+	hi_lo_writeq((val), &(__dw_regs(dw)->name))
 
 #define channel_set_bit(dw, reg, mask) \
 	dma_writel(dw, reg, ((mask) << 8) | (mask))

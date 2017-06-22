@@ -1,3 +1,4 @@
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -982,7 +983,7 @@ static int gpio_chrdev_open(struct inode *inode, struct file *filp)
 					      struct gpio_device, chrdev);
 
 	/* Fail on open if the backing gpiochip is gone */
-	if (!gdev || !gdev->chip)
+	if (!gdev->chip)
 		return -ENODEV;
 	get_device(&gdev->dev);
 	filp->private_data = gdev;
@@ -1001,8 +1002,6 @@ static int gpio_chrdev_release(struct inode *inode, struct file *filp)
 	struct gpio_device *gdev = container_of(inode->i_cdev,
 					      struct gpio_device, chrdev);
 
-	if (!gdev)
-		return -ENODEV;
 	put_device(&gdev->dev);
 	return 0;
 }
@@ -1423,8 +1422,7 @@ void devm_gpiochip_remove(struct device *dev, struct gpio_chip *chip)
 
 	ret = devres_release(dev, devm_gpio_chip_release,
 			     devm_gpio_chip_match, chip);
-	if (!ret)
-		WARN_ON(ret);
+	WARN_ON(ret);
 }
 EXPORT_SYMBOL_GPL(devm_gpiochip_remove);
 
@@ -1876,6 +1874,19 @@ void gpiochip_generic_free(struct gpio_chip *chip, unsigned offset)
 }
 EXPORT_SYMBOL_GPL(gpiochip_generic_free);
 
+/**
+ * gpiochip_generic_config() - apply configuration for a pin
+ * @chip: the gpiochip owning the GPIO
+ * @offset: the offset of the GPIO to apply the configuration
+ * @config: the configuration to be applied
+ */
+int gpiochip_generic_config(struct gpio_chip *chip, unsigned offset,
+			    unsigned long config)
+{
+	return pinctrl_gpio_set_config(chip->gpiodev->base + offset, config);
+}
+EXPORT_SYMBOL_GPL(gpiochip_generic_config);
+
 #ifdef CONFIG_PINCTRL
 
 /**
@@ -2264,6 +2275,14 @@ int gpiod_direction_input(struct gpio_desc *desc)
 }
 EXPORT_SYMBOL_GPL(gpiod_direction_input);
 
+static int gpio_set_drive_single_ended(struct gpio_chip *gc, unsigned offset,
+				       enum pin_config_param mode)
+{
+	unsigned long config = { PIN_CONF_PACKED(mode, 0) };
+
+	return gc->set_config ? gc->set_config(gc, offset, config) : -ENOTSUPP;
+}
+
 static int _gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 {
 	struct gpio_chip *gc = desc->gdev->chip;
@@ -2280,32 +2299,25 @@ static int _gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 
 	if (test_bit(FLAG_OPEN_DRAIN, &desc->flags)) {
 		/* First see if we can enable open drain in hardware */
-		if (gc->set_single_ended) {
-			ret = gc->set_single_ended(gc, gpio_chip_hwgpio(desc),
-						   LINE_MODE_OPEN_DRAIN);
-			if (!ret)
-				goto set_output_value;
-		}
+		ret = gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
+						  PIN_CONFIG_DRIVE_OPEN_DRAIN);
+		if (!ret)
+			goto set_output_value;
 		/* Emulate open drain by not actively driving the line high */
 		if (val)
 			return gpiod_direction_input(desc);
 	}
 	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags)) {
-		if (gc->set_single_ended) {
-			ret = gc->set_single_ended(gc, gpio_chip_hwgpio(desc),
-						   LINE_MODE_OPEN_SOURCE);
-			if (!ret)
-				goto set_output_value;
-		}
+		ret = gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
+						  PIN_CONFIG_DRIVE_OPEN_SOURCE);
+		if (!ret)
+			goto set_output_value;
 		/* Emulate open source by not actively driving the line low */
 		if (!val)
 			return gpiod_direction_input(desc);
 	} else {
-		/* Make sure to disable open drain/source hardware, if any */
-		if (gc->set_single_ended)
-			gc->set_single_ended(gc,
-					     gpio_chip_hwgpio(desc),
-					     LINE_MODE_PUSH_PULL);
+		gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
+					    PIN_CONFIG_DRIVE_PUSH_PULL);
 	}
 
 set_output_value:
@@ -2376,17 +2388,19 @@ EXPORT_SYMBOL_GPL(gpiod_direction_output);
 int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce)
 {
 	struct gpio_chip	*chip;
+	unsigned long		config;
 
 	VALIDATE_DESC(desc);
 	chip = desc->gdev->chip;
-	if (!chip->set || !chip->set_debounce) {
+	if (!chip->set || !chip->set_config) {
 		gpiod_dbg(desc,
-			  "%s: missing set() or set_debounce() operations\n",
+			  "%s: missing set() or set_config() operations\n",
 			  __func__);
 		return -ENOTSUPP;
 	}
 
-	return chip->set_debounce(chip, gpio_chip_hwgpio(desc), debounce);
+	config = pinconf_to_config_packed(PIN_CONFIG_INPUT_DEBOUNCE, debounce);
+	return chip->set_config(chip, gpio_chip_hwgpio(desc), config);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_debounce);
 
@@ -2570,18 +2584,11 @@ static void gpio_chip_set_multiple(struct gpio_chip *chip,
 	if (chip->set_multiple) {
 		chip->set_multiple(chip, mask, bits);
 	} else {
-		int i;
-		for (i = 0; i < chip->ngpio; i++) {
-			if (mask[BIT_WORD(i)] == 0) {
-				/* no more set bits in this mask word;
-				 * skip ahead to the next word */
-				i = (BIT_WORD(i) + 1) * BITS_PER_LONG - 1;
-				continue;
-			}
-			/* set outputs if the corresponding mask bit is set */
-			if (__test_and_clear_bit(i, mask))
-				chip->set(chip, i, test_bit(i, bits));
-		}
+		unsigned int i;
+
+		/* set outputs if the corresponding mask bit is set */
+		for_each_set_bit(i, mask, chip->ngpio)
+			chip->set(chip, i, test_bit(i, bits));
 	}
 }
 
@@ -3309,6 +3316,8 @@ EXPORT_SYMBOL_GPL(gpiod_get_index);
  * fwnode_get_named_gpiod - obtain a GPIO from firmware node
  * @fwnode:	handle of the firmware node
  * @propname:	name of the firmware property representing the GPIO
+ * @index:	index of the GPIO to obtain in the consumer
+ * @dflags:	GPIO initialization flags
  *
  * This function can be used for drivers that get their configuration
  * from firmware.
@@ -3317,12 +3326,18 @@ EXPORT_SYMBOL_GPL(gpiod_get_index);
  * underlying firmware interface and then makes sure that the GPIO
  * descriptor is requested before it is returned to the caller.
  *
+ * On successfull request the GPIO pin is configured in accordance with
+ * provided @dflags.
+ *
  * In case of error an ERR_PTR() is returned.
  */
 struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
-					 const char *propname)
+					 const char *propname, int index,
+					 enum gpiod_flags dflags,
+					 const char *label)
 {
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
+	unsigned long lflags = 0;
 	bool active_low = false;
 	bool single_ended = false;
 	int ret;
@@ -3333,8 +3348,8 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	if (is_of_node(fwnode)) {
 		enum of_gpio_flags flags;
 
-		desc = of_get_named_gpiod_flags(to_of_node(fwnode), propname, 0,
-						&flags);
+		desc = of_get_named_gpiod_flags(to_of_node(fwnode), propname,
+						index, &flags);
 		if (!IS_ERR(desc)) {
 			active_low = flags & OF_GPIO_ACTIVE_LOW;
 			single_ended = flags & OF_GPIO_SINGLE_ENDED;
@@ -3342,7 +3357,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	} else if (is_acpi_node(fwnode)) {
 		struct acpi_gpio_info info;
 
-		desc = acpi_node_get_gpiod(fwnode, propname, 0, &info);
+		desc = acpi_node_get_gpiod(fwnode, propname, index, &info);
 		if (!IS_ERR(desc))
 			active_low = info.polarity == GPIO_ACTIVE_LOW;
 	}
@@ -3350,18 +3365,24 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	if (IS_ERR(desc))
 		return desc;
 
-	ret = gpiod_request(desc, NULL);
+	ret = gpiod_request(desc, label);
 	if (ret)
 		return ERR_PTR(ret);
 
 	if (active_low)
-		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+		lflags |= GPIO_ACTIVE_LOW;
 
 	if (single_ended) {
 		if (active_low)
-			set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+			lflags |= GPIO_OPEN_DRAIN;
 		else
-			set_bit(FLAG_OPEN_SOURCE, &desc->flags);
+			lflags |= GPIO_OPEN_SOURCE;
+	}
+
+	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
+	if (ret < 0) {
+		gpiod_put(desc);
+		return ERR_PTR(ret);
 	}
 
 	return desc;

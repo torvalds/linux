@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/console.h>
 #include <linux/bootmem.h>
 #include <linux/initrd.h>
@@ -199,6 +200,9 @@ void __init setup_arch(char **cmdline_p)
 				initrd_end - initrd_start, BOOTMEM_DEFAULT);
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
+
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
 
 	unflatten_and_copy_device_tree();
 

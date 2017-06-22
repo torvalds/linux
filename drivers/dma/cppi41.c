@@ -79,14 +79,6 @@
 #define QMGR_QUEUE_C(n)	(0x2008 + (n) * 0x10)
 #define QMGR_QUEUE_D(n)	(0x200c + (n) * 0x10)
 
-/* Glue layer specific */
-/* USBSS  / USB AM335x */
-#define USBSS_IRQ_STATUS	0x28
-#define USBSS_IRQ_ENABLER	0x2c
-#define USBSS_IRQ_CLEARR	0x30
-
-#define USBSS_IRQ_PD_COMP	(1 <<  2)
-
 /* Packet Descriptor */
 #define PD2_ZERO_LENGTH		(1 << 19)
 
@@ -294,13 +286,7 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 {
 	struct cppi41_dd *cdd = data;
 	struct cppi41_channel *c;
-	u32 status;
 	int i;
-
-	status = cppi_readl(cdd->usbss_mem + USBSS_IRQ_STATUS);
-	if (!(status & USBSS_IRQ_PD_COMP))
-		return IRQ_NONE;
-	cppi_writel(status, cdd->usbss_mem + USBSS_IRQ_STATUS);
 
 	for (i = QMGR_PENDING_SLOT_Q(FIST_COMPLETION_QUEUE); i < QMGR_NUM_PEND;
 			i++) {
@@ -618,6 +604,7 @@ static void cppi41_compute_td_desc(struct cppi41_desc *d)
 
 static int cppi41_tear_down_chan(struct cppi41_channel *c)
 {
+	struct dmaengine_result abort_result;
 	struct cppi41_dd *cdd = c->cdd;
 	struct cppi41_desc *td;
 	u32 reg;
@@ -701,6 +688,12 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 	c->td_seen = 0;
 	c->td_desc_seen = 0;
 	cppi_writel(0, c->gcr_reg);
+
+	/* Invoke the callback to do the necessary clean-up */
+	abort_result.result = DMA_TRANS_ABORTED;
+	dma_cookie_complete(&c->txd);
+	dmaengine_desc_get_callback_invoke(&c->txd, &abort_result);
+
 	return 0;
 }
 
@@ -1066,8 +1059,6 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
-
 	ret = devm_request_irq(&pdev->dev, irq, glue_info->isr, IRQF_SHARED,
 			dev_name(dev), cdd);
 	if (ret)
@@ -1091,7 +1082,6 @@ err_of:
 	dma_async_device_unregister(&cdd->ddev);
 err_dma_reg:
 err_irq:
-	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	cleanup_chans(cdd);
 err_chans:
 	deinit_cppi41(dev, cdd);
@@ -1119,7 +1109,6 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&cdd->ddev);
 
-	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	devm_free_irq(&pdev->dev, cdd->irq, cdd);
 	cleanup_chans(cdd);
 	deinit_cppi41(&pdev->dev, cdd);
@@ -1138,7 +1127,6 @@ static int __maybe_unused cppi41_suspend(struct device *dev)
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
 
 	cdd->dma_tdfdq = cppi_readl(cdd->ctrl_mem + DMA_TDFDQ);
-	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	disable_sched(cdd);
 
 	return 0;
@@ -1163,8 +1151,6 @@ static int __maybe_unused cppi41_resume(struct device *dev)
 	cppi_writel(cdd->scratch_phys, cdd->qmgr_mem + QMGR_LRAM0_BASE);
 	cppi_writel(QMGR_SCRATCH_SIZE, cdd->qmgr_mem + QMGR_LRAM_SIZE);
 	cppi_writel(0, cdd->qmgr_mem + QMGR_LRAM1_BASE);
-
-	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
 
 	return 0;
 }

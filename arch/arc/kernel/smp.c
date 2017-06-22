@@ -13,7 +13,7 @@
  */
 
 #include <linux/spinlock.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/interrupt.h>
 #include <linux/profile.h>
 #include <linux/mm.h>
@@ -139,8 +139,8 @@ void start_kernel_secondary(void)
 	/* MMU, Caches, Vector Table, Interrupts etc */
 	setup_processor();
 
-	atomic_inc(&mm->mm_users);
-	atomic_inc(&mm->mm_count);
+	mmget(mm);
+	mmgrab(mm);
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
 

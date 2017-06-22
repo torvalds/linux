@@ -14,6 +14,7 @@
 #include <linux/tracehook.h>
 #include <linux/regset.h>
 #include <linux/elf.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/cacheflush.h>
 
@@ -69,46 +70,6 @@ static int gpr_get(struct task_struct *target,
 				   0, sizeof(*regs));
 }
 
-static int gpr_set(struct task_struct *target,
-		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   const void *kbuf, const void __user *ubuf)
-{
-	int ret;
-	struct pt_regs *regs = task_pt_regs(target);
-
-	/* Don't copyin TSR or CSR */
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &regs,
-				 0, PT_TSR * sizeof(long));
-	if (ret)
-		return ret;
-
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					PT_TSR * sizeof(long),
-					(PT_TSR + 1) * sizeof(long));
-	if (ret)
-		return ret;
-
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &regs,
-				 (PT_TSR + 1) * sizeof(long),
-				 PT_CSR * sizeof(long));
-	if (ret)
-		return ret;
-
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					PT_CSR * sizeof(long),
-					(PT_CSR + 1) * sizeof(long));
-	if (ret)
-		return ret;
-
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &regs,
-				 (PT_CSR + 1) * sizeof(long), -1);
-	return ret;
-}
-
 enum c6x_regset {
 	REGSET_GPR,
 };
@@ -120,7 +81,6 @@ static const struct user_regset c6x_regsets[] = {
 		.size = sizeof(u32),
 		.align = sizeof(u32),
 		.get = gpr_get,
-		.set = gpr_set
 	},
 };
 

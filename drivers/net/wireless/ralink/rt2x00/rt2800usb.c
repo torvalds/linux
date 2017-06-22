@@ -123,7 +123,7 @@ static inline bool rt2800usb_entry_txstatus_timeout(struct queue_entry *entry)
 	if (!test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 		return false;
 
-	tout = time_after(jiffies, entry->last_action + msecs_to_jiffies(100));
+	tout = time_after(jiffies, entry->last_action + msecs_to_jiffies(500));
 	if (unlikely(tout))
 		rt2x00_dbg(entry->queue->rt2x00dev,
 			   "TX status timeout for entry %d in queue %d\n",
@@ -436,47 +436,6 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
- * Watchdog handlers
- */
-static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
-{
-	unsigned int i;
-	u32 reg;
-
-	rt2x00usb_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
-	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q)) {
-		rt2x00_warn(rt2x00dev, "TX HW queue 0 timed out, invoke forced kick\n");
-
-		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf40012);
-
-		for (i = 0; i < 10; i++) {
-			udelay(10);
-			if (!rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q))
-				break;
-		}
-
-		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf40006);
-	}
-
-	rt2x00usb_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
-	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q)) {
-		rt2x00_warn(rt2x00dev, "TX HW queue 1 timed out, invoke forced kick\n");
-
-		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf4000a);
-
-		for (i = 0; i < 10; i++) {
-			udelay(10);
-			if (!rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q))
-				break;
-		}
-
-		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf40006);
-	}
-
-	rt2x00usb_watchdog(rt2x00dev);
-}
-
-/*
  * TX descriptor initialization
  */
 static __le32 *rt2800usb_get_txwi(struct queue_entry *entry)
@@ -643,10 +602,9 @@ static void rt2800usb_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
 			    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 				break;
 
-			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
+			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags) ||
+			    rt2800usb_entry_txstatus_timeout(entry))
 				rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
-			else if (rt2800usb_entry_txstatus_timeout(entry))
-				rt2x00lib_txdone_noinfo(entry, TXDONE_UNKNOWN);
 			else
 				break;
 		}
@@ -877,7 +835,6 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.link_tuner		= rt2800_link_tuner,
 	.gain_calibration	= rt2800_gain_calibration,
 	.vco_calibration	= rt2800_vco_calibration,
-	.watchdog		= rt2800usb_watchdog,
 	.start_queue		= rt2800usb_start_queue,
 	.kick_queue		= rt2x00usb_kick_queue,
 	.stop_queue		= rt2800usb_stop_queue,

@@ -1,10 +1,35 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2016  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
+
 #ifndef _COMMON_HSI_H
 #define _COMMON_HSI_H
 #include <linux/types.h>
@@ -37,6 +62,7 @@
 #define COMMON_QUEUE_ENTRY_MAX_BYTE_SIZE        64
 
 #define ISCSI_CDU_TASK_SEG_TYPE       0
+#define FCOE_CDU_TASK_SEG_TYPE        0
 #define RDMA_CDU_TASK_SEG_TYPE        1
 
 #define FW_ASSERT_GENERAL_ATTN_IDX    32
@@ -180,6 +206,9 @@
 #define	DQ_XCM_ETH_TX_BD_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD3
 #define	DQ_XCM_ETH_TX_BD_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
 #define	DQ_XCM_ETH_GO_TO_BD_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD5
+#define DQ_XCM_FCOE_SQ_CONS_CMD             DQ_XCM_AGG_VAL_SEL_WORD3
+#define DQ_XCM_FCOE_SQ_PROD_CMD             DQ_XCM_AGG_VAL_SEL_WORD4
+#define DQ_XCM_FCOE_X_FERQ_PROD_CMD         DQ_XCM_AGG_VAL_SEL_WORD5
 #define DQ_XCM_ISCSI_SQ_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD3
 #define DQ_XCM_ISCSI_SQ_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
 #define DQ_XCM_ISCSI_MORE_TO_SEND_SEQ_CMD DQ_XCM_AGG_VAL_SEL_REG3
@@ -236,6 +265,7 @@
 #define DQ_XCM_ETH_TERMINATE_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF19)
 #define DQ_XCM_ETH_SLOW_PATH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
 #define DQ_XCM_ETH_TPH_EN_CMD		BIT(DQ_XCM_AGG_FLG_SHIFT_CF23)
+#define DQ_XCM_FCOE_SLOW_PATH_CMD           BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
 #define DQ_XCM_ISCSI_DQ_FLUSH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF19)
 #define DQ_XCM_ISCSI_SLOW_PATH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
 #define DQ_XCM_ISCSI_PROC_ONLY_CLEANUP_CMD BIT(DQ_XCM_AGG_FLG_SHIFT_CF23)
@@ -266,6 +296,9 @@
 #define DQ_TCM_AGG_FLG_SHIFT_CF6	6
 #define DQ_TCM_AGG_FLG_SHIFT_CF7	7
 /* TCM agg counter flag selection (FW) */
+#define DQ_TCM_FCOE_FLUSH_Q0_CMD            BIT(DQ_TCM_AGG_FLG_SHIFT_CF1)
+#define DQ_TCM_FCOE_DUMMY_TIMER_CMD         BIT(DQ_TCM_AGG_FLG_SHIFT_CF2)
+#define DQ_TCM_FCOE_TIMER_STOP_ALL_CMD      BIT(DQ_TCM_AGG_FLG_SHIFT_CF3)
 #define DQ_TCM_ISCSI_FLUSH_Q0_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF1)
 #define DQ_TCM_ISCSI_TIMER_STOP_ALL_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF3)
 
@@ -703,7 +736,7 @@ enum mf_mode {
 /* Per-protocol connection types */
 enum protocol_type {
 	PROTOCOLID_ISCSI,
-	PROTOCOLID_RESERVED2,
+	PROTOCOLID_FCOE,
 	PROTOCOLID_ROCE,
 	PROTOCOLID_CORE,
 	PROTOCOLID_ETH,

@@ -210,6 +210,18 @@ static inline long plpar_pte_protect(unsigned long flags, unsigned long ptex,
 	return plpar_hcall_norets(H_PROTECT, flags, ptex, avpn);
 }
 
+static inline long plpar_resize_hpt_prepare(unsigned long flags,
+					    unsigned long shift)
+{
+	return plpar_hcall_norets(H_RESIZE_HPT_PREPARE, flags, shift);
+}
+
+static inline long plpar_resize_hpt_commit(unsigned long flags,
+					   unsigned long shift)
+{
+	return plpar_hcall_norets(H_RESIZE_HPT_COMMIT, flags, shift);
+}
+
 static inline long plpar_tce_get(unsigned long liobn, unsigned long ioba,
 		unsigned long *tce_ret)
 {

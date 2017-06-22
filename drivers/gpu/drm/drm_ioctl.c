@@ -95,9 +95,6 @@
  * broken.
  */
 
-static int drm_version(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
-
 /*
  * Get the bus id.
  *
@@ -115,11 +112,15 @@ static int drm_getunique(struct drm_device *dev, void *data,
 	struct drm_unique *u = data;
 	struct drm_master *master = file_priv->master;
 
+	mutex_lock(&master->dev->master_mutex);
 	if (u->unique_len >= master->unique_len) {
-		if (copy_to_user(u->unique, master->unique, master->unique_len))
+		if (copy_to_user(u->unique, master->unique, master->unique_len)) {
+			mutex_unlock(&master->dev->master_mutex);
 			return -EFAULT;
+		}
 	}
 	u->unique_len = master->unique_len;
+	mutex_unlock(&master->dev->master_mutex);
 
 	return 0;
 }
@@ -340,6 +341,7 @@ static int drm_setversion(struct drm_device *dev, void *data, struct drm_file *f
 	struct drm_set_version *sv = data;
 	int if_version, retcode = 0;
 
+	mutex_lock(&dev->master_mutex);
 	if (sv->drm_di_major != -1) {
 		if (sv->drm_di_major != DRM_IF_MAJOR ||
 		    sv->drm_di_minor < 0 || sv->drm_di_minor > DRM_IF_MINOR) {
@@ -374,6 +376,7 @@ done:
 	sv->drm_di_minor = DRM_IF_MINOR;
 	sv->drm_dd_major = dev->driver->major;
 	sv->drm_dd_minor = dev->driver->minor;
+	mutex_unlock(&dev->master_mutex);
 
 	return retcode;
 }
@@ -475,15 +478,17 @@ static int drm_version(struct drm_device *dev, void *data,
 	return err;
 }
 
-/*
+/**
  * drm_ioctl_permit - Check ioctl permissions against caller
  *
  * @flags: ioctl permission flags.
  * @file_priv: Pointer to struct drm_file identifying the caller.
  *
  * Checks whether the caller is allowed to run an ioctl with the
- * indicated permissions. If so, returns zero. Otherwise returns an
- * error code suitable for ioctl return.
+ * indicated permissions.
+ *
+ * Returns:
+ * Zero if allowed, -EACCES otherwise.
  */
 int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 {
@@ -528,15 +533,15 @@ EXPORT_SYMBOL(drm_ioctl_permit);
 static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_VERSION, drm_version,
 		      DRM_UNLOCKED|DRM_RENDER_ALLOW|DRM_CONTROL_ALLOW),
-	DRM_IOCTL_DEF(DRM_IOCTL_GET_UNIQUE, drm_getunique, 0),
+	DRM_IOCTL_DEF(DRM_IOCTL_GET_UNIQUE, drm_getunique, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_MAGIC, drm_getmagic, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_IRQ_BUSID, drm_irq_by_busid, DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_MAP, drm_legacy_getmap_ioctl, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_CLIENT, drm_getclient, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_STATS, drm_getstats, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_CAP, drm_getcap, DRM_UNLOCKED|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF(DRM_IOCTL_SET_CLIENT_CAP, drm_setclientcap, 0),
-	DRM_IOCTL_DEF(DRM_IOCTL_SET_VERSION, drm_setversion, DRM_MASTER),
+	DRM_IOCTL_DEF(DRM_IOCTL_SET_CLIENT_CAP, drm_setclientcap, DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_IOCTL_SET_VERSION, drm_setversion, DRM_UNLOCKED | DRM_MASTER),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_SET_UNIQUE, drm_invalid_op, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_BLOCK, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
@@ -575,7 +580,7 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_FREE_BUFS, drm_legacy_freebufs, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_IOCTL_DMA, drm_legacy_dma_ioctl, DRM_AUTH),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_CONTROL, drm_control, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_IOCTL_CONTROL, drm_legacy_irq_control, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 
 #if IS_ENABLED(CONFIG_AGP)
 	DRM_IOCTL_DEF(DRM_IOCTL_AGP_ACQUIRE, drm_agp_acquire_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
@@ -593,7 +598,7 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 
 	DRM_IOCTL_DEF(DRM_IOCTL_WAIT_VBLANK, drm_wait_vblank, DRM_UNLOCKED),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_MODESET_CTL, drm_modeset_ctl, 0),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODESET_CTL, drm_legacy_modeset_ctl, 0),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_UPDATE_DRAW, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 
@@ -729,9 +734,8 @@ long drm_ioctl(struct file *filp,
 	if (ksize > in_size)
 		memset(kdata + in_size, 0, ksize - in_size);
 
-	/* Enforce sane locking for modern driver ioctls. Core ioctls are
-	 * too messy still. */
-	if ((!drm_core_check_feature(dev, DRIVER_LEGACY) && is_driver_ioctl) ||
+	/* Enforce sane locking for modern driver ioctls. */
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY) ||
 	    (ioctl->flags & DRM_UNLOCKED))
 		retcode = func(dev, kdata, file_priv);
 	else {

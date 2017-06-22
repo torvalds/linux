@@ -248,7 +248,7 @@ output fields set for caheline offsets output:
              Code address, Code symbol, Shared Object, Source line
   dso   - coalesced by shared object
 
-By default the coalescing is setup with 'pid,tid,iaddr'.
+By default the coalescing is setup with 'pid,iaddr'.
 
 STDIO OUTPUT
 ------------

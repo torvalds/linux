@@ -315,8 +315,8 @@ struct ptlrpc_client {
 union ptlrpc_async_args {
 	/**
 	 * Scratchpad for passing args to completion interpreter. Users
-	 * cast to the struct of their choosing, and CLASSERT that this is
-	 * big enough.  For _tons_ of context, kmalloc a struct and store
+	 * cast to the struct of their choosing, and BUILD_BUG_ON oversized
+	 * arguments.  For _tons_ of context, kmalloc a struct and store
 	 * a pointer to it here.  The pointer_arg ensures this struct is at
 	 * least big enough for that.
 	 */
@@ -1660,10 +1660,6 @@ struct ptlrpcd_ctl {
 	 * Thread name used in kthread_run()
 	 */
 	char			pc_name[16];
-	/**
-	 * Environment for request interpreters to run in.
-	 */
-	struct lu_env	       pc_env;
 	/**
 	 * CPT the thread is bound on.
 	 */

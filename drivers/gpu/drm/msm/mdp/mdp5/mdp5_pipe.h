@@ -18,7 +18,8 @@
 #ifndef __MDP5_PIPE_H__
 #define __MDP5_PIPE_H__
 
-#define SSPP_MAX	(SSPP_RGB3 + 1) /* TODO: Add SSPP_MAX in mdp5.xml.h */
+/* TODO: Add SSPP_MAX in mdp5.xml.h */
+#define SSPP_MAX	(SSPP_CURSOR1 + 1)
 
 /* represents a hw pipe, which is dynamically assigned to a plane */
 struct mdp5_hw_pipe {

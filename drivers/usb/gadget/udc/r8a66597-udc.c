@@ -1706,7 +1706,7 @@ static void r8a66597_fifo_flush(struct usb_ep *_ep)
 	spin_unlock_irqrestore(&ep->r8a66597->lock, flags);
 }
 
-static struct usb_ep_ops r8a66597_ep_ops = {
+static const struct usb_ep_ops r8a66597_ep_ops = {
 	.enable		= r8a66597_enable,
 	.disable	= r8a66597_disable,
 

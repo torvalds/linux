@@ -1749,7 +1749,7 @@ static const struct dev_pm_ops input_dev_pm_ops = {
 };
 #endif /* CONFIG_PM */
 
-static struct device_type input_dev_type = {
+static const struct device_type input_dev_type = {
 	.groups		= input_dev_attr_groups,
 	.release	= input_dev_release,
 	.uevent		= input_dev_uevent,
@@ -2090,6 +2090,12 @@ int input_register_device(struct input_dev *dev)
 	unsigned int packet_size;
 	const char *path;
 	int error;
+
+	if (test_bit(EV_ABS, dev->evbit) && !dev->absinfo) {
+		dev_err(&dev->dev,
+			"Absolute device without dev->absinfo, refusing to register\n");
+		return -EINVAL;
+	}
 
 	if (dev->devres_managed) {
 		devres = devres_alloc(devm_input_device_unregister,

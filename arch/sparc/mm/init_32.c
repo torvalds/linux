@@ -55,17 +55,6 @@ extern unsigned int sparc_ramdisk_size;
 
 unsigned long highstart_pfn, highend_pfn;
 
-void show_mem(unsigned int filter)
-{
-	printk("Mem-info:\n");
-	show_free_areas(filter);
-	printk("Free swap:       %6ldkB\n",
-	       get_nr_swap_pages() << (PAGE_SHIFT-10));
-	printk("%ld pages of RAM\n", totalram_pages);
-	printk("%ld free pages\n", nr_free_pages());
-}
-
-
 unsigned long last_valid_pfn;
 
 unsigned long calc_highpages(void)

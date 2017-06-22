@@ -144,8 +144,13 @@ static void rmi_2d_sensor_set_input_params(struct rmi_2d_sensor *sensor)
 	int input_flags = 0;
 
 	if (sensor->report_abs) {
-		if (sensor->axis_align.swap_axes)
+		if (sensor->axis_align.swap_axes) {
 			swap(sensor->max_x, sensor->max_y);
+			swap(sensor->axis_align.clip_x_low,
+			     sensor->axis_align.clip_y_low);
+			swap(sensor->axis_align.clip_x_high,
+			     sensor->axis_align.clip_y_high);
+		}
 
 		sensor->min_x = sensor->axis_align.clip_x_low;
 		if (sensor->axis_align.clip_x_high)

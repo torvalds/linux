@@ -93,8 +93,25 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				   spec, &flow_act, dest, i);
 	if (IS_ERR(rule))
 		mlx5_fc_destroy(esw->dev, counter);
+	else
+		esw->offloads.num_flows++;
 
 	return rule;
+}
+
+void
+mlx5_eswitch_del_offloaded_rule(struct mlx5_eswitch *esw,
+				struct mlx5_flow_handle *rule,
+				struct mlx5_esw_flow_attr *attr)
+{
+	struct mlx5_fc *counter = NULL;
+
+	if (!IS_ERR(rule)) {
+		counter = mlx5_flow_rule_counter(rule);
+		mlx5_del_flow_rules(rule);
+		mlx5_fc_destroy(esw->dev, counter);
+		esw->offloads.num_flows--;
+	}
 }
 
 static int esw_set_global_vlan_pop(struct mlx5_eswitch *esw, u8 val)
@@ -402,19 +419,18 @@ out:
 }
 
 #define MAX_PF_SQ 256
-#define ESW_OFFLOADS_NUM_ENTRIES (1 << 13) /* 8K */
 #define ESW_OFFLOADS_NUM_GROUPS  4
 
 static int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	int table_size, ix, esw_size, err = 0;
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_flow_namespace *root_ns;
 	struct mlx5_flow_table *fdb = NULL;
 	struct mlx5_flow_group *g;
 	u32 *flow_group_in;
 	void *match_criteria;
-	int table_size, ix, err = 0;
 	u32 flags = 0;
 
 	flow_group_in = mlx5_vzalloc(inlen);
@@ -428,15 +444,19 @@ static int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 		goto ns_err;
 	}
 
-	esw_debug(dev, "Create offloads FDB table, log_max_size(%d)\n",
-		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
+	esw_debug(dev, "Create offloads FDB table, min (max esw size(2^%d), max counters(%d)*groups(%d))\n",
+		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size),
+		  MLX5_CAP_GEN(dev, max_flow_counter), ESW_OFFLOADS_NUM_GROUPS);
+
+	esw_size = min_t(int, MLX5_CAP_GEN(dev, max_flow_counter) * ESW_OFFLOADS_NUM_GROUPS,
+			 1 << MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
 
 	if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev, encap) &&
 	    MLX5_CAP_ESW_FLOWTABLE_FDB(dev, decap))
 		flags |= MLX5_FLOW_TABLE_TUNNEL_EN;
 
 	fdb = mlx5_create_auto_grouped_flow_table(root_ns, FDB_FAST_PATH,
-						  ESW_OFFLOADS_NUM_ENTRIES,
+						  esw_size,
 						  ESW_OFFLOADS_NUM_GROUPS, 0,
 						  flags);
 	if (IS_ERR(fdb)) {
@@ -891,8 +911,7 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode)
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	int num_vports = esw->enabled_vports;
-	int err;
-	int vport;
+	int err, vport;
 	u8 mlx5_mode;
 
 	if (!MLX5_CAP_GEN(dev, vport_group_manager))
@@ -901,9 +920,22 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode)
 	if (esw->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;
 
-	if (MLX5_CAP_ETH(dev, wqe_inline_mode) !=
-	    MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
+	switch (MLX5_CAP_ETH(dev, wqe_inline_mode)) {
+	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
+		if (mode == DEVLINK_ESWITCH_INLINE_MODE_NONE)
+			return 0;
+		/* fall through */
+	case MLX5_CAP_INLINE_MODE_L2:
+		esw_warn(dev, "Inline mode can't be set\n");
 		return -EOPNOTSUPP;
+	case MLX5_CAP_INLINE_MODE_VPORT_CONTEXT:
+		break;
+	}
+
+	if (esw->offloads.num_flows > 0) {
+		esw_warn(dev, "Can't set inline mode when flows are configured\n");
+		return -EOPNOTSUPP;
+	}
 
 	err = esw_inline_mode_from_devlink(mode, &mlx5_mode);
 	if (err)
@@ -941,18 +973,14 @@ int mlx5_devlink_eswitch_inline_mode_get(struct devlink *devlink, u8 *mode)
 	if (esw->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;
 
-	if (MLX5_CAP_ETH(dev, wqe_inline_mode) !=
-	    MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
-		return -EOPNOTSUPP;
-
 	return esw_inline_mode_to_devlink(esw->offloads.inline_mode, mode);
 }
 
 int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, int nvfs, u8 *mode)
 {
+	u8 prev_mlx5_mode, mlx5_mode = MLX5_INLINE_MODE_L2;
 	struct mlx5_core_dev *dev = esw->dev;
 	int vport;
-	u8 prev_mlx5_mode, mlx5_mode = MLX5_INLINE_MODE_L2;
 
 	if (!MLX5_CAP_GEN(dev, vport_group_manager))
 		return -EOPNOTSUPP;
@@ -960,10 +988,18 @@ int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, int nvfs, u8 *mode)
 	if (esw->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;
 
-	if (MLX5_CAP_ETH(dev, wqe_inline_mode) !=
-	    MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
-		return -EOPNOTSUPP;
+	switch (MLX5_CAP_ETH(dev, wqe_inline_mode)) {
+	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
+		mlx5_mode = MLX5_INLINE_MODE_NONE;
+		goto out;
+	case MLX5_CAP_INLINE_MODE_L2:
+		mlx5_mode = MLX5_INLINE_MODE_L2;
+		goto out;
+	case MLX5_CAP_INLINE_MODE_VPORT_CONTEXT:
+		goto query_vports;
+	}
 
+query_vports:
 	for (vport = 1; vport <= nvfs; vport++) {
 		mlx5_query_nic_vport_min_inline(dev, vport, &mlx5_mode);
 		if (vport > 1 && prev_mlx5_mode != mlx5_mode)
@@ -971,6 +1007,7 @@ int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, int nvfs, u8 *mode)
 		prev_mlx5_mode = mlx5_mode;
 	}
 
+out:
 	*mode = mlx5_mode;
 	return 0;
 }

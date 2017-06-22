@@ -187,7 +187,7 @@ static int load_waveform(u8 *mem, size_t size, int m, int t,
 		epd_frame_table[par->dt].wfm_size = user_wfm_size;
 
 	if (size != epd_frame_table[par->dt].wfm_size) {
-		dev_err(dev, "Error: unexpected size %Zd != %d\n", size,
+		dev_err(dev, "Error: unexpected size %zd != %d\n", size,
 					epd_frame_table[par->dt].wfm_size);
 		return -EINVAL;
 	}

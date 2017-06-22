@@ -100,7 +100,7 @@ static struct bio *compressed_bio_alloc(struct block_device *bdev,
 	return btrfs_bio_alloc(bdev, first_byte >> 9, BIO_MAX_PAGES, gfp_flags);
 }
 
-static int check_compressed_csum(struct inode *inode,
+static int check_compressed_csum(struct btrfs_inode *inode,
 				 struct compressed_bio *cb,
 				 u64 disk_start)
 {
@@ -111,7 +111,7 @@ static int check_compressed_csum(struct inode *inode,
 	u32 csum;
 	u32 *cb_sum = &cb->sums;
 
-	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)
+	if (inode->flags & BTRFS_INODE_NODATASUM)
 		return 0;
 
 	for (i = 0; i < cb->nr_pages; i++) {
@@ -124,10 +124,8 @@ static int check_compressed_csum(struct inode *inode,
 		kunmap_atomic(kaddr);
 
 		if (csum != *cb_sum) {
-			btrfs_info(BTRFS_I(inode)->root->fs_info,
-			   "csum failed ino %llu extent %llu csum %u wanted %u mirror %d",
-			   btrfs_ino(inode), disk_start, csum, *cb_sum,
-			   cb->mirror_num);
+			btrfs_print_data_csum_error(inode, disk_start, csum,
+					*cb_sum, cb->mirror_num);
 			ret = -EIO;
 			goto fail;
 		}
@@ -167,7 +165,7 @@ static void end_compressed_bio_read(struct bio *bio)
 		goto out;
 
 	inode = cb->inode;
-	ret = check_compressed_csum(inode, cb,
+	ret = check_compressed_csum(BTRFS_I(inode), cb,
 				    (u64)bio->bi_iter.bi_sector << 9);
 	if (ret)
 		goto csum_failed;
@@ -913,32 +911,28 @@ static void free_workspaces(void)
 }
 
 /*
- * given an address space and start/len, compress the bytes.
+ * Given an address space and start and length, compress the bytes into @pages
+ * that are allocated on demand.
  *
- * pages are allocated to hold the compressed result and stored
- * in 'pages'
+ * @out_pages is an in/out parameter, holds maximum number of pages to allocate
+ * and returns number of actually allocated pages
  *
- * out_pages is used to return the number of pages allocated.  There
- * may be pages allocated even if we return an error
- *
- * total_in is used to return the number of bytes actually read.  It
- * may be smaller then len if we had to exit early because we
+ * @total_in is used to return the number of bytes actually read.  It
+ * may be smaller than the input length if we had to exit early because we
  * ran out of room in the pages array or because we cross the
  * max_out threshold.
  *
- * total_out is used to return the total number of compressed bytes
+ * @total_out is an in/out parameter, must be set to the input length and will
+ * be also used to return the total number of compressed bytes
  *
- * max_out tells us the max number of bytes that we're allowed to
+ * @max_out tells us the max number of bytes that we're allowed to
  * stuff into pages
  */
 int btrfs_compress_pages(int type, struct address_space *mapping,
-			 u64 start, unsigned long len,
-			 struct page **pages,
-			 unsigned long nr_dest_pages,
+			 u64 start, struct page **pages,
 			 unsigned long *out_pages,
 			 unsigned long *total_in,
-			 unsigned long *total_out,
-			 unsigned long max_out)
+			 unsigned long *total_out)
 {
 	struct list_head *workspace;
 	int ret;
@@ -946,10 +940,9 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
 	workspace = find_workspace(type);
 
 	ret = btrfs_compress_op[type-1]->compress_pages(workspace, mapping,
-						      start, len, pages,
-						      nr_dest_pages, out_pages,
-						      total_in, total_out,
-						      max_out);
+						      start, pages,
+						      out_pages,
+						      total_in, total_out);
 	free_workspace(type, workspace);
 	return ret;
 }
@@ -1017,7 +1010,7 @@ void btrfs_exit_compress(void)
  *
  * total_out is the last byte of the buffer
  */
-int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
+int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 			      unsigned long total_out, u64 disk_start,
 			      struct bio *bio)
 {

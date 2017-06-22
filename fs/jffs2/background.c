@@ -16,7 +16,7 @@
 #include <linux/jffs2.h>
 #include <linux/mtd/mtd.h>
 #include <linux/completion.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include "nodelist.h"

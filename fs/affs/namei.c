@@ -9,28 +9,9 @@
  */
 
 #include "affs.h"
+#include <linux/exportfs.h>
 
 typedef int (*toupper_t)(int);
-
-static int	 affs_toupper(int ch);
-static int	 affs_hash_dentry(const struct dentry *, struct qstr *);
-static int       affs_compare_dentry(const struct dentry *dentry,
-		unsigned int len, const char *str, const struct qstr *name);
-static int	 affs_intl_toupper(int ch);
-static int	 affs_intl_hash_dentry(const struct dentry *, struct qstr *);
-static int       affs_intl_compare_dentry(const struct dentry *dentry,
-		unsigned int len, const char *str, const struct qstr *name);
-
-const struct dentry_operations affs_dentry_operations = {
-	.d_hash		= affs_hash_dentry,
-	.d_compare	= affs_compare_dentry,
-};
-
-const struct dentry_operations affs_intl_dentry_operations = {
-	.d_hash		= affs_intl_hash_dentry,
-	.d_compare	= affs_intl_compare_dentry,
-};
-
 
 /* Simple toupper() for DOS\1 */
 
@@ -271,7 +252,7 @@ affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 		return -ENOSPC;
 
 	inode->i_mode = mode;
-	mode_to_prot(inode);
+	affs_mode_to_prot(inode);
 	mark_inode_dirty(inode);
 
 	inode->i_op = &affs_file_inode_operations;
@@ -301,7 +282,7 @@ affs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		return -ENOSPC;
 
 	inode->i_mode = S_IFDIR | mode;
-	mode_to_prot(inode);
+	affs_mode_to_prot(inode);
 
 	inode->i_op = &affs_dir_inode_operations;
 	inode->i_fop = &affs_dir_operations;
@@ -347,7 +328,7 @@ affs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	inode_nohighmem(inode);
 	inode->i_data.a_ops = &affs_symlink_aops;
 	inode->i_mode = S_IFLNK | 0777;
-	mode_to_prot(inode);
+	affs_mode_to_prot(inode);
 
 	error = -EIO;
 	bh = affs_bread(sb, inode->i_ino);
@@ -465,3 +446,71 @@ done:
 	affs_brelse(bh);
 	return retval;
 }
+
+static struct dentry *affs_get_parent(struct dentry *child)
+{
+	struct inode *parent;
+	struct buffer_head *bh;
+
+	bh = affs_bread(child->d_sb, d_inode(child)->i_ino);
+	if (!bh)
+		return ERR_PTR(-EIO);
+
+	parent = affs_iget(child->d_sb,
+			   be32_to_cpu(AFFS_TAIL(child->d_sb, bh)->parent));
+	brelse(bh);
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	return d_obtain_alias(parent);
+}
+
+static struct inode *affs_nfs_get_inode(struct super_block *sb, u64 ino,
+					u32 generation)
+{
+	struct inode *inode;
+
+	if (!affs_validblock(sb, ino))
+		return ERR_PTR(-ESTALE);
+
+	inode = affs_iget(sb, ino);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	if (generation && inode->i_generation != generation) {
+		iput(inode);
+		return ERR_PTR(-ESTALE);
+	}
+
+	return inode;
+}
+
+static struct dentry *affs_fh_to_dentry(struct super_block *sb, struct fid *fid,
+					int fh_len, int fh_type)
+{
+	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
+				    affs_nfs_get_inode);
+}
+
+static struct dentry *affs_fh_to_parent(struct super_block *sb, struct fid *fid,
+					int fh_len, int fh_type)
+{
+	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
+				    affs_nfs_get_inode);
+}
+
+const struct export_operations affs_export_ops = {
+	.fh_to_dentry = affs_fh_to_dentry,
+	.fh_to_parent = affs_fh_to_parent,
+	.get_parent = affs_get_parent,
+};
+
+const struct dentry_operations affs_dentry_operations = {
+	.d_hash		= affs_hash_dentry,
+	.d_compare	= affs_compare_dentry,
+};
+
+const struct dentry_operations affs_intl_dentry_operations = {
+	.d_hash		= affs_intl_hash_dentry,
+	.d_compare	= affs_intl_compare_dentry,
+};

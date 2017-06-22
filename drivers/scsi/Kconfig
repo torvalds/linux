@@ -18,6 +18,7 @@ config SCSI
 	depends on BLOCK
 	select SCSI_DMA if HAS_DMA
 	select SG_POOL
+	select BLK_SCSI_REQUEST
 	---help---
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
 	  any other SCSI device under Linux, say Y and make sure that you know
@@ -1234,20 +1235,21 @@ config SCSI_QLOGICPTI
 source "drivers/scsi/qla2xxx/Kconfig"
 source "drivers/scsi/qla4xxx/Kconfig"
 source "drivers/scsi/qedi/Kconfig"
+source "drivers/scsi/qedf/Kconfig"
 
 config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
 	depends on PCI && SCSI
 	depends on SCSI_FC_ATTRS
 	select CRC_T10DIF
-	help
+	---help---
           This lpfc driver supports the Emulex LightPulse
           Family of Fibre Channel PCI host adapters.
 
 config SCSI_LPFC_DEBUG_FS
 	bool "Emulex LightPulse Fibre Channel debugfs Support"
 	depends on SCSI_LPFC && DEBUG_FS
-	help
+	---help---
 	  This makes debugging information from the lpfc driver
 	  available via the debugfs filesystem.
 
@@ -1477,7 +1479,7 @@ config ATARI_SCSI
 
 config MAC_SCSI
 	tristate "Macintosh NCR5380 SCSI"
-	depends on MAC && SCSI=y
+	depends on MAC && SCSI
 	select SCSI_SPI_ATTRS
 	help
 	  This is the NCR 5380 SCSI controller included on most of the 68030

@@ -21,6 +21,7 @@
 #include <linux/smp.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/mmu_context.h>
 #include <asm/io.h>

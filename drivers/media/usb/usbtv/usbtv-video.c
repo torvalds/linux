@@ -757,6 +757,12 @@ static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
 			data[1] = -ctrl->val & 0xff;
 		}
 		break;
+	case V4L2_CID_SHARPNESS:
+		index = USBTV_BASE + 0x0239;
+		data[0] = 0;
+		data[1] = ctrl->val;
+		size = 2;
+		break;
 	default:
 		kfree(data);
 		return -EINVAL;
@@ -825,6 +831,8 @@ int usbtv_video_init(struct usbtv *usbtv)
 			V4L2_CID_SATURATION, 0, 0x3ff, 1, 0x200);
 	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
 			V4L2_CID_HUE, -0xdff, 0xdff, 1, 0x000);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_SHARPNESS, 0x0, 0xff, 1, 0x60);
 	ret = usbtv->ctrl.error;
 	if (ret < 0) {
 		dev_warn(usbtv->dev, "Could not initialize controls\n");

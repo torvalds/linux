@@ -28,6 +28,7 @@
 #include "wmi-ops.h"
 #include "p2p.h"
 #include "hw.h"
+#include "hif.h"
 
 #define ATH10K_WMI_BARRIER_ECHO_ID 0xBA991E9
 #define ATH10K_WMI_BARRIER_TIMEOUT_HZ (3 * HZ)
@@ -1574,6 +1575,7 @@ static const struct wmi_peer_flags_map wmi_peer_flags_map = {
 	.bw80 = WMI_PEER_80MHZ,
 	.vht_2g = WMI_PEER_VHT_2G,
 	.pmf = WMI_PEER_PMF,
+	.bw160 = WMI_PEER_160MHZ,
 };
 
 static const struct wmi_peer_flags_map wmi_10x_peer_flags_map = {
@@ -1591,6 +1593,7 @@ static const struct wmi_peer_flags_map wmi_10x_peer_flags_map = {
 	.spatial_mux = WMI_10X_PEER_SPATIAL_MUX,
 	.vht = WMI_10X_PEER_VHT,
 	.bw80 = WMI_10X_PEER_80MHZ,
+	.bw160 = WMI_10X_PEER_160MHZ,
 };
 
 static const struct wmi_peer_flags_map wmi_10_2_peer_flags_map = {
@@ -1610,6 +1613,7 @@ static const struct wmi_peer_flags_map wmi_10_2_peer_flags_map = {
 	.bw80 = WMI_10_2_PEER_80MHZ,
 	.vht_2g = WMI_10_2_PEER_VHT_2G,
 	.pmf = WMI_10_2_PEER_PMF,
+	.bw160 = WMI_10_2_PEER_160MHZ,
 };
 
 void ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
@@ -1634,7 +1638,10 @@ void ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
 
 	ch->mhz = __cpu_to_le32(arg->freq);
 	ch->band_center_freq1 = __cpu_to_le32(arg->band_center_freq1);
-	ch->band_center_freq2 = 0;
+	if (arg->mode == MODE_11AC_VHT80_80)
+		ch->band_center_freq2 = __cpu_to_le32(arg->band_center_freq2);
+	else
+		ch->band_center_freq2 = 0;
 	ch->min_power = arg->min_power;
 	ch->max_power = arg->max_power;
 	ch->reg_power = arg->max_reg_power;
@@ -1772,7 +1779,7 @@ unlock:
 static void ath10k_wmi_tx_beacons_iter(void *data, u8 *mac,
 				       struct ieee80211_vif *vif)
 {
-	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ath10k_vif *arvif = (void *)vif->drv_priv;
 
 	ath10k_wmi_tx_beacon_nowait(arvif);
 }
@@ -2319,7 +2326,7 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	 */
 	if (channel >= 1 && channel <= 14) {
 		status->band = NL80211_BAND_2GHZ;
-	} else if (channel >= 36 && channel <= 165) {
+	} else if (channel >= 36 && channel <= 169) {
 		status->band = NL80211_BAND_5GHZ;
 	} else {
 		/* Shouldn't happen unless list of advertised channels to

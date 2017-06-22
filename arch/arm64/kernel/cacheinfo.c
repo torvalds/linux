@@ -84,7 +84,7 @@ static void ci_leaf_init(struct cacheinfo *this_leaf,
 
 static int __init_cache_level(unsigned int cpu)
 {
-	unsigned int ctype, level, leaves;
+	unsigned int ctype, level, leaves, of_level;
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 
 	for (level = 1, leaves = 0; level <= MAX_CACHE_LEVEL; level++) {
@@ -95,6 +95,17 @@ static int __init_cache_level(unsigned int cpu)
 		}
 		/* Separate instruction and data caches */
 		leaves += (ctype == CACHE_TYPE_SEPARATE) ? 2 : 1;
+	}
+
+	of_level = of_find_last_cache_level(cpu);
+	if (level < of_level) {
+		/*
+		 * some external caches not specified in CLIDR_EL1
+		 * the information may be available in the device tree
+		 * only unified external caches are considered here
+		 */
+		leaves += (of_level - level);
+		level = of_level;
 	}
 
 	this_cpu_ci->num_levels = level;

@@ -77,24 +77,17 @@
 int spinning_secondaries;
 u64 ppc64_pft_size;
 
-/* Pick defaults since we might want to patch instructions
- * before we've read this from the device tree.
- */
 struct ppc64_caches ppc64_caches = {
-	.dline_size = 0x40,
-	.log_dline_size = 6,
-	.iline_size = 0x40,
-	.log_iline_size = 6
+	.l1d = {
+		.block_size = 0x40,
+		.log_block_size = 6,
+	},
+	.l1i = {
+		.block_size = 0x40,
+		.log_block_size = 6
+	},
 };
 EXPORT_SYMBOL_GPL(ppc64_caches);
-
-/*
- * These are used in binfmt_elf.c to put aux entries on the stack
- * for each elf executable being started.
- */
-int dcache_bsize;
-int icache_bsize;
-int ucache_bsize;
 
 #if defined(CONFIG_PPC_BOOK3E) && defined(CONFIG_SMP)
 void __init setup_tlb_core_data(void)
@@ -120,14 +113,12 @@ void __init setup_tlb_core_data(void)
 		 * If we have threads, we need either tlbsrx.
 		 * or e6500 tablewalk mode, or else TLB handlers
 		 * will be racy and could produce duplicate entries.
+		 * Should we panic instead?
 		 */
-		if (smt_enabled_at_boot >= 2 &&
-		    !mmu_has_feature(MMU_FTR_USE_TLBRSRV) &&
-		    book3e_htw_mode != PPC_HTW_E6500) {
-			/* Should we panic instead? */
-			WARN_ONCE("%s: unsupported MMU configuration -- expect problems\n",
-				  __func__);
-		}
+		WARN_ONCE(smt_enabled_at_boot >= 2 &&
+			  !mmu_has_feature(MMU_FTR_USE_TLBRSRV) &&
+			  book3e_htw_mode != PPC_HTW_E6500,
+			  "%s: unsupported MMU configuration\n", __func__);
 	}
 }
 #endif
@@ -244,6 +235,15 @@ static void cpu_ready_for_interrupts(void)
 		unsigned long lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_AIL_3);
 	}
+
+	/*
+	 * Fixup HFSCR:TM based on CPU features. The bit is set by our
+	 * early asm init because at that point we haven't updated our
+	 * CPU features from firmware and device-tree. Here we have,
+	 * so let's do it.
+	 */
+	if (cpu_has_feature(CPU_FTR_HVMODE) && !cpu_has_feature(CPU_FTR_TM_COMP))
+		mtspr(SPRN_HFSCR, mfspr(SPRN_HFSCR) & ~HFSCR_TM);
 
 	/* Set IR and DR in PACA MSR */
 	get_paca()->kernel_msr = MSR_KERNEL;
@@ -408,74 +408,138 @@ void smp_release_cpus(void)
  * cache informations about the CPU that will be used by cache flush
  * routines and/or provided to userland
  */
+
+static void init_cache_info(struct ppc_cache_info *info, u32 size, u32 lsize,
+			    u32 bsize, u32 sets)
+{
+	info->size = size;
+	info->sets = sets;
+	info->line_size = lsize;
+	info->block_size = bsize;
+	info->log_block_size = __ilog2(bsize);
+	if (bsize)
+		info->blocks_per_page = PAGE_SIZE / bsize;
+	else
+		info->blocks_per_page = 0;
+
+	if (sets == 0)
+		info->assoc = 0xffff;
+	else
+		info->assoc = size / (sets * lsize);
+}
+
+static bool __init parse_cache_info(struct device_node *np,
+				    bool icache,
+				    struct ppc_cache_info *info)
+{
+	static const char *ipropnames[] __initdata = {
+		"i-cache-size",
+		"i-cache-sets",
+		"i-cache-block-size",
+		"i-cache-line-size",
+	};
+	static const char *dpropnames[] __initdata = {
+		"d-cache-size",
+		"d-cache-sets",
+		"d-cache-block-size",
+		"d-cache-line-size",
+	};
+	const char **propnames = icache ? ipropnames : dpropnames;
+	const __be32 *sizep, *lsizep, *bsizep, *setsp;
+	u32 size, lsize, bsize, sets;
+	bool success = true;
+
+	size = 0;
+	sets = -1u;
+	lsize = bsize = cur_cpu_spec->dcache_bsize;
+	sizep = of_get_property(np, propnames[0], NULL);
+	if (sizep != NULL)
+		size = be32_to_cpu(*sizep);
+	setsp = of_get_property(np, propnames[1], NULL);
+	if (setsp != NULL)
+		sets = be32_to_cpu(*setsp);
+	bsizep = of_get_property(np, propnames[2], NULL);
+	lsizep = of_get_property(np, propnames[3], NULL);
+	if (bsizep == NULL)
+		bsizep = lsizep;
+	if (lsizep != NULL)
+		lsize = be32_to_cpu(*lsizep);
+	if (bsizep != NULL)
+		bsize = be32_to_cpu(*bsizep);
+	if (sizep == NULL || bsizep == NULL || lsizep == NULL)
+		success = false;
+
+	/*
+	 * OF is weird .. it represents fully associative caches
+	 * as "1 way" which doesn't make much sense and doesn't
+	 * leave room for direct mapped. We'll assume that 0
+	 * in OF means direct mapped for that reason.
+	 */
+	if (sets == 1)
+		sets = 0;
+	else if (sets == 0)
+		sets = 1;
+
+	init_cache_info(info, size, lsize, bsize, sets);
+
+	return success;
+}
+
 void __init initialize_cache_info(void)
 {
-	struct device_node *np;
-	unsigned long num_cpus = 0;
+	struct device_node *cpu = NULL, *l2, *l3 = NULL;
+	u32 pvr;
 
 	DBG(" -> initialize_cache_info()\n");
 
-	for_each_node_by_type(np, "cpu") {
-		num_cpus += 1;
+	/*
+	 * All shipping POWER8 machines have a firmware bug that
+	 * puts incorrect information in the device-tree. This will
+	 * be (hopefully) fixed for future chips but for now hard
+	 * code the values if we are running on one of these
+	 */
+	pvr = PVR_VER(mfspr(SPRN_PVR));
+	if (pvr == PVR_POWER8 || pvr == PVR_POWER8E ||
+	    pvr == PVR_POWER8NVL) {
+						/* size    lsize   blk  sets */
+		init_cache_info(&ppc64_caches.l1i, 0x8000,   128,  128, 32);
+		init_cache_info(&ppc64_caches.l1d, 0x10000,  128,  128, 64);
+		init_cache_info(&ppc64_caches.l2,  0x80000,  128,  0,   512);
+		init_cache_info(&ppc64_caches.l3,  0x800000, 128,  0,   8192);
+	} else
+		cpu = of_find_node_by_type(NULL, "cpu");
+
+	/*
+	 * We're assuming *all* of the CPUs have the same
+	 * d-cache and i-cache sizes... -Peter
+	 */
+	if (cpu) {
+		if (!parse_cache_info(cpu, false, &ppc64_caches.l1d))
+			DBG("Argh, can't find dcache properties !\n");
+
+		if (!parse_cache_info(cpu, true, &ppc64_caches.l1i))
+			DBG("Argh, can't find icache properties !\n");
 
 		/*
-		 * We're assuming *all* of the CPUs have the same
-		 * d-cache and i-cache sizes... -Peter
+		 * Try to find the L2 and L3 if any. Assume they are
+		 * unified and use the D-side properties.
 		 */
-		if (num_cpus == 1) {
-			const __be32 *sizep, *lsizep;
-			u32 size, lsize;
-
-			size = 0;
-			lsize = cur_cpu_spec->dcache_bsize;
-			sizep = of_get_property(np, "d-cache-size", NULL);
-			if (sizep != NULL)
-				size = be32_to_cpu(*sizep);
-			lsizep = of_get_property(np, "d-cache-block-size",
-						 NULL);
-			/* fallback if block size missing */
-			if (lsizep == NULL)
-				lsizep = of_get_property(np,
-							 "d-cache-line-size",
-							 NULL);
-			if (lsizep != NULL)
-				lsize = be32_to_cpu(*lsizep);
-			if (sizep == NULL || lsizep == NULL)
-				DBG("Argh, can't find dcache properties ! "
-				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
-
-			ppc64_caches.dsize = size;
-			ppc64_caches.dline_size = lsize;
-			ppc64_caches.log_dline_size = __ilog2(lsize);
-			ppc64_caches.dlines_per_page = PAGE_SIZE / lsize;
-
-			size = 0;
-			lsize = cur_cpu_spec->icache_bsize;
-			sizep = of_get_property(np, "i-cache-size", NULL);
-			if (sizep != NULL)
-				size = be32_to_cpu(*sizep);
-			lsizep = of_get_property(np, "i-cache-block-size",
-						 NULL);
-			if (lsizep == NULL)
-				lsizep = of_get_property(np,
-							 "i-cache-line-size",
-							 NULL);
-			if (lsizep != NULL)
-				lsize = be32_to_cpu(*lsizep);
-			if (sizep == NULL || lsizep == NULL)
-				DBG("Argh, can't find icache properties ! "
-				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
-
-			ppc64_caches.isize = size;
-			ppc64_caches.iline_size = lsize;
-			ppc64_caches.log_iline_size = __ilog2(lsize);
-			ppc64_caches.ilines_per_page = PAGE_SIZE / lsize;
+		l2 = of_find_next_cache_node(cpu);
+		of_node_put(cpu);
+		if (l2) {
+			parse_cache_info(l2, false, &ppc64_caches.l2);
+			l3 = of_find_next_cache_node(l2);
+			of_node_put(l2);
+		}
+		if (l3) {
+			parse_cache_info(l3, false, &ppc64_caches.l3);
+			of_node_put(l3);
 		}
 	}
 
 	/* For use by binfmt_elf */
-	dcache_bsize = ppc64_caches.dline_size;
-	icache_bsize = ppc64_caches.iline_size;
+	dcache_bsize = ppc64_caches.l1d.block_size;
+	icache_bsize = ppc64_caches.l1i.block_size;
 
 	DBG(" <- initialize_cache_info()\n");
 }

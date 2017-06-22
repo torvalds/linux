@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/notifier.h>
 #include <linux/signal.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/uaccess.h>

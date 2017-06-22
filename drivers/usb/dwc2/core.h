@@ -127,6 +127,8 @@ static const char * const dwc2_hsotg_supply_names[] = {
 	"vusb_a",               /* analog USB supply, 1.1V */
 };
 
+#define DWC2_NUM_SUPPLIES ARRAY_SIZE(dwc2_hsotg_supply_names)
+
 /*
  * EP0_MPS_LIMIT
  *
@@ -246,7 +248,8 @@ struct dwc2_hsotg_req {
 	void *saved_req_buf;
 };
 
-#if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
+#if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
+	IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 #define call_gadget(_hs, _entry) \
 do { \
 	if ((_hs)->gadget.speed != USB_SPEED_UNKNOWN && \
@@ -271,13 +274,6 @@ enum dwc2_lx_state {
 	DWC2_L3,	/* Off state */
 };
 
-/*
- * Gadget periodic tx fifo sizes as used by legacy driver
- * EP0 is not included
- */
-#define DWC2_G_P_LEGACY_TX_FIFO_SIZE {256, 256, 256, 256, 768, 768, 768, \
-					   768, 0, 0, 0, 0, 0, 0, 0}
-
 /* Gadget ep0 states */
 enum dwc2_ep0_state {
 	DWC2_EP0_SETUP,
@@ -295,9 +291,6 @@ enum dwc2_ep0_state {
  *                       1 - SRP Only capable
  *                       2 - No HNP/SRP capable (always available)
  *                      Defaults to best available option (0, 1, then 2)
- * @otg_ver:            OTG version supported
- *                       0 - 1.3 (default)
- *                       1 - 2.0
  * @host_dma:           Specifies whether to use slave or DMA mode for accessing
  *                      the data FIFOs. The driver will automatically detect the
  *                      value for this parameter if none is specified.
@@ -444,6 +437,11 @@ enum dwc2_ep0_state {
  *			in DWORDS with possible values from from
  *			16-32768 (default: 256, 256, 256, 256, 768,
  *			768, 768, 768, 0, 0, 0, 0, 0, 0, 0).
+ * @change_speed_quirk: Change speed configuration to DWC2_SPEED_PARAM_FULL
+ *                      while full&low speed device connect. And change speed
+ *                      back to DWC2_SPEED_PARAM_HIGH while device is gone.
+ *			0 - No (default)
+ *			1 - Yes
  *
  * The following parameters may be specified when starting the module. These
  * parameters define how the DWC_otg controller should be configured. A
@@ -452,63 +450,48 @@ enum dwc2_ep0_state {
  * default described above.
  */
 struct dwc2_core_params {
-	/*
-	 * Don't add any non-int members here, this will break
-	 * dwc2_set_all_params!
-	 */
-	int otg_cap;
+	u8 otg_cap;
 #define DWC2_CAP_PARAM_HNP_SRP_CAPABLE		0
 #define DWC2_CAP_PARAM_SRP_ONLY_CAPABLE		1
 #define DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE	2
 
-	int otg_ver;
-	int dma_desc_enable;
-	int dma_desc_fs_enable;
-	int speed;
-#define DWC2_SPEED_PARAM_HIGH	0
-#define DWC2_SPEED_PARAM_FULL	1
-#define DWC2_SPEED_PARAM_LOW	2
-
-	int enable_dynamic_fifo;
-	int en_multiple_tx_fifo;
-	int host_rx_fifo_size;
-	int host_nperio_tx_fifo_size;
-	int host_perio_tx_fifo_size;
-	int max_transfer_size;
-	int max_packet_count;
-	int host_channels;
-	int phy_type;
+	u8 phy_type;
 #define DWC2_PHY_TYPE_PARAM_FS		0
 #define DWC2_PHY_TYPE_PARAM_UTMI	1
 #define DWC2_PHY_TYPE_PARAM_ULPI	2
 
-	int phy_utmi_width;
-	int phy_ulpi_ddr;
-	int phy_ulpi_ext_vbus;
-#define DWC2_PHY_ULPI_INTERNAL_VBUS	0
-#define DWC2_PHY_ULPI_EXTERNAL_VBUS	1
+	u8 speed;
+#define DWC2_SPEED_PARAM_HIGH	0
+#define DWC2_SPEED_PARAM_FULL	1
+#define DWC2_SPEED_PARAM_LOW	2
 
-	int i2c_enable;
-	int ulpi_fs_ls;
-	int host_support_fs_ls_low_power;
-	int host_ls_low_power_phy_clk;
-#define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ	0
-#define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ	1
-
-	int ts_dline;
-	int reload_ctl;
-	int ahbcfg;
-	int uframe_sched;
-	int external_id_pin_ctl;
-	int hibernation;
-
-	/*
-	 * The following parameters are *only* set via device
-	 * properties and cannot be set directly in this structure.
-	 */
+	u8 phy_utmi_width;
+	bool phy_ulpi_ddr;
+	bool phy_ulpi_ext_vbus;
+	bool enable_dynamic_fifo;
+	bool en_multiple_tx_fifo;
+	bool i2c_enable;
+	bool ulpi_fs_ls;
+	bool ts_dline;
+	bool reload_ctl;
+	bool uframe_sched;
+	bool external_id_pin_ctl;
+	bool hibernation;
+	u16 max_packet_count;
+	u32 max_transfer_size;
+	u32 ahbcfg;
 
 	/* Host parameters */
 	bool host_dma;
+	bool dma_desc_enable;
+	bool dma_desc_fs_enable;
+	bool host_support_fs_ls_low_power;
+	bool host_ls_low_power_phy_clk;
+
+	u8 host_channels;
+	u16 host_rx_fifo_size;
+	u16 host_nperio_tx_fifo_size;
+	u16 host_perio_tx_fifo_size;
 
 	/* Gadget parameters */
 	bool g_dma;
@@ -516,6 +499,8 @@ struct dwc2_core_params {
 	u32 g_rx_fifo_size;
 	u32 g_np_tx_fifo_size;
 	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];
+
+	bool change_speed_quirk;
 };
 
 /**
@@ -603,8 +588,8 @@ struct dwc2_hw_params {
 #define DWC2_CTRL_BUFF_SIZE 8
 
 /**
- * struct dwc2_gregs_backup - Holds global registers state before entering partial
- * power down
+ * struct dwc2_gregs_backup - Holds global registers state before
+ * entering partial power down
  * @gotgctl:		Backup of GOTGCTL register
  * @gintmsk:		Backup of GINTMSK register
  * @gahbcfg:		Backup of GAHBCFG register
@@ -634,8 +619,8 @@ struct dwc2_gregs_backup {
 };
 
 /**
- * struct  dwc2_dregs_backup - Holds device registers state before entering partial
- * power down
+ * struct dwc2_dregs_backup - Holds device registers state before
+ * entering partial power down
  * @dcfg:		Backup of DCFG register
  * @dctl:		Backup of DCTL register
  * @daintmsk:		Backup of DAINTMSK register
@@ -664,8 +649,8 @@ struct dwc2_dregs_backup {
 };
 
 /**
- * struct  dwc2_hregs_backup - Holds host registers state before entering partial
- * power down
+ * struct dwc2_hregs_backup - Holds host registers state before
+ * entering partial power down
  * @hcfg:		Backup of HCFG register
  * @haintmsk:		Backup of HAINTMSK register
  * @hcintmsk:		Backup of HCINTMSK register
@@ -782,9 +767,10 @@ struct dwc2_hregs_backup {
  * @gadget_enabled	Peripheral mode sub-driver initialization indicator.
  * @ll_hw_enabled	Status of low-level hardware resources.
  * @phy:                The otg phy transceiver structure for phy control.
- * @uphy:               The otg phy transceiver structure for old USB phy control.
- * @plat:               The platform specific configuration data. This can be removed once
- *                      all SoCs support usb transceiver.
+ * @uphy:               The otg phy transceiver structure for old USB phy
+ *                      control.
+ * @plat:               The platform specific configuration data. This can be
+ *                      removed once all SoCs support usb transceiver.
  * @supplies:           Definition of USB power supplies
  * @phyif:              PHY interface width
  * @lock:		Spinlock that protects all the driver data structures
@@ -921,7 +907,7 @@ struct dwc2_hsotg {
 	struct phy *phy;
 	struct usb_phy *uphy;
 	struct dwc2_hsotg_plat *plat;
-	struct regulator_bulk_data supplies[ARRAY_SIZE(dwc2_hsotg_supply_names)];
+	struct regulator_bulk_data supplies[DWC2_NUM_SUPPLIES];
 	u32 phyif;
 
 	spinlock_t lock;
@@ -947,6 +933,7 @@ struct dwc2_hsotg {
 	/* DWC OTG HW Release versions */
 #define DWC2_CORE_REV_2_71a	0x4f54271a
 #define DWC2_CORE_REV_2_90a	0x4f54290a
+#define DWC2_CORE_REV_2_91a	0x4f54291a
 #define DWC2_CORE_REV_2_92a	0x4f54292a
 #define DWC2_CORE_REV_2_94a	0x4f54294a
 #define DWC2_CORE_REV_3_00a	0x4f54300a
@@ -1033,7 +1020,8 @@ struct dwc2_hsotg {
 #endif
 #endif /* CONFIG_USB_DWC2_HOST || CONFIG_USB_DWC2_DUAL_ROLE */
 
-#if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
+#if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
+	IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 	/* Gadget structures */
 	struct usb_gadget_driver *driver;
 	int fifo_mem;
@@ -1101,37 +1089,37 @@ static inline bool dwc2_is_hs_iot(struct dwc2_hsotg *hsotg)
  * The following functions support initialization of the core driver component
  * and the DWC_otg controller
  */
-extern int dwc2_core_reset(struct dwc2_hsotg *hsotg);
-extern int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg);
-extern int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg);
-extern int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore);
+int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait);
+int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg);
+int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg);
+int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore);
 
 bool dwc2_force_mode_if_needed(struct dwc2_hsotg *hsotg, bool host);
 void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg);
 void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg);
 
-extern bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg);
+bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg);
 
 /*
  * Common core Functions.
  * The following functions support managing the DWC_otg controller in either
  * device or host mode.
  */
-extern void dwc2_read_packet(struct dwc2_hsotg *hsotg, u8 *dest, u16 bytes);
-extern void dwc2_flush_tx_fifo(struct dwc2_hsotg *hsotg, const int num);
-extern void dwc2_flush_rx_fifo(struct dwc2_hsotg *hsotg);
+void dwc2_read_packet(struct dwc2_hsotg *hsotg, u8 *dest, u16 bytes);
+void dwc2_flush_tx_fifo(struct dwc2_hsotg *hsotg, const int num);
+void dwc2_flush_rx_fifo(struct dwc2_hsotg *hsotg);
 
-extern void dwc2_enable_global_interrupts(struct dwc2_hsotg *hcd);
-extern void dwc2_disable_global_interrupts(struct dwc2_hsotg *hcd);
+void dwc2_enable_global_interrupts(struct dwc2_hsotg *hcd);
+void dwc2_disable_global_interrupts(struct dwc2_hsotg *hcd);
 
 /* This function should be called on every hardware interrupt. */
-extern irqreturn_t dwc2_handle_common_intr(int irq, void *dev);
+irqreturn_t dwc2_handle_common_intr(int irq, void *dev);
 
 /* The device ID match table */
 extern const struct of_device_id dwc2_of_match_table[];
 
-extern int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
-extern int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);
+int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
+int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);
 
 /* Parameters */
 int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
@@ -1145,7 +1133,7 @@ int dwc2_init_params(struct dwc2_hsotg *hsotg);
  * are read in and cached so they always read directly from the
  * GHWCFG2 register.
  */
-unsigned dwc2_op_mode(struct dwc2_hsotg *hsotg);
+unsigned int dwc2_op_mode(struct dwc2_hsotg *hsotg);
 bool dwc2_hw_is_otg(struct dwc2_hsotg *hsotg);
 bool dwc2_hw_is_host(struct dwc2_hsotg *hsotg);
 bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg);
@@ -1157,6 +1145,7 @@ static inline int dwc2_is_host_mode(struct dwc2_hsotg *hsotg)
 {
 	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
 }
+
 static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
 {
 	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
@@ -1165,29 +1154,28 @@ static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
 /*
  * Dump core registers and SPRAM
  */
-extern void dwc2_dump_dev_registers(struct dwc2_hsotg *hsotg);
-extern void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg);
-extern void dwc2_dump_global_registers(struct dwc2_hsotg *hsotg);
-
-/*
- * Return OTG version - either 1.3 or 2.0
- */
-extern u16 dwc2_get_otg_version(struct dwc2_hsotg *hsotg);
+void dwc2_dump_dev_registers(struct dwc2_hsotg *hsotg);
+void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg);
+void dwc2_dump_global_registers(struct dwc2_hsotg *hsotg);
 
 /* Gadget defines */
-#if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
-extern int dwc2_hsotg_remove(struct dwc2_hsotg *hsotg);
-extern int dwc2_hsotg_suspend(struct dwc2_hsotg *dwc2);
-extern int dwc2_hsotg_resume(struct dwc2_hsotg *dwc2);
-extern int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq);
-extern void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
-		bool reset);
-extern void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg);
-extern void dwc2_hsotg_disconnect(struct dwc2_hsotg *dwc2);
-extern int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
+#if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
+	IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
+int dwc2_hsotg_remove(struct dwc2_hsotg *hsotg);
+int dwc2_hsotg_suspend(struct dwc2_hsotg *dwc2);
+int dwc2_hsotg_resume(struct dwc2_hsotg *dwc2);
+int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq);
+void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
+				       bool reset);
+void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg);
+void dwc2_hsotg_disconnect(struct dwc2_hsotg *dwc2);
+int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
 #define dwc2_is_device_connected(hsotg) (hsotg->connected)
 int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg);
 int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg);
+int dwc2_hsotg_tx_fifo_count(struct dwc2_hsotg *hsotg);
+int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg);
+int dwc2_hsotg_tx_fifo_average_depth(struct dwc2_hsotg *hsotg);
 #else
 static inline int dwc2_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
@@ -1198,25 +1186,31 @@ static inline int dwc2_hsotg_resume(struct dwc2_hsotg *dwc2)
 static inline int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 { return 0; }
 static inline void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
-		bool reset) {}
+						     bool reset) {}
 static inline void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg) {}
 static inline void dwc2_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
 static inline int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
-							int testmode)
+					   int testmode)
 { return 0; }
 #define dwc2_is_device_connected(hsotg) (0)
 static inline int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg)
 { return 0; }
 static inline int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg)
 { return 0; }
+static inline int dwc2_hsotg_tx_fifo_count(struct dwc2_hsotg *hsotg)
+{ return 0; }
+static inline int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg)
+{ return 0; }
+static inline int dwc2_hsotg_tx_fifo_average_depth(struct dwc2_hsotg *hsotg)
+{ return 0; }
 #endif
 
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
-extern int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg);
-extern int dwc2_hcd_get_future_frame_number(struct dwc2_hsotg *hsotg, int us);
-extern void dwc2_hcd_connect(struct dwc2_hsotg *hsotg);
-extern void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force);
-extern void dwc2_hcd_start(struct dwc2_hsotg *hsotg);
+int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg);
+int dwc2_hcd_get_future_frame_number(struct dwc2_hsotg *hsotg, int us);
+void dwc2_hcd_connect(struct dwc2_hsotg *hsotg);
+void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force);
+void dwc2_hcd_start(struct dwc2_hsotg *hsotg);
 int dwc2_backup_host_registers(struct dwc2_hsotg *hsotg);
 int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg);
 #else
@@ -1229,7 +1223,7 @@ static inline void dwc2_hcd_connect(struct dwc2_hsotg *hsotg) {}
 static inline void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force) {}
 static inline void dwc2_hcd_start(struct dwc2_hsotg *hsotg) {}
 static inline void dwc2_hcd_remove(struct dwc2_hsotg *hsotg) {}
-static inline int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
+static inline int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 { return 0; }
 static inline int dwc2_backup_host_registers(struct dwc2_hsotg *hsotg)
 { return 0; }

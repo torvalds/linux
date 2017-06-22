@@ -431,6 +431,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
 	int pre_div = 1;
 	int div = 1;
+	u32 timeout;
 	u32 temp;
 
 	host->mmc->actual_clock = 0;
@@ -451,8 +452,8 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 
 	temp = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
-	temp &= ~(ESDHC_CLOCK_IPGEN | ESDHC_CLOCK_HCKEN | ESDHC_CLOCK_PEREN
-		| ESDHC_CLOCK_MASK);
+	temp &= ~(ESDHC_CLOCK_SDCLKEN | ESDHC_CLOCK_IPGEN | ESDHC_CLOCK_HCKEN |
+		  ESDHC_CLOCK_PEREN | ESDHC_CLOCK_MASK);
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 
 	while (host->max_clk / pre_div / 16 > clock && pre_div < 256)
@@ -472,7 +473,21 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 		| (div << ESDHC_DIVIDER_SHIFT)
 		| (pre_div << ESDHC_PREDIV_SHIFT));
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
-	mdelay(1);
+
+	/* Wait max 20 ms */
+	timeout = 20;
+	while (!(sdhci_readl(host, ESDHC_PRSSTAT) & ESDHC_CLOCK_STABLE)) {
+		if (timeout == 0) {
+			pr_err("%s: Internal clock never stabilised.\n",
+				mmc_hostname(host->mmc));
+			return;
+		}
+		timeout--;
+		mdelay(1);
+	}
+
+	temp |= ESDHC_CLOCK_SDCLKEN;
+	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 }
 
 static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
@@ -569,16 +584,19 @@ static const struct sdhci_ops sdhci_esdhc_le_ops = {
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_be_pdata = {
-	.quirks = ESDHC_DEFAULT_QUIRKS | SDHCI_QUIRK_BROKEN_CARD_DETECTION
-		| SDHCI_QUIRK_NO_CARD_NO_RESET
-		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks = ESDHC_DEFAULT_QUIRKS |
+#ifdef CONFIG_PPC
+		  SDHCI_QUIRK_BROKEN_CARD_DETECTION |
+#endif
+		  SDHCI_QUIRK_NO_CARD_NO_RESET |
+		  SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
 	.ops = &sdhci_esdhc_be_ops,
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_le_pdata = {
-	.quirks = ESDHC_DEFAULT_QUIRKS | SDHCI_QUIRK_BROKEN_CARD_DETECTION
-		| SDHCI_QUIRK_NO_CARD_NO_RESET
-		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks = ESDHC_DEFAULT_QUIRKS |
+		  SDHCI_QUIRK_NO_CARD_NO_RESET |
+		  SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
 	.ops = &sdhci_esdhc_le_ops,
 };
 
@@ -643,8 +661,7 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	    of_device_is_compatible(np, "fsl,p5020-esdhc") ||
 	    of_device_is_compatible(np, "fsl,p4080-esdhc") ||
 	    of_device_is_compatible(np, "fsl,p1020-esdhc") ||
-	    of_device_is_compatible(np, "fsl,t1040-esdhc") ||
-	    of_device_is_compatible(np, "fsl,ls1021a-esdhc"))
+	    of_device_is_compatible(np, "fsl,t1040-esdhc"))
 		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 
 	if (of_device_is_compatible(np, "fsl,ls1021a-esdhc"))

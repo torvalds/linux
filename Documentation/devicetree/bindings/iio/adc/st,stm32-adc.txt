@@ -53,6 +53,11 @@ Required properties:
 - #io-channel-cells = <1>: See the IIO bindings section "IIO consumers" in
   Documentation/devicetree/bindings/iio/iio-bindings.txt
 
+Optional properties:
+- dmas: Phandle to dma channel for this ADC instance.
+  See ../../dma/dma.txt for details.
+- dma-names: Must be "rx" when dmas property is being used.
+
 Example:
 	adc: adc@40012000 {
 		compatible = "st,stm32f4-adc-core";
@@ -77,6 +82,8 @@ Example:
 			interrupt-parent = <&adc>;
 			interrupts = <0>;
 			st,adc-channels = <8>;
+			dmas = <&dma2 0 0 0x400 0x0>;
+			dma-names = "rx";
 		};
 		...
 		other adc child nodes follow...

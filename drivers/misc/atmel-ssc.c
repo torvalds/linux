@@ -20,6 +20,8 @@
 
 #include <linux/of.h>
 
+#include "../../sound/soc/atmel/atmel_ssc_dai.h"
+
 /* Serialize access to ssc_list and user count */
 static DEFINE_SPINLOCK(user_lock);
 static LIST_HEAD(ssc_list);
@@ -145,6 +147,49 @@ static inline const struct atmel_ssc_platform_data * __init
 		platform_get_device_id(pdev)->driver_data;
 }
 
+#ifdef CONFIG_SND_ATMEL_SOC_SSC
+static int ssc_sound_dai_probe(struct ssc_device *ssc)
+{
+	struct device_node *np = ssc->pdev->dev.of_node;
+	int ret;
+	int id;
+
+	ssc->sound_dai = false;
+
+	if (!of_property_read_bool(np, "#sound-dai-cells"))
+		return 0;
+
+	id = of_alias_get_id(np, "ssc");
+	if (id < 0)
+		return id;
+
+	ret = atmel_ssc_set_audio(id);
+	ssc->sound_dai = !ret;
+
+	return ret;
+}
+
+static void ssc_sound_dai_remove(struct ssc_device *ssc)
+{
+	if (!ssc->sound_dai)
+		return;
+
+	atmel_ssc_put_audio(of_alias_get_id(ssc->pdev->dev.of_node, "ssc"));
+}
+#else
+static inline int ssc_sound_dai_probe(struct ssc_device *ssc)
+{
+	if (of_property_read_bool(ssc->pdev->dev.of_node, "#sound-dai-cells"))
+		return -ENOTSUPP;
+
+	return 0;
+}
+
+static inline void ssc_sound_dai_remove(struct ssc_device *ssc)
+{
+}
+#endif
+
 static int ssc_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
@@ -204,12 +249,17 @@ static int ssc_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Atmel SSC device at 0x%p (irq %d)\n",
 			ssc->regs, ssc->irq);
 
+	if (ssc_sound_dai_probe(ssc))
+		dev_err(&pdev->dev, "failed to auto-setup ssc for audio\n");
+
 	return 0;
 }
 
 static int ssc_remove(struct platform_device *pdev)
 {
 	struct ssc_device *ssc = platform_get_drvdata(pdev);
+
+	ssc_sound_dai_remove(ssc);
 
 	spin_lock(&user_lock);
 	list_del(&ssc->list);

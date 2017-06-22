@@ -366,7 +366,7 @@ static const struct pinctrl_ops nsp_pctrl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
-static int nsp_gpio_set_slew(struct nsp_gpio *chip, unsigned gpio, u16 slew)
+static int nsp_gpio_set_slew(struct nsp_gpio *chip, unsigned gpio, u32 slew)
 {
 	if (slew)
 		nsp_set_bit(chip, IO_CTRL, NSP_GPIO_SLEW_RATE_EN, gpio, true);
@@ -403,7 +403,7 @@ static void nsp_gpio_get_pull(struct nsp_gpio *chip, unsigned gpio,
 }
 
 static int nsp_gpio_set_strength(struct nsp_gpio *chip, unsigned gpio,
-				 u16 strength)
+				 u32 strength)
 {
 	u32 offset, shift, i;
 	u32 val;
@@ -522,7 +522,7 @@ static int nsp_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 {
 	struct nsp_gpio *chip = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 	unsigned int i, gpio;
 	int ret = -ENOTSUPP;
 

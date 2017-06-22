@@ -137,7 +137,8 @@ static void rproc_virtio_del_vqs(struct virtio_device *vdev)
 static int rproc_virtio_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 				 struct virtqueue *vqs[],
 				 vq_callback_t *callbacks[],
-				 const char * const names[])
+				 const char * const names[],
+				 struct irq_affinity *desc)
 {
 	int i, ret;
 

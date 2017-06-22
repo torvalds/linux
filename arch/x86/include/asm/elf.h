@@ -258,6 +258,15 @@ extern int force_personality32;
 
 #define ELF_HWCAP		(boot_cpu_data.x86_capability[CPUID_1_EDX])
 
+extern u32 elf_hwcap2;
+
+/*
+ * HWCAP2 supplies mask with kernel enabled CPU features, so that
+ * the application can discover that it can safely use them.
+ * The bits are defined in uapi/asm/hwcap2.h.
+ */
+#define ELF_HWCAP2		(elf_hwcap2)
+
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in
    intent than poking at uname or /proc/cpuinfo.
@@ -278,7 +287,7 @@ struct task_struct;
 
 #define	ARCH_DLINFO_IA32						\
 do {									\
-	if (vdso32_enabled) {						\
+	if (VDSO_CURRENT_BASE) {					\
 		NEW_AUX_ENT(AT_SYSINFO,	VDSO_ENTRY);			\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_CURRENT_BASE);	\
 	}								\

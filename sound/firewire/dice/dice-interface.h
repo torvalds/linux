@@ -251,6 +251,7 @@
 
 /*
  * The speed at which the packets are sent, SCODE_100-_400; read/write.
+ * SCODE_800 is only available in Dice III.
  */
 #define TX_SPEED			0x014
 

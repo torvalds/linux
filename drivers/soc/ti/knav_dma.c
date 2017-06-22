@@ -395,7 +395,7 @@ static int of_channel_match_helper(struct device_node *np, const char *name,
 
 	if (of_parse_phandle_with_fixed_args(np, "ti,navigator-dmas",
 					1, index, &args)) {
-		dev_err(kdev->dev, "Missing the pahndle args name %s\n", name);
+		dev_err(kdev->dev, "Missing the phandle args name %s\n", name);
 		return -ENODEV;
 	}
 
@@ -436,7 +436,7 @@ void *knav_dma_open_channel(struct device *dev, const char *name,
 	}
 
 	dev_dbg(kdev->dev, "initializing %s channel %d from DMA %s\n",
-		  config->direction == DMA_MEM_TO_DEV   ? "transmit" :
+		  config->direction == DMA_MEM_TO_DEV ? "transmit" :
 		  config->direction == DMA_DEV_TO_MEM ? "receive"  :
 		  "unknown", chan_num, instance);
 

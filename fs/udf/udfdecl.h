@@ -15,7 +15,6 @@
 #include "udfend.h"
 #include "udf_i.h"
 
-#define UDF_PREALLOCATE
 #define UDF_DEFAULT_PREALLOC_BLOCKS	8
 
 extern __printf(3, 4) void _udf_err(struct super_block *sb,
@@ -85,6 +84,7 @@ extern const struct inode_operations udf_dir_inode_operations;
 extern const struct file_operations udf_dir_operations;
 extern const struct inode_operations udf_file_inode_operations;
 extern const struct file_operations udf_file_operations;
+extern const struct inode_operations udf_symlink_inode_operations;
 extern const struct address_space_operations udf_aops;
 extern const struct address_space_operations udf_adinicb_aops;
 extern const struct address_space_operations udf_symlink_aops;

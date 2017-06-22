@@ -57,7 +57,7 @@ void br_stp_enable_bridge(struct net_bridge *br)
 	spin_lock_bh(&br->lock);
 	if (br->stp_enabled == BR_KERNEL_STP)
 		mod_timer(&br->hello_timer, jiffies + br->hello_time);
-	mod_timer(&br->gc_timer, jiffies + HZ/10);
+	mod_delayed_work(system_long_wq, &br->gc_work, HZ / 10);
 
 	br_config_bpdu_generation(br);
 
@@ -88,7 +88,7 @@ void br_stp_disable_bridge(struct net_bridge *br)
 	del_timer_sync(&br->hello_timer);
 	del_timer_sync(&br->topology_change_timer);
 	del_timer_sync(&br->tcn_timer);
-	del_timer_sync(&br->gc_timer);
+	cancel_delayed_work_sync(&br->gc_work);
 }
 
 /* called under bridge lock */

@@ -940,6 +940,13 @@ void __init pnv_pci_init(void)
 	for_each_compatible_node(np, NULL, "ibm,ioda2-npu-phb")
 		pnv_pci_init_npu_phb(np);
 
+	/*
+	 * Look for NPU2 PHBs which we treat mostly as NPU PHBs with
+	 * the exception of TCE kill which requires an OPAL call.
+	 */
+	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-phb")
+		pnv_pci_init_npu_phb(np);
+
 	/* Configure IOMMU DMA hooks */
 	set_pci_dma_ops(&dma_iommu_ops);
 }

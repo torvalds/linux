@@ -548,20 +548,20 @@ out:
 static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 				     struct vsp1_video *video)
 {
-	struct media_entity_graph graph;
+	struct media_graph graph;
 	struct media_entity *entity = &video->video.entity;
 	struct media_device *mdev = entity->graph_obj.mdev;
 	unsigned int i;
 	int ret;
 
 	/* Walk the graph to locate the entities and video nodes. */
-	ret = media_entity_graph_walk_init(&graph, mdev);
+	ret = media_graph_walk_init(&graph, mdev);
 	if (ret)
 		return ret;
 
-	media_entity_graph_walk_start(&graph, entity);
+	media_graph_walk_start(&graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(&graph))) {
+	while ((entity = media_graph_walk_next(&graph))) {
 		struct v4l2_subdev *subdev;
 		struct vsp1_rwpf *rwpf;
 		struct vsp1_entity *e;
@@ -590,7 +590,7 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 		}
 	}
 
-	media_entity_graph_walk_cleanup(&graph);
+	media_graph_walk_cleanup(&graph);
 
 	/* We need one output and at least one input. */
 	if (pipe->num_inputs == 0 || !pipe->output)
@@ -848,7 +848,7 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 	}
 	mutex_unlock(&pipe->lock);
 
-	media_entity_pipeline_stop(&video->video.entity);
+	media_pipeline_stop(&video->video.entity);
 	vsp1_video_pipeline_put(pipe);
 
 	/* Remove all buffers from the IRQ queue. */
@@ -980,7 +980,7 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		return PTR_ERR(pipe);
 	}
 
-	ret = __media_entity_pipeline_start(&video->video.entity, &pipe->pipe);
+	ret = __media_pipeline_start(&video->video.entity, &pipe->pipe);
 	if (ret < 0) {
 		mutex_unlock(&mdev->graph_mutex);
 		goto err_pipe;
@@ -1003,7 +1003,7 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	return 0;
 
 err_stop:
-	media_entity_pipeline_stop(&video->video.entity);
+	media_pipeline_stop(&video->video.entity);
 err_pipe:
 	vsp1_video_pipeline_put(pipe);
 	return ret;
@@ -1021,6 +1021,7 @@ static const struct v4l2_ioctl_ops vsp1_video_ioctl_ops = {
 	.vidioc_querybuf		= vb2_ioctl_querybuf,
 	.vidioc_qbuf			= vb2_ioctl_qbuf,
 	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
+	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_create_bufs		= vb2_ioctl_create_bufs,
 	.vidioc_prepare_buf		= vb2_ioctl_prepare_buf,
 	.vidioc_streamon		= vsp1_video_streamon,

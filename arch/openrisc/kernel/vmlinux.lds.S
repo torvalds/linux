@@ -19,8 +19,8 @@
 
 /* TODO
  *		- clean up __offset & stuff
- *		- change all 8192 aligment to PAGE !!!
- *		- recheck if all aligments are really needed
+ *		- change all 8192 alignment to PAGE !!!
+ *		- recheck if all alignments are really needed
  */
 
 #  define LOAD_OFFSET  PAGE_OFFSET

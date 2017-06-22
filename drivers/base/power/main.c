@@ -27,6 +27,7 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/async.h>
 #include <linux/suspend.h>
 #include <trace/events/power.h>

@@ -97,8 +97,7 @@ static int i40iw_query_port(struct ib_device *ibdev,
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
 	struct net_device *netdev = iwdev->netdev;
 
-	memset(props, 0, sizeof(*props));
-
+	/* props being zeroed by the caller, avoid zeroing it here */
 	props->max_mtu = IB_MTU_4096;
 	props->active_mtu = ib_mtu_int_to_enum(netdev->mtu);
 
@@ -2497,14 +2496,15 @@ static int i40iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	struct ib_port_attr attr;
 	int err;
 
-	err = i40iw_query_port(ibdev, port_num, &attr);
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	err = ib_query_port(ibdev, port_num, &attr);
 
 	if (err)
 		return err;
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
 
 	return 0;
 }
@@ -2758,7 +2758,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	    (1ull << IB_USER_VERBS_CMD_POST_SEND);
 	iwibdev->ibdev.phys_port_cnt = 1;
 	iwibdev->ibdev.num_comp_vectors = iwdev->ceqs_count;
-	iwibdev->ibdev.dma_device = &pcidev->dev;
 	iwibdev->ibdev.dev.parent = &pcidev->dev;
 	iwibdev->ibdev.query_port = i40iw_query_port;
 	iwibdev->ibdev.modify_port = i40iw_modify_port;

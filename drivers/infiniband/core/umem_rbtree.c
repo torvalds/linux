@@ -78,17 +78,32 @@ int rbt_ib_umem_for_each_in_range(struct rb_root *root,
 				  void *cookie)
 {
 	int ret_val = 0;
-	struct umem_odp_node *node;
+	struct umem_odp_node *node, *next;
 	struct ib_umem_odp *umem;
 
 	if (unlikely(start == last))
 		return ret_val;
 
-	for (node = rbt_ib_umem_iter_first(root, start, last - 1); node;
-			node = rbt_ib_umem_iter_next(node, start, last - 1)) {
+	for (node = rbt_ib_umem_iter_first(root, start, last - 1);
+			node; node = next) {
+		next = rbt_ib_umem_iter_next(node, start, last - 1);
 		umem = container_of(node, struct ib_umem_odp, interval_tree);
 		ret_val = cb(umem->umem, start, last, cookie) || ret_val;
 	}
 
 	return ret_val;
 }
+EXPORT_SYMBOL(rbt_ib_umem_for_each_in_range);
+
+struct ib_umem_odp *rbt_ib_umem_lookup(struct rb_root *root,
+				       u64 addr, u64 length)
+{
+	struct umem_odp_node *node;
+
+	node = rbt_ib_umem_iter_first(root, addr, addr + length - 1);
+	if (node)
+		return container_of(node, struct ib_umem_odp, interval_tree);
+	return NULL;
+
+}
+EXPORT_SYMBOL(rbt_ib_umem_lookup);

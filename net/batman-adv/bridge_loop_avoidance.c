@@ -1,4 +1,4 @@
-/* Copyright (C) 2011-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2017  B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *
@@ -449,7 +449,6 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, u8 *mac,
 	batadv_inc_counter(bat_priv, BATADV_CNT_RX);
 	batadv_add_counter(bat_priv, BATADV_CNT_RX_BYTES,
 			   skb->len + ETH_HLEN);
-	soft_iface->last_rx = jiffies;
 
 	netif_rx(skb);
 out:

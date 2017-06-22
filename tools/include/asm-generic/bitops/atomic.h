@@ -20,4 +20,7 @@ static __always_inline int test_bit(unsigned int nr, const unsigned long *addr)
 		(((unsigned long *)addr)[nr / __BITS_PER_LONG])) != 0;
 }
 
+#define __set_bit(nr, addr)	set_bit(nr, addr)
+#define __clear_bit(nr, addr)	clear_bit(nr, addr)
+
 #endif /* _TOOLS_LINUX_ASM_GENERIC_BITOPS_ATOMIC_H_ */

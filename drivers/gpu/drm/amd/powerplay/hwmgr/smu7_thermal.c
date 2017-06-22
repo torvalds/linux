@@ -506,18 +506,18 @@ static int tf_smu7_thermal_disable_alert(struct pp_hwmgr *hwmgr,
 
 static const struct phm_master_table_item
 phm_thermal_start_thermal_controller_master_list[] = {
-	{NULL, tf_smu7_thermal_initialize},
-	{NULL, tf_smu7_thermal_set_temperature_range},
-	{NULL, tf_smu7_thermal_enable_alert},
-	{NULL, smum_thermal_avfs_enable},
+	{ .tableFunction = tf_smu7_thermal_initialize },
+	{ .tableFunction = tf_smu7_thermal_set_temperature_range },
+	{ .tableFunction = tf_smu7_thermal_enable_alert },
+	{ .tableFunction = smum_thermal_avfs_enable },
 /* We should restrict performance levels to low before we halt the SMC.
  * On the other hand we are still in boot state when we do this
  * so it would be pointless.
  * If this assumption changes we have to revisit this table.
  */
-	{NULL, smum_thermal_setup_fan_table},
-	{NULL, tf_smu7_thermal_start_smc_fan_control},
-	{NULL, NULL}
+	{ .tableFunction = smum_thermal_setup_fan_table },
+	{ .tableFunction = tf_smu7_thermal_start_smc_fan_control },
+	{ }
 };
 
 static const struct phm_master_table_header
@@ -529,10 +529,10 @@ phm_thermal_start_thermal_controller_master = {
 
 static const struct phm_master_table_item
 phm_thermal_set_temperature_range_master_list[] = {
-	{NULL, tf_smu7_thermal_disable_alert},
-	{NULL, tf_smu7_thermal_set_temperature_range},
-	{NULL, tf_smu7_thermal_enable_alert},
-	{NULL, NULL}
+	{ .tableFunction = tf_smu7_thermal_disable_alert },
+	{ .tableFunction = tf_smu7_thermal_set_temperature_range },
+	{ .tableFunction = tf_smu7_thermal_enable_alert },
+	{ }
 };
 
 static const struct phm_master_table_header
@@ -575,3 +575,9 @@ int pp_smu7_thermal_initialize(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+void pp_smu7_thermal_fini(struct pp_hwmgr *hwmgr)
+{
+	phm_destroy_table(hwmgr, &(hwmgr->set_temperature_range));
+	phm_destroy_table(hwmgr, &(hwmgr->start_thermal_controller));
+	return;
+}

@@ -22,6 +22,7 @@
  */
 
 #include <linux/bug.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/smp.h>
@@ -34,6 +35,7 @@
 #include <asm/war.h>
 #include <asm/uasm.h>
 #include <asm/setup.h>
+#include <asm/tlbex.h>
 
 static int mips_xpa_disabled;
 
@@ -344,7 +346,8 @@ static int allocate_kscratch(void)
 }
 
 static int scratch_reg;
-static int pgd_reg;
+int pgd_reg;
+EXPORT_SYMBOL_GPL(pgd_reg);
 enum vmalloc64_mode {not_refill, refill_scratch, refill_noscratch};
 
 static struct work_registers build_get_work_registers(u32 **p)
@@ -496,15 +499,9 @@ static void __maybe_unused build_tlb_probe_entry(u32 **p)
 	}
 }
 
-/*
- * Write random or indexed TLB entry, and care about the hazards from
- * the preceding mtc0 and for the following eret.
- */
-enum tlb_write_entry { tlb_random, tlb_indexed };
-
-static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
-				  struct uasm_reloc **r,
-				  enum tlb_write_entry wmode)
+void build_tlb_write_entry(u32 **p, struct uasm_label **l,
+			   struct uasm_reloc **r,
+			   enum tlb_write_entry wmode)
 {
 	void(*tlbw)(u32 **) = NULL;
 
@@ -627,6 +624,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(build_tlb_write_entry);
 
 static __maybe_unused void build_convert_pte_to_entrylo(u32 **p,
 							unsigned int reg)
@@ -762,7 +760,8 @@ static void build_huge_update_entries(u32 **p, unsigned int pte,
 static void build_huge_handler_tail(u32 **p, struct uasm_reloc **r,
 				    struct uasm_label **l,
 				    unsigned int pte,
-				    unsigned int ptr)
+				    unsigned int ptr,
+				    unsigned int flush)
 {
 #ifdef CONFIG_SMP
 	UASM_i_SC(p, pte, 0, ptr);
@@ -771,6 +770,22 @@ static void build_huge_handler_tail(u32 **p, struct uasm_reloc **r,
 #else
 	UASM_i_SW(p, pte, 0, ptr);
 #endif
+	if (cpu_has_ftlb && flush) {
+		BUG_ON(!cpu_has_tlbinv);
+
+		UASM_i_MFC0(p, ptr, C0_ENTRYHI);
+		uasm_i_ori(p, ptr, ptr, MIPS_ENTRYHI_EHINV);
+		UASM_i_MTC0(p, ptr, C0_ENTRYHI);
+		build_tlb_write_entry(p, l, r, tlb_indexed);
+
+		uasm_i_xori(p, ptr, ptr, MIPS_ENTRYHI_EHINV);
+		UASM_i_MTC0(p, ptr, C0_ENTRYHI);
+		build_huge_update_entries(p, pte, ptr);
+		build_huge_tlb_write_entry(p, l, r, pte, tlb_random, 0);
+
+		return;
+	}
+
 	build_huge_update_entries(p, pte, ptr);
 	build_huge_tlb_write_entry(p, l, r, pte, tlb_indexed, 0);
 }
@@ -781,9 +796,8 @@ static void build_huge_handler_tail(u32 **p, struct uasm_reloc **r,
  * TMP and PTR are scratch.
  * TMP will be clobbered, PTR will hold the pmd entry.
  */
-static void
-build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
-		 unsigned int tmp, unsigned int ptr)
+void build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
+		      unsigned int tmp, unsigned int ptr)
 {
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
 	long pgdc = (long)pgd_current;
@@ -859,6 +873,7 @@ build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 	uasm_i_daddu(p, ptr, ptr, tmp); /* add in pmd offset */
 #endif
 }
+EXPORT_SYMBOL_GPL(build_get_pmde64);
 
 /*
  * BVADDR is the faulting address, PTR is scratch.
@@ -934,8 +949,7 @@ build_get_pgd_vmalloc64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
  * TMP and PTR are scratch.
  * TMP will be clobbered, PTR will hold the pgd entry.
  */
-static void __maybe_unused
-build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
+void build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 {
 	if (pgd_reg != -1) {
 		/* pgd is in pgd_reg */
@@ -960,6 +974,7 @@ build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 	uasm_i_sll(p, tmp, tmp, PGD_T_LOG2);
 	uasm_i_addu(p, ptr, ptr, tmp); /* add in pgd offset */
 }
+EXPORT_SYMBOL_GPL(build_get_pgde32);
 
 #endif /* !CONFIG_64BIT */
 
@@ -989,7 +1004,7 @@ static void build_adjust_context(u32 **p, unsigned int ctx)
 	uasm_i_andi(p, ctx, ctx, mask);
 }
 
-static void build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
+void build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
 {
 	/*
 	 * Bug workaround for the Nevada. It seems as if under certain
@@ -1013,8 +1028,9 @@ static void build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
 	build_adjust_context(p, tmp);
 	UASM_i_ADDU(p, ptr, ptr, tmp); /* add in offset */
 }
+EXPORT_SYMBOL_GPL(build_get_ptep);
 
-static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
+void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 {
 	int pte_off_even = 0;
 	int pte_off_odd = sizeof(pte_t);
@@ -1063,6 +1079,7 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 		UASM_i_MTC0(p, 0, C0_ENTRYLO1);
 	UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
 }
+EXPORT_SYMBOL_GPL(build_update_entries);
 
 struct mips_huge_tlb_info {
 	int huge_pte;
@@ -1536,7 +1553,9 @@ static void build_loongson3_tlb_refill_handler(void)
 extern u32 handle_tlbl[], handle_tlbl_end[];
 extern u32 handle_tlbs[], handle_tlbs_end[];
 extern u32 handle_tlbm[], handle_tlbm_end[];
-extern u32 tlbmiss_handler_setup_pgd_start[], tlbmiss_handler_setup_pgd[];
+extern u32 tlbmiss_handler_setup_pgd_start[];
+extern u32 tlbmiss_handler_setup_pgd[];
+EXPORT_SYMBOL_GPL(tlbmiss_handler_setup_pgd);
 extern u32 tlbmiss_handler_setup_pgd_end[];
 
 static void build_setup_pgd(void)
@@ -2041,7 +2060,7 @@ build_r4000_tlbchange_handler_tail(u32 **p, struct uasm_label **l,
 
 static void build_r4000_tlb_load_handler(void)
 {
-	u32 *p = handle_tlbl;
+	u32 *p = (u32 *)msk_isa16_mode((ulong)handle_tlbl);
 	const int handle_tlbl_size = handle_tlbl_end - handle_tlbl;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
@@ -2197,7 +2216,7 @@ static void build_r4000_tlb_load_handler(void)
 		uasm_l_tlbl_goaround2(&l, p);
 	}
 	uasm_i_ori(&p, wr.r1, wr.r1, (_PAGE_ACCESSED | _PAGE_VALID));
-	build_huge_handler_tail(&p, &r, &l, wr.r1, wr.r2);
+	build_huge_handler_tail(&p, &r, &l, wr.r1, wr.r2, 1);
 #endif
 
 	uasm_l_nopage_tlbl(&l, p);
@@ -2224,7 +2243,7 @@ static void build_r4000_tlb_load_handler(void)
 
 static void build_r4000_tlb_store_handler(void)
 {
-	u32 *p = handle_tlbs;
+	u32 *p = (u32 *)msk_isa16_mode((ulong)handle_tlbs);
 	const int handle_tlbs_size = handle_tlbs_end - handle_tlbs;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
@@ -2252,7 +2271,7 @@ static void build_r4000_tlb_store_handler(void)
 	build_tlb_probe_entry(&p);
 	uasm_i_ori(&p, wr.r1, wr.r1,
 		   _PAGE_ACCESSED | _PAGE_MODIFIED | _PAGE_VALID | _PAGE_DIRTY);
-	build_huge_handler_tail(&p, &r, &l, wr.r1, wr.r2);
+	build_huge_handler_tail(&p, &r, &l, wr.r1, wr.r2, 1);
 #endif
 
 	uasm_l_nopage_tlbs(&l, p);
@@ -2279,7 +2298,7 @@ static void build_r4000_tlb_store_handler(void)
 
 static void build_r4000_tlb_modify_handler(void)
 {
-	u32 *p = handle_tlbm;
+	u32 *p = (u32 *)msk_isa16_mode((ulong)handle_tlbm);
 	const int handle_tlbm_size = handle_tlbm_end - handle_tlbm;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
@@ -2308,7 +2327,7 @@ static void build_r4000_tlb_modify_handler(void)
 	build_tlb_probe_entry(&p);
 	uasm_i_ori(&p, wr.r1, wr.r1,
 		   _PAGE_ACCESSED | _PAGE_MODIFIED | _PAGE_VALID | _PAGE_DIRTY);
-	build_huge_handler_tail(&p, &r, &l, wr.r1, wr.r2);
+	build_huge_handler_tail(&p, &r, &l, wr.r1, wr.r2, 0);
 #endif
 
 	uasm_l_nopage_tlbm(&l, p);

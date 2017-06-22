@@ -1393,6 +1393,12 @@ static int aic3x_set_power(struct snd_soc_codec *codec, int power)
 			snd_soc_write(codec, AIC3X_PLL_PROGC_REG, pll_c);
 			snd_soc_write(codec, AIC3X_PLL_PROGD_REG, pll_d);
 		}
+
+		/*
+		 * Delay is needed to reduce pop-noise after syncing back the
+		 * registers
+		 */
+		mdelay(50);
 	} else {
 		/*
 		 * Do soft reset to this codec instance in order to clear

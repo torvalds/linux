@@ -180,7 +180,7 @@
 	phy-supply = <&vcc_lan>;
 	phy-mode = "rgmii";
 	clock_in_out = "input";
-	snps,reset-gpio = <&gpio4 RK_PB0 0>;
+	snps,reset-gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 1000000>;
 	assigned-clocks = <&cru SCLK_MAC>;
@@ -205,7 +205,7 @@
 		compatible = "rockchip,rk808";
 		reg = <0x1b>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int &global_pwroff>;
 		rockchip,system-power-controller;
@@ -390,7 +390,7 @@
 		compatible = "asahi-kasei,ak8975";
 		reg = <0x0d>;
 		interrupt-parent = <&gpio8>;
-		interrupts = <1 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <RK_PA1 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&comp_int>;
 		vdd-supply = <&vcc_io>;
@@ -409,7 +409,7 @@
 		compatible = "fsl,mma8452";
 		reg = <0x1d>;
 		interrupt-parent = <&gpio8>;
-		interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <RK_PA0 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&gsensor_int>;
 	};

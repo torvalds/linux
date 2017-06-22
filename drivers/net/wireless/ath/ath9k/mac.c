@@ -805,20 +805,11 @@ void ath9k_hw_disable_interrupts(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_disable_interrupts);
 
-void ath9k_hw_enable_interrupts(struct ath_hw *ah)
+static void __ath9k_hw_enable_interrupts(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 sync_default = AR_INTR_SYNC_DEFAULT;
 	u32 async_mask;
-
-	if (!(ah->imask & ATH9K_INT_GLOBAL))
-		return;
-
-	if (!atomic_inc_and_test(&ah->intr_ref_cnt)) {
-		ath_dbg(common, INTERRUPT, "Do not enable IER ref count %d\n",
-			atomic_read(&ah->intr_ref_cnt));
-		return;
-	}
 
 	if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah) ||
 	    AR_SREV_9561(ah))
@@ -840,6 +831,39 @@ void ath9k_hw_enable_interrupts(struct ath_hw *ah)
 	}
 	ath_dbg(common, INTERRUPT, "AR_IMR 0x%x IER 0x%x\n",
 		REG_READ(ah, AR_IMR), REG_READ(ah, AR_IER));
+}
+
+void ath9k_hw_resume_interrupts(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!(ah->imask & ATH9K_INT_GLOBAL))
+		return;
+
+	if (atomic_read(&ah->intr_ref_cnt) != 0) {
+		ath_dbg(common, INTERRUPT, "Do not enable IER ref count %d\n",
+			atomic_read(&ah->intr_ref_cnt));
+		return;
+	}
+
+	__ath9k_hw_enable_interrupts(ah);
+}
+EXPORT_SYMBOL(ath9k_hw_resume_interrupts);
+
+void ath9k_hw_enable_interrupts(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!(ah->imask & ATH9K_INT_GLOBAL))
+		return;
+
+	if (!atomic_inc_and_test(&ah->intr_ref_cnt)) {
+		ath_dbg(common, INTERRUPT, "Do not enable IER ref count %d\n",
+			atomic_read(&ah->intr_ref_cnt));
+		return;
+	}
+
+	__ath9k_hw_enable_interrupts(ah);
 }
 EXPORT_SYMBOL(ath9k_hw_enable_interrupts);
 

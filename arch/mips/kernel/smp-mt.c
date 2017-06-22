@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip/mips-gic.h>
 #include <linux/compiler.h>
+#include <linux/sched/task_stack.h>
 #include <linux/smp.h>
 
 #include <linux/atomic.h>

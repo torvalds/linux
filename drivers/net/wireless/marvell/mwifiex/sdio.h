@@ -268,8 +268,8 @@ struct sdio_mmc_card {
 	struct mwifiex_sdio_mpa_tx mpa_tx;
 	struct mwifiex_sdio_mpa_rx mpa_rx;
 
-	/* needed for card reset */
-	const struct sdio_device_id *device_id;
+	struct work_struct work;
+	unsigned long work_flags;
 };
 
 struct mwifiex_sdio_device {

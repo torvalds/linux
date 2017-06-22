@@ -109,7 +109,6 @@ static int ab8500_ponkey_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	platform_set_drvdata(pdev, ponkey);
 	return 0;
 }
 

@@ -884,7 +884,6 @@ static void ks7010_card_init(struct ks_wlan_private *priv)
 	if (priv->mac_address_valid && priv->version_size)
 		priv->dev_state = DEVICE_STATE_PREINIT;
 
-
 	hostif_sme_enqueue(priv, SME_GET_EEPROM_CKSUM);
 
 	/* load initial wireless parameter */

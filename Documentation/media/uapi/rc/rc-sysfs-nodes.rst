@@ -92,15 +92,16 @@ This value may be reset to 0 if the current protocol is altered.
 Reading this file returns a list of available protocols to use for the
 wakeup filter, something like:
 
-``rc5 rc6 nec jvc [sony]``
+``rc-5 nec nec-x rc-6-0 rc-6-6a-24 [rc-6-6a-32] rc-6-mce``
+
+Note that protocol variants are listed, so "nec", "sony", "rc-5", "rc-6"
+have their different bit length encodings listed if available.
+
+Note that all protocol variants are listed.
 
 The enabled wakeup protocol is shown in [] brackets.
 
-Writing "+proto" will add a protocol to the list of enabled wakeup
-protocols.
-
-Writing "-proto" will remove a protocol from the list of enabled wakeup
-protocols.
+Only one protocol can be selected at a time.
 
 Writing "proto" will use "proto" for wakeup events.
 

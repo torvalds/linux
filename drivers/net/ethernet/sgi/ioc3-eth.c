@@ -914,7 +914,7 @@ static void ioc3_alloc_rings(struct net_device *dev)
 
 			skb = ioc3_alloc_skb(RX_BUF_ALLOC_SIZE, GFP_ATOMIC);
 			if (!skb) {
-				show_free_areas(0);
+				show_free_areas(0, NULL);
 				continue;
 			}
 

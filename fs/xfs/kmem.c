@@ -16,6 +16,7 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/highmem.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
@@ -23,24 +24,6 @@
 #include <linux/backing-dev.h>
 #include "kmem.h"
 #include "xfs_message.h"
-
-/*
- * Greedy allocation.  May fail and may return vmalloced memory.
- */
-void *
-kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
-{
-	void		*ptr;
-	size_t		kmsize = maxsize;
-
-	while (!(ptr = vzalloc(kmsize))) {
-		if ((kmsize >>= 1) <= minsize)
-			kmsize = minsize;
-	}
-	if (ptr)
-		*size = kmsize;
-	return ptr;
-}
 
 void *
 kmem_alloc(size_t size, xfs_km_flags_t flags)

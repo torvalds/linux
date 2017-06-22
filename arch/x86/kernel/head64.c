@@ -4,6 +4,7 @@
  *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE
  */
 
+#define DISABLE_BRANCH_PROFILING
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/types.h>

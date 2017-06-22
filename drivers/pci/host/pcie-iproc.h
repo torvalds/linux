@@ -90,6 +90,7 @@ struct iproc_pcie {
 #ifdef CONFIG_ARM
 	struct pci_sys_data sysdata;
 #endif
+	struct resource mem;
 	struct pci_bus *root_bus;
 	struct phy *phy;
 	int (*map_irq)(const struct pci_dev *, u8, u8);

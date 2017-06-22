@@ -115,12 +115,12 @@
     </para>
     <para>
     If the architecture that you are using supports the kernel option
-    CONFIG_DEBUG_RODATA, you should consider turning it off.  This
+    CONFIG_STRICT_KERNEL_RWX, you should consider turning it off.  This
     option will prevent the use of software breakpoints because it
     marks certain regions of the kernel's memory space as read-only.
     If kgdb supports it for the architecture you are using, you can
     use hardware breakpoints if you desire to run with the
-    CONFIG_DEBUG_RODATA option turned on, else you need to turn off
+    CONFIG_STRICT_KERNEL_RWX option turned on, else you need to turn off
     this option.
     </para>
     <para>
@@ -135,7 +135,7 @@
     <para>Here is an example set of .config symbols to enable or
     disable for kgdb:
     <itemizedlist>
-    <listitem><para># CONFIG_DEBUG_RODATA is not set</para></listitem>
+    <listitem><para># CONFIG_STRICT_KERNEL_RWX is not set</para></listitem>
     <listitem><para>CONFIG_FRAME_POINTER=y</para></listitem>
     <listitem><para>CONFIG_KGDB=y</para></listitem>
     <listitem><para>CONFIG_KGDB_SERIAL_CONSOLE=y</para></listitem>
@@ -166,7 +166,7 @@
     </para>
     <para>Here is an example set of .config symbols to enable/disable kdb:
     <itemizedlist>
-    <listitem><para># CONFIG_DEBUG_RODATA is not set</para></listitem>
+    <listitem><para># CONFIG_STRICT_KERNEL_RWX is not set</para></listitem>
     <listitem><para>CONFIG_FRAME_POINTER=y</para></listitem>
     <listitem><para>CONFIG_KGDB=y</para></listitem>
     <listitem><para>CONFIG_KGDB_SERIAL_CONSOLE=y</para></listitem>

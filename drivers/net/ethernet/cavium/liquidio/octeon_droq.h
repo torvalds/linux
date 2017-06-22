@@ -325,10 +325,10 @@ struct octeon_droq {
 	size_t desc_ring_dma;
 
 	/** Info ptr list are allocated at this virtual address. */
-	size_t info_base_addr;
+	void *info_base_addr;
 
 	/** DMA mapped address of the info list */
-	size_t info_list_dma;
+	dma_addr_t info_list_dma;
 
 	/** Allocated size of info list. */
 	u32 info_alloc_size;

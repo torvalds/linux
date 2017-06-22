@@ -1,5 +1,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/mm_types.h>
 
 #include <asm/cacheflush.h>
 #include <asm/idmap.h>

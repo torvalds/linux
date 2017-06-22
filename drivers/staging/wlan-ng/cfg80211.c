@@ -483,8 +483,8 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 		msg_join.authtype.data = P80211ENUM_authalg_sharedkey;
 	else
 		netdev_warn(dev,
-			"Unhandled authorisation type for connect (%d)\n",
-			sme->auth_type);
+			    "Unhandled authorisation type for connect (%d)\n",
+			    sme->auth_type);
 
 	/* Set the encryption - we only support wep */
 	if (is_wep) {
@@ -667,7 +667,7 @@ void prism2_disconnected(struct wlandevice *wlandev)
 void prism2_roamed(struct wlandevice *wlandev)
 {
 	cfg80211_roamed(wlandev->netdev, NULL, wlandev->bssid,
-		NULL, 0, NULL, 0, GFP_KERNEL);
+			NULL, 0, NULL, 0, GFP_KERNEL);
 }
 
 /* Structures for declaring wiphy interface */

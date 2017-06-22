@@ -57,8 +57,14 @@ enum devlink_command {
 	DEVLINK_CMD_SB_OCC_SNAPSHOT,
 	DEVLINK_CMD_SB_OCC_MAX_CLEAR,
 
-	DEVLINK_CMD_ESWITCH_MODE_GET,
-	DEVLINK_CMD_ESWITCH_MODE_SET,
+	DEVLINK_CMD_ESWITCH_GET,
+#define DEVLINK_CMD_ESWITCH_MODE_GET /* obsolete, never use this! */ \
+	DEVLINK_CMD_ESWITCH_GET
+
+	DEVLINK_CMD_ESWITCH_SET,
+#define DEVLINK_CMD_ESWITCH_MODE_SET /* obsolete, never use this! */ \
+	DEVLINK_CMD_ESWITCH_SET
+
 	/* add new commands above here */
 
 	__DEVLINK_CMD_MAX,

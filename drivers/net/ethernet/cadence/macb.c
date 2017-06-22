@@ -1146,7 +1146,7 @@ static int macb_poll(struct napi_struct *napi, int budget)
 
 	work_done = bp->macbgem_ops.mog_rx(bp, budget);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		/* Packets received while interrupts were disabled */
 		status = macb_readl(bp, RSR);
@@ -1622,7 +1622,7 @@ static void macb_init_rx_buffer_size(struct macb *bp, size_t size)
 		}
 	}
 
-	netdev_dbg(bp->dev, "mtu [%u] rx_buffer_size [%Zu]\n",
+	netdev_dbg(bp->dev, "mtu [%u] rx_buffer_size [%zu]\n",
 		   bp->dev->mtu, bp->rx_buffer_size);
 }
 
@@ -2146,6 +2146,9 @@ static int macb_open(struct net_device *dev)
 
 	netif_tx_start_all_queues(dev);
 
+	if (bp->ptp_info)
+		bp->ptp_info->ptp_init(dev);
+
 	return 0;
 }
 
@@ -2166,6 +2169,9 @@ static int macb_close(struct net_device *dev)
 	spin_unlock_irqrestore(&bp->lock, flags);
 
 	macb_free_consistent(bp);
+
+	if (bp->ptp_info)
+		bp->ptp_info->ptp_remove(dev);
 
 	return 0;
 }
@@ -2440,6 +2446,17 @@ static int macb_set_ringparam(struct net_device *netdev,
 	return 0;
 }
 
+static int macb_get_ts_info(struct net_device *netdev,
+			    struct ethtool_ts_info *info)
+{
+	struct macb *bp = netdev_priv(netdev);
+
+	if (bp->ptp_info)
+		return bp->ptp_info->get_ts_info(netdev, info);
+
+	return ethtool_op_get_ts_info(netdev, info);
+}
+
 static const struct ethtool_ops macb_ethtool_ops = {
 	.get_regs_len		= macb_get_regs_len,
 	.get_regs		= macb_get_regs,
@@ -2457,7 +2474,7 @@ static const struct ethtool_ops gem_ethtool_ops = {
 	.get_regs_len		= macb_get_regs_len,
 	.get_regs		= macb_get_regs,
 	.get_link		= ethtool_op_get_link,
-	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_ts_info		= macb_get_ts_info,
 	.get_ethtool_stats	= gem_get_ethtool_stats,
 	.get_strings		= gem_get_ethtool_strings,
 	.get_sset_count		= gem_get_sset_count,
@@ -2470,6 +2487,7 @@ static const struct ethtool_ops gem_ethtool_ops = {
 static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct phy_device *phydev = dev->phydev;
+	struct macb *bp = netdev_priv(dev);
 
 	if (!netif_running(dev))
 		return -EINVAL;
@@ -2477,7 +2495,17 @@ static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!phydev)
 		return -ENODEV;
 
-	return phy_mii_ioctl(phydev, rq, cmd);
+	if (!bp->ptp_info)
+		return phy_mii_ioctl(phydev, rq, cmd);
+
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+		return bp->ptp_info->set_hwtst(dev, rq, cmd);
+	case SIOCGHWTSTAMP:
+		return bp->ptp_info->get_hwtst(dev, rq);
+	default:
+		return phy_mii_ioctl(phydev, rq, cmd);
+	}
 }
 
 static int macb_set_features(struct net_device *netdev,

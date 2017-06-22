@@ -3,8 +3,6 @@
 
 #include <linux/compiler.h>
 
-#include <asm/sysreg.h>
-
 #ifndef __ASSEMBLY__
 
 struct task_struct;

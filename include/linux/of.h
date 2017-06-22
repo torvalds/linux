@@ -280,6 +280,7 @@ extern struct device_node *of_get_child_by_name(const struct device_node *node,
 
 /* cache lookup */
 extern struct device_node *of_find_next_cache_node(const struct device_node *);
+extern int of_find_last_cache_level(unsigned int cpu);
 extern struct device_node *of_find_node_with_property(
 	struct device_node *from, const char *prop_name);
 

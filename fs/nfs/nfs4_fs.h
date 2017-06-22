@@ -273,14 +273,6 @@ extern int nfs4_set_rw_stateid(nfs4_stateid *stateid,
 		fmode_t fmode);
 
 #if defined(CONFIG_NFS_V4_1)
-static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
-{
-	return server->nfs_client->cl_session;
-}
-
-extern int nfs41_setup_sequence(struct nfs4_session *session,
-		struct nfs4_sequence_args *args, struct nfs4_sequence_res *res,
-		struct rpc_task *task);
 extern int nfs41_sequence_done(struct rpc_task *, struct nfs4_sequence_res *);
 extern int nfs4_proc_create_session(struct nfs_client *, struct rpc_cred *);
 extern int nfs4_proc_destroy_session(struct nfs4_session *, struct rpc_cred *);
@@ -357,11 +349,6 @@ nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
 		hdr->args.stable = NFS_FILE_SYNC;
 }
 #else /* CONFIG_NFS_v4_1 */
-static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
-{
-	return NULL;
-}
-
 static inline bool
 is_ds_only_client(struct nfs_client *clp)
 {
@@ -466,7 +453,7 @@ extern void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid);
 extern void nfs_increment_lock_seqid(int status, struct nfs_seqid *seqid);
 extern void nfs_release_seqid(struct nfs_seqid *seqid);
 extern void nfs_free_seqid(struct nfs_seqid *seqid);
-extern int nfs40_setup_sequence(struct nfs4_slot_table *tbl,
+extern int nfs4_setup_sequence(const struct nfs_client *client,
 				struct nfs4_sequence_args *args,
 				struct nfs4_sequence_res *res,
 				struct rpc_task *task);

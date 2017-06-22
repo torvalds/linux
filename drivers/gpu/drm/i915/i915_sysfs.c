@@ -58,7 +58,7 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 
 		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
 			units <<= 8;
-	} else if (IS_BROXTON(dev_priv)) {
+	} else if (IS_GEN9_LP(dev_priv)) {
 		units = 1;
 		div = 1200;		/* 833.33ns */
 	}
@@ -535,7 +535,7 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	error_priv.dev = dev;
+	error_priv.i915 = dev_priv;
 	i915_error_state_get(dev, &error_priv);
 
 	ret = i915_error_state_to_str(&error_str, &error_priv);
@@ -560,7 +560,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
-	i915_destroy_error_state(&dev_priv->drm);
+	i915_destroy_error_state(dev_priv);
 
 	return count;
 }

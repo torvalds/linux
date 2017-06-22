@@ -14,11 +14,11 @@
 #include "michael_mic.h"
 
 // Rotation functions on 32 bit values
-#define ROL32(A, n)	(((A) << (n)) | (((A)>>(32-(n))) & ((1UL << (n)) - 1)))
-#define ROR32(A, n)	ROL32((A), 32-(n))
+#define ROL32(A, n)	(((A) << (n)) | (((A) >> (32 - (n))) & ((1UL << (n)) - 1)))
+#define ROR32(A, n)	ROL32((A), 32 - (n))
 // Convert from Byte[] to UInt32 in a portable way
-#define getUInt32(A, B)	((uint32_t)(A[B+0] << 0) \
-		+ (A[B+1] << 8) + (A[B+2] << 16) + (A[B+3] << 24))
+#define getUInt32(A, B)	((uint32_t)(A[B + 0] << 0) \
+		+ (A[B + 1] << 8) + (A[B + 2] << 16) + (A[B + 3] << 24))
 
 // Convert from UInt32 to Byte[] in a portable way
 #define putUInt32(A, B, C)					\

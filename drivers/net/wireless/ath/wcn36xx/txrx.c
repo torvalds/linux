@@ -45,9 +45,20 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 	skb_put(skb, bd->pdu.mpdu_header_off + bd->pdu.mpdu_len);
 	skb_pull(skb, bd->pdu.mpdu_header_off);
 
+	hdr = (struct ieee80211_hdr *) skb->data;
+	fc = __le16_to_cpu(hdr->frame_control);
+	sn = IEEE80211_SEQ_TO_SN(__le16_to_cpu(hdr->seq_ctrl));
+
+	/* When scanning associate beacons to this */
+	if (ieee80211_is_beacon(hdr->frame_control) && wcn->scan_freq) {
+		status.freq = wcn->scan_freq;
+		status.band = wcn->scan_band;
+	} else {
+		status.freq = WCN36XX_CENTER_FREQ(wcn);
+		status.band = WCN36XX_BAND(wcn);
+	}
+
 	status.mactime = 10;
-	status.freq = WCN36XX_CENTER_FREQ(wcn);
-	status.band = WCN36XX_BAND(wcn);
 	status.signal = -get_rssi0(bd);
 	status.antenna = 1;
 	status.rate_idx = 1;
@@ -60,10 +71,6 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 	wcn36xx_dbg(WCN36XX_DBG_RX, "status.flags=%llx\n", status.flag);
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
-
-	hdr = (struct ieee80211_hdr *) skb->data;
-	fc = __le16_to_cpu(hdr->frame_control);
-	sn = IEEE80211_SEQ_TO_SN(__le16_to_cpu(hdr->seq_ctrl));
 
 	if (ieee80211_is_beacon(hdr->frame_control)) {
 		wcn36xx_dbg(WCN36XX_DBG_BEACON, "beacon skb %p len %d fc %04x sn %d\n",

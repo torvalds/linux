@@ -203,7 +203,7 @@ struct dsp_task_tree_context_block {
 
 	u32	  saverfe;					
 
-	/* Value may be overwriten by stack save algorithm.
+	/* Value may be overwritten by stack save algorithm.
 	   Retain the size of the stack data saved here if used */
 	___DSP_DUAL_16BIT_ALLOC(
              reserved1,	

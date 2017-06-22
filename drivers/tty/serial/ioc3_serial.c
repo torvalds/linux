@@ -1873,7 +1873,7 @@ static int ic3_request_port(struct uart_port *port)
 }
 
 /* Associate the uart functions above - given to serial core */
-static struct uart_ops ioc3_ops = {
+static const struct uart_ops ioc3_ops = {
 	.tx_empty = ic3_tx_empty,
 	.set_mctrl = ic3_set_mctrl,
 	.get_mctrl = ic3_get_mctrl,

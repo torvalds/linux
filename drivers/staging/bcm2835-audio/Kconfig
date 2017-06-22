@@ -1,0 +1,7 @@
+config SND_BCM2835
+        tristate "BCM2835 ALSA driver"
+        depends on ARCH_BCM2835 && BCM2835_VCHIQ && SND
+        select SND_PCM
+        help
+          Say Y or M if you want to support BCM2835 Alsa pcm card driver
+

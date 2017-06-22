@@ -46,6 +46,7 @@ config X86
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ACPI_TABLE_UPGRADE	if ACPI
+	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
@@ -53,7 +54,10 @@ config X86
 	select ARCH_HAS_KCOV			if X86_64
 	select ARCH_HAS_MMIO_FLUSH
 	select ARCH_HAS_PMEM_API		if X86_64
+	select ARCH_HAS_SET_MEMORY
 	select ARCH_HAS_SG_CHAIN
+	select ARCH_HAS_STRICT_KERNEL_RWX
+	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
@@ -105,6 +109,7 @@ config X86
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD if X86_64
 	select HAVE_ARCH_VMAP_STACK		if X86_64
 	select HAVE_ARCH_WITHIN_STACK_FRAMES
 	select HAVE_CC_STACKPROTECTOR
@@ -307,9 +312,6 @@ config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
 config FIX_EARLYCON_MEM
-	def_bool y
-
-config DEBUG_RODATA
 	def_bool y
 
 config PGTABLE_LEVELS
@@ -1070,7 +1072,7 @@ config X86_MCE_THRESHOLD
 	def_bool y
 
 config X86_MCE_INJECT
-	depends on X86_MCE
+	depends on X86_MCE && X86_LOCAL_APIC
 	tristate "Machine check injector support"
 	---help---
 	  Provide support for injecting machine checks for testing purposes.
@@ -1994,10 +1996,6 @@ config RANDOMIZE_BASE
 	  theoretically possible, but the implementations are further
 	  limited due to memory layouts.
 
-	  If CONFIG_HIBERNATE is also enabled, KASLR is disabled at boot
-	  time. To enable it, boot with "kaslr" on the kernel command
-	  line (which will also disable hibernation).
-
 	  If unsure, say N.
 
 # Relocation on x86 needs some additional build support
@@ -2788,10 +2786,6 @@ config X86_DEV_DMA_OPS
 config X86_DMA_REMAP
 	bool
 	depends on STA2X11
-
-config PMC_ATOM
-	def_bool y
-        depends on PCI
 
 source "net/Kconfig"
 

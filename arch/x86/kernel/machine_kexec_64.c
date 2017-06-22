@@ -194,19 +194,22 @@ static int arch_update_purgatory(struct kimage *image)
 
 	/* Setup copying of backup region */
 	if (image->type == KEXEC_TYPE_CRASH) {
-		ret = kexec_purgatory_get_set_symbol(image, "backup_dest",
+		ret = kexec_purgatory_get_set_symbol(image,
+				"purgatory_backup_dest",
 				&image->arch.backup_load_addr,
 				sizeof(image->arch.backup_load_addr), 0);
 		if (ret)
 			return ret;
 
-		ret = kexec_purgatory_get_set_symbol(image, "backup_src",
+		ret = kexec_purgatory_get_set_symbol(image,
+				"purgatory_backup_src",
 				&image->arch.backup_src_start,
 				sizeof(image->arch.backup_src_start), 0);
 		if (ret)
 			return ret;
 
-		ret = kexec_purgatory_get_set_symbol(image, "backup_sz",
+		ret = kexec_purgatory_get_set_symbol(image,
+				"purgatory_backup_sz",
 				&image->arch.backup_src_sz,
 				sizeof(image->arch.backup_src_sz), 0);
 		if (ret)

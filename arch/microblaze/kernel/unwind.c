@@ -17,6 +17,7 @@
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
 #include <linux/types.h>
 #include <linux/errno.h>

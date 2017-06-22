@@ -63,6 +63,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>

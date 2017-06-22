@@ -26,14 +26,52 @@
 #define RMI_F03_BYTES_PER_DEVICE_SHIFT	4
 #define RMI_F03_QUEUE_LENGTH		0x0F
 
+#define PSMOUSE_OOB_EXTRA_BTNS		0x01
+
 struct f03_data {
 	struct rmi_function *fn;
 
 	struct serio *serio;
 
+	unsigned int overwrite_buttons;
+
 	u8 device_count;
 	u8 rx_queue_length;
 };
+
+int rmi_f03_overwrite_button(struct rmi_function *fn, unsigned int button,
+			     int value)
+{
+	struct f03_data *f03 = dev_get_drvdata(&fn->dev);
+	unsigned int bit;
+
+	if (button < BTN_LEFT || button > BTN_MIDDLE)
+		return -EINVAL;
+
+	bit = BIT(button - BTN_LEFT);
+
+	if (value)
+		f03->overwrite_buttons |= bit;
+	else
+		f03->overwrite_buttons &= ~bit;
+
+	return 0;
+}
+
+void rmi_f03_commit_buttons(struct rmi_function *fn)
+{
+	struct f03_data *f03 = dev_get_drvdata(&fn->dev);
+	struct serio *serio = f03->serio;
+
+	serio_pause_rx(serio);
+	if (serio->drv) {
+		serio->drv->interrupt(serio, PSMOUSE_OOB_EXTRA_BTNS,
+				      SERIO_OOB_DATA);
+		serio->drv->interrupt(serio, f03->overwrite_buttons,
+				      SERIO_OOB_DATA);
+	}
+	serio_continue_rx(serio);
+}
 
 static int rmi_f03_pt_write(struct serio *id, unsigned char val)
 {
@@ -174,9 +212,6 @@ static int rmi_f03_attention(struct rmi_function *fn, unsigned long *irq_bits)
 	unsigned int serio_flags;
 	int i;
 	int error;
-
-	if (!rmi_dev)
-		return -ENODEV;
 
 	if (drvdata->attn_data.data) {
 		/* First grab the data passed by the transport device */

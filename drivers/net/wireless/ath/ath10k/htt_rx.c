@@ -702,6 +702,10 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 		/* 80MHZ */
 		case 2:
 			status->vht_flag |= RX_VHT_FLAG_80MHZ;
+			break;
+		case 3:
+			status->vht_flag |= RX_VHT_FLAG_160MHZ;
+			break;
 		}
 
 		status->flag |= RX_FLAG_VHT;
@@ -926,7 +930,7 @@ static void ath10k_process_rx(struct ath10k *ar,
 	*status = *rx_status;
 
 	ath10k_dbg(ar, ATH10K_DBG_DATA,
-		   "rx skb %pK len %u peer %pM %s %s sn %u %s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%llx fcs-err %i mic-err %i amsdu-more %i\n",
+		   "rx skb %pK len %u peer %pM %s %s sn %u %s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%llx fcs-err %i mic-err %i amsdu-more %i\n",
 		   skb,
 		   skb->len,
 		   ieee80211_get_SA(hdr),
@@ -940,6 +944,7 @@ static void ath10k_process_rx(struct ath10k *ar,
 		   status->flag & RX_FLAG_VHT ? "vht" : "",
 		   status->flag & RX_FLAG_40MHZ ? "40" : "",
 		   status->vht_flag & RX_VHT_FLAG_80MHZ ? "80" : "",
+		   status->vht_flag & RX_VHT_FLAG_160MHZ ? "160" : "",
 		   status->flag & RX_FLAG_SHORT_GI ? "sgi " : "",
 		   status->rate_idx,
 		   status->vht_nss,
@@ -2231,6 +2236,8 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 		return;
 	}
 
+	memset(&arsta->txrate, 0, sizeof(arsta->txrate));
+
 	if (txrate.flags == WMI_RATE_PREAMBLE_CCK ||
 	    txrate.flags == WMI_RATE_PREAMBLE_OFDM) {
 		rate = ATH10K_HW_LEGACY_RATE(peer_stats->ratecode);
@@ -2245,7 +2252,7 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 		rate *= 10;
 		if (rate == 60 && txrate.flags == WMI_RATE_PREAMBLE_CCK)
 			rate = rate - 5;
-		arsta->txrate.legacy = rate * 10;
+		arsta->txrate.legacy = rate;
 	} else if (txrate.flags == WMI_RATE_PREAMBLE_HT) {
 		arsta->txrate.flags = RATE_INFO_FLAGS_MCS;
 		arsta->txrate.mcs = txrate.mcs;
@@ -2451,8 +2458,7 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		u32 phymode = __le32_to_cpu(resp->chan_change.phymode);
 		u32 freq = __le32_to_cpu(resp->chan_change.freq);
 
-		ar->tgt_oper_chan =
-			__ieee80211_get_channel(ar->hw->wiphy, freq);
+		ar->tgt_oper_chan = ieee80211_get_channel(ar->hw->wiphy, freq);
 		ath10k_dbg(ar, ATH10K_DBG_HTT,
 			   "htt chan change freq %u phymode %s\n",
 			   freq, ath10k_wmi_phymode_str(phymode));
@@ -2486,7 +2492,7 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt event: ",
 				skb->data, skb->len);
 		break;
-	};
+	}
 	return true;
 }
 EXPORT_SYMBOL(ath10k_htt_t2h_msg_handler);

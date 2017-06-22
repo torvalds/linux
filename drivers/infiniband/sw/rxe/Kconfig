@@ -2,6 +2,7 @@ config RDMA_RXE
 	tristate "Software RDMA over Ethernet (RoCE) driver"
 	depends on INET && PCI && INFINIBAND
 	depends on NET_UDP_TUNNEL
+	select DMA_VIRT_OPS
 	---help---
 	This driver implements the InfiniBand RDMA transport over
 	the Linux network stack. It enables a system with a
@@ -21,4 +22,4 @@ config RDMA_RXE
 	To configure and work with soft-RoCE driver please use the
 	following wiki page under "configure Soft-RoCE (RXE)" section:
 
-	https://github.com/SoftRoCE/rxe-dev/wiki/rxe-dev:-Home
+	https://github.com/linux-rdma/rdma-core/blob/master/Documentation/rxe.md

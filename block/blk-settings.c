@@ -88,6 +88,7 @@ EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
 void blk_set_default_limits(struct queue_limits *lim)
 {
 	lim->max_segments = BLK_MAX_SEGMENTS;
+	lim->max_discard_segments = 1;
 	lim->max_integrity_segments = 0;
 	lim->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
 	lim->virt_boundary_mask = 0;
@@ -128,6 +129,7 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 	/* Inherit limits from component devices */
 	lim->discard_zeroes_data = 1;
 	lim->max_segments = USHRT_MAX;
+	lim->max_discard_segments = 1;
 	lim->max_hw_sectors = UINT_MAX;
 	lim->max_segment_size = UINT_MAX;
 	lim->max_sectors = UINT_MAX;
@@ -253,7 +255,7 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
 	max_sectors = min_t(unsigned int, max_sectors, BLK_DEF_MAX_SECTORS);
 	limits->max_sectors = max_sectors;
-	q->backing_dev_info.io_pages = max_sectors >> (PAGE_SHIFT - 9);
+	q->backing_dev_info->io_pages = max_sectors >> (PAGE_SHIFT - 9);
 }
 EXPORT_SYMBOL(blk_queue_max_hw_sectors);
 
@@ -335,6 +337,22 @@ void blk_queue_max_segments(struct request_queue *q, unsigned short max_segments
 	q->limits.max_segments = max_segments;
 }
 EXPORT_SYMBOL(blk_queue_max_segments);
+
+/**
+ * blk_queue_max_discard_segments - set max segments for discard requests
+ * @q:  the request queue for the device
+ * @max_segments:  max number of segments
+ *
+ * Description:
+ *    Enables a low level driver to set an upper limit on the number of
+ *    segments in a discard request.
+ **/
+void blk_queue_max_discard_segments(struct request_queue *q,
+		unsigned short max_segments)
+{
+	q->limits.max_discard_segments = max_segments;
+}
+EXPORT_SYMBOL_GPL(blk_queue_max_discard_segments);
 
 /**
  * blk_queue_max_segment_size - set max segment size for blk_rq_map_sg
@@ -553,6 +571,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 					    b->virt_boundary_mask);
 
 	t->max_segments = min_not_zero(t->max_segments, b->max_segments);
+	t->max_discard_segments = min_not_zero(t->max_discard_segments,
+					       b->max_discard_segments);
 	t->max_integrity_segments = min_not_zero(t->max_integrity_segments,
 						 b->max_integrity_segments);
 

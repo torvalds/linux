@@ -22,6 +22,7 @@
 #define _LINUX_FPGA_MGR_H
 
 struct fpga_manager;
+struct sg_table;
 
 /**
  * enum fpga_mgr_states - fpga framework states
@@ -88,6 +89,7 @@ struct fpga_image_info {
  * @state: returns an enum value of the FPGA's state
  * @write_init: prepare the FPGA to receive confuration data
  * @write: write count bytes of configuration data to the FPGA
+ * @write_sg: write the scatter list of configuration data to the FPGA
  * @write_complete: set FPGA to operating state after writing is done
  * @fpga_remove: optional: Set FPGA into a specific state during driver remove
  *
@@ -102,6 +104,7 @@ struct fpga_manager_ops {
 			  struct fpga_image_info *info,
 			  const char *buf, size_t count);
 	int (*write)(struct fpga_manager *mgr, const char *buf, size_t count);
+	int (*write_sg)(struct fpga_manager *mgr, struct sg_table *sgt);
 	int (*write_complete)(struct fpga_manager *mgr,
 			      struct fpga_image_info *info);
 	void (*fpga_remove)(struct fpga_manager *mgr);
@@ -129,6 +132,8 @@ struct fpga_manager {
 
 int fpga_mgr_buf_load(struct fpga_manager *mgr, struct fpga_image_info *info,
 		      const char *buf, size_t count);
+int fpga_mgr_buf_load_sg(struct fpga_manager *mgr, struct fpga_image_info *info,
+			 struct sg_table *sgt);
 
 int fpga_mgr_firmware_load(struct fpga_manager *mgr,
 			   struct fpga_image_info *info,

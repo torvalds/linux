@@ -27,6 +27,8 @@ standard bindings from pinctrl/pinctrl-bindings.txt.
 Valid compatible strings:
 
 Accelerometers:
+- st,lis3lv02d (deprecated, use st,lis3lv02dl-accel)
+- st,lis302dl-spi (deprecated, use st,lis3lv02dl-accel)
 - st,lis3lv02dl-accel
 - st,lsm303dlh-accel
 - st,lsm303dlhc-accel

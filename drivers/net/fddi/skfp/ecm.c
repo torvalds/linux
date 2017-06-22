@@ -66,7 +66,6 @@ static const char ID_sccs[] = "@(#)ecm.c	2.7 99/08/05 (C) SK " ;
 #define EC6_CHECK	6			/* checking bypass */
 #define EC7_DEINSERT	7			/* bypass being turnde off */
 
-#ifdef	DEBUG
 /*
  * symbolic state names
  */
@@ -83,7 +82,6 @@ static const char * const ecm_events[] = {
 	"EC_TIMEOUT_TD","EC_TIMEOUT_TMAX",
 	"EC_TIMEOUT_IMAX","EC_TIMEOUT_INMAX","EC_TEST_DONE"
 } ;
-#endif
 
 /*
  * all Globals  are defined in smc.h
@@ -126,10 +124,10 @@ void ecm(struct s_smc *smc, int event)
 	int	state ;
 
 	do {
-		DB_ECM("ECM : state %s%s",
-			(smc->mib.fddiSMTECMState & AFLAG) ? "ACTIONS " : "",
-			ecm_states[smc->mib.fddiSMTECMState & ~AFLAG]) ;
-		DB_ECM(" event %s\n",ecm_events[event],0) ;
+		DB_ECM("ECM : state %s%s event %s",
+		       smc->mib.fddiSMTECMState & AFLAG ? "ACTIONS " : "",
+		       ecm_states[smc->mib.fddiSMTECMState & ~AFLAG],
+		       ecm_events[event]);
 		state = smc->mib.fddiSMTECMState ;
 		ecm_fsm(smc,event) ;
 		event = 0 ;
@@ -379,7 +377,7 @@ static void ecm_fsm(struct s_smc *smc, int cmd)
 			 (((ls_a == PC_ILS) && (ls_b == PC_QLS)) ||
 			  ((ls_a == PC_QLS) && (ls_b == PC_ILS)))){
 			smc->e.sb_flag = TRUE ;
-			DB_ECMN(1,"ECM : EC6_CHECK - stuck bypass\n",0,0) ;
+			DB_ECMN(1, "ECM : EC6_CHECK - stuck bypass");
 			AIX_EVENT(smc, (u_long) FDDI_RING_STATUS, (u_long)
 				FDDI_SMT_ERROR, (u_long) FDDI_BYPASS_STUCK,
 				smt_get_error_word(smc));
@@ -443,29 +441,29 @@ static void prop_actions(struct s_smc *smc)
 		return ;
 	}
 
-	DB_ECM("ECM : prop_actions - trace_prop %d\n", smc->e.trace_prop,0) ;
-	DB_ECM("ECM : prop_actions - in %d out %d\n", port_in,port_out) ;
+	DB_ECM("ECM : prop_actions - trace_prop %lu", smc->e.trace_prop);
+	DB_ECM("ECM : prop_actions - in %d out %d", port_in, port_out);
 
 	if (smc->e.trace_prop & ENTITY_BIT(ENTITY_MAC)) {
 		/* trace initiatior */
-		DB_ECM("ECM : initiate TRACE on PHY %c\n",'A'+port_in-PA,0) ;
+		DB_ECM("ECM : initiate TRACE on PHY %c", 'A' + port_in - PA);
 		queue_event(smc,EVENT_PCM+port_in,PC_TRACE) ;
 	}
 	else if ((smc->e.trace_prop & ENTITY_BIT(ENTITY_PHY(PA))) &&
 		port_out != PA) {
 		/* trace propagate upstream */
-		DB_ECM("ECM : propagate TRACE on PHY B\n",0,0) ;
+		DB_ECM("ECM : propagate TRACE on PHY B");
 		queue_event(smc,EVENT_PCMB,PC_TRACE) ;
 	}
 	else if ((smc->e.trace_prop & ENTITY_BIT(ENTITY_PHY(PB))) &&
 		port_out != PB) {
 		/* trace propagate upstream */
-		DB_ECM("ECM : propagate TRACE on PHY A\n",0,0) ;
+		DB_ECM("ECM : propagate TRACE on PHY A");
 		queue_event(smc,EVENT_PCMA,PC_TRACE) ;
 	}
 	else {
 		/* signal trace termination */
-		DB_ECM("ECM : TRACE terminated\n",0,0) ;
+		DB_ECM("ECM : TRACE terminated");
 		smc->e.path_test = PT_PENDING ;
 	}
 	smc->e.trace_prop = 0 ;
@@ -482,13 +480,13 @@ static void prop_actions(struct s_smc *smc)
 
 	RS_SET(smc,RS_EVENT) ;
 	while (smc->e.trace_prop) {
-		DB_ECM("ECM : prop_actions - trace_prop %d\n",
-			smc->e.trace_prop,0) ;
+		DB_ECM("ECM : prop_actions - trace_prop %d",
+		       smc->e.trace_prop);
 
 		if (smc->e.trace_prop & ENTITY_BIT(ENTITY_MAC)) {
 			initiator = ENTITY_MAC ;
 			smc->e.trace_prop &= ~ENTITY_BIT(ENTITY_MAC) ;
-			DB_ECM("ECM: MAC initiates trace\n",0,0) ;
+			DB_ECM("ECM: MAC initiates trace");
 		}
 		else {
 			for (p = NUMPHYS-1 ; p >= 0 ; p--) {
@@ -503,12 +501,12 @@ static void prop_actions(struct s_smc *smc)
 
 		if (upstream == ENTITY_MAC) {
 			/* signal trace termination */
-			DB_ECM("ECM : TRACE terminated\n",0,0) ;
+			DB_ECM("ECM : TRACE terminated");
 			smc->e.path_test = PT_PENDING ;
 		}
 		else {
 			/* trace propagate upstream */
-			DB_ECM("ECM : propagate TRACE on PHY %d\n",upstream,0) ;
+			DB_ECM("ECM : propagate TRACE on PHY %d", upstream);
 			queue_event(smc,EVENT_PCM+upstream,PC_TRACE) ;
 		}
 	}

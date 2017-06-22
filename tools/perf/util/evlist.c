@@ -1184,7 +1184,7 @@ unsigned long perf_event_mlock_kb_in_pages(void)
 	return pages;
 }
 
-static size_t perf_evlist__mmap_size(unsigned long pages)
+size_t perf_evlist__mmap_size(unsigned long pages)
 {
 	if (pages == UINT_MAX)
 		pages = perf_event_mlock_kb_in_pages();
@@ -1224,12 +1224,16 @@ static long parse_pages_arg(const char *str, unsigned long min,
 	if (pages == 0 && min == 0) {
 		/* leave number of pages at 0 */
 	} else if (!is_power_of_2(pages)) {
+		char buf[100];
+
 		/* round pages up to next power of 2 */
 		pages = roundup_pow_of_two(pages);
 		if (!pages)
 			return -EINVAL;
-		pr_info("rounding mmap pages size to %lu bytes (%lu pages)\n",
-			pages * page_size, pages);
+
+		unit_number__scnprintf(buf, sizeof(buf), pages * page_size);
+		pr_info("rounding mmap pages size to %s (%lu pages)\n",
+			buf, pages);
 	}
 
 	if (pages > max)
@@ -1797,7 +1801,7 @@ int perf_evlist__start_workload(struct perf_evlist *evlist)
 		 */
 		ret = write(evlist->workload.cork_fd, &bf, 1);
 		if (ret < 0)
-			perror("enable to write to pipe");
+			perror("unable to write to pipe");
 
 		close(evlist->workload.cork_fd);
 		return ret;

@@ -4220,7 +4220,7 @@ recheck:
 	if (dev == NULL)
 		goto done;
 
-	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(dev)) {
 		dev = vlan_dev_real_dev(dev);
 		goto recheck;
 	}
@@ -4256,7 +4256,7 @@ recheck:
 	if (dev == NULL)
 		goto done;
 
-	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(dev)) {
 		dev = vlan_dev_real_dev(dev);
 		goto recheck;
 	}

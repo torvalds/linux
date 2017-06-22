@@ -1,0 +1,7 @@
+Netron-DY E231732 7.0" WSVGA TFT LCD panel
+
+Required properties:
+- compatible: should be "netron-dy,e231732"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

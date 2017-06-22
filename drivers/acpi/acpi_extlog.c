@@ -212,6 +212,7 @@ static bool __init extlog_get_l1addr(void)
 }
 static struct notifier_block extlog_mce_dec = {
 	.notifier_call	= extlog_print,
+	.priority	= MCE_PRIO_EXTLOG,
 };
 
 static int __init extlog_init(void)

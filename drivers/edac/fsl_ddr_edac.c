@@ -145,12 +145,12 @@ static ssize_t fsl_mc_inject_ctrl_store(struct device *dev,
 	return 0;
 }
 
-DEVICE_ATTR(inject_data_hi, S_IRUGO | S_IWUSR,
-	    fsl_mc_inject_data_hi_show, fsl_mc_inject_data_hi_store);
-DEVICE_ATTR(inject_data_lo, S_IRUGO | S_IWUSR,
-	    fsl_mc_inject_data_lo_show, fsl_mc_inject_data_lo_store);
-DEVICE_ATTR(inject_ctrl, S_IRUGO | S_IWUSR,
-	    fsl_mc_inject_ctrl_show, fsl_mc_inject_ctrl_store);
+static DEVICE_ATTR(inject_data_hi, S_IRUGO | S_IWUSR,
+		   fsl_mc_inject_data_hi_show, fsl_mc_inject_data_hi_store);
+static DEVICE_ATTR(inject_data_lo, S_IRUGO | S_IWUSR,
+		   fsl_mc_inject_data_lo_show, fsl_mc_inject_data_lo_store);
+static DEVICE_ATTR(inject_ctrl, S_IRUGO | S_IWUSR,
+		   fsl_mc_inject_ctrl_show, fsl_mc_inject_ctrl_store);
 
 static struct attribute *fsl_ddr_dev_attrs[] = {
 	&dev_attr_inject_data_hi.attr,

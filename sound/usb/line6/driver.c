@@ -492,42 +492,46 @@ static void line6_destruct(struct snd_card *card)
 	usb_put_dev(usbdev);
 }
 
-/* get data from endpoint descriptor (see usb_maxpacket): */
-static void line6_get_interval(struct usb_line6 *line6)
+static void line6_get_usb_properties(struct usb_line6 *line6)
 {
 	struct usb_device *usbdev = line6->usbdev;
 	const struct line6_properties *properties = line6->properties;
 	int pipe;
-	struct usb_host_endpoint *ep;
+	struct usb_host_endpoint *ep = NULL;
 
-	if (properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
-		pipe =
-			usb_rcvintpipe(line6->usbdev, line6->properties->ep_ctrl_r);
-	} else {
-		pipe =
-			usb_rcvbulkpipe(line6->usbdev, line6->properties->ep_ctrl_r);
+	if (properties->capabilities & LINE6_CAP_CONTROL) {
+		if (properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
+			pipe = usb_rcvintpipe(line6->usbdev,
+				line6->properties->ep_ctrl_r);
+		} else {
+			pipe = usb_rcvbulkpipe(line6->usbdev,
+				line6->properties->ep_ctrl_r);
+		}
+		ep = usbdev->ep_in[usb_pipeendpoint(pipe)];
 	}
-	ep = usbdev->ep_in[usb_pipeendpoint(pipe)];
 
+	/* Control data transfer properties */
 	if (ep) {
 		line6->interval = ep->desc.bInterval;
-		if (usbdev->speed == USB_SPEED_LOW) {
-			line6->intervals_per_second = USB_LOW_INTERVALS_PER_SECOND;
-			line6->iso_buffers = USB_LOW_ISO_BUFFERS;
-		} else {
-			line6->intervals_per_second = USB_HIGH_INTERVALS_PER_SECOND;
-			line6->iso_buffers = USB_HIGH_ISO_BUFFERS;
-		}
-
 		line6->max_packet_size = le16_to_cpu(ep->desc.wMaxPacketSize);
 	} else {
-		dev_err(line6->ifcdev,
-			"endpoint not available, using fallback values");
+		if (properties->capabilities & LINE6_CAP_CONTROL) {
+			dev_err(line6->ifcdev,
+				"endpoint not available, using fallback values");
+		}
 		line6->interval = LINE6_FALLBACK_INTERVAL;
 		line6->max_packet_size = LINE6_FALLBACK_MAXPACKETSIZE;
 	}
-}
 
+	/* Isochronous transfer properties */
+	if (usbdev->speed == USB_SPEED_LOW) {
+		line6->intervals_per_second = USB_LOW_INTERVALS_PER_SECOND;
+		line6->iso_buffers = USB_LOW_ISO_BUFFERS;
+	} else {
+		line6->intervals_per_second = USB_HIGH_INTERVALS_PER_SECOND;
+		line6->iso_buffers = USB_HIGH_ISO_BUFFERS;
+	}
+}
 
 /* Enable buffering of incoming messages, flush the buffer */
 static int line6_hwdep_open(struct snd_hwdep *hw, struct file *file)
@@ -754,7 +758,7 @@ int line6_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	line6_get_interval(line6);
+	line6_get_usb_properties(line6);
 
 	if (properties->capabilities & LINE6_CAP_CONTROL) {
 		ret = line6_init_cap_control(line6);

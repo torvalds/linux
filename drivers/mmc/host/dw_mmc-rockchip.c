@@ -11,7 +11,6 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/dw_mmc.h>
 #include <linux/of_address.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/pm_runtime.h>

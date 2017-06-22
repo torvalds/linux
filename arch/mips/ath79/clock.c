@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -45,7 +44,7 @@ static struct clk *__init ath79_add_sys_clkdev(
 	int err;
 
 	clk = clk_register_fixed_rate(NULL, id, NULL, 0, rate);
-	if (!clk)
+	if (IS_ERR(clk))
 		panic("failed to allocate %s clock structure", id);
 
 	err = clk_register_clkdev(clk, id, NULL);
@@ -508,15 +507,18 @@ static void __init ath79_clocks_init_dt_ng(struct device_node *np)
 		ar9330_clk_init(ref_clk, pll_base);
 	else {
 		pr_err("%s: could not find any appropriate clk_init()\n", dnfn);
-		goto err_clk;
+		goto err_iounmap;
 	}
 
 	if (of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data)) {
 		pr_err("%s: could not register clk provider\n", dnfn);
-		goto err_clk;
+		goto err_iounmap;
 	}
 
 	return;
+
+err_iounmap:
+	iounmap(pll_base);
 
 err_clk:
 	clk_put(ref_clk);

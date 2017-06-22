@@ -55,7 +55,7 @@ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
  * If the csr_mutex is already held then the _lock variants must
  * be used instead.
  */
-static inline void rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
+static void rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
 					   const unsigned int offset,
 					   u16 *value)
 {
@@ -66,7 +66,7 @@ static inline void rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
 	*value = le16_to_cpu(reg);
 }
 
-static inline void rt2500usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
+static void rt2500usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
 						const unsigned int offset,
 						u16 *value)
 {
@@ -77,16 +77,7 @@ static inline void rt2500usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
 	*value = le16_to_cpu(reg);
 }
 
-static inline void rt2500usb_register_multiread(struct rt2x00_dev *rt2x00dev,
-						const unsigned int offset,
-						void *value, const u16 length)
-{
-	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
-				      USB_VENDOR_REQUEST_IN, offset,
-				      value, length);
-}
-
-static inline void rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
+static void rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
 					    const unsigned int offset,
 					    u16 value)
 {
@@ -96,7 +87,7 @@ static inline void rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
 				      &reg, sizeof(reg));
 }
 
-static inline void rt2500usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
+static void rt2500usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
 						 const unsigned int offset,
 						 u16 value)
 {
@@ -106,7 +97,7 @@ static inline void rt2500usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
 				       &reg, sizeof(reg), REGISTER_TIMEOUT);
 }
 
-static inline void rt2500usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
+static void rt2500usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 						 const unsigned int offset,
 						 void *value, const u16 length)
 {
@@ -1170,7 +1161,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry,
 	/*
 	 * Dump beacon to userspace through debugfs.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the

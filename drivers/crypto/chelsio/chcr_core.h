@@ -75,6 +75,7 @@ struct chcr_dev {
 	spinlock_t lock_chcr_dev;
 	struct uld_ctx *u_ctx;
 	unsigned char tx_channel_id;
+	unsigned char rx_channel_id;
 };
 
 struct uld_ctx {

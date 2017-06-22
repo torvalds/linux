@@ -67,24 +67,24 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
 	struct common_audit_data *sa = va;
 	kuid_t fsuid = current_fsuid();
 
-	if (sa->aad->fs.request & AA_AUDIT_FILE_MASK) {
+	if (aad(sa)->fs.request & AA_AUDIT_FILE_MASK) {
 		audit_log_format(ab, " requested_mask=");
-		audit_file_mask(ab, sa->aad->fs.request);
+		audit_file_mask(ab, aad(sa)->fs.request);
 	}
-	if (sa->aad->fs.denied & AA_AUDIT_FILE_MASK) {
+	if (aad(sa)->fs.denied & AA_AUDIT_FILE_MASK) {
 		audit_log_format(ab, " denied_mask=");
-		audit_file_mask(ab, sa->aad->fs.denied);
+		audit_file_mask(ab, aad(sa)->fs.denied);
 	}
-	if (sa->aad->fs.request & AA_AUDIT_FILE_MASK) {
+	if (aad(sa)->fs.request & AA_AUDIT_FILE_MASK) {
 		audit_log_format(ab, " fsuid=%d",
 				 from_kuid(&init_user_ns, fsuid));
 		audit_log_format(ab, " ouid=%d",
-				 from_kuid(&init_user_ns, sa->aad->fs.ouid));
+				 from_kuid(&init_user_ns, aad(sa)->fs.ouid));
 	}
 
-	if (sa->aad->fs.target) {
+	if (aad(sa)->fs.target) {
 		audit_log_format(ab, " target=");
-		audit_log_untrustedstring(ab, sa->aad->fs.target);
+		audit_log_untrustedstring(ab, aad(sa)->fs.target);
 	}
 }
 
@@ -104,54 +104,53 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
  * Returns: %0 or error on failure
  */
 int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
-		  gfp_t gfp, int op, u32 request, const char *name,
+		  const char *op, u32 request, const char *name,
 		  const char *target, kuid_t ouid, const char *info, int error)
 {
 	int type = AUDIT_APPARMOR_AUTO;
-	struct common_audit_data sa;
-	struct apparmor_audit_data aad = {0,};
-	sa.type = LSM_AUDIT_DATA_TASK;
-	sa.u.tsk = NULL;
-	sa.aad = &aad;
-	aad.op = op,
-	aad.fs.request = request;
-	aad.name = name;
-	aad.fs.target = target;
-	aad.fs.ouid = ouid;
-	aad.info = info;
-	aad.error = error;
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_TASK, op);
 
-	if (likely(!sa.aad->error)) {
+	sa.u.tsk = NULL;
+	aad(&sa)->fs.request = request;
+	aad(&sa)->name = name;
+	aad(&sa)->fs.target = target;
+	aad(&sa)->fs.ouid = ouid;
+	aad(&sa)->info = info;
+	aad(&sa)->error = error;
+	sa.u.tsk = NULL;
+
+	if (likely(!aad(&sa)->error)) {
 		u32 mask = perms->audit;
 
 		if (unlikely(AUDIT_MODE(profile) == AUDIT_ALL))
 			mask = 0xffff;
 
 		/* mask off perms that are not being force audited */
-		sa.aad->fs.request &= mask;
+		aad(&sa)->fs.request &= mask;
 
-		if (likely(!sa.aad->fs.request))
+		if (likely(!aad(&sa)->fs.request))
 			return 0;
 		type = AUDIT_APPARMOR_AUDIT;
 	} else {
 		/* only report permissions that were denied */
-		sa.aad->fs.request = sa.aad->fs.request & ~perms->allow;
+		aad(&sa)->fs.request = aad(&sa)->fs.request & ~perms->allow;
+		AA_BUG(!aad(&sa)->fs.request);
 
-		if (sa.aad->fs.request & perms->kill)
+		if (aad(&sa)->fs.request & perms->kill)
 			type = AUDIT_APPARMOR_KILL;
 
 		/* quiet known rejects, assumes quiet and kill do not overlap */
-		if ((sa.aad->fs.request & perms->quiet) &&
+		if ((aad(&sa)->fs.request & perms->quiet) &&
 		    AUDIT_MODE(profile) != AUDIT_NOQUIET &&
 		    AUDIT_MODE(profile) != AUDIT_ALL)
-			sa.aad->fs.request &= ~perms->quiet;
+			aad(&sa)->fs.request &= ~perms->quiet;
 
-		if (!sa.aad->fs.request)
-			return COMPLAIN_MODE(profile) ? 0 : sa.aad->error;
+		if (!aad(&sa)->fs.request)
+			return COMPLAIN_MODE(profile) ? 0 : aad(&sa)->error;
 	}
 
-	sa.aad->fs.denied = sa.aad->fs.request & ~perms->allow;
-	return aa_audit(type, profile, gfp, &sa, file_audit_cb);
+	aad(&sa)->fs.denied = aad(&sa)->fs.request & ~perms->allow;
+	return aa_audit(type, profile, &sa, file_audit_cb);
 }
 
 /**
@@ -276,8 +275,9 @@ static inline bool is_deleted(struct dentry *dentry)
  *
  * Returns: %0 else error if access denied or other error
  */
-int aa_path_perm(int op, struct aa_profile *profile, const struct path *path,
-		 int flags, u32 request, struct path_cond *cond)
+int aa_path_perm(const char *op, struct aa_profile *profile,
+		 const struct path *path, int flags, u32 request,
+		 struct path_cond *cond)
 {
 	char *buffer = NULL;
 	struct file_perms perms = {};
@@ -301,8 +301,8 @@ int aa_path_perm(int op, struct aa_profile *profile, const struct path *path,
 		if (request & ~perms.allow)
 			error = -EACCES;
 	}
-	error = aa_audit_file(profile, &perms, GFP_KERNEL, op, request, name,
-			      NULL, cond->uid, info, error);
+	error = aa_audit_file(profile, &perms, op, request, name, NULL,
+			      cond->uid, info, error);
 	kfree(buffer);
 
 	return error;
@@ -349,8 +349,8 @@ static inline bool xindex_is_subset(u32 link, u32 target)
 int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
 		 const struct path *new_dir, struct dentry *new_dentry)
 {
-	struct path link = { new_dir->mnt, new_dentry };
-	struct path target = { new_dir->mnt, old_dentry };
+	struct path link = { .mnt = new_dir->mnt, .dentry = new_dentry };
+	struct path target = { .mnt = new_dir->mnt, .dentry = old_dentry };
 	struct path_cond cond = {
 		d_backing_inode(old_dentry)->i_uid,
 		d_backing_inode(old_dentry)->i_mode
@@ -429,7 +429,7 @@ done_tests:
 	error = 0;
 
 audit:
-	error = aa_audit_file(profile, &lperms, GFP_KERNEL, OP_LINK, request,
+	error = aa_audit_file(profile, &lperms, OP_LINK, request,
 			      lname, tname, cond.uid, info, error);
 	kfree(buffer);
 	kfree(buffer2);
@@ -446,7 +446,7 @@ audit:
  *
  * Returns: %0 if access allowed else error
  */
-int aa_file_perm(int op, struct aa_profile *profile, struct file *file,
+int aa_file_perm(const char *op, struct aa_profile *profile, struct file *file,
 		 u32 request)
 {
 	struct path_cond cond = {

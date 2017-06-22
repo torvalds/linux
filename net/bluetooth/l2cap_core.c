@@ -481,14 +481,14 @@ static void l2cap_chan_destroy(struct kref *kref)
 
 void l2cap_chan_hold(struct l2cap_chan *c)
 {
-	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->kref.refcount));
+	BT_DBG("chan %p orig refcnt %d", c, kref_read(&c->kref));
 
 	kref_get(&c->kref);
 }
 
 void l2cap_chan_put(struct l2cap_chan *c)
 {
-	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->kref.refcount));
+	BT_DBG("chan %p orig refcnt %d", c, kref_read(&c->kref));
 
 	kref_put(&c->kref, l2cap_chan_destroy);
 }

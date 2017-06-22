@@ -53,6 +53,14 @@ static struct render_mmio gen8_render_mmio_list[] = {
 	{RCS, _MMIO(0x24d4), 0, false},
 	{RCS, _MMIO(0x24d8), 0, false},
 	{RCS, _MMIO(0x24dc), 0, false},
+	{RCS, _MMIO(0x24e0), 0, false},
+	{RCS, _MMIO(0x24e4), 0, false},
+	{RCS, _MMIO(0x24e8), 0, false},
+	{RCS, _MMIO(0x24ec), 0, false},
+	{RCS, _MMIO(0x24f0), 0, false},
+	{RCS, _MMIO(0x24f4), 0, false},
+	{RCS, _MMIO(0x24f8), 0, false},
+	{RCS, _MMIO(0x24fc), 0, false},
 	{RCS, _MMIO(0x7004), 0xffff, true},
 	{RCS, _MMIO(0x7008), 0xffff, true},
 	{RCS, _MMIO(0x7000), 0xffff, true},
@@ -76,6 +84,14 @@ static struct render_mmio gen9_render_mmio_list[] = {
 	{RCS, _MMIO(0x24d4), 0, false},
 	{RCS, _MMIO(0x24d8), 0, false},
 	{RCS, _MMIO(0x24dc), 0, false},
+	{RCS, _MMIO(0x24e0), 0, false},
+	{RCS, _MMIO(0x24e4), 0, false},
+	{RCS, _MMIO(0x24e8), 0, false},
+	{RCS, _MMIO(0x24ec), 0, false},
+	{RCS, _MMIO(0x24f0), 0, false},
+	{RCS, _MMIO(0x24f4), 0, false},
+	{RCS, _MMIO(0x24f8), 0, false},
+	{RCS, _MMIO(0x24fc), 0, false},
 	{RCS, _MMIO(0x7004), 0xffff, true},
 	{RCS, _MMIO(0x7008), 0xffff, true},
 	{RCS, _MMIO(0x7000), 0xffff, true},
@@ -151,7 +167,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	I915_WRITE_FW(reg, 0x1);
 
 	if (wait_for_atomic((I915_READ_FW(reg) == 0), 50))
-		gvt_err("timeout in invalidate ring (%d) tlb\n", ring_id);
+		gvt_vgpu_err("timeout in invalidate ring (%d) tlb\n", ring_id);
 	else
 		vgpu_vreg(vgpu, regs[ring_id]) = 0;
 
@@ -191,7 +207,7 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 		l3_offset.reg = 0xb020;
 		for (i = 0; i < 32; i++) {
 			gen9_render_mocs_L3[i] = I915_READ(l3_offset);
-			I915_WRITE(l3_offset, vgpu_vreg(vgpu, offset));
+			I915_WRITE(l3_offset, vgpu_vreg(vgpu, l3_offset));
 			POSTING_READ(l3_offset);
 			l3_offset.reg += 4;
 		}
@@ -236,12 +252,18 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 	}
 }
 
+#define CTX_CONTEXT_CONTROL_VAL	0x03
+
 void intel_gvt_load_render_mmio(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct render_mmio *mmio;
 	u32 v;
 	int i, array_size;
+	u32 *reg_state = vgpu->shadow_ctx->engine[ring_id].lrc_reg_state;
+	u32 ctx_ctrl = reg_state[CTX_CONTEXT_CONTROL_VAL];
+	u32 inhibit_mask =
+		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 
 	if (IS_SKYLAKE(vgpu->gvt->dev_priv)) {
 		mmio = gen9_render_mmio_list;
@@ -257,6 +279,17 @@ void intel_gvt_load_render_mmio(struct intel_vgpu *vgpu, int ring_id)
 			continue;
 
 		mmio->value = I915_READ(mmio->reg);
+
+		/*
+		 * if it is an inhibit context, load in_context mmio
+		 * into HW by mmio write. If it is not, skip this mmio
+		 * write.
+		 */
+		if (mmio->in_context &&
+				((ctx_ctrl & inhibit_mask) != inhibit_mask) &&
+				i915.enable_execlists)
+			continue;
+
 		if (mmio->mask)
 			v = vgpu_vreg(vgpu, mmio->reg) | (mmio->mask << 16);
 		else

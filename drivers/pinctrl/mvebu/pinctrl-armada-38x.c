@@ -14,25 +14,12 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-mvebu.h"
-
-static void __iomem *mpp_base;
-
-static int armada_38x_mpp_ctrl_get(unsigned pid, unsigned long *config)
-{
-	return default_mpp_ctrl_get(mpp_base, pid, config);
-}
-
-static int armada_38x_mpp_ctrl_set(unsigned pid, unsigned long config)
-{
-	return default_mpp_ctrl_set(mpp_base, pid, config);
-}
 
 enum {
 	V_88F6810 = BIT(0),
@@ -409,8 +396,8 @@ static const struct of_device_id armada_38x_pinctrl_of_match[] = {
 	{ },
 };
 
-static struct mvebu_mpp_ctrl armada_38x_mpp_controls[] = {
-	MPP_FUNC_CTRL(0, 59, NULL, armada_38x_mpp_ctrl),
+static const struct mvebu_mpp_ctrl armada_38x_mpp_controls[] = {
+	MPP_FUNC_CTRL(0, 59, NULL, mvebu_mmio_mpp_ctrl),
 };
 
 static struct pinctrl_gpio_range armada_38x_mpp_gpio_ranges[] = {
@@ -423,15 +410,9 @@ static int armada_38x_pinctrl_probe(struct platform_device *pdev)
 	struct mvebu_pinctrl_soc_info *soc = &armada_38x_pinctrl_info;
 	const struct of_device_id *match =
 		of_match_device(armada_38x_pinctrl_of_match, &pdev->dev);
-	struct resource *res;
 
 	if (!match)
 		return -ENODEV;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mpp_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(mpp_base))
-		return PTR_ERR(mpp_base);
 
 	soc->variant = (unsigned) match->data & 0xff;
 	soc->controls = armada_38x_mpp_controls;
@@ -443,7 +424,7 @@ static int armada_38x_pinctrl_probe(struct platform_device *pdev)
 
 	pdev->dev.platform_data = soc;
 
-	return mvebu_pinctrl_probe(pdev);
+	return mvebu_pinctrl_simple_mmio_probe(pdev);
 }
 
 static struct platform_driver armada_38x_pinctrl_driver = {
@@ -453,9 +434,4 @@ static struct platform_driver armada_38x_pinctrl_driver = {
 	},
 	.probe = armada_38x_pinctrl_probe,
 };
-
-module_platform_driver(armada_38x_pinctrl_driver);
-
-MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
-MODULE_DESCRIPTION("Marvell Armada 38x pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(armada_38x_pinctrl_driver);

@@ -199,7 +199,7 @@ static noinline_for_stack char *translate_scan(struct _adapter *padapter,
 	iwe.cmd = SIOCGIWMODE;
 	memcpy((u8 *)&cap, r8712_get_capability_from_ie(pnetwork->network.IEs),
 		2);
-	cap = le16_to_cpu(cap);
+	le16_to_cpus(&cap);
 	if (cap & (WLAN_CAPABILITY_IBSS | WLAN_CAPABILITY_BSS)) {
 		if (cap & WLAN_CAPABILITY_BSS)
 			iwe.u.mode = (u32)IW_MODE_MASTER;
@@ -1419,9 +1419,9 @@ static int r8711_wx_get_rate(struct net_device *dev,
 			ht_cap = true;
 			pht_capie = (struct ieee80211_ht_cap *)(p + 2);
 			memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
-			bw_40MHz = (pht_capie->cap_info &
+			bw_40MHz = (le16_to_cpu(pht_capie->cap_info) &
 				    IEEE80211_HT_CAP_SUP_WIDTH) ? 1 : 0;
-			short_GI = (pht_capie->cap_info &
+			short_GI = (le16_to_cpu(pht_capie->cap_info) &
 				    (IEEE80211_HT_CAP_SGI_20 |
 				    IEEE80211_HT_CAP_SGI_40)) ? 1 : 0;
 		}
@@ -2322,7 +2322,7 @@ static struct iw_statistics *r871x_get_wireless_stats(struct net_device *dev)
 		piwstats->qual.level = 0;
 		piwstats->qual.noise = 0;
 	} else {
-		/* show percentage, we need transfer dbm to orignal value. */
+		/* show percentage, we need transfer dbm to original value. */
 		tmp_level = padapter->recvpriv.fw_rssi;
 		tmp_qual = padapter->recvpriv.signal;
 		tmp_noise = padapter->recvpriv.noise;

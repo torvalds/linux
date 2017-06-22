@@ -553,28 +553,22 @@ static void _nbu2ss_dma_unmap_single(
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 OUT Transfer (PIO) */
-static int EP0_out_PIO(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
+static int ep0_out_pio(struct nbu2ss_udc *udc, u8 *buf, u32 length)
 {
 	u32		i;
-	int		nret   = 0;
-	u32		iWordLength = 0;
-	union usb_reg_access *pBuf32 = (union usb_reg_access *)pBuf;
+	u32 numreads = length / sizeof(u32);
+	union usb_reg_access *buf32 = (union usb_reg_access *)buf;
 
-	/*------------------------------------------------------------*/
-	/* Read Length */
-	iWordLength = length / sizeof(u32);
+	if (!numreads)
+		return 0;
 
-	/*------------------------------------------------------------*/
 	/* PIO Read */
-	if (iWordLength) {
-		for (i = 0; i < iWordLength; i++) {
-			pBuf32->dw = _nbu2ss_readl(&udc->p_regs->EP0_READ);
-			pBuf32++;
-		}
-		nret = iWordLength * sizeof(u32);
+	for (i = 0; i < numreads; i++) {
+		buf32->dw = _nbu2ss_readl(&udc->p_regs->EP0_READ);
+		buf32++;
 	}
 
-	return nret;
+	return  numreads * sizeof(u32);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -758,7 +752,7 @@ static int _nbu2ss_ep0_out_transfer(
 		pBuffer = (u8 *)req->req.buf;
 		pBuffer += req->req.actual;
 
-		result = EP0_out_PIO(udc, pBuffer
+		result = ep0_out_pio(udc, pBuffer
 					, min(iRemainSize, iRecvLength));
 		if (result < 0)
 			return result;
@@ -3137,7 +3131,7 @@ static const struct {
 };
 
 /*-------------------------------------------------------------------------*/
-static void __init nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
+static void nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
 {
 	int	i;
 
@@ -3168,7 +3162,7 @@ static void __init nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
 
 /*-------------------------------------------------------------------------*/
 /* platform_driver */
-static int __init nbu2ss_drv_contest_init(
+static int nbu2ss_drv_contest_init(
 	struct platform_device *pdev,
 	struct nbu2ss_udc *udc)
 {

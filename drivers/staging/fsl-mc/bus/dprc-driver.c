@@ -188,6 +188,7 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 		child_dev = fsl_mc_device_lookup(obj_desc, mc_bus_dev);
 		if (child_dev) {
 			check_plugged_state_change(child_dev, obj_desc);
+			put_device(&child_dev->dev);
 			continue;
 		}
 

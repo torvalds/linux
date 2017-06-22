@@ -180,7 +180,7 @@ static void nvmet_execute_write_zeroes(struct nvmet_req *req)
 
 	sector = le64_to_cpu(write_zeroes->slba) <<
 		(req->ns->blksize_shift - 9);
-	nr_sector = (((sector_t)le32_to_cpu(write_zeroes->length)) <<
+	nr_sector = (((sector_t)le16_to_cpu(write_zeroes->length)) <<
 		(req->ns->blksize_shift - 9)) + 1;
 
 	if (__blkdev_issue_zeroout(req->ns->bdev, sector, nr_sector,
@@ -230,7 +230,7 @@ int nvmet_parse_io_cmd(struct nvmet_req *req)
 		return 0;
 	case nvme_cmd_dsm:
 		req->execute = nvmet_execute_dsm;
-		req->data_len = le32_to_cpu(cmd->dsm.nr + 1) *
+		req->data_len = (le32_to_cpu(cmd->dsm.nr) + 1) *
 			sizeof(struct nvme_dsm_range);
 		return 0;
 	case nvme_cmd_write_zeroes:

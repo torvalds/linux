@@ -32,17 +32,17 @@ PCI root complex
 Optional properties
 -------------------
 
-- iommu-map: Maps a Requester ID to an IOMMU and associated iommu-specifier
+- iommu-map: Maps a Requester ID to an IOMMU and associated IOMMU specifier
   data.
 
   The property is an arbitrary number of tuples of
   (rid-base,iommu,iommu-base,length).
 
   Any RID r in the interval [rid-base, rid-base + length) is associated with
-  the listed IOMMU, with the iommu-specifier (r - rid-base + iommu-base).
+  the listed IOMMU, with the IOMMU specifier (r - rid-base + iommu-base).
 
 - iommu-map-mask: A mask to be applied to each Requester ID prior to being
-  mapped to an iommu-specifier per the iommu-map property.
+  mapped to an IOMMU specifier per the iommu-map property.
 
 
 Example (1)

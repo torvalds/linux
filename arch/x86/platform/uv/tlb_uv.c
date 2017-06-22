@@ -1847,7 +1847,6 @@ static void pq_init(int node, int pnode)
 
 	ops.write_payload_first(pnode, first);
 	ops.write_payload_last(pnode, last);
-	ops.write_g_sw_ack(pnode, 0xffffUL);
 
 	/* in effect, all msg_type's are set to MSG_NOOP */
 	memset(pqp, 0, sizeof(struct bau_pq_entry) * DEST_Q_SIZE);

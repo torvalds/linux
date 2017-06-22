@@ -16,12 +16,14 @@
 #define __POLICY_INTERFACE_H
 
 #include <linux/list.h>
+#include <linux/kref.h>
 
 struct aa_load_ent {
 	struct list_head list;
 	struct aa_profile *new;
 	struct aa_profile *old;
 	struct aa_profile *rename;
+	const char *ns_name;
 };
 
 void aa_load_ent_free(struct aa_load_ent *ent);
@@ -34,6 +36,30 @@ struct aa_load_ent *aa_load_ent_alloc(void);
 #define PACKED_MODE_KILL	2
 #define PACKED_MODE_UNCONFINED	3
 
-int aa_unpack(void *udata, size_t size, struct list_head *lh, const char **ns);
+/* struct aa_loaddata - buffer of policy load data set */
+struct aa_loaddata {
+	struct kref count;
+	size_t size;
+	int abi;
+	unsigned char *hash;
+	char data[];
+};
+
+int aa_unpack(struct aa_loaddata *udata, struct list_head *lh, const char **ns);
+
+static inline struct aa_loaddata *
+aa_get_loaddata(struct aa_loaddata *data)
+{
+	if (data)
+		kref_get(&(data->count));
+	return data;
+}
+
+void aa_loaddata_kref(struct kref *kref);
+static inline void aa_put_loaddata(struct aa_loaddata *data)
+{
+	if (data)
+		kref_put(&data->count, aa_loaddata_kref);
+}
 
 #endif /* __POLICY_INTERFACE_H */

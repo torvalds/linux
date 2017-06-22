@@ -19,6 +19,7 @@ nvkm-y += nvkm/subdev/bios/pcir.o
 nvkm-y += nvkm/subdev/bios/perf.o
 nvkm-y += nvkm/subdev/bios/pll.o
 nvkm-y += nvkm/subdev/bios/pmu.o
+nvkm-y += nvkm/subdev/bios/power_budget.o
 nvkm-y += nvkm/subdev/bios/ramcfg.o
 nvkm-y += nvkm/subdev/bios/rammap.o
 nvkm-y += nvkm/subdev/bios/shadow.o

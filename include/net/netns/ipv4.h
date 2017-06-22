@@ -27,6 +27,16 @@ struct ping_group_range {
 	kgid_t		range[2];
 };
 
+struct inet_hashinfo;
+
+struct inet_timewait_death_row {
+	atomic_t		tw_count;
+
+	struct inet_hashinfo 	*hashinfo ____cacheline_aligned_in_smp;
+	int			sysctl_tw_recycle;
+	int			sysctl_max_tw_buckets;
+};
+
 struct netns_ipv4 {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
@@ -111,6 +121,12 @@ struct netns_ipv4 {
 	int sysctl_tcp_fin_timeout;
 	unsigned int sysctl_tcp_notsent_lowat;
 	int sysctl_tcp_tw_reuse;
+	struct inet_timewait_death_row tcp_death_row;
+	int sysctl_max_syn_backlog;
+
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	int sysctl_udp_l3mdev_accept;
+#endif
 
 	int sysctl_igmp_max_memberships;
 	int sysctl_igmp_max_msf;
@@ -123,6 +139,7 @@ struct netns_ipv4 {
 
 #ifdef CONFIG_SYSCTL
 	unsigned long *sysctl_local_reserved_ports;
+	int sysctl_ip_prot_sock;
 #endif
 
 #ifdef CONFIG_IP_MROUTE

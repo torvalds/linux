@@ -25,7 +25,7 @@
 #include <linux/highmem.h>
 #include <linux/log2.h>
 #include <linux/uaccess.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/rwsem.h>
 #include <linux/vmalloc.h>
 #include <linux/hugetlb.h>

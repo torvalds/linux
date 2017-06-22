@@ -34,6 +34,10 @@ struct vgic_register_region {
 				  gpa_t addr, unsigned int len,
 				  unsigned long val);
 	};
+	unsigned long (*uaccess_read)(struct kvm_vcpu *vcpu, gpa_t addr,
+				      unsigned int len);
+	void (*uaccess_write)(struct kvm_vcpu *vcpu, gpa_t addr,
+			      unsigned int len, unsigned long val);
 };
 
 extern struct kvm_io_device_ops kvm_io_gic_ops;
@@ -84,6 +88,18 @@ extern struct kvm_io_device_ops kvm_io_gic_ops;
 		.access_flags = acc,					\
 		.read = rd,						\
 		.write = wr,						\
+	}
+
+#define REGISTER_DESC_WITH_LENGTH_UACCESS(off, rd, wr, urd, uwr, length, acc) \
+	{								\
+		.reg_offset = off,					\
+		.bits_per_irq = 0,					\
+		.len = length,						\
+		.access_flags = acc,					\
+		.read = rd,						\
+		.write = wr,						\
+		.uaccess_read = urd,					\
+		.uaccess_write = uwr,					\
 	}
 
 int kvm_vgic_register_mmio_region(struct kvm *kvm, struct kvm_vcpu *vcpu,
@@ -157,6 +173,14 @@ unsigned long vgic_mmio_read_config(struct kvm_vcpu *vcpu,
 void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 			    gpa_t addr, unsigned int len,
 			    unsigned long val);
+
+int vgic_uaccess(struct kvm_vcpu *vcpu, struct vgic_io_device *dev,
+		 bool is_write, int offset, u32 *val);
+
+u64 vgic_read_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid);
+
+void vgic_write_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid,
+				    const u64 val);
 
 unsigned int vgic_v2_init_dist_iodev(struct vgic_io_device *dev);
 

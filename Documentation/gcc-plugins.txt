@@ -18,8 +18,8 @@ because gcc versions 4.5 and 4.6 are compiled by a C compiler,
 gcc-4.7 can be compiled by a C or a C++ compiler,
 and versions 4.8+ can only be compiled by a C++ compiler.
 
-Currently the GCC plugin infrastructure supports only the x86, arm and arm64
-architectures.
+Currently the GCC plugin infrastructure supports only the x86, arm, arm64 and
+powerpc architectures.
 
 This infrastructure was ported from grsecurity [6] and PaX [7].
 

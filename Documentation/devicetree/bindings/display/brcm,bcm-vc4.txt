@@ -56,6 +56,18 @@ Required properties for V3D:
 - interrupts:	The interrupt number
 		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
 
+Required properties for DSI:
+- compatible:	Should be "brcm,bcm2835-dsi0" or "brcm,bcm2835-dsi1"
+- reg:		Physical base address and length of the DSI block's registers
+- interrupts:	The interrupt number
+		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+- clocks:	a) phy: The DSI PLL clock feeding the DSI analog PHY
+		b) escape: The DSI ESC clock from CPRMAN
+		c) pixel: The DSI pixel clock from CPRMAN
+- clock-output-names:
+		The 3 clocks output from the DSI analog PHY: dsi[01]_byte,
+		dsi[01]_ddr2, and dsi[01]_ddr
+
 [1] Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Example:
@@ -96,6 +108,29 @@ dpi: dpi@7e208000 {
 		dpi_out: endpoint@0 {
 			remote-endpoint = <&panel_in>;
 		};
+	};
+};
+
+dsi1: dsi@7e700000 {
+	compatible = "brcm,bcm2835-dsi1";
+	reg = <0x7e700000 0x8c>;
+	interrupts = <2 12>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	#clock-cells = <1>;
+
+	clocks = <&clocks BCM2835_PLLD_DSI1>,
+		 <&clocks BCM2835_CLOCK_DSI1E>,
+		 <&clocks BCM2835_CLOCK_DSI1P>;
+	clock-names = "phy", "escape", "pixel";
+
+	clock-output-names = "dsi1_byte", "dsi1_ddr2", "dsi1_ddr";
+
+	pitouchscreen: panel@0 {
+		compatible = "raspberrypi,touchscreen";
+		reg = <0>;
+
+		<...>
 	};
 };
 

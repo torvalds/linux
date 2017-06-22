@@ -3093,7 +3093,7 @@ static int patch_cm9739(struct snd_ac97 * ac97)
 	/* set-up multi channel */
 	/* bit 14: 0 = SPDIF, 1 = EAPD */
 	/* bit 13: enable internal vref output for mic */
-	/* bit 12: disable center/lfe (swithable) */
+	/* bit 12: disable center/lfe (switchable) */
 	/* bit 10: disable surround/line (switchable) */
 	/* bit 9: mix 2 surround off */
 	/* bit 4: undocumented; 0 mutes the CM9739A, which defaults to 1 */

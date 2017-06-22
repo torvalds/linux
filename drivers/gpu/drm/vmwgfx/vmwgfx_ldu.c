@@ -97,7 +97,8 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 		fb = entry->base.crtc.primary->fb;
 
 		return vmw_kms_write_svga(dev_priv, w, h, fb->pitches[0],
-					  fb->bits_per_pixel, fb->depth);
+					  fb->format->cpp[0] * 8,
+					  fb->format->depth);
 	}
 
 	if (!list_empty(&lds->active)) {
@@ -105,7 +106,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 		fb = entry->base.crtc.primary->fb;
 
 		vmw_kms_write_svga(dev_priv, fb->width, fb->height, fb->pitches[0],
-				   fb->bits_per_pixel, fb->depth);
+				   fb->format->cpp[0] * 8, fb->format->depth);
 	}
 
 	/* Make sure we always show something. */

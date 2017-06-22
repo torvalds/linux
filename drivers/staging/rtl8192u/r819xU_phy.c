@@ -367,7 +367,8 @@ static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 	/* Firmware RF Write control.
 	 * We can not execute the scheme in the initial step.
 	 * Otherwise, RF-R/W will waste much time.
-	 * This is only for site survey. */
+	 * This is only for site survey.
+	 */
 	/* 1. Read operation need not insert data. bit 0-11 */
 	/* 2. Write RF register address. bit 12-19 */
 	data |= ((offset&0xFF)<<12);
@@ -380,7 +381,8 @@ static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 	read_nic_dword(dev, QPNR, &tmp);
 	while (tmp & 0x80000000) {
 		/* If FW can not finish RF-R/W for more than ?? times.
-		   We must reset FW. */
+		 * We must reset FW.
+		 */
 		if (time++ < 100) {
 			udelay(10);
 			read_nic_dword(dev, QPNR, &tmp);
@@ -394,7 +396,8 @@ static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 	read_nic_dword(dev, QPNR, &tmp);
 	while (tmp & 0x80000000) {
 		/* If FW can not finish RF-R/W for more than ?? times.
-		   We must reset FW. */
+		 * We must reset FW.
+		 */
 		if (time++ < 100) {
 			udelay(10);
 			read_nic_dword(dev, QPNR, &tmp);
@@ -426,7 +429,8 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 	/* Firmware RF Write control.
 	 * We can not execute the scheme in the initial step.
 	 * Otherwise, RF-R/W will waste much time.
-	 * This is only for site survey. */
+	 * This is only for site survey.
+	 */
 
 	/* 1. Set driver write bit and 12 bit data. bit 0-11 */
 	/* 2. Write RF register address. bit 12-19 */
@@ -442,7 +446,8 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 	read_nic_dword(dev, QPNR, &tmp);
 	while (tmp & 0x80000000) {
 		/* If FW can not finish RF-R/W for more than ?? times.
-		   We must reset FW. */
+		 * We must reset FW.
+		 */
 		if (time++ < 100) {
 			udelay(10);
 			read_nic_dword(dev, QPNR, &tmp);
@@ -451,10 +456,12 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 		}
 	}
 	/* 7. No matter check bit. We always force the write.
-	   Because FW will not accept the command. */
+	 * Because FW will not accept the command.
+	 */
 	write_nic_dword(dev, QPNR, data);
 	/* According to test, we must delay 20us to wait firmware
-	   to finish RF write operation. */
+	 * to finish RF write operation.
+	 */
 	/* We support delay in firmware side now. */
 }
 
@@ -723,7 +730,8 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock,
 					     WriteAddr[HW90_BLOCK_RF],
 					     bMask12Bits, WriteData[i]);
 			/* TODO: we should not delay for such a long time.
-			   Ask SD3 */
+			 * Ask SD3
+			 */
 			usleep_range(1000, 1000);
 			reg = rtl8192_phy_QueryRFReg(dev, eRFPath,
 						     WriteAddr[HW90_BLOCK_RF],
@@ -820,7 +828,8 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	}
 
 	/* Check if the CCK HighPower is turned ON.
-	   This is used to calculate PWDB. */
+	 * This is used to calculate PWDB.
+	 */
 	priv->bCckHighPower = (u8)rtl8192_QueryBBReg(dev,
 						     rFPGA0_XA_HSSIParameter2,
 						     0x200);
@@ -839,7 +848,8 @@ void rtl8192_BBConfig(struct net_device *dev)
 	rtl8192_InitBBRFRegDef(dev);
 	/* config BB&RF. As hardCode based initialization has not been well
 	 * implemented, so use file first.
-	 * FIXME: should implement it for hardcode? */
+	 * FIXME: should implement it for hardcode?
+	 */
 	rtl8192_BB_Config_ParaFile(dev);
 }
 
@@ -1158,7 +1168,8 @@ bool rtl8192_SetRFPowerState(struct net_device *dev,
 			switch (pHalData->eRFPowerState) {
 			case eRfOff:
 				/* If Rf off reason is from IPS,
-				   LED should blink with no link */
+				 * LED should blink with no link
+				 */
 				if (pMgntInfo->RfOffReason == RF_CHANGE_BY_IPS)
 					Adapter->HalFunc.LedControlHandler(Adapter, LED_CTL_NO_LINK);
 				else
@@ -1168,7 +1179,7 @@ bool rtl8192_SetRFPowerState(struct net_device *dev,
 
 			case eRfOn:
 				/* Turn on RF we are still linked, which might
-				   happen when we quickly turn off and on HW RF.
+				 * happen when we quickly turn off and on HW RF.
 				 */
 				if (pMgntInfo->bMediaConnect)
 					Adapter->HalFunc.LedControlHandler(Adapter, LED_CTL_LINK);
@@ -1263,7 +1274,8 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 	if (!IsLegalChannel(priv->ieee80211, channel)) {
 		RT_TRACE(COMP_ERR, "set to illegal channel: %d\n", channel);
 		/* return true to tell upper caller function this channel
-		   setting is finished! Or it will in while loop. */
+		 * setting is finished! Or it will in while loop.
+		 */
 		return true;
 	}
 	/* FIXME: need to check whether channel is legal or not here */
@@ -1609,7 +1621,8 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 
 	}
 	/* Skip over setting of J-mode in BB register here.
-	   Default value is "None J mode". */
+	 * Default value is "None J mode".
+	 */
 
 	/* <3> Set RF related register */
 	switch (priv->rf_chip) {

@@ -182,12 +182,12 @@
 				map@0 {
 					trip = <&target>;
 					cooling-device = <&cpu0 0 0>;
-					contribution = <1024>;
+					contribution = <3072>;
 				};
 				map@1 {
 					trip = <&target>;
 					cooling-device = <&cpu2 0 0>;
-					contribution = <2048>;
+					contribution = <1024>;
 				};
 			};
 		};
@@ -401,6 +401,11 @@
 		efuse: efuse@10206000 {
 			compatible = "mediatek,mt8173-efuse";
 			reg = <0 0x10206000 0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			thermal_calibration: calib@528 {
+				reg = <0x528 0xc>;
+			};
 		};
 
 		apmixedsys: clock-controller@10209000 {
@@ -574,6 +579,8 @@
 			resets = <&pericfg MT8173_PERI_THERM_SW_RST>;
 			mediatek,auxadc = <&auxadc>;
 			mediatek,apmixedsys = <&apmixedsys>;
+			nvmem-cells = <&thermal_calibration>;
+			nvmem-cell-names = "calibration-data";
 		};
 
 		nor_flash: spi@1100d000 {
@@ -728,9 +735,11 @@
 			       <&phy_port1 PHY_TYPE_USB2>;
 			power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
 			clocks = <&topckgen CLK_TOP_USB30_SEL>,
+				 <&clk26m>,
 				 <&pericfg CLK_PERI_USB0>,
 				 <&pericfg CLK_PERI_USB1>;
 			clock-names = "sys_ck",
+				      "ref_ck",
 				      "wakeup_deb_p0",
 				      "wakeup_deb_p1";
 			mediatek,syscon-wakeup = <&pericfg>;
@@ -745,8 +754,8 @@
 				reg-names = "mac";
 				interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_LOW>;
 				power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
-				clocks = <&topckgen CLK_TOP_USB30_SEL>;
-				clock-names = "sys_ck";
+				clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>;
+				clock-names = "sys_ck", "ref_ck";
 				status = "disabled";
 			};
 		};
@@ -778,6 +787,8 @@
 			compatible = "mediatek,mt8173-mmsys", "syscon";
 			reg = <0 0x14000000 0 0x1000>;
 			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			assigned-clocks = <&topckgen CLK_TOP_MM_SEL>;
+			assigned-clock-rates = <400000000>;
 			#clock-cells = <1>;
 		};
 

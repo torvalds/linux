@@ -234,16 +234,6 @@ config INPUT_MMA8450
 	  To compile this driver as a module, choose M here: the
 	  module will be called mma8450.
 
-config INPUT_MPU3050
-	tristate "MPU3050 Triaxial gyroscope sensor"
-	depends on I2C
-	help
-	  Say Y here if you want to support InvenSense MPU3050
-	  connected via an I2C bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mpu3050.
-
 config INPUT_APANEL
 	tristate "Fujitsu Lifebook Application Panel buttons"
 	depends on X86 && I2C && LEDS_CLASS

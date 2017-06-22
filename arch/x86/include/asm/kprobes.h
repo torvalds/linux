@@ -21,6 +21,12 @@
  *
  * See arch/x86/kernel/kprobes.c for x86 kprobes history.
  */
+
+#include <asm-generic/kprobes.h>
+
+#define BREAKPOINT_INSTRUCTION	0xcc
+
+#ifdef CONFIG_KPROBES
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
@@ -32,7 +38,6 @@ struct pt_regs;
 struct kprobe;
 
 typedef u8 kprobe_opcode_t;
-#define BREAKPOINT_INSTRUCTION	0xcc
 #define RELATIVEJUMP_OPCODE 0xe9
 #define RELATIVEJUMP_SIZE 5
 #define RELATIVECALL_OPCODE 0xe8
@@ -116,4 +121,6 @@ extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
 extern int kprobe_int3_handler(struct pt_regs *regs);
 extern int kprobe_debug_handler(struct pt_regs *regs);
+
+#endif /* CONFIG_KPROBES */
 #endif /* _ASM_X86_KPROBES_H */

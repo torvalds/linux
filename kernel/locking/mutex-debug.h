@@ -26,20 +26,3 @@ extern void mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 extern void debug_mutex_unlock(struct mutex *lock);
 extern void debug_mutex_init(struct mutex *lock, const char *name,
 			     struct lock_class_key *key);
-
-#define spin_lock_mutex(lock, flags)			\
-	do {						\
-		struct mutex *l = container_of(lock, struct mutex, wait_lock); \
-							\
-		DEBUG_LOCKS_WARN_ON(in_interrupt());	\
-		local_irq_save(flags);			\
-		arch_spin_lock(&(lock)->rlock.raw_lock);\
-		DEBUG_LOCKS_WARN_ON(l->magic != l);	\
-	} while (0)
-
-#define spin_unlock_mutex(lock, flags)				\
-	do {							\
-		arch_spin_unlock(&(lock)->rlock.raw_lock);	\
-		local_irq_restore(flags);			\
-		preempt_check_resched();			\
-	} while (0)

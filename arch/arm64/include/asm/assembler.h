@@ -25,6 +25,7 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/cpufeature.h>
+#include <asm/mmu_context.h>
 #include <asm/page.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/ptrace.h>
@@ -438,6 +439,28 @@ alternative_endif
  */
 	.macro	get_thread_info, rd
 	mrs	\rd, sp_el0
+	.endm
+
+/*
+ * Errata workaround prior to TTBR0_EL1 update
+ *
+ * 	val:	TTBR value with new BADDR, preserved
+ * 	tmp0:	temporary register, clobbered
+ * 	tmp1:	other temporary register, clobbered
+ */
+	.macro	pre_ttbr0_update_workaround, val, tmp0, tmp1
+#ifdef CONFIG_QCOM_FALKOR_ERRATUM_1003
+alternative_if ARM64_WORKAROUND_QCOM_FALKOR_E1003
+	mrs	\tmp0, ttbr0_el1
+	mov	\tmp1, #FALKOR_RESERVED_ASID
+	bfi	\tmp0, \tmp1, #48, #16		// reserved ASID + old BADDR
+	msr	ttbr0_el1, \tmp0
+	isb
+	bfi	\tmp0, \val, #0, #48		// reserved ASID + new BADDR
+	msr	ttbr0_el1, \tmp0
+	isb
+alternative_else_nop_endif
+#endif
 	.endm
 
 /*

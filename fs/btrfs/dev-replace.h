@@ -27,8 +27,9 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans,
 void btrfs_after_dev_replace_commit(struct btrfs_fs_info *fs_info);
 int btrfs_dev_replace_by_ioctl(struct btrfs_fs_info *fs_info,
 			    struct btrfs_ioctl_dev_replace_args *args);
-int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info, char *tgtdev_name,
-				u64 srcdevid, char *srcdev_name, int read_src);
+int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
+		const char *tgtdev_name, u64 srcdevid, const char *srcdev_name,
+		int read_src);
 void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 			      struct btrfs_ioctl_dev_replace_args *args);
 int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info,

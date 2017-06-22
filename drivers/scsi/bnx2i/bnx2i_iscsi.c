@@ -2259,6 +2259,7 @@ static struct scsi_host_template bnx2i_host_template = {
 	.name			= "QLogic Offload iSCSI Initiator",
 	.proc_name		= "bnx2i",
 	.queuecommand		= iscsi_queuecommand,
+	.eh_timed_out		= iscsi_eh_cmd_timed_out,
 	.eh_abort_handler	= iscsi_eh_abort,
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,

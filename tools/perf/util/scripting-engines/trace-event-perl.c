@@ -217,6 +217,7 @@ static void define_event_symbols(struct event_format *event,
 				       cur_field_name);
 		break;
 	case PRINT_HEX:
+	case PRINT_HEX_STR:
 		define_event_symbols(event, ev_name, args->hex.field);
 		define_event_symbols(event, ev_name, args->hex.size);
 		break;
@@ -309,10 +310,10 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 		if (node->map) {
 			struct map *map = node->map;
 			const char *dsoname = "[unknown]";
-			if (map && map->dso && (map->dso->name || map->dso->long_name)) {
+			if (map && map->dso) {
 				if (symbol_conf.show_kernel_path && map->dso->long_name)
 					dsoname = map->dso->long_name;
-				else if (map->dso->name)
+				else
 					dsoname = map->dso->name;
 			}
 			if (!hv_stores(elem, "dso", newSVpv(dsoname,0))) {
@@ -350,8 +351,10 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
 		return;
 
-	if (!event)
-		die("ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+	if (!event) {
+		pr_debug("ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+		return;
+	}
 
 	pid = raw_field_value(event, "common_pid", data);
 

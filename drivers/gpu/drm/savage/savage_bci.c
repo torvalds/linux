@@ -655,13 +655,11 @@ void savage_driver_lastclose(struct drm_device *dev)
 	}
 }
 
-int savage_driver_unload(struct drm_device *dev)
+void savage_driver_unload(struct drm_device *dev)
 {
 	drm_savage_private_t *dev_priv = dev->dev_private;
 
 	kfree(dev_priv);
-
-	return 0;
 }
 
 static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)

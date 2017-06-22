@@ -56,8 +56,8 @@ int mdp5_ctl_pair(struct mdp5_ctl *ctlx, struct mdp5_ctl *ctly, bool enable);
  * (call mdp5_ctl_commit() with mdp_ctl_flush_mask_ctl() mask)
  */
 #define MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT	BIT(0)
-int mdp5_ctl_blend(struct mdp5_ctl *ctl, u8 *stage, u32 stage_cnt,
-	u32 ctl_blend_op_flags);
+int mdp5_ctl_blend(struct mdp5_ctl *ctl, enum mdp5_pipe *stage, u32 stage_cnt,
+		   u32 ctl_blend_op_flags);
 
 /**
  * mdp_ctl_flush_mask...() - Register FLUSH masks

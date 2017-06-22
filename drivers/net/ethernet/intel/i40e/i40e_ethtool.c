@@ -803,9 +803,12 @@ static int i40e_set_settings(struct net_device *netdev,
 	if (change || (abilities.link_speed != config.link_speed)) {
 		/* copy over the rest of the abilities */
 		config.phy_type = abilities.phy_type;
+		config.phy_type_ext = abilities.phy_type_ext;
 		config.eee_capability = abilities.eee_capability;
 		config.eeer = abilities.eeer_val;
 		config.low_power_ctrl = abilities.d3_lpan;
+		config.fec_config = abilities.fec_cfg_curr_mod_ext_info &
+				    I40E_AQ_PHY_FEC_CONFIG_MASK;
 
 		/* save the requested speeds */
 		hw->phy.link_info.requested_speeds = config.link_speed;
@@ -2072,7 +2075,7 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 	struct i40e_q_vector *q_vector;
 	u16 vector, intrl;
 
-	intrl = INTRL_USEC_TO_REG(vsi->int_rate_limit);
+	intrl = i40e_intrl_usec_to_reg(vsi->int_rate_limit);
 
 	vsi->rx_rings[queue]->rx_itr_setting = ec->rx_coalesce_usecs;
 	vsi->tx_rings[queue]->tx_itr_setting = ec->tx_coalesce_usecs;
@@ -2116,6 +2119,7 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
+	u16 intrl_reg;
 	int i;
 
 	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
@@ -2127,8 +2131,9 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (ec->rx_coalesce_usecs_high >= INTRL_REG_TO_USEC(I40E_MAX_INTRL)) {
-		netif_info(pf, drv, netdev, "Invalid value, rx-usecs-high range is 0-235\n");
+	if (ec->rx_coalesce_usecs_high > INTRL_REG_TO_USEC(I40E_MAX_INTRL)) {
+		netif_info(pf, drv, netdev, "Invalid value, rx-usecs-high range is 0-%lu\n",
+			   INTRL_REG_TO_USEC(I40E_MAX_INTRL));
 		return -EINVAL;
 	}
 
@@ -2141,7 +2146,12 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 			return -EINVAL;
 	}
 
-	vsi->int_rate_limit = ec->rx_coalesce_usecs_high;
+	intrl_reg = i40e_intrl_usec_to_reg(ec->rx_coalesce_usecs_high);
+	vsi->int_rate_limit = INTRL_REG_TO_USEC(intrl_reg);
+	if (vsi->int_rate_limit != ec->rx_coalesce_usecs_high) {
+		netif_info(pf, drv, netdev, "Interrupt rate limit rounded down to %d\n",
+			   vsi->int_rate_limit);
+	}
 
 	if (ec->tx_coalesce_usecs == 0) {
 		if (ec->use_adaptive_tx_coalesce)

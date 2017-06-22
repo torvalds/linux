@@ -45,6 +45,7 @@ struct vop_ctrl {
 	struct vop_reg edp_en;
 	struct vop_reg hdmi_en;
 	struct vop_reg mipi_en;
+	struct vop_reg dp_en;
 	struct vop_reg out_mode;
 	struct vop_reg dither_down;
 	struct vop_reg dither_up;
@@ -53,6 +54,7 @@ struct vop_ctrl {
 	struct vop_reg hdmi_pin_pol;
 	struct vop_reg edp_pin_pol;
 	struct vop_reg mipi_pin_pol;
+	struct vop_reg dp_pin_pol;
 
 	struct vop_reg htotal_pw;
 	struct vop_reg hact_st_end;
@@ -242,6 +244,13 @@ enum sacle_up_mode {
 enum scale_down_mode {
 	SCALE_DOWN_BIL = 0x0,
 	SCALE_DOWN_AVG = 0x1
+};
+
+enum vop_pol {
+	HSYNC_POSITIVE = 0,
+	VSYNC_POSITIVE = 1,
+	DEN_NEGATIVE   = 2,
+	DCLK_INVERT    = 3
 };
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))

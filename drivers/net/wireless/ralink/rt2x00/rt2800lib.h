@@ -183,7 +183,7 @@ int rt2800_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 			       struct ieee80211_key_conf *key);
 int rt2800_sta_add(struct rt2x00_dev *rt2x00dev, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
-int rt2800_sta_remove(struct rt2x00_dev *rt2x00dev, int wcid);
+int rt2800_sta_remove(struct rt2x00_dev *rt2x00dev, struct ieee80211_sta *sta);
 void rt2800_config_filter(struct rt2x00_dev *rt2x00dev,
 			  const unsigned int filter_flags);
 void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,

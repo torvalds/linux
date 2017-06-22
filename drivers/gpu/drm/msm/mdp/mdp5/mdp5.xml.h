@@ -8,19 +8,11 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1572 bytes, from 2016-02-10 17:07:21)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2015-09-18 12:07:28)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  36965 bytes, from 2016-11-26 23:01:08)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  27887 bytes, from 2015-10-22 16:34:52)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    602 bytes, from 2015-10-22 16:35:02)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2015-05-20 20:03:07)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  41472 bytes, from 2016-01-22 18:18:18)
-- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2015-05-20 20:03:14)
+- /local/mnt/workspace/source_trees/envytools/rnndb/../rnndb/mdp/mdp5.xml   (  37411 bytes, from 2017-01-11 05:19:19)
+- /local/mnt/workspace/source_trees/envytools/rnndb/freedreno_copyright.xml (   1572 bytes, from 2016-05-09 06:32:54)
+- /local/mnt/workspace/source_trees/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2016-01-07 08:45:55)
 
-Copyright (C) 2013-2016 by the following authors:
+Copyright (C) 2013-2017 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -65,16 +57,19 @@ enum mdp5_intfnum {
 };
 
 enum mdp5_pipe {
-	SSPP_VIG0 = 0,
-	SSPP_VIG1 = 1,
-	SSPP_VIG2 = 2,
-	SSPP_RGB0 = 3,
-	SSPP_RGB1 = 4,
-	SSPP_RGB2 = 5,
-	SSPP_DMA0 = 6,
-	SSPP_DMA1 = 7,
-	SSPP_VIG3 = 8,
-	SSPP_RGB3 = 9,
+	SSPP_NONE = 0,
+	SSPP_VIG0 = 1,
+	SSPP_VIG1 = 2,
+	SSPP_VIG2 = 3,
+	SSPP_RGB0 = 4,
+	SSPP_RGB1 = 5,
+	SSPP_RGB2 = 6,
+	SSPP_DMA0 = 7,
+	SSPP_DMA1 = 8,
+	SSPP_VIG3 = 9,
+	SSPP_RGB3 = 10,
+	SSPP_CURSOR0 = 11,
+	SSPP_CURSOR1 = 12,
 };
 
 enum mdp5_ctl_mode {
@@ -532,6 +527,7 @@ static inline uint32_t MDP5_CTL_LAYER_EXT_REG_CURSOR1(enum mdp_mixer_stage_id va
 static inline uint32_t __offset_PIPE(enum mdp5_pipe idx)
 {
 	switch (idx) {
+		case SSPP_NONE: return (INVALID_IDX(idx));
 		case SSPP_VIG0: return (mdp5_cfg->pipe_vig.base[0]);
 		case SSPP_VIG1: return (mdp5_cfg->pipe_vig.base[1]);
 		case SSPP_VIG2: return (mdp5_cfg->pipe_vig.base[2]);
@@ -542,6 +538,8 @@ static inline uint32_t __offset_PIPE(enum mdp5_pipe idx)
 		case SSPP_DMA1: return (mdp5_cfg->pipe_dma.base[1]);
 		case SSPP_VIG3: return (mdp5_cfg->pipe_vig.base[3]);
 		case SSPP_RGB3: return (mdp5_cfg->pipe_rgb.base[3]);
+		case SSPP_CURSOR0: return (mdp5_cfg->pipe_cursor.base[0]);
+		case SSPP_CURSOR1: return (mdp5_cfg->pipe_cursor.base[1]);
 		default: return INVALID_IDX(idx);
 	}
 }
@@ -1073,6 +1071,10 @@ static inline uint32_t REG_MDP5_LM_BLEND_COLOR_OUT(uint32_t i0) { return 0x00000
 #define MDP5_LM_BLEND_COLOR_OUT_STAGE1_FG_ALPHA			0x00000004
 #define MDP5_LM_BLEND_COLOR_OUT_STAGE2_FG_ALPHA			0x00000008
 #define MDP5_LM_BLEND_COLOR_OUT_STAGE3_FG_ALPHA			0x00000010
+#define MDP5_LM_BLEND_COLOR_OUT_STAGE4_FG_ALPHA			0x00000020
+#define MDP5_LM_BLEND_COLOR_OUT_STAGE5_FG_ALPHA			0x00000040
+#define MDP5_LM_BLEND_COLOR_OUT_STAGE6_FG_ALPHA			0x00000080
+#define MDP5_LM_BLEND_COLOR_OUT_SPLIT_LEFT_RIGHT		0x80000000
 
 static inline uint32_t REG_MDP5_LM_OUT_SIZE(uint32_t i0) { return 0x00000004 + __offset_LM(i0); }
 #define MDP5_LM_OUT_SIZE_HEIGHT__MASK				0xffff0000

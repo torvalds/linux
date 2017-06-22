@@ -57,50 +57,6 @@ early_param("initrd", early_initrd);
  */
 struct meminfo meminfo;
 
-void show_mem(unsigned int filter)
-{
-	int free = 0, total = 0, reserved = 0;
-	int shared = 0, cached = 0, slab = 0, i;
-	struct meminfo *mi = &meminfo;
-
-	printk(KERN_DEFAULT "Mem-info:\n");
-	show_free_areas(filter);
-
-	for_each_bank(i, mi) {
-		struct membank *bank = &mi->bank[i];
-		unsigned int pfn1, pfn2;
-		struct page *page, *end;
-
-		pfn1 = bank_pfn_start(bank);
-		pfn2 = bank_pfn_end(bank);
-
-		page = pfn_to_page(pfn1);
-		end  = pfn_to_page(pfn2 - 1) + 1;
-
-		do {
-			total++;
-			if (PageReserved(page))
-				reserved++;
-			else if (PageSwapCache(page))
-				cached++;
-			else if (PageSlab(page))
-				slab++;
-			else if (!page_count(page))
-				free++;
-			else
-				shared += page_count(page) - 1;
-			page++;
-		} while (page < end);
-	}
-
-	printk(KERN_DEFAULT "%d pages of RAM\n", total);
-	printk(KERN_DEFAULT "%d free pages\n", free);
-	printk(KERN_DEFAULT "%d reserved pages\n", reserved);
-	printk(KERN_DEFAULT "%d slab pages\n", slab);
-	printk(KERN_DEFAULT "%d pages shared\n", shared);
-	printk(KERN_DEFAULT "%d pages swap cached\n", cached);
-}
-
 static void __init find_limits(unsigned long *min, unsigned long *max_low,
 	unsigned long *max_high)
 {

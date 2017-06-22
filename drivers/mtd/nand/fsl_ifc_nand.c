@@ -258,9 +258,15 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 		int bufnum = nctrl->page & priv->bufnum_mask;
 		int sector = bufnum * chip->ecc.steps;
 		int sector_end = sector + chip->ecc.steps - 1;
+		__be32 *eccstat_regs;
+
+		if (ctrl->version >= FSL_IFC_VERSION_2_0_0)
+			eccstat_regs = ifc->ifc_nand.v2_nand_eccstat;
+		else
+			eccstat_regs = ifc->ifc_nand.v1_nand_eccstat;
 
 		for (i = sector / 4; i <= sector_end / 4; i++)
-			eccstat[i] = ifc_in32(&ifc->ifc_nand.nand_eccstat[i]);
+			eccstat[i] = ifc_in32(&eccstat_regs[i]);
 
 		for (i = sector; i <= sector_end; i++) {
 			errors = check_read_ecc(mtd, ctrl, eccstat, i);

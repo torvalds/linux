@@ -205,8 +205,6 @@ static int mma8450_probe(struct i2c_client *c,
 		return err;
 	}
 
-	i2c_set_clientdata(c, m);
-
 	return 0;
 }
 

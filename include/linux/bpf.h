@@ -8,10 +8,12 @@
 #define _LINUX_BPF_H 1
 
 #include <uapi/linux/bpf.h>
+
 #include <linux/workqueue.h>
 #include <linux/file.h>
 #include <linux/percpu.h>
 #include <linux/err.h>
+#include <linux/rbtree_latch.h>
 
 struct perf_event;
 struct bpf_map;
@@ -69,14 +71,14 @@ enum bpf_arg_type {
 	/* the following constraints used to prototype bpf_memcmp() and other
 	 * functions that access data on eBPF program stack
 	 */
-	ARG_PTR_TO_STACK,	/* any pointer to eBPF program stack */
-	ARG_PTR_TO_RAW_STACK,	/* any pointer to eBPF program stack, area does not
-				 * need to be initialized, helper function must fill
-				 * all bytes or clear them in error case.
+	ARG_PTR_TO_MEM,		/* pointer to valid memory (stack, packet, map value) */
+	ARG_PTR_TO_UNINIT_MEM,	/* pointer to memory does not need to be initialized,
+				 * helper function must fill all bytes or clear
+				 * them in error case.
 				 */
 
-	ARG_CONST_STACK_SIZE,	/* number of bytes accessed from stack */
-	ARG_CONST_STACK_SIZE_OR_ZERO, /* number of bytes accessed from stack or 0 */
+	ARG_CONST_SIZE,		/* number of bytes accessed from memory */
+	ARG_CONST_SIZE_OR_ZERO,	/* number of bytes accessed from memory or 0 */
 
 	ARG_PTR_TO_CTX,		/* pointer to context */
 	ARG_ANYTHING,		/* any (initialized) argument is ok */
@@ -161,9 +163,10 @@ struct bpf_verifier_ops {
 				enum bpf_reg_type *reg_type);
 	int (*gen_prologue)(struct bpf_insn *insn, bool direct_write,
 			    const struct bpf_prog *prog);
-	u32 (*convert_ctx_access)(enum bpf_access_type type, int dst_reg,
-				  int src_reg, int ctx_off,
-				  struct bpf_insn *insn, struct bpf_prog *prog);
+	u32 (*convert_ctx_access)(enum bpf_access_type type,
+				  const struct bpf_insn *src,
+				  struct bpf_insn *dst,
+				  struct bpf_prog *prog);
 };
 
 struct bpf_prog_type_list {
@@ -176,6 +179,8 @@ struct bpf_prog_aux {
 	atomic_t refcnt;
 	u32 used_map_cnt;
 	u32 max_ctx_offset;
+	struct latch_tree_node ksym_tnode;
+	struct list_head ksym_lnode;
 	const struct bpf_verifier_ops *ops;
 	struct bpf_map **used_maps;
 	struct bpf_prog *prog;

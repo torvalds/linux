@@ -127,7 +127,7 @@ static const struct iommu_ops
 			   "iommu-map-mask", &iommu_spec.np, iommu_spec.args))
 		return NULL;
 
-	ops = of_iommu_get_ops(iommu_spec.np);
+	ops = iommu_ops_from_fwnode(&iommu_spec.np->fwnode);
 	if (!ops || !ops->of_xlate ||
 	    iommu_fwspec_init(&pdev->dev, &iommu_spec.np->fwnode, ops) ||
 	    ops->of_xlate(&pdev->dev, &iommu_spec))
@@ -157,7 +157,7 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 					   "#iommu-cells", idx,
 					   &iommu_spec)) {
 		np = iommu_spec.np;
-		ops = of_iommu_get_ops(np);
+		ops = iommu_ops_from_fwnode(&np->fwnode);
 
 		if (!ops || !ops->of_xlate ||
 		    iommu_fwspec_init(dev, &np->fwnode, ops) ||

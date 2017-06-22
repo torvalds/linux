@@ -38,7 +38,7 @@ nouveau_led_get_brightness(struct led_classdev *led)
 {
 	struct drm_device *drm_dev = container_of(led, struct nouveau_led, led)->dev;
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
-	struct nvif_object *device = &drm->device.object;
+	struct nvif_object *device = &drm->client.device.object;
 	u32 div, duty;
 
 	div =  nvif_rd32(device, 0x61c880) & 0x00ffffff;
@@ -55,7 +55,7 @@ nouveau_led_set_brightness(struct led_classdev *led, enum led_brightness value)
 {
 	struct drm_device *drm_dev = container_of(led, struct nouveau_led, led)->dev;
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
-	struct nvif_object *device = &drm->device.object;
+	struct nvif_object *device = &drm->client.device.object;
 
 	u32 input_clk = 27e6; /* PDISPLAY.SOR[1].PWM is connected to the crystal */
 	u32 freq = 100; /* this is what nvidia uses and it should be good-enough */
@@ -78,7 +78,7 @@ int
 nouveau_led_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_gpio *gpio = nvxx_gpio(&drm->device);
+	struct nvkm_gpio *gpio = nvxx_gpio(&drm->client.device);
 	struct dcb_gpio_func logo_led;
 	int ret;
 
@@ -102,6 +102,7 @@ nouveau_led_init(struct drm_device *dev)
 	ret = led_classdev_register(dev->dev, &drm->led->led);
 	if (ret) {
 		kfree(drm->led);
+		drm->led = NULL;
 		return ret;
 	}
 

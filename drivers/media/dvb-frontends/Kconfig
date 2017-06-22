@@ -447,13 +447,6 @@ config DVB_EC100
 	help
 	  Say Y when you want to support this frontend.
 
-config DVB_HD29L2
-	tristate "HDIC HD29L2"
-	depends on DVB_CORE && I2C
-	default m if !MEDIA_SUBDRV_AUTOSELECT
-	help
-	  Say Y when you want to support this frontend.
-
 config DVB_STV0367
 	tristate "ST STV0367 based"
 	depends on DVB_CORE && I2C
@@ -512,6 +505,13 @@ config DVB_AS102_FE
 	tristate
 	depends on DVB_CORE
 	default DVB_AS102
+
+config DVB_ZD1301_DEMOD
+	tristate "ZyDAS ZD1301"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
 
 config DVB_GP8PSK_FE
 	tristate
@@ -619,7 +619,7 @@ config DVB_LGDT3305
 
 config DVB_LGDT3306A
 	tristate "LG Electronics LGDT3306A based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && I2C_MUX
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB and QAM-B 64/256 demodulator module. Say Y when you want
@@ -852,6 +852,7 @@ config DVB_M88RS2000
 config DVB_AF9033
 	tristate "Afatech AF9033 DVB-T demodulator"
 	depends on DVB_CORE && I2C
+	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 
 config DVB_HORUS3A

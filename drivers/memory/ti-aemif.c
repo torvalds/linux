@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/ti-aemif.h>
 
 #define TA_SHIFT	2
 #define RHOLD_SHIFT	4
@@ -335,6 +336,8 @@ static int aemif_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct device_node *child_np;
 	struct aemif_device *aemif;
+	struct aemif_platform_data *pdata;
+	struct of_dev_auxdata *dev_lookup;
 
 	if (np == NULL)
 		return 0;
@@ -342,6 +345,9 @@ static int aemif_probe(struct platform_device *pdev)
 	aemif = devm_kzalloc(dev, sizeof(*aemif), GFP_KERNEL);
 	if (!aemif)
 		return -ENOMEM;
+
+	pdata = dev_get_platdata(&pdev->dev);
+	dev_lookup = pdata ? pdata->dev_lookup : NULL;
 
 	platform_set_drvdata(pdev, aemif);
 
@@ -390,7 +396,7 @@ static int aemif_probe(struct platform_device *pdev)
 	 * parameters are set.
 	 */
 	for_each_available_child_of_node(np, child_np) {
-		ret = of_platform_populate(child_np, NULL, NULL, dev);
+		ret = of_platform_populate(child_np, NULL, dev_lookup, dev);
 		if (ret < 0)
 			goto error;
 	}

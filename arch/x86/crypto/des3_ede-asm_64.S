@@ -537,7 +537,7 @@ ENTRY(des3_ede_x86_64_crypt_blk_3way)
 	ret;
 ENDPROC(des3_ede_x86_64_crypt_blk_3way)
 
-.data
+.section	.rodata, "a", @progbits
 .align 16
 .L_s1:
 	.quad 0x0010100001010400, 0x0000000000000000

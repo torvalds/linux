@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/sched/signal.h>
 
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"

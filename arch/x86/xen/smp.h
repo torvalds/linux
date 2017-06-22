@@ -21,12 +21,4 @@ static inline int xen_smp_intr_init(unsigned int cpu)
 static inline void xen_smp_intr_free(unsigned int cpu) {}
 #endif /* CONFIG_SMP */
 
-#ifdef CONFIG_XEN_PVH
-extern void xen_pvh_early_cpu_init(int cpu, bool entry);
-#else
-static inline void xen_pvh_early_cpu_init(int cpu, bool entry)
-{
-}
-#endif
-
 #endif

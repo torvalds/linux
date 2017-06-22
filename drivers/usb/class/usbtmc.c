@@ -1381,7 +1381,7 @@ static int usbtmc_probe(struct usb_interface *intf,
 
 	dev_dbg(&intf->dev, "%s called\n", __func__);
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1444,6 +1444,13 @@ static int usbtmc_probe(struct usb_interface *intf,
 			break;
 		}
 	}
+
+	if (!data->bulk_out || !data->bulk_in) {
+		dev_err(&intf->dev, "bulk endpoints not found\n");
+		retcode = -ENODEV;
+		goto err_put;
+	}
+
 	/* Find int endpoint */
 	for (n = 0; n < iface_desc->desc.bNumEndpoints; n++) {
 		endpoint = &iface_desc->endpoint[n].desc;
@@ -1469,8 +1476,10 @@ static int usbtmc_probe(struct usb_interface *intf,
 	if (data->iin_ep_present) {
 		/* allocate int urb */
 		data->iin_urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!data->iin_urb)
+		if (!data->iin_urb) {
+			retcode = -ENOMEM;
 			goto error_register;
+		}
 
 		/* Protect interrupt in endpoint data until iin_urb is freed */
 		kref_get(&data->kref);
@@ -1478,8 +1487,10 @@ static int usbtmc_probe(struct usb_interface *intf,
 		/* allocate buffer for interrupt in */
 		data->iin_buffer = kmalloc(data->iin_wMaxPacketSize,
 					GFP_KERNEL);
-		if (!data->iin_buffer)
+		if (!data->iin_buffer) {
+			retcode = -ENOMEM;
 			goto error_register;
+		}
 
 		/* fill interrupt urb */
 		usb_fill_int_urb(data->iin_urb, data->usb_dev,
@@ -1512,6 +1523,7 @@ error_register:
 	sysfs_remove_group(&intf->dev.kobj, &capability_attr_grp);
 	sysfs_remove_group(&intf->dev.kobj, &data_attr_grp);
 	usbtmc_free_int(data);
+err_put:
 	kref_put(&data->kref, usbtmc_delete);
 	return retcode;
 }

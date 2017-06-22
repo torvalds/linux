@@ -21,6 +21,8 @@
 #include <linux/sched.h>
 #include <linux/gfp.h>
 #include <linux/bootmem.h>
+#include <linux/nmi.h>
+
 #include <asm/fixmap.h>
 #include <asm/pvclock.h>
 

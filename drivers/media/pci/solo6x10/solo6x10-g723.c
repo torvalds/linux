@@ -350,7 +350,7 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 
 int solo_g723_init(struct solo_dev *solo_dev)
 {
-	static struct snd_device_ops ops = { NULL };
+	static struct snd_device_ops ops = { };
 	struct snd_card *card;
 	struct snd_kcontrol_new kctl;
 	char name[32];

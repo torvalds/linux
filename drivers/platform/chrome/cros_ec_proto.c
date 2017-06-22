@@ -447,6 +447,11 @@ static int get_next_event(struct cros_ec_device *ec_dev)
 	struct cros_ec_command *msg = (struct cros_ec_command *)&buffer;
 	int ret;
 
+	if (ec_dev->suspended) {
+		dev_dbg(ec_dev->dev, "Device suspended.\n");
+		return -EHOSTDOWN;
+	}
+
 	msg->version = 0;
 	msg->command = EC_CMD_GET_NEXT_EVENT;
 	msg->insize = sizeof(ec_dev->event_data);

@@ -28,7 +28,6 @@ enum sti_mixer_status {
  * @regs: mixer registers
  * @id: id of the mixer
  * @drm_crtc: crtc object link to the mixer
- * @pending_event: set if a flip event is pending on crtc
  * @status: to know the status of the mixer
  */
 struct sti_mixer {
@@ -36,7 +35,6 @@ struct sti_mixer {
 	void __iomem *regs;
 	int id;
 	struct drm_crtc drm_crtc;
-	struct drm_pending_vblank_event *pending_event;
 	enum sti_mixer_status status;
 };
 

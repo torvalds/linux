@@ -540,9 +540,10 @@ static int txc43128_run_tests(struct ef4_nic *efx, int *results, unsigned flags)
 	return rc;
 }
 
-static void txc43128_get_settings(struct ef4_nic *efx, struct ethtool_cmd *ecmd)
+static void txc43128_get_link_ksettings(struct ef4_nic *efx,
+					struct ethtool_link_ksettings *cmd)
 {
-	mdio45_ethtool_gset(&efx->mdio, ecmd);
+	mdio45_ethtool_ksettings_get(&efx->mdio, cmd);
 }
 
 const struct ef4_phy_operations falcon_txc_phy_ops = {
@@ -552,8 +553,8 @@ const struct ef4_phy_operations falcon_txc_phy_ops = {
 	.poll		= txc43128_phy_poll,
 	.fini		= txc43128_phy_fini,
 	.remove		= txc43128_phy_remove,
-	.get_settings	= txc43128_get_settings,
-	.set_settings	= ef4_mdio_set_settings,
+	.get_link_ksettings = txc43128_get_link_ksettings,
+	.set_link_ksettings = ef4_mdio_set_link_ksettings,
 	.test_alive	= ef4_mdio_test_alive,
 	.run_tests	= txc43128_run_tests,
 	.test_name	= txc43128_test_name,

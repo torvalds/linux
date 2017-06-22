@@ -133,6 +133,16 @@ __iter_div_u64_rem(u64 dividend, u32 divisor, u64 *remainder)
 	return ret;
 }
 
+#ifndef mul_u32_u32
+/*
+ * Many a GCC version messes this up and generates a 64x64 mult :-(
+ */
+static inline u64 mul_u32_u32(u32 a, u32 b)
+{
+	return (u64)a * b;
+}
+#endif
+
 #if defined(CONFIG_ARCH_SUPPORTS_INT128) && defined(__SIZEOF_INT128__)
 
 #ifndef mul_u64_u32_shr
@@ -160,9 +170,9 @@ static inline u64 mul_u64_u32_shr(u64 a, u32 mul, unsigned int shift)
 	al = a;
 	ah = a >> 32;
 
-	ret = ((u64)al * mul) >> shift;
+	ret = mul_u32_u32(al, mul) >> shift;
 	if (ah)
-		ret += ((u64)ah * mul) << (32 - shift);
+		ret += mul_u32_u32(ah, mul) << (32 - shift);
 
 	return ret;
 }
@@ -186,10 +196,10 @@ static inline u64 mul_u64_u64_shr(u64 a, u64 b, unsigned int shift)
 	a0.ll = a;
 	b0.ll = b;
 
-	rl.ll = (u64)a0.l.low * b0.l.low;
-	rm.ll = (u64)a0.l.low * b0.l.high;
-	rn.ll = (u64)a0.l.high * b0.l.low;
-	rh.ll = (u64)a0.l.high * b0.l.high;
+	rl.ll = mul_u32_u32(a0.l.low, b0.l.low);
+	rm.ll = mul_u32_u32(a0.l.low, b0.l.high);
+	rn.ll = mul_u32_u32(a0.l.high, b0.l.low);
+	rh.ll = mul_u32_u32(a0.l.high, b0.l.high);
 
 	/*
 	 * Each of these lines computes a 64-bit intermediate result into "c",
@@ -229,8 +239,8 @@ static inline u64 mul_u64_u32_div(u64 a, u32 mul, u32 divisor)
 	} u, rl, rh;
 
 	u.ll = a;
-	rl.ll = (u64)u.l.low * mul;
-	rh.ll = (u64)u.l.high * mul + rl.l.high;
+	rl.ll = mul_u32_u32(u.l.low, mul);
+	rh.ll = mul_u32_u32(u.l.high, mul) + rl.l.high;
 
 	/* Bits 32-63 of the result will be in rh.l.low. */
 	rl.l.high = do_div(rh.ll, divisor);

@@ -1,3 +1,11 @@
+/*
+ * Copyright (C) 2014-2016 Rafał Miłecki <rafal@milecki.pl>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
 #define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
@@ -275,10 +283,6 @@ static int bcm53xxspi_flash_read(struct spi_device *spi,
  * BCMA
  **************************************************/
 
-static struct spi_board_info bcm53xx_info = {
-	.modalias	= "bcm53xxspiflash",
-};
-
 static const struct bcma_device_id bcm53xxspi_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_NS_QSPI, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	{},
@@ -311,6 +315,7 @@ static int bcm53xxspi_bcma_probe(struct bcma_device *core)
 	b53spi->bspi = true;
 	bcm53xxspi_disable_bspi(b53spi);
 
+	master->dev.of_node = dev->of_node;
 	master->transfer_one = bcm53xxspi_transfer_one;
 	if (b53spi->mmio_base)
 		master->spi_flash_read = bcm53xxspi_flash_read;
@@ -323,9 +328,6 @@ static int bcm53xxspi_bcma_probe(struct bcma_device *core)
 		bcma_set_drvdata(core, NULL);
 		return err;
 	}
-
-	/* Broadcom SoCs (at least with the CC rev 42) use SPI for flash only */
-	spi_new_device(master, &bcm53xx_info);
 
 	return 0;
 }
@@ -361,4 +363,4 @@ module_exit(bcm53xxspi_module_exit);
 
 MODULE_DESCRIPTION("Broadcom BCM53xx SPI Controller driver");
 MODULE_AUTHOR("Rafał Miłecki <zajec5@gmail.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

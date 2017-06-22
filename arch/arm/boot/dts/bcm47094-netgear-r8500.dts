@@ -18,7 +18,8 @@
 	};
 
 	memory {
-		reg = <0x00000000 0x08000000>;
+		reg = <0x00000000 0x08000000
+		       0x88000000 0x18000000>;
 	};
 
 	leds {
@@ -96,8 +97,4 @@
 			gpios = <&chipcommon 20 GPIO_ACTIVE_LOW>;
 		};
 	};
-};
-
-&uart0 {
-	status = "okay";
 };

@@ -877,7 +877,7 @@ static int lmd_parse_mgs(struct lustre_mount_data *lmd, char **ptr)
  */
 static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 {
-	char *s1, *s2, *s3, *devname = NULL;
+	char *s1, *s2, *devname = NULL;
 	struct lustre_mount_data *raw = (struct lustre_mount_data *)options;
 	int rc = 0;
 
@@ -906,6 +906,7 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 	while (*s1) {
 		int clear = 0;
 		int time_min = OBD_RECOVERY_TIME_MIN;
+		char *s3;
 
 		/* Skip whitespace and extra commas */
 		while (*s1 == ' ' || *s1 == ',')

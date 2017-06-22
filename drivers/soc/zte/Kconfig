@@ -1,0 +1,13 @@
+#
+# ZTE SoC drivers
+#
+menuconfig SOC_ZTE
+	bool "ZTE SoC driver support"
+
+if SOC_ZTE
+
+config ZX2967_PM_DOMAINS
+	bool "ZX2967 PM domains"
+	depends on PM_GENERIC_DOMAINS
+
+endif

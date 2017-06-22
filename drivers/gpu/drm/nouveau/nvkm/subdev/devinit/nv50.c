@@ -50,7 +50,7 @@ nv50_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 	ret = nv04_pll_calc(subdev, &info, freq, &N1, &M1, &N2, &M2, &P);
 	if (!ret) {
 		nvkm_error(subdev, "failed pll calculation\n");
-		return ret;
+		return -EINVAL;
 	}
 
 	switch (info.type) {

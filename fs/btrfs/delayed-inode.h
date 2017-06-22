@@ -101,15 +101,15 @@ static inline void btrfs_init_delayed_root(
 int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 				   struct btrfs_fs_info *fs_info,
 				   const char *name, int name_len,
-				   struct inode *dir,
+				   struct btrfs_inode *dir,
 				   struct btrfs_disk_key *disk_key, u8 type,
 				   u64 index);
 
 int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 				   struct btrfs_fs_info *fs_info,
-				   struct inode *dir, u64 index);
+				   struct btrfs_inode *dir, u64 index);
 
-int btrfs_inode_delayed_dir_index_count(struct inode *inode);
+int btrfs_inode_delayed_dir_index_count(struct btrfs_inode *inode);
 
 int btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info);
@@ -119,17 +119,17 @@ int btrfs_run_delayed_items_nr(struct btrfs_trans_handle *trans,
 void btrfs_balance_delayed_items(struct btrfs_fs_info *fs_info);
 
 int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
-				     struct inode *inode);
+				     struct btrfs_inode *inode);
 /* Used for evicting the inode. */
-void btrfs_remove_delayed_node(struct inode *inode);
-void btrfs_kill_delayed_inode_items(struct inode *inode);
-int btrfs_commit_inode_delayed_inode(struct inode *inode);
+void btrfs_remove_delayed_node(struct btrfs_inode *inode);
+void btrfs_kill_delayed_inode_items(struct btrfs_inode *inode);
+int btrfs_commit_inode_delayed_inode(struct btrfs_inode *inode);
 
 
 int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, struct inode *inode);
 int btrfs_fill_inode(struct inode *inode, u32 *rdev);
-int btrfs_delayed_delete_inode_ref(struct inode *inode);
+int btrfs_delayed_delete_inode_ref(struct btrfs_inode *inode);
 
 /* Used for drop dead root */
 void btrfs_kill_all_delayed_nodes(struct btrfs_root *root);

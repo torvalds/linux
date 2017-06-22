@@ -16,8 +16,9 @@
 
 #include <linux/kernel_stat.h>
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/string.h>
@@ -110,7 +111,7 @@ unsigned long long monotonic_clock(void)
 }
 EXPORT_SYMBOL(monotonic_clock);
 
-void tod_to_timeval(__u64 todval, struct timespec64 *xt)
+static void tod_to_timeval(__u64 todval, struct timespec64 *xt)
 {
 	unsigned long long sec;
 
@@ -120,7 +121,6 @@ void tod_to_timeval(__u64 todval, struct timespec64 *xt)
 	todval -= (sec * 1000000) << 12;
 	xt->tv_nsec = ((todval * 1000) >> 12);
 }
-EXPORT_SYMBOL(tod_to_timeval);
 
 void clock_comparator_work(void)
 {
@@ -492,7 +492,7 @@ static void __init stp_reset(void)
 		pr_warn("The real or virtual hardware system does not provide an STP interface\n");
 		free_page((unsigned long) stp_page);
 		stp_page = NULL;
-		stp_online = 0;
+		stp_online = false;
 	}
 }
 

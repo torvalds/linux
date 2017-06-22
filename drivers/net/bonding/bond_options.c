@@ -16,6 +16,8 @@
 #include <linux/rcupdate.h>
 #include <linux/ctype.h>
 #include <linux/inet.h>
+#include <linux/sched/signal.h>
+
 #include <net/bonding.h>
 
 static int bond_option_active_slave_set(struct bonding *bond,

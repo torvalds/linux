@@ -62,7 +62,7 @@
 		autorepeat;
 
 		power {
-			gpios = <&gpio0 4 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
 			linux,input-type = <1>;
@@ -102,7 +102,7 @@
 		compatible = "bosch,bma250";
 		reg = <0x18>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PB7 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
@@ -114,7 +114,7 @@
 		compatible = "rockchip,rk818";
 		reg = <0x1c>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PB3 IRQ_TYPE_LEVEL_LOW>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
@@ -247,8 +247,8 @@
 		compatible = "silead,gsl1680";
 		reg = <0x40>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
-		power-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		interrupts = <RK_PB7 IRQ_TYPE_EDGE_FALLING>;
+		power-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 		touchscreen-size-x = <800>;
 		touchscreen-size-y = <1280>;
 		silead,max-fingers = <5>;

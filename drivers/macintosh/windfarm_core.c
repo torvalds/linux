@@ -74,8 +74,8 @@ static inline void wf_notify(int event, void *param)
 
 static int wf_critical_overtemp(void)
 {
-	static char * critical_overtemp_path = "/sbin/critical_overtemp";
-	char *argv[] = { critical_overtemp_path, NULL };
+	static char const critical_overtemp_path[] = "/sbin/critical_overtemp";
+	char *argv[] = { (char *)critical_overtemp_path, NULL };
 	static char *envp[] = { "HOME=/",
 				"TERM=linux",
 				"PATH=/sbin:/usr/sbin:/bin:/usr/bin",

@@ -4,7 +4,7 @@
  * Copyright (C) 2016 BayLibre SAS
  *
  * Author:
- *   Bartosz Golaszewski <bgolaszewski@baylibre.com.com>
+ *   Bartosz Golaszewski <bgolaszewski@baylibre.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

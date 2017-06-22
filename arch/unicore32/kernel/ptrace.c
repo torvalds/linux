@@ -15,6 +15,7 @@
 #include <linux/ptrace.h>
 #include <linux/signal.h>
 #include <linux/uaccess.h>
+#include <linux/sched/task_stack.h>
 
 /*
  * this routine will get a word off of the processes privileged stack.

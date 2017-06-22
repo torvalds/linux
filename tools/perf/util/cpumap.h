@@ -62,6 +62,7 @@ int cpu__setup_cpunode_map(void);
 
 int cpu__max_node(void);
 int cpu__max_cpu(void);
+int cpu__max_present_cpu(void);
 int cpu__get_node(int cpu);
 
 int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,

@@ -506,7 +506,7 @@ static int caam_rsa_init_tfm(struct crypto_akcipher *tfm)
 	ctx->dev = caam_jr_alloc();
 
 	if (IS_ERR(ctx->dev)) {
-		dev_err(ctx->dev, "Job Ring Device allocation for transform failed\n");
+		pr_err("Job Ring Device allocation for transform failed\n");
 		return PTR_ERR(ctx->dev);
 	}
 

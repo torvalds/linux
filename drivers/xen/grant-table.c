@@ -1146,12 +1146,12 @@ EXPORT_SYMBOL_GPL(gnttab_init);
 
 static int __gnttab_init(void)
 {
-	/* Delay grant-table initialization in the PV on HVM case */
-	if (xen_hvm_domain())
-		return 0;
-
-	if (!xen_pv_domain())
+	if (!xen_domain())
 		return -ENODEV;
+
+	/* Delay grant-table initialization in the PV on HVM case */
+	if (xen_hvm_domain() && !xen_pvh_domain())
+		return 0;
 
 	return gnttab_init();
 }

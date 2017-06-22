@@ -35,8 +35,8 @@ all: $(OUTPUT)fixdep
 
 clean:
 	$(call QUIET_CLEAN, fixdep)
-	$(Q)find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
-	$(Q)rm -f fixdep
+	$(Q)find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
+	$(Q)rm -f $(OUTPUT)fixdep
 
 $(OUTPUT)fixdep-in.o: FORCE
 	$(Q)$(MAKE) $(build)=fixdep

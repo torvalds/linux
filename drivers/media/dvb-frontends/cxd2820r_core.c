@@ -615,6 +615,7 @@ static int cxd2820r_probe(struct i2c_client *client,
 	}
 
 	priv->client[0] = client;
+	priv->fe.demodulator_priv = priv;
 	priv->i2c = client->adapter;
 	priv->ts_mode = pdata->ts_mode;
 	priv->ts_clk_inv = pdata->ts_clk_inv;
@@ -697,7 +698,6 @@ static int cxd2820r_probe(struct i2c_client *client,
 	memcpy(&priv->fe.ops, &cxd2820r_ops, sizeof(priv->fe.ops));
 	if (!pdata->attach_in_use)
 		priv->fe.ops.release = NULL;
-	priv->fe.demodulator_priv = priv;
 	i2c_set_clientdata(client, priv);
 
 	/* Setup callbacks */

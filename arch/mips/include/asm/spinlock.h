@@ -127,7 +127,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 		"	andi	%[ticket], %[ticket], 0xffff		\n"
 		"	bne	%[ticket], %[my_ticket], 4f		\n"
 		"	 subu	%[ticket], %[my_ticket], %[ticket]	\n"
-		"2:							\n"
+		"2:	.insn						\n"
 		"	.subsection 2					\n"
 		"4:	andi	%[ticket], %[ticket], 0xffff		\n"
 		"	sll	%[ticket], 5				\n"
@@ -202,7 +202,7 @@ static inline unsigned int arch_spin_trylock(arch_spinlock_t *lock)
 		"	sc	%[ticket], %[ticket_ptr]		\n"
 		"	beqz	%[ticket], 1b				\n"
 		"	 li	%[ticket], 1				\n"
-		"2:							\n"
+		"2:	.insn						\n"
 		"	.subsection 2					\n"
 		"3:	b	2b					\n"
 		"	 li	%[ticket], 0				\n"
@@ -382,7 +382,7 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 		"	.set	reorder					\n"
 		__WEAK_LLSC_MB
 		"	li	%2, 1					\n"
-		"2:							\n"
+		"2:	.insn						\n"
 		: "=" GCC_OFF_SMALL_ASM() (rw->lock), "=&r" (tmp), "=&r" (ret)
 		: GCC_OFF_SMALL_ASM() (rw->lock)
 		: "memory");
@@ -422,7 +422,7 @@ static inline int arch_write_trylock(arch_rwlock_t *rw)
 			"	lui	%1, 0x8000			\n"
 			"	sc	%1, %0				\n"
 			"	li	%2, 1				\n"
-			"2:						\n"
+			"2:	.insn					\n"
 			: "=" GCC_OFF_SMALL_ASM() (rw->lock), "=&r" (tmp),
 			  "=&r" (ret)
 			: GCC_OFF_SMALL_ASM() (rw->lock)

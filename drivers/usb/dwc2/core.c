@@ -104,7 +104,7 @@ static int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
 	gr = &hsotg->gr_backup;
 	if (!gr->valid) {
 		dev_err(hsotg->dev, "%s: no global registers to restore\n",
-				__func__);
+			__func__);
 		return -EINVAL;
 	}
 	gr->valid = false;
@@ -155,21 +155,21 @@ int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore)
 		ret = dwc2_restore_global_registers(hsotg);
 		if (ret) {
 			dev_err(hsotg->dev, "%s: failed to restore registers\n",
-					__func__);
+				__func__);
 			return ret;
 		}
 		if (dwc2_is_host_mode(hsotg)) {
 			ret = dwc2_restore_host_registers(hsotg);
 			if (ret) {
 				dev_err(hsotg->dev, "%s: failed to restore host registers\n",
-						__func__);
+					__func__);
 				return ret;
 			}
 		} else {
 			ret = dwc2_restore_device_registers(hsotg);
 			if (ret) {
 				dev_err(hsotg->dev, "%s: failed to restore device registers\n",
-						__func__);
+					__func__);
 				return ret;
 			}
 		}
@@ -195,7 +195,7 @@ int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg)
 	ret = dwc2_backup_global_registers(hsotg);
 	if (ret) {
 		dev_err(hsotg->dev, "%s: failed to backup global registers\n",
-				__func__);
+			__func__);
 		return ret;
 	}
 
@@ -203,14 +203,14 @@ int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg)
 		ret = dwc2_backup_host_registers(hsotg);
 		if (ret) {
 			dev_err(hsotg->dev, "%s: failed to backup host registers\n",
-					__func__);
+				__func__);
 			return ret;
 		}
 	} else {
 		ret = dwc2_backup_device_registers(hsotg);
 		if (ret) {
 			dev_err(hsotg->dev, "%s: failed to backup device registers\n",
-					__func__);
+				__func__);
 			return ret;
 		}
 	}
@@ -313,7 +313,7 @@ static bool dwc2_iddig_filter_enabled(struct dwc2_hsotg *hsotg)
  * Do core a soft reset of the core.  Be careful with this because it
  * resets all the internal state machines of the core.
  */
-int dwc2_core_reset(struct dwc2_hsotg *hsotg)
+int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
 {
 	u32 greset;
 	int count = 0;
@@ -369,7 +369,7 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 		}
 	} while (!(greset & GRSTCTL_AHBIDLE));
 
-	if (wait_for_host_mode)
+	if (wait_for_host_mode && !skip_wait)
 		dwc2_wait_for_mode(hsotg, true);
 
 	return 0;
@@ -455,7 +455,7 @@ void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg)
 	dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
 
 	if (dwc2_iddig_filter_enabled(hsotg))
-		usleep_range(100000, 110000);
+		msleep(100);
 }
 
 /*
@@ -500,7 +500,7 @@ int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg)
 {
 	int retval;
 
-	retval = dwc2_core_reset(hsotg);
+	retval = dwc2_core_reset(hsotg, false);
 	if (retval)
 		return retval;
 
@@ -541,7 +541,7 @@ void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
 	addr = hsotg->regs + HAINTMSK;
 	dev_dbg(hsotg->dev, "HAINTMSK	 @0x%08lX : 0x%08X\n",
 		(unsigned long)addr, dwc2_readl(addr));
-	if (hsotg->params.dma_desc_enable > 0) {
+	if (hsotg->params.dma_desc_enable) {
 		addr = hsotg->regs + HFLBADDR;
 		dev_dbg(hsotg->dev, "HFLBADDR @0x%08lX : 0x%08X\n",
 			(unsigned long)addr, dwc2_readl(addr));
@@ -571,7 +571,7 @@ void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
 		addr = hsotg->regs + HCDMA(i);
 		dev_dbg(hsotg->dev, "HCDMA	 @0x%08lX : 0x%08X\n",
 			(unsigned long)addr, dwc2_readl(addr));
-		if (hsotg->params.dma_desc_enable > 0) {
+		if (hsotg->params.dma_desc_enable) {
 			addr = hsotg->regs + HCDMAB(i);
 			dev_dbg(hsotg->dev, "HCDMAB	 @0x%08lX : 0x%08X\n",
 				(unsigned long)addr, dwc2_readl(addr));
@@ -751,11 +751,6 @@ bool dwc2_force_mode_if_needed(struct dwc2_hsotg *hsotg, bool host)
 	return dwc2_force_mode(hsotg, host);
 }
 
-u16 dwc2_get_otg_version(struct dwc2_hsotg *hsotg)
-{
-	return hsotg->params.otg_ver == 1 ? 0x0200 : 0x0103;
-}
-
 bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg)
 {
 	if (dwc2_readl(hsotg->regs + GSNPSID) == 0xffffffff)
@@ -793,7 +788,7 @@ void dwc2_disable_global_interrupts(struct dwc2_hsotg *hsotg)
 }
 
 /* Returns the controller's GHWCFG2.OTG_MODE. */
-unsigned dwc2_op_mode(struct dwc2_hsotg *hsotg)
+unsigned int dwc2_op_mode(struct dwc2_hsotg *hsotg)
 {
 	u32 ghwcfg2 = dwc2_readl(hsotg->regs + GHWCFG2);
 
@@ -804,7 +799,7 @@ unsigned dwc2_op_mode(struct dwc2_hsotg *hsotg)
 /* Returns true if the controller is capable of DRD. */
 bool dwc2_hw_is_otg(struct dwc2_hsotg *hsotg)
 {
-	unsigned op_mode = dwc2_op_mode(hsotg);
+	unsigned int op_mode = dwc2_op_mode(hsotg);
 
 	return (op_mode == GHWCFG2_OP_MODE_HNP_SRP_CAPABLE) ||
 		(op_mode == GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE) ||
@@ -814,7 +809,7 @@ bool dwc2_hw_is_otg(struct dwc2_hsotg *hsotg)
 /* Returns true if the controller is host-only. */
 bool dwc2_hw_is_host(struct dwc2_hsotg *hsotg)
 {
-	unsigned op_mode = dwc2_op_mode(hsotg);
+	unsigned int op_mode = dwc2_op_mode(hsotg);
 
 	return (op_mode == GHWCFG2_OP_MODE_SRP_CAPABLE_HOST) ||
 		(op_mode == GHWCFG2_OP_MODE_NO_SRP_CAPABLE_HOST);
@@ -823,7 +818,7 @@ bool dwc2_hw_is_host(struct dwc2_hsotg *hsotg)
 /* Returns true if the controller is device-only. */
 bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg)
 {
-	unsigned op_mode = dwc2_op_mode(hsotg);
+	unsigned int op_mode = dwc2_op_mode(hsotg);
 
 	return (op_mode == GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE) ||
 		(op_mode == GHWCFG2_OP_MODE_NO_SRP_CAPABLE_DEVICE);

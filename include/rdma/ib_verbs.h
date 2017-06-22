@@ -60,6 +60,7 @@
 #include <linux/atomic.h>
 #include <linux/mmu_notifier.h>
 #include <linux/uaccess.h>
+#include <linux/cgroup_rdma.h>
 
 extern struct workqueue_struct *ib_wq;
 extern struct workqueue_struct *ib_comp_wq;
@@ -207,6 +208,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_MEM_WINDOW_TYPE_2A		= (1 << 23),
 	IB_DEVICE_MEM_WINDOW_TYPE_2B		= (1 << 24),
 	IB_DEVICE_RC_IP_CSUM			= (1 << 25),
+	/* Deprecated. Please use IB_RAW_PACKET_CAP_IP_CSUM. */
 	IB_DEVICE_RAW_IP_CSUM			= (1 << 26),
 	/*
 	 * Devices should set IB_DEVICE_CROSS_CHANNEL if they
@@ -220,6 +222,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_ON_DEMAND_PAGING		= (1ULL << 31),
 	IB_DEVICE_SG_GAPS_REG			= (1ULL << 32),
 	IB_DEVICE_VIRTUAL_FUNCTION		= (1ULL << 33),
+	/* Deprecated. Please use IB_RAW_PACKET_CAP_SCATTER_FCS. */
 	IB_DEVICE_RAW_SCATTER_FCS		= (1ULL << 34),
 };
 
@@ -241,7 +244,8 @@ enum ib_atomic_cap {
 };
 
 enum ib_odp_general_cap_bits {
-	IB_ODP_SUPPORT = 1 << 0,
+	IB_ODP_SUPPORT		= 1 << 0,
+	IB_ODP_SUPPORT_IMPLICIT = 1 << 1,
 };
 
 enum ib_odp_transport_cap_bits {
@@ -330,6 +334,7 @@ struct ib_device_attr {
 	uint64_t		hca_core_clock; /* in KHZ */
 	struct ib_rss_caps	rss_caps;
 	u32			max_wq_type_rq;
+	u32			raw_packet_caps; /* Use ib_raw_packet_caps enum */
 };
 
 enum ib_mtu {
@@ -499,6 +504,8 @@ static inline struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
 #define RDMA_CORE_CAP_PROT_ROCE         0x00200000
 #define RDMA_CORE_CAP_PROT_IWARP        0x00400000
 #define RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP 0x00800000
+#define RDMA_CORE_CAP_PROT_RAW_PACKET   0x01000000
+#define RDMA_CORE_CAP_PROT_USNIC        0x02000000
 
 #define RDMA_CORE_PORT_IBA_IB          (RDMA_CORE_CAP_PROT_IB  \
 					| RDMA_CORE_CAP_IB_MAD \
@@ -521,6 +528,10 @@ static inline struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
 					| RDMA_CORE_CAP_IW_CM)
 #define RDMA_CORE_PORT_INTEL_OPA       (RDMA_CORE_PORT_IBA_IB  \
 					| RDMA_CORE_CAP_OPA_MAD)
+
+#define RDMA_CORE_PORT_RAW_PACKET	(RDMA_CORE_CAP_PROT_RAW_PACKET)
+
+#define RDMA_CORE_PORT_USNIC		(RDMA_CORE_CAP_PROT_USNIC)
 
 struct ib_port_attr {
 	u64			subnet_prefix;
@@ -1019,6 +1030,7 @@ enum ib_qp_create_flags {
 	IB_QP_CREATE_SIGNATURE_EN		= 1 << 6,
 	IB_QP_CREATE_USE_GFP_NOIO		= 1 << 7,
 	IB_QP_CREATE_SCATTER_FCS		= 1 << 8,
+	IB_QP_CREATE_CVLAN_STRIPPING		= 1 << 9,
 	/* reserve bits 26-31 for low level drivers' internal use */
 	IB_QP_CREATE_RESERVED_START		= 1 << 26,
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,
@@ -1345,6 +1357,12 @@ struct ib_fmr_attr {
 
 struct ib_umem;
 
+struct ib_rdmacg_object {
+#ifdef CONFIG_CGROUP_RDMA
+	struct rdma_cgroup	*cg;		/* owner rdma cgroup */
+#endif
+};
+
 struct ib_ucontext {
 	struct ib_device       *device;
 	struct list_head	pd_list;
@@ -1377,6 +1395,8 @@ struct ib_ucontext {
 	struct list_head	no_private_counters;
 	int                     odp_mrs_count;
 #endif
+
+	struct ib_rdmacg_object	cg_obj;
 };
 
 struct ib_uobject {
@@ -1384,6 +1404,7 @@ struct ib_uobject {
 	struct ib_ucontext     *context;	/* associated user context */
 	void		       *object;		/* containing object */
 	struct list_head	list;		/* link to context's list */
+	struct ib_rdmacg_object	cg_obj;		/* rdmacg object */
 	int			id;		/* index into kernel idr */
 	struct kref		ref;
 	struct rw_semaphore	mutex;		/* protects .live */
@@ -1470,6 +1491,18 @@ struct ib_srq {
 	} ext;
 };
 
+enum ib_raw_packet_caps {
+	/* Strip cvlan from incoming packet and report it in the matching work
+	 * completion is supported.
+	 */
+	IB_RAW_PACKET_CAP_CVLAN_STRIPPING	= (1 << 0),
+	/* Scatter FCS field of an incoming packet to host memory is supported.
+	 */
+	IB_RAW_PACKET_CAP_SCATTER_FCS		= (1 << 1),
+	/* Checksum offloads are supported (for both send and receive). */
+	IB_RAW_PACKET_CAP_IP_CSUM		= (1 << 2),
+};
+
 enum ib_wq_type {
 	IB_WQT_RQ
 };
@@ -1493,6 +1526,11 @@ struct ib_wq {
 	atomic_t		usecnt;
 };
 
+enum ib_wq_flags {
+	IB_WQ_FLAGS_CVLAN_STRIPPING	= 1 << 0,
+	IB_WQ_FLAGS_SCATTER_FCS		= 1 << 1,
+};
+
 struct ib_wq_init_attr {
 	void		       *wq_context;
 	enum ib_wq_type	wq_type;
@@ -1500,16 +1538,20 @@ struct ib_wq_init_attr {
 	u32		max_sge;
 	struct	ib_cq	       *cq;
 	void		    (*event_handler)(struct ib_event *, void *);
+	u32		create_flags; /* Use enum ib_wq_flags */
 };
 
 enum ib_wq_attr_mask {
-	IB_WQ_STATE	= 1 << 0,
-	IB_WQ_CUR_STATE	= 1 << 1,
+	IB_WQ_STATE		= 1 << 0,
+	IB_WQ_CUR_STATE		= 1 << 1,
+	IB_WQ_FLAGS		= 1 << 2,
 };
 
 struct ib_wq_attr {
 	enum	ib_wq_state	wq_state;
 	enum	ib_wq_state	curr_wq_state;
+	u32			flags; /* Use enum ib_wq_flags */
+	u32			flags_mask; /* Use enum ib_wq_flags */
 };
 
 struct ib_rwq_ind_table {
@@ -1618,6 +1660,8 @@ enum ib_flow_spec_type {
 	IB_FLOW_SPEC_UDP		= 0x41,
 	IB_FLOW_SPEC_VXLAN_TUNNEL	= 0x50,
 	IB_FLOW_SPEC_INNER		= 0x100,
+	/* Actions */
+	IB_FLOW_SPEC_ACTION_TAG         = 0x1000,
 };
 #define IB_FLOW_SPEC_LAYER_MASK	0xF0
 #define IB_FLOW_SPEC_SUPPORT_LAYERS 8
@@ -1740,6 +1784,12 @@ struct ib_flow_spec_tunnel {
 	struct ib_flow_tunnel_filter  mask;
 };
 
+struct ib_flow_spec_action_tag {
+	enum ib_flow_spec_type	      type;
+	u16			      size;
+	u32                           tag_id;
+};
+
 union ib_flow_spec {
 	struct {
 		u32			type;
@@ -1751,6 +1801,7 @@ union ib_flow_spec {
 	struct ib_flow_spec_tcp_udp	tcp_udp;
 	struct ib_flow_spec_ipv6        ipv6;
 	struct ib_flow_spec_tunnel      tunnel;
+	struct ib_flow_spec_action_tag  flow_tag;
 };
 
 struct ib_flow_attr {
@@ -1789,59 +1840,17 @@ enum ib_mad_result {
 
 #define IB_DEVICE_NAME_MAX 64
 
+struct ib_port_cache {
+	struct ib_pkey_cache  *pkey;
+	struct ib_gid_table   *gid;
+	u8                     lmc;
+	enum ib_port_state     port_state;
+};
+
 struct ib_cache {
 	rwlock_t                lock;
 	struct ib_event_handler event_handler;
-	struct ib_pkey_cache  **pkey_cache;
-	struct ib_gid_table   **gid_cache;
-	u8                     *lmc_cache;
-};
-
-struct ib_dma_mapping_ops {
-	int		(*mapping_error)(struct ib_device *dev,
-					 u64 dma_addr);
-	u64		(*map_single)(struct ib_device *dev,
-				      void *ptr, size_t size,
-				      enum dma_data_direction direction);
-	void		(*unmap_single)(struct ib_device *dev,
-					u64 addr, size_t size,
-					enum dma_data_direction direction);
-	u64		(*map_page)(struct ib_device *dev,
-				    struct page *page, unsigned long offset,
-				    size_t size,
-				    enum dma_data_direction direction);
-	void		(*unmap_page)(struct ib_device *dev,
-				      u64 addr, size_t size,
-				      enum dma_data_direction direction);
-	int		(*map_sg)(struct ib_device *dev,
-				  struct scatterlist *sg, int nents,
-				  enum dma_data_direction direction);
-	void		(*unmap_sg)(struct ib_device *dev,
-				    struct scatterlist *sg, int nents,
-				    enum dma_data_direction direction);
-	int		(*map_sg_attrs)(struct ib_device *dev,
-					struct scatterlist *sg, int nents,
-					enum dma_data_direction direction,
-					unsigned long attrs);
-	void		(*unmap_sg_attrs)(struct ib_device *dev,
-					  struct scatterlist *sg, int nents,
-					  enum dma_data_direction direction,
-					  unsigned long attrs);
-	void		(*sync_single_for_cpu)(struct ib_device *dev,
-					       u64 dma_handle,
-					       size_t size,
-					       enum dma_data_direction dir);
-	void		(*sync_single_for_device)(struct ib_device *dev,
-						  u64 dma_handle,
-						  size_t size,
-						  enum dma_data_direction dir);
-	void		*(*alloc_coherent)(struct ib_device *dev,
-					   size_t size,
-					   u64 *dma_handle,
-					   gfp_t flag);
-	void		(*free_coherent)(struct ib_device *dev,
-					 size_t size, void *cpu_addr,
-					 u64 dma_handle);
+	struct ib_port_cache   *ports;
 };
 
 struct iw_cm_verbs;
@@ -1854,6 +1863,7 @@ struct ib_port_immutable {
 };
 
 struct ib_device {
+	/* Do not access @dma_device directly from ULP nor from HW drivers. */
 	struct device                *dma_device;
 
 	char                          name[IB_DEVICE_NAME_MAX];
@@ -2105,7 +2115,6 @@ struct ib_device {
 							   struct ib_rwq_ind_table_init_attr *init_attr,
 							   struct ib_udata *udata);
 	int                        (*destroy_rwq_ind_table)(struct ib_rwq_ind_table *wq_ind_table);
-	struct ib_dma_mapping_ops   *dma_ops;
 
 	struct module               *owner;
 	struct device                dev;
@@ -2131,6 +2140,10 @@ struct ib_device {
 	struct ib_device_attr        attrs;
 	struct attribute_group	     *hw_stats_ag;
 	struct rdma_hw_stats         *hw_stats;
+
+#ifdef CONFIG_CGROUP_RDMA
+	struct rdmacg_device         cg_device;
+#endif
 
 	/**
 	 * The following mandatory functions are used only at device
@@ -2289,6 +2302,13 @@ static inline u8 rdma_end_port(const struct ib_device *device)
 	return rdma_cap_ib_switch(device) ? 0 : device->phys_port_cnt;
 }
 
+static inline int rdma_is_port_valid(const struct ib_device *device,
+				     unsigned int port)
+{
+	return (port >= rdma_start_port(device) &&
+		port <= rdma_end_port(device));
+}
+
 static inline bool rdma_protocol_ib(const struct ib_device *device, u8 port_num)
 {
 	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IB;
@@ -2319,6 +2339,16 @@ static inline bool rdma_ib_or_roce(const struct ib_device *device, u8 port_num)
 {
 	return rdma_protocol_ib(device, port_num) ||
 		rdma_protocol_roce(device, port_num);
+}
+
+static inline bool rdma_protocol_raw_packet(const struct ib_device *device, u8 port_num)
+{
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_RAW_PACKET;
+}
+
+static inline bool rdma_protocol_usnic(const struct ib_device *device, u8 port_num)
+{
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_USNIC;
 }
 
 /**
@@ -2980,8 +3010,6 @@ static inline int ib_req_ncomp_notif(struct ib_cq *cq, int wc_cnt)
  */
 static inline int ib_dma_mapping_error(struct ib_device *dev, u64 dma_addr)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->mapping_error(dev, dma_addr);
 	return dma_mapping_error(dev->dma_device, dma_addr);
 }
 
@@ -2996,8 +3024,6 @@ static inline u64 ib_dma_map_single(struct ib_device *dev,
 				    void *cpu_addr, size_t size,
 				    enum dma_data_direction direction)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->map_single(dev, cpu_addr, size, direction);
 	return dma_map_single(dev->dma_device, cpu_addr, size, direction);
 }
 
@@ -3012,28 +3038,7 @@ static inline void ib_dma_unmap_single(struct ib_device *dev,
 				       u64 addr, size_t size,
 				       enum dma_data_direction direction)
 {
-	if (dev->dma_ops)
-		dev->dma_ops->unmap_single(dev, addr, size, direction);
-	else
-		dma_unmap_single(dev->dma_device, addr, size, direction);
-}
-
-static inline u64 ib_dma_map_single_attrs(struct ib_device *dev,
-					  void *cpu_addr, size_t size,
-					  enum dma_data_direction direction,
-					  unsigned long dma_attrs)
-{
-	return dma_map_single_attrs(dev->dma_device, cpu_addr, size,
-				    direction, dma_attrs);
-}
-
-static inline void ib_dma_unmap_single_attrs(struct ib_device *dev,
-					     u64 addr, size_t size,
-					     enum dma_data_direction direction,
-					     unsigned long dma_attrs)
-{
-	return dma_unmap_single_attrs(dev->dma_device, addr, size,
-				      direction, dma_attrs);
+	dma_unmap_single(dev->dma_device, addr, size, direction);
 }
 
 /**
@@ -3050,8 +3055,6 @@ static inline u64 ib_dma_map_page(struct ib_device *dev,
 				  size_t size,
 					 enum dma_data_direction direction)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->map_page(dev, page, offset, size, direction);
 	return dma_map_page(dev->dma_device, page, offset, size, direction);
 }
 
@@ -3066,10 +3069,7 @@ static inline void ib_dma_unmap_page(struct ib_device *dev,
 				     u64 addr, size_t size,
 				     enum dma_data_direction direction)
 {
-	if (dev->dma_ops)
-		dev->dma_ops->unmap_page(dev, addr, size, direction);
-	else
-		dma_unmap_page(dev->dma_device, addr, size, direction);
+	dma_unmap_page(dev->dma_device, addr, size, direction);
 }
 
 /**
@@ -3083,8 +3083,6 @@ static inline int ib_dma_map_sg(struct ib_device *dev,
 				struct scatterlist *sg, int nents,
 				enum dma_data_direction direction)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->map_sg(dev, sg, nents, direction);
 	return dma_map_sg(dev->dma_device, sg, nents, direction);
 }
 
@@ -3099,10 +3097,7 @@ static inline void ib_dma_unmap_sg(struct ib_device *dev,
 				   struct scatterlist *sg, int nents,
 				   enum dma_data_direction direction)
 {
-	if (dev->dma_ops)
-		dev->dma_ops->unmap_sg(dev, sg, nents, direction);
-	else
-		dma_unmap_sg(dev->dma_device, sg, nents, direction);
+	dma_unmap_sg(dev->dma_device, sg, nents, direction);
 }
 
 static inline int ib_dma_map_sg_attrs(struct ib_device *dev,
@@ -3110,12 +3105,8 @@ static inline int ib_dma_map_sg_attrs(struct ib_device *dev,
 				      enum dma_data_direction direction,
 				      unsigned long dma_attrs)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->map_sg_attrs(dev, sg, nents, direction,
-						  dma_attrs);
-	else
-		return dma_map_sg_attrs(dev->dma_device, sg, nents, direction,
-					dma_attrs);
+	return dma_map_sg_attrs(dev->dma_device, sg, nents, direction,
+				dma_attrs);
 }
 
 static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
@@ -3123,12 +3114,7 @@ static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
 					 enum dma_data_direction direction,
 					 unsigned long dma_attrs)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->unmap_sg_attrs(dev, sg, nents, direction,
-						  dma_attrs);
-	else
-		dma_unmap_sg_attrs(dev->dma_device, sg, nents, direction,
-				   dma_attrs);
+	dma_unmap_sg_attrs(dev->dma_device, sg, nents, direction, dma_attrs);
 }
 /**
  * ib_sg_dma_address - Return the DMA address from a scatter/gather entry
@@ -3170,10 +3156,7 @@ static inline void ib_dma_sync_single_for_cpu(struct ib_device *dev,
 					      size_t size,
 					      enum dma_data_direction dir)
 {
-	if (dev->dma_ops)
-		dev->dma_ops->sync_single_for_cpu(dev, addr, size, dir);
-	else
-		dma_sync_single_for_cpu(dev->dma_device, addr, size, dir);
+	dma_sync_single_for_cpu(dev->dma_device, addr, size, dir);
 }
 
 /**
@@ -3188,10 +3171,7 @@ static inline void ib_dma_sync_single_for_device(struct ib_device *dev,
 						 size_t size,
 						 enum dma_data_direction dir)
 {
-	if (dev->dma_ops)
-		dev->dma_ops->sync_single_for_device(dev, addr, size, dir);
-	else
-		dma_sync_single_for_device(dev->dma_device, addr, size, dir);
+	dma_sync_single_for_device(dev->dma_device, addr, size, dir);
 }
 
 /**
@@ -3203,19 +3183,10 @@ static inline void ib_dma_sync_single_for_device(struct ib_device *dev,
  */
 static inline void *ib_dma_alloc_coherent(struct ib_device *dev,
 					   size_t size,
-					   u64 *dma_handle,
+					   dma_addr_t *dma_handle,
 					   gfp_t flag)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->alloc_coherent(dev, size, dma_handle, flag);
-	else {
-		dma_addr_t handle;
-		void *ret;
-
-		ret = dma_alloc_coherent(dev->dma_device, size, &handle, flag);
-		*dma_handle = handle;
-		return ret;
-	}
+	return dma_alloc_coherent(dev->dma_device, size, dma_handle, flag);
 }
 
 /**
@@ -3227,12 +3198,9 @@ static inline void *ib_dma_alloc_coherent(struct ib_device *dev,
  */
 static inline void ib_dma_free_coherent(struct ib_device *dev,
 					size_t size, void *cpu_addr,
-					u64 dma_handle)
+					dma_addr_t dma_handle)
 {
-	if (dev->dma_ops)
-		dev->dma_ops->free_coherent(dev, size, cpu_addr, dma_handle);
-	else
-		dma_free_coherent(dev->dma_device, size, cpu_addr, dma_handle);
+	dma_free_coherent(dev->dma_device, size, cpu_addr, dma_handle);
 }
 
 /**

@@ -29,10 +29,6 @@
 /* The Send and Receive Buffers of the IO Queue may both be full */
 
 #define IOS_ERROR_THRESHOLD	1000
-/* MAX_BUF = 6 lines x 10 MAXVHBA x 80 characters
- *         = 4800 bytes ~ 2^13 = 8192 bytes
- */
-#define MAX_BUF			8192
 #define MAX_PENDING_REQUESTS	(MIN_NUMSIGNALS * 2)
 #define VISORHBA_ERROR_COUNT	30
 

@@ -173,6 +173,7 @@ void __rxrpc_disconnect_call(struct rxrpc_connection *conn,
 		/* Save the result of the call so that we can repeat it if necessary
 		 * through the channel, whilst disposing of the actual call record.
 		 */
+		trace_rxrpc_disconnect_call(call);
 		chan->last_service_id = call->service_id;
 		if (call->abort_code) {
 			chan->last_abort = call->abort_code;

@@ -38,7 +38,7 @@ int hammer_device(const char *device_name, unsigned int *lines, int nlines,
 	memset(&data.values, 0, sizeof(data.values));
 	ret = gpiotools_request_linehandle(device_name, lines, nlines,
 					   GPIOHANDLE_REQUEST_OUTPUT, &data,
-					   "gpio-hammler");
+					   "gpio-hammer");
 	if (ret < 0)
 		goto exit_error;
 	else

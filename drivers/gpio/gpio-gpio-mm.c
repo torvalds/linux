@@ -192,6 +192,56 @@ static void gpiomm_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	spin_unlock_irqrestore(&gpiommgpio->lock, flags);
 }
 
+static void gpiomm_gpio_set_multiple(struct gpio_chip *chip,
+	unsigned long *mask, unsigned long *bits)
+{
+	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
+	unsigned int i;
+	const unsigned int gpio_reg_size = 8;
+	unsigned int port;
+	unsigned int out_port;
+	unsigned int bitmask;
+	unsigned long flags;
+
+	/* set bits are evaluated a gpio register size at a time */
+	for (i = 0; i < chip->ngpio; i += gpio_reg_size) {
+		/* no more set bits in this mask word; skip to the next word */
+		if (!mask[BIT_WORD(i)]) {
+			i = (BIT_WORD(i) + 1) * BITS_PER_LONG - gpio_reg_size;
+			continue;
+		}
+
+		port = i / gpio_reg_size;
+		out_port = (port > 2) ? port + 1 : port;
+		bitmask = mask[BIT_WORD(i)] & bits[BIT_WORD(i)];
+
+		spin_lock_irqsave(&gpiommgpio->lock, flags);
+
+		/* update output state data and set device gpio register */
+		gpiommgpio->out_state[port] &= ~mask[BIT_WORD(i)];
+		gpiommgpio->out_state[port] |= bitmask;
+		outb(gpiommgpio->out_state[port], gpiommgpio->base + out_port);
+
+		spin_unlock_irqrestore(&gpiommgpio->lock, flags);
+
+		/* prepare for next gpio register set */
+		mask[BIT_WORD(i)] >>= gpio_reg_size;
+		bits[BIT_WORD(i)] >>= gpio_reg_size;
+	}
+}
+
+#define GPIOMM_NGPIO 48
+static const char *gpiomm_names[GPIOMM_NGPIO] = {
+	"Port 1A0", "Port 1A1", "Port 1A2", "Port 1A3", "Port 1A4", "Port 1A5",
+	"Port 1A6", "Port 1A7", "Port 1B0", "Port 1B1", "Port 1B2", "Port 1B3",
+	"Port 1B4", "Port 1B5", "Port 1B6", "Port 1B7", "Port 1C0", "Port 1C1",
+	"Port 1C2", "Port 1C3", "Port 1C4", "Port 1C5", "Port 1C6", "Port 1C7",
+	"Port 2A0", "Port 2A1", "Port 2A2", "Port 2A3", "Port 2A4", "Port 2A5",
+	"Port 2A6", "Port 2A7", "Port 2B0", "Port 2B1", "Port 2B2", "Port 2B3",
+	"Port 2B4", "Port 2B5", "Port 2B6", "Port 2B7", "Port 2C0", "Port 2C1",
+	"Port 2C2", "Port 2C3", "Port 2C4", "Port 2C5", "Port 2C6", "Port 2C7",
+};
+
 static int gpiomm_probe(struct device *dev, unsigned int id)
 {
 	struct gpiomm_gpio *gpiommgpio;
@@ -212,19 +262,19 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 	gpiommgpio->chip.parent = dev;
 	gpiommgpio->chip.owner = THIS_MODULE;
 	gpiommgpio->chip.base = -1;
-	gpiommgpio->chip.ngpio = 48;
+	gpiommgpio->chip.ngpio = GPIOMM_NGPIO;
+	gpiommgpio->chip.names = gpiomm_names;
 	gpiommgpio->chip.get_direction = gpiomm_gpio_get_direction;
 	gpiommgpio->chip.direction_input = gpiomm_gpio_direction_input;
 	gpiommgpio->chip.direction_output = gpiomm_gpio_direction_output;
 	gpiommgpio->chip.get = gpiomm_gpio_get;
 	gpiommgpio->chip.set = gpiomm_gpio_set;
+	gpiommgpio->chip.set_multiple = gpiomm_gpio_set_multiple;
 	gpiommgpio->base = base[id];
 
 	spin_lock_init(&gpiommgpio->lock);
 
-	dev_set_drvdata(dev, gpiommgpio);
-
-	err = gpiochip_add_data(&gpiommgpio->chip, gpiommgpio);
+	err = devm_gpiochip_add_data(dev, &gpiommgpio->chip, gpiommgpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		return err;
@@ -243,21 +293,11 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 	return 0;
 }
 
-static int gpiomm_remove(struct device *dev, unsigned int id)
-{
-	struct gpiomm_gpio *const gpiommgpio = dev_get_drvdata(dev);
-
-	gpiochip_remove(&gpiommgpio->chip);
-
-	return 0;
-}
-
 static struct isa_driver gpiomm_driver = {
 	.probe = gpiomm_probe,
 	.driver = {
 		.name = "gpio-mm"
 	},
-	.remove = gpiomm_remove
 };
 
 module_isa_driver(gpiomm_driver, num_gpiomm);

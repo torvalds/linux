@@ -16,6 +16,7 @@
 
 #include <linux/fs.h>
 #include <linux/sound.h>
+#include <linux/sched/signal.h>
 
 #include "os.h"
 #include "soundvers.h"

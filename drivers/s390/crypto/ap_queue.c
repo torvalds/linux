@@ -459,9 +459,9 @@ EXPORT_SYMBOL(ap_queue_resume);
 /*
  * AP queue related attributes.
  */
-static ssize_t ap_request_count_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+static ssize_t ap_req_count_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	unsigned int req_cnt;
@@ -472,7 +472,20 @@ static ssize_t ap_request_count_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", req_cnt);
 }
 
-static DEVICE_ATTR(request_count, 0444, ap_request_count_show, NULL);
+static ssize_t ap_req_count_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+
+	spin_lock_bh(&aq->lock);
+	aq->total_request_count = 0;
+	spin_unlock_bh(&aq->lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(request_count, 0644, ap_req_count_show, ap_req_count_store);
 
 static ssize_t ap_requestq_count_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
@@ -564,7 +577,7 @@ static const struct attribute_group *ap_queue_dev_attr_groups[] = {
 	NULL
 };
 
-struct device_type ap_queue_type = {
+static struct device_type ap_queue_type = {
 	.name = "ap_queue",
 	.groups = ap_queue_dev_attr_groups,
 };

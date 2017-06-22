@@ -78,10 +78,8 @@ static void ifb_ri_tasklet(unsigned long _txp)
 	}
 
 	while ((skb = __skb_dequeue(&txp->tq)) != NULL) {
-		u32 from = G_TC_FROM(skb->tc_verd);
-
-		skb->tc_verd = 0;
-		skb->tc_verd = SET_TC_NCLS(skb->tc_verd);
+		skb->tc_redirected = 0;
+		skb->tc_skip_classify = 1;
 
 		u64_stats_update_begin(&txp->tsync);
 		txp->tx_packets++;
@@ -101,13 +99,12 @@ static void ifb_ri_tasklet(unsigned long _txp)
 		rcu_read_unlock();
 		skb->skb_iif = txp->dev->ifindex;
 
-		if (from & AT_EGRESS) {
+		if (!skb->tc_from_ingress) {
 			dev_queue_xmit(skb);
-		} else if (from & AT_INGRESS) {
+		} else {
 			skb_pull(skb, skb->mac_len);
 			netif_receive_skb(skb);
-		} else
-			BUG();
+		}
 	}
 
 	if (__netif_tx_trylock(txq)) {
@@ -129,8 +126,8 @@ resched:
 
 }
 
-static struct rtnl_link_stats64 *ifb_stats64(struct net_device *dev,
-					     struct rtnl_link_stats64 *stats)
+static void ifb_stats64(struct net_device *dev,
+			struct rtnl_link_stats64 *stats)
 {
 	struct ifb_dev_private *dp = netdev_priv(dev);
 	struct ifb_q_private *txp = dp->tx_private;
@@ -157,8 +154,6 @@ static struct rtnl_link_stats64 *ifb_stats64(struct net_device *dev,
 	}
 	stats->rx_dropped = dev->stats.rx_dropped;
 	stats->tx_dropped = dev->stats.tx_dropped;
-
-	return stats;
 }
 
 static int ifb_dev_init(struct net_device *dev)
@@ -241,7 +236,6 @@ static void ifb_setup(struct net_device *dev)
 static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ifb_dev_private *dp = netdev_priv(dev);
-	u32 from = G_TC_FROM(skb->tc_verd);
 	struct ifb_q_private *txp = dp->tx_private + skb_get_queue_mapping(skb);
 
 	u64_stats_update_begin(&txp->rsync);
@@ -249,7 +243,7 @@ static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 	txp->rx_bytes += skb->len;
 	u64_stats_update_end(&txp->rsync);
 
-	if (!(from & (AT_INGRESS|AT_EGRESS)) || !skb->skb_iif) {
+	if (!skb->tc_redirected || !skb->skb_iif) {
 		dev_kfree_skb(skb);
 		dev->stats.rx_dropped++;
 		return NETDEV_TX_OK;

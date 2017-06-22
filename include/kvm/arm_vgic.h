@@ -71,6 +71,8 @@ struct vgic_global {
 
 	/* GIC system register CPU interface */
 	struct static_key_false gicv3_cpuif;
+
+	u32			ich_vtr_el2;
 };
 
 extern struct vgic_global kvm_vgic_global_state;
@@ -101,9 +103,10 @@ struct vgic_irq {
 					 */
 
 	u32 intid;			/* Guest visible INTID */
-	bool pending;
 	bool line_level;		/* Level only */
-	bool soft_pending;		/* Level only */
+	bool pending_latch;		/* The pending latch state used to calculate
+					 * the pending state for both level
+					 * and edge triggered IRQs. */
 	bool active;			/* not used for LPIs */
 	bool enabled;
 	bool hw;			/* Tied to HW IRQ */
@@ -165,6 +168,8 @@ struct vgic_its {
 	struct list_head	collection_list;
 };
 
+struct vgic_state_iter;
+
 struct vgic_dist {
 	bool			in_kernel;
 	bool			ready;
@@ -212,6 +217,9 @@ struct vgic_dist {
 	spinlock_t		lpi_list_lock;
 	struct list_head	lpi_list_head;
 	int			lpi_list_count;
+
+	/* used by vgic-debug */
+	struct vgic_state_iter *iter;
 };
 
 struct vgic_v2_cpu_if {
@@ -269,6 +277,12 @@ struct vgic_cpu {
 	u64 pendbaser;
 
 	bool lpis_enabled;
+
+	/* Cache guest priority bits */
+	u32 num_pri_bits;
+
+	/* Cache guest interrupt ID bits */
+	u32 num_id_bits;
 };
 
 extern struct static_key_false vgic_v2_cpuif_trap;
@@ -281,6 +295,7 @@ void kvm_vgic_vcpu_early_init(struct kvm_vcpu *vcpu);
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu);
 int kvm_vgic_map_resources(struct kvm *kvm);
 int kvm_vgic_hyp_init(void);
+void kvm_vgic_init_cpu_hardware(void);
 
 int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
 			bool level);

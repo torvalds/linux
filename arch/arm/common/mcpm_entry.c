@@ -144,7 +144,7 @@ extern unsigned long mcpm_entry_vectors[MAX_NR_CLUSTERS][MAX_CPUS_PER_CLUSTER];
 
 void mcpm_set_entry_vector(unsigned cpu, unsigned cluster, void *ptr)
 {
-	unsigned long val = ptr ? virt_to_phys(ptr) : 0;
+	unsigned long val = ptr ? __pa_symbol(ptr) : 0;
 	mcpm_entry_vectors[cluster][cpu] = val;
 	sync_cache_w(&mcpm_entry_vectors[cluster][cpu]);
 }
@@ -299,8 +299,8 @@ void mcpm_cpu_power_down(void)
 	 * the kernel as if the power_up method just had deasserted reset
 	 * on the CPU.
 	 */
-	phys_reset = (phys_reset_t)(unsigned long)virt_to_phys(cpu_reset);
-	phys_reset(virt_to_phys(mcpm_entry_point));
+	phys_reset = (phys_reset_t)(unsigned long)__pa_symbol(cpu_reset);
+	phys_reset(__pa_symbol(mcpm_entry_point));
 
 	/* should never get here */
 	BUG();
@@ -388,8 +388,8 @@ static int __init nocache_trampoline(unsigned long _arg)
 	__mcpm_outbound_leave_critical(cluster, CLUSTER_DOWN);
 	__mcpm_cpu_down(cpu, cluster);
 
-	phys_reset = (phys_reset_t)(unsigned long)virt_to_phys(cpu_reset);
-	phys_reset(virt_to_phys(mcpm_entry_point));
+	phys_reset = (phys_reset_t)(unsigned long)__pa_symbol(cpu_reset);
+	phys_reset(__pa_symbol(mcpm_entry_point));
 	BUG();
 }
 
@@ -449,7 +449,7 @@ int __init mcpm_sync_init(
 	sync_cache_w(&mcpm_sync);
 
 	if (power_up_setup) {
-		mcpm_power_up_setup_phys = virt_to_phys(power_up_setup);
+		mcpm_power_up_setup_phys = __pa_symbol(power_up_setup);
 		sync_cache_w(&mcpm_power_up_setup_phys);
 	}
 

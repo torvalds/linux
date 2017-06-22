@@ -264,10 +264,12 @@ static const struct tpm_class_ops tpm_crb = {
 static int crb_check_resource(struct acpi_resource *ares, void *data)
 {
 	struct resource *io_res = data;
-	struct resource res;
+	struct resource_win win;
+	struct resource *res = &(win.res);
 
-	if (acpi_dev_resource_memory(ares, &res)) {
-		*io_res = res;
+	if (acpi_dev_resource_memory(ares, res) ||
+	    acpi_dev_resource_address_space(ares, &win)) {
+		*io_res = *res;
 		io_res->name = NULL;
 	}
 

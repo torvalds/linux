@@ -201,7 +201,7 @@ static int vxp_load_xilinx_binary(struct vx_core *_chip, const struct firmware *
 	c |= (int)vx_inb(chip, RXM) << 8;
 	c |= vx_inb(chip, RXL);
 
-	snd_printdd(KERN_DEBUG "xilinx: dsp size received 0x%x, orig 0x%Zx\n", c, fw->size);
+	snd_printdd(KERN_DEBUG "xilinx: dsp size received 0x%x, orig 0x%zx\n", c, fw->size);
 
 	vx_outb(chip, ICR, ICR_HF0);
 
@@ -369,12 +369,12 @@ static void vxp_dma_write(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	unsigned short *addr = (unsigned short *)(runtime->dma_area + offset);
 
 	vx_setup_pseudo_dma(chip, 1);
-	if (offset + count > pipe->buffer_bytes) {
+	if (offset + count >= pipe->buffer_bytes) {
 		int length = pipe->buffer_bytes - offset;
 		count -= length;
 		length >>= 1; /* in 16bit words */
 		/* Transfer using pseudo-dma. */
-		while (length-- > 0) {
+		for (; length > 0; length--) {
 			outw(cpu_to_le16(*addr), port);
 			addr++;
 		}
@@ -384,7 +384,7 @@ static void vxp_dma_write(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	pipe->hw_ptr += count;
 	count >>= 1; /* in 16bit words */
 	/* Transfer using pseudo-dma. */
-	while (count-- > 0) {
+	for (; count > 0; count--) {
 		outw(cpu_to_le16(*addr), port);
 		addr++;
 	}
@@ -411,12 +411,12 @@ static void vxp_dma_read(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	if (snd_BUG_ON(count % 2))
 		return;
 	vx_setup_pseudo_dma(chip, 0);
-	if (offset + count > pipe->buffer_bytes) {
+	if (offset + count >= pipe->buffer_bytes) {
 		int length = pipe->buffer_bytes - offset;
 		count -= length;
 		length >>= 1; /* in 16bit words */
 		/* Transfer using pseudo-dma. */
-		while (length-- > 0)
+		for (; length > 0; length--)
 			*addr++ = le16_to_cpu(inw(port));
 		addr = (unsigned short *)runtime->dma_area;
 		pipe->hw_ptr = 0;
@@ -424,7 +424,7 @@ static void vxp_dma_read(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	pipe->hw_ptr += count;
 	count >>= 1; /* in 16bit words */
 	/* Transfer using pseudo-dma. */
-	while (count-- > 1)
+	for (; count > 1; count--)
 		*addr++ = le16_to_cpu(inw(port));
 	/* Disable DMA */
 	pchip->regDIALOG &= ~VXP_DLG_DMAREAD_SEL_MASK;
