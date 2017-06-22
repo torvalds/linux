@@ -124,8 +124,8 @@ Block library API
     http://github.com/open-power/capiflash
 
 
-CXL Flash Driver IOCTLs
-=======================
+CXL Flash Driver LUN IOCTLs
+===========================
 
     Users, such as the block library, that wish to interface with a flash
     device (LUN) via user space access need to use the services provided
@@ -367,3 +367,18 @@ DK_CXLFLASH_MANAGE_LUN
     exclusive user space access (superpipe). In case a LUN is visible
     across multiple ports and adapters, this ioctl is used to uniquely
     identify each LUN by its World Wide Node Name (WWNN).
+
+
+CXL Flash Driver Host IOCTLs
+============================
+
+    Each host adapter instance that is supported by the cxlflash driver
+    has a special character device associated with it to enable a set of
+    host management function. These character devices are hosted in a
+    class dedicated for cxlflash and can be accessed via /dev/cxlflash/*.
+
+    Applications can be written to perform various functions using the
+    host ioctl APIs below.
+
+    The structure definitions for these IOCTLs are available in:
+    uapi/scsi/cxlflash_ioctl.h

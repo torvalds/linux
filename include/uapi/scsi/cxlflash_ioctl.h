@@ -31,7 +31,7 @@ struct dk_cxlflash_hdr {
 };
 
 /*
- * Return flag definitions available to all ioctls
+ * Return flag definitions available to all superpipe ioctls
  *
  * Similar to the input flags, these are grown from the bottom-up with the
  * intention that ioctl-specific return flag definitions would grow from the
@@ -180,6 +180,10 @@ union cxlflash_ioctls {
 #define CXL_MAGIC 0xCA
 #define CXL_IOWR(_n, _s)	_IOWR(CXL_MAGIC, _n, struct _s)
 
+/*
+ * CXL Flash superpipe ioctls start at base of the reserved CXL_MAGIC
+ * region (0x80) and grow upwards.
+ */
 #define DK_CXLFLASH_ATTACH		CXL_IOWR(0x80, dk_cxlflash_attach)
 #define DK_CXLFLASH_USER_DIRECT		CXL_IOWR(0x81, dk_cxlflash_udirect)
 #define DK_CXLFLASH_RELEASE		CXL_IOWR(0x82, dk_cxlflash_release)
@@ -190,5 +194,30 @@ union cxlflash_ioctls {
 #define DK_CXLFLASH_USER_VIRTUAL	CXL_IOWR(0x87, dk_cxlflash_uvirtual)
 #define DK_CXLFLASH_VLUN_RESIZE		CXL_IOWR(0x88, dk_cxlflash_resize)
 #define DK_CXLFLASH_VLUN_CLONE		CXL_IOWR(0x89, dk_cxlflash_clone)
+
+/*
+ * Structure and flag definitions CXL Flash host ioctls
+ */
+
+#define HT_CXLFLASH_VERSION_0  0
+
+struct ht_cxlflash_hdr {
+	__u16 version;                  /* Version data */
+	__u16 subcmd;                   /* Sub-command */
+	__u16 rsvd[2];                  /* Reserved for future use */
+	__u64 flags;                    /* Input flags */
+	__u64 return_flags;             /* Returned flags */
+};
+
+union cxlflash_ht_ioctls {
+};
+
+#define MAX_HT_CXLFLASH_IOCTL_SZ	(sizeof(union cxlflash_ht_ioctls))
+
+/*
+ * CXL Flash host ioctls start at the top of the reserved CXL_MAGIC
+ * region (0xBF) and grow downwards.
+ */
+
 
 #endif /* ifndef _CXLFLASH_IOCTL_H */

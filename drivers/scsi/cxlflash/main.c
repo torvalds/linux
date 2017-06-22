@@ -2693,7 +2693,14 @@ static ssize_t lun_mode_store(struct device *dev,
 static ssize_t ioctl_version_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%u\n", DK_CXLFLASH_VERSION_0);
+	ssize_t bytes = 0;
+
+	bytes = scnprintf(buf, PAGE_SIZE,
+			  "disk: %u\n", DK_CXLFLASH_VERSION_0);
+	bytes += scnprintf(buf + bytes, PAGE_SIZE - bytes,
+			   "host: %u\n", HT_CXLFLASH_VERSION_0);
+
+	return bytes;
 }
 
 /**
@@ -3211,12 +3218,124 @@ static int cxlflash_chr_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+/**
+ * decode_hioctl() - translates encoded host ioctl to easily identifiable string
+ * @cmd:        The host ioctl command to decode.
+ *
+ * Return: A string identifying the decoded host ioctl.
+ */
+static char *decode_hioctl(int cmd)
+{
+	switch (cmd) {
+	default:
+		return "UNKNOWN";
+	}
+
+	return "UNKNOWN";
+}
+
+/**
+ * cxlflash_chr_ioctl() - character device IOCTL handler
+ * @file:	File pointer for this device.
+ * @cmd:	IOCTL command.
+ * @arg:	Userspace ioctl data structure.
+ *
+ * A read/write semaphore is used to implement a 'drain' of currently
+ * running ioctls. The read semaphore is taken at the beginning of each
+ * ioctl thread and released upon concluding execution. Additionally the
+ * semaphore should be released and then reacquired in any ioctl execution
+ * path which will wait for an event to occur that is outside the scope of
+ * the ioctl (i.e. an adapter reset). To drain the ioctls currently running,
+ * a thread simply needs to acquire the write semaphore.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static long cxlflash_chr_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg)
+{
+	typedef int (*hioctl) (struct cxlflash_cfg *, void *);
+
+	struct cxlflash_cfg *cfg = file->private_data;
+	struct device *dev = &cfg->dev->dev;
+	char buf[sizeof(union cxlflash_ht_ioctls)];
+	void __user *uarg = (void __user *)arg;
+	struct ht_cxlflash_hdr *hdr;
+	size_t size = 0;
+	bool known_ioctl = false;
+	int idx = 0;
+	int rc = 0;
+	hioctl do_ioctl = NULL;
+
+	static const struct {
+		size_t size;
+		hioctl ioctl;
+	} ioctl_tbl[] = {	/* NOTE: order matters here */
+	};
+
+	/* Hold read semaphore so we can drain if needed */
+	down_read(&cfg->ioctl_rwsem);
+
+	dev_dbg(dev, "%s: cmd=%u idx=%d tbl_size=%lu\n",
+		__func__, cmd, idx, sizeof(ioctl_tbl));
+
+	switch (cmd) {
+	default:
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (unlikely(copy_from_user(&buf, uarg, size))) {
+		dev_err(dev, "%s: copy_from_user() fail "
+			"size=%lu cmd=%d (%s) uarg=%p\n",
+			__func__, size, cmd, decode_hioctl(cmd), uarg);
+		rc = -EFAULT;
+		goto out;
+	}
+
+	hdr = (struct ht_cxlflash_hdr *)&buf;
+	if (hdr->version != HT_CXLFLASH_VERSION_0) {
+		dev_dbg(dev, "%s: Version %u not supported for %s\n",
+			__func__, hdr->version, decode_hioctl(cmd));
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (hdr->rsvd[0] || hdr->rsvd[1] || hdr->return_flags) {
+		dev_dbg(dev, "%s: Reserved/rflags populated\n", __func__);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	rc = do_ioctl(cfg, (void *)&buf);
+	if (likely(!rc))
+		if (unlikely(copy_to_user(uarg, &buf, size))) {
+			dev_err(dev, "%s: copy_to_user() fail "
+				"size=%lu cmd=%d (%s) uarg=%p\n",
+				__func__, size, cmd, decode_hioctl(cmd), uarg);
+			rc = -EFAULT;
+		}
+
+	/* fall through to exit */
+
+out:
+	up_read(&cfg->ioctl_rwsem);
+	if (unlikely(rc && known_ioctl))
+		dev_err(dev, "%s: ioctl %s (%08X) returned rc=%d\n",
+			__func__, decode_hioctl(cmd), cmd, rc);
+	else
+		dev_dbg(dev, "%s: ioctl %s (%08X) returned rc=%d\n",
+			__func__, decode_hioctl(cmd), cmd, rc);
+	return rc;
+}
+
 /*
  * Character device file operations
  */
 static const struct file_operations cxlflash_chr_fops = {
 	.owner          = THIS_MODULE,
 	.open           = cxlflash_chr_open,
+	.unlocked_ioctl	= cxlflash_chr_ioctl,
+	.compat_ioctl	= cxlflash_chr_ioctl,
 };
 
 /**
