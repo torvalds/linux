@@ -137,7 +137,7 @@ static int venus_clks_enable(struct venus_core *core)
 
 	return 0;
 err:
-	while (--i)
+	while (i--)
 		clk_disable_unprepare(core->clks[i]);
 
 	return ret;
