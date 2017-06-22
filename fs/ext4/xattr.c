@@ -2167,7 +2167,8 @@ ext4_xattr_cmp(struct ext4_xattr_header *header1,
 		    entry1->e_value_inum != entry2->e_value_inum ||
 		    memcmp(entry1->e_name, entry2->e_name, entry1->e_name_len))
 			return 1;
-		if (memcmp((char *)header1 + le16_to_cpu(entry1->e_value_offs),
+		if (!entry1->e_value_inum &&
+		    memcmp((char *)header1 + le16_to_cpu(entry1->e_value_offs),
 			   (char *)header2 + le16_to_cpu(entry2->e_value_offs),
 			   le32_to_cpu(entry1->e_value_size)))
 			return 1;
