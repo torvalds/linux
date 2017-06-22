@@ -1471,6 +1471,17 @@ ext4_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 
 	ext4_write_lock_xattr(inode, &no_expand);
 
+	/* Check journal credits under write lock. */
+	if (ext4_handle_valid(handle)) {
+		int credits;
+
+		credits = ext4_xattr_set_credits(inode, value_len);
+		if (!ext4_handle_has_enough_credits(handle, credits)) {
+			error = -ENOSPC;
+			goto cleanup;
+		}
+	}
+
 	error = ext4_reserve_inode_write(handle, inode, &is.iloc);
 	if (error)
 		goto cleanup;
@@ -1568,6 +1579,36 @@ cleanup:
 	return error;
 }
 
+int ext4_xattr_set_credits(struct inode *inode, size_t value_len)
+{
+	struct super_block *sb = inode->i_sb;
+	int credits;
+
+	if (!EXT4_SB(sb)->s_journal)
+		return 0;
+
+	credits = EXT4_DATA_TRANS_BLOCKS(inode->i_sb);
+
+	/*
+	 * In case of inline data, we may push out the data to a block,
+	 * so we need to reserve credits for this eventuality
+	 */
+	if (ext4_has_inline_data(inode))
+		credits += ext4_writepage_trans_blocks(inode) + 1;
+
+	if (ext4_has_feature_ea_inode(sb)) {
+		int nrblocks = (value_len + sb->s_blocksize - 1) >>
+					sb->s_blocksize_bits;
+
+		/* For new inode */
+		credits += EXT4_SINGLEDATA_TRANS_BLOCKS(sb) + 3;
+
+		/* For data blocks of EA inode */
+		credits += ext4_meta_trans_blocks(inode, nrblocks, 0);
+	}
+	return credits;
+}
+
 /*
  * ext4_xattr_set()
  *
@@ -1583,24 +1624,14 @@ ext4_xattr_set(struct inode *inode, int name_index, const char *name,
 	handle_t *handle;
 	struct super_block *sb = inode->i_sb;
 	int error, retries = 0;
-	int credits = ext4_jbd2_credits_xattr(inode);
+	int credits;
 
 	error = dquot_initialize(inode);
 	if (error)
 		return error;
 
-	if (ext4_has_feature_ea_inode(sb)) {
-		int nrblocks = (value_len + sb->s_blocksize - 1) >>
-					sb->s_blocksize_bits;
-
-		/* For new inode */
-		credits += EXT4_SINGLEDATA_TRANS_BLOCKS(sb) + 3;
-
-		/* For data blocks of EA inode */
-		credits += ext4_meta_trans_blocks(inode, nrblocks, 0);
-	}
-
 retry:
+	credits = ext4_xattr_set_credits(inode, value_len);
 	handle = ext4_journal_start(inode, EXT4_HT_XATTR, credits);
 	if (IS_ERR(handle)) {
 		error = PTR_ERR(handle);

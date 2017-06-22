@@ -111,20 +111,6 @@
 #define EXT4_MAXQUOTAS_INIT_BLOCKS(sb) (EXT4_MAXQUOTAS*EXT4_QUOTA_INIT_BLOCKS(sb))
 #define EXT4_MAXQUOTAS_DEL_BLOCKS(sb) (EXT4_MAXQUOTAS*EXT4_QUOTA_DEL_BLOCKS(sb))
 
-static inline int ext4_jbd2_credits_xattr(struct inode *inode)
-{
-	int credits = EXT4_DATA_TRANS_BLOCKS(inode->i_sb);
-
-	/*
-	 * In case of inline data, we may push out the data to a block,
-	 * so we need to reserve credits for this eventuality
-	 */
-	if (ext4_has_inline_data(inode))
-		credits += ext4_writepage_trans_blocks(inode) + 1;
-	return credits;
-}
-
-
 /*
  * Ext4 handle operation types -- for logging purposes
  */

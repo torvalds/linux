@@ -1143,7 +1143,7 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
 							void *fs_data)
 {
 	handle_t *handle = fs_data;
-	int res, res2, retries = 0;
+	int res, res2, credits, retries = 0;
 
 	res = ext4_convert_inline_data(inode);
 	if (res)
@@ -1178,8 +1178,8 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
 	if (res)
 		return res;
 retry:
-	handle = ext4_journal_start(inode, EXT4_HT_MISC,
-			ext4_jbd2_credits_xattr(inode));
+	credits = ext4_xattr_set_credits(inode, len);
+	handle = ext4_journal_start(inode, EXT4_HT_MISC, credits);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
